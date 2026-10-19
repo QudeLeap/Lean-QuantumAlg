@@ -24,6 +24,9 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -33,16 +36,17 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Every actual store predicate commutes with stored-parameter unitary dispatch. -/
-theorem shortDLP_runtimeSelected_filter {shape : CShape} (parameter : CInputRef ctx shape)
+lemma shortDLP_runtimeSelected_filter {shape : CShape} (parameter : CInputRef ctx shape)
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ) (predicate : Store ctx → Prop)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     ExecutionState.filterClassical
-      ((selected m ell width sameWires parameter N generator target).execute Reference state)
+      ((selected m ell width sameWires parameter N generator target).execute
+        environment Reference state)
       (fun entry => predicate entry.1) =
-      (selected m ell width sameWires parameter N generator target).execute Reference
+      (selected m ell width sameWires parameter N generator target).execute environment Reference
         (state.filterClassical (fun entry => predicate entry.1)) :=
-  ZReset.filter_branch (model := model) (ctx := ctx) parameter
+  ZReset.filter_branch (environment := environment) (model := model) (ctx := ctx) parameter
     (fun value => .unitary (operations := BitWord.model) (classicalOracles := .empty)
       (RuntimePlacement.memberProgram m ell width sameWires N
         (generator value) (target value))) predicate
@@ -54,18 +58,20 @@ theorem shortDLP_runtimeSelected_filter {shape : CShape} (parameter : CInputRef 
     Reference state
 
 /-- Each selected store-reference block uses the member read from its actual original store. -/
-theorem shortDLP_runtimeSelected_joint_matrix {shape : CShape} (parameter : CInputRef ctx shape)
+lemma shortDLP_runtimeSelected_joint_matrix {shape : CShape} (parameter : CInputRef ctx shape)
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ) (predicate : Store ctx → Prop)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (ExecutionState.filterClassical
-      ((selected m ell width sameWires parameter N generator target).execute Reference state)
+      ((selected m ell width sameWires parameter N generator target).execute
+        environment Reference state)
       (fun entry => predicate entry.1)).quantumMarginal.matrix =
       ∑ entry : Store ctx × (model.HiddenState × History),
         (DensityOperator.applyUnitary
           (UnitaryOperator.prodTensor
-            (RuntimePlacement.memberProgram m ell width sameWires N
+            ((RuntimePlacement.memberProgram m ell width sameWires N
               (generator (entry.1.read parameter)) (target (entry.1.read parameter))).matrix
+                environment.quantum)
             (1 : UnitaryOperator Reference))
           ((state.filterClassical (fun source => predicate source.1)).block entry)).matrix :=
   (congrArg (fun result : State ctx Reference
@@ -74,7 +80,7 @@ theorem shortDLP_runtimeSelected_joint_matrix {shape : CShape} (parameter : CInp
         result.quantumMarginal.matrix)
     (shortDLP_runtimeSelected_filter m ell width sameWires parameter N generator target
       predicate Reference state)).trans
-    (Circuit.circuit_selectedUnitary_quantumMarginal_matrix
+    (Circuit.circuit_selectedUnitary_quantumMarginal_matrix (environment := environment)
       (operations := BitWord.model) (classicalOracles := .empty) parameter
       (fun value => RuntimePlacement.memberProgram m ell width sameWires N
         (generator value) (target value))

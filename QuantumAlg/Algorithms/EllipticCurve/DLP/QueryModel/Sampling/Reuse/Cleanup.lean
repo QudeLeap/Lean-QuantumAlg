@@ -31,17 +31,23 @@ open Execution
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Every actual full-round record has the same fixed physical zero at its own mass. -/
-public theorem ecdlpReuse_code_block_pure (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_block_pure {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (context I) Reference ((executionModel I).HiddenState × History))
     (record : Store (context I) ×
-      ((executionModel I A).HiddenState × (History × (code I A expansion).Path))) :
+      ((executionModel I).HiddenState × (History × (code (allowAllocation := allowAllocation) I
+          expansion).Path))) :
     (StatePromise.pure (NormalizedVector.ket (R := (context I).register)
       (context I).quantumLayout.zeroLabel)).Holds
-        (((code I A expansion).execute Reference state).block record).marginalLeft :=
-  ExecutionState.block_pureKet_of_localMarginal ((code I A expansion).execute Reference state)
-    (context I).quantumLayout.zeroLabel (ecdlpReuse_code_pure I A expansion state) record
+        (((code (allowAllocation := allowAllocation) I expansion).execute (sourceEnvironment I A)
+          Reference state).block
+            record).marginalLeft :=
+  ExecutionState.block_pureKet_of_localMarginal ((code (allowAllocation := allowAllocation) I
+      expansion).execute (sourceEnvironment I A) Reference state)
+    (context I).quantumLayout.zeroLabel (ecdlpReuse_code_pure (allowAllocation := allowAllocation) I
+        A expansion state) record
 
 end
 

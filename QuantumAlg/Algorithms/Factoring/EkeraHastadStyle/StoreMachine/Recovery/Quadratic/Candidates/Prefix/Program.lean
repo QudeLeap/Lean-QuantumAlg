@@ -24,7 +24,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- The original short logarithm is widened by one bit into its supplied center cell. -/
@@ -61,10 +62,10 @@ def prepareStep (refs : Refs ctx shortWidth) (store : Store ctx) :
   (squared.1, (resized.2, (incremented.2, squared.2)))
 
 /-- The three original preparation writes preserve every history and quantum-reference block. -/
-theorem prepareInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma prepareInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (prepareInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (prepareInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := prepareStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [prepareInto, prepareStep, Circuit.execute_seq,
@@ -83,13 +84,14 @@ def discriminantStep (refs : Refs ctx shortWidth) (store : Store ctx) :
     (prepareStep refs) (NatSub.step refs.subtract) store
 
 /-- Original preparation and natural subtraction compose on their actual intermediate store. -/
-theorem discriminantInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma discriminantInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (discriminantInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (discriminantInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := discriminantStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord (prepareInto refs) (NatSub.into refs.subtract)
+  Circuit.execute_sequenceStoreRecord
+    (environment := environment) (prepareInto refs) (NatSub.into refs.subtract)
     (prepareStep refs) (NatSub.step refs.subtract)
     (prepareInto_execute refs) (NatSub.into_execute refs.subtract) Reference state
 
@@ -103,13 +105,14 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
     (discriminantStep refs) (NatSqrt.step refs.sqrt) store
 
 /-- Actual execution retains the incoming history and all external quantum-reference blocks. -/
-theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord (discriminantInto refs) (NatSqrt.into refs.sqrt)
+  Circuit.execute_sequenceStoreRecord
+    (environment := environment) (discriminantInto refs) (NatSqrt.into refs.sqrt)
     (discriminantStep refs) (NatSqrt.step refs.sqrt)
     (discriminantInto_execute refs) (NatSqrt.into_execute refs.sqrt) Reference state
 

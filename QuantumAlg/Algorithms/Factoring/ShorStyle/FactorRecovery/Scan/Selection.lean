@@ -44,7 +44,7 @@ def firstPresent {width : Nat}
   | .optionNone => later
   | .optionSome value => .optionSome value
 
-private theorem packed_latches {width : Nat}
+private lemma packed_latches {width : Nat}
     (accepted eligible finalAccepted : CShape.Value .bit)
     (selected candidate finalSelected : CShape.Word width)
     (tag : finalAccepted.toBool = (accepted.toBool || eligible.toBool))
@@ -64,7 +64,7 @@ private theorem packed_latches {width : Nat}
               subst finalSelected
               cases accepted <;> cases eligible <;> rfl
 
-private theorem firstPresent_packed {width : Nat} (accepted : CShape.Value .bit)
+private lemma firstPresent_packed {width : Nat} (accepted : CShape.Value .bit)
     (selected : CShape.Word width) (later : CShape.Value (.option (.unsignedWord width))) :
     firstPresent (CShape.packOption (.product accepted selected)) later =
       if accepted.toBool then CShape.packOption (.product accepted selected) else later := by
@@ -72,7 +72,7 @@ private theorem firstPresent_packed {width : Nat} (accepted : CShape.Value .bit)
   | bit value => cases value <;> rfl
 
 /-- Real nominal unpack exposes exactly the candidate that the recovery program stored. -/
-theorem unpack_result (cells : Cells ctx N)
+lemma unpack_result (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (store.applyOp (unpackOp cells result)).read (.storage cells.candidate.toCStorageRef) =
       CShape.unpackOption (store.read (.storage result.toCStorageRef)) :=
@@ -83,7 +83,7 @@ section Selected
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The actual selection step keeps the earlier present result, otherwise its true candidate. -/
-theorem selection_latchValue (cells : Cells ctx N)
+lemma selection_latchValue (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separate : FirstAccepted.Separated (selectorInputs cells) (selectorRefs cells))
     (candidateAccepted : cells.candidate.key ≠ cells.accepted.key)
@@ -141,7 +141,7 @@ theorem selection_latchValue (cells : Cells ctx N)
 end Selected
 
 /-- The actual initial XOR produces the absent latch result for every original store. -/
-theorem clear_latchValue (cells : Cells ctx N) (store : Store ctx) :
+lemma clear_latchValue (cells : Cells ctx N) (store : Store ctx) :
     latchValue cells (store.applyOp (clearAcceptedOp cells)) = .optionNone := by
   have actual : (store.applyOp (clearAcceptedOp cells)).read
       (.storage cells.accepted.toCStorageRef) = .bit false := by
@@ -156,7 +156,7 @@ theorem clear_latchValue (cells : Cells ctx N) (store : Store ctx) :
   rfl
 
 /-- The final real option instruction writes exactly the represented persistent latch value. -/
-theorem pack_result (cells : Cells ctx N)
+lemma pack_result (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (store.applyOp (packOp cells result)).read (.storage result.toCStorageRef) =
       latchValue cells store :=

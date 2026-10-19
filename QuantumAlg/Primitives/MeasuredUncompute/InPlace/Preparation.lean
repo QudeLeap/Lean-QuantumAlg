@@ -34,6 +34,9 @@ namespace QuantumAlg.MeasuredUncompute.InPlacePreparation
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+  {runtimeEnvironment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA
 
 /-- Direct fixed first-word value has zero A and the prescribed three retained tail bits. -/
@@ -52,19 +55,19 @@ def preparation (modulus : Nat) :
     (fixedBit modulus (InputPreparation.auxiliaryPhysicalIndex modulus.size index))
 
 /-- Exact values are attached to the existing auxiliary physical identities. -/
-theorem preparation_bit (modulus : Nat)
+lemma preparation_bit (modulus : Nat)
     (index : Fin (InputPreparation.auxiliaryWidth modulus.size)) :
     finTwoEquiv ((preparation modulus).value index) =
       fixedBit modulus (InputPreparation.auxiliaryPhysicalIndex modulus.size index) :=
   finTwoEquiv.apply_symm_apply _
 
 /-- Every actual A position is prepared as zero, before the separately charged native load. -/
-theorem firstWord_large_bit (modulus : Nat) (index : Fin modulus.size) :
+lemma firstWord_large_bit (modulus : Nat) (index : Fin modulus.size) :
     (firstWord modulus).getMsbD index.val = false :=
   InitialPortProgram.inputFrame_large_bit modulus (0 : Fin (2 ^ modulus.size)) index
 
 /-- Every newly allocated auxiliary coordinate in the actual A region is a prepared zero. -/
-theorem preparation_large_bit (modulus : Nat)
+lemma preparation_large_bit (modulus : Nat)
     (index : Fin (InputPreparation.auxiliaryWidth modulus.size))
     (large : InputPreparation.auxiliaryPhysicalIndex modulus.size index < modulus.size) :
     finTwoEquiv ((preparation modulus).value index) = false := by
@@ -76,7 +79,7 @@ private def frame (modulus : Nat)
   InputPreparedFrame.frameEquiv modulus.size
     (InputAssembly.assembly modulus.size ((preparation modulus).value, old))
 
-private theorem frame_auxiliary (modulus : Nat)
+private lemma frame_auxiliary (modulus : Nat)
     (old : (InputPreparation.before modulus.size).register.Index)
     (bit : EncodedBit (encoding modulus.size))
     (outside : bit.wire.val < InputPreparation.prefixWidth modulus.size ∨
@@ -110,7 +113,7 @@ private theorem frame_auxiliary (modulus : Nat)
   exact actual.trans (congrArg (fixedBit modulus)
     (congrArg (fun wire : Fin (encoding modulus.size).width => wire.val) position))
 
-private theorem frame_input (modulus : Nat)
+private lemma frame_input (modulus : Nat)
     (old : (InputPreparation.before modulus.size).register.Index)
     (bit : EncodedBit (encoding modulus.size)) (index : Fin modulus.size)
     (position : bit.wire = InputAssembly.inputPosition modulus.size index) :
@@ -123,7 +126,7 @@ private theorem frame_input (modulus : Nat)
   rw [InputPreparedFrame.encode_frameEquiv, position]
   exact InputAssembly.basisEquiv_input modulus.size (preparation modulus).value old index
 
-private theorem frame_after_word (modulus : Nat)
+private lemma frame_after_word (modulus : Nat)
     (old : (InputPreparation.before modulus.size).register.Index)
     (bit : EncodedBit (encoding modulus.size)) (afterWord : modulus.size + 3 ≤ bit.wire.val) :
     bit.get (frame modulus old) =
@@ -149,7 +152,7 @@ private theorem frame_after_word (modulus : Nat)
       ((InputPreparedFrame.prepared_get_auxiliary modulus old bit outside).symm.trans original)
 
 /-- The single-input assembly is the complete required A=0 source frame for every input label. -/
-theorem frame_eq_inputFrame (modulus : Nat)
+lemma frame_eq_inputFrame (modulus : Nat)
     (old : (InputPreparation.before modulus.size).register.Index) :
     frame modulus old = InitialPortProgram.inputFrame modulus
       (InputPreparation.inputBasisEquiv modulus.size old) := by
@@ -206,7 +209,7 @@ theorem frame_eq_inputFrame (modulus : Nat)
   · exact frame_after_word modulus old (controlBit modulus.size)
       (by rw [controlBit_wire]; omega)
 
-private theorem single_prepared (modulus : Nat)
+private lemma single_prepared (modulus : Nat)
     (old : (InputPreparation.before modulus.size).register.Index) :
     InputAssembly.basisEquiv modulus.size
         (InputAssembly.assembly modulus.size ((preparation modulus).value, old)) =
@@ -216,7 +219,7 @@ private theorem single_prepared (modulus : Nat)
   exact congrArg (encoding modulus.size).encode (frame_eq_inputFrame modulus old)
 
 /-- The actual two-word basis assembly gives exactly `(inputFrame p x,y)`, for arbitrary x,y. -/
-theorem prepared_input (modulus : Nat)
+lemma prepared_input (modulus : Nat)
     (old : (InversePreparation.before modulus.size).register.Index) :
     InverseAssembly.basisEquiv modulus.size
         (InversePreparation.assembly modulus.size ((preparation modulus).value, old)) =
@@ -268,7 +271,7 @@ def circuit (modulus : Nat) :
   (zeroCircuit modulus).seq (.unitary (loadProgram modulus))
 
 /-- The trace charges zero allocation and the literal X gates loading the fixed seed. -/
-theorem circuit_eventTrace (modulus : Nat) (path : (circuit modulus).Path) :
+lemma circuit_eventTrace (modulus : Nat) (path : (circuit modulus).Path) :
     (circuit modulus).eventTrace path =
       ZeroPreparation.eventTrace AlgorithmGate.model .empty
         (InputPreparation.auxiliaryLayout modulus.size) ++
@@ -278,13 +281,13 @@ theorem circuit_eventTrace (modulus : Nat) (path : (circuit modulus).Path) :
   rfl
 
 /-- The actual allocation visits exactly the existing two-word input and shared-frame output. -/
-theorem circuit_visitedContexts (modulus : Nat) (path : (circuit modulus).Path) :
+lemma circuit_visitedContexts (modulus : Nat) (path : (circuit modulus).Path) :
     (circuit modulus).visitedContexts path =
       [InversePreparation.before modulus.size, InversePreparation.after modulus.size,
         InversePreparation.after modulus.size] := rfl
 
 /-- Resident peak includes both supplied words and the entire same allocated auxiliary layout. -/
-theorem circuit_resident (modulus : Nat) (path : (circuit modulus).Path) :
+lemma circuit_resident (modulus : Nat) (path : (circuit modulus).Path) :
     (circuit modulus).peakResidentSpace path = SpacePool.max
       (InversePreparation.before modulus.size).residentSpace
       (InversePreparation.after modulus.size).residentSpace := by
@@ -294,7 +297,7 @@ theorem circuit_resident (modulus : Nat) (path : (circuit modulus).Path) :
   rw [SpacePool.max_zero, SpacePool.max_self]
 
 /-- The same complete live register has the owned role; no additional auxiliary bank is present. -/
-theorem circuit_auxiliary (modulus : Nat) (path : (circuit modulus).Path) :
+lemma circuit_auxiliary (modulus : Nat) (path : (circuit modulus).Path) :
     (circuit modulus).peakAuxiliarySpace path = SpacePool.max
       (InversePreparation.before modulus.size).auxiliarySpace
       (InversePreparation.after modulus.size).auxiliarySpace := by
@@ -304,9 +307,9 @@ theorem circuit_auxiliary (modulus : Nat) (path : (circuit modulus).Path) :
   rw [SpacePool.max_zero, SpacePool.max_self]
 
 /-- The fixed X list maps the fresh zero bank to exactly the required seed. -/
-theorem sourceLoad_seed (modulus : Nat) :
+lemma sourceLoad_seed (modulus : Nat) :
     (EncodedBit.Word.BasisLoad.program (InputPreparation.auxiliaryQubitLayout modulus.size)
-      .empty (loadConstant modulus)).applyNormalized
+      .empty (loadConstant modulus)).applyNormalized environment
         (NormalizedVector.ket
           (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value) =
       NormalizedVector.ket (preparation modulus).value := by
@@ -327,9 +330,9 @@ theorem sourceLoad_seed (modulus : Nat) :
     (InputPreparation.auxiliaryQubitLayout modulus.size) .empty (loadConstant modulus)
 
 /-- Loading touches only fresh systems and preserves every old input basis label. -/
-theorem loadProgram_seed (modulus : Nat)
+lemma loadProgram_seed (modulus : Nat)
     (old : (InversePreparation.before modulus.size).register.Index) :
-    (loadProgram modulus).applyNormalized
+    ((loadProgram modulus).applyNormalized environment)
         (NormalizedVector.ket
           (preparedLocalBasisEquiv (InversePreparation.before modulus.size)
             InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
@@ -352,10 +355,10 @@ theorem loadProgram_seed (modulus : Nat)
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- The zero allocation followed by X loading realizes the exact fixed-seed tensor. -/
-theorem execute_preparedDensity (modulus : Nat)
+lemma execute_preparedDensity (modulus : Nat)
     (state : State (InversePreparation.before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((circuit modulus).execute Reference state).quantumMarginal =
+    ((circuit modulus).execute runtimeEnvironment Reference state).quantumMarginal =
       preparedDensity InversePreparation.auxiliaryKey
         (InputPreparation.auxiliaryLayout modulus.size)
         (InversePreparation.auxiliary_fresh modulus.size)
@@ -363,7 +366,7 @@ theorem execute_preparedDensity (modulus : Nat)
         (preparation modulus).normalized Reference state.quantumMarginal := by
   rw [circuit, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.unitary_jointDensity]
-  have zero : ((zeroCircuit modulus).execute Reference state).quantumMarginal =
+  have zero : ((zeroCircuit modulus).execute runtimeEnvironment Reference state).quantumMarginal =
       preparedDensity InversePreparation.auxiliaryKey
         (InputPreparation.auxiliaryLayout modulus.size)
         (InversePreparation.auxiliary_fresh modulus.size)
@@ -384,17 +387,17 @@ theorem execute_preparedDensity (modulus : Nat)
     (InversePreparation.auxiliary_fresh modulus.size)
     (InversePreparation.auxiliary_disjoint modulus.size)
     (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value
-    (preparation modulus).value (loadProgram modulus).matrix
-    (loadProgram_seed modulus) state.quantumMarginal
+    (preparation modulus).value ((loadProgram modulus).matrix runtimeEnvironment.quantum)
+    (loadProgram_seed (environment := runtimeEnvironment.quantum) modulus) state.quantumMarginal
 
 /-- The same full joint tensor includes arbitrary old coherences, not separable input factors. -/
-theorem execute_joined_entry (modulus : Nat)
+lemma execute_joined_entry (modulus : Nat)
     (state : State (InversePreparation.before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (newRow newColumn : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (oldRow oldColumn :
       (Register.prod (InversePreparation.before modulus.size).register Reference).Index) :
-    ((circuit modulus).execute Reference state).quantumMarginal.matrix
+    ((circuit modulus).execute runtimeEnvironment Reference state).quantumMarginal.matrix
       (prepareContextBasisEquiv (InversePreparation.before modulus.size) Reference
         InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
         (InversePreparation.auxiliary_fresh modulus.size)
@@ -414,21 +417,24 @@ theorem execute_joined_entry (modulus : Nat)
     state.quantumMarginal newRow newColumn oldRow oldColumn
 
 /-- Every full external-reference matrix entry is preserved by this actual fixed preparation. -/
-theorem execute_reference_entry (modulus : Nat)
+lemma execute_reference_entry (modulus : Nat)
     (state : State (InversePreparation.before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (left right : Reference.Index) :
     (∑ basis : (InversePreparation.after modulus.size).register.Index,
-      ((circuit modulus).execute Reference state).quantumMarginal.matrix
+      ((circuit modulus).execute runtimeEnvironment Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (InversePreparation.before modulus.size).register.Index,
         state.quantumMarginal.matrix (basis, left) (basis, right) := by
   rw [circuit, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.unitary_jointDensity]
-  exact (DensityOperator.localUnitary_reference_entry (loadProgram modulus).matrix
-    (((zeroCircuit modulus).execute Reference state).quantumMarginal) left right).trans
+  exact (DensityOperator.localUnitary_reference_entry ((loadProgram modulus).matrix
+    runtimeEnvironment.quantum)
+    (((zeroCircuit modulus).execute runtimeEnvironment Reference state).quantumMarginal) left
+      right).trans
       (by
-        convert (Circuit.prepareZero_reference_entry (gates := AlgorithmGate.model)
+        convert (Circuit.prepareZero_reference_entry (environment := runtimeEnvironment)
+          (gates := AlgorithmGate.model)
           (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
           state InversePreparation.auxiliaryKey
           (InputPreparation.auxiliaryLayout modulus.size)
@@ -437,11 +443,11 @@ theorem execute_reference_entry (modulus : Nat)
           using 1; rfl)
 
 /-- Actual preparation preserves the complete incoming mass without a basis-state restriction. -/
-theorem execute_mass (modulus : Nat)
+lemma execute_mass (modulus : Nat)
     (state : State (InversePreparation.before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((circuit modulus).execute Reference state).mass = state.mass :=
-  Circuit.execute_mass (circuit modulus) Reference state
+    ((circuit modulus).execute runtimeEnvironment Reference state).mass = state.mass :=
+  Circuit.execute_mass (circuit modulus) runtimeEnvironment Reference state
 
 end
 

@@ -32,7 +32,7 @@ namespace QuantumAlg.Execution.OwnedBorrowedQubits
 noncomputable section
 
 /-- A local pure tensor fixes every borrowed-reference coherence of the actual execution. -/
-theorem observeBorrowed_pureTensor_entry (owned borrowed : Nat)
+lemma observeBorrowed_pureTensor_entry (owned borrowed : Nat)
     [Subsingleton (context owned borrowed).borrowedClassicalShape.Value]
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (context owned borrowed) Reference H)
@@ -100,7 +100,7 @@ theorem observeBorrowed_pureTensor_entry (owned borrowed : Nat)
 
 /-- Changing only the owned pure factor preserves the full borrowed observation when
 the actual external-reference marginal remains equal. -/
-theorem observeBorrowed_pureTensor_eq (owned borrowed : Nat)
+lemma observeBorrowed_pureTensor_eq (owned borrowed : Nat)
     [Subsingleton (context owned borrowed).borrowedClassicalShape.Value]
     {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
     (initial : State (context owned borrowed) Reference H)

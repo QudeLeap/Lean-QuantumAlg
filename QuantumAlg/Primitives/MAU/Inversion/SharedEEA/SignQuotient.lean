@@ -32,6 +32,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.SignQuotient
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 /-- Execute the actual location selector before the actual quotient update. -/
@@ -49,12 +51,12 @@ def sourceStep (width : Nat) (state : Registers width) : Registers width :=
   PhaseQuotient.sourceStep (SelectionSchedule.sourceStep width state)
 
 /-- Full native realization, with no condition on the incoming quantum label. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) (step width) :=
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment (step width) :=
   (SelectionSchedule.program_realizes width).seq
     (PhaseQuotient.phaseQuotient_nativeProgram_realizes width)
 
-private theorem indices_control (width : Nat) (indices : List (SelectionKey.Key width))
+private lemma indices_control (width : Nat) (indices : List (SelectionKey.Key width))
     (state : Registers width) :
     (indices.foldl (fun current selected => SelectionSwap.step width selected current)
       state).control = state.control := by
@@ -64,11 +66,11 @@ private theorem indices_control (width : Nat) (indices : List (SelectionKey.Key 
       rw [List.foldl_cons, ih, SelectionSwap.step_control]
 
 /-- Both complete native fragments return the actual original Ctrl on all labels. -/
-theorem step_control (width : Nat) (state : Registers width) :
+lemma step_control (width : Nat) (state : Registers width) :
     (step width state).control = state.control :=
   indices_control width (SelectionSchedule.keys width) state
 
-private theorem source_control (width : Nat) (state : Registers width) :
+private lemma source_control (width : Nat) (state : Registers width) :
     (SelectionSchedule.sourceStep width state).control = state.control := by
   by_cases within : state.coefficientLength.toNat + state.quotientLength.toNat +
       (if state.flags.first then 0 else 1) < width + 3
@@ -80,16 +82,16 @@ private theorem source_control (width : Nat) (state : Registers width) :
   · rw [SelectionSchedule.sourceStep, dif_neg within]
 
 /-- The initialized full native block equals the actual source-selected two-operation block. -/
-theorem step_eq_sourceStep (width : Nat) (state : Registers width)
+lemma step_eq_sourceStep (width : Nat) (state : Registers width)
     (preparedControl : state.control = false) : step width state = sourceStep width state := by
   unfold step sourceStep
   rw [SelectionSchedule.step_eq_sourceStep width state preparedControl,
     PhaseQuotient.step_eq_sourceStep _ ((source_control width state).trans preparedControl)]
 
 /-- Exact ket execution includes the original relative phase, rather than merely the output bits. -/
-theorem program_apply_prepared (width : Nat) (state : Registers width)
+lemma program_apply_prepared (width : Nat) (state : Registers width)
     (preparedControl : state.control = false) :
-    (program width).applyNormalized
+    (program width).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
         ((encoding width).encode state))) =
       NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
@@ -97,7 +99,7 @@ theorem program_apply_prepared (width : Nat) (state : Registers width)
   rw [(program_realizes width).apply_encoded_ket,
     step_eq_sourceStep width state preparedControl]
 
-private theorem sign_secondWord (width : Nat) (index : Fin (width + 3)) :
+private lemma sign_secondWord (width : Nat) (index : Fin (width + 3)) :
     (signBit width).wire ≠ (secondWordBit width index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -105,7 +107,7 @@ private theorem sign_secondWord (width : Nat) (index : Fin (width + 3)) :
   have within := index.isLt
   omega
 
-private theorem first_secondWord (width : Nat) (left right : Fin (width + 3)) :
+private lemma first_secondWord (width : Nat) (left right : Fin (width + 3)) :
     (firstWordBit width left).wire ≠ (secondWordBit width right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -113,7 +115,7 @@ private theorem first_secondWord (width : Nat) (left right : Fin (width + 3)) :
   have within := left.isLt
   omega
 
-private theorem exchange_secondWord (width : Nat) (index : Fin (width + 3))
+private lemma exchange_secondWord (width : Nat) (index : Fin (width + 3))
     (state : Registers width) :
     (SelectionSwap.exchange width index state).secondWord = state.secondWord := by
   apply BitVec.eq_of_getMsbD_eq
@@ -128,7 +130,7 @@ private theorem exchange_secondWord (width : Nat) (index : Fin (width + 3))
         (sign_secondWord width ⟨bit, within⟩) (first_secondWord width index ⟨bit, within⟩) state
     _ = state.secondWord.getMsbD bit := secondWordBit_get width ⟨bit, within⟩ state
 
-private theorem selector_secondWord (width : Nat) (selected : SelectionKey.Key width)
+private lemma selector_secondWord (width : Nat) (selected : SelectionKey.Key width)
     (state : Registers width) :
     (SelectionSwap.step width selected state).secondWord = state.secondWord := by
   unfold SelectionSwap.step
@@ -139,7 +141,7 @@ private theorem selector_secondWord (width : Nat) (selected : SelectionKey.Key w
     · rfl
   · rfl
 
-private theorem indices_secondWord (width : Nat) (indices : List (SelectionKey.Key width))
+private lemma indices_secondWord (width : Nat) (indices : List (SelectionKey.Key width))
     (state : Registers width) :
     (indices.foldl (fun current selected => SelectionSwap.step width selected current)
       state).secondWord = state.secondWord := by
@@ -149,19 +151,19 @@ private theorem indices_secondWord (width : Nat) (indices : List (SelectionKey.K
       rw [List.foldl_cons, ih, selector_secondWord]
 
 /-- Every actual borrowed Work2 bit is restored for every input, including incoming Ctrl one. -/
-theorem step_secondWord (width : Nat) (state : Registers width) :
+lemma step_secondWord (width : Nat) (state : Registers width) :
     (step width state).secondWord = state.secondWord :=
   indices_secondWord width (SelectionSchedule.keys width) state
 
 /-- Ordered events place the complete selector, including cleanup, before the quotient fragment. -/
-theorem program_eventTrace (width : Nat) :
+lemma program_eventTrace (width : Nat) :
     (program width).eventTrace =
       SelectionResources.events width ++ (PhaseQuotient.program width).eventTrace := by
   rw [program, UnitaryCircuit.seq_eventTrace, SelectionResources.program_eventTrace,
     PhaseQuotient.phaseQuotient_nativeProgram_trace]
 
 /-- Literal native occurrences include the selector enumeration and the actual HRS incrementer. -/
-theorem program_eventTrace_length (width : Nat) :
+lemma program_eventTrace_length (width : Nat) :
     (program width).eventTrace.length = SelectionResources.count width +
       (LowShiftIncrement.program width).eventTrace.length + 2 * width.size + 4 := by
   have selectorLength : (SelectionSchedule.program width).eventTrace.length =
@@ -173,7 +175,7 @@ theorem program_eventTrace_length (width : Nat) :
   omega
 
 /-- The actual sequential depth preserves the dependency between the two source operations. -/
-theorem program_unitDepth (width : Nat) :
+lemma program_unitDepth (width : Nat) :
     (program width).evaluatedEventDepth (fun _ => 1) = SelectionResources.count width +
       ((LowShiftIncrement.program width).eventTrace.length + 2 * width.size + 4) := by
   rw [program, UnitaryCircuit.evaluatedEventDepth_seq, SelectionResources.program_unitDepth,

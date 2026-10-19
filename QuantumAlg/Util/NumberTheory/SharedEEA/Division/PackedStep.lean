@@ -27,12 +27,12 @@ preservation is supplied by the physical selector owner.
 
 namespace QuantumAlg.NumberTheory.SharedEEA.DivisionPackedStep
 
-private theorem append_toNat {leftWidth rightWidth : Nat}
+private lemma append_toNat {leftWidth rightWidth : Nat}
     (left : BitVec leftWidth) (right : BitVec rightWidth) :
     (left ++ right).toNat = left.toNat * 2 ^ rightWidth + right.toNat := by
   rw [BitVec.toNat_append, ← Nat.shiftLeft_add_eq_or_of_lt right.isLt, Nat.shiftLeft_eq]
 
-private theorem bool_toNat (value : Bool) : value.toNat = if value then 1 else 0 := by
+private lemma bool_toNat (value : Bool) : value.toNat = if value then 1 else 0 := by
   cases value <;> rfl
 
 /-- The retained physical coefficient, explicit separator, and already written quotient prefix. -/
@@ -45,7 +45,7 @@ def retainedPrefix (state : IterationState) (modulus count : Nat)
   (payload.coefficientBits.reverse ++ (0 : BitVec 1)) ++ payload.quotientBits
 
 /-- The old prefix and full instruction output occupy exactly the original complete shared word. -/
-theorem assembly_width (state : IterationState) (modulus count : Nat)
+lemma assembly_width (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -69,7 +69,7 @@ def instructionWord (state : IterationState) (modulus count : Nat)
     (SignedDivisionPhase.instruction state modulus count valid conserved active beforeEnd).2).cast
       (assembly_width state modulus count valid conserved active beforeEnd)
 
-private theorem instruction_toNat (state : IterationState) (modulus count : Nat)
+private lemma instruction_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -92,7 +92,7 @@ private theorem instruction_toNat (state : IterationState) (modulus count : Nat)
         2 ^ SignedDivisionPhase.nextWidth state modulus count + value) low
 
 /-- Appending the actual instruction digit is the next full finite quotient-prefix value. -/
-theorem quotient_toNat (state : IterationState) (modulus count : Nat)
+lemma quotient_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -105,7 +105,7 @@ theorem quotient_toNat (state : IterationState) (modulus count : Nat)
     valid conserved active beforeEnd
 
 /-- The complete word is exactly the next source packing with its moved field boundary. -/
-theorem instructionWord_eq_next (state : IterationState) (modulus count : Nat)
+lemma instructionWord_eq_next (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :

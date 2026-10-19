@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual allocation and release add no events to the original five packing instructions. -/
-theorem xgcdNativePackRawOutputs_eventTrace (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_eventTrace (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (packRawOutputs (model := model) outputs result).Path) :
     (packRawOutputs (model := model) outputs result).eventTrace path = packingEvents model width :=
@@ -42,14 +42,14 @@ theorem xgcdNativePackRawOutputs_eventTrace (outputs : RawOutputs ctx width)
     (fun cells _ transport _ selected => xgcdNativePackingBody_eventTrace _ _ _ _ _ selected) path
 
 /-- The original native resource pool is computed from the same actual event trace. -/
-theorem xgcdNativePackRawOutputs_resourcePool (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_resourcePool (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (packRawOutputs (model := model) outputs result).Path) :
     (packRawOutputs (model := model) outputs result).resourcePool path =
       ResourcePool.ofList (packingEvents model width) :=
   congrArg ResourcePool.ofList (xgcdNativePackRawOutputs_eventTrace outputs result path)
 
-private theorem packingBody_depth (outputs : RawOutputs ctx width)
+private lemma packingBody_depth (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event model → Nat)
@@ -78,7 +78,7 @@ private theorem packingBody_depth (outputs : RawOutputs ctx width)
   rfl
 
 /-- Arbitrary native durations preserve every original serial dependency. -/
-theorem xgcdNativePackRawOutputs_depth (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_depth (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event model → Nat)
     (path : (packRawOutputs (model := model) outputs result).Path) :
     (packRawOutputs (model := model) outputs result).depth duration path =
@@ -93,14 +93,14 @@ theorem xgcdNativePackRawOutputs_depth (outputs : RawOutputs ctx width)
     (fun cells _ transport _ selected => packingBody_depth _ _ _ _ _ duration selected) path
 
 /-- Exactly five original native operations remain on the actual serial path. -/
-theorem xgcdNativePackRawOutputs_unitDepth (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_unitDepth (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (packRawOutputs (model := model) outputs result).Path) :
     (packRawOutputs (model := model) outputs result).depth (fun _ => 1) path = 5 := by
   rw [xgcdNativePackRawOutputs_depth]
   rfl
 
-private theorem packingBody_resident (outputs : RawOutputs ctx width)
+private lemma packingBody_resident (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
@@ -112,7 +112,7 @@ private theorem packingBody_resident (outputs : RawOutputs ctx width)
       (SpacePool.max ctx.residentSpace 0)))) ≤ _
   simp only [SpacePool.max_zero, SpacePool.max_self, le_refl]
 
-private theorem packingBody_auxiliary (outputs : RawOutputs ctx width)
+private lemma packingBody_auxiliary (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
@@ -125,7 +125,7 @@ private theorem packingBody_auxiliary (outputs : RawOutputs ctx width)
   simp only [SpacePool.max_zero, SpacePool.max_self, le_refl]
 
 /-- The complete resident peak includes the original three packing cells and every caller cell. -/
-theorem xgcdNativePackRawOutputs_resident (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_resident (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (packRawOutputs (model := model) outputs result).Path) :
     (packRawOutputs (model := model) outputs result).peakResidentSpace path ≤
@@ -140,7 +140,7 @@ theorem xgcdNativePackRawOutputs_resident (outputs : RawOutputs ctx width)
         simpa only [zero_add] using packingBody_resident _ _ _ _ _ selected) path
 
 /-- Every internally allocated packing cell contributes to the actual auxiliary peak. -/
-theorem xgcdNativePackRawOutputs_auxiliary (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_auxiliary (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (packRawOutputs (model := model) outputs result).Path) :
     (packRawOutputs (model := model) outputs result).peakAuxiliarySpace path ≤
@@ -155,7 +155,7 @@ theorem xgcdNativePackRawOutputs_auxiliary (outputs : RawOutputs ctx width)
         simpa only [zero_add] using packingBody_auxiliary _ _ _ _ _ selected) path
 
 /-- One narrowing word and two signed words occupy their full public coefficient widths. -/
-theorem xgcdNativePackingShapes_classicalBits {kind : ProblemKind} :
+lemma xgcdNativePackingShapes_classicalBits {kind : ProblemKind} :
     (((packingShapes width).map (SpacePool.ofShape (kind := kind))).sum) .classicalBits =
       3 * coefficientWidth width := by
   simp [packingShapes, SpacePool.ofShape, SignedShape, CShape.bitWidth]

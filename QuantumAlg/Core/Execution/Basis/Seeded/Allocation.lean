@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem mapStore_entry_zero {C D H K : Type}
+private lemma mapStore_entry_zero {C D H K : Type}
     [Fintype C] [Fintype D] [Fintype H] [Fintype K] {R : Register}
     (state : ExecutionState (C × H) R) (storeMap : C → D) (historyMap : C × H → K)
     (result : D) (left right : R.Index)
@@ -43,7 +43,7 @@ private theorem mapStore_entry_zero {C D H K : Type}
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
   {History : Type} [Fintype History]
 
-private theorem outside_entry (seed : ctx.register.Index) (state : State ctx Reference History)
+private lemma outside_entry (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (left right : ctx.register.Index)
     (leftRef rightRef : Reference.Index) (outside : ¬ (left = seed ∧ right = seed))
     (original : Store ctx) :
@@ -56,7 +56,7 @@ private theorem outside_entry (seed : ctx.register.Index) (state : State ctx Ref
       ((seeded original left right leftRef rightRef).trans (if_neg outside))
 
 /-- Changing only the actual finite history keeps every complete store seed block. -/
-theorem mapHistory (seed : ctx.register.Index) (state : State ctx Reference History)
+lemma mapHistory (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) {Later : Type} [Fintype Later] (update : History → Later) :
     Holds seed (state.mapHistory update) := by
   intro original left right leftRef rightRef
@@ -74,7 +74,7 @@ theorem mapHistory (seed : ctx.register.Index) (state : State ctx Reference Hist
 
 /-- Erasing only a finite path cannot create physical seed support that was
 absent from a complete original store-reference block. -/
-theorem of_mapHistory (seed : ctx.register.Index) (state : State ctx Reference History)
+lemma of_mapHistory (seed : ctx.register.Index) (state : State ctx Reference History)
     {Later : Type} [Fintype Later] (update : History → Later)
     (seeded : Holds seed (state.mapHistory update)) : Holds seed state := by
   have unchanged (original : Store ctx) :
@@ -105,7 +105,7 @@ theorem of_mapHistory (seed : ctx.register.Index) (state : State ctx Reference H
   rw [unchanged original] at result
   exact result
 
-private theorem retain_raw (seed : ctx.register.Index) (state : State ctx Reference History)
+private lemma retain_raw (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     Holds (ctx := ctx.addRetained key shape fresh) seed
       (state.retain key shape fresh) := by
@@ -140,24 +140,28 @@ private theorem retain_raw (seed : ctx.register.Index) (state : State ctx Refere
       (store_matrix output original)).symm.trans (grouped.trans entries)
 
 /-- A real retained cell preserves the seeded basis and the persistent service state. -/
-theorem retain {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma retain {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (environment : model.Environment)
     (seed : ctx.register.Index) (state : State ctx Reference (model.HiddenState × History))
     (seeded : Holds seed state) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     Holds (ctx := ctx.addRetained key shape fresh) seed
-      ((Circuit.retain (model := model) ctx key shape fresh).execute Reference state) := by
+      ((Circuit.retain (model := model) ctx key shape fresh).execute
+        environment Reference state) := by
   exact mapHistory (ctx := ctx.addRetained key shape fresh) seed (state.retain key shape fresh)
     (retain_raw seed state seeded key shape fresh)
     (fun record => (record.1.1, (record.1.2, record.2)))
 
 /-- The real sequential interpreter has the seed of its actually executed second body. -/
-theorem seq {model : ExecutionModel} {ctx middle post : RuntimeCtx model.kind}
+lemma seq {model : ExecutionModel} {ctx middle post : RuntimeCtx model.kind}
     (first : Circuit model ctx middle) (second : Circuit model middle post)
+    (environment : model.Environment)
     (seed : post.register.Index)
     (state : State ctx Reference (model.HiddenState × History))
-    (seeded : Holds seed (second.execute Reference (first.execute Reference state))) :
-    Holds seed ((Circuit.seq first second).execute Reference state) := by
+    (seeded : Holds seed (second.execute environment Reference (first.execute
+      environment Reference state))) :
+    Holds seed ((Circuit.seq first second).execute environment Reference state) := by
   intro original left right leftRef rightRef
-  have actual := Circuit.seq_store_marginal first second state original
+  have actual := Circuit.seq_store_marginal first second environment state original
   have entry := congrArg
     (fun density : DensityOperator (Register.prod post.register Reference) =>
       density.matrix (left, leftRef) (right, rightRef)) actual
@@ -177,13 +181,13 @@ namespace QuantumAlg.Execution.MeasurementCells
 noncomputable section
 
 /-- Actual retained measurement cells preserve the seed in the existing physical basis map. -/
-theorem allocate_seeded {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
-    (dimension : ℕ+) (count : Nat) (seed : ctx.register.Index)
+lemma allocate_seeded {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+    (dimension : ℕ+) (count : Nat) (environment : model.Environment) (seed : ctx.register.Index)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (seeded : BasisSeeded.Holds seed state) :
     BasisSeeded.Holds (ctx := context ctx dimension count) (basisEquiv ctx dimension count seed)
-      ((allocate (model := model) ctx dimension count).execute Reference state) := by
+      ((allocate (model := model) ctx dimension count).execute environment Reference state) := by
   induction count with
   | zero =>
       exact BasisSeeded.mapHistory seed
@@ -193,9 +197,10 @@ theorem allocate_seeded {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
       exact BasisSeeded.seq (allocate (model := model) ctx dimension count)
         (.retain (context ctx dimension count) (context ctx dimension count).canonicalFreshKey
           (.finite dimension) (context ctx dimension count).canonicalFreshKey_fresh)
-        (basisEquiv ctx dimension (count + 1) seed) state
-        (BasisSeeded.retain (basisEquiv ctx dimension count seed)
-          ((allocate (model := model) ctx dimension count).execute Reference state) induction
+        environment (basisEquiv ctx dimension (count + 1) seed) state
+        (BasisSeeded.retain environment (basisEquiv ctx dimension count seed)
+          ((allocate (model := model) ctx dimension count).execute
+            environment Reference state) induction
           (context ctx dimension count).canonicalFreshKey (.finite dimension)
           (context ctx dimension count).canonicalFreshKey_fresh)
 

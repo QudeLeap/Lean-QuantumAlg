@@ -24,25 +24,22 @@ namespace QuantumAlg.OrderFinding.Exact.NativeEndpoint
 noncomputable section
 
 /-- Complete resident classical storage has exactly three phase-width words. -/
-public theorem exactOrderFinding_problem_resident_classical {N x t width r : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (problem access r).resources.resident .classicalBits = 3 * t := by
+public lemma exactOrderFinding_problem_resident_classical (N x t width : Nat) :
+    (problem N x t width).resources.resident .classicalBits = 3 * t := by
   simp [problem, spaceBudget, Sampling.Native.spaceBudget, SpacePool.ofShape]
   omega
 
 /-- The empty input makes every retained classical bit auxiliary. -/
-public theorem exactOrderFinding_problem_auxiliary_classical {N x t width r : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (problem access r).resources.auxiliary .classicalBits = 3 * t := by
+public lemma exactOrderFinding_problem_auxiliary_classical (N x t width : Nat) :
+    (problem N x t width).resources.auxiliary .classicalBits = 3 * t := by
   simp [problem, spaceBudget, Sampling.Native.spaceBudget, SpacePool.ofShape]
   omega
 
 /-- Resident and auxiliary quantum counts agree on every physical dimension. -/
-public theorem exactOrderFinding_problem_quantum_systems {N x t width r : Nat}
-    (access : ModExpOracleAccess N x t width) (dimension : ℕ+) :
-    (problem access r).resources.resident (.quantumSystems dimension) =
+public lemma exactOrderFinding_problem_quantum_systems (N x t width : Nat) (dimension : ℕ+) :
+    (problem N x t width).resources.resident (.quantumSystems dimension) =
       (if (2 : ℕ+) = dimension then t + width else 0) ∧
-    (problem access r).resources.auxiliary (.quantumSystems dimension) =
+    (problem N x t width).resources.auxiliary (.quantumSystems dimension) =
       (if (2 : ℕ+) = dimension then t + width else 0) := by
   constructor <;>
     simp [problem, spaceBudget, Sampling.Native.spaceBudget, SpacePool.ofShape]

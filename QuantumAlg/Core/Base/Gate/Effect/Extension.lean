@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.State.Basic
 import all QuantumAlg.Core.Base.Gate.Effect.Embedding
 import all QuantumAlg.Core.Base.Gate.Effect.Support
 
@@ -29,12 +30,12 @@ open scoped ComplexOrder
 variable {R S : Register}
 
 /-- Place every amplitude at its named basis coordinate and put zero elsewhere. -/
-def extensionVector (embedding : S.Index → R.Index) (vector : HilbertVector S) :
+public def extensionVector (embedding : S.Index → R.Index) (vector : HilbertVector S) :
     HilbertVector R :=
   ∑ index, vector index • (NormalizedVector.ket (embedding index) : HilbertVector R)
 
 /-- The finite amplitude expression retains the actual named basis labels. -/
-theorem extensionVector_apply (embedding : S.Index → R.Index) (vector : HilbertVector S)
+lemma extensionVector_apply (embedding : S.Index → R.Index) (vector : HilbertVector S)
     (output : R.Index) :
     extensionVector embedding vector output =
       ∑ index, if embedding index = output then vector index else 0 := by
@@ -42,20 +43,20 @@ theorem extensionVector_apply (embedding : S.Index → R.Index) (vector : Hilber
   simp [extensionVector, NormalizedVector.ket_apply, mul_ite, eq_comm]
 
 /-- Injectivity recovers every source amplitude at its corresponding image coordinate. -/
-theorem extensionVector_image (embedding : S.Index → R.Index)
+lemma extensionVector_image (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (vector : HilbertVector S) (index : S.Index) :
     extensionVector embedding vector (embedding index) = vector index := by
   classical
   simp [extensionVector_apply, injective.eq_iff]
 
 /-- Injective basis extension preserves the complete vector norm. -/
-theorem norm_extensionVector (embedding : S.Index → R.Index)
+lemma norm_extensionVector (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (vector : HilbertVector S) :
     ‖extensionVector embedding vector‖ = ‖vector‖ :=
   norm_extendVector embedding injective vector
 
 /-- The same extension preserves all complex inner products and coherent cross terms. -/
-theorem extensionVector_inner (embedding : S.Index → R.Index)
+lemma extensionVector_inner (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (left right : HilbertVector S) :
     inner ℂ (extensionVector embedding left) (extensionVector embedding right) =
       inner ℂ left right := by
@@ -73,7 +74,7 @@ theorem extensionVector_inner (embedding : S.Index → R.Index)
 private def extensionMatrix (embedding : S.Index → R.Index) : Matrix R.Index S.Index ℂ :=
   fun row column => if embedding column = row then 1 else 0
 
-private theorem extensionMatrix_mulVec (embedding : S.Index → R.Index)
+private lemma extensionMatrix_mulVec (embedding : S.Index → R.Index)
     (vector : HilbertVector S) :
     (extensionMatrix embedding).mulVec vector.ofLp =
       (extensionVector embedding vector).ofLp := by
@@ -82,7 +83,7 @@ private theorem extensionMatrix_mulVec (embedding : S.Index → R.Index)
   simp only [Matrix.mulVec, dotProduct, extensionMatrix, extensionVector_apply,
     ite_mul, one_mul, zero_mul]
 
-private theorem extensionMatrix_conjTranspose_mulVec (embedding : S.Index → R.Index)
+private lemma extensionMatrix_conjTranspose_mulVec (embedding : S.Index → R.Index)
     (vector : HilbertVector R) :
     (extensionMatrix embedding).conjTranspose.mulVec vector.ofLp =
       fun index => vector (embedding index) := by
@@ -90,7 +91,7 @@ private theorem extensionMatrix_conjTranspose_mulVec (embedding : S.Index → R.
   funext index
   simp [Matrix.mulVec, dotProduct, Matrix.conjTranspose_apply, extensionMatrix]
 
-private theorem extension_applyVec (embedding : S.Index → R.Index)
+private lemma extension_applyVec (embedding : S.Index → R.Index)
     (operator : HilbertOperator S) (vector : HilbertVector R) :
     HilbertOperator.applyVec
         (extensionMatrix embedding * operator * (extensionMatrix embedding).conjTranspose)
@@ -115,7 +116,7 @@ def extend (embedding : S.Index → R.Index) (injective : Function.Injective emb
     exact (effect.contractive _).trans (norm_restrictVector_le embedding injective vector)
 
 /-- Each pair of image coordinates retains exactly its original matrix entry. -/
-theorem extend_matrix_image (embedding : S.Index → R.Index)
+lemma extend_matrix_image (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (effect : Effect S) (left right : S.Index) :
     (extend embedding injective effect).matrix (embedding left) (embedding right) =
       effect.matrix left right := by
@@ -124,7 +125,7 @@ theorem extend_matrix_image (embedding : S.Index → R.Index)
     injective.eq_iff]
 
 /-- Every matrix entry with a coordinate outside the selected subspace is zero. -/
-theorem extend_matrix_eq_zero (embedding : S.Index → R.Index)
+lemma extend_matrix_eq_zero (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (effect : Effect S) (left right : R.Index)
     (outside : left ∉ Set.range embedding ∨ right ∉ Set.range embedding) :
     (extend embedding injective effect).matrix left right = 0 := by
@@ -138,7 +139,7 @@ theorem extend_matrix_eq_zero (embedding : S.Index → R.Index)
     simp [extend, Matrix.mul_apply, Matrix.conjTranspose_apply, extensionMatrix, different]
 
 /-- Applying the extended effect restricts to its source, acts there, and embeds the result. -/
-theorem extend_applyVec (embedding : S.Index → R.Index)
+lemma extend_applyVec (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (effect : Effect S) (vector : HilbertVector R) :
     (extend embedding injective effect).matrix.applyVec vector =
       extensionVector embedding
@@ -146,7 +147,7 @@ theorem extend_applyVec (embedding : S.Index → R.Index)
   extension_applyVec embedding effect.matrix vector
 
 /-- A whole coherent subnormalized input has precisely its original observable weight. -/
-theorem extend_weight_ofSubnormalizedVector (embedding : S.Index → R.Index)
+lemma extend_weight_ofSubnormalizedVector (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (effect : Effect S)
     (vector : HilbertVector S) (bounded : ‖vector‖ ≤ 1) :
     (extend embedding injective effect).weight

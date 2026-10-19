@@ -30,7 +30,7 @@ noncomputable section
 
 open ArithmeticWindowRegisters ArithmeticWindowProgram ArithmeticWindowLaws
 
-private theorem source_addback {width : Nat} (selected : Window width) (state : Registers width)
+private lemma source_addback {width : Nat} (selected : Window width) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = false)
     (divisor : state.divisorLength ≠ 0)
     (physical : ArithmeticInstruction.sourceWindow .remainderAddback state = some selected) :
@@ -45,7 +45,7 @@ private theorem source_addback {width : Nat} (selected : Window width) (state : 
   rfl
 
 /-- Actual phase-zero source order is signed subtraction followed by unconditional low addition. -/
-theorem source_eq {width : Nat} (state : Registers width)
+lemma source_eq {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = false)
     (divisor : state.divisorLength ≠ 0)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
@@ -101,7 +101,7 @@ theorem source_eq {width : Nat} (state : Registers width)
     RemainderBlockLaws.source_subtract selected state first divisor physical, marked,
     source_addback selected subtracted firstSame secondSame subtractedDivisor addWindow]
 
-private theorem eq_of_windows {width : Nat} (selected : Window width)
+private lemma eq_of_windows {width : Nat} (selected : Window width)
     (left right : Registers width)
     (source : sourceWord selected left = sourceWord selected right)
     (target : targetWord selected left = targetWord selected right)
@@ -118,7 +118,7 @@ private theorem eq_of_windows {width : Nat} (selected : Window width)
   · exact sign
 
 /-- Actual subtraction and add-back restore the complete frame and retain strict borrow in Sign. -/
-theorem source_frame {width : Nat} (state : Registers width)
+lemma source_frame {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = false)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)
@@ -143,7 +143,7 @@ theorem source_frame {width : Nat} (state : Registers width)
       (step_complement selected .subtractSigned state)
 
 /-- The same emitted native remainder program implements full restoration and the alignment test. -/
-theorem native_frame (width : Nat) (state : Registers width) (clean : state.control = false)
+lemma native_frame (width : Nat) (state : Registers width) (clean : state.control = false)
     (first : state.flags.first = false) (second : state.flags.second = false)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)

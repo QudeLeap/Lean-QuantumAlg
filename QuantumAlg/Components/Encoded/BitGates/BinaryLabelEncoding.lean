@@ -80,19 +80,19 @@ def prodRightWire {Left Right : Type} (left : BinaryLabelEncoding Left)
     change left.width + wire.val < left.width + right.width
     omega⟩
 
-@[simp] theorem prodLeftWire_val {Left Right : Type}
+@[simp] lemma prodLeftWire_val {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (wire : Fin left.width) :
     (prodLeftWire left right wire).val = wire.val :=
   rfl
 
-@[simp] theorem prodRightWire_val {Left Right : Type}
+@[simp] lemma prodRightWire_val {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (wire : Fin right.width) :
     (prodRightWire left right wire).val = left.width + wire.val :=
   rfl
 
-theorem bitIndex_prodLeftWire {Left Right : Type}
+lemma bitIndex_prodLeftWire {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (wire : Fin left.width) :
     (WireAddress.bitIndex (prodLeftWire left right wire)).val =
@@ -100,7 +100,7 @@ theorem bitIndex_prodLeftWire {Left Right : Type}
   dsimp [WireAddress.bitIndex, prodLeftWire]
   omega
 
-theorem bitIndex_prodRightWire {Left Right : Type}
+lemma bitIndex_prodRightWire {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (wire : Fin right.width) :
     (WireAddress.bitIndex (prodRightWire left right wire)).val =
@@ -109,7 +109,7 @@ theorem bitIndex_prodRightWire {Left Right : Type}
   omega
 
 /-- Bit readout inherited from the left component of a product encoding. -/
-theorem prodLeft_get_eq {Left Right : Type}
+lemma prodLeft_get_eq {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (bit : EncodedBit left) (x : Left × Right) :
     ((prod left right).encode x).val.testBit
@@ -125,7 +125,7 @@ theorem prodLeft_get_eq {Left Right : Type}
   exact bit.get_eq x.1
 
 /-- Bit readout inherited from the right component of a product encoding. -/
-theorem prodRight_get_eq {Left Right : Type}
+lemma prodRight_get_eq {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (bit : EncodedBit right) (x : Left × Right) :
     ((prod left right).encode x).val.testBit
@@ -142,7 +142,7 @@ theorem prodRight_get_eq {Left Right : Type}
 
 /-- Flipping a left-component wire is the same as flipping its corresponding
 wire in the product encoding. -/
-theorem prodEquiv_flip_left {Left Right : Type}
+lemma prodEquiv_flip_left {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (wire : Fin left.width) (leftLabel : Fin (2 ^ left.width))
     (rightLabel : Fin (2 ^ right.width)) :
@@ -228,7 +228,7 @@ theorem prodEquiv_flip_left {Left Right : Type}
 
 /-- Flipping a right-component wire is the same as flipping its corresponding
 wire in the product encoding. -/
-theorem prodEquiv_flip_right {Left Right : Type}
+lemma prodEquiv_flip_right {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (wire : Fin right.width) (leftLabel : Fin (2 ^ left.width))
     (rightLabel : Fin (2 ^ right.width)) :

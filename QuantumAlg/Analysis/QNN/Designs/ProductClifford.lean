@@ -59,7 +59,7 @@ noncomputable def singleSiteGate (j : Fin n) (M : Matrix (Fin 2) (Fin 2) ℂ) :
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   (singleSiteGateStr j M).submatrix finFunctionFinEquiv.symm finFunctionFinEquiv.symm
 
-theorem productGateStr_mul (U V : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
+lemma productGateStr_mul (U V : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
     productGateStr U * productGateStr V = productGateStr (fun j => U j * V j) := by
   ext x z
   have hfac : ∀ j, (U j * V j) (x j) (z j)
@@ -73,11 +73,11 @@ theorem productGateStr_mul (U V : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
   refine Finset.sum_congr rfl fun y _ => ?_
   rw [← Finset.prod_mul_distrib]
 
-theorem productGate_mul (U V : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
+lemma productGate_mul (U V : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
     productGate U * productGate V = productGate (fun j => U j * V j) := by
   rw [productGate, productGate, productGate, Matrix.submatrix_mul_equiv, productGateStr_mul]
 
-theorem productGateStr_conjTranspose (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
+lemma productGateStr_conjTranspose (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
     (productGateStr U)ᴴ = productGateStr fun j => (U j)ᴴ := by
   ext x y
   simp only [Matrix.conjTranspose_apply, productGateStr, Matrix.of_apply]
@@ -85,11 +85,11 @@ theorem productGateStr_conjTranspose (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ) 
   refine Finset.prod_congr rfl fun j _ => ?_
   rfl
 
-theorem productGate_conjTranspose (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
+lemma productGate_conjTranspose (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ) :
     (productGate U)ᴴ = productGate fun j => (U j)ᴴ := by
   rw [productGate, productGate, Matrix.conjTranspose_submatrix, productGateStr_conjTranspose]
 
-theorem productGateStr_one :
+lemma productGateStr_one :
     productGateStr (n := n) (fun _ => (1 : Matrix (Fin 2) (Fin 2) ℂ)) = 1 := by
   ext x y
   by_cases hxy : x = y
@@ -100,11 +100,11 @@ theorem productGateStr_one :
     rw [productGateStr, Matrix.of_apply, Matrix.one_apply, if_neg hxy]
     exact Finset.prod_eq_zero (Finset.mem_univ j) (by simp [hj])
 
-theorem productGate_one :
+lemma productGate_one :
     productGate (n := n) (fun _ => (1 : Matrix (Fin 2) (Fin 2) ℂ)) = 1 := by
   rw [productGate, productGateStr_one, Matrix.submatrix_one_equiv]
 
-theorem productQubitClifford_mul
+lemma productQubitClifford_mul
     (a b : Fin n → QubitTwoDesign.BinaryOctahedral) :
     productQubitClifford (a * b) = productQubitClifford a * productQubitClifford b := by
   rw [productQubitClifford, productQubitClifford, productQubitClifford, productGate_mul]
@@ -112,7 +112,7 @@ theorem productQubitClifford_mul
   funext j
   exact QubitTwoDesign.qubitClifford_mul (a j) (b j)
 
-theorem productQubitClifford_unitary
+lemma productQubitClifford_unitary
     (g : Fin n → QubitTwoDesign.BinaryOctahedral) :
     (productQubitClifford g)ᴴ * productQubitClifford g = 1 := by
   rw [productQubitClifford, productGate_conjTranspose, productGate_mul]
@@ -123,7 +123,7 @@ theorem productQubitClifford_unitary
     exact QubitTwoDesign.qubitClifford_unitary (g j)
   rw [hU, productGate_one]
 
-theorem singleSiteGate_pauli (j : Fin n) (a : Fin 4) :
+lemma singleSiteGate_pauli (j : Fin n) (a : Fin 4) :
     singleSiteGate j (pauli1 a) = pauliMat (siteP j a) := by
   rw [singleSiteGate, pauliMat]
   ext x y
@@ -146,7 +146,7 @@ noncomputable def piAtEquiv (j : Fin n) (α : Type*) :
     · simp
     · simp [k.2]
 
-theorem sum_pi_eval_eq_card_smul {α M : Type*} [Fintype α] [AddCommMonoid M]
+lemma sum_pi_eval_eq_card_smul {α M : Type*} [Fintype α] [AddCommMonoid M]
     [Module ℂ M] (j : Fin n) (F : α → M) :
     ∑ g : Fin n → α, F (g j) =
       (Fintype.card ({k : Fin n // k ≠ j} → α) : ℂ) • ∑ a : α, F a := by
@@ -163,7 +163,7 @@ theorem sum_pi_eval_eq_card_smul {α M : Type*} [Fintype α] [AddCommMonoid M]
           refine Finset.sum_congr rfl fun a _ => ?_
           rw [Finset.sum_const, Finset.card_univ, ← Nat.cast_smul_eq_nsmul ℂ]
 
-theorem card_pi_eq_card_rest_mul {α : Type*} [Fintype α] (j : Fin n) :
+lemma card_pi_eq_card_rest_mul {α : Type*} [Fintype α] (j : Fin n) :
     (Fintype.card (Fin n → α) : ℂ) =
       (Fintype.card ({k : Fin n // k ≠ j} → α) : ℂ) * (Fintype.card α : ℂ) := by
   have h := Fintype.card_congr (piAtEquiv (n := n) j α)
@@ -171,7 +171,7 @@ theorem card_pi_eq_card_rest_mul {α : Type*} [Fintype α] (j : Fin n) :
   rw [h, Nat.cast_mul]
   ring
 
-theorem singleSiteGate_apply (j : Fin n) (M : Matrix (Fin 2) (Fin 2) ℂ)
+lemma singleSiteGate_apply (j : Fin n) (M : Matrix (Fin 2) (Fin 2) ℂ)
     (p q : Fin (2 ^ n)) :
     singleSiteGate j M p q =
       M (finFunctionFinEquiv.symm p j) (finFunctionFinEquiv.symm q j)
@@ -188,13 +188,13 @@ theorem singleSiteGate_apply (j : Fin n) (M : Matrix (Fin 2) (Fin 2) ℂ)
   · refine Finset.prod_congr rfl fun k hk => ?_
     rw [if_neg (Finset.ne_of_mem_erase hk)]
 
-theorem singleSiteGate_smul (j : Fin n) (c : ℂ) (M : Matrix (Fin 2) (Fin 2) ℂ) :
+lemma singleSiteGate_smul (j : Fin n) (c : ℂ) (M : Matrix (Fin 2) (Fin 2) ℂ) :
     singleSiteGate j (c • M) = c • singleSiteGate j M := by
   ext p q
   rw [singleSiteGate_apply]
   simp [Matrix.smul_apply, singleSiteGate_apply, mul_assoc]
 
-theorem singleSiteGate_su2B (j : Fin n) (i : Fin 3) :
+lemma singleSiteGate_su2B (j : Fin n) (i : Fin 3) :
     singleSiteGate j (su2HermBasis.B i) =
       (rt2inv * (rtNinv n)⁻¹) • (su2EmbHermBasis j).B i := by
   have hX : singleSiteGate j pauliX = pauliMat (siteP j 1) := by
@@ -223,20 +223,20 @@ noncomputable def singleSiteDoubledGate (j : Fin n)
           (1 : Matrix (Fin 2) (Fin 2) ℂ)
             (finFunctionFinEquiv.symm p.2 k) (finFunctionFinEquiv.symm q.2 k))
 
-theorem singleSiteDoubledGate_smul (j : Fin n) (c : ℂ)
+lemma singleSiteDoubledGate_smul (j : Fin n) (c : ℂ)
     (X : Matrix (Fin 2 × Fin 2) (Fin 2 × Fin 2) ℂ) :
     singleSiteDoubledGate j (c • X) = c • singleSiteDoubledGate j X := by
   ext p q
   simp [singleSiteDoubledGate, Matrix.smul_apply, mul_assoc]
 
-theorem singleSiteDoubledGate_sum {α : Type*} (j : Fin n) (F : α → Matrix (Fin 2 × Fin 2)
+lemma singleSiteDoubledGate_sum {α : Type*} (j : Fin n) (F : α → Matrix (Fin 2 × Fin 2)
     (Fin 2 × Fin 2) ℂ) (s : Finset α) :
     singleSiteDoubledGate j (∑ a ∈ s, F a) = ∑ a ∈ s, singleSiteDoubledGate j (F a) := by
   ext p q
   simp only [singleSiteDoubledGate, Matrix.of_apply, Matrix.sum_apply]
   rw [Finset.sum_mul, Finset.sum_mul]
 
-theorem singleSiteDoubledGate_kronecker (j : Fin n)
+lemma singleSiteDoubledGate_kronecker (j : Fin n)
     (A B : Matrix (Fin 2) (Fin 2) ℂ) :
     singleSiteGate j A ⊗ₖ singleSiteGate j B =
       singleSiteDoubledGate j (A ⊗ₖ B) := by
@@ -245,7 +245,7 @@ theorem singleSiteDoubledGate_kronecker (j : Fin n)
   simp only [singleSiteDoubledGate, Matrix.of_apply, Matrix.kroneckerMap_apply]
   ring
 
-theorem productGate_conj_singleSite (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ)
+lemma productGate_conj_singleSite (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ)
     (hunit : ∀ j, (U j)ᴴ * U j = 1) (j : Fin n) (M : Matrix (Fin 2) (Fin 2) ℂ) :
     productGate U * singleSiteGate j M * (productGate U)ᴴ =
       singleSiteGate j (U j * M * (U j)ᴴ) := by
@@ -260,7 +260,7 @@ theorem productGate_conj_singleSite (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ)
   · rw [if_neg hkj, if_neg hkj]
     simp [mul_eq_one_comm.mp (hunit k)]
 
-theorem doubledConj_product_singleSite
+lemma doubledConj_product_singleSite
     (U : Fin n → Matrix (Fin 2) (Fin 2) ℂ) (hunit : ∀ j, (U j)ᴴ * U j = 1)
     (j : Fin n) (M : Matrix (Fin 2) (Fin 2) ℂ) :
     doubledConj (productGate U) (singleSiteGate j M ⊗ₖ singleSiteGate j M) =
@@ -271,7 +271,7 @@ theorem doubledConj_product_singleSite
   congr 1
   rw [Matrix.conjTranspose_kronecker, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul]
 
-theorem productQubitClifford_twirl_singleSite (j : Fin n)
+lemma productQubitClifford_twirl_singleSite (j : Fin n)
     (M : Matrix (Fin 2) (Fin 2) ℂ) :
     twirl2 (productQubitClifford (n := n)) (singleSiteGate j M ⊗ₖ singleSiteGate j M) =
       singleSiteDoubledGate j (twirl2 QubitTwoDesign.qubitClifford (M ⊗ₖ M)) := by
@@ -313,7 +313,7 @@ theorem productQubitClifford_twirl_singleSite (j : Fin n)
   rw [hcard]
   field_simp [hrest, hsingle]
 
-theorem qubitClifford_twirl_pauliX :
+lemma qubitClifford_twirl_pauliX :
     twirl2 QubitTwoDesign.qubitClifford (pauliX ⊗ₖ pauliX) =
       (2 / 3 : ℂ) • su2HermBasis.casimir := by
   have hX : pauliX = rt2inv⁻¹ • su2HermBasis.B su2i0 := by
@@ -325,7 +325,7 @@ theorem qubitClifford_twirl_pauliX :
   rw [← _root_.mul_inv_rev, rt2inv_mul_self]
   norm_num
 
-theorem rtNinv_inv_mul_self (n : Nat) :
+lemma rtNinv_inv_mul_self (n : Nat) :
     (rtNinv n)⁻¹ * (rtNinv n)⁻¹ = (2 ^ n : ℂ) := by
   have h := rtNinv_mul_self n
   have hnz := rtNinv_ne_zero n
@@ -333,7 +333,7 @@ theorem rtNinv_inv_mul_self (n : Nat) :
   field_simp [hnz, hpow] at h ⊢
   exact h.symm
 
-theorem singleSiteDoubledGate_su2Casimir (j : Fin n) :
+lemma singleSiteDoubledGate_su2Casimir (j : Fin n) :
     singleSiteDoubledGate j su2HermBasis.casimir =
       ((2 ^ n : ℂ) / 2) • (su2EmbHermBasis j).casimir := by
   change singleSiteDoubledGate j (∑ i : Fin 3, su2HermBasis.B i ⊗ₖ su2HermBasis.B i) =
@@ -355,7 +355,7 @@ theorem singleSiteDoubledGate_su2Casimir (j : Fin n) :
       rw [rt2inv_mul_self, rtNinv_inv_mul_self]
       ring
 
-theorem productQubitClifford_twirl_localObs_eq (j : Fin n) :
+lemma productQubitClifford_twirl_localObs_eq (j : Fin n) :
     twirl2 (productQubitClifford (n := n))
         (pauliMat (siteP j 1) ⊗ₖ pauliMat (siteP j 1)) =
       ((2 ^ n : ℂ) / 3) • (su2EmbHermBasis j).casimir := by
@@ -368,7 +368,7 @@ theorem productQubitClifford_twirl_localObs_eq (j : Fin n) :
   congr 1
   ring
 
-theorem productQubitClifford_twirl_localObs (hn : 0 < n) :
+lemma productQubitClifford_twirl_localObs (hn : 0 < n) :
     twirl2 (productQubitClifford (n := n)) (localObs hn ⊗ₖ localObs hn) =
       ((2 ^ n : ℂ) / 3) • (su2EmbHermBasis (⟨0, hn⟩ : Fin n)).casimir := by
   simpa [localObs] using

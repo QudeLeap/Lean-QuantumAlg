@@ -25,14 +25,15 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The full endpoint returns the native source Born law after genuine recovery. -/
-theorem outputDistribution_eq {N x r t width : Nat}
+lemma outputDistribution_eq {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r)
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference)
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference)
     (valid : HasCanonicalBase hinput access input.caller.localState) :
-    (run hinput access).outputDistribution input =
+    (run (modulusSpec hinput access) t).outputDistribution (Sampling.Native.environment access)
+      input =
       (OrderFinding.Native.sourceOutcomePMF access).map
         (fun outcome => recoveredValue hinput access (.bits outcome)) := by
   rw [outputDistribution_eq_recovery hinput access input valid,

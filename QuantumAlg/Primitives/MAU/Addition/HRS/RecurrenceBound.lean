@@ -22,14 +22,14 @@ resource contract. It introduces no circuit or independent resource witness.
 namespace QuantumAlg.MAU.Addition.HRS
 
 /-- A non-base input loses exactly one ceiling-logarithm level in its larger half. -/
-theorem hrsSplit_clog (width : Nat) (h : 2 ≤ width) :
+lemma hrsSplit_clog (width : Nat) (h : 2 ≤ width) :
     Nat.clog 2 width = Nat.clog 2 (lowWidth width) + 1 := by
   have hlog := Nat.clog_of_two_le (b := 2) (n := width) (by decide) h
   rw [show width + 2 - 1 = width + 1 by omega] at hlog
   exact hlog
 
 /-- The actual constant-dependent split recurrence has an explicit logarithmic bound. -/
-theorem hrsBalancedRecurrence_bound
+lemma hrsBalancedRecurrence_bound
     (cost : (width : Nat) → Fin (2 ^ width) → Nat)
     (base : ∀ width, width ≤ 1 → ∀ constant, cost width constant ≤ width)
     (step : ∀ width, 2 ≤ width → ∀ constant,

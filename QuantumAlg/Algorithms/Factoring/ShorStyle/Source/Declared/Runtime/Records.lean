@@ -28,7 +28,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem record_unitary_entry {R Reference : Register}
+private lemma record_unitary_entry {R Reference : Register}
     (seed : R.Index) (block : DensityOperator (Register.prod R Reference))
     (operator : UnitaryOperator R) (left right : R.Index)
     (leftRef rightRef : Reference.Index)
@@ -51,22 +51,22 @@ variable (base : RuntimeCtx .quantum) (N : Nat) (input : Input N)
   (sameWires : base.quantumWires = (layout N).wires)
 
 /-- Every actual selected record retains its own original zero/reference coefficient. -/
-theorem selected_seed_record_entry
+lemma selected_seed_record_entry
     (parameter : CInputRef base (ParameterShape (modulusBits N)))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds (Storage.context base N).quantumLayout.zeroLabel state)
     (weight : Store (Storage.context base N) ×
-      ((executionModel input).HiddenState ×
-        (History × (selected base N input sameWires parameter).Path)) → ℂ)
+      ((executionModel N).HiddenState ×
+        (History × (selected base N sameWires parameter).Path)) → ℂ)
     (left right : (Storage.context base N).register.Index)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.weightedMatrixEntry
-      ((selected base N input sameWires parameter).execute Reference state)
+      ((selected base N sameWires parameter).execute (environment input) Reference state)
       weight (left, leftRef) (right, rightRef) =
       ∑ original : Store (Storage.context base N) ×
-        ((executionModel input).HiddenState × History),
+        ((executionModel N).HiddenState × History),
         weight (original.1, (original.2.1, (original.2.2,
           ⟨original.1.read (Storage.liftInput base N parameter), ()⟩))) *
         ((DeclaredSource.evolvedState (sourceBounds input) (phaseBits N)
@@ -104,8 +104,9 @@ theorem selected_seed_record_entry
         ⟨original.1.read (Storage.liftInput base N parameter), ()⟩))) * coefficient)
     ((record_unitary_entry (Storage.context base N).quantumLayout.zeroLabel
       (state.block original)
-      (member N ((Storage.quantumWires base N).trans sameWires) input
+      ((member N ((Storage.quantumWires base N).trans sameWires)
         (original.1.read (Storage.liftInput base N parameter))).matrix
+          (environment input).quantum)
       left right leftRef rightRef entries).trans ?_)
   rw [member_zero_amplitude, member_zero_amplitude]
 

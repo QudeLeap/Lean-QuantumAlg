@@ -31,6 +31,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.AccumulateState
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution AccumulateRuntime
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -42,11 +47,11 @@ private def preparedSupport (modulus : Nat) (basis : (after modulus.size).regist
       ((PayloadPreparation.assembly modulus.size (modulus.size + 1)).symm basis).2)
 
 /-- The original local valid-input predicate suffices for complete joint conjugation equality. -/
-theorem accumulateState_prepared_conjugation (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateState_prepared_conjugation (modulus : Nat) (modulusPositive : 0 < modulus)
     {Reference : Register} (input : Input (before modulus.size) Reference)
     (valid : AccumulateTarget.valid modulus input.localState) :
     DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (AccumulateRuntime.program modulus).matrix
+        (UnitaryOperator.prodTensor ((AccumulateRuntime.program modulus).matrix environment)
           (1 : UnitaryOperator Reference))
         (preparedDensity PayloadPreparation.auxiliaryKey
           (InputPreparation.auxiliaryLayout modulus.size)
@@ -77,32 +82,35 @@ theorem accumulateState_prepared_conjugation (modulus : Nat) (modulusPositive : 
       old admitted row
 
 /-- Every actual complete run gives the independent full target for arbitrary valid mixed input. -/
-theorem accumulateState_finalState_quantumMarginal (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateState_finalState_quantumMarginal (modulus : Nat) (modulusPositive : 0 < modulus)
     {shape : CShape} (output : Output (after modulus.size) shape)
     {Reference : Register}
     (input : OracleInput .empty (before modulus.size) Reference)
     (valid : AccumulateTarget.valid modulus input.caller.localState) :
     (({ code := AccumulateRuntime.code modulus, output := output } :
       AlgorithmRun (.quantum AlgorithmGate.model .empty)
-        (before modulus.size) (after modulus.size) shape).finalState
+        (before modulus.size) (after modulus.size) shape).finalState runtimeEnvironment
         Reference input.state).quantumMarginal =
       AccumulateTarget.density modulus modulusPositive Reference input.caller := by
   let recorded := input.state.mapClassical (fun value => (value.1, (value.2, value.1)))
   have result := AlgorithmRun.finalState_quantumMarginal
     ({ code := AccumulateRuntime.code modulus, output := output } :
       AlgorithmRun (.quantum AlgorithmGate.model .empty)
-        (before modulus.size) (after modulus.size) shape) Reference input.state
+        (before modulus.size) (after modulus.size) shape) runtimeEnvironment Reference input.state
   calc
-    _ = ((AccumulateRuntime.code modulus).execute Reference recorded).quantumMarginal := result
+    _ = ((AccumulateRuntime.code modulus).execute runtimeEnvironment Reference
+      recorded).quantumMarginal := result
     _ = DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (AccumulateRuntime.program modulus).matrix
+        (UnitaryOperator.prodTensor ((AccumulateRuntime.program modulus).matrix
+          runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
-        (((PayloadPreparation.circuit modulus (modulus.size + 1)).execute
+        (((PayloadPreparation.circuit modulus (modulus.size + 1)).execute runtimeEnvironment
           Reference recorded).quantumMarginal) :=
       PayloadRuntime.payloadRuntime_code_quantumMarginal modulus (modulus.size + 1)
         (nativeProgram modulus) recorded
     _ = DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (AccumulateRuntime.program modulus).matrix
+        (UnitaryOperator.prodTensor ((AccumulateRuntime.program modulus).matrix
+          runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
         (preparedDensity PayloadPreparation.auxiliaryKey
           (InputPreparation.auxiliaryLayout modulus.size)
@@ -120,7 +128,7 @@ theorem accumulateState_finalState_quantumMarginal (modulus : Nat) (modulusPosit
       exact accumulateState_prepared_conjugation modulus modulusPositive input.caller valid
 
 /-- The full-layout mixed promise holds after aggregating the actual unit output observation. -/
-theorem accumulateState_requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateState_requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
     {shape : CShape} (output : Output (after modulus.size) shape)
     {Reference : Register}
     (input : OracleInput .empty (before modulus.size) Reference)
@@ -128,7 +136,7 @@ theorem accumulateState_requirement_holds (modulus : Nat) (modulusPositive : 0 <
     (AccumulateTarget.requirement modulus modulusPositive).Holds input.caller
       (({ code := AccumulateRuntime.code modulus, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty)
-          (before modulus.size) (after modulus.size) shape).finalState
+          (before modulus.size) (after modulus.size) shape).finalState runtimeEnvironment
           Reference input.state) := by
   intro value
   cases value with
@@ -140,7 +148,7 @@ theorem accumulateState_requirement_holds (modulus : Nat) (modulusPositive : 0 <
         Finset.univ Reference
         (((({ code := AccumulateRuntime.code modulus, output := output } :
           AlgorithmRun (.quantum AlgorithmGate.model .empty)
-            (before modulus.size) (after modulus.size) shape).finalState
+            (before modulus.size) (after modulus.size) shape).finalState runtimeEnvironment
             Reference input.state).mapClassical
               (fun _ => CShape.Value.unit)).block CShape.Value.unit))
     rw [ExecutionState.executionState_mapClassical_const_block,
@@ -155,13 +163,14 @@ theorem accumulateState_requirement_holds (modulus : Nat) (modulusPositive : 0 <
     simp only [one_smul]
 
 /-- Actual preparation and complete inversion restore the mandatory joint borrowed observation. -/
-theorem accumulateState_borrowedRestored (modulus : Nat)
+lemma accumulateState_borrowedRestored (modulus : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
     (AccumulateRuntime.code modulus).BorrowedRestored Reference state
-      ((AccumulateRuntime.code modulus).execute Reference state) := by
-  apply Circuit.borrowedRestored_of_noBorrowedQuantum (AccumulateRuntime.code modulus)
+      ((AccumulateRuntime.code modulus).execute runtimeEnvironment Reference state) := by
+  apply Circuit.borrowedRestored_of_noBorrowedQuantum
+    (environment := runtimeEnvironment) (AccumulateRuntime.code modulus)
   simp [before, PayloadPreparation.before]
 
 end

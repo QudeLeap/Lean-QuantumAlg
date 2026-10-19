@@ -23,7 +23,7 @@ namespace QuantumAlg.ExecutionState
 noncomputable section
 
 /-- Actual supported records in a domain give zero weight to its complement. -/
-theorem referenceFiberSum_bad_eq_zero {C : Type} [Fintype C]
+lemma referenceFiberSum_bad_eq_zero {C : Type} [Fintype C]
     {R Reference : Register} (state : ExecutionState C (Register.prod R Reference))
     (domain : C → Prop) [DecidablePred domain]
     (admitted : ∀ record, 0 < (state.block record).mass → domain record)
@@ -38,7 +38,7 @@ theorem referenceFiberSum_bad_eq_zero {C : Type} [Fintype C]
   simp only [referenceFiberSum, zero_mul, Finset.sum_const_zero]
 
 /-- Complete zero complement observations exclude every positive bad record. -/
-theorem supported_of_reference_zero {C : Type} [Fintype C]
+lemma supported_of_reference_zero {C : Type} [Fintype C]
     {R Reference : Register} (state : ExecutionState C (Register.prod R Reference))
     (domain : C → Prop) [DecidablePred domain]
     (zero : ∀ left right : Reference.Index,

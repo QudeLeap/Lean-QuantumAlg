@@ -35,9 +35,9 @@ universe u
 
 variable {G : Type u} [Group G] [Fintype G]
 
-private theorem pre_systemCount : (pre : RuntimeCtx .quantum).systemCount = 0 := rfl
+private lemma pre_systemCount : (pre : RuntimeCtx .quantum).systemCount = 0 := rfl
 
-private theorem source_bank_wires (P : KnownOrderProblem G) :
+private lemma source_bank_wires (P : KnownOrderProblem G) :
     (OrderOracle.layout P).wires = (bankContext P).quantumLayout.wires :=
   ((RuntimeCtx.quantumLayout_wires (bankContext P)).trans (bankContext_wires P)).symm
 
@@ -51,7 +51,7 @@ private def outputBasisEquiv (P : KnownOrderProblem G) :
   (bankBasisEquiv P).trans
     (MeasurementCells.basisEquiv (bankContext P) 2 (sampleWidth P))
 
-private theorem bankBasisEquiv_value (P : KnownOrderProblem G)
+private lemma bankBasisEquiv_value (P : KnownOrderProblem G)
     (basis : (OrderOracle.layout P).Basis)
     (index : Fin (OrderPreparation.width P + OrderPreparation.width P + 1)) :
     (bankBasisEquiv P basis
@@ -77,7 +77,7 @@ private theorem bankBasisEquiv_value (P : KnownOrderProblem G)
     (pre.addOwnedLayout pre.canonicalFreshKey (OrderOracle.layout P)
       bankFresh (bankDisjoint P)).quantumLayout sameWires basis index
 
-private theorem outputBasisEquiv_eq (P : KnownOrderProblem G) :
+private lemma outputBasisEquiv_eq (P : KnownOrderProblem G) :
     outputBasisEquiv P = (basisEquiv P).symm := by
   apply Equiv.ext
   intro basis
@@ -106,10 +106,11 @@ private theorem outputBasisEquiv_eq (P : KnownOrderProblem G) :
 
 /-- Allocating the retained cells changes only the basis type of the local
 quantum density operator. -/
-public theorem allocationCode_localDensity (P : KnownOrderProblem G)
+public lemma allocationCode_localDensity (P : KnownOrderProblem G)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (bankContext P) Reference ((model P).HiddenState × H)) :
-    ((allocationCode P).execute Reference state).quantumMarginal.marginalLeft =
+    ((allocationCode P).execute
+      (sourceEnvironment P) Reference state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex
         (S := (post P).register)
         (MeasurementCells.basisEquiv (bankContext P) 2 (sampleWidth P)) := by
@@ -118,9 +119,9 @@ public theorem allocationCode_localDensity (P : KnownOrderProblem G)
   exact DensityOperator.reindex_prod_marginalLeft state.quantumMarginal
     (MeasurementCells.basisEquiv (bankContext P) 2 (sampleWidth P))
 
-private theorem nativeProgram_input (P : KnownOrderProblem G)
+private lemma nativeProgram_input (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
-    DensityOperator.applyUnitary (nativeProgram P expansion).matrix
+    DensityOperator.applyUnitary ((nativeProgram P expansion).matrix (OrderOracle.interpretation P))
       ((DensityOperator.ofPure
         (NormalizedVector.ket (R := (OrderOracle.layout P).register)
           (OrderOracle.layout P).zeroLabel)).reindex
@@ -134,35 +135,39 @@ private theorem nativeProgram_input (P : KnownOrderProblem G)
 
 /-- The actual coherent prefix has exactly the source circuit's terminal pure
 state, transported along the physical-wire correspondence. -/
-public theorem beforeMeasurement_localDensity (P : KnownOrderProblem G)
+public lemma beforeMeasurement_localDensity (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference ((model P).HiddenState × H))
     (normalized : state.IsNormalized) :
-    ((beforeMeasurement P expansion).execute Reference state).quantumMarginal.marginalLeft =
+    ((beforeMeasurement P expansion).execute
+      (sourceEnvironment P) Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (OrderBornBridge.evolvedState P expansion)).reindex
         (S := (post P).register) (basisEquiv P).symm := by
   have prepared := Circuit.prepareZero_empty_local_density
+    (environment := sourceEnvironment P)
     (gates := AlgorithmGate.model) (oracles := OrderOracle.model P)
     (operations := BitWord.model)
     (classicalOracles := ClassicalFiniteGroupOracle.model G)
     state pre.canonicalFreshKey (OrderOracle.layout P) bankFresh
     (bankDisjoint P) pre_systemCount normalized
   have preparedCode :
-      ((preparationCode P).execute Reference state).quantumMarginal.marginalLeft =
+      ((preparationCode P).execute
+      (sourceEnvironment P) Reference state).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure
           (BasisPreparation.zero (OrderOracle.layout P)).normalized).reindex
             (S := (bankContext P).register) (bankBasisEquiv P) := by
     unfold preparationCode bankBasisEquiv bankContext
     exact prepared
   have allocatedCode :
-      ((allocationCode P).execute Reference
-          ((preparationCode P).execute Reference state)).quantumMarginal.marginalLeft =
+      ((allocationCode P).execute (sourceEnvironment P) Reference
+          ((preparationCode P).execute
+      (sourceEnvironment P) Reference state)).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure
           (BasisPreparation.zero (OrderOracle.layout P)).normalized).reindex
             (S := (post P).register) (outputBasisEquiv P) := by
     have allocated := allocationCode_localDensity P
-      ((preparationCode P).execute Reference state)
+      ((preparationCode P).execute (sourceEnvironment P) Reference state)
     rw [preparedCode] at allocated
     calc
       _ = ((DensityOperator.ofPure
@@ -180,7 +185,8 @@ public theorem beforeMeasurement_localDensity (P : KnownOrderProblem G)
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.unitary_localDensity, allocatedCode, outputBasisEquiv_eq]
-  change DensityOperator.applyUnitary (nativeProgram P expansion).matrix
+  change DensityOperator.applyUnitary ((nativeProgram P expansion).matrix
+      (OrderOracle.interpretation P))
       ((DensityOperator.ofPure
         (NormalizedVector.ket (R := (OrderOracle.layout P).register)
           (OrderOracle.layout P).zeroLabel)).reindex

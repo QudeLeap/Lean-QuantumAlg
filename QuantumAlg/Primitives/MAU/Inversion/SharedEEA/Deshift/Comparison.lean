@@ -32,7 +32,7 @@ noncomputable section
 open NumberTheory.SharedEEA DeshiftPhaseFrame
 
 /-- The completed actual coefficient phase is exactly the first deshift frame, including Sign. -/
-theorem entry_frame (state : IterationState) (modulus : Nat)
+lemma entry_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     CoefficientTrajectory.phaseFrame state modulus state.quotient.size
@@ -54,7 +54,7 @@ theorem entry_frame (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- The initial and subsequent full comparisons both give the Sign required by native control. -/
-theorem compared_sign (state : IterationState) (count : Nat)
+lemma compared_sign (state : IterationState) (count : Nat)
     (valid : state.Admissible) (active : 0 < state.divisor)
     (beforeEnd : count < state.quotient.size) :
     (decide (count = 0) ^^
@@ -70,7 +70,7 @@ theorem compared_sign (state : IterationState) (count : Nat)
       state.quotient.size count positive beforeEnd lower upper
 
 /-- The actual native comparison sets Sign one and preserves the complete reachable frame. -/
-theorem native_frame (state : IterationState) (modulus count : Nat)
+lemma native_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     ArithmeticBlocks.coefficientStep modulus.size

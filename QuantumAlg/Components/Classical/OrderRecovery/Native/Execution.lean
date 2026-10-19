@@ -30,7 +30,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
-private theorem mapDecision {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma mapDecision {C D : Type} [Fintype C] [Fintype D] {R : Register}
     (first second : DecidableEq D) (state : ExecutionState C R) (update : C → D) :
     @ExecutionState.mapClassical C D _ _ R first state update =
       @ExecutionState.mapClassical C D _ _ R second state update :=
@@ -59,15 +59,16 @@ def recoveryBodyStep
   (packed.1, (initialized.2, (paths, packed.2)))
 
 /-- Every actual body path is tied to the same initialization and final-store record. -/
-theorem nativeRecovery_body_execute
+lemma nativeRecovery_body_execute
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits))
-    (output : CWriteRef ctx (outputShape phaseBits)) (Reference : Register)
+    (output : CWriteRef ctx (outputShape phaseBits)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (recoveryContext ctx modulusWidth (phaseBits + 1))
       Reference (model.HiddenState × History)) :
-    (recoveryBody (model := model) spec base sample output).execute Reference state =
+    (recoveryBody (model := model) spec base sample output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((recoveryBodyStep (model := model) spec base sample output entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -94,7 +95,7 @@ theorem nativeRecovery_body_execute
   have scanEquation (reference : Register) {H : Type} [Fintype H]
       (initial : State (recoveryContext ctx modulusWidth (phaseBits + 1))
         reference (model.HiddenState × H)) :
-      actualScan.execute reference initial = initial.mapClassical (fun entry =>
+      actualScan.execute environment reference initial = initial.mapClassical (fun entry =>
         let next := scanStep (entry.1, entry.2.1)
         (next.1.1, (next.1.2, (entry.2.2, next.2)))) := by
     refine (nativeScan_execute spec.modulusSpec _ _ _ reference initial).trans ?_
@@ -102,10 +103,10 @@ theorem nativeRecovery_body_execute
   have packEquation (reference : Register) {H : Type} [Fintype H]
       (initial : State (recoveryContext ctx modulusWidth (phaseBits + 1))
         reference (model.HiddenState × H)) :
-      pack.execute reference initial = initial.mapClassical (fun entry =>
+      pack.execute environment reference initial = initial.mapClassical (fun entry =>
         let next := packStep (entry.1, entry.2.1)
         (next.1.1, (next.1.2, (entry.2.2, next.2)))) := by
-    refine (BitWord.bitWord_instruction_execute
+    refine (BitWord.bitWord_instruction_execute (environment := environment)
       (packRecoveredOp (modulusWidth := modulusWidth) output) initial).trans ?_
     exact mapDecision _ _ initial _
   let tailStep := fun before :
@@ -116,18 +117,19 @@ theorem nativeRecovery_body_execute
   have tailEquation (reference : Register) {H : Type} [Fintype H]
       (initial : State (recoveryContext ctx modulusWidth (phaseBits + 1))
         reference (model.HiddenState × H)) :
-      (Circuit.seq actualScan pack).execute reference initial =
+      (Circuit.seq actualScan pack).execute environment reference initial =
         initial.mapClassical (fun entry =>
           let next := tailStep (entry.1, entry.2.1)
           (next.1.1, (next.1.2, (entry.2.2, next.2)))) := by
-    refine (Circuit.execute_sequenceRecord actualScan pack scanStep packStep
+    refine (Circuit.execute_sequenceRecord
+      (environment := environment) actualScan pack scanStep packStep
       ?_ ?_ reference initial).trans ?_
     · intro reference history _ current
       exact (scanEquation reference current).trans (mapDecision _ _ current _)
     · intro reference history _ current
       exact (packEquation reference current).trans (mapDecision _ _ current _)
     · exact mapDecision _ _ initial _
-  refine (Circuit.execute_sequenceRecord
+  refine (Circuit.execute_sequenceRecord (environment := environment)
     (initializeScan (model := model) ctx modulusWidth phaseBits sample)
     (Circuit.seq actualScan pack)
     (fun before =>
@@ -152,13 +154,14 @@ def intoStep (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBi
     (recoveryBodyStep (model := model) spec base sample output) store
 
 /-- Complete native recovery follows the sole interpreter on every full reference block. -/
-theorem nativeRecovery_into_execute
+lemma nativeRecovery_into_execute
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits))
-    (output : CWriteRef ctx (outputShape phaseBits)) (Reference : Register)
+    (output : CWriteRef ctx (outputShape phaseBits)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) spec base sample output).execute Reference state =
+    (into (model := model) spec base sample output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((intoStep (model := model) spec base sample output entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -166,7 +169,8 @@ theorem nativeRecovery_into_execute
   refine (nativeRecovery_scope_execute ctx modulusWidth (phaseBits + 1) recoveryFields
     (recoveryBody (model := model) spec base sample output)
     (recoveryBodyStep (model := model) spec base sample output)
-    (nativeRecovery_body_execute spec base sample output) Reference state).trans ?_
+    (nativeRecovery_body_execute spec base sample output (environment := environment))
+    Reference state).trans ?_
   exact mapDecision _ _ state (fun entry =>
     ((intoStep (model := model) spec base sample output entry.1).1,
       (entry.2.1, (entry.2.2, (intoStep (model := model) spec base sample output entry.1).2))))

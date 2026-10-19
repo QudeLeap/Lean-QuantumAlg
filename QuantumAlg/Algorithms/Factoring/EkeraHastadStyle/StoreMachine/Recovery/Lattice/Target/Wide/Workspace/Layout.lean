@@ -79,27 +79,27 @@ def cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   (ClassicalWorkspace.cellAt cells (cellIndex N cell)).ref
 
 /-- Every named wide-target scratch cell is workspace-owned. -/
-theorem cellRef_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma cellRef_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Cells ctx N) (cell : Cell) :
     (cellRef cells cell).toCStorageRef.role = .workspace := by
   exact (ClassicalWorkspace.cellAt cells (cellIndex N cell)).role
 
 /-- The named reference and numeric index have the same physical key. -/
-theorem cellRef_key {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma cellRef_key {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Cells ctx N) (cell : Cell) :
     (cellRef cells cell).toCStorageRef.key =
       (ClassicalWorkspace.cellAt cells (cellIndex N cell)).ref.toCStorageRef.key := by
   rfl
 
-private theorem cellIndex_zero_injective : Function.Injective (cellIndex 0) := by
+private lemma cellIndex_zero_injective : Function.Injective (cellIndex 0) := by
   decide
 
-private theorem cellIndex_val_eq (N M : Nat) (cell : Cell) :
+private lemma cellIndex_val_eq (N M : Nat) (cell : Cell) :
     (cellIndex N cell).val = (cellIndex M cell).val := by
   cases cell <;> rfl
 
 /-- The stable numeric index is injective on named cells. -/
-theorem cellIndex_injective (N : Nat) : Function.Injective (cellIndex N) := by
+lemma cellIndex_injective (N : Nat) : Function.Injective (cellIndex N) := by
   intro left right equal
   apply cellIndex_zero_injective
   apply Fin.ext
@@ -109,7 +109,7 @@ theorem cellIndex_injective (N : Nat) : Function.Injective (cellIndex N) := by
     _ = (cellIndex 0 right).val := cellIndex_val_eq N 0 right
 
 /-- Distinct allocation cells give an injective named key projection. -/
-theorem cellRef_key_injective {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma cellRef_key_injective {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Cells ctx N) (distinct : cells.Distinct) :
     Function.Injective (fun cell => (cellRef cells cell).toCStorageRef.key) := by
   intro left right equal

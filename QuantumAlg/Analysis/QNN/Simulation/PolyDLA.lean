@@ -41,7 +41,7 @@ open Filter Matrix Topology
 
 attribute [local instance 100] LieRing.ofAssociativeRing
 
-private theorem tendsto_succ_pow_div_const_pow (k : ℕ) {b : ℝ} (hb : 1 < b) :
+private lemma tendsto_succ_pow_div_const_pow (k : ℕ) {b : ℝ} (hb : 1 < b) :
     Tendsto (fun n : ℕ => (((n : ℝ) + 1) ^ k) / b ^ n) atTop (𝓝 0) := by
   have hsucc :
       Tendsto (fun n : ℕ => (((n : ℝ) + 1) ^ k) / b ^ (n + 1)) atTop (𝓝 0) := by
@@ -58,7 +58,7 @@ private theorem tendsto_succ_pow_div_const_pow (k : ℕ) {b : ℝ} (hb : 1 < b) 
   ring
 
 /-- An inverse-polynomial lower bound on a variance sequence rules out a barren plateau. -/
-theorem not_hasBarrenPlateau_of_invPoly_lower (v : ℕ → ℝ)
+lemma not_hasBarrenPlateau_of_invPoly_lower (v : ℕ → ℝ)
     {c : ℝ} (hc : 0 < c) (k : ℕ)
     (hlower : ∀ n : ℕ, c / (((n : ℝ) + 1) ^ k) ≤ v n) :
     ¬ HasBarrenPlateau v := by
@@ -81,7 +81,7 @@ theorem not_hasBarrenPlateau_of_invPoly_lower (v : ℕ → ℝ)
     nlinarith [hineq, hc, hpoly_pos, hbpow_pos]
   exact (not_lt_of_ge hone_le) hsmall
 
-private theorem reductive_variance_floor_of_distinguished_purity
+private lemma reductive_variance_floor_of_distinguished_purity
     {N : ℕ} {ρ O : Matrix (Fin N) (Fin N) ℂ}
     (R : RagoneReductive ρ O) (hρ : ρᴴ = ρ) (hO : Oᴴ = O)
     (hdim : ∀ j, 0 < (R.basis j).dim) (j0 : Fin R.numComp)
@@ -200,7 +200,7 @@ public theorem polyDLA_family_dichotomy
 
 /-- Product-local `su(2)^n` has an inverse-polynomial reductive witness and exact
 reconstruction from the `3n` local-DLA data, indexed by `m + 1` qubits. -/
-theorem localObs_polyDLA_family_dichotomy :
+lemma localObs_polyDLA_family_dichotomy :
     ¬ HasBarrenPlateau
         (fun m => (rLocalProductClifford (n := m + 1) (Nat.succ_pos m)).variance)
       ∧ (∀ m, (((localHermBasis (m + 1)).dim : ℝ) ≤ 3 * (((m : ℝ) + 1) ^ 1)))

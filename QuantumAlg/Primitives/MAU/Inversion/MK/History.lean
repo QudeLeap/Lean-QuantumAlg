@@ -26,6 +26,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -94,7 +96,7 @@ def activeConditionBranchHistoryWriteStep
 /-- The supplied-condition branch-history write program is a concrete
 encoded-bit base-gate realization over the Montgomery--Kaliski register
 layout. -/
-theorem activeConditionBranchHistoryWrite_realizes
+lemma activeConditionBranchHistoryWrite_realizes
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -107,16 +109,16 @@ theorem activeConditionBranchHistoryWrite_realizes
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (activeConditionBranchHistoryWriteProgram n counterWidth condition
         hactiveCondition hconditionScratchA hconditionScratchB branch
-        historyIndex)
+        historyIndex) environment
       (activeConditionBranchHistoryWriteStep n counterWidth condition
         hactiveCondition hconditionScratchA hconditionScratchB branch
         historyIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (activeConditionBranchHistoryWriteGates n counterWidth condition
       hactiveCondition hconditionScratchA hconditionScratchB branch
       historyIndex)
 
-theorem activeConditionBranchHistoryWriteStep_eq
+lemma activeConditionBranchHistoryWriteStep_eq
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -146,7 +148,7 @@ theorem activeConditionBranchHistoryWriteStep_eq
 /-- On clean scratchB, the supplied-condition branch-history slice toggles the
 selected `m_i` bit exactly when the active flag, the supplied condition, and
 the branch history-code bit are all set. -/
-theorem activeConditionBranchHistoryWriteStep_get_history_clean
+lemma activeConditionBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -177,7 +179,7 @@ theorem activeConditionBranchHistoryWriteStep_get_history_clean
         simp [Branch.historyBit, hscratchB]
 
 /-- The supplied-condition branch-history slice preserves the active flag. -/
-theorem activeConditionBranchHistoryWriteStep_get_active
+lemma activeConditionBranchHistoryWriteStep_get_active
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -201,7 +203,7 @@ theorem activeConditionBranchHistoryWriteStep_get_active
 
 /-- The supplied-condition branch-history slice preserves scratchA when the
 supplied condition bit is disjoint from the selected history target. -/
-theorem activeConditionBranchHistoryWriteStep_get_scratchA
+lemma activeConditionBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -241,7 +243,7 @@ theorem activeConditionBranchHistoryWriteStep_get_scratchA
 /-- The supplied-condition branch-history slice preserves the supplied
 condition bit.  The extra wire-disjointness premise records that the supplied
 condition is not the selected history target. -/
-theorem activeConditionBranchHistoryWriteStep_get_condition
+lemma activeConditionBranchHistoryWriteStep_get_condition
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -282,7 +284,7 @@ theorem activeConditionBranchHistoryWriteStep_get_condition
 
 /-- The supplied-condition branch-history slice preserves any observed bit
 disjoint from the scratch-code targets and the selected history target. -/
-theorem activeConditionBranchHistoryWriteStep_get_of_preserved
+lemma activeConditionBranchHistoryWriteStep_get_of_preserved
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -318,7 +320,7 @@ theorem activeConditionBranchHistoryWriteStep_get_of_preserved
 
 /-- The supplied-condition branch-history slice preserves every history slot
 except the selected target slot. -/
-theorem activeConditionBranchHistoryWriteStep_get_historyBit_of_ne
+lemma activeConditionBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -380,18 +382,18 @@ def uGreaterBranchHistoryWriteStep
 /-- The comparison-conditioned `uGreater` history-write program is a concrete
 encoded-bit base-gate realization over the Montgomery--Kaliski register
 layout. -/
-theorem uGreaterBranchHistoryWrite_realizes
+lemma uGreaterBranchHistoryWrite_realizes
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (uGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
+      (uGreaterBranchHistoryWriteProgram n counterWidth historyIndex) environment
       (uGreaterBranchHistoryWriteStep n counterWidth historyIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uGreaterBranchHistoryWriteGates n counterWidth historyIndex)
 
 /-- On clean scratchB, the comparison-conditioned `uGreater` slice toggles the
 selected `m_i` bit exactly when the active flag and supplied comparison bit are
 set. -/
-theorem uGreaterBranchHistoryWriteStep_get_history_clean
+lemma uGreaterBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth)
     (hscratchB : (RegisterBits.scratchBBit n counterWidth).get x = false) :
@@ -411,7 +413,7 @@ theorem uGreaterBranchHistoryWriteStep_get_history_clean
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves every
 history slot except the selected target slot. -/
-theorem uGreaterBranchHistoryWriteStep_get_historyBit_of_ne
+lemma uGreaterBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (target observed : Fin (2 * n))
     (hne : target ≠ observed) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth observed).get
@@ -428,7 +430,7 @@ theorem uGreaterBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves the
 comparison condition bit supplied by the selector. -/
-theorem uGreaterBranchHistoryWriteStep_get_compare
+lemma uGreaterBranchHistoryWriteStep_get_compare
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
@@ -447,7 +449,7 @@ theorem uGreaterBranchHistoryWriteStep_get_compare
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves the
 active flag. -/
-theorem uGreaterBranchHistoryWriteStep_get_active
+lemma uGreaterBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -464,7 +466,7 @@ theorem uGreaterBranchHistoryWriteStep_get_active
 
 /-- The comparison-conditioned `uGreater` history-write slice restores
 scratchA after staging and unstaging the branch code. -/
-theorem uGreaterBranchHistoryWriteStep_get_scratchA
+lemma uGreaterBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
@@ -482,7 +484,7 @@ theorem uGreaterBranchHistoryWriteStep_get_scratchA
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves every
 little-endian `u` value bit. -/
-theorem uGreaterBranchHistoryWriteStep_get_uWordBit
+lemma uGreaterBranchHistoryWriteStep_get_uWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth bit).get
@@ -513,7 +515,7 @@ theorem uGreaterBranchHistoryWriteStep_get_uWordBit
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves every
 little-endian `v` value bit. -/
-theorem uGreaterBranchHistoryWriteStep_get_vWordBit
+lemma uGreaterBranchHistoryWriteStep_get_vWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth bit).get
@@ -544,7 +546,7 @@ theorem uGreaterBranchHistoryWriteStep_get_vWordBit
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves every
 little-endian `s` coefficient value bit. -/
-theorem uGreaterBranchHistoryWriteStep_get_sCoeffValueWordBit
+lemma uGreaterBranchHistoryWriteStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (bit : Fin (n + 1)) (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth bit).get
@@ -575,7 +577,7 @@ theorem uGreaterBranchHistoryWriteStep_get_sCoeffValueWordBit
 
 /-- The comparison-conditioned `uGreater` history-write slice preserves every
 little-endian `r` coefficient value bit. -/
-theorem uGreaterBranchHistoryWriteStep_get_rCoeffValueWordBit
+lemma uGreaterBranchHistoryWriteStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (bit : Fin (n + 1)) (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth bit).get
@@ -622,10 +624,10 @@ def liftedUGreaterBranchHistoryWriteProgram
     (uGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
 
 /-- The lifted `uGreater` history-write circuit realizes its product action. -/
-theorem liftedUGreaterBranchHistoryWrite_realizes
+lemma liftedUGreaterBranchHistoryWrite_realizes
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (liftedUGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
+      (liftedUGreaterBranchHistoryWriteProgram n counterWidth historyIndex) environment
       (liftedUGreaterBranchHistoryWriteStep n counterWidth historyIndex) := by
   unfold liftedUGreaterBranchHistoryWriteProgram
     liftedUGreaterBranchHistoryWriteStep
@@ -637,7 +639,7 @@ theorem liftedUGreaterBranchHistoryWrite_realizes
 /-- On clean lifted scratchB, the lifted comparison-conditioned `uGreater`
 slice toggles the selected branch-history bit exactly when the lifted active
 flag and lifted comparison bit are set. -/
-theorem liftedUGreaterBranchHistoryWriteStep_get_history_clean
+lemma liftedUGreaterBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hscratchB : (liftedScratchBBit n counterWidth).get x = false) :
@@ -657,7 +659,7 @@ theorem liftedUGreaterBranchHistoryWriteStep_get_history_clean
 
 /-- The lifted `uGreater` history-write slice preserves every history slot
 except the selected target slot. -/
-theorem liftedUGreaterBranchHistoryWriteStep_get_historyBit_of_ne
+lemma liftedUGreaterBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (target observed : Fin (2 * n))
     (hne : target ≠ observed)
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -672,7 +674,7 @@ theorem liftedUGreaterBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The lifted `uGreater` branch-history write preserves every comparison-work
 carry bit, because it only acts on the leading Kaliski registers. -/
-theorem liftedUGreaterBranchHistoryWriteStep_get_comparisonCarry
+lemma liftedUGreaterBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -682,7 +684,7 @@ theorem liftedUGreaterBranchHistoryWriteStep_get_comparisonCarry
 
 /-- The lifted comparison-conditioned `uGreater` history-write slice preserves
 the lifted comparison condition bit. -/
-theorem liftedUGreaterBranchHistoryWriteStep_get_compare
+lemma liftedUGreaterBranchHistoryWriteStep_get_compare
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -696,7 +698,7 @@ theorem liftedUGreaterBranchHistoryWriteStep_get_compare
 
 /-- The lifted comparison-conditioned `uGreater` history-write slice preserves
 the lifted active flag. -/
-theorem liftedUGreaterBranchHistoryWriteStep_get_active
+lemma liftedUGreaterBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -710,7 +712,7 @@ theorem liftedUGreaterBranchHistoryWriteStep_get_active
 
 /-- The lifted comparison-conditioned `uGreater` history-write slice restores
 the lifted scratchA bit. -/
-theorem liftedUGreaterBranchHistoryWriteStep_get_scratchA
+lemma liftedUGreaterBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -743,10 +745,10 @@ def uGreaterSelectorBranchHistoryWriteProgram
     (liftedUGreaterBranchHistoryWriteProgram n counterWidth historyIndex)
 
 /-- The composed `uGreater` selector/history-write circuit realizes its step. -/
-theorem uGreaterSelectorBranchHistoryWrite_realizes
+lemma uGreaterSelectorBranchHistoryWrite_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (uGreaterSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex)
+      (uGreaterSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex) environment
       (uGreaterSelectorBranchHistoryWriteStep n counterWidth bit
         historyIndex) := by
   unfold uGreaterSelectorBranchHistoryWriteProgram
@@ -761,7 +763,7 @@ theorem uGreaterSelectorBranchHistoryWrite_realizes
 /-- The composed `uGreater` selector/history-write slice restores every
 comparison-work carry bit.  This ties the selector restoration theorem to the
 same composed base-gate program used for the history-write endpoint. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_comparisonCarry
+lemma uGreaterSelectorBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -775,7 +777,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_comparisonCarry
 
 /-- The composed `uGreater` selector/history-write slice preserves the active
 flag through selector restoration and branch-history write. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_active
+lemma uGreaterSelectorBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -789,7 +791,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_active
 /-- The composed `uGreater` selector/history-write slice preserves scratchA;
 the comparator restores its borrow input and the history write unstages the
 branch-code bit. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_scratchA
+lemma uGreaterSelectorBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -802,7 +804,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_scratchA
 
 /-- The composed `uGreater` selector/history-write slice preserves every
 little-endian `u` value bit. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_uWordBit
+lemma uGreaterSelectorBranchHistoryWriteStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -822,7 +824,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_uWordBit
 
 /-- The composed `uGreater` selector/history-write slice preserves every
 little-endian `v` value bit. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_vWordBit
+lemma uGreaterSelectorBranchHistoryWriteStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -842,7 +844,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_vWordBit
 
 /-- The composed `uGreater` selector/history-write slice preserves every
 little-endian `s` coefficient value bit. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
+lemma uGreaterSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -862,7 +864,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
 
 /-- The composed `uGreater` selector/history-write slice preserves every
 little-endian `r` coefficient value bit. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
+lemma uGreaterSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -883,7 +885,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
 /-- On clean comparison work and clean scratchA, the composed `uGreater`
 selector/history-write slice leaves the comparison bit equal to the staged
 `uGreater` predicate `v < u`. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_compare_clean
+lemma uGreaterSelectorBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false)
@@ -903,7 +905,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_compare_clean
 when the round is active and `v < u`.  This endpoint theorem is paired with the
 selector work-restoration theorem above
 [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_history_clean
+lemma uGreaterSelectorBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false)
@@ -944,7 +946,7 @@ theorem uGreaterSelectorBranchHistoryWriteStep_get_history_clean
 
 /-- The composed `uGreater` selector/history-write slice preserves every
 history slot except the selected target slot. -/
-theorem uGreaterSelectorBranchHistoryWriteStep_get_historyBit_of_ne
+lemma uGreaterSelectorBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -993,19 +995,19 @@ def vLeBranchHistoryWriteStep
 /-- The comparison-conditioned `vLe` history-write program is a concrete
 encoded-bit base-gate realization over the Montgomery--Kaliski register
 layout. -/
-theorem vLeBranchHistoryWrite_realizes
+lemma vLeBranchHistoryWrite_realizes
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (vLeBranchHistoryWriteProgram n counterWidth historyIndex)
+      (vLeBranchHistoryWriteProgram n counterWidth historyIndex) environment
       (vLeBranchHistoryWriteStep n counterWidth historyIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (vLeBranchHistoryWriteGates n counterWidth historyIndex)
 
 /-- On clean scratchB, the comparison-conditioned `vLe` slice leaves the
 selected `m_i` bit unchanged, matching the `vLe` history code bit `0`
 [RNSL17, ECDLP.tex:471].
 -/
-theorem vLeBranchHistoryWriteStep_get_history_clean
+lemma vLeBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth)
     (hscratchB : (RegisterBits.scratchBBit n counterWidth).get x = false) :
@@ -1023,7 +1025,7 @@ theorem vLeBranchHistoryWriteStep_get_history_clean
 
 /-- The comparison-conditioned `vLe` history-write slice preserves every
 history slot except the selected target slot. -/
-theorem vLeBranchHistoryWriteStep_get_historyBit_of_ne
+lemma vLeBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (target observed : Fin (2 * n))
     (hne : target ≠ observed) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth observed).get
@@ -1040,7 +1042,7 @@ theorem vLeBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The comparison-conditioned `vLe` history-write slice preserves the
 comparison condition bit supplied by the selector. -/
-theorem vLeBranchHistoryWriteStep_get_compare
+lemma vLeBranchHistoryWriteStep_get_compare
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
@@ -1059,7 +1061,7 @@ theorem vLeBranchHistoryWriteStep_get_compare
 
 /-- The comparison-conditioned `vLe` history-write slice preserves the active
 flag. -/
-theorem vLeBranchHistoryWriteStep_get_active
+lemma vLeBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -1076,7 +1078,7 @@ theorem vLeBranchHistoryWriteStep_get_active
 
 /-- The comparison-conditioned `vLe` history-write slice preserves scratchA.
 For this zero-code branch, the staging gates leave scratchA unchanged. -/
-theorem vLeBranchHistoryWriteStep_get_scratchA
+lemma vLeBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
@@ -1094,7 +1096,7 @@ theorem vLeBranchHistoryWriteStep_get_scratchA
 
 /-- The comparison-conditioned `vLe` history-write slice preserves every
 little-endian `u` value bit. -/
-theorem vLeBranchHistoryWriteStep_get_uWordBit
+lemma vLeBranchHistoryWriteStep_get_uWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth bit).get
@@ -1125,7 +1127,7 @@ theorem vLeBranchHistoryWriteStep_get_uWordBit
 
 /-- The comparison-conditioned `vLe` history-write slice preserves every
 little-endian `v` value bit. -/
-theorem vLeBranchHistoryWriteStep_get_vWordBit
+lemma vLeBranchHistoryWriteStep_get_vWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth bit).get
@@ -1156,7 +1158,7 @@ theorem vLeBranchHistoryWriteStep_get_vWordBit
 
 /-- The comparison-conditioned `vLe` history-write slice preserves every
 little-endian `s` coefficient value bit. -/
-theorem vLeBranchHistoryWriteStep_get_sCoeffValueWordBit
+lemma vLeBranchHistoryWriteStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (bit : Fin (n + 1)) (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth bit).get
@@ -1187,7 +1189,7 @@ theorem vLeBranchHistoryWriteStep_get_sCoeffValueWordBit
 
 /-- The comparison-conditioned `vLe` history-write slice preserves every
 little-endian `r` coefficient value bit. -/
-theorem vLeBranchHistoryWriteStep_get_rCoeffValueWordBit
+lemma vLeBranchHistoryWriteStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (bit : Fin (n + 1)) (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth bit).get
@@ -1234,10 +1236,10 @@ def liftedVLeBranchHistoryWriteProgram
     (vLeBranchHistoryWriteProgram n counterWidth historyIndex)
 
 /-- The lifted `vLe` history-write circuit realizes its product action. -/
-theorem liftedVLeBranchHistoryWrite_realizes
+lemma liftedVLeBranchHistoryWrite_realizes
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (liftedVLeBranchHistoryWriteProgram n counterWidth historyIndex)
+      (liftedVLeBranchHistoryWriteProgram n counterWidth historyIndex) environment
       (liftedVLeBranchHistoryWriteStep n counterWidth historyIndex) := by
   unfold liftedVLeBranchHistoryWriteProgram liftedVLeBranchHistoryWriteStep
   simpa [registersWithComparisonWorkEncoding] using
@@ -1247,7 +1249,7 @@ theorem liftedVLeBranchHistoryWrite_realizes
 
 /-- On clean lifted scratchB, the lifted comparison-conditioned `vLe` slice
 leaves the selected branch-history bit unchanged. -/
-theorem liftedVLeBranchHistoryWriteStep_get_history_clean
+lemma liftedVLeBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hscratchB : (liftedScratchBBit n counterWidth).get x = false) :
@@ -1263,7 +1265,7 @@ theorem liftedVLeBranchHistoryWriteStep_get_history_clean
 
 /-- The lifted `vLe` history-write slice preserves every history slot except
 the selected target slot. -/
-theorem liftedVLeBranchHistoryWriteStep_get_historyBit_of_ne
+lemma liftedVLeBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (target observed : Fin (2 * n))
     (hne : target ≠ observed)
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1278,7 +1280,7 @@ theorem liftedVLeBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The lifted `vLe` branch-history write preserves every comparison-work carry
 bit, because it only acts on the leading Kaliski registers. -/
-theorem liftedVLeBranchHistoryWriteStep_get_comparisonCarry
+lemma liftedVLeBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -1288,7 +1290,7 @@ theorem liftedVLeBranchHistoryWriteStep_get_comparisonCarry
 
 /-- The lifted comparison-conditioned `vLe` history-write slice preserves the
 lifted comparison condition bit. -/
-theorem liftedVLeBranchHistoryWriteStep_get_compare
+lemma liftedVLeBranchHistoryWriteStep_get_compare
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -1301,7 +1303,7 @@ theorem liftedVLeBranchHistoryWriteStep_get_compare
 
 /-- The lifted comparison-conditioned `vLe` history-write slice preserves the
 lifted active flag. -/
-theorem liftedVLeBranchHistoryWriteStep_get_active
+lemma liftedVLeBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -1314,7 +1316,7 @@ theorem liftedVLeBranchHistoryWriteStep_get_active
 
 /-- The lifted comparison-conditioned `vLe` history-write slice preserves the
 lifted scratchA bit. -/
-theorem liftedVLeBranchHistoryWriteStep_get_scratchA
+lemma liftedVLeBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -1346,10 +1348,10 @@ def vLeSelectorBranchHistoryWriteProgram
     (liftedVLeBranchHistoryWriteProgram n counterWidth historyIndex)
 
 /-- The composed selector/`vLe` history-write circuit realizes its step. -/
-theorem vLeSelectorBranchHistoryWrite_realizes
+lemma vLeSelectorBranchHistoryWrite_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (vLeSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex)
+      (vLeSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex) environment
       (vLeSelectorBranchHistoryWriteStep n counterWidth bit historyIndex) := by
   unfold vLeSelectorBranchHistoryWriteProgram vLeSelectorBranchHistoryWriteStep
   exact UnitaryCircuit.Realizes.seq
@@ -1360,7 +1362,7 @@ theorem vLeSelectorBranchHistoryWrite_realizes
 
 /-- The composed selector/`vLe` history-write slice restores every
 comparison-work carry bit. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_comparisonCarry
+lemma vLeSelectorBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -1373,7 +1375,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_comparisonCarry
 
 /-- The composed selector/`vLe` history-write slice preserves the active flag
 through selector restoration and the zero-code history write. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_active
+lemma vLeSelectorBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -1385,7 +1387,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_active
 
 /-- The composed selector/`vLe` history-write slice preserves scratchA through
 selector restoration and the zero-code history write. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_scratchA
+lemma vLeSelectorBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -1397,7 +1399,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_scratchA
 
 /-- The composed selector/`vLe` history-write slice preserves every
 little-endian `u` value bit. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_uWordBit
+lemma vLeSelectorBranchHistoryWriteStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1417,7 +1419,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_uWordBit
 
 /-- The composed selector/`vLe` history-write slice preserves every
 little-endian `v` value bit. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_vWordBit
+lemma vLeSelectorBranchHistoryWriteStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1437,7 +1439,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_vWordBit
 
 /-- The composed selector/`vLe` history-write slice preserves every
 little-endian `s` coefficient value bit. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
+lemma vLeSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1457,7 +1459,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
 
 /-- The composed selector/`vLe` history-write slice preserves every
 little-endian `r` coefficient value bit. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
+lemma vLeSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1479,7 +1481,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
 history-write slice leaves the comparison bit equal to the staged `uGreater`
 predicate `v < u`; the `vLe` history code itself is the zero-code complement
 handled by the history endpoint below. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_compare_clean
+lemma vLeSelectorBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false)
@@ -1498,7 +1500,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_compare_clean
 the selected history bit unchanged.  This realizes the RNSL17 `vLe` history
 code bit `0` through the same concrete selector/bridge composition
 [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_history_clean
+lemma vLeSelectorBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hscratchB : (liftedScratchBBit n counterWidth).get x = false) :
@@ -1519,7 +1521,7 @@ theorem vLeSelectorBranchHistoryWriteStep_get_history_clean
 
 /-- The composed selector/`vLe` history-write slice preserves every history
 slot except the selected target slot. -/
-theorem vLeSelectorBranchHistoryWriteStep_get_historyBit_of_ne
+lemma vLeSelectorBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1566,7 +1568,7 @@ def coeffWorkUGreaterScratchACompareSelectorStep
 
 /-- The explicit coefficient-work gate list has the same folded semantics as
 the lifted comparison selector step. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_eq_gateList
+lemma coeffWorkUGreaterScratchACompareSelectorStep_eq_gateList
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -1583,7 +1585,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_eq_gateList
       (uGreaterScratchACompareSelectorGates n counterWidth bit) x
 
 /-- Product lifting preserves the selector's exact physical length. -/
-theorem coeffWorkUGreaterScratchACompareSelectorGates_length
+lemma coeffWorkUGreaterScratchACompareSelectorGates_length
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffWorkUGreaterScratchACompareSelectorGates
       n counterWidth bit).length = 10 * n + 1 := by
@@ -1591,7 +1593,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_length
     uGreaterScratchACompareSelectorGates_length]
 
 /-- Product lifting preserves the selector's exact X coordinate. -/
-theorem coeffWorkUGreaterScratchACompareSelectorGates_xMultiplicity_sum
+lemma coeffWorkUGreaterScratchACompareSelectorGates_xMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((coeffWorkUGreaterScratchACompareSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.xMultiplicity).sum = 4 * n := by
@@ -1609,7 +1611,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_xMultiplicity_sum
         n counterWidth bit
 
 /-- Product lifting preserves the selector's exact CNOT coordinate. -/
-theorem coeffWorkUGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
+lemma coeffWorkUGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((coeffWorkUGreaterScratchACompareSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
@@ -1627,7 +1629,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
         n counterWidth bit
 
 /-- Product lifting preserves the selector's exact Toffoli coordinate. -/
-theorem coeffWorkUGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
+lemma coeffWorkUGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((coeffWorkUGreaterScratchACompareSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -1646,13 +1648,13 @@ theorem coeffWorkUGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
 
 /-- The coefficient-work-lifted cleanup-compatible comparison selector gate
 list realizes the lifted selector step. -/
-theorem coeffWorkUGreaterScratchACompareSelector_realizes
+lemma coeffWorkUGreaterScratchACompareSelector_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkUGreaterScratchACompareSelectorProgram n counterWidth bit)
+      (coeffWorkUGreaterScratchACompareSelectorProgram n counterWidth bit) environment
       (coeffWorkUGreaterScratchACompareSelectorStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (coeffWorkUGreaterScratchACompareSelectorGates n counterWidth bit)
     (coeffWorkUGreaterScratchACompareSelectorStep_eq_gateList
@@ -1660,7 +1662,7 @@ theorem coeffWorkUGreaterScratchACompareSelector_realizes
 
 /-- On clean comparison inputs, the coefficient-work-lifted selector writes
 the staged predicate `v < u` into `compare`. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_compare_clean
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -1678,7 +1680,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_compare_clean
     n counterWidth bit x hscratchA hcompare hfinal
 
 /-- The coefficient-work-lifted selector preserves scratchA. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_scratchA
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -1690,7 +1692,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_scratchA
   exact uGreaterScratchACompareSelectorStep_get_scratchA n counterWidth bit x.1
 
 /-- The coefficient-work-lifted selector preserves scratchB. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_scratchB
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_scratchB
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -1702,7 +1704,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_scratchB
   exact uGreaterScratchACompareSelectorStep_get_scratchB n counterWidth bit x.1
 
 /-- The coefficient-work-lifted selector preserves the active flag. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_active
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_active
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -1715,7 +1717,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_active
 
 /-- The coefficient-work-lifted selector preserves every stored branch-history
 bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_historyBit
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -1729,7 +1731,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_historyBit
 
 /-- The coefficient-work-lifted selector preserves every comparison-work carry
 bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_comparisonCarry
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_comparisonCarry
     (n counterWidth : Nat) (bit workBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -1743,7 +1745,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_comparisonCarry
 
 /-- The coefficient-work-lifted selector preserves the dedicated
 coefficient-adder carry-in flag. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_coeffCarryIn
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_coeffCarryIn
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -1753,7 +1755,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_coeffCarryIn
 
 /-- The coefficient-work-lifted comparison selector preserves the complete
 physical padding counter. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_counter
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_counter
     (n counterWidth : Nat) (selectorBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterScratchACompareSelectorStep
@@ -1802,7 +1804,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_counter
 
 /-- The coefficient-work-lifted selector preserves each dedicated
 coefficient-adder carry-work bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_coeffCarryWorkBit
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_coeffCarryWorkBit
     (n counterWidth : Nat) (bit : Fin n) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -1812,7 +1814,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_coeffCarryWorkBit
 
 /-- The coefficient-work-lifted selector preserves every little-endian `u`
 value bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_uWordBit
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit targetBit).get
@@ -1828,7 +1830,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_uWordBit
 
 /-- The coefficient-work-lifted selector preserves every little-endian `v`
 value bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_vWordBit
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit targetBit).get
@@ -1844,7 +1846,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_vWordBit
 
 /-- The coefficient-work-lifted selector preserves every little-endian `s`
 coefficient value bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_sCoeffValueWordBit
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit targetBit).get
@@ -1860,7 +1862,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_sCoeffValueWordBit
 
 /-- The coefficient-work-lifted selector preserves every little-endian `r`
 coefficient value bit. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_rCoeffValueWordBit
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit targetBit).get
@@ -1875,7 +1877,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_rCoeffValueWordBit
     n counterWidth selectorBit targetBit x.1
 
 /-- The coefficient-work-lifted selector preserves the `u` source word. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_u
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_u
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterScratchACompareSelectorStep n counterWidth bit x).1.1.u =
@@ -1888,7 +1890,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_u
   simpa [coeffAdderUWord_get_testBit] using h
 
 /-- The coefficient-work-lifted selector preserves the `v` source word. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_v
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_v
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterScratchACompareSelectorStep n counterWidth bit x).1.1.v =
@@ -1901,7 +1903,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_v
   simpa [coeffAdderVWord_get_testBit] using h
 
 /-- The coefficient-work-lifted selector preserves the `s` coefficient word. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_sCoeff
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_sCoeff
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterScratchACompareSelectorStep n counterWidth bit x).1.1.sCoeff =
@@ -1914,7 +1916,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_sCoeff
   simpa [coeffAdderSCoeffValueWord_get_testBit] using h
 
 /-- The coefficient-work-lifted selector preserves the `r` coefficient word. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_rCoeff
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_rCoeff
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterScratchACompareSelectorStep n counterWidth bit x).1.1.rCoeff =
@@ -1928,7 +1930,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_rCoeff
 
 /-- The coefficient-work-lifted selector preserves each comparison-prefix
 carry bit used by the source-subtract adders. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_get_comparisonCarryPrefix
+lemma coeffWorkUGreaterScratchACompareSelectorStep_get_comparisonCarryPrefix
     (n counterWidth : Nat) (selectorBit : Fin n) (workBit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderComparisonCarryPrefixWord n counterWidth).bit workBit).get
@@ -1943,7 +1945,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_get_comparisonCarryPrefix
 
 /-- On clean comparison inputs, the coefficient-work-lifted selector establishes
 compare-valid on its own output state. -/
-theorem coeffWorkUGreaterScratchACompareSelectorStep_compare_valid_clean
+lemma coeffWorkUGreaterScratchACompareSelectorStep_compare_valid_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -1965,7 +1967,7 @@ theorem coeffWorkUGreaterScratchACompareSelectorStep_compare_valid_clean
 /-- On clean comparison inputs, if both source words are odd and `v < u`, the
 selector output already latches the branch decision as `uGreater` before any
 odd data-path mutation. -/
-theorem
+lemma
     coeffWorkUGreaterScratchACompareSelectorStep_fromCoeffWorkSignals_uGreater_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -1995,7 +1997,7 @@ theorem
 /-- On clean comparison inputs, if both source words are odd and `v < u` is
 false, the selector output already latches the branch decision as `vLe` before
 any odd data-path mutation. -/
-theorem
+lemma
     coeffWorkUGreaterScratchACompareSelectorStep_fromCoeffWorkSignals_vLe_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -2055,7 +2057,7 @@ def coeffWorkCompareSelectorThenSelectedOddDataPathProgram
 
 /-- The explicit comparison-selector/selected-odd gate list has the existing
 composite semantic action. -/
-theorem coeffWorkCompareSelectorThenSelectedOddDataPathStep_eq_gateList
+lemma coeffWorkCompareSelectorThenSelectedOddDataPathStep_eq_gateList
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -2070,14 +2072,14 @@ theorem coeffWorkCompareSelectorThenSelectedOddDataPathStep_eq_gateList
 
 /-- The comparison-selector/selected-odd program realizes the existing composite
 semantic action. -/
-theorem coeffWorkCompareSelectorThenSelectedOddDataPath_realizes
+lemma coeffWorkCompareSelectorThenSelectedOddDataPath_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareSelectorThenSelectedOddDataPathProgram n counterWidth bit)
+      (coeffWorkCompareSelectorThenSelectedOddDataPathProgram n counterWidth bit) environment
       (coeffWorkCompareSelectorThenSelectedOddDataPathStep
         n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectorThenSelectedOddDataPathGates n counterWidth bit)
     (coeffWorkCompareSelectorThenSelectedOddDataPathStep_eq_gateList
@@ -2085,7 +2087,7 @@ theorem coeffWorkCompareSelectorThenSelectedOddDataPath_realizes
 
 /-- Exact physical length of comparison selection followed by its odd data
 path. -/
-theorem coeffWorkCompareSelectorThenSelectedOddDataPathGates_length
+lemma coeffWorkCompareSelectorThenSelectedOddDataPathGates_length
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffWorkCompareSelectorThenSelectedOddDataPathGates
       n counterWidth bit).length = 36 * (n - 1) + 54 * n + 9 := by
@@ -2097,7 +2099,7 @@ theorem coeffWorkCompareSelectorThenSelectedOddDataPathGates_length
 
 /-- Exact X coordinate of comparison selection followed by its odd data
 path. -/
-theorem
+lemma
     coeffWorkCompareSelectorThenSelectedOddDataPathGates_xMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((coeffWorkCompareSelectorThenSelectedOddDataPathGates
@@ -2110,7 +2112,7 @@ theorem
 
 /-- Exact CNOT coordinate of comparison selection followed by its odd data
 path. -/
-theorem
+lemma
     coeffWorkCompareSelectorThenSelectedOddDataPathGates_cnotMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((coeffWorkCompareSelectorThenSelectedOddDataPathGates
@@ -2123,7 +2125,7 @@ theorem
 
 /-- Exact Toffoli coordinate of comparison selection followed by its odd data
 path. -/
-theorem
+lemma
     coeffWorkCompareSelectorThenSelectedOddDataPathGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((coeffWorkCompareSelectorThenSelectedOddDataPathGates
@@ -2138,7 +2140,7 @@ theorem
 /-- On clean comparison inputs, if `v < u`, the composed selector and selected
 odd data path reduces to the `u := u - v; r := r + s` path after selector
 staging. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_eq_subVFromUThenAddSIntoR_clean_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -2191,7 +2193,7 @@ theorem
 /-- On clean comparison inputs, if `v < u` is false, the composed selector and
 selected odd data path reduces to the `v := v - u; s := s + r` path after
 selector staging. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_eq_subUFromVThenAddRIntoS_clean_not_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -2243,7 +2245,7 @@ theorem
 
 /-- On clean comparison inputs with `v < u`, the composed selector and selected
 odd data path writes `u := u - v`. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_u_sub_clean_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_u_sub_clean_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2306,7 +2308,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_u_sub_clean_lt
 
 /-- On clean comparison inputs with `v < u`, the composed selector and selected
 odd data path writes `r := r + s`. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_rCoeff_add_clean_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_rCoeff_add_clean_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2370,7 +2372,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_rCoeff_add_clean_lt
 
 /-- On clean comparison inputs with `v < u`, the composed selector and selected
 odd data path preserves the untouched `v` source word. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_v_clean_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_v_clean_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2419,7 +2421,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_v_clean_lt
 
 /-- On clean comparison inputs with `v < u`, the composed selector and selected
 odd data path preserves the untouched `s` coefficient word. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_sCoeff_clean_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_sCoeff_clean_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2469,7 +2471,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_sCoeff_clean_lt
 
 /-- On clean comparison inputs with `v < u` false, the composed selector and
 selected odd data path writes `v := v - u`. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_v_sub_clean_not_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_v_sub_clean_not_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2532,7 +2534,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_v_sub_clean_not_lt
 
 /-- On clean comparison inputs with `v < u` false, the composed selector and
 selected odd data path writes `s := s + r`. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_get_sCoeff_add_clean_not_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -2597,7 +2599,7 @@ theorem
 
 /-- On clean comparison inputs with `v < u` false, the composed selector and
 selected odd data path preserves the untouched `u` source word. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_u_clean_not_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_u_clean_not_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2646,7 +2648,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_u_clean_not_lt
 
 /-- On clean comparison inputs with `v < u` false, the composed selector and
 selected odd data path preserves the untouched `r` coefficient word. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_rCoeff_clean_not_lt
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_rCoeff_clean_not_lt
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2696,7 +2698,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_rCoeff_clean_not_lt
 
 /-- The composed comparison selector and selected odd data path preserves the
 active flag on clean selected-control inputs. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_active
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_active
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2737,7 +2739,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_active
 odd data path leaves the compare bit equal to the selector's original
 `v < u` predicate.  This is not a compare-valid statement for the mutated
 output source registers. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_compare_clean
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2779,7 +2781,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_compare_clean
 
 /-- The composed comparison selector and selected odd data path preserves every
 stored branch-history bit on clean selected-control inputs. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_historyBit
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2818,7 +2820,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_historyBit
 
 /-- On clean selected-control inputs, the composed comparison selector and
 selected odd data path restores scratchA. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_scratchA_clean
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2850,7 +2852,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_scratchA_clean
 
 /-- On clean selected-control inputs, the composed comparison selector and
 selected odd data path preserves scratchB. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_scratchB
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_scratchB
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2890,7 +2892,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_scratchB
 /-- On clean selected-control inputs and clean source-subtract work, the
 composed comparison selector and selected odd data path restores each
 comparison-prefix carry bit. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin n) (workBit : Fin (n - 1))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -2935,7 +2937,7 @@ theorem
 
 /-- On clean comparison input, the composed comparison selector and selected
 odd data path also restores the dedicated final comparison-carry bit. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_get_comparisonCarry_final_clean
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -2978,7 +2980,7 @@ theorem
 
 /-- On clean selected-control inputs, the composed comparison selector and
 selected odd data path restores the dedicated coefficient-adder carry-in bit. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_coeffCarryIn_clean
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_coeffCarryIn_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3011,7 +3013,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_coeffCarryIn_clean
 /-- On clean selected-control inputs and clean coefficient-adder work, the
 composed comparison selector and selected odd data path restores every
 dedicated coefficient-adder carry-work bit. -/
-theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_carryWork_clean
+lemma coeffWorkCompareSelectorSelectedOddDataPathStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin n)
     (workBit : Fin ((n + 1) - 1))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -3057,7 +3059,7 @@ theorem coeffWorkCompareSelectorSelectedOddDataPathStep_get_carryWork_clean
 /-- In the odd-odd case, the branch decision latched from the selector output
 has auxiliary code bit equal to the compare bit preserved by the selected odd
 data-path prefix.  The branch is read before `u` or `v` is mutated. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_latchedOddBranch_auxBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -3098,7 +3100,7 @@ theorem
 /-- In the odd-odd case, the branch decision latched from the selector output
 has history code bit equal to the compare bit preserved by the selected odd
 data-path prefix.  The branch is read before `u` or `v` is mutated. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_latchedOddBranch_historyBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -3140,7 +3142,7 @@ theorem
 the pair of compare bits preserved by the selected odd data-path prefix.  This
 is a carried-code statement; it does not recompute branch signals after the
 data path mutates `u` or `v`. -/
-theorem
+lemma
     coeffWorkCompareSelectorSelectedOddDataPathStep_latchedOddBranch_code_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -3196,11 +3198,11 @@ def coeffWorkUGreaterSelectorBranchHistoryWriteProgram
     (uGreaterSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex)
 
 /-- The coefficient-work-lifted `uGreater` circuit realizes its step. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWrite_realizes
+lemma coeffWorkUGreaterSelectorBranchHistoryWrite_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkUGreaterSelectorBranchHistoryWriteProgram n counterWidth bit
-        historyIndex)
+        historyIndex) environment
       (coeffWorkUGreaterSelectorBranchHistoryWriteStep n counterWidth bit
         historyIndex) :=
   liftComparisonWorkProgramToCoeffAdderWork_realizes n counterWidth
@@ -3227,11 +3229,11 @@ def coeffWorkVLeSelectorBranchHistoryWriteProgram
     (vLeSelectorBranchHistoryWriteProgram n counterWidth bit historyIndex)
 
 /-- The coefficient-work-lifted `vLe` circuit realizes its step. -/
-theorem coeffWorkVLeSelectorBranchHistoryWrite_realizes
+lemma coeffWorkVLeSelectorBranchHistoryWrite_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkVLeSelectorBranchHistoryWriteProgram n counterWidth bit
-        historyIndex)
+        historyIndex) environment
       (coeffWorkVLeSelectorBranchHistoryWriteStep n counterWidth bit
         historyIndex) :=
   liftComparisonWorkProgramToCoeffAdderWork_realizes n counterWidth
@@ -3239,7 +3241,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWrite_realizes
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves the
 dedicated coefficient-adder work object. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_coeffAdderWork
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_coeffAdderWork
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSelectorBranchHistoryWriteStep n counterWidth bit
@@ -3248,7 +3250,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_coeffAdderWork
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the
 dedicated coefficient-adder work object. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_coeffAdderWork
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_coeffAdderWork
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSelectorBranchHistoryWriteStep n counterWidth bit
@@ -3257,7 +3259,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_coeffAdderWork
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_carryIn
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_carryIn
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -3268,7 +3270,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_carryIn
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_carryIn
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_carryIn
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -3279,7 +3281,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_carryIn
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves each
 coefficient-adder temporary carry-work bit. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_carryWorkBit
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_carryWorkBit
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3291,7 +3293,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_carryWorkBit
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves each
 coefficient-adder temporary carry-work bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_carryWorkBit
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_carryWorkBit
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3303,7 +3305,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_carryWorkBit
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 the active flag. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_active
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -3319,7 +3321,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_active
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the
 active flag. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_active
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -3335,7 +3337,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_active
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 scratchA. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_scratchA
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -3351,7 +3353,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_scratchA
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves
 scratchA. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_scratchA
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -3367,7 +3369,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_scratchA
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 each comparison-work carry bit. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_comparisonCarry
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -3383,7 +3385,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_comparisonCarry
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves each
 comparison-work carry bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_comparisonCarry
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -3399,7 +3401,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_comparisonCarry
 
 /-- On clean comparison inputs, the coefficient-work-lifted `uGreater`
 selector/history slice leaves compare equal to the staged predicate `v < u`. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_compare_clean
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3419,7 +3421,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_compare_clean
 /-- On clean comparison inputs, the coefficient-work-lifted `vLe`
 selector/history slice preserves the same staged predicate bit `v < u`; the
 history endpoint accounts for the zero-code branch bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_compare_clean
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3438,7 +3440,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_compare_clean
 
 /-- On clean inputs, the coefficient-work-lifted `uGreater` selector/history
 slice toggles the selected history bit exactly under active `v < u`. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_history_clean
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3462,7 +3464,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_history_clean
 
 /-- On clean scratchB, the coefficient-work-lifted `vLe` selector/history slice
 leaves the selected history bit unchanged. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_history_clean
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hscratchB : (coeffAdderScratchBBit n counterWidth).get x = false) :
@@ -3480,7 +3482,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_history_clean
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 every history slot except the selected target slot. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_historyBit_of_ne
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3497,7 +3499,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves every
 history slot except the selected target slot. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_historyBit_of_ne
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3513,7 +3515,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 each little-endian `u` value bit. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_uWordBit
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3530,7 +3532,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_uWordBit
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 each little-endian `v` value bit. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_vWordBit
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3547,7 +3549,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_vWordBit
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 each little-endian `s` coefficient value bit. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3564,7 +3566,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 each little-endian `r` coefficient value bit. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3581,7 +3583,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves each
 little-endian `u` value bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_uWordBit
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3598,7 +3600,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_uWordBit
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves each
 little-endian `v` value bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_vWordBit
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3615,7 +3617,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_vWordBit
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves each
 little-endian `s` coefficient value bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3632,7 +3634,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_sCoeffValueWordBit
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves each
 little-endian `r` coefficient value bit. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3649,7 +3651,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_rCoeffValueWordBit
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 the `u` source word. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_u
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_u
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSelectorBranchHistoryWriteStep n counterWidth
@@ -3663,7 +3665,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_u
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 the `v` source word. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_v
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_v
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSelectorBranchHistoryWriteStep n counterWidth
@@ -3677,7 +3679,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_v
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 the `s` coefficient word. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_sCoeff
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_sCoeff
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSelectorBranchHistoryWriteStep n counterWidth
@@ -3692,7 +3694,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_sCoeff
 
 /-- The coefficient-work-lifted `uGreater` selector/history slice preserves
 the `r` coefficient word. -/
-theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_rCoeff
+lemma coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_rCoeff
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSelectorBranchHistoryWriteStep n counterWidth
@@ -3707,7 +3709,7 @@ theorem coeffWorkUGreaterSelectorBranchHistoryWriteStep_get_rCoeff
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the `u`
 source word. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_u
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_u
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSelectorBranchHistoryWriteStep n counterWidth selectorBit
@@ -3721,7 +3723,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_u
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the `v`
 source word. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_v
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_v
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSelectorBranchHistoryWriteStep n counterWidth selectorBit
@@ -3735,7 +3737,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_v
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the `s`
 coefficient word. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_sCoeff
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_sCoeff
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSelectorBranchHistoryWriteStep n counterWidth selectorBit
@@ -3750,7 +3752,7 @@ theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_sCoeff
 
 /-- The coefficient-work-lifted `vLe` selector/history slice preserves the `r`
 coefficient word. -/
-theorem coeffWorkVLeSelectorBranchHistoryWriteStep_get_rCoeff
+lemma coeffWorkVLeSelectorBranchHistoryWriteStep_get_rCoeff
     (n counterWidth : Nat) (selectorBit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSelectorBranchHistoryWriteStep n counterWidth selectorBit
@@ -3791,11 +3793,11 @@ def coeffWorkUGreaterSelectorThenAddRIntoSProgram
     (coeffWorkSwapsThenAddRIntoSProgram n counterWidth)
 
 /-- The `uGreater` selector plus `r`-into-`s` circuit realizes its step. -/
-theorem coeffWorkUGreaterSelectorThenAddRIntoS_realizes
+lemma coeffWorkUGreaterSelectorThenAddRIntoS_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkUGreaterSelectorThenAddRIntoSProgram n counterWidth bit
-        historyIndex)
+        historyIndex) environment
       (coeffWorkUGreaterSelectorThenAddRIntoSStep n counterWidth bit
         historyIndex) := by
   unfold coeffWorkUGreaterSelectorThenAddRIntoSProgram
@@ -3812,7 +3814,7 @@ theorem coeffWorkUGreaterSelectorThenAddRIntoS_realizes
 /-- On clean comparison inputs, the `uGreater` selector-plus-data-path slice
 keeps the staged comparison predicate available after the coefficient-adder
 data path. -/
-theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_compare_clean
+lemma coeffWorkUGreaterSelectorThenAddRIntoSStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3829,7 +3831,7 @@ theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_compare_clean
 
 /-- On clean inputs, the `uGreater` selector-plus-data-path slice preserves the
 selector's branch-history toggle through the coefficient-adder data path. -/
-theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_history_clean
+lemma coeffWorkUGreaterSelectorThenAddRIntoSStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3848,7 +3850,7 @@ theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_history_clean
     n counterWidth bit historyIndex x work hscratchA hcompare hscratchB hfinal
 
 /-- The `uGreater` selector-plus-data-path slice preserves the active flag. -/
-theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_active
+lemma coeffWorkUGreaterSelectorThenAddRIntoSStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -3861,7 +3863,7 @@ theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_active
     n counterWidth bit historyIndex x
 
 /-- The `uGreater` selector-plus-data-path slice preserves scratchA. -/
-theorem coeffWorkUGreaterSelectorThenAddRIntoSStep_get_scratchA
+lemma coeffWorkUGreaterSelectorThenAddRIntoSStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -3898,10 +3900,10 @@ def coeffWorkVLeSelectorThenAddSIntoRProgram
     (coeffWorkSwapsThenAddSIntoRProgram n counterWidth)
 
 /-- The `vLe` selector plus `s`-into-`r` circuit realizes its step. -/
-theorem coeffWorkVLeSelectorThenAddSIntoR_realizes
+lemma coeffWorkVLeSelectorThenAddSIntoR_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkVLeSelectorThenAddSIntoRProgram n counterWidth bit historyIndex)
+      (coeffWorkVLeSelectorThenAddSIntoRProgram n counterWidth bit historyIndex) environment
       (coeffWorkVLeSelectorThenAddSIntoRStep n counterWidth bit
         historyIndex) := by
   unfold coeffWorkVLeSelectorThenAddSIntoRProgram
@@ -3918,7 +3920,7 @@ theorem coeffWorkVLeSelectorThenAddSIntoR_realizes
 /-- On clean comparison inputs, the `vLe` selector-plus-data-path slice keeps
 the staged comparison predicate available after the coefficient-adder data
 path. -/
-theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_compare_clean
+lemma coeffWorkVLeSelectorThenAddSIntoRStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -3935,7 +3937,7 @@ theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_compare_clean
 
 /-- On clean scratchB, the `vLe` selector-plus-data-path slice preserves the
 zero-code branch-history no-op through the coefficient-adder data path. -/
-theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_history_clean
+lemma coeffWorkVLeSelectorThenAddSIntoRStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchB : (RegisterBits.scratchBBit n counterWidth).get x = false) :
@@ -3950,7 +3952,7 @@ theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_history_clean
     hscratchB
 
 /-- The `vLe` selector-plus-data-path slice preserves the active flag. -/
-theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_active
+lemma coeffWorkVLeSelectorThenAddSIntoRStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -3963,7 +3965,7 @@ theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_active
     n counterWidth bit historyIndex x
 
 /-- The `vLe` selector-plus-data-path slice preserves scratchA. -/
-theorem coeffWorkVLeSelectorThenAddSIntoRStep_get_scratchA
+lemma coeffWorkVLeSelectorThenAddSIntoRStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -3998,11 +4000,11 @@ def coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRProgram
     (coeffWorkSubVFromUThenAddSIntoRProgram n counterWidth)
 
 /-- The `uGreater` selector and subtract/add circuit realizes its step. -/
-theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoR_realizes
+lemma coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoR_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep
         n counterWidth bit historyIndex) := by
   unfold coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRProgram
@@ -4039,11 +4041,11 @@ def coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSProgram
     (coeffWorkSubUFromVThenAddRIntoSProgram n counterWidth)
 
 /-- The `vLe` selector and subtract/add circuit realizes its step. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoS_realizes
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoS_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep
         n counterWidth bit historyIndex) := by
   unfold coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSProgram
@@ -4059,7 +4061,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoS_realizes
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice lands on clean
 scratchA when the input scratchA is clean. -/
-theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_scratchA_clean
+lemma coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -4074,7 +4076,7 @@ theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_scratchA_cle
 
 /-- The corrected `vLe` selector-plus-subtract/add slice lands on clean
 scratchA when the input scratchA is clean. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_scratchA_clean
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -4089,7 +4091,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_scratchA_clean
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice restores each
 comparison-prefix carry-work bit when the input comparison-prefix work is clean. -/
-theorem
+lemma
     coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin (n - 1))
@@ -4119,7 +4121,7 @@ theorem
 
 /-- The corrected `vLe` selector-plus-subtract/add slice restores each
 comparison-prefix carry-work bit when the input comparison-prefix work is clean. -/
-theorem
+lemma
     coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin (n - 1))
@@ -4149,7 +4151,7 @@ theorem
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice preserves the
 active flag. -/
-theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_active
+lemma coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -4164,7 +4166,7 @@ theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_active
 /-- On clean comparison inputs, the corrected `uGreater`
 selector-plus-subtract/add slice keeps the staged `v < u` predicate
 available for branch-code staging. -/
-theorem
+lemma
     coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -4183,7 +4185,7 @@ theorem
 
 /-- The corrected `vLe` selector-plus-subtract/add slice preserves the active
 flag. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_active
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -4198,7 +4200,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_active
 /-- On clean comparison inputs, the corrected `vLe`
 selector-plus-subtract/add slice keeps the staged comparison predicate
 available for branch-code staging. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_compare_clean
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -4217,7 +4219,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_compare_clean
 /-- On clean inputs, the corrected `uGreater` selector-plus-subtract/add slice
 preserves the selector's branch-history toggle through the concrete
 subtract/add data path. -/
-theorem
+lemma
     coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -4239,7 +4241,7 @@ theorem
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice preserves every
 history slot except the selected target slot. -/
-theorem
+lemma
     coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
@@ -4256,7 +4258,7 @@ theorem
 /-- On clean scratchB, the corrected `vLe` selector-plus-subtract/add slice
 preserves the zero-code branch-history no-op through the concrete subtract/add
 data path. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_history_clean
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchB : (RegisterBits.scratchBBit n counterWidth).get x = false) :
@@ -4273,7 +4275,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_history_clean
 
 /-- The corrected `vLe` selector-plus-subtract/add slice preserves every
 history slot except the selected target slot. -/
-theorem
+lemma
     coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
@@ -4289,7 +4291,7 @@ theorem
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice writes
 `u := u - v` when the source-subtract carry/work inputs are clean. -/
-theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_u_sub_of_clean
+lemma coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_u_sub_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4343,7 +4345,7 @@ theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_u_sub_of_cle
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice preserves the
 untouched `v` source word. -/
-theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_v
+lemma coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_v
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep
@@ -4363,7 +4365,7 @@ theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_v
 
 /-- The corrected `uGreater` selector-plus-subtract/add slice writes
 `r := r + s` when the coefficient-adder carry/work inputs are clean. -/
-theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_rCoeff_add_of_clean
+lemma coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_rCoeff_add_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -4409,7 +4411,7 @@ theorem coeffWorkUGreaterSelectorThenSubVFromUThenAddSIntoRStep_get_rCoeff_add_o
 
 /-- The corrected `vLe` selector-plus-subtract/add slice writes `v := v - u`
 when the source-subtract carry/work inputs are clean. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_v_sub_of_clean
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_v_sub_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4464,7 +4466,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_v_sub_of_clean
 
 /-- The corrected `vLe` selector-plus-subtract/add slice preserves the
 untouched `u` source word. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_u
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_u
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep
@@ -4484,7 +4486,7 @@ theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_u
 
 /-- The corrected `vLe` selector-plus-subtract/add slice writes `s := s + r`
 when the coefficient-adder carry/work inputs are clean. -/
-theorem coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_sCoeff_add_of_clean
+lemma coeffWorkVLeSelectorThenSubUFromVThenAddRIntoSStep_get_sCoeff_add_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -4562,16 +4564,16 @@ def activeScratchBToHistoryStep
   EncodedBit.GateSpec.step
     (activeScratchBToHistoryGate n counterWidth bit)
 
-theorem activeScratchBToHistory_realizes
+lemma activeScratchBToHistory_realizes
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (activeScratchBToHistoryProgram n counterWidth bit)
+      (activeScratchBToHistoryProgram n counterWidth bit) environment
       (activeScratchBToHistoryStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (activeScratchBToHistoryGate n counterWidth bit)
 
 /-- The compact history atom records the active staged history code. -/
-theorem activeScratchBToHistoryStep_get_historyBit
+lemma activeScratchBToHistoryStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (historyBit n counterWidth bit).get
@@ -4586,7 +4588,7 @@ theorem activeScratchBToHistoryStep_get_historyBit
       (historyBit n counterWidth bit) x
 
 /-- The compact history atom preserves the active flag. -/
-theorem activeScratchBToHistoryStep_get_active
+lemma activeScratchBToHistoryStep_get_active
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (activeBit n counterWidth).get
@@ -4600,7 +4602,7 @@ theorem activeScratchBToHistoryStep_get_active
       (Ne.symm (activeBit_historyBit_wire_ne n counterWidth bit)) x
 
 /-- The compact history atom preserves the staged history code. -/
-theorem activeScratchBToHistoryStep_get_scratchB
+lemma activeScratchBToHistoryStep_get_scratchB
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (scratchBBit n counterWidth).get
@@ -4614,7 +4616,7 @@ theorem activeScratchBToHistoryStep_get_scratchB
       (Ne.symm (scratchBBit_historyBit_wire_ne n counterWidth bit)) x
 
 /-- The compact history atom preserves the auxiliary branch-code bit. -/
-theorem activeScratchBToHistoryStep_get_scratchA
+lemma activeScratchBToHistoryStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (scratchABit n counterWidth).get
@@ -4628,7 +4630,7 @@ theorem activeScratchBToHistoryStep_get_scratchA
       (Ne.symm (scratchABit_historyBit_wire_ne n counterWidth bit)) x
 
 /-- The compact history atom preserves the staged comparison result. -/
-theorem activeScratchBToHistoryStep_get_compare
+lemma activeScratchBToHistoryStep_get_compare
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (compareBit n counterWidth).get
@@ -4642,7 +4644,7 @@ theorem activeScratchBToHistoryStep_get_compare
       (Ne.symm (compareBit_historyBit_wire_ne n counterWidth bit)) x
 
 /-- The compact history atom preserves any bit other than its history target. -/
-theorem activeScratchBToHistoryStep_get_of_target_ne
+lemma activeScratchBToHistoryStep_get_of_target_ne
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (observed : EncodedBit (encoding n counterWidth))
     (hne : (historyBit n counterWidth bit).wire ≠ observed.wire)
@@ -4656,7 +4658,7 @@ theorem activeScratchBToHistoryStep_get_of_target_ne
       (historyBit n counterWidth bit) observed hne x
 
 /-- The compact history write preserves the complete `u` word. -/
-theorem activeScratchBToHistoryStep_core_u
+lemma activeScratchBToHistoryStep_core_u
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (activeScratchBToHistoryStep
@@ -4673,7 +4675,7 @@ theorem activeScratchBToHistoryStep_core_u
   simpa only [uValueWord_get] using h
 
 /-- The compact history write preserves the complete `v` word. -/
-theorem activeScratchBToHistoryStep_core_v
+lemma activeScratchBToHistoryStep_core_v
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (activeScratchBToHistoryStep
@@ -4690,7 +4692,7 @@ theorem activeScratchBToHistoryStep_core_v
   simpa only [vValueWord_get] using h
 
 /-- The compact history write preserves the complete `s` coefficient word. -/
-theorem activeScratchBToHistoryStep_core_sCoeff
+lemma activeScratchBToHistoryStep_core_sCoeff
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (activeScratchBToHistoryStep
@@ -4708,7 +4710,7 @@ theorem activeScratchBToHistoryStep_core_sCoeff
   simpa only [sCoeffValueWord, sCoeffValueBit_get] using h
 
 /-- The compact history write preserves the complete `r` coefficient word. -/
-theorem activeScratchBToHistoryStep_core_rCoeff
+lemma activeScratchBToHistoryStep_core_rCoeff
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (activeScratchBToHistoryStep
@@ -4726,7 +4728,7 @@ theorem activeScratchBToHistoryStep_core_rCoeff
   simpa only [rCoeffValueWord, rCoeffValueBit_get] using h
 
 /-- Every non-target history slot is preserved. -/
-theorem activeScratchBToHistoryStep_get_historyBit_of_ne
+lemma activeScratchBToHistoryStep_get_historyBit_of_ne
     (n counterWidth : Nat) (target observed : Fin (2 * n))
     (hne : target ≠ observed) (x : Registers n counterWidth) :
     (historyBit n counterWidth observed).get
@@ -4739,20 +4741,20 @@ theorem activeScratchBToHistoryStep_get_historyBit_of_ne
       (historyBit n counterWidth target) (historyBit n counterWidth observed)
       (historyBit_wire_ne n counterWidth hne) x
 
-theorem activeScratchBToHistoryGate_xMultiplicity
+lemma activeScratchBToHistoryGate_xMultiplicity
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
     (activeScratchBToHistoryGate n counterWidth bit).xMultiplicity = 0 := rfl
 
-theorem activeScratchBToHistoryGate_cnotMultiplicity
+lemma activeScratchBToHistoryGate_cnotMultiplicity
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
     (activeScratchBToHistoryGate n counterWidth bit).cnotMultiplicity = 0 := rfl
 
-theorem activeScratchBToHistoryGate_toffoliMultiplicity
+lemma activeScratchBToHistoryGate_toffoliMultiplicity
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
     (activeScratchBToHistoryGate n counterWidth bit).toffoliMultiplicity = 1 := rfl
 
 /-- The literal history atom is self-inverse. -/
-theorem activeScratchBToHistoryStep_self
+lemma activeScratchBToHistoryStep_self
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     activeScratchBToHistoryStep n counterWidth bit

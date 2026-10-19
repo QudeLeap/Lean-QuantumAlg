@@ -39,7 +39,7 @@ private def complementReferenceEquiv {count : Nat} (layout : QuantumLayout count
     rcases basis with ⟨complement, selected, reference⟩
     simp only [layout.selectionBasisEquiv_join]
 
-private theorem complementReference_operator {count : Nat} (layout : QuantumLayout count)
+private lemma complementReference_operator {count : Nat} (layout : QuantumLayout count)
     (selection : Finset (Fin count)) (Reference : Register)
     (operator : UnitaryOperator layout.register)
     (complement : UnitaryOperator (layout.complementRegister selection))
@@ -81,7 +81,7 @@ private theorem complementReference_operator {count : Nat} (layout : QuantumLayo
 namespace DensityOperator
 
 /-- Exact complementary action preserves the selected wires and their full reference jointly. -/
-theorem observeSelectionWithReference_applyUnitary_complement {count : Nat}
+lemma observeSelectionWithReference_applyUnitary_complement {count : Nat}
     (layout : QuantumLayout count) (selection : Finset (Fin count))
     (operator : UnitaryOperator layout.register)
     (complement : UnitaryOperator (layout.complementRegister selection))

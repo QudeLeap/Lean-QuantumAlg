@@ -7,6 +7,9 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+public import Mathlib.Data.Complex.Basic
+public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Data.Matrix.Basic
 import all QuantumAlg.Analysis.QNN.Interface.RagoneInterface
 import all QuantumAlg.Analysis.Haar
 
@@ -55,41 +58,41 @@ noncomputable def doubledRep (u : G → Matrix (Fin N) (Fin N) ℂ) (g : G) :
 
 /-- The **doubled (`t = 2`) twirl**: the finite-group average of `(u g ⊗ u g) · X · (u g ⊗ u g)ᴴ`,
 i.e. `repTwirl` of the doubled representation on the doubled operator space. -/
-noncomputable def twirl2 (u : G → Matrix (Fin N) (Fin N) ℂ)
+public noncomputable def twirl2 (u : G → Matrix (Fin N) (Fin N) ℂ)
     (X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ :=
   repTwirl (doubledRep u) X
 
 omit [Fintype G] in
 /-- The doubled representation is multiplicative (a group homomorphism into matrices). -/
-theorem doubledRep_mul (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma doubledRep_mul (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (a b : G) :
     doubledRep u (a * b) = doubledRep u a * doubledRep u b := by
   simp only [doubledRep, hmul, Matrix.mul_kronecker_mul]
 
 omit [Group G] [Fintype G] in
 /-- The doubled representation is unitary: `(u g ⊗ u g)ᴴ (u g ⊗ u g) = 1`. -/
-theorem doubledRep_unit (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma doubledRep_unit (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hunit : ∀ a, (u a)ᴴ * u a = 1) (a : G) :
     (doubledRep u a)ᴴ * doubledRep u a = 1 := by
   simp only [doubledRep, Matrix.conjTranspose_kronecker, ← Matrix.mul_kronecker_mul, hunit,
     Matrix.one_kronecker_one]
 
 /-- **The doubled twirl lands in the finite-group commutant** (free from `repTwirl_commute`). -/
-theorem twirl2_commute (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_commute (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1)
     (X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) (V : G) :
     (u V ⊗ₖ u V) * twirl2 u X = twirl2 u X * (u V ⊗ₖ u V) :=
   repTwirl_commute (doubledRep u) (doubledRep_mul u hmul) (doubledRep_unit u hunit) X V
 
 /-- **The doubled twirl is idempotent** (a projection; free from `repTwirl_idem`). -/
-theorem twirl2_idem (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_idem (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b)
     (X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
     twirl2 u (twirl2 u X) = twirl2 u X :=
   repTwirl_idem (doubledRep u) (doubledRep_mul u hmul) X
 
 /-- **The doubled twirl preserves the trace** (free from `repTwirl_trace`). -/
-theorem twirl2_trace (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_trace (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hunit : ∀ a, (u a)ᴴ * u a = 1)
     (X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
     (twirl2 u X).trace = X.trace :=
@@ -97,14 +100,14 @@ theorem twirl2_trace (u : G → Matrix (Fin N) (Fin N) ℂ)
 
 omit [Group G] in
 /-- The doubled twirl is the finite average of the doubled conjugations `doubledConj (u g)`. -/
-theorem twirl2_eq_sum_doubledConj (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_eq_sum_doubledConj (u : G → Matrix (Fin N) (Fin N) ℂ)
     (X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
     twirl2 u X = (Fintype.card G : ℂ)⁻¹ • ∑ g : G, doubledConj (u g) X := by
   simp only [twirl2, repTwirl, doubledConj, doubledRep]
 
 omit [Group G] in
 /-- The doubled twirl is homogeneous in its matrix argument. -/
-theorem twirl2_smul (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_smul (u : G → Matrix (Fin N) (Fin N) ℂ)
     (c : ℂ) (X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
     twirl2 u (c • X) = c • twirl2 u X := by
   unfold twirl2 repTwirl
@@ -118,7 +121,7 @@ theorem twirl2_smul (u : G → Matrix (Fin N) (Fin N) ℂ)
 
 omit [Group G] [Fintype G] in
 /-- The Hilbert--Schmidt pairing of doubled pure tensor inputs is the squared trace pairing. -/
-theorem hsInner_kronecker_trace_sq (ρ A : Matrix (Fin N) (Fin N) ℂ) (hρ : ρᴴ = ρ) :
+lemma hsInner_kronecker_trace_sq (ρ A : Matrix (Fin N) (Fin N) ℂ) (hρ : ρᴴ = ρ) :
     hsInner (ρ ⊗ₖ ρ) (A ⊗ₖ A) = ((ρ * A).trace) ^ 2 := by
   simp only [hsInner, Matrix.conjTranspose_kronecker, hρ]
   rw [← Matrix.mul_kronecker_mul, Matrix.trace_kronecker]
@@ -127,7 +130,7 @@ theorem hsInner_kronecker_trace_sq (ρ A : Matrix (Fin N) (Fin N) ℂ) (hρ : ρ
 omit [Group G] in
 /-- Pairing a doubled input against the finite doubled twirl gives the empirical loss
 second moment. -/
-theorem twirl2_hsInner_eq_loss_secondMoment (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_hsInner_eq_loss_secondMoment (u : G → Matrix (Fin N) (Fin N) ℂ)
     (ρ O : Matrix (Fin N) (Fin N) ℂ) (hρ : ρᴴ = ρ) :
     hsInner (ρ ⊗ₖ ρ) (twirl2 u (O ⊗ₖ O)) =
       (Fintype.card G : ℂ)⁻¹ *
@@ -145,7 +148,7 @@ theorem twirl2_hsInner_eq_loss_secondMoment (u : G → Matrix (Fin N) (Fin N) �
 
 omit [Fintype G] in
 /-- A unitary representation sends `1` to `1`. -/
-theorem u_one (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma u_one (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1) :
     u 1 = 1 := by
   have h : u 1 * u 1 = u 1 := by rw [← hmul, mul_one]
@@ -156,21 +159,21 @@ theorem u_one (u : G → Matrix (Fin N) (Fin N) ℂ)
 
 omit [Fintype G] in
 /-- The doubled representation sends `1` to `1`. -/
-theorem doubledRep_one (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma doubledRep_one (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1) :
     doubledRep u 1 = 1 := by
   rw [doubledRep, u_one u hmul hunit, Matrix.one_kronecker_one]
 
 omit [Group G] [Fintype G] in
 /-- Right unitarity of the doubled representation (the two-sided twin of `doubledRep_unit`). -/
-theorem doubledRep_unit' (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma doubledRep_unit' (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hunit : ∀ a, (u a)ᴴ * u a = 1) (a : G) :
     doubledRep u a * (doubledRep u a)ᴴ = 1 :=
   mul_eq_one_comm.mp (doubledRep_unit u hunit a)
 
 omit [Fintype G] in
 /-- The conjugate transpose of the doubled representation is its value at the inverse. -/
-theorem doubledRep_conjTranspose_eq_inv (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma doubledRep_conjTranspose_eq_inv (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1) (g : G) :
     (doubledRep u g)ᴴ = doubledRep u g⁻¹ := by
   have h1 : doubledRep u g⁻¹ * doubledRep u g = 1 := by
@@ -184,7 +187,7 @@ theorem doubledRep_conjTranspose_eq_inv (u : G → Matrix (Fin N) (Fin N) ℂ)
 
 omit [Group G] in
 /-- **The doubled twirl preserves Hermiticity.** -/
-theorem twirl2_isHermitian_of (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_isHermitian_of (u : G → Matrix (Fin N) (Fin N) ℂ)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : Xᴴ = X) :
     (twirl2 u X)ᴴ = twirl2 u X := by
   simp only [twirl2, repTwirl, conjTranspose_smul, conjTranspose_sum, Matrix.conjTranspose_mul,
@@ -194,7 +197,7 @@ theorem twirl2_isHermitian_of (u : G → Matrix (Fin N) (Fin N) ℂ)
 load-bearing fact for `proj_orth`: each conjugation `v · vᴴ` moves across `⟪·,·⟫` to its adjoint
 `vᴴ · v`, and averaging over the (inverse-closed) group sends `vᴴ · v` back to `v · vᴴ` by the
 `g ↦ g⁻¹` reindexing. -/
-theorem twirl2_hsInner_selfAdjoint (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_hsInner_selfAdjoint (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1)
     (X Y : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
     hsInner (twirl2 u X) Y = hsInner X (twirl2 u Y) := by
@@ -228,7 +231,7 @@ theorem twirl2_hsInner_selfAdjoint (u : G → Matrix (Fin N) (Fin N) ℂ)
 /-- **The doubled twirl fixes the Casimir** when the gate group commutes with it. Note `hCfix` (a
 finite-group commutation) is genuinely distinct from the proved Lie-kernel fact
 `casimir_mem_adCommutantGG`; it is a named input, not redundant. -/
-theorem twirl2_fix_casimir (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_fix_casimir (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hunit : ∀ a, (u a)ᴴ * u a = 1)
     {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
     (hCfix : ∀ g, (u g ⊗ₖ u g) * b.casimir = b.casimir * (u g ⊗ₖ u g)) :
@@ -243,7 +246,7 @@ theorem twirl2_fix_casimir (u : G → Matrix (Fin N) (Fin N) ℂ)
 
 /-- **`proj_orth` from the genuine twirl.** The residual of `O ⊗ O` against the Casimir equals that
 of its twirl — by self-adjointness moved onto the Casimir, which the twirl fixes. -/
-theorem twirl2_proj_orth (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma twirl2_proj_orth (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1)
     {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
     (hCfix : ∀ g, (u g ⊗ₖ u g) * b.casimir = b.casimir * (u g ⊗ₖ u g))
@@ -310,7 +313,7 @@ identity and `O ⊗ O = C`, so it does **not** exhibit the honesty differential 
 (that `twirl₂(O⊗O) ≠ κ·C`), which needs a `≥ 2`-dimensional concrete `2`-design (deferred). -/
 
 /-- The trivial (`Unit`) gate group makes the doubled twirl the identity. -/
-theorem twirl2_trivial (X : Matrix (Fin 1 × Fin 1) (Fin 1 × Fin 1) ℂ) :
+lemma twirl2_trivial (X : Matrix (Fin 1 × Fin 1) (Fin 1 × Fin 1) ℂ) :
     twirl2 (fun _ : Unit => (1 : Matrix (Fin 1) (Fin 1) ℂ)) X = X := by
   rw [twirl2, repTwirl]
   simp [doubledRep, Matrix.conjTranspose_one]
@@ -318,7 +321,7 @@ theorem twirl2_trivial (X : Matrix (Fin 1 × Fin 1) (Fin 1 × Fin 1) ℂ) :
 /-- **The genuine `ofTwoDesign` witness is inhabited.** Its hypothesis bundle is satisfiable
 (witnessed by the trivial `Unit` gate group on the trivial DLA), so the genuine-twirl variance
 witness is non-vacuous. -/
-theorem ragone_ofTwoDesign_nonempty :
+lemma ragone_ofTwoDesign_nonempty :
     Nonempty (RagoneSecondMoment trivialDLAHermBasis
       (1 : Matrix (Fin 1) (Fin 1) ℂ) (1 : Matrix (Fin 1) (Fin 1) ℂ)) := by
   have hcas : twirl2 (fun _ : Unit => (1 : Matrix (Fin 1) (Fin 1) ℂ))

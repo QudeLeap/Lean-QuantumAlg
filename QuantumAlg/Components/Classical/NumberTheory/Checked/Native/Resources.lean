@@ -55,7 +55,7 @@ def checkedInverseActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kin
   SpacePool.max (SpacePool.ofShape (.unsignedWord (width + 1)) + rawScratchSpace kind (width + 1))
     (checkedSelectionSpaceLimit kind width)
 
-private theorem checked_body_pool_le (spec : ModulusSpec width)
+private lemma checked_body_pool_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
@@ -79,7 +79,7 @@ private theorem checked_body_pool_le (spec : ModulusSpec width)
     (checkedCoefficientSelection_pool_le _ _ _ _ _ path.2.2))
 
 /-- Every actual complete checked execution fits the original independent syntax envelope. -/
-theorem withCheckedInverse_pool_le (spec : ModulusSpec width)
+lemma withCheckedInverse_pool_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
@@ -93,7 +93,7 @@ theorem withCheckedInverse_pool_le (spec : ModulusSpec width)
     (checkedInverseEnvelope model spec)
     (fun cells _ transport _ selected => checked_body_pool_le _ _ _ _ _ _ selected) path
 
-private theorem checked_body_duration_trace (spec : ModulusSpec width)
+private lemma checked_body_duration_trace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
@@ -130,7 +130,7 @@ private theorem checked_body_duration_trace (spec : ModulusSpec width)
   rfl
 
 /-- Every actual complete path has exactly the serial duration of its own emitted instructions. -/
-theorem withCheckedInverse_duration_eventTrace (spec : ModulusSpec width)
+lemma withCheckedInverse_duration_eventTrace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
@@ -149,7 +149,7 @@ theorem withCheckedInverse_duration_eventTrace (spec : ModulusSpec width)
     (fun cells _ transport _ selected => checked_body_duration_trace _ _ _ _ _ _ duration selected)
     path
 
-private theorem checked_body_depth_le (spec : ModulusSpec width)
+private lemma checked_body_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
@@ -165,7 +165,7 @@ private theorem checked_body_depth_le (spec : ModulusSpec width)
       (checkedCoefficientSelection_depth_le _ _ _ _ _ duration path.2.2))
 
 /-- The original independent duration allowance bounds the actual complete checked program. -/
-theorem withCheckedInverse_depth_le (spec : ModulusSpec width)
+lemma withCheckedInverse_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
@@ -180,7 +180,7 @@ theorem withCheckedInverse_depth_le (spec : ModulusSpec width)
     (checkedInverseDepthLimit spec duration)
     (fun cells _ transport _ selected => checked_body_depth_le _ _ _ _ _ _ duration selected) path
 
-private theorem checked_body_resident_le (spec : ModulusSpec width)
+private lemma checked_body_resident_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
@@ -198,7 +198,7 @@ private theorem checked_body_resident_le (spec : ModulusSpec width)
     · exact (checkedCoefficientSelection_resident_le _ _ _ _ _ path.2.2).trans
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
-private theorem checked_body_auxiliary_le (spec : ModulusSpec width)
+private lemma checked_body_auxiliary_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
@@ -217,7 +217,7 @@ private theorem checked_body_auxiliary_le (spec : ModulusSpec width)
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- All four original persistent cells and the active lexical allowance are genuinely charged. -/
-theorem withCheckedInverse_resident_le (spec : ModulusSpec width)
+lemma withCheckedInverse_resident_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :
@@ -233,7 +233,7 @@ theorem withCheckedInverse_resident_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected => checked_body_resident_le _ _ _ _ _ _ selected) path
 
 /-- Auxiliary ownership includes the same real internal lifetimes and every caller context cell. -/
-theorem withCheckedInverse_auxiliary_le (spec : ModulusSpec width)
+lemma withCheckedInverse_auxiliary_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
     (path : (withCheckedInverse (model := model) spec denominator success inverse).Path) :

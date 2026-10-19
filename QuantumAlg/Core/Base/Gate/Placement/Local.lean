@@ -34,7 +34,7 @@ public def onOwnLayout (occurrence : Occurrence model) :
       wire_eq := fun _ => rfl }
 
 /-- The own-layout application retains the actual local operator without a residual spectator. -/
-public theorem onOwnLayout_operator (occurrence : Occurrence model) :
+public lemma onOwnLayout_operator (occurrence : Occurrence model) :
     (onOwnLayout occurrence).operator = occurrence.operator := by
   apply Subtype.ext
   ext row column

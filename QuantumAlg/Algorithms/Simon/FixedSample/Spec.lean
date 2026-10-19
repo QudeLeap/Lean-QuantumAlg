@@ -15,8 +15,9 @@ import all QuantumAlg.Core.Algorithm.Problem
 /-!
 # Independent fixed-sample Simon specification
 
-The original one-sample circuit and Born-law certificates determine the
-source instance. The independent finite budget charges one bank preparation,
+A fixed one-sample circuit is interpreted in an explicit oracle environment.
+The source promise supplies only its Born-law certificate and hidden word. The independent finite
+    budget charges one bank preparation,
 every subsequent reset, the real terminal measurements and row packing, and
 one polynomial GF(2) recovery. All surviving resources remain in the output.
 -/
@@ -29,7 +30,7 @@ noncomputable section
 
 universe u
 
-private theorem originalOutcome (n : Nat) : Outcome n = TerminalZMeasure.Outcome n := rfl
+private lemma originalOutcome (n : Nat) : Outcome n = TerminalZMeasure.Outcome n := rfl
 
 /-- No external quantum register or classical workspace is required by the sampler. -/
 public def inputContext : RuntimeCtx .quantum := RuntimeCtx.empty
@@ -39,31 +40,31 @@ public def outputContext (n : Nat) (κ : SecurityParameter) : RuntimeCtx .quantu
   Native.recoveryContext inputContext rfl n (sampleCount n κ)
 
 /-- The original finite failure requirement for positive statistical slack. -/
-def successLowerBound (κ : SecurityParameter) : ProbabilityLowerBound where
+@[expose] public def successLowerBound (κ : SecurityParameter) : ProbabilityLowerBound where
   value := 1 - ((2 : ENNReal)⁻¹) ^ κ.value
   le_one := tsub_le_self
 
 /-- Independently fixed event coordinates and complete live-space allowances. -/
-def resourceBudget {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
-    (κ : SecurityParameter) : ResourceBudget (executionModel oracle) where
-  events := Native.recoveryEnvelope oracle (sampleCount n κ)
-  resident := Native.recoveryScratchSpace (sourceModel oracle) n (sampleCount n κ) +
+public def resourceBudget (n : Nat)
+    (κ : SecurityParameter) : ResourceBudget (executionModel n) where
+  events := Native.recoveryEnvelope n (sampleCount n κ)
+  resident := Native.recoveryScratchSpace (sourceModel n) n (sampleCount n κ) +
     Native.samplingSpace n (sampleCount n κ)
-  auxiliary := Native.recoveryScratchSpace (sourceModel oracle) n (sampleCount n κ) +
+  auxiliary := Native.recoveryScratchSpace (sourceModel n) n (sampleCount n κ) +
     Native.samplingSpace n (sampleCount n κ)
 
 /-- Original member depth plus the paid reset, terminal and polynomial recovery stages. -/
-def depthLimit {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
+public def depthLimit (n : Nat)
     (κ : SecurityParameter) : Nat :=
   Native.samplingDepthLimit n (sampleCount n κ) +
-    ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel oracle)
+    ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel n)
       (sampleCount n κ) n (fun _ => 1)
 
 /-- Fixed-sample Simon with the original oracle promise and an actual retained output.
 
 **Input.**
-- The original Simon oracle, nonzero hidden mask and concrete one-sample
-  circuit with its original Born-law certificates. A positive slack `κ`
+- A fixed one-sample circuit and an oracle interpretation whose original
+  Born-law promise identifies a nonzero hidden mask. A positive slack `κ`
   fixes exactly `n + κ` samples. Every normalized local input and every
   external reference extension is admitted when the oracle promise holds.
 **Output.**
@@ -86,22 +87,25 @@ def depthLimit {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
 - [dW19, qcnotes.tex:1407, 1409-1410].
 - The fixed finite repetition uses the original Simon equation union bound.
 -/
-public def problem {n : Nat} {α : Type u} {f : Simon.Oracle n α}
-    {secret : Simon.BitVec n} (model : Model f secret) (κ : SecurityParameter) :
-    Problem (executionModel model.sampling.oracle) inputContext (outputContext n κ) (.option
-      (.unsignedWord n)) where
-  valid := fun _ => Simon.Promise f secret
-  initialization := fun _ => True
-  accepts := fun _ output => output = .optionSome (.unsignedWord model.secret)
-  successLB := successLowerBound κ
-  states := []
-  resources := resourceBudget model.sampling.oracle κ
-  depth := {
-    duration := fun _ => 1
-    limit := depthLimit model.sampling.oracle κ
-    classicalQuery_unit := fun _ => rfl
-    quantumQuery_unit := fun _ => rfl
-  }
+@[expose] public def problem {n : Nat} (sampling : SamplingCircuit n) (κ : SecurityParameter) :
+    Problem (executionModel n) inputContext (outputContext n κ) (.option (.unsignedWord n)) where
+  Witness := Word n
+  valid := fun environment secret _ => SamplingPromise sampling environment.quantum secret
+  initialization := fun _ _ _ => True
+  accepts := fun _ secret _ output => output = .optionSome (.unsignedWord secret)
+  successLB := fun _ _ => successLowerBound κ
+  states := fun _ _ => []
+  resources := resourceBudget n κ
+  quantumTimeLimit := depthLimit n κ
+
+/-- The original source promise admits the already fixed circuit in the same environment. -/
+public lemma simon_problem_source_valid {n : Nat} (sampling : SamplingCircuit n)
+    (κ : SecurityParameter) (environment : (executionModel n).Environment)
+    {α : Type u} {f : Simon.Oracle n α} {secret : Simon.BitVec n}
+    (source : Model sampling environment.quantum f secret) (promise : Simon.Promise f secret)
+    (state : ExecutionState (Store inputContext) inputContext.register) :
+    (problem sampling κ).valid environment source.secret state :=
+  model_samplingPromise source promise
 
 end
 

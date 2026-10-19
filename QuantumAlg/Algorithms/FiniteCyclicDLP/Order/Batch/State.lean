@@ -90,7 +90,7 @@ public def familyConsEquiv (P : KnownOrderProblem G) (count : Nat) :
           (independentState P expansion count))
 
 /-- Every family amplitude is the product of its actual source-bank amplitudes. -/
-public theorem independentState_apply (P : KnownOrderProblem G)
+public lemma independentState_apply (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (count : Nat)
     (family : (familyRegister P count).Index) :
     independentState P expansion count family =
@@ -120,7 +120,7 @@ public theorem independentState_apply (P : KnownOrderProblem G)
     (independentState P expansion count)
 
 /-- Physical family amplitudes factor through the exact bank restrictions. -/
-public theorem physicalIndependentState_apply (P : KnownOrderProblem G)
+public lemma physicalIndependentState_apply (P : KnownOrderProblem G)
     (count : Nat) (expansion : OrderExpansion P.order)
     (basis : (layout P count).Basis) :
     physicalIndependentState P count expansion basis =

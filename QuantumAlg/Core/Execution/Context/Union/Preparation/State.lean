@@ -54,7 +54,7 @@ private def preparationRecordEquiv {ctx : RuntimeCtx .quantum} {count : Nat}
     cases path
     exact Prod.ext ((preparedStoreEquiv key layout fresh disjoint).apply_symm_apply store) rfl
 
-private theorem prepared_block {ctx : RuntimeCtx .quantum} {count : Nat}
+private lemma prepared_block {ctx : RuntimeCtx .quantum} {count : Nat}
     (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout) {Reference : Register}
@@ -78,14 +78,14 @@ variable {ctx frame : RuntimeCtx .quantum} {count : Nat}
   (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
   (separate : RuntimeCtx.StorageDisjoint (ctx.addOwnedLayout key layout fresh disjoint) frame)
 
-private theorem prepared_store_join (store : Store ctx) (framed : Store frame) :
+private lemma prepared_store_join (store : Store ctx) (framed : Store frame) :
     join separate (store.pushOwnedLayout key layout fresh disjoint) framed =
       Store.pushOwnedLayout
         (join (preparation_original_disjoint key layout fresh disjoint separate) store framed)
         key layout (preparation_fresh_union key layout fresh disjoint separate)
         (preparation_wires_union key layout fresh disjoint separate) := rfl
 
-private theorem prepared_reference_join (Reference : Register)
+private lemma prepared_reference_join (Reference : Register)
     (newBasis : layout.register.Index) (oldBasis : ctx.register.Index)
     (frameBasis : frame.register.Index) (reference : Reference.Index) :
     (referenceBasis (ctx.addOwnedLayout key layout fresh disjoint) frame separate Reference).symm
@@ -109,7 +109,7 @@ private theorem prepared_reference_join (Reference : Register)
     (preparedFramedBasis_join key layout fresh disjoint separate newBasis oldBasis frameBasis).symm
 
 /-- Fresh preparation commutes with exact frame and reference reindexing. -/
-theorem prepared_density_naturality {Reference : Register}
+lemma prepared_density_naturality {Reference : Register}
     (preparation : BasisPreparation layout)
     (density : DensityOperator (Register.prod
       (ctx.disjointUnion frame
@@ -167,7 +167,7 @@ theorem prepared_density_naturality {Reference : Register}
         (oldRow, (frameRow, referenceRow)) (oldColumn, (frameColumn, referenceColumn))).symm
 
 /-- A mathematical fixed-basis preparation commutes with splitting a resident frame. -/
-private theorem prepared_splitState (preparation : BasisPreparation layout)
+private lemma prepared_splitState (preparation : BasisPreparation layout)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate)) Reference History) :
@@ -243,8 +243,9 @@ private theorem prepared_splitState (preparation : BasisPreparation layout)
         rfl
 
 /-- The real zero-allocation instruction preserves the complete resident frame and service. -/
-theorem prepareZeroFramed_execute {gates : GateModel} {oracles : OracleModel}
+lemma prepareZeroFramed_execute {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate))
@@ -254,10 +255,10 @@ theorem prepareZeroFramed_execute {gates : GateModel} {oracles : OracleModel}
         (operations := operations) (classicalOracles := services) _ key layout
         (preparation_fresh_union key layout fresh disjoint separate)
         (preparation_wires_union key layout fresh disjoint separate)).execute
-          Reference state) =
+          environment Reference state) =
       ((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) ctx key layout
-        fresh disjoint).execute (Register.prod frame.register Reference)
+        fresh disjoint).execute environment (Register.prod frame.register Reference)
           (splitServiceState ctx frame
             (preparation_original_disjoint key layout fresh disjoint separate) state)).mapHistory
               (fun record =>
@@ -276,21 +277,23 @@ theorem prepareZeroFramed_execute {gates : GateModel} {oracles : OracleModel}
   rfl
 
 /-- Actual zero allocation and fixed-bit loading retain the complete frame and service. -/
-theorem prepareFramed_execute {gates : GateModel} {oracles : OracleModel}
+lemma prepareFramed_execute {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate))
         Reference (services.HiddenState × History)) :
     splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
-      ((prepareFramed key layout fresh disjoint separate load).execute Reference state) =
+      ((prepareFramed key layout fresh disjoint separate load).execute
+        environment Reference state) =
       (((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) ctx key layout
         fresh disjoint).seq
           (Circuit.unitary (operations := operations) (classicalOracles := services)
-            load)).execute (Register.prod frame.register Reference)
+            load)).execute environment (Register.prod frame.register Reference)
               (splitServiceState ctx frame
                 (preparation_original_disjoint key layout fresh disjoint separate)
                 state)).mapHistory
@@ -299,15 +302,15 @@ theorem prepareFramed_execute {gates : GateModel} {oracles : OracleModel}
   let first := prepareZeroFramed key layout fresh disjoint separate
     (gates := gates) (oracles := oracles)
     (operations := operations) (services := services)
-  let second := Circuit.unitary (operations := operations)
+  let second := Circuit.unitary (allowAllocation := true) (operations := operations)
     (classicalOracles := services)
     (frameUnitary (ctx.addOwnedLayout key layout fresh disjoint) frame separate load)
   let localFirst := Circuit.prepareZero (gates := gates) (oracles := oracles)
     (operations := operations) (classicalOracles := services) ctx key layout fresh disjoint
-  let localSecond := Circuit.unitary (operations := operations)
+  let localSecond := Circuit.unitary (allowAllocation := true) (operations := operations)
     (classicalOracles := services) load
-  let middle := first.execute Reference state
-  let final := second.execute Reference middle
+  let middle := first.execute environment Reference state
+  let final := second.execute environment Reference middle
   let initial := splitServiceState ctx frame
     (preparation_original_disjoint key layout fresh disjoint separate) state
   let update : ((History × Unit) × Unit) → History × (Unit × Unit) :=
@@ -316,29 +319,29 @@ theorem prepareFramed_execute {gates : GateModel} {oracles : OracleModel}
     fun record => (record.1.1, (record.1.2, record.2))
   have firstNatural : splitServiceState (ctx.addOwnedLayout key layout fresh disjoint)
       frame separate middle =
-        (localFirst.execute (Register.prod frame.register Reference) initial).mapHistory
+        (localFirst.execute environment (Register.prod frame.register Reference) initial).mapHistory
           (fun record => (record.1, moveFrame record.2)) :=
-    prepareZeroFramed_execute key layout fresh disjoint separate state
+    prepareZeroFramed_execute key layout fresh disjoint separate environment state
   have secondNatural : splitServiceState (ctx.addOwnedLayout key layout fresh disjoint)
       frame separate final =
-        (localSecond.execute (Register.prod frame.register Reference)
+        (localSecond.execute environment (Register.prod frame.register Reference)
           (splitServiceState (ctx.addOwnedLayout key layout fresh disjoint)
             frame separate middle)).mapHistory
               (fun record => (record.1,
                 (record.2.1.1, (record.2.1.2, record.2.2)))) :=
     contextUnion_splitServiceState_unitary
-      (ctx.addOwnedLayout key layout fresh disjoint) frame separate load middle
-  have mapped := Circuit.execute_mapHistory localSecond
+      (ctx.addOwnedLayout key layout fresh disjoint) frame separate load environment middle
+  have mapped := Circuit.execute_mapHistory localSecond environment
     (Register.prod frame.register Reference)
-    (localFirst.execute (Register.prod frame.register Reference) initial) moveFrame
+    (localFirst.execute environment (Register.prod frame.register Reference) initial) moveFrame
   have reassociated := contextUnion_splitServiceState_mapHistory
     (ctx.addOwnedLayout key layout fresh disjoint) frame separate final update
   change splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
-    ((first.seq second).execute Reference state) = _
+    ((first.seq second).execute environment Reference state) = _
   rw [Circuit.execute_seq]
   change splitServiceState (ctx.addOwnedLayout key layout fresh disjoint) frame separate
       (final.mapHistory (fun record => (record.1, update record.2))) =
-    ((localFirst.seq localSecond).execute (Register.prod frame.register Reference)
+    ((localFirst.seq localSecond).execute environment (Register.prod frame.register Reference)
       initial).mapHistory
         (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2))))
   rw [reassociated, secondNatural, firstNatural]

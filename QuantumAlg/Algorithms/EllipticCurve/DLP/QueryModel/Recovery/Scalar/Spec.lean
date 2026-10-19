@@ -6,7 +6,14 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Cycle
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Solves
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.First.Schedule
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Protocol
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.First.Schedule
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Solves
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.First.Protocol
+import all QuantumAlg.Core.Execution.Circuit.Weighted
 public import QuantumAlg.Core.Base.Accounting.ClassicalWeight
 public import QuantumAlg.Core.Base.Accounting.Weighted
 
@@ -65,10 +72,6 @@ public def roundMeasurements (fieldWidth sampleWidth : Nat) : Nat :=
 public def roundEvents (fieldWidth sampleWidth : Nat) : Nat :=
   roundSingleQubit fieldWidth sampleWidth + roundCnot sampleWidth + 1 +
     roundMeasurements fieldWidth sampleWidth + recoveryEvents fieldWidth sampleWidth
-
-/-- One complete initialized cycle, also covering actual zero-count initialization and packing. -/
-public def maximumCycleDepth (fieldWidth sampleWidth : Nat) : Nat :=
-  qubits fieldWidth sampleWidth + roundEvents fieldWidth sampleWidth + 1
 
 /-- All real prescribed rounds, initial per-system preparation and one final paid pack. -/
 public def wholeRunEvents (fieldWidth sampleWidth count : Nat) : Nat :=

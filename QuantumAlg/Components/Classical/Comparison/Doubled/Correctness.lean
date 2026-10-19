@@ -25,7 +25,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem double_read (refs : Refs ctx width) (store : Store ctx) :
+private lemma double_read (refs : Refs ctx width) (store : Store ctx) :
     (store.applyOp (doubleOp refs)).read (.storage refs.doubled.toCStorageRef) =
       Resource.WordUnaryOpcode.eval .shiftLeft width (store.read refs.right) := by
   change (store.applyOp (doubleOp refs)).read
@@ -33,7 +33,7 @@ private theorem double_read (refs : Refs ctx width) (store : Store ctx) :
   rw [Store.read_applyOp_output]
   rfl
 
-private theorem compare_read (refs : Refs ctx width) (store : Store ctx) :
+private lemma compare_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (compareOp refs)).read (.storage refs.passes.toCStorageRef)).toBool =
       decide ((store.read (.storage refs.doubled.toCStorageRef)).toNat <
         (store.read refs.left).toNat) := by
@@ -41,7 +41,7 @@ private theorem compare_read (refs : Refs ctx width) (store : Store ctx) :
     ClassicalOp.inputRef, ClassicalOp.eval]
   rfl
 
-private theorem complement_read (refs : Refs ctx width) (store : Store ctx) :
+private lemma complement_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (complementOp refs)).read (.storage refs.passes.toCStorageRef)).toBool =
       !(store.read (.storage refs.passes.toCStorageRef)).toBool := by
   simp only [Store.applyOp, complementOp, ClassicalOp.outputRef, Store.read_write_same,
@@ -50,7 +50,7 @@ private theorem complement_read (refs : Refs ctx width) (store : Store ctx) :
   rfl
 
 /-- The actual final scratch word is the actual original right input shifted left once. -/
-theorem compareInto_doubled (refs : Refs ctx width) (separation : Separation refs)
+lemma compareInto_doubled (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (comparedStore refs store).read (.storage refs.doubled.toCStorageRef) =
       Resource.WordUnaryOpcode.eval .shiftLeft width (store.read refs.right) := by
@@ -62,7 +62,7 @@ theorem compareInto_doubled (refs : Refs ctx width) (separation : Separation ref
     Store.read_applyOp_of_not_mem_storageKeys _ (compareOp refs) _ avoids, double_read]
 
 /-- The actual final Boolean is the exact comparison against the modular shifted right word. -/
-theorem compareInto_raw (refs : Refs ctx width) (separation : Separation refs)
+lemma compareInto_raw (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     ((comparedStore refs store).read (.storage refs.passes.toCStorageRef)).toBool =
       decide ((store.read refs.left).toNat ≤
@@ -74,7 +74,7 @@ theorem compareInto_raw (refs : Refs ctx width) (separation : Separation refs)
   simp only [← decide_not, Nat.not_lt]
 
 /-- Under the original capacity bounds, the final actual bit decides the integer inequality. -/
-theorem compareInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma compareInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (left right : Nat)
     (leftRep : RawSignedRepresents (store.read refs.left) (left : Int))
     (rightRep : RawSignedRepresents (store.read refs.right) (right : Int))
@@ -92,7 +92,7 @@ theorem compareInto_correct (refs : Refs ctx width) (separation : Separation ref
   rw [compareInto_raw refs separation store, leftValue, shiftedValue]
 
 /-- Both original structural inputs retain their actual values after the comparison. -/
-theorem compareInto_preserves_inputs (refs : Refs ctx width) (separation : Separation refs)
+lemma compareInto_preserves_inputs (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (comparedStore refs store).read refs.left = store.read refs.left ∧
       (comparedStore refs store).read refs.right = store.read refs.right :=

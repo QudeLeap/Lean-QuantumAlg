@@ -40,7 +40,7 @@ def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
 
 omit [BitWord.Selected model] in
 /-- The two retained cells contribute exactly their complete resident capacity. -/
-theorem samplerRetained_context_resident (ctx : RuntimeCtx kind) (N : Nat) :
+lemma samplerRetained_context_resident (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).residentSpace = ctx.residentSpace + resultSpace kind (modulusBits N) := by
   apply SpacePool.ext
   intro axis
@@ -50,7 +50,7 @@ theorem samplerRetained_context_resident (ctx : RuntimeCtx kind) (N : Nat) :
 
 omit [BitWord.Selected model] in
 /-- Every actual allocation stage fits the final retained resident context. -/
-theorem samplerRetained_allocation_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_allocation_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (allocation (model := model) ctx N).Path) :
     (allocation (model := model) ctx N).peakResidentSpace path ≤ (context ctx N).residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -62,7 +62,7 @@ theorem samplerRetained_allocation_resident_le (ctx : RuntimeCtx model.kind) (N 
     cases model <;> intro axis <;> cases axis <;>
       simp [context, sampleContext, SpacePool.ofShape] <;> omega
 
-private theorem body_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
+private lemma body_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (body (model := model) ctx N).Path) :
     (body (model := model) ctx N).peakResidentSpace path ≤
       (context ctx N).residentSpace + Program.additionalSpace model.kind (modulusBits N) := by
@@ -78,7 +78,7 @@ private theorem body_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
       (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N) path.2
 
 omit [BitWord.Selected model] in
-private theorem resident_budget (ctx : RuntimeCtx kind) (N : Nat) :
+private lemma resident_budget (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).residentSpace + Program.additionalSpace kind (modulusBits N) =
       ctx.residentSpace + additionalSpace kind (modulusBits N) := by
   rw [samplerRetained_context_resident]
@@ -88,7 +88,7 @@ private theorem resident_budget (ctx : RuntimeCtx kind) (N : Nat) :
     simp [resultSpace, Program.additionalSpace, additionalSpace, SpacePool.ofShape]; omega
 
 /-- The complete native sampler's resident peak includes all retained and temporary cells. -/
-theorem samplerRetained_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (circuit (model := model) ctx N).Path) :
     (circuit (model := model) ctx N).peakResidentSpace path ≤
       ctx.residentSpace + additionalSpace model.kind (modulusBits N) := by
@@ -103,7 +103,7 @@ theorem samplerRetained_resident_le (ctx : RuntimeCtx model.kind) (N : Nat)
 
 omit [BitWord.Selected model] in
 /-- The two retained cells contribute exactly their complete auxiliary capacity. -/
-theorem samplerRetained_context_auxiliary (ctx : RuntimeCtx kind) (N : Nat) :
+lemma samplerRetained_context_auxiliary (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).auxiliarySpace = ctx.auxiliarySpace + resultSpace kind (modulusBits N) := by
   apply SpacePool.ext
   intro axis
@@ -113,7 +113,7 @@ theorem samplerRetained_context_auxiliary (ctx : RuntimeCtx kind) (N : Nat) :
 
 omit [BitWord.Selected model] in
 /-- Every actual allocation stage fits the final retained auxiliary context. -/
-theorem samplerRetained_allocation_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_allocation_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (allocation (model := model) ctx N).Path) :
     (allocation (model := model)
         ctx N).peakAuxiliarySpace path ≤ (context ctx N).auxiliarySpace := by
@@ -126,7 +126,7 @@ theorem samplerRetained_allocation_auxiliary_le (ctx : RuntimeCtx model.kind) (N
     cases model <;> intro axis <;> cases axis <;>
       simp [context, sampleContext, SpacePool.ofShape] <;> omega
 
-private theorem body_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
+private lemma body_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (body (model := model) ctx N).Path) :
     (body (model := model) ctx N).peakAuxiliarySpace path ≤
       (context ctx N).auxiliarySpace + Program.additionalSpace model.kind (modulusBits N) := by
@@ -143,7 +143,7 @@ private theorem body_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
       (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N) path.2
 
 omit [BitWord.Selected model] in
-private theorem auxiliary_budget (ctx : RuntimeCtx kind) (N : Nat) :
+private lemma auxiliary_budget (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).auxiliarySpace + Program.additionalSpace kind (modulusBits N) =
       ctx.auxiliarySpace + additionalSpace kind (modulusBits N) := by
   rw [samplerRetained_context_auxiliary]
@@ -153,7 +153,7 @@ private theorem auxiliary_budget (ctx : RuntimeCtx kind) (N : Nat) :
     simp [resultSpace, Program.additionalSpace, additionalSpace, SpacePool.ofShape]; omega
 
 /-- The complete native sampler's auxiliary peak includes all retained and temporary cells. -/
-theorem samplerRetained_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_auxiliary_le (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (circuit (model := model) ctx N).Path) :
     (circuit (model := model) ctx N).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + additionalSpace model.kind (modulusBits N) := by

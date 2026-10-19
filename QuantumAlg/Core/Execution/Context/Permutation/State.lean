@@ -48,14 +48,14 @@ def state (original : State source Reference H) : State target Reference H :=
   (original.mapClassical (recordEquiv same H)).reindex (referenceBasis same Reference)
 
 /-- The reverse bijections recover every original classical block and matrix entry. -/
-theorem state_inverse (original : State source Reference H) :
+lemma state_inverse (original : State source Reference H) :
     (((state same original).mapClassical (recordEquiv same H).symm).reindex
       (referenceBasis same Reference).symm) = original :=
   ExecutionState.coordinate_transport_inverse original (recordEquiv same H)
     (referenceBasis same Reference)
 
 /-- Reversing the store and basis coordinates reconstructs the supplied target state. -/
-theorem state_reverse (targetState : State target Reference H) :
+lemma state_reverse (targetState : State target Reference H) :
     state same
       ((targetState.mapClassical (recordEquiv same H).symm).reindex
         (referenceBasis same Reference).symm) = targetState := by
@@ -67,13 +67,13 @@ theorem state_reverse (targetState : State target Reference H) :
     (ExecutionState.coordinate_transport_inverse targetState labels.symm coordinates.symm)
 
 /-- Every target state has a source with the same complete permuted density blocks. -/
-theorem state_surjective (targetState : State target Reference H) :
+lemma state_surjective (targetState : State target Reference H) :
     ∃ original : State source Reference H, state same original = targetState :=
   ⟨(targetState.mapClassical (recordEquiv same H).symm).reindex
     (referenceBasis same Reference).symm, state_reverse same targetState⟩
 
 /-- Each transported matrix entry is exactly the original entry at the inverse coordinates. -/
-theorem state_entry (original : State source Reference H) (label : Store target × H)
+lemma state_entry (original : State source Reference H) (label : Store target × H)
     (row column : (Register.prod target.register Reference).Index) :
     ((state same original).block label).matrix row column =
       (original.block ((recordEquiv same H).symm label)).matrix
@@ -83,13 +83,13 @@ theorem state_entry (original : State source Reference H) (label : Store target 
     (referenceBasis same Reference) label row column
 
 /-- Total mass is unchanged, including for subnormalized or impossible branches. -/
-theorem state_mass (original : State source Reference H) :
+lemma state_mass (original : State source Reference H) :
     (state same original).mass = original.mass :=
   (ExecutionState.reindex_mass _ (referenceBasis same Reference)).trans
     (ExecutionState.mapClassical_mass original (recordEquiv same H))
 
 /-- Changing the mathematical history commutes with the same complete state coordinates. -/
-theorem state_mapHistory (original : State source Reference H) (update : H → K) :
+lemma state_mapHistory (original : State source Reference H) (update : H → K) :
     state same (original.mapHistory update) = (state same original).mapHistory update := by
   let coordinates := referenceBasis same Reference
   let before := recordEquiv same H
@@ -108,7 +108,7 @@ theorem state_mapHistory (original : State source Reference H) (update : H → K
     dsimp only [state, State.mapHistory, coordinates, before, after, sourceMap, targetMap]
 
 /-- The stored-value branch selects exactly the same original classical fiber. -/
-theorem state_selectClassical (original : State source Reference H)
+lemma state_selectClassical (original : State source Reference H)
     {shape : CShape} (ref : CInputRef source shape) (selected : shape.Value) :
     state same (original.selectClassical (fun record => record.1.read ref) selected) =
       (state same original).selectClassical
@@ -134,7 +134,7 @@ theorem state_selectClassical (original : State source Reference H)
   · simp only [active, if_false]
 
 /-- Admissible sums retain all classical fibers and all joint matrix entries. -/
-theorem state_finiteSum {I : Type} [Fintype I]
+lemma state_finiteSum {I : Type} [Fintype I]
     (original : I → State source Reference H) (total : ∑ index, (original index).mass ≤ 1) :
     state same (ExecutionState.finiteSum original total) =
       ExecutionState.finiteSum (fun index => state same (original index))

@@ -21,7 +21,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The original sampled-parameter entry facts survive preservation of its actual read. -/
-theorem setupInitial_transport (input : Input N)
+lemma setupInitial_transport (input : Input N)
     (refs : LatticeCandidateModularSetup.Refs ctx N) (before after : Store ctx)
     (initial : LatticeCandidateModularSetup.InitialConditions input before refs)
     (parameterFrame : after.read refs.parameter = before.read refs.parameter) :
@@ -33,7 +33,7 @@ theorem setupInitial_transport (input : Input N)
   exact baseLt
 
 /-- The actual framed base is the canonical value of the retained original generator. -/
-theorem parameterBase_eq_generatorValue (input : Input N) (generator : (ZMod N)ˣ)
+lemma parameterBase_eq_generatorValue (input : Input N) (generator : (ZMod N)ˣ)
     (refs : Refs ctx N) (before after : Store ctx)
     (initial : InitialConditions input generator before refs)
     (parameterFrame : after.read refs.setup.parameter = before.read refs.setup.parameter) :

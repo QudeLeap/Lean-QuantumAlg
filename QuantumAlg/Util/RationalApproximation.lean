@@ -37,7 +37,7 @@ namespace RationalApproximation
 /-- If two natural numbers have real distance strictly less than one, they are
 equal. This is the integer discreteness step used after clearing denominators
 in rational-approximation uniqueness arguments. -/
-theorem nat_eq_of_abs_cast_sub_lt_one {a b : ℕ}
+lemma nat_eq_of_abs_cast_sub_lt_one {a b : ℕ}
     (h : |((a : ℝ) - (b : ℝ))| < 1) :
     a = b := by
   by_contra hne
@@ -53,7 +53,7 @@ theorem nat_eq_of_abs_cast_sub_lt_one {a b : ℕ}
 /-- Reduced natural fractions are unique: if `p/q` and `s/r` are both reduced,
 with positive denominators, and have equal cross products, then the numerators
 and denominators agree. -/
-theorem reducedFraction_eq_of_cross_mul {p q s r : ℕ}
+lemma reducedFraction_eq_of_cross_mul {p q s r : ℕ}
     (hq : 0 < q) (hr : 0 < r)
     (hpq : Nat.Coprime p q) (hsr : Nat.Coprime s r)
     (hcross : p * r = s * q) :
@@ -80,7 +80,7 @@ theorem reducedFraction_eq_of_cross_mul {p q s r : ℕ}
 the post-clearing form of a rational approximation bound: the cross-product
 distance is strictly smaller than one, hence it is zero, and reduced-fraction
 uniqueness finishes the argument. -/
-theorem reducedFraction_unique_of_cleared_error_lt_one {p q s r : ℕ}
+lemma reducedFraction_unique_of_cleared_error_lt_one {p q s r : ℕ}
     (hq : 0 < q) (hr : 0 < r)
     (hpq : Nat.Coprime p q) (hsr : Nat.Coprime s r)
     (h : |((p * r : ℝ) - (s * q : ℝ))| < 1) :
@@ -91,7 +91,7 @@ theorem reducedFraction_unique_of_cleared_error_lt_one {p q s r : ℕ}
 
 /-- The rational denominator of a reduced fraction of natural numbers is the
 given denominator. -/
-theorem reducedNatFraction_den {p q : ℕ}
+lemma reducedNatFraction_den {p q : ℕ}
     (hq : 0 < q) (hpq : Nat.Coprime p q) :
     (((p : ℚ) / (q : ℚ)).den = q) := by
   rw [Rat.natCast_div_eq_divInt, Rat.den_divInt]
@@ -103,7 +103,7 @@ theorem reducedNatFraction_den {p q : ℕ}
 /-- Legendre's continued-fraction criterion for a reduced fraction of natural
 numbers, stated with the unreduced denominator parameter used by order recovery.
 The result uses Mathlib's `Real.convergent` API. -/
-theorem reducedFraction_eq_convergent_of_legendre {ξ : ℝ} {p q : ℕ}
+lemma reducedFraction_eq_convergent_of_legendre {ξ : ℝ} {p q : ℕ}
     (hq : 0 < q) (hpq : Nat.Coprime p q)
     (happrox :
       |ξ - (((p : ℚ) / (q : ℚ) : ℚ) : ℝ)| < 1 / (2 * (q : ℝ) ^ 2)) :
@@ -119,7 +119,7 @@ theorem reducedFraction_eq_convergent_of_legendre {ξ : ℝ} {p q : ℕ}
 or real phase estimate `ξ` is within `1/(2r^2)` of the reduced fraction `s/r`,
 then `s/r` appears as a continued-fraction convergent of `ξ`, and the recovered
 convergent denominator is exactly `r`. -/
-theorem denominatorRecovery_of_phaseEstimate {ξ : ℝ} {s r : ℕ}
+lemma denominatorRecovery_of_phaseEstimate {ξ : ℝ} {s r : ℕ}
     (hr : 0 < r) (hsr : Nat.Coprime s r)
     (happrox :
       |ξ - (((s : ℚ) / (r : ℚ) : ℚ) : ℝ)| < 1 / (2 * (r : ℝ) ^ 2)) :
@@ -137,7 +137,7 @@ the cleared-error uniqueness test against the true reduced fraction, then the
 candidate is one of the continued-fraction convergents and its denominator is
 the true denominator. The separate validation that a concrete continued-fraction
 search returns this candidate is intentionally outside this theorem. -/
-private theorem continuedFraction_denominatorRecovery_of_cleared_error_lt_one {ξ : ℝ}
+private lemma continuedFraction_denominatorRecovery_of_cleared_error_lt_one {ξ : ℝ}
     {p q s r : ℕ}
     (hq : 0 < q) (hr : 0 < r)
     (hpq : Nat.Coprime p q) (hsr : Nat.Coprime s r)

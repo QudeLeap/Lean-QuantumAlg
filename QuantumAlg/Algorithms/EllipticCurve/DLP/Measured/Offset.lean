@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Support
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Recovery.PreparedSupport
 import Mathlib.Data.ZMod.QuotientGroup
 import Mathlib.Logic.Equiv.Fintype
 
@@ -39,7 +39,7 @@ def candidateOffsets (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E)
   exact (Subgroup.zpowers problem.generator : Set (GroupPoint E)).toFinset.erase 1
 
 /-- Candidate membership records the original subgroup and the explicit nonidentity condition. -/
-theorem mem_candidateOffsets (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E))
+lemma mem_candidateOffsets (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E))
     (offset : GroupPoint E) :
     offset ∈ candidateOffsets problem ↔
       offset ∈ Subgroup.zpowers problem.generator ∧ offset ≠ 1 := by
@@ -49,7 +49,7 @@ theorem mem_candidateOffsets (problem : FiniteCyclicDLP.KnownOrderProblem (Group
   tauto
 
 /-- Removing the identity leaves exactly the original order minus one candidates. -/
-theorem candidateOffsets_card (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E)) :
+lemma candidateOffsets_card (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E)) :
     (candidateOffsets problem).card = problem.order - 1 := by
   classical
   have generatorFiniteOrder : IsOfFinOrder problem.generator := by
@@ -68,14 +68,14 @@ theorem candidateOffsets_card (problem : FiniteCyclicDLP.KnownOrderProblem (Grou
   rw [Nat.card_zpowers, ← problem.order_eq_orderOf]
 
 /-- Every original problem of order at least two supplies a nonidentity offset candidate. -/
-theorem candidateOffsets_nonempty
+lemma candidateOffsets_nonempty
     (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E))
     (orderAtLeastTwo : 2 ≤ problem.order) : (candidateOffsets problem).Nonempty := by
   rw [← Finset.card_pos, candidateOffsets_card]
   omega
 
 /-- A nonidentity group point has its exact finite affine representative. -/
-theorem exists_affineRepresentative (point : GroupPoint E) (nonidentity : point ≠ 1) :
+lemma exists_affineRepresentative (point : GroupPoint E) (nonidentity : point ≠ 1) :
     ∃ representative : AffinePoint E, representative.toGroupPoint = point := by
   rcases point with ⟨point⟩
   cases point with
@@ -83,7 +83,7 @@ theorem exists_affineRepresentative (point : GroupPoint E) (nonidentity : point 
   | some x y nonsingular => exact ⟨⟨x, y, nonsingular⟩, rfl⟩
 
 /-- One fixed affine seed obeys the original two-exceptions-per-step count on prepared branches. -/
-theorem exists_fixedOffset_exceptional_card_bound
+lemma exists_fixedOffset_exceptional_card_bound
     (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E))
     (orderAtLeastTwo : 2 ≤ problem.order)
     (points : Fin (2 * FiniteCyclicDLP.orderWidth problem) → AffinePoint E) :
@@ -106,7 +106,7 @@ theorem exists_fixedOffset_exceptional_card_bound
     simpa only [preparedExceptionalBranches, seedGroup] using bound
 
 /-- An original exceptional count bound gives the exact corresponding Born-mass bound. -/
-theorem preparedExceptionalMass_le_of_card_bound
+lemma preparedExceptionalMass_le_of_card_bound
     (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E))
     (points : Fin (2 * FiniteCyclicDLP.orderWidth problem) → AffinePoint E)
     (seed : AffinePoint E) (budget : Nat) (orderAtLeastTwo : 2 ≤ problem.order)
@@ -133,7 +133,7 @@ theorem preparedExceptionalMass_le_of_card_bound
   simpa only [Nat.cast_mul, mul_comm, mul_left_comm, mul_assoc] using cardBoundReal
 
 /-- One original nonidentity subgroup seed has the original exceptional-mass constant. -/
-theorem exists_fixedOffset_exceptionalMass_bound
+lemma exists_fixedOffset_exceptionalMass_bound
     (problem : FiniteCyclicDLP.KnownOrderProblem (GroupPoint E))
     (orderAtLeastTwo : 2 ≤ problem.order)
     (points : Fin (2 * FiniteCyclicDLP.orderWidth problem) → AffinePoint E) :

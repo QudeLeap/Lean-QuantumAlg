@@ -29,7 +29,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem coordinateWord_eq_iff (spec : CurveSpec width)
+private lemma coordinateWord_eq_iff (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) :
     coordinateWord spec x = coordinateWord spec y ↔ x = y := by
   constructor
@@ -39,7 +39,7 @@ private theorem coordinateWord_eq_iff (spec : CurveSpec width)
   · rintro rfl
     rfl
 
-private theorem coordinateWord_zero_iff (spec : CurveSpec width)
+private lemma coordinateWord_zero_iff (spec : CurveSpec width)
     (x : ZMod spec.field.modulus) : coordinateWord spec x = 0 ↔ x = 0 := by
   have zero : coordinateWord spec (0 : ZMod spec.field.modulus) = 0 := by
     apply Fin.ext
@@ -48,7 +48,7 @@ private theorem coordinateWord_zero_iff (spec : CurveSpec width)
   rw [← zero]
   exact coordinateWord_eq_iff spec x 0
 
-private theorem classifyValues_encoded_finite (spec : CurveSpec width)
+private lemma classifyValues_encoded_finite (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus)
     (h₁ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₁ y₁)
     (h₂ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₂ y₂) :
@@ -62,7 +62,7 @@ private theorem classifyValues_encoded_finite (spec : CurveSpec width)
     CShape.Value.ellipticCurvePointY, Bool.false_eq_true, if_false,
     coordinateWord_eq_iff, coordinateWord_zero_iff]
 
-private theorem additionOutputValue_encoded_represents (spec : CurveSpec width)
+private lemma additionOutputValue_encoded_represents (spec : CurveSpec width)
     (P Q : Pure.Point spec) :
     PointRepresents spec (additionOutputValue spec (encodePoint spec P) (encodePoint spec Q))
       (ClassicalAlgorithms.EllipticCurve.Add.eval spec P Q) := by
@@ -131,7 +131,7 @@ private theorem additionOutputValue_encoded_represents (spec : CurveSpec width)
           x₁ x₂ y₁ y₂ h₁ h₂ rfl rfl rfl rfl selected
 
 /-- The actual complete result represents the original sum on all represented input points. -/
-theorem additionOutputValue_represents (spec : CurveSpec width)
+lemma additionOutputValue_represents (spec : CurveSpec width)
     (left right : CShape.Value (PointShape width)) (P Q : Pure.Point spec)
     (leftRep : PointRepresents spec left P) (rightRep : PointRepresents spec right Q) :
     PointRepresents spec (additionOutputValue spec left right)
@@ -148,13 +148,15 @@ theorem additionOutputValue_represents (spec : CurveSpec width)
   exact additionOutputValue_encoded_represents spec P Q
 
 /-- The same actual complete-addition record writes the original sum into the caller result cell. -/
-theorem addIntoStep_represents {model : ExecutionModel} [BitWord.Selected model]
+lemma addIntoStep_represents {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx (PointShape width))
     (store : Store ctx) (hidden : model.HiddenState) (P Q : Pure.Point spec)
     (leftRep : PointRepresents spec (store.read left) P)
     (rightRep : PointRepresents spec (store.read right) Q) :
-    PointRepresents spec ((addIntoStep spec left right output (store, hidden)).1.1.read
+    PointRepresents spec ((addIntoStep (environment := environment) spec left right output
+      (store, hidden)).1.1.read
       (classifierRead output))
       (ClassicalAlgorithms.EllipticCurve.Add.eval spec P Q) := by
   rw [addIntoStep_store]

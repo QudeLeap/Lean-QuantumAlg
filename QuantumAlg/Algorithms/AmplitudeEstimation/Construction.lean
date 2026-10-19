@@ -7,6 +7,8 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.AmplitudeEstimation.Basic
+public import QuantumAlg.Core.Measure
+public import QuantumAlg.Core.Measure.Distribution
 import all QuantumAlg.Algorithms.AmplitudeEstimation.Basic
 import all QuantumAlg.Algorithms.QPE.Analysis
 import all QuantumAlg.Algorithms.QPE.Basic
@@ -75,30 +77,30 @@ def evolvedState {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
 
 /-- Decode a terminal phase-register outcome by the canonical big-endian
 full-register decoder. -/
-def decodedIndex {t : Nat}
+@[expose] public def decodedIndex {t : Nat}
     (outcome : TerminalZMeasure.Outcome t) : Fin (2 ^ t) :=
   TerminalZMeasure.fullRegisterIndex outcome
 
 /-- Phase estimate in turns. -/
-def decodedPhase {t : Nat}
+@[expose] public def decodedPhase {t : Nat}
     (outcome : TerminalZMeasure.Outcome t) : Real :=
   (decodedIndex outcome).val / (2 : Real) ^ t
 
 /-- Probability estimate obtained from the measured phase register. -/
-def estimate {t : Nat}
+@[expose] public def estimate {t : Nat}
     (outcome : TerminalZMeasure.Outcome t) : Real :=
-  periodicSinSq (decodedPhase outcome)
+  Real.sin (Real.pi * decodedPhase outcome) ^ 2
 
-@[simp] theorem decodedIndex_qpeOutcome (t : Nat) (j : Fin (2 ^ t)) :
+@[simp] lemma decodedIndex_qpeOutcome (t : Nat) (j : Fin (2 ^ t)) :
     decodedIndex (qpeOutcome t j) = j := by
   exact qpeOutcome_fullRegisterIndex t j
 
-@[simp] theorem estimate_qpeOutcome (t : Nat) (j : Fin (2 ^ t)) :
+@[simp] lemma estimate_qpeOutcome (t : Nat) (j : Fin (2 ^ t)) :
     estimate (qpeOutcome t j) =
       periodicSinSq ((j.val : Real) / (2 : Real) ^ t) := by
-  simp [estimate, decodedPhase]
+  simp [estimate, decodedPhase, periodicSinSq]
 
-theorem targetProbability_eq_periodicSinSq {n : Nat}
+lemma targetProbability_eq_periodicSinSq {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) :
     targetProbability E.source =
       periodicSinSq (E.source.θ / Real.pi) := by
@@ -108,7 +110,7 @@ theorem targetProbability_eq_periodicSinSq {n : Nat}
 
 /-- The former exact-dyadic result remains only as a helper on the new
 intrinsic source model; neither an eigenstate nor an index is a public input. -/
-theorem exactDyadicEstimate_helper {n : Nat}
+lemma exactDyadicEstimate_helper {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (j : Fin (2 ^ t))
     (hphase : E.source.θ / Real.pi =
@@ -118,17 +120,17 @@ theorem exactDyadicEstimate_helper {n : Nat}
 
 /-- The prepared all-zero input evolves as the coherent sum of the positive
 and negative QPE eigenbranches. -/
-theorem sourceOperator_applyVec_allZero {n : Nat}
+lemma sourceOperator_applyVec_allZero {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
     (sourceOperator E t).applyVec (allZeroInput E t : HilbertVector (Qubits (t + n))) =
       E.source.eigenPlusCoefficient •
-          (QuantumPhaseEstimation.Native.circuit t
-            (positiveEigenInput E).unitary).binaryMatrix.applyVec
+          ((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix
+            (UnitarySource.interpretation (positiveEigenInput E).unitary true)).applyVec
             (qpeInput (positiveEigenInput E) t :
               HilbertVector (Qubits (t + n))) +
         E.source.eigenMinusCoefficient •
-          (QuantumPhaseEstimation.Native.circuit t
-            (negativeEigenInput E).unitary).binaryMatrix.applyVec
+          ((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix
+            (UnitarySource.interpretation (negativeEigenInput E).unitary true)).applyVec
             (qpeInput (negativeEigenInput E) t :
               HilbertVector (Qubits (t + n))) := by
   rw [sourceOperator, ← QuantumPhaseEstimation.Native.qpeNative_circuit_binaryMatrix,
@@ -152,7 +154,7 @@ def phaseFiberState {n : Nat} (E : GeneralAmplitudeEstimationInput n)
       (E.source.eigenMinus : HilbertVector (Qubits n))
 
 /-- Coordinate form of the independent coherent source target. -/
-theorem evolvedState_apply_prod {n : Nat}
+lemma evolvedState_apply_prod {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (j : Fin (2 ^ t)) (y : Fin (2 ^ n)) :
     (evolvedState E t).normalized (prodEquiv (j, y)) =
@@ -160,8 +162,8 @@ theorem evolvedState_apply_prod {n : Nat}
   change (sourceOperator E t).applyVec (allZeroInput E t : HilbertVector (Qubits (t + n)))
       (prodEquiv (j, y)) = _
   have hplus :
-      (QuantumPhaseEstimation.Native.circuit t
-            (positiveEigenInput E).unitary).binaryMatrix.applyVec
+      ((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix
+            (UnitarySource.interpretation (positiveEigenInput E).unitary true)).applyVec
           (qpeInput (positiveEigenInput E) t :
             HilbertVector (Qubits (t + n))) =
         HilbertVector.tensor
@@ -174,8 +176,8 @@ theorem evolvedState_apply_prod {n : Nat}
         (ψ : HilbertVector (Qubits (t + n))))
       (qpeCircuit_applyNormalized_input (positiveEigenInput E) t)
   have hminus :
-      (QuantumPhaseEstimation.Native.circuit t
-            (negativeEigenInput E).unitary).binaryMatrix.applyVec
+      ((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix
+            (UnitarySource.interpretation (negativeEigenInput E).unitary true)).applyVec
           (qpeInput (negativeEigenInput E) t :
             HilbertVector (Qubits (t + n))) =
         HilbertVector.tensor
@@ -207,7 +209,7 @@ theorem evolvedState_apply_prod {n : Nat}
 
 /-- Orthogonality of the two Grover eigenbranches removes all coherent cross
 terms in one phase-register fiber. -/
-theorem phaseFiberState_norm_sq {n : Nat}
+lemma phaseFiberState_norm_sq {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (j : Fin (2 ^ t)) :
     ‖phaseFiberState E t j‖ ^ 2 =
@@ -246,13 +248,13 @@ theorem phaseFiberState_norm_sq {n : Nat}
       simp only [a, b, norm_mul, mul_pow]
       rw [hplus, hminus]
 
-private theorem qpeOutcome_bijective (t : Nat) :
+private lemma qpeOutcome_bijective (t : Nat) :
     Function.Bijective (qpeOutcome t) := by
   apply (Fintype.bijective_iff_injective_and_card (qpeOutcome t)).2
   refine ⟨qpeOutcome_injective t, ?_⟩
   simp
 
-theorem qpeOutcome_fullRegisterIndex_inverse {t : Nat}
+lemma qpeOutcome_fullRegisterIndex_inverse {t : Nat}
     (outcome : TerminalZMeasure.Outcome t) :
     qpeOutcome t (TerminalZMeasure.fullRegisterIndex outcome) = outcome := by
   obtain ⟨j, rfl⟩ := (qpeOutcome_bijective t).2 outcome
@@ -260,7 +262,7 @@ theorem qpeOutcome_fullRegisterIndex_inverse {t : Nat}
 
 /-- The Born phase-register probability of the exact circuit state is the equal mixture of the
 two orthogonal signed-eigenphase branches. -/
-theorem outcome_probability_eq_eigen_mixture {n : Nat}
+lemma outcome_probability_eq_eigen_mixture {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (j : Fin (2 ^ t)) :
     (qpeMeasurement t n).outcomePMF (evolvedState E t)
@@ -285,7 +287,7 @@ def outcomeDistribution {n : Nat} (E : GeneralAmplitudeEstimationInput n)
 
 /-- Pointwise, the exact terminal PMF is the half-and-half mixture of the two
 signed eigenphase distributions. -/
-theorem outcomeDistribution_eq_eigen_mixture {n : Nat}
+lemma outcomeDistribution_eq_eigen_mixture {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (outcome : TerminalZMeasure.Outcome t) :
     outcomeDistribution E t outcome =
@@ -311,12 +313,12 @@ theorem outcomeDistribution_eq_eigen_mixture {n : Nat}
 /-! ### Signed-window success -/
 
 /-- Additive-error success predicate on the decoded terminal outcome. -/
-def SuccessfulOutcome {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+@[expose] public def SuccessfulOutcome {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (eps : Real) {t : Nat}
     (outcome : TerminalZMeasure.Outcome t) : Prop :=
   |estimate outcome - targetProbability E.source| <= eps
 
-theorem positiveWindow_successful {n : Nat}
+lemma positiveWindow_successful {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     {eps : Real} (heps : 0 < eps)
     (outcome : TerminalZMeasure.Outcome t)
@@ -341,7 +343,7 @@ theorem positiveWindow_successful {n : Nat}
       rw [precisionRadius]
       field_simp [Real.pi_ne_zero]
 
-theorem negativeWindow_successful {n : Nat}
+lemma negativeWindow_successful {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     {eps : Real} (heps : 0 < eps)
     (outcome : TerminalZMeasure.Outcome t)
@@ -374,7 +376,7 @@ theorem negativeWindow_successful {n : Nat}
 
 /-- Event mass of the exact outcome PMF is the half-and-half mixture of the two
 signed QPE branch event masses. -/
-theorem outcomeProbability_eq_eigen_mixture {n : Nat}
+lemma outcomeProbability_eq_eigen_mixture {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (postcondition : TerminalZMeasure.Outcome t -> Prop) :
     (outcomeDistribution E t).toOuterMeasure
@@ -414,7 +416,7 @@ theorem outcomeProbability_eq_eigen_mixture {n : Nat}
     _ = _ := by
       rw [Finset.sum_add_distrib, ← Finset.mul_sum, ← Finset.mul_sum]
 
-private theorem phaseRegisterGeometricAmplitude_norm_sq_eq_one_of_sub_eq_int
+private lemma phaseRegisterGeometricAmplitude_norm_sq_eq_one_of_sub_eq_int
     (t : Nat) (phase : Real) (j : Fin (2 ^ t)) (z : Int)
     (hphase : phase - (j.val : Real) / (2 : Real) ^ t = (z : Real)) :
     ‖phaseRegisterGeometricAmplitude t phase j‖ ^ 2 = 1 := by
@@ -427,7 +429,7 @@ private theorem phaseRegisterGeometricAmplitude_norm_sq_eq_one_of_sub_eq_int
   rw [hamp, norm_one]
   norm_num
 
-private theorem qpeBranchOutcome_probability_one {n : Nat}
+private lemma qpeBranchOutcome_probability_one {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) (j : Fin (2 ^ t)) (z : Int)
     (hphase : P.phase - (j.val : Real) / (2 : Real) ^ t = (z : Real)) :
     (qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)
@@ -437,7 +439,7 @@ private theorem qpeBranchOutcome_probability_one {n : Nat}
       t P.phase j z hphase]
   norm_num
 
-private theorem qpeBranch_successProbability_eq_one_of_exact_outcome {n : Nat}
+private lemma qpeBranch_successProbability_eq_one_of_exact_outcome {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat)
     (postcondition : TerminalZMeasure.Outcome t → Prop)
     (j : Fin (2 ^ t))
@@ -464,7 +466,7 @@ two indices represent the positive and negative Grover phases modulo integer
 turns.  Each measured QPE branch is deterministic at its signed index, so the
 actual half-and-half mixture assigns probability one to the decoded success
 event.  This helper does not add indices or certificates to the public input. -/
-theorem exactDyadicBorn_successProbability_eq_one {n : Nat}
+lemma exactDyadicBorn_successProbability_eq_one {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) (eps η : Real)
     (heps : 0 <= eps)
     (jPlus jMinus : Fin (2 ^ selectedPhaseQubits eps η))
@@ -551,7 +553,7 @@ theorem exactDyadicBorn_successProbability_eq_one {n : Nat}
       rw [← add_mul, ← ENNReal.ofReal_add (by norm_num) (by norm_num)]
       norm_num
 
-private theorem qpeBranchWindowProbability_ge_one_sub_eta {n : Nat}
+private lemma qpeBranchWindowProbability_ge_one_sub_eta {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat)
     (ρ η : Real) (hrho : 0 < ρ) (heta : 0 < η)
     (heta_le : η ≤ 1) (hscale : η⁻¹ ≤ (2 : Real) ^ t * ρ) :
@@ -565,7 +567,7 @@ private theorem qpeBranchWindowProbability_ge_one_sub_eta {n : Nat}
 
 /-- The exact Born readout at the selected width succeeds with probability at least
 `1-eta`; each signed QPE window is a subset of the same decoded success event. -/
-theorem outcomeSuccessProbability_ge_one_sub_eta {n : Nat}
+lemma outcomeSuccessProbability_ge_one_sub_eta {n : Nat}
     (E : GeneralAmplitudeEstimationInput n)
     (eps η : Real) (_ht : 0 < selectedPhaseQubits eps η)
     (heps : 0 < eps) (heta : 0 < η)

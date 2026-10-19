@@ -47,18 +47,18 @@ def correction (outcome : Fin dimension) : UnitaryOperator (Qudit dimension) :=
   UnitaryOperator.ofPerm (R := Qudit dimension) (cyclicReadback outcome)
 
 /-- The selected unitary subtracts the observed value modulo the dimension. -/
-theorem correction_apply_ket (outcome x : Fin dimension) :
+lemma correction_apply_ket (outcome x : Fin dimension) :
     (correction outcome).apply (NormalizedVector.ket x) =
       NormalizedVector.ket (x - outcome) := by
   exact UnitaryOperator.ofPerm_apply_ket (R := Qudit dimension) (cyclicReadback outcome) x
 
 /-- The observed computational-basis state is sent to zero. -/
-theorem correction_measured_ket (outcome : Fin dimension) :
+lemma correction_measured_ket (outcome : Fin dimension) :
     (correction outcome).apply (NormalizedVector.ket outcome) =
       NormalizedVector.ket (R := Qudit dimension) 0 := by
   rw [correction_apply_ket, sub_self]
 
-private theorem permutationDensityEntry {R : Register} (σ : Equiv.Perm R.Index)
+private lemma permutationDensityEntry {R : Register} (σ : Equiv.Perm R.Index)
     (ρ : DensityOperator R) (i j : R.Index) :
     (DensityOperator.applyUnitary (UnitaryOperator.ofPerm σ) ρ).matrix i j =
       ρ.matrix (σ i) (σ j) := by
@@ -69,7 +69,7 @@ private theorem permutationDensityEntry {R : Register} (σ : Equiv.Perm R.Index)
   rw [PEquiv.toMatrix_toPEquiv_mul, PEquiv.mul_toMatrix_toPEquiv]
   rfl
 
-private theorem shiftedLabelEqOutcome (outcome x : Fin dimension) :
+private lemma shiftedLabelEqOutcome (outcome x : Fin dimension) :
     x + outcome = outcome ↔ x = 0 := by
   constructor
   · intro h
@@ -83,7 +83,7 @@ def branch (outcome : Fin dimension) (ρ : DensityOperator (Qudit dimension)) :
   DensityOperator.applyUnitary (correction outcome) (ZMeasurement.branch id outcome ρ)
 
 /-- The branch retains its outcome probability at the zero basis state. -/
-theorem reset_branch_entry (outcome : Fin dimension)
+lemma reset_branch_entry (outcome : Fin dimension)
     (ρ : DensityOperator (Qudit dimension)) (i j : Fin dimension) :
     (branch outcome ρ).matrix i j =
       if i = 0 ∧ j = 0 then ρ.matrix outcome outcome else 0 := by
@@ -94,7 +94,7 @@ theorem reset_branch_entry (outcome : Fin dimension)
   by_cases hi : i = 0 <;> by_cases hj : j = 0 <;> simp [hi, hj]
 
 /-- Conditional unitary correction retains the measurement outcome probability. -/
-theorem reset_branch_mass (outcome : Fin dimension)
+lemma reset_branch_mass (outcome : Fin dimension)
     (ρ : DensityOperator (Qudit dimension)) :
     (branch outcome ρ).mass = (ρ.matrix outcome outcome).re := by
   rw [branch, DensityOperator.applyUnitary_mass, ZMeasurement.branch_mass]
@@ -102,7 +102,7 @@ theorem reset_branch_mass (outcome : Fin dimension)
 
 /-- Summing this concrete sequence's outcomes gives the zero-basis projector,
 weighted by the input's probability mass. -/
-theorem reset_sumBranches_entry (ρ : DensityOperator (Qudit dimension))
+lemma reset_sumBranches_entry (ρ : DensityOperator (Qudit dimension))
     (i j : Fin dimension) :
     (∑ outcome, (branch outcome ρ).matrix) i j =
       if i = 0 ∧ j = 0 then ρ.matrix.trace else 0 := by
@@ -111,7 +111,7 @@ theorem reset_sumBranches_entry (ρ : DensityOperator (Qudit dimension))
 
 /-- A normalized input yields exactly the zero basis density matrix when the
 outcomes of the concrete measurement-and-correction sequence are summed. -/
-theorem reset_sumBranches_normalized (ρ : DensityOperator (Qudit dimension))
+lemma reset_sumBranches_normalized (ρ : DensityOperator (Qudit dimension))
     (hρ : ρ.IsNormalized) :
     (∑ outcome, (branch outcome ρ).matrix) =
       (DensityOperator.ofPure (NormalizedVector.ket (R := Qudit dimension) 0)).matrix := by
@@ -137,7 +137,7 @@ private def referenceBranch (Reference : Register) (outcome : Fin dimension)
 
 /-- The actual conditional reference block is retained, including off-diagonal
 entries. The input need not be separable from the reference. -/
-theorem reset_referenceBranch_entry (Reference : Register) (outcome : Fin dimension)
+lemma reset_referenceBranch_entry (Reference : Register) (outcome : Fin dimension)
     (ρ : DensityOperator (Register.prod (Qudit dimension) Reference))
     (i j : Fin dimension) (s t : Reference.Index) :
     (referenceBranch Reference outcome ρ).matrix (i, s) (j, t) =
@@ -151,7 +151,7 @@ theorem reset_referenceBranch_entry (Reference : Register) (outcome : Fin dimens
 
 /-- Summing the observed outcomes preserves the reference marginal for the
 concrete local measurement-and-correction sequence. -/
-theorem reset_referenceSum_entry (Reference : Register)
+lemma reset_referenceSum_entry (Reference : Register)
     (ρ : DensityOperator (Register.prod (Qudit dimension) Reference))
     (i j : Fin dimension) (s t : Reference.Index) :
     (∑ outcome, (referenceBranch Reference outcome ρ).matrix) (i, s) (j, t) =

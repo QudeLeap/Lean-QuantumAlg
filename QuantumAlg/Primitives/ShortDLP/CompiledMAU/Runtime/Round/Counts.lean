@@ -34,15 +34,16 @@ def eventCountWidthBound (m ell width : Nat) : Nat :=
   polynomialPrimitiveWidthBound m ell width + resultBits m ell width + 1 +
     3 * totalQubits (registerParameters m ell width)
 
-private theorem resetEnvelope_card (width : Nat) :
+private lemma resetEnvelope_card (width : Nat) :
     (ZReset.Bank.envelope (oracles := .empty) width BitWord.model).card = 2 * width := by
   have one : (ZReset.eventEnvelope (gates := AlgorithmGate.model)
-      (oracles := .empty) (operations := BitWord.model) 2
-      (ResourcePool.singleton (.gate AlgorithmGate.Coordinate.singleQubit))).card = 2 := rfl
+      (oracles := .empty) (operations := BitWord.model) (services := .empty) 2
+      (ResourcePool.singleton (model := model)
+        (.gate AlgorithmGate.Coordinate.singleQubit))).card = 2 := rfl
   rw [ZReset.Bank.envelope, Multiset.card_nsmul, one, Nat.mul_comm]
 
 /-- Exact cardinality of the native allowance, with one possible correction per reset wire. -/
-theorem eventEnvelope_card (m ell width N : Nat) :
+lemma eventEnvelope_card (m ell width N : Nat) :
     (eventEnvelope m ell width N).card = eventCountBound m ell width N := by
   simp only [eventEnvelope, Multiset.card_add,
     compiledCircuitEventEnvelopeInClassicalContext_card, Multiset.card_nsmul,
@@ -51,14 +52,14 @@ theorem eventEnvelope_card (m ell width N : Nat) :
   omega
 
 /-- The complete scalar allowance admits the same independent width-only ceiling. -/
-theorem eventCountBound_le_widthBound (m ell width N : Nat) :
+lemma eventCountBound_le_widthBound (m ell width N : Nat) :
     eventCountBound m ell width N ≤ eventCountWidthBound m ell width := by
   have compiled := polynomialPrimitiveBound_le_widthBound m ell width N
   have reload := shortDLP_reload_count_le m ell width N
   unfold eventCountBound eventCountWidthBound
   omega
 
-private theorem compiled_classicalWeight (m ell width N : Nat) :
+private lemma compiled_classicalWeight (m ell width N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (compiledCircuitEventEnvelopeInClassicalContext m ell width N BitWord.model .empty) = 0 := by
   unfold compiledCircuitEventEnvelopeInClassicalContext
@@ -72,17 +73,18 @@ private theorem compiled_classicalWeight (m ell width N : Nat) :
         change 0 + _ = 0
         simpa only [Nat.zero_add] using ih
 
-private theorem reset_classicalWeight (width : Nat) :
+private lemma reset_classicalWeight (width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (ZReset.Bank.envelope (oracles := .empty) width BitWord.model) = 0 := by
   have one : ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (ZReset.eventEnvelope (gates := AlgorithmGate.model)
-        (oracles := .empty) (operations := BitWord.model) 2
-        (ResourcePool.singleton (.gate AlgorithmGate.Coordinate.singleQubit))) = 0 := rfl
+        (oracles := .empty) (operations := BitWord.model) (services := .empty) 2
+        (ResourcePool.singleton (model := model)
+          (.gate AlgorithmGate.Coordinate.singleQubit))) = 0 := rfl
   rw [ZReset.Bank.envelope, ResourcePool.weightedCount_nsmul, one, Nat.mul_zero]
 
 /-- The actual packing instruction is the sole classical operation in the round allowance. -/
-theorem eventEnvelope_classicalWeight (m ell width N : Nat) :
+lemma eventEnvelope_classicalWeight (m ell width N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (eventEnvelope m ell width N) = 1 := by
   simp [eventEnvelope, compiled_classicalWeight, reset_classicalWeight,
@@ -97,7 +99,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (path : (code m ell width sameWires parameter N generator target cells result).Path)
 
 /-- Every actual path's event cardinality obeys the complete native-coordinate allowance. -/
-theorem shortDLP_runtimeRound_eventCount_le :
+lemma shortDLP_runtimeRound_eventCount_le :
     ((code m ell width sameWires parameter N generator target cells result).resourcePool
       path).card ≤
       eventCountBound m ell width N :=
@@ -106,7 +108,7 @@ theorem shortDLP_runtimeRound_eventCount_le :
       (eventEnvelope_card m ell width N)
 
 /-- The same actual path obeys the modulus-independent scalar ceiling. -/
-theorem shortDLP_runtimeRound_eventCount_le_widthBound :
+lemma shortDLP_runtimeRound_eventCount_le_widthBound :
     ((code m ell width sameWires parameter N generator target cells result).resourcePool
       path).card ≤
       eventCountWidthBound m ell width :=
@@ -115,7 +117,7 @@ theorem shortDLP_runtimeRound_eventCount_le_widthBound :
       (eventCountBound_le_widthBound m ell width N)
 
 /-- The complete native path allowance permits at most the one real packing operation. -/
-theorem shortDLP_runtimeRound_classicalWeight_le :
+lemma shortDLP_runtimeRound_classicalWeight_le :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((code m ell width sameWires parameter N generator target cells result).resourcePool path) ≤
       1 :=

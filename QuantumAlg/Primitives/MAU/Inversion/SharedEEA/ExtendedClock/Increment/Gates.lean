@@ -25,6 +25,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ExtendedClockIncrement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec ExtendedClockRegisters
 
 /-- Equality transport retains each original instruction and its existing wire addresses. -/
@@ -33,7 +35,7 @@ private def castBridgeGates {low target high : Nat} (same : low = target)
     List (GateSpec (Addition.HRS.bridgeEncoding target high)) :=
   same ▸ instructions
 
-private theorem castBridgeGates_step {low target high : Nat} (same : low = target)
+private lemma castBridgeGates_step {low target high : Nat} (same : low = target)
     (instructions : List (GateSpec (Addition.HRS.bridgeEncoding low high)))
     (action : ∀ state, stepList instructions state = Addition.HRS.bridgeIncrementStep state)
     (state : Addition.HRS.BridgeRegisters (Fin (2 ^ target)) high) :
@@ -42,7 +44,7 @@ private theorem castBridgeGates_step {low target high : Nat} (same : low = targe
   cases same
   exact action state
 
-private theorem castBridgeGates_trace {low target high : Nat} (same : low = target)
+private lemma castBridgeGates_trace {low target high : Nat} (same : low = target)
     (instructions : List (GateSpec (Addition.HRS.bridgeEncoding low high))) :
     (castBridgeGates same instructions).map (event .empty) =
       instructions.map (event .empty) := by
@@ -55,13 +57,13 @@ private def focusedGates (width : Nat) :
   castBridgeGates (extra_add_clockWidth width)
     (Addition.HRS.placedIncrementGates (extra width) (clockWidth width))
 
-private theorem focusedGates_step (width : Nat)
+private lemma focusedGates_step (width : Nat)
     (state : Addition.HRS.BridgeRegisters (Fin (2 ^ (width + 3))) (clockWidth width)) :
     stepList (focusedGates width) state = Addition.HRS.bridgeIncrementStep state :=
   castBridgeGates_step (extra_add_clockWidth width) _
     (Addition.HRS.hrsPlacedIncrementGates_step (extra width) (clockWidth width)) state
 
-private theorem focusedGates_trace (width : Nat) :
+private lemma focusedGates_trace (width : Nat) :
     (focusedGates width).map (event .empty) =
       (Addition.HRS.placedIncrementGates (extra width) (clockWidth width)).map
         (event .empty) :=
@@ -79,7 +81,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
   (groupedGates width).map (ExtendedClockPlacement.placement width).placeGate
 
 /-- Every full input frame follows the original finite increment, with arbitrary work restored. -/
-theorem extendedClockIncrement_gates_step (width : Nat) (state : Registers width) :
+lemma extendedClockIncrement_gates_step (width : Nat) (state : Registers width) :
     stepList (gates width) state = step state := by
   have lifted := stepList_prodLeft
     (left := Addition.HRS.bridgeEncoding (width + 3) (clockWidth width))
@@ -103,14 +105,14 @@ theorem extendedClockIncrement_gates_step (width : Nat) (state : Registers width
       ((congrArg (ExtendedClockPlacement.placement width).grouping.symm grouped).trans placed)
 
 /-- The emitted native word preserves all amplitudes and relative phases on the complete frame. -/
-theorem extendedClockIncrement_gates_realizes (width : Nat)
+lemma extendedClockIncrement_gates_realizes (width : Nat)
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (programList layout .empty (gates width)) step :=
-  realizesList_congrStep layout .empty _ (extendedClockIncrement_gates_step width)
+      (programList layout .empty (gates width)) environment step :=
+  realizesList_congrStep layout .empty _ (extendedClockIncrement_gates_step width) environment
 
 /-- Width transport, product lifting and full placement retain the original instruction order. -/
-theorem extendedClockIncrement_gates_trace (width : Nat) :
+lemma extendedClockIncrement_gates_trace (width : Nat) :
     (gates width).map (event .empty) = (program width).eventTrace := by
   have placed : (gates width).map (event .empty) =
       (groupedGates width).map (event .empty) := by
@@ -127,12 +129,12 @@ theorem extendedClockIncrement_gates_trace (width : Nat) :
     (original.trans (program_eventTrace width).symm)))
 
 /-- The complete native multiplicity pool is unchanged in every gate coordinate. -/
-theorem extendedClockIncrement_gates_eventCost (width : Nat) :
+lemma extendedClockIncrement_gates_eventCost (width : Nat) :
     ResourcePool.ofList ((gates width).map (event .empty)) = (program width).eventCost := by
   rw [extendedClockIncrement_gates_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
 /-- The exact HRS count includes every instruction on both original high clock bits. -/
-theorem extendedClockIncrement_gates_length (width : Nat) :
+lemma extendedClockIncrement_gates_length (width : Nat) :
     (gates width).length =
       4 * (2 + width.size) + 20 * ((2 + width.size) - 1) +
         4 * ((2 + width.size) - 2) := by

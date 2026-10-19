@@ -56,7 +56,7 @@ def OutsidePhaseWindow {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
   ρ <= qpePhaseDistance t P.phase
     (TerminalZMeasure.fullRegisterIndex outcome)
 
-theorem nearestIndex_successful {n : Nat} (P : QPEEigenstateInput n)
+lemma nearestIndex_successful {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) :
     SuccessfulOutcome P t (qpeOutcome t (qpeNearestIndex t P.phase)) := by
   refine ⟨qpeNearestIndex t P.phase, rfl, ?_⟩
@@ -69,7 +69,7 @@ theorem nearestIndex_successful {n : Nat} (P : QPEEigenstateInput n)
       nlinarith [show 0 < (2 : Real) ^ t by positivity]
 
 /-- The Born event of the exact QPE vector attains the source lower bound. -/
-theorem born_successProbability_ge {n : Nat} (P : QPEEigenstateInput n)
+lemma born_successProbability_ge {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) :
     ENNReal.ofReal (4 / Real.pi ^ 2) ≤
       ((qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)).toOuterMeasure
@@ -92,13 +92,13 @@ theorem born_successProbability_ge {n : Nat} (P : QPEEigenstateInput n)
       subst outcome
       exact nearestIndex_successful P t
 
-private theorem qpeOutcome_bijective (t : Nat) :
+private lemma qpeOutcome_bijective (t : Nat) :
     Function.Bijective (qpeOutcome t) := by
   apply (Fintype.bijective_iff_injective_and_card (qpeOutcome t)).2
   exact ⟨qpeOutcome_injective t, by simp⟩
 
 /-- The exact Born bad-window mass is the finite geometric-amplitude tail. -/
-theorem born_badWindowProbability_eq_badIndexMass {n : Nat}
+lemma born_badWindowProbability_eq_badIndexMass {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) (ρ : Real) :
     ((qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)).toOuterMeasure
         {outcome | OutsidePhaseWindow P t ρ outcome} =
@@ -114,7 +114,7 @@ theorem born_badWindowProbability_eq_badIndexMass {n : Nat}
     qpeMeasurement_outcomePMF_apply, Finset.sum_filter]
 
 /-- Source high-confidence failure bound for the exact QPE Born distribution. -/
-theorem born_badWindowProbability_le {n : Nat}
+lemma born_badWindowProbability_le {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat)
     (ρ : Real) (hrho : 0 < ρ) :
     ((qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)).toOuterMeasure
@@ -126,7 +126,7 @@ theorem born_badWindowProbability_le {n : Nat}
   exact ENNReal.ofReal_le_ofReal (qpeBadIndexMass_le t P.phase ρ hrho)
 
 /-- Good and bad windows partition the exact QPE Born distribution. -/
-theorem born_window_add_bad_eq_one {n : Nat}
+lemma born_window_add_bad_eq_one {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) (ρ : Real) :
     ((qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)).toOuterMeasure
         {outcome | WithinPhaseWindow P t ρ outcome} +
@@ -155,7 +155,7 @@ theorem born_window_add_bad_eq_one {n : Nat}
         simp [good, bad]
     _ = 1 := by simpa only [tsum_fintype] using output.tsum_coe
 
-private theorem qpeWindowFailureBound_le_eta
+private lemma qpeWindowFailureBound_le_eta
     (t : Nat) (ρ η : Real) (hrho : 0 < ρ)
     (heta : 0 < η) (heta_le : η ≤ 1)
     (hscale : η⁻¹ ≤ (2 : Real) ^ t * ρ) :
@@ -183,7 +183,7 @@ private theorem qpeWindowFailureBound_le_eta
   nlinarith
 
 /-- The mathematical QPE Born window succeeds with the source confidence bound. -/
-theorem born_successProbability_ge_one_sub_eta {n : Nat}
+lemma born_successProbability_ge_one_sub_eta {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat)
     (ρ η : Real) (hrho : 0 < ρ) (heta : 0 < η)
     (heta_le : η ≤ 1) (hscale : η⁻¹ ≤ (2 : Real) ^ t * ρ) :

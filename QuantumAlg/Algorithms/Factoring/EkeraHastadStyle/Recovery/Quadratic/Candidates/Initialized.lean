@@ -25,7 +25,7 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual candidate generation precedes the two native instructions loading the one word. -/
@@ -47,11 +47,12 @@ def step (input : CInputRef ctx (.unsignedWord width))
   (initialized.1, (materialized.2, initialized.2))
 
 /-- The composed actual program preserves every complete incoming quantum-reference block. -/
-theorem nativeQuadratic_initialized_execute (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_initialized_execute (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Quadratic.Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) input modulus refs).execute Reference state = state.mapClassical (fun
+    (code (model := model) input modulus refs).execute environment
+      Reference state = state.mapClassical (fun
       entry =>
       ((step (model := model) input modulus refs entry.1).1, (entry.2.1, (entry.2.2, (step (model
         := model) input modulus refs entry.1).2)))) := by
@@ -61,7 +62,7 @@ theorem nativeQuadratic_initialized_execute (input : CInputRef ctx (.unsignedWor
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Initialization preserves both original source candidates and actually loads one. -/
-theorem nativeQuadratic_initialized_values (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_initialized_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Quadratic.Refs ctx width) (separated : Separated modulus refs) (store : Store ctx) :
     let final := (step (model := model) input modulus refs store).1

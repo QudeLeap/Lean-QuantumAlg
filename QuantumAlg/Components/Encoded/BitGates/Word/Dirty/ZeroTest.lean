@@ -24,6 +24,7 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {tail : Nat}
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- An elementary conjunction gate for every width at least two, with arbitrary borrowed work. -/
 def borrowedAndGates : List (GateSpec encoding) :=
@@ -33,7 +34,7 @@ def borrowedAndGates : List (GateSpec encoding) :=
 def borrowedZeroGates : List (GateSpec encoding) :=
   sourceXGates layout ++ borrowedAndGates layout ++ (sourceXGates layout).reverse
 
-private theorem finalControl_two (empty : tail = 0) (state : Data) :
+private lemma finalControl_two (empty : tail = 0) (state : Data) :
     finalControl layout state = sourceConjunction layout state (tail + 2) := by
   subst tail
   apply Bool.eq_iff_iff.mpr
@@ -48,7 +49,7 @@ private theorem finalControl_two (empty : tail = 0) (state : Data) :
     exact ⟨allBits 0, allBits 1⟩
 
 /-- The all-width conjunction circuit changes only the output and restores every borrowed bit. -/
-theorem borrowedAndGates_step (state : Data) :
+lemma borrowedAndGates_step (state : Data) :
     GateSpec.stepList (borrowedAndGates layout) state =
       if sourceConjunction layout state (tail + 2) then layout.output.flip state else state := by
   by_cases empty : tail = 0
@@ -58,7 +59,7 @@ theorem borrowedAndGates_step (state : Data) :
   · rw [borrowedAndGates, if_neg empty]
     exact dirtyConjunctionGates_step layout (Nat.pos_of_ne_zero empty) state
 
-private theorem sourceConjunction_sourceX (state : Data) :
+private lemma sourceConjunction_sourceX (state : Data) :
     sourceConjunction layout (GateSpec.stepList (sourceXGates layout) state) (tail + 2) =
       decide (∀ index, (layout.source.bit index).get state = false) := by
   apply Bool.eq_iff_iff.mpr
@@ -69,7 +70,7 @@ private theorem sourceConjunction_sourceX (state : Data) :
   cases (layout.source.bit index).get state <;> decide
 
 /-- The literal X/Toffoli circuit xors the zero predicate and restores all remaining coordinates. -/
-theorem borrowedZeroGates_step (state : Data) :
+lemma borrowedZeroGates_step (state : Data) :
     GateSpec.stepList (borrowedZeroGates layout) state =
       if ∀ index, (layout.source.bit index).get state = false
       then layout.output.flip state else state := by
@@ -83,16 +84,16 @@ theorem borrowedZeroGates_step (state : Data) :
   · exact GateSpec.stepList_reverse_stepList (sourceXGates layout) state
 
 /-- The actual complete elementary program realizes the zero predicate on every encoded label. -/
-theorem borrowedZeroGates_realizes :
+lemma borrowedZeroGates_realizes :
     UnitaryCircuit.Realizes encoding
-      (GateSpec.programList physical oracles (borrowedZeroGates layout))
+      (GateSpec.programList physical oracles (borrowedZeroGates layout)) environment
       (fun state => if ∀ index, (layout.source.bit index).get state = false
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep physical oracles
+  GateSpec.realizesList_congrStep physical oracles (environment := environment)
     (borrowedZeroGates layout) (borrowedZeroGates_step layout)
 
 /-- Independent exact elementary gate count for the all-width borrowed-work construction. -/
-theorem borrowedZeroGates_length :
+lemma borrowedZeroGates_length :
     (borrowedZeroGates layout).length =
       2 * (tail + 2) + if tail = 0 then 1 else 4 * tail := by
   by_cases empty : tail = 0

@@ -23,6 +23,8 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorStoredProjection
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement NumeratorObservation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -31,7 +33,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 def representative (width : Nat) (value : Fin (2 ^ width)) : (context width).register.Index :=
   (frameBasis width).symm (prodEquiv ((0 : Fin (2 ^ (encoding width).width)), value))
 
-private theorem representative_word (width : Nat) (value : Fin (2 ^ width)) :
+private lemma representative_word (width : Nat) (value : Fin (2 ^ width)) :
     word width (representative width value) = value := by
   have actual : frameBasis width (representative width value) =
       prodEquiv ((0 : Fin (2 ^ (encoding width).width)), value) :=
@@ -42,19 +44,24 @@ private theorem representative_word (width : Nat) (value : Fin (2 ^ width)) :
   exact projected.trans (congrArg Prod.snd
     ((prodEquiv (m := (encoding width).width) (n := width)).symm_apply_apply (0, value)))
 
-private theorem writes (width : Nat) (store : Store (context width))
+private lemma writes (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) (value : Fin (2 ^ width))
     (same : word width basis = value) :
-    Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+    Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := .empty) (classicalOracles := .empty) (readouts width) store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
         (operations := .empty) (classicalOracles := .empty) (readouts width) basis) =
-      Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      Circuit.writeMeasurementPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
         (operations := .empty) (classicalOracles := .empty) (readouts width) store
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (Circuit.measurementBasisPath (allowAllocation := true)
+          (gates := AlgorithmGate.model) (oracles := .empty)
           (operations := .empty) (classicalOracles := .empty)
           (readouts width) (representative width value)) := by
-  apply Circuit.writeMeasurementPath_eq_of_agree (gates := AlgorithmGate.model)
+  apply Circuit.writeMeasurementPath_eq_of_agree (allowAllocation := true)
+    (gates := AlgorithmGate.model)
     (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
   exact (measurement_agrees width basis (representative width value)).mpr
     (same.trans (representative_word width value).symm)
@@ -65,33 +72,37 @@ def source (width : Nat) {Reference : Register} {History : Type} [Fintype Histor
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     DensityOperator (Register.prod (context width).register Reference) :=
   (state.filterClassical (fun entry =>
-    Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+    Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := .empty) (classicalOracles := .empty) (readouts width) entry.1
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
         (operations := .empty) (classicalOracles := .empty) (readouts width)
         (representative width (NumeratorReset.outcome (stored.read (input width))))) =
       stored)).quantumMarginal
 
-private theorem source_entry (width : Nat) {Reference : Register} {History : Type}
+private lemma source_entry (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index) :
     (source width state stored).matrix (left, leftRef) (right, rightRef) =
       ExecutionState.weightedMatrixEntry state (fun entry =>
-        if Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+        if Circuit.writeMeasurementPath (allowAllocation := true)
+          (gates := AlgorithmGate.model) (oracles := .empty)
           (operations := .empty) (classicalOracles := .empty) (readouts width) entry.1
-          (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+          (Circuit.measurementBasisPath (allowAllocation := true)
+            (gates := AlgorithmGate.model) (oracles := .empty)
             (operations := .empty) (classicalOracles := .empty) (readouts width)
             (representative width (NumeratorReset.outcome (stored.read (input width))))) =
               stored then 1 else 0) (left, leftRef) (right, rightRef) :=
   ExecutionState.filterClassical_matrix_weighted state _ _ _
 
 /-- The existing measurement execution equals this projection on every full reference block. -/
-theorem actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+lemma actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
-    NumeratorMeasuredSupport.density width state stored =
+    NumeratorMeasuredSupport.density environment width state stored =
       ZMeasurement.branch (fun entry : (Register.prod (context width).register Reference).Index =>
         word width entry.1) (NumeratorReset.outcome (stored.read (input width)))
           (source width state stored) := by

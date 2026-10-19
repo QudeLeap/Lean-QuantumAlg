@@ -8,7 +8,11 @@ module
 
 import all QuantumAlg.Components.QuditShift.Reset.Circuit.Sequence.Pure
 import all QuantumAlg.Components.QuditShift.Reset.Circuit.Sequence.Resources
-import all QuantumAlg.Core.Execution.CycleSchedule
+import all QuantumAlg.Core.Execution.Classical.Predicate
+import all QuantumAlg.Core.Execution.Restart
+import all QuantumAlg.Core.Execution.Input.Successor
+import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Core.Execution.Circuit.Restoration
 
 /-!
@@ -24,16 +28,18 @@ namespace QuantumAlg.QuditShift
 
 noncomputable section
 
-variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
+variable {gates : GateModel} {oracles : OracleModel}
+  {environment : (ExecutionModel.quantum gates oracles).Environment} {ctx : RuntimeCtx .quantum}
   (implementations : ∀ wire, Realizations gates oracles ctx.quantumLayout wire)
 
 /-- The physical reset prepares the prescribed basis label, fixed before any
 input or measurement outcome, on the actual owned output. -/
-theorem resetToBasis_reinitializedAt
+lemma resetToBasis_reinitializedAt {allowAllocation : Bool}
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (label : ctx.quantumLayout.Basis)
     (noBorrowed : ctx.borrowedQuantumWires = []) :
-    Circuit.ReinitializedAt (resetToBasis implementations outputs label)
+    Circuit.ReinitializedAt (resetToBasis (allowAllocation := allowAllocation) implementations
+        outputs label) environment
       (ctx.quantumLayout.restrictSelectedBasis ctx.borrowedSelectionᶜ label) := by
   have empty : ctx.borrowedSelection = ∅ := by
     ext wire
@@ -43,22 +49,28 @@ theorem resetToBasis_reinitializedAt
   unfold Circuit.ReinitializedAt
   rw [all]
   intro Reference History _ state record
-  exact resetToBasis_pure_fullSelection implementations outputs label state record
+  exact resetToBasis_pure_fullSelection (allowAllocation := allowAllocation) implementations outputs
+      label state record
 
 /-- A nonempty all-owned reset is physically restartable without discarding any record. -/
-theorem resetToBasis_restartCleanup
+lemma resetToBasis_restartCleanup {allowAllocation : Bool}
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (label : ctx.quantumLayout.Basis) (positive : 0 < ctx.systemCount)
     (noBorrowed : ctx.borrowedQuantumWires = []) :
-    Circuit.RestartCleanup (resetToBasis implementations outputs label) where
-  measured := resetToBasis_measured implementations outputs label positive
+    Circuit.RestartCleanup (resetToBasis (allowAllocation := allowAllocation) implementations
+        outputs label) environment where
+  measured := resetToBasis_measured (allowAllocation := allowAllocation) implementations outputs
+      label positive
   restores := by
     intro Reference History _ state
     exact Circuit.borrowedRestored_of_noBorrowedQuantum
-      (resetToBasis implementations outputs label) noBorrowed Reference state
+      (resetToBasis
+        (allowAllocation := allowAllocation) implementations outputs label) environment noBorrowed
+          Reference state
   reinitialized := by
     refine ⟨ctx.quantumLayout.restrictSelectedBasis ctx.borrowedSelectionᶜ label, ?_⟩
-    exact resetToBasis_reinitializedAt implementations outputs label noBorrowed
+    exact resetToBasis_reinitializedAt (allowAllocation := allowAllocation) implementations outputs
+        label noBorrowed
 
 end
 

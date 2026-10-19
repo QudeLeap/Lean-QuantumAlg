@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 include outside
 
-private theorem loader_count_zero (width : Nat) (bits : List Bool) :
+private lemma loader_count_zero (width : Nat) (bits : List Bool) :
     ResourcePool.count event
       (ResourcePool.ofList (ConstantWord.loaderTrace model width bits)) = 0 := by
   induction bits with
@@ -40,27 +40,27 @@ private theorem loader_count_zero (width : Nat) (bits : List Bool) :
         simp [ConstantWord.loaderTrace, ConstantWord.shiftEvent, ConstantWord.incrementEvent,
           ResourcePool.ofList, ResourcePool.count, outside]
 
-private theorem xgcd_count_zero (width : Nat) :
+private lemma xgcd_count_zero (width : Nat) :
     ResourcePool.count event (rawEnvelope model width) = 0 := by
   simp [rawEnvelope, initializationEvents, activeEvents,
     NumberTheory.XGCD.coefficientUpdateEvents, rawOutputEvents,
     ResourcePool.ofList, ResourcePool.count, ResourcePool.scale, outside, eq_comm]
 
-private theorem signedReduction_count_zero (width : Nat) :
+private lemma signedReduction_count_zero (width : Nat) :
     ResourcePool.count event (signedReductionEnvelope model width) = 0 := by
   simp only [signedReductionEnvelope, ResourcePool.count_add, ResourcePool.count_max]
   simp [signClassificationEvents, signedMagnitudeEvents, finalCorrectionEvents,
     negativeCorrectionEvents, Modular.Reduce.Native.reductionEvents,
     ResourcePool.ofList, ResourcePool.count, outside]
 
-private theorem checkedInverse_count_zero {width : Nat} (spec : ModulusSpec width) :
+private lemma checkedInverse_count_zero {width : Nat} (spec : ModulusSpec width) :
     ResourcePool.count event (checkedInverseEnvelope model spec) = 0 := by
   simp only [checkedInverseEnvelope, checkedSelectionEnvelope, ResourcePool.count_add,
     ResourcePool.count_max, loader_count_zero event outside,
     xgcd_count_zero event outside, signedReduction_count_zero event outside]
   simp [checkedDecisionEvents, ResourcePool.ofList, ResourcePool.count, outside]
 
-private theorem preparation_count_zero {width : Nat} (spec : ModulusSpec width) :
+private lemma preparation_count_zero {width : Nat} (spec : ModulusSpec width) :
     ResourcePool.count event (preparationEnvelope model spec) = 0 := by
   simp only [preparationEnvelope, preparationFinalEnvelope, measuredDecodeEnvelope,
     TerminalDecode.envelope, TerminalDecode.bitEnvelope, ResourcePool.count_add,
@@ -72,7 +72,7 @@ private theorem preparation_count_zero {width : Nat} (spec : ModulusSpec width) 
 
 /-- Every coordinate outside native classical operations is absent from the
 raw-recovery allowance. -/
-theorem singleExposureEnvelope_count_nonclassical {width : Nat}
+lemma singleExposureEnvelope_count_nonclassical {width : Nat}
     (spec : ModulusSpec width) :
     ResourcePool.count event (singleExposureEnvelope model spec) = 0 := by
   simp only [singleExposureEnvelope, checkedExposureEnvelope, ResourcePool.count_add,

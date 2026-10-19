@@ -32,10 +32,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InverseRuntimeFrame
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution InversePreparation
 
 /-- Runtime order is exactly fresh auxiliary wires followed by the unchanged two supplied words. -/
-theorem after_physical (width : Nat) :
+lemma after_physical (width : Nat) :
     (after width).physicalIdx =
       (InputPreparation.auxiliaryLayout width).identities ++ (inputLayout width).identities := by
   change ((InputPreparation.auxiliaryLayout width).wires ++ (before width).quantumWires).map
@@ -44,7 +49,7 @@ theorem after_physical (width : Nat) :
   change (InputPreparation.auxiliaryLayout width).identities ++ (before width).physicalIdx = _
   rw [InversePreparation.before_physical]
 
-private theorem input_subset (width : Nat) :
+private lemma input_subset (width : Nat) :
     (InputPreparation.inputLayout width).identities ⊆ (inputLayout width).identities := by
   intro wire present
   change wire ∈ List.ofFn (fun index : Fin width =>
@@ -57,7 +62,7 @@ private theorem input_subset (width : Nat) :
   rw [if_pos index.isLt]
   exact position
 
-private theorem original_subset (width : Nat) :
+private lemma original_subset (width : Nat) :
     (InputPreparation.after width).physicalIdx ⊆ (after width).physicalIdx := by
   intro wire present
   rw [InputPreparation.after_physical] at present
@@ -67,7 +72,7 @@ private theorem original_subset (width : Nat) :
   · exact List.mem_append.mpr (Or.inr (input_subset width input))
 
 /-- Every native address belongs to the real context, including the supplied rightmost word. -/
-theorem range_contained (width : Nat) :
+lemma range_contained (width : Nat) :
     List.range (OutputCopy.encoding width).width ⊆ (after width).physicalIdx := by
   intro wire present
   have bound := List.mem_range.mp present
@@ -91,7 +96,7 @@ theorem range_contained (width : Nat) :
 def source (width : Nat) : QuantumLayout (OutputCopy.encoding width).width :=
   (QubitLayout.canonical (OutputCopy.encoding width).width).toQuantum
 
-private theorem source_contained (width : Nat) :
+private lemma source_contained (width : Nat) :
     (source width).identities ⊆ (after width).quantumLayout.identities := by
   rw [RuntimeCtx.runtimeCtx_quantumLayout_identities]
   change (QubitLayout.canonical (OutputCopy.encoding width).width).systemIdx ⊆
@@ -105,16 +110,16 @@ def position (width : Nat) :
   QuantumLayout.positionOfIdentity (source width) (after width).quantumLayout
     (source_contained width)
 
-theorem position_identity (width : Nat) (index : Fin (OutputCopy.encoding width).width) :
+lemma position_identity (width : Nat) (index : Fin (OutputCopy.encoding width).width) :
     ((after width).quantumLayout.wire (position width index)).identity = index.val :=
   QuantumLayout.positionOfIdentity_identity (source width)
     (after width).quantumLayout (source_contained width) index
 
-private theorem before_count (width : Nat) : (before width).systemCount = width + width := by
+private lemma before_count (width : Nat) : (before width).systemCount = width + width := by
   change ((inputLayout width).wires ++ []).length = width + width
   simp
 
-private theorem after_count (width : Nat) :
+private lemma after_count (width : Nat) :
     (after width).systemCount = InputPreparation.auxiliaryWidth width + (width + width) := by
   change ((InputPreparation.auxiliaryLayout width).wires ++
     (before width).quantumWires).length = _
@@ -122,7 +127,7 @@ private theorem after_count (width : Nat) :
   exact congrArg (InputPreparation.auxiliaryWidth width + ·) (before_count width)
 
 /-- The selected native positions cover the complete live two-word frame. -/
-theorem position_surjective (width : Nat) : Function.Surjective (position width) := by
+lemma position_surjective (width : Nat) : Function.Surjective (position width) := by
   have sameCount : (OutputCopy.encoding width).width = (after width).systemCount := by
     rw [after_count]
     have total := InversePreparation.total_width width
@@ -138,7 +143,7 @@ theorem position_surjective (width : Nat) : Function.Surjective (position width)
     Finite.surjective_of_injective injective (Fin.cast sameCount.symm target)
   exact ⟨selected, Fin.cast_injective sameCount.symm same⟩
 
-private theorem after_dimension (width : Nat) (index : Fin (after width).systemCount) :
+private lemma after_dimension (width : Nat) (index : Fin (after width).systemCount) :
     ((after width).quantumLayout.wire index).dimension = 2 := by
   have member : ((after width).quantumLayout.wire index) ∈
       (after width).quantumWires := by
@@ -162,13 +167,13 @@ private theorem after_dimension (width : Nat) (index : Fin (after width).systemC
     rw [← same]
     rfl
 
-theorem position_dimensions (width : Nat) (index : Fin (OutputCopy.encoding width).width) :
+lemma position_dimensions (width : Nat) (index : Fin (OutputCopy.encoding width).width) :
     ((source width).wire index).dimension =
       ((after width).quantumLayout.wire (position width index)).dimension := by
   rw [after_dimension]
   rfl
 
-private theorem before_wires (width : Nat) :
+private lemma before_wires (width : Nat) :
     (inputLayout width).wires = (before width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (inputLayout width).wires = (inputLayout width).wires ++ []
@@ -179,7 +184,7 @@ private def oldPosition (width : Nat) :
   positionsOfEqualWires (inputLayout width) (before width).quantumLayout
     (before_wires width)
 
-private theorem oldPosition_identity (width : Nat) (index : Fin (width + width)) :
+private lemma oldPosition_identity (width : Nat) (index : Fin (width + width)) :
     ((before width).quantumLayout.wire (oldPosition width index)).identity =
       physicalIndex width index.val := by
   have same := wireAtCorrespondingPosition (inputLayout width)
@@ -197,7 +202,7 @@ private def oldSourcePosition (width : Nat) (index : Fin (width + width)) :
     split <;> omega⟩
 
 /-- Fresh auxiliary positions select precisely the allocated physical bank. -/
-theorem position_auxiliary (width : Nat)
+lemma position_auxiliary (width : Nat)
     (index : Fin (InputPreparation.auxiliaryWidth width)) :
     position width (InverseAssembly.auxiliaryPosition width index) =
       PreparationBorrowed.fullPositionEquiv (before width) auxiliaryKey
@@ -217,7 +222,7 @@ theorem position_auxiliary (width : Nat)
   exact (congrArg QuantumWire.identity same).symm
 
 /-- Both originally supplied words retain their original physical identities. -/
-theorem position_old (width : Nat) (index : Fin (width + width)) :
+lemma position_old (width : Nat) (index : Fin (width + width)) :
     position width (oldSourcePosition width index) =
       PreparationBorrowed.fullPositionEquiv (before width) auxiliaryKey
         (InputPreparation.auxiliaryLayout width) (auxiliary_fresh width)
@@ -237,7 +242,7 @@ theorem position_old (width : Nat) (index : Fin (width + width)) :
     (congrArg QuantumWire.identity same).symm
 
 /-- Every fresh source bit reads its actual prepared auxiliary value. -/
-theorem selected_auxiliary (width : Nat)
+lemma selected_auxiliary (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index)
     (index : Fin (InputPreparation.auxiliaryWidth width)) :
@@ -253,7 +258,7 @@ theorem selected_auxiliary (width : Nat)
     (auxiliary_disjoint width) fresh old index
 
 /-- Both original word segments retain their arbitrary incoming finite bits. -/
-theorem selected_old (width : Nat)
+lemma selected_old (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin (width + width)) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
@@ -268,7 +273,7 @@ theorem selected_old (width : Nat)
     (InputPreparation.auxiliaryLayout width) (auxiliary_fresh width)
     (auxiliary_disjoint width) fresh old (oldPosition width index)
 
-private theorem old_value_combined_bit (width : Nat)
+private lemma old_value_combined_bit (width : Nat)
     (old : (before width).register.Index) (index : Fin (width + width)) :
     (old (oldPosition width index)).val =
       (finTwoEquiv.symm
@@ -300,7 +305,7 @@ private theorem old_value_combined_bit (width : Nat)
     (finTwoEquiv.symm_apply_apply (raw index))).symm
 
 /-- The original input word is read at its canonical source addresses. -/
-theorem selected_input (width : Nat)
+lemma selected_input (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin width) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
@@ -327,7 +332,7 @@ theorem selected_input (width : Nat)
   exact bit
 
 /-- The arbitrary XOR target is read at the rightmost original source word. -/
-theorem selected_target (width : Nat)
+lemma selected_target (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin width) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
@@ -362,7 +367,7 @@ def selectedWord (width : Nat) (basis : (after width).register.Index) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
       (position width) (position_dimensions width) basis)
 
-private theorem selectedWord_bit (width : Nat) (basis : (after width).register.Index)
+private lemma selectedWord_bit (width : Nat) (basis : (after width).register.Index)
     (index : Fin (OutputCopy.encoding width).width) :
     (selectedWord width basis).val.testBit index.rev.val =
       finTwoEquiv (UnitaryCircuit.selectedInput (source width)
@@ -371,7 +376,7 @@ private theorem selectedWord_bit (width : Nat) (basis : (after width).register.I
   BinaryBasis.bigEndianEquiv_bit _ _ index
 
 /-- Complete inverse source labels coincide with the explicit two-word assembly. -/
-theorem selectedWord_assembly (width : Nat)
+lemma selectedWord_assembly (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) :
     selectedWord width (InversePreparation.assembly width (fresh, old)) =
@@ -445,7 +450,7 @@ theorem selectedWord_assembly (width : Nat)
           exact selected_target width fresh old target
         rw [same, finTwoEquiv.apply_symm_apply]
 
-theorem selectedWord_eq_basisEquiv (width : Nat)
+lemma selectedWord_eq_basisEquiv (width : Nat)
     (basis : (after width).register.Index) :
     selectedWord width basis = InverseAssembly.basisEquiv width basis := by
   let pair := (InversePreparation.assembly width).symm basis
@@ -454,7 +459,7 @@ theorem selectedWord_eq_basisEquiv (width : Nat)
   rw [← assembled]
   exact selectedWord_assembly width pair.1 pair.2
 
-theorem selectedBasis_eq_basisEquiv (width : Nat)
+lemma selectedBasis_eq_basisEquiv (width : Nat)
     (basis : (after width).register.Index) :
     UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
       (position width) (position_dimensions width) basis =
@@ -473,11 +478,11 @@ def program (width : Nat)
     (position width) (position_dimensions width) body
 
 /-- The placed matrix reads source coordinates in their actual physical order. -/
-theorem program_matrix_entry (width : Nat)
+lemma program_matrix_entry (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width))
     (row column : (after width).register.Index) :
-    (program width body).matrix row column =
-      body.matrix
+    ((program width body).matrix environment) row column =
+      (body.matrix environment)
         (UnitaryCircuit.basisAt (source width) (after width).quantumLayout
           (position width) (position_dimensions width) row)
         (UnitaryCircuit.basisAt (source width) (after width).quantumLayout
@@ -486,21 +491,21 @@ theorem program_matrix_entry (width : Nat)
   exact UnitaryCircuit.operatorAt_entry_of_surjective _ _ _ _
     (position_surjective width) _ row column
 
-theorem program_eventTrace (width : Nat)
+lemma program_eventTrace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width)) :
     (program width body).eventTrace = body.eventTrace :=
   UnitaryCircuit.placeAt_eventTrace _ _ _ _ _
 
-theorem program_eventCost (width : Nat)
+lemma program_eventCost (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width)) :
     (program width body).eventCost = body.eventCost :=
   UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 
 /-- A proved native basis action remains exact after full-frame physical placement. -/
-theorem program_apply_ket (width : Nat)
+lemma program_apply_ket (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width))
     (input output : (source width).Basis)
-    (actual : body.applyNormalized (NormalizedVector.ket input) =
+    (actual : body.applyNormalized environment (NormalizedVector.ket input) =
       NormalizedVector.ket output)
     (targetInput targetOutput : (after width).register.Index)
     (inputSelected : UnitaryCircuit.selectedInput (source width)
@@ -509,11 +514,11 @@ theorem program_apply_ket (width : Nat)
     (outputSelected : UnitaryCircuit.selectedInput (source width)
       (after width).quantumLayout (position width) (position_dimensions width)
       targetOutput = output) :
-    (program width body).applyNormalized (NormalizedVector.ket targetInput) =
+    (program width body).applyNormalized environment (NormalizedVector.ket targetInput) =
       NormalizedVector.ket targetOutput := by
   apply UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
     (source width) (after width).quantumLayout (position width)
-    (position_dimensions width) body input output actual targetInput targetOutput
+    (position_dimensions width) body environment input output actual targetInput targetOutput
     inputSelected outputSelected
   funext index
   obtain ⟨sourceIndex, same⟩ := position_surjective width index.val
@@ -531,20 +536,22 @@ def circuit (width : Nat)
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- Every hidden-state and reference block uses the same complete joint matrix. -/
-theorem circuit_block_matrix (width : Nat)
+lemma circuit_block_matrix (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width))
     (state : State (after width) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (store : Store (after width))
     (hidden : ClassicalOracleModel.empty.HiddenState) (history : H) :
-    (((circuit width body).execute Reference state).block
+    (((circuit width body).execute runtimeEnvironment Reference state).block
       (store, (hidden, (history, ())))).matrix =
-      let operator := UnitaryOperator.prodTensor (program width body).matrix
+      let operator := UnitaryOperator.prodTensor ((program width body).matrix
+        runtimeEnvironment.quantum)
         (1 : UnitaryOperator Reference)
       (operator : HilbertOperator ((after width).register.prod Reference)) *
         (state.block (store, (hidden, history))).matrix *
           (operator : HilbertOperator ((after width).register.prod Reference)).conjTranspose :=
-  Circuit.execute_unitary_block_matrix state (program width body) store hidden history
+  Circuit.execute_unitary_block_matrix runtimeEnvironment state (program width body) store hidden
+    history
 
 end
 

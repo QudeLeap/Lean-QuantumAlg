@@ -25,12 +25,12 @@ variable {gates : GateModel} {oracles : OracleModel}
 variable {count : Nat} {layout : QuantumLayout count}
 
 /-- Sequential execution retains every descriptive macro occurrence of both operands. -/
-public theorem macroCount_seq (name : String) (left right : UnitaryCircuit gates oracles layout) :
+public lemma macroCount_seq (name : String) (left right : UnitaryCircuit gates oracles layout) :
     (left.seq right).macroCount name = left.macroCount name + right.macroCount name := by
   simp only [macroCount, seq, UnitarySequence.macroTrace, List.count_append]
 
 /-- Parallel words retain the descriptive macro occurrences of both disjoint operands. -/
-public theorem macroCount_parallel {leftCount rightCount count : Nat}
+public lemma macroCount_parallel {leftCount rightCount count : Nat}
     {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
     {layout : QuantumLayout count} (name : String)
     (left : UnitaryCircuit gates oracles leftLayout)
@@ -43,7 +43,7 @@ public theorem macroCount_parallel {leftCount rightCount count : Nat}
   simp only [macroCount, parallel, UnitarySequence.macroTrace, List.count_append]
 
 /-- Extending by untouched systems retains all descriptive occurrences of the actual word. -/
-public theorem macroCount_embed {small large : Nat}
+public lemma macroCount_embed {small large : Nat}
     {source : QuantumLayout small} {target : QuantumLayout large}
     (placement : QuantumLayout.Embedding source target)
     (body : UnitaryCircuit gates oracles source) (name : String) :
@@ -51,7 +51,7 @@ public theorem macroCount_embed {small large : Nat}
   simp only [macroCount, embed, UnitarySequence.macroTrace]
 
 /-- Placing a complete word preserves its descriptive macro counts as well as its native events. -/
-public theorem placeAt_macroCount {small large : Nat}
+public lemma placeAt_macroCount {small large : Nat}
     (source : QuantumLayout small) (target : QuantumLayout large)
     (position : Fin small ↪ Fin large)
     (dimensions : ∀ index,

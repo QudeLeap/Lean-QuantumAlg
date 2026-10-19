@@ -50,7 +50,7 @@ def checkedSelectionSpaceLimit (kind : ProblemKind) (width : Nat) : SpacePool ki
   SpacePool.max (SpacePool.ofShape (.unsignedWord (width + 1)))
     (signedReductionSpaceLimit kind width)
 
-private theorem checked_choice_pool_le {model : ExecutionModel} [BitWord.Selected model]
+private lemma checked_choice_pool_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -66,7 +66,7 @@ private theorem checked_choice_pool_le {model : ExecutionModel} [BitWord.Selecte
           (ResourcePool.le_max_left _ _)
 
 /-- The real stored-status branch satisfies the original independent syntax allowance. -/
-theorem checkedCoefficientSelection_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma checkedCoefficientSelection_pool_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
@@ -82,7 +82,7 @@ theorem checkedCoefficientSelection_pool_le {model : ExecutionModel} [BitWord.Se
   rw [withUnitDecision_eventTrace, ResourcePool.ofList_append]
   exact add_le_add le_rfl (checked_choice_pool_le raw modulus inverse path.2.1 path.2.2)
 
-private theorem checked_choice_duration_trace {model : ExecutionModel} [BitWord.Selected model]
+private lemma checked_choice_duration_trace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -101,7 +101,7 @@ private theorem checked_choice_duration_trace {model : ExecutionModel} [BitWord.
             (withSignedReduction_eventTrace raw modulus inverse path)).symm
 
 /-- Every actual selected branch has exactly the serial duration of its own emitted events. -/
-theorem checkedCoefficientSelection_duration_eventTrace {model : ExecutionModel}
+lemma checkedCoefficientSelection_duration_eventTrace {model : ExecutionModel}
   [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
@@ -128,7 +128,7 @@ theorem checkedCoefficientSelection_duration_eventTrace {model : ExecutionModel}
     List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- The actual decision and selected reduction satisfy the original serial duration allowance. -/
-theorem checkedCoefficientSelection_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma checkedCoefficientSelection_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
@@ -156,7 +156,7 @@ theorem checkedCoefficientSelection_depth_le {model : ExecutionModel} [BitWord.S
       Nat.add_le_add_left selected
         (((checkedDecisionEvents model width).map duration).sum)
 
-private theorem checked_choice_resident_le {model : ExecutionModel} [BitWord.Selected model]
+private lemma checked_choice_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -174,7 +174,7 @@ private theorem checked_choice_resident_le {model : ExecutionModel} [BitWord.Sel
           (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The real decision-one scope is released before the signed resident workspace is allocated. -/
-theorem checkedCoefficientSelection_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma checkedCoefficientSelection_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
@@ -192,7 +192,7 @@ theorem checkedCoefficientSelection_resident_le {model : ExecutionModel} [BitWor
       (add_le_add (SpacePool.le_max_left _ _) le_rfl)
   · exact checked_choice_resident_le raw modulus inverse path.2.1 path.2.2
 
-private theorem checked_choice_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+private lemma checked_choice_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -210,7 +210,7 @@ private theorem checked_choice_auxiliary_le {model : ExecutionModel} [BitWord.Se
           (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The corresponding auxiliary bound counts both real sequential workspace lifetimes. -/
-theorem checkedCoefficientSelection_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma checkedCoefficientSelection_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))

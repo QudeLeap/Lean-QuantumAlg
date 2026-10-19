@@ -28,7 +28,7 @@ variable {count : Nat} (ctx : RuntimeCtx .quantum) (key : StorageKey)
   (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
 
 /-- Every original physical position keeps its finite value through the actual basis assembly. -/
-theorem preparedLocalBasisEquiv_old_value (newBasis : layout.register.Index)
+lemma preparedLocalBasisEquiv_old_value (newBasis : layout.register.Index)
     (oldBasis : ctx.register.Index) (index : Fin ctx.systemCount) :
     (preparedLocalBasisEquiv ctx key layout fresh disjoint (newBasis, oldBasis)
       (PreparationBorrowed.fullPositionEquiv ctx key layout fresh disjoint (.inr index))).val =
@@ -41,7 +41,7 @@ theorem preparedLocalBasisEquiv_old_value (newBasis : layout.register.Index)
     (ctx.addOwnedLayout_layoutDisjoint layout disjoint) newBasis oldBasis index)
 
 /-- Every newly adjoined physical position receives its own finite input label. -/
-theorem preparedLocalBasisEquiv_new_value (newBasis : layout.register.Index)
+lemma preparedLocalBasisEquiv_new_value (newBasis : layout.register.Index)
     (oldBasis : ctx.register.Index) (index : Fin count) :
     (preparedLocalBasisEquiv ctx key layout fresh disjoint (newBasis, oldBasis)
       (PreparationBorrowed.fullPositionEquiv ctx key layout fresh disjoint (.inl index))).val =

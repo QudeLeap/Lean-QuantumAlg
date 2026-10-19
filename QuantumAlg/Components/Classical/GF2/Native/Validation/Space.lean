@@ -26,7 +26,7 @@ open Execution
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem column_resident
+private lemma column_resident
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width)
@@ -41,7 +41,7 @@ private theorem column_resident
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_classical]
   exact SpacePool.max_self _
 
-private theorem rowBody_resident
+private lemma rowBody_resident
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
@@ -61,7 +61,7 @@ private theorem rowBody_resident
   exact (choice_resident true success path.2.2.1 path.2.2.2).le
 
 /-- An executed row has both real bit cells plus the full resident context. -/
-theorem gf2ValidationRow_resident
+lemma gf2ValidationRow_resident
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validateRow input candidate success row).Path) :
@@ -86,7 +86,7 @@ theorem gf2ValidationRow_resident
   omega
 
 /-- The success branch charges the same two bits and full resident context. -/
-theorem gf2ValidationSample_resident_le
+lemma gf2ValidationSample_resident_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validationSample input candidate success row).Path) :
@@ -104,7 +104,7 @@ theorem gf2ValidationSample_resident_le
       · exact (gf2ValidationRow_resident input candidate success row path).le
 
 /-- Actual row scopes are reused; the final marker keeps the whole original resident context. -/
-theorem gf2ValidationSamples_resident_le
+lemma gf2ValidationSamples_resident_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (path : (validateSamples input candidate success).Path) :
@@ -124,7 +124,7 @@ theorem gf2ValidationSamples_resident_le
   exact SpacePool.max_le (Circuit.forRange_resident_le rowCount _ _ entry
     (gf2ValidationSample_resident_le input candidate success) path.1) entry
 
-private theorem column_auxiliary
+private lemma column_auxiliary
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width)
@@ -139,7 +139,7 @@ private theorem column_auxiliary
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_classical]
   exact SpacePool.max_self _
 
-private theorem rowBody_auxiliary
+private lemma rowBody_auxiliary
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
@@ -159,7 +159,7 @@ private theorem rowBody_auxiliary
   exact (choice_auxiliary true success path.2.2.1 path.2.2.2).le
 
 /-- An executed row has both real bit cells plus the full auxiliary context. -/
-theorem gf2ValidationRow_auxiliary
+lemma gf2ValidationRow_auxiliary
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validateRow input candidate success row).Path) :
@@ -184,7 +184,7 @@ theorem gf2ValidationRow_auxiliary
   omega
 
 /-- The success branch charges the same two bits and full auxiliary context. -/
-theorem gf2ValidationSample_auxiliary_le
+lemma gf2ValidationSample_auxiliary_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validationSample input candidate success row).Path) :
@@ -202,7 +202,7 @@ theorem gf2ValidationSample_auxiliary_le
       · exact (gf2ValidationRow_auxiliary input candidate success row path).le
 
 /-- Actual row scopes are reused; the final marker keeps the whole original auxiliary context. -/
-theorem gf2ValidationSamples_auxiliary_le
+lemma gf2ValidationSamples_auxiliary_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (path : (validateSamples input candidate success).Path) :

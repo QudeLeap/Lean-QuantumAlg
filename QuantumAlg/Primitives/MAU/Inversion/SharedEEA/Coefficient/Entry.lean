@@ -30,20 +30,20 @@ noncomputable section
 
 open NumberTheory.SharedEEA
 
-private theorem final_quotient (state : IterationState) (active : 0 < state.divisor) :
+private lemma final_quotient (state : IterationState) (active : 0 < state.divisor) :
     (DivisionProgress.current state
       (Alignment.align state.remainder state.divisor).places).quotientPrefix =
         state.quotient := by
   rw [DivisionProgress.current_prefix state _ active le_rfl,
     Nat.sub_self, Nat.pow_zero, Nat.div_one]
 
-private theorem final_remainder (state : IterationState) (active : 0 < state.divisor) :
+private lemma final_remainder (state : IterationState) (active : 0 < state.divisor) :
     (DivisionProgress.current state
       (Alignment.align state.remainder state.divisor).places).remainder =
         state.remainder % state.divisor := by
   rw [DivisionProgress.current_end, Alignment.divide_remainder _ _ active]
 
-private theorem firstWord_same (state : IterationState) (modulus : Nat)
+private lemma firstWord_same (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (DivisionTrajectory.phaseFrame state modulus
@@ -94,7 +94,7 @@ private theorem firstWord_same (state : IterationState) (modulus : Nat)
   rw [written, remainderWidth, final_quotient state active, final_remainder state active,
     Nat.sub_zero]
 
-private theorem secondWord_same (state : IterationState) (modulus : Nat)
+private lemma secondWord_same (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (DivisionTrajectory.phaseFrame state modulus
@@ -111,7 +111,7 @@ private theorem secondWord_same (state : IterationState) (modulus : Nat)
   rfl
 
 /-- All phase-two output fields are exactly the input to actual quotient consumption. -/
-theorem division_eq_coefficient (state : IterationState) (modulus : Nat)
+lemma division_eq_coefficient (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     DivisionTrajectory.phaseFrame state modulus
@@ -150,7 +150,7 @@ theorem division_eq_coefficient (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- The same actual native sequence completes division and then consumes its complete quotient. -/
-theorem middle_phases (state : IterationState) (modulus : Nat)
+lemma middle_phases (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[state.quotient.size]

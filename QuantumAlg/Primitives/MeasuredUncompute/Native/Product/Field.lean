@@ -29,6 +29,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeProductCorrection
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MAU.Multiplication Nat.FixedWidth
 
 variable {modulus width : Nat}
@@ -38,7 +40,7 @@ def encodedModulus (encoding : BinaryResidueEncoding modulus width) : Fin (2 ^ w
   ⟨modulus, Nat.lt_succ_of_le encoding.register_fits⟩
 
 /-- The actual independent bit-pair recurrence produces the encoded field product from zero. -/
-theorem encoded_product (encoding : BinaryResidueEncoding modulus width)
+lemma encoded_product (encoding : BinaryResidueEncoding modulus width)
     (left right : ZMod modulus) :
     variableWordPrefix (encodedModulus encoding) (encoding.encode left)
       (encoding.encode right) 0 width = encoding.encode (left * right) := by
@@ -48,7 +50,7 @@ theorem encoded_product (encoding : BinaryResidueEncoding modulus width)
   rw [Nat.zero_add, ZMod.val_mul]
 
 /-- The native product recomputes any erased numerator of multiplication, including zero. -/
-theorem encoded_multiplication_recompute [Fact modulus.Prime]
+lemma encoded_multiplication_recompute [Fact modulus.Prime]
     (encoding : BinaryResidueEncoding modulus width)
     (denominator numerator : ZMod modulus) (nonzero : denominator ≠ 0) :
     variableWordPrefix (encodedModulus encoding) (encoding.encode denominator⁻¹)
@@ -56,7 +58,7 @@ theorem encoded_multiplication_recompute [Fact modulus.Prime]
   rw [encoded_product, ← mul_assoc, inv_mul_cancel₀ nonzero, one_mul]
 
 /-- The native product recomputes any erased numerator of division without inverting the slope. -/
-theorem encoded_division_recompute [Fact modulus.Prime]
+lemma encoded_division_recompute [Fact modulus.Prime]
     (encoding : BinaryResidueEncoding modulus width)
     (denominator numerator : ZMod modulus) (nonzero : denominator ≠ 0) :
     variableWordPrefix (encodedModulus encoding) (encoding.encode denominator)
@@ -64,11 +66,12 @@ theorem encoded_division_recompute [Fact modulus.Prime]
   rw [encoded_product, mul_left_comm, mul_inv_cancel₀ nonzero, mul_one]
 
 /-- Actual multiplication recomputation cancels exactly the original measured numerator phase. -/
-theorem multiplication_cancels [Fact modulus.Prime]
+lemma multiplication_cancels [Fact modulus.Prime]
     (encoding : BinaryResidueEncoding modulus width)
     (denominator numerator : ZMod modulus) (nonzero : denominator ≠ 0)
     (outcome : Fin (2 ^ width)) :
-    (program width (encodedModulus encoding) (fun index => outcome.val.testBit index.val)).applyVec
+    ((program width (encodedModulus encoding) (fun index => outcome.val.testBit index.val)).applyVec
+      environment)
         (WalshHadamard.walshSign outcome (encoding.encode numerator) •
           (NormalizedVector.ket
             ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
@@ -79,16 +82,18 @@ theorem multiplication_cancels [Fact modulus.Prime]
         ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
             ((VariableGidney.encoding width).encode
           (encoding.encode denominator⁻¹, encoding.encode (denominator * numerator), 0)))).vec := by
-  have actual := program_cancels width (encodedModulus encoding) outcome
+  have actual := program_cancels (environment := environment) width (encodedModulus encoding)
+    outcome
     (encoding.encode denominator⁻¹, encoding.encode (denominator * numerator), 0)
   simpa only [encoded_multiplication_recompute encoding denominator numerator nonzero] using actual
 
 /-- Actual division recomputation cancels its measured numerator phase on the same full words. -/
-theorem division_cancels [Fact modulus.Prime]
+lemma division_cancels [Fact modulus.Prime]
     (encoding : BinaryResidueEncoding modulus width)
     (denominator numerator : ZMod modulus) (nonzero : denominator ≠ 0)
     (outcome : Fin (2 ^ width)) :
-    (program width (encodedModulus encoding) (fun index => outcome.val.testBit index.val)).applyVec
+    ((program width (encodedModulus encoding) (fun index => outcome.val.testBit index.val)).applyVec
+      environment)
         (WalshHadamard.walshSign outcome (encoding.encode numerator) •
           (NormalizedVector.ket
             ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
@@ -99,7 +104,8 @@ theorem division_cancels [Fact modulus.Prime]
         ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
             ((VariableGidney.encoding width).encode
           (encoding.encode denominator, encoding.encode (numerator * denominator⁻¹), 0)))).vec := by
-  have actual := program_cancels width (encodedModulus encoding) outcome
+  have actual := program_cancels (environment := environment) width (encodedModulus encoding)
+    outcome
     (encoding.encode denominator, encoding.encode (numerator * denominator⁻¹), 0)
   simpa only [encoded_division_recompute encoding denominator numerator nonzero] using actual
 

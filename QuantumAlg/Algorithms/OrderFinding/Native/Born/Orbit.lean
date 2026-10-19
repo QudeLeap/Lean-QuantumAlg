@@ -34,7 +34,7 @@ def orbitTarget {N x t m r : Nat} (A : ModExpOracleAccess N x t m)
   ⟨x ^ k.val % N,
     lt_of_lt_of_le (Nat.mod_lt _ A.modulus_pos) A.register_fits⟩
 
-theorem modExpOracleTarget_eq_orbitTarget_iff {N x t m r : Nat}
+lemma modExpOracleTarget_eq_orbitTarget_iff {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (a : Fin (2 ^ t)) (k : Fin r) :
     modExpOracleTarget A a 0 = orbitTarget A k ↔ a.val % r = k.val := by
@@ -91,7 +91,7 @@ theorem modExpOracleTarget_eq_orbitTarget_iff {N x t m r : Nat}
     apply Fin.ext
     simpa [modExpOracleTarget, orbitTarget, Nat.ModEq] using hmodN
 
-theorem orbitTarget_injective {N x t m r : Nat}
+lemma orbitTarget_injective {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) :
     Function.Injective (orbitTarget A : Fin r → Fin (2 ^ m)) := by
@@ -125,7 +125,7 @@ theorem orbitTarget_injective {N x t m r : Nat}
   rw [Nat.mod_eq_of_lt left.isLt, Nat.mod_eq_of_lt right.isLt] at hmodR
   exact Fin.ext hmodR
 
-theorem shorSourceJointPhaseTerm_eq_omega_pow (t : Nat)
+lemma shorSourceJointPhaseTerm_eq_omega_pow (t : Nat)
     (c a : Fin (2 ^ t)) :
     shorSourceJointPhaseTerm t c a = ω t ^ (a.val * c.val) := by
   rw [shorSourceJointPhaseTerm, ω, ← Complex.exp_nat_mul]
@@ -133,24 +133,24 @@ theorem shorSourceJointPhaseTerm_eq_omega_pow (t : Nat)
   push_cast
   ring
 
-private theorem born_invSqrtCard_eq_invSqrtN (t : Nat) :
+private lemma born_invSqrtCard_eq_invSqrtN (t : Nat) :
     WalshHadamard.invSqrtCard t = invSqrtN t := by
   rw [WalshHadamard.invSqrtCard, invSqrtN]
   congr 3
   norm_num
 
-private theorem born_invSqrtN_mul_self_sourceNormalization (t : Nat) :
+private lemma born_invSqrtN_mul_self_sourceNormalization (t : Nat) :
     invSqrtN t * invSqrtN t = (((2 : Real) ^ t : Complex))⁻¹ := by
   rw [invSqrtN_mul_self]
   congr 1
   norm_num
 
-private theorem born_star_sourceNormalization (t : Nat) :
+private lemma born_star_sourceNormalization (t : Nat) :
     star ((((2 : Real) ^ t : Complex))⁻¹) =
       (((2 : Real) ^ t : Complex))⁻¹ := by
   rw [star_inv₀, star_pow, Complex.star_def, Complex.conj_ofReal]
 
-theorem inverseQFT_orbitTerm_eq_star_sourceTerm (t : Nat)
+lemma inverseQFT_orbitTerm_eq_star_sourceTerm (t : Nat)
     (c a : Fin (2 ^ t)) :
     star (invSqrtN t * ω t ^ (a.val * c.val)) *
         WalshHadamard.invSqrtCard t =
@@ -170,7 +170,7 @@ theorem inverseQFT_orbitTerm_eq_star_sourceTerm (t : Nat)
           star (ω t) ^ (a.val * c.val) := by
       rw [born_star_sourceNormalization]
 
-theorem sourceAmplitude_orbitTarget_eq_star {N x t m r : Nat}
+lemma sourceAmplitude_orbitTarget_eq_star {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m)
     (c : Fin (2 ^ t)) (k : Fin r) :
@@ -203,7 +203,7 @@ theorem sourceAmplitude_orbitTarget_eq_star {N x t m r : Nat}
       simp_rw [star_mul', born_star_sourceNormalization]
       rw [Finset.mul_sum]
 
-theorem sourceAmplitude_eq_zero_of_not_mem_orbit
+lemma sourceAmplitude_eq_zero_of_not_mem_orbit
     {N x t m r : Nat} (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m)
     (c : Fin (2 ^ t)) (y : Fin (2 ^ m))
@@ -229,12 +229,12 @@ def orbitTargetEmbedding {N x t m r : Nat}
   toFun := orbitTarget A
   inj' := orbitTarget_injective hinput A
 
-@[simp] theorem orbitTargetEmbedding_apply {N x t m r : Nat}
+@[simp] lemma orbitTargetEmbedding_apply {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (k : Fin r) :
     orbitTargetEmbedding hinput A k = orbitTarget A k := rfl
 
-theorem mem_orbitTargetEmbedding_map_iff {N x t m r : Nat}
+lemma mem_orbitTargetEmbedding_map_iff {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (y : Fin (2 ^ m)) :
     y ∈ (Finset.univ : Finset (Fin r)).map (orbitTargetEmbedding hinput A) ↔

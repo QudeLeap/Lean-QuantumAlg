@@ -35,7 +35,7 @@ def selectedRecoveryEvents (model : ExecutionModel) [BitWord.Selected model] (wi
         (.packOption (width + 1))))]
 
 /-- The actual path performs recovery only on success, followed by the common optional pack. -/
-theorem withSelectedRecovery_eventTrace
+lemma withSelectedRecovery_eventTrace
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -62,7 +62,7 @@ theorem withSelectedRecovery_eventTrace
         rfl
 
 /-- The native resource pool follows that same actual selected event trace. -/
-theorem withSelectedRecovery_resourcePool
+lemma withSelectedRecovery_resourcePool
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -73,7 +73,7 @@ theorem withSelectedRecovery_resourcePool
     path)
 
 /-- Exactly nine native events on success and one on failure. -/
-theorem withSelectedRecovery_eventCount
+lemma withSelectedRecovery_eventCount
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -84,7 +84,7 @@ theorem withSelectedRecovery_eventCount
   cases path.1.1.toBool <;> rfl
 
 /-- Arbitrary durations charge the original selected arithmetic and common final materialization. -/
-theorem withSelectedRecovery_durationDepth
+lemma withSelectedRecovery_durationDepth
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
@@ -117,7 +117,7 @@ theorem withSelectedRecovery_durationDepth
         rfl
 
 /-- Unit-duration dependency depth equals the actual selected event count. -/
-theorem withSelectedRecovery_depth (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+lemma withSelectedRecovery_depth (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
     (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
@@ -133,7 +133,7 @@ def selectedRecoveryScratchSpace {kind : ProblemKind} (width : Nat) (selected : 
   (if selected then recoveryScratchSpace width else 0) +
     SpacePool.ofShape (FiniteCyclicDLP.OutputShape width)
 
-private theorem selectedRecoveryPlaced_resident
+private lemma selectedRecoveryPlaced_resident
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -178,7 +178,7 @@ private theorem selectedRecoveryPlaced_resident
         exact SpacePool.max_eq_left le_add_self
 
 /-- Exact resident peak includes original roles, payload and selected recovery scratch. -/
-theorem withSelectedRecovery_resident
+lemma withSelectedRecovery_resident
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -202,7 +202,7 @@ theorem withSelectedRecovery_resident
   simp only [selectionCtx, RuntimeCtx.residentSpace_addWorkspace,
     selectedRecoveryScratchSpace, add_assoc]
 
-private theorem selectedRecoveryPlaced_auxiliary
+private lemma selectedRecoveryPlaced_auxiliary
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -247,7 +247,7 @@ private theorem selectedRecoveryPlaced_auxiliary
         exact SpacePool.max_eq_left le_add_self
 
 /-- Exact auxiliary peak includes original roles, payload and selected recovery scratch. -/
-theorem withSelectedRecovery_auxiliary
+lemma withSelectedRecovery_auxiliary
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))

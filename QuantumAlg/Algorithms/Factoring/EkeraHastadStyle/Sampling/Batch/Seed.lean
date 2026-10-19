@@ -30,27 +30,30 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open ShortDLP.CompiledMAU
 open Execution
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- The actual sampler followed by one preparation establishes the complete seed blocks. -/
-theorem nativeBatch_sampleAndPrepare_seedBlocks
+lemma nativeBatch_sampleAndPrepare_seedBlocks
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (RuntimeBank.shortDLP_runtimeBank_quantumWires (sampledContext base N)
         (nativeBatch_sampled_noQuantum base noQuantum N)
         (shortLogBits N) (tradeoffBits N) (arithmeticBits N)) N
-      ((sampleAndPrepare base noQuantum N).execute Reference state) := by
+      ((sampleAndPrepare base noQuantum N).execute environment Reference state) := by
   let sampler := ShorStyle.Canonical.Sampler.Retained.circuit
     (model := RuntimeRound.model) base N
   let prepare := RuntimeBank.prepare (operations := BitWord.model) (services := .empty)
     (sampledContext base N)
     (nativeBatch_sampled_noQuantum base noQuantum N)
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
-  exact BasisSeeded.seq sampler prepare
+  exact BasisSeeded.seq (environment := environment) sampler prepare
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (RuntimeBank.shortDLP_runtimeBank_quantumWires (sampledContext base N)
         (nativeBatch_sampled_noQuantum base noQuantum N)
@@ -58,16 +61,17 @@ theorem nativeBatch_sampleAndPrepare_seedBlocks
       (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state
     (RuntimeBank.shortDLP_runtimePrepare_seedBlocks (sampledContext base N)
       (nativeBatch_sampled_noQuantum base noQuantum N)
-      (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N (sampler.execute Reference state))
+      (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N (sampler.execute
+        environment Reference state))
 
 /-- Actual initialization leaves the prepared seed beneath every real shared measurement cell. -/
-theorem nativeBatch_initializeBank_seedBlocks
+lemma nativeBatch_initializeBank_seedBlocks
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (nativeBatch_ready_wires base noQuantum N) N
-      ((initializeBank base noQuantum N).execute Reference state) := by
-  exact BasisSeeded.seq (sampleAndPrepare base noQuantum N)
+      ((initializeBank base noQuantum N).execute environment Reference state) := by
+  exact BasisSeeded.seq (environment := environment) (sampleAndPrepare base noQuantum N)
     (MeasurementCells.allocate (model := RuntimeRound.model)
       (bankContext base noQuantum N) 2 (measurementBits N))
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -75,24 +79,27 @@ theorem nativeBatch_initializeBank_seedBlocks
       (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state
     (RuntimeRound.shortDLP_runtimeMeasurementCells_seedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N _ 2 (measurementBits N)
-      ((sampleAndPrepare base noQuantum N).execute Reference state)
+      ((sampleAndPrepare base noQuantum N).execute environment Reference state)
       (nativeBatch_sampleAndPrepare_seedBlocks base noQuantum N state))
 
 /-- The actual complete sixteen-round batch retains the exact source seed on its one bank. -/
-theorem nativeBatch_complete_seedBlocks
+lemma nativeBatch_complete_seedBlocks
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (nativeBatch_context_wires base noQuantum N) N
-      ((code base noQuantum N).execute Reference state) := by
-  have initialized := nativeBatch_initializeBank_seedBlocks base noQuantum N state
-  have repeated := RuntimeRepetition.shortDLP_runtimeRepetition_seedBlocks
+      ((code base noQuantum N).execute environment Reference state) := by
+  have initialized := nativeBatch_initializeBank_seedBlocks (environment := environment)
+    base noQuantum N state
+  have repeated := RuntimeRepetition.shortDLP_runtimeRepetition_seedBlocks (environment :=
+    environment)
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (parameterUnit (N := N)) (parameterTarget (N := N)) 16
     (readyContext base noQuantum N) (nativeBatch_ready_wires base noQuantum N)
     (parameter base noQuantum N) (cells base noQuantum N)
-    ((initializeBank base noQuantum N).execute Reference state) initialized
-  exact BasisSeeded.seq (initializeBank base noQuantum N) (rounds base noQuantum N)
+    ((initializeBank base noQuantum N).execute environment Reference state) initialized
+  exact BasisSeeded.seq (environment := environment)
+    (initializeBank base noQuantum N) (rounds base noQuantum N)
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (nativeBatch_context_wires base noQuantum N)).symm
       (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state repeated

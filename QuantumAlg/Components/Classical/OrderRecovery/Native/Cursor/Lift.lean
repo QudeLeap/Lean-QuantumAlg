@@ -26,7 +26,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
 
 /-- The real workspace push preserves the four observed cursor coordinates. -/
-theorem nativeScan_cursorReads_underWorkspace {width : Nat}
+lemma nativeScan_cursorReads_underWorkspace {width : Nat}
     (cells : CursorCells ctx width) (store : Store ctx)
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
     (reads : CursorReads cells store cursor)
@@ -44,7 +44,7 @@ theorem nativeScan_cursorReads_underWorkspace {width : Nat}
       store key shape fresh (cellRead cells.previous))).trans reads.previous
 
 /-- The actual pending latches and cursor remain the same under that allocation. -/
-theorem nativeScan_pendingReads_underWorkspace
+lemma nativeScan_pendingReads_underWorkspace
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (store : Store ctx)
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
     (reads : PendingCursorReads cells store cursor)
@@ -59,7 +59,7 @@ theorem nativeScan_pendingReads_underWorkspace
       (cellRead cells.accepted)).trans reads.accepted
 
 /-- The real base, zero and one reads keep their source values under the same workspace. -/
-theorem nativeScan_sourceReads_underWorkspace
+lemma nativeScan_sourceReads_underWorkspace
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
@@ -78,7 +78,7 @@ theorem nativeScan_sourceReads_underWorkspace
         reads.oneValue
 
 /-- Every number of real finite slots preserves the source base and comparison constants. -/
-theorem nativeScan_iterate_source_reads {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeScan_iterate_source_reads {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
@@ -100,7 +100,7 @@ theorem nativeScan_iterate_source_reads {model : ExecutionModel} [BitWord.Select
         separated.oneFree store)).trans reads.oneValue
 
 /-- A false actual activity bit makes every remaining slot identity on the whole store. -/
-theorem nativeScan_iterate_of_inactive {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeScan_iterate_of_inactive {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

@@ -38,11 +38,11 @@ def encoding (n : Nat) : BinaryLabelEncoding (Registers n) :=
 def overflowEncoding (n : Nat) : BinaryLabelEncoding (OverflowRegisters n) :=
   prod (encoding n) bool
 
-@[simp] theorem ttkEncoding_width (n : Nat) : (encoding n).width = 2 * n := by
+@[simp] lemma ttkEncoding_width (n : Nat) : (encoding n).width = 2 * n := by
   change n + n = 2 * n
   omega
 
-@[simp] theorem ttkOverflowEncoding_width (n : Nat) :
+@[simp] lemma ttkOverflowEncoding_width (n : Nat) :
     (overflowEncoding n).width = 2 * n + 1 := by
   change n + n + 1 = 2 * n + 1
   omega
@@ -57,32 +57,32 @@ def rightBit (n : Nat) (i : Fin n) : EncodedBit (encoding n) :=
   prodRightBit (finIdentity n) (finIdentity n)
     (finIdentityBit n (WireAddress.littleEndianWire i))
 
-theorem ttkLeftBit_get (n : Nat) (i : Fin n) (state : Registers n) :
+lemma ttkLeftBit_get (n : Nat) (i : Fin n) (state : Registers n) :
     (leftBit n i).get state = state.1.val.testBit i.val := by
   change state.1.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire i)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-theorem ttkRightBit_get (n : Nat) (i : Fin n) (state : Registers n) :
+lemma ttkRightBit_get (n : Nat) (i : Fin n) (state : Registers n) :
     (rightBit n i).get state = state.2.val.testBit i.val := by
   change state.2.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire i)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-theorem ttkLeftBit_wire_val (n : Nat) (i : Fin n) :
+lemma ttkLeftBit_wire_val (n : Nat) (i : Fin n) :
     (leftBit n i).wire.val = n - 1 - i.val := rfl
 
-theorem ttkRightBit_wire_val (n : Nat) (i : Fin n) :
+lemma ttkRightBit_wire_val (n : Nat) (i : Fin n) :
     (rightBit n i).wire.val = n + (n - 1 - i.val) := rfl
 
-theorem ttkLeftRight_disjoint (n : Nat) (i j : Fin n) :
+lemma ttkLeftRight_disjoint (n : Nat) (i j : Fin n) :
     (leftBit n i).wire ≠ (rightBit n j).wire := by
   intro h
   have hval := congrArg Fin.val h
   rw [ttkLeftBit_wire_val, ttkRightBit_wire_val] at hval
   omega
 
-theorem ttkLeftLeft_disjoint (n : Nat) (i j : Fin n) (hij : i ≠ j) :
+lemma ttkLeftLeft_disjoint (n : Nat) (i j : Fin n) (hij : i ≠ j) :
     (leftBit n i).wire ≠ (leftBit n j).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -91,7 +91,7 @@ theorem ttkLeftLeft_disjoint (n : Nat) (i j : Fin n) (hij : i ≠ j) :
   apply Fin.ext
   omega
 
-theorem ttkRightRight_disjoint (n : Nat) (i j : Fin n) (hij : i ≠ j) :
+lemma ttkRightRight_disjoint (n : Nat) (i j : Fin n) (hij : i ≠ j) :
     (rightBit n i).wire ≠ (rightBit n j).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -108,14 +108,14 @@ def withOverflowBit {n : Nat} (bit : EncodedBit (encoding n)) :
 def overflowBit (n : Nat) : EncodedBit (overflowEncoding n) :=
   prodRightBit (encoding n) bool boolBit
 
-theorem ttkWithOverflowBit_get {n : Nat} (bit : EncodedBit (encoding n))
+lemma ttkWithOverflowBit_get {n : Nat} (bit : EncodedBit (encoding n))
     (state : OverflowRegisters n) :
     (withOverflowBit bit).get state = bit.get state.1 := rfl
 
-theorem ttkOverflowBit_get (n : Nat) (state : OverflowRegisters n) :
+lemma ttkOverflowBit_get (n : Nat) (state : OverflowRegisters n) :
     (overflowBit n).get state = state.2 := rfl
 
-theorem ttkWithOverflowBit_disjoint {n : Nat}
+lemma ttkWithOverflowBit_disjoint {n : Nat}
     (a b : EncodedBit (encoding n)) (hab : a.wire ≠ b.wire) :
     (withOverflowBit a).wire ≠ (withOverflowBit b).wire := by
   intro h
@@ -124,7 +124,7 @@ theorem ttkWithOverflowBit_disjoint {n : Nat}
   have hval := congrArg (fun wire : Fin (overflowEncoding n).width => wire.val) h
   exact hval
 
-theorem ttkWithOverflowBit_output_disjoint {n : Nat}
+lemma ttkWithOverflowBit_output_disjoint {n : Nat}
     (bit : EncodedBit (encoding n)) :
     (withOverflowBit bit).wire ≠ (overflowBit n).wire := by
   intro h
@@ -146,7 +146,7 @@ def withOverflowGate {n : Nat} :
         (ttkWithOverflowBit_disjoint b t hbt)
 
 /-- Lifting an operand gate preserves the explicit overflow output bit. -/
-theorem ttkWithOverflowGate_step {n : Nat}
+lemma ttkWithOverflowGate_step {n : Nat}
     (gate : EncodedBit.GateSpec (encoding n)) (state : OverflowRegisters n) :
     (withOverflowGate gate).step state = (gate.step state.1, state.2) := by
   cases gate with

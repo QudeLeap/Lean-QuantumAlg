@@ -31,12 +31,14 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Independent constant addition and the identity on the supplied borrowed bit. -/
 public def oneDirtyOperator (width : Nat) (constant : Fin (2 ^ width)) :
     UnitaryOperator (Qubits (width + 1)) :=
   (wordTranslation width constant.val).tensor (1 : UnitaryOperator (Qubits 1))
 
-private theorem identity_apply (state : NormalizedVector (Qubits 1)) :
+private lemma identity_apply (state : NormalizedVector (Qubits 1)) :
     (1 : UnitaryOperator (Qubits 1)).apply state = state := by
   apply NormalizedVector.ext
   intro index
@@ -45,20 +47,20 @@ private theorem identity_apply (state : NormalizedVector (Qubits 1)) :
 
 /-- On arbitrary tensor inputs the borrowed state is unchanged; the full matrix law
 below also covers non-product joint inputs. -/
-public theorem oneDirtyOperator_tensor (width : Nat) (constant : Fin (2 ^ width))
+public lemma oneDirtyOperator_tensor (width : Nat) (constant : Fin (2 ^ width))
     (word : NormalizedVector (Qubits width)) (borrowed : NormalizedVector (Qubits 1)) :
     (oneDirtyOperator width constant).apply (word.tensor borrowed) =
       ((wordTranslation width constant.val).apply word).tensor borrowed := by
   rw [oneDirtyOperator, UnitaryOperator.tensor_apply_tensor, identity_apply]
 
-private theorem encoding_ket (width : Nat) (input : Fin (2 ^ width)) (dirty : Bool) :
+private lemma encoding_ket (width : Nat) (input : Fin (2 ^ width)) (dirty : Bool) :
     NormalizedVector.ket (R := Qubits (oneDirtyEncoding width).width)
       ((oneDirtyEncoding width).encode (input, dirty)) =
       (NormalizedVector.ket input).tensor
         (NormalizedVector.ket (R := Qubits 1) (BinaryLabelEncoding.bool.encode dirty)) :=
   (NormalizedVector.tensor_ket input (BinaryLabelEncoding.bool.encode dirty)).symm
 
-private theorem operator_encoded_ket (width : Nat) (constant input : Fin (2 ^ width))
+private lemma operator_encoded_ket (width : Nat) (constant input : Fin (2 ^ width))
     (dirty : Bool) :
     (oneDirtyOperator width constant).apply
       (NormalizedVector.ket ((oneDirtyEncoding width).encode (input, dirty))) =
@@ -74,30 +76,33 @@ private def encodingEquiv (width : Nat) :
   (Equiv.prodCongr (Equiv.refl (Fin (2 ^ width))) finTwoEquiv.symm).trans
     (prodEquiv (m := width) (n := 1))
 
-private theorem encodingEquiv_apply (width : Nat) (state : OneDirtyRegisters width) :
+private lemma encodingEquiv_apply (width : Nat) (state : OneDirtyRegisters width) :
     encodingEquiv width state = (oneDirtyEncoding width).encode state := by
   rcases state with ⟨input, dirty⟩
   cases dirty <;> rfl
 
 /-- The actual recursive HRS circuit is exactly translation tensored with borrowed identity. -/
-theorem hrsOneDirty_matrix (width : Nat) (constant : Fin (2 ^ width)) :
-    (oneDirtyProgram width constant).binaryMatrix = oneDirtyOperator width constant := by
+lemma hrsOneDirty_matrix (width : Nat) (constant : Fin (2 ^ width)) :
+    (oneDirtyProgram width constant).binaryMatrix environment =
+      oneDirtyOperator width constant := by
   apply Subtype.ext
   ext output input
   obtain ⟨⟨word, dirty⟩, rfl⟩ := (encodingEquiv width).surjective input
   rw [encodingEquiv_apply]
   have actualAction :=
     UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (environment := environment)
       (oneDirtyProgram width constant) ((oneDirtyEncoding width).encode (word, dirty))
         ((oneDirtyEncoding width).encode (addWord constant word, dirty))
-          ((hrsOneDirty_realizes width constant).apply_encoded_ket (word, dirty))
+          ((hrsOneDirty_realizes (environment := environment) width constant).apply_encoded_ket
+            (word, dirty))
   have actual := congrArg (fun state : NormalizedVector (Qubits (width + 1)) => state output)
     actualAction
   have semantic := congrArg (fun state : NormalizedVector (Qubits (width + 1)) => state output)
     (operator_encoded_ket width constant word dirty)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      ((oneDirtyProgram width constant).binaryMatrix :
+      ((oneDirtyProgram width constant).binaryMatrix environment :
         HilbertOperator (Qubits (oneDirtyEncoding width).width))
       ((oneDirtyEncoding width).encode (word, dirty)) output).symm.trans actual
   have semanticColumn :=

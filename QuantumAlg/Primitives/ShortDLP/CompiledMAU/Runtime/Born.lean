@@ -22,39 +22,48 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimePlacement
 
 noncomputable section
 
+variable {environment :
+  OracleModel.empty.Interpretation}
+
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Each amplitude of the actual placed member is the source compiled amplitude on the same seed. -/
-theorem shortDLP_runtimeMember_seed_amplitude (N : Nat) (generator target : (ZMod N)ˣ)
+lemma shortDLP_runtimeMember_seed_amplitude (N : Nat) (generator target : (ZMod N)ˣ)
     (row : ctx.register.Index) :
-    (memberProgram m ell width sameWires N generator target).applyNormalized
+    (memberProgram m ell width sameWires N generator target).applyNormalized environment
       (NormalizedVector.ket (R := ctx.register)
         ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N))) row =
       (CompiledMAU.evolvedState m ell width N generator target).normalized
         (basisEquiv m ell width sameWires row) := by
+  have canonical : environment = OracleModel.emptyInterpretation := Subsingleton.elim _ _
+  subst environment
   have actualColumn := HilbertOperator.applyVec_ket
-    ((memberProgram m ell width sameWires N generator target).matrix :
+    (((memberProgram m ell width sameWires N generator target).matrix
+      OracleModel.emptyInterpretation) :
       HilbertOperator ctx.register)
     ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N)) row
   have sourceColumn := HilbertOperator.applyVec_ket
-    ((compiledCircuit m ell width N generator target).binaryMatrix :
+    (((compiledCircuit m ell width N generator target).binaryMatrix
+      OracleModel.emptyInterpretation) :
       HilbertOperator (Qubits (totalQubits (registerParameters m ell width))))
     (CompiledMAU.reloadLabel m ell width N) (basisEquiv m ell width sameWires row)
-  have actualEntry := shortDLP_runtimeMember_matrix_entry m ell width sameWires N
+  have actualEntry := shortDLP_runtimeMember_matrix_entry (environment :=
+    OracleModel.emptyInterpretation) m ell width sameWires N
     generator target row
     ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N))
   have sourceEntry := congrArg
     (fun column : Fin (2 ^ totalQubits (registerParameters m ell width)) =>
-      (compiledCircuit m ell width N generator target).binaryMatrix
+      ((compiledCircuit m ell width N generator target).binaryMatrix
+        OracleModel.emptyInterpretation)
         (basisEquiv m ell width sameWires row) column)
     ((basisEquiv m ell width sameWires).apply_symm_apply (CompiledMAU.reloadLabel m ell width N))
   exact actualColumn.trans (actualEntry.trans (sourceEntry.trans sourceColumn.symm))
 
 /-- On the established seed, the actual runtime amplitudes are exactly the original Born source. -/
-theorem shortDLP_runtimeMember_ideal_amplitude (N : Nat) (generator target : (ZMod N)ˣ)
+lemma shortDLP_runtimeMember_ideal_amplitude (N : Nat) (generator target : (ZMod N)ˣ)
     (nontrivial : 1 < N) (capacity : N < 2 ^ width) (row : ctx.register.Index) :
-    (memberProgram m ell width sameWires N generator target).applyNormalized
+    (memberProgram m ell width sameWires N generator target).applyNormalized environment
       (NormalizedVector.ket (R := ctx.register)
         ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N))) row =
       (BornProbability.evolvedState (unitEncoding width N nontrivial capacity)

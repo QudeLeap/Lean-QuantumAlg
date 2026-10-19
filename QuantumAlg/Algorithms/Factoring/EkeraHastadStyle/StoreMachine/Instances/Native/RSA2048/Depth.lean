@@ -37,7 +37,7 @@ def recoveryDepthBound : Nat := 2_191_863_146_408_850_595
 def unitDepthBound : Nat := 16_798_844_737_672_601_459
 
 /-- The circuit-only scalar is proved from the independent MAU width envelope. -/
-theorem memberCircuitDepthWidthBound_eq :
+lemma memberCircuitDepthWidthBound_eq :
     compiledCircuitEventUnitDepthWidthBound 1_025 513 2_048 = memberCircuitDepthBound := by
   norm_num [compiledCircuitEventUnitDepthWidthBound, groupActionPrimitiveWidthBound,
     exponentiationPrimitiveWidthBound, MAU.Exponentiation.Gidney.eventBound,
@@ -49,13 +49,13 @@ theorem memberCircuitDepthWidthBound_eq :
     memberCircuitDepthBound]
 
 /-- The complete measured-round number is obtained from its independent scalar formula. -/
-theorem roundDepthWidthBound_eq :
+lemma roundDepthWidthBound_eq :
     NativeFiniteRetry.roundDepthWidthBound 1_025 513 2_048 = roundDepthBound := by
   rw [NativeFiniteRetry.roundDepthWidthBound, memberCircuitDepthWidthBound_eq]
   norm_num [memberCircuitDepthBound, roundDepthBound]
 
 /-- The classical number evaluates only scalar widths and finite scan cardinalities. -/
-theorem recoveryDepthWidthBound_eq :
+lemma recoveryDepthWidthBound_eq :
     NativeFiniteRetry.recoveryDepthWidthBound 2_048 1_025 513 7_522_484_226 =
       recoveryDepthBound := by
   norm_num [NativeFiniteRetry.recoveryDepthWidthBound, recoveryDepthBound]
@@ -66,7 +66,7 @@ attribute [local irreducible] NativeFiniteRetry.roundDepthWidthBound
   NativeFiniteRetry.recoveryDepthWidthBound
 
 /-- Every original fixed key has the stated complete independent seven-batch scalar allowance. -/
-theorem model_scalarDepthBound_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_scalarDepthBound_eq {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.scalarDepthBound N rounds = unitDepthBound := by
   change 7 * (44 * Canonical.modulusBits N + 164 +
     16 * NativeFiniteRetry.roundDepthWidthBound (shortLogBits N) (tradeoffBits N)
@@ -82,7 +82,7 @@ theorem model_scalarDepthBound_eq {N : Nat} (model : FixedWidthModel N) :
   norm_num [roundDepthBound, recoveryDepthBound, unitDepthBound]
 
 /-- The original native dependency envelope is below the independently proved fixed number. -/
-theorem model_depthBound_le {N : Nat} (model : FixedWidthModel N) :
+lemma model_depthBound_le {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.depthBound N rounds ≤ unitDepthBound :=
   (NativeFiniteRetry.depthBound_le_scalarDepthBound N rounds).trans_eq
     (model_scalarDepthBound_eq model)
@@ -93,7 +93,7 @@ attribute [local irreducible] NativeFiniteRetry.run NativeFiniteRetry.code Nativ
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every path of the actual seven-batch code obeys the full serial bound. -/
-theorem code_unitDepth_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma code_unitDepth_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.code base noQuantum input rounds).Path) :
     (NativeFiniteRetry.code base noQuantum input rounds).depth (fun _ => 1) path ≤
       unitDepthBound :=
@@ -101,7 +101,7 @@ theorem code_unitDepth_le (model : FixedWidthModel N) (input : Canonical.Input N
     (model_scalarDepthBound_eq model)
 
 /-- Every complete actual run path includes all quantum and classical serial dependencies. -/
-theorem run_unitDepth_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_unitDepth_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     (NativeFiniteRetry.run base noQuantum input rounds).code.depth (fun _ => 1) path ≤
       unitDepthBound :=

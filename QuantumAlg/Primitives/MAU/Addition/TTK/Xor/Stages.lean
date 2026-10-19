@@ -29,7 +29,7 @@ private def rightWord (n : Nat) : EncodedBit.Word (encoding n) n := ⟨rightBit 
 private def upperIndex {n : Nat} (i : Fin (n - 1)) : Fin n :=
   ⟨i.val + 1, by omega⟩
 
-private theorem upperIndex_injective (n : Nat) :
+private lemma upperIndex_injective (n : Nat) :
     Function.Injective (upperIndex (n := n)) := by
   intro i j h
   apply Fin.ext
@@ -44,7 +44,7 @@ private def upperRightWord (n : Nat) : EncodedBit.Word (encoding n) (n - 1) :=
   ⟨fun i => rightBit n (upperIndex i)⟩
 
 /-- Stage one preserves every addend bit, for all word widths. -/
-theorem ttkPreXor_left (n : Nat) (s : Registers n) (i : Fin n) :
+lemma ttkPreXor_left (n : Nat) (s : Registers n) (i : Fin n) :
     (leftBit n i).get (stepList (preXorGates n) s) = (leftBit n i).get s := by
   change (leftBit n i).get
     (EncodedBit.Word.xorIntoStep (upperLeftWord n) (upperRightWord n)
@@ -54,7 +54,7 @@ theorem ttkPreXor_left (n : Nat) (s : Registers n) (i : Fin n) :
   exact Ne.symm (ttkLeftRight_disjoint n i (upperIndex j))
 
 /-- Stage one changes precisely the right bits above the low bit. -/
-theorem ttkPreXor_right (n : Nat) (s : Registers n) (i : Fin n) :
+lemma ttkPreXor_right (n : Nat) (s : Registers n) (i : Fin n) :
     (rightBit n i).get (stepList (preXorGates n) s) =
       if i.val = 0 then (rightBit n i).get s
       else ((rightBit n i).get s ^^ (leftBit n i).get s) := by
@@ -90,7 +90,7 @@ theorem ttkPreXor_right (n : Nat) (s : Registers n) (i : Fin n) :
     exact h
 
 /-- Stage six preserves the fully restored addend. -/
-theorem ttkFinalXor_left (n : Nat) (s : Registers n) (i : Fin n) :
+lemma ttkFinalXor_left (n : Nat) (s : Registers n) (i : Fin n) :
     (leftBit n i).get (stepList (finalXorGates n) s) = (leftBit n i).get s := by
   change (leftBit n i).get
     (EncodedBit.Word.xorIntoStep (leftWord n) (rightWord n)
@@ -100,7 +100,7 @@ theorem ttkFinalXor_left (n : Nat) (s : Registers n) (i : Fin n) :
   exact Ne.symm (ttkLeftRight_disjoint n i j)
 
 /-- Stage six xors each addend bit into exactly its matching target bit. -/
-theorem ttkFinalXor_right (n : Nat) (s : Registers n) (i : Fin n) :
+lemma ttkFinalXor_right (n : Nat) (s : Registers n) (i : Fin n) :
     (rightBit n i).get (stepList (finalXorGates n) s) =
       ((rightBit n i).get s ^^ (leftBit n i).get s) := by
   change (rightBit n i).get

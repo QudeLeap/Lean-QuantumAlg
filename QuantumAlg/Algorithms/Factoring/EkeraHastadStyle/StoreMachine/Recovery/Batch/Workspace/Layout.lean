@@ -117,20 +117,20 @@ def outputRefs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   narrow := narrow cells
   result := result
 
-private theorem keyNe {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma keyNe {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : TopCells ctx N) (distinct : cells.Distinct)
     {left right : Fin (topShapes N).length} (different : left ≠ right) :
     (cellAt cells left).ref.key ≠ (cellAt cells right).ref.key :=
   fun equal => different (workspaceCells_cellAt_key_injective cells distinct equal)
 
-private theorem readAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma readAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (source : CWriteRef ctx shape) {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (FirstAccepted.cellRead source).storageKeys := by
   simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton, ne_comm]
     using different
 
 /-- Actual distinct allocation supplies exactly the canonical selector inequalities. -/
-theorem selectorSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma selectorSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : TopCells ctx N) (distinct : cells.Distinct) :
     LatticePairFactorWorkspaceSeparation.SelectorSeparation (factorSelection cells) := by
   constructor
@@ -146,7 +146,7 @@ theorem selectorSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat
       (by simp [acceptedIndex, selectedIndex])
 
 /-- The retained parameter and actual top-cell distinctness supply the complete seed contract. -/
-theorem seedSeparation {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
+lemma seedSeparation {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     (cells : TopCells ctx N) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (parameter : CInputRef outer (ParameterShape N)) :
@@ -178,7 +178,7 @@ theorem seedSeparation {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : N
       acceptedSelected := selector.acceptedSelected }
 
 /-- Top-cell distinctness supplies the final packer's only local separation requirement. -/
-theorem outputSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma outputSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : TopCells ctx N) (distinct : cells.Distinct)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N)) :
     LatticeBatchRecoveryOutput.Separation (outputRefs cells result) := by

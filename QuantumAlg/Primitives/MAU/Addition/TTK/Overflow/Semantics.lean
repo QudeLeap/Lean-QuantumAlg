@@ -33,6 +33,8 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 private def overflowLabelPermutation (n : Nat) : Equiv.Perm (OverflowRegisters n) :=
   letI : NeZero (2 ^ n) := ⟨Nat.ne_of_gt (Nat.two_pow_pos n)⟩
   (Equiv.prodCongrRight fun pair : Registers n =>
@@ -41,7 +43,7 @@ private def overflowLabelPermutation (n : Nat) : Equiv.Perm (OverflowRegisters n
       (Equiv.prodCongrRight fun left : Fin (2 ^ n) => Equiv.addLeft left)
       (Equiv.refl Bool))
 
-private theorem overflowLabelPermutation_apply (n : Nat) (state : OverflowRegisters n) :
+private lemma overflowLabelPermutation_apply (n : Nat) (state : OverflowRegisters n) :
     overflowLabelPermutation n state = overflowOutput state := by
   rcases state with ⟨⟨left, right⟩, flag⟩
   apply Prod.ext
@@ -54,7 +56,7 @@ private def overflowBasis (n : Nat) : OverflowRegisters n ≃ Fin (2 ^ (n + n + 
   (Equiv.prodCongr (prodEquiv (m := n) (n := n)) finTwoEquiv.symm).trans
     (prodEquiv (m := n + n) (n := 1))
 
-private theorem overflowBasis_encode (n : Nat) (state : OverflowRegisters n) :
+private lemma overflowBasis_encode (n : Nat) (state : OverflowRegisters n) :
     overflowBasis n state = (overflowEncoding n).encode state := by
   rcases state with ⟨⟨left, right⟩, flag⟩
   cases flag <;> rfl
@@ -66,7 +68,7 @@ private def overflowPermutation (n : Nat) : Equiv.Perm (Fin (2 ^ (n + n + 1))) :
 public def overflowOperator (n : Nat) : UnitaryOperator (Qubits (n + n + 1)) :=
   UnitaryOperator.ofPerm (overflowPermutation n).symm
 
-private theorem overflowOperator_ket (n : Nat) (state : OverflowRegisters n) :
+private lemma overflowOperator_ket (n : Nat) (state : OverflowRegisters n) :
     (overflowOperator n).apply (NormalizedVector.ket ((overflowEncoding n).encode state)) =
       NormalizedVector.ket ((overflowEncoding n).encode (overflowOutput state)) := by
   have action := UnitaryOperator.ofPerm_apply_ket
@@ -81,7 +83,7 @@ private theorem overflowOperator_ket (n : Nat) (state : OverflowRegisters n) :
       (overflowBasis_encode n (overflowOutput state)))
 
 /-- Public basis action retains the addend and xors the carry into either initial bit. -/
-public theorem overflowOperator_tensorKet (n : Nat) (left right : Fin (2 ^ n))
+public lemma overflowOperator_tensorKet (n : Nat) (left right : Fin (2 ^ n))
     (flag : Bool) :
     (overflowOperator n).apply
       (((NormalizedVector.ket left).tensor (NormalizedVector.ket right)).tensor
@@ -106,24 +108,27 @@ public theorem overflowOperator_tensorKet (n : Nat) (left right : Fin (2 ^ n))
   exact action
 
 /-- The actual TTK overflow program equals the independent arithmetic operator. -/
-theorem ttkOverflow_matrix (n : Nat) :
-    (overflowProgram n).binaryMatrix = overflowOperator n := by
+lemma ttkOverflow_matrix (n : Nat) :
+    (overflowProgram n).binaryMatrix environment = overflowOperator n := by
   apply Subtype.ext
   ext output input
   obtain ⟨state, rfl⟩ := (overflowBasis n).surjective input
   rw [overflowBasis_encode]
   have circuitAction :=
     UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (environment := environment)
       (overflowProgram n) ((overflowEncoding n).encode state)
         ((overflowEncoding n).encode (overflowOutput state))
-          ((ttkOverflow_realizes_addition n).apply_encoded_ket state)
+          ((ttkOverflow_realizes_addition (environment := environment) n).apply_encoded_ket
+            state)
   have circuit := congrArg (fun state : NormalizedVector (Qubits (n + n + 1)) => state output)
     circuitAction
   have semantic := congrArg (fun state : NormalizedVector (Qubits (n + n + 1)) => state output)
     (overflowOperator_ket n state)
   have circuitColumn :=
     (HilbertOperator.applyVec_ket
-      ((overflowProgram n).binaryMatrix : HilbertOperator (Qubits (overflowEncoding n).width))
+      ((overflowProgram n).binaryMatrix environment :
+        HilbertOperator (Qubits (overflowEncoding n).width))
       ((overflowEncoding n).encode state) output).symm.trans circuit
   have semanticColumn :=
     (HilbertOperator.applyVec_ket

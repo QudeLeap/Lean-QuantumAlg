@@ -24,6 +24,8 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 open ClassicalAlgorithms
 
@@ -36,16 +38,16 @@ def overflowSubtractionOutput {n : Nat} (s : OverflowRegisters n) : OverflowRegi
   (subtractionOutput s.1, s.2 ^^ decide (s.1.2.val < s.1.1.val))
 
 /-- The low result is exactly the natural representative of subtraction modulo `2^n`. -/
-theorem ttkSubtractionOutput_right_value (n : Nat) (s : Registers n) :
+lemma ttkSubtractionOutput_right_value (n : Nat) (s : Registers n) :
     (subtractionOutput s).2.val = (s.2.val + 2 ^ n - s.1.val) % 2 ^ n := by
   exact SubBorrow.subBorrow_eval_low_eq_wrapping (⟨s.2, s.1⟩ : SubBorrow.Input n)
 
-private theorem subtraction_reconstruct (n : Nat) (s : Registers n) :
+private lemma subtraction_reconstruct (n : Nat) (s : Registers n) :
     s.2.val + (decide (s.2.val < s.1.val)).toNat * 2 ^ n =
       s.1.val + (subtractionOutput s).2.val := by
   exact SubBorrow.subBorrow_eval_reconstruct (⟨s.2, s.1⟩ : SubBorrow.Input n)
 
-private theorem lowOutput_subtractionOutput (n : Nat) (s : Registers n) :
+private lemma lowOutput_subtractionOutput (n : Nat) (s : Registers n) :
     lowOutput (subtractionOutput s) = s := by
   apply Prod.ext
   · rfl
@@ -54,7 +56,7 @@ private theorem lowOutput_subtractionOutput (n : Nat) (s : Registers n) :
     rw [← subtraction_reconstruct]
     cases decide (s.2.val < s.1.val) <;> simp [Nat.mod_eq_of_lt s.2.isLt]
 
-private theorem carry_subtractionOutput (n : Nat) (s : Registers n) :
+private lemma carry_subtractionOutput (n : Nat) (s : Registers n) :
     decide (2 ^ n ≤ (subtractionOutput s).1.val + (subtractionOutput s).2.val) =
       decide (s.2.val < s.1.val) := by
   change decide (2 ^ n ≤ s.1.val + (subtractionOutput s).2.val) = _
@@ -67,7 +69,7 @@ private theorem carry_subtractionOutput (n : Nat) (s : Registers n) :
       simpa only [Bool.toNat_true, Nat.one_mul] using
         decide_eq_true (by omega : 2 ^ n ≤ s.2.val + 2 ^ n)
 
-private theorem overflowOutput_overflowSubtractionOutput
+private lemma overflowOutput_overflowSubtractionOutput
     (n : Nat) (s : OverflowRegisters n) :
     overflowOutput (overflowSubtractionOutput s) = s := by
   apply Prod.ext
@@ -100,14 +102,14 @@ def overflowSubtractionProgram (n : Nat) :
   programList (QubitLayout.canonical _) .empty (overflowSubtractionGates n)
 
 /-- Reversing the real low-word gates implements subtraction at every width. -/
-theorem ttkSubtraction_step (n : Nat) (s : Registers n) :
+lemma ttkSubtraction_step (n : Nat) (s : Registers n) :
     stepList (subtractionGates n) s = subtractionOutput s := by
   have h := stepList_reverse_stepList (lowRippleGates n) (subtractionOutput s)
   rw [ttkLowRipple_step n (subtractionOutput s), lowOutput_subtractionOutput] at h
   exact h
 
 /-- Reversing the real overflow gates computes subtraction and xor-output borrow. -/
-theorem ttkOverflowSubtraction_step (n : Nat) (s : OverflowRegisters n) :
+lemma ttkOverflowSubtraction_step (n : Nat) (s : OverflowRegisters n) :
     stepList (overflowSubtractionGates n) s = overflowSubtractionOutput s := by
   have h := stepList_reverse_stepList (overflowGates n) (overflowSubtractionOutput s)
   rw [ttkOverflow_step n (overflowSubtractionOutput s),
@@ -115,21 +117,21 @@ theorem ttkOverflowSubtraction_step (n : Nat) (s : OverflowRegisters n) :
   exact h
 
 /-- Exact basis amplitudes realize subtraction, including relative phases. -/
-theorem ttkSubtraction_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (subtractionProgram n) subtractionOutput :=
+lemma ttkSubtraction_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (subtractionProgram n) environment subtractionOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (subtractionGates n) (ttkSubtraction_step n)
+    (subtractionGates n) (ttkSubtraction_step n) environment
 
 /-- Exact subtraction with arbitrary initial borrow output has no input restriction. -/
-theorem ttkOverflowSubtraction_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (overflowEncoding n) (overflowSubtractionProgram n)
+lemma ttkOverflowSubtraction_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (overflowEncoding n) (overflowSubtractionProgram n) environment
       overflowSubtractionOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (overflowSubtractionGates n) (ttkOverflowSubtraction_step n)
+    (overflowSubtractionGates n) (ttkOverflowSubtraction_step n) environment
 
 /-- Reversal preserves every actual native count, so the independent low-word
 resource formulas apply unchanged. -/
-theorem ttkSubtraction_native_count (n : Nat)
+lemma ttkSubtraction_native_count (n : Nat)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (subtractionProgram n).eventCost =
       ResourcePool.count focus (lowRippleProgram n).eventCost := by
@@ -137,7 +139,7 @@ theorem ttkSubtraction_native_count (n : Nat)
     programList_event_count_eq_sum_eventMultiplicity, List.map_reverse, List.sum_reverse]
 
 /-- Borrow-output subtraction has exactly the native counts of overflow addition. -/
-theorem ttkOverflowSubtraction_native_count (n : Nat)
+lemma ttkOverflowSubtraction_native_count (n : Nat)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (overflowSubtractionProgram n).eventCost =
       ResourcePool.count focus (overflowProgram n).eventCost := by
@@ -145,7 +147,7 @@ theorem ttkOverflowSubtraction_native_count (n : Nat)
     programList_event_count_eq_sum_eventMultiplicity, List.map_reverse, List.sum_reverse]
 
 /-- Serial subtraction has the same independent all-width event and depth budget. -/
-theorem ttkSubtraction_serial_resources (n : Nat) :
+lemma ttkSubtraction_serial_resources (n : Nat) :
     (subtractionProgram n).eventCost.card = n + 4 * (n - 1) + 2 * (n - 2) ∧
       (subtractionProgram n).evaluatedEventDepth (fun _ => 1) =
         n + 4 * (n - 1) + 2 * (n - 2) := by
@@ -156,7 +158,7 @@ theorem ttkSubtraction_serial_resources (n : Nat) :
       programList_evaluatedEventDepth_unit, List.length_reverse] using ttkLowRipple_serial_depth n
 
 /-- The borrow-output inverse retains the same all-width serial overflow budget. -/
-theorem ttkOverflowSubtraction_serial_resources (n : Nat) :
+lemma ttkOverflowSubtraction_serial_resources (n : Nat) :
     (overflowSubtractionProgram n).eventCost.card =
         n + 4 * (n - 1) + 2 * (n - 2) +
           (if 2 ≤ n then 1 else 0) + (if n = 0 then 0 else 1) ∧

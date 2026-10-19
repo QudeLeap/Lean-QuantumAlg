@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual store update and native path of one classifier instruction. -/
@@ -52,17 +52,19 @@ def classifierStageRecord (left right : CInputRef ctx (PointShape width))
   exact Fin.elim0 index
 
 /-- Every classifier stage preserves all complete quantum-reference blocks and prior history. -/
-theorem classifierStage_execute (left right : CInputRef ctx (PointShape width))
+lemma classifierStage_execute (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (index : Fin 5) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (classifierStage (model := model) left right classifier index).execute Reference state =
+    (classifierStage (model := model) left right classifier index).execute environment Reference
+      state =
       state.mapClassical (fun entry =>
         ((classifierStageRecord left right classifier index entry.1).1,
           (entry.2.1, (entry.2.2,
             (classifierStageRecord left right classifier index entry.1).2)))) := by
   fin_cases index <;>
-    exact BitWord.bitWord_instruction_execute (execution := model) _ state
+    exact BitWord.bitWord_instruction_execute (environment := environment) (execution := model) _
+      state
 
 /-- The exact record of the original five-instruction classifier. -/
 def classifierRecord (left right : CInputRef ctx (PointShape width))
@@ -72,15 +74,15 @@ def classifierRecord (left right : CInputRef ctx (PointShape width))
     (classifierStageRecord left right classifier)
 
 /-- The complete classifier interpreter is its actual deterministic classical update. -/
-theorem classifierBody_execute (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_execute (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (classifierBody (model := model) left right classifier).execute Reference state =
+    (classifierBody (model := model) left right classifier).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((classifierRecord left right classifier entry.1).1,
           (entry.2.1, (entry.2.2, (classifierRecord left right classifier entry.1).2)))) :=
-  Circuit.execute_forRangeStoreRecord (model := model) 5
+  Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) 5
     (classifierStage (model := model) left right classifier)
     (classifierStageRecord left right classifier) (classifierStage_execute left right classifier)
     Reference state
@@ -96,11 +98,11 @@ def classifierStore (left right : CInputRef ctx (PointShape width))
   let store4 := store3.applyOp (classifierEqualY classifier)
   store4.applyOp (classifierZeroY classifier)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The interpreter record returns precisely the five actual native Store updates. -/
-theorem classifierRecord_store (left right : CInputRef ctx (PointShape width))
+lemma classifierRecord_store (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (store : Store ctx) :
     (classifierRecord left right classifier store).1 =
       classifierStore left right classifier store :=
@@ -134,7 +136,7 @@ structure Classifier.Ready (classifier : Classifier ctx width) (store : Store ct
   yZero : store.read (classifierRead classifier.yZero) =
     .bit (decide (left.ellipticCurvePointY = 0))
 
-private theorem classifierStore_preserves (left right : CInputRef ctx (PointShape width))
+private lemma classifierStore_preserves (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape)
     (separated : ∀ key ∈ classifier.keys, key ∉ input.storageKeys) :
@@ -148,43 +150,43 @@ private theorem classifierStore_preserves (left right : CInputRef ctx (PointShap
   repeat rw [Store.read_applyOp_of_not_mem_storageKeys]
   all_goals first | rfl | exact l | exact r | exact x | exact y | exact z
 
-private theorem read_product (store : Store ctx) {first second : CShape}
+private lemma read_product (store : Store ctx) {first second : CShape}
     (left : CInputRef ctx first) (right : CInputRef ctx second) :
     store.read (.product left right) = .product (store.read left) (store.read right) := rfl
 
-private theorem read_first (store : Store ctx) {first second : CShape}
+private lemma read_first (store : Store ctx) {first second : CShape}
     (input : CInputRef ctx (.product first second)) :
     store.read (.first input) = (store.read input).first := rfl
 
-private theorem read_second (store : Store ctx) {first second : CShape}
+private lemma read_second (store : Store ctx) {first second : CShape}
     (input : CInputRef ctx (.product first second)) :
     store.read (.second input) = (store.read input).second := rfl
 
-private theorem read_op_other (store : Store ctx) {input output observed : CShape}
+private lemma read_op_other (store : Store ctx) {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (ref : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ ref.key) :
     (store.applyOp op).read (classifierRead ref) = store.read (classifierRead ref) :=
   Store.read_write_other store op.outputRef ref.toCStorageRef _ different
 
-private theorem unpack_x_toNat (value : CShape.Value (PointShape width)) :
+private lemma unpack_x_toNat (value : CShape.Value (PointShape width)) :
     (CShape.unpackEllipticCurvePoint width value).second.first.toNat =
       value.ellipticCurvePointX.val := by
   cases value
   rfl
 
-private theorem unpack_y_toNat (value : CShape.Value (PointShape width)) :
+private lemma unpack_y_toNat (value : CShape.Value (PointShape width)) :
     (CShape.unpackEllipticCurvePoint width value).second.second.toNat =
       value.ellipticCurvePointY.val := by
   cases value
   rfl
 
-private theorem zeroWord_toNat :
+private lemma zeroWord_toNat :
     (CShape.Value.unsignedWord (0 : Fin (2 ^ width))).toNat = 0 := by
   change (0 : Fin (2 ^ width)).val = 0
   exact Fin.val_zero _
 
 /-- Five real instructions establish all original predicates from the internal zero word. -/
-theorem classifierBody_ready (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_ready (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (separated : classifier.Separation left right)
     (store : Store ctx) (zero : store.read (classifierRead classifier.zero) = .unsignedWord 0) :
     classifier.Ready (classifierStore left right classifier store)

@@ -40,7 +40,7 @@ def eventCountBound : Nat := 16_798_844_770_992_869_825
 def classicalOperationBound : Nat := 15_343_042_058_108_937_824
 
 /-- The compiled-member number follows from the independent native-coordinate width formula. -/
-theorem memberEventCountWidthBound_eq :
+lemma memberEventCountWidthBound_eq :
     polynomialPrimitiveWidthBound 1_025 513 2_048 = memberEventCountBound := by
   norm_num [polynomialPrimitiveWidthBound, groupActionPrimitiveWidthBound,
     exponentiationPrimitiveWidthBound, MAU.Exponentiation.Gidney.eventBound,
@@ -52,14 +52,14 @@ theorem memberEventCountWidthBound_eq :
     memberEventCountBound]
 
 /-- The complete-round decimal is obtained from its independent scalar formula. -/
-theorem roundEventCountWidthBound_eq :
+lemma roundEventCountWidthBound_eq :
     RuntimeRound.eventCountWidthBound 1_025 513 2_048 = roundEventCountBound := by
   rw [RuntimeRound.eventCountWidthBound, memberEventCountWidthBound_eq, totalQubits_eq]
   norm_num [memberEventCountBound, roundEventCountBound, RuntimeRound.resultBits,
     ShortDLP.CompiledMAU.registerParameters, ShortDLP.firstBits]
 
 /-- The complete-recovery decimal evaluates scalar widths and the original finite scan count. -/
-theorem recoveryEventCountWidthBound_eq :
+lemma recoveryEventCountWidthBound_eq :
     LatticeFixedBatchRecoveryMachine.eventCountBound 2_048 1_025 513 7_522_484_226 =
       recoveryEventCountBound := by
   norm_num [LatticeFixedBatchRecoveryMachine.eventCountBound,
@@ -76,7 +76,7 @@ attribute [local irreducible] RuntimeRound.eventCountWidthBound
   LatticeFixedBatchRecoveryMachine.eventCountBound
 
 /-- Every original fixed key has the stated independent full-run native-event ceiling. -/
-theorem model_scalarEventCountBound_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_scalarEventCountBound_eq {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.scalarEventCountBound N rounds = eventCountBound := by
   change 7 * (44 * Canonical.modulusBits N + 166 +
     16 * RuntimeRound.eventCountWidthBound (shortLogBits N) (tradeoffBits N)
@@ -91,7 +91,7 @@ theorem model_scalarEventCountBound_eq {N : Nat} (model : FixedWidthModel N) :
   norm_num [roundEventCountBound, recoveryEventCountBound, eventCountBound]
 
 /-- The same fixed key has the stated independent classical-only ceiling. -/
-theorem model_scalarClassicalOperationBound_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_scalarClassicalOperationBound_eq {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.scalarClassicalOperationBound N rounds = classicalOperationBound := by
   change 7 * (44 * Canonical.modulusBits N + 182 +
     LatticeFixedBatchRecoveryMachine.eventCountBound
@@ -110,7 +110,7 @@ attribute [local irreducible] NativeFiniteRetry.run NativeFiniteRetry.code Nativ
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every seven-batch path obeys the native-event ceiling with its literal control labels. -/
-theorem run_eventCount_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_eventCount_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     ((NativeFiniteRetry.run base noQuantum input rounds).code.eventTrace path).length ≤
       eventCountBound :=
@@ -118,7 +118,7 @@ theorem run_eventCount_le (model : FixedWidthModel N) (input : Canonical.Input N
     (model_scalarEventCountBound_eq model)
 
 /-- Every literal classical operation on the same complete run path obeys its own fixed ceiling. -/
-theorem run_classicalOperation_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_classicalOperation_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((NativeFiniteRetry.run base noQuantum input rounds).code.resourcePool path) ≤

@@ -27,13 +27,13 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- Each actual first-decoder output belongs to the original eight-cell decoder footprint. -/
-theorem firstDecoderKey_mem (pair : BatchMachine.PairRefs ctx N)
+lemma firstDecoderKey_mem (pair : BatchMachine.PairRefs ctx N)
     (slot : BatchMachine.PairOutputSlot) :
     BatchMachine.pairOutputKey pair.first slot ∈ decoderKeys pair := by
   cases slot <;> simp [BatchMachine.pairOutputKey, decoderKeys]
 
 /-- Each actual second-decoder output belongs to the original eight-cell decoder footprint. -/
-theorem secondDecoderKey_mem (pair : BatchMachine.PairRefs ctx N)
+lemma secondDecoderKey_mem (pair : BatchMachine.PairRefs ctx N)
     (slot : BatchMachine.PairOutputSlot) :
     BatchMachine.pairOutputKey pair.second slot ∈ decoderKeys pair := by
   cases slot <;> simp [BatchMachine.pairOutputKey, decoderKeys]
@@ -42,7 +42,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Both actual decoders preserve every raw coordinate from the original nine-cell basis. -/
-theorem decoder_rawFrame (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
+lemma decoder_rawFrame (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (output : CWriteRef ctx (.unsignedWord (Width N))) (member : output.key ∈ rawKeys refs.raw) :
     (BatchMachine.decodePairStep refs.pair store).1.read (.storage output.toCStorageRef) =
       store.read (.storage output.toCStorageRef) := by
@@ -55,7 +55,7 @@ theorem decoder_rawFrame (refs : Refs ctx N) (separation : Separation refs) (sto
       separation.decoderRaw _ (secondDecoderKey_mem refs.pair slot) output.key member
 
 /-- Actual decoding preserves all four original zero coordinates needed by the basis loader. -/
-theorem decoder_initialZeros (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
+lemma decoder_initialZeros (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (zeros : BasisInitialZero store refs) :
     LatticeBasis.InitialZeros refs.raw (BatchMachine.decodePairStep refs.pair store).1 := by
   have frame (cell : LatticeBasis.ZeroCell) :
@@ -68,7 +68,7 @@ theorem decoder_initialZeros (refs : Refs ctx N) (separation : Separation refs) 
   exact zeros cell
 
 /-- Actual basis loading preserves every output word of both original decoder packages. -/
-theorem basis_decoderFrame (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
+lemma basis_decoderFrame (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     {shape : CShape} (output : CWriteRef ctx shape) (member : output.key ∈ decoderKeys refs.pair) :
     (LatticeBasis.basisStep (shortLogBits N) (tradeoffBits N) refs.pair refs.raw store).1.read
       (.storage output.toCStorageRef) = store.read (.storage output.toCStorageRef) := by
@@ -81,7 +81,7 @@ theorem basis_decoderFrame (refs : Refs ctx N) (separation : Separation refs) (s
     (avoids _ (by simp [rawKeys])) (avoids _ (by simp [rawKeys])) (avoids _ (by simp [rawKeys]))
 
 /-- The complete actual prefix retains every decoder word through its subsequent basis load. -/
-theorem decodeBasis_decoderFrame (refs : Refs ctx N) (separation : Separation refs)
+lemma decodeBasis_decoderFrame (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) {shape : CShape} (output : CWriteRef ctx shape)
     (member : output.key ∈ decoderKeys refs.pair) :
     (decodeBasisStep refs store).1.read (.storage output.toCStorageRef) =
@@ -89,7 +89,7 @@ theorem decodeBasis_decoderFrame (refs : Refs ctx N) (separation : Separation re
   basis_decoderFrame refs separation _ output member
 
 /-- Every caller read outside the original thirteen writes is preserved by the actual prefix. -/
-theorem decodeBasisInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+lemma decodeBasisInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ key ∈ writtenKeys refs, key ∉ other.storageKeys) :
     (decodeBasisStep refs store).1.read other = store.read other := by

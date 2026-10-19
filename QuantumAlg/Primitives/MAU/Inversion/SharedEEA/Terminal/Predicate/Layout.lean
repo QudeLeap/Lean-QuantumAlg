@@ -41,7 +41,7 @@ def sourceBit (width : Nat) (index : Fin (sourceCount width)) : EncodedBit (enco
     unfold sourceCount at within
     omega⟩
 
-private theorem clockBit_wire (width : Nat) (index : Fin (width.size + 2)) :
+private lemma clockBit_wire (width : Nat) (index : Fin (width.size + 2)) :
     (PredicateLayout.clockBit width index).wire.val =
       if index.val < 2 then width + index.val
       else 2 * (width + 3) + 3 * width.size + (index.val - 2) := by
@@ -49,13 +49,13 @@ private theorem clockBit_wire (width : Nat) (index : Fin (width.size + 2)) :
   · simp only [PredicateLayout.clockBit, dif_pos high, if_pos high, paddingBit_wire]
   · simp only [PredicateLayout.clockBit, dif_neg high, if_neg high, shiftBit_wire]
 
-private theorem clock_before_flags (width : Nat) (index : Fin (width.size + 2)) :
+private lemma clock_before_flags (width : Nat) (index : Fin (width.size + 2)) :
     (clockBit width index).wire.val < 2 * (width + 3) + 4 * width.size := by
   rw [clockBit_wire]
   have within := index.isLt
   split <;> omega
 
-private theorem clock_divisor_ne (width : Nat) (clock : Fin (width.size + 2))
+private lemma clock_divisor_ne (width : Nat) (clock : Fin (width.size + 2))
     (divisor : Fin width.size) :
     (clockBit width clock).wire ≠ (divisorLengthBit width divisor).wire := by
   intro same
@@ -66,7 +66,7 @@ private theorem clock_divisor_ne (width : Nat) (clock : Fin (width.size + 2))
   split_ifs at values <;> omega
 
 /-- Neither the two physical clock regions nor the divisor field duplicate a source wire. -/
-theorem sourceBit_injective (width : Nat) :
+lemma sourceBit_injective (width : Nat) :
     Function.Injective (fun index => (sourceBit width index).wire) := by
   intro left right same
   by_cases leftClock : left.val < width.size + 2
@@ -99,7 +99,7 @@ theorem sourceBit_injective (width : Nat) :
       omega
 
 /-- All read coordinates precede the five original control bits. -/
-theorem sourceBit_before_flags (width : Nat) (index : Fin (sourceCount width)) :
+lemma sourceBit_before_flags (width : Nat) (index : Fin (sourceCount width)) :
     (sourceBit width index).wire.val < 2 * (width + 3) + 4 * width.size := by
   unfold sourceBit
   split
@@ -145,13 +145,13 @@ def clockIndex (width : Nat) (index : Fin (width.size + 2)) : Fin (sourceCount w
 def divisorIndex (width : Nat) (index : Fin width.size) : Fin (sourceCount width) :=
   ⟨width.size + 2 + index.val, by unfold sourceCount; have within := index.isLt; omega⟩
 
-theorem sourceBit_clock (width : Nat) (index : Fin (width.size + 2)) :
+lemma sourceBit_clock (width : Nat) (index : Fin (width.size + 2)) :
     sourceBit width (clockIndex width index) = clockBit width index := by
   change (if inside : index.val < width.size + 2 then clockBit width ⟨index.val, inside⟩
     else _) = _
   rw [dif_pos index.isLt]
 
-theorem sourceBit_divisor (width : Nat) (index : Fin width.size) :
+lemma sourceBit_divisor (width : Nat) (index : Fin width.size) :
     sourceBit width (divisorIndex width index) = divisorLengthBit width index := by
   have afterClock : ¬width.size + 2 + index.val < width.size + 2 := by omega
   change (if inside : width.size + 2 + index.val < width.size + 2 then _
@@ -160,7 +160,7 @@ theorem sourceBit_divisor (width : Nat) (index : Fin width.size) :
   exact congrArg (divisorLengthBit width) (Fin.ext (Nat.add_sub_cancel_left _ _))
 
 /-- The actual pattern reads exactly zero divisor and zero full physical clock. -/
-theorem source_zero_iff (width : Nat) (state : Registers width) :
+lemma source_zero_iff (width : Nat) (state : Registers width) :
     (layout width).PatternMatches (fun _ => false) state ↔
       (NumberTheory.SharedEEA.PaddingClock.high state.firstWord = 0 ∧ state.shift = 0) ∧
         state.divisorLength = 0 := by

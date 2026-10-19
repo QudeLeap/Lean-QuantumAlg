@@ -32,11 +32,13 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.QuotientPlacement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Exchange only quotient length and the original low shift field. -/
 def exchange {width : Nat} (state : Registers width) : Registers width :=
   { state with quotientLength := state.shift, shift := state.quotientLength }
 
-theorem exchange_exchange (width : Nat) (state : Registers width) :
+lemma exchange_exchange (width : Nat) (state : Registers width) :
     exchange (exchange state) = state := by
   cases state
   rfl
@@ -48,7 +50,7 @@ private def fieldEquiv (width : Nat) : Registers width ≃ Registers width where
   right_inv := exchange_exchange width
 
 /-- Every field outside the two exchanged lengths is exactly retained. -/
-theorem exchange_retained (width : Nat) (state : Registers width) :
+lemma exchange_retained (width : Nat) (state : Registers width) :
     (exchange state).firstWord = state.firstWord ∧
       (exchange state).secondWord = state.secondWord ∧
       (exchange state).coefficientLength = state.coefficientLength ∧
@@ -57,11 +59,11 @@ theorem exchange_retained (width : Nat) (state : Registers width) :
   ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- The quotient lens reads the corresponding actual shift bit through this exchange. -/
-theorem exchange_quotient_bit (width : Nat) (index : Fin width.size) (state : Registers width) :
+lemma exchange_quotient_bit (width : Nat) (index : Fin width.size) (state : Registers width) :
     (quotientLengthBit width index).get (exchange state) = (shiftBit width index).get state := rfl
 
 /-- The shift lens reads the corresponding actual quotient bit through the same exchange. -/
-theorem exchange_shift_bit (width : Nat) (index : Fin width.size) (state : Registers width) :
+lemma exchange_shift_bit (width : Nat) (index : Fin width.size) (state : Registers width) :
     (shiftBit width index).get (exchange state) = (quotientLengthBit width index).get state := rfl
 
 /-- Transport the exact complete binary label, not merely its dimension. -/
@@ -70,7 +72,7 @@ def indexEquiv (width : Nat) :
   (PreparedFrame.registerLabelEquiv width).symm.trans
     ((fieldEquiv width).trans (PreparedFrame.registerLabelEquiv width))
 
-theorem indexEquiv_encode (width : Nat) (state : Registers width) :
+lemma indexEquiv_encode (width : Nat) (state : Registers width) :
     indexEquiv width ((encoding width).encode state) =
       (encoding width).encode (exchange state) := by
   change PreparedFrame.registerLabelEquiv width
@@ -87,7 +89,7 @@ def physicalMap (width wire : Nat) : Nat :=
   then wire - 2 * width.size else wire
 
 /-- The same actual interval map is its inverse, including empty length blocks. -/
-theorem physicalMap_twice (width wire : Nat) :
+lemma physicalMap_twice (width wire : Nat) :
     physicalMap width (physicalMap width wire) = wire := by
   unfold physicalMap
   split_ifs <;> omega
@@ -99,7 +101,7 @@ def physicalEquiv (width : Nat) : Equiv.Perm Nat where
   left_inv := physicalMap_twice width
   right_inv := physicalMap_twice width
 
-theorem physical_quotient (width : Nat) (index : Fin width.size) :
+lemma physical_quotient (width : Nat) (index : Fin width.size) :
     physicalEquiv width (quotientLengthBit width index).wire.val =
       (shiftBit width index).wire.val := by
   rw [quotientLengthBit_wire, shiftBit_wire]
@@ -108,7 +110,7 @@ theorem physical_quotient (width : Nat) (index : Fin width.size) :
   unfold physicalMap
   split_ifs <;> omega
 
-theorem physical_shift (width : Nat) (index : Fin width.size) :
+lemma physical_shift (width : Nat) (index : Fin width.size) :
     physicalEquiv width (shiftBit width index).wire.val =
       (quotientLengthBit width index).wire.val := by
   rw [shiftBit_wire, quotientLengthBit_wire]
@@ -118,7 +120,7 @@ theorem physical_shift (width : Nat) (index : Fin width.size) :
   split_ifs <;> omega
 
 /-- Every actual wire outside both exchanged intervals keeps its original identity. -/
-theorem physical_fixed (width wire : Nat)
+lemma physical_fixed (width wire : Nat)
     (outsideQuotient : ¬(2 * (width + 3) + width.size ≤ wire ∧
       wire < 2 * (width + 3) + 2 * width.size))
     (outsideShift : ¬(2 * (width + 3) + 3 * width.size ≤ wire ∧
@@ -128,7 +130,7 @@ theorem physical_fixed (width wire : Nat)
   simp only [physicalMap, if_neg outsideQuotient, if_neg outsideShift]
 
 /-- The entire original dirty Work1 keeps its physical positions. -/
-theorem physical_firstWord (width : Nat) (index : Fin (width + 3)) :
+lemma physical_firstWord (width : Nat) (index : Fin (width + 3)) :
     physicalEquiv width (firstWordBit width index).wire.val =
       (firstWordBit width index).wire.val := by
   apply physical_fixed <;> rw [firstWordBit_wire]
@@ -137,7 +139,7 @@ theorem physical_firstWord (width : Nat) (index : Fin (width + 3)) :
     omega
 
 /-- Work2 also keeps all of its original physical positions. -/
-theorem physical_secondWord (width : Nat) (index : Fin (width + 3)) :
+lemma physical_secondWord (width : Nat) (index : Fin (width + 3)) :
     physicalEquiv width (secondWordBit width index).wire.val =
       (secondWordBit width index).wire.val := by
   apply physical_fixed <;> rw [secondWordBit_wire]
@@ -145,7 +147,7 @@ theorem physical_secondWord (width : Nat) (index : Fin (width + 3)) :
     have within := index.isLt
     omega
 
-theorem physical_coefficientLength (width : Nat) (index : Fin width.size) :
+lemma physical_coefficientLength (width : Nat) (index : Fin width.size) :
     physicalEquiv width (coefficientLengthBit width index).wire.val =
       (coefficientLengthBit width index).wire.val := by
   apply physical_fixed <;> rw [coefficientLengthBit_wire]
@@ -153,7 +155,7 @@ theorem physical_coefficientLength (width : Nat) (index : Fin width.size) :
     have within := index.isLt
     omega
 
-theorem physical_divisorLength (width : Nat) (index : Fin width.size) :
+lemma physical_divisorLength (width : Nat) (index : Fin width.size) :
     physicalEquiv width (divisorLengthBit width index).wire.val =
       (divisorLengthBit width index).wire.val := by
   apply physical_fixed <;> rw [divisorLengthBit_wire]
@@ -162,13 +164,13 @@ theorem physical_divisorLength (width : Nat) (index : Fin width.size) :
     omega
 
 /-- All five original controls lie after both exchanged length blocks and are fixed. -/
-theorem physical_control_region (width wire : Nat)
+lemma physical_control_region (width wire : Nat)
     (afterLengths : 2 * (width + 3) + 4 * width.size ≤ wire) :
     physicalEquiv width wire = wire := by
   apply physical_fixed <;> omega
 
 /-- Placement never moves an original frame wire outside the original complete frame. -/
-theorem physical_lt (width wire : Nat) (within : wire < (encoding width).width) :
+lemma physical_lt (width wire : Nat) (within : wire < (encoding width).width) :
     physicalEquiv width wire < (encoding width).width := by
   rw [encoding_width] at within ⊢
   change physicalMap width wire < _
@@ -189,7 +191,7 @@ def placement (width : Nat) :
   EncodedBit.FullPlacement.ofWires (encoding width) (encoding width)
     (encoding_surjective width) (encoding_surjective width) (wireEquiv width)
 
-private theorem placed_read (width : Nat) (state : Registers width)
+private lemma placed_read (width : Nat) (state : Registers width)
     (source target : EncodedBit (encoding width))
     (same : wireEquiv width source.wire = target.wire) :
     source.get ((placement width).grouping state) = target.get state :=
@@ -197,7 +199,7 @@ private theorem placed_read (width : Nat) (state : Registers width)
     (encoding_surjective width) (encoding_surjective width)
     (wireEquiv width) source target same state
 
-private theorem fixed_read (width : Nat) (state : Registers width)
+private lemma fixed_read (width : Nat) (state : Registers width)
     (bit : EncodedBit (encoding width))
     (fixed : physicalEquiv width bit.wire.val = bit.wire.val) :
     bit.get ((placement width).grouping state) = bit.get state := by
@@ -205,7 +207,7 @@ private theorem fixed_read (width : Nat) (state : Registers width)
   exact Fin.ext fixed
 
 /-- The full wire-derived grouping exchanges exactly the quotient and shift fields. -/
-theorem placement_grouping (width : Nat) (state : Registers width) :
+lemma placement_grouping (width : Nat) (state : Registers width) :
     (placement width).grouping state = exchange state := by
   apply Registers.ext_fields
   · apply BitVec.eq_of_getMsbD_eq
@@ -275,7 +277,7 @@ theorem placement_grouping (width : Nat) (state : Registers width) :
     rw [controlBit_get, controlBit_get] at actual
     exact actual
 
-theorem placement_grouping_eq (width : Nat) :
+lemma placement_grouping_eq (width : Nat) :
     (placement width).grouping = fieldEquiv width := by
   apply Equiv.ext
   exact placement_grouping width
@@ -294,19 +296,20 @@ def placedStep {width : Nat} (action : Registers width → Registers width)
   exchange (action (exchange state))
 
 /-- Actual native action under the complete physical field placement. -/
-theorem place_realizes (width : Nat)
+lemma place_realizes (width : Nat)
     {body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum}
     {action : Registers width → Registers width}
-    (realizes : UnitaryCircuit.Realizes (encoding width) body action) :
-    UnitaryCircuit.Realizes (encoding width) (place width body) (placedStep action) := by
+    (realizes : UnitaryCircuit.Realizes (encoding width) body environment action) :
+    UnitaryCircuit.Realizes (encoding width) (place width body) environment (placedStep action) :=
+      by
   apply ((placement width).place_realizes realizes).congrStep
   intro state
   simp only [EncodedBit.FullPlacement.step, placement_grouping_eq, fieldEquiv,
     Equiv.coe_fn_mk, Equiv.coe_fn_symm_mk, placedStep]
 
 /-- Placement preserves the exact ordered native event trace. -/
-theorem place_eventTrace (width : Nat)
+lemma place_eventTrace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum) :
     (place width body).eventTrace = body.eventTrace :=

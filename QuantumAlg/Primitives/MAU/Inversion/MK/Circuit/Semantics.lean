@@ -39,7 +39,7 @@ set_option maxHeartbeats 2000000 in
 -- The four exact word bridges normalize the literal routed gate stages.
 /-- On the active `uEven` branch, the complete compact body has exactly the
 source-level Montgomery--Kaliski data semantics. -/
-theorem activeBranchBody_uEven_sourceStep
+lemma activeBranchBody_uEven_sourceStep
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -218,7 +218,7 @@ set_option maxHeartbeats 2000000 in
 -- The four exact word bridges normalize the literal routed gate stages.
 /-- On the active `vEven` branch, the complete compact body has exactly the
 source-level Montgomery--Kaliski data semantics. -/
-theorem activeBranchBody_vEven_sourceStep
+lemma activeBranchBody_vEven_sourceStep
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -401,7 +401,7 @@ set_option maxHeartbeats 2000000 in
 -- The selected odd path combines two restored VBE uses with the routed shift.
 /-- The selected compare-true odd route has the exact `uGreater` source
 semantics before the reusable route-cleanup suffix. -/
-theorem selectedOddDataThenBranchHistoryShift_uGreater_sourceStep
+lemma selectedOddDataThenBranchHistoryShift_uGreater_sourceStep
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -578,7 +578,7 @@ set_option maxHeartbeats 2000000 in
 -- The selected odd path combines two restored VBE uses with the routed shift.
 /-- The selected compare-false odd route has the exact `vLe` source semantics
 before the reusable route-cleanup suffix. -/
-theorem selectedOddDataThenBranchHistoryShift_vLe_sourceStep
+lemma selectedOddDataThenBranchHistoryShift_vLe_sourceStep
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -752,7 +752,7 @@ theorem selectedOddDataThenBranchHistoryShift_vLe_sourceStep
     hroutedU, hroutedVVal, hroutedRVal, hroutedSVal, hroutedActive,
     Nat.add_comm]
 
-private theorem arithmeticCertificate_setCompare
+private lemma arithmeticCertificate_setCompare
     (tail counterWidth : Nat)
     (core : MK.Registers tail.succ counterWidth) (compare : Bool)
     (arith : ModeControlledSemanticStepArithmeticCertificate
@@ -776,7 +776,7 @@ set_option maxHeartbeats 2000000 in
 -- Selector normalization and five cleanup projections cross the literal body.
 /-- On the active odd `uGreater` branch, the complete compact body has exactly
 the source-level Montgomery--Kaliski data semantics. -/
-theorem activeBranchBody_uGreater_sourceStep
+lemma activeBranchBody_uGreater_sourceStep
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -949,7 +949,7 @@ set_option maxHeartbeats 2000000 in
 -- Selector normalization and five cleanup projections cross the literal body.
 /-- On the active odd `vLe` branch, the complete compact body has exactly the
 source-level Montgomery--Kaliski data semantics. -/
-theorem activeBranchBody_vLe_sourceStep
+lemma activeBranchBody_vLe_sourceStep
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1122,7 +1122,7 @@ set_option maxHeartbeats 2000000 in
 -- This symbolic split reuses the four branch proofs without enumerating words.
 /-- The complete compact active body implements one source Montgomery--Kaliski
 round.  The proof classifies only the two low bits and the strict comparison. -/
-theorem activeBranchBody_sourceRound
+lemma activeBranchBody_sourceRound
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))

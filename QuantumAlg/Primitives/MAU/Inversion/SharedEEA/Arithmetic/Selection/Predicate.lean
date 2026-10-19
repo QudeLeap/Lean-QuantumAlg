@@ -29,6 +29,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticSelectionPredicate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit ArithmeticSelectionLayout NativePredicate
 
 /-- A compile-time pattern over exactly the retained physical selector sources. -/
@@ -50,7 +52,7 @@ def gates (width : Nat) (includeSign : Bool) (expected : Pattern width includeSi
   (layout width includeSign).patternGates expected
 
 /-- Complete actual predicate execution changes only Ctrl, with no initialization premise. -/
-theorem gates_step (width : Nat) (includeSign : Bool) (expected : Pattern width includeSign)
+lemma gates_step (width : Nat) (includeSign : Bool) (expected : Pattern width includeSign)
     (state : Registers width) :
     GateSpec.stepList (gates width includeSign expected) state =
       xorControl (condition expected state) state :=
@@ -58,7 +60,7 @@ theorem gates_step (width : Nat) (includeSign : Bool) (expected : Pattern width 
     (NativePredicate.conditional_flip_xor (Matches expected state) state)
 
 /-- Changing only Ctrl preserves every actually read source coordinate. -/
-theorem condition_xorControl (width : Nat) (includeSign : Bool)
+lemma condition_xorControl (width : Nat) (includeSign : Bool)
     (expected : Pattern width includeSign) (value : Bool) (state : Registers width) :
     condition expected (xorControl value state) = condition expected state := by
   have retained : ∀ index,
@@ -72,7 +74,7 @@ theorem condition_xorControl (width : Nat) (includeSign : Bool)
   simp only [condition, Matches, Word.OneDirtyLayout.PatternMatches, retained]
 
 /-- The actual inverse native list has the same full-frame xor law, retaining arbitrary Iter. -/
-theorem reverse_step (width : Nat) (includeSign : Bool) (expected : Pattern width includeSign)
+lemma reverse_step (width : Nat) (includeSign : Bool) (expected : Pattern width includeSign)
     (state : Registers width) :
     GateSpec.stepList (gates width includeSign expected).reverse state =
       xorControl (condition expected state) state :=
@@ -87,21 +89,21 @@ def program (width : Nat) (includeSign : Bool) (expected : Pattern width include
     (gates width includeSign expected)
 
 /-- Exact normalized basis amplitudes of the same actual equality program. -/
-theorem program_realizes (width : Nat) (includeSign : Bool)
+lemma program_realizes (width : Nat) (includeSign : Bool)
     (expected : Pattern width includeSign) :
-    UnitaryCircuit.Realizes (encoding width) (program width includeSign expected)
+    UnitaryCircuit.Realizes (encoding width) (program width includeSign expected) environment
       (fun state => xorControl (condition expected state) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width includeSign expected) (gates_step width includeSign expected)
+    (gates width includeSign expected) (gates_step width includeSign expected) environment
 
 /-- The implementation has a proved linear elementary gate bound for each fixed pattern. -/
-theorem gates_length_le (width : Nat) (includeSign : Bool)
+lemma gates_length_le (width : Nat) (includeSign : Bool)
     (expected : Pattern width includeSign) :
     (gates width includeSign expected).length ≤ 10 * sourceCount width includeSign + 1 :=
   (layout width includeSign).patternGates_length_le expected
 
 /-- Unit depth is the actual emitted primitive count, including both masks and all dirty cleanup. -/
-theorem program_unitDepth (width : Nat) (includeSign : Bool)
+lemma program_unitDepth (width : Nat) (includeSign : Bool)
     (expected : Pattern width includeSign) :
     (program width includeSign expected).evaluatedEventDepth (fun _ => 1) =
       (gates width includeSign expected).length :=

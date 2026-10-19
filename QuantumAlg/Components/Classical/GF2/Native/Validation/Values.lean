@@ -31,13 +31,13 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
+private lemma avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 omit [BitWord.Selected model] in
-private theorem bit_word_ne (bit : CWriteRef ctx .bit)
+private lemma bit_word_ne (bit : CWriteRef ctx .bit)
     (word : CWriteRef ctx (.unsignedWord width)) : bit.key ≠ word.key := by
   intro same
   have impossible := CStorageRef.storageRef_shape_eq_of_key bit.toCStorageRef
@@ -45,7 +45,7 @@ private theorem bit_word_ne (bit : CWriteRef ctx .bit)
   cases impossible
 
 /-- The actual AND output is consumed by the following XOR on the original parity. -/
-theorem gf2ValidationColumn_parity
+lemma gf2ValidationColumn_parity
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width) (store : Store ctx)
@@ -82,7 +82,7 @@ theorem gf2ValidationColumn_parity
   rfl
 
 /-- A real validation column writes only the actual product and parity cells. -/
-theorem gf2ValidationColumn_read_other
+lemma gf2ValidationColumn_read_other
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width) (store : Store ctx)
@@ -99,7 +99,7 @@ theorem gf2ValidationColumn_read_other
       (validationProductOp input candidate product row column) other productFree]
 
 /-- The ordered actual column fold preserves every read outside its two temporary cells. -/
-theorem gf2ValidationColumns_read_other
+lemma gf2ValidationColumns_read_other
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (count : Nat) (indices : Fin count → Fin width) (store : Store ctx)
@@ -121,7 +121,7 @@ theorem gf2ValidationColumns_read_other
         (gf2ValidationColumn_read_other input candidate parity product row (indices 0)
           store other parityFree productFree)
 
-private theorem column_parity
+private lemma column_parity
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width) (store : Store ctx)
@@ -141,7 +141,7 @@ private theorem column_parity
   simp only [CShape.Value.toBool, CShape.Value.bitGet, CShape.Value.wordBitGet]
   simp only [ClassicalAlgorithms.GF2.testBit_machine_coordinate]
 
-private theorem columns_parity
+private lemma columns_parity
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (count : Nat) (indices : Fin count → Fin width) (store : Store ctx)
@@ -183,7 +183,7 @@ private theorem columns_parity
           rowWord candidateWord sampleValue candidateValue, List.ofFn_succ, List.foldl_cons]
 
 /-- The same actual width traversal computes the original ordered Boolean parity. -/
-theorem gf2ValidationColumns_parity
+lemma gf2ValidationColumns_parity
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (store : Store ctx) (separate : product.key ≠ parity.key)
@@ -205,7 +205,7 @@ theorem gf2ValidationColumns_parity
     store separate parityFree productFree rowWord candidateWord sampleValue candidateValue
 
 /-- After the real row clear, the actual final parity is false exactly for a zero dot product. -/
-theorem gf2ValidationColumns_zero_iff
+lemma gf2ValidationColumns_zero_iff
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (store : Store ctx) (separate : product.key ≠ parity.key)
@@ -228,7 +228,7 @@ theorem gf2ValidationColumns_zero_iff
 
 omit [BitWord.Selected model] in
 /-- The original decoder and the original word-bit read use the same ordered sample bits. -/
-theorem gf2ValidationDecodedBits (value : CShape.Value (.bits width)) :
+lemma gf2ValidationDecodedBits (value : CShape.Value (.bits width)) :
     value = .bits (ClassicalAlgorithms.GF2.testBit (ClassicalAlgorithms.TerminalDecode.eval
       (TerminalDecode.decodeInput .bigEndian value))) := by
   cases value with

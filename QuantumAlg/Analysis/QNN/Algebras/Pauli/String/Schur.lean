@@ -80,7 +80,7 @@ is genuinely proved from the symplectic Pauli structure, with `gTensorGInvariant
 of the simple-algebra invariant-line characterization
 [RBS+23, Arxiv_Final.tex:1263-1280]; the Lean statement also includes the
 zero-dimensional `n = 0` case. -/
-public theorem suHermBasis_schur (n : ℕ) :
+public lemma suHermBasis_schur (n : ℕ) :
     gTensorGInvariant (suHermBasis n) = Submodule.span ℂ {(suHermBasis n).casimir} :=
   (suSchurFamily n).schur
 

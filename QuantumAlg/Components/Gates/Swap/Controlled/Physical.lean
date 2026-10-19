@@ -38,7 +38,7 @@ private def positions : Fin 3 ↪ Fin count where
     fin_cases first <;> fin_cases second <;> simp_all
 
 include controlQubit leftQubit rightQubit in
-private theorem dimensions (index : Fin 3) :
+private lemma dimensions (index : Fin 3) :
     (layout.wire index).dimension =
       (ambient.wire
         (positions control left right controlLeft controlRight leftRight index)).dimension := by
@@ -63,23 +63,24 @@ public def circuitAt (oracles : OracleModel) :
       controlQubit leftQubit rightQubit) (circuit oracles)
 
 /-- Exact target semantics holds on all selected and unselected systems jointly. -/
-public theorem controlledSwap_circuitAt_matrix (oracles : OracleModel) :
-    (circuitAt ambient control left right controlLeft controlRight leftRight
-      controlQubit leftQubit rightQubit oracles).matrix =
+public lemma controlledSwap_circuitAt_matrix (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    ((circuitAt ambient control left right controlLeft controlRight leftRight
+      controlQubit leftQubit rightQubit oracles).matrix environment) =
       placedOperator ambient control left right controlLeft controlRight leftRight
         controlQubit leftQubit rightQubit := by
   rw [circuitAt, UnitaryCircuit.placeAt_matrix, controlledSwap_circuit_matrix]
   rfl
 
 /-- Physical placement preserves the complete native event order. -/
-public theorem controlledSwap_circuitAt_events (oracles : OracleModel) :
+public lemma controlledSwap_circuitAt_events (oracles : OracleModel) :
     (circuitAt ambient control left right controlLeft controlRight leftRight
       controlQubit leftQubit rightQubit oracles).eventTrace =
       [.gate .cnot, .gate .toffoli, .gate .cnot] := by
   rw [circuitAt, UnitaryCircuit.placeAt_eventTrace, controlledSwap_circuit_events]
 
 /-- The actual dependency depth remains three after placement. -/
-public theorem controlledSwap_circuitAt_unit_depth (oracles : OracleModel) :
+public lemma controlledSwap_circuitAt_unit_depth (oracles : OracleModel) :
     (circuitAt ambient control left right controlLeft controlRight leftRight
       controlQubit leftQubit rightQubit oracles).evaluatedEventDepth (fun _ => 1) = 3 := by
   change DepthExpr.depthEval (fun _ => 1)

@@ -54,7 +54,7 @@ def refreshStep {model : ExecutionModel} [BitWord.Selected model]
   let sixth := entryStep (model := model) basis refs .g33 fifth.1
   (sixth.1, (first.2, (second.2, (third.2, (fourth.2, (fifth.2, sixth.2))))))
 
-theorem refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (store : Store ctx) :
     (refreshStep (model := model) basis refs store).1 =
@@ -68,12 +68,13 @@ def refreshPath {model : ExecutionModel} [BitWord.Selected model]
   (refreshStep (model := model) basis refs store).2
 
 /-- Full actual execution preserves histories and all quantum-reference correlations. -/
-theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (refreshInto (model := model) basis refs).execute Reference state =
+    (refreshInto (model := model) basis refs).execute environment Reference state =
       state.mapClassical (fun record =>
         let actual := refreshStep (model := model) basis refs record.1
         (actual.1, (record.2.1, (record.2.2, actual.2)))) := by
@@ -83,7 +84,7 @@ theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual caller read outside the seven written cells is unchanged. -/
-theorem refreshInto_callerFrame (basis : LatticeState.BasisRefs ctx width)
+lemma refreshInto_callerFrame (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell, metricCellKey refs cell ∉ other.storageKeys) :
     (refreshStore basis refs store).read other = store.read other := by

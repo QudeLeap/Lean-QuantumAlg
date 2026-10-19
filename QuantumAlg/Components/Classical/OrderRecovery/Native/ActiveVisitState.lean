@@ -26,12 +26,12 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
 
-private theorem cell_key_mem {shape : CShape} (cell : CWriteRef ctx shape) :
+private lemma cell_key_mem {shape : CShape} (cell : CWriteRef ctx shape) :
     cell.key ∈ ctx.keys :=
   (cellRead cell).storageKeys_subset_context (List.mem_singleton_self cell.key)
 
 /-- Every persistent scan write is an actual cell of the current context. -/
-theorem nativeScan_writeKeys_subset_context {width : Nat}
+lemma nativeScan_writeKeys_subset_context {width : Nat}
     (cells : ScanCells ctx modulusWidth width) : cells.writeKeys ⊆ ctx.keys := by
   intro key member
   simp only [ScanCells.writeKeys, List.mem_cons, List.not_mem_nil, or_false] at member
@@ -49,7 +49,7 @@ theorem nativeScan_writeKeys_subset_context {width : Nat}
   · exact cell_key_mem cells.valid
 
 /-- The actual fresh division head is different from every persistent lifted write. -/
-theorem nativeScan_division_writeKeys_separate {width : Nat}
+lemma nativeScan_division_writeKeys_separate {width : Nat}
     (cells : ScanCells ctx modulusWidth width) :
     ∀ key ∈ (cells.underWorkspace ctx.canonicalFreshKey (cursorDivisionShape width)
       ctx.canonicalFreshKey_fresh).writeKeys, (scanDivisionCell ctx width).key ≠ key := by
@@ -61,7 +61,7 @@ theorem nativeScan_division_writeKeys_separate {width : Nat}
   exact nativeScan_writeKeys_subset_context cells member
 
 /-- Popping the genuine workspace exposes the same pending cursor observations. -/
-theorem nativeScan_pendingReads_popWorkspace
+lemma nativeScan_pendingReads_popWorkspace
     (cells : ScanCells ctx modulusWidth (phaseBits + 1))
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key shape fresh))
@@ -83,7 +83,7 @@ theorem nativeScan_pendingReads_popWorkspace
       (cellRead cells.accepted)).trans reads.accepted
 
 /-- Popping the genuine workspace exposes the same selected word and frozen latches. -/
-theorem nativeScan_chosenReads_popWorkspace
+lemma nativeScan_chosenReads_popWorkspace
     (cells : ScanCells ctx modulusWidth (phaseBits + 1))
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key shape fresh)) (candidate : Nat)
@@ -98,7 +98,7 @@ theorem nativeScan_chosenReads_popWorkspace
       (cellRead cells.cursor.active)).trans reads.inactive
 
 /-- A complete actual active visit follows the source decision with fresh division facts proved. -/
-theorem nativeScan_activeVisit_source_decision {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeScan_activeVisit_source_decision {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)

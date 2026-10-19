@@ -30,7 +30,7 @@ variable {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω}
 
 /-- For a `[0,1]`-valued random variable on a probability space, the variance is at most
 the mean (since `X² ≤ X`). -/
-theorem variance_le_mean [IsProbabilityMeasure μ] {X : Ω → ℝ}
+lemma variance_le_mean [IsProbabilityMeasure μ] {X : Ω → ℝ}
     (hX : MemLp X 2 μ) (h0 : 0 ≤ᵐ[μ] X) (h1 : X ≤ᵐ[μ] 1) :
     variance X μ ≤ ∫ ω, X ω ∂μ := by
   refine (variance_le_expectation_sq hX.aestronglyMeasurable).trans ?_
@@ -54,7 +54,7 @@ public def ExpConcentratedProb {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω 
 
 /-- An exponentially small variance gives probabilistic exponential concentration
 (Chebyshev applied uniformly in `n`). -/
-theorem expConcentratedProb_of_variance_le {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
+lemma expConcentratedProb_of_variance_le {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
     (μ : (n : ℕ) → Measure (Ω n)) [∀ n, IsProbabilityMeasure (μ n)]
     (X : (n : ℕ) → Ω n → ℝ) (hmem : ∀ n, MemLp (X n) 2 (μ n))
     {b : ℝ} (hb : 1 < b) {C : ℝ} (hC : 0 ≤ C)
@@ -68,7 +68,7 @@ theorem expConcentratedProb_of_variance_le {Ω : ℕ → Type*} [∀ n, Measurab
   exact hvar n
 
 /-- A `[0,1]`-valued family with exponentially small mean concentrates exponentially. -/
-private theorem expConcentratedProb_of_mean_le {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
+private lemma expConcentratedProb_of_mean_le {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
     (μ : (n : ℕ) → Measure (Ω n)) [∀ n, IsProbabilityMeasure (μ n)]
     (X : (n : ℕ) → Ω n → ℝ) (hmem : ∀ n, MemLp (X n) 2 (μ n))
     (h0 : ∀ n, 0 ≤ᵐ[μ n] X n) (h1 : ∀ n, X n ≤ᵐ[μ n] 1)
@@ -81,7 +81,7 @@ private theorem expConcentratedProb_of_mean_le {Ω : ℕ → Type*} [∀ n, Meas
 /-- Under exponential concentration, the deviation probability vanishes as `n → ∞`
 (for each fixed `δ > 0`): the landscape becomes flat and a polynomial shot budget cannot
 resolve the kernel. -/
-theorem ExpConcentratedProb.tendsto_zero {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
+lemma ExpConcentratedProb.tendsto_zero {Ω : ℕ → Type*} [∀ n, MeasurableSpace (Ω n)]
     {μ : (n : ℕ) → Measure (Ω n)} {X : (n : ℕ) → Ω n → ℝ}
     (h : ExpConcentratedProb μ X) {δ : ℝ} (hδ : 0 < δ) :
     Filter.Tendsto

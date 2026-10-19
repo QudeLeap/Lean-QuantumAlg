@@ -22,7 +22,7 @@ open NormalizedVector
 
 noncomputable section
 
-private theorem outerProdEquiv_symm_tripleEquiv (params : RegisterParameters)
+private lemma outerProdEquiv_symm_tripleEquiv (params : RegisterParameters)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell))
     (y : Fin (2 ^ params.workspaceBits)) :
     (prodEquiv
@@ -38,12 +38,12 @@ private theorem outerProdEquiv_symm_tripleEquiv (params : RegisterParameters)
 
 /-- Each terminal basis amplitude of the actual declared stage is the source's
 double inverse-Fourier sum over the encoded group-value fibers. -/
-theorem declaredCircuit_amplitude {N : Nat} {params : RegisterParameters}
+lemma declaredCircuit_amplitude {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (y : Fin (2 ^ params.workspaceBits)) :
-    (DeclaredStage.circuit encoding g x).binaryMatrix.applyVec
+    ((DeclaredStage.circuit N params g x).binaryMatrix (declaredInterpretation encoding)).applyVec
       (NormalizedVector.ket (R := Qubits (totalQubits params))
         (prodEquiv
           ((0 : Fin (2 ^ (firstBits params + params.ell))),
@@ -53,7 +53,7 @@ theorem declaredCircuit_amplitude {N : Nat} {params : RegisterParameters}
       circuitAmplitude encoding g x j k y := by
   rw [declared_circuit_apply_zeroVec]
   change HilbertOperator.applyVec
-      ((DeclaredStage.readout encoding).binaryMatrix :
+      (((DeclaredStage.readout N params).binaryMatrix (declaredInterpretation encoding)) :
         HilbertOperator (Qubits (totalQubits params)))
       (postOracleVec encoding g x)
       (tripleEquiv params ((j, k), y)) = _

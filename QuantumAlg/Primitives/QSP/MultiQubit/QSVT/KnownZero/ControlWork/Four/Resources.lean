@@ -18,7 +18,7 @@ The original control-work calls retain their complete native budgets.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.ControlWork.Four
 noncomputable section
 
-private theorem rotation_events (k n : Nat) (oracles : OracleModel) (a b c d : ℝ) :
+private lemma rotation_events (k n : Nat) (oracles : OracleModel) (a b c d : ℝ) :
     (rotation k n oracles a b c d).eventCost =
       4 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) +
@@ -32,7 +32,7 @@ private theorem rotation_events (k n : Nat) (oracles : OracleModel) (a b c d : �
   ac_rfl
 
 /-- The exact pool charges all actual native gates, with no source or projector queries. -/
-theorem controlWork_fourPhase_events (k n : Nat) (oracles : OracleModel)
+lemma controlWork_fourPhase_events (k n : Nat) (oracles : OracleModel)
     (a b c d : ℝ) :
     (phase k n oracles a b c d).eventCost =
       4 • ZeroProjector.SourceWork.budget oracles k +

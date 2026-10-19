@@ -47,7 +47,7 @@ def recoveryEvents (model : ExecutionModel) [BitWord.Selected model] (width : Na
     .classicalOperation (BitWord.selectedCoordinate (execution := model) (.nominalEncoding
       (.packProduct width 1)))]
 
-private theorem scopedMultiply_events
+private lemma scopedMultiply_events
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -58,7 +58,7 @@ private theorem scopedMultiply_events
     (underMultiply modulus width) (productCell ctx width) (divisionCell ctx width)
     (writeUnderMultiply output width) path
 
-private theorem recoveryBody_events (left right inverse : CInputRef ctx (.unsignedWord width))
+private lemma recoveryBody_events (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
     (verified : CWriteRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
@@ -79,7 +79,7 @@ private theorem recoveryBody_events (left right inverse : CInputRef ctx (.unsign
   rfl
 
 /-- The actual circuit emits exactly both reductions, equality and product materialization. -/
-theorem withRecovery_eventTrace (input : CInputRef ctx (InputShape width))
+lemma withRecovery_eventTrace (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -92,7 +92,7 @@ theorem withRecovery_eventTrace (input : CInputRef ctx (InputShape width))
     (writeUnderRecovery output width) path
 
 /-- The complete exact native pool is read from the actual chronological event list. -/
-theorem withRecovery_resourcePool (input : CInputRef ctx (InputShape width))
+lemma withRecovery_resourcePool (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -101,7 +101,7 @@ theorem withRecovery_resourcePool (input : CInputRef ctx (InputShape width))
   congrArg ResourcePool.ofList (withRecovery_eventTrace input modulus output path)
 
 /-- Both full native multiplications are charged together with the final comparison and pack. -/
-theorem withRecovery_pool (input : CInputRef ctx (InputShape width))
+lemma withRecovery_pool (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -117,7 +117,7 @@ theorem withRecovery_pool (input : CInputRef ctx (InputShape width))
     multiplyEnvelope, add_zero, add_assoc]
 
 /-- Every actual path performs eight charged native operations. -/
-theorem withRecovery_eventCount (input : CInputRef ctx (InputShape width))
+lemma withRecovery_eventCount (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -126,7 +126,7 @@ theorem withRecovery_eventCount (input : CInputRef ctx (InputShape width))
   rfl
 
 /-- Arbitrary durations retain both modular-product dependencies and the final check and pack. -/
-theorem withRecovery_durationDepth (input : CInputRef ctx (InputShape width))
+lemma withRecovery_durationDepth (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
     (path : (withRecovery (model := model) input modulus output).Path) :
@@ -152,14 +152,14 @@ theorem withRecovery_durationDepth (input : CInputRef ctx (InputShape width))
   omega
 
 /-- Unit-duration dependency depth is exactly eight. -/
-theorem withRecovery_depth (input : CInputRef ctx (InputShape width))
+lemma withRecovery_depth (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
     (withRecovery (model := model) input modulus output).depth (fun _ => 1) path = 8 := rfl
 
 /-- Complete chronological context visits include both releases of the reused arithmetic scope. -/
-theorem withRecovery_visitedContexts (input : CInputRef ctx (InputShape width))
+lemma withRecovery_visitedContexts (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -181,19 +181,19 @@ def recoveryScratchSpace {kind : ProblemKind} (width : Nat) : SpacePool kind :=
       SpacePool.ofShape (.unsignedWord width)
 
 /-- The real scratch shapes total precisely seven word widths and two classical bits. -/
-theorem recoveryScratchSpace_eq_bits (kind : ProblemKind) (width : Nat) :
+lemma recoveryScratchSpace_eq_bits (kind : ProblemKind) (width : Nat) :
     recoveryScratchSpace (kind := kind) width = SpacePool.ofShape (.bits (7 * width + 2)) := by
   funext axis
   cases axis <;> simp [recoveryScratchSpace, divisionShape, SpacePool.ofShape]
   omega
 
-private theorem recoveryVisits_member {α : Type} (a b c d e f x : α)
+private lemma recoveryVisits_member {α : Type} (a b c d e f x : α)
     (present : x ∈ [a, b, c, d, e, f, f, f, e, d, d, e, f, f, f, e, d, d, d, c, b, a]) :
     x = a ∨ x = b ∨ x = c ∨ x = d ∨ x = e ∨ x = f := by
   simp only [List.mem_cons, List.not_mem_nil, or_false] at present
   tauto
 
-private theorem withRecovery_visited (input : CInputRef ctx (InputShape width))
+private lemma withRecovery_visited (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path)
@@ -206,7 +206,7 @@ private theorem withRecovery_visited (input : CInputRef ctx (InputShape width))
   rw [withRecovery_visitedContexts] at present
   exact recoveryVisits_member _ _ _ _ _ _ visited present
 
-private theorem withRecovery_scoped_mem (input : CInputRef ctx (InputShape width))
+private lemma withRecovery_scoped_mem (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -216,7 +216,7 @@ private theorem withRecovery_scoped_mem (input : CInputRef ctx (InputShape width
   simp only [List.mem_cons, List.not_mem_nil, or_false, true_or, or_true]
 
 /-- Exact resident peak includes every original entry and all simultaneously live scratch. -/
-theorem withRecovery_resident (input : CInputRef ctx (InputShape width))
+lemma withRecovery_resident (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :
@@ -242,7 +242,7 @@ theorem withRecovery_resident (input : CInputRef ctx (InputShape width))
       RuntimeCtx.residentSpace_addWorkspace, recoveryScratchSpace, add_assoc])
 
 /-- Exact auxiliary peak includes every original entry and all simultaneously live scratch. -/
-theorem withRecovery_auxiliary (input : CInputRef ctx (InputShape width))
+lemma withRecovery_auxiliary (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (path : (withRecovery (model := model) input
       modulus output).Path) :

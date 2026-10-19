@@ -61,20 +61,20 @@ public def nativeApplication {n : Nat} (layout : QubitLayout n) (primitive : Qub
           fin_cases left <;> fin_cases right <;> simp_all⟩ (fun _ => rfl)
 
 /-- Placement retains the model instance, including the exact X operator parameter. -/
-public theorem nativeApplication_token {n : Nat} (layout : QubitLayout n)
+public lemma nativeApplication_token {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) :
     (nativeApplication layout primitive).occurrence.token = nativeToken primitive := by
   cases primitive <;> rfl
 
 /-- The native resource coordinate follows that same actual token. -/
-public theorem nativeApplication_coordinate {n : Nat} (layout : QubitLayout n)
+public lemma nativeApplication_coordinate {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) :
     (nativeApplication layout primitive).coordinate =
       AlgorithmGate.model.coordinate (nativeToken primitive) := by
   cases primitive <;> rfl
 
 /-- Only the addressed arguments occur in the native footprint, in their original order. -/
-public theorem nativeApplication_physicalFootprint {n : Nat} (layout : QubitLayout n)
+public lemma nativeApplication_physicalFootprint {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) :
     (nativeApplication layout primitive).occurrence.placement.layout.identities =
       (nativePositions primitive).map layout.physical_idx := by

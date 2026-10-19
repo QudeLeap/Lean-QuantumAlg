@@ -81,7 +81,7 @@ def fourierNormalization (params : RegisterParameters) : Complex :=
 
 /-- Squared common normalization in source cardinality form: one reciprocal
 factor for preparation and one for inverse QFT on each exponent register. -/
-theorem norm_sq_fourierNormalization (params : RegisterParameters) :
+lemma norm_sq_fourierNormalization (params : RegisterParameters) :
     ‖fourierNormalization params‖ ^ 2 =
       ((2 : Real) ^ firstBits params)⁻¹ *
         ((2 : Real) ^ params.ell)⁻¹ *
@@ -104,7 +104,7 @@ theorem norm_sq_fourierNormalization (params : RegisterParameters) :
 
 /-- Source-shaped normalization `2^{-2(m+2ℓ)}` from Eq. (2)'s probability
 denominator [E23, arxiv-v5.tex:233-264]. -/
-theorem norm_sq_fourierNormalization_source (params : RegisterParameters) :
+lemma norm_sq_fourierNormalization_source (params : RegisterParameters) :
     ‖fourierNormalization params‖ ^ 2 =
       (((2 : Real) ^ (2 * (params.m + 2 * params.ell))))⁻¹ := by
   rw [norm_sq_fourierNormalization]
@@ -180,7 +180,7 @@ def principalSecondIndex {params : RegisterParameters} (secret : Nat)
 
 /-- The canonical companion realizes exactly the centered `2^m` residue,
 including the negative half of the narrow source window. -/
-theorem centeredPhaseFrequency_principalSecondIndex
+lemma centeredPhaseFrequency_principalSecondIndex
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) :
     centeredPhaseFrequency secret j (principalSecondIndex secret j) =
@@ -341,7 +341,7 @@ def firstIndexFromBlocks (params : RegisterParameters)
     (finProdFinEquiv (high, low))
 
 @[simp]
-theorem firstIndexFromBlocks_val (params : RegisterParameters)
+lemma firstIndexFromBlocks_val (params : RegisterParameters)
     (high : Fin (2 ^ params.ell)) (low : Fin (2 ^ params.m)) :
     (firstIndexFromBlocks params high low).val =
       low.val + 2 ^ params.m * high.val := by
@@ -350,7 +350,7 @@ theorem firstIndexFromBlocks_val (params : RegisterParameters)
 /-- At least half of the actual first-register outcomes have `secret*j`
 inside the centered quarter-window modulo `2^m`.  This lifts the quantum-free
 two-adic count through all `2^ell` high-bit repetitions. -/
-theorem firstRegister_narrowGood_card_ge
+lemma firstRegister_narrowGood_card_ge
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -441,7 +441,7 @@ def narrowGoodFirstIndices (params : RegisterParameters) (secret : Nat) :
 /-- The actual two-register outcome space contains at least
 `2^(m+ell-1)` narrow good pairs.  Each good first-register outcome is paired
 with its canonical second-register companion. -/
-theorem narrowGoodPair_card_ge
+lemma narrowGoodPair_card_ge
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -481,7 +481,7 @@ theorem narrowGoodPair_card_ge
 
 /-- There are enough narrow-good first-register indices to select exactly the
 source lower-bound cardinality. -/
-theorem exists_exactNarrowGoodFirstIndices
+lemma exists_exactNarrowGoodFirstIndices
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -503,7 +503,7 @@ noncomputable def exactNarrowGoodFirstIndices
   Classical.choose
     (exists_exactNarrowGoodFirstIndices secret hm hsecretPos hsecretLt)
 
-theorem exactNarrowGoodFirstIndices_subset
+lemma exactNarrowGoodFirstIndices_subset
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -512,7 +512,7 @@ theorem exactNarrowGoodFirstIndices_subset
   (Classical.choose_spec
     (exists_exactNarrowGoodFirstIndices secret hm hsecretPos hsecretLt)).1
 
-theorem exactNarrowGoodFirstIndices_card
+lemma exactNarrowGoodFirstIndices_card
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -539,7 +539,7 @@ noncomputable def exactNarrowGoodCore
   (exactNarrowGoodFirstIndices secret hm hsecretPos hsecretLt).map
     (principalGoodPairEmbedding params secret)
 
-theorem exactNarrowGoodCore_card
+lemma exactNarrowGoodCore_card
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -548,7 +548,7 @@ theorem exactNarrowGoodCore_card
   rw [exactNarrowGoodCore, Finset.card_map,
     exactNarrowGoodFirstIndices_card]
 
-theorem exactNarrowGoodCore_mem_narrowGoodPairs
+lemma exactNarrowGoodCore_mem_narrowGoodPairs
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m)
@@ -589,7 +589,7 @@ def scaledFrequencyCenter {params : RegisterParameters} (secret : Nat)
 
 /-- The centered phase frequency is exactly the real lattice displacement
 from `secret*j / 2^m` to its integral scaled-frequency coordinate. -/
-theorem centeredPhaseFrequency_eq_base_sub_scaled
+lemma centeredPhaseFrequency_eq_base_sub_scaled
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     centeredPhaseFrequency secret j k =
@@ -648,7 +648,7 @@ theorem centeredPhaseFrequency_eq_base_sub_scaled
 
 /-- Absolute centered frequency equals the lattice spacing times the distance
 from the real center to the associated integral lattice point. -/
-theorem abs_centeredPhaseFrequency_eq_spacing_mul_distance
+lemma abs_centeredPhaseFrequency_eq_spacing_mul_distance
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     |(centeredPhaseFrequency secret j k : Real)| =
@@ -677,7 +677,7 @@ theorem abs_centeredPhaseFrequency_eq_spacing_mul_distance
 
 /-- For a fixed first-register outcome, distinct second-register outcomes land
 at distinct points of the scaled integer frequency lattice. -/
-theorem scaledFrequencyIndex_injective {params : RegisterParameters}
+lemma scaledFrequencyIndex_injective {params : RegisterParameters}
     (secret : Nat) (j : Fin (2 ^ firstBits params)) :
     Function.Injective (fun k : Fin (2 ^ params.ell) =>
       scaledFrequencyIndex secret j k) := by
@@ -750,13 +750,13 @@ theorem scaledFrequencyIndex_injective {params : RegisterParameters}
   omega
 
 @[simp]
-theorem phaseFrequency_eq_natCast {params : RegisterParameters} (secret : Nat)
+lemma phaseFrequency_eq_natCast {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     phaseFrequency secret j k = phaseFrequencyNat secret j k := rfl
 
 /-- Reducing the frequency to its centered representative does not change the
 Fourier character. -/
-theorem omega_neg_phaseFrequency_eq_centered {params : RegisterParameters}
+lemma omega_neg_phaseFrequency_eq_centered {params : RegisterParameters}
     (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     ω (firstBits params) ^ (-phaseFrequency secret j k) =
@@ -778,7 +778,7 @@ theorem omega_neg_phaseFrequency_eq_centered {params : RegisterParameters}
 
 /-- Multiplying the Fourier frequency by a natural progression index preserves
 the centered representative of the same character. -/
-theorem omega_neg_mul_phaseFrequency_eq_centered
+lemma omega_neg_mul_phaseFrequency_eq_centered
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (index : Nat) :
@@ -803,7 +803,7 @@ theorem omega_neg_mul_phaseFrequency_eq_centered
           ring
 
 /-- The centered source frequency lies on the principal half-period. -/
-theorem centeredPhaseFrequency_principal {params : RegisterParameters}
+lemma centeredPhaseFrequency_principal {params : RegisterParameters}
     (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     2 * (centeredPhaseFrequency secret j k).natAbs ≤
@@ -814,7 +814,7 @@ theorem centeredPhaseFrequency_principal {params : RegisterParameters}
 global phase times a character whose frequency is `secret*j + 2^m*k`.  Thus
 the remaining fiber sum is a one-dimensional finite geometric sum rather than
 an unconstrained two-register sum. -/
-theorem fiberPhase_eq_global_mul_character {params : RegisterParameters}
+lemma fiberPhase_eq_global_mul_character {params : RegisterParameters}
     (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell))
@@ -858,7 +858,7 @@ def exponentFiberCharacterSum {params : RegisterParameters}
 
 /-- Every integer-exponent fiber sum factors into an irrelevant global phase
 and the one-frequency character sum. -/
-theorem exponentFiberPhaseSum_eq_global_mul_characterSum
+lemma exponentFiberPhaseSum_eq_global_mul_characterSum
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     exponentFiberPhaseSum secret exponent j k =
@@ -886,7 +886,7 @@ def FiberBValid {params : RegisterParameters} (secret : Nat)
 
 /-- The surviving second-register indices of an exponent fiber form the
 explicit integer interval `0 ≤ exponent + b*secret < 2^(ell+m)`. -/
-theorem fiberBValid_iff_int_interval {params : RegisterParameters}
+lemma fiberBValid_iff_int_interval {params : RegisterParameters}
     (secret : Nat) (exponent : Int) (b : Fin (2 ^ params.ell)) :
     FiberBValid secret exponent b ↔
       0 ≤ exponent + ((b.val * secret : Nat) : Int) ∧
@@ -946,7 +946,7 @@ def exponentFiberIntervalSum {params : RegisterParameters}
 
 /-- The existential fiber indicator and the explicit contiguous-interval
 indicator define the same geometric sum. -/
-theorem exponentFiberGeometricSum_eq_intervalSum
+lemma exponentFiberGeometricSum_eq_intervalSum
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     exponentFiberGeometricSum secret exponent j k =
@@ -971,7 +971,7 @@ def exponentFiberBSet {params : RegisterParameters} (secret : Nat)
   exact Finset.univ.filter (FiberBValid secret exponent)
 
 @[simp]
-theorem mem_exponentFiberBSet_iff {params : RegisterParameters}
+lemma mem_exponentFiberBSet_iff {params : RegisterParameters}
     {secret : Nat} {exponent : Int} {b : Fin (2 ^ params.ell)} :
     b ∈ exponentFiberBSet secret exponent ↔
       FiberBValid secret exponent b := by
@@ -980,7 +980,7 @@ theorem mem_exponentFiberBSet_iff {params : RegisterParameters}
 
 /-- The explicit interval sum is the character sum over exactly the surviving
 second-register indices. -/
-theorem exponentFiberIntervalSum_eq_sum_bSet
+lemma exponentFiberIntervalSum_eq_sum_bSet
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     exponentFiberIntervalSum secret exponent j k =
@@ -994,7 +994,7 @@ theorem exponentFiberIntervalSum_eq_sum_bSet
 
 /-- Valid second-register indices are order-convex: if two endpoints lie on
 one exponent fiber, every index between them lies on the same fiber. -/
-theorem fiberBValid_of_between {params : RegisterParameters}
+lemma fiberBValid_of_between {params : RegisterParameters}
     {secret : Nat} {exponent : Int}
     {left middle right : Fin (2 ^ params.ell)}
     (hleft : FiberBValid secret exponent left)
@@ -1017,7 +1017,7 @@ theorem fiberBValid_of_between {params : RegisterParameters}
   constructor <;> omega
 
 /-- Every nonempty exponent fiber is a contiguous finite interval. -/
-theorem exponentFiberBSet_eq_Icc {params : RegisterParameters}
+lemma exponentFiberBSet_eq_Icc {params : RegisterParameters}
     (secret : Nat) (exponent : Int)
     (hne : (exponentFiberBSet (params := params) secret exponent).Nonempty) :
     exponentFiberBSet (params := params) secret exponent =
@@ -1041,7 +1041,7 @@ theorem exponentFiberBSet_eq_Icc {params : RegisterParameters}
 
 /-- Every actual exponent-fiber interval obeys the reciprocal centered-frequency
 bound used in the E23 `zeta` tail estimate [E23, arxiv-v5.tex:549-579]. -/
-theorem norm_exponentFiberIntervalSum_le
+lemma norm_exponentFiberIntervalSum_le
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hfrequency : centeredPhaseFrequency secret j k ≠ 0) :
@@ -1097,7 +1097,7 @@ theorem norm_exponentFiberIntervalSum_le
 /-- For the Ekerå–Håstad narrow good-pair window, every actual integer
 exponent fiber contributes at least half its squared cardinality to the source
 Fourier weight [EH17, source.tex:645-690]. -/
-theorem norm_exponentFiberIntervalSum_sq_ge_half_card
+lemma norm_exponentFiberIntervalSum_sq_ge_half_card
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hm : 2 ≤ params.m)
@@ -1250,7 +1250,7 @@ theorem norm_exponentFiberIntervalSum_sq_ge_half_card
     simp
 
 
-private theorem fiberA_unique {params : RegisterParameters}
+private lemma fiberA_unique {params : RegisterParameters}
     (secret : Nat) (exponent : Int) (b : Fin (2 ^ params.ell))
     {left right : Fin (2 ^ firstBits params)}
     (hleft : oracleExponent secret left.val b.val = exponent)
@@ -1269,7 +1269,7 @@ private def oracleFiberInputIndex (params : RegisterParameters) (secret : Nat)
 /-- For one canonical exponent interval index, the number of input pairs in
 its complete integer-exponent fiber is the number of surviving second-register
 indices. -/
-private theorem card_oracleFiberInputIndex_eq_exponentFiberBSet
+private lemma card_oracleFiberInputIndex_eq_exponentFiberBSet
     (params : RegisterParameters) (secret : Nat)
     (index : Fin (oracleFiberSpan params secret)) :
     ((Finset.univ :
@@ -1314,7 +1314,7 @@ private theorem card_oracleFiberInputIndex_eq_exponentFiberBSet
 /-- The canonical integer-exponent fibers partition all input pairs, so the
 sum of their second-register cardinalities is the full two-register input
 cardinality. -/
-theorem sum_card_exponentFiberBSet
+lemma sum_card_exponentFiberBSet
     (params : RegisterParameters) (secret : Nat) :
     (∑ index : Fin (oracleFiberSpan params secret),
       (exponentFiberBSet (params := params) secret
@@ -1362,7 +1362,7 @@ def exponentFiberSecondRegisterVector {params : RegisterParameters}
 
 /-- Applying the inverse QFT to the fiber-supported second-register vector
 gives the interval Fourier sum, including its exact normalization. -/
-theorem inverseQFT_exponentFiberSecondRegisterVector_apply
+lemma inverseQFT_exponentFiberSecondRegisterVector_apply
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     ((QFTOperator params.ell)⁻¹).applyVec
@@ -1429,7 +1429,7 @@ theorem inverseQFT_exponentFiberSecondRegisterVector_apply
 /-- Parseval identity for one exponent fiber: summing the squared interval
 Fourier sums over every second-register output gives `2^ell` times the exact
 fiber cardinality. -/
-theorem sum_normSq_exponentFiberIntervalSum
+lemma sum_normSq_exponentFiberIntervalSum
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) :
     (∑ k : Fin (2 ^ params.ell),
@@ -1502,7 +1502,7 @@ theorem sum_normSq_exponentFiberIntervalSum
 /-- Cauchy–Schwarz turns the exact fiber-cardinality partition into a lower
 bound for the sum of squared fiber cardinalities.  The denominator uses the
 source interval bound `span ≤ 2·2^(m+ℓ)` [EH17, source.tex:540-570]. -/
-theorem sq_sum_card_exponentFiberBSet_div_le
+lemma sq_sum_card_exponentFiberBSet_div_le
     (params : RegisterParameters) (secret : Nat)
     (hsecret : secret < 2 ^ params.m) :
     ((((2 : Real) ^ firstBits params) * (2 : Real) ^ params.ell) ^ 2) /
@@ -1546,7 +1546,7 @@ theorem sq_sum_card_exponentFiberBSet_div_le
 
 /-- The residual double character sum is exactly its single-variable
 geometric form; no probability model or detached mass certificate is used. -/
-theorem exponentFiberCharacterSum_eq_geometricSum
+lemma exponentFiberCharacterSum_eq_geometricSum
     {params : RegisterParameters} (secret : Nat) (exponent : Int)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     exponentFiberCharacterSum secret exponent j k =
@@ -1577,7 +1577,7 @@ theorem exponentFiberCharacterSum_eq_geometricSum
 
 /-- Under the no-wrap order condition [E23, arxiv-v5.tex:244-245], a concrete
 encoded group-value fiber is exactly the corresponding integer-exponent fiber. -/
-theorem fourierFiberSum_at_oracleValue_eq_exponentFiberPhaseSum
+lemma fourierFiberSum_at_oracleValue_eq_exponentFiberPhaseSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1632,7 +1632,7 @@ theorem fourierFiberSum_at_oracleValue_eq_exponentFiberPhaseSum
 /-- Canonical representative-free version of the workspace-fiber theorem.
 Every exponent in the complete source interval indexes its own encoded group
 power; empty exponent fibers simply yield the zero character sum. -/
-theorem fourierFiberSum_at_exponentIndex_eq_exponentFiberPhaseSum
+lemma fourierFiberSum_at_exponentIndex_eq_exponentFiberPhaseSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1681,7 +1681,7 @@ theorem fourierFiberSum_at_exponentIndex_eq_exponentFiberPhaseSum
 its single common normalization.  In particular, the resource-bearing Circuit
 and the probability formula are now connected before any analytic lower bound
 is introduced. -/
-theorem circuitAmplitude_eq_fourierNormalization_mul_fiberSum
+lemma circuitAmplitude_eq_fourierNormalization_mul_fiberSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
@@ -1705,7 +1705,7 @@ theorem circuitAmplitude_eq_fourierNormalization_mul_fiberSum
 
 /-- Representative-free source amplitude for a canonical exponent interval
 index. -/
-theorem circuitAmplitude_at_exponentIndex_eq_intervalSum
+lemma circuitAmplitude_at_exponentIndex_eq_intervalSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1731,7 +1731,7 @@ theorem circuitAmplitude_at_exponentIndex_eq_intervalSum
 
 /-- Representative-free source Eq. (2) weight for a canonical exponent
 interval index. -/
-theorem normSq_circuitAmplitude_at_exponentIndex_eq_sourceFormula
+lemma normSq_circuitAmplitude_at_exponentIndex_eq_sourceFormula
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1763,7 +1763,7 @@ theorem normSq_circuitAmplitude_at_exponentIndex_eq_sourceFormula
 /-- At every actually queried workspace value, the source-shaped amplitude
 is exactly the source geometric interval sum, up to the common normalization
 and a unit-modulus global phase. -/
-theorem circuitAmplitude_at_oracleValue_eq_intervalSum
+lemma circuitAmplitude_at_oracleValue_eq_intervalSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1792,7 +1792,7 @@ theorem circuitAmplitude_at_oracleValue_eq_intervalSum
 /-- Squared amplitude at a queried workspace value is the squared norm of the
 explicit interval sum times the common normalization; the global phase has
 unit norm and contributes no probability mass. -/
-theorem normSq_circuitAmplitude_at_oracleValue_eq_intervalSum
+lemma normSq_circuitAmplitude_at_oracleValue_eq_intervalSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1815,7 +1815,7 @@ theorem normSq_circuitAmplitude_at_oracleValue_eq_intervalSum
 
 /-- Source Eq. (2) for one oracle workspace fiber: the Born weight is
 `2^{-2(m+2ℓ)}` times the squared norm of the contiguous geometric sum. -/
-theorem normSq_circuitAmplitude_at_oracleValue_eq_sourceFormula
+lemma normSq_circuitAmplitude_at_oracleValue_eq_sourceFormula
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1838,7 +1838,7 @@ theorem normSq_circuitAmplitude_at_oracleValue_eq_sourceFormula
 /-- Workspace basis values outside the actual group-operation image have zero
 amplitude.  Hence marginalization introduces no probability mass beyond the
 integer exponent fibers analyzed above. -/
-theorem circuitAmplitude_eq_zero_of_not_oracleRange
+lemma circuitAmplitude_eq_zero_of_not_oracleRange
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
@@ -1881,7 +1881,7 @@ def exponentWorkspaceEmbedding {N : Nat} {params : RegisterParameters}
 
 /-- Every workspace value queried by an actual exponent-register pair lies in
 the canonical exponent embedding. -/
-theorem oracleWorkspace_mem_exponentWorkspaceEmbedding
+lemma oracleWorkspace_mem_exponentWorkspaceEmbedding
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1904,7 +1904,7 @@ theorem oracleWorkspace_mem_exponentWorkspaceEmbedding
 canonical integer exponent interval.  The source order hypothesis makes this
 an injective reindexing; workspace values outside the queried group orbit have
 zero amplitude. -/
-theorem workspaceMarginal_eq_exponentIndexSum
+lemma workspaceMarginal_eq_exponentIndexSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)

@@ -48,7 +48,7 @@ def quraX2 : Matrix.unitaryGroup (Fin 2) ℂ :=
 local notation "X₂" => (quraX2 : Matrix (Fin 2) (Fin 2) ℂ)
 
 @[simp]
-theorem quraX2_apply (i j : Fin 2) : X₂ i j = if i.val ≠ j.val then 1 else 0 := by
+lemma quraX2_apply (i j : Fin 2) : X₂ i j = if i.val ≠ j.val then 1 else 0 := by
   rfl
 
 /-- The coordinate formula for `|00⟩` on two `d`-dimensional factors, also defined at `d = 0`. -/
@@ -103,7 +103,7 @@ def quraVecState (d : ℕ) (v : Fin d × Fin d → ℂ) :
   Matrix.of fun a s => v (a.1, a.2.1) * (if a.2.2 = s then 1 else 0)
 
 @[simp]
-theorem quraVecState_apply (d : ℕ) (v : Fin d × Fin d → ℂ)
+lemma quraVecState_apply (d : ℕ) (v : Fin d × Fin d → ℂ)
     (a : Fin d × (Fin d × Fin d)) (s : Fin d) :
     quraVecState d v a s = v (a.1, a.2.1) * (if a.2.2 = s then 1 else 0) := by
   rfl
@@ -180,7 +180,7 @@ def quraF (d : ℕ) : Matrix (Fin d × Fin d) (Fin d × Fin d) ℂ :=
   Matrix.of fun a b => (if a = b then 1 else 0) - quraV d a * star (quraV d b)
 
 @[simp]
-theorem quraF_apply (d : ℕ) (a b : Fin d × Fin d) :
+lemma quraF_apply (d : ℕ) (a b : Fin d × Fin d) :
     quraF d a b = (if a = b then 1 else 0) - quraV d a * star (quraV d b) := by
   rfl
 
@@ -470,14 +470,14 @@ def quraG (d : ℕ) : Matrix (Fin 2 × (Fin d × Fin d)) (Fin 2 × (Fin d × Fin
   quraG1 d * quraG2 d
 
 @[simp]
-theorem quraG1_apply (d : ℕ) (a b : Fin 2 × (Fin d × Fin d)) :
+lemma quraG1_apply (d : ℕ) (a b : Fin 2 × (Fin d × Fin d)) :
     quraG1 d a b =
       (if a.1 = 1 ∧ b.1 = 1 then quraF d a.2 b.2 else 0) +
       (if a.1 = 0 ∧ b.1 = 0 then (if a.2 = b.2 then 1 else 0) else 0) := by
   rfl
 
 @[simp]
-theorem quraG2_apply (d : ℕ) (a b : Fin 2 × (Fin d × Fin d)) :
+lemma quraG2_apply (d : ℕ) (a b : Fin 2 × (Fin d × Fin d)) :
     quraG2 d a b =
       (X₂ a.1 b.1 - (if a.1 = b.1 then 1 else 0)) * quraKet00 d a.2 * quraKet00 d b.2 +
       (if a.1 = b.1 then 1 else 0) * (if a.2 = b.2 then 1 else 0) := by

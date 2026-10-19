@@ -109,7 +109,7 @@ def spaceBound (kind : ProblemKind) (N : Nat) : SpacePool kind :=
     (.bits (OrderRecovery.Native.extraClassicalBits (modulusBits N) (phaseBits N)))
 
 /-- The independent order-recovery capacity covers the simultaneous half-order power scratch. -/
-theorem halfPower_space_le (kind : ProblemKind) (N : Nat) :
+lemma halfPower_space_le (kind : ProblemKind) (N : Nat) :
     NativeHalfPower.spaceBound kind N ≤ spaceBound kind N := by
   intro axis
   cases axis <;> simp [NativeHalfPower.spaceBound, spaceBound, SpacePool.ofShape,
@@ -117,7 +117,7 @@ theorem halfPower_space_le (kind : ProblemKind) (N : Nat) :
   omega
 
 /-- The same independent capacity also covers every live outer and inner GCD-selection cell. -/
-theorem halfFactor_space_le (kind : ProblemKind) (N : Nat) :
+lemma halfFactor_space_le (kind : ProblemKind) (N : Nat) :
     NativeHalfFactorScope.spaceBound kind N ≤ spaceBound kind N := by
   intro axis
   cases axis <;> simp [NativeHalfFactorScope.spaceBound, spaceBound, SpacePool.ofShape,

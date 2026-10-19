@@ -25,6 +25,8 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorFrameBasis
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement ProductPlacement
 
 /-- A complete native arithmetic frame at its actual runtime wire coordinates. -/
@@ -32,11 +34,11 @@ def basis (width : Nat) (frame : Frame width) : (context width).register.Index :
   (frameBasis width).symm ((frameEncoding width).encode frame)
 
 /-- Every complete native label survives the physical runtime assembly exactly. -/
-theorem native_label (width : Nat) (frame : Frame width) :
+lemma native_label (width : Nat) (frame : Frame width) :
     frameBasis width (basis width frame) = (frameEncoding width).encode frame :=
   (frameBasis width).apply_symm_apply _
 
-private theorem coordinates (width : Nat) (frame : Frame width) :
+private lemma coordinates (width : Nat) (frame : Frame width) :
     (prodEquiv (m := (encoding width).width) (n := width)).symm
         (frameBasis width (basis width frame)) =
       ((encoding width).encode frame.1, frame.2) := by
@@ -47,7 +49,7 @@ private theorem coordinates (width : Nat) (frame : Frame width) :
       ((prodEquiv (m := (encoding width).width) (n := width)).symm_apply_apply _)
 
 /-- The actually measured runtime word is precisely the last native frame word. -/
-theorem word (width : Nat) (frame : Frame width) :
+lemma word (width : Nat) (frame : Frame width) :
     NumeratorObservation.word width (basis width frame) = frame.2 := by
   have actual := congrArg
     (fun pair : Fin (2 ^ (encoding width).width) × Fin (2 ^ width) => pair.2)
@@ -55,7 +57,7 @@ theorem word (width : Nat) (frame : Frame width) :
   exact actual
 
 /-- All other native fields appear unchanged in the runtime prefix coordinate. -/
-theorem frame_prefix (width : Nat) (frame : Frame width) :
+lemma frame_prefix (width : Nat) (frame : Frame width) :
     NumeratorResetMatrix.framePrefix width (basis width frame) =
       (encoding width).encode frame.1 := by
   have actual := congrArg
@@ -64,7 +66,7 @@ theorem frame_prefix (width : Nat) (frame : Frame width) :
   exact actual
 
 /-- Actual selected replacement changes only the existing last word of the complete frame. -/
-theorem replace (width : Nat) (frame : Frame width) (value : Fin (2 ^ width)) :
+lemma replace (width : Nat) (frame : Frame width) (value : Fin (2 ^ width)) :
     NumeratorBranchAction.replaceWord width (basis width frame) value =
       basis width (frame.1, value) := by
   symm
@@ -79,23 +81,24 @@ def ket (width : Nat) {Reference : Register} (frame : Frame width)
   NormalizedVector.ket (basis width frame, reference)
 
 /-- Transport a physical basis phase through the canonical binary coordinate map. -/
-private theorem binary_phase (width : Nat)
+private lemma binary_phase (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (source target : Fin (2 ^ (frameEncoding width).width)) (phase : ℂ)
-    (action : body.applyVec
+    (action : (body.applyVec environment)
       (NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm source)).vec =
       phase • (NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm target)).vec) :
-    body.binaryMatrix.applyVec (NormalizedVector.ket source).vec =
+    (body.binaryMatrix environment).applyVec (NormalizedVector.ket source).vec =
       phase • (NormalizedVector.ket target).vec := by
   let coordinates := (QubitLayout.canonical (frameEncoding width).width).basisEquiv
-  have transported := UnitaryOperator.reindex_applyVec coordinates body.matrix
+  have transported := UnitaryOperator.reindex_applyVec coordinates (body.matrix environment)
     (NormalizedVector.ket (coordinates.symm source)).vec
-  change body.binaryMatrix.applyVec
+  change (body.binaryMatrix environment).applyVec
       (HilbertVector.reindex coordinates (NormalizedVector.ket (coordinates.symm source)).vec) =
     HilbertVector.reindex coordinates
-      (body.applyVec (NormalizedVector.ket (coordinates.symm source)).vec) at transported
+      ((body.applyVec environment)
+        (NormalizedVector.ket (coordinates.symm source)).vec) at transported
   erw [HilbertVector.reindex_ket, coordinates.apply_symm_apply] at transported
   erw [action] at transported
   have reindexedTarget :
@@ -112,10 +115,10 @@ private theorem binary_phase (width : Nat)
   exact transported.trans reindexedTarget
 
 /-- Every native phase action lifts to the actual full runtime frame and the same reference. -/
-theorem native_action (width : Nat)
+lemma native_action (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (source target : Frame width) (phase : ℂ)
-    (action : body.applyVec
+    (action : (body.applyVec environment)
       (NormalizedVector.ket ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
         ((frameEncoding width).encode source))).vec =
       phase • (NormalizedVector.ket
@@ -123,7 +126,7 @@ theorem native_action (width : Nat)
           ((frameEncoding width).encode target))).vec)
     {Reference : Register} (reference : Reference.Index) :
     HilbertOperator.applyVec
-      (UnitaryOperator.prodTensor (NumeratorRuntime.program width body).matrix
+      (UnitaryOperator.prodTensor ((NumeratorRuntime.program width body).matrix environment)
         (1 : UnitaryOperator Reference) :
           HilbertOperator (Register.prod (context width).register Reference))
       (ket width source reference).vec = phase • (ket width target reference).vec :=
@@ -132,10 +135,10 @@ theorem native_action (width : Nat)
     (binary_phase width body _ _ phase action) reference
 
 /-- A normalized native basis equation is transported without introducing any relative phase. -/
-theorem native_normalized (width : Nat)
+lemma native_normalized (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (source target : Frame width)
-    (action : body.applyNormalized
+    (action : (body.applyNormalized environment)
       (NormalizedVector.ket ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
         ((frameEncoding width).encode source))) =
       NormalizedVector.ket
@@ -143,13 +146,13 @@ theorem native_normalized (width : Nat)
           ((frameEncoding width).encode target)))
     {Reference : Register} (reference : Reference.Index) :
     HilbertOperator.applyVec
-      (UnitaryOperator.prodTensor (NumeratorRuntime.program width body).matrix
+      (UnitaryOperator.prodTensor ((NumeratorRuntime.program width body).matrix environment)
         (1 : UnitaryOperator Reference) :
           HilbertOperator (Register.prod (context width).register Reference))
       (ket width source reference).vec = (ket width target reference).vec := by
   have vector := congrArg (fun state : NormalizedVector
     (QubitLayout.canonical (frameEncoding width).width).toQuantum.register => state.vec) action
-  have phased : body.applyVec
+  have phased : (body.applyVec environment)
       (NormalizedVector.ket ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
         ((frameEncoding width).encode source))).vec =
       (1 : ℂ) • (NormalizedVector.ket

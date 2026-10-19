@@ -81,12 +81,12 @@ namespace DLAHermBasis
 variable {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
 
 /-- For a Hermitian orthonormal basis, `Tr[Bᵢ Bₖ] = δᵢₖ`. -/
-theorem trace_mul (i k : Fin b.dim) : (b.B i * b.B k).trace = if i = k then (1 : ℂ) else 0 := by
+lemma trace_mul (i k : Fin b.dim) : (b.B i * b.B k).trace = if i = k then (1 : ℂ) else 0 := by
   have h := b.ortho i k
   rwa [hsInner, b.herm i] at h
 
 /-- An orthonormal family is linearly independent. -/
-theorem linearIndependent_B : LinearIndependent ℂ b.B := by
+lemma linearIndependent_B : LinearIndependent ℂ b.B := by
   rw [Fintype.linearIndependent_iff]
   intro c hc k
   have h1 : hsInner (b.B k) (∑ i, c i • b.B i) = c k := by
@@ -101,7 +101,7 @@ theorem linearIndependent_B : LinearIndependent ℂ b.B := by
   simpa [hsInner] using h1.symm
 
 /-- The basis cardinality is the dimension of the dynamical Lie algebra. -/
-theorem dlaDim_eq : dlaDim gens = b.dim := by
+lemma dlaDim_eq : dlaDim gens = b.dim := by
   rw [dlaDim, ← b.span_eq, finrank_span_eq_card b.linearIndependent_B, Fintype.card_fin]
 
 /-- The **quadratic Casimir** `C = Σⱼ Bⱼ ⊗ Bⱼ` (as a Kronecker product). -/
@@ -119,7 +119,7 @@ public noncomputable def gPurity (H : Matrix (Fin N) (Fin N) ℂ) : ℂ :=
   ∑ i, (Complex.normSq (hsInner (b.B i) H) : ℂ)
 
 /-- **Step 9a (normalization).** `⟪C, C⟫ = dim g` — the `1/dim(g)` factor. -/
-theorem casimir_hsInner_self : hsInner b.casimir b.casimir = (b.dim : ℂ) := by
+lemma casimir_hsInner_self : hsInner b.casimir b.casimir = (b.dim : ℂ) := by
   rw [casimir, hsInner_sum_left]
   have hi : ∀ i, hsInner (b.B i ⊗ₖ b.B i) (∑ k, b.B k ⊗ₖ b.B k) = (1 : ℂ) := by
     intro i
@@ -136,7 +136,7 @@ theorem casimir_hsInner_self : hsInner b.casimir b.casimir = (b.dim : ℂ) := by
 /-- **Step 9b (contraction).** For Hermitian `H`, `⟪C, H ⊗ H⟫ = P_g(H)` — the Casimir
 contracts to the `g`-purity. The bare contraction is `Σⱼ ⟪Bⱼ,H⟫²`; for Hermitian `H`
 each `⟪Bⱼ,H⟫` is real, so it equals `Σⱼ |⟪Bⱼ,H⟫|² = P_g(H)`. -/
-theorem casimir_hsInner_kron {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
+lemma casimir_hsInner_kron {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
     hsInner b.casimir (H ⊗ₖ H) = b.gPurity H := by
   rw [casimir, hsInner_sum_left, gPurity]
   refine Finset.sum_congr rfl fun i _ => ?_
@@ -144,7 +144,7 @@ theorem casimir_hsInner_kron {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
 
 /-- For Hermitian `H`, the `g`-purity coincides with the `Tr[H_g²]` form (`H_g = gProj H`),
 [RBS+23, Arxiv_Final.tex:657]. -/
-theorem gPurity_eq_trace {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
+lemma gPurity_eq_trace {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
     b.gPurity H = (b.gProj H * b.gProj H).trace := by
   have key : (b.gProj H * b.gProj H).trace = ∑ i, (hsInner (b.B i) H) ^ 2 := by
     simp only [gProj, Matrix.sum_mul, Matrix.mul_sum, Matrix.smul_mul, Matrix.mul_smul,
@@ -157,18 +157,18 @@ theorem gPurity_eq_trace {H : Matrix (Fin N) (Fin N) ℂ} (hH : Hᴴ = H) :
   rw [← Complex.mul_conj, hsInner_conj_of_isHermitian (b.herm i) hH, sq]
 
 /-- The quadratic Casimir is Hermitian. -/
-theorem casimir_isHermitian : b.casimirᴴ = b.casimir := by
+lemma casimir_isHermitian : b.casimirᴴ = b.casimir := by
   rw [casimir, conjTranspose_sum]
   exact Finset.sum_congr rfl fun j _ => by simp only [conjTranspose_kronecker, b.herm]
 
 /-- The `g`-purity is real — it is a sum of squared norms. -/
-theorem gPurity_conj (H : Matrix (Fin N) (Fin N) ℂ) :
+lemma gPurity_conj (H : Matrix (Fin N) (Fin N) ℂ) :
     (starRingEnd ℂ) (b.gPurity H) = b.gPurity H := by
   rw [gPurity, map_sum]
   exact Finset.sum_congr rfl fun i _ => Complex.conj_ofReal _
 
 /-- The `g`-purity of a basis element is `1` (it is normalized). -/
-theorem gPurity_basis_elem (i : Fin b.dim) : b.gPurity (b.B i) = 1 := by
+lemma gPurity_basis_elem (i : Fin b.dim) : b.gPurity (b.B i) = 1 := by
   rw [gPurity]
   have hterm : ∀ j, (Complex.normSq (hsInner (b.B j) (b.B i)) : ℂ)
       = if j = i then (1 : ℂ) else 0 := by
@@ -177,14 +177,14 @@ theorem gPurity_basis_elem (i : Fin b.dim) : b.gPurity (b.B i) = 1 := by
   simp
 
 /-- The `g`-purity is nonnegative: it is a sum of squared norms. -/
-theorem gPurity_nonneg (H : Matrix (Fin N) (Fin N) ℂ) : 0 ≤ (b.gPurity H).re := by
+lemma gPurity_nonneg (H : Matrix (Fin N) (Fin N) ℂ) : 0 ≤ (b.gPurity H).re := by
   rw [gPurity, Complex.re_sum]
   exact Finset.sum_nonneg fun i _ => by
     rw [Complex.ofReal_re]
     exact Complex.normSq_nonneg _
 
 /-- The product of two `g`-purities is again a nonnegative real, cast to `ℂ`. -/
-theorem gPurity_mul_gPurity_nonneg_real
+lemma gPurity_mul_gPurity_nonneg_real
     (H K : Matrix (Fin N) (Fin N) ℂ) :
     ∃ r : ℝ, 0 ≤ r ∧ b.gPurity H * b.gPurity K = (r : ℂ) := by
   refine ⟨(b.gPurity H).re * (b.gPurity K).re,
@@ -203,7 +203,7 @@ theorem gPurity_mul_gPurity_nonneg_real
   simp
 
 /-- The `g`-purity is a nonnegative real cast to `ℂ`, so its norm is its real part. -/
-theorem norm_gPurity_eq_re (H : Matrix (Fin N) (Fin N) ℂ) :
+lemma norm_gPurity_eq_re (H : Matrix (Fin N) (Fin N) ℂ) :
     ‖b.gPurity H‖ = (b.gPurity H).re := by
   have him : (b.gPurity H).im = 0 := by
     have := b.gPurity_conj H
@@ -216,19 +216,19 @@ theorem norm_gPurity_eq_re (H : Matrix (Fin N) (Fin N) ℂ) :
   rw [hnorm, abs_of_nonneg (b.gPurity_nonneg H)]
 
 /-- The orthogonal projection pairs to the purity on the left: `⟪H_g, H⟫ = P_g(H)`. -/
-theorem hsInner_gProj_left (H : Matrix (Fin N) (Fin N) ℂ) :
+lemma hsInner_gProj_left (H : Matrix (Fin N) (Fin N) ℂ) :
     hsInner (b.gProj H) H = b.gPurity H := by
   rw [gProj, hsInner_sum_left, gPurity]
   refine Finset.sum_congr rfl fun j _ => ?_
   rw [hsInner_smul_left, ← Complex.normSq_eq_conj_mul_self]
 
 /-- The orthogonal projection pairs to the purity on the right: `⟪H, H_g⟫ = P_g(H)`. -/
-theorem hsInner_gProj_right (H : Matrix (Fin N) (Fin N) ℂ) :
+lemma hsInner_gProj_right (H : Matrix (Fin N) (Fin N) ℂ) :
     hsInner H (b.gProj H) = b.gPurity H := by
   rw [hsInner_conj_symm, b.hsInner_gProj_left, b.gPurity_conj]
 
 /-- The orthogonal projection is idempotent under the inner product: `⟪H_g, H_g⟫ = P_g(H)`. -/
-theorem hsInner_gProj_self (H : Matrix (Fin N) (Fin N) ℂ) :
+lemma hsInner_gProj_self (H : Matrix (Fin N) (Fin N) ℂ) :
     hsInner (b.gProj H) (b.gProj H) = b.gPurity H := by
   have hj : ∀ j, hsInner (b.B j) (b.gProj H) = hsInner (b.B j) H := by
     intro j
@@ -246,7 +246,7 @@ theorem hsInner_gProj_self (H : Matrix (Fin N) (Fin N) ℂ) :
 
 /-- Bessel / Parseval inequality for the DLA basis. The `g`-purity is bounded by the
 squared Hilbert-Schmidt norm, `P_g(H) ≤ Tr[Hᴴ H]`. -/
-theorem gPurity_le_normSq (H : Matrix (Fin N) (Fin N) ℂ) :
+lemma gPurity_le_normSq (H : Matrix (Fin N) (Fin N) ℂ) :
     (b.gPurity H).re ≤ (hsInner H H).re := by
   have hsub : hsInner (H - b.gProj H) (H - b.gProj H) = hsInner H H - b.gPurity H := by
     rw [hsInner_sub_left, hsInner_sub_right, hsInner_sub_right,

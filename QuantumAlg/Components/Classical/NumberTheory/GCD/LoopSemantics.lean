@@ -41,11 +41,13 @@ def iteratedRemainderStep (first second : CWriteRef ctx (.unsignedWord width))
     fun index => (step ((fun value => (step value).1)^[index.val] store)).2)
 
 /-- The native iteration has exactly its computed final store and actual finite path vector. -/
-theorem gcdLoop_execute (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdLoop_execute (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
-    (count : Nat) (Reference : Register) {History : Type} [Fintype History]
+    (count : Nat) {environment : model.Environment}
+    (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.iterate count (guardedRemainder (model := model) first second zero active)).execute
+      environment
       Reference state =
       state.mapClassical (fun entry =>
         let result := iteratedRemainderStep (model := model) first second zero active count entry.1
@@ -62,7 +64,7 @@ theorem gcdLoop_execute (first second : CWriteRef ctx (.unsignedWord width))
     | succ count ih =>
         rw [Function.iterate_succ_apply, Function.iterate_succ_apply]
         exact ih (nativeStep store).1
-  refine (Circuit.execute_iterate_mapClassical
+  refine (Circuit.execute_iterate_mapClassical (environment := environment)
     (guardedRemainder (model := model) first second zero active) jointStep
     (fun reference history _ initial => by
       exact (gcdGuardedRemainder_execute (model := model)
@@ -75,7 +77,7 @@ theorem gcdLoop_execute (first second : CWriteRef ctx (.unsignedWord width))
 
 
 /-- Internal initialization is preserved through every actual iteration count. -/
-theorem gcdLoop_ready (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdLoop_ready (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (firstSecond : first.key ≠ second.key)
     (activeFirst : active.key ≠ first.key) (activeSecond : active.key ≠ second.key)
@@ -95,7 +97,7 @@ theorem gcdLoop_ready (first second : CWriteRef ctx (.unsignedWord width))
         firstSecond activeFirst activeSecond firstZero secondZero activeZero store ready).1
 
 /-- Every actual iteration count agrees with the existing pure terminating Euclidean run. -/
-theorem gcdLoop_state (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdLoop_state (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (firstSecond : first.key ≠ second.key)
     (activeFirst : active.key ≠ first.key) (activeSecond : active.key ≠ second.key)

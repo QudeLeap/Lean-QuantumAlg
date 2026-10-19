@@ -39,15 +39,16 @@ def zeroRun {model : ExecutionModel} [BitWord.Selected model]
       (.option (.unsignedWord width)) fresh).toCStorageRef))
 
 /-- Every certified input gives the actual retained some-zero output with probability one. -/
-theorem zeroRun_output_probability {model : ExecutionModel} [BitWord.Selected model]
+lemma zeroRun_output_probability {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat)
     (key : StorageKey) (fresh : key ∉ ctx.keys) {Reference : Register}
     (initial : OracleInput model.classicalOracles ctx Reference) :
-    (zeroRun ctx width key fresh).outputDistribution initial
+    (zeroRun ctx width key fresh).outputDistribution environment initial
       (.optionSome (CShape.wordOfNat width 0)) = 1 := by
   rw [AlgorithmRun.outputDistribution_apply_eq_effectWeight]
   change ENNReal.ofReal
-    (((zeroRetained ctx width key fresh).execute Reference
+    (((zeroRetained ctx width key fresh).execute environment Reference
       (initial.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))).effectWeight
       (fun entry => if entry.1.read (.storage (CWriteRef.retainedHead ctx key
           (.option (.unsignedWord width)) fresh).toCStorageRef) =

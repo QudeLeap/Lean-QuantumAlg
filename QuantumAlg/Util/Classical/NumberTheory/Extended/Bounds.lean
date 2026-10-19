@@ -20,7 +20,7 @@ enumerating any fixed-width inputs or replacing the execution workspace.
 
 namespace QuantumAlg.ClassicalAlgorithms.NumberTheory.XGCD
 
-private theorem update_magnitude_le (left right : Int) (quotient bound : Nat)
+private lemma update_magnitude_le (left right : Int) (quotient bound : Nat)
     (leftBound : left.natAbs ≤ bound) (rightBound : right.natAbs ≤ bound) :
     (left - (quotient : Int) * right).natAbs ≤ (quotient + 1) * bound := by
   calc
@@ -31,7 +31,7 @@ private theorem update_magnitude_le (left right : Int) (quotient bound : Nat)
     _ = _ := by ring
 
 /-- One original coefficient update grows by at most its quotient plus one. -/
-theorem xgcdStep_coefficientMagnitude_le (state : State) :
+lemma xgcdStep_coefficientMagnitude_le (state : State) :
     (step state).coefficientMagnitude ≤ (state.quotient + 1) * state.coefficientMagnitude := by
   have retained : state.coefficientMagnitude ≤
       (state.quotient + 1) * state.coefficientMagnitude :=
@@ -48,7 +48,7 @@ theorem xgcdStep_coefficientMagnitude_le (state : State) :
       ((State.firstLeftCoefficient_natAbs_le_coefficientMagnitude state).trans retained)
       ((State.firstRightCoefficient_natAbs_le_coefficientMagnitude state).trans retained))
 
-private theorem execution_magnitude_le (width fuel : Nat) (state : State)
+private lemma execution_magnitude_le (width fuel : Nat) (state : State)
     (firstRange : state.first < 2 ^ width) (secondRange : state.second < 2 ^ width) :
     stateListCoefficientMagnitude (path fuel state ++ [run fuel state]) ≤
       (2 ^ width) ^ fuel * state.coefficientMagnitude := by
@@ -82,7 +82,7 @@ private theorem execution_magnitude_le (width fuel : Nat) (state : State)
           (stateListCoefficientMagnitude (path fuel (step state) ++ [run fuel (step state)])) ≤ _
         exact max_le selfBound (tailBound.trans_eq product)
 
-private theorem executionStates_magnitude_le {width : Nat} (input : Input width) :
+private lemma executionStates_magnitude_le {width : Nat} (input : Input width) :
     stateListCoefficientMagnitude (executionStates input) ≤ 2 ^ (width * (2 * width + 1)) := by
   have bounded := execution_magnitude_le width (Euclid.gcdFuel width) (initialState input)
     input.left.isLt input.right.isLt
@@ -91,14 +91,14 @@ private theorem executionStates_magnitude_le {width : Nat} (input : Input width)
     Euclid.gcdFuel, ← pow_mul] using bounded
 
 /-- The original finite supremum is bounded without enumerating the input domain. -/
-theorem executionCoefficientBound_le_pow (width : Nat) :
+lemma executionCoefficientBound_le_pow (width : Nat) :
     executionCoefficientBound width ≤ 2 ^ (width * (2 * width + 1)) := by
   unfold executionCoefficientBound
   apply Finset.sup_le
   intro input _member
   exact executionStates_magnitude_le ⟨input.1, input.2⟩
 
-private theorem selectedBound_le_executionBound (width : Nat) :
+private lemma selectedBound_le_executionBound (width : Nat) :
     xgcdCoefficientBound width ≤ executionCoefficientBound width := by
   unfold xgcdCoefficientBound
   apply Finset.sup_le
@@ -116,7 +116,7 @@ private theorem selectedBound_le_executionBound (width : Nat) :
   exact max_le left right
 
 /-- The actual execution width, including its original public-width maximum, is quadratic. -/
-theorem executionCoefficientWidth_le_quadratic (width : Nat) :
+lemma executionCoefficientWidth_le_quadratic (width : Nat) :
     executionCoefficientWidth width ≤ width * (2 * width + 1) + 3 := by
   have executionSize : Nat.size (executionCoefficientBound width) ≤
       width * (2 * width + 1) + 1 := by
@@ -127,11 +127,11 @@ theorem executionCoefficientWidth_le_quadratic (width : Nat) :
   exact max_le (by omega) (by omega)
 
 /-- The original 257-bit-input XGCD execution workspace has this proved numeric ceiling. -/
-theorem executionCoefficientWidth_257_le : executionCoefficientWidth 257 ≤ 132358 := by
+lemma executionCoefficientWidth_257_le : executionCoefficientWidth 257 ≤ 132358 := by
   exact executionCoefficientWidth_le_quadratic 257
 
 /-- The original 261-bit-input XGCD execution workspace has this proved numeric ceiling. -/
-theorem executionCoefficientWidth_261_le : executionCoefficientWidth 261 ≤ 136506 := by
+lemma executionCoefficientWidth_261_le : executionCoefficientWidth 261 ≤ 136506 := by
   exact executionCoefficientWidth_le_quadratic 261
 
 end QuantumAlg.ClassicalAlgorithms.NumberTheory.XGCD

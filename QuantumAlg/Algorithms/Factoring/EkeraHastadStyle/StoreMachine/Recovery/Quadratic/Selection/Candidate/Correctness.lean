@@ -24,14 +24,14 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
-private theorem map_retainFirst {α β : Type} (convert : α → β)
+private lemma map_retainFirst {α β : Type} (convert : α → β)
     (previous current : Option α) :
     (FirstAccepted.retainFirst previous current).map convert =
       FirstAccepted.retainFirst (previous.map convert) (current.map convert) := by
   cases previous <;> rfl
 
 /-- All caller reads outside the possible check and selector writes are preserved. -/
-theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other :=
   (FirstAccepted.firstAccepted_read_other (selectionInputs refs) refs.selection other
@@ -39,7 +39,7 @@ theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     (QuadraticCandidateCheck.into_callerFrame refs.check store other avoids.check)
 
 /-- Keep an existing selection; otherwise select exactly the current proper divisor. -/
-theorem into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
+lemma into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx)
     (initial : QuadraticCandidateCheck.TotalInitialConditions store refs.check) :
     Relation refs store (step refs store).1 := by

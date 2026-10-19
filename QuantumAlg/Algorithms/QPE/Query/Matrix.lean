@@ -33,19 +33,21 @@ namespace QuantumAlg.QuantumPhaseEstimation.Native
 
 noncomputable section
 
-private theorem query_pair_entry (gates : GateModel) {phaseWidth systemWidth : Nat}
+private lemma query_pair_entry (gates : GateModel) {phaseWidth systemWidth : Nat}
     (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
     (leftPhase rightPhase : Fin (2 ^ phaseWidth))
     (leftSource rightSource : Fin (2 ^ systemWidth)) :
-    (sourceQuery gates unitary stage).binaryMatrix (prodEquiv (leftPhase, leftSource))
+    ((sourceQuery gates systemWidth stage).binaryMatrix (UnitarySource.interpretation unitary
+      true)) (prodEquiv (leftPhase, leftSource))
       (prodEquiv (rightPhase, rightSource)) =
       UnitaryOperator.controlledQubits unitary
         (prodEquiv (finTwoEquiv.symm (leftPhase.val.testBit stage.val), leftSource))
         (prodEquiv (finTwoEquiv.symm (rightPhase.val.testBit stage.val), rightSource)) *
-        (if ((queryApplication unitary stage).basisEquiv (pairBasis leftPhase leftSource)).2 =
-          ((queryApplication unitary stage).basisEquiv (pairBasis rightPhase rightSource)).2
+        (if ((queryApplication systemWidth stage).basisEquiv (pairBasis leftPhase leftSource)).2 =
+          ((queryApplication systemWidth stage).basisEquiv (pairBasis rightPhase rightSource)).2
             then 1 else 0) := by
-  change (queryApplication unitary stage).operator (pairBasis leftPhase leftSource)
+  change ((queryApplication systemWidth stage).operator (UnitarySource.interpretation unitary
+    true)) (pairBasis leftPhase leftSource)
     (pairBasis rightPhase rightSource) = _
   rw [OracleModel.Application.oracleApplication_model_entry,
     qpeNative_query_selected_binary, qpeNative_query_selected_binary]
@@ -59,9 +61,10 @@ private theorem query_pair_entry (gates : GateModel) {phaseWidth systemWidth : N
   rw [Equiv.apply_symm_apply, Equiv.apply_symm_apply]
 
 /-- The actual granted query acts exactly as the original controlled-bit source operator. -/
-theorem qpeNative_sourceQuery_binaryMatrix (gates : GateModel) {phaseWidth systemWidth : Nat}
+lemma qpeNative_sourceQuery_binaryMatrix (gates : GateModel) {phaseWidth systemWidth : Nat}
     (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth) :
-    (sourceQuery gates unitary stage).binaryMatrix =
+    ((sourceQuery gates systemWidth stage).binaryMatrix (UnitarySource.interpretation unitary
+      true)) =
       qpeControlledBitOp phaseWidth unitary stage := by
   ext row column
   rcases (prodEquiv (m := phaseWidth) (n := systemWidth)).surjective row with
@@ -72,7 +75,7 @@ theorem qpeNative_sourceQuery_binaryMatrix (gates : GateModel) {phaseWidth syste
     qpeControlledBitOp, qpeExponentOp_apply, Equiv.symm_apply_apply, Equiv.symm_apply_apply]
   by_cases same : leftPhase = rightPhase
   · subst rightPhase
-    have complement := qpeNative_query_complement_same_phase unitary stage
+    have complement := qpeNative_query_complement_same_phase systemWidth stage
       leftPhase leftSource rightSource
     simp only [complement, ↓reduceIte, mul_one]
     cases leftPhase.val.testBit stage.val <;> simp [finTwoEquiv, Matrix.one_apply]
@@ -80,17 +83,19 @@ theorem qpeNative_sourceQuery_binaryMatrix (gates : GateModel) {phaseWidth syste
     by_cases control : finTwoEquiv.symm (leftPhase.val.testBit stage.val) =
         finTwoEquiv.symm (rightPhase.val.testBit stage.val)
     · have complement :
-          ((queryApplication unitary stage).basisEquiv (pairBasis leftPhase leftSource)).2 ≠
-            ((queryApplication unitary stage).basisEquiv (pairBasis rightPhase rightSource)).2 :=
-        fun equality => same (qpeNative_control_complement_phase_eq unitary stage
+          ((queryApplication systemWidth stage).basisEquiv (pairBasis leftPhase leftSource)).2 ≠
+            ((queryApplication systemWidth stage).basisEquiv (pairBasis rightPhase
+              rightSource)).2 :=
+        fun equality => same (qpeNative_control_complement_phase_eq systemWidth stage
           leftPhase rightPhase leftSource rightSource control equality)
       rw [if_neg complement, mul_zero]
     · rw [if_neg control, zero_mul]
 
 /-- Actual repeated source queries implement the original binary-stage exponent pointwise. -/
-theorem qpeNative_powerStage_binaryMatrix (gates : GateModel) {phaseWidth systemWidth : Nat}
+lemma qpeNative_powerStage_binaryMatrix (gates : GateModel) {phaseWidth systemWidth : Nat}
     (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth) :
-    (powerStage gates unitary stage).binaryMatrix =
+    ((powerStage gates systemWidth stage).binaryMatrix (UnitarySource.interpretation unitary
+      true)) =
       qpeExponentOp phaseWidth unitary
         (fun phase => 2 ^ stage.val * (phase.val.testBit stage.val).toNat) := by
   rw [powerStage, UnitaryCircuit.unitaryCircuit_binaryMatrix_iterate,

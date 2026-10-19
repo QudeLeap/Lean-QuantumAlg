@@ -21,7 +21,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem eligibleArmStep_store (eligible : CInputRef ctx .bit)
+private lemma eligibleArmStep_store (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (eligibleArmStep (model := model) eligible candidate refs value store).1 =
@@ -31,7 +31,7 @@ private theorem eligibleArmStep_store (eligible : CInputRef ctx .bit)
   cases value with
   | bit value => cases value <;> rfl
 
-private theorem pendingArmStep_store (eligible : CInputRef ctx .bit)
+private lemma pendingArmStep_store (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pendingArmStep (model := model) eligible candidate refs value store).1 =
@@ -47,7 +47,7 @@ private theorem pendingArmStep_store (eligible : CInputRef ctx .bit)
 
 /-- Actual first-success execution changes only the store selected by its two existing
 predicates. -/
-theorem step_store (eligible : CInputRef ctx .bit)
+lemma step_store (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width) (store : Store ctx) :
     (step (model := model) eligible candidate refs store).1 =
       if (store.read (writeInput refs.accepted)).toBool then store
@@ -57,7 +57,7 @@ theorem step_store (eligible : CInputRef ctx .bit)
   pendingArmStep_store eligible candidate refs (store.read (writeInput refs.accepted)) store
 
 /-- All actual caller reads outside the two persistent results survive first-success selection. -/
-theorem into_callerFrame (eligible : CInputRef ctx .bit)
+lemma into_callerFrame (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (step (model := model) eligible candidate refs store).1 := by
   intro shape other acceptedFree selectedFree
@@ -85,7 +85,7 @@ structure Outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} (eligible : CInpu
 
 /-- Actual stored-bit control preserves an earlier choice and takes exactly the first eligible
 input. -/
-theorem into_correct (eligible : CInputRef ctx .bit)
+lemma into_correct (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (separation : Separation eligible candidate refs) (store : Store ctx) :
     Outcome eligible candidate refs store (step (model := model) eligible candidate refs store).1
@@ -119,7 +119,7 @@ theorem into_correct (eligible : CInputRef ctx .bit)
           Bool.true_and, Bool.false_and, selectedResult]
 
 /-- Both original source inputs survive the actual chosen branch under structural separation. -/
-theorem into_source_frame (eligible : CInputRef ctx .bit)
+lemma into_source_frame (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (separation : Separation eligible candidate refs) (store : Store ctx) :
     (step (model := model) eligible candidate refs store).1.read eligible = store.read eligible ∧

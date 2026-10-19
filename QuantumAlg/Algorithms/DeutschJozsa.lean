@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Algorithms.DeutschJozsa.Construction
 public import QuantumAlg.Algorithms.DeutschJozsa.Endpoint
+public import QuantumAlg.Algorithms.DeutschJozsa.Endpoint.Results
 
 /-!
 # Deutsch-Jozsa

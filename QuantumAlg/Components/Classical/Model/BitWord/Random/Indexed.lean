@@ -27,7 +27,7 @@ noncomputable section
 
 open scoped Classical in
 /-- The native bit kernel and finite uniform source induce exactly the same mapped state. -/
-theorem randomKernel_map_indexed {C D : Type} [Fintype C] [Fintype D]
+lemma randomKernel_map_indexed {C D : Type} [Fintype C] [Fintype D]
     {R : Register} (state : ExecutionState C R) (width : Nat)
     (update : C × CShape.Value (.bits width) → D) :
     (Execution.kernelChoice state (fun _ => uniformBits width)).mapClassical update =

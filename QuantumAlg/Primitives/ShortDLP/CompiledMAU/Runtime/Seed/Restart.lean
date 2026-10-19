@@ -29,11 +29,14 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem selectedSeed_promise {ctx : RuntimeCtx .quantum}
+private lemma selectedSeed_promise {ctx : RuntimeCtx .quantum}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : BasisSeeded.Holds seed state) (label : Store ctx × History)
@@ -61,7 +64,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Each reset/reload record has the fixed seed, even when its full history is observed. -/
-theorem shortDLP_runtimeResetReload_recordSeed (N : Nat)
+lemma shortDLP_runtimeResetReload_recordSeed (N : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (label : Store ctx ×
@@ -72,12 +75,13 @@ theorem shortDLP_runtimeResetReload_recordSeed (N : Nat)
         ((RuntimePlacement.basisEquiv m ell width sameWires).symm
           (CompiledMAU.reloadLabel m ell width N))))).Holds
       (DensityOperator.observeSelection ctx.quantumLayout selection Reference
-        (((resetReload m ell width sameWires N).execute Reference state).block label)) :=
+        (((resetReload m ell width sameWires N).execute
+          environment Reference state).block label)) :=
   selectedSeed_promise _ _ (shortDLP_runtimeResetReload_seedBlocks
     m ell width sameWires N state) label selection
 
 /-- Every actual round record reinitializes any selected owned wires to the fixed source seed. -/
-theorem shortDLP_runtimeRound_recordSeed {shape : CShape}
+lemma shortDLP_runtimeRound_recordSeed {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
@@ -91,7 +95,7 @@ theorem shortDLP_runtimeRound_recordSeed {shape : CShape}
         ((RuntimePlacement.basisEquiv m ell width sameWires).symm
           (CompiledMAU.reloadLabel m ell width N))))).Holds
       (DensityOperator.observeSelection ctx.quantumLayout selection Reference
-        (((code m ell width sameWires parameter N generator target cells result).execute
+        (((code m ell width sameWires parameter N generator target cells result).execute environment
           Reference state).block label)) :=
   selectedSeed_promise _ _ (shortDLP_runtimeRound_seedBlocks
     m ell width sameWires parameter N generator target cells result state) label selection
@@ -101,7 +105,7 @@ theorem shortDLP_runtimeRound_recordSeed {shape : CShape}
 attribute [local irreducible] code
 
 /-- On the actual owned bank, the round restores the entire borrowed classical/reference view. -/
-theorem shortDLP_runtimeRound_borrowedRestored {shape : CShape}
+lemma shortDLP_runtimeRound_borrowedRestored {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
@@ -110,9 +114,9 @@ theorem shortDLP_runtimeRound_borrowedRestored {shape : CShape}
     (state : State ctx Reference (model.HiddenState × History)) :
     (code m ell width sameWires parameter N generator target cells result).BorrowedRestored
       Reference state
-      ((code m ell width sameWires parameter N generator target cells result).execute
+      ((code m ell width sameWires parameter N generator target cells result).execute environment
         Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum
+  Circuit.borrowedRestored_of_noBorrowedQuantum (environment := environment)
     (model := model) (pre := ctx) (post := ctx)
     (code m ell width sameWires parameter N generator target cells result)
     noBorrowed Reference (History := History) state

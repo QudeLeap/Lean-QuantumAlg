@@ -23,7 +23,7 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.Modular Field.Native
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The two actual subtractions precede the original affine allowance. -/
@@ -44,7 +44,7 @@ def genericActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
     subtractionReductionSpace kind width)
     (((affineShapes width).map SpacePool.ofShape).sum + affineActiveSpace kind width)
 
-private theorem genericBody_pool_le (spec : ModulusSpec width)
+private lemma genericBody_pool_le (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
@@ -61,7 +61,7 @@ private theorem genericBody_pool_le (spec : ModulusSpec width)
     (add_le_add (subIntoWord_resourcePool _ _ _ _ path.2.1).le
       (affineInto_pool_le _ _ _ _ _ _ _ path.2.2))
 
-private theorem genericBody_depth_le (spec : ModulusSpec width)
+private lemma genericBody_depth_le (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
@@ -73,7 +73,7 @@ private theorem genericBody_depth_le (spec : ModulusSpec width)
     (Nat.add_le_add (subIntoWord_durationDepth _ _ _ _ duration path.2.1).le
       (affineInto_depth_le _ _ _ _ _ _ _ duration path.2.2))
 
-private theorem genericBody_duration_eventTrace (spec : ModulusSpec width)
+private lemma genericBody_duration_eventTrace (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
@@ -99,7 +99,7 @@ private theorem genericBody_duration_eventTrace (spec : ModulusSpec width)
     (affineInto_duration_eventTrace _ _ _ _ _ _ _ duration path.2.2))
 
 /-- The actual generic native ledger retains both subtractions and the complete affine tail. -/
-theorem genericInto_pool_le (spec : ModulusSpec width)
+lemma genericInto_pool_le (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (genericInto spec left right output).Path) :
@@ -118,7 +118,7 @@ theorem genericInto_pool_le (spec : ModulusSpec width)
       genericBody_pool_le _ _ _ _ _ _ _ _ selected) path
 
 /-- Every actual generic path satisfies the original serial duration allowance. -/
-theorem genericInto_depth_le (spec : ModulusSpec width)
+lemma genericInto_depth_le (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -138,7 +138,7 @@ theorem genericInto_depth_le (spec : ModulusSpec width)
       genericBody_depth_le _ _ _ _ _ _ _ _ duration selected) path
 
 /-- Selected generic durations equal the same actual original native trace. -/
-theorem genericInto_duration_eventTrace (spec : ModulusSpec width)
+lemma genericInto_duration_eventTrace (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -159,7 +159,7 @@ theorem genericInto_duration_eventTrace (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       genericBody_duration_eventTrace _ _ _ _ _ _ _ _ duration selected) path
 
-private theorem genericBody_resident_le (spec : ModulusSpec width)
+private lemma genericBody_resident_le (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
@@ -177,7 +177,7 @@ private theorem genericBody_resident_le (spec : ModulusSpec width)
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- Both persistent slope operands coexist with the largest original active scope. -/
-theorem genericInto_resident_le (spec : ModulusSpec width)
+lemma genericInto_resident_le (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (genericInto spec left right output).Path) :
@@ -194,7 +194,7 @@ theorem genericInto_resident_le (spec : ModulusSpec width)
     (genericActiveSpace model.kind width)
     (fun cells _ transport _ selected => genericBody_resident_le _ _ _ _ _ _ _ _ selected) path
 
-private theorem genericBody_auxiliary_le (spec : ModulusSpec width)
+private lemma genericBody_auxiliary_le (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
@@ -212,7 +212,7 @@ private theorem genericBody_auxiliary_le (spec : ModulusSpec width)
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- Both persistent slope operands coexist with the largest original active scope. -/
-theorem genericInto_auxiliary_le (spec : ModulusSpec width)
+lemma genericInto_auxiliary_le (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (genericInto spec left right output).Path) :

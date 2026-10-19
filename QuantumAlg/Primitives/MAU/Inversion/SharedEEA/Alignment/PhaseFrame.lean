@@ -34,7 +34,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA ArithmeticWindowRegisters ArithmeticWindowLaws
 
-private theorem shift_fits (state : IterationState) (modulus shift : Nat)
+private lemma shift_fits (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (within : shift ≤ state.quotient.size) : shift < 2 ^ modulus.size.size :=
   (within.trans (CoefficientPhaseFrame.quotient_size_le state modulus valid conserved)).trans_lt
@@ -60,7 +60,7 @@ def frame (state : IterationState) (modulus shift : Nat)
   control := false
 
 /-- The actual stored lengths supply precisely the aligned source arithmetic geometry. -/
-theorem window_fits (state : IterationState) (modulus shift : Nat)
+lemma window_fits (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) (sign iteration : Bool) :
     let physical := frame state modulus shift valid conserved within sign iteration
@@ -76,7 +76,7 @@ def window (state : IterationState) (modulus shift : Nat)
     (AlignmentWindow.window_fits state modulus shift valid conserved active within)
 
 /-- The real rotated second-word slice contains the whole divisor even at the stopping threshold. -/
-theorem sourceWord_toNat (state : IterationState) (modulus shift : Nat)
+lemma sourceWord_toNat (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) (sign iteration : Bool) :
     (sourceWord (window state modulus shift valid conserved active within)
@@ -95,7 +95,7 @@ theorem sourceWord_toNat (state : IterationState) (modulus shift : Nat)
   exact AlignmentWindow.source_toNat state modulus shift valid conserved active within
 
 /-- The selected upper region plus its retained suffix is the entire original macro remainder. -/
-theorem remainder_toNat (state : IterationState) (modulus shift : Nat)
+lemma remainder_toNat (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) (sign iteration : Bool) :
     (RemainderReassembly.remainderWord (window state modulus shift valid conserved active within)
@@ -117,7 +117,7 @@ theorem remainder_toNat (state : IterationState) (modulus shift : Nat)
     region).trans (congrArg BitVec.toNat (RemainderPhaseFrame.packWork1_read payload))
 
 /-- The actual upper operand is the complete old remainder divided by its retained binary scale. -/
-theorem targetWord_toNat (state : IterationState) (modulus shift : Nat)
+lemma targetWord_toNat (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) (sign iteration : Bool) :
     (targetWord (window state modulus shift valid conserved active within)
@@ -130,7 +130,7 @@ theorem targetWord_toNat (state : IterationState) (modulus shift : Nat)
     (remainder_toNat state modulus shift valid conserved active within sign iteration))
 
 /-- The actual alignment arithmetic preserves both whole words and computes the strict full test. -/
-theorem native_frame (state : IterationState) (modulus shift : Nat)
+lemma native_frame (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) (iteration : Bool) :
     ArithmeticBlocks.remainderStep modulus.size

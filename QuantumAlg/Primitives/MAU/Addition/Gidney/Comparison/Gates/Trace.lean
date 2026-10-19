@@ -18,7 +18,7 @@ noncomputable section
 open EncodedBit GateSpec BinaryLabelEncoding
 
 /-- Complete physical packing retains the actual extended-offset instruction order. -/
-theorem gidneyPackedOffsetGates_trace (width : Nat) (constant : Fin (2 ^ (1 + width))) :
+lemma gidneyPackedOffsetGates_trace (width : Nat) (constant : Fin (2 ^ (1 + width))) :
     (packedOffsetGates width constant).map (event .empty) =
       (packedOffsetProgram width constant).eventTrace := by
   simp only [packedOffsetGates, List.map_map, Function.comp_def, FullPlacement.placeGate_event]
@@ -26,7 +26,7 @@ theorem gidneyPackedOffsetGates_trace (width : Nat) (constant : Fin (2 ^ (1 + wi
     UnitaryCircuit.castCanonicalQubitWidth_eventTrace]
 
 /-- The restoring low-word offset retains every original event after the untouched flag. -/
-theorem gidneyLowOffsetGates_trace (width : Nat) (constant : Fin (2 ^ width)) :
+lemma gidneyLowOffsetGates_trace (width : Nat) (constant : Fin (2 ^ width)) :
     (lowOffsetGates width constant).map (event .empty) =
       (lowOffsetProgram width constant).eventTrace := by
   erw [lowOffsetGates, map_event_prodRight, HRS.hrsOneDirtyGates_trace,
@@ -35,7 +35,7 @@ theorem gidneyLowOffsetGates_trace (width : Nat) (constant : Fin (2 ^ width)) :
   rfl
 
 /-- Zero pivot emits no instruction; every other pivot keeps both offsets and the actual flag X. -/
-theorem gidneyComparisonGates_trace (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparisonGates_trace (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonGates width pivot).map (event .empty) =
       (comparisonProgram width pivot).eventTrace := by
   by_cases zero : pivot.val = 0

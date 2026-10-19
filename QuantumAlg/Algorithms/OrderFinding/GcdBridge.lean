@@ -30,7 +30,7 @@ namespace OrderFinding
 /-- A successful public-register order-finding source event and the standard
 even-order hypotheses jointly provide the two nontrivial gcd factors.  Resource
 accounting remains owned by the named order-finding algorithm. -/
-theorem shorSourceJointGcdBridge
+lemma shorSourceJointGcdBridge
     {N n a t r : Nat}
     (D : ModularMultiplicationDomain N n)
     (hinput : OrderFinding.Input N a r)

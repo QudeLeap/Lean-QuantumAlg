@@ -28,11 +28,11 @@ def scratchKeys (ctx : RuntimeCtx kind) (N : Nat) : List StorageKey :=
     (modulusRef ctx N).key, (oneRef ctx N).key, (candidateRef ctx N).key]
 
 /-- Those six actual cells precede exactly the unchanged original frame. -/
-theorem context_keys (ctx : RuntimeCtx kind) (N : Nat) :
+lemma context_keys (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).keys = scratchKeys ctx N ++ ctx.keys := rfl
 
 /-- The genuine context certificate proves all actual scratch identities distinct. -/
-theorem scratchKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
+lemma scratchKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
     (scratchKeys ctx N).Nodup := by
   have actual : (scratchKeys ctx N ++ ctx.keys).Nodup := by
     rw [← context_keys]
@@ -40,22 +40,22 @@ theorem scratchKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
   exact (List.nodup_append.mp actual).1
 
 /-- Any two different positions name physically different scratch cells. -/
-theorem scratchKeys_ne (ctx : RuntimeCtx kind) (N : Nat) (first second : Fin 6)
+lemma scratchKeys_ne (ctx : RuntimeCtx kind) (N : Nat) (first second : Fin 6)
     (different : first ≠ second) :
     (scratchKeys ctx N).get first ≠ (scratchKeys ctx N).get second :=
   fun same => different ((scratchKeys_nodup ctx N).injective_get same)
 
 /-- The actual structural lift leaves every original read support unchanged. -/
-theorem liftInput_keys {shape : CShape} (input : CInputRef ctx shape) :
+lemma liftInput_keys {shape : CShape} (input : CInputRef ctx shape) :
     (liftInput (N := N) input).storageKeys = input.storageKeys := by
   simp only [liftInput, CInputRef.storageKeys_underWorkspace]
 
 /-- The original destination keeps the same physical key under all six true workspace heads. -/
-theorem liftWrite_key {shape : CShape} (output : CWriteRef ctx shape) :
+lemma liftWrite_key {shape : CShape} (output : CWriteRef ctx shape) :
     (liftWrite (N := N) output).key = output.key := rfl
 
 /-- Every scratch write is disjoint from every actual pre-existing structural operand. -/
-theorem scratchKeys_input_separate {shape : CShape} (input : CInputRef ctx shape)
+lemma scratchKeys_input_separate {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (scratch : key ∈ scratchKeys ctx N) :
     key ∉ (liftInput (N := N) input).storageKeys := by
   have actual : (scratchKeys ctx N ++ ctx.keys).Nodup := by

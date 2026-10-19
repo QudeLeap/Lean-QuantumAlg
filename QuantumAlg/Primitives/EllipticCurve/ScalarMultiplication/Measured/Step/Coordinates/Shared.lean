@@ -55,7 +55,7 @@ def pointSharedBasis (width : Nat) (value : (MeasuredPointAddition.context width
       (MeasuredPointAddition.selectorContext width) (MeasuredPointAddition.selector_disjoint width)
       value).1).1
 
-private theorem original_wire_fixed (width : Nat) {count : Nat} (active : Fin count)
+private lemma original_wire_fixed (width : Nat) {count : Nat} (active : Fin count)
     (index : Fin (NumeratorMeasurement.context width).systemCount) :
     QuantumWire.relabel (physicalMap width active)
       ((NumeratorMeasurement.context width).quantumLayout.wire index) =
@@ -73,7 +73,7 @@ private theorem original_wire_fixed (width : Nat) {count : Nat} (active : Fin co
       exact congrArg (fun value => QuantumWire.mk value dimension) fixed
 
 /-- Every point step uses precisely the common original arithmetic system at each position. -/
-theorem pointPosition_shared (width : Nat) {count : Nat} (active : Fin count)
+lemma pointPosition_shared (width : Nat) {count : Nat} (active : Fin count)
     (index : Fin (NumeratorMeasurement.context width).systemCount) :
     pointPosition width active (originalPosition width index) =
       readyPosition width count index := by
@@ -84,7 +84,7 @@ theorem pointPosition_shared (width : Nat) {count : Nat} (active : Fin count)
     ContextUnion.contextUnion_left_wire]
 
 /-- The selected point view reads the unchanged complete common arithmetic basis exactly. -/
-theorem pointBasis_shared (width : Nat) {count : Nat} (active : Fin count)
+lemma pointBasis_shared (width : Nat) {count : Nat} (active : Fin count)
     (value : (readyContext width count).register.Index) :
     pointSharedBasis width (pointBasis width active value).1 = sharedBasis width count value := by
   funext index

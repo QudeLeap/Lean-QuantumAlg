@@ -26,7 +26,7 @@ namespace QuantumAlg.OrderFinding.Sampling.Native.Framed
 
 noncomputable section
 
-private theorem reindex_binary_bridge {R S T : Register}
+private lemma reindex_binary_bridge {R S T : Register}
     (physical : R.Index ≃ S.Index) (binary : R.Index ≃ T.Index)
     (operator : UnitaryOperator R) :
     UnitaryOperator.reindex physical operator =
@@ -39,37 +39,38 @@ private theorem reindex_binary_bridge {R S T : Register}
     UnitaryOperator.unitaryOperator_reindex_cancel]
 
 /-- The interpreter executes exactly the native source operator in its frame. -/
-public theorem nativeProgram_matrix_binary (ctx : RuntimeCtx .quantum)
-    (noQuantum : ctx.quantumWires = []) {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (nativeProgram ctx noQuantum access).matrix =
+public lemma nativeProgram_matrix_binary (ctx : RuntimeCtx .quantum)
+    (noQuantum : ctx.quantumWires = []) (t width : Nat)
+    (environment : (OrderFinding.Native.sourceModel t width).Interpretation) :
+    (nativeProgram ctx noQuantum t width).matrix environment =
       UnitaryOperator.reindex (preparedBasisEquiv ctx noQuantum t width).symm
-        (OrderFinding.Native.circuit access).binaryMatrix := by
+        ((OrderFinding.Native.circuit t width).binaryMatrix environment) := by
   let physical := QuantumAlg.Execution.basisOfEqualWires
     (Sampling.Native.runtimeLayout t width)
     (preparedContext ctx noQuantum t width).quantumLayout
     (prepared_wires ctx noQuantum t width)
   let binary := QuantumSignature.qubitsIndexEquiv (t + width)
   calc
-    _ = UnitaryOperator.reindex physical (OrderFinding.Native.circuit access).matrix := by
+    _ = UnitaryOperator.reindex physical ((OrderFinding.Native.circuit t width).matrix
+      environment) := by
       simpa only [nativeProgram] using
         (QuantumAlg.Execution.unitaryOfEqualWires_matrix
           (Sampling.Native.runtimeLayout t width)
           (preparedContext ctx noQuantum t width).quantumLayout
-          (prepared_wires ctx noQuantum t width)
-          (OrderFinding.Native.circuit access))
+          (prepared_wires ctx noQuantum t width) environment
+          (OrderFinding.Native.circuit t width))
     _ = _ := by
       have basisEq : preparedBasisEquiv ctx noQuantum t width =
           physical.symm.trans binary := rfl
-      have matrixEq : (OrderFinding.Native.circuit access).binaryMatrix =
+      have matrixEq : ((OrderFinding.Native.circuit t width).binaryMatrix environment) =
           UnitaryOperator.reindex binary
-            (OrderFinding.Native.circuit access).matrix := rfl
+            ((OrderFinding.Native.circuit t width).matrix environment) := rfl
       rw [basisEq, matrixEq]
       exact reindex_binary_bridge
         (R := (QuantumSignature.qubits (t + width)).register)
         (S := (preparedContext ctx noQuantum t width).register)
         (T := Qubits (t + width)) physical binary
-        (OrderFinding.Native.circuit access).matrix
+        ((OrderFinding.Native.circuit t width).matrix environment)
 
 end
 

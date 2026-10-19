@@ -23,7 +23,7 @@ namespace QuantumAlg.PMF
 noncomputable section
 
 /-- An exact characteristic weight sums precisely the original fiber of the mapped point. -/
-theorem sum_toReal_map_indicator {A B : Type} [Fintype A] [DecidableEq B]
+lemma sum_toReal_map_indicator {A B : Type} [Fintype A] [DecidableEq B]
     (distribution : PMF A) (map : A → B) (selected : B) :
     (∑ original : A, ((distribution original).toReal : ℂ) *
       (if map original = selected then 1 else 0)) =

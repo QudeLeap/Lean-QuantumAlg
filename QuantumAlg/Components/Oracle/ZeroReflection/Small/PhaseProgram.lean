@@ -30,7 +30,7 @@ open BinaryLabelEncoding PhaseWorkspace
 
 noncomputable section
 
-private theorem source_two_ne (phases : Nat) :
+private lemma source_two_ne (phases : Nat) :
     (sourceBit phases 1 0).wire ≠ (sourceBit phases 1 1).wire := by
   intro same
   have values := congrArg (fun wire : Fin (encoding phases 1).width => wire.val) same
@@ -52,10 +52,11 @@ def program (oracles : OracleModel) (phases : Nat) :
   | _ + 3, _, small, _ => False.elim (by omega)
 
 /-- The full phase/source label has the original controlled positive source-reflection phase. -/
-theorem program_applyVec_pair (oracles : OracleModel) (phases width : Nat)
+lemma program_applyVec_pair (oracles : OracleModel) {environment : oracles.Interpretation}
+    (phases width : Nat)
     (physical : QubitLayout (phases + width)) (small : width ≤ 2)
     (control : Fin phases) (phase : Fin (2 ^ phases)) (source : Fin (2 ^ width)) :
-    (program oracles phases width physical small control).applyVec
+    (program oracles phases width physical small control).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (prodEquiv (phase, source)))).vec =
       if (finIdentityBit phases control).get phase then
@@ -74,8 +75,9 @@ theorem program_applyVec_pair (oracles : OracleModel) (phases width : Nat)
       rw [← finIdentity_all_zero_iff 1 source]
       exact ⟨fun head index => by fin_cases index; exact head, fun allBits => allBits 0⟩
     have actual := (phaseBit phases 0 control).controlledZ_reflects_zero physical oracles
+      (environment := environment)
       (sourceBit phases 0 0) (phaseBit_ne_sourceBit phases 0 control 0) (phase, source)
-    change (program oracles phases 1 physical small control).applyVec
+    change (program oracles phases 1 physical small control).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (prodEquiv (phase, source)))).vec =
       (if (phaseBit phases 0 control).get (phase, source) then
@@ -97,11 +99,11 @@ theorem program_applyVec_pair (oracles : OracleModel) (phases width : Nat)
       · intro allBits
         exact ⟨allBits 0, allBits 1⟩
     have actual := (phaseBit phases 1 control).controlledTwoWireZeroReflection_applyVec_encoded_ket
-      physical oracles
+      physical oracles (environment := environment)
       (sourceBit phases 1 0) (sourceBit phases 1 1)
       (phaseBit_ne_sourceBit phases 1 control 0) (phaseBit_ne_sourceBit phases 1 control 1)
       (source_two_ne phases) (phase, source)
-    change (program oracles phases 2 physical small control).applyVec
+    change (program oracles phases 2 physical small control).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (prodEquiv (phase, source)))).vec =
       (if (phaseBit phases 1 control).get (phase, source) then
@@ -116,7 +118,7 @@ theorem program_applyVec_pair (oracles : OracleModel) (phases width : Nat)
     simpa only [phaseBit_get, sourceBit_get, zeroIff] using actual
 
 /-- The same small-width programs contain exactly zero, three or eight actual events. -/
-theorem program_eventTrace_length (oracles : OracleModel) (phases width : Nat)
+lemma program_eventTrace_length (oracles : OracleModel) (phases width : Nat)
     (physical : QubitLayout (phases + width)) (small : width ≤ 2)
     (control : Fin phases) :
     (program oracles phases width physical small control).eventTrace.length =

@@ -23,7 +23,7 @@ namespace QuantumAlg.Nat
 public def qftUnitDepth (bits : Nat) : Nat := bits + bits * (bits - 1) / 2 + bits / 2
 
 /-- The scalar formula is monotone for every pair of natural widths. -/
-public theorem qftUnitDepth_mono {left right : Nat} (bound : left ≤ right) :
+public lemma qftUnitDepth_mono {left right : Nat} (bound : left ≤ right) :
     qftUnitDepth left ≤ qftUnitDepth right := by
   unfold qftUnitDepth
   exact Nat.add_le_add

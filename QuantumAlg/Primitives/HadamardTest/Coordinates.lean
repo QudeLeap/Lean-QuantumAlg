@@ -28,7 +28,7 @@ noncomputable section
 
 open Execution
 
-private theorem singleQubit_value
+private lemma singleQubit_value
     (basis : (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout.register.Index) :
     ((OwnedQubitPrefix.prefixLayout 1).binaryIndexEquiv basis).val = (basis 0).val := by
   obtain ⟨label, rfl⟩ := (OwnedQubitPrefix.prefixLayout 1).binaryIndexEquiv.symm.surjective basis
@@ -36,7 +36,7 @@ private theorem singleQubit_value
   fin_cases label <;> rfl
 
 /-- The physical measurement wire is exactly the leading source qubit. -/
-theorem controlWire_value (width : Nat) (basis : (post width).register.Index) :
+lemma controlWire_value (width : Nat) (basis : (post width).register.Index) :
     (basis (controlWire width)).val =
       ((prodEquiv (m := 1) (n := width)).symm (outputBasisEquiv width basis)).1.val := by
   obtain ⟨⟨fresh, original⟩, rfl⟩ := (OwnedQubitPrefix.assembly 1 width).surjective basis
@@ -51,7 +51,7 @@ theorem controlWire_value (width : Nat) (basis : (post width).register.Index) :
     (Fin.castAdd (pre width).systemCount (0 : Fin 1))).trans
       (QuantumLayout.appendJoinBasis_left_value _ _ _ fresh original 0)
 
-private theorem transported_read_value {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
+private lemma transported_read_value {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) (store : Store ctx) :
     (store.read (.storage
       (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same)
@@ -59,36 +59,38 @@ private theorem transported_read_value {ctx : RuntimeCtx .quantum} {actual inten
   cases same
   rfl
 
-private theorem readout_read_value (width : Nat) (store : Store (post width)) :
+private lemma readout_read_value (width : Nat) (store : Store (post width)) :
     (store.read (.storage (readout width).output.toCStorageRef)).toFin.val =
       (store.read (.storage (resultRef width).toCStorageRef)).toFin.val :=
   transported_read_value (controlWire_dimension width) _ store
 
 /-- Reading the retained cell after its real Z write gives the exact source control outcome. -/
-theorem measured_value {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma measured_value (width : Nat)
     (store : Store (post width))
     (basis : (post width).register.Index) :
-    (Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model unitary true) (operations := .empty)
+    (Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model width true) (operations := .empty)
       (classicalOracles := .empty) [readout width] store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model width true) (operations := .empty)
       (classicalOracles := .empty) [readout width] basis)).read
         (.storage (resultRef width).toCStorageRef) =
       CShape.Value.finite (cardinality := 2)
         ((prodEquiv (m := 1) (n := width)).symm (outputBasisEquiv width basis)).1 := by
-  have actual := Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model)
-    (oracles := UnitarySource.model unitary true) (operations := .empty)
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
+    (gates := AlgorithmGate.model)
+    (oracles := UnitarySource.model width true) (operations := .empty)
     (services := .empty) [readout width]
     (List.nodup_singleton _) (readout width) (List.mem_singleton_self _) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
   change _ = (basis (controlWire width)).val at numeric
   rw [readout_read_value, controlWire_value] at numeric
-  generalize valueEq : (Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model unitary true) (operations := .empty)
+  generalize valueEq : (Circuit.writeMeasurementPath (allowAllocation := true)
+    (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model width true) (operations := .empty)
       (classicalOracles := .empty) [readout width] store
-    (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model unitary true) (operations := .empty)
+    (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model width true) (operations := .empty)
       (classicalOracles := .empty) [readout width] basis)).read
       (.storage (resultRef width).toCStorageRef) = value at numeric ⊢
   cases value with

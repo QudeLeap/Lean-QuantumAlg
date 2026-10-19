@@ -29,38 +29,44 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- Supported actual records return pure recovery of their own measured bits. -/
-theorem recoveredRecord_result {N x r t width : Nat}
+lemma recoveredRecord_result {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r)
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference)
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference)
     (valid : HasCanonicalBase hinput access input.caller.localState)
-    (record : (SourceNativeSampling.run access).Record)
+    (record : (SourceNativeSampling.run t width).Record)
     (supported : record ∈
-      ((SourceNativeSampling.run access).executionDistribution input).support) :
-    (run hinput access).result (recoveredRecord hinput access record) =
-      recoveredValue hinput access ((SourceNativeSampling.run access).result record) := by
-  change (recoveryStep hinput access record.1).1.read
+      ((SourceNativeSampling.run t width).executionDistribution (Sampling.Native.environment
+        access) input).support) :
+    (run (modulusSpec hinput access) t).result (recoveredRecord (modulusSpec hinput access) t
+      record) =
+      recoveredValue hinput access ((SourceNativeSampling.run t width).result record) := by
+  change (recoveryStep (modulusSpec hinput access) t record.1).1.read
       (.storage (resultRef t width).toCStorageRef) =
     recoveredValue hinput access (record.1.read (SourceNativeSampling.sampleRef t width))
   exact recoveryStep_output hinput access record.1
     (SourceNativeSampling.supported_base_read hinput access input valid record supported)
 
 /-- Actual complete output is the native sample law followed by genuine recovery. -/
-theorem outputDistribution_eq_recovery {N x r t width : Nat}
+lemma outputDistribution_eq_recovery {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r)
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference)
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference)
     (valid : HasCanonicalBase hinput access input.caller.localState) :
-    (run hinput access).outputDistribution input =
-      ((SourceNativeSampling.run access).outputDistribution input).map
+    (run (modulusSpec hinput access) t).outputDistribution (Sampling.Native.environment access)
+      input =
+      ((SourceNativeSampling.run t width).outputDistribution (Sampling.Native.environment access)
+        input).map
         (recoveredValue hinput access) := by
-  change ((run hinput access).executionDistribution input).map (run hinput access).result =
-    (((SourceNativeSampling.run access).executionDistribution input).map
-      (SourceNativeSampling.run access).result).map (recoveredValue hinput access)
+  change ((run (modulusSpec hinput access) t).executionDistribution (Sampling.Native.environment
+    access) input).map (run (modulusSpec hinput access) t).result =
+    (((SourceNativeSampling.run t width).executionDistribution (Sampling.Native.environment
+      access) input).map
+      (SourceNativeSampling.run t width).result).map (recoveredValue hinput access)
   rw [executionDistribution_eq_map, PMF.map_comp, PMF.map_comp]
   apply PMF.ext
   intro output
@@ -68,7 +74,8 @@ theorem outputDistribution_eq_recovery {N x r t width : Nat}
   apply tsum_congr
   intro record
   by_cases supported :
-      record ∈ ((SourceNativeSampling.run access).executionDistribution input).support
+      record ∈ ((SourceNativeSampling.run t width).executionDistribution
+        (Sampling.Native.environment access) input).support
   · rw [Function.comp_apply, Function.comp_apply,
       recoveredRecord_result hinput access input valid record supported]
   · have absent := (PMF.apply_eq_zero_iff _ record).2 supported

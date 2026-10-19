@@ -36,7 +36,7 @@ noncomputable section
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem body_resident_le
+private lemma body_resident_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (body (model := model) halfPower output).Path) :
@@ -61,7 +61,7 @@ private theorem body_resident_le
     · exact NativeHalfFactor.code_resident_le
         (liftInput halfPower) (cells ctx N) (liftWrite output) path.2.2
 
-private theorem body_auxiliary_le
+private lemma body_auxiliary_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (body (model := model) halfPower output).Path) :
@@ -89,7 +89,7 @@ private theorem body_auxiliary_le
 set_option maxHeartbeats 800000 in
 -- Elaborating the six actual dependent allocation contexts repeatedly checks their fresh-key
 -- transports. Keep that finite elaboration allowance local to this actual trace-membership bridge.
-private theorem code_visited (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma code_visited (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (code (model := model) halfPower output).visitedContexts path) :
@@ -109,7 +109,7 @@ section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
+private lemma prefix_resident_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, candidateContext ctx N, oneContext ctx N, modulusContext ctx N,
       lowerContext ctx N, upperContext ctx N]) :
     visited.residentSpace ≤ ctx.residentSpace + spaceBound kind N := by
@@ -123,7 +123,7 @@ private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
     all_goals omega
   exact capacities visited present
 
-private theorem full_resident_capacity :
+private lemma full_resident_capacity :
     (context ctx N).residentSpace + NativeHalfGCD.spaceBound kind N ≤
       ctx.residentSpace + spaceBound kind N := by
   intro axis
@@ -135,7 +135,7 @@ private theorem full_resident_capacity :
 end
 
 /-- The actual resident peak includes every outer entry while nested division cells are live. -/
-theorem code_resident_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_resident_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower output).Path) :
     (code (model := model) halfPower output).peakResidentSpace path ≤ ctx.residentSpace +
@@ -152,7 +152,7 @@ section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
+private lemma prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, candidateContext ctx N, oneContext ctx N, modulusContext ctx N,
       lowerContext ctx N, upperContext ctx N]) :
     visited.auxiliarySpace ≤ ctx.auxiliarySpace + spaceBound kind N := by
@@ -166,7 +166,7 @@ private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     all_goals omega
   exact capacities visited present
 
-private theorem full_auxiliary_capacity :
+private lemma full_auxiliary_capacity :
     (context ctx N).auxiliarySpace + NativeHalfGCD.spaceBound kind N ≤
       ctx.auxiliarySpace + spaceBound kind N := by
   intro axis
@@ -178,7 +178,7 @@ private theorem full_auxiliary_capacity :
 end
 
 /-- The actual auxiliary peak includes every outer entry while nested division cells are live. -/
-theorem code_auxiliary_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_auxiliary_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower output).Path) :
     (code (model := model) halfPower output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +

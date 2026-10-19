@@ -28,7 +28,7 @@ namespace QuantumAlg
 noncomputable section
 
 /-- The original addressed phase reads exactly the supplied logical control and target bits. -/
-public theorem qftControlledPhaseFactor_coordinates {width : Nat}
+public lemma qftControlledPhaseFactor_coordinates {width : Nat}
     (control target : Fin width) (angle : Real) (basis : Fin width → Fin 2) :
     qftControlledPhaseFactor control target angle (QuantumSignature.qubitsIndexEquiv width basis) =
       if finTwoEquiv (basis control) && finTwoEquiv (basis target) then
@@ -46,7 +46,7 @@ public theorem qftControlledPhaseFactor_coordinates {width : Nat}
   simp only [qftControlledPhaseFactor, bit]
 
 /-- Reindexing the unchanged target yields its exact diagonal on the ordered physical bits. -/
-public theorem qftControlledPhaseOperator_coordinates {width : Nat}
+public lemma qftControlledPhaseOperator_coordinates {width : Nat}
     (control target : Fin width) (angle : Real) :
     (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm
       (qftControlledPhaseOperator control target angle)).val =

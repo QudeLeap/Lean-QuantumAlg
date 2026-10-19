@@ -43,7 +43,7 @@ public def adjointApplication {count : Nat} {layout : QuantumLayout count}
   | cnot => exact ⟨⟨.cnot, placement⟩, embedding⟩
   | singleQubit operator => exact ⟨⟨.singleQubit (star operator), placement⟩, embedding⟩
 
-private theorem cnot_operator_star : star Gate.CNOTOp = Gate.CNOTOp := by
+private lemma cnot_operator_star : star Gate.CNOTOp = Gate.CNOTOp := by
   apply Subtype.ext
   ext row column
   change star (Gate.CNOTOp column row) = Gate.CNOTOp row column
@@ -51,7 +51,7 @@ private theorem cnot_operator_star : star Gate.CNOTOp = Gate.CNOTOp := by
     simp [Gate.CNOTOp, UnitaryOperator.ofPerm_entry, Equiv.swap_apply_def]
 
 /-- The replacement has the exact adjoint operator, including all untouched spectator systems. -/
-public theorem algorithmGate_adjointApplication_operator {count : Nat}
+public lemma algorithmGate_adjointApplication_operator {count : Nat}
     {layout : QuantumLayout count} (application : GateModel.Application model layout) :
     (adjointApplication application).operator = star application.operator := by
   rcases application with ⟨⟨token, placement⟩, embedding⟩
@@ -86,7 +86,7 @@ public theorem algorithmGate_adjointApplication_operator {count : Nat}
         QuantumLayout.Embedding.embedding_liftOperator_star]
 
 /-- Default-model inversion preserves the native coordinate of each actual gate. -/
-public theorem algorithmGate_adjointApplication_coordinate {count : Nat}
+public lemma algorithmGate_adjointApplication_coordinate {count : Nat}
     {layout : QuantumLayout count} (application : GateModel.Application model layout) :
     (adjointApplication application).coordinate = application.coordinate := by
   rcases application with ⟨⟨token, placement⟩, embedding⟩
@@ -95,24 +95,29 @@ public theorem algorithmGate_adjointApplication_coordinate {count : Nat}
 /-- One actual native instruction realizes the adjoint of a default-model gate application. -/
 public def nativeAdjoint (oracles : OracleModel) {count : Nat} {layout : QuantumLayout count}
     (application : GateModel.Application model layout) :
-    UnitaryCircuit.ExactRealization model oracles layout (star application.operator) where
+    UnitaryCircuit.ExactRealization model oracles layout (fun _ => star application.operator) where
   circuit := UnitaryCircuit.native (adjointApplication application)
-  matrix_eq := (UnitaryCircuit.native_matrix _).trans
-    (algorithmGate_adjointApplication_operator application)
+  matrix_eq environment :=
+    (UnitaryCircuit.native_matrix environment _).trans
+      (algorithmGate_adjointApplication_operator application)
 
 /-- Use native default-model inverses and only the explicitly supplied inverse query words. -/
 public def adjointRealizations (sourceOracles targetOracles : OracleModel)
+    (interpretation : targetOracles.Interpretation → sourceOracles.Interpretation)
     (inverseQuery : {count : Nat} → {layout : QuantumLayout count} →
       (application : OracleModel.Application sourceOracles layout) →
-        UnitaryCircuit.ExactRealization model targetOracles layout (star application.operator)) :
+        UnitaryCircuit.ExactRealization model targetOracles layout
+          (fun environment => star (application.operator (interpretation environment)))) :
     UnitaryCircuit.AdjointRealizations model sourceOracles model targetOracles where
+  interpretation := interpretation
   native := nativeAdjoint targetOracles
   query := inverseQuery
 
 /-- An oracle-free source requires no inverse access, even in a target with declared queries. -/
 public def oracleFreeAdjoints (targetOracles : OracleModel) :
     UnitaryCircuit.AdjointRealizations model .empty model targetOracles :=
-  adjointRealizations .empty targetOracles fun application =>
+  adjointRealizations .empty targetOracles (fun _ => OracleModel.emptyInterpretation)
+    fun application =>
     False.elim (OracleModel.Occurrence.no_empty_oracle_occurrence application.occurrence)
 
 end

@@ -6,8 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Probability.Recovery
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.RawRecovery.Native.Semantics
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Recovery.Contract
 
 /-!
 # Actual raw recovery from selected measured exponent values
@@ -32,19 +32,6 @@ open ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
     {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-/-- Structural reindexing preserves every actual finite measurement value and its bit order. -/
-def rawRecoveryInput (problem : KnownOrderProblem E.GroupPoint)
-    (measured : CInputRef ctx (.fixedVector (2 * orderWidth problem) (.finite 2))) :
-    CInputRef ctx (.fixedVector (orderWidth problem + orderWidth problem) (.finite 2)) :=
-  .fixedVector fun index => .vectorGet measured (Fin.cast (by omega) index)
-
-/-- The actual decoder input is exactly the original raw exponent mask at every bit. -/
-theorem preparationInput_rawRecoveryInput (problem : KnownOrderProblem E.GroupPoint)
-    (measured : CInputRef ctx (.fixedVector (2 * orderWidth problem) (.finite 2)))
-    (store : Store ctx) :
-    preparationInput (store.read (rawRecoveryInput problem measured)) =
-      rawExponentInput problem (QubitReadouts.mask (store.read measured)) := rfl
-
 /-- Actual recovery reads measured values and writes the original optional shape. -/
 def rawRecoveryIntoResult {model : ExecutionModel} [BitWord.Selected model]
     {ctx' : RuntimeCtx model.kind} (problem : KnownOrderProblem E.GroupPoint)
@@ -57,8 +44,9 @@ def rawRecoveryIntoResult {model : ExecutionModel} [BitWord.Selected model]
     (rawRecoveryInput problem measured) result
 
 /-- The same complete execution record stores the secret on every original selected measurement. -/
-theorem rawRecoveryIntoResult_selected_actualRecord
-    {model : ExecutionModel} [BitWord.Selected model] {ctx' : RuntimeCtx model.kind}
+lemma rawRecoveryIntoResult_selected_actualRecord
+    {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx' : RuntimeCtx model.kind}
     (problem : KnownOrderProblem E.GroupPoint)
     (nontrivial : 2 ≤ problem.order) (input : SecretInput problem)
     (measured : CInputRef ctx' (.fixedVector (2 * orderWidth problem) (.finite 2)))
@@ -68,7 +56,8 @@ theorem rawRecoveryIntoResult_selected_actualRecord
         (rawRecoveryIntoResult problem nontrivial measured result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx' Reference (model.HiddenState × History)),
-        (rawRecoveryIntoResult problem nontrivial measured result).execute Reference state =
+        (rawRecoveryIntoResult problem nontrivial measured result).execute environment Reference
+          state =
           state.mapClassical (fun entry =>
             let outcome := record (entry.1, entry.2.1)
             (outcome.1.1, (outcome.1.2, (entry.2.2, outcome.2))))) ∧
@@ -78,6 +67,7 @@ theorem rawRecoveryIntoResult_selected_actualRecord
             (.optionSome (.product (CShape.wordOfNat (orderWidth problem) input.secret.val)
               (.bit true))) := by
   obtain ⟨record, equation, correct⟩ := singleIntoResult_actualRecord (model := model)
+    (environment := environment)
     (recoveryModulusSpec problem nontrivial) (rawRecoveryInput problem measured) result
   refine ⟨record, equation, ?_⟩
   intro before selected

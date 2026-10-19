@@ -36,7 +36,7 @@ def guardStore (cells : Cells ctx N) (store : Store ctx) : Store ctx :=
     (positiveOrderOp cells)).applyOp (positiveEvenOp cells)).applyOp (acceptedOrderOp cells)
 
 /-- No structural read outside the actual zero and comparison cells changes in the guard. -/
-theorem guard_read_other (cells : Cells ctx N) {shape : CShape} (other : CInputRef ctx shape)
+lemma guard_read_other (cells : Cells ctx N) {shape : CShape} (other : CInputRef ctx shape)
     (zeroFree : cells.zero.key ∉ other.storageKeys)
     (activeFree : cells.active.key ∉ other.storageKeys)
     (positiveFree : cells.positive.key ∉ other.storageKeys) (store : Store ctx) :
@@ -55,7 +55,8 @@ theorem guard_read_other (cells : Cells ctx N) {shape : CShape} (other : CInputR
           other activeFree).trans
           (Store.read_applyOp_of_not_mem_storageKeys store (clearZeroOp cells) other zeroFree))))
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The actual five writes return their real values in chronological order. -/
 def guardStep (cells : Cells ctx N) (store : Store ctx) :
@@ -68,14 +69,14 @@ def guardStep (cells : Cells ctx N) (store : Store ctx) :
   (accepted.1, (cleared.2, (even.2, (positive.2, (combined.2, accepted.2)))))
 
 /-- The actual returned record retains the original five-operation store update. -/
-theorem guardStep_store (cells : Cells ctx N) (store : Store ctx) :
+lemma guardStep_store (cells : Cells ctx N) (store : Store ctx) :
     (guardStep (model := model) cells store).1 = guardStore cells store := rfl
 
 /-- The same real guard preserves history, service state and complete quantum-reference blocks. -/
-theorem guard_execute (cells : Cells ctx N) (Reference : Register)
+lemma guard_execute (cells : Cells ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (guardOrder (model := model) cells).execute Reference state =
+    (guardOrder (model := model) cells).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := guardStep (model := model) cells entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -84,7 +85,7 @@ theorem guard_execute (cells : Cells ctx N) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- All five native guard operations remain in their actual execution order. -/
-theorem guard_eventTrace (cells : Cells ctx N)
+lemma guard_eventTrace (cells : Cells ctx N)
     (path : (guardOrder (model := model) cells).Path) :
     (guardOrder (model := model) cells).eventTrace path =
       [.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -105,7 +106,7 @@ theorem guard_eventTrace (cells : Cells ctx N)
   rfl
 
 /-- The real sequential guard has exactly five native unit-depth events. -/
-theorem guard_unitDepth (cells : Cells ctx N)
+lemma guard_unitDepth (cells : Cells ctx N)
     (path : (guardOrder (model := model) cells).Path) :
     (guardOrder (model := model) cells).depth (fun _ => 1) path = 5 := rfl
 

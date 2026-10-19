@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.GuardedShift
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NumberTheory.SharedEEA
 
 private def ascending {width : Nat} (state : Registers width) : Registers width :=
@@ -48,7 +50,7 @@ private def descending {width : Nat} (state : Registers width) : Registers width
     shift := pair.2 }
 
 /-- A reached ascending bound restores arbitrary original high positions internally. -/
-theorem ascending_eq_low {width : Nat} (state : Registers width)
+lemma ascending_eq_low {width : Nat} (state : Registers width)
     (within : state.shift.toNat + 1 < 2 ^ width.size) :
     ascending state =
       { state with secondWord := state.secondWord.rotateLeft 1, shift := state.shift + 1 } := by
@@ -56,7 +58,7 @@ theorem ascending_eq_low {width : Nat} (state : Registers width)
   rw [PaddingClockActive.increment_eq_low (state.firstWord, state.shift) within]
 
 /-- The actual intermediate increment and two inverse increments retain arbitrary high data. -/
-theorem descending_ascending_eq_low {width : Nat} (state : Registers width)
+lemma descending_ascending_eq_low {width : Nat} (state : Registers width)
     (positive : 0 < state.shift.toNat) :
     descending (ascending state) =
       { state with
@@ -89,25 +91,27 @@ private def lastProgram (width : Nat) (selected : Bool) :
       (GateSpec.programList (QubitLayout.canonical _) .empty
         (PhaseGuard.descendingGates width selected).reverse))
 
-private theorem first_realizes (width : Nat) (selected : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (firstProgram width selected) (firstStep selected) :=
+private lemma first_realizes (width : Nat) (selected : Bool) :
+    UnitaryCircuit.Realizes (encoding width) (firstProgram width selected) environment (firstStep
+      selected) :=
   ((PhaseGuard.first_realizes width selected).seq
     ((ControlledShift.left_realizes width).seq
       (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
         (PhaseGuard.firstGates width selected).reverse
-        (PhaseGuard.first_reverse_step width selected)))).congrStep (by
+        (PhaseGuard.first_reverse_step width selected) environment))).congrStep (by
     intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
       ⟨p1, p2, sign, iter⟩, control⟩
     cases selected <;> cases p1 <;> cases control <;> rfl)
 
-private theorem last_realizes (width : Nat) (selected : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (lastProgram width selected) (lastStep selected) :=
+private lemma last_realizes (width : Nat) (selected : Bool) :
+    UnitaryCircuit.Realizes (encoding width) (lastProgram width selected) environment (lastStep
+      selected) :=
   ((PhaseGuard.descending_realizes width selected).seq
     (((ControlledShift.right_realizes width).seq (ControlledShift.right_realizes width)).seq
       (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
         (PhaseGuard.descendingGates width selected).reverse
-        (PhaseGuard.descending_reverse_step width selected)))).congrStep (by
+        (PhaseGuard.descending_reverse_step width selected) environment))).congrStep (by
     intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
       ⟨p1, p2, sign, iter⟩, control⟩
@@ -124,22 +128,22 @@ def step {width : Nat} (selected : Bool) (state : Registers width) : Registers w
   lastStep selected (firstStep selected state)
 
 /-- The exact full-frame realization is derived solely from the executed native components. -/
-theorem program_realizes (width : Nat) (selected : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (program width selected) (step selected) :=
+lemma program_realizes (width : Nat) (selected : Bool) :
+    UnitaryCircuit.Realizes (encoding width) (program width selected) environment (step selected) :=
   (first_realizes width selected).seq (last_realizes width selected)
 
-private theorem first_control (width : Nat) (selected : Bool) (state : Registers width) :
+private lemma first_control (width : Nat) (selected : Bool) (state : Registers width) :
     (firstStep selected state).control = state.control := by
   unfold firstStep
   split <;> rfl
 
-private theorem last_control (width : Nat) (selected : Bool) (state : Registers width) :
+private lemma last_control (width : Nat) (selected : Bool) (state : Registers width) :
     (lastStep selected state).control = state.control := by
   unfold lastStep
   split <;> rfl
 
 /-- Both actual predicate cleanup stages restore the original Ctrl for every incoming value. -/
-theorem step_control (width : Nat) (selected : Bool) (state : Registers width) :
+lemma step_control (width : Nat) (selected : Bool) (state : Registers width) :
     (step selected state).control = state.control := by
   rw [step, last_control, first_control]
 
@@ -150,7 +154,7 @@ def sourceStep {width : Nat} (selected : Bool) (state : Registers width) : Regis
   else state
 
 /-- The source behavior follows from the algorithm's internal Ctrl-zero invariant. -/
-theorem step_eq_source (width : Nat) (selected : Bool) (state : Registers width)
+lemma step_eq_source (width : Nat) (selected : Bool) (state : Registers width)
     (preparedControl : state.control = false) :
     step selected state = sourceStep selected state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -160,21 +164,22 @@ theorem step_eq_source (width : Nat) (selected : Bool) (state : Registers width)
   cases selected <;> cases p1 <;> cases p2 <;> rfl
 
 /-- The actual circuit acts on every internally prepared source label without losing a phase. -/
-theorem program_prepared (width : Nat) (selected : Bool) (state : Registers width)
+lemma program_prepared (width : Nat) (selected : Bool) (state : Registers width)
     (preparedControl : state.control = false) :
-    (program width selected).applyNormalized
+    (program width selected).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
             ((encoding width).encode state))) =
       NormalizedVector.ket
         ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
           ((encoding width).encode (sourceStep selected state))) := by
-  have actual := (program_realizes width selected).apply_encoded_ket state
+  have actual := (program_realizes
+    (environment := environment) width selected).apply_encoded_ket state
   rw [step_eq_source width selected state preparedControl] at actual
   exact actual
 
 /-- The literal event trace retains every predicate, arithmetic pair, and inverse cleanup. -/
-theorem program_eventTrace (width : Nat) (selected : Bool) :
+lemma program_eventTrace (width : Nat) (selected : Bool) :
     (program width selected).eventTrace =
       (PhaseGuard.firstGates width selected).map (GateSpec.event .empty) ++
       (ControlledShift.leftProgram width).eventTrace ++

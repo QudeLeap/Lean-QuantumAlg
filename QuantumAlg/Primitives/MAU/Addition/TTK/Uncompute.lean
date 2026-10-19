@@ -29,7 +29,7 @@ private def uncomputeSource {n : Nat} (i : Fin (n - 1)) : Fin n :=
 private def uncomputeTarget {n : Nat} (i : Fin (n - 1)) : Fin n :=
   ⟨i.val + 1, by omega⟩
 
-private theorem uncomputeSource_ne_target {n : Nat} (i : Fin (n - 1)) :
+private lemma uncomputeSource_ne_target {n : Nat} (i : Fin (n - 1)) :
     uncomputeSource i ≠ uncomputeTarget i := by
   intro h
   have hval := congrArg Fin.val h
@@ -46,7 +46,7 @@ private def uncomputeBlock {n : Nat} (i : Fin (n - 1)) :
      (Ne.symm (ttkLeftRight_disjoint n _ _))
      (ttkLeftLeft_disjoint n _ _ (uncomputeSource_ne_target i))]
 
-private theorem uncomputeBlock_left (n : Nat) (k : Fin (n - 1))
+private lemma uncomputeBlock_left (n : Nat) (k : Fin (n - 1))
     (i : Fin n) (s : Registers n) :
     (leftBit n i).get (stepList (uncomputeBlock k) s) =
       if i = uncomputeTarget k then
@@ -65,7 +65,7 @@ private theorem uncomputeBlock_left (n : Nat) (k : Fin (n - 1))
     (uncomputeSource_ne_target k)]
   simp only [ttkCnotLR_left, ttkCnotLR_right, if_neg (uncomputeSource_ne_target k)]
 
-private theorem uncomputeBlock_right (n : Nat) (k : Fin (n - 1))
+private lemma uncomputeBlock_right (n : Nat) (k : Fin (n - 1))
     (i : Fin n) (s : Registers n) :
     (rightBit n i).get (stepList (uncomputeBlock k) s) =
       if i = uncomputeTarget k then
@@ -98,7 +98,7 @@ private def uncomputeInvariant (n : Nat) (original : Registers n)
     else (original.2.val.testBit i.val ^^
       natAddCarry original.1.val original.2.val i.val))
 
-private theorem uncomputeInvariant_left_target (n : Nat) (original s : Registers n)
+private lemma uncomputeInvariant_left_target (n : Nat) (original s : Registers n)
     (k : Fin (n - 1)) (hs : uncomputeInvariant n original (k.val + 1) s) :
     (leftBit n (uncomputeTarget k)).get (stepList (uncomputeBlock k) s) =
       if 2 ≤ k.val + 1 then
@@ -145,7 +145,7 @@ private theorem uncomputeInvariant_left_target (n : Nat) (original s : Registers
     rw [EncodedBit.toffoliStep_get_target] at h
     exact h
 
-private theorem uncomputeInvariant_right_target (n : Nat) (original s : Registers n)
+private lemma uncomputeInvariant_right_target (n : Nat) (original s : Registers n)
     (k : Fin (n - 1)) (hs : uncomputeInvariant n original (k.val + 1) s) :
     (rightBit n (uncomputeTarget k)).get (stepList (uncomputeBlock k) s) =
       (original.2.val.testBit (k.val + 1) ^^
@@ -169,7 +169,7 @@ private theorem uncomputeInvariant_right_target (n : Nat) (original s : Register
   rw [EncodedBit.cnotStep_get_target] at h
   exact h
 
-private theorem uncomputeInvariant_step (n : Nat) (original s : Registers n)
+private lemma uncomputeInvariant_step (n : Nat) (original s : Registers n)
     (k : Fin (n - 1)) (hs : uncomputeInvariant n original (k.val + 1) s) :
     uncomputeInvariant n original k.val (stepList (uncomputeBlock k) s) := by
   constructor
@@ -210,7 +210,7 @@ private theorem uncomputeInvariant_step (n : Nat) (original s : Registers n)
         rw [if_neg hle, if_neg hle']
 
 /-- Stage four restores the adjacent addend XORs and extracts every sum-carry XOR. -/
-theorem ttkUncomputeSweep (n : Nat) (original s : Registers n)
+lemma ttkUncomputeSweep (n : Nat) (original s : Registers n)
     (hleft : ∀ i : Fin n, (leftBit n i).get s =
       (original.1.val.testBit i.val ^^
         natAddCarry original.1.val original.2.val i.val))

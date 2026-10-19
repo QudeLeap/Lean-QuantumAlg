@@ -41,7 +41,7 @@ def factorStore (scratch : Proposal.ScratchRefs ctx width)
     scratch.candidate)).applyOp
       (.bit .not ctx (FirstAccepted.cellRead scratch.eligible) scratch.eligible)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Native outcomes of the unit-copy and payload-clear instructions. -/
@@ -65,11 +65,11 @@ def factorStep (scratch : Proposal.ScratchRefs ctx width)
   (tagged.1, (resized.2, tagged.2))
 
 /-- Actual unit copying preserves every hidden-state and quantum-reference correlation. -/
-theorem decisionUnit_execute (shared : Proposal.SharedRefs ctx width)
+lemma decisionUnit_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (unitBody (model := model) shared scratch).execute Reference state =
+    (unitBody (model := model) shared scratch).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := unitStep (model := model) shared scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -78,11 +78,11 @@ theorem decisionUnit_execute (shared : Proposal.SharedRefs ctx width)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual factor writes preserve every hidden-state and quantum-reference correlation. -/
-theorem decisionFactor_execute (scratch : Proposal.ScratchRefs ctx width)
+lemma decisionFactor_execute (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (factorBody (model := model) scratch gcdResult).execute Reference state =
+    (factorBody (model := model) scratch gcdResult).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := factorStep (model := model) scratch gcdResult entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -100,14 +100,14 @@ private def resultChoiceStep (shared : Proposal.SharedRefs ctx width)
   | .bit false => factorStep (model := model) scratch gcdResult store
   | .bit true => unitStep (model := model) shared scratch store
 
-private theorem resultChoice_execute (shared : Proposal.SharedRefs ctx width)
+private lemma resultChoice_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then unitBody (model := model) shared scratch
-        else factorBody (model := model) scratch gcdResult).execute
-      Reference state = state.mapClassical (fun entry =>
+        else factorBody (model := model) scratch gcdResult).execute environment Reference state =
+          state.mapClassical (fun entry =>
         let result := resultChoiceStep (model := model) shared scratch gcdResult value entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   cases value with
@@ -129,15 +129,16 @@ def resultStep (shared : Proposal.SharedRefs ctx width) (scratch : Proposal.Scra
   (selected.1, ⟨value, selected.2⟩)
 
 /-- Real stored-condition execution selects exactly the corresponding unit or factor store. -/
-theorem decisionResult_execute (shared : Proposal.SharedRefs ctx width)
+lemma decisionResult_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (chooseResult (model := model) shared scratch gcdResult).execute Reference state =
+    (chooseResult (model := model) shared scratch gcdResult).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := resultStep (model := model) shared scratch gcdResult entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (FirstAccepted.cellRead scratch.positive) _
+  refine (Circuit.execute_branch_mapClassical (environment := environment)
+    (FirstAccepted.cellRead scratch.positive) _
     (fun value before =>
       let result := resultChoiceStep (model := model) shared scratch gcdResult value before.1
       ((result.1, before.2), result.2))
@@ -147,7 +148,7 @@ theorem decisionResult_execute (shared : Proposal.SharedRefs ctx width)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual stored branch changes the store according to that same coprimality bit. -/
-theorem decisionResult_store (shared : Proposal.SharedRefs ctx width)
+lemma decisionResult_store (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     (resultStep (model := model) shared scratch gcdResult store).1 =

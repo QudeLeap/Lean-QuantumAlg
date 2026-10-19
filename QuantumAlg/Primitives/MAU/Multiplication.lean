@@ -55,7 +55,7 @@ noncomputable def unitOp {N : ℕ} [NeZero N] (u : (ZMod N)ˣ) :
   UnitaryOperator.ofPerm (multiplyByUnitEquiv u).symm
 
 /-- Basis action of multiplication by a unit: `U_u |x> = |u*x>`. -/
-theorem unitOp_apply_ket {N : ℕ} [NeZero N] (u : (ZMod N)ˣ) (x : ZMod N) :
+lemma unitOp_apply_ket {N : ℕ} [NeZero N] (u : (ZMod N)ˣ) (x : ZMod N) :
     (unitOp u).apply (NormalizedVector.ket (R := residueRegister N) x) =
       NormalizedVector.ket (R := residueRegister N) (multiplyByUnit u x) := by
   rw [unitOp, UnitaryOperator.ofPerm_apply_ket]
@@ -65,14 +65,14 @@ theorem unitOp_apply_ket {N : ℕ} [NeZero N] (u : (ZMod N)ˣ) (x : ZMod N) :
 
 /-- The residue action agrees with the existing unit-carrier multiplication
 domain on the underlying residue. -/
-private theorem domain_multiplyUnit_residue {N n : ℕ} (D : ModularMultiplicationDomain N n)
+private lemma domain_multiplyUnit_residue {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (a x : ModularMultiplicationDomain.UnitCarrier D) :
     multiplyByUnit a (D.unitResidue x) = D.unitResidue (D.multiplyUnit a x) :=
   rfl
 
 /-- On canonical encoded labels for units, the valid-label action agrees with
 the existing modular-multiplication-domain canonical-label convention. -/
-private theorem encoded_validAction_domain_canonicalLabel {N n : ℕ}
+private lemma encoded_validAction_domain_canonicalLabel {N n : ℕ}
     (D : ModularMultiplicationDomain N n)
     (a x : ModularMultiplicationDomain.UnitCarrier D) :
     Encoded.validAction D.toBinaryResidueEncoding a (D.canonicalLabel x) =
@@ -91,44 +91,44 @@ def totalAction {N n : ℕ} (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) : Fin (2 ^ n) :=
   if _hx : E.IsValid x then validAction E u x else x
 
-@[simp] theorem totalAction_of_valid {N n : ℕ}
+@[simp] lemma totalAction_of_valid {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : E.IsValid x) :
     totalAction E u x = validAction E u x := by
   simp [totalAction, hx]
 
-@[simp] theorem totalAction_of_padding {N n : ℕ}
+@[simp] lemma totalAction_of_padding {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : ¬ E.IsValid x) :
     totalAction E u x = x := by
   simp [totalAction, hx]
 
-private theorem validAction_isValid {N n : ℕ} (E : BinaryResidueEncoding N n)
+private lemma validAction_isValid {N n : ℕ} (E : BinaryResidueEncoding N n)
     (u : (ZMod N)ˣ) (x : Fin (2 ^ n)) :
     E.IsValid (validAction E u x) :=
   E.encode_isValid _
 
-private theorem decode_validAction {N n : ℕ} (E : BinaryResidueEncoding N n)
+private lemma decode_validAction {N n : ℕ} (E : BinaryResidueEncoding N n)
     (u : (ZMod N)ˣ) (x : Fin (2 ^ n)) :
     E.decode (validAction E u x) = multiplyByUnit u (E.decode x) :=
   E.decode_encode _
 
 /-- The total multiplication action preserves canonical validity. -/
-theorem totalAction_preservesValid {N n : ℕ}
+lemma totalAction_preservesValid {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : E.IsValid x) :
     E.IsValid (totalAction E u x) := by
   simp [totalAction_of_valid E u x hx, validAction_isValid]
 
 /-- The total multiplication action fixes padding labels. -/
-theorem totalAction_preservesPadding {N n : ℕ}
+lemma totalAction_preservesPadding {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : ¬ E.IsValid x) :
     ¬ E.IsValid (totalAction E u x) := by
   simpa [totalAction_of_padding E u x hx] using hx
 
 /-- On canonical labels, the total action decodes to multiplication by `u`. -/
-theorem decode_totalAction_of_valid {N n : ℕ}
+lemma decode_totalAction_of_valid {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : E.IsValid x) :
     E.decode (totalAction E u x) = multiplyByUnit u (E.decode x) := by
@@ -136,7 +136,7 @@ theorem decode_totalAction_of_valid {N n : ℕ}
 
 /-- Applying the valid-label multiplication action and then its inverse returns
 the original canonical label. -/
-theorem validAction_inv_left {N n : ℕ}
+lemma validAction_inv_left {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : E.IsValid x) :
     validAction E u⁻¹ (validAction E u x) = x := by
@@ -151,7 +151,7 @@ theorem validAction_inv_left {N n : ℕ}
 
 /-- Applying inverse valid-label multiplication and then the forward action
 returns the original canonical label. -/
-theorem validAction_inv_right {N n : ℕ}
+lemma validAction_inv_right {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) (hx : E.IsValid x) :
     validAction E u (validAction E u⁻¹ x) = x := by
@@ -189,7 +189,7 @@ def totalPerm {N n : ℕ} (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ) :
       exact validAction_inv_right E u x hx
     · simp [totalAction_of_padding E u⁻¹ x hx, totalAction_of_padding E u x hx]
 
-@[simp] theorem totalPerm_apply {N n : ℕ}
+@[simp] lemma totalPerm_apply {N n : ℕ}
     (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) :
     totalPerm E u x = totalAction E u x :=
@@ -215,17 +215,17 @@ def swapMacRegisters {N : ℕ}
   accumulator := x.multiplicand
   flag := x.flag
 
-@[simp] theorem swapMacRegisters_multiplicand {N : ℕ}
+@[simp] lemma swapMacRegisters_multiplicand {N : ℕ}
     (x : MAU.Multiplication.Accumulate.Data N) :
     (swapMacRegisters x).multiplicand = x.accumulator :=
   rfl
 
-@[simp] theorem swapMacRegisters_accumulator {N : ℕ}
+@[simp] lemma swapMacRegisters_accumulator {N : ℕ}
     (x : MAU.Multiplication.Accumulate.Data N) :
     (swapMacRegisters x).accumulator = x.multiplicand :=
   rfl
 
-@[simp] theorem swapMacRegisters_flag {N : ℕ}
+@[simp] lemma swapMacRegisters_flag {N : ℕ}
     (x : MAU.Multiplication.Accumulate.Data N) :
     (swapMacRegisters x).flag = x.flag :=
   rfl
@@ -243,7 +243,7 @@ def swapMacEquiv {N : ℕ} : Equiv.Perm (MAU.Multiplication.Accumulate.Data N) w
     cases x
     rfl
 
-@[simp] theorem swapMacEquiv_apply {N : ℕ}
+@[simp] lemma swapMacEquiv_apply {N : ℕ}
     (x : MAU.Multiplication.Accumulate.Data N) :
     swapMacEquiv x = swapMacRegisters x :=
   rfl
@@ -253,13 +253,13 @@ def swapMacWithWorkEquiv {N : ℕ} (Work : Type) :
     Equiv.Perm (MAU.Multiplication.Accumulate.Data N × Work) :=
   Equiv.prodCongr swapMacEquiv (Equiv.refl Work)
 
-@[simp] theorem swapMacWithWorkEquiv_apply {N : ℕ} {Work : Type}
+@[simp] lemma swapMacWithWorkEquiv_apply {N : ℕ} {Work : Type}
     (x : MAU.Multiplication.Accumulate.Data N) (w : Work) :
     swapMacWithWorkEquiv Work (x, w) = (swapMacRegisters x, w) :=
   rfl
 
 /-- The MAC-register swap leaves the external work register clean. -/
-theorem swapMacWithWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
+lemma swapMacWithWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
     WorkRegister.Preserves
       (Data := MAU.Multiplication.Accumulate.Data N) (Work := Work)
       (swapMacWithWorkEquiv Work) := by
@@ -273,7 +273,7 @@ def swapMacCleanMap {N : ℕ} (Work : Type) :
   perm := swapMacWithWorkEquiv Work
   preservesWork := swapMacWithWorkEquiv_preserves_work
 
-@[simp] theorem swapMacCleanMap_perm_apply {N : ℕ} {Work : Type}
+@[simp] lemma swapMacCleanMap_perm_apply {N : ℕ} {Work : Type}
     (x : MAU.Multiplication.Accumulate.Data N) (w : Work) :
     (swapMacCleanMap (N := N) Work).perm (x, w) =
       (swapMacRegisters x, w) :=
@@ -295,7 +295,7 @@ def macSwapUncomputeCleanMap {N : ℕ} (u : (ZMod N)ˣ) (Work : Type) :
       (MAU.Multiplication.Accumulate.Data.withWorkCleanMap
         (((u⁻¹ : (ZMod N)ˣ) : ZMod N)) Work).inverse)
 
-@[simp] theorem macSwapUncomputeCleanMap_perm_apply {N : ℕ}
+@[simp] lemma macSwapUncomputeCleanMap_perm_apply {N : ℕ}
     (u : (ZMod N)ˣ) {Work : Type}
     (x : MAU.Multiplication.Accumulate.Data N) (w : Work) :
     (macSwapUncomputeCleanMap u Work).perm (x, w) =
@@ -322,7 +322,7 @@ def cleanOutput {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
 
 /-- After the forward MAC and the physical register swap, the state is exactly
 the clean output plus the inverse-unit multiple that the reverse MAC removes. -/
-theorem swapMacRegisters_addScaled_cleanInput {N : ℕ}
+lemma swapMacRegisters_addScaled_cleanInput {N : ℕ}
     (u : (ZMod N)ˣ) (x : ZMod N) :
     swapMacRegisters ((cleanInput x).addScaled (u : ZMod N)) =
       (cleanOutput u x).addScaled
@@ -331,7 +331,7 @@ theorem swapMacRegisters_addScaled_cleanInput {N : ℕ}
     MAU.Multiplication.Accumulate.Data.addScaled]
 
 /-- Correctness of the MAC/swap/inverse-uncompute construction on clean input. -/
-theorem macSwapUncompute_cleanInput {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
+lemma macSwapUncompute_cleanInput {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
     macSwapUncompute u (cleanInput x) = cleanOutput u x := by
   ext <;> simp [macSwapUncompute, cleanInput, cleanOutput, swapMacRegisters,
     MAU.Multiplication.Accumulate.Data.addScaled, MAU.Multiplication.Accumulate.Data.subScaled]
@@ -342,7 +342,7 @@ route is the VBE-style MAC support [VBE95, 9511018.tex:333-350]; Beauregard and
 Gidney--Ekerå provide comparison/resource-envelope context, not theorem-node
 promotion for this wrapper [Bea02, arxivfact.tex:129-146] [GE19,
 main.tex:507-522]. -/
-theorem macSwapUncompute_cleanInput_multiplyByUnit {N : ℕ}
+lemma macSwapUncompute_cleanInput_multiplyByUnit {N : ℕ}
     (u : (ZMod N)ˣ) (x : ZMod N) :
     macSwapUncompute u (cleanInput x) =
       ({ multiplicand := multiplyByUnit u x
@@ -353,7 +353,7 @@ theorem macSwapUncompute_cleanInput_multiplyByUnit {N : ℕ}
 
 /-- The certified clean map realizes multiplication by a unit on clean input
 while preserving the external work register. -/
-theorem macSwapUncomputeCleanMap_perm_cleanInput {N : ℕ}
+lemma macSwapUncomputeCleanMap_perm_cleanInput {N : ℕ}
     (u : (ZMod N)ˣ) {Work : Type} (x : ZMod N) (w : Work) :
     (macSwapUncomputeCleanMap u Work).perm (cleanInput x, w) =
       (cleanOutput u x, w) := by
@@ -361,7 +361,7 @@ theorem macSwapUncomputeCleanMap_perm_cleanInput {N : ℕ}
 
 /-- The certified clean map realizes the public multiplication-by-unit residue
 action and restores the external work register, accumulator, and clean flag. -/
-private theorem macSwapUncomputeCleanMap_perm_cleanInput_multiplyByUnit {N : ℕ}
+private lemma macSwapUncomputeCleanMap_perm_cleanInput_multiplyByUnit {N : ℕ}
     (u : (ZMod N)ˣ) {Work : Type} (x : ZMod N) (w : Work) :
     (macSwapUncomputeCleanMap u Work).perm (cleanInput x, w) =
       (({ multiplicand := multiplyByUnit u x

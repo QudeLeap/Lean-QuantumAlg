@@ -39,7 +39,7 @@ def modularOrbitLabel {N n r : ℕ} (D : ModularMultiplicationDomain N n)
   u ^ j.val
 
 /-- The generated orbit labels are injective across one full order cycle. -/
-theorem modularOrbitLabel_injective_of_order {N n r : ℕ}
+lemma modularOrbitLabel_injective_of_order {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) :
     Function.Injective (modularOrbitLabel D u : Fin r → D.UnitCarrier) := by
@@ -53,7 +53,7 @@ theorem modularOrbitLabel_injective_of_order {N n r : ℕ}
 
 /-- The generated orbit has exactly `r` distinct unit-register labels when the
 selected unit has order `r`. -/
-private theorem card_modularOrbitLabel_image_of_order {N n r : ℕ}
+private lemma card_modularOrbitLabel_image_of_order {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) :
     ((Finset.univ : Finset (Fin r)).image (modularOrbitLabel D u)).card = r := by
@@ -72,7 +72,7 @@ def modularOrbitLiftVec {N n r : ℕ} (D : ModularMultiplicationDomain N n)
 
 /-- On generated orbit labels, the linear orbit lift recovers the original
 cycle-coordinate amplitude. -/
-theorem modularOrbitLiftVec_apply_orbit {N n r : ℕ}
+lemma modularOrbitLiftVec_apply_orbit {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) (ψ : HilbertVector (cycleRegister r))
     (j : Fin r) :
@@ -94,7 +94,7 @@ theorem modularOrbitLiftVec_apply_orbit {N n r : ℕ}
     simp [hlabel]
 
 /-- The linear orbit lift is zero away from the generated orbit labels. -/
-theorem modularOrbitLiftVec_apply_not_mem_orbit {N n r : ℕ}
+lemma modularOrbitLiftVec_apply_not_mem_orbit {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (ψ : HilbertVector (cycleRegister r)) {x : D.UnitCarrier}
     (hnot :
@@ -113,7 +113,7 @@ theorem modularOrbitLiftVec_apply_not_mem_orbit {N n r : ℕ}
 
 /-- Multiplication by the generating unit advances the orbit label by one
 cycle coordinate. -/
-theorem multiplyUnit_modularOrbitLabel_cycleSucc {N n r : ℕ}
+lemma multiplyUnit_modularOrbitLabel_cycleSucc {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) (j : Fin r) :
     D.multiplyUnit u (modularOrbitLabel D u j) =
@@ -131,7 +131,7 @@ theorem multiplyUnit_modularOrbitLabel_cycleSucc {N n r : ℕ}
 
 /-- Multiplication by the inverse generating unit moves one step backward on
 the generated orbit. -/
-theorem multiplyUnit_inv_modularOrbitLabel_cyclePred {N n r : ℕ}
+lemma multiplyUnit_inv_modularOrbitLabel_cyclePred {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) (j : Fin r) :
     D.multiplyUnit u⁻¹ (modularOrbitLabel D u j) =
@@ -146,7 +146,7 @@ theorem multiplyUnit_inv_modularOrbitLabel_cyclePred {N n r : ℕ}
 
 /-- Multiplication by the inverse unit preserves the complement of the
 generated orbit. -/
-theorem multiplyUnit_inv_notMem_modularOrbitLabel_image_of_notMem
+lemma multiplyUnit_inv_notMem_modularOrbitLabel_image_of_notMem
     {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) {x : D.UnitCarrier}
@@ -166,7 +166,7 @@ theorem multiplyUnit_inv_notMem_modularOrbitLabel_image_of_notMem
 
 /-- Basis action of the modular-multiplication gate on the generated orbit:
 `U_u |u^j> = |u^{j+1}>`, wrapping at the order. -/
-theorem multiplicationOp_apply_modularOrbitKet {N n r : ℕ}
+lemma multiplicationOp_apply_modularOrbitKet {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) (j : Fin r) :
     (MAU.MultiplicationGate.multiplicationOp D u).apply
@@ -180,7 +180,7 @@ theorem multiplicationOp_apply_modularOrbitKet {N n r : ℕ}
 
 /-- Raw-vector action of the modular-multiplication gate on an orbit-lifted
 vector, evaluated on generated orbit labels. -/
-theorem multiplicationOp_applyVec_modularOrbitLiftVec_orbit {N n r : ℕ}
+lemma multiplicationOp_applyVec_modularOrbitLiftVec_orbit {N n r : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (horder : orderOf u = r) (ψ : HilbertVector (cycleRegister r))
     (j : Fin r) :
@@ -194,7 +194,7 @@ theorem multiplicationOp_applyVec_modularOrbitLiftVec_orbit {N n r : ℕ}
 /-- The lifted coordinate eigenvector has the expected eigenvalue action on
 generated orbit labels. The statement is intentionally orbit-local; a full
 unit-register eigenvector theorem also needs the off-orbit support argument. -/
-theorem multiplicationOp_applyVec_modularOrbitLiftEigenstateVec_orbit
+lemma multiplicationOp_applyVec_modularOrbitLiftEigenstateVec_orbit
     {N n r k : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (hr : 0 < r) (horder : orderOf u = r) (j : Fin r) :
@@ -216,7 +216,7 @@ theorem multiplicationOp_applyVec_modularOrbitLiftEigenstateVec_orbit
 /-- Full lifted unit-register eigenvector relation for the generated orbit.
 The proof combines the orbit-local eigenvalue calculation with the off-orbit
 support theorem for the linear lift. -/
-theorem multiplicationOp_applyVec_modularOrbitLiftEigenstateVec
+lemma multiplicationOp_applyVec_modularOrbitLiftEigenstateVec
     {N n r k : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (hr : 0 < r) (horder : orderOf u = r) :
@@ -248,7 +248,7 @@ first component connects the actual modular-multiplication gate to the orbit
 labels `u^j`; the second gives the Fourier eigenvector relation on the orbit
 coordinate register; the third is the source-facing decomposition of the first
 orbit basis state as the uniform average over Fourier modes. -/
-private theorem modularMultiplication_eigenstructure_support {N n r k : ℕ}
+private lemma modularMultiplication_eigenstructure_support {N n r k : ℕ}
     (D : ModularMultiplicationDomain N n) (u : D.UnitCarrier)
     (hr : 0 < r) (horder : orderOf u = r) :
     (∀ j : Fin r,
@@ -300,7 +300,7 @@ structure ModularMultiplicationEigenstructure {N n : ℕ}
 
 /-- Source-facing wrapper for modular-multiplication eigenstructure from a
 natural coprime base. -/
-private theorem modularMultiplication_eigenstructure {N n a r : ℕ}
+private lemma modularMultiplication_eigenstructure {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (ha : Nat.Coprime a N)
     (hr : 0 < r) (horder : orderOf (D.unitOfCoprime a ha) = r) :
     ModularMultiplicationEigenstructure D a ha r where
@@ -340,7 +340,7 @@ namespace ModularMultiplicationEigenstructure
 
 /-- The source-facing support package entails the full lifted unit-register
 eigenvector relation, not only the coordinate-cycle relation. -/
-private theorem liftedEigenvectorRelation_of_support
+private lemma liftedEigenvectorRelation_of_support
     {N n : ℕ} {D : ModularMultiplicationDomain N n} {a r : ℕ}
     {ha : Nat.Coprime a N}
     (support : ModularMultiplicationEigenstructure D a ha r) :

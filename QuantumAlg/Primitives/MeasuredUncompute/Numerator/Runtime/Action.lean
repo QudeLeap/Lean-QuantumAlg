@@ -29,41 +29,44 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorRuntimeAction
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem native_column (width : Nat)
+private lemma native_column (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput row : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.binaryMatrix.applyVec
+    (action : (body.binaryMatrix environment).applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec) :
-    body.binaryMatrix row nativeInput = phase *
+    (body.binaryMatrix environment) row nativeInput = phase *
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput) row := by
   have values := congrArg
     (fun vector : HilbertVector (Qubits (OutputCopy.encoding width).width) => vector row) action
   have column := (HilbertOperator.applyVec_ket
-    (body.binaryMatrix : HilbertOperator (Qubits (OutputCopy.encoding width).width))
+    ((body.binaryMatrix environment) : HilbertOperator (Qubits (OutputCopy.encoding width).width))
     nativeInput row).symm.trans values
   simpa only [PiLp.smul_apply, smul_eq_mul] using column
 
 /-- The actual runtime matrix retains the complete native basis-column phase. -/
-theorem runtime_column (width : Nat)
+lemma runtime_column (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.binaryMatrix.applyVec
+    (action : (body.binaryMatrix environment).applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec)
     (row : (context width).register.Index) :
-    (NumeratorRuntime.program width body).matrix row ((frameBasis width).symm nativeInput) =
+    ((NumeratorRuntime.program width body).matrix environment) row ((frameBasis width).symm
+      nativeInput) =
       phase * (NormalizedVector.ket (R := (context width).register)
         ((frameBasis width).symm nativeOutput)) row := by
-  have placed := NumeratorRuntime.program_binary_matrix width body row
+  have placed := NumeratorRuntime.program_binary_matrix (environment := environment) width body row
     ((frameBasis width).symm nativeInput)
   rw [Equiv.apply_symm_apply] at placed
   refine placed.trans ((native_column width body nativeInput nativeOutput
@@ -80,38 +83,39 @@ theorem runtime_column (width : Nat)
   simp only [NormalizedVector.ket_apply, labels]
 
 /-- An arbitrary native phase action survives the actual runtime wire placement exactly. -/
-theorem runtime_ket (width : Nat)
+lemma runtime_ket (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.binaryMatrix.applyVec
+    (action : (body.binaryMatrix environment).applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec) :
-    (NumeratorRuntime.program width body).applyVec
+    ((NumeratorRuntime.program width body).applyVec environment)
       (NormalizedVector.ket (R := (context width).register)
         ((frameBasis width).symm nativeInput)).vec =
       phase • (NormalizedVector.ket (R := (context width).register)
         ((frameBasis width).symm nativeOutput)).vec := by
   ext row
   change HilbertOperator.applyVec
-    ((NumeratorRuntime.program width body).matrix : HilbertOperator (context width).register)
+    (((NumeratorRuntime.program width body).matrix environment) : HilbertOperator (context
+      width).register)
     (NormalizedVector.ket (R := (context width).register)
       ((frameBasis width).symm nativeInput)).vec row = _
   rw [HilbertOperator.applyVec_ket]
   exact runtime_column width body nativeInput nativeOutput phase action row
 
 /-- Tensoring the same placed program with identity keeps every complete reference-labelled ket. -/
-theorem reference_ket (width : Nat)
+lemma reference_ket (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (nativeInput nativeOutput : (Qubits (OutputCopy.encoding width).width).Index)
     (phase : ℂ)
-    (action : body.binaryMatrix.applyVec
+    (action : (body.binaryMatrix environment).applyVec
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeInput).vec =
         phase •
           (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width) nativeOutput).vec)
     {Reference : Register} (reference : Reference.Index) :
-    (UnitaryOperator.prodTensor (NumeratorRuntime.program width body).matrix
+    (UnitaryOperator.prodTensor ((NumeratorRuntime.program width body).matrix environment)
       (1 : UnitaryOperator Reference)).applyVec
       (NormalizedVector.ket (R := Register.prod (context width).register Reference)
         ((frameBasis width).symm nativeInput, reference)).vec =
@@ -119,7 +123,7 @@ theorem reference_ket (width : Nat)
         ((frameBasis width).symm nativeOutput, reference)).vec := by
   ext ⟨row, other⟩
   change HilbertOperator.applyVec
-    (UnitaryOperator.prodTensor (NumeratorRuntime.program width body).matrix
+    (UnitaryOperator.prodTensor ((NumeratorRuntime.program width body).matrix environment)
       (1 : UnitaryOperator Reference) :
         HilbertOperator (Register.prod (context width).register Reference))
     (NormalizedVector.ket (R := Register.prod (context width).register Reference)

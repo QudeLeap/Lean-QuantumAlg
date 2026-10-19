@@ -6,9 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Probability
 import all
-  QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Caller
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Probability
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Caller
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Batch.Slots.Reference
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Initial
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Reference
@@ -29,15 +30,15 @@ noncomputable section
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private theorem initialized_input_reference {shape : CShape}
+private lemma initialized_input_reference {shape : CShape}
     (observed : CInputRef (storageContext base N) shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (storageContext base N) Reference ((model input).HiddenState × History))
+    (state : State (storageContext base N) Reference ((model N).HiddenState × History))
     (weight : shape.Value → ℂ) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input).execute
-        Reference ((Declared.prepare (storageContext base N)
-          (storage_empty base noQuantum N) N input).execute Reference state))
+      ((Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N).execute
+        (sourceEnvironment input) Reference ((Declared.prepare (storageContext base N)
+          (storage_empty base noQuantum N) N).execute (sourceEnvironment input) Reference state))
       (fun entry _ => weight (entry.1.read
         (Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N observed)))
         leftRef rightRef =
@@ -45,42 +46,47 @@ private theorem initialized_input_reference {shape : CShape}
       leftRef rightRef := by
   let storage := storageContext base N
   let empty := storage_empty base noQuantum N
-  let prepared := (Declared.prepare storage empty N input).execute Reference state
+  let prepared := (Declared.prepare storage empty N).execute (sourceEnvironment input)
+    Reference state
   let prior := MeasurementCells.liftInput 2 (Native.bankInput storage empty N observed)
     (measurementBits N)
-  let retention := Circuit.retain (model := model input) (Native.cellsContext storage empty N)
+  let retention := Circuit.retain (model := model N) (Native.cellsContext storage empty N)
     (Native.cellsContext storage empty N).canonicalFreshKey (.bits (measurementBits N))
     (Native.cellsContext storage empty N).canonicalFreshKey_fresh
-  have split := Circuit.referenceFiberSum_execute_seq
-    (MeasurementCells.allocate (model := model input)
+  have split := Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+    (MeasurementCells.allocate (model := model N)
       (Native.bankContext storage empty N) 2 (measurementBits N))
     retention prepared
     (fun store => weight (store.read (Native.liftInput storage empty N observed)))
     leftRef rightRef
-  have retained := Circuit.referenceFiberSum_execute_retain_input
+  have retained := Circuit.referenceFiberSum_execute_retain_input (environment :=
+    (sourceEnvironment input))
     (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model) (classicalOracles := .empty) prior
     (Native.cellsContext storage empty N).canonicalFreshKey (.bits (measurementBits N))
     (Native.cellsContext storage empty N).canonicalFreshKey_fresh
-    ((MeasurementCells.allocate (model := model input)
-      (Native.bankContext storage empty N) 2 (measurementBits N)).execute Reference prepared)
+    ((MeasurementCells.allocate (model := model N)
+      (Native.bankContext storage empty N) 2 (measurementBits N)).execute (sourceEnvironment
+        input) Reference prepared)
     weight leftRef rightRef
-  have cellsPreserved := MeasurementCells.allocate_referenceFiberSum_input
+  have cellsPreserved := MeasurementCells.allocate_referenceFiberSum_input (environment :=
+    (sourceEnvironment input))
     (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model) (classicalOracles := .empty)
     (Native.bankInput storage empty N observed) 2 (measurementBits N)
     prepared weight leftRef rightRef
-  have preparationPreserved := Circuit.referenceFiberSum_execute_prepareZero_input
+  have preparationPreserved := Circuit.referenceFiberSum_execute_prepareZero_input (environment
+    := (sourceEnvironment input))
     (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model) (classicalOracles := .empty) observed
     storage.canonicalFreshKey (Native.layout N) storage.canonicalFreshKey_fresh
     (Native.allocationDisjoint storage empty N) state weight leftRef rightRef
   exact split.trans (retained.trans (cellsPreserved.trans preparationPreserved))
 
-private theorem lifted_product {left right : CShape}
+private lemma lifted_product {left right : CShape}
     (first : CInputRef (storageContext base N) left)
     (second : CInputRef (storageContext base N) right) :
     Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N
@@ -105,33 +111,34 @@ private theorem lifted_product {left right : CShape}
 
 /-- The complete setup establishes the zero seed for the original quantum bank
 for every input store and external reference. -/
-theorem setup_seeded {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History)) :
+lemma setup_seeded {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((model N).HiddenState × History)) :
     BasisSeeded.Holds (context base noQuantum N).quantumLayout.zeroLabel
-      ((setup base noQuantum N input).execute Reference state) := by
-  apply BasisSeeded.seq
-    (ShorStyle.Canonical.Sampler.Retained.circuit (model := model input) base N)
-    ((Native.Batch.Slots.allocate (model := model input) (sourceContext base N) N).seq
-      ((Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N input).seq
-        (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input)))
-  apply BasisSeeded.seq
-    (Native.Batch.Slots.allocate (model := model input) (sourceContext base N) N)
-    ((Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N input).seq
-      (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input))
-  apply BasisSeeded.seq
-    (Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N input)
-    (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input)
-  exact Declared.initial_seeded (storageContext base N)
-    (storage_empty base noQuantum N) N input _
+      ((setup base noQuantum N).execute (sourceEnvironment input) Reference state) := by
+  apply BasisSeeded.seq (environment := (sourceEnvironment input))
+    (ShorStyle.Canonical.Sampler.Retained.circuit (model := model N) base N)
+    ((Native.Batch.Slots.allocate (model := model N) (sourceContext base N) N).seq
+      ((Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N).seq
+        (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N)))
+  apply BasisSeeded.seq (environment := (sourceEnvironment input))
+    (Native.Batch.Slots.allocate (model := model N) (sourceContext base N) N)
+    ((Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N).seq
+      (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N))
+  apply BasisSeeded.seq (environment := (sourceEnvironment input))
+    (Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N)
+    (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N)
+  exact Declared.initial_seeded (environment := sourceEnvironment input) (storageContext base N)
+    (storage_empty base noQuantum N) N _
 
 /-- The actual source sampler and all later allocations preserve the complete
 uniform parameter/source mixture and every external-reference block. -/
-theorem setup_source_reference
+lemma setup_source_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((setup base noQuantum N input).execute Reference state)
+    ExecutionState.referenceFiberSum ((setup base noQuantum N).execute (sourceEnvironment
+      input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef))) leftRef rightRef =
@@ -142,13 +149,14 @@ theorem setup_source_reference
             (.bits (ShorStyle.Canonical.Sampler.PackedSample.storedBits value)))
       leftRef rightRef := by
   let sampled := ShorStyle.Canonical.Sampler.Retained.circuit
-    (model := model input) base N
+    (model := model N) base N
   let storage := Native.Batch.Slots.allocate
-    (model := model input) (sourceContext base N) N
+    (model := model N) (sourceContext base N) N
   let initialized := (Declared.prepare (storageContext base N)
-    (storage_empty base noQuantum N) N input).seq
-      (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input)
-  let initialState := storage.execute Reference (sampled.execute Reference state)
+    (storage_empty base noQuantum N) N).seq
+      (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N)
+  let initialState := storage.execute (sourceEnvironment input) Reference (sampled.execute
+    (sourceEnvironment input) Reference state)
   let oldParameter := Native.Batch.Slots.liftWrite N
     (ShorStyle.Canonical.Sampler.Retained.parameterRef base N)
   let oldSource := Native.Batch.Slots.liftWrite N
@@ -163,39 +171,46 @@ theorem setup_source_reference
     (store.read (.storage (sourceRef base noQuantum N).toCStorageRef))
   have lifted := lifted_product base noQuantum N
     (.storage oldParameter.toCStorageRef) (.storage oldSource.toCStorageRef)
-  have beforeBank := Circuit.referenceFiberSum_execute_seq
-    (Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N input)
-    (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input)
+  have beforeBank := Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment
+    input))
+    (Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N)
+    (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N)
     initialState (fun store => pairWeight (store.read
       (Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N pair)))
     leftRef rightRef
-  have beforeSlots := Native.Batch.Slots.allocate_pair_reference
+  have beforeSlots := Native.Batch.Slots.allocate_pair_reference (environment :=
+    sourceEnvironment input)
     (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model) (classicalOracles := .empty)
     (sourceContext base N) N
     (ShorStyle.Canonical.Sampler.Retained.parameterRef base N)
     (ShorStyle.Canonical.Sampler.Retained.sampleRef base N)
-    (sampled.execute Reference state) weight leftRef rightRef
-  have original := ShorStyle.Canonical.Sampler.Retained.samplerRetained_parameter_sample_reference
-    (model := model input) input.samplerInput state weight leftRef rightRef
+    (sampled.execute (sourceEnvironment input) Reference state) weight leftRef rightRef
+  have original :=
+    ShorStyle.Canonical.Sampler.Retained.samplerRetained_parameter_sample_reference
+    (environment := sourceEnvironment input)
+    (model := model N) input.samplerInput state weight leftRef rightRef
   have aligned := congrArg
     (fun read : CInputRef (context base noQuantum N)
         (.product (ParameterShape N) (.bits (residueSamplingBits N))) =>
-      ExecutionState.referenceFiberSum (initialized.execute Reference initialState)
+      ExecutionState.referenceFiberSum (initialized.execute (sourceEnvironment input) Reference
+        initialState)
         (fun entry _ => pairWeight (entry.1.read read)) leftRef rightRef)
     (lifted.trans (congrArg₂ CInputRef.product
       (underBank_read base noQuantum N oldParameter)
       (underBank_read base noQuantum N oldSource)))
-  exact (Circuit.referenceFiberSum_execute_seq sampled (storage.seq initialized)
+  exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+    sampled (storage.seq initialized)
     state observe leftRef rightRef).trans
-      ((Circuit.referenceFiberSum_execute_seq storage initialized
-        (sampled.execute Reference state) observe leftRef rightRef).trans
+      ((Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+        storage initialized
+        (sampled.execute (sourceEnvironment input) Reference state) observe leftRef rightRef).trans
           (aligned.symm.trans (beforeBank.trans
             ((initialized_input_reference base noQuantum N input pair initialState pairWeight
               leftRef rightRef).trans (beforeSlots.trans original)))))
 
-private theorem fixedInput_product {left right : CShape}
+private lemma fixedInput_product {left right : CShape}
     (first : CInputRef (sourceContext base N) left)
     (second : CInputRef (sourceContext base N) right) :
     fixedInput base N (.product first second) =
@@ -211,7 +226,7 @@ private theorem fixedInput_product {left right : CShape}
           (measurementBits N) 16).canonicalFreshKey_fresh)
     (Native.Batch.Slots.slotsInput_product (measurementBits N) first second 16)
 
-private theorem fixedInput_storage {shape : CShape}
+private lemma fixedInput_storage {shape : CShape}
     (ref : CWriteRef (sourceContext base N) shape) :
     fixedInput base N (.storage ref.toCStorageRef) =
       .storage (Native.Batch.Slots.liftWrite N ref).toCStorageRef :=
@@ -225,43 +240,46 @@ private theorem fixedInput_storage {shape : CShape}
           (measurementBits N) 16).canonicalFreshKey_fresh)
     (Native.Batch.Slots.slotsInput_storage (measurementBits N) ref 16)
 
-private theorem fixedInput_reference {shape : CShape}
+private lemma fixedInput_reference {shape : CShape}
     (observed : CInputRef (sourceContext base N) shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (sourceContext base N) Reference ((model input).HiddenState × History))
+    (state : State (sourceContext base N) Reference ((model N).HiddenState × History))
     (weight : shape.Value → ℂ) (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Native.Batch.Slots.allocate (model := model input) (sourceContext base N) N).execute
-        Reference state)
+      ((Native.Batch.Slots.allocate (model := model N) (sourceContext base N) N).execute
+        (sourceEnvironment input) Reference state)
       (fun entry _ => weight (entry.1.read (fixedInput base N observed))) left right =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight (entry.1.read observed)) left right := by
   let ctx := sourceContext base N
   let previous := Native.Batch.Slots.allocateSamples
-    (model := model input) ctx (measurementBits N) 16
+    (model := model N) ctx (measurementBits N) 16
   let middle := Native.Batch.Slots.samples ctx (measurementBits N) 16
-  let finalCell := Circuit.retain (model := model input) middle middle.canonicalFreshKey
+  let finalCell := Circuit.retain (model := model N) middle middle.canonicalFreshKey
     (.option (.unsignedWord (modulusBits N))) middle.canonicalFreshKey_fresh
-  exact (Circuit.referenceFiberSum_execute_seq previous finalCell state
+  exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+    previous finalCell state
     (fun store => weight (store.read (fixedInput base N observed))) left right).trans
-      ((Circuit.referenceFiberSum_execute_retain_input
+      ((Circuit.referenceFiberSum_execute_retain_input (environment := (sourceEnvironment input))
         (Native.Batch.Slots.slotsInput (measurementBits N) observed 16)
         middle.canonicalFreshKey (.option (.unsignedWord (modulusBits N)))
-        middle.canonicalFreshKey_fresh (previous.execute Reference state)
+        middle.canonicalFreshKey_fresh (previous.execute (sourceEnvironment input) Reference state)
         weight left right).trans
-          (Native.Batch.Slots.allocateSamples_reference ctx (measurementBits N)
+          (Native.Batch.Slots.allocateSamples_reference (environment := sourceEnvironment
+            input) ctx (measurementBits N)
             observed 16 state weight left right))
 
 /-- The actual setup draws its source jointly with every original caller read
 and preserves each external-reference matrix coefficient. -/
-theorem setup_input_reference
+lemma setup_input_reference
     {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : shape.Value → (ParameterShape N).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (left right : Reference.Index) :
-    ExecutionState.referenceFiberSum ((setup base noQuantum N input).execute Reference state)
+    ExecutionState.referenceFiberSum ((setup base noQuantum N).execute (sourceEnvironment
+      input) Reference state)
       (fun entry _ => weight (entry.1.read (callerInput base noQuantum N observed))
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef))) left right =
@@ -272,12 +290,12 @@ theorem setup_input_reference
               (.bits (ShorStyle.Canonical.Sampler.PackedSample.storedBits value)))
         left right := by
   let sampled := ShorStyle.Canonical.Sampler.Retained.circuit
-    (model := model input) base N
+    (model := model N) base N
   let storage := Native.Batch.Slots.allocate
-    (model := model input) (sourceContext base N) N
+    (model := model N) (sourceContext base N) N
   let initialized := (Declared.prepare (storageContext base N)
-    (storage_empty base noQuantum N) N input).seq
-      (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input)
+    (storage_empty base noQuantum N) N).seq
+      (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N)
   let originalRead : CInputRef (sourceContext base N)
       (.product shape (.product (ParameterShape N) (.bits (residueSamplingBits N)))) :=
     .product (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) observed)
@@ -288,7 +306,8 @@ theorem setup_input_reference
   let readWeight := fun value :
       (CShape.product shape (.product (ParameterShape N) (.bits (residueSamplingBits N)))).Value =>
     weight value.first value.second.first value.second.second
-  let initialState := storage.execute Reference (sampled.execute Reference state)
+  let initialState := storage.execute (sourceEnvironment input) Reference (sampled.execute
+    (sourceEnvironment input) Reference state)
   let finalRead : CInputRef (context base noQuantum N)
       (.product shape (.product (ParameterShape N) (.bits (residueSamplingBits N)))) :=
     .product (callerInput base noQuantum N observed)
@@ -325,50 +344,55 @@ theorem setup_input_reference
   have aligned := congrArg
     (fun read : CInputRef (context base noQuantum N)
         (.product shape (.product (ParameterShape N) (.bits (residueSamplingBits N)))) =>
-      ExecutionState.referenceFiberSum (initialized.execute Reference initialState)
+      ExecutionState.referenceFiberSum (initialized.execute (sourceEnvironment input) Reference
+        initialState)
         (fun entry _ => readWeight (entry.1.read read)) left right) lifted
-  have beforeBank := (Circuit.referenceFiberSum_execute_seq
-    (Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N input)
-    (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N input)
+  have beforeBank := (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment
+    input))
+    (Declared.prepare (storageContext base N) (storage_empty base noQuantum N) N)
+    (Declared.allocate (storageContext base N) (storage_empty base noQuantum N) N)
     initialState (fun store => readWeight (store.read
       (Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N oldRead)))
     left right).trans
       (initialized_input_reference base noQuantum N input oldRead initialState
         readWeight left right)
   have beforeSlots := fixedInput_reference base N input originalRead
-    (sampled.execute Reference state) readWeight left right
+    (sampled.execute (sourceEnvironment input) Reference state) readWeight left right
   have original := ShorStyle.Canonical.Sampler.Retained.samplerRetained_reference_input
-    (model := model input) input.samplerInput observed state weight left right
-  exact (Circuit.referenceFiberSum_execute_seq sampled (storage.seq initialized)
+    (environment := sourceEnvironment input)
+    (model := model N) input.samplerInput observed state weight left right
+  exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+    sampled (storage.seq initialized)
     state observe left right).trans
-      ((Circuit.referenceFiberSum_execute_seq storage initialized
-        (sampled.execute Reference state) observe left right).trans
+      ((Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+        storage initialized
+        (sampled.execute (sourceEnvironment input) Reference state) observe left right).trans
           (aligned.symm.trans (beforeBank.trans (beforeSlots.trans original))))
 
 /-- The actual complete code has the sixteen-slot joint Born law conditioned on
 the source and parameter produced by its physical setup. -/
-theorem code_conditional_reference
+lemma code_conditional_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code base noQuantum N input).execute Reference state)
+      ((code base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *
         terminalIndicator base noQuantum N 16 id outcomes entry.1) leftRef rightRef =
     ExecutionState.referenceFiberSum
-      ((setup base noQuantum N input).execute Reference state)
+      ((setup base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *
         ∏ index : Fin 16, Declared.sourceWeight N input
           (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
           (outcomes index)) leftRef rightRef := by
-  exact (Circuit.referenceFiberSum_execute_seq
-    (setup base noQuantum N input) (firstBatch base noQuantum N input) state
+  exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+    (setup base noQuantum N) (firstBatch base noQuantum N) state
     (fun store => weight
       (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
       (store.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *
@@ -379,14 +403,14 @@ theorem code_conditional_reference
 
 /-- The complete physical sixteen-sample program combines the real uniform
 source draw with its parameter-conditioned joint quantum Born law. -/
-theorem code_joint_reference
+lemma code_joint_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code base noQuantum N input).execute Reference state)
+      ((code base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *

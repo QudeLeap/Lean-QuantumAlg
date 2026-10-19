@@ -28,6 +28,8 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 open EncodedBit.GateSpec
 
@@ -37,12 +39,12 @@ private def reloadBit (width : Nat) (bit : Fin width) : EncodedBit (finIdentity 
 private def reloadWord (width : Nat) : EncodedBit.Word (finIdentity width) width :=
   ⟨reloadBit width⟩
 
-private theorem reloadBit_get (width : Nat) (bit : Fin width) (state : Fin (2 ^ width)) :
+private lemma reloadBit_get (width : Nat) (bit : Fin width) (state : Fin (2 ^ width)) :
     (reloadBit width bit).get state = state.val.testBit bit.val := by
   change state.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem reloadBit_disjoint (width : Nat) (left right : Fin width)
+private lemma reloadBit_disjoint (width : Nat) (left right : Fin width)
     (different : left ≠ right) :
     (reloadBit width left).wire ≠ (reloadBit width right).wire := by
   intro same
@@ -69,7 +71,7 @@ def reloadProgram (m ell width N : Nat) :
   programList (QubitLayout.canonical (totalQubits (registerParameters m ell width)))
     .empty (reloadGates m ell width N)
 
-private theorem reload_step_zero (m ell width N : Nat) :
+private lemma reload_step_zero (m ell width N : Nat) :
     stepList (reloadGates m ell width N) 0 = reloadLabel m ell width N := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq
   intro bit
@@ -81,8 +83,8 @@ private theorem reload_step_zero (m ell width N : Nat) :
   simpa only [reloadBit_get, Fin.val_zero, Nat.zero_testBit, Bool.false_xor] using action
 
 /-- The actual X list maps the internally established zero basis state to the original seed. -/
-theorem shortDLP_reload_apply_zero (m ell width N : Nat) :
-    (reloadProgram m ell width N).applyNormalized
+lemma shortDLP_reload_apply_zero (m ell width N : Nat) :
+    (reloadProgram m ell width N).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
           0)) =
@@ -91,7 +93,7 @@ theorem shortDLP_reload_apply_zero (m ell width N : Nat) :
           (reloadLabel m ell width N)) := by
   have action := (realizesList
     (QubitLayout.canonical (totalQubits (registerParameters m ell width)))
-    .empty (reloadGates m ell width N)).apply_encoded_ket 0
+    .empty (reloadGates m ell width N) environment).apply_encoded_ket 0
   rw [reload_step_zero] at action
   exact action
 
@@ -100,7 +102,7 @@ def reloadXCount (m ell width N : Nat) : Nat :=
   (EncodedBit.Word.constantOneIndices (reloadLabel m ell width N)).length
 
 /-- The entire native ledger consists of exactly one X per selected seed bit. -/
-theorem shortDLP_reload_eventCost (m ell width N : Nat) :
+lemma shortDLP_reload_eventCost (m ell width N : Nat) :
     (reloadProgram m ell width N).eventCost =
       reloadXCount m ell width N • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) := by
@@ -114,14 +116,14 @@ theorem shortDLP_reload_eventCost (m ell width N : Nat) :
   rfl
 
 /-- The literal serial X list has its exact set-bit count as unit-duration depth. -/
-theorem shortDLP_reload_unitDepth (m ell width N : Nat) :
+lemma shortDLP_reload_unitDepth (m ell width N : Nat) :
     (reloadProgram m ell width N).evaluatedEventDepth (fun _ => 1) =
       reloadXCount m ell width N := by
   rw [reloadProgram, programList_evaluatedEventDepth_unit]
   exact EncodedBit.Word.xorConstantGates_length _ _
 
 /-- The exact seed count is bounded independently by the actual bank width. -/
-theorem shortDLP_reload_count_le (m ell width N : Nat) :
+lemma shortDLP_reload_count_le (m ell width N : Nat) :
     reloadXCount m ell width N ≤ totalQubits (registerParameters m ell width) :=
   EncodedBit.Word.constantOneIndices_length_le _
 

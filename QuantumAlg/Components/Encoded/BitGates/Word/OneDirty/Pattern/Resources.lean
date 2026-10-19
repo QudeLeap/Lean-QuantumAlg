@@ -26,7 +26,7 @@ variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
-private theorem patternMask_events (expected : Fin controls → Bool) :
+private lemma patternMask_events (expected : Fin controls → Bool) :
     (layout.patternMaskGates expected).map (GateSpec.event oracles) =
       List.replicate (patternMaskIndices expected).length
         (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .singleQubit) := by
@@ -36,7 +36,7 @@ private theorem patternMask_events (expected : Fin controls → Bool) :
   simp
 
 /-- The complete mask/conjunction/unmask trace retains every native coordinate. -/
-theorem patternGates_events (expected : Fin controls → Bool) :
+lemma patternGates_events (expected : Fin controls → Bool) :
     (layout.patternGates expected).map (GateSpec.event oracles) =
       List.replicate (patternMaskIndices expected).length (.gate .singleQubit) ++
         (if controls = 0 then [.gate .singleQubit]
@@ -47,13 +47,13 @@ theorem patternGates_events (expected : Fin controls → Bool) :
     patternMask_events, gates_events, List.reverse_replicate]
 
 /-- Exact dependency depth includes both masks and all actual conjunction gates. -/
-theorem patternGates_program_depth (expected : Fin controls → Bool) :
+lemma patternGates_program_depth (expected : Fin controls → Bool) :
     (GateSpec.programList physical oracles (layout.patternGates expected)).evaluatedEventDepth
       (fun _ => 1) = 2 * (patternMaskIndices expected).length + gateCount controls := by
   rw [GateSpec.programList_evaluatedEventDepth_unit, patternGates_length, gates_length]
 
 /-- The zero predicate masks every original source bit, including the empty-width case. -/
-theorem zeroPattern_program_depth :
+lemma zeroPattern_program_depth :
     (GateSpec.programList physical oracles (layout.patternGates fun _ => false)).evaluatedEventDepth
       (fun _ => 1) = 2 * controls + gateCount controls := by
   rw [patternGates_program_depth]

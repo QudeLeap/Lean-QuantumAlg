@@ -21,7 +21,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeFactorTa
 noncomputable section
 
 /-- Outside the modulus exception, the source uses exactly the actual guard predicates. -/
-theorem outputOfResidue_guard {N : Nat}
+lemma outputOfResidue_guard {N : Nat}
     (parameter : CShape.Value (ParameterShape (modulusBits N))) (accepted : Bool)
     (order : ClassicalAlgorithms.Word (phaseBits N + 1))
     (ordinary : ¬ (2 < N ∧ Even N)) :

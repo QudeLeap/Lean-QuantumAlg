@@ -32,14 +32,14 @@ def leadingQubitWeight {n : Nat} (ψ : HilbertVector (Qubits (1 + n)))
     (b : Fin (2 ^ 1)) : ℝ :=
   ∑ y : Fin (2 ^ n), ‖ψ (prodEquiv (b, y))‖ ^ 2
 
-theorem leadingQubitWeight_nonneg {n : Nat} (ψ : HilbertVector (Qubits (1 + n)))
+lemma leadingQubitWeight_nonneg {n : Nat} (ψ : HilbertVector (Qubits (1 + n)))
     (b : Fin (2 ^ 1)) :
     0 ≤ leadingQubitWeight ψ b :=
   Finset.sum_nonneg fun _ _ => sq_nonneg _
 
 /-- Scaling a raw vector scales its marginal weight by the squared
 scalar norm. -/
-theorem leadingQubitWeight_smul {n : Nat} (c : ℂ)
+lemma leadingQubitWeight_smul {n : Nat} (c : ℂ)
     (ψ : HilbertVector (Qubits (1 + n))) (b : Fin (2 ^ 1)) :
     leadingQubitWeight (c • ψ) b = ‖c‖ ^ 2 * leadingQubitWeight ψ b := by
   rw [leadingQubitWeight, leadingQubitWeight, Finset.mul_sum]
@@ -59,7 +59,7 @@ public def probQubit0 {n : Nat} (ψ : NormalizedVector (Qubits (1 + n)))
     (b : Fin (2 ^ 1)) : ℝ :=
   HilbertVector.leadingQubitWeight (ψ : HilbertVector (Qubits (1 + n))) b
 
-theorem probQubit0_nonneg {n : Nat} (ψ : NormalizedVector (Qubits (1 + n)))
+lemma probQubit0_nonneg {n : Nat} (ψ : NormalizedVector (Qubits (1 + n)))
     (b : Fin (2 ^ 1)) :
     0 ≤ probQubit0 ψ b :=
   by

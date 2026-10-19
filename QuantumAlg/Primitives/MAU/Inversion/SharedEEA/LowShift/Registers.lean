@@ -33,7 +33,7 @@ noncomputable section
 def extra (width : Nat) : Nat := width + 3 - width.size
 
 /-- Every source width supplies the needed borrowed bits internally, including width zero. -/
-theorem extra_add_length (width : Nat) : extra width + width.size = width + 3 := by
+lemma extra_add_length (width : Nat) : extra width + width.size = width + 3 := by
   have enough : width.size ≤ width := Nat.size_le.mpr Nat.lt_two_pow_self
   dsimp only [extra]
   omega
@@ -71,15 +71,15 @@ def grouping (width : Nat) :
     rfl
 
 /-- The selected target is exactly the original low shift, without any widened-counter cast. -/
-theorem grouping_shift (width : Nat) (state : Registers width) :
+lemma grouping_shift (width : Nat) (state : Registers width) :
     (grouping width state).1.1.2.val = state.shift.toNat := rfl
 
 /-- The borrowed interface is exactly the complete original Work1 word. -/
-theorem grouping_work (width : Nat) (state : Registers width) :
+lemma grouping_work (width : Nat) (state : Registers width) :
     (grouping width state).1.1.1.val = state.firstWord.toNat := rfl
 
 /-- Every bit of the arithmetic target is the same actual little-endian low-shift bit. -/
-theorem grouping_shift_bit (width : Nat) (index : Fin width.size) (state : Registers width) :
+lemma grouping_shift_bit (width : Nat) (index : Fin width.size) (state : Registers width) :
     (Addition.HRS.bridgeHighBit (width + 3) width.size index).get (grouping width state).1 =
       (shiftBit width index.rev).get state := by
   rw [Addition.HRS.hrsBridgeHighBit_get, shiftBit_get, grouping_shift]
@@ -91,7 +91,7 @@ theorem grouping_shift_bit (width : Nat) (index : Fin width.size) (state : Regis
     Bool.true_and, reverse, BitVec.getLsbD]
 
 /-- Every borrowed-word bit is its actual Work1 position, including unknown padding bits. -/
-theorem grouping_work_bit (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+lemma grouping_work_bit (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     (Addition.HRS.bridgeLowBit (width + 3) width.size index).get (grouping width state).1 =
       (firstWordBit width index.rev).get state := by
   rw [Addition.HRS.hrsBridgeLowBit_get, firstWordBit_get, grouping_work]
@@ -103,7 +103,7 @@ theorem grouping_work_bit (width : Nat) (index : Fin (width + 3)) (state : Regis
     Bool.true_and, reverse, BitVec.getLsbD]
 
 /-- The incrementer's preserved control is the actual Phase2 field. -/
-theorem grouping_control (width : Nat) (state : Registers width) :
+lemma grouping_control (width : Nat) (state : Registers width) :
     (Addition.HRS.bridgeDirtyBit (width + 3) width.size).get (grouping width state).1 =
       (phase2Bit width).get state := rfl
 
@@ -113,7 +113,7 @@ def physicalIndex (width index : Nat) : Nat :=
   else if index < width.size + (width + 3) then index - width.size
   else 2 * (width + 3) + 4 * width.size + 1
 
-theorem physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
+lemma physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
     physicalIndex width (width.size + index.val) = (firstWordBit width index).wire.val := by
   rw [firstWordBit_wire]
   have lower : ¬width.size + index.val < width.size := by omega
@@ -122,19 +122,19 @@ theorem physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
     omega
   simp only [physicalIndex, if_neg lower, if_pos upper, Nat.add_sub_cancel_left]
 
-theorem physicalIndex_shift (width : Nat) (index : Fin width.size) :
+lemma physicalIndex_shift (width : Nat) (index : Fin width.size) :
     physicalIndex width index.val = (shiftBit width index).wire.val := by
   rw [shiftBit_wire]
   simp only [physicalIndex, if_pos index.isLt]
 
-theorem physicalIndex_control (width : Nat) :
+lemma physicalIndex_control (width : Nat) :
     physicalIndex width (width.size + (width + 3)) = (phase2Bit width).wire.val := by
   rw [phase2Bit_wire]
   have lower : ¬width.size + (width + 3) < width.size := by omega
   simp only [physicalIndex, if_neg lower, Nat.lt_irrefl, if_false]
 
 /-- Every native incrementer wire already lies inside the original complete source frame. -/
-theorem physicalIndex_within (width : Nat) (index : Fin (width + 3 + width.size + 1)) :
+lemma physicalIndex_within (width : Nat) (index : Fin (width + 3 + width.size + 1)) :
     physicalIndex width index.val < (encoding width).width := by
   rw [encoding_width]
   unfold physicalIndex
@@ -145,7 +145,7 @@ theorem physicalIndex_within (width : Nat) (index : Fin (width + 3 + width.size 
     · omega
 
 /-- No actual incrementer control, target, or borrowed word position is aliased. -/
-theorem physicalIndex_injective (width : Nat) :
+lemma physicalIndex_injective (width : Nat) :
     Function.Injective
       (fun index : Fin (width + 3 + width.size + 1) => physicalIndex width index.val) := by
   intro left right same

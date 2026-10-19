@@ -40,9 +40,10 @@ public def qubitCircuit (oracles : OracleModel) {width : Nat}
   circuitAt (qubitLayout width) control target distinct rfl rfl oracles angle
 
 /-- The native implementation realizes the unchanged addressed target on every register state. -/
-public theorem controlledPhase_qubitCircuit_matrix (oracles : OracleModel) {width : Nat}
-    (control target : Fin width) (distinct : control ≠ target) (angle : Real) :
-    (qubitCircuit oracles control target distinct angle).matrix =
+public lemma controlledPhase_qubitCircuit_matrix (oracles : OracleModel) {width : Nat}
+    (control target : Fin width) (distinct : control ≠ target) (angle : Real) (environment :
+      oracles.Interpretation) :
+    ((qubitCircuit oracles control target distinct angle).matrix environment) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm
         (qftControlledPhaseOperator control target angle) := by
   rw [qubitCircuit, controlledPhase_circuitAt_matrix]
@@ -74,7 +75,7 @@ public theorem controlledPhase_qubitCircuit_matrix (oracles : OracleModel) {widt
   rw [first, second]
 
 /-- The original register realization retains all five native occurrences. -/
-public theorem controlledPhase_qubitCircuit_events (oracles : OracleModel) {width : Nat}
+public lemma controlledPhase_qubitCircuit_events (oracles : OracleModel) {width : Nat}
     (control target : Fin width) (distinct : control ≠ target) (angle : Real) :
     (qubitCircuit oracles control target distinct angle).eventTrace =
       [.gate .singleQubit, .gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot] := by

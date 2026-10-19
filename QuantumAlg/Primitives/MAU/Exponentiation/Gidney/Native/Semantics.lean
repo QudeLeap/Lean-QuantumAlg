@@ -25,6 +25,8 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 attribute [local implicit_reducible] oracleEncoding encoding
@@ -39,7 +41,7 @@ def nativeOracleOrder (exponentWidth width : Nat) :
   left_inv := by rintro ⟨⟨power, auxiliary⟩, exponent, target⟩; rfl
   right_inv := by rintro ⟨⟨exponent, power, auxiliary⟩, target⟩; rfl
 
-private theorem xorPower_involutive {exponentWidth width : Nat}
+private lemma xorPower_involutive {exponentWidth width : Nat}
     (value : Fin (2 ^ width)) :
     Function.Involutive (fun state : NativeRegisters exponentWidth width =>
       xorPower state value) := by
@@ -79,7 +81,7 @@ def nativeArithmeticStep (exponentWidth width : Nat)
     NativeRegisters exponentWidth width → NativeRegisters exponentWidth width :=
   nativeArithmeticEquiv exponentWidth width modulus positive base
 
-theorem nativeArithmeticStep_eq (exponentWidth width : Nat)
+lemma nativeArithmeticStep_eq (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (state : NativeRegisters exponentWidth width) :
     nativeArithmeticStep exponentWidth width modulus positive base state =
@@ -97,7 +99,7 @@ theorem nativeArithmeticStep_eq (exponentWidth width : Nat)
 
 /-- On freshly zeroed work, the independent arithmetic action restores both
 work words and XORs the modular power into an arbitrary supplied target. -/
-theorem nativeArithmeticStep_clean (exponentWidth width : Nat)
+lemma nativeArithmeticStep_clean (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth))
     (target : Fin (2 ^ width)) :
@@ -142,14 +144,14 @@ private def nativeLabelEquiv (exponentWidth width : Nat) :
     (prodEquiv (m := exponentWidth) (n := width))).trans
       (prodEquiv (m := width + width) (n := exponentWidth + width))
 
-private theorem nativeLabelEquiv_eq_encode (exponentWidth width : Nat)
+private lemma nativeLabelEquiv_eq_encode (exponentWidth width : Nat)
     (state : NativeRegisters exponentWidth width) :
     nativeLabelEquiv exponentWidth width state =
       (nativeEncoding exponentWidth width).encode state :=
   rfl
 
 /-- The full physical reorder reads exactly the arithmetic fields in oracle order. -/
-private theorem oracleBasisAt_encode (exponentWidth width : Nat)
+private lemma oracleBasisAt_encode (exponentWidth width : Nat)
     (state : NativeRegisters exponentWidth width) :
     UnitaryCircuit.basisAt
       (QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum
@@ -223,13 +225,13 @@ private def nativeOracleBasisEquiv (exponentWidth width : Nat) :
     (nativeOracleOrder exponentWidth width).symm |>.trans
       (nativeLabelEquiv exponentWidth width)
 
-private theorem oracleEncode_eq_wordBasis (exponentWidth width : Nat)
+private lemma oracleEncode_eq_wordBasis (exponentWidth width : Nat)
     (state : OracleRegisters exponentWidth width) :
     (oracleEncoding exponentWidth width).encode state =
       wordExponentiationBasis exponentWidth width state := by
   rfl
 
-private theorem nativeOracleBasisEquiv_encode (exponentWidth width : Nat)
+private lemma nativeOracleBasisEquiv_encode (exponentWidth width : Nat)
     (state : NativeRegisters exponentWidth width) :
     nativeOracleBasisEquiv exponentWidth width
         ((oracleEncoding exponentWidth width).encode
@@ -240,7 +242,7 @@ private theorem nativeOracleBasisEquiv_encode (exponentWidth width : Nat)
     Equiv.symm_apply_apply]
   exact nativeLabelEquiv_eq_encode exponentWidth width state
 
-private theorem nativeOracleBasisEquiv_symm_encode (exponentWidth width : Nat)
+private lemma nativeOracleBasisEquiv_symm_encode (exponentWidth width : Nat)
     (state : NativeRegisters exponentWidth width) :
     (nativeOracleBasisEquiv exponentWidth width).symm
         ((nativeEncoding exponentWidth width).encode state) =
@@ -257,7 +259,7 @@ def nativeOracleWordOperator (exponentWidth width : Nat)
   UnitaryOperator.reindex (nativeOracleBasisEquiv exponentWidth width)
     (wordExponentiationOperator exponentWidth width modulus base)
 
-private theorem reindex_ket_action {R S : Register} (equivalence : R.Index ≃ S.Index)
+private lemma reindex_ket_action {R S : Register} (equivalence : R.Index ≃ S.Index)
     (operator : UnitaryOperator R) (start finish : R.Index)
     (action : operator.apply (NormalizedVector.ket start) =
       NormalizedVector.ket finish) :
@@ -277,7 +279,7 @@ private theorem reindex_ket_action {R S : Register} (equivalence : R.Index ≃ S
       (NormalizedVector.ket (equivalence finish) : HilbertVector S) output
   exact congrArg (fun state : HilbertVector S => state output) mapped
 
-private theorem nativeOracleBasisEquiv_word (exponentWidth width : Nat)
+private lemma nativeOracleBasisEquiv_word (exponentWidth width : Nat)
     (state : OracleRegisters exponentWidth width) :
     nativeOracleBasisEquiv exponentWidth width
         (wordExponentiationBasis exponentWidth width state) =
@@ -289,7 +291,7 @@ private theorem nativeOracleBasisEquiv_word (exponentWidth width : Nat)
   simpa only [Equiv.apply_symm_apply] using h
 
 /-- The independent oracle word matrix acts on every native-order label. -/
-theorem nativeOracleWordOperator_ket (exponentWidth width : Nat)
+lemma nativeOracleWordOperator_ket (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
     (state : NativeRegisters exponentWidth width) :
     (nativeOracleWordOperator exponentWidth width modulus base).apply
@@ -328,7 +330,7 @@ def nativeIdentityWordOperator (exponentWidth width : Nat)
   UnitaryOperator.ofPerm
     (nativeIdentityLabelPermutation exponentWidth width modulus positive).symm
 
-private theorem nativeIdentityWordOperator_ket (exponentWidth width : Nat)
+private lemma nativeIdentityWordOperator_ket (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (state : NativeRegisters exponentWidth width) :
     (nativeIdentityWordOperator exponentWidth width modulus positive).apply
@@ -345,18 +347,18 @@ private theorem nativeIdentityWordOperator_ket (exponentWidth width : Nat)
     Equiv.symm_apply_apply, nativeLabelEquiv_eq_encode]
   rfl
 
-private theorem identityProgram_matrix_of_realizes (exponentWidth width : Nat)
+private lemma identityProgram_matrix_of_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (body : UnitaryCircuit AlgorithmGate.model .empty (nativeSourceLayout exponentWidth width)) →
-    UnitaryCircuit.Realizes (nativeEncoding exponentWidth width) body
+    UnitaryCircuit.Realizes (nativeEncoding exponentWidth width) body environment
       (fun state => xorPower state (unitResidueWord modulus positive 1)) →
-    body.matrix =
+    (body.matrix environment) =
       UnitaryOperator.reindex (nativeSourceBasisEquiv exponentWidth width).symm
         (nativeIdentityWordOperator exponentWidth width modulus positive) := by
   intro body realizes
   apply Subtype.ext
   ext output input
-  change body.matrix output input =
+  change (body.matrix environment) output input =
     (nativeIdentityWordOperator exponentWidth width modulus positive)
       (nativeSourceBasisEquiv exponentWidth width output)
       (nativeSourceBasisEquiv exponentWidth width input)
@@ -378,7 +380,7 @@ private theorem identityProgram_matrix_of_realizes (exponentWidth width : Nat)
     (nativeIdentityWordOperator_ket exponentWidth width modulus positive state)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      (body.matrix :
+      ((body.matrix environment) :
         HilbertOperator (nativeSourceLayout exponentWidth width).register)
       ((nativeSourceBasisEquiv exponentWidth width).symm
         ((nativeEncoding exponentWidth width).encode state)) output).symm.trans circuit
@@ -401,9 +403,9 @@ private theorem identityProgram_matrix_of_realizes (exponentWidth width : Nat)
   exact actualColumn.trans (ketBridge.trans semanticColumn.symm)
 
 /-- The physical X loader equals the independent first-word XOR operator. -/
-theorem identityLoadProgram_matrix (exponentWidth width : Nat)
+lemma identityLoadProgram_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
-    (identityLoadProgram exponentWidth width modulus positive).matrix =
+    ((identityLoadProgram exponentWidth width modulus positive).matrix environment) =
       UnitaryOperator.reindex (nativeSourceBasisEquiv exponentWidth width).symm
         (nativeIdentityWordOperator exponentWidth width modulus positive) :=
   identityProgram_matrix_of_realizes exponentWidth width modulus positive
@@ -411,9 +413,9 @@ theorem identityLoadProgram_matrix (exponentWidth width : Nat)
     (identityLoadProgram_realizes exponentWidth width modulus positive)
 
 /-- Reverse X gates retain exact phase and the same all-label XOR action. -/
-theorem identityUnloadProgram_matrix (exponentWidth width : Nat)
+lemma identityUnloadProgram_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
-    (identityUnloadProgram exponentWidth width modulus positive).matrix =
+    ((identityUnloadProgram exponentWidth width modulus positive).matrix environment) =
       UnitaryOperator.reindex (nativeSourceBasisEquiv exponentWidth width).symm
         (nativeIdentityWordOperator exponentWidth width modulus positive) :=
   identityProgram_matrix_of_realizes exponentWidth width modulus positive
@@ -431,14 +433,15 @@ def arithmeticOraclePhysicalOperator (exponentWidth width : Nat)
 
 /-- The selected-power compute, copy and uncompute circuit has the exact
 independent all-label matrix in the original physical basis. -/
-theorem oracleProgram_physical_matrix (exponentWidth width : Nat)
+lemma oracleProgram_physical_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
-    (oracleProgram exponentWidth width modulus base).matrix =
+    ((oracleProgram exponentWidth width modulus base).matrix environment) =
       arithmeticOraclePhysicalOperator exponentWidth width modulus base := by
-  have h := gidneyExponentOracle_matrix exponentWidth width modulus base
+  have h := gidneyExponentOracle_matrix (environment := environment)
+    exponentWidth width modulus base
   change UnitaryOperator.reindex
       (QubitLayout.canonical (oracleEncoding exponentWidth width).width).basisEquiv
-      (oracleProgram exponentWidth width modulus base).matrix =
+      ((oracleProgram exponentWidth width modulus base).matrix environment) =
         wordExponentiationOperator exponentWidth width modulus base at h
   have h' := congrArg
     (UnitaryOperator.reindex
@@ -457,9 +460,9 @@ def placedArithmeticOperator (exponentWidth width : Nat)
     (oraclePosition_dimensions exponentWidth width)
     (arithmeticOraclePhysicalOperator exponentWidth width modulus base)
 
-theorem placedArithmeticOracle_matrix (exponentWidth width : Nat)
+lemma placedArithmeticOracle_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
-    (placedArithmeticOracle exponentWidth width modulus base).matrix =
+    ((placedArithmeticOracle exponentWidth width modulus base).matrix environment) =
       placedArithmeticOperator exponentWidth width modulus base := by
   rw [placedArithmeticOracle, UnitaryCircuit.placeAt_matrix,
     oracleProgram_physical_matrix]
@@ -467,7 +470,7 @@ theorem placedArithmeticOracle_matrix (exponentWidth width : Nat)
 
 /-- The dimension-certified placement is exactly the independent oracle
 permutation in the native binary word order, including all noncanonical labels. -/
-theorem placedArithmeticOperator_word (exponentWidth width : Nat)
+lemma placedArithmeticOperator_word (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     placedArithmeticOperator exponentWidth width modulus base =
       UnitaryOperator.reindex (nativeSourceBasisEquiv exponentWidth width).symm
@@ -535,7 +538,7 @@ def nativeArithmeticWordOperator (exponentWidth width : Nat)
     ((nativeOracleWordOperator exponentWidth width modulus base) *
       (nativeIdentityWordOperator exponentWidth width modulus positive))
 
-private theorem unitary_mul_apply_normalized {R : Register}
+private lemma unitary_mul_apply_normalized {R : Register}
     (left right : UnitaryOperator R) (state : NormalizedVector R) :
     (left * right).apply state = left.apply (right.apply state) := by
   apply NormalizedVector.ext
@@ -546,7 +549,7 @@ private theorem unitary_mul_apply_normalized {R : Register}
 
 /-- The independent complete word operator implements the mathematical
 load, all-label modular-power oracle, and unload permutation. -/
-theorem nativeArithmeticWordOperator_ket (exponentWidth width : Nat)
+lemma nativeArithmeticWordOperator_ket (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ)
     (state : NativeRegisters exponentWidth width) :
@@ -579,7 +582,7 @@ def arithmeticNativeSourceOperator (exponentWidth width : Nat)
     (nativeIdentityWordOperator exponentWidth width modulus positive)
   load * (placedArithmeticOperator exponentWidth width modulus base * load)
 
-theorem arithmeticNativeSourceOperator_word (exponentWidth width : Nat)
+lemma arithmeticNativeSourceOperator_word (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     arithmeticNativeSourceOperator exponentWidth width modulus positive base =
@@ -591,10 +594,10 @@ theorem arithmeticNativeSourceOperator_word (exponentWidth width : Nat)
     UnitaryOperator.unitaryOperator_reindex_mul]
 
 /-- Exact phase-sensitive equality for the literal arithmetic candidate. -/
-theorem arithmeticNativeSourceProgram_matrix (exponentWidth width : Nat)
+lemma arithmeticNativeSourceProgram_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
-    (arithmeticNativeSourceProgram exponentWidth width modulus positive base).matrix =
+    ((arithmeticNativeSourceProgram exponentWidth width modulus positive base).matrix environment) =
       arithmeticNativeSourceOperator exponentWidth width modulus positive base := by
   rw [arithmeticNativeSourceProgram, UnitaryCircuit.seq_matrix,
     UnitaryCircuit.seq_matrix, identityLoadProgram_matrix,
@@ -611,17 +614,17 @@ def arithmeticNativeOperator (exponentWidth width : Nat)
     (arithmeticNativeSourceOperator exponentWidth width modulus positive base)
 
 /-- Exact matrix equality for the complete prepared arithmetic candidate. -/
-theorem arithmeticNativeUnitary_semantics (exponentWidth width : Nat)
+lemma arithmeticNativeUnitary_semantics (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
-    (arithmeticNativeUnitary exponentWidth width modulus positive base).matrix =
+    ((arithmeticNativeUnitary exponentWidth width modulus positive base).matrix environment) =
       arithmeticNativeOperator exponentWidth width modulus positive base := by
   rw [arithmeticNativeUnitary_matrix, arithmeticNativeSourceProgram_matrix]
   rfl
 
 /-- The prepared arithmetic target is the independent all-label word
 permutation transported through the actual runtime basis. -/
-theorem arithmeticNativeOperator_word (exponentWidth width : Nat)
+lemma arithmeticNativeOperator_word (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     arithmeticNativeOperator exponentWidth width modulus positive base =
@@ -633,10 +636,10 @@ theorem arithmeticNativeOperator_word (exponentWidth width : Nat)
   rfl
 
 /-- Exact phase-sensitive matrix equality on the prepared runtime carrier. -/
-theorem arithmeticNativeUnitary_word (exponentWidth width : Nat)
+lemma arithmeticNativeUnitary_word (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
-    (arithmeticNativeUnitary exponentWidth width modulus positive base).matrix =
+    ((arithmeticNativeUnitary exponentWidth width modulus positive base).matrix environment) =
       UnitaryOperator.reindex (preparedBasisEquiv exponentWidth width).symm
         (nativeArithmeticWordOperator exponentWidth width modulus positive base) := by
   rw [arithmeticNativeUnitary_semantics, arithmeticNativeOperator_word]

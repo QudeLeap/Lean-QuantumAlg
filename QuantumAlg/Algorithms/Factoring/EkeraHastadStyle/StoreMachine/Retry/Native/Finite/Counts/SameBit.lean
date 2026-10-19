@@ -25,7 +25,7 @@ open Execution LatticeRecoveryResources
 
 noncomputable section
 
-private theorem recovery_affine (modulusWidth m ell coordinateWidth : Nat) :
+private lemma recovery_affine (modulusWidth m ell coordinateWidth : Nat) :
     LatticeFixedBatchRecoveryMachine.eventCountBound modulusWidth m ell coordinateWidth =
       97_125_852 * modulusWidth + 3_183_480 * m + 3_183_840 * ell +
         291_374_880 * coordinateWidth + 8_695_564_699 := by
@@ -36,7 +36,7 @@ private theorem recovery_affine (modulusWidth m ell coordinateWidth : Nat) :
     QuadraticPrefix.centerWidth]
   omega
 
-private theorem batch_affine (n ell : Nat) :
+private lemma batch_affine (n ell : Nat) :
     44 * (2 * n) + 182 + LatticeFixedBatchRecoveryMachine.eventCountBound
         (2 * n) (n + 1) ell (2 ^ 21 * (3 * n + ell + 2) + 2) =
       1_833_172_434_460_552 * n + 611_057_415_525_600 * ell +
@@ -45,7 +45,7 @@ private theorem batch_affine (n ell : Nat) :
   ring
 
 /-- Exact affine formula for the complete classical ceiling at every positive batch count. -/
-theorem scalarClassicalOperationBound_sameBit_eq {n : Nat} (pair : RSA.RSAKeyPairBits n)
+lemma scalarClassicalOperationBound_sameBit_eq {n : Nat} (pair : RSA.RSAKeyPairBits n)
     (positive : 1 ≤ n) (count : Nat) :
     scalarClassicalOperationBound pair.modulus (count + 1) =
       (count + 1) * (1_833_172_434_460_552 * n +
@@ -59,7 +59,7 @@ theorem scalarClassicalOperationBound_sameBit_eq {n : Nat} (pair : RSA.RSAKeyPai
   rw [batch_affine]
 
 /-- The existing independent classical allowance has a linear ceiling, including zero batches. -/
-theorem scalarClassicalOperationBound_sameBit_le_linear {n : Nat}
+lemma scalarClassicalOperationBound_sameBit_le_linear {n : Nat}
     (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) (count : Nat) :
     scalarClassicalOperationBound pair.modulus count ≤ 2 ^ 52 * count * n + 1 := by
   cases count with
@@ -76,7 +76,7 @@ theorem scalarClassicalOperationBound_sameBit_le_linear {n : Nat}
         Nat.add_le_add_right repeated 1
 
 /-- The original cubic constant follows for the same allowance on the entire same-bit domain. -/
-theorem scalarClassicalOperationBound_sameBit_le_cubic {n : Nat}
+lemma scalarClassicalOperationBound_sameBit_le_cubic {n : Nat}
     (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) (count : Nat) :
     scalarClassicalOperationBound pair.modulus count ≤ 2 ^ 54 * count * n ^ 3 + 2 := by
   have linear := scalarClassicalOperationBound_sameBit_le_linear pair positive count
@@ -92,7 +92,7 @@ attribute [local irreducible] run code context
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- Literal classical operations on each complete actual path obey the stronger linear bound. -/
-theorem run_classicalOperation_sameBit_le_linear {n : Nat} (pair : RSA.RSAKeyPairBits n)
+lemma run_classicalOperation_sameBit_le_linear {n : Nat} (pair : RSA.RSAKeyPairBits n)
     (positive : 1 ≤ n) (input : Input pair.modulus) (count : Nat)
     (path : (run base noQuantum input count).code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
@@ -101,7 +101,7 @@ theorem run_classicalOperation_sameBit_le_linear {n : Nat} (pair : RSA.RSAKeyPai
     (scalarClassicalOperationBound_sameBit_le_linear pair positive count)
 
 /-- The original cubic ceiling charges the same actual run, with arbitrary existing input state. -/
-theorem run_classicalOperation_sameBit_le_cubic {n : Nat} (pair : RSA.RSAKeyPairBits n)
+lemma run_classicalOperation_sameBit_le_cubic {n : Nat} (pair : RSA.RSAKeyPairBits n)
     (positive : 1 ≤ n) (input : Input pair.modulus) (count : Nat)
     (path : (run base noQuantum input count).code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight

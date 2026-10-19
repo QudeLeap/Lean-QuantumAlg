@@ -31,14 +31,14 @@ noncomputable section
 
 namespace Gate
 
-theorem X_conjTranspose :
+lemma X_conjTranspose :
     (Gate.XOp : HilbertOperator (Qubits 1)).conjTranspose =
       (Gate.XOp : HilbertOperator (Qubits 1)) := by
   change ((Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ).conjTranspose =
     (Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ
   rw [Matrix.conjTranspose_permMatrix, Equiv.swap_inv]
 
-theorem X_mul_X :
+lemma X_mul_X :
     (Gate.XOp : HilbertOperator (Qubits 1)) *
       (Gate.XOp : HilbertOperator (Qubits 1)) = 1 := by
   change (Equiv.swap (0 : Fin (2 ^ 1)) 1).permMatrix ℂ *
@@ -68,14 +68,14 @@ def rankOneOp {n : Nat} (ψ : NormalizedVector (Qubits n)) :
     HilbertOperator (Qubits n) :=
   Matrix.of fun r c => ψ r * starRingEnd ℂ (ψ c)
 
-theorem rankOneOp_conjTranspose {n : Nat}
+lemma rankOneOp_conjTranspose {n : Nat}
     (ψ : NormalizedVector (Qubits n)) :
     (rankOneOp ψ).conjTranspose = rankOneOp ψ := by
   ext r c
   simp [rankOneOp, Matrix.conjTranspose_apply, mul_comm]
 
 /-- The rank-one operator acts by taking the `psi` component. -/
-theorem rankOneOp_applyVec {n : Nat}
+lemma rankOneOp_applyVec {n : Nat}
     (ψ : NormalizedVector (Qubits n)) (φ : HilbertVector (Qubits n)) :
     HilbertOperator.applyVec (rankOneOp ψ) φ =
       inner ℂ (ψ : HilbertVector (Qubits n)) φ •
@@ -87,7 +87,7 @@ theorem rankOneOp_applyVec {n : Nat}
   rw [Finset.sum_mul]
   exact Finset.sum_congr rfl fun c _ => by ring
 
-theorem rankOneOp_idempotent {n : Nat}
+lemma rankOneOp_idempotent {n : Nat}
     (ψ : NormalizedVector (Qubits n)) :
     rankOneOp ψ * rankOneOp ψ = rankOneOp ψ := by
   have hinner :
@@ -118,13 +118,13 @@ def rankOne {n : Nat} (ψ : NormalizedVector (Qubits n)) :
 def basisOp {n : Nat} (j : Fin (2 ^ n)) : HilbertOperator (Qubits n) :=
   Matrix.of fun r c => (if r = j then (1 : ℂ) else 0) * (if c = j then (1 : ℂ) else 0)
 
-theorem basisOp_conjTranspose {n : Nat} (j : Fin (2 ^ n)) :
+lemma basisOp_conjTranspose {n : Nat} (j : Fin (2 ^ n)) :
     (basisOp j).conjTranspose = basisOp j := by
   ext r c
   by_cases hr : r = j <;> by_cases hc : c = j <;>
     simp [basisOp, Matrix.conjTranspose_apply, hr, hc]
 
-theorem basisOp_idempotent {n : Nat} (j : Fin (2 ^ n)) :
+lemma basisOp_idempotent {n : Nat} (j : Fin (2 ^ n)) :
     basisOp j * basisOp j = basisOp j := by
   ext r c
   rw [Matrix.mul_apply]
@@ -165,13 +165,13 @@ def reflectionOp {n : Nat} (P : OrthogonalProjector n) : UnitaryOperator (Qubits
       P.idempotent]
     module)
 
-theorem reflectionOp_conjTranspose {n : Nat} (P : OrthogonalProjector n) :
+lemma reflectionOp_conjTranspose {n : Nat} (P : OrthogonalProjector n) :
     (reflectionOp P : HilbertOperator (Qubits n)).conjTranspose =
       (reflectionOp P : HilbertOperator (Qubits n)) := by
   simp [reflectionOp, UnitaryOperator.ofMatrix, Matrix.conjTranspose_sub,
     Matrix.conjTranspose_one, Matrix.conjTranspose_smul, P.selfAdjoint]
 
-theorem reflectionOp_sq {n : Nat} (P : OrthogonalProjector n) :
+lemma reflectionOp_sq {n : Nat} (P : OrthogonalProjector n) :
     (reflectionOp P : HilbertOperator (Qubits n)) *
         (reflectionOp P : HilbertOperator (Qubits n)) = 1 := by
   simp [reflectionOp, UnitaryOperator.ofMatrix, Matrix.mul_sub, Matrix.sub_mul,
@@ -182,19 +182,19 @@ theorem reflectionOp_sq {n : Nat} (P : OrthogonalProjector n) :
 def complement {n : Nat} (P : OrthogonalProjector n) : HilbertOperator (Qubits n) :=
   1 - P.op
 
-theorem mul_complement {n : Nat} (P : OrthogonalProjector n) :
+lemma mul_complement {n : Nat} (P : OrthogonalProjector n) :
     P.op * complement P = 0 := by
   simp [complement, Matrix.mul_sub, P.idempotent]
 
-theorem complement_mul {n : Nat} (P : OrthogonalProjector n) :
+lemma complement_mul {n : Nat} (P : OrthogonalProjector n) :
     complement P * P.op = 0 := by
   simp [complement, Matrix.sub_mul, P.idempotent]
 
-theorem complement_sq {n : Nat} (P : OrthogonalProjector n) :
+lemma complement_sq {n : Nat} (P : OrthogonalProjector n) :
     complement P * complement P = complement P := by
   simp [complement, Matrix.mul_sub, Matrix.sub_mul, P.idempotent]
 
-theorem complement_conjTranspose {n : Nat} (P : OrthogonalProjector n) :
+lemma complement_conjTranspose {n : Nat} (P : OrthogonalProjector n) :
     (complement P).conjTranspose = complement P := by
   simp [complement, Matrix.conjTranspose_sub, Matrix.conjTranspose_one, P.selfAdjoint]
 
@@ -222,7 +222,7 @@ public def rankOnePhaseReflectionOp {n : Nat} (ψ : NormalizedVector (Qubits n))
   phaseReflectionOp (rankOne ψ)
 
 /-- A projector reflection acts as `2P psi - psi` on every vector. -/
-theorem reflectionOp_applyVec {n : Nat} (P : OrthogonalProjector n)
+lemma reflectionOp_applyVec {n : Nat} (P : OrthogonalProjector n)
     (ψ : HilbertVector (Qubits n)) :
     (reflectionOp P).applyVec ψ =
       (2 : ℂ) • HilbertOperator.applyVec P.op ψ - ψ := by
@@ -235,7 +235,7 @@ theorem reflectionOp_applyVec {n : Nat} (P : OrthogonalProjector n)
     HilbertOperator.one_applyVec]
 
 /-- Reflection through `psi` in rank-one form. -/
-theorem rankOneReflectionOp_applyVec {n : Nat}
+lemma rankOneReflectionOp_applyVec {n : Nat}
     (ψ : NormalizedVector (Qubits n)) (φ : HilbertVector (Qubits n)) :
     (rankOneReflectionOp ψ).applyVec φ =
       ((2 : ℂ) * inner ℂ (ψ : HilbertVector (Qubits n)) φ) •
@@ -246,7 +246,7 @@ theorem rankOneReflectionOp_applyVec {n : Nat}
   module
 
 /-- Phase reflection about `psi` in rank-one form. -/
-theorem rankOnePhaseReflectionOp_applyVec {n : Nat}
+lemma rankOnePhaseReflectionOp_applyVec {n : Nat}
     (ψ : NormalizedVector (Qubits n)) (φ : HilbertVector (Qubits n)) :
     (rankOnePhaseReflectionOp ψ).applyVec φ =
       φ - ((2 : ℂ) * inner ℂ (ψ : HilbertVector (Qubits n)) φ) •
@@ -261,7 +261,7 @@ theorem rankOnePhaseReflectionOp_applyVec {n : Nat}
   module
 
 /-- A projector complement kills vectors already supported on the projector. -/
-theorem complement_applyVec_eq_zero_of_projector_applyVec_eq_self {n : Nat}
+lemma complement_applyVec_eq_zero_of_projector_applyVec_eq_self {n : Nat}
     (P : OrthogonalProjector n) {ψ : HilbertVector (Qubits n)}
     (hpsi : HilbertOperator.applyVec P.op ψ = ψ) :
     HilbertOperator.applyVec (complement P) ψ = 0 := by
@@ -277,7 +277,7 @@ theorem complement_applyVec_eq_zero_of_projector_applyVec_eq_self {n : Nat}
       simp [HilbertOperator.applyVec_apply]
 
 /-- A projector kills vectors supported on its complement. -/
-theorem projector_applyVec_eq_zero_of_complement_applyVec_eq_self {n : Nat}
+lemma projector_applyVec_eq_zero_of_complement_applyVec_eq_self {n : Nat}
     (P : OrthogonalProjector n) {ψ : HilbertVector (Qubits n)}
     (hpsi : HilbertOperator.applyVec (complement P) ψ = ψ) :
     HilbertOperator.applyVec P.op ψ = 0 := by
@@ -293,7 +293,7 @@ theorem projector_applyVec_eq_zero_of_complement_applyVec_eq_self {n : Nat}
       simp [HilbertOperator.applyVec_apply]
 
 /-- The reflection through a projector fixes vectors in the projector image. -/
-theorem reflectionOp_applyVec_of_projector_applyVec_eq_self {n : Nat}
+lemma reflectionOp_applyVec_of_projector_applyVec_eq_self {n : Nat}
     (P : OrthogonalProjector n) {ψ : HilbertVector (Qubits n)}
     (hpsi : HilbertOperator.applyVec P.op ψ = ψ) :
     (reflectionOp P).applyVec ψ = ψ := by
@@ -311,7 +311,7 @@ theorem reflectionOp_applyVec_of_projector_applyVec_eq_self {n : Nat}
 
 /-- The reflection through a projector negates vectors in the complementary
 image. -/
-theorem reflectionOp_applyVec_of_projector_applyVec_eq_zero {n : Nat}
+lemma reflectionOp_applyVec_of_projector_applyVec_eq_zero {n : Nat}
     (P : OrthogonalProjector n) {ψ : HilbertVector (Qubits n)}
     (hpsi : HilbertOperator.applyVec P.op ψ = 0) :
     (reflectionOp P).applyVec ψ = -ψ := by

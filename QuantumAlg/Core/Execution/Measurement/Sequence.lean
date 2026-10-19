@@ -38,6 +38,8 @@ public structure ZReadout (ctx : RuntimeCtx .quantum) where
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
 
@@ -45,42 +47,50 @@ variable {ctx : RuntimeCtx .quantum}
 
 /-- Execute the named single-wire measurements in their stated order. -/
 @[expose, implicit_reducible]
-public def measurementSequence : List (ZReadout ctx) →
-    Circuit (.quantum gates oracles operations classicalOracles) ctx ctx
+public def measurementSequence {allowAllocation : Bool} : List (ZReadout ctx) →
+    Circuit (.quantum gates oracles operations classicalOracles) ctx ctx allowAllocation
   | [] => .id (model := .quantum gates oracles operations classicalOracles) ctx
   | head :: tail =>
-      .seq (.measureZ head.wire head.output) (measurementSequence tail)
+      .seq (.measureZ head.wire head.output) (measurementSequence (allowAllocation :=
+        allowAllocation) tail)
 
 /-- The actual finite path read from one complete physical basis label. -/
-@[expose] public def measurementBasisPath : (readouts : List (ZReadout ctx)) →
-    ctx.register.Index → (measurementSequence (gates := gates) (oracles := oracles)
+@[expose] public def measurementBasisPath {allowAllocation : Bool} : (readouts : List (ZReadout
+  ctx)) →
+    ctx.register.Index → (measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+      (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path
   | [], _basis => ()
-  | head :: tail, basis => (basis head.wire, measurementBasisPath tail basis)
+  | head :: tail, basis => (basis head.wire, measurementBasisPath (allowAllocation :=
+    allowAllocation) tail basis)
 
 /-- The classical writes made by the outcomes on an actual measurement path. -/
-@[expose] public def writeMeasurementPath : (readouts : List (ZReadout ctx)) → Execution.Store ctx →
-    (measurementSequence (gates := gates) (oracles := oracles)
+@[expose] public def writeMeasurementPath {allowAllocation : Bool} : (readouts : List (ZReadout
+  ctx)) → Execution.Store ctx →
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) readouts).Path → Execution.Store ctx
   | [], store, _path => store
   | head :: tail, store, path =>
-      writeMeasurementPath tail (store.write head.output (.finite path.1)) path.2
+      writeMeasurementPath (allowAllocation := allowAllocation) tail (store.write head.output
+        (.finite path.1)) path.2
 
 /-- The empty measurement sequence emits no native operation. -/
-theorem measurementSequence_nil_eventTrace
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+lemma measurementSequence_nil_eventTrace
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       ([] : List (ZReadout ctx))).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) []).eventTrace path = [] := rfl
 
 /-- Every list item emits exactly its native dimension-indexed Z coordinate. -/
-theorem measurementSequence_eventTrace (readouts : List (ZReadout ctx))
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+lemma measurementSequence_eventTrace (readouts : List (ZReadout ctx))
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).eventTrace path =
       readouts.map (fun item => zEvent (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles)
@@ -91,17 +101,19 @@ theorem measurementSequence_eventTrace (readouts : List (ZReadout ctx))
       change [zEvent (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles)
         (ctx.quantumLayout.wire head.wire).dimension] ++
-        (measurementSequence (gates := gates) (oracles := oracles)
+        (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+          oracles)
           (operations := operations)
           (classicalOracles := classicalOracles) tail).eventTrace path.2 = _
       rw [ih]
       rfl
 
 /-- The native pool is the multiplicity projection of those same measured wires. -/
-theorem measurementSequence_resourcePool (readouts : List (ZReadout ctx))
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+lemma measurementSequence_resourcePool (readouts : List (ZReadout ctx))
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) readouts).resourcePool path =
       ResourcePool.ofList
@@ -112,11 +124,12 @@ theorem measurementSequence_resourcePool (readouts : List (ZReadout ctx))
   rw [measurementSequence_eventTrace]
 
 /-- Measuring a list of dimension-two wires costs exactly one Z event per item. -/
-theorem measurementSequence_qubit_resourcePool (readouts : List (ZReadout ctx))
+lemma measurementSequence_qubit_resourcePool (readouts : List (ZReadout ctx))
     (qubits : ∀ item ∈ readouts, (ctx.quantumLayout.wire item.wire).dimension = 2)
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) readouts).resourcePool path =
       readouts.length • ResourcePool.singleton
@@ -137,28 +150,31 @@ theorem measurementSequence_qubit_resourcePool (readouts : List (ZReadout ctx))
   rw [same, ResourcePool.ofList_replicate, ResourcePool.scale]
 
 /-- Every instruction, including the final identity, keeps the same live context. -/
-theorem measurementSequence_visitedContexts (readouts : List (ZReadout ctx))
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+lemma measurementSequence_visitedContexts (readouts : List (ZReadout ctx))
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) readouts).visitedContexts path =
       List.replicate (readouts.length + 1) ctx := by
   induction readouts with
   | nil => rfl
   | cons head tail ih =>
-      change ctx :: (measurementSequence (gates := gates) (oracles := oracles)
+      change ctx :: (measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+        (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles)
         tail).visitedContexts path.2 = _
       rw [ih]
       rfl
 
 /-- Sequential measurement depth is the sum of the actual single-wire event durations. -/
-theorem measurementSequence_depth (readouts : List (ZReadout ctx))
+lemma measurementSequence_depth (readouts : List (ZReadout ctx))
     (duration : Resource.Event (.quantum gates oracles operations classicalOracles) → Nat)
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) readouts).depth duration path =
       (readouts.map
@@ -171,17 +187,19 @@ theorem measurementSequence_depth (readouts : List (ZReadout ctx))
       change duration (zEvent (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles)
         (ctx.quantumLayout.wire head.wire).dimension) +
-        (measurementSequence (gates := gates) (oracles := oracles)
+        (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+          oracles)
           (operations := operations)
           (classicalOracles := classicalOracles) tail).depth duration path.2 = _
       rw [ih]
       rfl
 
 /-- Unit duration charges every sequentially executed measurement, including the empty case. -/
-theorem measurementSequence_unitDepth (readouts : List (ZReadout ctx))
-    (path : (measurementSequence (gates := gates) (oracles := oracles)
+lemma measurementSequence_unitDepth (readouts : List (ZReadout ctx))
+    (path : (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations)
       (classicalOracles := classicalOracles) readouts).depth (fun _ => 1) path =
       readouts.length := by

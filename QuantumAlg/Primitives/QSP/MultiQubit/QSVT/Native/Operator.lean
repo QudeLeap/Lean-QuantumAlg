@@ -45,12 +45,12 @@ def branchMatrix {width : Nat} (V0 V1 : HilbertOperator (Qubits width)) :
   HilbertOperator.tensor HilbertOperator.proj0 V0 +
     HilbertOperator.tensor HilbertOperator.proj1 V1
 
-private theorem projectors_sum : HilbertOperator.proj0 + HilbertOperator.proj1 =
+private lemma projectors_sum : HilbertOperator.proj0 + HilbertOperator.proj1 =
     (1 : HilbertOperator (Qubits 1)) := by
   ext i j
   fin_cases i <;> fin_cases j <;> simp [HilbertOperator.proj0, HilbertOperator.proj1]
 
-private theorem branchMatrix_mul {width : Nat} (V0 V1 W0 W1 : HilbertOperator (Qubits width)) :
+private lemma branchMatrix_mul {width : Nat} (V0 V1 W0 W1 : HilbertOperator (Qubits width)) :
     branchMatrix V0 V1 * branchMatrix W0 W1 = branchMatrix (V0 * W0) (V1 * W1) := by
   unfold branchMatrix
   rw [Matrix.add_mul, Matrix.mul_add, Matrix.mul_add]
@@ -76,11 +76,11 @@ private theorem branchMatrix_mul {width : Nat} (V0 V1 W0 W1 : HilbertOperator (Q
   rw [h00, h01, h10, h11]
   simp
 
-private theorem branchMatrix_same {width : Nat} (V : HilbertOperator (Qubits width)) :
+private lemma branchMatrix_same {width : Nat} (V : HilbertOperator (Qubits width)) :
     branchMatrix V V = HilbertOperator.tensor (1 : HilbertOperator (Qubits 1)) V := by
   rw [branchMatrix, ← HilbertOperator.add_tensor, projectors_sum]
 
-private theorem rotation_two (φ : ℝ) :
+private lemma rotation_two (φ : ℝ) :
     (rotZStdOp (2 * φ) : HilbertOperator (Qubits 1)) =
       Complex.exp (-(φ * Complex.I)) • HilbertOperator.proj0 +
         Complex.exp (φ * Complex.I) • HilbertOperator.proj1 := by
@@ -89,15 +89,17 @@ private theorem rotation_two (φ : ℝ) :
     simp [rotZStdOp, rotZOp, HilbertOperator.proj0, HilbertOperator.proj1]
 
 /-- The concrete projector gadget is the direct sum of the positive and negative source phases. -/
-theorem phase_branch_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma phase_branch_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
     (left right : OrthogonalProjector width) (allowControlled useRight : Bool) (φ : ℝ) :
-    ((phase U left right allowControlled useRight φ).binaryMatrix :
+    (((phase (width := width) allowControlled useRight φ).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) :
       HilbertOperator (Qubits (1 + width))) =
       branchMatrix (projectorPhaseOp φ (if useRight then right else left))
         (projectorPhaseOp (-φ) (if useRight then right else left)) := by
   rw [phase, ProjectorPhase.circuit_projector_matrix _ _
+    (ProjectedSignal.interpretation U left right allowControlled)
     (ProjectedSignal.Circuit.projectorFlip_matrix
-      AlgorithmGate.model U left right allowControlled useRight)]
+      AlgorithmGate.model width allowControlled U left right useRight)]
   have negative : -(2 * φ) = 2 * (-φ) := by ring
   rw [negative, rotation_two, rotation_two]
   simp only [branchMatrix, coe_projectorPhaseOp]
@@ -113,9 +115,10 @@ theorem phase_branch_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
 set_option maxHeartbeats 800000 in
 -- Each slot transports two full source operators through the canonical physical layout.
 /-- The full native circuit realizes both original source phase products exactly. -/
-theorem circuit_source_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma circuit_source_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
     (left right : OrthogonalProjector width) (allowControlled : Bool) (phases : List ℝ) :
-    ((circuit U left right allowControlled phases).binaryMatrix :
+    (((circuit (width := width) allowControlled phases).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) :
       HilbertOperator (Qubits (1 + width))) =
       branchMatrix (sourceWord U left right phases)
         (sourceWord U left right (phases.map fun φ => -φ)) := by

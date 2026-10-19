@@ -62,7 +62,7 @@ def observeSelectionWithReference (layout : QuantumLayout systemCount)
 
 /-- Only complementary coordinates are summed; both selected and reference
 row/column coordinates remain independent, preserving their coherences. -/
-theorem observeSelectionWithReference_entry (layout : QuantumLayout systemCount)
+lemma observeSelectionWithReference_entry (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (Reference : Register)
     (state : DensityOperator (Register.prod layout.register Reference))
     (row column : layout.SelectedBasis selection) (refRow refColumn : Reference.Index) :
@@ -75,7 +75,7 @@ theorem observeSelectionWithReference_entry (layout : QuantumLayout systemCount)
   rfl
 
 /-- Keeping selected systems and the reference preserves the complete branch mass. -/
-theorem observeSelectionWithReference_mass (layout : QuantumLayout systemCount)
+lemma observeSelectionWithReference_mass (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (Reference : Register)
     (state : DensityOperator (Register.prod layout.register Reference)) :
     (observeSelectionWithReference layout selection Reference state).mass = state.mass := by
@@ -90,7 +90,7 @@ public def observeSelection (layout : QuantumLayout systemCount)
 
 /-- The selected density matrix retains off-diagonal selected entries and
 sums exactly equal row/column coordinates of the discarded subsystems. -/
-theorem observeSelection_entry (layout : QuantumLayout systemCount)
+lemma observeSelection_entry (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (Reference : Register)
     (state : DensityOperator (Register.prod layout.register Reference))
     (row column : layout.SelectedBasis selection) :
@@ -105,14 +105,14 @@ theorem observeSelection_entry (layout : QuantumLayout systemCount)
           row column reference reference)
 
 /-- Discarding only state information preserves branch probability. -/
-theorem observeSelection_mass (layout : QuantumLayout systemCount)
+lemma observeSelection_mass (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (Reference : Register)
     (state : DensityOperator (Register.prod layout.register Reference)) :
     (observeSelection layout selection Reference state).mass = state.mass := by
   rw [observeSelection, marginalLeft_mass, observeSelectionWithReference_mass]
 
 /-- The local observation is precisely the reference marginal of the joint observation. -/
-theorem observeSelection_eq_referenceMarginal (layout : QuantumLayout systemCount)
+lemma observeSelection_eq_referenceMarginal (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (Reference : Register)
     (state : DensityOperator (Register.prod layout.register Reference)) :
     observeSelection layout selection Reference state =

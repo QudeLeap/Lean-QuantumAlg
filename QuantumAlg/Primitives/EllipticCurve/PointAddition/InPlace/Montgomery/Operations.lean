@@ -33,6 +33,8 @@ namespace MontgomeryOperations
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open MAU.Inversion
 open MAU.Inversion.MK
@@ -65,7 +67,7 @@ def coefficientNormalizationWord (fieldWidth p : Nat)
   ⟨(1 : Word fieldWidth).val ^^^ p,
     Nat.xor_lt_two_pow (1 : Word fieldWidth).isLt hp⟩
 
-@[simp] theorem coefficientNormalizationWord_val (fieldWidth p : Nat)
+@[simp] lemma coefficientNormalizationWord_val (fieldWidth p : Nat)
     (hp : p < 2 ^ fieldWidth) :
     (coefficientNormalizationWord fieldWidth p hp).val =
       (1 : Word fieldWidth).val ^^^ p :=
@@ -91,7 +93,7 @@ def normalizeGates (fieldWidth counterWidth p : Nat)
 
 /-- A literal constant xor updates one structural word port to the word
 specified by its output bits. -/
-private theorem xorConstantStep_eq_set_of_testBit
+private lemma xorConstantStep_eq_set_of_testBit
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (port : Arithmetic.BlockBank.WordPort encoding width)
     (constant : Fin (2 ^ width)) (state : Data)
@@ -135,7 +137,7 @@ private theorem xorConstantStep_eq_set_of_testBit
 
 /-- Normalization clears `u`, parks the modulus in low `s`, and toggles the
 active flag; at every operation boundary that flag starts high. -/
-theorem normalizeGates_stepList
+lemma normalizeGates_stepList
     (fieldWidth counterWidth p : Nat) (hp : p < 2 ^ fieldWidth)
     (state : Layout.Registers fieldWidth counterWidth)
     (hu : (RegisterRouting.uPort fieldWidth counterWidth).read state =
@@ -188,7 +190,7 @@ theorem normalizeGates_stepList
 
 /-- A word-copy ledger is disjoint from an observed bit when both routed
 words are. -/
-private theorem copyGates_bitDisjoint_of_word_ne
+private lemma copyGates_bitDisjoint_of_word_ne
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (source target : EncodedBit.Word encoding width)
     (hsourceTarget : ∀ bit,
@@ -206,7 +208,7 @@ private theorem copyGates_bitDisjoint_of_word_ne
 
 /-- A constant-xor ledger is disjoint from an observed bit when its target
 word is. -/
-private theorem xorConstantGates_bitDisjoint_of_word_ne
+private lemma xorConstantGates_bitDisjoint_of_word_ne
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (target : EncodedBit.Word encoding width)
     (constant : Fin (2 ^ width)) (observed : EncodedBit encoding)
@@ -218,7 +220,7 @@ private theorem xorConstantGates_bitDisjoint_of_word_ne
   rcases List.mem_map.mp hgate with ⟨bit, _hbit, rfl⟩
   exact htarget bit
 
-private theorem liftedArithmeticBit_wire_ne_lambdaBit
+private lemma liftedArithmeticBit_wire_ne_lambdaBit
     (fieldWidth counterWidth : Nat)
     (inner : EncodedBit (MK.Compact.encoding fieldWidth counterWidth))
     (lambdaBit : Fin fieldWidth) :
@@ -230,7 +232,7 @@ private theorem liftedArithmeticBit_wire_ne_lambdaBit
 /-- If a computed source is copied to a word untouched by the compute ledger,
 the exact reverse ledger leaves the corresponding classical xor on the
 original state. -/
-private theorem computeCopyUncomputeStep_eq_xorConstant
+private lemma computeCopyUncomputeStep_eq_xorConstant
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (compute : List (EncodedBit.GateSpec encoding))
     (source target : Arithmetic.BlockBank.WordPort encoding width)
@@ -263,7 +265,7 @@ private theorem computeCopyUncomputeStep_eq_xorConstant
     exact hcomputeTarget bit gate (List.mem_reverse.mp hgate)
 
 /-- Clean-target specialization of the compute--copy--uncompute seam. -/
-private theorem computeCopyUncomputeStep_eq_set_of_clean
+private lemma computeCopyUncomputeStep_eq_set_of_clean
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (compute : List (EncodedBit.GateSpec encoding))
     (source target : Arithmetic.BlockBank.WordPort encoding width)
@@ -308,7 +310,7 @@ private theorem computeCopyUncomputeStep_eq_set_of_clean
 
 /-- Equal-target specialization: xor-copying the computed word clears the
 target and the exact reverse compute restores every other field. -/
-private theorem computeCopyUncomputeStep_eq_set_zero_of_equal
+private lemma computeCopyUncomputeStep_eq_set_zero_of_equal
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (compute : List (EncodedBit.GateSpec encoding))
     (source target : Arithmetic.BlockBank.WordPort encoding width)
@@ -365,7 +367,7 @@ def t0IntoLambdaRoutingGates
 
 /-- The reversible routing prefix saves both live arithmetic words, clears
 their original carriers, and loads `t0` into the low coefficient word. -/
-theorem t0IntoLambdaRoutingGates_stepList
+lemma t0IntoLambdaRoutingGates_stepList
     (fieldWidth counterWidth : Nat)
     (control : Bool) (mutableY «λ» : Word fieldWidth)
     (p mutableX t0 : Word fieldWidth) :
@@ -505,7 +507,7 @@ def t0IntoLambdaPrefixGates
 /-- The complete prefix reaches the exact certified multiplication boundary:
 `mutableY` is the multiplier, saved `t0` is the coefficient, and the public
 target is clean. -/
-theorem t0IntoLambdaPrefixGates_stepList
+lemma t0IntoLambdaPrefixGates_stepList
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» : Word fieldTail.succ)
     (mutableX t0 : Word fieldTail.succ) :
@@ -573,7 +575,7 @@ theorem t0IntoLambdaPrefixGates_stepList
 
 /-- The seed normalization ledger is entirely inside the compact arithmetic
 carrier and is therefore disjoint from every persistent-slope bit. -/
-theorem normalizeGates_bitDisjoint_lambdaBit
+lemma normalizeGates_bitDisjoint_lambdaBit
     (fieldWidth counterWidth p : Nat) (hp : p < 2 ^ fieldWidth)
     (bit : Fin fieldWidth) :
     ∀ gate, gate ∈ normalizeGates fieldWidth counterWidth p hp →
@@ -610,7 +612,7 @@ theorem normalizeGates_bitDisjoint_lambdaBit
         (MK.Compact.activeBit fieldWidth counterWidth) bit
 
 /-- Saving/routing the two live words never reads or writes `lambda`. -/
-theorem t0IntoLambdaRoutingGates_bitDisjoint_lambdaBit
+lemma t0IntoLambdaRoutingGates_bitDisjoint_lambdaBit
     (fieldWidth counterWidth : Nat) (bit : Fin fieldWidth) :
     ∀ gate, gate ∈ t0IntoLambdaRoutingGates fieldWidth counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -684,7 +686,7 @@ theorem t0IntoLambdaRoutingGates_bitDisjoint_lambdaBit
       hload
 
 /-- The full prefix is disjoint from persistent `lambda`. -/
-theorem t0IntoLambdaPrefixGates_bitDisjoint_lambdaBit
+lemma t0IntoLambdaPrefixGates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (bit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ t0IntoLambdaPrefixGates fieldTail counterWidth p hp →
@@ -728,12 +730,12 @@ def t0IntoLambdaStep
   EncodedBit.GateSpec.stepList
     (t0IntoLambdaGates fieldTail counterWidth p hp)
 
-theorem t0IntoLambda_realizes
+lemma t0IntoLambda_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
-      (t0IntoLambdaProgram fieldTail counterWidth p hp)
+      (t0IntoLambdaProgram fieldTail counterWidth p hp) environment
       (t0IntoLambdaStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (environment := environment)
     (QubitLayout.canonical _) .empty
     (t0IntoLambdaGates fieldTail counterWidth p hp)
 
@@ -742,7 +744,7 @@ set_option maxHeartbeats 1200000 in
 /-- Clean-target endpoint for Algorithm 1, step 4 [RNSL17, ECDLP.tex:517].
 The complete physical sandwich restores every saved arithmetic field and
 writes exactly one Montgomery product to `lambda`. -/
-theorem t0IntoLambdaStep_cleanEndpoint
+lemma t0IntoLambdaStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY mutableX t0 : Word fieldTail.succ)
@@ -862,7 +864,7 @@ set_option maxHeartbeats 1200000 in
 /-- Equal-target endpoint for Algorithm 1, step 13 [RNSL17, ECDLP.tex:526].
 When `lambda` already holds the Montgomery product, the same physical xor
 multiplication clears it while restoring every saved arithmetic field. -/
-theorem t0IntoLambdaStep_equalEndpoint
+lemma t0IntoLambdaStep_equalEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY mutableX t0 : Word fieldTail.succ)
@@ -991,7 +993,7 @@ def xIntoYPrefixGates
 
 /-- The `xIntoY` prefix swaps the persistent words, saves `t0`, and reaches
 the certified multiplication boundary with original `x1` as coefficient. -/
-theorem xIntoYPrefixGates_stepList
+lemma xIntoYPrefixGates_stepList
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ) :
     let initial := cleanState fieldTail.succ counterWidth control mutableY
@@ -1151,12 +1153,12 @@ def xIntoYStep
   EncodedBit.GateSpec.stepList
     (xIntoYGates fieldTail counterWidth p hp)
 
-theorem xIntoY_realizes
+lemma xIntoY_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
-      (xIntoYProgram fieldTail counterWidth p hp)
+      (xIntoYProgram fieldTail counterWidth p hp) environment
       (xIntoYStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (environment := environment)
     (QubitLayout.canonical _) .empty
     (xIntoYGates fieldTail counterWidth p hp)
 
@@ -1167,7 +1169,7 @@ set_option maxHeartbeats 1200000 in
 The complete reversible sandwich writes the Montgomery product to mutable
 `y1` and restores every other field, including `lambda`, `x1`, `t0`, and the
 shared history. -/
-theorem xIntoYStep_cleanEndpoint
+lemma xIntoYStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) («λ» mutableX t0 : Word fieldTail.succ)
@@ -1313,7 +1315,7 @@ set_option maxHeartbeats 1200000 in
 /-- Equal-target endpoint for Algorithm 1, step 5 [RNSL17, ECDLP.tex:518].
 If mutable `y1` already equals the Montgomery product, the xor multiplication
 clears it and restores the complete remaining carrier. -/
-theorem xIntoYStep_equalEndpoint
+lemma xIntoYStep_equalEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) («λ» mutableX t0 : Word fieldTail.succ)
@@ -1470,7 +1472,7 @@ def squareLambdaPrefixGates
 /-- The squaring prefix routes `lambda` to the multiplier and coefficient,
 saves the two borrowed arithmetic words in the existing history halves, and
 reaches the certified multiplication boundary. -/
-theorem squareLambdaPrefixGates_stepList
+lemma squareLambdaPrefixGates_stepList
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ) :
     let initial := cleanState fieldTail.succ counterWidth control mutableY
@@ -1661,12 +1663,12 @@ def squareLambdaStep
   EncodedBit.GateSpec.stepList
     (squareLambdaGates fieldTail counterWidth p hp)
 
-theorem squareLambda_realizes
+lemma squareLambda_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
-      (squareLambdaProgram fieldTail counterWidth p hp)
+      (squareLambdaProgram fieldTail counterWidth p hp) environment
       (squareLambdaStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (environment := environment)
     (QubitLayout.canonical _) .empty
     (squareLambdaGates fieldTail counterWidth p hp)
 
@@ -1676,7 +1678,7 @@ set_option maxHeartbeats 1200000 in
 /-- Clean-target endpoint for Algorithm 1, step 7 [RNSL17, ECDLP.tex:520].
 Squaring `lambda` into clean `t0` restores the point words, compact arithmetic
 work, and both history halves exactly. -/
-theorem squareLambdaStep_cleanEndpoint
+lemma squareLambdaStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY «λ» mutableX : Word fieldTail.succ)
@@ -1831,7 +1833,7 @@ set_option maxHeartbeats 1200000 in
 /-- Equal-target endpoint for Algorithm 1, step 10 [RNSL17, ECDLP.tex:523].
 If `t0` already contains the Montgomery square of `lambda`, the second xor
 squaring clears `t0` and restores all borrowed work exactly. -/
-theorem squareLambdaStep_equalEndpoint
+lemma squareLambdaStep_equalEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY «λ» mutableX : Word fieldTail.succ)
@@ -1983,7 +1985,7 @@ theorem squareLambdaStep_equalEndpoint
 
 /-! ## Literal ledger lengths -/
 
-@[simp] theorem t0IntoLambdaGates_length
+@[simp] lemma t0IntoLambdaGates_length
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     (t0IntoLambdaGates fieldTail counterWidth p hp).length =
       2 * (t0IntoLambdaPrefixGates fieldTail counterWidth p hp).length +
@@ -1992,7 +1994,7 @@ theorem squareLambdaStep_equalEndpoint
   simp [t0IntoLambdaGates, RegisterRouting.t0ToLambdaGates]
   omega
 
-@[simp] theorem xIntoYGates_length
+@[simp] lemma xIntoYGates_length
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     (xIntoYGates fieldTail counterWidth p hp).length =
       2 * (xIntoYPrefixGates fieldTail counterWidth p hp).length +
@@ -2001,7 +2003,7 @@ theorem squareLambdaStep_equalEndpoint
   simp [xIntoYGates, RegisterRouting.t0ToLambdaGates]
   omega
 
-@[simp] theorem squareLambdaGates_length
+@[simp] lemma squareLambdaGates_length
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     (squareLambdaGates fieldTail counterWidth p hp).length =
       2 * (squareLambdaPrefixGates fieldTail counterWidth p hp).length +

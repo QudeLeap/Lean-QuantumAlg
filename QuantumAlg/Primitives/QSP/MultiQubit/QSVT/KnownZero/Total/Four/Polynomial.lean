@@ -22,11 +22,9 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total.Four
 open SharedFour
 noncomputable section
 
-/-- Four matching-parity source certificates yield one native execution and its exact budget. -/
-theorem exists_total_four_polynomial_execution {m n L : Nat}
-    (U : UnitaryOperator (Qubits (m + n)))
-    (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
-    (hermitian : A.IsHermitian) (R S T V : Polynomial ℝ)
+/-- Four scalar certificates fix phase data uniformly for every encoded Hermitian operator. -/
+lemma exists_total_four_polynomial_execution {L : Nat}
+    (R S T V : Polynomial ℝ)
     (r : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L R)
     (s : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity (L + 1) S)
     (t : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L T)
@@ -34,32 +32,40 @@ theorem exists_total_four_polynomial_execution {m n L : Nat}
     ∃ phases : List ((ℝ × ℝ) × (ℝ × ℝ)), ∃ realAngle imaginaryAngle realConstant
       imaginaryConstant : ℝ,
       phases.length = L ∧
+      ∀ (m n : Nat) (U : UnitaryOperator (Qubits (m + n)))
+        (A : HilbertOperator (Qubits n)), ExactBlockEncoding m n U A → A.IsHermitian →
       projectedBlock (1 + (1 + (1 + m))) n
-        (reassociateThree (complexWord U phases realAngle imaginaryAngle
-          realConstant imaginaryConstant).binaryMatrix) =
+        (reassociateThree ((complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+          realConstant imaginaryConstant).binaryMatrix
+            (UnitarySource.interpretation U true true false))) =
         (1 / 4 : ℂ) • polynomialOperator (realPolynomialToComplex R) A +
         (1 / 4 : ℂ) • polynomialOperator (realPolynomialToComplex S) A +
         ((1 / 4 : ℂ) • Complex.I • polynomialOperator (realPolynomialToComplex T) A +
           (1 / 4 : ℂ) • Complex.I • polynomialOperator (realPolynomialToComplex V) A) ∧
-      (complexWord U phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).eventCost = complexBudget U L := by
+      (complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).eventCost = complexBudget (m := m) (n := n) L := by
   obtain ⟨rs, rc, rl, _, rb⟩ :=
-    exists_total_initialized_polynomial_branch U A encoding hermitian r
+    exists_total_initialized_polynomial_branch r
   obtain ⟨ss, sc, sl, si, sb⟩ :=
-    exists_total_initialized_polynomial_branch U A encoding hermitian s
+    exists_total_initialized_polynomial_branch s
   obtain ⟨ts, tc, tl, _, tb⟩ :=
-    exists_total_initialized_polynomial_branch U A encoding hermitian t
+    exists_total_initialized_polynomial_branch t
   obtain ⟨vs, vc, vl, vi, vb⟩ :=
-    exists_total_initialized_polynomial_branch U A encoding hermitian v
+    exists_total_initialized_polynomial_branch v
   have scOne := si (Nat.zero_lt_succ L)
   have vcOne := vi (Nat.zero_lt_succ L)
   subst sc
   subst vc
-  obtain ⟨phases, ra, ia, length, matrix, budget⟩ := exists_totalComplexWord_for_lists U
+  obtain ⟨phases, ra, ia, length, packed⟩ := exists_totalComplexWord_for_lists
     rs ss ts vs (by omega) (by omega) (by omega) rc tc
-  refine ⟨phases, ra, ia, rc, tc, length.trans rl, ?_, ?_⟩
+  refine ⟨phases, ra, ia, rc, tc, length.trans rl, ?_⟩
+  intro m n U A encoding hermitian
+  obtain ⟨matrix, budget⟩ := packed m n U
+  constructor
   · rw [matrix, threeAverage_projected_block, phasePlusBlock_scaled, phasePlusBlock_scaled,
-      projectedBlock_smul, projectedBlock_smul, rb, sb, tb, vb]
+      projectedBlock_smul, projectedBlock_smul,
+      rb m n U A encoding hermitian, sb m n U A encoding hermitian,
+      tb m n U A encoding hermitian, vb m n U A encoding hermitian]
   · simpa only [rl] using budget
 
 end

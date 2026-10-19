@@ -97,19 +97,22 @@ private def fourierGate (operator : UnitaryOperator (Qubits 1)) :
     UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
   Gate.singleQubitAt fourierLayout .empty operator (0 : Fin 1) rfl
 
-private theorem fourierGate_matrix (operator : UnitaryOperator (Qubits 1)) :
-    (fourierGate operator).binaryMatrix = operator :=
-  Gate.singleQubitAt_singleton_binaryMatrix .empty operator
+private lemma fourierGate_matrix (operator : UnitaryOperator (Qubits 1))
+    (environment : OracleModel.empty.Interpretation) :
+    ((fourierGate operator).binaryMatrix environment) = operator :=
+  Gate.singleQubitAt_singleton_binaryMatrix .empty operator (environment := environment)
 
 /-- The actual native fold has the original ordered binary matrix product. -/
-private theorem circuitAlgebraicFold_matrix {α : Type}
+private lemma circuitAlgebraicFold_matrix {α : Type}
     (schedule : List α) (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
-    (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout) :
-    ((schedule.foldl (fun accumulated item => (step item).seq accumulated) start).binaryMatrix :
+    (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
+      (environment : OracleModel.empty.Interpretation) :
+    (((schedule.foldl (fun accumulated item
+      => (step item).seq accumulated) start).binaryMatrix environment) :
       HilbertOperator (Qubits 1)) =
       schedule.foldl (fun accumulated item =>
-        accumulated * ((step item).binaryMatrix : HilbertOperator (Qubits 1)))
-        (start.binaryMatrix : HilbertOperator (Qubits 1)) := by
+        accumulated * (((step item).binaryMatrix environment) : HilbertOperator (Qubits 1)))
+        ((start.binaryMatrix environment) : HilbertOperator (Qubits 1)) := by
   induction schedule generalizing start with
   | nil => rfl
   | cons item tail ih =>
@@ -118,7 +121,7 @@ private theorem circuitAlgebraicFold_matrix {α : Type}
       rfl
 
 /-- Events are obtained from the same actual native fold. -/
-private theorem circuitAlgebraicFold_eventCost {α : Type}
+private lemma circuitAlgebraicFold_eventCost {α : Type}
     (schedule : List α) (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
     (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout) :
     (schedule.foldl (fun accumulated item => (step item).seq accumulated) start).eventCost =
@@ -131,7 +134,7 @@ private theorem circuitAlgebraicFold_eventCost {α : Type}
       rw [ih]
       rfl
 
-private theorem fourierFold_events {α : Type} (schedule : List α)
+private lemma fourierFold_events {α : Type} (schedule : List α)
     (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
     (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
     (cost : ResourcePool (.quantum AlgorithmGate.model .empty))
@@ -145,7 +148,7 @@ private theorem fourierFold_events {α : Type} (schedule : List α)
         add_nsmul, one_nsmul]
       ac_rfl
 
-private theorem fourierFold_depth {α : Type} (schedule : List α)
+private lemma fourierFold_depth {α : Type} (schedule : List α)
     (start : UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
     (step : α → UnitaryCircuit AlgorithmGate.model .empty fourierLayout)
     (duration : Nat)
@@ -160,7 +163,7 @@ private theorem fourierFold_depth {α : Type} (schedule : List α)
       omega
 
 /-- Pointwise-equal factors give equal left-associated products. -/
-private theorem foldlMul_congr {M α : Type} [Mul M]
+private lemma foldlMul_congr {M α : Type} [Mul M]
     (schedule : List α) (start : M) (left right : α → M)
     (h : ∀ item, left item = right item) :
     schedule.foldl (fun accumulated item => accumulated * left item) start =
@@ -196,8 +199,9 @@ def qspYZYInitialCircuit (θ₀ : ℝ) : UnitaryCircuit AlgorithmGate.model .emp
 def qspYZYStepCircuit (x θ : ℝ) : UnitaryCircuit AlgorithmGate.model .empty fourierLayout :=
   UnitaryCircuit.seq (fourierGate (rotYOp θ)) (fourierGate (rotZStdOp x))
 
-@[simp] theorem qspYZYStepCircuit_matrix (x θ : ℝ) :
-    ((qspYZYStepCircuit x θ).binaryMatrix : HilbertOperator (Qubits 1)) =
+@[simp] lemma qspYZYStepCircuit_matrix (x θ : ℝ)
+    (environment : OracleModel.empty.Interpretation) :
+    (((qspYZYStepCircuit x θ).binaryMatrix environment) : HilbertOperator (Qubits 1)) =
       (rotZStdOp x : HilbertOperator (Qubits 1)) *
         (rotYOp θ : HilbertOperator (Qubits 1)) := by
   rw [qspYZYStepCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
@@ -212,9 +216,10 @@ def qspYZYIndexedCircuit (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (qspYZYInitialCircuit θ₀)
 
 @[simp]
-theorem qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+lemma qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ)
+    (environment : OracleModel.empty.Interpretation) :
     (show HilbertOperator (Qubits 1) from
-      ((qspYZYIndexedCircuit θ₀ θs x).binaryMatrix :
+      (((qspYZYIndexedCircuit θ₀ θs x).binaryMatrix environment) :
         HilbertOperator (Qubits 1))) =
       (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) := by
   rw [qspYZYIndexedCircuit, circuitAlgebraicFold_matrix]
@@ -222,12 +227,12 @@ theorem qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     UnitaryOperator.coe_ofMatrix]
   apply foldlMul_congr
   intro θ
-  exact qspYZYStepCircuit_matrix x θ
+  exact qspYZYStepCircuit_matrix x θ environment
 
 
 
 /-- Exact event ledger carried by the typed YZY word. -/
-@[simp] theorem qspYZYIndexedCircuit_eventCost (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+@[simp] lemma qspYZYIndexedCircuit_eventCost (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (qspYZYIndexedCircuit θ₀ θs x).eventCost =
       θs.foldl
         (fun accumulated θ => (qspYZYStepCircuit x θ).eventCost + accumulated)
@@ -236,7 +241,7 @@ theorem qspYZYIndexedCircuit_matrix (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
   simp [qspYZYInitialCircuit, qspYZYStepCircuit]
 
 /-- The actual YZY word has exactly 2L+1 default single-qubit occurrences. -/
-theorem qspYZYIndexedCircuit_native_events (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+lemma qspYZYIndexedCircuit_native_events (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (qspYZYIndexedCircuit θ₀ θs x).eventCost =
       (2 * θs.length + 1) • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) := by
@@ -246,7 +251,7 @@ theorem qspYZYIndexedCircuit_native_events (θ₀ : ℝ) (θs : List ℝ) (x : �
   simp [qspYZYInitialCircuit, fourierGate, add_nsmul, smul_smul, Nat.mul_comm]
 
 /-- The full YZY word has its actual sequential native depth, including L=0. -/
-theorem qspYZYIndexedCircuit_native_depth (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+lemma qspYZYIndexedCircuit_native_depth (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (qspYZYIndexedCircuit θ₀ θs x).evaluatedEventDepth (fun _ => 1) =
       2 * θs.length + 1 := by
   rw [qspYZYIndexedCircuit, fourierFold_depth θs _ _ 2 (fun _ => rfl)]
@@ -254,11 +259,11 @@ theorem qspYZYIndexedCircuit_native_depth (θ₀ : ℝ) (θs : List ℝ) (x : �
   omega
 
 @[simp]
-theorem qspYZY_nil (θ₀ : ℝ) (x : ℝ) :
+lemma qspYZY_nil (θ₀ : ℝ) (x : ℝ) :
     (qspYZY θ₀ [] x : HilbertOperator (Qubits 1)) =
       (rotYOp θ₀ : HilbertOperator (Qubits 1)) := rfl
 
-theorem qspYZY_concat (θ₀ : ℝ) (θs : List ℝ) (θ : ℝ) (x : ℝ) :
+lemma qspYZY_concat (θ₀ : ℝ) (θs : List ℝ) (θ : ℝ) (x : ℝ) :
     (qspYZY θ₀ (θs ++ [θ]) x : HilbertOperator (Qubits 1)) =
       (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) *
       ((rotZStdOp x : HilbertOperator (Qubits 1)) *
@@ -296,8 +301,9 @@ def qspYZZYZInitialCircuit (φ θ₀ φ₀ : ℝ) :
     (fourierGate (rotZStdOp φ))
 
 @[simp]
-theorem qspYZZYZInitialCircuit_matrix (φ θ₀ φ₀ : ℝ) :
-    ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix :
+lemma qspYZZYZInitialCircuit_matrix (φ θ₀ φ₀ : ℝ)
+    (environment : OracleModel.empty.Interpretation) :
+    (((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix environment) :
       HilbertOperator (Qubits 1)) =
       (rotZStdOp φ : HilbertOperator (Qubits 1)) *
         ((rotYOp θ₀ : HilbertOperator (Qubits 1)) *
@@ -312,8 +318,9 @@ def qspYZZYZStepCircuit (x : ℝ) (p : ℝ × ℝ) :
   ((fourierGate (rotZStdOp p.2)).seq (fourierGate (rotYOp p.1))).seq
     (fourierGate (rotZStdOp x))
 
-@[simp] theorem qspYZZYZStepCircuit_matrix (x : ℝ) (p : ℝ × ℝ) :
-    ((qspYZZYZStepCircuit x p).binaryMatrix : HilbertOperator (Qubits 1)) =
+@[simp] lemma qspYZZYZStepCircuit_matrix (x : ℝ) (p : ℝ × ℝ)
+    (environment : OracleModel.empty.Interpretation) :
+    (((qspYZZYZStepCircuit x p).binaryMatrix environment) : HilbertOperator (Qubits 1)) =
       (rotZStdOp x : HilbertOperator (Qubits 1)) *
         ((rotYOp p.1 : HilbertOperator (Qubits 1)) *
           (rotZStdOp p.2 : HilbertOperator (Qubits 1))) := by
@@ -329,9 +336,10 @@ def qspYZZYZIndexedCircuit (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : 
     (qspYZZYZInitialCircuit φ θ₀ φ₀)
 
 @[simp]
-theorem qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+lemma qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ)
+    (environment : OracleModel.empty.Interpretation) :
     (show HilbertOperator (Qubits 1) from
-      ((qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).binaryMatrix :
+      (((qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).binaryMatrix environment) :
         HilbertOperator (Qubits 1))) =
       (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) := by
   rw [qspYZZYZIndexedCircuit, circuitAlgebraicFold_matrix]
@@ -340,12 +348,12 @@ theorem qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × 
     qspYZZYZ, UnitaryOperator.coe_ofMatrix]
   apply foldlMul_congr
   intro p
-  exact qspYZZYZStepCircuit_matrix x p
+  exact qspYZZYZStepCircuit_matrix x p environment
 
 
 
 /-- Exact event ledger carried by the typed YZZYZ word. -/
-@[simp] theorem qspYZZYZIndexedCircuit_eventCost
+@[simp] lemma qspYZZYZIndexedCircuit_eventCost
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
     (qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).eventCost =
       ps.foldl
@@ -354,7 +362,7 @@ theorem qspYZZYZIndexedCircuit_matrix (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × 
   rw [qspYZZYZIndexedCircuit, circuitAlgebraicFold_eventCost]
 
 /-- The actual YZZYZ word has exactly 3L+3 default single-qubit occurrences. -/
-theorem qspYZZYZIndexedCircuit_native_events (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+lemma qspYZZYZIndexedCircuit_native_events (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
     (qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).eventCost =
       (3 * ps.length + 3) • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) := by
@@ -368,7 +376,7 @@ theorem qspYZZYZIndexedCircuit_native_events (φ θ₀ φ₀ : ℝ) (ps : List (
   rw [smul_smul, Nat.mul_comm ps.length 3, add_nsmul]
 
 /-- The full YZZYZ word has its actual sequential native depth, including L=0. -/
-theorem qspYZZYZIndexedCircuit_native_depth (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
+lemma qspYZZYZIndexedCircuit_native_depth (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
     (qspYZZYZIndexedCircuit φ θ₀ φ₀ ps x).evaluatedEventDepth (fun _ => 1) =
       3 * ps.length + 3 := by
   rw [qspYZZYZIndexedCircuit, fourierFold_depth ps _ _ 3 (fun _ => rfl)]
@@ -376,13 +384,13 @@ theorem qspYZZYZIndexedCircuit_native_depth (φ θ₀ φ₀ : ℝ) (ps : List (�
   omega
 
 @[simp]
-theorem qspYZZYZ_nil (φ θ₀ φ₀ : ℝ) (x : ℝ) :
+lemma qspYZZYZ_nil (φ θ₀ φ₀ : ℝ) (x : ℝ) :
     (qspYZZYZ φ θ₀ φ₀ [] x : HilbertOperator (Qubits 1)) =
       (rotZStdOp φ : HilbertOperator (Qubits 1)) *
         ((rotYOp θ₀ : HilbertOperator (Qubits 1)) *
           (rotZStdOp φ₀ : HilbertOperator (Qubits 1))) := rfl
 
-theorem qspYZZYZ_concat (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (p : ℝ × ℝ)
+lemma qspYZZYZ_concat (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (p : ℝ × ℝ)
     (x : ℝ) :
     (qspYZZYZ φ θ₀ φ₀ (ps ++ [p]) x : HilbertOperator (Qubits 1))
       = (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) *
@@ -397,7 +405,7 @@ operator-level form of "YZZYZ subsumes YZY" — the encoding/normalization theor
 the trigonometric family is shared, and the two characterizations differ only
 in their completeness arguments (one real angle per block vs. three SU(2)
 angles). -/
-theorem qspYZY_eq_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
+lemma qspYZY_eq_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) (x : ℝ) :
     (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) =
       (qspYZZYZ 0 θ₀ 0 (θs.map (fun t => (t, (0 : ℝ)))) x :
         HilbertOperator (Qubits 1)) := by
@@ -437,22 +445,22 @@ structure IsYZYPair (L : ℕ) (A B : ℂ[X]) : Prop extends IsYZPair L A B where
   realA : conjP A = A
   realB : conjP B = B
 
-theorem IsYZPair.coeff_A_eq_zero {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B)
+lemma IsYZPair.coeff_A_eq_zero {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B)
     {m : ℕ} (hm : L < m) : A.coeff m = 0 :=
   (Polynomial.degree_le_iff_coeff_zero A L).mp h.degA m (by exact_mod_cast hm)
 
-theorem IsYZPair.coeff_B_eq_zero {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B)
+lemma IsYZPair.coeff_B_eq_zero {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B)
     {m : ℕ} (hm : L < m) : B.coeff m = 0 :=
   (Polynomial.degree_le_iff_coeff_zero B L).mp h.degB m (by exact_mod_cast hm)
 
-theorem IsYZPair.natDegA {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) :
+lemma IsYZPair.natDegA {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) :
     A.natDegree ≤ L := Polynomial.natDegree_le_iff_degree_le.mpr h.degA
 
-theorem IsYZPair.natDegB {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) :
+lemma IsYZPair.natDegB {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) :
     B.natDegree ≤ L := Polynomial.natDegree_le_iff_degree_le.mpr h.degB
 
 /-- Build the degree conditions from coefficient bounds. -/
-theorem isYZPair_of_coeff {L : ℕ} {A B : ℂ[X]}
+lemma isYZPair_of_coeff {L : ℕ} {A B : ℂ[X]}
     (hA : ∀ m, L < m → A.coeff m = 0) (hB : ∀ m, L < m → B.coeff m = 0)
     (norm : A * (conjP A).reflect L + B * (conjP B).reflect L = X ^ L) :
     IsYZPair L A B := by
@@ -463,7 +471,7 @@ theorem isYZPair_of_coeff {L : ℕ} {A B : ℂ[X]}
       hB m (by exact_mod_cast hm)
 
 /-- The reflected conjugate of the stepped pair, in closed form. -/
-private theorem reflect_conjP_step {L : ℕ} {F G : ℂ[X]} (hF : F.natDegree ≤ L)
+private lemma reflect_conjP_step {L : ℕ} {F G : ℂ[X]} (hF : F.natDegree ≤ L)
     (hG : G.natDegree ≤ L) (v w : ℂ) :
     (conjP (C (starRingEnd ℂ v) * F + C w * (X * G))).reflect (L + 1)
       = C v * (X * (conjP F).reflect L) + C (starRingEnd ℂ w)
@@ -476,7 +484,7 @@ private theorem reflect_conjP_step {L : ℕ} {F G : ℂ[X]} (hF : F.natDegree �
 
 /-- The normalization combination transforms by a factor
 `(v·v* + w·w*)·X` under one recurrence step: a pure ring identity. -/
-private theorem yz_norm_step {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L)
+private lemma yz_norm_step {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L)
     (hB : B.natDegree ≤ L) (v w : ℂ) :
     (C (starRingEnd ℂ v) * A - C w * (X * B))
         * (conjP (C (starRingEnd ℂ v) * A - C w * (X * B))).reflect (L + 1)
@@ -493,7 +501,7 @@ private theorem yz_norm_step {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L)
 
 /-- One-step closure of the YZ pair conditions under the recurrence
 `(A, B) ↦ (v*·A - w·X·B, w*·A + v·X·B)` for a unit pair `(v, w)`. -/
-private theorem IsYZPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) (v w : ℂ)
+private lemma IsYZPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) (v w : ℂ)
     (hvw : v * starRingEnd ℂ v + w * starRingEnd ℂ w = 1) :
     IsYZPair (L + 1) (C (starRingEnd ℂ v) * A - C w * (X * B))
       (C (starRingEnd ℂ w) * A + C v * (X * B)) := by
@@ -518,7 +526,7 @@ private theorem IsYZPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZPair L A B) (v w
 `R_Z(x)·R_Y(θ)·R_Z(φ)` maps the form `(A, B)` to
 `(v*·A - w·X·B, w*·A + v·X·B)` where `v = cos(θ/2)·e^{iφ/2}` and
 `w = sin(θ/2)·e^{-iφ/2}` [YYLW22, neurips_2022.tex:806]. -/
-theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {v w : ℂ}
+lemma qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {v w : ℂ}
     (hv : (Real.cos (θ / 2) : ℂ)
       * Complex.exp (((φ / 2 : ℝ) : ℂ) * Complex.I) = v)
     (hw : (Real.sin (θ / 2) : ℂ)
@@ -559,7 +567,7 @@ theorem qspMatYZ_step (L : ℕ) (A B : ℂ[X]) (θ φ : ℝ) (x : ℝ) {v w : �
 /-- The initial block `R_Z(φ)·R_Y(θ₀)·R_Z(φ₀)` is the `L = 0` instance of
 the form, with constants `a = cos(θ₀/2)e^{-i(φ+φ₀)/2}` and
 `b = sin(θ₀/2)e^{-i(φ-φ₀)/2}` [YYLW22, neurips_2022.tex:804]. -/
-theorem rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : ℝ)
+lemma rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : ℝ)
     (ha : (Real.cos (θ₀ / 2) : ℂ)
       * Complex.exp (-((((φ + φ₀) / 2 : ℝ) : ℂ) * Complex.I)) = a)
     (hb : (Real.sin (θ₀ / 2) : ℂ)
@@ -605,7 +613,7 @@ theorem rotYZ_base_eq_qspMatYZ (φ θ₀ φ₀ : ℝ) (a b : ℂ) (x : ℝ)
 /-- Soundness for the YZZYZ form: every `qspYZZYZ` product realizes the
 target form for a pair satisfying the conditions
 [YYLW22, neurips_2022.tex:333, forward direction]. -/
-theorem qspYZZYZ_forward (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
+lemma qspYZZYZ_forward (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
     ∃ A B : ℂ[X], IsYZPair ps.length A B ∧
       ∀ x : ℝ, (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) =
         qspMatYZ ps.length A B x := by
@@ -671,7 +679,7 @@ theorem qspYZZYZ_forward (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) :
 
 /-- The YZY one-step matrix recurrence: the `φ = 0` case of
 `qspMatYZ_step`. -/
-private theorem qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) :
+private lemma qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) :
     qspMatYZ L A B x *
       ((rotZStdOp x : HilbertOperator (Qubits 1)) *
         (rotYOp θ : HilbertOperator (Qubits 1)))
@@ -695,7 +703,7 @@ private theorem qspMatYZ_step_yzy (L : ℕ) (A B : ℂ[X]) (θ : ℝ) (x : ℝ) 
   simpa only [Complex.conj_ofReal] using h
 
 /-- The `R_Y(θ₀)` operator is the `L = 0` instance of the target form. -/
-private theorem rotY_eq_qspMatYZ (θ₀ : ℝ) (x : ℝ) :
+private lemma rotY_eq_qspMatYZ (θ₀ : ℝ) (x : ℝ) :
     (rotYOp θ₀ : HilbertOperator (Qubits 1)) =
       qspMatYZ 0 (C ((Real.cos (θ₀ / 2) : ℂ)))
       (C ((Real.sin (θ₀ / 2) : ℂ))) x := by
@@ -704,7 +712,7 @@ private theorem rotY_eq_qspMatYZ (θ₀ : ℝ) (x : ℝ) :
   simpa [rotZStdOp_zero] using h
 
 /-- One-step closure of the YZY pair conditions (real coefficients). -/
-private theorem IsYZYPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B) (θ : ℝ) :
+private lemma IsYZYPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B) (θ : ℝ) :
     IsYZYPair (L + 1)
       (C ((Real.cos (θ / 2) : ℂ)) * A - C ((Real.sin (θ / 2) : ℂ)) * (X * B))
       (C ((Real.sin (θ / 2) : ℂ)) * A
@@ -724,7 +732,7 @@ private theorem IsYZYPair.step {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B) (�
 /-- Soundness for the YZY form: every `qspYZY` product realizes the target
 form for a real pair satisfying the conditions
 [YYLW22, neurips_2022.tex:283, forward direction]. -/
-theorem qspYZY_forward (θ₀ : ℝ) (θs : List ℝ) :
+lemma qspYZY_forward (θ₀ : ℝ) (θs : List ℝ) :
     ∃ A B : ℂ[X], IsYZYPair θs.length A B ∧
       ∀ x : ℝ, (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) =
         qspMatYZ θs.length A B x := by
@@ -761,7 +769,7 @@ theorem qspYZY_forward (θ₀ : ℝ) (θs : List ℝ) :
 /-- The polynomial normalization identity is equivalent to the pointwise
 circle normalization `|P(x)|² + |Q(x)|² = 1` on `ℝ`
 [YYLW22, neurips_2022.tex:288]. -/
-theorem qspYZ_normalization_iff {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L)
+lemma qspYZ_normalization_iff {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L)
     (hB : B.natDegree ≤ L) :
     A * (conjP A).reflect L + B * (conjP B).reflect L = X ^ L ↔
       ∀ x : ℝ, lEval L A x * starRingEnd ℂ (lEval L A x)
@@ -784,7 +792,7 @@ theorem qspYZ_normalization_iff {L : ℕ} {A B : ℂ[X]} (hA : A.natDegree ≤ L
     exact hleq
 
 /-- Two target forms agreeing for all `x : ℝ` have equal polynomial pairs. -/
-theorem qspMatYZ_inj {L : ℕ} {A B A' B' : ℂ[X]}
+lemma qspMatYZ_inj {L : ℕ} {A B A' B' : ℂ[X]}
     (hmat : ∀ x : ℝ, qspMatYZ L A B x = qspMatYZ L A' B' x) :
     A = A' ∧ B = B' := by
   constructor
@@ -815,7 +823,7 @@ inverse recurrence then factors the pair through one trainable block
 
 /-- Any unit pair `(v, w)` with real product `v·w` is realized by a
 `R_Y`/`R_Z` angle pair: `v = cos(θ/2)e^{iψ/2}`, `w = sin(θ/2)e^{-iψ/2}`. -/
-private theorem exists_rotYZ_angles {v w : ℂ}
+private lemma exists_rotYZ_angles {v w : ℂ}
     (hvw : v * starRingEnd ℂ v + w * starRingEnd ℂ w = 1)
     (him : (v * w).im = 0) :
     ∃ θ ψ : ℝ,
@@ -886,7 +894,7 @@ private theorem exists_rotYZ_angles {v w : ℂ}
 
 /-- The three base angles realize any unit pair `(a, b)` as the `L = 0`
 form constants [YYLW22, neurips_2022.tex:804]. -/
-private theorem exists_rotYZ_base {a b : ℂ}
+private lemma exists_rotYZ_base {a b : ℂ}
     (hab : a * starRingEnd ℂ a + b * starRingEnd ℂ b = 1) :
     ∃ φ θ₀ φ₀ : ℝ,
       (Real.cos (θ₀ / 2) : ℂ)
@@ -917,7 +925,7 @@ private theorem exists_rotYZ_base {a b : ℂ}
 
 /-- Edge-coefficient relation forced by the norm identity at coefficient
 `0` [YYLW22, neurips_2022.tex:848]. -/
-private theorem IsYZPair.edge_rel {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A B) :
+private lemma IsYZPair.edge_rel {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A B) :
     A.coeff 0 * starRingEnd ℂ (A.coeff (L + 1))
       + B.coeff 0 * starRingEnd ℂ (B.coeff (L + 1)) = 0 := by
   have hn := congrArg (fun p : ℂ[X] => p.coeff 0) h.norm
@@ -928,7 +936,7 @@ private theorem IsYZPair.edge_rel {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1)
 /-- Some unit pair `(v, w)` with real product satisfies both unstep edge
 conditions; three cases on the vanishing of the edge coefficients
 [YYLW22, neurips_2022.tex:848]. -/
-private theorem exists_unstep_vw {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A B) :
+private lemma exists_unstep_vw {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A B) :
     ∃ v w : ℂ, v * starRingEnd ℂ v + w * starRingEnd ℂ w = 1 ∧
       (v * w).im = 0 ∧ v * A.coeff (L + 1) + w * B.coeff (L + 1) = 0 ∧
       starRingEnd ℂ v * B.coeff 0 - starRingEnd ℂ w * A.coeff 0 = 0 := by
@@ -965,7 +973,7 @@ private theorem exists_unstep_vw {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) 
 /-- Inverse one-step recurrence [YYLW22, neurips_2022.tex:875]: an
 `IsYZPair (L+1)` pair whose edge coefficients are compatible with a unit
 pair `(v, w)` factors through the recurrence step. -/
-private theorem isYZPair_unstep {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A B)
+private lemma isYZPair_unstep {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A B)
     {v w : ℂ} (hvw : v * starRingEnd ℂ v + w * starRingEnd ℂ w = 1)
     (h1 : v * A.coeff (L + 1) + w * B.coeff (L + 1) = 0)
     (h2 : starRingEnd ℂ v * B.coeff 0 - starRingEnd ℂ w * A.coeff 0 = 0) :
@@ -1026,7 +1034,7 @@ private theorem isYZPair_unstep {L : ℕ} {A B : ℂ[X]} (h : IsYZPair (L + 1) A
 /-- Completeness for the YZZYZ form [YYLW22, neurips_2022.tex:848, converse
 direction]: every `IsYZPair` pair is realized by some angle sequence with
 exactly `L` encoding blocks. -/
-theorem qspYZZYZ_converse :
+lemma qspYZZYZ_converse :
     ∀ (L : ℕ) (A B : ℂ[X]), IsYZPair L A B →
       ∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧
         ∀ x : ℝ, (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) =
@@ -1064,19 +1072,19 @@ theorem qspYZZYZ_converse :
         qspMatYZ (L + 1) A B x
       rw [hmat x, qspMatYZ_step L A' B' θ ψ x hv hw, ← hAeq, ← hBeq]
 
-private theorem IsYZYPair.conj_coeff_A {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B)
+private lemma IsYZYPair.conj_coeff_A {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B)
     (k : ℕ) : starRingEnd ℂ (A.coeff k) = A.coeff k := by
   have h1 := congrArg (fun p : ℂ[X] => p.coeff k) h.realA
   simpa using h1
 
-private theorem IsYZYPair.conj_coeff_B {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B)
+private lemma IsYZYPair.conj_coeff_B {L : ℕ} {A B : ℂ[X]} (h : IsYZYPair L A B)
     (k : ℕ) : starRingEnd ℂ (B.coeff k) = B.coeff k := by
   have h1 := congrArg (fun p : ℂ[X] => p.coeff k) h.realB
   simpa using h1
 
 /-- A real unit pair satisfying the YZY unstep edge conditions
 [YYLW22, neurips_2022.tex:702]. -/
-private theorem exists_unstep_vw_yzy {L : ℕ} {A B : ℂ[X]}
+private lemma exists_unstep_vw_yzy {L : ℕ} {A B : ℂ[X]}
     (h : IsYZYPair (L + 1) A B) :
     ∃ v w : ℝ, v ^ 2 + w ^ 2 = 1 ∧
       (v : ℂ) * A.coeff (L + 1) + (w : ℂ) * B.coeff (L + 1) = 0 ∧
@@ -1119,7 +1127,7 @@ private theorem exists_unstep_vw_yzy {L : ℕ} {A B : ℂ[X]}
 
 /-- Completeness for the YZY form [YYLW22, neurips_2022.tex:702, converse
 direction]. -/
-theorem qspYZY_converse :
+lemma qspYZY_converse :
     ∀ (L : ℕ) (A B : ℂ[X]), IsYZYPair L A B →
       ∃ (θ₀ : ℝ) (θs : List ℝ), θs.length = L ∧
         ∀ x : ℝ, (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) =
@@ -1197,7 +1205,7 @@ theorem qspYZY_converse :
 
 /-- YZY is the zero-Z-phase special case of YZZYZ, so its soundness can be
 read through the YZZYZ soundness theorem without duplicating the statement. -/
-theorem qspYZY_forward_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
+lemma qspYZY_forward_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
     ∃ A B : ℂ[X], IsYZPair θs.length A B ∧
       ∀ x : ℝ, (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) =
         qspMatYZ θs.length A B x := by
@@ -1210,7 +1218,7 @@ theorem qspYZY_forward_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
 /-- The YZZYZ-derived YZY soundness keeps the real-coefficient side conditions
 by transporting them from the original YZY recurrence across the identical
 matrix realization. -/
-theorem qspYZY_forward_real_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
+lemma qspYZY_forward_real_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
     ∃ A B : ℂ[X], IsYZYPair θs.length A B ∧
       ∀ x : ℝ, (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) =
         qspMatYZ θs.length A B x := by
@@ -1222,7 +1230,7 @@ theorem qspYZY_forward_real_via_qspYZZYZ (θ₀ : ℝ) (θs : List ℝ) :
 
 /-- YZY completeness also preserves into the YZZYZ convention by taking all
 added Z phases to be zero. -/
-theorem qspYZY_converse_via_qspYZZYZ (L : ℕ) (A B : ℂ[X]) (h : IsYZYPair L A B) :
+lemma qspYZY_converse_via_qspYZZYZ (L : ℕ) (A B : ℂ[X]) (h : IsYZYPair L A B) :
     ∃ (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)), ps.length = L ∧
       ∀ x : ℝ, (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) =
         qspMatYZ L A B x := by
@@ -1264,7 +1272,7 @@ noncomputable def qspYZZYZGeneratedPair (φ θ₀ φ₀ : ℝ) (ps : List (ℝ �
 phase schedule.  This names the recurrence already used in the QSP Fourier
 soundness proof so QPP can substitute the same polynomial into a multi-qubit
 controlled-`U` word. -/
-theorem qspYZZYZ_eq_qspMatYZ_generatedPair
+lemma qspYZZYZ_eq_qspMatYZ_generatedPair
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (x : ℝ) :
     (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) =
       qspMatYZ ps.length
@@ -1316,7 +1324,7 @@ theorem qspYZZYZ_eq_qspMatYZ_generatedPair
 the recurrence-generated pair is that target pair.  This is the algebraic
 bridge from the source's one-qubit QSP realization statement to the QPP
 multi-qubit controlled-word proof. -/
-theorem qspYZZYZGeneratedPair_eq_of_matrix
+lemma qspYZZYZGeneratedPair_eq_of_matrix
     (φ θ₀ φ₀ : ℝ) (ps : List (ℝ × ℝ)) (A B : Polynomial ℂ)
     (hmat : ∀ x : ℝ, (qspYZZYZ φ θ₀ φ₀ ps x : HilbertOperator (Qubits 1)) =
       qspMatYZ ps.length A B x) :
@@ -1332,7 +1340,7 @@ theorem qspYZZYZGeneratedPair_eq_of_matrix
 
 /-- The top-left entry of the one-qubit QSP matrix applied to `|0>` is the
 Laurent value `P(e^{iθ})`. -/
-theorem qspMatYZ_applyVec_ket0_zero
+lemma qspMatYZ_applyVec_ket0_zero
     (L : ℕ) (A B : Polynomial ℂ) (θ : ℝ) :
     (HilbertOperator.applyVec (qspMatYZ (2 * L) A B θ)
         (NormalizedVector.ket0 : HilbertVector (Qubits 1))) 0 =
@@ -1362,7 +1370,7 @@ public theorem TrigonometricQuantumSignalProcessing.main (L : ℕ) (A B : ℂ[X]
 (`lem:qnn_yzy`, encoded form): real-coefficient pairs `IsYZYPair L` are
 exactly those realized by `R_Y` angles `(θ₀, θs)` with `L` encoding
 gates. -/
-theorem TrigonometricQuantumSignalProcessing.main_yzy (L : ℕ) (A B : ℂ[X]) :
+lemma TrigonometricQuantumSignalProcessing.main_yzy (L : ℕ) (A B : ℂ[X]) :
     IsYZYPair L A B ↔
       ∃ (θ₀ : ℝ) (θs : List ℝ), θs.length = L ∧
         ∀ x : ℝ, (qspYZY θ₀ θs x : HilbertOperator (Qubits 1)) =

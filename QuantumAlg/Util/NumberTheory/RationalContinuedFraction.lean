@@ -44,13 +44,13 @@ decreasing_by
   exact Nat.mod_lt numerator (Nat.pos_of_ne_zero hdenominator)
 
 /-- The zero-denominator convention agrees with field division by zero. -/
-@[simp] theorem convergents_zero (numerator : Nat) :
+@[simp] lemma convergents_zero (numerator : Nat) :
     convergents numerator 0 = [0] := by
   rw [convergents]
   simp
 
 /-- A zero remainder terminates the finite continued fraction. -/
-theorem convergents_eq_singleton_of_mod_eq_zero
+lemma convergents_eq_singleton_of_mod_eq_zero
     {numerator denominator : Nat} (hdenominator : denominator ≠ 0)
     (hremainder : numerator % denominator = 0) :
     convergents numerator denominator =
@@ -60,7 +60,7 @@ theorem convergents_eq_singleton_of_mod_eq_zero
 
 /-- A nonzero remainder exposes one convergent and recurses on the reciprocal
 fractional part. -/
-theorem convergents_eq_cons_of_mod_ne_zero
+lemma convergents_eq_cons_of_mod_ne_zero
     {numerator denominator : Nat} (hdenominator : denominator ≠ 0)
     (hremainder : numerator % denominator ≠ 0) :
     convergents numerator denominator =
@@ -72,7 +72,7 @@ theorem convergents_eq_cons_of_mod_ne_zero
 
 /-- Two nonterminal Euclidean remainder steps reduce the first operand by
 more than a factor of two. -/
-private theorem secondRemainder_double_lt
+private lemma secondRemainder_double_lt
     (denominator numerator : Nat) (hdenominator : 0 < denominator)
     (hremainder : 0 < numerator % denominator) :
     2 * (denominator % (numerator % denominator)) < denominator := by
@@ -92,7 +92,7 @@ private theorem secondRemainder_double_lt
 
 /-- The binary width of the denominator drops after two nonterminal
 Euclidean steps. -/
-private theorem secondRemainder_size_succ_le
+private lemma secondRemainder_size_succ_le
     (denominator numerator : Nat) (hdenominator : 0 < denominator)
     (hremainder : 0 < numerator % denominator) :
     Nat.size (denominator % (numerator % denominator)) + 1 ≤
@@ -117,7 +117,7 @@ private theorem secondRemainder_size_succ_le
 
 /-- Euclidean continued fractions have at most twice the denominator bit
 length many distinct convergents. -/
-theorem convergents_length_le (numerator denominator : Nat)
+lemma convergents_length_le (numerator denominator : Nat)
     (hdenominator : 0 < denominator) :
     (convergents numerator denominator).length ≤
       2 * Nat.size denominator := by
@@ -170,7 +170,7 @@ theorem convergents_length_le (numerator denominator : Nat)
 
 /-- Every mathematical convergent of a nonnegative rational occurs in the
 finite Euclidean list.  Indices beyond termination repeat the final entry. -/
-theorem real_convergent_mem (numerator denominator index : Nat) :
+lemma real_convergent_mem (numerator denominator index : Nat) :
     (((numerator : ℝ) / (denominator : ℝ)).convergent index) ∈
       convergents numerator denominator := by
   induction denominator using Nat.strong_induction_on
@@ -269,7 +269,7 @@ def value (fraction : ReducedRational) : ℚ :=
 
 /-- The denominator projection of the represented rational is exactly the
 stored denominator. -/
-@[simp] theorem value_den (fraction : ReducedRational) :
+@[simp] lemma value_den (fraction : ReducedRational) :
     fraction.value.den = fraction.denominator := by
   change
     (((fraction.numerator : Int) : ℚ) /
@@ -294,7 +294,7 @@ def ofNat (value : Nat) : ReducedRational where
   denominator_pos := by decide
   reduced := Nat.coprime_one_right value
 
-@[simp] theorem ofNat_value (value : Nat) :
+@[simp] lemma ofNat_value (value : Nat) :
     (ofNat value).value = value := by
   simp [ofNat, ReducedRational.value]
 
@@ -317,7 +317,7 @@ private def ofNat (value : Nat) (hvalue : 0 < value) :
   reduced := Nat.coprime_one_right value
   numerator_pos := hvalue
 
-@[simp] private theorem ofNat_value (value : Nat) (hvalue : 0 < value) :
+@[simp] private lemma ofNat_value (value : Nat) (hvalue : 0 < value) :
     (ofNat value hvalue).toReducedRational.value = value := by
   simp [ofNat, ReducedRational.value]
 
@@ -337,7 +337,7 @@ private def lift (integerPart : Nat)
     Nat.add_pos_right _ tail.denominator_pos
 
 /-- The lifted pair implements the reciprocal continued-fraction step. -/
-private theorem lift_value (integerPart : Nat)
+private lemma lift_value (integerPart : Nat)
     (tail : PositiveReducedRational) :
     (lift integerPart tail).toReducedRational.value =
       (integerPart : ℚ) + tail.toReducedRational.value⁻¹ := by
@@ -387,7 +387,7 @@ private def naturalOperandsLe (bound : Nat) :
   | _ => False
 
 /-- Increasing a common natural-operand bound preserves the trace invariant. -/
-private theorem naturalOperandsLe_mono
+private lemma naturalOperandsLe_mono
     {event : NumberTheory.ArithmeticEvent} {left right : Nat}
     (h : naturalOperandsLe left event) (hle : left ≤ right) :
     naturalOperandsLe right event := by
@@ -398,7 +398,7 @@ private theorem naturalOperandsLe_mono
     | exact ⟨h.1.trans hle, h.2.trans hle⟩
 
 /-- A common natural-operand bound controls the event's binary width. -/
-private theorem operandWidth_le_size_of_naturalOperandsLe
+private lemma operandWidth_le_size_of_naturalOperandsLe
     {event : NumberTheory.ArithmeticEvent} {bound : Nat}
     (h : naturalOperandsLe bound event) :
     event.operandWidth ≤ Nat.size bound := by
@@ -475,7 +475,7 @@ def finiteContinuedFractionTrace (numerator denominator : Nat) :
 Euclidean tail stays within the corresponding input numerator and denominator.
 In particular, the continuant lift does not manufacture a denominator larger
 than the preceding Euclidean numerator. -/
-private theorem positiveFiniteContinuedFractionTrace_fractions_le
+private lemma positiveFiniteContinuedFractionTrace_fractions_le
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (hle : denominator ≤ numerator) :
     ∀ fraction ∈
@@ -537,7 +537,7 @@ private theorem positiveFiniteContinuedFractionTrace_fractions_le
 
 /-- Every arithmetic operand evaluated by a positive Euclidean tail is at most
 that tail's input numerator. -/
-private theorem positiveFiniteContinuedFractionTrace_naturalOperandsLe
+private lemma positiveFiniteContinuedFractionTrace_naturalOperandsLe
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (hle : denominator ≤ numerator) :
     ∀ event ∈
@@ -631,7 +631,7 @@ private theorem positiveFiniteContinuedFractionTrace_naturalOperandsLe
 /-- With a positive denominator that already bounds the numerator, every
 reduced denominator constructed by the complete Euclidean trace stays within
 that input denominator. -/
-private theorem finiteContinuedFractionTrace_denominator_le_of_le
+private lemma finiteContinuedFractionTrace_denominator_le_of_le
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (_hle : numerator ≤ denominator) :
     ∀ fraction ∈
@@ -675,7 +675,7 @@ private theorem finiteContinuedFractionTrace_denominator_le_of_le
 
 /-- With a positive denominator that bounds the numerator, every arithmetic
 operand of the complete Euclidean trace is bounded by that denominator. -/
-private theorem finiteContinuedFractionTrace_naturalOperandsLe_of_le
+private lemma finiteContinuedFractionTrace_naturalOperandsLe_of_le
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (hle : numerator ≤ denominator) :
     ∀ event ∈
@@ -766,7 +766,7 @@ private theorem finiteContinuedFractionTrace_naturalOperandsLe_of_le
 
 /-- The positive trace values agree with the mathematical recursive
 convergents. -/
-private theorem positiveFiniteContinuedFractionTrace_values
+private lemma positiveFiniteContinuedFractionTrace_values
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (hle : denominator ≤ numerator) :
     ((positiveFiniteContinuedFractionTrace
@@ -807,7 +807,7 @@ private theorem positiveFiniteContinuedFractionTrace_values
 
 /-- The executable reduced values agree exactly with the mathematical
 continued-fraction specification. -/
-theorem finiteContinuedFractionTrace_values
+lemma finiteContinuedFractionTrace_values
     (numerator denominator : Nat) :
     ((finiteContinuedFractionTrace numerator denominator).fractions.map
       ReducedRational.value) =
@@ -845,7 +845,7 @@ theorem finiteContinuedFractionTrace_values
 
 /-- Lifting every already-computed tail convergent emits exactly one
 multiplication and one addition per fraction. -/
-private theorem liftArithmetic_flatMap_length
+private lemma liftArithmetic_flatMap_length
     (integerPart : Nat) (fractions : List PositiveReducedRational) :
     (fractions.flatMap (liftArithmetic integerPart)).length =
       2 * fractions.length := by
@@ -857,7 +857,7 @@ private theorem liftArithmetic_flatMap_length
 
 /-- The backward Euclidean execution emits at most quadratically many events
 in the number of positive-tail convergents it actually constructs. -/
-private theorem positiveFiniteContinuedFractionTrace_arithmetic_length_le
+private lemma positiveFiniteContinuedFractionTrace_arithmetic_length_le
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (hle : denominator ≤ numerator) :
     (positiveFiniteContinuedFractionTrace
@@ -897,7 +897,7 @@ private theorem positiveFiniteContinuedFractionTrace_arithmetic_length_le
 
 /-- The complete Euclidean execution emits at most quadratically many events
 in the number of reduced convergents it actually constructs. -/
-theorem finiteContinuedFractionTrace_arithmetic_length_le
+lemma finiteContinuedFractionTrace_arithmetic_length_le
     (numerator denominator : Nat) :
     (finiteContinuedFractionTrace numerator denominator).arithmetic.length ≤
       4 *
@@ -940,7 +940,7 @@ def dyadicFuel (phaseBits : Nat) : Nat :=
 
 /-- The public fixed schedule fits in one additional binary digit beyond the
 phase register. -/
-private theorem dyadicFuel_le_two_pow_succ (phaseBits : Nat) :
+private lemma dyadicFuel_le_two_pow_succ (phaseBits : Nat) :
     dyadicFuel phaseBits ≤ 2 ^ (phaseBits + 1) := by
   induction phaseBits with
   | zero => simp [dyadicFuel]
@@ -986,7 +986,7 @@ def DyadicContinuedFractionTrace.denominators
   trace.fractions.map ReducedRational.denominator
 
 /-- The fixed dyadic trace contains exactly `2t+2` denominator slots. -/
-theorem dyadicContinuedFractionTrace_fractions_length
+lemma dyadicContinuedFractionTrace_fractions_length
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits)) :
     (dyadicContinuedFractionTrace numerator).fractions.length =
       dyadicFuel phaseBits := by
@@ -1003,7 +1003,7 @@ theorem dyadicContinuedFractionTrace_fractions_length
   omega
 
 /-- The denominator projection preserves the fixed slot count. -/
-theorem dyadicContinuedFractionTrace_denominators_length
+lemma dyadicContinuedFractionTrace_denominators_length
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits)) :
     (dyadicContinuedFractionTrace numerator).denominators.length =
       dyadicFuel phaseBits := by
@@ -1013,7 +1013,7 @@ theorem dyadicContinuedFractionTrace_denominators_length
 /-- Every reduced denominator in the padded dyadic execution is at most the
 phase-register cardinality.  Padding repeats an already-computed fraction and
 therefore preserves the same mathematical bound. -/
-theorem dyadicContinuedFractionTrace_fraction_denominator_le
+lemma dyadicContinuedFractionTrace_fraction_denominator_le
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits))
     {fraction : ReducedRational}
     (hfraction :
@@ -1059,7 +1059,7 @@ theorem dyadicContinuedFractionTrace_fraction_denominator_le
 
 /-- Every projected denominator slot in the fixed dyadic schedule is at most
 the phase-register cardinality. -/
-theorem dyadicContinuedFractionTrace_denominator_le
+lemma dyadicContinuedFractionTrace_denominator_le
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits))
     {denominator : Nat}
     (hdenominator :
@@ -1076,7 +1076,7 @@ theorem dyadicContinuedFractionTrace_denominator_le
 /-- Every operand actually evaluated by the exact dyadic Euclidean trace and
 its fixed-schedule padding computation fits in at most `phaseBits + 2` binary
 digits. -/
-theorem dyadicContinuedFractionTrace_maxOperandWidth_le
+lemma dyadicContinuedFractionTrace_maxOperandWidth_le
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits)) :
     NumberTheory.arithmeticEventListMaxOperandWidth
         (dyadicContinuedFractionTrace numerator).arithmetic ≤
@@ -1120,7 +1120,7 @@ theorem dyadicContinuedFractionTrace_maxOperandWidth_le
 
 /-- The exact dyadic Euclidean and continuant trace has quadratic event count
 in the public phase-register width. -/
-theorem dyadicContinuedFractionTrace_arithmetic_length_le
+lemma dyadicContinuedFractionTrace_arithmetic_length_le
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits)) :
     (dyadicContinuedFractionTrace numerator).arithmetic.length ≤
       17 * (phaseBits + 1) ^ 2 := by
@@ -1153,7 +1153,7 @@ theorem dyadicContinuedFractionTrace_arithmetic_length_le
 
 /-- Every mathematical convergent denominator occurs in the actual fixed
 dyadic execution. -/
-theorem real_convergent_den_mem_dyadicTrace
+lemma real_convergent_den_mem_dyadicTrace
     {phaseBits : Nat} (numerator : Fin (2 ^ phaseBits)) (index : Nat) :
     ((((numerator.val : ℝ) / (2 : ℝ) ^ phaseBits).convergent index).den) ∈
       (dyadicContinuedFractionTrace numerator).denominators := by
@@ -1185,7 +1185,7 @@ theorem real_convergent_den_mem_dyadicTrace
 
 /-- Executable dyadic regression for the phase numerator `5/64`.  The true
 order four is not present in this observation's fixed convergent schedule. -/
-theorem dyadicContinuedFractionTrace_five_of_six_denominators :
+lemma dyadicContinuedFractionTrace_five_of_six_denominators :
     (dyadicContinuedFractionTrace
       (⟨5, by norm_num⟩ : Fin (2 ^ 6))).denominators =
       [1, 12, 13, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64] := by

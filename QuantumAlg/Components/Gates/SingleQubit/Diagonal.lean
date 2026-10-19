@@ -30,16 +30,17 @@ namespace QuantumAlg.Gate
 noncomputable section
 
 /-- A diagonal native gate has precisely its selected-wire phase on the complete interface. -/
-public theorem singleQubitAt_diagonal_entry {count : Nat} (layout : QubitLayout count)
-    (oracles : OracleModel) (operator : UnitaryOperator (Qubits 1)) (phase : Fin 2 → ℂ)
+public lemma singleQubitAt_diagonal_entry {count : Nat} (layout : QubitLayout count)
+    (oracles : OracleModel) {environment : oracles.Interpretation}
+    (operator : UnitaryOperator (Qubits 1)) (phase : Fin 2 → ℂ)
     (diagonal : ∀ row column, operator row column = if row = column then phase column else 0)
     (target : Fin count) (row column : Fin count → Fin 2) :
-    (singleQubitAt layout.toQuantum oracles operator target rfl).matrix row column =
+    ((singleQubitAt layout.toQuantum oracles operator target rfl).matrix environment) row column =
       if row = column then phase (column target) else 0 := by
   classical
   let application := singleQubitApplication layout.toQuantum operator target rfl
   refine (singleQubitAt_matrix_entry layout.toQuantum oracles operator target rfl
-    row column).trans ?_
+    row column environment).trans ?_
   change operator (row target) (column target) *
     (if (application.basisEquiv row).2 = (application.basisEquiv column).2 then 1 else 0) = _
   rw [diagonal]
@@ -63,18 +64,20 @@ public theorem singleQubitAt_diagonal_entry {count : Nat} (layout : QubitLayout 
     · rw [if_neg selected, if_neg same, zero_mul]
 
 /-- The actual native instruction preserves each full ket with its exact selected-wire phase. -/
-public theorem singleQubitAt_diagonal_applyVec_ket {count : Nat} (layout : QubitLayout count)
-    (oracles : OracleModel) (operator : UnitaryOperator (Qubits 1)) (phase : Fin 2 → ℂ)
+public lemma singleQubitAt_diagonal_applyVec_ket {count : Nat} (layout : QubitLayout count)
+    (oracles : OracleModel) {environment : oracles.Interpretation}
+    (operator : UnitaryOperator (Qubits 1)) (phase : Fin 2 → ℂ)
     (diagonal : ∀ row column, operator row column = if row = column then phase column else 0)
     (target : Fin count) (column : Fin count → Fin 2) :
-    (singleQubitAt layout.toQuantum oracles operator target rfl).matrix.applyVec
+    ((singleQubitAt layout.toQuantum oracles operator target rfl).matrix environment).applyVec
         (NormalizedVector.ket (R := layout.toQuantum.register) column).vec =
       phase (column target) •
         (NormalizedVector.ket (R := layout.toQuantum.register) column).vec := by
   classical
   ext row
   refine (HilbertOperator.applyVec_ket (R := layout.toQuantum.register)
-    (singleQubitAt layout.toQuantum oracles operator target rfl).matrix column row).trans ?_
+    ((singleQubitAt layout.toQuantum oracles operator target rfl).matrix environment) column
+      row).trans ?_
   refine (singleQubitAt_diagonal_entry layout oracles operator phase diagonal
     target row column).trans ?_
   have observed := NormalizedVector.ket_apply (R := layout.toQuantum.register) column row

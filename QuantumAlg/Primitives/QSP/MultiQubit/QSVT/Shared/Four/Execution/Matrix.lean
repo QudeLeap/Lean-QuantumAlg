@@ -20,7 +20,7 @@ in the same executed word before projecting its standard output block.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
-private theorem branchMatrix_smul {width : Nat} (scalar : ℂ)
+private lemma branchMatrix_smul {width : Nat} (scalar : ℂ)
     (A B : HilbertOperator (Qubits width)) :
     Native.branchMatrix (scalar • A) (scalar • B) = scalar • Native.branchMatrix A B := by
   ext row column
@@ -31,10 +31,11 @@ private theorem branchMatrix_smul {width : Nat} (scalar : ℂ)
 variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
 
 /-- Full native execution before boundary Hadamards is the exact phase-scaled direct sum. -/
-theorem complexCore_operator (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma complexCore_operator (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    (complexCore U positive phases realAngle imaginaryAngle
-      realConstant imaginaryConstant).binaryMatrix =
+    ((complexCore (m := m) (n := n) positive phases realAngle imaginaryAngle
+      realConstant imaginaryConstant).binaryMatrix
+        (UnitarySource.interpretation U true true false)) =
       phaseControlledDirectSumOperator
         (phaseControlledDirectSumOperator
           (initializedBranch U positive (phases.map fun a => a.1.1) realConstant)
@@ -54,10 +55,11 @@ theorem complexCore_operator (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
   rw [branchMatrix_smul]
 
 /-- The complete native word realizes the intrinsic average, including all relative phases. -/
-theorem complexWord_average_operator (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma complexWord_average_operator (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    (complexWord U positive phases realAngle imaginaryAngle
-      realConstant imaginaryConstant).binaryMatrix =
+    ((complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+      realConstant imaginaryConstant).binaryMatrix
+        (UnitarySource.interpretation U true true false)) =
       threeAverage
         (initializedBranch U positive (phases.map fun a => a.1.1) realConstant)
         (initializedBranch U positive (realAngle :: phases.map fun a => a.1.2) 1)
@@ -67,7 +69,8 @@ theorem complexWord_average_operator (phases : List ((ℝ × ℝ) × (ℝ × ℝ
           (initializedBranch U positive (imaginaryAngle :: phases.map fun a => a.2.2) 1)) := by
   rw [complexWord, wrap, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, complexCore_operator, ← mul_assoc]
-  exact threeHadamard_fourBranch_operator (UnitarySource.model U true true false) _ _ _ _
+  exact threeHadamard_fourBranch_operator (UnitarySource.model (m + n) true true false) _ _ _ _
+    (UnitarySource.interpretation U true true false)
 
 end
 end QuantumAlg.QSP.MultiQubit.QSVT.SharedFour

@@ -93,24 +93,24 @@ literal ceiling closed form required by the public resource theorem. -/
 def retryCount (budget : FailureBudget) : Nat :=
   max 1 (Nat.ceil (retryExponent budget))
 
-theorem retryCount_pos (budget : FailureBudget) : 0 < retryCount budget := by
+lemma retryCount_pos (budget : FailureBudget) : 0 < retryCount budget := by
   exact lt_of_lt_of_le Nat.zero_lt_one (Nat.le_max_left _ _)
 
-@[simp] theorem retryCount_ne_zero (budget : FailureBudget) :
+@[simp] lemma retryCount_ne_zero (budget : FailureBudget) :
     retryCount budget ≠ 0 :=
   Nat.ne_of_gt (retryCount_pos budget)
 
-theorem value_pos (budget : FailureBudget) (hbudget : WellFormed budget) :
+lemma value_pos (budget : FailureBudget) (hbudget : WellFormed budget) :
     0 < budget.value := by
   unfold value
   exact div_pos (by exact_mod_cast hbudget.numerator_pos)
     (by exact_mod_cast hbudget.denominator_pos)
 
-theorem value_nonneg (budget : FailureBudget) (hbudget : WellFormed budget) :
+lemma value_nonneg (budget : FailureBudget) (hbudget : WellFormed budget) :
     0 ≤ budget.value :=
   (value_pos budget hbudget).le
 
-theorem value_le_one (budget : FailureBudget) (hbudget : WellFormed budget) :
+lemma value_le_one (budget : FailureBudget) (hbudget : WellFormed budget) :
     budget.value ≤ 1 := by
   unfold value
   apply (div_le_one (by exact_mod_cast hbudget.denominator_pos)).2
@@ -118,7 +118,7 @@ theorem value_le_one (budget : FailureBudget) (hbudget : WellFormed budget) :
 
 /-- The logarithmic size of a well-formed rational failure target is bounded
 by the binary encoding length of its denominator. -/
-theorem retryLogRatio_le_denominatorSize
+lemma retryLogRatio_le_denominatorSize
     (budget : FailureBudget) (hbudget : budget.WellFormed) :
     Real.log
         ((budget.failureDenominator : Real) /
@@ -157,16 +157,16 @@ theorem retryLogRatio_le_denominatorSize
       mul_le_mul_of_nonneg_left hlogTwo (by positivity)
     _ = Nat.size budget.failureDenominator := by ring
 
-theorem retryCountFor_pos (failure budget : FailureBudget) :
+lemma retryCountFor_pos (failure budget : FailureBudget) :
     0 < retryCountFor failure budget := by
   exact lt_of_lt_of_le Nat.zero_lt_one (Nat.le_max_left _ _)
 
-@[simp] theorem retryCountFor_ne_zero (failure budget : FailureBudget) :
+@[simp] lemma retryCountFor_ne_zero (failure budget : FailureBudget) :
     retryCountFor failure budget ≠ 0 :=
   Nat.ne_of_gt (retryCountFor_pos failure budget)
 
 /-- The literal generic ceiling is at least its real logarithmic exponent. -/
-theorem retryExponentFor_le_retryCountFor (failure budget : FailureBudget) :
+lemma retryExponentFor_le_retryCountFor (failure budget : FailureBudget) :
     retryExponentFor failure budget ≤
       (retryCountFor failure budget : Real) := by
   have hceil :
@@ -181,7 +181,7 @@ theorem retryExponentFor_le_retryCountFor (failure budget : FailureBudget) :
 
 /-- The generic retry count is the least positive natural number above the
 exact logarithmic calibration exponent. -/
-theorem retryCountFor_le_of_one_le_of_exponent_le
+lemma retryCountFor_le_of_one_le_of_exponent_le
     (failure budget : FailureBudget) {count : Nat}
     (hone : 1 ≤ count)
     (hexponent : retryExponentFor failure budget ≤ (count : Real)) :
@@ -192,7 +192,7 @@ theorem retryCountFor_le_of_one_le_of_exponent_le
 
 /-- The exact generic ceiling reduces the certified one-attempt failure rate
 below the requested rational target. -/
-theorem retryFailurePowerForReal_le (failure budget : FailureBudget)
+lemma retryFailurePowerForReal_le (failure budget : FailureBudget)
     (hfailure : StrictlyWellFormed failure)
     (hbudget : WellFormed budget) :
     failure.value ^ retryCountFor failure budget ≤ budget.value := by
@@ -272,7 +272,7 @@ theorem retryFailurePowerForReal_le (failure budget : FailureBudget)
       unfold value
       field_simp
 
-theorem retryFailurePowerFor_le (failure budget : FailureBudget)
+lemma retryFailurePowerFor_le (failure budget : FailureBudget)
     (hfailure : StrictlyWellFormed failure)
     (hbudget : WellFormed budget) :
     (ENNReal.ofReal failure.value) ^ retryCountFor failure budget ≤
@@ -283,7 +283,7 @@ theorem retryFailurePowerFor_le (failure budget : FailureBudget)
 
 /-- Increasing the internally computed retry count can only decrease a
 certified failure power. -/
-theorem retryFailurePowerFor_le_of_count (failure budget : FailureBudget)
+lemma retryFailurePowerFor_le_of_count (failure budget : FailureBudget)
     (hfailure : StrictlyWellFormed failure)
     (hbudget : WellFormed budget) {count : Nat}
     (hcount : retryCountFor failure budget ≤ count) :
@@ -300,7 +300,7 @@ theorem retryFailurePowerFor_le_of_count (failure budget : FailureBudget)
 
 /-- The literal ceiling in `retryCount` is at least the real logarithmic
 exponent from which it is selected. -/
-theorem retryExponent_le_retryCount (budget : FailureBudget) :
+lemma retryExponent_le_retryCount (budget : FailureBudget) :
     retryExponent budget ≤ (retryCount budget : Real) := by
   have hceil :
       retryExponent budget ≤ (Nat.ceil (retryExponent budget) : Real) :=
@@ -312,7 +312,7 @@ theorem retryExponent_le_retryCount (budget : FailureBudget) :
 
 /-- The base-three geometric failure after the internally selected retry
 count is at most the public rational failure budget. -/
-theorem retryFailurePowerReal_le (budget : FailureBudget)
+lemma retryFailurePowerReal_le (budget : FailureBudget)
     (hbudget : WellFormed budget) :
     ((1 : Real) / 3) ^ retryCount budget ≤ budget.value := by
   have hnum : (0 : Real) < budget.failureNumerator := by
@@ -361,21 +361,21 @@ theorem retryFailurePowerReal_le (budget : FailureBudget)
       unfold value
       field_simp
 
-theorem retryFailurePower_le (budget : FailureBudget)
+lemma retryFailurePower_le (budget : FailureBudget)
     (hbudget : WellFormed budget) :
     (ENNReal.ofReal ((1 : Real) / 3)) ^ retryCount budget ≤
       ENNReal.ofReal budget.value := by
   rw [← ENNReal.ofReal_pow (by norm_num : (0 : Real) ≤ 1 / 3)]
   exact ENNReal.ofReal_le_ofReal (retryFailurePowerReal_le budget hbudget)
 
-theorem twoThirds_eq_one_sub_oneThird :
+lemma twoThirds_eq_one_sub_oneThird :
     ENNReal.ofReal ((2 : Real) / 3) =
       1 - ENNReal.ofReal ((1 : Real) / 3) := by
   rw [← ENNReal.ofReal_one,
     ← ENNReal.ofReal_sub 1 (by norm_num : (0 : Real) ≤ 1 / 3)]
   norm_num
 
-theorem one_sub_twoThirds_eq_oneThird :
+lemma one_sub_twoThirds_eq_oneThird :
     1 - ENNReal.ofReal ((2 : Real) / 3) =
       ENNReal.ofReal ((1 : Real) / 3) := by
   rw [← ENNReal.ofReal_one,
@@ -384,7 +384,7 @@ theorem one_sub_twoThirds_eq_oneThird :
 
 /-- The public `1 - eta` target lies below the exact independent-retry
 success bound obtained from a per-attempt two-thirds floor. -/
-theorem successThreshold_le_one_sub_retryFailurePower
+lemma successThreshold_le_one_sub_retryFailurePower
     (budget : FailureBudget) (hbudget : WellFormed budget) :
     successThreshold budget ≤
       1 - (ENNReal.ofReal ((1 : Real) / 3)) ^ retryCount budget := by
@@ -393,7 +393,7 @@ theorem successThreshold_le_one_sub_retryFailurePower
   exact tsub_le_tsub_left (retryFailurePower_le budget hbudget) 1
 
 /-- At least one retry preserves the per-attempt two-thirds floor. -/
-theorem twoThirds_le_one_sub_retryFailurePower (budget : FailureBudget) :
+lemma twoThirds_le_one_sub_retryFailurePower (budget : FailureBudget) :
     ENNReal.ofReal ((2 : Real) / 3) ≤
       1 - (ENNReal.ofReal ((1 : Real) / 3)) ^ retryCount budget := by
   have hfailure :
@@ -414,10 +414,10 @@ def oneThird : FailureBudget where
   failureNumerator := 1
   failureDenominator := 3
 
-theorem oneThird_wellFormed : oneThird.WellFormed := by
+lemma oneThird_wellFormed : oneThird.WellFormed := by
   constructor <;> norm_num [oneThird]
 
-@[simp] theorem oneThird_value : oneThird.value = (1 : Real) / 3 := by
+@[simp] lemma oneThird_value : oneThird.value = (1 : Real) / 3 := by
   norm_num [oneThird, value]
 
 /-- Binary failure budget `2^-k`. -/
@@ -425,7 +425,7 @@ def binary (k : Nat) : FailureBudget where
   failureNumerator := 1
   failureDenominator := 2 ^ k
 
-theorem binary_wellFormed (k : Nat) : (binary k).WellFormed where
+lemma binary_wellFormed (k : Nat) : (binary k).WellFormed where
   numerator_pos := Nat.zero_lt_one
   denominator_pos := Nat.two_pow_pos k
   numerator_le_denominator := Nat.one_le_two_pow

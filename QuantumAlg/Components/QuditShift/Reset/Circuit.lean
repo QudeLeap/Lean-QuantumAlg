@@ -19,11 +19,15 @@ classical cell, reads that actual cell, and executes a supplied realization of
 its negative shift in the selected model. Both operations use the same complete
 live context. No quantum system is released and no fresh storage is allocated. State and resource
 theorems are derived separately from this instruction sequence.
+An arbitrary surrounding classical service grant is carried through unchanged;
+the reset invokes neither a classical service nor an arithmetic operation.
 -/
 
 namespace QuantumAlg.QuditShift
 
 noncomputable section
+
+variable {services : ClassicalOracleModel}
 
 variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
 
@@ -35,9 +39,11 @@ private instance circuitDimensionNeZero (dimension : ℕ+) : NeZero (dimension :
 public def resetCircuit (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : Realizations gates oracles ctx.quantumLayout wire)
-    (operations : ClassicalOpModel := .empty) :
-    Circuit (.quantum gates oracles operations) ctx ctx :=
-  (Circuit.measureZ (operations := operations) wire output).seq
+    (operations : ClassicalOpModel := .empty)
+    (services : ClassicalOracleModel := .empty)
+    (allowAllocation : Bool := true) :
+    Circuit (.quantum gates oracles operations services) ctx ctx allowAllocation :=
+  (Circuit.measureZ (classicalOracles := services) (operations := operations) wire output).seq
     (.branch (.storage output.toCStorageRef) (fun value =>
       .unitary (realizations (-value.toFin)).circuit))
 

@@ -61,13 +61,13 @@ def postReductionResult (basis : NumberTheory.IntegerBasis3) : NumberTheory.Inte
   basis.reduceThirdByFirst (postReductionCoefficient basis)
 
 /-- The post-prefix coefficient is the second pair's final first-direction coefficient. -/
-theorem postReductionCoefficient_secondPairPrefixResult
+lemma postReductionCoefficient_secondPairPrefixResult
     (basis : NumberTheory.IntegerBasis3) :
     postReductionCoefficient (LatticeSecondPairMachine.secondPairPrefixResult basis) =
       basis.sizeReduceSecondPair.2.2 := rfl
 
 /-- Completing the post-prefix reduction produces the full second-pair result. -/
-theorem postReductionResult_secondPairPrefixResult (basis : NumberTheory.IntegerBasis3) :
+lemma postReductionResult_secondPairPrefixResult (basis : NumberTheory.IntegerBasis3) :
     postReductionResult (LatticeSecondPairMachine.secondPairPrefixResult basis) =
       basis.sizeReduceSecondPair.1 := rfl
 

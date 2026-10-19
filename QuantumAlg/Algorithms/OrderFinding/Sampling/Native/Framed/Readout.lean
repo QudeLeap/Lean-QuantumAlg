@@ -28,12 +28,12 @@ open QuantumAlg.Execution
 
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
-private theorem phaseReadout_key (t width : Nat) (index : Fin t) :
+private lemma phaseReadout_key (t width : Nat) (index : Fin t) :
     (phaseReadout ctx noQuantum t width index).output.key =
       (MeasurementCells.reference (resultContext ctx noQuantum t width) 2 t index).key :=
   FiniteReadout.transported_key (phaseWire_dimension ctx noQuantum t width index) _
 
-private theorem phaseReadout_read_value (t width : Nat) (index : Fin t)
+private lemma phaseReadout_read_value (t width : Nat) (index : Fin t)
     (store : Store (post ctx noQuantum t width)) :
     (store.read (.storage
       (phaseReadout ctx noQuantum t width index).output.toCStorageRef)).toFin.val =
@@ -43,7 +43,7 @@ private theorem phaseReadout_read_value (t width : Nat) (index : Fin t)
   FiniteReadout.transported_read_value (phaseWire_dimension ctx noQuantum t width index) _ store
 
 /-- The real phase-measurement destinations are pairwise distinct. -/
-theorem readouts_keys_nodup (t width : Nat) :
+lemma readouts_keys_nodup (t width : Nat) :
     ((readouts ctx noQuantum t width).map (fun item => item.output.key)).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -53,21 +53,21 @@ theorem readouts_keys_nodup (t width : Nat) :
     (same.trans (phaseReadout_key ctx noQuantum t width right))
 
 /-- An actual Z write stores its physical basis value in the corresponding cell. -/
-theorem measuredCell_value (t width : Nat) (store : Store (post ctx noQuantum t width))
+lemma measuredCell_value (t width : Nat) (store : Store (post ctx noQuantum t width))
     (basis : (post ctx noQuantum t width).register.Index) (index : Fin t)
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel} :
-    ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    ((Circuit.writeMeasurementPath (allowAllocation := true) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services)
       (readouts ctx noQuantum t width) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
         (readouts ctx noQuantum t width) basis)).read
         (.storage
           (MeasurementCells.reference
             (resultContext ctx noQuantum t width) 2 t index).toCStorageRef)).toFin.val =
       (basis (phaseWire ctx noQuantum t width index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
     (gates := gates) (oracles := oracles)
     (operations := operations) (services := services)
     (readouts ctx noQuantum t width)

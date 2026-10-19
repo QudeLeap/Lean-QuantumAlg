@@ -32,7 +32,7 @@ structure InitOutcome (refs : Refs ctx inputWidth) (before after : Store ctx) : 
   output : after.read (writeInput refs.output) = before.read (writeInput refs.output)
   callerFrame : CallerFrame refs before after
 
-private theorem initializeClear_value
+private lemma initializeClear_value
     (output : CWriteRef ctx (.unsignedWord (workWidth inputWidth))) (store : Store ctx) :
     ((store.applyOp (initializeClearOp output)).read (writeInput output)).toNat = 0 := by
   change ((store.applyOp (initializeClearOp output)).read
@@ -45,7 +45,7 @@ private theorem initializeClear_value
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- A shift loop frames every complete caller read outside the half cell. -/
-theorem shiftHalfLoopStep_callerFrame (refs : Refs ctx inputWidth) (count : Nat)
+lemma shiftHalfLoopStep_callerFrame (refs : Refs ctx inputWidth) (count : Nat)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : refs.round.half.key ∉ other.storageKeys) :
     (shiftHalfLoopStep (model := model) refs count store).1.read other = store.read other := by
@@ -57,7 +57,7 @@ theorem shiftHalfLoopStep_callerFrame (refs : Refs ctx inputWidth) (count : Nat)
       exact (Store.read_applyOp_of_not_mem_storageKeys _ (shiftHalfOp refs) other separate).trans ih
 
 /-- A fixed shift loop advances a known power of two without modular wrapping. -/
-theorem shiftHalfLoopStep_value (refs : Refs ctx inputWidth) (count start : Nat)
+lemma shiftHalfLoopStep_value (refs : Refs ctx inputWidth) (count start : Nat)
     (range : start + count < workWidth inputWidth) (store : Store ctx)
     (initial : (store.read (writeInput refs.round.half)).toNat = 2 ^ start) :
     ((shiftHalfLoopStep (model := model) refs count store).1.read (writeInput
@@ -92,7 +92,7 @@ theorem shiftHalfLoopStep_value (refs : Refs ctx inputWidth) (count start : Nat)
       ac_rfl
 
 /-- Initialization preserves every caller read outside the three actual write keys. -/
-theorem initializeInto_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
+lemma initializeInto_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
     CallerFrame refs store (initializeStep (model := model) refs store).1 := by
   intro shape other avoidsWide avoidsRoot avoidsHalf
   change (shiftHalfLoopStep (model := model) refs (inputWidth - 1) (initializeSeed refs
@@ -106,7 +106,7 @@ theorem initializeInto_callerFrame (refs : Refs ctx inputWidth) (store : Store c
       other avoidsRoot,
     Store.read_applyOp_of_not_mem_storageKeys _ (initializeResizeOp refs) other avoidsWide]
 
-private theorem initializeSeed_wide {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma initializeSeed_wide {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (refs : Refs ctx inputWidth) (separation : Separation refs)
     (store : Store ctx) :
     ((initializeSeed refs store).read (wideInput refs)).toNat = (store.read refs.input).toNat := by
@@ -128,7 +128,7 @@ private theorem initializeSeed_wide {kind : ProblemKind} {ctx : RuntimeCtx kind}
       change 2 ^ inputWidth ≤ 2 ^ (inputWidth + inputWidth)
       exact Nat.pow_le_pow_right (by omega) (by omega)
 
-private theorem initializeSeed_root {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma initializeSeed_root {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (refs : Refs ctx inputWidth) (separation : Separation refs)
     (store : Store ctx) :
     ((initializeSeed refs store).read (writeInput refs.round.root)).toNat = 0 := by
@@ -139,7 +139,7 @@ private theorem initializeSeed_root {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (writeInput refs.round.root) separation.rootAvoidsHalf]
   exact initializeClear_value refs.round.root _
 
-private theorem initializeSeed_half {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma initializeSeed_half {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (refs : Refs ctx inputWidth) (positive : 0 < inputWidth)
     (store : Store ctx) :
     ((initializeSeed refs store).read (writeInput refs.round.half)).toNat = 1 := by
@@ -154,7 +154,7 @@ private theorem initializeSeed_half {kind : ProblemKind} {ctx : RuntimeCtx kind}
   exact Nat.mod_eq_of_lt (Nat.one_lt_two_pow (Nat.ne_of_gt positive))
 
 /-- Actual initialization establishes the original interval with arbitrary incoming work values. -/
-theorem initializeInto_correct (refs : Refs ctx inputWidth) (separation : Separation refs)
+lemma initializeInto_correct (refs : Refs ctx inputWidth) (separation : Separation refs)
     (positive : 0 < inputWidth) (store : Store ctx) :
     InitOutcome refs store (initializeStep (model := model) refs store).1 := by
   have frame : CallerFrame refs store (initializeStep (model := model) refs store).1 :=

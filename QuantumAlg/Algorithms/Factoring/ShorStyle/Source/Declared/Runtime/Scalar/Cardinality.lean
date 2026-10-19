@@ -40,7 +40,7 @@ noncomputable section
 variable (model : ExecutionModel) [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
-private theorem max_card_le_add (left right : ResourcePool model) :
+private lemma max_card_le_add (left right : ResourcePool model) :
     (ResourcePool.max left right).card ≤ left.card + right.card := by
   have dominated : ResourcePool.max left right ≤ left + right := by
     apply ResourcePool.max_le
@@ -54,17 +54,17 @@ private theorem max_card_le_add (left right : ResourcePool model) :
       exact Nat.le_add_left _ _
   exact (Multiset.card_le_card dominated).trans_eq (Multiset.card_add left right)
 
-private theorem constant_card (width : Nat) :
+private lemma constant_card (width : Nat) :
     (ConstantWord.envelope model width).card = 2 * width := by
   simp [ConstantWord.envelope, ConstantWord.bitEnvelope, ResourcePool.scale,
     ResourcePool.singleton, Nat.mul_comm]
 
-private theorem decode_card (width : Nat) :
+private lemma decode_card (width : Nat) :
     (TerminalDecode.envelope (model := model) width).card = 2 * width := by
   simp [TerminalDecode.envelope, TerminalDecode.bitEnvelope, ResourcePool.scale,
     ResourcePool.singleton, Nat.mul_comm]
 
-private theorem power_card (width exponentWidth : Nat) :
+private lemma power_card (width exponentWidth : Nat) :
     (Modular.NativePower.eventEnvelope model width exponentWidth).card =
       2 * width + 5 + 6 * exponentWidth := by
   simp only [Modular.NativePower.eventEnvelope, Modular.NativePower.exponentEnvelope,
@@ -73,7 +73,7 @@ private theorem power_card (width exponentWidth : Nat) :
     ResourcePool.singleton, Multiset.card_replicate]
   omega
 
-private theorem order_selection_card (width : Nat) :
+private lemma order_selection_card (width : Nat) :
     (OrderRecovery.Native.selectionEnvelope model width).card ≤ 8 := by
   have bound := max_card_le_add model
     (ResourcePool.ofList (OrderRecovery.Native.rejectionEvents model width))
@@ -81,7 +81,7 @@ private theorem order_selection_card (width : Nat) :
   simpa [OrderRecovery.Native.selectionEnvelope, OrderRecovery.Native.rejectionEvents,
     OrderRecovery.Native.acceptanceEvents, ResourcePool.ofList] using bound
 
-private theorem order_visit_card (modulusWidth width : Nat) :
+private lemma order_visit_card (modulusWidth width : Nat) :
     (OrderRecovery.Native.visitEnvelope model modulusWidth width).card ≤
       2 * modulusWidth + 19 + 6 * width := by
   have selected := order_selection_card model width
@@ -91,7 +91,7 @@ private theorem order_visit_card (modulusWidth width : Nat) :
   omega
 
 /-- Every prescribed continued-fraction visit obeys one width-only native scalar allowance. -/
-theorem order_recovery_card_le (N : Nat) :
+lemma order_recovery_card_le (N : Nat) :
     (OrderRecovery.Native.eventEnvelope model (modulusBits N) (phaseBits N)).card ≤
       orderRecoveryEvents N := by
   have visits := Nat.mul_le_mul_left (2 * (phaseBits N + 1))
@@ -103,12 +103,12 @@ theorem order_recovery_card_le (N : Nat) :
   unfold orderRecoveryEvents
   omega
 
-private theorem adjacent_card (successor : Bool) (width : Nat) :
+private lemma adjacent_card (successor : Bool) (width : Nat) :
     (FactorRecovery.NativeAdjacentWord.eventEnvelope model successor width).card ≤ 3 := by
   cases successor <;>
     simp [FactorRecovery.NativeAdjacentWord.eventEnvelope, ResourcePool.singleton]
 
-private theorem half_gcd_card (successor : Bool) (N : Nat) :
+private lemma half_gcd_card (successor : Bool) (N : Nat) :
     (FactorRecovery.NativeHalfGCD.eventEnvelope model successor N).card ≤
       12 * (modulusBits N + 1) + 14 := by
   have adjacent := adjacent_card model successor (modulusBits N)
@@ -117,10 +117,10 @@ private theorem half_gcd_card (successor : Bool) (N : Nat) :
     ResourcePool.singleton, Multiset.card_replicate]
   omega
 
-private theorem range_card (width : Nat) :
+private lemma range_card (width : Nat) :
     (NumberTheory.FactorRange.eventBudget (model := model) width).card = 3 := rfl
 
-private theorem half_factor_card (N : Nat) :
+private lemma half_factor_card (N : Nat) :
     (FactorRecovery.NativeHalfFactorScope.eventEnvelope model N).card ≤
       28 * (modulusBits N + 1) + 40 := by
   have left := half_gcd_card model false N
@@ -132,7 +132,7 @@ private theorem half_factor_card (N : Nat) :
     Multiset.coe_card, List.length_cons, List.length_nil]
   omega
 
-private theorem reduction_card_le (N : Nat) :
+private lemma reduction_card_le (N : Nat) :
     (FactorRecovery.NativeFactorTail.reduceEnvelope model N).card ≤ reductionEvents N := by
   have selected := half_factor_card model N
   simp only [FactorRecovery.NativeFactorTail.reduceEnvelope,
@@ -141,7 +141,7 @@ private theorem reduction_card_le (N : Nat) :
   unfold reductionEvents
   omega
 
-private theorem recovery_dispatch_card (N : Nat) :
+private lemma recovery_dispatch_card (N : Nat) :
     (FactorRecovery.NativeFactorTail.dispatchEnvelope model N).card ≤ reductionEvents N + 7 := by
   have reduction := reduction_card_le model N
   have checked := max_card_le_add model
@@ -161,7 +161,7 @@ private theorem recovery_dispatch_card (N : Nat) :
   omega
 
 /-- The original known-modulus branch has a complete independent scalar native capacity. -/
-theorem recovery_card_le (N : Nat) :
+lemma recovery_card_le (N : Nat) :
     (FactorRecovery.NativeFactorTail.eventEnvelope model N).card ≤ recoveryEvents N := by
   unfold FactorRecovery.NativeFactorTail.eventEnvelope recoveryEvents
   split

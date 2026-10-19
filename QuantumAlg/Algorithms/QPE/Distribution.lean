@@ -35,22 +35,23 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- The actual complete run has the original mathematical query-readout distribution. -/
-theorem outputDistribution_eq {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma outputDistribution_eq {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} (input : OracleInput ClassicalOracleModel.empty (pre t n) Reference)
     (promised : inputPromise P t input.caller.localState.quantumMarginal) :
-    (run P t).outputDistribution input =
+    (run n t).outputDistribution (sourceEnvironment P.unitary) input =
       ((qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)).map CShape.Value.bits := by
   apply PMF.ext
   intro output
   have actual := congrArg (fun distribution : PMF (CShape.Value (.bits t)) =>
       distribution output)
-    (ExecutionState.toPMF_mapClassical ((run P t).execute Reference input.state)
-      ((run P t).execute_normalized input) (run P t).result)
+    (ExecutionState.toPMF_mapClassical ((run n t).execute (sourceEnvironment P.unitary)
+      Reference input.state)
+      ((run n t).execute_normalized (sourceEnvironment P.unitary) input) (run n t).result)
   simp only [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code P t).execute Reference
+    (((code n t).execute (sourceEnvironment P.unitary) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))
       |>.block output).mass) = _
@@ -75,7 +76,7 @@ theorem outputDistribution_eq {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
   · rw [if_neg matching, if_neg (Ne.symm matching)]
     exact ENNReal.ofReal_zero
 
-private theorem accepts_iff_encoded {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+private lemma accepts_iff_encoded {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     (initial : Store (pre t n)) (result : CShape.Value (.bits t)) :
     accepts P t initial result ↔
       result ∈ CShape.Value.bits '' {outcome | SuccessfulOutcome P t outcome} := by
@@ -90,22 +91,22 @@ private theorem accepts_iff_encoded {n : Nat} (P : QPEEigenstateInput n) (t : Na
         exact accepted
 
 /-- The original circular precision event holds on the actual initial-store/result distribution. -/
-theorem actual_success {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma actual_success {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} (input : OracleInput ClassicalOracleModel.empty (pre t n) Reference)
     (promised : inputPromise P t input.caller.localState.quantumMarginal) :
     ENNReal.ofReal (4 / Real.pi ^ 2) ≤
-      ((run P t).relationalDistribution input).toOuterMeasure
+      ((run n t).relationalDistribution (sourceEnvironment P.unitary) input).toOuterMeasure
         {pair | accepts P t pair.1 pair.2} := by
   have projection :
-      ((run P t).relationalDistribution input).toOuterMeasure
+      ((run n t).relationalDistribution (sourceEnvironment P.unitary) input).toOuterMeasure
         {pair | accepts P t pair.1 pair.2} =
-      ((run P t).outputDistribution input).toOuterMeasure
+      ((run n t).outputDistribution (sourceEnvironment P.unitary) input).toOuterMeasure
         (CShape.Value.bits '' {outcome | SuccessfulOutcome P t outcome}) := by
     simp only [AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
       PMF.toOuterMeasure_map_apply]
     congr 1
     ext record
-    exact accepts_iff_encoded P t record.2.2.1 ((run P t).result record)
+    exact accepts_iff_encoded P t record.2.2.1 ((run n t).result record)
   rw [projection, outputDistribution_eq P t input promised, PMF.toOuterMeasure_map_apply,
     Set.preimage_image_eq _ (fun _ _ same => CShape.Value.bits.inj same)]
   exact born_successProbability_ge P t

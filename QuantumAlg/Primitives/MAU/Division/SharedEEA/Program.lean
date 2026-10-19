@@ -44,7 +44,7 @@ def middleStep (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame widt
     (VariableGidney.prefixOutput modulus width
       (OutputCopy.value state.1, state.2.1, state.2.2)).2.2)
 
-private theorem middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) :
     (placement width).step (fun value =>
       (VariableGidney.prefixOutput modulus width value.1, value.2)) state =
@@ -73,8 +73,9 @@ private theorem middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
   · exact divisionGrouping_history width state.1 state.2.1 state.2.2 _
 
 /-- Full-frame basis equality for the actual placed MAC, including arbitrary history and target. -/
-theorem divisionMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (frameEncoding width) (middleProgram width modulus)
+lemma divisionMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+    {environment : OracleModel.empty.Interpretation} :
+    UnitaryCircuit.Realizes (frameEncoding width) (middleProgram width modulus) environment
       (middleStep width modulus) :=
   ((placement width).place_realizes
     (UnitaryCircuit.Realizes.onBinaryPrefix
@@ -83,7 +84,7 @@ theorem divisionMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
         (middle_grouping width modulus)
 
 /-- Canonical targets receive the complete inverse-port value times the unchanged numerator. -/
-theorem divisionMiddle_target (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma divisionMiddle_target (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) (valid : state.2.2.val < modulus.val) :
     (middleStep width modulus state).2.2.val =
       (state.2.2.val + (OutputCopy.value state.1).val * state.2.1.val) % modulus.val :=

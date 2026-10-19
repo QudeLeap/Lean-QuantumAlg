@@ -18,13 +18,13 @@ namespace QuantumAlg.BitWord
 
 noncomputable section
 
-variable {gates : GateModel} {oracles : OracleModel}
+variable {allowAllocation : Bool} {gates : GateModel} {oracles : OracleModel}
   {pre mid post : RuntimeCtx .quantum}
 
 /-- Selection distributes over the same original sequential circuit. -/
-theorem selectForCircuit_seq
-    (first : Circuit (.quantum gates oracles) pre mid)
-    (second : Circuit (.quantum gates oracles) mid post) :
+lemma selectForCircuit_seq
+    (first : Circuit (.quantum gates oracles) pre mid allowAllocation)
+    (second : Circuit (.quantum gates oracles) mid post allowAllocation) :
     selectForCircuit (first.seq second) =
       (selectForCircuit first).seq (selectForCircuit second) := by
   rfl

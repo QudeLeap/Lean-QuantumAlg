@@ -19,7 +19,7 @@ retained in the resource pool, including when the signal width is zero.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.ControlWork
 noncomputable section
 
-private theorem lastFlip_events (k n : Nat) (oracles : OracleModel) :
+private lemma lastFlip_events (k n : Nat) (oracles : OracleModel) :
     (lastFlip k n oracles).eventCost =
       2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) + ResourcePool.singleton
@@ -29,7 +29,7 @@ private theorem lastFlip_events (k n : Nat) (oracles : OracleModel) :
   ac_rfl
 
 /-- The complete constructed word has no uncounted dirty work or source invocation. -/
-theorem controlWork_phase_events (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
+lemma controlWork_phase_events (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
     (phase k n oracles angle).eventCost =
       4 • ZeroProjector.SourceWork.budget oracles k +
       9 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -44,15 +44,16 @@ theorem controlWork_phase_events (k n : Nat) (oracles : OracleModel) (angle : �
   ac_rfl
 
 /-- The borrowed final control is preserved by the first-control rotation on the full space. -/
-theorem controlWork_firstRotation_matrix (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((firstRotation k n oracles angle).binaryMatrix :
+lemma controlWork_firstRotation_matrix (k n : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((firstRotation k n oracles angle).binaryMatrix environment) :
         HilbertOperator (Qubits (1 + (k + (1 + n))))) =
       HilbertOperator.tensor (rotZStdOp angle : HilbertOperator (Qubits 1))
         (OrthogonalProjector.zeroAncilla k (1 + n)).op +
       HilbertOperator.tensor (1 : HilbertOperator (Qubits 1))
         (OrthogonalProjector.complement (OrthogonalProjector.zeroAncilla k (1 + n))) := by
-  exact ProjectorPhase.controlledRotation_matrix _ _
-    (KnownZero.flip_matrix k (1 + n) (by omega) oracles) angle
+  exact ProjectorPhase.controlledRotation_matrix _ _ environment
+    (KnownZero.flip_matrix k (1 + n) (by omega) oracles environment) angle
 
 end
 end QuantumAlg.QSP.MultiQubit.QSVT.ControlWork

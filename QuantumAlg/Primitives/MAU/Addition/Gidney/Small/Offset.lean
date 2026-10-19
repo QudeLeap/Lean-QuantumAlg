@@ -21,6 +21,8 @@ namespace QuantumAlg.MAU.Addition.Gidney.Small
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- Select the already proved literal small-width pivot circuit. -/
@@ -33,17 +35,17 @@ def pivotProgram : (width : Nat) → width ≤ 2 →
   | 2, _, pivot => Two.circuit pivot
   | width + 3, impossible, _ => False.elim (by omega)
 
-theorem gidneySmallPivot_realizes (width : Nat) (small : width ≤ 2)
+lemma gidneySmallPivot_realizes (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.finIdentity width)
-      (pivotProgram width small pivot) (pivotWordOutput pivot) := by
+      (pivotProgram width small pivot) environment (pivotWordOutput pivot) := by
   interval_cases width
   · exact Zero.gidneySmallZero_realizes pivot
   · exact One.gidneySmallOne_realizes pivot
   · exact Two.gidneySmallTwo_realizes pivot
 
 /-- Each selected pivot has at most three actual native events. -/
-theorem gidneySmallPivot_event_count_bound (width : Nat) (small : width ≤ 2)
+lemma gidneySmallPivot_event_count_bound (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width small pivot).eventCost.card ≤ 3 := by
   interval_cases width
@@ -57,7 +59,7 @@ theorem gidneySmallPivot_event_count_bound (width : Nat) (small : width ≤ 2)
     rw [Two.gidneySmallTwo_eventCost]
     fin_cases pivot <;> decide
 
-theorem gidneySmallPivot_depth_eq_events (width : Nat) (small : width ≤ 2)
+lemma gidneySmallPivot_depth_eq_events (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width small pivot).evaluatedEventDepth (fun _ => 1) =
       (pivotProgram width small pivot).eventCost.card := by
@@ -86,17 +88,18 @@ def modularOffsetProgram (width : Nat) (small : width ≤ 2)
       (pivotProgram width small (offsetLastPivot modulus constant))
 
 /-- All labels satisfy the same modular-offset/identity-extension contract as the general case. -/
-theorem gidneySmallModularOffset_realizes (width : Nat) (small : width ≤ 2)
+lemma gidneySmallModularOffset_realizes (width : Nat) (small : width ≤ 2)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.finIdentity width)
-      (modularOffsetProgram width small modulus constant) (modularWordOutput modulus constant) :=
+      (modularOffsetProgram width small modulus constant)
+      environment (modularWordOutput modulus constant) :=
   (((gidneySmallPivot_realizes width small (offsetFirstPivot modulus constant)).seq
     (gidneySmallPivot_realizes width small modulus)).seq
       (gidneySmallPivot_realizes width small (offsetLastPivot modulus constant))).congrStep
         (gidneyModularWord_three_pivots modulus constant)
 
 /-- Literal native ledgers are retained; no effective aggregate operation is substituted. -/
-theorem gidneySmallModularOffset_eventCost (width : Nat) (small : width ≤ 2)
+lemma gidneySmallModularOffset_eventCost (width : Nat) (small : width ≤ 2)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width small modulus constant).eventCost =
       (pivotProgram width small (offsetFirstPivot modulus constant)).eventCost +
@@ -104,7 +107,7 @@ theorem gidneySmallModularOffset_eventCost (width : Nat) (small : width ≤ 2)
           (pivotProgram width small (offsetLastPivot modulus constant)).eventCost := by
   simp only [modularOffsetProgram, UnitaryCircuit.seq_eventCost]
 
-theorem gidneySmallModularOffset_depth_eq_events (width : Nat) (small : width ≤ 2)
+lemma gidneySmallModularOffset_depth_eq_events (width : Nat) (small : width ≤ 2)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width small modulus constant).evaluatedEventDepth (fun _ => 1) =
       (modularOffsetProgram width small modulus constant).eventCost.card := by
@@ -113,7 +116,7 @@ theorem gidneySmallModularOffset_depth_eq_events (width : Nat) (small : width �
     gidneySmallPivot_depth_eq_events, Multiset.card_add]
 
 /-- A uniform small-branch bound follows from the three literal pivot lists. -/
-theorem gidneySmallModularOffset_event_count_bound (width : Nat) (small : width ≤ 2)
+lemma gidneySmallModularOffset_event_count_bound (width : Nat) (small : width ≤ 2)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width small modulus constant).eventCost.card ≤ 9 := by
   rw [gidneySmallModularOffset_eventCost]

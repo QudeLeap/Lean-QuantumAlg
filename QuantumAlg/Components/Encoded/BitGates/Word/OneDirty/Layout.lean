@@ -45,17 +45,17 @@ def firstWidth (controls : Nat) : Nat := (controls + 1) / 2
 /-- The remaining, possibly smaller group. -/
 def secondWidth (controls : Nat) : Nat := controls - firstWidth controls
 
-private theorem width_partition (controls : Nat) :
+private lemma width_partition (controls : Nat) :
     firstWidth controls + secondWidth controls = controls := by
   simp only [secondWidth, firstWidth]
   omega
 
-private theorem first_width_bound (controls : Nat) : firstWidth controls ≤ controls := by
+private lemma first_width_bound (controls : Nat) : firstWidth controls ≤ controls := by
   unfold firstWidth
   omega
 
 /-- At least three controls make both elementary subcalls have at least two controls. -/
-theorem balanced_widths (large : 3 ≤ controls) :
+lemma balanced_widths (large : 3 ≤ controls) :
     2 ≤ firstWidth controls ∧ 1 ≤ secondWidth controls ∧
       firstWidth controls - 2 ≤ secondWidth controls ∧
       secondWidth controls - 1 ≤ firstWidth controls := by
@@ -79,20 +79,20 @@ def firstBit (index : Fin (firstWidth controls)) : EncodedBit encoding :=
 def secondBit (index : Fin (secondWidth controls)) : EncodedBit encoding :=
   layout.source.bit (secondIndex index)
 
-theorem firstBit_injective : Function.Injective (fun index => (layout.firstBit index).wire) := by
+lemma firstBit_injective : Function.Injective (fun index => (layout.firstBit index).wire) := by
   intro left right equal
   have indices := layout.source_injective equal
   have values := congrArg (fun index : Fin controls => index.val) indices
   exact Fin.ext values
 
-theorem secondBit_injective : Function.Injective (fun index => (layout.secondBit index).wire) := by
+lemma secondBit_injective : Function.Injective (fun index => (layout.secondBit index).wire) := by
   intro left right equal
   have values := congrArg Fin.val (layout.source_injective equal)
   apply Fin.ext
   change firstWidth controls + left.val = firstWidth controls + right.val at values
   omega
 
-theorem firstBit_secondBit_ne (left : Fin (firstWidth controls))
+lemma firstBit_secondBit_ne (left : Fin (firstWidth controls))
     (right : Fin (secondWidth controls)) :
     (layout.firstBit left).wire ≠ (layout.secondBit right).wire := by
   intro equal
@@ -102,7 +102,7 @@ theorem firstBit_secondBit_ne (left : Fin (firstWidth controls))
   omega
 
 /-- Every original control belongs to exactly the two physically specified groups. -/
-theorem source_all_iff (state : Data) :
+lemma source_all_iff (state : Data) :
     (∀ index, (layout.source.bit index).get state = true) ↔
       (∀ index, (layout.firstBit index).get state = true) ∧
         (∀ index, (layout.secondBit index).get state = true) := by

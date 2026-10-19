@@ -49,6 +49,7 @@ namespace FullPlacement
 variable {source : BinaryLabelEncoding Source} {target : BinaryLabelEncoding Target}
 variable (layout : FullPlacement source target)
 variable {gates : GateModel} {oracles : OracleModel}
+variable {environment : oracles.Interpretation}
 
 private abbrev sourceLayout := (QubitLayout.canonical source.width).toQuantum
 private abbrev targetLayout := (QubitLayout.canonical target.width).toQuantum
@@ -60,10 +61,10 @@ private def position : Fin source.width ↪ Fin target.width where
     apply layout.wire_injective
     exact congrArg Fin.val same
 
-private theorem position_surjective : Function.Surjective layout.position :=
+private lemma position_surjective : Function.Surjective layout.position :=
   layout.wire_surjective
 
-private theorem dimensions (index : Fin source.width) :
+private lemma dimensions (index : Fin source.width) :
     ((sourceLayout (source := source)).wire index).dimension =
       ((targetLayout (target := target)).wire (layout.position index)).dimension := by
   rfl
@@ -78,7 +79,7 @@ def place (body : UnitaryCircuit gates oracles (sourceLayout (source := source))
 def step (action : Source → Source) (state : Target) : Target :=
   layout.grouping.symm (action (layout.grouping state))
 
-private theorem selectedInput_encode (state : Target) :
+private lemma selectedInput_encode (state : Target) :
     UnitaryCircuit.selectedInput (sourceLayout (source := source))
         (targetLayout (target := target)) layout.position layout.dimensions
         ((QubitLayout.canonical target.width).basisEquiv.symm (target.encode state)) =
@@ -97,7 +98,7 @@ private theorem selectedInput_encode (state : Target) :
   exact congrArg finTwoEquiv
     (layout.basis_position (source.encode (layout.grouping state)) index)
 
-private theorem complement_encode (left right : Target) :
+private lemma complement_encode (left right : Target) :
     (targetLayout (target := target)).restrictComplementBasis
         (Finset.univ.map layout.position)
         ((QubitLayout.canonical target.width).basisEquiv.symm (target.encode left)) =
@@ -111,14 +112,14 @@ private theorem complement_encode (left right : Target) :
     (same ▸ Finset.mem_map_of_mem layout.position (Finset.mem_univ sourceIndex))
 
 /-- Exact encoded-basis semantics follow from the same physical position map. -/
-theorem place_realizes {body : UnitaryCircuit gates oracles (sourceLayout (source := source))}
-    {action : Source → Source} (realizes : UnitaryCircuit.Realizes source body action) :
-    UnitaryCircuit.Realizes target (layout.place body) (layout.step action) where
+lemma place_realizes {body : UnitaryCircuit gates oracles (sourceLayout (source := source))}
+    {action : Source → Source} (realizes : UnitaryCircuit.Realizes source body environment action) :
+    UnitaryCircuit.Realizes target (layout.place body) environment (layout.step action) where
   apply_encoded_ket := by
     intro state
     refine UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
       (sourceLayout (source := source)) (targetLayout (target := target))
-      layout.position layout.dimensions body
+      layout.position layout.dimensions body environment
       ((QubitLayout.canonical source.width).basisEquiv.symm
         (source.encode (layout.grouping state)))
       ((QubitLayout.canonical source.width).basisEquiv.symm
@@ -134,15 +135,15 @@ theorem place_realizes {body : UnitaryCircuit gates oracles (sourceLayout (sourc
     · exact layout.complement_encode (layout.step action state) state
 
 /-- Transport one proved admitted-input equation through the same actual placement. -/
-theorem place_ket_of_eq
+lemma place_ket_of_eq
     (body : UnitaryCircuit gates oracles (sourceLayout (source := source)))
     (initial final : Source)
-    (actual : body.applyNormalized
+    (actual : body.applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical source.width).basisEquiv.symm (source.encode initial))) =
         NormalizedVector.ket
           ((QubitLayout.canonical source.width).basisEquiv.symm (source.encode final))) :
-    (layout.place body).applyNormalized
+    (layout.place body).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical target.width).basisEquiv.symm
           (target.encode (layout.grouping.symm initial)))) =
@@ -151,7 +152,7 @@ theorem place_ket_of_eq
           (target.encode (layout.grouping.symm final))) := by
   refine UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
     (sourceLayout (source := source)) (targetLayout (target := target))
-    layout.position layout.dimensions body
+    layout.position layout.dimensions body environment
     ((QubitLayout.canonical source.width).basisEquiv.symm (source.encode initial))
     ((QubitLayout.canonical source.width).basisEquiv.symm (source.encode final))
     actual
@@ -167,13 +168,13 @@ theorem place_ket_of_eq
       (layout.grouping.symm final) (layout.grouping.symm initial)
 
 /-- Placement retains the complete ordered native event trace. -/
-theorem place_eventTrace
+lemma place_eventTrace
     (body : UnitaryCircuit gates oracles (sourceLayout (source := source))) :
     (layout.place body).eventTrace = body.eventTrace :=
   UnitaryCircuit.placeAt_eventTrace _ _ _ _ _
 
 /-- Placement retains every evaluated native dependency depth. -/
-theorem place_evaluatedEventDepth
+lemma place_evaluatedEventDepth
     (body : UnitaryCircuit gates oracles (sourceLayout (source := source)))
     (duration : Resource.Event (.quantum gates oracles) → Nat) :
     (layout.place body).evaluatedEventDepth duration = body.evaluatedEventDepth duration :=

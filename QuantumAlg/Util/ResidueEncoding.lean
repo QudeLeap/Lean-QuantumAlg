@@ -61,34 +61,34 @@ def encode {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) : Fin (2 ^ n
   ⟨z.val, lt_of_lt_of_le (ZMod.val_lt z) E.register_fits⟩
 
 @[simp]
-theorem encode_val {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
+lemma encode_val {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
     (E.encode z).val = z.val := rfl
 
 @[simp]
-theorem decode_val {N n : ℕ} (E : BinaryResidueEncoding N n) (x : Fin (2 ^ n)) :
+lemma decode_val {N n : ℕ} (E : BinaryResidueEncoding N n) (x : Fin (2 ^ n)) :
     (E.decode x).val = x.val % N := by
   simp [decode, ZMod.val_natCast]
 
 /-- Encoding always produces a canonical register label. -/
-theorem encode_isValid {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
+lemma encode_isValid {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
     E.IsValid (E.encode z) := by
   let _ : NeZero N := ⟨ne_of_gt E.modulus_pos⟩
   simpa [IsValid, encode] using ZMod.val_lt z
 
 @[simp]
-theorem decode_encode {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
+lemma decode_encode {N n : ℕ} (E : BinaryResidueEncoding N n) (z : ZMod N) :
     E.decode (E.encode z) = z := by
   let _ : NeZero N := ⟨ne_of_gt E.modulus_pos⟩
   simp [decode, encode]
 
 /-- Canonical binary encoding does not identify distinct residues. -/
-theorem encode_injective {N n : ℕ} (E : BinaryResidueEncoding N n) :
+lemma encode_injective {N n : ℕ} (E : BinaryResidueEncoding N n) :
     Function.Injective E.encode := by
   intro left right h
   rw [← E.decode_encode left, ← E.decode_encode right, h]
 
 /-- Valid canonical labels round-trip through `decode` and `encode`. -/
-theorem encode_decode_of_valid {N n : ℕ} (E : BinaryResidueEncoding N n)
+lemma encode_decode_of_valid {N n : ℕ} (E : BinaryResidueEncoding N n)
     (x : Fin (2 ^ n)) (hx : E.IsValid x) :
     E.encode (E.decode x) = x := by
   apply Fin.ext

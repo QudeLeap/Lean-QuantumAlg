@@ -7,4 +7,6 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Primitives.PhaseKickback.Endpoint
+public import QuantumAlg.Primitives.PhaseKickback.Endpoint.Results
 public import QuantumAlg.Primitives.PhaseKickback.GeneralizedEndpoint
+public import QuantumAlg.Primitives.PhaseKickback.GeneralizedEndpoint.Results

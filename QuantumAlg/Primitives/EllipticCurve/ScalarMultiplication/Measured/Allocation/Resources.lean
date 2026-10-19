@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.All
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Cascade.Resources
 import all QuantumAlg.Core.Execution.Measurement.Cells.Framing.Resources
 import all QuantumAlg.Core.Execution.Circuit.Weighted
+import all QuantumAlg.Core.Execution.Composition.Resources
 
 /-!
 # Charged initialization and native measured cascade resources
@@ -28,12 +29,12 @@ noncomputable section
 open Execution MeasuredUncompute
 
 /-- The literal initialization trace includes every zero preparation and fixed X load. -/
-theorem initialize_eventTrace (modulus count : Nat) (path : (initializeWork modulus count).Path) :
+lemma initialize_eventTrace (modulus count : Nat) (path : (initializeWork modulus count).Path) :
     (initializeWork modulus count).eventTrace path = initializationTrace modulus count :=
   initializeWork_eventTrace modulus count path
 
 /-- The real preparation and loading dependencies fit their exact event allowance. -/
-theorem initialize_depth (modulus count : Nat)
+lemma initialize_depth (modulus count : Nat)
     (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (initializeWork modulus count).Path) :
     (initializeWork modulus count).depth duration path ≤
@@ -44,54 +45,66 @@ theorem initialize_depth (modulus count : Nat)
 
 /-- The complete original cascade outcomes identify all actual post-allocation execution paths. -/
 def placedPathEquiv {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count)) :
-    (cascade E points order).Path ≃ (placedCascade E points order).Path :=
-  ContextPermutation.localPathEquiv (cascade E points order) (cascade_isLocal E points order)
-    (after p.size count) (body_entries p.size count)
+    {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
+    (allowAllocation : Bool := true) :
+    (cascade E points order false).Path ≃ (placedCascade E points order allowAllocation).Path :=
+  Equiv.refl _
 
 /-- The post-allocation code emits the same complete ordered native cascade events. -/
-theorem placedCascade_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedCascade_eventTrace {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (path : (cascade E points order).Path) :
-    (placedCascade E points order).eventTrace (placedPathEquiv E points order path) =
-      (cascade E points order).eventTrace path :=
-  ContextPermutation.localCircuit_eventTrace _ _ _ _ path
+    (path : (cascade E points order false).Path) :
+    (placedCascade E points order allowAllocation).eventTrace
+        (placedPathEquiv E points order allowAllocation path) =
+      (cascade E points order false).eventTrace path := rfl
 
 /-- Placement preserves the independent per-invocation native event bound. -/
-theorem placedCascade_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedCascade_budget {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (path : (placedCascade E points order).Path) :
-    (placedCascade E points order).resourcePool path ≤
+    (path : (placedCascade E points order allowAllocation).Path) :
+    (placedCascade E points order allowAllocation).resourcePool path ≤
       ResourcePool.scale order.length (MeasuredPointAddition.events p.size) := by
-  obtain ⟨original, rfl⟩ := (placedPathEquiv E points order).surjective path
-  exact (ContextPermutation.localCircuit_resourcePool _ _ _ _ original).le.trans
-    (cascade_budget E points order original)
+  exact (Circuit.resourcePool_embed (allowAllocation := allowAllocation)
+    (ContextEmbedding.alongPermutation (body_entries p.size count))
+    (cascade E points order false) path).le.trans
+      (cascade_budget (allowAllocation := false) E points order path)
 
 /-- The actual post-allocation cascade retains its independent serial native depth bound. -/
-theorem placedCascade_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedCascade_depth {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (path : (placedCascade E points order).Path) :
-    (placedCascade E points order).depth (fun _ => 1) path ≤
+    (path : (placedCascade E points order allowAllocation).Path) :
+    (placedCascade E points order allowAllocation).depth (fun _ => 1) path ≤
       order.length * MeasuredPointAddition.depthBound p.size := by
-  obtain ⟨original, rfl⟩ := (placedPathEquiv E points order).surjective path
-  exact (ContextPermutation.localCircuit_depth _ _ _ _ (fun _ => 1) original).le.trans
-    (cascade_depth E points order original)
+  exact cascade_depth (allowAllocation := false) E points order path
 
 /-- The allocated cascade keeps the exact complete common resident capacity. -/
-theorem placedCascade_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedCascade_resident {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (path : (placedCascade E points order).Path) :
-    (placedCascade E points order).peakResidentSpace path = readySpace p.size count :=
-  (ContextPermutation.localCircuit_peakResidentSpace _ _ _ path).trans
-    (readyContext_resident_exact p.size count)
+    (path : (placedCascade E points order allowAllocation).Path) :
+    (placedCascade E points order allowAllocation).peakResidentSpace path =
+      readySpace p.size count :=
+  (Circuit.peakResidentSpace_embed (allowAllocation := allowAllocation)
+    (ContextEmbedding.alongPermutation (body_entries p.size count))
+    (cascade E points order false) path).trans
+      ((ContextPermutation.resident_space (body_entries p.size count)).symm.trans
+        (readyContext_resident_exact p.size count))
 
 /-- The same complete entries retain their original auxiliary roles after allocation placement. -/
-theorem placedCascade_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedCascade_auxiliary {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (path : (placedCascade E points order).Path) :
-    (placedCascade E points order).peakAuxiliarySpace path = readySpace p.size count :=
-  (ContextPermutation.localCircuit_peakAuxiliarySpace _ _ _ path).trans
-    (readyContext_auxiliary_exact p.size count)
+    (path : (placedCascade E points order allowAllocation).Path) :
+    (placedCascade E points order allowAllocation).peakAuxiliarySpace path =
+      readySpace p.size count :=
+  (Circuit.peakAuxiliarySpace_embed (allowAllocation := allowAllocation)
+    (ContextEmbedding.alongPermutation (body_entries p.size count))
+    (cascade E points order false) path).trans
+      ((ContextPermutation.auxiliary_space (body_entries p.size count)).symm.trans
+        (readyContext_auxiliary_exact p.size count))
 
 /-- Input-determined preparation allowance and every prescribed point call. -/
 def eventBudget (modulus count calls : Nat) :
@@ -100,17 +113,18 @@ def eventBudget (modulus count calls : Nat) :
       ResourcePool.scale calls (MeasuredPointAddition.events modulus.size)
 
 /-- Every actual complete path charges initialization and all following measured point calls. -/
-theorem circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (path : (circuit E points order).Path) :
     (circuit E points order).resourcePool path ≤ eventBudget p count order.length := by
   change ResourcePool.ofList ((initializeWork p count).eventTrace path.1 ++
     (placedCascade E points order).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append, initialize_eventTrace]
-  exact ResourcePool.add_mono le_rfl (placedCascade_budget E points order path.2)
+  exact ResourcePool.add_mono le_rfl
+    (placedCascade_budget (allowAllocation := true) E points order path.2)
 
 /-- Every preparation and X load precedes the complete cascade duration. -/
-theorem circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (path : (circuit E points order).Path) :
     (circuit E points order).depth (fun _ => 1) path ≤
@@ -120,7 +134,7 @@ theorem circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime
   change (initializeWork p count).depth (fun _ => 1) path.1 +
     (placedCascade E points order).depth (fun _ => 1) path.2 ≤ _
   exact Nat.add_le_add (initialize_depth p count (fun _ => 1) path.1)
-    (placedCascade_depth E points order path.2)
+    (placedCascade_depth (allowAllocation := true) E points order path.2)
 
 end
 

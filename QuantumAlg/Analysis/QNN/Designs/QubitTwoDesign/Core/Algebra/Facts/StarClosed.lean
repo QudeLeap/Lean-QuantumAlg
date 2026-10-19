@@ -23,7 +23,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Exhaustive star lookup over the numerator codes needs this local budget.
 /-- Star closure of the numerators. -/
-theorem octNumerator_star_closed : ∀ a, ∃ b, octNumerator b = star (octNumerator a) := by decide
+lemma octNumerator_star_closed : ∀ a, ∃ b, octNumerator b = star (octNumerator a) := by decide
 
 end QuantumAlg.QubitTwoDesign
 

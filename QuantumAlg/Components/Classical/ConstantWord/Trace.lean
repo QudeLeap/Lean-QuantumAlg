@@ -32,7 +32,7 @@ def loaderTrace (model : ExecutionModel) [BitWord.Selected model] (width : Nat) 
     if bit then [ConstantWord.incrementEvent model width] else []
 
 /-- The actual bit fold emits every original shift and selected increment in order. -/
-theorem constantFold_eventTrace (output : CWriteRef ctx (.unsignedWord width))
+lemma constantFold_eventTrace (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) (path : (ConstantWord.fold (model := model) output bits).Path) :
     (ConstantWord.fold (model := model) output bits).eventTrace path =
       loaderTrace model width bits := by
@@ -45,7 +45,7 @@ theorem constantFold_eventTrace (output : CWriteRef ctx (.unsignedWord width))
     rfl
 
 /-- Every actual bit-fold duration is exactly the sum of its original native events. -/
-theorem constantFold_depth (output : CWriteRef ctx (.unsignedWord width))
+lemma constantFold_depth (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) (duration : Resource.Event model → Nat)
     (path : (ConstantWord.fold (model := model) output bits).Path) :
     (ConstantWord.fold (model := model) output bits).depth duration path =

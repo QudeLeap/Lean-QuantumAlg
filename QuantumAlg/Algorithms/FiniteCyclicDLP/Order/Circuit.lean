@@ -48,7 +48,7 @@ public abbrev secondLayout (P : KnownOrderProblem G) :
 
 omit [Fintype G] in
 /-- The two consecutive exponent layouts have distinct physical identities. -/
-public theorem exponentLayouts_disjoint (P : KnownOrderProblem G) :
+public lemma exponentLayouts_disjoint (P : KnownOrderProblem G) :
     List.Disjoint (OrderPreparation.layout P).identities
       (secondLayout P).identities := by
   apply List.disjoint_left.mpr
@@ -61,7 +61,7 @@ public theorem exponentLayouts_disjoint (P : KnownOrderProblem G) :
 
 omit [Fintype G] in
 /-- Appending the two exponent blocks gives the oracle's canonical exponent layout. -/
-public theorem pairLayout_eq_exponentLayout (P : KnownOrderProblem G) :
+public lemma pairLayout_eq_exponentLayout (P : KnownOrderProblem G) :
     QuantumLayout.append (OrderPreparation.layout P) (secondLayout P)
       (exponentLayouts_disjoint P) = OrderOracle.exponentLayout P := by
   apply QuantumLayout.eq_of_wire_eq
@@ -123,7 +123,7 @@ public def circuit (P : KnownOrderProblem G) (expansion : OrderExpansion P.order
   queried.seq (inverseQFTs P)
 
 /-- Parallel preparation preserves both actual ledgers without serializing their depths. -/
-public theorem preparations_eventCost (P : KnownOrderProblem G)
+public lemma preparations_eventCost (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     (preparations P expansion).eventCost =
       (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).eventCost +
@@ -134,7 +134,7 @@ public theorem preparations_eventCost (P : KnownOrderProblem G)
     UnitaryCircuit.tensor_native_eventCost, UnitaryCircuit.relabel_eventCost]
 
 /-- The two identical preparation branches have the depth of one actual branch. -/
-public theorem preparations_unit_depth (P : KnownOrderProblem G)
+public lemma preparations_unit_depth (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     (preparations P expansion).evaluatedEventDepth (fun _ => 1) =
       (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).evaluatedEventDepth
@@ -147,7 +147,7 @@ public theorem preparations_unit_depth (P : KnownOrderProblem G)
     UnitaryCircuit.relabel_evaluatedEventDepth, Nat.max_self]
 
 /-- Parallel inverse QFTs preserve both generated native ledgers. -/
-public theorem inverseQFTs_eventCost (P : KnownOrderProblem G) :
+public lemma inverseQFTs_eventCost (P : KnownOrderProblem G) :
     (inverseQFTs P).eventCost =
       (QuantumFourierTransform.Native.inverseCircuit
         (OrderOracle.model P) (OrderPreparation.width P)).eventCost +
@@ -159,10 +159,10 @@ public theorem inverseQFTs_eventCost (P : KnownOrderProblem G) :
     UnitaryCircuit.tensor_native_eventCost, UnitaryCircuit.relabel_eventCost]
 
 /-- The two identical inverse QFT branches have the depth of one generated word. -/
-public theorem inverseQFTs_unit_depth (P : KnownOrderProblem G) :
+public lemma inverseQFTs_unit_depth (P : KnownOrderProblem G) :
     (inverseQFTs P).evaluatedEventDepth (fun _ => 1) =
       OrderPreparation.width P + 5 * (OrderPreparation.width P).choose 2 +
-        3 * (OrderPreparation.width P / 2) := by
+        (if OrderPreparation.width P / 2 = 0 then 0 else 3) := by
   rw [inverseQFTs, withWorkspace, pairCircuit,
     UnitaryCircuit.tensor_native_evaluatedEventDepth,
     UnitaryCircuit.evaluatedEventDepth_identity, Nat.max_zero,
@@ -173,7 +173,7 @@ public theorem inverseQFTs_unit_depth (P : KnownOrderProblem G) :
     (OrderOracle.model P) (OrderPreparation.width P)
 
 /-- The complete native ledger is derived from its two preparations, one query and two QFTs. -/
-public theorem circuit_eventCost (P : KnownOrderProblem G)
+public lemma circuit_eventCost (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     (circuit P expansion).eventCost =
       ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).eventCost +
@@ -188,19 +188,19 @@ public theorem circuit_eventCost (P : KnownOrderProblem G)
     preparations_eventCost, OrderOracle.circuit_eventCost, inverseQFTs_eventCost]
 
 /-- Exact max-plus depth of one complete unitary sampling cycle. -/
-public theorem circuit_unit_depth (P : KnownOrderProblem G)
+public lemma circuit_unit_depth (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     (circuit P expansion).evaluatedEventDepth (fun _ => 1) =
       (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).evaluatedEventDepth
         (fun _ => 1) + 1 +
       (OrderPreparation.width P + 5 * (OrderPreparation.width P).choose 2 +
-        3 * (OrderPreparation.width P / 2)) := by
+        (if OrderPreparation.width P / 2 = 0 then 0 else 3)) := by
   rw [circuit, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.evaluatedEventDepth_seq, preparations_unit_depth,
     OrderOracle.circuit_unit_depth, inverseQFTs_unit_depth]
 
 /-- Exact native one-qubit count of the complete unitary sampling stage. -/
-public theorem circuit_singleQubit_count (P : KnownOrderProblem G)
+public lemma circuit_singleQubit_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model (OrderOracle.model P))
@@ -215,7 +215,7 @@ public theorem circuit_singleQubit_count (P : KnownOrderProblem G)
   omega
 
 /-- Exact native CNOT count of the complete unitary sampling stage. -/
-public theorem circuit_cnot_count (P : KnownOrderProblem G)
+public lemma circuit_cnot_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model (OrderOracle.model P))
@@ -231,7 +231,7 @@ public theorem circuit_cnot_count (P : KnownOrderProblem G)
   omega
 
 /-- The complete native sampling stage contains no Toffoli occurrence. -/
-public theorem circuit_toffoli_count (P : KnownOrderProblem G)
+public lemma circuit_toffoli_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model (OrderOracle.model P))
@@ -243,7 +243,7 @@ public theorem circuit_toffoli_count (P : KnownOrderProblem G)
   simp
 
 /-- The complete native sampling stage invokes its sole granted oracle once. -/
-public theorem circuit_ux_count (P : KnownOrderProblem G)
+public lemma circuit_ux_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model (OrderOracle.model P))

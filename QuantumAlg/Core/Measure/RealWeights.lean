@@ -21,7 +21,7 @@ namespace QuantumAlg.TerminalZMeasure
 noncomputable section
 
 /-- The real value of the Born outcome is the exact finite squared-amplitude fiber. -/
-theorem outcomePMF_toReal {total measured : Nat} {layout : QubitLayout total}
+lemma outcomePMF_toReal {total measured : Nat} {layout : QubitLayout total}
     (measurement : TerminalZMeasure layout measured) (state : QubitLayout.State layout)
     (outcome : Outcome measured) :
     (measurement.outcomePMF state outcome).toReal =

@@ -38,7 +38,7 @@ def InputRepresents {kind : ProblemKind} {ctx : RuntimeCtx kind} (spec : Modulus
 variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
 
-private theorem oneValue (spec : ModulusSpec width) :
+private lemma oneValue (spec : ModulusSpec width) :
     CShape.wordOfNat width 1 = residueValue (Residue.one spec) := by
   apply congrArg CShape.Value.unsignedWord
   apply Fin.ext
@@ -47,7 +47,7 @@ private theorem oneValue (spec : ModulusSpec width) :
   exact Nat.mod_eq_of_lt ((modulusSpec_one_lt spec).trans_le spec.le_capacity)
 
 /-- The actual initialized exponent fold reaches exactly the original intrinsic power. -/
-theorem nativePower_initialized_fold_result (spec : ModulusSpec width)
+lemma nativePower_initialized_fold_result (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth)) (store : Store ctx)
     (input : Pow.Input spec exponentWidth)
@@ -97,7 +97,7 @@ theorem nativePower_initialized_fold_result (spec : ModulusSpec width)
   exact actual.trans (nativePower_math_fold spec input)
 
 /-- The real final copy writes the source power into the original result cell under the scopes. -/
-theorem nativePower_body_result (spec : ModulusSpec width)
+lemma nativePower_body_result (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
@@ -118,7 +118,7 @@ theorem nativePower_body_result (spec : ModulusSpec width)
     represented
 
 /-- Releasing only the real scratch cells preserves the exact modular-power result. -/
-theorem nativePower_into_result (spec : ModulusSpec width)
+lemma nativePower_into_result (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
@@ -131,7 +131,7 @@ theorem nativePower_into_result (spec : ModulusSpec width)
   exact nativePower_body_result (model := model) spec base exponent output store input represented
 
 /-- The actual written natural value is the original modular power of the stored source input. -/
-theorem nativePower_into_toNat (spec : ModulusSpec width)
+lemma nativePower_into_toNat (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)

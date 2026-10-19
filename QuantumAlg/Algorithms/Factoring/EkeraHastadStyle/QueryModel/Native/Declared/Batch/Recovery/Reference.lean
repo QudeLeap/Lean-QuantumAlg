@@ -6,8 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Recovery
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Source.Recovery
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Recovery
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Source.Recovery
 import all QuantumAlg.Core.Execution.Classical.Support
 
 /-!
@@ -32,7 +34,9 @@ attribute [local irreducible] Batch.context into step
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-theorem packed_read (store : Store (Batch.context base noQuantum N)) :
+variable {environment : (model N).Environment}
+
+lemma packed_read (store : Store (Batch.context base noQuantum N)) :
     SourceRecovery.packedValue (store.read (Batch.sourceRead base noQuantum N)) =
       LatticeFixedBatchRecoveryMachine.batchValue
         (SourceRecovery.decodeSource (store.read (Batch.sourceRead base noQuantum N)))
@@ -47,7 +51,7 @@ theorem packed_read (store : Store (Batch.context base noQuantum N)) :
     LatticePairRecoveryBatch.preparedSamples, List.Vector.get_map, List.Vector.get_ofFn]
   congr 1
 
-theorem sampled_parameter
+lemma sampled_parameter
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Batch.context base noQuantum N) Reference History)
     (normalized : state.IsNormalized)
@@ -68,24 +72,24 @@ theorem sampled_parameter
 
 /-- The real allocated recovery maps every positive source block to its
 pure complete first-success factor value in the same reference matrix. -/
-theorem into_factor_read
+lemma into_factor_read
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Batch.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (sourceLaw : (state.toPMF normalized).map
       (fun entry => entry.1.read (Batch.sourceRead base noQuantum N)) =
         Batch.sourceDistribution input) :
-    ((into base noQuantum N input).execute Reference state).mapClassical
+    ((into base noQuantum N input).execute environment Reference state).mapClassical
       (fun entry => entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)) =
     state.mapClassical (fun entry =>
       SourceRecovery.packedValue (entry.1.read (Batch.sourceRead base noQuantum N))) := by
   have executed := congrArg
     (fun output : State (Batch.context base noQuantum N) Reference
-        ((model input).HiddenState × (History × (into base noQuantum N input).Path)) =>
+        ((model N).HiddenState × (History × (into base noQuantum N input).Path)) =>
       output.mapClassical (fun entry =>
         entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)))
-    (into_execute base noQuantum N input Reference state)
+    (into_execute (environment := environment) base noQuantum N input Reference state)
   refine executed.trans ((ExecutionState.executionState_mapClassical_comp state
     (fun entry =>
       (let actual := step base noQuantum N input entry.1
@@ -104,27 +108,27 @@ set_option maxRecDepth 2048
 
 /-- Complete paid recovery preserves a protected caller read jointly with the
 factor it writes, including its correlation with an external reference. -/
-theorem into_joint_read
+lemma into_joint_read
     {Reference : Register} {History : Type} [Fintype History]
     {shape : CShape} (observed : CInputRef (Batch.context base noQuantum N) shape)
     (factorFree : (Batch.factorRef base noQuantum N).key ∉ observed.storageKeys)
     (state : State (Batch.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (sourceLaw : (state.toPMF normalized).map
       (fun entry => entry.1.read (Batch.sourceRead base noQuantum N)) =
         Batch.sourceDistribution input) :
-    ((into base noQuantum N input).execute Reference state).mapClassical
+    ((into base noQuantum N input).execute environment Reference state).mapClassical
       (fun entry => (entry.1.read observed,
         entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef))) =
     state.mapClassical (fun entry => (entry.1.read observed,
       SourceRecovery.packedValue (entry.1.read (Batch.sourceRead base noQuantum N)))) := by
   have executed := congrArg
     (fun output : State (Batch.context base noQuantum N) Reference
-        ((model input).HiddenState × (History × (into base noQuantum N input).Path)) =>
+        ((model N).HiddenState × (History × (into base noQuantum N input).Path)) =>
       output.mapClassical (fun entry => (entry.1.read observed,
         entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef))))
-    (into_execute base noQuantum N input Reference state)
+    (into_execute (environment := environment) base noQuantum N input Reference state)
   refine executed.trans ((ExecutionState.executionState_mapClassical_comp state
     (fun entry =>
       (let actual := step base noQuantum N input entry.1

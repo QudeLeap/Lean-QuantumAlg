@@ -35,9 +35,9 @@ public def pairBasis {phaseWidth systemWidth : Nat}
   (QuantumSignature.qubitsIndexEquiv (phaseWidth + systemWidth)).symm (prodEquiv (phase, source))
 
 /-- The declared control occupies its original reversed phase position. -/
-public theorem qpeNative_query_control_position {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth) (index : Fin 1) :
-    (queryApplication unitary stage).embedding.position (Fin.castAdd systemWidth index) =
+public lemma qpeNative_query_control_position {phaseWidth : Nat} (systemWidth : Nat) (stage :
+  Fin phaseWidth) (index : Fin 1) :
+    (queryApplication systemWidth stage).embedding.position (Fin.castAdd systemWidth index) =
       Fin.castAdd systemWidth stage.rev := by
   change Fin.addCases (motive := fun _ : Fin (1 + systemWidth) =>
     Fin (phaseWidth + systemWidth))
@@ -46,10 +46,10 @@ public theorem qpeNative_query_control_position {phaseWidth systemWidth : Nat}
   exact Fin.addCases_left index
 
 /-- Each source argument remains at its original position after the phase prefix. -/
-public theorem qpeNative_query_source_position {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
+public lemma qpeNative_query_source_position {phaseWidth : Nat} (systemWidth : Nat) (stage :
+  Fin phaseWidth)
     (index : Fin systemWidth) :
-    (queryApplication unitary stage).embedding.position (Fin.natAdd 1 index) =
+    (queryApplication systemWidth stage).embedding.position (Fin.natAdd 1 index) =
       Fin.natAdd phaseWidth index := by
   change Fin.addCases (motive := fun _ : Fin (1 + systemWidth) =>
     Fin (phaseWidth + systemWidth))
@@ -58,10 +58,10 @@ public theorem qpeNative_query_source_position {phaseWidth systemWidth : Nat}
   exact Fin.addCases_right index
 
 /-- The declared arguments are the selected phase bit and original source coordinates. -/
-public theorem qpeNative_query_selected_basis {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
+public lemma qpeNative_query_selected_basis {phaseWidth : Nat} (systemWidth : Nat) (stage :
+  Fin phaseWidth)
     (phase : Fin (2 ^ phaseWidth)) (source : Fin (2 ^ systemWidth)) :
-    ((queryApplication unitary stage).basisEquiv (pairBasis phase source)).1 =
+    ((queryApplication systemWidth stage).basisEquiv (pairBasis phase source)).1 =
       Fin.addCases (fun _ : Fin 1 => finTwoEquiv.symm (phase.val.testBit stage.val))
         ((QuantumSignature.qubitsIndexEquiv systemWidth).symm source) := by
   funext index
@@ -70,21 +70,21 @@ public theorem qpeNative_query_selected_basis {phaseWidth systemWidth : Nat}
     subst first
     apply Fin.ext
     have selected := OracleModel.Application.oracleApplication_selected_value
-      (queryApplication unitary stage) (pairBasis phase source) (Fin.castAdd systemWidth 0)
+      (queryApplication systemWidth stage) (pairBasis phase source) (Fin.castAdd systemWidth 0)
     have original := congrArg Fin.val (BinaryBasis.bigEndianEquiv_prod_left
       (leftWidth := phaseWidth) (rightWidth := systemWidth) phase source stage.rev)
-    change (((queryApplication unitary stage).basisEquiv (pairBasis phase source)).1
+    change (((queryApplication systemWidth stage).basisEquiv (pairBasis phase source)).1
       (Fin.castAdd systemWidth 0)).val =
         (finTwoEquiv.symm (phase.val.testBit stage.val)).val
     refine selected.trans (original.trans ?_)
     simp only [BinaryBasis.bigEndianEquiv_symm_value, Fin.rev_rev]
   · apply Fin.ext
     have selected := OracleModel.Application.oracleApplication_selected_value
-      (queryApplication unitary stage) (pairBasis phase source) (Fin.natAdd 1 last)
+      (queryApplication systemWidth stage) (pairBasis phase source) (Fin.natAdd 1 last)
     have original := congrArg Fin.val (BinaryBasis.bigEndianEquiv_prod_right
       (leftWidth := phaseWidth) (rightWidth := systemWidth) phase source last)
     rw [qpeNative_query_source_position] at selected
-    change (((queryApplication unitary stage).basisEquiv (pairBasis phase source)).1
+    change (((queryApplication systemWidth stage).basisEquiv (pairBasis phase source)).1
       (Fin.natAdd 1 last)).val =
         (pairBasis phase source (Fin.natAdd phaseWidth last)).val at selected
     have right := congrArg Fin.val (Fin.addCases_right
@@ -93,17 +93,17 @@ public theorem qpeNative_query_selected_basis {phaseWidth systemWidth : Nat}
       (right := (QuantumSignature.qubitsIndexEquiv systemWidth).symm source) last)
     exact selected.trans (original.trans right.symm)
 
-private theorem oneDecoded (bit : Fin 2) :
+private lemma oneDecoded (bit : Fin 2) :
     (BinaryBasis.bigEndianEquiv 1).symm bit = (fun _ : Fin 1 => bit) := by
   funext index
   fin_cases index
   fin_cases bit <;> rfl
 
 /-- The selected coordinates encode the original controlled source label exactly. -/
-public theorem qpeNative_query_selected_binary {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
+public lemma qpeNative_query_selected_binary {phaseWidth : Nat} (systemWidth : Nat) (stage :
+  Fin phaseWidth)
     (phase : Fin (2 ^ phaseWidth)) (source : Fin (2 ^ systemWidth)) :
-    ((queryApplication unitary stage).basisEquiv (pairBasis phase source)).1 =
+    ((queryApplication systemWidth stage).basisEquiv (pairBasis phase source)).1 =
       (QuantumSignature.qubitsIndexEquiv (1 + systemWidth)).symm
         (prodEquiv (finTwoEquiv.symm (phase.val.testBit stage.val), source)) := by
   rw [qpeNative_query_selected_basis]

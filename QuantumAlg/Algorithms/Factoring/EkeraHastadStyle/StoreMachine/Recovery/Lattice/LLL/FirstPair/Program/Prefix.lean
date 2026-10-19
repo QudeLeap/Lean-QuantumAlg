@@ -25,7 +25,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original actual numerator and denominator determine the stored reduction coefficient. -/
-theorem division_coefficient {model : ExecutionModel} [BitWord.Selected model]
+lemma division_coefficient {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
@@ -40,7 +40,7 @@ theorem division_coefficient {model : ExecutionModel} [BitWord.Selected model]
   exact result
 
 /-- Division leaves all nine original basis coordinates intact. -/
-theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
+lemma division_basis {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
@@ -54,7 +54,7 @@ theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
   cases cell <;> decide
 
 /-- The actual stored coefficient updates exactly the second row of the original pure reduction. -/
-theorem reduction_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma reduction_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)
     (coefficient : RawSignedRepresents (store.read (writeInput refs.division.output))
@@ -80,7 +80,7 @@ theorem reduction_basis (refs : Refs ctx width) (separation : Separation refs)
     cases cell <;> simp_all [rowCells, basisTransitionCell, reductionCells]
 
 /-- Refresh computes the reduced second norm and preserves all three actual basis rows. -/
-theorem refresh_basis_norm (refs : Refs ctx width) (separation : Separation refs)
+lemma refresh_basis_norm (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -101,7 +101,7 @@ theorem refresh_basis_norm (refs : Refs ctx width) (separation : Separation refs
     exact refreshed.1
 
 /-- The actual reduction prefix preserves the first norm input word exactly. -/
-theorem reductionPrefix_g11 {model : ExecutionModel} [BitWord.Selected model]
+lemma reductionPrefix_g11 {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (reductionPrefixStep (model := model) refs store).1.read
@@ -118,7 +118,7 @@ theorem reductionPrefix_g11 {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- The actual prefix produces the original reduced basis and both comparison inputs. -/
-theorem reductionPrefix_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma reductionPrefix_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :

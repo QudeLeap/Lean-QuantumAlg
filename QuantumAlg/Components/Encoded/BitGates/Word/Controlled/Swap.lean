@@ -30,6 +30,7 @@ namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Three-Toffoli controlled swaps for every bit of two encoded words. -/
 def controlledSwapGates (control : EncodedBit encoding)
@@ -80,7 +81,7 @@ def controlledSwapIndicesStep (control : EncodedBit encoding)
           (hcontrolLeft i) (hcontrolRight i) (hleftRight i) y) x
 
 /-- The concrete word-swap gate list agrees with the indexed fold semantics. -/
-theorem controlledSwapStep_eq_indicesStep (control : EncodedBit encoding)
+lemma controlledSwapStep_eq_indicesStep (control : EncodedBit encoding)
     (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -108,7 +109,7 @@ theorem controlledSwapStep_eq_indicesStep (control : EncodedBit encoding)
 
 /-- A controlled word-swap fold preserves any observed readout whose wire is
 distinct from every folded left and right target bit. -/
-theorem controlledSwapIndicesStep_get_observed_of_swap_ne
+lemma controlledSwapIndicesStep_get_observed_of_swap_ne
     (control : EncodedBit encoding) (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -169,7 +170,7 @@ theorem controlledSwapIndicesStep_get_observed_of_swap_ne
 
 /-- The complete controlled word swap preserves an observed readout whose wire
 is distinct from every left and right target bit. -/
-theorem controlledSwapStep_get_observed_of_swap_ne
+lemma controlledSwapStep_get_observed_of_swap_ne
     (control : EncodedBit encoding) (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -193,7 +194,7 @@ theorem controlledSwapStep_get_observed_of_swap_ne
 
 /-- A controlled word-swap fold sends the original right readout to the selected
 left bit exactly when the control is set and the selected index is present. -/
-theorem controlledSwapIndicesStep_get_left
+lemma controlledSwapIndicesStep_get_left
     (control : EncodedBit encoding) (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -318,7 +319,7 @@ theorem controlledSwapIndicesStep_get_left
 
 /-- A controlled word-swap fold sends the original left readout to the selected
 right bit exactly when the control is set and the selected index is present. -/
-theorem controlledSwapIndicesStep_get_right
+lemma controlledSwapIndicesStep_get_right
     (control : EncodedBit encoding) (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -443,7 +444,7 @@ theorem controlledSwapIndicesStep_get_right
 
 /-- The complete controlled word swap sends the original right readout to the
 selected left bit when the control is set. -/
-theorem controlledSwapStep_get_left
+lemma controlledSwapStep_get_left
     (control : EncodedBit encoding) (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -477,7 +478,7 @@ theorem controlledSwapStep_get_left
 
 /-- The complete controlled word swap sends the original left readout to the
 selected right bit when the control is set. -/
-theorem controlledSwapStep_get_right
+lemma controlledSwapStep_get_right
     (control : EncodedBit encoding) (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
@@ -510,29 +511,29 @@ theorem controlledSwapStep_get_right
       x
 
 /-- The controlled word-swap program realizes its folded semantic action. -/
-theorem controlledSwap_realizes (control : EncodedBit encoding)
+lemma controlledSwap_realizes (control : EncodedBit encoding)
     (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding
       (controlledSwapProgram physical oracles control left right
-        hcontrolLeft hcontrolRight hleftRight)
+        hcontrolLeft hcontrolRight hleftRight) environment
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
   GateSpec.realizesList physical oracles
     (controlledSwapGates control left right
-      hcontrolLeft hcontrolRight hleftRight)
+      hcontrolLeft hcontrolRight hleftRight) environment
 
 /-- Direct realization proof for controlled bitwise word swap. -/
-theorem controlledSwapWitness (control : EncodedBit encoding)
+lemma controlledSwapWitness (control : EncodedBit encoding)
     (left right : Word encoding width)
     (hcontrolLeft : ∀ i, control.wire ≠ (left.bit i).wire)
     (hcontrolRight : ∀ i, control.wire ≠ (right.bit i).wire)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding
       (controlledSwapProgram physical oracles control left right
-        hcontrolLeft hcontrolRight hleftRight)
+        hcontrolLeft hcontrolRight hleftRight) environment
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
   controlledSwap_realizes physical oracles control left right

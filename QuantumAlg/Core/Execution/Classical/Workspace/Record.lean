@@ -43,23 +43,24 @@ public def workspaceRecord (key : StorageKey) (shape : CShape) (fresh : key ∉ 
 
 open scoped Classical in
 /-- A proved actual body equation gives the full CQ record of its real lexical workspace. -/
-public theorem execute_workspaceRecord (key : StorageKey) (shape : CShape)
+public lemma execute_workspaceRecord
+    (environment : model.Environment) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (update : Store (ctx.addWorkspace key shape fresh) × model.HiddenState →
       (Store (ctx.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := update (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.workspace ctx key shape fresh body).execute Reference state =
+    (Circuit.workspace ctx key shape fresh body).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := workspaceRecord key shape fresh body update (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical key shape fresh body update
+  refine (Circuit.execute_workspace_mapClassical environment key shape fresh body update
     ?_ Reference state).trans ?_
   · intro reference history _ input
     exact (equation reference input).trans
@@ -78,23 +79,24 @@ public def workspaceStoreRecord (key : StorageKey) (shape : CShape)
 
 open scoped Classical in
 /-- A store-only body equation lifts through lexical storage and persistent service state. -/
-public theorem execute_workspaceStoreRecord (key : StorageKey) (shape : CShape)
+public lemma execute_workspaceStoreRecord
+    (environment : model.Environment) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (update : Store (ctx.addWorkspace key shape fresh) →
       Store (ctx.addWorkspace key shape fresh) × body.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := update entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.workspace ctx key shape fresh body).execute Reference state =
+    (Circuit.workspace ctx key shape fresh body).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := workspaceStoreRecord key shape fresh body update entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (execute_workspaceRecord key shape fresh body
+  refine (execute_workspaceRecord environment key shape fresh body
     (preserveHiddenRecord (model := model) update) ?_ Reference state).trans ?_
   · intro reference history _ input
     exact (equation reference input).trans

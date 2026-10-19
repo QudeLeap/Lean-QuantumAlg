@@ -52,7 +52,7 @@ def perm {n : Nat} : QubitPrimitive n → Equiv.Perm (Fin (2 ^ n))
       WireAddress.toffoliPerm controlA controlB target hab ha hb
 
 @[simp]
-theorem perm_apply {n : Nat} (primitive : QubitPrimitive n)
+lemma perm_apply {n : Nat} (primitive : QubitPrimitive n)
     (label : Fin (2 ^ n)) : primitive.perm label = primitive.applyLabel label := by
   cases primitive <;> simp [perm, applyLabel]
 
@@ -64,7 +64,7 @@ def systemIdx {n : Nat} : QubitPrimitive n → List Nat
       [controlA.val, controlB.val, target.val]
 
 /-- Primitive construction witnesses guarantee a duplicate-free footprint. -/
-theorem systemIdx_nodup {n : Nat} (primitive : QubitPrimitive n) :
+lemma systemIdx_nodup {n : Nat} (primitive : QubitPrimitive n) :
     primitive.systemIdx.Nodup := by
   cases primitive with
   | x target => simp [systemIdx]
@@ -78,7 +78,7 @@ theorem systemIdx_nodup {n : Nat} (primitive : QubitPrimitive n) :
       simp [systemIdx, habv, hav, hbv]
 
 /-- Every addressed primitive wire lies in the canonical `n`-qubit range. -/
-theorem systemIdx_subset_range {n : Nat} (primitive : QubitPrimitive n) :
+lemma systemIdx_subset_range {n : Nat} (primitive : QubitPrimitive n) :
     primitive.systemIdx ⊆ List.range n := by
   cases primitive with
   | x target => simp [systemIdx, target.isLt]
@@ -88,7 +88,7 @@ theorem systemIdx_subset_range {n : Nat} (primitive : QubitPrimitive n) :
       simp [systemIdx, controlA.isLt, controlB.isLt, target.isLt]
 
 /-- Every primitive declaration is self-inverse on basis labels. -/
-theorem applyLabel_applyLabel {n : Nat} (primitive : QubitPrimitive n)
+lemma applyLabel_applyLabel {n : Nat} (primitive : QubitPrimitive n)
     (label : Fin (2 ^ n)) :
     primitive.applyLabel (primitive.applyLabel label) = label := by
   cases primitive with
@@ -110,7 +110,7 @@ public def operator {n : Nat} (primitive : QubitPrimitive n) :
   UnitaryOperator.ofPerm primitive.perm.symm
 
 @[simp]
-public theorem operator_apply_ket {n : Nat} (primitive : QubitPrimitive n)
+public lemma operator_apply_ket {n : Nat} (primitive : QubitPrimitive n)
     (label : Fin (2 ^ n)) :
     primitive.operator.apply (NormalizedVector.ket label) =
       NormalizedVector.ket (primitive.applyLabel label) := by

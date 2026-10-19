@@ -41,7 +41,7 @@ def permutation (modulus : Nat) (modulusPositive : 0 < modulus) :
       (assembly modulus.size))
 
 /-- Exact assembly retains fresh coordinates while the independent old arithmetic acts. -/
-theorem permutation_assembly (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma permutation_assembly (modulus : Nat) (modulusPositive : 0 < modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (old : (before modulus.size).register.Index) :
     permutation modulus modulusPositive (assembly modulus.size (fresh, old)) =
@@ -62,7 +62,7 @@ def operator (modulus : Nat) (modulusPositive : 0 < modulus) :
     (permutation modulus modulusPositive).symm
 
 /-- Every mathematical basis column has the complete exact prepared-word action. -/
-theorem operator_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma operator_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (old : (before modulus.size).register.Index) :
     (operator modulus modulusPositive).apply
@@ -87,7 +87,7 @@ def density (modulus : Nat) (modulusPositive : 0 < modulus) (Reference : Registe
       (InputPreparation.preparation modulus).normalized Reference input.state.quantumMarginal)
 
 /-- The independent target is normalized for every normalized incoming joint state. -/
-theorem density_normalized (modulus : Nat) (modulusPositive : 0 < modulus) (Reference : Register)
+lemma density_normalized (modulus : Nat) (modulusPositive : 0 < modulus) (Reference : Register)
     (input : Input (before modulus.size) Reference) :
     (density modulus modulusPositive Reference input).IsNormalized := by
   change (density modulus modulusPositive Reference input).mass = 1
@@ -112,7 +112,7 @@ private def selectedDensity (modulus : Nat) (modulusPositive : 0 < modulus) (Ref
   DensityOperator.observeSelectionWithReference (after modulus.size).quantumLayout
     Finset.univ Reference (density modulus modulusPositive Reference input)
 
-private theorem selected_normalized (modulus : Nat) (modulusPositive : 0 < modulus)
+private lemma selected_normalized (modulus : Nat) (modulusPositive : 0 < modulus)
     (Reference : Register) (input : Input (before modulus.size) Reference) :
     (selectedDensity modulus modulusPositive Reference input).IsNormalized := by
   change (selectedDensity modulus modulusPositive Reference input).mass = 1

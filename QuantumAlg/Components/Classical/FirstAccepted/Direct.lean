@@ -32,7 +32,8 @@ def selectedOp (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ct
 def acceptedOp (eligible : CInputRef ctx .bit) (refs : Refs ctx width) :
     ClassicalOp .bit .bit ctx ctx := .bit .copy ctx eligible refs.accepted
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The actual candidate-eligibility arm either writes both persistent outputs or does nothing. -/
 def eligibleArm (eligible : CInputRef ctx .bit)
@@ -87,18 +88,20 @@ def step (eligible : CInputRef ctx .bit) (candidate : CInputRef ctx (.unsignedWo
   (chosen.1, ⟨store.read (writeInput refs.accepted), chosen.2⟩)
 
 /-- The actual eligibility arm preserves complete incoming quantum-reference blocks. -/
-theorem eligibleArm_execute (eligible : CInputRef ctx .bit)
+lemma eligibleArm_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (eligibleArm (model := model) eligible candidate refs value).execute Reference state =
+    (eligibleArm (model := model) eligible candidate refs value).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let actual := eligibleArmStep (model := model) eligible candidate refs value entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases value with
   | bit value =>
       cases value
-      · exact (Circuit.execute_id_mapClassical Reference state).trans (by
+      · exact (Circuit.execute_id_mapClassical
+        (environment := environment) Reference state).trans (by
           exact ExecutionState.executionState_mapClassical_congr _ rfl)
       · simp only [eligibleArm, eligibleArmStep, Circuit.execute_seq,
           BitWord.bitWord_instruction_execute, State.mapHistory,
@@ -107,18 +110,19 @@ theorem eligibleArm_execute (eligible : CInputRef ctx .bit)
 
 /-- Actual pending selection reads the existing eligibility cell without computing a scratch
 flag. -/
-theorem pendingArm_execute (eligible : CInputRef ctx .bit)
+lemma pendingArm_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pendingArm (model := model) eligible candidate refs value).execute Reference state =
+    (pendingArm (model := model) eligible candidate refs value).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let actual := pendingArmStep (model := model) eligible candidate refs value entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases value with
   | bit value =>
       cases value
-      · refine (Circuit.execute_branch_mapClassical eligible
+      · refine (Circuit.execute_branch_mapClassical (environment := environment) eligible
           (eligibleArm (model := model) eligible candidate refs)
           (fun value before =>
             let actual := eligibleArmStep (model := model) eligible candidate refs value before.1
@@ -127,19 +131,22 @@ theorem pendingArm_execute (eligible : CInputRef ctx .bit)
             eligibleArm_execute eligible candidate refs value reference state)
           Reference state).trans ?_
         exact ExecutionState.executionState_mapClassical_congr _ rfl
-      · exact (Circuit.execute_id_mapClassical Reference state).trans (by
+      · exact (Circuit.execute_id_mapClassical
+        (environment := environment) Reference state).trans (by
           exact ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- The full actual first-success interpreter uses precisely the two existing stored predicates. -/
-theorem into_execute (eligible : CInputRef ctx .bit)
+lemma into_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) eligible candidate refs).execute Reference state = state.mapClassical
+    (into (model := model) eligible candidate refs).execute
+      environment Reference state = state.mapClassical
       (fun entry =>
         let actual := step (model := model) eligible candidate refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (writeInput refs.accepted)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (writeInput refs.accepted)
     (pendingArm (model := model) eligible candidate refs)
     (fun value before =>
       let actual := pendingArmStep (model := model) eligible candidate refs value before.1

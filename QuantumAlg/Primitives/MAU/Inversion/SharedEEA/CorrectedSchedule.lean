@@ -31,16 +31,18 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.CorrectedSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
-private theorem coefficient_bound (modulus input : Nat)
+private lemma coefficient_bound (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (TerminalPadding.finalState modulus input).previousCoefficient ≤ modulus :=
   (Capacity.iteration_fields_le _ modulus
     (TerminalPadding.final_admissible modulus input positive bounded)
     (TerminalPadding.final_balance modulus input)).2.2.2
 
-private theorem coefficient_fits (modulus input : Nat)
+private lemma coefficient_fits (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (TerminalPadding.finalState modulus input).previousCoefficient <
       2 ^ (modulus.size + 3) :=
@@ -49,7 +51,7 @@ private theorem coefficient_fits (modulus input : Nat)
       (Nat.pow_le_pow_right (by decide) (by omega)))
 
 /-- The actual decoded word, read in its physical orientation, contains the entire coefficient. -/
-theorem decoded_word (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma decoded_word (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (DecodedSchedule.result modulus input positive bounded).secondWord.reverse =
       BitVec.ofNat (modulus.size + 3)
         (TerminalPadding.finalState modulus input).previousCoefficient := by
@@ -59,7 +61,7 @@ theorem decoded_word (modulus input : Nat) (positive : 0 < input) (bounded : inp
     DecodedSchedule.result_coefficient_bit modulus input index positive bounded within]
   simp only [BitVec.getLsbD_ofNat, within, decide_true, Bool.true_and]
 
-private theorem decoded_value (modulus input : Nat)
+private lemma decoded_value (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (DecodedSchedule.result modulus input positive bounded).secondWord.reverse.toNat =
       (TerminalPadding.finalState modulus input).previousCoefficient := by
@@ -78,10 +80,10 @@ def result (modulus input : Nat) (positive : 0 < input) (bounded : input < modul
   OutputCorrection.step modulus (DecodedSchedule.result modulus input positive bounded)
 
 /-- The exact normalized-basis action of the full actual circuit on every coprime positive input. -/
-theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
@@ -94,7 +96,7 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
   rfl
 
 /-- The actual Work2 value is precisely the original-input signed terminal coefficient. -/
-theorem result_value (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma result_value (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (result modulus input positive bounded).secondWord.reverse.toNat =
       SignedInvariant.output modulus (TerminalPadding.finalState modulus input)
         (SignedTrajectory.finalIteration modulus input) := by
@@ -107,7 +109,7 @@ theorem result_value (modulus input : Nat) (positive : 0 < input) (bounded : inp
   rfl
 
 /-- The actual output value is a multiplicative inverse on the coprime positive-residue domain. -/
-theorem result_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (input : ZMod modulus) *
       ((result modulus input positive bounded).secondWord.reverse.toNat : ZMod modulus) = 1 := by
@@ -115,7 +117,7 @@ theorem result_product (modulus input : Nat) (coprime : Nat.Coprime input modulu
   exact SignedTrajectory.final_product modulus input coprime positive bounded
 
 /-- The actual corrected value fits the original n-bit output word without a new fit promise. -/
-theorem result_fits_output (modulus input : Nat)
+lemma result_fits_output (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (result modulus input positive bounded).secondWord.reverse.toNat < 2 ^ modulus.size := by
   rw [result_value]
@@ -127,7 +129,7 @@ theorem result_fits_output (modulus input : Nat)
   · exact Nat.sub_le _ _
 
 /-- All original controls, lengths, and first-word history survive the actual output correction. -/
-theorem result_retained (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma result_retained (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     let before := DecodedSchedule.result modulus input positive bounded
     let after := result modulus input positive bounded
     after.firstWord = before.firstWord ∧
@@ -138,16 +140,18 @@ theorem result_retained (modulus input : Nat) (positive : 0 < input) (bounded : 
   OutputCorrection.step_retained modulus _
 
 /-- The same complete forward circuit is reversed; no part of Gamma is discarded. -/
-theorem dagger_after_forward (modulus : Nat) (nontrivial : 1 < modulus)
+lemma dagger_after_forward (modulus : Nat) (nontrivial : 1 < modulus)
     (state : NormalizedVector
       (QubitLayout.canonical (encoding modulus.size).width).toQuantum.register) :
     ((program modulus nontrivial).dagger
-      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
-        ((program modulus nontrivial).applyNormalized state) =
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment
+        ((program modulus nontrivial).applyNormalized environment state) =
       state :=
   UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial)
     ((program modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-    (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) state
+    (by rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]; exact Unitary.star_eq_inv _) state
 
 end
 

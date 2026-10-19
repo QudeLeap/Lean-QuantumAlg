@@ -110,11 +110,11 @@ def rnsl17MontgomerySchedule (n : Nat) : Schedule where
   stages := rnsl17MontgomeryStages
   roles := unitDomainRegisterRoles
 
-@[simp] theorem rnsl17MontgomerySchedule_rounds (n : Nat) :
+@[simp] lemma rnsl17MontgomerySchedule_rounds (n : Nat) :
     (rnsl17MontgomerySchedule n).rounds = 2 * n :=
   rfl
 
-@[simp] theorem rnsl17MontgomerySchedule_stages (n : Nat) :
+@[simp] lemma rnsl17MontgomerySchedule_stages (n : Nat) :
     (rnsl17MontgomerySchedule n).stages = rnsl17MontgomeryStages :=
   rfl
 
@@ -205,24 +205,24 @@ def toData {N : Nat} (s : StageState N) : Data N where
 def run {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) : StageState N :=
   uncomputeInverse (addScratchToTarget (computeInverse (initial u z)))
 
-@[simp] theorem run_input {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+@[simp] lemma run_input {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     (run u z).input = u :=
   rfl
 
-@[simp] theorem run_target {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+@[simp] lemma run_target {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     (run u z).target = z + inverseResidue u :=
   rfl
 
-@[simp] theorem run_inverseScratch {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+@[simp] lemma run_inverseScratch {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     (run u z).inverseScratch = 0 :=
   rfl
 
-@[simp] theorem run_flag {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+@[simp] lemma run_flag {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     (run u z).flag = false :=
   rfl
 
 /-- Final-value theorem for the selected coarse inversion schedule. -/
-theorem run_final {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+lemma run_final {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     run u z =
       { input := u
         target := z + inverseResidue u
@@ -232,7 +232,7 @@ theorem run_final {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
 
 /-- The selected schedule agrees with the endpoint permutation after forgetting
 the internal scratch register. -/
-theorem run_toData_eq_addInverseIntoTarget {N : Nat}
+lemma run_toData_eq_addInverseIntoTarget {N : Nat}
     (u : (ZMod N)ˣ) (z : ZMod N) :
     (run u z).toData =
       ({ input := u, target := z, flag := false } : Data N).addInverseIntoTarget :=
@@ -253,28 +253,28 @@ def Invariant {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
       s.input = u ∧ s.target = z + inverseResidue u ∧
         s.inverseScratch = 0 ∧ s.flag = false
 
-@[simp] theorem initial_invariant {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+@[simp] lemma initial_invariant {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     Invariant u z SchedulePhase.initial (initial u z) := by
   simp [Invariant, initial]
 
-@[simp] theorem computeInverse_invariant {N : Nat}
+@[simp] lemma computeInverse_invariant {N : Nat}
     (u : (ZMod N)ˣ) (z : ZMod N) :
     Invariant u z SchedulePhase.inverseComputed
       (computeInverse (initial u z)) := by
   simp [Invariant, initial, computeInverse]
 
-@[simp] theorem addScratchToTarget_invariant {N : Nat}
+@[simp] lemma addScratchToTarget_invariant {N : Nat}
     (u : (ZMod N)ˣ) (z : ZMod N) :
     Invariant u z SchedulePhase.targetUpdated
       (addScratchToTarget (computeInverse (initial u z))) := by
   simp [Invariant, initial, computeInverse, addScratchToTarget]
 
-@[simp] theorem run_invariant {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
+@[simp] lemma run_invariant {N : Nat} (u : (ZMod N)ˣ) (z : ZMod N) :
     Invariant u z SchedulePhase.inverseUncomputed (run u z) := by
   simp [Invariant, run, initial, computeInverse, addScratchToTarget, uncomputeInverse]
 
 /-- The final invariant implies the unit-domain inverse value and clean scratch. -/
-theorem final_value_of_invariant {N : Nat} {u : (ZMod N)ˣ} {z : ZMod N}
+lemma final_value_of_invariant {N : Nat} {u : (ZMod N)ˣ} {z : ZMod N}
     {s : StageState N}
     (h : Invariant u z SchedulePhase.inverseUncomputed s) :
     s.target = z + inverseResidue u ∧ s.inverseScratch = 0 ∧ s.flag = false := by

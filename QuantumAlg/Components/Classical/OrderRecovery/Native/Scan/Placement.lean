@@ -104,16 +104,17 @@ def activeVisitStep (spec : ModulusSpec modulusWidth)
     ctx.canonicalFreshKey_fresh visited.1, visited.2)
 
 /-- The actual workspace interpreter returns the exact outer store and same internal visit path. -/
-theorem nativeScan_activeVisit_execute (spec : ModulusSpec modulusWidth)
+lemma nativeScan_activeVisit_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth candidateWidth) (Reference : Register)
+    (cells : ScanCells ctx modulusWidth candidateWidth) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (activeVisit (model := model) spec base cells).execute Reference state =
+    (activeVisit (model := model) spec base cells).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((activeVisitStep (model := model) spec base cells entry.1).1,
           (entry.2.1, (entry.2.2,
             (activeVisitStep (model := model) spec base cells entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (cursorDivisionShape candidateWidth) ctx.canonicalFreshKey_fresh
     (placedVisit (model := model) spec base cells)
     (fun entry =>
@@ -128,7 +129,7 @@ theorem nativeScan_activeVisit_execute (spec : ModulusSpec modulusWidth)
   congr 1
 
 /-- The actual quotient/remainder scope adds no quantum system or physical identity. -/
-theorem nativeScan_division_quantumWires {kind : ProblemKind}
+lemma nativeScan_division_quantumWires {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (width : Nat) :
     (scanDivisionCtx ctx width).quantumWires = ctx.quantumWires := rfl
 

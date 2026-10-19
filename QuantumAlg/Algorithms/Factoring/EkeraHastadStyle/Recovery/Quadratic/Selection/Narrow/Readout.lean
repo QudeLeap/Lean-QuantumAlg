@@ -37,7 +37,7 @@ structure Separated (eligible : CInputRef ctx .bit) (original : FirstAccepted.Re
   takeSelected : original.take.key ≠ original.selected.key
   acceptedSelected : original.accepted.key ≠ original.selected.key
 
-private theorem original_ne_fresh {shape : CShape} (output : CWriteRef ctx shape) :
+private lemma original_ne_fresh {shape : CShape} (output : CWriteRef ctx shape) :
     output.key ≠ ctx.canonicalFreshKey := by
   intro same
   have original : output.key ∈ ctx.keys :=
@@ -46,7 +46,7 @@ private theorem original_ne_fresh {shape : CShape} (output : CWriteRef ctx shape
   exact ctx.canonicalFreshKey_fresh (same ▸ original)
 
 /-- Fresh allocation discharges both candidate/scratch distinctions of the actual selector. -/
-theorem nativeQuadratic_narrow_separated (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_separated (eligible : CInputRef ctx .bit)
     (original : FirstAccepted.Refs ctx width) (separated : Separated eligible original) :
     FirstAccepted.Separated (inputs eligible width) (refs original) where
   availableEligible := by
@@ -65,7 +65,7 @@ theorem nativeQuadratic_narrow_separated (eligible : CInputRef ctx .bit)
   acceptedSelected := separated.acceptedSelected
 
 /-- Actual narrowing changes no original structural read, whatever value the new word receives. -/
-theorem nativeQuadratic_narrow_resize_read_original
+lemma nativeQuadratic_narrow_resize_read_original
     (candidate : CInputRef ctx (.unsignedWord sourceWidth)) {shape : CShape}
     (other : CInputRef ctx shape) (width : Nat) (store : Store (context ctx width)) :
     (store.applyOp (resizeOp candidate width)).read (underRead other width) =
@@ -78,7 +78,7 @@ theorem nativeQuadratic_narrow_resize_read_original
   exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
 
 /-- The actual temporary word holds exactly the source word reduced to the target capacity. -/
-theorem nativeQuadratic_narrow_resize_read (candidate : CInputRef ctx (.unsignedWord sourceWidth))
+lemma nativeQuadratic_narrow_resize_read (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (width : Nat) (store : Store (context ctx width)) :
     (store.applyOp (resizeOp candidate width)).read
         (.storage (temporary ctx width).toCStorageRef) =
@@ -89,7 +89,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Narrowing never overwrites an earlier factor; otherwise the actual first eligible word wins. -/
-theorem nativeQuadratic_narrow_latches (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_latches (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width) (separated : Separated eligible original)
     (store : Store ctx) :

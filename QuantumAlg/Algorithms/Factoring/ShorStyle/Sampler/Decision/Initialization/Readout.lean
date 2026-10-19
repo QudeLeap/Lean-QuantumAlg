@@ -24,7 +24,7 @@ open ClassicalRoutines
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The initialization preserves all complete reads outside its actual three written cells. -/
-theorem decisionInitialization_read_other (shared : Proposal.SharedRefs ctx width)
+lemma decisionInitialization_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (candidateFree : scratch.candidate.key ∉ other.storageKeys)
     (unitFree : shared.selector.selected.key ∉ other.storageKeys)

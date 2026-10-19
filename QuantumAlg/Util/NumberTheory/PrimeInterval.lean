@@ -40,7 +40,7 @@ def topQuarterPrimeCountLowerBound (b : ℕ) : ℕ :=
 
 /-- Exponential growth dominates the quadratic error term from bit length 512
 onward. -/
-private theorem hundred_mul_sq_le_two_pow {b : ℕ} (hb : 32 ≤ b) :
+private lemma hundred_mul_sq_le_two_pow {b : ℕ} (hb : 32 ≤ b) :
     (100 * b) ^ 2 ≤ 2 ^ b := by
   induction b, hb using Nat.le_induction with
   | base => norm_num
@@ -53,7 +53,7 @@ private theorem hundred_mul_sq_le_two_pow {b : ℕ} (hb : 32 ≤ b) :
 
 /-- The theta mass of a prime interval is at most its cardinality times the
 largest logarithmic weight in the interval. -/
-private theorem theta_sub_le_primeCount_mul_log {m n : ℕ} (hmn : m ≤ n) :
+private lemma theta_sub_le_primeCount_mul_log {m n : ℕ} (hmn : m ≤ n) :
     Chebyshev.theta n - Chebyshev.theta m ≤
       ((Nat.primeCounting n - Nat.primeCounting m : ℕ) : ℝ) * log n := by
   have hsubset : Nat.primesLE m ⊆ Nat.primesLE n :=
@@ -76,7 +76,7 @@ private theorem theta_sub_le_primeCount_mul_log {m n : ℕ} (hmn : m ≤ n) :
 
 /-- For every `b ≥ 512`, the top quarter of the `b`-bit dyadic interval
 contains at least `2^b / (16b)` primes. -/
-theorem topQuarterPrimeCount (b : ℕ) (hb : 512 ≤ b) :
+lemma topQuarterPrimeCount (b : ℕ) (hb : 512 ≤ b) :
     topQuarterPrimeCountLowerBound b ≤
       Nat.primeCounting (2 ^ b) -
         Nat.primeCounting (3 * 2 ^ (b - 2)) := by

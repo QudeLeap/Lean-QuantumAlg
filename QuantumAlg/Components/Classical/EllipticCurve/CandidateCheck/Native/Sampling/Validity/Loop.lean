@@ -7,7 +7,6 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Validity
-import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Validity.Local
 import all QuantumAlg.Core.Execution.Circuit.History
 
 /-!
@@ -16,7 +15,7 @@ import all QuantumAlg.Core.Execution.Circuit.History
 The chronological finite loop preserves the range and checked point equation
 of its real selected word. Public-point interpretations are required only on
 actual prefixes of the prescribed input, where borrowed restoration supplies
-them. Local sampling keeps arbitrary selection-pair predicates; the actual
+them. Embedded sampling keeps arbitrary selection-pair predicates; the actual
 checked step then uses the original stored invariants. Every history remains
 part of the actual execution, including zero further rounds.
 -/
@@ -34,7 +33,7 @@ private def storeSupported {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (state : State ctx Reference H) (predicate : Store ctx → Prop) : Prop :=
   ∀ entry, 0 < (state.block entry).mass → predicate entry.1
 
-private theorem storeSupported_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storeSupported_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
     (state : State ctx Reference H) (update : H → K) (predicate : Store ctx → Prop) :
     storeSupported (state.mapHistory update) predicate ↔ storeSupported state predicate := by
@@ -47,47 +46,54 @@ private theorem storeSupported_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx
     rw [← equality]
     exact holds original present
 
-private theorem storeSupported_seq {model : ExecutionModel}
+private lemma storeSupported_seq {model : ExecutionModel} {environment : model.Environment}
     {origin middle final : RuntimeCtx model.kind}
     (first : Circuit model origin middle) (second : Circuit model middle final)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State origin Reference (model.HiddenState × H))
     (predicate : Store final → Prop) :
-    storeSupported ((first.seq second).execute Reference state) predicate ↔
-      storeSupported (second.execute Reference (first.execute Reference state)) predicate := by
+    storeSupported ((first.seq second).execute environment Reference state) predicate ↔
+      storeSupported (second.execute environment Reference (first.execute environment Reference
+        state)) predicate := by
   rw [Circuit.execute_seq, storeSupported_mapHistory]
 
-private theorem storeSupported_seq_assoc {model : ExecutionModel}
+private lemma storeSupported_seq_assoc {model : ExecutionModel} {environment : model.Environment}
     {origin first second final : RuntimeCtx model.kind}
     (priorCode : Circuit model origin first) (middle : Circuit model first second)
     (tail : Circuit model second final) {Reference : Register} {H : Type} [Fintype H]
     (state : State origin Reference (model.HiddenState × H))
     (predicate : Store final → Prop) :
-    storeSupported ((priorCode.seq (middle.seq tail)).execute Reference state) predicate ↔
-    storeSupported (((priorCode.seq middle).seq tail).execute Reference state) predicate := by
+    storeSupported ((priorCode.seq (middle.seq tail)).execute environment Reference state)
+      predicate ↔
+    storeSupported (((priorCode.seq middle).seq tail).execute environment Reference state)
+      predicate := by
   rw [storeSupported_seq priorCode (middle.seq tail) state predicate,
-    storeSupported_seq middle tail (priorCode.execute Reference state) predicate,
+    storeSupported_seq middle tail (priorCode.execute environment Reference state) predicate,
     storeSupported_seq (priorCode.seq middle) tail state predicate,
     Circuit.execute_seq]
-  let current := middle.execute Reference (priorCode.execute Reference state)
+  let current := middle.execute environment Reference (priorCode.execute environment Reference
+    state)
   let reassoc : ((H × priorCode.Path) × middle.Path) → (H × (priorCode.Path × middle.Path)) :=
     fun history => (history.1.1, (history.1.2, history.2))
-  change storeSupported (tail.execute Reference current) predicate ↔
-    storeSupported (tail.execute Reference
+  change storeSupported (tail.execute environment Reference current) predicate ↔
+    storeSupported (tail.execute environment Reference
       (current.mapHistory (fun record => (record.1, reassoc record.2)))) predicate
-  rw [Circuit.execute_mapHistory tail Reference current reassoc, storeSupported_mapHistory]
+  rw [Circuit.execute_mapHistory tail environment Reference current reassoc,
+    storeSupported_mapHistory]
 
-private theorem storeSupported_forRange {model : ExecutionModel}
+private lemma storeSupported_forRange {model : ExecutionModel} {environment : model.Environment}
     {origin ctx : RuntimeCtx model.kind} {Reference : Register} {H : Type} [Fintype H]
     (initial : State origin Reference (model.HiddenState × H)) (count : Nat)
     (body : Fin count → Circuit model ctx ctx)
     (predicate : Store ctx → Prop)
     (step : ∀ (priorCode : Circuit model origin ctx) index,
-      storeSupported (priorCode.execute Reference initial) predicate →
-        storeSupported ((priorCode.seq (body index)).execute Reference initial) predicate)
+      storeSupported (priorCode.execute environment Reference initial) predicate →
+        storeSupported ((priorCode.seq (body index)).execute environment Reference initial)
+          predicate)
     (priorCode : Circuit model origin ctx)
-    (prior : storeSupported (priorCode.execute Reference initial) predicate) :
-    storeSupported ((priorCode.seq (Circuit.forRange count body)).execute Reference initial)
+    (prior : storeSupported (priorCode.execute environment Reference initial) predicate) :
+    storeSupported ((priorCode.seq (Circuit.forRange count body)).execute environment Reference
+      initial)
       predicate := by
   induction count generalizing priorCode with
   | zero =>
@@ -102,7 +108,8 @@ private theorem storeSupported_forRange {model : ExecutionModel}
       exact ih (fun index => body index.succ) (fun current index => step current index.succ)
         (priorCode.seq (body 0)) (step priorCode 0 prior)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} {environment :
+  model.Environment} [BitWord.Selected model]
   {ctx origin : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 private def selectedInvariant (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -116,75 +123,77 @@ private def selectedPair (store : Store (persistentCtx ctx width scalarWidth)) :
     store.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef))
 
 omit [BitWord.Selected model] in
-private theorem local_selection_supported
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+private lemma local_selection_supported
+    (sampleCode : Circuit model ctx ctx false)
     (width scalarWidth : Nat) (property : Bool × (CShape.unsignedWord scalarWidth).Value → Prop)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (valid : storeSupported state (fun store => property (selectedPair store))) :
     storeSupported
-      ((underPersistent sampleCode supported width scalarWidth).execute Reference state)
+      ((sampleUnderPersistent sampleCode width scalarWidth).execute environment Reference state)
       (fun store => property (selectedPair store)) := by
-  exact underPersistent_latches_property sampleCode supported width scalarWidth property
-    state valid
+  exact candidateCheck_sampleUnderPersistent_latches_property sampleCode width scalarWidth state
+    property valid
 
-private theorem sampled_step_supported
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+private lemma sampled_step_supported
+    (sampleCode : Circuit model ctx ctx false)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
     (initial : State origin Reference (model.HiddenState × H))
     (points : ∀ (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth)) entry,
-      0 < ((priorCode.execute Reference initial).block entry).mass →
+      0 < ((priorCode.execute environment Reference initial).block entry).mass →
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint)
     (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth))
-    (valid : storeSupported (priorCode.execute Reference initial) (fun store =>
+    (valid : storeSupported (priorCode.execute environment Reference initial) (fun store =>
       selectedInvariant curve modulus basePoint targetPoint (selectedPair store))) :
     storeSupported ((priorCode.seq
-      (sampledAttempt sampleCode supported curve modulus sample base target)).execute
+      (sampledAttempt sampleCode curve modulus sample base target)).execute environment
         Reference initial) (fun store =>
           selectedInvariant curve modulus basePoint targetPoint (selectedPair store)) := by
   let predicate := fun store : Store (persistentCtx ctx width scalarWidth) =>
     selectedInvariant curve modulus basePoint targetPoint (selectedPair store)
-  let localCode := underPersistent sampleCode supported width scalarWidth
-  let currentState := priorCode.execute Reference initial
-  let sampledState := localCode.execute Reference currentState
+  let localCode := sampleUnderPersistent sampleCode width scalarWidth
+  let currentState := priorCode.execute environment Reference initial
+  let sampledState := localCode.execute environment Reference currentState
   have localValid : storeSupported sampledState predicate :=
-    local_selection_supported sampleCode supported width scalarWidth
+    local_selection_supported sampleCode width scalarWidth
       (selectedInvariant curve modulus basePoint targetPoint) currentState valid
   have localPoints : storeSupported sampledState (fun store =>
       PointRepresents curve (store.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (store.read (persistentInput width scalarWidth target)) targetPoint) :=
     (storeSupported_seq priorCode localCode initial _).mp (points (priorCode.seq localCode))
   apply (storeSupported_seq priorCode
-    (sampledAttempt sampleCode supported curve modulus sample base target) initial predicate).mpr
+    (sampledAttempt sampleCode curve modulus sample base target) initial predicate).mpr
   apply (storeSupported_seq localCode (persistentAttempt curve modulus sample base target)
     currentState predicate).mpr
   intro output present
-  have bounded := persistentAttempt_preserves_selected_lt curve modulus sample base target
+  have bounded := persistentAttempt_preserves_selected_lt (environment := environment)
+    curve modulus sample base target
     sampledState (fun entry positive => (localValid entry positive).1) output present
-  have checked := persistentAttempt_preserves_validity curve modulus sample base target
+  have checked := persistentAttempt_preserves_validity (environment := environment)
+    curve modulus sample base target
     basePoint targetPoint sampledState (fun entry positive =>
       ⟨(localPoints entry positive).1, (localPoints entry positive).2,
         (localValid entry positive).2⟩) output present
   exact ⟨bounded, checked.2.2⟩
 
 /-- Actual-prefix public points suffice to preserve the original selected invariants in the loop. -/
-theorem sampledAttempts_supported_validity_on_prefix
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
+lemma sampledAttempts_supported_validity_on_prefix
+    (sampleCode : Circuit model ctx ctx false) (count : Nat)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
     (initial : State origin Reference (model.HiddenState × H))
     (points : ∀ (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth)) entry,
-      0 < ((priorCode.execute Reference initial).block entry).mass →
+      0 < ((priorCode.execute environment Reference initial).block entry).mass →
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint)
     (priorCode : Circuit model origin (persistentCtx ctx width scalarWidth))
-    (prior : ∀ entry, 0 < ((priorCode.execute Reference initial).block entry).mass →
+    (prior : ∀ entry, 0 < ((priorCode.execute environment Reference initial).block entry).mass →
       (entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
           modulus.modulus ∧
         ((entry.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
@@ -193,9 +202,9 @@ theorem sampledAttempts_supported_validity_on_prefix
             basePoint = targetPoint))
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (priorCode.seq
-        (sampledAttempts sampleCode supported count curve modulus sample base target)).Path)))
+        (sampledAttempts sampleCode count curve modulus sample base target)).Path)))
     (positive : 0 < (((priorCode.seq
-      (sampledAttempts sampleCode supported count curve modulus sample base target)).execute
+      (sampledAttempts sampleCode count curve modulus sample base target)).execute environment
         Reference initial).block result).mass) :
     (result.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
         modulus.modulus ∧
@@ -207,8 +216,8 @@ theorem sampledAttempts_supported_validity_on_prefix
   let predicate := fun store : Store (persistentCtx ctx width scalarWidth) =>
     selectedInvariant curve modulus basePoint targetPoint (selectedPair store)
   exact storeSupported_forRange initial count
-    (fun _ => sampledAttempt sampleCode supported curve modulus sample base target) predicate
-    (fun current _ => sampled_step_supported sampleCode supported curve modulus sample base target
+    (fun _ => sampledAttempt sampleCode curve modulus sample base target) predicate
+    (fun current _ => sampled_step_supported sampleCode curve modulus sample base target
       basePoint targetPoint initial points current) priorCode prior result positive
 
 end

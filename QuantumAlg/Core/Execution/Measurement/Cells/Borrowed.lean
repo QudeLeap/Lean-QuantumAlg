@@ -25,7 +25,7 @@ noncomputable section
 namespace Store
 
 /-- An original structural operand reads the old store beneath a retained head. -/
-theorem retainedTail_read {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma retainedTail_read {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addRetained key shape fresh)) {inputShape : CShape}
     (input : CInputRef ctx inputShape) :
@@ -57,7 +57,7 @@ def originalStore (dimension : ℕ+) :
   | count + 1, store => originalStore dimension count ⟨store.cells.2⟩
 
 /-- Every original structural read agrees exactly after dropping those retained heads. -/
-theorem originalStore_read (dimension : ℕ+) (count : Nat)
+lemma originalStore_read (dimension : ℕ+) (count : Nat)
     (store : Store (context ctx dimension count)) {shape : CShape}
     (input : CInputRef ctx shape) :
     (originalStore dimension count store).read input =
@@ -69,7 +69,7 @@ theorem originalStore_read (dimension : ℕ+) (count : Nat)
       exact Store.retainedTail_read _ _ _ store _
 
 /-- Retained measurement heads preserve the complete actual borrowed observation. -/
-theorem originalStore_borrowed (dimension : ℕ+) (count : Nat)
+lemma originalStore_borrowed (dimension : ℕ+) (count : Nat)
     (store : Store (context ctx dimension count)) :
     HEq store.readBorrowedClassical
       (originalStore dimension count store).readBorrowedClassical := by

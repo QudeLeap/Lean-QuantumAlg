@@ -25,19 +25,19 @@ def spectatorBasis {width : Nat} (selector phase : Fin 2) (source : Fin (2 ^ wid
   (QuantumSignature.qubitsIndexEquiv (1 + (1 + width))).symm
     (prodEquiv (selector, prodEquiv (phase, source)))
 
-private theorem position_zero (width : Nat) :
+private lemma position_zero (width : Nat) :
     spectatorPositions width (0 : Fin (1 + width)) = 0 := by
   apply Fin.ext
   simp [spectatorPositions]
 
-private theorem position_right {width : Nat} (index : Fin width) :
+private lemma position_right {width : Nat} (index : Fin width) :
     spectatorPositions width (Fin.natAdd 1 index) = Fin.natAdd 1 (Fin.natAdd 1 index) := by
   apply Fin.ext
   change (if 1 + index.val = 0 then 0 else 1 + (1 + index.val)) = 1 + (1 + index.val)
   rw [if_neg (by omega)]
 
 /-- Exact local query arguments, independent of the intervening phase value. -/
-theorem spectator_selected_basis {width : Nat} (selector phase : Fin 2)
+lemma spectator_selected_basis {width : Nat} (selector phase : Fin 2)
     (source : Fin (2 ^ width)) :
     UnitaryCircuit.selectedInput (layout width) (layout (1 + width))
       (spectatorPositions width) (fun _ => rfl) (spectatorBasis selector phase source) =
@@ -66,7 +66,7 @@ theorem spectator_selected_basis {width : Nat} (selector phase : Fin 2)
     exact (congrArg Fin.val (outer.trans inner)).trans (congrArg Fin.val localSource).symm
 
 /-- The phase coordinate is not among the query arguments, including an empty source suffix. -/
-theorem spectator_not_selected (width : Nat) :
+lemma spectator_not_selected (width : Nat) :
     (⟨1, by omega⟩ : Fin (1 + (1 + width))) ∉
       Finset.univ.map (spectatorPositions width) := by
   intro member
@@ -77,7 +77,7 @@ theorem spectator_not_selected (width : Nat) :
   omega
 
 /-- Every untouched coordinate is precisely the original phase wire. -/
-theorem spectator_only_complement (width : Nat) (index : Fin (1 + (1 + width)))
+lemma spectator_only_complement (width : Nat) (index : Fin (1 + (1 + width)))
     (outside : index ∉ Finset.univ.map (spectatorPositions width)) : index.val = 1 := by
   by_contra different
   apply outside

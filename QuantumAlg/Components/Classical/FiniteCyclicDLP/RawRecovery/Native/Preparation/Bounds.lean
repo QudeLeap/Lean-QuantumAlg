@@ -54,7 +54,7 @@ public def preparationEnvelope (model : ExecutionModel) [BitWord.Selected model]
         model width)
 
 /-- Each actual original preparation path fits the independent phase allowances. -/
-theorem preparationBody_pool_le (spec : ModulusSpec width)
+lemma preparationBody_pool_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
       refs).Path) :
@@ -99,7 +99,7 @@ public def preparationDepthLimit (spec : ModulusSpec width)
             (duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
       (.wordBinary .sub width)))))))
 
-private theorem split_duration (refs : Word.Split.Refs ctx width width)
+private lemma split_duration (refs : Word.Split.Refs ctx width width)
     (duration : Resource.Event model → Nat) (path : (Word.Split.splitInto (model := model)
       refs).Path) :
     (Word.Split.splitInto (model := model) refs).depth duration path =
@@ -114,7 +114,7 @@ private theorem split_duration (refs : Word.Split.Refs ctx width width)
   simp [Word.Split.splitTrace, Word.Split.shiftTrace, Word.Split.lowOp, Word.Split.highOp,
     Word.Split.shiftOp, ClassicalOp.label]
 
-private theorem seed_duration (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma seed_duration (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (duration : Resource.Event model → Nat) (path : (scaleSeed (model := model) denominator).Path) :
     (scaleSeed (model := model) denominator).depth duration path =
       ((preparationSeedEvents model width).map duration).sum := by
@@ -127,7 +127,7 @@ private theorem seed_duration (denominator : CWriteRef ctx (.unsignedWord (width
   simp [preparationSeedEvents, Word.PowerOfTwo.shiftTrace, Word.PowerOfTwo.incrementOp,
     Word.PowerOfTwo.shiftOp, ClassicalOp.label]
 
-private theorem scale_duration (refs : PreparationRefs ctx width)
+private lemma scale_duration (refs : PreparationRefs ctx width)
     (duration : Resource.Event model → Nat) (path : (preparationScale (model := model) refs).Path) :
     (preparationScale (model := model) refs).depth duration path =
       ((scaleBodyEvents (model := model) width).map duration).sum +
@@ -137,7 +137,7 @@ private theorem scale_duration (refs : PreparationRefs ctx width)
     BitWord.bitWord_instruction_depth]
   simp [scaleBodyEvents, scaleProductOp, scaleDivisionOp, scaleQuotientOp, ClassicalOp.label]
 
-private theorem final_duration_le (refs : PreparationRefs ctx width)
+private lemma final_duration_le (refs : PreparationRefs ctx width)
     (duration : Resource.Event model → Nat) (path : (preparationFinalize (model := model)
       refs).Path) :
     (preparationFinalize (model := model) refs).depth duration path ≤
@@ -180,7 +180,7 @@ private theorem final_duration_le (refs : PreparationRefs ctx width)
         exact Nat.add_le_add_left (Nat.add_le_add_left (Nat.le_max_left _ _) _) _
 
 /-- Arbitrary native durations charge the full actual serial preparation. -/
-theorem preparationBody_depth_le (spec : ModulusSpec width)
+lemma preparationBody_depth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (duration : Resource.Event model → Nat)
     (path : (preparationBody (model := model) spec input refs).Path) :
@@ -196,7 +196,7 @@ theorem preparationBody_depth_le (spec : ModulusSpec width)
     (Nat.add_le_add (scale_duration refs duration path.2.1).le
       (final_duration_le refs duration path.2.2))
 
-private theorem seed_visited (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma seed_visited (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (scaleSeed (model := model) denominator).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (scaleSeed (model := model) denominator).visitedContexts path) :
       visited = ctx := by
@@ -207,14 +207,14 @@ private theorem seed_visited (denominator : CWriteRef ctx (.unsignedWord (width 
   · exact List.mem_singleton.mp first
   · exact Word.PowerOfTwo.shiftInto_visited width denominator path.2 visited later
 
-private theorem scale_visited (refs : PreparationRefs ctx width)
+private lemma scale_visited (refs : PreparationRefs ctx width)
     (path : (preparationScale (model := model) refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (preparationScale (model := model) refs).visitedContexts path) :
       visited = ctx := by
   change visited ∈ ([ctx] ++ ([ctx] ++ [ctx])) ++ ([ctx] ++ ([ctx] ++ [ctx])) at present
   simpa only [List.mem_append, List.mem_singleton, or_self] using present
 
-private theorem final_visited (refs : PreparationRefs ctx width)
+private lemma final_visited (refs : PreparationRefs ctx width)
     (path : (preparationFinalize (model := model) refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (preparationFinalize (model := model) refs).visitedContexts path) :
       visited = ctx := by
@@ -225,7 +225,7 @@ private theorem final_visited (refs : PreparationRefs ctx width)
         change visited ∈ [ctx] ++ ([ctx] ++ [ctx]) at present <;>
         simpa only [List.mem_append, List.mem_singleton, or_self] using present
 
-private theorem preparation_visited (spec : ModulusSpec width)
+private lemma preparation_visited (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
       refs).Path)
@@ -252,7 +252,7 @@ private theorem preparation_visited (spec : ModulusSpec width)
   · exact Or.inr (final_visited refs path.2.2 visited final)
 
 /-- Only the actual finite-measurement decoder adds a cell inside the preparation body. -/
-theorem preparationBody_resident_le (spec : ModulusSpec width)
+lemma preparationBody_resident_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
       refs).Path) :
@@ -267,7 +267,7 @@ theorem preparationBody_resident_le (spec : ModulusSpec width)
   · exact original ▸ le_add_self
 
 /-- The same actual decoder cell bounds auxiliary space beside all supplied preparation cells. -/
-theorem preparationBody_auxiliary_le (spec : ModulusSpec width)
+lemma preparationBody_auxiliary_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
       refs).Path) :

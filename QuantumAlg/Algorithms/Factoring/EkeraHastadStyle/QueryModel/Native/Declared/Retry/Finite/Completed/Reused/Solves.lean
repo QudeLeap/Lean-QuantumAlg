@@ -33,24 +33,22 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private theorem nextCompleted_relationalSuccess
-    (duration : Resource.Event (model input) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1)
+private lemma nextCompleted_relationalSuccess
     {Reference : Register}
-    (original : OracleInput (model input).classicalOracles
+    (original : OracleInput (model N).classicalOracles
       (Retry.context base noQuantum N) Reference)
-    (admitted : selectedSound base noQuantum N input original.localState) :
+    (admitted : selectedSound base noQuantum N original.localState) :
     1 - AllKeys.sourceFailure input ≤
-      ((nextCompletedAlgorithm base noQuantum N input).relationalDistribution
-        original).toOuterMeasure
-        {pair | (nextCompletedProblem base noQuantum N input duration unitQueries).accepts
-          pair.1 pair.2} := by
+      ((nextCompletedAlgorithm base noQuantum N input).relationalDistribution (sourceEnvironment
+        input) original).toOuterMeasure
+        {pair | (nextCompletedProblem base noQuantum N input).accepts (sourceEnvironment input)
+          () pair.1 pair.2} := by
   have projection :
-      ((nextCompletedAlgorithm base noQuantum N input).relationalDistribution
-        original).toOuterMeasure
-          {pair | (nextCompletedProblem base noQuantum N input duration unitQueries).accepts
-            pair.1 pair.2} =
-        ((nextCompletedRun base noQuantum N input).outputDistribution
+      ((nextCompletedAlgorithm base noQuantum N input).relationalDistribution (sourceEnvironment
+        input) original).toOuterMeasure
+          {pair | (nextCompletedProblem base noQuantum N input).accepts (sourceEnvironment
+            input) () pair.1 pair.2} =
+        ((nextCompletedRun base noQuantum N input).outputDistribution (sourceEnvironment input)
           original).toOuterMeasure (AllKeys.accepts N) := by
     simp only [Algorithm.relationalDistribution, nextCompletedAlgorithm,
       nextCompletedProblem, AlgorithmRun.relationalDistribution,
@@ -62,32 +60,31 @@ private theorem nextCompleted_relationalSuccess
 /-- The actual reused EH batch solves its input-based independent one-batch
 problem, including success, pure bank reset, borrowed restoration and every
 supported path's event, fixed-space and serial-depth allowances. -/
-theorem nextCompletedAlgorithm_solves
-    (duration : Resource.Event (model input) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
+lemma nextCompletedAlgorithm_solves :
     Algorithm.Solves (nextCompletedAlgorithm base noQuantum N input)
-      (nextCompletedProblem base noQuantum N input duration unitQueries) := by
+      (nextCompletedProblem base noQuantum N input) := by
   constructor
-  · intro Reference original _valid admitted
-    exact nextCompleted_relationalSuccess base noQuantum N input duration
-      unitQueries original admitted
-  · intro Reference original _valid _admitted requirement present
+  · intro environment _witness Reference original valid admitted
+    have same : environment = sourceEnvironment input := valid
+    subst environment
+    exact nextCompleted_relationalSuccess base noQuantum N input original admitted
+  · intro environment _witness Reference original _valid _admitted requirement present
     have same : requirement = nextStateRequirement base noQuantum N :=
       List.mem_singleton.mp present
     subst requirement
     exact nextCompleted_stateRequirement_holds base noQuantum N input original
-  · intro Reference original _valid _admitted
+  · intro environment _witness Reference original _valid _admitted
     apply AlgorithmRun.restoresBorrowed_of_circuit
     intro reference history _ state
     exact (nextCompleted_restartCleanup base noQuantum input).restores reference state
-  · intro _Reference _original _valid _admitted path _supported
+  · intro _environment _witness _Reference _original _valid _admitted path _supported
     exact nextCompleted_resourcePool_le base noQuantum N input path
-  · intro _Reference _original _valid _admitted path _supported
+  · intro _environment _witness _Reference _original _valid _admitted path _supported
     exact nextCompleted_peakResidentSpace_le base noQuantum N input path
-  · intro _Reference _original _valid _admitted path _supported
+  · intro _environment _witness _Reference _original _valid _admitted path _supported
     exact nextCompleted_peakAuxiliarySpace_le base noQuantum N input path
-  · intro _Reference _original _valid _admitted path _supported
-    exact nextCompleted_depth_le base noQuantum N input duration path
+  · intro _environment _witness _Reference _original _valid _admitted path _supported
+    exact nextCompleted_depth_le base noQuantum N input Resource.Event.quantumDuration path
 
 end
 

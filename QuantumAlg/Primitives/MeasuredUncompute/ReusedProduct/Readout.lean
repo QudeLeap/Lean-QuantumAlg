@@ -26,7 +26,7 @@ noncomputable section
 
 open ProductPlacement MAU.Inversion
 
-private theorem encoded_bit (width : Nat) (state : Frame width)
+private lemma encoded_bit (width : Nat) (state : Frame width)
     (index : Fin (frameEncoding width).width) :
     ((frameEncoding width).encode ((WorkspaceReuse.placement width).grouping state)).val.testBit
         index.rev.val =
@@ -41,7 +41,7 @@ private theorem encoded_bit (width : Nat) (state : Frame width)
   rw [encoded] at actual
   exact actual.symm
 
-private theorem bit_read (width : Nat) (state : Frame width)
+private lemma bit_read (width : Nat) (state : Frame width)
     (source target : EncodedBit (frameEncoding width))
     (same : WorkspaceReuse.wires width source.wire = target.wire) :
     source.get ((WorkspaceReuse.placement width).grouping state) = target.get state := by
@@ -50,7 +50,7 @@ private theorem bit_read (width : Nat) (state : Frame width)
     (congrArg (fun wire : Fin (frameEncoding width).width =>
       ((frameEncoding width).encode state).val.testBit wire.rev.val) same)
 
-private theorem input_wire (width : Nat) (index : Fin width) :
+private lemma input_wire (width : Nat) (index : Fin width) :
     WorkspaceReuse.wires width ((FramePorts.input width).bit index).wire =
       ((FramePorts.input width).bit index).wire := by
   apply Fin.ext
@@ -62,14 +62,14 @@ private theorem input_wire (width : Nat) (index : Fin width) :
     rw [SharedEEA.encoding_width]
     omega
 
-private theorem accumulator_wire (width : Nat) (index : Fin width) :
+private lemma accumulator_wire (width : Nat) (index : Fin width) :
     WorkspaceReuse.wires width ((FramePorts.accumulator width).bit index).wire =
       ((FramePorts.numerator width).bit index).wire := by
   apply Fin.ext
   change WorkspaceReuse.address width index.val = (SharedEEA.encoding width).width + index.val
   exact WorkspaceReuse.address_accumulator width index
 
-private theorem numerator_wire (width : Nat) (index : Fin width) :
+private lemma numerator_wire (width : Nat) (index : Fin width) :
     WorkspaceReuse.wires width ((FramePorts.numerator width).bit index).wire =
       ((FramePorts.accumulator width).bit index).wire := by
   apply Fin.ext
@@ -77,7 +77,7 @@ private theorem numerator_wire (width : Nat) (index : Fin width) :
   exact WorkspaceReuse.address_numerator width index
 
 /-- X remains the identical complete word under the actual workspace-role exchange. -/
-theorem input (width : Nat) (state : Frame width) :
+lemma input (width : Nat) (state : Frame width) :
     ProductReadout.input width ((WorkspaceReuse.placement width).grouping state) =
       ProductReadout.input width state := by
   apply ProductReadout.word_ext
@@ -86,7 +86,7 @@ theorem input (width : Nat) (state : Frame width) :
   exact bit_read width state _ _ (input_wire width index)
 
 /-- The source A role reads the complete existing Y value. -/
-theorem accumulator (width : Nat) (state : Frame width) :
+lemma accumulator (width : Nat) (state : Frame width) :
     ProductReadout.accumulator width ((WorkspaceReuse.placement width).grouping state) =
       ProductReadout.numerator width state := by
   apply ProductReadout.word_ext
@@ -95,7 +95,7 @@ theorem accumulator (width : Nat) (state : Frame width) :
   exact bit_read width state _ _ (accumulator_wire width index)
 
 /-- The source Y role reads the complete saved A value. -/
-theorem numerator (width : Nat) (state : Frame width) :
+lemma numerator (width : Nat) (state : Frame width) :
     ProductReadout.numerator width ((WorkspaceReuse.placement width).grouping state) =
       ProductReadout.accumulator width state := by
   apply ProductReadout.word_ext
@@ -103,7 +103,7 @@ theorem numerator (width : Nat) (state : Frame width) :
   simp only [ProductReadout.numerator, ProductReadout.accumulator, ProductReadout.readWord_bit]
   exact bit_read width state _ _ (numerator_wire width index)
 
-private theorem history_wire (width : Nat) (index : Fin (historyWidth width)) :
+private lemma history_wire (width : Nat) (index : Fin (historyWidth width)) :
     WorkspaceReuse.wires width (ProductReadout.historyWire width index) =
       ProductReadout.historyWire width index := by
   apply Fin.ext
@@ -118,7 +118,7 @@ private theorem history_wire (width : Nat) (index : Fin (historyWidth width)) :
     split_ifs <;> omega
 
 /-- Every retained padding, length, and control value survives the actual role exchange. -/
-theorem history (width : Nat) (state : Frame width) :
+lemma history (width : Nat) (state : Frame width) :
     ProductReadout.history width ((WorkspaceReuse.placement width).grouping state) =
       ProductReadout.history width state := by
   apply ProductReadout.word_ext
@@ -129,7 +129,7 @@ theorem history (width : Nat) (state : Frame width) :
       ((frameEncoding width).encode state).val.testBit wire.rev.val) (history_wire width index))
 
 /-- The actual product source after reuse is X/A/Y, with the exact entire history retained. -/
-theorem grouping_words (width : Nat) (state : Frame width) :
+lemma grouping_words (width : Nat) (state : Frame width) :
     (ProductPlacement.placement width).grouping
         ((WorkspaceReuse.placement width).grouping state) =
       ((ProductReadout.input width state, ProductReadout.accumulator width state,
@@ -143,7 +143,7 @@ theorem grouping_words (width : Nat) (state : Frame width) :
   · exact (ProductReadout.grouping_history width _).trans (history width state)
 
 /-- The inverse grouping also retains X; this follows from the actual equivalence's round trip. -/
-theorem input_symm (width : Nat) (state : Frame width) :
+lemma input_symm (width : Nat) (state : Frame width) :
     ProductReadout.input width ((WorkspaceReuse.placement width).grouping.symm state) =
       ProductReadout.input width state := by
   have actual := input width ((WorkspaceReuse.placement width).grouping.symm state)
@@ -151,7 +151,7 @@ theorem input_symm (width : Nat) (state : Frame width) :
   exact actual.symm
 
 /-- The inverse grouping's A port contains the full original Y word. -/
-theorem accumulator_symm (width : Nat) (state : Frame width) :
+lemma accumulator_symm (width : Nat) (state : Frame width) :
     ProductReadout.accumulator width ((WorkspaceReuse.placement width).grouping.symm state) =
       ProductReadout.numerator width state := by
   have actual := numerator width ((WorkspaceReuse.placement width).grouping.symm state)
@@ -159,7 +159,7 @@ theorem accumulator_symm (width : Nat) (state : Frame width) :
   exact actual.symm
 
 /-- The inverse grouping's Y port contains the full original A word. -/
-theorem numerator_symm (width : Nat) (state : Frame width) :
+lemma numerator_symm (width : Nat) (state : Frame width) :
     ProductReadout.numerator width ((WorkspaceReuse.placement width).grouping.symm state) =
       ProductReadout.accumulator width state := by
   have actual := accumulator width ((WorkspaceReuse.placement width).grouping.symm state)
@@ -167,7 +167,7 @@ theorem numerator_symm (width : Nat) (state : Frame width) :
   exact actual.symm
 
 /-- The inverse grouping retains every small history coordinate as well. -/
-theorem history_symm (width : Nat) (state : Frame width) :
+lemma history_symm (width : Nat) (state : Frame width) :
     ProductReadout.history width ((WorkspaceReuse.placement width).grouping.symm state) =
       ProductReadout.history width state := by
   have actual := history width ((WorkspaceReuse.placement width).grouping.symm state)

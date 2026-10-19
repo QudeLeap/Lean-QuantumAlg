@@ -28,12 +28,12 @@ native Sign/quotient exchange are proved at their own implementation owners.
 namespace QuantumAlg.NumberTheory.SharedEEA.DivisionScale
 
 /-- The complete remainder is exactly its high window followed by its arbitrary low suffix. -/
-theorem reassemble (remainder shift : Nat) :
+lemma reassemble (remainder shift : Nat) :
     remainder / 2 ^ shift * 2 ^ shift + remainder % 2 ^ shift = remainder :=
   Nat.div_add_mod' remainder (2 ^ shift)
 
 /-- The actual high-window comparison is the full comparison with the shifted threshold. -/
-theorem comparison (remainder divisor shift : Nat) :
+lemma comparison (remainder divisor shift : Nat) :
     divisor ≤ remainder / 2 ^ shift ↔ divisor * 2 ^ shift ≤ remainder := by
   constructor
   · intro selected
@@ -45,12 +45,12 @@ theorem comparison (remainder divisor shift : Nat) :
     omega
 
 /-- Strict high-window underflow is exactly underflow of the complete shifted subtraction. -/
-theorem underflow (remainder divisor shift : Nat) :
+lemma underflow (remainder divisor shift : Nat) :
     remainder / 2 ^ shift < divisor ↔ remainder < divisor * 2 ^ shift :=
   Nat.div_lt_iff_lt_mul (Nat.two_pow_pos shift)
 
 /-- The unchanged low suffix reassembles the actual conditional high subtraction exactly. -/
-theorem corrected_reassemble (remainder divisor shift : Nat) :
+lemma corrected_reassemble (remainder divisor shift : Nat) :
     (if divisor ≤ remainder / 2 ^ shift
       then remainder / 2 ^ shift - divisor else remainder / 2 ^ shift) * 2 ^ shift +
         remainder % 2 ^ shift =
@@ -67,7 +67,7 @@ theorem corrected_reassemble (remainder divisor shift : Nat) :
     exact complete
 
 /-- An actual corrected finite high window plus its original low suffix gives full subtraction. -/
-theorem word_corrected_reassemble {width : Nat} (value divisor : BitVec width)
+lemma word_corrected_reassemble {width : Nat} (value divisor : BitVec width)
     (remainder shift : Nat) (high : value.toNat = remainder / 2 ^ shift) :
     (SignedDivision.corrected value divisor).toNat * 2 ^ shift + remainder % 2 ^ shift =
       if divisor.toNat * 2 ^ shift ≤ remainder
@@ -76,7 +76,7 @@ theorem word_corrected_reassemble {width : Nat} (value divisor : BitVec width)
   exact corrected_reassemble remainder divisor.toNat shift
 
 /-- A nonzero suffix exercises equality and rejected subtraction without extra assumptions. -/
-theorem nonzero_suffix_equality :
+lemma nonzero_suffix_equality :
     5 % 2 = 1 ∧
       (if 2 ≤ 5 / 2 then 5 / 2 - 2 else 5 / 2) * 2 + 5 % 2 = 1 ∧
       (if 3 ≤ 5 / 2 then 5 / 2 - 3 else 5 / 2) * 2 + 5 % 2 = 5 := by

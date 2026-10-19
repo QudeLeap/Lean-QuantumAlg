@@ -19,7 +19,7 @@ namespace QuantumAlg.ShortDLP
 
 noncomputable section
 
-theorem oracleTarget_zero {N : Nat} {params : RegisterParameters}
+lemma oracleTarget_zero {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell)) :
@@ -30,7 +30,7 @@ theorem oracleTarget_zero {N : Nat} {params : RegisterParameters}
 
 /-- A loaded workspace is zero exactly when its input label was the encoded
 group value. This is the inverse row convention of the permutation matrix. -/
-theorem oracleTarget_eq_zero_iff {N : Nat} {params : RegisterParameters}
+lemma oracleTarget_eq_zero_iff {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell))
@@ -48,12 +48,13 @@ theorem oracleTarget_eq_zero_iff {N : Nat} {params : RegisterParameters}
 
 /-- The actual declared query takes each zero-workspace input ket to the
 corresponding source group-operation graph ket. -/
-theorem declaredCircuit_binaryMatrix_apply_zero (gates : GateModel)
+lemma declaredCircuit_binaryMatrix_apply_zero (gates : GateModel)
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell)) :
-    (declaredCircuit gates encoding g x).binaryMatrix.apply
+    ((declaredCircuit gates N params g x).binaryMatrix
+      (declaredInterpretation encoding)).apply
         (NormalizedVector.ket (tripleEquiv params ((a, b), 0))) =
       NormalizedVector.ket
         (tripleEquiv params

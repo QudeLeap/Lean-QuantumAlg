@@ -36,13 +36,13 @@ def qpePowerProductEquiv (t n : Nat) :
     Fin (2 ^ n) × Fin (2 ^ t) ≃ Fin (2 ^ (t + n)) :=
   (Equiv.prodComm (Fin (2 ^ n)) (Fin (2 ^ t))).trans prodEquiv
 
-@[simp] private theorem qpePowerProductEquiv_symm_apply (t n : Nat)
+@[simp] private lemma qpePowerProductEquiv_symm_apply (t n : Nat)
     (i : Fin (2 ^ (t + n))) :
     (qpePowerProductEquiv t n).symm i =
       ((prodEquiv.symm i).2, (prodEquiv.symm i).1) := by
   rfl
 
-private theorem qpeReindex_mem_unitaryGroup {ι κ : Type*}
+private lemma qpeReindex_mem_unitaryGroup {ι κ : Type*}
     [Fintype ι] [DecidableEq ι] [Fintype κ] [DecidableEq κ]
     (e : ι ≃ κ) (M : Matrix ι ι ℂ)
     (hM : M ∈ Matrix.unitaryGroup ι ℂ) :
@@ -82,7 +82,7 @@ def qpeControlledPowerOp {n : Nat} (t : Nat)
   qpeExponentOp t U Fin.val
 
 @[simp]
-theorem qpeExponentOp_apply {n : Nat} (t : Nat)
+lemma qpeExponentOp_apply {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n))
     (exponent : Fin (2 ^ t) → Nat) (i j : Fin (2 ^ (t + n))) :
     qpeExponentOp t U exponent i j =
@@ -99,7 +99,7 @@ theorem qpeExponentOp_apply {n : Nat} (t : Nat)
     rw [qpePowerProductEquiv_symm_apply, qpePowerProductEquiv_symm_apply]
 
 /-- Multiplying two exponent-controlled blocks adds their pointwise powers. -/
-theorem qpeExponentOp_mul {n : Nat} (t : Nat)
+lemma qpeExponentOp_mul {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n))
     (left right : Fin (2 ^ t) → Nat) :
     qpeExponentOp t U left * qpeExponentOp t U right =
@@ -121,7 +121,7 @@ theorem qpeExponentOp_mul {n : Nat} (t : Nat)
   exact (pow_add (U : HilbertOperator (Qubits n)) (left a) (right a)).symm
 
 @[simp]
-theorem qpeExponentOp_zero {n : Nat} (t : Nat)
+lemma qpeExponentOp_zero {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) :
     qpeExponentOp t U (fun _ => 0) = 1 := by
   apply Subtype.ext
@@ -148,7 +148,7 @@ theorem qpeExponentOp_zero {n : Nat} (t : Nat)
     simp [hphase, hij]
 
 /-- Repeating one exponent-controlled block scales every branch exponent. -/
-theorem qpeExponentOp_pow {n : Nat} (t : Nat)
+lemma qpeExponentOp_pow {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n))
     (exponent : Fin (2 ^ t) → Nat) (count : Nat) :
     qpeExponentOp t U exponent ^ count =
@@ -171,7 +171,7 @@ def qpeControlledBitOp {n : Nat} (t : Nat)
   qpeExponentOp t U fun a => (a.val.testBit stage.val).toNat
 
 @[simp]
-theorem qpeControlledPowerOp_apply {n : Nat} (t : Nat)
+lemma qpeControlledPowerOp_apply {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (i j : Fin (2 ^ (t + n))) :
     qpeControlledPowerOp t U i j =
       if (prodEquiv.symm i).1 = (prodEquiv.symm j).1 then
@@ -180,7 +180,7 @@ theorem qpeControlledPowerOp_apply {n : Nat} (t : Nat)
       else 0 := by
   exact qpeExponentOp_apply t U Fin.val i j
 
-theorem qpeControlledPowerOp_applyVec_eigenstate {n : Nat} (t : Nat)
+lemma qpeControlledPowerOp_applyVec_eigenstate {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (lam : ℂ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       lam • (u : HilbertVector (Qubits n)))
@@ -230,13 +230,13 @@ theorem qpeControlledPowerOp_applyVec_eigenstate {n : Nat} (t : Nat)
     simp [Ne.symm hba]
   · simp
 
-private theorem invSqrtCard_eq_invSqrtN (t : Nat) :
+private lemma invSqrtCard_eq_invSqrtN (t : Nat) :
     WalshHadamard.invSqrtCard t = invSqrtN t := by
   rw [WalshHadamard.invSqrtCard, invSqrtN]
   congr 3
   norm_num
 
-theorem qpeControlledPowerOp_apply_uniform_eigenstate {n : Nat}
+lemma qpeControlledPowerOp_apply_uniform_eigenstate {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) :
     (qpeControlledPowerOp t P.unitary).apply
         (NormalizedVector.tensor (WalshHadamard.uniformState t) P.eigenstate) =
@@ -277,7 +277,7 @@ def qpeNearestIndex (t : Nat) (φ : Real) : Fin (2 ^ t) :=
   ⟨(round ((2 : Real) ^ t * φ)).natMod (2 ^ t),
     Int.natMod_lt (pow_ne_zero t (by norm_num : (2 : Nat) ≠ 0))⟩
 
-theorem qpeNearestIndex_distance_le (t : Nat) (φ : Real) :
+lemma qpeNearestIndex_distance_le (t : Nat) (φ : Real) :
     qpePhaseDistance t φ (qpeNearestIndex t φ) ≤
       1 / (2 * (2 : Real) ^ t) := by
   let N : Nat := 2 ^ t
@@ -342,7 +342,7 @@ def qpeRoundedError (t : Nat) (φ : Real) : Real :=
   (((2 : Real) ^ t * φ) - round ((2 : Real) ^ t * φ)) /
     (2 : Real) ^ t
 
-theorem qpeRoundedError_abs_le (t : Nat) (φ : Real) :
+lemma qpeRoundedError_abs_le (t : Nat) (φ : Real) :
     |qpeRoundedError t φ| ≤ 1 / (2 * (2 : Real) ^ t) := by
   have hpow : (0 : Real) < (2 : Real) ^ t := by positivity
   rw [qpeRoundedError, abs_div, abs_of_pos hpow]
@@ -353,7 +353,7 @@ theorem qpeRoundedError_abs_le (t : Nat) (φ : Real) :
         (abs_sub_round ((2 : Real) ^ t * φ)) hpow.le
     _ = 1 / (2 * (2 : Real) ^ t) := by ring
 
-theorem qpeNearestIndex_error_eq_roundedError_add_int
+lemma qpeNearestIndex_error_eq_roundedError_add_int
     (t : Nat) (φ : Real) :
     exists z : Int,
       φ - ((qpeNearestIndex t φ).val : Real) / (2 : Real) ^ t =
@@ -395,7 +395,7 @@ def qpeErrorAmplitude (t : Nat) (δ : Real) : ℂ :=
       Complex.exp (2 * Real.pi *
         ((((k.val : Real) * δ : Real)) : ℂ) * Complex.I)
 
-theorem phaseRegisterGeometricAmplitude_nearest_eq_errorAmplitude
+lemma phaseRegisterGeometricAmplitude_nearest_eq_errorAmplitude
     (t : Nat) (φ : Real) :
     phaseRegisterGeometricAmplitude t φ (qpeNearestIndex t φ) =
       qpeErrorAmplitude t (qpeRoundedError t φ) := by
@@ -423,7 +423,7 @@ theorem phaseRegisterGeometricAmplitude_nearest_eq_errorAmplitude
   rw [hexponent, Complex.exp_add,
     Complex.exp_int_mul_two_pi_mul_I, mul_one]
 
-theorem qpeErrorAmplitude_norm_lower_bound (t : Nat) (δ : Real)
+lemma qpeErrorAmplitude_norm_lower_bound (t : Nat) (δ : Real)
     (hdelta : |δ| ≤ 1 / (2 * (2 : Real) ^ t)) :
     2 / Real.pi ≤ ‖qpeErrorAmplitude t δ‖ := by
   let N : Nat := 2 ^ t
@@ -520,14 +520,14 @@ def qpePrincipalError (t : Nat) (φ : Real) (j : Fin (2 ^ t)) : Real :=
   let δ := φ - (j.val : Real) / (2 : Real) ^ t
   δ - round δ
 
-theorem qpePrincipalError_abs_le (t : Nat) (φ : Real)
+lemma qpePrincipalError_abs_le (t : Nat) (φ : Real)
     (j : Fin (2 ^ t)) :
     |qpePrincipalError t φ j| <= 1 / 2 := by
   simpa [qpePrincipalError] using
     abs_sub_round (φ - (j.val : Real) / (2 : Real) ^ t)
 
 /-- Periodic phase distance is the absolute value of the principal error. -/
-theorem qpePhaseDistance_eq_abs_principalError (t : Nat) (φ : Real)
+lemma qpePhaseDistance_eq_abs_principalError (t : Nat) (φ : Real)
     (j : Fin (2 ^ t)) :
     qpePhaseDistance t φ j = |qpePrincipalError t φ j| := by
   rw [qpePhaseDistance, UnitAddCircle.norm_eq]
@@ -535,7 +535,7 @@ theorem qpePhaseDistance_eq_abs_principalError (t : Nat) (φ : Real)
 
 /-- Reducing the raw phase error to its principal representative does not
 change the finite geometric amplitude. -/
-theorem phaseRegisterGeometricAmplitude_eq_principalError
+lemma phaseRegisterGeometricAmplitude_eq_principalError
     (t : Nat) (φ : Real) (j : Fin (2 ^ t)) :
     phaseRegisterGeometricAmplitude t φ j =
       qpeErrorAmplitude t (qpePrincipalError t φ j) := by
@@ -568,7 +568,7 @@ theorem phaseRegisterGeometricAmplitude_eq_principalError
 
 /-- Away from an exact grid point, a QPE geometric amplitude is bounded by
 the reciprocal principal phase distance [Lin22, phaseestimation.tex:647-715]. -/
-theorem phaseRegisterGeometricAmplitude_norm_le
+lemma phaseRegisterGeometricAmplitude_norm_le
     (t : Nat) (φ : Real) (j : Fin (2 ^ t))
     (hdistance : 0 < qpePhaseDistance t φ j) :
     ‖phaseRegisterGeometricAmplitude t φ j‖ <=
@@ -664,14 +664,14 @@ def qpeLiftedGridIndex (t : Nat) (φ : Real) (j : Fin (2 ^ t)) : Int :=
   (j.val : Int) + (2 ^ t : Nat) *
     round (φ - (j.val : Real) / (2 : Real) ^ t)
 
-private theorem qpeLiftedGridIndex_emod (t : Nat) (φ : Real)
+private lemma qpeLiftedGridIndex_emod (t : Nat) (φ : Real)
     (j : Fin (2 ^ t)) :
     qpeLiftedGridIndex t φ j % (2 ^ t : Nat) = (j.val : Int) := by
   rw [qpeLiftedGridIndex, Int.add_mul_emod_self_left]
   exact Int.emod_eq_of_lt (Int.natCast_nonneg j.val)
     (Int.ofNat_lt_ofNat_of_lt j.isLt)
 
-theorem qpeLiftedGridIndex_injective (t : Nat) (φ : Real) :
+lemma qpeLiftedGridIndex_injective (t : Nat) (φ : Real) :
     Function.Injective (qpeLiftedGridIndex t φ) := by
   intro left right h
   apply Fin.ext
@@ -679,7 +679,7 @@ theorem qpeLiftedGridIndex_injective (t : Nat) (φ : Real) :
   rw [qpeLiftedGridIndex_emod, qpeLiftedGridIndex_emod] at hmod
   exact_mod_cast hmod
 
-theorem qpePrincipalError_scaled (t : Nat) (φ : Real)
+lemma qpePrincipalError_scaled (t : Nat) (φ : Real)
     (j : Fin (2 ^ t)) :
     (2 : Real) ^ t * qpePrincipalError t φ j =
       (2 : Real) ^ t * φ - (qpeLiftedGridIndex t φ j : Real) := by
@@ -698,7 +698,7 @@ def qpeBadIndexMass (t : Nat) (φ ρ : Real) : Real :=
 /-- The two cyclic grid tails obey the source reciprocal-square bound for every
 positive radius and arbitrary eigenphase [Lin22,
 phaseestimation.tex:647-715]. -/
-theorem qpeBadIndexMass_le (t : Nat) (φ ρ : Real) (hrho : 0 < ρ) :
+lemma qpeBadIndexMass_le (t : Nat) (φ ρ : Real) (hrho : 0 < ρ) :
     qpeBadIndexMass t φ ρ <=
       1 / (2 * (2 : Real) ^ t * ρ) +
         1 / (2 * ((2 : Real) ^ t * ρ) ^ 2) := by

@@ -24,10 +24,12 @@ namespace QuantumAlg.MeasuredUncompute.ProductPortLaws
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement ProductReadout MAU.Multiplication
 
 /-- Four independent complete physical reads determine every bit of the live frame. -/
-theorem frame_ext {width : Nat} {left right : Frame width}
+lemma frame_ext {width : Nat} {left right : Frame width}
     (sameInput : input width left = input width right)
     (sameNumerator : numerator width left = numerator width right)
     (sameAccumulator : accumulator width left = accumulator width right)
@@ -44,7 +46,7 @@ theorem frame_ext {width : Nat} {left right : Frame width}
   · exact (grouping_history width left).trans
       (sameHistory.trans (grouping_history width right).symm)
 
-private theorem grouping_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma grouping_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) :
     (placement width).grouping (NativeProductFrame.step width modulus state) =
       (VariableGidney.prefixOutput modulus width ((placement width).grouping state).1,
@@ -52,7 +54,7 @@ private theorem grouping_step (width : Nat) (modulus : Fin (2 ^ width + 1))
   (placement width).grouping.apply_symm_apply _
 
 /-- The native product leaves the complete X word unchanged on every basis frame. -/
-theorem step_input (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) :
+lemma step_input (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) :
     input width (NativeProductFrame.step width modulus state) = input width state := by
   rw [← grouping_input, ← grouping_input]
   have actual := congrArg
@@ -61,7 +63,7 @@ theorem step_input (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame 
   exact actual
 
 /-- The native product leaves the complete existing Y word unchanged on every basis frame. -/
-theorem step_numerator (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) :
+lemma step_numerator (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) :
     numerator width (NativeProductFrame.step width modulus state) = numerator width state := by
   rw [← grouping_numerator, ← grouping_numerator]
   have actual := congrArg
@@ -70,7 +72,7 @@ theorem step_numerator (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Fr
   exact actual
 
 /-- A receives the exact modular product; no high padding or history coordinate is discarded. -/
-theorem step_accumulator (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width)
+lemma step_accumulator (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width)
     (valid : (accumulator width state).val < modulus.val) :
     (accumulator width (NativeProductFrame.step width modulus state)).val =
       ((accumulator width state).val + (input width state).val *
@@ -89,7 +91,7 @@ theorem step_accumulator (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : 
   exact actual.trans arithmetic
 
 /-- Complete physical readout equations identify the actual native output frame. -/
-theorem step_eq_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma step_eq_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state result : Frame width) (valid : (accumulator width state).val < modulus.val)
     (readInput : input width result = input width state)
     (readNumerator : numerator width result = numerator width state)
@@ -105,7 +107,7 @@ theorem step_eq_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
   · exact (product_history width modulus state).trans readHistory.symm
 
 /-- The same actual gate program realizes the complete frame identified by the physical reads. -/
-theorem program_output_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma program_output_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state result : Frame width) (valid : (accumulator width state).val < modulus.val)
     (readInput : input width result = input width state)
     (readNumerator : numerator width result = numerator width state)
@@ -113,7 +115,7 @@ theorem program_output_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
       ((accumulator width state).val + (input width state).val *
         (numerator width state).val) % modulus.val)
     (readHistory : history width result = history width state) :
-    (NativeProductFrame.program width modulus).applyNormalized
+    ((NativeProductFrame.program width modulus).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
             ((frameEncoding width).encode state))) =
@@ -121,7 +123,8 @@ theorem program_output_of_reads (width : Nat) (modulus : Fin (2 ^ width + 1))
         ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
           ((frameEncoding width).encode result)) := by
   have actual :=
-    (NativeProductFrame.nativeProductFrame_realizes width modulus).apply_encoded_ket state
+    (NativeProductFrame.nativeProductFrame_realizes
+      (environment := environment) width modulus).apply_encoded_ket state
   rw [step_eq_of_reads width modulus state result valid readInput readNumerator
     readAccumulator readHistory] at actual
   exact actual

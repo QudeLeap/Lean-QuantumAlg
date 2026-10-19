@@ -6,8 +6,12 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Primitives.PhaseKickback.GeneralizedEndpoint.Execution
+import all QuantumAlg.Primitives.PhaseKickback.GeneralizedEndpoint.Execution
+
 public import QuantumAlg.Primitives.PhaseKickback.Construction
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Core.Algorithm.Unitary.Requirement
 public import QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Primitives.PhaseKickback.Construction
 import all QuantumAlg.Primitives.PhaseKickback.Basic
@@ -42,35 +46,6 @@ open Execution.OwnedQubits NormalizedVector
 
 variable {n : Nat}
 
-private def semanticOperator (U : UnitaryOperator (Qubits n)) :
-    UnitaryOperator (context (1 + n)).register :=
-  UnitaryOperator.reindex (basisEquiv (1 + n)).symm (UnitaryOperator.controlledQubits U)
-
-/-- The native model explicitly grants the one source query used here. -/
-public abbrev model (U : UnitaryOperator (Qubits n)) : ExecutionModel :=
-  .quantum AlgorithmGate.model (UnitarySource.model U true)
-
-private def program (U : UnitaryOperator (Qubits n)) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true)
-      (context (1 + n)).quantumLayout :=
-  Execution.unitaryOfEqualWires (layout (1 + n)) (context (1 + n)).quantumLayout
-    (layout_wires (1 + n)) (circuit U)
-
-private theorem program_matrix (U : UnitaryOperator (Qubits n)) :
-    (program U).matrix = semanticOperator U := by
-  refine (Execution.unitaryOfEqualWires_matrix (layout (1 + n))
-    (context (1 + n)).quantumLayout (layout_wires (1 + n)) (circuit U)).trans ?_
-  refine (congrArg
-    (UnitaryOperator.reindex (R := (layout (1 + n)).register)
-      (S := (context (1 + n)).register)
-      (Execution.basisOfEqualWires (layout (1 + n)) (context (1 + n)).quantumLayout
-        (layout_wires (1 + n)))) (circuit_matrix U)).trans ?_
-  exact UnitaryOperator.unitaryOperator_reindex_trans _ _ _
-
-private def code (U : UnitaryOperator (Qubits n)) :
-    Circuit (model U) (context (1 + n)) (context (1 + n)) :=
-  .unitary (program U)
-
 /-- Complete controlled-unitary phase-kickback contract.
 
 **Input.** A supplied owned 1 + n-qubit register in any normalized joint
@@ -86,103 +61,58 @@ No new quantum or classical storage is allocated.
 **Success.** Probability one and exact full-operator action.
 **Source.** The source query and its phase-kickback action are [CEMM98, cemm6.tex:140-166].
 -/
-public def problem (U : UnitaryOperator (Qubits n)) :
-    Problem (model U) (context (1 + n)) (context (1 + n)) .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary (semanticOperator U)]
+@[expose] public def problem (n : Nat) :
+    Problem (model n) (context (1 + n)) (context (1 + n)) .unit where
+  Witness := UnitaryOperator (Qubits n)
+  valid := fun environment U _ => environment.quantum = UnitarySource.interpretation U true
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ U => [StateRequirement.unitary (semanticOperator U)]
   resources :=
-    { events := ResourcePool.singleton (model := model U)
+    { events := ResourcePool.singleton (model := model n)
         (.oracle UnitarySource.Coordinate.controlled)
       resident := space (1 + n)
       auxiliary := space (1 + n) }
-  depth :=
-    { duration := fun _ => 1
-      limit := 1
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := 1
 
-/-- Execute the actual query and retain the complete supplied joint register. -/
-public def algorithm (U : UnitaryOperator (Qubits n)) :
-    Algorithm (model U) (context (1 + n)) (context (1 + n)) .unit where
-  run := { code := code U, output := Output.all (context (1 + n)) .unit }
-
-/-- Complete Output lists the same original owned systems. -/
-private theorem output_listing (U : UnitaryOperator (Qubits n)) :
-    (algorithm U).run.output.listing = (context (1 + n)).keys := rfl
-
-/-- Complete Output keeps every supplied system. -/
-public theorem algorithm_output_listing (U : UnitaryOperator (Qubits n)) :
-    (algorithm U).run.output.listing = (context (1 + n)).keys := output_listing U
-
-private theorem actual_events (U : UnitaryOperator (Qubits n)) (path : (code U).Path) :
-    (code U).resourcePool path = (problem U).resources.events := by
-  change ResourcePool.ofList (program U).eventTrace = _
-  refine (UnitaryCircuit.ofList_eventTrace_eq_eventCost (program U)).trans ?_
-  refine (Execution.unitaryOfEqualWires_cost (layout (1 + n))
-    (context (1 + n)).quantumLayout (layout_wires (1 + n))
-    (circuit U) .empty .empty).trans ?_
-  exact circuit_events U
-
-private theorem actual_resident (U : UnitaryOperator (Qubits n)) (path : (code U).Path) :
-    (code U).peakResidentSpace path ≤ space (1 + n) := by
-  intro axis
-  change Nat.max ((context (1 + n)).residentSpace axis) 0 ≤ space (1 + n) axis
-  rw [ownedQubits_resident]
-  exact le_of_eq (Nat.max_zero _)
-
-private theorem actual_auxiliary (U : UnitaryOperator (Qubits n)) (path : (code U).Path) :
-    (code U).peakAuxiliarySpace path ≤ space (1 + n) := by
-  intro axis
-  change Nat.max ((context (1 + n)).auxiliarySpace axis) 0 ≤ space (1 + n) axis
-  rw [ownedQubits_auxiliary]
-  exact le_of_eq (Nat.max_zero _)
-
-private theorem algorithm_solves (U : UnitaryOperator (Qubits n)) :
-    Algorithm.Solves (algorithm U) (problem U) := by
+private lemma algorithm_solves (n : Nat) :
+    Algorithm.Solves (algorithm n) (problem n) := by
   constructor
-  · intro Reference input _valid _initialization
+  · intro environment U Reference input admitted _initialization
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialization requirement present
+  · intro environment U Reference input admitted _initialization requirement present
     have same : requirement = StateRequirement.unitary (semanticOperator U) :=
       List.mem_singleton.mp present
     subst requirement
-    exact StateRequirement.unitary_holds (semanticOperator U)
-      (program U) (program_matrix U)
+    apply StateRequirement.unitary_holds environment (semanticOperator U)
+      (program n) ?_
       (Output.all (context (1 + n)) .unit) input
-  · intro Reference input _valid _initialization
-    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
-      (program U) (Output.all (context (1 + n)) .unit) input
-  · intro _Reference _input _valid _initialization path _supported
-    exact le_of_eq (actual_events U path)
-  · intro _Reference _input _valid _initialization path _supported
-    exact actual_resident U path
-  · intro _Reference _input _valid _initialization path _supported
-    exact actual_auxiliary U path
-  · intro _Reference _input _valid _initialization _path _supported
-    exact circuit_depth U
+    change environment.quantum = UnitarySource.interpretation U true at admitted
+    rw [admitted]
+    exact program_matrix U
+  · intro environment U Reference input admitted _initialization
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed environment rfl rfl
+      (program n) (Output.all (context (1 + n)) .unit) input
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    exact le_of_eq (actual_events n path)
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    exact actual_resident n path
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    exact actual_auxiliary n path
+  · intro _environment _witness _Reference _input _valid _initialization _path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
+    exact circuit_depth n
 
-/-- The actual complete query solves its independent execution problem and
-preserves the original exact phase-kickback identity [CEMM98, cemm6.tex:140-166]. -/
-public theorem main (U : UnitaryOperator (Qubits n))
-    (u : NormalizedVector (Qubits n)) (θ : ℝ)
-    (hu : U.applyVec (u : HilbertVector (Qubits n)) =
-      Complex.exp (θ * Complex.I) • (u : HilbertVector (Qubits n))) (a b : ℂ) :
-    ∃ candidate, Algorithm.Solves candidate (problem U) ∧
-    (UnitaryOperator.controlledQubits U).applyVec
-        (HilbertVector.tensor
-          ((a • ket0 + b • ket1 : HilbertVector (Qubits 1))) (u : HilbertVector (Qubits n)))
-      =
-      HilbertVector.tensor
-        ((a • ket0 + (Complex.exp (θ * Complex.I) * b) • ket1 : HilbertVector (Qubits 1)))
-        (u : HilbertVector (Qubits n)) := by
-  exact ⟨algorithm U, algorithm_solves U, eigenvalue_action U u θ hu a b⟩
+/-- The actual controlled query solves the independent full-state problem. -/
+public theorem main (n : Nat) :
+    ∃ candidate : Algorithm (model n) (context (1 + n)) (context (1 + n)) .unit,
+      Algorithm.Solves candidate (problem n) :=
+  ⟨algorithm n, algorithm_solves n⟩
 
 end
 

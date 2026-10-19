@@ -18,7 +18,7 @@ section
 namespace QuantumAlg.QubitTwoDesign.OctNumeratorClosed
 
 /-- Multiplication by a half-family numerator stays in the doubled numerator set. -/
-theorem half :
+lemma half :
     ∀ negative b, ∃ c,
       octNumerator (.half negative) * octNumerator b = octNumerator c + octNumerator c := by
   intro negative b

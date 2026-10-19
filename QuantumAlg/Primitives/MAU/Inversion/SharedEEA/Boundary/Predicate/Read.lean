@@ -25,7 +25,7 @@ noncomputable section
 
 open EncodedBit BoundaryPredicateLayout
 
-private theorem length_capacity (width : Nat) (withHigh : Bool) :
+private lemma length_capacity (width : Nat) (withHigh : Bool) :
     3 * width.size ≤ sourceCount width withHigh := by
   unfold sourceCount
   split <;> omega
@@ -54,14 +54,14 @@ private def highIndex (width : Nat) (index : Fin 2) : Fin (sourceCount width tru
     have within := index.isLt
     omega⟩
 
-private theorem quotient_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
+private lemma quotient_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
     (state : Registers width) :
     (sourceBit width withHigh (quotientIndex width withHigh index)).get state =
       state.quotientLength.getMsbD index.val := by
   rw [sourceBit_get]
   exact if_pos index.isLt
 
-private theorem low_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
+private lemma low_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
     (state : Registers width) :
     (sourceBit width withHigh (lowIndex width withHigh index)).get state =
       state.shift.getMsbD index.val := by
@@ -75,7 +75,7 @@ private theorem low_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
       state.shift.getMsbD (width.size + index.val - width.size) else _) = _
   rw [if_neg afterQuotient, if_pos beforeDivisor, Nat.add_sub_cancel_left]
 
-private theorem divisor_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
+private lemma divisor_get (width : Nat) (withHigh : Bool) (index : Fin width.size)
     (state : Registers width) :
     (sourceBit width withHigh (divisorIndex width withHigh index)).get state =
       state.divisorLength.getMsbD index.val := by
@@ -91,7 +91,7 @@ private theorem divisor_get (width : Nat) (withHigh : Bool) (index : Fin width.s
       state.divisorLength.getMsbD (2 * width.size + index.val - 2 * width.size) else _) = _
   rw [if_neg afterQuotient, if_neg afterLow, if_pos beforeHigh, Nat.add_sub_cancel_left]
 
-private theorem high_get (width : Nat) (index : Fin 2) (state : Registers width) :
+private lemma high_get (width : Nat) (index : Fin 2) (state : Registers width) :
     (sourceBit width true (highIndex width index)).get state =
       (NumberTheory.SharedEEA.PaddingClock.high state.firstWord).getMsbD index.val := by
   have afterQuotient : ¬3 * width.size + index.val < width.size := by omega
@@ -106,7 +106,7 @@ private theorem high_get (width : Nat) (index : Fin 2) (state : Registers width)
   rw [if_neg afterQuotient, if_neg afterLow, if_neg afterDivisor, Nat.add_sub_cancel_left]
 
 /-- Exact quantum-source equality of the actual three-field and four-region zero patterns. -/
-theorem source_zero_iff (width : Nat) (withHigh : Bool) (state : Registers width) :
+lemma source_zero_iff (width : Nat) (withHigh : Bool) (state : Registers width) :
     (layout width withHigh).PatternMatches (fun _ => false) state ↔
       state.quotientLength = 0 ∧ state.shift = 0 ∧ state.divisorLength = 0 ∧
         (withHigh = true → NumberTheory.SharedEEA.PaddingClock.high state.firstWord = 0) := by

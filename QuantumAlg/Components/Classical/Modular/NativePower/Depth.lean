@@ -35,7 +35,7 @@ def multiplyDepth (width : Nat) (duration : Resource.Event model → Nat) : Nat 
       (.wordResize (width + 1) width)))
 
 /-- The two actual scratch scopes do not erase the three arithmetic dependencies. -/
-theorem nativePower_scopedMultiply_depth
+lemma nativePower_scopedMultiply_depth
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
@@ -56,7 +56,7 @@ theorem nativePower_scopedMultiply_depth
   exact (Nat.add_assoc _ _ _).symm
 
 /-- Actual selection admits at most two complete sequential reductions per exponent slot. -/
-theorem nativePower_bit_depth_le (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_bit_depth_le (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     (duration : Resource.Event model → Nat) (path : (bitCircuit (model := model) base modulus
@@ -83,7 +83,7 @@ theorem nativePower_bit_depth_le (base : CInputRef ctx (.unsignedWord width))
         omega
 
 /-- The finite sequence adds the actual depth of every selected square-and-multiply step. -/
-theorem nativePower_fold_depth_le (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_depth_le (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
     (duration : Resource.Event model → Nat) :
@@ -105,7 +105,7 @@ theorem nativePower_fold_depth_le (base : CInputRef ctx (.unsignedWord width))
           (Nat.add_comm _ _).trans (Nat.succ_mul _ _).symm
 
 /-- The declared exponent width supplies the actual exponent circuit's duration budget. -/
-theorem nativePower_exponent_depth_le {exponentWidth : Nat}
+lemma nativePower_exponent_depth_le {exponentWidth : Nat}
     (base : CInputRef ctx (.unsignedWord width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -119,7 +119,7 @@ theorem nativePower_exponent_depth_le {exponentWidth : Nat}
       duration path
 
 /-- At unit duration the actual exponent circuit takes at most six steps per declared bit. -/
-theorem nativePower_exponent_unitDepth_le {exponentWidth : Nat}
+lemma nativePower_exponent_unitDepth_le {exponentWidth : Nat}
     (base : CInputRef ctx (.unsignedWord width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))

@@ -6,7 +6,11 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Execution.CycleSchedule
+import all QuantumAlg.Core.Execution.Classical.Predicate
+import all QuantumAlg.Core.Execution.Restart
+import all QuantumAlg.Core.Execution.Input.Successor
+import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Core.Execution.Basis.Seeded
 import all QuantumAlg.Core.Base.State.Density.BasisSupport
 import all QuantumAlg.Core.Algorithm.ExecutionState.Map
@@ -36,7 +40,7 @@ def SeedDomain {kind : ProblemKind} {ctx : RuntimeCtx kind} (seed : ctx.register
     (state.block original).matrix basis basis = 0
 
 /-- Every reference extension of the local domain has the same complete store seed support. -/
-theorem seeded_input {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma seeded_input {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     (seed : ctx.register.Index) {Reference : Register}
     (input : OracleInput model.classicalOracles ctx Reference)
     (admitted : SeedDomain seed input.caller.localState) :
@@ -61,7 +65,7 @@ theorem seeded_input {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
         leftRef (right, rightRef)
 
 /-- Relabeling histories while preserving the complete store preserves its seed support. -/
-theorem seeded_mapRecord {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma seeded_mapRecord {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (seed : ctx.register.Index) {Reference : Register} {History Later : Type}
     [Fintype History] [Fintype Later]
     (state : State ctx Reference History) (seeded : BasisSeeded.Holds seed state)
@@ -85,7 +89,7 @@ theorem seeded_mapRecord {kind : ProblemKind} {ctx : RuntimeCtx kind}
   exact seeded original left right leftRef rightRef
 
 /-- The actual full-state seed invariant implies the locally observable admission predicate. -/
-theorem seedDomain_of_seeded {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma seedDomain_of_seeded {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     (seed : ctx.register.Index) {Reference : Register}
     (input : OracleInput model.classicalOracles ctx Reference)
     (seeded : BasisSeeded.Holds seed input.state) :
@@ -102,14 +106,14 @@ theorem seedDomain_of_seeded {model : ExecutionModel} {ctx : RuntimeCtx model.ki
     (if_neg (fun same => different same.1)))
 
 /-- Actual prefix outputs satisfy the next seed domain without altering hidden service state. -/
-theorem nextInput_seedDomain {model : ExecutionModel}
+lemma nextInput_seedDomain {model : ExecutionModel} {environment : model.Environment}
     {pre post : RuntimeCtx model.kind} (code : Circuit model pre post)
     (seed : post.register.Index) {Reference : Register}
     (input : OracleInput model.classicalOracles pre Reference)
-    (seeded : BasisSeeded.Holds seed (code.execute Reference
+    (seeded : BasisSeeded.Holds seed (code.execute environment Reference
       (input.state.mapClassical (fun entry => (entry.1, (entry.2, ())))))) :
-    SeedDomain seed (code.nextInput input).caller.localState :=
-  seedDomain_of_seeded seed (code.nextInput input)
+    SeedDomain seed (code.nextInput environment input).caller.localState :=
+  seedDomain_of_seeded seed (code.nextInput environment input)
     (seeded_mapRecord seed _ seeded (fun entry => entry.2.1))
 
 end

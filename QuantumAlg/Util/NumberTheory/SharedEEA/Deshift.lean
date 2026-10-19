@@ -41,14 +41,14 @@ def phaseValue (state : IterationState) : Nat :=
     (Alignment.align state.remainder state.divisor).places (CoefficientPhase.start state)).value
 
 /-- The actual third-phase value is the next macro coefficient. -/
-theorem phaseValue_eq_next (state : IterationState) (active : 0 < state.divisor) :
+lemma phaseValue_eq_next (state : IterationState) (active : 0 < state.divisor) :
     phaseValue state = (IterationState.step state).coefficient := by
   unfold phaseValue
   rw [Alignment.align_places_eq_quotient_size state.remainder state.divisor active]
   exact CoefficientPhase.finish_start_coefficient state
 
 /-- The actual coefficient phase supplies both sides of the fourth-phase comparison boundary. -/
-theorem phaseValue_bounds (state : IterationState) (valid : state.Admissible)
+lemma phaseValue_bounds (state : IterationState) (valid : state.Admissible)
     (active : 0 < state.divisor) :
     0 < (Alignment.align state.remainder state.divisor).places ∧
       2 ^ ((Alignment.align state.remainder state.divisor).places - 1) * state.coefficient ≤
@@ -80,7 +80,7 @@ theorem phaseValue_bounds (state : IterationState) (valid : state.Admissible)
     simpa only [CoefficientCapacity.current_scale] using below
 
 /-- The completed coefficient pair retains the original actual alignment length. -/
-theorem recovered_places (state : IterationState) (valid : state.Admissible)
+lemma recovered_places (state : IterationState) (valid : state.Admissible)
     (active : 0 < state.divisor) :
     (phaseValue state / state.coefficient).size =
       (Alignment.align state.remainder state.divisor).places := by
@@ -126,7 +126,7 @@ def position (places count : Nat) (iteration : Bool)
       if count = places then !iteration else iteration⟩⟩
 
 /-- The actual comparison combines with the distinct first-step sign to produce sign one. -/
-theorem compared_sign (coefficient value places count : Nat)
+lemma compared_sign (coefficient value places count : Nat)
     (positive : 0 < places) (within : count < places)
     (lower : 2 ^ (places - 1) * coefficient ≤ value)
     (upper : value < 2 ^ places * coefficient) :
@@ -141,7 +141,7 @@ theorem compared_sign (coefficient value places count : Nat)
     simp [first, comparison]
 
 /-- One literal fourth-phase step has exactly the claimed next word, counter, and flags. -/
-theorem step_position (coefficient value places count : Nat) (iteration : Bool)
+lemma step_position (coefficient value places count : Nat) (iteration : Bool)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (positive : 0 < places) (beforeEnd : count < places)
     (lower : 2 ^ (places - 1) * coefficient ≤ value)
@@ -173,7 +173,7 @@ theorem step_position (coefficient value places count : Nat) (iteration : Bool)
       simp [finished, shiftNonzero, before]
 
 /-- The actual fourth-phase run realizes its complete word, length, and flag characterization. -/
-theorem run_position (coefficient value places count : Nat) (iteration : Bool)
+lemma run_position (coefficient value places count : Nat) (iteration : Bool)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (positive : 0 < places) (within : count ≤ places)
     (lower : 2 ^ (places - 1) * coefficient ≤ value)
@@ -199,7 +199,7 @@ theorem run_position (coefficient value places count : Nat) (iteration : Bool)
       step_position coefficient value places count iteration payload positive beforeEnd lower upper
 
 /-- After all real shifts, the word is unrotated and the source phase/sign bits are zero. -/
-theorem run_finish (coefficient value places : Nat) (iteration : Bool)
+lemma run_finish (coefficient value places : Nat) (iteration : Bool)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (positive : 0 < places)
     (lower : 2 ^ (places - 1) * coefficient ≤ value)
@@ -211,7 +211,7 @@ theorem run_finish (coefficient value places : Nat) (iteration : Bool)
     run_position coefficient value places places iteration payload positive le_rfl lower upper
 
 /-- The fourth phase restores the actual bounded shared word produced by the third phase. -/
-theorem finish_from_coefficient (state : IterationState) (modulus : Nat)
+lemma finish_from_coefficient (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     let places := (Alignment.align state.remainder state.divisor).places

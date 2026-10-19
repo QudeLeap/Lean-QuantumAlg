@@ -25,10 +25,11 @@ namespace QuantumAlg.OrderFinding.Sampling.Native.Framed
 noncomputable section
 
 /-- The native framed unitary produces the exact source Born state. -/
-theorem nativeProgram_zero_density (ctx : RuntimeCtx .quantum)
+lemma nativeProgram_zero_density (ctx : RuntimeCtx .quantum)
     (noQuantum : ctx.quantumWires = []) {N x t width : Nat}
     (access : ModExpOracleAccess N x t width) :
-    DensityOperator.applyUnitary (nativeProgram ctx noQuantum access).matrix
+    DensityOperator.applyUnitary ((nativeProgram ctx noQuantum t width).matrix
+      (OrderFinding.Native.interpretation access))
       ((DensityOperator.ofPure (OrderFinding.Native.zeroInput t width)).reindex
         (S := (preparedContext ctx noQuantum t width).register)
         (preparedBasisEquiv ctx noQuantum t width).symm) =

@@ -27,14 +27,14 @@ def addWord {width : Nat} (constant word : Fin (2 ^ width)) : Fin (2 ^ width) :=
   ⟨(word.val + constant.val) % 2 ^ width, Nat.mod_lt _ (Nat.two_pow_pos width)⟩
 
 /-- A preceding carry increment contributes its Boolean value modulo the high width. -/
-theorem hrsAddWord_after_increment_value (width : Nat)
+lemma hrsAddWord_after_increment_value (width : Nat)
     (constant word : Fin (2 ^ width)) (carry : Bool) :
     (addWord constant (if carry then incrementWord word else word)).val =
       (word.val + constant.val + carry.toNat) % 2 ^ width := by
   cases carry <;>
     simp [addWord, incrementWord, Nat.add_mod, Nat.add_assoc, Nat.add_comm]
 
-private theorem halves_add_mod (low high : Nat)
+private lemma halves_add_mod (low high : Nat)
     (inputLow constantLow : Fin (2 ^ low)) (inputHigh constantHigh : Fin (2 ^ high)) :
     ((inputLow.val + 2 ^ low * inputHigh.val) +
         (constantLow.val + 2 ^ low * constantHigh.val)) % (2 ^ low * 2 ^ high) =
@@ -76,7 +76,7 @@ private theorem halves_add_mod (low high : Nat)
     _ = _ := by rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt hbound]
 
 /-- Carry-first high increment followed by separate half additions is full-width addition. -/
-theorem hrsAddWord_halves (low high : Nat)
+lemma hrsAddWord_halves (low high : Nat)
     (inputLow constantLow : Fin (2 ^ low)) (inputHigh constantHigh : Fin (2 ^ high)) :
     addWord (prodEquiv (constantHigh, constantLow)) (prodEquiv (inputHigh, inputLow)) =
       prodEquiv

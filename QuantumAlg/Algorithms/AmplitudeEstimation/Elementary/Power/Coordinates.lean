@@ -30,17 +30,17 @@ def originalPhase (t n : Nat) (phase : Fin (2 ^ phaseWidth t n)) : Fin (2 ^ t) :
 def workPhase (t n : Nat) (phase : Fin (2 ^ phaseWidth t n)) : Fin (2 ^ helperWidth t n) :=
   ((prodEquiv (m := t) (n := helperWidth t n)).symm phase).2
 
-theorem originalPhase_prod (t n : Nat) (phase : Fin (2 ^ t))
+lemma originalPhase_prod (t n : Nat) (phase : Fin (2 ^ t))
     (work : Fin (2 ^ helperWidth t n)) :
     originalPhase t n (prodEquiv (phase, work)) = phase := by
   simp only [originalPhase, Equiv.symm_apply_apply]
 
-theorem workPhase_prod (t n : Nat) (phase : Fin (2 ^ t))
+lemma workPhase_prod (t n : Nat) (phase : Fin (2 ^ t))
     (work : Fin (2 ^ helperWidth t n)) : workPhase t n (prodEquiv (phase, work)) = work := by
   simp only [workPhase, Equiv.symm_apply_apply]
 
 /-- The extended physical stage reads the original bit and ignores the arbitrary work value. -/
-theorem extendedStage_testBit {t : Nat} (n : Nat) (stage : Fin t)
+lemma extendedStage_testBit {t : Nat} (n : Nat) (stage : Fin t)
     (phase : Fin (2 ^ phaseWidth t n)) :
     phase.val.testBit (extendedStage n stage).val =
       (originalPhase t n phase).val.testBit stage.val := by
@@ -52,7 +52,7 @@ theorem extendedStage_testBit {t : Nat} (n : Nat) (stage : Fin t)
   exact prodEquiv_testBit_left original work stage
 
 /-- The literal original power multiplicity is unchanged by physical placement. -/
-theorem extendedStage_exponent {t : Nat} (n : Nat) (stage : Fin t)
+lemma extendedStage_exponent {t : Nat} (n : Nat) (stage : Fin t)
     (phase : Fin (2 ^ phaseWidth t n)) :
     2 ^ stage.val * (phase.val.testBit (extendedStage n stage).val).toNat =
       QuantumPhaseEstimation.Native.stageExponent stage (originalPhase t n phase) := by
@@ -60,7 +60,7 @@ theorem extendedStage_exponent {t : Nat} (n : Nat) (stage : Fin t)
   rfl
 
 /-- Every source and selected work value appears in the explicit full-register reassociation. -/
-theorem originalAndWorkEquiv_pair (t n : Nat) (phase : Fin (2 ^ phaseWidth t n))
+lemma originalAndWorkEquiv_pair (t n : Nat) (phase : Fin (2 ^ phaseWidth t n))
     (source : Fin (2 ^ n)) :
     originalAndWorkEquiv t n (prodEquiv (phase, source)) =
       (prodEquiv (originalPhase t n phase, source), workPhase t n phase) := by

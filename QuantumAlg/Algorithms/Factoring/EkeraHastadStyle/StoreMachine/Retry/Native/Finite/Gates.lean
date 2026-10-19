@@ -34,7 +34,7 @@ def gateCountBound (N totalRounds : Nat) (coordinate : AlgorithmGate.Coordinate)
         if coordinate = .singleQubit then 1 else 0
 
 /-- The complete independent pool has no quantum contributions from classical processing. -/
-theorem eventEnvelope_gate_succ (N count : Nat) (coordinate : AlgorithmGate.Coordinate) :
+lemma eventEnvelope_gate_succ (N count : Nat) (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)
         (eventEnvelope N (count + 1)) =
       16 * (count + 1) * ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)
@@ -49,7 +49,7 @@ theorem eventEnvelope_gate_succ (N count : Nat) (coordinate : AlgorithmGate.Coor
   cases coordinate <;> simp <;> ring
 
 /-- Every independent gate coordinate satisfies its own closed width formula. -/
-theorem eventEnvelope_gate_le (N totalRounds : Nat) (coordinate : AlgorithmGate.Coordinate) :
+lemma eventEnvelope_gate_le (N totalRounds : Nat) (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)
       (eventEnvelope N totalRounds) ≤ gateCountBound N totalRounds coordinate := by
   cases totalRounds with
@@ -67,7 +67,7 @@ theorem eventEnvelope_gate_le (N totalRounds : Nat) (coordinate : AlgorithmGate.
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Each same-run path obeys all three independent native gate-coordinate ceilings. -/
-theorem run_gateCount_le (input : Input N) (totalRounds : Nat)
+lemma run_gateCount_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)

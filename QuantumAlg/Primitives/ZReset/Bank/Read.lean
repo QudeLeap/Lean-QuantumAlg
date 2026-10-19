@@ -25,11 +25,13 @@ namespace QuantumAlg.ZReset.Bank
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 open Execution
 
 attribute [local instance] Classical.decEq Classical.propDecidable
 
-private theorem observed_mass {C D : Type} [Fintype C] [Fintype D] [DecidableEq D] {R : Register}
+private lemma observed_mass {C D : Type} [Fintype C] [Fintype D] [DecidableEq D] {R : Register}
     (state : ExecutionState C R) (read : C → D) (value : D) :
     ((state.mapClassical read).block value).mass =
       ∑ entry : C, if read entry = value then (state.block entry).mass else 0 := by
@@ -41,7 +43,7 @@ private theorem observed_mass {C D : Type} [Fintype C] [Fintype D] [DecidableEq 
     simp only [selected, if_true, if_false, Matrix.trace_zero, Complex.zero_re,
       DensityOperator.mass]
 
-private theorem observed_mass_filter {C D : Type} [Fintype C] [Fintype D] [DecidableEq D]
+private lemma observed_mass_filter {C D : Type} [Fintype C] [Fintype D] [DecidableEq D]
     {R : Register}
     (state : ExecutionState C R) (read : C → D) (value : D) :
     ((state.mapClassical read).block value).mass =
@@ -49,37 +51,45 @@ private theorem observed_mass_filter {C D : Type} [Fintype C] [Fintype D] [Decid
   rw [observed_mass, ExecutionState.filterClassical_mass]
 
 variable {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
+  {environment : (ExecutionModel.quantum AlgorithmGate.model oracles .empty services).Environment}
 
 /-- The real complete reset leaves each untouched read fiber at its original mass. -/
-theorem zResetBank_read_mass
+lemma zResetBank_read_mass {allowAllocation : Bool}
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
     (scratch : CWriteRef ctx (.finite 2)) (operations : ClassicalOpModel)
     {shape : CShape} (observed : CInputRef ctx shape)
     (separate : scratch.key ∉ observed.storageKeys) (value : shape.Value)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles operations).HiddenState × History)) :
-    ((((code (oracles := oracles) qubits scratch operations).execute Reference state).mapClassical
+      ((ExecutionModel.quantum AlgorithmGate.model oracles operations services).HiddenState ×
+        History)) :
+    ((((code (allowAllocation := allowAllocation) (services := services) (oracles := oracles) qubits
+        scratch operations).execute ⟨environment.quantum, environment.classical⟩
+      Reference state).mapClassical
       (fun entry => entry.1.read observed)).block value).mass =
       ((state.mapClassical (fun entry => entry.1.read observed)).block value).mass := by
   have erased := congrArg
     (fun output => ((output.mapClassical (fun entry => entry.1.read observed)).block value).mass)
-    (ZReset.sequence_execute_operationModel (implementations (oracles := oracles) qubits)
+    (ZReset.sequence_execute_operationModel
+      (environment := environment) (allowAllocation := allowAllocation) (implementations
+        (oracles := oracles) qubits)
       (readouts qubits scratch) operations state)
   simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def] at erased
-  change ((((ZReset.sequence (implementations (oracles := oracles) qubits)
-    (readouts qubits scratch) operations).execute Reference state).mapClassical
+  change ((((ZReset.sequence (allowAllocation := allowAllocation) (services := services)
+      (implementations (oracles := oracles) qubits)
+    (readouts qubits scratch) operations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference state).mapClassical
       (fun entry => entry.1.read observed)).block value).mass = _
   rw [erased, observed_mass_filter]
-  rw [ZReset.zReset_sequence_filter_read _ _ observed
+  rw [ZReset.zReset_sequence_filter_read (allowAllocation := allowAllocation) _ _ observed
     (fun item present => by
       rw [zResetBank_readouts_key qubits scratch item present]
       exact separate) value Reference state, Circuit.execute_mass]
   exact (observed_mass_filter state (fun entry => entry.1.read observed) value).symm
 
 /-- Grouping actual preserved read values keeps their original complete fiber probabilities. -/
-theorem zResetBank_decoded_read_mass
+lemma zResetBank_decoded_read_mass {allowAllocation : Bool}
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
     (scratch : CWriteRef ctx (.finite 2)) (operations : ClassicalOpModel)
     {shape : CShape} (observed : CInputRef ctx shape)
@@ -87,12 +97,17 @@ theorem zResetBank_decoded_read_mass
     {D : Type} [Fintype D] [DecidableEq D] (decode : shape.Value → D) (value : D)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles operations).HiddenState × History)) :
-    ((((code (oracles := oracles) qubits scratch operations).execute Reference state).mapClassical
+      ((ExecutionModel.quantum AlgorithmGate.model oracles operations services).HiddenState ×
+        History)) :
+    ((((code (allowAllocation := allowAllocation) (services := services) (oracles := oracles) qubits
+        scratch operations).execute ⟨environment.quantum, environment.classical⟩
+      Reference state).mapClassical
       (fun entry => decode (entry.1.read observed))).block value).mass =
       ((state.mapClassical (fun entry => decode (entry.1.read observed))).block value).mass := by
   have left := ExecutionState.executionState_mapClassical_comp
-    ((code (oracles := oracles) qubits scratch operations).execute Reference state)
+    ((code (allowAllocation := allowAllocation) (services := services) (oracles := oracles) qubits
+        scratch operations).execute ⟨environment.quantum, environment.classical⟩ Reference
+      state)
     (fun entry => entry.1.read observed) decode
   have right := ExecutionState.executionState_mapClassical_comp state
     (fun entry => entry.1.read observed) decode
@@ -100,7 +115,8 @@ theorem zResetBank_decoded_read_mass
   rw [← left, ← right, observed_mass, observed_mass]
   apply Finset.sum_congr rfl
   intro result _
-  rw [zResetBank_read_mass qubits scratch operations observed separate result state]
+  rw [zResetBank_read_mass (allowAllocation := allowAllocation) qubits scratch operations observed
+      separate result state]
 
 end
 

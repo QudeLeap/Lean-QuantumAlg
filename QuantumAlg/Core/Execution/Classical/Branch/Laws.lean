@@ -25,7 +25,7 @@ open scoped BigOperators
 variable {C D E I : Type} [Fintype C] {R : Register}
 
 /-- Two actual classical selections retain exactly the intersection of their full blocks. -/
-theorem selectClassical_comm [DecidableEq D] [DecidableEq E]
+lemma selectClassical_comm [DecidableEq D] [DecidableEq E]
     (state : ExecutionState C R) (first : C → D) (second : C → E)
     (left : D) (right : E) :
     (state.selectClassical first left).selectClassical second right =
@@ -37,7 +37,7 @@ theorem selectClassical_comm [DecidableEq D] [DecidableEq E]
     simp only [selectClassical_block, firstSelected, secondSelected, if_true, if_false]
 
 /-- Selection distributes over every complete density block in an admissible branch sum. -/
-theorem selectClassical_finiteSum_block_matrix [Fintype I] [DecidableEq D]
+lemma selectClassical_finiteSum_block_matrix [Fintype I] [DecidableEq D]
     (states : I → ExecutionState C R) (total : ∑ index, (states index).mass ≤ 1)
     (read : C → D) (selected : D) (label : C) :
     (((finiteSum states total).selectClassical read selected).block label).matrix =

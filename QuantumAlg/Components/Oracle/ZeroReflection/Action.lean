@@ -23,7 +23,7 @@ namespace QuantumAlg.ZeroReflection
 noncomputable section
 
 /-- The source fixes the zero basis label and negates every other basis label. -/
-theorem zeroReflectionOperator_applyVec_ket (width : Nat) (label : Fin (2 ^ width)) :
+lemma zeroReflectionOperator_applyVec_ket (width : Nat) (label : Fin (2 ^ width)) :
     (zeroReflectionOperator width).applyVec
         (NormalizedVector.ket (R := Qubits width) label).vec =
       if label = 0 then (NormalizedVector.ket (R := Qubits width) label).vec

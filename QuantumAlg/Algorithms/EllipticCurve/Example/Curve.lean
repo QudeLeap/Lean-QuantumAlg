@@ -46,7 +46,7 @@ def curve : PrimeFieldShortWeierstrass fieldModulus where
   b := 1
   nonsingular := by decide
 
-theorem pointNonsingular (x y : ZMod fieldModulus)
+lemma pointNonsingular (x y : ZMod fieldModulus)
     (hequation : curve.AffineEquation x y) (hy : y ≠ -y) :
     curve.toWeierstrassCurve.toAffine.Nonsingular x y := by
   rw [WeierstrassCurve.Affine.nonsingular_iff]
@@ -96,43 +96,43 @@ def negBasePoint : AffinePoint curve where
           (0 : ZMod 5) ^ 3 + (2 : ZMod 5) * 0 + 1 by
         reduce_mod_char)) (by decide)
 
-theorem basePoint_doubleDomain : GenericDoubleDomain basePoint := by
+lemma basePoint_doubleDomain : GenericDoubleDomain basePoint := by
   simpa only [GenericDoubleDomain, basePoint, fieldModulus] using
     (show (2 : ZMod 5) * 1 ≠ 0 by decide)
 
-theorem targetPoint_doubleDomain : GenericDoubleDomain targetPoint := by
+lemma targetPoint_doubleDomain : GenericDoubleDomain targetPoint := by
   simpa only [GenericDoubleDomain, targetPoint, fieldModulus] using
     (show (2 : ZMod 5) * 3 ≠ 0 by decide)
 
-theorem twiceBasePoint_addDomain : GenericAddDomain twiceBasePoint basePoint := by
+lemma twiceBasePoint_addDomain : GenericAddDomain twiceBasePoint basePoint := by
   simpa only [GenericAddDomain, twiceBasePoint, basePoint, fieldModulus] using
     (show (1 : ZMod 5) ≠ 0 by decide)
 
-private theorem doubleLambda_basePoint :
+private lemma doubleLambda_basePoint :
     doubleLambda curve basePoint = 1 := by
   simpa [doubleLambda, curve, basePoint, fieldModulus] using
     (div_self (show (2 : ZMod 5) ≠ 0 by decide))
 
-private theorem doubleLambda_targetPoint :
+private lemma doubleLambda_targetPoint :
     doubleLambda curve targetPoint = 4 := by
   simpa only [doubleLambda, curve, targetPoint, fieldModulus] using
     (show (((3 : ZMod 5) * 3 ^ 2 + 2) / ((2 : ZMod 5) * 3)) = 4 by
       rw [show (3 : ZMod 5) * 3 ^ 2 + 2 = 4 by reduce_mod_char,
         show (2 : ZMod 5) * 3 = 1 by reduce_mod_char, div_one])
 
-theorem doubleX_basePoint : doubleX curve basePoint = 1 := by
+lemma doubleX_basePoint : doubleX curve basePoint = 1 := by
   rw [doubleX_eq_short_formula curve basePoint basePoint_doubleDomain,
     doubleLambda_basePoint]
   simp only [basePoint, fieldModulus]
   reduce_mod_char
 
-theorem doubleY_basePoint : doubleY curve basePoint = 3 := by
+lemma doubleY_basePoint : doubleY curve basePoint = 3 := by
   rw [doubleY_eq_short_formula curve basePoint basePoint_doubleDomain,
     doubleLambda_basePoint]
   simp only [basePoint, fieldModulus]
   reduce_mod_char
 
-theorem basePoint_add_self :
+lemma basePoint_add_self :
     basePoint.toMathlib + basePoint.toMathlib = twiceBasePoint.toMathlib := by
   rw [double_group_law_mathlib curve basePoint basePoint_doubleDomain]
   simp only [AffinePoint.toMathlib]
@@ -140,7 +140,7 @@ theorem basePoint_add_self :
   · exact doubleX_basePoint
   · exact doubleY_basePoint
 
-private theorem genericAddSlope_twiceBasePoint_basePoint :
+private lemma genericAddSlope_twiceBasePoint_basePoint :
     genericAddSlope curve twiceBasePoint basePoint = 2 := by
   rw [genericAddSlope_eq_secant_quotient curve twiceBasePoint basePoint
     twiceBasePoint_addDomain]
@@ -150,7 +150,7 @@ private theorem genericAddSlope_twiceBasePoint_basePoint :
       rw [show (3 : ZMod 5) - 1 = 2 by reduce_mod_char,
         show (1 : ZMod 5) - 0 = 1 by reduce_mod_char, div_one])
 
-theorem genericAddX_twiceBasePoint_basePoint :
+lemma genericAddX_twiceBasePoint_basePoint :
     genericAddX curve twiceBasePoint basePoint = 3 := by
   rw [genericAddX, genericAddSlope_twiceBasePoint_basePoint]
   simp only [genericAddXFromSlope,
@@ -158,7 +158,7 @@ theorem genericAddX_twiceBasePoint_basePoint :
     twiceBasePoint, basePoint, fieldModulus]
   reduce_mod_char
 
-theorem genericAddY_twiceBasePoint_basePoint :
+lemma genericAddY_twiceBasePoint_basePoint :
     genericAddY curve twiceBasePoint basePoint = 3 := by
   rw [genericAddY, genericAddSlope_twiceBasePoint_basePoint]
   have haddX :
@@ -174,7 +174,7 @@ theorem genericAddY_twiceBasePoint_basePoint :
     fieldModulus]
   reduce_mod_char
 
-theorem twiceBasePoint_add_basePoint :
+lemma twiceBasePoint_add_basePoint :
     twiceBasePoint.toMathlib + basePoint.toMathlib = targetPoint.toMathlib := by
   rw [genericAdd_group_law_mathlib curve twiceBasePoint basePoint
     twiceBasePoint_addDomain]
@@ -183,19 +183,19 @@ theorem twiceBasePoint_add_basePoint :
   · exact genericAddX_twiceBasePoint_basePoint
   · exact genericAddY_twiceBasePoint_basePoint
 
-theorem doubleX_targetPoint : doubleX curve targetPoint = 0 := by
+lemma doubleX_targetPoint : doubleX curve targetPoint = 0 := by
   rw [doubleX_eq_short_formula curve targetPoint targetPoint_doubleDomain,
     doubleLambda_targetPoint]
   simp only [targetPoint, fieldModulus]
   reduce_mod_char
 
-theorem doubleY_targetPoint : doubleY curve targetPoint = 4 := by
+lemma doubleY_targetPoint : doubleY curve targetPoint = 4 := by
   rw [doubleY_eq_short_formula curve targetPoint targetPoint_doubleDomain,
     doubleLambda_targetPoint]
   simp only [targetPoint, fieldModulus]
   reduce_mod_char
 
-theorem targetPoint_add_self :
+lemma targetPoint_add_self :
     targetPoint.toMathlib + targetPoint.toMathlib = negBasePoint.toMathlib := by
   rw [double_group_law_mathlib curve targetPoint targetPoint_doubleDomain]
   simp only [AffinePoint.toMathlib]
@@ -203,12 +203,12 @@ theorem targetPoint_add_self :
   · exact doubleX_targetPoint
   · exact doubleY_targetPoint
 
-theorem negBasePoint_eq_neg :
+lemma negBasePoint_eq_neg :
     negBasePoint.toMathlib = -basePoint.toMathlib := by
   simp only [AffinePoint.toMathlib, WeierstrassCurve.Affine.Point.neg_some]
   congr 1
 
-theorem targetPoint_eq_pow :
+lemma targetPoint_eq_pow :
     basePoint.toGroupPoint ^ scalarValue = targetPoint.toGroupPoint := by
   change GroupPoint.mk ((3 : Nat) • basePoint.toMathlib) =
     GroupPoint.mk targetPoint.toMathlib
@@ -221,14 +221,14 @@ theorem targetPoint_eq_pow :
       rw [basePoint_add_self]
     _ = targetPoint.toMathlib := twiceBasePoint_add_basePoint
 
-theorem targetPoint_sq_eq_inv :
+lemma targetPoint_sq_eq_inv :
     targetPoint.toGroupPoint ^ 2 = basePoint.toGroupPoint⁻¹ := by
   change GroupPoint.mk ((2 : Nat) • targetPoint.toMathlib) =
     GroupPoint.mk (-basePoint.toMathlib)
   congr 1
   rw [two_nsmul, targetPoint_add_self, negBasePoint_eq_neg]
 
-theorem basePoint_pow_seven :
+lemma basePoint_pow_seven :
     basePoint.toGroupPoint ^ subgroupOrder = 1 := by
   have htarget : basePoint.toGroupPoint ^ 3 = targetPoint.toGroupPoint := by
     simpa [scalarValue] using targetPoint_eq_pow
@@ -243,25 +243,25 @@ theorem basePoint_pow_seven :
       rw [targetPoint_sq_eq_inv]
     _ = 1 := by simp
 
-theorem basePoint_ne_one : basePoint.toGroupPoint ≠ 1 := by
+lemma basePoint_ne_one : basePoint.toGroupPoint ≠ 1 := by
   intro h
   have hmathlib := congrArg GroupPoint.toMathlib h
   change basePoint.toMathlib = 0 at hmathlib
   exact WeierstrassCurve.Affine.Point.some_ne_zero basePoint.nonsingular hmathlib
 
-theorem basePoint_orderOf_eq_seven :
+lemma basePoint_orderOf_eq_seven :
     orderOf basePoint.toGroupPoint = subgroupOrder := by
   have hprime : subgroupOrder.Prime := by norm_num [subgroupOrder]
   let _ : Fact subgroupOrder.Prime := ⟨hprime⟩
   exact orderOf_eq_prime basePoint_pow_seven basePoint_ne_one
 
-theorem scalarValue_lt_order : scalarValue < subgroupOrder := by
+lemma scalarValue_lt_order : scalarValue < subgroupOrder := by
   norm_num [scalarValue, subgroupOrder]
 
 /-- The fixed discrete logarithm represented modulo the subgroup order. -/
 def scalar : ZMod subgroupOrder := scalarValue
 
-@[simp] theorem scalar_val : scalar.val = scalarValue := by
+@[simp] lemma scalar_val : scalar.val = scalarValue := by
   simp [scalar, Nat.mod_eq_of_lt scalarValue_lt_order]
 
 /-- The fully inhabited fixed-curve ECDLP problem instance. -/
@@ -284,7 +284,7 @@ abbrev orderWidth : Nat := FiniteCyclicDLP.orderWidth canonicalProblem
 abbrev totalQubits : Nat :=
   ECDLP.Canonical.Layout.totalQubits ecdLPInstance
 
-theorem scalar_candidate : ecdLPInstance.CandidateScalar scalar := by
+lemma scalar_candidate : ecdLPInstance.CandidateScalar scalar := by
   simpa [ecdLPInstance, ECDLPInstance.CandidateScalar] using targetPoint_eq_pow
 
 end

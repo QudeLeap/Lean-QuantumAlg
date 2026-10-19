@@ -26,7 +26,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual normalization, division and reduction compute the original signed coefficient. -/
-theorem thirdNormalizeInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdNormalizeInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (numerator denominator : Int)
     (third target : NumberTheory.IntegerPoint3) (fits : NormalizeFits width numerator denominator)
@@ -86,7 +86,7 @@ theorem thirdNormalizeInto_correct {model : ExecutionModel} [BitWord.Selected mo
   exact coefficient
 
 /-- The actual full phase computes the original determinant-quotient coefficient and residual. -/
-theorem thirdInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (first second third target : NumberTheory.IntegerPoint3)
     (fits : Fits width first second third target)
@@ -108,7 +108,7 @@ theorem thirdInto_correct {model : ExecutionModel} [BitWord.Selected model]
     metrics.1 metrics.2.1 metrics.2.2.2.2.1 metrics.2.2.2.2.2.1
 
 /-- Specializing the actual circuit to a basis gives the public third nearest-plane coefficient. -/
-theorem thirdInto_basis_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdInto_basis_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (target : NumberTheory.IntegerPoint3)
     (fits : Fits width basis.first basis.second basis.third target)

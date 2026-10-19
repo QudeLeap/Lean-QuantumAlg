@@ -90,7 +90,7 @@ structure FactorSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     ((Layout.cellRef cells cell).toCStorageRef.key ∉ (factorInput selection factor).storageKeys)
 
 /-- Distinct named quadratic cells avoid each other's storage key. -/
-private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (left right : Layout.Cell) (different : left ≠ right) :
     (Layout.cellRef cells right).toCStorageRef.key ∉
@@ -101,7 +101,7 @@ private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat
     (QuadraticScratchLayout.cellRef_key_injective cells distinct equal.symm)
 
 /-- A quadratic cell avoids one external factor-selector key. -/
-private theorem cellAvoidsFactor {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma cellAvoidsFactor {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (selection : FirstAccepted.Refs ctx
       (QuadraticScratchLayout.CandidateWidth N))
@@ -132,7 +132,7 @@ private structure CandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   eligible : ((Layout.cellRef cells .eligible).toCStorageRef.key ∉ candidate.storageKeys)
 
 /-- Internal distinctness plus candidate avoidance supplies one total check. -/
-private theorem totalCheckSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma totalCheckSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (candidate : CInputRef ctx
       (.unsignedWord (QuadraticScratchLayout.CandidateWidth N)))
@@ -174,7 +174,7 @@ private theorem totalCheckSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind
       cellAvoids cells distinct .zero .eligible (by decide)⟩
 
 /-- First generated candidate avoids every shared check write. -/
-private theorem firstCandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma firstCandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N))) :
     CandidateAvoids cells (QuadraticCandidates.firstCandidate
@@ -187,7 +187,7 @@ private theorem firstCandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind
     cellAvoids cells distinct .firstOutput .eligible (by decide)⟩
 
 /-- Second generated candidate avoids every shared check write. -/
-private theorem secondCandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma secondCandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N))) :
     CandidateAvoids cells (QuadraticCandidates.secondCandidate
@@ -201,7 +201,7 @@ private theorem secondCandidateAvoids {kind : ProblemKind} {ctx : RuntimeCtx kin
   · exact cellAvoids cells distinct .secondCandidate .eligible (by decide)
 
 /-- One arbitrary caller read avoids every write of one total check. -/
-private theorem totalCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma totalCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (candidate : CInputRef ctx
       (.unsignedWord (QuadraticScratchLayout.CandidateWidth N)))
@@ -219,7 +219,7 @@ private theorem totalCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
   ⟨decision, ⟨wide, below, division, accepted, eligible⟩⟩
 
 /-- Cross-allocation avoidance supplies exactly the canonical selector's input obligations. -/
-private theorem selectorSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma selectorSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (selection : FirstAccepted.Refs ctx (QuadraticScratchLayout.CandidateWidth N))
     (separation : FactorSeparation cells selection)
@@ -234,7 +234,7 @@ private theorem selectorSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
   exact cellAvoidsFactor cells selection separation .eligible .available
 
 /-- The zero input's caller frame is proved independently of the full pair certificate. -/
-private theorem zeroFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma zeroFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (selection : FirstAccepted.Refs ctx (QuadraticScratchLayout.CandidateWidth N))
@@ -259,7 +259,7 @@ private theorem zeroFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
   · exact cellAvoidsFactor cells selection factorSeparation .zero .take
 
 /-- The two ordered checks follow from physical and selector separation. -/
-theorem pairSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma pairSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (selection : FirstAccepted.Refs ctx

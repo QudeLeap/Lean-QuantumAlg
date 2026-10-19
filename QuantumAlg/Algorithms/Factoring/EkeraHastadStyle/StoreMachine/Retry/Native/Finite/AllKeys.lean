@@ -23,6 +23,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry.AllK
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -33,33 +36,31 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 def problem (input : Input N) (count : Nat) :
     Problem RuntimeRound.model base (context base noQuantum N count)
       (LatticeBatchRecoveryOutput.OutputShape N) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ output => NativeCycles.InputProtocol.accepts N output
-  successLB := ⟨1 - NativeCycles.InputProtocol.sourceFailure input ^ count, tsub_le_self⟩
-  states := [stateRequirement base noQuantum N count]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ output => NativeCycles.InputProtocol.accepts N output
+  successLB := fun _ _ => ⟨1 - NativeCycles.InputProtocol.sourceFailure input ^ count, tsub_le_self⟩
+  states := fun _ _ => [stateRequirement base noQuantum N count]
   resources :=
     { events := eventEnvelope N count
       resident := base.residentSpace + additionalSpace N count
       auxiliary := base.auxiliarySpace + additionalSpace N count }
-  depth :=
-    { duration := fun _ => 1
-      limit := depthBound N count
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := depthBound N count
 
-private theorem accepted_iff_populated (input : Input N) (count : Nat)
+private lemma accepted_iff_populated (input : Input N) (count : Nat)
     {Reference : Register}
     (original : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (output : (LatticeBatchRecoveryOutput.OutputShape N).Value)
     (supported : output ∈
-      ((run base noQuantum input count).outputDistribution original).support) :
+      ((run base noQuantum input count).outputDistribution environment original).support) :
     output ∈ NativeCycles.InputProtocol.accepts N ↔
       output ≠ CShape.Value.optionNone := by
   cases output with
   | optionNone => simp [NativeCycles.InputProtocol.accepts]
   | optionSome word =>
-      have sound := run_some_sound base noQuantum input count original word supported
+      have sound := run_some_sound (environment := environment)
+        base noQuantum input count original word supported
       constructor
       · intro _ impossible
         cases impossible
@@ -67,16 +68,16 @@ private theorem accepted_iff_populated (input : Input N) (count : Nat)
         exact ⟨word, rfl, sound.1, sound.2.1, sound.2.2⟩
 
 /-- The actual native run has the exact source failure power on every input. -/
-theorem successProbability (input : Input N) (count : Nat)
+lemma successProbability (input : Input N) (count : Nat)
     {Reference : Register}
     (original : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    ((run base noQuantum input count).outputDistribution original).toOuterMeasure
+    ((run base noQuantum input count).outputDistribution environment original).toOuterMeasure
         (NativeCycles.InputProtocol.accepts N) =
       1 - NativeCycles.InputProtocol.sourceFailure input ^ count := by
   calc
-    ((run base noQuantum input count).outputDistribution original).toOuterMeasure
+    ((run base noQuantum input count).outputDistribution environment original).toOuterMeasure
         (NativeCycles.InputProtocol.accepts N) =
-      ((run base noQuantum input count).outputDistribution original).toOuterMeasure
+      ((run base noQuantum input count).outputDistribution environment original).toOuterMeasure
         {output | output ≠ CShape.Value.optionNone} := by
       apply PMF.toOuterMeasure_apply_eq_of_inter_support_eq
       ext output
@@ -87,16 +88,18 @@ theorem successProbability (input : Input N) (count : Nat)
     _ = 1 - NativeCycles.InputProtocol.sourceFailure input ^ count :=
       run_successProbability base noQuantum input count original
 
-private theorem relationalProbability (input : Input N) (count : Nat)
+private lemma relationalProbability (input : Input N) (count : Nat)
     {Reference : Register}
     (original : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    ((algorithm base noQuantum input count).relationalDistribution original).toOuterMeasure
-        {pair | (problem base noQuantum input count).accepts pair.1 pair.2} =
+    ((algorithm base noQuantum input count).relationalDistribution environment
+      original).toOuterMeasure
+        {pair | (problem base noQuantum input count).accepts environment () pair.1 pair.2} =
       1 - NativeCycles.InputProtocol.sourceFailure input ^ count := by
   have projection :
-      ((algorithm base noQuantum input count).relationalDistribution original).toOuterMeasure
-          {pair | (problem base noQuantum input count).accepts pair.1 pair.2} =
-        ((run base noQuantum input count).outputDistribution original).toOuterMeasure
+      ((algorithm base noQuantum input count).relationalDistribution environment
+        original).toOuterMeasure
+          {pair | (problem base noQuantum input count).accepts environment () pair.1 pair.2} =
+        ((run base noQuantum input count).outputDistribution environment original).toOuterMeasure
           (NativeCycles.InputProtocol.accepts N) := by
     simp only [Algorithm.relationalDistribution, algorithm,
       AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
@@ -105,27 +108,27 @@ private theorem relationalProbability (input : Input N) (count : Nat)
   exact projection.trans (successProbability base noQuantum input count original)
 
 /-- Exact success, full state, borrowed restoration and budgets for every native input. -/
-theorem solves (input : Input N) (count : Nat) :
+lemma solves (input : Input N) (count : Nat) :
     Algorithm.Solves (algorithm base noQuantum input count)
       (problem base noQuantum input count) := by
   constructor
-  · intro Reference original _valid _initialized
+  · intro environment _witness Reference original _valid _initialized
     exact le_of_eq (relationalProbability base noQuantum input count original).symm
-  · intro Reference original _valid _initialized requirement present
+  · intro environment _witness Reference original _valid _initialized requirement present
     have same : requirement = stateRequirement base noQuantum N count :=
       List.mem_singleton.mp present
     subst requirement
     exact stateRequirement_holds base noQuantum N input count original
-  · intro Reference original _valid _initialized
+  · intro environment _witness Reference original _valid _initialized
     exact run_restoresBorrowed base noQuantum input count original
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact run_pool_le base noQuantum input count path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact run_resident_le base noQuantum input count path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact run_auxiliary_le base noQuantum input count path
-  · intro _Reference _original _valid _initialized path _supported
-    exact run_depth_le base noQuantum input count path
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
+    exact run_quantumTime_le base noQuantum input count path
 
 end
 

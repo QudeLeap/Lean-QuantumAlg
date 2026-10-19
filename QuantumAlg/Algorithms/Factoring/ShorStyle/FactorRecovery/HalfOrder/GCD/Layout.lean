@@ -58,7 +58,7 @@ def liftWrite {shape : CShape} (output : CWriteRef ctx shape) :
       (.unsignedWord (modulusBits N + 1)) (adjacentContext ctx N).canonicalFreshKey_fresh
 
 /-- Both lexical cells leave the entire original quantum register unchanged. -/
-theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
+lemma quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfGCD

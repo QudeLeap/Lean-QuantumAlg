@@ -29,7 +29,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Actual recovery writes precede the original complete verification store update. -/
@@ -45,10 +45,10 @@ noncomputable def recoveryRecord (curve : CurveSpec width) (modulus : ModulusSpe
         (recoveryInto curve modulus sample base target inverseSuccess candidate reconstruction
           scalarResult accepted).Path :=
   let raw := Classical.choose
-    (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord
+    (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord (environment := environment)
       modulus sample inverseSuccess candidate reconstruction)
   Circuit.sequenceRecord _ _ raw
-    (verifyStep curve (.storage candidate.toCStorageRef) base target
+    (verifyStep (environment := environment) curve (.storage candidate.toCStorageRef) base target
       (.storage inverseSuccess.toCStorageRef) (.storage reconstruction.toCStorageRef)
       scalarResult accepted) before
 
@@ -61,11 +61,12 @@ def recoveryStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
     (before : Store ctx × model.HiddenState) : Store ctx :=
-  (recoveryRecord curve modulus sample base target inverseSuccess candidate reconstruction
+  (recoveryRecord (environment := environment) curve modulus sample base target inverseSuccess
+    candidate reconstruction
     scalarResult accepted before).1.1
 
 /-- Recovery exposes its three actual cells before verification consumes the resulting state. -/
-theorem recoveryStore_eq (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma recoveryStore_eq (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess : CWriteRef ctx .bit)
@@ -73,9 +74,10 @@ theorem recoveryStore_eq (curve : CurveSpec width) (modulus : ModulusSpec scalar
     (reconstruction : CWriteRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
     (before : Store ctx × model.HiddenState) :
-    recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
+    recoveryStore (environment := environment) curve modulus sample base target inverseSuccess
+      candidate reconstruction
       scalarResult accepted before =
-      (verifyStep curve (.storage candidate.toCStorageRef) base target
+      (verifyStep (environment := environment) curve (.storage candidate.toCStorageRef) base target
         (.storage inverseSuccess.toCStorageRef) (.storage reconstruction.toCStorageRef)
         scalarResult accepted
         (FiniteCyclicDLP.RawRecovery.Native.exposureWrite inverseSuccess candidate
@@ -83,21 +85,22 @@ theorem recoveryStore_eq (curve : CurveSpec width) (modulus : ModulusSpec scalar
           (FiniteCyclicDLP.RawRecovery.outputCells modulus
             (FiniteCyclicDLP.RawRecovery.Native.preparationInput (before.1.read sample))),
           (Classical.choose
-            (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord
+            (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord (environment :=
+              environment)
               modulus sample inverseSuccess candidate reconstruction) before).1.2)).1.1 := by
   have rawStore := (Classical.choose_spec
-    (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord
+    (FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord (environment := environment)
       modulus sample inverseSuccess candidate reconstruction)).2 before
   unfold recoveryStore recoveryRecord
   rw [Circuit.sequenceRecord_store]
   apply congrArg (fun entry : Store ctx × model.HiddenState =>
-    (verifyStep curve (.storage candidate.toCStorageRef) base target
+    (verifyStep (environment := environment) curve (.storage candidate.toCStorageRef) base target
       (.storage inverseSuccess.toCStorageRef) (.storage reconstruction.toCStorageRef)
       scalarResult accepted entry).1.1)
   exact Prod.ext rawStore rfl
 
 /-- The original five stages have one full-state record on their genuine intermediate store. -/
-theorem recoveryInto_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma recoveryInto_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess : CWriteRef ctx .bit)
@@ -110,23 +113,28 @@ theorem recoveryInto_actualRecord (curve : CurveSpec width) (modulus : ModulusSp
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
         (recoveryInto curve modulus sample base target inverseSuccess candidate reconstruction
-          scalarResult accepted).execute Reference state = state.mapClassical (fun entry =>
+          scalarResult accepted).execute environment Reference state = state.mapClassical (fun
+            entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
-        recoveryStore curve modulus sample base target inverseSuccess candidate reconstruction
+        recoveryStore (environment := environment) curve modulus sample base target
+          inverseSuccess candidate reconstruction
           scalarResult accepted before := by
-  let rawResult := FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord
+  let rawResult := FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord (environment
+    := environment)
       modulus sample inverseSuccess candidate reconstruction
   have rawEquation := (Classical.choose_spec rawResult).1
   let rawRecord := Classical.choose rawResult
-  let checked := verifyStep curve (.storage candidate.toCStorageRef) base target
+  let checked := verifyStep (environment := environment) curve (.storage
+    candidate.toCStorageRef) base target
     (.storage inverseSuccess.toCStorageRef) (.storage reconstruction.toCStorageRef)
     scalarResult accepted
-  refine ⟨recoveryRecord curve modulus sample base target inverseSuccess candidate
+  refine ⟨recoveryRecord (environment := environment) curve modulus sample base target
+    inverseSuccess candidate
       reconstruction scalarResult accepted, ?_, ?_⟩
   · intro Reference History _ state
-    exact Circuit.execute_sequenceRecord _ _ rawRecord checked
+    exact Circuit.execute_sequenceRecord (environment := environment) _ _ rawRecord checked
       (fun Reference {_History} _ state => by
         rw [rawEquation Reference state]
         apply ExecutionState.executionState_mapClassical_congr_decision

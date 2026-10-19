@@ -27,7 +27,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace Execution
 
 /-- Complementary unitary action preserves every borrowed classical block and its correlations. -/
-theorem observeBorrowed_applyUnitary_complement {ctx : RuntimeCtx .quantum}
+lemma observeBorrowed_applyUnitary_complement {ctx : RuntimeCtx .quantum}
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference H) (operator : UnitaryOperator ctx.register)
     (complement : UnitaryOperator (ctx.quantumLayout.complementRegister ctx.borrowedSelection))
@@ -57,36 +57,40 @@ end Execution
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 /-- The interpreter restores all borrowed resources jointly when its matrix has exact
 identity action on the borrowed subsystem. This requires no product-state input premise. -/
-theorem borrowedRestored_unitary_complement {gates : GateModel} {oracles : OracleModel}
+lemma borrowedRestored_unitary_complement {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     {ctx : RuntimeCtx .quantum}
     {Reference : Register} {H : Type} [Fintype H]
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     (complement : UnitaryOperator (ctx.quantumLayout.complementRegister ctx.borrowedSelection))
     (factorization :
       UnitaryOperator.reindex (ctx.quantumLayout.selectionBasisEquiv ctx.borrowedSelection)
-        program.matrix =
+        (program.matrix environment.quantum) =
       UnitaryOperator.prodTensor
         (1 : UnitaryOperator (ctx.quantumLayout.selectedRegister ctx.borrowedSelection))
         complement)
     (state : Execution.State ctx Reference (services.HiddenState × H)) :
-    (Circuit.unitary (operations := operations) (classicalOracles := services)
+    (Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := services)
       program).BorrowedRestored Reference state
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        program).execute Reference state) := by
+      ((Circuit.unitary (allowAllocation := allowAllocation)
+        (operations := operations) (classicalOracles := services)
+        program).execute environment Reference state) := by
   rw [BorrowedRestored, Execution.observeBorrowedAfter_sameContext, execute_unitary]
   apply ExecutionState.ext
   intro value
-  simp only [Execution.observeBorrowed_block]
-  rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
-  simp only [Function.comp_def]
-  exact congrArg
-    (fun observed : ExecutionState ctx.borrowedClassicalShape.Value
-      (Register.prod ctx.borrowedQuantumLayout.register Reference) => observed.block value)
-    (Execution.observeBorrowed_applyUnitary_complement state program.matrix complement
-      factorization)
+  rw [Execution.observeBorrowed_block, Execution.observeBorrowed_block,
+    ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
+  have preserved := Execution.observeBorrowed_applyUnitary_complement
+    state (program.matrix environment.quantum) complement factorization
+  have entry := congrArg (fun observed : ExecutionState ctx.borrowedClassicalShape.Value
+    (Register.prod ctx.borrowedQuantumLayout.register Reference) => observed.block value) preserved
+  simpa only [Execution.observeBorrowed_block, Function.comp_def] using entry
 
 end Circuit
 

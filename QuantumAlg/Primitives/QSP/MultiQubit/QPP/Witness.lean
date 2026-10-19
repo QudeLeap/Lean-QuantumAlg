@@ -38,14 +38,14 @@ structure QPP.CircuitProjectedBlockWitness (L : ℕ)
     (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ) where
   /-- The single typed circuit supplying both semantics and resource counts. -/
-  circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+  circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout
   block_eq :
     projectedBlock 1 n
-      (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
+      ((circuit.binaryMatrix (QPPOracle.interpretation U)) : HilbertOperator (Qubits (1 + n)))
       = unitaryLaurentPolynomial L U coeff
   resources_exact :
-    QPP.HasExactResourceCounts U (2 * L) circuit.eventCost
+    QPP.HasExactResourceCounts n (2 * L) circuit.eventCost
 
 /-- Build the same-circuit QPP witness from an explicit QPP-evolution
 certificate.  This is retained as an internal helper for source packages that
@@ -57,13 +57,13 @@ noncomputable def QPP.qppCircuitWitnessOfEvolution
     QPP.CircuitProjectedBlockWitness L U coeff := by
   refine
     { circuit :=
-        qppAlternatingControlledCircuit U evolution.φ evolution.θ₀ evolution.φ₀
+        qppAlternatingControlledCircuit n evolution.φ evolution.θ₀ evolution.φ₀
           evolution.ps
       block_eq := ?_
       resources_exact := ?_ }
   · exact evolution.block_eq
   · simpa [evolution.length_eq] using
-      (qppAlternatingControlledCircuit_resources_exact U evolution.φ
+      (qppAlternatingControlledCircuit_resources_exact n evolution.φ
         evolution.θ₀ evolution.φ₀ evolution.ps)
 
 /-- Build the same-circuit QPP witness directly from bounded Laurent source data.
@@ -91,60 +91,60 @@ noncomputable def QPP.qppCircuitWitnessOfTrigonometricBound
 
 /-- Witness-conditioned projected-block endpoint retained as an internal
 helper for source packages that already choose a circuit. -/
-theorem QPP.fromCircuitWitness (L : ℕ) (U : UnitaryOperator (Qubits n))
+lemma QPP.fromCircuitWitness (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.CircuitProjectedBlockWitness L U coeff) :
-    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
+          ((circuit.binaryMatrix (QPPOracle.interpretation U)) : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-        QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
+        QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
   exact ⟨h.circuit, h.block_eq, h.resources_exact⟩
 
 /-- Complement-conditioned projected-block endpoint retained as an internal
 helper while the public theorem is driven by Wang's source root package. -/
-theorem QPP.projectedBlock_of_boundedLaurent (L : ℕ)
+lemma QPP.projectedBlock_of_boundedLaurent (L : ℕ)
     (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.BoundedLaurentPolynomial L coeff) :
-    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
+          ((circuit.binaryMatrix (QPPOracle.interpretation U)) : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-      QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
+      QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfBoundedLaurent L U coeff h)
 
 /-- Public-boundedness projected-block consequence with a namespace-level name
 for callers outside `QPP.Witness`. -/
-theorem QPP.projectedBlock_of_trigonometricBound
+lemma QPP.projectedBlock_of_trigonometricBound
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.TrigonometricPolynomialBound L coeff) :
-    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
+          ((circuit.binaryMatrix (QPPOracle.interpretation U)) : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-      QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
+      QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfTrigonometricBound L U coeff h)
 
 /-- Witness-conditioned endpoint retained as an internal helper.  Public callers
 should use `QPP.Witness.main`, which derives the certificate from Wang's source
 root-product package and a source spectral decomposition. -/
-theorem QPP.projectedBlock_of_evolution (L : ℕ)
+lemma QPP.projectedBlock_of_evolution (L : ℕ)
     (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (evolution : QPP.QppEvolutionCertificate L U coeff) :
-    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U)
+    ∃ circuit : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout,
       projectedBlock 1 n
-          (circuit.binaryMatrix : HilbertOperator (Qubits (1 + n)))
+          ((circuit.binaryMatrix (QPPOracle.interpretation U)) : HilbertOperator (Qubits (1 + n)))
         = unitaryLaurentPolynomial L U coeff ∧
-        QPP.HasExactResourceCounts U (2 * L) circuit.eventCost := by
+        QPP.HasExactResourceCounts n (2 * L) circuit.eventCost := by
   exact QPP.fromCircuitWitness L U coeff
     (QPP.qppCircuitWitnessOfEvolution L U coeff evolution)
 

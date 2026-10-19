@@ -34,7 +34,7 @@ def position : Fin count ↪ Fin (ctx.addOwnedLayout key layout fresh disjoint).
     exact Sum.inl.inj
       ((PreparationBorrowed.fullPositionEquiv ctx key layout fresh disjoint).injective same)
 
-private theorem dimensions (index : Fin count) :
+private lemma dimensions (index : Fin count) :
     (layout.wire index).dimension =
       ((ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.wire
         (position ctx key layout fresh disjoint index)).dimension := by
@@ -50,11 +50,13 @@ def program {gates : GateModel} {oracles : OracleModel}
     (position ctx key layout fresh disjoint) (dimensions ctx key layout fresh disjoint) body
 
 /-- A proved native basis action on the fresh bank preserves the complete old basis. -/
-theorem program_joined_ket {gates : GateModel} {oracles : OracleModel}
+lemma program_joined_ket {gates : GateModel} {oracles : OracleModel}
+    {environment : oracles.Interpretation}
     (body : UnitaryCircuit gates oracles layout) (input output : layout.Basis)
-    (action : body.applyNormalized (NormalizedVector.ket input) = NormalizedVector.ket output)
+    (action : body.applyNormalized environment (NormalizedVector.ket input)
+      = NormalizedVector.ket output)
     (old : ctx.register.Index) :
-    (program ctx key layout fresh disjoint body).applyNormalized
+    (program ctx key layout fresh disjoint body).applyNormalized environment
         (NormalizedVector.ket
           (preparedLocalBasisEquiv ctx key layout fresh disjoint (input, old))) =
       NormalizedVector.ket
@@ -63,7 +65,7 @@ theorem program_joined_ket {gates : GateModel} {oracles : OracleModel}
   apply UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
     layout (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout
     (position ctx key layout fresh disjoint) (dimensions ctx key layout fresh disjoint)
-    body input output action
+    body environment input output action
   · funext index
     apply Fin.ext
     change (preparedLocalBasisEquiv ctx key layout fresh disjoint (input, old)
@@ -96,17 +98,17 @@ theorem program_joined_ket {gates : GateModel} {oracles : OracleModel}
       rw [← same]
       exact first.trans second.symm
 
-theorem program_eventTrace {gates : GateModel} {oracles : OracleModel}
+lemma program_eventTrace {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles layout) :
     (program ctx key layout fresh disjoint body).eventTrace = body.eventTrace :=
   UnitaryCircuit.placeAt_eventTrace _ _ _ _ _
 
-theorem program_eventCost {gates : GateModel} {oracles : OracleModel}
+lemma program_eventCost {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles layout) :
     (program ctx key layout fresh disjoint body).eventCost = body.eventCost :=
   UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 
-theorem program_unitDepth {gates : GateModel} {oracles : OracleModel}
+lemma program_unitDepth {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles layout) :
     (program ctx key layout fresh disjoint body).evaluatedEventDepth (fun _ => 1) =
       body.evaluatedEventDepth (fun _ => 1) :=

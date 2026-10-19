@@ -24,7 +24,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem unary_read (opcode : Resource.WordUnaryOpcode) (store : Store ctx)
+private lemma unary_read (opcode : Resource.WordUnaryOpcode) (store : Store ctx)
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
     (store.applyOp (.wordUnary opcode width ctx input output)).read (writeInput output) =
@@ -32,7 +32,7 @@ private theorem unary_read (opcode : Resource.WordUnaryOpcode) (store : Store ct
   exact Store.read_applyOp_output store (.wordUnary opcode width ctx input output)
 
 /-- The native division's stored quotient is exactly the division of its actual inputs. -/
-theorem divide_quotient (refs : BodyRefs ctx width) (store : Store ctx) :
+lemma divide_quotient (refs : BodyRefs ctx width) (store : Store ctx) :
     ((store.applyOp (divideOp refs)).read (.first (writeInput refs.division))).toNat =
       (store.read (writeInput refs.wideNumerator)).toNat /
         (store.read (writeInput refs.wideDenominator)).toNat := by
@@ -44,7 +44,7 @@ theorem divide_quotient (refs : BodyRefs ctx width) (store : Store ctx) :
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem restore_represents (refs : BodyRefs ctx width)
+private lemma restore_represents (refs : BodyRefs ctx width)
     (flag : CShape.Value .bit) (store : Store ctx) (value : Int)
     (represents : RawSignedRepresents (store.read (writeInput refs.output)) value) :
     RawSignedRepresents ((restoreStep (model := model) refs flag store).1.read (writeInput
@@ -61,7 +61,7 @@ private theorem restore_represents (refs : BodyRefs ctx width)
         rw [unary_read .increment, unary_read .complement]
         exact rawSignedWordRepresents_negate _ value represents
 
-private theorem restore_frame (refs : BodyRefs ctx width)
+private lemma restore_frame (refs : BodyRefs ctx width)
     (flag : CShape.Value .bit) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (avoids : refs.output.key ∉ other.storageKeys) :
     ((restoreStep (model := model) refs flag store).1).read other = store.read other := by
@@ -75,7 +75,7 @@ private theorem restore_frame (refs : BodyRefs ctx width)
           Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids]
 
 /-- Only the actual quotient output cell is changed by the final stage. -/
-theorem finish_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
+lemma finish_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.output.key ∉ other.storageKeys) :
     ((finishStep (model := model) refs store).1).read other = store.read other := by
@@ -84,7 +84,7 @@ theorem finish_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
   rw [restore_frame _ _ _ _ avoids, Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids]
 
 /-- The retained sign selects the signed value represented by the resized real quotient. -/
-theorem finish_represents (refs : BodyRefs ctx width) (store : Store ctx)
+lemma finish_represents (refs : BodyRefs ctx width) (store : Store ctx)
     (separate : refs.output.key ≠ refs.negative.key) :
     RawSignedRepresents ((finishStep (model := model) refs store).1.read (writeInput refs.output))
       (if (store.read (writeInput refs.negative)).toBool then

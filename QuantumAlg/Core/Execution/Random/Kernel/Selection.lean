@@ -32,7 +32,7 @@ variable {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Register}
   (operator : C × Outcome → UnitaryOperator R)
 
 /-- Each selected branch acts on the original complete block with its actual probability. -/
-theorem kernelChoice_selected_block_matrix (value : C) (outcome : Outcome) :
+lemma kernelChoice_selected_block_matrix (value : C) (outcome : Outcome) :
     (((kernelChoice state transition).applyUnitary operator).block (value, outcome)).matrix =
       (transition value outcome).toReal •
         ((operator (value, outcome) : HilbertOperator R) * (state.block value).matrix *
@@ -41,7 +41,7 @@ theorem kernelChoice_selected_block_matrix (value : C) (outcome : Outcome) :
     kernelChoice_block_matrix, Matrix.mul_smul, Matrix.smul_mul]
 
 /-- Summing the sampled labels gives the full weighted mixture of the selected unitaries. -/
-theorem kernelChoice_selected_mixture_matrix :
+lemma kernelChoice_selected_mixture_matrix :
     ((kernelChoice state transition).applyUnitary operator).quantumMarginal.matrix =
       ∑ value, ∑ outcome, (transition value outcome).toReal •
         ((operator (value, outcome) : HilbertOperator R) * (state.block value).matrix *

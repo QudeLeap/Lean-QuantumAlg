@@ -55,7 +55,7 @@ def mutableCells : List TransitionCell :=
   refresh21Cells ++ refresh32Cells ++ inputsCells ++ divisionCells ++ reductionCells
 
 /-- The original distinct identities give each named basis read its phase-local frame. -/
-theorem basis_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma basis_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (cell : LatticeMetricMachine.BasisCell) (cells : List TransitionCell)
     (absent : basisTransitionCell cell ∉ cells) :
     FrameAvoids refs cells (LatticeMetricMachine.basisCellInput refs.basis cell) := by
@@ -67,7 +67,7 @@ theorem basis_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
       CInputRef.storageKeys, List.mem_singleton, basisTransitionCell, cellKey] using keyNe
 
 /-- The same original separation gives each retained Gram cell its phase-local frame. -/
-theorem metric_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma metric_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (cell : LatticeMetricMachine.MetricCell) (cells : List TransitionCell)
     (absent : metricTransitionCell cell ∉ cells) :
     FrameAvoids refs cells
@@ -86,7 +86,7 @@ def rowCells : LatticeMetricMachine.Row → List LatticeMetricMachine.BasisCell
   | .third => [.thirdFirst, .thirdSecond, .thirdThird]
 
 /-- A phase's actual read frame preserves every represented row outside its writes. -/
-theorem row_raw_of_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma row_raw_of_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
     {before after : Store ctx} (row : LatticeMetricMachine.Row)
     (value : NumberTheory.IntegerPoint3) (cells : List TransitionCell)
     (rep : LatticeArithmetic.PointRawRepresents before
@@ -150,7 +150,7 @@ theorem row_raw_of_frame (refs : Refs ctx width) (separation : PhaseSeparation r
       exact rep.2.2
 
 /-- Any structural writable-cell read avoids a phase whose named cells exclude its identity. -/
-theorem write_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma write_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (sourceCell : TransitionCell)
     (sourceKey : source.key = cellKey refs sourceCell) (cells : List TransitionCell)
     (absent : sourceCell ∉ cells) : FrameAvoids refs cells (writeInput source) := by
@@ -162,7 +162,7 @@ theorem write_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (fun equal => absent (equal ▸ member))
 
 /-- Actual dot refresh preserves all caller reads outside its two written words. -/
-theorem refresh21_frame (refs : Refs ctx width) (store : Store ctx)
+lemma refresh21_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs refresh21Cells other) :
     (LatticeDotRefresh.refreshStore refs.basis.second refs.basis.first
@@ -171,7 +171,7 @@ theorem refresh21_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .g21 (by decide)) (avoids .refreshG21Product (by decide))
 
 /-- Actual dot refresh preserves all caller reads outside its two written words. -/
-theorem refresh32_frame (refs : Refs ctx width) (store : Store ctx)
+lemma refresh32_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs refresh32Cells other) :
     (LatticeDotRefresh.refreshStore refs.basis.third refs.basis.second
@@ -180,7 +180,7 @@ theorem refresh32_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .g32 (by decide)) (avoids .refreshG32Product (by decide))
 
 /-- Actual division-input arithmetic preserves reads outside its three written words. -/
-theorem inputs_frame (refs : Refs ctx width) (store : Store ctx)
+lemma inputs_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs inputsCells other) :
     (LatticeSecondReductionInputs.secondReductionInputsStore (reductionInputs refs)
@@ -190,7 +190,7 @@ theorem inputs_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .reductionInputsProduct (by decide))
 
 /-- The actual six-cell division footprint is the original transition footprint. -/
-theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma division_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs divisionCells other) :
@@ -204,7 +204,7 @@ theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
   exact avoids cell cellMember
 
 /-- Row subtraction preserves all actual reads outside its four written words. -/
-theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
+lemma reduction_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs reductionCells other) :
     (LatticeArithmetic.pointStore (writeInput refs.division32.output)
@@ -215,7 +215,7 @@ theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .b32 (by decide)) (avoids .b33 (by decide))
 
 /-- Actual prefix execution preserves every read outside the union of its written cells. -/
-theorem secondPairPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma secondPairPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :

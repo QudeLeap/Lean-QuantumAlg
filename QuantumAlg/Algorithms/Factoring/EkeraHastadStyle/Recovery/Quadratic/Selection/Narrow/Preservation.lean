@@ -25,11 +25,12 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {sourceWidth width : Nat}
 
 /-- All old reads outside the selector's four writable cells retain their complete values. -/
-theorem nativeQuadratic_narrow_read_other (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_read_other (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (availableFree : original.available.key ∉ other.storageKeys)
@@ -56,17 +57,18 @@ theorem nativeQuadratic_narrow_read_other (eligible : CInputRef ctx .bit)
         (.unsignedWord width) ctx.canonicalFreshKey_fresh other)))
 
 /-- The actual scoped conversion and selector restore every full borrowed joint state. -/
-theorem nativeQuadratic_narrow_borrowedRestored (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_borrowedRestored (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (code eligible candidate original).BorrowedRestored Reference state
-      ((code eligible candidate original).execute Reference state) := by
-  apply Circuit.borrowedRestored_workspace
+      ((code eligible candidate original).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history historyFinite entered
-  exact Circuit.borrowedRestored_seq (BitWord.instruction (resizeOp candidate width))
+  exact Circuit.borrowedRestored_seq
+    (environment := environment) (BitWord.instruction (resizeOp candidate width))
     (FirstAccepted.circuit (inputs eligible width) (refs original)) entered
-    (Circuit.borrowedRestored_classical _ entered)
+    (Circuit.borrowedRestored_classical (environment := environment) _ entered)
     (FirstAccepted.firstAccepted_borrowedRestored
       (inputs eligible width) (refs original) Reference _)
 

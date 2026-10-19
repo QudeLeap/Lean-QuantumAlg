@@ -21,7 +21,7 @@ namespace QuantumAlg.UnitaryCircuit
 
 noncomputable section
 
-private theorem reindex_fold {R S : Register} (equivalence : R.Index ≃ S.Index)
+private lemma reindex_fold {R S : Register} (equivalence : R.Index ≃ S.Index)
     (operators : List (UnitaryOperator R)) (initial : UnitaryOperator R) :
     UnitaryOperator.reindex equivalence
         (operators.foldl (fun accumulated next => next * accumulated) initial) =
@@ -35,22 +35,23 @@ private theorem reindex_fold {R S : Register} (equivalence : R.Index ≃ S.Index
         UnitaryOperator.unitaryOperator_reindex_mul]
 
 /-- Changing matrix coordinates preserves every stage and the original execution order. -/
-public theorem unitaryCircuit_binaryMatrix_indexedProduct
+public lemma unitaryCircuit_binaryMatrix_indexedProduct
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (label : String) (steps : Nat)
     (start : UnitaryCircuit gates oracles
       (QuantumSignature.qubits width).canonicalPlacement.layout)
     (step : Fin steps → UnitaryCircuit gates oracles
-      (QuantumSignature.qubits width).canonicalPlacement.layout) :
-    (indexedProduct label steps start step).binaryMatrix =
-      (List.ofFn (fun index => (step index).binaryMatrix)).foldl
-        (fun accumulated next => next * accumulated) start.binaryMatrix := by
+      (QuantumSignature.qubits width).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((indexedProduct label steps start step).binaryMatrix environment) =
+      (List.ofFn (fun index => ((step index).binaryMatrix environment))).foldl
+        (fun accumulated next => next * accumulated) (start.binaryMatrix environment) := by
   unfold binaryMatrix
   rw [indexedProduct_matrix]
   have preserved := reindex_fold
     (R := (QuantumSignature.qubits width).canonicalPlacement.layout.register) (S := Qubits width)
     (QuantumSignature.qubitsIndexEquiv width)
-    (List.ofFn (fun index => (step index).matrix)) start.matrix
+    (List.ofFn (fun index => ((step index).matrix environment))) (start.matrix environment)
   simpa only [List.map_ofFn, Function.comp_def] using preserved
 
 end

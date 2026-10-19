@@ -49,7 +49,7 @@ def entryStep {model : ExecutionModel} [BitWord.Selected model]
     (rowRefs basis (leftRow entry)) (rowRefs basis (rightRow entry))
     (entryRefs refs entry) store
 
-theorem entryStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma entryStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (entry : Entry) (store : Store ctx) :
     (entryStep (model := model) basis refs entry store).1 =
@@ -57,18 +57,19 @@ theorem entryStep_store {model : ExecutionModel} [BitWord.Selected model]
   LatticeDotRefresh.refreshStep_store _ _ _ store
 
 /-- The selected Gram entry update keeps service state and external references. -/
-theorem entryInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma entryInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (entry : Entry) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (entryInto (model := model) basis refs entry).execute Reference state =
+    (entryInto (model := model) basis refs entry).execute environment Reference state =
       state.mapClassical (fun record =>
         let actual := entryStep (model := model) basis refs entry record.1
         (actual.1, (record.2.1, (record.2.2, actual.2)))) :=
   LatticeDotRefresh.refreshInto_execute _ _ _ Reference state
 
-private theorem row_avoids (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
+private lemma row_avoids (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
     (separation : Separation basis refs) (row : Row) (cell : MetricCell) :
     metricCellKey refs cell ∉ (writeInput (rowRefs basis row).first).storageKeys ∧
       metricCellKey refs cell ∉ (writeInput (rowRefs basis row).second).storageKeys ∧
@@ -81,7 +82,7 @@ private theorem row_avoids (basis : LatticeState.BasisRefs ctx width) (refs : Re
   | third => exact ⟨separation.basisAvoids .thirdFirst cell,
       separation.basisAvoids .thirdSecond cell, separation.basisAvoids .thirdThird cell⟩
 
-private theorem entry_separation (basis : LatticeState.BasisRefs ctx width)
+private lemma entry_separation (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (separation : Separation basis refs) (entry : Entry) :
     LatticeDotRefresh.Separation (rowRefs basis (leftRow entry))
       (rowRefs basis (rightRow entry)) (entryRefs refs entry) := by
@@ -110,7 +111,7 @@ private theorem entry_separation (basis : LatticeState.BasisRefs ctx width)
       leftOutput.2.2, rightOutput.2.2, productAvoids⟩
 
 /-- One actual Gram refresh preserves all caller reads outside its two written cells. -/
-theorem entryInto_callerFrame (basis : LatticeState.BasisRefs ctx width)
+lemma entryInto_callerFrame (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (entry : Entry) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (output : metricCellKey refs (entryCell entry) ∉ other.storageKeys)
@@ -119,7 +120,7 @@ theorem entryInto_callerFrame (basis : LatticeState.BasisRefs ctx width)
   LatticeDotRefresh.refreshInto_callerFrame _ _ _ _ other output product
 
 /-- Every original basis row survives each actual Gram-entry refresh. -/
-theorem entryInto_preserves_basis (basis : LatticeState.BasisRefs ctx width)
+lemma entryInto_preserves_basis (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (separation : Separation basis refs) (entry : Entry)
     (store : Store ctx) (value : NumberTheory.IntegerBasis3)
     (rep : BasisRawRepresents store basis value) :
@@ -136,7 +137,7 @@ theorem entryInto_preserves_basis (basis : LatticeState.BasisRefs ctx width)
     exact (rep row).2.2
 
 /-- The actual selected output represents the original integer Gram entry. -/
-theorem entryInto_correct (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
+lemma entryInto_correct (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
     (separation : Separation basis refs) (entry : Entry) (store : Store ctx)
     (value : NumberTheory.IntegerBasis3) (rep : BasisRawRepresents store basis value) :
     RawSignedRepresents ((entryStore basis refs entry store).read
@@ -145,7 +146,7 @@ theorem entryInto_correct (basis : LatticeState.BasisRefs ctx width) (refs : Ref
     store _ _ (rep (leftRow entry)) (rep (rightRow entry))).1
 
 /-- Refreshing one entry preserves every distinct earlier Gram output. -/
-theorem entryInto_preserves_entry (basis : LatticeState.BasisRefs ctx width)
+lemma entryInto_preserves_entry (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (separation : Separation basis refs) (entry saved : Entry)
     (different : entry ≠ saved) (store : Store ctx) :
     (entryStore basis refs entry store).read (writeInput (metricCellRef refs (entryCell saved))) =

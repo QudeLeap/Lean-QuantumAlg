@@ -33,7 +33,7 @@ private def readWord {width : Nat} (word : EncodedBit.Word (frameEncoding width)
   BinaryBasis.bigEndianEquiv width
     (fun index => finTwoEquiv.symm ((word.bit index).get state))
 
-private theorem readWord_bit {width : Nat}
+private lemma readWord_bit {width : Nat}
     (word : EncodedBit.Word (frameEncoding width) width) (state : Frame width) (index : Fin width) :
     (readWord word state).val.testBit index.rev.val = (word.bit index).get state := by
   rw [readWord, BinaryBasis.bigEndianEquiv_bit]
@@ -51,14 +51,14 @@ def numerator (width : Nat) (state : Frame width) : Fin (2 ^ width) :=
 def accumulator (width : Nat) (state : Frame width) : Fin (2 ^ width) :=
   readWord (FramePorts.accumulator width) state
 
-private theorem word_ext {width : Nat} {left right : Fin (2 ^ width)}
+private lemma word_ext {width : Nat} {left right : Fin (2 ^ width)}
     (bits : ∀ index : Fin width, left.val.testBit index.rev.val =
       right.val.testBit index.rev.val) : left = right := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq
   intro index
   simpa only [Fin.rev_rev] using bits index.rev
 
-private theorem bit_read {Data : Type} {label : BinaryLabelEncoding Data}
+private lemma bit_read {Data : Type} {label : BinaryLabelEncoding Data}
     (bit : EncodedBit label) (state : Data) :
     bit.get state = (label.encode state).val.testBit bit.wire.rev.val := by
   rw [← bit.get_eq]
@@ -81,18 +81,18 @@ private def targetBit (width : Nat) (index : Fin width) : EncodedBit (sourceEnco
     (prodRightBit (finIdentity width) (Accumulate.Gidney.encoding width)
       (prodRightBit (finIdentity width) (finIdentity width) (finIdentityBit width index)))
 
-private theorem first_wire (width : Nat) (index : Fin width) :
+private lemma first_wire (width : Nat) (index : Fin width) :
     (firstBit width index).wire.val = index.val := rfl
 
-private theorem second_wire (width : Nat) (index : Fin width) :
+private lemma second_wire (width : Nat) (index : Fin width) :
     (secondBit width index).wire.val = width + index.val := rfl
 
-private theorem target_wire (width : Nat) (index : Fin width) :
+private lemma target_wire (width : Nat) (index : Fin width) :
     (targetBit width index).wire.val = 2 * width + index.val := by
   change width + (width + index.val) = _
   omega
 
-private theorem placed_read (width : Nat) (state : Frame width)
+private lemma placed_read (width : Nat) (state : Frame width)
     (source : EncodedBit (sourceEncoding width)) (target : EncodedBit (frameEncoding width))
     (same : wires width source.wire = target.wire) :
     source.get ((placement width).grouping state) = target.get state := by
@@ -102,7 +102,7 @@ private theorem placed_read (width : Nat) (state : Frame width)
       ((frameEncoding width).encode state).val.testBit wire.rev.val) same)
 
 /-- The first grouped native word is exactly the actual X port, for arbitrary complete frames. -/
-theorem grouping_input (width : Nat) (state : Frame width) :
+lemma grouping_input (width : Nat) (state : Frame width) :
     ((placement width).grouping state).1.1 = input width state := by
   apply word_ext
   intro index
@@ -117,7 +117,7 @@ theorem grouping_input (width : Nat) (state : Frame width) :
   exact actual.trans (readWord_bit (FramePorts.input width) state index).symm
 
 /-- The second grouped native word is the already present Y port, with no extra register. -/
-theorem grouping_numerator (width : Nat) (state : Frame width) :
+lemma grouping_numerator (width : Nat) (state : Frame width) :
     ((placement width).grouping state).1.2.1 = numerator width state := by
   apply word_ext
   intro index
@@ -132,7 +132,7 @@ theorem grouping_numerator (width : Nat) (state : Frame width) :
   exact actual.trans (readWord_bit (FramePorts.numerator width) state index).symm
 
 /-- The grouped native target is exactly A's first n physical Work1 positions. -/
-theorem grouping_accumulator (width : Nat) (state : Frame width) :
+lemma grouping_accumulator (width : Nat) (state : Frame width) :
     ((placement width).grouping state).1.2.2 = accumulator width state := by
   apply word_ext
   intro index
@@ -165,12 +165,12 @@ private def historyBit (width : Nat) (index : Fin (historyWidth width)) :
   prodRightBit (VariableGidney.encoding width) (finIdentity (historyWidth width))
     (finIdentityBit (historyWidth width) index)
 
-private theorem history_source_wire (width : Nat) (index : Fin (historyWidth width)) :
+private lemma history_source_wire (width : Nat) (index : Fin (historyWidth width)) :
     (historyBit width index).wire.val = 3 * width + index.val := by
   change (width + (width + width)) + index.val = _
   omega
 
-private theorem history_wire (width : Nat) (index : Fin (historyWidth width)) :
+private lemma history_wire (width : Nat) (index : Fin (historyWidth width)) :
     wires width (historyBit width index).wire = historyWire width index := by
   apply Fin.ext
   rw [wires_address, history_source_wire]
@@ -191,7 +191,7 @@ private theorem history_wire (width : Nat) (index : Fin (historyWidth width)) :
     omega
 
 /-- Every retained grouped bit is the same actual padding/length/control bit of the old frame. -/
-theorem grouping_history (width : Nat) (state : Frame width) :
+lemma grouping_history (width : Nat) (state : Frame width) :
     ((placement width).grouping state).2 = history width state := by
   apply word_ext
   intro index
@@ -206,14 +206,14 @@ theorem grouping_history (width : Nat) (state : Frame width) :
   exact joined
 
 /-- The supplied Y field agrees exactly with its complete physical word read. -/
-theorem numerator_eq (width : Nat) (state : Frame width) : numerator width state = state.2 := by
+lemma numerator_eq (width : Nat) (state : Frame width) : numerator width state = state.2 := by
   apply word_ext
   intro index
   exact (readWord_bit (FramePorts.numerator width) state index).trans
     (FramePorts.numerator_read width index state)
 
 /-- The actual placed product preserves every retained history bit, jointly with all three words. -/
-theorem product_history (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) :
+lemma product_history (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) :
     history width (NativeProductFrame.step width modulus state) = history width state := by
   rw [← grouping_history, ← grouping_history]
   have actual := (placement width).grouping.apply_symm_apply

@@ -27,7 +27,7 @@ added to the original input domain.
 
 namespace QuantumAlg.NumberTheory.SharedEEA.DivisionWindow
 
-private theorem unrotated_low {coefficientWidth remainderWidth length : Nat}
+private lemma unrotated_low {coefficientWidth remainderWidth length : Nat}
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (within : length ≤ coefficientWidth + remainderWidth)
     (separated : payload.coefficientBits.toNat <
@@ -52,7 +52,7 @@ private theorem unrotated_low {coefficientWidth remainderWidth length : Nat}
     exact (BitVec.getLsbD_of_ge payload.remainderBits bit (by omega)).symm
 
 /-- Reading above the actual wrapped suffix recovers the corresponding unrotated low bits. -/
-theorem rotated_read {coefficientWidth remainderWidth length : Nat}
+lemma rotated_read {coefficientWidth remainderWidth length : Nat}
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth) (shift : Nat)
     (within : length + shift ≤ coefficientWidth + remainderWidth)
     (separated : payload.coefficientBits.toNat <
@@ -87,7 +87,7 @@ def length (state : IterationState) (modulus count : Nat) : Nat :=
   modulus.size + 3 - above state count - shift state count
 
 /-- The actual shifted threshold has exactly the divisor's width plus the remaining shift. -/
-theorem threshold_size (state : IterationState) (count : Nat)
+lemma threshold_size (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     (DivisionThreshold.threshold state count).size = state.divisor.size + shift state count := by
@@ -96,7 +96,7 @@ theorem threshold_size (state : IterationState) (count : Nat)
   exact Nat.size_shiftLeft (Nat.ne_of_gt active) _
 
 /-- The entire selected physical geometry is valid at every actual phase-two position. -/
-theorem window_fits (state : IterationState) (modulus count : Nat)
+lemma window_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -108,7 +108,7 @@ theorem window_fits (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual aligned divisor fits the selected finite operand without modular truncation. -/
-theorem divisor_fits (state : IterationState) (modulus count : Nat)
+lemma divisor_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -120,7 +120,7 @@ theorem divisor_fits (state : IterationState) (modulus count : Nat)
   omega
 
 /-- Reading the actual rotated packed Work2 at the source boundaries returns exactly the divisor. -/
-theorem source_toNat (state : IterationState) (modulus count : Nat)
+lemma source_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :

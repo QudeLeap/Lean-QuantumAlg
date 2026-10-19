@@ -51,7 +51,7 @@ variable {N : ℕ} (gens : Set (Matrix (Fin N) (Fin N) ℂ))
 /-- The restricted adjoint action is the genuine commutator `↑x * Y − Y * ↑x` — **not** the
 left-multiplication (`•`-)action. This is the load-bearing check that the `g`-module is built on
 the adjoint self-action of the matrix Lie ring. -/
-theorem ad_bracket_eq (x : dynamicalLieAlgebra gens) (Y : Matrix (Fin N) (Fin N) ℂ) :
+lemma ad_bracket_eq (x : dynamicalLieAlgebra gens) (Y : Matrix (Fin N) (Fin N) ℂ) :
     ⁅x, Y⁆ = (x : Matrix (Fin N) (Fin N) ℂ) * Y - Y * (x : Matrix (Fin N) (Fin N) ℂ) := by
   change ⁅((dynamicalLieAlgebra gens).incl x : Matrix (Fin N) (Fin N) ℂ), Y⁆ = _
   rw [Ring.lie_def]
@@ -87,7 +87,7 @@ noncomputable def hsFunctional (A : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ
     Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ →ₗ[ℂ] ℂ :=
   (Matrix.traceLinearMap (Fin N × Fin N) ℂ ℂ).comp (LinearMap.mulLeft ℂ Aᴴ)
 
-theorem hsFunctional_apply (A X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
+lemma hsFunctional_apply (A X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ) :
     hsFunctional A X = hsInner A X := by
   simp only [hsFunctional, LinearMap.comp_apply, LinearMap.mulLeft_apply,
     Matrix.traceLinearMap_apply, hsInner]
@@ -99,7 +99,7 @@ noncomputable def gTensorG (b : DLAHermBasis gens) :
 
 /-- The quadratic Casimir `C = ∑ⱼ Bⱼ ⊗ₖ Bⱼ` lies in the `g ⊗ g` carrier — it is the diagonal
 `(j, j)` part of the generating family `Bᵢ ⊗ₖ Bⱼ`. -/
-theorem casimir_mem_gTensorG (b : DLAHermBasis gens) : b.casimir ∈ gTensorG b := by
+lemma casimir_mem_gTensorG (b : DLAHermBasis gens) : b.casimir ∈ gTensorG b := by
   rw [gTensorG, DLAHermBasis.casimir]
   exact Submodule.sum_mem _ fun j _ => Submodule.subset_span ⟨(j, j), rfl⟩
 

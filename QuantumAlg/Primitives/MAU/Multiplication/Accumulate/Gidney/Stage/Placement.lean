@@ -25,7 +25,7 @@ noncomputable section
 
 open BinaryBasis
 
-private theorem decoded_equal {leftWidth rightWidth : Nat}
+private lemma decoded_equal {leftWidth rightWidth : Nat}
     (widths : leftWidth = rightWidth)
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) (labels : left.val = right.val)
     (first : Fin leftWidth) (second : Fin rightWidth) (positions : first.val = second.val) :
@@ -41,7 +41,7 @@ private def prefixLabel (extra : Nat) (state : CanonicalRegisters extra) : Fin (
     (prodEquiv (BinaryLabelEncoding.bool.encode state.1,
       prodEquiv (state.2.1, BinaryLabelEncoding.bool.encode state.2.2.1)))
 
-private theorem canonicalGrouped_value (extra : Nat) (state : CanonicalRegisters extra) :
+private lemma canonicalGrouped_value (extra : Nat) (state : CanonicalRegisters extra) :
     ((canonicalEncoding extra).encode state).val =
       (prodEquiv (prefixLabel extra state,
         prodEquiv (state.2.2.2.1, BinaryLabelEncoding.bool.encode state.2.2.2.2))).val := by
@@ -59,11 +59,11 @@ private theorem canonicalGrouped_value (extra : Nat) (state : CanonicalRegisters
   simp only [pow_add, pow_one]
   ring
 
-private theorem boolLabel (value : Bool) :
+private lemma boolLabel (value : Bool) :
     finTwoEquiv.symm value = (BinaryLabelEncoding.bool.encode value : Fin (2 ^ 1)) := by
   cases value <;> rfl
 
-private theorem sourceGrouped_value (extra : Nat) (state : CanonicalRegisters extra) :
+private lemma sourceGrouped_value (extra : Nat) (state : CanonicalRegisters extra) :
     (sourceLabelEquiv extra (canonicalFieldsEquiv extra state).1).val =
       (prodEquiv (prefixLabel extra state,
         BinaryLabelEncoding.bool.encode state.2.2.2.2)).val := by
@@ -88,7 +88,7 @@ private def packedPosition (extra : Nat) (index : Fin (canonicalEncoding extra).
     unfold packHelperWire
     split_ifs <;> omega⟩
 
-private theorem packed_coordinates (extra : Nat) (state : CanonicalRegisters extra)
+private lemma packed_coordinates (extra : Nat) (state : CanonicalRegisters extra)
     (index : Fin (canonicalEncoding extra).width) :
     (bigEndianEquiv (encoding (extra + 3)).width).symm
         ((encoding (extra + 3)).encode
@@ -183,7 +183,7 @@ private def prefixPermutationPosition {width : Nat} (permutation : Equiv.Perm (F
     · rw [binaryExtendWirePermutation_outside permutation index.val (by omega)]
       exact index.isLt⟩
 
-private theorem prefixPermutation_coordinates {width : Nat}
+private lemma prefixPermutation_coordinates {width : Nat}
     (permutation : Equiv.Perm (Fin width)) (source target : Fin (2 ^ width))
     (index : Fin (width + width)) :
     (bigEndianEquiv (width + width)).symm
@@ -230,7 +230,7 @@ private def stagePosition (extra : Nat) (selected : Fin (extra + 3)) :
     intro first second same
     exact Fin.ext (gidneyStagePlacementWire_injective extra selected (congrArg Fin.val same))
 
-private theorem selected_coordinates (extra : Nat) (selected : Fin (extra + 3))
+private lemma selected_coordinates (extra : Nat) (selected : Fin (extra + 3))
     (state : CanonicalRegisters extra) (index : Fin (canonicalEncoding extra).width) :
     (bigEndianEquiv (encoding (extra + 3)).width).symm
         ((encoding (extra + 3)).encode (selectedWordsEquiv extra selected state))
@@ -241,7 +241,7 @@ private theorem selected_coordinates (extra : Nat) (selected : Fin (extra + 3))
     (sourceLabelEquiv extra (canonicalFieldsEquiv extra state).1) state.2.2.2.1
     (packedPosition extra index)).trans (packed_coordinates extra state index)
 
-private theorem stagePosition_surjective (extra : Nat) (selected : Fin (extra + 3)) :
+private lemma stagePosition_surjective (extra : Nat) (selected : Fin (extra + 3)) :
     Function.Surjective (stagePosition extra selected) := by
   have sameWidth : (canonicalEncoding extra).width = (encoding (extra + 3)).width := by
     rw [gidneyCanonicalStage_qubit_count]

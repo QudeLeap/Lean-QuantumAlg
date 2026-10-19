@@ -47,12 +47,14 @@ def scheduledStep (input : CInputRef ctx (operandShape width))
   (copied.1, (initial.2, (iterated.2, copied.2)))
 
 /-- Initialization, iteration and final copy compose on every complete quantum-reference block. -/
-theorem gcdScheduled_execute (input : CInputRef ctx (operandShape width))
+lemma gcdScheduled_execute (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scheduledBody (model := model) input first second active result).execute Reference state =
+    (scheduledBody (model := model) input first second active result).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := scheduledStep (model := model) input first second active result entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -73,14 +75,16 @@ theorem gcdScheduled_execute (input : CInputRef ctx (operandShape width))
   let copyRecord := fun before : Store ctx × model.HiddenState =>
     let next := BitWord.instructionStep (execution := model) copy before.1
     ((next.1, before.2), next.2)
-  refine (Circuit.execute_seq_mapClassical init (.seq loop copyCircuit) initRecord
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) init (.seq loop copyCircuit) initRecord
     (Circuit.sequenceRecord loop copyCircuit loopRecord copyRecord) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
     exact (gcdInitialization_execute (model := model)
       input first second zero active reference initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ initial
-    exact Circuit.execute_sequenceRecord loop copyCircuit loopRecord copyRecord
+    exact Circuit.execute_sequenceRecord
+      (environment := environment) loop copyCircuit loopRecord copyRecord
       (by
         intro reference history _ state
         exact (gcdLoop_execute (model := model)
@@ -88,13 +92,14 @@ theorem gcdScheduled_execute (input : CInputRef ctx (operandShape width))
             (ExecutionState.executionState_mapClassical_congr _ rfl))
       (by
         intro reference history _ state
-        exact (BitWord.bitWord_instruction_execute (execution := model) copy state).trans
+        exact (BitWord.bitWord_instruction_execute
+          (environment := environment) (execution := model) copy state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)) reference initial
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 
 /-- The final actual copy returns the exact total GCD word of the original encoded operands. -/
-theorem gcdScheduled_read_result (input : CInputRef ctx (operandShape width))
+lemma gcdScheduled_read_result (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     (firstSecond : first.key ≠ second.key)

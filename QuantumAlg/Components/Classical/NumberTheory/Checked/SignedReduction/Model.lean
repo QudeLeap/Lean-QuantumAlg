@@ -34,7 +34,7 @@ XGCD engine. -/
 def signedWidth (width : Nat) : Nat :=
   XGCD.PureXGCD.executionCoefficientWidth (xgcdWidth width)
 
-theorem signedWidth_pos (width : Nat) : 0 < signedWidth width := by
+lemma signedWidth_pos (width : Nat) : 0 < signedWidth width := by
   exact
     ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth_pos
       (xgcdWidth width)
@@ -88,7 +88,7 @@ def rawCanonicalNat {width : Nat} (spec : ModulusSpec width)
   else
     remainder
 
-theorem rawCanonicalNat_lt_modulus {width : Nat}
+lemma rawCanonicalNat_lt_modulus {width : Nat}
     (spec : ModulusSpec width)
     (raw : CShape.Word (signedWidth width)) :
     rawCanonicalNat spec raw < spec.modulus := by
@@ -112,7 +112,7 @@ def rawCanonicalResidue {width : Nat} (spec : ModulusSpec width)
     (raw : CShape.Word (signedWidth width)) : Residue spec :=
   ⟨rawCanonicalNat spec raw, rawCanonicalNat_lt_modulus spec raw⟩
 
-@[simp] theorem rawCanonicalResidue_val {width : Nat}
+@[simp] lemma rawCanonicalResidue_val {width : Nat}
     (spec : ModulusSpec width)
     (raw : CShape.Word (signedWidth width)) :
     (rawCanonicalResidue spec raw).val = rawCanonicalNat spec raw :=
@@ -120,7 +120,7 @@ def rawCanonicalResidue {width : Nat} (spec : ModulusSpec width)
 
 /-- The threshold test used by the machine path is the sign branch of the
 two's-complement decoder. -/
-theorem decodeRawSignedWord_eq_signedMagnitude {width : Nat}
+lemma decodeRawSignedWord_eq_signedMagnitude {width : Nat}
     (raw : CShape.Word (signedWidth width)) :
     XGCD.decodeRawSignedWord (width := xgcdWidth width) raw =
       if rawIsNegative raw then
@@ -172,7 +172,7 @@ theorem decodeRawSignedWord_eq_signedMagnitude {width : Nat}
     rw [if_pos small]
     simp [rawMagnitude, nonnegative]
 
-@[simp] theorem residueOfInt_natCast_val {width : Nat}
+@[simp] lemma residueOfInt_natCast_val {width : Nat}
     (spec : ModulusSpec width) (value : Nat) :
     (residueOfInt spec (value : Int)).val = value % spec.modulus := by
   let _ : NeZero spec.modulus :=
@@ -180,7 +180,7 @@ theorem decodeRawSignedWord_eq_signedMagnitude {width : Nat}
   change (((value : Int) : ZMod spec.modulus).val) = value % spec.modulus
   rw [Int.cast_natCast, ZMod.val_natCast]
 
-@[simp] theorem residueOfInt_neg_natCast_val {width : Nat}
+@[simp] lemma residueOfInt_neg_natCast_val {width : Nat}
     (spec : ModulusSpec width) (value : Nat) :
     (residueOfInt spec (-(value : Int))).val =
       if value % spec.modulus = 0 then
@@ -195,7 +195,7 @@ theorem decodeRawSignedWord_eq_signedMagnitude {width : Nat}
 
 /-- The explicit sign/magnitude/remainder model is exactly the canonical
 residue obtained from XGCD's public two's-complement decoder. -/
-theorem rawCanonicalResidue_eq_reduceRawCoefficient {width : Nat}
+lemma rawCanonicalResidue_eq_reduceRawCoefficient {width : Nat}
     (spec : ModulusSpec width)
     (raw : CShape.Word (signedWidth width)) :
     rawCanonicalResidue spec raw = reduceRawCoefficient spec raw := by
@@ -211,7 +211,7 @@ theorem rawCanonicalResidue_eq_reduceRawCoefficient {width : Nat}
       Bool.eq_false_of_not_eq_true negative
     simp [rawCanonicalNat, rawMagnitudeRemainder, nonnegative]
 
-theorem residueOfInt_cast {width : Nat} (spec : ModulusSpec width)
+lemma residueOfInt_cast {width : Nat} (spec : ModulusSpec width)
     (value : Int) :
     ((residueOfInt spec value).val : ZMod spec.modulus) =
       (value : ZMod spec.modulus) := by

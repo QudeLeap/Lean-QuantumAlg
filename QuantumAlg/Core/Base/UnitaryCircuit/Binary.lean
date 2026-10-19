@@ -29,42 +29,49 @@ variable {gates : GateModel} {oracles : OracleModel} {width : Nat}
 /-- Express the actual physical matrix in canonical big-endian integer labels. -/
 @[expose] public def binaryMatrix
     (body : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits width).canonicalPlacement.layout) :
+      (QuantumSignature.qubits width).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
     UnitaryOperator (Qubits width) :=
-  UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width) body.matrix
+  UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width) (body.matrix environment)
 
 /-- The binary-coordinate view is the canonical basis reindexing of the
 physical circuit matrix. -/
-public theorem binaryMatrix_eq_reindex
+public lemma binaryMatrix_eq_reindex
     (body : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits width).canonicalPlacement.layout) :
-    body.binaryMatrix =
-      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width) body.matrix :=
+      (QuantumSignature.qubits width).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    (body.binaryMatrix environment) =
+      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width) (body.matrix environment) :=
   rfl
 
 /-- The binary view preserves the execution order of sequential composition. -/
-public theorem unitaryCircuit_binaryMatrix_seq
+public lemma unitaryCircuit_binaryMatrix_seq
     (first second : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits width).canonicalPlacement.layout) :
-    (first.seq second).binaryMatrix = second.binaryMatrix * first.binaryMatrix := by
+      (QuantumSignature.qubits width).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((first.seq second).binaryMatrix environment) = (second.binaryMatrix environment) *
+      (first.binaryMatrix environment) := by
   unfold binaryMatrix
   rw [seq_matrix]
-  exact UnitaryOperator.unitaryOperator_reindex_mul _ second.matrix first.matrix
+  exact UnitaryOperator.unitaryOperator_reindex_mul _ (second.matrix environment) (first.matrix
+    environment)
 
 /-- The empty physical circuit remains the identity in binary labels. -/
-public theorem unitaryCircuit_binaryMatrix_identity (gates : GateModel) (oracles : OracleModel)
-    (width : Nat) :
+public lemma unitaryCircuit_binaryMatrix_identity (gates : GateModel) (oracles : OracleModel)
+    (width : Nat) (environment : oracles.Interpretation) :
     binaryMatrix
-      (identity gates oracles (QuantumSignature.qubits width).canonicalPlacement.layout) =
+      (identity gates oracles (QuantumSignature.qubits width).canonicalPlacement.layout)
+        environment =
       (1 : UnitaryOperator (Qubits width)) := by
   unfold binaryMatrix
   rw [identity_matrix, UnitaryOperator.unitaryOperator_reindex_one]
 
 /-- A descriptive macro boundary leaves the complete binary-coordinate operator unchanged. -/
-public theorem unitaryCircuit_binaryMatrix_macroCall (name : String)
+public lemma unitaryCircuit_binaryMatrix_macroCall (name : String)
     (body : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits width).canonicalPlacement.layout) :
-    (macroCall name body).binaryMatrix = body.binaryMatrix := by
+      (QuantumSignature.qubits width).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((macroCall name body).binaryMatrix environment) = (body.binaryMatrix environment) := by
   unfold binaryMatrix
   rw [macroCall_matrix]
 

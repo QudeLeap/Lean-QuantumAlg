@@ -20,6 +20,8 @@ with the unitary acting on their complete joint reference state
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
 
@@ -30,20 +32,24 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Observing actual classical stores commutes with their same fixed local unitary instruction. -/
-theorem unitary_store_filter {ctx : RuntimeCtx .quantum}
+lemma unitary_store_filter {ctx : RuntimeCtx .quantum}
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (services.HiddenState × History))
     (predicate : Store ctx → Prop)
     [DecidablePred predicate] :
     (ExecutionState.filterClassical
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        program).execute Reference state)
+      ((Circuit.unitary (allowAllocation := allowAllocation)
+        (operations := operations) (classicalOracles := services)
+        program).execute environment Reference state)
       (fun entry => predicate entry.1)).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+        (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+          (1 : UnitaryOperator Reference))
         (state.filterClassical (fun entry => predicate entry.1)).quantumMarginal := by
-  let operator := UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)
+  let operator := UnitaryOperator.prodTensor (program.matrix environment.quantum)
+    (1 : UnitaryOperator Reference)
   let part := state.filterClassical (fun entry => predicate entry.1)
   apply DensityOperator.ext
   calc

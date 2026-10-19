@@ -37,7 +37,7 @@ public def selectedInput (basis : target.Basis) : source.Basis :=
     (basis (position index))
 
 /-- Every placed matrix entry has exactly the original action and the untouched complement. -/
-public theorem operatorAt_entry (operator : UnitaryOperator source.register)
+public lemma operatorAt_entry (operator : UnitaryOperator source.register)
     (row column : target.Basis) :
     operatorAt source target position dimensions operator row column =
       operator (selectedInput source target position dimensions row)
@@ -57,7 +57,7 @@ public theorem operatorAt_entry (operator : UnitaryOperator source.register)
 
 /-- An ambient basis is determined by the values read at the placed source
 positions together with the complete unselected complement. -/
-public theorem basis_eq_iff_selectedInput_eq_and_complement_eq
+public lemma basis_eq_iff_selectedInput_eq_and_complement_eq
     (left right : target.Basis) :
     left = right ↔
       selectedInput source target position dimensions left =
@@ -85,10 +85,11 @@ public theorem basis_eq_iff_selectedInput_eq_and_complement_eq
 
 /-- Place a proved computational-basis action at selected ambient positions.
 The unselected physical systems retain their exact original values. -/
-public theorem placeAt_applyNormalized_ket_of_eq
+public lemma placeAt_applyNormalized_ket_of_eq
     (body : UnitaryCircuit gates oracles source)
+    (environment : oracles.Interpretation)
     (sourceInput sourceOutput : source.Basis)
-    (actual : body.applyNormalized (NormalizedVector.ket sourceInput) =
+    (actual : body.applyNormalized environment (NormalizedVector.ket sourceInput) =
       NormalizedVector.ket sourceOutput)
     (targetInput targetOutput : target.Basis)
     (inputSelected : selectedInput source target position dimensions targetInput = sourceInput)
@@ -96,20 +97,20 @@ public theorem placeAt_applyNormalized_ket_of_eq
     (complementUnchanged :
       target.restrictComplementBasis (Finset.univ.map position) targetOutput =
         target.restrictComplementBasis (Finset.univ.map position) targetInput) :
-    (placeAt source target position dimensions body).applyNormalized
+    (placeAt source target position dimensions body).applyNormalized environment
         (NormalizedVector.ket targetInput) = NormalizedVector.ket targetOutput := by
   apply NormalizedVector.ext
   intro row
   have sourceEntry := congrArg
     (fun state : NormalizedVector source.register =>
       state (selectedInput source target position dimensions row)) actual
-  change body.matrix.applyVec
+  change (body.matrix environment).applyVec
       (NormalizedVector.ket (R := source.register) sourceInput).vec
         (selectedInput source target position dimensions row) =
     NormalizedVector.ket (R := source.register) sourceOutput
       (selectedInput source target position dimensions row) at sourceEntry
   simp only [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at sourceEntry
-  change (placeAt source target position dimensions body).matrix.applyVec
+  change ((placeAt source target position dimensions body).matrix environment).applyVec
       (NormalizedVector.ket (R := target.register) targetInput).vec row =
     NormalizedVector.ket (R := target.register) targetOutput row
   rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket]

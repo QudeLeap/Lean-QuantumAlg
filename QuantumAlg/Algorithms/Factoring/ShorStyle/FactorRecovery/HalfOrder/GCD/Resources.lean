@@ -44,7 +44,7 @@ def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (successor :
 def depthBound (successor : Bool) (N : Nat) : Nat :=
   12 * (modulusBits N + 1) + 11 + if successor then 2 else 3
 
-private theorem body_pool_le (successor : Bool)
+private lemma body_pool_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (body (model := model) successor halfPower output).Path) :
@@ -63,7 +63,7 @@ private theorem body_pool_le (successor : Bool)
         (NumberTheory.GCD.gcdLexical_pool_le (operands ctx N) (liftWrite output) path.2.2.2)))
 
 /-- Both real operand scopes preserve the complete independent native event bound. -/
-theorem code_pool_le (successor : Bool)
+lemma code_pool_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (code (model := model) successor halfPower output).Path) :
@@ -72,7 +72,7 @@ theorem code_pool_le (successor : Bool)
   body_pool_le successor halfPower output path
 
 /-- Every native dependency is included in the actual adjacent, load, clear and GCD sequence. -/
-theorem code_unitDepth_le (successor : Bool)
+lemma code_unitDepth_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (code (model := model) successor halfPower output).Path) :

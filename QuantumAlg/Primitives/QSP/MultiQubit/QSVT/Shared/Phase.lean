@@ -38,11 +38,12 @@ def phase (m n : Nat) (positive : 0 < n) (oracles : OracleModel) (zero one : ℝ
     (2 * zero) (2 * one))).seq flip
 
 /-- The actual native phase word is the exact direct sum of the two independently chosen phases. -/
-theorem phase_matrix (m n : Nat) (positive : 0 < n) (oracles : OracleModel) (zero one : ℝ) :
-    ((phase m n positive oracles zero one).binaryMatrix :
+lemma phase_matrix (m n : Nat) (positive : 0 < n) (oracles : OracleModel) (zero one : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phase m n positive oracles zero one).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (1 + (m + n))))) =
-      Native.branchMatrix (KnownZero.phase m n positive oracles zero).binaryMatrix
-        (KnownZero.phase m n positive oracles one).binaryMatrix := by
+      Native.branchMatrix ((KnownZero.phase m n positive oracles zero).binaryMatrix environment)
+        ((KnownZero.phase m n positive oracles one).binaryMatrix environment) := by
   rw [phase, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_binaryMatrix]
@@ -59,7 +60,7 @@ theorem phase_matrix (m n : Nat) (positive : 0 < n) (oracles : OracleModel) (zer
   rfl
 
 /-- Both flips and all four selector gates occupy one sequential dependency chain. -/
-theorem phase_depth (m n : Nat) (positive : 0 < n) (oracles : OracleModel) (zero one : ℝ) :
+lemma phase_depth (m n : Nat) (positive : 0 < n) (oracles : OracleModel) (zero one : ℝ) :
     (phase m n positive oracles zero one).evaluatedEventDepth (fun _ => 1) =
       2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 4 := by
   simp only [phase, UnitaryCircuit.evaluatedEventDepth_seq,

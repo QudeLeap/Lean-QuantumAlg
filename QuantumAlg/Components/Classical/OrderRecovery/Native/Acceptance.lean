@@ -23,12 +23,12 @@ open Execution
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem bit_copy_read (input : CInputRef ctx .bit) (output : CWriteRef ctx .bit)
+private lemma bit_copy_read (input : CInputRef ctx .bit) (output : CWriteRef ctx .bit)
     (store : Store ctx) :
     (store.applyOp (.bit .copy ctx input output)).read (cellRead output) = store.read input :=
   Store.read_applyOp_output store (.bit .copy ctx input output)
 
-private theorem bit_not_read (input : CInputRef ctx .bit) (output : CWriteRef ctx .bit)
+private lemma bit_not_read (input : CInputRef ctx .bit) (output : CWriteRef ctx .bit)
     (store : Store ctx) :
     (store.applyOp (.bit .not ctx input output)).read (cellRead output) =
       .bit (!(store.read input).toBool) := by
@@ -38,7 +38,7 @@ private theorem bit_not_read (input : CInputRef ctx .bit) (output : CWriteRef ct
   rfl
 
 /-- Acceptance stores the original candidate, copies validity and negates it into activity. -/
-theorem nativeCursor_accept_reads (candidate : CInputRef ctx (.unsignedWord width))
+lemma nativeCursor_accept_reads (candidate : CInputRef ctx (.unsignedWord width))
     (valid : CInputRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (accepted active : CWriteRef ctx .bit)
     (activeSelected : active.key ≠ selected.key)
@@ -73,7 +73,7 @@ theorem nativeCursor_accept_reads (candidate : CInputRef ctx (.unsignedWord widt
         valid selectedValid]
 
 /-- Acceptance changes only its selected word and two writable latches. -/
-theorem nativeCursor_accept_read_other (candidate : CInputRef ctx (.unsignedWord width))
+lemma nativeCursor_accept_read_other (candidate : CInputRef ctx (.unsignedWord width))
     (valid : CInputRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (accepted active : CWriteRef ctx .bit) {shape : CShape} (other : CInputRef ctx shape)
     (selectedFree : selected.key ∉ other.storageKeys)

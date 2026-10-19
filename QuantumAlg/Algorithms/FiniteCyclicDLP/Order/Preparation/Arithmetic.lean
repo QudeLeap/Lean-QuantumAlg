@@ -53,13 +53,13 @@ public def lowerMass (b : PositiveGapExpansion N) (m : Fin (b.gaps + 1)) : Nat :
     if j.val < m.val then 2 ^ b.ell j else 0
 
 @[simp]
-public theorem lowerMass_zero (b : PositiveGapExpansion N) : b.lowerMass 0 = 0 := by
+public lemma lowerMass_zero (b : PositiveGapExpansion N) : b.lowerMass 0 = 0 := by
   unfold lowerMass
   simp
 
 /-- Passing one source bit adds exactly that bit's binary mass to the lower
 prefix. -/
-public theorem lowerMass_succ (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma lowerMass_succ (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     b.lowerMass m.succ = b.lowerMass m.castSucc + 2 ^ b.ell m.castSucc := by
   calc
     b.lowerMass m.succ = ∑ index : Fin (b.gaps + 1),
@@ -108,14 +108,14 @@ public theorem lowerMass_succ (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     if j.val < m.val then 2 ^ b.ell j else 0
 
 @[simp]
-public theorem lowerMass_castSucc (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma lowerMass_castSucc (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     b.lowerMass m.castSucc = b.prefixMass m := by
   rfl
 
 /-- Consecutive aligned bases differ by exactly the next binary summand.
 Thus the source blocks are adjacent intervals, in decreasing source-index
 order. -/
-public theorem tailMass_eq_pow_add_tailMass_succ (b : PositiveGapExpansion N)
+public lemma tailMass_eq_pow_add_tailMass_succ (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     b.tailMass m.castSucc = 2 ^ b.ell m.succ + b.tailMass m.succ := by
   calc
@@ -164,7 +164,7 @@ public theorem tailMass_eq_pow_add_tailMass_succ (b : PositiveGapExpansion N)
           simp [tailMass]
 
 @[simp]
-public theorem tailMass_last (b : PositiveGapExpansion N) :
+public lemma tailMass_last (b : PositiveGapExpansion N) :
     b.tailMass (Fin.last b.gaps) = 0 := by
   unfold tailMass
   apply Finset.sum_eq_zero
@@ -177,7 +177,7 @@ public theorem tailMass_last (b : PositiveGapExpansion N) :
 /-- A residual base together with its own binary summand is bounded by the
 whole certified expansion.  This also supplies the range proof for the
 literal high-register ket used in the tensor form of a residual block. -/
-public theorem tailMass_add_current_le (b : PositiveGapExpansion N)
+public lemma tailMass_add_current_le (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) :
     b.tailMass m + 2 ^ b.ell m ≤ N := by
   have hcurrent :
@@ -207,20 +207,20 @@ public theorem tailMass_add_current_le (b : PositiveGapExpansion N)
     _ = N := b.sum_powers.symm
 
 /-- Every residual base lies strictly below the represented positive order. -/
-public theorem tailMass_lt_order (b : PositiveGapExpansion N)
+public lemma tailMass_lt_order (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) : b.tailMass m < N := by
   have hbound := b.tailMass_add_current_le m
   have hpositive : 0 < 2 ^ b.ell m := Nat.two_pow_pos _
   omega
 
 /-- Every residual base fits inside the intrinsic highest-bit width. -/
-public theorem tailMass_lt_pow_width (b : PositiveGapExpansion N)
+public lemma tailMass_lt_pow_width (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) : b.tailMass m < 2 ^ b.width :=
   (b.tailMass_lt_order m).trans_le b.fits_proof
 
 /-- Every summand strictly above `ell m` has the trailing zero bits needed to
 make the residual block aligned at its own source position. -/
-public theorem pow_succ_ell_dvd_tailMass (b : PositiveGapExpansion N)
+public lemma pow_succ_ell_dvd_tailMass (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) :
     2 ^ (b.ell m + 1) ∣ b.tailMass m := by
   unfold tailMass
@@ -235,7 +235,7 @@ public theorem pow_succ_ell_dvd_tailMass (b : PositiveGapExpansion N)
 /-- The mass below a source position, its own summand, and the mass above it
 form the certified binary expansion.  This is the arithmetic partition used
 by the residual-block invariant. -/
-public theorem prefixMass_add_current_add_tailMass (b : PositiveGapExpansion N)
+public lemma prefixMass_add_current_add_tailMass (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     b.prefixMass m + 2 ^ b.ell m.castSucc + b.tailMass m.castSucc = N := by
   calc
@@ -282,14 +282,14 @@ public theorem prefixMass_add_current_add_tailMass (b : PositiveGapExpansion N)
 
 /-- The same three-way binary partition in the generic source-position
 notation used by the induction. -/
-public theorem lowerMass_add_current_add_tailMass (b : PositiveGapExpansion N)
+public lemma lowerMass_add_current_add_tailMass (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     b.lowerMass m.castSucc + 2 ^ b.ell m.castSucc + b.tailMass m.castSucc = N := by
   simpa using b.prefixMass_add_current_add_tailMass m
 
 /-- After stage `m`, the remaining binary mass is exactly the tail above
 source bit `m`. -/
-public theorem N_sub_lowerMass_succ_eq_tailMass (b : PositiveGapExpansion N)
+public lemma N_sub_lowerMass_succ_eq_tailMass (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     N - b.lowerMass m.succ = b.tailMass m.castSucc := by
   have hpartition := b.lowerMass_add_current_add_tailMass m
@@ -299,7 +299,7 @@ public theorem N_sub_lowerMass_succ_eq_tailMass (b : PositiveGapExpansion N)
 /-- A later source block (including its own interval) lies entirely below an
 earlier source block.  This is the finite-support ordering from which the
 residual-block orthogonality follows. -/
-public theorem tailMass_add_current_le_tailMass_of_lt (b : PositiveGapExpansion N)
+public lemma tailMass_add_current_le_tailMass_of_lt (b : PositiveGapExpansion N)
     {left right : Fin (b.gaps + 1)} (hleft : left.val < right.val) :
     b.tailMass right + 2 ^ b.ell right ≤ b.tailMass left := by
   calc
@@ -331,7 +331,7 @@ public theorem tailMass_add_current_le_tailMass_of_lt (b : PositiveGapExpansion 
     _ = b.tailMass left := by rfl
 
 /-- Distinct source blocks have disjoint interval supports. -/
-public theorem residualSupport_disjoint_of_lt (b : PositiveGapExpansion N)
+public lemma residualSupport_disjoint_of_lt (b : PositiveGapExpansion N)
     {left right : Fin (b.gaps + 1)} (hleft : left.val < right.val)
     (index : Nat) :
     ¬ (b.residualSupport left index ∧ b.residualSupport right index) := by
@@ -341,7 +341,7 @@ public theorem residualSupport_disjoint_of_lt (b : PositiveGapExpansion N)
   unfold residualSupport at hleftSupport hrightSupport
   omega
 @[simp]
-public theorem prefixMass_zero (b : PositiveGapExpansion N) :
+public lemma prefixMass_zero (b : PositiveGapExpansion N) :
     b.prefixMass ⟨0, b.gaps_pos⟩ = 0 := by
   unfold prefixMass
   simp
@@ -349,7 +349,7 @@ public theorem prefixMass_zero (b : PositiveGapExpansion N) :
 /-- The lower prefix together with its next source bit is bounded by the
 certified binary sum.  This is the arithmetic fact that makes every source
 rotation denominator positive. -/
-public theorem prefixMass_add_current_le (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma prefixMass_add_current_le (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     b.prefixMass m + 2 ^ b.ell m.castSucc ≤ N := by
   calc
     b.prefixMass m + 2 ^ b.ell m.castSucc =
@@ -378,7 +378,7 @@ public theorem prefixMass_add_current_le (b : PositiveGapExpansion N) (m : Fin b
     _ = N := b.sum_powers.symm
 
 /-- Every Algorithm-1 rotation denominator is strictly positive. -/
-public theorem prefixMass_lt (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma prefixMass_lt (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     b.prefixMass m < N := by
   have hbound := b.prefixMass_add_current_le m
   have hpositive : 0 < 2 ^ b.ell m.castSucc := Nat.two_pow_pos _
@@ -389,12 +389,12 @@ public theorem prefixMass_lt (b : PositiveGapExpansion N) (m : Fin b.gaps) :
   ((2 ^ b.ell m.castSucc : Nat) : ℝ) /
     ((N - b.prefixMass m : Nat) : ℝ)
 
-public theorem sourceRatio_nonneg (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma sourceRatio_nonneg (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     0 ≤ b.sourceRatio m := by
   unfold sourceRatio
   positivity
 
-public theorem sourceRatio_le_one (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma sourceRatio_le_one (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     b.sourceRatio m ≤ 1 := by
   have hsum := b.prefixMass_add_current_le m
   have hdenNat : 0 < N - b.prefixMass m := Nat.sub_pos_of_lt (b.prefixMass_lt m)
@@ -424,17 +424,17 @@ public def blockWeight (b : PositiveGapExpansion N) (m : Fin (b.gaps + 1)) : ℝ
     (((2 ^ b.ell m : Nat) : ℝ) / (N : ℝ))
 
 @[simp]
-public theorem residualWeight_nonneg (b : PositiveGapExpansion N) (m : Fin (b.gaps + 1)) :
+public lemma residualWeight_nonneg (b : PositiveGapExpansion N) (m : Fin (b.gaps + 1)) :
     0 ≤ b.residualWeight m :=
   Real.sqrt_nonneg _
 
 @[simp]
-public theorem blockWeight_nonneg (b : PositiveGapExpansion N) (m : Fin (b.gaps + 1)) :
+public lemma blockWeight_nonneg (b : PositiveGapExpansion N) (m : Fin (b.gaps + 1)) :
     0 ≤ b.blockWeight m :=
   Real.sqrt_nonneg _
 
 /-- The initial residual has unit coefficient. -/
-public theorem residualWeight_zero (b : PositiveGapExpansion N) : b.residualWeight 0 = 1 := by
+public lemma residualWeight_zero (b : PositiveGapExpansion N) : b.residualWeight 0 = 1 := by
   have hN : (N : ℝ) ≠ 0 := by
     exact_mod_cast Nat.ne_of_gt b.positive
   unfold residualWeight
@@ -442,7 +442,7 @@ public theorem residualWeight_zero (b : PositiveGapExpansion N) : b.residualWeig
 
 /-- `sourceRatio` is the current summand divided by the residual mass in the
 generic source-position notation. -/
-public theorem sourceRatio_eq_current_over_residual (b : PositiveGapExpansion N)
+public lemma sourceRatio_eq_current_over_residual (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     b.sourceRatio m =
       ((2 ^ b.ell m.castSucc : Nat) : ℝ) /
@@ -453,7 +453,7 @@ public theorem sourceRatio_eq_current_over_residual (b : PositiveGapExpansion N)
 the residual invariant.  They are real equalities; the circuit action later
 uses their canonical coercions to complex amplitudes. -/
 
-private theorem sqrt_mass_mul_sqrt_ratio (mass part total : Nat)
+private lemma sqrt_mass_mul_sqrt_ratio (mass part total : Nat)
     (hmass : 0 < mass) (htotal : 0 < total) :
     Real.sqrt ((mass : ℝ) / (total : ℝ)) *
         Real.sqrt ((part : ℝ) / (mass : ℝ)) =
@@ -466,7 +466,7 @@ private theorem sqrt_mass_mul_sqrt_ratio (mass part total : Nat)
   congr 1
   field_simp [hmassReal, htotalReal]
 
-private theorem sqrt_mass_mul_sqrt_complement (mass part total : Nat)
+private lemma sqrt_mass_mul_sqrt_complement (mass part total : Nat)
     (hmass : 0 < mass) (hpart : part ≤ mass) (htotal : 0 < total) :
     Real.sqrt ((mass : ℝ) / (total : ℝ)) *
         Real.sqrt (1 - (part : ℝ) / (mass : ℝ)) =
@@ -488,7 +488,7 @@ denominator is `N`, since the prefix mass is empty. -/
 
 /-- The `|1⟩` coefficient retained by the source rotation is the square root
 of its declared binary-mass ratio. -/
-public theorem cos_half_sourceAngle (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma cos_half_sourceAngle (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     Real.cos (b.sourceAngle m / 2) = Real.sqrt (b.sourceRatio m) := by
   have hnonneg := b.sourceRatio_nonneg m
   have hsqrt_nonneg : 0 ≤ Real.sqrt (b.sourceRatio m) := Real.sqrt_nonneg _
@@ -505,7 +505,7 @@ public theorem cos_half_sourceAngle (b : PositiveGapExpansion N) (m : Fin b.gaps
 
 /-- The newly opened residual coefficient is the complementary square root.
 The negation is exactly the sign appearing in `R_Y(θ)|1⟩`. -/
-public theorem neg_sin_half_sourceAngle (b : PositiveGapExpansion N) (m : Fin b.gaps) :
+public lemma neg_sin_half_sourceAngle (b : PositiveGapExpansion N) (m : Fin b.gaps) :
     -(Real.sin (b.sourceAngle m / 2)) =
       Real.sqrt (1 - b.sourceRatio m) := by
   have hnonneg := b.sourceRatio_nonneg m
@@ -517,7 +517,7 @@ public theorem neg_sin_half_sourceAngle (b : PositiveGapExpansion N) (m : Fin b.
 
 /-- The retained branch of a source rotation has exactly the accepted-block
 coefficient required by the binary partition. -/
-public theorem residualWeight_mul_cos_half_sourceAngle (b : PositiveGapExpansion N)
+public lemma residualWeight_mul_cos_half_sourceAngle (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     b.residualWeight m.castSucc * Real.cos (b.sourceAngle m / 2) =
       b.blockWeight m.castSucc := by
@@ -531,7 +531,7 @@ public theorem residualWeight_mul_cos_half_sourceAngle (b : PositiveGapExpansion
 
 /-- The opened branch of a source rotation has the residual coefficient at
 the next source position. -/
-public theorem residualWeight_mul_neg_sin_half_sourceAngle (b : PositiveGapExpansion N)
+public lemma residualWeight_mul_neg_sin_half_sourceAngle (b : PositiveGapExpansion N)
     (m : Fin b.gaps) :
     b.residualWeight m.castSucc * (-(Real.sin (b.sourceAngle m / 2))) =
       b.residualWeight m.succ := by
@@ -564,7 +564,7 @@ public def clampedEll (b : PositiveGapExpansion N) (index : Nat) : Nat :=
     have hle : min index b.gaps ≤ b.gaps := Nat.min_le_right _ _
     omega⟩
 
-private theorem clampedEll_monotone (b : PositiveGapExpansion N) :
+private lemma clampedEll_monotone (b : PositiveGapExpansion N) :
     Monotone b.clampedEll := by
   intro left right hleft
   apply b.ell_strict.monotone
@@ -572,12 +572,12 @@ private theorem clampedEll_monotone (b : PositiveGapExpansion N) :
   exact min_le_min hleft le_rfl
 
 @[simp]
-private theorem clampedEll_zero (b : PositiveGapExpansion N) :
+private lemma clampedEll_zero (b : PositiveGapExpansion N) :
     b.clampedEll 0 = b.first := by
   simp [clampedEll, first]
 
 @[simp]
-private theorem clampedEll_last (b : PositiveGapExpansion N) :
+private lemma clampedEll_last (b : PositiveGapExpansion N) :
     b.clampedEll b.gaps = b.last := by
   unfold clampedEll last
   congr 1
@@ -586,7 +586,7 @@ private theorem clampedEll_last (b : PositiveGapExpansion N) :
 
 /-- Strict source gaps telescope exactly to the interval between the lowest
 and highest set-bit exponents. -/
-public theorem sum_gapWidth (b : PositiveGapExpansion N) :
+public lemma sum_gapWidth (b : PositiveGapExpansion N) :
     ∑ gap : Fin b.gaps, b.gapWidth gap = b.last - b.first := by
   rw [Finset.sum_fin_eq_sum_range]
   calc
@@ -605,7 +605,7 @@ public theorem sum_gapWidth (b : PositiveGapExpansion N) :
 
 /-- Because every source gap is strict, the number of gaps is no larger than
 their total width. -/
-public theorem gaps_le_gapWidth_sum (b : PositiveGapExpansion N) :
+public lemma gaps_le_gapWidth_sum (b : PositiveGapExpansion N) :
     b.gaps ≤ ∑ gap : Fin b.gaps, b.gapWidth gap := by
   calc
     b.gaps = ∑ _gap : Fin b.gaps, 1 := by simp

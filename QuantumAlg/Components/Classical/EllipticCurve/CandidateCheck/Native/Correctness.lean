@@ -27,7 +27,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
-private theorem candidateBits_separate (candidate : CInputRef ctx (.unsignedWord scalarWidth))
+private lemma candidateBits_separate (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (key : StorageKey) (separate : key ∉ candidate.storageKeys) :
     key ∉ (candidateBits candidate).storageKeys := by
   change key ∉ (List.ofFn (fun _index : Fin scalarWidth => candidate.storageKeys)).flatten
@@ -36,7 +36,7 @@ private theorem candidateBits_separate (candidate : CInputRef ctx (.unsignedWord
   obtain ⟨_index, rfl⟩ := List.mem_ofFn.mp member
   exact separate contained
 
-private theorem conjunction_read (flag : CInputRef ctx .bit) (accepted : CWriteRef ctx .bit)
+private lemma conjunction_read (flag : CInputRef ctx .bit) (accepted : CWriteRef ctx .bit)
     (store : Store ctx) :
     (store.applyOp (conjunctionOp flag accepted)).read (.storage accepted.toCStorageRef) =
       .bit ((store.read (.storage accepted.toCStorageRef)).toBool &&
@@ -50,13 +50,14 @@ private theorem conjunction_read (flag : CInputRef ctx .bit) (accepted : CWriteR
   cases store.read flag
   rfl
 
-private theorem bit_true_iff (value : CShape.Value .bit) :
+private lemma bit_true_iff (value : CShape.Value .bit) :
     value.toBool = true ↔ value = .bit true := by
   cases value
   simp only [CShape.Value.toBool, CShape.Value.bit.injEq]
 
 /-- Actual acceptance is exactly the original target equation and both original success flags. -/
-theorem verifyStep_accepts_iff {model : ExecutionModel} [BitWord.Selected model]
+lemma verifyStep_accepts_iff {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
@@ -75,15 +76,17 @@ theorem verifyStep_accepts_iff {model : ExecutionModel} [BitWord.Selected model]
     (scalarReconstruction : scalarResult.key ∉ reconstruction.storageKeys)
     (acceptedInverse : accepted.key ∉ inverseSuccess.storageKeys)
     (acceptedReconstruction : accepted.key ∉ reconstruction.storageKeys) :
-    ((verifyStep spec candidate base target inverseSuccess reconstruction
+    ((verifyStep (environment := environment) spec candidate base target inverseSuccess
+      reconstruction
       scalarResult accepted (store, hidden)).1.1.read
         (.storage accepted.toCStorageRef)).toBool = true ↔
       scalar.val • basePoint = targetPoint ∧
         (store.read inverseSuccess).toBool = true ∧
         (store.read reconstruction).toBool = true := by
-  let afterScalar := (ScalarMul.Native.scalarStep spec (candidateBits candidate)
+  let afterScalar := (ScalarMul.Native.scalarStep (environment := environment) spec
+    (candidateBits candidate)
     base scalarResult (store, hidden)).1
-  let afterComparison := (PointEquality.Native.compareStep
+  let afterComparison := (PointEquality.Native.compareStep (environment := environment)
     (.storage scalarResult.toCStorageRef) target accepted afterScalar.1).1
   let afterInverse := afterComparison.applyOp (conjunctionOp inverseSuccess accepted)
   have scalarRep : PointRepresents spec

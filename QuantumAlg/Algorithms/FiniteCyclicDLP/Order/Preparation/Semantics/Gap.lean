@@ -35,12 +35,12 @@ variable {N : Nat}
     Fin b.width :=
   WireAddress.littleEndianWire ⟨b.ell source, b.ell_lt_width source⟩
 
-@[simp] public theorem wire_val (b : PositiveGapExpansion N)
+@[simp] public lemma wire_val (b : PositiveGapExpansion N)
     (source : Fin (b.gaps + 1)) :
     (b.wire source).val = b.width - 1 - b.ell source := rfl
 
 /-- The physical source address recovers its logical set-bit exponent. -/
-public theorem bitIndex_wire (b : PositiveGapExpansion N)
+public lemma bitIndex_wire (b : PositiveGapExpansion N)
     (source : Fin (b.gaps + 1)) :
     (WireAddress.bitIndex (b.wire source)).val = b.ell source := by
   exact congrArg Fin.val (WireAddress.bitIndex_littleEndianWire _)
@@ -56,13 +56,13 @@ public theorem bitIndex_wire (b : PositiveGapExpansion N)
       unfold gapWidth at offsetBound
       omega⟩
 
-@[simp] public theorem gapTargetWire_val (b : PositiveGapExpansion N)
+@[simp] public lemma gapTargetWire_val (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) (offset : Fin (b.gapWidth gap)) :
     (b.gapTargetWire gap offset).val =
       b.width - 1 - (b.ell gap.castSucc + offset.val) := rfl
 
 /-- The next source wire is physically before the preceding source wire. -/
-public theorem wire_succ_lt_wire (b : PositiveGapExpansion N)
+public lemma wire_succ_lt_wire (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) :
     (b.wire gap.succ).val < (b.wire gap.castSucc).val := by
   rw [wire_val, wire_val]
@@ -72,7 +72,7 @@ public theorem wire_succ_lt_wire (b : PositiveGapExpansion N)
 
 /-- The next source wire is physically before every Hadamard target in its
 strict binary gap. -/
-public theorem wire_succ_lt_gapTargetWire (b : PositiveGapExpansion N)
+public lemma wire_succ_lt_gapTargetWire (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) (offset : Fin (b.gapWidth gap)) :
     (b.wire gap.succ).val < (b.gapTargetWire gap offset).val := by
   rw [wire_val, gapTargetWire_val]
@@ -83,7 +83,7 @@ public theorem wire_succ_lt_gapTargetWire (b : PositiveGapExpansion N)
   omega
 
 /-- Width of the fixed high prefix at a source position. -/
-public theorem highWidth_eq_wire_val (b : PositiveGapExpansion N)
+public lemma highWidth_eq_wire_val (b : PositiveGapExpansion N)
     (source : Fin (b.gaps + 1)) :
     b.width - b.ell source - 1 = (b.wire source).val := by
   rw [wire_val]
@@ -91,7 +91,7 @@ public theorem highWidth_eq_wire_val (b : PositiveGapExpansion N)
   omega
 
 /-- Width of the physical suffix below a source position. -/
-public theorem ell_eq_wire_suffixWidth (b : PositiveGapExpansion N)
+public lemma ell_eq_wire_suffixWidth (b : PositiveGapExpansion N)
     (source : Fin (b.gaps + 1)) :
     b.ell source = b.width - (b.wire source).val - 1 := by
   rw [wire_val]
@@ -99,7 +99,7 @@ public theorem ell_eq_wire_suffixWidth (b : PositiveGapExpansion N)
   omega
 
 /-- Width of the strict gap interior between its two source wires. -/
-public theorem gapWidth_pred_eq_wire_sub (b : PositiveGapExpansion N)
+public lemma gapWidth_pred_eq_wire_sub (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) :
     b.gapWidth gap - 1 =
       (b.wire gap.castSucc).val - (b.wire gap.succ).val - 1 := by
@@ -110,7 +110,7 @@ public theorem gapWidth_pred_eq_wire_sub (b : PositiveGapExpansion N)
   omega
 
 /-- Width of the still-zero middle field at one gap target. -/
-public theorem gapRemaining_eq_target_sub (b : PositiveGapExpansion N)
+public lemma gapRemaining_eq_target_sub (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) (offset : Fin (b.gapWidth gap)) :
     b.gapWidth gap - offset.val - 1 =
       (b.gapTargetWire gap offset).val - (b.wire gap.succ).val - 1 := by
@@ -122,7 +122,7 @@ public theorem gapRemaining_eq_target_sub (b : PositiveGapExpansion N)
   omega
 
 /-- Width of the already-expanded physical suffix at one gap target. -/
-public theorem gapProcessed_eq_target_suffixWidth
+public lemma gapProcessed_eq_target_suffixWidth
     (b : PositiveGapExpansion N) (gap : Fin b.gaps)
     (offset : Fin (b.gapWidth gap)) :
     offset.val + b.ell gap.castSucc =
@@ -138,7 +138,7 @@ public theorem gapProcessed_eq_target_suffixWidth
 @[expose] public def rawKetZero (width : Nat) : HilbertVector (Qubits width) :=
   basisKetVec (0 : Fin (2 ^ width))
 
-private theorem prodEquiv_value {leftWidth rightWidth : Nat}
+private lemma prodEquiv_value {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) :
     (prodEquiv (m := leftWidth) (n := rightWidth) (left, right)).val =
       right.val + 2 ^ rightWidth * left.val := rfl
@@ -153,7 +153,7 @@ public def gapPlusBlock : (count : Nat) → HilbertVector (Qubits count)
 
 /-- A leading `|+>` extends the raw Walsh-uniform block by one physical
 qubit. -/
-public theorem ketPlus_tensor_uniform (count : Nat) :
+public lemma ketPlus_tensor_uniform (count : Nat) :
     HilbertVector.tensor (NormalizedVector.ketPlus : HilbertVector (Qubits 1))
         (WalshHadamard.uniformState count : HilbertVector (Qubits count)) =
       (WalshHadamard.uniformState (1 + count) :
@@ -170,7 +170,7 @@ public theorem ketPlus_tensor_uniform (count : Nat) :
 
 /-- The explicit product of `|+>` factors is the ordinary raw
 Walsh-uniform state of the same width. -/
-public theorem gapPlusBlock_eq_uniform (count : Nat) :
+public lemma gapPlusBlock_eq_uniform (count : Nat) :
     gapPlusBlock count =
       (WalshHadamard.uniformState count : HilbertVector (Qubits count)) := by
   induction count with
@@ -190,7 +190,7 @@ public theorem gapPlusBlock_eq_uniform (count : Nat) :
 
 /-- In the fixed high prefix of the current residual, the next source bit is
 one and every strict intermediate gap bit is zero. -/
-public theorem residualHighLabel_gap_factor (b : PositiveGapExpansion N)
+public lemma residualHighLabel_gap_factor (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) :
     b.residualHighLabel gap.castSucc =
       UnitaryCircuit.castQubitWidthIndex (by
@@ -247,7 +247,7 @@ public theorem residualHighLabel_gap_factor (b : PositiveGapExpansion N)
     UnitaryCircuit.castQubitWidthIndex_val, prodEquiv_value]
   simpa [Nat.add_comm] using quotient
 
-@[simp] public theorem castQubitWidthVec_basisKet
+@[simp] public lemma castQubitWidthVec_basisKet
     {source target : Nat} (same : source = target)
     (index : Fin (2 ^ source)) :
     UnitaryCircuit.castQubitWidthVec same (basisKetVec index) =
@@ -256,7 +256,7 @@ public theorem residualHighLabel_gap_factor (b : PositiveGapExpansion N)
   rfl
 
 /-- Tensoring two raw basis kets forms their big-endian product label. -/
-public theorem tensor_basisKet {leftWidth rightWidth : Nat}
+public lemma tensor_basisKet {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) :
     HilbertVector.tensor (basisKetVec left) (basisKetVec right) =
       basisKetVec (prodEquiv (m := leftWidth) (n := rightWidth) (left, right)) := by
@@ -267,7 +267,7 @@ public theorem tensor_basisKet {leftWidth rightWidth : Nat}
 
 /-- A tensor of two all-zero raw registers is the all-zero register of their
 combined width. -/
-public theorem tensor_rawKetZero (leftWidth rightWidth : Nat) :
+public lemma tensor_rawKetZero (leftWidth rightWidth : Nat) :
     HilbertVector.tensor (rawKetZero leftWidth) (rawKetZero rightWidth) =
       rawKetZero (leftWidth + rightWidth) := by
   unfold rawKetZero
@@ -275,7 +275,7 @@ public theorem tensor_rawKetZero (leftWidth rightWidth : Nat) :
   congr 1
 
 /-- A zero-width all-zero prefix is a tensor identity on raw vectors. -/
-public theorem rawKetZero_zero_tensor_left {width : Nat}
+public lemma rawKetZero_zero_tensor_left {width : Nat}
     (state : HilbertVector (Qubits width)) :
     UnitaryCircuit.castQubitWidthVec (Nat.zero_add width)
         (HilbertVector.tensor (rawKetZero 0) state) = state := by
@@ -293,7 +293,7 @@ public theorem rawKetZero_zero_tensor_left {width : Nat}
   rw [indexSame, HilbertVector.tensor_apply_prod]
   simp [rawKetZero, basisKetVec, NormalizedVector.ket_apply]
 
-private theorem rawKetZero_tensor_left_of_eq_zero {left width : Nat}
+private lemma rawKetZero_tensor_left_of_eq_zero {left width : Nat}
     (empty : left = 0) (state : HilbertVector (Qubits width)) :
     UnitaryCircuit.castQubitWidthVec (by omega : left + width = width)
         (HilbertVector.tensor (rawKetZero left) state) = state := by
@@ -302,7 +302,7 @@ private theorem rawKetZero_tensor_left_of_eq_zero {left width : Nat}
 
 /-- A positive-width all-zero register splits into its leading block and one
 final zero qubit. -/
-public theorem rawKetZero_split_last (width : Nat) (positive : 0 < width) :
+public lemma rawKetZero_split_last (width : Nat) (positive : 0 < width) :
     UnitaryCircuit.castQubitWidthVec (by omega : (width - 1) + 1 = width)
         (HilbertVector.tensor (rawKetZero (width - 1))
           (NormalizedVector.ket0 : HilbertVector (Qubits 1))) =
@@ -317,7 +317,7 @@ public theorem rawKetZero_split_last (width : Nat) (positive : 0 < width) :
 /-- The current residual block split at the next source bit.  The factors are
 in physical order: fixed high prefix, next source one, strict zero gap,
 current source zero, and the old low Walsh block. -/
-public theorem residualBlock_gap_rotation_tensor (b : PositiveGapExpansion N)
+public lemma residualBlock_gap_rotation_tensor (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) :
     b.residualBlock gap.castSucc =
       UnitaryCircuit.castQubitWidthVec (by
@@ -398,7 +398,7 @@ public theorem residualBlock_gap_rotation_tensor (b : PositiveGapExpansion N)
 
 /-- The current residual in the exact physical orientation of the
 right-controlled source rotation. -/
-public theorem residualBlock_eq_rotationSeparated (b : PositiveGapExpansion N)
+public lemma residualBlock_eq_rotationSeparated (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) :
     b.residualBlock gap.castSucc =
       UnitaryCircuit.binarySeparatedVec (b.wire gap.succ) (b.wire gap.castSucc)
@@ -525,7 +525,7 @@ public def gapHPartial (b : PositiveGapExpansion N) (gap : Fin b.gaps)
 
 /-- Before the next gap Hadamard, the current target is exposed as an
 explicit zero qubit between the unprocessed and processed portions. -/
-public theorem gapHPartial_canonical (b : PositiveGapExpansion N)
+public lemma gapHPartial_canonical (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) (processed : Nat)
     (notFinished : processed < b.gapWidth gap) :
     b.gapHPartial gap processed (Nat.le_of_lt notFinished) =
@@ -599,7 +599,7 @@ public theorem gapHPartial_canonical (b : PositiveGapExpansion N)
 
 /-- A not-yet-finished partial gap state in the exact separated-wire shape
 consumed by its next literal open-controlled Hadamard. -/
-public theorem gapHPartial_eq_hSeparated (b : PositiveGapExpansion N)
+public lemma gapHPartial_eq_hSeparated (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) (processed : Nat)
     (notFinished : processed < b.gapWidth gap) :
     b.gapHPartial gap processed (Nat.le_of_lt notFinished) =
@@ -688,7 +688,7 @@ public theorem gapHPartial_eq_hSeparated (b : PositiveGapExpansion N)
 
 /-- Offset zero in a logical gap is the physical wire of its lower source
 endpoint. -/
-public theorem gapTargetWire_zero (b : PositiveGapExpansion N)
+public lemma gapTargetWire_zero (b : PositiveGapExpansion N)
     (gap : Fin b.gaps)
     (positive : 0 < b.gapWidth gap) :
     b.gapTargetWire gap ⟨0, positive⟩ = b.wire gap.castSucc := by
@@ -698,7 +698,7 @@ public theorem gapTargetWire_zero (b : PositiveGapExpansion N)
 
 /-- The newly opened zero branch of a source rotation has exactly the
 separated-wire layout consumed by the following gap-H sweep. -/
-public theorem gapHPartial_zero_eq_rotationSeparated
+public lemma gapHPartial_zero_eq_rotationSeparated
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
     b.gapHPartial gap 0 (Nat.zero_le _) =
       UnitaryCircuit.binarySeparatedVec (b.wire gap.succ)
@@ -858,7 +858,7 @@ public def rotationSuffix (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
 
 /-- The aligned residual before a source rotation in the exact one-wire
 layout of the first, uncontrolled source rotation. -/
-public theorem residualBlock_eq_rotationWire
+public lemma residualBlock_eq_rotationWire
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
     b.residualBlock gap.castSucc =
       UnitaryCircuit.binaryWireVec (b.wire gap.succ)
@@ -883,7 +883,7 @@ public theorem residualBlock_eq_rotationWire
 
 /-- The newly opened zero branch has the same one-wire suffix as the current
 residual and differs only at the rotation target. -/
-public theorem gapHPartial_zero_eq_rotationWire
+public lemma gapHPartial_zero_eq_rotationWire
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
     b.gapHPartial gap 0 (Nat.zero_le _) =
       UnitaryCircuit.binaryWireVec (b.wire gap.succ)
@@ -908,7 +908,7 @@ public theorem gapHPartial_zero_eq_rotationWire
 
 /-- One more explicit `|+>` factor can be moved across an arbitrary low
 suffix without changing physical bit order. -/
-private theorem gapPlusBlock_succ_tensor_suffix (count suffixWidth : Nat)
+private lemma gapPlusBlock_succ_tensor_suffix (count suffixWidth : Nat)
     (suffix : HilbertVector (Qubits suffixWidth)) :
     UnitaryCircuit.castQubitWidthVec (by omega :
       (count + 1) + suffixWidth = 1 + (count + suffixWidth))
@@ -925,7 +925,7 @@ private theorem gapPlusBlock_succ_tensor_suffix (count suffixWidth : Nat)
 
 /-- Tensoring two raw Walsh-uniform registers produces the Walsh-uniform
 register on their concatenated physical wires. -/
-private theorem walshUniform_tensor_walshUniform (leftWidth rightWidth : Nat) :
+private lemma walshUniform_tensor_walshUniform (leftWidth rightWidth : Nat) :
     HilbertVector.tensor
         (WalshHadamard.uniformState leftWidth : HilbertVector (Qubits leftWidth))
         (WalshHadamard.uniformState rightWidth : HilbertVector (Qubits rightWidth)) =
@@ -946,7 +946,7 @@ private theorem walshUniform_tensor_walshUniform (leftWidth rightWidth : Nat) :
     WalshHadamard.uniformState_apply]
   exact amplitude
 
-private theorem castQubitWidthVec_walshUniform {source target : Nat}
+private lemma castQubitWidthVec_walshUniform {source target : Nat}
     (same : source = target) :
     UnitaryCircuit.castQubitWidthVec same
         (WalshHadamard.uniformState source : HilbertVector (Qubits source)) =
@@ -956,7 +956,7 @@ private theorem castQubitWidthVec_walshUniform {source target : Nat}
 
 /-- After one literal gap Hadamard, its target has become the next physical
 `|+>` factor and the remaining gap wires stay zero. -/
-public theorem gapHPartial_succ_eq_hSeparatedPlus
+public lemma gapHPartial_succ_eq_hSeparatedPlus
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) (processed : Nat)
     (notFinished : processed < b.gapWidth gap) :
     b.gapHPartial gap (processed + 1) (Nat.succ_le_of_lt notFinished) =
@@ -1084,7 +1084,7 @@ public theorem gapHPartial_succ_eq_hSeparatedPlus
 
 /-- Completing every target in one source gap produces exactly the next
 aligned residual block. -/
-public theorem gapHPartial_final_eq_residualBlock
+public lemma gapHPartial_final_eq_residualBlock
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
     b.gapHPartial gap (b.gapWidth gap) (Nat.le_refl _) =
       b.residualBlock gap.succ := by

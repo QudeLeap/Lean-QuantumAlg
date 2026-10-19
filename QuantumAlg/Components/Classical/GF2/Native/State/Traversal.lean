@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem absent_of_avoid (state : ClassicalAlgorithms.GF2.State rowCount width)
+private lemma absent_of_avoid (state : ClassicalAlgorithms.GF2.State rowCount width)
     (column : Fin width) (remaining : List (Fin width))
     (avoid : ClassicalAlgorithms.GF2.PivotColumnsAvoid state (column :: remaining)) :
     state.pivots.find? (fun entry => decide (entry.column = column)) = none := by
@@ -38,7 +38,7 @@ private theorem absent_of_avoid (state : ClassicalAlgorithms.GF2.State rowCount 
     List.mem_map.mpr ⟨pivot, member, same⟩
   exact avoid recorded (List.mem_cons_self ..)
 
-private theorem traverse (cells : Cells ctx (stateShapes rowCount width))
+private lemma traverse (cells : Cells ctx (stateShapes rowCount width))
     (distinct : cells.Distinct) (count : Nat) (indices : Fin count → Fin width)
     (nodup : (List.ofFn indices).Nodup) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)
@@ -71,7 +71,7 @@ private theorem traverse (cells : Cells ctx (stateShapes rowCount width))
       exact ih (fun index => indices index.succ) (List.nodup_cons.mp unique).2 _ _ next nextAvoid
 
 /-- The original actual column sequence realizes the pure ordered pass in the same seven cells. -/
-theorem gf2ReduceColumns_cellState
+lemma gf2ReduceColumns_cellState
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (store : Store ctx) (state : ClassicalAlgorithms.GF2.State rowCount width)
     (represented : columnStateValues cells store state)

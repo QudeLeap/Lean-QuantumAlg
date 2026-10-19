@@ -81,7 +81,7 @@ def fixedBatchOutputPMF {N : Nat} (input : Input N)
       (registerParameters N).ell)
 
 /-- Successful fixed-generator batch outputs are checked nontrivial factors. -/
-theorem fixedBatchOutputPMF_some_sound {N factor : Nat} (input : Input N)
+lemma fixedBatchOutputPMF_some_sound {N factor : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (member : some factor ∈ (fixedBatchOutputPMF input sample).support) :
     factor ∣ N ∧ 1 < factor ∧ factor < N := by
@@ -96,7 +96,7 @@ def sampledBatchOutputPMF {N : Nat} (input : Input N) : PMF (Option Nat) :=
     (fixedBatchOutputPMF input)
 
 /-- Every successful internally sampled batch output is a nontrivial factor. -/
-theorem sampledBatchOutputPMF_some_sound {N factor : Nat} (input : Input N)
+lemma sampledBatchOutputPMF_some_sound {N factor : Nat} (input : Input N)
     (member : some factor ∈ (sampledBatchOutputPMF input).support) :
     factor ∣ N ∧ 1 < factor ∧ factor < N := by
   rw [sampledBatchOutputPMF, PMF.mem_support_bind_iff] at member

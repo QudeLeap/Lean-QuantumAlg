@@ -22,7 +22,7 @@ noncomputable section
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem coefficient_coordinate_correct (refs : Refs ctx width) (coordinate : Coordinate)
+private lemma coefficient_coordinate_correct (refs : Refs ctx width) (coordinate : Coordinate)
     (store : Store ctx) (left right : Int)
     (leftRep : RawSignedRepresents (store.read (sourceInput refs (centerSource coordinate))) left)
     (rightRep : RawSignedRepresents
@@ -35,7 +35,7 @@ private theorem coefficient_coordinate_correct (refs : Refs ctx width) (coordina
   exact rawSignedWordRepresents_add _ _ left right leftRep rightRep
 
 /-- Three actual additions represent the exact integer coefficient sum modulo the original width. -/
-theorem coefficientInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma coefficientInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (center offset : NumberTheory.IntegerPoint3)
     (centerRep : LatticeArithmetic.PointRawRepresents store refs.center center)
     (offsetRep : LatticeArithmetic.PointRawRepresents store refs.offset offset) :
@@ -67,7 +67,7 @@ def columnValue (basis : NumberTheory.IntegerBasis3) : Coordinate → NumberTheo
   | .third => (basis.first.2.2, basis.second.2.2, basis.third.2.2)
 
 /-- The raw basis representation yields the selected actual column. -/
-theorem column_represents (refs : Refs ctx width) (store : Store ctx)
+lemma column_represents (refs : Refs ctx width) (store : Store ctx)
     (basis : NumberTheory.IntegerBasis3) (rep : BasisRawRepresents store refs.basis basis)
     (coordinate : Coordinate) :
     LatticeArithmetic.PointRawRepresents store (columnRefs refs.basis coordinate)
@@ -78,7 +78,7 @@ theorem column_represents (refs : Refs ctx width) (store : Store ctx)
   | third => exact ⟨rep.1.2.2, rep.2.1.2.2, rep.2.2.2.2⟩
 
 /-- The three column dot products are exactly the original integer lattice combination. -/
-theorem linearCombination_eq_columnDots
+lemma linearCombination_eq_columnDots
     (basis : NumberTheory.IntegerBasis3) (coefficient : NumberTheory.IntegerPoint3) :
     basis.linearCombination coefficient =
       (NumberTheory.integerPointDot coefficient (columnValue basis .first),
@@ -95,7 +95,7 @@ theorem linearCombination_eq_columnDots
         NumberTheory.integerPointDot, columnValue] <;> ring
 
 /-- One actual refresh represents its coefficient dot product with the selected basis column. -/
-theorem coordinateCombination_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma coordinateCombination_correct (refs : Refs ctx width) (separation : Separation refs)
     (coordinate : Coordinate) (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (coefficient : NumberTheory.IntegerPoint3)
     (basisRep : BasisRawRepresents store refs.basis basis)
@@ -109,7 +109,7 @@ theorem coordinateCombination_correct (refs : Refs ctx width) (separation : Sepa
     (column_represents refs store basis basisRep coordinate)).1
 
 /-- Three actual dot refreshes compute the original lattice combination and retain coefficients. -/
-theorem pointInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma pointInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (coefficient : NumberTheory.IntegerPoint3)
     (basisRep : BasisRawRepresents store refs.basis basis)
@@ -152,7 +152,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
   callerFrame : CallerFrame refs before after
 
 /-- The actual eighteen native instructions realize the original candidate construction. -/
-theorem candidatePointInto_correct [BitWord.Selected model]
+lemma candidatePointInto_correct [BitWord.Selected model]
     (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (center offset : NumberTheory.IntegerPoint3)

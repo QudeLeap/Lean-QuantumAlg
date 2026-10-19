@@ -38,7 +38,7 @@ def retainedSpace (N : Nat) : SpacePool .quantum :=
   bankSpace N + NativeBatchReuseRecovery.retainedSpace N
 
 /-- The first complete recovery leaves precisely its permanent resident capacity. -/
-theorem firstRecovery_context_resident (base : RuntimeCtx .quantum)
+lemma firstRecovery_context_resident (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) :
     (context base noQuantum N).residentSpace = base.residentSpace + retainedSpace N := by
   have retained : (context base noQuantum N).residentSpace =
@@ -62,7 +62,7 @@ theorem firstRecovery_context_resident (base : RuntimeCtx .quantum)
   ac_rfl
 
 /-- The same actual retained keys keep their complete owned auxiliary capacity. -/
-theorem firstRecovery_context_auxiliary (base : RuntimeCtx .quantum)
+lemma firstRecovery_context_auxiliary (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) :
     (context base noQuantum N).auxiliarySpace = base.auxiliarySpace + retainedSpace N := by
   have retained : (context base noQuantum N).auxiliarySpace =

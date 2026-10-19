@@ -36,7 +36,7 @@ def earlyInputs (inputs : Inputs ctx N) : FirstAccepted.Inputs ctx (modulusBits 
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Copy the stored early factor only when its flag is true and the latch is still clear. -/
@@ -52,17 +52,17 @@ noncomputable def earlyStep (inputs : Inputs ctx N) (refs : FirstAccepted.Refs c
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The whole mixed state follows the actual selector store map on every reference. -/
-theorem nativeRecovery_early_execute (inputs : Inputs ctx N)
+lemma nativeRecovery_early_execute (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (earlyCircuit inputs refs).execute Reference state =
+    (earlyCircuit inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((earlyStep inputs refs entry.1).1,
           (entry.2.1, (entry.2.2, (earlyStep inputs refs entry.1).2)))) :=
   FirstAccepted.firstAccepted_execute (earlyInputs inputs) refs Reference state
 
 /-- The actual parameter flag and payload determine the persistent first-factor latches. -/
-theorem nativeRecovery_early_latches (inputs : Inputs ctx N)
+lemma nativeRecovery_early_latches (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N))
     (separated : FirstAccepted.Separated (earlyInputs inputs) refs) (store : Store ctx) :
     let final := (earlyStep inputs refs store).1
@@ -77,29 +77,29 @@ theorem nativeRecovery_early_latches (inputs : Inputs ctx N)
   FirstAccepted.firstAccepted_latches (earlyInputs inputs) refs separated store
 
 /-- Intrinsic writable references preserve the complete borrowed joint state without assumptions. -/
-theorem nativeRecovery_early_borrowedRestored (inputs : Inputs ctx N)
+lemma nativeRecovery_early_borrowedRestored (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (earlyCircuit inputs refs).BorrowedRestored Reference state
-      ((earlyCircuit inputs refs).execute Reference state) :=
+      ((earlyCircuit inputs refs).execute environment Reference state) :=
   FirstAccepted.firstAccepted_borrowedRestored (earlyInputs inputs) refs Reference state
 
 /-- All native coordinates are charged to the independent existing four-operation allowance. -/
-theorem nativeRecovery_early_pool_le (inputs : Inputs ctx N)
+lemma nativeRecovery_early_pool_le (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (path : (earlyCircuit inputs refs).Path) :
     (earlyCircuit inputs refs).resourcePool path ≤
       FirstAccepted.nativeEnvelope model (modulusBits N) :=
   FirstAccepted.firstAccepted_pool_le (earlyInputs inputs) refs path
 
 /-- The actual branch has two or four unit-duration classical operations. -/
-theorem nativeRecovery_early_depth (inputs : Inputs ctx N)
+lemma nativeRecovery_early_depth (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (path : (earlyCircuit inputs refs).Path) :
     (earlyCircuit inputs refs).depth (fun _ => 1) path =
       if path.2.1.toBool then 4 else 2 :=
   FirstAccepted.firstAccepted_unit_depth (earlyInputs inputs) refs path
 
 /-- Early selection uses only the genuinely existing bank and classical cells. -/
-theorem nativeRecovery_early_resident_le (inputs : Inputs ctx N)
+lemma nativeRecovery_early_resident_le (inputs : Inputs ctx N)
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (path : (earlyCircuit inputs refs).Path) :
     (earlyCircuit inputs refs).peakResidentSpace path ≤ ctx.residentSpace :=
   FirstAccepted.firstAccepted_resident_le (earlyInputs inputs) refs path

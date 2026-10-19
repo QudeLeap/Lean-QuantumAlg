@@ -31,7 +31,7 @@ noncomputable section
 open NumberTheory.SharedEEA EncodedBit PredicateLayout
 
 /-- The actual physical clock control reads the corresponding complete finite-word digit. -/
-theorem control_clock (width : Nat) (index : Fin (width.size + 2)) (state : Registers width) :
+lemma control_clock (width : Nat) (index : Fin (width.size + 2)) (state : Registers width) :
     (clockBit width index).get state =
       (ExtendedClockRegisters.clock state).getMsbD index.val := by
   let position : Fin (ExtendedClockRegisters.clockWidth width) := ⟨index.val, by
@@ -48,7 +48,7 @@ theorem control_clock (width : Nat) (index : Fin (width.size + 2)) (state : Regi
   · rw [if_neg high, if_neg high]
 
 /-- Each actual wire equals the correct natural test bit, with no width-only identification. -/
-theorem control_testBit (width : Nat) (index : Fin (width.size + 2)) (state : Registers width) :
+lemma control_testBit (width : Nat) (index : Fin (width.size + 2)) (state : Registers width) :
     (clockBit width index).get state =
       (ExtendedClockRegisters.clock state).toNat.testBit index.rev.val := by
   have within : index.val < ExtendedClockRegisters.clockWidth width := by
@@ -66,7 +66,7 @@ theorem control_testBit (width : Nat) (index : Fin (width.size + 2)) (state : Re
 def weight (width : Nat) (index : Fin (width.size + 2)) : Nat := 2 ^ index.rev.val
 
 /-- Sum of actual selected native rotation counts over the real full-clock coordinates. -/
-theorem selected_sum (width : Nat) (state : Registers width) :
+lemma selected_sum (width : Nat) (state : Registers width) :
     (∑ index : Fin (width.size + 2),
       ((clockBit width index).get state).toNat * weight width index) =
         (ExtendedClockRegisters.clock state).toNat := by

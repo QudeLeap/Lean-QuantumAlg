@@ -30,15 +30,16 @@ variable {G : Type u} [Group G] [Fintype G]
 
 /-- The real zero allocation has exactly the physical zero seed in every
 complete store and external-reference block. -/
-theorem preparationCode_zero_seeded (P : KnownOrderProblem G)
+lemma preparationCode_zero_seeded (P : KnownOrderProblem G)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference ((model P).HiddenState × H)) :
     BasisSeeded.Holds
       (preparedEmptyBasisEquiv pre pre.canonicalFreshKey (OrderOracle.layout P)
         bankFresh (bankDisjoint P) (by rfl)
         (BasisPreparation.zero (OrderOracle.layout P)).value)
-      ((preparationCode P).execute Reference state) := by
+      ((preparationCode P).execute (sourceEnvironment P) Reference state) := by
   exact Circuit.prepareZero_empty_seeded
+    (environment := sourceEnvironment P)
     (gates := AlgorithmGate.model) (oracles := OrderOracle.model P)
     (operations := BitWord.model)
     (services := ClassicalFiniteGroupOracle.model G)

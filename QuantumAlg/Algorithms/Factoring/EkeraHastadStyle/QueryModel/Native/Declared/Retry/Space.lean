@@ -35,7 +35,7 @@ def additionalSpace (N : Nat) : SpacePool .quantum :=
   Batch.Recovery.additionalSpace N + selectorSpace N
 
 /-- The three real selector cells contribute precisely their binary encoded capacity. -/
-theorem declaredRetry_selectorSpace (N : Nat) :
+lemma declaredRetry_selectorSpace (N : Nat) :
     selectorSpace N = SpacePool.ofShape (.bits (2 * modulusBits N + 2)) := by
   ext axis
   cases axis <;> simp [selectorSpace, SpacePool.ofShape]
@@ -43,16 +43,16 @@ theorem declaredRetry_selectorSpace (N : Nat) :
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
-private theorem slots_resident :
+private lemma slots_resident :
     (callerContext base N).residentSpace = selectorSpace N + base.residentSpace := by
   simp only [callerContext, Native.Retry.Slots.context, Native.Retry.Slots.selectedContext,
     Native.Retry.Slots.acceptedContext, RuntimeCtx.residentSpace_addRetained]
   unfold selectorSpace
   ac_rfl
 
-private theorem slots_peak_resident (input : Input N)
-    (path : (Native.Retry.Slots.allocate (model := model input) base (modulusBits N)).Path) :
-    (Native.Retry.Slots.allocate (model := model input) base (modulusBits N)).peakResidentSpace
+private lemma slots_peak_resident
+    (path : (Native.Retry.Slots.allocate (model := model N) base (modulusBits N)).Path) :
+    (Native.Retry.Slots.allocate (model := model N) base (modulusBits N)).peakResidentSpace
         path ≤
       (callerContext base N).residentSpace := by
   have first : base.residentSpace ≤ (Native.Retry.Slots.acceptedContext base).residentSpace :=
@@ -79,20 +79,20 @@ private theorem slots_peak_resident (input : Input N)
       exact max_le (third axis) (max_le le_rfl (Nat.zero_le _))
 
 /-- The original bank and all retained results include exactly one persistent selector. -/
-theorem declaredRetry_context_residentSpace :
+lemma declaredRetry_context_residentSpace :
     (context base noQuantum N).residentSpace =
       (Batch.retainedSpace N + selectorSpace N) + base.residentSpace := by
   change (Batch.context (callerContext base N)
     (caller_empty base noQuantum N) N).residentSpace = _
   rw [Batch.declaredBatch_context_residentSpace, slots_resident, add_assoc]
 
-private theorem recovery_resident_allowance :
+private lemma recovery_resident_allowance :
     Batch.Recovery.additionalSpace N + (callerContext base N).residentSpace =
       additionalSpace N + base.residentSpace := by
   rw [slots_resident]
   exact (add_assoc _ _ _).symm
 
-private theorem caller_resident_allowance :
+private lemma caller_resident_allowance :
     (callerContext base N).residentSpace ≤
       additionalSpace N + base.residentSpace := by
   rw [slots_resident]
@@ -101,7 +101,7 @@ private theorem caller_resident_allowance :
     (Batch.Recovery.additionalSpace N axis + selectorSpace N axis) + base.residentSpace axis
   omega
 
-private theorem context_resident_allowance :
+private lemma context_resident_allowance :
     (context base noQuantum N).residentSpace ≤
       additionalSpace N + base.residentSpace := by
   rw [declaredRetry_context_residentSpace]
@@ -111,42 +111,42 @@ private theorem context_resident_allowance :
       base.residentSpace axis
   omega
 
-private theorem first_resident (input : Input N) (path : (first base noQuantum N input).Path) :
+private lemma first_resident (input : Input N) (path : (first base noQuantum N input).Path) :
     (first base noQuantum N input).peakResidentSpace path ≤
       additionalSpace N + base.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · exact (slots_peak_resident base N input path.1).trans (caller_resident_allowance base N)
+  · exact (slots_peak_resident base N path.1).trans (caller_resident_allowance base N)
   · refine (Circuit.peakResidentSpace_seq _ _ path.2).le.trans (SpacePool.max_le ?_ ?_)
     · exact (Batch.Recovery.declaredRecovery_first_peakResidentSpace_le (callerContext base N)
         (caller_empty base noQuantum N) N input path.2.1).trans_eq
           (recovery_resident_allowance base N)
-    · exact (Optional.into_resident_le (model := model input)
+    · exact (Optional.into_resident_le (model := model N)
         (.storage (factorRef base noQuantum N).toCStorageRef)
         (selectionRefs base noQuantum N) path.2.2).trans
           (context_resident_allowance base noQuantum N)
 
-theorem next_resident (input : Input N) (path : (next base noQuantum N input).Path) :
+lemma next_resident (input : Input N) (path : (next base noQuantum N input).Path) :
     (next base noQuantum N input).peakResidentSpace path ≤
       additionalSpace N + base.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (Batch.Recovery.declaredRecovery_next_peakResidentSpace_le (callerContext base N)
       (caller_empty base noQuantum N) N input path.1).trans_eq
         (recovery_resident_allowance base N)
-  · exact (Optional.into_resident_le (model := model input)
+  · exact (Optional.into_resident_le (model := model N)
       (.storage (factorRef base noQuantum N).toCStorageRef)
       (selectionRefs base noQuantum N) path.2).trans
         (context_resident_allowance base noQuantum N)
 
-private theorem slots_auxiliary :
+private lemma slots_auxiliary :
     (callerContext base N).auxiliarySpace = selectorSpace N + base.auxiliarySpace := by
   simp only [callerContext, Native.Retry.Slots.context, Native.Retry.Slots.selectedContext,
     Native.Retry.Slots.acceptedContext, RuntimeCtx.auxiliarySpace_addRetained]
   unfold selectorSpace
   ac_rfl
 
-private theorem slots_peak_auxiliary (input : Input N)
-    (path : (Native.Retry.Slots.allocate (model := model input) base (modulusBits N)).Path) :
-    (Native.Retry.Slots.allocate (model := model input) base (modulusBits N)).peakAuxiliarySpace
+private lemma slots_peak_auxiliary
+    (path : (Native.Retry.Slots.allocate (model := model N) base (modulusBits N)).Path) :
+    (Native.Retry.Slots.allocate (model := model N) base (modulusBits N)).peakAuxiliarySpace
         path ≤
       (callerContext base N).auxiliarySpace := by
   have first : base.auxiliarySpace ≤ (Native.Retry.Slots.acceptedContext base).auxiliarySpace :=
@@ -173,20 +173,20 @@ private theorem slots_peak_auxiliary (input : Input N)
       exact max_le (third axis) (max_le le_rfl (Nat.zero_le _))
 
 /-- The original bank and all retained results include exactly one persistent selector. -/
-theorem declaredRetry_context_auxiliarySpace :
+lemma declaredRetry_context_auxiliarySpace :
     (context base noQuantum N).auxiliarySpace =
       (Batch.retainedSpace N + selectorSpace N) + base.auxiliarySpace := by
   change (Batch.context (callerContext base N)
     (caller_empty base noQuantum N) N).auxiliarySpace = _
   rw [Batch.declaredBatch_context_auxiliarySpace, slots_auxiliary, add_assoc]
 
-private theorem recovery_auxiliary_allowance :
+private lemma recovery_auxiliary_allowance :
     Batch.Recovery.additionalSpace N + (callerContext base N).auxiliarySpace =
       additionalSpace N + base.auxiliarySpace := by
   rw [slots_auxiliary]
   exact (add_assoc _ _ _).symm
 
-private theorem caller_auxiliary_allowance :
+private lemma caller_auxiliary_allowance :
     (callerContext base N).auxiliarySpace ≤
       additionalSpace N + base.auxiliarySpace := by
   rw [slots_auxiliary]
@@ -195,7 +195,7 @@ private theorem caller_auxiliary_allowance :
     (Batch.Recovery.additionalSpace N axis + selectorSpace N axis) + base.auxiliarySpace axis
   omega
 
-private theorem context_auxiliary_allowance :
+private lemma context_auxiliary_allowance :
     (context base noQuantum N).auxiliarySpace ≤
       additionalSpace N + base.auxiliarySpace := by
   rw [declaredRetry_context_auxiliarySpace]
@@ -205,28 +205,28 @@ private theorem context_auxiliary_allowance :
       base.auxiliarySpace axis
   omega
 
-private theorem first_auxiliary (input : Input N) (path : (first base noQuantum N input).Path) :
+private lemma first_auxiliary (input : Input N) (path : (first base noQuantum N input).Path) :
     (first base noQuantum N input).peakAuxiliarySpace path ≤
       additionalSpace N + base.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · exact (slots_peak_auxiliary base N input path.1).trans (caller_auxiliary_allowance base N)
+  · exact (slots_peak_auxiliary base N path.1).trans (caller_auxiliary_allowance base N)
   · refine (Circuit.peakAuxiliarySpace_seq _ _ path.2).le.trans (SpacePool.max_le ?_ ?_)
     · exact (Batch.Recovery.declaredRecovery_first_peakAuxiliarySpace_le (callerContext base N)
         (caller_empty base noQuantum N) N input path.2.1).trans_eq
           (recovery_auxiliary_allowance base N)
-    · exact (Optional.into_auxiliary_le (model := model input)
+    · exact (Optional.into_auxiliary_le (model := model N)
         (.storage (factorRef base noQuantum N).toCStorageRef)
         (selectionRefs base noQuantum N) path.2.2).trans
           (context_auxiliary_allowance base noQuantum N)
 
-theorem next_auxiliary (input : Input N) (path : (next base noQuantum N input).Path) :
+lemma next_auxiliary (input : Input N) (path : (next base noQuantum N input).Path) :
     (next base noQuantum N input).peakAuxiliarySpace path ≤
       additionalSpace N + base.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · exact (Batch.Recovery.declaredRecovery_next_peakAuxiliarySpace_le (callerContext base N)
       (caller_empty base noQuantum N) N input path.1).trans_eq
         (recovery_auxiliary_allowance base N)
-  · exact (Optional.into_auxiliary_le (model := model input)
+  · exact (Optional.into_auxiliary_le (model := model N)
       (.storage (factorRef base noQuantum N).toCStorageRef)
       (selectionRefs base noQuantum N) path.2).trans
         (context_auxiliary_allowance base noQuantum N)

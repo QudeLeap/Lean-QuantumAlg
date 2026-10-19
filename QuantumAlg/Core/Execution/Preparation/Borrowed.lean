@@ -30,9 +30,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Fresh owned preparation restores the uniquely valued borrowed interface
 and every entry of its external reference. -/
-theorem borrowedRestored_prepareZero_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
+lemma borrowedRestored_prepareZero_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
     [Subsingleton ctx.borrowedClassicalShape.Value]
-    (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
+    (noQuantum : ctx.borrowedQuantumWires = [])
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+    {Reference : Register}
     {H : Type} [Fintype H]
     (state : Execution.State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
@@ -42,7 +44,7 @@ theorem borrowedRestored_prepareZero_noBorrowedQuantum {ctx : RuntimeCtx .quantu
         ctx key layout fresh disjoint).BorrowedRestored Reference state
       ((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles)
-        ctx key layout fresh disjoint).execute Reference state) := by
+        ctx key layout fresh disjoint).execute environment Reference state) := by
   let : Subsingleton
       (ctx.addOwnedLayout key layout fresh disjoint).borrowedClassicalShape.Value := by
     change Subsingleton ctx.borrowedClassicalShape.Value
@@ -50,7 +52,7 @@ theorem borrowedRestored_prepareZero_noBorrowedQuantum {ctx : RuntimeCtx .quantu
   change Execution.observeBorrowed Reference
     ((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles)
-        ctx key layout fresh disjoint).execute Reference state) =
+        ctx key layout fresh disjoint).execute environment Reference state) =
       Execution.observeBorrowed Reference state
   apply ExecutionState.ext
   intro value
@@ -62,7 +64,7 @@ theorem borrowedRestored_prepareZero_noBorrowedQuantum {ctx : RuntimeCtx .quantu
     (ctx := ctx.addOwnedLayout key layout fresh disjoint) noQuantum,
     Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum]
   exact prepareZero_reference_entry (gates := gates) (oracles := oracles)
-    state key layout fresh disjoint refLeft refRight
+    environment state key layout fresh disjoint refLeft refRight
 
 end
 

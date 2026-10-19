@@ -31,7 +31,7 @@ private def cellsEquiv : (entries : List (RuntimeEntry kind)) →
   | [] => Equiv.refl _
   | head :: tail => (cellEquiv keys physical head).prodCongr (cellsEquiv tail)
 
-private theorem cells_read {entry : RuntimeEntry kind} {entries : List (RuntimeEntry kind)}
+private lemma cells_read {entry : RuntimeEntry kind} {entries : List (RuntimeEntry kind)}
     (cells : Cells entries) (ref : RuntimeEntrySlot entry entries) :
     Cells.read (cellsEquiv keys physical entries cells) (slot keys physical ref) =
       cellEquiv keys physical entry (Cells.read cells ref) := by
@@ -39,7 +39,7 @@ private theorem cells_read {entry : RuntimeEntry kind} {entries : List (RuntimeE
   | here => rfl
   | there next ih => exact ih cells.2
 
-private theorem cells_write {entry : RuntimeEntry kind} {entries : List (RuntimeEntry kind)}
+private lemma cells_write {entry : RuntimeEntry kind} {entries : List (RuntimeEntry kind)}
     (cells : Cells entries) (ref : RuntimeEntrySlot entry entries) (value : CellValue entry) :
     cellsEquiv keys physical entries (Cells.write cells ref value) =
       Cells.write (cellsEquiv keys physical entries cells) (slot keys physical ref)
@@ -61,14 +61,14 @@ def storeEquiv (ctx : RuntimeCtx kind) : Store ctx ≃ Store (ctx.relabel keys p
     exact congrArg Store.mk ((cellsEquiv keys physical ctx.entries).apply_symm_apply _)
 
 /-- A storage read obtains the identical finite value at the mapped actual cell. -/
-theorem store_read_storage {ctx : RuntimeCtx kind} (original : Store ctx) {shape : CShape}
+lemma store_read_storage {ctx : RuntimeCtx kind} (original : Store ctx) {shape : CShape}
     (ref : CStorageRef ctx shape) :
     (storeEquiv keys physical ctx original).read (.storage (storage keys physical ref)) =
       original.read (.storage ref) :=
   cells_read keys physical original.cells ref.slot
 
 /-- Every compound read keeps its actual finite value, including bit and word projections. -/
-theorem store_read_input {ctx : RuntimeCtx kind} (original : Store ctx) {shape : CShape}
+lemma store_read_input {ctx : RuntimeCtx kind} (original : Store ctx) {shape : CShape}
     (ref : CInputRef ctx shape) :
     (storeEquiv keys physical ctx original).read (input keys physical ref) =
       original.read ref := by
@@ -84,7 +84,7 @@ theorem store_read_input {ctx : RuntimeCtx kind} (original : Store ctx) {shape :
   | wordBitGet ref index ih => exact congrArg (fun value => value.wordBitGet index) ih
 
 /-- The identical writable-cell update commutes with complete finite-store placement. -/
-theorem store_write {ctx : RuntimeCtx kind} (original : Store ctx) {shape : CShape}
+lemma store_write {ctx : RuntimeCtx kind} (original : Store ctx) {shape : CShape}
     (output : CWriteRef ctx shape) (value : CShape.Value shape) :
     storeEquiv keys physical ctx (original.write output value) =
       (storeEquiv keys physical ctx original).write (writable keys physical output) value :=

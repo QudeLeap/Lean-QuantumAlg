@@ -21,6 +21,8 @@ store block without imposing a history equality or forgetting correlations.
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 open Execution
@@ -28,17 +30,18 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Sequential execution keeps the same complete final-store quantum-reference block. -/
-theorem seq_store_marginal {model : ExecutionModel}
+lemma seq_store_marginal {model : ExecutionModel}
     {pre middle post : RuntimeCtx model.kind}
-    (first : Circuit model pre middle) (second : Circuit model middle post)
+    (first : Circuit model pre middle allowAllocation) (second : Circuit model middle post
+      allowAllocation) (environment : model.Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State pre Reference (model.HiddenState × History)) (original : Store post) :
-    (ExecutionState.filterClassical ((Circuit.seq first second).execute Reference state)
+    (ExecutionState.filterClassical ((Circuit.seq first second).execute environment Reference state)
       (fun entry => entry.1 = original)).quantumMarginal =
       (ExecutionState.filterClassical
-        (second.execute Reference (first.execute Reference state))
+        (second.execute environment Reference (first.execute environment Reference state))
         (fun entry => entry.1 = original)).quantumMarginal := by
-  let nested := second.execute Reference (first.execute Reference state)
+  let nested := second.execute environment Reference (first.execute environment Reference state)
   let update : Store post × (model.HiddenState × ((History × first.Path) × second.Path)) →
       Store post × (model.HiddenState × (History × (first.Path × second.Path))) :=
     fun entry => (entry.1, (entry.2.1, (entry.2.2.1.1, (entry.2.2.1.2, entry.2.2.2))))
@@ -46,7 +49,7 @@ theorem seq_store_marginal {model : ExecutionModel}
     (fun result : State post Reference
       (model.HiddenState × (History × (Circuit.seq first second).Path)) =>
       ((result.mapClassical (fun entry => entry.1)).block original).matrix)
-    (execute_seq first second state)
+    (execute_seq (environment := environment) first second state)
   have composition := congrArg
     (fun result : ExecutionState (Store post) (Register.prod post.register Reference) =>
       (result.block original).matrix)
@@ -61,7 +64,7 @@ theorem seq_store_marginal {model : ExecutionModel}
       (model.HiddenState × (History × (Circuit.seq first second).Path)) =>
       ((result.mapClassical (fun entry => entry.1)).block original).matrix) regrouped
   apply DensityOperator.ext
-  exact (BasisSeeded.store_matrix ((Circuit.seq first second).execute Reference state)
+  exact (BasisSeeded.store_matrix ((Circuit.seq first second).execute environment Reference state)
     original).symm.trans (executed.trans (regroupedBlock.trans (composition.trans
       (BasisSeeded.store_matrix nested original))))
 

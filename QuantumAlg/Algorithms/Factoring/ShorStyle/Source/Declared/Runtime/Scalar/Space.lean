@@ -32,10 +32,10 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.DeclaredSource.Runtime.Scalar
 
 noncomputable section
 
-private theorem finite_two_width : Nat.clog 2 2 = 1 := by decide
+private lemma finite_two_width : Nat.clog 2 2 = 1 := by decide
 
 /-- Every binary bank wire contributes once at dimension two and nowhere else. -/
-theorem bank_quantum_coordinate (N : Nat) (dimension : ℕ+) :
+lemma bank_quantum_coordinate (N : Nat) (dimension : ℕ+) :
     (SpacePool.ofQuantumLayout (layout N)) (.quantumSystems dimension) =
       if 2 = dimension then qubits N else 0 := by
   change (QuantumLayout.uniform (bankQubits N) 2 Fin.val
@@ -44,7 +44,7 @@ theorem bank_quantum_coordinate (N : Nat) (dimension : ℕ+) :
   rfl
 
 /-- The independent complete memory allowance includes all actual live classical entries. -/
-theorem machine_classical_coordinate (N count : Nat) :
+lemma machine_classical_coordinate (N count : Nat) :
     (Machine.additionalSpace N count) .classicalBits = classicalBits N count := by
   simp only [Machine.additionalSpace, Persistent.additionalSpace, Finite.additionalSpace,
     Finite.roundResultSpace, completionAdditionalSpace, Sampler.Retained.additionalSpace,
@@ -56,7 +56,7 @@ theorem machine_classical_coordinate (N count : Nat) :
   omega
 
 /-- Classical scopes and results add no quantum dimension to the one physical bank. -/
-theorem machine_quantum_coordinate (N count : Nat) (dimension : ℕ+) :
+lemma machine_quantum_coordinate (N count : Nat) (dimension : ℕ+) :
     (Machine.additionalSpace N count) (.quantumSystems dimension) =
       if 2 = dimension then qubits N else 0 := by
   simp only [Machine.additionalSpace, Persistent.additionalSpace, Finite.additionalSpace,

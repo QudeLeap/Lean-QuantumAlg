@@ -29,6 +29,8 @@ namespace QuantumAlg.MAU.Multiplication.VariableGidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth EncodedBit GateSpec
 
 /-- Two unchanged quantum input words followed by the modular accumulator. -/
@@ -44,7 +46,7 @@ def inputBit (width : Nat) (index : Fin width) :
     EncodedBit (BinaryLabelEncoding.finIdentity width) :=
   BinaryLabelEncoding.finIdentityBit width (WireAddress.littleEndianWire index)
 
-theorem variableGidney_inputBit_get (width : Nat) (index : Fin width)
+lemma variableGidney_inputBit_get (width : Nat) (index : Fin width)
     (input : Fin (2 ^ width)) :
     (inputBit width index).get input = input.val.testBit index.val := by
   change input.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire index)).val = _
@@ -56,7 +58,7 @@ def stageOutput {width : Nat} (modulus : Fin (2 ^ width + 1)) (index : Fin width
   (state.1, if state.1.val.testBit index.val then
     Accumulate.Gidney.prefixOutput modulus (2 ^ index.val) width state.2 else state.2)
 
-private theorem inputBits_wire (width : Nat)
+private lemma inputBits_wire (width : Nat)
     (position : Fin (BinaryLabelEncoding.finIdentity width).width) :
     (BinaryLabelEncoding.finIdentityBit width position).wire = position := rfl
 
@@ -67,7 +69,7 @@ private def bodyBits (width : Nat) :
   productBit (BinaryLabelEncoding.finIdentityBit width)
     (BinaryLabelEncoding.finIdentityBit width)
 
-private theorem bodyBits_wire (width : Nat)
+private lemma bodyBits_wire (width : Nat)
     (position : Fin (Accumulate.Gidney.encoding width).width) :
     (bodyBits width position).wire = position :=
   productBit_wire (left := BinaryLabelEncoding.finIdentity width)
@@ -94,7 +96,7 @@ def stageGates (width : Nat) (modulus : Fin (2 ^ width + 1)) (index : Fin width)
       (Accumulate.Gidney.gates width modulus (2 ^ index.val))
 
 /-- Both control branches preserve the whole first input and exact inner MAC action. -/
-theorem variableGidney_stageGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_stageGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) (state : Registers width) :
     stepList (stageGates width modulus index) state = stageOutput modulus index state := by
   by_cases small : width ≤ 1
@@ -114,14 +116,14 @@ def stageProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) (index : Fin widt
   programList (QubitLayout.canonical _) .empty (stageGates width modulus index)
 
 /-- Exact action of both coherent branches on every complete encoded label. -/
-theorem variableGidney_stage_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_stage_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
-    UnitaryCircuit.Realizes (encoding width) (stageProgram width modulus index)
+    UnitaryCircuit.Realizes (encoding width) (stageProgram width modulus index) environment
       (stageOutput modulus index) :=
-  realizesList_congrStep _ _ _ (variableGidney_stageGates_step width modulus index)
+  realizesList_congrStep _ _ _ (variableGidney_stageGates_step width modulus index) environment
 
 /-- Every quantum input coordinate is preserved, including the selected control. -/
-theorem variableGidney_stage_inputs (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_stage_inputs (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) (state : Registers width) :
     (stageOutput modulus index state).1 = state.1 ∧
       (stageOutput modulus index state).2.1 = state.2.1 := by
@@ -131,7 +133,7 @@ theorem variableGidney_stage_inputs (width : Nat) (modulus : Fin (2 ^ width + 1)
     split_ifs <;> rfl
 
 /-- The typed physical layout is exactly the three original words. -/
-theorem variableGidney_stage_interface (width : Nat) :
+lemma variableGidney_stage_interface (width : Nat) :
     (encoding width).width = 3 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (3 * width) := by
   have size : (encoding width).width = 3 * width := by

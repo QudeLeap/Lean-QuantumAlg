@@ -24,7 +24,8 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent chronological formula for both selected samples and the original native basis. -/
@@ -33,7 +34,7 @@ def decodeBasisTrace (N : Nat) (firstBits secondBits : List Bool) : List (Resour
     LatticeBasis.basisTrace N (shortLogBits N) (tradeoffBits N) (Width N)
 
 /-- Every actual wide-prefix path emits the independent complete three-stage native formula. -/
-theorem decodeBasisInto_events (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_events (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     (decodeBasisInto refs).eventTrace path = decodeBasisTrace N
       (BatchMachine.decodeBits refs.pair.first path.1.1)
       (BatchMachine.decodeBits refs.pair.second path.1.2) :=
@@ -41,7 +42,7 @@ theorem decodeBasisInto_events (refs : Refs ctx N) (path : (decodeBasisInto refs
     (LatticeBasis.loadBasisInto_events (shortLogBits N) (tradeoffBits N) refs.pair refs.raw path.2)
 
 /-- Actual wide-prefix multiplicities equal the complete independent chronological native trace. -/
-theorem decodeBasisInto_resourcePool (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_resourcePool (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     (decodeBasisInto refs).resourcePool path = ResourcePool.ofList (decodeBasisTrace N
       (BatchMachine.decodeBits refs.pair.first path.1.1)
       (BatchMachine.decodeBits refs.pair.second path.1.2)) :=
@@ -53,7 +54,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
     LatticeBasis.basisEventEnvelope N (shortLogBits N) (tradeoffBits N) (Width N)
 
 /-- Actual wide initialization respects the full independent native operation-coordinate budget. -/
-theorem decodeBasisInto_pool_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_pool_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     (decodeBasisInto refs).resourcePool path ≤ eventEnvelope N := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
@@ -67,7 +68,7 @@ def operationBound (N : Nat) : Nat :=
     (2 * (tradeoffBits N + shortLogBits N) + 8)
 
 /-- Every actual wide-prefix path obeys the complete independent native operation bound. -/
-theorem decodeBasisInto_eventCount_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_eventCount_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     ((decodeBasisInto refs).eventTrace path).length ≤ operationBound N := by
   change ((BatchMachine.decodePairInto refs.pair).eventTrace path.1 ++
     (LatticeBasis.loadBasisInto (m := shortLogBits N) (ell := tradeoffBits N)
@@ -81,7 +82,7 @@ theorem decodeBasisInto_eventCount_le (refs : Refs ctx N) (path : (decodeBasisIn
   omega
 
 /-- Actual sample decoding precedes actual basis loading in the complete native dependency depth. -/
-theorem decodeBasisInto_depth_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_depth_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     (decodeBasisInto refs).depth (fun _ => 1) path ≤ operationBound N := by
   change (BatchMachine.decodePairInto refs.pair).depth (fun _ => 1) path.1 +
     (LatticeBasis.loadBasisInto (m := shortLogBits N) (ell := tradeoffBits N)
@@ -94,18 +95,18 @@ theorem decodeBasisInto_depth_le (refs : Refs ctx N) (path : (decodeBasisInto re
   omega
 
 /-- Complete actual wide initialization restores every borrowed-reference correlation jointly. -/
-theorem decodeBasisInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma decodeBasisInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (decodeBasisInto refs).BorrowedRestored Reference state
-      ((decodeBasisInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((decodeBasisInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (BatchMachine.decodePairInto_borrowedRestored refs.pair Reference _)
     (LatticeBasis.loadBasisInto_borrowedRestored (shortLogBits N) (tradeoffBits N)
       refs.pair refs.raw Reference _)
 
 /-- All actual wide-prefix instructions retain the complete original context. -/
-theorem decodeBasisInto_visited (refs : Refs ctx N) (path : (decodeBasisInto refs).Path)
+lemma decodeBasisInto_visited (refs : Refs ctx N) (path : (decodeBasisInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (decodeBasisInto refs).visitedContexts path) :
     visited = ctx := by
@@ -116,14 +117,14 @@ theorem decodeBasisInto_visited (refs : Refs ctx N) (path : (decodeBasisInto ref
       refs.pair refs.raw path.2 visited)
 
 /-- Every original resident entry is counted throughout the complete actual wide prefix. -/
-theorem decodeBasisInto_resident_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_resident_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     (decodeBasisInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [decodeBasisInto_visited refs path visited present]
 
 /-- Every original auxiliary role is counted throughout the complete actual wide prefix. -/
-theorem decodeBasisInto_auxiliary_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
+lemma decodeBasisInto_auxiliary_le (refs : Refs ctx N) (path : (decodeBasisInto refs).Path) :
     (decodeBasisInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

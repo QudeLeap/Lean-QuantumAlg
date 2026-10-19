@@ -28,7 +28,7 @@ noncomputable section
 
 /-- The candidate machine's natural modular-power comparison is exactly the
 source predicate for the RSA target unit. -/
-theorem candidatePowerMatches_targetUnit_iff {N : Nat} (input : Input N)
+lemma candidatePowerMatches_targetUnit_iff {N : Nat} (input : Input N)
     (generator : (ZMod N)ˣ) (exponent : Nat) :
     ((generator : ZMod N).val ^ exponent) % N =
         (RSA.targetUnit generator : ZMod N).val ↔
@@ -58,7 +58,7 @@ theorem candidatePowerMatches_targetUnit_iff {N : Nat} (input : Input N)
       using hmod
 
 /-- The fixed target exponent computes the canonical target-unit value. -/
-theorem targetUnit_val_eq_modularPower {N : Nat} (input : Input N)
+lemma targetUnit_val_eq_modularPower {N : Nat} (input : Input N)
     (generator : (ZMod N)ˣ) :
     ((generator : ZMod N).val ^ RSA.targetExponent N) % N =
       (RSA.targetUnit generator : ZMod N).val := by

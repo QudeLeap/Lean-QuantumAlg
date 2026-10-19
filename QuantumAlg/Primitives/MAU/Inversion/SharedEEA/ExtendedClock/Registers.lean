@@ -47,7 +47,7 @@ def clock {width : Nat} (state : Registers width) : BitVec (clockWidth width) :=
 def extra (width : Nat) : Nat := width + 3 - clockWidth width
 
 /-- The original full Work2 always supplies all dirty bits required by the real incrementer. -/
-theorem extra_add_clockWidth (width : Nat) : extra width + clockWidth width = width + 3 := by
+lemma extra_add_clockWidth (width : Nat) : extra width + clockWidth width = width + 3 := by
   have enough : width.size ≤ width := Nat.size_le.mpr Nat.lt_two_pow_self
   unfold extra clockWidth
   omega
@@ -96,19 +96,19 @@ def grouping (width : Nat) : Registers width ≃
     rfl
 
 /-- The complete real target value is unchanged by the exact HRS label encoding. -/
-theorem grouping_clock (width : Nat) (state : Registers width) :
+lemma grouping_clock (width : Nat) (state : Registers width) :
     (grouping width state).1.1.2.val = (clock state).toNat := rfl
 
 /-- The borrowed word is precisely Work2, including all unknown state and correlations. -/
-theorem grouping_work (width : Nat) (state : Registers width) :
+lemma grouping_work (width : Nat) (state : Registers width) :
     (grouping width state).1.1.1.val = state.secondWord.toNat := rfl
 
 /-- The existing Phase2 control retains its literal physical source value. -/
-theorem grouping_control (width : Nat) (state : Registers width) :
+lemma grouping_control (width : Nat) (state : Registers width) :
     (grouping width state).1.2 = state.flags.second := rfl
 
 /-- Every actual target bit lies at its stated Work1 high position or original shift position. -/
-theorem clock_bit (width : Nat) (index : Fin (clockWidth width)) (state : Registers width) :
+lemma clock_bit (width : Nat) (index : Fin (clockWidth width)) (state : Registers width) :
     (clock state).getMsbD index.val =
       if index.val < 2 then state.firstWord.getMsbD (width + index.val)
       else state.shift.getMsbD (index.val - 2) := by
@@ -129,7 +129,7 @@ def physicalIndex (width index : Nat) : Nat :=
   else 2 * (width + 3) + 4 * width.size + 1
 
 /-- Every borrowed bit is an actual Work2 wire. -/
-theorem physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
+lemma physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
     physicalIndex width (clockWidth width + index.val) =
       (secondWordBit width index).wire.val := by
   rw [secondWordBit_wire]
@@ -141,7 +141,7 @@ theorem physicalIndex_work (width : Nat) (index : Fin (width + 3)) :
     Nat.add_sub_cancel_left]
 
 /-- Both high-counter addresses are exactly the pre-existing Work1 tail positions. -/
-theorem physicalIndex_high (width : Nat) (index : Fin 2) :
+lemma physicalIndex_high (width : Nat) (index : Fin 2) :
     physicalIndex width index.val =
       (firstWordBit width ⟨width + index.val, by have bound := index.isLt; omega⟩).wire.val := by
   rw [firstWordBit_wire]
@@ -150,7 +150,7 @@ theorem physicalIndex_high (width : Nat) (index : Fin 2) :
   simp only [physicalIndex, if_pos inClock, if_pos bound]
 
 /-- Every low-counter address is the unchanged actual shift-register wire. -/
-theorem physicalIndex_low (width : Nat) (index : Fin width.size) :
+lemma physicalIndex_low (width : Nat) (index : Fin width.size) :
     physicalIndex width (2 + index.val) = (shiftBit width index).wire.val := by
   rw [shiftBit_wire]
   have bound := index.isLt
@@ -159,7 +159,7 @@ theorem physicalIndex_low (width : Nat) (index : Fin width.size) :
   simp only [physicalIndex, if_pos inClock, if_neg afterHigh, Nat.add_sub_cancel_left]
 
 /-- The incrementer control is the original Phase2 physical wire. -/
-theorem physicalIndex_control (width : Nat) :
+lemma physicalIndex_control (width : Nat) :
     physicalIndex width (clockWidth width + width + 3) =
       (phase2Bit width).wire.val := by
   rw [phase2Bit_wire]

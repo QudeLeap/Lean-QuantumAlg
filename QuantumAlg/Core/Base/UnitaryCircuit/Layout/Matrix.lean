@@ -21,7 +21,7 @@ namespace QuantumAlg.UnitaryCircuit
 
 /-- Transporting a physical basis vector along an equality of complete layouts
 preserves its value at the inverse-transported label. -/
-public theorem castLayout_vector_apply {count : Nat} {source target : QuantumLayout count}
+public lemma castLayout_vector_apply {count : Nat} {source target : QuantumLayout count}
     (same : source = target) (state : HilbertVector source.register)
     (basis : target.Basis) :
     (same ▸ state : HilbertVector target.register) basis =
@@ -31,7 +31,7 @@ public theorem castLayout_vector_apply {count : Nat} {source target : QuantumLay
 
 /-- Exact layout equality carries the all-zero physical label to the all-zero
 label of the target layout. -/
-public theorem castLayout_zeroLabel {count : Nat} {source target : QuantumLayout count}
+public lemma castLayout_zeroLabel {count : Nat} {source target : QuantumLayout count}
     (same : source = target) :
     (same ▸ source.zeroLabel : target.Basis) = target.zeroLabel := by
   cases same
@@ -39,7 +39,7 @@ public theorem castLayout_zeroLabel {count : Nat} {source target : QuantumLayout
 
 /-- Transporting a target label backward and then forward along the same
 layout equality restores that exact target label. -/
-public theorem castLayout_symm_basis {count : Nat} {source target : QuantumLayout count}
+public lemma castLayout_symm_basis {count : Nat} {source target : QuantumLayout count}
     (same : source = target) (basis : target.Basis) :
     (same ▸ (same.symm ▸ basis : source.Basis) : target.Basis) = basis := by
   cases same
@@ -47,7 +47,7 @@ public theorem castLayout_symm_basis {count : Nat} {source target : QuantumLayou
 
 /-- A computational-basis vector is unchanged apart from the label transport
 induced by an equality of complete layouts. -/
-public theorem castLayout_ket {count : Nat} {source target : QuantumLayout count}
+public lemma castLayout_ket {count : Nat} {source target : QuantumLayout count}
     (same : source = target) (basis : source.Basis) :
     (same ▸ (NormalizedVector.ket (R := source.register) basis :
       HilbertVector source.register) : HilbertVector target.register) =
@@ -57,18 +57,19 @@ public theorem castLayout_ket {count : Nat} {source target : QuantumLayout count
   rfl
 
 /-- Identifying full layouts retains every original local computational value. -/
-public theorem castLayout_basis_value {count : Nat} {source target : QuantumLayout count}
+public lemma castLayout_basis_value {count : Nat} {source target : QuantumLayout count}
     (same : source = target) (basis : source.Basis) (index : Fin count) :
     (((same ▸ basis : target.Basis) index).val) = (basis index).val := by
   cases same
   rfl
 
 /-- Exact layout equality transports the input and output labels of the actual matrix. -/
-public theorem castLayout_matrix_entry {gates : GateModel} {oracles : OracleModel}
+public lemma castLayout_matrix_entry {gates : GateModel} {oracles : OracleModel}
     {count : Nat} {source target : QuantumLayout count} (same : source = target)
-    (body : UnitaryCircuit gates oracles source) (row column : target.Basis) :
-    (body.castLayout same).matrix row column =
-      body.matrix (same.symm ▸ row) (same.symm ▸ column) := by
+    (body : UnitaryCircuit gates oracles source) (row column : target.Basis) (environment :
+      oracles.Interpretation) :
+    ((body.castLayout same).matrix environment) row column =
+      (body.matrix environment) (same.symm ▸ row) (same.symm ▸ column) := by
   cases same
   rfl
 

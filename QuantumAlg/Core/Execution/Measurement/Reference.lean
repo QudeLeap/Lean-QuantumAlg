@@ -38,7 +38,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace ExecutionState
 
 /-- Summing a measured local coordinate preserves every untouched reference entry. -/
-theorem measureZ_reference_entry {count : Nat} (layout : QuantumLayout count)
+lemma measureZ_reference_entry {count : Nat} (layout : QuantumLayout count)
     (wire : Fin count) {C : Type} [Fintype C] {Reference : Register}
     (state : ExecutionState C (Register.prod layout.register Reference))
     (refLeft refRight : Reference.Index) :
@@ -61,20 +61,23 @@ end ExecutionState
 
 namespace Circuit
 
-variable {gates : GateModel} {oracles : OracleModel}
+variable {allowAllocation : Bool} {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
 
 open Execution
 
+variable (environment : ExecutionModel.Environment
+  (.quantum gates oracles operations classicalOracles))
+
 /-- Actual Z execution and its Store write leave the external reference unchanged. -/
-theorem measurementStep_reference_entry {ctx : RuntimeCtx .quantum}
+lemma measurementStep_reference_entry {ctx : RuntimeCtx .quantum}
     (item : ZReadout ctx) {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (classicalOracles.HiddenState × H))
     (refLeft refRight : Reference.Index) :
     (∑ basis : ctx.register.Index,
-      ((Circuit.measureZ (gates := gates) (oracles := oracles)
+      ((Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) item.wire
-        item.output).execute Reference state).quantumMarginal.matrix
+        item.output).execute environment Reference state).quantumMarginal.matrix
         (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
@@ -83,13 +86,15 @@ theorem measurementStep_reference_entry {ctx : RuntimeCtx .quantum}
   exact ExecutionState.measureZ_reference_entry ctx.quantumLayout item.wire state refLeft refRight
 
 /-- A finite sequence preserves the same reference in its one actual complete execution. -/
-theorem measurementSequence_reference_entry {ctx : RuntimeCtx .quantum}
+lemma measurementSequence_reference_entry {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (classicalOracles.HiddenState × H))
     (refLeft refRight : Reference.Index) :
     (∑ basis : ctx.register.Index,
-      ((measurementSequence (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+      ((measurementSequence (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles)
+          readouts).execute environment
         Reference state).quantumMarginal.matrix
         (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
@@ -101,23 +106,27 @@ theorem measurementSequence_reference_entry {ctx : RuntimeCtx .quantum}
   | cons head tail ih =>
       rw [measurementSequence, execute_seq,
         State.mapHistory_quantumMarginal]
-      exact (ih ((Circuit.measureZ (gates := gates) (oracles := oracles)
+      exact (ih ((Circuit.measureZ (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) head.wire
-        head.output).execute Reference state)).trans
-        (measurementStep_reference_entry head state refLeft refRight)
+        head.output).execute environment Reference state)).trans
+        (measurementStep_reference_entry environment (allowAllocation := allowAllocation)
+          head state refLeft refRight)
 
 /-- Without borrowed quantum systems, singleton classical input values
 and the complete reference are restored. -/
-theorem borrowedRestored_measurementSequence_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
+lemma borrowedRestored_measurementSequence_noBorrowedQuantum {ctx : RuntimeCtx .quantum}
     [Subsingleton ctx.borrowedClassicalShape.Value]
     (noQuantum : ctx.borrowedQuantumWires = []) (readouts : List (ZReadout ctx))
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (classicalOracles.HiddenState × H)) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts).BorrowedRestored
       Reference state
-      ((measurementSequence (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+      ((measurementSequence (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
+        (operations := operations) (classicalOracles := classicalOracles)
+          readouts).execute environment
         Reference state) := by
   rw [BorrowedRestored, Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
@@ -128,7 +137,8 @@ theorem borrowedRestored_measurementSequence_noBorrowedQuantum {ctx : RuntimeCtx
   rcases column with ⟨right, refRight⟩
   rw [Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum,
     Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum]
-  exact measurementSequence_reference_entry readouts state refLeft refRight
+  exact measurementSequence_reference_entry environment (allowAllocation := allowAllocation)
+    readouts state refLeft refRight
 
 end Circuit
 

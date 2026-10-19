@@ -36,13 +36,13 @@ def biFlipWordOutput {width : Nat} (pivot : Fin (2 ^ width + 1))
   ⟨biFlip (2 ^ width) pivot.val input.val,
     biFlip_lt_capacity (by have := pivot.isLt; omega) input.isLt⟩
 
-theorem gidneyBiFlipWord_involutive {width : Nat} (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlipWord_involutive {width : Nat} (pivot : Fin (2 ^ width + 1))
     (input : Fin (2 ^ width)) :
     biFlipWordOutput pivot (biFlipWordOutput pivot input) = input := by
   apply Fin.ext
   exact biFlip_involutive (by have := pivot.isLt; omega) input.isLt
 
-theorem gidneyBiFlipWord_compare {width : Nat} (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlipWord_compare {width : Nat} (pivot : Fin (2 ^ width + 1))
     (input : Fin (2 ^ width)) :
     decide ((biFlipWordOutput pivot input).val < pivot.val) =
       decide (input.val < pivot.val) := by
@@ -50,14 +50,14 @@ theorem gidneyBiFlipWord_compare {width : Nat} (pivot : Fin (2 ^ width + 1))
   exact propext (biFlip_lt_pivot_iff
     (by have := pivot.isLt; omega) input.isLt)
 
-theorem gidneyBiFlipWord_of_lt {width : Nat} (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlipWord_of_lt {width : Nat} (pivot : Fin (2 ^ width + 1))
     (input : Fin (2 ^ width)) (h : input.val < pivot.val) :
     biFlipWordOutput pivot input = pivotWordOutput pivot input := by
   apply Fin.ext
   simp only [biFlipWordOutput, pivotWordOutput, biFlip,
     pivotFlip, if_pos h]
 
-theorem gidneyPivotWord_of_le {width : Nat} (pivot : Fin (2 ^ width + 1))
+lemma gidneyPivotWord_of_le {width : Nat} (pivot : Fin (2 ^ width + 1))
     (input : Fin (2 ^ width)) (h : pivot.val ≤ input.val) :
     pivotWordOutput pivot input = input := by
   apply Fin.ext
@@ -74,7 +74,7 @@ def compareFlagStep {width : Nat} (pivot : Fin (2 ^ width + 1))
   (state.1 ^^ decide (state.2.val < pivot.val), state.2)
 
 /-- The four exact actions produce a pivot reflection and return the original dirty flag. -/
-theorem gidneyBiFlip_four_steps {width : Nat} (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlip_four_steps {width : Nat} (pivot : Fin (2 ^ width + 1))
     (state : Bool × Fin (2 ^ width)) :
     compareFlagStep pivot (biFlipFlagStep pivot
         (compareFlagStep pivot (biFlipFlagStep pivot state))) =
@@ -117,7 +117,7 @@ def offsetLastPivot {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) : Fin (2 ^ width + 1) :=
   ⟨constant.val, by have := constant.isLt; have := modulus.isLt; omega⟩
 
-theorem gidneyModularWord_val {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularWord_val {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (input : Fin (2 ^ width)) :
     (modularWordOutput modulus constant input).val =
       if input.val < modulus.val then (input.val + constant.val) % modulus.val else input.val := by
@@ -125,7 +125,7 @@ theorem gidneyModularWord_val {width : Nat} (modulus : Fin (2 ^ width + 1))
   split_ifs <;> rfl
 
 /-- Three finite reflections equal the independently specified modular output on every label. -/
-theorem gidneyModularWord_three_pivots {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularWord_three_pivots {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (input : Fin (2 ^ width)) :
     pivotWordOutput (offsetLastPivot modulus constant)
         (pivotWordOutput modulus (pivotWordOutput (offsetFirstPivot modulus constant) input)) =
@@ -138,7 +138,7 @@ theorem gidneyModularWord_three_pivots {width : Nat} (modulus : Fin (2 ^ width +
   exact pivotFlip_three_eq_modular_offset (by have := constant.isLt; omega)
 
 /-- The original canonical input domain receives ordinary modular addition. -/
-theorem gidneyModularWord_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularWord_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (input : Fin (2 ^ width))
     (hvalid : input.val < modulus.val) :
     (modularWordOutput modulus constant input).val =
@@ -146,7 +146,7 @@ theorem gidneyModularWord_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
   rw [gidneyModularWord_val, if_pos hvalid]
 
 /-- Every label outside the residue range is individually fixed. -/
-theorem gidneyModularWord_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularWord_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (input : Fin (2 ^ width))
     (houtside : modulus.val ≤ input.val) :
     modularWordOutput modulus constant input = input := by
@@ -154,7 +154,7 @@ theorem gidneyModularWord_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
   rw [dif_neg (by omega : ¬input.val < modulus.val)]
 
 /-- Zero constant is included without a nonzero-coefficient hypothesis. -/
-theorem gidneyModularWord_zero {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularWord_zero {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (hzero : constant.val = 0)
     (input : Fin (2 ^ width)) : modularWordOutput modulus constant input = input := by
   apply Fin.ext
@@ -164,7 +164,7 @@ theorem gidneyModularWord_zero {width : Nat} (modulus : Fin (2 ^ width + 1))
   · rw [if_neg hvalid]
 
 /-- Modulus one fixes its unique valid residue and all remaining binary labels. -/
-theorem gidneyModularWord_modulus_one {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularWord_modulus_one {width : Nat} (modulus : Fin (2 ^ width + 1))
     (hone : modulus.val = 1) (constant : Fin (modulus.val + 1))
     (input : Fin (2 ^ width)) : modularWordOutput modulus constant input = input := by
   apply Fin.ext

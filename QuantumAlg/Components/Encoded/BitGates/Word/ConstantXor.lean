@@ -39,18 +39,18 @@ def constantOneIndices (constant : Fin (2 ^ width)) : List (Fin width) :=
     (fun bit => constant.val.testBit bit.val)
 
 /-- A fixed-width constant has at most one selected position per target bit. -/
-theorem constantOneIndices_length_le (constant : Fin (2 ^ width)) :
+lemma constantOneIndices_length_le (constant : Fin (2 ^ width)) :
     (constantOneIndices constant).length ≤ width := by
   simpa [constantOneIndices] using
     List.length_filter_le
       (l := List.ofFn fun bit : Fin width => bit)
       (p := fun bit => constant.val.testBit bit.val)
 
-theorem constantOneIndices_nodup (constant : Fin (2 ^ width)) :
+lemma constantOneIndices_nodup (constant : Fin (2 ^ width)) :
     (constantOneIndices constant).Nodup := by
   exact (List.nodup_ofFn_ofInjective (fun _ _ h => h)).filter _
 
-@[simp] theorem mem_constantOneIndices (constant : Fin (2 ^ width))
+@[simp] lemma mem_constantOneIndices (constant : Fin (2 ^ width))
     (bit : Fin width) :
     bit ∈ constantOneIndices constant ↔
       constant.val.testBit bit.val = true := by
@@ -68,14 +68,14 @@ def xorConstantGates (target : Word encoding width)
   (constantOneIndices constant).map fun bit => GateSpec.x (target.bit bit)
 
 /-- Exact leaf count of a constant xor: one X gate per set bit. -/
-theorem xorConstantGates_length (target : Word encoding width)
+lemma xorConstantGates_length (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
     (xorConstantGates target constant).length =
       (constantOneIndices constant).length := by
   simp [xorConstantGates]
 
 /-- The X coordinate of a constant xor equals its set-bit count. -/
-theorem xorConstantGates_xMultiplicity_sum (target : Word encoding width)
+lemma xorConstantGates_xMultiplicity_sum (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
     ((xorConstantGates target constant).map GateSpec.xMultiplicity).sum =
       (constantOneIndices constant).length := by
@@ -88,7 +88,7 @@ theorem xorConstantGates_xMultiplicity_sum (target : Word encoding width)
       simp [ih, Nat.add_comm]
 
 /-- A constant xor has no CNOT leaves. -/
-theorem xorConstantGates_cnotMultiplicity_sum (target : Word encoding width)
+lemma xorConstantGates_cnotMultiplicity_sum (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
     ((xorConstantGates target constant).map GateSpec.cnotMultiplicity).sum =
       0 := by
@@ -101,7 +101,7 @@ theorem xorConstantGates_cnotMultiplicity_sum (target : Word encoding width)
       simp [ih]
 
 /-- A constant xor has no Toffoli leaves. -/
-theorem xorConstantGates_toffoliMultiplicity_sum
+lemma xorConstantGates_toffoliMultiplicity_sum
     (target : Word encoding width) (constant : Fin (2 ^ width)) :
     ((xorConstantGates target constant).map GateSpec.toffoliMultiplicity).sum =
       0 := by
@@ -128,7 +128,7 @@ def xorConstantIndicesStep (target : Word encoding width)
     (indices : List (Fin width)) : Data → Data :=
   fun x => indices.foldl (fun y bit => (target.bit bit).flip y) x
 
-theorem xorConstantStep_eq_indicesStep (target : Word encoding width)
+lemma xorConstantStep_eq_indicesStep (target : Word encoding width)
     (constant : Fin (2 ^ width)) :
     xorConstantStep target constant =
       xorConstantIndicesStep target (constantOneIndices constant) := by
@@ -143,7 +143,7 @@ theorem xorConstantStep_eq_indicesStep (target : Word encoding width)
 
 /-- A gate list commutes with an explicit sequence of word-bit flips when
 every gate is disjoint from every bit of that word. -/
-theorem stepList_xorConstantIndicesStep_comm
+lemma stepList_xorConstantIndicesStep_comm
     (gates : List (GateSpec encoding)) (target : Word encoding width)
     (indices : List (Fin width))
     (hdisjoint : ∀ bit gate, gate ∈ gates →
@@ -161,7 +161,7 @@ theorem stepList_xorConstantIndicesStep_comm
 
 /-- A gate list commutes with xor-loading a classical word when it is
 disjoint from every target position. -/
-theorem stepList_xorConstantStep_comm
+lemma stepList_xorConstantStep_comm
     (gates : List (GateSpec encoding)) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hdisjoint : ∀ bit gate, gate ∈ gates →
@@ -172,7 +172,7 @@ theorem stepList_xorConstantStep_comm
   rw [stepList_xorConstantIndicesStep_comm gates target
     (constantOneIndices constant) hdisjoint x]
 
-theorem xorConstantIndicesStep_get_target
+lemma xorConstantIndicesStep_get_target
     (target : Word encoding width) (indices : List (Fin width))
     (hnodup : indices.Nodup) (bit : Fin width)
     (htargetTarget :
@@ -209,7 +209,7 @@ theorem xorConstantIndicesStep_get_target
         by_cases hmem : bit ∈ rest <;> simp [hbitHead, hmem]
 
 /-- Each target bit is toggled by the corresponding bit of the constant. -/
-theorem xorConstantStep_get_target (target : Word encoding width)
+lemma xorConstantStep_get_target (target : Word encoding width)
     (constant : Fin (2 ^ width)) (bit : Fin width)
     (htargetTarget :
       ∀ other, other ≠ bit →
@@ -231,7 +231,7 @@ theorem xorConstantStep_get_target (target : Word encoding width)
     simpa [hmem, hbit] using h
 
 /-- Constant xor preserves every readout outside the target word. -/
-theorem xorConstantStep_get_observed_of_target_ne
+lemma xorConstantStep_get_observed_of_target_ne
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (observed : EncodedBit encoding)
     (htargetObserved :
@@ -248,18 +248,21 @@ theorem xorConstantStep_get_observed_of_target_ne
     EncodedBit.get_flip_of_wire_ne (target.bit bit) observed
       (htargetObserved bit) y
 
-theorem xorConstant_realizes (target : Word encoding width)
-    (constant : Fin (2 ^ width)) :
+lemma xorConstant_realizes (target : Word encoding width)
+    (constant : Fin (2 ^ width)) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
-      (xorConstantProgram physical oracles target constant) (xorConstantStep target constant) :=
-  GateSpec.realizesList physical oracles (xorConstantGates target constant)
+      (xorConstantProgram physical oracles target constant) environment (xorConstantStep target
+        constant) :=
+  GateSpec.realizesList
+    (environment := environment) physical oracles (xorConstantGates target constant)
 
 /-- Direct realization proof for uncontrolled constant xor. -/
-theorem xorConstantWitness (target : Word encoding width)
-    (constant : Fin (2 ^ width)) :
+lemma xorConstantWitness (target : Word encoding width)
+    (constant : Fin (2 ^ width)) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding (xorConstantProgram physical oracles target constant)
+      environment
       (xorConstantStep target constant) :=
-  xorConstant_realizes physical oracles target constant
+  xorConstant_realizes (environment := environment) physical oracles target constant
 
 /-! ### Uncontrolled unload -/
 
@@ -278,22 +281,24 @@ def xorConstantUnloadStep (target : Word encoding width)
     (constant : Fin (2 ^ width)) : Data → Data :=
   GateSpec.stepList (xorConstantUnloadGates target constant)
 
-theorem xorConstantUnload_realizes (target : Word encoding width)
-    (constant : Fin (2 ^ width)) :
+lemma xorConstantUnload_realizes (target : Word encoding width)
+    (constant : Fin (2 ^ width)) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
-      (xorConstantUnloadProgram physical oracles target constant)
+      (xorConstantUnloadProgram physical oracles target constant) environment
       (xorConstantUnloadStep target constant) :=
-  GateSpec.realizesList physical oracles (xorConstantUnloadGates target constant)
+  GateSpec.realizesList
+    (environment := environment) physical oracles (xorConstantUnloadGates target constant)
 
 /-- Direct realization proof for reverse-list uncontrolled unloading. -/
-theorem xorConstantUnloadWitness (target : Word encoding width)
-    (constant : Fin (2 ^ width)) :
+lemma xorConstantUnloadWitness (target : Word encoding width)
+    (constant : Fin (2 ^ width)) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding (xorConstantUnloadProgram physical oracles target constant)
+      environment
       (xorConstantUnloadStep target constant) :=
-  xorConstantUnload_realizes physical oracles target constant
+  xorConstantUnload_realizes (environment := environment) physical oracles target constant
 
 /-- Uncontrolled unload preserves every readout outside the target word. -/
-theorem xorConstantUnloadStep_get_observed_of_target_ne
+lemma xorConstantUnloadStep_get_observed_of_target_ne
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (observed : EncodedBit encoding)
     (htargetObserved :
@@ -314,7 +319,7 @@ theorem xorConstantUnloadStep_get_observed_of_target_ne
       (htargetObserved bit) y
 
 /-- Reverse-list unload toggles each target bit by the same constant bit. -/
-theorem xorConstantUnloadStep_get_target
+lemma xorConstantUnloadStep_get_target
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (bit : Fin width)
     (htargetTarget :
@@ -339,7 +344,7 @@ theorem xorConstantUnloadStep_get_target
     simp_all
 
 /-- Unloading after loading restores the entire encoded value. -/
-theorem xorConstantUnloadStep_after_xorConstantStep
+lemma xorConstantUnloadStep_after_xorConstantStep
     (target : Word encoding width) (constant : Fin (2 ^ width)) (x : Data) :
     xorConstantUnloadStep target constant
         (xorConstantStep target constant x) = x := by
@@ -347,7 +352,7 @@ theorem xorConstantUnloadStep_after_xorConstantStep
     GateSpec.stepList_reverse_stepList (xorConstantGates target constant) x
 
 /-- Loading after unloading also restores the entire encoded value. -/
-theorem xorConstantStep_after_xorConstantUnloadStep
+lemma xorConstantStep_after_xorConstantUnloadStep
     (target : Word encoding width) (constant : Fin (2 ^ width)) (x : Data) :
     xorConstantStep target constant
         (xorConstantUnloadStep target constant x) = x := by
@@ -374,7 +379,7 @@ def controlledXorConstantProgram (control : EncodedBit encoding)
     (controlledXorConstantGates control target constant hcontrolTarget)
 
 /-- A controlled constant xor contains at most one CNOT per target bit. -/
-theorem controlledXorConstantGates_length_le_width
+lemma controlledXorConstantGates_length_le_width
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
@@ -384,7 +389,7 @@ theorem controlledXorConstantGates_length_le_width
     constantOneIndices_length_le constant
 
 /-- Exact leaf count of a singly controlled constant xor. -/
-theorem controlledXorConstantGates_length
+lemma controlledXorConstantGates_length
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
@@ -393,7 +398,7 @@ theorem controlledXorConstantGates_length
   simp [controlledXorConstantGates]
 
 /-- A singly controlled constant xor contains no physical X leaves. -/
-theorem controlledXorConstantGates_xMultiplicity_sum
+lemma controlledXorConstantGates_xMultiplicity_sum
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
@@ -403,7 +408,7 @@ theorem controlledXorConstantGates_xMultiplicity_sum
 
 /-- The CNOT coordinate of a singly controlled constant xor is the number of
 set bits in the constant. -/
-theorem controlledXorConstantGates_cnotMultiplicity_sum
+lemma controlledXorConstantGates_cnotMultiplicity_sum
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
@@ -413,7 +418,7 @@ theorem controlledXorConstantGates_cnotMultiplicity_sum
   simp [controlledXorConstantGates, Function.comp_def]
 
 /-- A singly controlled constant xor contains no Toffoli leaves. -/
-theorem controlledXorConstantGates_toffoliMultiplicity_sum
+lemma controlledXorConstantGates_toffoliMultiplicity_sum
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
@@ -429,7 +434,7 @@ def controlledXorConstantStep (control : EncodedBit encoding)
   GateSpec.stepList
     (controlledXorConstantGates control target constant hcontrolTarget)
 
-theorem controlledXorConstantStep_eq_indicesStep
+lemma controlledXorConstantStep_eq_indicesStep
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
@@ -447,7 +452,7 @@ theorem controlledXorConstantStep_eq_indicesStep
         ih (cnotStep control (target.bit bit) x)
 
 /-- Each target bit is toggled by control and the matching constant bit. -/
-theorem controlledXorConstantStep_get_target
+lemma controlledXorConstantStep_get_target
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -475,7 +480,7 @@ theorem controlledXorConstantStep_get_target
     simpa [constantBitWord, hmem, hbit] using h
 
 /-- Singly controlled constant xor preserves readouts outside the target word. -/
-theorem controlledXorConstantStep_get_observed_of_target_ne
+lemma controlledXorConstantStep_get_observed_of_target_ne
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -497,7 +502,7 @@ theorem controlledXorConstantStep_get_observed_of_target_ne
       (htargetObserved bit) y
 
 /-- A false control makes a singly controlled constant xor a no-op. -/
-theorem controlledXorConstantStep_eq_self_of_control_false
+lemma controlledXorConstantStep_eq_self_of_control_false
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -517,25 +522,30 @@ theorem controlledXorConstantStep_eq_self_of_control_false
       rw [hhead]
       exact ih x hcontrol
 
-theorem controlledXorConstant_realizes
+lemma controlledXorConstant_realizes
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
-    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
+    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (controlledXorConstantProgram physical oracles control target constant hcontrolTarget)
+        environment
       (controlledXorConstantStep control target constant hcontrolTarget) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList (environment := environment) physical oracles
     (controlledXorConstantGates control target constant hcontrolTarget)
 
 /-- Direct realization proof for singly controlled constant xor. -/
-theorem controlledXorConstantWitness
+lemma controlledXorConstantWitness
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
-    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
+    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (controlledXorConstantProgram physical oracles control target constant hcontrolTarget)
+        environment
       (controlledXorConstantStep control target constant hcontrolTarget) :=
-  controlledXorConstant_realizes physical oracles control target constant hcontrolTarget
+  controlledXorConstant_realizes
+    (environment := environment) physical oracles control target constant hcontrolTarget
 
 /-! ### Singly controlled unload -/
 
@@ -562,30 +572,34 @@ def controlledXorConstantUnloadStep (control : EncodedBit encoding)
   GateSpec.stepList
     (controlledXorConstantUnloadGates control target constant hcontrolTarget)
 
-theorem controlledXorConstantUnload_realizes
+lemma controlledXorConstantUnload_realizes
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
-    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
+    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (controlledXorConstantUnloadProgram physical oracles control target constant hcontrolTarget)
+        environment
       (controlledXorConstantUnloadStep control target constant hcontrolTarget) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList (environment := environment) physical oracles
     (controlledXorConstantUnloadGates control target constant hcontrolTarget)
 
 /-- Direct realization proof for reverse-list singly controlled unloading. -/
-theorem controlledXorConstantUnloadWitness
+lemma controlledXorConstantUnloadWitness
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
-    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) :
+    (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (controlledXorConstantUnloadProgram physical oracles control target constant
-        hcontrolTarget)
+        hcontrolTarget) environment
       (controlledXorConstantUnloadStep control target constant
         hcontrolTarget) :=
-  controlledXorConstantUnload_realizes physical oracles control target constant hcontrolTarget
+  controlledXorConstantUnload_realizes
+    (environment := environment) physical oracles control target constant hcontrolTarget
 
 /-- Singly controlled unload preserves readouts outside the target word. -/
-theorem controlledXorConstantUnloadStep_get_observed_of_target_ne
+lemma controlledXorConstantUnloadStep_get_observed_of_target_ne
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -612,7 +626,7 @@ theorem controlledXorConstantUnloadStep_get_observed_of_target_ne
       (htargetObserved bit) y
 
 /-- Reverse-list controlled unload has the same target-bit xor formula. -/
-theorem controlledXorConstantUnloadStep_get_target
+lemma controlledXorConstantUnloadStep_get_target
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -651,7 +665,7 @@ theorem controlledXorConstantUnloadStep_get_target
     simp_all
 
 /-- Controlled unloading after controlled loading restores the encoded value. -/
-theorem controlledXorConstantUnloadStep_after_controlledXorConstantStep
+lemma controlledXorConstantUnloadStep_after_controlledXorConstantStep
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) (x : Data) :
@@ -664,7 +678,7 @@ theorem controlledXorConstantUnloadStep_after_controlledXorConstantStep
       (controlledXorConstantGates control target constant hcontrolTarget) x
 
 /-- Controlled loading after controlled unloading restores the encoded value. -/
-theorem controlledXorConstantStep_after_controlledXorConstantUnloadStep
+lemma controlledXorConstantStep_after_controlledXorConstantUnloadStep
     (control : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire) (x : Data) :
@@ -730,34 +744,37 @@ def constantScheduleStep (control zeroControl : EncodedBit encoding)
       hcontrolTarget hzeroTarget)
 
 /-- The fixed-schedule program realizes its folded semantic action. -/
-theorem constantSchedule_realizes (control zeroControl : EncodedBit encoding)
+lemma constantSchedule_realizes (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
-    (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
+    (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (constantScheduleProgram physical oracles control zeroControl target constant
-        hcontrolTarget hzeroTarget)
+        hcontrolTarget hzeroTarget) environment
       (constantScheduleStep control zeroControl target constant
         hcontrolTarget hzeroTarget) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList (environment := environment) physical oracles
     (constantScheduleGates control zeroControl target constant
       hcontrolTarget hzeroTarget)
 
 /-- Direct realization proof for the fixed-schedule controlled constant xor. -/
-theorem constantScheduleWitness (control zeroControl : EncodedBit encoding)
+lemma constantScheduleWitness (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
-    (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
+    (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (constantScheduleProgram physical oracles control zeroControl target constant
-        hcontrolTarget hzeroTarget)
+        hcontrolTarget hzeroTarget) environment
       (constantScheduleStep control zeroControl target constant
         hcontrolTarget hzeroTarget) :=
-  constantSchedule_realizes physical oracles control zeroControl target constant
+  constantSchedule_realizes
+    (environment := environment) physical oracles control zeroControl target constant
     hcontrolTarget hzeroTarget
 
 /-- Each fixed-schedule bit block has exactly three gates. -/
-@[simp] theorem constantScheduleBitGates_length
+@[simp] lemma constantScheduleBitGates_length
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -770,7 +787,7 @@ theorem constantScheduleWitness (control zeroControl : EncodedBit encoding)
 
 /-- The complete schedule always contains three CNOTs per target bit,
 independently of the constant's Hamming weight. -/
-theorem constantScheduleGates_length
+lemma constantScheduleGates_length
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -782,7 +799,7 @@ theorem constantScheduleGates_length
 
 /-- One fixed-schedule bit block has a strict event trace independent of the
 selected classical constant bit. -/
-private theorem constantScheduleBitGates_events_eq
+private lemma constantScheduleBitGates_events_eq
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -797,7 +814,7 @@ private theorem constantScheduleBitGates_events_eq
 
 /-- The complete fixed schedule has an ordered strict event trace independent
 of its compiled classical constant. -/
-theorem constantScheduleGates_events_eq
+lemma constantScheduleGates_events_eq
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -817,7 +834,7 @@ theorem constantScheduleGates_events_eq
         ih]
 
 /-- The fixed schedule emits exactly three targeted primitive events per bit. -/
-theorem constantScheduleProgram_primitiveEventCount
+lemma constantScheduleProgram_primitiveEventCount
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -832,7 +849,7 @@ private def isCnotGate : GateSpec encoding → Prop
   | .cnot _ _ _ => True
   | _ => False
 
-private theorem constantScheduleGates_isCnot
+private lemma constantScheduleGates_isCnot
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -850,7 +867,7 @@ private theorem constantScheduleGates_isCnot
     rcases hgate with hgate | hgate | hgate <;> subst gate <;>
     trivial
 
-private theorem cnotMultiplicity_sum_eq_length
+private lemma cnotMultiplicity_sum_eq_length
     (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
     (gates.map GateSpec.cnotMultiplicity).sum = gates.length := by
@@ -869,7 +886,7 @@ private theorem cnotMultiplicity_sum_eq_length
 
 /-- The fixed schedule's complete primitive envelope is its CNOT coordinate:
 three CNOTs are emitted for every target bit. -/
-theorem constantScheduleProgram_cnot_eventCount
+lemma constantScheduleProgram_cnot_eventCount
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -887,7 +904,7 @@ theorem constantScheduleProgram_cnot_eventCount
 
 /-- Fixed-schedule strict event cost is independent of the classical constant,
 directly from its equal strict event schedule. -/
-theorem constantScheduleProgram_eventCost_eq
+lemma constantScheduleProgram_eventCost_eq
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -903,7 +920,7 @@ theorem constantScheduleProgram_eventCost_eq
 
 /-- Fixed-schedule strict event depth is independent of the classical constant,
 directly from its equal strict event schedule. -/
-theorem constantScheduleProgram_eventDepth_eq
+lemma constantScheduleProgram_eventDepth_eq
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -929,7 +946,7 @@ def constantScheduleUnloadProgram
       hcontrolTarget hzeroTarget).reverse
 
 /-- The reverse fixed schedule emits the same targeted primitive events. -/
-theorem constantScheduleUnloadProgram_primitiveEventCount
+lemma constantScheduleUnloadProgram_primitiveEventCount
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -952,19 +969,20 @@ def constantScheduleUnloadStep
       hcontrolTarget hzeroTarget).reverse
 
 /-- The reverse fixed schedule realizes its folded action. -/
-theorem constantScheduleUnload_realizes
+lemma constantScheduleUnload_realizes
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
-    (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire) :
+    (hzeroTarget : ∀ bit, zeroControl.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (constantScheduleUnloadProgram physical oracles control zeroControl target constant
-        hcontrolTarget hzeroTarget)
+        hcontrolTarget hzeroTarget) environment
       (constantScheduleUnloadStep control zeroControl target constant
         hcontrolTarget hzeroTarget) :=
-  GateSpec.realizesList physical oracles _
+  GateSpec.realizesList (environment := environment) physical oracles _
 
-private theorem reverse_constantScheduleGates_isCnot
+private lemma reverse_constantScheduleGates_isCnot
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -979,7 +997,7 @@ private theorem reverse_constantScheduleGates_isCnot
 
 /-- Reverse fixed-schedule strict event cost is independent of the classical
 constant. -/
-theorem constantScheduleUnloadProgram_eventCost_eq
+lemma constantScheduleUnloadProgram_eventCost_eq
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -997,7 +1015,7 @@ theorem constantScheduleUnloadProgram_eventCost_eq
 
 /-- Reverse fixed-schedule strict event depth is independent of the classical
 constant. -/
-theorem constantScheduleUnloadProgram_eventDepth_eq
+lemma constantScheduleUnloadProgram_eventDepth_eq
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (left right : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1029,7 +1047,7 @@ def constantScheduleIndicesStep (control zeroControl : EncodedBit encoding)
             hcontrolTarget hzeroTarget bit) x)
 
 /-- Flattening the block list agrees with the recursive semantic view. -/
-theorem stepList_flatMap_constantScheduleBitGates
+lemma stepList_flatMap_constantScheduleBitGates
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1048,7 +1066,7 @@ theorem stepList_flatMap_constantScheduleBitGates
       exact ih _
 
 /-- One fixed-schedule block preserves the known-zero control readout. -/
-theorem constantScheduleBitStep_get_zeroControl
+lemma constantScheduleBitStep_get_zeroControl
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1070,7 +1088,7 @@ theorem constantScheduleBitStep_get_zeroControl
 
 /-- On the clean subspace, one three-CNOT block is either the requested CNOT
 or the identity according to the corresponding classical constant bit. -/
-theorem constantScheduleBitStep_of_zeroControl_false
+lemma constantScheduleBitStep_of_zeroControl_false
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1099,7 +1117,7 @@ theorem constantScheduleBitStep_of_zeroControl_false
 
 /-- On the clean subspace, the recursive fixed schedule is the ordinary fold
 over exactly the set bits of the constant. -/
-theorem constantScheduleIndicesStep_eq_filteredFold_of_zeroControl_false
+lemma constantScheduleIndicesStep_eq_filteredFold_of_zeroControl_false
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1126,7 +1144,7 @@ theorem constantScheduleIndicesStep_eq_filteredFold_of_zeroControl_false
 
 /-- When the designated null control is false, the fixed schedule has exactly
 the same semantic action as the Hamming-weight-optimized controlled xor. -/
-theorem constantScheduleStep_eq_controlledXorConstantStep_of_zeroControl_false
+lemma constantScheduleStep_eq_controlledXorConstantStep_of_zeroControl_false
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1144,7 +1162,7 @@ theorem constantScheduleStep_eq_controlledXorConstantStep_of_zeroControl_false
 
 /-- Reversing the fixed gate list gives an exact unload for every state, not
 only on the clean subspace. -/
-theorem stepList_reverse_constantScheduleGates
+lemma stepList_reverse_constantScheduleGates
     (control zeroControl : EncodedBit encoding)
     (target : Word encoding width) (constant : Fin (2 ^ width))
     (hcontrolTarget : ∀ bit, control.wire ≠ (target.bit bit).wire)
@@ -1195,7 +1213,7 @@ def doubleControlledXorConstantStep
     (doubleControlledXorConstantGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
-theorem doubleControlledXorConstantStep_eq_indicesStep
+lemma doubleControlledXorConstantStep_eq_indicesStep
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
@@ -1215,7 +1233,7 @@ theorem doubleControlledXorConstantStep_eq_indicesStep
         ih (toffoliStep controlA controlB (target.bit bit) x)
 
 /-- Each target bit is toggled by both controls and the matching constant bit. -/
-theorem doubleControlledXorConstantStep_get_target
+lemma doubleControlledXorConstantStep_get_target
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
@@ -1247,7 +1265,7 @@ theorem doubleControlledXorConstantStep_get_target
     simpa [constantBitWord, hmem, hbit] using h
 
 /-- Doubly controlled constant xor preserves readouts outside the target word. -/
-theorem doubleControlledXorConstantStep_get_observed_of_target_ne
+lemma doubleControlledXorConstantStep_get_observed_of_target_ne
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
@@ -1269,32 +1287,35 @@ theorem doubleControlledXorConstantStep_get_observed_of_target_ne
     EncodedBit.get_flip_of_wire_ne (target.bit bit) observed
       (htargetObserved bit) y
 
-theorem doubleControlledXorConstant_realizes
+lemma doubleControlledXorConstant_realizes
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
-    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
+    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (doubleControlledXorConstantProgram physical oracles controlA controlB target constant
-        hcontrols hcontrolATarget hcontrolBTarget)
+        hcontrols hcontrolATarget hcontrolBTarget) environment
       (doubleControlledXorConstantStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList (environment := environment) physical oracles
     (doubleControlledXorConstantGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
 /-- Direct realization proof for doubly controlled constant xor. -/
-theorem doubleControlledXorConstantWitness
+lemma doubleControlledXorConstantWitness
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
-    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
+    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (doubleControlledXorConstantProgram physical oracles controlA controlB target constant
-        hcontrols hcontrolATarget hcontrolBTarget)
+        hcontrols hcontrolATarget hcontrolBTarget) environment
       (doubleControlledXorConstantStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  doubleControlledXorConstant_realizes physical oracles controlA controlB target constant
+  doubleControlledXorConstant_realizes
+    (environment := environment) physical oracles controlA controlB target constant
     hcontrols hcontrolATarget hcontrolBTarget
 
 /-! ### Doubly controlled unload -/
@@ -1331,36 +1352,39 @@ def doubleControlledXorConstantUnloadStep
     (doubleControlledXorConstantUnloadGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
-theorem doubleControlledXorConstantUnload_realizes
+lemma doubleControlledXorConstantUnload_realizes
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
-    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
+    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (doubleControlledXorConstantUnloadProgram physical oracles controlA controlB target
-        constant hcontrols hcontrolATarget hcontrolBTarget)
+        constant hcontrols hcontrolATarget hcontrolBTarget) environment
       (doubleControlledXorConstantUnloadStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList (environment := environment) physical oracles
     (doubleControlledXorConstantUnloadGates controlA controlB target constant
       hcontrols hcontrolATarget hcontrolBTarget)
 
 /-- Direct realization proof for reverse-list doubly controlled unloading. -/
-theorem doubleControlledXorConstantUnloadWitness
+lemma doubleControlledXorConstantUnloadWitness
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
-    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire) :
+    (hcontrolBTarget : ∀ bit, controlB.wire ≠ (target.bit bit).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (doubleControlledXorConstantUnloadProgram physical oracles controlA controlB target
-        constant hcontrols hcontrolATarget hcontrolBTarget)
+        constant hcontrols hcontrolATarget hcontrolBTarget) environment
       (doubleControlledXorConstantUnloadStep controlA controlB target constant
         hcontrols hcontrolATarget hcontrolBTarget) :=
-  doubleControlledXorConstantUnload_realizes physical oracles controlA controlB target constant
+  doubleControlledXorConstantUnload_realizes
+    (environment := environment) physical oracles controlA controlB target constant
     hcontrols hcontrolATarget hcontrolBTarget
 
 /-- Doubly controlled unload preserves readouts outside the target word. -/
-theorem doubleControlledXorConstantUnloadStep_get_observed_of_target_ne
+lemma doubleControlledXorConstantUnloadStep_get_observed_of_target_ne
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
@@ -1389,7 +1413,7 @@ theorem doubleControlledXorConstantUnloadStep_get_observed_of_target_ne
       (htargetObserved bit) y
 
 /-- Reverse-list doubly controlled unload has the same target-bit formula. -/
-theorem doubleControlledXorConstantUnloadStep_get_target
+lemma doubleControlledXorConstantUnloadStep_get_target
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
@@ -1440,7 +1464,7 @@ theorem doubleControlledXorConstantUnloadStep_get_target
     simp_all
 
 /-- Doubly controlled unloading after loading restores the encoded value. -/
-theorem doubleControlledXorConstantUnloadStep_after_doubleControlledXorConstantStep
+lemma doubleControlledXorConstantUnloadStep_after_doubleControlledXorConstantStep
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)
@@ -1458,7 +1482,7 @@ theorem doubleControlledXorConstantUnloadStep_after_doubleControlledXorConstantS
         hcontrols hcontrolATarget hcontrolBTarget) x
 
 /-- Doubly controlled loading after unloading restores the encoded value. -/
-theorem doubleControlledXorConstantStep_after_doubleControlledXorConstantUnloadStep
+lemma doubleControlledXorConstantStep_after_doubleControlledXorConstantUnloadStep
     (controlA controlB : EncodedBit encoding) (target : Word encoding width)
     (constant : Fin (2 ^ width)) (hcontrols : controlA.wire ≠ controlB.wire)
     (hcontrolATarget : ∀ bit, controlA.wire ≠ (target.bit bit).wire)

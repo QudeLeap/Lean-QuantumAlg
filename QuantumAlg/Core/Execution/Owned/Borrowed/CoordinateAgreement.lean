@@ -27,12 +27,12 @@ namespace QuantumAlg.Execution.OwnedBorrowedQubits
 
 noncomputable section
 
-private theorem finiteBit_value (value : Fin 2) :
+private lemma finiteBit_value (value : Fin 2) :
     finTwoEquiv value = decide (value.val = 1) := by
   fin_cases value <;> rfl
 
 /-- The complete encoding reads the original finite value at the corresponding physical wire. -/
-theorem basisEquiv_bit (owned borrowed : Nat) (basis : (context owned borrowed).register.Index)
+lemma basisEquiv_bit (owned borrowed : Nat) (basis : (context owned borrowed).register.Index)
     (index : Fin (owned + borrowed)) :
     (basisEquiv owned borrowed basis).val.testBit index.rev.val =
       decide ((basis (positionEquiv owned borrowed index)).val = 1) := by
@@ -48,7 +48,7 @@ theorem basisEquiv_bit (owned borrowed : Nat) (basis : (context owned borrowed).
       (congrArg (fun value => decide (value = 1)) values.symm))
 
 /-- The separate owned encoding reads precisely the complementary physical prefix. -/
-theorem ownedBinaryEquiv_bit (owned borrowed : Nat)
+lemma ownedBinaryEquiv_bit (owned borrowed : Nat)
     (basis : (context owned borrowed).quantumLayout.ComplementBasis
       (context owned borrowed).borrowedSelection) (index : Fin owned) :
     (ownedBinaryEquiv owned borrowed basis).val.testBit index.rev.val =
@@ -75,7 +75,7 @@ private def borrowedWire (owned borrowed : Nat) (index : Fin borrowed) :
   ⟨positionEquiv owned borrowed (Fin.natAdd owned index),
     (borrowed_position_iff owned borrowed _).mpr (by simp only [Fin.val_natAdd]; omega)⟩
 
-private theorem borrowedWire_position (owned borrowed : Nat) (index : Fin borrowed) :
+private lemma borrowedWire_position (owned borrowed : Nat) (index : Fin borrowed) :
     (context owned borrowed).borrowedPositionEquiv (borrowedWire owned borrowed index) =
       Execution.positionsOfEqualWires (borrowedLayout owned borrowed).toQuantumLayout
         (context owned borrowed).borrowedQuantumLayout
@@ -95,7 +95,7 @@ private theorem borrowedWire_position (owned borrowed : Nat) (index : Fin borrow
   rfl
 
 /-- The separate borrowed encoding follows the original source-wire order and finite values. -/
-theorem borrowedBinaryEquiv_bit (owned borrowed : Nat)
+lemma borrowedBinaryEquiv_bit (owned borrowed : Nat)
     (basis : (context owned borrowed).quantumLayout.SelectedBasis
       (context owned borrowed).borrowedSelection) (index : Fin borrowed) :
     (borrowedBinaryEquiv owned borrowed basis).val.testBit index.rev.val =
@@ -119,7 +119,7 @@ theorem borrowedBinaryEquiv_bit (owned borrowed : Nat)
         (originalValues.symm.trans selectedValues)))
 
 /-- Full-frame binary encoding equals the tensor encoding of its actual owned and borrowed words. -/
-theorem basisEquiv_eq_wordBinaryEquiv (owned borrowed : Nat) :
+lemma basisEquiv_eq_wordBinaryEquiv (owned borrowed : Nat) :
     basisEquiv owned borrowed = wordBinaryEquiv owned borrowed := by
   apply Equiv.ext
   intro basis
@@ -158,7 +158,7 @@ theorem basisEquiv_eq_wordBinaryEquiv (owned borrowed : Nat) :
     rfl
 
 /-- Reassembling the actual selections has the standard owned-first tensor label. -/
-theorem basisEquiv_join (owned borrowed : Nat)
+lemma basisEquiv_join (owned borrowed : Nat)
     (selected : (context owned borrowed).quantumLayout.SelectedBasis
       (context owned borrowed).borrowedSelection)
     (complement : (context owned borrowed).quantumLayout.ComplementBasis

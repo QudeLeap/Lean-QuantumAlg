@@ -37,14 +37,14 @@ def layout (N : Nat) : QuantumLayout (bankQubits N) :=
   (QuantumSignature.qubits (bankQubits N)).canonicalPlacement.layout
 
 /-- The standard phase width gives the declared bank three modulus widths. -/
-theorem bankQubits_eq_three_mul (N : Nat) : bankQubits N = 3 * modulusBits N := by
+lemma bankQubits_eq_three_mul (N : Nat) : bankQubits N = 3 * modulusBits N := by
   unfold bankQubits phaseBits
   omega
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 include noQuantum in
-theorem allocationDisjoint : List.Disjoint (layout N).identities base.physicalIdx := by
+lemma allocationDisjoint : List.Disjoint (layout N).identities base.physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, noQuantum, List.map_nil]
   exact List.disjoint_nil_right _
 
@@ -54,7 +54,7 @@ def bankContext : RuntimeCtx .quantum :=
     (allocationDisjoint base noQuantum N)
 
 /-- The initializer contributes precisely the declared bank's complete wire list. -/
-theorem bankContext_wires :
+lemma bankContext_wires :
     (bankContext base noQuantum N).quantumWires = (layout N).wires := by
   change (layout N).wires ++ base.quantumWires = _
   rw [noQuantum, List.append_nil]
@@ -62,7 +62,7 @@ theorem bankContext_wires :
 variable {ctx : RuntimeCtx .quantum} (N : Nat) (sameWires : ctx.quantumWires = (layout N).wires)
 
 include sameWires in
-private theorem layoutWires : (layout N).wires = ctx.quantumLayout.wires :=
+private lemma layoutWires : (layout N).wires = ctx.quantumLayout.wires :=
   (ctx.quantumLayout_wires.trans sameWires).symm
 
 /-- Corresponding positions preserve complete wire identities and dimensions. -/
@@ -70,13 +70,13 @@ def wireEquiv : Fin (bankQubits N) ≃ Fin ctx.systemCount :=
   Execution.positionsOfEqualWires (layout N) ctx.quantumLayout (layoutWires N sameWires)
 
 /-- The actual wire at each source position retains its physical identity and dimension. -/
-theorem shorDeclared_wire_preserved (wire : Fin (bankQubits N)) :
+lemma shorDeclared_wire_preserved (wire : Fin (bankQubits N)) :
     ctx.quantumLayout.wire (wireEquiv N sameWires wire) = (layout N).wire wire :=
   Execution.wireAtCorrespondingPosition (layout N) ctx.quantumLayout (layoutWires N sameWires) wire
 
 include sameWires in
 /-- Every actual bank wire has dimension two. -/
-theorem shorDeclared_context_qubits (wire : Fin ctx.systemCount) :
+lemma shorDeclared_context_qubits (wire : Fin ctx.systemCount) :
     (ctx.quantumLayout.wire wire).dimension = 2 := by
   obtain ⟨original, rfl⟩ := (wireEquiv N sameWires).surjective wire
   exact congrArg QuantumWire.dimension (shorDeclared_wire_preserved N sameWires original)

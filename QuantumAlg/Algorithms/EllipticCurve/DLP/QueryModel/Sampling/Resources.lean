@@ -37,43 +37,43 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 attribute [local implicit_reducible] readoutCode
 
 /-- The complete sampling ledger includes initialization and all terminal measurements. -/
-public def eventBudget (I : ECDLPInstance E) (A : Access I)
+public def eventBudget (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    ResourcePool (executionModel I A) :=
-  ZeroPreparation.eventCost AlgorithmGate.model (model I A) (layout I) BitWord.model .empty +
-    (nativeProgram I A expansion).eventCost BitWord.model .empty +
-    sampleWidth I • ResourcePool.singleton (model := executionModel I A) (.measurement (2 : ℕ+))
+    ResourcePool (executionModel I) :=
+  ZeroPreparation.eventCost AlgorithmGate.model (model I) (layout I) BitWord.model .empty +
+    (nativeProgram I expansion).eventCost BitWord.model .empty +
+    sampleWidth I • ResourcePool.singleton (model := executionModel I) (.measurement (2 : ℕ+))
 
-private theorem allocation_trace (I : ECDLPInstance E) (A : Access I)
-    (path : (allocationCode I A).Path) : (allocationCode I A).eventTrace path = [] :=
-  MeasurementCells.allocate_eventTrace (model := executionModel I A)
+private lemma allocation_trace (I : ECDLPInstance E)
+    (path : (allocationCode I).Path) : (allocationCode I).eventTrace path = [] :=
+  MeasurementCells.allocate_eventTrace (model := executionModel I)
     (bankContext I) 2 (sampleWidth I) path
 
-private theorem preparation_pool (I : ECDLPInstance E) (A : Access I)
-    (path : (preparationCode I A).Path) :
-    ResourcePool.ofList ((preparationCode I A).eventTrace path) =
-      ZeroPreparation.eventCost AlgorithmGate.model (model I A) (layout I) BitWord.model .empty :=
+private lemma preparation_pool (I : ECDLPInstance E)
+    (path : (preparationCode I).Path) :
+    ResourcePool.ofList ((preparationCode I).eventTrace path) =
+      ZeroPreparation.eventCost AlgorithmGate.model (model I) (layout I) BitWord.model .empty :=
   rfl
 
-private theorem program_pool (I : ECDLPInstance E) (A : Access I)
+private lemma program_pool (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    ResourcePool.ofList ((nativeProgram I A expansion).eventTrace BitWord.model .empty) =
-      (nativeProgram I A expansion).eventCost BitWord.model .empty :=
-  UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram I A expansion) BitWord.model .empty
+    ResourcePool.ofList ((nativeProgram I expansion).eventTrace BitWord.model .empty) =
+      (nativeProgram I expansion).eventCost BitWord.model .empty :=
+  UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram I expansion) BitWord.model .empty
 
-private theorem readouts_qubits (I : ECDLPInstance E)
+private lemma readouts_qubits (I : ECDLPInstance E)
     (item : ZReadout (post I)) (present : item ∈ readouts I) :
     ((post I).quantumLayout.wire item.wire).dimension = 2 := by
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present
   exact exponent_dimension I index
 
-private theorem measurement_pool (I : ECDLPInstance E) (A : Access I)
-    (path : (readoutCode I A).Path) :
-    ResourcePool.ofList ((readoutCode I A).eventTrace path) =
+private lemma measurement_pool (I : ECDLPInstance E)
+    (path : (readoutCode I).Path) :
+    ResourcePool.ofList ((readoutCode I).eventTrace path) =
       sampleWidth I •
-        ResourcePool.singleton (model := executionModel I A) (.measurement (2 : ℕ+)) := by
+        ResourcePool.singleton (model := executionModel I) (.measurement (2 : ℕ+)) := by
   rw [← Circuit.resourcePool]
-  change (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := model I A)
+  change (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := model I)
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (readouts I)).resourcePool path = _
   rw [Circuit.measurementSequence_qubit_resourcePool (readouts I) (readouts_qubits I)]
@@ -81,10 +81,10 @@ private theorem measurement_pool (I : ECDLPInstance E) (A : Access I)
   rfl
 
 /-- Every actual path has exactly the complete allocation-to-readout ledger. -/
-public theorem code_events (I : ECDLPInstance E) (A : Access I)
+public lemma code_events (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (path : (code I A expansion).Path) :
-    (code I A expansion).resourcePool path = eventBudget I A expansion := by
+    (path : (code I expansion).Path) :
+    (code I expansion).resourcePool path = eventBudget I expansion := by
   simp only [Circuit.resourcePool, code, beforeMeasurement, initialCode,
     Circuit.eventTrace, allocation_trace, ResourcePool.ofList_append,
     ResourcePool.ofList_nil, add_zero, program_pool, measurement_pool, preparation_pool]
@@ -92,7 +92,7 @@ public theorem code_events (I : ECDLPInstance E) (A : Access I)
   abel
 
 /-- All actual result cells, qubits and original classical points coexist in resident storage. -/
-public theorem post_residentSpace (I : ECDLPInstance E) :
+public lemma post_residentSpace (I : ECDLPInstance E) :
     (post I).residentSpace =
       sampleWidth I • SpacePool.ofShape (.finite 2) +
         (SpacePool.ofQuantumLayout (layout I) + (pre I).residentSpace) := by
@@ -100,7 +100,7 @@ public theorem post_residentSpace (I : ECDLPInstance E) :
     RuntimeCtx.residentSpace_addOwnedLayout]
 
 /-- The separate auxiliary ledger retains the same owned bank and retained measurement cells. -/
-public theorem post_auxiliarySpace (I : ECDLPInstance E) :
+public lemma post_auxiliarySpace (I : ECDLPInstance E) :
     (post I).auxiliarySpace =
       sampleWidth I • SpacePool.ofShape (.finite 2) +
         (SpacePool.ofQuantumLayout (layout I) + (pre I).auxiliarySpace) := by

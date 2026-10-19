@@ -26,7 +26,7 @@ noncomputable section
 
 open Execution MeasuredUncompute MAU.Inversion.SharedEEA
 
-private theorem auxiliary_resident (modulus count : Nat)
+private lemma auxiliary_resident (modulus count : Nat)
     (path : (prepareAuxiliary modulus count).Path) :
     (prepareAuxiliary modulus count).peakResidentSpace path =
       ((InversePreparation.after modulus.size).disjointUnion
@@ -39,7 +39,7 @@ private theorem auxiliary_resident (modulus count : Nat)
     (auxiliary_disjoint modulus.size count)
     (InPlacePreparation.loadProgram modulus) path
 
-private theorem auxiliary_auxiliary (modulus count : Nat)
+private lemma auxiliary_auxiliary (modulus count : Nat)
     (path : (prepareAuxiliary modulus count).Path) :
     (prepareAuxiliary modulus count).peakAuxiliarySpace path =
       ((InversePreparation.after modulus.size).disjointUnion
@@ -52,27 +52,27 @@ private theorem auxiliary_auxiliary (modulus count : Nat)
     (auxiliary_disjoint modulus.size count)
     (InPlacePreparation.loadProgram modulus) path
 
-private theorem cells_resident (width count : Nat) (path : (allocateCells width count).Path) :
+private lemma cells_resident (width count : Nat) (path : (allocateCells width count).Path) :
     (allocateCells width count).peakResidentSpace path =
       (withCells width count).residentSpace :=
   (MeasurementCells.allocateFramed_peakResidentSpace _ _ _ _ _ path).trans
     (RuntimeCtx.residentSpace_disjointUnion _ _ _).symm
 
-private theorem cells_auxiliary (width count : Nat) (path : (allocateCells width count).Path) :
+private lemma cells_auxiliary (width count : Nat) (path : (allocateCells width count).Path) :
     (allocateCells width count).peakAuxiliarySpace path =
       (withCells width count).auxiliarySpace :=
   (MeasurementCells.allocateFramed_peakAuxiliarySpace _ _ _ _ _ path).trans
     (RuntimeCtx.auxiliarySpace_disjointUnion _ _ _).symm
 
-private theorem selector_resident (width count : Nat) (path : (prepareSelector width count).Path) :
+private lemma selector_resident (width count : Nat) (path : (prepareSelector width count).Path) :
     (prepareSelector width count).peakResidentSpace path = (after width count).residentSpace :=
   Circuit.prepare_peakResidentSpace _ _ _ _ _ _
 
-private theorem selector_auxiliary (width count : Nat) (path : (prepareSelector width count).Path) :
+private lemma selector_auxiliary (width count : Nat) (path : (prepareSelector width count).Path) :
     (prepareSelector width count).peakAuxiliarySpace path = (after width count).auxiliarySpace :=
   Circuit.prepare_peakAuxiliarySpace _ _ _ _ _ _
 
-private theorem auxiliary_le_cells_resident (width count : Nat) :
+private lemma auxiliary_le_cells_resident (width count : Nat) :
     ((InversePreparation.after width).disjointUnion (exponents width count)
       (auxiliary_disjoint width count)).residentSpace ≤
         (withCells width count).residentSpace := by
@@ -82,7 +82,7 @@ private theorem auxiliary_le_cells_resident (width count : Nat) :
     (MeasurementCells.context_residentSpace_mono (InversePreparation.after width) 2
       (Nat.zero_le width) axis) _
 
-private theorem auxiliary_le_cells_auxiliary (width count : Nat) :
+private lemma auxiliary_le_cells_auxiliary (width count : Nat) :
     ((InversePreparation.after width).disjointUnion (exponents width count)
       (auxiliary_disjoint width count)).auxiliarySpace ≤
         (withCells width count).auxiliarySpace := by
@@ -92,14 +92,14 @@ private theorem auxiliary_le_cells_auxiliary (width count : Nat) :
     (MeasurementCells.context_auxiliarySpace_mono (InversePreparation.after width) 2
       (Nat.zero_le width) axis) _
 
-private theorem cells_le_after_resident (width count : Nat) :
+private lemma cells_le_after_resident (width count : Nat) :
     (withCells width count).residentSpace ≤ (after width count).residentSpace := by
   change (withCells width count).residentSpace ≤
     SpacePool.ofQuantumLayout (indexedLayout width count) +
       (withCells width count).residentSpace
   exact fun axis => Nat.le_add_left _ _
 
-private theorem cells_le_after_auxiliary (width count : Nat) :
+private lemma cells_le_after_auxiliary (width count : Nat) :
     (withCells width count).auxiliarySpace ≤ (after width count).auxiliarySpace := by
   change (withCells width count).auxiliarySpace ≤
     SpacePool.ofQuantumLayout (indexedLayout width count) +
@@ -107,19 +107,19 @@ private theorem cells_le_after_auxiliary (width count : Nat) :
   exact fun axis => Nat.le_add_left _ _
 
 /-- The actually allocated final context has the independent complete resident capacity. -/
-theorem after_resident (width count : Nat) :
+lemma after_resident (width count : Nat) :
     (after width count).residentSpace = readySpace width count :=
   (ContextPermutation.resident_space (body_entries width count)).symm.trans
     (readyContext_resident_exact width count)
 
 /-- The actually allocated final context retains the original fixed auxiliary roles. -/
-theorem after_auxiliary (width count : Nat) :
+lemma after_auxiliary (width count : Nat) :
     (after width count).auxiliarySpace = readySpace width count :=
   (ContextPermutation.auxiliary_space (body_entries width count)).symm.trans
     (readyContext_auxiliary_exact width count)
 
 /-- Actual initialization reaches the complete final resident peak without another live bank. -/
-theorem initialize_resident (modulus count : Nat) (path : (initializeWork modulus count).Path) :
+lemma initialize_resident (modulus count : Nat) (path : (initializeWork modulus count).Path) :
     (initializeWork modulus count).peakResidentSpace path = readySpace modulus.size count := by
   refine (Circuit.peakResidentSpace_seq (prepareAuxiliary modulus count)
     (.seq (allocateCells modulus.size count) (prepareSelector modulus.size count)) path).trans ?_
@@ -131,7 +131,7 @@ theorem initialize_resident (modulus count : Nat) (path : (initializeWork modulu
       (cells_le_after_resident modulus.size count)), after_resident]
 
 /-- The initialization auxiliary peak is derived from those same actual visited contexts. -/
-theorem initialize_auxiliary (modulus count : Nat) (path : (initializeWork modulus count).Path) :
+lemma initialize_auxiliary (modulus count : Nat) (path : (initializeWork modulus count).Path) :
     (initializeWork modulus count).peakAuxiliarySpace path = readySpace modulus.size count := by
   refine (Circuit.peakAuxiliarySpace_seq (prepareAuxiliary modulus count)
     (.seq (allocateCells modulus.size count) (prepareSelector modulus.size count)) path).trans ?_
@@ -143,7 +143,7 @@ theorem initialize_auxiliary (modulus count : Nat) (path : (initializeWork modul
       (cells_le_after_auxiliary modulus.size count)), after_auxiliary]
 
 /-- The complete allocating circuit attains the independently prescribed resident space. -/
-theorem circuit_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (path : (circuit E points order).Path) :
     (circuit E points order).peakResidentSpace path = readySpace p.size count := by
@@ -153,7 +153,7 @@ theorem circuit_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Pr
   exact SpacePool.max_eq_right le_rfl
 
 /-- The whole actual allocating circuit has the same proved fixed-role auxiliary peak. -/
-theorem circuit_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (path : (circuit E points order).Path) :
     (circuit E points order).peakAuxiliarySpace path = readySpace p.size count := by

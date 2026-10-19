@@ -40,7 +40,7 @@ def additionalSpace (N count : Nat) : SpacePool .quantum :=
     (NativeBatchRecovery.retainedSpace N + suffixAllowance N count)
 
 /-- Every suffix retains exactly the permanent additions of its actual later batches. -/
-theorem suffixContext_resident (N count : Nat) (start : RuntimeCtx .quantum) :
+lemma suffixContext_resident (N count : Nat) (start : RuntimeCtx .quantum) :
     (suffixContext N start count).residentSpace =
       start.residentSpace + count • NativeBatchReuseRecovery.retainedSpace N := by
   induction count generalizing start with
@@ -51,7 +51,7 @@ theorem suffixContext_resident (N count : Nat) (start : RuntimeCtx .quantum) :
       ac_rfl
 
 /-- Every persistent later-batch cell remains an owned auxiliary of exactly the same capacity. -/
-theorem suffixContext_auxiliary (N count : Nat) (start : RuntimeCtx .quantum) :
+lemma suffixContext_auxiliary (N count : Nat) (start : RuntimeCtx .quantum) :
     (suffixContext N start count).auxiliarySpace =
       start.auxiliarySpace + count • NativeBatchReuseRecovery.retainedSpace N := by
   induction count generalizing start with
@@ -62,24 +62,24 @@ theorem suffixContext_auxiliary (N count : Nat) (start : RuntimeCtx .quantum) :
       ac_rfl
 
 /-- Repeating a batch adds no permanent quantum capacity in any native dimension. -/
-theorem retainedSpace_quantum (N count : Nat) (dimension : ℕ+) :
+lemma retainedSpace_quantum (N count : Nat) (dimension : ℕ+) :
     retainedSpace N count (.quantumSystems dimension) =
       NativeBatchRecovery.retainedSpace N (.quantumSystems dimension) := by
   simp only [retainedSpace, Pi.add_apply, Pi.smul_apply,
     NativeBatchReuseRecovery.retainedSpace_quantum, smul_zero, Nat.add_zero]
 
 /-- The entire quantum peak allowance is independent of the number of subsequent batches. -/
-theorem additionalSpace_quantum (N count : Nat) (dimension : ℕ+) :
+lemma additionalSpace_quantum (N count : Nat) (dimension : ℕ+) :
     additionalSpace N count (.quantumSystems dimension) =
       additionalSpace N 0 (.quantumSystems dimension) := by
   simp only [additionalSpace, suffixAllowance, SpacePool.max, Pi.add_apply, Pi.smul_apply,
     NativeBatchReuseRecovery.retainedSpace_quantum, smul_zero, Nat.zero_add]
 
-private theorem temporary_le_suffix (retained temporary : SpacePool .quantum) (count : Nat) :
+private lemma temporary_le_suffix (retained temporary : SpacePool .quantum) (count : Nat) :
     temporary ≤ count • retained + temporary :=
   fun _ => Nat.le_add_left _ _
 
-private theorem successorAllowance (original retained temporary : SpacePool .quantum)
+private lemma successorAllowance (original retained temporary : SpacePool .quantum)
     (count : Nat) :
     (original + retained) + (count • retained + temporary) =
       original + ((count + 1) • retained + temporary) := by
@@ -89,7 +89,7 @@ private theorem successorAllowance (original retained temporary : SpacePool .qua
 variable {N : Nat}
 
 /-- Every actual suffix resident peak includes accumulated retained cells and one scratch peak. -/
-theorem suffix_resident_le (input : Input N) :
+lemma suffix_resident_le (input : Input N) :
     ∀ (count : Nat) (start : RuntimeCtx .quantum)
       (wires : start.quantumWires =
         (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
@@ -122,7 +122,7 @@ theorem suffix_resident_le (input : Input N) :
         exact bound.trans_eq (successorAllowance _ _ _ count)
 
 /-- The same actual suffix charges retained ownership and one auxiliary scratch peak. -/
-theorem suffix_auxiliary_le (input : Input N) :
+lemma suffix_auxiliary_le (input : Input N) :
     ∀ (count : Nat) (start : RuntimeCtx .quantum)
       (wires : start.quantumWires =
         (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
@@ -157,7 +157,7 @@ theorem suffix_auxiliary_le (input : Input N) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The final context contains exactly the original caller and all actually retained capacity. -/
-theorem context_resident (N count : Nat) :
+lemma context_resident (N count : Nat) :
     (context base noQuantum N count).residentSpace =
       base.residentSpace + retainedSpace N count := by
   unfold context
@@ -165,7 +165,7 @@ theorem context_resident (N count : Nat) :
   exact add_assoc _ _ _
 
 /-- The final owned auxiliary capacity has exactly the same retained additions. -/
-theorem context_auxiliary (N count : Nat) :
+lemma context_auxiliary (N count : Nat) :
     (context base noQuantum N count).auxiliarySpace =
       base.auxiliarySpace + retainedSpace N count := by
   unfold context
@@ -173,7 +173,7 @@ theorem context_auxiliary (N count : Nat) :
   exact add_assoc _ _ _
 
 /-- Resident capacity takes the maximum of the actual first execution and its same-bank suffix. -/
-theorem code_resident_le (input : Input N) (count : Nat)
+lemma code_resident_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).peakResidentSpace path ≤
       base.residentSpace + additionalSpace N count := by
@@ -190,7 +190,7 @@ theorem code_resident_le (input : Input N) (count : Nat)
     exact bound.trans (add_le_add (le_refl _) (SpacePool.le_max_right _ _))
 
 /-- Auxiliary capacity charges permanent results and temporary native-power storage only once. -/
-theorem code_auxiliary_le (input : Input N) (count : Nat)
+lemma code_auxiliary_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N count := by

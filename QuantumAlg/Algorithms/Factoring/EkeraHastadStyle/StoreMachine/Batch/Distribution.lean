@@ -81,14 +81,14 @@ def packedValue {N : Nat} (value : (NativeBatch.resultShape N).Value) :
   LatticeBatchRecoveryOutput.outputValue (recoverValue value)
 
 /-- Decoding the actual stored source recovers its original finite sample. -/
-theorem decodeSource_sourceValue {N : Nat} (input : Input N)
+lemma decodeSource_sourceValue {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N))
     (samples : List.Vector (Fin (measurementBits N) → Bool) 16) :
     decodeSource (NativeBatch.sourceValue input source samples) = source :=
   (sourceEncoding N).symm_apply_apply source
 
 /-- The complete source value retains precisely its chronological outcome vector. -/
-theorem decodeOutcomes_sourceValue {N : Nat} (input : Input N)
+lemma decodeOutcomes_sourceValue {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N))
     (samples : List.Vector (Fin (measurementBits N) → Bool) 16) :
     decodeOutcomes (NativeBatch.sourceValue input source samples) = samples := by
@@ -98,7 +98,7 @@ theorem decodeOutcomes_sourceValue {N : Nat} (input : Input N)
   rfl
 
 /-- The retained parameter is the parameter of the internally decoded source. -/
-theorem sourceValue_parameter {N : Nat} (input : Input N)
+lemma sourceValue_parameter {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N))
     (samples : List.Vector (Fin (measurementBits N) → Bool) 16) :
     (NativeBatch.sourceValue input source samples).second.first =
@@ -107,7 +107,7 @@ theorem sourceValue_parameter {N : Nat} (input : Input N)
   rfl
 
 /-- Decoding the native value gives the original prepared samples pointwise. -/
-theorem decodeSamples_sourceValue {N : Nat} (input : Input N)
+lemma decodeSamples_sourceValue {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N))
     (samples : List.Vector (Fin (measurementBits N) → Bool) 16) :
     decodeSamples (NativeBatch.sourceValue input source samples) =
@@ -115,7 +115,7 @@ theorem decodeSamples_sourceValue {N : Nat} (input : Input N)
   rw [decodeSamples, decodeOutcomes_sourceValue, decodeSource_sourceValue]
 
 /-- The original natural optional recovery result is preserved for each complete source value. -/
-theorem recoverValue_sourceValue {N : Nat} (input : Input N)
+lemma recoverValue_sourceValue {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N))
     (samples : List.Vector (Fin (measurementBits N) → Bool) 16) :
     recoverValue (NativeBatch.sourceValue input source samples) =
@@ -124,7 +124,7 @@ theorem recoverValue_sourceValue {N : Nat} (input : Input N)
   rw [recoverValue, decodeSamples_sourceValue]
 
 /-- The shaped optional recovery result is preserved for each complete source value. -/
-theorem packedValue_sourceValue {N : Nat} (input : Input N)
+lemma packedValue_sourceValue {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N))
     (samples : List.Vector (Fin (measurementBits N) → Bool) 16) :
     packedValue (NativeBatch.sourceValue input source samples) =
@@ -134,7 +134,7 @@ theorem packedValue_sourceValue {N : Nat} (input : Input N)
   rw [packedValue, recoverValue_sourceValue]
 
 /-- For one fixed internal source, native outcomes yield the original sixteen-sample law. -/
-theorem sourceValue_distribution_map_decodeSamples {N : Nat} (input : Input N)
+lemma sourceValue_distribution_map_decodeSamples {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N)) :
     ((PMF.independentReplicateVector
       (selectedOutcomePMF (parameterValue input source)) 16).map
@@ -150,7 +150,7 @@ theorem sourceValue_distribution_map_decodeSamples {N : Nat} (input : Input N)
     (selectedOutcomePMF (parameterValue input source)) (preparedSampleOfMeasurement source) 16
 
 /-- The fixed-source pure recovery map is exactly the original conditional output law. -/
-theorem sourceValue_distribution_map_recoverValue {N : Nat} (input : Input N)
+lemma sourceValue_distribution_map_recoverValue {N : Nat} (input : Input N)
     (source : Fin (2 ^ residueSamplingBits N)) :
     ((PMF.independentReplicateVector
       (selectedOutcomePMF (parameterValue input source)) 16).map
@@ -165,7 +165,7 @@ theorem sourceValue_distribution_map_recoverValue {N : Nat} (input : Input N)
   rfl
 
 /-- The native complete source distribution recovers the original same-source output law. -/
-theorem sourceDistribution_map_recoverValue {N : Nat} (input : Input N) :
+lemma sourceDistribution_map_recoverValue {N : Nat} (input : Input N) :
     (NativeBatch.sourceDistribution input).map recoverValue = sampledBatchOutputPMF input := by
   rw [NativeBatch.sourceDistribution, PMF.map_bind]
   apply congrArg (PMF.bind (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))))
@@ -173,7 +173,7 @@ theorem sourceDistribution_map_recoverValue {N : Nat} (input : Input N) :
   exact sourceValue_distribution_map_recoverValue input source
 
 /-- Packing the actual source law gives the original optional factor distribution. -/
-theorem sourceDistribution_map_packedValue {N : Nat} (input : Input N) :
+lemma sourceDistribution_map_packedValue {N : Nat} (input : Input N) :
     (NativeBatch.sourceDistribution input).map packedValue =
       (sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue := by
   have packing : packedValue (N := N) =

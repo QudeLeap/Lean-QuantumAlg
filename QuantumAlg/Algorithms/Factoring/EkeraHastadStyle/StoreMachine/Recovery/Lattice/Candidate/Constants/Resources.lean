@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native zero initialization and original initialized upper-bound formula. -/
@@ -28,7 +29,7 @@ def loadTrace (m width : Nat) : List (Resource.Event model) :=
     ClassicalRoutines.Word.PowerOfTwo.powerTrace width m
 
 /-- Every actual shared-constant path emits the complete independent native formula. -/
-theorem loadInto_events (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
+lemma loadInto_events (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
     (loadInto m refs).eventTrace path = loadTrace m width := by
   change (BitWord.instruction (execution := model)
     (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero)).eventTrace path.1 ++ _ = _
@@ -37,12 +38,12 @@ theorem loadInto_events (m : Nat) (refs : Refs ctx width) (path : (loadInto m re
   rfl
 
 /-- Actual native multiplicities count zeroing, upper-bound initialization and every shift. -/
-theorem loadInto_resourcePool (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
+lemma loadInto_resourcePool (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
     (loadInto m refs).resourcePool path = ResourcePool.ofList (loadTrace m width) :=
   congrArg ResourcePool.ofList (loadInto_events m refs path)
 
 /-- Actual operation count includes both explicit initializations and the original power loading. -/
-theorem loadInto_eventCount (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
+lemma loadInto_eventCount (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
     ((loadInto m refs).eventTrace path).length = m + 3 := by
   change List.length ([_] ++ _) = _
   rw [List.length_append, ClassicalRoutines.Word.PowerOfTwo.into_eventCount]
@@ -50,7 +51,7 @@ theorem loadInto_eventCount (m : Nat) (refs : Refs ctx width) (path : (loadInto 
   omega
 
 /-- Unit-duration dependency depth charges the full original initialization sequence. -/
-theorem loadInto_depth (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
+lemma loadInto_depth (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
     (loadInto m refs).depth (fun _ => 1) path = m + 3 := by
   change 1 + (ClassicalRoutines.Word.PowerOfTwo.into m refs.upperBound).depth
     (fun _ => 1) path.2 = _
@@ -58,16 +59,18 @@ theorem loadInto_depth (m : Nat) (refs : Refs ctx width) (path : (loadInto m ref
   omega
 
 /-- Actual constant initialization restores the complete original borrowed-reference joint state. -/
-theorem loadInto_borrowedRestored (m : Nat) (refs : Refs ctx width) (Reference : Register)
+lemma loadInto_borrowedRestored (m : Nat) (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (loadInto m refs).BorrowedRestored Reference state
-      ((loadInto m refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
+      ((loadInto m refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (Circuit.borrowedRestored_classical (environment :=
+    environment) _ state)
     (ClassicalRoutines.Word.PowerOfTwo.into_borrowedRestored m refs.upperBound Reference _)
 
 /-- Every actual initialization instruction and shift retains the original supplied context. -/
-theorem loadInto_visited (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path)
+lemma loadInto_visited (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadInto m refs).visitedContexts path) :
     visited = ctx := by
@@ -78,14 +81,14 @@ theorem loadInto_visited (m : Nat) (refs : Refs ctx width) (path : (loadInto m r
     (ClassicalRoutines.Word.PowerOfTwo.into_visited m refs.upperBound path.2 visited)
 
 /-- Resident accounting includes both constants and every other live caller resource. -/
-theorem loadInto_resident_le (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
+lemma loadInto_resident_le (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
     (loadInto m refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [loadInto_visited m refs path visited present]
 
 /-- Auxiliary accounting retains original roles and allocates no additional cells. -/
-theorem loadInto_auxiliary_le (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
+lemma loadInto_auxiliary_le (m : Nat) (refs : Refs ctx width) (path : (loadInto m refs).Path) :
     (loadInto m refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

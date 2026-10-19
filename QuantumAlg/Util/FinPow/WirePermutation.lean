@@ -38,7 +38,7 @@ def permuteLabel {width : Nat} (permutation : Equiv.Perm (Fin width)) :
     (bigEndianEquiv width)
 
 /-- A bit is transported to exactly the same wire selected by the finite permutation. -/
-theorem binaryPermuteLabel_bit {width : Nat} (permutation : Equiv.Perm (Fin width))
+lemma binaryPermuteLabel_bit {width : Nat} (permutation : Equiv.Perm (Fin width))
     (input : Fin (2 ^ width)) (wire : Fin width) :
     (permuteLabel permutation input).val.testBit (permutation wire).rev.val =
       input.val.testBit wire.rev.val := by
@@ -53,17 +53,17 @@ def extendWirePermutation {width : Nat} (permutation : Equiv.Perm (Fin width))
     (wire : Nat) : Nat :=
   if inside : wire < width then (permutation ⟨wire, inside⟩).val else wire
 
-theorem binaryExtendWirePermutation_apply {width : Nat}
+lemma binaryExtendWirePermutation_apply {width : Nat}
     (permutation : Equiv.Perm (Fin width)) (wire : Fin width) :
     extendWirePermutation permutation wire.val = (permutation wire).val := by
   simp only [extendWirePermutation, dif_pos wire.isLt]
 
-theorem binaryExtendWirePermutation_outside {width : Nat}
+lemma binaryExtendWirePermutation_outside {width : Nat}
     (permutation : Equiv.Perm (Fin width)) (wire : Nat) (outside : width ≤ wire) :
     extendWirePermutation permutation wire = wire := by
   exact dif_neg (by omega)
 
-theorem binaryExtendWirePermutation_inverse {width : Nat}
+lemma binaryExtendWirePermutation_inverse {width : Nat}
     (permutation : Equiv.Perm (Fin width)) (wire : Nat) :
     extendWirePermutation permutation.symm (extendWirePermutation permutation wire) = wire := by
   by_cases inside : wire < width
@@ -75,14 +75,14 @@ theorem binaryExtendWirePermutation_inverse {width : Nat}
   · rw [binaryExtendWirePermutation_outside permutation wire (by omega),
       binaryExtendWirePermutation_outside permutation.symm wire (by omega)]
 
-theorem binaryExtendWirePermutation_injective {width : Nat}
+lemma binaryExtendWirePermutation_injective {width : Nat}
     (permutation : Equiv.Perm (Fin width)) :
     Function.Injective (extendWirePermutation permutation) := by
   intro first second equality
   have h := congrArg (extendWirePermutation permutation.symm) equality
   simpa only [binaryExtendWirePermutation_inverse] using h
 
-theorem binaryExtendWirePermutation_range {width : Nat}
+lemma binaryExtendWirePermutation_range {width : Nat}
     (permutation : Equiv.Perm (Fin width)) (wire : Nat) (inside : wire < width) :
     extendWirePermutation permutation wire < width := by
   rw [extendWirePermutation, dif_pos inside]

@@ -25,7 +25,7 @@ noncomputable section
 open EncodedBit.GateSpec
 
 /-- Induction through a finite increasing sequence of actual gates. -/
-theorem ttkAscendingGateInduction {Data : Type} {E : BinaryLabelEncoding Data}
+lemma ttkAscendingGateInduction {Data : Type} {E : BinaryLabelEncoding Data}
     {m : Nat} (gate : Fin m → EncodedBit.GateSpec E) (P : Nat → Data → Prop)
     (state : Data) (hzero : P 0 state)
     (hstep : ∀ (i : Fin m) (s : Data), P i.val s → P (i.val + 1) ((gate i).step s)) :
@@ -41,7 +41,7 @@ theorem ttkAscendingGateInduction {Data : Type} {E : BinaryLabelEncoding Data}
         (fun i s hs => hstep i.castSucc s hs)
 
 /-- Induction through a finite decreasing sequence of actual gates. -/
-theorem ttkDescendingGateInduction {Data : Type} {E : BinaryLabelEncoding Data}
+lemma ttkDescendingGateInduction {Data : Type} {E : BinaryLabelEncoding Data}
     {m : Nat} (gate : Fin m → EncodedBit.GateSpec E) (P : Nat → Data → Prop)
     (state : Data) (hstart : P m state)
     (hstep : ∀ (i : Fin m) (s : Data), P (i.val + 1) s → P i.val ((gate i).step s)) :
@@ -57,7 +57,7 @@ theorem ttkDescendingGateInduction {Data : Type} {E : BinaryLabelEncoding Data}
         (fun i s hs => hstep i.castSucc s hs)
 
 /-- Descending block induction preserves the order of gates inside each block. -/
-theorem ttkDescendingBlockInduction {Data : Type} {E : BinaryLabelEncoding Data}
+lemma ttkDescendingBlockInduction {Data : Type} {E : BinaryLabelEncoding Data}
     {m : Nat} (block : Fin m → List (EncodedBit.GateSpec E)) (P : Nat → Data → Prop)
     (state : Data) (hstart : P m state)
     (hstep : ∀ (i : Fin m) (s : Data),
@@ -79,14 +79,14 @@ def previousBit {n : Nat} (i : Fin n) : Fin n :=
   ⟨i.val - 1, lt_of_le_of_lt (Nat.sub_le _ _) i.isLt⟩
 
 /-- A left-to-right CNOT preserves every addend bit. -/
-theorem ttkCnotLR_left (n : Nat) (a b i : Fin n) (s : Registers n) :
+lemma ttkCnotLR_left (n : Nat) (a b i : Fin n) (s : Registers n) :
     (leftBit n i).get ((EncodedBit.GateSpec.cnot (leftBit n a) (rightBit n b)
       (ttkLeftRight_disjoint n a b)).step s) = (leftBit n i).get s :=
   EncodedBit.cnotStep_get_of_target_ne _ _ _
     (Ne.symm (ttkLeftRight_disjoint n i b)) s
 
 /-- A left-to-right CNOT updates exactly its addressed target bit. -/
-theorem ttkCnotLR_right (n : Nat) (a b i : Fin n) (s : Registers n) :
+lemma ttkCnotLR_right (n : Nat) (a b i : Fin n) (s : Registers n) :
     (rightBit n i).get ((EncodedBit.GateSpec.cnot (leftBit n a) (rightBit n b)
       (ttkLeftRight_disjoint n a b)).step s) =
       if i = b then ((rightBit n i).get s ^^ (leftBit n a).get s)
@@ -100,7 +100,7 @@ theorem ttkCnotLR_right (n : Nat) (a b i : Fin n) (s : Registers n) :
       (ttkRightRight_disjoint n b i (Ne.symm h)) s
 
 /-- An operand-internal CNOT updates exactly its addressed addend bit. -/
-theorem ttkCnotLL_left (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
+lemma ttkCnotLL_left (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
     (leftBit n i).get ((EncodedBit.GateSpec.cnot (leftBit n a) (leftBit n b)
       (ttkLeftLeft_disjoint n a b hab)).step s) =
       if i = b then ((leftBit n i).get s ^^ (leftBit n a).get s)
@@ -114,13 +114,13 @@ theorem ttkCnotLL_left (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers 
       (ttkLeftLeft_disjoint n b i (Ne.symm h)) s
 
 /-- An operand-internal CNOT preserves every right operand bit. -/
-theorem ttkCnotLL_right (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
+lemma ttkCnotLL_right (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
     (rightBit n i).get ((EncodedBit.GateSpec.cnot (leftBit n a) (leftBit n b)
       (ttkLeftLeft_disjoint n a b hab)).step s) = (rightBit n i).get s :=
   EncodedBit.cnotStep_get_of_target_ne _ _ _ (ttkLeftRight_disjoint n b i) s
 
 /-- A TTK carry Toffoli updates exactly its addressed operand bit. -/
-theorem ttkToffoliRLL_left (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
+lemma ttkToffoliRLL_left (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
     (leftBit n i).get ((EncodedBit.GateSpec.toffoli
       (rightBit n a) (leftBit n a) (leftBit n b)
       (Ne.symm (ttkLeftRight_disjoint n a a))
@@ -138,7 +138,7 @@ theorem ttkToffoliRLL_left (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Regist
       (ttkLeftLeft_disjoint n b i (Ne.symm h)) s
 
 /-- A TTK carry Toffoli preserves every right operand bit. -/
-theorem ttkToffoliRLL_right (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
+lemma ttkToffoliRLL_right (n : Nat) (a b i : Fin n) (hab : a ≠ b) (s : Registers n) :
     (rightBit n i).get ((EncodedBit.GateSpec.toffoli
       (rightBit n a) (leftBit n a) (leftBit n b)
       (Ne.symm (ttkLeftRight_disjoint n a a))

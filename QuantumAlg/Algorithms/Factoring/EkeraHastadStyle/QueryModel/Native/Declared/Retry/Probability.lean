@@ -29,15 +29,15 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- One actual later retry updates the previous selected factor with a fresh
 factor from the complete decoded physical-batch distribution. -/
-theorem next_factor_reference
+lemma next_factor_reference
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((next base noQuantum N input).execute Reference state)
+      ((next base noQuantum N input).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (Optional.selectedValue (selectionRefs base noQuantum N).selection entry.1))
       left right =
@@ -53,7 +53,7 @@ theorem next_factor_reference
     weight left right).trans ?_
   apply congrArg
     (fun observe : (Store (context base noQuantum N) ×
-        ((model input).HiddenState × History)) →
+        ((model N).HiddenState × History)) →
         (context base noQuantum N).register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observe left right)
   funext entry basis

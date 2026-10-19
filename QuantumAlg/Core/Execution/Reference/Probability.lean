@@ -27,7 +27,7 @@ variable {C D Outcome : Type} [Fintype C] [Fintype D]
   {R S Reference : Register}
 
 /-- The full trace of a constant reference observation is the same state's weighted mass. -/
-theorem referenceFiberSum_sum_constant
+lemma referenceFiberSum_sum_constant
     (state : ExecutionState C (Register.prod R Reference)) (coefficient : ℂ) :
     (∑ reference : Reference.Index,
       referenceFiberSum state (fun _ _ => coefficient) reference reference) =
@@ -50,7 +50,7 @@ theorem referenceFiberSum_sum_constant
   exact congrArg (fun value : ℂ => coefficient * value) (traceSum.trans traceMass)
 
 /-- Tracing every reference diagonal of a readout fiber gives its actual observed block mass. -/
-theorem mapClassical_block_mass_referenceFiberSum [Fintype Outcome] [DecidableEq Outcome]
+lemma mapClassical_block_mass_referenceFiberSum [Fintype Outcome] [DecidableEq Outcome]
     (state : ExecutionState C (Register.prod R Reference)) (read : C → Outcome)
     (value : Outcome) :
     ((state.mapClassical read).block value).mass =
@@ -74,7 +74,7 @@ theorem mapClassical_block_mass_referenceFiberSum [Fintype Outcome] [DecidableEq
   exact mapClassical_block_referenceFiberSum state read value reference reference
 
 /-- Full-reference readout equations determine the actual trace-derived finite output PMF. -/
-theorem toPMF_map_eq_of_referenceFiberSum [Finite Outcome] [DecidableEq Outcome]
+lemma toPMF_map_eq_of_referenceFiberSum [Finite Outcome] [DecidableEq Outcome]
     (initial : ExecutionState C (Register.prod R Reference))
     (final : ExecutionState D (Register.prod S Reference))
     (initialNormalized : initial.IsNormalized) (finalNormalized : final.IsNormalized)

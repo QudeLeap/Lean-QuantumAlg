@@ -29,16 +29,18 @@ namespace QuantumAlg.MAU.Multiplication.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Accumulate.Gidney Nat.FixedWidth EncodedBit GateSpec
 
-private theorem accumulateGates_equiv (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma accumulateGates_equiv (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (state : Registers width) :
     stepList (Accumulate.Gidney.gates width modulus coefficient) state =
       accumulatePairEquiv modulus coefficient width state :=
   (gidneyAccumulateGates_step width modulus coefficient state).trans
     (accumulatePairEquiv_apply modulus coefficient width state).symm
 
-private theorem inverseAccumulateGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma inverseAccumulateGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (state : Registers width) :
     stepList (Accumulate.Gidney.gates width modulus coefficient).reverse state =
       (accumulatePairEquiv modulus coefficient width).symm state := by
@@ -56,7 +58,7 @@ def gates (width : Nat) (modulus : Fin (2 ^ width + 1))
         ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val).reverse
 
 /-- Every joint basis label follows the independent total multiplication permutation. -/
-theorem gidneyUnitMultiplicationGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyUnitMultiplicationGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (state : Registers width) :
     stepList (gates width modulus coefficient) state =
       unitMultiplicationPairEquiv modulus coefficient state := by
@@ -71,17 +73,18 @@ def program (width : Nat) (modulus : Fin (2 ^ width + 1))
   programList (QubitLayout.canonical _) .empty (gates width modulus coefficient)
 
 /-- Exact action of the actual program on every two-word basis label, with no phase allowance. -/
-theorem gidneyUnitMultiplication_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyUnitMultiplication_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
-    UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient)
+    UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient) environment
       (unitMultiplicationPairEquiv modulus coefficient) :=
   realizesList_congrStep _ _ _ (gidneyUnitMultiplicationGates_step width modulus coefficient)
+      environment
 
 /-- The canonical product is computed while the zero auxiliary word is restored exactly. -/
-theorem gidneyUnitMultiplication_clean (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyUnitMultiplication_clean (width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) (valid : input.val < modulus.val) :
-    (program width modulus coefficient).applyNormalized
+    (program width modulus coefficient).applyNormalized environment
         (NormalizedVector.ket ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
           ((encoding width).encode (input, 0)))) =
       NormalizedVector.ket ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
@@ -90,18 +93,19 @@ theorem gidneyUnitMultiplication_clean (width : Nat) (modulus : Fin (2 ^ width +
     unitMultiplicationPairEquiv_clean modulus positive coefficient input valid]
 
 /-- The complete multiplication layout is the original two words. -/
-theorem gidneyUnitMultiplication_interface (width : Nat) :
+lemma gidneyUnitMultiplication_interface (width : Nat) :
     (encoding width).width = 2 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) :=
   gidneyAccumulate_interface width
 
 /-- The exact total two-word action preserves an arbitrary external encoded reference jointly. -/
-theorem gidneyUnitMultiplication_realizes_with_reference {Reference : Type}
+lemma gidneyUnitMultiplication_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
       (layout := QubitLayout.canonical ((encoding width).width + reference.width))
       (UnitaryCircuit.onBinaryPrefix reference.width (program width modulus coefficient))
+      environment
       (fun state => (unitMultiplicationPairEquiv modulus coefficient state.1, state.2)) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
     (gidneyUnitMultiplication_realizes width modulus coefficient)

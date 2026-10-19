@@ -25,7 +25,8 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent native formula for both original source resizes and third-coordinate loading. -/
@@ -37,7 +38,7 @@ def firstRowTrace (N width : Nat) : List (Resource.Event model) :=
       Word.PowerOfTwo.powerTrace (model := model) width 0)
 
 /-- Every actual first-row path emits exactly the independent four-instruction formula. -/
-theorem loadFirstBasisRowInto_events (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_events (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
     (loadFirstBasisRowInto pair output).eventTrace path = firstRowTrace N width := by
   change _ ++ (_ ++ _) = _
@@ -46,21 +47,21 @@ theorem loadFirstBasisRowInto_events (pair : BatchMachine.PairRefs ctx N)
   rfl
 
 /-- Actual original row-loading multiplicities equal the full independent native formula. -/
-theorem loadFirstBasisRowInto_resourcePool (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_resourcePool (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
     (loadFirstBasisRowInto pair output).resourcePool path =
       ResourcePool.ofList (firstRowTrace N width) :=
   congrArg ResourcePool.ofList (loadFirstBasisRowInto_events pair output path)
 
 /-- Both actual source reads and initialized third-coordinate loading cost four instructions. -/
-theorem loadFirstBasisRowInto_eventCount (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_eventCount (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
     ((loadFirstBasisRowInto pair output).eventTrace path).length = 4 := by
   rw [loadFirstBasisRowInto_events]
   rfl
 
 /-- The complete actual first-row loader has four sequential native unit-duration dependencies. -/
-theorem loadFirstBasisRowInto_depth (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_depth (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
     (loadFirstBasisRowInto pair output).depth (fun _ => 1) path = 4 := by
   change 1 + (1 + (Word.PowerOfTwo.into 0 output.b13).depth (fun _ => 1) path.2.2) = 4
@@ -68,19 +69,21 @@ theorem loadFirstBasisRowInto_depth (pair : BatchMachine.PairRefs ctx N)
   omega
 
 /-- Actual first-row loading jointly restores every borrowed entry and external correlation. -/
-theorem loadFirstBasisRowInto_borrowedRestored (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_borrowedRestored (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (loadFirstBasisRowInto pair output).BorrowedRestored Reference state
-      ((loadFirstBasisRowInto pair output).execute Reference state) := by
-  exact Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical _ state)
-    (Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
+      ((loadFirstBasisRowInto pair output).execute environment Reference state) := by
+  exact Circuit.borrowedRestored_seq (environment := environment) _ _ state
+    (Circuit.borrowedRestored_classical (environment := environment) _ state)
+    (Circuit.borrowedRestored_seq
+      (environment := environment) _ _ _ (Circuit.borrowedRestored_classical (environment :=
+      environment) _ _)
       (Word.PowerOfTwo.into_borrowedRestored 0 output.b13 Reference _))
 
 /-- Every actual native row-loading instruction keeps the complete original context live. -/
-theorem loadFirstBasisRowInto_visited (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_visited (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadFirstBasisRowInto pair output).visitedContexts path) :
@@ -94,7 +97,7 @@ theorem loadFirstBasisRowInto_visited (pair : BatchMachine.PairRefs ctx N)
   · exact Word.PowerOfTwo.into_visited 0 output.b13 path.2.2 visited third
 
 /-- The actual original first-row loader requires no additional resident entry. -/
-theorem loadFirstBasisRowInto_resident_le (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_resident_le (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
     (loadFirstBasisRowInto pair output).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -102,7 +105,7 @@ theorem loadFirstBasisRowInto_resident_le (pair : BatchMachine.PairRefs ctx N)
   rw [loadFirstBasisRowInto_visited pair output path visited present]
 
 /-- Every original auxiliary entry remains counted during actual first-row loading. -/
-theorem loadFirstBasisRowInto_auxiliary_le (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_auxiliary_le (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (path : (loadFirstBasisRowInto pair output).Path) :
     (loadFirstBasisRowInto pair output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

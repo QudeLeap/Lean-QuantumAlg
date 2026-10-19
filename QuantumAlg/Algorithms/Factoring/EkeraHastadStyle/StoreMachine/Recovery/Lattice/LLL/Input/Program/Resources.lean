@@ -24,7 +24,8 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent native source-basis and selected target instruction formula. -/
@@ -45,7 +46,7 @@ def targetNegations (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) : 
     LatticeTarget.selectedNegation refs.target.target.second path.2.2.2.2)
 
 /-- The actual source-and-target path emits the independently selected native formula. -/
-theorem decodeTargetInto_events (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) :
+lemma decodeTargetInto_events (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) :
     (decodeTargetInto refs).eventTrace path =
       decodeTargetTrace N (decodedBits refs path) (targetNegations refs path) :=
   congrArg₂ List.append
@@ -58,7 +59,7 @@ def initializeTrace (N : Nat) (bits : List Bool × List Bool) (negates : Bool ×
   decodeTargetTrace N bits negates ++ LatticeFixedFuelMachine.refreshResetTrace (Width N)
 
 /-- Actual source-to-LLL initialization emits its independent complete native formula. -/
-theorem initializeWideInto_events (refs : Refs ctx N) (path : (initializeWideInto refs).Path) :
+lemma initializeWideInto_events (refs : Refs ctx N) (path : (initializeWideInto refs).Path) :
     (initializeWideInto refs).eventTrace path =
       initializeTrace N (decodedBits refs path.1) (targetNegations refs path.1) :=
   congrArg₂ List.append (decodeTargetInto_events refs path.1)
@@ -73,7 +74,7 @@ def pairToLllTrace (N : Nat) (bits : List Bool × List Bool) (negates : Bool × 
       (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N)) (Width N) decisions)
 
 /-- Actual source loading, initialization and selected iterations emit one native formula. -/
-theorem pairToLllInto_events (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_events (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     (pairToLllInto refs).eventTrace path =
       pairToLllTrace N (decodedBits refs path.1) (targetNegations refs path.1)
         (fun index => LatticeFixedFuelMachine.stepDecisions refs.initialization.driver
@@ -84,7 +85,7 @@ theorem pairToLllInto_events (refs : Refs ctx N) (path : (pairToLllInto refs).Pa
       refs.initialization.driver path.2)
 
 /-- Actual native multiplicities equal the independently selected complete source-to-LLL formula. -/
-theorem pairToLllInto_resourcePool (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_resourcePool (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     (pairToLllInto refs).resourcePool path = ResourcePool.ofList
       (pairToLllTrace N (decodedBits refs path.1) (targetNegations refs path.1)
         (fun index => LatticeFixedFuelMachine.stepDecisions refs.initialization.driver
@@ -101,7 +102,7 @@ def operationBound (N : Nat) : Nat :=
     (32 + 130 * RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N))
 
 /-- Actual source-and-target loading obeys the full independent native count budget. -/
-theorem decodeTargetInto_eventCount_le (refs : Refs ctx N)
+lemma decodeTargetInto_eventCount_le (refs : Refs ctx N)
     (path : (decodeTargetInto refs).Path) :
     ((decodeTargetInto refs).eventTrace path).length ≤ decodeTargetOperationBound N := by
   have prefixCount := LatticeWideInitializationPrefix.decodeBasisInto_eventCount_le
@@ -112,7 +113,7 @@ theorem decodeTargetInto_eventCount_le (refs : Refs ctx N)
   exact Nat.add_le_add prefixCount target
 
 /-- The actual source-to-LLL run obeys the independent complete native count budget. -/
-theorem pairToLllInto_eventCount_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_eventCount_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     ((pairToLllInto refs).eventTrace path).length ≤ operationBound N := by
   have decoded := decodeTargetInto_eventCount_le refs path.1
   have initialized := LatticeFixedFuelMachine.initializedInto_eventCount_le
@@ -122,13 +123,13 @@ theorem pairToLllInto_eventCount_le (refs : Refs ctx N) (path : (pairToLllInto r
   exact Nat.add_le_add decoded initialized
 
 /-- Source-and-target unit-duration depth includes all original chronological dependencies. -/
-theorem decodeTargetInto_depth_le (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) :
+lemma decodeTargetInto_depth_le (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) :
     (decodeTargetInto refs).depth (fun _ => 1) path ≤ decodeTargetOperationBound N :=
   Nat.add_le_add (LatticeWideInitializationPrefix.decodeBasisInto_depth_le (prefixRefs refs) path.1)
     (LatticeWideTargetMachine.loadTargetInto_depth_le refs.target path.2)
 
 /-- Full unit-duration depth includes source loading, initialization and every selected step. -/
-theorem pairToLllInto_depth_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_depth_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     (pairToLllInto refs).depth (fun _ => 1) path ≤ operationBound N :=
   Nat.add_le_add (decodeTargetInto_depth_le refs path.1)
     (LatticeFixedFuelMachine.initializedInto_depth_le
@@ -136,29 +137,30 @@ theorem pairToLllInto_depth_le (refs : Refs ctx N) (path : (pairToLllInto refs).
       refs.initialization.driver path.2)
 
 /-- Actual source and target loading preserve every original borrowed-reference correlation. -/
-theorem decodeTargetInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma decodeTargetInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (decodeTargetInto refs).BorrowedRestored Reference state
-      ((decodeTargetInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((decodeTargetInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeWideInitializationPrefix.decodeBasisInto_borrowedRestored (prefixRefs refs)
       Reference state)
     (LatticeWideTargetMachine.loadTargetInto_borrowedRestored refs.target Reference _)
 
 /-- The actual complete source-to-LLL run restores the full borrowed-reference joint state. -/
-theorem pairToLllInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma pairToLllInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (pairToLllInto refs).BorrowedRestored Reference state
-      ((pairToLllInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (decodeTargetInto_borrowedRestored refs Reference state)
+      ((pairToLllInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (decodeTargetInto_borrowedRestored refs Reference state)
     (LatticeFixedFuelMachine.initializedInto_borrowedRestored
       (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N))
       refs.initialization.driver Reference _)
 
 /-- Every actual source and target instruction retains the complete original supplied context. -/
-theorem decodeTargetInto_visited (refs : Refs ctx N) (path : (decodeTargetInto refs).Path)
+lemma decodeTargetInto_visited (refs : Refs ctx N) (path : (decodeTargetInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (decodeTargetInto refs).visitedContexts path) :
     visited = ctx := by
@@ -168,7 +170,7 @@ theorem decodeTargetInto_visited (refs : Refs ctx N) (path : (decodeTargetInto r
     (LatticeWideTargetMachine.loadTargetInto_visited refs.target path.2 visited)
 
 /-- Every actual instruction in the complete source-to-LLL run retains the original full context. -/
-theorem pairToLllInto_visited (refs : Refs ctx N) (path : (pairToLllInto refs).Path)
+lemma pairToLllInto_visited (refs : Refs ctx N) (path : (pairToLllInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (pairToLllInto refs).visitedContexts path) :
     visited = ctx := by
@@ -179,14 +181,14 @@ theorem pairToLllInto_visited (refs : Refs ctx N) (path : (pairToLllInto refs).P
       refs.initialization.driver path.2 visited)
 
 /-- Actual source-to-LLL resident accounting retains every originally supplied runtime entry. -/
-theorem pairToLllInto_resident_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_resident_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     (pairToLllInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [pairToLllInto_visited refs path visited present]
 
 /-- Actual source-to-LLL auxiliary accounting retains every original runtime workspace role. -/
-theorem pairToLllInto_auxiliary_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_auxiliary_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     (pairToLllInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

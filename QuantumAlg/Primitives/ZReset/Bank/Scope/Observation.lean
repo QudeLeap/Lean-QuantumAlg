@@ -23,21 +23,25 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
+  {environment : (ExecutionModel.quantum AlgorithmGate.model oracles .empty services).Environment}
   (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
   {Reference : Register} {History : Type} [Fintype History]
   (state : State ctx Reference
-    ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState × History))
+    ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState × History))
 
 /-- The paid reset establishes physical zero without an incoming seed premise. -/
-theorem seeded :
+lemma seeded :
     BasisSeeded.Holds ctx.quantumLayout.zeroLabel
-      ((code (oracles := oracles) qubits).execute Reference state) := by
+      ((code (services := services) (oracles := oracles) qubits).execute
+        ⟨environment.quantum, environment.classical⟩ Reference state) := by
   intro original left right leftRef rightRef
-  have zero := zResetBankScope_complete_store_entry
+  have zero := zResetBankScope_complete_store_entry (environment := environment)
     (oracles := oracles) qubits state original
     ctx.quantumLayout.zeroLabel ctx.quantumLayout.zeroLabel leftRef rightRef
   simp only [and_self] at zero
@@ -48,10 +52,11 @@ theorem seeded :
           coefficient else 0) zero.symm)
 
 /-- Every complete original store's reference weight survives the paid reset. -/
-theorem referenceFiberSum_preserved (weight : Store ctx → ℂ)
+lemma referenceFiberSum_preserved (weight : Store ctx → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code (oracles := oracles) qubits).execute Reference state)
+      ((code (services := services) (oracles := oracles) qubits).execute
+        ⟨environment.quantum, environment.classical⟩ Reference state)
       (fun entry _ => weight entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight entry.1) leftRef rightRef := by

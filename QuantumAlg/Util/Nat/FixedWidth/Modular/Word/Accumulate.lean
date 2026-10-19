@@ -30,7 +30,7 @@ def accumulateConstant {width : Nat} (modulus : Fin (2 ^ width + 1))
       Nat.lt_trans (stageConstantResidue_lt positive) (Nat.lt_succ_self _)⟩
   else 0
 
-theorem accumulateConstant_val {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulateConstant_val {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient index : Nat) (positive : 0 < modulus.val) :
     (accumulateConstant modulus coefficient index).val =
       stageConstantResidue modulus.val coefficient index := by
@@ -52,7 +52,7 @@ public def accumulateWordPrefix {width : Nat} (modulus : Fin (2 ^ width + 1))
       (accumulateWordPrefix modulus coefficient source target index)
 
 /-- Every canonical accumulator prefix remains canonical. -/
-theorem accumulateWordPrefix_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulateWordPrefix_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source target : Fin (2 ^ width))
     (valid : target.val < modulus.val) (count : Nat) :
     (accumulateWordPrefix modulus coefficient source target count).val < modulus.val := by
@@ -68,7 +68,7 @@ theorem accumulateWordPrefix_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
       · exact ih
 
 /-- The finite recurrence agrees with the existing independent natural-number prefix. -/
-theorem accumulateWordPrefix_val {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulateWordPrefix_val {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source target : Fin (2 ^ width))
     (valid : target.val < modulus.val) (count : Nat) :
     (accumulateWordPrefix modulus coefficient source target count).val =
@@ -89,7 +89,7 @@ theorem accumulateWordPrefix_val {width : Nat} (modulus : Fin (2 ^ width + 1))
         rw [← ih, Nat.mod_eq_of_lt hprefix]
 
 /-- Full-width multiplication-accumulation for arbitrary coefficients and positive moduli. -/
-theorem accumulateWordPrefix_full {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulateWordPrefix_full {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source target : Fin (2 ^ width))
     (valid : target.val < modulus.val) :
     (accumulateWordPrefix modulus coefficient source target width).val =
@@ -98,7 +98,7 @@ theorem accumulateWordPrefix_full {width : Nat} (modulus : Fin (2 ^ width + 1))
   exact accumulateSelected_eq_add_mul_mod_of_lt_two_pow source.isLt
 
 /-- The total extension fixes noncanonical labels at every prefix, independently of source bits. -/
-theorem accumulateWordPrefix_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulateWordPrefix_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source target : Fin (2 ^ width))
     (outside : modulus.val ≤ target.val) (count : Nat) :
     accumulateWordPrefix modulus coefficient source target count = target := by

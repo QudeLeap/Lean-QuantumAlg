@@ -36,7 +36,7 @@ public def qubitAction (basis : Fin width → Fin 2) : Fin width → Fin 2 :=
   if basis control = 0 then basis else fun index => basis (Equiv.swap left right index)
 
 include controlLeft controlRight in
-private theorem action_control (basis : Fin width → Fin 2) :
+private lemma action_control (basis : Fin width → Fin 2) :
     qubitAction control left right basis control = basis control := by
   simp only [qubitAction]
   split
@@ -44,7 +44,7 @@ private theorem action_control (basis : Fin width → Fin 2) :
   · exact congrArg basis (Equiv.swap_apply_of_ne_of_ne controlLeft controlRight)
 
 include controlLeft controlRight in
-private theorem action_involution (basis : Fin width → Fin 2) :
+private lemma action_involution (basis : Fin width → Fin 2) :
     qubitAction control left right (qubitAction control left right basis) = basis := by
   unfold qubitAction
   have fixed := action_control control left right controlLeft controlRight basis
@@ -63,7 +63,7 @@ public def qubitPermutation :
   left_inv := action_involution control left right controlLeft controlRight
   right_inv := action_involution control left right controlLeft controlRight
 
-private theorem placed_permutation :
+private lemma placed_permutation :
     UnitaryCircuit.permutationAt layout qubits
       (positions control left right controlLeft controlRight leftRight)
       (dimensions qubits control left right controlLeft controlRight leftRight rfl rfl rfl)
@@ -108,10 +108,11 @@ private theorem placed_permutation :
       exact (congrArg basis (Equiv.swap_apply_of_ne_of_ne notLeft notRight)).symm
 
 /-- Exact native semantics on every computational coordinate, including all spectators. -/
-public theorem controlledSwap_qubits_matrix (oracles : OracleModel) :
-    (circuitAt (QuantumSignature.qubits width).canonicalPlacement.layout
+public lemma controlledSwap_qubits_matrix (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    ((circuitAt (QuantumSignature.qubits width).canonicalPlacement.layout
       control left right controlLeft controlRight leftRight
-      rfl rfl rfl oracles).matrix =
+      rfl rfl rfl oracles).matrix environment) =
       UnitaryOperator.ofPerm (qubitPermutation control left right controlLeft controlRight) := by
   rw [controlledSwap_circuitAt_matrix, placedOperator, operator,
     UnitaryCircuit.operatorAt_ofPerm]

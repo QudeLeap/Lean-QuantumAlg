@@ -33,11 +33,11 @@ def storedState (cells : Cells ctx (stateShapes width)) (store : Store ctx) : Pu
   secondLeftCoefficient := decodeRawSignedWord (store.read (GCD.cellRead (secondLeftCell cells)))
   secondRightCoefficient := decodeRawSignedWord (store.read (GCD.cellRead (secondRightCell cells)))
 
-private theorem executionWidth_two_le (width : Nat) :
+private lemma executionWidth_two_le (width : Nat) :
     2 ≤ PureXGCD.executionCoefficientWidth width := by
   exact (Nat.le_add_left 2 _).trans (Nat.le_max_right _ _)
 
-private theorem initialCoefficient_range (width value : Nat) (small : value ≤ 1) :
+private lemma initialCoefficient_range (width value : Nat) (small : value ≤ 1) :
     ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable
       (PureXGCD.executionCoefficientWidth width) (value : Int) := by
   have widthBound := executionWidth_two_le width
@@ -49,7 +49,7 @@ private theorem initialCoefficient_range (width value : Nat) (small : value ≤ 
   unfold ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable
   omega
 
-private theorem initialCoefficient_decode (width value : Nat) (small : value ≤ 1) :
+private lemma initialCoefficient_decode (width value : Nat) (small : value ≤ 1) :
     decodeRawSignedWord
       (CShape.wordOfNat (PureXGCD.executionCoefficientWidth width) value) = (value : Int) := by
   apply rawSignedRepresents_decode_eq
@@ -60,7 +60,7 @@ private theorem initialCoefficient_decode (width value : Nat) (small : value ≤
   · exact initialCoefficient_range width value small
 
 /-- Actual fresh initialization realizes the original six-field mathematical initial state. -/
-theorem xgcdNativeInitialization_state {outer : RuntimeCtx kind}
+lemma xgcdNativeInitialization_state {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))
@@ -83,7 +83,7 @@ theorem xgcdNativeInitialization_state {outer : RuntimeCtx kind}
       rfl
 
 /-- The actual Boolean activity cell agrees with the leading mathematical remainder. -/
-theorem xgcdNativeInitialization_activity {outer : RuntimeCtx kind}
+lemma xgcdNativeInitialization_activity {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))

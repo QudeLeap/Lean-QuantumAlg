@@ -37,16 +37,18 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeBank
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
 include noQuantum in
-private theorem input_systemCount : ctx.systemCount = 0 := by
+private lemma input_systemCount : ctx.systemCount = 0 := by
   change ctx.quantumWires.length = 0
   rw [noQuantum]
   rfl
 
 include noQuantum in
-private theorem allocationDisjoint (m ell width : Nat) :
+private lemma allocationDisjoint (m ell width : Nat) :
     List.Disjoint (runtimeLayout m ell width).identities ctx.physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, noQuantum, List.map_nil]
   exact List.disjoint_nil_right _
@@ -57,26 +59,26 @@ def context (m ell width : Nat) : RuntimeCtx .quantum :=
     ctx.canonicalFreshKey_fresh (allocationDisjoint ctx noQuantum m ell width)
 
 /-- The new live bank has the owned role assigned by the actual preparation constructor. -/
-theorem shortDLP_runtimeBank_ownedEntry (m ell width : Nat) :
+lemma shortDLP_runtimeBank_ownedEntry (m ell width : Nat) :
     RuntimeEntry.ownedLayout ctx.canonicalFreshKey (runtimeLayout m ell width) ∈
       (context ctx noQuantum m ell width).entries :=
   List.Mem.head _
 
 /-- Every physical wire comes from the one actual source bank, with no earlier quantum tail. -/
-theorem shortDLP_runtimeBank_quantumWires (m ell width : Nat) :
+lemma shortDLP_runtimeBank_quantumWires (m ell width : Nat) :
     (context ctx noQuantum m ell width).quantumWires = (runtimeLayout m ell width).wires := by
   change (runtimeLayout m ell width).wires ++ ctx.quantumWires = _
   rw [noQuantum, List.append_nil]
 
 /-- The source and actual context have identical ordered physical wire records. -/
-theorem shortDLP_runtimeBank_layoutWires (m ell width : Nat) :
+lemma shortDLP_runtimeBank_layoutWires (m ell width : Nat) :
     (runtimeLayout m ell width).wires =
       (context ctx noQuantum m ell width).quantumLayout.wires :=
   ((context ctx noQuantum m ell width).quantumLayout_wires.trans
     (shortDLP_runtimeBank_quantumWires ctx noQuantum m ell width)).symm
 
 /-- The single actual bank occupies precisely the original short-DLP physical identities. -/
-theorem shortDLP_runtimeBank_physicalIdx (m ell width : Nat) :
+lemma shortDLP_runtimeBank_physicalIdx (m ell width : Nat) :
     (context ctx noQuantum m ell width).physicalIdx =
       List.range (totalQubits (registerParameters m ell width)) := by
   change (context ctx noQuantum m ell width).quantumWires.map QuantumWire.identity = _
@@ -85,7 +87,7 @@ theorem shortDLP_runtimeBank_physicalIdx (m ell width : Nat) :
     (shortDLP_runtimeLayout_identities m ell width)
 
 /-- Reset dimensions are internal consequences of the actual owned bank's ordered wires. -/
-theorem shortDLP_runtimeBank_qubits (m ell width : Nat)
+lemma shortDLP_runtimeBank_qubits (m ell width : Nat)
     (wire : Fin (context ctx noQuantum m ell width).systemCount) :
     ((context ctx noQuantum m ell width).quantumLayout.wire wire).dimension = 2 := by
   let positions := Execution.positionsOfEqualWires (runtimeLayout m ell width)
@@ -117,26 +119,26 @@ def loadProgram (m ell width N : Nat) :
     (reloadProgram m ell width N)
 
 /-- Exact loading semantics uses the correspondence of complete ordered physical wires. -/
-theorem shortDLP_runtimeBank_load_matrix (m ell width N : Nat) :
-    (loadProgram ctx noQuantum m ell width N).matrix =
+lemma shortDLP_runtimeBank_load_matrix (m ell width N : Nat) :
+    (loadProgram ctx noQuantum m ell width N).matrix environment =
       UnitaryOperator.reindex
         (Execution.basisOfEqualWires (runtimeLayout m ell width)
           (context ctx noQuantum m ell width).quantumLayout
           (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width))
-        (reloadProgram m ell width N).matrix :=
-  Execution.unitaryOfEqualWires_matrix _ _ _ _
+        ((reloadProgram m ell width N).matrix environment) :=
+  Execution.unitaryOfEqualWires_matrix _ _ _ environment _
 
 /-- The placed loading word takes the corresponding zero vector to the exact source seed. -/
-theorem shortDLP_runtimeBank_load_seed (m ell width N : Nat) :
+lemma shortDLP_runtimeBank_load_seed (m ell width N : Nat) :
     let corresponding := Execution.basisOfEqualWires (runtimeLayout m ell width)
       (context ctx noQuantum m ell width).quantumLayout
       (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width)
-    (loadProgram ctx noQuantum m ell width N).applyVec
+    (loadProgram ctx noQuantum m ell width N).applyVec environment
         (HilbertVector.reindex corresponding
           (ZeroPreparation.normalized (runtimeLayout m ell width)).vec) =
       HilbertVector.reindex corresponding (seedState m ell width N).vec := by
   dsimp only
-  change (loadProgram ctx noQuantum m ell width N).matrix.applyVec _ = _
+  change ((loadProgram ctx noQuantum m ell width N).matrix environment).applyVec _ = _
   rw [shortDLP_runtimeBank_load_matrix]
   refine (UnitaryOperator.reindex_applyVec
     (R := (runtimeLayout m ell width).register)
@@ -144,7 +146,7 @@ theorem shortDLP_runtimeBank_load_seed (m ell width N : Nat) :
     (Execution.basisOfEqualWires (runtimeLayout m ell width)
       (context ctx noQuantum m ell width).quantumLayout
       (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width))
-    (reloadProgram m ell width N).matrix
+    ((reloadProgram m ell width N).matrix environment)
     (ZeroPreparation.normalized (runtimeLayout m ell width)).vec).trans ?_
   exact congrArg (HilbertVector.reindex
     (R := (runtimeLayout m ell width).register)
@@ -153,7 +155,7 @@ theorem shortDLP_runtimeBank_load_seed (m ell width N : Nat) :
       (context ctx noQuantum m ell width).quantumLayout
       (shortDLP_runtimeBank_layoutWires ctx noQuantum m ell width)))
     (congrArg (NormalizedVector.vec (R := (runtimeLayout m ell width).register))
-      (shortDLP_reload_seedState m ell width N))
+      (shortDLP_reload_seedState (environment := environment) m ell width N))
 
 variable {operations : ClassicalOpModel} {services : ClassicalOracleModel}
 
@@ -172,7 +174,7 @@ def prepare (m ell width N : Nat) :
     (.unitary (loadProgram ctx noQuantum m ell width N))
 
 /-- Every allocated qubit emits one preparation event; the subsequent native X word is retained. -/
-theorem shortDLP_runtimeBank_prepare_eventTrace (m ell width N : Nat)
+lemma shortDLP_runtimeBank_prepare_eventTrace (m ell width N : Nat)
     (path : (prepare (operations := operations) (services := services)
       ctx noQuantum m ell width N).Path) :
     (prepare (operations := operations) (services := services)
@@ -195,7 +197,7 @@ theorem shortDLP_runtimeBank_prepare_eventTrace (m ell width N : Nat)
   exact List.ofFn_const _ _
 
 /-- The exact initialization pool includes all zero preparations and every actual seed-loading X. -/
-theorem shortDLP_runtimeBank_prepare_resourcePool (m ell width N : Nat)
+lemma shortDLP_runtimeBank_prepare_resourcePool (m ell width N : Nat)
     (path : (prepare (operations := operations) (services := services)
       ctx noQuantum m ell width N).Path) :
     (prepare (operations := operations) (services := services)
@@ -212,7 +214,7 @@ theorem shortDLP_runtimeBank_prepare_resourcePool (m ell width N : Nat)
     shortDLP_reload_eventCost_classical_context, ResourcePool.scale]
 
 /-- Loading depends on completion of the zero preparation on the same physical bank. -/
-theorem shortDLP_runtimeBank_prepare_eventDepth (m ell width N : Nat)
+lemma shortDLP_runtimeBank_prepare_eventDepth (m ell width N : Nat)
     (path : (prepare (operations := operations) (services := services)
       ctx noQuantum m ell width N).Path) :
     (prepare (operations := operations) (services := services)
@@ -222,14 +224,14 @@ theorem shortDLP_runtimeBank_prepare_eventDepth (m ell width N : Nat)
         ((reloadProgram m ell width N).eventDepth operations services) := rfl
 
 /-- Actual resident accounting contains the original frame and exactly one source bank. -/
-theorem shortDLP_runtimeBank_resident (m ell width : Nat) :
+lemma shortDLP_runtimeBank_resident (m ell width : Nat) :
     (context ctx noQuantum m ell width).residentSpace =
       SpacePool.ofQuantumLayout (runtimeLayout m ell width) + ctx.residentSpace :=
   RuntimeCtx.residentSpace_addOwnedLayout ctx ctx.canonicalFreshKey (runtimeLayout m ell width)
     ctx.canonicalFreshKey_fresh (allocationDisjoint ctx noQuantum m ell width)
 
 /-- The actual new bank has the owned auxiliary role; no second quantum capacity is added. -/
-theorem shortDLP_runtimeBank_auxiliary (m ell width : Nat) :
+lemma shortDLP_runtimeBank_auxiliary (m ell width : Nat) :
     (context ctx noQuantum m ell width).auxiliarySpace =
       SpacePool.ofQuantumLayout (runtimeLayout m ell width) + ctx.auxiliarySpace :=
   RuntimeCtx.auxiliarySpace_addOwnedLayout ctx ctx.canonicalFreshKey (runtimeLayout m ell width)

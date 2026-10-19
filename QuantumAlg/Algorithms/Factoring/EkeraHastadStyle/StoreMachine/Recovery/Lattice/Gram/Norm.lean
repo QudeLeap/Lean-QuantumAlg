@@ -61,12 +61,13 @@ def refreshStore (point : LatticeState.PointRefs ctx width) (refs : Refs ctx wid
   LatticeDotRefresh.refreshStore point point (dotRefs refs) store
 
 /-- The complete actual refresh execution preserves history and quantum-reference blocks. -/
-theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (refreshInto (model := model) point refs).execute Reference state =
+    (refreshInto (model := model) point refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := LatticeDotRefresh.refreshStep (model := model)
           point point (dotRefs refs) entry.1
@@ -74,7 +75,7 @@ theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
   exact LatticeDotRefresh.refreshInto_execute point point (dotRefs refs) Reference state
 
 /-- Only the caller's norm and product cells are changed by the actual refresh. -/
-theorem refreshInto_callerFrame (point : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
+lemma refreshInto_callerFrame (point : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoidsNorm : refs.norm.key ∉ other.storageKeys)
     (avoidsProduct : refs.product.key ∉ other.storageKeys) :
@@ -83,7 +84,7 @@ theorem refreshInto_callerFrame (point : LatticeState.PointRefs ctx width) (refs
     store other avoidsNorm avoidsProduct
 
 /-- The actual output represents the squared norm and preserves the original point. -/
-theorem refreshInto_correct (point : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
+lemma refreshInto_correct (point : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
     (separation : Separation point refs) (store : Store ctx)
     (pointValue : NumberTheory.IntegerPoint3)
     (pointRep : LatticeArithmetic.PointRawRepresents store point pointValue) :
@@ -96,16 +97,17 @@ theorem refreshInto_correct (point : LatticeState.PointRefs ctx width) (refs : R
   exact ⟨dot.1, dot.2.1⟩
 
 /-- The actual norm refresh restores all borrowed correlations without a state-output premise. -/
-theorem refreshInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (refreshInto (model := model) point refs).BorrowedRestored Reference state
-      ((refreshInto (model := model) point refs).execute Reference state) := by
+      ((refreshInto (model := model) point refs).execute environment Reference state) := by
   exact LatticeDotRefresh.refreshInto_borrowedRestored point point (dotRefs refs) Reference state
 
 /-- Five actual native instructions overwrite and accumulate the squared norm. -/
-theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) point refs).Path) :
     (refreshInto (model := model) point refs).eventTrace path =
@@ -122,14 +124,14 @@ theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
   LatticeDotRefresh.refreshInto_events point point (dotRefs refs) path
 
 /-- All five native operations remain sequentially dependent. -/
-theorem refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) point refs).Path) :
     (refreshInto (model := model) point refs).depth (fun _ => 1) path = 5 :=
   LatticeDotRefresh.refreshInto_depth point point (dotRefs refs) path
 
 /-- The refresh visits only the complete original live context. -/
-theorem refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) point refs).Path) :
     (refreshInto (model := model) point refs).visitedContexts path =
@@ -137,14 +139,14 @@ theorem refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
   LatticeDotRefresh.refreshInto_visited point point (dotRefs refs) path
 
 /-- Resident space includes all original quantum systems and the two existing cells. -/
-theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) point refs).Path) :
     (refreshInto (model := model) point refs).peakResidentSpace path ≤ ctx.residentSpace := by
   exact LatticeDotRefresh.refreshInto_resident_le point point (dotRefs refs) path
 
 /-- Auxiliary accounting uses the same supplied roles, with no temporary allocation. -/
-theorem refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (point : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) point refs).Path) :
     (refreshInto (model := model) point refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by

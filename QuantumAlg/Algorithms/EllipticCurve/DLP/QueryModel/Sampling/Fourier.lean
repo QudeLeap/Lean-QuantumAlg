@@ -29,20 +29,20 @@ attribute [local instance] Classical.decEq Classical.propDecidable
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Every complete stored-state entry is the independent group-action Fourier law. -/
-public theorem code_fourier_store_entry (I : ECDLPInstance E) (A : Access I)
+public lemma code_fourier_store_entry (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (pre I) Reference ((executionModel I).HiddenState × History))
     (stored : Store (post I)) (left right : (post I).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((code I A expansion).execute Reference state).mapClassical
+    ((((code I expansion).execute (sourceEnvironment I A) Reference state).mapClassical
       (fun record => record.1)).block stored).matrix
         (left, leftRef) (right, rightRef) =
       if readoutsAgree I left right then
         sourceAmplitudeAt I ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I))
           (basisEquiv I left)) *
         (∑ original : Store (post I),
-          if writtenStore I A original left = stored then
+          if writtenStore I original left = stored then
             referenceCoefficient I A state original leftRef rightRef else 0) *
         star (sourceAmplitudeAt I
           ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I)) (basisEquiv I right)))

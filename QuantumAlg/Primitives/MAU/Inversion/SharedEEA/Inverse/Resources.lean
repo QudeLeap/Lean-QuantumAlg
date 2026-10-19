@@ -59,7 +59,7 @@ def events (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) 
 def depthBound (inputWidth : Nat) : Nat :=
   1 + InputPreparation.auxiliaryWidth inputWidth + ForwardResources.xorBound inputWidth
 
-private theorem auxiliary_space (inputWidth : Nat) :
+private lemma auxiliary_space (inputWidth : Nat) :
     SpacePool.ofQuantumLayout (InputPreparation.auxiliaryLayout inputWidth) =
       OwnedQubits.space (InputPreparation.auxiliaryWidth inputWidth) := by
   funext axis
@@ -70,7 +70,7 @@ private theorem auxiliary_space (inputWidth : Nat) :
         dimension
 
 /-- The input context contains exactly the two supplied words at their actual native dimension. -/
-theorem before_resident (inputWidth : Nat) :
+lemma before_resident (inputWidth : Nat) :
     (before inputWidth).residentSpace = OwnedQubits.space (inputWidth + inputWidth) := by
   simp only [before, RuntimeCtx.residentSpace_addOwnedLayout, RuntimeCtx.residentSpace_empty]
   funext axis
@@ -80,7 +80,7 @@ theorem before_resident (inputWidth : Nat) :
       exact (inputQubitLayout inputWidth).toQuantumLayout_dimensionCount dimension
 
 /-- The supplied words have the owned role and are counted in the same auxiliary pool. -/
-theorem before_auxiliary (inputWidth : Nat) :
+lemma before_auxiliary (inputWidth : Nat) :
     (before inputWidth).auxiliarySpace = OwnedQubits.space (inputWidth + inputWidth) := by
   simp only [before, RuntimeCtx.auxiliarySpace_addOwnedLayout, RuntimeCtx.auxiliarySpace_empty]
   funext axis
@@ -89,7 +89,7 @@ theorem before_auxiliary (inputWidth : Nat) :
   | quantumSystems dimension =>
       exact (inputQubitLayout inputWidth).toQuantumLayout_dimensionCount dimension
 
-private theorem combined_space (inputWidth : Nat) :
+private lemma combined_space (inputWidth : Nat) :
     OwnedQubits.space (InputPreparation.auxiliaryWidth inputWidth) +
       OwnedQubits.space (inputWidth + inputWidth) = space inputWidth := by
   have count : InputPreparation.auxiliaryWidth inputWidth + (inputWidth + inputWidth) =
@@ -109,18 +109,18 @@ private theorem combined_space (inputWidth : Nat) :
       · rfl
 
 /-- The complete post-context retains every actual allocated system. -/
-theorem after_resident (inputWidth : Nat) :
+lemma after_resident (inputWidth : Nat) :
     (after inputWidth).residentSpace = space inputWidth := by
   rw [after, RuntimeCtx.residentSpace_addOwnedLayout, auxiliary_space, before_resident]
   exact combined_space inputWidth
 
 /-- Owned auxiliary accounting includes exactly those same live systems, with no extra bank. -/
-theorem after_auxiliary (inputWidth : Nat) :
+lemma after_auxiliary (inputWidth : Nat) :
     (after inputWidth).auxiliarySpace = space inputWidth := by
   rw [after, RuntimeCtx.auxiliarySpace_addOwnedLayout, auxiliary_space, before_auxiliary]
   exact combined_space inputWidth
 
-private theorem input_le (inputWidth : Nat) :
+private lemma input_le (inputWidth : Nat) :
     OwnedQubits.space (inputWidth + inputWidth) ≤ space inputWidth := by
   have count : inputWidth + inputWidth ≤ width inputWidth := by
     unfold width
@@ -136,14 +136,14 @@ private theorem input_le (inputWidth : Nat) :
       · exact le_rfl
 
 /-- The actual path visits the supplied words, zero allocation, seed loading and inverse. -/
-theorem visitedContexts (modulus : Nat)
+lemma visitedContexts (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).visitedContexts path =
       [before modulus.size, after modulus.size, after modulus.size,
         after modulus.size] := by
   rfl
 
-private theorem native_pool (modulus : Nat) :
+private lemma native_pool (modulus : Nat) :
     (InverseRuntime.nativeProgram modulus).eventCost ≤ NativeBudget.xor modulus.size := by
   by_cases nontrivial : 1 < modulus
   · simpa only [InverseRuntime.nativeProgram, dif_pos nontrivial,
@@ -153,7 +153,7 @@ private theorem native_pool (modulus : Nat) :
       UnitaryCircuit.identity_eventCost]
     exact zero_le
 
-private theorem load_pool (modulus : Nat) :
+private lemma load_pool (modulus : Nat) :
     (InversePreparation.loadProgram modulus).eventCost = seedEvents modulus := by
   have placed := Execution.PreparationLoaded.program_eventCost (before modulus.size)
     auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
@@ -164,13 +164,13 @@ private theorem load_pool (modulus : Nat) :
     (InputPreparation.auxiliaryQubitLayout modulus.size) .empty
     (InputPreparation.loadConstant modulus))
 
-private theorem add_bound {left right : ResourcePool (.quantum AlgorithmGate.model .empty)}
+private lemma add_bound {left right : ResourcePool (.quantum AlgorithmGate.model .empty)}
     (head : ResourcePool (.quantum AlgorithmGate.model .empty))
     (bounded : left ≤ right) : head + left ≤ head + right :=
   add_le_add_right bounded head
 
 /-- Every actual preparation, fixed X and native event is bounded independently. -/
-theorem resourcePool (modulus : Nat)
+lemma resourcePool (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).resourcePool path ≤ events modulus := by
   change ResourcePool.ofList ((InverseRuntime.code modulus).eventTrace path) ≤ _
@@ -194,7 +194,7 @@ theorem resourcePool (modulus : Nat)
     (native_pool modulus)
 
 /-- Resident capacity is obtained from all actual visited contexts. -/
-theorem resident (modulus : Nat)
+lemma resident (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).peakResidentSpace path ≤ space modulus.size := by
   unfold Circuit.peakResidentSpace
@@ -204,7 +204,7 @@ theorem resident (modulus : Nat)
   exact SpacePool.max_le (input_le modulus.size) le_rfl
 
 /-- Owned auxiliary capacity is obtained from those same actual contexts. -/
-theorem auxiliary (modulus : Nat)
+lemma auxiliary (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).peakAuxiliarySpace path ≤ space modulus.size := by
   unfold Circuit.peakAuxiliarySpace
@@ -213,7 +213,7 @@ theorem auxiliary (modulus : Nat)
     SpacePool.max_zero, SpacePool.max_self, before_auxiliary]
   exact SpacePool.max_le (input_le modulus.size) le_rfl
 
-private theorem native_count (modulus : Nat) :
+private lemma native_count (modulus : Nat) :
     (InverseRuntime.nativeProgram modulus).eventCost.card ≤
       ForwardResources.xorBound modulus.size := by
   by_cases nontrivial : 1 < modulus
@@ -225,7 +225,7 @@ private theorem native_count (modulus : Nat) :
     exact Nat.zero_le _
 
 /-- Zero allocation, literal seed loading and native arithmetic obey the same bound. -/
-theorem depth (modulus : Nat)
+lemma depth (modulus : Nat)
     (path : (InverseRuntime.code modulus).Path) :
     (InverseRuntime.code modulus).depth (fun _ => 1) path ≤
       depthBound modulus.size := by

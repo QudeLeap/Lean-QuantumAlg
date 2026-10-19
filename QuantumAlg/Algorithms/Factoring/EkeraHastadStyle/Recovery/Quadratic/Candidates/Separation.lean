@@ -45,7 +45,7 @@ structure Separated (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWi
   firstSecond : refs.first.key ≠ refs.second.key
 
 /-- The four real workspace lifts retain precisely the original structural key support. -/
-theorem nativeQuadratic_underRead_keys {shape : CShape} (input : CInputRef ctx shape) :
+lemma nativeQuadratic_underRead_keys {shape : CShape} (input : CInputRef ctx shape) :
     (Layout.underRead input width).storageKeys = input.storageKeys := by
   let first : CInputRef (Layout.centerCtx ctx width) shape :=
     input.underWorkspace ctx.canonicalFreshKey (.unsignedWord (RSA.quadraticWordWidth width))
@@ -72,7 +72,7 @@ theorem nativeQuadratic_underRead_keys {shape : CShape} (input : CInputRef ctx s
           (.unsignedWord (RSA.quadraticWordWidth width)) ctx.canonicalFreshKey_fresh)))
 
 /-- Every actual candidate word is outside every original structural read. -/
-theorem nativeQuadratic_underRead_free {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeQuadratic_underRead_free {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (present : key ∈ Layout.internalKeys ctx width) :
     key ∉ (Layout.underRead input width).storageKeys := by
   rw [nativeQuadratic_underRead_keys]
@@ -83,7 +83,7 @@ theorem nativeQuadratic_underRead_free {shape : CShape} (input : CInputRef ctx s
 private def cellKey (ctx : RuntimeCtx kind) (width : Nat) (index : Fin 4) : StorageKey :=
   (Layout.internalKeys ctx width).get ⟨index.val, by change index.val < 4; exact index.isLt⟩
 
-private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
+private lemma cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
     (left right : Fin 4) (different : left ≠ right) :
     cellKey ctx width left ≠ cellKey ctx width right := by
   intro same
@@ -91,7 +91,7 @@ private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
   exact different (Fin.ext (congrArg Fin.val positions))
 
 /-- Actual allocation discharges every arithmetic separation condition internally. -/
-theorem nativeQuadratic_layout_separated
+lemma nativeQuadratic_layout_separated
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) :
     Separated (Layout.underRead modulus width) (Layout.refs ctx width) where
   modulusFree := by

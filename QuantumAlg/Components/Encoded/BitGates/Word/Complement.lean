@@ -30,18 +30,18 @@ def complementGates (word : Word encoding width) : List (GateSpec encoding) :=
   (List.ofFn fun index : Fin width => index).map fun index => .x (word.bit index)
 
 /-- The actual gate list has one occurrence for every word bit. -/
-theorem complementGates_length (word : Word encoding width) :
+lemma complementGates_length (word : Word encoding width) :
     word.complementGates.length = width := by
   simp [complementGates]
 
-private theorem complementGates_step (word : Word encoding width) (state : Data) :
+private lemma complementGates_step (word : Word encoding width) (state : Data) :
     GateSpec.stepList word.complementGates state =
       word.xorConstantIndicesStep (List.ofFn fun index : Fin width => index) state := by
   rw [GateSpec.stepList_eq_foldl, complementGates, List.foldl_map]
   rfl
 
 /-- Every distinct physical word position is complemented exactly once. -/
-theorem complementGates_get (word : Word encoding width)
+lemma complementGates_get (word : Word encoding width)
     (distinct : Function.Injective (fun index => (word.bit index).wire))
     (state : Data) (index : Fin width) :
     (word.bit index).get (GateSpec.stepList word.complementGates state) =
@@ -55,7 +55,7 @@ theorem complementGates_get (word : Word encoding width)
   simp only [decide_eq_true present, Bool.xor_true]
 
 /-- Every other actual encoded bit keeps its original value. -/
-theorem complementGates_get_other (word : Word encoding width)
+lemma complementGates_get_other (word : Word encoding width)
     (observed : EncodedBit encoding)
     (different : ∀ index, (word.bit index).wire ≠ observed.wire) (state : Data) :
     observed.get (GateSpec.stepList word.complementGates state) = observed.get state := by
@@ -65,7 +65,7 @@ theorem complementGates_get_other (word : Word encoding width)
   exact get_flip_of_wire_ne (word.bit index) observed (different index)
 
 /-- Reversing the same complement list restores every original encoded coordinate. -/
-theorem complementGates_reverse_restore (word : Word encoding width) (state : Data) :
+lemma complementGates_reverse_restore (word : Word encoding width) (state : Data) :
     GateSpec.stepList word.complementGates.reverse
         (GateSpec.stepList word.complementGates state) = state :=
   GateSpec.stepList_reverse_stepList word.complementGates state

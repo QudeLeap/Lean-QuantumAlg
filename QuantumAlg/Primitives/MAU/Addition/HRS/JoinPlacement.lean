@@ -25,7 +25,9 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
-private theorem bridgeOneDirtyWidth (width : Nat) :
+variable {environment : OracleModel.empty.Interpretation}
+
+private lemma bridgeOneDirtyWidth (width : Nat) :
     (bridgeEncoding (lowWidth width) (highWidth width)).width =
       (oneDirtyEncoding width).width := by
   change highWidth width + lowWidth width + 1 = width + 1
@@ -41,7 +43,7 @@ def joinProgram (width : Nat)
       (QubitLayout.canonical (oneDirtyEncoding width).width).toQuantum :=
   UnitaryCircuit.castCanonicalQubitWidth (bridgeOneDirtyWidth width) program
 
-private theorem joinCastIndex_encode (width : Nat)
+private lemma joinCastIndex_encode (width : Nat)
     (words : Fin (2 ^ lowWidth width) × Fin (2 ^ highWidth width))
     (dirty : Bool) :
     UnitaryCircuit.castQubitWidthIndex (bridgeOneDirtyWidth width)
@@ -55,15 +57,15 @@ private theorem joinCastIndex_encode (width : Nat)
   rw [hrsJoin_value]
 
 /-- Exact action transported through the semantic split and join views. -/
-theorem hrsJoinProgram_realizes (width : Nat)
+lemma hrsJoinProgram_realizes (width : Nat)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical
         (bridgeEncoding (lowWidth width) (highWidth width)).width).toQuantum)
     (step : BridgeRegisters (Fin (2 ^ lowWidth width)) (highWidth width) →
       BridgeRegisters (Fin (2 ^ lowWidth width)) (highWidth width))
     (h : UnitaryCircuit.Realizes (bridgeEncoding (lowWidth width) (highWidth width))
-      program step) :
-    UnitaryCircuit.Realizes (oneDirtyEncoding width) (joinProgram width program)
+      program environment step) :
+    UnitaryCircuit.Realizes (oneDirtyEncoding width) (joinProgram width program) environment
       (fun state =>
         let output := step ((splitWord width) state.1, state.2)
         (joinWord width output.1, output.2)) where
@@ -107,20 +109,20 @@ theorem hrsJoinProgram_realizes (width : Nat)
             ((QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv.symm
               index)) (joinCastIndex_encode width output.1 output.2))
     calc
-      _ = (joinProgram width program).applyNormalized
+      _ = (joinProgram width program).applyNormalized environment
           (bridgeOneDirtyWidth width ▸ sourceInput) :=
-        congrArg (joinProgram width program).applyNormalized inputCast.symm
-      _ = bridgeOneDirtyWidth width ▸ program.applyNormalized sourceInput :=
+        congrArg ((joinProgram width program).applyNormalized environment) inputCast.symm
+      _ = bridgeOneDirtyWidth width ▸ program.applyNormalized environment sourceInput :=
         UnitaryCircuit.castCanonicalQubitWidth_applyNormalized
-          (bridgeOneDirtyWidth width) program sourceInput
+          (bridgeOneDirtyWidth width) program sourceInput environment
       _ = bridgeOneDirtyWidth width ▸ sourceOutput := congrArg
         (fun state => bridgeOneDirtyWidth width ▸ state)
-        (show program.applyNormalized sourceInput = sourceOutput by
+        (show program.applyNormalized environment sourceInput = sourceOutput by
           simpa only [sourceInput, sourceOutput, output] using run)
       _ = _ := outputCast
 
 /-- Joining the semantic view retains the actual native ledger and depth. -/
-theorem hrsJoinProgram_resources (width : Nat)
+lemma hrsJoinProgram_resources (width : Nat)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical
         (bridgeEncoding (lowWidth width) (highWidth width)).width).toQuantum)

@@ -24,7 +24,7 @@ open scoped ComplexOrder
 
 variable {R Reference : Register}
 
-private theorem basisSlice_trace_le (state : DensityOperator (R.prod Reference))
+private lemma basisSlice_trace_le (state : DensityOperator (R.prod Reference))
     (label : R.Index) :
     (state.matrix.submatrix (fun index => (label, index))
       (fun index => (label, index))).trace.re ≤ state.mass := by
@@ -47,16 +47,16 @@ def basisSlice (state : DensityOperator (R.prod Reference)) (label : R.Index) :
   trace_le_one := (basisSlice_trace_le state label).trans state.trace_le_one
 
 /-- Slicing preserves every complex reference entry at that actual local basis. -/
-theorem basisSlice_matrix (state : DensityOperator (R.prod Reference)) (label : R.Index)
+lemma basisSlice_matrix (state : DensityOperator (R.prod Reference)) (label : R.Index)
     (left right : Reference.Index) :
     (state.basisSlice label).matrix left right = state.matrix (label, left) (label, right) := rfl
 
 /-- A principal reference block cannot contain more probability than the whole input. -/
-theorem basisSlice_mass_le (state : DensityOperator (R.prod Reference)) (label : R.Index) :
+lemma basisSlice_mass_le (state : DensityOperator (R.prod Reference)) (label : R.Index) :
     (state.basisSlice label).mass ≤ state.mass := basisSlice_trace_le state label
 
 /-- Full local ket support keeps the complete mass in the same reference block. -/
-theorem basisSlice_mass_of_factor (state : DensityOperator (R.prod Reference)) (label : R.Index)
+lemma basisSlice_mass_of_factor (state : DensityOperator (R.prod Reference)) (label : R.Index)
     (factor : ∀ left right : R.Index, ∀ refLeft refRight : Reference.Index,
       state.matrix (left, refLeft) (right, refRight) =
         NormalizedVector.ket label left * state.matrix (label, refLeft) (label, refRight) *

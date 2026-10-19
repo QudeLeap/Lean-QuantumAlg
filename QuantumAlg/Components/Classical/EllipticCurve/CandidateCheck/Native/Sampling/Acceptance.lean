@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Correctness
-import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Persistent.Local.Observation
+import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Persistent.Embedding.Observation
 
 /-!
 # The current eligible stored sample enters actual first acceptance
@@ -28,7 +28,7 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 private def currentEligible (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -42,48 +42,54 @@ private def currentEligible (curve : CurveSpec width) (modulus : ModulusSpec sca
     SampleAccepted curve modulus basePoint targetPoint
       (before.read (persistentInput width scalarWidth sample))
 
-private theorem currentEligible_store
+private lemma currentEligible_store
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState)
     (eligible : currentEligible curve modulus sample base target basePoint targetPoint before.1) :
-    let after := persistentAttemptStore curve modulus sample base target before
+    let after := persistentAttemptStore (environment := environment) curve modulus sample base
+      target before
     (after.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
       after.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
         (FiniteCyclicDLP.RawRecovery.outputCells modulus
           (FiniteCyclicDLP.RawRecovery.Native.preparationInput
             (before.1.read (persistentInput width scalarWidth sample)))).second.first := by
-  have latches := persistentAttemptStore_latches curve modulus sample base target before
+  have latches := persistentAttemptStore_latches (environment := environment)
+    curve modulus sample base target before
     basePoint targetPoint eligible.1 eligible.2.1
   dsimp only at latches ⊢
   refine ⟨latches.1.mpr (Or.inr eligible.2.2.2), ?_⟩
   simpa only [eligible.2.2.1, Bool.false_eq_true, if_false, if_pos eligible.2.2.2] using latches.2
 
-private theorem persistentAttempt_store_support
+private lemma persistentAttempt_store_support
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (predicate outputPredicate : Store (persistentCtx ctx width scalarWidth) → Prop)
     (updates : ∀ before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState,
       predicate before.1 →
-      outputPredicate (persistentAttemptStore curve modulus sample base target before))
+      outputPredicate (persistentAttemptStore (environment := environment) curve modulus sample
+        base target before))
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
     (holds : ∀ entry, 0 < (state.block entry).mass → predicate entry.1)
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
-    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
+    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute environment
+      Reference
       state).block result).mass) : outputPredicate result.1 := by
-  obtain ⟨record, execution, stores⟩ := attemptInto_actualRecord curve modulus
+  obtain ⟨record, execution, stores⟩ := attemptInto_actualRecord (environment := environment)
+    curve modulus
     (persistentInput width scalarWidth sample) (persistentInput width scalarWidth base)
     (persistentInput width scalarWidth target) (persistentInverseSuccess ctx width scalarWidth)
     (persistentCandidate ctx width scalarWidth) (persistentReconstruction ctx width scalarWidth)
     (persistentScalar ctx width scalarWidth) (persistentTargetAccepted ctx width scalarWidth)
     (persistentAccepted ctx width scalarWidth) (persistentSelected ctx width scalarWidth)
   have actual := execution Reference state
-  change (persistentAttempt curve modulus sample base target).execute Reference state = _ at actual
+  change (persistentAttempt curve modulus sample base target).execute environment Reference
+    state = _ at actual
   rw [actual] at positive
   obtain ⟨original, equality, present⟩ := (mapped_positive _ _ _ _).mp positive
   rw [← equality]
@@ -93,7 +99,7 @@ private theorem persistentAttempt_store_support
   exact updates (original.1, original.2.1) (holds original present)
 
 /-- A current eligible sample is accepted and its original recovered word is actually selected. -/
-theorem persistentAttempt_accepts_current_supported
+lemma persistentAttempt_accepts_current_supported
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
@@ -108,7 +114,8 @@ theorem persistentAttempt_accepts_current_supported
         (entry.1.read (persistentInput width scalarWidth sample)))
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
-    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
+    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute environment
+      Reference
       state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
@@ -127,13 +134,14 @@ theorem persistentAttempt_accepts_current_supported
             (store.read (persistentInput width scalarWidth sample)))).second.first) ?_
     state holds result positive
   intro before eligible
-  have kept := currentEligible_store curve modulus sample base target basePoint targetPoint
+  have kept := currentEligible_store (environment := environment)
+    curve modulus sample base target basePoint targetPoint
     before eligible
   rw [persistentAttemptStore_preserves_read curve modulus sample base target before sample]
   exact kept
 
 /-- An explicit equality for the original raw candidate supplies the same actual selected word. -/
-theorem persistentAttempt_selects_word_supported
+lemma persistentAttempt_selects_word_supported
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
@@ -152,7 +160,8 @@ theorem persistentAttempt_selects_word_supported
           (entry.1.read (persistentInput width scalarWidth sample)))).second.first = wanted)
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
-    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
+    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute environment
+      Reference
       state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
@@ -174,7 +183,8 @@ theorem persistentAttempt_selects_word_supported
       store.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = wanted) ?_
     state originalSupport result positive
   intro before eligible
-  have kept := currentEligible_store curve modulus sample base target basePoint targetPoint before
+  have kept := currentEligible_store (environment := environment)
+    curve modulus sample base target basePoint targetPoint before
     eligible.1
   exact ⟨kept.1, kept.2.trans eligible.2⟩
 

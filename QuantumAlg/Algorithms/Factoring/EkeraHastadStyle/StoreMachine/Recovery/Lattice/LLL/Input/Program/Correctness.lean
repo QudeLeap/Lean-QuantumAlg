@@ -25,7 +25,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- Actual loading, Gram refresh and phase reset establish the complete original LLL invariant. -/
-theorem initializeWideInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma initializeWideInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeFixedFuelMachine.StoreInvariant refs.initialization.driver (sourceBasis refs store)
@@ -36,7 +36,7 @@ theorem initializeWideInto_correct {model : ExecutionModel} [BitWord.Selected mo
     (sourceBasis_fullRank refs store) (initialState_capacity refs store)
 
 /-- Actual initialization retains the complete caller frame independently of initial values. -/
-theorem initializeWideInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma initializeWideInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
     (initializeWideStep refs store).1.read other = store.read other :=
@@ -44,7 +44,7 @@ theorem initializeWideInto_callerFrame {model : ExecutionModel} [BitWord.Selecte
     separate.fixedFuel).trans (decodeTargetInto_callerFrame refs store other separate.decodeTarget)
 
 /-- The actual source-to-LLL run realizes the original mathematical result at its original fuel. -/
-theorem pairToLllInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma pairToLllInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeFixedFuelMachine.StoreInvariant refs.initialization.driver (sourceBasis refs store)
@@ -56,7 +56,7 @@ theorem pairToLllInto_correct {model : ExecutionModel} [BitWord.Selected model]
     (sourceBasis_fullRank refs store) (initialState_capacity refs store)
 
 /-- Reads outside the original source-loader and LLL writes survive the complete actual run. -/
-theorem pairToLllInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma pairToLllInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
     (pairToLllStep refs store).1.read other = store.read other :=
@@ -66,7 +66,7 @@ theorem pairToLllInto_callerFrame {model : ExecutionModel} [BitWord.Selected mod
     (decodeTargetInto_callerFrame refs store other separate.decodeTarget)
 
 /-- The final mathematical basis is the output of the original public short-log recovery trace. -/
-theorem finalState_basis_eq_shortLogRecoveryTrace_output (refs : Refs ctx N) (store : Store ctx) :
+lemma finalState_basis_eq_shortLogRecoveryTrace_output (refs : Refs ctx N) (store : Store ctx) :
     (finalState refs store).basis =
       (RSA.shortLogRecoveryTrace (shortLogBits N) (tradeoffBits N)
         (sourceSamples refs store)).output := by

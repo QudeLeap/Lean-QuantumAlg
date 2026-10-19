@@ -22,24 +22,27 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 /-- A real retained continuation preserves the source seed in every complete store block. -/
-theorem shortDLP_runtimeRetainedRecord_seedBlocks {ctx : RuntimeCtx .quantum}
+lemma shortDLP_runtimeRetainedRecord_seedBlocks {ctx : RuntimeCtx .quantum}
     (m ell width N : Nat)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
     {key : StorageKey} {shape : CShape} {fresh : key ∉ ctx.keys}
     (code : Circuit model ctx (ctx.addRetained key shape fresh))
     (step : Store ctx × model.HiddenState →
       (Store (ctx.addRetained key shape fresh) × model.HiddenState) × code.Path)
-    (record : Circuit.RetainedRecord code step)
+    (record : Circuit.RetainedRecord (environment := environment) code step)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (seeded : HasSeedBlocks m ell width sameWires N state) :
     HasSeedBlocks m ell width
       ((RuntimeCtx.quantumWires_addRetained ctx key shape fresh).trans sameWires) N
-      (code.execute Reference state) :=
-  BasisSeeded.retainedRecord code step record
+      (code.execute environment Reference state) :=
+  BasisSeeded.retainedRecord (environment := environment) code step record
     ((RuntimePlacement.basisEquiv m ell width sameWires).symm
       (CompiledMAU.reloadLabel m ell width N)) state seeded
 

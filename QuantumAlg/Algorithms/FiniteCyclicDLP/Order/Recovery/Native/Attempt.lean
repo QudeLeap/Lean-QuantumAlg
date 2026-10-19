@@ -31,6 +31,7 @@ noncomputable section
 universe u
 
 variable {G : Type u} [Group G] [Fintype G]
+variable {oracles : OracleModel}
 variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 
 /-- Writable observations and tests of one actual recovery attempt. -/
@@ -92,9 +93,9 @@ comparison both succeed. -/
 
 /-- Both actual conjunctions follow the declared group-power check. -/
 @[expose] public def acceptanceSuffix {width : Nat} (refs : AttemptRefs ctx width) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  .seq (BitWord.instruction (execution := OrderExecution.model P) (rawAcceptanceOp refs))
-    (BitWord.instruction (execution := OrderExecution.model P) (candidateAcceptanceOp refs))
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  .seq (BitWord.instruction (execution := recoveryModel P oracles) (rawAcceptanceOp refs))
+    (BitWord.instruction (execution := recoveryModel P oracles) (candidateAcceptanceOp refs))
 
 /-- Raw recovery, group verification and a caller continuation share the same
 lexical attempt cells. -/
@@ -104,12 +105,13 @@ lexical attempt cells. -/
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : AttemptRefs ctx (OrderPreparation.width P))
     (body : CInputRef ctx (.unsignedWord (OrderPreparation.width P)) →
-      CInputRef ctx .bit → Circuit (OrderExecution.model P) ctx ctx) :
-    Circuit (OrderExecution.model P) ctx ctx :=
+      CInputRef ctx .bit → Circuit (recoveryModel P oracles) ctx ctx) :
+    Circuit (recoveryModel P oracles) ctx ctx :=
   .seq (RawRecovery.Native.singleIntoCells spec input refs.inverseSuccess refs.candidate
       refs.reconstruction)
-    (.seq (powerCheck P (.storage refs.candidate.toCStorageRef) refs.powerEqualsTarget)
-      (.seq (acceptanceSuffix P refs)
+    (.seq (powerCheck (oracles := oracles) P (.storage refs.candidate.toCStorageRef)
+      refs.powerEqualsTarget)
+      (.seq (acceptanceSuffix (oracles := oracles) P refs)
         (body (.storage refs.candidate.toCStorageRef)
           (.storage refs.acceptedCandidate.toCStorageRef))))
 
@@ -121,11 +123,11 @@ lexical attempt cells. -/
     (body : ∀ {inner : RuntimeCtx .quantum},
       CInputRef inner (.unsignedWord (OrderPreparation.width P)) →
       CInputRef inner .bit → Transport ctx inner →
-        Circuit (OrderExecution.model P) inner inner) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  withCells (model := OrderExecution.model P) ctx
+        Circuit (recoveryModel P oracles) inner inner) :
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  withCells (model := recoveryModel P oracles) ctx
       (attemptShapes (OrderPreparation.width P)) fun cells _ transport _ =>
-    attemptBody P spec (transport.liftInput input) (attemptRefs cells)
+    attemptBody (oracles := oracles) P spec (transport.liftInput input) (attemptRefs cells)
       (fun candidate accepted => body candidate accepted transport)
 
 end

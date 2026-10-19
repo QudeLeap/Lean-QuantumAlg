@@ -36,54 +36,54 @@ open QuantumAlg.ZeroReflection.Workspace
 open QuantumAlg.AmplitudeAmplificationSource
 
 /-- The sole executed circuit realizes the complete independent native event formula. -/
-theorem code_events {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    (path : (code M k).Path) : (code M k).resourcePool path = eventBudget M k := by
+lemma code_events (n : Nat) (k : Nat)
+    (path : (code n k).Path) : (code n k).resourcePool path = eventBudget n k := by
   change ResourcePool.ofList
-    (ZeroPreparation.eventTrace AlgorithmGate.model (Native.oracles M.preparation M.good)
-      (runtimeLayout n k) ++ (nativeProgram M k).eventTrace) = _
+    (ZeroPreparation.eventTrace AlgorithmGate.model (Native.oracles n)
+      (runtimeLayout n k) ++ (nativeProgram n k).eventTrace) = _
   rw [ResourcePool.ofList_append, UnitaryCircuit.ofList_eventTrace_eq_eventCost,
     nativeProgram, Execution.unitaryOfEqualWires_cost, Native.program_eventCost]
-  change ZeroPreparation.eventCost AlgorithmGate.model (Native.oracles M.preparation M.good)
-    (runtimeLayout n k) + Native.unitaryEventPool M.preparation M.good k = _
+  change ZeroPreparation.eventCost AlgorithmGate.model (Native.oracles n)
+    (runtimeLayout n k) + Native.unitaryEventPool n k = _
   rw [ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model
-    (Native.oracles M.preparation M.good) (runtimeLayout n k) 2 (fun _ => rfl)]
+    (Native.oracles n) (runtimeLayout n k) 2 (fun _ => rfl)]
   rfl
 
 /-- The exact depth includes the parallel nonempty zero-preparation layer. -/
-theorem code_depth_exact {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    (path : (code M k).Path) :
-    (code M k).depth (fun _ => 1) path =
+lemma code_depth_exact (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    (code n k).depth (fun _ => 1) path =
       (if totalQubits n k = 0 then 0 else 1) + Native.unitaryDepth n k := by
   change DepthExpr.depthEval (fun _ => 1)
-      (ZeroPreparation.eventDepth AlgorithmGate.model (Native.oracles M.preparation M.good)
+      (ZeroPreparation.eventDepth AlgorithmGate.model (Native.oracles n)
         (runtimeLayout n k)) +
-      (Native.program M.preparation M.good k).evaluatedEventDepth (fun _ => 1) = _
+      (Native.program n k).evaluatedEventDepth (fun _ => 1) = _
   rw [ZeroPreparation.zeroPreparation_uniform_unit_depth AlgorithmGate.model
-    (Native.oracles M.preparation M.good) (runtimeLayout n k) 2 (fun _ => rfl),
+    (Native.oracles n) (runtimeLayout n k) 2 (fun _ => rfl),
     Native.program_unitDepth]
 
 /-- The independent bound covers every width, including an empty prepared word. -/
-theorem code_depth {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    (path : (code M k).Path) : (code M k).depth (fun _ => 1) path ≤ depthBudget n k := by
+lemma code_depth (n : Nat) (k : Nat)
+    (path : (code n k).Path) : (code n k).depth (fun _ => 1) path ≤ depthBudget n k := by
   rw [code_depth_exact]
   unfold Native.unitaryDepth depthBudget
   split <;> omega
 
 /-- Known reflections are the sole elementary gates outside the source-query coordinates. -/
-theorem code_gateCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
-    (path : (code M k).Path) :
+lemma code_gateCount (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
     ResourcePool.weightedCount (fun event => match event with
-      | .gate _ => 1 | _ => 0) ((code M k).resourcePool path) =
+      | .gate _ => 1 | _ => 0) ((code n k).resourcePool path) =
         k * ZeroReflection.elementaryGateCount n := by
-  let weight : Resource.Event (model M) → Nat := fun event => match event with
+  let weight : Resource.Event (model n) → Nat := fun event => match event with
     | .gate _ => 1 | _ => 0
-  change ResourcePool.weightedCount weight ((code M k).resourcePool path) = _
-  have actual : ResourcePool.weightedCount weight (Native.unitaryEventPool M.preparation M.good k) =
+  change ResourcePool.weightedCount weight ((code n k).resourcePool path) = _
+  have actual : ResourcePool.weightedCount weight (Native.unitaryEventPool n k) =
       k * ZeroReflection.elementaryGateCount n := by
-    rw [← Native.program_eventCost M.preparation M.good k]
-    refine Eq.trans ?_ (Native.program_gateCount M.preparation M.good k)
-    apply congrArg (fun assignment : Resource.Event (model M) → Nat =>
-      ResourcePool.weightedCount assignment (Native.program M.preparation M.good k).eventCost)
+    rw [← Native.program_eventCost n k]
+    refine Eq.trans ?_ (Native.program_gateCount n k)
+    apply congrArg (fun assignment : Resource.Event (model n) → Nat =>
+      ResourcePool.weightedCount assignment (Native.program n k).eventCost)
     funext event
     cases event <;> rfl
   rw [code_events]

@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.SelectionPredicate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit SelectionLayout NativePredicate
 
 /-- A fixed selector pattern over the complete actual length/phase readout. -/
@@ -48,11 +50,11 @@ def condition {width : Nat} (expected : Pattern width) (state : Registers width)
 def maskIndices (width : Nat) (expected : Pattern width) : List (Fin (2 * width.size + 2)) :=
   (List.ofFn fun index : Fin (2 * width.size + 2) => index).filter expected
 
-private theorem maskIndices_nodup (width : Nat) (expected : Pattern width) :
+private lemma maskIndices_nodup (width : Nat) (expected : Pattern width) :
     (maskIndices width expected).Nodup :=
   (List.nodup_ofFn_ofInjective (fun _ _ same => same)).filter _
 
-private theorem maskIndices_member (width : Nat) (expected : Pattern width)
+private lemma maskIndices_member (width : Nat) (expected : Pattern width)
     (index : Fin (2 * width.size + 2)) :
     decide (index ∈ maskIndices width expected) = expected index := by
   have allIndices : index ∈ (List.ofFn fun index : Fin (2 * width.size + 2) => index) :=
@@ -64,13 +66,13 @@ private theorem maskIndices_member (width : Nat) (expected : Pattern width)
 def maskGates (width : Nat) (expected : Pattern width) : List (GateSpec (encoding width)) :=
   (maskIndices width expected).map fun index => .x ((layout width).source.bit index)
 
-private theorem maskStep_eq (width : Nat) (expected : Pattern width) (state : Registers width) :
+private lemma maskStep_eq (width : Nat) (expected : Pattern width) (state : Registers width) :
     GateSpec.stepList (maskGates width expected) state =
       Word.xorConstantIndicesStep (layout width).source (maskIndices width expected) state := by
   rw [maskGates, GateSpec.stepList_eq_foldl, List.foldl_map]
   rfl
 
-private theorem mask_get (width : Nat) (expected : Pattern width)
+private lemma mask_get (width : Nat) (expected : Pattern width)
     (state : Registers width) (index : Fin (2 * width.size + 2)) :
     ((layout width).source.bit index).get (GateSpec.stepList (maskGates width expected) state) =
       (((layout width).source.bit index).get state ^^ expected index) := by
@@ -78,7 +80,7 @@ private theorem mask_get (width : Nat) (expected : Pattern width)
     index (fun other different => (layout width).source_source_ne other index different),
     maskIndices_member]
 
-private theorem masked_zero_iff (width : Nat) (expected : Pattern width)
+private lemma masked_zero_iff (width : Nat) (expected : Pattern width)
     (state : Registers width) :
     (∀ index, ((layout width).source.bit index).get
       (GateSpec.stepList (maskGates width expected) state) = false) ↔ Matches expected state := by
@@ -87,7 +89,7 @@ private theorem masked_zero_iff (width : Nat) (expected : Pattern width)
   rw [mask_get]
   cases ((layout width).source.bit index).get state <;> cases expected index <;> decide
 
-private theorem mask_disjoint_output (width : Nat) (expected : Pattern width)
+private lemma mask_disjoint_output (width : Nat) (expected : Pattern width)
     (gate : GateSpec (encoding width)) (present : gate ∈ maskGates width expected) :
     GateSpec.bitDisjoint (layout width).output gate := by
   obtain ⟨index, _present, rfl⟩ := List.mem_map.mp present
@@ -98,7 +100,7 @@ def gates (width : Nat) (expected : Pattern width) : List (GateSpec (encoding wi
   maskGates width expected ++ Word.ZeroTestLayout.borrowedZeroGates (layout width) ++
     (maskGates width expected).reverse
 
-private theorem gates_step_if (width : Nat) (expected : Pattern width) (state : Registers width) :
+private lemma gates_step_if (width : Nat) (expected : Pattern width) (state : Registers width) :
     GateSpec.stepList (gates width expected) state =
       if Matches expected state then (layout width).output.flip state else state := by
   rw [gates, GateSpec.stepList_append, GateSpec.stepList_append,
@@ -111,12 +113,12 @@ private theorem gates_step_if (width : Nat) (expected : Pattern width) (state : 
   · exact GateSpec.stepList_reverse_stepList (maskGates width expected) state
 
 /-- Full actual equality computation restores arbitrary source and work, changing only Ctrl. -/
-theorem gates_step (width : Nat) (expected : Pattern width) (state : Registers width) :
+lemma gates_step (width : Nat) (expected : Pattern width) (state : Registers width) :
     GateSpec.stepList (gates width expected) state = xorControl (condition expected state) state :=
   (gates_step_if width expected state).trans
     (NativePredicate.conditional_flip_xor (Matches expected state) state)
 
-private theorem condition_xorControl (width : Nat) (expected : Pattern width)
+private lemma condition_xorControl (width : Nat) (expected : Pattern width)
     (value : Bool) (state : Registers width) :
     condition expected (xorControl value state) = condition expected state := by
   have retained : ∀ index, ((layout width).source.bit index).get (xorControl value state) =
@@ -127,7 +129,7 @@ private theorem condition_xorControl (width : Nat) (expected : Pattern width)
   simp only [condition, Matches, retained]
 
 /-- The literal reverse predicate has the same xor action for arbitrary incoming work and Ctrl. -/
-theorem reverse_step (width : Nat) (expected : Pattern width) (state : Registers width) :
+lemma reverse_step (width : Nat) (expected : Pattern width) (state : Registers width) :
     GateSpec.stepList (gates width expected).reverse state =
       xorControl (condition expected state) state := by
   let toggled := xorControl (condition expected state) state
@@ -150,14 +152,14 @@ def program (width : Nat) (expected : Pattern width) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width expected)
 
 /-- Exact all-label equality-predicate realization with no discarded relative phase. -/
-theorem program_realizes (width : Nat) (expected : Pattern width) :
-    UnitaryCircuit.Realizes (encoding width) (program width expected)
+lemma program_realizes (width : Nat) (expected : Pattern width) :
+    UnitaryCircuit.Realizes (encoding width) (program width expected) environment
       (fun state => xorControl (condition expected state) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width expected) (gates_step width expected)
+    (gates width expected) (gates_step width expected) environment
 
 /-- Exact count of every source mask and every native borrowed-work zero-test event. -/
-theorem gates_length (width : Nat) (expected : Pattern width) :
+lemma gates_length (width : Nat) (expected : Pattern width) :
     (gates width expected).length =
       2 * (maskIndices width expected).length + gateCount (2 * width.size) := by
   have testCount := Word.ZeroTestLayout.borrowedZeroGates_length (layout width)
@@ -167,14 +169,14 @@ theorem gates_length (width : Nat) (expected : Pattern width) :
   omega
 
 /-- The mask occurrence bound is derived from its actual finite source enumeration. -/
-theorem maskIndices_length_le (width : Nat) (expected : Pattern width) :
+lemma maskIndices_length_le (width : Nat) (expected : Pattern width) :
     (maskIndices width expected).length ≤ 2 * width.size + 2 := by
   simpa only [maskIndices, List.length_ofFn] using
     (List.length_filter_le (l := List.ofFn fun index : Fin (2 * width.size + 2) => index)
       (p := expected))
 
 /-- Unit event depth counts the very same complete native list. -/
-theorem program_unitDepth (width : Nat) (expected : Pattern width) :
+lemma program_unitDepth (width : Nat) (expected : Pattern width) :
     (program width expected).evaluatedEventDepth (fun _ => 1) =
       2 * (maskIndices width expected).length + gateCount (2 * width.size) := by
   rw [program, GateSpec.programList_evaluatedEventDepth_unit, gates_length]

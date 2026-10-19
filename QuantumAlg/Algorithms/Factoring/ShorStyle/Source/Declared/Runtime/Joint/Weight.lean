@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem phase_weight_decomposition {shape : CShape} (ctx : RuntimeCtx .quantum)
+private lemma phase_weight_decomposition {shape : CShape} (ctx : RuntimeCtx .quantum)
     (N : Nat) (observed : CInputRef ctx shape)
     (store : Store (Iteration.context ctx N))
     (weight : shape.Value → SourceOutcome N → ℂ) :
@@ -42,24 +42,24 @@ private theorem phase_weight_decomposition {shape : CShape} (ctx : RuntimeCtx .q
         mul_ite, mul_one, mul_zero, Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- The actual source law remains jointly conditional on every original real input value. -/
-theorem iteration_input_source_reference (ctx : RuntimeCtx .quantum) (N : Nat)
+lemma iteration_input_source_reference (ctx : RuntimeCtx .quantum) (N : Nat)
     (input : Input N) (sameWires : ctx.quantumWires = (layout N).wires)
     {shape : CShape} (observed : CInputRef ctx shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (weight : shape.Value → SourceOutcome N → ℂ) (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Iteration.code ctx N input sameWires).execute Reference state)
+      ((Iteration.code ctx N sameWires).execute (environment input) Reference state)
       (fun entry _ => weight (entry.1.read (iterationInput ctx N observed))
         (sourceRead ctx N entry.1)) left right =
       ExecutionState.referenceFiberSum state
         (fun entry _ => SourceWeights.one input (weight (entry.1.read observed))) left right := by
-  let actual := (Iteration.code ctx N input sameWires).execute Reference state
+  let actual := (Iteration.code ctx N sameWires).execute (environment input) Reference state
   let phaseWeight := fun phase : Fin (phaseBits N) → Bool =>
     fun entry : Store (Iteration.context ctx N) ×
-        ((executionModel input).HiddenState ×
-          (History × (Iteration.code ctx N input sameWires).Path)) =>
+        ((executionModel N).HiddenState ×
+          (History × (Iteration.code ctx N sameWires).Path)) =>
       fun _ : (Iteration.context ctx N).register.Index =>
         weight (entry.1.read (iterationInput ctx N observed))
           ⟨sampleRead (entry.1.read (Iteration.sampleInput ctx N)), phase⟩ *

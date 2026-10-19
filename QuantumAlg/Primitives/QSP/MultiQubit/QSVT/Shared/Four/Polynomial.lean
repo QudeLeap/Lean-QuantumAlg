@@ -22,7 +22,7 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
 /-- Four matching-parity source certificates yield one native execution and its exact budget. -/
-theorem exists_four_polynomial_execution {m n L : Nat}
+lemma exists_four_polynomial_execution {m n L : Nat}
     (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
     (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
     (hermitian : A.IsHermitian) (R S T V : Polynomial ℝ)
@@ -34,14 +34,15 @@ theorem exists_four_polynomial_execution {m n L : Nat}
       imaginaryConstant : ℝ,
       phases.length = L ∧
       projectedBlock (1 + (1 + (1 + m))) n
-        (reassociateThree (complexWord U positive phases realAngle imaginaryAngle
-          realConstant imaginaryConstant).binaryMatrix) =
+        (reassociateThree ((complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+          realConstant imaginaryConstant).binaryMatrix
+            (UnitarySource.interpretation U true true false))) =
         (1 / 4 : ℂ) • polynomialOperator (realPolynomialToComplex R) A +
         (1 / 4 : ℂ) • polynomialOperator (realPolynomialToComplex S) A +
         ((1 / 4 : ℂ) • Complex.I • polynomialOperator (realPolynomialToComplex T) A +
           (1 / 4 : ℂ) • Complex.I • polynomialOperator (realPolynomialToComplex V) A) ∧
-      (complexWord U positive phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).eventCost = complexBudget U L := by
+      (complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).eventCost = complexBudget (m := m) (n := n) L := by
   obtain ⟨rs, rc, rl, _, rb⟩ :=
     exists_initialized_polynomial_branch U positive A encoding hermitian r
   obtain ⟨ss, sc, sl, si, sb⟩ :=

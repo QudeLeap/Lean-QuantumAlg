@@ -50,7 +50,7 @@ structure Separated (refs : Refs ctx width) : Prop where
   dividesValid : refs.divisor.divides.key ≠ refs.divisor.valid.key
 
 /-- All six actual instructions return the range and remainder test on the original words. -/
-theorem nativeQuadratic_check_read (refs : Refs ctx width) (separated : Separated refs)
+lemma nativeQuadratic_check_read (refs : Refs ctx width) (separated : Separated refs)
     (store : Store ctx) :
     ((storeStep refs store).read (.storage refs.divisor.valid.toCStorageRef)).toBool =
       ((decide ((store.read refs.one).toNat < (store.read refs.divisor.candidate).toNat) &&
@@ -80,7 +80,7 @@ theorem nativeQuadratic_check_read (refs : Refs ctx width) (separated : Separate
   rw [rangeValue, modulusValue, candidateValue, zeroValue]
 
 /-- Real one and zero cell values specialize the stored result to the exact source validity test. -/
-theorem nativeQuadratic_check_read_constants (refs : Refs ctx width)
+lemma nativeQuadratic_check_read_constants (refs : Refs ctx width)
     (separated : Separated refs) (store : Store ctx)
     (oneValue : (store.read refs.one).toNat = 1)
     (zeroValue : (store.read refs.divisor.zero).toNat = 0) :
@@ -93,7 +93,7 @@ theorem nativeQuadratic_check_read_constants (refs : Refs ctx width)
   simp only [Bool.decide_and, Bool.and_assoc]
 
 /-- Every original structural read outside the actual four written cells keeps its full value. -/
-theorem nativeQuadratic_check_read_other (refs : Refs ctx width) {shape : CShape}
+lemma nativeQuadratic_check_read_other (refs : Refs ctx width) {shape : CShape}
     (other : CInputRef ctx shape) (validFree : refs.divisor.valid.key ∉ other.storageKeys)
     (upperFree : refs.upper.key ∉ other.storageKeys)
     (remainderFree : refs.divisor.remainder.key ∉ other.storageKeys)

@@ -28,7 +28,7 @@ open scoped BigOperators ComplexOrder
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem block_diagonal_zero {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma block_diagonal_zero {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (entry : Store ctx × History)
@@ -54,7 +54,7 @@ private theorem block_diagonal_zero {kind : ProblemKind} {ctx : RuntimeCtx kind}
   simp only at bound
   exact le_antisymm (bound.trans_eq totalZero) (state.block entry).positive.diag_nonneg
 
-private theorem block_entry_zero {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma block_entry_zero {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (entry : Store ctx × History)
@@ -69,16 +69,18 @@ private theorem block_entry_zero {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (block_diagonal_zero seed state seeded entry left leftSeed leftRef) (right, rightRef)
 
 /-- A proved actual retained record preserves the seed in every complete store-reference block. -/
-theorem retainedRecord {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma retainedRecord {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     {key : StorageKey} {shape : CShape} {fresh : key ∉ ctx.keys}
     (code : Circuit model ctx (ctx.addRetained key shape fresh))
+    (environment : model.Environment)
     (step : Store ctx × model.HiddenState →
       (Store (ctx.addRetained key shape fresh) × model.HiddenState) × code.Path)
-    (record : Circuit.RetainedRecord code step) (seed : ctx.register.Index)
+    (record : Circuit.RetainedRecord code environment step) (seed : ctx.register.Index)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (seeded : Holds seed state) :
-    Holds (ctx := ctx.addRetained key shape fresh) seed (code.execute Reference state) := by
-  let output := code.execute Reference state
+    Holds (ctx := ctx.addRetained key shape fresh) seed
+      (code.execute environment Reference state) := by
+  let output := code.execute environment Reference state
   change Holds (ctx := ctx.addRetained key shape fresh) seed output
   intro finalStore left right leftRef rightRef
   by_cases supported : left = seed ∧ right = seed

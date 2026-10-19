@@ -35,7 +35,7 @@ def signedReductionEnvelope (model : ExecutionModel) [BitWord.Selected model] (w
     ResourcePool.max (ResourcePool.ofList (finalCorrectionEvents model width true))
       (ResourcePool.ofList (finalCorrectionEvents model width false))
 
-private theorem bool_pool_le {model : ExecutionModel} (events : Bool → List (Resource.Event
+private lemma bool_pool_le {model : ExecutionModel} (events : Bool → List (Resource.Event
   model)) (selected : Bool) :
     ResourcePool.ofList (events selected) ≤
       ResourcePool.max (ResourcePool.ofList (events true))
@@ -45,7 +45,7 @@ private theorem bool_pool_le {model : ExecutionModel} (events : Bool → List (R
   · exact ResourcePool.le_max_left _ _
 
 /-- Every actual pair of branch selections satisfies the original native syntax envelope. -/
-theorem signedReductionEvents_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionEvents_pool_le {model : ExecutionModel} [BitWord.Selected model]
   (magnitude correction : Bool) :
     ResourcePool.ofList (signedReductionEvents model width magnitude correction) ≤
       signedReductionEnvelope model width := by
@@ -59,7 +59,7 @@ theorem signedReductionEvents_pool_le {model : ExecutionModel} [BitWord.Selected
   simpa only [signedReductionEnvelope, add_assoc] using available
 
 /-- The original envelope bounds the counts of the same actual signed-reduction circuit. -/
-theorem withSignedReduction_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_pool_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -79,7 +79,7 @@ def signedReductionDepthLimit {model : ExecutionModel} [BitWord.Selected model] 
     max ((finalCorrectionEvents model width true).map duration).sum
       ((finalCorrectionEvents model width false).map duration).sum
 
-private theorem bool_duration_le {model : ExecutionModel} (events : Bool → List (Resource.Event
+private lemma bool_duration_le {model : ExecutionModel} (events : Bool → List (Resource.Event
   model))
     (duration : Resource.Event model → Nat) (selected : Bool) :
     ((events selected).map duration).sum ≤
@@ -89,7 +89,7 @@ private theorem bool_duration_le {model : ExecutionModel} (events : Bool → Lis
   · exact Nat.le_max_left _ _
 
 /-- Actual branch durations are bounded by the original independent phase maxima. -/
-theorem signedReductionEvents_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionEvents_depth_le {model : ExecutionModel} [BitWord.Selected model]
   (duration : Resource.Event model → Nat)
     (magnitude correction : Bool) :
     ((signedReductionEvents model width magnitude correction).map duration).sum ≤
@@ -105,7 +105,7 @@ theorem signedReductionEvents_depth_le {model : ExecutionModel} [BitWord.Selecte
   simpa only [signedReductionDepthLimit, Nat.add_assoc] using available
 
 /-- The original native-duration allowance applies to every actual complete selected path. -/
-theorem withSignedReduction_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
@@ -120,7 +120,7 @@ def signedReductionSpaceLimit (kind : ProblemKind) (width : Nat) : SpacePool kin
   signedReductionScratchSpace width true
 
 /-- Every actual selected scratch peak is bounded by the original full correction capacity. -/
-theorem signedReductionScratchSpace_le (selected : Bool) :
+lemma signedReductionScratchSpace_le (selected : Bool) :
     (signedReductionScratchSpace width selected : SpacePool kind) ≤
       signedReductionSpaceLimit kind width := by
   cases selected
@@ -130,7 +130,7 @@ theorem signedReductionScratchSpace_le (selected : Bool) :
   · exact le_rfl
 
 /-- Every resident peak includes the entire caller context and original uniform scratch bound. -/
-theorem withSignedReduction_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -141,7 +141,7 @@ theorem withSignedReduction_resident_le {model : ExecutionModel} [BitWord.Select
   exact add_le_add (signedReductionScratchSpace_le _) le_rfl
 
 /-- Auxiliary ownership retains the same actual complete context and original scratch allowance. -/
-theorem withSignedReduction_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))

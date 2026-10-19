@@ -67,7 +67,7 @@ public def onCanonicalBinarySuffix {gates : GateModel} {oracles : OracleModel}
   onBinarySuffix prefixWidth body
 
 /-- Suffix placement retains every actual native and oracle occurrence. -/
-public theorem unitaryCircuit_onBinarySuffix_eventCost
+public lemma unitaryCircuit_onBinarySuffix_eventCost
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat} (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) :
@@ -76,7 +76,7 @@ public theorem unitaryCircuit_onBinarySuffix_eventCost
   exact relabel_eventCost body (binarySuffixShift prefixWidth)
 
 /-- Suffix placement retains the complete ordered native event trace. -/
-public theorem unitaryCircuit_onBinarySuffix_eventTrace
+public lemma unitaryCircuit_onBinarySuffix_eventTrace
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat} (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) :
@@ -85,7 +85,7 @@ public theorem unitaryCircuit_onBinarySuffix_eventTrace
   exact relabel_eventTrace body (binarySuffixShift prefixWidth)
 
 /-- Suffix placement preserves the complete native dependency expression. -/
-theorem unitaryCircuit_onBinarySuffix_eventDepth
+lemma unitaryCircuit_onBinarySuffix_eventDepth
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat} (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) :
@@ -94,7 +94,7 @@ theorem unitaryCircuit_onBinarySuffix_eventDepth
   exact relabel_eventDepth body (binarySuffixShift prefixWidth)
 
 /-- Suffix placement preserves depth under every event-duration assignment. -/
-public theorem unitaryCircuit_onBinarySuffix_evaluatedEventDepth
+public lemma unitaryCircuit_onBinarySuffix_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat) (duration : Resource.Event (.quantum gates oracles) → Nat)
     (body : UnitaryCircuit gates oracles
@@ -105,7 +105,7 @@ public theorem unitaryCircuit_onBinarySuffix_evaluatedEventDepth
   rw [unitaryCircuit_onBinarySuffix_eventDepth]
 
 /-- Suffix placement preserves the deepest chain of each selected event. -/
-theorem unitaryCircuit_onBinarySuffix_eventQueryDepth
+lemma unitaryCircuit_onBinarySuffix_eventQueryDepth
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat) (focus : Resource.Event (.quantum gates oracles))
     (body : UnitaryCircuit gates oracles
@@ -116,7 +116,7 @@ theorem unitaryCircuit_onBinarySuffix_eventQueryDepth
   rw [unitaryCircuit_onBinarySuffix_eventDepth]
 
 /-- Suffix placement preserves the linearized dependency resource pool. -/
-theorem unitaryCircuit_onBinarySuffix_resourcesFromEventDepth
+lemma unitaryCircuit_onBinarySuffix_resourcesFromEventDepth
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat} (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) :
@@ -126,7 +126,7 @@ theorem unitaryCircuit_onBinarySuffix_resourcesFromEventDepth
   rw [unitaryCircuit_onBinarySuffix_eventDepth]
 
 /-- Suffix placement adds no dependency step. -/
-theorem unitaryCircuit_onBinarySuffix_unit_depth
+lemma unitaryCircuit_onBinarySuffix_unit_depth
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat} (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) :
@@ -138,7 +138,7 @@ theorem unitaryCircuit_onBinarySuffix_unit_depth
   rfl
 
 /-- Canonical suffix placement retains every actual native and oracle event. -/
-public theorem onCanonicalBinarySuffix_eventCost
+public lemma onCanonicalBinarySuffix_eventCost
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles (QubitLayout.canonical suffixWidth).toQuantum) :
@@ -146,7 +146,7 @@ public theorem onCanonicalBinarySuffix_eventCost
   exact unitaryCircuit_onBinarySuffix_eventCost prefixWidth body
 
 /-- Canonical suffix placement retains evaluated dependency depth. -/
-public theorem onCanonicalBinarySuffix_evaluatedEventDepth
+public lemma onCanonicalBinarySuffix_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat) (duration : Resource.Event (.quantum gates oracles) → Nat)
     (body : UnitaryCircuit gates oracles (QubitLayout.canonical suffixWidth).toQuantum) :

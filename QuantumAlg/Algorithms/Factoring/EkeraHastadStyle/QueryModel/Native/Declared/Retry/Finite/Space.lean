@@ -30,7 +30,7 @@ noncomputable section
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private theorem completed_context_resident :
+private lemma completed_context_resident :
     (Retry.context base noQuantum N).residentSpace ≤
       Retry.additionalSpace N + base.residentSpace := by
   rw [Retry.declaredRetry_context_residentSpace]
@@ -41,7 +41,7 @@ private theorem completed_context_resident :
         Retry.selectorSpace N axis) + base.residentSpace axis
   omega
 
-private theorem completed_context_auxiliary :
+private lemma completed_context_auxiliary :
     (Retry.context base noQuantum N).auxiliarySpace ≤
       Retry.additionalSpace N + base.auxiliarySpace := by
   rw [Retry.declaredRetry_context_auxiliarySpace]
@@ -54,48 +54,48 @@ private theorem completed_context_auxiliary :
 
 /-- A later batch's recovery, existing-cell pack and actual reset all fit the
 same fixed resident allowance. -/
-theorem nextCompleted_peakResidentSpace_le
+lemma nextCompleted_peakResidentSpace_le
     (path : (nextCompletedCode base noQuantum N input).Path) :
     (nextCompletedCode base noQuantum N input).peakResidentSpace path ≤
       Retry.additionalSpace N + base.residentSpace := by
   change (((Retry.next base noQuantum N input).seq
-    (Retry.pack base noQuantum N input)).seq
-      (reset base noQuantum N input)).peakResidentSpace path ≤ _
+    (Retry.pack base noQuantum N)).seq
+      (reset base noQuantum N)).peakResidentSpace path ≤ _
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · refine (Circuit.peakResidentSpace_seq _ _ path.1).le.trans
       (SpacePool.max_le ?_ ?_)
     · exact Retry.next_resident base noQuantum N input path.1.1
     · have packPeak :
-          (Retry.pack base noQuantum N input).peakResidentSpace path.1.2 =
+          (Retry.pack base noQuantum N).peakResidentSpace path.1.2 =
             (Retry.context base noQuantum N).residentSpace := by
         funext axis
         exact Nat.max_zero _
       exact packPeak.trans_le (completed_context_resident base noQuantum N)
-  · exact reset_resident base noQuantum N input path.2
+  · exact reset_resident base noQuantum N path.2
 
 /-- The same complete later batch fits the original auxiliary allowance. -/
-theorem nextCompleted_peakAuxiliarySpace_le
+lemma nextCompleted_peakAuxiliarySpace_le
     (path : (nextCompletedCode base noQuantum N input).Path) :
     (nextCompletedCode base noQuantum N input).peakAuxiliarySpace path ≤
       Retry.additionalSpace N + base.auxiliarySpace := by
   change (((Retry.next base noQuantum N input).seq
-    (Retry.pack base noQuantum N input)).seq
-      (reset base noQuantum N input)).peakAuxiliarySpace path ≤ _
+    (Retry.pack base noQuantum N)).seq
+      (reset base noQuantum N)).peakAuxiliarySpace path ≤ _
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · refine (Circuit.peakAuxiliarySpace_seq _ _ path.1).le.trans
       (SpacePool.max_le ?_ ?_)
     · exact Retry.next_auxiliary base noQuantum N input path.1.1
     · have packPeak :
-          (Retry.pack base noQuantum N input).peakAuxiliarySpace path.1.2 =
+          (Retry.pack base noQuantum N).peakAuxiliarySpace path.1.2 =
             (Retry.context base noQuantum N).auxiliarySpace := by
         funext axis
         exact Nat.max_zero _
       exact packPeak.trans_le (completed_context_auxiliary base noQuantum N)
-  · exact reset_auxiliary base noQuantum N input path.2
+  · exact reset_auxiliary base noQuantum N path.2
 
 /-- Arbitrarily many actual completed later batches reuse one fixed resident
 bank and store allowance. -/
-theorem laterCompleted_peakResidentSpace_le (laterCount : Nat)
+lemma laterCompleted_peakResidentSpace_le (laterCount : Nat)
     (path : (laterCompletedCode base noQuantum N input laterCount).Path) :
     (laterCompletedCode base noQuantum N input laterCount).peakResidentSpace path ≤
       Retry.additionalSpace N + base.residentSpace := by
@@ -106,7 +106,7 @@ theorem laterCompleted_peakResidentSpace_le (laterCount : Nat)
     (fun _ => nextCompleted_peakResidentSpace_le base noQuantum N input) path
 
 /-- Repeating the complete later batch also keeps one fixed auxiliary bound. -/
-theorem laterCompleted_peakAuxiliarySpace_le (laterCount : Nat)
+lemma laterCompleted_peakAuxiliarySpace_le (laterCount : Nat)
     (path : (laterCompletedCode base noQuantum N input laterCount).Path) :
     (laterCompletedCode base noQuantum N input laterCount).peakAuxiliarySpace path ≤
       Retry.additionalSpace N + base.auxiliarySpace := by
@@ -118,7 +118,7 @@ theorem laterCompleted_peakAuxiliarySpace_le (laterCount : Nat)
 
 /-- The first completed batch and all later completed batches meet the same
 positive-count resident-space contract as the preserved finite run. -/
-theorem completed_peakResidentSpace_le (laterCount : Nat)
+lemma completed_peakResidentSpace_le (laterCount : Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
     (completedCode base noQuantum N input laterCount).peakResidentSpace path ≤
       Finite.additionalSpace N (laterCount + 1) + base.residentSpace := by
@@ -130,7 +130,7 @@ theorem completed_peakResidentSpace_le (laterCount : Nat)
 
 /-- The same actual completed run meets the preserved positive-count
 auxiliary-space contract. -/
-theorem completed_peakAuxiliarySpace_le (laterCount : Nat)
+lemma completed_peakAuxiliarySpace_le (laterCount : Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
     (completedCode base noQuantum N input laterCount).peakAuxiliarySpace path ≤
       Finite.additionalSpace N (laterCount + 1) + base.auxiliarySpace := by

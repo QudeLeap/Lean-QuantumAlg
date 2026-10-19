@@ -35,6 +35,8 @@ open Nat.FixedWidth
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : Arithmetic.VariableModularMul.Parameters]
 
 /-! ## Canonical physical workspace -/
@@ -103,19 +105,20 @@ def divisionStep : RawRegisters → RawRegisters :=
   EncodedBit.GateSpec.stepList divisionGates
 
 /-- The compiled direct division program realizes its displayed gate ledger. -/
-theorem divisionProgram_realizes :
-    UnitaryCircuit.Realizes rawEncoding divisionProgram divisionStep :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty divisionGates
+lemma divisionProgram_realizes :
+    UnitaryCircuit.Realizes rawEncoding divisionProgram environment divisionStep :=
+  EncodedBit.GateSpec.realizesList (environment := environment)
+    (QubitLayout.canonical _) .empty divisionGates
 
 /-- Exact primitive length of the direct division route. -/
-theorem divisionGates_length :
+lemma divisionGates_length :
     divisionGates.length =
       2 * Arithmetic.ModularInversion.gates.length + 2 * params.width +
         Arithmetic.VariableModularMulSchedule.gates.length :=
   Workspace.divisionGates_length
 
 /-- Exact CNOT coordinate of the direct division route. -/
-theorem divisionGates_cnotMultiplicity_sum :
+lemma divisionGates_cnotMultiplicity_sum :
     (divisionGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       2 * (Arithmetic.ModularInversion.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum + 2 * params.width +
@@ -124,7 +127,7 @@ theorem divisionGates_cnotMultiplicity_sum :
   Workspace.divisionGates_cnotMultiplicity_sum
 
 /-- Exact Toffoli coordinate of the direct division route. -/
-theorem divisionGates_toffoliMultiplicity_sum :
+lemma divisionGates_toffoliMultiplicity_sum :
     (divisionGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       2 * (Arithmetic.ModularInversion.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum +
@@ -133,18 +136,18 @@ theorem divisionGates_toffoliMultiplicity_sum :
   Workspace.divisionGates_toffoliMultiplicity_sum
 
 /-- Width-only primitive-event bound of the direct division route. -/
-theorem divisionGates_length_le :
+lemma divisionGates_length_le :
     divisionGates.length ≤ Workspace.divisionGateLengthBound :=
   Workspace.divisionGates_length_le
 
 /-- Width-only CNOT bound of the direct division route. -/
-theorem divisionGates_cnotMultiplicity_sum_le :
+lemma divisionGates_cnotMultiplicity_sum_le :
     (divisionGates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       Workspace.divisionCnotBound :=
   Workspace.divisionGates_cnotMultiplicity_sum_le
 
 /-- Width-only Toffoli bound of the direct division route. -/
-theorem divisionGates_toffoliMultiplicity_sum_le :
+lemma divisionGates_toffoliMultiplicity_sum_le :
     (divisionGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       Workspace.divisionToffoliBound :=
   Workspace.divisionGates_toffoliMultiplicity_sum_le
@@ -162,7 +165,7 @@ abbrev sharedProductGates := Workspace.sharedProductGates
 
 /-- Exact physical width of one direct parameterized point-addition
 workspace. -/
-theorem rawEncoding_width_exact :
+lemma rawEncoding_width_exact :
     rawEncoding.width =
       Arithmetic.ModularInversion.physicalWidthFor params.width +
         13 * params.width + 7 :=
@@ -179,11 +182,11 @@ abbrev residueWord (value : ZMod params.modulus.val) : Word params.width :=
   Arithmetic.ModularDivision.residueWord value
 
 omit [Fact params.modulus.val.Prime] in
-@[simp] theorem residueWord_val (value : ZMod params.modulus.val) :
+@[simp] lemma residueWord_val (value : ZMod params.modulus.val) :
     (residueWord value).val = value.val :=
   rfl
 
-@[simp] theorem residueWord_zero : residueWord (0 : ZMod params.modulus.val) = 0 := by
+@[simp] lemma residueWord_zero : residueWord (0 : ZMod params.modulus.val) = 0 := by
   apply Fin.ext
   simp [residueWord]
 
@@ -210,14 +213,14 @@ def yScratch (P : GenericPointAddition.Input E Q) :
     ZMod params.modulus.val :=
   slopeValue P * P.1.x - slopeValue P * xScratch P - P.1.y
 
-theorem xScratch_eq_genericAddXFromSlope
+lemma xScratch_eq_genericAddXFromSlope
     (P : GenericPointAddition.Input E Q) :
     xScratch P = genericAddXFromSlope E P.1 Q (slopeValue P) := by
   simp [xScratch, slopeValue, genericAddXFromSlope,
     PrimeFieldShortWeierstrass.toWeierstrassCurve]
   ring
 
-theorem yScratch_eq_genericAddYFromSlope
+lemma yScratch_eq_genericAddYFromSlope
     (P : GenericPointAddition.Input E Q) :
     yScratch P = genericAddYFromSlope E P.1 Q (slopeValue P) := by
   simp [yScratch, xScratch, slopeValue, genericAddYFromSlope,
@@ -226,13 +229,13 @@ theorem yScratch_eq_genericAddYFromSlope
     WeierstrassCurve.Affine.negY]
   ring
 
-theorem xScratch_eq_genericAddX
+lemma xScratch_eq_genericAddX
     (P : GenericPointAddition.Input E Q) :
     xScratch P = genericAddX E P.1 Q := by
   rw [xScratch_eq_genericAddXFromSlope]
   rfl
 
-theorem yScratch_eq_genericAddY
+lemma yScratch_eq_genericAddY
     (P : GenericPointAddition.Input E Q) :
     yScratch P = genericAddY E P.1 Q := by
   rw [yScratch_eq_genericAddYFromSlope]

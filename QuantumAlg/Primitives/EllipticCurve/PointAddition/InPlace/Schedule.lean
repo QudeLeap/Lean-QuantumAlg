@@ -30,6 +30,8 @@ namespace Schedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open MAU.Inversion
 open MAU.Inversion.MK
@@ -42,7 +44,7 @@ def tripleConstant (fieldTail p : Nat) (hpPos : 0 < p)
   CompactCorrection.modularSumFixedWord fieldTail p hpPos hp x2
     (CompactCorrection.modularSumFixedWord fieldTail p hpPos hp x2 x2)
 
-@[simp] theorem tripleConstant_val (fieldTail p : Nat) (hpPos : 0 < p)
+@[simp] lemma tripleConstant_val (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (x2 : Word fieldTail.succ) :
     (tripleConstant fieldTail p hpPos hp x2).val =
       (x2.val + (x2.val + x2.val) % p) % p :=
@@ -82,7 +84,7 @@ def productWord
     (List.finRange fieldTail.succ) residues).target
 
 /-- Point-carrier form of the compact inversion endpoint. -/
-theorem inversionGates_cleanEndpoint
+lemma inversionGates_cleanEndpoint
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -110,7 +112,7 @@ theorem inversionGates_cleanEndpoint
     CompactCertificate.compactInitialRegisters, inversionOutput] using h
 
 /-- Clean-output multiplication into `lambda`. -/
-theorem t0IntoLambdaGates_cleanEndpoint
+lemma t0IntoLambdaGates_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY mutableX t0 : Word fieldTail.succ)
@@ -129,7 +131,7 @@ theorem t0IntoLambdaGates_cleanEndpoint
     MontgomeryOperations.cleanState, RegisterRouting.lambdaPort] using h.1
 
 /-- Equal-output multiplication clears `lambda`. -/
-theorem t0IntoLambdaGates_equalEndpoint
+lemma t0IntoLambdaGates_equalEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY mutableX t0 : Word fieldTail.succ)
@@ -148,7 +150,7 @@ theorem t0IntoLambdaGates_equalEndpoint
     MontgomeryOperations.cleanState, RegisterRouting.lambdaPort] using h.1
 
 /-- Clean-output multiplication into mutable `y1`. -/
-theorem xIntoYGates_cleanEndpoint
+lemma xIntoYGates_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) («λ» mutableX t0 : Word fieldTail.succ)
@@ -167,7 +169,7 @@ theorem xIntoYGates_cleanEndpoint
     MontgomeryOperations.cleanState, RegisterRouting.mutableYPort] using h.1
 
 /-- Equal-output multiplication clears mutable `y1`. -/
-theorem xIntoYGates_equalEndpoint
+lemma xIntoYGates_equalEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) («λ» mutableX t0 : Word fieldTail.succ)
@@ -186,7 +188,7 @@ theorem xIntoYGates_equalEndpoint
     MontgomeryOperations.cleanState, RegisterRouting.mutableYPort] using h.1
 
 /-- Clean-output Montgomery squaring into `t0`. -/
-theorem squareLambdaGates_cleanEndpoint
+lemma squareLambdaGates_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY «λ» mutableX : Word fieldTail.succ)
@@ -205,7 +207,7 @@ theorem squareLambdaGates_cleanEndpoint
     MontgomeryOperations.cleanState, RegisterRouting.t0Port] using h.1
 
 /-- Equal-output Montgomery squaring clears `t0`. -/
-theorem squareLambdaGates_equalEndpoint
+lemma squareLambdaGates_equalEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (control : Bool) (mutableY «λ» mutableX : Word fieldTail.succ)
@@ -224,7 +226,7 @@ theorem squareLambdaGates_equalEndpoint
     MontgomeryOperations.cleanState, RegisterRouting.t0Port] using h.1
 
 /-- Every emitted Montgomery product is a canonical field residue. -/
-theorem productWord_lt
+lemma productWord_lt
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (multiplier coefficient : Word fieldTail.succ)
@@ -248,7 +250,7 @@ theorem productWord_lt
     multiplier (List.finRange fieldTail.succ) residues hscaled hzero).2
 
 /-- Every compact inversion output is a canonical field residue. -/
-theorem inversionOutput_lt
+lemma inversionOutput_lt
     (fieldTail counterTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -387,7 +389,7 @@ structure CleanCertificate
 
 /-- Folding a flattened list of stage ledgers agrees with left-to-right stage
 execution. -/
-private theorem stepList_flatten
+private lemma stepList_flatten
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (ledgers : List (List (EncodedBit.GateSpec encoding))) (input : Data) :
     EncodedBit.GateSpec.stepList ledgers.flatten input =
@@ -463,7 +465,7 @@ def step
 /-- The complete seventeen-stage ledger returns `lambda`, `t0`, history, and
 all arithmetic work to the clean boundary while updating only the two mutable
 coordinates. -/
-theorem step_cleanEndpoint
+lemma step_cleanEndpoint
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -739,7 +741,7 @@ theorem step_cleanEndpoint
     simpa [ModularOperations.addConstantXStep, xOut, Input.outputX] using h17]
 
 /-- The schedule contains exactly the seventeen paper stages. -/
-@[simp] theorem stageLedgers_length
+@[simp] lemma stageLedgers_length
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -751,7 +753,7 @@ theorem step_cleanEndpoint
   rfl
 
 /-- The flattened base-gate program realizes the complete schedule step. -/
-theorem realizes
+lemma realizes
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -762,12 +764,12 @@ theorem realizes
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _)
         .empty
-        (gates fieldTail counterTail p hpPos hp hfit hcapacity hwidth x2 y2))
+        (gates fieldTail counterTail p hpPos hp hfit hcapacity hwidth x2 y2)) environment
       (step fieldTail counterTail p hpPos hp hfit hcapacity hwidth x2 y2) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-- The P-256 specialization uses the already-proved 2587-qubit carrier. -/
-theorem p256_encoding_width :
+lemma p256_encoding_width :
     (Layout.encodingFor 256).width = 2587 :=
   Layout.encodingFor_256_width
 

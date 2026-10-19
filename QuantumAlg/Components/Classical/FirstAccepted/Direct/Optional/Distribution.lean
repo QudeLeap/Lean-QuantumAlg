@@ -32,7 +32,7 @@ def firstValue (values : List (CShape.option (.unsignedWord width)).Value) :
   values.foldl Optional.retainValue .optionNone
 
 /-- Once selected, an existing word survives every remaining chronological candidate. -/
-theorem foldl_some (values : List (CShape.option (.unsignedWord width)).Value)
+lemma foldl_some (values : List (CShape.option (.unsignedWord width)).Value)
     (word : CShape.Word width) :
     values.foldl Optional.retainValue (.optionSome word) = .optionSome word := by
   induction values with
@@ -40,7 +40,7 @@ theorem foldl_some (values : List (CShape.option (.unsignedWord width)).Value)
   | cons head tail ih => exact ih
 
 /-- The first populated head wins; an empty head leaves the original suffix order intact. -/
-theorem firstValue_cons (head : (CShape.option (.unsignedWord width)).Value)
+lemma firstValue_cons (head : (CShape.option (.unsignedWord width)).Value)
     (tail : List (CShape.option (.unsignedWord width)).Value) :
     firstValue (head :: tail) = Optional.retainValue head (firstValue tail) := by
   cases head with
@@ -48,7 +48,7 @@ theorem firstValue_cons (head : (CShape.option (.unsignedWord width)).Value)
   | optionSome word => exact foldl_some tail word
 
 /-- The selector is empty exactly when every original chronological candidate is empty. -/
-theorem firstValue_eq_none_iff (values : List (CShape.option (.unsignedWord width)).Value) :
+lemma firstValue_eq_none_iff (values : List (CShape.option (.unsignedWord width)).Value) :
     firstValue values = .optionNone ↔ ∀ value ∈ values, value = .optionNone := by
   induction values with
   | nil => simp [firstValue]
@@ -57,7 +57,7 @@ theorem firstValue_eq_none_iff (values : List (CShape.option (.unsignedWord widt
       cases head <;> simp [Optional.retainValue, ih]
 
 /-- Every populated selected word is one of the actual original candidates. -/
-theorem firstValue_some_mem (values : List (CShape.option (.unsignedWord width)).Value)
+lemma firstValue_some_mem (values : List (CShape.option (.unsignedWord width)).Value)
     (word : CShape.Word width) (selected : firstValue values = .optionSome word) :
     CShape.Value.optionSome word ∈ values := by
   induction values with
@@ -78,7 +78,7 @@ def selectedDistribution (distribution : PMF (CShape.option (.unsignedWord width
     (fun values => firstValue values.toList)
 
 /-- The exact empty-output probability is the one-candidate empty probability to the count. -/
-theorem selectedDistribution_none
+lemma selectedDistribution_none
     (distribution : PMF (CShape.option (.unsignedWord width)).Value) (count : Nat) :
     selectedDistribution distribution count .optionNone = distribution .optionNone ^ count := by
   rw [← PMF.toOuterMeasure_apply_singleton, selectedDistribution, PMF.toOuterMeasure_map_apply]
@@ -92,7 +92,7 @@ theorem selectedDistribution_none
   rw [Set.ofPred_eq_eq_singleton, PMF.toOuterMeasure_apply_singleton]
 
 /-- A one-candidate failure ceiling gives the matching finite first-success power bound. -/
-theorem selectedDistribution_none_le
+lemma selectedDistribution_none_le
     (distribution : PMF (CShape.option (.unsignedWord width)).Value) (count : Nat)
     (failure : ENNReal) (bounded : distribution .optionNone ≤ failure) :
     selectedDistribution distribution count .optionNone ≤ failure ^ count := by
@@ -100,7 +100,7 @@ theorem selectedDistribution_none_le
   exact pow_le_pow_left' bounded count
 
 /-- A selected populated word belongs to the one-candidate support. -/
-theorem selectedDistribution_some_support
+lemma selectedDistribution_some_support
     (distribution : PMF (CShape.option (.unsignedWord width)).Value) (count : Nat)
     (word : CShape.Word width)
     (supported : CShape.Value.optionSome word ∈
@@ -116,7 +116,7 @@ theorem selectedDistribution_some_support
     (firstValue_some_mem values.toList word selected)
 
 /-- Any support-level property of populated input words survives chronological selection. -/
-theorem selectedDistribution_some_safe
+lemma selectedDistribution_some_safe
     (distribution : PMF (CShape.option (.unsignedWord width)).Value) (count : Nat)
     (property : CShape.Word width → Prop)
     (safe : ∀ word, CShape.Value.optionSome word ∈ distribution.support → property word)

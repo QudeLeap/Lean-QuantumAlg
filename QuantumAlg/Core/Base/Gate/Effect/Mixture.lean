@@ -25,7 +25,7 @@ noncomputable section
 variable {R : Register}
 
 /-- A finite spectral sum gives the exact weight of this same observable. -/
-theorem weight_eq_sum_spectral (effect : Effect R) (state : DensityOperator R) :
+lemma weight_eq_sum_spectral (effect : Effect R) (state : DensityOperator R) :
     effect.weight state = ∑ index, state.spectralMass index *
       effect.weight (DensityOperator.ofPure (state.spectralVector index)) := by
   unfold weight
@@ -34,7 +34,7 @@ theorem weight_eq_sum_spectral (effect : Effect R) (state : DensityOperator R) :
     Complex.re_sum, Complex.smul_re, smul_eq_mul]
 
 /-- A uniform pure-input lower bound retains the mass of every actual mixed branch. -/
-theorem mass_mul_le_weight_of_pure (effect : Effect R) (lower : ℝ)
+lemma mass_mul_le_weight_of_pure (effect : Effect R) (lower : ℝ)
     (bound : ∀ input : NormalizedVector R,
       lower ≤ effect.weight (DensityOperator.ofPure input)) (state : DensityOperator R) :
     state.mass * lower ≤ effect.weight state := by
@@ -44,7 +44,7 @@ theorem mass_mul_le_weight_of_pure (effect : Effect R) (lower : ℝ)
       (state.spectralMass_nonneg index))
 
 /-- The corresponding upper bound also scales with the original branch mass. -/
-theorem weight_le_mass_mul_of_pure (effect : Effect R) (upper : ℝ)
+lemma weight_le_mass_mul_of_pure (effect : Effect R) (upper : ℝ)
     (bound : ∀ input : NormalizedVector R,
       effect.weight (DensityOperator.ofPure input) ≤ upper) (state : DensityOperator R) :
     effect.weight state ≤ state.mass * upper := by

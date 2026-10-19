@@ -44,7 +44,7 @@ def lowChildGates (low high : Nat) (gates : List (GateSpec (oneDirtyEncoding low
     (lowChildPlacement low high).placeGate
 
 /-- The low child acts only on its own word and the shared dirty bit. -/
-theorem hrsLowChildGates_step (low high : Nat)
+lemma hrsLowChildGates_step (low high : Nat)
     (gates : List (GateSpec (oneDirtyEncoding low)))
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
     stepList (lowChildGates low high gates) state =
@@ -58,7 +58,7 @@ theorem hrsLowChildGates_step (low high : Nat)
   rfl
 
 /-- The low child's complete event list is unchanged by placement. -/
-theorem hrsLowChildGates_events (low high : Nat)
+lemma hrsLowChildGates_events (low high : Nat)
     (gates : List (GateSpec (oneDirtyEncoding low))) (oracles : OracleModel) :
     (lowChildGates low high gates).map (event oracles) = gates.map (event oracles) := by
   simp [lowChildGates, List.map_map, Function.comp_def]
@@ -70,7 +70,7 @@ def highChildGates (low high : Nat) (gates : List (GateSpec (oneDirtyEncoding hi
     (GateSpec.relabel (bridgeGrouping low high))
 
 /-- The inserted low word is untouched by the high child's actual gates. -/
-theorem hrsHighChildGates_step (low high : Nat)
+lemma hrsHighChildGates_step (low high : Nat)
     (gates : List (GateSpec (oneDirtyEncoding high)))
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
     stepList (highChildGates low high gates) state =
@@ -81,7 +81,7 @@ theorem hrsHighChildGates_step (low high : Nat)
       (congrArg (bridgeGrouping low high).symm
         (stepList_insertMiddle (finIdentity low) gates (bridgeGrouping low high state)))
 
-private theorem insertMiddle_event {Left Middle Right : Type}
+private lemma insertMiddle_event {Left Middle Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     (middle : BinaryLabelEncoding Middle) (gate : GateSpec (prod left right))
     (oracles : OracleModel) :
@@ -89,7 +89,7 @@ private theorem insertMiddle_event {Left Middle Right : Type}
   cases gate <;> rfl
 
 /-- The high child's complete event list is unchanged by placement. -/
-theorem hrsHighChildGates_events (low high : Nat)
+lemma hrsHighChildGates_events (low high : Nat)
     (gates : List (GateSpec (oneDirtyEncoding high))) (oracles : OracleModel) :
     (highChildGates low high gates).map (event oracles) = gates.map (event oracles) := by
   calc
@@ -121,7 +121,7 @@ def joinGates (width : Nat)
   gates.map (joinPlacement width).placeGate
 
 /-- The joined literal list implements the original split action on the original word. -/
-theorem hrsJoinGates_step (width : Nat)
+lemma hrsJoinGates_step (width : Nat)
     (gates : List (GateSpec (bridgeEncoding (lowWidth width) (highWidth width))))
     (state : OneDirtyRegisters width) :
     stepList (joinGates width gates) state =
@@ -132,7 +132,7 @@ theorem hrsJoinGates_step (width : Nat)
   rfl
 
 /-- Joining retains the original ordered native events. -/
-theorem hrsJoinGates_events (width : Nat)
+lemma hrsJoinGates_events (width : Nat)
     (gates : List (GateSpec (bridgeEncoding (lowWidth width) (highWidth width))))
     (oracles : OracleModel) :
     (joinGates width gates).map (event oracles) = gates.map (event oracles) := by

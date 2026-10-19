@@ -51,16 +51,17 @@ def threeStep {model : ExecutionModel} [BitWord.Selected model]
   let rest := secondFirstStep refs third.1
   (rest.1, (third.2, rest.2))
 
-private theorem secondFirst_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma secondFirst_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
-      (LatticeNearestPlaneFirst.firstInto (firstRefs refs))).execute Reference state =
+      (LatticeNearestPlaneFirst.firstInto (firstRefs refs))).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondFirstStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
     (LatticeNearestPlaneFirst.firstInto (firstRefs refs))
     (fun before =>
@@ -77,14 +78,16 @@ private theorem secondFirst_execute {model : ExecutionModel} [BitWord.Selected m
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual execution preserves the selected hidden state and reference correlations. -/
-theorem threeInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma threeInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (threeInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (threeInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := threeStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (LatticeNearestPlaneThird.thirdInto (thirdRefs refs))
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (LatticeNearestPlaneThird.thirdInto (thirdRefs refs))
     (.seq (LatticeNearestPlaneSecond.secondInto (secondRefs refs))
       (LatticeNearestPlaneFirst.firstInto (firstRefs refs)))
     (fun before =>
@@ -100,14 +103,14 @@ theorem threeInto_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual third phase preserves every read outside its written footprint. -/
-theorem thirdInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : ThirdFrameAvoids refs other) :
     (LatticeNearestPlaneThird.thirdStep (thirdRefs refs) store).1.read other = store.read other :=
   LatticeNearestPlaneThird.thirdInto_callerFrame (thirdRefs refs) store other avoids
 
 /-- The actual second phase preserves every read outside its written footprint. -/
-theorem secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : SecondFrameAvoids refs other) :
     (LatticeNearestPlaneSecond.secondStep (secondRefs refs) store).1.read other =
@@ -115,7 +118,7 @@ theorem secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
   LatticeNearestPlaneSecond.secondInto_callerFrame (secondRefs refs) store other avoids
 
 /-- The actual first phase preserves every read outside its written footprint. -/
-theorem firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FirstFrameAvoids refs other) :
     (LatticeNearestPlaneFirst.firstStep (firstRefs refs) store).1.read other = store.read other :=
@@ -124,7 +127,7 @@ theorem firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     avoids.reduceProduct avoids.targetFirst avoids.targetSecond avoids.targetThird
 
 /-- All three actual stages preserve every read outside their combined written footprint. -/
-theorem threeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma threeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs other) :
     (threeStep refs store).1.read other = store.read other := by

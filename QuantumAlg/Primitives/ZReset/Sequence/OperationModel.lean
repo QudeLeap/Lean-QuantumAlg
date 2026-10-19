@@ -26,34 +26,44 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
+  {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
   (implementations : ∀ wire,
     QuditShift.Realizations gates oracles ctx.quantumLayout wire)
 
 /-- Changing only the classical operation grant preserves the complete output
 state after dropping the reset path record. -/
-theorem sequence_execute_operationModel (readouts : List (ZReadout ctx))
+lemma sequence_execute_operationModel {allowAllocation : Bool} (readouts : List (ZReadout ctx))
     (operations : ClassicalOpModel) {Reference : Register} {History : Type}
     [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    ((sequence implementations readouts operations).execute Reference state).mapHistory
+      ((ExecutionModel.quantum gates oracles .empty services).HiddenState × History)) :
+    ((sequence (allowAllocation := allowAllocation) (services := services) implementations readouts
+        operations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference
+      state).mapHistory
       (fun record => (record.1, record.2.1)) =
-    ((sequence implementations readouts).execute Reference state).mapHistory
+    ((sequence (allowAllocation := allowAllocation) (services := services) implementations
+        readouts).execute
+      ⟨environment.quantum, environment.classical⟩ Reference state).mapHistory
       (fun record => (record.1, record.2.1)) := by
   induction readouts generalizing History with
   | nil => rfl
   | cons head tail ih =>
       simp only [sequence, Circuit.execute_seq]
-      rw [circuit_execute_operationModel head.wire head.output
+      rw [circuit_execute_operationModel (allowAllocation := allowAllocation) head.wire head.output
         (implementations head.wire) operations state]
       have tailEq := ih
-        ((circuit head.wire head.output (implementations head.wire)).execute
-          Reference state)
+        ((circuit (allowAllocation := allowAllocation) (services := services) head.wire head.output
+            (implementations head.wire)).execute
+      ⟨environment.quantum, environment.classical⟩ Reference state)
       have erased := congrArg
         (fun output : State ctx Reference
-          ((ExecutionModel.quantum gates oracles).HiddenState ×
-            (History × (circuit head.wire head.output
+          ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+            (History × (circuit (allowAllocation := allowAllocation) (services := services)
+                head.wire head.output
               (implementations head.wire)).Path)) =>
           output.mapHistory (fun record => (record.1, record.2.1))) tailEq
       erw [State.mapHistory_comp, State.mapHistory_comp]

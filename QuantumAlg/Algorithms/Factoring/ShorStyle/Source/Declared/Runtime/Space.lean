@@ -18,7 +18,8 @@ import all QuantumAlg.Core.Execution.Trace.Composition
 Both ledgers retain the caller, the original source sample and full parameter,
 all physical phase outcomes and the packed word. Simultaneous sampler and
 complete arithmetic scratch are bounded alongside those surviving cells.
-The final bank reset uses one real lexical measurement cell.
+The final bank reset uses one real lexical measurement cell per original wire.
+Its full result group fits beside retained sampler cells in the earlier sampler allowance.
 -/
 
 namespace QuantumAlg.Factoring.ShorStyle.Canonical.DeclaredSource.Runtime
@@ -31,13 +32,29 @@ noncomputable section
 def Storage.resultSpace (N : Nat) : SpacePool .quantum :=
   phaseBits N • SpacePool.ofShape (.finite 2) + SpacePool.ofShape (.bits (phaseBits N))
 
-/-- Full simultaneous sampler and recovery allowance, with the one real reset cell. -/
+/-- Independent sampler and recovery allowance, including a conservative extra bit. -/
 def completionAdditionalSpace (N : Nat) : SpacePool .quantum :=
   Sampler.Retained.additionalSpace .quantum (modulusBits N) + Storage.resultSpace N +
     FactorRecovery.NativeFactorScope.spaceBound .quantum N + SpacePool.ofShape (.finite 2)
 
+/-- The later full reset group and retained sample fit the earlier sampler-stage allowance. -/
+lemma reset_retained_le_sampler (N : Nat) :
+    resetSpace N + Sampler.Retained.resultSpace .quantum (modulusBits N) ≤
+      Sampler.Retained.additionalSpace .quantum (modulusBits N) := by
+  have bitSize : Nat.clog 2 2 = 1 := by decide
+  intro axis
+  cases axis with
+  | classicalBits =>
+      change bankQubits N * Nat.clog 2 2 + (18 * modulusBits N + 1) ≤
+        27 * modulusBits N + 15
+      rw [bankQubits_eq_three_mul, bitSize]
+      omega
+  | quantumSystems dimension =>
+      simp [resetSpace, Sampler.Retained.resultSpace,
+        Sampler.Retained.additionalSpace, SpacePool.ofShape]
+
 /-- Real observation cells retain their full capacity beside the incoming frame. -/
-theorem Storage.context_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
+lemma Storage.context_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
     (Storage.context ctx N).residentSpace = ctx.residentSpace + Storage.resultSpace N := by
   rw [Storage.context, MeasurementCells.context_residentSpace, Storage.resultContext,
     RuntimeCtx.residentSpace_addRetained]
@@ -45,32 +62,32 @@ theorem Storage.context_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
   ac_rfl
 
 /-- All actual sampled and measured cells coexist in the completed round's live frame. -/
-theorem Iteration.context_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
+lemma Iteration.context_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
     (Iteration.context ctx N).residentSpace = ctx.residentSpace +
       (Sampler.Retained.resultSpace .quantum (modulusBits N) + Storage.resultSpace N) := by
   rw [Iteration.context, Storage.context_resident, Iteration.sampledContext,
     Sampler.Retained.samplerRetained_context_resident]
   exact add_assoc _ _ _
 
-private theorem selected_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+private lemma selected_resident_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (path : (selected ctx N input sameWires parameter).Path) :
-    (selected ctx N input sameWires parameter).peakResidentSpace path ≤
+    (path : (selected ctx N sameWires parameter).Path) :
+    (selected ctx N sameWires parameter).peakResidentSpace path ≤
       (Storage.context ctx N).residentSpace := by
   rcases path with ⟨value, selectedPath⟩
   exact (Circuit.peakResidentSpace_unitary (operations := BitWord.model)
     (classicalOracles := ClassicalOracleModel.empty)
-    (member N ((Storage.quantumWires ctx N).trans sameWires) input value) selectedPath).le
+    (member N ((Storage.quantumWires ctx N).trans sameWires) value) selectedPath).le
 
-private theorem readouts_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+private lemma readouts_resident_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (path : (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts ctx N sameWires)).Path) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts ctx N sameWires)).peakResidentSpace path ≤
         (Storage.context ctx N).residentSpace := by
@@ -81,13 +98,13 @@ private theorem readouts_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (inpu
   subst frame
   exact le_rfl
 
-private theorem allocation_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
-    (path : (allocate ctx N input).Path) :
-    (allocate ctx N input).peakResidentSpace path ≤ (Storage.context ctx N).residentSpace := by
+private lemma allocation_resident_le (ctx : RuntimeCtx .quantum) (N : Nat)
+    (path : (allocate ctx N).Path) :
+    (allocate ctx N).peakResidentSpace path ≤ (Storage.context ctx N).residentSpace := by
   refine (Circuit.peakResidentSpace_seq
-    (Circuit.retain (model := executionModel input) ctx ctx.canonicalFreshKey
+    (Circuit.retain (model := executionModel N) ctx ctx.canonicalFreshKey
       (.bits (phaseBits N)) ctx.canonicalFreshKey_fresh)
-    (MeasurementCells.allocate (model := executionModel input) (Storage.resultContext ctx N)
+    (MeasurementCells.allocate (model := executionModel N) (Storage.resultContext ctx N)
       2 (phaseBits N)) path).le.trans ?_
   apply SpacePool.max_le
   · rw [Circuit.peakResidentSpace_retain]
@@ -95,39 +112,40 @@ private theorem allocation_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (in
       (MeasurementCells.context (Storage.resultContext ctx N) 2 (phaseBits N)).residentSpace
     rw [MeasurementCells.context_residentSpace]
     exact fun axis => Nat.le_add_left _ _
-  · exact MeasurementCells.allocate_peakResidentSpace (model := executionModel input)
+  · exact MeasurementCells.allocate_peakResidentSpace (model := executionModel N)
       (Storage.resultContext ctx N) 2 (phaseBits N) path.2
 
-private theorem body_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+private lemma body_resident_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (path : (body ctx N input sameWires parameter).Path) :
-    (body ctx N input sameWires parameter).peakResidentSpace path ≤
+    (path : (body ctx N sameWires parameter).Path) :
+    (body ctx N sameWires parameter).peakResidentSpace path ≤
       (Storage.context ctx N).residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (selected ctx N input sameWires parameter)
-    ((Circuit.measurementSequence (readouts ctx N sameWires)).seq
+  refine (Circuit.peakResidentSpace_seq (selected ctx N sameWires parameter)
+    ((Circuit.measurementSequence (allowAllocation := true) (readouts ctx N sameWires)).seq
       (Circuit.classical (BitWord.application (packing ctx N)))) path).le.trans ?_
   apply SpacePool.max_le
-  · exact selected_resident_le ctx N input sameWires parameter path.1
-  · refine (Circuit.peakResidentSpace_seq (Circuit.measurementSequence (readouts ctx N sameWires))
+  · exact selected_resident_le ctx N sameWires parameter path.1
+  · refine (Circuit.peakResidentSpace_seq (Circuit.measurementSequence (allowAllocation := true)
+    (readouts ctx N sameWires))
       (Circuit.classical (BitWord.application (packing ctx N))) path.2).le.trans ?_
-    exact SpacePool.max_le (readouts_resident_le ctx N input sameWires path.2.1)
-      (Circuit.peakResidentSpace_classical (model := executionModel input)
+    exact SpacePool.max_le (readouts_resident_le ctx N sameWires path.2.1)
+      (Circuit.peakResidentSpace_classical (model := executionModel N)
         (BitWord.application (packing ctx N)) path.2.2).le
 
 /-- The genuine observation allocation and body fit their complete surviving storage frame. -/
-theorem code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (path : (Runtime.code ctx N input sameWires parameter).Path) :
-    (Runtime.code ctx N input sameWires parameter).peakResidentSpace path ≤
+    (path : (Runtime.code ctx N sameWires parameter).Path) :
+    (Runtime.code ctx N sameWires parameter).peakResidentSpace path ≤
       (Storage.context ctx N).residentSpace :=
-  (Circuit.peakResidentSpace_seq (allocate ctx N input)
-    (body ctx N input sameWires parameter) path).le.trans
-      (SpacePool.max_le (allocation_resident_le ctx N input path.1)
-        (body_resident_le ctx N input sameWires parameter path.2))
+  (Circuit.peakResidentSpace_seq (allocate ctx N)
+    (body ctx N sameWires parameter) path).le.trans
+      (SpacePool.max_le (allocation_resident_le ctx N path.1)
+        (body_resident_le ctx N sameWires parameter path.2))
 
-private theorem retained_resident_le (N : Nat) :
+private lemma retained_resident_le (N : Nat) :
     Sampler.Retained.resultSpace .quantum (modulusBits N) ≤
       Sampler.Retained.additionalSpace .quantum (modulusBits N) := by
   intro axis
@@ -139,26 +157,26 @@ private theorem retained_resident_le (N : Nat) :
       simp [Sampler.Retained.resultSpace, Sampler.Retained.additionalSpace, SpacePool.ofShape]
 
 /-- The actual sampler and observation count all temporary and retained storage together. -/
-theorem Iteration.code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Iteration.code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
-    (path : (Iteration.code ctx N input sameWires).Path) :
-    (Iteration.code ctx N input sameWires).peakResidentSpace path ≤
+    (path : (Iteration.code ctx N sameWires).Path) :
+    (Iteration.code ctx N sameWires).peakResidentSpace path ≤
       ctx.residentSpace + (Sampler.Retained.additionalSpace .quantum (modulusBits N) +
         Storage.resultSpace N) := by
   refine (Circuit.peakResidentSpace_seq
-    (Sampler.Retained.circuit (model := executionModel input) ctx N)
-    (Runtime.code (Iteration.sampledContext ctx N) N input
+    (Sampler.Retained.circuit (model := executionModel N) ctx N)
+    (Runtime.code (Iteration.sampledContext ctx N) N
       ((Iteration.sampled_quantumWires ctx N).trans sameWires)
       (.storage (Sampler.Retained.parameterRef ctx N).toCStorageRef)) path).le.trans ?_
   apply SpacePool.max_le
-  · have sampled : (Sampler.Retained.circuit (model := executionModel input)
+  · have sampled : (Sampler.Retained.circuit (model := executionModel N)
         ctx N).peakResidentSpace path.1 ≤
           ctx.residentSpace + Sampler.Retained.additionalSpace .quantum (modulusBits N) :=
-        Sampler.Retained.samplerRetained_resident_le (model := executionModel input) ctx N path.1
+        Sampler.Retained.samplerRetained_resident_le (model := executionModel N) ctx N path.1
     exact sampled.trans (fun axis => by
       simp only [Pi.add_apply]
       omega)
-  · have observed := Runtime.code_resident_le (Iteration.sampledContext ctx N) N input
+  · have observed := Runtime.code_resident_le (Iteration.sampledContext ctx N) N
       ((Iteration.sampled_quantumWires ctx N).trans sameWires)
       (.storage (Sampler.Retained.parameterRef ctx N).toCStorageRef) path.2
     have storage : (Storage.context (Iteration.sampledContext ctx N) N).residentSpace =
@@ -174,27 +192,27 @@ theorem Iteration.code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input 
       omega)
 
 /-- Recovery and reset scratch remain beside every surviving result and caller. -/
-theorem Completion.code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Completion.code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Completion.code ctx N input sameWires cells result).Path) :
     (Completion.code ctx N input sameWires cells result).peakResidentSpace path ≤
       ctx.residentSpace + completionAdditionalSpace N := by
   rcases path with ⟨iterationPath, recoveryPath, resetPath⟩
-  refine (Circuit.peakResidentSpace_seq (Iteration.code ctx N input sameWires)
+  refine (Circuit.peakResidentSpace_seq (Iteration.code ctx N sameWires)
     ((Completion.feedback ctx N input cells result).seq
-      (reset (Iteration.context ctx N) N input
+      (reset (Iteration.context ctx N) N
         ((Iteration.quantumWires ctx N).trans sameWires)))
       ⟨iterationPath, recoveryPath, resetPath⟩).le.trans ?_
   apply SpacePool.max_le
-  · exact (Iteration.code_resident_le ctx N input sameWires iterationPath).trans (fun axis => by
+  · exact (Iteration.code_resident_le ctx N sameWires iterationPath).trans (fun axis => by
       simp only [completionAdditionalSpace, Pi.add_apply] at *
       omega)
   · refine (Circuit.peakResidentSpace_seq (Completion.feedback ctx N input cells result)
-      (reset (Iteration.context ctx N) N input
+      (reset (Iteration.context ctx N) N
         ((Iteration.quantumWires ctx N).trans sameWires)) ⟨recoveryPath, resetPath⟩).le.trans ?_
     apply SpacePool.max_le
-    · have recovered := NativeFactorScan.visit_resident_le (model := executionModel input)
+    · have recovered := NativeFactorScan.visit_resident_le (model := executionModel N)
         input (Completion.inputs ctx N) (Completion.cells ctx N cells)
         (Completion.liftWrite ctx N result) recoveryPath
       change _ ≤ (Iteration.context ctx N).residentSpace +
@@ -205,23 +223,15 @@ theorem Completion.code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input
         change _ ≤ _
         simp only [completionAdditionalSpace, Pi.add_apply] at *
         omega)
-    · have resetPeak : (reset (Iteration.context ctx N) N input
-          ((Iteration.quantumWires ctx N).trans sameWires)).peakResidentSpace resetPath =
-            SpacePool.ofShape (.finite 2) + (Iteration.context ctx N).residentSpace :=
-        ZReset.BankScope.zResetBankScope_peakResidentSpace
-        (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
-        (operations := BitWord.model)
-        (shorDeclared_context_qubits N ((Iteration.quantumWires ctx N).trans sameWires))
-        resetPath
-      rw [resetPeak, Iteration.context_resident]
+    · rw [reset_peakResidentSpace, Iteration.context_resident]
       intro axis
-      have capacity := retained_resident_le N axis
+      have capacity := reset_retained_le_sampler N axis
       change _ ≤ _
       simp only [completionAdditionalSpace, Pi.add_apply] at *
       omega
 
 /-- Real observation cells retain their full capacity beside the incoming frame. -/
-theorem Storage.context_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
+lemma Storage.context_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
     (Storage.context ctx N).auxiliarySpace = ctx.auxiliarySpace + Storage.resultSpace N := by
   rw [Storage.context, MeasurementCells.context_auxiliarySpace, Storage.resultContext,
     RuntimeCtx.auxiliarySpace_addRetained]
@@ -229,32 +239,32 @@ theorem Storage.context_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
   ac_rfl
 
 /-- All actual sampled and measured cells coexist in the completed round's live frame. -/
-theorem Iteration.context_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
+lemma Iteration.context_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
     (Iteration.context ctx N).auxiliarySpace = ctx.auxiliarySpace +
       (Sampler.Retained.resultSpace .quantum (modulusBits N) + Storage.resultSpace N) := by
   rw [Iteration.context, Storage.context_auxiliary, Iteration.sampledContext,
     Sampler.Retained.samplerRetained_context_auxiliary]
   exact add_assoc _ _ _
 
-private theorem selected_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+private lemma selected_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (path : (selected ctx N input sameWires parameter).Path) :
-    (selected ctx N input sameWires parameter).peakAuxiliarySpace path ≤
+    (path : (selected ctx N sameWires parameter).Path) :
+    (selected ctx N sameWires parameter).peakAuxiliarySpace path ≤
       (Storage.context ctx N).auxiliarySpace := by
   rcases path with ⟨value, selectedPath⟩
   exact (Circuit.peakAuxiliarySpace_unitary (operations := BitWord.model)
     (classicalOracles := ClassicalOracleModel.empty)
-    (member N ((Storage.quantumWires ctx N).trans sameWires) input value) selectedPath).le
+    (member N ((Storage.quantumWires ctx N).trans sameWires) value) selectedPath).le
 
-private theorem readouts_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+private lemma readouts_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (path : (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts ctx N sameWires)).Path) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts ctx N sameWires)).peakAuxiliarySpace path ≤
         (Storage.context ctx N).auxiliarySpace := by
@@ -265,13 +275,13 @@ private theorem readouts_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (inp
   subst frame
   exact le_rfl
 
-private theorem allocation_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
-    (path : (allocate ctx N input).Path) :
-    (allocate ctx N input).peakAuxiliarySpace path ≤ (Storage.context ctx N).auxiliarySpace := by
+private lemma allocation_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat)
+    (path : (allocate ctx N).Path) :
+    (allocate ctx N).peakAuxiliarySpace path ≤ (Storage.context ctx N).auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
-    (Circuit.retain (model := executionModel input) ctx ctx.canonicalFreshKey
+    (Circuit.retain (model := executionModel N) ctx ctx.canonicalFreshKey
       (.bits (phaseBits N)) ctx.canonicalFreshKey_fresh)
-    (MeasurementCells.allocate (model := executionModel input) (Storage.resultContext ctx N)
+    (MeasurementCells.allocate (model := executionModel N) (Storage.resultContext ctx N)
       2 (phaseBits N)) path).le.trans ?_
   apply SpacePool.max_le
   · rw [Circuit.peakAuxiliarySpace_retain]
@@ -279,39 +289,40 @@ private theorem allocation_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (i
       (MeasurementCells.context (Storage.resultContext ctx N) 2 (phaseBits N)).auxiliarySpace
     rw [MeasurementCells.context_auxiliarySpace]
     exact fun axis => Nat.le_add_left _ _
-  · exact MeasurementCells.allocate_peakAuxiliarySpace (model := executionModel input)
+  · exact MeasurementCells.allocate_peakAuxiliarySpace (model := executionModel N)
       (Storage.resultContext ctx N) 2 (phaseBits N) path.2
 
-private theorem body_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+private lemma body_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (path : (body ctx N input sameWires parameter).Path) :
-    (body ctx N input sameWires parameter).peakAuxiliarySpace path ≤
+    (path : (body ctx N sameWires parameter).Path) :
+    (body ctx N sameWires parameter).peakAuxiliarySpace path ≤
       (Storage.context ctx N).auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (selected ctx N input sameWires parameter)
-    ((Circuit.measurementSequence (readouts ctx N sameWires)).seq
+  refine (Circuit.peakAuxiliarySpace_seq (selected ctx N sameWires parameter)
+    ((Circuit.measurementSequence (allowAllocation := true) (readouts ctx N sameWires)).seq
       (Circuit.classical (BitWord.application (packing ctx N)))) path).le.trans ?_
   apply SpacePool.max_le
-  · exact selected_auxiliary_le ctx N input sameWires parameter path.1
-  · refine (Circuit.peakAuxiliarySpace_seq (Circuit.measurementSequence (readouts ctx N sameWires))
+  · exact selected_auxiliary_le ctx N sameWires parameter path.1
+  · refine (Circuit.peakAuxiliarySpace_seq (Circuit.measurementSequence (allowAllocation := true)
+    (readouts ctx N sameWires))
       (Circuit.classical (BitWord.application (packing ctx N))) path.2).le.trans ?_
-    exact SpacePool.max_le (readouts_auxiliary_le ctx N input sameWires path.2.1)
-      (Circuit.peakAuxiliarySpace_classical (model := executionModel input)
+    exact SpacePool.max_le (readouts_auxiliary_le ctx N sameWires path.2.1)
+      (Circuit.peakAuxiliarySpace_classical (model := executionModel N)
         (BitWord.application (packing ctx N)) path.2.2).le
 
 /-- The genuine observation allocation and body fit their complete surviving storage frame. -/
-theorem code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
-    (path : (Runtime.code ctx N input sameWires parameter).Path) :
-    (Runtime.code ctx N input sameWires parameter).peakAuxiliarySpace path ≤
+    (path : (Runtime.code ctx N sameWires parameter).Path) :
+    (Runtime.code ctx N sameWires parameter).peakAuxiliarySpace path ≤
       (Storage.context ctx N).auxiliarySpace :=
-  (Circuit.peakAuxiliarySpace_seq (allocate ctx N input)
-    (body ctx N input sameWires parameter) path).le.trans
-      (SpacePool.max_le (allocation_auxiliary_le ctx N input path.1)
-        (body_auxiliary_le ctx N input sameWires parameter path.2))
+  (Circuit.peakAuxiliarySpace_seq (allocate ctx N)
+    (body ctx N sameWires parameter) path).le.trans
+      (SpacePool.max_le (allocation_auxiliary_le ctx N path.1)
+        (body_auxiliary_le ctx N sameWires parameter path.2))
 
-private theorem retained_auxiliary_le (N : Nat) :
+private lemma retained_auxiliary_le (N : Nat) :
     Sampler.Retained.resultSpace .quantum (modulusBits N) ≤
       Sampler.Retained.additionalSpace .quantum (modulusBits N) := by
   intro axis
@@ -323,26 +334,26 @@ private theorem retained_auxiliary_le (N : Nat) :
       simp [Sampler.Retained.resultSpace, Sampler.Retained.additionalSpace, SpacePool.ofShape]
 
 /-- The actual sampler and observation count all temporary and retained storage together. -/
-theorem Iteration.code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Iteration.code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires)
-    (path : (Iteration.code ctx N input sameWires).Path) :
-    (Iteration.code ctx N input sameWires).peakAuxiliarySpace path ≤
+    (path : (Iteration.code ctx N sameWires).Path) :
+    (Iteration.code ctx N sameWires).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + (Sampler.Retained.additionalSpace .quantum (modulusBits N) +
         Storage.resultSpace N) := by
   refine (Circuit.peakAuxiliarySpace_seq
-    (Sampler.Retained.circuit (model := executionModel input) ctx N)
-    (Runtime.code (Iteration.sampledContext ctx N) N input
+    (Sampler.Retained.circuit (model := executionModel N) ctx N)
+    (Runtime.code (Iteration.sampledContext ctx N) N
       ((Iteration.sampled_quantumWires ctx N).trans sameWires)
       (.storage (Sampler.Retained.parameterRef ctx N).toCStorageRef)) path).le.trans ?_
   apply SpacePool.max_le
-  · have sampled : (Sampler.Retained.circuit (model := executionModel input)
+  · have sampled : (Sampler.Retained.circuit (model := executionModel N)
         ctx N).peakAuxiliarySpace path.1 ≤
           ctx.auxiliarySpace + Sampler.Retained.additionalSpace .quantum (modulusBits N) :=
-        Sampler.Retained.samplerRetained_auxiliary_le (model := executionModel input) ctx N path.1
+        Sampler.Retained.samplerRetained_auxiliary_le (model := executionModel N) ctx N path.1
     exact sampled.trans (fun axis => by
       simp only [Pi.add_apply]
       omega)
-  · have observed := Runtime.code_auxiliary_le (Iteration.sampledContext ctx N) N input
+  · have observed := Runtime.code_auxiliary_le (Iteration.sampledContext ctx N) N
       ((Iteration.sampled_quantumWires ctx N).trans sameWires)
       (.storage (Sampler.Retained.parameterRef ctx N).toCStorageRef) path.2
     have storage : (Storage.context (Iteration.sampledContext ctx N) N).auxiliarySpace =
@@ -358,27 +369,27 @@ theorem Iteration.code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input
       omega)
 
 /-- Recovery and reset scratch remain beside every surviving result and caller. -/
-theorem Completion.code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Completion.code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Completion.code ctx N input sameWires cells result).Path) :
     (Completion.code ctx N input sameWires cells result).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + completionAdditionalSpace N := by
   rcases path with ⟨iterationPath, recoveryPath, resetPath⟩
-  refine (Circuit.peakAuxiliarySpace_seq (Iteration.code ctx N input sameWires)
+  refine (Circuit.peakAuxiliarySpace_seq (Iteration.code ctx N sameWires)
     ((Completion.feedback ctx N input cells result).seq
-      (reset (Iteration.context ctx N) N input
+      (reset (Iteration.context ctx N) N
         ((Iteration.quantumWires ctx N).trans sameWires)))
       ⟨iterationPath, recoveryPath, resetPath⟩).le.trans ?_
   apply SpacePool.max_le
-  · exact (Iteration.code_auxiliary_le ctx N input sameWires iterationPath).trans (fun axis => by
+  · exact (Iteration.code_auxiliary_le ctx N sameWires iterationPath).trans (fun axis => by
       simp only [completionAdditionalSpace, Pi.add_apply] at *
       omega)
   · refine (Circuit.peakAuxiliarySpace_seq (Completion.feedback ctx N input cells result)
-      (reset (Iteration.context ctx N) N input
+      (reset (Iteration.context ctx N) N
         ((Iteration.quantumWires ctx N).trans sameWires)) ⟨recoveryPath, resetPath⟩).le.trans ?_
     apply SpacePool.max_le
-    · have recovered := NativeFactorScan.visit_auxiliary_le (model := executionModel input)
+    · have recovered := NativeFactorScan.visit_auxiliary_le (model := executionModel N)
         input (Completion.inputs ctx N) (Completion.cells ctx N cells)
         (Completion.liftWrite ctx N result) recoveryPath
       change _ ≤ (Iteration.context ctx N).auxiliarySpace +
@@ -389,17 +400,9 @@ theorem Completion.code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (inpu
         change _ ≤ _
         simp only [completionAdditionalSpace, Pi.add_apply] at *
         omega)
-    · have resetPeak : (reset (Iteration.context ctx N) N input
-          ((Iteration.quantumWires ctx N).trans sameWires)).peakAuxiliarySpace resetPath =
-            SpacePool.ofShape (.finite 2) + (Iteration.context ctx N).auxiliarySpace :=
-        ZReset.BankScope.zResetBankScope_peakAuxiliarySpace
-        (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
-        (operations := BitWord.model)
-        (shorDeclared_context_qubits N ((Iteration.quantumWires ctx N).trans sameWires))
-        resetPath
-      rw [resetPeak, Iteration.context_auxiliary]
+    · rw [reset_peakAuxiliarySpace, Iteration.context_auxiliary]
       intro axis
-      have capacity := retained_auxiliary_le N axis
+      have capacity := reset_retained_le_sampler N axis
       change _ ≤ _
       simp only [completionAdditionalSpace, Pi.add_apply] at *
       omega

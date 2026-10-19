@@ -27,7 +27,7 @@ def quadraticWeight {R : Register} (operator : HilbertOperator R) (vector : Hilb
     ℝ := (inner ℂ vector (operator.applyVec vector)).re
 
 /-- A contractive matrix has a dimension-independent quadratic continuity bound. -/
-theorem quadraticWeight_sub_bound {R : Register} (operator : HilbertOperator R)
+lemma quadraticWeight_sub_bound {R : Register} (operator : HilbertOperator R)
     (contractive : ∀ vector : HilbertVector R, ‖operator.applyVec vector‖ ≤ ‖vector‖)
     (left right : HilbertVector R) :
     |quadraticWeight operator left - quadraticWeight operator right| ≤
@@ -54,7 +54,7 @@ theorem quadraticWeight_sub_bound {R : Register} (operator : HilbertOperator R)
     _ = ‖left - right‖ * (‖left‖ + ‖right‖) := by ring
 
 /-- Agreement on the full coherent good vector gives the original four-times-norm error. -/
-theorem quadraticWeight_le_add_four_mul_norm_sub {R : Register}
+lemma quadraticWeight_le_add_four_mul_norm_sub {R : Register}
     (actual ideal : HilbertOperator R)
     (actualContractive : ∀ vector : HilbertVector R, ‖actual.applyVec vector‖ ≤ ‖vector‖)
     (idealContractive : ∀ vector : HilbertVector R, ‖ideal.applyVec vector‖ ≤ ‖vector‖)

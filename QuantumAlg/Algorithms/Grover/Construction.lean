@@ -52,12 +52,12 @@ public def markedIndices {n : Nat} (marked : Fin (2 ^ n) → Bool) :
   (markedIndices marked).card
 
 /-- The public marked count is exactly the cardinality of the selected finite set. -/
-public theorem markedCount_eq_card {n : Nat} (marked : Fin (2 ^ n) → Bool) :
+public lemma markedCount_eq_card {n : Nat} (marked : Fin (2 ^ n) → Bool) :
     markedCount marked = (Finset.univ.filter fun index : Fin (2 ^ n) =>
       marked index = true).card := by
   rfl
 
-theorem markedCount_le_pow {n : Nat} (marked : Fin (2 ^ n) → Bool) :
+lemma markedCount_le_pow {n : Nat} (marked : Fin (2 ^ n) → Bool) :
     markedCount marked ≤ 2 ^ n := by
   simpa [markedCount, markedIndices] using
     Finset.card_le_card
@@ -65,7 +65,7 @@ theorem markedCount_le_pow {n : Nat} (marked : Fin (2 ^ n) → Bool) :
 
 /-- If every possible index is counted as marked, the predicate is true on
 every index. -/
-theorem allMarked_of_markedCount_eq_pow {n : Nat}
+lemma allMarked_of_markedCount_eq_pow {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (hcount : markedCount marked = 2 ^ n) :
     ∀ j, marked j = true := by
   have hset : markedIndices marked = Finset.univ := by
@@ -168,26 +168,26 @@ def unmarkedUniformState {n : Nat} (marked : Fin (2 ^ n) → Bool)
               ((2 ^ n - markedCount marked : Nat) : Real) : ℂ)⁻¹‖ ^ 2) = 1
     rw [hsum, Real.sqrt_one])
 
-@[simp] theorem markedUniformState_apply_of_marked {n : Nat}
+@[simp] lemma markedUniformState_apply_of_marked {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_pos : 0 < markedCount marked)
     (j : Fin (2 ^ n)) (hj : marked j) :
     markedUniformState marked ht_pos j =
       (Real.sqrt (markedCount marked) : ℂ)⁻¹ := by
   simp [markedUniformState, markedUniformVector, hj]
 
-@[simp] theorem markedUniformState_apply_of_unmarked {n : Nat}
+@[simp] lemma markedUniformState_apply_of_unmarked {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_pos : 0 < markedCount marked)
     (j : Fin (2 ^ n)) (hj : ¬ marked j) :
     markedUniformState marked ht_pos j = 0 := by
   simp [markedUniformState, markedUniformVector, hj]
 
-@[simp] theorem unmarkedUniformState_apply_of_marked {n : Nat}
+@[simp] lemma unmarkedUniformState_apply_of_marked {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_lt : markedCount marked < 2 ^ n)
     (j : Fin (2 ^ n)) (hj : marked j) :
     unmarkedUniformState marked ht_lt j = 0 := by
   simp [unmarkedUniformState, unmarkedUniformVector, hj]
 
-@[simp] theorem unmarkedUniformState_apply_of_unmarked {n : Nat}
+@[simp] lemma unmarkedUniformState_apply_of_unmarked {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_lt : markedCount marked < 2 ^ n)
     (j : Fin (2 ^ n)) (hj : ¬ marked j) :
     unmarkedUniformState marked ht_lt j =
@@ -195,7 +195,7 @@ def unmarkedUniformState {n : Nat} (marked : Fin (2 ^ n) → Bool)
   simp [unmarkedUniformState, unmarkedUniformVector, hj]
 
 /-- Marked and unmarked uniform states have disjoint support. -/
-theorem markedUniformState_inner_unmarkedUniformState {n : Nat}
+lemma markedUniformState_inner_unmarkedUniformState {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) :
@@ -217,18 +217,18 @@ def groverAngle {n : Nat} (marked : Fin (2 ^ n) → Bool) : Real :=
   Real.arcsin
     (Real.sqrt ((markedCount marked : Real) / ((2 ^ n : Nat) : Real)))
 
-private theorem markedRatio_nonneg {n : Nat}
+private lemma markedRatio_nonneg {n : Nat}
     (marked : Fin (2 ^ n) → Bool) :
     0 ≤ (markedCount marked : Real) / ((2 ^ n : Nat) : Real) := by
   positivity
 
-private theorem markedRatio_le_one {n : Nat}
+private lemma markedRatio_le_one {n : Nat}
     (marked : Fin (2 ^ n) → Bool) :
     (markedCount marked : Real) / ((2 ^ n : Nat) : Real) ≤ 1 := by
   apply (div_le_one (by positivity : (0 : Real) < ((2 ^ n : Nat) : Real))).2
   exact_mod_cast markedCount_le_pow marked
 
-private theorem sin_groverAngle {n : Nat}
+private lemma sin_groverAngle {n : Nat}
     (marked : Fin (2 ^ n) → Bool) :
     Real.sin (groverAngle marked) =
       Real.sqrt ((markedCount marked : Real) / ((2 ^ n : Nat) : Real)) := by
@@ -236,7 +236,7 @@ private theorem sin_groverAngle {n : Nat}
   · exact (by norm_num : (-1 : Real) ≤ 0).trans (Real.sqrt_nonneg _)
   · exact Real.sqrt_le_one.mpr (markedRatio_le_one marked)
 
-private theorem cos_groverAngle {n : Nat}
+private lemma cos_groverAngle {n : Nat}
     (marked : Fin (2 ^ n) → Bool) :
     Real.cos (groverAngle marked) =
       Real.sqrt
@@ -252,7 +252,7 @@ private theorem cos_groverAngle {n : Nat}
   rw [Nat.cast_sub (markedCount_le_pow marked)]
   field_simp
 
-private theorem sinAngle_mul_markedNormalization {n : Nat}
+private lemma sinAngle_mul_markedNormalization {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_pos : 0 < markedCount marked) :
     (Real.sin (groverAngle marked) : ℂ) *
         (Real.sqrt (markedCount marked) : ℂ)⁻¹ =
@@ -270,7 +270,7 @@ private theorem sinAngle_mul_markedNormalization {n : Nat}
   push_cast
   field_simp [hmarkedSqrt, hcardSqrt]
 
-private theorem cosAngle_mul_unmarkedNormalization {n : Nat}
+private lemma cosAngle_mul_unmarkedNormalization {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_lt : markedCount marked < 2 ^ n) :
     (Real.cos (groverAngle marked) : ℂ) *
         (Real.sqrt ((2 ^ n - markedCount marked : Nat) : Real) : ℂ)⁻¹ =
@@ -292,7 +292,7 @@ private theorem cosAngle_mul_unmarkedNormalization {n : Nat}
 
 /-- Source decomposition of the uniform state into predicate-derived marked
 and unmarked directions. -/
-theorem uniformState_decomposition {n : Nat}
+lemma uniformState_decomposition {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) :
@@ -330,7 +330,7 @@ def sourceOperator {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
   (diffusionOperator n * phaseOracleOp marked) ^ k * WalshHadamard.hadamardLayerOperator n
 
 @[simp]
-theorem diffusionOperator_zero :
+lemma diffusionOperator_zero :
     (diffusionOperator 0 : HilbertOperator (Qubits 0)) = 1 := by
   ext i j
   fin_cases i
@@ -340,7 +340,7 @@ theorem diffusionOperator_zero :
     OrthogonalProjector.rankOneOp, WalshHadamard.uniformState,
     WalshHadamard.invSqrtCard, UnitaryOperator.ofMatrix]
 
-theorem diffusionDecomposition_applyVec (n : Nat)
+lemma diffusionDecomposition_applyVec (n : Nat)
     (state : HilbertVector (Qubits n)) :
     ((WalshHadamard.hadamardLayerOperator n) *
       (ZeroReflection.zeroReflectionOperator n *
@@ -389,7 +389,7 @@ theorem diffusionDecomposition_applyVec (n : Nat)
     AmplitudeAmplification.unitary_applyVec_dagger_applyVec, hinner, hzero]
 
 /-- The concrete phase oracle acts diagonally on any state vector. -/
-theorem phaseOracleOp_applyVec_apply {n : Nat}
+lemma phaseOracleOp_applyVec_apply {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (state : HilbertVector (Qubits n))
     (j : Fin (2 ^ n)) :
     (phaseOracleOp marked).applyVec state j =
@@ -401,7 +401,7 @@ theorem phaseOracleOp_applyVec_apply {n : Nat}
   rw [Fintype.sum_ite_eq]
 
 /-- The actual phase oracle negates the normalized marked-uniform direction. -/
-theorem phaseOracle_apply_markedUniformState {n : Nat}
+lemma phaseOracle_apply_markedUniformState {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_pos : 0 < markedCount marked) :
     (phaseOracleOp marked).applyVec
         (markedUniformState marked ht_pos : HilbertVector (Qubits n)) =
@@ -414,7 +414,7 @@ theorem phaseOracle_apply_markedUniformState {n : Nat}
       markedUniformState_apply_of_unmarked]
 
 /-- The actual phase oracle fixes the normalized unmarked-uniform direction. -/
-theorem phaseOracle_apply_unmarkedUniformState {n : Nat}
+lemma phaseOracle_apply_unmarkedUniformState {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (ht_lt : markedCount marked < 2 ^ n) :
     (phaseOracleOp marked).applyVec
         (unmarkedUniformState marked ht_lt : HilbertVector (Qubits n)) =
@@ -426,7 +426,7 @@ theorem phaseOracle_apply_unmarkedUniformState {n : Nat}
     simp [hj, unmarkedUniformState_apply_of_marked,
       unmarkedUniformState_apply_of_unmarked]
 
-private theorem hadamardLayerOperator_applyVec_zero (n : Nat) :
+private lemma hadamardLayerOperator_applyVec_zero (n : Nat) :
     (WalshHadamard.hadamardLayerOperator n).applyVec
         (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n)) :
           HilbertVector (Qubits n)) =
@@ -452,7 +452,7 @@ def nontrivialModel {n : Nat} (marked : Fin (2 ^ n) → Bool)
     rw [hadamardLayerOperator_applyVec_zero]
     exact uniformState_decomposition marked ht_pos ht_lt
 
-private theorem phaseOracle_apply_stateAt_eq_badReflection {n : Nat}
+private lemma phaseOracle_apply_stateAt_eq_badReflection {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (α : Real) :
@@ -468,7 +468,7 @@ private theorem phaseOracle_apply_stateAt_eq_badReflection {n : Nat}
     phaseOracle_apply_unmarkedUniformState]
   module
 
-private theorem diffusionOperator_applyVec_eq_preparedReflection {n : Nat}
+private lemma diffusionOperator_applyVec_eq_preparedReflection {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n)
@@ -493,7 +493,7 @@ private theorem diffusionOperator_applyVec_eq_preparedReflection {n : Nat}
 /-- The actual phase-oracle/diffusion product advances the predicate-derived
 good/bad plane by `2 theta`.  The bridge is deliberately an action theorem on
 that plane, not a false full-space operator equality. -/
-private theorem groverStepOperator_apply_stateAt_coe {n : Nat}
+private lemma groverStepOperator_apply_stateAt_coe {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (α : Real) :
@@ -521,7 +521,7 @@ private theorem groverStepOperator_apply_stateAt_coe {n : Nat}
 
 /-- The concrete Grover step maps normalized plane states to normalized plane
 states. -/
-theorem groverStepOperator_apply_stateAt {n : Nat}
+lemma groverStepOperator_apply_stateAt {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (α : Real) :
@@ -534,7 +534,7 @@ theorem groverStepOperator_apply_stateAt {n : Nat}
   exact congrArg (fun state : HilbertVector (Qubits n) => state i)
     (groverStepOperator_apply_stateAt_coe marked ht_pos ht_lt α)
 
-private theorem groverStepOperator_apply_amplifiedState {n : Nat}
+private lemma groverStepOperator_apply_amplifiedState {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -550,7 +550,7 @@ private theorem groverStepOperator_apply_amplifiedState {n : Nat}
   push_cast
   ring_nf
 
-private theorem groverStepOperator_pow_apply_uniform {n : Nat}
+private lemma groverStepOperator_pow_apply_uniform {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -578,7 +578,7 @@ private theorem groverStepOperator_pow_apply_uniform {n : Nat}
       exact groverStepOperator_apply_amplifiedState marked ht_pos ht_lt k
 
 /-- The independent source evolution has the exact nontrivial-plane closed form. -/
-private theorem sourceOperator_apply_zero_coe {n : Nat}
+private lemma sourceOperator_apply_zero_coe {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -590,7 +590,7 @@ private theorem sourceOperator_apply_zero_coe {n : Nat}
   exact groverStepOperator_pow_apply_uniform marked ht_pos ht_lt k
 
 /-- The source operator sends the normalized zero input to the normalized closed form. -/
-theorem sourceOperator_apply_zero {n : Nat}
+lemma sourceOperator_apply_zero {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -609,7 +609,7 @@ def layout (n : Nat) : QubitLayout n where
   physical_idx := fun index => index.val
   physical_idx_injective := fun _ _ h => Fin.ext h
 
-@[simp] theorem layout_systemIdx (n : Nat) :
+@[simp] lemma layout_systemIdx (n : Nat) :
     (layout n).systemIdx = List.range n := by
   simp [layout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 
@@ -636,7 +636,7 @@ def evolvedState {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
       (layout n).systemIdx
     system_idx_eq := rfl }
 
-theorem evolvedState_vector {n : Nat}
+lemma evolvedState_vector {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -652,7 +652,7 @@ noncomputable def sourceSuccessProbability {n : Nat}
   (QubitLayout.basisPMF (evolvedState marked k)).toOuterMeasure
     {index | SuccessfulIndex marked index}
 
-private theorem amplifiedState_markedMass {n : Nat}
+private lemma amplifiedState_markedMass {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -689,7 +689,7 @@ private theorem amplifiedState_markedMass {n : Nat}
     _ = _ := by
       field_simp [Nat.cast_ne_zero.mpr ht_pos.ne']
 
-private theorem nontrivial_sourceSuccessProbability_eq {n : Nat}
+private lemma nontrivial_sourceSuccessProbability_eq {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_pos : 0 < markedCount marked)
     (ht_lt : markedCount marked < 2 ^ n) (k : Nat) :
@@ -723,7 +723,7 @@ private theorem nontrivial_sourceSuccessProbability_eq {n : Nat}
       positivity
     _ = _ := by rw [amplifiedState_markedMass]
 
-private theorem allMarked_sourceSuccessProbability_eq_one {n : Nat}
+private lemma allMarked_sourceSuccessProbability_eq_one {n : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (hcount : markedCount marked = 2 ^ n) (k : Nat) :
     sourceSuccessProbability marked k = 1 := by
@@ -734,7 +734,7 @@ private theorem allMarked_sourceSuccessProbability_eq_one {n : Nat}
   simpa only [tsum_fintype] using
     (QubitLayout.basisPMF (evolvedState marked k)).tsum_coe
 
-private theorem allMarked_sourceProbability_eq_one {n t k : Nat}
+private lemma allMarked_sourceProbability_eq_one {n t k : Nat}
     (ht : t = 2 ^ n) :
     ENNReal.ofReal
         (Real.sin (((2 : Real) * k + 1) *
@@ -757,7 +757,7 @@ private theorem allMarked_sourceProbability_eq_one {n t k : Nat}
 
 /-- Exact marked-event mass of the evolved-state Born PMF, including the
 all-marked and `n=0` edge case. -/
-theorem sourceSuccessProbability_eq {n t k : Nat}
+lemma sourceSuccessProbability_eq {n t k : Nat}
     (marked : Fin (2 ^ n) → Bool)
     (ht_count : markedCount marked = t) (ht_pos : 0 < t) :
     sourceSuccessProbability marked k =
@@ -778,7 +778,7 @@ theorem sourceSuccessProbability_eq {n t k : Nat}
 
 /-- The concrete phase oracle has the source-stated action on every basis
 index. -/
-theorem main_phase_oracle_basis_action {n : Nat}
+lemma main_phase_oracle_basis_action {n : Nat}
     (marked : Fin (2 ^ n) → Bool) (j : Fin (2 ^ n)) :
     (phaseOracleOp marked).applyVec
         (NormalizedVector.ket (R := Qubits n) j : HilbertVector (Qubits n)) =

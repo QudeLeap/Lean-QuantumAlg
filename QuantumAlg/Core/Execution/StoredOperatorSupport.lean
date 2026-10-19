@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem scaled_conjugation {R : Register} (state : DensityOperator R)
+private lemma scaled_conjugation {R : Register} (state : DensityOperator R)
     (target : HilbertOperator R) (phase : ℂ) :
     (phase • target) * state.matrix * (phase • target).conjTranspose =
       (phase * star phase) • (target * state.matrix * target.conjTranspose) := by
@@ -34,7 +34,7 @@ private theorem scaled_conjugation {R : Register} (state : DensityOperator R)
     Matrix.smul_mul, smul_smul, mul_comm (star phase) phase]
 
 /-- Exact supported columns and the actual stored-block formulas give the full joint target. -/
-theorem full_matrix_of_stored_columns {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma full_matrix_of_stored_columns {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (input : DensityOperator (Register.prod ctx.register Reference))
     (result : State ctx Reference History)

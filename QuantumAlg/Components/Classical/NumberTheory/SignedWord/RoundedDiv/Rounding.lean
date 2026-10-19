@@ -25,7 +25,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem add_read (refs : BodyRefs ctx width) (store : Store ctx)
+private lemma add_read (refs : BodyRefs ctx width) (store : Store ctx)
     (fits : (store.read (writeInput refs.wideNumerator)).toNat +
       (store.read (writeInput refs.wideDenominator)).toNat < CShape.wordModulus (width + 1)) :
     ((store.applyOp (addDenominatorOp refs)).read (writeInput refs.wideNumerator)).toNat =
@@ -36,7 +36,7 @@ private theorem add_read (refs : BodyRefs ctx width) (store : Store ctx)
   rw [Store.read_applyOp_output]
   exact Nat.mod_eq_of_lt fits
 
-private theorem decrement_read (refs : BodyRefs ctx width) (store : Store ctx)
+private lemma decrement_read (refs : BodyRefs ctx width) (store : Store ctx)
     (positive : 0 < (store.read (writeInput refs.wideNumerator)).toNat) :
     ((store.applyOp (correctNumeratorOp refs)).read (writeInput refs.wideNumerator)).toNat =
       (store.read (writeInput refs.wideNumerator)).toNat - 1 := by
@@ -57,7 +57,7 @@ private theorem decrement_read (refs : BodyRefs ctx width) (store : Store ctx)
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem correction_frame (refs : BodyRefs ctx width) (flag : CShape.Value .bit)
+private lemma correction_frame (refs : BodyRefs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : refs.wideNumerator.key ∉ other.storageKeys) :
     ((correctionStep (model := model) refs flag store).1).read other = store.read other := by
@@ -67,7 +67,7 @@ private theorem correction_frame (refs : BodyRefs ctx width) (flag : CShape.Valu
       · rfl
       · exact Store.read_applyOp_of_not_mem_storageKeys store _ other separate
 
-private theorem correction_value (refs : BodyRefs ctx width) (flag : CShape.Value .bit)
+private lemma correction_value (refs : BodyRefs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) (positive : 0 < (store.read (writeInput refs.wideNumerator)).toNat) :
     (((correctionStep (model := model) refs flag store).1).read (writeInput
       refs.wideNumerator)).toNat =
@@ -80,7 +80,7 @@ private theorem correction_value (refs : BodyRefs ctx width) (flag : CShape.Valu
       · exact decrement_read refs store positive
 
 /-- All actual rounding writes remain within the two wider operand cells. -/
-theorem rounding_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
+lemma rounding_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoidsNumerator : refs.wideNumerator.key ∉ other.storageKeys)
     (avoidsDenominator : refs.wideDenominator.key ∉ other.storageKeys) :
@@ -92,7 +92,7 @@ theorem rounding_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsNumerator]
 
 /-- Actual prepared operands become precisely the positive or negative nearest-division formula. -/
-theorem rounding_values (refs : BodyRefs ctx width) (separation : Separation refs)
+lemma rounding_values (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (magnitude denominator : Nat) (negative : Bool)
     (numeratorValue : (store.read (writeInput refs.wideNumerator)).toNat = 2 * magnitude)
     (denominatorValue : (store.read (writeInput refs.wideDenominator)).toNat = denominator)

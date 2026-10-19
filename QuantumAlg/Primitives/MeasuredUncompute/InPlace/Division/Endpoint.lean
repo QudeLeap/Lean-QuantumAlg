@@ -92,20 +92,17 @@ public def problem (modulus : Nat) (prime : Nat.Prime modulus) :
     Problem (.quantum AlgorithmGate.model .empty)
       (inputContext modulus.size) (outputContext modulus.size)
       (.fixedVector modulus.size (.finite 2)) where
-  valid := InPlaceDomain.valid modulus
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [InPlaceRequirement.requirement .division modulus prime]
+  Witness := Unit
+  valid := fun _ _ => InPlaceDomain.valid modulus
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [InPlaceRequirement.requirement .division modulus prime]
   resources :=
     { events := InPlaceDivisionResources.events modulus
       resident := InPlaceDivisionResources.space modulus.size
       auxiliary := InPlaceDivisionResources.space modulus.size }
-  depth :=
-    { duration := fun _ => 1
-      limit := InPlaceDivisionResources.depthBound modulus.size
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := fun coordinate => nomatch coordinate }
+  quantumTimeLimit := InPlaceDivisionResources.depthBound modulus.size
 
 /-- The single actual circuit exposes all live storage and reads its real measurement results. -/
 public def algorithm (modulus : Nat) (prime : Nat.Prime modulus) :
@@ -116,23 +113,23 @@ public def algorithm (modulus : Nat) (prime : Nat.Prime modulus) :
 
 /-- The same actual run meets the independent full-state, restoration and resource contract. -/
 public theorem main (modulus : Nat) (prime : Nat.Prime modulus) :
-    ∃ candidate, Algorithm.Solves candidate (problem modulus prime) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate (problem modulus prime) := by
   refine ⟨algorithm modulus prime, ?_⟩
   constructor
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid _initial requirement present
+  · intro environment _witness Reference input valid _initial requirement present
     have same : requirement = InPlaceRequirement.requirement .division modulus prime :=
       List.mem_singleton.mp present
     subst requirement
     exact InPlaceRequirement.division_holds modulus prime (output modulus.size) input valid
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     change Execution.observeBorrowedAfter (code modulus prime) Reference
-      ((code modulus prime).execute Reference
+      ((code modulus prime).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
       Execution.observeBorrowed Reference input.state
     refine (InPlaceRestoration.division_restored modulus prime
@@ -142,13 +139,14 @@ public theorem main (modulus : Nat) (prime : Nat.Prime modulus) :
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
       (fun _ => rfl) _ _
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact InPlaceDivisionResources.event_budget modulus prime path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact InPlaceDivisionResources.resident modulus prime path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact InPlaceDivisionResources.auxiliary modulus prime path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact InPlaceDivisionResources.depth modulus prime path
 
 end

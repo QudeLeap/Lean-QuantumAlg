@@ -31,7 +31,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem guarded_read_other (first second : CWriteRef ctx (.unsignedWord width))
+private lemma guarded_read_other (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     {shape : CShape} (other : CInputRef ctx shape)
     (firstFree : first.key ∉ other.storageKeys) (secondFree : second.key ∉ other.storageKeys)
@@ -44,7 +44,7 @@ private theorem guarded_read_other (first second : CWriteRef ctx (.unsignedWord 
       firstFree secondFree activeFree store
   · rfl
 
-private theorem iterated_read_other (first second : CWriteRef ctx (.unsignedWord width))
+private lemma iterated_read_other (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     {shape : CShape} (other : CInputRef ctx shape)
     (firstFree : first.key ∉ other.storageKeys) (secondFree : second.key ∉ other.storageKeys)
@@ -60,7 +60,7 @@ private theorem iterated_read_other (first second : CWriteRef ctx (.unsignedWord
       rw [Function.iterate_succ_apply, ih]
       exact guarded_read_other first second zero active other firstFree secondFree activeFree store
 
-private theorem scheduled_read_other (input : CInputRef ctx (operandShape width))
+private lemma scheduled_read_other (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -81,7 +81,7 @@ private theorem scheduled_read_other (input : CInputRef ctx (operandShape width)
       firstFree secondFree activeFree store)
 
 /-- Lexical execution preserves every parent read that excludes the actual result cell. -/
-theorem gcdLexical_read_other (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_read_other (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) {shape : CShape}
     (other : CInputRef ctx shape) (resultFree : result.key ∉ other.storageKeys)
     (store : Store ctx) :
@@ -101,7 +101,7 @@ theorem gcdLexical_read_other (input : CInputRef ctx (operandShape width))
     (gcdLayout_push_read other width store))
 
 /-- The complete retained algorithm preserves every original structural classical read. -/
-theorem gcdRetained_read_original (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_read_original (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) :
     (retainedStep (model := model) input key fresh store).1.read
@@ -113,7 +113,7 @@ theorem gcdRetained_read_original (input : CInputRef ctx (operandShape width))
     (store.pushRetained key (.unsignedWord width) fresh)).trans
     (Store.read_pushRetained_underRetained store key (.unsignedWord width) fresh other)
 
-private theorem scoped_borrowed (first second : CWriteRef ctx (.unsignedWord width))
+private lemma scoped_borrowed (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (store : Store ctx) :
     (scopedRemainderStep (model := model) first second zero active store).1.readBorrowedClassical =
@@ -122,7 +122,7 @@ private theorem scoped_borrowed (first second : CWriteRef ctx (.unsignedWord wid
     Store.readBorrowedClassical_popWorkspace,
     Store.readBorrowedClassical_applyOp, Store.readBorrowedClassical_pushWorkspace]
 
-private theorem guarded_borrowed (first second : CWriteRef ctx (.unsignedWord width))
+private lemma guarded_borrowed (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (store : Store ctx) :
     (guardedRemainderStep (model := model) first second zero active store).1.readBorrowedClassical =
@@ -132,7 +132,7 @@ private theorem guarded_borrowed (first second : CWriteRef ctx (.unsignedWord wi
   · exact scoped_borrowed first second zero active store
   · rfl
 
-private theorem iterated_borrowed (first second : CWriteRef ctx (.unsignedWord width))
+private lemma iterated_borrowed (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (count : Nat) (store : Store ctx) :
     (iteratedRemainderStep (model := model) first second zero active count
@@ -147,7 +147,7 @@ private theorem iterated_borrowed (first second : CWriteRef ctx (.unsignedWord w
       rw [Function.iterate_succ_apply, ih]
       exact guarded_borrowed first second zero active store
 
-private theorem scheduled_borrowed (input : CInputRef ctx (operandShape width))
+private lemma scheduled_borrowed (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
@@ -158,7 +158,7 @@ private theorem scheduled_borrowed (input : CInputRef ctx (operandShape width))
     Store.readBorrowedClassical_applyOp, iterated_borrowed]
 
 /-- The actual lexical step preserves every borrowed classical value. -/
-theorem gcdLexical_borrowed_values (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_borrowed_values (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (lexicalStep (model := model) input result store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
@@ -174,11 +174,12 @@ theorem gcdLexical_borrowed_values (input : CInputRef ctx (operandShape width))
     (pushLoopStore width store)).trans entered)
 
 /-- The lexical body restores the complete borrowed classical-quantum-reference observation. -/
-theorem gcdLexical_borrowedRestored (input : CInputRef ctx (operandShape width))
-    (result : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+lemma gcdLexical_borrowedRestored (input : CInputRef ctx (operandShape width))
+    (result : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (lexicalBody (model := model) input result).BorrowedRestored Reference state
-      ((lexicalBody (model := model) input result).execute Reference state) := by
+      ((lexicalBody (model := model) input result).execute environment Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, gcdLexical_execute]
   refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
     (H := model.HiddenState × History)
@@ -192,14 +193,16 @@ theorem gcdLexical_borrowedRestored (input : CInputRef ctx (operandShape width))
   exact Subsingleton.elim _ _
 
 /-- Actual retained GCD restores all borrowed systems jointly with every external reference. -/
-theorem gcdRetained_borrowedRestored (input : CInputRef ctx (operandShape width))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
+lemma gcdRetained_borrowedRestored (input : CInputRef ctx (operandShape width))
+    (key : StorageKey) (fresh : key ∉ ctx.keys) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (retainedCircuit (model := model) input key fresh).BorrowedRestored Reference state
-      ((retainedCircuit (model := model) input key fresh).execute Reference state) := by
+      ((retainedCircuit (model := model) input key fresh).execute environment Reference state) := by
   unfold retainedCircuit
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_retain key (.unsignedWord width) fresh state
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · exact Circuit.borrowedRestored_retain
+      (environment := environment) key (.unsignedWord width) fresh state
   · exact gcdLexical_borrowedRestored _ _ Reference _
 
 end

@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Ideal
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Recovery.Fourier.Effects
 
 /-!
 # Exact Fourier-event kernel of the original group target
@@ -34,12 +34,14 @@ def idealFourierEventKernel (problem : KnownOrderProblem E.GroupPoint)
   ∑ output : (Qubits (orderWidth problem + orderWidth problem)).Index,
     if event (ExceptionalOffsetAveraging.pairedBigEndianSelected (orderWidth problem)
         (prodEquiv.symm output)) = true then
-      star ((exponentReadoutCircuit problem).binaryMatrix output (prodEquiv left)) *
-        (exponentReadoutCircuit problem).binaryMatrix output (prodEquiv right)
+      star (((exponentReadoutCircuit problem).binaryMatrix OracleModel.emptyInterpretation) output
+        (prodEquiv left)) *
+        ((exponentReadoutCircuit problem).binaryMatrix OracleModel.emptyInterpretation) output
+          (prodEquiv right)
     else 0
 
 /-- Left translation by the same supplied seed preserves exactly the original oracle fibers. -/
-theorem idealGroupLabel_eq_iff (problem : KnownOrderProblem E.GroupPoint) (seed : AffinePoint E)
+lemma idealGroupLabel_eq_iff (problem : KnownOrderProblem E.GroupPoint) (seed : AffinePoint E)
     (left right : (idealBranchRegister problem).Index) :
     idealGroupLabel problem seed left = idealGroupLabel problem seed right ↔
       problem.toSourceScope.oracleMultiplier left.1.val left.2.val =
@@ -52,7 +54,7 @@ theorem idealGroupLabel_eq_iff (problem : KnownOrderProblem E.GroupPoint) (seed 
     apply Subtype.ext
     exact congrArg (fun value => seed.toGroupPoint * value) same
 
-private theorem idealBranchEffect_matrix_sum (problem : KnownOrderProblem E.GroupPoint)
+private lemma idealBranchEffect_matrix_sum (problem : KnownOrderProblem E.GroupPoint)
     (seed : AffinePoint E) (event : (Fin (2 * orderWidth problem) → Bool) → Bool)
     (Reference : Register) (left right : ((idealBranchRegister problem).prod Reference).Index) :
     (idealBranchEffect problem seed event Reference).matrix left right =
@@ -76,7 +78,7 @@ private theorem idealBranchEffect_matrix_sum (problem : KnownOrderProblem E.Grou
     mul_ite, mul_zero]
 
 /-- The exact branch observable is its Fourier event kernel times group and reference deltas. -/
-theorem idealBranchEffect_matrix (problem : KnownOrderProblem E.GroupPoint)
+lemma idealBranchEffect_matrix (problem : KnownOrderProblem E.GroupPoint)
     (seed : AffinePoint E) (event : (Fin (2 * orderWidth problem) → Bool) → Bool)
     (Reference : Register) (left right : ((idealBranchRegister problem).prod Reference).Index) :
     (idealBranchEffect problem seed event Reference).matrix left right =
@@ -91,10 +93,12 @@ theorem idealBranchEffect_matrix (problem : KnownOrderProblem E.GroupPoint)
       (idealGroupRegister problem seed).Index) × Reference.Index),
     if event (ExceptionalOffsetAveraging.pairedBigEndianSelected (orderWidth problem)
         (prodEquiv.symm output.1.1)) = true then
-      star ((exponentReadoutCircuit problem).binaryMatrix output.1.1 (prodEquiv left.1) *
+      star (((exponentReadoutCircuit problem).binaryMatrix OracleModel.emptyInterpretation)
+        output.1.1 (prodEquiv left.1) *
         (if output.1.2 = idealGroupLabel problem seed left.1 then 1 else 0) *
         (if output.2 = left.2 then 1 else 0)) *
-      ((exponentReadoutCircuit problem).binaryMatrix output.1.1 (prodEquiv right.1) *
+      (((exponentReadoutCircuit problem).binaryMatrix OracleModel.emptyInterpretation) output.1.1
+        (prodEquiv right.1) *
         (if output.1.2 = idealGroupLabel problem seed right.1 then 1 else 0) *
         (if output.2 = right.2 then 1 else 0)) else 0) = _
   simp only [Fintype.sum_prod_type]

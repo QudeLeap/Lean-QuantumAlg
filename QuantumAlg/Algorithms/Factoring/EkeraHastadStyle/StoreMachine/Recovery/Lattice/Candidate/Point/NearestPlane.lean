@@ -91,7 +91,8 @@ def CallerFrame {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : 
     (refs : Refs ctx width) (before after : Store ctx) : Prop :=
   LatticeCandidatePointMachine.CallerFrame (model := model) (candidateRefs refs) before after
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual candidate constructor uses the original nearest-plane coefficient cells. -/
@@ -104,9 +105,9 @@ def candidateStep (refs : Refs ctx width) (store : Store ctx) :
   LatticeCandidatePointMachine.candidateStep (candidateRefs refs) store
 
 /-- The complete actual source adapter preserves every incoming history and reference block. -/
-theorem candidatePointInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma candidatePointInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (candidatePointInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidatePointInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := candidateStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   LatticeCandidatePointMachine.candidatePointInto_execute (candidateRefs refs) Reference state
@@ -122,12 +123,12 @@ structure Outcome (m ell : Nat) (samples : RSA.ShortLogSample m ell × RSA.Short
   callerFrame : CallerFrame refs before after
 
 /-- The actual suffix preserves every read outside the original candidate footprint. -/
-theorem candidatePointInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
+lemma candidatePointInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (candidateStep refs store).1 :=
   LatticeCandidatePointMachine.candidatePointInto_callerFrame (candidateRefs refs) store
 
 /-- The actual native suffix realizes the original pure short-log point at the caller offset. -/
-theorem candidatePointInto_correct (m ell : Nat)
+lemma candidatePointInto_correct (m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (separation : Separation refs) (store : Store ctx)
@@ -145,7 +146,7 @@ theorem candidatePointInto_correct (m ell : Nat)
 
 /-- Every point visited by the canonical offset scan is exactly representable
 in the common signed coordinate word. -/
-theorem pointSignedRepresentable (N m ell : Nat)
+lemma pointSignedRepresentable (N m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
     (hoffset : offset ∈ NumberTheory.coefficientOffsetList3
@@ -173,7 +174,7 @@ theorem pointSignedRepresentable (N m ell : Nat)
 
 /-- The distance, range, and both scaled comparison operands of one canonical
 offset slot fit the common unsigned coordinate word. -/
-theorem nearTargetOperandsFit (N m ell : Nat)
+lemma nearTargetOperandsFit (N m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
     (hoffset : offset ∈ NumberTheory.coefficientOffsetList3
@@ -230,7 +231,7 @@ theorem nearTargetOperandsFit (N m ell : Nat)
 
 /-- The machine's squared-distance word is exactly the arithmetic operand in
 the source near-target predicate. -/
-theorem shortLogNearTarget_iff_scaledSquaredDistance (m ell : Nat)
+lemma shortLogNearTarget_iff_scaledSquaredDistance (m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (point : NumberTheory.IntegerPoint3) :
     RSA.ShortLogNearTarget m ell samples point ↔
@@ -241,34 +242,34 @@ theorem shortLogNearTarget_iff_scaledSquaredDistance (m ell : Nat)
     NumberTheory.integerPointSquaredNorm, NumberTheory.IntegerPoint3.sub, pow_two]
 
 /-- Actual native multiplicities equal the independent eighteen-instruction candidate formula. -/
-theorem candidatePointInto_resourcePool (refs : Refs ctx width)
+lemma candidatePointInto_resourcePool (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
     (candidatePointInto refs).resourcePool path =
       ResourcePool.ofList (LatticeCandidatePointMachine.candidateTrace width) :=
   LatticeCandidatePointMachine.candidatePointInto_resourcePool (candidateRefs refs) path
 
 /-- Actual short-log candidate depth includes all eighteen original native instructions. -/
-theorem candidatePointInto_depth (refs : Refs ctx width)
+lemma candidatePointInto_depth (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
     (candidatePointInto refs).depth (fun _ => 1) path = 18 :=
   LatticeCandidatePointMachine.candidatePointInto_depth (candidateRefs refs) path
 
 /-- The actual source adapter restores every borrowed-reference joint state. -/
-theorem candidatePointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma candidatePointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePointInto refs).BorrowedRestored Reference state
-      ((candidatePointInto refs).execute Reference state) :=
+      ((candidatePointInto refs).execute environment Reference state) :=
   LatticeCandidatePointMachine.candidatePointInto_borrowedRestored (candidateRefs refs)
     Reference state
 
 /-- Actual resident accounting includes the entire original caller context. -/
-theorem candidatePointInto_resident_le (refs : Refs ctx width)
+lemma candidatePointInto_resident_le (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
     (candidatePointInto refs).peakResidentSpace path ≤ ctx.residentSpace :=
   LatticeCandidatePointMachine.candidatePointInto_resident_le (candidateRefs refs) path
 
 /-- Actual auxiliary accounting retains the original cell roles without extra storage. -/
-theorem candidatePointInto_auxiliary_le (refs : Refs ctx width)
+lemma candidatePointInto_auxiliary_le (refs : Refs ctx width)
     (path : (candidatePointInto refs).Path) :
     (candidatePointInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=
   LatticeCandidatePointMachine.candidatePointInto_auxiliary_le (candidateRefs refs) path

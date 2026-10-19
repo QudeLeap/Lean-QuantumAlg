@@ -57,18 +57,18 @@ def mass (ρ : DensityOperator R) : ℝ := ρ.matrix.trace.re
 def IsNormalized (ρ : DensityOperator R) : Prop := ρ.mass = 1
 
 /-- Positive matrices have nonnegative real trace. -/
-theorem mass_nonneg (ρ : DensityOperator R) : 0 ≤ ρ.mass :=
+lemma mass_nonneg (ρ : DensityOperator R) : 0 ≤ ρ.mass :=
   (Complex.nonneg_iff.mp ρ.positive.trace_nonneg).1
 
 /-- Every represented execution branch has mass at most one. -/
-theorem mass_le_one (ρ : DensityOperator R) : ρ.mass ≤ 1 := ρ.trace_le_one
+lemma mass_le_one (ρ : DensityOperator R) : ρ.mass ≤ 1 := ρ.trace_le_one
 
 /-- The trace has no imaginary component. -/
-theorem trace_im_eq_zero (ρ : DensityOperator R) : ρ.matrix.trace.im = 0 :=
+lemma trace_im_eq_zero (ρ : DensityOperator R) : ρ.matrix.trace.im = 0 :=
   (Complex.nonneg_iff.mp ρ.positive.trace_nonneg).2.symm
 
 @[ext]
-theorem ext {ρ σ : DensityOperator R} (h : ρ.matrix = σ.matrix) : ρ = σ := by
+lemma ext {ρ σ : DensityOperator R} (h : ρ.matrix = σ.matrix) : ρ = σ := by
   cases ρ
   cases σ
   cases h
@@ -80,20 +80,20 @@ def zero (R : Register) : DensityOperator R where
   positive := Matrix.PosSemidef.zero
   trace_le_one := by simp
 
-@[simp] theorem zero_matrix : (zero R).matrix = 0 := rfl
+@[simp] lemma zero_matrix : (zero R).matrix = 0 := rfl
 
-@[simp] theorem zero_mass : (zero R).mass = 0 := by simp [mass, zero]
+@[simp] lemma zero_mass : (zero R).mass = 0 := by simp [mass, zero]
 
 /-- A zero-probability branch has the zero operator, not an arbitrary
 normalized state. -/
-theorem eq_zero_of_mass_eq_zero (ρ : DensityOperator R) (h : ρ.mass = 0) :
+lemma eq_zero_of_mass_eq_zero (ρ : DensityOperator R) (h : ρ.mass = 0) :
     ρ = zero R := by
   apply ext
   apply ρ.positive.trace_eq_zero_iff.mp
   exact Complex.ext h ρ.trace_im_eq_zero
 
 /-- Trace of the pure-state outer product [dW19, qcnotes.tex:5381]. -/
-theorem trace_pureMatrix (ψ : NormalizedVector R) :
+lemma trace_pureMatrix (ψ : NormalizedVector R) :
     (Matrix.vecMulVec (fun i => ψ i) (fun i => star (ψ i))).trace = 1 := by
   have hnorm : inner ℂ (ψ : HilbertVector R) (ψ : HilbertVector R) = (1 : ℂ) := by
     rw [inner_self_eq_norm_sq_to_K, ψ.norm_eq_one]
@@ -107,17 +107,17 @@ def ofPure (ψ : NormalizedVector R) : DensityOperator R where
   positive := Matrix.posSemidef_vecMulVec_self_star (fun i => ψ i)
   trace_le_one := by rw [trace_pureMatrix]; exact le_rfl
 
-@[simp] theorem ofPure_matrix (ψ : NormalizedVector R) (i j : R.Index) :
+@[simp] lemma ofPure_matrix (ψ : NormalizedVector R) (i j : R.Index) :
     (ofPure ψ).matrix i j = ψ i * star (ψ j) := rfl
 
 /-- The rank-one embedding retains normalization. -/
-theorem ofPure_normalized (ψ : NormalizedVector R) : (ofPure ψ).IsNormalized := by
+lemma ofPure_normalized (ψ : NormalizedVector R) : (ofPure ψ).IsNormalized := by
   change (Matrix.vecMulVec (fun i => ψ i) (fun i => star (ψ i))).trace.re = 1
   rw [trace_pureMatrix]
   rfl
 
 /-- Unitary conjugation preserves trace [dW19, qcnotes.tex:5405]. -/
-theorem trace_unitary_conjugation (U : UnitaryOperator R) (A : HilbertOperator R) :
+lemma trace_unitary_conjugation (U : UnitaryOperator R) (A : HilbertOperator R) :
     ((U : HilbertOperator R) * A * (U : HilbertOperator R).conjTranspose).trace =
       A.trace := by
   rw [Matrix.trace_mul_cycle]
@@ -132,33 +132,33 @@ def applyUnitary (U : UnitaryOperator R) (ρ : DensityOperator R) : DensityOpera
   positive := ρ.positive.mul_mul_conjTranspose_same (U : HilbertOperator R)
   trace_le_one := by rw [trace_unitary_conjugation]; exact ρ.trace_le_one
 
-@[simp] theorem applyUnitary_matrix (U : UnitaryOperator R) (ρ : DensityOperator R) :
+@[simp] lemma applyUnitary_matrix (U : UnitaryOperator R) (ρ : DensityOperator R) :
     (applyUnitary U ρ).matrix =
       (U : HilbertOperator R) * ρ.matrix * (U : HilbertOperator R).conjTranspose := rfl
 
-@[simp] theorem applyUnitary_mass (U : UnitaryOperator R) (ρ : DensityOperator R) :
+@[simp] lemma applyUnitary_mass (U : UnitaryOperator R) (ρ : DensityOperator R) :
     (applyUnitary U ρ).mass = ρ.mass := by
   simp only [mass, applyUnitary_matrix, trace_unitary_conjugation]
 
 /-- Quantum evolution preserves the normalized-state predicate. -/
-theorem applyUnitary_normalized (U : UnitaryOperator R) (ρ : DensityOperator R)
+lemma applyUnitary_normalized (U : UnitaryOperator R) (ρ : DensityOperator R)
     (hρ : ρ.IsNormalized) : (applyUnitary U ρ).IsNormalized := by
   simpa only [IsNormalized, applyUnitary_mass] using hρ
 
-@[simp] theorem applyUnitary_one (ρ : DensityOperator R) : applyUnitary 1 ρ = ρ := by
+@[simp] lemma applyUnitary_one (ρ : DensityOperator R) : applyUnitary 1 ρ = ρ := by
   apply ext
   simp [applyUnitary]
 
 /-- Sequential unitary action agrees with multiplication in the original
 certified unitary group. -/
-theorem applyUnitary_mul (U V : UnitaryOperator R) (ρ : DensityOperator R) :
+lemma applyUnitary_mul (U V : UnitaryOperator R) (ρ : DensityOperator R) :
     applyUnitary (U * V) ρ = applyUnitary U (applyUnitary V ρ) := by
   apply ext
   simp [applyUnitary, Matrix.conjTranspose_mul, Matrix.mul_assoc]
 
 /-- The mixed-state interpreter extends the original exact pure-state action
 [dW19, qcnotes.tex:5400]. -/
-public theorem ofPure_apply (U : UnitaryOperator R) (ψ : NormalizedVector R) :
+public lemma ofPure_apply (U : UnitaryOperator R) (ψ : NormalizedVector R) :
     ofPure (U.apply ψ) = applyUnitary U (ofPure ψ) := by
   apply ext
   ext i j
@@ -186,13 +186,13 @@ def marginalLeft (ρ : DensityOperator (Register.prod R S)) : DensityOperator R 
     rw [htrace]
     exact ρ.trace_le_one
 
-@[simp] theorem marginalLeft_matrix (ρ : DensityOperator (Register.prod R S))
+@[simp] lemma marginalLeft_matrix (ρ : DensityOperator (Register.prod R S))
     (i k : R.Index) :
     (marginalLeft ρ).matrix i k = ∑ j : S.Index, ρ.matrix (i, j) (k, j) := by
   simp [marginalLeft, Matrix.sum_apply, Matrix.submatrix_apply]
 
 /-- Taking a marginal preserves branch mass. -/
-theorem marginalLeft_mass (ρ : DensityOperator (Register.prod R S)) :
+lemma marginalLeft_mass (ρ : DensityOperator (Register.prod R S)) :
     (marginalLeft ρ).mass = ρ.mass := by
   unfold mass
   congr 1

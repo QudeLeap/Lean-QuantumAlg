@@ -35,7 +35,7 @@ noncomputable def sourceProjectedBlock {N : Nat} (output input : OrthogonalProje
 
 /-- Vectors in the input-projector complement are killed by the projected block
 `Π_out V Π_in`. -/
-theorem sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support {N : Nat}
+lemma sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support {N : Nat}
     (output input : OrthogonalProjector N) (V : UnitaryOperator (Qubits N))
     (ψ : HilbertVector (Qubits N))
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement input) ψ = ψ) :
@@ -46,7 +46,7 @@ theorem sourceProjectedBlock_applyVec_eq_zero_of_input_complement_support {N : N
   simp [HilbertOperator.applyVec]
 
 /-- Applying a Hilbert operator commutes with a list-indexed vector sum. -/
-private theorem hilbertOperator_applyVec_list_sum {N : Nat}
+private lemma hilbertOperator_applyVec_list_sum {N : Nat}
     (A : HilbertOperator (Qubits N)) (v : List (HilbertVector (Qubits N))) :
     HilbertOperator.applyVec A v.sum =
       (v.map fun ψ => HilbertOperator.applyVec A ψ).sum := by
@@ -58,7 +58,7 @@ private theorem hilbertOperator_applyVec_list_sum {N : Nat}
 
 /-- If two Hilbert operators agree on an indexed family, they agree on every
 finite linear combination of that family. -/
-private theorem hilbertOperator_applyVec_eq_on_list_linearCombination {N : Nat}
+private lemma hilbertOperator_applyVec_eq_on_list_linearCombination {N : Nat}
     {ι : Type} (vec : ι -> HilbertVector (Qubits N))
     {A B : HilbertOperator (Qubits N)}
     (h : ∀ i : ι, HilbertOperator.applyVec A (vec i) =
@@ -77,7 +77,7 @@ namespace SourceLeftKernelSingularBlock
 
 /-- Left-kernel input-side vectors lie in the right-projector complement, hence
 the source projected block kills them. -/
-theorem sourceProjectedBlock_applyVec_rightPerp_eq_zero {N : Nat}
+lemma sourceProjectedBlock_applyVec_rightPerp_eq_zero {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right output : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right)
     (V : UnitaryOperator (Qubits N)) :
@@ -91,7 +91,7 @@ namespace SourceComplementSingularBlock
 
 /-- Fully complementary input-side vectors lie in the right-projector complement,
 hence the source projected block kills them. -/
-theorem sourceProjectedBlock_applyVec_rightPerp_eq_zero {N : Nat}
+lemma sourceProjectedBlock_applyVec_rightPerp_eq_zero {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right output : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right)
     (V : UnitaryOperator (Qubits N)) :
@@ -114,7 +114,7 @@ def SourceProjectedQSVTBlockCorrectness {N : Nat} (U : UnitaryOperator (Qubits N
 /-- Degree-one base case of the source-level projected QSVT theorem.  The
 single zero phase realizes the original projected block, corresponding to
 `P(X)=X`. -/
-theorem sourceProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     SourceProjectedQSVTBlockCorrectness U left right 1 (Polynomial.X : Polynomial ℂ) [0] := by
   unfold SourceProjectedQSVTBlockCorrectness sourceProjectedBlock
@@ -123,7 +123,7 @@ theorem sourceProjectedQSVTBlockCorrectness_X_single_zero {N : Nat}
 
 /-- Degree-zero source-level projected QSVT sanity case: the empty phase sequence
 realizes the constant polynomial `1` on the input projector. -/
-theorem sourceProjectedQSVTBlockCorrectness_one_nil {N : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_one_nil {N : Nat}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N) :
     SourceProjectedQSVTBlockCorrectness U left right 0 (Polynomial.C 1 : Polynomial ℂ) [] := by
   unfold SourceProjectedQSVTBlockCorrectness sourceProjectedBlock singularValuePolynomial
@@ -137,16 +137,16 @@ def negPhases (phases : List ℝ) : List ℝ :=
   phases.map fun φ => -φ
 
 @[simp]
-theorem negPhases_length (phases : List ℝ) :
+lemma negPhases_length (phases : List ℝ) :
     (negPhases phases).length = phases.length := by
   simp [negPhases]
 
-theorem singularSignalRProduct_negPhases_zero_zero (phases : List ℝ) (x : ℝ) :
+lemma singularSignalRProduct_negPhases_zero_zero (phases : List ℝ) (x : ℝ) :
     singularSignalRProduct (negPhases phases) x 0 0 =
       star (singularSignalRProduct phases x 0 0) := by
   simpa [negPhases] using singularSignalRProduct_map_neg_zero_zero phases x
 
-theorem phaseProduct_negPhases (phases : List ℝ) :
+lemma phaseProduct_negPhases (phases : List ℝ) :
     phaseProduct (negPhases phases) = star (phaseProduct phases) := by
   induction phases with
   | nil =>

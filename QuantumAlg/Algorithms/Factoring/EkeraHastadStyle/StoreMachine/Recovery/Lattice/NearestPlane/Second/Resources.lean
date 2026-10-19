@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent formula for the cross product and five dot refreshes. -/
@@ -56,7 +57,7 @@ def phaseTrace (width : Nat) (magnitudeNegative correctionNegative restoreNegati
         (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))))
 
 /-- Every real metric-prefix path follows the independent thirty-four-instruction formula. -/
-theorem secondPrefixInto_events (refs : Refs ctx width) (path : (secondPrefixInto refs).Path) :
+lemma secondPrefixInto_events (refs : Refs ctx width) (path : (secondPrefixInto refs).Path) :
     (secondPrefixInto refs).eventTrace path = prefixTrace width := by
   unfold secondPrefixInto secondMetricPrefixInto metricInto at path ⊢
   change (_ ++ (_ ++ _)) ++ (_ ++ (_ ++ _)) = _
@@ -66,14 +67,14 @@ theorem secondPrefixInto_events (refs : Refs ctx width) (path : (secondPrefixInt
   rfl
 
 /-- Every real numerator path follows the independent three-instruction formula. -/
-theorem numeratorInto_events (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
+lemma numeratorInto_events (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
     (numeratorInto refs).eventTrace path = numeratorTrace width := by
   unfold numeratorInto LatticeCross.coordinateCross at path ⊢
   rw [ProductDifference.computeInto_events]
   rfl
 
 /-- Actual native events follow the independent formula and the actual recorded division flags. -/
-theorem secondInto_events (refs : Refs ctx width) (path : (secondInto refs).Path) :
+lemma secondInto_events (refs : Refs ctx width) (path : (secondInto refs).Path) :
     (secondInto refs).eventTrace path =
       let divided := path.2.2.1
       phaseTrace width divided.1.1.2.1.toBool divided.2.1.2.1.1.toBool
@@ -85,7 +86,7 @@ theorem secondInto_events (refs : Refs ctx width) (path : (secondInto refs).Path
   rfl
 
 /-- Actual native multiplicities are the pool of the same independent instruction formula. -/
-theorem secondInto_resourcePool (refs : Refs ctx width) (path : (secondInto refs).Path) :
+lemma secondInto_resourcePool (refs : Refs ctx width) (path : (secondInto refs).Path) :
     (secondInto refs).resourcePool path =
       let divided := path.2.2.1
       ResourcePool.ofList (phaseTrace width divided.1.1.2.1.toBool
@@ -94,7 +95,7 @@ theorem secondInto_resourcePool (refs : Refs ctx width) (path : (secondInto refs
   rw [secondInto_events]
 
 /-- Every actual second-coordinate path executes at most fifty-six native instructions. -/
-theorem secondInto_eventCount_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
+lemma secondInto_eventCount_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
     ((secondInto refs).eventTrace path).length ≤ 56 := by
   rcases path with ⟨metricPath, numeratorPath, divisionPath, reductionPath⟩
   have divisionBound := RoundedDiv.body_eventCount_le refs.division divisionPath
@@ -106,7 +107,7 @@ theorem secondInto_eventCount_le (refs : Refs ctx width) (path : (secondInto ref
   omega
 
 /-- Unit-duration depth includes every native metric, numerator, division and reduction step. -/
-theorem secondInto_depth_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
+lemma secondInto_depth_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
     (secondInto refs).depth (fun _ => 1) path ≤ 56 := by
   rcases path with ⟨metricPath, numeratorPath, divisionPath, reductionPath⟩
   have divisionBound := RoundedDiv.body_depth_le refs.division divisionPath
@@ -121,28 +122,28 @@ theorem secondInto_depth_le (refs : Refs ctx width) (path : (secondInto refs).Pa
   omega
 
 /-- All four actual stages jointly preserve the complete borrowed interface. -/
-theorem secondInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma secondInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (secondInto refs).BorrowedRestored Reference state
-      ((secondInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((secondInto refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact secondPrefixInto_borrowedRestored refs Reference state
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
     · exact numeratorInto_borrowedRestored refs Reference _
-    · exact Circuit.borrowedRestored_seq _ _ _
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
         (RoundedDiv.body_borrowedRestored _ Reference _)
         (LatticeArithmetic.pointReduce_borrowedRestored _ _ _ _ Reference _)
 
 /-- Every actual metric instruction uses the original complete caller context. -/
-theorem secondPrefixInto_visited (refs : Refs ctx width) (path : (secondPrefixInto refs).Path) :
+lemma secondPrefixInto_visited (refs : Refs ctx width) (path : (secondPrefixInto refs).Path) :
     (secondPrefixInto refs).visitedContexts path = List.replicate 34 ctx := rfl
 
 /-- Every actual numerator instruction uses the original complete caller context. -/
-theorem numeratorInto_visited (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
+lemma numeratorInto_visited (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
     (numeratorInto refs).visitedContexts path = List.replicate 3 ctx := rfl
 
 /-- The complete actual second phase visits only the original supplied context. -/
-theorem secondInto_visited (refs : Refs ctx width) (path : (secondInto refs).Path)
+lemma secondInto_visited (refs : Refs ctx width) (path : (secondInto refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (secondInto refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨metricPath, numeratorPath, divisionPath, reductionPath⟩
@@ -158,14 +159,14 @@ theorem secondInto_visited (refs : Refs ctx width) (path : (secondInto refs).Pat
       or_false, or_self] using reduction
 
 /-- Resident accounting retains every original classical cell and quantum dimension. -/
-theorem secondInto_resident_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
+lemma secondInto_resident_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
     (secondInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [secondInto_visited refs path visited present]
 
 /-- Auxiliary accounting uses the original supplied roles throughout the complete phase. -/
-theorem secondInto_auxiliary_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
+lemma secondInto_auxiliary_le (refs : Refs ctx width) (path : (secondInto refs).Path) :
     (secondInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

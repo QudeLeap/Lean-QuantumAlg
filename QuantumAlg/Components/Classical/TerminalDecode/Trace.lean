@@ -39,7 +39,7 @@ def selectedBits (output : CWriteRef ctx (OutputShape width)) :
   | _input :: rest, path => path.1.2.1.toBool :: selectedBits output rest path.2
 
 /-- Every actual native bit append emits its exact independent selected-bit formula. -/
-theorem bitRef_events (input : CInputRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
+lemma bitRef_events (input : CInputRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
     (path : (bitRefRoutine (model := model) input output).Path) :
     (bitRefRoutine (model := model) input output).eventTrace path =
       bitTrace (model := model) width path.2.1.toBool := by
@@ -61,7 +61,7 @@ theorem bitRef_events (input : CInputRef ctx .bit) (output : CWriteRef ctx (Outp
         rfl
 
 /-- Every actual complete decoder path emits the independent ordered native bit formula. -/
-theorem fold_events (output : CWriteRef ctx (OutputShape width))
+lemma fold_events (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit))
     (path : (foldBitRefs (model := model) output inputs).Path) :
     (foldBitRefs (model := model) output inputs).eventTrace path =
@@ -74,7 +74,7 @@ theorem fold_events (output : CWriteRef ctx (OutputShape width))
     rfl
 
 /-- Actual branch selections contain exactly one bit per supplied source reference. -/
-theorem selectedBits_length (output : CWriteRef ctx (OutputShape width))
+lemma selectedBits_length (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit))
     (path : (foldBitRefs (model := model) output inputs).Path) :
     (selectedBits (model := model) output inputs path).length = inputs.length := by
@@ -83,7 +83,7 @@ theorem selectedBits_length (output : CWriteRef ctx (OutputShape width))
   | cons input rest ih => exact congrArg Nat.succ (ih path.2)
 
 /-- Independent native decoding emits at most two operations for each selected source bit. -/
-theorem bitsTrace_length_le (width : Nat) (bits : List Bool) :
+lemma bitsTrace_length_le (width : Nat) (bits : List Bool) :
     (bitsTrace (model := model) width bits).length ≤ 2 * bits.length := by
   induction bits with
   | nil => exact le_rfl
@@ -96,7 +96,7 @@ theorem bitsTrace_length_le (width : Nat) (bits : List Bool) :
     omega
 
 /-- Every actual bit fold obeys the independent two-native-operations-per-bit count. -/
-theorem fold_eventCount_le (output : CWriteRef ctx (OutputShape width))
+lemma fold_eventCount_le (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit))
     (path : (foldBitRefs (model := model) output inputs).Path) :
     ((foldBitRefs (model := model) output inputs).eventTrace path).length ≤ 2 * inputs.length := by

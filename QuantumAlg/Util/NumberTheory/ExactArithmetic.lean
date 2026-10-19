@@ -84,7 +84,7 @@ def modularPowerTrace {modulus : Nat} (width : Nat)
   .mk final.arithmetic final.accumulator
 
 /-- The binary slot preserves `accumulator * power^remaining`. -/
-private theorem modularPowerStep_invariant {modulus exponent : Nat}
+private lemma modularPowerStep_invariant {modulus exponent : Nat}
     (base : ZMod modulus) (state : ModularPowerState modulus)
     (hstate : state.accumulator * state.power ^ state.remaining =
       base ^ exponent) :
@@ -136,7 +136,7 @@ private theorem modularPowerStep_invariant {modulus exponent : Nat}
       _ = base ^ exponent := hstate
 
 /-- Every fixed-width run preserves the binary-power invariant. -/
-private theorem modularPowerRun_invariant {modulus exponent : Nat}
+private lemma modularPowerRun_invariant {modulus exponent : Nat}
     (base : ZMod modulus) (width : Nat) (state : ModularPowerState modulus)
     (hstate : state.accumulator * state.power ^ state.remaining =
       base ^ exponent) :
@@ -152,7 +152,7 @@ private theorem modularPowerRun_invariant {modulus exponent : Nat}
         (modularPowerStep_invariant base state hstate)
 
 /-- After enough binary slots the remaining exponent is zero. -/
-private theorem modularPowerRun_remaining_eq_zero_of_lt {modulus width : Nat}
+private lemma modularPowerRun_remaining_eq_zero_of_lt {modulus width : Nat}
     (state : ModularPowerState modulus)
     (hfit : state.remaining < 2 ^ width) :
     (modularPowerRun width state).remaining = 0 := by
@@ -169,7 +169,7 @@ private theorem modularPowerRun_remaining_eq_zero_of_lt {modulus width : Nat}
 
 /-- The fixed-width trace computes the ordinary group power whenever the
 exponent fits in the scanned bit width. -/
-theorem modularPowerTrace_value {modulus width exponent : Nat}
+lemma modularPowerTrace_value {modulus width exponent : Nat}
     (base : ZMod modulus) (hfit : exponent < 2 ^ width) :
     (modularPowerTrace width base exponent).value = base ^ exponent := by
   let initial : ModularPowerState modulus :=
@@ -186,7 +186,7 @@ theorem modularPowerTrace_value {modulus width exponent : Nat}
 
 /-- A fixed-width modular-power run appends exactly seven events per scanned
 bit. -/
-private theorem modularPowerRun_arithmetic_length {modulus : Nat}
+private lemma modularPowerRun_arithmetic_length {modulus : Nat}
     (width : Nat) (state : ModularPowerState modulus) :
     (modularPowerRun width state).arithmetic.length =
       state.arithmetic.length + 7 * width := by
@@ -198,7 +198,7 @@ private theorem modularPowerRun_arithmetic_length {modulus : Nat}
       ring
 
 /-- The exact modular-power event list has seven entries per scanned bit. -/
-theorem modularPowerTrace_arithmetic_length {modulus width : Nat}
+lemma modularPowerTrace_arithmetic_length {modulus width : Nat}
     (base : ZMod modulus) (exponent : Nat) :
     (modularPowerTrace width base exponent).arithmetic.length =
       7 * width := by
@@ -211,7 +211,7 @@ theorem modularPowerTrace_arithmetic_length {modulus width : Nat}
 
 /-- One modular-power slot stays within a uniform public input-width
 envelope. -/
-private theorem modularPowerSlot_maxOperandWidth_le {modulus : Nat}
+private lemma modularPowerSlot_maxOperandWidth_le {modulus : Nat}
     [NeZero modulus] (root : Nat) (state : ModularPowerState modulus)
     (hremaining : Nat.size state.remaining ≤ root) :
     arithmeticEventListMaxOperandWidth
@@ -299,7 +299,7 @@ private theorem modularPowerSlot_maxOperandWidth_le {modulus : Nat}
     exact max_le hremainingBound hconstTwo
 
 /-- A complete fixed-width run preserves the public max-operand envelope. -/
-private theorem modularPowerRun_maxOperandWidth_le {modulus : Nat}
+private lemma modularPowerRun_maxOperandWidth_le {modulus : Nat}
     [NeZero modulus] (root width : Nat) (state : ModularPowerState modulus)
     (hwidth : width ≤ root) (hfit : state.remaining < 2 ^ width)
     (hprior : arithmeticEventListMaxOperandWidth state.arithmetic ≤
@@ -338,7 +338,7 @@ private theorem modularPowerRun_maxOperandWidth_le {modulus : Nat}
 
 /-- Positive-modulus fixed-width modular power has a uniform max-operand
 bound derived only from the modulus and scan width. -/
-theorem modularPowerTrace_maxOperandWidth_le
+lemma modularPowerTrace_maxOperandWidth_le
     {modulus width exponent : Nat} (base : ZMod modulus)
     (hmodulus : 0 < modulus) (hfit : exponent < 2 ^ width) :
     arithmeticEventListMaxOperandWidth
@@ -363,7 +363,7 @@ def ModularPowerTrace.schoolbookCharge {modulus : Nat}
 
 /-- Positive-modulus fixed-width modular power has cubic schoolbook arithmetic
 charge in the combined public modulus and exponent-width envelope. -/
-theorem modularPowerTrace_schoolbookCharge_cubic
+lemma modularPowerTrace_schoolbookCharge_cubic
     {modulus width exponent : Nat} (base : ZMod modulus)
     (hmodulus : 0 < modulus) (hfit : exponent < 2 ^ width) :
     (modularPowerTrace width base exponent).schoolbookCharge ≤
@@ -422,7 +422,7 @@ termination_by left _ => left
 decreasing_by exact Nat.mod_lt right (Nat.succ_pos left)
 
 /-- The traced remainder recursion computes `Nat.gcd`. -/
-private theorem euclideanGCDRun_value (left right : Nat) :
+private lemma euclideanGCDRun_value (left right : Nat) :
     (euclideanGCDRun left right).value = Nat.gcd left right := by
   induction left using Nat.strong_induction_on generalizing right with
   | h left ih =>
@@ -448,7 +448,7 @@ def euclideanGCDTrace (left right : Nat) : EuclideanGCDTrace :=
   .mk final.arithmetic final.value
 
 /-- The sealed Euclidean trace returns `Nat.gcd`. -/
-theorem euclideanGCDTrace_value (left right : Nat) :
+lemma euclideanGCDTrace_value (left right : Nat) :
     (euclideanGCDTrace left right).value = Nat.gcd left right := by
   exact euclideanGCDRun_value left right
 
@@ -456,7 +456,7 @@ theorem euclideanGCDTrace_value (left right : Nat) :
 def EuclideanGCDTrace.schoolbookCharge (trace : EuclideanGCDTrace) : Nat :=
   arithmeticEventListCharge trace.arithmetic
 
-private theorem euclideanGCDRun_arithmetic_length_of_pos
+private lemma euclideanGCDRun_arithmetic_length_of_pos
     (left right : Nat) (hleft : 0 < left) :
     (euclideanGCDRun left right).arithmetic.length =
       2 + (euclideanGCDRun (right % left) left).arithmetic.length := by
@@ -466,7 +466,7 @@ private theorem euclideanGCDRun_arithmetic_length_of_pos
 
 /-- Two nonterminal Euclidean remainder steps reduce the first operand by
 more than a factor of two. -/
-private theorem secondEuclideanRemainder_double_lt
+private lemma secondEuclideanRemainder_double_lt
     (left right : Nat) (hleft : 0 < left)
     (hremainder : 0 < right % left) :
     2 * (left % (right % left)) < left := by
@@ -482,7 +482,7 @@ private theorem secondEuclideanRemainder_double_lt
 
 /-- The binary width of the first Euclidean operand decreases after two
 nonterminal steps. -/
-private theorem secondEuclideanRemainder_size_succ_le
+private lemma secondEuclideanRemainder_size_succ_le
     (left right : Nat) (hleft : 0 < left)
     (hremainder : 0 < right % left) :
     Nat.size (left % (right % left)) + 1 ≤ Nat.size left := by
@@ -505,7 +505,7 @@ private theorem secondEuclideanRemainder_size_succ_le
     rw [hdoubleSize] at hmono
     exact hmono
 
-private theorem euclideanGCDRun_arithmetic_length_le
+private lemma euclideanGCDRun_arithmetic_length_le
     (left right : Nat) :
     (euclideanGCDRun left right).arithmetic.length ≤
       4 * Nat.size left + 1 := by
@@ -541,7 +541,7 @@ private theorem euclideanGCDRun_arithmetic_length_le
               4 * Nat.size left + 1
           omega
 
-private theorem euclideanGCDRun_maxOperandWidth_le
+private lemma euclideanGCDRun_maxOperandWidth_le
     (left right bound : Nat)
     (hleft : Nat.size left ≤ bound) (hright : Nat.size right ≤ bound) :
     arithmeticEventListMaxOperandWidth
@@ -574,7 +574,7 @@ private theorem euclideanGCDRun_maxOperandWidth_le
 
 /-- A Euclidean trace emits at most four events per input-width bit, plus its
 terminal zero test. -/
-theorem euclideanGCDTrace_arithmetic_length_le (left right : Nat) :
+lemma euclideanGCDTrace_arithmetic_length_le (left right : Nat) :
     (euclideanGCDTrace left right).arithmetic.length ≤
       4 * Nat.size left + 1 := by
   simpa [euclideanGCDTrace] using
@@ -582,7 +582,7 @@ theorem euclideanGCDTrace_arithmetic_length_le (left right : Nat) :
 
 /-- Every Euclidean event operand stays within the initial binary-width
 envelope. -/
-theorem euclideanGCDTrace_maxOperandWidth_le (left right : Nat) :
+lemma euclideanGCDTrace_maxOperandWidth_le (left right : Nat) :
     arithmeticEventListMaxOperandWidth
         (euclideanGCDTrace left right).arithmetic ≤
       max (Nat.size left) (Nat.size right) := by
@@ -593,7 +593,7 @@ theorem euclideanGCDTrace_maxOperandWidth_le (left right : Nat) :
 
 /-- The complete sealed Euclidean execution has cubic schoolbook charge in
 the larger input width. -/
-theorem euclideanGCDTrace_schoolbookCharge_cubic (left right : Nat) :
+lemma euclideanGCDTrace_schoolbookCharge_cubic (left right : Nat) :
     (euclideanGCDTrace left right).schoolbookCharge ≤
       16 * (max (Nat.size left) (Nat.size right) + 1) ^ 3 := by
   let width := max (Nat.size left) (Nat.size right)
@@ -671,7 +671,7 @@ private def integerSquareRootRun (value : Nat) : IntegerSquareRootState :=
 /-- One refinement preserves a bracketing interval and, after all rounds,
 leaves the unique natural whose square is at most the input while its
 successor's square is larger. -/
-private theorem integerSquareRootFixedRun_bounds
+private lemma integerSquareRootFixedRun_bounds
     (value rounds low : Nat)
     (hlow : low * low ≤ value)
     (hhigh : value <
@@ -708,7 +708,7 @@ private theorem integerSquareRootFixedRun_bounds
           ih low hlow hnextHigh
 
 /-- The initial power-of-two interval contains the exact square root. -/
-private theorem integerSquareRoot_lt_initial_square (value : Nat) :
+private lemma integerSquareRoot_lt_initial_square (value : Nat) :
     value <
       (1 <<< integerSquareRootRounds value) *
         (1 <<< integerSquareRootRounds value) := by
@@ -725,7 +725,7 @@ private theorem integerSquareRoot_lt_initial_square (value : Nat) :
       simp [Nat.shiftLeft_eq, pow_add, two_mul]
 
 /-- The complete fixed-round execution returns `Nat.sqrt`. -/
-private theorem integerSquareRootRun_value (value : Nat) :
+private lemma integerSquareRootRun_value (value : Nat) :
     (integerSquareRootRun value).value = Nat.sqrt value := by
   apply Nat.eq_sqrt.2
   simpa [integerSquareRootRun] using
@@ -734,7 +734,7 @@ private theorem integerSquareRootRun_value (value : Nat) :
       (by simpa using integerSquareRoot_lt_initial_square value)
 
 /-- Each binary refinement contributes exactly four operand-derived events. -/
-private theorem integerSquareRootFixedRun_arithmetic_length
+private lemma integerSquareRootFixedRun_arithmetic_length
     (value rounds low : Nat) :
     (integerSquareRootFixedRun value rounds low).arithmetic.length =
       4 * rounds := by
@@ -745,7 +745,7 @@ private theorem integerSquareRootFixedRun_arithmetic_length
 
 /-- The number of square-root refinement rounds never exceeds the input's
 binary magnitude width. -/
-private theorem integerSquareRootRounds_le_size (value : Nat) :
+private lemma integerSquareRootRounds_le_size (value : Nat) :
     integerSquareRootRounds value ≤ Nat.size value := by
   simp only [integerSquareRootRounds]
   omega
@@ -753,7 +753,7 @@ private theorem integerSquareRootRounds_le_size (value : Nat) :
 /-- Every event in one refinement slot has width at most twice the public
 input width.  The interval hypothesis ties `low` and the tested midpoint to
 the original fixed power-of-two search interval. -/
-private theorem integerSquareRootSlot_maxOperandWidth_le
+private lemma integerSquareRootSlot_maxOperandWidth_le
     (value root remaining low : Nat)
     (hroot : root ≤ Nat.size value)
     (hremaining : remaining + 1 ≤ root)
@@ -826,7 +826,7 @@ private theorem integerSquareRootSlot_maxOperandWidth_le
 
 /-- Every event in a complete fixed-round refinement has width at most twice
 the input width. -/
-private theorem integerSquareRootFixedRun_maxOperandWidth_le
+private lemma integerSquareRootFixedRun_maxOperandWidth_le
     (value root rounds low : Nat)
     (hroot : root ≤ Nat.size value)
     (hrounds : rounds ≤ root)
@@ -881,12 +881,12 @@ def integerSquareRootTrace (value : Nat) : IntegerSquareRootTrace value :=
   .mk final.arithmetic final.value
 
 /-- The sealed square-root trace returns `Nat.sqrt`. -/
-theorem integerSquareRootTrace_value (value : Nat) :
+lemma integerSquareRootTrace_value (value : Nat) :
     (integerSquareRootTrace value).value = Nat.sqrt value := by
   exact integerSquareRootRun_value value
 
 /-- Exact event count of the fixed-round square-root execution. -/
-theorem integerSquareRootTrace_arithmetic_length (value : Nat) :
+lemma integerSquareRootTrace_arithmetic_length (value : Nat) :
     (integerSquareRootTrace value).arithmetic.length =
       3 + 4 * integerSquareRootRounds value := by
   simp only [integerSquareRootTrace, integerSquareRootRun, List.length_append,
@@ -895,7 +895,7 @@ theorem integerSquareRootTrace_arithmetic_length (value : Nat) :
 
 /-- Every operand used by the sealed fixed-round square-root execution has at
 most twice the public input width. -/
-theorem integerSquareRootTrace_maxOperandWidth_le (value : Nat) :
+lemma integerSquareRootTrace_maxOperandWidth_le (value : Nat) :
     arithmeticEventListMaxOperandWidth
         (integerSquareRootTrace value).arithmetic ≤
       2 * (Nat.size value + 1) := by
@@ -960,7 +960,7 @@ def IntegerSquareRootTrace.schoolbookCharge {input : Nat}
 
 /-- Explicit cubic schoolbook-charge envelope for the complete fixed-round
 square-root execution. -/
-theorem integerSquareRootTrace_schoolbookCharge_le (value : Nat) :
+lemma integerSquareRootTrace_schoolbookCharge_le (value : Nat) :
     (integerSquareRootTrace value).schoolbookCharge ≤
       4 * (3 + 4 * integerSquareRootRounds value) *
         (2 * (Nat.size value + 1) + 1) ^ 2 := by
@@ -988,7 +988,7 @@ theorem integerSquareRootTrace_schoolbookCharge_le (value : Nat) :
 
 /-- The sealed fixed-round square root has cubic schoolbook arithmetic charge
 in the public input bit length. -/
-theorem integerSquareRootTrace_schoolbookCharge_cubic (value : Nat) :
+lemma integerSquareRootTrace_schoolbookCharge_cubic (value : Nat) :
     (integerSquareRootTrace value).schoolbookCharge ≤
       144 * (Nat.size value + 1) ^ 3 := by
   let width := Nat.size value + 1

@@ -26,7 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
+variable {model : ExecutionModel}
+    {environment : model.Environment} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 -- Package the existing complete interpreter equation so each scope can be
 -- composed without repeatedly expanding all nested path instances.
@@ -34,7 +35,7 @@ private def StepLaw {current : RuntimeCtx model.kind} (program : Circuit model c
     (update : Store current → Store current × program.Path) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
     (state : State current Reference (model.HiddenState × History)),
-    program.execute Reference state = state.mapClassical (fun entry =>
+    program.execute environment Reference state = state.mapClassical (fun entry =>
       ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2))))
 
 private def scopeUpdate (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -46,15 +47,16 @@ private def scopeUpdate (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx
   let next := update (store.pushWorkspace key shape fresh)
   (Store.popWorkspace key shape fresh next.1, next.2)
 
-private theorem scopeEquation (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
+private lemma scopeEquation (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (program : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (update : Store (ctx.addWorkspace key shape fresh) →
       Store (ctx.addWorkspace key shape fresh) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (Circuit.workspace ctx key shape fresh program)
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (Circuit.workspace ctx key shape fresh program)
       (scopeUpdate key shape fresh program update) := by
   intro Reference History historyFinite state
-  refine (Circuit.execute_workspace_mapClassical key shape fresh program
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) key shape fresh program
     (fun before => let actual := update before.1; ((actual.1, before.2), actual.2))
     (fun reference _history _ initial => law reference initial) Reference state).trans ?_
   congr 1
@@ -75,11 +77,12 @@ private def update5 (width : Nat)
   (Store.popWorkspace (squareContext ctx width).canonicalFreshKey .bit
     (squareContext ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation5 (width : Nat)
+private lemma equation5 (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (scoped5 (ctx := ctx) width program) (update5 (ctx := ctx) width program update) := by
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (scoped5 (ctx := ctx) width program) (update5 (ctx :=
+      ctx) width program update) := by
   exact scopeEquation (squareContext ctx width).canonicalFreshKey
     .bit (squareContext ctx width).canonicalFreshKey_fresh
     program update law
@@ -102,11 +105,12 @@ private def update4 (width : Nat)
   (Store.popWorkspace (candidateContext ctx width).canonicalFreshKey (.unsignedWord (width + width))
     (candidateContext ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation4 (width : Nat)
+private lemma equation4 (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (scoped4 (ctx := ctx) width program) (update4 (ctx := ctx) width program update) := by
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (scoped4 (ctx := ctx) width program) (update4 (ctx :=
+      ctx) width program update) := by
   exact scopeEquation (candidateContext ctx width).canonicalFreshKey
     (.unsignedWord (width + width)) (candidateContext ctx width).canonicalFreshKey_fresh
     (scoped5 (ctx := ctx) width program) (update5 (ctx := ctx) width program update)
@@ -130,11 +134,12 @@ private def update3 (width : Nat)
   (Store.popWorkspace (halfContext ctx width).canonicalFreshKey (.unsignedWord width)
     (halfContext ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation3 (width : Nat)
+private lemma equation3 (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (scoped3 (ctx := ctx) width program) (update3 (ctx := ctx) width program update) := by
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (scoped3 (ctx := ctx) width program) (update3 (ctx :=
+      ctx) width program update) := by
   exact scopeEquation (halfContext ctx width).canonicalFreshKey
     (.unsignedWord width) (halfContext ctx width).canonicalFreshKey_fresh
     (scoped4 (ctx := ctx) width program) (update4 (ctx := ctx) width program update)
@@ -158,11 +163,12 @@ private def update2 (width : Nat)
   (Store.popWorkspace (rootContext ctx width).canonicalFreshKey (.unsignedWord width)
     (rootContext ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation2 (width : Nat)
+private lemma equation2 (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (scoped2 (ctx := ctx) width program) (update2 (ctx := ctx) width program update) := by
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (scoped2 (ctx := ctx) width program) (update2 (ctx :=
+      ctx) width program update) := by
   exact scopeEquation (rootContext ctx width).canonicalFreshKey
     (.unsignedWord width) (rootContext ctx width).canonicalFreshKey_fresh
     (scoped3 (ctx := ctx) width program) (update3 (ctx := ctx) width program update)
@@ -186,11 +192,12 @@ private def update1 (width : Nat)
   (Store.popWorkspace (wideContext ctx width).canonicalFreshKey (.unsignedWord width)
     (wideContext ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation1 (width : Nat)
+private lemma equation1 (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (scoped1 (ctx := ctx) width program) (update1 (ctx := ctx) width program update) := by
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (scoped1 (ctx := ctx) width program) (update1 (ctx :=
+      ctx) width program update) := by
   exact scopeEquation (wideContext ctx width).canonicalFreshKey
     (.unsignedWord width) (wideContext ctx width).canonicalFreshKey_fresh
     (scoped2 (ctx := ctx) width program) (update2 (ctx := ctx) width program update)
@@ -214,11 +221,12 @@ private def update0 (width : Nat)
   (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord (width + width))
     ctx.canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation0 (width : Nat)
+private lemma equation0 (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
-    (law : StepLaw program update) :
-    StepLaw (scoped0 (ctx := ctx) width program) (update0 (ctx := ctx) width program update) := by
+    (law : StepLaw (environment := environment) program update) :
+    StepLaw (environment := environment) (scoped0 (ctx := ctx) width program) (update0 (ctx :=
+      ctx) width program update) := by
   exact scopeEquation ctx.canonicalFreshKey
     (.unsignedWord (width + width)) ctx.canonicalFreshKey_fresh
     (scoped1 (ctx := ctx) width program) (update1 (ctx := ctx) width program update)
@@ -234,7 +242,7 @@ private def pop5 (width : Nat) (store : Store (context ctx width)) :
   Store.popWorkspace (squareContext ctx width).canonicalFreshKey .bit
     (squareContext ctx width).canonicalFreshKey_fresh store
 
-private theorem update5_store (width : Nat)
+private lemma update5_store (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store (squareContext ctx width)) :
@@ -252,7 +260,7 @@ private def pop4 (width : Nat) (store : Store (context ctx width)) :
   Store.popWorkspace (candidateContext ctx width).canonicalFreshKey (.unsignedWord (width + width))
     (candidateContext ctx width).canonicalFreshKey_fresh (pop5 (ctx := ctx) width store)
 
-private theorem update4_store (width : Nat)
+private lemma update4_store (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store (candidateContext ctx width)) :
@@ -277,7 +285,7 @@ private def pop3 (width : Nat) (store : Store (context ctx width)) :
   Store.popWorkspace (halfContext ctx width).canonicalFreshKey (.unsignedWord width)
     (halfContext ctx width).canonicalFreshKey_fresh (pop4 (ctx := ctx) width store)
 
-private theorem update3_store (width : Nat)
+private lemma update3_store (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store (halfContext ctx width)) :
@@ -301,7 +309,7 @@ private def pop2 (width : Nat) (store : Store (context ctx width)) :
   Store.popWorkspace (rootContext ctx width).canonicalFreshKey (.unsignedWord width)
     (rootContext ctx width).canonicalFreshKey_fresh (pop3 (ctx := ctx) width store)
 
-private theorem update2_store (width : Nat)
+private lemma update2_store (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store (rootContext ctx width)) :
@@ -325,7 +333,7 @@ private def pop1 (width : Nat) (store : Store (context ctx width)) :
   Store.popWorkspace (wideContext ctx width).canonicalFreshKey (.unsignedWord width)
     (wideContext ctx width).canonicalFreshKey_fresh (pop2 (ctx := ctx) width store)
 
-private theorem update1_store (width : Nat)
+private lemma update1_store (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store (wideContext ctx width)) :
@@ -349,7 +357,7 @@ private def pop0 (width : Nat) (store : Store (context ctx width)) :
   Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord (width + width))
     ctx.canonicalFreshKey_fresh (pop1 (ctx := ctx) width store)
 
-private theorem update0_store (width : Nat)
+private lemma update0_store (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store ctx) :
@@ -363,13 +371,13 @@ private theorem update0_store (width : Nat)
       (store.pushWorkspace ctx.canonicalFreshKey
         (.unsignedWord (width + width)) ctx.canonicalFreshKey_fresh))
 
-private theorem push0_layout (width : Nat) (store : Store ctx) :
+private lemma push0_layout (width : Nat) (store : Store ctx) :
     push0 (ctx := ctx) width store = pushStore width store := rfl
 
-private theorem pop0_layout (width : Nat) (store : Store (context ctx width)) :
+private lemma pop0_layout (width : Nat) (store : Store (context ctx width)) :
     pop0 (ctx := ctx) width store = popStore width store := rfl
 
-private theorem scoped_update_eq (width : Nat)
+private lemma scoped_update_eq (width : Nat)
     (program : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × program.Path)
     (store : Store ctx) :
@@ -388,13 +396,14 @@ def intoStep (input : CInputRef ctx (.unsignedWord width))
   (popStore width final.1, final.2)
 
 /-- The native square-root routine retains every complete quantum-reference block. -/
-theorem nativeSqrt_into_execute (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_execute (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) input output).execute Reference state = state.mapClassical (fun entry =>
+    (into (model := model) input output).execute environment
+      Reference state = state.mapClassical (fun entry =>
       ((intoStep (model := model) input output entry.1).1,
         (entry.2.1, (entry.2.2, (intoStep (model := model) input output entry.1).2)))) := by
-  have bodyLaw : StepLaw (body (model := model) input output)
+  have bodyLaw : StepLaw (environment := environment) (body (model := model) input output)
       (bodyStep (model := model) input output) := nativeSqrt_body_execute input output
   have scopedLaw := equation0 (ctx := ctx) width (body (model := model) input output)
     (bodyStep (model := model) input output) bodyLaw
@@ -408,7 +417,7 @@ theorem nativeSqrt_into_execute (input : CInputRef ctx (.unsignedWord width))
       (bodyStep (model := model) input output) entry.1)
 
 /-- The final caller cell holds the exact square root of its original input at every width. -/
-theorem nativeSqrt_into_read_output (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_read_output (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((intoStep (model := model) input output store).1.read (.storage output.toCStorageRef)).toNat =
       Nat.sqrt (store.read input).toNat := by

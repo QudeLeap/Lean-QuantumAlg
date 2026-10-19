@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- One complete real visit follows exactly the source decision for its materialized candidate. -/
-theorem nativeScan_visit_source_decision
+lemma nativeScan_visit_source_decision
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

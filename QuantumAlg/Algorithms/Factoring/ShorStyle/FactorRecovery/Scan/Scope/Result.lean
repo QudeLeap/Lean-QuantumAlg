@@ -29,7 +29,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-private theorem scratch_output_ne
+private lemma scratch_output_ne
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (index : Fin 4) :
     (scratchKeys ctx N).get index ≠ (liftWrite (N := N) result).key := by
   have actual : (scratchKeys ctx N ++ ctx.keys).Nodup := by
@@ -43,7 +43,7 @@ private theorem scratch_output_ne
   exact actual.disjoint (List.get_mem (scratchKeys ctx N) index) (equality.symm ▸ present)
 
 /-- Every selector condition follows from actual allocation identities, including shared scratch. -/
-theorem separated (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
+lemma separated (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
     NativeFactorScan.Separated (cells ctx N) (liftWrite result) where
   selector := selector_separated ctx N
   candidateAccepted := scratchKeys_ne ctx N 3 2 (by decide)
@@ -52,7 +52,7 @@ theorem separated (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N
   resultSelected := (scratch_output_ne result 1).symm
 
 /-- Every original operand avoids all four real scratch writes; only its result support matters. -/
-theorem frame_free (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+lemma frame_free (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {shape : CShape} (other : CInputRef ctx shape) (resultFree : result.key ∉ other.storageKeys) :
     NativeFactorScan.FrameFree (cells ctx N) (liftWrite result) (liftInput other) := by
   constructor
@@ -71,15 +71,15 @@ private def liftEntries (entries : List (Inputs ctx N × SourceOutcome N)) :
     List (Inputs (context ctx N) N × SourceOutcome N) :=
   entries.map fun entry => (liftInputs entry.1, entry.2)
 
-private theorem liftEntries_inputs (entries : List (Inputs ctx N × SourceOutcome N)) :
+private lemma liftEntries_inputs (entries : List (Inputs ctx N × SourceOutcome N)) :
     (liftEntries entries).map Prod.fst = (entries.map Prod.fst).map liftInputs := by
   simp only [liftEntries, List.map_map, Function.comp_def]
 
-private theorem liftEntries_outcomes (entries : List (Inputs ctx N × SourceOutcome N)) :
+private lemma liftEntries_outcomes (entries : List (Inputs ctx N × SourceOutcome N)) :
     (liftEntries entries).map Prod.snd = entries.map Prod.snd := by
   simp only [liftEntries, List.map_map, Function.comp_def]
 
-private theorem enteredFrames (entries : List (Inputs ctx N × SourceOutcome N))
+private lemma enteredFrames (entries : List (Inputs ctx N × SourceOutcome N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (outputFree : ∀ entry ∈ entries,
       result.key ∉ entry.1.parameter.storageKeys ∧ result.key ∉ entry.1.phase.storageKeys) :
@@ -89,7 +89,7 @@ private theorem enteredFrames (entries : List (Inputs ctx N × SourceOutcome N))
   exact ⟨frame_free result entry.1.parameter (outputFree entry original).1,
     frame_free result entry.1.phase (outputFree entry original).2⟩
 
-private theorem enteredRepresents (source : Input N)
+private lemma enteredRepresents (source : Input N)
     (entries : List (Inputs ctx N × SourceOutcome N)) (store : Store ctx)
     (represented : NativeFactorScan.Represents source entries store) :
     NativeFactorScan.Represents source (liftEntries entries) (enter N store) := by
@@ -101,7 +101,7 @@ private theorem enteredRepresents (source : Input N)
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The released real scan returns the first source factor with all scratch conditions internal. -/
-theorem result (source : Input N) (entries : List (Inputs ctx N × SourceOutcome N))
+lemma result (source : Input N) (entries : List (Inputs ctx N × SourceOutcome N))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (outputFree : ∀ entry ∈ entries,
       output.key ∉ entry.1.parameter.storageKeys ∧ output.key ∉ entry.1.phase.storageKeys)
@@ -129,7 +129,7 @@ theorem result (source : Input N) (entries : List (Inputs ctx N × SourceOutcome
   exact actual.trans (congrArg (sourceResults source) (liftEntries_outcomes entries))
 
 /-- Every actual scan branch and matching release preserve all other original structural reads. -/
-theorem read_other (source : Input N) (inputs : List (Inputs ctx N))
+lemma read_other (source : Input N) (inputs : List (Inputs ctx N))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {shape : CShape} (other : CInputRef ctx shape) (outputFree : output.key ∉ other.storageKeys)
     (store : Store ctx) :

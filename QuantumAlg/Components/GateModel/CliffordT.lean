@@ -60,11 +60,11 @@ public def model : GateModel where
   coordinate := id
 
 /-- A strict target token emits precisely its own native coordinate. -/
-@[simp] public theorem coordinate_identity (token : Token) :
+@[simp] public lemma coordinate_identity (token : Token) :
     model.coordinate token = token := rfl
 
 /-- The strict target's T coordinate retains the exact named T operator. -/
-public theorem t_operator :
+public lemma t_operator :
     model.operator .t =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 1).symm Gate.TOp := rfl
 

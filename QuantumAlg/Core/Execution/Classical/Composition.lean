@@ -26,6 +26,8 @@ The semantic equations grant no extra operations or resource witnesses.
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 open Execution
 
 noncomputable section
@@ -33,9 +35,10 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+  (environment : model.Environment)
 
 /-- A proved point-valued native declaration gives the actual deterministic store update. -/
-theorem execute_classical_mapClassical
+lemma execute_classical_mapClassical
     (application : model.classicalOperations.Application ctx)
     (compute : (model.classicalOperations.inputShape application.token).Value →
       (model.classicalOperations.outputShape application.token).Value)
@@ -43,7 +46,8 @@ theorem execute_classical_mapClassical
       model.classicalOperations.evaluate application.token value = PMF.pure (compute value))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.classical (model := model) application).execute Reference state =
+    (Circuit.classical (model := model) (allowAllocation := allowAllocation)
+      application).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := compute (entry.1.read application.input)
         (entry.1.write application.output result, (entry.2.1, (entry.2.2, result)))) := by
@@ -54,31 +58,32 @@ theorem execute_classical_mapClassical
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Identity retains the real store and shared service state with its unique empty path. -/
-theorem execute_id_mapClassical (Reference : Register)
+lemma execute_id_mapClassical (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.id (model := model) ctx).execute Reference state =
+    (Circuit.id (model := model) (allowAllocation := allowAllocation) ctx).execute
+      environment Reference state =
       state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) :=
-  execute_id state
+  execute_id environment state
 
 /-- Proved deterministic circuits compose on the actual intermediate store and service state. -/
-theorem execute_seq_mapClassical
-    (first second : Circuit model ctx ctx)
+lemma execute_seq_mapClassical
+    (first second : Circuit model ctx ctx allowAllocation)
     (firstStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × first.Path)
     (secondStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × second.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      first.execute Reference state = state.mapClassical (fun entry =>
+      first.execute environment Reference state = state.mapClassical (fun entry =>
         let result := firstStep (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      second.execute Reference state = state.mapClassical (fun entry =>
+      second.execute environment Reference state = state.mapClassical (fun entry =>
         let result := secondStep (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq first second).execute Reference state =
+    (Circuit.seq first second).execute environment Reference state =
       state.mapClassical (fun entry =>
         let left := firstStep (entry.1, entry.2.1)
         let right := secondStep left.1
@@ -90,19 +95,19 @@ theorem execute_seq_mapClassical
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual stored values select the proved deterministic bodies, including their service updates. -/
-theorem execute_branch_mapClassical {shape : CShape}
-    (input : CInputRef ctx shape) (body : shape.Value → Circuit model ctx ctx)
+lemma execute_branch_mapClassical {shape : CShape}
+    (input : CInputRef ctx shape) (body : shape.Value → Circuit model ctx ctx allowAllocation)
     (step : (value : shape.Value) → Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × (body value).Path)
     (bodyEquation : ∀ (value : shape.Value) (Reference : Register)
       {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (body value).execute Reference state = state.mapClassical (fun entry =>
+      (body value).execute environment Reference state = state.mapClassical (fun entry =>
         let result := step value (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.branch input body).execute Reference state =
+    (Circuit.branch input body).execute environment Reference state =
       state.mapClassical (fun entry =>
         let selected := entry.1.read input
         let result := step selected (entry.1, entry.2.1)

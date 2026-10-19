@@ -32,29 +32,31 @@ attribute [local irreducible] ShorStyle.Canonical.Sampler.Program.circuit
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
+variable {environment : (model N).Environment}
+
 /-- A source value determines the exact store and ordered path after redraw. -/
 def redrawStep (store : Store (context base noQuantum N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    Store (context base noQuantum N) × (redraw base noQuantum N input).Path :=
+    Store (context base noQuantum N) × (redraw base noQuantum N).Path :=
   let source := sourceRef base noQuantum N
   let parameter := parameterRef base noQuantum N
   let prepared := ShorStyle.Canonical.Sampler.Program.step
-    (model := model input) N (.storage source.toCStorageRef) parameter
+    (model := model N) N (.storage source.toCStorageRef) parameter
     (store.write source
       (.bits (ShorStyle.Canonical.Sampler.PackedSample.storedBits value)))
   (prepared.1,
     ((ShorStyle.Canonical.Sampler.PackedSample.drawPathEquiv
-      (model := model input) N source).symm value, prepared.2))
+      (model := model N) N source).symm value, prepared.2))
 
 /-- The real redraw writes only the original source and parameter cells. -/
-theorem redraw_store (store : Store (context base noQuantum N))
+lemma redraw_store (store : Store (context base noQuantum N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (redrawStep base noQuantum N input store value).1 =
+    (redrawStep base noQuantum N store value).1 =
       (store.write (sourceRef base noQuantum N)
         (.bits (ShorStyle.Canonical.Sampler.PackedSample.storedBits value))).write
           (parameterRef base noQuantum N) (parameterValue input value) := by
   exact ShorStyle.Canonical.Sampler.Program.samplerProgram_store
-    (model := model input) input.samplerInput
+    (model := model N) input.samplerInput
     (.storage (sourceRef base noQuantum N).toCStorageRef)
     (parameterRef base noQuantum N)
     (store.write (sourceRef base noQuantum N)
@@ -63,24 +65,24 @@ theorem redraw_store (store : Store (context base noQuantum N))
 
 /-- The actual redraw keeps the entire current reference and hidden-service
 state while sampling the fresh source uniformly. -/
-theorem redraw_execute (Reference : Register) {History : Type} [Fintype History]
+lemma redraw_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History)) :
-    (redraw base noQuantum N input).execute Reference state =
+      ((model N).HiddenState × History)) :
+    (redraw base noQuantum N).execute environment Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
-        (fun entry => ((redrawStep base noQuantum N input entry.1.1 entry.2).1,
+        (fun entry => ((redrawStep base noQuantum N entry.1.1 entry.2).1,
           (entry.1.2.1, (entry.1.2.2,
-            (redrawStep base noQuantum N input entry.1.1 entry.2).2)))) := by
-  refine (ShorStyle.Canonical.Sampler.Retained.sampled_sequence_execute
-    (model := model input) N (sourceRef base noQuantum N)
-    (ShorStyle.Canonical.Sampler.Program.circuit (model := model input) N
+            (redrawStep base noQuantum N entry.1.1 entry.2).2)))) := by
+  refine (ShorStyle.Canonical.Sampler.Retained.sampled_sequence_execute (environment := environment)
+    (model := model N) N (sourceRef base noQuantum N)
+    (ShorStyle.Canonical.Sampler.Program.circuit (model := model N) N
       (.storage (sourceRef base noQuantum N).toCStorageRef)
       (parameterRef base noQuantum N))
-    (ShorStyle.Canonical.Sampler.Program.step (model := model input) N
+    (ShorStyle.Canonical.Sampler.Program.step (model := model N) N
       (.storage (sourceRef base noQuantum N).toCStorageRef)
       (parameterRef base noQuantum N))
-    (ShorStyle.Canonical.Sampler.Program.samplerProgram_execute
-      (model := model input) N
+    (ShorStyle.Canonical.Sampler.Program.samplerProgram_execute (environment := environment)
+      (model := model N) N
       (.storage (sourceRef base noQuantum N).toCStorageRef)
       (parameterRef base noQuantum N)) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl

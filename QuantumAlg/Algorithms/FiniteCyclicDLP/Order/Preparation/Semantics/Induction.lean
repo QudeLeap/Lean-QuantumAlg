@@ -29,13 +29,13 @@ private def sourcePosition (b : PositiveGapExpansion N) (count : Nat) :
     Fin (b.gaps + 1) :=
   ⟨min count b.gaps, by omega⟩
 
-private theorem sourcePosition_eq_of_le (b : PositiveGapExpansion N)
+private lemma sourcePosition_eq_of_le (b : PositiveGapExpansion N)
     {count : Nat} (bounded : count ≤ b.gaps) :
     b.sourcePosition count = ⟨count, by omega⟩ := by
   apply Fin.ext
   simp [sourcePosition, Nat.min_eq_left bounded]
 
-private theorem sourcePosition_lt_of_lt (b : PositiveGapExpansion N)
+private lemma sourcePosition_lt_of_lt (b : PositiveGapExpansion N)
     {left right : Nat} (rightBound : right ≤ b.gaps) (before : left < right) :
     (b.sourcePosition left).val < (b.sourcePosition right).val := by
   simp [sourcePosition,
@@ -54,34 +54,36 @@ private def prefixState (b : PositiveGapExpansion N) (count : Nat) :
     (b.residualWeight (b.sourcePosition count) : ℂ) •
       b.residualBlock (b.sourcePosition count)
 
-private theorem acceptedPrefix_succ (b : PositiveGapExpansion N) (count : Nat) :
+private lemma acceptedPrefix_succ (b : PositiveGapExpansion N) (count : Nat) :
     b.acceptedPrefix (count + 1) = b.acceptedPrefix count +
       (b.blockWeight (b.sourcePosition count) : ℂ) •
         b.residualBlock (b.sourcePosition count) := by
   unfold acceptedPrefix
   rw [Finset.sum_range_succ]
 
-private theorem applyVec_finset_sum
-    {gates : GateModel} {oracles : OracleModel} {width : Nat}
+private lemma applyVec_finset_sum
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : oracles.Interpretation} {width : Nat}
     (circuit : UnitaryCircuit gates oracles
       (QuantumSignature.qubits width).canonicalPlacement.layout)
     {ι : Type} (set : Finset ι)
     (term : ι → HilbertVector (Qubits width)) :
-    circuit.applyBinaryVec (∑ index ∈ set, term index) =
-      ∑ index ∈ set, circuit.applyBinaryVec (term index) := by
+    (circuit.applyBinaryVec environment) (∑ index ∈ set, term index) =
+      ∑ index ∈ set, (circuit.applyBinaryVec environment) (term index) := by
   classical
   induction set using Finset.induction_on with
   | empty =>
       have zero := UnitaryCircuit.applyBinaryVec_smul circuit (0 : ℂ)
-        (0 : HilbertVector (Qubits width))
+        (0 : HilbertVector (Qubits width)) environment
       simpa using zero
   | @insert element set outside induction =>
       rw [Finset.sum_insert outside, Finset.sum_insert outside,
         UnitaryCircuit.applyBinaryVec_add, induction]
 
-private theorem gapStage_applyVec_acceptedPrefix (oracles : OracleModel)
+private lemma gapStage_applyVec_acceptedPrefix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (count : Nat) (notFinished : count < b.gaps) :
-    (b.gapStage oracles ⟨count, notFinished⟩).applyBinaryVec
+    ((b.gapStage oracles ⟨count, notFinished⟩).applyBinaryVec environment)
         (b.acceptedPrefix count) = b.acceptedPrefix count := by
   unfold acceptedPrefix
   rw [applyVec_finset_sum]
@@ -95,9 +97,10 @@ private theorem gapStage_applyVec_acceptedPrefix (oracles : OracleModel)
   rw [b.sourcePosition_eq_of_le (Nat.le_of_lt notFinished)] at before
   simpa using before
 
-private theorem gapStage_applyVec_prefixState (oracles : OracleModel)
+private lemma gapStage_applyVec_prefixState (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (count : Nat) (notFinished : count < b.gaps) :
-    (b.gapStage oracles ⟨count, notFinished⟩).applyBinaryVec (b.prefixState count) =
+    ((b.gapStage oracles ⟨count, notFinished⟩).applyBinaryVec environment) (b.prefixState count) =
       b.prefixState (count + 1) := by
   let gap : Fin b.gaps := ⟨count, notFinished⟩
   have current : b.sourcePosition count = gap.castSucc := by
@@ -126,12 +129,13 @@ private theorem gapStage_applyVec_prefixState (oracles : OracleModel)
   rw [opened, retained, ← next, ← current, b.acceptedPrefix_succ count]
   abel
 
-private theorem gapPrefix_foldl_applyVec (oracles : OracleModel)
+private lemma gapPrefix_foldl_applyVec (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) :
     ∀ (count : Nat) (bounded : count ≤ b.gaps),
       (List.ofFn (fun index : Fin count =>
         b.gapStage oracles (Fin.castLE bounded index))).foldl
-          (fun state circuit => circuit.applyBinaryVec state)
+          (fun state circuit => (circuit.applyBinaryVec environment) state)
           (b.residualBlock 0) = b.prefixState count := by
   intro count
   induction count with
@@ -146,7 +150,7 @@ private theorem gapPrefix_foldl_applyVec (oracles : OracleModel)
       have leading :
           (List.ofFn (fun index : Fin count =>
             b.gapStage oracles (Fin.castLE bounded index.castSucc))).foldl
-              (fun state circuit => circuit.applyBinaryVec state)
+              (fun state circuit => (circuit.applyBinaryVec environment) state)
               (b.residualBlock 0) = b.prefixState count := by
         have castSame : ∀ index : Fin count,
             Fin.castLE bounded index.castSucc = Fin.castLE previous index := by
@@ -162,7 +166,7 @@ private theorem gapPrefix_foldl_applyVec (oracles : OracleModel)
         leading, last]
       exact b.gapStage_applyVec_prefixState oracles count step
 
-private theorem prefixState_last_eq_blockSum (b : PositiveGapExpansion N) :
+private lemma prefixState_last_eq_blockSum (b : PositiveGapExpansion N) :
     b.prefixState b.gaps =
       ∑ index : Fin (b.gaps + 1),
         (b.blockWeight index : ℂ) • b.residualBlock index := by
@@ -219,7 +223,7 @@ private theorem prefixState_last_eq_blockSum (b : PositiveGapExpansion N) :
     (b.blockWeight (b.sourcePosition index) : ℂ) •
       b.residualBlock (b.sourcePosition index)) b.gaps).symm
 
-private theorem intrinsic_gapStage_eq (oracles : OracleModel)
+private lemma intrinsic_gapStage_eq (oracles : OracleModel)
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
     OrderPreparation.Intrinsic.gapStage oracles b.asOrderExpansion gap =
       b.gapStage oracles gap := by
@@ -227,9 +231,10 @@ private theorem intrinsic_gapStage_eq (oracles : OracleModel)
 
 /-- The complete literal intrinsic schedule prepares the exact raw uniform
 range vector for every expansion with at least one positive gap. -/
-public theorem intrinsicCircuit_applyVec_zero (oracles : OracleModel)
+public lemma intrinsicCircuit_applyVec_zero (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) :
-    (OrderPreparation.Intrinsic.circuit oracles b.asOrderExpansion).applyBinaryVec
+    ((OrderPreparation.Intrinsic.circuit oracles b.asOrderExpansion).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits b.width) 0 :
           HilbertVector (Qubits b.width)) = b.rangeVector := by
   unfold OrderPreparation.Intrinsic.circuit
@@ -241,7 +246,8 @@ public theorem intrinsicCircuit_applyVec_zero (oracles : OracleModel)
     funext gap
     exact intrinsic_gapStage_eq oracles b gap
   rw [stageFunction]
-  have folded := b.gapPrefix_foldl_applyVec oracles b.gaps (Nat.le_refl _)
+  have folded := b.gapPrefix_foldl_applyVec oracles (environment := environment)
+    b.gaps (Nat.le_refl _)
   rw [b.prefixState_last_eq_blockSum, b.blockSum_eq_rangeVector] at folded
   exact folded
 

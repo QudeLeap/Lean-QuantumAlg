@@ -30,7 +30,7 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The original stored-bit choice contains a real complete addition only for true. -/

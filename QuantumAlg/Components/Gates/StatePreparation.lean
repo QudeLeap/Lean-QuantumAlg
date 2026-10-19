@@ -25,7 +25,7 @@ noncomputable section
 
 /-- The requested target gives an orthonormal family on the singleton zero
 basis index. -/
-theorem finiteCyclicRangePreparation_singleton_orthonormal
+lemma finiteCyclicRangePreparation_singleton_orthonormal
     {n : Nat} (target : NormalizedVector (Qubits n)) :
     Orthonormal ℂ
       (({0} : Set (Fin (2 ^ n))).domRestrict
@@ -42,7 +42,7 @@ theorem finiteCyclicRangePreparation_singleton_orthonormal
 
 /-- Every normalized target extends from the zero index to an orthonormal
 basis. -/
-theorem exists_finiteCyclicRangePreparationBasis
+lemma exists_finiteCyclicRangePreparationBasis
     {n : Nat} (target : NormalizedVector (Qubits n)) :
     ∃ b : OrthonormalBasis (Fin (2 ^ n)) ℂ
         (HilbertVector (Qubits n)),
@@ -61,7 +61,7 @@ noncomputable def finiteCyclicRangePreparationBasis
   Classical.choose (exists_finiteCyclicRangePreparationBasis target)
 
 /-- The selected basis has the requested target as its zero column. -/
-theorem finiteCyclicRangePreparationBasis_zero
+lemma finiteCyclicRangePreparationBasis_zero
     {n : Nat} (target : NormalizedVector (Qubits n)) :
     finiteCyclicRangePreparationBasis target 0 =
       (target : HilbertVector (Qubits n)) := by
@@ -78,7 +78,7 @@ def finiteCyclicRangePreparationOp {n : Nat}
         (finiteCyclicRangePreparationBasis target))
 
 /-- The component basis change prepares its requested target from zero. -/
-@[simp] theorem finiteCyclicRangePreparationOp_apply_zero {n : Nat}
+@[simp] lemma finiteCyclicRangePreparationOp_apply_zero {n : Nat}
     (target : NormalizedVector (Qubits n)) :
     (finiteCyclicRangePreparationOp target).apply
         (NormalizedVector.ket (R := Qubits n) 0) = target := by

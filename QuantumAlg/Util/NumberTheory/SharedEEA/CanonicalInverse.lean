@@ -34,14 +34,14 @@ def word (modulus : Nat) (modulusPositive : 0 < modulus) (input : Nat) :
     (ZMod.val_lt ((input : ZMod modulus)⁻¹)).trans (Nat.lt_size_self modulus)⟩
 
 /-- The canonical inverse word is zero modulo one, including its unique unit input. -/
-theorem word_one (input : Nat) : word 1 (by decide) input = 0 := by
+lemma word_one (input : Nat) : word 1 (by decide) input = 0 := by
   apply Fin.ext
   have bound := ZMod.val_lt ((input : ZMod 1)⁻¹)
   change ((input : ZMod 1)⁻¹).val = 0
   omega
 
 /-- Original units internally supply the nontrivial EEA branch's value and width conditions. -/
-theorem unit_input_conditions (modulus : Nat) (nontrivial : 1 < modulus)
+lemma unit_input_conditions (modulus : Nat) (nontrivial : 1 < modulus)
     (input : (ZMod modulus)ˣ) :
     0 < (input : ZMod modulus).val ∧ (input : ZMod modulus).val < modulus ∧
       Nat.Coprime (input : ZMod modulus).val modulus ∧ 2 ≤ modulus.size.size := by
@@ -57,7 +57,7 @@ theorem unit_input_conditions (modulus : Nat) (nontrivial : 1 < modulus)
   exact ⟨positive, ZMod.val_lt _, coprime, lengthWidth⟩
 
 /-- The terminal corrected coefficient is at most the original conserved modulus. -/
-theorem source_le (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma source_le (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (InverseOutput.word modulus input positive bounded).val ≤ modulus := by
   have coefficient := (Capacity.iteration_fields_le _ modulus
     (TerminalPadding.final_admissible modulus input positive bounded)
@@ -70,7 +70,7 @@ theorem source_le (modulus input : Nat) (positive : 0 < input) (bounded : input 
   · exact Nat.sub_le _ _
 
 /-- A coprime positive residue excludes the noncanonical endpoint without an extra fit condition. -/
-theorem source_lt (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma source_lt (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (InverseOutput.word modulus input positive bounded).val < modulus := by
   let : Fact (1 < modulus) := ⟨by omega⟩
@@ -82,7 +82,7 @@ theorem source_lt (modulus input : Nat) (coprime : Nat.Coprime input modulus)
   exact zero_ne_one product
 
 /-- The complete source mathematics gives the independently specified canonical residue inverse. -/
-theorem source_eq_word (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma source_eq_word (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     InverseOutput.word modulus input positive bounded =
       word modulus (positive.trans bounded) input := by

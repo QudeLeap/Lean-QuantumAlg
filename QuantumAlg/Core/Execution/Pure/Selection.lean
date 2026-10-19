@@ -22,7 +22,7 @@ namespace QuantumAlg.StatePromise
 noncomputable section
 
 /-- Observing every owned wire transports a full local ket without tracing out any system. -/
-theorem pureKet_fullSelection_of_localMarginal {count : Nat}
+lemma pureKet_fullSelection_of_localMarginal {count : Nat}
     (layout : QuantumLayout count) {Reference : Register}
     (state : DensityOperator (layout.register.prod Reference)) (seed : layout.Basis)
     (promised : (StatePromise.pure (NormalizedVector.ket seed)).Holds state.marginalLeft) :

@@ -29,21 +29,23 @@ noncomputable section
 open Execution
 
 /-- A real native suffix observes the same complete quantum blocks after model selection. -/
-theorem selectForCircuit_seq_stored_effectWeight {gates : GateModel} {oracles : OracleModel}
-    {pre middle post : RuntimeCtx .quantum}
-    (first : Circuit (.quantum gates oracles) pre middle)
-    (suffix : Circuit (.quantum gates oracles model) middle post)
+lemma selectForCircuit_seq_stored_effectWeight {gates : GateModel} {oracles : OracleModel}
+    {environment : (.quantum gates oracles model : ExecutionModel).Environment}
+    {allowAllocation : Bool} {pre middle post : RuntimeCtx .quantum}
+    (first : Circuit (.quantum gates oracles) pre middle allowAllocation)
+    (suffix : Circuit (.quantum gates oracles model) middle post allowAllocation)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State pre Reference
       ((.quantum gates oracles : ExecutionModel).HiddenState × History))
     (effects : Store post → Effect (Register.prod post.register Reference)) :
-    (((selectForCircuit first).seq suffix).execute Reference state).effectWeight
+    (((selectForCircuit first).seq suffix).execute environment Reference state).effectWeight
         (fun entry => effects entry.1) =
-      (suffix.execute Reference (first.execute Reference state)).effectWeight
+      (suffix.execute environment Reference
+        (first.execute ⟨environment.quantum, environment.classical⟩ Reference state)).effectWeight
         (fun entry => effects entry.1) := by
   rw [Circuit.execute_seq, State.effectWeight_mapHistory, selectForCircuit_execute]
-  have history := Circuit.execute_mapHistory suffix Reference
-    (first.execute Reference state)
+  have history := Circuit.execute_mapHistory suffix environment Reference
+    (first.execute ⟨environment.quantum, environment.classical⟩ Reference state)
     (fun record : History × first.Path =>
       (record.1, selectForCircuitPathEquiv first record.2))
   have observed := congrArg

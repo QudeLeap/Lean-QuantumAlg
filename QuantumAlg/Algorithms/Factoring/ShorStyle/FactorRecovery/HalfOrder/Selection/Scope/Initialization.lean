@@ -45,7 +45,7 @@ def initialized (store : Store (context ctx N)) : Store (context ctx N) :=
   (modulusStep (model := model) (oneStep (model := model) store).1).1
 
 /-- The second native constant load preserves the exact physical one written by the first. -/
-theorem initialized_one (store : Store (context ctx N)) :
+lemma initialized_one (store : Store (context ctx N)) :
     ((initialized (model := model) store).read (.storage (oneRef ctx N).toCStorageRef)).toNat = 1
         := by
   have separate : (modulusRef ctx N).key ∉
@@ -62,7 +62,7 @@ theorem initialized_one (store : Store (context ctx N)) :
   omega
 
 /-- The real widened modulus load retains the original modulus without truncation. -/
-theorem initialized_modulus (source : Input N) (store : Store (context ctx N)) :
+lemma initialized_modulus (source : Input N) (store : Store (context ctx N)) :
     ((initialized (model := model) store).read (.storage (modulusRef ctx N).toCStorageRef)).toNat
         = N := by
   refine (ConstantWord.constantWord_read (model := model) (modulusRef ctx N) N (oneStep (model :=
@@ -74,7 +74,7 @@ theorem initialized_modulus (source : Input N) (store : Store (context ctx N)) :
   omega
 
 /-- Both actual constant loads preserve the same original structural operand beneath the scope. -/
-theorem initialized_read_original {shape : CShape} (input : CInputRef ctx shape)
+lemma initialized_read_original {shape : CShape} (input : CInputRef ctx shape)
     (store : Store (context ctx N)) :
     (initialized (model := model) store).read (liftInput input) = store.read (liftInput input) :=
   (ConstantWord.constantWord_fold_read_other (model := model) (modulusRef ctx N)

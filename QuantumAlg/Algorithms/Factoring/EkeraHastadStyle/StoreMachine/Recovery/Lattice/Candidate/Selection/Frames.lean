@@ -23,7 +23,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
 /-- Differently named original outputs have disjoint actual structural identities. -/
-theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
     (sourceKey : source.key = mutableKey refs saved) (different : saved ≠ written) :
     mutableKey refs written ∉ (writeInput source).storageKeys := by
@@ -36,7 +36,7 @@ theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
 omit [BitWord.Selected model] in
 /-- The original actual caller separation supplies the shared direct selector's full source
 frame. -/
-theorem selection_separated (refs : Refs ctx width) (separation : Separation refs) :
+lemma selection_separated (refs : Refs ctx width) (separation : Separation refs) :
     ClassicalRoutines.FirstAccepted.Direct.Separation
       (writeInput refs.eligible) refs.candidate refs.selection := by
   refine ⟨mutable_avoids refs separation refs.eligible .eligible .accepted rfl (by decide),
@@ -47,7 +47,7 @@ theorem selection_separated (refs : Refs ctx width) (separation : Separation ref
   cases impossible
 
 /-- The original two actual conjunctions preserve every other caller read. -/
-theorem candidateEligibilityInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma candidateEligibilityInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (intermediate : refs.intermediate.key ∉ other.storageKeys)
     (eligible : refs.eligible.key ∉ other.storageKeys) :
@@ -57,7 +57,7 @@ theorem candidateEligibilityInto_callerFrame (refs : Refs ctx width) (store : St
 
 /-- The actual suffix frame is the union of the original two conjunction and two persistent
 writes. -/
-theorem candidateSelectorInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
+lemma candidateSelectorInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (selectorStep refs store).1 := by
   intro shape other avoids
   exact (ClassicalRoutines.FirstAccepted.Direct.into_callerFrame
@@ -68,7 +68,7 @@ theorem candidateSelectorInto_callerFrame (refs : Refs ctx width) (store : Store
 
 /-- The actual three original predicate inputs and candidate survive the complete selection
 suffix. -/
-theorem candidateSelectorInto_source_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma candidateSelectorInto_source_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (selectorStep refs store).1.read refs.nearTarget = store.read refs.nearTarget ∧
       (selectorStep refs store).1.read refs.exponentInRange = store.read refs.exponentInRange ∧

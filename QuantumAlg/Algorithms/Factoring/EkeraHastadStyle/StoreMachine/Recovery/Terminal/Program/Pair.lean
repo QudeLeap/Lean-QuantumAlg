@@ -42,7 +42,7 @@ def sourceOutputNat (N : Nat) (store : Store ctx)
   | .k => (sourceSample N store input).2.val
 
 /-- The actual single decoder materializes the independent source value of every output. -/
-theorem decodeInto_outputs {model : ExecutionModel} [BitWord.Selected model]
+lemma decodeInto_outputs {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (slot : PairOutputSlot) :
     outputNat refs (decodeStep refs store).1 slot =
@@ -55,7 +55,7 @@ theorem decodeInto_outputs {model : ExecutionModel} [BitWord.Selected model]
   | k => exact correct.k
 
 /-- The first actual decoder preserves the complete second stored terminal source. -/
-theorem decodePair_first_source {model : ExecutionModel} [BitWord.Selected model]
+lemma decodePair_first_source {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : PairRefs ctx N) (separation : PairSeparation refs)
     (store : Store ctx) :
     sourceBits N (decodeStep refs.first store).1 (terminalInput refs.second) =
@@ -64,7 +64,7 @@ theorem decodePair_first_source {model : ExecutionModel} [BitWord.Selected model
     (decodeInto_callerFrame refs.first store _ separation.secondInputAvoidsFirst)
 
 /-- The second actual decoder preserves every original first-decoder output word. -/
-theorem decodePair_second_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma decodePair_second_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : PairRefs ctx N) (separation : PairSeparation refs)
     (store : Store ctx) (slot : PairOutputSlot) :
     outputNat refs.first (decodeStep refs.second store).1 slot =
@@ -85,7 +85,7 @@ theorem decodePair_second_frame {model : ExecutionModel} [BitWord.Selected model
   | k => exact congrArg CShape.Value.toNat (preserved (.storage refs.first.k.toCStorageRef) rfl)
 
 /-- Sequential decoding preserves every actual read outside the eight original write cells. -/
-theorem decodePairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma decodePairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : PairRefs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (first : CallerSeparated refs.first other) (second : CallerSeparated refs.second other) :
@@ -105,7 +105,7 @@ structure DecodePairOutcome (refs : PairRefs ctx N) (before after : Store ctx) :
       after.read other = before.read other
 
 /-- Two actual sequential decoders recover both original samples without initial-value premises. -/
-theorem decodePairInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma decodePairInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : PairRefs ctx N) (separation : PairSeparation refs)
     (store : Store ctx) : DecodePairOutcome refs store (decodePairStep refs store).1 := by
   refine ⟨?_, ?_, decodePairInto_callerFrame refs store⟩

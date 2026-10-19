@@ -25,7 +25,7 @@ namespace QuantumAlg.QuantumFourierTransform.Native
 noncomputable section
 
 /-- Inverse QFT macros describe the generated native word and retain the original exact formula. -/
-public theorem qftNative_inverseCircuit_macro_count
+public lemma qftNative_inverseCircuit_macro_count
     (oracles : OracleModel) (name : String) (n : Nat) :
     (inverseCircuit oracles n).macroCount name =
       n * (if "hadamard" = name then 1 else 0) +

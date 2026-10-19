@@ -38,7 +38,7 @@ def completionKernel {N : Nat} (input : Input N)
   (sourceOutcomePMF input).map
     (fun outcome => NativeFactorScan.firstPresent old (NativeFactorScan.sourceResult input outcome))
 
-private theorem completionKernel_indicator {N : Nat} (input : Input N)
+private lemma completionKernel_indicator {N : Nat} (input : Input N)
     (old value : CShape.Value (.option (.unsignedWord (modulusBits N)))) :
     SourceWeights.one input (fun outcome =>
       if NativeFactorScan.firstPresent old (NativeFactorScan.sourceResult input outcome) = value
@@ -49,23 +49,27 @@ private theorem completionKernel_indicator {N : Nat} (input : Input N)
     value
 
 /-- Actual complete-round readout has the source kernel conditioned on the real incoming latch. -/
-theorem Completion.latch_toPMF (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Completion.latch_toPMF (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated cells result)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized) :
-    (((Completion.code ctx N input sameWires cells result).execute Reference state).toPMF
-      (((Completion.code ctx N input sameWires cells result).execute_mass Reference state).trans
+    (((Completion.code ctx N input sameWires cells result).execute
+      (environment input) Reference state).toPMF
+      (((Completion.code ctx N input sameWires cells result).execute_mass
+        (environment input) Reference state).trans
         normalized)).map
       (fun entry => NativeFactorScan.latchValue (Completion.cells ctx N cells) entry.1) =
     (state.toPMF normalized).bind
       (fun entry => completionKernel input (NativeFactorScan.latchValue cells entry.1)) := by
   apply ExecutionState.toPMF_map_eq_bind_of_referenceFiberSum state
-    ((Completion.code ctx N input sameWires cells result).execute Reference state) normalized
-    (((Completion.code ctx N input sameWires cells result).execute_mass Reference state).trans
+    ((Completion.code ctx N input sameWires cells result).execute
+      (environment input) Reference state) normalized
+    (((Completion.code ctx N input sameWires cells result).execute_mass
+      (environment input) Reference state).trans
       normalized)
   intro value left right
   have actual := completion_latch_reference ctx N input sameWires cells result separated

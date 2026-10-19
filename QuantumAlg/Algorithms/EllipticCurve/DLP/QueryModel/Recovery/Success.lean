@@ -32,7 +32,7 @@ open Execution
 
 attribute [local instance] Classical.decEq Classical.propDecidable
 
-private theorem optional_nonempty_probability {shape : CShape}
+private lemma optional_nonempty_probability {shape : CShape}
     (distribution : PMF (CShape.option shape).Value) :
     distribution.toOuterMeasure {value | value ≠ .optionNone} =
       1 - distribution .optionNone := by
@@ -46,19 +46,20 @@ private theorem optional_nonempty_probability {shape : CShape}
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- The actual full packed run has the original finite geometric success floor. -/
-public theorem ecdlpRecovery_run_success (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_run_success (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState) :
     1 - ENNReal.ofReal ((1 - Sampling.Reuse.successFloor I) ^ count) ≤
-      ((run I A expansion nontrivial count).relationalDistribution original).toOuterMeasure
+      ((run I expansion nontrivial count).relationalDistribution (Sampling.sourceEnvironment I A)
+        original).toOuterMeasure
         {pair | wholeAccepts I pair.2} := by
   let : Fact p.Prime := ⟨E.prime⟩
   let witness := FiniteCyclicDLP.Canonical.Probability.SecretInput.ofKnownOrderProblem (problem I)
-  let actual := run I A expansion nontrivial count
-  let distribution := actual.outputDistribution original
+  let actual := run I expansion nontrivial count
+  let distribution := actual.outputDistribution (Sampling.sourceEnvironment I A) original
   have sound : ∀ output ∈ distribution.support,
       wholeAccepts I output ↔ output ≠ .optionNone := by
     intro output supported
@@ -87,7 +88,8 @@ public theorem ecdlpRecovery_run_success (I : ECDLPInstance E) (A : Access I)
     ext output
     simp only [Set.mem_inter_iff, Set.mem_ofPred_eq]
     exact and_congr_left (fun supported => sound output supported)
-  have projection := AlgorithmRun.relationalDistribution_map_output actual original
+  have projection := AlgorithmRun.relationalDistribution_map_output (environment :=
+    Sampling.sourceEnvironment I A) actual original
   have projected := congrArg (fun law : PMF (CShape.option (.unsignedWord (scalarWidth I))).Value =>
     law.toOuterMeasure {output | wholeAccepts I output}) projection
   rw [PMF.toOuterMeasure_map_apply] at projected
@@ -100,22 +102,23 @@ public theorem ecdlpRecovery_run_success (I : ECDLPInstance E) (A : Access I)
     _ = distribution.toOuterMeasure {output | output ≠ .optionNone} :=
       (optional_nonempty_probability distribution).symm
     _ = distribution.toOuterMeasure {output | wholeAccepts I output} := eventEq.symm
-    _ = (actual.relationalDistribution original).toOuterMeasure
+    _ = (actual.relationalDistribution (Sampling.sourceEnvironment I A) original).toOuterMeasure
         {pair | wholeAccepts I pair.2} := projected.symm
 
 
 
 /-- The same actual declared-query run reaches the original requested public failure budget. -/
-public theorem ecdlpRecovery_run_calibrated_success (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_run_calibrated_success (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order)
     (budget : Factoring.FailureBudget) (wellFormed : budget.WellFormed) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState) :
     Factoring.FailureBudget.successThreshold budget ≤
-      ((run I A expansion nontrivial (retryCountForBudget I budget)).relationalDistribution
-        original).toOuterMeasure {pair | wholeAccepts I pair.2} := by
+      ((run I expansion nontrivial (retryCountForBudget I budget)).relationalDistribution
+        (Sampling.sourceEnvironment I A) original).toOuterMeasure {pair | wholeAccepts I pair.2}
+        := by
   have calibrated :=
     FiniteCyclicDLP.Concrete.Amplification.successThreshold_le_one_sub_retryFailurePower
       (problem I) budget wellFormed

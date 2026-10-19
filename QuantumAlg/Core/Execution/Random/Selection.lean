@@ -40,14 +40,14 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Decidable equality implementations do not change finite block pushforwards.
-private theorem mapClassical_instance_eq {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_instance_eq {C D : Type} [Fintype C] [Fintype D]
     {R : Register} (first second : DecidableEq D) (state : ExecutionState C R) (f : C → D) :
     @ExecutionState.mapClassical C D _ _ R first state f =
       @ExecutionState.mapClassical C D _ _ R second state f := by
   cases Subsingleton.elim first second
   rfl
 
-private theorem mapClassical_function_eq {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_function_eq {C D : Type} [Fintype C] [Fintype D]
     {R : Register} {first second : DecidableEq D} (state : ExecutionState C R)
     {f g : C → D} (agree : f = g) :
     @ExecutionState.mapClassical C D _ _ R first state f =
@@ -56,7 +56,7 @@ private theorem mapClassical_function_eq {C D : Type} [Fintype C] [Fintype D]
   cases agree
   rfl
 
-private theorem mapClassical_comp_any {C D E : Type} [Fintype C] [Fintype D] [Fintype E]
+private lemma mapClassical_comp_any {C D E : Type} [Fintype C] [Fintype D] [Fintype E]
     {R : Register} {middle : DecidableEq D} {last result : DecidableEq E}
     (state : ExecutionState C R) (first : C → D) (second : D → E) :
     @ExecutionState.mapClassical D E _ _ R last
@@ -67,7 +67,7 @@ private theorem mapClassical_comp_any {C D E : Type} [Fintype C] [Fintype D] [Fi
 
 -- Summing selected branches is the same complete state as the actual read's
 -- conditional unitary, with the selected value retained in every output record.
-private theorem selected_unitary {C D Value : Type} [Fintype C] [Fintype D] [Fintype Value]
+private lemma selected_unitary {C D Value : Type} [Fintype C] [Fintype D] [Fintype Value]
     [DecidableEq D] [DecidableEq Value]
     {R : Register} (state : ExecutionState C R) (read : C → Value)
     (operator : Value → UnitaryOperator R) (record : C → Value → D) :
@@ -106,38 +106,43 @@ private theorem selected_unitary {C D Value : Type} [Fintype C] [Fintype D] [Fin
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
   {ctx : RuntimeCtx .quantum} {Reference : Register} {H : Type} [Fintype H]
+  (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
 
-private theorem execute_unitary (word : UnitaryCircuit gates oracles ctx.quantumLayout)
+private lemma execute_unitary (word : UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : State ctx Reference (services.HiddenState × H)) :
-    (Circuit.unitary (operations := operations) (classicalOracles := services) word).execute
-        Reference state =
+    (Circuit.unitary (allowAllocation := true) (operations := operations)
+      (classicalOracles := services) word).execute
+        environment Reference state =
       (state.applyUnitary fun _ =>
-        UnitaryOperator.prodTensor word.matrix (1 : UnitaryOperator Reference)).mapClassical
+        UnitaryOperator.prodTensor (word.matrix environment.quantum)
+          (1 : UnitaryOperator Reference)).mapClassical
           (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
   dsimp only [Circuit.execute, interpret, preserveService, State.unitary, State.mapHistory]
   rw [mapClassical_comp_any (result := inferInstance)]
   exact mapClassical_function_eq _ rfl
 
 -- The actual classical branch reads storage and applies the chosen granted word.
-private theorem execute_selected {shape : CShape} (input : CInputRef ctx shape)
+private lemma execute_selected {shape : CShape} (input : CInputRef ctx shape)
     (words : shape.Value → UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : State ctx Reference (services.HiddenState × H)) :
     (Circuit.branch input (fun value =>
-      Circuit.unitary (operations := operations) (classicalOracles := services)
-        (words value))).execute Reference state =
+      Circuit.unitary (allowAllocation := true) (operations := operations)
+        (classicalOracles := services)
+        (words value))).execute environment Reference state =
       (state.applyUnitary fun entry =>
-        UnitaryOperator.prodTensor (words (entry.1.read input)).matrix
+        UnitaryOperator.prodTensor ((words (entry.1.read input)).matrix environment.quantum)
           (1 : UnitaryOperator Reference)).mapClassical (fun entry =>
             (entry.1, (entry.2.1, (entry.2.2,
               (⟨entry.1.read input, ()⟩ : (_ : shape.Value) × Unit))))) := by
   have body_eq (value : shape.Value)
       (part : State ctx Reference (services.HiddenState × H)) :
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        (words value)).execute Reference part).mapHistory
+      ((Circuit.unitary (allowAllocation := true) (operations := operations)
+        (classicalOracles := services)
+        (words value)).execute environment Reference part).mapHistory
           (fun history => (history.1, (history.2.1,
             (⟨value, history.2.2⟩ : (_ : shape.Value) × Unit)))) =
         (part.applyUnitary fun _ =>
-          UnitaryOperator.prodTensor (words value).matrix
+          UnitaryOperator.prodTensor ((words value).matrix environment.quantum)
             (1 : UnitaryOperator Reference)).mapClassical
             (fun entry => (entry.1, (entry.2.1, (entry.2.2,
               (⟨value, ()⟩ : (_ : shape.Value) × Unit))))) := by
@@ -147,19 +152,22 @@ private theorem execute_selected {shape : CShape} (input : CInputRef ctx shape)
     exact mapClassical_function_eq _ rfl
   change runSelected state (fun entry => entry.1.read input)
     (fun value part =>
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        (words value)).execute Reference part).mapHistory
+      ((Circuit.unitary (allowAllocation := true) (operations := operations)
+        (classicalOracles := services)
+        (words value)).execute environment Reference part).mapHistory
           (fun history => (history.1, (history.2.1,
             (⟨value, history.2.2⟩ : (_ : shape.Value) × Unit)))))
       (fun value part =>
         (State.mapHistory_mass
-          ((Circuit.unitary (operations := operations) (classicalOracles := services)
-            (words value)).execute Reference part)
+          ((Circuit.unitary (allowAllocation := true) (operations := operations)
+            (classicalOracles := services)
+            (words value)).execute environment Reference part)
           (fun history => (history.1, (history.2.1,
             (⟨value, history.2.2⟩ : (_ : shape.Value) × Unit))))).trans
           (Circuit.execute_mass
-            (Circuit.unitary (operations := operations) (classicalOracles := services)
-              (words value)) Reference part)) = _
+            (Circuit.unitary (allowAllocation := true) (operations := operations)
+              (classicalOracles := services)
+              (words value)) environment Reference part)) = _
   apply ExecutionState.ext
   intro result
   apply DensityOperator.ext
@@ -167,14 +175,16 @@ private theorem execute_selected {shape : CShape} (input : CInputRef ctx shape)
   simp_rw [body_eq]
   exact congrArg (fun final => (final.block result).matrix)
     (selected_unitary state (fun entry => entry.1.read input)
-      (fun value => UnitaryOperator.prodTensor (words value).matrix (1 : UnitaryOperator Reference))
+      (fun value => UnitaryOperator.prodTensor ((words value).matrix environment.quantum)
+        (1 : UnitaryOperator Reference))
       (fun entry value => (entry.1, (entry.2.1, (entry.2.2,
         (⟨value, ()⟩ : (_ : shape.Value) × Unit))))))
 
-private theorem execute_native (application : operations.Application ctx)
+private lemma execute_native (application : operations.Application ctx)
     (state : State ctx Reference (services.HiddenState × H)) :
-    (Circuit.classical (model := .quantum gates oracles operations services) application).execute
-        Reference state =
+    (Circuit.classical (allowAllocation := true)
+      (model := .quantum gates oracles operations services) application).execute
+        environment Reference state =
       (kernelChoice state fun entry => operations.evaluate application.token
         (entry.1.read application.input)).mapClassical (fun entry =>
           (entry.1.1.write application.output entry.2,
@@ -194,24 +204,26 @@ public def sampleUnitary (application : operations.Application ctx)
 
 open scoped Classical in
 /-- Exact complete state of the actual sampler, store read, selected word and path. -/
-public theorem sampleUnitary_execute (application : operations.Application ctx)
+public lemma sampleUnitary_execute (application : operations.Application ctx)
     (words : (operations.outputShape application.token).Value →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : State ctx Reference (services.HiddenState × H)) :
-    (sampleUnitary (services := services) application words).execute Reference state =
+    (sampleUnitary (services := services) application words).execute environment Reference state =
       ((kernelChoice state fun entry => operations.evaluate application.token
         (entry.1.read application.input)).applyUnitary fun entry =>
-          UnitaryOperator.prodTensor (words entry.2).matrix
+          UnitaryOperator.prodTensor ((words entry.2).matrix environment.quantum)
             (1 : UnitaryOperator Reference)).mapClassical
             (fun entry => (entry.1.1.write application.output entry.2,
               (entry.1.2.1, (entry.1.2.2,
                 (entry.2, (⟨entry.2, ()⟩ :
                   (_ : (operations.outputShape application.token).Value) × Unit)))))) := by
   change (((Circuit.branch (.storage application.output.toCStorageRef) fun value =>
-      Circuit.unitary (operations := operations) (classicalOracles := services)
+      Circuit.unitary (allowAllocation := true) (operations := operations)
+        (classicalOracles := services)
         (words value)).execute
-        Reference ((Circuit.classical (model := .quantum gates oracles operations services)
-          application).execute Reference state)).mapHistory fun history =>
+        environment Reference ((Circuit.classical (allowAllocation := true)
+          (model := .quantum gates oracles operations services)
+          application).execute environment Reference state)).mapHistory fun history =>
             (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))) = _
   rw [execute_selected, execute_native]
   rw [ExecutionState.applyUnitary_mapClassical]
@@ -221,7 +233,7 @@ public theorem sampleUnitary_execute (application : operations.Application ctx)
   simp only [Function.comp_def, Store.read_write_same]
   exact mapClassical_function_eq _ rfl
 
-private theorem sampleUnitary_eventTrace_eq (application : operations.Application ctx)
+private lemma sampleUnitary_eventTrace_eq (application : operations.Application ctx)
     (words : (operations.outputShape application.token).Value →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (sample selected : (operations.outputShape application.token).Value) :
@@ -230,7 +242,7 @@ private theorem sampleUnitary_eventTrace_eq (application : operations.Applicatio
         (words selected).eventTrace operations services := rfl
 
 /-- Sampling contributes its native event before the selected word's actual events. -/
-public theorem sampleUnitary_eventTrace (application : operations.Application ctx)
+public lemma sampleUnitary_eventTrace (application : operations.Application ctx)
     (words : (operations.outputShape application.token).Value →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (sample selected : (operations.outputShape application.token).Value) :
@@ -241,14 +253,15 @@ public theorem sampleUnitary_eventTrace (application : operations.Application ct
 
 open scoped Classical in
 /-- Each actual final record contains precisely the corresponding weighted input blocks. -/
-public theorem sampleUnitary_block_matrix (application : operations.Application ctx)
+public lemma sampleUnitary_block_matrix (application : operations.Application ctx)
     (words : (operations.outputShape application.token).Value →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : State ctx Reference (services.HiddenState × H))
     (result : Store ctx × (services.HiddenState ×
       (H × ((operations.outputShape application.token).Value ×
         (_ : (operations.outputShape application.token).Value) × Unit)))) :
-    (((sampleUnitary (services := services) application words).execute Reference state).block
+    (((sampleUnitary (services := services) application words).execute
+      environment Reference state).block
       result).matrix =
       ∑ entry : Store ctx × (services.HiddenState × H),
         ∑ outcome : (operations.outputShape application.token).Value,
@@ -256,7 +269,8 @@ public theorem sampleUnitary_block_matrix (application : operations.Application 
               (entry.2.1, (entry.2.2, (outcome, ⟨outcome, ()⟩)))) = result then
             (operations.evaluate application.token
               (entry.1.read application.input) outcome).toReal •
-              (let operator := UnitaryOperator.prodTensor (words outcome).matrix
+              (let operator := UnitaryOperator.prodTensor
+                ((words outcome).matrix environment.quantum)
                 (1 : UnitaryOperator Reference)
                (operator : HilbertOperator (ctx.register.prod Reference)) *
                  (state.block entry).matrix *
@@ -267,24 +281,24 @@ public theorem sampleUnitary_block_matrix (application : operations.Application 
   rw [Fintype.sum_prod_type]
   simp only [kernelChoice_selected_block_matrix]
 
-private theorem mapClassical_marginal {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_marginal {C D : Type} [Fintype C] [Fintype D]
     {R : Register} {decision : DecidableEq D} (state : ExecutionState C R) (f : C → D) :
     (@ExecutionState.mapClassical C D _ _ R decision state f).quantumMarginal =
       state.quantumMarginal :=
   @ExecutionState.mapClassical_quantumMarginal C D _ _ R decision state f
 
 /-- The quantum/reference marginal is the complete weighted mixture of the executed words. -/
-public theorem sampleUnitary_quantumMarginal_matrix (application : operations.Application ctx)
+public lemma sampleUnitary_quantumMarginal_matrix (application : operations.Application ctx)
     (words : (operations.outputShape application.token).Value →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : State ctx Reference (services.HiddenState × H)) :
     ((sampleUnitary (services := services) application words).execute
-      Reference state).quantumMarginal.matrix =
+      environment Reference state).quantumMarginal.matrix =
       ∑ entry : Store ctx × (services.HiddenState × H),
         ∑ outcome : (operations.outputShape application.token).Value,
           (operations.evaluate application.token
               (entry.1.read application.input) outcome).toReal •
-            (let operator := UnitaryOperator.prodTensor (words outcome).matrix
+            (let operator := UnitaryOperator.prodTensor ((words outcome).matrix environment.quantum)
               (1 : UnitaryOperator Reference)
              (operator : HilbertOperator (ctx.register.prod Reference)) *
                (state.block entry).matrix *

@@ -64,7 +64,7 @@ def RoundArithmetic (width low half input : Nat) : Prop :=
     input < (low + half + half) * (low + half + half)
 
 /-- The original mathematical candidate obeys the next lower and upper bounds. -/
-theorem roundArithmetic_bounds {width low half input : Nat}
+lemma roundArithmetic_bounds {width low half input : Nat}
     (initial : RoundArithmetic width low half input) :
     let next := if (low + half) * (low + half) ≤ input then low + half else low
     next * next ≤ input ∧ input < (next + half) * (next + half) := by

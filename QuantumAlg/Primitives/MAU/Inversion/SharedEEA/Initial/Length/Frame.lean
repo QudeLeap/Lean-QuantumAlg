@@ -23,16 +23,18 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InitialLengthFrame
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit InitialLengthSemantics
 
 private def withoutLength {width : Nat} (state : Registers width) : Registers width :=
   { state with divisorLength := 0#width.size }
 
-private theorem withoutLength_flip (width : Nat) (bit : Fin width.size)
+private lemma withoutLength_flip (width : Nat) (bit : Fin width.size)
     (state : Registers width) :
     withoutLength ((divisorLengthBit width bit).flip state) = withoutLength state := rfl
 
-private theorem xor_withoutLength (width : Nat) (value : Fin (2 ^ width.size))
+private lemma xor_withoutLength (width : Nat) (value : Fin (2 ^ width.size))
     (state : Registers width) :
     withoutLength (Word.xorConstantStep (InitialLengthWrite.target width) value state) =
       withoutLength state := by
@@ -46,7 +48,7 @@ private theorem xor_withoutLength (width : Nat) (value : Fin (2 ^ width.size))
       rw [ih, withoutLength_flip]
 
 /-- The same actual gate list changes only the divisor length by the exact current payload size. -/
-theorem gates_step_eq (width : Nat) (state : Registers width) :
+lemma gates_step_eq (width : Nat) (state : Registers width) :
     GateSpec.stepList (InitialLengthWrite.gates width) state =
       { state with divisorLength :=
           state.divisorLength ^^^ BitVec.ofNat width.size (payloadValue state).size } := by
@@ -64,12 +66,12 @@ theorem gates_step_eq (width : Nat) (state : Registers width) :
       rfl
 
 /-- The actual native program has the complete record update as its exact basis action. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (InitialLengthWrite.program width)
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (InitialLengthWrite.program width) environment
       (fun state => { state with divisorLength :=
         state.divisorLength ^^^ BitVec.ofNat width.size (payloadValue state).size }) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (gates_step_eq width)
+    (gates_step_eq width) environment
 
 end
 

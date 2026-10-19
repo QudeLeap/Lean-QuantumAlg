@@ -45,7 +45,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
 def mapHistory (state : State ctx Reference H) (f : H → K) : State ctx Reference K :=
   state.mapClassical fun value => (value.1, f value.2)
 
-theorem mapHistory_mass (state : State ctx Reference H) (f : H → K) :
+lemma mapHistory_mass (state : State ctx Reference H) (f : H → K) :
     (state.mapHistory f).mass = state.mass :=
   state.mapClassical_mass _
 
@@ -53,7 +53,7 @@ theorem mapHistory_mass (state : State ctx Reference H) (f : H → K) :
 def skip (state : State ctx Reference H) : State ctx Reference (H × Unit) :=
   state.mapHistory fun history => (history, ())
 
-theorem skip_mass (state : State ctx Reference H) : (skip state).mass = state.mass :=
+lemma skip_mass (state : State ctx Reference H) : (skip state).mass = state.mass :=
   mapHistory_mass state _
 
 /-- Atomic classical execution reads its actual operands and writes the computed result. -/
@@ -61,7 +61,7 @@ def classicalStep (state : State ctx Reference H) {input output : CShape}
     (op : ClassicalOp input output ctx ctx) : State ctx Reference (H × Unit) :=
   state.mapClassical fun value => (value.1.applyOp op, (value.2, ()))
 
-theorem classicalStep_mass (state : State ctx Reference H) {input output : CShape}
+lemma classicalStep_mass (state : State ctx Reference H) {input output : CShape}
     (op : ClassicalOp input output ctx ctx) :
     (classicalStep state op).mass = state.mass :=
   state.mapClassical_mass _
@@ -72,7 +72,7 @@ def retain (state : State ctx Reference H)
     State (ctx.addRetained key shape fresh) Reference (H × Unit) :=
   state.mapClassical fun value => (value.1.pushRetained key shape fresh, (value.2, ()))
 
-theorem retain_mass (state : State ctx Reference H)
+lemma retain_mass (state : State ctx Reference H)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (retain state key shape fresh).mass = state.mass :=
   state.mapClassical_mass _
@@ -83,7 +83,7 @@ def pushWorkspace (state : State ctx Reference H)
     State (ctx.addWorkspace key shape fresh) Reference H :=
   state.mapClassical fun value => (value.1.pushWorkspace key shape fresh, value.2)
 
-theorem pushWorkspace_mass (state : State ctx Reference H)
+lemma pushWorkspace_mass (state : State ctx Reference H)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (pushWorkspace state key shape fresh).mass = state.mass :=
   state.mapClassical_mass _
@@ -93,7 +93,7 @@ def popWorkspace (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (state : State (ctx.addWorkspace key shape fresh) Reference H) : State ctx Reference H :=
   state.mapClassical fun value => (Store.popWorkspace key shape fresh value.1, value.2)
 
-theorem popWorkspace_mass (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
+lemma popWorkspace_mass (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (state : State (ctx.addWorkspace key shape fresh) Reference H) :
     (popWorkspace key shape fresh state).mass = state.mass :=
   state.mapClassical_mass _
@@ -106,7 +106,7 @@ def randomBits (state : State ctx Reference H)
     (value.1.1.write output (.bits fun index => value.2.val.testBit (width - 1 - index.val)),
       (value.1.2, value.2))
 
-theorem randomBits_mass (state : State ctx Reference H) (width : Nat)
+lemma randomBits_mass (state : State ctx Reference H) (width : Nat)
     (output : CWriteRef ctx (.bits width)) :
     (randomBits state width output).mass = state.mass := by
   exact (ExecutionState.mapClassical_mass _ _).trans
@@ -123,7 +123,7 @@ def unitary (state : State ctx Reference H) (operator : UnitaryOperator ctx.regi
     UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)).mapClassical
       fun value => (value.1, (value.2, ()))
 
-theorem unitary_mass (state : State ctx Reference H) (operator : UnitaryOperator ctx.register) :
+lemma unitary_mass (state : State ctx Reference H) (operator : UnitaryOperator ctx.register) :
     (unitary state operator).mass = state.mass := by
   simp only [unitary, ExecutionState.mapClassical_mass, ExecutionState.applyUnitary_mass]
 
@@ -134,7 +134,7 @@ def measureZ (state : State ctx Reference H) (wire : Fin ctx.systemCount)
   (ExecutionState.measureZ state fun basis => basis.1 wire).mapClassical fun value =>
     (value.1.1.write output (.finite value.2), (value.1.2, value.2))
 
-theorem measureZ_mass (state : State ctx Reference H) (wire : Fin ctx.systemCount)
+lemma measureZ_mass (state : State ctx Reference H) (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) :
     (measureZ state wire output).mass = state.mass := by
   simp only [measureZ, ExecutionState.mapClassical_mass, ExecutionState.measureZ_mass]
@@ -148,7 +148,7 @@ def prepare (state : State ctx Reference H) (key : StorageKey) {systemCount : Na
   (prepareContext state key layout fresh disjoint preparation.normalized).mapClassical
     fun value => (value.1.pushOwnedLayout key layout fresh disjoint, (value.2, ()))
 
-theorem prepare_mass (state : State ctx Reference H) (key : StorageKey) {systemCount : Nat}
+lemma prepare_mass (state : State ctx Reference H) (key : StorageKey) {systemCount : Nat}
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout) :

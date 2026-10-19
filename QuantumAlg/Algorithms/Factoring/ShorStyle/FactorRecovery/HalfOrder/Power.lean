@@ -74,7 +74,7 @@ def code (source : Input N) (base : CInputRef ctx (.canonicalResidue (modulusBit
     ctx.canonicalFreshKey_fresh (body (model := model) source base order output)
 
 /-- Exactly one real shift precedes the actual modular-power trace. -/
-theorem code_eventTrace (source : Input N)
+lemma code_eventTrace (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))

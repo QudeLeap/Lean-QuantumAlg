@@ -52,7 +52,7 @@ def state (original : State source Reference H) :
     (referenceBasis (source := source) keys physical Reference)
 
 /-- The reverse bijections recover every original classical block and matrix entry. -/
-theorem state_inverse (original : State source Reference H) :
+lemma state_inverse (original : State source Reference H) :
     (((state keys physical original).mapClassical
       (recordEquiv (source := source) keys physical H).symm).reindex
       (referenceBasis (source := source) keys physical Reference).symm) = original :=
@@ -61,7 +61,7 @@ theorem state_inverse (original : State source Reference H) :
     (referenceBasis (source := source) keys physical Reference)
 
 /-- The inverse store and basis coordinates assemble back to the supplied target state. -/
-theorem state_reverse (target : State (source.relabel keys physical) Reference H) :
+lemma state_reverse (target : State (source.relabel keys physical) Reference H) :
     state keys physical
       ((target.mapClassical
         (recordEquiv (source := source) keys physical H).symm).reindex
@@ -74,7 +74,7 @@ theorem state_reverse (target : State (source.relabel keys physical) Reference H
     (ExecutionState.coordinate_transport_inverse target labels.symm coordinates.symm)
 
 /-- Every complete target state comes from one state in the original coordinates. -/
-theorem state_surjective (target : State (source.relabel keys physical) Reference H) :
+lemma state_surjective (target : State (source.relabel keys physical) Reference H) :
     ∃ original : State source Reference H, state keys physical original = target :=
   ⟨(target.mapClassical
     (recordEquiv (source := source) keys physical H).symm).reindex
@@ -82,7 +82,7 @@ theorem state_surjective (target : State (source.relabel keys physical) Referenc
     state_reverse keys physical target⟩
 
 /-- Each transported matrix entry is exactly the original entry at the inverse coordinates. -/
-theorem state_entry (original : State source Reference H)
+lemma state_entry (original : State source Reference H)
     (label : Store (source.relabel keys physical) × H)
     (row column : (Register.prod (source.relabel keys physical).register Reference).Index) :
     ((state keys physical original).block label).matrix row column =
@@ -94,13 +94,13 @@ theorem state_entry (original : State source Reference H)
     (referenceBasis (source := source) keys physical Reference) label row column
 
 /-- Total mass is unchanged, including for subnormalized or impossible branches. -/
-theorem state_mass (original : State source Reference H) :
+lemma state_mass (original : State source Reference H) :
     (state keys physical original).mass = original.mass :=
   (ExecutionState.reindex_mass _ (referenceBasis (source := source) keys physical Reference)).trans
     (ExecutionState.mapClassical_mass original (recordEquiv (source := source) keys physical H))
 
 /-- Changing the mathematical history commutes with the complete state coordinates. -/
-theorem state_mapHistory (original : State source Reference H) (update : H → K) :
+lemma state_mapHistory (original : State source Reference H) (update : H → K) :
     state keys physical (original.mapHistory update) =
       (state keys physical original).mapHistory update := by
   let coordinates := referenceBasis (source := source) keys physical Reference
@@ -121,7 +121,7 @@ theorem state_mapHistory (original : State source Reference H) (update : H → K
     dsimp only [state, State.mapHistory, coordinates, before, after, sourceMap, targetMap]
 
 /-- The stored-value branch selects exactly the same original classical fiber. -/
-theorem state_selectClassical (original : State source Reference H)
+lemma state_selectClassical (original : State source Reference H)
     {shape : CShape} (ref : CInputRef source shape) (selected : shape.Value) :
     state keys physical (original.selectClassical (fun record => record.1.read ref) selected) =
       (state keys physical original).selectClassical
@@ -148,7 +148,7 @@ theorem state_selectClassical (original : State source Reference H)
   · simp only [active, if_false]
 
 /-- Admissible sums retain all classical fibers and all joint matrix entries. -/
-theorem state_finiteSum {I : Type} [Fintype I]
+lemma state_finiteSum {I : Type} [Fintype I]
     (original : I → State source Reference H) (total : ∑ index, (original index).mass ≤ 1) :
     state keys physical (ExecutionState.finiteSum original total) =
       ExecutionState.finiteSum (fun index => state keys physical (original index))

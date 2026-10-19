@@ -30,20 +30,20 @@ namespace QuantumAlg.OrderFinding.Native
 noncomputable section
 
 /-- The parallel native Hadamards have the original full-register action. -/
-public theorem initialLayer_binaryMatrix {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (initialLayer access).binaryMatrix =
+public lemma initialLayer_binaryMatrix (t width : Nat)
+    (environment : (sourceModel t width).Interpretation) :
+    (initialLayer t width).binaryMatrix environment =
       (WalshHadamard.hadamardLayerOperator t).tensor
         (1 : UnitaryOperator (Qubits width)) := by
   rw [initialLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   exact congrArg (fun operator : UnitaryOperator (Qubits t) =>
     operator.tensor (1 : UnitaryOperator (Qubits width)))
-      (WalshHadamard.Native.native_binary_matrix (sourceModel access) t)
+      (WalshHadamard.Native.native_binary_matrix (sourceModel t width) t environment)
 
 /-- The granted source call denotes the original XOR permutation exactly. -/
-public theorem oracleLayer_binaryMatrix {N x t width : Nat}
+public lemma oracleLayer_binaryMatrix {N x t width : Nat}
     (access : ModExpOracleAccess N x t width) :
-    (oracleLayer access).binaryMatrix = modExpOracle access := by
+    (oracleLayer t width).binaryMatrix (interpretation access) = modExpOracle access := by
   unfold UnitaryCircuit.binaryMatrix
   rw [oracleLayer, UnitarySource.Circuit.program_matrix]
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (t + width))
@@ -53,23 +53,23 @@ public theorem oracleLayer_binaryMatrix {N x t width : Nat}
     (QuantumSignature.qubitsIndexEquiv (t + width)).symm (modExpOracle access)
 
 /-- The generated adjoint has the exact inverse Fourier action on the prefix. -/
-public theorem readoutLayer_binaryMatrix {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (readoutLayer access).binaryMatrix =
+public lemma readoutLayer_binaryMatrix (t width : Nat)
+    (environment : (sourceModel t width).Interpretation) :
+    (readoutLayer t width).binaryMatrix environment =
       (star (QFTOperator t)).tensor (1 : UnitaryOperator (Qubits width)) := by
   rw [readoutLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   apply congrArg (fun operator : UnitaryOperator (Qubits t) =>
     operator.tensor (1 : UnitaryOperator (Qubits width)))
   change QuantumFourierTransform.Native.onBinaryLabels
-    (QuantumFourierTransform.Native.inverseCircuit (sourceModel access) t) =
+    (QuantumFourierTransform.Native.inverseCircuit (sourceModel t width) t) environment =
       star (QFTOperator t)
   exact QuantumFourierTransform.Native.qftNative_inverseCircuit_binaryMatrix
-    (sourceModel access) t
+    (sourceModel t width) t environment
 
 /-- One actual source word has the exact three-stage order-finding operator. -/
-public theorem circuit_binaryMatrix {N x t width : Nat}
+public lemma circuit_binaryMatrix {N x t width : Nat}
     (access : ModExpOracleAccess N x t width) :
-    (circuit access).binaryMatrix =
+    (circuit t width).binaryMatrix (interpretation access) =
       (star (QFTOperator t)).tensor (1 : UnitaryOperator (Qubits width)) *
         (modExpOracle access *
           (WalshHadamard.hadamardLayerOperator t).tensor

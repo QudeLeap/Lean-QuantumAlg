@@ -50,7 +50,7 @@ def fractionPart (state : IterationState) (count : Nat) : Nat :=
   (current state count).value % (current state count).scale
 
 /-- Splitting and reassembling the current coefficient preserves every actual bit contribution. -/
-theorem parts_reassemble (state : IterationState) (count : Nat) :
+lemma parts_reassemble (state : IterationState) (count : Nat) :
     integerPart state count * (current state count).scale + fractionPart state count =
       (current state count).value := by
   unfold integerPart fractionPart
@@ -58,7 +58,7 @@ theorem parts_reassemble (state : IterationState) (count : Nat) :
   exact Nat.div_add_mod _ _
 
 /-- The actual low-part invariant bounds the aligned integer window by the fixed coefficient. -/
-theorem integerPart_lt (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma integerPart_lt (state : IterationState) (count : Nat) (valid : state.Admissible) :
     integerPart state count < state.coefficient := by
   have below := CoefficientPhase.run_below state.coefficient count (CoefficientPhase.start state)
     (CoefficientPhase.start_below state valid)
@@ -71,7 +71,7 @@ theorem integerPart_lt (state : IterationState) (count : Nat) (valid : state.Adm
   simpa only [Nat.mul_comm] using below
 
 /-- The source's one extra window bit gives enough room for either actual quotient branch. -/
-theorem addition_room (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma addition_room (state : IterationState) (count : Nat) (valid : state.Admissible) :
     integerPart state count + state.coefficient < 2 ^ width state := by
   have below := integerPart_lt state count valid
   have coefficientBound := Nat.lt_size_self state.coefficient
@@ -103,14 +103,14 @@ def instruction (state : IterationState) (count : Nat) (valid : state.Admissible
     SignedCoefficient.addBit (valueWord state count valid) (coefficientWord state) swapped.1)
 
 /-- The actual initial swap clears the quotient position and the signed arithmetic clears Sign. -/
-theorem instruction_clears (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma instruction_clears (state : IterationState) (count : Nat) (valid : state.Admissible) :
     (instruction state count valid).1 = false ∧ (instruction state count valid).2.msb = false := by
   refine ⟨rfl, ?_⟩
   exact SignedCoefficient.addBit_sign _ _ _ (integerPart_lt state count valid)
     (addition_room state count valid)
 
 /-- The actual signed instruction updates precisely the aligned integer contribution. -/
-theorem instruction_low (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma instruction_low (state : IterationState) (count : Nat) (valid : state.Admissible) :
     ((instruction state count valid).2.setWidth (width state)).toNat =
       integerPart state count +
         if CoefficientPhase.lowBit (current state count).remaining then state.coefficient else 0 :=
@@ -123,7 +123,7 @@ def reassembled (state : IterationState) (count : Nat) (valid : state.Admissible
     (current state count).scale + fractionPart state count
 
 /-- The signed window update computes exactly the existing next coefficient microstep. -/
-theorem reassembled_next (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma reassembled_next (state : IterationState) (count : Nat) (valid : state.Admissible) :
     reassembled state count valid = (current state (count + 1)).value := by
   have assembled := parts_reassemble state count
   unfold reassembled
@@ -144,7 +144,7 @@ theorem reassembled_next (state : IterationState) (count : Nat) (valid : state.A
       _ = _ := by rw [assembled]
 
 /-- The actual updated window recovers the integer part and the consumed quotient digit. -/
-theorem instruction_rewind (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma instruction_rewind (state : IterationState) (count : Nat) (valid : state.Admissible) :
     SignedCoefficient.rewind (coefficientWord state)
         ((instruction state count valid).2.setWidth (width state)) =
       (valueWord state count valid, CoefficientPhase.lowBit (current state count).remaining) :=
@@ -152,7 +152,7 @@ theorem instruction_rewind (state : IterationState) (count : Nat) (valid : state
     (addition_room state count valid)
 
 /-- The aligned window stays entirely inside the full coefficient region of the shared word. -/
-theorem arithmetic_window_fits (state : IterationState) (modulus count : Nat)
+lemma arithmetic_window_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     count + width state ≤ CoefficientCapacity.work2CoefficientWidth state modulus := by
@@ -171,7 +171,7 @@ theorem arithmetic_window_fits (state : IterationState) (modulus count : Nat)
   omega
 
 /-- A real input path with a nonzero fractional part requires no divisibility assumption. -/
-theorem nonzero_fraction_actual_step :
+lemma nonzero_fraction_actual_step :
     let state := IterationState.step (IterationState.initial 17 (foldInput 17 5).2)
     let valid : state.Admissible := IterationState.step_admissible _
       (folded_initial_admissible 17 5 (by decide) (by decide))

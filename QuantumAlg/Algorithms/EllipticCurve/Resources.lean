@@ -6,57 +6,142 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.EllipticCurve.Resources.SevenCoordinates
-import all QuantumAlg.Algorithms.EllipticCurve.Resources.SevenCoordinates
+public import QuantumAlg.Core.Algorithm.Problem
+public import QuantumAlg.Core.Algorithm.Solves
+public import QuantumAlg.Algorithms.EllipticCurve.Resources.Execution
+import all QuantumAlg.Algorithms.EllipticCurve.Resources.Execution
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Input
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Algorithm
+public import QuantumAlg.Algorithms.EllipticCurve.Resources.Spec
+import all QuantumAlg.Algorithms.EllipticCurve.Resources.Spec
 
 /-!
-# Complete generic logical resources of original elliptic-curve discrete logarithms
+# The original measured ECDLP problem and one complete streaming solver
 
-The registered theorem binds the original named algorithm, success and joint
-borrowed restoration to a physically complete cycle certificate and seven
-scalar bounds on every actual path. Parameters and retry counts are symbolic.
-Zero and one have their actual complete single computations; larger counts
-use the admitted initialized/reused/terminal plan with real cleanup. Whole-run
-chronological depth is retained separately from maximum complete-cycle depth.
-The literal binary-gap preparation is unchanged and consumes its generic
-width ceiling [SV24, Uniform.tex:622-664,996-1024]. The original group-addition
-and sampling organization remains [PZ03, ecc.tex:448-556].
+The independent problem retains the original accepted equation, calibrated
+finite-retry success target and all native resource limits. The algorithm
+construction and mathematical field proofs are in implementation modules.
+The entry assembles their complete Solves record for the same actual run.
+Both resource storage roles and the full borrowed/reference state are retained.
 -/
 
 namespace QuantumAlg.EllipticCurve.LogicalResources
 
 noncomputable section
 
-open Execution PrimeFieldShortWeierstrass FiniteCyclicDLP
+open QuantumAlg QuantumAlg.Execution
+open QuantumAlg.EllipticCurve QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass
+open FiniteCyclicDLP
+open QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.GenericPointAddition.InPlace
+
+local instance {Label : Type} : DecidableEq Label := Classical.decEq Label
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
-/-- Complete same-run generic correctness, physical cycles and seven scalar resource ceilings. -/
+/-- Measured ECDLP with finite repetition and independent streaming resource budgets.
+
+**Input.**
+- A prime-field curve, an affine generator of known prime subgroup order and
+  an affine public target in that subgroup. The two borrowed classical point
+  encodings are fixed. The quantum bank is allocated internally; every external
+  reference extension of the public input is admitted.
+**Output.**
+- An optional bounded scalar satisfying the original public group equation.
+**Resource budget.**
+- Native events: the complete initial quantum-bank preparation, then `count`
+  measured resets, converted Fourier samplers and checked native recovery
+  attempts, followed by one paid optional-result pack.
+- Resident and auxiliary space: the borrowed public points, the owned quantum
+  bank, seven persistent destinations and the maximum successive recovery
+  scratch scope. Repetition reuses this space without multiplying it by `count`.
+- Quantum time: the independent per-attempt reset and sampling gate/query
+  allowance multiplied by `count`. Preparation, measurement and classical work
+  remain in the native-event budget and carry zero quantum duration. Complete
+  unit-duration event depth is a separate resource theorem.
+**Success.**
+- At least `1 - failure`, under the original affine-addend and fixed-offset
+  exceptional-error finite-repetition conditions.
+- No final purity or zero-state promise is imposed on the owned bank. All
+  borrowed data and their external-reference correlations are restored jointly.
+**Source.**
+- [PZ03, ecc.tex:448-556] for group shifts, measured Fourier readout and the
+  exceptional addition cases; finite Fourier and classical recovery use the
+  original registered finite-cyclic DLP analysis.
+-/
+public def problem (I : ECDLPInstance E) (count : Nat) (failure : ℝ) :
+    Problem (.quantum AlgorithmGate.model .empty BitWord.model) (Execution.inputContext E I)
+      (Execution.outputContext E I)
+      (.option (.unsignedWord (orderWidth (ECDLP.Canonical.problem I)))) where
+  Witness := Unit
+  valid := fun _ _ => ECDLP.Measured.Recovery.PublicInput.Support.inputDomain E
+    (orderWidth (ECDLP.Canonical.problem I))
+    (ECDLP.Canonical.problem I)
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _stored output => LogicalResources.AcceptedOutput E I output
+  successLB := fun _ _ => LogicalResources.successLowerBound failure
+  states := fun _ _ => []
+  resources := ECDLP.Measured.Recovery.ExecutionContract.ResourceContract.resourceBudget E I count
+  quantumTimeLimit :=
+    ECDLP.Measured.Recovery.ExecutionContract.ResourceContract.quantumTimeLimit E I count
+
+private lemma complete_correct (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
+    (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (I : ECDLPInstance E)
+    (points : Fin (2 * orderWidth (ECDLP.Canonical.problem I)) → AffinePoint E)
+    (seed : AffinePoint E) (addends : LogicalResources.AddendEncoding E I points)
+    (count : Nat) (failure : ℝ)
+    (calibrated : LogicalResources.RepetitionCondition E I points seed count failure) :
+    (algorithm E fieldTail sameWidth fits odd I points seed count).Solves
+      (problem E I count failure) where
+  success := fun environment witness Reference supplied valid _initialized =>
+    ECDLP.Measured.Recovery.ExecutionContract.FixedOffsetSuccess.actual_run_relational_success
+      (environment := environment)
+      E fieldTail sameWidth fits odd I points seed
+      addends count failure calibrated supplied valid
+  states := by
+    intro environment witness Reference supplied valid initialized requirement member
+    cases member
+  borrowed := by
+    intro environment witness Reference supplied valid initialized
+    exact ECDLP.Measured.Recovery.ExecutionContract.Solves.run_restores_of_noBorrowedQuantum
+      (environment := environment)
+      (algorithm E fieldTail sameWidth fits odd I points seed count).run
+      (show
+        (Execution.inputContext E I).borrowedQuantumWires = []
+        from rfl) supplied
+  events := by
+    intro environment witness Reference supplied valid initialized path supported
+    exact (ECDLP.Measured.Recovery.ExecutionContract.ResourceContract.resourceObligations
+      E fieldTail I points seed I.subgroupOrder
+      (Semantics.radixUnit p fieldTail.succ odd) count path).1
+  resident := by
+    intro environment witness Reference supplied valid initialized path supported
+    exact (ECDLP.Measured.Recovery.ExecutionContract.ResourceContract.resourceObligations
+      E fieldTail I points seed I.subgroupOrder
+      (Semantics.radixUnit p fieldTail.succ odd) count path).2.1
+  auxiliary := by
+    intro environment witness Reference supplied valid initialized path supported
+    exact (ECDLP.Measured.Recovery.ExecutionContract.ResourceContract.resourceObligations
+      E fieldTail I points seed I.subgroupOrder
+      (Semantics.radixUnit p fieldTail.succ odd) count path).2.2.1
+  time := by
+    intro environment witness Reference supplied valid initialized path supported
+    exact (ECDLP.Measured.Recovery.ExecutionContract.ResourceContract.resourceObligations
+      E fieldTail I points seed I.subgroupOrder
+      (Semantics.radixUnit p fieldTail.succ odd) count path).2.2.2
+
+/-- The public conclusion is solely existence of an Algorithm solving the independent problem. -/
 public theorem main (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (I : ECDLPInstance E)
     (points : Fin (2 * orderWidth (ECDLP.Canonical.problem I)) → AffinePoint E)
-    (seed : AffinePoint E) (addends : AddendEncoding E I points)
+    (seed : AffinePoint E) (addends : LogicalResources.AddendEncoding E I points)
     (count : Nat) (failure : ℝ)
-    (calibrated : RepetitionCondition E I points seed count failure) :
-    ∃ cycles : Algorithm.CycleSolves
-        (algorithm E fieldTail sameWidth fits odd I points seed count)
-        (completeCycleProblem E fieldTail sameWidth fits I points seed addends count failure),
-      (algorithm E fieldTail sameWidth fits odd I points seed count).Solves
-          (problem E I count failure) ∧
-        (∀ path : (algorithm E fieldTail sameWidth fits odd I points seed count).run.code.Path,
-          SevenCoordinateBounds E fieldTail sameWidth fits odd I points seed addends count failure
-            cycles path) ∧
-        (∀ path : (algorithm E fieldTail sameWidth fits odd I points seed count).run.code.Path,
-          (algorithm E fieldTail sameWidth fits odd I points seed count).run.code.depth
-              (fun _ => 1) path ≤
-            Scalar.wholeRunEvents p.size (Nat.clog 2 p)
-              (orderWidth (ECDLP.Canonical.problem I)) count) :=
-  ⟨completeCycleCertificate E fieldTail sameWidth fits odd I points seed addends count
-      failure calibrated,
-    algorithm_solves E fieldTail sameWidth fits odd I points seed addends count failure calibrated,
-    algorithm_sevenCoordinates E fieldTail sameWidth fits odd I points seed addends count
-      failure calibrated,
-    algorithm_wholeRunDepth_scalar E fieldTail sameWidth fits odd I points seed count⟩
+    (calibrated : LogicalResources.RepetitionCondition E I points seed count failure) :
+    ∃ candidate : Algorithm (.quantum AlgorithmGate.model .empty BitWord.model)
+        (Execution.inputContext E I) (Execution.outputContext E I)
+        (.option (.unsignedWord (orderWidth (ECDLP.Canonical.problem I)))),
+      candidate.Solves (problem E I count failure) :=
+  ⟨algorithm E fieldTail sameWidth fits odd I points seed count,
+    complete_correct E fieldTail sameWidth fits odd I points seed addends count failure calibrated⟩
 
 end
 

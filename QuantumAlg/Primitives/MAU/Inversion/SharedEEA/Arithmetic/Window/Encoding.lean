@@ -38,7 +38,7 @@ def complementEncoding {width : Nat} (window : Window width) :
     (prod (prod (wordEncoding window.above) (wordEncoding window.below))
       (prod (lengthPairEncoding width) (prod (lengthPairEncoding width) flagEncoding)))
 
-private theorem complement_surjective {width : Nat} (window : Window width) :
+private lemma complement_surjective {width : Nat} (window : Window width) :
     Function.Surjective (complementEncoding window).encode :=
   prod_surjective _ _
     (prod_surjective _ _ (word_surjective _) (word_surjective _))
@@ -52,7 +52,7 @@ private theorem complement_surjective {width : Nat} (window : Window width) :
             (prod_surjective _ _ bool_surjective bool_surjective)
             (prod_surjective _ _ bool_surjective bool_surjective)))))
 
-private theorem focus_surjective (length : Nat) :
+private lemma focus_surjective (length : Nat) :
     Function.Surjective (Addition.TTK.overflowEncoding length).encode :=
   prod_surjective _ _
     (prod_surjective _ _ Function.surjective_id Function.surjective_id) bool_surjective
@@ -64,12 +64,12 @@ def groupedEncoding {width : Nat} (window : Window width) :
   prod (Addition.TTK.overflowEncoding window.length) (complementEncoding window)
 
 /-- Every complete grouped binary label is the encoding of an actual grouped frame. -/
-theorem groupedEncoding_surjective {width : Nat} (window : Window width) :
+lemma groupedEncoding_surjective {width : Nat} (window : Window width) :
     Function.Surjective (groupedEncoding window).encode :=
   prod_surjective _ _ (focus_surjective window.length) (complement_surjective window)
 
 /-- The grouped carrier contains exactly the original number of physical source bits. -/
-theorem groupedEncoding_width {width : Nat} (window : Window width) :
+lemma groupedEncoding_width {width : Nat} (window : Window width) :
     (groupedEncoding window).width = (encoding width).width := by
   rw [encoding_width]
   change (window.length + window.length + 1) +
@@ -97,7 +97,7 @@ def indexEquiv {width : Nat} (window : Window width) :
     ((grouping window).symm.trans (registerLabelEquiv width))
 
 /-- Full actual field reassembly, rather than a basis map inferred from equal dimensions. -/
-theorem indexEquiv_encode {width : Nat} (window : Window width) (state : Registers width) :
+lemma indexEquiv_encode {width : Nat} (window : Window width) (state : Registers width) :
     indexEquiv window ((groupedEncoding window).encode (grouping window state)) =
       (encoding width).encode state := by
   change registerLabelEquiv width ((grouping window).symm
@@ -118,10 +118,10 @@ def controlBit {width : Nat} (window : Window width) : EncodedBit (groupedEncodi
 def workBit {width : Nat} (window : Window width) : EncodedBit (groupedEncoding window) :=
   prodRightBit _ _ (complementFlag window (prodRightBit _ _ (prodLeftBit _ _ boolBit)))
 
-theorem controlBit_get {width : Nat} (window : Window width) (state : Registers width) :
+lemma controlBit_get {width : Nat} (window : Window width) (state : Registers width) :
     (controlBit window).get (grouping window state) = state.control := rfl
 
-theorem workBit_get {width : Nat} (window : Window width) (state : Registers width) :
+lemma workBit_get {width : Nat} (window : Window width) (state : Registers width) :
     (workBit window).get (grouping window state) = state.flags.iteration := rfl
 
 end

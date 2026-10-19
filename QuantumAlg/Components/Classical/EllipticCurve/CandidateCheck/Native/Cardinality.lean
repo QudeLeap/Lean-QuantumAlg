@@ -20,11 +20,11 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 open Execution ClassicalAlgorithms.EllipticCurve
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The original verification allowance charges the actual scalar, comparison and both flags. -/
-theorem verificationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma verificationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : CurveSpec width)
     (scalarWidth : Nat) :
     (verificationEnvelope model spec scalarWidth).card ≤
@@ -37,7 +37,7 @@ theorem verificationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected 
   omega
 
 /-- Every actual target-verification path obeys that same original numerical ceiling. -/
-theorem verifyInto_eventCount_le (spec : CurveSpec width)
+lemma verifyInto_eventCount_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)

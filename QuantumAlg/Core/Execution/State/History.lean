@@ -31,18 +31,18 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
   {H K L : Type} [Fintype H] [Fintype K] [Fintype L]
 
 /-- History functions compose using the actual finite classical fiber sum. -/
-theorem mapHistory_comp (state : State ctx Reference H) (first : H → K) (second : K → L) :
+lemma mapHistory_comp (state : State ctx Reference H) (first : H → K) (second : K → L) :
     (state.mapHistory first).mapHistory second = state.mapHistory (second ∘ first) := by
   simp only [mapHistory, ExecutionState.executionState_mapClassical_comp, Function.comp_def]
 
 /-- The deterministic identity record is independent of the prior history encoding. -/
-theorem mapHistory_skip (state : State ctx Reference H) (update : H → K) :
+lemma mapHistory_skip (state : State ctx Reference H) (update : H → K) :
     (state.mapHistory update).skip =
       state.skip.mapHistory (fun record => (update record.1, record.2)) := by
   simp only [skip, mapHistory_comp, Function.comp_def]
 
 /-- Actual atomic classical reads and writes ignore the mathematical history label. -/
-theorem mapHistory_classicalStep (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_classicalStep (state : State ctx Reference H) (update : H → K)
     {input output : CShape} (operation : ClassicalOp input output ctx ctx) :
     (state.mapHistory update).classicalStep operation =
       (state.classicalStep operation).mapHistory (fun record => (update record.1, record.2)) := by
@@ -52,7 +52,7 @@ theorem mapHistory_classicalStep (state : State ctx Reference H) (update : H →
   exact Subsingleton.elim _ _
 
 /-- Retained allocation creates the same real cell and leaves the old history map independent. -/
-theorem mapHistory_retain (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_retain (state : State ctx Reference H) (update : H → K)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (state.mapHistory update).retain key shape fresh =
       (state.retain key shape fresh).mapHistory (fun record => (update record.1, record.2)) := by
@@ -62,7 +62,7 @@ theorem mapHistory_retain (state : State ctx Reference H) (update : H → K)
   exact Subsingleton.elim _ _
 
 /-- Entering actual lexical storage commutes with arbitrary history relabeling. -/
-theorem mapHistory_pushWorkspace (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_pushWorkspace (state : State ctx Reference H) (update : H → K)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (state.mapHistory update).pushWorkspace key shape fresh =
       (state.pushWorkspace key shape fresh).mapHistory update := by
@@ -72,7 +72,7 @@ theorem mapHistory_pushWorkspace (state : State ctx Reference H) (update : H →
   congr 1
 
 /-- Releasing the exact workspace head retains the same sums of overwritten cells. -/
-theorem mapHistory_popWorkspace (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
+lemma mapHistory_popWorkspace (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (state : State (ctx.addWorkspace key shape fresh) Reference H) (update : H → K) :
     popWorkspace key shape fresh (state.mapHistory update) =
       (popWorkspace key shape fresh state).mapHistory update := by
@@ -82,7 +82,7 @@ theorem mapHistory_popWorkspace (key : StorageKey) (shape : CShape) (fresh : key
   congr 1
 
 /-- The actual random outcome is retained while prior histories are grouped independently. -/
-theorem mapHistory_randomBits (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_randomBits (state : State ctx Reference H) (update : H → K)
     (width : Nat) (output : CWriteRef ctx (.bits width)) :
     (state.mapHistory update).randomBits width output =
       (state.randomBits width output).mapHistory
@@ -94,7 +94,7 @@ theorem mapHistory_randomBits (state : State ctx Reference H) (update : H → K)
   exact Subsingleton.elim _ _
 
 /-- Branch selection uses the same actual stored value after any history map. -/
-theorem mapHistory_selectClassical (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_selectClassical (state : State ctx Reference H) (update : H → K)
     {shape : CShape} (input : CInputRef ctx shape) (value : shape.Value) :
     (state.mapHistory update).selectClassical (fun record => record.1.read input) value =
       State.mapHistory
@@ -107,7 +107,7 @@ section Quantum
 variable {ctx : RuntimeCtx .quantum}
 
 /-- Actual unitary evolution commutes with every finite mathematical history function. -/
-theorem mapHistory_unitary (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_unitary (state : State ctx Reference H) (update : H → K)
     (program : UnitaryOperator ctx.register) :
     (state.mapHistory update).unitary program =
       (state.unitary program).mapHistory (fun record => (update record.1, record.2)) := by
@@ -117,7 +117,7 @@ theorem mapHistory_unitary (state : State ctx Reference H) (update : H → K)
   exact Subsingleton.elim _ _
 
 /-- Actual Z readout, store write and outcome record commute with grouping the old history. -/
-theorem mapHistory_measureZ (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_measureZ (state : State ctx Reference H) (update : H → K)
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) :
     measureZ (state.mapHistory update) wire output =
@@ -128,14 +128,14 @@ theorem mapHistory_measureZ (state : State ctx Reference H) (update : H → K)
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem mapClassical_decision {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma mapClassical_decision {C D : Type} [Fintype C] [Fintype D] {R : Register}
     (first second : DecidableEq D) (state : ExecutionState C R) (update : C → D) :
     @ExecutionState.mapClassical C D _ _ R first state update =
       @ExecutionState.mapClassical C D _ _ R second state update := by
   cases Subsingleton.elim first second
   rfl
 
-private theorem mapHistory_decision (decision : DecidableEq (Store ctx × K))
+private lemma mapHistory_decision (decision : DecidableEq (Store ctx × K))
     (state : State ctx Reference H) (update : H → K) :
     @ExecutionState.mapClassical (Store ctx × H) (Store ctx × K) _ _
         (Register.prod ctx.register Reference) decision state
@@ -143,7 +143,7 @@ private theorem mapHistory_decision (decision : DecidableEq (Store ctx × K))
   unfold mapHistory
   exact mapClassical_decision _ _ _ _
 
-private theorem prepareContext_mapClassical_decision {C D : Type}
+private lemma prepareContext_mapClassical_decision {C D : Type}
     [Fintype C] [Fintype D] [decision : DecidableEq D]
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) {count : Nat} (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
@@ -161,7 +161,7 @@ private theorem prepareContext_mapClassical_decision {C D : Type}
         (actual.trans after)
 
 /-- Fixed fresh preparation preserves the same full blocks under arbitrary history maps. -/
-theorem mapHistory_prepare (state : State ctx Reference H) (update : H → K)
+lemma mapHistory_prepare (state : State ctx Reference H) (update : H → K)
     (key : StorageKey) {count : Nat} (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout) :

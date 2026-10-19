@@ -41,7 +41,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-private theorem packedRead (t n : Nat) (store : Store (post t n)) :
+private lemma packedRead (t n : Nat) (store : Store (post t n)) :
     (store.write (BitWord.application (packing t n)).output
       ((packing t n).eval (store.read (BitWord.application (packing t n)).input))).read
        (.storage (resultRef t n).toCStorageRef) =
@@ -49,11 +49,11 @@ private theorem packedRead (t n : Nat) (store : Store (post t n)) :
   Store.read_applyOp_output store (packing t n)
 
 /-- The actual measured and packed output has precisely the corresponding initial diagonal fiber. -/
-theorem readoutCode_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
+lemma readoutCode_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (post t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (output : CShape.Value (.bits t)) :
-    ((((readoutCode E t).execute Reference state).mapClassical
+    ((((readoutCode n t).execute (sourceEnvironment E) Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output).mass =
       (∑ basis : (post t n).register.Index,
         if CShape.Value.bits ((qpeMeasurement t (Elementary.helperWidth t n + n)).readout
@@ -64,7 +64,7 @@ theorem readoutCode_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n)
   apply congrArg Complex.re
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
-  rw [Circuit.execute_classical_mapClassical (model := model E)
+  rw [Circuit.execute_classical_mapClassical (model := model n) (sourceEnvironment E)
     (BitWord.application (packing t n))
     (packing t n).eval (BitWord.bitWord_application_evaluate (packing t n))]
   simp only [ExecutionState.diagonalSum_mapClassical]
@@ -84,7 +84,7 @@ theorem readoutCode_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n)
       intro basis _
       split <;> simp only [one_mul, zero_mul]
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
@@ -93,12 +93,12 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
 
 /-- Every final output-block mass is the original query-readout Born fiber,
 derived from actual preparation, gates, measurements, storage writes and packing. -/
-theorem code_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
+lemma code_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (empty : Elementary.helperWidth t n = 0)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) (output : CShape.Value (.bits t)) :
-    ((((code E t).execute Reference state).mapClassical
+    ((((code n t).execute (sourceEnvironment E) Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))).block output).mass =
       ∑ basis : Fin (2 ^ (t + n)),
         if CShape.Value.bits ((qpeMeasurement t n).readout basis) = output then
@@ -108,12 +108,14 @@ theorem code_block_mass {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : N
         if CShape.Value.bits ((qpeMeasurement t (Elementary.helperWidth t n + n)).readout
           (outputBasisEquiv t n basis)) = output
           then
-          ((beforeMeasurement E t).execute Reference state).quantumMarginal.marginalLeft.matrix
+          ((beforeMeasurement n t).execute (sourceEnvironment E) Reference
+            state).quantumMarginal.marginalLeft.matrix
             basis basis else 0).re := by
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
-          readoutCode_block_mass E t ((beforeMeasurement E t).execute Reference state) output
+          readoutCode_block_mass E t ((beforeMeasurement n t).execute (sourceEnvironment E)
+            Reference state) output
     _ = (∑ basis : Fin (2 ^ (t + n)),
         if CShape.Value.bits ((qpeMeasurement t n).readout basis) = output then
           (DensityOperator.ofPure ((evolvedState E t).normalized)).matrix basis basis

@@ -27,7 +27,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The original rational one-attempt floor is a valid probability threshold. -/
-theorem honestFloor_le_one {N : Nat} (input : Input N) :
+lemma honestFloor_le_one {N : Nat} (input : Input N) :
     Probability.honestAttemptSuccessFloor N ≤ 1 := by
   change ENNReal.ofReal ((1 : ℝ) / (sourceSuccessDenominator N : ℝ)) ≤ 1
   apply ENNReal.ofReal_le_one.mpr
@@ -37,7 +37,7 @@ theorem honestFloor_le_one {N : Nat} (input : Input N) :
     exact_mod_cast Nat.succ_le_of_lt denominatorPositive
   exact (div_le_one (lt_of_lt_of_le zero_lt_one oneLe)).mpr oneLe
 
-private theorem declared_firstPresent {N : Nat}
+private lemma declared_firstPresent {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (old later : CShape.Value (.option (.unsignedWord (modulusBits N))))
     (sound : SoundLatch model old) (declared : Probability.ReturnedDeclaredFactor model later) :
@@ -47,7 +47,7 @@ private theorem declared_firstPresent {N : Nat}
   | optionSome word => exact sound.resolve_right (fun impossible => by cases impossible)
 
 /-- Original source success survives chronological selection with any sound incoming latch. -/
-theorem completionKernel_success_floor {N : Nat}
+lemma completionKernel_success_floor {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (old : CShape.Value (.option (.unsignedWord (modulusBits N)))) (sound : SoundLatch model old) :
     Probability.honestAttemptSuccessFloor N ≤
@@ -83,23 +83,26 @@ theorem completionKernel_success_floor {N : Nat}
       model outcome good)
 
 /-- The full real round attains the original floor from every independently admitted sound input. -/
-theorem Completion.latch_success (ctx : RuntimeCtx .quantum) {N : Nat}
+lemma Completion.latch_success (ctx : RuntimeCtx .quantum) {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (sameWires : ctx.quantumWires = (layout N).wires) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated cells result)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference
-      ((executionModel (Probability.Input.ofSemiprimeModel model)).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized)
     (admitted : ∀ record, 0 < (state.block record).mass →
       SoundLatch model (NativeFactorScan.latchValue cells record.1)) :
     Probability.honestAttemptSuccessFloor N ≤
       ((((Completion.code ctx N (Probability.Input.ofSemiprimeModel model)
-        sameWires cells result).execute Reference state).toPMF
+        sameWires cells result).execute
+          (environment (Probability.Input.ofSemiprimeModel model)) Reference state).toPMF
           (((Completion.code ctx N (Probability.Input.ofSemiprimeModel model)
-            sameWires cells result).execute_mass Reference state).trans normalized)).map
+            sameWires cells result).execute_mass
+              (environment (Probability.Input.ofSemiprimeModel model)) Reference state).trans
+                normalized)).map
               (fun entry => NativeFactorScan.latchValue (Completion.cells ctx N cells)
                 entry.1)).toOuterMeasure
       {value | Probability.ReturnedDeclaredFactor model value} := by
@@ -107,9 +110,9 @@ theorem Completion.latch_success (ctx : RuntimeCtx .quantum) {N : Nat}
   let input := Probability.Input.ofSemiprimeModel model
   rw [Completion.latch_toPMF ctx N input sameWires cells result separated state seeded normalized]
   let distribution := state.toPMF normalized
-  let kernel := fun (entry : Store ctx × ((executionModel input).HiddenState × History)) =>
+  let kernel := fun (entry : Store ctx × ((executionModel N).HiddenState × History)) =>
     completionKernel input (NativeFactorScan.latchValue cells entry.1)
-  let exceptional := fun (entry : Store ctx × ((executionModel input).HiddenState × History)) =>
+  let exceptional := fun (entry : Store ctx × ((executionModel N).HiddenState × History)) =>
     ¬ SoundLatch model (NativeFactorScan.latchValue cells entry.1)
   have inherited := PMF.bind_eventProbability_ge_goodMass_mul distribution kernel exceptional
     (Probability.ReturnedDeclaredFactor model) (Probability.honestAttemptSuccessFloor N)

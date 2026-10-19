@@ -19,13 +19,13 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.Checked.SignedReduction.Nati
 
 open Execution Modular.Reduce.Native
 
-private theorem max_card_le_add {model : ExecutionModel} (left right : ResourcePool model) :
+private lemma max_card_le_add {model : ExecutionModel} (left right : ResourcePool model) :
     (ResourcePool.max left right).card ≤ left.card + right.card :=
   (Multiset.card_le_card (Multiset.union_le_add left right)).trans_eq
     (Multiset.card_add left right)
 
 /-- Both original branch sites fit the same constant sixteen-instruction allowance. -/
-theorem signedReductionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
+lemma signedReductionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
   : Nat) :
     (signedReductionEnvelope model width).card ≤ 16 := by
   have magnitude :

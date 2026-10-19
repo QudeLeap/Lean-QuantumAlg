@@ -25,24 +25,24 @@ private def permutation (control target : Fin 3) (distinct : control ≠ target)
     Equiv.Perm layout.register.Index :=
   QubitPrimitive.nativeAmbientPermutation physical (.cnot control target distinct)
 
-private theorem cnot_matrix (oracles : OracleModel) (control target : Fin 3)
-    (distinct : control ≠ target) :
-    (cnot oracles control target distinct).matrix =
+private lemma cnot_matrix (oracles : OracleModel) (control target : Fin 3)
+    (distinct : control ≠ target) (environment : oracles.Interpretation) :
+    ((cnot oracles control target distinct).matrix environment) =
       UnitaryOperator.ofPerm (permutation control target distinct) := by
   change (QubitPrimitive.nativeApplication physical (.cnot control target distinct)).operator = _
   exact QubitPrimitive.nativeApplication_operator_ofPerm physical (.cnot control target distinct)
 
 private def bits (basis : layout.register.Index) : Fin 3 → Fin 2 := basis
 
-private theorem bits_injective : Function.Injective bits := fun _ _ same => same
+private lemma bits_injective : Function.Injective bits := fun _ _ same => same
 
-private theorem permutation_apply (control target : Fin 3) (distinct : control ≠ target)
+private lemma permutation_apply (control target : Fin 3) (distinct : control ≠ target)
     (basis : layout.register.Index) :
     bits (permutation control target distinct basis) =
       Function.update (bits basis) target (bits basis control + bits basis target) :=
   QubitPrimitive.nativeAmbientPermutation_apply physical (.cnot control target distinct) basis
 
-private theorem permutation_involutive (control target : Fin 3) (distinct : control ≠ target) :
+private lemma permutation_involutive (control target : Fin 3) (distinct : control ≠ target) :
     Function.Involutive (permutation control target distinct) := by
   intro basis
   apply bits_injective
@@ -56,7 +56,7 @@ private theorem permutation_involutive (control target : Fin 3) (distinct : cont
     fin_cases first <;> fin_cases second <;> rfl
   · simp [Function.update_of_ne, same]
 
-private theorem target_permutations_commute (basis : layout.register.Index) :
+private lemma target_permutations_commute (basis : layout.register.Index) :
     permutation 0 2 (by decide) (permutation 1 2 (by decide) basis) =
       permutation 1 2 (by decide) (permutation 0 2 (by decide) basis) := by
   apply bits_injective
@@ -69,7 +69,7 @@ private theorem target_permutations_commute (basis : layout.register.Index) :
     exact add_left_comm _ _ _
   · simp [Function.update_of_ne, same]
 
-private theorem word_permutations_cancel (basis : layout.register.Index) :
+private lemma word_permutations_cancel (basis : layout.register.Index) :
     permutation 0 1 (by decide) (permutation 0 1 (by decide)
       (permutation 0 2 (by decide) (permutation 1 2 (by decide)
         (permutation 0 2 (by decide) (permutation 1 2 (by decide) basis))))) = basis := by

@@ -33,7 +33,7 @@ noncomputable section
 variable {n : ℕ}
 variable {U : UnitaryOperator (Qubits n)}
 
-private theorem phaseGateOp_applyVec (θ : ℝ)
+private lemma phaseGateOp_applyVec (θ : ℝ)
     (ψ : HilbertVector (Qubits 1)) :
     (phaseGateOp θ).applyVec ψ =
       (ψ 0) • (ket0 : HilbertVector (Qubits 1)) +
@@ -46,7 +46,7 @@ private theorem phaseGateOp_applyVec (θ : ℝ)
       phaseGateOp, NormalizedVector.ket0, NormalizedVector.ket1,
       NormalizedVector.ket_apply, PiLp.add_apply, PiLp.smul_apply]
 
-private theorem phaseGateOnZeroOp_applyVec (θ : ℝ)
+private lemma phaseGateOnZeroOp_applyVec (θ : ℝ)
     (ψ : HilbertVector (Qubits 1)) :
     (phaseGateOnZeroOp θ).applyVec ψ =
       (Complex.exp ((θ : ℝ) * Complex.I) * ψ 0) •
@@ -59,7 +59,7 @@ private theorem phaseGateOnZeroOp_applyVec (θ : ℝ)
       phaseGateOnZeroOp, NormalizedVector.ket0, NormalizedVector.ket1,
       NormalizedVector.ket_apply, PiLp.add_apply, PiLp.smul_apply]
 
-private theorem phaseGateOp_applyVec_eq_smul_rotZStdOp (θ : ℝ)
+private lemma phaseGateOp_applyVec_eq_smul_rotZStdOp (θ : ℝ)
     (ψ : HilbertVector (Qubits 1)) :
     (phaseGateOp θ).applyVec ψ =
       Complex.exp ((θ / 2 : ℝ) * Complex.I) •
@@ -75,7 +75,7 @@ private theorem phaseGateOp_applyVec_eq_smul_rotZStdOp (θ : ℝ)
 an eigenstate `U|u⟩ = e^{iθ}|u⟩`, the controlled unitary `c-U` acts on
 `|ψ⟩ ⊗ |u⟩` as the controlled-phase gate on the ancilla, leaving the
 eigenstate fixed [WZYW23, arxiv_v3.tex:641]. -/
-theorem controlled_apply_eigenstate_phaseVec
+lemma controlled_apply_eigenstate_phaseVec
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n)))
@@ -108,7 +108,7 @@ theorem controlled_apply_eigenstate_phaseVec
         (u : HilbertVector (Qubits n)) := by
         rw [phaseGateOp_applyVec]
 
-theorem controlled_apply_eigenstate_phase
+lemma controlled_apply_eigenstate_phase
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n)))
@@ -122,7 +122,7 @@ theorem controlled_apply_eigenstate_phase
 /-- If `U|u⟩ = e^{iθ}|u⟩`, then `U†|u⟩ = e^{-iθ}|u⟩`. This is the
 adjoint branch used by Wang's alternating QPP convention
 [WZYW23, arxiv_v3.tex:601-609,641]. -/
-theorem QPP.conjTranspose_apply_eigenstate_phaseVec
+lemma QPP.conjTranspose_apply_eigenstate_phaseVec
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n))) :
@@ -159,7 +159,7 @@ theorem QPP.conjTranspose_apply_eigenstate_phaseVec
 
 /-- On the zero-control branch of Wang's alternating QPP word, `U†` contributes
 the eigenphase `e^{-iθ}` [WZYW23, arxiv_v3.tex:601-609,641]. -/
-theorem QPP.controlledOnZero_conjTranspose_apply_eigenstate_ket0
+lemma QPP.controlledOnZero_conjTranspose_apply_eigenstate_ket0
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n))) :
@@ -172,7 +172,7 @@ theorem QPP.controlledOnZero_conjTranspose_apply_eigenstate_ket0
 
 /-- On the one-control branch of Wang's zero-controlled `U†` block, the target
 eigenstate is unchanged [WZYW23, arxiv_v3.tex:601-609]. -/
-theorem QPP.controlledOnZero_conjTranspose_apply_eigenstate_ket1
+lemma QPP.controlledOnZero_conjTranspose_apply_eigenstate_ket1
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) :
     (UnitaryOperator.controlledQubitsOnZero U.dagger).applyVec
         (HilbertVector.tensor (ket1 : HilbertVector (Qubits 1)) (u : HilbertVector (Qubits n))) =
@@ -181,7 +181,7 @@ theorem QPP.controlledOnZero_conjTranspose_apply_eigenstate_ket1
 
 /-- The zero-control `U†` block acts as `diag(e^{-iθ},1)` on the ancilla when
 the target is an eigenstate of `U` [WZYW23, arxiv_v3.tex:601-609,641]. -/
-theorem QPP.controlledOnZero_conjTranspose_apply_eigenstate_phaseVec
+lemma QPP.controlledOnZero_conjTranspose_apply_eigenstate_phaseVec
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n)))
@@ -258,7 +258,7 @@ theorem QPP.controlledOnZero_conjTranspose_apply_eigenstate_phaseVec
 `U|u⟩ = e^{iθ}|u⟩`, the controlled unitary acts as the QSP encoding gate at
 signal `θ`, up to the global phase `e^{iθ/2}`:
 `c-U (|ψ⟩ ⊗ |u⟩) = (e^{iθ/2} · R_Z(θ)|ψ⟩) ⊗ |u⟩` [WZYW23, arxiv_v3.tex:641]. -/
-theorem QPP.eigenstate_reductionVec
+lemma QPP.eigenstate_reductionVec
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n)))
@@ -272,7 +272,7 @@ theorem QPP.eigenstate_reductionVec
   rw [controlled_apply_eigenstate_phaseVec U u θ hu,
     phaseGateOp_applyVec_eq_smul_rotZStdOp]
 
-theorem QPP.eigenstate_reduction
+lemma QPP.eigenstate_reduction
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n)))
@@ -289,7 +289,7 @@ theorem QPP.eigenstate_reduction
 namespace QPP.Pair
 
 /-- Staged pair-level form of the controlled-signal eigenstate reduction. -/
-theorem eigenstate_reduction
+lemma eigenstate_reduction
     (U : UnitaryOperator (Qubits n)) (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp ((θ : ℝ) * Complex.I) • (u : HilbertVector (Qubits n)))

@@ -26,7 +26,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The structural avoidance package frames the complete actual centered-coordinate call. -/
-theorem centered_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma centered_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeTarget.Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : AvoidsTargetWrites other refs) :
     (LatticeTarget.centeredTargetStep refs store).1.read other = store.read other :=
@@ -34,7 +34,7 @@ theorem centered_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     avoids.1 avoids.2.1 avoids.2.2.1 avoids.2.2.2
 
 /-- Every actual read outside both original coordinate write sets retains its exact value. -/
-theorem loadTargetPointInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma loadTargetPointInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (first : AvoidsTargetWrites other refs.first) (second : AvoidsTargetWrites other refs.second) :
@@ -51,7 +51,7 @@ def sourcePoint (refs : Refs ctx width) (store : Store ctx) :
       (store.read refs.second.modulus).toNat, 0)
 
 /-- Actual coordinate outputs represent the original source point with the preserved third zero. -/
-theorem loadTargetPointInto_represents {model : ExecutionModel} [BitWord.Selected model]
+lemma loadTargetPointInto_represents {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx)
     (thirdZero : RawSignedRepresents
@@ -93,7 +93,7 @@ structure TargetPointOutcome (refs : Refs ctx width) (before after : Store ctx) 
       after.read other = before.read other
 
 /-- The actual two-coordinate call meets the original contract without initial scratch zeros. -/
-theorem loadTargetPointInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma loadTargetPointInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx)
     (thirdZero : RawSignedRepresents

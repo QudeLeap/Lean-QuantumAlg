@@ -40,7 +40,7 @@ open OrderFinding
 noncomputable section
 
 /-- Build the proof-only public input from a theorem-side semiprime model. -/
-theorem Input.ofSemiprimeModel {N : Nat}
+lemma Input.ofSemiprimeModel {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) : Input N where
   modulus_gt_one := model.modulus_gt_one
 
@@ -58,7 +58,7 @@ def sampledBase {N : Nat} (unit : (ZMod N)ˣ) : Nat :=
   (unit : ZMod N).val
 
 /-- Mathematical order-finding input associated with one internal unit. -/
-theorem sampledOrderInput {N : Nat} (input : Input N)
+lemma sampledOrderInput {N : Nat} (input : Input N)
     (unit : (ZMod N)ˣ) :
     OrderFinding.Input N (sampledBase unit) (orderOf unit) := by
   let _ : NeZero N := input.neZero
@@ -97,13 +97,13 @@ theorem sampledOrderInput {N : Nat} (input : Input N)
     simpa only [Nat.cast_pow, Nat.cast_one] using hcast
 
 /-- Runtime modular-exponentiation access for one proof-only sampled unit. -/
-theorem sampledOracleAccess {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
+lemma sampledOracleAccess {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
     ModExpOracleAccess N (sampledBase unit) (phaseBits N) (modulusBits N) where
   modulus_pos := input.modulus_pos
   register_fits := input.register_fits
 
 /-- Reconstructing the unit from its canonical representative is exact. -/
-@[simp] theorem unitOfCoprime_sampledBase_eq {N : Nat} (input : Input N)
+@[simp] lemma unitOfCoprime_sampledBase_eq {N : Nat} (input : Input N)
     (unit : (ZMod N)ˣ) :
     ZMod.unitOfCoprime (sampledBase unit)
         (sampledOrderInput input unit).coprime = unit := by
@@ -116,13 +116,13 @@ theorem sampledOracleAccess {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
 def preparedUnit {N : Nat} (unit : (ZMod N)ˣ) : RSA.PreparedResidue N :=
   RSA.prepareResidue N (some (sampledBase unit))
 
-@[simp] theorem preparedUnit_unit_eq {N : Nat} (input : Input N)
+@[simp] lemma preparedUnit_unit_eq {N : Nat} (input : Input N)
     (unit : (ZMod N)ˣ) : (preparedUnit unit).unit = unit := by
   unfold preparedUnit
   rw [RSA.prepareResidue_some_unit_of_coprime]
   exact unitOfCoprime_sampledBase_eq input unit
 
-@[simp] theorem preparedUnit_earlyFactor_eq_none {N : Nat}
+@[simp] lemma preparedUnit_earlyFactor_eq_none {N : Nat}
     (input : Input N) (unit : (ZMod N)ˣ) :
     (preparedUnit unit).earlyFactor = none := by
   unfold preparedUnit
@@ -136,7 +136,7 @@ def sampledBaseIndex {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
   exact ⟨sampledBase unit,
     lt_of_lt_of_le (ZMod.val_lt (unit : ZMod N)) input.register_fits⟩
 
-theorem sampledBaseIndex_eligible {N : Nat} (input : Input N)
+lemma sampledBaseIndex_eligible {N : Nat} (input : Input N)
     (unit : (ZMod N)ˣ) :
     RSA.ResidueEligible N (sampledBaseIndex input unit).val := by
   let _ : Fact (1 < N) := ⟨input.modulus_gt_one⟩
@@ -144,7 +144,7 @@ theorem sampledBaseIndex_eligible {N : Nat} (input : Input N)
     ZMod.val_lt (unit : ZMod N)⟩
 
 /-- Canonical representatives distinguish sampled units. -/
-theorem sampledBaseIndex_injective {N : Nat} (input : Input N) :
+lemma sampledBaseIndex_injective {N : Nat} (input : Input N) :
     Function.Injective (sampledBaseIndex input) := by
   let _ : NeZero N := input.neZero
   intro left right equal
@@ -159,7 +159,7 @@ def unitParameter {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
   .product (.unsignedWord (sampledBaseIndex input unit))
     (.product (.bit false) (CShape.wordOfNat (modulusBits N) 0))
 
-private theorem nativeSourcePMF_eq_of_base_eq
+private lemma nativeSourcePMF_eq_of_base_eq
     {N x y t width : Nat} (baseEq : x = y)
     (left : ModExpOracleAccess N x t width)
     (right : ModExpOracleAccess N y t width) :
@@ -169,7 +169,7 @@ private theorem nativeSourcePMF_eq_of_base_eq
   rfl
 
 /-- A sample selecting one fixed unit has that unit's native source Born law. -/
-theorem sampleOutcomePMF_eq_native_of_parameter_eq_unit
+lemma sampleOutcomePMF_eq_native_of_parameter_eq_unit
     {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) (unit : (ZMod N)ˣ)
     (parameterEq : parameterValue input sample = unitParameter input unit) :
@@ -187,7 +187,7 @@ theorem sampleOutcomePMF_eq_native_of_parameter_eq_unit
 
 /-- Euler's elementary size bound turns the source recovery mass for any
 sampled unit into the uniform `1 / (3n)` public-width floor. -/
-theorem orderFindingFloor_ge_one_over_three_bitlength {N : Nat}
+lemma orderFindingFloor_ge_one_over_three_bitlength {N : Nat}
     (input : Input N) (unit : (ZMod N)ˣ) :
     (1 : Real) / (3 * (modulusBits N : Real)) ≤
       orderFindingOutputSuccessLowerBound (orderOf unit) := by
@@ -223,7 +223,7 @@ theorem orderFindingFloor_ge_one_over_three_bitlength {N : Nat}
 
 /-- For a fixed good-unit branch, the source selected-family Born law reaches
 the source-certified recoverable-order event. -/
-theorem sampleOutcomePMF_recoverable_ge_of_parameter_eq_unit
+lemma sampleOutcomePMF_recoverable_ge_of_parameter_eq_unit
     {N : Nat} (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (odd : ¬ Even N) (sample : Fin (2 ^ residueSamplingBits N))
     (unit : (ZMod N)ˣ)
@@ -267,7 +267,7 @@ theorem sampleOutcomePMF_recoverable_ge_of_parameter_eq_unit
 
 /-- Fixed-sample recoverable-order mass in the public bit-length form used by
 the sampler/Born product bound. -/
-theorem sampleOutcomePMF_recoverable_ge_bitlength
+lemma sampleOutcomePMF_recoverable_ge_bitlength
     {N : Nat} (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (odd : ¬ Even N) (sample : Fin (2 ^ residueSamplingBits N))
     (unit : (ZMod N)ˣ)
@@ -290,7 +290,7 @@ noncomputable def goodResidueCandidates {N : Nat}
   model.goodEventUnits.image
     (sampledBaseIndex (Input.ofSemiprimeModel model))
 
-@[simp] theorem goodResidueCandidates_card {N : Nat}
+@[simp] lemma goodResidueCandidates_card {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) :
     (goodResidueCandidates model).card = model.goodEventUnits.card := by
   unfold goodResidueCandidates
@@ -306,7 +306,7 @@ noncomputable def firstProposalGoodBits {N : Nat}
         (0 : Fin (15 + 1)) ∈ goodResidueCandidates model
 
 /-- Exact cardinality of the first-good sampler cylinder. -/
-theorem firstProposalGoodBits_card {N : Nat}
+lemma firstProposalGoodBits_card {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) :
     (firstProposalGoodBits model).card =
       (goodResidueCandidates model).card *
@@ -325,7 +325,7 @@ theorem firstProposalGoodBits_card {N : Nat}
     (modulusBits N) 15 (goodResidueCandidates model)
 
 /-- Every first-good packed sample selects the represented good unit. -/
-theorem exists_goodUnit_of_mem_firstProposalGoodBits {N : Nat}
+lemma exists_goodUnit_of_mem_firstProposalGoodBits {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     {bits : Fin (2 ^ residueSamplingBits N)}
     (member : bits ∈ firstProposalGoodBits model) :
@@ -360,7 +360,7 @@ theorem exists_goodUnit_of_mem_firstProposalGoodBits {N : Nat}
 
 /-- On the counted cylinder, the semantic runtime parameter is the fixed
 unit parameter used by the Born proof. -/
-theorem parameterValue_eq_unitParameter_of_goodBits {N : Nat}
+lemma parameterValue_eq_unitParameter_of_goodBits {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     {bits : Fin (2 ^ residueSamplingBits N)}
     (member : bits ∈ firstProposalGoodBits model) :
@@ -379,7 +379,7 @@ theorem parameterValue_eq_unitParameter_of_goodBits {N : Nat}
   rfl
 
 /-- An odd semiprime is at most four times its Euler totient. -/
-theorem modulus_le_four_totient_of_not_even {N : Nat}
+lemma modulus_le_four_totient_of_not_even {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (odd : ¬ Even N) :
     N ≤ 4 * Nat.totient N := by
   obtain ⟨leftGt, rightGt⟩ := model.factors_gt_two_of_not_even odd
@@ -407,7 +407,7 @@ theorem modulus_le_four_totient_of_not_even {N : Nat}
     _ = 4 * Nat.totient N := by rw [totientEq]
 
 /-- The proposal-cardinality power of two is below twice the modulus. -/
-theorem registerCard_lt_twice_modulus {N : Nat} (input : Input N) :
+lemma registerCard_lt_twice_modulus {N : Nat} (input : Input N) :
     2 ^ modulusBits N < 2 * N := by
   have predBound := Nat.pow_pred_clog_lt_self
     (b := 2) (by norm_num : 1 < 2) input.modulus_gt_one
@@ -425,7 +425,7 @@ theorem registerCard_lt_twice_modulus {N : Nat} (input : Input N) :
     _ = 2 * N := Nat.mul_comm _ _
 
 /-- The counted good residues occupy at least one sixteenth of a word. -/
-theorem registerCard_le_sixteen_mul_goodResidueCandidates_card {N : Nat}
+lemma registerCard_le_sixteen_mul_goodResidueCandidates_card {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (odd : ¬ Even N) :
     2 ^ modulusBits N ≤ 16 * (goodResidueCandidates model).card := by
   let input : Input N := Input.ofSemiprimeModel model
@@ -444,7 +444,7 @@ theorem registerCard_le_sixteen_mul_goodResidueCandidates_card {N : Nat}
   omega
 
 /-- Cross-multiplied form of the complete sampler-cylinder lower bound. -/
-theorem samplerCard_le_sixteen_mul_firstProposalGoodBits_card {N : Nat}
+lemma samplerCard_le_sixteen_mul_firstProposalGoodBits_card {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (odd : ¬ Even N) :
     2 ^ residueSamplingBits N ≤
       16 * (firstProposalGoodBits model).card := by
@@ -475,7 +475,7 @@ theorem samplerCard_le_sixteen_mul_firstProposalGoodBits_card {N : Nat}
 
 /-- Under the actual internal uniform sampler, the complete first-good
 cylinder has probability at least one sixteenth. -/
-theorem firstProposalGoodMass_ge_oneSixteenth {N : Nat}
+lemma firstProposalGoodMass_ge_oneSixteenth {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (odd : ¬ Even N) :
     (1 : ENNReal) / 16 ≤
       (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).toOuterMeasure
@@ -528,7 +528,7 @@ def honestAttemptSuccessFloor (N : Nat) : ENNReal :=
 
 /-- The sampler/Born product is the rational reciprocal used by the retry
 budget. -/
-theorem honestAttemptSuccessFloor_eq_product {N : Nat} (input : Input N) :
+lemma honestAttemptSuccessFloor_eq_product {N : Nat} (input : Input N) :
     honestAttemptSuccessFloor N =
       ((1 : ENNReal) / 16) *
         ENNReal.ofReal ((1 : Real) / (3 * (modulusBits N : Real))) := by
@@ -549,7 +549,7 @@ theorem honestAttemptSuccessFloor_eq_product {N : Nat} (input : Input N) :
 /-- The source sample/Born joint law reaches a good sample
 and its matching recoverable Born outcome with the certified one-attempt
 floor. -/
-theorem honestAttemptSuccessFloor_le_goodOutcomeProbability {N : Nat}
+lemma honestAttemptSuccessFloor_le_goodOutcomeProbability {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (odd : ¬ Even N) :
     honestAttemptSuccessFloor N ≤
       (sourceOutcomePMF (Input.ofSemiprimeModel model)).toOuterMeasure
@@ -590,7 +590,7 @@ theorem honestAttemptSuccessFloor_le_goodOutcomeProbability {N : Nat}
   simpa [sourceOutcomePMF, input, branchFloor] using combined
 
 /-- The fixed source joint law amplifies through mathematical independent repetition. -/
-private theorem sourceRepeat_containsEvent_probability_ge {N : Nat}
+private lemma sourceRepeat_containsEvent_probability_ge {N : Nat}
     (input : Input N) (event : SourceOutcome N → Prop)
     (count : Nat) (attemptFloor target : ENNReal)
     (attemptBound : attemptFloor ≤
@@ -613,7 +613,7 @@ private theorem sourceRepeat_containsEvent_probability_ge {N : Nat}
       congr 1
 
 /-- Real value of the rational complement used by the retry calculation. -/
-theorem sourceFailureBudget_value {N : Nat} (input : Input N) :
+lemma sourceFailureBudget_value {N : Nat} (input : Input N) :
     (sourceFailureBudget N).value =
       1 - (1 : Real) / (sourceSuccessDenominator N : Real) := by
   have oneLe : 1 ≤ sourceSuccessDenominator N := by
@@ -630,7 +630,7 @@ theorem sourceFailureBudget_value {N : Nat} (input : Input N) :
   field_simp [denominatorNe]
 
 /-- The ENNReal complement of the source floor is the retry failure base. -/
-theorem one_sub_attemptFloor_eq_sourceFailure {N : Nat} (input : Input N) :
+lemma one_sub_attemptFloor_eq_sourceFailure {N : Nat} (input : Input N) :
     1 - honestAttemptSuccessFloor N =
       ENNReal.ofReal (sourceFailureBudget N).value := by
   rw [sourceFailureBudget_value input]
@@ -645,7 +645,7 @@ def retryPolynomialBound (N : Nat) (budget : FailureBudget) : Nat :=
     (sourceSuccessDenominator N *
       max (Nat.size budget.failureDenominator) 2)
 
-private theorem one_div_sourceSuccessDenominator_le_logRatio
+private lemma one_div_sourceSuccessDenominator_le_logRatio
     {N : Nat} (input : Input N) :
     (1 : Real) / sourceSuccessDenominator N ≤
       Real.log
@@ -674,7 +674,7 @@ private theorem one_div_sourceSuccessDenominator_le_logRatio
       Real.one_sub_inv_le_log_of_pos
         (div_pos denominatorPos predecessorPos)
 
-private theorem retryExponentFor_le_sourceDenominator_mul_size
+private lemma retryExponentFor_le_sourceDenominator_mul_size
     {N : Nat} (input : Input N) (budget : FailureBudget)
     (wellFormed : budget.WellFormed) :
     FailureBudget.retryExponentFor (sourceFailureBudget N) budget ≤
@@ -722,7 +722,7 @@ private theorem retryExponentFor_le_sourceDenominator_mul_size
 
 /-- The exact retry count is polynomial in the modulus width and encoded
 failure-budget denominator. -/
-theorem retryCount_le_retryPolynomialBound {N : Nat} (input : Input N)
+lemma retryCount_le_retryPolynomialBound {N : Nat} (input : Input N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed) :
     retryCount N budget ≤ retryPolynomialBound N budget := by
   let commonBound :=
@@ -754,7 +754,7 @@ theorem retryCount_le_retryPolynomialBound {N : Nat} (input : Input N)
 
 /-- The exact internally calibrated retry count has a logarithmic public
 resource bound in the requested failure probability. -/
-theorem retryCount_cast_le_97_mul_modulusBits_mul_max_one_log_one_div_value
+lemma retryCount_cast_le_97_mul_modulusBits_mul_max_one_log_one_div_value
     {N : Nat} (input : Input N) (budget : FailureBudget)
     (hbudget : budget.WellFormed) :
     (retryCount N budget : Real) ≤
@@ -912,7 +912,7 @@ theorem retryCount_cast_le_97_mul_modulusBits_mul_max_one_log_one_div_value
   simpa [M] using hfinal
 
 /-- The selected retry count meets the caller's failure target. -/
-theorem retryFailurePower_le_target {N : Nat} (input : Input N)
+lemma retryFailurePower_le_target {N : Nat} (input : Input N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed) :
     (ENNReal.ofReal (sourceFailureBudget N).value) ^ retryCount N budget ≤
       ENNReal.ofReal budget.value := by
@@ -922,7 +922,7 @@ theorem retryFailurePower_le_target {N : Nat} (input : Input N)
   unfold retryCount
   exact le_rfl
 
-theorem successThreshold_le_one_sub_retryFailurePower {N : Nat}
+lemma successThreshold_le_one_sub_retryFailurePower {N : Nat}
     (input : Input N) (budget : FailureBudget)
     (wellFormed : budget.WellFormed) :
     FailureBudget.successThreshold budget ≤
@@ -937,7 +937,7 @@ theorem successThreshold_le_one_sub_retryFailurePower {N : Nat}
 /-- At the caller-calibrated count, the independent source Shor transcript
 contains a good sample/recoverable-measurement pair at the requested success
 threshold. -/
-theorem repeatDistribution_goodOutcome_probability_ge {N : Nat}
+lemma repeatDistribution_goodOutcome_probability_ge {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (odd : ¬ Even N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed) :
     FailureBudget.successThreshold budget ≤
@@ -965,7 +965,7 @@ def SuccessfulSamples {N : Nat}
   else PMF.ContainsEvent (GoodAttemptOutcome model) samples.toList
 
 /-- Independent source repetition reaches the recovery event at the requested target. -/
-theorem repeatDistribution_successfulSamples_probability_ge {N : Nat}
+lemma repeatDistribution_successfulSamples_probability_ge {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (budget : FailureBudget) (wellFormed : budget.WellFormed) :
     FailureBudget.successThreshold budget ≤

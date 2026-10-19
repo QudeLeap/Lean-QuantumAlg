@@ -37,7 +37,7 @@ def coordinateValue (width : Nat) (coordinate : MeasuredPointAddition.Coordinate
   | .x => ProductReadout.input width state
   | .y => ProductReadout.numerator width state
 
-private theorem coordinate_wire (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+private lemma coordinate_wire (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (index : Fin width) :
     ((coordinateWord width coordinate).bit index).wire.val =
       coordinateStart width coordinate + index.val := by
@@ -45,7 +45,7 @@ private theorem coordinate_wire (width : Nat) (coordinate : MeasuredPointAdditio
   · exact FramePorts.input_wire width index
   · exact FramePorts.numerator_wire width index
 
-private theorem coordinate_read (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+private lemma coordinate_read (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (state : ProductPlacement.Frame width) (index : Fin width) :
     ((coordinateWord width coordinate).bit index).get state =
       (coordinateValue width coordinate state).val.testBit index.rev.val := by
@@ -68,7 +68,7 @@ private def retainedBit (width : Nat) (index : Fin (retainedWidth width)) :
   prodRightBit (MAU.Multiplication.Accumulate.Gidney.encoding width)
     (finIdentity (retainedWidth width)) (finIdentityBit (retainedWidth width) index)
 
-private theorem placed_read (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+private lemma placed_read (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (state : ProductPlacement.Frame width) (source : EncodedBit (sourceEncoding width))
     (target : EncodedBit (ProductPlacement.frameEncoding width))
     (same : wires width coordinate source.wire = target.wire) :
@@ -79,7 +79,7 @@ private theorem placed_read (width : Nat) (coordinate : MeasuredPointAddition.Co
       ((ProductPlacement.frameEncoding width).encode state).val.testBit wire.rev.val) same)
 
 /-- The first grouped native word is exactly the selected original X or Y word. -/
-theorem grouping_coordinate (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+lemma grouping_coordinate (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (state : ProductPlacement.Frame width) :
     ((placement width coordinate).grouping state).1.1 = coordinateValue width coordinate state := by
   apply ProductReadout.word_ext
@@ -97,7 +97,7 @@ theorem grouping_coordinate (width : Nat) (coordinate : MeasuredPointAddition.Co
     (actual.trans (coordinate_read width coordinate state index))
 
 /-- The second grouped native word is precisely the resident A port. -/
-theorem grouping_auxiliary (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+lemma grouping_auxiliary (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (state : ProductPlacement.Frame width) :
     ((placement width coordinate).grouping state).1.2 = ProductReadout.accumulator width state := by
   apply ProductReadout.word_ext
@@ -127,14 +127,14 @@ def preparedUpdate (modulus : Nat) (coordinate : MeasuredPointAddition.Coordinat
   | .y => preparedFrame modulus x next
 
 /-- Actual preparation initializes the same A port to zero for arbitrary original coordinates. -/
-theorem grouping_prepared_auxiliary (modulus : Nat)
+lemma grouping_prepared_auxiliary (modulus : Nat)
     (coordinate : MeasuredPointAddition.Coordinate) (x y : Fin (2 ^ modulus.size)) :
     ((placement modulus.size coordinate).grouping (preparedFrame modulus x y)).1.2 = 0 := by
   rw [grouping_auxiliary]
   exact InPlaceArithmetic.initial_accumulator modulus x y
 
 /-- The actual grouped original coordinate is the full supplied input word. -/
-theorem grouping_prepared_coordinate (modulus : Nat)
+lemma grouping_prepared_coordinate (modulus : Nat)
     (coordinate : MeasuredPointAddition.Coordinate) (x y : Fin (2 ^ modulus.size)) :
     ((placement modulus.size coordinate).grouping (preparedFrame modulus x y)).1.1 =
       match coordinate with | .x => x | .y => y := by

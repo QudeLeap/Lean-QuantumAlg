@@ -37,49 +37,49 @@ open QuantumAlg.ZeroReflection.Workspace
 open QuantumAlg.Execution
 
 /-- Zero preparation charges every actually allocated source and helper system. -/
-def preparationCode {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Circuit (model marked) pre (preparedContext (totalQubits n k)) :=
+def preparationCode (n : Nat) (k : Nat) :
+    Circuit (model n) pre (preparedContext (totalQubits n k)) :=
   .prepareZero pre ⟨1⟩ (runtimeLayout (totalQubits n k)) preparationFresh
     (preparationDisjoint (totalQubits n k))
 
 /-- Retain the packed result and all independently written binary measurement cells. -/
-def allocationCode {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Circuit (model marked) (preparedContext (totalQubits n k)) (post n k) :=
-  .seq (.retain (model := model marked) (preparedContext (totalQubits n k))
+def allocationCode (n : Nat) (k : Nat) :
+    Circuit (model n) (preparedContext (totalQubits n k)) (post n k) :=
+  .seq (.retain (model := model n) (preparedContext (totalQubits n k))
     ⟨2⟩ (.bits n) (resultFresh n k))
-    (MeasurementCells.allocate (model := model marked) (resultContext n k) 2 n)
+    (MeasurementCells.allocate (model := model n) (resultContext n k) 2 n)
 
 /-- Execute the actual native search word before any result measurement. -/
-def beforeMeasurement {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Circuit (model marked) pre (post n k) :=
-  .seq (preparationCode marked k)
-    (.seq (.unitary (program marked k)) (allocationCode marked k))
+def beforeMeasurement (n : Nat) (k : Nat) :
+    Circuit (model n) pre (post n k) :=
+  .seq (preparationCode n k)
+    (.seq (.unitary (program n k)) (allocationCode n k))
 
 /-- Record all source Z outcomes, then pack those actual values with a declared native operation. -/
-def readoutCode {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Circuit (model marked) (post n k) (post n k) :=
+def readoutCode (n : Nat) (k : Nat) :
+    Circuit (model n) (post n k) (post n k) :=
   .seq (Circuit.measurementSequence (readouts n k))
     (.classical (BitWord.application (packing n k)))
 
 /-- One native complete program at every width and iteration count. -/
-def code {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    Circuit (model marked) pre (post n k) :=
-  .seq (beforeMeasurement marked k) (readoutCode marked k)
+def code (n : Nat) (k : Nat) :
+    Circuit (model n) pre (post n k) :=
+  .seq (beforeMeasurement n k) (readoutCode n k)
 
 /-- Output retains every live cell and wire and observes the actual packed result. -/
-def run {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    AlgorithmRun (model marked) pre (post n k) (.bits n) where
-  code := code marked k
+def run (n : Nat) (k : Nat) :
+    AlgorithmRun (model n) pre (post n k) (.bits n) where
+  code := code n k
   output := Output.all (post n k) (.read (.storage (resultRef n k).toCStorageRef))
 
 /-- The result is the value in the actual retained bit-string cell. -/
-theorem run_result {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (record : (run marked k).Record) :
-    (run marked k).result record = record.1.read (.storage (resultRef n k).toCStorageRef) := rfl
+lemma run_result (n : Nat) (k : Nat)
+    (record : (run n k).Record) :
+    (run n k).result record = record.1.read (.storage (resultRef n k).toCStorageRef) := rfl
 
 /-- Every live storage key is retained in the explicit complete output. -/
-theorem run_output_listing {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (run marked k).output.listing = (post n k).keys := rfl
+lemma run_output_listing (n : Nat) (k : Nat) :
+    (run n k).output.listing = (post n k).keys := rfl
 
 end
 

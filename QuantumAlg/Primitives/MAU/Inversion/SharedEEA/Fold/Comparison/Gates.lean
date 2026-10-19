@@ -28,7 +28,7 @@ def packedPlacement (width : Nat) : FullPlacement (packedEncoding width) (encodi
   FullPlacement.ofEqualWidth _ _ (packedEquiv width) (packed_width width)
     (packedIndex_encode width)
 
-private theorem inserted_event {Left Middle Right : Type}
+private lemma inserted_event {Left Middle Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     (middle : BinaryLabelEncoding Middle) (gate : GateSpec (BinaryLabelEncoding.prod left right)) :
     (GateSpec.insertMiddle middle gate).event .empty = gate.event .empty := by
@@ -44,7 +44,7 @@ def placeGates (width : Nat)
         (packedPlacement width).placeGate
 
 /-- The complete emitted word acts through the same original full semantic grouping. -/
-theorem foldComparison_placeGates_step (width : Nat)
+lemma foldComparison_placeGates_step (width : Nat)
     (instructions : List (GateSpec (Addition.Gidney.encoding (width + 3))))
     (state : Registers width) :
     stepList (placeGates width instructions) state =
@@ -62,7 +62,7 @@ theorem foldComparison_placeGates_step (width : Nat)
   rfl
 
 /-- The literal placement preserves the chronological native event word without added swaps. -/
-theorem foldComparison_placeGates_trace (width : Nat)
+lemma foldComparison_placeGates_trace (width : Nat)
     (instructions : List (GateSpec (Addition.Gidney.encoding (width + 3)))) :
     (placeGates width instructions).map (event .empty) = instructions.map (event .empty) := by
   unfold placeGates

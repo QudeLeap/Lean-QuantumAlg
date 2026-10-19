@@ -35,7 +35,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
 -- Specializing the three-stage nearest-plane bound elaborates its dependent path.
 set_option maxRecDepth 4096 in
 /-- Every actual saved-target path satisfies the full independent native coordinate budget. -/
-theorem pairToNearestPlaneSavedTargetInto_pool_le (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_pool_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     (pairToNearestPlaneSavedTargetInto refs).resourcePool path ≤ eventEnvelope N := by
   have source : (LatticeWideLllMachine.pairToLllInto refs.pairNearest.wide).resourcePool path.1 ≤

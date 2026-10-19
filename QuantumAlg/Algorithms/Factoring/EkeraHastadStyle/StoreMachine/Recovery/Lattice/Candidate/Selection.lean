@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -68,13 +69,14 @@ def selectorStep (refs : Refs ctx width) (store : Store ctx) :
   (selected.1, (eligible.2, selected.2))
 
 /-- Both actual Boolean operations retain the complete incoming quantum-reference blocks. -/
-theorem candidateEligibilityInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma candidateEligibilityInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidateEligibilityInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidateEligibilityInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := eligibilityStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (intermediateOp refs))
     (BitWord.instruction (execution := model) (eligibleOp refs))
     (fun before =>
@@ -84,20 +86,24 @@ theorem candidateEligibilityInto_execute (refs : Refs ctx width) (Reference : Re
     (fun before =>
       let actual := BitWord.instructionStep (execution := model) (eligibleOp refs) before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual closing suffix follows its stored three-way predicate and persistent accepted
 latch. -/
-theorem candidateSelectorInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma candidateSelectorInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidateSelectorInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidateSelectorInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := selectorStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (candidateEligibilityInto refs) (selectionInto refs)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (candidateEligibilityInto refs) (selectionInto refs)
     (fun before =>
       let actual := eligibilityStep refs before.1
       ((actual.1, before.2), actual.2))

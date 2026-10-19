@@ -35,7 +35,7 @@ def atMostOneOfSixteenFailure (q : Real) : Real :=
 /-- The at-most-one failure polynomial is monotone on the probability interval
 `[0,1]`.  Its derivative is `240 q^14 (1-q)`, so increasing the one-trial
 failure probability can only increase the batch failure probability. -/
-theorem atMostOneOfSixteenFailure_monotoneOn :
+lemma atMostOneOfSixteenFailure_monotoneOn :
     MonotoneOn atMostOneOfSixteenFailure (Set.Icc 0 1) := by
   have hderiv (q : Real) :
       HasDerivAt atMostOneOfSixteenFailure
@@ -61,14 +61,14 @@ theorem atMostOneOfSixteenFailure_monotoneOn :
 
 /-- If one-trial failure is at most `7/8`, the exact at-most-one failure of a
 sixteen-sample batch is bounded by its value at `7/8`. -/
-theorem atMostOneOfSixteenFailure_le_atSevenEighths
+lemma atMostOneOfSixteenFailure_le_atSevenEighths
     {q : Real} (hq0 : 0 ≤ q) (hq : q ≤ 7 / 8) :
     atMostOneOfSixteenFailure q ≤
       atMostOneOfSixteenFailure (7 / 8) := by
   exact atMostOneOfSixteenFailure_monotoneOn
     ⟨hq0, hq.trans (by norm_num)⟩ ⟨by norm_num, by norm_num⟩ hq
 
-theorem atMostOneOfSixteenFailure_atSevenEighths :
+lemma atMostOneOfSixteenFailure_atSevenEighths :
     atMostOneOfSixteenFailure (7 / 8) =
       (109193914728689 / 281474976710656 : Real) := by
   norm_num [atMostOneOfSixteenFailure]
@@ -78,7 +78,7 @@ theorem atMostOneOfSixteenFailure_atSevenEighths :
 def atLeastTwoOfSixteenAtOneEighth : ℚ :=
   1 - (7 / 8) ^ 16 - 16 * (1 / 8) * (7 / 8) ^ 15
 
-theorem atLeastTwoOfSixteenAtOneEighth_eq :
+lemma atLeastTwoOfSixteenAtOneEighth_eq :
     atLeastTwoOfSixteenAtOneEighth =
       172281061981967 / 281474976710656 := by
   norm_num [atLeastTwoOfSixteenAtOneEighth]
@@ -88,12 +88,12 @@ budget from the probability of obtaining at least two good samples. -/
 def sixteenSampleBatchFloor : ℚ :=
   atLeastTwoOfSixteenAtOneEighth - 1 / 8
 
-theorem sixteenSampleBatchFloor_eq :
+lemma sixteenSampleBatchFloor_eq :
     sixteenSampleBatchFloor =
       137096689893135 / 281474976710656 := by
   norm_num [sixteenSampleBatchFloor, atLeastTwoOfSixteenAtOneEighth]
 
-theorem sixteenSampleBatchFloor_pos : 0 < sixteenSampleBatchFloor := by
+lemma sixteenSampleBatchFloor_pos : 0 < sixteenSampleBatchFloor := by
   norm_num [sixteenSampleBatchFloor, atLeastTwoOfSixteenAtOneEighth]
 
 end BinomialTail

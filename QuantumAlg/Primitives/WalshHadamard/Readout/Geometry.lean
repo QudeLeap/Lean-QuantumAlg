@@ -39,7 +39,7 @@ def layout (n : ℕ) : QubitLayout (n + 1) where
   physical_idx := fun index => index.val
   physical_idx_injective := fun _ _ h => Fin.ext h
 
-@[simp] theorem layout_systemIdx (n : ℕ) :
+@[simp] lemma layout_systemIdx (n : ℕ) :
     (layout n).systemIdx = List.range (n + 1) := by
   simp [layout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
   simpa [Nat.succ_eq_add_one] using
@@ -62,7 +62,7 @@ def measurementOutcome (n : ℕ) (value : Fin (2 ^ n)) :
     TerminalZMeasure.Outcome n :=
   fun outputIndex => value.val.testBit (n - 1 - outputIndex.val)
 
-theorem measurementOutcome_injective (n : ℕ) :
+lemma measurementOutcome_injective (n : ℕ) :
     Function.Injective (measurementOutcome n) := by
   intro left right h
   apply Fin.ext
@@ -81,7 +81,7 @@ theorem measurementOutcome_injective (n : ℕ) :
     rw [Nat.testBit_lt_two_pow (left.isLt.trans_le hpow),
       Nat.testBit_lt_two_pow (right.isLt.trans_le hpow)]
 
-@[simp] theorem measurement_readout_prod (value : Fin (2 ^ n))
+@[simp] lemma measurement_readout_prod (value : Fin (2 ^ n))
     (target : Fin (2 ^ 1)) :
     (measurement n).readout (prodEquiv (value, target)) =
       measurementOutcome n value := by
@@ -96,7 +96,7 @@ theorem measurementOutcome_injective (n : ℕ) :
   exact prodEquiv_testBit_left value target
     ⟨n - 1 - outputIndex.val, by omega⟩
 
-theorem measurement_readout_eq_outcome_iff
+lemma measurement_readout_eq_outcome_iff
     (basis : Fin (2 ^ (n + 1))) (value : Fin (2 ^ n)) :
     (measurement n).readout basis = measurementOutcome n value ↔
       (prodEquiv.symm basis).1 = value := by
@@ -118,7 +118,7 @@ def evolvedState (function : Oracle n) : QubitLayout.State (layout n) where
   system_idx_eq := rfl
 
 /-- The Born observation uses exactly the original complete final vector. -/
-@[simp] theorem evolvedState_normalized (function : Oracle n) :
+@[simp] lemma evolvedState_normalized (function : Oracle n) :
     (evolvedState function).normalized = WalshHadamard.finalJointState function := rfl
 
 end

@@ -36,7 +36,7 @@ public structure QuantumWire where
 deriving DecidableEq
 
 /-- Two physical wire records are equal when both recorded fields agree. -/
-@[ext] public theorem QuantumWire.ext {left right : QuantumWire}
+@[ext] public lemma QuantumWire.ext {left right : QuantumWire}
     (identity : left.identity = right.identity)
     (dimension : left.dimension = right.dimension) : left = right := by
   cases left
@@ -54,7 +54,7 @@ namespace QuantumLayout
 
 /-- Two layouts with the same ordered physical wires are equal; the
 injectivity certificates are propositions and carry no additional data. -/
-public theorem eq_of_wire_eq {systemCount : Nat}
+public lemma eq_of_wire_eq {systemCount : Nat}
     {left right : QuantumLayout systemCount}
     (same : left.wire = right.wire) : left = right := by
   cases left with
@@ -83,25 +83,25 @@ public def dimensions {systemCount : Nat} (layout : QuantumLayout systemCount) :
     List ℕ+ :=
   List.ofFn fun index => (layout.wire index).dimension
 
-@[simp] public theorem wires_length {systemCount : Nat}
+@[simp] public lemma wires_length {systemCount : Nat}
     (layout : QuantumLayout systemCount) : layout.wires.length = systemCount := by
   simp [wires]
 
-@[simp] public theorem identities_length {systemCount : Nat}
+@[simp] public lemma identities_length {systemCount : Nat}
     (layout : QuantumLayout systemCount) : layout.identities.length = systemCount := by
   simp [identities]
 
-@[simp] public theorem dimensions_length {systemCount : Nat}
+@[simp] public lemma dimensions_length {systemCount : Nat}
     (layout : QuantumLayout systemCount) : layout.dimensions.length = systemCount := by
   simp [dimensions]
 
-public theorem identities_nodup {systemCount : Nat} (layout : QuantumLayout systemCount) :
+public lemma identities_nodup {systemCount : Nat} (layout : QuantumLayout systemCount) :
     layout.identities.Nodup :=
   List.nodup_ofFn.mpr layout.identityInjective
 
 /-- Equality of physical identities forces equality of logical positions,
 without any assumption on their dimensions. -/
-public theorem position_eq_of_identity_eq {systemCount : Nat}
+public lemma position_eq_of_identity_eq {systemCount : Nat}
     (layout : QuantumLayout systemCount) {left right : Fin systemCount}
     (sameIdentity : (layout.wire left).identity = (layout.wire right).identity) :
     left = right :=
@@ -118,7 +118,7 @@ public def ofWires (wireList : List QuantumWire)
     rw [List.ofFn_comp', List.ofFn_get]
     exact distinct
 
-@[simp] public theorem wires_ofWires (wireList : List QuantumWire)
+@[simp] public lemma wires_ofWires (wireList : List QuantumWire)
     (distinct : (wireList.map QuantumWire.identity).Nodup) :
     (ofWires wireList distinct).wires = wireList :=
   List.ofFn_get wireList
@@ -131,13 +131,13 @@ public def tryOfWires (wireList : List QuantumWire) : Option (QuantumLayout wire
   else none
 
 /-- The checked constructor rejects exactly lists with duplicate identities. -/
-public theorem tryOfWires_eq_none_iff (wireList : List QuantumWire) :
+public lemma tryOfWires_eq_none_iff (wireList : List QuantumWire) :
     tryOfWires wireList = none ↔ ¬(wireList.map QuantumWire.identity).Nodup := by
   by_cases distinct : (wireList.map QuantumWire.identity).Nodup <;>
     simp [tryOfWires, distinct]
 
 /-- Assigning two dimensions to one identity does not create two physical wires. -/
-public theorem duplicateIdentity_rejected (identity : Nat) (leftDimension rightDimension : ℕ+) :
+public lemma duplicateIdentity_rejected (identity : Nat) (leftDimension rightDimension : ℕ+) :
     tryOfWires [⟨identity, leftDimension⟩, ⟨identity, rightDimension⟩] = none := by
   simp [tryOfWires]
 
@@ -163,7 +163,7 @@ public def basisCardinality {systemCount : Nat} (layout : QuantumLayout systemCo
   ∏ index, ((layout.wire index).dimension : Nat)
 
 /-- The register's actual finite basis has the dimension derived from its wires. -/
-@[simp] public theorem register_card {systemCount : Nat}
+@[simp] public lemma register_card {systemCount : Nat}
     (layout : QuantumLayout systemCount) :
     Fintype.card layout.register.Index = layout.basisCardinality := by
   calc
@@ -188,14 +188,14 @@ public def uniform (systemCount : Nat) (dimension : ℕ+)
   identityInjective := distinct
 
 /-- A uniform register's basis size is the appropriate power of its local dimension. -/
-@[simp] public theorem basisCardinality_uniform (systemCount : Nat) (dimension : ℕ+)
+@[simp] public lemma basisCardinality_uniform (systemCount : Nat) (dimension : ℕ+)
     (identity : Fin systemCount → Nat) (distinct : Function.Injective identity) :
     (uniform systemCount dimension identity distinct).basisCardinality =
       (dimension : Nat) ^ systemCount := by
   simp [basisCardinality, uniform]
 
 /-- Uniform layouts count their actual systems only at their declared dimension. -/
-public theorem dimensionCount_uniform (systemCount : Nat) (dimension query : ℕ+)
+public lemma dimensionCount_uniform (systemCount : Nat) (dimension query : ℕ+)
     (identity : Fin systemCount → Nat) (distinct : Function.Injective identity) :
     (uniform systemCount dimension identity distinct).dimensionCount query =
       if dimension = query then systemCount else 0 := by
@@ -215,13 +215,13 @@ public def append {leftCount rightCount : Nat}
     simpa only [identities, List.map_ofFn, Function.comp_def] using
       left.identities_nodup.append right.identities_nodup disjoint
 
-@[simp] public theorem wires_append {leftCount rightCount : Nat}
+@[simp] public lemma wires_append {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities) :
     (append left right disjoint).wires = left.wires ++ right.wires := by
   simp [wires, append, List.ofFn_fin_append]
 
-@[simp] public theorem dimensions_append {leftCount rightCount : Nat}
+@[simp] public lemma dimensions_append {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities) :
     (append left right disjoint).dimensions = left.dimensions ++ right.dimensions := by
@@ -230,7 +230,7 @@ public def append {leftCount rightCount : Nat}
   rfl
 
 /-- Each dimension's live-system count adds across disjoint layouts. -/
-@[simp] public theorem dimensionCount_append {leftCount rightCount : Nat}
+@[simp] public lemma dimensionCount_append {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities) (dimension : ℕ+) :
     (append left right disjoint).dimensionCount dimension =

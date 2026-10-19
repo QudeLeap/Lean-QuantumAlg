@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Algorithms.QPE.Basic
 public import QuantumAlg.Algorithms.QPE.Endpoint
+public import QuantumAlg.Algorithms.QPE.Endpoint.Results
 
 /-!
 # Quantum phase estimation

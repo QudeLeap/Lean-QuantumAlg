@@ -28,18 +28,20 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 private def carryPlacementWire (low extra index : Nat) : Nat :=
   if index < low then (low - 2) + extra + index
   else if index = low then (low - 2) + extra + low
   else index - (low + 1)
 
-private theorem carryPlacementWire_range (low extra index : Nat)
+private lemma carryPlacementWire_range (low extra index : Nat)
     (within : index < low + (low - 2 + 1)) :
     carryPlacementWire low extra index < low + ((low - 2) + extra) + 1 := by
   unfold carryPlacementWire
   split_ifs <;> omega
 
-private theorem carryPlacementWire_injective_on (low extra : Nat)
+private lemma carryPlacementWire_injective_on (low extra : Nat)
     {left right : Nat}
     (leftWithin : left < low + (low - 2 + 1))
     (rightWithin : right < low + (low - 2 + 1))
@@ -63,7 +65,7 @@ def carryPlacementPosition (low extra : Nat) :
     apply carryPlacementWire_injective_on low extra left.isLt right.isLt
     exact congrArg Fin.val same
 
-private theorem carryPlacementDimensions (low extra : Nat)
+private lemma carryPlacementDimensions (low extra : Nat)
     (index : Fin (carryEncoding low).width) :
     ((QubitLayout.canonical (carryEncoding low).width).toQuantum.wire index).dimension =
       ((QubitLayout.canonical
@@ -86,7 +88,7 @@ private def bridgeBasis (low extra : Nat) (input : Fin (2 ^ low))
       ((bridgeEncoding low ((low - 2) + extra)).encode
         ((input, prodEquiv (borrowed, unused)), dirty))
 
-private theorem carryWorkBasis_dirty (low : Nat)
+private lemma carryWorkBasis_dirty (low : Nat)
     (borrowed : Fin (2 ^ (low - 2))) (dirty : Bool) :
     (BinaryBasis.bigEndianEquiv (low - 2 + 1)).symm
         (carryWorkEquiv low (borrowed, dirty)) ⟨0, by omega⟩ =
@@ -97,7 +99,7 @@ private theorem carryWorkBasis_dirty (low : Nat)
     simp
   rw [position, bit]
 
-private theorem carryWorkBasis_borrowed (low : Nat)
+private lemma carryWorkBasis_borrowed (low : Nat)
     (borrowed : Fin (2 ^ (low - 2))) (dirty : Bool) (index : Fin (low - 2)) :
     (BinaryBasis.bigEndianEquiv (low - 2 + 1)).symm
         (carryWorkEquiv low (borrowed, dirty)) ⟨1 + index.val, by omega⟩ =
@@ -110,7 +112,7 @@ private theorem carryWorkBasis_borrowed (low : Nat)
     omega
   rw [position, hrsCarryWorkEquiv_borrowed low borrowed dirty index.rev]
 
-private theorem carryBasis_input (low : Nat) (input : Fin (2 ^ low))
+private lemma carryBasis_input (low : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (dirty : Bool) (index : Fin low) :
     carryBasis low input borrowed dirty
         (Fin.castAdd (low - 2 + 1) index) =
@@ -121,7 +123,7 @@ private theorem carryBasis_input (low : Nat) (input : Fin (2 ^ low))
   exact BinaryBasis.bigEndianEquiv_prod_left input
     (carryWorkEquiv low (borrowed, dirty)) index
 
-private theorem carryBasis_dirty (low : Nat) (input : Fin (2 ^ low))
+private lemma carryBasis_dirty (low : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (dirty : Bool) :
     carryBasis low input borrowed dirty ⟨low, by
       change low < low + (low - 2 + 1)
@@ -138,7 +140,7 @@ private theorem carryBasis_dirty (low : Nat) (input : Fin (2 ^ low))
     rfl]
   exact outer.trans (carryWorkBasis_dirty low borrowed dirty)
 
-private theorem carryBasis_borrowed (low : Nat) (input : Fin (2 ^ low))
+private lemma carryBasis_borrowed (low : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (dirty : Bool) (index : Fin (low - 2)) :
     carryBasis low input borrowed dirty ⟨low + 1 + index.val, by
       change low + 1 + index.val < low + (low - 2 + 1)
@@ -158,7 +160,7 @@ private theorem carryBasis_borrowed (low : Nat) (input : Fin (2 ^ low))
     omega]
   exact outer.trans (carryWorkBasis_borrowed low borrowed dirty index)
 
-private theorem bridgeBasis_input (low extra : Nat) (input : Fin (2 ^ low))
+private lemma bridgeBasis_input (low extra : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (unused : Fin (2 ^ extra))
     (dirty : Bool) (index : Fin low) :
     bridgeBasis low extra input borrowed unused dirty
@@ -183,7 +185,7 @@ private theorem bridgeBasis_input (low extra : Nat) (input : Fin (2 ^ low))
       rfl]
   exact outer.trans inner
 
-private theorem bridgeBasis_dirty (low extra : Nat) (input : Fin (2 ^ low))
+private lemma bridgeBasis_dirty (low extra : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (unused : Fin (2 ^ extra)) (dirty : Bool) :
     bridgeBasis low extra input borrowed unused dirty
         ⟨(low - 2) + extra + low, by rw [hrsBridgeEncoding_width]; omega⟩ =
@@ -203,7 +205,7 @@ private theorem bridgeBasis_dirty (low extra : Nat) (input : Fin (2 ^ low))
       rfl]
   exact outer.trans (by cases dirty <;> rfl)
 
-private theorem bridgeBasis_borrowed (low extra : Nat) (input : Fin (2 ^ low))
+private lemma bridgeBasis_borrowed (low extra : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (unused : Fin (2 ^ extra))
     (dirty : Bool) (index : Fin (low - 2)) :
     bridgeBasis low extra input borrowed unused dirty ⟨index.val, by
@@ -230,7 +232,7 @@ private theorem bridgeBasis_borrowed (low extra : Nat) (input : Fin (2 ^ low))
       rfl]
   exact outer.trans (middle.trans inner)
 
-private theorem carryPlacement_selected (low extra : Nat) (input : Fin (2 ^ low))
+private lemma carryPlacement_selected (low extra : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (unused : Fin (2 ^ extra)) (dirty : Bool) :
     UnitaryCircuit.selectedInput
         (QubitLayout.canonical (carryEncoding low).width).toQuantum
@@ -369,7 +371,7 @@ private def carryFullPosition (low extra : Nat) :
     unfold carryPlacementWire at values
     split_ifs at values <;> omega
 
-private theorem carryFullPosition_surjective (low extra : Nat) :
+private lemma carryFullPosition_surjective (low extra : Nat) :
     Function.Surjective (carryFullPosition low extra) := by
   intro target
   have bound : target.val < low + ((low - 2) + extra) + 1 := by
@@ -397,7 +399,7 @@ private theorem carryFullPosition_surjective (low extra : Nat) :
       unfold carryPlacementWire
       split_ifs <;> omega
 
-private theorem bridgeBasis_unused (low extra : Nat) (input : Fin (2 ^ low))
+private lemma bridgeBasis_unused (low extra : Nat) (input : Fin (2 ^ low))
     (borrowed : Fin (2 ^ (low - 2))) (unused : Fin (2 ^ extra))
     (dirty : Bool) (index : Fin extra) :
     bridgeBasis low extra input borrowed unused dirty
@@ -415,7 +417,7 @@ private theorem bridgeBasis_unused (low extra : Nat) (input : Fin (2 ^ low))
         (Fin.natAdd (low - 2) index)).trans
           (BinaryBasis.bigEndianEquiv_prod_right borrowed unused index))
 
-private theorem carryFull_coordinates (low extra : Nat)
+private lemma carryFull_coordinates (low extra : Nat)
     (state : BridgeRegisters (Fin (2 ^ low)) ((low - 2) + extra))
     (index : Fin (carryFullEncoding low extra).width) :
     (BinaryBasis.bigEndianEquiv (bridgeEncoding low ((low - 2) + extra)).width).symm
@@ -480,7 +482,7 @@ def placedCarryGates (low extra : Nat) (constant : Fin (2 ^ low)) :
       (carryFullPlacement low extra).placeGate
 
 /-- The complete literal list restores both words and toggles only the original dirty carry bit. -/
-theorem hrsPlacedCarryGates_step (low extra : Nat) (constant : Fin (2 ^ low))
+lemma hrsPlacedCarryGates_step (low extra : Nat) (constant : Fin (2 ^ low))
     (state : BridgeRegisters (Fin (2 ^ low)) ((low - 2) + extra)) :
     EncodedBit.GateSpec.stepList (placedCarryGates low extra constant) state =
       bridgeCarryStep (fun input : Fin (2 ^ low) =>
@@ -501,7 +503,7 @@ theorem hrsPlacedCarryGates_step (low extra : Nat) (constant : Fin (2 ^ low))
   rfl
 
 /-- The placed list retains every native coordinate of the actual carry source. -/
-theorem hrsPlacedCarryGates_events (low extra : Nat) (constant : Fin (2 ^ low))
+lemma hrsPlacedCarryGates_events (low extra : Nat) (constant : Fin (2 ^ low))
     (oracles : OracleModel) :
     (placedCarryGates low extra constant).map (EncodedBit.GateSpec.event oracles) =
       (carryGates low constant).map (EncodedBit.GateSpec.event oracles) := by
@@ -517,16 +519,16 @@ def placedCarryProgram (low extra : Nat) (constant : Fin (2 ^ low)) :
     (placedCarryGates low extra constant)
 
 /-- The placed carry toggles the final dirty bit and restores the entire low and high words. -/
-theorem hrsPlacedCarry_realizes (low extra : Nat) (constant : Fin (2 ^ low)) :
+lemma hrsPlacedCarry_realizes (low extra : Nat) (constant : Fin (2 ^ low)) :
     UnitaryCircuit.Realizes (bridgeEncoding low ((low - 2) + extra))
-      (placedCarryProgram low extra constant)
+      (placedCarryProgram low extra constant) environment
       (bridgeCarryStep (fun input : Fin (2 ^ low) =>
         decide (2 ^ low ≤ input.val + constant.val))) :=
   EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (placedCarryGates low extra constant) (hrsPlacedCarryGates_step low extra constant)
+    (placedCarryGates low extra constant) (hrsPlacedCarryGates_step low extra constant) environment
 
 /-- The canonical carrier contains exactly the high word, low word and dirty bit. -/
-theorem hrsPlacedCarry_physical_range (low extra : Nat) :
+lemma hrsPlacedCarry_physical_range (low extra : Nat) :
     (QubitLayout.canonical
       (bridgeEncoding low ((low - 2) + extra)).width).systemIdx =
         List.range (low + ((low - 2) + extra) + 1) := by
@@ -534,7 +536,7 @@ theorem hrsPlacedCarry_physical_range (low extra : Nat) :
   exact QubitLayout.canonical_systemIdx (low + (low - 2 + extra) + 1)
 
 /-- Exact placement retains the carry's literal resource ledger. -/
-theorem hrsPlacedCarry_resources (low extra : Nat) (constant : Fin (2 ^ low))
+lemma hrsPlacedCarry_resources (low extra : Nat) (constant : Fin (2 ^ low))
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (placedCarryProgram low extra constant).eventCost = (carryProgram low constant).eventCost ∧
       (placedCarryProgram low extra constant).evaluatedEventDepth assign =

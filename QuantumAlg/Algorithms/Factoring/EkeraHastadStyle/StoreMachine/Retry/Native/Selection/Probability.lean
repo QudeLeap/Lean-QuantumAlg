@@ -27,11 +27,14 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU ClassicalRoutines.FirstAccepted.Direct
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem firstValue_encoded {N length : Nat}
+private lemma firstValue_encoded {N length : Nat}
     (values : List.Vector (LatticeBatchRecoveryOutput.OutputShape N).Value length) :
     firstValue (.fixedVector values.get) = Optional.Distribution.firstValue values.toList := by
   unfold firstValue Optional.Distribution.firstValue
@@ -41,7 +44,7 @@ private theorem firstValue_encoded {N length : Nat}
   exact congrArg (fun entries => entries.foldl Optional.retainValue CShape.Value.optionNone)
     listed
 
-private theorem map_point_of_singleton_fiber {Source Target : Type}
+private lemma map_point_of_singleton_fiber {Source Target : Type}
     (distribution : PMF Source) (read : Source → Target) (source : Source) (target : Target)
     (fiber : ∀ value, target = read value ↔ value = source) :
     distribution.map read target = distribution source := by
@@ -49,7 +52,7 @@ private theorem map_point_of_singleton_fiber {Source Target : Type}
   simp only [fiber, tsum_ite_eq]
 
 /-- Typed optional encoding has exactly the original empty value as its empty-output preimage. -/
-theorem batch_outputValue_none {N : Nat} (specification : Input N) :
+lemma batch_outputValue_none {N : Nat} (specification : Input N) :
     (sampledBatchOutputPMF specification).map (LatticeBatchRecoveryOutput.outputValue (N := N))
         CShape.Value.optionNone = sampledBatchOutputPMF specification none := by
   apply map_point_of_singleton_fiber (sampledBatchOutputPMF specification)
@@ -62,7 +65,7 @@ public def decodeFactor {N : Nat} : (LatticeBatchRecoveryOutput.OutputShape N).V
   | .optionNone => none
   | .optionSome word => some word.toNat
 
-private theorem decodedDistribution_none {N : Nat}
+private lemma decodedDistribution_none {N : Nat}
     (distribution : PMF (LatticeBatchRecoveryOutput.OutputShape N).Value) :
     distribution.map decodeFactor none = distribution CShape.Value.optionNone := by
   apply map_point_of_singleton_fiber distribution decodeFactor CShape.Value.optionNone none
@@ -78,10 +81,10 @@ attribute [local irreducible] NativeRetryChain.context NativeRetryChain.code cod
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The actual selected run has the original chronological first-success distribution. -/
-theorem run_selectedDistribution (specification : Input N) (count : Nat)
+lemma run_selectedDistribution (specification : Input N) (count : Nat)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    (run base noQuantum specification count).outputDistribution input =
+    (run base noQuantum specification count).outputDistribution environment input =
       Optional.Distribution.selectedDistribution
         ((sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue)
         (count + 1) := by
@@ -93,27 +96,29 @@ theorem run_selectedDistribution (specification : Input N) (count : Nat)
     (funext fun values => firstValue_encoded values)
 
 /-- Actual selection is empty exactly with the original one-batch empty probability's power. -/
-theorem run_none (specification : Input N) (count : Nat)
+lemma run_none (specification : Input N) (count : Nat)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    (run base noQuantum specification count).outputDistribution input CShape.Value.optionNone =
+    (run base noQuantum specification count).outputDistribution environment input
+      CShape.Value.optionNone =
       sampledBatchOutputPMF specification none ^ (count + 1) := by
   rw [run_selectedDistribution, Optional.Distribution.selectedDistribution_none,
     batch_outputValue_none]
 
 /-- Natural observation preserves exactly the same actual empty-output event and probability. -/
-theorem run_decoded_none (specification : Input N) (count : Nat)
+lemma run_decoded_none (specification : Input N) (count : Nat)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    ((run base noQuantum specification count).outputDistribution input).map decodeFactor none =
+    ((run base noQuantum specification count).outputDistribution environment input).map
+      decodeFactor none =
       sampledBatchOutputPMF specification none ^ (count + 1) := by
   rw [decodedDistribution_none, run_none]
 
 /-- The actual populated-output event has the complementary exact finite success probability. -/
-theorem run_successProbability (specification : Input N) (count : Nat)
+lemma run_successProbability (specification : Input N) (count : Nat)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    ((run base noQuantum specification count).outputDistribution input).toOuterMeasure
+    ((run base noQuantum specification count).outputDistribution environment input).toOuterMeasure
         {value | value ≠ CShape.Value.optionNone} =
       1 - sampledBatchOutputPMF specification none ^ (count + 1) := by
   rw [PMF.eventProbability_eq_one_sub_complement]

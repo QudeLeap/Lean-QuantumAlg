@@ -35,31 +35,34 @@ def pauliZ (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
   Gate.singleQubitAt layout.toQuantum oracles Gate.ZOp target.wire rfl
 
 /-- Pauli Z contributes one default-model single-qubit event. -/
-theorem pauliZ_eventTrace (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+lemma pauliZ_eventTrace (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
     (oracles : OracleModel) :
     (target.pauliZ layout oracles).eventTrace = [.gate .singleQubit] := rfl
 
-private theorem z_diagonal (row column : Fin 2) :
+private lemma z_diagonal (row column : Fin 2) :
     Gate.ZOp row column =
       if row = column then (if column = 1 then (-1 : ℂ) else 1) else 0 := by
   fin_cases row <;> fin_cases column <;> rfl
 
-private theorem encoded_bit (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+private lemma encoded_bit (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
     (state : Data) :
     layout.basisEquiv.symm (encoding.encode state) target.wire =
       finTwoEquiv.symm (target.get state) :=
   target.targetBasisEquiv_first state
 
 /-- Exact phase on every full physical ket of the original semantic encoding. -/
-theorem pauliZ_applyVec_encoded_ket (target : EncodedBit encoding)
-    (layout : QubitLayout encoding.width) (oracles : OracleModel) (state : Data) :
-    (target.pauliZ layout oracles).applyVec
+lemma pauliZ_applyVec_encoded_ket (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) {environment :
+      oracles.Interpretation}
+    (state : Data) :
+    (target.pauliZ layout oracles).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       (if target.get state then (-1 : ℂ) else 1) •
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec := by
-  have actual := Gate.singleQubitAt_diagonal_applyVec_ket layout oracles Gate.ZOp
+  have actual := Gate.singleQubitAt_diagonal_applyVec_ket layout oracles (environment :=
+    environment) Gate.ZOp
     (fun value => if value = 1 then (-1 : ℂ) else 1) z_diagonal target.wire
     (layout.basisEquiv.symm (encoding.encode state))
   rw [encoded_bit] at actual
@@ -74,7 +77,7 @@ private def globalMinusOperator : UnitaryOperator (Qubits 1) :=
       fin_cases row <;> fin_cases column <;>
         simp [Matrix.mul_apply, Matrix.star_apply])
 
-private theorem globalMinus_diagonal (row column : Fin 2) :
+private lemma globalMinus_diagonal (row column : Fin 2) :
     globalMinusOperator row column = if row = column then (-1 : ℂ) else 0 := by
   fin_cases row <;> fin_cases column <;> rfl
 
@@ -84,21 +87,24 @@ def globalMinus (target : EncodedBit encoding) (layout : QubitLayout encoding.wi
   Gate.singleQubitAt layout.toQuantum oracles globalMinusOperator target.wire rfl
 
 /-- The complete encoded input is restored with exact phase minus one. -/
-theorem globalMinus_applyVec_encoded_ket (target : EncodedBit encoding)
-    (layout : QubitLayout encoding.width) (oracles : OracleModel) (state : Data) :
-    (target.globalMinus layout oracles).applyVec
+lemma globalMinus_applyVec_encoded_ket (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) {environment :
+      oracles.Interpretation}
+    (state : Data) :
+    (target.globalMinus layout oracles).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       -(NormalizedVector.ket (R := layout.toQuantum.register)
         (layout.basisEquiv.symm (encoding.encode state))).vec := by
-  have actual := Gate.singleQubitAt_diagonal_applyVec_ket layout oracles globalMinusOperator
+  have actual := Gate.singleQubitAt_diagonal_applyVec_ket layout oracles (environment :=
+    environment) globalMinusOperator
     (fun _ => (-1 : ℂ)) globalMinus_diagonal target.wire
     (layout.basisEquiv.symm (encoding.encode state))
   unfold globalMinus UnitaryCircuit.applyVec
   simpa only [neg_one_smul] using actual
 
 /-- The exact phase correction executes one native single-qubit gate. -/
-theorem globalMinus_eventTrace_length (target : EncodedBit encoding)
+lemma globalMinus_eventTrace_length (target : EncodedBit encoding)
     (layout : QubitLayout encoding.width) (oracles : OracleModel) :
     (target.globalMinus layout oracles).eventTrace.length = 1 := rfl
 

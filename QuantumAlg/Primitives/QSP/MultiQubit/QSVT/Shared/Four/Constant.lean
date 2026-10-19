@@ -28,28 +28,29 @@ def selectedInitial (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ
     (-2 * Real.arccos c10) (-2 * Real.arccos c11)
 
 /-- Every branch is the exact known-constant rotation on the original phase ancilla. -/
-theorem fourInitial_matrix (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ) :
-    ((selectedInitial oracles width c00 c01 c10 c11).binaryMatrix :
+lemma fourInitial_matrix (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ)
+    (environment : oracles.Interpretation) :
+    (((selectedInitial oracles width c00 c01 c10 c11).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (1 + (1 + width))))) =
       Native.branchMatrix
-        (Native.branchMatrix (Shared.constantInitial oracles width c00).binaryMatrix
-          (Shared.constantInitial oracles width c01).binaryMatrix)
-        (Native.branchMatrix (Shared.constantInitial oracles width c10).binaryMatrix
-          (Shared.constantInitial oracles width c11).binaryMatrix) := by
+        (Native.branchMatrix ((Shared.constantInitial oracles width c00).binaryMatrix environment)
+          ((Shared.constantInitial oracles width c01).binaryMatrix environment))
+        (Native.branchMatrix ((Shared.constantInitial oracles width c10).binaryMatrix environment)
+          ((Shared.constantInitial oracles width c11).binaryMatrix environment)) := by
   rw [selectedInitial, Gate.Rotation.Multiplex.Four.fourRotation_prefix_binaryMatrix]
   simp only [Shared.rotation_scale, Shared.constantInitial,
     Gate.singleQubitAt_first_binaryMatrix, Native.branchMatrix, UnitaryOperator.coe_tensor]
   rfl
 
 /-- Constant initialization retains the complete ten-gate native word and no source queries. -/
-theorem fourInitial_eventTrace (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ) :
+lemma fourInitial_eventTrace (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ) :
     (selectedInitial oracles width c00 c01 c10 c11).eventTrace =
       [.gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot, .gate .cnot,
         .gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot, .gate .cnot] := by
   rw [selectedInitial, Gate.Rotation.Multiplex.Four.fourRotation_prefix_eventTrace]
 
 /-- All initialization dependencies are charged even though no source oracle is queried. -/
-theorem fourInitial_depth (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ) :
+lemma fourInitial_depth (oracles : OracleModel) (width : Nat) (c00 c01 c10 c11 : ℝ) :
     (selectedInitial oracles width c00 c01 c10 c11).evaluatedEventDepth (fun _ => 1) = 10 := by
   rw [selectedInitial, Gate.Rotation.Multiplex.Four.fourRotation_prefix_depth]
 

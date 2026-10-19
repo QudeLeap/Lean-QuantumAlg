@@ -114,14 +114,14 @@ def CandidateScalar (P : SourceScope G) (x : Scalar) : Prop :=
   P.generator ^ x = P.target
 
 /-- A concrete candidate scalar gives the required source-scope membership witness. -/
-private theorem target_mem_zpowers_of_candidate (P : SourceScope G) {x : Scalar}
+private lemma target_mem_zpowers_of_candidate (P : SourceScope G) {x : Scalar}
     (hx : P.CandidateScalar x) : P.target ∈ Subgroup.zpowers P.generator := by
   unfold CandidateScalar at hx
   rw [← hx]
   exact Subgroup.npow_mem_zpowers P.generator x
 
 /-- The stored source-scope membership obligation. -/
-theorem target_mem_zpowers' (P : SourceScope G) :
+lemma target_mem_zpowers' (P : SourceScope G) :
     P.target ∈ Subgroup.zpowers P.generator :=
   P.target_mem_zpowers
 
@@ -142,38 +142,38 @@ def oracleInverseAction (P : SourceScope G) (r : OracleRegister G) : OracleRegis
   rightExponent := r.rightExponent
   workspace := r.workspace * (P.oracleMultiplier r.leftExponent r.rightExponent)⁻¹
 
-@[simp] theorem oracleAction_leftExponent (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleAction_leftExponent (P : SourceScope G) (r : OracleRegister G) :
     (P.oracleAction r).leftExponent = r.leftExponent :=
   rfl
 
-@[simp] theorem oracleAction_rightExponent (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleAction_rightExponent (P : SourceScope G) (r : OracleRegister G) :
     (P.oracleAction r).rightExponent = r.rightExponent :=
   rfl
 
-@[simp] theorem oracleAction_workspace (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleAction_workspace (P : SourceScope G) (r : OracleRegister G) :
     (P.oracleAction r).workspace =
       r.workspace * P.oracleMultiplier r.leftExponent r.rightExponent :=
   rfl
 
-@[simp] theorem oracleInverseAction_leftExponent (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleInverseAction_leftExponent (P : SourceScope G) (r : OracleRegister G) :
     (P.oracleInverseAction r).leftExponent = r.leftExponent :=
   rfl
 
-@[simp] theorem oracleInverseAction_rightExponent (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleInverseAction_rightExponent (P : SourceScope G) (r : OracleRegister G) :
     (P.oracleInverseAction r).rightExponent = r.rightExponent :=
   rfl
 
-@[simp] theorem oracleInverseAction_workspace (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleInverseAction_workspace (P : SourceScope G) (r : OracleRegister G) :
     (P.oracleInverseAction r).workspace =
       r.workspace * (P.oracleMultiplier r.leftExponent r.rightExponent)⁻¹ :=
   rfl
 
-@[simp] theorem oracleInverseAction_oracleAction (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleInverseAction_oracleAction (P : SourceScope G) (r : OracleRegister G) :
     P.oracleInverseAction (P.oracleAction r) = r := by
   cases r
   simp [oracleAction, oracleInverseAction, mul_assoc]
 
-@[simp] theorem oracleAction_oracleInverseAction (P : SourceScope G) (r : OracleRegister G) :
+@[simp] lemma oracleAction_oracleInverseAction (P : SourceScope G) (r : OracleRegister G) :
     P.oracleAction (P.oracleInverseAction r) = r := by
   cases r
   simp [oracleAction, oracleInverseAction, mul_assoc]
@@ -190,11 +190,11 @@ end SourceScope
 namespace KnownOrderProblem
 
 /-- The declared known order is positive. -/
-public theorem order_pos (P : KnownOrderProblem G) : 0 < P.order :=
+public lemma order_pos (P : KnownOrderProblem G) : 0 < P.order :=
   Nat.pos_of_ne_zero P.order_ne_zero
 
 /-- The chosen generator has the declared known order. -/
-private theorem orderOf_generator (P : KnownOrderProblem G) :
+private lemma orderOf_generator (P : KnownOrderProblem G) :
     orderOf P.generator = P.order :=
   P.order_eq_orderOf.symm
 
@@ -223,47 +223,47 @@ def oracleInverseAction (P : KnownOrderProblem G)
     r.workspace *
       (P.toSourceScope.oracleMultiplier r.leftExponent.val r.rightExponent.val)⁻¹
 
-@[simp] theorem oracleAction_leftExponent (P : KnownOrderProblem G)
+@[simp] lemma oracleAction_leftExponent (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     (P.oracleAction r).leftExponent = r.leftExponent :=
   rfl
 
-@[simp] theorem oracleAction_rightExponent (P : KnownOrderProblem G)
+@[simp] lemma oracleAction_rightExponent (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     (P.oracleAction r).rightExponent = r.rightExponent :=
   rfl
 
-@[simp] theorem oracleAction_workspace (P : KnownOrderProblem G)
+@[simp] lemma oracleAction_workspace (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     (P.oracleAction r).workspace =
       r.workspace *
         P.toSourceScope.oracleMultiplier r.leftExponent.val r.rightExponent.val :=
   rfl
 
-@[simp] theorem oracleInverseAction_leftExponent (P : KnownOrderProblem G)
+@[simp] lemma oracleInverseAction_leftExponent (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     (P.oracleInverseAction r).leftExponent = r.leftExponent :=
   rfl
 
-@[simp] theorem oracleInverseAction_rightExponent (P : KnownOrderProblem G)
+@[simp] lemma oracleInverseAction_rightExponent (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     (P.oracleInverseAction r).rightExponent = r.rightExponent :=
   rfl
 
-@[simp] theorem oracleInverseAction_workspace (P : KnownOrderProblem G)
+@[simp] lemma oracleInverseAction_workspace (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     (P.oracleInverseAction r).workspace =
       r.workspace *
         (P.toSourceScope.oracleMultiplier r.leftExponent.val r.rightExponent.val)⁻¹ :=
   rfl
 
-@[simp] theorem oracleInverseAction_oracleAction (P : KnownOrderProblem G)
+@[simp] lemma oracleInverseAction_oracleAction (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     P.oracleInverseAction (P.oracleAction r) = r := by
   cases r
   simp [oracleAction, oracleInverseAction, mul_assoc]
 
-@[simp] theorem oracleAction_oracleInverseAction (P : KnownOrderProblem G)
+@[simp] lemma oracleAction_oracleInverseAction (P : KnownOrderProblem G)
     (r : BoundedOracleRegister P) :
     P.oracleAction (P.oracleInverseAction r) = r := by
   cases r
@@ -292,18 +292,18 @@ def hiddenLineTranslate {P : KnownOrderProblem G} (secret shift : ZMod P.order)
   left := p.left + secret * shift
   right := p.right + shift
 
-@[simp] theorem hiddenLineTranslate_left {P : KnownOrderProblem G}
+@[simp] lemma hiddenLineTranslate_left {P : KnownOrderProblem G}
     (secret shift : ZMod P.order) (p : TwoRegisterPoint P) :
     (p.hiddenLineTranslate secret shift).left = p.left + secret * shift :=
   rfl
 
-@[simp] theorem hiddenLineTranslate_right {P : KnownOrderProblem G}
+@[simp] lemma hiddenLineTranslate_right {P : KnownOrderProblem G}
     (secret shift : ZMod P.order) (p : TwoRegisterPoint P) :
     (p.hiddenLineTranslate secret shift).right = p.right + shift :=
   rfl
 
 /-- Hidden-line translations preserve the oracle fiber `a-rb`. -/
-private theorem oracleFiberValue_hiddenLineTranslate {P : KnownOrderProblem G}
+private lemma oracleFiberValue_hiddenLineTranslate {P : KnownOrderProblem G}
     (secret shift : ZMod P.order) (p : TwoRegisterPoint P) :
     (p.hiddenLineTranslate secret shift).oracleFiberValue secret =
       p.oracleFiberValue secret := by
@@ -322,7 +322,7 @@ def LinearRelation {P : KnownOrderProblem G} (S : FourierSample P)
   S.rightFrequency = -secret * S.leftFrequency
 
 /-- Equivalent additive-zero form of the DLP Fourier-sample relation. -/
-theorem linearRelation_add_eq_zero {P : KnownOrderProblem G} (S : FourierSample P)
+lemma linearRelation_add_eq_zero {P : KnownOrderProblem G} (S : FourierSample P)
     {secret : ZMod P.order} (h : S.LinearRelation secret) :
     secret * S.leftFrequency + S.rightFrequency = 0 := by
   unfold LinearRelation at h
@@ -330,7 +330,7 @@ theorem linearRelation_add_eq_zero {P : KnownOrderProblem G} (S : FourierSample 
   ring
 
 /-- Additive-zero form implies the DLP Fourier-sample relation. -/
-theorem linearRelation_of_add_eq_zero {P : KnownOrderProblem G} (S : FourierSample P)
+lemma linearRelation_of_add_eq_zero {P : KnownOrderProblem G} (S : FourierSample P)
     {secret : ZMod P.order}
     (h : secret * S.leftFrequency + S.rightFrequency = 0) :
     S.LinearRelation secret := by
@@ -344,7 +344,7 @@ theorem linearRelation_of_add_eq_zero {P : KnownOrderProblem G} (S : FourierSamp
 
 /-- The DLP Fourier relation is equivalent to the additive-zero form used by
 source sampling analyses. -/
-private theorem linearRelation_iff_add_eq_zero {P : KnownOrderProblem G}
+private lemma linearRelation_iff_add_eq_zero {P : KnownOrderProblem G}
     (S : FourierSample P) (secret : ZMod P.order) :
     S.LinearRelation secret ↔
       secret * S.leftFrequency + S.rightFrequency = 0 :=
@@ -357,7 +357,7 @@ def characterExponent {P : KnownOrderProblem G} (S : FourierSample P)
 
 /-- Samples satisfying the DLP Fourier relation are invariant along the hidden line
 preserving the oracle fiber. -/
-theorem characterExponent_hiddenLineTranslate_of_linearRelation
+lemma characterExponent_hiddenLineTranslate_of_linearRelation
     {P : KnownOrderProblem G} (S : FourierSample P) {secret : ZMod P.order}
     (h : S.LinearRelation secret) (shift : ZMod P.order) (p : TwoRegisterPoint P) :
     S.characterExponent (p.hiddenLineTranslate secret shift) =
@@ -368,7 +368,7 @@ theorem characterExponent_hiddenLineTranslate_of_linearRelation
   ring
 
 /-- Invariance under one hidden-line step forces the DLP Fourier relation. -/
-theorem linearRelation_of_characterExponent_hiddenLineStep
+lemma linearRelation_of_characterExponent_hiddenLineStep
     {P : KnownOrderProblem G} (S : FourierSample P) {secret : ZMod P.order}
     (h : ∀ p : TwoRegisterPoint P,
       S.characterExponent (p.hiddenLineTranslate secret 1) =
@@ -388,7 +388,7 @@ theorem linearRelation_of_characterExponent_hiddenLineStep
 /-- Exact algebraic support criterion for the two-register DLP Fourier relation:
 the character exponent is invariant along the hidden line iff the sample satisfies the
 linear relation used by classical recovery. -/
-theorem linearRelation_iff_characterExponent_hiddenLineStep
+lemma linearRelation_iff_characterExponent_hiddenLineStep
     {P : KnownOrderProblem G} (S : FourierSample P) (secret : ZMod P.order) :
     S.LinearRelation secret ↔
       ∀ p : TwoRegisterPoint P,
@@ -412,7 +412,7 @@ def SourceSupport {P : KnownOrderProblem G} (S : FourierSample P)
 
 /-- A source-supported Fourier sample is exactly a sample satisfying the DLP
 linear relation used by classical recovery. -/
-theorem sourceSupport_iff_linearRelation {P : KnownOrderProblem G}
+lemma sourceSupport_iff_linearRelation {P : KnownOrderProblem G}
     (S : FourierSample P) (secret : ZMod P.order) :
     S.SourceSupport secret ↔ S.LinearRelation secret := by
   rw [SourceSupport]
@@ -420,7 +420,7 @@ theorem sourceSupport_iff_linearRelation {P : KnownOrderProblem G}
 
 /-- Source/Fourier support implies the additive-zero relation consumed by the
 finite-cyclic DLP recovery endpoint. -/
-theorem add_eq_zero_of_sourceSupport {P : KnownOrderProblem G}
+lemma add_eq_zero_of_sourceSupport {P : KnownOrderProblem G}
     (S : FourierSample P) {secret : ZMod P.order}
     (h : S.SourceSupport secret) :
     secret * S.leftFrequency + S.rightFrequency = 0 :=
@@ -447,7 +447,7 @@ def recoveredSecret {P : KnownOrderProblem G} (S : RecoverableFourierSample P) :
   -S.rightFrequency * S.leftInverse
 
 /-- The explicit inverse and the Fourier linear relation recover the hidden scalar. -/
-theorem recoveredSecret_eq_of_linearRelation {P : KnownOrderProblem G}
+lemma recoveredSecret_eq_of_linearRelation {P : KnownOrderProblem G}
     (S : RecoverableFourierSample P) {secret : ZMod P.order}
     (h : S.toFourierSample.LinearRelation secret) :
     S.recoveredSecret = secret := by
@@ -500,7 +500,7 @@ def output {P : KnownOrderProblem G} (C : RecoveryCertificate P) : ZMod P.order 
   C.sample.recoveredSecret
 
 /-- Soundness of the classical recovery rule under the stated sampling assumptions. -/
-theorem output_eq_secret {P : KnownOrderProblem G} (C : RecoveryCertificate P) :
+lemma output_eq_secret {P : KnownOrderProblem G} (C : RecoveryCertificate P) :
     C.output = C.secret :=
   C.sample.recoveredSecret_eq_of_linearRelation C.relation
 
@@ -652,14 +652,14 @@ def toFourierSample {P : KnownOrderProblem G} {params : Parameters}
   rightFrequency := output.roundedRightFrequency
 
 /-- Unit witness for the postprocessed first frequency. -/
-theorem toFourierSample_leftFrequency_eq_leftUnit {P : KnownOrderProblem G}
+lemma toFourierSample_leftFrequency_eq_leftUnit {P : KnownOrderProblem G}
     {params : Parameters} {secret : ZMod P.order}
     (output : RecoverableGoodOutput P params secret) :
     output.toFourierSample.leftFrequency = output.leftUnit := by
   simpa [toFourierSample] using output.leftFrequency_eq_leftUnit
 
 /-- Additive-zero DLP relation for the postprocessed Shor Fourier sample. -/
-theorem toFourierSample_addEqZero {P : KnownOrderProblem G}
+lemma toFourierSample_addEqZero {P : KnownOrderProblem G}
     {params : Parameters} {secret : ZMod P.order}
     (output : RecoverableGoodOutput P params secret) :
     secret * output.toFourierSample.leftFrequency +
@@ -859,7 +859,7 @@ namespace GoodEventMassCertificate
 
 /-- The certified good-event mass is at least the source lower bound
 [E23, arxiv-v5.tex:1108-1127]. -/
-theorem successProbability_ge_sourceLowerBound
+lemma successProbability_ge_sourceLowerBound
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (cert : GoodEventMassCertificate inst Ω) :
@@ -868,7 +868,7 @@ theorem successProbability_ge_sourceLowerBound
 
 /-- The certified success probability is the sum of the good-event probability
 mass. -/
-private theorem successProbability_eq_sum
+private lemma successProbability_eq_sum
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (cert : GoodEventMassCertificate inst Ω) :
@@ -916,7 +916,7 @@ structure LimitedSearchWindow (params : Parameters)
 namespace LimitedSearchWindow
 
 /-- The source product bound also yields a non-strict search-space upper bound. -/
-private theorem product_le_searchSpace
+private lemma product_le_searchSpace
     {params : Parameters} {sample : SampledOutput params}
     (window : LimitedSearchWindow params sample) :
     window.B1 * (window.B2 + 1) ≤ params.searchSpace :=
@@ -1000,7 +1000,7 @@ def lookupTableSize
     (construction : LimitedSearchConstruction event) : ℕ :=
   2 * QuantumAlg.Nat.ceilDiv construction.window.B1 construction.stride + 1
 
-@[simp] theorem firstStageGroupOperations_eq
+@[simp] lemma firstStageGroupOperations_eq
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1009,7 +1009,7 @@ def lookupTableSize
       2 * (QuantumAlg.Nat.ceilDiv construction.window.B1 construction.stride - 1) :=
   rfl
 
-@[simp] theorem secondStageGroupOperations_eq
+@[simp] lemma secondStageGroupOperations_eq
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1018,7 +1018,7 @@ def lookupTableSize
       2 * ((construction.window.B2 + 1) * construction.stride - 1) :=
   rfl
 
-@[simp] theorem groupOperations_eq
+@[simp] lemma groupOperations_eq
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1028,7 +1028,7 @@ def lookupTableSize
         construction.secondStageGroupOperations :=
   rfl
 
-@[simp] theorem lookupTableSize_eq
+@[simp] lemma lookupTableSize_eq
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1038,7 +1038,7 @@ def lookupTableSize
   rfl
 
 /-- The source limited-search construction recovers the hidden short-DLP secret. -/
-theorem recovers_secret
+lemma recovers_secret
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1095,7 +1095,7 @@ def lookupTableSize
   witness.construction.lookupTableSize
 
 /-- The limited-search witness recovers the source secret. -/
-theorem recovers_secret
+lemma recovers_secret
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1105,7 +1105,7 @@ theorem recovers_secret
 
 /-- The witness's construction-derived group-operation count satisfies the
 Ekerå source bound. -/
-theorem groupOperations_count_le_sourceBound
+lemma groupOperations_count_le_sourceBound
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1115,7 +1115,7 @@ theorem groupOperations_count_le_sourceBound
 
 /-- The witness's construction-derived lookup-table size satisfies the Ekerå
 source bound. -/
-theorem lookupTableSize_count_le_sourceBound
+lemma lookupTableSize_count_le_sourceBound
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1127,7 +1127,7 @@ theorem lookupTableSize_count_le_sourceBound
 good event, the E23 limited search recovers the hidden secret and its
 construction-derived group-operation and lookup-table counts satisfy the
 source bounds [E23, arxiv-v5.tex:760-838, 930-958]. -/
-theorem sourceRecoveryAndCountTheorem
+lemma sourceRecoveryAndCountTheorem
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {sample : SampledOutput params}
     {event : GoodEvent inst sample}
@@ -1194,7 +1194,7 @@ def ofE23Source
   lookupTableSize := recovery.lookupTableSize
   lookupTableSize_le := recovery.lookupTableSize_count_le_sourceBound
 
-@[simp] theorem ofE23Source_j
+@[simp] lemma ofE23Source_j
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1203,7 +1203,7 @@ def ofE23Source
     (ofE23Source mass hmem recovery).j = (mass.sample outcome).j :=
   rfl
 
-@[simp] theorem ofE23Source_k
+@[simp] lemma ofE23Source_k
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1212,7 +1212,7 @@ def ofE23Source
     (ofE23Source mass hmem recovery).k = (mass.sample outcome).k :=
   rfl
 
-@[simp] theorem ofE23Source_recoveredSecret
+@[simp] lemma ofE23Source_recoveredSecret
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1222,7 +1222,7 @@ def ofE23Source
       recovery.recoveredSecret :=
   rfl
 
-@[simp] theorem ofE23Source_successProbability
+@[simp] lemma ofE23Source_successProbability
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1232,7 +1232,7 @@ def ofE23Source
       mass.successProbability :=
   rfl
 
-@[simp] theorem ofE23Source_groupOperations
+@[simp] lemma ofE23Source_groupOperations
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1242,7 +1242,7 @@ def ofE23Source
       recovery.groupOperations :=
   rfl
 
-@[simp] theorem ofE23Source_lookupTableSize
+@[simp] lemma ofE23Source_lookupTableSize
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1254,7 +1254,7 @@ def ofE23Source
 
 /-- The source constructor preserves the supplied secret-recovery guarantee
 and the source resource bounds [E23, arxiv-v5.tex:1108-1116]. -/
-private theorem ofE23Source_sourcePostprocessingTheorem
+private lemma ofE23Source_sourcePostprocessingTheorem
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params} {Ω : Type*}
     (mass : GoodEventMassCertificate inst Ω)
@@ -1277,7 +1277,7 @@ private theorem ofE23Source_sourcePostprocessingTheorem
       simpa [ofE23Source] using recovery.lookupTableSize_count_le_sourceBound⟩
 
 /-- The certified post-processing output is the source secret `d`. -/
-theorem recovers_secret
+lemma recovers_secret
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params}
     (cert : PostProcessingCertificate inst) :
@@ -1286,7 +1286,7 @@ theorem recovers_secret
 
 /-- The certified success probability is at least the Ekera source lower bound
 [E23, arxiv-v5.tex:1108-1128]. -/
-theorem successProbability_ge_sourceLowerBound
+lemma successProbability_ge_sourceLowerBound
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params}
     (cert : PostProcessingCertificate inst) :
@@ -1295,7 +1295,7 @@ theorem successProbability_ge_sourceLowerBound
 
 /-- The certified number of group operations is bounded by the source search
 expression `8 c sqrt(N_{Delta,tau,t})` [E23, arxiv-v5.tex:1115-1127]. -/
-theorem groupOperations_le_sourceBound
+lemma groupOperations_le_sourceBound
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params}
     (cert : PostProcessingCertificate inst) :
@@ -1304,7 +1304,7 @@ theorem groupOperations_le_sourceBound
 
 /-- The certified lookup-table size is bounded by the source expression
 `8 sqrt(N_{Delta,tau,t}) / c + 3` [E23, arxiv-v5.tex:1115-1127]. -/
-theorem lookupTableSize_le_sourceBound
+lemma lookupTableSize_le_sourceBound
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params}
     (cert : PostProcessingCertificate inst) :
@@ -1316,7 +1316,7 @@ conditions have been packaged in `Parameters` and `SourceInstance`, a
 post-processing certificate recovers the secret and satisfies the explicit
 success, group-operation, and lookup-table bounds from Ekera's theorem [E23,
 arxiv-v5.tex:1103-1128]. -/
-theorem sourcePostprocessingTheorem
+lemma sourcePostprocessingTheorem
     {G : Type*} [Group G] {params : Parameters}
     {inst : SourceInstance G params}
     (cert : PostProcessingCertificate inst) :
@@ -1340,7 +1340,7 @@ def toSourceScope (A : LeanAbstraction G) (target : G) : SourceScope G where
   target_mem_zpowers := A.covers target
 
 /-- The source-scope obligation induced by a reusable cyclic abstraction. -/
-private theorem target_mem_zpowers (A : LeanAbstraction G) (target : G) :
+private lemma target_mem_zpowers (A : LeanAbstraction G) (target : G) :
     target ∈ Subgroup.zpowers A.generator :=
   A.covers target
 

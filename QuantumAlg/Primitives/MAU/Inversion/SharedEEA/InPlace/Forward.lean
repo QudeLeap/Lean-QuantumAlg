@@ -36,6 +36,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InPlaceForward
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- Fixed load, the same actual corrected schedule, and literal output-port operations. -/
@@ -51,10 +53,10 @@ def result (modulus input : Nat) (positive : 0 < input) (bounded : input < modul
   OutputPortProgram.step modulus (CorrectedSchedule.result modulus input positive bounded)
 
 /-- The exact actual forward ket from the zero large port for coprime positive residues. -/
-theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (InitialPortProgram.inputFrame modulus input)))) =
@@ -67,7 +69,7 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (OutputPortProgram.program_realizes modulus).apply_encoded_ket]
   rfl
 
-private theorem corrected_workspace (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+private lemma corrected_workspace (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     let before := CorrectedSchedule.result modulus input positive bounded
     PaddingClock.main before.firstWord = PaddingClock.main (TerminalPadding.terminalWord modulus) ∧
@@ -87,7 +89,7 @@ private theorem corrected_workspace (modulus input : Nat) (coprime : Nat.Coprime
       (congrArg PaddingClock.last terminalWord)⟩
 
 /-- Exact whole Work1 is zero main, retained two-bit history, and an unloaded last bit. -/
-theorem result_firstWord (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_firstWord (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (result modulus input positive bounded).firstWord =
       ((0#modulus.size ++
@@ -99,14 +101,14 @@ theorem result_firstWord (modulus input : Nat) (coprime : Nat.Coprime input modu
     (corrected_workspace modulus input coprime positive bounded).2
 
 /-- The n physically reusable Work1 positions are all zero on every coprime positive input. -/
-theorem result_large_zero (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_large_zero (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     PaddingClock.main (result modulus input positive bounded).firstWord = 0#modulus.size := by
   rw [result_firstWord modulus input coprime positive bounded]
   simp only [PaddingClock.main, BitVec.extractLsb'_append_eq_left]
 
 /-- Each actual large-workspace wire reads zero; this is not a dimension-only port assertion. -/
-theorem result_large_bit (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_large_bit (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) (index : Fin modulus.size) :
     (result modulus input positive bounded).firstWord.getMsbD index.val = false := by
   rw [WordUnloading.main_bit _ _ index.isLt,
@@ -114,7 +116,7 @@ theorem result_large_bit (modulus input : Nat) (coprime : Nat.Coprime input modu
   exact BitVec.getMsbD_zero
 
 /-- The two original high-counter bits retain their exact forward values. -/
-theorem result_high_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_high_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     PaddingClock.high (result modulus input positive bounded).firstWord =
       PaddingClock.high (CorrectedSchedule.result modulus input positive bounded).firstWord := by
@@ -123,7 +125,7 @@ theorem result_high_clock (modulus input : Nat) (coprime : Nat.Coprime input mod
     BitVec.extractLsb'_append_eq_right]
 
 /-- Every original length, low counter, phase flag, parity bit, and Ctrl is retained. -/
-theorem result_retained (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma result_retained (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     let before := CorrectedSchedule.result modulus input positive bounded
     let after := result modulus input positive bounded
     after.coefficientLength = before.coefficientLength ∧
@@ -133,7 +135,7 @@ theorem result_retained (modulus input : Nat) (positive : 0 < input) (bounded : 
   ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- The complete high-plus-low clock is retained, without discarding either reused position. -/
-theorem result_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     ExtendedClockRegisters.clock (result modulus input positive bounded) =
       ExtendedClockRegisters.clock (CorrectedSchedule.result modulus input positive bounded) := by
@@ -143,13 +145,13 @@ theorem result_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
   rfl
 
 /-- The output's numerical value is the independent exact finite-word modular inverse. -/
-theorem result_value (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma result_value (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (result modulus input positive bounded).secondWord.toNat =
       (InverseOutput.word modulus input positive bounded).val :=
   CorrectedSchedule.result_value modulus input positive bounded
 
 /-- Entire Work2 agrees with the original padded input port now holding the inverse. -/
-theorem result_input_port (modulus input : Nat)
+lemma result_input_port (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (result modulus input positive bounded).secondWord =
       (InitialFrame.initial modulus
@@ -157,31 +159,35 @@ theorem result_input_port (modulus input : Nat)
   BitVec.eq_of_toNat_eq (result_value modulus input positive bounded)
 
 /-- The actual returned same-port value is an inverse for every coprime positive input. -/
-theorem result_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma result_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (input : ZMod modulus) * ((result modulus input positive bounded).secondWord.toNat :
       ZMod modulus) = 1 :=
   CorrectedSchedule.result_product modulus input coprime positive bounded
 
 /-- The same complete adjoint recovers the original input and its fixed small initialization. -/
-theorem dagger_result (modulus : Nat) (nontrivial : 1 < modulus)
+lemma dagger_result (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     ((program modulus nontrivial).dagger
-      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (result modulus input.val positive bounded)))) =
       NormalizedVector.ket
         ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
           ((encoding modulus.size).encode (InitialPortProgram.inputFrame modulus input))) := by
-  have forward := program_initial modulus nontrivial input coprime positive bounded
+  have forward := program_initial
+    (environment := environment) modulus nontrivial input coprime positive bounded
   exact (congrArg (fun state => ((program modulus nontrivial).dagger
-      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state) forward).symm.trans
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment state)
+        forward).symm.trans
     (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
       (program modulus nontrivial)
       ((program modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-      (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) _)
+      (by rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]; exact Unitary.star_eq_inv _) _)
 
 end
 

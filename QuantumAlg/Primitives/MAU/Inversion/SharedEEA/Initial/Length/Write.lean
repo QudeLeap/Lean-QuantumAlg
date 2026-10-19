@@ -28,13 +28,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InitialLengthWrite
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit InitialLengthPredicate InitialLengthSemantics
 
 /-- The existing divisor-length field in the least-significant-first word API. -/
 def target (width : Nat) : Word (encoding width) width.size :=
   ⟨fun index => divisorLengthBit width index.rev⟩
 
-private theorem target_get (width : Nat) (index : Fin width.size) (state : Registers width) :
+private lemma target_get (width : Nat) (index : Fin width.size) (state : Registers width) :
     ((target width).bit index).get state = state.divisorLength.getLsbD index.val := by
   change (divisorLengthBit width index.rev).get state = _
   rw [divisorLengthBit_get]
@@ -44,7 +46,7 @@ private theorem target_get (width : Nat) (index : Fin width.size) (state : Regis
     omega
   simp only [BitVec.getMsbD_eq_getLsbD, index.rev.isLt, decide_true, Bool.true_and, reverse]
 
-private theorem target_distinct (width : Nat) (left right : Fin width.size)
+private lemma target_distinct (width : Nat) (left right : Fin width.size)
     (different : left ≠ right) :
     ((target width).bit left).wire ≠ ((target width).bit right).wire := by
   intro same
@@ -66,7 +68,7 @@ def constant (width value : Nat) (bounded : value ≤ width) : Fin (2 ^ width.si
 def positionConstant (width : Nat) (index : Fin width) : Fin (2 ^ width.size) :=
   constant width (width - index.val) (Nat.sub_le _ _)
 
-private theorem constant_preserves_payload (width : Nat) (value : Fin (2 ^ width.size))
+private lemma constant_preserves_payload (width : Nat) (value : Fin (2 ^ width.size))
     (state : Registers width) :
     payloadValue (Word.xorConstantStep (target width) value state) = payloadValue state := by
   rw [Word.xorConstantStep_eq_indicesStep]
@@ -83,7 +85,7 @@ def positionGates (width : Nat) (index : Fin width) : List (GateSpec (encoding w
   (Word.constantOneIndices (positionConstant width index)).flatMap fun bit =>
     firstOneGates width index bit.rev
 
-private theorem position_indices_step (width : Nat) (index : Fin width)
+private lemma position_indices_step (width : Nat) (index : Fin width)
     (bits : List (Fin width.size)) (state : Registers width) :
     GateSpec.stepList (bits.flatMap fun bit => firstOneGates width index bit.rev) state =
       if (payloadValue state).size = width - index.val
@@ -100,7 +102,7 @@ private theorem position_indices_step (width : Nat) (index : Fin width)
         rw [if_neg selected]
 
 /-- Every candidate call has a full-register conditional constant-xor action. -/
-theorem positionGates_step (width : Nat) (index : Fin width) (state : Registers width) :
+lemma positionGates_step (width : Nat) (index : Fin width) (state : Registers width) :
     GateSpec.stepList (positionGates width index) state =
       if (payloadValue state).size = width - index.val
       then Word.xorConstantStep (target width) (positionConstant width index) state
@@ -111,7 +113,7 @@ theorem positionGates_step (width : Nat) (index : Fin width) (state : Registers 
 def gates (width : Nat) : List (GateSpec (encoding width)) :=
   (List.ofFn fun index : Fin width => index).flatMap (positionGates width)
 
-private theorem indices_step (width value : Nat) (bounded : value ≤ width)
+private lemma indices_step (width value : Nat) (bounded : value ≤ width)
     (indices : List (Fin width)) (distinct : indices.Nodup) (state : Registers width)
     (input : (payloadValue state).size = value) :
     GateSpec.stepList (indices.flatMap (positionGates width)) state =
@@ -156,13 +158,13 @@ private theorem indices_step (width value : Nat) (bounded : value ≤ width)
             exact ⟨index, List.mem_cons_of_mem head present, chosen⟩
         simp only [selection]
 
-private theorem xor_zero (width : Nat) (state : Registers width) :
+private lemma xor_zero (width : Nat) (state : Registers width) :
     Word.xorConstantStep (target width) (constant width 0 (Nat.zero_le width)) state = state := by
   simp [Word.xorConstantStep, Word.xorConstantGates, Word.constantOneIndices,
     constant, GateSpec.stepList]
 
 /-- The literal initialization circuit xors the exact current divisor length on every full input. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state =
       Word.xorConstantStep (target width)
         (constant width (payloadValue state).size (Nat.size_le.mpr (payloadValue_fits state)))
@@ -193,7 +195,7 @@ theorem gates_step (width : Nat) (state : Registers width) :
     rw [labels, xor_zero]
 
 /-- The actual finite length field receives the binary length by bitwise xor. -/
-theorem gates_divisorLength (width : Nat) (state : Registers width) :
+lemma gates_divisorLength (width : Nat) (state : Registers width) :
     (GateSpec.stepList (gates width) state).divisorLength =
       state.divisorLength ^^^ BitVec.ofNat width.size (payloadValue state).size := by
   apply BitVec.eq_of_getLsbD_eq
@@ -207,7 +209,7 @@ theorem gates_divisorLength (width : Nat) (state : Registers width) :
     Bool.true_and, constant] using actual
 
 /-- An internally prepared zero length field becomes the current payload length exactly. -/
-theorem gates_divisorLength_of_zero (width : Nat) (state : Registers width)
+lemma gates_divisorLength_of_zero (width : Nat) (state : Registers width)
     (zero : state.divisorLength = 0#width.size) :
     (GateSpec.stepList (gates width) state).divisorLength =
       BitVec.ofNat width.size (payloadValue state).size := by
@@ -219,12 +221,12 @@ def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Correctness holds as exact normalized-vector action, including every work coordinate. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width)
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment
       (fun state => Word.xorConstantStep (target width)
         (constant width (payloadValue state).size (Nat.size_le.mpr (payloadValue_fits state)))
         state) :=
-  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _ (gates_step width) environment
 
 end
 

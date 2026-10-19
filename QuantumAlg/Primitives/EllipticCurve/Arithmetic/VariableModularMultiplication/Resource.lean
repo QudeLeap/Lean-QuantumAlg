@@ -33,13 +33,13 @@ def physicalWidthFor (f : Nat) : Nat :=
   7 * f + 5
 
 /-- Exact qubit width of the common variable-multiplication carrier. -/
-theorem encoding_width_exact : encoding.width = physicalWidthFor params.width := by
+lemma encoding_width_exact : encoding.width = physicalWidthFor params.width := by
   simp [encoding, rawEncoding, accumulatorSuffixEncoding,
     inPlaceWithWorkEncoding, inPlaceEncoding, wordEncoding,
     PlainAdder.Schedule.PowerOfTwo.wordEncoding, physicalWidthFor]
   omega
 
-private theorem rawArithmeticGates_events_eq_source :
+private lemma rawArithmeticGates_events_eq_source :
     rawArithmeticGates.map (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.VBECircuit.modularAddGates
         params.width params.modulus.val).map (EncodedBit.GateSpec.event .empty) := by
@@ -80,7 +80,7 @@ private theorem rawArithmeticGates_events_eq_source :
       intro gate _
       cases gate <;> rfl
 
-theorem liftInPlaceGates_events_eq_source
+lemma liftInPlaceGates_events_eq_source
     (gates : List (EncodedBit.GateSpec inPlaceEncoding)) :
     (liftInPlaceGates gates).map (EncodedBit.GateSpec.event .empty) =
       gates.map (EncodedBit.GateSpec.event .empty) := by
@@ -105,14 +105,14 @@ theorem liftInPlaceGates_events_eq_source
     _ = gates.map (EncodedBit.GateSpec.event .empty) :=
       EncodedBit.GateSpec.map_event_prodLeft BinaryLabelEncoding.bool _
 
-theorem liftInPlaceGates_length
+lemma liftInPlaceGates_length
     (gates : List (EncodedBit.GateSpec inPlaceEncoding)) :
     (liftInPlaceGates gates).length = gates.length := by
   have h := congrArg List.length (liftInPlaceGates_events_eq_source gates)
   simpa only [List.length_map] using h
 
 omit params in
-private theorem controlledEventExpansion_toffoli_count
+private lemma controlledEventExpansion_toffoli_count
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical}
     (gate : EncodedBit.GateSpec physicalEncoding) :
     (EncodedBit.GateSpec.controlledEventExpansion .empty gate).count
@@ -122,7 +122,7 @@ private theorem controlledEventExpansion_toffoli_count
   cases gate <;> rfl
 
 omit params in
-private theorem flatMap_controlledEventExpansion_toffoli_count
+private lemma flatMap_controlledEventExpansion_toffoli_count
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical} :
     ∀ gates : List (EncodedBit.GateSpec physicalEncoding),
       (gates.flatMap (EncodedBit.GateSpec.controlledEventExpansion .empty)).count
@@ -137,7 +137,7 @@ private theorem flatMap_controlledEventExpansion_toffoli_count
       omega
 
 omit params in
-private theorem controlledEventExpansion_length
+private lemma controlledEventExpansion_length
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical}
     (gate : EncodedBit.GateSpec physicalEncoding) :
     (EncodedBit.GateSpec.controlledEventExpansion .empty gate).length =
@@ -147,7 +147,7 @@ private theorem controlledEventExpansion_length
   cases gate <;> rfl
 
 omit params in
-private theorem flatMap_controlledEventExpansion_length
+private lemma flatMap_controlledEventExpansion_length
     {Physical : Type} {physicalEncoding : BinaryLabelEncoding Physical} :
     ∀ gates : List (EncodedBit.GateSpec physicalEncoding),
       (gates.flatMap (EncodedBit.GateSpec.controlledEventExpansion .empty)).length =
@@ -162,7 +162,7 @@ private theorem flatMap_controlledEventExpansion_length
       omega
 
 /-- One controlled modular-add stage uses at most `108f+14` Toffoli gates. -/
-theorem stageCircuit_toffoli_count_le (bit : Fin params.width) :
+lemma stageCircuit_toffoli_count_le (bit : Fin params.width) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (stageCircuit bit).eventCost ≤ 108 * params.width + 14 := by
   have hsourceC :=
@@ -187,7 +187,7 @@ theorem stageCircuit_toffoli_count_le (bit : Fin params.width) :
 
 /-- One clean-work-controlled modular-add stage contains exactly one CNOT:
 the unique source X gate becomes the controlled CNOT leaf. -/
-theorem rawStageGates_cnotMultiplicity_sum (bit : Fin params.width) :
+lemma rawStageGates_cnotMultiplicity_sum (bit : Fin params.width) :
     ((rawStageGates bit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
   unfold rawStageGates
@@ -198,7 +198,7 @@ theorem rawStageGates_cnotMultiplicity_sum (bit : Fin params.width) :
     MAU.Addition.VBECircuit.modularAddGates_xMultiplicity_sum]
 
 /-- One controlled modular-add stage has at most `108f+15` primitive events. -/
-theorem stageCircuit_eventCount_le (bit : Fin params.width) :
+lemma stageCircuit_eventCount_le (bit : Fin params.width) :
     (stageCircuit bit).eventCost.card ≤ 108 * params.width + 15 := by
   have hsourceX :=
     MAU.Addition.VBECircuit.modularAddGates_xMultiplicity_sum
@@ -229,34 +229,34 @@ theorem stageCircuit_eventCount_le (bit : Fin params.width) :
   rw [hx, hc, ht, hsourceX, hsourceT]
   omega
 
-private theorem accumulatorSwapCircuit_eventCount :
+private lemma accumulatorSwapCircuit_eventCount :
     accumulatorSwapCircuit.eventCost.card = 3 * params.width := by
   unfold accumulatorSwapCircuit accumulatorSwapGates
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   exact EncodedBit.Word.swapGates_length rawAccumulatorWord
     rawInPlaceAccumulatorWord rawAccumulator_inPlaceAccumulator_ne
 
-private theorem sourceCopyCircuit_eventCount :
+private lemma sourceCopyCircuit_eventCount :
     sourceCopyCircuit.eventCost.card = params.width := by
   unfold sourceCopyCircuit sourceCopyGates
   rw [EncodedBit.GateSpec.programList_eventCost_card]
   simp [EncodedBit.Word.xorIntoGates]
 
-private theorem accumulatorSwapGates_cnotMultiplicity_sum :
+private lemma accumulatorSwapGates_cnotMultiplicity_sum :
     (accumulatorSwapGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       3 * params.width := by
   exact EncodedBit.Word.swapGates_cnotMultiplicity_sum
     rawAccumulatorWord rawInPlaceAccumulatorWord
       rawAccumulator_inPlaceAccumulator_ne
 
-private theorem sourceCopyGates_cnotMultiplicity_sum :
+private lemma sourceCopyGates_cnotMultiplicity_sum :
     (sourceCopyGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       params.width := by
   exact EncodedBit.Word.xorIntoGates_cnotMultiplicity_sum
     rawInPlaceMultiplicandWord rawInPlaceActiveSourceWord
       rawInPlaceMultiplicand_activeSource_ne
 
-private theorem accumulatorSwapCircuit_toffoli_count_zero :
+private lemma accumulatorSwapCircuit_toffoli_count_zero :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       accumulatorSwapCircuit.eventCost = 0 := by
   unfold accumulatorSwapCircuit accumulatorSwapGates
@@ -265,7 +265,7 @@ private theorem accumulatorSwapCircuit_toffoli_count_zero :
     rawAccumulatorWord rawInPlaceAccumulatorWord
       rawAccumulator_inPlaceAccumulator_ne
 
-private theorem sourceCopyCircuit_toffoli_count_zero :
+private lemma sourceCopyCircuit_toffoli_count_zero :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       sourceCopyCircuit.eventCost = 0 := by
   unfold sourceCopyCircuit sourceCopyGates
@@ -275,7 +275,7 @@ private theorem sourceCopyCircuit_toffoli_count_zero :
       rawInPlaceMultiplicand_activeSource_ne
 
 /-- Accumulator routing does not change the Toffoli coordinate. -/
-theorem selectedAddCircuit_toffoli_count_le (bit : Fin params.width) :
+lemma selectedAddCircuit_toffoli_count_le (bit : Fin params.width) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (selectedAddCircuit bit).eventCost ≤ 108 * params.width + 14 := by
   have hswap :
@@ -306,7 +306,7 @@ theorem selectedAddCircuit_toffoli_count_le (bit : Fin params.width) :
 
 /-- The routed selected-add list contains exactly `8f+1` CNOT leaves: two
 three-CNOT swaps, two word xors, and the controlled source X leaf. -/
-theorem selectedAddGates_cnotMultiplicity_sum (bit : Fin params.width) :
+lemma selectedAddGates_cnotMultiplicity_sum (bit : Fin params.width) :
     ((selectedAddGates bit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
       8 * params.width + 1 := by
@@ -317,7 +317,7 @@ theorem selectedAddGates_cnotMultiplicity_sum (bit : Fin params.width) :
   omega
 
 /-- One routed selected add has at most `116f+15` primitive events. -/
-theorem selectedAddCircuit_eventCount_le (bit : Fin params.width) :
+lemma selectedAddCircuit_eventCount_le (bit : Fin params.width) :
     (selectedAddCircuit bit).eventCost.card ≤ 116 * params.width + 15 := by
   have hstage := stageCircuit_eventCount_le bit
   have hswap : accumulatorSwapGates.length = 3 * params.width := by
@@ -339,26 +339,26 @@ theorem selectedAddCircuit_eventCount_le (bit : Fin params.width) :
   omega
 
 /-- One full widened-word swap contributes exactly `3(f+1)` CNOT leaves. -/
-private theorem doublingSwapGates_cnotMultiplicity_sum :
+private lemma doublingSwapGates_cnotMultiplicity_sum :
     (doublingSwapGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       3 * (params.width + 1) := by
   exact EncodedBit.Word.swapGates_cnotMultiplicity_sum
     rawDoublingSourceWord rawDoublingTargetWord _
 
 /-- One full widened-word swap has no Toffoli leaf. -/
-private theorem doublingSwapGates_toffoliMultiplicity_sum :
+private lemma doublingSwapGates_toffoliMultiplicity_sum :
     (doublingSwapGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   exact EncodedBit.Word.swapGates_toffoliMultiplicity_sum
     rawDoublingSourceWord rawDoublingTargetWord _
 
 /-- One full widened-word swap has `3(f+1)` primitive leaves. -/
-private theorem doublingSwapGates_length :
+private lemma doublingSwapGates_length :
     doublingSwapGates.length = 3 * (params.width + 1) := by
   exact EncodedBit.Word.swapGates_length
     rawDoublingSourceWord rawDoublingTargetWord _
 
 /-- The adjacent-swap left shift contributes exactly `3f` CNOT leaves. -/
-private theorem doublingShiftGates_cnotMultiplicity_sum :
+private lemma doublingShiftGates_cnotMultiplicity_sum :
     (doublingShiftGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       3 * params.width := by
   rw [doublingShiftGates, EncodedBit.Word.adjacentShiftRightGates,
@@ -390,7 +390,7 @@ private theorem doublingShiftGates_cnotMultiplicity_sum :
       (MAU.Addition.VBECircuit.AdderWidth params.width - 1) => i)
 
 /-- The adjacent-swap left shift has no Toffoli leaf. -/
-private theorem doublingShiftGates_toffoliMultiplicity_sum :
+private lemma doublingShiftGates_toffoliMultiplicity_sum :
     (doublingShiftGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   rw [doublingShiftGates, EncodedBit.Word.adjacentShiftRightGates,
     List.map_reverse, List.sum_reverse,
@@ -416,7 +416,7 @@ private theorem doublingShiftGates_toffoliMultiplicity_sum :
   exact hsum _
 
 /-- The adjacent-swap left shift has exactly `3f` primitive leaves. -/
-private theorem doublingShiftGates_length :
+private lemma doublingShiftGates_length :
     doublingShiftGates.length = 3 * params.width := by
   simp [doublingShiftGates, EncodedBit.Word.adjacentShiftRightGates,
     EncodedBit.Word.adjacentShiftLeftGates,
@@ -425,7 +425,7 @@ private theorem doublingShiftGates_length :
   omega
 
 /-- The shift/reduce doubling block has exactly `30f` Toffoli gates. -/
-theorem doublingCircuit_toffoli_count_eq :
+lemma doublingCircuit_toffoli_count_eq :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         doublingCircuit.eventCost = 30 * params.width := by
   have hraw := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty
@@ -443,7 +443,7 @@ theorem doublingCircuit_toffoli_count_eq :
   omega
 
 /-- The shift/reduce doubling list has at most `27f+21` CNOT leaves. -/
-theorem doublingGates_cnotMultiplicity_sum_le :
+lemma doublingGates_cnotMultiplicity_sum_le :
     (doublingGates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       27 * params.width + 21 := by
   have hraw := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty
@@ -460,7 +460,7 @@ theorem doublingGates_cnotMultiplicity_sum_le :
   omega
 
 /-- The shift/reduce doubling block has a uniform linear event bound. -/
-theorem doublingCircuit_eventCount_le :
+lemma doublingCircuit_eventCount_le :
     doublingCircuit.eventCost.card ≤
       57 * params.width + 52 := by
   have hsource :=
@@ -480,7 +480,7 @@ theorem doublingCircuit_eventCount_le :
   omega
 
 /-- Toffoli bound for one selected-add/doubling round. -/
-theorem roundCircuit_toffoli_count_le (bit : Fin params.width) :
+lemma roundCircuit_toffoli_count_le (bit : Fin params.width) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (roundCircuit bit).eventCost ≤
       (108 * params.width + 14) + 30 * params.width := by
@@ -506,7 +506,7 @@ theorem roundCircuit_toffoli_count_le (bit : Fin params.width) :
 
 /-- CNOT bound for one selected-add/doubling round, projected from the two
 literal source lists. -/
-theorem roundGates_cnotMultiplicity_sum_le (bit : Fin params.width) :
+lemma roundGates_cnotMultiplicity_sum_le (bit : Fin params.width) :
     ((roundGates bit).map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       (8 * params.width + 1) +
         (27 * params.width + 21) := by
@@ -515,7 +515,7 @@ theorem roundGates_cnotMultiplicity_sum_le (bit : Fin params.width) :
     doublingGates_cnotMultiplicity_sum_le
 
 /-- Primitive-event bound for one selected-add/doubling round. -/
-theorem roundCircuit_eventCount_le (bit : Fin params.width) :
+lemma roundCircuit_eventCount_le (bit : Fin params.width) :
     (roundCircuit bit).eventCost.card ≤
       (116 * params.width + 15) +
         (57 * params.width + 52) := by
@@ -587,7 +587,7 @@ def unitDepthBound : Nat :=
 
 set_option exponentiation.threshold 2048 in
 /-- Reversing the doubling source list preserves its strict event pool. -/
-theorem inverseDoublingCircuit_eventCost :
+lemma inverseDoublingCircuit_eventCost :
     inverseDoublingCircuit.eventCost =
       VariableModularMul.doublingCircuit.eventCost := by
   change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
@@ -600,7 +600,7 @@ theorem inverseDoublingCircuit_eventCost :
   exact Multiset.coe_reverse _
 
 /-- Each inverse doubling has exactly the same Toffoli count as a forward one. -/
-theorem inverseDoublingCircuit_toffoli_count_eq :
+lemma inverseDoublingCircuit_toffoli_count_eq :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         inverseDoublingCircuit.eventCost = 30 * params.width := by
   rw [inverseDoublingCircuit_eventCost]
@@ -608,7 +608,7 @@ theorem inverseDoublingCircuit_toffoli_count_eq :
 
 /-- The exact inverse doubling schedule preserves the forward schedule's CNOT
 bound. -/
-theorem inverseDoublingGates_cnotMultiplicity_sum_le :
+lemma inverseDoublingGates_cnotMultiplicity_sum_le :
     (inverseDoublingGates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       27 * params.width + 21 := by
@@ -616,7 +616,7 @@ theorem inverseDoublingGates_cnotMultiplicity_sum_le :
   exact VariableModularMul.doublingGates_cnotMultiplicity_sum_le
 
 /-- Each inverse doubling has the same bit-pattern-independent event bound. -/
-theorem inverseDoublingCircuit_eventCount_le :
+lemma inverseDoublingCircuit_eventCount_le :
     inverseDoublingCircuit.eventCost.card ≤
       57 * params.width + 52 := by
   change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
@@ -628,7 +628,7 @@ theorem inverseDoublingCircuit_eventCount_le :
     VariableModularMul.doublingCircuit_eventCount_le
 
 /-- Toffoli count of an explicit forward prefix is linear in its round count. -/
-theorem forwardProgram_toffoli_count_le :
+lemma forwardProgram_toffoli_count_le :
     ∀ roundBits : List (Fin params.width),
       ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (forwardProgram roundBits).eventCost ≤
@@ -647,7 +647,7 @@ theorem forwardProgram_toffoli_count_le :
         (forwardProgram_toffoli_count_le rest)
 
 /-- Event count of an explicit forward prefix is linear in its round count. -/
-theorem forwardProgram_eventCount_le :
+lemma forwardProgram_eventCount_le :
     ∀ roundBits : List (Fin params.width),
       (forwardProgram roundBits).eventCost.card ≤
         roundBits.length *
@@ -668,7 +668,7 @@ theorem forwardProgram_eventCount_le :
         (forwardProgram_eventCount_le rest)
 
 /-- Toffoli count of the restoration suffix is linear in its round count. -/
-theorem restoreProgram_toffoli_count_le :
+lemma restoreProgram_toffoli_count_le :
     ∀ rounds : Nat,
       ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
           (restoreProgram rounds).eventCost ≤
@@ -683,7 +683,7 @@ theorem restoreProgram_toffoli_count_le :
         (restoreProgram_toffoli_count_le rounds)
 
 /-- Event count of the restoration suffix is linear in its round count. -/
-theorem restoreProgram_eventCount_le :
+lemma restoreProgram_eventCount_le :
     ∀ rounds : Nat,
       (restoreProgram rounds).eventCost.card ≤
         rounds * (57 * params.width + 52)
@@ -698,7 +698,7 @@ theorem restoreProgram_eventCount_le :
       exact Nat.add_le_add inverseDoublingCircuit_eventCount_le
         (restoreProgram_eventCount_le rounds)
 
-private theorem forwardGates_toffoli_count_le :
+private lemma forwardGates_toffoli_count_le :
     ∀ roundBits : List (Fin params.width),
       ((forwardGates roundBits).map (EncodedBit.GateSpec.event .empty)).count
           (.gate .toffoli) ≤
@@ -723,7 +723,7 @@ private theorem forwardGates_toffoli_count_le :
           ((108 * params.width + 14) + 30 * params.width)]
       exact Nat.add_le_add hround (forwardGates_toffoli_count_le rest)
 
-private theorem forwardGates_cnotMultiplicity_sum_le :
+private lemma forwardGates_cnotMultiplicity_sum_le :
     ∀ roundBits : List (Fin params.width),
       ((forwardGates roundBits).map
           EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -744,7 +744,7 @@ private theorem forwardGates_cnotMultiplicity_sum_le :
         (VariableModularMul.roundGates_cnotMultiplicity_sum_le bit)
         (forwardGates_cnotMultiplicity_sum_le rest)
 
-private theorem forwardGates_eventCount_le :
+private lemma forwardGates_eventCount_le :
     ∀ roundBits : List (Fin params.width),
       (forwardGates roundBits).length ≤
         roundBits.length *
@@ -767,7 +767,7 @@ private theorem forwardGates_eventCount_le :
             (57 * params.width + 52))]
       exact Nat.add_le_add hround (forwardGates_eventCount_le rest)
 
-private theorem restoreGates_toffoli_count_le :
+private lemma restoreGates_toffoli_count_le :
     ∀ rounds : Nat,
       ((restoreGates rounds).map (EncodedBit.GateSpec.event .empty)).count
           (.gate .toffoli) ≤
@@ -785,7 +785,7 @@ private theorem restoreGates_toffoli_count_le :
           (30 * params.width)]
       exact Nat.add_le_add hinverse.le (restoreGates_toffoli_count_le rounds)
 
-private theorem restoreGates_cnotMultiplicity_sum_le :
+private lemma restoreGates_cnotMultiplicity_sum_le :
     ∀ rounds : Nat,
       ((restoreGates rounds).map
           EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -799,7 +799,7 @@ private theorem restoreGates_cnotMultiplicity_sum_le :
       exact Nat.add_le_add inverseDoublingGates_cnotMultiplicity_sum_le
         (restoreGates_cnotMultiplicity_sum_le rounds)
 
-private theorem restoreGates_eventCount_le :
+private lemma restoreGates_eventCount_le :
     ∀ rounds : Nat,
       (restoreGates rounds).length ≤
         rounds * (57 * params.width + 52)
@@ -815,12 +815,12 @@ private theorem restoreGates_eventCount_le :
           (57 * params.width + 52)]
       exact Nat.add_le_add hinverse (restoreGates_eventCount_le rounds)
 
-private theorem prefix_length :
+private lemma prefix_length :
     (bits.take (params.width - 1)).length = params.width - 1 := by
   simp [bits, List.length_take]
 
 /-- The complete actual variable-multiplication circuit obeys `toffoliBound`. -/
-theorem circuit_toffoli_count_le :
+lemma circuit_toffoli_count_le :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .toffoli) circuit.eventCost ≤ toffoliBound := by
   have hforward :=
@@ -855,7 +855,7 @@ theorem circuit_toffoli_count_le :
 
 /-- The complete literal variable-multiplication schedule obeys its closed
 Toffoli-coordinate bound. -/
-theorem gates_toffoliMultiplicity_sum_le :
+lemma gates_toffoliMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       toffoliBound := by
   simpa only [circuit,
@@ -864,7 +864,7 @@ theorem gates_toffoliMultiplicity_sum_le :
 
 /-- The complete literal variable-multiplication schedule obeys its closed
 CNOT-coordinate bound. -/
-theorem gates_cnotMultiplicity_sum_le :
+lemma gates_cnotMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤ cnotBound := by
   have hforward :=
     forwardGates_cnotMultiplicity_sum_le
@@ -889,7 +889,7 @@ theorem gates_cnotMultiplicity_sum_le :
       nlinarith
 
 /-- The complete actual variable-multiplication circuit obeys `eventCountBound`. -/
-theorem circuit_eventCount_le : circuit.eventCost.card ≤ eventCountBound := by
+lemma circuit_eventCount_le : circuit.eventCost.card ≤ eventCountBound := by
   have hforward :=
     forwardGates_eventCount_le (bits.take (params.width - 1))
   have hselected : (VariableModularMul.selectedAddGates lastBit).length ≤
@@ -919,14 +919,14 @@ theorem circuit_eventCount_le : circuit.eventCost.card ≤ eventCountBound := by
 
 /-- The literal source gate list obeys the same closed event-count bound as
 the circuit compiled from it. -/
-theorem gates_length_le : gates.length ≤ eventCountBound := by
+lemma gates_length_le : gates.length ≤ eventCountBound := by
   simpa only [circuit,
     EncodedBit.GateSpec.programList_eventCost_card] using
     circuit_eventCount_le
 
 /-- The complete literal variable-multiplication schedule obeys its closed
 X-coordinate bound. -/
-theorem gates_xMultiplicity_sum_le :
+lemma gates_xMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum ≤ xBound := by
   have hcoordinates := EncodedBit.GateSpec.length_eq_multiplicity_sums gates
   have hx :
@@ -937,7 +937,7 @@ theorem gates_xMultiplicity_sum_le :
     hx.trans gates_length_le
 
 /-- Circuit-only unit depth of the same schedule is bounded by its event bound. -/
-theorem circuit_unitDepth_le :
+lemma circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
   change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     gates).evaluatedEventDepth

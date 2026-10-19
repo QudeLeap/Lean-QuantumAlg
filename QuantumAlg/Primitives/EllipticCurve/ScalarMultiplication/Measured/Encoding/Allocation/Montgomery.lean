@@ -9,6 +9,7 @@ module
 import all
   QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Encoding.Allocation.Trajectory
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Encoding.Montgomery
+
 import all
   QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Trajectory.Result
 
@@ -30,6 +31,8 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ScalarMultiplicati
 namespace MeasuredPlacement.Encoding
 
 noncomputable section
+
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
 
 open Execution MeasuredUncompute MeasuredPointAddition Allocation
 open GenericPointAddition.InPlace
@@ -56,7 +59,7 @@ def pairedMontgomeryAllowed {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p
         (fun index => (points index).toGroupPoint) seed.toGroupPoint branch
 
 /-- The original group condition establishes the Montgomery input trajectory. -/
-theorem pairedMontgomeryInput_convertedTrajectory {p : Nat}
+lemma pairedMontgomeryInput_convertedTrajectory {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (fieldTail : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     {exponentWidth : Nat} (points : Fin (2 * exponentWidth) → AffinePoint E)
@@ -74,7 +77,7 @@ theorem pairedMontgomeryInput_convertedTrajectory {p : Nat}
     Semantics.radixUnit_coe]
 
 /-- Actual initialized converted execution has its full density on the original good set. -/
-theorem convertedCircuit_density_of_pairedMontgomery_admissible {p : Nat}
+lemma convertedCircuit_density_of_pairedMontgomery_admissible {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (fieldTail : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     {exponentWidth : Nat} (points : Fin (2 * exponentWidth) → AffinePoint E)
@@ -85,8 +88,10 @@ theorem convertedCircuit_density_of_pairedMontgomery_admissible {p : Nat}
       ¬pairedMontgomeryAllowed E fieldTail sameWidth fits points seed input.1 →
         original.quantumMarginal.matrix input input = 0) :
     ((convertedCircuit E points (List.finRange (2 * exponentWidth))
-      (Semantics.radixUnit p fieldTail.succ odd)).execute Reference original).quantumMarginal =
-      convertedResultDensity E points (List.finRange (2 * exponentWidth))
+      (Semantics.radixUnit p fieldTail.succ odd)).execute environment
+        Reference original).quantumMarginal =
+      convertedResultDensity (environment := environment) E points (List.finRange (2 *
+        exponentWidth))
         (Semantics.radixUnit p fieldTail.succ odd) Reference original.quantumMarginal := by
   apply convertedCircuit_density_of_input_trajectory
   intro input outside
@@ -98,7 +103,7 @@ theorem convertedCircuit_density_of_pairedMontgomery_admissible {p : Nat}
     points seed branch admissible
 
 /-- Every original good branch returns its exact Montgomery affine path and retained bits. -/
-theorem convertedCascadeTarget_pairedMontgomeryInput {p : Nat}
+lemma convertedCascadeTarget_pairedMontgomeryInput {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (fieldTail : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     {exponentWidth : Nat} (points : Fin (2 * exponentWidth) → AffinePoint E)
@@ -107,7 +112,8 @@ theorem convertedCascadeTarget_pairedMontgomeryInput {p : Nat}
       (ExceptionalOffsetAveraging.pairedBigEndianSelected exponentWidth)
       (fun index => (points index).toGroupPoint) seed.toGroupPoint branch)
     {Reference : Register} (reference : Reference.Index) :
-    (convertedCascadeTarget E points (List.finRange (2 * exponentWidth))
+    (convertedCascadeTarget (environment := environment) E points (List.finRange (2 *
+      exponentWidth))
       (Semantics.radixUnit p fieldTail.succ odd) Reference).applyVec
         (NormalizedVector.ket (initializedReadyBasis p (2 * exponentWidth)
           (pairedMontgomeryInput fieldTail exponentWidth sameWidth fits seed branch),
@@ -117,10 +123,12 @@ theorem convertedCascadeTarget_pairedMontgomeryInput {p : Nat}
           (AffineTrajectory.path E points
             (ExceptionalOffsetAveraging.pairedBigEndianSelected exponentWidth branch)
             (List.finRange (2 * exponentWidth)) seed) branch), reference)).vec := by
-  have before := pairOperator_fromMontgomery fieldTail (2 * exponentWidth) sameWidth fits odd
+  have before := pairOperator_fromMontgomery (environment := environment) fieldTail (2 *
+    exponentWidth) sameWidth fits odd
     (pairedExponentInput p exponentWidth branch) seed.x seed.y reference
   have middle := cascadeTarget_pairedAffineInput E points seed branch admissible reference
-  have after := pairOperator_toMontgomery fieldTail (2 * exponentWidth) sameWidth fits odd
+  have after := pairOperator_toMontgomery (environment := environment) fieldTail (2 *
+    exponentWidth) sameWidth fits odd
     (pairedExponentInput p exponentWidth branch)
     (AffineTrajectory.path E points
       (ExceptionalOffsetAveraging.pairedBigEndianSelected exponentWidth branch)
@@ -129,17 +137,19 @@ theorem convertedCascadeTarget_pairedMontgomeryInput {p : Nat}
       (ExceptionalOffsetAveraging.pairedBigEndianSelected exponentWidth branch)
       (List.finRange (2 * exponentWidth)) seed).y reference
   have joined := (congrArg
-    (fun vector => (pairOperator p.size (2 * exponentWidth) (InPlaceTarget.modulusWord p)
+    (fun vector => (pairOperator (environment := environment) p.size (2 * exponentWidth)
+      (InPlaceTarget.modulusWord p)
       (Semantics.radixUnit p fieldTail.succ odd) Reference).applyVec
         ((cascadeTarget E points Reference (List.finRange (2 * exponentWidth))).applyVec vector))
     before).trans ((congrArg
-      (pairOperator p.size (2 * exponentWidth) (InPlaceTarget.modulusWord p)
+      (pairOperator (environment := environment) p.size (2 * exponentWidth)
+        (InPlaceTarget.modulusWord p)
         (Semantics.radixUnit p fieldTail.succ odd) Reference).applyVec middle).trans after)
   rw [convertedCascadeTarget, UnitaryOperator.mul_applyVec, UnitaryOperator.mul_applyVec]
   exact joined
 
 /-- The same full Montgomery target column denotes the original two-exponent group expression. -/
-theorem convertedCascadeTarget_pairedMontgomery_group {p : Nat}
+lemma convertedCascadeTarget_pairedMontgomery_group {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (fieldTail : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     {exponentWidth : Nat} (points : Fin (2 * exponentWidth) → AffinePoint E)
@@ -154,7 +164,8 @@ theorem convertedCascadeTarget_pairedMontgomery_group {p : Nat}
     ∃ final : AffinePoint E,
       final.toGroupPoint =
         seed.toGroupPoint * (leftBase ^ branch.1.val * (rightBase ^ branch.2.val)⁻¹) ∧
-      (convertedCascadeTarget E points (List.finRange (2 * exponentWidth))
+      (convertedCascadeTarget (environment := environment) E points (List.finRange (2 *
+        exponentWidth))
         (Semantics.radixUnit p fieldTail.succ odd) Reference).applyVec
           (NormalizedVector.ket (initializedReadyBasis p (2 * exponentWidth)
             (pairedMontgomeryInput fieldTail exponentWidth sameWidth fits seed branch),

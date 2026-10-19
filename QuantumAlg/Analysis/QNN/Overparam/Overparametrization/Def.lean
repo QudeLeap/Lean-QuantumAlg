@@ -78,14 +78,14 @@ variable {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (D : OverparamData gens)
 public noncomputable def achievableRank (μ : D.ι) (M : ℕ) : ℕ := ⨆ θ : Fin M → ℝ, (D.F μ M θ).rank
 
 /-- The per-`M` achievable-rank supremum is bounded above by `M` (each QFIM is `M × M`). -/
-theorem bddAbove_achievable (μ : D.ι) (M : ℕ) :
+lemma bddAbove_achievable (μ : D.ι) (M : ℕ) :
     BddAbove (Set.range fun θ : Fin M → ℝ => (D.F μ M θ).rank) := by
   refine ⟨M, ?_⟩
   rintro r ⟨θ, rfl⟩
   exact (Matrix.rank_le_card_width _).trans_eq (Fintype.card_fin M)
 
 /-- The achievable rank is bounded by the DLA dimension (Theorem 1 ceiling). -/
-theorem achievable_le_dlaDim (μ : D.ι) (M : ℕ) : D.achievableRank μ M ≤ dlaDim gens :=
+lemma achievable_le_dlaDim (μ : D.ι) (M : ℕ) : D.achievableRank μ M ≤ dlaDim gens :=
   ciSup_le fun θ => D.rank_le_dlaDim μ M θ
 
 /-- The **saturated QFIM rank** for training state `μ`: `R_μ = ⨆_M R_μ(M)`. -/
@@ -93,14 +93,14 @@ public noncomputable def saturatedRank (μ : D.ι) : ℕ := ⨆ M, D.achievableR
 
 /-- The saturated-rank supremum is bounded above by `dim g` (Theorem 1 ceiling); without this the
 `ℕ`-indexed supremum would be junk-valued. -/
-theorem bddAbove_saturated (μ : D.ι) : BddAbove (Set.range (D.achievableRank μ)) := by
+lemma bddAbove_saturated (μ : D.ι) : BddAbove (Set.range (D.achievableRank μ)) := by
   refine ⟨dlaDim gens, ?_⟩
   rintro r ⟨M, rfl⟩
   exact D.achievable_le_dlaDim μ M
 
 /-- The achievable rank at any `M` is at most the saturated rank (a single term of the `BddAbove`
 supremum: `le_ciSup`, *not* monotonicity). -/
-theorem achievable_le_saturated (μ : D.ι) (M : ℕ) : D.achievableRank μ M ≤ D.saturatedRank μ :=
+lemma achievable_le_saturated (μ : D.ι) (M : ℕ) : D.achievableRank μ M ≤ D.saturatedRank μ :=
   le_ciSup (D.bddAbove_saturated μ) M
 
 /-- The QNN is **overparametrized at `M`** iff every training state's achievable rank has saturated
@@ -109,7 +109,7 @@ public def IsOverparametrized (M : ℕ) : Prop := ∀ μ, D.achievableRank μ M 
 
 /-- **Saturation from below.** Since `R_μ(M) ≤ R_μ` always holds, overparametrization is exactly the
 reverse inequality for every training state. -/
-theorem isOverparametrized_iff (M : ℕ) :
+lemma isOverparametrized_iff (M : ℕ) :
     D.IsOverparametrized M ↔ ∀ μ, D.saturatedRank μ ≤ D.achievableRank μ M := by
   constructor
   · intro h μ; exact (h μ).ge
@@ -119,7 +119,7 @@ theorem isOverparametrized_iff (M : ℕ) :
 Proved (not assumed)
 from the parameter-padding block structure: `rank[F μ M θ] = rank` of a principal submatrix of
 `F μ (M+1) (θ,0)`, and a submatrix's rank is at most the whole. -/
-theorem achievable_mono (μ : D.ι) : Monotone (D.achievableRank μ) := by
+lemma achievable_mono (μ : D.ι) : Monotone (D.achievableRank μ) := by
   refine monotone_nat_of_le_succ fun M => ?_
   refine ciSup_le fun θ => ?_
   rw [D.pad_block μ M θ]
@@ -129,20 +129,20 @@ theorem achievable_mono (μ : D.ι) : Monotone (D.achievableRank μ) := by
 /-- **Persistence of overparametrization.** Once overparametrized at `M`, the QNN
 stays overparametrized
 for every `M' ≥ M`. -/
-theorem isOverparametrized_stays {M M' : ℕ} (hMM' : M ≤ M')
+lemma isOverparametrized_stays {M M' : ℕ} (hMM' : M ≤ M')
     (h : D.IsOverparametrized M) : D.IsOverparametrized M' := fun μ =>
   le_antisymm (D.achievable_le_saturated μ M') (by rw [← h μ]; exact D.achievable_mono μ hMM')
 
 /-- The saturated rank is attained at some finite parameter count (a monotone bounded `ℕ`-sequence
 attains its supremum). -/
-theorem exists_achievable_eq_saturated (μ : D.ι) :
+lemma exists_achievable_eq_saturated (μ : D.ι) :
     ∃ M, D.achievableRank μ M = D.saturatedRank μ :=
   Nat.sSup_mem (Set.range_nonempty (D.achievableRank μ)) (D.bddAbove_saturated μ)
 
 /-- **Existence of an overparametrized point.** The set
 `{M | IsOverparametrized M}` is nonempty: take
 the (finite) max over the training set of the per-state saturation points. -/
-theorem exists_isOverparametrized : ∃ M, D.IsOverparametrized M := by
+lemma exists_isOverparametrized : ∃ M, D.IsOverparametrized M := by
   let _ := D.fι
   choose Mμ hMμ using D.exists_achievable_eq_saturated
   refine ⟨Finset.univ.sup Mμ, fun μ => le_antisymm (D.achievable_le_saturated μ _) ?_⟩
@@ -155,12 +155,12 @@ noncomputable def criticalCount : ℕ := sInf {M | D.IsOverparametrized M}
 
 /-- The QNN is overparametrized at its critical count (the degeneracy guard: `M_c` is meaningful).
 -/
-theorem isOverparametrized_criticalCount : D.IsOverparametrized D.criticalCount :=
+lemma isOverparametrized_criticalCount : D.IsOverparametrized D.criticalCount :=
   Nat.sInf_mem D.exists_isOverparametrized
 
 /-- **`max_μ R_μ ≤ M_c`** (Larocca's lower bound on the onset): the saturated rank is at most the
 critical count, since `rank[F] ≤ M`. -/
-theorem saturated_le_criticalCount (μ : D.ι) : D.saturatedRank μ ≤ D.criticalCount := by
+lemma saturated_le_criticalCount (μ : D.ι) : D.saturatedRank μ ≤ D.criticalCount := by
   rw [← D.isOverparametrized_criticalCount μ]
   exact ciSup_le fun θ => (Matrix.rank_le_card_width _).trans_eq (Fintype.card_fin _)
 
@@ -191,7 +191,7 @@ noncomputable def overparamWitness :
     · rw [if_neg hij, if_neg (mt Fin.castSucc_inj.mp hij)]
 
 /-- The witness attains **positive** saturated rank: `R = 1 > 0`. -/
-theorem overparamWitness_saturatedRank_pos (μ : overparamWitness.ι) :
+lemma overparamWitness_saturatedRank_pos (μ : overparamWitness.ι) :
     0 < overparamWitness.saturatedRank μ := by
   have h1 : 0 < overparamWitness.achievableRank μ 1 := by
     refine lt_of_lt_of_le ?_

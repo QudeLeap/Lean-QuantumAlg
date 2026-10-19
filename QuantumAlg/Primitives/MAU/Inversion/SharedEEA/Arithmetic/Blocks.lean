@@ -30,6 +30,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticBlocks
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The actual remainder signed subtraction, Sign complement, and selected add-back. -/
 def remainderProgram (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical (encoding width).width).toQuantum :=
@@ -48,26 +50,27 @@ def remainderSource {width : Nat} (state : Registers width) : Registers width :=
     (ArithmeticSign.remainderStep (ArithmeticInstruction.sourceStep .remainderSubtract state))
 
 /-- The full actual remainder block realizes its exact action for every original frame label. -/
-theorem remainderProgram_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (remainderProgram width) (remainderStep width) :=
+lemma remainderProgram_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (remainderProgram width) environment (remainderStep
+      width) :=
   (ArithmeticSchedule.program_realizes width .remainderSubtract).seq
     ((ArithmeticSign.remainderProgram_realizes width).seq
       (ArithmeticSchedule.program_realizes width .remainderAddback))
 
 /-- Every actual remainder instruction and its cleanup preserves the original Ctrl. -/
-theorem remainderStep_control (width : Nat) (state : Registers width) :
+lemma remainderStep_control (width : Nat) (state : Registers width) :
     (remainderStep width state).control = state.control := by
   rw [remainderStep, ArithmeticSchedule.step_control, ArithmeticSign.remainderStep_control,
     ArithmeticSchedule.step_control]
 
 /-- Arbitrary original Iter survives the whole remainder block, including all equality gates. -/
-theorem remainderStep_iteration (width : Nat) (state : Registers width) :
+lemma remainderStep_iteration (width : Nat) (state : Registers width) :
     (remainderStep width state).flags.iteration = state.flags.iteration := by
   rw [remainderStep, ArithmeticSchedule.step_iteration]
   change (ArithmeticSchedule.step width .remainderSubtract state).flags.iteration = _
   exact ArithmeticSchedule.step_iteration width .remainderSubtract state
 
-private theorem source_control (width : Nat) (instruction : ArithmeticInstruction.Instruction)
+private lemma source_control (width : Nat) (instruction : ArithmeticInstruction.Instruction)
     (state : Registers width) (clean : state.control = false) :
     (ArithmeticInstruction.sourceStep instruction state).control = false := by
   rw [← ArithmeticSchedule.step_eq_source width instruction state clean,
@@ -75,7 +78,7 @@ private theorem source_control (width : Nat) (instruction : ArithmeticInstructio
   exact clean
 
 /-- The initialized actual remainder block equals the independent source's ordered operations. -/
-theorem remainderStep_eq_source (width : Nat) (state : Registers width)
+lemma remainderStep_eq_source (width : Nat) (state : Registers width)
     (clean : state.control = false) : remainderStep width state = remainderSource state := by
   have afterSubtraction := source_control width .remainderSubtract state clean
   have afterSign :
@@ -104,27 +107,28 @@ def coefficientSource {width : Nat} (state : Registers width) : Registers width 
     (ArithmeticSign.coefficientStep (ArithmeticInstruction.sourceStep .coefficientSubtract state))
 
 /-- Actual complete coefficient realization includes every selector and inverse predicate. -/
-theorem coefficientProgram_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (coefficientProgram width) (coefficientStep width) :=
+lemma coefficientProgram_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (coefficientProgram width) environment
+      (coefficientStep width) :=
   (ArithmeticSchedule.program_realizes width .coefficientSubtract).seq
     ((ArithmeticSign.coefficientProgram_realizes width).seq
       (ArithmeticSchedule.program_realizes width .coefficientAdd))
 
 /-- The original Ctrl is restored by all coefficient arithmetic and Sign gates. -/
-theorem coefficientStep_control (width : Nat) (state : Registers width) :
+lemma coefficientStep_control (width : Nat) (state : Registers width) :
     (coefficientStep width state).control = state.control := by
   rw [coefficientStep, ArithmeticSchedule.step_control, ArithmeticSign.coefficientStep_control,
     ArithmeticSchedule.step_control]
 
 /-- The coefficient block retains arbitrary original Iter through all borrowed-work operations. -/
-theorem coefficientStep_iteration (width : Nat) (state : Registers width) :
+lemma coefficientStep_iteration (width : Nat) (state : Registers width) :
     (coefficientStep width state).flags.iteration = state.flags.iteration := by
   rw [coefficientStep, ArithmeticSchedule.step_iteration]
   change (ArithmeticSchedule.step width .coefficientSubtract state).flags.iteration = _
   exact ArithmeticSchedule.step_iteration width .coefficientSubtract state
 
 /-- Its initialized actual execution equals the source's ordered coefficient operations. -/
-theorem coefficientStep_eq_source (width : Nat) (state : Registers width)
+lemma coefficientStep_eq_source (width : Nat) (state : Registers width)
     (clean : state.control = false) : coefficientStep width state = coefficientSource state := by
   have afterSubtraction := source_control width .coefficientSubtract state clean
   have afterSign :
@@ -136,7 +140,7 @@ theorem coefficientStep_eq_source (width : Nat) (state : Registers width)
     ArithmeticSchedule.step_eq_source width .coefficientAdd _ afterSign]
 
 /-- Ordered remainder events retain both schedules and the intervening native Sign gates. -/
-theorem remainderProgram_eventTrace (width : Nat) :
+lemma remainderProgram_eventTrace (width : Nat) :
     (remainderProgram width).eventTrace =
       (ArithmeticSchedule.program width .remainderSubtract).eventTrace ++
       (ArithmeticSign.remainderProgram width).eventTrace ++
@@ -145,7 +149,7 @@ theorem remainderProgram_eventTrace (width : Nat) :
     List.append_assoc]
 
 /-- Ordered coefficient events include the actual intervening Sign CNOT. -/
-theorem coefficientProgram_eventTrace (width : Nat) :
+lemma coefficientProgram_eventTrace (width : Nat) :
     (coefficientProgram width).eventTrace =
       (ArithmeticSchedule.program width .coefficientSubtract).eventTrace ++
       (ArithmeticSign.coefficientProgram width).eventTrace ++
@@ -154,7 +158,7 @@ theorem coefficientProgram_eventTrace (width : Nat) :
     List.append_assoc]
 
 /-- Strict actual remainder depth includes the three emitted Sign-control gates. -/
-theorem remainderProgram_unitDepth (width : Nat) :
+lemma remainderProgram_unitDepth (width : Nat) :
     (remainderProgram width).evaluatedEventDepth (fun _ => 1) =
       (ArithmeticSchedule.program width .remainderSubtract).evaluatedEventDepth (fun _ => 1) +
       (3 + (ArithmeticSchedule.program width .remainderAddback).evaluatedEventDepth
@@ -163,7 +167,7 @@ theorem remainderProgram_unitDepth (width : Nat) :
     UnitaryCircuit.evaluatedEventDepth_seq, ArithmeticSign.remainderProgram_unitDepth]
 
 /-- Strict actual coefficient depth includes its one emitted Sign CNOT. -/
-theorem coefficientProgram_unitDepth (width : Nat) :
+lemma coefficientProgram_unitDepth (width : Nat) :
     (coefficientProgram width).evaluatedEventDepth (fun _ => 1) =
       (ArithmeticSchedule.program width .coefficientSubtract).evaluatedEventDepth (fun _ => 1) +
       (1 + (ArithmeticSchedule.program width .coefficientAdd).evaluatedEventDepth

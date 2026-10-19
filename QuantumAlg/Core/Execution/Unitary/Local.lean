@@ -29,32 +29,42 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
+variable {allowAllocation : Bool}
+
 /-- The same instruction conjugates the complete joint input and its external reference. -/
-theorem unitary_jointDensity {gates : GateModel} {oracles : OracleModel}
+lemma unitary_jointDensity {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : ExecutionModel.Environment (.quantum gates oracles operations services))
     {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (services.HiddenState × H)) :
-    ((Circuit.unitary (operations := operations) (classicalOracles := services) program).execute
+    ((Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := services) program).execute environment
       Reference state).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+        (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+          (1 : UnitaryOperator Reference))
         state.quantumMarginal := by
   simp only [execute_unitary, ExecutionState.mapClassical_quantumMarginal]
   exact ExecutionState.fixedUnitary_quantumMarginal state
-    (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+    (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+      (1 : UnitaryOperator Reference))
 
 /-- A placed unitary conjugates the actual incoming local quantum marginal. -/
-theorem unitary_localDensity {gates : GateModel} {oracles : OracleModel}
+lemma unitary_localDensity {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : ExecutionModel.Environment (.quantum gates oracles operations services))
     {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (services.HiddenState × H)) :
-    ((Circuit.unitary (operations := operations) (classicalOracles := services) program).execute
+    ((Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := services) program).execute environment
       Reference state).quantumMarginal.marginalLeft =
-        DensityOperator.applyUnitary program.matrix state.quantumMarginal.marginalLeft := by
-  rw [unitary_jointDensity]
-  exact DensityOperator.localUnitary_marginalLeft program.matrix state.quantumMarginal
+        DensityOperator.applyUnitary (program.matrix environment.quantum)
+          state.quantumMarginal.marginalLeft := by
+  rw [unitary_jointDensity (allowAllocation := allowAllocation)]
+  exact DensityOperator.localUnitary_marginalLeft (program.matrix environment.quantum)
+    state.quantumMarginal
 
 end
 

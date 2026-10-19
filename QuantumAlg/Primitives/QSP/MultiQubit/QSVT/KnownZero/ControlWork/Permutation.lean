@@ -35,8 +35,9 @@ def lastPermutation (k n : Nat) : Equiv.Perm (layout k n).Basis :=
   ((maskPermutation k n).trans (cnotPermutation k n)).trans (maskPermutation k n)
 
 /-- The complete native operator is the permutation of its addressed X, CNOT and X word. -/
-theorem controlWork_lastFlip_matrix (k n : Nat) (oracles : OracleModel) :
-    (lastFlip k n oracles).matrix = UnitaryOperator.ofPerm (lastPermutation k n) := by
+lemma controlWork_lastFlip_matrix (k n : Nat) (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    ((lastFlip k n oracles).matrix environment) = UnitaryOperator.ofPerm (lastPermutation k n) := by
   rw [lastFlip, UnitaryCircuit.seq_matrix, UnitaryCircuit.seq_matrix]
   change (QubitPrimitive.nativeApplication (physical k n) (.x (lastControl k n))).operator *
     ((QubitPrimitive.nativeApplication (physical k n)
@@ -48,7 +49,7 @@ theorem controlWork_lastFlip_matrix (k n : Nat) (oracles : OracleModel) :
   rfl
 
 /-- The masks restore the last control and toggle only the phase coordinate on its zero branch. -/
-theorem controlWork_lastPermutation_coordinates (k n : Nat)
+lemma controlWork_lastPermutation_coordinates (k n : Nat)
     (basis : Fin (1 + (k + (1 + n))) → Fin 2) :
     lastPermutation k n basis = Function.update basis 0
       (if basis (lastControl k n) = 0 then Fin.add (n := 2) (basis 0) 1 else basis 0) := by
@@ -77,11 +78,11 @@ theorem controlWork_lastPermutation_coordinates (k n : Nat)
 private def bits (k n : Nat) (basis : (layout k n).Basis) :
     Fin (1 + (k + (1 + n))) → Fin 2 := basis
 
-private theorem bits_injective (k n : Nat) : Function.Injective (bits k n) := by
+private lemma bits_injective (k n : Nat) : Function.Injective (bits k n) := by
   intro left right same
   exact same
 
-private theorem lastPermutation_bits (k n : Nat) (basis : (layout k n).Basis) :
+private lemma lastPermutation_bits (k n : Nat) (basis : (layout k n).Basis) :
     bits k n (lastPermutation k n basis) = Function.update (bits k n basis) 0
       (if bits k n basis (lastControl k n) = 0 then
         Fin.add (n := 2) (bits k n basis 0) 1 else bits k n basis 0) :=

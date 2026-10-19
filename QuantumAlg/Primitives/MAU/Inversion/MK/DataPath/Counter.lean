@@ -35,6 +35,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -57,7 +59,7 @@ def liftedCounterIncrementCounterWord (n counterWidth : Nat) :
   bit := liftedCounterIncrementCounterBit n counterWidth
 
 /-- Getter normalization for the lifted counter-increment source word. -/
-theorem liftedCounterIncrementSourceWord_get_testBit
+lemma liftedCounterIncrementSourceWord_get_testBit
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     ((liftedCounterIncrementSourceWord n counterWidth).bit bit).get x =
@@ -70,7 +72,7 @@ theorem liftedCounterIncrementSourceWord_get_testBit
     WireAddress.bitIndex_littleEndianWire]
 
 /-- Getter normalization for the lifted padding-counter value word. -/
-theorem liftedCounterIncrementCounterWord_get_testBit
+lemma liftedCounterIncrementCounterWord_get_testBit
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     ((liftedCounterIncrementCounterWord n counterWidth).bit bit).get x =
@@ -82,7 +84,7 @@ theorem liftedCounterIncrementCounterWord_get_testBit
   simp [WireAddress.bitIndex_littleEndianWire]
 
 /-- Getter normalization for the lifted counter-increment carry-in flag. -/
-theorem liftedCounterIncrementCarryInBit_get
+lemma liftedCounterIncrementCarryInBit_get
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (liftedCounterIncrementCarryInBit n counterWidth).get x =
@@ -92,7 +94,7 @@ theorem liftedCounterIncrementCarryInBit_get
   rfl
 
 /-- The lifted counter-increment carry-work bits read false on clean work. -/
-theorem liftedCounterIncrementCarryWorkBit_get_clean
+lemma liftedCounterIncrementCarryWorkBit_get_clean
     (n counterWidth : Nat) (bit : Fin (counterWidth - 1))
     (x : Registers n counterWidth) :
     (liftedCounterIncrementCarryWorkBit n counterWidth bit).get
@@ -201,17 +203,17 @@ def counterIncrementWithWorkStep (n counterWidth : Nat) :
 
 /-- The padding-counter incrementer realizes its folded bit-lens action with
 the same base-gate object used for resource accounting. -/
-theorem counterIncrementWithWork_realizes (n counterWidth : Nat) :
+lemma counterIncrementWithWork_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCounterIncrementWorkEncoding n counterWidth)
-      (counterIncrementWithWorkProgram n counterWidth)
+      (counterIncrementWithWorkProgram n counterWidth) environment
       (counterIncrementWithWorkStep n counterWidth) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes
     (counterIncrementLayout n counterWidth)
 
 /-- The counter-increment schedule preserves any Kaliski-register readout
 whose wire is disjoint from every padding-counter target bit. -/
-theorem counterIncrementWithWorkStep_get_registerBit_of_counter_ne
+lemma counterIncrementWithWorkStep_get_registerBit_of_counter_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hright :
@@ -245,7 +247,7 @@ theorem counterIncrementWithWorkStep_get_registerBit_of_counter_ne
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- The counter-increment schedule preserves the `u` word. -/
-theorem counterIncrementWithWorkStep_u
+lemma counterIncrementWithWorkStep_u
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.u = x.1.u := by
@@ -263,7 +265,7 @@ theorem counterIncrementWithWorkStep_u
   simpa using h
 
 /-- The counter-increment schedule preserves the `v` word. -/
-theorem counterIncrementWithWorkStep_v
+lemma counterIncrementWithWorkStep_v
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.v = x.1.v := by
@@ -281,7 +283,7 @@ theorem counterIncrementWithWorkStep_v
   simpa using h
 
 /-- The counter-increment schedule preserves the `s` coefficient word. -/
-theorem counterIncrementWithWorkStep_sCoeff
+lemma counterIncrementWithWorkStep_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.sCoeff =
@@ -300,7 +302,7 @@ theorem counterIncrementWithWorkStep_sCoeff
   simpa using h
 
 /-- The counter-increment schedule preserves the `r` coefficient word. -/
-theorem counterIncrementWithWorkStep_rCoeff
+lemma counterIncrementWithWorkStep_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.rCoeff =
@@ -319,7 +321,7 @@ theorem counterIncrementWithWorkStep_rCoeff
   simpa using h
 
 /-- The counter-increment schedule preserves the comparison ancilla. -/
-theorem counterIncrementWithWorkStep_compare
+lemma counterIncrementWithWorkStep_compare
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.compare =
@@ -335,7 +337,7 @@ theorem counterIncrementWithWorkStep_compare
   simpa [RegisterBits.compareBit_get] using h
 
 /-- The counter-increment schedule preserves the first scratch bit. -/
-theorem counterIncrementWithWorkStep_scratchA
+lemma counterIncrementWithWorkStep_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.scratchA =
@@ -351,7 +353,7 @@ theorem counterIncrementWithWorkStep_scratchA
   simpa [RegisterBits.scratchABit_get] using h
 
 /-- The counter-increment schedule preserves the second scratch bit. -/
-theorem counterIncrementWithWorkStep_scratchB
+lemma counterIncrementWithWorkStep_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.scratchB =
@@ -367,7 +369,7 @@ theorem counterIncrementWithWorkStep_scratchB
   simpa [RegisterBits.scratchBBit_get] using h
 
 /-- The counter-increment schedule preserves every stored history bit. -/
-theorem counterIncrementWithWorkStep_history
+lemma counterIncrementWithWorkStep_history
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.history =
@@ -388,7 +390,7 @@ theorem counterIncrementWithWorkStep_history
   simpa [RegisterBits.historyBit_get] using h
 
 /-- The counter-increment schedule preserves the active flag. -/
-theorem counterIncrementWithWorkStep_active
+lemma counterIncrementWithWorkStep_active
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).1.active =
@@ -405,7 +407,7 @@ theorem counterIncrementWithWorkStep_active
 
 /-- The counter-increment schedule preserves the dedicated source-one work
 word. -/
-theorem counterIncrementWithWorkStep_get_source
+lemma counterIncrementWithWorkStep_get_source
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).2.1 = x.2.1 := by
@@ -419,7 +421,7 @@ theorem counterIncrementWithWorkStep_get_source
     liftedCounterIncrementSourceWord_get_testBit] using h
 
 /-- The counter-increment schedule preserves the dedicated carry-in flag. -/
-theorem counterIncrementWithWorkStep_get_carryIn
+lemma counterIncrementWithWorkStep_get_carryIn
     (n counterWidth : Nat)
     (x : RegistersWithCounterIncrementWork n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth x).2.2.1 = x.2.2.1 := by
@@ -432,7 +434,7 @@ theorem counterIncrementWithWorkStep_get_carryIn
 
 /-- On clean counter-increment work inputs, the forward carry stage computes
 the propagated natural addition carry for `source + counter`. -/
-theorem counterIncrement_carryStage_get_workCarry_natAddCarry
+lemma counterIncrement_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat) (j : Fin (counterWidth - 1))
     (x : RegistersWithCounterIncrementWork n counterWidth)
     (hcarry : (liftedCounterIncrementCarryInBit n counterWidth).get x = false)
@@ -515,7 +517,7 @@ theorem counterIncrement_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before each counter target sum is the propagated natural
 carry for `source + counter` on clean carry/work inputs. -/
-theorem counterIncrement_carryBeforeSum_get_natAddCarry
+lemma counterIncrement_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithCounterIncrementWork n counterWidth)
     (hcarry : (liftedCounterIncrementCarryInBit n counterWidth).get x = false)
@@ -561,7 +563,7 @@ theorem counterIncrement_carryBeforeSum_get_natAddCarry
 
 /-- On clean counter-increment work inputs, each counter target bit is written
 as `counter + 1`. -/
-theorem counterIncrementWithWorkStep_get_counter_add_testBit_of_clean
+lemma counterIncrementWithWorkStep_get_counter_add_testBit_of_clean
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : Registers n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth
@@ -609,7 +611,7 @@ theorem counterIncrementWithWorkStep_get_counter_add_testBit_of_clean
 
 /-- On clean counter-increment work inputs, the counter field is incremented
 modulo its width. -/
-theorem counterIncrementWithWorkStep_counter_of_clean
+lemma counterIncrementWithWorkStep_counter_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth
         (x, cleanCounterIncrementWork counterWidth)).1.counter =
@@ -621,7 +623,7 @@ theorem counterIncrementWithWorkStep_counter_of_clean
 
 /-- On clean counter-increment work inputs, each temporary carry-work bit is
 restored to false. -/
-theorem counterIncrementWithWorkStep_get_carryWork_clean
+lemma counterIncrementWithWorkStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin (counterWidth - 1))
     (x : Registers n counterWidth) :
     ((liftedCounterIncrementCarryWorkWord n counterWidth).bit bit).get
@@ -639,7 +641,7 @@ theorem counterIncrementWithWorkStep_get_carryWork_clean
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- On clean inputs, the dedicated counter-increment work object is restored. -/
-theorem counterIncrementWithWorkStep_work_cleanEndpoint
+lemma counterIncrementWithWorkStep_work_cleanEndpoint
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth
         (x, cleanCounterIncrementWork counterWidth)).2 =
@@ -660,7 +662,7 @@ theorem counterIncrementWithWorkStep_work_cleanEndpoint
 
 /-- On clean inputs, the register endpoint is the original Kaliski register
 with only the padding counter incremented. -/
-theorem counterIncrementWithWorkStep_register_cleanEndpoint
+lemma counterIncrementWithWorkStep_register_cleanEndpoint
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (counterIncrementWithWorkStep n counterWidth
         (x, cleanCounterIncrementWork counterWidth)).1 =
@@ -710,7 +712,7 @@ theorem counterIncrementWithWorkStep_register_cleanEndpoint
     hcounter]
 
 /-- Clean endpoint for the padding-counter incrementer with dedicated work. -/
-theorem counterIncrementWithWorkStep_cleanEndpoint
+lemma counterIncrementWithWorkStep_cleanEndpoint
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     counterIncrementWithWorkStep n counterWidth
         (x, cleanCounterIncrementWork counterWidth) =
@@ -721,7 +723,7 @@ theorem counterIncrementWithWorkStep_cleanEndpoint
     (counterIncrementWithWorkStep_work_cleanEndpoint n counterWidth x)
 
 /-- Distinct comparison-work carry bits occupy distinct wires. -/
-theorem comparisonCarry_comparisonCarry_wire_ne
+lemma comparisonCarry_comparisonCarry_wire_ne
     (n : Nat) (left right : Fin n) (h : left ≠ right) :
     (comparisonCarryBit n left).wire ≠
       (comparisonCarryBit n right).wire := by
@@ -734,7 +736,7 @@ theorem comparisonCarry_comparisonCarry_wire_ne
     using hval
 
 /-- Distinct little-endian comparison-work value bits occupy distinct wires. -/
-theorem comparisonCarryValue_comparisonCarryValue_wire_ne
+lemma comparisonCarryValue_comparisonCarryValue_wire_ne
     (n : Nat) (left right : Fin n) (h : left ≠ right) :
     (comparisonCarryValueBit n left).wire ≠
       (comparisonCarryValueBit n right).wire := by
@@ -847,7 +849,7 @@ def coeffAdderCounterValueBit (n counterWidth : Nat)
       (RegisterBits.counterBit n counterWidth
         (WireAddress.littleEndianWire bit)))
 
-theorem coeffAdderCounterValueBit_get (n counterWidth : Nat)
+lemma coeffAdderCounterValueBit_get (n counterWidth : Nat)
     (bit : Fin counterWidth)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCounterValueBit n counterWidth bit).get x =
@@ -858,7 +860,7 @@ theorem coeffAdderCounterValueBit_get (n counterWidth : Nat)
   rw [RegisterBits.counterBit_get,
     WireAddress.bitIndex_littleEndianWire]
 
-theorem
+lemma
     coeffAdderLiftedRegisterBit_counterValueBit_wire_ne
     (n counterWidth : Nat)
     (registerBit : EncodedBit (registerEncoding n counterWidth))
@@ -881,7 +883,7 @@ theorem
         (RegisterBits.counterBit n counterWidth
           (WireAddress.littleEndianWire counterBit)) hne)
 
-theorem
+lemma
     liftedCoeffAdderCarryWorkBit_counterValueBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (counterBit : Fin counterWidth) :
@@ -911,7 +913,7 @@ def fullRoundPathControlWorkActiveBit (tail counterWidth : Nat) :
     (fullRoundPathWorkActiveBit tail counterWidth)
 
 /-- The lifted active flag and trailing path bit occupy distinct wires. -/
-theorem fullRoundPathWorkActiveBit_wire_ne_pathBit
+lemma fullRoundPathWorkActiveBit_wire_ne_pathBit
     (tail counterWidth : Nat) :
     (fullRoundPathWorkActiveBit tail counterWidth).wire ≠
       (fullRoundPathWorkPathBit tail counterWidth).wire := by
@@ -966,17 +968,17 @@ def fullRoundPathWorkOriginalActiveLatchProgram
     (fullRoundPathWorkOriginalActiveLatchGates tail counterWidth)
 
 /-- The path-latch circuit realizes its gate-list step. -/
-theorem fullRoundPathWorkOriginalActiveLatch_realizes
+lemma fullRoundPathWorkOriginalActiveLatch_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathWorkEncoding tail.succ counterWidth)
-      (fullRoundPathWorkOriginalActiveLatchProgram tail counterWidth)
+      (fullRoundPathWorkOriginalActiveLatchProgram tail counterWidth) environment
       (fullRoundPathWorkOriginalActiveLatchStep tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundPathWorkOriginalActiveLatchGates tail counterWidth)
 
 /-- With a clean path bit, the latch stores the current active flag. -/
-theorem fullRoundPathWorkOriginalActiveLatchStep_path_of_clean
+lemma fullRoundPathWorkOriginalActiveLatchStep_path_of_clean
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundPathWork tail.succ counterWidth)
     (hclean : (fullRoundPathWorkPathBit tail counterWidth).get x = false) :
@@ -1008,18 +1010,18 @@ def fullRoundPathControlWorkOriginalActiveLatchProgram
     (fullRoundPathWorkOriginalActiveLatchProgram tail counterWidth)
 
 /-- The lifted original-active latch realizes the lifted semantic step. -/
-theorem fullRoundPathControlWorkOriginalActiveLatch_realizes
+lemma fullRoundPathControlWorkOriginalActiveLatch_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding
         tail.succ counterWidth)
-      (fullRoundPathControlWorkOriginalActiveLatchProgram tail counterWidth)
+      (fullRoundPathControlWorkOriginalActiveLatchProgram tail counterWidth) environment
       (fullRoundPathControlWorkOriginalActiveLatchStep tail counterWidth) :=
   liftFullRoundPathWorkProgramToControlWork_realizes tail.succ counterWidth
     (fullRoundPathWorkOriginalActiveLatch_realizes tail counterWidth)
 
 /-- The lifted original-active latch preserves the control-work bit. -/
-theorem fullRoundPathControlWorkOriginalActiveLatchStep_controlWork
+lemma fullRoundPathControlWorkOriginalActiveLatchStep_controlWork
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundPathControlWork tail.succ counterWidth) :
     (fullRoundPathControlWorkOriginalActiveLatchStep
@@ -1028,7 +1030,7 @@ theorem fullRoundPathControlWorkOriginalActiveLatchStep_controlWork
 
 /-- The lifted original-active latch records source active in the path bit when
 the path bit starts clean. -/
-theorem fullRoundPathControlWorkOriginalActiveLatchStep_path_of_clean
+lemma fullRoundPathControlWorkOriginalActiveLatchStep_path_of_clean
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundPathControlWork tail.succ counterWidth)
     (hclean :
@@ -1045,7 +1047,7 @@ theorem fullRoundPathControlWorkOriginalActiveLatchStep_path_of_clean
       tail counterWidth x.1 hclean
 
 /-- If source active is false, the original-active latch is a no-op. -/
-theorem fullRoundPathControlWorkOriginalActiveLatchStep_eq_self_of_active_false
+lemma fullRoundPathControlWorkOriginalActiveLatchStep_eq_self_of_active_false
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundPathControlWork tail.succ counterWidth)
     (hactive :
@@ -1133,7 +1135,7 @@ def coeffAdderRCoeffValueWord (n counterWidth : Nat) :
       ((liftedRCoeffValueWord n counterWidth).bit bit)
 
 /-- Getter normalization for the lifted `u` value word. -/
-theorem coeffAdderUWord_get_testBit
+lemma coeffAdderUWord_get_testBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get x =
@@ -1143,7 +1145,7 @@ theorem coeffAdderUWord_get_testBit
     BinaryLabelEncoding.prodLeftBit]
 
 /-- Getter normalization for the lifted `v` value word. -/
-theorem coeffAdderVWord_get_testBit
+lemma coeffAdderVWord_get_testBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get x =
@@ -1154,7 +1156,7 @@ theorem coeffAdderVWord_get_testBit
 
 /-- Getter normalization for the lifted comparison bit over the dedicated
 coefficient-adder work object. -/
-theorem coeffAdderCompareBit_get
+lemma coeffAdderCompareBit_get
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get x = x.1.1.compare := by
@@ -1164,7 +1166,7 @@ theorem coeffAdderCompareBit_get
 
 /-- The little-endian zero `u` wire over coefficient-adder work reads the
 low value bit of the concrete `u` register. -/
-theorem coeffAdderUBit_get_littleEndian_zero
+lemma coeffAdderUBit_get_littleEndian_zero
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     (coeffAdderUBit tail.succ counterWidth
@@ -1178,7 +1180,7 @@ theorem coeffAdderUBit_get_littleEndian_zero
 
 /-- The little-endian zero `v` wire over coefficient-adder work reads the
 low value bit of the concrete `v` register. -/
-theorem coeffAdderVBit_get_littleEndian_zero
+lemma coeffAdderVBit_get_littleEndian_zero
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     (coeffAdderVBit tail.succ counterWidth
@@ -1192,7 +1194,7 @@ theorem coeffAdderVBit_get_littleEndian_zero
 
 /-- Getter normalization for the lifted little-endian `s` coefficient value
 word. -/
-theorem coeffAdderSCoeffValueWord_get_testBit
+lemma coeffAdderSCoeffValueWord_get_testBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get x =
@@ -1203,7 +1205,7 @@ theorem coeffAdderSCoeffValueWord_get_testBit
 
 /-- Getter normalization for the lifted little-endian `r` coefficient value
 word. -/
-theorem coeffAdderRCoeffValueWord_get_testBit
+lemma coeffAdderRCoeffValueWord_get_testBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get x =
@@ -1225,7 +1227,7 @@ def coeffAdderComparisonCarryBit
   liftComparisonStateBitToCoeffAdderWork n counterWidth
     (liftedComparisonCarryBit n counterWidth bit)
 
-theorem
+lemma
     coeffAdderComparisonCarryBit_counterValueBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n)
     (counterBit : Fin counterWidth) :
@@ -1323,7 +1325,7 @@ def detectorCounterIncrementCarryWorkWord (n counterWidth : Nat) :
   bit := detectorCounterIncrementCarryWorkBit n counterWidth
 
 /-- Getter normalization for the detector-counter source-one work word. -/
-theorem detectorCounterIncrementSourceWord_get_testBit
+lemma detectorCounterIncrementSourceWord_get_testBit
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     ((detectorCounterIncrementSourceWord n counterWidth).bit bit).get x =
@@ -1336,7 +1338,7 @@ theorem detectorCounterIncrementSourceWord_get_testBit
     WireAddress.bitIndex_littleEndianWire]
 
 /-- Getter normalization for the detector-counter padding-counter word. -/
-theorem detectorCounterCounterWord_get_testBit
+lemma detectorCounterCounterWord_get_testBit
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     ((detectorCounterCounterWord n counterWidth).bit bit).get x =
@@ -1348,7 +1350,7 @@ theorem detectorCounterCounterWord_get_testBit
   simp [WireAddress.bitIndex_littleEndianWire]
 
 /-- Getter normalization for the detector-counter carry-in flag. -/
-theorem detectorCounterIncrementCarryInBit_get
+lemma detectorCounterIncrementCarryInBit_get
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterIncrementCarryInBit n counterWidth).get x =
@@ -1359,7 +1361,7 @@ theorem detectorCounterIncrementCarryInBit_get
 
 /-- Detector-counter carry-work bits read false on clean counter-increment
 work. -/
-theorem detectorCounterIncrementCarryWorkBit_get_clean
+lemma detectorCounterIncrementCarryWorkBit_get_clean
     (n counterWidth : Nat) (bit : Fin (counterWidth - 1))
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n) :
     (detectorCounterIncrementCarryWorkBit n counterWidth bit).get
@@ -1482,16 +1484,16 @@ def detectorCounterInactivePaddingGateProgram (n counterWidth : Nat) :
     (detectorCounterInactivePaddingGates n counterWidth)
 
 /-- The inactive-padding circuit realizes its gate-list action. -/
-theorem detectorCounterInactivePaddingGate_realizes (n counterWidth : Nat) :
+lemma detectorCounterInactivePaddingGate_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding n counterWidth)
-      (detectorCounterInactivePaddingGateProgram n counterWidth)
+      (detectorCounterInactivePaddingGateProgram n counterWidth) environment
       (detectorCounterInactivePaddingGateStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (detectorCounterInactivePaddingGates n counterWidth)
 
 /-- The inactive-padding gate list is wire-disjoint from the active flag. -/
-theorem detectorCounterInactivePaddingGates_bitDisjoint_active
+lemma detectorCounterInactivePaddingGates_bitDisjoint_active
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ detectorCounterInactivePaddingGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -1533,7 +1535,7 @@ theorem detectorCounterInactivePaddingGates_bitDisjoint_active
 
 /-- The inactive-padding gate list is wire-disjoint from any selected
 comparison-work bit, which can serve as the clean control-work bit. -/
-theorem detectorCounterInactivePaddingGates_bitDisjoint_comparisonCarry
+lemma detectorCounterInactivePaddingGates_bitDisjoint_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n) :
     ∀ gate, gate ∈ detectorCounterInactivePaddingGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -1572,7 +1574,7 @@ theorem detectorCounterInactivePaddingGates_bitDisjoint_comparisonCarry
 
 /-- Active and a selected comparison-work carry bit are distinct in the
 detector-plus-counter workspace. -/
-theorem detectorCounterActiveBit_comparisonCarryBit_wire_ne
+lemma detectorCounterActiveBit_comparisonCarryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n) :
     (detectorCounterActiveBit n counterWidth).wire ≠
       (detectorCounterComparisonCarryBit n counterWidth workBit).wire :=
@@ -1629,21 +1631,21 @@ def detectorCounterActiveFalseControlledInactivePaddingProgram
       tail counterWidth)
 
 /-- The controlled inactive-padding circuit realizes its gate-list action. -/
-theorem detectorCounterActiveFalseControlledInactivePadding_realizes
+lemma detectorCounterActiveFalseControlledInactivePadding_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding tail.succ counterWidth)
       (detectorCounterActiveFalseControlledInactivePaddingProgram
-        tail counterWidth)
+        tail counterWidth) environment
       (detectorCounterActiveFalseControlledInactivePaddingStep
         tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (detectorCounterActiveFalseControlledInactivePaddingGates
       tail counterWidth)
 
 /-- If active is false and the selected comparison-work bit is clean, the
 active-false wrapper runs the inactive-padding gate list. -/
-theorem
+lemma
     detectorCounterActiveFalseControlledInactivePaddingStep_eq_padding_of_active_false_clean
     (tail counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork tail.succ counterWidth)
@@ -1718,7 +1720,7 @@ theorem
     EncodedBit.flip_flip]
 
 /-- If active is true, the active-false inactive-padding wrapper is a no-op. -/
-theorem
+lemma
     detectorCounterActiveFalseControlledInactivePaddingStep_eq_self_of_active_true
     (tail counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork tail.succ counterWidth)
@@ -1778,12 +1780,12 @@ def coeffAdderComparisonCarryPrefixIndex (n : Nat) (bit : Fin (n - 1)) :
     have hbit := bit.isLt
     omega⟩
 
-@[simp] theorem coeffAdderComparisonCarryPrefixIndex_val
+@[simp] lemma coeffAdderComparisonCarryPrefixIndex_val
     (n : Nat) (bit : Fin (n - 1)) :
     (coeffAdderComparisonCarryPrefixIndex n bit).val = bit.val :=
   rfl
 
-theorem coeffAdderComparisonCarryPrefixIndex_ne
+lemma coeffAdderComparisonCarryPrefixIndex_ne
     (n : Nat) {left right : Fin (n - 1)} (h : left ≠ right) :
     coeffAdderComparisonCarryPrefixIndex n left ≠
       coeffAdderComparisonCarryPrefixIndex n right := by
@@ -1794,7 +1796,7 @@ theorem coeffAdderComparisonCarryPrefixIndex_ne
 
 /-- Every source-adder prefix carry index is distinct from an index known to
 be the final comparison carry. -/
-theorem coeffAdderComparisonCarryPrefixIndex_ne_final
+lemma coeffAdderComparisonCarryPrefixIndex_ne_final
     (n : Nat) (finalBit : Fin n) (hfinal : finalBit.val + 1 = n)
     (prefixBit : Fin (n - 1)) :
     coeffAdderComparisonCarryPrefixIndex n prefixBit ≠ finalBit := by
@@ -1814,7 +1816,7 @@ def coeffAdderComparisonCarryPrefixWord (n counterWidth : Nat) :
       (coeffAdderComparisonCarryPrefixIndex n bit)
 
 /-- The lifted comparison ancilla and a lifted `u` bit occupy distinct wires. -/
-theorem liftedCompare_liftedUBit_wire_ne
+lemma liftedCompare_liftedUBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (liftedCompareBit n counterWidth).wire ≠
       (liftedUBit n counterWidth bit).wire := by
@@ -1824,7 +1826,7 @@ theorem liftedCompare_liftedUBit_wire_ne
     (Ne.symm (RegisterBits.u_compare_wire_ne n counterWidth bit))
 
 /-- The lifted comparison ancilla and a lifted `v` bit occupy distinct wires. -/
-theorem liftedCompare_liftedVBit_wire_ne
+lemma liftedCompare_liftedVBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (liftedCompareBit n counterWidth).wire ≠
       (liftedVBit n counterWidth bit).wire := by
@@ -1834,7 +1836,7 @@ theorem liftedCompare_liftedVBit_wire_ne
     (Ne.symm (RegisterBits.v_compare_wire_ne n counterWidth bit))
 
 /-- Lifted `u` and `v` bits occupy distinct wires. -/
-theorem liftedUBit_liftedVBit_wire_ne
+lemma liftedUBit_liftedVBit_wire_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     (liftedUBit n counterWidth uIndex).wire ≠
       (liftedVBit n counterWidth vIndex).wire := by
@@ -1845,7 +1847,7 @@ theorem liftedUBit_liftedVBit_wire_ne
 
 /-- The lifted comparison ancilla and a lifted little-endian `u` value bit
 occupy distinct wires. -/
-theorem liftedCompare_liftedUWordBit_wire_ne
+lemma liftedCompare_liftedUWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (liftedCompareBit n counterWidth).wire ≠
       ((liftedUWord n counterWidth).bit bit).wire := by
@@ -1857,7 +1859,7 @@ theorem liftedCompare_liftedUWordBit_wire_ne
 
 /-- The lifted comparison ancilla and a lifted little-endian `v` value bit
 occupy distinct wires. -/
-theorem liftedCompare_liftedVWordBit_wire_ne
+lemma liftedCompare_liftedVWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (liftedCompareBit n counterWidth).wire ≠
       ((liftedVWord n counterWidth).bit bit).wire := by
@@ -1869,7 +1871,7 @@ theorem liftedCompare_liftedVWordBit_wire_ne
 
 /-- The lifted comparison ancilla and a lifted `s` coefficient bit occupy
 distinct wires. -/
-theorem liftedCompare_liftedSCoeffWordBit_wire_ne
+lemma liftedCompare_liftedSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (liftedCompareBit n counterWidth).wire ≠
       ((liftedSCoeffWord n counterWidth).bit bit).wire := by
@@ -1880,7 +1882,7 @@ theorem liftedCompare_liftedSCoeffWordBit_wire_ne
 
 /-- The lifted comparison ancilla and a lifted `r` coefficient bit occupy
 distinct wires. -/
-theorem liftedCompare_liftedRCoeffWordBit_wire_ne
+lemma liftedCompare_liftedRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (liftedCompareBit n counterWidth).wire ≠
       ((liftedRCoeffWord n counterWidth).bit bit).wire := by
@@ -1891,7 +1893,7 @@ theorem liftedCompare_liftedRCoeffWordBit_wire_ne
 
 /-- The lifted comparison ancilla and a lifted little-endian `s` coefficient
 value bit occupy distinct wires. -/
-theorem liftedCompare_liftedSCoeffValueWordBit_wire_ne
+lemma liftedCompare_liftedSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (liftedCompareBit n counterWidth).wire ≠
       ((liftedSCoeffValueWord n counterWidth).bit bit).wire := by
@@ -1902,7 +1904,7 @@ theorem liftedCompare_liftedSCoeffValueWordBit_wire_ne
 
 /-- The lifted comparison ancilla and a lifted little-endian `r` coefficient
 value bit occupy distinct wires. -/
-theorem liftedCompare_liftedRCoeffValueWordBit_wire_ne
+lemma liftedCompare_liftedRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (liftedCompareBit n counterWidth).wire ≠
       ((liftedRCoeffValueWord n counterWidth).bit bit).wire := by
@@ -1912,7 +1914,7 @@ theorem liftedCompare_liftedRCoeffValueWordBit_wire_ne
       (WireAddress.littleEndianWire bit)
 
 /-- Lifted little-endian `u` and `v` value bits occupy distinct wires. -/
-theorem liftedUWordBit_liftedVWordBit_wire_ne
+lemma liftedUWordBit_liftedVWordBit_wire_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     ((liftedUWord n counterWidth).bit uIndex).wire ≠
       ((liftedVWord n counterWidth).bit vIndex).wire := by
@@ -1925,7 +1927,7 @@ theorem liftedUWordBit_liftedVWordBit_wire_ne
 
 /-- Lifted little-endian `u` value bits are disjoint from lifted `s`
 coefficient bits. -/
-theorem liftedUWordBit_liftedSCoeffWordBit_wire_ne
+lemma liftedUWordBit_liftedSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (uIndex : Fin n) (sIndex : Fin (n + 1)) :
     ((liftedUWord n counterWidth).bit uIndex).wire ≠
       ((liftedSCoeffWord n counterWidth).bit sIndex).wire := by
@@ -1937,7 +1939,7 @@ theorem liftedUWordBit_liftedSCoeffWordBit_wire_ne
 
 /-- Lifted little-endian `u` value bits are disjoint from lifted `r`
 coefficient bits. -/
-theorem liftedUWordBit_liftedRCoeffWordBit_wire_ne
+lemma liftedUWordBit_liftedRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (uIndex : Fin n) (rIndex : Fin (n + 1)) :
     ((liftedUWord n counterWidth).bit uIndex).wire ≠
       ((liftedRCoeffWord n counterWidth).bit rIndex).wire := by
@@ -1949,7 +1951,7 @@ theorem liftedUWordBit_liftedRCoeffWordBit_wire_ne
 
 /-- Lifted little-endian `u` value bits are disjoint from lifted little-endian
 `s` coefficient value bits. -/
-theorem liftedUWordBit_liftedSCoeffValueWordBit_wire_ne
+lemma liftedUWordBit_liftedSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (uIndex : Fin n) (sIndex : Fin (n + 1)) :
     ((liftedUWord n counterWidth).bit uIndex).wire ≠
       ((liftedSCoeffValueWord n counterWidth).bit sIndex).wire := by
@@ -1960,7 +1962,7 @@ theorem liftedUWordBit_liftedSCoeffValueWordBit_wire_ne
 
 /-- Lifted little-endian `u` value bits are disjoint from lifted little-endian
 `r` coefficient value bits. -/
-theorem liftedUWordBit_liftedRCoeffValueWordBit_wire_ne
+lemma liftedUWordBit_liftedRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (uIndex : Fin n) (rIndex : Fin (n + 1)) :
     ((liftedUWord n counterWidth).bit uIndex).wire ≠
       ((liftedRCoeffValueWord n counterWidth).bit rIndex).wire := by
@@ -1971,7 +1973,7 @@ theorem liftedUWordBit_liftedRCoeffValueWordBit_wire_ne
 
 /-- Lifted little-endian `v` value bits are disjoint from lifted `s`
 coefficient bits. -/
-theorem liftedVWordBit_liftedSCoeffWordBit_wire_ne
+lemma liftedVWordBit_liftedSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (vIndex : Fin n) (sIndex : Fin (n + 1)) :
     ((liftedVWord n counterWidth).bit vIndex).wire ≠
       ((liftedSCoeffWord n counterWidth).bit sIndex).wire := by
@@ -1983,7 +1985,7 @@ theorem liftedVWordBit_liftedSCoeffWordBit_wire_ne
 
 /-- Lifted little-endian `v` value bits are disjoint from lifted `r`
 coefficient bits. -/
-theorem liftedVWordBit_liftedRCoeffWordBit_wire_ne
+lemma liftedVWordBit_liftedRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (vIndex : Fin n) (rIndex : Fin (n + 1)) :
     ((liftedVWord n counterWidth).bit vIndex).wire ≠
       ((liftedRCoeffWord n counterWidth).bit rIndex).wire := by
@@ -1995,7 +1997,7 @@ theorem liftedVWordBit_liftedRCoeffWordBit_wire_ne
 
 /-- Lifted little-endian `v` value bits are disjoint from lifted little-endian
 `s` coefficient value bits. -/
-theorem liftedVWordBit_liftedSCoeffValueWordBit_wire_ne
+lemma liftedVWordBit_liftedSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (vIndex : Fin n) (sIndex : Fin (n + 1)) :
     ((liftedVWord n counterWidth).bit vIndex).wire ≠
       ((liftedSCoeffValueWord n counterWidth).bit sIndex).wire := by
@@ -2006,7 +2008,7 @@ theorem liftedVWordBit_liftedSCoeffValueWordBit_wire_ne
 
 /-- Lifted little-endian `v` value bits are disjoint from lifted little-endian
 `r` coefficient value bits. -/
-theorem liftedVWordBit_liftedRCoeffValueWordBit_wire_ne
+lemma liftedVWordBit_liftedRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (vIndex : Fin n) (rIndex : Fin (n + 1)) :
     ((liftedVWord n counterWidth).bit vIndex).wire ≠
       ((liftedRCoeffValueWord n counterWidth).bit rIndex).wire := by
@@ -2016,7 +2018,7 @@ theorem liftedVWordBit_liftedRCoeffValueWordBit_wire_ne
       (WireAddress.littleEndianWire rIndex)
 
 /-- Distinct lifted little-endian `u` value bits occupy distinct wires. -/
-theorem liftedUWordBit_liftedUWordBit_wire_ne
+lemma liftedUWordBit_liftedUWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin n) (h : left ≠ right) :
     ((liftedUWord n counterWidth).bit left).wire ≠
       ((liftedUWord n counterWidth).bit right).wire := by
@@ -2029,7 +2031,7 @@ theorem liftedUWordBit_liftedUWordBit_wire_ne
       (littleEndianWire_ne h))
 
 /-- Distinct lifted little-endian `v` value bits occupy distinct wires. -/
-theorem liftedVWordBit_liftedVWordBit_wire_ne
+lemma liftedVWordBit_liftedVWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin n) (h : left ≠ right) :
     ((liftedVWord n counterWidth).bit left).wire ≠
       ((liftedVWord n counterWidth).bit right).wire := by
@@ -2042,7 +2044,7 @@ theorem liftedVWordBit_liftedVWordBit_wire_ne
       (littleEndianWire_ne h))
 
 /-- Lifted `s` and `r` coefficient bits occupy distinct wires. -/
-theorem liftedSCoeffWordBit_liftedRCoeffWordBit_wire_ne
+lemma liftedSCoeffWordBit_liftedRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (sIndex rIndex : Fin (n + 1)) :
     ((liftedSCoeffWord n counterWidth).bit sIndex).wire ≠
       ((liftedRCoeffWord n counterWidth).bit rIndex).wire := by
@@ -2052,7 +2054,7 @@ theorem liftedSCoeffWordBit_liftedRCoeffWordBit_wire_ne
     (RegisterBits.sCoeff_rCoeff_wire_ne n counterWidth sIndex rIndex)
 
 /-- Distinct lifted `s` coefficient bits occupy distinct wires. -/
-theorem liftedSCoeffWordBit_liftedSCoeffWordBit_wire_ne
+lemma liftedSCoeffWordBit_liftedSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((liftedSCoeffWord n counterWidth).bit left).wire ≠
       ((liftedSCoeffWord n counterWidth).bit right).wire := by
@@ -2062,7 +2064,7 @@ theorem liftedSCoeffWordBit_liftedSCoeffWordBit_wire_ne
     (sCoeff_sCoeff_wire_ne n counterWidth left right h)
 
 /-- Distinct lifted `r` coefficient bits occupy distinct wires. -/
-theorem liftedRCoeffWordBit_liftedRCoeffWordBit_wire_ne
+lemma liftedRCoeffWordBit_liftedRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((liftedRCoeffWord n counterWidth).bit left).wire ≠
       ((liftedRCoeffWord n counterWidth).bit right).wire := by
@@ -2073,7 +2075,7 @@ theorem liftedRCoeffWordBit_liftedRCoeffWordBit_wire_ne
 
 /-- Lifted little-endian `s` and `r` coefficient value bits occupy distinct
 wires. -/
-theorem liftedSCoeffValueWordBit_liftedRCoeffValueWordBit_wire_ne
+lemma liftedSCoeffValueWordBit_liftedRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (sIndex rIndex : Fin (n + 1)) :
     ((liftedSCoeffValueWord n counterWidth).bit sIndex).wire ≠
       ((liftedRCoeffValueWord n counterWidth).bit rIndex).wire := by
@@ -2086,7 +2088,7 @@ theorem liftedSCoeffValueWordBit_liftedRCoeffValueWordBit_wire_ne
 
 /-- Distinct lifted little-endian `s` coefficient value bits occupy distinct
 wires. -/
-theorem liftedSCoeffValueWordBit_liftedSCoeffValueWordBit_wire_ne
+lemma liftedSCoeffValueWordBit_liftedSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((liftedSCoeffValueWord n counterWidth).bit left).wire ≠
       ((liftedSCoeffValueWord n counterWidth).bit right).wire := by
@@ -2098,7 +2100,7 @@ theorem liftedSCoeffValueWordBit_liftedSCoeffValueWordBit_wire_ne
 
 /-- Distinct lifted little-endian `r` coefficient value bits occupy distinct
 wires. -/
-theorem liftedRCoeffValueWordBit_liftedRCoeffValueWordBit_wire_ne
+lemma liftedRCoeffValueWordBit_liftedRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((liftedRCoeffValueWord n counterWidth).bit left).wire ≠
       ((liftedRCoeffValueWord n counterWidth).bit right).wire := by
@@ -2109,7 +2111,7 @@ theorem liftedRCoeffValueWordBit_liftedRCoeffValueWordBit_wire_ne
       (littleEndianWire_ne h)
 
 /-- Distinct coefficient-work-lifted `u` value bits occupy distinct wires. -/
-theorem coeffAdderUWordBit_coeffAdderUWordBit_wire_ne
+lemma coeffAdderUWordBit_coeffAdderUWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin n) (h : left ≠ right) :
     ((coeffAdderUWord n counterWidth).bit left).wire ≠
       ((coeffAdderUWord n counterWidth).bit right).wire := by
@@ -2119,7 +2121,7 @@ theorem coeffAdderUWordBit_coeffAdderUWordBit_wire_ne
     (liftedUWordBit_liftedUWordBit_wire_ne n counterWidth left right h)
 
 /-- Distinct coefficient-work-lifted `v` value bits occupy distinct wires. -/
-theorem coeffAdderVWordBit_coeffAdderVWordBit_wire_ne
+lemma coeffAdderVWordBit_coeffAdderVWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin n) (h : left ≠ right) :
     ((coeffAdderVWord n counterWidth).bit left).wire ≠
       ((coeffAdderVWord n counterWidth).bit right).wire := by
@@ -2129,7 +2131,7 @@ theorem coeffAdderVWordBit_coeffAdderVWordBit_wire_ne
     (liftedVWordBit_liftedVWordBit_wire_ne n counterWidth left right h)
 
 /-- Coefficient-work-lifted `u` and `v` value bits occupy distinct wires. -/
-theorem coeffAdderUWordBit_coeffAdderVWordBit_wire_ne
+lemma coeffAdderUWordBit_coeffAdderVWordBit_wire_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     ((coeffAdderUWord n counterWidth).bit uIndex).wire ≠
       ((coeffAdderVWord n counterWidth).bit vIndex).wire := by
@@ -2140,7 +2142,7 @@ theorem coeffAdderUWordBit_coeffAdderVWordBit_wire_ne
 
 /-- Coefficient-work-lifted `u` value bits are disjoint from coefficient-work
 little-endian `s` coefficient value bits. -/
-theorem coeffAdderUWordBit_coeffAdderSCoeffValueWordBit_wire_ne
+lemma coeffAdderUWordBit_coeffAdderSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (uIndex : Fin n) (sIndex : Fin (n + 1)) :
     ((coeffAdderUWord n counterWidth).bit uIndex).wire ≠
       ((coeffAdderSCoeffValueWord n counterWidth).bit sIndex).wire := by
@@ -2152,7 +2154,7 @@ theorem coeffAdderUWordBit_coeffAdderSCoeffValueWordBit_wire_ne
 
 /-- Coefficient-work-lifted `u` value bits are disjoint from coefficient-work
 little-endian `r` coefficient value bits. -/
-theorem coeffAdderUWordBit_coeffAdderRCoeffValueWordBit_wire_ne
+lemma coeffAdderUWordBit_coeffAdderRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (uIndex : Fin n) (rIndex : Fin (n + 1)) :
     ((coeffAdderUWord n counterWidth).bit uIndex).wire ≠
       ((coeffAdderRCoeffValueWord n counterWidth).bit rIndex).wire := by
@@ -2164,7 +2166,7 @@ theorem coeffAdderUWordBit_coeffAdderRCoeffValueWordBit_wire_ne
 
 /-- Coefficient-work-lifted `v` value bits are disjoint from coefficient-work
 little-endian `s` coefficient value bits. -/
-theorem coeffAdderVWordBit_coeffAdderSCoeffValueWordBit_wire_ne
+lemma coeffAdderVWordBit_coeffAdderSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (vIndex : Fin n) (sIndex : Fin (n + 1)) :
     ((coeffAdderVWord n counterWidth).bit vIndex).wire ≠
       ((coeffAdderSCoeffValueWord n counterWidth).bit sIndex).wire := by
@@ -2176,7 +2178,7 @@ theorem coeffAdderVWordBit_coeffAdderSCoeffValueWordBit_wire_ne
 
 /-- Coefficient-work-lifted `v` value bits are disjoint from coefficient-work
 little-endian `r` coefficient value bits. -/
-theorem coeffAdderVWordBit_coeffAdderRCoeffValueWordBit_wire_ne
+lemma coeffAdderVWordBit_coeffAdderRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (vIndex : Fin n) (rIndex : Fin (n + 1)) :
     ((coeffAdderVWord n counterWidth).bit vIndex).wire ≠
       ((coeffAdderRCoeffValueWord n counterWidth).bit rIndex).wire := by
@@ -2188,7 +2190,7 @@ theorem coeffAdderVWordBit_coeffAdderRCoeffValueWordBit_wire_ne
 
 /-- Coefficient-work-lifted `u` value bits are disjoint from comparison-work
 carry bits. -/
-theorem coeffAdderUWordBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderUWordBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (bit workBit : Fin n) :
     ((coeffAdderUWord n counterWidth).bit bit).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2201,7 +2203,7 @@ theorem coeffAdderUWordBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- Coefficient-work-lifted `v` value bits are disjoint from comparison-work
 carry bits. -/
-theorem coeffAdderVWordBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderVWordBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (bit workBit : Fin n) :
     ((coeffAdderVWord n counterWidth).bit bit).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2213,7 +2215,7 @@ theorem coeffAdderVWordBit_coeffAdderComparisonCarryBit_wire_ne
       (comparisonCarryValueBit n workBit))
 
 /-- Coefficient-work-lifted selected `u` and selected `v` bits are disjoint. -/
-theorem coeffAdderUBit_coeffAdderVBit_wire_ne
+lemma coeffAdderUBit_coeffAdderVBit_wire_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     (coeffAdderUBit n counterWidth uIndex).wire ≠
       (coeffAdderVBit n counterWidth vIndex).wire := by
@@ -2227,7 +2229,7 @@ theorem coeffAdderUBit_coeffAdderVBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from selected `u`
 bits. -/
-theorem coeffAdderActiveBit_coeffAdderUBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderUBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       (coeffAdderUBit n counterWidth bit).wire := by
@@ -2241,7 +2243,7 @@ theorem coeffAdderActiveBit_coeffAdderUBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from selected `v`
 bits. -/
-theorem coeffAdderActiveBit_coeffAdderVBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderVBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       (coeffAdderVBit n counterWidth bit).wire := by
@@ -2254,7 +2256,7 @@ theorem coeffAdderActiveBit_coeffAdderVBit_wire_ne
       (RegisterBits.active_v_wire_ne n counterWidth bit))
 
 /-- Coefficient-work-lifted selected `u` bits are disjoint from compare. -/
-theorem coeffAdderUBit_coeffAdderCompareBit_wire_ne
+lemma coeffAdderUBit_coeffAdderCompareBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderUBit n counterWidth bit).wire ≠
       (coeffAdderCompareBit n counterWidth).wire := by
@@ -2267,7 +2269,7 @@ theorem coeffAdderUBit_coeffAdderCompareBit_wire_ne
       (RegisterBits.u_compare_wire_ne n counterWidth bit))
 
 /-- Coefficient-work-lifted selected `v` bits are disjoint from compare. -/
-theorem coeffAdderVBit_coeffAdderCompareBit_wire_ne
+lemma coeffAdderVBit_coeffAdderCompareBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderVBit n counterWidth bit).wire ≠
       (coeffAdderCompareBit n counterWidth).wire := by
@@ -2280,7 +2282,7 @@ theorem coeffAdderVBit_coeffAdderCompareBit_wire_ne
       (RegisterBits.v_compare_wire_ne n counterWidth bit))
 
 /-- The coefficient-work-lifted active flag is disjoint from compare. -/
-theorem coeffAdderActiveBit_coeffAdderCompareBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderCompareBit_wire_ne
     (n counterWidth : Nat) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       (coeffAdderCompareBit n counterWidth).wire := by
@@ -2294,7 +2296,7 @@ theorem coeffAdderActiveBit_coeffAdderCompareBit_wire_ne
 
 /-- Coefficient-work-lifted selected `u` bits are disjoint from
 comparison-work carry bits. -/
-theorem coeffAdderUBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderUBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (bit workBit : Fin n) :
     (coeffAdderUBit n counterWidth bit).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2307,7 +2309,7 @@ theorem coeffAdderUBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- Coefficient-work-lifted selected `v` bits are disjoint from
 comparison-work carry bits. -/
-theorem coeffAdderVBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderVBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (bit workBit : Fin n) :
     (coeffAdderVBit n counterWidth bit).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2320,7 +2322,7 @@ theorem coeffAdderVBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- The coefficient-work-lifted compare bit is disjoint from comparison-work
 carry bits. -/
-theorem coeffAdderCompareBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderCompareBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n) :
     (coeffAdderCompareBit n counterWidth).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2331,7 +2333,7 @@ theorem coeffAdderCompareBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from comparison-work
 carry bits. -/
-theorem coeffAdderActiveBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2344,7 +2346,7 @@ theorem coeffAdderActiveBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from comparison-work
 carry bits. -/
-theorem coeffAdderScratchABit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2355,7 +2357,7 @@ theorem coeffAdderScratchABit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- The coefficient-work-lifted scratchB bit is disjoint from comparison-work
 carry bits. -/
-theorem coeffAdderScratchBBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderScratchBBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n) :
     (coeffAdderScratchBBit n counterWidth).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2368,7 +2370,7 @@ theorem coeffAdderScratchBBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- Distinct coefficient-work-lifted comparison-carry bits occupy distinct
 wires. -/
-theorem coeffAdderComparisonCarryBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderComparisonCarryBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (left right : Fin n) (h : left ≠ right) :
     (coeffAdderComparisonCarryBit n counterWidth left).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth right).wire := by
@@ -2381,7 +2383,7 @@ theorem coeffAdderComparisonCarryBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- Distinct coefficient-work-lifted `s` coefficient bits occupy distinct
 wires. -/
-theorem coeffAdderSCoeffWordBit_coeffAdderSCoeffWordBit_wire_ne
+lemma coeffAdderSCoeffWordBit_coeffAdderSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((coeffAdderSCoeffWord n counterWidth).bit left).wire ≠
       ((coeffAdderSCoeffWord n counterWidth).bit right).wire := by
@@ -2393,7 +2395,7 @@ theorem coeffAdderSCoeffWordBit_coeffAdderSCoeffWordBit_wire_ne
 
 /-- Distinct coefficient-work-lifted `r` coefficient bits occupy distinct
 wires. -/
-theorem coeffAdderRCoeffWordBit_coeffAdderRCoeffWordBit_wire_ne
+lemma coeffAdderRCoeffWordBit_coeffAdderRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((coeffAdderRCoeffWord n counterWidth).bit left).wire ≠
       ((coeffAdderRCoeffWord n counterWidth).bit right).wire := by
@@ -2405,7 +2407,7 @@ theorem coeffAdderRCoeffWordBit_coeffAdderRCoeffWordBit_wire_ne
 
 /-- Distinct coefficient-work-lifted little-endian `s` coefficient value bits
 occupy distinct wires. -/
-theorem coeffAdderSCoeffValueWordBit_coeffAdderSCoeffValueWordBit_wire_ne
+lemma coeffAdderSCoeffValueWordBit_coeffAdderSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit left).wire ≠
       ((coeffAdderSCoeffValueWord n counterWidth).bit right).wire := by
@@ -2417,7 +2419,7 @@ theorem coeffAdderSCoeffValueWordBit_coeffAdderSCoeffValueWordBit_wire_ne
 
 /-- Distinct coefficient-work-lifted little-endian `r` coefficient value bits
 occupy distinct wires. -/
-theorem coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
+lemma coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (left right : Fin (n + 1)) (h : left ≠ right) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit left).wire ≠
       ((coeffAdderRCoeffValueWord n counterWidth).bit right).wire := by
@@ -2429,7 +2431,7 @@ theorem coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
 
 /-- Coefficient-work-lifted little-endian `s` and `r` coefficient value bits
 occupy distinct wires. -/
-theorem coeffAdderSCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
+lemma coeffAdderSCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (sIndex rIndex : Fin (n + 1)) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit sIndex).wire ≠
       ((coeffAdderRCoeffValueWord n counterWidth).bit rIndex).wire := by
@@ -2441,7 +2443,7 @@ theorem coeffAdderSCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from every `u` value
 bit. -/
-theorem coeffAdderActiveBit_coeffAdderUWordBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderUWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       ((coeffAdderUWord n counterWidth).bit bit).wire := by
@@ -2456,7 +2458,7 @@ theorem coeffAdderActiveBit_coeffAdderUWordBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from every `v` value
 bit. -/
-theorem coeffAdderActiveBit_coeffAdderVWordBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderVWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       ((coeffAdderVWord n counterWidth).bit bit).wire := by
@@ -2471,7 +2473,7 @@ theorem coeffAdderActiveBit_coeffAdderVWordBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from every `s`
 coefficient bit. -/
-theorem coeffAdderActiveBit_coeffAdderSCoeffWordBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       ((coeffAdderSCoeffWord n counterWidth).bit bit).wire := by
@@ -2485,7 +2487,7 @@ theorem coeffAdderActiveBit_coeffAdderSCoeffWordBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from every `r`
 coefficient bit. -/
-theorem coeffAdderActiveBit_coeffAdderRCoeffWordBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       ((coeffAdderRCoeffWord n counterWidth).bit bit).wire := by
@@ -2499,7 +2501,7 @@ theorem coeffAdderActiveBit_coeffAdderRCoeffWordBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from every
 little-endian `s` coefficient value bit. -/
-theorem coeffAdderActiveBit_coeffAdderSCoeffValueWordBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       ((coeffAdderSCoeffValueWord n counterWidth).bit bit).wire := by
@@ -2510,7 +2512,7 @@ theorem coeffAdderActiveBit_coeffAdderSCoeffValueWordBit_wire_ne
 
 /-- The coefficient-work-lifted active flag is disjoint from every
 little-endian `r` coefficient value bit. -/
-theorem coeffAdderActiveBit_coeffAdderRCoeffValueWordBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       ((coeffAdderRCoeffValueWord n counterWidth).bit bit).wire := by
@@ -2520,7 +2522,7 @@ theorem coeffAdderActiveBit_coeffAdderRCoeffValueWordBit_wire_ne
       (WireAddress.littleEndianWire bit)
 
 /-- The coefficient-work-lifted active flag is disjoint from scratchA. -/
-theorem coeffAdderActiveBit_coeffAdderScratchABit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderScratchABit_wire_ne
     (n counterWidth : Nat) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       (coeffAdderScratchABit n counterWidth).wire := by
@@ -2533,7 +2535,7 @@ theorem coeffAdderActiveBit_coeffAdderScratchABit_wire_ne
       (RegisterBits.active_scratchA_wire_ne n counterWidth))
 
 /-- The coefficient-work-lifted active flag is disjoint from scratchB. -/
-theorem coeffAdderActiveBit_coeffAdderScratchBBit_wire_ne
+lemma coeffAdderActiveBit_coeffAdderScratchBBit_wire_ne
     (n counterWidth : Nat) :
     (coeffAdderActiveBit n counterWidth).wire ≠
       (coeffAdderScratchBBit n counterWidth).wire := by
@@ -2546,7 +2548,7 @@ theorem coeffAdderActiveBit_coeffAdderScratchBBit_wire_ne
       (RegisterBits.active_scratchB_wire_ne n counterWidth))
 
 /-- Coefficient-work-lifted selected `u` bits are disjoint from scratchA. -/
-theorem coeffAdderUBit_coeffAdderScratchABit_wire_ne
+lemma coeffAdderUBit_coeffAdderScratchABit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderUBit n counterWidth bit).wire ≠
       (coeffAdderScratchABit n counterWidth).wire := by
@@ -2559,7 +2561,7 @@ theorem coeffAdderUBit_coeffAdderScratchABit_wire_ne
       (RegisterBits.u_scratchA_wire_ne n counterWidth bit))
 
 /-- Coefficient-work-lifted selected `v` bits are disjoint from scratchA. -/
-theorem coeffAdderVBit_coeffAdderScratchABit_wire_ne
+lemma coeffAdderVBit_coeffAdderScratchABit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderVBit n counterWidth bit).wire ≠
       (coeffAdderScratchABit n counterWidth).wire := by
@@ -2573,7 +2575,7 @@ theorem coeffAdderVBit_coeffAdderScratchABit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from every `u` value
 bit. -/
-theorem coeffAdderScratchABit_coeffAdderUWordBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderUWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       ((coeffAdderUWord n counterWidth).bit bit).wire := by
@@ -2588,7 +2590,7 @@ theorem coeffAdderScratchABit_coeffAdderUWordBit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from every `v` value
 bit. -/
-theorem coeffAdderScratchABit_coeffAdderVWordBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderVWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       ((coeffAdderVWord n counterWidth).bit bit).wire := by
@@ -2603,7 +2605,7 @@ theorem coeffAdderScratchABit_coeffAdderVWordBit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from every `s`
 coefficient bit. -/
-theorem coeffAdderScratchABit_coeffAdderSCoeffWordBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderSCoeffWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       ((coeffAdderSCoeffWord n counterWidth).bit bit).wire := by
@@ -2617,7 +2619,7 @@ theorem coeffAdderScratchABit_coeffAdderSCoeffWordBit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from every `r`
 coefficient bit. -/
-theorem coeffAdderScratchABit_coeffAdderRCoeffWordBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderRCoeffWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       ((coeffAdderRCoeffWord n counterWidth).bit bit).wire := by
@@ -2631,7 +2633,7 @@ theorem coeffAdderScratchABit_coeffAdderRCoeffWordBit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from every
 little-endian `s` coefficient value bit. -/
-theorem coeffAdderScratchABit_coeffAdderSCoeffValueWordBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderSCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       ((coeffAdderSCoeffValueWord n counterWidth).bit bit).wire := by
@@ -2642,7 +2644,7 @@ theorem coeffAdderScratchABit_coeffAdderSCoeffValueWordBit_wire_ne
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from every
 little-endian `r` coefficient value bit. -/
-theorem coeffAdderScratchABit_coeffAdderRCoeffValueWordBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderRCoeffValueWordBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       ((coeffAdderRCoeffValueWord n counterWidth).bit bit).wire := by
@@ -2652,7 +2654,7 @@ theorem coeffAdderScratchABit_coeffAdderRCoeffValueWordBit_wire_ne
       (WireAddress.littleEndianWire bit)
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from compare. -/
-theorem coeffAdderScratchABit_coeffAdderCompareBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderCompareBit_wire_ne
     (n counterWidth : Nat) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       (coeffAdderCompareBit n counterWidth).wire := by
@@ -2665,7 +2667,7 @@ theorem coeffAdderScratchABit_coeffAdderCompareBit_wire_ne
       (Ne.symm (RegisterBits.compare_scratchA_wire_ne n counterWidth)))
 
 /-- The coefficient-work-lifted scratchA and scratchB bits are disjoint. -/
-theorem coeffAdderScratchABit_coeffAdderScratchBBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderScratchBBit_wire_ne
     (n counterWidth : Nat) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       (coeffAdderScratchBBit n counterWidth).wire := by
@@ -2678,7 +2680,7 @@ theorem coeffAdderScratchABit_coeffAdderScratchBBit_wire_ne
       (RegisterBits.scratchA_scratchB_wire_ne n counterWidth))
 
 /-- The coefficient-work-lifted compare and scratchB bits are disjoint. -/
-theorem coeffAdderCompareBit_coeffAdderScratchBBit_wire_ne
+lemma coeffAdderCompareBit_coeffAdderScratchBBit_wire_ne
     (n counterWidth : Nat) :
     (coeffAdderCompareBit n counterWidth).wire ≠
       (coeffAdderScratchBBit n counterWidth).wire := by
@@ -2691,7 +2693,7 @@ theorem coeffAdderCompareBit_coeffAdderScratchBBit_wire_ne
       (RegisterBits.compare_scratchB_wire_ne n counterWidth))
 
 /-- Coefficient-work-lifted selected `u` bits are disjoint from scratchB. -/
-theorem coeffAdderUBit_coeffAdderScratchBBit_wire_ne
+lemma coeffAdderUBit_coeffAdderScratchBBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderUBit n counterWidth bit).wire ≠
       (coeffAdderScratchBBit n counterWidth).wire := by
@@ -2704,7 +2706,7 @@ theorem coeffAdderUBit_coeffAdderScratchBBit_wire_ne
       (RegisterBits.u_scratchB_wire_ne n counterWidth bit))
 
 /-- Coefficient-work-lifted selected `v` bits are disjoint from scratchB. -/
-theorem coeffAdderVBit_coeffAdderScratchBBit_wire_ne
+lemma coeffAdderVBit_coeffAdderScratchBBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) :
     (coeffAdderVBit n counterWidth bit).wire ≠
       (coeffAdderScratchBBit n counterWidth).wire := by
@@ -2717,7 +2719,7 @@ theorem coeffAdderVBit_coeffAdderScratchBBit_wire_ne
       (RegisterBits.v_scratchB_wire_ne n counterWidth bit))
 
 /-- Coefficient-work-lifted selected `u` bits are disjoint from history bits. -/
-theorem coeffAdderUBit_coeffAdderHistoryBit_wire_ne
+lemma coeffAdderUBit_coeffAdderHistoryBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     (coeffAdderUBit n counterWidth bit).wire ≠
       (coeffAdderHistoryBit n counterWidth historyIndex).wire := by
@@ -2730,7 +2732,7 @@ theorem coeffAdderUBit_coeffAdderHistoryBit_wire_ne
       (RegisterBits.u_history_wire_ne n counterWidth bit historyIndex))
 
 /-- Coefficient-work-lifted selected `v` bits are disjoint from history bits. -/
-theorem coeffAdderVBit_coeffAdderHistoryBit_wire_ne
+lemma coeffAdderVBit_coeffAdderHistoryBit_wire_ne
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     (coeffAdderVBit n counterWidth bit).wire ≠
       (coeffAdderHistoryBit n counterWidth historyIndex).wire := by
@@ -2743,7 +2745,7 @@ theorem coeffAdderVBit_coeffAdderHistoryBit_wire_ne
       (RegisterBits.v_history_wire_ne n counterWidth bit historyIndex))
 
 /-- The coefficient-work-lifted scratchA bit is disjoint from history bits. -/
-theorem coeffAdderScratchABit_coeffAdderHistoryBit_wire_ne
+lemma coeffAdderScratchABit_coeffAdderHistoryBit_wire_ne
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     (coeffAdderScratchABit n counterWidth).wire ≠
       (coeffAdderHistoryBit n counterWidth historyIndex).wire := by
@@ -2756,7 +2758,7 @@ theorem coeffAdderScratchABit_coeffAdderHistoryBit_wire_ne
       (RegisterBits.scratchA_history_wire_ne n counterWidth historyIndex))
 
 /-- The coefficient-work-lifted scratchB bit is disjoint from history bits. -/
-theorem coeffAdderScratchBBit_coeffAdderHistoryBit_wire_ne
+lemma coeffAdderScratchBBit_coeffAdderHistoryBit_wire_ne
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) :
     (coeffAdderScratchBBit n counterWidth).wire ≠
       (coeffAdderHistoryBit n counterWidth historyIndex).wire := by
@@ -2769,7 +2771,7 @@ theorem coeffAdderScratchBBit_coeffAdderHistoryBit_wire_ne
       (RegisterBits.scratchB_history_wire_ne n counterWidth historyIndex))
 
 /-- Coefficient-work comparison-carry bits are disjoint from history bits. -/
-theorem coeffAdderComparisonCarryBit_coeffAdderHistoryBit_wire_ne
+lemma coeffAdderComparisonCarryBit_coeffAdderHistoryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n)
     (historyIndex : Fin (2 * n)) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).wire ≠
@@ -2783,7 +2785,7 @@ theorem coeffAdderComparisonCarryBit_coeffAdderHistoryBit_wire_ne
 
 /-- Lifted little-endian `u` value bits are disjoint from comparison-work carry
 bits. -/
-theorem liftedUWordBit_liftedComparisonCarry_wire_ne
+lemma liftedUWordBit_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (bit workBit : Fin n) :
     ((liftedUWord n counterWidth).bit bit).wire ≠
       (liftedComparisonCarryBit n counterWidth workBit).wire := by
@@ -2793,7 +2795,7 @@ theorem liftedUWordBit_liftedComparisonCarry_wire_ne
 
 /-- Lifted little-endian `v` value bits are disjoint from comparison-work carry
 bits. -/
-theorem liftedVWordBit_liftedComparisonCarry_wire_ne
+lemma liftedVWordBit_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (bit workBit : Fin n) :
     ((liftedVWord n counterWidth).bit bit).wire ≠
       (liftedComparisonCarryBit n counterWidth workBit).wire := by
@@ -2802,7 +2804,7 @@ theorem liftedVWordBit_liftedComparisonCarry_wire_ne
     (comparisonCarryValueBit n workBit)
 
 /-- Lifted `s` coefficient bits are disjoint from comparison-work carry bits. -/
-theorem liftedSCoeffWordBit_liftedComparisonCarry_wire_ne
+lemma liftedSCoeffWordBit_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) (workBit : Fin n) :
     ((liftedSCoeffWord n counterWidth).bit bit).wire ≠
       (liftedComparisonCarryBit n counterWidth workBit).wire := by
@@ -2811,7 +2813,7 @@ theorem liftedSCoeffWordBit_liftedComparisonCarry_wire_ne
     (comparisonCarryValueBit n workBit)
 
 /-- Lifted `r` coefficient bits are disjoint from comparison-work carry bits. -/
-theorem liftedRCoeffWordBit_liftedComparisonCarry_wire_ne
+lemma liftedRCoeffWordBit_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) (workBit : Fin n) :
     ((liftedRCoeffWord n counterWidth).bit bit).wire ≠
       (liftedComparisonCarryBit n counterWidth workBit).wire := by
@@ -2821,7 +2823,7 @@ theorem liftedRCoeffWordBit_liftedComparisonCarry_wire_ne
 
 /-- Lifted little-endian `s` coefficient value bits are disjoint from
 comparison-work carry bits. -/
-theorem liftedSCoeffValueWordBit_liftedComparisonCarry_wire_ne
+lemma liftedSCoeffValueWordBit_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) (workBit : Fin n) :
     ((liftedSCoeffValueWord n counterWidth).bit bit).wire ≠
       (liftedComparisonCarryBit n counterWidth workBit).wire := by
@@ -2832,7 +2834,7 @@ theorem liftedSCoeffValueWordBit_liftedComparisonCarry_wire_ne
 
 /-- Lifted little-endian `r` coefficient value bits are disjoint from
 comparison-work carry bits. -/
-theorem liftedRCoeffValueWordBit_liftedComparisonCarry_wire_ne
+lemma liftedRCoeffValueWordBit_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) (workBit : Fin n) :
     ((liftedRCoeffValueWord n counterWidth).bit bit).wire ≠
       (liftedComparisonCarryBit n counterWidth workBit).wire := by
@@ -2843,7 +2845,7 @@ theorem liftedRCoeffValueWordBit_liftedComparisonCarry_wire_ne
 
 /-- Coefficient-work-lifted `s` coefficient value bits are disjoint from
 comparison-work carry bits. -/
-theorem coeffAdderSCoeffValueWordBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderSCoeffValueWordBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) (workBit : Fin n) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2855,7 +2857,7 @@ theorem coeffAdderSCoeffValueWordBit_coeffAdderComparisonCarryBit_wire_ne
 
 /-- Coefficient-work-lifted `r` coefficient value bits are disjoint from
 comparison-work carry bits. -/
-theorem coeffAdderRCoeffValueWordBit_coeffAdderComparisonCarryBit_wire_ne
+lemma coeffAdderRCoeffValueWordBit_coeffAdderComparisonCarryBit_wire_ne
     (n counterWidth : Nat) (bit : Fin (n + 1)) (workBit : Fin n) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).wire ≠
       (coeffAdderComparisonCarryBit n counterWidth workBit).wire := by
@@ -2880,7 +2882,7 @@ def paddingCounterValueWord (n k : Nat) :
     EncodedBit.Word (encoding n (k + 1)) (k + 1) where
   bit := paddingCounterValueBit n k
 
-@[simp] theorem paddingCounterValueBit_get
+@[simp] lemma paddingCounterValueBit_get
     (n k : Nat) (bit : Fin (k + 1)) (x : Registers n (k + 1)) :
     (paddingCounterValueBit n k bit).get x =
       x.core.counter.val.testBit bit.val := by
@@ -2899,7 +2901,7 @@ def paddingCounterSourceHighIndex {k : Nat} (bit : Fin (k + 1))
     have hlt := bit.isLt
     omega⟩
 
-@[simp] theorem paddingCounterSourceHighIndex_val {k : Nat}
+@[simp] lemma paddingCounterSourceHighIndex_val {k : Nat}
     (bit : Fin (k + 1)) (hbit : bit.val ≠ 0) :
     (paddingCounterSourceHighIndex bit hbit).val = bit.val - 1 :=
   rfl
@@ -2923,7 +2925,7 @@ def paddingCounterCarryWorkIndex (n k : Nat) (hkn : k ≤ n)
     (bit : Fin k) : Fin n :=
   ⟨bit.val, lt_of_lt_of_le bit.isLt hkn⟩
 
-@[simp] theorem paddingCounterCarryWorkIndex_val
+@[simp] lemma paddingCounterCarryWorkIndex_val
     (n k : Nat) (hkn : k ≤ n) (bit : Fin k) :
     (paddingCounterCarryWorkIndex n k hkn bit).val = bit.val :=
   rfl
@@ -2949,12 +2951,12 @@ def paddingCounterCleanInput (n k : Nat)
   shared := cleanSharedWork n (k + 1)
   target := target
 
-@[simp] theorem paddingCounterSourceBit_eq_control_of_zero
+@[simp] lemma paddingCounterSourceBit_eq_control_of_zero
     (n k : Nat) (bit : Fin (k + 1)) (hbit : bit.val = 0) :
     paddingCounterSourceBit n k bit = controlBit n (k + 1) := by
   simp [paddingCounterSourceBit, hbit]
 
-@[simp] theorem paddingCounterSourceBit_eq_correction_of_ne_zero
+@[simp] lemma paddingCounterSourceBit_eq_correction_of_ne_zero
     (n k : Nat) (bit : Fin (k + 1)) (hbit : bit.val ≠ 0) :
     paddingCounterSourceBit n k bit =
       correctionCounterValueBit n (k + 1)
@@ -2962,7 +2964,7 @@ def paddingCounterCleanInput (n k : Nat)
   simp [paddingCounterSourceBit, hbit]
 
 /-- Distinct borrowed source positions occupy distinct wires. -/
-theorem paddingCounterSourceBit_wire_ne
+lemma paddingCounterSourceBit_wire_ne
     (n k : Nat) {left right : Fin (k + 1)} (hne : left ≠ right) :
     (paddingCounterSourceBit n k left).wire ≠
       (paddingCounterSourceBit n k right).wire := by
@@ -2996,7 +2998,7 @@ theorem paddingCounterSourceBit_wire_ne
       omega
 
 /-- Every borrowed source bit is disjoint from the compact padding counter. -/
-theorem paddingCounterSourceBit_paddingCounterValueBit_wire_ne
+lemma paddingCounterSourceBit_paddingCounterValueBit_wire_ne
     (n k : Nat) (sourceBit counterBit : Fin (k + 1)) :
     (paddingCounterSourceBit n k sourceBit).wire ≠
       (paddingCounterValueBit n k counterBit).wire := by
@@ -3021,7 +3023,7 @@ theorem paddingCounterSourceBit_paddingCounterValueBit_wire_ne
               (paddingCounterSourceHighIndex sourceBit hsource))))
 
 /-- Every borrowed source bit is disjoint from the shared path carry-in. -/
-theorem paddingCounterSourceBit_pathBit_wire_ne
+lemma paddingCounterSourceBit_pathBit_wire_ne
     (n k : Nat) (sourceBit : Fin (k + 1)) :
     (paddingCounterSourceBit n k sourceBit).wire ≠
       (pathBit n (k + 1)).wire := by
@@ -3036,7 +3038,7 @@ theorem paddingCounterSourceBit_pathBit_wire_ne
           (paddingCounterSourceHighIndex sourceBit hsource)))
 
 /-- Every borrowed source bit is disjoint from every borrowed VBE carry bit. -/
-theorem paddingCounterSourceBit_carryWorkBit_wire_ne
+lemma paddingCounterSourceBit_carryWorkBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) (sourceBit : Fin (k + 1))
     (workBit : Fin k) :
     (paddingCounterSourceBit n k sourceBit).wire ≠
@@ -3053,7 +3055,7 @@ theorem paddingCounterSourceBit_carryWorkBit_wire_ne
       (paddingCounterCarryWorkIndex n k hkn workBit)
 
 /-- Distinct compact padding-counter positions occupy distinct wires. -/
-theorem paddingCounterValueBit_wire_ne
+lemma paddingCounterValueBit_wire_ne
     (n k : Nat) {left right : Fin (k + 1)} (hne : left ≠ right) :
     (paddingCounterValueBit n k left).wire ≠
       (paddingCounterValueBit n k right).wire := by
@@ -3062,7 +3064,7 @@ theorem paddingCounterValueBit_wire_ne
       (counterValue_counterValue_wire_ne n (k + 1) left right hne)
 
 /-- Each compact padding-counter bit is disjoint from the shared path carry. -/
-theorem paddingCounterValueBit_pathBit_wire_ne
+lemma paddingCounterValueBit_pathBit_wire_ne
     (n k : Nat) (counterBit : Fin (k + 1)) :
     (paddingCounterValueBit n k counterBit).wire ≠
       (pathBit n (k + 1)).wire := by
@@ -3073,7 +3075,7 @@ theorem paddingCounterValueBit_pathBit_wire_ne
       (sharedPathBit n (k + 1))
 
 /-- Each compact padding-counter bit is disjoint from borrowed VBE carry work. -/
-theorem paddingCounterValueBit_carryWorkBit_wire_ne
+lemma paddingCounterValueBit_carryWorkBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) (counterBit : Fin (k + 1))
     (workBit : Fin k) :
     (paddingCounterValueBit n k counterBit).wire ≠
@@ -3087,7 +3089,7 @@ theorem paddingCounterValueBit_carryWorkBit_wire_ne
         (paddingCounterCarryWorkIndex n k hkn workBit))
 
 /-- The shared path carry-in is disjoint from each borrowed VBE work bit. -/
-theorem pathBit_paddingCounterCarryWorkBit_wire_ne
+lemma pathBit_paddingCounterCarryWorkBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) (workBit : Fin k) :
     (pathBit n (k + 1)).wire ≠
       (paddingCounterCarryWorkBit n k hkn workBit).wire := by
@@ -3096,7 +3098,7 @@ theorem pathBit_paddingCounterCarryWorkBit_wire_ne
 
 /-- Distinct borrowed padding-counter carry positions remain distinct in the
 larger VBE carry bank. -/
-theorem paddingCounterCarryWorkBit_wire_ne
+lemma paddingCounterCarryWorkBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) {left right : Fin k} (hne : left ≠ right) :
     (paddingCounterCarryWorkBit n k hkn left).wire ≠
       (paddingCounterCarryWorkBit n k hkn right).wire := by
@@ -3170,15 +3172,15 @@ def paddingCounterIncrementStep (n k : Nat) (hkn : k ≤ n) :
   EncodedBit.GateSpec.stepList (paddingCounterIncrementGates n k hkn)
 
 /-- The literal compact counter program realizes exactly its folded gate step. -/
-theorem paddingCounterIncrement_realizes (n k : Nat) (hkn : k ≤ n) :
+lemma paddingCounterIncrement_realizes (n k : Nat) (hkn : k ≤ n) :
     UnitaryCircuit.Realizes (encoding n (k + 1))
-      (paddingCounterIncrementProgram n k hkn)
+      (paddingCounterIncrementProgram n k hkn) environment
       (paddingCounterIncrementStep n k hkn) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (paddingCounterIncrementGates n k hkn)
 
 /-- Exact X coordinate: one literal load and one matching unload. -/
-theorem paddingCounterIncrementGates_xMultiplicity_sum
+lemma paddingCounterIncrementGates_xMultiplicity_sum
     (n k : Nat) (hkn : k ≤ n) :
     ((paddingCounterIncrementGates n k hkn).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
@@ -3186,7 +3188,7 @@ theorem paddingCounterIncrementGates_xMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum]
 
 /-- Exact CNOT coordinate inherited from the `(k+1)`-bit VBE sum pass. -/
-theorem paddingCounterIncrementGates_cnotMultiplicity_sum
+lemma paddingCounterIncrementGates_cnotMultiplicity_sum
     (n k : Nat) (hkn : k ≤ n) :
     ((paddingCounterIncrementGates n k hkn).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (k + 1) := by
@@ -3194,7 +3196,7 @@ theorem paddingCounterIncrementGates_cnotMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate inherited from the `k` temporary carry positions. -/
-theorem paddingCounterIncrementGates_toffoliMultiplicity_sum
+lemma paddingCounterIncrementGates_toffoliMultiplicity_sum
     (n k : Nat) (hkn : k ≤ n) :
     ((paddingCounterIncrementGates n k hkn).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * k := by
@@ -3202,7 +3204,7 @@ theorem paddingCounterIncrementGates_toffoliMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_toffoliMultiplicity_sum]
 
 /-- Exact physical length of the literal compact counter schedule. -/
-theorem paddingCounterIncrementGates_length
+lemma paddingCounterIncrementGates_length
     (n k : Nat) (hkn : k ≤ n) :
     (paddingCounterIncrementGates n k hkn).length = 8 * k + 4 := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
@@ -3212,7 +3214,7 @@ theorem paddingCounterIncrementGates_length
   omega
 
 /-- The compiled program retains the exact literal X coordinate. -/
-theorem paddingCounterIncrementProgram_x_count
+lemma paddingCounterIncrementProgram_x_count
     (n k : Nat) (hkn : k ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
@@ -3222,7 +3224,7 @@ theorem paddingCounterIncrementProgram_x_count
     paddingCounterIncrementGates_xMultiplicity_sum]
 
 /-- The compiled program retains the exact CNOT coordinate. -/
-theorem paddingCounterIncrementProgram_cnot_count
+lemma paddingCounterIncrementProgram_cnot_count
     (n k : Nat) (hkn : k ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
@@ -3232,7 +3234,7 @@ theorem paddingCounterIncrementProgram_cnot_count
     paddingCounterIncrementGates_cnotMultiplicity_sum]
 
 /-- The compiled program retains the exact Toffoli coordinate. -/
-theorem paddingCounterIncrementProgram_toffoli_count
+lemma paddingCounterIncrementProgram_toffoli_count
     (n k : Nat) (hkn : k ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
@@ -3248,7 +3250,7 @@ def paddingCounterLoadedInput (n k : Nat)
   (controlBit n (k + 1)).flip (paddingCounterCleanInput n k core target)
 
 /-- Expose the literal X--adder--X composition of the compact increment step. -/
-theorem paddingCounterIncrementStep_decompose
+lemma paddingCounterIncrementStep_decompose
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1)) :
     paddingCounterIncrementStep n k hkn x =
       (controlBit n (k + 1)).flip
@@ -3260,26 +3262,26 @@ theorem paddingCounterIncrementStep_decompose
     EncodedBit.GateSpec.stepList_append]
   rfl
 
-theorem controlBit_get_paddingCounterCleanInput
+lemma controlBit_get_paddingCounterCleanInput
     (n k : Nat) (core : MK.Registers n (k + 1)) (target : Word n) :
     (controlBit n (k + 1)).get (paddingCounterCleanInput n k core target) =
       false := by
   simp [paddingCounterCleanInput, cleanSharedWork]
 
-theorem pathBit_get_paddingCounterCleanInput
+lemma pathBit_get_paddingCounterCleanInput
     (n k : Nat) (core : MK.Registers n (k + 1)) (target : Word n) :
     (pathBit n (k + 1)).get (paddingCounterCleanInput n k core target) =
       false := by
   simp [paddingCounterCleanInput, cleanSharedWork]
 
-theorem correctionCounterValueBit_get_paddingCounterCleanInput
+lemma correctionCounterValueBit_get_paddingCounterCleanInput
     (n k : Nat) (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin k) :
     (correctionCounterValueBit n (k + 1) bit).get
         (paddingCounterCleanInput n k core target) = false := by
   simp [paddingCounterCleanInput, cleanSharedWork]
 
-@[simp] theorem paddingCounterCarryWorkBit_get_paddingCounterCleanInput
+@[simp] lemma paddingCounterCarryWorkBit_get_paddingCounterCleanInput
     (n k : Nat) (hkn : k ≤ n) (core : MK.Registers n (k + 1))
     (target : Word n) (bit : Fin k) :
     (paddingCounterCarryWorkBit n k hkn bit).get
@@ -3292,7 +3294,7 @@ theorem correctionCounterValueBit_get_paddingCounterCleanInput
     (paddingCounterCarryWorkIndex n k hkn bit)
 
 /-- The leading literal X leaves the shared path carry-in clean. -/
-theorem pathBit_get_paddingCounterLoadedInput
+lemma pathBit_get_paddingCounterLoadedInput
     (n k : Nat) (core : MK.Registers n (k + 1)) (target : Word n) :
     (pathBit n (k + 1)).get (paddingCounterLoadedInput n k core target) =
       false := by
@@ -3302,7 +3304,7 @@ theorem pathBit_get_paddingCounterLoadedInput
   exact pathBit_get_paddingCounterCleanInput n k core target
 
 /-- The leading literal X leaves every borrowed VBE carry bit clean. -/
-theorem paddingCounterCarryWorkBit_get_paddingCounterLoadedInput
+lemma paddingCounterCarryWorkBit_get_paddingCounterLoadedInput
     (n k : Nat) (hkn : k ≤ n) (core : MK.Registers n (k + 1))
     (target : Word n) (bit : Fin k) :
     (paddingCounterCarryWorkBit n k hkn bit).get
@@ -3316,7 +3318,7 @@ theorem paddingCounterCarryWorkBit_get_paddingCounterLoadedInput
     n k hkn core target bit
 
 /-- After the literal load, the borrowed source word has exact value one. -/
-theorem paddingCounterSourceBit_get_paddingCounterLoadedInput
+lemma paddingCounterSourceBit_get_paddingCounterLoadedInput
     (n k : Nat) (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin (k + 1)) :
     (paddingCounterSourceBit n k bit).get
@@ -3346,7 +3348,7 @@ theorem paddingCounterSourceBit_get_paddingCounterLoadedInput
             (paddingCounterSourceHighIndex bit hbit))
 
 /-- The literal-load control bit is disjoint from every compact counter bit. -/
-theorem controlBit_paddingCounterValueBit_wire_ne
+lemma controlBit_paddingCounterValueBit_wire_ne
     (n k : Nat) (bit : Fin (k + 1)) :
     (controlBit n (k + 1)).wire ≠
       (paddingCounterValueBit n k bit).wire := by
@@ -3359,7 +3361,7 @@ theorem controlBit_paddingCounterValueBit_wire_ne
 
 /-- On clean borrowed carry work, the forward VBE carry stage computes the
 natural addition carries for an arbitrary literal source word. -/
-theorem paddingCounter_carryStage_get_workCarry_natAddCarry
+lemma paddingCounter_carryStage_get_workCarry_natAddCarry
     (n k : Nat) (hkn : k ≤ n) (source : Word (k + 1))
     (j : Fin k) (x : Registers n (k + 1))
     (hleft :
@@ -3472,7 +3474,7 @@ theorem paddingCounter_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before each compact padding-counter target sum is the
 corresponding natural addition carry. -/
-theorem paddingCounter_carryBeforeSum_get_natAddCarry
+lemma paddingCounter_carryBeforeSum_get_natAddCarry
     (n k : Nat) (hkn : k ≤ n) (source : Word (k + 1))
     (bit : Fin (k + 1)) (x : Registers n (k + 1))
     (hleft :
@@ -3521,7 +3523,7 @@ theorem paddingCounter_carryBeforeSum_get_natAddCarry
 
 /-- On clean borrowed workspace, the VBE substep writes each compact counter
 bit as the corresponding bit of `counter + 1`. -/
-theorem paddingCounterAdderStep_get_counter_add_testBit_of_clean
+lemma paddingCounterAdderStep_get_counter_add_testBit_of_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin (k + 1)) :
@@ -3589,7 +3591,7 @@ theorem paddingCounterAdderStep_get_counter_add_testBit_of_clean
 
 /-- The full literal X--VBE--X compact step increments the padding counter
 modulo its fixed width. -/
-theorem paddingCounterIncrementStep_get_counter_add_testBit_of_clean
+lemma paddingCounterIncrementStep_get_counter_add_testBit_of_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin (k + 1)) :
@@ -3607,7 +3609,7 @@ theorem paddingCounterIncrementStep_get_counter_add_testBit_of_clean
     n k hkn core target bit
 
 /-- Counter-level semantic endpoint for the compact borrowed increment. -/
-theorem paddingCounterIncrementStep_counter_of_clean
+lemma paddingCounterIncrementStep_counter_of_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3622,7 +3624,7 @@ theorem paddingCounterIncrementStep_counter_of_clean
 prefix, and literal control wire is preserved by the complete X--VBE--X
 schedule.  This is the reusable non-interference certificate for the rest of
 the compact carrier. -/
-theorem paddingCounterIncrementStep_get_observed_of_disjoint
+lemma paddingCounterIncrementStep_get_observed_of_disjoint
     (n k : Nat) (hkn : k ≤ n)
     (observed : EncodedBit (encoding n (k + 1)))
     (hright : ∀ bit : Fin (k + 1),
@@ -3650,7 +3652,7 @@ theorem paddingCounterIncrementStep_get_observed_of_disjoint
         (controlBit n (k + 1)) observed hcontrol x
 
 /-- A nonzero bit of the `(k+1)`-bit literal-one word is false. -/
-theorem oneWord_testBit_eq_false_of_ne_zero
+lemma oneWord_testBit_eq_false_of_ne_zero
     (k : Nat) (bit : Fin (k + 1)) (hbit : bit.val ≠ 0) :
     (1 : Word (k + 1)).val.testBit bit.val = false := by
   have hone : (1 : Word (k + 1)).val = 1 := by
@@ -3662,7 +3664,7 @@ theorem oneWord_testBit_eq_false_of_ne_zero
     (Nat.one_lt_two_pow hbit)
 
 /-- The literal load makes its shared control source bit true. -/
-theorem controlBit_get_paddingCounterLoadedInput
+lemma controlBit_get_paddingCounterLoadedInput
     (n k : Nat) (core : MK.Registers n (k + 1)) (target : Word n) :
     (controlBit n (k + 1)).get
         (paddingCounterLoadedInput n k core target) = true := by
@@ -3672,7 +3674,7 @@ theorem controlBit_get_paddingCounterLoadedInput
 
 /-- The source word borrowed for literal one is returned clean after the
 matching unload X. -/
-theorem paddingCounterIncrementStep_get_sourceBit_clean
+lemma paddingCounterIncrementStep_get_sourceBit_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin (k + 1)) :
@@ -3723,7 +3725,7 @@ theorem paddingCounterIncrementStep_get_sourceBit_clean
       _ = false := oneWord_testBit_eq_false_of_ne_zero k bit hzero
 
 /-- The shared path carry-in is returned clean by the compact increment. -/
-theorem paddingCounterIncrementStep_get_path_clean
+lemma paddingCounterIncrementStep_get_path_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (pathBit n (k + 1)).get
@@ -3753,7 +3755,7 @@ theorem paddingCounterIncrementStep_get_path_clean
         pathBit_get_paddingCounterLoadedInput n k core target
 
 /-- Every borrowed VBE carry-prefix bit is uncomputed back to clean. -/
-theorem paddingCounterIncrementStep_get_carryWork_clean
+lemma paddingCounterIncrementStep_get_carryWork_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin k) :
@@ -3782,7 +3784,7 @@ theorem paddingCounterIncrementStep_get_carryWork_clean
     paddingCounterIncrementLayout, paddingCounterCarryWorkWord] using hwork
 
 /-- The shared literal-load control is restored to its clean value. -/
-theorem paddingCounterIncrementStep_control_clean
+lemma paddingCounterIncrementStep_control_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3794,7 +3796,7 @@ theorem paddingCounterIncrementStep_control_clean
   simpa only [controlBit_get] using hsource
 
 /-- The borrowed high source bits return the correction counter to zero. -/
-theorem paddingCounterIncrementStep_correctionCounter_clean
+lemma paddingCounterIncrementStep_correctionCounter_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3816,7 +3818,7 @@ theorem paddingCounterIncrementStep_correctionCounter_clean
   simpa [correctionCounterValueBit_get] using hsource
 
 /-- The shared path carry-in returns to its clean field value. -/
-theorem paddingCounterIncrementStep_path_clean
+lemma paddingCounterIncrementStep_path_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3825,7 +3827,7 @@ theorem paddingCounterIncrementStep_path_clean
     paddingCounterIncrementStep_get_path_clean n k hkn core target
 
 /-- The compact increment leaves the public target word untouched. -/
-theorem paddingCounterIncrementStep_target_cleanEndpoint
+lemma paddingCounterIncrementStep_target_cleanEndpoint
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3857,7 +3859,7 @@ theorem paddingCounterIncrementStep_target_cleanEndpoint
 
 /-- The VBE carry-in bit is outside the compact counter borrow set and remains
 clean from the clean shared-work input. -/
-theorem paddingCounterIncrementStep_coefficientCarryIn_clean
+lemma paddingCounterIncrementStep_coefficientCarryIn_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3883,7 +3885,7 @@ theorem paddingCounterIncrementStep_coefficientCarryIn_clean
 /-- Every coefficient-carry-bank bit is clean after the compact increment:
 the borrowed prefix is explicitly uncomputed, while the untouched suffix is
 covered by the generic disjoint-observation theorem. -/
-theorem paddingCounterIncrementStep_coefficientCarryWork_clean
+lemma paddingCounterIncrementStep_coefficientCarryWork_clean
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n)
     (bit : Fin n) :
@@ -3928,7 +3930,7 @@ theorem paddingCounterIncrementStep_coefficientCarryWork_clean
 
 /-- The full reusable VBE coefficient-adder workspace is again clean at the
 compact counter endpoint, including the carry-bank suffix it did not borrow. -/
-theorem paddingCounterIncrementStep_coefficientAdder_cleanEndpoint
+lemma paddingCounterIncrementStep_coefficientAdder_cleanEndpoint
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     (paddingCounterIncrementStep n k hkn
@@ -3950,7 +3952,7 @@ theorem paddingCounterIncrementStep_coefficientAdder_cleanEndpoint
 
 /-- The complete shared workspace, not only the borrowed prefix, is restored
 to `cleanSharedWork` after the compact padding-counter increment. -/
-theorem paddingCounterIncrementStep_shared_cleanEndpoint
+lemma paddingCounterIncrementStep_shared_cleanEndpoint
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
   (paddingCounterIncrementStep n k hkn
@@ -3989,7 +3991,7 @@ def PaddingCounterBorrowedClean (n k : Nat) (hkn : k ≤ n)
     (paddingCounterCarryWorkBit n k hkn bit).get x = false)
 
 /-- Clean endpoint for the whole borrowed counter workspace. -/
-theorem paddingCounterIncrementStep_borrowedCleanEndpoint
+lemma paddingCounterIncrementStep_borrowedCleanEndpoint
     (n k : Nat) (hkn : k ≤ n)
     (core : MK.Registers n (k + 1)) (target : Word n) :
     PaddingCounterBorrowedClean n k hkn
@@ -4010,7 +4012,7 @@ def inactiveCounterActiveBit (n k : Nat) :
     EncodedBit (encoding n (k + 1)) :=
   liftCoreBit n (k + 1) (RegisterBits.activeBit n (k + 1))
 
-@[simp] theorem inactiveCounterActiveBit_get
+@[simp] lemma inactiveCounterActiveBit_get
     (n k : Nat) (x : Registers n (k + 1)) :
     (inactiveCounterActiveBit n k).get x = x.core.active := by
   simpa [inactiveCounterActiveBit] using
@@ -4030,12 +4032,12 @@ def inactiveCounterSourceWord (n k : Nat) :
     EncodedBit.Word (encoding n (k + 1)) (k + 1) where
   bit := inactiveCounterSourceBit n k
 
-@[simp] theorem inactiveCounterSourceBit_eq_active_of_zero
+@[simp] lemma inactiveCounterSourceBit_eq_active_of_zero
     (n k : Nat) (bit : Fin (k + 1)) (hbit : bit.val = 0) :
     inactiveCounterSourceBit n k bit = inactiveCounterActiveBit n k := by
   simp [inactiveCounterSourceBit, hbit]
 
-@[simp] theorem inactiveCounterSourceBit_eq_correction_of_ne_zero
+@[simp] lemma inactiveCounterSourceBit_eq_correction_of_ne_zero
     (n k : Nat) (bit : Fin (k + 1)) (hbit : bit.val ≠ 0) :
     inactiveCounterSourceBit n k bit =
       correctionCounterValueBit n (k + 1)
@@ -4043,7 +4045,7 @@ def inactiveCounterSourceWord (n k : Nat) :
   simp [inactiveCounterSourceBit, hbit]
 
 /-- The active source bit is disjoint from every correction-counter bit. -/
-theorem inactiveCounterActiveBit_correctionCounterValueBit_wire_ne
+lemma inactiveCounterActiveBit_correctionCounterValueBit_wire_ne
     (n k : Nat) (bit : Fin k) :
     (inactiveCounterActiveBit n k).wire ≠
       (correctionCounterValueBit n (k + 1) bit).wire := by
@@ -4055,7 +4057,7 @@ theorem inactiveCounterActiveBit_correctionCounterValueBit_wire_ne
         (WireAddress.littleEndianWire bit))
 
 /-- A correction-counter source bit is disjoint from the VBE carry-in bit. -/
-private theorem correctionCounterValueBit_coefficientCarryInBit_wire_ne
+private lemma correctionCounterValueBit_coefficientCarryInBit_wire_ne
     (n k : Nat) (bit : Fin k) :
     (correctionCounterValueBit n (k + 1) bit).wire ≠
       (coefficientCarryInBit n (k + 1)).wire := by
@@ -4072,7 +4074,7 @@ private theorem correctionCounterValueBit_coefficientCarryInBit_wire_ne
     BinaryLabelEncoding.boolBit, EncodedBit.relabel]
 
 /-- Distinct temporary source positions occupy distinct compact wires. -/
-theorem inactiveCounterSourceBit_wire_ne
+lemma inactiveCounterSourceBit_wire_ne
     (n k : Nat) {left right : Fin (k + 1)} (hne : left ≠ right) :
     (inactiveCounterSourceBit n k left).wire ≠
       (inactiveCounterSourceBit n k right).wire := by
@@ -4105,7 +4107,7 @@ theorem inactiveCounterSourceBit_wire_ne
 
 /-- Every inactive-counter source bit is disjoint from every counter target
 bit. -/
-theorem inactiveCounterSourceBit_paddingCounterValueBit_wire_ne
+lemma inactiveCounterSourceBit_paddingCounterValueBit_wire_ne
     (n k : Nat) (sourceBit counterBit : Fin (k + 1)) :
     (inactiveCounterSourceBit n k sourceBit).wire ≠
       (paddingCounterValueBit n k counterBit).wire := by
@@ -4122,7 +4124,7 @@ theorem inactiveCounterSourceBit_paddingCounterValueBit_wire_ne
         n k sourceBit counterBit
 
 /-- Every source bit is disjoint from the borrowed VBE carry prefix. -/
-theorem inactiveCounterSourceBit_paddingCounterCarryWorkBit_wire_ne
+lemma inactiveCounterSourceBit_paddingCounterCarryWorkBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) (sourceBit : Fin (k + 1))
     (workBit : Fin k) :
     (inactiveCounterSourceBit n k sourceBit).wire ≠
@@ -4141,7 +4143,7 @@ theorem inactiveCounterSourceBit_paddingCounterCarryWorkBit_wire_ne
       (paddingCounterCarryWorkIndex n k hkn workBit)
 
 /-- Every source bit is disjoint from the coefficient-adder carry-in. -/
-theorem inactiveCounterSourceBit_coefficientCarryInBit_wire_ne
+lemma inactiveCounterSourceBit_coefficientCarryInBit_wire_ne
     (n k : Nat) (sourceBit : Fin (k + 1)) :
     (inactiveCounterSourceBit n k sourceBit).wire ≠
       (coefficientCarryInBit n (k + 1)).wire := by
@@ -4156,7 +4158,7 @@ theorem inactiveCounterSourceBit_coefficientCarryInBit_wire_ne
       n k (paddingCounterSourceHighIndex sourceBit hsource)
 
 /-- The active low source bit is disjoint from the counter target word. -/
-theorem inactiveCounterActiveBit_paddingCounterValueBit_wire_ne
+lemma inactiveCounterActiveBit_paddingCounterValueBit_wire_ne
     (n k : Nat) (bit : Fin (k + 1)) :
     (inactiveCounterActiveBit n k).wire ≠
       (paddingCounterValueBit n k bit).wire := by
@@ -4166,7 +4168,7 @@ theorem inactiveCounterActiveBit_paddingCounterValueBit_wire_ne
         (WireAddress.littleEndianWire bit))
 
 /-- The active low source bit is disjoint from each borrowed VBE carry bit. -/
-theorem inactiveCounterActiveBit_paddingCounterCarryWorkBit_wire_ne
+lemma inactiveCounterActiveBit_paddingCounterCarryWorkBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) (bit : Fin k) :
     (inactiveCounterActiveBit n k).wire ≠
       (paddingCounterCarryWorkBit n k hkn bit).wire := by
@@ -4233,7 +4235,7 @@ def inactiveCounterIncrementGates (n k : Nat) (hkn : k ≤ n) :
     [inactiveCounterLiteralGate n k]
 
 /-- The inactive-counter source word is disjoint from every public target bit. -/
-theorem inactiveCounterSourceBit_targetValueBit_wire_ne
+lemma inactiveCounterSourceBit_targetValueBit_wire_ne
     (n k : Nat) (source : Fin (k + 1)) (target : Fin n) :
     (inactiveCounterSourceBit n k source).wire ≠
       (targetValueBit n (k + 1) target).wire := by
@@ -4252,7 +4254,7 @@ theorem inactiveCounterSourceBit_targetValueBit_wire_ne
         (WireAddress.littleEndianWire target)
 
 /-- The inactive-counter target word is disjoint from every public target bit. -/
-theorem paddingCounterValueBit_targetValueBit_wire_ne
+lemma paddingCounterValueBit_targetValueBit_wire_ne
     (n k : Nat) (counter : Fin (k + 1)) (target : Fin n) :
     (paddingCounterValueBit n k counter).wire ≠
       (targetValueBit n (k + 1) target).wire := by
@@ -4264,7 +4266,7 @@ theorem paddingCounterValueBit_targetValueBit_wire_ne
 
 /-- Every borrowed inactive-counter carry bit is disjoint from every public
 target bit. -/
-theorem paddingCounterCarryWorkBit_targetValueBit_wire_ne
+lemma paddingCounterCarryWorkBit_targetValueBit_wire_ne
     (n k : Nat) (hkn : k ≤ n) (work : Fin k) (target : Fin n) :
     (paddingCounterCarryWorkBit n k hkn work).wire ≠
       (targetValueBit n (k + 1) target).wire := by
@@ -4275,7 +4277,7 @@ theorem paddingCounterCarryWorkBit_targetValueBit_wire_ne
       (WireAddress.littleEndianWire target)
 
 /-- The borrowed VBE carry-in is disjoint from every public target bit. -/
-theorem coefficientCarryInBit_targetValueBit_wire_ne
+lemma coefficientCarryInBit_targetValueBit_wire_ne
     (n k : Nat) (target : Fin n) :
     (coefficientCarryInBit n (k + 1)).wire ≠
       (targetValueBit n (k + 1) target).wire := by
@@ -4285,7 +4287,7 @@ theorem coefficientCarryInBit_targetValueBit_wire_ne
       (WireAddress.littleEndianWire target)
 
 /-- The temporary inactive source bit is disjoint from every public target bit. -/
-theorem inactiveCounterActiveBit_targetValueBit_wire_ne
+lemma inactiveCounterActiveBit_targetValueBit_wire_ne
     (n k : Nat) (target : Fin n) :
     (inactiveCounterActiveBit n k).wire ≠
       (targetValueBit n (k + 1) target).wire := by
@@ -4296,7 +4298,7 @@ theorem inactiveCounterActiveBit_targetValueBit_wire_ne
 
 /-- The literal inactive-counter increment never reads or writes a public
 target bit. -/
-theorem inactiveCounterIncrementGates_bitDisjoint_target
+lemma inactiveCounterIncrementGates_bitDisjoint_target
     (n k : Nat) (hkn : k ≤ n) (target : Fin n) :
     ∀ gate, gate ∈ inactiveCounterIncrementGates n k hkn →
       EncodedBit.GateSpec.bitDisjoint (targetValueBit n (k + 1) target) gate := by
@@ -4340,15 +4342,15 @@ def inactiveCounterIncrementStep (n k : Nat) (hkn : k ≤ n) :
   EncodedBit.GateSpec.stepList (inactiveCounterIncrementGates n k hkn)
 
 /-- The inactive compact counter program realizes its exact folded gate step. -/
-theorem inactiveCounterIncrement_realizes (n k : Nat) (hkn : k ≤ n) :
+lemma inactiveCounterIncrement_realizes (n k : Nat) (hkn : k ≤ n) :
     UnitaryCircuit.Realizes (encoding n (k + 1))
-      (inactiveCounterIncrementProgram n k hkn)
+      (inactiveCounterIncrementProgram n k hkn) environment
       (inactiveCounterIncrementStep n k hkn) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (inactiveCounterIncrementGates n k hkn)
 
 /-- Exact X coordinate of the inactive increment. -/
-theorem inactiveCounterIncrementGates_xMultiplicity_sum
+lemma inactiveCounterIncrementGates_xMultiplicity_sum
     (n k : Nat) (hkn : k ≤ n) :
     ((inactiveCounterIncrementGates n k hkn).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
@@ -4356,7 +4358,7 @@ theorem inactiveCounterIncrementGates_xMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum]
 
 /-- Exact CNOT coordinate of the inactive increment. -/
-theorem inactiveCounterIncrementGates_cnotMultiplicity_sum
+lemma inactiveCounterIncrementGates_cnotMultiplicity_sum
     (n k : Nat) (hkn : k ≤ n) :
     ((inactiveCounterIncrementGates n k hkn).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (k + 1) := by
@@ -4364,7 +4366,7 @@ theorem inactiveCounterIncrementGates_cnotMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate of the inactive increment. -/
-theorem inactiveCounterIncrementGates_toffoliMultiplicity_sum
+lemma inactiveCounterIncrementGates_toffoliMultiplicity_sum
     (n k : Nat) (hkn : k ≤ n) :
     ((inactiveCounterIncrementGates n k hkn).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * k := by
@@ -4372,7 +4374,7 @@ theorem inactiveCounterIncrementGates_toffoliMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_toffoliMultiplicity_sum]
 
 /-- Exact primitive-gate length of the inactive increment. -/
-theorem inactiveCounterIncrementGates_length
+lemma inactiveCounterIncrementGates_length
     (n k : Nat) (hkn : k ≤ n) :
     (inactiveCounterIncrementGates n k hkn).length = 8 * k + 4 := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
@@ -4382,7 +4384,7 @@ theorem inactiveCounterIncrementGates_length
   omega
 
 /-- The compiled inactive program retains its exact X count. -/
-theorem inactiveCounterIncrementProgram_x_count
+lemma inactiveCounterIncrementProgram_x_count
     (n k : Nat) (hkn : k ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
@@ -4392,7 +4394,7 @@ theorem inactiveCounterIncrementProgram_x_count
     inactiveCounterIncrementGates_xMultiplicity_sum]
 
 /-- The compiled inactive program retains its exact CNOT count. -/
-theorem inactiveCounterIncrementProgram_cnot_count
+lemma inactiveCounterIncrementProgram_cnot_count
     (n k : Nat) (hkn : k ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
@@ -4402,7 +4404,7 @@ theorem inactiveCounterIncrementProgram_cnot_count
     inactiveCounterIncrementGates_cnotMultiplicity_sum]
 
 /-- The compiled inactive program retains its exact Toffoli count. -/
-theorem inactiveCounterIncrementProgram_toffoli_count
+lemma inactiveCounterIncrementProgram_toffoli_count
     (n k : Nat) (hkn : k ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
@@ -4414,7 +4416,7 @@ theorem inactiveCounterIncrementProgram_toffoli_count
 /-- Ordered carry recurrence shared by compact counter layouts.  A caller
 supplies the source and target readout interpretations, while the proof reuses
 the certified VBE bit-slice recurrence without enumerating word states. -/
-private theorem compactCarryStage_get_workCarry_natAddCarry
+private lemma compactCarryStage_get_workCarry_natAddCarry
     (n k : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n (k + 1)) (k + 1))
@@ -4519,7 +4521,7 @@ private theorem compactCarryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before a compact counter sum is the corresponding
 natural-addition carry for any layout satisfying the shared recurrence. -/
-private theorem compactCarryBeforeSum_get_natAddCarry
+private lemma compactCarryBeforeSum_get_natAddCarry
     (n k : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n (k + 1)) (k + 1))
@@ -4571,7 +4573,7 @@ def inactiveCounterLoadedInput (n k : Nat) (x : Registers n (k + 1)) :
   (inactiveCounterActiveBit n k).flip x
 
 /-- Expose the literal X--adder--X composition of the inactive counter step. -/
-theorem inactiveCounterIncrementStep_decompose
+lemma inactiveCounterIncrementStep_decompose
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1)) :
     inactiveCounterIncrementStep n k hkn x =
       (inactiveCounterActiveBit n k).flip
@@ -4584,7 +4586,7 @@ theorem inactiveCounterIncrementStep_decompose
   rfl
 
 /-- The active bit is disjoint from the coefficient-adder carry-in. -/
-theorem inactiveCounterActiveBit_coefficientCarryInBit_wire_ne
+lemma inactiveCounterActiveBit_coefficientCarryInBit_wire_ne
     (n k : Nat) :
     (inactiveCounterActiveBit n k).wire ≠
       (coefficientCarryInBit n (k + 1)).wire := by
@@ -4593,7 +4595,7 @@ theorem inactiveCounterActiveBit_coefficientCarryInBit_wire_ne
       (RegisterBits.activeBit n (k + 1))
 
 /-- The leading active-bit X leaves each counter target bit unchanged. -/
-theorem paddingCounterValueBit_get_inactiveCounterLoadedInput
+lemma paddingCounterValueBit_get_inactiveCounterLoadedInput
     (n k : Nat) (x : Registers n (k + 1)) (bit : Fin (k + 1)) :
     (paddingCounterValueBit n k bit).get
         (inactiveCounterLoadedInput n k x) =
@@ -4606,7 +4608,7 @@ theorem paddingCounterValueBit_get_inactiveCounterLoadedInput
 
 /-- A clean coefficient-adder workspace makes the carry-in clean after the
 leading active-bit X. -/
-theorem coefficientCarryInBit_get_inactiveCounterLoadedInput_of_clean
+lemma coefficientCarryInBit_get_inactiveCounterLoadedInput_of_clean
     (n k : Nat) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n) :
     (coefficientCarryInBit n (k + 1)).get
@@ -4620,7 +4622,7 @@ theorem coefficientCarryInBit_get_inactiveCounterLoadedInput_of_clean
 
 /-- A clean coefficient-adder workspace makes every borrowed VBE carry bit
 clean after the leading active-bit X. -/
-theorem paddingCounterCarryWorkBit_get_inactiveCounterLoadedInput_of_clean
+lemma paddingCounterCarryWorkBit_get_inactiveCounterLoadedInput_of_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (bit : Fin k) :
@@ -4640,7 +4642,7 @@ theorem paddingCounterCarryWorkBit_get_inactiveCounterLoadedInput_of_clean
 
 /-- The leading active-bit X turns the borrowed source word into the symbolic
 fixed-width value `if active then 0 else 1`. -/
-theorem inactiveCounterSourceBit_get_inactiveCounterLoadedInput
+lemma inactiveCounterSourceBit_get_inactiveCounterLoadedInput
     (n k : Nat) (x : Registers n (k + 1))
     (hcorrection : x.shared.correctionCounter = 0)
     (bit : Fin (k + 1)) :
@@ -4668,7 +4670,7 @@ theorem inactiveCounterSourceBit_get_inactiveCounterLoadedInput
 
 /-- Every observation outside the counter target, borrowed carry prefix, and
 temporary active source wire is preserved by the inactive X--VBE--X schedule. -/
-theorem inactiveCounterIncrementStep_get_observed_of_disjoint
+lemma inactiveCounterIncrementStep_get_observed_of_disjoint
     (n k : Nat) (hkn : k ≤ n)
     (observed : EncodedBit (encoding n (k + 1)))
     (hright : ∀ bit : Fin (k + 1),
@@ -4698,7 +4700,7 @@ theorem inactiveCounterIncrementStep_get_observed_of_disjoint
 
 /-- On a clean coefficient-adder/correction workspace, the VBE substep writes
 each counter bit as the corresponding bit of `counter + (!active)`. -/
-theorem inactiveCounterAdderStep_get_counter_add_testBit_of_clean
+lemma inactiveCounterAdderStep_get_counter_add_testBit_of_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (hcorrection : x.shared.correctionCounter = 0)
@@ -4769,7 +4771,7 @@ theorem inactiveCounterAdderStep_get_counter_add_testBit_of_clean
 
 /-- The complete inactive X--VBE--X step updates the counter by the symbolic
 fixed-width value `!active`. -/
-theorem inactiveCounterIncrementStep_get_counter_add_testBit_of_clean
+lemma inactiveCounterIncrementStep_get_counter_add_testBit_of_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (hcorrection : x.shared.correctionCounter = 0)
@@ -4787,7 +4789,7 @@ theorem inactiveCounterIncrementStep_get_counter_add_testBit_of_clean
     n k hkn x hcoeff hcorrection bit
 
 /-- Counter-level semantic endpoint for the compact inactive increment. -/
-theorem inactiveCounterIncrementStep_counter_of_clean
+lemma inactiveCounterIncrementStep_counter_of_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (hcorrection : x.shared.correctionCounter = 0) :
@@ -4799,7 +4801,7 @@ theorem inactiveCounterIncrementStep_counter_of_clean
     n k hkn x hcoeff hcorrection bit
 
 /-- The temporary X gates restore the active flag after the VBE addition. -/
-theorem inactiveCounterIncrementStep_active
+lemma inactiveCounterIncrementStep_active
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1)) :
     (inactiveCounterIncrementStep n k hkn x).core.active = x.core.active := by
   have hleft :=
@@ -4824,7 +4826,7 @@ theorem inactiveCounterIncrementStep_active
   simp
 
 /-- A clean coefficient-adder work object has every carry-bank bit clear. -/
-theorem coefficientCarryWorkBit_get_of_coefficientAdder_clean
+lemma coefficientCarryWorkBit_get_of_coefficientAdder_clean
     (n k : Nat) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (bit : Fin n) :
@@ -4835,7 +4837,7 @@ theorem coefficientCarryWorkBit_get_of_coefficientAdder_clean
   exact PlainAdder.Schedule.PowerOfTwo.finIdentityBit_get_zero n bit
 
 /-- The VBE carry-in returns to its clean value after the inactive increment. -/
-theorem inactiveCounterIncrementStep_coefficientCarryIn_clean
+lemma inactiveCounterIncrementStep_coefficientCarryIn_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n) :
     (inactiveCounterIncrementStep n k hkn x).shared.coefficientAdder.1 =
@@ -4868,7 +4870,7 @@ theorem inactiveCounterIncrementStep_coefficientCarryIn_clean
 
 /-- Each borrowed prefix carry is uncomputed back to zero by the inactive VBE
 schedule. -/
-theorem inactiveCounterIncrementStep_get_carryWork_clean
+lemma inactiveCounterIncrementStep_get_carryWork_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (bit : Fin k) :
@@ -4892,7 +4894,7 @@ theorem inactiveCounterIncrementStep_get_carryWork_clean
 
 /-- Every VBE carry-bank bit is clean after the inactive increment: the
 borrowed prefix is uncomputed and the untouched suffix is observed unchanged. -/
-theorem inactiveCounterIncrementStep_coefficientCarryWork_clean
+lemma inactiveCounterIncrementStep_coefficientCarryWork_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (bit : Fin n) :
@@ -4935,7 +4937,7 @@ theorem inactiveCounterIncrementStep_coefficientCarryWork_clean
 
 /-- The complete shared VBE coefficient-adder workspace is clean at the
 inactive-counter endpoint. -/
-theorem inactiveCounterIncrementStep_coefficientAdder_cleanEndpoint
+lemma inactiveCounterIncrementStep_coefficientAdder_cleanEndpoint
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n) :
     (inactiveCounterIncrementStep n k hkn x).shared.coefficientAdder =
@@ -4954,7 +4956,7 @@ theorem inactiveCounterIncrementStep_coefficientAdder_cleanEndpoint
 
 /-- The borrowed correction-counter source word is preserved and hence remains
 clean at the inactive-counter endpoint. -/
-theorem inactiveCounterIncrementStep_correctionCounter_clean
+lemma inactiveCounterIncrementStep_correctionCounter_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcorrection : x.shared.correctionCounter = 0) :
     (inactiveCounterIncrementStep n k hkn x).shared.correctionCounter = 0 := by
@@ -4982,7 +4984,7 @@ theorem inactiveCounterIncrementStep_correctionCounter_clean
   simpa [correctionCounterValueBit_get, hcorrection] using h
 
 /-- The inactive increment leaves the shared route/path bit untouched. -/
-theorem inactiveCounterIncrementStep_path
+lemma inactiveCounterIncrementStep_path
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1)) :
     (inactiveCounterIncrementStep n k hkn x).shared.path = x.shared.path := by
   have h := inactiveCounterIncrementStep_get_observed_of_disjoint
@@ -4999,7 +5001,7 @@ theorem inactiveCounterIncrementStep_path
   simpa only [pathBit_get] using h
 
 /-- The inactive increment leaves the shared control bit untouched. -/
-theorem inactiveCounterIncrementStep_control
+lemma inactiveCounterIncrementStep_control
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1)) :
     (inactiveCounterIncrementStep n k hkn x).shared.control =
       x.shared.control := by
@@ -5025,7 +5027,7 @@ theorem inactiveCounterIncrementStep_control
   simpa only [controlBit_get] using h
 
 /-- The public target word is outside the inactive counter borrow set. -/
-theorem inactiveCounterIncrementStep_target
+lemma inactiveCounterIncrementStep_target
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1)) :
     (inactiveCounterIncrementStep n k hkn x).target = x.target := by
   apply word_eq_of_testBit_eq
@@ -5056,7 +5058,7 @@ theorem inactiveCounterIncrementStep_target
 /-- On clean coefficient-adder and correction inputs, the inactive route
 restores every borrowed shared field while preserving the round path/control
 state. -/
-theorem inactiveCounterIncrementStep_shared_cleanEndpoint
+lemma inactiveCounterIncrementStep_shared_cleanEndpoint
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (hcorrection : x.shared.correctionCounter = 0) :
@@ -5083,7 +5085,7 @@ theorem inactiveCounterIncrementStep_shared_cleanEndpoint
 
 /-- A core-register observation outside the inactive counter target and
 temporary active source wire is preserved by the inactive increment. -/
-private theorem inactiveCounterIncrementStep_get_coreBit_of_disjoint
+private lemma inactiveCounterIncrementStep_get_coreBit_of_disjoint
     (n k : Nat) (hkn : k ≤ n)
     (observed : EncodedBit (registerEncoding n (k + 1)))
     (hright : ∀ bit : Fin (k + 1),
@@ -5111,7 +5113,7 @@ private theorem inactiveCounterIncrementStep_get_coreBit_of_disjoint
 
 /-- The inactive increment preserves every core field except its symbolic
 padding-counter update. -/
-theorem inactiveCounterIncrementStep_core_eq_update_of_clean
+lemma inactiveCounterIncrementStep_core_eq_update_of_clean
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (hcorrection : x.shared.correctionCounter = 0) :
@@ -5241,7 +5243,7 @@ theorem inactiveCounterIncrementStep_core_eq_update_of_clean
 
 /-- Complete clean-boundary endpoint for the compact inactive counter route.
 The only state update is the symbolic fixed-width counter addition. -/
-theorem inactiveCounterIncrementStep_cleanEndpoint
+lemma inactiveCounterIncrementStep_cleanEndpoint
     (n k : Nat) (hkn : k ≤ n) (x : Registers n (k + 1))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (hcorrection : x.shared.correctionCounter = 0) :

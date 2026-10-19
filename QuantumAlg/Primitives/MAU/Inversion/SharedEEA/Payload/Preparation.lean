@@ -28,6 +28,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.PayloadPreparation
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 /-- Native frame followed by every supplied arithmetic payload bit. -/
@@ -42,7 +47,7 @@ def physicalIndex (width index : Nat) : Nat :=
   if index < width then InputPreparation.prefixWidth width + index
   else (SharedEEA.encoding width).width + (index - width)
 
-private theorem physicalIndex_injective (width payloadWidth : Nat) :
+private lemma physicalIndex_injective (width payloadWidth : Nat) :
     Function.Injective (fun index : Fin (width + payloadWidth) => physicalIndex width
       index.val) := by
   intro left right same
@@ -69,12 +74,12 @@ def before (width payloadWidth : Nat) : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addOwnedLayout ⟨0⟩ (inputLayout width payloadWidth) (by decide)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-private theorem before_physical (width payloadWidth : Nat) :
+private lemma before_physical (width payloadWidth : Nat) :
     (before width payloadWidth).physicalIdx = (inputLayout width payloadWidth).identities := by
   change ((inputLayout width payloadWidth).wires ++ []).map QuantumWire.identity = _
   rw [List.append_nil, ← layout_identities_eq_map_wires]
 
-private theorem input_wires (width payloadWidth : Nat) :
+private lemma input_wires (width payloadWidth : Nat) :
     (inputLayout width payloadWidth).wires = (before width payloadWidth).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (inputLayout width payloadWidth).wires = (inputLayout width payloadWidth).wires ++ []
@@ -91,13 +96,13 @@ def inputBasisEquiv (width payloadWidth : Nat) :
 /-- The existing source auxiliary allocation retains a distinct storage identity. -/
 def auxiliaryKey : StorageKey := ⟨1⟩
 
-theorem payloadPreparation_auxiliary_fresh (width payloadWidth : Nat) : auxiliaryKey ∉ (before
+lemma payloadPreparation_auxiliary_fresh (width payloadWidth : Nat) : auxiliaryKey ∉ (before
   width payloadWidth).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
 
 /-- Every new auxiliary wire is disjoint from both the actual input and actual payload. -/
-theorem payloadPreparation_auxiliary_disjoint (width payloadWidth : Nat) :
+lemma payloadPreparation_auxiliary_disjoint (width payloadWidth : Nat) :
     List.Disjoint (InputPreparation.auxiliaryLayout width).identities
       (before width payloadWidth).physicalIdx := by
   rw [before_physical]
@@ -163,7 +168,7 @@ def assembly (width payloadWidth : Nat) :
 
 /-- No additional hidden system accompanies the supplied payload or the existing auxiliary
   layout. -/
-theorem payloadPreparation_total_width (width payloadWidth : Nat) :
+lemma payloadPreparation_total_width (width payloadWidth : Nat) :
     InputPreparation.auxiliaryWidth width + (width + payloadWidth) =
       (frameEncoding width payloadWidth).width := by
   change InputPreparation.auxiliaryWidth width + (width + payloadWidth) =
@@ -172,7 +177,7 @@ theorem payloadPreparation_total_width (width payloadWidth : Nat) :
   omega
 
 /-- The trace records every zero allocation and literal fixed-seed X gate. -/
-theorem payloadPreparation_circuit_eventTrace (modulus payloadWidth : Nat)
+lemma payloadPreparation_circuit_eventTrace (modulus payloadWidth : Nat)
     (path : (circuit modulus payloadWidth).Path) :
     (circuit modulus payloadWidth).eventTrace path =
       ZeroPreparation.eventTrace AlgorithmGate.model .empty
@@ -183,9 +188,9 @@ theorem payloadPreparation_circuit_eventTrace (modulus payloadWidth : Nat)
   rfl
 
 /-- Fixed-seed X gates preserve arbitrary old input and payload basis values. -/
-theorem loadProgram_seed (modulus payloadWidth : Nat)
+lemma loadProgram_seed (modulus payloadWidth : Nat)
     (old : (before modulus.size payloadWidth).register.Index) :
-    (loadProgram modulus payloadWidth).applyNormalized
+    (loadProgram modulus payloadWidth).applyNormalized environment
       (NormalizedVector.ket
         (assembly modulus.size payloadWidth
           ((BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value, old))) =
@@ -200,7 +205,7 @@ theorem loadProgram_seed (modulus payloadWidth : Nat)
     _ _ _ (InputPreparation.sourceLoad_seed modulus) old
 
 /-- Actual fixed loading obeys the independent one-X-per-fresh-wire bound. -/
-theorem loadProgram_resources (modulus payloadWidth : Nat) :
+lemma loadProgram_resources (modulus payloadWidth : Nat) :
     (loadProgram modulus payloadWidth).eventCost.card ≤
         InputPreparation.auxiliaryWidth modulus.size ∧
       (loadProgram modulus payloadWidth).evaluatedEventDepth (fun _ => 1) ≤
@@ -236,15 +241,16 @@ theorem loadProgram_resources (modulus payloadWidth : Nat) :
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- Actual zero allocation and X gates realize the complete fixed-seed tensor density. -/
-theorem execute_preparedDensity (modulus payloadWidth : Nat)
+lemma execute_preparedDensity (modulus payloadWidth : Nat)
     (state : State (before modulus.size payloadWidth) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((circuit modulus payloadWidth).execute Reference state).quantumMarginal =
+    ((circuit modulus payloadWidth).execute runtimeEnvironment Reference state).quantumMarginal =
       preparedDensity auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
         (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
         (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
         (InputPreparation.preparation modulus).normalized Reference state.quantumMarginal := by
-  have zero : ((zeroCircuit modulus payloadWidth).execute Reference state).quantumMarginal =
+  have zero : ((zeroCircuit modulus payloadWidth).execute runtimeEnvironment
+    Reference state).quantumMarginal =
       preparedDensity auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
         (payloadPreparation_auxiliary_fresh modulus.size payloadWidth)
         (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
@@ -265,10 +271,11 @@ theorem execute_preparedDensity (modulus payloadWidth : Nat)
     (payloadPreparation_auxiliary_disjoint modulus.size payloadWidth)
     (BasisPreparation.zero (InputPreparation.auxiliaryLayout modulus.size)).value
     (InputPreparation.preparation modulus).value
-    (loadProgram modulus payloadWidth).matrix (loadProgram_seed modulus payloadWidth)
+    ((loadProgram modulus payloadWidth).matrix runtimeEnvironment.quantum) (loadProgram_seed
+      modulus payloadWidth)
     state.quantumMarginal
 
-private theorem auxiliary_space (width : Nat) :
+private lemma auxiliary_space (width : Nat) :
     SpacePool.ofQuantumLayout (InputPreparation.auxiliaryLayout width) =
       OwnedQubits.space (InputPreparation.auxiliaryWidth width) := by
   funext axis
@@ -278,7 +285,7 @@ private theorem auxiliary_space (width : Nat) :
       exact (InputPreparation.auxiliaryQubitLayout width).toQuantumLayout_dimensionCount dimension
 
 /-- Every supplied payload bit, including an arithmetic flag, is a counted owned system. -/
-theorem payloadPreparation_before_resident (width payloadWidth : Nat) :
+lemma payloadPreparation_before_resident (width payloadWidth : Nat) :
     (before width payloadWidth).residentSpace = OwnedQubits.space (width + payloadWidth) := by
   simp only [before, RuntimeCtx.residentSpace_addOwnedLayout, RuntimeCtx.residentSpace_empty]
   funext axis
@@ -288,7 +295,7 @@ theorem payloadPreparation_before_resident (width payloadWidth : Nat) :
       exact (inputQubitLayout width payloadWidth).toQuantumLayout_dimensionCount dimension
 
 /-- The original input and entire supplied payload have the owned role. -/
-theorem payloadPreparation_before_auxiliary (width payloadWidth : Nat) :
+lemma payloadPreparation_before_auxiliary (width payloadWidth : Nat) :
     (before width payloadWidth).auxiliarySpace = OwnedQubits.space (width + payloadWidth) := by
   simp only [before, RuntimeCtx.auxiliarySpace_addOwnedLayout, RuntimeCtx.auxiliarySpace_empty]
   funext axis
@@ -297,7 +304,7 @@ theorem payloadPreparation_before_auxiliary (width payloadWidth : Nat) :
   | quantumSystems dimension =>
       exact (inputQubitLayout width payloadWidth).toQuantumLayout_dimensionCount dimension
 
-private theorem combined_space (width payloadWidth : Nat) :
+private lemma combined_space (width payloadWidth : Nat) :
     OwnedQubits.space (InputPreparation.auxiliaryWidth width) +
       OwnedQubits.space (width + payloadWidth) =
         OwnedQubits.space (frameEncoding width payloadWidth).width := by
@@ -313,7 +320,7 @@ private theorem combined_space (width payloadWidth : Nat) :
       · rfl
 
 /-- The complete actual resident pool contains the full frame and every supplied payload bit. -/
-theorem payloadPreparation_after_resident (width payloadWidth : Nat) :
+lemma payloadPreparation_after_resident (width payloadWidth : Nat) :
     (after width payloadWidth).residentSpace =
       OwnedQubits.space (frameEncoding width payloadWidth).width := by
   rw [after, RuntimeCtx.residentSpace_addOwnedLayout, auxiliary_space,
@@ -321,7 +328,7 @@ theorem payloadPreparation_after_resident (width payloadWidth : Nat) :
   exact combined_space width payloadWidth
 
 /-- Exactly the same real owned systems appear in the auxiliary pool. -/
-theorem payloadPreparation_after_auxiliary (width payloadWidth : Nat) :
+lemma payloadPreparation_after_auxiliary (width payloadWidth : Nat) :
     (after width payloadWidth).auxiliarySpace =
       OwnedQubits.space (frameEncoding width payloadWidth).width := by
   rw [after, RuntimeCtx.auxiliarySpace_addOwnedLayout, auxiliary_space,

@@ -34,7 +34,7 @@ def wireBasis (wires : Fin source.width ≃ Fin target.width) :
       (BinaryBasis.bigEndianEquiv target.width))
 
 /-- The transported source bit has exactly its original value on the named target wire. -/
-theorem wireBasis_bit (wires : Fin source.width ≃ Fin target.width)
+lemma wireBasis_bit (wires : Fin source.width ≃ Fin target.width)
     (label : (Qubits source.width).Index) (index : Fin source.width) :
     (wireBasis source target wires label).val.testBit (wires index).rev.val =
       label.val.testBit index.rev.val := by
@@ -146,7 +146,7 @@ def ofWires (sourceOnto : Function.Surjective source.encode)
     exact wireBasis_bit source target wires label index
 
 /-- A bit read through a wire-derived grouping equals the bit at its named target wire. -/
-theorem ofWires_read (sourceOnto : Function.Surjective source.encode)
+lemma ofWires_read (sourceOnto : Function.Surjective source.encode)
     (targetOnto : Function.Surjective target.encode)
     (wires : Fin source.width ≃ Fin target.width)
     (sourceBit : _root_.QuantumAlg.EncodedBit source)
@@ -196,7 +196,7 @@ def ofEqualWidth (grouping : Target ≃ Source) (sameWidth : source.width = targ
     (fun label => (BinaryBasis.bigEndianEquiv sourceWidth).symm label index) labels.symm
 
 /-- Equal-width transport retains the supplied semantic grouping exactly. -/
-@[simp] theorem ofEqualWidth_grouping (grouping : Target ≃ Source)
+@[simp] lemma ofEqualWidth_grouping (grouping : Target ≃ Source)
     (sameWidth : source.width = target.width)
     (sameLabels : ∀ state,
       Fin.cast (congrArg (fun width => 2 ^ width) sameWidth)

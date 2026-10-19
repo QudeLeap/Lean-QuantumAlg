@@ -26,7 +26,7 @@ noncomputable section
 open Execution MeasuredUncompute
 
 /-- Every complete point basis reconstructs from its original control, selector and arithmetic. -/
-theorem point_label_decomposition (width : Nat)
+lemma point_label_decomposition (width : Nat)
     (value : (MeasuredPointAddition.context width).register.Index) :
     value = MeasuredPointAddition.label width (pointControl width value)
       (pointSelector width value) (pointSharedBasis width value) := by
@@ -34,21 +34,21 @@ theorem point_label_decomposition (width : Nat)
     InPlaceControlled.label, Equiv.symm_apply_apply, Prod.eta]
 
 /-- The reconstructed point label has exactly the supplied finite control. -/
-theorem pointControl_label (width : Nat) (control selector : Fin 2)
+lemma pointControl_label (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index) :
     pointControl width (MeasuredPointAddition.label width control selector original) = control := by
   simp only [pointControl, MeasuredPointAddition.label, InPlaceControlled.label,
     Equiv.apply_symm_apply]
 
 /-- The reconstructed point label has exactly the supplied finite selector. -/
-theorem pointSelector_label (width : Nat) (control selector : Fin 2)
+lemma pointSelector_label (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index) :
     pointSelector width (MeasuredPointAddition.label width control selector original) =
       selector := by
   simp only [pointSelector, MeasuredPointAddition.label, Equiv.apply_symm_apply]
 
 /-- The reconstructed point label retains the entire supplied arithmetic basis. -/
-theorem pointSharedBasis_label (width : Nat) (control selector : Fin 2)
+lemma pointSharedBasis_label (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index) :
     pointSharedBasis width (MeasuredPointAddition.label width control selector original) =
       original := by
@@ -56,7 +56,7 @@ theorem pointSharedBasis_label (width : Nat) (control selector : Fin 2)
     Equiv.apply_symm_apply]
 
 /-- The actual indexed point view is exactly its original complete point label. -/
-theorem pointBasis_label (width : Nat) {count : Nat} (active : Fin count)
+lemma pointBasis_label (width : Nat) {count : Nat} (active : Fin count)
     (value : (readyContext width count).register.Index) :
     (pointBasis width active value).1 =
       MeasuredPointAddition.label width (indexedValue width count value active.castSucc)
@@ -65,7 +65,7 @@ theorem pointBasis_label (width : Nat) {count : Nat} (active : Fin count)
     pointBasis_control, pointBasis_selector, pointBasis_shared]
 
 /-- Step admissibility reads the original selected exponent, selector and shared arithmetic. -/
-theorem stepAdmissible_label {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma stepAdmissible_label {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     stepAdmissible E Q active value ↔ MeasuredPointAddition.admissible E Q

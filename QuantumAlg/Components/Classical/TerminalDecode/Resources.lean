@@ -48,7 +48,7 @@ def envelope {model : ExecutionModel} [BitWord.Selected model]
   ResourcePool.scale width (bitEnvelope (model := model) width)
 
 /-- One actual append respects both native operation coordinates. -/
-theorem terminalDecode_bitRef_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_bitRef_pool_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -80,7 +80,7 @@ theorem terminalDecode_bitRef_pool_le {model : ExecutionModel} [BitWord.Selected
         exact le_rfl
 
 /-- The literal fold has the sum of its actual append pools. -/
-theorem terminalDecode_fold_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_pool_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) :
@@ -101,7 +101,7 @@ theorem terminalDecode_fold_pool_le {model : ExecutionModel} [BitWord.Selected m
       exact add_le_add (terminalDecode_bitRef_pool_le input output path.1) (ih path.2)
 
 /-- Both declared bit orders use exactly the same independent fixed-width budget. -/
-theorem terminalDecode_intoFromBitRefs_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_intoFromBitRefs_pool_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -113,7 +113,7 @@ theorem terminalDecode_intoFromBitRefs_pool_le {model : ExecutionModel} [BitWord
       (List.ofFn (fun index => inputs (sourceIndex order index))) path
 
 /-- One append retains the data dependency from shift to selected increment. -/
-theorem terminalDecode_bitRef_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_bitRef_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -141,7 +141,7 @@ theorem terminalDecode_bitRef_depth_le {model : ExecutionModel} [BitWord.Selecte
         exact le_rfl
 
 /-- The ordered fold adds every selected append's actual dependency depth. -/
-theorem terminalDecode_fold_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) (duration : Resource.Event model → Nat) :
@@ -163,7 +163,7 @@ theorem terminalDecode_fold_depth_le {model : ExecutionModel} [BitWord.Selected 
       omega
 
 /-- Explicit fixed-width duration bound derived from the same actual paths. -/
-theorem terminalDecode_intoFromBitRefs_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_intoFromBitRefs_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -176,7 +176,7 @@ theorem terminalDecode_intoFromBitRefs_depth_le {model : ExecutionModel} [BitWor
     (List.ofFn (fun index => inputs (sourceIndex order index))) duration path
 
 /-- No append allocates or removes a runtime entry, whichever bit is selected. -/
-theorem terminalDecode_bitRef_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_bitRef_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -187,7 +187,7 @@ theorem terminalDecode_bitRef_visited {model : ExecutionModel} [BitWord.Selected
   | bit bit => cases bit <;> rfl
 
 /-- Every context visited by the full fold is its actual unchanged context. -/
-theorem terminalDecode_fold_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) :
@@ -208,7 +208,7 @@ theorem terminalDecode_fold_visited {model : ExecutionModel} [BitWord.Selected m
       · exact ih path.2 visited later
 
 /-- The same-context decoder uses no additional resident storage. -/
-theorem terminalDecode_intoFromBitRefs_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_intoFromBitRefs_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -222,7 +222,7 @@ theorem terminalDecode_intoFromBitRefs_resident_le {model : ExecutionModel} [Bit
   exact same ▸ le_rfl
 
 /-- Its auxiliary peak consists only of the actual already-scoped auxiliary entries. -/
-theorem terminalDecode_intoFromBitRefs_auxiliary_le {model : ExecutionModel}
+lemma terminalDecode_intoFromBitRefs_auxiliary_le {model : ExecutionModel}
     [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)

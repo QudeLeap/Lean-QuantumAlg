@@ -56,13 +56,13 @@ def targetLabel (x : OracleDomain) : OracleBasis :=
     (x.2 * canonicalProblem.toSourceScope.oracleMultiplier
       x.1.1.val x.1.2.val)
 
-theorem sourceLabel_injective : Function.Injective sourceLabel := by
+lemma sourceLabel_injective : Function.Injective sourceLabel := by
   intro left right equality
   apply (ECDLP.Canonical.Layout.fullEncoding ecdLPInstance).encode_injective
   apply Fin.ext
   exact Fin.ext_iff.mp equality
 
-theorem targetLabel_injective : Function.Injective targetLabel := by
+lemma targetLabel_injective : Function.Injective targetLabel := by
   rintro ⟨⟨a, b⟩, y⟩ ⟨⟨a', b'⟩, y'⟩ h
   have houter :
       ((a, b), y * canonicalProblem.toSourceScope.oracleMultiplier a.val b.val) =
@@ -91,13 +91,13 @@ def oraclePermutation : Equiv.Perm OracleBasis :=
     (Equiv.Perm.exists_extending_pair sourceLabel targetLabel
       sourceLabel_injective targetLabel_injective)
 
-theorem oraclePermutation_sourceLabel (x : OracleDomain) :
+lemma oraclePermutation_sourceLabel (x : OracleDomain) :
     oraclePermutation (sourceLabel x) = targetLabel x :=
   (Classical.choose_spec
     (Equiv.Perm.exists_extending_pair sourceLabel targetLabel
       sourceLabel_injective targetLabel_injective)) x
 
-theorem oracleOperator_basisAction (x : OracleDomain) :
+lemma oracleOperator_basisAction (x : OracleDomain) :
     (UnitaryOperator.ofPerm (R := Qubits totalQubits)
         oraclePermutation.symm).apply
         (NormalizedVector.ket (sourceLabel x)) =

@@ -21,10 +21,10 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve
 
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
-theorem persistentFailureWeight_mapHistory
+lemma persistentFailureWeight_mapHistory
     {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
     (state : State (persistentCtx ctx width scalarWidth) Reference
       (model.HiddenState × H))

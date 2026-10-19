@@ -23,7 +23,7 @@ namespace QuantumAlg.Gate.ControlledRegisterSwap
 
 noncomputable section
 
-private theorem pair_events (oracles : OracleModel) (width : Nat) (index : Fin width) :
+private lemma pair_events (oracles : OracleModel) (width : Nat) (index : Fin width) :
     (pairCircuit oracles width index).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .cnot) 2 + ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -43,7 +43,7 @@ private theorem pair_events (oracles : OracleModel) (width : Nat) (index : Fin w
         (.gate .toffoli)
   ac_rfl
 
-private theorem sequence_cost (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
+private lemma sequence_cost (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
     (sequence oracles width indices).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .cnot) (2 * indices.length) +
@@ -62,7 +62,7 @@ private theorem sequence_cost (oracles : OracleModel) (width : Nat) (indices : L
       ac_rfl
 
 /-- Exact native gate pool for the actual all-position controlled exchange. -/
-public theorem controlledRegisterSwap_eventCost (oracles : OracleModel) (width : Nat) :
+public lemma controlledRegisterSwap_eventCost (oracles : OracleModel) (width : Nat) :
     (circuit oracles width).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .cnot) (2 * width) +

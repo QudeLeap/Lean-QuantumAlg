@@ -26,7 +26,7 @@ noncomputable section
 variable {width : Nat}
 
 /-- The original checked decision and selected payload give all three original public values. -/
-theorem exposedRecoveryValue_original (spec : ModulusSpec width)
+lemma exposedRecoveryValue_original (spec : ModulusSpec width)
     (original : CShape.Value (InputShape width)) (success : CShape.Value .bit)
     (left right inverse : CShape.Word width) (modulus : CShape.Word (width + 1))
     (modulusValue : modulus.toNat = spec.modulus)

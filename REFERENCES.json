@@ -890,6 +890,19 @@
       "arxiv_id": "0811.3171",
       "arxiv_version": "v3",
       "entry_point": "08113171.tex"
+    },
+    {
+      "key": "GN96",
+      "authors": [
+        "Robert B. Griffiths",
+        "Chi-Sheng Niu"
+      ],
+      "year": 1996,
+      "title": "Semiclassical Fourier Transform for Quantum Computation",
+      "arxiv_id": "quant-ph/9511007",
+      "arxiv_version": "v1",
+      "entry_point": "9511007.tex",
+      "doi": "10.1103/PhysRevLett.76.3228"
     }
   ]
 }

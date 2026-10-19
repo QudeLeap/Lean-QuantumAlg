@@ -24,7 +24,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The two actual operand cells are distinct by the second allocation's freshness. -/
-theorem adjacent_ne_modulus (ctx : RuntimeCtx kind) (N : Nat) :
+lemma adjacent_ne_modulus (ctx : RuntimeCtx kind) (N : Nat) :
     (adjacentRef ctx N).key ≠ (modulusRef ctx N).key := by
   intro same
   change ctx.canonicalFreshKey = (adjacentContext ctx N).canonicalFreshKey at same
@@ -35,7 +35,7 @@ theorem adjacent_ne_modulus (ctx : RuntimeCtx kind) (N : Nat) :
       ctx.canonicalFreshKey_fresh).present
 
 /-- No original output cell is the first newly allocated operand. -/
-theorem output_ne_adjacent {shape : CShape} (output : CWriteRef ctx shape) :
+lemma output_ne_adjacent {shape : CShape} (output : CWriteRef ctx shape) :
     (liftWrite (N := N) output).key ≠ (adjacentRef ctx N).key := by
   change output.key ≠ ctx.canonicalFreshKey
   intro same
@@ -44,7 +44,7 @@ theorem output_ne_adjacent {shape : CShape} (output : CWriteRef ctx shape) :
   exact List.mem_map_of_mem output.toCStorageRef.present
 
 /-- No original output cell is the second newly allocated operand. -/
-theorem output_ne_modulus {shape : CShape} (output : CWriteRef ctx shape) :
+lemma output_ne_modulus {shape : CShape} (output : CWriteRef ctx shape) :
     (liftWrite (N := N) output).key ≠ (modulusRef ctx N).key := by
   change output.key ≠ (adjacentContext ctx N).canonicalFreshKey
   intro same
@@ -68,7 +68,7 @@ def popStore (N : Nat) (store : Store (context ctx N)) : Store ctx :=
       (.unsignedWord (modulusBits N + 1)) (adjacentContext ctx N).canonicalFreshKey_fresh store)
 
 /-- Entering both operand scopes preserves each exact original structural read. -/
-theorem pushStore_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
+lemma pushStore_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
     (pushStore N store).read (liftInput input) = store.read input := by
   let first := input.underWorkspace ctx.canonicalFreshKey (.unsignedWord (modulusBits N + 1))
     ctx.canonicalFreshKey_fresh
@@ -81,7 +81,7 @@ theorem pushStore_read {shape : CShape} (input : CInputRef ctx shape) (store : S
       (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh input)
 
 /-- Releasing both operand scopes preserves each exact surviving structural read. -/
-theorem popStore_read {shape : CShape} (input : CInputRef ctx shape)
+lemma popStore_read {shape : CShape} (input : CInputRef ctx shape)
     (store : Store (context ctx N)) :
     (popStore N store).read input = store.read (liftInput input) := by
   let first := input.underWorkspace ctx.canonicalFreshKey (.unsignedWord (modulusBits N + 1))

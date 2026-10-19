@@ -20,8 +20,9 @@ initialization events remain charged in both cases.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
-private theorem constant_one_operator (oracles : OracleModel) (width : Nat) :
-    (Shared.constantInitial oracles width 1).binaryMatrix = 1 := by
+private lemma constant_one_operator (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((Shared.constantInitial oracles width 1).binaryMatrix environment) = 1 := by
   rw [Shared.constantInitial, Gate.singleQubitAt_first_binaryMatrix, Real.arccos_one]
   have zeroRotation : rotZOp 0 = 1 := by
     apply Subtype.ext
@@ -34,13 +35,14 @@ private theorem constant_one_operator (oracles : OracleModel) (width : Nat) :
 variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
 
 /-- Identity initialization preserves the full source word, including global phase. -/
-theorem initializedBranch_one (phases : List ℝ) :
+lemma initializedBranch_one (phases : List ℝ) :
     initializedBranch U positive phases 1 =
-      (KnownZero.circuit U positive true phases).binaryMatrix := by
+      ((KnownZero.circuit (m := m) (n := n) positive true phases).binaryMatrix
+        (UnitarySource.interpretation U true true false)) := by
   rw [initializedBranch, constant_one_operator, mul_one]
 
 /-- The zero-length branch realizes its supplied constant on the original system block. -/
-theorem initializedBranch_constant_block (constant : ℝ) (lower : -1 ≤ constant)
+lemma initializedBranch_constant_block (constant : ℝ) (lower : -1 ≤ constant)
     (upper : constant ≤ 1) :
     projectedBlock m n (phasePlusBlock (initializedBranch U positive [] constant)) =
       (constant : ℂ) • (1 : HilbertOperator (Qubits n)) := by

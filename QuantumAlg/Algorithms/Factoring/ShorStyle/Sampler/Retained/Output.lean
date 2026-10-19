@@ -45,13 +45,13 @@ public def outputValue {N : Nat} (input : Input N)
   .product (.bits (PackedSample.storedBits value)) (parameterValue input value)
 
 /-- The complete manifest contains both real result keys and every original caller key. -/
-theorem samplerRetained_output_listing (ctx : RuntimeCtx kind) (N : Nat) :
+lemma samplerRetained_output_listing (ctx : RuntimeCtx kind) (N : Nat) :
     (output ctx N).listing = (parameterRef ctx N).key :: (sampleRef ctx N).key :: ctx.keys := rfl
 
 variable {model : ExecutionModel} [BitWord.Selected model]
 
 /-- Every actual sampled native path reads the independently specified complete source value. -/
-theorem samplerRetained_output_outcome (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
+lemma samplerRetained_output_outcome (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
     (store : Store (context ctx N)) (value : Fin (2 ^ residueSamplingBits N)) :
     (output ctx N).eval (outcomeStep (model := model) ctx N store value).1 =
       outputValue input value := by

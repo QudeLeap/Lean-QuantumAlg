@@ -21,7 +21,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfFact
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-private theorem stable_separate
+private lemma stable_separate
     (input : CInputRef ctx (.unsignedWord (modulusBits N))) (key : StorageKey)
     (scratch : key ∈ scratchKeys ctx N)
     (oneDifferent : key ≠ (oneRef ctx N).key)
@@ -35,7 +35,7 @@ private theorem stable_separate
     · exact modulusDifferent (List.mem_singleton.mp modulus)
 
 /-- The actual six fresh cells establish every separation condition of the real factor code. -/
-theorem cells_separated (ctx : RuntimeCtx kind) (N : Nat)
+lemma cells_separated (ctx : RuntimeCtx kind) (N : Nat)
     (input : CInputRef ctx (.unsignedWord (modulusBits N))) :
     NativeHalfFactor.Separation (liftInput input) (cells ctx N) := by
   constructor

@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec ArithmeticWindowProgram ArithmeticSelectionKey ArithmeticInstruction
 
 private def instructionGates (width : Nat) (instruction : Instruction)
@@ -34,7 +36,7 @@ private def instructionGates (width : Nat) (instruction : Instruction)
     | none => []
   else []
 
-private theorem instructionGates_step (width : Nat) (instruction : Instruction)
+private lemma instructionGates_step (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) (state : Registers width) :
     stepList (instructionGates width instruction selected) state =
       ArithmeticInstruction.step width instruction selected state := by
@@ -46,7 +48,7 @@ private theorem instructionGates_step (width : Nat) (instruction : Instruction)
         exact ArithmeticSelector.arithmeticSelector_gates_step window _ _ selected state
   · rfl
 
-private theorem instructionGates_trace (width : Nat) (instruction : Instruction)
+private lemma instructionGates_trace (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) :
     (instructionGates width instruction selected).map (event .empty) =
       (ArithmeticInstruction.program width instruction selected).eventTrace := by
@@ -64,7 +66,7 @@ private def listGates (width : Nat) (instruction : Instruction) :
   | selected :: rest => instructionGates width instruction selected ++
       listGates width instruction rest
 
-private theorem listGates_step (width : Nat) (instruction : Instruction)
+private lemma listGates_step (width : Nat) (instruction : Instruction)
     (indices : List (Key width (includeSign instruction))) (state : Registers width) :
     stepList (listGates width instruction indices) state =
       indices.foldl
@@ -75,7 +77,7 @@ private theorem listGates_step (width : Nat) (instruction : Instruction)
   | cons selected rest ih =>
       rw [listGates, stepList_append, instructionGates_step, List.foldl_cons, ih]
 
-private theorem listGates_trace (width : Nat) (instruction : Instruction)
+private lemma listGates_trace (width : Nat) (instruction : Instruction)
     (indices : List (Key width (includeSign instruction))) :
     (listGates width instruction indices).map (event .empty) =
       (listProgram width instruction indices).eventTrace := by
@@ -90,33 +92,34 @@ def gates (width : Nat) (instruction : Instruction) : List (GateSpec (encoding w
   listGates width instruction (keys width (includeSign instruction))
 
 /-- The entire literal list has the original action on every complete incoming register label. -/
-theorem arithmeticSchedule_gates_step (width : Nat) (instruction : Instruction)
+lemma arithmeticSchedule_gates_step (width : Nat) (instruction : Instruction)
     (state : Registers width) :
     stepList (gates width instruction) state = step width instruction state :=
   listGates_step width instruction (keys width (includeSign instruction)) state
 
 /-- Compiling the emitted list preserves the complete coherent schedule on the supplied wires. -/
-theorem arithmeticSchedule_gates_realizes (width : Nat) (instruction : Instruction)
+lemma arithmeticSchedule_gates_realizes (width : Nat) (instruction : Instruction)
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (programList layout .empty (gates width instruction)) (step width instruction) :=
+      (programList layout .empty (gates width instruction)) environment (step width instruction) :=
   realizesList_congrStep layout .empty _ (arithmeticSchedule_gates_step width instruction)
+    environment
 
 /-- The complete actual predicate and arithmetic trace is retained in its original order. -/
-theorem arithmeticSchedule_gates_trace (width : Nat) (instruction : Instruction) :
+lemma arithmeticSchedule_gates_trace (width : Nat) (instruction : Instruction) :
     (gates width instruction).map (event .empty) = (program width instruction).eventTrace :=
   listGates_trace width instruction (keys width (includeSign instruction))
 
 /-- Flattening leaves every native multiplicity equal to the original actual circuit's pool. -/
-theorem arithmeticSchedule_gates_eventCost (width : Nat) (instruction : Instruction) :
+lemma arithmeticSchedule_gates_eventCost (width : Nat) (instruction : Instruction) :
     ResourcePool.ofList ((gates width instruction).map (event .empty)) =
       (program width instruction).eventCost := by
   rw [arithmeticSchedule_gates_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
 /-- The same independent finite-selector envelope bounds the actual emitted instructions. -/
-theorem arithmeticSchedule_gates_length_bound (width : Nat) (instruction : Instruction) :
+lemma arithmeticSchedule_gates_length_bound (width : Nat) (instruction : Instruction) :
     (gates width instruction).length ≤
-      2 ^ (4 * width.size + 2 + if includeSign instruction then 1 else 0) *
+      2 ^ ((4 * width.size + 2 + if includeSign instruction then 1 else 0) - 1) *
         ArithmeticScheduleResources.selectorBound width (includeSign instruction) := by
   have count := congrArg List.length (arithmeticSchedule_gates_trace width instruction)
   simp only [List.length_map] at count

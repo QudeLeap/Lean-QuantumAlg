@@ -36,21 +36,22 @@ noncomputable section
 
 open scoped BigOperators
 
-private theorem castBasis_value {count : Nat} {source target : QuantumLayout count}
+private lemma castBasis_value {count : Nat} {source target : QuantumLayout count}
     (same : source = target) (basis : source.Basis) (index : Fin count) :
     (((same ▸ basis : target.Basis) index).val) = (basis index).val := by
   cases same
   rfl
 
-private theorem castMatrix_entry {gates : GateModel} {oracles : OracleModel}
+private lemma castMatrix_entry {gates : GateModel} {oracles : OracleModel}
     {count : Nat} {source target : QuantumLayout count} (same : source = target)
-    (body : UnitaryCircuit gates oracles source) (row column : target.Basis) :
-    (body.castLayout same).matrix row column =
-      body.matrix (same.symm ▸ row) (same.symm ▸ column) := by
+    (body : UnitaryCircuit gates oracles source) (row column : target.Basis) (environment :
+      oracles.Interpretation) :
+    ((body.castLayout same).matrix environment) row column =
+      (body.matrix environment) (same.symm ▸ row) (same.symm ▸ column) := by
   cases same
   rfl
 
-private theorem prefixBasis (width : Nat) (basis : (layout (width + 1)).Basis) :
+private lemma prefixBasis (width : Nat) (basis : (layout (width + 1)).Basis) :
     (QuantumLayout.appendBasisEquiv (layout width) (lastLayout width)
       (hadamardLayer_layout_disjoint width)
       ((hadamardLayer_layout_append width).symm ▸ basis)).1 =
@@ -60,7 +61,7 @@ private theorem prefixBasis (width : Nat) (basis : (layout (width + 1)).Basis) :
   exact castBasis_value (hadamardLayer_layout_append width).symm basis
     (Fin.castAdd 1 index)
 
-private theorem suffixBasis (width : Nat) (basis : (layout (width + 1)).Basis) :
+private lemma suffixBasis (width : Nat) (basis : (layout (width + 1)).Basis) :
     (QuantumLayout.appendBasisEquiv (layout width) (lastLayout width)
       (hadamardLayer_layout_disjoint width)
       ((hadamardLayer_layout_append width).symm ▸ basis)).2 =
@@ -71,10 +72,10 @@ private theorem suffixBasis (width : Nat) (basis : (layout (width + 1)).Basis) :
   exact castBasis_value (hadamardLayer_layout_append width).symm basis
     (Fin.natAdd width 0)
 
-private theorem lastGate_entry (oracles : OracleModel) (width : Nat)
-    (row column : (lastLayout width).Basis) :
-    (Gate.singleQubitAt (lastLayout width) oracles Gate.HOp 0
-          (hadamardLayer_last_dimension width)).matrix row column =
+private lemma lastGate_entry (oracles : OracleModel) (width : Nat)
+    (row column : (lastLayout width).Basis) (environment : oracles.Interpretation) :
+    ((Gate.singleQubitAt (lastLayout width) oracles Gate.HOp 0
+          (hadamardLayer_last_dimension width)).matrix environment) row column =
       Gate.HOp (row 0) (column 0) := by
   let application := Gate.singleQubitApplication (lastLayout width) Gate.HOp 0
           (hadamardLayer_last_dimension width)
@@ -87,9 +88,9 @@ private theorem lastGate_entry (oracles : OracleModel) (width : Nat)
   congr 1
 
 /-- Exact full tensor entries, including all phases, of the generated parallel native word. -/
-public theorem hadamardLayer_circuit_matrix_entry (oracles : OracleModel) (width : Nat)
-    (row column : (layout width).Basis) :
-    (circuit oracles width).matrix row column =
+public lemma hadamardLayer_circuit_matrix_entry (oracles : OracleModel) (width : Nat)
+    (row column : (layout width).Basis) (environment : oracles.Interpretation) :
+    ((circuit oracles width).matrix environment) row column =
       ∏ index : Fin width, Gate.HOp (row index) (column index) := by
   induction width with
   | zero =>
@@ -102,7 +103,7 @@ public theorem hadamardLayer_circuit_matrix_entry (oracles : OracleModel) (width
       calc
         _ = (∏ index : Fin width, Gate.HOp (row index.castSucc) (column index.castSucc)) *
             Gate.HOp (row (Fin.last width)) (column (Fin.last width)) :=
-          congrArg₂ (· * ·) (ih _ _) (lastGate_entry oracles width _ _)
+          congrArg₂ (· * ·) (ih _ _) (lastGate_entry oracles width _ _ environment)
         _ = _ := (Fin.prod_univ_castSucc
           (fun index : Fin (width + 1) => (Gate.HOp (row index) (column index) : ℂ))).symm
 

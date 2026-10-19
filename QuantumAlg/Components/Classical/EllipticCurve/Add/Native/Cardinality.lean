@@ -22,11 +22,11 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.Add.Native
 
 open Execution ClassicalAlgorithms.Modular ClassicalAlgorithms.EllipticCurve Field.Native
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual nine-stage affine allowance includes every original arithmetic call. -/
-theorem affineEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma affineEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : ModulusSpec width) :
     (affineEnvelope model spec).card ≤ 52 * width + 126 := by
   have coefficient := coefficientEnvelope_card_le model spec
@@ -39,7 +39,7 @@ theorem affineEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
   omega
 
 /-- Both real slope subtractions precede the same actual affine allowance. -/
-theorem genericEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma genericEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : ModulusSpec width) :
     (genericEnvelope model spec).card ≤ 60 * width + 146 := by
   have affine := affineEnvelope_card_le model spec
@@ -48,13 +48,13 @@ theorem genericEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model
   omega
 
 /-- The actual public curve coefficient loader is charged once per doubling call. -/
-theorem doublingLoaderTrace_length_le (model : ExecutionModel) [BitWord.Selected model]
+lemma doublingLoaderTrace_length_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : CurveSpec width) :
     (doublingLoaderTrace model spec).length ≤ 2 * width :=
   ConstantWord.constantLoader_length_le model width (doublingCurveAWord spec).toNat
 
 /-- All seven original doubling stages fit their complete width-linear allowance. -/
-theorem doublingEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma doublingEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : CurveSpec width) :
     (doublingEnvelope model spec).card ≤ 64 * width + 159 := by
   have product := multiplicationTrace_length_le model spec.field
@@ -67,13 +67,13 @@ theorem doublingEnvelope_card_le (model : ExecutionModel) [BitWord.Selected mode
   omega
 
 omit [BitWord.Selected model] in
-private theorem max_card_le_add (left right : ResourcePool model) :
+private lemma max_card_le_add (left right : ResourcePool model) :
     (ResourcePool.max left right).card ≤ left.card + right.card :=
   (Multiset.card_le_card (Multiset.union_le_add left right)).trans_eq
     (Multiset.card_add left right)
 
 /-- The complete original dispatch allowance obeys the original public numerical ceiling. -/
-theorem additionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma additionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : CurveSpec width) :
     (additionEnvelope model spec).card ≤ 124 * width + 322 := by
   have generic := genericEnvelope_card_le model spec.field
@@ -93,7 +93,7 @@ theorem additionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected mode
   omega
 
 /-- Every actual complete-addition trace satisfies the same original numerical ceiling. -/
-theorem addInto_eventCount_le (spec : CurveSpec width)
+lemma addInto_eventCount_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :
     ((addInto spec left right output).eventTrace path).length ≤ 124 * width + 322 :=

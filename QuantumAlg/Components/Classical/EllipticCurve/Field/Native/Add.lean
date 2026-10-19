@@ -63,7 +63,7 @@ def additionSumOp (scratch : AddScratch ctx width) :
     (.product (Modular.Reduce.Native.reductionRead scratch.left)
       (Modular.Reduce.Native.reductionRead scratch.right)) scratch.sum
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The three original arithmetic operations precede all reduction preparation. -/
@@ -100,17 +100,18 @@ def additionStageRecord (left right : CInputRef ctx (.unsignedWord width))
   exact Fin.elim0 index
 
 /-- Every original arithmetic operation retains the complete quantum-reference matrix block. -/
-theorem additionStage_execute (left right : CInputRef ctx (.unsignedWord width))
+lemma additionStage_execute (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (index : Fin 3) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (additionStage (model := model) left right scratch index).execute Reference state =
+    (additionStage (model := model) left right scratch index).execute environment Reference state =
       state.mapClassical
       (fun entry => ((additionStageRecord left right scratch index entry.1).1,
         (entry.2.1, (entry.2.2,
           (additionStageRecord left right scratch index entry.1).2)))) := by
   fin_cases index <;>
-    exact BitWord.bitWord_instruction_execute (execution := model) _ state
+    exact BitWord.bitWord_instruction_execute (environment := environment) (execution := model) _
+      state
 
 /-- The actual arithmetic and loaded reduction share their true intermediate store. -/
 def additionBodyStep (spec : ModulusSpec width) (left right : CInputRef ctx (.unsignedWord width))
@@ -124,18 +125,19 @@ def additionBodyStep (spec : ModulusSpec width) (left right : CInputRef ctx (.un
     (reduceIntoWordStep spec (.first (Modular.Reduce.Native.reductionRead scratch.sum)) output)
 
 /-- Widening, actual addition and actual loaded reduction compose on the complete state. -/
-theorem additionBody_execute (spec : ModulusSpec width)
+lemma additionBody_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (additionBody (model := model) spec left right scratch output).execute Reference state =
+    (additionBody (model := model) spec left right scratch output).execute environment Reference
+      state =
       state.mapClassical
       (fun entry => ((additionBodyStep spec left right scratch output entry.1).1,
         (entry.2.1, (entry.2.2,
           (additionBodyStep spec left right scratch output entry.1).2)))) := by
-  exact Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
-    (Circuit.execute_forRangeStoreRecord (model := model) 3
+  exact Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
+    (Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) 3
       (additionStage (model := model) left right scratch)
       (additionStageRecord left right scratch) (additionStage_execute left right scratch))
     (reduceIntoWord_execute _ _ _) Reference state

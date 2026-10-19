@@ -20,6 +20,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeFrameControl
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MAU.Multiplication ProductPlacement EncodedBit GateSpec
 
 /-- The complete original frame followed by its supplied quantum control. -/
@@ -32,7 +34,7 @@ private def productBits (width : Nat) :
     (productBit (BinaryLabelEncoding.finIdentityBit width)
       (BinaryLabelEncoding.finIdentityBit width))
 
-private theorem productBits_wire (width : Nat)
+private lemma productBits_wire (width : Nat)
     (position : Fin (VariableGidney.encoding width).width) :
     (productBits width position).wire = position :=
   productBit_wire (left := BinaryLabelEncoding.finIdentity width)
@@ -49,7 +51,7 @@ private def sourceBits (width : Nat) :
     Fin (sourceEncoding width).width → EncodedBit (sourceEncoding width) :=
   productBit (productBits width) (BinaryLabelEncoding.finIdentityBit (historyWidth width))
 
-private theorem sourceBits_wire (width : Nat) (position : Fin (sourceEncoding width).width) :
+private lemma sourceBits_wire (width : Nat) (position : Fin (sourceEncoding width).width) :
     (sourceBits width position).wire = position :=
   productBit_wire (left := VariableGidney.encoding width)
     (right := BinaryLabelEncoding.finIdentity (historyWidth width))
@@ -60,7 +62,7 @@ private def frameBits (width : Nat) (position : Fin (frameEncoding width).width)
     EncodedBit (frameEncoding width) :=
   (placement width).placeBit (sourceBits width ((wires width).symm position))
 
-private theorem frameBits_wire (width : Nat) (position : Fin (frameEncoding width).width) :
+private lemma frameBits_wire (width : Nat) (position : Fin (frameEncoding width).width) :
     (frameBits width position).wire = position := by
   apply Fin.ext
   change (placement width).physicalIndex
@@ -74,7 +76,7 @@ private theorem frameBits_wire (width : Nat) (position : Fin (frameEncoding widt
 private def controlBits (_position : Fin BinaryLabelEncoding.bool.width) :
     EncodedBit BinaryLabelEncoding.bool := BinaryLabelEncoding.boolBit
 
-private theorem controlBits_wire (position : Fin BinaryLabelEncoding.bool.width) :
+private lemma controlBits_wire (position : Fin BinaryLabelEncoding.bool.width) :
     (controlBits position).wire = position := by
   apply Fin.ext
   have bound : position.val < 1 := position.isLt
@@ -84,7 +86,7 @@ private theorem controlBits_wire (position : Fin BinaryLabelEncoding.bool.width)
 def bits (width : Nat) : Fin (encoding width).width → EncodedBit (encoding width) :=
   productBit (frameBits width) controlBits
 
-theorem nativeFrameControl_bits_wire (width : Nat) (position : Fin (encoding width).width) :
+lemma nativeFrameControl_bits_wire (width : Nat) (position : Fin (encoding width).width) :
     (bits width position).wire = position :=
   productBit_wire (frameBits width) controlBits (frameBits_wire width) controlBits_wire position
 
@@ -92,7 +94,7 @@ def control (width : Nat) : EncodedBit (encoding width) :=
   BinaryLabelEncoding.prodRightBit (frameEncoding width) BinaryLabelEncoding.bool
     BinaryLabelEncoding.boolBit
 
-theorem nativeFrameControl_capacity (width : Nat) : 5 ≤ (encoding width).width := by
+lemma nativeFrameControl_capacity (width : Nat) : 5 ≤ (encoding width).width := by
   change 5 ≤ (frameEncoding width).width + 1
   rw [frame_width]
   unfold ProductWires.width tailWidth
@@ -101,7 +103,7 @@ theorem nativeFrameControl_capacity (width : Nat) : 5 ≤ (encoding width).width
 private def lifted (width : Nat) (source : List (GateSpec (frameEncoding width))) :=
   source.map (GateSpec.prodLeft BinaryLabelEncoding.bool)
 
-private theorem lifted_disjoint (width : Nat) (source : List (GateSpec (frameEncoding width))) :
+private lemma lifted_disjoint (width : Nat) (source : List (GateSpec (frameEncoding width))) :
     ∀ gate, gate ∈ lifted width source → bitDisjoint (control width) gate := by
   intro gate present
   obtain ⟨original, _, rfl⟩ := List.mem_map.mp present
@@ -126,7 +128,7 @@ def step (width : Nat) (active : Bool) (action : Frame width → Frame width)
     (state : Frame width × Bool) : Frame width × Bool :=
   (if state.2 = active then action state.1 else state.1, state.2)
 
-private theorem positive_step (width : Nat) (source : List (GateSpec (frameEncoding width)))
+private lemma positive_step (width : Nat) (source : List (GateSpec (frameEncoding width)))
     (state : Frame width × Bool) :
     stepList (positiveGates width source) state =
       (if state.2 then stepList source state.1 else state.1, state.2) := by
@@ -137,7 +139,7 @@ private theorem positive_step (width : Nat) (source : List (GateSpec (frameEncod
   cases selected <;> rfl
 
 /-- Exact all-label selection includes restoration of every temporary dirty value. -/
-theorem nativeFrameControl_gates_step (width : Nat) (active : Bool)
+lemma nativeFrameControl_gates_step (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width))) (state : Frame width × Bool) :
     stepList (gates width active source) state = step width active (stepList source) state := by
   rcases state with ⟨frame, selected⟩
@@ -151,7 +153,7 @@ theorem nativeFrameControl_gates_step (width : Nat) (active : Bool)
     cases selected <;> rfl
 
 /-- Reversing the emitted word realizes the exact inverse without recompiling borrowed blocks. -/
-theorem nativeFrameControl_reverseGates_step (width : Nat) (active : Bool)
+lemma nativeFrameControl_reverseGates_step (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width))) (state : Frame width × Bool) :
     stepList (gates width active source).reverse state =
       step width active (stepList source.reverse) state := by
@@ -174,21 +176,22 @@ def program (width : Nat) (active : Bool) (source : List (GateSpec (frameEncodin
   programList layout .empty (gates width active source)
 
 /-- Coherent action preserves the exact relative phase of both control sectors. -/
-theorem nativeFrameControl_realizes (width : Nat) (active : Bool)
+lemma nativeFrameControl_realizes (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width)))
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (program width active source layout) (step width active (stepList source)) :=
+      (program width active source layout) environment (step width active (stepList source)) :=
   realizesList_congrStep layout .empty _ (nativeFrameControl_gates_step width active source)
+    environment
 
 /-- Physical selection uses the original final control position even at width zero. -/
-theorem nativeFrameControl_control_position (width : Nat) :
+lemma nativeFrameControl_control_position (width : Nat) :
     (control width).wire.val = (frameEncoding width).width := by
   change (frameEncoding width).width + 0 = _
   omega
 
 /-- Ordered trace records every emitted gate, including the negative-control wrappers. -/
-theorem nativeFrameControl_trace (width : Nat) (active : Bool)
+lemma nativeFrameControl_trace (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width)))
     (layout : QubitLayout (encoding width).width) :
     (program width active source layout).eventTrace =
@@ -196,7 +199,7 @@ theorem nativeFrameControl_trace (width : Nat) (active : Bool)
   programList_eventTrace layout .empty _
 
 /-- Exact native coordinates charge the complete arbitrary-dirty expansion. -/
-theorem nativeFrameControl_counts (width : Nat) (active : Bool)
+lemma nativeFrameControl_counts (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width))) :
     ((gates width active source).map xMultiplicity).sum = (if active then 0 else 2) ∧
       ((gates width active source).map cnotMultiplicity).sum =
@@ -213,7 +216,7 @@ theorem nativeFrameControl_counts (width : Nat) (active : Bool)
   cases active <;> simp [gates, counts.1, counts.2.1, counts.2.2]
 
 /-- The independent source length bounds both positive and negative native expansions. -/
-theorem nativeFrameControl_length_bound (width : Nat) (active : Bool)
+lemma nativeFrameControl_length_bound (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width))) :
     (gates width active source).length ≤ 4 * source.length + (if active then 0 else 2) := by
   have bound := controlWithin_length_bound (bits width) (nativeFrameControl_bits_wire width)

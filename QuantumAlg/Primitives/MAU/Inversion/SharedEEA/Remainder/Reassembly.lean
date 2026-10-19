@@ -44,13 +44,13 @@ def suffixWord {width : Nat} (selected : Window width) (state : Registers width)
   state.firstWord.extractLsb' 0 selected.below
 
 /-- Adjacent physical slices reassemble the complete remainder exactly at the bit level. -/
-theorem remainderWord_eq {width : Nat} (selected : Window width) (state : Registers width) :
+lemma remainderWord_eq {width : Nat} (selected : Window width) (state : Registers width) :
     remainderWord selected state = targetWord selected state ++ suffixWord selected state := by
   rw [targetWord, wordEquiv_window]
   exact (BitVec.extractLsb'_append_extractLsb'_eq_extractLsb' (by omega)).symm
 
 /-- The actual upper TTK operand and arbitrary low suffix have the precise binary scale. -/
-theorem remainder_toNat {width : Nat} (selected : Window width) (state : Registers width) :
+lemma remainder_toNat {width : Nat} (selected : Window width) (state : Registers width) :
     (remainderWord selected state).toNat =
       (targetWord selected state).toNat * 2 ^ selected.below +
         (suffixWord selected state).toNat := by
@@ -59,7 +59,7 @@ theorem remainder_toNat {width : Nat} (selected : Window width) (state : Registe
     Nat.shiftLeft_eq]
 
 /-- Dividing the complete physical remainder by its scale gives the actual upper window. -/
-theorem target_toNat {width : Nat} (selected : Window width) (state : Registers width) :
+lemma target_toNat {width : Nat} (selected : Window width) (state : Registers width) :
     (targetWord selected state).toNat =
       (remainderWord selected state).toNat / 2 ^ selected.below := by
   calc
@@ -73,14 +73,14 @@ theorem target_toNat {width : Nat} (selected : Window width) (state : Registers 
       ((Nat.add_comm _ _).trans (remainder_toNat selected state).symm)
 
 /-- The unchanged suffix is exactly the complete remainder modulo the real binary scale. -/
-theorem suffix_toNat {width : Nat} (selected : Window width) (state : Registers width) :
+lemma suffix_toNat {width : Nat} (selected : Window width) (state : Registers width) :
     (suffixWord selected state).toNat =
       (remainderWord selected state).toNat % 2 ^ selected.below := by
   rw [remainder_toNat, Nat.mul_add_mod_self_right,
     Nat.mod_eq_of_lt (suffixWord selected state).isLt]
 
 /-- Every low bit of the actual remainder is retained, including arbitrary nonzero suffixes. -/
-theorem source_suffix {width : Nat} (state : Registers width)
+lemma source_suffix {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
       width + 3) :
@@ -96,7 +96,7 @@ theorem source_suffix {width : Nat} (state : Registers width)
     (same.trans (wordEquiv_below selected state.firstWord))
 
 /-- The actual entire Work1 word retains its prefix and suffix around the corrected upper window. -/
-theorem source_firstWord {width : Nat} (state : Registers width)
+lemma source_firstWord {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)
@@ -119,7 +119,7 @@ theorem source_firstWord {width : Nat} (state : Registers width)
     · exact congrArg (fun value : Complement selected => value.1.2) same
 
 /-- Full remainder arithmetic follows from the real high subtraction and preserved low bits. -/
-theorem source_remainder_toNat {width : Nat} (state : Registers width)
+lemma source_remainder_toNat {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)
@@ -140,7 +140,7 @@ theorem source_remainder_toNat {width : Nat} (state : Registers width)
     (target_toNat selected state)
 
 /-- The actual Sign digit compares the complete remainder with the complete shifted threshold. -/
-theorem source_sign {width : Nat} (state : Registers width)
+lemma source_sign {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)
@@ -160,7 +160,7 @@ theorem source_sign {width : Nat} (state : Registers width)
     (remainderWord selected state).toNat (sourceWord selected state).toNat selected.below
 
 /-- The emitted native block, on its internal clean control, performs the same full subtraction. -/
-theorem native_remainder_toNat (width : Nat) (state : Registers width)
+lemma native_remainder_toNat (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true) (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)

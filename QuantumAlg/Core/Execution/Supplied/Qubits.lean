@@ -36,7 +36,7 @@ private def layout (width : Nat) : QuantumLayout width := (qubitLayout width).to
   RuntimeCtx.empty.addSuppliedLayout ⟨0⟩ (layout width) (by decide)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-private theorem layout_wires (width : Nat) :
+private lemma layout_wires (width : Nat) :
     (layout width).wires = (context width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (layout width).wires = (layout width).wires ++ []
@@ -48,7 +48,7 @@ public def basisEquiv (width : Nat) : (context width).register.Index ≃ (Qubits
     (layout_wires width)).symm.trans (qubitLayout width).binaryIndexEquiv
 
 /-- The full physical interface contains every supplied wire, including at width zero. -/
-theorem suppliedQubits_physicalIdx (width : Nat) :
+lemma suppliedQubits_physicalIdx (width : Nat) :
     (context width).physicalIdx = List.range width := by
   change ((layout width).wires ++ []).map QuantumWire.identity = List.range width
   simp only [List.append_nil, QuantumLayout.wires, List.map_ofFn]
@@ -64,7 +64,7 @@ public def space (width : Nat) : SpacePool .quantum
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then width else 0
 
 /-- Resident space counts every supplied system. -/
-theorem suppliedQubits_resident (width : Nat) :
+lemma suppliedQubits_resident (width : Nat) :
     (context width).residentSpace = space width := by
   simp only [context, RuntimeCtx.residentSpace_addSuppliedLayout,
     RuntimeCtx.residentSpace_empty]
@@ -75,7 +75,7 @@ theorem suppliedQubits_resident (width : Nat) :
       exact (qubitLayout width).toQuantumLayout_dimensionCount dimension
 
 /-- Caller-supplied input/output systems do not count as auxiliary storage. -/
-theorem suppliedQubits_auxiliary (width : Nat) :
+lemma suppliedQubits_auxiliary (width : Nat) :
     (context width).auxiliarySpace = 0 := by
   simp only [context, RuntimeCtx.auxiliarySpace_addSuppliedLayout,
     RuntimeCtx.auxiliarySpace_empty]

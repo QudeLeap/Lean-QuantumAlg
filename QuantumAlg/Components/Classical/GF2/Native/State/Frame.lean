@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem range_read (count : Nat) (body : Fin count → Circuit model ctx ctx)
+private lemma range_read (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path)
     {shape : CShape} (other : CInputRef ctx shape)
     (preserves : ∀ index store, (records index store).1.read other = store.read other)
@@ -52,7 +52,7 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
 
 include matrixFree usedFree rowsFree columnsFree foundFree sinkFree
 
-private theorem selected_read (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
+private lemma selected_read (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (selectPivotStep matrix used rows columns found sink pivot column store).1.read other =
       store.read other := by
   dsimp only [selectPivotStep, Circuit.sequenceStoreRecord]
@@ -62,7 +62,7 @@ private theorem selected_read (pivot : Fin rowCount) (column : Fin width) (store
   exact (Store.read_applyOp_of_not_mem_storageKeys _ (pivotFoundOp found) other foundFree).trans
     (Store.read_applyOp_of_not_mem_storageKeys store (pivotSelectedOp sink) other sinkFree)
 
-private theorem matrix_choice_read (row : Fin rowCount) (column : Fin width)
+private lemma matrix_choice_read (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pivotMatrixChoiceStep matrix used rows columns found sink row column value store).1.read
       other = store.read other := by
@@ -73,7 +73,7 @@ private theorem matrix_choice_read (row : Fin rowCount) (column : Fin width)
     · exact selected_read matrix used rows columns found sink other matrixFree usedFree rowsFree
         columnsFree foundFree sinkFree row column store
 
-private theorem used_choice_read (row : Fin rowCount) (column : Fin width)
+private lemma used_choice_read (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pivotUsedChoiceStep matrix used rows columns found sink row column value store).1.read
       other = store.read other := by
@@ -84,7 +84,7 @@ private theorem used_choice_read (row : Fin rowCount) (column : Fin width)
         rowsFree columnsFree foundFree sinkFree row column _ store
     · exact Store.read_applyOp_of_not_mem_storageKeys store (pivotRejectedOp sink) other sinkFree
 
-private theorem found_choice_read (row : Fin rowCount) (column : Fin width)
+private lemma found_choice_read (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pivotFoundChoiceStep matrix used rows columns found sink row column value store).1.read
       other = store.read other := by
@@ -95,14 +95,14 @@ private theorem found_choice_read (row : Fin rowCount) (column : Fin width)
         rowsFree columnsFree foundFree sinkFree row column _ store
     · rfl
 
-private theorem probe_read (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
+private lemma probe_read (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (pivotProbeRowStep matrix used rows columns found sink row column store).1.read other =
       store.read other :=
   found_choice_read matrix used rows columns found sink other matrixFree usedFree rowsFree
     columnsFree foundFree sinkFree row column _ store
 
 omit matrixFree usedFree rowsFree columnsFree foundFree in
-private theorem absent_read (value : CShape.Value .bit) (store : Store ctx) :
+private lemma absent_read (value : CShape.Value .bit) (store : Store ctx) :
     (pivotAbsentChoiceStep sink value store).1.read other = store.read other := by
   cases value with
   | bit value =>
@@ -110,7 +110,7 @@ private theorem absent_read (value : CShape.Value .bit) (store : Store ctx) :
     · exact Store.read_applyOp_of_not_mem_storageKeys store (pivotClearOp sink) other sinkFree
     · rfl
 
-private theorem column_body_read (column : Fin width) (store : Store ctx) :
+private lemma column_body_read (column : Fin width) (store : Store ctx) :
     (reduceColumnBodyStep matrix used rows columns found sink column store).1.read other =
       store.read other := by
   dsimp only [reduceColumnBodyStep, Circuit.sequenceStoreRecord]
@@ -128,13 +128,13 @@ private def searchRead {shape : CShape} (other : CInputRef ctx shape) :
     (pivotSinkContext ctx).canonicalFreshKey .bit (pivotSinkContext ctx).canonicalFreshKey_fresh
 
 omit [BitWord.Selected model] in
-private theorem search_keys {shape : CShape} (other : CInputRef ctx shape) :
+private lemma search_keys {shape : CShape} (other : CInputRef ctx shape) :
     (searchRead other).storageKeys = other.storageKeys := by
   unfold searchRead
   rw [CInputRef.storageKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
 
 omit [BitWord.Selected model] in
-private theorem search_found_fresh {shape : CShape} (other : CInputRef ctx shape) :
+private lemma search_found_fresh {shape : CShape} (other : CInputRef ctx shape) :
     (pivotLatch (pivotSinkContext ctx)).key ∉ (searchRead other).storageKeys := by
   unfold searchRead
   rw [CInputRef.storageKeys_underWorkspace]
@@ -143,14 +143,14 @@ private theorem search_found_fresh {shape : CShape} (other : CInputRef ctx shape
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
 omit [BitWord.Selected model] in
-private theorem search_sink_fresh {shape : CShape} (other : CInputRef ctx shape) :
+private lemma search_sink_fresh {shape : CShape} (other : CInputRef ctx shape) :
     ((pivotLatch ctx).underWorkspace (pivotSinkContext ctx).canonicalFreshKey .bit
       (pivotSinkContext ctx).canonicalFreshKey_fresh).key ∉ (searchRead other).storageKeys := by
   rw [search_keys]
   exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
 
 /-- Both real pivot-search scopes leave only the original four arithmetic destinations mutable. -/
-theorem gf2ReduceColumn_read_other
+lemma gf2ReduceColumn_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -180,7 +180,7 @@ theorem gf2ReduceColumn_read_other
     rw [Store.read_pushWorkspace_underWorkspace, Store.read_pushWorkspace_underWorkspace]
 
 /-- Actual loading and every original reduction stage preserve all other structural reads. -/
-theorem gf2LoadAndReduce_read_other
+lemma gf2LoadAndReduce_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -203,7 +203,7 @@ theorem gf2LoadAndReduce_read_other
     (fun row current => gf2LoadRow_read_other input matrix row current other matrixFree) store
 
 /-- The original seven-cell placement internally frames success, zero and every caller input. -/
-theorem gf2LoadAndReduce_cellFrame {outer : RuntimeCtx model.kind}
+lemma gf2LoadAndReduce_cellFrame {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)

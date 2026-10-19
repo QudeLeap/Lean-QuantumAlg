@@ -37,7 +37,7 @@ def measuredDecodeEnvelope (count : Nat) : ResourcePool model :=
     TerminalDecode.envelope (model := model) count
 
 /-- Actual chronological trace begins with its one charged packing operation. -/
-theorem measuredDecodeInto_eventTrace
+lemma measuredDecodeInto_eventTrace
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (path : (measuredDecodeInto (model := model) input decoded).Path) :
@@ -52,7 +52,7 @@ theorem measuredDecodeInto_eventTrace
   rfl
 
 /-- The native budget charges the same literal packing and decoder instructions. -/
-theorem measuredDecodeInto_resourcePool_le
+lemma measuredDecodeInto_resourcePool_le
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (path : (measuredDecodeInto (model := model) input decoded).Path) :
@@ -66,7 +66,7 @@ theorem measuredDecodeInto_resourcePool_le
     (writeUnderDecode decoded count) path.2)
 
 /-- Packing precedes every actual serial shift and selected increment. -/
-theorem measuredDecodeInto_depth_le
+lemma measuredDecodeInto_depth_le
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (duration : Resource.Event model → Nat)
@@ -83,7 +83,7 @@ theorem measuredDecodeInto_depth_le
     (fun index => CInputRef.bitsGet (packedInput ctx count) index)
     (writeUnderDecode decoded count) duration path.2) _
 
-private theorem measuredDecodeBody_resident
+private lemma measuredDecodeBody_resident
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (path : (measuredDecodeBody (model := model) input decoded).Path) :
@@ -105,7 +105,7 @@ private theorem measuredDecodeBody_resident
       decoder).trans
         (SpacePool.max_eq_right le_rfl))
 
-private theorem measuredDecodeBody_auxiliary
+private lemma measuredDecodeBody_auxiliary
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (path : (measuredDecodeBody (model := model) input decoded).Path) :
@@ -128,7 +128,7 @@ private theorem measuredDecodeBody_auxiliary
         (SpacePool.max_eq_right le_rfl))
 
 /-- Exact resident peak adds the one real packed bit cell to all existing storage. -/
-theorem measuredDecodeInto_resident
+lemma measuredDecodeInto_resident
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (path : (measuredDecodeInto (model := model) input decoded).Path) :
@@ -141,7 +141,7 @@ theorem measuredDecodeInto_resident
       (SpacePool.max_eq_right (fun axis => Nat.le_add_left _ _)))
 
 /-- Exact auxiliary peak charges that same lexical cell, which is absent on return. -/
-theorem measuredDecodeInto_auxiliary
+lemma measuredDecodeInto_auxiliary
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count))
     (path : (measuredDecodeInto (model := model) input decoded).Path) :

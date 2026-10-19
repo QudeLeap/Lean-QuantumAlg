@@ -39,7 +39,7 @@ attribute [local implicit_reducible] problem
   (basisEquiv I).symm ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I)).symm label)
 
 /-- The actual complete bank carries the original raw source amplitude. -/
-public theorem ecdlpSampling_runtimeSourceState_runtimeBasis (I : ECDLPInstance E)
+public lemma ecdlpSampling_runtimeSourceState_runtimeBasis (I : ECDLPInstance E)
     (A : Access I) (label : Fin (2 ^ Layout.totalQubits I)) :
     runtimeSourceState I A (runtimeBasis I label) = sourceState I A label := by
   change sourceState I A
@@ -49,7 +49,7 @@ public theorem ecdlpSampling_runtimeSourceState_runtimeBasis (I : ECDLPInstance 
   rw [Equiv.apply_symm_apply, Equiv.apply_symm_apply]
 
 /-- Actual exponent-cell readout is the source's big-endian Fourier outcome. -/
-public theorem ecdlpSampling_basisOutcome_runtimeBasis (I : ECDLPInstance E)
+public lemma ecdlpSampling_basisOutcome_runtimeBasis (I : ECDLPInstance E)
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I)))
     (tail : Fin (2 ^ Layout.pointWidth E)) :
     basisOutcome I (runtimeBasis I (rawBasis I left right tail)) =

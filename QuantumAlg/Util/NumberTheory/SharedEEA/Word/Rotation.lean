@@ -28,7 +28,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.WordRotation
 variable {width coefficientWidth remainderWidth : Nat}
 
 /-- Right rotation exactly reverses the source's complete circular left rotation. -/
-theorem rotateRight_rotateLeft (word : BitVec width) (shift : Nat) :
+lemma rotateRight_rotateLeft (word : BitVec width) (shift : Nat) :
     (word.rotateLeft shift).rotateRight shift = word := by
   apply BitVec.eq_of_getLsbD_eq
   intro index within
@@ -45,7 +45,7 @@ theorem rotateRight_rotateLeft (word : BitVec width) (shift : Nat) :
     simp [beforeWrap, within, wrappedLt, restored]
 
 /-- Successive actual circular shifts add their retained shift counts. -/
-theorem rotateLeft_comp (word : BitVec width) (first second : Nat) :
+lemma rotateLeft_comp (word : BitVec width) (first second : Nat) :
     (word.rotateLeft first).rotateLeft second = word.rotateLeft (first + second) := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -67,14 +67,14 @@ def unpackRotatedWork2 (shift : Nat)
   WordPacking.unpackWork2 (word.rotateRight shift)
 
 /-- Every rotated word recovers its complete coefficient and remainder at the retained shift. -/
-theorem unpackRotatedWork2_packRotatedWork2 (shift : Nat)
+lemma unpackRotatedWork2_packRotatedWork2 (shift : Nat)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth) :
     unpackRotatedWork2 shift (packRotatedWork2 shift payload) = payload := by
   rw [unpackRotatedWork2, packRotatedWork2, rotateRight_rotateLeft]
   exact WordPacking.unpackWork2_packWork2 payload
 
 /-- Rotation cannot merge distinct source payloads at the same actual shift count. -/
-theorem packRotatedWork2_injective (shift : Nat) :
+lemma packRotatedWork2_injective (shift : Nat) :
     Function.Injective (packRotatedWork2 (coefficientWidth := coefficientWidth)
       (remainderWidth := remainderWidth) shift) := by
   intro left right same
@@ -86,7 +86,7 @@ theorem packRotatedWork2_injective (shift : Nat) :
     _ = right := unpackRotatedWork2_packRotatedWork2 shift right
 
 /-- Every physical bit reads its exact wrapped source position. -/
-theorem packRotatedWork2_bit (shift index : Nat)
+lemma packRotatedWork2_bit (shift index : Nat)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth) :
     (packRotatedWork2 shift payload).getMsbD index =
       (decide (index < coefficientWidth + remainderWidth) &&
@@ -99,13 +99,13 @@ theorem packRotatedWork2_bit (shift index : Nat)
     BitVec.getMsbD_append, BitVec.getMsbD_reverse]
 
 /-- A literal one-position source shift advances the encoded shift count by one. -/
-theorem packRotatedWork2_shift (shift : Nat)
+lemma packRotatedWork2_shift (shift : Nat)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth) :
     (packRotatedWork2 shift payload).rotateLeft 1 = packRotatedWork2 (shift + 1) payload :=
   rotateLeft_comp (WordPacking.packWork2 payload) shift 1
 
 /-- The actual inverse one-position shift recovers the preceding encoded word. -/
-theorem packRotatedWork2_unshift (shift : Nat)
+lemma packRotatedWork2_unshift (shift : Nat)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth) :
     (packRotatedWork2 (shift + 1) payload).rotateRight 1 = packRotatedWork2 shift payload := by
   rw [← packRotatedWork2_shift]

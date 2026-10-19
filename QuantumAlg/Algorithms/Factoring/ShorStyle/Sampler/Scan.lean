@@ -28,7 +28,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Load the public modulus in its real extended word before any interval test. -/
@@ -49,10 +49,11 @@ def loaderStep (N : Nat) (store : Store (Layout.context ctx (modulusBits N))) :
   ConstantWord.foldStep (model := model) (Layout.modulusCell ctx (modulusBits N))
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) store
 
-private theorem loader_execute (N : Nat) (Reference : Register)
+private lemma loader_execute (N : Nat) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (Layout.context ctx (modulusBits N)) Reference (model.HiddenState × History)) :
-    (loader (model := model) ctx N).execute Reference state = state.mapClassical (fun entry =>
+    (loader (model := model) ctx N).execute environment Reference state =
+      state.mapClassical (fun entry =>
       let result := loaderStep (model := model) N entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   refine (ConstantWord.constantWord_fold_execute (Layout.modulusCell ctx (modulusBits N))
@@ -70,14 +71,16 @@ def step (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
   (selected.1, (loaded.2, selected.2))
 
 /-- The real two-stage program follows its exact joint store/path update on every matrix block. -/
-theorem samplerScan_execute (N : Nat)
+lemma samplerScan_execute (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N))) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (Layout.context ctx (modulusBits N)) Reference (model.HiddenState × History)) :
-    (circuit (model := model) N sample).execute Reference state = state.mapClassical (fun entry =>
+    (circuit (model := model) N sample).execute environment Reference state =
+      state.mapClassical (fun entry =>
       let result := step (model := model) N sample entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (loader (model := model) ctx N) _
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
+    (loader (model := model) ctx N) _
     (fun entry =>
       let result := loaderStep (model := model) N entry.1
       ((result.1, entry.2), result.2))

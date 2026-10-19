@@ -33,14 +33,14 @@ public def qubitLayout (width : Nat) : QuantumLayout width :=
 
 variable {width : Nat} (left right : Fin width) (distinct : left ≠ right)
 
-private theorem selected_pair (basis : Fin width → Fin 2) :
+private lemma selected_pair (basis : Fin width → Fin 2) :
     UnitaryCircuit.selectedInput layout (qubitLayout width) (positions left right distinct)
       (dimensions (qubitLayout width) left right distinct rfl rfl) basis =
         ![basis left, basis right] := by
   funext index
   fin_cases index <;> apply Fin.ext <;> rfl
 
-private theorem matching_coordinates (row column : Fin width → Fin 2) :
+private lemma matching_coordinates (row column : Fin width → Fin 2) :
     (fun index => row (Equiv.swap left right index)) = column ↔
       ![row right, row left] = ![column left, column right] ∧
         (qubitLayout width).restrictComplementBasis
@@ -96,8 +96,9 @@ public def qubitCircuit (oracles : OracleModel) :
   circuitAt (qubitLayout width) left right distinct rfl rfl oracles
 
 /-- The full native word realizes the unchanged addressed SWAP, including exact phase. -/
-public theorem swap_qubitCircuit_matrix (oracles : OracleModel) :
-    (qubitCircuit left right distinct oracles).matrix =
+public lemma swap_qubitCircuit_matrix (oracles : OracleModel) (environment :
+  oracles.Interpretation) :
+    ((qubitCircuit left right distinct oracles).matrix environment) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm
         (qftSwapOperator left right distinct) := by
   classical
@@ -142,7 +143,7 @@ public theorem swap_qubitCircuit_matrix (oracles : OracleModel) :
     · rw [if_neg selected, if_neg same, zero_mul]
 
 /-- The register implementation records the three actual native CNOT occurrences. -/
-public theorem swap_qubitCircuit_events (oracles : OracleModel) :
+public lemma swap_qubitCircuit_events (oracles : OracleModel) :
     (qubitCircuit left right distinct oracles).eventTrace =
       [.gate .cnot, .gate .cnot, .gate .cnot] :=
   swap_circuitAt_events (qubitLayout width) left right distinct rfl rfl oracles

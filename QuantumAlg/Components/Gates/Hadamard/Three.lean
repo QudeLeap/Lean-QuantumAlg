@@ -36,8 +36,9 @@ def three (oracles : OracleModel) (width : Nat) :
     (UnitaryCircuit.onBinarySuffix 1 (UnitaryCircuit.onBinarySuffix 1 (first oracles width)))
 
 /-- The full operator is the tensor of three Hadamards with the identity on the original suffix. -/
-theorem threeHadamard_matrix (oracles : OracleModel) (width : Nat) :
-    (three oracles width).binaryMatrix =
+lemma threeHadamard_matrix (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((three oracles width).binaryMatrix environment) =
       Gate.HOp.tensor (Gate.HOp.tensor
         (Gate.HOp.tensor (1 : UnitaryOperator (Qubits width)))) := by
   simp only [three, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
@@ -54,7 +55,7 @@ theorem threeHadamard_matrix (oracles : OracleModel) (width : Nat) :
   rfl
 
 /-- All three native Hadamards are charged; none touches or queries the source suffix. -/
-theorem threeHadamard_events (oracles : OracleModel) (width : Nat) :
+lemma threeHadamard_events (oracles : OracleModel) (width : Nat) :
     (three oracles width).eventCost =
       3 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
@@ -63,7 +64,7 @@ theorem threeHadamard_events (oracles : OracleModel) (width : Nat) :
     show (3 : Nat) = 2 + 1 from rfl, add_nsmul, two_nsmul, one_nsmul]
 
 /-- The constructed sequential wrapper has three counted native dependency steps. -/
-theorem threeHadamard_depth (oracles : OracleModel) (width : Nat) :
+lemma threeHadamard_depth (oracles : OracleModel) (width : Nat) :
     (three oracles width).evaluatedEventDepth (fun _ => 1) = 3 := by
   simp only [three, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_unit_depth]

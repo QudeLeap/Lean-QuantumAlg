@@ -29,20 +29,12 @@ open Execution MeasuredUncompute
 /-- Actual inverse conversion, measured point calls, then forward conversion share one context. -/
 def convertedCascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (coefficient : (ZMod p)ˣ) :
+    (coefficient : (ZMod p)ˣ) (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (readyContext p.size count) (readyContext p.size count) :=
-  (pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹).seq
-    ((cascade E points order).seq
-      (pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient))
-
-/-- Conversion and every measured call retain precisely the complete original ready context. -/
-theorem convertedCascade_isLocal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (coefficient : (ZMod p)ˣ) :
-    (convertedCascade E points order coefficient).IsLocal :=
-  ⟨pairCircuit_isLocal _ _ _ _, cascade_isLocal E points order,
-    pairCircuit_isLocal _ _ _ _⟩
+      (readyContext p.size count) (readyContext p.size count) allowAllocation :=
+  (pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ allowAllocation).seq
+    ((cascade E points order allowAllocation).seq
+      (pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient allowAllocation))
 
 end
 

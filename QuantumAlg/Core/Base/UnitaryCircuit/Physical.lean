@@ -39,7 +39,7 @@ def relabel {small large : Nat} {source : QuantumLayout small} {target : Quantum
   wire_eq index := congrArg (QuantumWire.relabel physical) (placement.wire_eq index)
 
 /-- The same local operator acts on the same coordinate values after physical relocation. -/
-@[simp] theorem liftOperator_relabel {small large : Nat}
+@[simp] lemma liftOperator_relabel {small large : Nat}
     {source : QuantumLayout small} {target : QuantumLayout large}
     (placement : Embedding source target) (physical : Nat ↪ Nat)
     (operator : UnitaryOperator source.register) :
@@ -114,9 +114,9 @@ def relabel (physical : Nat ↪ Nat) : {count : Nat} → {layout : QuantumLayout
 variable {count : Nat} {layout : QuantumLayout count}
 
 /-- Logical operators are unchanged because relocation preserves every coordinate value. -/
-@[simp] theorem toUnitary_relabel (physical : Nat ↪ Nat)
-    (sequence : UnitarySequence gates oracles layout) :
-    (sequence.relabel physical).toUnitary = sequence.toUnitary := by
+@[simp] lemma toUnitary_relabel (physical : Nat ↪ Nat)
+    (sequence : UnitarySequence gates oracles layout) (environment : oracles.Interpretation) :
+    ((sequence.relabel physical).toUnitary environment) = (sequence.toUnitary environment) := by
   induction sequence with
   | id => rfl
   | leaf atom => cases atom <;> rfl
@@ -138,7 +138,7 @@ variable {count : Nat} {layout : QuantumLayout count}
   | macroCall name body bodyIH => simpa [relabel, toUnitary] using bodyIH
 
 /-- Relocation retains each original native and query occurrence in execution order. -/
-@[simp] theorem eventTrace_relabel (physical : Nat ↪ Nat)
+@[simp] lemma eventTrace_relabel (physical : Nat ↪ Nat)
     (sequence : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -157,7 +157,7 @@ variable {count : Nat} {layout : QuantumLayout count}
   | macroCall name body bodyIH => simpa [relabel, eventTrace] using bodyIH
 
 /-- Exact native costs follow the same unchanged occurrence trace. -/
-@[simp] theorem eventCost_relabel (physical : Nat ↪ Nat)
+@[simp] lemma eventCost_relabel (physical : Nat ↪ Nat)
     (sequence : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -168,7 +168,7 @@ variable {count : Nat} {layout : QuantumLayout count}
     ofList_eventTrace_eq_eventCost sequence operations classicalOracles]
 
 /-- Relocation preserves every sequential and parallel dependency. -/
-@[simp] theorem eventDepth_relabel (physical : Nat ↪ Nat)
+@[simp] lemma eventDepth_relabel (physical : Nat ↪ Nat)
     (sequence : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -187,7 +187,7 @@ variable {count : Nat} {layout : QuantumLayout count}
   | macroCall name body bodyIH => simpa [relabel, eventDepth] using bodyIH
 
 /-- Descriptive macro observations still refer to the same complete expansion tree. -/
-@[simp] theorem macroTrace_relabel (physical : Nat ↪ Nat)
+@[simp] lemma macroTrace_relabel (physical : Nat ↪ Nat)
     (sequence : UnitarySequence gates oracles layout) :
     (sequence.relabel physical).macroTrace = sequence.macroTrace := by
   induction sequence with
@@ -214,36 +214,41 @@ public def relabel (circuit : UnitaryCircuit gates oracles layout) (physical : N
     UnitaryCircuit gates oracles (layout.relabel physical) :=
   ⟨circuit.sequence.relabel physical⟩
 
-private theorem relabel_matrix_internal (circuit : UnitaryCircuit gates oracles layout)
-    (physical : Nat ↪ Nat) : (circuit.relabel physical).matrix = circuit.matrix :=
-  UnitarySequence.toUnitary_relabel physical circuit.sequence
+private lemma relabel_matrix_internal (circuit : UnitaryCircuit gates oracles layout)
+    (physical : Nat ↪ Nat) (environment : oracles.Interpretation) : ((circuit.relabel
+      physical).matrix environment) = (circuit.matrix environment) :=
+  UnitarySequence.toUnitary_relabel physical circuit.sequence environment
 
-@[simp] public theorem relabel_matrix (circuit : UnitaryCircuit gates oracles layout)
-    (physical : Nat ↪ Nat) : (circuit.relabel physical).matrix = circuit.matrix :=
-  relabel_matrix_internal circuit physical
+@[simp] public lemma relabel_matrix (circuit : UnitaryCircuit gates oracles layout)
+    (physical : Nat ↪ Nat) (environment : oracles.Interpretation) : ((circuit.relabel
+      physical).matrix environment) = (circuit.matrix environment) :=
+  relabel_matrix_internal circuit physical environment
 
 /-- Physical-address relabelling retains the action on the unchanged logical values. -/
-@[simp] public theorem relabel_applyVec (circuit : UnitaryCircuit gates oracles layout)
-    (physical : Nat ↪ Nat) (state : HilbertVector layout.register) :
-    (circuit.relabel physical).applyVec state = circuit.applyVec state := by
+@[simp] public lemma relabel_applyVec (circuit : UnitaryCircuit gates oracles layout)
+    (physical : Nat ↪ Nat) (state : HilbertVector layout.register) (environment :
+      oracles.Interpretation) :
+    ((circuit.relabel physical).applyVec environment) state = (circuit.applyVec environment) state
+      := by
   unfold applyVec
   rw [relabel_matrix]
   rfl
 
 /-- Relocating both the circuit and its vector coordinates preserves their
 complete action. -/
-@[simp] public theorem relabel_applyVec_reindex
+@[simp] public lemma relabel_applyVec_reindex
     (circuit : UnitaryCircuit gates oracles layout)
-    (physical : Nat ↪ Nat) (state : HilbertVector layout.register) :
-    (circuit.relabel physical).applyVec
+    (physical : Nat ↪ Nat) (state : HilbertVector layout.register) (environment :
+      oracles.Interpretation) :
+    ((circuit.relabel physical).applyVec environment)
         (HilbertVector.reindex (QuantumLayout.relabelBasis layout physical) state) =
       HilbertVector.reindex (QuantumLayout.relabelBasis layout physical)
-        (circuit.applyVec state) := by
+        ((circuit.applyVec environment) state) := by
   unfold applyVec
   rw [relabel_matrix]
   rfl
 
-private theorem relabel_eventTrace_internal
+private lemma relabel_eventTrace_internal
     (circuit : UnitaryCircuit gates oracles layout) (physical : Nat ↪ Nat)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -251,14 +256,14 @@ private theorem relabel_eventTrace_internal
       circuit.eventTrace operations classicalOracles :=
   UnitarySequence.eventTrace_relabel physical circuit.sequence operations classicalOracles
 
-@[simp] public theorem relabel_eventTrace (circuit : UnitaryCircuit gates oracles layout)
+@[simp] public lemma relabel_eventTrace (circuit : UnitaryCircuit gates oracles layout)
     (physical : Nat ↪ Nat) (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
     (circuit.relabel physical).eventTrace operations classicalOracles =
       circuit.eventTrace operations classicalOracles :=
   relabel_eventTrace_internal circuit physical operations classicalOracles
 
-private theorem relabel_eventCost_internal
+private lemma relabel_eventCost_internal
     (circuit : UnitaryCircuit gates oracles layout) (physical : Nat ↪ Nat)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -266,14 +271,14 @@ private theorem relabel_eventCost_internal
       circuit.eventCost operations classicalOracles :=
   UnitarySequence.eventCost_relabel physical circuit.sequence operations classicalOracles
 
-@[simp] public theorem relabel_eventCost (circuit : UnitaryCircuit gates oracles layout)
+@[simp] public lemma relabel_eventCost (circuit : UnitaryCircuit gates oracles layout)
     (physical : Nat ↪ Nat) (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
     (circuit.relabel physical).eventCost operations classicalOracles =
       circuit.eventCost operations classicalOracles :=
   relabel_eventCost_internal circuit physical operations classicalOracles
 
-private theorem relabel_eventDepth_internal
+private lemma relabel_eventDepth_internal
     (circuit : UnitaryCircuit gates oracles layout) (physical : Nat ↪ Nat)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -281,14 +286,14 @@ private theorem relabel_eventDepth_internal
       circuit.eventDepth operations classicalOracles :=
   UnitarySequence.eventDepth_relabel physical circuit.sequence operations classicalOracles
 
-@[simp] public theorem relabel_eventDepth (circuit : UnitaryCircuit gates oracles layout)
+@[simp] public lemma relabel_eventDepth (circuit : UnitaryCircuit gates oracles layout)
     (physical : Nat ↪ Nat) (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
     (circuit.relabel physical).eventDepth operations classicalOracles =
       circuit.eventDepth operations classicalOracles :=
   relabel_eventDepth_internal circuit physical operations classicalOracles
 
-private theorem relabel_evaluatedEventDepth_internal
+private lemma relabel_evaluatedEventDepth_internal
     (circuit : UnitaryCircuit gates oracles layout) (physical : Nat ↪ Nat)
     (duration : Resource.Event (.quantum gates oracles) → Nat) :
     (circuit.relabel physical).evaluatedEventDepth duration =
@@ -297,20 +302,20 @@ private theorem relabel_evaluatedEventDepth_internal
   rw [relabel_eventDepth_internal]
 
 /-- Relocation preserves evaluated dependency depth under every event-duration assignment. -/
-@[simp] public theorem relabel_evaluatedEventDepth
+@[simp] public lemma relabel_evaluatedEventDepth
     (circuit : UnitaryCircuit gates oracles layout) (physical : Nat ↪ Nat)
     (duration : Resource.Event (.quantum gates oracles) → Nat) :
     (circuit.relabel physical).evaluatedEventDepth duration =
       circuit.evaluatedEventDepth duration := by
   exact relabel_evaluatedEventDepth_internal circuit physical duration
 
-private theorem relabel_macroCount_internal
+private lemma relabel_macroCount_internal
     (circuit : UnitaryCircuit gates oracles layout) (physical : Nat ↪ Nat)
     (name : String) :
     (circuit.relabel physical).macroCount name = circuit.macroCount name := by
   simp only [macroCount, relabel, UnitarySequence.macroTrace_relabel]
 
-@[simp] public theorem relabel_macroCount (circuit : UnitaryCircuit gates oracles layout)
+@[simp] public lemma relabel_macroCount (circuit : UnitaryCircuit gates oracles layout)
     (physical : Nat ↪ Nat) (name : String) :
     (circuit.relabel physical).macroCount name = circuit.macroCount name := by
   exact relabel_macroCount_internal circuit physical name

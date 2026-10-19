@@ -26,6 +26,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 private def reverseLeftIndex (width : Nat) (index : Fin (width / 2)) : Fin width :=
   ⟨index.val, index.isLt.trans_le (Nat.div_le_self width 2)⟩
@@ -33,7 +34,7 @@ private def reverseLeftIndex (width : Nat) (index : Fin (width / 2)) : Fin width
 private def reverseRightIndex (width : Nat) (index : Fin (width / 2)) : Fin width :=
   (reverseLeftIndex width index).rev
 
-private theorem reverse_indices_ne (left right : Fin (width / 2)) :
+private lemma reverse_indices_ne (left right : Fin (width / 2)) :
     reverseLeftIndex width left ≠ reverseRightIndex width right := by
   intro same
   have values := congrArg (fun index : Fin width => index.val) same
@@ -48,7 +49,7 @@ private def reverseLeftWord (word : Word encoding width) : Word encoding (width 
 private def reverseRightWord (word : Word encoding width) : Word encoding (width / 2) :=
   ⟨fun index => word.bit (reverseRightIndex width index)⟩
 
-private theorem reverse_left_distinct (word : Word encoding width)
+private lemma reverse_left_distinct (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
     (left right : Fin (width / 2)) (different : left ≠ right) :
     ((reverseLeftWord word).bit left).wire ≠ ((reverseLeftWord word).bit right).wire := by
@@ -57,7 +58,7 @@ private theorem reverse_left_distinct (word : Word encoding width)
   apply different
   exact Fin.ext (congrArg (fun index : Fin width => index.val) same)
 
-private theorem reverse_right_distinct (word : Word encoding width)
+private lemma reverse_right_distinct (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
     (left right : Fin (width / 2)) (different : left ≠ right) :
     ((reverseRightWord word).bit left).wire ≠ ((reverseRightWord word).bit right).wire := by
@@ -71,7 +72,7 @@ private theorem reverse_right_distinct (word : Word encoding width)
   simp only [reverseRightIndex, reverseLeftIndex, Fin.val_rev] at values
   omega
 
-private theorem reverse_cross (word : Word encoding width)
+private lemma reverse_cross (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
     (left right : Fin (width / 2)) :
     ((reverseLeftWord word).bit left).wire ≠ ((reverseRightWord word).bit right).wire :=
@@ -96,7 +97,7 @@ def reverseStep (word : Word encoding width)
   GateSpec.stepList (reverseGates word distinct)
 
 /-- Every output word bit is the original physically reversed word bit. -/
-theorem reverseStep_get (word : Word encoding width)
+lemma reverseStep_get (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
     (index : Fin width) (state : Data) :
     (word.bit index).get (reverseStep word distinct state) =
@@ -158,7 +159,7 @@ theorem reverseStep_get (word : Word encoding width)
         omega
 
 /-- Flips in the selected word suffice to establish preservation of any complete complement. -/
-theorem reverseStep_preserves_projection {Projection : Type} (word : Word encoding width)
+lemma reverseStep_preserves_projection {Projection : Type} (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
     (project : Data → Projection)
     (preserved : ∀ index state, project ((word.bit index).flip state) = project state)
@@ -169,21 +170,21 @@ theorem reverseStep_preserves_projection {Projection : Type} (word : Word encodi
     (fun index => preserved (reverseRightIndex width index)) state
 
 /-- The same literal native program realizes the entire encoded-data action. -/
-theorem reverse_realizes (word : Word encoding width)
+lemma reverse_realizes (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (reverseProgram physical oracles word distinct) (reverseStep word distinct) :=
-  GateSpec.realizesList physical oracles (reverseGates word distinct)
+      (reverseProgram physical oracles word distinct) environment (reverseStep word distinct) :=
+  GateSpec.realizesList physical oracles (reverseGates word distinct) environment
 
 /-- Exactly three CNOT occurrences are emitted per symmetric pair, including width zero. -/
-theorem reverseGates_length (word : Word encoding width)
+lemma reverseGates_length (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
     (reverseGates word distinct).length = 3 * (width / 2) :=
   swapGates_length (reverseLeftWord word) (reverseRightWord word)
     (fun index => reverse_cross word distinct index index)
 
 /-- Literal serial scheduling charges precisely the same emitted CNOT list. -/
-theorem reverseProgram_resources (word : Word encoding width)
+lemma reverseProgram_resources (word : Word encoding width)
     (distinct : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
     (reverseProgram physical oracles word distinct).eventCost.card = 3 * (width / 2) ∧
       (reverseProgram physical oracles word distinct).evaluatedEventDepth (fun _ => 1) =

@@ -22,7 +22,7 @@ natural label. The pairing convention agrees with the original finite product.
 
 namespace QuantumAlg.BinaryBasis
 
-theorem bigEndianEquiv_cons_value (n : Nat) (head : Fin 2) (tail : Fin n → Fin 2) :
+lemma bigEndianEquiv_cons_value (n : Nat) (head : Fin 2) (tail : Fin n → Fin 2) :
     (bigEndianEquiv (n + 1) (Fin.cons head tail)).val =
       (bigEndianEquiv n tail).val + 2 ^ n * head.val := by
   change Nat.ofBits (fun index : Fin (n + 1) =>
@@ -37,7 +37,7 @@ theorem bigEndianEquiv_cons_value (n : Nat) (head : Fin 2) (tail : Fin n → Fin
     congr 1
     fin_cases head <;> rfl
 
-theorem bigEndianEquiv_cons_pair (n : Nat) (head : Fin 2) (tail : Fin n → Fin 2) :
+lemma bigEndianEquiv_cons_pair (n : Nat) (head : Fin 2) (tail : Fin n → Fin 2) :
     bigEndianEquiv (n + 1) (Fin.cons head tail) =
       qftPairEquiv n (head, bigEndianEquiv n tail) := by
   apply Fin.ext

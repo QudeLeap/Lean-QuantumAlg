@@ -28,14 +28,14 @@ noncomputable section
 
 attribute [local instance] Classical.decEq
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The two real Boolean instructions update the full state without altering its quantum block. -/
-public theorem firstAccepted_decision_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
+public lemma firstAccepted_decision_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (decisionBody (model := model) inputs refs).execute Reference state =
+    (decisionBody (model := model) inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := decisionStep (model := model) inputs refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -44,10 +44,10 @@ public theorem firstAccepted_decision_execute (inputs : Inputs ctx width) (refs 
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual selected arm copies the word and take latch with the exact two-instruction path. -/
-public theorem firstAccepted_copy_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
+public lemma firstAccepted_copy_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (copyBody (model := model) inputs refs).execute Reference state =
+    (copyBody (model := model) inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := copyStep (model := model) inputs refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -64,18 +64,18 @@ public def copyChoiceStep (inputs : Inputs ctx width) (refs : Refs ctx width)
   | .bit false => (store, ())
   | .bit true => copyStep (model := model) inputs refs store
 
-public theorem copyChoice_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
+public lemma copyChoice_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (value : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then copyBody (model := model) inputs refs else Circuit.id (model := model)
-      ctx).execute Reference state =
+      ctx).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := copyChoiceStep (model := model) inputs refs value entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   cases value with
   | bit bit =>
       cases bit
-      · exact (Circuit.execute_id_mapClassical Reference state).trans
+      · exact (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
       · exact (firstAccepted_copy_execute (model := model) inputs refs Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
@@ -89,14 +89,14 @@ public def conditionalStep (inputs : Inputs ctx width) (refs : Refs ctx width)
   (selected.1, ⟨value, selected.2⟩)
 
 /-- The branch maps each input block through its own stored take value. -/
-public theorem firstAccepted_conditional_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
+public lemma firstAccepted_conditional_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (conditionalCopy (model := model) inputs refs).execute Reference state =
+    (conditionalCopy (model := model) inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := conditionalStep (model := model) inputs refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (cellRead refs.take) _
+  refine (Circuit.execute_branch_mapClassical (environment := environment) (cellRead refs.take) _
     (fun value before =>
       let result := copyChoiceStep (model := model) inputs refs value before.1
       ((result.1, before.2), result.2))
@@ -114,14 +114,14 @@ public def step (inputs : Inputs ctx width) (refs : Refs ctx width) (store : Sto
   (selected.1, (decision.2, selected.2))
 
 /-- The selector's complete state is the exact actual store map on every external reference. -/
-public theorem firstAccepted_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
+public lemma firstAccepted_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (circuit (model := model) inputs refs).execute Reference state =
+    (circuit (model := model) inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (model := model) inputs refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (decisionBody (model := model) inputs refs) (conditionalCopy (model := model) inputs refs)
     (fun before =>
       let result := decisionStep (model := model) inputs refs before.1
@@ -139,7 +139,7 @@ public theorem firstAccepted_execute (inputs : Inputs ctx width) (refs : Refs ct
 
 
 /-- The complete store update is the real decision followed by its selected or empty copy arm. -/
-public theorem firstAccepted_step_store (inputs : Inputs ctx width) (refs : Refs ctx width)
+public lemma firstAccepted_step_store (inputs : Inputs ctx width) (refs : Refs ctx width)
     (store : Store ctx) :
     (step (model := model) inputs refs store).1 =
       let decision := decisionStore inputs refs store

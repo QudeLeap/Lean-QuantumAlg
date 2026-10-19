@@ -41,12 +41,12 @@ def expandedBudget (oracles : OracleModel) :
   map_zero' := Multiset.zero_bind _
   map_add' _ _ := Multiset.add_bind _ _ _
 
-private theorem expandedBudget_singleton (oracles : OracleModel)
+private lemma expandedBudget_singleton (oracles : OracleModel)
     (event : Resource.Event (.quantum AlgorithmGate.model oracles)) :
     expandedBudget oracles (ResourcePool.singleton event) = replaceEvent oracles event := by
   simp [expandedBudget, ResourcePool.singleton]
 
-private theorem nativeExpansion_cost (oracles : OracleModel) {count : Nat}
+private lemma nativeExpansion_cost (oracles : OracleModel) {count : Nat}
     {ambient : QuantumLayout count}
     (application : GateModel.Application AlgorithmGate.model ambient) :
     (nativeExpansion oracles application).circuit.eventCost =
@@ -64,7 +64,7 @@ private theorem nativeExpansion_cost (oracles : OracleModel) {count : Nat}
   | singleQubit operator => rfl
 
 /-- The event ledger is computed from the same expansion whose full matrix is preserved. -/
-theorem toffoliExpansion_expanded_eventCost {oracles : OracleModel} {count : Nat}
+lemma toffoliExpansion_expanded_eventCost {oracles : OracleModel} {count : Nat}
     {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient) :
     (expand source).eventCost = expandedBudget oracles source.eventCost := by
   apply UnitaryCircuit.refine_eventCost (expansionInstructions oracles) (expandedBudget oracles)

@@ -79,7 +79,7 @@ public def bell : NormalizedVector (Qubits 2) :=
 
 /-- The Bell state as its explicit computational-basis superposition. -/
 @[simp]
-theorem bell_coe :
+lemma bell_coe :
     (bell : HilbertVector (Qubits 2)) =
       invSqrt2 •
         (((ket 0 : NormalizedVector (Qubits 2)) +
@@ -88,7 +88,7 @@ theorem bell_coe :
   rfl
 
 /-- The Bell state in per-qubit tensor form: `(|0⟩⊗|0⟩ + |1⟩⊗|1⟩)/√2`. -/
-theorem bell_eq_tensor :
+lemma bell_eq_tensor :
     (bell : HilbertVector (Qubits 2))
       = invSqrt2 • ((ket0.tensor ket0 + ket1.tensor ket1 : HilbertVector (Qubits 2))) := by
   rw [bell_coe, ket0, ket1, NormalizedVector.tensor_ket,
@@ -117,7 +117,9 @@ def hadamardLayer : UnitaryCircuit AlgorithmGate.model .empty layout :=
 private def cnot : UnitaryCircuit AlgorithmGate.model .empty layout :=
   .native (GateModel.Application.canonical AlgorithmGate.model .cnot)
 
-private theorem cnot_binaryMatrix : cnot.binaryMatrix = CNOTOp := by
+private lemma cnot_binaryMatrix
+    (environment : OracleModel.empty.Interpretation) : (cnot.binaryMatrix environment)
+    = CNOTOp := by
   unfold UnitaryCircuit.binaryMatrix cnot
   rw [UnitaryCircuit.native_matrix, GateModel.Application.gateApplication_canonical_operator]
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 2)
@@ -129,20 +131,20 @@ private theorem cnot_binaryMatrix : cnot.binaryMatrix = CNOTOp := by
 public def circuit : UnitaryCircuit AlgorithmGate.model .empty layout :=
   hadamardLayer.seq cnot
 
-private theorem circuit_binaryMatrix :
-    circuit.binaryMatrix = CNOTOp * HOp.tensor (1 : UnitaryOperator (Qubits 1)) := by
+private lemma circuit_binaryMatrix (environment : OracleModel.empty.Interpretation) :
+    (circuit.binaryMatrix environment) = CNOTOp * HOp.tensor (1 : UnitaryOperator (Qubits 1)) := by
   rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, cnot_binaryMatrix,
     hadamardLayer]
   exact congrArg (fun op => CNOTOp * op)
-    (Gate.singleQubitAt_first_binaryMatrix .empty 1 HOp)
+    (Gate.singleQubitAt_first_binaryMatrix .empty 1 HOp environment)
 
 /-- Bell preparation input state `|00⟩`. -/
 public def input : NormalizedVector (Qubits 2) :=
   ket0.tensor ket0
 
 /-- Raw-vector calculation underlying the normalized preparation theorem. -/
-private theorem bellPreparation_coe :
-    circuit.binaryMatrix.applyVec input = (bell : HilbertVector (Qubits 2)) := by
+private lemma bellPreparation_coe (environment : OracleModel.empty.Interpretation) :
+    (circuit.binaryMatrix environment).applyVec input = (bell : HilbertVector (Qubits 2)) := by
   rw [circuit_binaryMatrix, UnitaryOperator.mul_applyVec]
   change CNOTOp.applyVec
       ((HOp.tensor (1 : UnitaryOperator (Qubits 1))).applyVec
@@ -188,28 +190,28 @@ private theorem bellPreparation_coe :
   rfl
 
 /-- Bell-state preparation: the typed circuit turns `|00⟩` into the Bell state. -/
-public theorem bellPreparation_eq :
-    circuit.binaryMatrix.apply input = bell := by
+public lemma bellPreparation_eq (environment : OracleModel.empty.Interpretation) :
+    (circuit.binaryMatrix environment).apply input = bell := by
   apply NormalizedVector.ext
   intro i
-  change circuit.binaryMatrix.applyVec input i = (bell : HilbertVector (Qubits 2)) i
-  exact congrArg (fun ψ : HilbertVector (Qubits 2) => ψ i) bellPreparation_coe
+  change (circuit.binaryMatrix environment).applyVec input i = (bell : HilbertVector (Qubits 2)) i
+  exact congrArg (fun ψ : HilbertVector (Qubits 2) => ψ i) (bellPreparation_coe environment)
 
 
 /-- The actual native pool contains one single-qubit instruction and one CNOT. -/
-@[simp] theorem circuit_eventCost :
+@[simp] lemma circuit_eventCost :
     circuit.eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit) +
         ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty) (.gate .cnot) := rfl
 
 /-- The two actual gates share the first wire and have two sequential unit-duration layers. -/
-@[simp] theorem circuit_evaluatedEventDepth_of_one :
+@[simp] lemma circuit_evaluatedEventDepth_of_one :
     circuit.evaluatedEventDepth (fun _ => 1) = 2 := by rfl
 
 end BellStatePreparation
 
 /-- The Bell state is normalized by construction. -/
-theorem norm_bell : ‖bell‖ = 1 := bell.norm_eq_one
+lemma norm_bell : ‖bell‖ = 1 := bell.norm_eq_one
 
 end
 

@@ -28,7 +28,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Each original stage returns its own certified actual complete Store and native path. -/
@@ -39,7 +39,8 @@ def affineStageRecord (spec : ModulusSpec width)
     Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (affineStage (model := model) spec leftX rightX leftY numerator denominator scratch output
         index).Path := by
-  refine Fin.cases (Field.Native.coefficientIntoWordStep spec denominator scratch.coefficient)
+  refine Fin.cases (Field.Native.coefficientIntoWordStep (environment := environment) spec
+    denominator scratch.coefficient)
     (fun index => ?_) index
   refine Fin.cases (fun before =>
     let result := Field.Native.mulIntoWordStep spec numerator
@@ -50,15 +51,18 @@ def affineStageRecord (spec : ModulusSpec width)
       (classifierRead scratch.slope) scratch.slopeSquared before.1
     ((result.1, before.2), result.2)) (fun index => ?_) index
   refine Fin.cases (fun before =>
-    let result := Field.Native.subIntoWordStep spec (classifierRead scratch.slopeSquared)
+    let result := Field.Native.subIntoWordStep (environment := environment) spec (classifierRead
+      scratch.slopeSquared)
       leftX scratch.xPartial before.1
     ((result.1, before.2), result.2)) (fun index => ?_) index
   refine Fin.cases (fun before =>
-    let result := Field.Native.subIntoWordStep spec (classifierRead scratch.xPartial)
+    let result := Field.Native.subIntoWordStep (environment := environment) spec (classifierRead
+      scratch.xPartial)
       rightX scratch.xOutput before.1
     ((result.1, before.2), result.2)) (fun index => ?_) index
   refine Fin.cases (fun before =>
-    let result := Field.Native.subIntoWordStep spec leftX (classifierRead scratch.xOutput)
+    let result := Field.Native.subIntoWordStep (environment := environment) spec leftX
+      (classifierRead scratch.xOutput)
       scratch.xDifference before.1
     ((result.1, before.2), result.2)) (fun index => ?_) index
   refine Fin.cases (fun before =>
@@ -66,7 +70,8 @@ def affineStageRecord (spec : ModulusSpec width)
       (classifierRead scratch.xDifference) scratch.yProduct before.1
     ((result.1, before.2), result.2)) (fun index => ?_) index
   refine Fin.cases (fun before =>
-    let result := Field.Native.subIntoWordStep spec (classifierRead scratch.yProduct)
+    let result := Field.Native.subIntoWordStep (environment := environment) spec (classifierRead
+      scratch.yProduct)
       leftY scratch.yOutput before.1
     ((result.1, before.2), result.2)) (fun index => ?_) index
   refine Fin.cases (fun before =>
@@ -79,15 +84,16 @@ def affineStageRecord (spec : ModulusSpec width)
   exact Fin.elim0 index
 
 /-- Actual stages retain every complete quantum-reference block and original history. -/
-theorem affineStage_execute (spec : ModulusSpec width)
+lemma affineStage_execute (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (index : Fin 9) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (affineStage (model := model) spec leftX rightX leftY numerator denominator scratch output
-      index).execute
+      index).execute environment
       Reference state = state.mapClassical (fun entry =>
-        let result := affineStageRecord spec leftX rightX leftY numerator denominator scratch output
+        let result := affineStageRecord (environment := environment) spec leftX rightX leftY
+          numerator denominator scratch output
           index (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   refine Fin.cases ?_ (fun index => ?_) index
@@ -128,44 +134,49 @@ def affineBodyStep (spec : ModulusSpec width)
         output).Path :=
   Circuit.forRangeRecord 9
     (affineStage (model := model) spec leftX rightX leftY numerator denominator scratch output)
-    (affineStageRecord spec leftX rightX leftY numerator denominator scratch output)
+    (affineStageRecord (environment := environment) spec leftX rightX leftY numerator
+      denominator scratch output)
 
 /-- Full actual tail execution follows the same certified sequential store record. -/
-theorem affineBody_execute (spec : ModulusSpec width)
+lemma affineBody_execute (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (affineBody (model := model) spec leftX rightX leftY numerator denominator scratch
-      output).execute
+      output).execute environment
       Reference state = state.mapClassical (fun entry =>
-        let result := affineBodyStep spec leftX rightX leftY numerator denominator scratch output
+        let result := affineBodyStep (environment := environment) spec leftX rightX leftY
+          numerator denominator scratch output
           (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  Circuit.execute_forRangeRecord 9
+  Circuit.execute_forRangeRecord (environment := environment) 9
     (affineStage (model := model) spec leftX rightX leftY numerator denominator scratch output)
-    (affineStageRecord spec leftX rightX leftY numerator denominator scratch output)
+    (affineStageRecord (environment := environment) spec leftX rightX leftY numerator
+      denominator scratch output)
     (affineStage_execute spec leftX rightX leftY numerator denominator scratch output)
       Reference state
 
 /-- Every actual allocation and release participates in the complete original affine execution. -/
-theorem affineInto_actualRecord (spec : ModulusSpec width)
+lemma affineInto_actualRecord (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (affineInto (model := model) spec leftX rightX leftY numerator denominator output).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (affineInto (model := model) spec leftX rightX leftY numerator denominator output).execute
+        (affineInto (model := model) spec leftX rightX leftY numerator denominator
+          output).execute environment
           Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  apply withCellsFrom_hasRecord (Transport.id ctx) (affineShapes width)
+  apply withCellsFrom_hasRecord (environment := environment) (Transport.id ctx) (affineShapes width)
     (fun cells _ transport _ => affineBody (model := model) spec (transport.liftInput leftX)
       (transport.liftInput rightX) (transport.liftInput leftY) (transport.liftInput numerator)
       (transport.liftInput denominator) (affineScratch cells) (transport.liftWrite output))
   intro inner cells distinct transport separated
-  exact ⟨affineBodyStep spec (transport.liftInput leftX) (transport.liftInput rightX)
+  exact ⟨affineBodyStep (environment := environment) spec (transport.liftInput leftX)
+    (transport.liftInput rightX)
     (transport.liftInput leftY) (transport.liftInput numerator) (transport.liftInput denominator)
     (affineScratch cells) (transport.liftWrite output), affineBody_execute _ _ _ _ _ _ _ _⟩
 

@@ -35,12 +35,12 @@ noncomputable section
 -- Use the already proved coordinate width without reducing its operand envelope.
 attribute [local irreducible] RSA.ShortLogWidths.coordinateWidth
 
-private theorem pair_arithmetic (width modulus measured jWidth kWidth : Nat)
+private lemma pair_arithmetic (width modulus measured jWidth kWidth : Nat)
     (combined : measured = jWidth + kWidth) :
     104 * width + 5 * modulus + 4 * measured + 2 * jWidth + 2 * kWidth + 33 =
       104 * width + 5 * modulus + 6 * measured + 33 := by omega
 
-private theorem pair_allocation (N : Nat) :
+private lemma pair_allocation (N : Nat) :
     LatticePairRecoveryWorkspace.allocationBits N =
       104 * LatticeWideLllMachine.Width N + 5 * Canonical.modulusBits N +
         6 * measurementBits N + 33 :=
@@ -48,7 +48,7 @@ private theorem pair_allocation (N : Nat) :
     (measurementBits N) (BatchMachine.JWidth N) (BatchMachine.KWidth N)
     (BatchMachine.measurementBits_eq_jkWidth N)
 
-private theorem model_pairAllocation_eq {N : Nat} (model : FixedWidthModel N) :
+private lemma model_pairAllocation_eq {N : Nat} (model : FixedWidthModel N) :
     LatticePairRecoveryWorkspace.allocationBits N = 782_338_382_083 := by
   conv_lhs =>
     rw [pair_allocation]
@@ -57,7 +57,7 @@ private theorem model_pairAllocation_eq {N : Nat} (model : FixedWidthModel N) :
       model_measurementBits_eq model]
   norm_num [modulusBits, primeBits]
 
-private theorem model_quadraticAllocation_eq {N : Nat} (model : FixedWidthModel N) :
+private lemma model_quadraticAllocation_eq {N : Nat} (model : FixedWidthModel N) :
     QuadraticScratchLayout.allocationBits N = 255_764_463_735 := by
   have coordinate : LatticePairCandidateRecovery.Width N = 7_522_484_226 :=
     model_coordinateWidth_eq model
@@ -72,13 +72,13 @@ private theorem model_quadraticAllocation_eq {N : Nat} (model : FixedWidthModel 
       QuadraticCandidateCheck.CandidateWidth, NatSqrt.workWidth]
   exact transport.trans numeric
 
-private theorem model_factorWidth_eq {N : Nat} (model : FixedWidthModel N) :
+private lemma model_factorWidth_eq {N : Nat} (model : FixedWidthModel N) :
     LatticeBatchRecoveryWorkspaceLayout.FactorWidth N = 7_522_484_228 := by
   have coordinate : LatticePairCandidateRecovery.Width N = 7_522_484_226 :=
     model_coordinateWidth_eq model
   exact (congrArg (fun width => width + 1 + 1) coordinate).trans (by norm_num)
 
-private theorem model_allocationBits_eq {N : Nat} (model : FixedWidthModel N) :
+private lemma model_allocationBits_eq {N : Nat} (model : FixedWidthModel N) :
     LatticeBatchRecoveryWorkspace.allocationBits N = 1_053_147_816_325 := by
   conv_lhs =>
     rw [LatticeBatchRecoveryWorkspace.allocationBits, model_factorWidth_eq model,
@@ -87,7 +87,7 @@ private theorem model_allocationBits_eq {N : Nat} (model : FixedWidthModel N) :
   norm_num [modulusBits, primeBits]
 
 /-- The fixed classical number is proved from the complete independent seven-batch formula. -/
-theorem model_classicalBitBound_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_classicalBitBound_eq {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.classicalBitBound N rounds = classicalBitBound := by
   change LatticeBatchRecoveryWorkspace.allocationBits N + 36 * Canonical.modulusBits N +
     17 * measurementBits N + 19 +
@@ -96,7 +96,7 @@ theorem model_classicalBitBound_eq {N : Nat} (model : FixedWidthModel N) :
   norm_num [classicalBitBound, modulusBits, primeBits]
 
 /-- Seven positive batches use exactly the independent allowance of one 6,147-qubit bank. -/
-theorem model_qubitBound_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_qubitBound_eq {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.qubitBound N rounds = qubitBound := by
   change shortLogBits N + 2 * tradeoffBits N + 2 * arithmeticBits N = qubitBound
   rw [model_shortLogBits_eq model, model_tradeoffBits_eq model, model_arithmeticBits_eq model]
@@ -108,7 +108,7 @@ theorem model_qubitBound_eq {N : Nat} (model : FixedWidthModel N) :
   | .quantumSystems dimension => if dimension = 2 then qubitBound else 0
 
 /-- The parameterized complete allowance specializes to the fixed numeric pool. -/
-theorem model_additionalSpace_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_additionalSpace_eq {N : Nat} (model : FixedWidthModel N) :
     NativeFiniteRetry.additionalSpace N rounds = additionalSpace := by
   funext axis
   cases axis with
@@ -132,7 +132,7 @@ attribute [local irreducible] NativeFiniteRetry.run NativeFiniteRetry.code Nativ
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every actual fixed-run path obeys the independently derived resident classical-bit bound. -/
-theorem run_resident_classicalBits_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_resident_classicalBits_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     (NativeFiniteRetry.run base noQuantum input rounds).code.peakResidentSpace path
         .classicalBits ≤ base.residentSpace .classicalBits + classicalBitBound := by
@@ -140,7 +140,7 @@ theorem run_resident_classicalBits_le (model : FixedWidthModel N) (input : Canon
     NativeFiniteRetry.run_resident_classicalBits_le base noQuantum input rounds path
 
 /-- The same actual fixed-run path obeys the independent auxiliary classical-bit bound. -/
-theorem run_auxiliary_classicalBits_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_auxiliary_classicalBits_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     (NativeFiniteRetry.run base noQuantum input rounds).code.peakAuxiliarySpace path
         .classicalBits ≤ base.auxiliarySpace .classicalBits + classicalBitBound := by
@@ -148,7 +148,7 @@ theorem run_auxiliary_classicalBits_le (model : FixedWidthModel N) (input : Cano
     NativeFiniteRetry.run_auxiliary_classicalBits_le base noQuantum input rounds path
 
 /-- Every actual fixed-run resident quantum peak is bounded by the single shared bank. -/
-theorem run_resident_qubits_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_resident_qubits_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     (NativeFiniteRetry.run base noQuantum input rounds).code.peakResidentSpace path
         (.quantumSystems 2) ≤ base.residentSpace (.quantumSystems 2) + qubitBound := by
@@ -156,7 +156,7 @@ theorem run_resident_qubits_le (model : FixedWidthModel N) (input : Canonical.In
     NativeFiniteRetry.run_resident_qubits_le base noQuantum input rounds path
 
 /-- Every actual fixed-run auxiliary quantum peak has the same single-bank upper bound. -/
-theorem run_auxiliary_qubits_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_auxiliary_qubits_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path) :
     (NativeFiniteRetry.run base noQuantum input rounds).code.peakAuxiliarySpace path
         (.quantumSystems 2) ≤ base.auxiliarySpace (.quantumSystems 2) + qubitBound := by

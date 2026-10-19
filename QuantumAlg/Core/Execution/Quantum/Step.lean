@@ -44,7 +44,7 @@ def writeZ (state : ExecutionState (Store ctx) layout.register)
     result.1.write output (.finite result.2)
 
 /-- Measurement and its classical write preserve total probability mass. -/
-theorem writeZ_mass (state : ExecutionState (Store ctx) layout.register)
+lemma writeZ_mass (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension)) :
     (writeZ state wire output).mass = state.mass := by
@@ -60,7 +60,7 @@ def conditional (state : ExecutionState (Store ctx) layout.register)
 
 /-- The selected gate acts on the quantum block associated with the actual
 stored value, without resampling a result or evaluating an unselected gate. -/
-theorem conditional_block (state : ExecutionState (Store ctx) layout.register)
+lemma conditional_block (state : ExecutionState (Store ctx) layout.register)
     {cardinality : ℕ+} (input : CInputRef ctx (.finite cardinality))
     (branch : Fin cardinality → UnitaryOperator layout.register) (store : Store ctx) :
     (conditional state input branch).block store =
@@ -68,14 +68,14 @@ theorem conditional_block (state : ExecutionState (Store ctx) layout.register)
         (state.block store) := rfl
 
 /-- A classical conditional preserves the probability of every stored value. -/
-theorem conditional_block_mass (state : ExecutionState (Store ctx) layout.register)
+lemma conditional_block_mass (state : ExecutionState (Store ctx) layout.register)
     {cardinality : ℕ+} (input : CInputRef ctx (.finite cardinality))
     (branch : Fin cardinality → UnitaryOperator layout.register) (store : Store ctx) :
     ((conditional state input branch).block store).mass = (state.block store).mass := by
   simp only [conditional_block, DensityOperator.applyUnitary_mass]
 
 /-- Conditional unitary execution preserves total probability mass. -/
-theorem conditional_mass (state : ExecutionState (Store ctx) layout.register)
+lemma conditional_mass (state : ExecutionState (Store ctx) layout.register)
     {cardinality : ℕ+} (input : CInputRef ctx (.finite cardinality))
     (branch : Fin cardinality → UnitaryOperator layout.register) :
     (conditional state input branch).mass = state.mass :=
@@ -83,7 +83,7 @@ theorem conditional_mass (state : ExecutionState (Store ctx) layout.register)
 
 /-- The gate selected by a later read is exactly the gate indexed by the
 measurement result written into this register. -/
-theorem selected_after_write {cardinality : ℕ+} (store : Store ctx)
+lemma selected_after_write {cardinality : ℕ+} (store : Store ctx)
     (output : CWriteRef ctx (.finite cardinality)) (outcome : Fin cardinality)
     (branch : Fin cardinality → UnitaryOperator layout.register) :
     branch ((store.write output (.finite outcome)).read
@@ -94,7 +94,7 @@ theorem selected_after_write {cardinality : ℕ+} (store : Store ctx)
 /-- Measuring, writing, and then reading to select a gate has the exact joint
 state obtained by applying the outcome's gate to each measurement branch and
 storing that outcome. The equality includes the complete quantum register. -/
-theorem conditional_writeZ (state : ExecutionState (Store ctx) layout.register)
+lemma conditional_writeZ (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension))
     (branch : Fin (layout.wire wire).dimension → UnitaryOperator layout.register) :

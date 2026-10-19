@@ -19,7 +19,7 @@ relative phase, and all preparation and unpreparation gates.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total.Four
 noncomputable section
 
-private theorem phaseDepth_bound (m n : Nat) : phaseDepth m n ≤ 40 * m + 20 := by
+private lemma phaseDepth_bound (m n : Nat) : phaseDepth m n ≤ 40 * m + 20 := by
   cases n with
   | zero =>
       cases m with
@@ -34,10 +34,10 @@ private theorem phaseDepth_bound (m n : Nat) : phaseDepth m n ≤ 40 * m + 20 :=
       omega
 
 /-- The complete executed word has linear native depth in width times the longer phase length. -/
-theorem totalComplexWord_depth_le {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
+lemma totalComplexWord_depth_le {m n : Nat}
     (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    (complexWord U phases realAngle imaginaryAngle
+    (complexWord (m := m) (n := n) phases realAngle imaginaryAngle
       realConstant imaginaryConstant).evaluatedEventDepth (fun _ => 1) ≤
         (40 * m + 21) * (phases.length + 1) + 20 := by
   rw [totalComplexWord_depth, totalFourUnmatched_depth]

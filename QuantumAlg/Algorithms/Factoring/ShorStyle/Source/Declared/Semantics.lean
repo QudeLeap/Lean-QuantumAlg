@@ -29,8 +29,8 @@ noncomputable section
 variable {N width : Nat} (bounds : RegisterBounds N width) (phaseBits : Nat)
 
 /-- Physical placement retains the operator owned by the selected declaration. -/
-theorem oracleLayer_matrix (gates : GateModel) (base : Fin (2 ^ width)) :
-    (oracleLayer bounds phaseBits gates base).matrix =
+lemma oracleLayer_matrix (gates : GateModel) (base : Fin (2 ^ width)) :
+    (oracleLayer width phaseBits gates base).matrix (interpretation bounds phaseBits) =
       UnitaryOperator.reindex
         (QuantumSignature.qubitsIndexEquiv (phaseBits + width)).symm
         (OrderFinding.modExpOracle (bounds.access phaseBits base)) := by
@@ -40,8 +40,8 @@ theorem oracleLayer_matrix (gates : GateModel) (base : Fin (2 ^ width)) :
   rfl
 
 /-- Binary coordinates expose exactly the mathematical modular-exponentiation oracle. -/
-theorem oracleLayer_binaryMatrix (gates : GateModel) (base : Fin (2 ^ width)) :
-    (oracleLayer bounds phaseBits gates base).binaryMatrix =
+lemma oracleLayer_binaryMatrix (gates : GateModel) (base : Fin (2 ^ width)) :
+    (oracleLayer width phaseBits gates base).binaryMatrix (interpretation bounds phaseBits) =
       OrderFinding.modExpOracle (bounds.access phaseBits base) := by
   rw [UnitaryCircuit.binaryMatrix, oracleLayer_matrix]
   exact UnitaryOperator.unitaryOperator_reindex_cancel
@@ -49,9 +49,9 @@ theorem oracleLayer_binaryMatrix (gates : GateModel) (base : Fin (2 ^ width)) :
     (OrderFinding.modExpOracle (bounds.access phaseBits base))
 
 /-- Every basis target is XOR-updated by the actual power modulo the declared modulus. -/
-theorem oracleLayer_apply_ket (gates : GateModel) (base : Fin (2 ^ width))
+lemma oracleLayer_apply_ket (gates : GateModel) (base : Fin (2 ^ width))
     (exponent : Fin (2 ^ phaseBits)) (target : Fin (2 ^ width)) :
-    (oracleLayer bounds phaseBits gates base).binaryMatrix.apply
+    ((oracleLayer width phaseBits gates base).binaryMatrix (interpretation bounds phaseBits)).apply
         (NormalizedVector.ket (prodEquiv (exponent, target))) =
       NormalizedVector.ket (prodEquiv (exponent,
         OrderFinding.modExpOracleTarget (bounds.access phaseBits base) exponent target)) := by
@@ -59,31 +59,33 @@ theorem oracleLayer_apply_ket (gates : GateModel) (base : Fin (2 ^ width))
   exact OrderFinding.modExpOracle_apply_ket (bounds.access phaseBits base) exponent target
 
 /-- The native Hadamards retain the identity on the complete target register. -/
-theorem initialLayer_binaryMatrix :
-    (initialLayer bounds phaseBits).binaryMatrix =
+lemma initialLayer_binaryMatrix :
+    (initialLayer width phaseBits).binaryMatrix (interpretation bounds phaseBits) =
       (WalshHadamard.hadamardLayerOperator phaseBits).tensor
         (1 : UnitaryOperator (Qubits width)) := by
   rw [initialLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   exact congrArg (fun operator : UnitaryOperator (Qubits phaseBits) =>
     operator.tensor (1 : UnitaryOperator (Qubits width)))
-      (WalshHadamard.Native.native_binary_matrix (model bounds phaseBits) phaseBits)
+      (WalshHadamard.Native.native_binary_matrix (model width phaseBits) phaseBits
+        (interpretation bounds phaseBits))
 
 /-- The generated inverse QFT has its exact prefix action for every target state. -/
-theorem readoutLayer_binaryMatrix :
-    (readoutLayer bounds phaseBits).binaryMatrix =
+lemma readoutLayer_binaryMatrix :
+    (readoutLayer width phaseBits).binaryMatrix (interpretation bounds phaseBits) =
       (star (QFTOperator phaseBits)).tensor (1 : UnitaryOperator (Qubits width)) := by
   rw [readoutLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   apply congrArg (fun operator : UnitaryOperator (Qubits phaseBits) =>
     operator.tensor (1 : UnitaryOperator (Qubits width)))
   change QuantumFourierTransform.Native.onBinaryLabels
-    (QuantumFourierTransform.Native.inverseCircuit (model bounds phaseBits) phaseBits) =
+    (QuantumFourierTransform.Native.inverseCircuit (model width phaseBits) phaseBits)
+      (interpretation bounds phaseBits) =
       star (QFTOperator phaseBits)
   exact QuantumFourierTransform.Native.qftNative_inverseCircuit_binaryMatrix
-    (model bounds phaseBits) phaseBits
+    (model width phaseBits) phaseBits (interpretation bounds phaseBits)
 
 /-- The complete physical member has the exact three-stage source operator. -/
-theorem circuit_binaryMatrix (base : Fin (2 ^ width)) :
-    (circuit bounds phaseBits base).binaryMatrix =
+lemma circuit_binaryMatrix (base : Fin (2 ^ width)) :
+    (circuit width phaseBits base).binaryMatrix (interpretation bounds phaseBits) =
       (star (QFTOperator phaseBits)).tensor (1 : UnitaryOperator (Qubits width)) *
         (OrderFinding.modExpOracle (bounds.access phaseBits base) *
           (WalshHadamard.hadamardLayerOperator phaseBits).tensor
@@ -93,22 +95,23 @@ theorem circuit_binaryMatrix (base : Fin (2 ^ width)) :
     initialLayer_binaryMatrix, oracleLayer_binaryMatrix, readoutLayer_binaryMatrix]
 
 /-- Selecting a base in one fixed model preserves the established source matrix. -/
-theorem circuit_binaryMatrix_eq_native (base : Fin (2 ^ width)) :
-    (circuit bounds phaseBits base).binaryMatrix =
-      (OrderFinding.Native.circuit (bounds.access phaseBits base)).binaryMatrix := by
+lemma circuit_binaryMatrix_eq_native (base : Fin (2 ^ width)) :
+    (circuit width phaseBits base).binaryMatrix (interpretation bounds phaseBits) =
+      (OrderFinding.Native.circuit phaseBits width).binaryMatrix
+        (OrderFinding.Native.interpretation (bounds.access phaseBits base)) := by
   rw [circuit_binaryMatrix, OrderFinding.Native.circuit_binaryMatrix]
 
 /-- The original all-zero source state evolved by this actual selected member. -/
 def evolvedState (base : Fin (2 ^ width)) :
     QubitLayout.State (OrderFinding.Native.sourceLayout phaseBits width) :=
   { state := PureState.ofNormalized
-      ((circuit bounds phaseBits base).binaryMatrix.apply
+      (((circuit width phaseBits base).binaryMatrix (interpretation bounds phaseBits)).apply
         (OrderFinding.Native.zeroInput phaseBits width))
       (OrderFinding.Native.sourceLayout phaseBits width).systemIdx
     system_idx_eq := rfl }
 
 /-- The entire normalized phase-target state agrees with the existing Born source. -/
-theorem evolvedState_eq_native (base : Fin (2 ^ width)) :
+lemma evolvedState_eq_native (base : Fin (2 ^ width)) :
     evolvedState bounds phaseBits base =
       OrderFinding.Native.evolvedState (bounds.access phaseBits base) := by
   unfold evolvedState OrderFinding.Native.evolvedState OrderFinding.Native.evolvedVector
@@ -120,14 +123,14 @@ def outcomePMF (base : Fin (2 ^ width)) : PMF (TerminalZMeasure.Outcome phaseBit
     (evolvedState bounds phaseBits base)
 
 /-- The old source Born theorem applies to the complete new physical member. -/
-theorem outcomePMF_eq_native (base : Fin (2 ^ width)) :
+lemma outcomePMF_eq_native (base : Fin (2 ^ width)) :
     outcomePMF bounds phaseBits base =
       OrderFinding.Native.sourceOutcomePMF (bounds.access phaseBits base) := by
   rw [outcomePMF, evolvedState_eq_native]
   rfl
 
 /-- Original Shor inputs supply precisely the declared register conditions. -/
-theorem sourceBounds {N : Nat} (input : Input N) : RegisterBounds N (modulusBits N) where
+lemma sourceBounds {N : Nat} (input : Input N) : RegisterBounds N (modulusBits N) where
   modulus_pos := input.modulus_pos
   register_fits := input.register_fits
 
@@ -138,7 +141,7 @@ def sampleBase {N : Nat} (input : Input N)
     (parameterValue input sample).first.toNat_lt⟩
 
 /-- The fixed-family member selected by the original sample has its original conditional law. -/
-theorem sample_outcomePMF_eq {N : Nat} (input : Input N)
+lemma sample_outcomePMF_eq {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     outcomePMF (sourceBounds input) (Canonical.phaseBits N) (sampleBase input sample) =
       sourceSampleOutcomePMF input sample := by
@@ -146,7 +149,7 @@ theorem sample_outcomePMF_eq {N : Nat} (input : Input N)
   rfl
 
 /-- Uniform sampling keeps the original correlation between the base and its Born outcome. -/
-theorem sampled_outcomePMF_eq {N : Nat} (input : Input N) :
+lemma sampled_outcomePMF_eq {N : Nat} (input : Input N) :
     (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).bind (fun sample =>
       (outcomePMF (sourceBounds input) (Canonical.phaseBits N) (sampleBase input sample)).map
         fun measurement => (⟨sample, measurement⟩ : SourceOutcome N)) =

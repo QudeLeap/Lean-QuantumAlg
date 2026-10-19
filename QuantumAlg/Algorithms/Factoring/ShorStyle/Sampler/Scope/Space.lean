@@ -26,7 +26,7 @@ private def ResidentBound {ctx : RuntimeCtx model.kind} (body : Circuit model ct
     (path : body.Path) (budget : SpacePool model.kind) : Prop :=
   body.peakResidentSpace path ≤ budget
 
-private theorem workspace_resident_le (key : StorageKey) (shape : CShape)
+private lemma workspace_resident_le (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (path : body.Path) (budget : SpacePool model.kind) (parentBound : ctx.residentSpace ≤ budget)
@@ -36,7 +36,7 @@ private theorem workspace_resident_le (key : StorageKey) (shape : CShape)
     (SpacePool.max_le parentBound bodyBound)
 
 /-- Actual lexical entry and release retain the complete inner resident bound. -/
-theorem samplerScopes_resident_le (width : Nat)
+lemma samplerScopes_resident_le (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (path : body.Path) (budget : SpacePool model.kind)
     (contextBound : (Layout.context ctx width).residentSpace ≤ budget)
@@ -128,7 +128,7 @@ private def AuxiliaryBound {ctx : RuntimeCtx model.kind} (body : Circuit model c
     (path : body.Path) (budget : SpacePool model.kind) : Prop :=
   body.peakAuxiliarySpace path ≤ budget
 
-private theorem workspace_auxiliary_le (key : StorageKey) (shape : CShape)
+private lemma workspace_auxiliary_le (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (path : body.Path) (budget : SpacePool model.kind) (parentBound : ctx.auxiliarySpace ≤ budget)
@@ -138,7 +138,7 @@ private theorem workspace_auxiliary_le (key : StorageKey) (shape : CShape)
     (SpacePool.max_le parentBound bodyBound)
 
 /-- Actual lexical entry and release retain the complete inner auxiliary bound. -/
-theorem samplerScopes_auxiliary_le (width : Nat)
+lemma samplerScopes_auxiliary_le (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (path : body.Path) (budget : SpacePool model.kind)
     (contextBound : (Layout.context ctx width).auxiliarySpace ≤ budget)

@@ -33,7 +33,7 @@ public abbrev Word (width : Nat) := Fin (2 ^ width)
 def wordHalf (width : Nat) (x : Word width) : Word width :=
   ⟨x.val / 2, lt_of_le_of_lt (Nat.div_le_self x.val 2) x.isLt⟩
 
-@[simp] theorem wordHalf_val (width : Nat) (x : Word width) :
+@[simp] lemma wordHalf_val (width : Nat) (x : Word width) :
     (wordHalf width x).val = x.val / 2 :=
   rfl
 
@@ -41,7 +41,7 @@ def wordHalf (width : Nat) (x : Word width) : Word width :=
 def wordDouble (width : Nat) (x : Word width) : Word width :=
   ⟨(x.val <<< 1) % 2 ^ width, Nat.mod_lt _ (Nat.two_pow_pos width)⟩
 
-@[simp] theorem wordDouble_val (width : Nat) (x : Word width) :
+@[simp] lemma wordDouble_val (width : Nat) (x : Word width) :
     (wordDouble width x).val = (x.val <<< 1) % 2 ^ width :=
   rfl
 
@@ -49,17 +49,17 @@ def wordDouble (width : Nat) (x : Word width) : Word width :=
 def wordIncrement (width : Nat) (x : Word width) : Word width :=
   ⟨(x.val + 1) % 2 ^ width, Nat.mod_lt _ (Nat.two_pow_pos width)⟩
 
-@[simp] theorem wordIncrement_val (width : Nat) (x : Word width) :
+@[simp] lemma wordIncrement_val (width : Nat) (x : Word width) :
     (wordIncrement width x).val = (x.val + 1) % 2 ^ width :=
   rfl
 
 /-- Adding the finite word `1` is the width-preserving increment helper. -/
-theorem word_add_one_eq_wordIncrement (width : Nat) (x : Word width) :
+lemma word_add_one_eq_wordIncrement (width : Nat) (x : Word width) :
     x + (1 : Word width) = wordIncrement width x := by
   apply Fin.ext
   simp [wordIncrement, Fin.val_add]
 
-theorem wordDouble_val_of_no_overflow
+lemma wordDouble_val_of_no_overflow
     (width : Nat) (x : Word width) (h : 2 * x.val < 2 ^ width) :
     (wordDouble width x).val = 2 * x.val := by
   rw [wordDouble_val, Nat.shiftLeft_eq]
@@ -68,7 +68,7 @@ theorem wordDouble_val_of_no_overflow
   rw [hmul]
   exact Nat.mod_eq_of_lt h
 
-theorem word_two_mul_lt_of_msb_false
+lemma word_two_mul_lt_of_msb_false
     {width : Nat} (x : Word (width + 1))
     (hmsb : x.val.testBit (Fin.last width).val = false) :
     2 * x.val < 2 ^ (width + 1) := by
@@ -79,7 +79,7 @@ theorem word_two_mul_lt_of_msb_false
     nlinarith [Nat.two_pow_pos width]
   simpa [pow_succ, Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using hdouble
 
-theorem word_add_val_lt_two_pow_succ_of_msb_false
+lemma word_add_val_lt_two_pow_succ_of_msb_false
     {width : Nat} (left right : Word (width + 1))
     (hleft : left.val.testBit (Fin.last width).val = false)
     (hright : right.val.testBit (Fin.last width).val = false) :
@@ -97,7 +97,7 @@ theorem word_add_val_lt_two_pow_succ_of_msb_false
 
 /-- The low bit of a nonempty width-preserving increment is the toggled
 original low bit. -/
-theorem wordIncrement_testBit_zero {tail : Nat} (x : Word tail.succ) :
+lemma wordIncrement_testBit_zero {tail : Nat} (x : Word tail.succ) :
     (wordIncrement tail.succ x).val.testBit 0 = !x.val.testBit 0 := by
   rw [wordIncrement_val, Nat.testBit_mod_two_pow]
   simp
@@ -106,7 +106,7 @@ theorem wordIncrement_testBit_zero {tail : Nat} (x : Word tail.succ) :
 
 /-- The second-lowest bit of a width-preserving increment is toggled exactly by
 the original low bit. -/
-theorem wordIncrement_testBit_one {tail : Nat} (x : Word tail.succ.succ) :
+lemma wordIncrement_testBit_one {tail : Nat} (x : Word tail.succ.succ) :
     (wordIncrement tail.succ.succ x).val.testBit 1 =
       (x.val.testBit 1 ^^ x.val.testBit 0) := by
   rw [wordIncrement_val, Nat.testBit_mod_two_pow]
@@ -116,7 +116,7 @@ theorem wordIncrement_testBit_one {tail : Nat} (x : Word tail.succ.succ) :
 
 /-- The third-lowest bit of a width-preserving increment is toggled exactly by
 the original two lower bits. -/
-theorem wordIncrement_testBit_two {tail : Nat} (x : Word tail.succ.succ.succ) :
+lemma wordIncrement_testBit_two {tail : Nat} (x : Word tail.succ.succ.succ) :
     (wordIncrement tail.succ.succ.succ x).val.testBit 2 =
       (x.val.testBit 2 ^^ (x.val.testBit 0 && x.val.testBit 1)) := by
   rw [wordIncrement_val, Nat.testBit_mod_two_pow]
@@ -124,13 +124,13 @@ theorem wordIncrement_testBit_two {tail : Nat} (x : Word tail.succ.succ.succ) :
   simpa using Nat.BinaryArithmetic.testBit_two_add_one x.val
 
 /-- Low-bit readout for the width-preserving natural halving helper. -/
-theorem wordHalf_testBit (width : Nat) (x : Word width) (bit : Fin width) :
+lemma wordHalf_testBit (width : Nat) (x : Word width) (bit : Fin width) :
     (wordHalf width x).val.testBit bit.val =
       x.val.testBit (bit.val + 1) := by
   simp [wordHalf, Nat.testBit_div_two]
 
 /-- Low-bit readout for the width-preserving natural doubling helper. -/
-theorem wordDouble_testBit (width : Nat) (x : Word width) (bit : Fin width) :
+lemma wordDouble_testBit (width : Nat) (x : Word width) (bit : Fin width) :
     (wordDouble width x).val.testBit bit.val =
       (decide (bit.val ≥ 1) && x.val.testBit (bit.val - 1)) := by
   unfold wordDouble
@@ -139,7 +139,7 @@ theorem wordDouble_testBit (width : Nat) (x : Word width) (bit : Fin width) :
   simp [bit.isLt]
 
 /-- Finite words are equal when all in-range value bits agree. -/
-theorem word_eq_of_testBit_eq {width : Nat} {a b : Word width}
+lemma word_eq_of_testBit_eq {width : Nat} {a b : Word width}
     (h : forall bit : Fin width,
       a.val.testBit bit.val = b.val.testBit bit.val) :
     a = b := by
@@ -157,7 +157,7 @@ theorem word_eq_of_testBit_eq {width : Nat} {a b : Word width}
       Nat.testBit_lt_two_pow (lt_of_lt_of_le b.isLt hpow)
     rw [ha, hb]
 
-theorem word_sub_testBit_zero_false_of_odd_lt
+lemma word_sub_testBit_zero_false_of_odd_lt
     {width : Nat} (u v : Word width)
     (huOdd : u.val.testBit (0 : Nat) = true)
     (hvOdd : v.val.testBit (0 : Nat) = true) (hlt : v.val < u.val) :
@@ -173,7 +173,7 @@ theorem word_sub_testBit_zero_false_of_odd_lt
   rw [hsubVal]
   simp [Nat.testBit_zero, hmod]
 
-theorem word_sub_testBit_zero_false_of_odd_not_lt
+lemma word_sub_testBit_zero_false_of_odd_not_lt
     {width : Nat} (u v : Word width)
     (huOdd : u.val.testBit (0 : Nat) = true)
     (hvOdd : v.val.testBit (0 : Nat) = true) (hnlt : ¬ v.val < u.val) :

@@ -48,14 +48,14 @@ noncomputable def normalized {qubitCount : Nat} :
   | preparation => NormalizedVector.ket preparation.basisValue
 
 /-- The public semantics of an explicit computational-basis preparation. -/
-@[simp] theorem normalized_basis {qubitCount : Nat}
+@[simp] lemma normalized_basis {qubitCount : Nat}
     (value : Fin (2 ^ qubitCount)) :
     (KnownPreparation.basis value).normalized =
       NormalizedVector.ket value :=
   rfl
 
 /-- The public semantics of the all-zero preparation. -/
-@[simp] theorem normalized_zero (qubitCount : Nat) :
+@[simp] lemma normalized_zero (qubitCount : Nat) :
     (KnownPreparation.zero qubitCount).normalized =
       NormalizedVector.ket (R := Qubits qubitCount)
         ⟨0, Nat.two_pow_pos qubitCount⟩ :=

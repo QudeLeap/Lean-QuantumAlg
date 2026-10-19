@@ -28,11 +28,11 @@ public def TransportSeparated {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
         head.ref.key ∉ (transport.liftInput input).storageKeys) ∧
       tail.TransportSeparated transport
 
-public theorem workspaceCells_transportSeparated_nil {kind : ProblemKind}
+public lemma workspaceCells_transportSeparated_nil {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} (transport : Transport outer ctx) :
     TransportSeparated (.nil : Cells ctx []) transport := by trivial
 
-public theorem workspaceCells_transportSeparated_underWorkspace {kind : ProblemKind}
+public lemma workspaceCells_transportSeparated_underWorkspace {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -50,7 +50,7 @@ public theorem workspaceCells_transportSeparated_underWorkspace {kind : ProblemK
       rw [CInputRef.storageKeys_underWorkspace]
       exact separated.1 input
 
-theorem workspaceCells_transportSeparated_extend {kind : ProblemKind}
+lemma workspaceCells_transportSeparated_extend {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -67,7 +67,7 @@ theorem workspaceCells_transportSeparated_extend {kind : ProblemKind}
   rw [CInputRef.storageKeys_underWorkspace]
   exact fun member => fresh (CInputRef.storageKeys_subset_context _ member)
 
-public theorem workspaceCells_transportSeparated_avoids_of_mem {kind : ProblemKind}
+public lemma workspaceCells_transportSeparated_avoids_of_mem {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)
@@ -83,7 +83,7 @@ public theorem workspaceCells_transportSeparated_avoids_of_mem {kind : ProblemKi
       · exact ih separated.2 member
 
 /-- An indexed workspace cell is disjoint from all transported caller reads. -/
-public theorem workspaceCells_cellAt_transport_avoids {kind : ProblemKind}
+public lemma workspaceCells_cellAt_transport_avoids {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)

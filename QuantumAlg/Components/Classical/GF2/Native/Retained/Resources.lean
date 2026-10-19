@@ -32,13 +32,13 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
   (key : StorageKey) (fresh : key ∉ ctx.keys)
 
 /-- Actual output retention preserves the complete original native event allowance. -/
-theorem gf2Retained_pool_le (path : (retainedCircuit input key fresh).Path) :
+lemma gf2Retained_pool_le (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).resourcePool path ≤ intoEnvelope model rowCount width :=
   gf2WithState_pool_le (input.underRetained key (.option (.unsignedWord width)) fresh)
     (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) path.2
 
 /-- Every arbitrary event duration is charged through the original retained invocation. -/
-theorem gf2Retained_depth_le (duration : Resource.Event model → Nat)
+lemma gf2Retained_depth_le (duration : Resource.Event model → Nat)
     (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).depth duration path ≤
       intoDepthLimit rowCount width duration := by
@@ -50,7 +50,7 @@ theorem gf2Retained_depth_le (duration : Resource.Event model → Nat)
     (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) duration path.2
 
 /-- Actual retention and lexical scopes preserve the same-path serial event-duration equation. -/
-theorem gf2Retained_duration_eventTrace (duration : Resource.Event model → Nat)
+lemma gf2Retained_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).depth duration path =
       (((retainedCircuit input key fresh).eventTrace path).map duration).sum := by
@@ -68,14 +68,14 @@ theorem gf2Retained_duration_eventTrace (duration : Resource.Event model → Nat
       (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) duration path.2
 
 /-- Every actual native instruction remains counted at the retained endpoint. -/
-theorem gf2Retained_eventCount_le (path : (retainedCircuit input key fresh).Path) :
+lemma gf2Retained_eventCount_le (path : (retainedCircuit input key fresh).Path) :
     ((retainedCircuit input key fresh).eventTrace path).length ≤
       intoDepthLimit (model := model) rowCount width (fun _ => 1) :=
   gf2WithState_eventCount_le (input.underRetained key (.option (.unsignedWord width)) fresh)
     (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh) path.2
 
 /-- Result, original workspaces and active scratch retain all resident roles. -/
-theorem gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) :
+lemma gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).peakResidentSpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
         intoScratchSpace model rowCount width +
@@ -108,7 +108,7 @@ theorem gf2Retained_resident_le (path : (retainedCircuit input key fresh).Path) 
     omega
 
 /-- Result, original workspaces and active scratch retain all auxiliary roles. -/
-theorem gf2Retained_auxiliary_le (path : (retainedCircuit input key fresh).Path) :
+lemma gf2Retained_auxiliary_le (path : (retainedCircuit input key fresh).Path) :
     (retainedCircuit input key fresh).peakAuxiliarySpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
         intoScratchSpace model rowCount width +

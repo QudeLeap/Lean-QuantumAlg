@@ -30,18 +30,18 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual single recovery writes the original optional result and preserves the caller frame. -/
-theorem singleIntoResult_actualRecord (spec : ModulusSpec width)
+lemma singleIntoResult_actualRecord (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (singleIntoResult (model := model) spec input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (singleIntoResult (model := model) spec input result).execute Reference state =
+        (singleIntoResult (model := model) spec input result).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧

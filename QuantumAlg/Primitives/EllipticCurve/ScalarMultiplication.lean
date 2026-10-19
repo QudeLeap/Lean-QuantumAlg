@@ -87,7 +87,7 @@ variable {schedule : Schedule E}
 
 /-- The fixed-base contract exposes the group-law multiple represented by the
 selected schedule addend [RNSL17, ECDLP.tex:589-593]. -/
-theorem addend_toMathlib (fixed : FixedBaseAddends schedule)
+lemma addend_toMathlib (fixed : FixedBaseAddends schedule)
     (i : Fin schedule.length) :
     (schedule.addend i).toMathlib =
       (schedule.addendWeight i) • fixed.base.toMathlib :=
@@ -157,28 +157,28 @@ def ofControlled (i : Fin schedule.length)
   targetY := x.targetY
   flag := x.flag
 
-@[simp] theorem toControlled_ofControlled (i : Fin schedule.length)
+@[simp] lemma toControlled_ofControlled (i : Fin schedule.length)
     (x : ControlledPointAddition.Data E (schedule.addend i)) :
     (ofControlled (schedule := schedule) i x).toControlled = x := by
   cases x
   rfl
 
-@[simp] theorem ofControlled_toControlled (x : StepData E schedule) :
+@[simp] lemma ofControlled_toControlled (x : StepData E schedule) :
     ofControlled x.step x.toControlled = x := by
   cases x
   rfl
 
-@[simp] theorem ofControlled_step (i : Fin schedule.length)
+@[simp] lemma ofControlled_step (i : Fin schedule.length)
     (x : ControlledPointAddition.Data E (schedule.addend i)) :
     (ofControlled (schedule := schedule) i x).step = i :=
   rfl
 
-@[simp] theorem ofControlled_control (i : Fin schedule.length)
+@[simp] lemma ofControlled_control (i : Fin schedule.length)
     (x : ControlledPointAddition.Data E (schedule.addend i)) :
     (ofControlled (schedule := schedule) i x).control = x.control :=
   rfl
 
-@[simp] theorem ofControlled_flag (i : Fin schedule.length)
+@[simp] lemma ofControlled_flag (i : Fin schedule.length)
     (x : ControlledPointAddition.Data E (schedule.addend i)) :
     (ofControlled (schedule := schedule) i x).flag = x.flag :=
   rfl
@@ -233,7 +233,7 @@ def controlledEquivAt (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
 /-- The lifted step map agrees with the original per-addend endpoint at the
 selected schedule index. -/
-@[simp] theorem controlledEquivAt_ofControlled
+@[simp] lemma controlledEquivAt_ofControlled
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (i : Fin schedule.length)
     (x : ControlledPointAddition.Data E (schedule.addend i)) :
@@ -251,7 +251,7 @@ def withWorkEquivAt (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     Equiv.Perm (StepData E schedule × Work) :=
   Equiv.prodCongr (controlledEquivAt E schedule i) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquivAt_apply_ofControlled
+@[simp] lemma withWorkEquivAt_apply_ofControlled
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (i : Fin schedule.length) (Work : Type)
     (x : ControlledPointAddition.Data E (schedule.addend i)) (w : Work) :
@@ -292,14 +292,14 @@ def controlledEquivAt (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     else
       Equiv.refl _
 
-@[simp] theorem controlledEquivAt_apply_self
+@[simp] lemma controlledEquivAt_apply_self
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (i : Fin schedule.length)
     (x : TraceData E schedule) :
     controlledEquivAt E schedule i x i = (x i).addIntoTarget := by
   simp [controlledEquivAt]
 
-theorem controlledEquivAt_apply_ne
+lemma controlledEquivAt_apply_ne
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) {i j : Fin schedule.length}
     (hji : j ≠ i) (x : TraceData E schedule) :
@@ -314,7 +314,7 @@ def controlledEquiv (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   Equiv.piCongrRight fun i =>
     ControlledPointAddition.Data.controlledEquiv E (schedule.addend i)
 
-@[simp] theorem controlledEquiv_apply
+@[simp] lemma controlledEquiv_apply
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (x : TraceData E schedule)
     (i : Fin schedule.length) :
@@ -341,7 +341,7 @@ def withWorkCleanMap (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     intro x
     rfl
 
-@[simp] theorem withWorkCleanMap_apply
+@[simp] lemma withWorkCleanMap_apply
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (Work : Type)
     (x : TraceData E schedule) (w : Work) :
@@ -368,14 +368,14 @@ def controlledTraceSequentialCleanComposition
     (controlledTraceStepCleanMaps E schedule Work)
 
 /-- The sequential trace-map composition preserves the external work register. -/
-theorem controlledTraceSequentialCleanComposition_preserves_work
+lemma controlledTraceSequentialCleanComposition_preserves_work
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (Work : Type) (x : TraceData E schedule × Work) :
     ((controlledTraceSequentialCleanComposition E schedule Work).perm x).2 = x.2 :=
   CleanComposition.composeList_preserves_work
     (controlledTraceStepCleanMaps E schedule Work) x
 
-private theorem controlledTraceCleanMapList_fold_apply
+private lemma controlledTraceCleanMapList_fold_apply
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (Work : Type)
     (l : List (Fin schedule.length))
@@ -394,7 +394,7 @@ private theorem controlledTraceCleanMapList_fold_apply
         ih (WorkRegister.CleanReversibleMap.sequential start
           (TraceData.withWorkCleanMapAt E schedule i Work)) x
 
-private theorem controlledTracePairFold_apply
+private lemma controlledTracePairFold_apply
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (Work : Type)
     (l : List (Fin schedule.length)) (x : TraceData E schedule) (w : Work) :
@@ -409,7 +409,7 @@ private theorem controlledTracePairFold_apply
       simpa [List.foldl_cons, TraceData.withWorkCleanMapAt] using
         ih (TraceData.controlledEquivAt E schedule i x) w
 
-private theorem controlledTraceDataFold_apply_of_nodup
+private lemma controlledTraceDataFold_apply_of_nodup
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E)
     (l : List (Fin schedule.length)) (hnodup : l.Nodup)
@@ -440,7 +440,7 @@ private theorem controlledTraceDataFold_apply_of_nodup
 
 /-- The schedule-ordered `composeList` of controlled ECADD trace maps applies
 each per-addend endpoint exactly once. -/
-theorem controlledTraceSequentialCleanComposition_apply
+lemma controlledTraceSequentialCleanComposition_apply
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (Work : Type)
     (x : TraceData E schedule) (w : Work) :
@@ -489,7 +489,7 @@ def controlledTraceCleanComposition
   controlledTraceSequentialCleanComposition E schedule Work
 
 /-- The schedule-wide trace composition preserves the external work register. -/
-theorem controlledTraceCleanComposition_preserves_work
+lemma controlledTraceCleanComposition_preserves_work
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (Work : Type) (x : TraceData E schedule × Work) :
     ((controlledTraceCleanComposition E schedule Work).perm x).2 = x.2 :=
@@ -503,12 +503,12 @@ noncomputable def genericStepPoint (E : PrimeFieldShortWeierstrass p)
   y := genericAddY E P Q
   nonsingular := genericAdd_nonsingular E P Q hgeneric
 
-@[simp] theorem genericStepPoint_x (E : PrimeFieldShortWeierstrass p)
+@[simp] lemma genericStepPoint_x (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (hgeneric : P.x ≠ Q.x) :
     (genericStepPoint E P Q hgeneric).x = genericAddX E P Q :=
   rfl
 
-@[simp] theorem genericStepPoint_y (E : PrimeFieldShortWeierstrass p)
+@[simp] lemma genericStepPoint_y (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (hgeneric : P.x ≠ Q.x) :
     (genericStepPoint E P Q hgeneric).y = genericAddY E P Q :=
   rfl
@@ -517,7 +517,7 @@ noncomputable def genericStepPoint (E : PrimeFieldShortWeierstrass p)
 in Mathlib's elliptic-curve point type, under the same nonexceptional branch
 used by the fixed-addend ECADD endpoint [PZ03, ecc.tex:525-551; RNSL17,
 ECDLP.tex:589-593]. -/
-theorem genericStepPoint_group_law_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma genericStepPoint_group_law_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (hgeneric : P.x ≠ Q.x) :
     P.toMathlib + Q.toMathlib =
       (genericStepPoint E P Q hgeneric).toMathlib := by
@@ -564,11 +564,11 @@ def stepInput (run : Run E schedule) (i : Fin schedule.length) :
     {P : AffinePoint E // P.x ≠ (schedule.addend i).x} :=
   ⟨run.accumulators (currentIndex i), run.genericDomain i⟩
 
-@[simp] theorem stepInput_val (run : Run E schedule) (i : Fin schedule.length) :
+@[simp] lemma stepInput_val (run : Run E schedule) (i : Fin schedule.length) :
     (run.stepInput i).1 = run.accumulators (currentIndex i) :=
   rfl
 
-@[simp] theorem stepInput_property (run : Run E schedule) (i : Fin schedule.length) :
+@[simp] lemma stepInput_property (run : Run E schedule) (i : Fin schedule.length) :
     (run.accumulators (currentIndex i)).x ≠ (schedule.addend i).x :=
   run.genericDomain i
 
@@ -582,19 +582,19 @@ def controlledStepData (run : Run E schedule) (i : Fin schedule.length) :
   targetY := 0
   flag := false
 
-@[simp] theorem controlledStepData_input
+@[simp] lemma controlledStepData_input
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.controlledStepData i).input = run.stepInput i :=
   rfl
 
-@[simp] theorem controlledStepData_control
+@[simp] lemma controlledStepData_control
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.controlledStepData i).control = run.controls i :=
   rfl
 
 /-- The generic-domain certificate is exactly the side condition carried by the
 lower-level controlled point-addition input. -/
-theorem genericDomain_supplies_step
+lemma genericDomain_supplies_step
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.controlledStepData i).input.1.x ≠ (schedule.addend i).x :=
   run.genericDomain i
@@ -614,23 +614,23 @@ def homogeneousStepData (run : Run E schedule) (i : Fin schedule.length) :
     StepData E schedule :=
   StepData.ofControlled i (run.controlledStepData i)
 
-@[simp] theorem homogeneousStepData_step
+@[simp] lemma homogeneousStepData_step
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.homogeneousStepData i).step = i :=
   rfl
 
-@[simp] theorem homogeneousStepData_toControlled
+@[simp] lemma homogeneousStepData_toControlled
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.homogeneousStepData i).toControlled = run.controlledStepData i :=
   rfl
 
-@[simp] theorem homogeneousStepData_control
+@[simp] lemma homogeneousStepData_control
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.homogeneousStepData i).control = run.controls i :=
   rfl
 
 /-- Inactive schedule steps preserve the accumulator. -/
-theorem inactive_accumulator
+lemma inactive_accumulator
     (run : Run E schedule) (i : Fin schedule.length)
     (hcontrol : run.controls i = false) :
     run.accumulators (nextIndex i) =
@@ -638,7 +638,7 @@ theorem inactive_accumulator
   run.inactive_step i hcontrol
 
 /-- Active schedule steps advance by the generic affine-addition formula. -/
-theorem active_accumulator
+lemma active_accumulator
     (run : Run E schedule) (i : Fin schedule.length)
     (hcontrol : run.controls i = true) :
     run.accumulators (nextIndex i) =
@@ -648,7 +648,7 @@ theorem active_accumulator
   run.active_step i hcontrol
 
 /-- Inactive schedule steps are identity steps in the Mathlib group-law view. -/
-theorem inactive_accumulator_group_law_mathlib
+lemma inactive_accumulator_group_law_mathlib
     (run : Run E schedule) (i : Fin schedule.length)
     (hcontrol : run.controls i = false) :
     (run.accumulators (nextIndex i)).toMathlib =
@@ -658,7 +658,7 @@ theorem inactive_accumulator_group_law_mathlib
 /-- Active schedule steps add the selected fixed addend in the Mathlib
 elliptic-curve group-law view, matching the binary controlled-addition route
 [PZ03, ecc.tex:448-462; RNSL17, ECDLP.tex:589-593]. -/
-theorem active_accumulator_group_law_mathlib
+lemma active_accumulator_group_law_mathlib
     (run : Run E schedule) (i : Fin schedule.length)
     (hcontrol : run.controls i = true) :
     (run.accumulators (nextIndex i)).toMathlib =
@@ -672,7 +672,7 @@ theorem active_accumulator_group_law_mathlib
 /-- One certified schedule step in the Mathlib group-law view: inactive bits
 preserve the accumulator, while active bits add the selected fixed addend
 [RNSL17, ECDLP.tex:589-593]. -/
-theorem accumulator_step_group_law_mathlib
+lemma accumulator_step_group_law_mathlib
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.accumulators (nextIndex i)).toMathlib =
       if run.controls i then
@@ -686,7 +686,7 @@ theorem accumulator_step_group_law_mathlib
 
 /-- The active-step `x` accumulator agrees with the lower-level generic
 point-addition coordinate formula. -/
-theorem active_accumulator_x
+lemma active_accumulator_x
     (run : Run E schedule) (i : Fin schedule.length)
     (hcontrol : run.controls i = true) :
     (run.accumulators (nextIndex i)).x =
@@ -696,7 +696,7 @@ theorem active_accumulator_x
 
 /-- The active-step `y` accumulator agrees with the lower-level generic
 point-addition coordinate formula. -/
-theorem active_accumulator_y
+lemma active_accumulator_y
     (run : Run E schedule) (i : Fin schedule.length)
     (hcontrol : run.controls i = true) :
     (run.accumulators (nextIndex i)).y =
@@ -706,7 +706,7 @@ theorem active_accumulator_y
 
 /-- The lifted clean map for a certified schedule step agrees with the existing
 per-addend controlled ECADD endpoint and preserves the external work label. -/
-theorem controlledStepCleanMap_apply_certified
+lemma controlledStepCleanMap_apply_certified
     (run : Run E schedule) (i : Fin schedule.length)
     (Work : Type) (w : Work) :
     (StepData.withWorkCleanMapAt E schedule i Work).perm
@@ -717,7 +717,7 @@ theorem controlledStepCleanMap_apply_certified
 
 /-- Zero-control certified schedule steps are identity updates under the lifted
 clean map. -/
-theorem controlledStepCleanMap_apply_certified_zero
+lemma controlledStepCleanMap_apply_certified_zero
     (run : Run E schedule) (i : Fin schedule.length)
     (Work : Type) (w : Work) (hcontrol : run.controls i = false) :
     (StepData.withWorkCleanMapAt E schedule i Work).perm
@@ -735,7 +735,7 @@ theorem controlledStepCleanMap_apply_certified_zero
 
 /-- One-control certified schedule steps apply the generic affine ECADD update
 under the lifted clean map. -/
-theorem controlledStepCleanMap_apply_certified_one
+lemma controlledStepCleanMap_apply_certified_one
     (run : Run E schedule) (i : Fin schedule.length)
     (Work : Type) (w : Work) (hcontrol : run.controls i = true) :
     (StepData.withWorkCleanMapAt E schedule i Work).perm
@@ -753,7 +753,7 @@ theorem controlledStepCleanMap_apply_certified_one
 
 /-- The schedule-wide clean composition maps the certified ECADD trace to the
 trace of per-step ECADD outputs, while preserving the external work label. -/
-theorem controlledTraceCleanComposition_apply_certified
+lemma controlledTraceCleanComposition_apply_certified
     (run : Run E schedule) (Work : Type) (w : Work) :
     (controlledTraceCleanComposition E schedule Work).perm
         (run.controlledTraceData, w) =
@@ -779,7 +779,7 @@ theorem controlledTraceCleanComposition_apply_certified
 schedule step.  Active steps return the next accumulator coordinates through the
 controlled ECADD endpoint, and inactive steps use the run certificate to keep
 the accumulator fixed. -/
-theorem updatedTraceData_accumulator_contract
+lemma updatedTraceData_accumulator_contract
     (run : Run E schedule) (i : Fin schedule.length) :
     (run.updatedTraceData i).input.1 =
         run.accumulators (currentIndex i) ∧
@@ -825,7 +825,7 @@ theorem updatedTraceData_accumulator_contract
 controlled-ECADD trace.  The same composed map consumes the certified controls
 and fixed addends, preserves work, and exposes the accumulator recurrence at
 each step. -/
-theorem controlledTraceCleanComposition_accumulator_contract
+lemma controlledTraceCleanComposition_accumulator_contract
     (run : Run E schedule) (Work : Type) (w : Work)
     (i : Fin schedule.length) :
     let out :=

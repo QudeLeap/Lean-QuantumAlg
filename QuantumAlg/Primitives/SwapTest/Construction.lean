@@ -41,19 +41,19 @@ def sourceCircuit (width : Nat) :
   ((boundary width).seq (Gate.ControlledRegisterSwap.circuit .empty width)).seq (boundary width)
 
 /-- The full exact operator equals the independently specified mathematical SWAP test. -/
-theorem sourceCircuit_matrix (width : Nat) :
-    (sourceCircuit width).binaryMatrix = swapTest width := by
+lemma sourceCircuit_matrix (width : Nat) (actual : OracleModel.empty.Interpretation) :
+    (sourceCircuit width).binaryMatrix actual = swapTest width := by
   rw [sourceCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     Gate.ControlledRegisterSwap.controlledRegisterSwap_binaryMatrix]
-  have matrix : (boundary width).binaryMatrix =
+  have matrix : (boundary width).binaryMatrix actual =
       Gate.HOp.tensor (1 : UnitaryOperator (Qubits (width + width))) :=
-    Gate.singleQubitAt_first_binaryMatrix .empty (width + width) Gate.HOp
+    Gate.singleQubitAt_first_binaryMatrix .empty (width + width) Gate.HOp actual
   rw [matrix]
   rfl
 
 /-- Every original pair contributes exactly two CNOTs and one Toffoli. -/
-theorem sourceCircuit_eventCost (width : Nat) :
+lemma sourceCircuit_eventCost (width : Nat) :
     (sourceCircuit width).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
         (.gate .singleQubit) 2 +
@@ -74,7 +74,7 @@ theorem sourceCircuit_eventCost (width : Nat) :
   ac_rfl
 
 /-- The common control orders every native layer, including both boundary Hadamards. -/
-theorem sourceCircuit_depth (width : Nat) :
+lemma sourceCircuit_depth (width : Nat) :
     (sourceCircuit width).evaluatedEventDepth (fun _ => 1) = 3 * width + 2 := by
   rw [sourceCircuit, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.evaluatedEventDepth_seq,

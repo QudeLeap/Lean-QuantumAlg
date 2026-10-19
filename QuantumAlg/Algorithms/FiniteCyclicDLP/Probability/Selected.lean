@@ -58,7 +58,7 @@ by summing the `r` distinct group-element tails. -/
   letI : NeZero P.order := ⟨P.order_ne_zero⟩
   Finset.univ.image (selectedRawOutcome P input)
 
-theorem selectedRawOutcomeFamily_card (P : KnownOrderProblem G)
+lemma selectedRawOutcomeFamily_card (P : KnownOrderProblem G)
     (input : SecretInput P) :
     (selectedRawOutcomeFamily P input).card = Nat.totient P.order := by
   let _ : NeZero P.order := ⟨P.order_ne_zero⟩
@@ -73,7 +73,7 @@ all invertible raw Fourier residues. -/
   Fintype.card (ZMod P.order)ˣ • selectedRawOutcomePointwiseLowerBound P
 
 /-- The selected-family floor is positive for every positive known order. -/
-theorem selectedRawOutcomeFamilyLowerBound_pos (P : KnownOrderProblem G) :
+lemma selectedRawOutcomeFamilyLowerBound_pos (P : KnownOrderProblem G) :
     0 < selectedRawOutcomeFamilyLowerBound P := by
   let _ : NeZero P.order := ⟨P.order_ne_zero⟩
   unfold selectedRawOutcomeFamilyLowerBound

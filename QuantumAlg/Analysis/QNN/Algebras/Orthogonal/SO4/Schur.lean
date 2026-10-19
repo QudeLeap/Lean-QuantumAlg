@@ -35,23 +35,23 @@ def so4Label : Fin 6 → (Fin 2 → Fin 4) :=
 noncomputable def so4B6 (i : Fin 6) : Matrix (Fin (2 ^ 2)) (Fin (2 ^ 2)) ℂ :=
   rtNinv 2 • pauliMat (so4Label i)
 
-theorem so4Label_inj : Function.Injective so4Label := by decide
+lemma so4Label_inj : Function.Injective so4Label := by decide
 
 /-- The concrete generator set given by the range of the six normalized matrices. -/
 noncomputable def so4FullGens : Set (Matrix (Fin (2 ^ 2)) (Fin (2 ^ 2)) ℂ) :=
   Set.range so4B6
 
-theorem so4B6_mem_span (i : Fin 6) :
+lemma so4B6_mem_span (i : Fin 6) :
     so4B6 i ∈ Submodule.span ℂ (Set.range so4B6) :=
   Submodule.subset_span ⟨i, rfl⟩
 
-theorem so4Label_xor_mem_of_anticomm {i j : Fin 6}
+lemma so4Label_xor_mem_of_anticomm {i j : Fin 6}
     (hω : pauliOmega (so4Label i) (so4Label j) = 1) :
     ∃ k : Fin 6, pauliXor (so4Label i) (so4Label j) = so4Label k := by
   revert hω
   fin_cases i <;> fin_cases j <;> decide
 
-theorem so4B6_lie_mem_span (i j : Fin 6) :
+lemma so4B6_lie_mem_span (i j : Fin 6) :
     ⁅so4B6 i, so4B6 j⁆ ∈ Submodule.span ℂ (Set.range so4B6) := by
   rw [so4B6, so4B6, smul_lie, lie_smul, pauliMat_bracket_closed]
   rcases (show ∀ z : ZMod 2, z = 0 ∨ z = 1 from by decide)
@@ -132,18 +132,18 @@ noncomputable def so4HermBasis : DLAHermBasis so4FullGens where
           exact Submodule.subset_span ⟨i, rfl⟩) hx
 
 /-- The six explicit `so(4)` labels are exactly the two-qubit odd-`#Y` labels. -/
-theorem so4Label_odd (i : Fin 6) : Odd (yCount (so4Label i)) := by
+lemma so4Label_odd (i : Fin 6) : Odd (yCount (so4Label i)) := by
   fin_cases i <;> decide
 
 /-- Every two-qubit odd-`#Y` Pauli label appears in the explicit `so(4)` list. -/
-theorem so4Label_complete_odd {s : Fin 2 → Fin 4} (hs : Odd (yCount s)) :
+lemma so4Label_complete_odd {s : Fin 2 → Fin 4} (hs : Odd (yCount s)) :
     ∃ i : Fin 6, s = so4Label i := by
   revert s
   decide
 
 /-- The family `soHermBasis 2` and the concrete six-element `so(4)` basis have the
 same basis range. -/
-theorem soB_two_range_so4B6 :
+lemma soB_two_range_so4B6 :
     Set.range (soB 2) = Set.range so4B6 := by
   ext A
   constructor
@@ -156,7 +156,7 @@ theorem soB_two_range_so4B6 :
     simp only [soB, so4B6, Equiv.apply_symm_apply]
 
 /-- The concrete six-element `so(4)` Pauli basis spans Mathlib's `so(4, ℂ)`. -/
-theorem so4B6_span_orthogonalSo :
+lemma so4B6_span_orthogonalSo :
     Submodule.span ℂ (Set.range so4B6) =
       (LieAlgebra.Orthogonal.so (Fin (2 ^ 2)) ℂ).toSubmodule := by
   rw [← soB_two_range_so4B6, soB_span_orthogonal_so]
@@ -166,7 +166,7 @@ noncomputable def so4ABB (p : Fin 2 × Fin 3) : Matrix (Fin (2 ^ 2)) (Fin (2 ^ 2
   if p.1 = 0 then so4A.basis.B p.2 else so4B.basis.B p.2
 
 /-- The normalized `A ⊕ B` triangle basis has the same range as `so4B6`. -/
-theorem so4ABB_range_so4B6 :
+lemma so4ABB_range_so4B6 :
     Set.range so4ABB = Set.range so4B6 := by
   ext A
   constructor
@@ -189,12 +189,12 @@ theorem so4ABB_range_so4B6 :
     · exact ⟨(1, 2), by simp [so4ABB, so4B6, so4Label, PauliTriangle.basis, PauliTriangle.triB]⟩
 
 /-- The `A ⊕ B` triangle basis spans Mathlib's `so(4, ℂ)`. -/
-theorem so4AB_span_orthogonalSo :
+lemma so4AB_span_orthogonalSo :
     Submodule.span ℂ (Set.range so4ABB) =
       (LieAlgebra.Orthogonal.so (Fin (2 ^ 2)) ℂ).toSubmodule := by
   rw [so4ABB_range_so4B6, so4B6_span_orthogonalSo]
 
-theorem gTensorG_eq_of_B_range_eq {N : ℕ}
+lemma gTensorG_eq_of_B_range_eq {N : ℕ}
     {gens₁ gens₂ : Set (Matrix (Fin N) (Fin N) ℂ)}
     (b : DLAHermBasis gens₁) (c : DLAHermBasis gens₂)
     (hB : Set.range b.B = Set.range c.B) : gTensorG b = gTensorG c := by
@@ -231,7 +231,7 @@ theorem gTensorG_eq_of_B_range_eq {N : ℕ}
       change b.B i ⊗ₖ b.B j = c.B p.1 ⊗ₖ c.B p.2
       rw [hi, hj]⟩
 
-theorem adCommutantGG_eq_of_B_range_eq {N : ℕ}
+lemma adCommutantGG_eq_of_B_range_eq {N : ℕ}
     {gens₁ gens₂ : Set (Matrix (Fin N) (Fin N) ℂ)}
     (b : DLAHermBasis gens₁) (c : DLAHermBasis gens₂)
     (hB : Set.range b.B = Set.range c.B) : adCommutantGG b = adCommutantGG c := by
@@ -254,7 +254,7 @@ theorem adCommutantGG_eq_of_B_range_eq {N : ℕ}
       simpa only [Set.mem_range] using this
     simpa [hj] using h j
 
-theorem gTensorGInvariant_eq_of_B_range_eq {N : ℕ}
+lemma gTensorGInvariant_eq_of_B_range_eq {N : ℕ}
     {gens₁ gens₂ : Set (Matrix (Fin N) (Fin N) ℂ)}
     (b : DLAHermBasis gens₁) (c : DLAHermBasis gens₂)
     (hB : Set.range b.B = Set.range c.B) :
@@ -263,13 +263,13 @@ theorem gTensorGInvariant_eq_of_B_range_eq {N : ℕ}
     gTensorG_eq_of_B_range_eq b c hB]
 
 /-- The invariant-space carrier for `soHermBasis 2` is the concrete `so(4)` carrier. -/
-theorem soHermBasis_two_gTensorGInvariant_eq_so4 :
+lemma soHermBasis_two_gTensorGInvariant_eq_so4 :
     gTensorGInvariant (soHermBasis 2) = gTensorGInvariant so4HermBasis :=
   gTensorGInvariant_eq_of_B_range_eq (soHermBasis 2) so4HermBasis (by
     change Set.range (soB 2) = Set.range so4B6
     exact soB_two_range_so4B6)
 
-theorem adMatrix_so4_apply (k a i : Fin 6) :
+lemma adMatrix_so4_apply (k a i : Fin 6) :
     adMatrix so4HermBasis k a i
       = rtNinv 2 * rtNinv 2 * rtNinv 2 *
           (pauliPhase (so4Label k) (so4Label i)
@@ -281,12 +281,12 @@ theorem adMatrix_so4_apply (k a i : Fin 6) :
     starRingEnd_apply, rtNinv_conj, pauliMat_hsInner]
   ring
 
-theorem adMatrix_so4_eq_zero {k a i : Fin 6}
+lemma adMatrix_so4_eq_zero {k a i : Fin 6}
     (h : so4Label a ≠ pauliXor (so4Label k) (so4Label i)) :
     adMatrix so4HermBasis k a i = 0 := by
   rw [adMatrix_so4_apply, if_neg h, mul_zero]
 
-theorem adMatrix_so4_ne_zero {k a i : Fin 6}
+lemma adMatrix_so4_ne_zero {k a i : Fin 6}
     (hsupp : so4Label a = pauliXor (so4Label k) (so4Label i))
     (hanti : pauliOmega (so4Label k) (so4Label i) = 1) :
     adMatrix so4HermBasis k a i ≠ 0 := by
@@ -302,7 +302,7 @@ theorem adMatrix_so4_ne_zero {k a i : Fin 6}
 noncomputable def so4Mu6 (k a : Fin 6) : ℂ :=
   (adMatrix so4HermBasis k * adMatrix so4HermBasis k) a a
 
-theorem adMatrix_so4_sq_diagonal (k : Fin 6) :
+lemma adMatrix_so4_sq_diagonal (k : Fin 6) :
     adMatrix so4HermBasis k * adMatrix so4HermBasis k = Matrix.diagonal (so4Mu6 k) := by
   ext a a'
   by_cases ha : a = a'
@@ -320,12 +320,12 @@ theorem adMatrix_so4_sq_diagonal (k : Fin 6) :
       rw [adMatrix_so4_eq_zero h2, mul_zero]
     · rw [adMatrix_so4_eq_zero h1, zero_mul]
 
-theorem adMatrix_so4_eq_zero_of_comm {k a i : Fin 6}
+lemma adMatrix_so4_eq_zero_of_comm {k a i : Fin 6}
     (h : pauliOmega (so4Label k) (so4Label i) = 0) :
     adMatrix so4HermBasis k a i = 0 := by
   rw [adMatrix_so4_apply, pauliPhase_sub_eq_zero h, mul_zero, zero_mul]
 
-theorem so4Mu6_eq_zero_iff (k a : Fin 6) :
+lemma so4Mu6_eq_zero_iff (k a : Fin 6) :
     so4Mu6 k a = 0 ↔ pauliOmega (so4Label k) (so4Label a) = 0 := by
   constructor
   · intro h
@@ -369,13 +369,13 @@ theorem so4Mu6_eq_zero_iff (k a : Fin 6) :
       rw [adMatrix_so4_eq_zero_of_comm hcomm, zero_mul]
     · rw [adMatrix_so4_eq_zero h1, zero_mul]
 
-theorem so4Label_omega_sep {a a' : Fin 6} (ha : a ≠ a') :
+lemma so4Label_omega_sep {a a' : Fin 6} (ha : a ≠ a') :
     ∃ k, pauliOmega (so4Label k) (so4Label a)
         ≠ pauliOmega (so4Label k) (so4Label a') := by
   revert ha
   fin_cases a <;> fin_cases a' <;> decide
 
-theorem so4Mu6_sep {a a' : Fin 6} (ha : a ≠ a') : ∃ k, so4Mu6 k a ≠ so4Mu6 k a' := by
+lemma so4Mu6_sep {a a' : Fin 6} (ha : a ≠ a') : ∃ k, so4Mu6 k a ≠ so4Mu6 k a' := by
   obtain ⟨k, hω⟩ := so4Label_omega_sep ha
   by_cases hka : pauliOmega (so4Label k) (so4Label a) = 0
   · have hka' : pauliOmega (so4Label k) (so4Label a') ≠ 0 := fun h => hω (hka.trans h.symm)
@@ -399,7 +399,7 @@ theorem so4Mu6_sep {a a' : Fin 6} (ha : a ≠ a') : ∃ k, so4Mu6 k a ≠ so4Mu6
     rw [hmu']
     exact hmu
 
-private theorem coeffMatrix_diag_eq_of_so4_ad_ne_zero
+private lemma coeffMatrix_diag_eq_of_so4_ad_ne_zero
     {X : Matrix (Fin (2 ^ 2) × Fin (2 ^ 2)) (Fin (2 ^ 2) × Fin (2 ^ 2)) ℂ}
     (hX : X ∈ gTensorGInvariant so4HermBasis)
     (hoff : ∀ a a' : Fin so4HermBasis.dim, a ≠ a' → coeffMatrix so4HermBasis X a a' = 0)
@@ -425,19 +425,19 @@ private theorem coeffMatrix_diag_eq_of_so4_ad_ne_zero
     ring
   exact (sub_eq_zero.mp ((mul_eq_zero.mp hs).resolve_left hk)).symm
 
-private theorem so4_ad_ne_zero_201 :
+private lemma so4_ad_ne_zero_201 :
     adMatrix so4HermBasis (2 : Fin 6) (0 : Fin 6) (1 : Fin 6) ≠ 0 := by
   exact adMatrix_so4_ne_zero (by decide) (by decide)
 
-private theorem so4_ad_ne_zero_012 :
+private lemma so4_ad_ne_zero_012 :
     adMatrix so4HermBasis (0 : Fin 6) (1 : Fin 6) (2 : Fin 6) ≠ 0 := by
   exact adMatrix_so4_ne_zero (by decide) (by decide)
 
-private theorem so4_ad_ne_zero_534 :
+private lemma so4_ad_ne_zero_534 :
     adMatrix so4HermBasis (5 : Fin 6) (3 : Fin 6) (4 : Fin 6) ≠ 0 := by
   exact adMatrix_so4_ne_zero (by decide) (by decide)
 
-private theorem so4_ad_ne_zero_345 :
+private lemma so4_ad_ne_zero_345 :
     adMatrix so4HermBasis (3 : Fin 6) (4 : Fin 6) (5 : Fin 6) ≠ 0 := by
   exact adMatrix_so4_ne_zero (by decide) (by decide)
 
@@ -458,7 +458,7 @@ noncomputable def so4IdealCasimir :
 
 set_option maxHeartbeats 800000 in
 -- Expanding and normalizing the complete six-by-six coefficient system needs extra heartbeats.
-theorem so4_gTensorGInvariant_le_span_twoCasimir :
+lemma so4_gTensorGInvariant_le_span_twoCasimir :
     gTensorGInvariant so4HermBasis ≤ Submodule.span ℂ (Set.range so4IdealCasimir) := by
   intro X hX
   have hoff : ∀ a a' : Fin so4HermBasis.dim, a ≠ a' → coeffMatrix so4HermBasis X a a' = 0 :=
@@ -552,21 +552,21 @@ theorem so4_gTensorGInvariant_le_span_twoCasimir :
   simp only [smul_add]
   abel_nf
 
-theorem so4ACasimir_eq : so4ACasimir = so4A.basis.casimir := by
+lemma so4ACasimir_eq : so4ACasimir = so4A.basis.casimir := by
   rw [so4ACasimir, DLAHermBasis.casimir]
   change so4B6 0 ⊗ₖ so4B6 0 + so4B6 1 ⊗ₖ so4B6 1 +
       so4B6 2 ⊗ₖ so4B6 2 = ∑ j : Fin 3, so4A.basis.B j ⊗ₖ so4A.basis.B j
   rw [Fin.sum_univ_three]
   rfl
 
-theorem so4BCasimir_eq : so4BCasimir = so4B.basis.casimir := by
+lemma so4BCasimir_eq : so4BCasimir = so4B.basis.casimir := by
   rw [so4BCasimir, DLAHermBasis.casimir]
   change so4B6 3 ⊗ₖ so4B6 3 + so4B6 4 ⊗ₖ so4B6 4 +
       so4B6 5 ⊗ₖ so4B6 5 = ∑ j : Fin 3, so4B.basis.B j ⊗ₖ so4B.basis.B j
   rw [Fin.sum_univ_three]
   rfl
 
-theorem so4ACasimir_mem_gTensorG : so4ACasimir ∈ gTensorG so4HermBasis := by
+lemma so4ACasimir_mem_gTensorG : so4ACasimir ∈ gTensorG so4HermBasis := by
   rw [so4ACasimir, gTensorG]
   change so4B6 0 ⊗ₖ so4B6 0 + so4B6 1 ⊗ₖ so4B6 1 + so4B6 2 ⊗ₖ so4B6 2 ∈
     Submodule.span ℂ (Set.range fun p : Fin 6 × Fin 6 => so4B6 p.1 ⊗ₖ so4B6 p.2)
@@ -575,7 +575,7 @@ theorem so4ACasimir_mem_gTensorG : so4ACasimir ∈ gTensorG so4HermBasis := by
       (Submodule.subset_span ⟨((1 : Fin 6), (1 : Fin 6)), rfl⟩))
     (Submodule.subset_span ⟨((2 : Fin 6), (2 : Fin 6)), rfl⟩)
 
-theorem so4BCasimir_mem_gTensorG : so4BCasimir ∈ gTensorG so4HermBasis := by
+lemma so4BCasimir_mem_gTensorG : so4BCasimir ∈ gTensorG so4HermBasis := by
   rw [so4BCasimir, gTensorG]
   change so4B6 3 ⊗ₖ so4B6 3 + so4B6 4 ⊗ₖ so4B6 4 + so4B6 5 ⊗ₖ so4B6 5 ∈
     Submodule.span ℂ (Set.range fun p : Fin 6 × Fin 6 => so4B6 p.1 ⊗ₖ so4B6 p.2)
@@ -584,7 +584,7 @@ theorem so4BCasimir_mem_gTensorG : so4BCasimir ∈ gTensorG so4HermBasis := by
       (Submodule.subset_span ⟨((4 : Fin 6), (4 : Fin 6)), rfl⟩))
     (Submodule.subset_span ⟨((5 : Fin 6), (5 : Fin 6)), rfl⟩)
 
-theorem so4_cross_lie_zero_basis
+lemma so4_cross_lie_zero_basis
     (i : Fin so4A.basis.dim) (j : Fin so4B.basis.dim) : ⁅so4A.basis.B i, so4B.basis.B j⁆ = 0 := by
   rw [PauliTriangle.basis_B, PauliTriangle.basis_B, PauliTriangle.triB, PauliTriangle.triB,
     smul_lie, lie_smul, pauliMat_bracket_closed]
@@ -593,14 +593,14 @@ theorem so4_cross_lie_zero_basis
   rw [pauliPhase_sub_eq_zero hcomm, zero_smul, smul_zero]
   simp
 
-theorem so4_cross_lie_zero_BA
+lemma so4_cross_lie_zero_BA
     (i : Fin so4A.basis.dim) (j : Fin so4B.basis.dim) : ⁅so4B.basis.B j, so4A.basis.B i⁆ = 0 := by
   have hskew : ⁅so4B.basis.B j, so4A.basis.B i⁆ = -⁅so4A.basis.B i, so4B.basis.B j⁆ := by
     rw [← neg_inj]
     simp [lie_skew (so4A.basis.B i) (so4B.basis.B j)]
   rw [hskew, so4_cross_lie_zero_basis i j, neg_zero]
 
-theorem doubledAd_B_on_so4ACasimir (k : Fin 3) :
+lemma doubledAd_B_on_so4ACasimir (k : Fin 3) :
     doubledAd (so4B.basis.B k) so4ACasimir = 0 := by
   rw [so4ACasimir_eq, DLAHermBasis.casimir]
   rw [map_sum]
@@ -608,7 +608,7 @@ theorem doubledAd_B_on_so4ACasimir (k : Fin 3) :
   rw [doubledAd_kron, so4_cross_lie_zero_BA i k]
   simp
 
-theorem doubledAd_A_on_so4BCasimir (k : Fin 3) :
+lemma doubledAd_A_on_so4BCasimir (k : Fin 3) :
     doubledAd (so4A.basis.B k) so4BCasimir = 0 := by
   rw [so4BCasimir_eq, DLAHermBasis.casimir]
   rw [map_sum]
@@ -616,7 +616,7 @@ theorem doubledAd_A_on_so4BCasimir (k : Fin 3) :
   rw [doubledAd_kron, so4_cross_lie_zero_basis k i]
   simp
 
-theorem so4ACasimir_mem_adCommutant : so4ACasimir ∈ adCommutantGG so4HermBasis := by
+lemma so4ACasimir_mem_adCommutant : so4ACasimir ∈ adCommutantGG so4HermBasis := by
   rw [adCommutantGG, Submodule.mem_iInf]
   intro k
   rw [LinearMap.mem_ker]
@@ -643,7 +643,7 @@ theorem so4ACasimir_mem_adCommutant : so4ACasimir ∈ adCommutantGG so4HermBasis
   · exact doubledAd_B_on_so4ACasimir 1
   · exact doubledAd_B_on_so4ACasimir 2
 
-theorem so4BCasimir_mem_adCommutant : so4BCasimir ∈ adCommutantGG so4HermBasis := by
+lemma so4BCasimir_mem_adCommutant : so4BCasimir ∈ adCommutantGG so4HermBasis := by
   rw [adCommutantGG, Submodule.mem_iInf]
   intro k
   rw [LinearMap.mem_ker]
@@ -670,15 +670,15 @@ theorem so4BCasimir_mem_adCommutant : so4BCasimir ∈ adCommutantGG so4HermBasis
     rw [so4BCasimir_eq]
     exact hk
 
-theorem so4ACasimir_mem_invariant : so4ACasimir ∈ gTensorGInvariant so4HermBasis := by
+lemma so4ACasimir_mem_invariant : so4ACasimir ∈ gTensorGInvariant so4HermBasis := by
   rw [gTensorGInvariant]
   exact Submodule.mem_inf.mpr ⟨so4ACasimir_mem_adCommutant, so4ACasimir_mem_gTensorG⟩
 
-theorem so4BCasimir_mem_invariant : so4BCasimir ∈ gTensorGInvariant so4HermBasis := by
+lemma so4BCasimir_mem_invariant : so4BCasimir ∈ gTensorGInvariant so4HermBasis := by
   rw [gTensorGInvariant]
   exact Submodule.mem_inf.mpr ⟨so4BCasimir_mem_adCommutant, so4BCasimir_mem_gTensorG⟩
 
-theorem span_twoCasimir_le_so4_gTensorGInvariant :
+lemma span_twoCasimir_le_so4_gTensorGInvariant :
     Submodule.span ℂ (Set.range so4IdealCasimir) ≤ gTensorGInvariant so4HermBasis := by
   rw [Submodule.span_le, Set.range_subset_iff]
   intro j
@@ -686,31 +686,31 @@ theorem span_twoCasimir_le_so4_gTensorGInvariant :
   · simpa [so4IdealCasimir] using so4ACasimir_mem_invariant
   · simpa [so4IdealCasimir] using so4BCasimir_mem_invariant
 
-theorem so4_gTensorGInvariant_eq_span_twoCasimir :
+lemma so4_gTensorGInvariant_eq_span_twoCasimir :
     gTensorGInvariant so4HermBasis = Submodule.span ℂ (Set.range so4IdealCasimir) :=
   le_antisymm so4_gTensorGInvariant_le_span_twoCasimir span_twoCasimir_le_so4_gTensorGInvariant
 
-theorem so4ACasimir_hsInner_self : hsInner so4ACasimir so4ACasimir = 3 := by
+lemma so4ACasimir_hsInner_self : hsInner so4ACasimir so4ACasimir = 3 := by
   rw [so4ACasimir_eq, so4A.basis.casimir_hsInner_self, PauliTriangle.basis_dim]
   norm_num
 
-theorem so4BCasimir_hsInner_self : hsInner so4BCasimir so4BCasimir = 3 := by
+lemma so4BCasimir_hsInner_self : hsInner so4BCasimir so4BCasimir = 3 := by
   rw [so4BCasimir_eq, so4B.basis.casimir_hsInner_self, PauliTriangle.basis_dim]
   norm_num
 
-theorem so4ACasimir_hsInner_B : hsInner so4ACasimir so4BCasimir = 0 := by
+lemma so4ACasimir_hsInner_B : hsInner so4ACasimir so4BCasimir = 0 := by
   rw [so4ACasimir_eq, so4BCasimir_eq]
   have h := casimir_cross_aux so4Basis so4_cross_ortho (0 : Fin 2) (1 : Fin 2)
   change hsInner so4A.basis.casimir so4B.basis.casimir = 0
   exact h
 
-theorem so4BCasimir_hsInner_A : hsInner so4BCasimir so4ACasimir = 0 := by
+lemma so4BCasimir_hsInner_A : hsInner so4BCasimir so4ACasimir = 0 := by
   rw [so4ACasimir_eq, so4BCasimir_eq]
   have h := casimir_cross_aux so4Basis so4_cross_ortho (1 : Fin 2) (0 : Fin 2)
   change hsInner so4B.basis.casimir so4A.basis.casimir = 0
   exact h
 
-theorem so4IdealCasimir_linearIndependent : LinearIndependent ℂ so4IdealCasimir := by
+lemma so4IdealCasimir_linearIndependent : LinearIndependent ℂ so4IdealCasimir := by
   rw [Fintype.linearIndependent_iff]
   intro c hc j
   fin_cases j
@@ -732,21 +732,21 @@ theorem so4IdealCasimir_linearIndependent : LinearIndependent ℂ so4IdealCasimi
     exact (mul_eq_zero.mp hinner.symm).resolve_right (by norm_num : (3 : ℂ) ≠ 0)
 
 /-- The span of the two per-ideal `so(4)` Casimirs is two-dimensional. -/
-theorem so4_span_twoCasimir_finrank :
+lemma so4_span_twoCasimir_finrank :
     Module.finrank ℂ (Submodule.span ℂ (Set.range so4IdealCasimir)) = 2 := by
   rw [finrank_span_eq_card so4IdealCasimir_linearIndependent, Fintype.card_fin]
 
 /-- The full doubled-adjoint invariant space for reductive `so(4)` has dimension exactly two. -/
-theorem so4_gTensorGInvariant_finrank :
+lemma so4_gTensorGInvariant_finrank :
     Module.finrank ℂ (gTensorGInvariant so4HermBasis) = 2 := by
   rw [so4_gTensorGInvariant_eq_span_twoCasimir, so4_span_twoCasimir_finrank]
 
 /-- The `m = 2` member of the orthogonal family has a two-dimensional invariant space. -/
-theorem soHermBasis_two_gTensorGInvariant_finrank :
+lemma soHermBasis_two_gTensorGInvariant_finrank :
     Module.finrank ℂ (gTensorGInvariant (soHermBasis 2)) = 2 := by
   rw [soHermBasis_two_gTensorGInvariant_eq_so4, so4_gTensorGInvariant_finrank]
 
-theorem so4HermBasis_casimir_ne_zero : so4HermBasis.casimir ≠ 0 := by
+lemma so4HermBasis_casimir_ne_zero : so4HermBasis.casimir ≠ 0 := by
   intro hzero
   have hinner : hsInner so4HermBasis.casimir so4HermBasis.casimir = (6 : ℂ) := by
     rw [so4HermBasis.casimir_hsInner_self]
@@ -754,7 +754,7 @@ theorem so4HermBasis_casimir_ne_zero : so4HermBasis.casimir ≠ 0 := by
   rw [hzero, hsInner_zero_right] at hinner
   norm_num at hinner
 
-theorem soHermBasis_two_casimir_ne_zero : (soHermBasis 2).casimir ≠ 0 := by
+lemma soHermBasis_two_casimir_ne_zero : (soHermBasis 2).casimir ≠ 0 := by
   intro hzero
   have hinner : hsInner (soHermBasis 2).casimir (soHermBasis 2).casimir = (6 : ℂ) := by
     rw [(soHermBasis 2).casimir_hsInner_self, soHermBasis_dim_closedForm]
@@ -763,7 +763,7 @@ theorem soHermBasis_two_casimir_ne_zero : (soHermBasis 2).casimir ≠ 0 := by
   norm_num at hinner
 
 /-- The full reductive `so(4)` invariant space is not the span of the single split Casimir. -/
-theorem so4_singleCasimir_schur_false :
+lemma so4_singleCasimir_schur_false :
     gTensorGInvariant so4HermBasis ≠ Submodule.span ℂ {so4HermBasis.casimir} := by
   intro h
   have hfin : Module.finrank ℂ (gTensorGInvariant so4HermBasis) =
@@ -776,7 +776,7 @@ theorem so4_singleCasimir_schur_false :
   norm_num at hfin
 
 /-- The `m = 2` orthogonal family member is not single-Casimir Schur. -/
-theorem soHermBasis_two_singleCasimir_schur_false :
+lemma soHermBasis_two_singleCasimir_schur_false :
     gTensorGInvariant (soHermBasis 2) ≠ Submodule.span ℂ {(soHermBasis 2).casimir} := by
   intro h
   have hfin : Module.finrank ℂ (gTensorGInvariant (soHermBasis 2)) =

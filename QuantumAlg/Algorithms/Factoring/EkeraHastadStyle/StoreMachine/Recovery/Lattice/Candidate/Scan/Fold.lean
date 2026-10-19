@@ -21,7 +21,7 @@ open LatticeCandidateSlotFrames
 noncomputable section
 
 /-- The canonical offset fold is the selector projection of the sealed source trace. -/
-theorem canonical_fold_none_eq_recoverShortLogFromPair {N : Nat} (m ell : Nat)
+lemma canonical_fold_none_eq_recoverShortLogFromPair {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     (LatticeCandidateScan.offsets.toList.map
@@ -51,7 +51,7 @@ structure Outcome {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Actual finite scan execution composes the unchanged source checks in their original order. -/
-theorem scanOffsetsInto_correct {N m ell : Nat} {model : ExecutionModel}
+lemma scanOffsetsInto_correct {N m ell : Nat} {model : ExecutionModel}
     [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
@@ -82,7 +82,7 @@ theorem scanOffsetsInto_correct {N m ell : Nat} {model : ExecutionModel}
     exact rest.selected.trans (by rw [List.map_cons, List.foldl_cons, first.selected])
 
 /-- The actual canonical scan realizes the original ordered first-success fold from any latch. -/
-theorem scanInto_correct {N m ell : Nat} {model : ExecutionModel}
+lemma scanInto_correct {N m ell : Nat} {model : ExecutionModel}
     [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
@@ -102,7 +102,7 @@ theorem scanInto_correct {N m ell : Nat} {model : ExecutionModel}
         using present) refs separation frameSeparation store initial
 
 /-- With no earlier accepted value, the actual source fold is exactly the original pair recovery. -/
-theorem Outcome.recoverShortLogFromPair_of_none {N m ell : Nat} {kind : ProblemKind}
+lemma Outcome.recoverShortLogFromPair_of_none {N m ell : Nat} {kind : ProblemKind}
     {ctx : RuntimeCtx kind} (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (refs : LatticeCandidateSlotMachine.Refs ctx

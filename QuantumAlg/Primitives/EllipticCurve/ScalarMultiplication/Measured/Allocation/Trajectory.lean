@@ -24,6 +24,8 @@ namespace MeasuredPlacement.Allocation
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 /-- Original supplied coordinates follow the prescribed mathematical point trajectory. -/
@@ -33,7 +35,7 @@ def inputTrajectory {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   basisTrajectory E points order (initializedReadyBasis p count original)
 
 /-- Original-input trajectory support establishes the independently initialized cascade domain. -/
-theorem initialized_cascadeSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma initialized_cascadeSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (Reference : Register)
     (input : DensityOperator (Register.prod (before p.size count).register Reference))
@@ -55,14 +57,14 @@ theorem initialized_cascadeSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) 
   exact outside
 
 /-- The same complete actual circuit realizes the full target from its original input domain. -/
-theorem circuit_density_of_input_trajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma circuit_density_of_input_trajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (before p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (before p.size count).register Reference).Index,
       ¬inputTrajectory E points order input.1 → original.quantumMarginal.matrix input input = 0) :
-    ((circuit E points order).execute Reference original).quantumMarginal =
+    ((circuit E points order).execute environment Reference original).quantumMarginal =
       resultDensity E points order Reference original.quantumMarginal :=
   circuit_density E points order original
     (initialized_cascadeSupport E points order Reference original.quantumMarginal support)

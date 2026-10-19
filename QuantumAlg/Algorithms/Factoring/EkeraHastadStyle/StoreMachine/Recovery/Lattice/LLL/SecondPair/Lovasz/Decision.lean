@@ -56,7 +56,7 @@ abbrev secondComparisonRefs (refs : SecondLovaszRefs ctx width) :
   passes := refs.passes
 
 /-- Original second-test separation suffices for the common actual comparison. -/
-theorem secondComparison_separation (refs : SecondLovaszRefs ctx width)
+lemma secondComparison_separation (refs : SecondLovaszRefs ctx width)
     (separation : SecondLovaszSeparation refs) :
     ClassicalRoutines.Comparison.Doubled.Separation (secondComparisonRefs refs) := by
   refine ⟨separation.area12AvoidsDoubled, separation.area13AvoidsDoubled,
@@ -75,11 +75,12 @@ def secondLovaszStore (refs : SecondLovaszRefs ctx width) (store : Store ctx) : 
   ClassicalRoutines.Comparison.Doubled.comparedStore (secondComparisonRefs refs) store
 
 /-- Full actual second-test execution preserves service history and reference correlations. -/
-theorem secondLovaszInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma secondLovaszInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondLovaszInto (model := model) refs).execute Reference state =
+    (secondLovaszInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := ClassicalRoutines.Comparison.Doubled.executionStep (model := model)
           (secondComparisonRefs refs) entry.1
@@ -87,7 +88,7 @@ theorem secondLovaszInto_execute {model : ExecutionModel} [BitWord.Selected mode
   ClassicalRoutines.Comparison.Doubled.compareInto_execute _ Reference state
 
 /-- Original area representations and capacity bounds give the actual second-test decision bit. -/
-theorem secondLovaszInto_matches_rawAreas (refs : SecondLovaszRefs ctx width)
+lemma secondLovaszInto_matches_rawAreas (refs : SecondLovaszRefs ctx width)
     (separation : SecondLovaszSeparation refs) (store : Store ctx)
     (area12Value area13Value : Nat)
     (area12Represents : RawSignedRepresents (store.read refs.area12) (area12Value : Int))
@@ -101,7 +102,7 @@ theorem secondLovaszInto_matches_rawAreas (refs : SecondLovaszRefs ctx width)
     area12Represents area13Represents area12Fits twiceArea13Fits
 
 /-- Every caller read outside the two actual output cells survives the second test. -/
-theorem secondLovaszInto_callerFrame (refs : SecondLovaszRefs ctx width) (store : Store ctx)
+lemma secondLovaszInto_callerFrame (refs : SecondLovaszRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (doubled : refs.doubled.key ∉ other.storageKeys)
     (passes : refs.passes.key ∉ other.storageKeys) :
@@ -109,7 +110,7 @@ theorem secondLovaszInto_callerFrame (refs : SecondLovaszRefs ctx width) (store 
   ClassicalRoutines.Comparison.Doubled.compareInto_callerFrame _ store other doubled passes
 
 /-- Both original area readings survive the actual second-test decision. -/
-theorem secondLovaszInto_preservesAreas (refs : SecondLovaszRefs ctx width)
+lemma secondLovaszInto_preservesAreas (refs : SecondLovaszRefs ctx width)
     (separation : SecondLovaszSeparation refs) (store : Store ctx) :
     (secondLovaszStore refs store).read refs.area12 = store.read refs.area12 ∧
       (secondLovaszStore refs store).read refs.area13 = store.read refs.area13 :=
@@ -117,7 +118,7 @@ theorem secondLovaszInto_preservesAreas (refs : SecondLovaszRefs ctx width)
     (secondComparison_separation refs separation) store
 
 /-- The actual second Lovasz trace is the common independent three-operation formula. -/
-theorem secondLovaszInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma secondLovaszInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
     (path : (secondLovaszInto (model := model) refs).Path) :
     (secondLovaszInto (model := model) refs).eventTrace path =
@@ -125,7 +126,7 @@ theorem secondLovaszInto_events {model : ExecutionModel} [BitWord.Selected model
   ClassicalRoutines.Comparison.Doubled.compareInto_events (secondComparisonRefs refs) path
 
 /-- Actual native multiplicities come from that same independent formula. -/
-theorem secondLovaszInto_resourcePool
+lemma secondLovaszInto_resourcePool
     {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (refs : SecondLovaszRefs ctx width)
     (path : (secondLovaszInto (model := model) refs).Path) :
@@ -135,19 +136,20 @@ theorem secondLovaszInto_resourcePool
   ClassicalRoutines.Comparison.Doubled.compareInto_resourcePool (secondComparisonRefs refs) path
 
 /-- The actual second Lovasz test has unit-duration serial depth three. -/
-theorem secondLovaszInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma secondLovaszInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
     (path : (secondLovaszInto (model := model) refs).Path) :
     (secondLovaszInto (model := model) refs).depth (fun _ => 1) path = 3 :=
   ClassicalRoutines.Comparison.Doubled.compareInto_depth (secondComparisonRefs refs) path
 
 /-- The actual second test restores borrowed correlations jointly with external references. -/
-theorem secondLovaszInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma secondLovaszInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : SecondLovaszRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (secondLovaszInto (model := model) refs).BorrowedRestored Reference state
-      ((secondLovaszInto (model := model) refs).execute Reference state) :=
+      ((secondLovaszInto (model := model) refs).execute environment Reference state) :=
   ClassicalRoutines.Comparison.Doubled.compareInto_borrowedRestored
     (secondComparisonRefs refs) Reference state
 

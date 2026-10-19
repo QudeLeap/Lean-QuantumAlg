@@ -20,7 +20,7 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero
 open Gate.Toffoli
 noncomputable section
 
-private theorem sourceWork_native_gate_bound (oracles : OracleModel) (width : Nat) :
+private lemma sourceWork_native_gate_bound (oracles : OracleModel) (width : Nat) :
     nativeGateCount (ZeroProjector.SourceWork.budget oracles width) ≤ 10 * width + 1 := by
   have bound := KnownZero.conjunction_bound width 1 (by decide)
   unfold ZeroProjector.SourceWork.budget

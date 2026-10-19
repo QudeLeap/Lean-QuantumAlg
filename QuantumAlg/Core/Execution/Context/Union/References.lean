@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Store
+import all QuantumAlg.Core.Execution.Context.Union.Basis
 
 /-!
 # Actual classical references in a disjoint context union
@@ -82,5 +83,20 @@ def inputLeft {shape : CShape} (input : CInputRef left shape) :
 def inputRight {shape : CShape} (input : CInputRef right shape) :
     CInputRef (left.disjointUnion right separate) shape :=
   mapInput (storageRight separate) input
+
+noncomputable section
+
+/-- The same writable cell, with only its proved local dimension transported. -/
+def measurementLeft {left right : RuntimeCtx .quantum}
+    (separate : RuntimeCtx.StorageDisjoint left right) (wire : Fin left.systemCount)
+    (output : CWriteRef left (.finite (left.quantumLayout.wire wire).dimension)) :
+    CWriteRef (left.disjointUnion right separate)
+      (.finite ((left.disjointUnion right separate).quantumLayout.wire
+        (leftPosition left right separate wire)).dimension) :=
+  Eq.mp (congrArg
+    (fun dimension : ℕ+ => CWriteRef (left.disjointUnion right separate) (.finite dimension))
+    (contextUnion_left_dimension left right separate wire).symm) (writeLeft separate output)
+
+end
 
 end QuantumAlg.Execution.ContextUnion

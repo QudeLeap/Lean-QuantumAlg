@@ -96,20 +96,17 @@ extension. Full density/reference interpretation uses [dW19, qcnotes.tex:5381,53
 public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
     Problem (.quantum AlgorithmGate.model .empty)
       (inputContext modulus.size) (outputContext modulus.size) .unit where
-  valid := InverseSpecification.valid modulus
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [InverseTarget.requirement modulus modulusPositive]
+  Witness := Unit
+  valid := fun _ _ => InverseSpecification.valid modulus
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [InverseTarget.requirement modulus modulusPositive]
   resources :=
     { events := InverseResources.events modulus
       resident := InverseResources.space modulus.size
       auxiliary := InverseResources.space modulus.size }
-  depth :=
-    { duration := fun _ => 1
-      limit := InverseResources.depthBound modulus.size
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := fun coordinate => nomatch coordinate }
+  quantumTimeLimit := InverseResources.depthBound modulus.size
 
 /-- Execute fixed preparation and the modulus-selected unitary, exposing every live system. -/
 public def algorithm (modulus : Nat) :
@@ -121,40 +118,42 @@ public def algorithm (modulus : Nat) :
 
 /-- The same actual run meets the independent arithmetic, restoration, and resource contract. -/
 public theorem main (modulus : Nat) (modulusPositive : 0 < modulus) :
-    ∃ candidate, Algorithm.Solves candidate (problem modulus modulusPositive) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate
+      (problem modulus modulusPositive) := by
   refine ⟨algorithm modulus, ?_⟩
   constructor
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid _initial requirement present
+  · intro environment _witness Reference input valid _initial requirement present
     have same : requirement = InverseTarget.requirement modulus modulusPositive :=
       List.mem_singleton.mp present
     subst requirement
-    exact InverseState.requirement_holds modulus modulusPositive
+    exact InverseState.requirement_holds (runtimeEnvironment := environment) modulus modulusPositive
       (Output.all (outputContext modulus.size) .unit) input valid
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     change Execution.observeBorrowedAfter (InverseRuntime.code modulus) Reference
-      ((InverseRuntime.code modulus).execute Reference
+      ((InverseRuntime.code modulus).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
       Execution.observeBorrowed Reference input.state
-    refine (InverseState.borrowedRestored modulus
+    refine (InverseState.borrowedRestored (runtimeEnvironment := environment) modulus
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
     refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
       (fun _ => rfl) _ _
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact InverseResources.resourcePool modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact InverseResources.resident modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact InverseResources.auxiliary modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact InverseResources.depth modulus path
 
 end

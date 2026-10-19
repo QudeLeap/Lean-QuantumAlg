@@ -34,7 +34,7 @@ noncomputable section
 variable {n : ℕ}
 
 /-- The register swap exchanges tensor factors. -/
-theorem swapRegisters_apply_tensor (ψ φ : NormalizedVector (Qubits n)) :
+lemma swapRegisters_apply_tensor (ψ φ : NormalizedVector (Qubits n)) :
     (swapRegistersOp n).applyVec
         (HilbertVector.tensor (ψ : HilbertVector (Qubits n)) (φ : HilbertVector (Qubits n))) =
       HilbertVector.tensor (φ : HilbertVector (Qubits n)) (ψ : HilbertVector (Qubits n)) := by
@@ -54,7 +54,7 @@ def swapTest (n : ℕ) : UnitaryOperator (Qubits (1 + (n + n))) :=
   hadamardTest (swapRegistersOp n)
 
 /-- `Re <psi ⊗ phi, SWAP (psi ⊗ phi)> = |<psi|phi>|^2`. -/
-theorem re_inner_swapRegisters (ψ φ : NormalizedVector (Qubits n)) :
+lemma re_inner_swapRegisters (ψ φ : NormalizedVector (Qubits n)) :
     (inner ℂ
       ((ψ.tensor φ : NormalizedVector (Qubits (n + n))) : HilbertVector (Qubits (n + n)))
       ((swapRegistersOp n).applyVec
@@ -73,14 +73,14 @@ theorem re_inner_swapRegisters (ψ φ : NormalizedVector (Qubits n)) :
     Complex.ofReal_re]
 
 /-- **SWAP test, outcome 0** [BCWdW01, main.tex:328]. -/
-theorem swapTest_probQubit0_zero (ψ φ : NormalizedVector (Qubits n)) :
+lemma swapTest_probQubit0_zero (ψ φ : NormalizedVector (Qubits n)) :
     NormalizedVector.probQubit0
         ((swapTest n).apply (ket0.tensor (ψ.tensor φ))) 0
       = (1 + ‖inner ℂ ψ φ‖ ^ 2) / 2 := by
   rw [swapTest, hadamardTest_probQubit0_zero, re_inner_swapRegisters]
 
 /-- **SWAP test, outcome 1** [BCWdW01, main.tex:328]. -/
-theorem swapTest_probQubit0_one (ψ φ : NormalizedVector (Qubits n)) :
+lemma swapTest_probQubit0_one (ψ φ : NormalizedVector (Qubits n)) :
     NormalizedVector.probQubit0
       ((swapTest n).apply (ket0.tensor (ψ.tensor φ))) 1 =
       (1 - ‖inner ℂ ψ φ‖ ^ 2) / 2 := by

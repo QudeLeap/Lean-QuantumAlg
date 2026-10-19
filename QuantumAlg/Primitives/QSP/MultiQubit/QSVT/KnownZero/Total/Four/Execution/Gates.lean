@@ -22,9 +22,9 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total.Four
 open Gate.Toffoli
 noncomputable section
 
-private theorem fourPhase_native_gate_bound {m n : Nat}
-    (U : UnitaryOperator (Qubits (m + n))) (allowControlled : Bool) :
-    nativeGateCount (phaseBudget U allowControlled) ≤ 40 * m + 20 := by
+private lemma fourPhase_native_gate_bound {m n : Nat}
+    (allowControlled : Bool) :
+    nativeGateCount (phaseBudget (m := m) (n := n) allowControlled) ≤ 40 * m + 20 := by
   unfold phaseBudget
   cases n with
   | zero =>
@@ -32,22 +32,22 @@ private theorem fourPhase_native_gate_bound {m n : Nat}
       | zero => simp [nativePhaseBudget, nativeGateCount]
       | succ k =>
           have bound := KnownZero.sourceWork_native_gate_bound
-            (UnitarySource.model U allowControlled true false) k
+           (UnitarySource.model (k + 1 + 0) allowControlled true false) k
           simp only [nativePhaseBudget, nativeGateCount_add, nativeGateCount_nsmul,
             nativeGateCount_singleton_gate, Nat.mul_one]
           omega
   | succ n =>
       have bound := KnownZero.sourceWork_native_gate_bound
-        (UnitarySource.model U allowControlled true false) m
+       (UnitarySource.model (m + (n + 1)) allowControlled true false) m
       simp only [nativePhaseBudget, nativeGateCount_add, nativeGateCount_nsmul,
         nativeGateCount_singleton_gate, Nat.mul_one]
       omega
 
 /-- The complete independent complex-QSVT budget has linear native gate growth. -/
-theorem totalComplexBudget_native_gate_bound {m n : Nat}
-    (U : UnitaryOperator (Qubits (m + n))) (L : Nat) :
-    nativeGateCount (complexBudget U L) ≤ (40 * m + 20) * (L + 1) + 19 := by
-  have phaseBound := fourPhase_native_gate_bound U true
+lemma totalComplexBudget_native_gate_bound {m n : Nat}
+    (L : Nat) :
+    nativeGateCount (complexBudget (m := m) (n := n) L) ≤ (40 * m + 20) * (L + 1) + 19 := by
+  have phaseBound := fourPhase_native_gate_bound (m := m) (n := n) true
   have repeated := Nat.mul_le_mul_left (L + 1) phaseBound
   unfold complexBudget unmatchedBudget budget
   split_ifs <;>

@@ -30,7 +30,8 @@ def finishOp (refs : Refs ctx inputWidth) :=
   ClassicalOp.wordUnary .copy (workWidth inputWidth) ctx
     (writeInput refs.round.root) refs.output
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The final actual caller-output write. -/
 def finishInto (refs : Refs ctx inputWidth) : Circuit model ctx ctx := BitWord.instruction
@@ -41,12 +42,13 @@ def finishStep (refs : Refs ctx inputWidth) (store : Store ctx) :
     Store ctx × (finishInto (model := model) refs).Path := BitWord.instructionStep (execution :=
       model) (finishOp refs) store
 
-private theorem finishInto_execute (refs : Refs ctx inputWidth) (Reference : Register)
+private lemma finishInto_execute (refs : Refs ctx inputWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (finishInto (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (finishInto (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := finishStep (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact BitWord.bitWord_instruction_execute _ state
+  exact BitWord.bitWord_instruction_execute (environment := environment) _ state
 
 /-- The exact finite refinement followed by the actual final output copy. -/
 def refineInto (refs : Refs ctx inputWidth) : Circuit model ctx ctx :=
@@ -59,9 +61,10 @@ def refineStep (refs : Refs ctx inputWidth) (store : Store ctx) :
   let finished := finishStep (model := model) refs refined.1
   (finished.1, (refined.2, finished.2))
 
-private theorem refineInto_execute (refs : Refs ctx inputWidth) (Reference : Register)
+private lemma refineInto_execute (refs : Refs ctx inputWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (refineInto (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (refineInto (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := refineStep (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [refineInto, refineStep, Circuit.execute_seq, roundsInto_execute,
@@ -81,15 +84,16 @@ def step (refs : Refs ctx inputWidth) (store : Store ctx) :
   (refined.1, (initialized.2, refined.2))
 
 /-- The returned caller store is the actual copy after initialization and every refinement. -/
-theorem step_store (refs : Refs ctx inputWidth) (store : Store ctx) :
+lemma step_store (refs : Refs ctx inputWidth) (store : Store ctx) :
     (step (model := model) refs store).1 =
       (roundsStep (model := model) refs inputWidth (initializeStep (model := model) refs
         store).1).1.applyOp (finishOp refs) := rfl
 
 /-- The actual driver retains the full incoming classical history and quantum-reference state. -/
-theorem into_execute (refs : Refs ctx inputWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx inputWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (into (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := step (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, initializeInto_execute,

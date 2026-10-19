@@ -24,10 +24,12 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Accumulate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- The mathematical word represents the inverse of the original unit for every positive modulus. -/
-theorem accumulateCanonical_unit (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateCanonical_unit (modulus : Nat) (modulusPositive : 0 < modulus)
     (input : (ZMod modulus)ˣ) :
     CanonicalInverse.word modulus modulusPositive (input : ZMod modulus).val =
       residueWord modulus modulusPositive (inverseResidue input) := by
@@ -39,7 +41,7 @@ theorem accumulateCanonical_unit (modulus : Nat) (modulusPositive : 0 < modulus)
   rfl
 
 /-- Word addition agrees with the original modular target update, also for modulus one. -/
-theorem accumulateOutput_unit (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateOutput_unit (modulus : Nat) (modulusPositive : 0 < modulus)
     (input : (ZMod modulus)ˣ) (target : ZMod modulus) :
     output modulus modulusPositive (residueWord modulus modulusPositive input).val
         (residueWord modulus modulusPositive target) =
@@ -58,10 +60,10 @@ def dataFrame (modulus : Nat) (modulusPositive : 0 < modulus) (value : Data modu
     residueWord modulus modulusPositive value.target), value.flag)
 
 /-- The original data action is realized with complete EEA restoration and either flag value. -/
-theorem accumulateProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
+lemma accumulateProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
     (value : Data modulus) :
     (UnitaryCircuit.onBinaryPrefix BinaryLabelEncoding.bool.width
-      (program modulus nontrivial)).applyNormalized
+      (program modulus nontrivial)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (BinaryLabelEncoding.prod (frameEncoding modulus.size)
             BinaryLabelEncoding.bool).width).basisEquiv.symm
@@ -74,7 +76,8 @@ theorem accumulateProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
             BinaryLabelEncoding.bool).encode
               (dataFrame modulus (by omega) value.addInverseIntoTarget))) := by
   have actual := UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
-    (frameEncoding modulus.size) BinaryLabelEncoding.bool (program modulus nontrivial)
+    (environment := environment) (frameEncoding modulus.size) BinaryLabelEncoding.bool
+    (program modulus nontrivial)
     _ _ value.flag (accumulateProgram_unit modulus nontrivial value.input value.target)
   rw [accumulateOutput_unit] at actual
   exact actual

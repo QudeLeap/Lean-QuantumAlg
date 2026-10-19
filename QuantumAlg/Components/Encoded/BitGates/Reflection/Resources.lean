@@ -37,40 +37,40 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
-theorem hadamard_unitDepth (target : EncodedBit encoding) :
+lemma hadamard_unitDepth (target : EncodedBit encoding) :
     (target.hadamard physical oracles).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
-theorem pauliZ_unitDepth (target : EncodedBit encoding) :
+lemma pauliZ_unitDepth (target : EncodedBit encoding) :
     (target.pauliZ physical oracles).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
-theorem conjugateHadamard_unitDepth (target : EncodedBit encoding)
+lemma conjugateHadamard_unitDepth (target : EncodedBit encoding)
     (program : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum) :
     (target.conjugateHadamard physical oracles program).evaluatedEventDepth (fun _ => 1) =
       program.evaluatedEventDepth (fun _ => 1) + 2 := by
   simp only [conjugateHadamard, UnitaryCircuit.evaluatedEventDepth_seq, hadamard_unitDepth]
   omega
 
-theorem globalMinus_eventCost (target : EncodedBit encoding) :
+lemma globalMinus_eventCost (target : EncodedBit encoding) :
     (target.globalMinus physical oracles).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := rfl
 
-theorem globalMinus_unitDepth (target : EncodedBit encoding) :
+lemma globalMinus_unitDepth (target : EncodedBit encoding) :
     (target.globalMinus physical oracles).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
-theorem pauliZ_eventCost (target : EncodedBit encoding) :
+lemma pauliZ_eventCost (target : EncodedBit encoding) :
     (target.pauliZ physical oracles).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
       (.gate .singleQubit) := rfl
 
-theorem hadamard_eventCost (target : EncodedBit encoding) :
+lemma hadamard_eventCost (target : EncodedBit encoding) :
     (target.hadamard physical oracles).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, hadamard_eventTrace]
   rfl
 
-theorem conjugateHadamard_eventCost (target : EncodedBit encoding)
+lemma conjugateHadamard_eventCost (target : EncodedBit encoding)
     (program : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum) :
     (target.conjugateHadamard physical oracles program).eventCost =
       2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -80,12 +80,12 @@ theorem conjugateHadamard_eventCost (target : EncodedBit encoding)
 
 namespace GateSpec
 
-theorem program_unitDepth (gate : GateSpec encoding) :
+lemma program_unitDepth (gate : GateSpec encoding) :
     (gate.program physical oracles).evaluatedEventDepth (fun _ => 1) = 1 := by
   rw [UnitaryCircuit.evaluatedEventDepth, program_eventDepth]
   rfl
 
-theorem conjugateProgram_unitDepth (gates : List (GateSpec encoding))
+lemma conjugateProgram_unitDepth (gates : List (GateSpec encoding))
     (program : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum) :
     (conjugateProgram physical oracles gates program).evaluatedEventDepth (fun _ => 1) =
       2 * gates.length + program.evaluatedEventDepth (fun _ => 1) := by
@@ -95,7 +95,7 @@ theorem conjugateProgram_unitDepth (gates : List (GateSpec encoding))
 
 end GateSpec
 
-theorem controlledZ_eventCost (control target : EncodedBit encoding)
+lemma controlledZ_eventCost (control target : EncodedBit encoding)
     (different : control.wire ≠ target.wire) :
     (control.controlledZ physical oracles target different).eventCost =
       2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -104,13 +104,13 @@ theorem controlledZ_eventCost (control target : EncodedBit encoding)
   rw [controlledZ, conjugateHadamard_eventCost, GateSpec.program_eventCost]
   rfl
 
-theorem controlledZ_unitDepth (control target : EncodedBit encoding)
+lemma controlledZ_unitDepth (control target : EncodedBit encoding)
     (different : control.wire ≠ target.wire) :
     (control.controlledZ physical oracles target different).evaluatedEventDepth
       (fun _ => 1) = 3 := by
   rw [controlledZ, conjugateHadamard_unitDepth, GateSpec.program_unitDepth]
 
-theorem doubleControlledZ_eventCost (first second target : EncodedBit encoding)
+lemma doubleControlledZ_eventCost (first second target : EncodedBit encoding)
     (firstSecond : first.wire ≠ second.wire) (firstTarget : first.wire ≠ target.wire)
     (secondTarget : second.wire ≠ target.wire) :
     (first.doubleControlledZ physical oracles second target
@@ -122,7 +122,7 @@ theorem doubleControlledZ_eventCost (first second target : EncodedBit encoding)
   rw [doubleControlledZ, conjugateHadamard_eventCost, GateSpec.program_eventCost]
   rfl
 
-theorem doubleControlledZ_unitDepth (first second target : EncodedBit encoding)
+lemma doubleControlledZ_unitDepth (first second target : EncodedBit encoding)
     (firstSecond : first.wire ≠ second.wire) (firstTarget : first.wire ≠ target.wire)
     (secondTarget : second.wire ≠ target.wire) :
     (first.doubleControlledZ physical oracles second target
@@ -130,7 +130,7 @@ theorem doubleControlledZ_unitDepth (first second target : EncodedBit encoding)
       (fun _ => 1) = 3 := by
   rw [doubleControlledZ, conjugateHadamard_unitDepth, GateSpec.program_unitDepth]
 
-theorem twoWireZeroReflection_eventCost (first second : EncodedBit encoding)
+lemma twoWireZeroReflection_eventCost (first second : EncodedBit encoding)
     (different : first.wire ≠ second.wire) :
     (first.twoWireZeroReflection physical oracles second different).eventCost =
       2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -142,14 +142,14 @@ theorem twoWireZeroReflection_eventCost (first second : EncodedBit encoding)
     pauliZ_eventCost, controlledZ_eventCost, two_nsmul]
   abel
 
-theorem twoWireZeroReflection_unitDepth (first second : EncodedBit encoding)
+lemma twoWireZeroReflection_unitDepth (first second : EncodedBit encoding)
     (different : first.wire ≠ second.wire) :
     (first.twoWireZeroReflection physical oracles second different).evaluatedEventDepth
       (fun _ => 1) = 5 := by
   simp only [twoWireZeroReflection, UnitaryCircuit.evaluatedEventDepth_seq,
     pauliZ_unitDepth, controlledZ_unitDepth]
 
-theorem threeWireZeroReflection_eventCost (first second third : EncodedBit encoding)
+lemma threeWireZeroReflection_eventCost (first second third : EncodedBit encoding)
     (firstSecond : first.wire ≠ second.wire) (firstThird : first.wire ≠ third.wire)
     (secondThird : second.wire ≠ third.wire) :
     (first.threeWireZeroReflection physical oracles second third
@@ -171,7 +171,7 @@ theorem threeWireZeroReflection_eventCost (first second third : EncodedBit encod
   simp only [Multiset.count_add, Multiset.count_nsmul]
   ring
 
-theorem threeWireZeroReflection_unitDepth (first second third : EncodedBit encoding)
+lemma threeWireZeroReflection_unitDepth (first second third : EncodedBit encoding)
     (firstSecond : first.wire ≠ second.wire) (firstThird : first.wire ≠ third.wire)
     (secondThird : second.wire ≠ third.wire) :
     (first.threeWireZeroReflection physical oracles second third
@@ -182,21 +182,21 @@ theorem threeWireZeroReflection_unitDepth (first second third : EncodedBit encod
 
 namespace Word
 
-theorem complementGates_events {width : Nat} (word : Word encoding width) :
+lemma complementGates_events {width : Nat} (word : Word encoding width) :
     word.complementGates.map (GateSpec.event oracles) =
       List.replicate width (.gate .singleQubit) := by
   simp only [complementGates, List.map_ofFn]
   exact List.ofFn_const width
     (Resource.Event.gate .singleQubit : Resource.Event (.quantum AlgorithmGate.model oracles))
 
-theorem complementGates_eventCost {width : Nat} (word : Word encoding width) :
+lemma complementGates_eventCost {width : Nat} (word : Word encoding width) :
     (GateSpec.programList physical oracles word.complementGates).eventCost =
       width • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
   rw [GateSpec.programList_eventCost, complementGates_events, ResourcePool.ofList_replicate]
   rfl
 
-theorem complementGates_reverse_eventCost {width : Nat} (word : Word encoding width) :
+lemma complementGates_reverse_eventCost {width : Nat} (word : Word encoding width) :
     (GateSpec.programList physical oracles word.complementGates.reverse).eventCost =
       width • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
@@ -217,7 +217,7 @@ def gatePool (controls : Nat) : ResourcePool (.quantum AlgorithmGate.model oracl
 
 variable {controls : Nat} (layout : OneDirtyLayout (encoding := encoding) controls)
 
-theorem gates_program_eventCost :
+lemma gates_program_eventCost :
     (GateSpec.programList physical oracles layout.gates).eventCost = gatePool oracles controls := by
   rw [GateSpec.programList_eventCost, gates_events]
   unfold gatePool
@@ -228,19 +228,19 @@ theorem gates_program_eventCost :
     · rw [ResourcePool.ofList_replicate]
       rfl
 
-theorem phaseProgram_eventCost :
+lemma phaseProgram_eventCost :
     (layout.phaseProgram physical oracles).eventCost =
       2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) + gatePool oracles controls := by
   rw [phaseProgram, conjugateHadamard_eventCost, gates_program_eventCost]
 
-theorem phaseProgram_unitDepth :
+lemma phaseProgram_unitDepth :
     (layout.phaseProgram physical oracles).evaluatedEventDepth (fun _ => 1) =
       gateCount controls + 2 := by
   rw [phaseProgram, conjugateHadamard_unitDepth, gates_program_depth]
 
 /-- Complements, both H gates and the one global-minus gate are charged explicitly. -/
-theorem zeroReflectionProgram_eventCost :
+lemma zeroReflectionProgram_eventCost :
     (layout.zeroReflectionProgram physical oracles).eventCost =
       (2 * (controls + 1) + 3) •
         ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -254,7 +254,7 @@ theorem zeroReflectionProgram_eventCost :
   ring
 
 /-- Every literal gate of the reflected one-dirty program lies on its sequential schedule. -/
-theorem zeroReflectionProgram_unitDepth :
+lemma zeroReflectionProgram_unitDepth :
     (layout.zeroReflectionProgram physical oracles).evaluatedEventDepth (fun _ => 1) =
       2 * (controls + 1) + gateCount controls + 3 := by
   simp only [zeroReflectionProgram, negativeZeroPhase, UnitaryCircuit.evaluatedEventDepth_seq,

@@ -82,7 +82,7 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   quadratic : QuadraticRecoveryGuarded.CallerFrameAvoids refs.quadratic other
 
 /-- Optional quadratic projection is precisely the original pair factor result. -/
-theorem recoveryOption_recoverShortLogFromPair {N : Nat}
+lemma recoveryOption_recoverShortLogFromPair {N : Nat}
     (m ell : Nat) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     QuadraticRecoveryGuarded.recoveryOption N
@@ -91,7 +91,8 @@ theorem recoveryOption_recoverShortLogFromPair {N : Nat}
   rw [RSA.recoverFactorFromShortLogPair_eq_run]
   cases RSA.recoverShortLogFromPair m ell generator samples <;> rfl
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Execute the complete pair short-log recovery before optional quadratic factor recovery. -/
@@ -109,23 +110,23 @@ noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     (QuadraticRecoveryGuarded.step refs.quadratic) store
 
 /-- Project the actual final store while keeping the finite candidate scan folded. -/
-theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (step input refs store).1 = (QuadraticRecoveryGuarded.step refs.quadratic
       (LatticePairCandidateRecovery.recoveryStep input refs.pair store).1).1 :=
   Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The actual composition executes its whole record on all histories and external references. -/
-theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into input refs).execute Reference state = state.mapClassical (fun entry =>
+    (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_sequenceStoreRecord _ _ _ _
+  exact Circuit.execute_sequenceStoreRecord (environment := environment) _ _ _ _
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto_execute input refs.pair)
     (QuadraticRecoveryGuarded.into_execute refs.quadratic) Reference state
 
-private theorem scanOffsets_frame {coordinateWidth modulusWidth : Nat}
+private lemma scanOffsets_frame {coordinateWidth modulusWidth : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (store : Store ctx)
@@ -140,7 +141,7 @@ private theorem scanOffsets_frame {coordinateWidth modulusWidth : Nat}
         (LatticeCandidateSlotFrames.candidateSlotInto_callerFrame
           spec offset refs store other avoids)
 
-private theorem scan_frame {coordinateWidth modulusWidth : Nat}
+private lemma scan_frame {coordinateWidth modulusWidth : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -149,7 +150,7 @@ private theorem scan_frame {coordinateWidth modulusWidth : Nat}
   unfold LatticeCandidateScan.scanStep
   exact scanOffsets_frame spec refs _ store other avoids
 
-private theorem pair_frame (input : Input N) (refs : LatticePairCandidateRecovery.Refs ctx N)
+private lemma pair_frame (input : Input N) (refs : LatticePairCandidateRecovery.Refs ctx N)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticePairCandidateRecovery.CallerFrameAvoids refs other) :
     (LatticePairCandidateRecovery.recoveryStep input refs store).1.read other =
@@ -162,7 +163,7 @@ private theorem pair_frame (input : Input N) (refs : LatticePairCandidateRecover
       (LatticePairCandidateRecovery.pairCandidatePrefix_callerFrame input refs store other avoids))
 
 /-- All structural reads outside both complete footprints survive, on every numerical input. -/
-theorem into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other := by
   rw [step_store]
@@ -182,7 +183,7 @@ structure Relation (generator : (ZMod N)ˣ) (refs : Refs ctx N)
   callerFrame : ∀ {shape : CShape} (other : CInputRef ctx shape),
     CallerFrameAvoids refs other → after.read other = before.read other
 
-private theorem guardedInitial_afterPair (input : Input N) (generator : (ZMod N)ˣ)
+private lemma guardedInitial_afterPair (input : Input N) (generator : (ZMod N)ˣ)
     (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     QuadraticRecoveryGuarded.InitialConditions N
@@ -201,7 +202,7 @@ private theorem guardedInitial_afterPair (input : Input N) (generator : (ZMod N)
   exact initial.quadratic.pair
 
 /-- Actual pair recovery and guarded projection compute the first original factor candidate. -/
-theorem into_correct (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
+lemma into_correct (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
     (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     Relation generator refs store (step input refs store).1 := by
@@ -242,20 +243,20 @@ def depthBound (N : Nat) : Nat :=
     (7 * QuadraticPrefix.discriminantWidth (LatticePairCandidateRecovery.Width N) + 38)
 
 /-- The actual chronological event trace executes pair recovery before its guarded projection. -/
-theorem into_events (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_events (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).eventTrace path =
       (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs.pair).eventTrace path.1 ++
         (QuadraticRecoveryGuarded.into refs.quadratic).eventTrace path.2 := rfl
 
 /-- Native multiplicities add both actual component ledgers from the same chronological path. -/
-theorem into_resourcePool (input : Input N) (refs : Refs ctx N)
+lemma into_resourcePool (input : Input N) (refs : Refs ctx N)
     (path : (into input refs).Path) :
     (into input refs).resourcePool path =
       (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs.pair).resourcePool path.1 +
         (QuadraticRecoveryGuarded.into refs.quadratic).resourcePool path.2 :=
   ResourcePool.ofList_append _ _
 
-private theorem guarded_pool_le
+private lemma guarded_pool_le
     (refs : QuadraticRecoveryGuarded.Refs ctx (LatticePairCandidateRecovery.Width N))
     (path : (QuadraticRecoveryGuarded.into refs).Path) :
     (QuadraticRecoveryGuarded.into refs).resourcePool path ≤
@@ -264,7 +265,7 @@ private theorem guarded_pool_le
   exact QuadraticRecoveryGuarded.into_pool_le refs path
 
 omit [BitWord.Selected model] in
-private theorem sequence_pool_le (first second : Circuit model ctx ctx)
+private lemma sequence_pool_le (first second : Circuit model ctx ctx)
     (firstBudget secondBudget : ResourcePool model)
     (firstBound : ∀ path, first.resourcePool path ≤ firstBudget)
     (secondBound : ∀ path, second.resourcePool path ≤ secondBudget)
@@ -275,7 +276,7 @@ private theorem sequence_pool_le (first second : Circuit model ctx ctx)
   exact add_le_add (firstBound path.1) (secondBound path.2)
 
 /-- All native event coordinates satisfy the independent complete component allowances. -/
-theorem into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).resourcePool path ≤ eventEnvelope N := by
   unfold into at path ⊢
   unfold eventEnvelope
@@ -289,14 +290,14 @@ theorem into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input r
       (guarded_pool_le (N := N) refs.quadratic) path
 
 /-- Every actual path includes both component dependency depths within the independent sum. -/
-theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).depth (fun _ => 1) path ≤ depthBound N :=
   Nat.add_le_add
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto_depth_le input refs.pair path.1)
     (QuadraticRecoveryGuarded.into_depth_le refs.quadratic path.2)
 
 /-- Resident space includes every original cell and the reusable native-power scope. -/
-theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤ ctx.residentSpace +
       Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq
@@ -308,7 +309,7 @@ theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into inp
       (le_add_of_nonneg_right zero_le))
 
 /-- Auxiliary space reuses one native-power scope and retains all existing workspace roles. -/
-theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
       Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq
@@ -320,12 +321,12 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into in
       (le_add_of_nonneg_right zero_le))
 
 /-- Both actual component circuits restore the full borrowed-reference joint state. -/
-theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
-      ((into input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((into input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticePairCandidateRecovery.pairCandidateRecoveryInto_borrowedRestored input refs.pair
       Reference state)
     (QuadraticRecoveryGuarded.into_borrowedRestored refs.quadratic Reference _)

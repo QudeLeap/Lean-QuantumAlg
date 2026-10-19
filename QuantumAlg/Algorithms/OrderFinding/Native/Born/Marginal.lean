@@ -27,7 +27,7 @@ open scoped BigOperators
 
 /-- The actual terminal Born probability is the target-register marginal of
 the source joint distribution. -/
-theorem sourceOutcomePMF_eq_sourceMarginal {N x t m r : Nat}
+lemma sourceOutcomePMF_eq_sourceMarginal {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (c : Fin (2 ^ t)) :
     (sourceOutcomePMF A) (phaseOutcome t c) =

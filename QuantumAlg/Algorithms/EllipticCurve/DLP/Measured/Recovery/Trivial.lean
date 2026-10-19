@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.FiniteCyclicDLP.Trivial.Native.Run
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Run
+import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Preparation
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Probability.Fiber
 import all QuantumAlg.Components.Classical.Model.BitWord.Promotion
 
@@ -28,6 +28,9 @@ open Canonical.Probability
 open ScalarMultiplication.MeasuredPlacement.Allocation
 
 noncomputable section
+
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
@@ -50,11 +53,11 @@ def trivialRecoveryRun (problem : KnownOrderProblem E.GroupPoint) :
     (before p.size (2 * orderWidth problem)).canonicalFreshKey_fresh
 
 /-- The actual order-one endpoint certainly returns the unique original secret. -/
-theorem trivialRecoveryRun_probability_one (problem : KnownOrderProblem E.GroupPoint)
+lemma trivialRecoveryRun_probability_one (problem : KnownOrderProblem E.GroupPoint)
     (orderOne : problem.order = 1) (input : SecretInput problem) {Reference : Register}
     (initial : OracleInput ClassicalOracleModel.empty
       (before p.size (2 * orderWidth problem)) Reference) :
-    (trivialRecoveryRun problem).outputDistribution initial
+    (trivialRecoveryRun problem).outputDistribution environment initial
       (.optionSome (CShape.wordOfNat (orderWidth problem) input.secret.val)) = 1 := by
   have secretZero : input.secret.val = 0 := by
     have bounded : input.secret.val < problem.order :=

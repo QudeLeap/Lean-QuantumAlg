@@ -36,9 +36,10 @@ it is unitary and bundled as `timeEvolution H t`.
 Problem statements that assume access to time evolution (phase estimation,
 ground-state preparation and energy estimation through `e^{-iHt}` queries)
 treat it as an oracle in the same way block encodings and supplied unitaries
-are treated: the access declaration fixes the Hamiltonian and permitted query
-forms. Ordinary evolution and explicitly granted controlled evolution have
-separate coordinates. The ordinary query has matrix `timeEvolution H t`.
+are treated: the access declaration fixes the physical signature and permitted
+query forms. The execution environment supplies the Hamiltonian interpretation.
+Ordinary evolution and explicitly granted controlled evolution have separate
+coordinates. Under that interpretation the ordinary query has matrix `timeEvolution H t`.
 Costing a query in elementary gates is a
 separate compilation statement (product formulas live in `QuantumAlg.Analysis`).
 -/
@@ -56,7 +57,7 @@ def timeEvolutionOp {R : Register} (H : HilbertOperator R) (t : ℝ) : HilbertOp
 set_option maxHeartbeats 800000 in
 -- Matrix-exponential unitarity needs extra simplifier/search budget here.
 /-- Time evolution under a Hermitian Hamiltonian is unitary. -/
-theorem timeEvolutionOp_mem_unitaryGroup {R : Register} {H : HilbertOperator R}
+lemma timeEvolutionOp_mem_unitaryGroup {R : Register} {H : HilbertOperator R}
     (hH : H ∈ {A : HilbertOperator R | A.IsHermitian}) (t : ℝ) :
     timeEvolutionOp H t ∈ Matrix.unitaryGroup R.Index ℂ := by
   rw [timeEvolutionOp, Matrix.mem_unitaryGroup_iff]
@@ -82,7 +83,7 @@ def timeEvolution {R : Register} (H : Hamiltonian R) (t : ℝ) : UnitaryOperator
     (timeEvolutionOp_mem_unitaryGroup H.2 t)
 
 @[simp]
-theorem coe_timeEvolution {R : Register} (H : Hamiltonian R) (t : ℝ) :
+lemma coe_timeEvolution {R : Register} (H : Hamiltonian R) (t : ℝ) :
     ((timeEvolution H t : UnitaryOperator R) : HilbertOperator R)
       = timeEvolutionOp (H : HilbertOperator R) t :=
   rfl
@@ -90,11 +91,11 @@ theorem coe_timeEvolution {R : Register} (H : Hamiltonian R) (t : ℝ) :
 /-! ## One-parameter group laws -/
 
 @[simp]
-theorem timeEvolutionOp_zero {R : Register} (H : HilbertOperator R) :
+lemma timeEvolutionOp_zero {R : Register} (H : HilbertOperator R) :
     timeEvolutionOp H 0 = 1 := by
   simp [timeEvolutionOp]
 
-theorem timeEvolutionOp_add {R : Register} (H : HilbertOperator R) (s t : ℝ) :
+lemma timeEvolutionOp_add {R : Register} (H : HilbertOperator R) (s t : ℝ) :
     timeEvolutionOp H (s + t) = timeEvolutionOp H s * timeEvolutionOp H t := by
   unfold timeEvolutionOp
   have hsplit : (-(Complex.I * ((s + t : ℝ) : ℂ))) • H =
@@ -107,26 +108,26 @@ theorem timeEvolutionOp_add {R : Register} (H : HilbertOperator R) (s t : ℝ) :
   exact Matrix.exp_add_of_commute _ _ (((Commute.refl H).smul_left _).smul_right _)
 
 @[simp]
-theorem timeEvolution_zero {R : Register} (H : Hamiltonian R) : timeEvolution H 0 = 1 :=
+lemma timeEvolution_zero {R : Register} (H : Hamiltonian R) : timeEvolution H 0 = 1 :=
   Subtype.ext (timeEvolutionOp_zero (H : HilbertOperator R))
 
-theorem timeEvolution_add {R : Register} (H : Hamiltonian R) (s t : ℝ) :
+lemma timeEvolution_add {R : Register} (H : Hamiltonian R) (s t : ℝ) :
     timeEvolution H (s + t) = timeEvolution H s * timeEvolution H t :=
   Subtype.ext (timeEvolutionOp_add (H : HilbertOperator R) s t)
 
 /-- Evolving backwards in time is the adjoint evolution. -/
-theorem timeEvolution_neg {R : Register} (H : Hamiltonian R) (t : ℝ) :
+lemma timeEvolution_neg {R : Register} (H : Hamiltonian R) (t : ℝ) :
     timeEvolution H (-t) = star (timeEvolution H t) := by
   rw [Unitary.star_eq_inv]
   apply eq_inv_of_mul_eq_one_right
   rw [← timeEvolution_add, add_neg_cancel, timeEvolution_zero]
 
-theorem timeEvolution_star {R : Register} (H : Hamiltonian R) (t : ℝ) :
+lemma timeEvolution_star {R : Register} (H : Hamiltonian R) (t : ℝ) :
     star (timeEvolution H t) = timeEvolution H (-t) :=
   (timeEvolution_neg H t).symm
 
 /-- Evolving for `n` equal periods is the `n`-th power of one period. -/
-theorem timeEvolution_nat_mul {R : Register} (H : Hamiltonian R) (n : ℕ) (t : ℝ) :
+lemma timeEvolution_nat_mul {R : Register} (H : Hamiltonian R) (n : ℕ) (t : ℝ) :
     timeEvolution H (n * t) = timeEvolution H t ^ n := by
   induction n with
   | zero => simp
@@ -178,126 +179,140 @@ public def controlledIndexEquiv (signature : QuantumSignature) :
 
 variable {count : Nat} {layout : QuantumLayout count}
 
-/-- The declaration fixes the Hamiltonian, all real evolution times and its control access. -/
+/-- The declaration fixes the physical signature, all real times and its control access. -/
 @[expose, implicit_reducible]
-public def model (H : Hamiltonian layout.register) (allowControlled : Bool := false) :
+public def model (signature : QuantumSignature) (allowControlled : Bool := false) :
     OracleModel where
   Query := Query allowControlled
   Coordinate := Coordinate
   coordinateDecidableEq := inferInstance
   signature query := match query with
-    | .evolve _ => layout.signature
-    | .controlled _ _ => controlledSignature layout.signature
-  operator query := match query with
-    | .evolve time => timeEvolution H time
-    | .controlled _ time =>
-        UnitaryOperator.reindex (controlledIndexEquiv layout.signature).symm
-          (UnitaryOperator.controlled (Qubits 1) 1 (timeEvolution H time))
+    | .evolve _ => signature
+    | .controlled _ _ => controlledSignature signature
   coordinate query := match query with
     | .evolve _ => .evolution
     | .controlled _ _ => .controlledEvolution
 
+/-- Interpret every granted time query consistently with one mathematical Hamiltonian. -/
+@[expose]
+public def interpretation (signature : QuantumSignature) (H : Hamiltonian signature.register)
+    (allowControlled : Bool := false) : (model signature allowControlled).Interpretation where
+  operator query := match query with
+    | .evolve time => timeEvolution H time
+    | .controlled _ time =>
+        UnitaryOperator.reindex (controlledIndexEquiv signature).symm
+          (UnitaryOperator.controlled (Qubits 1) 1 (timeEvolution H time))
+
 /-- Each ordinary time query emits the declaration's ordinary coordinate. -/
 @[expose]
-public def event (gates : GateModel) (H : Hamiltonian layout.register)
-    (allowControlled : Bool := false) : Resource.Event (.quantum gates (model H allowControlled)) :=
+public def event (gates : GateModel) (signature : QuantumSignature)
+    (allowControlled : Bool := false) :
+    Resource.Event (.quantum gates (model signature allowControlled)) :=
   .oracle .evolution
 
 /-- A controlled event is tied to explicitly enabled controlled access. -/
 @[expose]
-public def controlledEvent (gates : GateModel) (H : Hamiltonian layout.register)
+public def controlledEvent (gates : GateModel) (signature : QuantumSignature)
     {allowControlled : Bool} (_granted : allowControlled = true) :
-    Resource.Event (.quantum gates (model H allowControlled)) :=
+    Resource.Event (.quantum gates (model signature allowControlled)) :=
   .oracle .controlledEvolution
 
 /-- Every placed leaf contains an actual query value from the fixed access declaration. -/
 @[expose]
-public def leafAt (gates : GateModel) (H : Hamiltonian layout.register)
+public def leafAt (gates : GateModel) (signature : QuantumSignature)
     (allowControlled : Bool) (query : Query allowControlled)
-    (placement : ((model H allowControlled).signature query).Placement) :
-    UnitaryLeaf gates (model H allowControlled) placement.layout :=
-  .oracle (OracleModel.Application.onPlacement (model H allowControlled) query placement)
+    (placement : ((model signature allowControlled).signature query).Placement) :
+    UnitaryLeaf gates (model signature allowControlled) placement.layout :=
+  .oracle (OracleModel.Application.onPlacement (model signature allowControlled) query placement)
 
 /-- Ordinary time evolution acts on the complete original physical layout. -/
 @[expose]
-public def program (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
-    (allowControlled : Bool := false) : UnitaryCircuit gates (model H allowControlled) layout :=
+public def program (gates : GateModel) (layout : QuantumLayout count) (time : ℝ)
+    (allowControlled : Bool := false) :
+    UnitaryCircuit gates (model layout.signature allowControlled) layout :=
   UnitaryCircuit.ofLeaf
-    (leafAt gates H allowControlled (.evolve time) layout.signaturePlacement)
+    (leafAt gates layout.signature allowControlled (.evolve time) layout.signaturePlacement)
 
 /-- Controlled evolution requires a grant and an actual additional dimension-two system. -/
 @[expose]
-public def controlledProgram (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
+public def controlledProgram (gates : GateModel) (signature : QuantumSignature) (time : ℝ)
     {allowControlled : Bool} (granted : allowControlled = true)
-    (placement : (controlledSignature layout.signature).Placement) :
-    UnitaryCircuit gates (model H allowControlled) placement.layout :=
+    (placement : (controlledSignature signature).Placement) :
+    UnitaryCircuit gates (model signature allowControlled) placement.layout :=
   UnitaryCircuit.ofLeaf
-    (leafAt gates H allowControlled (.controlled granted time) placement)
+    (leafAt gates signature allowControlled (.controlled granted time) placement)
 
-/-- Placement can only transport the fixed operator of the granted query. -/
-public theorem leafAt_operator (gates : GateModel) (H : Hamiltonian layout.register)
-    (allowControlled : Bool) (query : Query allowControlled)
-    (placement : ((model H allowControlled).signature query).Placement) :
-    (leafAt gates H allowControlled query placement).operator =
+/-- Placement can only transport the environment's interpretation of the granted query. -/
+public lemma leafAt_operator (gates : GateModel) (signature : QuantumSignature)
+    (allowControlled : Bool) (environment : (model signature allowControlled).Interpretation)
+    (query : Query allowControlled)
+    (placement : ((model signature allowControlled).signature query).Placement) :
+    (leafAt gates signature allowControlled query placement).operator environment =
       UnitaryOperator.reindex placement.indexEquiv.symm
-        ((model H allowControlled).operator query) :=
+        (environment.operator query) :=
   OracleModel.Application.queryApplication_onPlacement_operator
-    (model (layout := layout) H allowControlled) query placement
+    (model signature allowControlled) environment query placement
 
 /-- The full query footprint is exactly its dimension-certified physical placement. -/
-public theorem leafAt_systemIdx (gates : GateModel) (H : Hamiltonian layout.register)
+public lemma leafAt_systemIdx (gates : GateModel) (signature : QuantumSignature)
     (allowControlled : Bool) (query : Query allowControlled)
-    (placement : ((model H allowControlled).signature query).Placement) :
-    (leafAt gates H allowControlled query placement).systemIdx = placement.layout.identities := rfl
+    (placement : ((model signature allowControlled).signature query).Placement) :
+    (leafAt gates signature allowControlled query placement).systemIdx =
+      placement.layout.identities := rfl
 
-public theorem program_matrix (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
+public lemma program_matrix (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
     (allowControlled : Bool := false) :
-    (program gates H time allowControlled).matrix = timeEvolution H time := by
-  change (leafAt gates H allowControlled (.evolve time) layout.signaturePlacement).operator = _
+    (program gates layout time allowControlled).matrix
+      (interpretation layout.signature H allowControlled) = timeEvolution H time := by
+  change (leafAt gates layout.signature allowControlled (.evolve time)
+    layout.signaturePlacement).operator (interpretation layout.signature H allowControlled) = _
   rw [leafAt_operator]
   apply Subtype.ext
   funext row column
   rfl
 
-public theorem program_eventTrace (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
+public lemma program_eventTrace (gates : GateModel) (layout : QuantumLayout count) (time : ℝ)
     (allowControlled : Bool := false) :
-    (program gates H time allowControlled).eventTrace = [event gates H allowControlled] := by
+    (program gates layout time allowControlled).eventTrace =
+      [event gates layout.signature allowControlled] := by
   rfl
 
-public theorem program_eventCost (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
+public lemma program_eventCost (gates : GateModel) (layout : QuantumLayout count) (time : ℝ)
     (allowControlled : Bool := false) :
-    (program gates H time allowControlled).eventCost =
-      ResourcePool.singleton (event gates H allowControlled) := by
+    (program gates layout time allowControlled).eventCost =
+      ResourcePool.singleton (event gates layout.signature allowControlled) := by
   rfl
 
-public theorem program_event_count (gates : GateModel) (H : Hamiltonian layout.register) (time : ℝ)
+public lemma program_event_count (gates : GateModel) (layout : QuantumLayout count) (time : ℝ)
     (allowControlled : Bool := false) :
-    ResourcePool.count (event gates H allowControlled)
-      (program gates H time allowControlled).eventCost = 1 := by
-  rw [program_eventCost gates H time allowControlled, ResourcePool.count_singleton_self]
+    ResourcePool.count (event gates layout.signature allowControlled)
+      (program gates layout time allowControlled).eventCost = 1 := by
+  rw [program_eventCost gates layout time allowControlled, ResourcePool.count_singleton_self]
 
 /-- The controlled query retains the complete controlled operator, including phase. -/
-public theorem controlledProgram_matrix (gates : GateModel) (H : Hamiltonian layout.register)
+public lemma controlledProgram_matrix (gates : GateModel) (H : Hamiltonian layout.register)
     (time : ℝ) {allowControlled : Bool} (granted : allowControlled = true)
     (placement : (controlledSignature layout.signature).Placement) :
-    (controlledProgram gates H time granted placement).matrix =
+    (controlledProgram gates layout.signature time granted placement).matrix
+      (interpretation layout.signature H allowControlled) =
       UnitaryOperator.reindex placement.indexEquiv.symm
         (UnitaryOperator.reindex (controlledIndexEquiv layout.signature).symm
           (UnitaryOperator.controlled (Qubits 1) 1 (timeEvolution H time))) :=
-  leafAt_operator gates H allowControlled (.controlled granted time) placement
+  leafAt_operator gates layout.signature allowControlled
+    (interpretation layout.signature H allowControlled) (.controlled granted time) placement
 
 /-- The additional control changes the granted query form, not its one-query multiplicity. -/
-public theorem controlledProgram_eventTrace (gates : GateModel) (H : Hamiltonian layout.register)
+public lemma controlledProgram_eventTrace (gates : GateModel) (signature : QuantumSignature)
     (time : ℝ) {allowControlled : Bool} (granted : allowControlled = true)
-    (placement : (controlledSignature layout.signature).Placement) :
-    (controlledProgram gates H time granted placement).eventTrace =
-      [controlledEvent gates H granted] := by
+    (placement : (controlledSignature signature).Placement) :
+    (controlledProgram gates signature time granted placement).eventTrace =
+      [controlledEvent gates signature granted] := by
   rfl
 
 /-- Ordinary-only access has no query instance with a controlled coordinate. -/
-public theorem ordinary_query_not_controlled (H : Hamiltonian layout.register)
-    (query : (model H false).Query) :
-    (model H false).coordinate query ≠ Coordinate.controlledEvolution := by
+public lemma ordinary_query_not_controlled (signature : QuantumSignature)
+    (query : (model signature false).Query) :
+    (model signature false).coordinate query ≠ Coordinate.controlledEvolution := by
   cases query with
   | evolve _ => exact Coordinate.noConfusion
   | controlled granted _ => cases granted

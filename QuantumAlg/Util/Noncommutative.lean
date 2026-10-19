@@ -23,7 +23,7 @@ Ring identities for differences of powers and first-order conjugation remainders
 namespace QuantumAlg
 
 /-- Noncommutative telescoping identity for powers. -/
-theorem noncomm_power_diff {S : Type} [Ring S] (A B : S) (r : ℕ) :
+lemma noncomm_power_diff {S : Type} [Ring S] (A B : S) (r : ℕ) :
     A ^ r - B ^ r =
       ∑ k ∈ Finset.range r, A ^ (r - 1 - k) * (A - B) * B ^ k := by
   induction r with
@@ -57,7 +57,7 @@ theorem noncomm_power_diff {S : Type} [Ring S] (A B : S) (r : ℕ) :
 
 /-- A noncommutative algebra identity isolating the second-order remainder in
 conjugation-type products. -/
-theorem noncomm_conj_first_order_remainder_decompose {S : Type} [Ring S]
+lemma noncomm_conj_first_order_remainder_decompose {S : Type} [Ring S]
     (U V A X : S) :
     U * X * V - (X + (A * X - X * A)) =
       (U - 1 - A) * (X * V) + (1 + A) * (X * (V - 1 + A)) -

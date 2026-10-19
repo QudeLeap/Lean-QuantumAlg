@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width count : Nat}
 
 /-- The real decoder returns the exact source proposal carried by the stored random outcome. -/
-theorem proposalDecoded_read_source
+lemma proposalDecoded_read_source
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
     (scratch : ScratchRefs ctx width) (store : Store ctx)
     (value : Fin (2 ^ (count * width)))

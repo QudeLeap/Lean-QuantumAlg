@@ -29,22 +29,25 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- Every actual supported sample record reads the original canonical borrowed base. -/
-theorem supported_base_read {N x r t width : Nat}
+lemma supported_base_read {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r) (A : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model A).classicalOracles (pre width) Reference)
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference)
     (valid : HasCanonicalBase hinput A input.caller.localState)
-    (record : (run A).Record)
-    (supported : record ∈ ((run A).executionDistribution input).support) :
+    (record : (run t width).Record)
+    (supported : record ∈ ((run t width).executionDistribution (Sampling.Native.environment A)
+      input).support) :
     record.1.read (baseRef t width) = encodedBase hinput A := by
   have positive := (ExecutionState.mem_support_toPMF_iff
-    ((run A).execute Reference input.state) ((run A).execute_normalized input) record).mp supported
+    ((run t width).execute (Sampling.Native.environment A) Reference input.state) ((run t
+      width).execute_normalized (Sampling.Native.environment A) input) record).mp supported
   let initial := input.state.mapClassical
     (fun value => (value.1, (value.2, value.1)))
   obtain ⟨original, originalPositive, same⟩ :=
-    Circuit.borrowedRestored_supported_initial (code A) Reference initial
-      ((run A).execute Reference input.state) (borrowedRestored A initial) record positive
+    Circuit.borrowedRestored_supported_initial (code t width) Reference initial
+      ((run t width).execute (Sampling.Native.environment A) Reference input.state)
+        (borrowedRestored t width (Sampling.Native.environment A) initial) record positive
   obtain ⟨sourceEntry, sourceRecord, sourcePositive⟩ :=
     (ExecutionState.mapClassical_block_mass_pos_iff input.state
       (fun value => (value.1, (value.2, value.1))) original).mp originalPositive
@@ -56,7 +59,7 @@ theorem supported_base_read {N x r t width : Nat}
       sourceEntry.1).2 ⟨sourceEntry, rfl, sourcePositive⟩
   calc
     record.1.read (baseRef t width) = original.1.read (baseSourceRef width) :=
-      base_read_of_borrowed_eq A record.1 original.1 same.symm
+      base_read_of_borrowed_eq t width record.1 original.1 same.symm
     _ = sourceEntry.1.read (baseSourceRef width) :=
       congrArg (fun store => store.read (baseSourceRef width)) originalStore
     _ = encodedBase hinput A :=

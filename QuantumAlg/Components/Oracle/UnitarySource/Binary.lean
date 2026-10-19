@@ -26,23 +26,24 @@ namespace QuantumAlg.UnitarySource.Binary
 
 noncomputable section
 
-variable (gates : GateModel) {width : Nat} (U : UnitaryOperator (Qubits width))
+variable (gates : GateModel) (width : Nat)
   (allowControlled : Bool)
 
 /-- Execute exactly the ordinary or inverse query on the complete source word. -/
 def circuit (inverse : Bool) :
-    UnitaryCircuit gates (model U allowControlled true false)
+    UnitaryCircuit gates (model width allowControlled true false)
       (QuantumSignature.qubits width).canonicalPlacement.layout :=
   if inverse then
-    .query (OracleModel.Application.onPlacement (model U allowControlled true false)
+    .query (OracleModel.Application.onPlacement (model width allowControlled true false)
       (.inverse rfl) (QuantumSignature.qubits width).canonicalPlacement)
   else
-    .query (OracleModel.Application.onPlacement (model U allowControlled true false)
+    .query (OracleModel.Application.onPlacement (model width allowControlled true false)
       .ordinary (QuantumSignature.qubits width).canonicalPlacement)
 
 /-- The complete operator is the independently declared ordinary or inverse source. -/
-theorem circuit_matrix (inverse : Bool) :
-    (circuit gates U allowControlled inverse).binaryMatrix =
+lemma circuit_matrix (U : UnitaryOperator (Qubits width)) (inverse : Bool) :
+    (circuit gates width allowControlled inverse).binaryMatrix (interpretation U
+      allowControlled true false) =
       if inverse then U⁻¹ else U := by
   cases inverse <;>
     simp only [circuit, Bool.false_eq_true, ↓reduceIte, UnitaryCircuit.binaryMatrix,
@@ -57,15 +58,15 @@ theorem circuit_matrix (inverse : Bool) :
       (QuantumSignature.qubitsIndexEquiv width).symm _
 
 /-- The same actual query selects the ordinary or inverse resource coordinate. -/
-theorem circuit_events (inverse : Bool) :
-    (circuit gates U allowControlled inverse).eventCost =
-      ResourcePool.singleton (model := .quantum gates (model U allowControlled true false))
+lemma circuit_events (inverse : Bool) :
+    (circuit gates width allowControlled inverse).eventCost =
+      ResourcePool.singleton (model := .quantum gates (model width allowControlled true false))
         (.oracle (if inverse then .inverse else .ordinary)) := by
   cases inverse <;> rfl
 
 /-- One source query occupies one abstract dependency step. -/
-theorem circuit_depth (inverse : Bool) :
-    (circuit gates U allowControlled inverse).evaluatedEventDepth (fun _ => 1) = 1 := by
+lemma circuit_depth (inverse : Bool) :
+    (circuit gates width allowControlled inverse).evaluatedEventDepth (fun _ => 1) = 1 := by
   cases inverse <;> rfl
 
 end

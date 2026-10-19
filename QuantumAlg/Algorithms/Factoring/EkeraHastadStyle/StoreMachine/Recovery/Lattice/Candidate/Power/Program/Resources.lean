@@ -22,7 +22,8 @@ open ClassicalRoutines.Modular.NativePower
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width exponentWidth : Nat}
 
 /-- Independent shared native-power allowance followed by the original equality test. -/
@@ -33,7 +34,7 @@ def candidatePowerEventEnvelope (model : ExecutionModel) [BitWord.Selected model
       (BitWord.selectedCoordinate (execution := model) (.wordBinary .equal width)))
 
 /-- The original target equality follows precisely the actual shared power path. -/
-theorem candidatePowerInto_events (spec : ModulusSpec width)
+lemma candidatePowerInto_events (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).eventTrace path =
       (into spec refs.generator refs.exponent refs.power).eventTrace path.1 ++
@@ -44,7 +45,7 @@ theorem candidatePowerInto_events (spec : ModulusSpec width)
   rfl
 
 /-- The actual native pool contains the selected power instructions and one actual equality. -/
-theorem candidatePowerInto_resourcePool (spec : ModulusSpec width)
+lemma candidatePowerInto_resourcePool (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).resourcePool path =
       (into spec refs.generator refs.exponent refs.power).resourcePool path.1 +
@@ -56,7 +57,7 @@ theorem candidatePowerInto_resourcePool (spec : ModulusSpec width)
   rfl
 
 /-- Actual native multiplicities fit the independent complete powering and comparison budget. -/
-theorem candidatePowerInto_pool_le (spec : ModulusSpec width)
+lemma candidatePowerInto_pool_le (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).resourcePool path ≤
       candidatePowerEventEnvelope model width exponentWidth := by
@@ -65,7 +66,7 @@ theorem candidatePowerInto_pool_le (spec : ModulusSpec width)
     le_rfl
 
 /-- The actual dependency depth counts every initialization, selected multiply and final test. -/
-theorem candidatePowerInto_depth_le (spec : ModulusSpec width)
+lemma candidatePowerInto_depth_le (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (duration : Resource.Event model → Nat)
     (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).depth duration path ≤
@@ -79,7 +80,7 @@ theorem candidatePowerInto_depth_le (spec : ModulusSpec width)
     (nativePower_into_depth_le spec refs.generator refs.exponent refs.power duration path.1) _
 
 /-- Unit native durations meet the original source width's independent complete step bound. -/
-theorem candidatePowerInto_unitDepth_le (spec : ModulusSpec width)
+lemma candidatePowerInto_unitDepth_le (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).depth (fun _ => 1) path ≤
       2 * width + 6 + 6 * exponentWidth := by
@@ -91,18 +92,18 @@ theorem candidatePowerInto_unitDepth_le (spec : ModulusSpec width)
   omega
 
 /-- Actual power scopes, selected arithmetic and equality restore all borrowed correlations. -/
-theorem candidatePowerInto_borrowedRestored (spec : ModulusSpec width)
+lemma candidatePowerInto_borrowedRestored (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePowerInto spec refs).BorrowedRestored Reference state
-      ((candidatePowerInto spec refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((candidatePowerInto spec refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (nativePower_into_borrowedRestored spec refs.generator refs.exponent refs.power Reference state)
-    (Circuit.borrowedRestored_classical _ _)
+    (Circuit.borrowedRestored_classical (environment := environment) _ _)
 
 /-- The actual final equality retains the original supplied resident context. -/
-theorem equality_resident_le (refs : Refs ctx width exponentWidth)
+lemma equality_resident_le (refs : Refs ctx width exponentWidth)
     (path : (BitWord.instruction (execution := model) (equalityOp refs)).Path) :
     (BitWord.instruction (execution := model) (equalityOp refs)).peakResidentSpace path ≤
       ctx.residentSpace := by
@@ -112,7 +113,7 @@ theorem equality_resident_le (refs : Refs ctx width exponentWidth)
   rw [List.mem_singleton.mp present]
 
 /-- The actual final equality retains the original supplied auxiliary roles. -/
-theorem equality_auxiliary_le (refs : Refs ctx width exponentWidth)
+lemma equality_auxiliary_le (refs : Refs ctx width exponentWidth)
     (path : (BitWord.instruction (execution := model) (equalityOp refs)).Path) :
     (BitWord.instruction (execution := model) (equalityOp refs)).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace := by
@@ -122,7 +123,7 @@ theorem equality_auxiliary_le (refs : Refs ctx width exponentWidth)
   rw [List.mem_singleton.mp present]
 
 /-- Resident peak counts all original caller storage and the real lexical power scratch. -/
-theorem candidatePowerInto_resident_le (spec : ModulusSpec width)
+lemma candidatePowerInto_resident_le (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).peakResidentSpace path ≤
       ctx.residentSpace + powerSpace model.kind width := by
@@ -133,7 +134,7 @@ theorem candidatePowerInto_resident_le (spec : ModulusSpec width)
   · exact (equality_resident_le refs path.2).trans (le_add_of_nonneg_right zero_le)
 
 /-- Every actual temporary power bit remains charged as auxiliary at its simultaneous peak. -/
-theorem candidatePowerInto_auxiliary_le (spec : ModulusSpec width)
+lemma candidatePowerInto_auxiliary_le (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (path : (candidatePowerInto spec refs).Path) :
     (candidatePowerInto spec refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + powerSpace model.kind width := by

@@ -61,7 +61,7 @@ def natOfBitsTrace : {n : Nat} → (bits : Fin n → Bool) → NatOfBitsTrace bi
           simp [shifted, digit, Nat.shiftLeft_eq, Nat.mul_comm])
 
 /-- The reverse accumulator has exactly two entries per input bit. -/
-private theorem natOfBitsTrace_arithmeticRev_length {n : Nat}
+private lemma natOfBitsTrace_arithmeticRev_length {n : Nat}
     (bits : Fin n → Bool) :
     (natOfBitsTrace bits).arithmeticRev.length = 2 * n := by
   induction n with
@@ -72,7 +72,7 @@ private theorem natOfBitsTrace_arithmeticRev_length {n : Nat}
       omega
 
 /-- The exact event list contains one shift and one addition per input bit. -/
-theorem natOfBitsTrace_arithmetic_length {n : Nat}
+lemma natOfBitsTrace_arithmetic_length {n : Nat}
     (bits : Fin n → Bool) :
     (natOfBitsTrace bits).arithmetic.length = 2 * n := by
   simpa [NatOfBitsTrace.arithmetic] using
@@ -80,7 +80,7 @@ theorem natOfBitsTrace_arithmetic_length {n : Nat}
 
 /-- One successor execution appends its shift and addition after all more
 significant bits, exactly matching chronological evaluation order. -/
-theorem natOfBitsTrace_arithmetic_succ {n : Nat}
+lemma natOfBitsTrace_arithmetic_succ {n : Nat}
     (bits : Fin (n + 1) → Bool) :
     (natOfBitsTrace bits).arithmetic =
       let tail := natOfBitsTrace (bits ∘ Fin.succ)
@@ -92,7 +92,7 @@ theorem natOfBitsTrace_arithmetic_succ {n : Nat}
 
 /-- The successor charge is exactly the preceding trace charge followed by
 the shift and addition performed for the current bit. -/
-theorem natOfBitsTrace_schoolbookCharge_succ {n : Nat}
+lemma natOfBitsTrace_schoolbookCharge_succ {n : Nat}
     (bits : Fin (n + 1) → Bool) :
     (natOfBitsTrace bits).schoolbookCharge =
       let tail := natOfBitsTrace (bits ∘ Fin.succ)
@@ -107,7 +107,7 @@ theorem natOfBitsTrace_schoolbookCharge_succ {n : Nat}
 
 /-- Every operand used by the recursive decoder fits in the public input bit
 width. -/
-theorem natOfBitsTrace_maxOperandWidth_le {n : Nat}
+lemma natOfBitsTrace_maxOperandWidth_le {n : Nat}
     (bits : Fin n → Bool) :
     arithmeticEventListMaxOperandWidth
         (natOfBitsTrace bits).arithmetic ≤ n := by
@@ -153,7 +153,7 @@ theorem natOfBitsTrace_maxOperandWidth_le {n : Nat}
 
 /-- Exact binary decoding has cubic schoolbook arithmetic charge in the input
 length. -/
-theorem natOfBitsTrace_schoolbookCharge_cubic {n : Nat}
+lemma natOfBitsTrace_schoolbookCharge_cubic {n : Nat}
     (bits : Fin n → Bool) :
     (natOfBitsTrace bits).schoolbookCharge ≤ 8 * (n + 1) ^ 3 := by
   have hwidth := natOfBitsTrace_maxOperandWidth_le bits

@@ -28,7 +28,7 @@ end QuantumAlg.Resource.Event
 namespace QuantumAlg.ResourcePool
 
 /-- A point weight that singles out one coordinate equals its exact ledger multiplicity. -/
-public theorem weightedCount_eq_count_of_indicator {model : ExecutionModel}
+public lemma weightedCount_eq_count_of_indicator {model : ExecutionModel}
     (weight : Resource.Event model → Nat) (target : Resource.Event model)
     (indicator : ∀ event, weight event = if event = target then 1 else 0)
     (pool : ResourcePool model) :

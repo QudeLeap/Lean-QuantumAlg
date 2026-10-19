@@ -29,7 +29,19 @@ noncomputable section
 universe u
 
 variable {G : Type u} [Group G] [Fintype G]
+variable {oracles : OracleModel}
 variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
+
+/-- Classical recovery uses the same ambient group service with any surrounding quantum grant. -/
+public abbrev recoveryModel (_P : KnownOrderProblem G) (oracles : OracleModel) :
+    ExecutionModel :=
+  .quantum AlgorithmGate.model oracles BitWord.model (ClassicalFiniteGroupOracle.model G)
+
+/-- The fixed finite-group service with an arbitrary surrounding quantum interpretation. -/
+@[expose] public def recoveryEnvironment (P : KnownOrderProblem G)
+    (quantum : oracles.Interpretation) : (recoveryModel P oracles).Environment where
+  quantum := quantum
+  classical := ClassicalFiniteGroupOracle.interpretation G
 
 /-- The one-bit query port reused for acknowledgements and the final result. -/
 @[expose, implicit_reducible] public def serviceInput
@@ -38,7 +50,7 @@ variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 
 /-- Explicitly reset the hidden accumulator to the group identity. -/
 @[expose, implicit_reducible] public def resetQuery (result : CWriteRef ctx .bit) :
-    Circuit (OrderExecution.model P) ctx ctx :=
+    Circuit (recoveryModel P oracles) ctx ctx :=
   .classicalQuery
     { query := .reset
       input := serviceInput result
@@ -46,7 +58,7 @@ variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 
 /-- One declared group operation squares the hidden accumulator. -/
 @[expose, implicit_reducible] public def squareQuery (result : CWriteRef ctx .bit) :
-    Circuit (OrderExecution.model P) ctx ctx :=
+    Circuit (recoveryModel P oracles) ctx ctx :=
   .classicalQuery
     { query := .square
       input := serviceInput result
@@ -54,7 +66,7 @@ variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 
 /-- One declaration-owned generator multiplication updates the hidden accumulator. -/
 @[expose, implicit_reducible] public def multiplyGeneratorQuery (result : CWriteRef ctx .bit) :
-    Circuit (OrderExecution.model P) ctx ctx :=
+    Circuit (recoveryModel P oracles) ctx ctx :=
   .classicalQuery
     { query := ClassicalFiniteGroupOracle.multiplyRightQuery G P.generator
       input := serviceInput result
@@ -63,27 +75,28 @@ variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 /-- One stored candidate bit either performs the granted multiplication or
 leaves the accumulator unchanged. -/
 @[expose, implicit_reducible] public def multiplyChoice (result : CWriteRef ctx .bit)
-    (value : CShape.Value .bit) : Circuit (OrderExecution.model P) ctx ctx :=
+    (value : CShape.Value .bit) : Circuit (recoveryModel P oracles) ctx ctx :=
   match value with
-  | .bit false => .id (model := OrderExecution.model P) ctx
-  | .bit true => multiplyGeneratorQuery P result
+  | .bit false => .id (model := recoveryModel P oracles) ctx
+  | .bit true => multiplyGeneratorQuery (oracles := oracles) P result
 
 /-- One big-endian exponentiation step squares before the selected multiply. -/
 @[expose, implicit_reducible] public def powerStep
     (bit : CInputRef ctx .bit) (result : CWriteRef ctx .bit) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  .seq (squareQuery P result) (.branch bit (multiplyChoice P result))
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  .seq (squareQuery (oracles := oracles) P result) (.branch bit (multiplyChoice (oracles :=
+    oracles) P result))
 
 /-- Scan every actual candidate bit from most significant to least significant. -/
 @[expose, implicit_reducible] public def powerScan {width : Nat}
     (candidate : CInputRef ctx (.unsignedWord width))
-    (result : CWriteRef ctx .bit) : Circuit (OrderExecution.model P) ctx ctx :=
+    (result : CWriteRef ctx .bit) : Circuit (recoveryModel P oracles) ctx ctx :=
   Circuit.forRange width fun index =>
-    powerStep P (.wordBitGet candidate index) result
+    powerStep (oracles := oracles) P (.wordBitGet candidate index) result
 
 /-- Compare the hidden accumulator with the problem target. -/
 @[expose, implicit_reducible] public def targetEqualityQuery (result : CWriteRef ctx .bit) :
-    Circuit (OrderExecution.model P) ctx ctx :=
+    Circuit (recoveryModel P oracles) ctx ctx :=
   .classicalQuery
     { query := ClassicalFiniteGroupOracle.equalsQuery G P.target
       input := serviceInput result
@@ -92,9 +105,10 @@ leaves the accumulator unchanged. -/
 /-- Explicit reset, complete power scan and target comparison. -/
 @[expose, implicit_reducible] public def powerCheck {width : Nat}
     (candidate : CInputRef ctx (.unsignedWord width))
-    (result : CWriteRef ctx .bit) : Circuit (OrderExecution.model P) ctx ctx :=
-  .seq (resetQuery P result)
-    (.seq (powerScan P candidate result) (targetEqualityQuery P result))
+    (result : CWriteRef ctx .bit) : Circuit (recoveryModel P oracles) ctx ctx :=
+  .seq (resetQuery (oracles := oracles) P result)
+    (.seq (powerScan (oracles := oracles) P candidate result) (targetEqualityQuery (oracles :=
+      oracles) P result))
 
 end
 

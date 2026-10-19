@@ -26,7 +26,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- Validation preserves the four actual source cursor coordinates. -/
-theorem nativeScan_validation_cursor {width : Nat}
+lemma nativeScan_validation_cursor {width : Nat}
     (spec : ModulusSpec modulusWidth) (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (separated : cells.Separated) (store : Store ctx)
     (cursor : ClassicalAlgorithms.OrderRecovery.EuclideanContinuantCursor)
@@ -74,7 +74,7 @@ theorem nativeScan_validation_cursor {width : Nat}
         (List.mem_singleton.mp present)) store)).trans reads.previous
 
 /-- The already materialized candidate survives the actual modular validation unchanged. -/
-theorem nativeScan_validation_candidate {width : Nat}
+lemma nativeScan_validation_candidate {width : Nat}
     (spec : ModulusSpec modulusWidth) (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (separated : cells.Separated) (store : Store ctx) :
     (validateStep (model := model) spec base (cellRead cells.cursor.candidate)
@@ -91,7 +91,7 @@ theorem nativeScan_validation_candidate {width : Nat}
       (List.mem_singleton.mp present)) store
 
 /-- The same retained quotient and remainder remain available to the actual branch update. -/
-theorem nativeScan_validation_division {width : Nat}
+lemma nativeScan_validation_division {width : Nat}
     (spec : ModulusSpec modulusWidth) (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width))
@@ -110,7 +110,7 @@ theorem nativeScan_validation_division {width : Nat}
       (List.mem_singleton.mp present).symm) store
 
 /-- The original source base and comparison operands survive the actual validation. -/
-theorem nativeScan_validation_source
+lemma nativeScan_validation_source
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

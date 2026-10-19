@@ -113,7 +113,7 @@ def rawRefs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   t3Writable := Or.inl (LatticePairStateWorkspaceLayout.cellRef_role cells .targetThird)
 
 /-- Workspace-role witnesses for all twelve raw cells. -/
-theorem rawRoles {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma rawRoles {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) : LatticeRepresentation.WorkspaceRoles (rawRefs cells) where
   b11 := LatticePairStateWorkspaceLayout.cellRef_role cells .basis11
   b12 := LatticePairStateWorkspaceLayout.cellRef_role cells .basis12

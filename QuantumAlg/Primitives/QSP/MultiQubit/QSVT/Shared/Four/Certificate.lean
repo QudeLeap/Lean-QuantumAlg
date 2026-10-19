@@ -20,7 +20,7 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
 /-- Original complex interval bounds synthesize a normalization-four native execution. -/
-theorem exists_complex_polynomial_execution {m n L : Nat}
+lemma exists_complex_polynomial_execution {m n L : Nat}
     (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
     (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
     (hermitian : A.IsHermitian) (P : Polynomial ℂ) (degree : P.natDegree ≤ L)
@@ -30,11 +30,12 @@ theorem exists_complex_polynomial_execution {m n L : Nat}
       imaginaryConstant : ℝ,
       phases.length = L - 1 ∧
       projectedBlock (1 + (1 + (1 + m))) n
-        (reassociateThree (complexWord U positive phases realAngle imaginaryAngle
-          realConstant imaginaryConstant).binaryMatrix) =
+        (reassociateThree ((complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+          realConstant imaginaryConstant).binaryMatrix
+            (UnitarySource.interpretation U true true false))) =
         (1 / 4 : ℂ) • polynomialOperator P A ∧
-      (complexWord U positive phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).eventCost = complexBudget U (L - 1) := by
+      (complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).eventCost = complexBudget (m := m) (n := n) (L - 1) := by
   have re := ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_realEvenPart_branch_of_normSq_le
     P degree bounded
   have im := ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_imagEvenPart_branch_of_normSq_le

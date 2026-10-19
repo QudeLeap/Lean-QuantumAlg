@@ -29,7 +29,7 @@ noncomputable section
 
 variable {N : Nat}
 
-private theorem prodEquiv_value {leftWidth rightWidth : Nat}
+private lemma prodEquiv_value {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) :
     (prodEquiv (m := leftWidth) (n := rightWidth) (left, right)).val =
       right.val + 2 ^ rightWidth * left.val := rfl
@@ -39,7 +39,7 @@ public abbrev basisKetVec {width : Nat} (index : Fin (2 ^ width)) :
     HilbertVector (Qubits width) :=
   (NormalizedVector.ket (R := Qubits width) index).vec
 
-@[simp] public theorem basisKetVec_zero_one :
+@[simp] public lemma basisKetVec_zero_one :
     basisKetVec (0 : Fin (2 ^ 1)) =
       (NormalizedVector.ket0 : HilbertVector (Qubits 1)) :=
   rfl
@@ -50,24 +50,24 @@ source bit and all lower free positions. -/
     (m : Fin (b.gaps + 1)) : Nat :=
   b.tailMass m / 2 ^ (b.ell m + 1)
 
-public theorem tailMass_eq_residualHigh_mul (b : PositiveGapExpansion N)
+public lemma tailMass_eq_residualHigh_mul (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) :
     b.tailMass m = 2 ^ (b.ell m + 1) * b.residualHigh m := by
   unfold residualHigh
   rw [Nat.mul_comm, Nat.div_mul_cancel (b.pow_succ_ell_dvd_tailMass m)]
 
-public theorem ell_lt_width (b : PositiveGapExpansion N)
+public lemma ell_lt_width (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) : b.ell m < b.width := by
   unfold width last
   have hle : b.ell m ≤ b.ell (Fin.last b.gaps) :=
     b.ell_strict.monotone (Fin.le_last m)
   omega
 
-private theorem first_lt_width (b : PositiveGapExpansion N) : b.first < b.width := by
+private lemma first_lt_width (b : PositiveGapExpansion N) : b.first < b.width := by
   unfold first
   exact b.ell_lt_width (0 : Fin (b.gaps + 1))
 
-public theorem residualHigh_lt (b : PositiveGapExpansion N)
+public lemma residualHigh_lt (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) :
     b.residualHigh m < 2 ^ (b.width - b.ell m - 1) := by
   have hbit : b.ell m < b.width := b.ell_lt_width m
@@ -95,7 +95,7 @@ public theorem residualHigh_lt (b : PositiveGapExpansion N)
   ⟨b.residualHigh m, b.residualHigh_lt m⟩
 
 @[simp]
-public theorem residualHighLabel_val (b : PositiveGapExpansion N)
+public lemma residualHighLabel_val (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) : (b.residualHighLabel m).val = b.residualHigh m :=
   rfl
 
@@ -103,7 +103,7 @@ public theorem residualHighLabel_val (b : PositiveGapExpansion N)
 its own zero source bit, and arbitrary lower coordinates.  This is the
 coordinate form that connects the source arithmetic to actual tensor-placed
 gates. -/
-private theorem residualSupport_iff_tensor_bits (b : PositiveGapExpansion N)
+private lemma residualSupport_iff_tensor_bits (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1))
     (high : Fin (2 ^ (b.width - b.ell m - 1)))
     (bit : Fin (2 ^ 1)) (low : Fin (2 ^ b.ell m)) :
@@ -189,7 +189,7 @@ private theorem residualSupport_iff_tensor_bits (b : PositiveGapExpansion N)
 /-- The raw interval definition of a residual block is equal to its aligned
 tensor presentation: a fixed high prefix, a zero source bit, and an actual
 low Walsh-uniform block. -/
-public theorem residualBlock_tensor_factor (b : PositiveGapExpansion N)
+public lemma residualBlock_tensor_factor (b : PositiveGapExpansion N)
     (m : Fin (b.gaps + 1)) :
     b.residualBlock m =
       UnitaryCircuit.castQubitWidthVec (by
@@ -253,7 +253,7 @@ private def gapLowerMass (b : PositiveGapExpansion N)
     if left.val ≤ index.val ∧ index.val < right.val then
       2 ^ b.ell index else 0
 
-private theorem filtered_powers_lt_pow (b : PositiveGapExpansion N)
+private lemma filtered_powers_lt_pow (b : PositiveGapExpansion N)
     (predicate : Fin (b.gaps + 1) → Prop) [DecidablePred predicate]
     (upper : Nat) (below : ∀ index, predicate index → b.ell index < upper) :
     (∑ index : Fin (b.gaps + 1),
@@ -268,7 +268,7 @@ private theorem filtered_powers_lt_pow (b : PositiveGapExpansion N)
       rcases Finset.mem_image.mp member with ⟨index, indexMember, rfl⟩
       exact below index (Finset.mem_filter.mp indexMember).2)
 
-private theorem gapLowerMass_lt_pow (b : PositiveGapExpansion N)
+private lemma gapLowerMass_lt_pow (b : PositiveGapExpansion N)
     {left right : Fin (b.gaps + 1)} (_before : left.val < right.val) :
     b.gapLowerMass left right < 2 ^ b.ell right := by
   unfold gapLowerMass
@@ -277,7 +277,7 @@ private theorem gapLowerMass_lt_pow (b : PositiveGapExpansion N)
   intro index bounded
   exact b.ell_strict bounded.2
 
-private theorem tailMass_eq_tailMass_add_current_add_between
+private lemma tailMass_eq_tailMass_add_current_add_between
     (b : PositiveGapExpansion N) {left right : Fin (b.gaps + 1)}
     (before : left.val < right.val) :
     b.tailMass left = b.tailMass right + 2 ^ b.ell right +
@@ -314,7 +314,7 @@ private theorem tailMass_eq_tailMass_add_current_add_between
       exact aboveLeft before
     simp [aboveLeft, notAboveRight, notCurrent]
 
-private theorem gapLowerMass_eq_betweenMass_add_current
+private lemma gapLowerMass_eq_betweenMass_add_current
     (b : PositiveGapExpansion N) {left right : Fin (b.gaps + 1)}
     (before : left.val < right.val) :
     b.gapLowerMass left right = b.betweenMass left right + 2 ^ b.ell left := by
@@ -351,7 +351,7 @@ private theorem gapLowerMass_eq_betweenMass_add_current
         exact ⟨by simpa using inside.1, by simpa using inside.2⟩
       simp [currentIndex, notBetweenFin, notInsideFin]
 
-private theorem testBit_true_of_pow_mul_odd_add_lt
+private lemma testBit_true_of_pow_mul_odd_add_lt
     (bit quotient remainder : Nat) (remainderSmall : remainder < 2 ^ bit) :
     (2 ^ bit * (2 * quotient + 1) + remainder).testBit bit = true := by
   have powerPositive : 0 < 2 ^ bit := Nat.two_pow_pos _
@@ -376,7 +376,7 @@ private theorem testBit_true_of_pow_mul_odd_add_lt
 
 /-- Every address in an earlier residual block has every later source bit
 set, so later open controls are inactive on that block. -/
-public theorem residualSupport_testBit_true_of_lt (b : PositiveGapExpansion N)
+public lemma residualSupport_testBit_true_of_lt (b : PositiveGapExpansion N)
     {left right : Fin (b.gaps + 1)} (before : left.val < right.val)
     {index : Nat} (support : b.residualSupport left index) :
     index.testBit (b.ell right) = true := by
@@ -411,7 +411,7 @@ public theorem residualSupport_testBit_true_of_lt (b : PositiveGapExpansion N)
 
 /-- Enlarging the binary register adds only an all-zero high prefix to every
 aligned residual block. -/
-public theorem residualBlockAt_eq_padding (b : PositiveGapExpansion N)
+public lemma residualBlockAt_eq_padding (b : PositiveGapExpansion N)
     (registerWidth : Nat) (fits : b.width ≤ registerWidth)
     (source : Fin (b.gaps + 1)) :
     b.residualBlockAt registerWidth source =

@@ -27,11 +27,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual retention and execution return one initialized-and-written complete caller store. -/
-theorem xgcdNativeRetained_actualRecord
+lemma xgcdNativeRetained_actualRecord
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     ∃ record : Store ctx × model.HiddenState →
@@ -39,7 +39,7 @@ theorem xgcdNativeRetained_actualRecord
           model) input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (retainedCircuit (model := model) input key fresh).execute Reference state =
+        (retainedCircuit (model := model) input key fresh).execute environment Reference state =
           state.mapClassical (fun entry =>
             let actual := record (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
@@ -58,7 +58,8 @@ theorem xgcdNativeRetained_actualRecord
     (final.1, ((), final.2))
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
-    refine (Circuit.execute_retain_seq_mapClassical ctx key (XGCDOutputShape width) fresh
+    refine (Circuit.execute_retain_seq_mapClassical
+      (environment := environment) ctx key (XGCDOutputShape width) fresh
       (publicIntoResult (model := model) lifted output) bodyRecord bodyEquation reference
         state).trans ?_
     exact ExecutionState.executionState_mapClassical_congr _ rfl
@@ -70,7 +71,7 @@ theorem xgcdNativeRetained_actualRecord
     exact actual
 
 /-- The retained tuple satisfies the original gcd, Bezout and public signed-range relation. -/
-theorem xgcdNativeRetained_accepts
+lemma xgcdNativeRetained_accepts
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     ∃ record : Store ctx × model.HiddenState →
@@ -78,7 +79,7 @@ theorem xgcdNativeRetained_accepts
           model) input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (retainedCircuit (model := model) input key fresh).execute Reference state =
+        (retainedCircuit (model := model) input key fresh).execute environment Reference state =
           state.mapClassical (fun entry =>
             let actual := record (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧

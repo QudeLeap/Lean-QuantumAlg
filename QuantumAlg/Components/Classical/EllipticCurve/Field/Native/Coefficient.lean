@@ -49,7 +49,7 @@ def coefficientScratch (cells : Cells ctx (coefficientShapes width)) :
   modulus := cells.tail.tail.tail.head.ref
   outputs := ⟨cells.tail.tail.head.ref, cells.tail.head.ref, cells.head.ref⟩
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Original actual loading, widened XGCD, and unconditional signed-coefficient reduction. -/

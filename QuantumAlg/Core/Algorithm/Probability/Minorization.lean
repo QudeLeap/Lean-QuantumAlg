@@ -66,7 +66,7 @@ def fractionalMarking (distribution : PMF Sample) (core : Finset Sample)
     rw [← hsum]
     exact ENNReal.summable.hasSum⟩
 
-@[simp] theorem fractionalMarking_apply_true
+@[simp] lemma fractionalMarking_apply_true
     (distribution : PMF Sample) (core : Finset Sample) (floor : ENNReal)
     (hfloor : ∀ sample ∈ core, floor ≤ distribution sample)
     (sample : Sample) :
@@ -74,7 +74,7 @@ def fractionalMarking (distribution : PMF Sample) (core : Finset Sample)
       if sample ∈ core then floor else 0 :=
   rfl
 
-@[simp] theorem fractionalMarking_apply_false
+@[simp] lemma fractionalMarking_apply_false
     (distribution : PMF Sample) (core : Finset Sample) (floor : ENNReal)
     (hfloor : ∀ sample ∈ core, floor ≤ distribution sample)
     (sample : Sample) :
@@ -83,7 +83,7 @@ def fractionalMarking (distribution : PMF Sample) (core : Finset Sample)
   rfl
 
 /-- Forgetting the proof-only mark recovers the original PMF exactly. -/
-theorem fractionalMarking_map_fst (distribution : PMF Sample)
+lemma fractionalMarking_map_fst (distribution : PMF Sample)
     (core : Finset Sample) (floor : ENNReal)
     (hfloor : ∀ sample ∈ core, floor ≤ distribution sample) :
     (fractionalMarking distribution core floor hfloor).map Prod.fst =
@@ -102,7 +102,7 @@ theorem fractionalMarking_map_fst (distribution : PMF Sample)
 
 /-- The total marked mass is exactly the number of selected atoms multiplied
 by their common pointwise floor. -/
-theorem fractionalMarking_markedMass (distribution : PMF Sample)
+lemma fractionalMarking_markedMass (distribution : PMF Sample)
     (core : Finset Sample) (floor : ENNReal)
     (hfloor : ∀ sample ∈ core, floor ≤ distribution sample) :
     (fractionalMarking distribution core floor hfloor).toOuterMeasure
@@ -120,7 +120,7 @@ theorem fractionalMarking_markedMass (distribution : PMF Sample)
 /-- The marked branch restricted to the selected core has the same exact
 mass.  Carrying core membership in the event makes later transcript arguments
 purely set-theoretic, including on zero-mass atoms. -/
-theorem fractionalMarking_markedCoreMass (distribution : PMF Sample)
+lemma fractionalMarking_markedCoreMass (distribution : PMF Sample)
     (core : Finset Sample) (floor : ENNReal)
     (hfloor : ∀ sample ∈ core, floor ≤ distribution sample) :
     (fractionalMarking distribution core floor hfloor).toOuterMeasure
@@ -143,7 +143,7 @@ def markedPairCarrier (bad : Finset (Sample × Sample)) :
     (Function.Embedding.sectL Sample true))
 
 omit [DecidableEq Sample] in
-@[simp] theorem mem_markedPairCarrier_iff
+@[simp] lemma mem_markedPairCarrier_iff
     (bad : Finset (Sample × Sample))
     (pair : (Sample × Bool) × (Sample × Bool)) :
     pair ∈ markedPairCarrier bad ↔
@@ -163,7 +163,7 @@ omit [DecidableEq Sample] in
 /-- Exact mass of a finite marked relation under two independent coupling
 draws.  No probability is normalized or conditioned here: every marked core
 atom has the same literal mass `floor`. -/
-theorem independentPair_fractionalMarking_markedBadMass
+lemma independentPair_fractionalMarking_markedBadMass
     (distribution : PMF Sample) (core : Finset Sample) (floor : ENNReal)
     (hfloor : ∀ sample ∈ core, floor ≤ distribution sample)
     (bad : Finset (Sample × Sample))

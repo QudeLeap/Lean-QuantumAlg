@@ -23,7 +23,7 @@ conversion occurs in this arithmetic bridge.
 namespace QuantumAlg.ResourcePool
 
 /-- A literal coordinatewise event budget dominates every natural-number weighted observation. -/
-theorem weightedCount_mono {model : ExecutionModel} (weight : Resource.Event model → Nat)
+lemma weightedCount_mono {model : ExecutionModel} (weight : Resource.Event model → Nat)
     {actual budget : ResourcePool model} (bounded : actual ≤ budget) :
     weightedCount weight actual ≤ weightedCount weight budget := by
   obtain ⟨remainder, rfl⟩ := exists_add_of_le bounded
@@ -31,7 +31,7 @@ theorem weightedCount_mono {model : ExecutionModel} (weight : Resource.Event mod
   exact Nat.le_add_right _ _
 
 /-- Weighted observation commutes with a finite sum of strict event pools. -/
-theorem weightedCount_sum {model : ExecutionModel} {ι : Type}
+lemma weightedCount_sum {model : ExecutionModel} {ι : Type}
     (weight : Resource.Event model → Nat) (indices : Finset ι)
     (pool : ι → ResourcePool model) :
     weightedCount weight (∑ index ∈ indices, pool index) =
@@ -47,7 +47,7 @@ end QuantumAlg.ResourcePool
 namespace QuantumAlg.DepthExpr
 
 /-- Total syntactic cost is exactly the weighted observation of that syntax's strict event pool. -/
-theorem costEval_eq_weightedCount {model : ExecutionModel}
+lemma costEval_eq_weightedCount {model : ExecutionModel}
     (assign : Resource.Event model → Nat) (expression : DepthExpr (Resource.Event model)) :
     costEval assign expression = ResourcePool.weightedCount assign
       (costEval (fun event => ResourcePool.singleton event) expression) := by
@@ -69,7 +69,7 @@ theorem costEval_eq_weightedCount {model : ExecutionModel}
       exact Finset.sum_congr rfl (fun index _ => stepIH index)
 
 /-- An independent coordinatewise pool budget bounds the actual critical path for every duration. -/
-theorem depthEval_le_weightedCount_of_eventPool_le {model : ExecutionModel}
+lemma depthEval_le_weightedCount_of_eventPool_le {model : ExecutionModel}
     (assign : Resource.Event model → Nat) (expression : DepthExpr (Resource.Event model))
     (budget : ResourcePool model)
     (bounded : costEval (fun event => ResourcePool.singleton event) expression ≤ budget) :

@@ -24,36 +24,36 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.DeclaredSource
 
 noncomputable section
 
-variable {N width : Nat} (bounds : RegisterBounds N width) (phaseBits : Nat)
+variable (width phaseBits : Nat)
 
 /-- The phase prefix is prepared by the actual parallel Hadamard word. -/
 def initialLayer :
-    UnitaryCircuit AlgorithmGate.model (model bounds phaseBits)
+    UnitaryCircuit AlgorithmGate.model (model width phaseBits)
       (QuantumSignature.qubits (phaseBits + width)).canonicalPlacement.layout :=
   UnitaryCircuit.onBinaryPrefix width
-    (Gate.HadamardLayer.circuit (model bounds phaseBits) phaseBits)
+    (Gate.HadamardLayer.circuit (model width phaseBits) phaseBits)
 
 /-- Execute one model-owned modular-exponentiation query at the canonical placement. -/
 def oracleLayer (gates : GateModel) (base : Fin (2 ^ width)) :
-    UnitaryCircuit gates (model bounds phaseBits)
+    UnitaryCircuit gates (model width phaseBits)
       (QuantumSignature.qubits (phaseBits + width)).canonicalPlacement.layout :=
-  .query (OracleModel.Application.onPlacement (model bounds phaseBits) base
+  .query (OracleModel.Application.onPlacement (model width phaseBits) base
     (QuantumSignature.qubits (phaseBits + width)).canonicalPlacement)
 
 /-- Native inverse Fourier gates act on the phase prefix and preserve the target. -/
 def readoutLayer :
-    UnitaryCircuit AlgorithmGate.model (model bounds phaseBits)
+    UnitaryCircuit AlgorithmGate.model (model width phaseBits)
       (QuantumSignature.qubits (phaseBits + width)).canonicalPlacement.layout :=
   UnitaryCircuit.onBinaryPrefix width
-    (QuantumFourierTransform.Native.inverseCircuit (model bounds phaseBits) phaseBits)
+    (QuantumFourierTransform.Native.inverseCircuit (model width phaseBits) phaseBits)
 
 /-- The complete selected member retains its native peripherals and ordinary query. -/
 def circuit (base : Fin (2 ^ width)) :
-    UnitaryCircuit AlgorithmGate.model (model bounds phaseBits)
+    UnitaryCircuit AlgorithmGate.model (model width phaseBits)
       (QuantumSignature.qubits (phaseBits + width)).canonicalPlacement.layout :=
-  ((initialLayer bounds phaseBits).seq
-    (oracleLayer bounds phaseBits AlgorithmGate.model base)).seq
-      (readoutLayer bounds phaseBits)
+  ((initialLayer width phaseBits).seq
+    (oracleLayer width phaseBits AlgorithmGate.model base)).seq
+      (readoutLayer width phaseBits)
 
 end
 

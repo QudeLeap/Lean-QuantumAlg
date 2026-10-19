@@ -25,7 +25,7 @@ private def application := Gate.cnotApplication layout 0 2 (by decide) rfl rfl
 private def permutation : Equiv.Perm layout.Basis :=
   application.liftPermutation AlgorithmGate.cnotPermutation
 
-private theorem permutation_coordinates (basis : layout.Basis) :
+private lemma permutation_coordinates (basis : layout.Basis) :
     permutation basis = ![basis 0, basis 1, Fin.add (n := 2) (basis 0) (basis 2)] := by
   apply (application.liftPermutation_eq_iff AlgorithmGate.cnotPermutation _ _).mpr
   constructor
@@ -47,7 +47,7 @@ private theorem permutation_coordinates (basis : layout.Basis) :
     rw [middle]
     rfl
 
-private theorem permutation_involutive : Function.Involutive permutation := by
+private lemma permutation_involutive : Function.Involutive permutation := by
   intro basis
   rw [permutation_coordinates, permutation_coordinates]
   funext index
@@ -59,13 +59,14 @@ private theorem permutation_involutive : Function.Involutive permutation := by
     generalize basis 2 = target
     fin_cases control <;> fin_cases target <;> rfl
 
-private theorem outer_matrix (oracles : OracleModel) :
-    (outerCnot oracles).matrix = UnitaryOperator.ofPerm permutation :=
+private lemma outer_matrix (oracles : OracleModel) (environment : oracles.Interpretation) :
+    ((outerCnot oracles).matrix environment) = UnitaryOperator.ofPerm permutation :=
   application.operator_ofPerm AlgorithmGate.cnotPermutation AlgorithmGate.cnot_operator_ofPerm
 
 /-- Every basis entry has precisely the phase selected by the two unchanged original controls. -/
-theorem fourRotation_matrix (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) :
-    ((circuit oracles a00 a01 a10 a11).matrix : HilbertOperator layout.register) =
+lemma fourRotation_matrix (oracles : OracleModel) (a00 a01 a10 a11 : ℝ)
+    (environment : oracles.Interpretation) :
+    (((circuit oracles a00 a01 a10 a11).matrix environment) : HilbertOperator layout.register) =
       Matrix.diagonal (fun basis => weight
         (if basis 0 = 0 then (if basis 1 = 0 then a00 else a01)
           else (if basis 1 = 0 then a10 else a11)) (basis 2)) := by

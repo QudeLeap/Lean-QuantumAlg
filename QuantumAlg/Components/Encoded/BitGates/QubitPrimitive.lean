@@ -36,7 +36,7 @@ variable {Left Right : Type} {left : BinaryLabelEncoding Left}
 
 /-- Distinct wires remain distinct after lifting encoded bits to the left
 field of a product encoding. -/
-theorem prodLeftWire_ne (right : BinaryLabelEncoding Right)
+lemma prodLeftWire_ne (right : BinaryLabelEncoding Right)
     {a b : EncodedBit left} (h : a.wire ≠ b.wire) :
     (BinaryLabelEncoding.prodLeftBit left right a).wire ≠
       (BinaryLabelEncoding.prodLeftBit left right b).wire := by
@@ -49,7 +49,7 @@ theorem prodLeftWire_ne (right : BinaryLabelEncoding Right)
 
 /-- Distinct wires remain distinct after lifting encoded bits to the right
 field of a product encoding. -/
-theorem prodRightWire_ne (left : BinaryLabelEncoding Left)
+lemma prodRightWire_ne (left : BinaryLabelEncoding Left)
     {a b : EncodedBit right} (h : a.wire ≠ b.wire) :
     (BinaryLabelEncoding.prodRightBit left right a).wire ≠
       (BinaryLabelEncoding.prodRightBit left right b).wire := by
@@ -103,21 +103,21 @@ def prodRight (left : BinaryLabelEncoding Left) :
         (prodRightWire_ne left hb)
 
 /-- Left-product lifting preserves the strict primitive event coordinate. -/
-@[simp] theorem event_prodLeft {oracles : OracleModel}
+@[simp] lemma event_prodLeft {oracles : OracleModel}
     (right : BinaryLabelEncoding Right)
     (gate : GateSpec left) :
     event oracles (prodLeft right gate) = event oracles gate := by
   cases gate <;> rfl
 
 /-- Right-product lifting preserves the strict primitive event coordinate. -/
-@[simp] theorem event_prodRight {oracles : OracleModel}
+@[simp] lemma event_prodRight {oracles : OracleModel}
     (left : BinaryLabelEncoding Left)
     (gate : GateSpec right) :
     event oracles (prodRight left gate) = event oracles gate := by
   cases gate <;> rfl
 
 /-- Left-product lifting preserves the complete ordered strict event trace. -/
-theorem map_event_prodLeft {oracles : OracleModel}
+lemma map_event_prodLeft {oracles : OracleModel}
     (right : BinaryLabelEncoding Right)
     (gates : List (GateSpec left)) :
     (gates.map (prodLeft right)).map (event oracles) =
@@ -125,7 +125,7 @@ theorem map_event_prodLeft {oracles : OracleModel}
   simp
 
 /-- Right-product lifting preserves the complete ordered strict event trace. -/
-theorem map_event_prodRight {oracles : OracleModel}
+lemma map_event_prodRight {oracles : OracleModel}
     (left : BinaryLabelEncoding Left)
     (gates : List (GateSpec right)) :
     (gates.map (prodRight left)).map (event oracles) =
@@ -141,19 +141,19 @@ theorem map_event_prodRight {oracles : OracleModel}
 
 
 
-theorem length_prodLeft (right : BinaryLabelEncoding Right)
+lemma length_prodLeft (right : BinaryLabelEncoding Right)
     (gates : List (GateSpec left)) :
     (gates.map (prodLeft right)).length = gates.length := by
   simp
 
-theorem length_prodRight (left : BinaryLabelEncoding Left)
+lemma length_prodRight (left : BinaryLabelEncoding Left)
     (gates : List (GateSpec right)) :
     (gates.map (prodRight left)).length = gates.length := by
   simp
 
 /-- A lifted left-product gate has exactly the original semantic action on the
 left field and leaves the right field untouched. -/
-theorem step_prodLeft (right : BinaryLabelEncoding Right)
+lemma step_prodLeft (right : BinaryLabelEncoding Right)
     (gate : GateSpec left) (x : Left × Right) :
     (prodLeft right gate).step x = (gate.step x.1, x.2) := by
   cases gate with
@@ -174,7 +174,7 @@ theorem step_prodLeft (right : BinaryLabelEncoding Right)
 
 /-- A lifted right-product gate has exactly the original semantic action on
 the right field and leaves the left field untouched. -/
-theorem step_prodRight (left : BinaryLabelEncoding Left)
+lemma step_prodRight (left : BinaryLabelEncoding Left)
     (gate : GateSpec right) (x : Left × Right) :
     (prodRight left gate).step x = (x.1, gate.step x.2) := by
   cases gate with
@@ -195,7 +195,7 @@ theorem step_prodRight (left : BinaryLabelEncoding Left)
 
 /-- A lifted left-product gate list has exactly the original folded semantic
 action on the left field and leaves the right field untouched. -/
-theorem stepList_prodLeft (right : BinaryLabelEncoding Right) :
+lemma stepList_prodLeft (right : BinaryLabelEncoding Right) :
     ∀ (gates : List (GateSpec left)) (x : Left × Right),
       stepList (gates.map (prodLeft right)) x =
         (stepList gates x.1, x.2)
@@ -209,7 +209,7 @@ theorem stepList_prodLeft (right : BinaryLabelEncoding Right) :
 
 /-- A lifted right-product gate list has exactly the original folded semantic
 action on the right field and leaves the left field untouched. -/
-theorem stepList_prodRight (left : BinaryLabelEncoding Left) :
+lemma stepList_prodRight (left : BinaryLabelEncoding Left) :
     ∀ (gates : List (GateSpec right)) (x : Left × Right),
       stepList (gates.map (prodRight left)) x =
         (x.1, stepList gates x.2)
@@ -223,7 +223,7 @@ theorem stepList_prodRight (left : BinaryLabelEncoding Left) :
 
 /-- A right-field wire can never equal a left-field wire in the same product
 encoding. -/
-theorem prodRightBit_wire_ne_prodLeftBit_wire
+lemma prodRightBit_wire_ne_prodLeftBit_wire
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (rightBit : EncodedBit right) (leftBit : EncodedBit left) :
     (BinaryLabelEncoding.prodRightBit left right rightBit).wire ≠
@@ -236,7 +236,7 @@ theorem prodRightBit_wire_ne_prodLeftBit_wire
 
 /-- Every gate lifted into the right field is disjoint from every observed bit
 in the left field. -/
-theorem bitDisjoint_prodRight_leftBit
+lemma bitDisjoint_prodRight_leftBit
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (observed : EncodedBit left) (gate : GateSpec right) :
     bitDisjoint (BinaryLabelEncoding.prodLeftBit left right observed)
@@ -254,7 +254,7 @@ theorem bitDisjoint_prodRight_leftBit
 
 /-- Every gate lifted into the left field is disjoint from every observed bit
 in the right field. -/
-theorem bitDisjoint_prodLeft_rightBit
+lemma bitDisjoint_prodLeft_rightBit
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (observed : EncodedBit right) (gate : GateSpec left) :
     bitDisjoint (BinaryLabelEncoding.prodRightBit left right observed)
@@ -278,7 +278,7 @@ theorem bitDisjoint_prodLeft_rightBit
 
 /-- Lifting both an observed bit and a disjoint gate into the left field
 preserves their disjointness. -/
-theorem bitDisjoint_prodLeft_of_bitDisjoint
+lemma bitDisjoint_prodLeft_of_bitDisjoint
     (right : BinaryLabelEncoding Right) (observed : EncodedBit left)
     (gate : GateSpec left) (h : bitDisjoint observed gate) :
     bitDisjoint (BinaryLabelEncoding.prodLeftBit left right observed)
@@ -294,7 +294,7 @@ theorem bitDisjoint_prodLeft_of_bitDisjoint
 
 /-- Lifting both an observed bit and a disjoint gate into the right field
 preserves their disjointness. -/
-theorem bitDisjoint_prodRight_of_bitDisjoint
+lemma bitDisjoint_prodRight_of_bitDisjoint
     (left : BinaryLabelEncoding Left) (observed : EncodedBit right)
     (gate : GateSpec right) (h : bitDisjoint observed gate) :
     bitDisjoint (BinaryLabelEncoding.prodRightBit left right observed)
@@ -323,28 +323,28 @@ def prodLeftWire {m n : Nat} (wire : Fin m) : Fin (m + n) :=
 def prodRightWire {m n : Nat} (wire : Fin n) : Fin (m + n) :=
   ⟨m + wire.val, by omega⟩
 
-@[simp] theorem prodLeftWire_val {m n : Nat} (wire : Fin m) :
+@[simp] lemma prodLeftWire_val {m n : Nat} (wire : Fin m) :
     (prodLeftWire (n := n) wire).val = wire.val :=
   rfl
 
-@[simp] theorem prodRightWire_val {m n : Nat} (wire : Fin n) :
+@[simp] lemma prodRightWire_val {m n : Nat} (wire : Fin n) :
     (prodRightWire (m := m) wire).val = m + wire.val :=
   rfl
 
-theorem bitIndex_prodLeftWire {m n : Nat} (wire : Fin m) :
+lemma bitIndex_prodLeftWire {m n : Nat} (wire : Fin m) :
     (WireAddress.bitIndex (prodLeftWire (n := n) wire)).val =
       n + (WireAddress.bitIndex wire).val := by
   dsimp [WireAddress.bitIndex, prodLeftWire]
   omega
 
-theorem bitIndex_prodRightWire {m n : Nat} (wire : Fin n) :
+lemma bitIndex_prodRightWire {m n : Nat} (wire : Fin n) :
     (WireAddress.bitIndex (prodRightWire (m := m) wire)).val =
       (WireAddress.bitIndex wire).val := by
   dsimp [WireAddress.bitIndex, prodRightWire]
   omega
 
 /-- Flipping a left-field wire commutes with product-label packing. -/
-theorem prodEquiv_flip_left {m n : Nat} (wire : Fin m)
+lemma prodEquiv_flip_left {m n : Nat} (wire : Fin m)
     (leftLabel : Fin (2 ^ m)) (rightLabel : Fin (2 ^ n)) :
     prodEquiv (m := m) (n := n)
         (WireAddress.flipBit wire leftLabel, rightLabel) =
@@ -358,7 +358,7 @@ theorem prodEquiv_flip_left {m n : Nat} (wire : Fin m)
     congr 1)
 
 /-- Flipping a right-field wire commutes with product-label packing. -/
-theorem prodEquiv_flip_right {m n : Nat} (wire : Fin n)
+lemma prodEquiv_flip_right {m n : Nat} (wire : Fin n)
     (leftLabel : Fin (2 ^ m)) (rightLabel : Fin (2 ^ n)) :
     prodEquiv (m := m) (n := n)
         (leftLabel, WireAddress.flipBit wire rightLabel) =
@@ -441,7 +441,7 @@ def prodRight {m n : Nat} : QubitPrimitive n -> QubitPrimitive (m + n)
 
 /-- Lifting an operation to the left field preserves disjointness from a lifted
 left-field observed wire. -/
-theorem wireDisjoint_prodLeft_of_wireDisjoint {m n : Nat}
+lemma wireDisjoint_prodLeft_of_wireDisjoint {m n : Nat}
     {observed : Fin m} {op : QubitPrimitive m}
     (h : wireDisjoint observed op) :
     wireDisjoint (prodLeftWire (n := n) observed) (prodLeft (n := n) op) := by
@@ -481,7 +481,7 @@ theorem wireDisjoint_prodLeft_of_wireDisjoint {m n : Nat}
 
 /-- Lifting an operation to the right field preserves disjointness from a
 lifted right-field observed wire. -/
-theorem wireDisjoint_prodRight_of_wireDisjoint {m n : Nat}
+lemma wireDisjoint_prodRight_of_wireDisjoint {m n : Nat}
     {observed : Fin n} {op : QubitPrimitive n}
     (h : wireDisjoint observed op) :
     wireDisjoint (prodRightWire (m := m) observed)
@@ -534,7 +534,7 @@ theorem wireDisjoint_prodRight_of_wireDisjoint {m n : Nat}
 
 /-- A left-field observed wire is disjoint from any operation lifted from the
 right field. -/
-theorem wireDisjoint_prodRight_leftWire {m n : Nat}
+lemma wireDisjoint_prodRight_leftWire {m n : Nat}
     (observed : Fin m) (op : QubitPrimitive n) :
     wireDisjoint (prodLeftWire (n := n) observed)
       (prodRight (m := m) op) := by
@@ -572,7 +572,7 @@ theorem wireDisjoint_prodRight_leftWire {m n : Nat}
 
 /-- A right-field observed wire is disjoint from any operation lifted from the
 left field. -/
-theorem wireDisjoint_prodLeft_rightWire {m n : Nat}
+lemma wireDisjoint_prodLeft_rightWire {m n : Nat}
     (observed : Fin n) (op : QubitPrimitive m) :
     wireDisjoint (prodRightWire (m := m) observed)
       (prodLeft (n := n) op) := by
@@ -621,7 +621,7 @@ def insertMiddleWire {leftWidth middleWidth rightWidth : Nat}
       have hlt := wire.isLt
       omega⟩
 
-theorem insertMiddleWire_injective {leftWidth middleWidth rightWidth : Nat}
+lemma insertMiddleWire_injective {leftWidth middleWidth rightWidth : Nat}
     {left right : Fin (leftWidth + rightWidth)}
     (h :
       insertMiddleWire (middleWidth := middleWidth) left =
@@ -633,7 +633,7 @@ theorem insertMiddleWire_injective {leftWidth middleWidth rightWidth : Nat}
     by_cases hright : right.val < leftWidth <;>
       simp [insertMiddleWire, hleft, hright] at hv <;> omega
 
-theorem insertMiddleWire_ne {leftWidth middleWidth rightWidth : Nat}
+lemma insertMiddleWire_ne {leftWidth middleWidth rightWidth : Nat}
     {left right : Fin (leftWidth + rightWidth)}
     (h : left ≠ right) :
     insertMiddleWire (middleWidth := middleWidth) left ≠
@@ -673,7 +673,7 @@ def insertMiddleLabel
     (prodEquiv (m := leftWidth) (n := middleWidth)
       (sourceParts.1, middleLabel), sourceParts.2)
 
-@[simp] theorem insertMiddleLabel_prodEquiv
+@[simp] lemma insertMiddleLabel_prodEquiv
     {leftWidth middleWidth rightWidth : Nat}
     (leftLabel : Fin (2 ^ leftWidth))
     (middleLabel : Fin (2 ^ middleWidth))
@@ -687,7 +687,7 @@ def insertMiddleLabel
           (leftLabel, middleLabel), rightLabel) := by
   simp [insertMiddleLabel]
 
-theorem insertMiddleLabel_flipBit
+lemma insertMiddleLabel_flipBit
     {leftWidth middleWidth rightWidth : Nat}
     (wire : Fin (leftWidth + rightWidth))
     (source : Fin (2 ^ (leftWidth + rightWidth)))
@@ -755,7 +755,7 @@ theorem insertMiddleLabel_flipBit
       rightWire leftLabel rightLabel]
     rw [insertMiddleLabel_prodEquiv]
 
-theorem insertMiddleLabel_get_source_bit
+lemma insertMiddleLabel_get_source_bit
     {leftWidth middleWidth rightWidth : Nat}
     (wire : Fin (leftWidth + rightWidth))
     (source : Fin (2 ^ (leftWidth + rightWidth)))
@@ -811,7 +811,7 @@ theorem insertMiddleLabel_get_source_bit
     rw [hwireTarget, hwireSource, insertMiddleLabel_prodEquiv]
     simp [bitIndex_prodRightWire, prodEquiv_testBit_right]
 
-theorem applyLabel_prodLeft {m n : Nat} (op : QubitPrimitive m)
+lemma applyLabel_prodLeft {m n : Nat} (op : QubitPrimitive m)
     (leftLabel : Fin (2 ^ m)) (rightLabel : Fin (2 ^ n)) :
     (op.prodLeft (n := n)).applyLabel
         (prodEquiv (m := m) (n := n) (leftLabel, rightLabel)) =
@@ -834,7 +834,7 @@ theorem applyLabel_prodLeft {m n : Nat} (op : QubitPrimitive m)
       · exact (prodEquiv_flip_left (n := n) target leftLabel rightLabel).symm
       · rfl
 
-theorem applyLabel_prodRight {m n : Nat} (op : QubitPrimitive n)
+lemma applyLabel_prodRight {m n : Nat} (op : QubitPrimitive n)
     (leftLabel : Fin (2 ^ m)) (rightLabel : Fin (2 ^ n)) :
     (op.prodRight (m := m)).applyLabel
         (prodEquiv (m := m) (n := n) (leftLabel, rightLabel)) =
@@ -960,7 +960,7 @@ def insertMiddle (middle : BinaryLabelEncoding Middle) :
 
 /-- Inserting a middle register preserves one gate's semantic action on the
 original left/right fields and leaves the inserted field untouched. -/
-theorem step_insertMiddle (middle : BinaryLabelEncoding Middle)
+lemma step_insertMiddle (middle : BinaryLabelEncoding Middle)
     (gate : GateSpec (BinaryLabelEncoding.prod left right))
     (x : (Left × Middle) × Right) :
     (insertMiddle middle gate).step x =
@@ -986,7 +986,7 @@ theorem step_insertMiddle (middle : BinaryLabelEncoding Middle)
           EncodedBit.insertMiddle, hcontrols]
 
 /-- The list fold of inserted-middle gates is the lifted source fold. -/
-theorem stepList_insertMiddle (middle : BinaryLabelEncoding Middle) :
+lemma stepList_insertMiddle (middle : BinaryLabelEncoding Middle) :
     ∀ (gates : List (GateSpec (BinaryLabelEncoding.prod left right)))
       (x : (Left × Middle) × Right),
       stepList (gates.map (insertMiddle middle)) x =

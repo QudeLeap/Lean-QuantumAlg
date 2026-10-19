@@ -27,13 +27,13 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The original distinct write identities satisfy the native splitter's exact separation. -/
-theorem split_separation (refs : Refs ctx N) (separation : Separation refs) :
+lemma split_separation (refs : Refs ctx N) (separation : Separation refs) :
     Word.Split.Separation (splitRefs refs) :=
   ⟨separation.scratchAvoidsK.symm, separation.scratchAvoidsJ.symm,
     separation.jAvoidsK.symm⟩
 
 /-- The actual decoded full word equals the original source's packed terminal index. -/
-theorem fullDecodeInto_read {model : ExecutionModel} [BitWord.Selected model]
+lemma fullDecodeInto_read {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) :
     ((fullDecodeStep refs store).1.read (.storage refs.full.toCStorageRef)).toNat =
@@ -49,14 +49,14 @@ theorem fullDecodeInto_read {model : ExecutionModel} [BitWord.Selected model]
     _ = _ := rfl
 
 /-- Actual full-word decoding changes no structural read outside its full-word output. -/
-theorem fullDecodeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma fullDecodeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (full : refs.full.key ∉ other.storageKeys) :
     (fullDecodeStep refs store).1.read other = store.read other :=
   TerminalDecode.terminalDecode_fold_read_other _ _ _ other full
 
 /-- The native copy writes the complete actual full-word value into the original scratch cell. -/
-theorem copy_read (refs : Refs ctx N) (store : Store ctx) :
+lemma copy_read (refs : Refs ctx N) (store : Store ctx) :
     (store.applyOp (copyOp refs)).read (.storage refs.scratch.toCStorageRef) =
       store.read (.storage refs.full.toCStorageRef) := by
   simp only [Store.applyOp, copyOp, ClassicalOp.outputRef, Store.read_write_same,
@@ -65,7 +65,7 @@ theorem copy_read (refs : Refs ctx N) (store : Store ctx) :
   rfl
 
 /-- Copying and native splitting preserve all reads outside the three actual split writes. -/
-theorem copySplitInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma copySplitInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (scratch : refs.scratch.key ∉ other.storageKeys) (j : refs.j.key ∉ other.storageKeys)
@@ -76,7 +76,7 @@ theorem copySplitInto_callerFrame {model : ExecutionModel} [BitWord.Selected mod
   exact Store.read_applyOp_of_not_mem_storageKeys store (copyOp refs) other scratch
 
 /-- The actual high source register is the exact high quotient of the incoming full word. -/
-theorem copySplitInto_j {model : ExecutionModel} [BitWord.Selected model]
+lemma copySplitInto_j {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) :
     ((copySplitStep refs store).1.read (.storage refs.j.toCStorageRef)).toNat =
@@ -88,7 +88,7 @@ theorem copySplitInto_j {model : ExecutionModel} [BitWord.Selected model]
   rw [copy_read]
 
 /-- The actual low source register is the exact low remainder of the incoming full word. -/
-theorem copySplitInto_k {model : ExecutionModel} [BitWord.Selected model]
+lemma copySplitInto_k {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) :
     ((copySplitStep refs store).1.read (.storage refs.k.toCStorageRef)).toNat =
@@ -100,7 +100,7 @@ theorem copySplitInto_k {model : ExecutionModel} [BitWord.Selected model]
   rw [copy_read]
 
 /-- The actual destructive scratch cell finishes at the same exact high quotient. -/
-theorem copySplitInto_scratch {model : ExecutionModel} [BitWord.Selected model]
+lemma copySplitInto_scratch {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) :
     ((copySplitStep refs store).1.read (.storage refs.scratch.toCStorageRef)).toNat =
@@ -112,7 +112,7 @@ theorem copySplitInto_scratch {model : ExecutionModel} [BitWord.Selected model]
   rw [copy_read]
 
 /-- The original full word remains intact through the destructive scratch-word split. -/
-theorem copySplitInto_full {model : ExecutionModel} [BitWord.Selected model]
+lemma copySplitInto_full {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) :
     (copySplitStep refs store).1.read (.storage refs.full.toCStorageRef) =
@@ -127,7 +127,7 @@ def CallerSeparated (refs : Refs ctx N) {shape : CShape} (other : CInputRef ctx 
   ∀ slot, pairOutputKey refs slot ∉ other.storageKeys
 
 /-- The complete actual decoder retains every caller read outside its four write cells. -/
-theorem decodeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma decodeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
     (decodeStep refs store).1.read other = store.read other := by
@@ -150,7 +150,7 @@ structure DecodeOutcome (refs : Refs ctx N) (before after : Store ctx) : Prop wh
     CallerSeparated refs other → after.read other = before.read other
 
 /-- Arbitrary incoming accumulator words decode to the exact original terminal sample. -/
-theorem decodeInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma decodeInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) : DecodeOutcome refs store (decodeStep refs store).1 := by
   refine ⟨?_, ?_, ?_, ?_, decodeInto_callerFrame refs store⟩
@@ -169,7 +169,7 @@ theorem decodeInto_correct {model : ExecutionModel} [BitWord.Selected model]
     rw [copySplitInto_k refs separation, fullDecodeInto_read refs separation, sourceSample_snd_val]
 
 /-- Exact structural input preservation preserves the original pure bit interpretation. -/
-theorem sourceBits_of_read_eq (input : CInputRef ctx (.bits (measurementBits N)))
+lemma sourceBits_of_read_eq (input : CInputRef ctx (.bits (measurementBits N)))
     (before after : Store ctx) (same : after.read input = before.read input) :
     sourceBits N after input = sourceBits N before input := by
   funext index

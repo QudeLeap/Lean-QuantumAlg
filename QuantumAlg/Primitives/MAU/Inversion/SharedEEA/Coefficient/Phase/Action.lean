@@ -33,7 +33,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA CoefficientPhaseFrame
 
-private theorem replace_cast {left right length : Nat} (word : BitVec left)
+private lemma replace_cast {left right length : Nat} (word : BitVec left)
     (replacement : BitVec length) (same : left = right)
     (leftFit : length ≤ left) (rightFit : length ≤ right) :
     PhysicalWindow.replace (word.cast same) replacement rightFit =
@@ -41,13 +41,13 @@ private theorem replace_cast {left right length : Nat} (word : BitVec left)
   cases same
   rfl
 
-private theorem rotate_cast {left right : Nat} (word : BitVec left) (same : left = right) :
+private lemma rotate_cast {left right : Nat} (word : BitVec left) (same : left = right) :
     (word.cast same).rotateLeft 1 = (word.rotateLeft 1).cast same := by
   cases same
   rfl
 
 /-- The actual complete Work2 output is the pure packed instruction's entire replacement word. -/
-theorem native_secondWord (state : IterationState) (modulus count : Nat)
+lemma native_secondWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (ArithmeticBlocks.coefficientStep modulus.size
@@ -80,7 +80,7 @@ theorem native_secondWord (state : IterationState) (modulus count : Nat)
     (window_fits state modulus valid conserved)
 
 /-- Literal rotation of the native arithmetic output is exactly the next complete packed payload. -/
-theorem native_word_then_rotation (state : IterationState) (modulus count : Nat)
+lemma native_word_then_rotation (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     BitVec.rotateLeft (ArithmeticBlocks.coefficientStep modulus.size
@@ -90,7 +90,7 @@ theorem native_word_then_rotation (state : IterationState) (modulus count : Nat)
   rw [native_secondWord, rotate_cast,
     PackedCoefficientStep.step_eq_next_word state modulus count valid conserved active beforeEnd.le]
 
-private theorem native_complement (state : IterationState) (modulus count : Nat)
+private lemma native_complement (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (CoefficientWindowOrientation.grouping (window state modulus valid conserved)
@@ -104,7 +104,7 @@ private theorem native_complement (state : IterationState) (modulus count : Nat)
     (window_fits state modulus valid conserved)
 
 /-- The real guarded post-shift, including Ctrl cleanup, produces the next complete packed Work2. -/
-theorem native_postShift_secondWord (state : IterationState) (modulus count : Nat)
+lemma native_postShift_secondWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (GuardedShift.step true (ArithmeticBlocks.coefficientStep modulus.size

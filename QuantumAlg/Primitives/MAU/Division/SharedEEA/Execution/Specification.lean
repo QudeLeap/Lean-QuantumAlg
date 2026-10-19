@@ -52,7 +52,7 @@ def permutation (modulus : Nat) (modulusPositive : 0 < modulus) :
         (offset modulus modulusPositive denominator numerator)) (Equiv.refl Bool)
 
 /-- Every canonical target receives the complete quotient; all other original fields remain. -/
-theorem divisionSpecification_valid (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionSpecification_valid (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Labels modulus.size) (targetBounded : value.2.1.2.val < modulus) :
     (permutation modulus modulusPositive value).1 = value.1 ∧
       (permutation modulus modulusPositive value).2.1.1 = value.2.1.1 ∧
@@ -70,7 +70,7 @@ theorem divisionSpecification_valid (modulus : Nat) (modulusPositive : 0 < modul
   rw [Nat.add_mod_mod]
 
 /-- The total binary extension fixes each target outside the canonical residue range. -/
-theorem divisionSpecification_outside (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionSpecification_outside (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Labels modulus.size) (outside : modulus ≤ value.2.1.2.val) :
     permutation modulus modulusPositive value = value := by
   apply Prod.ext
@@ -85,7 +85,7 @@ theorem divisionSpecification_outside (modulus : Nat) (modulusPositive : 0 < mod
     · rfl
 
 /-- Modulus one fixes every binary label, including arbitrary supplied flags and padding. -/
-theorem divisionSpecification_one (value : Labels (1 : Nat).size) :
+lemma divisionSpecification_one (value : Labels (1 : Nat).size) :
     permutation 1 (by decide) value = value := by
   apply Prod.ext
   · rfl
@@ -99,7 +99,7 @@ theorem divisionSpecification_one (value : Labels (1 : Nat).size) :
     · rfl
 
 /-- Nontrivial EEA input positivity follows from the original local unit support. -/
-theorem divisionSpecification_positive (modulus : Nat) (nontrivial : 1 < modulus)
+lemma divisionSpecification_positive (modulus : Nat) (nontrivial : 1 < modulus)
     (value : Labels modulus.size) (allowed : admissible modulus value) :
     0 < value.1.val := by
   have coprime := allowed.2.1

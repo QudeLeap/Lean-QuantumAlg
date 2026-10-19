@@ -57,7 +57,7 @@ def coordinateStep {model : ExecutionModel} [BitWord.Selected model]
   ProductDifference.computationStep (model := model) a b c d output productLeft productRight
     store
 
-theorem coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
@@ -65,12 +65,13 @@ theorem coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
       coordinateStore a b c d output productLeft productRight store := rfl
 
 /-- The complete coordinate interpreter retains the original history and quantum-reference block. -/
-theorem coordinateCross_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateCross_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (coordinateCross (model := model) a b c d output productLeft productRight).execute
+    (coordinateCross (model := model) a b c d output productLeft productRight).execute environment
       Reference state =
       state.mapClassical (fun entry =>
         let actual := coordinateStep (model := model) a b c d output productLeft productRight
@@ -79,7 +80,7 @@ theorem coordinateCross_execute {model : ExecutionModel} [BitWord.Selected model
   ProductDifference.computeInto_execute a b c d output productLeft productRight Reference state
 
 /-- All reads outside the three actual output keys remain unchanged. -/
-theorem coordinateCross_callerFrame (a b c d : CInputRef ctx (.unsignedWord width))
+lemma coordinateCross_callerFrame (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoidsOutput : output.key ∉ other.storageKeys)
@@ -91,7 +92,7 @@ theorem coordinateCross_callerFrame (a b c d : CInputRef ctx (.unsignedWord widt
     avoidsOutput avoidsLeft avoidsRight
 
 /-- The real output represents the difference of the original two integer products. -/
-theorem coordinateCross_correct (a b c d : CInputRef ctx (.unsignedWord width))
+lemma coordinateCross_correct (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (cAvoidsLeft : productLeft.key ∉ c.storageKeys)
     (dAvoidsLeft : productLeft.key ∉ d.storageKeys)
@@ -106,7 +107,8 @@ theorem coordinateCross_correct (a b c d : CInputRef ctx (.unsignedWord width))
     cAvoidsLeft dAvoidsLeft productsDifferent av bv cv dv aRep bRep cRep dRep
 
 /-- All borrowed classical and quantum correlations survive the three actual coordinate writes. -/
-theorem coordinateCross_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateCross_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (a b c d : CInputRef ctx (.unsignedWord width))
     (output productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
@@ -114,6 +116,7 @@ theorem coordinateCross_borrowedRestored {model : ExecutionModel} [BitWord.Selec
     (coordinateCross (model := model) a b c d output productLeft productRight).BorrowedRestored
       Reference state
       ((coordinateCross (model := model) a b c d output productLeft productRight).execute
+        environment
         Reference state) :=
   ProductDifference.computeInto_borrowedRestored a b c d output productLeft productRight
     Reference state

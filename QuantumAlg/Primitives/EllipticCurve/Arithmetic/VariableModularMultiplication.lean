@@ -36,6 +36,8 @@ namespace VariableModularMul
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Parameters needed by the fixed-schedule shift-and-add circuit. -/
 public class Parameters where
   /-- Number of bits in each canonical residue word. -/
@@ -55,7 +57,7 @@ public class Parameters where
 variable [params : Parameters]
 
 /-- The stored modulus fits in its declared word width. -/
-theorem modulus_lt_capacity : params.modulus.val < 2 ^ params.width :=
+lemma modulus_lt_capacity : params.modulus.val < 2 ^ params.width :=
   ZMod.val_lt params.modulus
 
 /-- One externally visible data word. -/
@@ -175,7 +177,7 @@ abbrev encoding : BinaryLabelEncoding Registers :=
   rawEncoding.relabel registersEquiv
 
 /-- Relabeling only restores field names and leaves the physical width fixed. -/
-@[simp] theorem encoding_width : encoding.width = rawEncoding.width :=
+@[simp] lemma encoding_width : encoding.width = rawEncoding.width :=
   rfl
 
 set_option exponentiation.threshold 2048 in
@@ -287,7 +289,7 @@ def workBit : EncodedBit encoding :=
   rawWorkBit.relabel registersEquiv
 
 /-- Distinct named multiplier bits occupy distinct physical wires. -/
-theorem multiplierBit_pairwise_ne
+lemma multiplierBit_pairwise_ne
     (left right : Fin params.width) (h : left ≠ right) :
     (multiplierBit left).wire ≠ (multiplierBit right).wire := by
   have hbase :
@@ -308,7 +310,7 @@ theorem multiplierBit_pairwise_ne
     congrArg Fin.val hw
 
 /-- Distinct named in-place multiplicand bits occupy distinct physical wires. -/
-theorem inPlaceMultiplicandBit_pairwise_ne
+lemma inPlaceMultiplicandBit_pairwise_ne
     (left right : Fin params.width) (h : left ≠ right) :
     (inPlaceMultiplicandBit left).wire ≠
       (inPlaceMultiplicandBit right).wire := by
@@ -331,7 +333,7 @@ theorem inPlaceMultiplicandBit_pairwise_ne
 
 /-- Every named multiplier bit is physically separated from every named
 in-place multiplicand bit. -/
-theorem multiplierBit_inPlaceMultiplicandBit_ne
+lemma multiplierBit_inPlaceMultiplicandBit_ne
     (left right : Fin params.width) :
     (multiplierBit left).wire ≠ (inPlaceMultiplicandBit right).wire := by
   have hraw :
@@ -351,21 +353,21 @@ theorem multiplierBit_inPlaceMultiplicandBit_ne
   simpa only [multiplierBit, inPlaceMultiplicandBit, EncodedBit.relabel] using
     congrArg Fin.val hw
 
-@[simp] theorem rawMultiplierBit_get (bit : Fin params.width) (x : RawRegisters) :
+@[simp] lemma rawMultiplierBit_get (bit : Fin params.width) (x : RawRegisters) :
     (rawMultiplierBit bit).get x = x.1.val.testBit bit.val := by
   change (PlainAdder.Schedule.PowerOfTwo.wordBit params.width bit).get x.1 = _
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get params.width bit x.1
 
-@[simp] theorem rawWorkBit_get (x : RawRegisters) :
+@[simp] lemma rawWorkBit_get (x : RawRegisters) :
     rawWorkBit.get x = x.2.2.2 :=
   rfl
 
-theorem rawAccumulatorBit_get (bit : Fin params.width) (x : RawRegisters) :
+lemma rawAccumulatorBit_get (bit : Fin params.width) (x : RawRegisters) :
     (rawAccumulatorBit bit).get x = x.2.1.val.testBit bit.val := by
   change (PlainAdder.Schedule.PowerOfTwo.wordBit params.width bit).get x.2.1 = _
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get params.width bit x.2.1
 
-theorem rawInPlaceMultiplicandBit_get
+lemma rawInPlaceMultiplicandBit_get
     (bit : Fin params.width) (x : RawRegisters) :
     (rawInPlaceMultiplicandBit bit).get x =
       x.2.2.1.multiplicand.val.testBit bit.val := by
@@ -374,7 +376,7 @@ theorem rawInPlaceMultiplicandBit_get
   exact MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit_get
     params.width bit x.2.2.1
 
-@[simp] theorem inPlaceMultiplicandBit_get
+@[simp] lemma inPlaceMultiplicandBit_get
     (bit : Fin params.width) (x : Registers) :
     (inPlaceMultiplicandBit bit).get x =
       x.inPlace.multiplicand.val.testBit bit.val := by
@@ -383,7 +385,7 @@ theorem rawInPlaceMultiplicandBit_get
   exact rawInPlaceMultiplicandBit_get bit (registersEquiv x)
 
 set_option exponentiation.threshold 2048 in
-private theorem rawInPlaceActiveSourceBit_get
+private lemma rawInPlaceActiveSourceBit_get
     (bit : Fin params.width) (x : RawRegisters) :
     (rawInPlaceActiveSourceBit bit).get x =
       x.2.2.1.arithmetic.activeSource.val.testBit bit.val := by
@@ -393,7 +395,7 @@ private theorem rawInPlaceActiveSourceBit_get
     params.width (lowSourceIndex bit) x.2.2.1
 
 set_option exponentiation.threshold 2048 in
-private theorem rawInPlaceAccumulatorBit_get
+private lemma rawInPlaceAccumulatorBit_get
     (bit : Fin params.width) (x : RawRegisters) :
     (rawInPlaceAccumulatorBit bit).get x =
       x.2.2.1.arithmetic.target.val.testBit bit.val := by
@@ -402,7 +404,7 @@ private theorem rawInPlaceAccumulatorBit_get
   exact MAU.Multiplication.VBECircuit.accumulatorBit_get params.width bit x.2.2.1
 
 set_option exponentiation.threshold 2048 in
-private theorem rawInPlaceActiveSourceHighBit_get (x : RawRegisters) :
+private lemma rawInPlaceActiveSourceHighBit_get (x : RawRegisters) :
     (rawInPlaceBit
       (MAU.Multiplication.Accumulate.VBECircuit.activeSourceBit params.width
         (Fin.last params.width))).get x =
@@ -413,7 +415,7 @@ private theorem rawInPlaceActiveSourceHighBit_get (x : RawRegisters) :
     params.width (Fin.last params.width) x.2.2.1
 
 set_option exponentiation.threshold 2048 in
-private theorem rawInPlaceAccumulatorHighBit_get (x : RawRegisters) :
+private lemma rawInPlaceAccumulatorHighBit_get (x : RawRegisters) :
     (rawInPlaceBit
       (MAU.Multiplication.Accumulate.VBECircuit.targetBit params.width
         (Fin.last params.width))).get x =
@@ -423,7 +425,7 @@ private theorem rawInPlaceAccumulatorHighBit_get (x : RawRegisters) :
   exact MAU.Multiplication.Accumulate.VBECircuit.targetBit_get
     params.width (Fin.last params.width) x.2.2.1
 
-private theorem rawInPlaceBit_wire_ne
+private lemma rawInPlaceBit_wire_ne
     {left right : EncodedBit inPlaceEncoding} (h : left.wire ≠ right.wire) :
     (rawInPlaceBit left).wire ≠ (rawInPlaceBit right).wire := by
   have hwithWork :=
@@ -432,7 +434,7 @@ private theorem rawInPlaceBit_wire_ne
   have hraw := EncodedBit.GateSpec.prodRightWire_ne wordEncoding hsuffix
   simpa only [rawInPlaceBit, rawEncoding, accumulatorSuffixEncoding] using hraw
 
-theorem rawAccumulator_pairwise_ne :
+lemma rawAccumulator_pairwise_ne :
     ∀ i j : Fin params.width, i ≠ j →
       (rawAccumulatorBit i).wire ≠ (rawAccumulatorBit j).wire := by
   intro i j hij
@@ -449,7 +451,7 @@ theorem rawAccumulator_pairwise_ne :
   have hraw := EncodedBit.GateSpec.prodRightWire_ne wordEncoding hsuffix
   simpa only [rawAccumulatorBit, rawEncoding, accumulatorSuffixEncoding] using hraw
 
-private theorem rawAccumulator_inPlaceBit_ne
+private lemma rawAccumulator_inPlaceBit_ne
     (accumulatorBit : Fin params.width) (inPlaceBit : EncodedBit inPlaceEncoding) :
     (rawAccumulatorBit accumulatorBit).wire ≠ (rawInPlaceBit inPlaceBit).wire := by
   have hinner :
@@ -467,7 +469,7 @@ private theorem rawAccumulator_inPlaceBit_ne
   simpa only [rawAccumulatorBit, rawInPlaceBit, rawEncoding,
     accumulatorSuffixEncoding] using hraw
 
-private theorem rawInPlaceAccumulator_pairwise_ne :
+private lemma rawInPlaceAccumulator_pairwise_ne :
     ∀ i j : Fin params.width, i ≠ j →
       (rawInPlaceAccumulatorBit i).wire ≠
         (rawInPlaceAccumulatorBit j).wire := by
@@ -475,7 +477,7 @@ private theorem rawInPlaceAccumulator_pairwise_ne :
   exact rawInPlaceBit_wire_ne
     (MAU.Multiplication.VBECircuit.accumulator_pairwise_ne params.width i j hij)
 
-private theorem rawAccumulator_inPlaceAccumulator_cross_ne :
+private lemma rawAccumulator_inPlaceAccumulator_cross_ne :
     ∀ accumulatorBit targetBit : Fin params.width,
       (rawAccumulatorBit accumulatorBit).wire ≠
         (rawInPlaceAccumulatorBit targetBit).wire := by
@@ -483,7 +485,7 @@ private theorem rawAccumulator_inPlaceAccumulator_cross_ne :
   exact rawAccumulator_inPlaceBit_ne accumulatorBit
     (MAU.Multiplication.VBECircuit.accumulatorBit params.width targetBit)
 
-private theorem rawInPlaceActiveSource_pairwise_ne :
+private lemma rawInPlaceActiveSource_pairwise_ne :
     ∀ i j : Fin params.width, i ≠ j →
       (rawInPlaceActiveSourceBit i).wire ≠
         (rawInPlaceActiveSourceBit j).wire := by
@@ -500,7 +502,7 @@ private theorem rawInPlaceActiveSource_pairwise_ne :
     (MAU.Multiplication.Accumulate.VBECircuit.activeSource_pairwise_ne
       params.width (lowSourceIndex i) (lowSourceIndex j) hindices)
 
-private theorem rawInPlaceMultiplicand_activeSource_cross_ne :
+private lemma rawInPlaceMultiplicand_activeSource_cross_ne :
     ∀ multiplicandBit sourceBit : Fin params.width,
       (rawInPlaceMultiplicandBit multiplicandBit).wire ≠
         (rawInPlaceActiveSourceBit sourceBit).wire := by
@@ -509,7 +511,7 @@ private theorem rawInPlaceMultiplicand_activeSource_cross_ne :
     (MAU.Multiplication.Accumulate.VBECircuit.multiplicand_activeSource_ne
       params.width multiplicandBit (lowSourceIndex sourceBit))
 
-private theorem rawInPlaceActiveSource_activeHigh_ne (bit : Fin params.width) :
+private lemma rawInPlaceActiveSource_activeHigh_ne (bit : Fin params.width) :
     (rawInPlaceActiveSourceBit bit).wire ≠
       (rawInPlaceBit
         (MAU.Multiplication.Accumulate.VBECircuit.activeSourceBit params.width
@@ -524,7 +526,7 @@ private theorem rawInPlaceActiveSource_activeHigh_ne (bit : Fin params.width) :
     (MAU.Multiplication.Accumulate.VBECircuit.activeSource_pairwise_ne
       params.width (lowSourceIndex bit) (Fin.last params.width) hindex)
 
-private theorem rawInPlaceAccumulator_targetHigh_ne (bit : Fin params.width) :
+private lemma rawInPlaceAccumulator_targetHigh_ne (bit : Fin params.width) :
     (rawInPlaceAccumulatorBit bit).wire ≠
       (rawInPlaceBit
         (MAU.Multiplication.Accumulate.VBECircuit.targetBit params.width
@@ -537,7 +539,7 @@ private theorem rawInPlaceAccumulator_targetHigh_ne (bit : Fin params.width) :
 
 /-- The external accumulator wire is distinct from its counterpart in the
 low VBE target word. -/
-theorem rawAccumulator_inPlaceAccumulator_ne (bit : Fin params.width) :
+lemma rawAccumulator_inPlaceAccumulator_ne (bit : Fin params.width) :
     (rawAccumulatorBit bit).wire ≠ (rawInPlaceAccumulatorBit bit).wire := by
   have hinner :
       (BinaryLabelEncoding.prodLeftBit wordEncoding inPlaceWithWorkEncoding
@@ -557,7 +559,7 @@ theorem rawAccumulator_inPlaceAccumulator_ne (bit : Fin params.width) :
 
 /-- The in-place source word is wire-disjoint from the low active VBE source
 word into which it is copied or unloaded. -/
-theorem rawInPlaceMultiplicand_activeSource_ne (bit : Fin params.width) :
+lemma rawInPlaceMultiplicand_activeSource_ne (bit : Fin params.width) :
     (rawInPlaceMultiplicandBit bit).wire ≠
       (rawInPlaceActiveSourceBit bit).wire := by
   have hinPlace :=
@@ -595,10 +597,10 @@ def accumulatorSwapStep : Registers → Registers :=
 
 set_option exponentiation.threshold 2048 in
 /-- The physical three-CNOT word swap realizes its displayed named action. -/
-theorem accumulatorSwap_realizes :
-    UnitaryCircuit.Realizes encoding accumulatorSwapCircuit accumulatorSwapStep := by
+lemma accumulatorSwap_realizes :
+    UnitaryCircuit.Realizes encoding accumulatorSwapCircuit environment accumulatorSwapStep := by
   exact UnitaryCircuit.Realizes.relabel registersEquiv
-    (EncodedBit.Word.swap_realizes (QubitLayout.canonical _) .empty
+    (EncodedBit.Word.swap_realizes (environment := environment) (QubitLayout.canonical _) .empty
       rawAccumulatorWord rawInPlaceAccumulatorWord
       rawAccumulator_inPlaceAccumulator_ne)
 
@@ -624,10 +626,10 @@ def sourceCopyStep : Registers → Registers :=
 
 set_option exponentiation.threshold 2048 in
 /-- The physical CNOT word-xor realizes the displayed source-copy action. -/
-theorem sourceCopy_realizes :
-    UnitaryCircuit.Realizes encoding sourceCopyCircuit sourceCopyStep := by
+lemma sourceCopy_realizes :
+    UnitaryCircuit.Realizes encoding sourceCopyCircuit environment sourceCopyStep := by
   exact UnitaryCircuit.Realizes.relabel registersEquiv
-    (EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty
+    (EncodedBit.Word.xorInto_realizes (environment := environment) (QubitLayout.canonical _) .empty
       rawInPlaceMultiplicandWord
       rawInPlaceActiveSourceWord rawInPlaceMultiplicand_activeSource_ne)
 
@@ -647,8 +649,8 @@ def sourceUnloadStep : Registers → Registers :=
 
 set_option exponentiation.threshold 2048 in
 /-- The physical source-unload program realizes its displayed xor action. -/
-theorem sourceUnload_realizes :
-    UnitaryCircuit.Realizes encoding sourceUnloadCircuit sourceUnloadStep :=
+lemma sourceUnload_realizes :
+    UnitaryCircuit.Realizes encoding sourceUnloadCircuit environment sourceUnloadStep :=
   sourceCopy_realizes
 
 /-! ## One selected controlled modular-add stage -/
@@ -670,7 +672,7 @@ def rawArithmeticGates : List (EncodedBit.GateSpec rawEncoding) :=
 
 /-- Every external multiplier bit is disjoint from the mechanically lifted
 modular-arithmetic schedule. -/
-theorem rawMultiplierDisjoint (bit : Fin params.width) :
+lemma rawMultiplierDisjoint (bit : Fin params.width) :
     ∀ gate, gate ∈ rawArithmeticGates →
       EncodedBit.GateSpec.bitDisjoint (rawMultiplierBit bit) gate := by
   intro gate hgate
@@ -685,7 +687,7 @@ theorem rawMultiplierDisjoint (bit : Fin params.width) :
     (PlainAdder.Schedule.PowerOfTwo.wordBit params.width bit) innerGate
 
 /-- The shared control-work bit is disjoint from every lifted arithmetic gate. -/
-theorem rawWorkDisjoint :
+lemma rawWorkDisjoint :
     ∀ gate, gate ∈ rawArithmeticGates →
       EncodedBit.GateSpec.bitDisjoint rawWorkBit gate := by
   intro gate hgate
@@ -715,7 +717,7 @@ theorem rawWorkDisjoint :
 
 /-- Each selected multiplier control is a different physical wire from the
 shared control-work bit. -/
-theorem rawMultiplierWork_ne (bit : Fin params.width) :
+lemma rawMultiplierWork_ne (bit : Fin params.width) :
     (rawMultiplierBit bit).wire ≠ rawWorkBit.wire := by
   change
     (BinaryLabelEncoding.prodLeftBit wordEncoding
@@ -758,10 +760,10 @@ def stageStep (bit : Fin params.width) : Registers → Registers :=
 
 set_option exponentiation.threshold 2048 in
 /-- The actual controlled gate list realizes its named stage action. -/
-theorem stage_realizes (bit : Fin params.width) :
-    UnitaryCircuit.Realizes encoding (stageCircuit bit) (stageStep bit) := by
+lemma stage_realizes (bit : Fin params.width) :
+    UnitaryCircuit.Realizes encoding (stageCircuit bit) environment (stageStep bit) := by
   exact UnitaryCircuit.Realizes.relabel registersEquiv
-    (EncodedBit.GateSpec.controlledListWithWorkWitness
+    (EncodedBit.GateSpec.controlledListWithWorkWitness (environment := environment)
       (QubitLayout.canonical _) .empty
       (rawMultiplierBit bit) rawWorkBit rawArithmeticGates
       (rawMultiplierDisjoint bit) rawWorkDisjoint (rawMultiplierWork_ne bit))
@@ -773,7 +775,7 @@ def rawUncontrolledAddStep : RawRegisters → RawRegisters :=
 
 /-- The three product lifts around the unconditional stage retain exactly the
 public VBE lifted modular-add action on the in-place carrier. -/
-private theorem rawUncontrolledAddStep_eq_liftedModularAdd (x : RawRegisters) :
+private lemma rawUncontrolledAddStep_eq_liftedModularAdd (x : RawRegisters) :
     rawUncontrolledAddStep x =
       (x.1, (x.2.1,
         (MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddStep
@@ -842,7 +844,7 @@ private def routingRegisters
   registersEquiv.symm
     (routingRawRegisters multiplier source accumulator active target)
 
-private theorem cleanRegisters_eq_routing (x : Data) :
+private lemma cleanRegisters_eq_routing (x : Data) :
     cleanRegisters x =
       routingRegisters (x.multiplier.val : Word)
         (x.multiplicand.val : Word) (x.accumulator.val : Word) 0 0 :=
@@ -850,7 +852,7 @@ private theorem cleanRegisters_eq_routing (x : Data) :
 
 /-- A canonical field representative retains its value in the physical
 256-bit word. -/
-private theorem canonicalWord_val
+private lemma canonicalWord_val
     (x : ZMod params.modulus.val) :
     ((x.val : Word)).val = x.val := by
   let _ : NeZero params.modulus.val :=
@@ -859,7 +861,7 @@ private theorem canonicalWord_val
   exact (ZMod.val_lt x).trans modulus_lt_capacity
 
 /-- Fieldwise equality for the reusable in-place VBE register structure. -/
-private theorem inPlaceRegisters_ext
+private lemma inPlaceRegisters_ext
     (x y : InPlaceRegisters)
     (hmultiplicand : x.multiplicand = y.multiplicand)
     (harithmetic : x.arithmetic = y.arithmetic) :
@@ -870,7 +872,7 @@ private theorem inPlaceRegisters_ext
 
 set_option exponentiation.threshold 2048 in
 /-- Fieldwise equality for the reusable VBE modular-addition workspace. -/
-private theorem additionRegisters_ext
+private lemma additionRegisters_ext
     (x y : MAU.Addition.VBECircuit.Registers params.width)
     (hactiveSource : x.activeSource = y.activeSource)
     (htarget : x.target = y.target)
@@ -886,7 +888,7 @@ private theorem additionRegisters_ext
 set_option exponentiation.threshold 2048 in
 /-- The raw accumulator word swap exchanges only the external low word and the
 low VBE target word, retaining the clean target overflow bit. -/
-private theorem rawAccumulatorSwapStep_routing
+private lemma rawAccumulatorSwapStep_routing
     (multiplier source accumulator active target : Word) :
     rawAccumulatorSwapStep
         (routingRawRegisters multiplier source accumulator active target) =
@@ -1184,7 +1186,7 @@ private theorem rawAccumulatorSwapStep_routing
 
 /-- The named accumulator swap is the raw routing endpoint transported through
 the field-layout equivalence. -/
-private theorem accumulatorSwapStep_routing
+private lemma accumulatorSwapStep_routing
     (multiplier source accumulator active target : Word) :
     accumulatorSwapStep
         (routingRegisters multiplier source accumulator active target) =
@@ -1195,7 +1197,7 @@ private theorem accumulatorSwapStep_routing
 set_option exponentiation.threshold 2048 in
 /-- The source xor routing realizes any low-word xor relation while retaining
 the clean high active-source bit and every other workspace field. -/
-private theorem rawSourceCopyStep_routing
+private lemma rawSourceCopyStep_routing
     (multiplier source accumulator active target result : Word)
     (hresult : ∀ bit : Fin params.width,
       result.val.testBit bit.val =
@@ -1490,7 +1492,7 @@ private theorem rawSourceCopyStep_routing
 
 /-- The named source xor endpoint is the raw routing endpoint transported
 through the field-layout equivalence. -/
-private theorem sourceCopyStep_routing
+private lemma sourceCopyStep_routing
     (multiplier source accumulator active target result : Word)
     (hresult : ∀ bit : Fin params.width,
       result.val.testBit bit.val =
@@ -1503,7 +1505,7 @@ private theorem sourceCopyStep_routing
       hresult)
 
 /-- Loading a clean active source copies the stored multiplicand. -/
-private theorem sourceCopyStep_routing_zero
+private lemma sourceCopyStep_routing_zero
     (multiplier source accumulator target : Word) :
     sourceCopyStep
         (routingRegisters multiplier source accumulator 0 target) =
@@ -1513,7 +1515,7 @@ private theorem sourceCopyStep_routing_zero
   simp
 
 /-- Unloading the copied active source restores its clean zero state. -/
-private theorem sourceUnloadStep_routing_source
+private lemma sourceUnloadStep_routing_source
     (multiplier source accumulator target : Word) :
     sourceUnloadStep
         (routingRegisters multiplier source accumulator source target) =
@@ -1528,7 +1530,7 @@ private theorem sourceUnloadStep_routing_source
 set_option exponentiation.threshold 2048 in
 /-- The raw lifted unconditional VBE schedule adds the routed active source
 into the routed target and restores every arithmetic auxiliary field. -/
-private theorem rawUncontrolledAddStep_routing
+private lemma rawUncontrolledAddStep_routing
     (multiplier source accumulator : Word)
     (hsource : source.val < params.modulus.val)
     (haccumulator : accumulator.val < params.modulus.val) :
@@ -1603,7 +1605,7 @@ private theorem rawUncontrolledAddStep_routing
 
 /-- The named unconditional add is the raw arithmetic endpoint transported
 through the field-layout equivalence. -/
-private theorem uncontrolledAddStep_routing
+private lemma uncontrolledAddStep_routing
     (multiplier source accumulator : Word)
     (hsource : source.val < params.modulus.val)
     (haccumulator : accumulator.val < params.modulus.val) :
@@ -1618,7 +1620,7 @@ private theorem uncontrolledAddStep_routing
 
 /-- A false selected multiplier bit leaves the complete common carrier
 unchanged, without any condition on the shared work bit. -/
-theorem stageStep_eq_self_of_multiplier_false (bit : Fin params.width)
+lemma stageStep_eq_self_of_multiplier_false (bit : Fin params.width)
     (x : Registers) (hmultiplier : x.multiplier.val.testBit bit.val = false) :
     stageStep bit x = x := by
   have hcontrol : (rawMultiplierBit bit).get (registersEquiv x) = false := by
@@ -1637,7 +1639,7 @@ theorem stageStep_eq_self_of_multiplier_false (bit : Fin params.width)
 
 /-- With a true selected multiplier bit and a clean shared work bit, the
 controlled stage agrees exactly with the unconditional reused VBE schedule. -/
-theorem stageStep_eq_uncontrolledAddStep_of_multiplier_true_work_clean
+lemma stageStep_eq_uncontrolledAddStep_of_multiplier_true_work_clean
     (bit : Fin params.width) (x : Registers)
     (hmultiplier : x.multiplier.val.testBit bit.val = true)
     (hwork : x.work = false) :
@@ -1681,7 +1683,7 @@ def liftInPlaceStep
 
 /-- The lifted primitive list has exactly the corresponding product-carrier
 semantic action. -/
-theorem liftInPlaceGates_stepList
+lemma liftInPlaceGates_stepList
     (gates : List (EncodedBit.GateSpec inPlaceEncoding)) (x : RawRegisters) :
     EncodedBit.GateSpec.stepList (liftInPlaceGates gates) x =
       liftInPlaceStep (EncodedBit.GateSpec.stepList gates) x := by
@@ -1714,11 +1716,11 @@ theorem liftInPlaceGates_stepList
   rfl
 
 /-- The modulus is odd, so the static residue `2` is invertible. -/
-theorem primeModulus_odd : Odd params.modulus.val :=
+lemma primeModulus_odd : Odd params.modulus.val :=
   params.modulusOdd
 
 /-- Coprimality certificate used to construct the fixed doubling unit. -/
-theorem two_coprime_primeModulus :
+lemma two_coprime_primeModulus :
     Nat.Coprime 2 params.modulus.val :=
   primeModulus_odd.coprime_two_left
 
@@ -1743,11 +1745,11 @@ def rawDoublingTargetWord :
   bit := fun bit => rawInPlaceBit
     (MAU.Multiplication.Accumulate.VBECircuit.targetBit params.width bit)
 
-@[simp] private theorem rawDoublingSourceWord_bit_last :
+@[simp] private lemma rawDoublingSourceWord_bit_last :
     rawDoublingSourceWord.bit (Fin.last params.width) = rawWorkBit := by
   simp [rawDoublingSourceWord, MAU.Addition.VBECircuit.AdderWidth]
 
-@[simp] private theorem rawDoublingSourceWord_bit_castSucc
+@[simp] private lemma rawDoublingSourceWord_bit_castSucc
     (bit : Fin params.width) :
     rawDoublingSourceWord.bit (Fin.castSucc bit) =
       rawInPlaceMultiplicandBit bit := by
@@ -1758,7 +1760,7 @@ def rawDoublingReductionFlagBit : EncodedBit rawEncoding :=
   rawInPlaceBit
     (MAU.Multiplication.Accumulate.VBECircuit.reductionFlagBit params.width)
 
-@[simp] theorem rawDoublingReductionFlagBit_get (x : RawRegisters) :
+@[simp] lemma rawDoublingReductionFlagBit_get (x : RawRegisters) :
     rawDoublingReductionFlagBit.get x =
       x.2.2.1.arithmetic.reductionFlag := by
   change
@@ -1771,7 +1773,7 @@ def rawDoublingReductionFlagBit : EncodedBit rawEncoding :=
 def doublingLowBit : Fin params.width :=
   ⟨0, params.widthPos⟩
 
-private theorem rawInPlaceBit_rawWork_ne
+private lemma rawInPlaceBit_rawWork_ne
     (bit : EncodedBit inPlaceEncoding) :
     (rawInPlaceBit bit).wire ≠ rawWorkBit.wire := by
   have hinner :
@@ -1788,7 +1790,7 @@ private theorem rawInPlaceBit_rawWork_ne
     accumulatorSuffixEncoding, inPlaceWithWorkEncoding] using hraw
 
 /-- Distinct bits of the widened source occupy distinct physical wires. -/
-theorem rawDoublingSourceWord_pairwise_ne
+lemma rawDoublingSourceWord_pairwise_ne
     (left right : Fin (MAU.Addition.VBECircuit.AdderWidth params.width))
     (hne : left ≠ right) :
     (rawDoublingSourceWord.bit left).wire ≠
@@ -1830,7 +1832,7 @@ theorem rawDoublingSourceWord_pairwise_ne
         congrArg Fin.val hwire
 
 /-- Distinct bits of the full VBE target occupy distinct physical wires. -/
-theorem rawDoublingTargetWord_pairwise_ne
+lemma rawDoublingTargetWord_pairwise_ne
     (left right : Fin (MAU.Addition.VBECircuit.AdderWidth params.width))
     (hne : left ≠ right) :
     (rawDoublingTargetWord.bit left).wire ≠
@@ -1862,7 +1864,7 @@ theorem rawDoublingTargetWord_pairwise_ne
         params.width hbase)
 
 /-- The widened source and full arithmetic target are physically disjoint. -/
-theorem rawDoublingSource_target_cross_ne
+lemma rawDoublingSource_target_cross_ne
     (source target :
       Fin (MAU.Addition.VBECircuit.AdderWidth params.width)) :
     (rawDoublingSourceWord.bit source).wire ≠
@@ -1884,7 +1886,7 @@ theorem rawDoublingSource_target_cross_ne
           (MAU.Addition.VBECircuit.targetBit params.width target))
 
 /-- The low source bit used to erase the reduction flag is a distinct wire. -/
-theorem rawDoublingSourceZero_reductionFlag_ne :
+lemma rawDoublingSourceZero_reductionFlag_ne :
     (rawInPlaceMultiplicandBit doublingLowBit).wire ≠
       rawDoublingReductionFlagBit.wire := by
   simpa [rawInPlaceMultiplicandBit, rawDoublingReductionFlagBit,
@@ -1894,18 +1896,18 @@ theorem rawDoublingSourceZero_reductionFlag_ne :
         params.width doublingLowBit
         (MAU.Addition.VBECircuit.reductionFlagBit params.width))
 
-theorem rawDoublingSourceWord_get_castSucc
+lemma rawDoublingSourceWord_get_castSucc
     (bit : Fin params.width) (x : RawRegisters) :
     (rawDoublingSourceWord.bit (Fin.castSucc bit)).get x =
       x.2.2.1.multiplicand.val.testBit bit.val := by
   simpa [rawDoublingSourceWord, rawInPlaceMultiplicandBit] using
     rawInPlaceMultiplicandBit_get bit x
 
-theorem rawDoublingSourceWord_get_last (x : RawRegisters) :
+lemma rawDoublingSourceWord_get_last (x : RawRegisters) :
     (rawDoublingSourceWord.bit (Fin.last params.width)).get x = x.2.2.2 := by
   simp [rawDoublingSourceWord]
 
-@[simp] theorem rawDoublingTargetWord_get
+@[simp] lemma rawDoublingTargetWord_get
     (bit : Fin (MAU.Addition.VBECircuit.AdderWidth params.width))
     (x : RawRegisters) :
     (rawDoublingTargetWord.bit bit).get x =
@@ -1981,7 +1983,7 @@ private def doubledWideWord (target : Word) :
   ((2 * target.val : Nat) :
     PlainAdder.Word (MAU.Addition.VBECircuit.AdderWidth params.width))
 
-@[simp] private theorem doubledWideWord_val (target : Word) :
+@[simp] private lemma doubledWideWord_val (target : Word) :
     (doubledWideWord target).val = 2 * target.val := by
   unfold doubledWideWord
   apply ZMod.val_natCast_of_lt
@@ -1989,7 +1991,7 @@ private def doubledWideWord (target : Word) :
   simp only [MAU.Addition.VBECircuit.AdderWidth, pow_succ]
   omega
 
-private theorem rawDoublingSwapStep_routing
+private lemma rawDoublingSwapStep_routing
     (multiplier accumulator source target : Word) (flag : Bool) :
     rawDoublingSwapStep
         (doublingRoutingRawRegisters multiplier accumulator source target flag) =
@@ -2135,7 +2137,7 @@ private theorem rawDoublingSwapStep_routing
           · exact hflag
       · exact hwork
 
-private theorem rawDoublingShiftStep_routing
+private lemma rawDoublingShiftStep_routing
     (multiplier accumulator source target : Word) (flag : Bool) :
     rawDoublingShiftStep
         (doublingRoutingRawRegisters multiplier accumulator source target flag) =
@@ -2264,7 +2266,7 @@ private theorem rawDoublingShiftStep_routing
           · exact hflag
       · exact hwork
 
-private theorem rawDoublingReductionStep_routing
+private lemma rawDoublingReductionStep_routing
     (multiplier accumulator source x : Word)
     (hx : x.val < params.modulus.val) :
     rawUncontrolledAddStep
@@ -2324,7 +2326,7 @@ private theorem rawDoublingReductionStep_routing
   simp [afterWork, doublingRoutingRawRegisters,
     reducedLow, reduced, raw, flag, doubledWideWord_val]
 
-private theorem reducedDoubling_lowBit
+private lemma reducedDoubling_lowBit
     (x : Word) (hx : x.val < params.modulus.val) :
     ((((2 * x.val) % params.modulus.val : Nat) : Word).val).testBit 0 =
       decide (params.modulus.val ≤ 2 * x.val) := by
@@ -2346,7 +2348,7 @@ private theorem reducedDoubling_lowBit
     rw [Nat.mod_eq_of_lt hlt]
     simp [hreduce, Nat.testBit_zero]
 
-private theorem rawDoublingCleanupStep_routing
+private lemma rawDoublingCleanupStep_routing
     (multiplier accumulator reduced : Word) (flag : Bool)
     (hbit : reduced.val.testBit 0 = flag) :
     rawDoublingCleanupStep
@@ -2395,7 +2397,7 @@ def rawDoublingStep : RawRegisters → RawRegisters :=
 
 /-- The concrete swap/shift/reduce/swap/cleanup fold doubles one canonical
 source residue while returning every arithmetic and shared work bit clean. -/
-private theorem rawDoublingStep_routing
+private lemma rawDoublingStep_routing
     (multiplier accumulator source : Word)
     (hsource : source.val < params.modulus.val) :
     rawDoublingStep
@@ -2415,7 +2417,7 @@ private theorem rawDoublingStep_routing
     (reducedDoubling_lowBit source hsource)
 
 /-- The concatenated shift/reduce source list has its displayed raw fold. -/
-theorem doublingGates_stepList (x : RawRegisters) :
+lemma doublingGates_stepList (x : RawRegisters) :
     EncodedBit.GateSpec.stepList doublingGates x = rawDoublingStep x := by
   simp only [doublingGates, EncodedBit.GateSpec.stepList_append]
   rfl
@@ -2426,7 +2428,7 @@ def doublingStep : Registers → Registers :=
 
 /-- On clean semantic data, the literal width-neutral circuit doubles the
 stored source residue modulo the configured odd modulus. -/
-theorem doublingStep_cleanEndpoint (x : Data) :
+lemma doublingStep_cleanEndpoint (x : Data) :
     doublingStep (cleanRegisters x) =
       cleanRegisters (Data.doubleMultiplicand x) := by
   let _ : NeZero params.modulus.val :=
@@ -2467,11 +2469,11 @@ theorem doublingStep_cleanEndpoint (x : Data) :
 
 set_option exponentiation.threshold 2048 in
 /-- The literal shift/reduce circuit realizes its named action. -/
-theorem doubling_realizes :
-    UnitaryCircuit.Realizes encoding doublingCircuit doublingStep := by
-  have raw : UnitaryCircuit.Realizes rawEncoding doublingCircuit rawDoublingStep := by
+lemma doubling_realizes :
+    UnitaryCircuit.Realizes encoding doublingCircuit environment doublingStep := by
+  have raw : UnitaryCircuit.Realizes rawEncoding doublingCircuit environment rawDoublingStep := by
     unfold doublingCircuit
-    exact EncodedBit.GateSpec.realizesList_congrStep
+    exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
       (QubitLayout.canonical _) .empty
       doublingGates doublingGates_stepList
   exact UnitaryCircuit.Realizes.relabel registersEquiv raw
@@ -2486,7 +2488,7 @@ def doublingEventDepth :=
   doublingCircuit.eventDepth
 
 /-- Linearizing the doubling event-depth tree recovers its actual event pool. -/
-theorem doubling_resourcesFromEventDepth_eq_eventCost :
+lemma doubling_resourcesFromEventDepth_eq_eventCost :
     doublingCircuit.resourcesFromEventDepth = doublingEventCost := by
   simpa only [doublingEventCost] using
     UnitaryCircuit.resourcesFromEventDepth_eq_eventCost doublingCircuit
@@ -2508,7 +2510,7 @@ def rawSelectedAddStep (bit : Fin params.width) : RawRegisters → RawRegisters 
           (rawAccumulatorSwapStep x))))
 
 /-- The concatenated selected-add source list has its displayed raw fold. -/
-theorem selectedAddGates_stepList (bit : Fin params.width) (x : RawRegisters) :
+lemma selectedAddGates_stepList (bit : Fin params.width) (x : RawRegisters) :
     EncodedBit.GateSpec.stepList (selectedAddGates bit) x =
       rawSelectedAddStep bit x := by
   unfold selectedAddGates rawSelectedAddStep sourceUnloadGates
@@ -2531,7 +2533,7 @@ def selectedAddStep (bit : Fin params.width) : Registers → Registers :=
           (accumulatorSwapStep x))))
 
 /-- The raw selected-add fold is the packed form of the named action. -/
-theorem rawSelectedAddStep_registersEquiv (bit : Fin params.width)
+lemma rawSelectedAddStep_registersEquiv (bit : Fin params.width)
     (x : Registers) :
     rawSelectedAddStep bit (registersEquiv x) =
       registersEquiv (selectedAddStep bit x) := by
@@ -2542,12 +2544,13 @@ theorem rawSelectedAddStep_registersEquiv (bit : Fin params.width)
 set_option exponentiation.threshold 2048 in
 /-- The composed accumulator-routing and selected-add circuit realizes its
 full named action. -/
-theorem selectedAdd_realizes (bit : Fin params.width) :
-    UnitaryCircuit.Realizes encoding (selectedAddCircuit bit) (selectedAddStep bit) := by
-  have raw : UnitaryCircuit.Realizes rawEncoding (selectedAddCircuit bit)
+lemma selectedAdd_realizes (bit : Fin params.width) :
+    UnitaryCircuit.Realizes encoding (selectedAddCircuit bit) environment (selectedAddStep bit) :=
+      by
+  have raw : UnitaryCircuit.Realizes rawEncoding (selectedAddCircuit bit) environment
       (rawSelectedAddStep bit) := by
     unfold selectedAddCircuit
-    exact EncodedBit.GateSpec.realizesList_congrStep
+    exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
       (QubitLayout.canonical _) .empty
       (selectedAddGates bit) (selectedAddGates_stepList bit)
   apply UnitaryCircuit.Realizes.congrStep
@@ -2559,7 +2562,7 @@ theorem selectedAdd_realizes (bit : Fin params.width) :
 
 /-- The selected-add routing preserves the canonical clean workspace and adds
 the stored multiplicand exactly when the selected multiplier bit is set. -/
-theorem selectedAddStep_cleanEndpoint (bit : Fin params.width) (x : Data) :
+lemma selectedAddStep_cleanEndpoint (bit : Fin params.width) (x : Data) :
     selectedAddStep bit (cleanRegisters x) =
       cleanRegisters (Data.addSelected bit x) := by
   let _ : NeZero params.modulus.val :=
@@ -2765,7 +2768,7 @@ def selectedAddEventDepth (bit : Fin params.width) :=
 
 /-- Linearizing the selected-add event-depth tree recovers its actual event
 pool. -/
-theorem selectedAdd_resourcesFromEventDepth_eq_eventCost (bit : Fin params.width) :
+lemma selectedAdd_resourcesFromEventDepth_eq_eventCost (bit : Fin params.width) :
     (selectedAddCircuit bit).resourcesFromEventDepth = selectedAddEventCost bit := by
   simpa only [selectedAddEventCost] using
     UnitaryCircuit.resourcesFromEventDepth_eq_eventCost (selectedAddCircuit bit)
@@ -2782,7 +2785,7 @@ def rawRoundStep (bit : Fin params.width) : RawRegisters → RawRegisters :=
   fun x => rawDoublingStep (rawSelectedAddStep bit x)
 
 /-- The concatenated round source list has its displayed raw fold. -/
-theorem roundGates_stepList (bit : Fin params.width) (x : RawRegisters) :
+lemma roundGates_stepList (bit : Fin params.width) (x : RawRegisters) :
     EncodedBit.GateSpec.stepList (roundGates bit) x = rawRoundStep bit x := by
   rw [roundGates, EncodedBit.GateSpec.stepList_append,
     selectedAddGates_stepList, doublingGates_stepList]
@@ -2799,7 +2802,7 @@ def roundStep (bit : Fin params.width) : Registers → Registers :=
   fun x => doublingStep (selectedAddStep bit x)
 
 /-- The raw round fold is the packed form of the named action. -/
-theorem rawRoundStep_registersEquiv (bit : Fin params.width) (x : Registers) :
+lemma rawRoundStep_registersEquiv (bit : Fin params.width) (x : Registers) :
     rawRoundStep bit (registersEquiv x) = registersEquiv (roundStep bit x) := by
   unfold roundStep doublingStep rawRoundStep
   rw [rawSelectedAddStep_registersEquiv]
@@ -2807,11 +2810,12 @@ theorem rawRoundStep_registersEquiv (bit : Fin params.width) (x : Registers) :
 
 set_option exponentiation.threshold 2048 in
 /-- One actual selected-add/doubling round realizes its named action. -/
-theorem roundCircuit_realizes (bit : Fin params.width) :
-    UnitaryCircuit.Realizes encoding (roundCircuit bit) (roundStep bit) := by
-  have raw : UnitaryCircuit.Realizes rawEncoding (roundCircuit bit) (rawRoundStep bit) := by
+lemma roundCircuit_realizes (bit : Fin params.width) :
+    UnitaryCircuit.Realizes encoding (roundCircuit bit) environment (roundStep bit) := by
+  have raw : UnitaryCircuit.Realizes rawEncoding (roundCircuit bit) environment (rawRoundStep bit)
+    := by
     unfold roundCircuit
-    exact EncodedBit.GateSpec.realizesList_congrStep
+    exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
       (QubitLayout.canonical _) .empty
       (roundGates bit) (roundGates_stepList bit)
   apply UnitaryCircuit.Realizes.congrStep
@@ -2832,7 +2836,7 @@ def roundEventDepth (bit : Fin params.width) :=
   (roundCircuit bit).eventDepth
 
 /-- Linearizing the round event-depth tree recovers its actual event pool. -/
-theorem round_resourcesFromEventDepth_eq_eventCost (bit : Fin params.width) :
+lemma round_resourcesFromEventDepth_eq_eventCost (bit : Fin params.width) :
     (roundCircuit bit).resourcesFromEventDepth = roundEventCost bit := by
   simpa only [roundEventCost] using
     UnitaryCircuit.resourcesFromEventDepth_eq_eventCost (roundCircuit bit)

@@ -24,7 +24,7 @@ namespace QuantumAlg.BitWord.Random
 
 noncomputable section
 
-private theorem unitSpace (kind : ProblemKind) :
+private lemma unitSpace (kind : ProblemKind) :
     (SpacePool.ofShape .unit : SpacePool kind) = 0 := by
   funext axis
   cases kind <;> cases axis <;> rfl
@@ -34,7 +34,7 @@ variable {execution : ExecutionModel} [Selected execution]
 
 /-- The actual unit scope visits the original context, its one extension, and the original again.
 -/
-public theorem randomCode_visitedContexts (output : CWriteRef ctx (.bits width))
+public lemma randomCode_visitedContexts (output : CWriteRef ctx (.bits width))
     (path : (code (execution := execution) output).Path) :
     (code (execution := execution) output).visitedContexts path =
       [ctx, ctx.addWorkspace ctx.canonicalFreshKey .unit ctx.runtimeCtx_canonicalFreshKey_fresh,
@@ -42,7 +42,7 @@ public theorem randomCode_visitedContexts (output : CWriteRef ctx (.bits width))
   rfl
 
 /-- Actual random generation adds no resident space at any classical or quantum coordinate. -/
-public theorem randomCode_peakResidentSpace (output : CWriteRef ctx (.bits width))
+public lemma randomCode_peakResidentSpace (output : CWriteRef ctx (.bits width))
     (path : (code (execution := execution) output).Path) :
     (code (execution := execution) output).peakResidentSpace path = ctx.residentSpace := by
   change SpacePool.max ctx.residentSpace
@@ -54,7 +54,7 @@ public theorem randomCode_peakResidentSpace (output : CWriteRef ctx (.bits width
     SpacePool.max_zero, SpacePool.max_self, SpacePool.max_self]
 
 /-- The same actual unit scope adds no auxiliary bits or quantum systems. -/
-public theorem randomCode_peakAuxiliarySpace (output : CWriteRef ctx (.bits width))
+public lemma randomCode_peakAuxiliarySpace (output : CWriteRef ctx (.bits width))
     (path : (code (execution := execution) output).Path) :
     (code (execution := execution) output).peakAuxiliarySpace path = ctx.auxiliarySpace := by
   change SpacePool.max ctx.auxiliarySpace

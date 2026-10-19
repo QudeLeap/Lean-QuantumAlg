@@ -69,7 +69,7 @@ def refs (original : FirstAccepted.Refs ctx width) :
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual conversion followed by existing native first-accepted selection. -/
@@ -108,12 +108,13 @@ def step (eligible : CInputRef ctx .bit) (candidate : CInputRef ctx (.unsignedWo
     selected.1, selected.2)
 
 /-- Actual body execution preserves all complete incoming quantum-reference matrix blocks. -/
-theorem nativeQuadratic_narrow_body_execute (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_body_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx width) Reference (model.HiddenState × History)) :
-    (body eligible candidate original).execute Reference state = state.mapClassical (fun entry =>
+    (body eligible candidate original).execute environment
+      Reference state = state.mapClassical (fun entry =>
       ((bodyStep eligible candidate original entry.1).1,
         (entry.2.1, (entry.2.2, (bodyStep eligible candidate original entry.1).2)))) := by
   simp only [body, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
@@ -122,15 +123,17 @@ theorem nativeQuadratic_narrow_body_execute (eligible : CInputRef ctx .bit)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Scope entry and release retain the complete original quantum-reference correlations. -/
-theorem nativeQuadratic_narrow_execute (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_execute (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code eligible candidate original).execute Reference state = state.mapClassical (fun entry =>
+    (code eligible candidate original).execute environment
+      Reference state = state.mapClassical (fun entry =>
       ((step eligible candidate original entry.1).1,
         (entry.2.1, (entry.2.2, (step eligible candidate original entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh (body eligible candidate original)
     (fun before =>
       let actual := bodyStep eligible candidate original before.1

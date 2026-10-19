@@ -28,6 +28,7 @@ noncomputable section
 universe u
 
 variable {G : Type u} [Group G] [Fintype G]
+variable {oracles : OracleModel}
 variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 
 /-- Selector cells in the order expected by the existing first-accepted machine. -/
@@ -57,8 +58,8 @@ public def liftSelector {width : Nat} {inner : RuntimeCtx .quantum}
     (input : CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P)) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  withAttempt P spec input fun candidate accepted transport =>
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  withAttempt (oracles := oracles) P spec input fun candidate accepted transport =>
     FirstAccepted.circuit ⟨accepted, candidate⟩ (liftSelector refs transport)
 
 /-- Process every retained sample in chronological order. -/
@@ -68,8 +69,8 @@ public def liftSelector {width : Nat} {inner : RuntimeCtx .quantum}
     (samples : Fin count → CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P)) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  Circuit.forRange count fun index => selectAttempt P spec (samples index) refs
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  Circuit.forRange count fun index => selectAttempt (oracles := oracles) P spec (samples index) refs
 
 /-- Pack the selector's final flag and word into the retained optional output. -/
 public def selectionPack {width : Nat} (refs : FirstAccepted.Refs ctx width)
@@ -89,9 +90,9 @@ public def selectionPack {width : Nat} (refs : FirstAccepted.Refs ctx width)
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P))
     (output : CWriteRef ctx (.option (.unsignedWord (OrderPreparation.width P)))) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  .seq (selectionLoop P spec count samples refs)
-    (BitWord.instruction (execution := OrderExecution.model P) (selectionPack refs output))
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  .seq (selectionLoop (oracles := oracles) P spec count samples refs)
+    (BitWord.instruction (execution := recoveryModel P oracles) (selectionPack refs output))
 
 /-- Allocate one selector around the complete recovery of an existing sample batch. -/
 @[expose] public def recoveryInto
@@ -100,10 +101,11 @@ public def selectionPack {width : Nat} (refs : FirstAccepted.Refs ctx width)
     (samples : Fin count → CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (output : CWriteRef ctx (.option (.unsignedWord (OrderPreparation.width P)))) :
-    Circuit (OrderExecution.model P) ctx ctx :=
-  withCells (model := OrderExecution.model P) ctx
+    Circuit (recoveryModel P oracles) ctx ctx :=
+  withCells (model := recoveryModel P oracles) ctx
       (selectorShapes (OrderPreparation.width P)) fun cells _ transport _ =>
-    recoveryBody P spec count (fun index => transport.liftInput (samples index))
+    recoveryBody (oracles := oracles) P spec count (fun index => transport.liftInput (samples
+      index))
       (selectorRefs cells) (transport.liftWrite output)
 
 end

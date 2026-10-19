@@ -23,7 +23,7 @@ namespace QuantumAlg.Execution.MeasurementCells
 variable {model : ExecutionModel}
 
 /-- Actual visited contexts contain the complete frame beside an original allocation prefix. -/
-theorem allocateFramed_visitedContexts (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
+lemma allocateFramed_visitedContexts (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (path : (allocateFramed (model := model) ctx frame dimension count separate).Path)
     (visited : RuntimeCtx model.kind)
@@ -48,7 +48,7 @@ theorem allocateFramed_visitedContexts (ctx frame : RuntimeCtx model.kind) (dime
         · exact ⟨count, Nat.le_succ count, prefixSeparate, equal⟩
         · exact ⟨count + 1, le_rfl, separate, List.mem_singleton.mp last⟩
 
-private theorem final_visited (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
+private lemma final_visited (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
     (context ctx dimension count).disjointUnion frame separate ∈
@@ -60,7 +60,7 @@ private theorem final_visited (ctx frame : RuntimeCtx model.kind) (dimension : �
       exact List.mem_append_right _ (List.mem_cons_of_mem _ (List.mem_singleton_self _))
 
 /-- All retained cells and the entire supplied frame contribute to the exact resident peak. -/
-theorem allocateFramed_peakResidentSpace (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
+lemma allocateFramed_peakResidentSpace (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
     (allocateFramed (model := model) ctx frame dimension count separate).peakResidentSpace path =
@@ -80,7 +80,7 @@ theorem allocateFramed_peakResidentSpace (ctx frame : RuntimeCtx model.kind) (di
   exact le_antisymm upper lower
 
 /-- Fixed storage roles give the same exact auxiliary peak on every actual allocation path. -/
-theorem allocateFramed_peakAuxiliarySpace (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
+lemma allocateFramed_peakAuxiliarySpace (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
     (allocateFramed (model := model) ctx frame dimension count separate).peakAuxiliarySpace path =

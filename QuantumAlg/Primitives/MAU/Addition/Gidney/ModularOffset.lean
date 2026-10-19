@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth EncodedBit GateSpec
 
 /-- Independent all-label output with both borrowed bits returned. -/
@@ -37,7 +39,7 @@ def modularOffsetGates (width : Nat) (modulus : Fin (2 ^ width + 1))
     pivotGates width (offsetLastPivot modulus constant)
 
 /-- The actual list realizes the independent finite modular-offset contract. -/
-theorem gidneyModularOffsetGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffsetGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (state : Registers width) :
     stepList (modularOffsetGates width modulus constant) state =
       modularOffsetOutput modulus constant state := by
@@ -54,21 +56,22 @@ def modularOffsetProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
   programList (QubitLayout.canonical _) .empty (modularOffsetGates width modulus constant)
 
 /-- The actual three-pivot program realizes the independent all-label modular offset. -/
-theorem gidneyModularOffset_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     UnitaryCircuit.Realizes (encoding width) (modularOffsetProgram width modulus constant)
+      environment
       (modularOffsetOutput modulus constant) :=
-  realizesList_congrStep _ _ _ (gidneyModularOffsetGates_step width modulus constant)
+  realizesList_congrStep _ _ _ (gidneyModularOffsetGates_step width modulus constant) environment
 
 /-- All three pivots use the same word and exactly two arbitrary borrowed bits. -/
-theorem gidneyModularOffset_interface (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_interface (width : Nat) (modulus : Fin (2 ^ width + 1))
     (_constant : Fin (modulus.val + 1)) :
     (encoding width).width = width + 2 ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (width + 2) :=
   gidneyPivot_interface width modulus
 
 /-- The native ledger is the sum of the three actual pivot ledgers. -/
-theorem gidneyModularOffset_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).eventCost =
       (pivotProgram width (offsetFirstPivot modulus constant)).eventCost +
@@ -78,7 +81,7 @@ theorem gidneyModularOffset_eventCost (width : Nat) (modulus : Fin (2 ^ width + 
     modularOffsetGates, List.map_append, ResourcePool.ofList_append]
 
 /-- On the original canonical domain, the accepted result is ordinary modular addition. -/
-theorem gidneyModularOffset_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (state : Registers width)
     (hvalid : state.2.1.val < modulus.val) :
     (modularOffsetOutput modulus constant state).2.1.val =
@@ -86,7 +89,7 @@ theorem gidneyModularOffset_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
   gidneyModularWord_valid modulus constant state.2.1 hvalid
 
 /-- Noncanonical binary labels are fixed, along with both arbitrary borrowed bits. -/
-theorem gidneyModularOffset_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (state : Registers width)
     (houtside : modulus.val ≤ state.2.1.val) :
     modularOffsetOutput modulus constant state = state := by
@@ -95,12 +98,13 @@ theorem gidneyModularOffset_outside {width : Nat} (modulus : Fin (2 ^ width + 1)
     (gidneyModularWord_outside modulus constant input houtside)
 
 /-- An arbitrary encoded external reference is preserved jointly with the complete output. -/
-theorem gidneyModularOffset_realizes_with_reference {Reference : Type}
+lemma gidneyModularOffset_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
       (layout := QubitLayout.canonical ((encoding width).width + reference.width))
       (UnitaryCircuit.onBinaryPrefix reference.width (modularOffsetProgram width modulus constant))
+      environment
       (fun state => (modularOffsetOutput modulus constant state.1, state.2)) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
     (gidneyModularOffset_realizes width modulus constant)

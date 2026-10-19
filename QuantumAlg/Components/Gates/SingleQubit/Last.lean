@@ -32,7 +32,7 @@ noncomputable section
 private abbrev layout (width : Nat) :=
   (QuantumSignature.qubits width).canonicalPlacement.layout
 
-private theorem final_complement (width : Nat) (operator : UnitaryOperator (Qubits 1))
+private lemma final_complement (width : Nat) (operator : UnitaryOperator (Qubits 1))
     (row column : (layout (width + 1)).Basis) :
     let application := singleQubitApplication (layout (width + 1)) operator (Fin.last width) rfl
     (application.basisEquiv row).2 = (application.basisEquiv column).2 ↔
@@ -71,17 +71,18 @@ private theorem final_complement (width : Nat) (operator : UnitaryOperator (Qubi
     | cast position => exact congrFun same position
 
 /-- The final native operation has identity action on the complete original prefix. -/
-public theorem singleQubitAt_last_matrix_entry (oracles : OracleModel) (width : Nat)
+public lemma singleQubitAt_last_matrix_entry (oracles : OracleModel) (width : Nat)
     (operator : UnitaryOperator (Qubits 1))
-    (row column : (QuantumSignature.qubits (width + 1)).Basis) :
-    (singleQubitAt (QuantumSignature.qubits (width + 1)).canonicalPlacement.layout
-      oracles operator (Fin.last width) rfl).matrix row column =
+    (row column : (QuantumSignature.qubits (width + 1)).Basis) (environment :
+      oracles.Interpretation) :
+    ((singleQubitAt (QuantumSignature.qubits (width + 1)).canonicalPlacement.layout
+      oracles operator (Fin.last width) rfl).matrix environment) row column =
       operator (row (Fin.last width)) (column (Fin.last width)) *
         (if (fun index : Fin width => row index.castSucc) =
           (fun index : Fin width => column index.castSucc) then 1 else 0) := by
   classical
   refine (singleQubitAt_matrix_entry (layout (width + 1)) oracles operator
-    (Fin.last width) rfl row column).trans ?_
+    (Fin.last width) rfl row column environment).trans ?_
   by_cases same : (fun index : Fin width => row index.castSucc) =
       (fun index : Fin width => column index.castSucc)
   · rw [if_pos ((final_complement width operator row column).mpr same), if_pos same]

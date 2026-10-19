@@ -23,6 +23,9 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorHadamardMatrix
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+  {runtimeEnvironment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement NumeratorObservation
 open NumeratorResetMatrix
 
@@ -36,19 +39,20 @@ def amplitude (width : Nat) (row column : (context width).register.Index) : ℂ 
   else 0
 
 /-- The actual placed Hadamard has exactly the stated amplitude on every complete basis pair. -/
-theorem hadamard_entry (width : Nat) (row column : (context width).register.Index) :
-    (NumeratorRuntime.program width (NumeratorReset.hadamardMember width)).matrix row column =
+lemma hadamard_entry (width : Nat) (row column : (context width).register.Index) :
+    ((NumeratorRuntime.program width (NumeratorReset.hadamardMember width)).matrix environment) row
+      column =
       amplitude width row column := by
-  have native : (Gate.HadamardLayer.circuit .empty width).binaryMatrix =
+  have native : ((Gate.HadamardLayer.circuit .empty width).binaryMatrix environment) =
       WalshHadamard.hadamardLayerOperator width :=
-    WalshHadamard.Native.native_binary_matrix .empty width
-  have flat : (NumeratorReset.hadamardMember width).binaryMatrix =
+    WalshHadamard.Native.native_binary_matrix .empty width environment
+  have flat : ((NumeratorReset.hadamardMember width).binaryMatrix environment) =
       (1 : UnitaryOperator (Qubits (encoding width).width)).tensor
         (WalshHadamard.hadamardLayerOperator width) := by
-    change (UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
-      (Gate.HadamardLayer.circuit .empty width)).binaryMatrix = _
+    change ((UnitaryCircuit.onCanonicalBinarySuffix (encoding width).width
+      (Gate.HadamardLayer.circuit .empty width)).binaryMatrix environment) = _
     exact (UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix (encoding width).width
-      (Gate.HadamardLayer.circuit .empty width)).trans
+      (Gate.HadamardLayer.circuit .empty width) environment).trans
         (congrArg ((1 : UnitaryOperator (Qubits (encoding width).width)).tensor) native)
   rw [NumeratorRuntime.program_binary_matrix]
   have actual := congrArg
@@ -69,13 +73,14 @@ theorem hadamard_entry (width : Nat) (row column : (context width).register.Inde
     simp only [amplitude, same, if_true, if_false, one_mul, zero_mul]
 
 /-- The actual Hadamard preserves classical stores while acting on their full reference blocks. -/
-theorem hadamard_weighted_entry (width : Nat) {Reference : Register} {History : Type}
+lemma hadamard_weighted_entry (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (weight : Store (context width) → ℂ)
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index) :
     ExecutionState.weightedMatrixEntry
-      ((NumeratorReset.hadamard width).execute Reference state) (fun entry => weight entry.1)
+      ((NumeratorReset.hadamard width).execute runtimeEnvironment Reference state) (fun entry =>
+        weight entry.1)
         (left, leftRef) (right, rightRef) =
       ∑ original : Store (context width) ×
           (ClassicalOracleModel.empty.HiddenState × History), weight original.1 *
@@ -89,7 +94,8 @@ theorem hadamard_weighted_entry (width : Nat) {Reference : Register} {History : 
     (Store (context width) × (ClassicalOracleModel.empty.HiddenState × (History × Unit)))
       _ _ _ _
     (state.applyUnitary (fun _ => UnitaryOperator.prodTensor
-      (NumeratorRuntime.program width (NumeratorReset.hadamardMember width)).matrix
+      ((NumeratorRuntime.program width (NumeratorReset.hadamardMember width)).matrix
+        runtimeEnvironment.quantum)
       (1 : UnitaryOperator Reference)))
     (fun value => (value.1, (value.2.1, (value.2.2, ()))))
     (fun value => weight value.1)
@@ -99,21 +105,21 @@ theorem hadamard_weighted_entry (width : Nat) {Reference : Register} {History : 
     Matrix.mul_apply, Matrix.submatrix_apply, Matrix.conjTranspose_apply, hadamard_entry]
 
 /-- Each actual stored H/Z branch retains the exact two-sided input-dependent characters. -/
-theorem measured_entry (width : Nat) {Reference : Register} {History : Type}
+lemma measured_entry (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index) :
-    (NumeratorMeasuredSupport.density width
-      ((NumeratorReset.hadamard width).execute Reference state) stored).matrix
+    (NumeratorMeasuredSupport.density runtimeEnvironment width
+      ((NumeratorReset.hadamard width).execute runtimeEnvironment Reference state) stored).matrix
         (left, leftRef) (right, rightRef) =
       if word width left = word width right then
         ∑ original : Store (context width) ×
             (ClassicalOracleModel.empty.HiddenState × History),
-          (if Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+          (if Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
             (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
             (readouts width) original.1
-            (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+            (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
               (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
               (readouts width) left) = stored then (1 : ℂ) else 0) *
           (∑ column : (context width).register.Index,
@@ -125,10 +131,11 @@ theorem measured_entry (width : Nat) {Reference : Register} {History : Type}
   by_cases same : word width left = word width right
   · rw [if_pos same, if_pos same]
     exact hadamard_weighted_entry width state
-      (fun original => if Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (fun original => if Circuit.writeMeasurementPath (allowAllocation := true)
+        (gates := AlgorithmGate.model)
         (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
         (readouts width) original
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
           (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
           (readouts width) left) = stored then 1 else 0)
       left right leftRef rightRef

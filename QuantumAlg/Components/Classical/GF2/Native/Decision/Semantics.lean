@@ -27,23 +27,26 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
+private lemma operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (BitWord.instruction (execution := model) op).execute Reference state =
+    (BitWord.instruction (execution := model) op).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := BitWord.instructionStep (execution := model) op entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
-  BitWord.bitWord_instruction_execute (execution := model) op state
+  BitWord.bitWord_instruction_execute (environment := environment) (execution := model) op state
 
 omit [BitWord.Selected model] in
-private theorem idle_execute (Reference : Register) {History : Type} [Fintype History]
+private lemma idle_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.id (model := model) ctx).execute Reference state =
+    (Circuit.id (allowAllocation := true) (model := model) ctx).execute environment Reference state
+      =
       state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
-  exact (Circuit.execute_id_mapClassical (model := model) Reference state).trans
+  exact (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
+    (model := model) Reference state).trans
     (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- The original copy marker and stable self-XOR use the same actual success cell. -/
@@ -56,14 +59,14 @@ def markFailureStep (success : CWriteRef ctx .bit) (store : Store ctx) :
     (BitWord.instructionStep (execution := model) (pivotClearOp success)) store
 
 /-- Both original failure events preserve the full quantum-reference and history state. -/
-theorem gf2MarkFailure_execute (success : CWriteRef ctx .bit) (Reference : Register)
+lemma gf2MarkFailure_execute (success : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (markFailure (model := model) success).execute Reference state =
+    (markFailure (model := model) success).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((markFailureStep success entry.1).1,
         (entry.2.1, (entry.2.2, (markFailureStep success entry.1).2)))) :=
-  Circuit.execute_sequenceStoreRecord (model := model)
+  Circuit.execute_sequenceStoreRecord (environment := environment) (model := model)
     (BitWord.instruction (execution := model) (pivotRejectedOp success))
     (BitWord.instruction (execution := model) (pivotClearOp success))
     (BitWord.instructionStep (execution := model) (pivotRejectedOp success))
@@ -83,10 +86,10 @@ def decisionChoiceStep (reject : Bool) (success : CWriteRef ctx .bit)
       | true, false => (store, ())
       | true, true => markFailureStep success store
 
-private theorem decisionChoice_execute (reject : Bool) (success : CWriteRef ctx .bit)
+private lemma decisionChoice_execute (reject : Bool) (success : CWriteRef ctx .bit)
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (decisionChoice (model := model) reject success value).execute Reference state =
+    (decisionChoice (model := model) reject success value).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((decisionChoiceStep reject success value entry.1).1,
         (entry.2.1, (entry.2.2, (decisionChoiceStep reject success value entry.1).2)))) := by
@@ -117,16 +120,17 @@ def decisionTestStep (reject : Bool) (left right : CWriteRef ctx (.unsignedWord 
       (actual.1, ⟨value, actual.2⟩)) store
 
 /-- The actual written equality bit controls the complete state transformation. -/
-theorem gf2DecisionTest_execute (reject : Bool)
+lemma gf2DecisionTest_execute (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (decisionTest (model := model) reject left right success flag).execute Reference state =
+    (decisionTest (model := model) reject left right success flag).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((decisionTestStep reject left right success flag entry.1).1,
           (entry.2.1, (entry.2.2,
             (decisionTestStep reject left right success flag entry.1).2)))) :=
-  Circuit.execute_sequenceStoreRecord (model := model)
+  Circuit.execute_sequenceStoreRecord (environment := environment) (model := model)
     (BitWord.instruction (execution := model) (decisionEqualityOp left right flag))
     (.branch (.storage flag.toCStorageRef)
       (decisionChoice (model := model) reject success))
@@ -136,7 +140,8 @@ theorem gf2DecisionTest_execute (reject : Bool)
       let actual := decisionChoiceStep reject success value current
       (actual.1, ⟨value, actual.2⟩))
     (operation_execute (decisionEqualityOp left right flag))
-    (fun reference {_} _ current => Circuit.execute_branchStoreRecord (model := model)
+    (fun reference {_} _ current => Circuit.execute_branchStoreRecord
+      (environment := environment) (model := model)
       (.storage flag.toCStorageRef) (decisionChoice (model := model) reject success)
       (decisionChoiceStep reject success)
       (decisionChoice_execute (model := model) reject success) reference current)
@@ -164,20 +169,21 @@ def uniqueFreeBodyStep (free zero work : CWriteRef ctx (.unsignedWord width))
         (decisionTestStep true free zero success flag))) store
 
 /-- All original uniqueness stages preserve the complete arbitrary input state. -/
-theorem gf2UniqueFreeBody_execute (free zero work : CWriteRef ctx (.unsignedWord width))
+lemma gf2UniqueFreeBody_execute (free zero work : CWriteRef ctx (.unsignedWord width))
     (success flag : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (uniqueFreeBody (model := model) free zero work success flag).execute Reference state =
+    (uniqueFreeBody (model := model) free zero work success flag).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((uniqueFreeBodyStep free zero work success flag entry.1).1,
           (entry.2.1, (entry.2.2,
             (uniqueFreeBodyStep free zero work success flag entry.1).2)))) :=
-  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (operation_execute (decisionDecrementOp free work))
-    (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
       (operation_execute (decisionMaskOp free work))
-      (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+      (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
         (gf2DecisionTest_execute (model := model) false work zero success flag)
         (gf2DecisionTest_execute (model := model) true free zero success flag))) Reference state
 
@@ -192,15 +198,15 @@ def scopedUniqueFreeStep (free zero : CWriteRef ctx (.unsignedWord width))
   (Store.popWorkspace (pivotMaskContext ctx width).canonicalFreshKey .bit
     (pivotMaskContext ctx width).canonicalFreshKey_fresh actual.1, actual.2)
 
-private theorem scopedUniqueFree_execute (free zero : CWriteRef ctx (.unsignedWord width))
+private lemma scopedUniqueFree_execute (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (pivotMaskContext ctx width) Reference (model.HiddenState × History)) :
-    (scopedUniqueFree (model := model) free zero success).execute Reference state =
+    (scopedUniqueFree (model := model) free zero success).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((scopedUniqueFreeStep free zero success entry.1).1,
         (entry.2.1, (entry.2.2, (scopedUniqueFreeStep free zero success entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (gf2UniqueFreeBody_execute (model := model) _ _ _ _ _) Reference state
 
 /-- The actual outer word is allocated and popped even when the check never reads it. -/
@@ -213,15 +219,15 @@ def selectUniqueFreeStep (free zero : CWriteRef ctx (.unsignedWord width))
     ctx.canonicalFreshKey_fresh actual.1, actual.2)
 
 /-- The complete original check preserves arbitrary Store, Reference and History correlations. -/
-theorem gf2UniqueFree_execute (free zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2UniqueFree_execute (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (selectUniqueFree (model := model) free zero success).execute Reference state =
+    (selectUniqueFree (model := model) free zero success).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((selectUniqueFreeStep free zero success entry.1).1,
         (entry.2.1, (entry.2.2, (selectUniqueFreeStep free zero success entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (scopedUniqueFree_execute (model := model) free zero success) Reference state
 
 /-- The original candidate decision closes its actual flag before its word scope. -/
@@ -235,17 +241,18 @@ def scopedCandidateNonzeroStep (candidate zero : CWriteRef ctx (.unsignedWord wi
   (Store.popWorkspace (pivotMaskContext ctx width).canonicalFreshKey .bit
     (pivotMaskContext ctx width).canonicalFreshKey_fresh actual.1, actual.2)
 
-private theorem scopedCandidateNonzero_execute
+private lemma scopedCandidateNonzero_execute
     (candidate zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (pivotMaskContext ctx width) Reference (model.HiddenState × History)) :
-    (scopedCandidateNonzero (model := model) candidate zero success).execute Reference state =
+    (scopedCandidateNonzero (model := model) candidate zero success).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
       ((scopedCandidateNonzeroStep candidate zero success entry.1).1,
         (entry.2.1,
           (entry.2.2, (scopedCandidateNonzeroStep candidate zero success entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (gf2DecisionTest_execute (model := model) true _ _ _ _) Reference state
 
 /-- The actual outer word is allocated and popped even when the check never reads it. -/
@@ -258,16 +265,17 @@ def checkCandidateNonzeroStep (candidate zero : CWriteRef ctx (.unsignedWord wid
     ctx.canonicalFreshKey_fresh actual.1, actual.2)
 
 /-- The complete original check preserves arbitrary Store, Reference and History correlations. -/
-theorem gf2CandidateNonzero_execute (candidate zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2CandidateNonzero_execute (candidate zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (checkCandidateNonzero (model := model) candidate zero success).execute Reference state =
+    (checkCandidateNonzero (model := model) candidate zero success).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
       ((checkCandidateNonzeroStep candidate zero success entry.1).1,
         (entry.2.1,
           (entry.2.2, (checkCandidateNonzeroStep candidate zero success entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (scopedCandidateNonzero_execute (model := model) candidate zero success) Reference state
 
 end

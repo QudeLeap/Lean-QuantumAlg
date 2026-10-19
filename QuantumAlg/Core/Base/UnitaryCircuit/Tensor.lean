@@ -41,29 +41,30 @@ public def tensor (left : UnitaryCircuit gates oracles leftLayout)
     (QuantumLayout.appendEmbedding_selections_disjoint leftLayout rightLayout disjoint)
 
 /-- The complete operator consists of the two actual disjoint subsystem embeddings. -/
-public theorem tensor_embedded_matrix (left : UnitaryCircuit gates oracles leftLayout)
+public lemma tensor_embedded_matrix (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
-    (disjoint : List.Disjoint leftLayout.identities rightLayout.identities) :
-    (tensor left right disjoint).matrix =
+    (disjoint : List.Disjoint leftLayout.identities rightLayout.identities) (environment :
+      oracles.Interpretation) :
+    ((tensor left right disjoint).matrix environment) =
       (QuantumLayout.appendRightEmbedding leftLayout rightLayout disjoint).liftOperator
-        right.matrix *
+        (right.matrix environment) *
       (QuantumLayout.appendLeftEmbedding leftLayout rightLayout disjoint).liftOperator
-        left.matrix := by rfl
+        (left.matrix environment) := by rfl
 
 /-- Both event sequences are retained in deterministic traversal order. -/
-public theorem tensor_native_eventTrace (left : UnitaryCircuit gates oracles leftLayout)
+public lemma tensor_native_eventTrace (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities) :
     (tensor left right disjoint).eventTrace = left.eventTrace ++ right.eventTrace := by rfl
 
 /-- Parallel placement preserves the sum of actual event multiplicities. -/
-public theorem tensor_native_eventCost (left : UnitaryCircuit gates oracles leftLayout)
+public lemma tensor_native_eventCost (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities) :
     (tensor left right disjoint).eventCost = left.eventCost + right.eventCost := by rfl
 
 /-- Disjoint execution has the maximum of the two actual dependency depths. -/
-public theorem tensor_native_evaluatedEventDepth
+public lemma tensor_native_evaluatedEventDepth
     (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities)

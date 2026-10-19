@@ -26,7 +26,7 @@ noncomputable section
 open Execution MeasuredUncompute
 
 /-- The point domain is exactly its actual selector, prepared work and affine exclusions. -/
-theorem stepAdmissible_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma stepAdmissible_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     stepAdmissible E Q active value ↔

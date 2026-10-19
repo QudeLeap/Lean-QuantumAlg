@@ -28,23 +28,24 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
-private theorem firstAdvance_count (refs : Refs ctx width) (path : (firstAdvanceInto (model :=
+private lemma firstAdvance_count (refs : Refs ctx width) (path : (firstAdvanceInto (model :=
     model) refs).Path) :
     ((firstAdvanceInto (model := model) refs).eventTrace path).length ≤ 1 := by
   rw [firstAdvanceInto_events]
   unfold firstAdvanceTrace
   split <;> simp [LatticePhaseControl.transitionTrace]
 
-private theorem secondAdvance_count (refs : Refs ctx width) (path : (secondAdvanceInto (model
+private lemma secondAdvance_count (refs : Refs ctx width) (path : (secondAdvanceInto (model
     := model) refs).Path) :
     ((secondAdvanceInto (model := model) refs).eventTrace path).length = 1 := by
   rw [secondAdvanceInto_events]
   rfl
 
-private theorem firstAdvance_depth (refs : Refs ctx width) (path : (firstAdvanceInto (model :=
+private lemma firstAdvance_depth (refs : Refs ctx width) (path : (firstAdvanceInto (model :=
     model) refs).Path) :
     (firstAdvanceInto (model := model) refs).depth (fun _ => 1) path ≤ 1 := by
   rcases path with ⟨flag, path⟩
@@ -56,7 +57,7 @@ private theorem firstAdvance_depth (refs : Refs ctx width) (path : (firstAdvance
     · change 1 ≤ 1
       rfl
 
-private theorem secondAdvance_depth (refs : Refs ctx width) (path : (secondAdvanceInto (model
+private lemma secondAdvance_depth (refs : Refs ctx width) (path : (secondAdvanceInto (model
     := model) refs).Path) :
     (secondAdvanceInto (model := model) refs).depth (fun _ => 1) path = 1 := by
   rcases path with ⟨flag, path⟩
@@ -64,7 +65,7 @@ private theorem secondAdvance_depth (refs : Refs ctx width) (path : (secondAdvan
   | bit flag => cases flag <;> rfl
 
 /-- Each actual first driver path uses at most 67 native classical instructions. -/
-theorem firstStepInto_eventCount_le (refs : Refs ctx width) (path : (firstStepInto (model :=
+lemma firstStepInto_eventCount_le (refs : Refs ctx width) (path : (firstStepInto (model :=
     model) refs).Path) :
     ((firstStepInto (model := model) refs).eventTrace path).length ≤ 67 := by
   have pair := LatticeFirstPairMachine.firstPairInto_eventCount_le refs.first path.1
@@ -77,7 +78,7 @@ theorem firstStepInto_eventCount_le (refs : Refs ctx width) (path : (firstStepIn
   omega
 
 /-- Actual first-phase unit-duration depth includes the pair, phase update and Gram refresh. -/
-theorem firstStepInto_depth_le (refs : Refs ctx width) (path : (firstStepInto (model := model)
+lemma firstStepInto_depth_le (refs : Refs ctx width) (path : (firstStepInto (model := model)
     refs).Path) :
     (firstStepInto (model := model) refs).depth (fun _ => 1) path ≤ 67 := by
   have pair := LatticeFirstPairMachine.firstPairInto_depth_le refs.first path.1
@@ -88,7 +89,7 @@ theorem firstStepInto_depth_le (refs : Refs ctx width) (path : (firstStepInto (m
   omega
 
 /-- Each actual second driver path uses at most 130 native classical instructions. -/
-theorem secondStepInto_eventCount_le (refs : Refs ctx width) (path : (secondStepInto (model :=
+lemma secondStepInto_eventCount_le (refs : Refs ctx width) (path : (secondStepInto (model :=
     model) refs).Path) :
     ((secondStepInto (model := model) refs).eventTrace path).length ≤ 130 := by
   have pair := LatticeSecondPairFullMachine.secondPairInto_eventCount_le refs.second path.1
@@ -101,7 +102,7 @@ theorem secondStepInto_eventCount_le (refs : Refs ctx width) (path : (secondStep
   omega
 
 /-- Actual second-phase unit-duration depth includes the pair, phase update and Gram refresh. -/
-theorem secondStepInto_depth_le (refs : Refs ctx width) (path : (secondStepInto (model :=
+lemma secondStepInto_depth_le (refs : Refs ctx width) (path : (secondStepInto (model :=
     model) refs).Path) :
     (secondStepInto (model := model) refs).depth (fun _ => 1) path ≤ 130 := by
   have pair := LatticeSecondPairFullMachine.secondPairInto_depth_le refs.second path.1
@@ -112,7 +113,7 @@ theorem secondStepInto_depth_le (refs : Refs ctx width) (path : (secondStepInto 
   omega
 
 /-- Every actual iteration satisfies the independent worst-case eventCount bound 130. -/
-theorem stepInto_eventCount_le (refs : Refs ctx width) (path : (stepInto (model := model)
+lemma stepInto_eventCount_le (refs : Refs ctx width) (path : (stepInto (model := model)
     refs).Path) :
     ((stepInto (model := model) refs).eventTrace path).length ≤ 130 := by
   rcases path with ⟨done, path⟩
@@ -129,7 +130,7 @@ theorem stepInto_eventCount_le (refs : Refs ctx width) (path : (stepInto (model 
       decide
 
 /-- Every actual iteration satisfies the independent worst-case depth bound 130. -/
-theorem stepInto_depth_le (refs : Refs ctx width) (path : (stepInto (model := model) refs).Path) :
+lemma stepInto_depth_le (refs : Refs ctx width) (path : (stepInto (model := model) refs).Path) :
     (stepInto (model := model) refs).depth (fun _ => 1) path ≤ 130 := by
   rcases path with ⟨done, path⟩
   cases done with
@@ -145,7 +146,7 @@ theorem stepInto_depth_le (refs : Refs ctx width) (path : (stepInto (model := mo
       decide
 
 /-- A fixed number of actual iterations uses at most 130 times that many native operations. -/
-theorem fixedFuelInto_eventCount_le (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_eventCount_le (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) :
     ((fixedFuelInto (model := model) fuel refs).eventTrace path).length ≤ 130 * fuel := by
   change (List.ofFn (fun index : Fin fuel =>
@@ -157,7 +158,7 @@ theorem fixedFuelInto_eventCount_le (fuel : Nat) (refs : Refs ctx width)
     _ = 130 * fuel := by simp [Nat.mul_comm]
 
 /-- Fixed-fuel dependency depth sums the actual serial iteration depths. -/
-theorem fixedFuelInto_depth_le (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_depth_le (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) :
     (fixedFuelInto (model := model) fuel refs).depth (fun _ => 1) path ≤ 130 * fuel := by
   change 0 + (∑ index : Fin fuel, (stepInto (model := model) refs).depth (fun _ => 1) (path
@@ -168,38 +169,41 @@ theorem fixedFuelInto_depth_le (fuel : Nat) (refs : Refs ctx width)
       (fun index _ => stepInto_depth_le refs (path index))
     _ = 130 * fuel := by simp [Nat.mul_comm]
 
-private theorem firstAdvance_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+private lemma firstAdvance_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (firstAdvanceInto (model := model) refs).BorrowedRestored Reference state
-      ((firstAdvanceInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch
+      ((firstAdvanceInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_branch (environment := environment)
     (.storage refs.first.lovasz.passes.toCStorageRef)
     (firstAdvanceArm (model := model) refs) Reference _ state
   intro flag History _ state
   cases flag with
   | bit flag =>
     cases flag
-    · exact Circuit.borrowedRestored_id (model := model) (ctx := ctx) state
+    · exact Circuit.borrowedRestored_id
+        (environment := environment) (model := model) (ctx := ctx) state
     · exact LatticePhaseControl.transitionInto_borrowedRestored refs.machine .firstPass
         Reference state
 
 /-- The complete actual first driver restores its full borrowed-reference joint state. -/
-theorem firstStepInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma firstStepInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (firstStepInto (model := model) refs).BorrowedRestored Reference state
-      ((firstStepInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq (LatticeFirstPairMachine.firstPairInto (model := model)
+      ((firstStepInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq
+    (environment := environment) (LatticeFirstPairMachine.firstPairInto (model := model)
     refs.first)
     (firstTailInto refs)
   · exact LatticeFirstPairMachine.firstPairInto_borrowedRestored refs.first Reference state
-  · exact Circuit.borrowedRestored_seq _ _ _ (firstAdvance_borrowedRestored refs Reference _)
+  · exact Circuit.borrowedRestored_seq
+      (environment := environment) _ _ _ (firstAdvance_borrowedRestored refs Reference _)
       (LatticeMetricMachine.refreshInto_borrowedRestored _ _ Reference _)
 
-private theorem secondAdvance_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+private lemma secondAdvance_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (secondAdvanceInto (model := model) refs).BorrowedRestored Reference state
-      ((secondAdvanceInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch
+      ((secondAdvanceInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_branch (environment := environment)
     (.storage refs.second.branch.lovasz.passes.toCStorageRef)
     (secondAdvanceArm (model := model) refs) Reference _ state
   intro flag History _ state
@@ -212,22 +216,25 @@ private theorem secondAdvance_borrowedRestored (refs : Refs ctx width) (Referenc
         Reference state
 
 /-- The complete actual second driver restores its full borrowed-reference joint state. -/
-theorem secondStepInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma secondStepInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (secondStepInto (model := model) refs).BorrowedRestored Reference state
-      ((secondStepInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq (LatticeSecondPairFullMachine.secondPairInto (model :=
+      ((secondStepInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq
+    (environment := environment) (LatticeSecondPairFullMachine.secondPairInto (model :=
     model) refs.second)
     (secondTailInto refs)
   · exact LatticeSecondPairFullMachine.secondPairInto_borrowedRestored refs.second Reference state
-  · exact Circuit.borrowedRestored_seq _ _ _ (secondAdvance_borrowedRestored refs Reference _)
+  · exact Circuit.borrowedRestored_seq
+      (environment := environment) _ _ _ (secondAdvance_borrowedRestored refs Reference _)
       (LatticeMetricMachine.refreshInto_borrowedRestored _ _ Reference _)
 
-private theorem nonDone_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+private lemma nonDone_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (nonDoneStepInto (model := model) refs).BorrowedRestored Reference state
-      ((nonDoneStepInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch (phaseInput refs.machine.secondPhase)
+      ((nonDoneStepInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_branch
+    (environment := environment) (phaseInput refs.machine.secondPhase)
     (nonDoneArm (model := model) refs) Reference _ state
   intro flag History _ state
   cases flag with
@@ -237,28 +244,30 @@ private theorem nonDone_borrowedRestored (refs : Refs ctx width) (Reference : Re
     · exact secondStepInto_borrowedRestored refs Reference state
 
 /-- Terminal identity and every actual nonterminal branch restore all borrowed correlations. -/
-theorem stepInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma stepInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (stepInto (model := model) refs).BorrowedRestored Reference state
-      ((stepInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch (phaseInput refs.machine.done)
+      ((stepInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_branch (environment := environment) (phaseInput refs.machine.done)
     (stepArm (model := model) refs) Reference _ state
   intro flag History _ state
   cases flag with
   | bit flag =>
     cases flag
     · exact nonDone_borrowedRestored refs Reference state
-    · exact Circuit.borrowedRestored_id (model := model) (ctx := ctx) state
+    · exact Circuit.borrowedRestored_id
+        (environment := environment) (model := model) (ctx := ctx) state
 
 /-- Every finite actual driver run restores the complete borrowed-reference joint state. -/
-theorem fixedFuelInto_borrowedRestored (fuel : Nat) (refs : Refs ctx width) (Reference : Register)
+lemma fixedFuelInto_borrowedRestored (fuel : Nat) (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (fixedFuelInto (model := model) fuel refs).BorrowedRestored Reference state
-      ((fixedFuelInto (model := model) fuel refs).execute Reference state) :=
-  Circuit.borrowedRestored_iterate (stepInto (model := model) refs) Reference
+      ((fixedFuelInto (model := model) fuel refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_iterate
+    (environment := environment) (stepInto (model := model) refs) Reference
     (stepInto_borrowedRestored refs Reference) fuel state
 
-private theorem firstAdvance_visited (refs : Refs ctx width)
+private lemma firstAdvance_visited (refs : Refs ctx width)
     (path : (firstAdvanceInto (model := model) refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (firstAdvanceInto (model := model) refs).visitedContexts path) :
       visited = ctx := by
@@ -270,7 +279,7 @@ private theorem firstAdvance_visited (refs : Refs ctx width)
     · exact List.mem_singleton.mp present
 
 /-- Every actual first driver instruction uses the complete supplied context. -/
-theorem firstStepInto_visited (refs : Refs ctx width) (path : (firstStepInto (model := model)
+lemma firstStepInto_visited (refs : Refs ctx width) (path : (firstStepInto (model := model)
     refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (firstStepInto (model := model)
       refs).visitedContexts path) :
@@ -283,7 +292,7 @@ theorem firstStepInto_visited (refs : Refs ctx width) (path : (firstStepInto (mo
   · rw [LatticeMetricMachine.refreshInto_visited] at gram
     exact (List.mem_replicate.mp gram).2
 
-private theorem secondAdvance_visited (refs : Refs ctx width)
+private lemma secondAdvance_visited (refs : Refs ctx width)
     (path : (secondAdvanceInto (model := model) refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (secondAdvanceInto (model := model) refs).visitedContexts path) :
       visited = ctx := by
@@ -295,7 +304,7 @@ private theorem secondAdvance_visited (refs : Refs ctx width)
     · exact List.mem_singleton.mp present
 
 /-- Every actual second driver instruction uses the complete supplied context. -/
-theorem secondStepInto_visited (refs : Refs ctx width) (path : (secondStepInto (model := model)
+lemma secondStepInto_visited (refs : Refs ctx width) (path : (secondStepInto (model := model)
     refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (secondStepInto (model := model)
       refs).visitedContexts path) :
@@ -309,7 +318,7 @@ theorem secondStepInto_visited (refs : Refs ctx width) (path : (secondStepInto (
     exact (List.mem_replicate.mp gram).2
 
 /-- Terminal identity and every actual selected pair use only the original complete context. -/
-theorem stepInto_visited (refs : Refs ctx width) (path : (stepInto (model := model) refs).Path)
+lemma stepInto_visited (refs : Refs ctx width) (path : (stepInto (model := model) refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (stepInto (model := model)
       refs).visitedContexts path) :
     visited = ctx := by
@@ -326,7 +335,7 @@ theorem stepInto_visited (refs : Refs ctx width) (path : (stepInto (model := mod
     · exact List.mem_singleton.mp present
 
 /-- Every actual finite run visits only its complete original supplied live context. -/
-theorem fixedFuelInto_visited (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_visited (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (fixedFuelInto (model := model) fuel refs).visitedContexts path) :
       visited = ctx := by
@@ -339,7 +348,7 @@ theorem fixedFuelInto_visited (fuel : Nat) (refs : Refs ctx width)
     exact stepInto_visited refs (path index) visited present
 
 /-- Every actual resident peak counts the complete supplied context throughout execution. -/
-theorem stepInto_resident_le (refs : Refs ctx width)
+lemma stepInto_resident_le (refs : Refs ctx width)
     (path : (stepInto (model := model) refs).Path) :
     (stepInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -347,7 +356,7 @@ theorem stepInto_resident_le (refs : Refs ctx width)
   rw [stepInto_visited refs path visited present]
 
 /-- Every actual auxiliary peak counts the complete supplied context throughout execution. -/
-theorem stepInto_auxiliary_le (refs : Refs ctx width)
+lemma stepInto_auxiliary_le (refs : Refs ctx width)
     (path : (stepInto (model := model) refs).Path) :
     (stepInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -355,7 +364,7 @@ theorem stepInto_auxiliary_le (refs : Refs ctx width)
   rw [stepInto_visited refs path visited present]
 
 /-- Every actual resident peak counts the complete supplied context throughout execution. -/
-theorem fixedFuelInto_resident_le (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_resident_le (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) :
     (fixedFuelInto (model := model) fuel refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -363,7 +372,7 @@ theorem fixedFuelInto_resident_le (fuel : Nat) (refs : Refs ctx width)
   rw [fixedFuelInto_visited fuel refs path visited present]
 
 /-- Every actual auxiliary peak counts the complete supplied context throughout execution. -/
-theorem fixedFuelInto_auxiliary_le (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_auxiliary_le (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) :
     (fixedFuelInto (model := model) fuel refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

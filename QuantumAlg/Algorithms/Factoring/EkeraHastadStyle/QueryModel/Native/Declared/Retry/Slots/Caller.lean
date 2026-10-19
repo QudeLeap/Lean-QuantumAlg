@@ -40,7 +40,7 @@ def selectionInput : CInputRef (context base noQuantum N)
     (.storage (selectionRefs base noQuantum N).selection.accepted.toCStorageRef)
     (.storage (selectionRefs base noQuantum N).selection.selected.toCStorageRef)
 
-private theorem caller_storage {shape : CShape}
+private lemma caller_storage {shape : CShape}
     (ref : CWriteRef (callerContext base N) shape) :
     Batch.callerInput (callerContext base N) (caller_empty base noQuantum N) N
       (.storage ref.toCStorageRef) =
@@ -59,7 +59,7 @@ private theorem caller_storage {shape : CShape}
   exact retained.trans (Batch.underBank_read (callerContext base N)
     (caller_empty base noQuantum N) N (Native.Batch.Slots.liftWrite N sourceRef))
 
-private theorem caller_product {left right : CShape}
+private lemma caller_product {left right : CShape}
     (first : CInputRef (callerContext base N) left)
     (second : CInputRef (callerContext base N) right) :
     Batch.callerInput (callerContext base N) (caller_empty base noQuantum N) N
@@ -79,7 +79,7 @@ private theorem caller_product {left right : CShape}
     (Batch.fixedInput (callerContext base N) N secondSource))
 
 /-- The batch's original-caller read is precisely the actual selector pair. -/
-theorem caller_selectionInput :
+lemma caller_selectionInput :
     Batch.callerInput (callerContext base N) (caller_empty base noQuantum N) N
       (originalSelectionInput base N) = selectionInput base noQuantum N := by
   exact (caller_product base noQuantum N _ _).trans
@@ -90,7 +90,7 @@ theorem caller_selectionInput :
         (Native.Retry.Slots.selectedRef base (modulusBits N))))
 
 /-- First-success selection reads exactly the preserved selector pair. -/
-theorem selectedValue_selectionInput
+lemma selectedValue_selectionInput
     (store : Store (context base noQuantum N)) :
     Optional.selectedValue (selectionRefs base noQuantum N).selection store =
       CShape.packOption (store.read (selectionInput base noQuantum N)) := rfl

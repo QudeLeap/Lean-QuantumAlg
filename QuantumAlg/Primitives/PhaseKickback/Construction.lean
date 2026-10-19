@@ -29,47 +29,47 @@ noncomputable section
 namespace PhaseKickback
 
 /-- One actual XOR query on the complete supplied input and target word. -/
-public def circuit {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    UnitaryCircuit AlgorithmGate.model (XorOracle.model f)
+public def circuit (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model (XorOracle.model n)
       (QuantumSignature.qubits (n + 1)).canonicalPlacement.layout :=
-  XorOracle.circuit AlgorithmGate.model f
+  XorOracle.circuit AlgorithmGate.model n
 
-theorem circuit_matrix {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    (circuit f).matrix =
+lemma circuit_matrix {n : Nat} (f : Fin (2 ^ n) → Bool) :
+    (circuit n).matrix (XorOracle.interpretation f) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (n + 1)).symm
         (xorOracleOp f) := XorOracle.xorOracle_native_matrix AlgorithmGate.model f
 
-theorem circuit_events {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    (circuit f).eventCost = ResourcePool.singleton
-      (model := .quantum AlgorithmGate.model (XorOracle.model f))
+lemma circuit_events (n : Nat) :
+    (circuit n).eventCost = ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (XorOracle.model n))
       (.oracle XorOracle.Coordinate.xor) := rfl
 
-theorem circuit_depth {n : Nat} (f : Fin (2 ^ n) → Bool) :
-    (circuit f).evaluatedEventDepth (fun _ => 1) ≤ 1 := le_rfl
+lemma circuit_depth (n : Nat) :
+    (circuit n).evaluatedEventDepth (fun _ => 1) ≤ 1 := le_rfl
 
 end PhaseKickback
 
 namespace GeneralizedPhaseKickback
 
 /-- One actual granted controlled source query on the complete control/target word. -/
-public def circuit {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true)
+public def circuit (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model n true)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
-  UnitarySource.controlledProgram AlgorithmGate.model U
+  UnitarySource.controlledProgram AlgorithmGate.model n
 
-theorem circuit_matrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).matrix =
+lemma circuit_matrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
+    (circuit n).matrix (UnitarySource.interpretation U true) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + n)).symm
         (UnitaryOperator.controlledQubits U) :=
   UnitarySource.controlledProgram_matrix AlgorithmGate.model U
 
-theorem circuit_events {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).eventCost = ResourcePool.singleton
-      (model := .quantum AlgorithmGate.model (UnitarySource.model U true))
+lemma circuit_events (n : Nat) :
+    (circuit n).eventCost = ResourcePool.singleton
+      (model := .quantum AlgorithmGate.model (UnitarySource.model n true))
       (.oracle UnitarySource.Coordinate.controlled) := rfl
 
-theorem circuit_depth {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U).evaluatedEventDepth (fun _ => 1) ≤ 1 := le_rfl
+lemma circuit_depth (n : Nat) :
+    (circuit n).evaluatedEventDepth (fun _ => 1) ≤ 1 := le_rfl
 
 end GeneralizedPhaseKickback
 

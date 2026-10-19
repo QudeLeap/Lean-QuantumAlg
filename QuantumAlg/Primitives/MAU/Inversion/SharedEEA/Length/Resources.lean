@@ -30,7 +30,7 @@ noncomputable section
 
 open EncodedBit LengthCoordinates
 
-private theorem flatMap_length_le {Source Target : Type} (items : List Source)
+private lemma flatMap_length_le {Source Target : Type} (items : List Source)
     (emit : Source → List Target) (bound : Nat)
     (bounded : ∀ item ∈ items, (emit item).length ≤ bound) :
     (items.flatMap emit).length ≤ items.length * bound := by
@@ -43,7 +43,7 @@ private theorem flatMap_length_le {Source Target : Type} (items : List Source)
       omega
 
 /-- Every real leading predicate fits the physical source-key and full-word envelope. -/
-theorem predicate_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+lemma predicate_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (output : Fin width.size) :
     (LengthPredicate.gates width field key firstWord position output).length ≤
       10 * (width.size + (width + 3)) + 1 := by
@@ -53,7 +53,7 @@ theorem predicate_length_le (width : Nat) (field : Field) (key : BitVec width.si
   omega
 
 /-- A candidate calls the actual predicate at most once for each existing target length bit. -/
-theorem position_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+lemma position_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) :
     (LengthWrite.positionGates width field key firstWord position).length ≤
       width.size * (10 * (width.size + (width + 3)) + 1) := by
@@ -66,7 +66,7 @@ theorem position_length_le (width : Nat) (field : Field) (key : BitVec width.siz
     _ ≤ _ := Nat.mul_le_mul_right _ (Word.constantOneIndices_length_le _)
 
 /-- Each retained-key call visits every physical leading position, including inactive ones. -/
-theorem key_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
+lemma key_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
     (LengthWrite.gates width field key firstWord).length ≤
       (width + 3) * (width.size * (10 * (width.size + (width + 3)) + 1)) := by
   unfold LengthWrite.gates
@@ -81,7 +81,7 @@ theorem key_length_le (width : Nat) (field : Field) (key : BitVec width.size) (f
     _ ≤ _ := Nat.mul_le_mul_right _ (region_le width field key)
 
 /-- One actual dynamic-boundary write includes every finite key's complete native list. -/
-theorem schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
+lemma schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
     (LengthSchedule.gates width field firstWord).length ≤
       2 ^ width.size * ((width + 3) *
         (width.size * (10 * (width.size + (width + 3)) + 1))) := by
@@ -93,7 +93,7 @@ theorem schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
     _ = _ := by rw [LengthSchedule.keys_length]
 
 /-- The source's finite length-key count grows at most linearly, including parameter zero. -/
-theorem key_count_le (width : Nat) : 2 ^ width.size ≤ 2 * (width + 1) := by
+lemma key_count_le (width : Nat) : 2 ^ width.size ≤ 2 * (width + 1) := by
   by_cases zero : width = 0
   · subst width
     decide
@@ -109,7 +109,7 @@ theorem key_count_le (width : Nat) : 2 ^ width.size ≤ 2 * (width + 1) := by
     omega
 
 /-- The four actual writes are all charged, including the two old-length cleanup writes. -/
-theorem refresh_length_le (width : Nat) :
+lemma refresh_length_le (width : Nat) :
     (LengthRefresh.gates width).length ≤
       4 * (2 ^ width.size * ((width + 3) *
         (width.size * (10 * (width.size + (width + 3)) + 1)))) := by
@@ -121,7 +121,7 @@ theorem refresh_length_le (width : Nat) :
   omega
 
 /-- Eliminating the key power gives an explicit polynomial enumeration envelope. -/
-theorem refresh_length_le_polynomial (width : Nat) :
+lemma refresh_length_le_polynomial (width : Nat) :
     (LengthRefresh.gates width).length ≤
       4 * ((2 * (width + 1)) * ((width + 3) *
         (width * (10 * (width + (width + 3)) + 1)))) := by
@@ -134,19 +134,19 @@ theorem refresh_length_le_polynomial (width : Nat) :
       (Nat.mul_le_mul_left (width + 3) targetBound)))
 
 /-- Every actual native event is retained in the full program's trace count. -/
-theorem refresh_eventTrace_length (width : Nat) :
+lemma refresh_eventTrace_length (width : Nat) :
     (LengthRefresh.program width).eventTrace.length = (LengthRefresh.gates width).length := by
   rw [LengthRefresh.program_eventTrace, List.length_map]
 
 /-- Strict unit-event depth counts the complete actual sequential elementary list. -/
-theorem refresh_unitDepth (width : Nat) :
+lemma refresh_unitDepth (width : Nat) :
     (LengthRefresh.program width).evaluatedEventDepth (fun _ => 1) =
       (LengthRefresh.gates width).length :=
   GateSpec.programList_evaluatedEventDepth_unit
     (QubitLayout.canonical _) .empty (LengthRefresh.gates width)
 
 /-- The literal inverse restores all fields and has exactly the same actual elementary count. -/
-theorem refresh_reverse_length (width : Nat) :
+lemma refresh_reverse_length (width : Nat) :
     (LengthRefresh.gates width).reverse.length = (LengthRefresh.gates width).length :=
   List.length_reverse
 

@@ -29,7 +29,7 @@ def scaleScratchSpace {kind : ProblemKind} (width : Nat) : SpacePool kind :=
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem scalePrepared_visited (raw : CInputRef ctx (.unsignedWord width))
+private lemma scalePrepared_visited (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (scalePrepared (model := model) raw modulus output).Path)
@@ -48,7 +48,7 @@ private theorem scalePrepared_visited (raw : CInputRef ctx (.unsignedWord width)
     Word.PowerOfTwo.shiftInto_visited width (scaleDenominatorCell ctx width) path.1.2 visited
   tauto
 
-private theorem withScale_visited (raw : CInputRef ctx (.unsignedWord width))
+private lemma withScale_visited (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) (visited : RuntimeCtx model.kind)
@@ -67,7 +67,7 @@ private theorem withScale_visited (raw : CInputRef ctx (.unsignedWord width))
       visited = scaleCtx ctx width := scalePrepared_visited raw modulus output path visited
   tauto
 
-private theorem withScale_scoped_mem (raw : CInputRef ctx (.unsignedWord width))
+private lemma withScale_scoped_mem (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) :
@@ -83,7 +83,7 @@ private theorem withScale_scoped_mem (raw : CInputRef ctx (.unsignedWord width))
   tauto
 
 /-- Exact resident peak includes each original live entry and all three real scratch shapes. -/
-theorem withScale_resident (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_resident (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) :
@@ -122,7 +122,7 @@ theorem withScale_resident (raw : CInputRef ctx (.unsignedWord width))
       RuntimeCtx.residentSpace_addWorkspace, scaleScratchSpace, add_assoc])
 
 /-- Exact auxiliary peak charges those same scratch cells beside all existing auxiliary roles. -/
-theorem withScale_auxiliary (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_auxiliary (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) :
@@ -161,7 +161,7 @@ theorem withScale_auxiliary (raw : CInputRef ctx (.unsignedWord width))
       RuntimeCtx.auxiliarySpace_addWorkspace, scaleScratchSpace, add_assoc])
 
 /-- Exact serial depth for arbitrary durations follows every original native dependency. -/
-theorem withScale_durationDepth (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_durationDepth (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (withScale (model := model) raw modulus output).Path) :

@@ -29,12 +29,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem negateChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma negateChoice_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (negateChoice (model := model) modulus right zero output value).execute Reference state =
+    (negateChoice (model := model) modulus right zero output value).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := negateChoiceStep (model := model) modulus right zero output value entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -42,23 +44,27 @@ private theorem negateChoice_execute {model : ExecutionModel} [BitWord.Selected 
   | bit bit =>
       cases bit
       · simp only [negateChoice, CShape.Value.toBool, negateChoiceStep]
-        exact BitWord.bitWord_instruction_execute (execution := model)
+        exact BitWord.bitWord_instruction_execute (environment := environment)
+          (execution := model)
           (negateSubtractOp modulus right output) state
       · simp only [negateChoice, CShape.Value.toBool, negateChoiceStep]
-        exact BitWord.bitWord_instruction_execute (execution := model)
+        exact BitWord.bitWord_instruction_execute (environment := environment)
+          (execution := model)
           (negateCopyOp zero output) state
 
 /-- Equality and its selected native instruction preserve the complete service/reference record. -/
-theorem negateBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma negateBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (negateBody (model := model) modulus right zero flag output).execute Reference state =
+    (negateBody (model := model) modulus right zero flag output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := negateBodyStep (model := model) modulus right zero flag output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (negateEqualOp right zero flag))
     (.branch (negateRead flag) (negateChoice (model := model) modulus right zero output))
     (fun before =>
@@ -70,11 +76,12 @@ theorem negateBody_execute {model : ExecutionModel} [BitWord.Selected model]
       let result := negateChoiceStep (model := model) modulus right zero output choice before.1
       ((result.1, before.2), ⟨choice, result.2⟩)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
-    exact (BitWord.bitWord_instruction_execute (execution := model)
+    exact (BitWord.bitWord_instruction_execute (environment := environment)
+      (execution := model)
       (negateEqualOp right zero flag) initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ initial
-    refine (Circuit.execute_branch_mapClassical (negateRead flag) _
+    refine (Circuit.execute_branch_mapClassical (environment := environment) (negateRead flag) _
       (fun value before =>
         let result := negateChoiceStep (model := model) modulus right zero output value before.1
         ((result.1, before.2), result.2)) ?_ reference initial).trans ?_
@@ -84,7 +91,8 @@ theorem negateBody_execute {model : ExecutionModel} [BitWord.Selected model]
     · exact ExecutionState.executionState_mapClassical_congr _ rfl
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem negateBodyStep_store {model : ExecutionModel} [BitWord.Selected model]
+private lemma negateBodyStep_store {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (negateBodyStep (model := model) modulus right zero flag output store).1 =
@@ -101,7 +109,8 @@ private theorem negateBodyStep_store {model : ExecutionModel} [BitWord.Selected 
       cases bit <;> rfl
 
 /-- The body writes the exact selected copy or wrapping subtraction on its original reads. -/
-theorem negateBody_result {model : ExecutionModel} [BitWord.Selected model]
+lemma negateBody_result {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width))
     (modulusFree : flag.key ∉ modulus.storageKeys) (rightFree : flag.key ∉ right.storageKeys)
@@ -134,7 +143,8 @@ theorem negateBody_result {model : ExecutionModel} [BitWord.Selected model]
       (congrArg₂ (CShape.wordSub width) oldModulus oldRight)
 
 /-- Both actual writes preserve every structural read outside the flag and output keys. -/
-theorem negateBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma negateBody_read_other {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right zero : CInputRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (flagFree : flag.key ∉ other.storageKeys)
@@ -173,16 +183,18 @@ private def negateFlagStep {model : ExecutionModel} [BitWord.Selected model]
   (Store.popWorkspace (negateZeroCtx ctx width).canonicalFreshKey .bit
     (negateZeroCtx ctx width).canonicalFreshKey_fresh result.1, result.2)
 
-private theorem negateFlagScope_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma negateFlagScope_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (negateZeroCtx ctx width) Reference (model.HiddenState × History)) :
-    (negateFlagScope (model := model) modulus right output).execute Reference state =
+    (negateFlagScope (model := model) modulus right output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := negateFlagStep (model := model) modulus right output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (negateZeroCtx ctx width).canonicalFreshKey .bit
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (negateZeroCtx ctx width).canonicalFreshKey .bit
     (negateZeroCtx ctx width).canonicalFreshKey_fresh
     (negatePlaced (model := model) modulus right output)
     (fun before =>
@@ -200,15 +212,17 @@ private theorem negateFlagScope_execute {model : ExecutionModel} [BitWord.Select
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both releases preserve the selected native path and complete hidden/reference state. -/
-theorem withNegate_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegate_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (withNegate (model := model) modulus right output).execute Reference state =
+    (withNegate (model := model) modulus right output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := withNegateStep (model := model) modulus right output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh (negateFlagScope (model := model) modulus right output)
     (fun before =>
       let result := negateFlagStep (model := model) modulus right output before.1
@@ -219,18 +233,18 @@ theorem withNegate_execute {model : ExecutionModel} [BitWord.Selected model]
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both real allocations preserve every original structural read. -/
-theorem enterNegate_read (store : Store ctx) {shape : CShape}
+lemma enterNegate_read (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (enterNegate store width).read (underNegate input width) = store.read input := by
   simp only [enterNegate, underNegate, Store.read_pushWorkspace_underWorkspace]
 
 /-- Both matching releases expose exactly the original structural input reference. -/
-theorem leaveNegate_read (store : Store (negateCtx ctx width)) {shape : CShape}
+lemma leaveNegate_read (store : Store (negateCtx ctx width)) {shape : CShape}
     (input : CInputRef ctx shape) :
     (leaveNegate store).read input = store.read (underNegate input width) := by
   simp only [leaveNegate, underNegate, Store.read_popWorkspace_underWorkspace]
 
-private theorem negateFlag_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma negateFlag_free {shape : CShape} (input : CInputRef ctx shape) :
     (negateFlagCell ctx width).key ∉ (underNegate input width).storageKeys := by
   unfold underNegate
   rw [CInputRef.storageKeys_underWorkspace]
@@ -238,7 +252,7 @@ private theorem negateFlag_free {shape : CShape} (input : CInputRef ctx shape) :
     ((input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
-private theorem negateFlag_zero_separate :
+private lemma negateFlag_zero_separate :
     (negateFlagCell ctx width).key ∉ (negateRead (negateZeroCell ctx width)).storageKeys := by
   change (negateZeroCtx ctx width).canonicalFreshKey ∉ [ctx.canonicalFreshKey]
   intro present
@@ -247,7 +261,7 @@ private theorem negateFlag_zero_separate :
   exact List.mem_cons_self
 
 /-- The original zero word is initialized by its actual lexical allocation. -/
-theorem enterNegate_zero_value (store : Store ctx) (width : Nat) :
+lemma enterNegate_zero_value (store : Store ctx) (width : Nat) :
     ((enterNegate store width).read (negateRead (negateZeroCell ctx width))).toNat = 0 := by
   have entered := Store.read_pushWorkspace_underWorkspace
     (store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh)
@@ -258,7 +272,8 @@ theorem enterNegate_zero_value (store : Store ctx) (width : Nat) :
   exact (congrArg CShape.Value.toNat entered).trans rfl
 
 /-- Releasing both scratch cells leaves every original non-output structural read unchanged. -/
-theorem withNegate_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegate_read_other {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) :
@@ -278,7 +293,8 @@ def negateNatural (width modulus right : Nat) : Nat :=
   if right = 0 then 0 else (modulus + 2 ^ width - right) % 2 ^ width
 
 /-- The actual complete branch has this exact arithmetic value on original caller reads. -/
-theorem withNegate_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegate_value {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((withNegateStep (model := model) modulus right output store).1.read
@@ -301,7 +317,7 @@ theorem withNegate_value {model : ExecutionModel} [BitWord.Selected model]
   exact (congrArg CShape.Value.toNat (leaveNegate_read _ (negateRead output))).trans value
 
 /-- The original capacity-equality modulus is included by its actual narrowed word value. -/
-theorem negateNatural_original (spec : ModulusSpec width) (modulus right : Nat)
+lemma negateNatural_original (spec : ModulusSpec width) (modulus right : Nat)
     (orderValue : modulus = spec.modulus % 2 ^ width) (canonical : right < spec.modulus) :
     negateNatural width modulus right = (spec.modulus - right) % spec.modulus := by
   by_cases zero : right = 0
@@ -322,7 +338,8 @@ theorem negateNatural_original (spec : ModulusSpec width) (modulus right : Nat)
         Nat.mod_eq_of_lt differenceFits]
 
 /-- The original modular negation is computed for every fitted modulus, including capacity. -/
-theorem withNegate_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegate_original_value {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) (store : Store ctx)
     (orderValue : (store.read modulus).toNat = spec.modulus % 2 ^ width)
@@ -334,7 +351,8 @@ theorem withNegate_original_value {model : ExecutionModel} [BitWord.Selected mod
     (negateNatural_original spec _ _ orderValue canonical)
 
 /-- Actual original normalized input yields precisely the pure recovery model's right negation. -/
-theorem withNegate_negateRight {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegate_negateRight {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width)
     (input : NormalizedInput spec) (store : Store ctx)

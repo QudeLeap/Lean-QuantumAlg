@@ -34,30 +34,30 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem preparation_pool {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (path : (preparationCode P t).Path) :
-    ResourcePool.ofList ((preparationCode P t).eventTrace path) =
-      t • ResourcePool.singleton (model := model P)
+private lemma preparation_pool (n : Nat) (t : Nat)
+    (path : (preparationCode n t).Path) :
+    ResourcePool.ofList ((preparationCode n t).eventTrace path) =
+      t • ResourcePool.singleton (model := model n)
         (.preparation (2 : ℕ+)) :=
   ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model
-    (UnitarySource.model P.unitary true)
+    (UnitarySource.model n true)
     (phaseRuntimeLayout t) 2 (fun _ => rfl) BitWord.model .empty
 
-private theorem program_pool {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    ResourcePool.ofList ((nativeProgram P t).eventTrace BitWord.model .empty) =
-      (2 * t + 3 * t.choose 2) • ResourcePool.singleton (model := model P)
+private lemma program_pool (n : Nat) (t : Nat) :
+    ResourcePool.ofList ((nativeProgram n t).eventTrace BitWord.model .empty) =
+      (2 * t + 3 * t.choose 2) • ResourcePool.singleton (model := model n)
         (.gate AlgorithmGate.Coordinate.singleQubit) +
-      (2 * t.choose 2 + 3 * (t / 2)) • ResourcePool.singleton (model := model P)
+      (2 * t.choose 2 + 3 * (t / 2)) • ResourcePool.singleton (model := model n)
         (.gate AlgorithmGate.Coordinate.cnot) +
-      (2 ^ t - 1) • ResourcePool.singleton (model := model P)
+      (2 ^ t - 1) • ResourcePool.singleton (model := model n)
         (.oracle UnitarySource.Coordinate.controlled) := by
-  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram P t) BitWord.model .empty,
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram n t) BitWord.model .empty,
     nativeProgram, unitaryOfEqualWires_cost (runtimeLayout t n)
-      (preparedContext t n).quantumLayout (runtime_wires t n) (Native.circuit t P.unitary)]
+      (preparedContext t n).quantumLayout (runtime_wires t n) (Native.circuit t n)]
   apply Multiset.ext.mpr
   intro event
   change ResourcePool.count event
-    ((Native.circuit t P.unitary).eventCost BitWord.model .empty) = ResourcePool.count event _
+    ((Native.circuit t n).eventCost BitWord.model .empty) = ResourcePool.count event _
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   cases event with
   | gate coordinate =>
@@ -72,97 +72,102 @@ private theorem program_pool {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
           ResourcePool.count_nsmul, ResourcePool.count_singleton]
   | _ => simp [ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
-private theorem measurement_pool {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model P.unitary true) (operations := BitWord.model)
+private lemma measurement_pool (n : Nat) (t : Nat)
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model n true) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts t n)).Path) :
-    ResourcePool.ofList ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model P.unitary true) (operations := BitWord.model)
+    ResourcePool.ofList ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model n true) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts t n)).eventTrace path) =
-      t • ResourcePool.singleton (model := model P)
+      t • ResourcePool.singleton (model := model n)
         (.measurement (2 : ℕ+)) := by
   rw [← Circuit.resourcePool,
     Circuit.measurementSequence_qubit_resourcePool (readouts t n) (readouts_qubits t n),
     readouts_length]
   rfl
 
-private theorem allocation_trace {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (path : (allocationCode P t).Path) : (allocationCode P t).eventTrace path = [] :=
-  MeasurementCells.allocate_eventTrace (model := model P) (resultContext t n) 2 t path.2
+private lemma allocation_trace (n : Nat) (t : Nat)
+    (path : (allocationCode n t).Path) : (allocationCode n t).eventTrace path = [] :=
+  MeasurementCells.allocate_eventTrace (model := model n) (resultContext t n) 2 t path.2
 
 /-- Every actual path has exactly the independently specified native event pool. -/
-theorem code_events {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (path : (code P t).Path) : (code P t).resourcePool path = eventBudget P t := by
+lemma code_events (n : Nat) (t : Nat)
+    (path : (code n t).Path) : (code n t).resourcePool path = eventBudget n t := by
   simp only [Circuit.resourcePool, code, beforeMeasurement, readoutCode,
     Circuit.eventTrace, allocation_trace, List.append_nil, ResourcePool.ofList_append,
     program_pool, measurement_pool]
-  rw [preparation_pool P t path.1.1]
+  rw [preparation_pool n t path.1.1]
   rfl
 
-private theorem program_depth {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    DepthExpr.depthEval (fun _ => 1) ((nativeProgram P t).eventDepth BitWord.model .empty) =
+private lemma program_depth (n : Nat) (t : Nat) :
+    DepthExpr.depthEval (fun _ => 1) ((nativeProgram n t).eventDepth BitWord.model .empty) =
       ((if t = 0 then 0 else 1) + (2 ^ t - 1)) +
-        (t + 5 * t.choose 2 + 3 * (t / 2)) := by
+        (t + 5 * t.choose 2 + (if t / 2 = 0 then 0 else 3)) := by
   rw [UnitaryCircuit.unitaryCircuit_unit_depth_classical_context]
-  change (Native.circuit t P.unitary).evaluatedEventDepth (fun _ => 1) = _
-  exact Native.qpeNative_circuit_unit_depth t P.unitary
+  change (Native.circuit t n).evaluatedEventDepth (fun _ => 1) = _
+  exact Native.qpeNative_circuit_unit_depth t n
 
 /-- The actual critical path satisfies the independent complete unit-duration bound. -/
-theorem code_depth {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (path : (code P t).Path) : (code P t).depth (fun _ => 1) path ≤ depthBudget t := by
+lemma code_depth (n : Nat) (t : Nat)
+    (path : (code n t).Path) : (code n t).depth (fun _ => 1) path ≤ depthBudget t := by
   have preparation :
       DepthExpr.depthEval (fun _ => 1)
-        (ZeroPreparation.eventDepth AlgorithmGate.model (UnitarySource.model P.unitary true)
+        (ZeroPreparation.eventDepth AlgorithmGate.model (UnitarySource.model n true)
           (phaseRuntimeLayout t) BitWord.model .empty) = if t = 0 then 0 else 1 :=
     ZeroPreparation.zeroPreparation_uniform_unit_depth AlgorithmGate.model
-      (UnitarySource.model P.unitary true) (phaseRuntimeLayout t) 2 (fun _ => rfl)
+      (UnitarySource.model n true) (phaseRuntimeLayout t) 2 (fun _ => rfl)
       BitWord.model .empty
   change (DepthExpr.depthEval (fun _ => 1)
-      (ZeroPreparation.eventDepth AlgorithmGate.model (UnitarySource.model P.unitary true)
+      (ZeroPreparation.eventDepth AlgorithmGate.model (UnitarySource.model n true)
         (phaseRuntimeLayout t) BitWord.model .empty) +
-    (DepthExpr.depthEval (fun _ => 1) ((nativeProgram P t).eventDepth BitWord.model .empty) +
-      (0 + (MeasurementCells.allocate (model := model P)
+    (DepthExpr.depthEval (fun _ => 1) ((nativeProgram n t).eventDepth BitWord.model .empty) +
+      (0 + (MeasurementCells.allocate (model := model n)
         (resultContext t n) 2 t).depth (fun _ => 1) path.1.2.2.2))) +
-    ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model P.unitary true) (operations := BitWord.model)
+    ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := UnitarySource.model n true) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts t n)).depth (fun _ => 1) path.2.1 + 1) ≤ _
   rw [preparation, MeasurementCells.allocate_depth, Circuit.measurementSequence_unitDepth,
     readouts_length, program_depth]
+  have reversal : (if t / 2 = 0 then 0 else 3) ≤ 3 * (t / 2) := by
+    split <;> omega
   unfold depthBudget
   omega
 
 /-- Every path contains exactly the original controlled-source query multiplicity. -/
-theorem code_controlledUnitaryCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (code P t).Path) :
-    ResourcePool.count (model := model P) (.oracle UnitarySource.Coordinate.controlled)
-      ((code P t).resourcePool path) = 2 ^ t - 1 := by
+lemma code_controlledUnitaryCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.oracle UnitarySource.Coordinate.controlled)
+      ((code n t).resourcePool path) = 2 ^ t - 1 := by
   rw [code_events]
   simp [eventBudget, ResourcePool.count_add, ResourcePool.count_nsmul,
     ResourcePool.count_singleton]
 
 /-- Exact native single-qubit count of the complete phase-estimation execution. -/
-theorem qpeCode_singleQubitCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (code P t).Path) :
-    ResourcePool.count (model := model P) (.gate .singleQubit)
-      ((code P t).resourcePool path) = 2 * t + 3 * t.choose 2 := by
+lemma qpeCode_singleQubitCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.gate .singleQubit)
+      ((code n t).resourcePool path) = 2 * t + 3 * t.choose 2 := by
   rw [code_events]
   simp [eventBudget, ResourcePool.count_add, ResourcePool.count_nsmul,
     ResourcePool.count_singleton]
 
 /-- Exact native CNOT count, including controlled-phase and SWAP expansions. -/
-theorem qpeCode_cnotCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (code P t).Path) :
-    ResourcePool.count (model := model P) (.gate .cnot)
-      ((code P t).resourcePool path) = 2 * t.choose 2 + 3 * (t / 2) := by
+lemma qpeCode_cnotCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.gate .cnot)
+      ((code n t).resourcePool path) = 2 * t.choose 2 + 3 * (t / 2) := by
   rw [code_events]
   simp [eventBudget, ResourcePool.count_add, ResourcePool.count_nsmul,
     ResourcePool.count_singleton]
 
 /-- The complete native phase-estimation execution contains no Toffoli gate. -/
-theorem qpeCode_toffoliCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (code P t).Path) :
-    ResourcePool.count (model := model P) (.gate .toffoli)
-      ((code P t).resourcePool path) = 0 := by
+lemma qpeCode_toffoliCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.gate .toffoli)
+      ((code n t).resourcePool path) = 0 := by
   rw [code_events]
   simp [eventBudget, ResourcePool.count_add, ResourcePool.count_nsmul,
     ResourcePool.count_singleton]

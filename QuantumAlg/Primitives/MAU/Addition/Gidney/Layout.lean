@@ -24,6 +24,8 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 
 /-- An arbitrary flag, the target word, and one arbitrary helper bit. -/
@@ -45,14 +47,14 @@ def wordBit (width : Nat) (bit : Fin width) : EncodedBit (encoding width) :=
 def helperBit (width : Nat) : EncodedBit (encoding width) :=
   prodRightBit bool (HRS.oneDirtyEncoding width) (HRS.oneDirtyBit width)
 
-theorem gidneyFlagBit_get (width : Nat) (state : Registers width) :
+lemma gidneyFlagBit_get (width : Nat) (state : Registers width) :
     (flagBit width).get state = state.1 := rfl
 
-theorem gidneyWordBit_get (width : Nat) (bit : Fin width) (state : Registers width) :
+lemma gidneyWordBit_get (width : Nat) (bit : Fin width) (state : Registers width) :
     (wordBit width bit).get state = state.2.1.val.testBit bit.val :=
   HRS.hrsOneDirtyWordBit_get width bit state.2
 
-theorem gidneyHelperBit_get (width : Nat) (state : Registers width) :
+lemma gidneyHelperBit_get (width : Nat) (state : Registers width) :
     (helperBit width).get state = state.2.2 := rfl
 
 /-- Include the flag as the extended word's high bit, retaining the same helper. -/
@@ -63,20 +65,20 @@ def packingEquiv (width : Nat) : Registers width ≃ HRS.OneDirtyRegisters (1 + 
         (prodEquiv (m := 1) (n := width)))
       (Equiv.refl Bool))
 
-theorem gidneyPackingEquiv_apply (width : Nat) (state : Registers width) :
+lemma gidneyPackingEquiv_apply (width : Nat) (state : Registers width) :
     packingEquiv width state =
       (prodEquiv (m := 1) (n := width) (bool.encode state.1, state.2.1), state.2.2) := by
   rcases state with ⟨flag, input, helper⟩
   cases flag <;> rfl
 
 /-- The extended HRS carrier and the public flag/word/helper carrier have the same width. -/
-private theorem packingWidth (width : Nat) :
+private lemma packingWidth (width : Nat) :
     (HRS.oneDirtyEncoding (1 + width)).width = (encoding width).width := by
   change (1 + width) + 1 = 1 + (width + 1)
   omega
 
 /-- The extended HRS label is exactly the original flag/word/helper label. -/
-theorem gidneyPackingIndex_encode (width : Nat) (state : Registers width) :
+lemma gidneyPackingIndex_encode (width : Nat) (state : Registers width) :
     UnitaryCircuit.castQubitWidthIndex (packingWidth width)
         ((HRS.oneDirtyEncoding (1 + width)).encode (packingEquiv width state)) =
       (encoding width).encode state := by
@@ -102,8 +104,8 @@ def packedOffsetOutput {width : Nat} (constant : Fin (2 ^ (1 + width)))
   (packingEquiv width).symm (HRS.oneDirtyOutput constant (packingEquiv width state))
 
 /-- The placed actual addition has exactly its packed finite-word action. -/
-theorem gidneyPackedOffset_realizes (width : Nat) (constant : Fin (2 ^ (1 + width))) :
-    UnitaryCircuit.Realizes (encoding width) (packedOffsetProgram width constant)
+lemma gidneyPackedOffset_realizes (width : Nat) (constant : Fin (2 ^ (1 + width))) :
+    UnitaryCircuit.Realizes (encoding width) (packedOffsetProgram width constant) environment
       (packedOffsetOutput constant) where
   apply_encoded_ket := by
     intro state
@@ -114,7 +116,8 @@ theorem gidneyPackedOffset_realizes (width : Nat) (constant : Fin (2 ^ (1 + widt
     let sourceOutput := NormalizedVector.ket
       ((QubitLayout.canonical (HRS.oneDirtyEncoding (1 + width)).width).basisEquiv.symm
         ((HRS.oneDirtyEncoding (1 + width)).encode output))
-    have hrun := (HRS.hrsOneDirty_realizes (1 + width) constant).apply_encoded_ket
+    have hrun := (HRS.hrsOneDirty_realizes (environment := environment)
+      (1 + width) constant).apply_encoded_ket
       (packingEquiv width state)
     have inputCast : packingWidth width ▸ sourceInput =
         NormalizedVector.ket
@@ -144,22 +147,22 @@ theorem gidneyPackedOffset_realizes (width : Nat) (constant : Fin (2 ^ (1 + widt
                   ((packingEquiv width).symm
                     (HRS.oneDirtyOutput constant (packingEquiv width state)))))
     calc
-      _ = (packedOffsetProgram width constant).applyNormalized
+      _ = (packedOffsetProgram width constant).applyNormalized environment
           (packingWidth width ▸ sourceInput) :=
-        congrArg (packedOffsetProgram width constant).applyNormalized inputCast.symm
+        congrArg ((packedOffsetProgram width constant).applyNormalized environment) inputCast.symm
       _ = packingWidth width ▸
-          (HRS.oneDirtyProgram (1 + width) constant).applyNormalized sourceInput :=
+          (HRS.oneDirtyProgram (1 + width) constant).applyNormalized environment sourceInput :=
         UnitaryCircuit.castCanonicalQubitWidth_applyNormalized
-          (packingWidth width) (HRS.oneDirtyProgram (1 + width) constant) sourceInput
+          (packingWidth width) (HRS.oneDirtyProgram (1 + width) constant) sourceInput environment
       _ = packingWidth width ▸ sourceOutput := by
         exact congrArg (fun value => packingWidth width ▸ value)
-          (show (HRS.oneDirtyProgram (1 + width) constant).applyNormalized sourceInput =
+          (show (HRS.oneDirtyProgram (1 + width) constant).applyNormalized environment sourceInput =
               sourceOutput by simpa only [sourceInput, sourceOutput, output] using hrun)
       _ = _ := by
         simpa only [packedOffsetOutput] using outputCast
 
 /-- The complete interface is exactly the original word and the two declared bits. -/
-theorem gidneyPackedOffset_interface (width : Nat) (_constant : Fin (2 ^ (1 + width))) :
+lemma gidneyPackedOffset_interface (width : Nat) (_constant : Fin (2 ^ (1 + width))) :
     (encoding width).width = width + 2 ∧
       (QubitLayout.canonical (encoding width).width).systemIdx =
         List.range (width + 2) := by
@@ -172,7 +175,7 @@ theorem gidneyPackedOffset_interface (width : Nat) (_constant : Fin (2 ^ (1 + wi
     exact QubitLayout.canonical_systemIdx (width + 2)
 
 /-- Packing retains the same actual native events and scheduled depth. -/
-theorem gidneyPackedOffset_resources (width : Nat) (constant : Fin (2 ^ (1 + width)))
+lemma gidneyPackedOffset_resources (width : Nat) (constant : Fin (2 ^ (1 + width)))
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (packedOffsetProgram width constant).eventCost =
         (HRS.oneDirtyProgram (1 + width) constant).eventCost ∧

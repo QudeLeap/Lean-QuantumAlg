@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Base.Accounting.ResourcePool
+public import QuantumAlg.Components.GateModel.Algorithm
+public import QuantumAlg.Components.Oracle.UnitarySource.Model
+
 import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Execution.Regroup
 import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.KnownZero.Total.Four.Certificate.Expanded
 import all QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Scalar.Normalized
@@ -25,36 +29,38 @@ open Gate.Toffoli
 noncomputable section
 
 /-- Independent coordinate budget, including the native constant-polynomial case. -/
-def complexBudget {m n : Nat} (U : UnitaryOperator (Qubits (m + n))) (L : Nat) :
-    ResourcePool (.quantum AlgorithmGate.model (UnitarySource.model U true true false)) :=
+public def complexBudget (m n L : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false)) :=
   if L = 0 then ResourcePool.singleton (.gate .singleQubit)
-  else expandedBudget (UnitarySource.model U true true false)
-    (KnownZero.Total.Four.complexBudget U (L - 1))
+  else expandedBudget (UnitarySource.model (m + n) true true false)
+    (KnownZero.Total.Four.complexBudget (m := m) (n := n) (L - 1))
 
 /-- Every permitted degree admits a standard-interface word with exact native accounting. -/
-theorem exists_complex_execution {m n L : Nat}
+lemma exists_complex_execution {m n L : Nat}
     (U : UnitaryOperator (Qubits (m + n))) (A : HilbertOperator (Qubits n))
     (encoding : ExactBlockEncoding m n U A) (hermitian : A.IsHermitian)
     (P : Polynomial ℂ) (degree : P.natDegree ≤ L)
     (bounded : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∃ a : Nat, m ≤ a ∧ a ≤ m + 3 ∧
-      ∃ word : UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true true false)
+      ∃ word : UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) true true false)
           (QuantumSignature.qubits (a + n)).canonicalPlacement.layout,
-        ExactBlockEncoding a n word.binaryMatrix ((1 / 4 : ℂ) • polynomialOperator P A) ∧
-        word.eventCost = complexBudget U L ∧
+        ExactBlockEncoding a n (word.binaryMatrix
+          (UnitarySource.interpretation U true true false)) ((1 / 4 : ℂ) • polynomialOperator P A) ∧
+        word.eventCost = complexBudget m n L ∧
         word.evaluatedEventDepth (fun _ => 1) ≤ 15 * ((40 * m + 21) * L + 20) ∧
         nativeGateCount word.eventCost ≤ 15 * ((40 * m + 20) * L + 19) ∧
         ResourcePool.count
-          (model := .quantum AlgorithmGate.model (UnitarySource.model U true true false))
+          (model := .quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false))
           (.gate .toffoli) word.eventCost = 0 := by
   by_cases zero : L = 0
   · subst L
     obtain ⟨word, block, cost, depth⟩ := Scalar.exists_normalized_constant_execution
-      (m := m) (UnitarySource.model U true true false) P A (Nat.eq_zero_of_le_zero degree) bounded
+      (m := m) (UnitarySource.model (m + n) true true false) P A (Nat.eq_zero_of_le_zero degree)
+        bounded
     refine ⟨1 + m, by omega, by omega,
       word.castQubitWidth (Nat.add_assoc 1 m n).symm, ?_, ?_, ?_, ?_, ?_⟩
     · rw [regroup_one_binaryMatrix]
-      exact block
+      exact block (UnitarySource.interpretation U true true false)
     · rw [UnitaryCircuit.castQubitWidth_eventCost, cost]
       simp only [complexBudget, ↓reduceIte]
     · rw [UnitaryCircuit.castQubitWidth_evaluatedEventDepth, depth]

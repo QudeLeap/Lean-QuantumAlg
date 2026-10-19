@@ -25,21 +25,25 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Exact native loading transports the intrinsic seed of every complete store block. -/
-theorem unitary {gates : GateModel} {oracles : OracleModel}
+lemma unitary {allowAllocation : Bool} {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     {ctx : RuntimeCtx .quantum} {Reference : Register} {History : Type} [Fintype History]
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     (input output : ctx.register.Index)
-    (action : program.applyNormalized (NormalizedVector.ket input) =
+    (action : program.applyNormalized environment.quantum (NormalizedVector.ket input) =
       NormalizedVector.ket output)
     (state : State ctx Reference (services.HiddenState × History))
     (seeded : Holds input state) :
-    Holds output ((Circuit.unitary (operations := operations) (classicalOracles := services)
-      program).execute Reference state) := by
+    Holds output ((Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := services)
+      program).execute environment Reference state) := by
   have column (row : ctx.register.Index) :
-      program.matrix row input = NormalizedVector.ket (R := ctx.register) output row := by
+      (program.matrix environment.quantum) row input
+        = NormalizedVector.ket (R := ctx.register) output row := by
     have entry := congrArg (fun vector : NormalizedVector ctx.register => vector row) action
-    change program.matrix.applyVec (NormalizedVector.ket input).vec row = _ at entry
+    change (program.matrix environment.quantum).applyVec
+      (NormalizedVector.ket input).vec row = _ at entry
     rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at entry
     exact entry
   apply of_entries output _ (fun original leftRef rightRef =>
@@ -49,9 +53,11 @@ theorem unitary {gates : GateModel} {oracles : OracleModel}
   have actual := congrArg
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
       density.matrix (left, leftRef) (right, rightRef))
-    (Circuit.unitary_store_filter (operations := operations) program state
+    (Circuit.unitary_store_filter (allowAllocation := allowAllocation)
+      (operations := operations) program environment state
       (fun store => store = original))
-  exact actual.trans ((unitary_entry input state seeded program.matrix original
+  exact actual.trans ((unitary_entry input state seeded (program.matrix environment.quantum)
+    original
     left right leftRef rightRef).trans
       (congrArg₂ (fun first second : ℂ => first *
         (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix

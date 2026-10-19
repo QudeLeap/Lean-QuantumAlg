@@ -21,7 +21,7 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem first_field_key (modulusWidth candidateWidth : Nat)
+private lemma first_field_key (modulusWidth candidateWidth : Nat)
     (field : RecoveryField) (rest : List RecoveryField) :
     (recoveryFieldCell ctx modulusWidth candidateWidth (field :: rest) 0).key =
       ctx.canonicalFreshKey :=
@@ -30,7 +30,7 @@ private theorem first_field_key (modulusWidth candidateWidth : Nat)
       (recoveryFieldShape modulusWidth candidateWidth field) ctx.canonicalFreshKey_fresh)
 
 /-- Every actual recovery field key is absent from its entire original context. -/
-theorem nativeRecovery_field_fresh (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_field_fresh (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (index : Fin fields.length) :
     (recoveryFieldCell ctx modulusWidth candidateWidth fields index).key ∉ ctx.keys := by
   induction fields generalizing ctx with
@@ -46,7 +46,7 @@ theorem nativeRecovery_field_fresh (modulusWidth candidateWidth : Nat)
         exact List.mem_cons_of_mem ctx.canonicalFreshKey present
 
 /-- Different actual field positions always name different real storage keys. -/
-theorem nativeRecovery_field_injective (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_field_injective (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) :
     Function.Injective (fun index : Fin fields.length =>
       (recoveryFieldCell ctx modulusWidth candidateWidth fields index).key) := by
@@ -82,7 +82,7 @@ theorem nativeRecovery_field_injective (modulusWidth candidateWidth : Nat)
             ctx.canonicalFreshKey_fresh) same)
 
 /-- Every structural original input is automatically separate from each actual recovery write. -/
-theorem nativeRecovery_field_input_separate (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_field_input_separate (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (index : Fin fields.length) {shape : CShape}
     (input : CInputRef ctx shape) :
     (recoveryFieldCell ctx modulusWidth candidateWidth fields index).key ∉
@@ -93,7 +93,7 @@ theorem nativeRecovery_field_input_separate (modulusWidth candidateWidth : Nat)
     (input.storageKeys_subset_context present)
 
 /-- The real cursor cells satisfy the separation used by the actual advancement proof. -/
-theorem nativeRecovery_cursor_distinct (ctx : RuntimeCtx kind) (modulusWidth candidateWidth : Nat) :
+lemma nativeRecovery_cursor_distinct (ctx : RuntimeCtx kind) (modulusWidth candidateWidth : Nat) :
     let cells := (recoveryCells ctx modulusWidth candidateWidth).cursor
     [cells.older.key, cells.previous.key, cells.numerator.key,
       cells.denominator.key, cells.candidate.key, cells.active.key].Nodup := by

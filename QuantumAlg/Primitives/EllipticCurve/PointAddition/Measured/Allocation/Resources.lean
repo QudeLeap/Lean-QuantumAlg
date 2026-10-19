@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Resources
 import all QuantumAlg.Core.Execution.Measurement.Cells.Framing.Resources
 import all QuantumAlg.Core.Execution.Circuit.Weighted
+import all QuantumAlg.Core.Execution.Composition.Resources
 
 /-!
 # Charged initialization and actual placed point-addition resources
@@ -26,12 +27,12 @@ noncomputable section
 open Execution MeasuredUncompute
 
 /-- The literal initialization trace contains every zero preparation and fixed X load. -/
-theorem initialize_eventTrace (modulus : Nat) (path : (initializeWork modulus).Path) :
+lemma initialize_eventTrace (modulus : Nat) (path : (initializeWork modulus).Path) :
     (initializeWork modulus).eventTrace path = initializationTrace modulus :=
   initializeWork_eventTrace modulus path
 
 /-- The real preparation and load dependencies fit their exact event allowance. -/
-theorem initialize_depth (modulus : Nat)
+lemma initialize_depth (modulus : Nat)
     (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
     (path : (initializeWork modulus).Path) :
     (initializeWork modulus).depth duration path ≤
@@ -42,45 +43,49 @@ theorem initialize_depth (modulus : Nat)
 /-- Every path of the placed body corresponds to an original actual body path. -/
 def placedPathEquiv {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) : (body E Q).Path ≃ (placedBody E Q).Path :=
-  ContextPermutation.localPathEquiv (body E Q) (body_isLocal E Q) (after p.size)
-    (body_entries p.size)
+  Equiv.refl _
 
 /-- The same ordered native events are emitted on corresponding actual paths. -/
-theorem placedBody_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedBody_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (body E Q).Path) :
-    (placedBody E Q).eventTrace (placedPathEquiv E Q path) = (body E Q).eventTrace path :=
-  ContextPermutation.localCircuit_eventTrace _ _ _ _ path
+    (placedBody E Q).eventTrace (placedPathEquiv E Q path) = (body E Q).eventTrace path := rfl
 
 /-- The actual body retains its independent native event budget after allocation placement. -/
-theorem placedBody_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedBody_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (placedBody E Q).Path) :
     (placedBody E Q).resourcePool path ≤ events p.size := by
-  obtain ⟨original, rfl⟩ := (placedPathEquiv E Q).surjective path
-  exact (ContextPermutation.localCircuit_resourcePool _ _ _ _ original).le.trans
-    (body_budget E Q original)
+  exact (Circuit.resourcePool_embed (allowAllocation := true)
+    (ContextEmbedding.alongPermutation (body_entries p.size))
+    (body E Q false) path).le.trans (body_budget E Q (allowAllocation := false) path)
 
 /-- The same evaluated serial duration bound holds on every actual placed path. -/
-theorem placedBody_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedBody_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (placedBody E Q).Path) :
     (placedBody E Q).depth (fun _ => 1) path ≤ depthBound p.size := by
-  obtain ⟨original, rfl⟩ := (placedPathEquiv E Q).surjective path
-  exact (ContextPermutation.localCircuit_depth _ _ _ _ (fun _ => 1) original).le.trans
-    (body_depth E Q original)
+  exact body_depth E Q (allowAllocation := false) path
 
 /-- Every original live cell and native-dimensional system remains resident in the placed body. -/
-theorem placedBody_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedBody_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (placedBody E Q).Path) :
     (placedBody E Q).peakResidentSpace path = space p.size :=
-  (ContextPermutation.localCircuit_peakResidentSpace _ _ _ path).trans (context_resident p.size)
+  (Circuit.peakResidentSpace_embed (allowAllocation := true)
+    (ContextEmbedding.alongPermutation (body_entries p.size))
+    (body E Q false) path).trans
+      ((ContextPermutation.resident_space (body_entries p.size)).symm.trans
+        (context_resident p.size))
 
 /-- Unchanged actual storage roles give the same auxiliary capacity of the placed body. -/
-theorem placedBody_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedBody_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (placedBody E Q).Path) :
     (placedBody E Q).peakAuxiliarySpace path = space p.size :=
-  (ContextPermutation.localCircuit_peakAuxiliarySpace _ _ _ path).trans (context_auxiliary p.size)
+  (Circuit.peakAuxiliarySpace_embed (allowAllocation := true)
+    (ContextEmbedding.alongPermutation (body_entries p.size))
+    (body E Q false) path).trans
+      ((ContextPermutation.auxiliary_space (body_entries p.size)).symm.trans
+        (context_auxiliary p.size))
 
 /-- Full execution includes every initialization event before the unchanged body trace. -/
-theorem circuit_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (circuit E Q).Path) :
     (circuit E Q).eventTrace path =
       initializationTrace p ++ (placedBody E Q).eventTrace path.2 := by
@@ -92,7 +97,7 @@ def eventBudget (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .em
   ResourcePool.ofList (initializationTrace modulus) + events modulus.size
 
 /-- Every actual complete path charges preparation before the bounded native measured body. -/
-theorem circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (circuit E Q).Path) :
     (circuit E Q).resourcePool path ≤ eventBudget p := by
   have recorded := congrArg (ResourcePool.ofList (model := .quantum AlgorithmGate.model .empty))
@@ -101,7 +106,7 @@ theorem circuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
     (ResourcePool.add_mono le_rfl (placedBody_budget E Q path.2)))
 
 /-- Every preparation and X load precedes the independently bounded measured body. -/
-theorem circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (path : (circuit E Q).Path) :
     (circuit E Q).depth (fun _ => 1) path ≤
       ResourcePool.weightedCount (fun _ => 1)

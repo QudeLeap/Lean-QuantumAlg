@@ -24,7 +24,7 @@ open Execution
 attribute [local instance] Classical.decEq
 
 /-- Every complete seeded block keeps its original mass under full local observation. -/
-theorem block_pure_fullSelection {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma block_pure_fullSelection {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (entry : Store ctx × History) :

@@ -25,7 +25,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Lifting an existing operand beneath the loop state preserves its exact stored-key support. -/
-theorem gcdLayout_underLoop_keys {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
+lemma gcdLayout_underLoop_keys {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
     (underLoop input width).storageKeys = input.storageKeys := by
   let first : CInputRef (currentCtx ctx width) shape :=
     input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
@@ -41,7 +41,7 @@ theorem gcdLayout_underLoop_keys {shape : CShape} (input : CInputRef ctx shape) 
         (.unsignedWord width) ctx.canonicalFreshKey_fresh))
 
 /-- Actual lexical state cells are distinct in the directions used by the update equations. -/
-theorem gcdLayout_state_separation (ctx : RuntimeCtx kind) (width : Nat) :
+lemma gcdLayout_state_separation (ctx : RuntimeCtx kind) (width : Nat) :
     (currentCell ctx width).key ≠ (previousCell ctx width).key ∧
       (conditionCell ctx width).key ≠ (currentCell ctx width).key ∧
       (conditionCell ctx width).key ≠ (previousCell ctx width).key := by
@@ -57,7 +57,7 @@ theorem gcdLayout_state_separation (ctx : RuntimeCtx kind) (width : Nat) :
     exact conditionAbsent (List.mem_cons.mpr (Or.inl same))
 
 /-- No internally generated state key occurs in any structurally read original operand. -/
-theorem gcdLayout_input_separation {shape : CShape} (input : CInputRef ctx shape)
+lemma gcdLayout_input_separation {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) :
     (currentCell ctx width).key ∉ (underLoop input width).storageKeys ∧
       (previousCell ctx width).key ∉ (underLoop input width).storageKeys ∧
@@ -87,7 +87,7 @@ def popLoopStore (width : Nat) (store : Store (loopCtx ctx width)) : Store ctx :
         (previousCtx ctx width).canonicalFreshKey_fresh store))
 
 /-- Entering all three scopes preserves every original structural read exactly. -/
-theorem gcdLayout_push_read {shape : CShape} (input : CInputRef ctx shape)
+lemma gcdLayout_push_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store ctx) :
     (pushLoopStore width store).read (underLoop input width) = store.read input := by
   let first : CInputRef (currentCtx ctx width) shape :=
@@ -109,7 +109,7 @@ theorem gcdLayout_push_read {shape : CShape} (input : CInputRef ctx shape)
         (.unsignedWord width) ctx.canonicalFreshKey_fresh input))
 
 /-- Leaving all three scopes exposes each final original-cell value unchanged. -/
-theorem gcdLayout_pop_read {shape : CShape} (input : CInputRef ctx shape)
+lemma gcdLayout_pop_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store (loopCtx ctx width)) :
     (popLoopStore width store).read input = store.read (underLoop input width) := by
   let first : CInputRef (currentCtx ctx width) shape :=

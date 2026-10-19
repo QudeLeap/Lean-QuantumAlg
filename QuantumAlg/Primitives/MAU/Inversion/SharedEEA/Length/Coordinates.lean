@@ -50,7 +50,7 @@ def region (width : Nat) (field : Field) (key : BitVec width.size) : Nat :=
   | .divisor => width + 3 - 1 - key.toNat
 
 /-- Every static region lies inside its actual original full work word. -/
-theorem region_le (width : Nat) (field : Field) (key : BitVec width.size) :
+lemma region_le (width : Nat) (field : Field) (key : BitVec width.size) :
     region width field key ≤ width + 3 := by
   cases field <;> simp only [region] <;> omega
 
@@ -68,7 +68,7 @@ def payloadPosition (width : Nat) (field : Field) (key : BitVec width.size)
       omega⟩
 
 /-- Reading a selected region never duplicates a physical word coordinate. -/
-theorem payloadPosition_injective (width : Nat) (field : Field) (key : BitVec width.size) :
+lemma payloadPosition_injective (width : Nat) (field : Field) (key : BitVec width.size) :
     Function.Injective (payloadPosition width field key) := by
   intro left right same
   have values := congrArg (fun index : Fin (width + 3) => index.val) same
@@ -84,7 +84,7 @@ def payloadBit (width : Nat) (field : Field) (key : BitVec width.size) (firstWor
   else secondWordBit width (payloadPosition width field key index)
 
 /-- Literal original work-word physical address for either actual word. -/
-theorem payloadBit_wire (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma payloadBit_wire (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (index : Fin (region width field key)) :
     (payloadBit width field key firstWord index).wire.val =
       (if firstWord then 0 else width + 3) + (payloadPosition width field key index).val := by
@@ -92,7 +92,7 @@ theorem payloadBit_wire (width : Nat) (field : Field) (key : BitVec width.size) 
     firstWordBit_wire, secondWordBit_wire, Nat.zero_add]
 
 /-- All payload sources belong to the original two work words. -/
-theorem payloadBit_before_lengths (width : Nat) (field : Field) (key : BitVec width.size)
+lemma payloadBit_before_lengths (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (index : Fin (region width field key)) :
     (payloadBit width field key firstWord index).wire.val < 2 * (width + 3) := by
   rw [payloadBit_wire]
@@ -100,7 +100,7 @@ theorem payloadBit_before_lengths (width : Nat) (field : Field) (key : BitVec wi
   cases firstWord <;> simp only [Bool.false_eq_true, if_false, if_true] <;> omega
 
 /-- Each selected original word is read without repeating a wire. -/
-theorem payloadBit_injective (width : Nat) (field : Field) (key : BitVec width.size)
+lemma payloadBit_injective (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) :
     Function.Injective (fun index => (payloadBit width field key firstWord index).wire) := by
   intro left right same
@@ -121,7 +121,7 @@ def outputBit (width : Nat) : Field → Fin width.size → EncodedBit (encoding 
   | .divisor, index => divisorLengthBit width index.rev
 
 /-- Actual boundary-key bit values are those of the original complete finite boundary word. -/
-theorem boundaryBit_get (width : Nat) (field : Field) (index : Fin width.size)
+lemma boundaryBit_get (width : Nat) (field : Field) (index : Fin width.size)
     (state : Registers width) :
     (boundaryBit width field index).get state = (boundaryValue field state).getMsbD index.val := by
   cases field with
@@ -129,14 +129,14 @@ theorem boundaryBit_get (width : Nat) (field : Field) (index : Fin width.size)
   | divisor => exact coefficientLengthBit_get width index state
 
 /-- The source boundary field's physical offset in the full original register encoding. -/
-theorem boundaryBit_wire (width : Nat) (field : Field) (index : Fin width.size) :
+lemma boundaryBit_wire (width : Nat) (field : Field) (index : Fin width.size) :
     (boundaryBit width field index).wire.val =
       2 * (width + 3) + (if field = .coefficient then 2 * width.size else 0) + index.val := by
   cases field <;> simp only [boundaryBit, divisorLengthBit_wire, coefficientLengthBit_wire,
     reduceCtorEq, if_true, if_false, Nat.add_zero]
 
 /-- The actual output field is disjoint from its boundary-key field. -/
-theorem boundary_output_ne (width : Nat) (field : Field) (input output : Fin width.size) :
+lemma boundary_output_ne (width : Nat) (field : Field) (input output : Fin width.size) :
     (boundaryBit width field input).wire ≠ (outputBit width field output).wire := by
   intro same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -146,7 +146,7 @@ theorem boundary_output_ne (width : Nat) (field : Field) (input output : Fin wid
     coefficientLengthBit_wire] at values <;> omega
 
 /-- Distinct boundary-key positions read distinct original physical wires. -/
-theorem boundaryBit_injective (width : Nat) (field : Field) :
+lemma boundaryBit_injective (width : Nat) (field : Field) :
     Function.Injective (fun index => (boundaryBit width field index).wire) := by
   intro left right same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -161,7 +161,7 @@ def sourceBit (width : Nat) (field : Field) (key : BitVec width.size) (firstWord
   else payloadBit width field key firstWord ⟨index.val - width.size,
     by have within := index.isLt; omega⟩
 
-private theorem boundary_payload_ne (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma boundary_payload_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (boundary : Fin width.size) (payload : Fin (region width field key)) :
     (boundaryBit width field boundary).wire ≠
       (payloadBit width field key firstWord payload).wire := by
@@ -171,7 +171,7 @@ private theorem boundary_payload_ne (width : Nat) (field : Field) (key : BitVec 
   have within := payloadBit_before_lengths width field key firstWord payload
   omega
 
-private theorem payload_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma payload_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (payload : Fin (region width field key)) (output : Fin width.size) :
     (payloadBit width field key firstWord payload).wire ≠ (outputBit width field output).wire := by
   intro same
@@ -181,7 +181,7 @@ private theorem payload_output_ne (width : Nat) (field : Field) (key : BitVec wi
     divisorLengthBit_wire] at values <;> omega
 
 /-- Every actual source coordinate is unique across the retained key and original word region. -/
-theorem sourceBit_injective (width : Nat) (field : Field) (key : BitVec width.size)
+lemma sourceBit_injective (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) :
     Function.Injective (fun index => (sourceBit width field key firstWord index).wire) := by
   intro left right same
@@ -201,7 +201,7 @@ theorem sourceBit_injective (width : Nat) (field : Field) (key : BitVec width.si
       omega
 
 /-- The chosen actual output wire lies outside every source coordinate. -/
-theorem source_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
+lemma source_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output : Fin width.size)
     (index : Fin (width.size + region width field key)) :
     (sourceBit width field key firstWord index).wire ≠ (outputBit width field output).wire := by
@@ -211,7 +211,7 @@ theorem source_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
   · exact payload_output_ne width field key firstWord _ output
 
 /-- Original Iter is disjoint from all original boundary and payload sources. -/
-theorem source_work_ne (width : Nat) (field : Field) (key : BitVec width.size)
+lemma source_work_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (index : Fin (width.size + region width field key)) :
     (sourceBit width field key firstWord index).wire ≠ (iterationBit width).wire := by
   intro same
@@ -227,7 +227,7 @@ theorem source_work_ne (width : Nat) (field : Field) (key : BitVec width.size)
     omega
 
 /-- Original Iter is also disjoint from the actual length output. -/
-theorem work_output_ne (width : Nat) (field : Field) (output : Fin width.size) :
+lemma work_output_ne (width : Nat) (field : Field) (output : Fin width.size) :
     (iterationBit width).wire ≠ (outputBit width field output).wire := by
   intro same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same

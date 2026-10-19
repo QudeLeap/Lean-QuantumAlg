@@ -31,7 +31,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace Execution
 
 /-- The joint borrowed observation is linear over the actual finite sum of state blocks. -/
-theorem observeBorrowed_finiteSum {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_finiteSum {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History Index : Type} [Fintype History] [Fintype Index]
     (states : Index → State ctx Reference History) (total : ∑ index, (states index).mass ≤ 1) :
     observeBorrowed Reference (ExecutionState.finiteSum states total) =
@@ -76,7 +76,7 @@ theorem observeBorrowed_finiteSum {kind : ProblemKind} {ctx : RuntimeCtx kind}
     _ = _ := Finset.sum_comm
 
 /-- Equality transport commutes with that same finite family of complete borrowed blocks. -/
-theorem transportBorrowed_finiteSum
+lemma transportBorrowed_finiteSum
     {sourceShape targetShape : CShape} {sourceRegister targetRegister : Register}
     (Reference : Register) (sameShape : sourceShape = targetShape)
     (sameRegister : sourceRegister = targetRegister) {Index : Type} [Fintype Index]
@@ -91,7 +91,7 @@ theorem transportBorrowed_finiteSum
   rfl
 
 /-- Entering real lexical workspace preserves the complete original borrowed observation. -/
-theorem observeBorrowed_pushWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_pushWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
@@ -122,7 +122,7 @@ theorem observeBorrowed_pushWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kin
     (density.trans (observeBorrowed_block Reference state value).symm)
 
 /-- Exiting that lexical head retains all original borrowed classical-reference correlations. -/
-theorem observeBorrowed_popWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_popWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (state : State (ctx.addWorkspace key shape fresh) Reference History) :
@@ -161,15 +161,16 @@ namespace Circuit
 open Execution
 
 /-- Every actual finite iteration restores the same joint interface when its actual body does. -/
-theorem borrowedRestored_iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-    (body : Circuit model ctx ctx) (Reference : Register)
+lemma borrowedRestored_iterate {model : ExecutionModel}
+    (environment : model.Environment) {ctx : RuntimeCtx model.kind}
+    {allowAllocation : Bool} (body : Circuit model ctx ctx allowAllocation) (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      body.BorrowedRestored Reference state (body.execute Reference state))
+      body.BorrowedRestored Reference state (body.execute environment Reference state))
     (count : Nat) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.iterate count body).BorrowedRestored Reference state
-      ((Circuit.iterate count body).execute Reference state) := by
+      ((Circuit.iterate count body).execute environment Reference state) := by
   induction count generalizing History with
   | zero =>
       rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_iterate_zero]
@@ -177,31 +178,34 @@ theorem borrowedRestored_iterate {model : ExecutionModel} {ctx : RuntimeCtx mode
   | succ count ih =>
       rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_iterate_succ,
         observeBorrowed_mapHistory]
-      have later := ih (body.execute Reference state)
+      have later := ih (body.execute environment Reference state)
       have first := restores state
       change observeBorrowed Reference
-        ((Circuit.iterate count body).execute Reference (body.execute Reference state)) =
-          observeBorrowed Reference (body.execute Reference state) at later
-      change observeBorrowed Reference (body.execute Reference state) =
+        ((Circuit.iterate count body).execute environment Reference (body.execute environment
+          Reference state)) =
+          observeBorrowed Reference (body.execute environment Reference state) at later
+      change observeBorrowed Reference (body.execute environment Reference state) =
         observeBorrowed Reference state at first
       exact later.trans first
 
 /-- Lexical push, restoring body and pop preserve the complete original borrowed interface. -/
-theorem borrowedRestored_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma borrowedRestored_workspace {model : ExecutionModel}
+    (environment : model.Environment) {ctx : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
-    (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
+    (body : Circuit model (ctx.addWorkspace key shape fresh)
+      (ctx.addWorkspace key shape fresh) true)
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
       (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
-      body.BorrowedRestored Reference state (body.execute Reference state))
+      body.BorrowedRestored Reference state (body.execute environment Reference state))
     {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.workspace ctx key shape fresh body).BorrowedRestored Reference state
-      ((Circuit.workspace ctx key shape fresh body).execute Reference state) := by
+      ((Circuit.workspace ctx key shape fresh body).execute environment Reference state) := by
   rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_workspace]
   have actual := restores (state.pushWorkspace key shape fresh)
   change observeBorrowed Reference
-    (body.execute Reference (state.pushWorkspace key shape fresh)) =
+    (body.execute environment Reference (state.pushWorkspace key shape fresh)) =
       observeBorrowed Reference (state.pushWorkspace key shape fresh) at actual
   exact (observeBorrowed_popWorkspace key shape fresh _).trans
     (actual.trans (observeBorrowed_pushWorkspace state key shape fresh))

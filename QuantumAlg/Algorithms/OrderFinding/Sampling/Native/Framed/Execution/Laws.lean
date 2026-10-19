@@ -35,7 +35,7 @@ open QuantumAlg.Execution
 
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
-private theorem sourcePrepared_density (t width : Nat) :
+private lemma sourcePrepared_density (t width : Nat) :
     (DensityOperator.ofPure
       (BasisPreparation.zero (Sampling.Native.runtimeLayout t width)).normalized).reindex
         (S := (preparedContext ctx noQuantum t width).register)
@@ -78,12 +78,13 @@ private theorem sourcePrepared_density (t width : Nat) :
   simp only [Equiv.symm_symm]
 
 /-- Retained measurement cells preserve the complete prepared quantum density. -/
-theorem allocationCode_localDensity {N x t width : Nat}
+lemma allocationCode_localDensity {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (preparedContext ctx noQuantum t width) Reference
-      ((model access).HiddenState × H)) :
-    ((allocationCode ctx noQuantum access).execute Reference state).quantumMarginal.marginalLeft =
+      ((model t width).HiddenState × H)) :
+    ((allocationCode ctx noQuantum t width).execute (Sampling.Native.environment access) Reference
+      state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex (S := (post ctx noQuantum t width).register)
         (MeasurementCells.basisEquiv (resultContext ctx noQuantum t width) 2 t) := by
   rw [allocationCode, Circuit.execute_seq, State.mapHistory_quantumMarginal]
@@ -97,34 +98,37 @@ theorem allocationCode_localDensity {N x t width : Nat}
         State.retain_quantumMarginal] using
         congrArg (DensityOperator.marginalLeft
           (R := (post ctx noQuantum t width).register) (S := Reference))
-          (MeasurementCells.allocate_quantumMarginal (model := model access)
+          (MeasurementCells.allocate_quantumMarginal (model := model t width)
+            (Sampling.Native.environment access)
             (resultContext ctx noQuantum t width) 2 t
-            ((Circuit.retain (model := model access) (preparedContext ctx noQuantum t width)
+            ((Circuit.retain (model := model t width) (preparedContext ctx noQuantum t width)
               (preparedContext ctx noQuantum t width).canonicalFreshKey (.bits t)
               (preparedContext ctx noQuantum t width).canonicalFreshKey_fresh).execute
+                (Sampling.Native.environment access)
               Reference state))
     _ = _ := by
       rw [MeasurementCells.jointBasisEquiv, DensityOperator.reindex_prod_marginalLeft,
         State.retain_quantumMarginal]
 
 /-- The real native source word reaches its declared coherent Born state. -/
-theorem beforeMeasurement_localDensity {N x t width : Nat}
+lemma beforeMeasurement_localDensity {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((model access).HiddenState × H))
+    (state : State ctx Reference ((model t width).HiddenState × H))
     (normalized : state.IsNormalized) :
-    ((beforeMeasurement ctx noQuantum access).execute
+    ((beforeMeasurement ctx noQuantum t width).execute (Sampling.Native.environment access)
       Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (OrderFinding.Native.evolvedVector access)).reindex
         (S := (post ctx noQuantum t width).register)
         (outputBasisEquiv ctx noQuantum t width).symm := by
   have prepared :
-      ((preparationCode ctx noQuantum access).execute
+      ((preparationCode ctx noQuantum t width).execute (Sampling.Native.environment access)
         Reference state).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure (OrderFinding.Native.zeroInput t width)).reindex
           (S := (preparedContext ctx noQuantum t width).register)
           (preparedBasisEquiv ctx noQuantum t width).symm :=
-    (Circuit.prepareZero_empty_local_density state ctx.canonicalFreshKey
+    (Circuit.prepareZero_empty_local_density (Sampling.Native.environment access) state
+      ctx.canonicalFreshKey
       (Sampling.Native.runtimeLayout t width) ctx.canonicalFreshKey_fresh
       (by simp only [RuntimeCtx.physicalIdx, noQuantum]; exact List.disjoint_nil_right _)
       (input_systemCount ctx noQuantum) normalized).trans
@@ -132,8 +136,9 @@ theorem beforeMeasurement_localDensity {N x t width : Nat}
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal,
     allocationCode_localDensity ctx noQuantum access,
-    Circuit.unitary_localDensity, prepared,
-    nativeProgram_zero_density ctx noQuantum access,
+    Circuit.unitary_localDensity, prepared]
+  simp only [Sampling.Native.environment]
+  rw [nativeProgram_zero_density ctx noQuantum access,
     DensityOperator.reindex_trans]
   rfl
 

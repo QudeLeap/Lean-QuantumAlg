@@ -40,7 +40,7 @@ def difference (value threshold : BitVec width) : BitVec (width + 1) :=
   value.setWidth (width + 1) - threshold.setWidth (width + 1)
 
 /-- The actual high subtraction bit is exactly unsigned underflow, including equality. -/
-theorem difference_sign (value threshold : BitVec width) :
+lemma difference_sign (value threshold : BitVec width) :
     (difference value threshold).msb = decide (value.toNat < threshold.toNat) := by
   have valueNat : (value.setWidth (width + 1)).toNat = value.toNat :=
     BitVec.toNat_setWidth_of_le (by omega)
@@ -64,7 +64,7 @@ theorem difference_sign (value threshold : BitVec width) :
     simp [borrowed, nonnegative]
 
 /-- Extracting the actual low subtraction bits agrees with old-width modular subtraction. -/
-theorem difference_low (value threshold : BitVec width) :
+lemma difference_low (value threshold : BitVec width) :
     (difference value threshold).setWidth width = value - threshold := by
   unfold difference
   rw [BitVec.sub_eq_add_neg, BitVec.setWidth_add _ _ (by omega),
@@ -80,7 +80,7 @@ def corrected (value threshold : BitVec width) : BitVec width :=
   if subtracted.msb then low + threshold else low
 
 /-- Actual subtraction and conditional add-back implement the source's weak comparison branch. -/
-theorem corrected_eq (value threshold : BitVec width) :
+lemma corrected_eq (value threshold : BitVec width) :
     corrected value threshold =
       if threshold.toNat ≤ value.toNat then value - threshold else value := by
   dsimp only [corrected]
@@ -92,7 +92,7 @@ theorem corrected_eq (value threshold : BitVec width) :
     simp [selected, borrowed]
 
 /-- The concrete word instructions compute the exact next natural remainder. -/
-theorem corrected_toNat (value threshold : BitVec width) :
+lemma corrected_toNat (value threshold : BitVec width) :
     (corrected value threshold).toNat =
       if threshold.toNat ≤ value.toNat then value.toNat - threshold.toNat else value.toNat := by
   rw [corrected_eq]
@@ -107,7 +107,7 @@ def extract (value threshold : BitVec (width + 1)) : Bool × BitVec (width + 1) 
   (restored.msb, BitVec.cons (!(difference value threshold).msb) (restored.setWidth width))
 
 /-- Next-state capacity makes the physical swap clear Sign and retain the actual quotient bit. -/
-theorem extract_spec (value threshold : BitVec (width + 1))
+lemma extract_spec (value threshold : BitVec (width + 1))
     (nextFits : (if threshold.toNat ≤ value.toNat then value.toNat - threshold.toNat
       else value.toNat) < 2 ^ width) :
     (extract value threshold).1 = false ∧
@@ -140,7 +140,7 @@ def rewind (threshold : BitVec (width + 1)) (output : Bool × BitVec (width + 1)
   if output.2.msb then remainder + threshold else remainder
 
 /-- The actual output word reconstructs the old remainder without an external branch witness. -/
-theorem rewind_extract (value threshold : BitVec (width + 1))
+lemma rewind_extract (value threshold : BitVec (width + 1))
     (nextFits : (if threshold.toNat ≤ value.toNat then value.toNat - threshold.toNat
       else value.toNat) < 2 ^ width) :
     rewind threshold (extract value threshold) = value := by
@@ -161,7 +161,7 @@ theorem rewind_extract (value threshold : BitVec (width + 1))
     simpa only [if_neg selected] using restoredNat
 
 /-- Distinct reachable old remainder words are never merged by the actual quotient extraction. -/
-theorem extract_injective (threshold : BitVec (width + 1))
+lemma extract_injective (threshold : BitVec (width + 1))
     {left right : BitVec (width + 1)}
     (leftFits : (if threshold.toNat ≤ left.toNat then left.toNat - threshold.toNat
       else left.toNat) < 2 ^ width)
@@ -175,7 +175,7 @@ theorem extract_injective (threshold : BitVec (width + 1))
     _ = right := rewind_extract right threshold rightFits
 
 /-- The valid prime boundary keeps the old high remainder bit until after subtraction. -/
-theorem prime_twenty_nine_last_digit :
+lemma prime_twenty_nine_last_digit :
     difference (5 : BitVec 3) (3 : BitVec 3) = (2 : BitVec 4) ∧
       corrected (5 : BitVec 3) (3 : BitVec 3) = (2 : BitVec 3) ∧
       extract (5 : BitVec 3) (3 : BitVec 3) = (false, (6 : BitVec 3)) ∧
@@ -183,7 +183,7 @@ theorem prime_twenty_nine_last_digit :
   decide
 
 /-- Equality writes quotient one and resets the remainder even when its field has zero bits. -/
-theorem zero_width_equality :
+lemma zero_width_equality :
     extract (1 : BitVec 1) (1 : BitVec 1) = (false, (1 : BitVec 1)) ∧
       ((extract (1 : BitVec 1) (1 : BitVec 1)).2.setWidth 0) = (0 : BitVec 0) := by
   decide

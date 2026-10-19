@@ -68,7 +68,7 @@ instance : HSMul ℂ (NormalizedVector R) (HilbertVector R) :=
   norm_eq_one := norm_eq_one
 
 @[simp]
-public theorem coe_ofVector (vec : HilbertVector R) (h : ‖vec‖ = 1) :
+public lemma coe_ofVector (vec : HilbertVector R) (h : ‖vec‖ = 1) :
     ((ofVector vec h : NormalizedVector R) : HilbertVector R) = vec := rfl
 
 /-- Normalize a nonzero raw vector.  The nonzero hypothesis is required because
@@ -79,7 +79,7 @@ def ofNeZero (vec : HilbertVector R) (hvec : vec ≠ 0) : NormalizedVector R :=
       inv_mul_cancel₀ (norm_ne_zero_iff.mpr hvec)])
 
 /-- Rescaling `ofNeZero` by the original norm reconstructs the raw vector. -/
-theorem norm_smul_coe_ofNeZero (vec : HilbertVector R) (hvec : vec ≠ 0) :
+lemma norm_smul_coe_ofNeZero (vec : HilbertVector R) (hvec : vec ≠ 0) :
     (‖vec‖ : ℂ) • (ofNeZero vec hvec : HilbertVector R) = vec := by
   unfold ofNeZero
   rw [coe_ofVector, smul_smul]
@@ -88,7 +88,7 @@ theorem norm_smul_coe_ofNeZero (vec : HilbertVector R) (hvec : vec ≠ 0) :
   rw [mul_inv_cancel₀ hnorm, one_smul]
 
 @[ext]
-theorem ext {ψ φ : NormalizedVector R} (hvec : ∀ i, ψ i = φ i) : ψ = φ := by
+lemma ext {ψ φ : NormalizedVector R} (hvec : ∀ i, ψ i = φ i) : ψ = φ := by
   have hv : ψ.vec = φ.vec := by
     apply WithLp.ofLp_injective
     funext i
@@ -103,11 +103,11 @@ public def ket (x : R.Index) : NormalizedVector R :=
   ofVector (PiLp.single 2 x 1) (by simp)
 
 @[simp]
-public theorem ket_apply (x i : R.Index) :
+public lemma ket_apply (x i : R.Index) :
     ket x i = if i = x then 1 else 0 := by
   simp [ket]
 
-theorem ket_injective : Function.Injective (ket (R := R)) := by
+lemma ket_injective : Function.Injective (ket (R := R)) := by
   intro x y hxy
   by_contra hne
   have h := congrArg (fun ψ : NormalizedVector R => ψ x) hxy
@@ -115,7 +115,7 @@ theorem ket_injective : Function.Injective (ket (R := R)) := by
   exact one_ne_zero h
 
 @[simp]
-theorem norm_ket (x : R.Index) : ‖(ket x : HilbertVector R)‖ = 1 :=
+lemma norm_ket (x : R.Index) : ‖(ket x : HilbertVector R)‖ = 1 :=
   (ket x).norm_eq_one
 
 end

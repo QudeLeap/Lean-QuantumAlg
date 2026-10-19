@@ -30,36 +30,36 @@ namespace QuantumAlg
 open Complex
 
 /-- `exp(iθ) = cos θ + i sin θ` for real `θ`, with real-valued `cos/sin`. -/
-theorem exp_ofReal_mul_I (θ : ℝ) :
+lemma exp_ofReal_mul_I (θ : ℝ) :
     Complex.exp (θ * Complex.I) =
       (Real.cos θ : ℂ) + (Real.sin θ : ℂ) * Complex.I := by
   rw [Complex.exp_mul_I, Complex.ofReal_cos, Complex.ofReal_sin]
 
-theorem conj_exp_I (φ : ℝ) :
+lemma conj_exp_I (φ : ℝ) :
     starRingEnd ℂ (Complex.exp (φ * Complex.I)) =
       Complex.exp (-(φ * Complex.I)) := by
   rw [← Complex.exp_conj]
   congr 1
   simp
 
-theorem conj_exp_neg_I (φ : ℝ) :
+lemma conj_exp_neg_I (φ : ℝ) :
     starRingEnd ℂ (Complex.exp (-(φ * Complex.I))) =
       Complex.exp (φ * Complex.I) := by
   rw [← Complex.exp_conj]
   congr 1
   simp
 
-theorem exp_I_mul_exp_neg_I (φ : ℝ) :
+lemma exp_I_mul_exp_neg_I (φ : ℝ) :
     Complex.exp (φ * Complex.I) * Complex.exp (-(φ * Complex.I)) = 1 := by
   rw [← Complex.exp_add, add_neg_cancel, Complex.exp_zero]
 
-theorem exp_neg_I_mul_exp_I (φ : ℝ) :
+lemma exp_neg_I_mul_exp_I (φ : ℝ) :
     Complex.exp (-(φ * Complex.I)) * Complex.exp (φ * Complex.I) = 1 := by
   rw [← Complex.exp_add, neg_add_cancel, Complex.exp_zero]
 
 /-- Multiplying two unit-circle exponentials subtracts their real phases in the
 exponent. This is the scalar algebra used by phase-register geometric sums. -/
-private theorem exp_neg_two_pi_mul_mul_exp_two_pi_mul (a b k : ℝ) :
+private lemma exp_neg_two_pi_mul_mul_exp_two_pi_mul (a b k : ℝ) :
     Complex.exp (-(2 * Real.pi * b * k) * Complex.I) *
         Complex.exp (2 * Real.pi * a * k * Complex.I) =
       Complex.exp (2 * Real.pi * ((a - b) * k) * Complex.I) := by
@@ -69,7 +69,7 @@ private theorem exp_neg_two_pi_mul_mul_exp_two_pi_mul (a b k : ℝ) :
 
 /-- A finite exponential phase progression is a geometric progression on the
 unit-circle base. -/
-theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_geom (θ : ℝ) (m : ℕ) :
+lemma sum_range_exp_two_pi_mul_nat_mul_I_eq_geom (θ : ℝ) (m : ℕ) :
     (Finset.range m).sum
         (fun b => Complex.exp (2 * Real.pi *
           (((b : ℝ) * θ : ℝ) : ℂ) * Complex.I)) =
@@ -83,7 +83,7 @@ theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_geom (θ : ℝ) (m : ℕ) :
 
 /-- Degenerate finite exponential progression when the unit-circle base is
 one. -/
-theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_natCast_of_base_eq_one
+lemma sum_range_exp_two_pi_mul_nat_mul_I_eq_natCast_of_base_eq_one
     {θ : ℝ} {m : ℕ}
     (hbase : Complex.exp (2 * Real.pi * θ * Complex.I) = 1) :
     (Finset.range m).sum
@@ -95,7 +95,7 @@ theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_natCast_of_base_eq_one
 
 /-- Closed form for a finite exponential phase progression with nontrivial
 unit-circle base. -/
-theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_geom_closed
+lemma sum_range_exp_two_pi_mul_nat_mul_I_eq_geom_closed
     {θ : ℝ} {m : ℕ}
     (hne : Complex.exp (2 * Real.pi * θ * Complex.I) ≠ 1) :
     (Finset.range m).sum
@@ -108,14 +108,14 @@ theorem sum_range_exp_two_pi_mul_nat_mul_I_eq_geom_closed
 
 /-- Unit-circle chord upper bound in the `x * I` convention used by the local
 phase formulas. -/
-theorem norm_exp_ofReal_mul_I_sub_one_le (x : ℝ) :
+lemma norm_exp_ofReal_mul_I_sub_one_le (x : ℝ) :
     ‖Complex.exp (x * Complex.I) - 1‖ ≤ |x| := by
   simpa [mul_comm, Real.norm_eq_abs] using
     (Real.norm_exp_I_mul_ofReal_sub_one_le (x := x))
 
 /-- Unit-circle chord lower bound in the `I * x` convention, valid on one
 principal interval. -/
-theorem two_div_pi_mul_abs_le_norm_exp_I_mul_ofReal_sub_one
+lemma two_div_pi_mul_abs_le_norm_exp_I_mul_ofReal_sub_one
     {x : ℝ} (hx : |x| ≤ Real.pi) :
     (2 / Real.pi) * |x| ≤
       ‖Complex.exp (Complex.I * x) - 1‖ := by
@@ -139,7 +139,7 @@ theorem two_div_pi_mul_abs_le_norm_exp_I_mul_ofReal_sub_one
 
 /-- Unit-circle chord lower bound in the `x * I` convention used by the local
 phase formulas. -/
-theorem two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one
+lemma two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one
     {x : ℝ} (hx : |x| ≤ Real.pi) :
     (2 / Real.pi) * |x| ≤
       ‖Complex.exp (x * Complex.I) - 1‖ := by
@@ -150,7 +150,7 @@ theorem two_div_pi_mul_abs_le_norm_exp_ofReal_mul_I_sub_one
 reciprocal principal phase distance.  This is the quantum-independent chord
 estimate used for the `zeta` bound in the short-DLP analysis
 [E23, arxiv-v5.tex:549-579]. -/
-theorem norm_sum_range_exp_two_pi_mul_nat_mul_I_le
+lemma norm_sum_range_exp_two_pi_mul_nat_mul_I_le
     {θ : Real} {m : Nat}
     (hprincipal : |θ| ≤ 1 / 2)
     (hphase : 0 < |θ|) :
@@ -208,7 +208,7 @@ theorem norm_sum_range_exp_two_pi_mul_nat_mul_I_le
       ring
 
 /-- Denominator bound for the `2πθ` unit-circle base. -/
-theorem norm_exp_two_pi_mul_I_sub_one_le (θ : ℝ) :
+lemma norm_exp_two_pi_mul_I_sub_one_le (θ : ℝ) :
     ‖Complex.exp (2 * Real.pi * θ * Complex.I) - 1‖ ≤
       |2 * Real.pi * θ| := by
   convert norm_exp_ofReal_mul_I_sub_one_le (2 * Real.pi * θ) using 2
@@ -217,7 +217,7 @@ theorem norm_exp_two_pi_mul_I_sub_one_le (θ : ℝ) :
 
 /-- Numerator lower bound for a finite `2πθ` geometric phase on the principal
 interval. -/
-theorem two_div_pi_mul_abs_le_norm_exp_two_pi_mul_nat_mul_I_sub_one
+lemma two_div_pi_mul_abs_le_norm_exp_two_pi_mul_nat_mul_I_sub_one
     {θ : ℝ} {m : ℕ}
     (hprincipal : |2 * Real.pi * ((m : ℝ) * θ)| ≤ Real.pi) :
     (2 / Real.pi) * |2 * Real.pi * ((m : ℝ) * θ)| ≤
@@ -236,7 +236,7 @@ theorem two_div_pi_mul_abs_le_norm_exp_two_pi_mul_nat_mul_I_sub_one
 
 /-- Concavity of sine gives the secant-line lower bound from `0` to `A` on
 `[0, π]`. -/
-theorem sin_ge_slope_mul_of_nonneg_of_le
+lemma sin_ge_slope_mul_of_nonneg_of_le
     {x A : ℝ} (hApos : 0 < A) (hApi : A ≤ Real.pi)
     (hx0 : 0 ≤ x) (hxA : x ≤ A) :
     (Real.sin A / A) * x ≤ Real.sin x := by
@@ -253,7 +253,7 @@ theorem sin_ge_slope_mul_of_nonneg_of_le
 
 /-- Numerator lower bound for a finite `2πθ` geometric phase from an explicit
 absolute phase-angle bound. -/
-theorem norm_exp_two_pi_mul_nat_mul_I_sub_one_lower_bound_of_angle_le
+lemma norm_exp_two_pi_mul_nat_mul_I_sub_one_lower_bound_of_angle_le
     {θ A : ℝ} {m : ℕ}
     (hApos : 0 < A) (hApi : A ≤ Real.pi)
     (hangle : Real.pi * ((m : ℝ) * |θ|) ≤ A) :
@@ -299,7 +299,7 @@ theorem norm_exp_two_pi_mul_nat_mul_I_sub_one_lower_bound_of_angle_le
 
 /-- Lower bound for the norm quotient of a nontrivial finite unit-circle
 geometric phase. -/
-theorem geometric_phase_norm_ratio_lower_bound
+lemma geometric_phase_norm_ratio_lower_bound
     {θ : ℝ} {m : ℕ}
     (hprincipal : |2 * Real.pi * ((m : ℝ) * θ)| ≤ Real.pi)
     (hne : Complex.exp (2 * Real.pi * θ * Complex.I) ≠ 1) :
@@ -324,7 +324,7 @@ theorem geometric_phase_norm_ratio_lower_bound
 /-- Lower bound for the norm quotient of a nontrivial finite unit-circle
 geometric phase from an explicit absolute phase-angle bound. This version does
 not require the full `2πmθ` phase to lie in one principal interval. -/
-theorem geometric_phase_norm_ratio_lower_bound_of_angle_le
+lemma geometric_phase_norm_ratio_lower_bound_of_angle_le
     {θ A : ℝ} {m : ℕ}
     (hApos : 0 < A) (hApi : A ≤ Real.pi)
     (hangle : Real.pi * ((m : ℝ) * |θ|) ≤ A)
@@ -363,7 +363,7 @@ theorem geometric_phase_norm_ratio_lower_bound_of_angle_le
 
 /-- The `π/4` secant slope used for a quarter-circle phase sector has squared
 magnitude at least one half. -/
-theorem one_half_le_sq_sin_pi_div_four_div :
+lemma one_half_le_sq_sin_pi_div_four_div :
     (1 / 2 : Real) ≤
       (Real.sin (Real.pi / 4) / (Real.pi / 4)) ^ 2 := by
   have hsqrt : 0 < Real.sqrt 2 := Real.sqrt_pos.2 (by norm_num)
@@ -382,13 +382,13 @@ theorem one_half_le_sq_sin_pi_div_four_div :
   have hsqrtSq : (Real.sqrt 2) ^ 2 = 2 := by norm_num
   nlinarith
 
-theorem exp_pi_div_two_mul_I :
+lemma exp_pi_div_two_mul_I :
     Complex.exp ((Real.pi : ℂ) / 2 * Complex.I) = Complex.I := by
   rw [show ((Real.pi : ℂ) / 2) = ((Real.pi / 2 : ℝ) : ℂ) by push_cast; ring,
     exp_ofReal_mul_I, Real.cos_pi_div_two, Real.sin_pi_div_two]
   simp
 
-theorem exp_neg_pi_div_two_mul_I :
+lemma exp_neg_pi_div_two_mul_I :
     Complex.exp (-((Real.pi : ℂ) / 2 * Complex.I)) = -Complex.I := by
   rw [show -((Real.pi : ℂ) / 2 * Complex.I)
       = ((-(Real.pi / 2) : ℝ) : ℂ) * Complex.I by push_cast; ring,
@@ -397,7 +397,7 @@ theorem exp_neg_pi_div_two_mul_I :
   simp
 
 /-- `√(1-x²)` squares back to `1 - x²` over `ℂ` for `x ∈ [-1,1]`. -/
-theorem sq_sqrt_one_sub_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+lemma sq_sqrt_one_sub_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     ((Real.sqrt (1 - x ^ 2) : ℂ)) ^ 2 = 1 - (x : ℂ) ^ 2 := by
   rw [← Complex.ofReal_pow,
     Real.sq_sqrt (by nlinarith [hx.1, hx.2] : (0 : ℝ) ≤ 1 - x ^ 2)]
@@ -406,7 +406,7 @@ theorem sq_sqrt_one_sub_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
 
 /-- A phase factor solving the degree-reduction equation `e^{2iφ} q = p`,
 available whenever `|p| = |q| ≠ 0` [Lin22, hermfunc.tex:1226]. -/
-theorem exists_exp_sq_eq {p q : ℂ} (hq : q ≠ 0)
+lemma exists_exp_sq_eq {p q : ℂ} (hq : q ≠ 0)
     (hpq : p * starRingEnd ℂ p = q * starRingEnd ℂ q) :
     ∃ φ : ℝ, Complex.exp (φ * Complex.I) ^ 2 * q = p := by
   refine ⟨(p / q).arg / 2, ?_⟩
@@ -429,20 +429,20 @@ theorem exists_exp_sq_eq {p q : ℂ} (hq : q ≠ 0)
     ring
   rw [hsq, harg, div_mul_cancel₀ p hq]
 
-theorem exp_pi_div_four_sq :
+lemma exp_pi_div_four_sq :
     Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) *
       Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) = Complex.I := by
   rw [← Complex.exp_add, show (Real.pi : ℂ) / 4 * Complex.I
       + (Real.pi : ℂ) / 4 * Complex.I = (Real.pi : ℂ) / 2 * Complex.I by ring,
     exp_pi_div_two_mul_I]
 
-theorem exp_pi_div_four_mul_neg :
+lemma exp_pi_div_four_mul_neg :
     Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) *
       Complex.exp (-((Real.pi : ℂ) / 4 * Complex.I)) = 1 := by
   rw [← Complex.exp_add, add_neg_cancel, Complex.exp_zero]
 
 /-- `e^{iπ/4} · i = -e^{-iπ/4}` (both equal `e^{3iπ/4}`). -/
-theorem exp_pi_div_four_mul_I :
+lemma exp_pi_div_four_mul_I :
     Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) * Complex.I
       = -Complex.exp (-((Real.pi : ℂ) / 4 * Complex.I)) := by
   apply mul_left_cancel₀ (Complex.exp_ne_zero ((Real.pi : ℂ) / 4 * Complex.I))
@@ -450,20 +450,20 @@ theorem exp_pi_div_four_mul_I :
     exp_pi_div_four_mul_neg]
 
 /-- `e^{-iπ/4} · i = e^{iπ/4}`. -/
-theorem exp_neg_pi_div_four_mul_I :
+lemma exp_neg_pi_div_four_mul_I :
     Complex.exp (-((Real.pi : ℂ) / 4 * Complex.I)) * Complex.I
       = Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) := by
   apply mul_left_cancel₀ (Complex.exp_ne_zero ((Real.pi : ℂ) / 4 * Complex.I))
   rw [← mul_assoc, exp_pi_div_four_mul_neg, one_mul, exp_pi_div_four_sq]
 
-theorem ofReal_sin_sq_add_cos_sq (t : ℝ) :
+lemma ofReal_sin_sq_add_cos_sq (t : ℝ) :
     (Real.sin t : ℂ) * (Real.sin t : ℂ) + (Real.cos t : ℂ) * (Real.cos t : ℂ)
       = 1 := by
   norm_cast
   linear_combination Real.sin_sq_add_cos_sq t
 
 /-- A unit-norm complex number is the exponential of its argument. -/
-theorem exp_arg_of_norm_eq_one (z : ℂ) (hz : ‖z‖ = 1) :
+lemma exp_arg_of_norm_eq_one (z : ℂ) (hz : ‖z‖ = 1) :
     Complex.exp ((Complex.arg z : ℂ) * Complex.I) = z := by
   calc
     Complex.exp ((Complex.arg z : ℂ) * Complex.I)
@@ -473,7 +473,7 @@ theorem exp_arg_of_norm_eq_one (z : ℂ) (hz : ‖z‖ = 1) :
     _ = z := Complex.norm_mul_exp_arg_mul_I z
 
 /-- `t ↦ e^{it}` is injective on `(0, π)`. -/
-theorem exp_I_injOn_Ioo :
+lemma exp_I_injOn_Ioo :
     Set.InjOn (fun t : ℝ => Complex.exp ((t : ℂ) * Complex.I))
       (Set.Ioo 0 Real.pi) := by
   intro s hs t ht hst
@@ -504,7 +504,7 @@ theorem exp_I_injOn_Ioo :
   linarith
 
 /-- `z·z* = ‖z‖²` in `ℂ`. -/
-theorem mul_conj_eq_norm_sq (z : ℂ) :
+lemma mul_conj_eq_norm_sq (z : ℂ) :
     z * starRingEnd ℂ z = ((‖z‖ : ℝ) : ℂ) ^ 2 := by
   conv_lhs => rw [← Complex.norm_mul_exp_arg_mul_I z]
   rw [map_mul, Complex.conj_ofReal, conj_exp_I]
@@ -512,7 +512,7 @@ theorem mul_conj_eq_norm_sq (z : ℂ) :
 
 /-- If `c / k` is a nonnegative real number, then it has a complex square-root
 scale in the form needed by Laurent root-product normalizations. -/
-theorem exists_scale_mul_conj_mul_eq_of_div_nonnegative_real {c k : ℂ}
+lemma exists_scale_mul_conj_mul_eq_of_div_nonnegative_real {c k : ℂ}
     (hk : k ≠ 0) (him : (c / k).im = 0) (hre : 0 ≤ (c / k).re) :
     ∃ s : ℂ, s * starRingEnd ℂ s * k = c := by
   let r : ℝ := Real.sqrt ((c / k).re)
@@ -535,7 +535,7 @@ theorem exists_scale_mul_conj_mul_eq_of_div_nonnegative_real {c k : ℂ}
 
 /-- A unit-normalized multiple of a nonzero pair, with real product: the
 phase `e^{-i·arg(pq)/2}` makes `|cp|² + |cq|² = 1` and `c²pq` real. -/
-theorem exists_unit_mul {p q : ℂ} (hpq : ¬(p = 0 ∧ q = 0)) :
+lemma exists_unit_mul {p q : ℂ} (hpq : ¬(p = 0 ∧ q = 0)) :
     ∃ c : ℂ,
       c * p * starRingEnd ℂ (c * p) + c * q * starRingEnd ℂ (c * q) = 1 ∧
       (c * p * (c * q)).im = 0 := by
@@ -597,7 +597,7 @@ theorem exists_unit_mul {p q : ℂ} (hpq : ¬(p = 0 ∧ q = 0)) :
     exact Complex.ofReal_im _
 
 /-- A unit-normalized positive multiple of a nonzero real pair. -/
-theorem exists_real_unit {p q : ℝ} (hpq : ¬(p = 0 ∧ q = 0)) :
+lemma exists_real_unit {p q : ℝ} (hpq : ¬(p = 0 ∧ q = 0)) :
     ∃ v w : ℝ, v ^ 2 + w ^ 2 = 1 ∧ ∃ c : ℝ, v = c * p ∧ w = c * q := by
   have hpos : 0 < p ^ 2 + q ^ 2 := by
     rcases not_and_or.mp hpq with hp | hq
@@ -614,7 +614,7 @@ theorem exists_real_unit {p q : ℝ} (hpq : ¬(p = 0 ∧ q = 0)) :
 
 /-- Any point of the real unit circle is `(cos(θ/2), sin(θ/2))` for some
 angle `θ`. -/
-theorem exists_cos_sin {v w : ℝ} (hvw : v ^ 2 + w ^ 2 = 1) :
+lemma exists_cos_sin {v w : ℝ} (hvw : v ^ 2 + w ^ 2 = 1) :
     ∃ θ : ℝ, Real.cos (θ / 2) = v ∧ Real.sin (θ / 2) = w := by
   set ζ : ℂ := (v : ℂ) + (w : ℂ) * Complex.I with hζdef
   have hC : (v : ℂ) ^ 2 + (w : ℂ) ^ 2 = 1 := by exact_mod_cast hvw

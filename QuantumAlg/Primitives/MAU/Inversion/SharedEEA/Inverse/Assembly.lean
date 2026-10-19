@@ -54,7 +54,7 @@ def oldInput (width : Nat) (old : (before width).register.Index) :
   (InputPreparation.inputBasisEquiv width).symm ((inputBasisEquiv width old).1)
 
 /-- Exact assembly holds for all auxiliary values and both arbitrary original words. -/
-theorem basisEquiv_assembly (width : Nat)
+lemma basisEquiv_assembly (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) :
     basisEquiv width (assembly width (fresh, old)) =
@@ -94,7 +94,7 @@ def targetPosition (width : Nat) (index : Fin width) : Fin (OutputCopy.encoding 
     change _ < (encoding width).width + width
     omega⟩
 
-private theorem auxiliary_rev (width : Nat)
+private lemma auxiliary_rev (width : Nat)
     (index : Fin (InputPreparation.auxiliaryWidth width)) :
     (auxiliaryPosition width index).rev.val =
       width + (InputAssembly.auxiliaryPosition width index).rev.val := by
@@ -103,7 +103,7 @@ private theorem auxiliary_rev (width : Nat)
   have bound := (InputAssembly.auxiliaryPosition width index).isLt
   omega
 
-private theorem input_rev (width : Nat) (index : Fin width) :
+private lemma input_rev (width : Nat) (index : Fin width) :
     (inputPosition width index).rev.val =
       width + (InputAssembly.inputPosition width index).rev.val := by
   simp only [inputPosition, Fin.val_rev]
@@ -111,14 +111,14 @@ private theorem input_rev (width : Nat) (index : Fin width) :
   have bound := (InputAssembly.inputPosition width index).isLt
   omega
 
-private theorem target_rev (width : Nat) (index : Fin width) :
+private lemma target_rev (width : Nat) (index : Fin width) :
     (targetPosition width index).rev.val = index.rev.val := by
   simp only [targetPosition, Fin.val_rev]
   change (encoding width).width + width - ((encoding width).width + index.val + 1) = _
   omega
 
 /-- Every auxiliary position retains its actual original value, with both old words arbitrary. -/
-theorem basisEquiv_auxiliary (width : Nat)
+lemma basisEquiv_auxiliary (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin (InputPreparation.auxiliaryWidth width)) :
     (basisEquiv width (assembly width (fresh, old))).val.testBit
@@ -127,7 +127,7 @@ theorem basisEquiv_auxiliary (width : Nat)
   exact InputAssembly.basisEquiv_auxiliary width fresh (oldInput width old) index
 
 /-- Every original input bit retains its actual source identity in the joint assembly. -/
-theorem basisEquiv_input (width : Nat)
+lemma basisEquiv_input (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin width) :
     (basisEquiv width (assembly width (fresh, old))).val.testBit
@@ -138,7 +138,7 @@ theorem basisEquiv_input (width : Nat)
   simpa only [oldInput, Equiv.apply_symm_apply] using actual
 
 /-- Every supplied target bit retains its original rightmost physical identity and value. -/
-theorem basisEquiv_target (width : Nat)
+lemma basisEquiv_target (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin width) :
     (basisEquiv width (assembly width (fresh, old))).val.testBit
@@ -147,7 +147,7 @@ theorem basisEquiv_target (width : Nat)
   rw [basisEquiv_assembly, target_rev, prodEquiv_testBit_right]
 
 /-- The fixed preparation produces exactly the literal source initial frame and arbitrary target. -/
-theorem prepared_initial (modulus : Nat) (old : (before modulus.size).register.Index) :
+lemma prepared_initial (modulus : Nat) (old : (before modulus.size).register.Index) :
     basisEquiv modulus.size
         (assembly modulus.size ((InputPreparation.preparation modulus).value, old)) =
       (OutputCopy.encoding modulus.size).encode

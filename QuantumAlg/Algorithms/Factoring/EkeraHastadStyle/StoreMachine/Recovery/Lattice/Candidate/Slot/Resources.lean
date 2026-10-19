@@ -19,7 +19,8 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 /-- Independent native allowance for either original signed-magnitude normalization arm. -/
@@ -46,7 +47,7 @@ def candidateSlotDepthBound (coordinateWidth modulusWidth : Nat)
   LatticeOffsetMaterializer.operationCount offset + 2 * modulusWidth + 6 * coordinateWidth + 57
 
 /-- The actual complete trace contains the original fixed prefix and only the chosen later arms. -/
-theorem candidateSlotInto_events (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_events (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).eventTrace path =
@@ -61,7 +62,7 @@ theorem candidateSlotInto_events (spec : ModulusSpec modulusWidth)
     (LatticeCandidateDistancePrefix.candidateDistancePrefixInto_events offset refs.distance path.1)
     (congrArg₂ List.append (LatticeNearTargetScale.scaleInto_events refs.nearTarget path.2.1) rfl)
 
-private theorem exponent_pool_le (refs : Refs ctx coordinateWidth modulusWidth)
+private lemma exponent_pool_le (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (LatticeCandidateExponent.candidateExponentInto refs.exponent).Path) :
     (LatticeCandidateExponent.candidateExponentInto refs.exponent).resourcePool path ≤
       exponentEnvelope model coordinateWidth := by
@@ -72,7 +73,7 @@ private theorem exponent_pool_le (refs : Refs ctx coordinateWidth modulusWidth)
   · exact ResourcePool.le_max_right _ _
 
 /-- Actual native multiplicities satisfy the independent allowance of all five original stages. -/
-theorem candidateSlotInto_pool_le (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_pool_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).resourcePool path ≤
@@ -89,7 +90,7 @@ theorem candidateSlotInto_pool_le (spec : ModulusSpec modulusWidth)
           (LatticeCandidateSelector.candidateSelectorInto_pool_le refs.selector path.2.2.2.2))))
 
 /-- Actual depth includes every initialization, arithmetic check and selected-copy dependency. -/
-theorem candidateSlotInto_depth_le (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_depth_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).depth (fun _ => 1) path ≤
@@ -108,28 +109,29 @@ theorem candidateSlotInto_depth_le (spec : ModulusSpec modulusWidth)
   omega
 
 /-- The entire actual candidate slot restores every borrowed system with arbitrary references. -/
-theorem candidateSlotInto_borrowedRestored (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_borrowedRestored (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidateSlotInto spec offset refs).BorrowedRestored Reference state
-      ((candidateSlotInto spec offset refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq
+      ((candidateSlotInto spec offset refs).execute environment Reference state) := by
+  refine Circuit.borrowedRestored_seq (environment := environment)
     (LatticeCandidateDistancePrefix.candidateDistancePrefixInto offset refs.distance) _ state
     (LatticeCandidateDistancePrefix.candidateDistancePrefixInto_borrowedRestored
       offset refs.distance Reference state) ?_
-  refine Circuit.borrowedRestored_seq (LatticeNearTargetScale.scaleInto refs.nearTarget) _ _
-    (LatticeNearTargetScale.scaleInto_borrowedRestored refs.nearTarget Reference _) ?_
   refine Circuit.borrowedRestored_seq
+    (environment := environment) (LatticeNearTargetScale.scaleInto refs.nearTarget) _ _
+    (LatticeNearTargetScale.scaleInto_borrowedRestored refs.nearTarget Reference _) ?_
+  refine Circuit.borrowedRestored_seq (environment := environment)
     (LatticeCandidateExponent.candidateExponentInto refs.exponent) _ _
     (LatticeCandidateExponent.candidateExponentInto_borrowedRestored refs.exponent Reference _) ?_
-  exact Circuit.borrowedRestored_seq _ _ _
+  exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
     (LatticeCandidatePowerMachine.candidatePowerInto_borrowedRestored spec refs.power Reference _)
     (LatticeCandidateSelector.candidateSelectorInto_borrowedRestored refs.selector Reference _)
 
 /-- Actual resident peak counts every original cell and all simultaneous native-power scratch. -/
-theorem candidateSlotInto_resident_le (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_resident_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).peakResidentSpace path ≤ ctx.residentSpace +
@@ -161,7 +163,7 @@ theorem candidateSlotInto_resident_le (spec : ModulusSpec modulusWidth)
             refs.selector path.2.2.2.2).trans (le_add_of_nonneg_right zero_le)
 
 /-- Actual auxiliary peak counts every original cell and all simultaneous native-power scratch. -/
-theorem candidateSlotInto_auxiliary_le (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_auxiliary_le (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx coordinateWidth modulusWidth)
     (path : (candidateSlotInto spec offset refs).Path) :
     (candidateSlotInto spec offset refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +

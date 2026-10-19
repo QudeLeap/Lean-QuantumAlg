@@ -121,7 +121,7 @@ def cells (ctx : RuntimeCtx kind) (N : Nat) : NativeFactorScan.Cells (context ct
   scratch := scratchRef ctx N
 
 /-- The allocation does not create, remove or replace any quantum wire. -/
-theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
+lemma quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := rfl
 
 /-- The true heads in their final live-manifest order. -/
@@ -130,11 +130,11 @@ def retainedKeys (ctx : RuntimeCtx kind) (N : Nat) : List StorageKey :=
     (candidateRef ctx N).key, (resultRef ctx N).key]
 
 /-- Every original live key survives the five actual allocations. -/
-theorem context_keys (ctx : RuntimeCtx kind) (N : Nat) :
+lemma context_keys (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).keys = retainedKeys ctx N ++ ctx.keys := rfl
 
 /-- Actual context uniqueness distinguishes every fresh write destination. -/
-theorem retainedKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
+lemma retainedKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
     (retainedKeys ctx N).Nodup := by
   have actual : (retainedKeys ctx N ++ ctx.keys).Nodup := by
     rw [← context_keys]
@@ -142,13 +142,13 @@ theorem retainedKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
   exact (List.nodup_append.mp actual).1
 
 /-- Different real allocation positions have different keys. -/
-theorem retainedKeys_ne (ctx : RuntimeCtx kind) (N : Nat) (first second : Fin 5)
+lemma retainedKeys_ne (ctx : RuntimeCtx kind) (N : Nat) (first second : Fin 5)
     (different : first ≠ second) :
     (retainedKeys ctx N).get first ≠ (retainedKeys ctx N).get second :=
   fun same => different ((retainedKeys_nodup ctx N).injective_get same)
 
 /-- All selection conditions follow from the real allocation geometry. -/
-theorem separated (ctx : RuntimeCtx kind) (N : Nat) :
+lemma separated (ctx : RuntimeCtx kind) (N : Nat) :
     NativeFactorScan.Separated (cells ctx N) (resultRef ctx N) := by
   have scratchCandidate := retainedKeys_ne ctx N 0 3 (by decide)
   have scratchAccepted := retainedKeys_ne ctx N 0 2 (by decide)
@@ -188,7 +188,7 @@ def initialization (ctx : RuntimeCtx model.kind) (N : Nat) : Circuit model ctx (
 end Selected
 
 /-- The genuine clear operation makes the latch absent for every incoming store. -/
-theorem cleared_latch (ctx : RuntimeCtx kind) (N : Nat) (store : Store (context ctx N)) :
+lemma cleared_latch (ctx : RuntimeCtx kind) (N : Nat) (store : Store (context ctx N)) :
     NativeFactorScan.latchValue (cells ctx N)
       (store.applyOp (NativeFactorScan.clearAcceptedOp (cells ctx N))) = .optionNone :=
   NativeFactorScan.clear_latchValue (cells ctx N) store

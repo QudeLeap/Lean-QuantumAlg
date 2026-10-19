@@ -36,7 +36,7 @@ def measuredOperator (width : Nat) (Reference : Register) (outcome : Fin (2 ^ wi
       (1 : UnitaryOperator Reference) : HilbertOperator (Register.prod (Qubits width) Reference))
 
 /-- Every reference-labelled input ket retains its own exact measured character. -/
-theorem measuredHadamard_reference_ket (width : Nat) {Reference : Register}
+lemma measuredHadamard_reference_ket (width : Nat) {Reference : Register}
     (outcome value : Fin (2 ^ width)) (reference : Reference.Index) :
     (measuredOperator width Reference outcome).applyVec
         (NormalizedVector.ket (R := Register.prod (Qubits width) Reference)
@@ -58,7 +58,7 @@ theorem measuredHadamard_reference_ket (width : Nat) {Reference : Register}
     simp [NormalizedVector.ket_apply, measured, different]
 
 /-- The same physical branch preserves the characters of arbitrary coherent, entangled inputs. -/
-theorem measuredHadamard_coherent_reference (width : Nat) {Reference : Register}
+lemma measuredHadamard_coherent_reference (width : Nat) {Reference : Register}
     (outcome : Fin (2 ^ width)) (value : Reference.Index → Fin (2 ^ width))
     (amplitude : Reference.Index → ℂ) :
     (measuredOperator width Reference outcome).applyVec

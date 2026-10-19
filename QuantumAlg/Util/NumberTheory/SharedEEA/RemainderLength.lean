@@ -31,7 +31,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.RemainderLength
 variable {wordWidth coefficientWidth quotientWidth remainderWidth clockWidth : Nat}
 
 /-- The actual right suffix of a bounded pair is exactly its remainder field. -/
-theorem read_right_work2 (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
+lemma read_right_work2 (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (widths : coefficientWidth + remainderWidth = wordWidth) :
     ((WordPacking.packWork2 payload).cast widths).extractLsb' 0 remainderWidth =
       payload.remainderBits := by
@@ -41,7 +41,7 @@ theorem read_right_work2 (payload : WordPacking.Work2Payload coefficientWidth re
     BitVec.getLsbD_append, Nat.zero_add, within, decide_true, Bool.true_and, if_true]
 
 /-- The first-word suffix reads its remainder independently of the coefficient and quotient. -/
-theorem read_right_work1
+lemma read_right_work1
     (payload : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth)
     (widths : (coefficientWidth + 1) + (quotientWidth + remainderWidth) = wordWidth) :
     ((WordPacking.packWork1 payload).cast widths).extractLsb' 0 remainderWidth =
@@ -53,7 +53,7 @@ theorem read_right_work1
     BitVec.getLsbD_append, Nat.zero_add, withinTail, within, decide_true, Bool.true_and, if_true]
 
 /-- The macro first-word suffix contains its complete actual remainder. -/
-theorem first_remainder (state : IterationState) (modulus : Nat)
+lemma first_remainder (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     ((PackingBoundary.firstWord state modulus valid conserved).extractLsb' 0
       (PackingBoundary.firstRemainderWidth state modulus)).toNat = state.remainder := by
@@ -61,7 +61,7 @@ theorem first_remainder (state : IterationState) (modulus : Nat)
   rw [read_right_work1]
   rfl
 
-private theorem previous_fits (state : IterationState) (valid : state.Admissible) :
+private lemma previous_fits (state : IterationState) (valid : state.Admissible) :
     state.previousCoefficient < 2 ^ (state.coefficient.size + 1) :=
   (valid.previous_lt.trans (Nat.lt_size_self state.coefficient)).trans_le
     (Nat.pow_le_pow_right Nat.zero_lt_two (by omega))
@@ -75,7 +75,7 @@ private def secondReadPayload (state : IterationState) (modulus : Nat)
     (valid.divisor_lt.trans (PackingBoundary.first_remainder_fits state modulus valid conserved))
 
 /-- The macro second word can be read at that same right boundary without truncation. -/
-theorem second_remainder (state : IterationState) (modulus : Nat)
+lemma second_remainder (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     ((PackingBoundary.secondWord state modulus valid conserved).extractLsb' 0
       (PackingBoundary.firstRemainderWidth state modulus)).toNat = state.divisor := by
@@ -90,7 +90,7 @@ theorem second_remainder (state : IterationState) (modulus : Nat)
   rfl
 
 /-- The old divisor is read from the actual first word after the whole-word exchange. -/
-theorem read_old_divisor (state : IterationState) (modulus : Nat)
+lemma read_old_divisor (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     ((PackingBoundary.completedSecondWord state modulus valid conserved active).extractLsb' 0
@@ -102,7 +102,7 @@ theorem read_old_divisor (state : IterationState) (modulus : Nat)
     ((IterationState.step_balance state).trans conserved)
 
 /-- The new divisor is read from the actual second word, including the zero terminal divisor. -/
-theorem read_new_divisor (state : IterationState) (modulus : Nat)
+lemma read_new_divisor (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     ((PackingBoundary.completedFirstWord state modulus valid conserved).extractLsb' 0
@@ -121,14 +121,14 @@ def remainderUpdate (readWidth : Nat) (first second : BitVec wordWidth)
     (BitVec.ofNat clockWidth (second.extractLsb' 0 readWidth).toNat.size)
 
 /-- Reversing the actual suffix reads restores every prior finite length-register value. -/
-theorem remainderUpdate_reverse (readWidth : Nat) (first second : BitVec wordWidth)
+lemma remainderUpdate_reverse (readWidth : Nat) (first second : BitVec wordWidth)
     (length : BitVec clockWidth) :
     remainderUpdate readWidth second first
         (remainderUpdate readWidth first second length) = length :=
   LengthRefresh.serialXor_reverse length _ _
 
 /-- The actual read-and-XOR operations produce the exact next finite divisor-length register. -/
-theorem remainder_update_exact (state : IterationState) (modulus : Nat)
+lemma remainder_update_exact (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     remainderUpdate (PackingBoundary.firstRemainderWidth (IterationState.step state) modulus)
@@ -142,7 +142,7 @@ theorem remainder_update_exact (state : IterationState) (modulus : Nat)
   exact LengthRefresh.serialXor_old _ _
 
 /-- The refreshed finite register decodes to the full new divisor length without truncation. -/
-theorem remainder_update_toNat (state : IterationState) (modulus : Nat)
+lemma remainder_update_toNat (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (remainderUpdate (PackingBoundary.firstRemainderWidth (IterationState.step state) modulus)
@@ -157,7 +157,7 @@ theorem remainder_update_toNat (state : IterationState) (modulus : Nat)
       ((IterationState.step_balance state).trans conserved)).2.1
 
 /-- The real preceding coefficient-length update selects precisely the proved suffix region. -/
-theorem successive_update_exact (state : IterationState) (modulus : Nat)
+lemma successive_update_exact (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     let first := PackingBoundary.completedSecondWord state modulus valid conserved active

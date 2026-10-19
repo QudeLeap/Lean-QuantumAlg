@@ -52,9 +52,10 @@ def qpeInput {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
   (NormalizedVector.ket (R := Qubits t) (0 : Fin (2 ^ t))).tensor P.eigenstate
 
 /-- The actual native word preserves the supplied eigenstate and produces the original readout. -/
-theorem qpeCircuit_applyNormalized_input {n : Nat} (P : QPEEigenstateInput n)
+lemma qpeCircuit_applyNormalized_input {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) :
-    (QuantumPhaseEstimation.Native.circuit t P.unitary).binaryMatrix.apply (qpeInput P t) =
+    ((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix (UnitarySource.interpretation
+      P.unitary true)).apply (qpeInput P t) =
       ((invQFT t).apply (phaseState t P.phase)).tensor P.eigenstate :=
   QuantumPhaseEstimation.Native.qpeNative_circuit_apply_eigenstate P t
 
@@ -65,7 +66,7 @@ def qpeLayout (t n : Nat) : QubitLayout (t + n) where
   physical_idx := fun i => i.val
   physical_idx_injective := fun _ _ h => Fin.ext h
 
-@[simp] theorem qpeLayout_systemIdx (t n : Nat) :
+@[simp] lemma qpeLayout_systemIdx (t n : Nat) :
     (qpeLayout t n).systemIdx = List.range (t + n) := by
   simp [qpeLayout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 
@@ -89,7 +90,7 @@ def qpeOutcome (t : Nat) (j : Fin (2 ^ t)) :
 
 /-- The canonical full-register big-endian decoder recovers the QPE phase-grid
 index from its terminal bit vector. -/
-@[simp] theorem qpeOutcome_fullRegisterIndex (t : Nat)
+@[simp] lemma qpeOutcome_fullRegisterIndex (t : Nat)
     (j : Fin (2 ^ t)) :
     TerminalZMeasure.fullRegisterIndex (qpeOutcome t j) = j := by
   apply Fin.val_injective
@@ -107,7 +108,7 @@ index from its terminal bit vector. -/
       _ = bit.val := congrArg Fin.val (Fin.rev_rev bit)
   rw [hbits, Nat.ofBits_testBit, Nat.mod_eq_of_lt j.isLt]
 
-theorem qpeOutcome_injective (t : Nat) :
+lemma qpeOutcome_injective (t : Nat) :
     Function.Injective (qpeOutcome t) := by
   intro left right h
   apply Fin.ext
@@ -126,7 +127,7 @@ theorem qpeOutcome_injective (t : Nat) :
     rw [Nat.testBit_eq_false_of_lt (left.isLt.trans_le hpow),
       Nat.testBit_eq_false_of_lt (right.isLt.trans_le hpow)]
 
-@[simp] theorem qpeMeasurement_readout_prod {t n : Nat}
+@[simp] lemma qpeMeasurement_readout_prod {t n : Nat}
     (j : Fin (2 ^ t)) (y : Fin (2 ^ n)) :
     (qpeMeasurement t n).readout (prodEquiv (j, y)) = qpeOutcome t j := by
   funext outputIndex
@@ -140,7 +141,7 @@ theorem qpeOutcome_injective (t : Nat) :
   exact prodEquiv_testBit_left j y
     ⟨t - 1 - outputIndex.val, by omega⟩
 
-theorem qpeMeasurement_readout_eq_outcome_iff {t n : Nat}
+lemma qpeMeasurement_readout_eq_outcome_iff {t n : Nat}
     (basis : Fin (2 ^ (t + n))) (j : Fin (2 ^ t)) :
     (qpeMeasurement t n).readout basis = qpeOutcome t j ↔
       (prodEquiv.symm basis).1 = j := by
@@ -161,16 +162,18 @@ theorem qpeMeasurement_readout_eq_outcome_iff {t n : Nat}
 def qpeEvolvedState {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
     QubitLayout.State (qpeLayout t n) :=
   { state := PureState.ofNormalized
-      ((QuantumPhaseEstimation.Native.circuit t P.unitary).binaryMatrix.apply (qpeInput P t))
+      (((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix (UnitarySource.interpretation
+        P.unitary true)).apply (qpeInput P t))
       (qpeLayout t n).systemIdx
     system_idx_eq := rfl }
 
-theorem qpeEvolvedState_apply_prod {n : Nat}
+lemma qpeEvolvedState_apply_prod {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat)
     (j : Fin (2 ^ t)) (y : Fin (2 ^ n)) :
     (qpeEvolvedState P t).normalized (prodEquiv (j, y)) =
       phaseRegisterGeometricAmplitude t P.phase j * P.eigenstate y := by
-  change (QuantumPhaseEstimation.Native.circuit t P.unitary).binaryMatrix.apply
+  change ((QuantumPhaseEstimation.Native.circuit t n).binaryMatrix (UnitarySource.interpretation
+    P.unitary true)).apply
       (qpeInput P t) (prodEquiv (j, y)) = _
   rw [qpeCircuit_applyNormalized_input, NormalizedVector.tensor_apply_prod]
   change (invQFT t).apply (phaseState t P.phase) j * P.eigenstate y = _
@@ -186,11 +189,11 @@ def qpeFiberEmbedding {t n : Nat} (j : Fin (2 ^ t)) :
     cases prodEquiv.injective h
     rfl
 
-@[simp] theorem qpeFiberEmbedding_apply {t n : Nat} (j : Fin (2 ^ t))
+@[simp] lemma qpeFiberEmbedding_apply {t n : Nat} (j : Fin (2 ^ t))
     (y : Fin (2 ^ n)) :
     qpeFiberEmbedding j y = prodEquiv (j, y) := rfl
 
-theorem qpeMeasurement_fiber {t n : Nat} (j : Fin (2 ^ t)) :
+lemma qpeMeasurement_fiber {t n : Nat} (j : Fin (2 ^ t)) :
     Finset.univ.filter
         (fun basis : Fin (2 ^ (t + n)) =>
           (qpeMeasurement t n).readout basis = qpeOutcome t j) =
@@ -210,7 +213,7 @@ theorem qpeMeasurement_fiber {t n : Nat} (j : Fin (2 ^ t)) :
     change prodEquiv (j, y) = basis at hy
     rw [← hy, Equiv.symm_apply_apply]
 
-theorem qpeMeasurement_outcomePMF_apply {n : Nat}
+lemma qpeMeasurement_outcomePMF_apply {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) (j : Fin (2 ^ t)) :
     (qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)
         (qpeOutcome t j) =
@@ -228,7 +231,7 @@ theorem qpeMeasurement_outcomePMF_apply {n : Nat}
     norm_num
   rw [heigen, mul_one]
 
-theorem qpeNearestOutcome_probability_ge {n : Nat}
+lemma qpeNearestOutcome_probability_ge {n : Nat}
     (P : QPEEigenstateInput n) (t : Nat) :
     ENNReal.ofReal (4 / Real.pi ^ 2) ≤
       (qpeMeasurement t n).outcomePMF (qpeEvolvedState P t)

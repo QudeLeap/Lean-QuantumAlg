@@ -30,7 +30,7 @@ def samplerCellKey (ctx : RuntimeCtx kind) (width : Nat) (index : Fin 11) : Stor
   (internalKeys ctx width).get ⟨index.val, by change index.val < 11; exact index.isLt⟩
 
 /-- Distinct actual stack positions have distinct storage keys. -/
-theorem samplerLayout_cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
+lemma samplerLayout_cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
     (left right : Fin 11) (different : left ≠ right) :
     samplerCellKey ctx width left ≠ samplerCellKey ctx width right := by
   intro same
@@ -38,14 +38,14 @@ theorem samplerLayout_cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
   exact different (Fin.ext (congrArg Fin.val positions))
 
 /-- A cell read excludes every different real storage identity. -/
-theorem samplerLayout_cellRead_free {shape : CShape}
+lemma samplerLayout_cellRead_free {shape : CShape}
     (other : CWriteRef (context ctx width) shape) (key : StorageKey)
     (different : key ≠ other.key) :
     key ∉ (FirstAccepted.cellRead other).storageKeys := by
   simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton] using different
 
 /-- Every internal key is outside every original caller structural read. -/
-theorem samplerLayout_original_free {shape : CShape}
+lemma samplerLayout_original_free {shape : CShape}
     (input : CInputRef ctx shape) (index : Fin 11) :
     samplerCellKey ctx width index ∉ (underRead input width).storageKeys := by
   rw [samplerLayout_underRead_keys]
@@ -56,7 +56,7 @@ theorem samplerLayout_original_free {shape : CShape}
     internal (input.storageKeys_subset_context present)
 
 /-- The actual eleven-cell layout satisfies every comparison and selector read contract. -/
-theorem samplerLayout_scan_separated (sample : CInputRef ctx (.bits (count * width))) :
+lemma samplerLayout_scan_separated (sample : CInputRef ctx (.bits (count * width))) :
     Proposal.ScanSeparated (underRead sample width) (shared ctx width) (scratch ctx width) := by
   refine
     { slot :=

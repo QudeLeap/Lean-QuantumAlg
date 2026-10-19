@@ -30,9 +30,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InitialMacroFrame
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
-private theorem firstWord_value (modulus input : Nat)
+private lemma firstWord_value (modulus input : Nat)
     (valid : (IterationState.initial modulus input).Admissible) :
     (PackingBoundary.firstWord (IterationState.initial modulus input) modulus valid
       (IterationState.initial_balance modulus input)).toNat =
@@ -61,7 +63,7 @@ private theorem firstWord_value (modulus input : Nat)
   rw [Nat.zero_add, Nat.zero_mul, Nat.zero_add, Nat.pow_succ]
   omega
 
-private theorem secondWord_value (modulus input : Nat)
+private lemma secondWord_value (modulus input : Nat)
     (valid : (IterationState.initial modulus input).Admissible) :
     (PackingBoundary.secondWord (IterationState.initial modulus input) modulus valid
       (IterationState.initial_balance modulus input)).toNat = input := by
@@ -78,7 +80,7 @@ private theorem secondWord_value (modulus input : Nat)
   omega
 
 /-- Real folding and real length computation supply every field of the initial macro frame. -/
-theorem result_eq_frame (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma result_eq_frame (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     InitialFrame.result modulus input =
       MacroBoundary.frame
@@ -118,9 +120,9 @@ theorem result_eq_frame (modulus : Nat) (input : Fin (2 ^ modulus.size))
     rfl
 
 /-- The same native preprocessing program reaches the canonical frame with exact ket amplitude. -/
-theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (InitialFrame.program modulus).applyNormalized
+    (InitialFrame.program modulus).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =

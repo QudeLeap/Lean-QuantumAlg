@@ -26,7 +26,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- All original Gram entries and basis rows hold in the final actual store. -/
-theorem refreshInto_correct (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
+lemma refreshInto_correct (basis : LatticeState.BasisRefs ctx width) (refs : Refs ctx width)
     (separation : Separation basis refs) (store : Store ctx) (value : NumberTheory.IntegerBasis3)
     (rep : BasisRawRepresents store basis value) :
     GramRawRepresents (refreshStore basis refs store) refs value ∧

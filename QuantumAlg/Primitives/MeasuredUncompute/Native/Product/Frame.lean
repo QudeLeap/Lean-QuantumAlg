@@ -24,6 +24,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeProductFrame
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MAU.Multiplication ProductPlacement
 
 private def body (width : Nat) (modulus : Fin (2 ^ width + 1)) :
@@ -43,28 +45,29 @@ def step (width : Nat) (modulus : Fin (2 ^ width + 1)) : Frame width → Frame w
     (fun state => (VariableGidney.prefixOutput modulus width state.1, state.2))
 
 /-- Every complete basis label follows the actual placed product with its full retained frame. -/
-theorem nativeProductFrame_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (frameEncoding width) (program width modulus) (step width modulus) :=
+lemma nativeProductFrame_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+    UnitaryCircuit.Realizes (frameEncoding width) (program width modulus) environment (step width
+      modulus) :=
   (placement width).place_realizes
     (UnitaryCircuit.Realizes.onBinaryPrefix
       (right := BinaryLabelEncoding.finIdentity (historyWidth width))
       (VariableGidney.variableGidney_realizes width modulus))
 
 /-- Re-encoding changes no emitted event, and retaining the small frame performs no extra gate. -/
-theorem nativeProductFrame_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductFrame_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).eventTrace = (VariableGidney.program width modulus).eventTrace := by
   rw [program, EncodedBit.FullPlacement.place_eventTrace]
   exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventTrace _ _
 
 /-- The same independent native product allowance bounds the actual placed operation. -/
-theorem nativeProductFrame_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductFrame_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).eventCost ≤ VariableGidney.nativeBudget width := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, nativeProductFrame_trace,
     UnitaryCircuit.ofList_eventTrace_eq_eventCost]
   exact VariableGidney.variableGidney_native_budget width modulus
 
 /-- The original complete frame remains live; no system is added or released by placement. -/
-theorem nativeProductFrame_physical (width : Nat) (_modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductFrame_physical (width : Nat) (_modulus : Fin (2 ^ width + 1)) :
     (QubitLayout.canonical (frameEncoding width).width).systemIdx =
       List.range (3 * width + 11 + 4 * width.size) := by
   rw [QubitLayout.canonical_systemIdx, frame_width]
@@ -74,7 +77,7 @@ theorem nativeProductFrame_physical (width : Nat) (_modulus : Fin (2 ^ width + 1
   rw [count]
 
 /-- The serial depth comes from precisely the same native product events. -/
-theorem nativeProductFrame_depth (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductFrame_depth (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).evaluatedEventDepth (fun _ => 1) ≤
       VariableGidney.eventBound width := by
   rw [program, EncodedBit.FullPlacement.place_evaluatedEventDepth]

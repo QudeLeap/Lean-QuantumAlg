@@ -34,24 +34,24 @@ noncomputable section
 open ArithmeticWindowRegisters ArithmeticWindowLaws RemainderReassembly
 open NumberTheory.SharedEEA
 
-private theorem size_fits_counter {value modulus : Nat} (bounded : value ≤ modulus) :
+private lemma size_fits_counter {value modulus : Nat} (bounded : value ≤ modulus) :
     value.size < 2 ^ modulus.size.size :=
   (Nat.size_le_size bounded).trans_lt (Nat.lt_size_self modulus.size)
 
-private theorem alignment_le (state : IterationState) (modulus : Nat)
+private lemma alignment_le (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     (Alignment.align state.remainder state.divisor).places ≤ modulus.size :=
   (Alignment.align_places_le state.remainder state.divisor).trans
     (Nat.size_le_size (Capacity.iteration_fields_le state modulus valid conserved).1)
 
-private theorem count_fits (state : IterationState) (modulus count : Nat)
+private lemma count_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     count < 2 ^ modulus.size.size :=
   (beforeEnd.trans_le (alignment_le state modulus valid conserved)).trans
     (Nat.lt_size_self modulus.size)
 
-private theorem shift_fits (state : IterationState) (modulus count : Nat)
+private lemma shift_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     DivisionWindow.shift state count < 2 ^ modulus.size.size :=
   ((Nat.sub_le (Alignment.align state.remainder state.divisor).places (count + 1)).trans
@@ -81,7 +81,7 @@ def frame (state : IterationState) (modulus count : Nat)
   control := false
 
 /-- Actual stored quotient length equals the already written pure division prefix length. -/
-theorem frame_quotientLength (state : IterationState) (modulus count : Nat)
+lemma frame_quotientLength (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -92,7 +92,7 @@ theorem frame_quotientLength (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- Reachable threshold capacity supplies the actual native window bound internally. -/
-theorem window_fits (state : IterationState) (modulus count : Nat)
+lemma window_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -111,7 +111,7 @@ def window (state : IterationState) (modulus count : Nat)
     (DivisionWindow.shift state count)
     (window_fits state modulus count valid conserved active beforeEnd)
 
-private theorem window_length (state : IterationState) (modulus count : Nat)
+private lemma window_length (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -122,7 +122,7 @@ private theorem window_length (state : IterationState) (modulus count : Nat)
   exact congrArg (fun start => modulus.size + 3 - start - DivisionWindow.shift state count) ordered
 
 /-- The upper window plus its retained low suffix is exactly the full old remainder width. -/
-theorem remainder_width (state : IterationState) (modulus count : Nat)
+lemma remainder_width (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -137,7 +137,7 @@ theorem remainder_width (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual shifted Work2 window contains precisely the complete untruncated divisor. -/
-theorem sourceWord_toNat (state : IterationState) (modulus count : Nat)
+lemma sourceWord_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -162,7 +162,7 @@ theorem sourceWord_toNat (state : IterationState) (modulus count : Nat)
     (window_length state modulus count valid conserved active beforeEnd)).trans
       (DivisionWindow.source_toNat state modulus count valid conserved active beforeEnd)
 
-private theorem packWork1_read {coefficientWidth quotientWidth remainderWidth : Nat}
+private lemma packWork1_read {coefficientWidth quotientWidth remainderWidth : Nat}
     (payload : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth) :
     (WordPacking.packWork1 payload).extractLsb' 0 remainderWidth = payload.remainderBits := by
   have read := congrArg
@@ -177,7 +177,7 @@ private theorem packWork1_read {coefficientWidth quotientWidth remainderWidth : 
   exact flatten.symm.trans read
 
 /-- The complete old physical remainder, including all low shift bits, is the actual pure state. -/
-theorem remainder_toNat (state : IterationState) (modulus count : Nat)
+lemma remainder_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -198,7 +198,7 @@ theorem remainder_toNat (state : IterationState) (modulus count : Nat)
       (congrArg BitVec.toNat (packWork1_read payload))
 
 /-- The actual high target equals the old remainder divided by the real remaining binary scale. -/
-theorem targetWord_toNat (state : IterationState) (modulus count : Nat)
+lemma targetWord_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

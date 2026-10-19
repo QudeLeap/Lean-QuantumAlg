@@ -39,14 +39,14 @@ def controlled (width : Nat) (active : Bool) (source : List (GateSpec (frameEnco
   NativeFrameControl.program width active source (nativeLayout width)
 
 /-- Exact ordered native expansion, including two physical X gates for negative selection. -/
-theorem controlled_trace (width : Nat) (active : Bool)
+lemma controlled_trace (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width))) :
     (controlled width active source).eventTrace =
       (NativeFrameControl.gates width active source).map (event .empty) :=
   NativeFrameControl.nativeFrameControl_trace width active source (nativeLayout width)
 
 /-- The complete native coordinate pool comes from the actual expanded instruction list. -/
-theorem controlled_cost (width : Nat) (active : Bool)
+lemma controlled_cost (width : Nat) (active : Bool)
     (source : List (GateSpec (frameEncoding width))) :
     (controlled width active source).eventCost =
       ResourcePool.ofList ((NativeFrameControl.gates width active source).map (event .empty)) :=
@@ -59,7 +59,7 @@ def uncontrolled (width : Nat)
   UnitaryCircuit.onBinaryPrefix 1 body
 
 /-- Actual physical prefix placement preserves every original event and its order. -/
-theorem uncontrolled_trace (width : Nat)
+lemma uncontrolled_trace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width)) :
     (uncontrolled width body).eventTrace = body.eventTrace := by
   exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventTrace 1 body
@@ -89,7 +89,7 @@ private def liftedInactiveWord (width : Nat) :
   ⟨fun index => BinaryLabelEncoding.prodLeftBit (frameEncoding width) BinaryLabelEncoding.bool
     ((inactiveWord width).bit index)⟩
 
-private theorem inactive_separated (width : Nat) (index : Fin width) :
+private lemma inactive_separated (width : Nat) (index : Fin width) :
     (NativeFrameControl.control width).wire ≠ ((liftedInactiveWord width).bit index).wire :=
   prodRightBit_wire_ne_prodLeftBit_wire (frameEncoding width) BinaryLabelEncoding.bool
     BinaryLabelEncoding.boolBit ((inactiveWord width).bit index)

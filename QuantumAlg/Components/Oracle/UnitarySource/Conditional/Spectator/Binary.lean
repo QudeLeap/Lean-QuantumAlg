@@ -20,7 +20,7 @@ initial state or its correlations with the source and selector.
 namespace QuantumAlg.UnitarySource.Conditional
 noncomputable section
 
-private theorem spectator_phase {width : Nat} (selector phase : Fin 2)
+private lemma spectator_phase {width : Nat} (selector phase : Fin 2)
     (source : Fin (2 ^ width)) :
     spectatorBasis selector phase source (⟨1, by omega⟩ : Fin (1 + (1 + width))) = phase := by
   have outer := BinaryBasis.bigEndianEquiv_prod_right
@@ -31,7 +31,7 @@ private theorem spectator_phase {width : Nat} (selector phase : Fin 2)
     fin_cases phase <;> rfl
   exact outer.trans (inner.trans first)
 
-private theorem complement_eq_iff {width : Nat} (s t p q : Fin 2)
+private lemma complement_eq_iff {width : Nat} (s t p q : Fin 2)
     (x y : Fin (2 ^ width)) :
     (layout (1 + width)).restrictComplementBasis (Finset.univ.map (spectatorPositions width))
         (spectatorBasis s p x) =
@@ -57,9 +57,9 @@ private theorem complement_eq_iff {width : Nat} (s t p q : Fin 2)
     rw [wire, spectator_phase, spectator_phase]
 
 /-- The exact source-controlled tensor decomposition retains the phase identity factor. -/
-theorem withSpectator_binaryMatrix {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma withSpectator_binaryMatrix {width : Nat} (U : UnitaryOperator (Qubits width))
     (useInverse : Bool) :
-    ((withSpectator U useInverse).binaryMatrix :
+    (((withSpectator width useInverse).binaryMatrix (interpretation U true true false)) :
       HilbertOperator (Qubits (1 + (1 + width)))) =
       HilbertOperator.tensor HilbertOperator.proj0 (1 : HilbertOperator (Qubits (1 + width))) +
       HilbertOperator.tensor HilbertOperator.proj1

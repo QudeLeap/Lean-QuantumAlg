@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Finite.Completed.SelectedDistribution
-import all QuantumAlg.Core.Execution.CycleSchedule.InputDistribution
+import all QuantumAlg.Core.Execution.Input.Successor.Distribution
 
 /-!
 # Input-based admission for subsequent completed EH batches
@@ -33,7 +33,7 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 /-- A structural, implementation-independent local entry domain: every
 populated selector with positive mass is a valid nontrivial factor. -/
 def selectedSound (state : ExecutionState
-    (Store (Retry.context base noQuantum N) × (model input).HiddenState)
+    (Store (Retry.context base noQuantum N) × (model N).HiddenState)
     (Retry.context base noQuantum N).register) : Prop :=
   ∀ record word, 0 < (state.block record).mass →
     Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection
@@ -42,11 +42,13 @@ def selectedSound (state : ExecutionState
 
 /-- The actual successor input's live selector retains the exact independent
 first-success law; only execution histories were forgotten at the cut. -/
-theorem completed_nextInput_selectedDistribution (laterCount : Nat)
+lemma completed_nextInput_selectedDistribution (laterCount : Nat)
     {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference) :
-    ((((completedCode base noQuantum N input laterCount).nextInput original).state.toPMF
-      ((completedCode base noQuantum N input laterCount).nextInput original).normalized).map
+    (original : Execution.OracleInput (model N).classicalOracles base Reference) :
+    ((((completedCode base noQuantum N input laterCount).nextInput (sourceEnvironment input)
+      original).state.toPMF
+      ((completedCode base noQuantum N input laterCount).nextInput (sourceEnvironment input)
+        original).normalized).map
         (fun entry => Optional.selectedValue
           (Retry.selectionRefs base noQuantum N).selection entry.1)) =
       Optional.Distribution.selectedDistribution
@@ -58,7 +60,7 @@ theorem completed_nextInput_selectedDistribution (laterCount : Nat)
     original.state.mapClassical_normalized original.normalized
       (fun entry => (entry.1, (entry.2, ())))
   exact (Circuit.nextInput_readoutDistribution
-    (completedCode base noQuantum N input laterCount) original
+    (completedCode base noQuantum N input laterCount) (sourceEnvironment input) original
     (fun store => Optional.selectedValue
       (Retry.selectionRefs base noQuantum N).selection store)).trans
     (completed_selectedDistribution base noQuantum N input laterCount
@@ -66,14 +68,15 @@ theorem completed_nextInput_selectedDistribution (laterCount : Nat)
 
 /-- After any positive number of completed batches, the actual normalized
 predecessor output satisfies the next batch's input-based selector domain. -/
-theorem completed_nextInput_selectedSound (laterCount : Nat)
+lemma completed_nextInput_selectedSound (laterCount : Nat)
     {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference) :
-    selectedSound base noQuantum N input
-      ((completedCode base noQuantum N input laterCount).nextInput original).localState := by
+    (original : Execution.OracleInput (model N).classicalOracles base Reference) :
+    selectedSound base noQuantum N
+      ((completedCode base noQuantum N input laterCount).nextInput (sourceEnvironment input)
+        original).localState := by
   intro record word positive selected
   have supported := Circuit.nextInput_local_readout_support
-    (completedCode base noQuantum N input laterCount) original
+    (completedCode base noQuantum N input laterCount) (sourceEnvironment input) original
     (fun store => Optional.selectedValue
       (Retry.selectionRefs base noQuantum N).selection store)
     record positive

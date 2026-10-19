@@ -33,11 +33,11 @@ def workspaceEncoding (width : Nat) : BinaryLabelEncoding (WorkspaceRegisters wi
 
 abbrev workspaceBits (width : Nat) : Nat := (workspaceEncoding width).width
 
-@[simp] theorem workspaceEncoding_width (width : Nat) :
+@[simp] lemma workspaceEncoding_width (width : Nat) :
     (workspaceEncoding width).width = workspaceBits width := rfl
 
 /-- Actual workspace width, including the empty and odd-width cases. -/
-theorem workspaceBits_eq (width : Nat) : workspaceBits width = 2 * width := by
+lemma workspaceBits_eq (width : Nat) : workspaceBits width = 2 * width := by
   change width + width = 2 * width
   omega
 
@@ -52,7 +52,7 @@ def cleanWorkspace (width N : Nat) (value : (ZMod N)ˣ) : WorkspaceRegisters wid
     else zeroWorkspace width
   else zeroWorkspace width
 
-theorem cleanWorkspace_valid (width N : Nat) (positive : 0 < N) (fitted : N ≤ 2 ^ width)
+lemma cleanWorkspace_valid (width N : Nat) (positive : 0 < N) (fitted : N ≤ 2 ^ width)
     (value : (ZMod N)ˣ) :
     cleanWorkspace width N value =
       (unitResidueWord ⟨N, Nat.lt_succ_of_le fitted⟩ positive value, 0) := by
@@ -63,7 +63,7 @@ def cleanUnitLabel (width N : Nat) (value : (ZMod N)ˣ) : Fin (2 ^ workspaceBits
   (workspaceEncoding width).encode (cleanWorkspace width N value)
 
 /-- Distinct units remain distinct in the actual two-word layout. -/
-theorem cleanUnitLabel_injective (width N : Nat) (nontrivial : 1 < N) (fits : N < 2 ^ width) :
+lemma cleanUnitLabel_injective (width N : Nat) (nontrivial : 1 < N) (fits : N < 2 ^ width) :
     Function.Injective (cleanUnitLabel width N) := by
   let : NeZero N := ⟨Nat.ne_of_gt (Nat.zero_lt_of_lt nontrivial)⟩
   intro left right same
@@ -90,7 +90,7 @@ def registerParameters (m ell width : Nat) : RegisterParameters where
   workspaceBits := workspaceBits width
 
 /-- Complete live quantum carrier before and after the two source exponentiations. -/
-theorem totalQubits_eq (m ell width : Nat) :
+lemma totalQubits_eq (m ell width : Nat) :
     totalQubits (registerParameters m ell width) = m + 2 * ell + 2 * width := by
   change (ell + m) + ell + workspaceBits width = _
   rw [workspaceBits_eq]

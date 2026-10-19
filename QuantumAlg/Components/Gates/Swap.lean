@@ -43,7 +43,7 @@ public def permutation : Equiv.Perm layout.Basis :=
     (QuantumSignature.qubitsIndexEquiv 2).symm
 
 /-- The target exchanges both values, without an assumption on either input. -/
-public theorem swap_permutation_pair (left right : Fin 2) :
+public lemma swap_permutation_pair (left right : Fin 2) :
     permutation ![left, right] = ![right, left] := by
   fin_cases left <;> fin_cases right
   all_goals
@@ -60,7 +60,7 @@ private abbrev backward : GateModel.Application AlgorithmGate.model layout :=
 private def backwardPermutation : Equiv.Perm layout.Basis :=
   backward.liftPermutation AlgorithmGate.cnotPermutation
 
-private theorem backward_pair (left right : Fin 2) :
+private lemma backward_pair (left right : Fin 2) :
     backwardPermutation ![left, right] = ![left + right, right] := by
   apply (backward.liftPermutation_eq_iff AlgorithmGate.cnotPermutation _ _).mpr
   constructor
@@ -77,7 +77,7 @@ private theorem backward_pair (left right : Fin 2) :
       fin_cases index <;> decide
     exact False.elim ((Finset.mem_compl.mp position.property) (covered position.val))
 
-private theorem native_permutation_word :
+private lemma native_permutation_word :
     (AlgorithmGate.cnotPermutation.trans backwardPermutation).trans
       AlgorithmGate.cnotPermutation = permutation := by
   have pair (left right : Fin 2) :
@@ -106,8 +106,8 @@ public def circuit (oracles : OracleModel) : UnitaryCircuit AlgorithmGate.model 
     ((forward.seq (UnitaryCircuit.native backward)).seq forward)
 
 /-- The three actual CNOTs realize the independent SWAP operator with exact phase. -/
-public theorem swap_circuit_matrix (oracles : OracleModel) :
-    (circuit oracles).matrix = operator := by
+public lemma swap_circuit_matrix (oracles : OracleModel) (environment : oracles.Interpretation) :
+    ((circuit oracles).matrix environment) = operator := by
   simp only [circuit, UnitaryCircuit.macroCall_matrix, UnitaryCircuit.seq_matrix,
     UnitaryCircuit.native_matrix, GateModel.Application.gateApplication_canonical_operator,
     AlgorithmGate.cnot_operator_ofPerm,
@@ -117,20 +117,20 @@ public theorem swap_circuit_matrix (oracles : OracleModel) :
 
 /-- The native realization records its actual target-language implementation. -/
 public def realization (oracles : OracleModel) :
-    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout operator where
+    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout (fun _ => operator) where
   circuit := circuit oracles
   matrix_eq := swap_circuit_matrix oracles
 
 /-- Every event is one of the three actual CNOT occurrences in execution order. -/
-public theorem swap_circuit_events (oracles : OracleModel) :
+public lemma swap_circuit_events (oracles : OracleModel) :
     (circuit oracles).eventTrace = [.gate .cnot, .gate .cnot, .gate .cnot] := by rfl
 
 /-- The three CNOTs share physical wires and contribute three sequential unit-depth steps. -/
-public theorem swap_circuit_unit_depth (oracles : OracleModel) :
+public lemma swap_circuit_unit_depth (oracles : OracleModel) :
     (circuit oracles).evaluatedEventDepth (fun _ => 1) = 3 := by rfl
 
 /-- The descriptive SWAP annotation accompanies exactly one full expanded word. -/
-public theorem swap_circuit_macro_count (oracles : OracleModel) :
+public lemma swap_circuit_macro_count (oracles : OracleModel) :
     (circuit oracles).macroCount "swap" = 1 := by
   rfl
 

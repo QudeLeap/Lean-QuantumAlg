@@ -34,7 +34,7 @@ def runSelected (state : ExecutionState C R) (read : C → Value)
     exact state.mass_le_one)
 
 /-- The entire conditional preserves the incoming execution mass. -/
-theorem runSelected_mass (state : ExecutionState C R) (read : C → Value)
+lemma runSelected_mass (state : ExecutionState C R) (read : C → Value)
     (body : Value → ExecutionState C R → ExecutionState D S)
     (mass : ∀ value input, (body value input).mass = input.mass) :
     (runSelected state read body mass).mass = state.mass := by
@@ -42,7 +42,7 @@ theorem runSelected_mass (state : ExecutionState C R) (read : C → Value)
     ExecutionState.sum_selectClassical_mass]
 
 /-- Every final block is exactly the sum of the executed selected parts. -/
-theorem runSelected_block_matrix (state : ExecutionState C R) (read : C → Value)
+lemma runSelected_block_matrix (state : ExecutionState C R) (read : C → Value)
     (body : Value → ExecutionState C R → ExecutionState D S)
     (mass : ∀ value input, (body value input).mass = input.mass) (output : D) :
     ((runSelected state read body mass).block output).matrix =

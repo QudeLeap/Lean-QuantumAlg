@@ -25,7 +25,7 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Two original initialization events and both original additions in every declared slot. -/
@@ -43,7 +43,7 @@ def scalarDepthLimit {model : ExecutionModel} [BitWord.Selected model]
     scalarWidth * (Add.Native.additionDepthLimit spec duration +
       Add.Native.additionDepthLimit spec duration)
 
-private theorem scalarBitArm_pool_le (spec : CurveSpec width)
+private lemma scalarBitArm_pool_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).resourcePool path ≤
@@ -54,7 +54,7 @@ private theorem scalarBitArm_pool_le (spec : CurveSpec width)
       · exact Multiset.zero_le _
       · exact Add.Native.addInto_pool_le spec _ point accumulator path
 
-private theorem scalarSlot_pool_le (spec : CurveSpec width)
+private lemma scalarSlot_pool_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (path : (scalarSlot spec bits point accumulator index).Path) :
@@ -66,7 +66,7 @@ private theorem scalarSlot_pool_le (spec : CurveSpec width)
     (scalarBitArm_pool_le spec point accumulator path.2.1 path.2.2)
 
 /-- Every real path meets the original two-call allowance of every declared scalar slot. -/
-theorem scalarInto_pool_le (spec : CurveSpec width)
+lemma scalarInto_pool_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :
@@ -79,7 +79,7 @@ theorem scalarInto_pool_le (spec : CurveSpec width)
       (scalarSlot_pool_le spec bits point accumulator) path.2)
 
 /-- Actual retained allocation preserves the original scalar event allowance. -/
-theorem scalarRetained_pool_le (spec : CurveSpec width)
+lemma scalarRetained_pool_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (scalarRetained spec bits point key fresh).Path) :
@@ -87,7 +87,7 @@ theorem scalarRetained_pool_le (spec : CurveSpec width)
       scalarEnvelope model spec scalarWidth :=
   scalarInto_pool_le spec _ _ _ path.2
 
-private theorem scalarBitArm_depth_le (spec : CurveSpec width)
+private lemma scalarBitArm_depth_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (duration : Resource.Event model → Nat)
     (path : (scalarBitArm spec point accumulator value).Path) :
@@ -99,7 +99,7 @@ private theorem scalarBitArm_depth_le (spec : CurveSpec width)
       · exact Nat.zero_le _
       · exact Add.Native.addInto_depth_le spec _ point accumulator duration path
 
-private theorem scalarSlot_depth_le (spec : CurveSpec width)
+private lemma scalarSlot_depth_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (duration : Resource.Event model → Nat)
@@ -110,7 +110,7 @@ private theorem scalarSlot_depth_le (spec : CurveSpec width)
     (scalarBitArm_depth_le spec point accumulator path.2.1 duration path.2.2)
 
 /-- Native durations compose along the same real scalar program, without parallel shortcuts. -/
-theorem scalarInto_depth_le (spec : CurveSpec width)
+lemma scalarInto_depth_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat) (path : (scalarInto spec bits point accumulator).Path) :
@@ -125,7 +125,7 @@ theorem scalarInto_depth_le (spec : CurveSpec width)
   exact Nat.add_le_add (Add.Native.infinityInto_depth accumulator duration path.1).le folded
 
 /-- Real retained allocation adds no dependency event to the complete scalar program. -/
-theorem scalarRetained_depth_le (spec : CurveSpec width)
+lemma scalarRetained_depth_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (duration : Resource.Event model → Nat)
@@ -136,7 +136,7 @@ theorem scalarRetained_depth_le (spec : CurveSpec width)
   rw [zero_add]
   exact scalarInto_depth_le spec _ _ _ duration path.2
 
-private theorem scalarBitArm_duration_eventTrace (spec : CurveSpec width)
+private lemma scalarBitArm_duration_eventTrace (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (duration : Resource.Event model → Nat)
     (path : (scalarBitArm spec point accumulator value).Path) :
@@ -148,7 +148,7 @@ private theorem scalarBitArm_duration_eventTrace (spec : CurveSpec width)
       · rfl
       · exact Add.Native.addInto_duration_eventTrace spec _ point accumulator duration path
 
-private theorem scalarSlot_duration_eventTrace (spec : CurveSpec width)
+private lemma scalarSlot_duration_eventTrace (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (duration : Resource.Event model → Nat)
@@ -162,7 +162,7 @@ private theorem scalarSlot_duration_eventTrace (spec : CurveSpec width)
     (scalarBitArm_duration_eventTrace spec point accumulator path.2.1 duration path.2.2)
 
 /-- Complete dependency depth equals the durations of precisely the same executed native events. -/
-theorem scalarInto_duration_eventTrace (spec : CurveSpec width)
+lemma scalarInto_duration_eventTrace (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat) (path : (scalarInto spec bits point accumulator).Path) :
@@ -178,7 +178,7 @@ theorem scalarInto_duration_eventTrace (spec : CurveSpec width)
   exact Add.Native.infinityInto_depth accumulator duration path.1
 
 /-- Allocation retains its real result while leaving the exact scalar event-duration equation. -/
-theorem scalarRetained_duration_eventTrace (spec : CurveSpec width)
+lemma scalarRetained_duration_eventTrace (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (duration : Resource.Event model → Nat)

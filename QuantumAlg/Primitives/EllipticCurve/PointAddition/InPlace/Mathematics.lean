@@ -79,7 +79,7 @@ def selectedPoint {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (hforward : GenericAddDomain P Q) : AffinePoint E :=
   if control then genericAddPoint E P Q hforward else P
 
-theorem selectedSlope_true_eq_genericAddSlope
+lemma selectedSlope_true_eq_genericAddSlope
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q) :
     Semantics.selectedSlope true P.x P.y Q.x Q.y =
@@ -88,7 +88,7 @@ theorem selectedSlope_true_eq_genericAddSlope
   simp [Semantics.selectedSlope, Semantics.selectedNumerator,
     genericAddNumerator, genericAddDenominator, div_eq_mul_inv]
 
-theorem secondDenominator_true_eq
+lemma secondDenominator_true_eq
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q) :
     Semantics.secondDenominator true P.x P.y Q.x Q.y =
@@ -100,7 +100,7 @@ theorem secondDenominator_true_eq
     WeierstrassCurve.Affine.addX]
   ring
 
-private theorem slope_mul_denominator
+private lemma slope_mul_denominator
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q) :
     genericAddSlope E P Q * (P.x - Q.x) = P.y - Q.y := by
@@ -112,13 +112,13 @@ private theorem slope_mul_denominator
         (P.y - Q.y) * ((P.x - Q.x)⁻¹ * (P.x - Q.x)) := by ring
     _ = P.y - Q.y := by rw [inv_mul_cancel₀ hdenominator, mul_one]
 
-theorem selectedOutputX_false
+lemma selectedOutputX_false
     {p : Nat} [Fact p.Prime] (P Q : ZMod p)
     (y1 y2 : ZMod p) :
     Semantics.selectedOutputX false P y1 Q y2 = P := by
   simp [Semantics.selectedOutputX, Semantics.secondDenominator]
 
-theorem selectedOutputY_false
+lemma selectedOutputY_false
     {p : Nat} [Fact p.Prime] (x1 y1 x2 y2 : ZMod p)
     (hforward : x1 ≠ x2) :
     Semantics.selectedOutputY false x1 y1 x2 y2 = y1 := by
@@ -126,7 +126,7 @@ theorem selectedOutputY_false
   simp [Semantics.selectedOutputY, Semantics.selectedSlope,
     Semantics.selectedNumerator, Semantics.secondDenominator, hdenominator]
 
-theorem selectedOutputX_true
+lemma selectedOutputX_true
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q) :
     Semantics.selectedOutputX true P.x P.y Q.x Q.y =
@@ -135,7 +135,7 @@ theorem selectedOutputX_true
     secondDenominator_true_eq E P Q hforward]
   ring
 
-theorem selectedOutputY_true
+lemma selectedOutputY_true
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q) :
     Semantics.selectedOutputY true P.x P.y Q.x Q.y =
@@ -158,7 +158,7 @@ theorem selectedOutputY_true
           -(genericAddSlope E P Q * (genericAddX E P Q - P.x) + P.y)
       ring
 
-theorem selectedOutputs_eq_point
+lemma selectedOutputs_eq_point
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (control : Bool) (P Q : AffinePoint E)
     (hforward : GenericAddDomain P Q) :
@@ -176,7 +176,7 @@ theorem selectedOutputs_eq_point
         ⟨selectedOutputX_true E P Q hforward,
           selectedOutputY_true E P Q hforward⟩
 
-theorem secondDenominator_ne_zero_of_domains
+lemma secondDenominator_ne_zero_of_domains
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (control : Bool) (P Q : AffinePoint E)
     (hforward : GenericAddDomain P Q)
@@ -192,7 +192,7 @@ theorem secondDenominator_ne_zero_of_domains
       exact sub_ne_zero.mpr (Ne.symm (hreverse rfl))
 
 /-- Affine negation is inversion in the multiplicative group-point wrapper. -/
-theorem negate_toGroupPoint
+lemma negate_toGroupPoint
     {p : Nat} {E : PrimeFieldShortWeierstrass p} (Q : AffinePoint E) :
     (AffinePoint.negate Q).toGroupPoint = Q.toGroupPoint⁻¹ := by
   exact congrArg
@@ -200,7 +200,7 @@ theorem negate_toGroupPoint
     (AffinePoint.negate_toMathlib Q)
 
 /-- Every finite affine point is nonidentity in the total group carrier. -/
-theorem toGroupPoint_ne_one
+lemma toGroupPoint_ne_one
     {p : Nat} {E : PrimeFieldShortWeierstrass p} (P : AffinePoint E) :
     P.toGroupPoint ≠ 1 := by
   intro equality
@@ -210,7 +210,7 @@ theorem toGroupPoint_ne_one
 
 /-- Group-level exclusion of `Q` and `-Q` implies the first affine domain,
 matching the generic-case condition [RNSL17, ECDLP.tex:488]. -/
-theorem forwardDomain_of_group_conditions
+lemma forwardDomain_of_group_conditions
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E)
     (hsame : P.toGroupPoint ≠ Q.toGroupPoint)
@@ -226,7 +226,7 @@ theorem forwardDomain_of_group_conditions
 
 /-- The generic affine output represents multiplication by the addend in the
 group-point wrapper. -/
-theorem genericAddPoint_toGroupPoint
+lemma genericAddPoint_toGroupPoint
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q) :
     (genericAddPoint E P Q hforward).toGroupPoint =
@@ -243,7 +243,7 @@ used to clean the recomputed slope [RNSL17, ECDLP.tex:490-492,525-527].
 This theorem derives that exclusion's sufficiency for the second denominator;
 Algorithm 1's caption does not state this additional exclusion
 [RNSL17, ECDLP.tex:510]. -/
-theorem reverseDomain_of_double_inverse_exclusion
+lemma reverseDomain_of_double_inverse_exclusion
     {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hforward : GenericAddDomain P Q)
     (hdouble : P.toGroupPoint ≠

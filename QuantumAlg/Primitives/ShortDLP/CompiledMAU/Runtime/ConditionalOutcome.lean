@@ -27,6 +27,9 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -36,7 +39,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- A complete-store weight retains the actual seeded input's full reference coefficient. -/
-theorem shortDLP_runtimeSeedBlocks_weighted_reference (N : Nat)
+lemma shortDLP_runtimeSeedBlocks_weighted_reference (N : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
     (weight : Store ctx → ℂ) (leftRef rightRef : Reference.Index) :
@@ -58,7 +61,7 @@ theorem shortDLP_runtimeSeedBlocks_weighted_reference (N : Nat)
       original leftRef rightRef)
 
 /-- The actual conditional outcome multiplies the unchanged earlier-data reference block. -/
-theorem shortDLP_runtimeRound_conditional_outcome_reference
+lemma shortDLP_runtimeRound_conditional_outcome_reference
     {parameterShape previousShape : CShape}
     (parameter : CInputRef ctx parameterShape) (previous : CInputRef ctx previousShape)
     (N : Nat) (generator target : parameterShape.Value → (ZMod N)ˣ)
@@ -75,7 +78,7 @@ theorem shortDLP_runtimeRound_conditional_outcome_reference
     (outcome : Fin (resultBits m ell width) → Bool) (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,
       ((ExecutionState.mapClassical
-        ((code m ell width sameWires parameter N generator target cells result).execute
+        ((code m ell width sameWires parameter N generator target cells result).execute environment
           Reference state)
         (fun entry => entry.1.read
           (.product (.product parameter previous) (.storage result.toCStorageRef)))).block
@@ -93,7 +96,8 @@ theorem shortDLP_runtimeRound_conditional_outcome_reference
   let probability := (((ShortDLP.measurement (registerParameters m ell width)).outcomePMF
     (CompiledMAU.evolvedState m ell width N
       (generator parameterValue) (target parameterValue)) outcome).toReal : ℂ)
-  have joint := shortDLP_runtimeRound_joint_outcome_reference m ell width sameWires
+  have joint := shortDLP_runtimeRound_joint_outcome_reference (environment := environment)
+    m ell width sameWires
     parameter N generator target cells result oldRead distinct cellsSeparate resultSeparate
     state seeded oldValue outcome leftRef rightRef
   have before := (ExecutionState.mapClassical_block_referenceFiberSum state

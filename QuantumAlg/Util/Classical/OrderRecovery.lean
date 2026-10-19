@@ -45,7 +45,7 @@ def fullRegisterIndex {phaseBits : Nat} (bits : TerminalBits phaseBits) :
 
 /-- The canonical full-register name is a transparent bridge to the typed
 terminal decoder. -/
-theorem fullRegisterIndex_eq_terminalDecode_bigEndian {phaseBits : Nat}
+lemma fullRegisterIndex_eq_terminalDecode_bigEndian {phaseBits : Nat}
     (bits : TerminalBits phaseBits) :
     fullRegisterIndex bits =
       TerminalDecode.eval
@@ -54,7 +54,7 @@ theorem fullRegisterIndex_eq_terminalDecode_bigEndian {phaseBits : Nat}
 
 /-- Big-endian terminal decoding agrees with the library-wide finite-index
 convention. -/
-theorem fullRegisterIndex_val {phaseBits : Nat}
+lemma fullRegisterIndex_val {phaseBits : Nat}
     (bits : TerminalBits phaseBits) :
     (fullRegisterIndex bits).val = Nat.ofBits (bits ∘ Fin.rev) :=
   TerminalDecode.fullRegisterIndex_val bits
@@ -66,7 +66,7 @@ def terminalMeasurement (phaseBits : Nat) (value : Word phaseBits) :
 
 /-- Decoding the canonical big-endian terminal bits recovers the original
 fixed-width index. -/
-theorem fullRegisterIndex_terminalMeasurement (phaseBits : Nat)
+lemma fullRegisterIndex_terminalMeasurement (phaseBits : Nat)
     (value : Word phaseBits) :
     fullRegisterIndex (terminalMeasurement phaseBits value) = value := by
   apply Fin.val_injective
@@ -141,7 +141,7 @@ def finiteCandidates {phaseBits : Nat} (numerator : Word phaseBits) : List Nat :
 /-- Every genuine continued-fraction denominator fits the phase-register
 cardinality.  This is a bound on the unpadded finite path; the padded dyadic
 trace is used only as an already-proved carrier of the same finite prefix. -/
-theorem finiteCandidate_le_phaseCardinality {phaseBits : Nat}
+lemma finiteCandidate_le_phaseCardinality {phaseBits : Nat}
     (numerator : Word phaseBits) {candidate : Nat}
     (member : candidate ∈ finiteCandidates numerator) :
     candidate ≤ 2 ^ phaseBits := by
@@ -206,14 +206,14 @@ def lift (integerPart : Nat) (tail : EuclideanContinuantPair) :
     (advance integerPart initialOlder initialPrevious) tail
 
 /-- The explicit formula for lifting a positive reciprocal tail. -/
-theorem lift_eq (integerPart : Nat) (tail : EuclideanContinuantPair) :
+lemma lift_eq (integerPart : Nat) (tail : EuclideanContinuantPair) :
     lift integerPart tail =
       ⟨integerPart * tail.numerator + tail.denominator, tail.numerator⟩ := by
   cases tail
   simp [lift, transform, advance, initialOlder, initialPrevious, Nat.mul_comm]
 
 /-- Lifting implements the rational reciprocal continued-fraction update. -/
-theorem lift_value (integerPart : Nat) (tail : EuclideanContinuantPair)
+lemma lift_value (integerPart : Nat) (tail : EuclideanContinuantPair)
     (hnumerator : 0 < tail.numerator)
     (hdenominator : 0 < tail.denominator) :
     (lift integerPart tail).value =
@@ -228,7 +228,7 @@ theorem lift_value (integerPart : Nat) (tail : EuclideanContinuantPair)
 /-- A positive reduced raw pair has its stored denominator as rational
 denominator.  This is the local counterpart of
 `RationalContinuedFraction.ReducedRational.value_den`. -/
-theorem value_den (pair : EuclideanContinuantPair)
+lemma value_den (pair : EuclideanContinuantPair)
     (hdenominator : 0 < pair.denominator)
     (hreduced : Nat.Coprime pair.numerator pair.denominator) :
     pair.value.den = pair.denominator := by
@@ -260,14 +260,14 @@ termination_by denominator
 decreasing_by
   exact Nat.mod_lt numerator (Nat.pos_of_ne_zero _hdenominator)
 
-@[simp] theorem euclideanQuotients_zero (numerator : Nat) :
+@[simp] lemma euclideanQuotients_zero (numerator : Nat) :
     euclideanQuotients numerator 0 = [] := by
   rw [euclideanQuotients]
   simp
 
 /-- One nonzero Euclidean divisor exposes exactly its quotient and recursive
 remainder tail. -/
-theorem euclideanQuotients_step (numerator denominator : Nat)
+lemma euclideanQuotients_step (numerator denominator : Nat)
     (hdenominator : denominator ≠ 0) :
     euclideanQuotients numerator denominator =
       numerator / denominator ::
@@ -276,7 +276,7 @@ theorem euclideanQuotients_step (numerator denominator : Nat)
   simp [hdenominator]
 
 /-- Every quotient after a positive reciprocal tail is positive. -/
-theorem euclideanQuotients_all_positive_of_le
+lemma euclideanQuotients_all_positive_of_le
     (numerator denominator : Nat) (hdenominator : 0 < denominator)
     (hle : denominator ≤ numerator) :
     ∀ quotient ∈ euclideanQuotients numerator denominator, 0 < quotient := by
@@ -310,7 +310,7 @@ def forwardContinuantPairs :
       let current := EuclideanContinuantPair.advance quotient older previous
       current :: forwardContinuantPairs previous current quotients
 
-private theorem forwardContinuantPairs_transform
+private lemma forwardContinuantPairs_transform
     (older previous : EuclideanContinuantPair) (quotients : List Nat) :
     forwardContinuantPairs older previous quotients =
       (forwardContinuantPairs initialOlder initialPrevious quotients).map
@@ -362,7 +362,7 @@ def canonicalContinuantPairs : List Nat → List EuclideanContinuantPair
         (canonicalContinuantPairs quotients).map
           (EuclideanContinuantPair.lift quotient)
 
-private theorem forwardContinuantPairs_initial_cons
+private lemma forwardContinuantPairs_initial_cons
     (quotient : Nat) (quotients : List Nat) :
     forwardContinuantPairs initialOlder initialPrevious
       (quotient :: quotients) =
@@ -384,7 +384,7 @@ private theorem forwardContinuantPairs_initial_cons
 
 /-- The forward raw recurrence and the canonical recursive presentation agree
 for every finite quotient list. -/
-theorem forwardContinuantPairs_initial_eq_canonical
+lemma forwardContinuantPairs_initial_eq_canonical
     (quotients : List Nat) :
     forwardContinuantPairs initialOlder initialPrevious quotients =
       canonicalContinuantPairs quotients := by
@@ -396,7 +396,7 @@ theorem forwardContinuantPairs_initial_eq_canonical
 
 /-- A positive quotient suffix makes every later continuant denominator at
 least the previous denominator, and orders the emitted denominator list. -/
-private theorem forwardContinuantPairs_denominators_bounded_pairwise
+private lemma forwardContinuantPairs_denominators_bounded_pairwise
     (older previous : EuclideanContinuantPair) (quotients : List Nat)
     (holderPrevious : older.denominator ≤ previous.denominator)
     (hquotients : ∀ quotient ∈ quotients, 0 < quotient) :
@@ -435,7 +435,7 @@ private theorem forwardContinuantPairs_denominators_bounded_pairwise
         · exact rest.2
 
 /-- Every canonical continuant pair is reduced. -/
-theorem canonicalContinuantPairs_reduced (quotients : List Nat) :
+lemma canonicalContinuantPairs_reduced (quotients : List Nat) :
     ∀ pair ∈ canonicalContinuantPairs quotients,
       Nat.Coprime pair.numerator pair.denominator := by
   induction quotients with
@@ -452,7 +452,7 @@ theorem canonicalContinuantPairs_reduced (quotients : List Nat) :
 
 /-- Positive quotient lists produce positive numerator and denominator
 coordinates at every canonical continuant. -/
-theorem canonicalContinuantPairs_positive_of_all_positive
+lemma canonicalContinuantPairs_positive_of_all_positive
     (quotients : List Nat)
     (hquotients : ∀ quotient ∈ quotients, 0 < quotient) :
     ∀ pair ∈ canonicalContinuantPairs quotients,
@@ -478,7 +478,7 @@ theorem canonicalContinuantPairs_positive_of_all_positive
 
 /-- The canonical pairs evaluate to the public finite list of rational
 convergents. -/
-theorem canonicalContinuantPairs_values_eq_convergents
+lemma canonicalContinuantPairs_values_eq_convergents
     (numerator denominator : Nat) (hdenominator : 0 < denominator) :
     (canonicalContinuantPairs
       (euclideanQuotients numerator denominator)).map
@@ -576,7 +576,7 @@ theorem canonicalContinuantPairs_values_eq_convergents
 
 /-- All raw denominator coordinates in the Euclidean quotient execution are
 positive, including the initial integer convergent. -/
-theorem canonicalContinuantPairs_denominator_pos
+lemma canonicalContinuantPairs_denominator_pos
     (numerator denominator : Nat) (hdenominator : 0 < denominator) :
     ∀ pair ∈ canonicalContinuantPairs
         (euclideanQuotients numerator denominator),
@@ -612,7 +612,7 @@ theorem canonicalContinuantPairs_denominator_pos
 
 /-- The raw continuant denominators are exactly the denominators of the
 public rational convergent sequence. -/
-theorem canonicalContinuantPairs_denominators_eq_convergents_denominators
+lemma canonicalContinuantPairs_denominators_eq_convergents_denominators
     (numerator denominator : Nat) (hdenominator : 0 < denominator) :
     (canonicalContinuantPairs
       (euclideanQuotients numerator denominator)).map
@@ -659,7 +659,7 @@ namespace EuclideanContinuantCursor
 def active (cursor : EuclideanContinuantCursor) : Bool :=
   decide (cursor.denominator ≠ 0)
 
-theorem active_eq_true_iff (cursor : EuclideanContinuantCursor) :
+lemma active_eq_true_iff (cursor : EuclideanContinuantCursor) :
     cursor.active = true ↔ cursor.denominator ≠ 0 := by
   simp [active]
 
@@ -721,7 +721,7 @@ def visit (cursor : EuclideanContinuantCursor) : Visit where
 
 /-- The visit contains the literal division, remainder, and continuant
 recurrence used by the machine. -/
-theorem visit_real_of_active (cursor : EuclideanContinuantCursor)
+lemma visit_real_of_active (cursor : EuclideanContinuantCursor)
     (hactive : cursor.denominator ≠ 0) :
     cursor.visit.divisor ≠ 0 ∧
       cursor.visit.quotient = cursor.visit.dividend / cursor.visit.divisor ∧
@@ -740,12 +740,12 @@ def step (cursor : EuclideanContinuantCursor) :
   else
     some (cursor.candidate.denominator, cursor.advance)
 
-theorem step_eq_some_of_active (cursor : EuclideanContinuantCursor)
+lemma step_eq_some_of_active (cursor : EuclideanContinuantCursor)
     (hactive : cursor.denominator ≠ 0) :
     cursor.step = some (cursor.candidate.denominator, cursor.advance) := by
   simp [step, hactive]
 
-theorem step_eq_none_of_inactive (cursor : EuclideanContinuantCursor)
+lemma step_eq_none_of_inactive (cursor : EuclideanContinuantCursor)
     (hinactive : cursor.denominator = 0) :
     cursor.step = none := by
   simp [step, hinactive]
@@ -759,7 +759,7 @@ def actualCandidates (cursor : EuclideanContinuantCursor) : List Nat :=
 
 /-- A real active visit is the head of the remaining raw path, and its tail
 is exactly the advanced cursor path. -/
-theorem actualCandidates_cons_of_active (cursor : EuclideanContinuantCursor)
+lemma actualCandidates_cons_of_active (cursor : EuclideanContinuantCursor)
     (hactive : cursor.denominator ≠ 0) :
     cursor.actualCandidates =
       cursor.candidate.denominator :: cursor.advance.actualCandidates := by
@@ -768,7 +768,7 @@ theorem actualCandidates_cons_of_active (cursor : EuclideanContinuantCursor)
   rfl
 
 /-- A finished cursor has no fabricated candidate. -/
-theorem actualCandidates_eq_nil_of_inactive
+lemma actualCandidates_eq_nil_of_inactive
     (cursor : EuclideanContinuantCursor)
     (hinactive : cursor.denominator = 0) :
     cursor.actualCandidates = [] := by
@@ -776,7 +776,7 @@ theorem actualCandidates_eq_nil_of_inactive
   rfl
 
 /-- The actual cursor path is empty only at a finished Euclidean divisor. -/
-theorem actualCandidates_eq_nil_iff_denominator_eq_zero
+lemma actualCandidates_eq_nil_iff_denominator_eq_zero
     (cursor : EuclideanContinuantCursor) :
     cursor.actualCandidates = [] ↔ cursor.denominator = 0 := by
   constructor
@@ -789,7 +789,7 @@ theorem actualCandidates_eq_nil_iff_denominator_eq_zero
 
 /-- The remaining actual cursor path after fixed fuel is precisely the
 unconsumed suffix of the original path. -/
-theorem actualCandidates_advanceN (fuel : Nat)
+lemma actualCandidates_advanceN (fuel : Nat)
     (cursor : EuclideanContinuantCursor) :
     (cursor.advanceN fuel).actualCandidates = cursor.actualCandidates.drop fuel := by
   induction fuel generalizing cursor with
@@ -806,7 +806,7 @@ theorem actualCandidates_advanceN (fuel : Nat)
 
 /-- A fuel bound covering the original actual path leaves no remaining
 candidate after the corresponding guarded cursor advancement. -/
-theorem advanceN_actualCandidates_eq_nil_of_length_le
+lemma advanceN_actualCandidates_eq_nil_of_length_le
     (fuel : Nat) (cursor : EuclideanContinuantCursor)
     (hbound : cursor.actualCandidates.length ≤ fuel) :
     (cursor.advanceN fuel).actualCandidates = [] := by
@@ -815,7 +815,7 @@ theorem advanceN_actualCandidates_eq_nil_of_length_le
 
 /-- A fuel bound covering the original actual path reaches a finished
 Euclidean divisor. -/
-theorem advanceN_denominator_eq_zero_of_length_le
+lemma advanceN_denominator_eq_zero_of_length_le
     (fuel : Nat) (cursor : EuclideanContinuantCursor)
     (hbound : cursor.actualCandidates.length ≤ fuel) :
     (cursor.advanceN fuel).denominator = 0 := by
@@ -825,7 +825,7 @@ theorem advanceN_denominator_eq_zero_of_length_le
 
 /-- A fuel bound covering the original actual path leaves the raw active bit
 false. -/
-theorem advanceN_active_eq_false_of_length_le
+lemma advanceN_active_eq_false_of_length_le
     (fuel : Nat) (cursor : EuclideanContinuantCursor)
     (hbound : cursor.actualCandidates.length ≤ fuel) :
     (cursor.advanceN fuel).active = false := by
@@ -840,7 +840,7 @@ def initial (numerator denominator : Nat) : EuclideanContinuantCursor where
   previous := initialPrevious
 
 /-- The initial raw candidate path is the canonical continuant path. -/
-theorem initial_actualCandidates_eq_canonical
+lemma initial_actualCandidates_eq_canonical
     (numerator denominator : Nat) :
     (initial numerator denominator).actualCandidates =
       (canonicalContinuantPairs
@@ -854,7 +854,7 @@ def fixedFuelCandidates (fuel : Nat) (cursor : EuclideanContinuantCursor) :
     List Nat :=
   cursor.actualCandidates.take fuel
 
-theorem fixedFuelCandidates_eq_actualCandidates_of_length_le
+lemma fixedFuelCandidates_eq_actualCandidates_of_length_le
     (fuel : Nat) (cursor : EuclideanContinuantCursor)
     (hbound : cursor.actualCandidates.length ≤ fuel) :
     cursor.fixedFuelCandidates fuel = cursor.actualCandidates := by
@@ -864,7 +864,7 @@ end EuclideanContinuantCursor
 
 /-- The public finite trace's denominator projection is equivalently the
 denominator projection of the public rational convergents. -/
-theorem finiteCandidates_eq_convergents_denominators
+lemma finiteCandidates_eq_convergents_denominators
     {phaseBits : Nat} (numerator : Word phaseBits) :
     finiteCandidates numerator =
       (RationalContinuedFraction.convergents numerator.val
@@ -892,7 +892,7 @@ theorem finiteCandidates_eq_convergents_denominators
 finite-trace denominator schedule.  Thus every active quotient/remainder and
 continuant recurrence reaches the next genuine trace candidate, with no
 padding witness or host-side list substitution. -/
-theorem initialEuclideanContinuantCandidates_eq_finiteCandidates
+lemma initialEuclideanContinuantCandidates_eq_finiteCandidates
     {phaseBits : Nat} (numerator : Word phaseBits) :
     (EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).actualCandidates =
       finiteCandidates numerator := by
@@ -913,7 +913,7 @@ theorem initialEuclideanContinuantCandidates_eq_finiteCandidates
 /-- Genuine finite continued-fraction denominators are nondecreasing in their
 actual execution order.  Equality is allowed because distinct convergents can
 share a denominator; no synthetic padding is involved. -/
-theorem finiteCandidates_pairwise_le {phaseBits : Nat}
+lemma finiteCandidates_pairwise_le {phaseBits : Nat}
     (numerator : Word phaseBits) :
     (finiteCandidates numerator).Pairwise (· ≤ ·) := by
   rw [← initialEuclideanContinuantCandidates_eq_finiteCandidates numerator,
@@ -990,14 +990,14 @@ def asContinuedFractionState {phaseBits : Nat}
     ContinuedFractionState phaseBits where
   remaining := cursor.actualCandidates
 
-@[simp] theorem cfPath_asContinuedFractionState {phaseBits : Nat}
+@[simp] lemma cfPath_asContinuedFractionState {phaseBits : Nat}
     (cursor : EuclideanContinuantCursor) :
     cfPath (cursor.asContinuedFractionState (phaseBits := phaseBits)) =
       cursor.actualCandidates :=
   rfl
 
 /-- The pure cursor-active bit is exactly the raw nonzero-divisor bit. -/
-theorem cfActive_asContinuedFractionState {phaseBits : Nat}
+lemma cfActive_asContinuedFractionState {phaseBits : Nat}
     (cursor : EuclideanContinuantCursor) :
     cfActive (cursor.asContinuedFractionState (phaseBits := phaseBits)) =
       cursor.active := by
@@ -1010,7 +1010,7 @@ theorem cfActive_asContinuedFractionState {phaseBits : Nat}
     simp [cfActive, active, hactive]
 
 /-- One active raw visit is exactly the next `cfStep` candidate and suffix. -/
-theorem cfStep_asContinuedFractionState_of_active {phaseBits : Nat}
+lemma cfStep_asContinuedFractionState_of_active {phaseBits : Nat}
     (cursor : EuclideanContinuantCursor)
     (hactive : cursor.denominator ≠ 0) :
     cfStep (cursor.asContinuedFractionState (phaseBits := phaseBits)) =
@@ -1022,7 +1022,7 @@ theorem cfStep_asContinuedFractionState_of_active {phaseBits : Nat}
 
 /-- A finished raw cursor has the same `none` step as the pure recovery
 cursor and therefore contributes no later candidate. -/
-theorem cfStep_asContinuedFractionState_of_inactive {phaseBits : Nat}
+lemma cfStep_asContinuedFractionState_of_inactive {phaseBits : Nat}
     (cursor : EuclideanContinuantCursor)
     (hinactive : cursor.denominator = 0) :
     cfStep (cursor.asContinuedFractionState (phaseBits := phaseBits)) = none := by
@@ -1032,7 +1032,7 @@ theorem cfStep_asContinuedFractionState_of_inactive {phaseBits : Nat}
 
 /-- The raw dyadic initialization represents exactly the old canonical
 unpadding cursor used by recovery selection. -/
-theorem initial_asContinuedFractionState_eq_initialContinuedFractionState
+lemma initial_asContinuedFractionState_eq_initialContinuedFractionState
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) :
     (initial (decodedIndex input).val (2 ^ phaseBits)).asContinuedFractionState
@@ -1045,7 +1045,7 @@ theorem initial_asContinuedFractionState_eq_initialContinuedFractionState
 
 end EuclideanContinuantCursor
 
-@[simp] theorem cfPath_initialContinuedFractionState
+@[simp] lemma cfPath_initialContinuedFractionState
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) :
     cfPath (initialContinuedFractionState spec input) =
@@ -1054,7 +1054,7 @@ end EuclideanContinuantCursor
 
 /-- Every active cursor step exposes the first real candidate in its remaining
 path and advances to exactly the remaining suffix. -/
-theorem cfActive_visit {phaseBits : Nat} (state : ContinuedFractionState phaseBits)
+lemma cfActive_visit {phaseBits : Nat} (state : ContinuedFractionState phaseBits)
     (hactive : cfActive state = true) :
     ∃ candidate remaining,
       cfPath state = candidate :: remaining ∧
@@ -1067,7 +1067,7 @@ theorem cfActive_visit {phaseBits : Nat} (state : ContinuedFractionState phaseBi
           exact ⟨candidate, remaining, rfl, rfl⟩
 
 /-- The exact finite candidate list is bounded by the static cursor capacity. -/
-theorem finiteCandidates_length_le_finiteCandidateFuel
+lemma finiteCandidates_length_le_finiteCandidateFuel
     {phaseBits : Nat} (numerator : Word phaseBits) :
     (finiteCandidates numerator).length ≤ finiteCandidateFuel phaseBits := by
   calc
@@ -1089,7 +1089,7 @@ theorem finiteCandidates_length_le_finiteCandidateFuel
 
 /-- The raw initial cursor has at most the same fixed fuel as the canonical
 unpadding schedule. -/
-theorem initialEuclideanContinuantCandidates_length_le_finiteCandidateFuel
+lemma initialEuclideanContinuantCandidates_length_le_finiteCandidateFuel
     {phaseBits : Nat} (numerator : Word phaseBits) :
     (EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).actualCandidates.length ≤
       finiteCandidateFuel phaseBits := by
@@ -1098,7 +1098,7 @@ theorem initialEuclideanContinuantCandidates_length_le_finiteCandidateFuel
 
 /-- The prescribed finite fuel consumes every genuine raw candidate of the
 initial dyadic Euclidean cursor. -/
-theorem initialEuclideanContinuantAdvanceN_actualCandidates_eq_nil
+lemma initialEuclideanContinuantAdvanceN_actualCandidates_eq_nil
     {phaseBits : Nat} (numerator : Word phaseBits) :
     ((EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).advanceN
       (finiteCandidateFuel phaseBits)).actualCandidates = [] := by
@@ -1108,7 +1108,7 @@ theorem initialEuclideanContinuantAdvanceN_actualCandidates_eq_nil
     (initialEuclideanContinuantCandidates_length_le_finiteCandidateFuel numerator)
 
 /-- The prescribed finite fuel leaves the initialized raw cursor inactive. -/
-theorem initialEuclideanContinuantAdvanceN_active_eq_false
+lemma initialEuclideanContinuantAdvanceN_active_eq_false
     {phaseBits : Nat} (numerator : Word phaseBits) :
     ((EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).advanceN
       (finiteCandidateFuel phaseBits)).active = false := by
@@ -1119,7 +1119,7 @@ theorem initialEuclideanContinuantAdvanceN_active_eq_false
 
 /-- At the public fixed fuel, the raw cursor exposes every genuine candidate
 and no extra slot. -/
-theorem initialFixedFuelCandidates_eq_finiteCandidates
+lemma initialFixedFuelCandidates_eq_finiteCandidates
     {phaseBits : Nat} (numerator : Word phaseBits) :
     (EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).fixedFuelCandidates
         (finiteCandidateFuel phaseBits) =
@@ -1137,7 +1137,7 @@ theorem initialFixedFuelCandidates_eq_finiteCandidates
       initialEuclideanContinuantCandidates_eq_finiteCandidates numerator
 
 /-- The initialized cursor has no more active visits than its static capacity. -/
-theorem cfPath_initial_length_le_finiteCandidateFuel
+lemma cfPath_initial_length_le_finiteCandidateFuel
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) :
     (cfPath (initialContinuedFractionState spec input)).length ≤
@@ -1174,14 +1174,14 @@ def validateCandidate {modulusWidth phaseBits : Nat}
       0 < candidate ∧
         input.base.val ^ candidate ≡ 1 [MOD spec.modulusSpec.modulus])
 
-theorem validateCandidate_eq_true_iff {modulusWidth phaseBits : Nat}
+lemma validateCandidate_eq_true_iff {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (candidate : Nat) :
     validateCandidate spec input candidate = true ↔
       CandidateAccepted spec input candidate := by
   simp [validateCandidate, CandidateAccepted]
 
-theorem validateCandidate_eq_false_iff {modulusWidth phaseBits : Nat}
+lemma validateCandidate_eq_false_iff {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (candidate : Nat) :
     validateCandidate spec input candidate = false ↔
@@ -1189,7 +1189,7 @@ theorem validateCandidate_eq_false_iff {modulusWidth phaseBits : Nat}
   simp [validateCandidate, CandidateAccepted]
 
 /-- A nonaccepting Boolean validation has the canonical `false` result. -/
-private theorem validateCandidate_eq_false_of_ne_true
+private lemma validateCandidate_eq_false_of_ne_true
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidate : Nat)
     (hnot : validateCandidate spec input candidate ≠ true) :
@@ -1213,13 +1213,13 @@ def CandidateValidation.ofCandidate {modulusWidth phaseBits : Nat}
   candidate := candidate
   accepted := validateCandidate spec input candidate
 
-@[simp] theorem CandidateValidation.ofCandidate_candidate
+@[simp] lemma CandidateValidation.ofCandidate_candidate
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidate : Nat) :
     (CandidateValidation.ofCandidate spec input candidate).candidate = candidate :=
   rfl
 
-@[simp] theorem CandidateValidation.ofCandidate_accepted
+@[simp] lemma CandidateValidation.ofCandidate_accepted
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidate : Nat) :
     (CandidateValidation.ofCandidate spec input candidate).accepted =
@@ -1248,7 +1248,7 @@ private def scanCandidates {modulusWidth phaseBits : Nat}
         let tail := scanCandidates spec input candidates
         .mk (record :: tail.path) tail.selection
 
-private theorem scanCandidates_selection_some_sound
+private lemma scanCandidates_selection_some_sound
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidates : List Nat) {output : Nat}
     (hresult : (scanCandidates spec input candidates).selection = some output) :
@@ -1271,7 +1271,7 @@ private theorem scanCandidates_selection_some_sound
         rcases inductionHypothesis htail with ⟨hmember, hacceptedTail⟩
         exact ⟨by simp [hmember], hacceptedTail⟩
 
-private theorem scanCandidates_selection_none_noAccepted
+private lemma scanCandidates_selection_none_noAccepted
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidates : List Nat)
     (hresult : (scanCandidates spec input candidates).selection = none) :
@@ -1296,7 +1296,7 @@ private theorem scanCandidates_selection_none_noAccepted
 
 /-- A successful scan path ends in the accepted candidate and records only
 rejections before that final validation. -/
-private theorem scanCandidates_path_some_characterization
+private lemma scanCandidates_path_some_characterization
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidates : List Nat) {output : Nat}
     (hresult : (scanCandidates spec input candidates).selection = some output) :
@@ -1333,7 +1333,7 @@ private theorem scanCandidates_path_some_characterization
           · exact hpriorPathRejected record hprior
 
 /-- If the scan fails, it has visited every scheduled candidate. -/
-private theorem scanCandidates_path_eq_map_of_selection_none
+private lemma scanCandidates_path_eq_map_of_selection_none
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidates : List Nat)
     (hresult : (scanCandidates spec input candidates).selection = none) :
@@ -1362,7 +1362,7 @@ def FirstAccepted {modulusWidth phaseBits : Nat}
         (¬ CandidateAccepted spec input candidate ∧
           FirstAccepted spec input candidates output)
 
-private theorem scanCandidates_selection_eq_some_of_firstAccepted
+private lemma scanCandidates_selection_eq_some_of_firstAccepted
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (candidates : List Nat) {output : Nat}
     (hfirst : FirstAccepted spec input candidates output) :
@@ -1436,14 +1436,14 @@ def continuedFractionArithmetic {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :=
   (continuedFraction spec input).arithmetic
 
-theorem candidateSchedule_eq_finiteCandidates {modulusWidth phaseBits : Nat}
+lemma candidateSchedule_eq_finiteCandidates {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     candidateSchedule spec input = finiteCandidates (decodedIndex input) :=
   rfl
 
 /-- Every mathematical convergent denominator occurs in the genuine unpadded
 candidate schedule consumed by the typed recovery routine. -/
-theorem realConvergentDen_mem_candidateSchedule
+lemma realConvergentDen_mem_candidateSchedule
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (index : Nat) :
     ((((decodedIndex input).val : Real) / (2 : Real) ^ phaseBits).convergent
@@ -1458,13 +1458,13 @@ theorem realConvergentDen_mem_candidateSchedule
 
 /-- The actual candidate schedule is nondecreasing, with equality retained
 when distinct convergents share one denominator. -/
-theorem candidateSchedule_pairwise_le {modulusWidth phaseBits : Nat}
+lemma candidateSchedule_pairwise_le {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     (candidateSchedule spec input).Pairwise (· ≤ ·) := by
   rw [candidateSchedule_eq_finiteCandidates]
   exact finiteCandidates_pairwise_le (decodedIndex input)
 
-private theorem exists_first_occurrence_of_mem_of_pairwise_le
+private lemma exists_first_occurrence_of_mem_of_pairwise_le
     {target : Nat} : ∀ {schedule : List Nat},
       schedule.Pairwise (· ≤ ·) → target ∈ schedule →
         ∃ rejected suffix,
@@ -1492,7 +1492,7 @@ private theorem exists_first_occurrence_of_mem_of_pairwise_le
 
 /-- Any scheduled denominator admits a first-occurrence split whose genuine
 earlier denominators are strictly smaller. -/
-theorem candidateSchedule_firstOccurrence
+lemma candidateSchedule_firstOccurrence
     {modulusWidth phaseBits target : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (member : target ∈ candidateSchedule spec input) :
@@ -1504,7 +1504,7 @@ theorem candidateSchedule_firstOccurrence
 
 /-- The initialized cursor's active visits are exactly the current unpadded
 candidate schedule used by recovery. -/
-theorem cfPath_initial_eq_candidateSchedule {modulusWidth phaseBits : Nat}
+lemma cfPath_initial_eq_candidateSchedule {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     cfPath (initialContinuedFractionState spec input) =
       candidateSchedule spec input := by
@@ -1513,20 +1513,20 @@ theorem cfPath_initial_eq_candidateSchedule {modulusWidth phaseBits : Nat}
 
 /-- The recovery candidate schedule inherits the finite, nonpadding capacity
 bound of its continued-fraction source. -/
-theorem candidateSchedule_length_le_finiteCandidateFuel
+lemma candidateSchedule_length_le_finiteCandidateFuel
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) :
     (candidateSchedule spec input).length ≤ finiteCandidateFuel phaseBits := by
   rw [candidateSchedule_eq_finiteCandidates]
   exact finiteCandidates_length_le_finiteCandidateFuel (decodedIndex input)
 
-private theorem exactPath_eq_scanPath {modulusWidth phaseBits : Nat}
+private lemma exactPath_eq_scanPath {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     exactPath spec input =
       (scanCandidates spec input (candidateSchedule spec input)).path :=
   rfl
 
-private theorem selection_eq_scanSelection {modulusWidth phaseBits : Nat}
+private lemma selection_eq_scanSelection {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     selection spec input =
       (scanCandidates spec input (candidateSchedule spec input)).selection :=
@@ -1534,7 +1534,7 @@ private theorem selection_eq_scanSelection {modulusWidth phaseBits : Nat}
 
 /-- A consecutive rejected prefix followed by an accepted candidate is the
 schedule-local first-accepted witness for that candidate. -/
-private theorem firstAccepted_of_rejected_prefix
+private lemma firstAccepted_of_rejected_prefix
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (rejected : List Nat) (candidate : Nat)
     (suffix : List Nat)
@@ -1567,7 +1567,7 @@ private theorem firstAccepted_of_rejected_prefix
 
 /-- A concrete schedule split into rejected visits and one accepted visit
 proves that the latter is the schedule-local first accepted candidate. -/
-theorem firstAccepted_of_candidateSchedule_prefix
+lemma firstAccepted_of_candidateSchedule_prefix
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (rejected : List Nat) (candidate : Nat)
     (suffix : List Nat)
@@ -1582,7 +1582,7 @@ theorem firstAccepted_of_candidateSchedule_prefix
 
 /-- A scan whose actual schedule has a rejected prefix followed by an
 accepted candidate selects that candidate. -/
-theorem selection_eq_some_of_candidateSchedule_prefix
+lemma selection_eq_some_of_candidateSchedule_prefix
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (rejected : List Nat) (candidate : Nat)
     (suffix : List Nat)
@@ -1599,7 +1599,7 @@ theorem selection_eq_some_of_candidateSchedule_prefix
 
 /-- The literal scan path for a rejected prefix stops at its first accepted
 candidate, so it contains neither padding nor a later scheduled candidate. -/
-private theorem scanCandidates_path_eq_of_rejected_prefix
+private lemma scanCandidates_path_eq_of_rejected_prefix
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (rejected : List Nat) (candidate : Nat)
     (suffix : List Nat)
@@ -1632,7 +1632,7 @@ private theorem scanCandidates_path_eq_of_rejected_prefix
 /-- When the actual schedule is a rejected prefix followed by one accepted
 candidate, the public path is exactly those rejected validations and that
 accepted validation. -/
-theorem exactPath_eq_of_candidateSchedule_prefix
+lemma exactPath_eq_of_candidateSchedule_prefix
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (rejected : List Nat) (candidate : Nat)
     (suffix : List Nat)
@@ -1655,7 +1655,7 @@ theorem exactPath_eq_of_candidateSchedule_prefix
 
 /-- A successful public path ends at the selected candidate, with every prior
 validation recorded as a rejection. -/
-theorem exactPath_some_characterization
+lemma exactPath_some_characterization
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) {output : Nat}
     (hselection : selection spec input = some output) :
@@ -1680,7 +1680,7 @@ theorem exactPath_some_characterization
 
 /-- A failed public path covers the full finite schedule and records every
 candidate as rejected. -/
-theorem exactPath_none_characterization
+lemma exactPath_none_characterization
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (hselection : selection spec input = none) :
     exactPath spec input =
@@ -1715,7 +1715,7 @@ theorem exactPath_none_characterization
 def candidateWord (phaseBits candidate : Nat) : Word (phaseBits + 1) :=
   wordOfNat (phaseBits + 1) candidate
 
-theorem candidateWord_val_of_lt {phaseBits candidate : Nat}
+lemma candidateWord_val_of_lt {phaseBits candidate : Nat}
     (hfit : candidate < 2 ^ (phaseBits + 1)) :
     (candidateWord phaseBits candidate).val = candidate := by
   change candidate % 2 ^ (phaseBits + 1) = candidate
@@ -1733,7 +1733,7 @@ def eval {modulusWidth phaseBits : Nat}
     Output modulusWidth phaseBits :=
   recoverUnitOrder spec input
 
-theorem eval_eq_recoverUnitOrder {modulusWidth phaseBits : Nat}
+lemma eval_eq_recoverUnitOrder {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     eval spec input = recoverUnitOrder spec input :=
   rfl
@@ -1743,7 +1743,7 @@ def candidate {modulusWidth phaseBits : Nat}
     (output : Output modulusWidth phaseBits) : Option Nat :=
   output.map (fun word => word.val)
 
-theorem candidate_recoverUnitOrder {modulusWidth phaseBits : Nat}
+lemma candidate_recoverUnitOrder {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec) :
     candidate (recoverUnitOrder spec input) = selection spec input := by
   unfold candidate recoverUnitOrder
@@ -1763,7 +1763,7 @@ theorem candidate_recoverUnitOrder {modulusWidth phaseBits : Nat}
 
 /-- Every successful output is one actually visited finite
 continued-fraction denominator and passes the complete modular-return test. -/
-theorem recoverUnitOrder_some_sound {modulusWidth phaseBits : Nat}
+lemma recoverUnitOrder_some_sound {modulusWidth phaseBits : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     {output : Word (phaseBits + 1)}
     (hresult : recoverUnitOrder spec input = some output) :
@@ -1793,7 +1793,7 @@ def NoAcceptedCandidate {modulusWidth phaseBits : Nat}
 
 /-- Failure exposes exactly the absence of an accepted actual candidate; it
 does not conceal skipped padding or an unvisited later candidate. -/
-theorem recoverUnitOrder_eq_none_iff_noAcceptedCandidate
+lemma recoverUnitOrder_eq_none_iff_noAcceptedCandidate
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) :
     recoverUnitOrder spec input = none ↔ NoAcceptedCandidate spec input := by
@@ -1829,7 +1829,7 @@ theorem recoverUnitOrder_eq_none_iff_noAcceptedCandidate
 
 /-- A rejected schedule prefix followed by an accepted candidate produces the
 corresponding fixed-width recovery output. -/
-theorem recoverUnitOrder_eq_some_of_candidateSchedule_prefix
+lemma recoverUnitOrder_eq_some_of_candidateSchedule_prefix
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec) (rejected : List Nat) (candidate : Nat)
     (suffix : List Nat)
@@ -1852,7 +1852,7 @@ must prove: the true order occurs in the actual unpadded candidate schedule,
 every earlier denominator is strictly smaller, the public output width fits
 the order, and the order is the least positive modular return.  No legacy
 recovery evaluator or detached post-processing function enters the result. -/
-theorem recoverUnitOrder_eq_some_of_recoverableSchedule
+lemma recoverUnitOrder_eq_some_of_recoverableSchedule
     {modulusWidth phaseBits order : Nat}
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (rejected suffix : List Nat)
@@ -1870,7 +1870,7 @@ theorem recoverUnitOrder_eq_some_of_recoverableSchedule
 
 /-- If every candidate in the actual finite schedule is rejected, recovery
 returns no candidate. -/
-theorem recoverUnitOrder_eq_none_of_all_scheduled_rejected
+lemma recoverUnitOrder_eq_none_of_all_scheduled_rejected
     {modulusWidth phaseBits : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec)
     (hrejected : ∀ candidate ∈ candidateSchedule spec input,
@@ -1882,7 +1882,7 @@ theorem recoverUnitOrder_eq_none_of_all_scheduled_rejected
 /-- The early-stopping scan recovers a candidate exactly under the honest
 schedule-local first-accepted condition. No global order-minimality conclusion
 is asserted here. -/
-theorem recoverUnitOrder_eq_some_of_firstAccepted
+lemma recoverUnitOrder_eq_some_of_firstAccepted
     {modulusWidth phaseBits order : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec)
     (hfirst : FirstAccepted spec input (candidateSchedule spec input) order) :
@@ -1901,7 +1901,7 @@ theorem recoverUnitOrder_eq_some_of_firstAccepted
 the least positive return exponent is present as the scan's first accepted
 candidate, and that exponent really is minimal.  Minimality alone cannot
 prevent an earlier nonminimal multiple from passing modular validation. -/
-theorem recoverUnitOrder_eq_some_of_firstAccepted_minimal
+lemma recoverUnitOrder_eq_some_of_firstAccepted_minimal
     {modulusWidth phaseBits order : Nat} (spec : Spec modulusWidth phaseBits)
     (input : Input spec)
     (hfirst : FirstAccepted spec input (candidateSchedule spec input) order)
@@ -1930,13 +1930,13 @@ def fifteenTwoSixInput : Input fifteenTwoSixSpec where
   baseCoprime := by norm_num [fifteenTwoSixBase, fifteenTwoSixSpec]
   terminalBits := terminalMeasurement 6 fifteenTwoSixIndex
 
-theorem decodedIndex_fifteenTwoSix :
+lemma decodedIndex_fifteenTwoSix :
     decodedIndex fifteenTwoSixInput = fifteenTwoSixIndex := by
   simpa [decodedIndex, fifteenTwoSixInput] using
     (fullRegisterIndex_terminalMeasurement 6 fifteenTwoSixIndex)
 
 /-- The unpadded finite convergent denominators for `5 / 64`. -/
-theorem finiteCandidates_five_of_six :
+lemma finiteCandidates_five_of_six :
     finiteCandidates (⟨5, by norm_num⟩ : Word 6) = [1, 12, 13, 64] := by
   have hconvergents :
       RationalContinuedFraction.convergents 5 64 =
@@ -1988,22 +1988,22 @@ theorem finiteCandidates_five_of_six :
         [1, 12, 13, 64]
   exact hdenominators
 
-theorem candidateSchedule_fifteenTwoSix :
+lemma candidateSchedule_fifteenTwoSix :
     candidateSchedule fifteenTwoSixSpec fifteenTwoSixInput = [1, 12, 13, 64] := by
   rw [candidateSchedule_eq_finiteCandidates, decodedIndex_fifteenTwoSix]
   simpa [fifteenTwoSixIndex] using finiteCandidates_five_of_six
 
-theorem validateCandidate_fifteenTwoSix_one :
+lemma validateCandidate_fifteenTwoSix_one :
     validateCandidate fifteenTwoSixSpec fifteenTwoSixInput 1 = false := by
   norm_num [validateCandidate, CandidateAccepted, fifteenTwoSixSpec,
     fifteenTwoSixInput, fifteenTwoSixBase]
 
-theorem validateCandidate_fifteenTwoSix_twelve :
+lemma validateCandidate_fifteenTwoSix_twelve :
     validateCandidate fifteenTwoSixSpec fifteenTwoSixInput 12 = true := by
   norm_num [validateCandidate, CandidateAccepted, fifteenTwoSixSpec,
     fifteenTwoSixInput, fifteenTwoSixBase]
 
-theorem selection_fifteen_two_six_five :
+lemma selection_fifteen_two_six_five :
     selection fifteenTwoSixSpec fifteenTwoSixInput = some 12 := by
   rw [selection_eq_scanSelection, candidateSchedule_fifteenTwoSix]
   simp [scanCandidates, validateCandidate_fifteenTwoSix_one,
@@ -2012,12 +2012,12 @@ theorem selection_fifteen_two_six_five :
 /-- Finite regression: the explicit `5 / 64` measurement first validates
 denominator twelve. This records a schedule-local raw candidate only; it does
 not assert that every raw recovery candidate is the true multiplicative order. -/
-theorem recoverUnitOrder_fifteen_two_six_five :
+lemma recoverUnitOrder_fifteen_two_six_five :
     recoverUnitOrder fifteenTwoSixSpec fifteenTwoSixInput =
       some (candidateWord 6 12) := by
   simp [recoverUnitOrder, selection_fifteen_two_six_five]
 
-theorem candidate_recoverUnitOrder_fifteen_two_six_five :
+lemma candidate_recoverUnitOrder_fifteen_two_six_five :
     candidate (recoverUnitOrder fifteenTwoSixSpec fifteenTwoSixInput) = some 12 := by
   rw [candidate_recoverUnitOrder, selection_fifteen_two_six_five]
 

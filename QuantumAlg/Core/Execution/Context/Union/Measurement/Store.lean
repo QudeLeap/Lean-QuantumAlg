@@ -23,7 +23,7 @@ variable {left right : RuntimeCtx .quantum}
   (separate : RuntimeCtx.StorageDisjoint left right)
 
 /-- Splitting an actual Z write preserves the full other store, for every initial value. -/
-theorem contextUnion_measurementLeft_split_write
+lemma contextUnion_measurementLeft_split_write
     (store : Store (left.disjointUnion right separate)) (wire : Fin left.systemCount)
     (output : CWriteRef left (.finite (left.quantumLayout.wire wire).dimension))
     (outcome : Fin ((left.disjointUnion right separate).quantumLayout.wire

@@ -27,7 +27,7 @@ open ClassicalRoutines
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual fresh cells satisfy every accepted-arm separation fact without caller conditions. -/
-theorem samplerLayout_accepted_separated (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_accepted_separated (ctx : RuntimeCtx kind) (width : Nat) :
     Decision.AcceptedSeparated (shared ctx width) (scratch ctx width)
       (gcdResultCell ctx width) :=
   { extendedGcd := samplerLayout_cellKey_ne ctx width 7 9 (by decide)
@@ -48,7 +48,7 @@ theorem samplerLayout_accepted_separated (ctx : RuntimeCtx kind) (width : Nat) :
     unitFlag := samplerLayout_cellKey_ne ctx width 2 4 (by decide) }
 
 /-- Actual initialization supplies the candidate, wrapping one and false on arbitrary storage. -/
-theorem samplerLayout_initialized_fields (store : Store (context ctx width)) :
+lemma samplerLayout_initialized_fields (store : Store (context ctx width)) :
     let final := Decision.initializationStore (shared ctx width) (scratch ctx width) store
     final.read (FirstAccepted.cellRead (candidateCell ctx width)) =
         store.read (FirstAccepted.cellRead (selectedCell ctx width)) ∧
@@ -60,7 +60,7 @@ theorem samplerLayout_initialized_fields (store : Store (context ctx width)) :
     (samplerLayout_cellKey_ne ctx width 4 8 (by decide)) store
 
 /-- Actual initialization preserves the three observations needed to consume the source choice. -/
-theorem samplerLayout_initialization_inputs (store : Store (context ctx width)) :
+lemma samplerLayout_initialization_inputs (store : Store (context ctx width)) :
     let final := Decision.initializationStore (shared ctx width) (scratch ctx width) store
     final.read (FirstAccepted.cellRead (acceptedCell ctx width)) =
         store.read (FirstAccepted.cellRead (acceptedCell ctx width)) ∧

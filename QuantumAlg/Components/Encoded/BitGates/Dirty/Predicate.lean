@@ -35,7 +35,7 @@ def dirtyPredicateConjunction (work output : EncodedBit encoding)
   copy (toggle (copy (toggle state)))
 
 /-- Two alternating toggles remove the arbitrary work value and return the full work state. -/
-theorem dirtyPredicateConjunction_eq (work output : EncodedBit encoding)
+lemma dirtyPredicateConjunction_eq (work output : EncodedBit encoding)
     (different : work.wire ≠ output.wire) (first second : Data → Bool)
     (firstWork : ∀ state, first (work.flip state) = first state)
     (firstOutput : ∀ state, first (output.flip state) = first state)

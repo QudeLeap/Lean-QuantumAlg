@@ -75,19 +75,19 @@ def prefixRefs (refs : Refs ctx N) : LatticeWideInitializationPrefix.Refs ctx N 
   roles := refs.roles
 
 /-- Every original two-sample source basis has full rank, independent of any stored workspace. -/
-theorem sourceBasis_fullRank (refs : Refs ctx N) (store : Store ctx) :
+lemma sourceBasis_fullRank (refs : Refs ctx N) (store : Store ctx) :
     (sourceBasis refs store).FullRank :=
   RSA.shortLogLatticeBasis_fullRank _ _ _
 
 /-- The original wide raw width meets the actual fixed-fuel driver's source capacity requirement. -/
-theorem sourceBasis_capacity (refs : Refs ctx N) (store : Store ctx) :
+lemma sourceBasis_capacity (refs : Refs ctx N) (store : Store ctx) :
     Nat.size (256 * (NumberTheory.lllStateEnvelope3 (sourceBasis refs store) + 1) ^ 8) + 1 ≤
       Width N :=
   LatticeStepBounds.shortLog_coordinateWidth_capacity N (shortLogBits N)
     (tradeoffBits N) (sourceSamples refs store)
 
 /-- Actual wide decoding initializes precisely the original basis view of the mutable LLL driver. -/
-theorem prefix_basisRepresents {model : ExecutionModel} [BitWord.Selected model]
+lemma prefix_basisRepresents {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N)
     (separation : LatticeWideInitializationPrefix.Separation (prefixRefs refs))
     (store : Store ctx) (zeros : LatticeWideInitializationPrefix.BasisInitialZero store
@@ -109,17 +109,18 @@ abbrev resetFirstStore (refs : Refs ctx N) (store : Store ctx) : Store ctx :=
   LatticeFixedFuelMachine.resetFirstStore refs.driver store
 
 /-- The actual original reset retains every incoming state block and its full history. -/
-theorem resetFirstInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma resetFirstInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (resetFirstInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (resetFirstInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := LatticeFixedFuelMachine.resetFirstStep (model := model) refs.driver entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   LatticeFixedFuelMachine.resetFirstInto_execute refs.driver Reference state
 
 /-- The actual original reset preserves every read outside the two latch identities. -/
-theorem resetFirstInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+lemma resetFirstInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (phase : refs.driver.machine.secondPhase.key ∉ other.storageKeys)
     (done : refs.driver.machine.done.key ∉ other.storageKeys) :
@@ -127,7 +128,7 @@ theorem resetFirstInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
   LatticeFixedFuelMachine.resetFirstInto_callerFrame refs.driver store other phase done
 
 /-- The actual reset establishes the first phase under the original machine-only separation. -/
-theorem resetFirstInto_phase (refs : Refs ctx N) (separation : refs.driver.machine.Separated)
+lemma resetFirstInto_phase (refs : Refs ctx N) (separation : refs.driver.machine.Separated)
     (store : Store ctx) :
     refs.driver.machine.PhaseRepresents (resetFirstStore refs store) .first := by
   have different : refs.driver.machine.done.key ≠ refs.driver.machine.secondPhase.key := by
@@ -145,7 +146,7 @@ theorem resetFirstInto_phase (refs : Refs ctx N) (separation : refs.driver.machi
   · exact LatticeFixedFuelMachine.clear_read _ _
 
 /-- Original machine separation keeps each basis coordinate outside either actual latch write. -/
-theorem basis_avoids_latch (refs : Refs ctx N) (separation : refs.driver.machine.Separated)
+lemma basis_avoids_latch (refs : Refs ctx N) (separation : refs.driver.machine.Separated)
     (cell : LatticeMetricMachine.BasisCell) (target : LatticeState.MachineCell)
     (different : LatticeFixedFuelMachine.basisMachineCell cell ≠ target) :
     refs.driver.machine.keyOf target ∉
@@ -159,7 +160,7 @@ theorem basis_avoids_latch (refs : Refs ctx N) (separation : refs.driver.machine
     LatticeState.MachineRefs.keyOf] using keyNe
 
 /-- The actual original reset retains each original mutable basis word. -/
-theorem resetFirstInto_basis_callerFrame (refs : Refs ctx N)
+lemma resetFirstInto_basis_callerFrame (refs : Refs ctx N)
     (separation : refs.driver.machine.Separated) (store : Store ctx)
     (cell : LatticeMetricMachine.BasisCell) :
     (resetFirstStore refs store).read
@@ -170,7 +171,7 @@ theorem resetFirstInto_basis_callerFrame (refs : Refs ctx N)
     (basis_avoids_latch refs separation cell .done (by cases cell <;> decide))
 
 /-- The actual original latch reset retains every Gram word and the original Gram scratch. -/
-theorem resetFirstInto_metric_callerFrame (refs : Refs ctx N)
+lemma resetFirstInto_metric_callerFrame (refs : Refs ctx N)
     (separation : LatticeFixedFuelMachine.Separation refs.driver) (store : Store ctx)
     (cell : LatticeMetricMachine.MetricCell) :
     (resetFirstStore refs store).read
@@ -184,18 +185,19 @@ theorem resetFirstInto_metric_callerFrame (refs : Refs ctx N)
       separation.doneMetric cell)
 
 /-- The original reset emits exactly two independent native XOR instructions. -/
-theorem resetFirstInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma resetFirstInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (path : (resetFirstInto refs).Path) :
     (resetFirstInto refs).eventTrace path = LatticeFixedFuelMachine.resetFirstTrace :=
   LatticeFixedFuelMachine.resetFirstInto_events refs.driver path
 
 /-- The actual original reset restores borrowed storage jointly with all external references. -/
-theorem resetFirstInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma resetFirstInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (resetFirstInto refs).BorrowedRestored Reference state
-      ((resetFirstInto refs).execute Reference state) :=
+      ((resetFirstInto refs).execute environment Reference state) :=
   LatticeFixedFuelMachine.resetFirstInto_borrowedRestored refs.driver Reference state
 
 end

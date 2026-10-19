@@ -22,6 +22,8 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Complete short-DLP circuit with the sealed oracle leaf replaced by the two
 actual selected-unit modular-exponentiation programs on their shared workspace. -/
 def compiledCircuit (m ell width N : Nat) (g x : (ZMod N)ˣ) :
@@ -32,28 +34,32 @@ def compiledCircuit (m ell width N : Nat) (g x : (ZMod N)ˣ) :
       (readoutCircuit (registerParameters m ell width)))
 
 /-- The declared and compiled stages use the same actual inverse-Fourier operator. -/
-theorem readoutCircuit_binaryMatrix_eq_declared
+lemma readoutCircuit_binaryMatrix_eq_declared
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits) :
-    (readoutCircuit params).binaryMatrix =
-      (DeclaredStage.readout (params := params) encoding).binaryMatrix := by
+    (readoutCircuit params).binaryMatrix environment =
+      (DeclaredStage.readout N params).binaryMatrix (declaredInterpretation encoding) := by
   rw [readoutCircuit, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix,
     DeclaredStage.readoutPair_sourceMatrix, DeclaredStage.readout_binaryMatrix]
 
 -- Keep composition abstract so kernel conversion never unfolds the large arithmetic word.
-private theorem three_stage_action {gates : GateModel} {oracles declaredOracles : OracleModel}
+private lemma three_stage_action {gates : GateModel} {oracles declaredOracles : OracleModel}
     {bits : Nat}
+    (environment : oracles.Interpretation)
+    (declaredEnvironment : declaredOracles.Interpretation)
     (preparation group readout : UnitaryCircuit gates oracles
       (QuantumSignature.qubits bits).canonicalPlacement.layout)
     (declaredReadout declared : UnitaryCircuit gates declaredOracles
       (QuantumSignature.qubits bits).canonicalPlacement.layout)
     (input declaredInput graph : HilbertVector (Qubits bits))
-    (groupAction : group.applyBinaryVec (preparation.applyBinaryVec input) = graph)
-    (readoutMatrix : readout.binaryMatrix = declaredReadout.binaryMatrix)
-    (declaredAction : declared.applyBinaryVec declaredInput =
-      declaredReadout.applyBinaryVec graph) :
-    (preparation.seq (group.seq readout)).applyBinaryVec input =
-      declared.applyBinaryVec declaredInput := by
+    (groupAction : group.applyBinaryVec environment
+      (preparation.applyBinaryVec environment input) = graph)
+    (readoutMatrix : readout.binaryMatrix environment =
+      declaredReadout.binaryMatrix declaredEnvironment)
+    (declaredAction : declared.applyBinaryVec declaredEnvironment declaredInput =
+      declaredReadout.applyBinaryVec declaredEnvironment graph) :
+    (preparation.seq (group.seq readout)).applyBinaryVec environment input =
+      declared.applyBinaryVec declaredEnvironment declaredInput := by
   rw [UnitaryCircuit.applyBinaryVec_seq, UnitaryCircuit.applyBinaryVec_seq, groupAction]
   exact (congrArg (fun operator : UnitaryOperator (Qubits bits) => operator.applyVec graph)
     readoutMatrix).trans declaredAction.symm
@@ -61,10 +67,10 @@ private theorem three_stage_action {gates : GateModel} {oracles declaredOracles 
 /-- On the respective physical clean initial states, the actual compiled
 circuit and the idealized permutation circuit produce the same final vector.
 This equality transfers the complete Born analysis to the base-gate circuit. -/
-theorem compiledCircuit_apply_input_eq_ideal
+lemma compiledCircuit_apply_input_eq_ideal
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
-    (compiledCircuit m ell width N g x).applyBinaryVec
+    (compiledCircuit m ell width N g x).applyBinaryVec environment
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -73,8 +79,8 @@ theorem compiledCircuit_apply_input_eq_ideal
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width)))) =
-      (DeclaredStage.circuit (params := registerParameters m ell width)
-        (unitEncoding width N hNgtOne hN) g x).applyBinaryVec
+      (DeclaredStage.circuit N (registerParameters m ell width) g x).applyBinaryVec
+        (declaredInterpretation (unitEncoding width N hNgtOne hN))
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -84,15 +90,22 @@ theorem compiledCircuit_apply_input_eq_ideal
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width)))) :=
-  three_stage_action
+  three_stage_action (gates := AlgorithmGate.model) (oracles := .empty)
+    (declaredOracles := declaredModel N (registerParameters m ell width))
+    (bits := totalQubits (registerParameters m ell width)) environment
+    (declaredInterpretation (unitEncoding width N hNgtOne hN))
     (preparationCircuit (registerParameters m ell width))
     (compiledGroupActionProgram m ell width N g x)
     (readoutCircuit (registerParameters m ell width))
-    (DeclaredStage.readout (params := registerParameters m ell width)
-        (unitEncoding width N hNgtOne hN))
-    (DeclaredStage.circuit (params := registerParameters m ell width)
-        (unitEncoding width N hNgtOne hN) g x)
-    _ _ (BornProbability.postOracleVec (params := registerParameters m ell width)
+    (DeclaredStage.readout N (registerParameters m ell width))
+    (DeclaredStage.circuit N (registerParameters m ell width) g x)
+    (NormalizedVector.ket (R := Qubits (totalQubits (registerParameters m ell width)))
+      (tripleIndex (registerParameters m ell width) 0 0 (cleanUnitLabel width N 1))).vec
+    (NormalizedVector.ket (R := Qubits (totalQubits (registerParameters m ell width)))
+      (prodEquiv
+        ((0 : Fin (2 ^ (firstBits (registerParameters m ell width) + ell))),
+          (0 : Fin (2 ^ workspaceBits width))))).vec
+    (BornProbability.postOracleVec (params := registerParameters m ell width)
       (unitEncoding width N hNgtOne hN) g x)
     (compiledGroupActionProgram_apply_preparation m ell width N g x hNgtOne hN)
     (readoutCircuit_binaryMatrix_eq_declared (params := registerParameters m ell width)
@@ -102,13 +115,13 @@ theorem compiledCircuit_apply_input_eq_ideal
 
 /-- Every terminal basis amplitude of the actual base-gate circuit is exactly
 the amplitude already analyzed by the short-DLP Born development. -/
-theorem compiledCircuit_amplitude
+lemma compiledCircuit_amplitude
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width)
     (j : Fin (2 ^ firstBits (registerParameters m ell width)))
     (k : Fin (2 ^ ell))
     (y : Fin (2 ^ workspaceBits width)) :
-    (compiledCircuit m ell width N g x).applyBinaryVec
+    (compiledCircuit m ell width N g x).applyBinaryVec environment
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -125,8 +138,8 @@ theorem compiledCircuit_amplitude
   have hamplitude := BornProbability.declaredCircuit_amplitude
     (unitEncoding width N hNgtOne hN) g x j k y
   change
-    (DeclaredStage.circuit (params := registerParameters m ell width)
-        (unitEncoding width N hNgtOne hN) g x).applyBinaryVec
+    (DeclaredStage.circuit N (registerParameters m ell width) g x).applyBinaryVec
+        (declaredInterpretation (unitEncoding width N hNgtOne hN))
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -157,7 +170,7 @@ def inputState (m ell width N : Nat) :
 def evolvedState (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     QubitLayout.State (layout (registerParameters m ell width)) where
   state := PureState.ofNormalized
-    ((compiledCircuit m ell width N g x).binaryMatrix.apply
+    (((compiledCircuit m ell width N g x).binaryMatrix OracleModel.emptyInterpretation).apply
       (NormalizedVector.ket
         (R := Qubits
           (totalQubits (registerParameters m ell width)))
@@ -168,7 +181,7 @@ def evolvedState (m ell width N : Nat) (g x : (ZMod N)ˣ) :
 
 /-- The actual compiled state and the state used by the existing Born proof
 are mathematically identical; only their physical construction differs. -/
-theorem evolvedState_normalized_eq_ideal
+lemma evolvedState_normalized_eq_ideal
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
     (evolvedState m ell width N g x).normalized =
@@ -177,10 +190,10 @@ theorem evolvedState_normalized_eq_ideal
   apply NormalizedVector.ext
   intro output
   have hvector := congrArg (fun state => state output)
-    (compiledCircuit_apply_input_eq_ideal
+    (compiledCircuit_apply_input_eq_ideal (environment := OracleModel.emptyInterpretation)
       m ell width N g x hNgtOne hN)
   change
-    (compiledCircuit m ell width N g x).applyBinaryVec
+    (compiledCircuit m ell width N g x).applyBinaryVec OracleModel.emptyInterpretation
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -189,8 +202,8 @@ theorem evolvedState_normalized_eq_ideal
           HilbertVector
             (Qubits
               (totalQubits (registerParameters m ell width)))) output =
-      (DeclaredStage.circuit (params := registerParameters m ell width)
-        (unitEncoding width N hNgtOne hN) g x).applyBinaryVec
+      (DeclaredStage.circuit N (registerParameters m ell width) g x).applyBinaryVec
+        (declaredInterpretation (unitEncoding width N hNgtOne hN))
         (NormalizedVector.ket
           (R := Qubits
             (totalQubits (registerParameters m ell width)))
@@ -205,7 +218,7 @@ theorem evolvedState_normalized_eq_ideal
 
 /-- Terminal outcome probabilities of the actual base-gate circuit equal the
 probabilities already derived from the explicit Fourier amplitudes. -/
-theorem outcomePMF_eq_ideal
+lemma outcomePMF_eq_ideal
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
     (measurement (registerParameters m ell width)).outcomePMF

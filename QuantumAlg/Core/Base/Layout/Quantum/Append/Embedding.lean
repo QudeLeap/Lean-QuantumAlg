@@ -41,7 +41,7 @@ public def appendRightEmbedding (left : QuantumLayout leftCount)
   wire_eq := by intro index; simp [append]
 
 /-- Appended segments occupy disjoint positions in the joint physical layout. -/
-public theorem appendEmbedding_selections_disjoint (left : QuantumLayout leftCount)
+public lemma appendEmbedding_selections_disjoint (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities) :
     Disjoint (appendLeftEmbedding left right disjoint).selection

@@ -32,7 +32,7 @@ def qudTensor3 (A B C : Matrix (Fin d) (Fin d) ℂ) :
   Matrix.of fun a b => A a.1 b.1 * B a.2.1 b.2.1 * C a.2.2 b.2.2
 
 @[simp]
-theorem qudTensor3_apply (A B C : Matrix (Fin d) (Fin d) ℂ)
+lemma qudTensor3_apply (A B C : Matrix (Fin d) (Fin d) ℂ)
     (a b : Fin d × (Fin d × Fin d)) :
     qudTensor3 A B C a b =
       A a.1 b.1 * B a.2.1 b.2.1 * C a.2.2 b.2.2 := by

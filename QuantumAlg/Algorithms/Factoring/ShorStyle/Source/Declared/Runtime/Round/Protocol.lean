@@ -42,7 +42,7 @@ def accepts {N : Nat} (model : NumberTheory.Factoring.SemiprimeFactorModel N)
 def inputDomain (ctx : RuntimeCtx .quantum) {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (cells : NativeFactorScan.Cells ctx N)
     (state : ExecutionState
-      (Store ctx × (executionModel (Probability.Input.ofSemiprimeModel model)).HiddenState)
+      (Store ctx × (executionModel N).HiddenState)
       ctx.register) : Prop :=
   (∀ entry basis, basis ≠ ctx.quantumLayout.zeroLabel →
     (state.block entry).matrix basis basis = 0) ∧
@@ -71,7 +71,7 @@ def stateRequirement (ctx : RuntimeCtx .quantum) (N : Nat) (cells : NativeFactor
   recovery, first-success feedback and paid reset of the whole bank.
 - Caller capacity, every retained result and simultaneous native scratch are
   included in both space ledgers. Depth uses the same actual dependency path
-  under independently supplied event durations and the closed event allowance.
+  under the canonical quantum duration and the independent event allowance.
 **Success.**
 - The original rational one-attempt floor for a factor of the unknown-prime
   semiprime, including even moduli and all sampled nonunit parameters.
@@ -79,37 +79,31 @@ def stateRequirement (ctx : RuntimeCtx .quantum) (N : Nat) (cells : NativeFactor
 - [Sho95, source.tex:1124-1169,1183-1245] for sampling and factor recovery.
 - [dW19, qcnotes.tex:2203-2225] for the declared XOR query interpretation.
 -/
-def problem (ctx : RuntimeCtx .quantum) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N) (cells : NativeFactorScan.Cells ctx N)
-    (duration : Resource.Event (executionModel (Probability.Input.ofSemiprimeModel model)) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (executionModel (Probability.Input.ofSemiprimeModel model)) ctx
+def problem (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+    (cells : NativeFactorScan.Cells ctx N) :
+    Problem (executionModel N) ctx
       (Iteration.context ctx N) (.product .bit (.unsignedWord (modulusBits N))) where
-  valid := fun _ => True
-  initialization := inputDomain ctx model cells
-  accepts := fun _ value => accepts model value
-  successLB := ⟨Probability.honestAttemptSuccessFloor N,
-    honestFloor_le_one (Probability.Input.ofSemiprimeModel model)⟩
-  states := [stateRequirement ctx N cells]
+  Witness := NumberTheory.Factoring.SemiprimeFactorModel N
+  valid := fun actual _ _ => actual.quantum =
+    DeclaredSource.interpretation (sourceBounds input) (phaseBits N)
+  initialization := fun _ witness => inputDomain ctx witness cells
+  accepts := fun _ witness _ value => accepts witness value
+  successLB := fun _ _ => ⟨Probability.honestAttemptSuccessFloor N, honestFloor_le_one input⟩
+  states := fun _ _ => [stateRequirement ctx N cells]
   resources :=
-    { events := completionEnvelope (Probability.Input.ofSemiprimeModel model)
+    { events := completionEnvelope N
       resident := ctx.residentSpace + completionAdditionalSpace N
       auxiliary := ctx.auxiliarySpace + completionAdditionalSpace N }
-  depth :=
-    { duration := duration
-      limit := ResourcePool.weightedCount duration
-        (completionEnvelope (Probability.Input.ofSemiprimeModel model))
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
+  quantumTimeLimit := ResourcePool.weightedCount Resource.Event.quantumDuration
+    (completionEnvelope N)
 
-/-- The actual complete round exposes its full manifest and existing two-cell result. -/
-def algorithm (ctx : RuntimeCtx .quantum) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N)
+/-- The actual complete round depends only on the public modulus and its nontriviality proof. -/
+def algorithm (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Algorithm (executionModel (Probability.Input.ofSemiprimeModel model)) ctx
+    Algorithm (executionModel N) ctx
       (Iteration.context ctx N) (.product .bit (.unsignedWord (modulusBits N))) where
-  run := Completion.run ctx N (Probability.Input.ofSemiprimeModel model) sameWires cells result
+  run := Completion.run ctx N input sameWires cells result
 
 end
 

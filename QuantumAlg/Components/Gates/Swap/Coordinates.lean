@@ -29,7 +29,7 @@ namespace QuantumAlg
 
 noncomputable section
 
-private theorem encoded_bit {width : Nat} (basis : Fin width → Fin 2)
+private lemma encoded_bit {width : Nat} (basis : Fin width → Fin 2)
     (index : Fin width) :
     (QuantumSignature.qubitsIndexEquiv width basis).val.testBit
       (WireAddress.bitIndex index).val = finTwoEquiv (basis index) := by
@@ -41,7 +41,7 @@ private theorem encoded_bit {width : Nat} (basis : Fin width → Fin 2)
   rw [reversed]
   exact BinaryBasis.bigEndianEquiv_bit width basis index
 
-private theorem decoded_bit {width : Nat} (label : Fin (2 ^ width))
+private lemma decoded_bit {width : Nat} (label : Fin (2 ^ width))
     (index : Fin width) :
     finTwoEquiv ((QuantumSignature.qubitsIndexEquiv width).symm label index) =
       label.val.testBit (WireAddress.bitIndex index).val := by
@@ -52,7 +52,7 @@ private theorem decoded_bit {width : Nat} (label : Fin (2 ^ width))
         value.val.testBit (WireAddress.bitIndex index).val) inverse)
 
 /-- The unchanged integer-label action exchanges exactly the two physical coordinates. -/
-public theorem qftSwapLabel_coordinates {width : Nat} (left right : Fin width)
+public lemma qftSwapLabel_coordinates {width : Nat} (left right : Fin width)
     (distinct : left ≠ right) (basis : Fin width → Fin 2) (index : Fin width) :
     (QuantumSignature.qubitsIndexEquiv width).symm
       (qftSwapLabel left right (QuantumSignature.qubitsIndexEquiv width basis)) index =
@@ -69,7 +69,7 @@ public theorem qftSwapLabel_coordinates {width : Nat} (left right : Fin width)
         Equiv.swap_apply_of_ne_of_ne atLeft atRight]
 
 /-- Every matrix entry of the original target is the same exact coordinate exchange. -/
-public theorem qftSwapOperator_coordinates_entry {width : Nat} (left right : Fin width)
+public lemma qftSwapOperator_coordinates_entry {width : Nat} (left right : Fin width)
     (distinct : left ≠ right) (row column : Fin width → Fin 2) :
     UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm
       (qftSwapOperator left right distinct) row column =

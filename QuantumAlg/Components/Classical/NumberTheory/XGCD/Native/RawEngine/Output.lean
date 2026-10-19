@@ -39,11 +39,12 @@ def copyRawOutputsStore (cells : Cells ctx (stateShapes width))
       (GCD.cellRead (secondRightCell cells)) outputs.rightCoefficient)
 
 /-- Each complete quantum-reference block carries the actual three-copy store and path. -/
-theorem xgcdNativeCopyRawOutputs_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeCopyRawOutputs_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (copyRawOutputs (model := model) cells outputs).execute Reference state =
+    (copyRawOutputs (model := model) cells outputs).execute environment Reference state =
       state.mapClassical (fun entry =>
       let result := copyRawOutputsStep (model := model) cells outputs entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -59,7 +60,7 @@ def rawResultStore (cells : Cells ctx (stateShapes width))
       outputs.rightCoefficient (store.read (GCD.cellRead (secondRightCell cells)))
 
 /-- Protected state reads make the actual native copies equal these three literal caller writes. -/
-theorem xgcdNativeCopyRawOutputs_store (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeCopyRawOutputs_store (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (store : Store ctx)
     (gcdLeft : outputs.gcd.key ≠ (secondLeftCell cells).key)
     (gcdRight : outputs.gcd.key ≠ (secondRightCell cells).key)
@@ -83,7 +84,7 @@ theorem xgcdNativeCopyRawOutputs_store (cells : Cells ctx (stateShapes width))
   rfl
 
 /-- Distinct caller destinations retain all three original raw state words simultaneously. -/
-theorem xgcdNativeRawResultStore_values (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeRawResultStore_values (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct) (store : Store ctx) :
     let final := rawResultStore cells outputs store
     final.read (GCD.cellRead outputs.gcd) = store.read (GCD.cellRead (secondCell cells)) ∧
@@ -104,7 +105,7 @@ theorem xgcdNativeRawResultStore_values (cells : Cells ctx (stateShapes width))
   · exact Store.read_write_same _ _ _
 
 /-- Every structural read outside the three actual result destinations is unchanged. -/
-theorem xgcdNativeCopyRawOutputs_read_other (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeCopyRawOutputs_read_other (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (gcdFree : outputs.gcd.key ∉ other.storageKeys)
     (leftFree : outputs.leftCoefficient.key ∉ other.storageKeys)
@@ -121,7 +122,7 @@ theorem xgcdNativeCopyRawOutputs_read_other (cells : Cells ctx (stateShapes widt
       (.wordUnary .copy width ctx (GCD.cellRead (secondCell cells)) outputs.gcd) other gcdFree]
 
 /-- Fresh state allocation proves each state cell differs from every actual caller output. -/
-theorem xgcdNativeRawOutput_state_separated {outer : RuntimeCtx kind}
+lemma xgcdNativeRawOutput_state_separated {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)
     {shape : CShape} (output : CWriteRef outer shape) (index : Fin 7) :
@@ -135,7 +136,7 @@ theorem xgcdNativeRawOutput_state_separated {outer : RuntimeCtx kind}
   exact List.mem_singleton.mpr rfl
 
 /-- Actual fresh-state placement discharges all source protection for the final native copies. -/
-theorem xgcdNativeCopyRawOutputs_placed_store {outer : RuntimeCtx kind}
+lemma xgcdNativeCopyRawOutputs_placed_store {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (outputs : RawOutputs outer width)
     (store : Store ctx) :

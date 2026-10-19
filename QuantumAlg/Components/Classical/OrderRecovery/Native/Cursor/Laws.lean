@@ -24,12 +24,12 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual copy exposes precisely the value read from its source store. -/
-theorem nativeCursor_copy_read (input : CInputRef ctx (.unsignedWord width))
+lemma nativeCursor_copy_read (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (store.applyOp (copyCursorWord input output)).read (cellRead output) = store.read input :=
   Store.read_applyOp_output store (copyCursorWord input output)
 
-private theorem copy_read_other {shape : CShape}
+private lemma copy_read_other {shape : CShape}
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (other : CWriteRef ctx shape)
     (different : output.key ≠ other.key) (store : Store ctx) :
@@ -38,14 +38,14 @@ private theorem copy_read_other {shape : CShape}
   Store.read_applyOp_of_not_mem_storageKeys store (copyCursorWord input output) (cellRead other)
     (fun present => different (List.mem_singleton.mp present))
 
-private theorem copy_read_external {shape : CShape}
+private lemma copy_read_external {shape : CShape}
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
     (store.applyOp (copyCursorWord input output)).read other = store.read other :=
   Store.read_applyOp_of_not_mem_storageKeys store (copyCursorWord input output) other separate
 
-private theorem active_read_other {shape : CShape} (cells : CursorCells ctx width)
+private lemma active_read_other {shape : CShape} (cells : CursorCells ctx width)
     (zero : CInputRef ctx (.unsignedWord width)) (other : CWriteRef ctx shape)
     (different : cells.active.key ≠ other.key) (store : Store ctx) :
     (store.applyOp (cursorActiveOp cells zero)).read (cellRead other) =
@@ -53,7 +53,7 @@ private theorem active_read_other {shape : CShape} (cells : CursorCells ctx widt
   Store.read_applyOp_of_not_mem_storageKeys store (cursorActiveOp cells zero) (cellRead other)
     (fun present => different (List.mem_singleton.mp present))
 
-private theorem active_read (cells : CursorCells ctx width)
+private lemma active_read (cells : CursorCells ctx width)
     (zero : CInputRef ctx (.unsignedWord width)) (store : Store ctx) :
     (store.applyOp (cursorActiveOp cells zero)).read (cellRead cells.active) =
       .bit (decide ((store.read zero).toNat <
@@ -61,7 +61,7 @@ private theorem active_read (cells : CursorCells ctx width)
   Store.read_applyOp_output store (cursorActiveOp cells zero)
 
 /-- The actual five writes rotate the exact original words and read the same remainder. -/
-theorem nativeCursor_advance_reads (cells : CursorCells ctx width)
+lemma nativeCursor_advance_reads (cells : CursorCells ctx width)
     (remainder zero : CInputRef ctx (.unsignedWord width))
     (distinct : [cells.older.key, cells.previous.key, cells.numerator.key,
       cells.denominator.key, cells.candidate.key, cells.active.key].Nodup)
@@ -121,7 +121,7 @@ theorem nativeCursor_advance_reads (cells : CursorCells ctx width)
       copy_read_external _ _ _ olderRemainder]
 
 /-- All other real structural reads survive an actual rejected-candidate update. -/
-theorem nativeCursor_advance_read_other (cells : CursorCells ctx width)
+lemma nativeCursor_advance_read_other (cells : CursorCells ctx width)
     (remainder zero : CInputRef ctx (.unsignedWord width)) {shape : CShape}
     (other : CInputRef ctx shape)
     (separate : ∀ key ∈ [cells.older.key, cells.previous.key, cells.numerator.key,

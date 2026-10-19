@@ -88,32 +88,30 @@ public structure SecurityParameter where
 /-- Exact number of fresh Simon attempts. -/
 def sampleCount (n : Nat) (κ : SecurityParameter) : Nat := n + κ.value
 
-/-- The supplied source unitary grants one ordinary query on the original two registers. -/
-public abbrev sourceModel {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
-    OracleModel := UnitarySource.model oracle
+/-- The fixed source signature grants one ordinary query on the original two registers. -/
+public abbrev sourceModel (n : Nat) : OracleModel := UnitarySource.model (2 * n)
 
 /-- Native gates and fixed-width classical operations share the same source declaration. -/
 public abbrev nativeModel (oracles : OracleModel) : ExecutionModel :=
   .quantum AlgorithmGate.model oracles BitWord.model .empty
 
-/-- The executable Simon model grants only its supplied ordinary source query. -/
-public abbrev executionModel {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
-    ExecutionModel := nativeModel (sourceModel oracle)
+/-- The executable Simon model grants only the fixed ordinary source query signature. -/
+public abbrev executionModel (n : Nat) : ExecutionModel := nativeModel (sourceModel n)
 
 /-- Native one-qubit coordinate for the two source Hadamard layers. -/
-def hadamardEvent {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
-    Resource.Event (executionModel oracle) := .gate .singleQubit
+def hadamardEvent (n : Nat) :
+    Resource.Event (executionModel n) := .gate .singleQubit
 
 /-- Strict opaque Simon-oracle coordinate used by the fixed sampling contract. -/
-def oracleEvent {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
-    Resource.Event (executionModel oracle) := .oracle .ordinary
+def oracleEvent (n : Nat) :
+    Resource.Event (executionModel n) := .oracle .ordinary
 
 /-- Implementation-independent circuit envelope for the two Hadamard layers
 and one Simon XOR-oracle call. -/
-public def circuitEventLimit {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
-    ResourcePool (executionModel oracle) :=
-  ResourcePool.singleton (hadamardEvent oracle) (2 * n) +
-    ResourcePool.singleton (oracleEvent oracle)
+public def circuitEventLimit (n : Nat) :
+    ResourcePool (executionModel n) :=
+  ResourcePool.singleton (hadamardEvent n) (2 * n) +
+    ResourcePool.singleton (oracleEvent n)
 
 /-- The endpoint starts every attempt from a sealed all-zero preparation. -/
 def inputPreparation (n : Nat) : KnownPreparation (2 * n) :=
@@ -123,48 +121,66 @@ def inputPreparation (n : Nat) : KnownPreparation (2 * n) :=
 public structure SamplingCircuit (n : Nat) where
   /-- A nonempty measured register is required by terminal execution. -/
   widthPositive : 0 < n
-  /-- The granted source operator is fixed independently of each call's placement. -/
-  oracle : UnitaryOperator (Qubits (2 * n))
   /-- Real Simon sampling circuit on the two `n`-qubit registers. -/
-  circuit : UnitaryCircuit AlgorithmGate.model (sourceModel oracle) (layout n).toQuantum
+  circuit : UnitaryCircuit AlgorithmGate.model (sourceModel n) (layout n).toQuantum
   /-- The real circuit emits exactly the independent strict event limit. -/
-  circuitEventCost : circuit.eventCost BitWord.model .empty = circuitEventLimit oracle
+  circuitEventCost : circuit.eventCost BitWord.model .empty = circuitEventLimit n
   /-- The standard Hadamard/oracle/Hadamard circuit has unit depth at most 3. -/
   circuitUnitDepth :
     DepthExpr.depthEval (fun _event => 1) (circuit.eventDepth BitWord.model .empty) ≤ 3
 
 /-- Complete source matrix in the original big-endian mathematical qubit coordinates. -/
-public def SamplingCircuit.binaryOperator {n : Nat} (sampling : SamplingCircuit n) :
+public def SamplingCircuit.binaryOperator {n : Nat} (sampling : SamplingCircuit n)
+    (environment : (sourceModel n).Interpretation) :
     UnitaryOperator (Qubits (2 * n)) :=
-  UnitaryOperator.reindex (layout n).basisEquiv sampling.circuit.matrix
+  UnitaryOperator.reindex (layout n).basisEquiv (sampling.circuit.matrix environment)
 
 /-- The original normalized state after the supplied circuit acts on its fixed zero input. -/
-def SamplingCircuit.evolvedState {n : Nat} (sampling : SamplingCircuit n) :
+def SamplingCircuit.evolvedState {n : Nat} (sampling : SamplingCircuit n)
+    (environment : (sourceModel n).Interpretation) :
     QubitLayout.State (layout n) where
   state := PureState.ofNormalized
-    (sampling.binaryOperator.apply (inputPreparation n).normalized) (layout n).systemIdx
+    ((sampling.binaryOperator environment).apply (inputPreparation n).normalized) (layout
+      n).systemIdx
   system_idx_eq := rfl
 
 /-- The source one-attempt Born law, with the original first-register readout. -/
-public def SamplingCircuit.outcomePMF {n : Nat} (sampling : SamplingCircuit n) : PMF (Outcome n) :=
-  (measurement n).outcomePMF sampling.evolvedState
+public def SamplingCircuit.outcomePMF {n : Nat} (sampling : SamplingCircuit n)
+    (environment : (sourceModel n).Interpretation) : PMF (Outcome n) :=
+  (measurement n).outcomePMF (sampling.evolvedState environment)
 
 /-- Decode one actually measured row by the same big-endian convention used
 by the executable GF(2) reducer. -/
 public def decodeWord {n : Nat} (outcome : Outcome n) : Word n :=
   ClassicalAlgorithms.TerminalDecode.eval { order := .bigEndian, bits := outcome }
 
+/-- Independent semantic promise for the Born law of one fixed sampling circuit.
+
+The hidden word and these support and probability conditions affect only admission.
+The circuit and its native event/depth certificates are already fixed. -/
+public structure SamplingPromise {n : Nat} (sampling : SamplingCircuit n)
+    (environment : (sourceModel n).Interpretation) (secret : Word n) : Prop where
+  /-- The hidden mask is nonzero. -/
+  secretNonzero : secret ≠ 0
+  /-- Every supported actual row is orthogonal to the hidden mask. -/
+  orthogonalSupport : ∀ outcome ∈ (sampling.outcomePMF environment).support,
+    ClassicalAlgorithms.GF2.dot (decodeWord outcome) secret = 0
+  /-- Every wrong nonzero mask survives one actual row with probability at most one half. -/
+  wrongCandidateMass : ∀ candidate : Word n, candidate ≠ 0 → candidate ≠ secret →
+    (sampling.outcomePMF environment).toOuterMeasure
+      {outcome | ClassicalAlgorithms.GF2.dot (decodeWord outcome) candidate = 0} ≤
+        (2 : ENNReal)⁻¹
+
 /-- Source-facing certificates for the actual one-attempt Born distribution.
 
 The source oracle has an arbitrary codomain `α`, so this layer cannot fabricate
-a reversible encoding of `f`.  Instead `sampling` is the executable circuit,
+a reversible encoding of `f`.  Instead `sampling` is a previously fixed executable circuit,
 and both semantic fields below refer directly to that circuit's sealed Born
 PMF.  No batch, rank certificate, output PMF, or resource aggregate can be
 supplied independently of `sampling`. -/
-public structure Model {n : Nat} {α : Type u} (f : Simon.Oracle n α)
-    (s : Simon.BitVec n) where
-  /-- Executable circuit used for each independently prepared sample. -/
-  sampling : SamplingCircuit n
+public structure Model {n : Nat} (sampling : SamplingCircuit n)
+    (environment : (sourceModel n).Interpretation) {α : Type u}
+    (f : Simon.Oracle n α) (s : Simon.BitVec n) where
   /-- Fixed-width representation of the source hidden mask. -/
   secret : Word n
   /-- Every machine coordinate represents the corresponding source `F₂` bit. -/
@@ -173,13 +189,13 @@ public structure Model {n : Nat} {α : Type u} (f : Simon.Oracle n α)
   /-- Every supported result of the real prepared attempt is orthogonal to the
   represented hidden mask. -/
   orthogonalSupport : Simon.Promise f s →
-    ∀ outcome ∈ sampling.outcomePMF.support,
+    ∀ outcome ∈ (sampling.outcomePMF environment).support,
       ClassicalAlgorithms.GF2.dot (decodeWord outcome) secret = 0
   /-- A wrong nonzero mask survives one real Simon equation with probability
   at most one half. -/
   wrongCandidateMass : Simon.Promise f s →
     ∀ candidate : Word n, candidate ≠ 0 → candidate ≠ secret →
-      sampling.outcomePMF.toOuterMeasure
+      (sampling.outcomePMF environment).toOuterMeasure
           {outcome |
             ClassicalAlgorithms.GF2.dot
               (decodeWord outcome) candidate = 0} ≤

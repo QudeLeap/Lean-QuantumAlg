@@ -32,7 +32,7 @@ private def inputQubitLayout (exponentWidth width : Nat) :
     QubitLayout (exponentWidth + width) :=
   QubitLayout.canonical (exponentWidth + width)
 
-private theorem work_input_disjoint (exponentWidth width : Nat) :
+private lemma work_input_disjoint (exponentWidth width : Nat) :
     List.Disjoint (workQubitLayout exponentWidth width).systemIdx
       (inputQubitLayout exponentWidth width).systemIdx := by
   apply List.disjoint_left.mpr
@@ -44,7 +44,7 @@ private theorem work_input_disjoint (exponentWidth width : Nat) :
   change inputWire.val = physical at inputEq
   omega
 
-private theorem toQuantum_append_wires {leftCount rightCount : Nat}
+private lemma toQuantum_append_wires {leftCount rightCount : Nat}
     (left : QubitLayout leftCount) (right : QubitLayout rightCount)
     (disjoint : List.Disjoint left.systemIdx right.systemIdx) :
     (QubitLayout.append left right disjoint).toQuantum.wires =
@@ -84,7 +84,7 @@ def nativeSourceBasisEquiv (exponentWidth width : Nat) :
       (Qubits (nativeEncoding exponentWidth width).width).Index :=
   (nativeQubitLayout exponentWidth width).basisEquiv
 
-private theorem input_wires_eq_context (exponentWidth width : Nat) :
+private lemma input_wires_eq_context (exponentWidth width : Nat) :
     (inputQubitLayout exponentWidth width).toQuantum.wires =
       (context (exponentWidth + width)).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
@@ -95,7 +95,7 @@ private theorem input_wires_eq_context (exponentWidth width : Nat) :
 
 /-- The literal source placement and the prepared context contain the same
 ordered physical qubits, including at zero widths. -/
-theorem nativeSourceLayout_wires (exponentWidth width : Nat) :
+lemma nativeSourceLayout_wires (exponentWidth width : Nat) :
     (nativeSourceLayout exponentWidth width).wires =
       (preparedContext exponentWidth width).quantumLayout.wires := by
   unfold preparedContext
@@ -164,7 +164,7 @@ def oraclePosition (exponentWidth width : Nat) :
 
 /-- Numerical form of the complete field reorder, used to audit all four
 word segments against their actual target positions. -/
-theorem oraclePosition_val (exponentWidth width : Nat)
+lemma oraclePosition_val (exponentWidth width : Nat)
     (index : Fin (oracleEncoding exponentWidth width).width) :
     (oraclePosition exponentWidth width index).val =
       if index.val < exponentWidth then width + width + index.val
@@ -174,7 +174,7 @@ theorem oraclePosition_val (exponentWidth width : Nat)
   rfl
 
 /-- The physical reorder covers every prepared system exactly once. -/
-theorem oraclePosition_surjective (exponentWidth width : Nat) :
+lemma oraclePosition_surjective (exponentWidth width : Nat) :
     Function.Surjective (oraclePosition exponentWidth width) := by
   apply ((Fintype.bijective_iff_injective_and_card
     (oraclePosition exponentWidth width)).2 ?_).2
@@ -186,7 +186,7 @@ theorem oraclePosition_surjective (exponentWidth width : Nat) :
     omega
 
 /-- Every source and destination wire in the reorder is a qubit. -/
-theorem oraclePosition_dimensions (exponentWidth width : Nat)
+lemma oraclePosition_dimensions (exponentWidth width : Nat)
     (index : Fin (oracleEncoding exponentWidth width).width) :
     (((QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum).wire
       index).dimension =
@@ -206,7 +206,7 @@ def placedArithmeticOracle (exponentWidth width : Nat)
     (oraclePosition_dimensions exponentWidth width)
     (oracleProgram exponentWidth width modulus base)
 
-theorem placedArithmeticOracle_eventCost (exponentWidth width : Nat)
+lemma placedArithmeticOracle_eventCost (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (placedArithmeticOracle exponentWidth width modulus base).eventCost =
       (oracleProgram exponentWidth width modulus base).eventCost :=

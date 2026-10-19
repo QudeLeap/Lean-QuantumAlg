@@ -31,21 +31,23 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ClockDecode
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA EncodedBit PredicateLayout
 
 private def rotateFrame {width : Nat} (state : Registers width) (count : Nat) : Registers width :=
   { state with secondWord := state.secondWord.rotateRight count }
 
-private theorem rotateFrame_zero {width : Nat} (state : Registers width) :
+private lemma rotateFrame_zero {width : Nat} (state : Registers width) :
     rotateFrame state 0 = state := by
   rw [rotateFrame, WordRotationRight.rotateRight_zero]
 
-private theorem rotateFrame_comp {width : Nat} (state : Registers width) (first second : Nat) :
+private lemma rotateFrame_comp {width : Nat} (state : Registers width) (first second : Nat) :
     rotateFrame (rotateFrame state first) second = rotateFrame state (first + second) := by
   dsimp only [rotateFrame]
   rw [WordRotationRight.rotateRight_comp]
 
-private theorem control_rotateFrame (width : Nat) (index : Fin (width.size + 2))
+private lemma control_rotateFrame (width : Nat) (index : Fin (width.size + 2))
     (state : Registers width) (count : Nat) :
     (clockBit width index).get (rotateFrame state count) = (clockBit width index).get state :=
   ClockDecodeBit.control_setWord width index _ state
@@ -54,7 +56,7 @@ private def bitStep (width : Nat) (index : Fin (width.size + 2)) (state : Regist
     Registers width :=
   if (clockBit width index).get state then rotateFrame state 1 else state
 
-private theorem bit_iterate (width : Nat) (index : Fin (width.size + 2))
+private lemma bit_iterate (width : Nat) (index : Fin (width.size + 2))
     (count : Nat) (state : Registers width) :
     (bitStep width index)^[count] state =
       rotateFrame state (((clockBit width index).get state).toNat * count) := by
@@ -81,8 +83,8 @@ def bitProgram (width : Nat) (index : Fin (width.size + 2)) :
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   UnitaryCircuit.iterate (ClockDecodeWeight.weight width index) (ClockDecodeBit.program width index)
 
-private theorem bit_realizes (width : Nat) (index : Fin (width.size + 2)) :
-    UnitaryCircuit.Realizes (encoding width) (bitProgram width index)
+private lemma bit_realizes (width : Nat) (index : Fin (width.size + 2)) :
+    UnitaryCircuit.Realizes (encoding width) (bitProgram width index) environment
       (fun state => rotateFrame state
         (((clockBit width index).get state).toNat * ClockDecodeWeight.weight width index)) :=
   ((ClockDecodeBit.program_realizes width index).iterate
@@ -95,8 +97,8 @@ private def sequence (width : Nat) : List (Fin (width.size + 2)) →
   | [] => GateSpec.programList (QubitLayout.canonical _) .empty []
   | index :: rest => (bitProgram width index).seq (sequence width rest)
 
-private theorem sequence_realizes (width : Nat) (indices : List (Fin (width.size + 2))) :
-    UnitaryCircuit.Realizes (encoding width) (sequence width indices)
+private lemma sequence_realizes (width : Nat) (indices : List (Fin (width.size + 2))) :
+    UnitaryCircuit.Realizes (encoding width) (sequence width indices) environment
       (fun state => rotateFrame state
         ((indices.map fun index =>
           ((clockBit width index).get state).toNat *
@@ -104,7 +106,7 @@ private theorem sequence_realizes (width : Nat) (indices : List (Fin (width.size
   induction indices with
   | nil =>
       exact (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty [] (fun state =>
-        (rotateFrame_zero state).symm))
+        (rotateFrame_zero state).symm) environment)
   | cons index rest inductionHypothesis =>
       apply ((bit_realizes width index).seq inductionHypothesis).congrStep
       intro state
@@ -127,8 +129,8 @@ def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   sequence width (List.finRange (width.size + 2))
 
 /-- Actual native execution decodes the complete physical clock and preserves every other bit. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width)
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment
       (fun state => { state with
         secondWord :=
           state.secondWord.rotateRight (ExtendedClockRegisters.clock state).toNat }) := by

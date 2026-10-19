@@ -29,7 +29,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem scheduled_events_eq_path {Event : Type} (events : List Event)
+private lemma scheduled_events_eq_path {Event : Type} (events : List Event)
     (count : Nat) (state : PureXGCD.State) :
     (List.ofFn (fun index : Fin count =>
       if (PureXGCD.run index.val state).first = 0 then [] else events)).flatten =
@@ -50,7 +50,8 @@ private theorem scheduled_events_eq_path {Event : Type} (events : List Event)
         rw [inductionHypothesis]
 
 /-- Every certified record of the real branch retains precisely its actual incoming active bit. -/
-theorem xgcdNativeGuardedRecord_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeGuardedRecord_eventTrace {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
@@ -59,7 +60,8 @@ theorem xgcdNativeGuardedRecord_eventTrace {model : ExecutionModel} [BitWord.Sel
       (model := model) cells zero).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (guardedActive (model := model) cells zero).execute Reference state = state.mapClassical
+      (guardedActive (model := model) cells zero).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×
@@ -69,7 +71,8 @@ theorem xgcdNativeGuardedRecord_eventTrace {model : ExecutionModel} [BitWord.Sel
         activeEvents model width else [] := by
   obtain ⟨scopedRecord, scopedEquation, _⟩ :=
     xgcdNativeScopedActive_actualRecord cells distinct zero stateZero
-  have same := Circuit.executionRecord_unique (guardedActive (model := model) cells zero) record
+  have same := Circuit.executionRecord_unique (guardedActive (model := model) cells zero)
+    environment record
     (guardedActiveRecord (model := model) cells zero scopedRecord) equation
     (xgcdNativeGuardedActive_execute cells zero scopedRecord scopedEquation)
   have events (path : (guardedActive (model := model) cells zero).Path) :
@@ -85,7 +88,8 @@ theorem xgcdNativeGuardedRecord_eventTrace {model : ExecutionModel} [BitWord.Sel
   rfl
 
 /-- The same actual loop record emits precisely the original unpadded mathematical path events. -/
-theorem xgcdNativeLoop_record_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeLoop_record_eventTrace {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
@@ -94,7 +98,8 @@ theorem xgcdNativeLoop_record_eventTrace {model : ExecutionModel} [BitWord.Selec
       count (guardedActive (model := model) cells zero)).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (Circuit.iterate count (guardedActive (model := model) cells zero)).execute Reference state =
+      (Circuit.iterate count (guardedActive (model := model) cells zero)).execute
+        environment Reference state =
         state.mapClassical (fun entry =>
           let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
@@ -109,7 +114,7 @@ theorem xgcdNativeLoop_record_eventTrace {model : ExecutionModel} [BitWord.Selec
   obtain ⟨bodyRecord, bodyEquation, correct⟩ :=
     xgcdNativeGuardedActive_actualRecord cells distinct zero stateZero
   have same := Circuit.executionRecord_unique (Circuit.iterate count (guardedActive (model :=
-    model) cells zero))
+    model) cells zero)) environment
     record (iteratedActiveRecord (model := model) cells zero bodyRecord count) equation
     (xgcdNativeLoop_execute cells zero bodyRecord bodyEquation count)
   rw [same]

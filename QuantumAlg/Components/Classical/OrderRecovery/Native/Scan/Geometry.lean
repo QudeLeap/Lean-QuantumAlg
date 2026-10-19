@@ -34,14 +34,14 @@ structure ScanCells.Separated (cells : ScanCells ctx modulusWidth candidateWidth
   oneFree : ∀ key ∈ cells.writeKeys, key ∉ cells.one.storageKeys
 
 /-- Distinct positions in that actual write list have distinct storage identities. -/
-theorem nativeScan_separated_keys (cells : ScanCells ctx modulusWidth candidateWidth)
+lemma nativeScan_separated_keys (cells : ScanCells ctx modulusWidth candidateWidth)
     (separated : cells.Separated) (first second : Fin 11) (different : first ≠ second) :
     cells.writeKeys.get first ≠ cells.writeKeys.get second := by
   intro same
   exact different ((List.nodup_iff_injective_get.mp separated.distinct) same)
 
 /-- A structural lift through the actual division head preserves all placement facts. -/
-theorem nativeScan_separated_underWorkspace (cells : ScanCells ctx modulusWidth candidateWidth)
+lemma nativeScan_separated_underWorkspace (cells : ScanCells ctx modulusWidth candidateWidth)
     (separated : cells.Separated) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (cells.underWorkspace key shape fresh).Separated := by
   refine ⟨?_, ?_, ?_⟩
@@ -59,7 +59,7 @@ theorem nativeScan_separated_underWorkspace (cells : ScanCells ctx modulusWidth 
     exact separated.oneFree written member
 
 /-- The genuine recovery fields discharge every persistent scan-placement obligation. -/
-theorem nativeRecovery_scan_separated (modulusWidth candidateWidth : Nat) :
+lemma nativeRecovery_scan_separated (modulusWidth candidateWidth : Nat) :
     (recoveryCells ctx modulusWidth candidateWidth).Separated := by
   have positions : ([4, 5, 2, 3, 6, 8, 7, 9, 12, 10, 11] :
       List (Fin recoveryFields.length)).Nodup := by decide
@@ -88,7 +88,7 @@ theorem nativeRecovery_scan_separated (modulusWidth candidateWidth : Nat) :
       ([4, 5, 2, 3, 6, 8, 7, 9, 12, 10, 11] : List (Fin recoveryFields.length))) present
 
 /-- Every original source read is separate from all actual recovery scan destinations. -/
-theorem nativeRecovery_scan_input_separate (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_scan_input_separate (modulusWidth candidateWidth : Nat)
     {shape : CShape} (input : CInputRef ctx shape) :
     ∀ key ∈ (recoveryCells ctx modulusWidth candidateWidth).writeKeys,
       key ∉ (underRecoveryFields modulusWidth candidateWidth recoveryFields input).storageKeys := by

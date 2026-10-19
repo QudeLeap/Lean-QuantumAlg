@@ -18,7 +18,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.LatticePairRecoveryWor
 open Execution.ClassicalWorkspace
 
 /-- Lift a body property through the six packages actually allocated by pair recovery. -/
-theorem withWorkspaces_property {model : ExecutionModel}
+lemma withWorkspaces_property {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (N : Nat)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner)

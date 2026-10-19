@@ -23,11 +23,12 @@ noncomputable section
 variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
 
 /-- The executed circuit's output block is the exact weighted sum of its four source branches. -/
-theorem totalComplexWord_projected_block (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma totalComplexWord_projected_block (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
     projectedBlock (1 + (1 + (1 + m))) n
-      (reassociateThree (complexWord U phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).binaryMatrix) =
+      (reassociateThree ((complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).binaryMatrix
+          (UnitarySource.interpretation U true true false))) =
       (1 / 4 : ℂ) • projectedBlock m n (phasePlusBlock
         (initializedBranch U (phases.map fun a => a.1.1) realConstant)) +
       (1 / 4 : ℂ) • projectedBlock m n (phasePlusBlock

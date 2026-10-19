@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual modulus load and complete scan leave every original caller read unchanged. -/
-theorem samplerScan_read_original (N : Nat)
+lemma samplerScan_read_original (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     {shape : CShape} (other : CInputRef ctx shape)
     (store : Store (Layout.context ctx (modulusBits N))) :
@@ -72,7 +72,7 @@ theorem samplerScan_read_original (N : Nat)
         store)
 
 /-- Every original read outside the actual parameter output survives the complete inner program. -/
-theorem samplerInner_read_other (N : Nat)
+lemma samplerInner_read_other (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -96,7 +96,7 @@ theorem samplerInner_read_other (N : Nat)
       (samplerScan_read_original (model := model) N sample other store)
 
 /-- Actual scope release preserves every complete original read outside the parameter cell. -/
-theorem samplerProgram_read_other (N : Nat)
+lemma samplerProgram_read_other (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     {shape : CShape} (other : CInputRef ctx shape)

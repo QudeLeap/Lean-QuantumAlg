@@ -27,7 +27,7 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem storedEffect_history {kind : ProblemKind}
+private lemma storedEffect_history {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
     (state : State ctx Reference H) (update : H → K)
     (effects : Store ctx → Effect (Register.prod ctx.register Reference)) :
@@ -39,15 +39,17 @@ private theorem storedEffect_history {kind : ProblemKind}
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {Reference : Register}
 
 /-- Proven per-round effect contraction bounds the same actual finite execution. -/
-theorem forRange_effectWeight_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_effectWeight_le (count : Nat) (body : Fin count → Circuit model ctx ctx)
+    (environment : model.Environment)
     (effects : Store ctx → Effect (Register.prod ctx.register Reference))
     (ratio : ℝ) (nonnegative : 0 ≤ ratio)
     (step : ∀ index {H : Type} [Fintype H]
       (state : State ctx Reference (model.HiddenState × H)),
-      ((body index).execute Reference state).effectWeight (fun record => effects record.1) ≤
+      ((body index).execute environment Reference state).effectWeight
+        (fun record => effects record.1) ≤
         ratio * state.effectWeight (fun record => effects record.1))
     {H : Type} [Fintype H] (state : State ctx Reference (model.HiddenState × H)) :
-    ((forRange count body).execute Reference state).effectWeight
+    ((forRange count body).execute environment Reference state).effectWeight
         (fun record => effects record.1) ≤
       ratio ^ count * state.effectWeight (fun record => effects record.1) := by
   induction count generalizing H with
@@ -58,7 +60,7 @@ theorem forRange_effectWeight_le (count : Nat) (body : Fin count → Circuit mod
       rw [forRange, execute_seq]
       erw [storedEffect_history]
       have tail := ih (fun index => body index.succ) (fun index => step index.succ)
-        ((body 0).execute Reference state)
+        ((body 0).execute environment Reference state)
       have head := mul_le_mul_of_nonneg_left (step 0 state) (pow_nonneg nonnegative count)
       exact tail.trans (head.trans_eq (by rw [← mul_assoc, ← pow_succ]))
 

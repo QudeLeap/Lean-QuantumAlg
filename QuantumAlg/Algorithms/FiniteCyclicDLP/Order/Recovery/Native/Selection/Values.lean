@@ -51,13 +51,13 @@ public def recoveryValue (P : KnownOrderProblem G)
   | none => CShape.Value.optionNone
   | some value => CShape.Value.optionSome value
 
-private theorem retain_some {α : Type} (values : List (Option α)) (value : α) :
+private lemma retain_some {α : Type} (values : List (Option α)) (value : α) :
     values.foldl FirstAccepted.retainFirst (some value) = some value := by
   induction values with
   | nil => rfl
   | cons _ tail induction => exact induction
 
-private theorem retained_mem {α : Type} (values : List (Option α)) (value : α)
+private lemma retained_mem {α : Type} (values : List (Option α)) (value : α)
     (selected : values.foldl FirstAccepted.retainFirst none = some value) :
     some value ∈ values := by
   induction values with
@@ -70,7 +70,7 @@ private theorem retained_mem {α : Type} (values : List (Option α)) (value : α
           subst word
           exact List.mem_cons_self
 
-private theorem retained_unique {α : Type} (values : List (Option α)) (value : α)
+private lemma retained_unique {α : Type} (values : List (Option α)) (value : α)
     (unique : ∀ word, some word ∈ values → word = value)
     (present : some value ∈ values) :
     values.foldl FirstAccepted.retainFirst none = some value := by
@@ -88,7 +88,7 @@ private theorem retained_unique {α : Type} (values : List (Option α)) (value :
 
 omit [Fintype G] in
 /-- Every returned word belongs to an actually accepted sample. -/
-public theorem recoveryValue_some_mem (P : KnownOrderProblem G)
+public lemma recoveryValue_some_mem (P : KnownOrderProblem G)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (inputs : Fin count → CShape.Value
@@ -118,7 +118,7 @@ public theorem recoveryValue_some_mem (P : KnownOrderProblem G)
 
 omit [Fintype G] in
 /-- Presence of one accepted sample and a common accepted value determine the result. -/
-public theorem recoveryValue_eq_some_of_accepted (P : KnownOrderProblem G)
+public lemma recoveryValue_eq_some_of_accepted (P : KnownOrderProblem G)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (inputs : Fin count → CShape.Value
@@ -152,7 +152,7 @@ public theorem recoveryValue_eq_some_of_accepted (P : KnownOrderProblem G)
 
 omit [Fintype G] in
 /-- Any returned word is the proof-side secret. -/
-public theorem recoveryValue_some_eq_secret (P : KnownOrderProblem G)
+public lemma recoveryValue_some_eq_secret (P : KnownOrderProblem G)
     (secret : FiniteCyclicDLP.Input P)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (modulus : spec.modulus = P.order) (count : Nat)
@@ -168,7 +168,7 @@ public theorem recoveryValue_some_eq_secret (P : KnownOrderProblem G)
 
 omit [Fintype G] in
 /-- A selected outcome in the vector forces recovery of the proof-side secret. -/
-public theorem recoveryValue_selected_samples (P : KnownOrderProblem G)
+public lemma recoveryValue_selected_samples (P : KnownOrderProblem G)
     (secret : FiniteCyclicDLP.Input P)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (modulus : spec.modulus = P.order) (count : Nat)

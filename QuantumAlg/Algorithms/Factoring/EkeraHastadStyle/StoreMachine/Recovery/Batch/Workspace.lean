@@ -42,7 +42,7 @@ def terminalsAt {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
   LatticePairRecoveryFoldWorkspace.liftTerminals transport terminals
 
 /-- Fresh top cells frame the parameter and both terminals of every pair. -/
-theorem factorFrames {kind : ProblemKind}
+lemma factorFrames {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells ctx N)
     (transport : Transport outer ctx)

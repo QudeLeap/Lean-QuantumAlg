@@ -34,7 +34,7 @@ open scoped ComplexOrder
 variable {R Reference : Register}
 
 /-- Zero diagonal weight annihilates every entry of the same complete column. -/
-theorem column_zero_of_diagonal_zero (state : DensityOperator R) (basis : R.Index)
+lemma column_zero_of_diagonal_zero (state : DensityOperator R) (basis : R.Index)
     (zero : state.matrix basis basis = 0) (row : R.Index) : state.matrix row basis = 0 := by
   classical
   have quadratic : dotProduct (star (Pi.single basis (1 : ℂ)))
@@ -47,13 +47,13 @@ theorem column_zero_of_diagonal_zero (state : DensityOperator R) (basis : R.Inde
   simpa only [Matrix.mulVec_single_one, Matrix.col_apply, Pi.zero_apply] using coordinate
 
 /-- Hermitian symmetry also annihilates every entry of the complete corresponding row. -/
-theorem row_zero_of_diagonal_zero (state : DensityOperator R) (basis : R.Index)
+lemma row_zero_of_diagonal_zero (state : DensityOperator R) (basis : R.Index)
     (zero : state.matrix basis basis = 0) (column : R.Index) : state.matrix basis column = 0 := by
   rw [← state.positive.isHermitian.apply basis column,
     column_zero_of_diagonal_zero state basis zero column, star_zero]
 
 /-- A vanishing local diagonal forces every associated joint-reference diagonal to vanish. -/
-theorem joint_diagonal_zero_of_marginal_diagonal_zero
+lemma joint_diagonal_zero_of_marginal_diagonal_zero
     (state : DensityOperator (Register.prod R Reference)) (basis : R.Index)
     (zero : state.marginalLeft.matrix basis basis = 0) (reference : Reference.Index) :
     state.matrix (basis, reference) (basis, reference) = 0 := by
@@ -68,7 +68,7 @@ theorem joint_diagonal_zero_of_marginal_diagonal_zero
   exact le_antisymm (bound.trans_eq total) state.positive.diag_nonneg
 
 /-- Local support controls the full joint row, including off-diagonal reference data. -/
-theorem joint_row_zero_of_marginal_diagonal_zero
+lemma joint_row_zero_of_marginal_diagonal_zero
     (state : DensityOperator (Register.prod R Reference)) (basis : R.Index)
     (zero : state.marginalLeft.matrix basis basis = 0)
     (reference : Reference.Index) (column : (Register.prod R Reference).Index) :
@@ -77,7 +77,7 @@ theorem joint_row_zero_of_marginal_diagonal_zero
     (joint_diagonal_zero_of_marginal_diagonal_zero state basis zero reference) column
 
 /-- The corresponding complete joint column vanishes for every reference coordinate as well. -/
-theorem joint_column_zero_of_marginal_diagonal_zero
+lemma joint_column_zero_of_marginal_diagonal_zero
     (state : DensityOperator (Register.prod R Reference)) (basis : R.Index)
     (zero : state.marginalLeft.matrix basis basis = 0)
     (reference : Reference.Index) (row : (Register.prod R Reference).Index) :
@@ -86,7 +86,7 @@ theorem joint_column_zero_of_marginal_diagonal_zero
     (joint_diagonal_zero_of_marginal_diagonal_zero state basis zero reference) row
 
 /-- Columns agreeing on actual density support give the same complete matrix conjugation. -/
-theorem conjugation_eq_on_basis_support (state : DensityOperator R)
+lemma conjugation_eq_on_basis_support (state : DensityOperator R)
     (admissible : R.Index → Prop) (left right : HilbertOperator R)
     (support : ∀ basis, ¬admissible basis → state.matrix basis basis = 0)
     (columns : ∀ basis, admissible basis → ∀ row, left row basis = right row basis) :
@@ -114,7 +114,7 @@ theorem conjugation_eq_on_basis_support (state : DensityOperator R)
     _ = _ := (Matrix.mul_assoc _ _ _).symm
 
 /-- Local column equality on locally observable support gives equal full joint unitary evolution. -/
-theorem applyLocalUnitary_eq_on_basis_support
+lemma applyLocalUnitary_eq_on_basis_support
     (state : DensityOperator (Register.prod R Reference)) (admissible : R.Index → Prop)
     (left right : UnitaryOperator R)
     (support : ∀ basis, ¬admissible basis → state.marginalLeft.matrix basis basis = 0)

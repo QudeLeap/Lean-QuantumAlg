@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The store and real nested path produced by the four actual body stages. -/
@@ -42,11 +42,12 @@ def bodyStep (input : CInputRef ctx (.unsignedWord width))
   (finished.1, (saved.2, (loaded.2, (iterated.2, finished.2))))
 
 /-- Every actual stage retains the complete incoming reference, history and service state. -/
-theorem nativeSqrt_body_execute (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_body_execute (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (context ctx width) Reference (model.HiddenState × History)) :
-    (body (model := model) input output).execute Reference state = state.mapClassical (fun entry =>
+    (body (model := model) input output).execute environment
+      Reference state = state.mapClassical (fun entry =>
       let actual := bodyStep (model := model) input output entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [body, bodyStep, rounds, ConstantWord.circuit, Circuit.execute_seq,
@@ -56,7 +57,7 @@ theorem nativeSqrt_body_execute (input : CInputRef ctx (.unsignedWord width))
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The final real copy returns exactly the square root after actual scope initialization. -/
-theorem nativeSqrt_body_read_output (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_body_read_output (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((bodyStep (model := model) input output (pushStore width store)).1.read
       (.storage (underWrite output width).toCStorageRef)).toNat =

@@ -27,7 +27,7 @@ def residueValue {width : Nat} {spec : ModulusSpec width} (value : Residue spec)
     CShape.Word width :=
   .unsignedWord value.toWord
 
-private theorem word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word width)
+private lemma word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word width)
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -35,7 +35,7 @@ private theorem word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word widt
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
 /-- Actual full-product reduction coincides with intrinsic canonical multiplication. -/
-theorem nativePower_multiplyValue_residue {width : Nat} (spec : ModulusSpec width)
+lemma nativePower_multiplyValue_residue {width : Nat} (spec : ModulusSpec width)
     (left right : Residue spec) :
     multiplyValue (residueValue left) (residueValue right) (.unsignedWord spec.extendedWord) =
       residueValue (Mul.eval spec ⟨left, right⟩) := by
@@ -44,7 +44,7 @@ theorem nativePower_multiplyValue_residue {width : Nat} (spec : ModulusSpec widt
   exact (Mul.modularMul_eval_val spec ⟨left, right⟩).symm
 
 /-- The actual full-product square has the intrinsic square's canonical value. -/
-theorem nativePower_squareValue_residue {width : Nat} (spec : ModulusSpec width)
+lemma nativePower_squareValue_residue {width : Nat} (spec : ModulusSpec width)
     (value : Residue spec) :
     multiplyValue (residueValue value) (residueValue value) (.unsignedWord spec.extendedWord) =
       residueValue (Square.eval spec value) := by
@@ -53,7 +53,7 @@ theorem nativePower_squareValue_residue {width : Nat} (spec : ModulusSpec width)
   exact (Square.modularSquare_eval_val spec value).symm
 
 /-- Each actual bit recurrence is the source's same left-to-right modular-power step. -/
-theorem nativePower_bitValue_residue {width : Nat} (spec : ModulusSpec width)
+lemma nativePower_bitValue_residue {width : Nat} (spec : ModulusSpec width)
     (base accumulator : Residue spec) (bit : Bool) :
     bitValue (residueValue base) (.unsignedWord spec.extendedWord) (residueValue accumulator)
         bit = residueValue (Pow.msbStep spec base accumulator bit) := by
@@ -64,7 +64,7 @@ theorem nativePower_bitValue_residue {width : Nat} (spec : ModulusSpec width)
     rw [nativePower_squareValue_residue, nativePower_multiplyValue_residue]
 
 /-- One genuine exponent slot advances the existing source prefix invariant. -/
-theorem nativePower_bitValue_prefix {width exponentWidth : Nat} (spec : ModulusSpec width)
+lemma nativePower_bitValue_prefix {width exponentWidth : Nat} (spec : ModulusSpec width)
     (input : Pow.Input spec exponentWidth) (index : Fin exponentWidth) :
     bitValue (residueValue input.base) (.unsignedWord spec.extendedWord)
         (residueValue (Pow.partialEval spec input index.val))
@@ -72,7 +72,7 @@ theorem nativePower_bitValue_prefix {width exponentWidth : Nat} (spec : ModulusS
       residueValue (Pow.partialEval spec input (index.val + 1)) := by
   rw [nativePower_bitValue_residue, Pow.modularPow_msbStep_partialEval]
 
-private theorem bitValue_fold {width count : Nat}
+private lemma bitValue_fold {width count : Nat}
     (base : CShape.Word width) (modulus : CShape.Word (width + 1))
     (bits : Fin count → Bool) (states : Fin (count + 1) → CShape.Word width)
     (steps : ∀ index : Fin count,
@@ -88,7 +88,7 @@ private theorem bitValue_fold {width count : Nat}
         (fun index => steps index.succ)
 
 /-- The actual finite-word recurrence on every declared exponent slot returns the original power. -/
-theorem nativePower_math_fold {width exponentWidth : Nat} (spec : ModulusSpec width)
+lemma nativePower_math_fold {width exponentWidth : Nat} (spec : ModulusSpec width)
     (input : Pow.Input spec exponentWidth) :
     (List.ofFn (Pow.exponentBit input.exponent)).foldl
         (bitValue (residueValue input.base) (.unsignedWord spec.extendedWord))

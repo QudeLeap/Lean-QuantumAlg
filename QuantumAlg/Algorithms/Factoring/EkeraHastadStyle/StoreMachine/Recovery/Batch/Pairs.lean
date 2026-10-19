@@ -69,7 +69,7 @@ def terminalPairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (terminalSample N before pair.1, terminalSample N before pair.2)
 
 /-- One aligned machine slot reads exactly its canonical terminal pair. -/
-theorem pairValue_eq_terminalPairValue {kind : ProblemKind}
+lemma pairValue_eq_terminalPairValue {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (generator : (ZMod N)ˣ)
     (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N)
     (aligned : Aligned refs terminals) (before : Store ctx)
@@ -91,7 +91,7 @@ theorem pairValue_eq_terminalPairValue {kind : ProblemKind}
   rw [aligned.first index, aligned.second index]
 
 /-- The machine-indexed value list is the canonical terminal-pair value list. -/
-theorem pairValues_eq_terminalPairValues {kind : ProblemKind}
+lemma pairValues_eq_terminalPairValues {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (generator : (ZMod N)ˣ)
     (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N)
     (aligned : Aligned refs terminals) (before : Store ctx) :
@@ -125,7 +125,7 @@ def preparedPairValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The pure batch list over a shared prepared residue has exactly the same
 canonical pair order and early-factor priority. -/
-theorem batchPairValues_preparedSamples {kind : ProblemKind}
+lemma batchPairValues_preparedSamples {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (prepared : RSA.PreparedResidue N)
     (terminals : Terminals ctx N) (before : Store ctx) :
     BatchRecovery.batchPairValues N (shortLogBits N) (tradeoffBits N)
@@ -146,7 +146,7 @@ theorem batchPairValues_preparedSamples {kind : ProblemKind}
   rw [BatchRecovery.recoverPreparedPair_same_prepared]
   rfl
 
-private theorem preparedPairValues_eq_map {kind : ProblemKind}
+private lemma preparedPairValues_eq_map {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (prepared : RSA.PreparedResidue N)
     (terminals : Terminals ctx N) (before : Store ctx) :
     List.ofFn (preparedPairValue prepared terminals before) =
@@ -157,7 +157,7 @@ private theorem preparedPairValues_eq_map {kind : ProblemKind}
   exact List.ofFn_comp' (terminalPairValue prepared.unit terminals before)
     (fun candidate => prepared.earlyFactor.orElse fun _ => candidate)
 
-private theorem foldl_retainCandidate_some (values : List (Option Nat)) (value : Nat) :
+private lemma foldl_retainCandidate_some (values : List (Option Nat)) (value : Nat) :
     values.foldl FirstAccepted.retainFirst (some value) =
       some value := by
   induction values with
@@ -168,7 +168,7 @@ private theorem foldl_retainCandidate_some (values : List (Option Nat)) (value :
         (some value) = some value
       exact inductionHypothesis
 
-private theorem foldl_retainSuccessful_some (values : List (Option Nat)) (value : Nat) :
+private lemma foldl_retainSuccessful_some (values : List (Option Nat)) (value : Nat) :
     values.foldl BatchRecovery.retainFirstSuccessful (some value) = some value := by
   induction values with
   | nil => rfl
@@ -177,7 +177,7 @@ private theorem foldl_retainSuccessful_some (values : List (Option Nat)) (value 
       change tail.foldl BatchRecovery.retainFirstSuccessful (some value) = some value
       exact inductionHypothesis
 
-private theorem fold_sharedEarly_eq_firstSuccessful
+private lemma fold_sharedEarly_eq_firstSuccessful
     (early : Option Nat) (values : List (Option Nat)) (nonempty : values ≠ []) :
     values.foldl FirstAccepted.retainFirst early =
       BatchRecovery.firstSuccessful
@@ -212,7 +212,7 @@ private theorem fold_sharedEarly_eq_firstSuccessful
 
 /-- Starting from the shared prepared residue's early factor, the aligned
 machine fold is exactly the pure fixed-batch value. -/
-theorem selectedFold_eq_batchValue {kind : ProblemKind}
+lemma selectedFold_eq_batchValue {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} (prepared : RSA.PreparedResidue N)
     (refs : LatticePairRecoveryFold.Refs ctx N) (terminals : Terminals ctx N)
     (aligned : Aligned refs terminals) (before : Store ctx) :

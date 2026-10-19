@@ -49,7 +49,7 @@ def permutation (modulus : Nat) (modulusPositive : 0 < modulus) :
       (offset modulus modulusPositive input)) (Equiv.refl Bool)
 
 /-- Every admitted target receives the complete canonical inverse without changing other fields. -/
-theorem accumulateSpecification_valid (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateSpecification_valid (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Labels modulus.size) (targetBounded : value.2.1.val < modulus) :
     (permutation modulus modulusPositive value).1 = value.1 ∧
       (permutation modulus modulusPositive value).2.1.val =
@@ -63,7 +63,7 @@ theorem accumulateSpecification_valid (modulus : Nat) (modulusPositive : 0 < mod
   exact gidneyModularWord_valid (fittedModulus modulus) _ value.2.1 targetBounded
 
 /-- Noncanonical target labels are preserved by the total binary extension. -/
-theorem accumulateSpecification_outside (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateSpecification_outside (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Labels modulus.size) (outside : modulus ≤ value.2.1.val) :
     permutation modulus modulusPositive value = value := by
   apply Prod.ext
@@ -76,7 +76,7 @@ theorem accumulateSpecification_outside (modulus : Nat) (modulusPositive : 0 < m
     · rfl
 
 /-- Modulus one fixes every binary label, including both supplied flag values. -/
-theorem accumulateSpecification_one (value : Labels (1 : Nat).size) :
+lemma accumulateSpecification_one (value : Labels (1 : Nat).size) :
     permutation 1 (by decide) value = value := by
   apply Prod.ext
   · rfl
@@ -87,7 +87,7 @@ theorem accumulateSpecification_one (value : Labels (1 : Nat).size) :
     · rfl
 
 /-- Positivity of the nontrivial EEA input is derived from the original unit support. -/
-theorem accumulateSpecification_positive (modulus : Nat) (nontrivial : 1 < modulus)
+lemma accumulateSpecification_positive (modulus : Nat) (nontrivial : 1 < modulus)
     (value : Labels modulus.size) (allowed : admissible modulus value) :
     0 < value.1.val := by
   have coprime := allowed.2.1

@@ -22,7 +22,7 @@ open ClassicalRoutines.NumberTheory.SignedWord
 noncomputable section
 
 /-- The actual raw sign equals the sign of any represented integer in the signed range. -/
-theorem raw_sign_of_represents {width : Nat} (raw : CShape.Word width) (value : Int)
+lemma raw_sign_of_represents {width : Nat} (raw : CShape.Word width) (value : Int)
     (positive : 0 < width) (represents : RawSignedRepresents raw value)
     (range : ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable width value) :
     rawIsNegative raw = decide (value < 0) := by
@@ -42,7 +42,7 @@ theorem raw_sign_of_represents {width : Nat} (raw : CShape.Word width) (value : 
     simp [negative]
 
 /-- The actual raw magnitude equals the absolute value of the represented in-range integer. -/
-theorem raw_magnitude_of_represents {width : Nat} (raw : CShape.Word width) (value : Int)
+lemma raw_magnitude_of_represents {width : Nat} (raw : CShape.Word width) (value : Int)
     (positive : 0 < width) (represents : RawSignedRepresents raw value)
     (range : ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable width value) :
     rawMagnitude raw = value.natAbs := by
@@ -58,7 +58,7 @@ theorem raw_magnitude_of_represents {width : Nat} (raw : CShape.Word width) (val
     rw [← decoded, Int.natAbs_neg, Int.natAbs_natCast]
 
 /-- Simultaneously normalizing both signs preserves the original rounded coefficient. -/
-theorem nearestIntegerCoefficient_sign_normalize_denominator
+lemma nearestIntegerCoefficient_sign_normalize_denominator
     (numerator denominator : Int) :
     NumberTheory.nearestIntegerCoefficient
       (if denominator < 0 then -numerator else numerator)

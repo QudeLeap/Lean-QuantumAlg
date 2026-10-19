@@ -36,7 +36,7 @@ def oldPermutation (modulus : Nat) (modulusPositive : 0 < modulus) :
       (inputBasisEquiv modulus.size).symm)
 
 /-- The independently specified original fields use the same actual supplied binary labels. -/
-theorem divisionTarget_old_read (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionTarget_old_read (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index) :
     inputBasisEquiv modulus.size (oldPermutation modulus modulusPositive old) =
       ExecutionSpecification.permutation modulus modulusPositive
@@ -44,7 +44,7 @@ theorem divisionTarget_old_read (modulus : Nat) (modulusPositive : 0 < modulus)
   (inputBasisEquiv modulus.size).apply_symm_apply _
 
 /-- Modulus one fixes every supplied binary label and flag. -/
-theorem divisionTarget_old_one (old : (before (1 : Nat).size).register.Index) :
+lemma divisionTarget_old_one (old : (before (1 : Nat).size).register.Index) :
     oldPermutation 1 (by decide) old = old := by
   apply (inputBasisEquiv (1 : Nat).size).injective
   rw [divisionTarget_old_read, ExecutionSpecification.divisionSpecification_one]
@@ -57,7 +57,7 @@ def permutation (modulus : Nat) (modulusPositive : 0 < modulus) :
       (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)))
 
 /-- Complete mathematical assembly preserves every fresh coordinate and all unchanged old data. -/
-theorem divisionTarget_permutation_assembly (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionTarget_permutation_assembly (modulus : Nat) (modulusPositive : 0 < modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (old : (before modulus.size).register.Index) :
     permutation modulus modulusPositive
@@ -82,7 +82,7 @@ def operator (modulus : Nat) (modulusPositive : 0 < modulus) :
     (permutation modulus modulusPositive).symm
 
 /-- Every independent mathematical basis column retains its complete exact amplitude. -/
-theorem divisionTarget_operator_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionTarget_operator_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (old : (before modulus.size).register.Index) :
     (operator modulus modulusPositive).apply
@@ -105,10 +105,12 @@ namespace QuantumAlg.MAU.Division.SharedEEA.ExecutionAgreement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution ExecutionLayout Inversion.SharedEEA
 
 /-- Actual word output equals independent modular addition for every canonical target. -/
-theorem divisionAgreement_outputOld (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionAgreement_outputOld (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (targetBounded : (inputBasisEquiv modulus.size old).2.1.2.val < modulus) :
     ExecutionRuntime.outputOld modulus modulusPositive old =
@@ -132,9 +134,9 @@ theorem divisionAgreement_outputOld (modulus : Nat) (modulusPositive : 0 < modul
     · rfl
 
 /-- Each allowed actual prepared ket agrees with the complete independent mathematical operator. -/
-theorem divisionAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index) (allowed : admissible modulus old) :
-    (ExecutionRuntime.program modulus).applyNormalized
+    (ExecutionRuntime.program modulus).applyNormalized environment
         (NormalizedVector.ket (R := (after modulus.size).register)
           (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
             ((InputPreparation.preparation modulus).value, old))) =
@@ -143,8 +145,8 @@ theorem divisionAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < mo
           (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
             ((InputPreparation.preparation modulus).value, old))) := by
   by_cases nontrivial : 1 < modulus
-  · have actual := ExecutionRuntime.divisionExecution_program_prepared modulus nontrivial old
-      allowed
+  · have actual := ExecutionRuntime.divisionExecution_program_prepared
+      (environment := environment) modulus nontrivial old allowed
     have same := divisionAgreement_outputOld modulus modulusPositive old allowed.2.2.2
     have output : ExecutionRuntime.outputBasis modulus modulusPositive old =
         PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
@@ -158,25 +160,28 @@ theorem divisionAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < mo
   · have one : modulus = 1 := by omega
     subst modulus
     rw [ExecutionTarget.divisionTarget_operator_ket, ExecutionTarget.divisionTarget_old_one]
-    exact ExecutionRuntime.divisionExecution_program_trivial_ket 1 (by omega) _
+    exact ExecutionRuntime.divisionExecution_program_trivial_ket
+      (environment := environment) 1 (by omega) _
 
 /-- Native and independent matrices agree on each allowed prepared column and every output row. -/
-theorem divisionAgreement_prepared_column (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionAgreement_prepared_column (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index) (allowed : admissible modulus old)
     (row : (after modulus.size).register.Index) :
-    (ExecutionRuntime.program modulus).matrix row
+    (ExecutionRuntime.program modulus).matrix environment row
         (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
           ((InputPreparation.preparation modulus).value, old)) =
       (ExecutionTarget.operator modulus modulusPositive) row
         (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
           ((InputPreparation.preparation modulus).value, old)) := by
   have values := congrArg (fun vector : NormalizedVector (after modulus.size).register =>
-    vector.vec row) (divisionAgreement_prepared_ket modulus modulusPositive old allowed)
+    vector.vec row) (divisionAgreement_prepared_ket
+      (environment := environment) modulus modulusPositive old allowed)
   let basis : (after modulus.size).register.Index :=
     PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)
       ((InputPreparation.preparation modulus).value, old)
   change HilbertOperator.applyVec
-      ((ExecutionRuntime.program modulus).matrix : HilbertOperator (after modulus.size).register)
+      ((ExecutionRuntime.program modulus).matrix environment :
+        HilbertOperator (after modulus.size).register)
       (NormalizedVector.ket basis) row =
     HilbertOperator.applyVec
       ((ExecutionTarget.operator modulus modulusPositive) :
@@ -193,7 +198,7 @@ def dataInput (modulus : Nat) (modulusPositive : 0 < modulus) (value : Data modu
 
 /-- Every original unit-denominator Data value satisfies the local support at any positive
   modulus. -/
-theorem divisionAgreement_data_admissible (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionAgreement_data_admissible (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Data modulus) : admissible modulus (dataInput modulus modulusPositive value) := by
   let : NeZero modulus := ⟨Nat.ne_of_gt modulusPositive⟩
   simp only [admissible, dataInput, Equiv.apply_symm_apply, ExecutionSpecification.admissible]
@@ -201,7 +206,7 @@ theorem divisionAgreement_data_admissible (modulus : Nat) (modulusPositive : 0 <
     ZMod.val_lt _, ZMod.val_lt _⟩
 
 /-- The actual output word action is exactly the unchanged original modular-add Data contract. -/
-theorem divisionAgreement_output_data (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionAgreement_output_data (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Data modulus) :
     ExecutionRuntime.outputOld modulus modulusPositive (dataInput modulus modulusPositive value) =
       dataInput modulus modulusPositive value.addQuotientIntoTarget := by
@@ -211,7 +216,7 @@ theorem divisionAgreement_output_data (modulus : Nat) (modulusPositive : 0 < mod
   rfl
 
 /-- The independent target also realizes exactly the original Data map, including modulus one. -/
-theorem divisionAgreement_target_data (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionAgreement_target_data (modulus : Nat) (modulusPositive : 0 < modulus)
     (value : Data modulus) :
     ExecutionTarget.oldPermutation modulus modulusPositive
         (dataInput modulus modulusPositive value) =

@@ -40,13 +40,14 @@ private def incrementChoiceStep {model : ExecutionModel} [BitWord.Selected model
   | .bit false => (store, ())
   | .bit true => BitWord.instructionStep (execution := model) (incrementOp width output) store
 
-private theorem incrementChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma incrementChoice_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (output : CWriteRef ctx (OutputShape width))
-    (value : CShape.Value .bit) (Reference : Register)
+    (value : CShape.Value .bit) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then BitWord.instruction (execution := model) (incrementOp width output)
-      else Circuit.id (model := model) ctx).execute Reference state =
+      else Circuit.id (model := model) ctx).execute environment Reference state =
         state.mapClassical (fun entry =>
           let result := incrementChoiceStep (model := model) output value entry.1
           (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -54,10 +55,10 @@ private theorem incrementChoice_execute {model : ExecutionModel} [BitWord.Select
   | bit bit =>
       cases bit
       · simp only [CShape.Value.toBool, incrementChoiceStep]
-        exact (Circuit.execute_id_mapClassical Reference state).trans
+        exact (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
       · simp only [CShape.Value.toBool, incrementChoiceStep]
-        exact BitWord.bitWord_instruction_execute (execution := model)
+        exact BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
           (incrementOp width output) state
 
 /-- The concrete store and path obtained by shifting and reading its actual selected bit. -/
@@ -70,7 +71,7 @@ def appendStep {model : ExecutionModel} [BitWord.Selected model]
   let selected := incrementChoiceStep (model := model) output choice shifted.1
   (selected.1, (shifted.2, ⟨choice, selected.2⟩))
 
-private theorem appendStep_store {model : ExecutionModel} [BitWord.Selected model]
+private lemma appendStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx .bit) (output : CWriteRef ctx (OutputShape width))
     (store : Store ctx) :
@@ -85,16 +86,17 @@ private theorem appendStep_store {model : ExecutionModel} [BitWord.Selected mode
   | bit bit => cases bit <;> rfl
 
 /-- The actual append preserves the complete service/reference state and chosen native path. -/
-theorem terminalDecode_append_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_append_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (input : CInputRef ctx .bit)
-    (output : CWriteRef ctx (OutputShape width)) (Reference : Register)
+    (output : CWriteRef ctx (OutputShape width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (bitRefRoutine (model := model) input output).execute Reference state =
+    (bitRefRoutine (model := model) input output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := appendStep (model := model) input output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (shiftOp width output))
     (.branch input (fun value =>
       if value.toBool then BitWord.instruction (execution := model) (incrementOp width output)
@@ -107,10 +109,11 @@ theorem terminalDecode_append_execute {model : ExecutionModel} [BitWord.Selected
       let result := incrementChoiceStep (model := model) output choice before.1
       ((result.1, before.2), ⟨choice, result.2⟩)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
-    exact (BitWord.bitWord_instruction_execute (execution := model) (shiftOp width output)
+    exact (BitWord.bitWord_instruction_execute
+      (environment := environment) (execution := model) (shiftOp width output)
       initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ initial
-    refine (Circuit.execute_branch_mapClassical input _
+    refine (Circuit.execute_branch_mapClassical (environment := environment) input _
       (fun value before =>
         let result := incrementChoiceStep (model := model) output value before.1
         ((result.1, before.2), result.2)) ?_ reference initial).trans ?_
@@ -121,7 +124,7 @@ theorem terminalDecode_append_execute {model : ExecutionModel} [BitWord.Selected
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The exact overwritten word implements wrapping shift-and-append on its original source bit. -/
-theorem terminalDecode_append_read_output {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_append_read_output {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx)
@@ -155,7 +158,7 @@ theorem terminalDecode_append_read_output {model : ExecutionModel} [BitWord.Sele
           congrArg CShape.Value.toNat incremented
 
 /-- The same exact append preserves every structural read outside its only written word. -/
-theorem terminalDecode_append_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_append_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} {observed : CShape} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx)

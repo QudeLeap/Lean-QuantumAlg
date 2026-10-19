@@ -25,7 +25,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual comparison bit records the current unsigned underflow condition. -/
-theorem nativeSub_compare_read (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_compare_read (left right : CInputRef ctx (.unsignedWord width))
     (store : Store (context ctx)) :
     ((store.applyOp (compareOp left right)).read (.storage (decision ctx).toCStorageRef)).toBool =
       decide ((store.read (underRead left)).toNat < (store.read (underRead right)).toNat) := by
@@ -35,7 +35,7 @@ theorem nativeSub_compare_read (left right : CInputRef ctx (.unsignedWord width)
   rfl
 
 /-- The actual self-XOR instruction clears every original output word, including width zero. -/
-theorem nativeSub_clear_read (output : CWriteRef ctx (.unsignedWord width))
+lemma nativeSub_clear_read (output : CWriteRef ctx (.unsignedWord width))
     (store : Store (context ctx)) :
     ((store.applyOp (clearOp output)).read
       (.storage (underWrite output).toCStorageRef)).toNat = 0 := by
@@ -47,7 +47,7 @@ theorem nativeSub_clear_read (output : CWriteRef ctx (.unsignedWord width))
   rw [Nat.xor_self, Nat.zero_mod]
 
 /-- In the accepted branch, the actual native subtraction has no modular wraparound. -/
-theorem nativeSub_subtract_read (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_subtract_read (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store (context ctx))
     (ordered : (store.read (underRead right)).toNat ≤ (store.read (underRead left)).toNat) :
     ((store.applyOp (subtractOp left right output)).read

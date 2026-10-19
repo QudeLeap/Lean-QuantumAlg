@@ -91,7 +91,7 @@ public def ghz : NormalizedVector (Qubits 3) :=
 
 /-- The GHZ state as its explicit computational-basis superposition. -/
 @[simp]
-theorem ghz_coe :
+lemma ghz_coe :
     (ghz : HilbertVector (Qubits 3)) =
       invSqrt2 •
         (((ket 0 : NormalizedVector (Qubits 3)) +
@@ -114,7 +114,9 @@ private def localCnot : UnitaryCircuit AlgorithmGate.model .empty
     (QuantumSignature.qubits 2).canonicalPlacement.layout :=
   .native (GateModel.Application.canonical AlgorithmGate.model .cnot)
 
-private theorem localCnot_binaryMatrix : localCnot.binaryMatrix = CNOTOp := by
+private lemma localCnot_binaryMatrix
+    (environment : OracleModel.empty.Interpretation) : (localCnot.binaryMatrix environment)
+    = CNOTOp := by
   unfold UnitaryCircuit.binaryMatrix localCnot
   rw [UnitaryCircuit.native_matrix, GateModel.Application.gateApplication_canonical_operator]
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 2)
@@ -131,21 +133,21 @@ def secondCnotLayer : UnitaryCircuit AlgorithmGate.model .empty layout :=
   UnitaryCircuit.onBinarySuffix 1 localCnot
 
 @[simp]
-theorem hadamardLayer_matrix :
-    hadamardLayer.binaryMatrix =
+lemma hadamardLayer_matrix (environment : OracleModel.empty.Interpretation) :
+    (hadamardLayer.binaryMatrix environment) =
       UnitaryOperator.tensor HOp (1 : UnitaryOperator (Qubits 2)) := by
-  exact Gate.singleQubitAt_first_binaryMatrix .empty 2 HOp
+  exact Gate.singleQubitAt_first_binaryMatrix .empty 2 HOp environment
 
 @[simp]
-theorem firstCnotLayer_matrix :
-    firstCnotLayer.binaryMatrix =
+lemma firstCnotLayer_matrix (environment : OracleModel.empty.Interpretation) :
+    (firstCnotLayer.binaryMatrix environment) =
       UnitaryOperator.tensor CNOTOp (1 : UnitaryOperator (Qubits 1)) := by
   rw [firstCnotLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix,
     localCnot_binaryMatrix]
 
 @[simp]
-theorem secondCnotLayer_matrix :
-    secondCnotLayer.binaryMatrix =
+lemma secondCnotLayer_matrix (environment : OracleModel.empty.Interpretation) :
+    (secondCnotLayer.binaryMatrix environment) =
       UnitaryOperator.tensor (1 : UnitaryOperator (Qubits 1)) CNOTOp := by
   rw [secondCnotLayer, UnitaryCircuit.unitaryCircuit_onBinarySuffix_binaryMatrix,
     localCnot_binaryMatrix]
@@ -154,8 +156,8 @@ theorem secondCnotLayer_matrix :
 public def circuit : UnitaryCircuit AlgorithmGate.model .empty layout :=
   (hadamardLayer.seq firstCnotLayer).seq secondCnotLayer
 
-private theorem circuit_binaryMatrix :
-    circuit.binaryMatrix =
+private lemma circuit_binaryMatrix (environment : OracleModel.empty.Interpretation) :
+    (circuit.binaryMatrix environment) =
       ((1 : UnitaryOperator (Qubits 1)).tensor CNOTOp) *
         (CNOTOp.tensor (1 : UnitaryOperator (Qubits 1))) *
           (HOp.tensor (1 : UnitaryOperator (Qubits 2))) := by
@@ -169,8 +171,8 @@ public def input : NormalizedVector (Qubits 3) :=
   ket0.tensor (ket0.tensor ket0)
 
 /-- Raw-vector calculation underlying the normalized preparation theorem. -/
-private theorem ghzPreparation_coe :
-    circuit.binaryMatrix.applyVec input = (ghz : HilbertVector (Qubits 3)) := by
+private lemma ghzPreparation_coe (environment : OracleModel.empty.Interpretation) :
+    (circuit.binaryMatrix environment).applyVec input = (ghz : HilbertVector (Qubits 3)) := by
   rw [circuit_binaryMatrix, input, UnitaryOperator.mul_applyVec,
     UnitaryOperator.mul_applyVec]
   apply WithLp.ofLp_injective
@@ -185,16 +187,16 @@ private theorem ghzPreparation_coe :
 
 /-- **GHZ state preparation**: the typed cascade circuit turns `|000⟩` into
 the GHZ state. -/
-public theorem ghzPreparation_eq :
-    circuit.binaryMatrix.apply input = ghz := by
+public lemma ghzPreparation_eq (environment : OracleModel.empty.Interpretation) :
+    (circuit.binaryMatrix environment).apply input = ghz := by
   apply NormalizedVector.ext
   intro i
-  change circuit.binaryMatrix.applyVec input i = (ghz : HilbertVector (Qubits 3)) i
-  exact congrArg (fun ψ : HilbertVector (Qubits 3) => ψ i) ghzPreparation_coe
+  change (circuit.binaryMatrix environment).applyVec input i = (ghz : HilbertVector (Qubits 3)) i
+  exact congrArg (fun ψ : HilbertVector (Qubits 3) => ψ i) (ghzPreparation_coe environment)
 
 
 /-- The strict event pool is derived from the same three atoms used by `ghzPreparation_eq`. -/
-@[simp] theorem circuit_eventCost :
+@[simp] lemma circuit_eventCost :
     circuit.eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
         (.gate .singleQubit) +
@@ -208,7 +210,7 @@ public theorem ghzPreparation_eq :
   rfl
 
 /-- Unit duration per strict event gives the three sequential GHZ layers. -/
-@[simp] theorem circuit_evaluatedEventDepth_of_one :
+@[simp] lemma circuit_evaluatedEventDepth_of_one :
     circuit.evaluatedEventDepth (fun _event => 1) = 3 := by
   simp only [circuit, UnitaryCircuit.evaluatedEventDepth_seq,
     firstCnotLayer, secondCnotLayer,
@@ -219,7 +221,7 @@ public theorem ghzPreparation_eq :
 end GHZStatePreparation
 
 /-- The GHZ state is normalized. -/
-theorem norm_ghz : ‖ghz‖ = 1 := ghz.norm_eq_one
+lemma norm_ghz : ‖ghz‖ = 1 := ghz.norm_eq_one
 
 end
 

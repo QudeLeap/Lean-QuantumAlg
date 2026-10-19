@@ -30,7 +30,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual selected branch either writes its computed payload or leaves the old one intact. -/
-theorem selectedRecoveryChoice_value {model : ExecutionModel} [BitWord.Selected model]
+lemma selectedRecoveryChoice_value {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -64,7 +65,8 @@ def exposureBodyStep {model : ExecutionModel} [BitWord.Selected model]
   (copied.1, (⟨selected, chosen.2⟩, copied.2))
 
 /-- Real selection and copying preserve complete quantum-reference matrices and original history. -/
-theorem exposureBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma exposureBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
@@ -72,7 +74,7 @@ theorem exposureBody_execute {model : ExecutionModel} [BitWord.Selected model]
     (reconstruction : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (exposureBody (model := model) input modulus success payload inverseSuccess candidate
-      reconstruction).execute Reference state = state.mapClassical (fun entry =>
+      reconstruction).execute environment Reference state = state.mapClassical (fun entry =>
         let result := exposureBodyStep (model := model) input modulus success payload
           inverseSuccess candidate reconstruction entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -83,7 +85,7 @@ theorem exposureBody_execute {model : ExecutionModel} [BitWord.Selected model]
       let value := before.1.read success
       let chosen := selectedRecoveryChoiceStep (model := model) input modulus payload value before.1
       ((chosen.1, before.2), ⟨value, chosen.2⟩)
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (.branch success (selectedRecoveryChoice (model := model) input modulus payload))
     (exposureCopyBody (model := model) success (.first (scaleRead payload))
       (.second (scaleRead payload)) inverseSuccess candidate reconstruction) selectedStep
@@ -92,7 +94,7 @@ theorem exposureBody_execute {model : ExecutionModel} [BitWord.Selected model]
         (.second (scaleRead payload)) inverseSuccess candidate reconstruction before.1
       ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
-    refine (Circuit.execute_branch_mapClassical success _
+    refine (Circuit.execute_branch_mapClassical (environment := environment) success _
       (fun value before =>
         let result := selectedRecoveryChoiceStep (model := model)
           input modulus payload value before.1
@@ -108,7 +110,7 @@ theorem exposureBody_execute {model : ExecutionModel} [BitWord.Selected model]
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem payload_initialized (cells : Cells ctx [FiniteCyclicDLP.OutputShape width])
+private lemma payload_initialized (cells : Cells ctx [FiniteCyclicDLP.OutputShape width])
     (before : Store ctx) (initialized : cells.Initialized before) :
     before.read (scaleRead cells.head.ref) =
       CShape.initialValue (FiniteCyclicDLP.OutputShape width) := by
@@ -117,7 +119,7 @@ private theorem payload_initialized (cells : Cells ctx [FiniteCyclicDLP.OutputSh
     cases rest
     exact initialized.1
 
-private theorem payload_input_free {outer : RuntimeCtx kind}
+private lemma payload_input_free {outer : RuntimeCtx kind}
     (cells : Cells ctx [FiniteCyclicDLP.OutputShape width]) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {shape : CShape}
     (input : CInputRef outer shape) :
@@ -127,7 +129,7 @@ private theorem payload_input_free {outer : RuntimeCtx kind}
     cases rest
     exact separated.1 input
 
-private theorem output_payload_free {outer : RuntimeCtx kind}
+private lemma output_payload_free {outer : RuntimeCtx kind}
     (cells : Cells ctx [FiniteCyclicDLP.OutputShape width]) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {shape : CShape}
     (output : CWriteRef outer shape) :
@@ -139,7 +141,8 @@ private theorem output_payload_free {outer : RuntimeCtx kind}
   simpa only [transport.liftWrite_key, scaleRead, CInputRef.storageKeys, List.mem_singleton]
     using different.symm
 
-private theorem withSelectedExposure_eq_cells {model : ExecutionModel} [BitWord.Selected model]
+private lemma withSelectedExposure_eq_cells {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
@@ -157,7 +160,8 @@ private theorem withSelectedExposure_eq_cells {model : ExecutionModel} [BitWord.
   rfl
 
 /-- Actual fresh payload storage returns three writes, including caller destination aliases. -/
-theorem withSelectedExposure_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma withSelectedExposure_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
@@ -169,7 +173,7 @@ theorem withSelectedExposure_actualRecord {model : ExecutionModel} [BitWord.Sele
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
         (withSelectedExposure (model := model) input modulus success inverseSuccess candidate
-          reconstruction).execute Reference state = state.mapClassical (fun entry =>
+          reconstruction).execute environment Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, (record before).1.1 =
@@ -179,7 +183,8 @@ theorem withSelectedExposure_actualRecord {model : ExecutionModel} [BitWord.Sele
               (before.1.read (.second (.second input))) (before.1.read modulus)
             else CShape.initialValue (FiniteCyclicDLP.OutputShape width))) := by
   rw [withSelectedExposure_eq_cells]
-  apply withCells_actualRecord_initialized_post ctx [FiniteCyclicDLP.OutputShape width]
+  apply withCells_actualRecord_initialized_post
+    (environment := environment) ctx [FiniteCyclicDLP.OutputShape width]
     (fun cells _ transport _ => exposureBody (model := model) (transport.liftInput input)
       (transport.liftInput modulus) (transport.liftInput success) cells.head.ref
       (transport.liftWrite inverseSuccess) (transport.liftWrite candidate)

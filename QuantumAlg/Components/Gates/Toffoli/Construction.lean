@@ -55,7 +55,7 @@ def circuit (oracles : OracleModel) :
   (hadamard.seq (phaseWord oracles (Real.pi / 4))).seq hadamard
 
 /-- The complete executed trace has nine single-qubit operations and six CNOTs. -/
-theorem toffoliExpansion_eventTrace (oracles : OracleModel) :
+lemma toffoliExpansion_eventTrace (oracles : OracleModel) :
     (circuit oracles).eventTrace =
       [.gate .singleQubit, .gate .singleQubit, .gate .singleQubit, .gate .singleQubit,
         .gate .cnot, .gate .singleQubit, .gate .cnot, .gate .cnot, .gate .singleQubit,
@@ -63,7 +63,7 @@ theorem toffoliExpansion_eventTrace (oracles : OracleModel) :
         .gate .singleQubit] := rfl
 
 /-- Every occurrence of the serial expansion is charged to its dependency depth. -/
-theorem toffoliExpansion_depth (oracles : OracleModel) :
+lemma toffoliExpansion_depth (oracles : OracleModel) :
     (circuit oracles).evaluatedEventDepth (fun _ => 1) = 15 := rfl
 
 end

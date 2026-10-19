@@ -47,12 +47,12 @@ failure parameter `eta`. -/
 def retryCount (r q : Nat) (η : FailureBudget) : Nat :=
   FailureBudget.retryCountFor (sourceFailureBudget r q) η
 
-theorem successNumerator_pos {r : Nat} (hr : 2 ≤ r) :
+lemma successNumerator_pos {r : Nat} (hr : 2 ≤ r) :
     0 < successNumerator r := by
   unfold successNumerator
   exact Nat.mul_pos (by omega) (by omega)
 
-theorem successNumerator_lt_successDenominator {r q : Nat}
+lemma successNumerator_lt_successDenominator {r q : Nat}
     (hr : 2 ≤ r) (hrq : r ≤ q) :
     successNumerator r < successDenominator q := by
   have hq : 0 < q := lt_of_lt_of_le (by omega : 0 < r) hrq
@@ -65,7 +65,7 @@ theorem successNumerator_lt_successDenominator {r q : Nat}
 
 /-- For `2 ≤ r ≤ q`, the rational one-attempt failure complement lies
 strictly between zero and one. -/
-theorem sourceFailureBudget_strictlyWellFormed {r q : Nat}
+lemma sourceFailureBudget_strictlyWellFormed {r q : Nat}
     (hr : 2 ≤ r) (hrq : r ≤ q) :
     (sourceFailureBudget r q).StrictlyWellFormed := by
   have hsuccess : 0 < successNumerator r := successNumerator_pos hr
@@ -86,7 +86,7 @@ theorem sourceFailureBudget_strictlyWellFormed {r q : Nat}
 
 /-- The shared `r,q,eta` retry calibration is the literal closed form
 `max{1, ceil(log(1/eta) / log(4q²/(4q²-r(r-1))))}`. -/
-theorem retryCount_eq_closedForm (r q : Nat) (η : FailureBudget) :
+lemma retryCount_eq_closedForm (r q : Nat) (η : FailureBudget) :
     retryCount r q η =
       max 1 (Nat.ceil
         (Real.log
@@ -102,7 +102,7 @@ theorem retryCount_eq_closedForm (r q : Nat) (η : FailureBudget) :
 
 /-- The parameterized closed-form count reduces the geometric failure bound
 below every well-formed rational target `eta`. -/
-theorem retryFailurePower_le {r q : Nat} (η : FailureBudget)
+lemma retryFailurePower_le {r q : Nat} (η : FailureBudget)
     (hr : 2 ≤ r) (hrq : r ≤ q) (heta : η.WellFormed) :
     (ENNReal.ofReal (sourceFailureBudget r q).value) ^
         retryCount r q η ≤ ENNReal.ofReal η.value := by
@@ -114,7 +114,7 @@ theorem retryFailurePower_le {r q : Nat} (η : FailureBudget)
 /-- A quadratic Taylor certificate for small positive logarithms. It is kept
 generic so endpoint instantiations reduce the remaining inequalities to exact
 rational arithmetic. -/
-theorem abs_log_one_add_sub_quadratic_le {x : Real}
+lemma abs_log_one_add_sub_quadratic_le {x : Real}
     (hx : 0 ≤ x) (hxlt : x < 1) :
     |Real.log (1 + x) - (x - x ^ 2 / 2)| ≤
       x ^ 3 / (3 * (1 - x)) := by
@@ -147,7 +147,7 @@ theorem abs_log_one_add_sub_quadratic_le {x : Real}
 
 /-- A pair of certified logarithmic comparisons determines the exact positive
 integer selected by the shared ceiling formula. -/
-theorem retryCount_eq_of_log_bounds {r q count : Nat}
+lemma retryCount_eq_of_log_bounds {r q count : Nat}
     (η : FailureBudget) (hcount : 1 ≤ count)
     (hsourceLog :
       0 < Real.log

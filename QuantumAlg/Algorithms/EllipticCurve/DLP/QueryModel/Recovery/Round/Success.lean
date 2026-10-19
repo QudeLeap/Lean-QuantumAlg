@@ -32,9 +32,9 @@ noncomputable section
 open Execution ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 attribute [local instance] Classical.decEq Classical.propDecidable
-attribute [local irreducible] underPersistent
+attribute [local irreducible] sampleUnderPersistent
 
-private theorem failure_le_mass {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+private lemma failure_le_mass {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     {width scalar : Nat} {Reference : Register} {History : Type} [Fintype History]
     (state : State (persistentCtx ctx width scalar) Reference (model.HiddenState × History)) :
     persistentFailureWeight (model := model) (ctx := ctx) (width := width) (scalarWidth := scalar)
@@ -47,7 +47,7 @@ private theorem failure_le_mass {model : ExecutionModel} {ctx : RuntimeCtx model
   · exact le_rfl
   · exact (state.block record).mass_nonneg
 
-private theorem failure_nonneg {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+private lemma failure_nonneg {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     {width scalar : Nat} {Reference : Register} {History : Type} [Fintype History]
     (state : State (persistentCtx ctx width scalar) Reference (model.HiddenState × History)) :
     0 ≤ persistentFailureWeight (model := model) (ctx := ctx) (width := width)
@@ -61,34 +61,36 @@ private theorem failure_nonneg {model : ExecutionModel} {ctx : RuntimeCtx model.
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 
-private theorem round_failure_le (I : ECDLPInstance E) (A : Access I)
+private lemma round_failure_le (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
     {History : Type} [Fintype History]
-    (state : State (context I) Reference ((Sampling.executionModel I A).HiddenState × History))
+    (state : State (context I) Reference ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ record, 0 < (state.block record).mass → roundStoreDomain I record.1) :
-    persistentFailureWeight (model := Sampling.executionModel I A)
+    persistentFailureWeight (model := Sampling.executionModel I)
       (ctx := Sampling.Reuse.context I) (width := fieldWidth E) (scalarWidth := scalarWidth I)
-      ((round I A expansion nontrivial).execute Reference state) ≤
+      ((round I expansion nontrivial).execute (Sampling.sourceEnvironment I A) Reference state) ≤
         (1 - Sampling.Reuse.successFloor I) * state.mass := by
   let secretInput :=
     FiniteCyclicDLP.Canonical.Probability.SecretInput.ofKnownOrderProblem (problem I)
   have points := ecdlpRecovery_round_prefix_represents I A state
     (fun record present => (admitted record present).1)
-  have contraction := sampledAttempt_failure_weight_le (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) (curve E) (modulus I nontrivial)
+  have contraction := sampledAttempt_failure_weight_le (environment :=
+    Sampling.sourceEnvironment I A)
+    (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
     I.basePoint.toMathlib I.targetPoint.toMathlib state
-    (points (underPersistent (Sampling.Reuse.code I A expansion)
-      (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) (fieldWidth E) (scalarWidth I)))
+    (points (sampleUnderPersistent (Sampling.Reuse.code (allowAllocation := false) I expansion)
+      (fieldWidth E) (scalarWidth I)))
     (Sampling.Reuse.successFloor I)
     ((ecdlpRecovery_sample_weight_bound I A expansion nontrivial secretInput _).trans_eq
       (indicator_decision_weight _ _ _ _))
   exact contraction.trans (mul_le_mul_of_nonneg_left
-    (failure_le_mass (model := Sampling.executionModel I A) state)
+    (failure_le_mass (model := Sampling.executionModel I) state)
     (sub_nonneg.mpr (successFloor_le_one I)))
 
-private theorem entered_domain {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+private lemma entered_domain {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     {History : Type} [Fintype History] {Reference : Register}
     (input : OracleInput model.classicalOracles ctx Reference) (history : Store ctx → History)
     (domain : Store ctx → Prop)
@@ -106,26 +108,29 @@ private theorem entered_domain {model : ExecutionModel} {ctx : RuntimeCtx model.
 
 omit [Fact p.Prime] in
 /-- The same complete round meets the original selected-family relational success floor. -/
-public theorem ecdlpRecovery_round_success (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_round_success (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles (context I) Reference)
-    (admitted : roundInputDomain I A original.localState) :
+    (original : OracleInput (Sampling.executionModel I).classicalOracles (context I) Reference)
+    (admitted : roundInputDomain I original.localState) :
     ENNReal.ofReal (Sampling.Reuse.successFloor I) ≤
-      ((roundAlgorithm I A expansion nontrivial).relationalDistribution original).toOuterMeasure
+      ((roundAlgorithm I expansion nontrivial).relationalDistribution (Sampling.sourceEnvironment
+        I A) original).toOuterMeasure
         {pair | roundAccepts I pair.2} := by
   let : Fact p.Prime := ⟨E.prime⟩
-  let actual := (roundAlgorithm I A expansion nontrivial).run
+  let actual := (roundAlgorithm I expansion nontrivial).run
   let initial := original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
-  have initialDomain := entered_domain (model := Sampling.executionModel I A)
+  have initialDomain := entered_domain (model := Sampling.executionModel I)
     original id (roundStoreDomain I) admitted
   have failure := round_failure_le I A expansion nontrivial initial initialDomain
   rw [ExecutionState.mapClassical_mass, original.normalized, mul_one] at failure
-  have agrees : ∀ record ∈ (actual.executionDistribution original).support,
+  have agrees : ∀ record ∈ (actual.executionDistribution (Sampling.sourceEnvironment I A)
+    original).support,
       roundAccepts I (actual.result record) ↔ (roundSelectedPair I record.1).1 = true := by
     intro record supported
-    have positive := (ExecutionState.mem_support_toPMF_iff (actual.execute Reference original.state)
-      (actual.execute_normalized original) record).mp supported
+    have positive := (ExecutionState.mem_support_toPMF_iff (actual.execute
+      (Sampling.sourceEnvironment I A) Reference original.state)
+      (actual.execute_normalized (Sampling.sourceEnvironment I A) original) record).mp supported
     have sound := ecdlpRecovery_round_preserves_domain I A expansion nontrivial
       initial initialDomain record positive
     change ((roundSelectedPair I record.1).1 = true ∧
@@ -133,19 +138,23 @@ public theorem ecdlpRecovery_round_success (I : ECDLPInstance E) (A : Access I)
       (roundSelectedPair I record.1).2.toNat • I.basePoint.toMathlib = I.targetPoint.toMathlib) ↔ _
     exact ⟨fun accepted => accepted.1,
       fun flag => ⟨flag, sound.2.1, sound.2.2 flag⟩⟩
-  have success := actual.relational_success_eq_one_sub_failure_effectWeight original
+  have success := actual.relational_success_eq_one_sub_failure_effectWeight
+    (environment := Sampling.sourceEnvironment I A) original
     (fun pair => roundAccepts I pair.2) (fun record => (roundSelectedPair I record.1).1) agrees
   change ENNReal.ofReal (Sampling.Reuse.successFloor I) ≤
-    (actual.relationalDistribution original).toOuterMeasure {pair | roundAccepts I pair.2}
+    (actual.relationalDistribution (Sampling.sourceEnvironment I A) original).toOuterMeasure {pair
+      | roundAccepts I pair.2}
   rw [success]
-  have nonnegative := failure_nonneg (model := Sampling.executionModel I A)
-    ((round I A expansion nontrivial).execute Reference initial)
-  have reads : (actual.execute Reference original.state).effectWeight
+  have nonnegative := failure_nonneg (model := Sampling.executionModel I)
+    ((round I expansion nontrivial).execute (Sampling.sourceEnvironment I A) Reference initial)
+  have reads : (actual.execute (Sampling.sourceEnvironment I A) Reference
+    original.state).effectWeight
       (fun record => if (roundSelectedPair I record.1).1 = false then
         Effect.one ((context I).register.prod Reference)
       else Effect.zero ((context I).register.prod Reference)) =
-      persistentFailureWeight (model := Sampling.executionModel I A)
-        ((round I A expansion nontrivial).execute Reference initial) := by
+      persistentFailureWeight (model := Sampling.executionModel I)
+        ((round I expansion nontrivial).execute (Sampling.sourceEnvironment I A) Reference
+          initial) := by
     exact indicator_decision_weight _ _ _ _
   rw [reads, ← ENNReal.ofReal_one, ← ENNReal.ofReal_sub _ nonnegative]
   exact ENNReal.ofReal_le_ofReal (by linarith)

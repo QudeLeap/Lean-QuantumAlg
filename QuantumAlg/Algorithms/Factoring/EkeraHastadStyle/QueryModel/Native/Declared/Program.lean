@@ -20,8 +20,9 @@ import all QuantumAlg.Core.Algorithm.AlgorithmRun
 /-!
 # One actual original-width short-DLP observation
 
-The input fixes one oracle model for every runtime parameter value. A stored
-parameter selects one declared query instance. The same original-width bank,
+The public modulus and dimensions fix one query interface for every runtime
+parameter value. A stored parameter selects one declared query instance.
+The same original-width bank,
 finite measurement cells and paid bit packing survive in the complete output.
 -/
 
@@ -32,36 +33,50 @@ open Execution
 noncomputable section
 
 /-- All runtime parameter values use one fixed group-query and bit-word model. -/
-public abbrev model {N : Nat} (input : Input N) : ExecutionModel :=
+public abbrev model (N : Nat) : ExecutionModel :=
   .quantum AlgorithmGate.model
-    (ShortDLP.declaredModel (Native.encoding input)) BitWord.model .empty
+    (ShortDLP.declaredModel N (Native.parameters N)) BitWord.model .empty
+
+/-- The original residue encoding supplies semantics only at execution. -/
+public def sourceEnvironment {N : Nat} (input : Input N) : (model N).Environment :=
+  ⟨ShortDLP.declaredInterpretation (Native.encoding input), ()⟩
+
+/-- Empty classical service interpretation leaves only the quantum source condition. -/
+lemma sourceEnvironment_eq_of_quantum {N : Nat} (input : Input N)
+    (actual : (model N).Environment)
+    (same : actual.quantum = ShortDLP.declaredInterpretation (Native.encoding input)) :
+    actual = sourceEnvironment input := by
+  cases actual with
+  | mk quantum classical =>
+      cases same
+      cases classical
+      rfl
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
-  (input : Input N)
 
 /-- Allocate the original-width bank with actual zero preparation. -/
-def prepare : Circuit (model input) base (Native.bankContext base noQuantum N) :=
+def prepare : Circuit (model N) base (Native.bankContext base noQuantum N) :=
   .prepareZero base base.canonicalFreshKey (Native.layout N) base.canonicalFreshKey_fresh
     (Native.allocationDisjoint base noQuantum N)
 
 /-- Allocate the same finite result cells and one packed output cell. -/
-def allocate : Circuit (model input) (Native.bankContext base noQuantum N)
+def allocate : Circuit (model N) (Native.bankContext base noQuantum N)
     (Native.context base noQuantum N) :=
-  .seq (MeasurementCells.allocate (model := model input)
+  .seq (MeasurementCells.allocate (model := model N)
     (Native.bankContext base noQuantum N) 2
     (measurementBits N))
-    (Circuit.retain (model := model input) (Native.cellsContext base noQuantum N)
+    (Circuit.retain (model := model N) (Native.cellsContext base noQuantum N)
       (Native.cellsContext base noQuantum N).canonicalFreshKey
       (.bits (measurementBits N))
       (Native.cellsContext base noQuantum N).canonicalFreshKey_fresh)
 
 /-- The current classical value selects a query from the fixed model. -/
 def selected (parameter : CInputRef base (ParameterShape N)) :
-    Circuit (model input) (Native.context base noQuantum N)
+    Circuit (model N) (Native.context base noQuantum N)
       (Native.context base noQuantum N) :=
   .branch (Native.liftInput base noQuantum N parameter) fun value =>
     .unitary (Native.declaredMember N
-      (Native.nativeOracle_context_wires base noQuantum N) input value)
+      (Native.nativeOracle_context_wires base noQuantum N) value)
 
 /-- One exponent wire writes to its own live finite cell. -/
 def readout (index : Fin (measurementBits N)) :
@@ -93,29 +108,29 @@ def packing : ClassicalOp (.fixedVector (measurementBits N) (.finite 2))
 
 /-- The selected quantum stage, actual measurements and paid packing. -/
 def body (parameter : CInputRef base (ParameterShape N)) :
-    Circuit (model input) (Native.context base noQuantum N)
+    Circuit (model N) (Native.context base noQuantum N)
       (Native.context base noQuantum N) :=
-  .seq (selected base noQuantum N input parameter)
+  .seq (selected base noQuantum N parameter)
     (.seq (Circuit.measurementSequence (readouts base noQuantum N))
       (.classical (BitWord.application (packing base noQuantum N))))
 
 /-- One prepared observation, with every actual operation in execution order. -/
 def code (parameter : CInputRef base (ParameterShape N)) :
-    Circuit (model input) base (Native.context base noQuantum N) :=
-  .seq (prepare base noQuantum N input)
-    (.seq (allocate base noQuantum N input) (body base noQuantum N input parameter))
+    Circuit (model N) base (Native.context base noQuantum N) :=
+  .seq (prepare base noQuantum N)
+    (.seq (allocate base noQuantum N) (body base noQuantum N parameter))
 
 /-- Return the packed exponent bits while retaining every live bank and cell. -/
 def run (parameter : CInputRef base (ParameterShape N)) :
-    AlgorithmRun (model input) base (Native.context base noQuantum N)
+    AlgorithmRun (model N) base (Native.context base noQuantum N)
       (.bits (measurementBits N)) where
-  code := code base noQuantum N input parameter
+  code := code base noQuantum N parameter
   output := Output.all (Native.context base noQuantum N)
     (.read (.storage (Native.resultRef base noQuantum N).toCStorageRef))
 
 /-- The output enumerates every live storage entry. -/
-theorem output_listing (parameter : CInputRef base (ParameterShape N)) :
-    (run base noQuantum N input parameter).output.listing =
+lemma output_listing (parameter : CInputRef base (ParameterShape N)) :
+    (run base noQuantum N parameter).output.listing =
       (Native.context base noQuantum N).keys := rfl
 
 end

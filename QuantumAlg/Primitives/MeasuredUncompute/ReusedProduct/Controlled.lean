@@ -24,6 +24,8 @@ namespace QuantumAlg.MeasuredUncompute.ReusedProduct.Controlled
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement EncodedBit GateSpec Word
 
 /-- Actual reused product instructions beside the original final control. -/
@@ -33,7 +35,7 @@ def computeGates (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (GateSpec.prodLeft BinaryLabelEncoding.bool)
 
 /-- FullPlacement and the untouched final control determine the complete arithmetic action. -/
-theorem reusedProductControlled_computeGates_step (width : Nat)
+lemma reusedProductControlled_computeGates_step (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (state : Frame width × Bool) :
     stepList (computeGates width modulus) state =
       (computeStep width modulus state.1, state.2) := by
@@ -46,7 +48,7 @@ def word (width : Nat) : EncodedBit.Word (NativeFrameControl.encoding width) wid
   ⟨fun index => BinaryLabelEncoding.prodLeftBit (frameEncoding width) BinaryLabelEncoding.bool
     ((measuredWord width).bit index)⟩
 
-private theorem different (width : Nat) (index : Fin width) :
+private lemma different (width : Nat) (index : Fin width) :
     (NativeFrameControl.control width).wire ≠ ((word width).bit index).wire :=
   prodRightBit_wire_ne_prodLeftBit_wire (frameEncoding width) BinaryLabelEncoding.bool
     BinaryLabelEncoding.boolBit ((measuredWord width).bit index)
@@ -58,7 +60,7 @@ def phase (width : Nat) (modulus : Fin (2 ^ width + 1)) (active : Bool)
     PhaseCorrection.sign (measuredWord width) (computeStep width modulus state.1)
       (PhaseCorrection.selected mask) else 1
 
-private theorem word_sign (width : Nat) (state : Frame width × Bool)
+private lemma word_sign (width : Nat) (state : Frame width × Bool)
     (indices : List (Fin width)) :
     PhaseCorrection.sign (word width) state indices =
       PhaseCorrection.sign (measuredWord width) state.1 indices := by
@@ -79,28 +81,28 @@ def program (width : Nat) (modulus : Fin (2 ^ width + 1)) (active : Bool)
 attribute [local irreducible] computeGates
 
 /-- Every local label is restored with precisely the selected relative phase. -/
-theorem reusedProductControlled_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width) (state : Frame width × Bool) :
-    (program width modulus active mask layout).applyVec
+    ((program width modulus active mask layout).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding width).encode state))).vec =
       phase width modulus active mask state •
         (NormalizedVector.ket (layout.basisEquiv.symm
           ((NativeFrameControl.encoding width).encode state))).vec := by
   have forward := congrArg NormalizedVector.vec
-    ((realizesList layout .empty (computeGates width modulus)).apply_encoded_ket state)
+    ((realizesList layout .empty (computeGates width modulus) environment).apply_encoded_ket state)
   have backward := congrArg NormalizedVector.vec
-    ((realizesList layout .empty (computeGates width modulus).reverse).apply_encoded_ket
+    ((realizesList layout .empty (computeGates width modulus).reverse environment).apply_encoded_ket
       (stepList (computeGates width modulus) state))
   rw [stepList_reverse_stepList] at backward
-  change (programList layout .empty (computeGates width modulus)).applyVec
+  change ((programList layout .empty (computeGates width modulus)).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding width).encode state))).vec =
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding width).encode
           (stepList (computeGates width modulus) state)))).vec at forward
-  change (programList layout .empty (computeGates width modulus).reverse).applyVec
+  change ((programList layout .empty (computeGates width modulus).reverse).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding width).encode
           (stepList (computeGates width modulus) state)))).vec =
@@ -114,11 +116,11 @@ theorem reusedProductControlled_ket (width : Nat) (modulus : Fin (2 ^ width + 1)
   rfl
 
 /-- The unselected sector is exactly identity, for arbitrary dirty data and control coherences. -/
-theorem reusedProductControlled_inactive (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_inactive (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width)
     (state : Frame width × Bool) (unselected : state.2 ≠ active) :
-    (program width modulus active mask layout).applyVec
+    ((program width modulus active mask layout).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding width).encode state))).vec =
       (NormalizedVector.ket (layout.basisEquiv.symm
@@ -126,20 +128,22 @@ theorem reusedProductControlled_inactive (width : Nat) (modulus : Fin (2 ^ width
   rw [reusedProductControlled_ket, phase, if_neg unselected, one_smul]
 
 /-- Every arbitrary reference column retains the same full-state relative phase. -/
-theorem reusedProductControlled_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width) (state : Frame width × Bool)
     {Reference : Register} (row : layout.toQuantum.register.Index) (left right : Reference.Index) :
-    UnitaryOperator.prodTensor (program width modulus active mask layout).matrix
+    UnitaryOperator.prodTensor ((program width modulus active mask layout).matrix environment)
       (1 : UnitaryOperator Reference) (row, left)
       (layout.basisEquiv.symm ((NativeFrameControl.encoding width).encode state), right) =
       if row = layout.basisEquiv.symm ((NativeFrameControl.encoding width).encode state) ∧
         left = right then phase width modulus active mask state else 0 := by
   have column := congrArg
     (fun vector : HilbertVector layout.toQuantum.register => vector row)
-    (reusedProductControlled_ket width modulus active mask layout state)
+    (reusedProductControlled_ket (environment := environment)
+      width modulus active mask layout state)
   have matrixColumn := (HilbertOperator.applyVec_ket
-    ((program width modulus active mask layout).matrix : HilbertOperator layout.toQuantum.register)
+    (((program width modulus active mask layout).matrix environment) : HilbertOperator
+      layout.toQuantum.register)
     (layout.basisEquiv.symm ((NativeFrameControl.encoding width).encode state))
     row).symm.trans column
   rw [UnitaryOperator.prodTensor_apply, matrixColumn]
@@ -154,7 +158,7 @@ theorem reusedProductControlled_reference (width : Nat) (modulus : Fin (2 ^ widt
         and_true, and_false, mul_one, mul_zero]
 
 /-- The trace retains both product passes, all H-CNOT-H blocks and negative-control X gates. -/
-theorem reusedProductControlled_trace (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_trace (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width) :
     (program width modulus active mask layout).eventTrace =
@@ -171,7 +175,7 @@ theorem reusedProductControlled_trace (width : Nat) (modulus : Fin (2 ^ width + 
     List.append_assoc]
 
 /-- The exact resource pool counts both literal passes and every actual selected phase gate. -/
-theorem reusedProductControlled_cost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_cost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width) :
     (program width modulus active mask layout).eventCost =
@@ -190,7 +194,7 @@ theorem reusedProductControlled_cost (width : Nat) (modulus : Fin (2 ^ width + 1
     add_assoc]
 
 /-- Exact serial count includes both passes and both negative-control flips. -/
-theorem reusedProductControlled_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width) :
     (program width modulus active mask layout).evaluatedEventDepth (fun _ => 1) =
@@ -202,7 +206,7 @@ theorem reusedProductControlled_depth (width : Nat) (modulus : Fin (2 ^ width + 
   omega
 
 /-- The original independent multiplication bound controls the complete phase-correction depth. -/
-theorem reusedProductControlled_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma reusedProductControlled_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (active : Bool) (mask : Fin width → Bool)
     (layout : QubitLayout (NativeFrameControl.encoding width).width) :
     (program width modulus active mask layout).evaluatedEventDepth (fun _ => 1) ≤

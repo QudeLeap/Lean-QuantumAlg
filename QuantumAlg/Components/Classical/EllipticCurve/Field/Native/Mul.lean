@@ -53,7 +53,7 @@ def multiplicationProduct (ctx : RuntimeCtx kind) (width : Nat) :
   CWriteRef.workspaceHead ctx ctx.canonicalFreshKey (.unsignedWord (width + width))
     ctx.canonicalFreshKey_fresh
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Compute the full product, then allocate and load the original reduction modulus. -/
@@ -80,24 +80,26 @@ def multiplicationBodyStep (spec : ModulusSpec width)
     (reduceIntoWordStep spec (reductionRead product) output)
 
 /-- Both actual stages preserve every complete quantum-reference block and original history. -/
-theorem multiplicationBody_execute (spec : ModulusSpec width)
+lemma multiplicationBody_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (multiplicationBody (model := model) spec left right product output).execute Reference state =
+    (multiplicationBody (model := model) spec left right product output).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((multiplicationBodyStep spec left right product output entry.1).1,
           (entry.2.1, (entry.2.2,
             (multiplicationBodyStep spec left right product output entry.1).2)))) := by
-  exact Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
-    (fun _ {_} _ initial => BitWord.bitWord_instruction_execute (execution := model)
+  exact Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
+    (fun _ {_} _ initial => BitWord.bitWord_instruction_execute (environment := environment)
+      (execution := model)
       (Modular.NativePower.productOp left right product) initial)
     (reduceIntoWord_execute _ _ _) Reference state
 
 /-- The exact combined-width product gives modular multiplication for every raw operand. -/
-theorem multiplicationBody_toNat (spec : ModulusSpec width)
+lemma multiplicationBody_toNat (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
@@ -115,7 +117,7 @@ theorem multiplicationBody_toNat (spec : ModulusSpec width)
   rw [written, Modular.NativePower.nativePower_fullProduct_exact]
 
 /-- The original body preserves every structural read outside product and caller result. -/
-theorem multiplicationBody_read_other (spec : ModulusSpec width)
+lemma multiplicationBody_read_other (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape}
@@ -156,20 +158,20 @@ def mulIntoWordStep (spec : ModulusSpec width)
       (writeUnderMultiplication output width))
 
 /-- The actual product and loaded reduction preserve the complete reference and actual history. -/
-theorem mulIntoWord_execute (spec : ModulusSpec width)
+lemma mulIntoWord_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (mulIntoWord (model := model) spec left right output).execute Reference state =
+    (mulIntoWord (model := model) spec left right output).execute environment Reference state =
       state.mapClassical
       (fun entry => ((mulIntoWordStep spec left right output entry.1).1,
         (entry.2.1, (entry.2.2, (mulIntoWordStep spec left right output entry.1).2)))) := by
-  exact Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  exact Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (multiplicationBody_execute _ _ _ _ _) Reference state
 
 /-- Actual loaded field multiplication computes the canonical product on every raw input. -/
-theorem mulIntoWord_toNat (spec : ModulusSpec width)
+lemma mulIntoWord_toNat (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((mulIntoWordStep spec left right output store).1.read (reductionRead output)).toNat =
@@ -183,14 +185,14 @@ theorem mulIntoWord_toNat (spec : ModulusSpec width)
 
 omit [BitWord.Selected model] in
 /-- Actual fresh product storage cannot alter any original caller input. -/
-private theorem multiplicationProduct_avoids {shape : CShape} (input : CInputRef ctx shape) :
+private lemma multiplicationProduct_avoids {shape : CShape} (input : CInputRef ctx shape) :
     (multiplicationProduct ctx width).key ∉ (underMultiplication input width).storageKeys := by
   change ctx.canonicalFreshKey ∉ (underMultiplication input width).storageKeys
   simp only [underMultiplication, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
 /-- Every structural caller read outside the result survives all actual internal scopes. -/
-theorem mulIntoWord_read_other (spec : ModulusSpec width)
+lemma mulIntoWord_read_other (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
@@ -204,7 +206,7 @@ theorem mulIntoWord_read_other (spec : ModulusSpec width)
     simpa only [underMultiplication, CInputRef.storageKeys_underWorkspace] using separate
 
 /-- No caller cell except the actual output changes, even when that output aliases an operand. -/
-theorem mulIntoWordStep_store (spec : ModulusSpec width)
+lemma mulIntoWordStep_store (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (mulIntoWordStep spec left right output store).1 = store.write output

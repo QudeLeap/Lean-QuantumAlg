@@ -117,46 +117,46 @@ def ofFintypeCardLe (Data : Type) [Fintype Data] (width : Nat)
     have hval := congrArg Fin.val h
     simpa using hval
 
-@[simp] theorem ofEquiv_width {Data : Type} {n : Nat}
+@[simp] lemma ofEquiv_width {Data : Type} {n : Nat}
     (layout : Data ≃ Fin (2 ^ n)) : (ofEquiv layout).width = n := rfl
 
-@[simp] theorem ofEquiv_encode {Data : Type} {n : Nat}
+@[simp] lemma ofEquiv_encode {Data : Type} {n : Nat}
     (layout : Data ≃ Fin (2 ^ n)) (x : Data) : (ofEquiv layout).encode x = layout x := rfl
 
-@[simp] theorem relabel_width {Data Other : Type}
+@[simp] lemma relabel_width {Data Other : Type}
     (encoding : BinaryLabelEncoding Data) (layout : Other ≃ Data) :
     (encoding.relabel layout).width = encoding.width := rfl
 
-@[simp] theorem relabel_encode {Data Other : Type}
+@[simp] lemma relabel_encode {Data Other : Type}
     (encoding : BinaryLabelEncoding Data) (layout : Other ≃ Data) (x : Other) :
     (encoding.relabel layout).encode x = encoding.encode (layout x) := rfl
 
-@[simp] theorem finIdentity_width (n : Nat) : (finIdentity n).width = n := rfl
+@[simp] lemma finIdentity_width (n : Nat) : (finIdentity n).width = n := rfl
 
-@[simp] theorem finIdentity_encode (n : Nat) (x : Fin (2 ^ n)) :
+@[simp] lemma finIdentity_encode (n : Nat) (x : Fin (2 ^ n)) :
     (finIdentity n).encode x = x := rfl
 
-@[simp] theorem bool_width : bool.width = 1 := rfl
+@[simp] lemma bool_width : bool.width = 1 := rfl
 
-@[simp] theorem bool_encode_false : bool.encode false = 0 := rfl
+@[simp] lemma bool_encode_false : bool.encode false = 0 := rfl
 
-@[simp] theorem bool_encode_true : bool.encode true = 1 := rfl
+@[simp] lemma bool_encode_true : bool.encode true = 1 := rfl
 
-@[simp] theorem ofResidueEncoding_width {N n : Nat} (E : BinaryResidueEncoding N n) :
+@[simp] lemma ofResidueEncoding_width {N n : Nat} (E : BinaryResidueEncoding N n) :
     (ofResidueEncoding E).width = n := rfl
 
-@[simp] theorem ofResidueEncoding_encode {N n : Nat} (E : BinaryResidueEncoding N n)
+@[simp] lemma ofResidueEncoding_encode {N n : Nat} (E : BinaryResidueEncoding N n)
     (z : ZMod N) : (ofResidueEncoding E).encode z = E.encode z := rfl
 
-@[simp] theorem prod_width {Left Right : Type} (left : BinaryLabelEncoding Left)
+@[simp] lemma prod_width {Left Right : Type} (left : BinaryLabelEncoding Left)
     (right : BinaryLabelEncoding Right) :
     (prod left right).width = left.width + right.width := rfl
 
-@[simp] theorem prod_encode {Left Right : Type} (left : BinaryLabelEncoding Left)
+@[simp] lemma prod_encode {Left Right : Type} (left : BinaryLabelEncoding Left)
     (right : BinaryLabelEncoding Right) (x : Left × Right) :
     (prod left right).encode x = prodEquiv (left.encode x.1, right.encode x.2) := rfl
 
-theorem encode_inj {Data : Type} (encoding : BinaryLabelEncoding Data)
+lemma encode_inj {Data : Type} (encoding : BinaryLabelEncoding Data)
     {x y : Data} (h : encoding.encode x = encoding.encode y) : x = y :=
   encoding.encode_injective h
 

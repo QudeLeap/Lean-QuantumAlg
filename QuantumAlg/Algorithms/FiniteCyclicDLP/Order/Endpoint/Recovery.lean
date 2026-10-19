@@ -31,19 +31,21 @@ universe u
 
 variable {G : Type u} [Group G] [Fintype G]
 
-private theorem sequence_read {model : ExecutionModel}
+private lemma sequence_read {model : ExecutionModel}
+    {environment : model.Environment}
     {pre middle post : RuntimeCtx model.kind}
     (first : Circuit model pre middle) (second : Circuit model middle post)
     {Reference : Register} {History Value : Type} [Fintype History] [Fintype Value]
     (state : State pre Reference (model.HiddenState × History))
     (read : Store post → Value) :
-    ((first.seq second).execute Reference state).mapClassical
+    ((first.seq second).execute environment Reference state).mapClassical
         (fun entry => read entry.1) =
-      (second.execute Reference (first.execute Reference state)).mapClassical
+      (second.execute environment Reference
+        (first.execute environment Reference state)).mapClassical
         (fun entry => read entry.1) := by
   have executed := congrArg
     (fun output => output.mapClassical (fun entry => read entry.1))
-    (Circuit.execute_seq first second state)
+    (Circuit.execute_seq (environment := environment) first second state)
   refine executed.trans ?_
   simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
@@ -61,7 +63,7 @@ private theorem sequence_read {model : ExecutionModel}
 
 omit [Fintype G] in
 /-- At order one, recovery returns the unique residue without inspecting the samples. -/
-public theorem recoveredValue_order_one (P : KnownOrderProblem G)
+public lemma recoveredValue_order_one (P : KnownOrderProblem G)
     (trivial : P.order = 1)
     (samples : CShape.Value (.fixedVector (sampleCount P)
       (.fixedVector (OrderExecution.sampleWidth P) (.finite 2)))) :
@@ -71,7 +73,7 @@ public theorem recoveredValue_order_one (P : KnownOrderProblem G)
 
 omit [Fintype G] in
 /-- At every nontrivial order, recovery is the checked native selection value. -/
-public theorem recoveredValue_nontrivial (P : KnownOrderProblem G)
+public lemma recoveredValue_nontrivial (P : KnownOrderProblem G)
     (nontrivial : P.order ≠ 1)
     (samples : CShape.Value (.fixedVector (sampleCount P)
       (.fixedVector (OrderExecution.sampleWidth P) (.finite 2)))) :
@@ -82,11 +84,11 @@ public theorem recoveredValue_nontrivial (P : KnownOrderProblem G)
 
 /-- The selected recovery branch reads its actual inputs and writes precisely
 the corresponding pure value to the retained output cell. -/
-public theorem recoveryCircuit_read (P : KnownOrderProblem G)
+public lemma recoveryCircuit_read (P : KnownOrderProblem G)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (outputContext P) Reference
       ((OrderExecution.model P).HiddenState × History)) :
-    ((recoveryCircuit P).execute Reference state).mapClassical
+    ((recoveryCircuit P).execute (OrderExecution.sourceEnvironment P) Reference state).mapClassical
         (fun entry => entry.1.read (.storage (outputRef P).toCStorageRef)) =
       state.mapClassical (fun entry => recoveredValue P
         (.fixedVector fun index => entry.1.read (retainedSample P index))) := by
@@ -94,6 +96,7 @@ public theorem recoveryCircuit_read (P : KnownOrderProblem G)
   · rw [recoveryCircuit_order_one P trivial]
     obtain ⟨record, executed, values⟩ :=
       ClassicalRoutines.FiniteCyclicDLP.Trivial.Native.zeroInto_actualRecord
+        (environment := OrderExecution.sourceEnvironment P)
         (model := OrderExecution.model P) (outputRef P)
     have observed := congrArg
       (fun output => output.mapClassical
@@ -110,7 +113,8 @@ public theorem recoveryCircuit_read (P : KnownOrderProblem G)
       recoveredValue, trivial, dite_true]
   · rw [recoveryCircuit_nontrivial P trivial]
     obtain ⟨record, executed, values⟩ :=
-      OrderRecovery.Native.recoveryInto_actualRecord_correct P
+      OrderRecovery.Native.recoveryInto_actualRecord_correct
+        (quantumEnvironment := OrderOracle.interpretation P) P
         (recoverySpec P trivial) (sampleCount P)
         (retainedSample P) (outputRef P)
     have observed := congrArg
@@ -130,16 +134,16 @@ public theorem recoveryCircuit_read (P : KnownOrderProblem G)
 
 /-- Actual result allocation preserves the complete sample vector supplied to
 the same recovery record. -/
-public theorem retainedRecovery_read (P : KnownOrderProblem G)
+public lemma retainedRecovery_read (P : KnownOrderProblem G)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (sampledContext P) Reference
       ((OrderExecution.model P).HiddenState × History)) :
-    ((retainedRecovery P).execute Reference state).mapClassical
+    ((retainedRecovery P).execute (OrderExecution.sourceEnvironment P) Reference state).mapClassical
         (fun entry => entry.1.read (.storage (outputRef P).toCStorageRef)) =
       (retainedState P state).mapClassical (fun entry => recoveredValue P
         (.fixedVector fun index => entry.1.read (retainedSample P index))) := by
   rw [retainedRecovery_sequence]
-  have first := sequence_read
+  have first := sequence_read (environment := OrderExecution.sourceEnvironment P)
     (outputAllocation P) (recoveryCircuit P) state
     (fun store => store.read (.storage (outputRef P).toCStorageRef))
   refine first.trans ?_

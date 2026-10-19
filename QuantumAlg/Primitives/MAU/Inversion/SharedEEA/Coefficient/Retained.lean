@@ -29,7 +29,7 @@ noncomputable section
 
 open ArithmeticWindowRegisters ArithmeticWindowProgram
 
-private theorem arithmetic_firstWord {width : Nat} (selected : Window width)
+private lemma arithmetic_firstWord {width : Nat} (selected : Window width)
     (operation : Operation) (state : Registers width) :
     (CoefficientWindowProgram.step selected operation state).firstWord = state.firstWord := by
   let output := CoefficientWindowProgram.step selected operation state
@@ -51,7 +51,7 @@ private theorem arithmetic_firstWord {width : Nat} (selected : Window width)
       (congrArg (fun pair : BitVec selected.above × BitVec selected.below => pair.2) outside))
 
 /-- Both real coefficient arithmetic instructions retain the complete original Work1. -/
-theorem source_firstWord {width : Nat} (state : Registers width)
+lemma source_firstWord {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     (ArithmeticBlocks.coefficientSource state).firstWord = state.firstWord := by
@@ -71,7 +71,7 @@ theorem source_firstWord {width : Nat} (state : Registers width)
   · exact arithmetic_firstWord selected .subtractLow state
 
 /-- The same complete source preservation belongs to the emitted native coefficient block. -/
-theorem native_firstWord (width : Nat) (state : Registers width)
+lemma native_firstWord (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false) (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     (ArithmeticBlocks.coefficientStep width state).firstWord = state.firstWord := by
@@ -79,7 +79,7 @@ theorem native_firstWord (width : Nat) (state : Registers width)
   exact source_firstWord state first second fits
 
 /-- The actual phase-three post-shift rotates once and increments its finite counter. -/
-theorem post_shift_ascending (width : Nat) (state : Registers width)
+lemma post_shift_ascending (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false)
     (within : state.shift.toNat + 1 < 2 ^ width.size) :

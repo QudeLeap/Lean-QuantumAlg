@@ -20,6 +20,8 @@ relation; no independence or replacement output distribution is assumed.
 
 namespace QuantumAlg.AlgorithmRun
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 open Execution
@@ -29,20 +31,21 @@ variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
 
 /-- A supported-record identification turns the complete run's relational
 success into the complement of its actual failed-record effect weight. -/
-theorem relational_success_eq_one_sub_failure_effectWeight
-    (run : AlgorithmRun model pre post outputShape)
+lemma relational_success_eq_one_sub_failure_effectWeight
+    (run : AlgorithmRun model pre post outputShape allowAllocation)
+    (environment : model.Environment)
     {Reference : Register}
     (input : OracleInput model.classicalOracles pre Reference)
     (accepts : Store pre × outputShape.Value → Prop)
     (flag : run.Record → Bool)
-    (agrees : ∀ record ∈ (run.executionDistribution input).support,
+    (agrees : ∀ record ∈ (run.executionDistribution environment input).support,
       accepts (record.2.2.1, run.result record) ↔ flag record = true) :
-    (run.relationalDistribution input).toOuterMeasure {pair | accepts pair} =
-      1 - ENNReal.ofReal ((run.execute Reference input.state).effectWeight
+    (run.relationalDistribution environment input).toOuterMeasure {pair | accepts pair} =
+      1 - ENNReal.ofReal ((run.execute environment Reference input.state).effectWeight
         (fun record => if flag record = false then
           Effect.one (post.register.prod Reference)
         else Effect.zero (post.register.prod Reference))) := by
-  let distribution := run.executionDistribution input
+  let distribution := run.executionDistribution environment input
   have eventEq :
       distribution.toOuterMeasure
           {record | accepts (record.2.2.1, run.result record)} =
@@ -53,7 +56,7 @@ theorem relational_success_eq_one_sub_failure_effectWeight
     exact and_congr_left (fun supported => agrees record supported)
   have failureEq :
       distribution.toOuterMeasure {record | flag record = false} =
-        ENNReal.ofReal ((run.execute Reference input.state).effectWeight
+        ENNReal.ofReal ((run.execute environment Reference input.state).effectWeight
           (fun record => if flag record = false then
             Effect.one (post.register.prod Reference)
           else Effect.zero (post.register.prod Reference))) := by
@@ -63,9 +66,9 @@ theorem relational_success_eq_one_sub_failure_effectWeight
         rw [PMF.toOuterMeasure_map_apply]
         rfl
       _ = distribution.map flag false := PMF.toOuterMeasure_apply_singleton _ _
-      _ = _ := run.executionDistribution_map_eq_effectWeight input flag false
+      _ = _ := run.executionDistribution_map_eq_effectWeight environment input flag false
   calc
-    (run.relationalDistribution input).toOuterMeasure {pair | accepts pair} =
+    (run.relationalDistribution environment input).toOuterMeasure {pair | accepts pair} =
         distribution.toOuterMeasure
           {record | accepts (record.2.2.1, run.result record)} := by
       simp only [AlgorithmRun.relationalDistribution, PMF.toOuterMeasure_map_apply]

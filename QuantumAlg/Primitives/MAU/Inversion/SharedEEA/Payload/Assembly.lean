@@ -47,7 +47,7 @@ def oldInput (width payloadWidth : Nat) (old : (before width payloadWidth).regis
   (InputPreparation.inputBasisEquiv width).symm ((inputBasisEquiv width payloadWidth old).1)
 
 /-- Exact assembly holds for all auxiliary values and arbitrary input and payload. -/
-theorem payloadAssembly_basisEquiv_assembly (width payloadWidth : Nat)
+lemma payloadAssembly_basisEquiv_assembly (width payloadWidth : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width payloadWidth).register.Index) :
     basisEquiv width payloadWidth (assembly width payloadWidth (fresh, old)) =
@@ -93,7 +93,7 @@ def payloadPosition (width payloadWidth : Nat) (index : Fin payloadWidth) : Fin 
     change _ < (encoding width).width + payloadWidth
     omega⟩
 
-private theorem auxiliary_rev (width payloadWidth : Nat)
+private lemma auxiliary_rev (width payloadWidth : Nat)
     (index : Fin (InputPreparation.auxiliaryWidth width)) :
     (auxiliaryPosition width payloadWidth index).rev.val =
       payloadWidth + (InputAssembly.auxiliaryPosition width index).rev.val := by
@@ -102,7 +102,7 @@ private theorem auxiliary_rev (width payloadWidth : Nat)
   have bound := (InputAssembly.auxiliaryPosition width index).isLt
   omega
 
-private theorem input_rev (width payloadWidth : Nat) (index : Fin width) :
+private lemma input_rev (width payloadWidth : Nat) (index : Fin width) :
     (inputPosition width payloadWidth index).rev.val =
       payloadWidth + (InputAssembly.inputPosition width index).rev.val := by
   simp only [inputPosition, Fin.val_rev]
@@ -110,14 +110,14 @@ private theorem input_rev (width payloadWidth : Nat) (index : Fin width) :
   have bound := (InputAssembly.inputPosition width index).isLt
   omega
 
-private theorem payload_rev (width payloadWidth : Nat) (index : Fin payloadWidth) :
+private lemma payload_rev (width payloadWidth : Nat) (index : Fin payloadWidth) :
     (payloadPosition width payloadWidth index).rev.val = index.rev.val := by
   simp only [payloadPosition, Fin.val_rev]
   change (encoding width).width + payloadWidth - ((encoding width).width + index.val + 1) = _
   omega
 
 /-- Every auxiliary position retains its actual original value, with input and payload arbitrary. -/
-theorem payloadAssembly_basisEquiv_auxiliary (width payloadWidth : Nat)
+lemma payloadAssembly_basisEquiv_auxiliary (width payloadWidth : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width payloadWidth).register.Index) (index : Fin
       (InputPreparation.auxiliaryWidth width)) :
@@ -127,7 +127,7 @@ theorem payloadAssembly_basisEquiv_auxiliary (width payloadWidth : Nat)
   exact InputAssembly.basisEquiv_auxiliary width fresh (oldInput width payloadWidth old) index
 
 /-- Every original input bit retains its actual source identity in the joint assembly. -/
-theorem payloadAssembly_basisEquiv_input (width payloadWidth : Nat)
+lemma payloadAssembly_basisEquiv_input (width payloadWidth : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width payloadWidth).register.Index) (index : Fin width) :
     (basisEquiv width payloadWidth (assembly width payloadWidth (fresh, old))).val.testBit
@@ -138,7 +138,7 @@ theorem payloadAssembly_basisEquiv_input (width payloadWidth : Nat)
   simpa only [oldInput, Equiv.apply_symm_apply] using actual
 
 /-- Every supplied payload bit retains its original rightmost physical identity and value. -/
-theorem payloadAssembly_basisEquiv_payload (width payloadWidth : Nat)
+lemma payloadAssembly_basisEquiv_payload (width payloadWidth : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (before width payloadWidth).register.Index) (index : Fin payloadWidth) :
     (basisEquiv width payloadWidth (assembly width payloadWidth (fresh, old))).val.testBit
@@ -148,7 +148,7 @@ theorem payloadAssembly_basisEquiv_payload (width payloadWidth : Nat)
 
 /-- The fixed preparation produces exactly the literal source initial frame and arbitrary
   payload. -/
-theorem payloadAssembly_prepared_initial (modulus payloadWidth : Nat) (old : (before
+lemma payloadAssembly_prepared_initial (modulus payloadWidth : Nat) (old : (before
   modulus.size payloadWidth).register.Index) :
     basisEquiv modulus.size payloadWidth
         (assembly modulus.size payloadWidth ((InputPreparation.preparation modulus).value, old)) =

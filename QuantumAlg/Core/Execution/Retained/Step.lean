@@ -36,17 +36,17 @@ public def retainedStep : Circuit model ctx (ctx.addRetained key shape fresh) :=
   .seq (.retain ctx key shape fresh) (.classical op)
 
 /-- The unique instruction emits its own native event after the allocation. -/
-theorem retainedStep_eventTrace (path : (retainedStep ctx key shape fresh op).Path) :
+lemma retainedStep_eventTrace (path : (retainedStep ctx key shape fresh op).Path) :
     (retainedStep ctx key shape fresh op).eventTrace path =
       [.classicalOperation (model.classicalOperations.coordinate op.token)] := rfl
 
 /-- Every actual visited context is the input or the extended live store. -/
-theorem retainedStep_visitedContexts (path : (retainedStep ctx key shape fresh op).Path) :
+lemma retainedStep_visitedContexts (path : (retainedStep ctx key shape fresh op).Path) :
     (retainedStep ctx key shape fresh op).visitedContexts path =
       [ctx, ctx.addRetained key shape fresh, ctx.addRetained key shape fresh] := rfl
 
 /-- The resident peak includes the newly retained cell and all original systems. -/
-theorem retainedStep_peakResidentSpace (path : (retainedStep ctx key shape fresh op).Path) :
+lemma retainedStep_peakResidentSpace (path : (retainedStep ctx key shape fresh op).Path) :
     (retainedStep ctx key shape fresh op).peakResidentSpace path =
       (ctx.addRetained key shape fresh).residentSpace := by
   funext axis
@@ -59,7 +59,7 @@ theorem retainedStep_peakResidentSpace (path : (retainedStep ctx key shape fresh
   exact Nat.le_add_left _ _
 
 /-- The retained result counts as auxiliary storage in the actual path peak. -/
-theorem retainedStep_peakAuxiliarySpace (path : (retainedStep ctx key shape fresh op).Path) :
+lemma retainedStep_peakAuxiliarySpace (path : (retainedStep ctx key shape fresh op).Path) :
     (retainedStep ctx key shape fresh op).peakAuxiliarySpace path =
       (ctx.addRetained key shape fresh).auxiliarySpace := by
   funext axis
@@ -76,9 +76,10 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Execution retains each declared probability, actual write, and complete reference block. -/
-theorem execute_retainedStep {Reference : Register} {History : Type} [Fintype History]
+lemma execute_retainedStep (environment : model.Environment)
+    {Reference : Register} {History : Type} [Fintype History]
     (state : Execution.State ctx Reference (model.HiddenState × History)) :
-    (retainedStep ctx key shape fresh op).execute Reference state =
+    (retainedStep ctx key shape fresh op).execute environment Reference state =
       (Execution.kernelChoice state (fun original =>
         model.classicalOperations.evaluate op.token
           ((original.1.pushRetained key shape fresh).read op.input))).mapClassical
@@ -93,14 +94,15 @@ theorem execute_retainedStep {Reference : Register} {History : Type} [Fintype Hi
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Borrowed classical values, quantum systems, and external correlations are restored jointly. -/
-theorem retainedStep_borrowedRestored {Reference : Register} {History : Type} [Fintype History]
+lemma retainedStep_borrowedRestored (environment : model.Environment)
+    {Reference : Register} {History : Type} [Fintype History]
     (state : Execution.State ctx Reference (model.HiddenState × History)) :
     (retainedStep ctx key shape fresh op).BorrowedRestored Reference state
-      ((retainedStep ctx key shape fresh op).execute Reference state) := by
+      ((retainedStep ctx key shape fresh op).execute environment Reference state) := by
   unfold retainedStep
   apply borrowedRestored_seq
-  · exact borrowedRestored_retain key shape fresh state
-  · exact borrowedRestored_classical op _
+  · exact borrowedRestored_retain (environment := environment) key shape fresh state
+  · exact borrowedRestored_classical (environment := environment) op _
 
 end
 

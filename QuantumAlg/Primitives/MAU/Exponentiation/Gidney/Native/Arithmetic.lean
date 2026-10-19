@@ -59,7 +59,7 @@ def liftedSourceControlledAdderGates (tail : Nat) (pivot : Fin tail.succ)
   (sourceControlledAdderGates tail pivot constant).map
     (GateSpec.prodRight BinaryLabelEncoding.bool)
 
-private theorem liftedSourceControlledAdder_controlDisjoint (tail : Nat)
+private lemma liftedSourceControlledAdder_controlDisjoint (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ∀ gate, gate ∈ liftedSourceControlledAdderGates tail pivot constant →
       GateSpec.bitDisjoint (exponentControlBit tail) gate := by
@@ -69,7 +69,7 @@ private theorem liftedSourceControlledAdder_controlDisjoint (tail : Nat)
     BinaryLabelEncoding.bool (literalR0Encoding tail.succ)
     BinaryLabelEncoding.boolBit sourceGate
 
-private theorem liftedSourceControlledAdder_workDisjoint (tail : Nat)
+private lemma liftedSourceControlledAdder_workDisjoint (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ∀ gate, gate ∈ liftedSourceControlledAdderGates tail pivot constant →
       GateSpec.bitDisjoint (borrowedControlWorkBit tail) gate := by
@@ -80,7 +80,7 @@ private theorem liftedSourceControlledAdder_workDisjoint (tail : Nat)
     (sourceControlledAdderGates_forall_bitDisjoint_flag
       tail pivot constant) sourceGate sourcePresent
 
-private theorem exponentControlBit_wire_ne_borrowedControlWorkBit (tail : Nat) :
+private lemma exponentControlBit_wire_ne_borrowedControlWorkBit (tail : Nat) :
     (exponentControlBit tail).wire ≠ (borrowedControlWorkBit tail).wire :=
   (GateSpec.prodRightBit_wire_ne_prodLeftBit_wire
     BinaryLabelEncoding.bool (literalR0Encoding tail.succ)
@@ -109,7 +109,7 @@ def doubleControlledAdd (tail : Nat) (pivot : Fin tail.succ)
 
 /-- The literal lowering applies the HRS adder exactly when the exponent
 control is set; all source and dirty-work coordinates retain their values. -/
-theorem doubleControlledAdderGates_step (tail : Nat) (pivot : Fin tail.succ)
+lemma doubleControlledAdderGates_step (tail : Nat) (pivot : Fin tail.succ)
     (constant : PlainAdder.Word tail.succ)
     (state : ControlledAdderRegisters tail) :
     GateSpec.stepList (doubleControlledAdderGates tail pivot constant) state =
@@ -139,19 +139,20 @@ def doubleControlledAdderProgram (tail : Nat) (pivot : Fin tail.succ)
     .empty (doubleControlledAdderGates tail pivot constant)
 
 /-- The compiled circuit realizes the same independently stated action. -/
-theorem doubleControlledAdderProgram_realizes (tail : Nat)
+lemma doubleControlledAdderProgram_realizes (tail : Nat)
+    {environment : OracleModel.empty.Interpretation}
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     UnitaryCircuit.Realizes (controlledAdderEncoding tail)
-      (doubleControlledAdderProgram tail pivot constant)
+      (doubleControlledAdderProgram tail pivot constant) environment
       (doubleControlledAdd tail pivot constant) :=
   GateSpec.realizesList_congrStep
     (QubitLayout.canonical (controlledAdderEncoding tail).width) .empty
     (doubleControlledAdderGates tail pivot constant)
-    (doubleControlledAdderGates_step tail pivot constant)
+    (doubleControlledAdderGates_step tail pivot constant) environment
 
 /-- The emitted list has the exact dirty-control expansion length of its
 source HRS gate list. -/
-theorem doubleControlledAdderGates_length (tail : Nat)
+lemma doubleControlledAdderGates_length (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     (doubleControlledAdderGates tail pivot constant).length =
       ((liftedSourceControlledAdderGates tail pivot constant).map
@@ -163,7 +164,7 @@ theorem doubleControlledAdderGates_length (tail : Nat)
     (liftedSourceControlledAdder_workDisjoint tail pivot constant)
     (exponentControlBit_wire_ne_borrowedControlWorkBit tail)
 
-private theorem liftedSourceControlledAdderGates_xMultiplicity_sum (tail : Nat)
+private lemma liftedSourceControlledAdderGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((liftedSourceControlledAdderGates tail pivot constant).map
       GateSpec.xMultiplicity).sum =
@@ -173,7 +174,7 @@ private theorem liftedSourceControlledAdderGates_xMultiplicity_sum (tail : Nat)
       (sourceControlledAdderGates tail pivot constant))).trans
   exact sourceControlledAdderGates_xMultiplicity_sum tail pivot constant
 
-private theorem liftedSourceControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
+private lemma liftedSourceControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((liftedSourceControlledAdderGates tail pivot constant).map
       GateSpec.cnotMultiplicity).sum =
@@ -183,7 +184,7 @@ private theorem liftedSourceControlledAdderGates_cnotMultiplicity_sum (tail : Na
       (sourceControlledAdderGates tail pivot constant))).trans
   exact sourceControlledAdderGates_cnotMultiplicity_sum tail pivot constant
 
-private theorem liftedSourceControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
+private lemma liftedSourceControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((liftedSourceControlledAdderGates tail pivot constant).map
       GateSpec.toffoliMultiplicity).sum = 2 * tail * tail := by
@@ -194,7 +195,7 @@ private theorem liftedSourceControlledAdderGates_toffoliMultiplicity_sum (tail :
 
 /-- Adding the exponent control eliminates physical X instructions: source
 X gates become CNOTs and every other source gate becomes a Toffoli network. -/
-theorem doubleControlledAdderGates_xMultiplicity_sum (tail : Nat)
+lemma doubleControlledAdderGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((doubleControlledAdderGates tail pivot constant).map
       GateSpec.xMultiplicity).sum = 0 := by
@@ -206,7 +207,7 @@ theorem doubleControlledAdderGates_xMultiplicity_sum (tail : Nat)
     (exponentControlBit_wire_ne_borrowedControlWorkBit tail)
 
 /-- Exact physical CNOT coordinate of the exponent-controlled actual adder. -/
-theorem doubleControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
+lemma doubleControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((doubleControlledAdderGates tail pivot constant).map
       GateSpec.cnotMultiplicity).sum =
@@ -218,7 +219,7 @@ theorem doubleControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
 /-- Exact physical Toffoli coordinate of the exponent-controlled actual
 adder, including the four-Toffoli arbitrary-work lowering of every source
 Toffoli. -/
-theorem doubleControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
+lemma doubleControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((doubleControlledAdderGates tail pivot constant).map
       GateSpec.toffoliMultiplicity).sum =
@@ -231,7 +232,7 @@ theorem doubleControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
 
 /-- The compiled program exposes the same exact three-class native counts as
 its emitted list. -/
-theorem doubleControlledAdderProgram_native_counts (tail : Nat)
+lemma doubleControlledAdderProgram_native_counts (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (doubleControlledAdderProgram tail pivot constant).eventCost = 0 ∧

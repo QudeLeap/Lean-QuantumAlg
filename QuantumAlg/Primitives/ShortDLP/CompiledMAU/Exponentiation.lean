@@ -23,6 +23,8 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- The exponent word precedes the existing two-word shared arithmetic layout. -/
@@ -44,7 +46,7 @@ def exponentiationProgram (bits width N : Nat) (unit : (ZMod N)ˣ) :
     (QubitLayout.canonical (bits + workspaceBits width)).toQuantum
 
 /-- Valid compilation parameters select the literal gate program at its declared carrier. -/
-theorem exponentiationProgram_valid (bits width N : Nat) (positive : 0 < N)
+lemma exponentiationProgram_valid (bits width N : Nat) (positive : 0 < N)
     (fitted : N ≤ 2 ^ width) (unit : (ZMod N)ˣ) :
     exponentiationProgram bits width N unit =
       MAU.Exponentiation.Gidney.program bits width ⟨N, Nat.lt_succ_of_le fitted⟩ unit := by
@@ -52,7 +54,7 @@ theorem exponentiationProgram_valid (bits width N : Nat) (positive : 0 < N)
   exact (dif_pos positive).trans (dif_pos fitted)
 
 /-- An oversized modulus selects the literal zero-event identity program. -/
-theorem exponentiationProgram_unfitted (bits width N : Nat) (positive : 0 < N)
+lemma exponentiationProgram_unfitted (bits width N : Nat) (positive : 0 < N)
     (unfitted : ¬ N ≤ 2 ^ width) (unit : (ZMod N)ˣ) :
     exponentiationProgram bits width N unit =
       UnitaryCircuit.identity AlgorithmGate.model .empty
@@ -61,7 +63,7 @@ theorem exponentiationProgram_unfitted (bits width N : Nat) (positive : 0 < N)
   exact (dif_pos positive).trans (dif_neg unfitted)
 
 /-- A nonpositive modulus selects the literal zero-event identity program. -/
-theorem exponentiationProgram_nonpositive (bits width N : Nat) (nonpositive : ¬ 0 < N)
+lemma exponentiationProgram_nonpositive (bits width N : Nat) (nonpositive : ¬ 0 < N)
     (unit : (ZMod N)ˣ) :
     exponentiationProgram bits width N unit =
       UnitaryCircuit.identity AlgorithmGate.model .empty
@@ -80,7 +82,7 @@ def exponentiationRawStep (bits width N : Nat) (unit : (ZMod N)ˣ)
   else input
 
 /-- The admitted parameter branch selects the exact all-label arithmetic function. -/
-theorem exponentiationRawStep_valid (bits width N : Nat) (positive : 0 < N)
+lemma exponentiationRawStep_valid (bits width N : Nat) (positive : 0 < N)
     (fitted : N ≤ 2 ^ width) (unit : (ZMod N)ˣ) :
     exponentiationRawStep bits width N unit =
       MAU.Exponentiation.Gidney.outputForBits ⟨N, Nat.lt_succ_of_le fitted⟩ unit
@@ -89,22 +91,23 @@ theorem exponentiationRawStep_valid (bits width N : Nat) (positive : 0 < N)
   exact (dif_pos positive).trans (dif_pos fitted)
 
 /-- The oversized-modulus action is the identity on every complete register label. -/
-theorem exponentiationRawStep_unfitted (bits width N : Nat) (positive : 0 < N)
+lemma exponentiationRawStep_unfitted (bits width N : Nat) (positive : 0 < N)
     (unfitted : ¬ N ≤ 2 ^ width) (unit : (ZMod N)ˣ) :
     exponentiationRawStep bits width N unit = id := by
   funext input
   exact (dif_pos positive).trans (dif_neg unfitted)
 
 /-- The nonpositive-modulus action is the identity on every complete register label. -/
-theorem exponentiationRawStep_nonpositive (bits width N : Nat) (nonpositive : ¬ 0 < N)
+lemma exponentiationRawStep_nonpositive (bits width N : Nat) (nonpositive : ¬ 0 < N)
     (unit : (ZMod N)ˣ) : exponentiationRawStep bits width N unit = id := by
   funext input
   exact dif_neg nonpositive
 
 /-- The literal selected-power gate sequence realizes its complete finite action. -/
-theorem exponentiationRaw_realizes (bits width N : Nat) (unit : (ZMod N)ˣ) :
+lemma exponentiationRaw_realizes (bits width N : Nat) (unit : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (exponentiationEncoding bits width)
-      (exponentiationProgram bits width N unit) (exponentiationRawStep bits width N unit) := by
+      (exponentiationProgram bits width N unit) environment
+      (exponentiationRawStep bits width N unit) := by
   by_cases positive : 0 < N
   · by_cases fitted : N ≤ 2 ^ width
     · rw [exponentiationProgram_valid bits width N positive fitted unit,
@@ -114,16 +117,16 @@ theorem exponentiationRaw_realizes (bits width N : Nat) (unit : (ZMod N)ˣ) :
     · rw [exponentiationProgram_unfitted bits width N positive fitted unit,
         exponentiationRawStep_unfitted bits width N positive fitted unit]
       exact UnitaryCircuit.Realizes.identity AlgorithmGate.model .empty
-        (exponentiationEncoding bits width)
+        (exponentiationEncoding bits width) environment
   · rw [exponentiationProgram_nonpositive bits width N positive unit,
       exponentiationRawStep_nonpositive bits width N positive unit]
     exact UnitaryCircuit.Realizes.identity AlgorithmGate.model .empty
-      (exponentiationEncoding bits width)
+      (exponentiationEncoding bits width) environment
 
 /-- Any canonical unit seed is multiplied exactly and the same shared auxiliary is returned. -/
-theorem exponentiationProgram_seeded (bits width N : Nat) (positive : 0 < N)
+lemma exponentiationProgram_seeded (bits width N : Nat) (positive : 0 < N)
     (fitted : N ≤ 2 ^ width) (unit seed : (ZMod N)ˣ) (exponent : Fin (2 ^ bits)) :
-    (exponentiationProgram bits width N unit).applyNormalized
+    (exponentiationProgram bits width N unit).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (bits + workspaceBits width)).basisEquiv.symm
             ((exponentiationEncoding bits width).encode
@@ -138,13 +141,15 @@ theorem exponentiationProgram_seeded (bits width N : Nat) (positive : 0 < N)
     ⟨N, Nat.lt_succ_of_le fitted⟩ positive unit seed exponent
 
 /-- The semantic all-label action has the same canonical seed endpoint. -/
-theorem exponentiationRawStep_cleanEndpoint (bits width N : Nat) (unit seed : (ZMod N)ˣ)
+lemma exponentiationRawStep_cleanEndpoint (bits width N : Nat) (unit seed : (ZMod N)ˣ)
     (exponent : Fin (2 ^ bits)) (nontrivial : 1 < N) (fits : N < 2 ^ width) :
     exponentiationRawStep bits width N unit (exponent, cleanWorkspace width N seed) =
       (exponent, cleanWorkspace width N (unit ^ exponent.val * seed)) := by
-  have actual := (exponentiationRaw_realizes bits width N unit).apply_encoded_ket
+  have actual := (exponentiationRaw_realizes (environment := OracleModel.emptyInterpretation)
+    bits width N unit).apply_encoded_ket
     (exponent, cleanWorkspace width N seed)
-  have canonical := exponentiationProgram_seeded bits width N
+  have canonical := exponentiationProgram_seeded
+    (environment := OracleModel.emptyInterpretation) bits width N
     (Nat.zero_lt_of_lt nontrivial) (Nat.le_of_lt fits) unit seed exponent
   have same := actual.symm.trans canonical
   exact (exponentiationEncoding bits width).encode_injective

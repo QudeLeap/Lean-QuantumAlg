@@ -30,11 +30,13 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceState
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA InversePreparation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem prefix_marginal (modulus : Nat)
+private lemma prefix_marginal (modulus : Nat)
     (body : Circuit (.quantum AlgorithmGate.model .empty)
       (NumeratorMeasurement.context modulus.size)
       (NumeratorMeasurement.context modulus.size))
@@ -42,22 +44,23 @@ private theorem prefix_marginal (modulus : Nat)
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
     ((Circuit.seq (InPlacePreparation.circuit modulus)
-      (Circuit.seq (NumeratorMeasurement.allocate modulus.size) body)).execute
+      (Circuit.seq (NumeratorMeasurement.allocate modulus.size) body)).execute environment
         Reference state).quantumMarginal =
-      (body.execute Reference
-        ((NumeratorMeasurement.allocate modulus.size).execute Reference
-          ((InPlacePreparation.circuit modulus).execute Reference state))).quantumMarginal := by
+      (body.execute environment Reference
+        ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+          ((InPlacePreparation.circuit modulus).execute environment Reference
+            state))).quantumMarginal := by
   rw [Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal]
 
-private theorem copied_preparation (modulus : Nat) {Reference : Register}
+private lemma copied_preparation (modulus : Nat) {Reference : Register}
     (input : OracleInput .empty (before modulus.size) Reference) :
-    ((NumeratorMeasurement.allocate modulus.size).execute Reference
-      ((InPlacePreparation.circuit modulus).execute Reference
+    ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+      ((InPlacePreparation.circuit modulus).execute environment Reference
         (input.state.mapClassical
           (fun value => (value.1, (value.2, value.1)))))).quantumMarginal =
       InPlaceTarget.inputDensity modulus Reference input.caller.state.quantumMarginal := by
-  have actual := InPlacePreparedSupport.actual_density modulus
+  have actual := InPlacePreparedSupport.actual_density (environment := environment) modulus
     (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
   change _ = InPlaceTarget.inputDensity modulus Reference
     (input.state.mapClassical
@@ -67,20 +70,20 @@ private theorem copied_preparation (modulus : Nat) {Reference : Register}
       (fun value => (value.1, (value.2, value.1)))).trans
       input.oracleInput_caller_quantumMarginal.symm))
 
-private theorem copied_support (modulus : Nat) {Reference : Register}
+private lemma copied_support (modulus : Nat) {Reference : Register}
     (input : OracleInput .empty (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.caller.localState)
     (basis : (Register.prod (NumeratorMeasurement.context modulus.size).register Reference).Index)
     (outside : ¬InPlacePreparedSupport.admissible modulus basis.1) :
-    ((NumeratorMeasurement.allocate modulus.size).execute Reference
-      ((InPlacePreparation.circuit modulus).execute Reference
+    ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+      ((InPlacePreparation.circuit modulus).execute environment Reference
         (input.state.mapClassical
           (fun value => (value.1, (value.2, value.1)))))).quantumMarginal.matrix
           basis basis = 0 := by
   have entry := congrArg
     (fun density : DensityOperator
       (Register.prod (NumeratorMeasurement.context modulus.size).register Reference) =>
-        density.matrix basis basis) (copied_preparation modulus input)
+        density.matrix basis basis) (copied_preparation (environment := environment) modulus input)
   refine entry.trans ?_
   unfold InPlaceTarget.inputDensity
   erw [DensityOperator.reindex_entry]
@@ -89,65 +92,65 @@ private theorem copied_support (modulus : Nat) {Reference : Register}
     (InPlacePreparedSupport.prepared_diagonal modulus input.caller valid _ outside) basis.2
 
 /-- The complete actual division run has the independent joint target for any full output. -/
-theorem division_finalState (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_finalState (modulus : Nat) (prime : Nat.Prime modulus)
     {shape : CShape} (output : Output (NumeratorMeasurement.context modulus.size) shape)
     {Reference : Register} (input : OracleInput .empty (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.caller.localState) :
     (({ code := InPlaceDivision.code modulus prime, output := output } :
       AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-        (NumeratorMeasurement.context modulus.size) shape).finalState
-        Reference input.state).quantumMarginal =
+        (NumeratorMeasurement.context modulus.size) shape).finalState environment Reference
+          input.state).quantumMarginal =
       InPlaceTarget.density .division modulus prime Reference
         input.caller.state.quantumMarginal := by
   have history :
       (({ code := InPlaceDivision.code modulus prime, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-          (NumeratorMeasurement.context modulus.size) shape).finalState
-          Reference input.state).quantumMarginal =
-      ((InPlaceDivision.code modulus prime).execute Reference
+          (NumeratorMeasurement.context modulus.size) shape).finalState environment Reference
+            input.state).quantumMarginal =
+      ((InPlaceDivision.code modulus prime).execute environment Reference
         (input.state.mapClassical
           (fun value => (value.1, (value.2, value.1))))).quantumMarginal :=
     AlgorithmRun.finalState_quantumMarginal
       ({ code := InPlaceDivision.code modulus prime, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-          (NumeratorMeasurement.context modulus.size) shape) Reference input.state
-  have actual := InPlaceBodyState.division_density modulus prime
-    ((NumeratorMeasurement.allocate modulus.size).execute Reference
-      ((InPlacePreparation.circuit modulus).execute Reference
+          (NumeratorMeasurement.context modulus.size) shape) environment Reference input.state
+  have actual := InPlaceBodyState.division_density (environment := environment) modulus prime
+    ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+      ((InPlacePreparation.circuit modulus).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))))
     (copied_support modulus input valid)
   exact history.trans ((prefix_marginal modulus (InPlaceDivision.body modulus prime)
     (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans
     (actual.trans (congrArg
       (DensityOperator.applyUnitary (InPlaceTarget.jointOperator .division modulus prime Reference))
-      (copied_preparation modulus input))))
+      (copied_preparation (environment := environment) modulus input))))
 
 /-- The same strong full-state theorem holds for the actual measured multiplication schedule. -/
-theorem multiplication_finalState (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_finalState (modulus : Nat) (prime : Nat.Prime modulus)
     {shape : CShape} (output : Output (NumeratorMeasurement.context modulus.size) shape)
     {Reference : Register} (input : OracleInput .empty (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.caller.localState) :
     (({ code := InPlaceMultiplication.code modulus prime, output := output } :
       AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-        (NumeratorMeasurement.context modulus.size) shape).finalState
-        Reference input.state).quantumMarginal =
+        (NumeratorMeasurement.context modulus.size) shape).finalState environment Reference
+          input.state).quantumMarginal =
       InPlaceTarget.density .multiplication modulus prime Reference
         input.caller.state.quantumMarginal := by
   have history :
       (({ code := InPlaceMultiplication.code modulus prime, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-          (NumeratorMeasurement.context modulus.size) shape).finalState
-          Reference input.state).quantumMarginal =
-      ((InPlaceMultiplication.code modulus prime).execute Reference
+          (NumeratorMeasurement.context modulus.size) shape).finalState environment Reference
+            input.state).quantumMarginal =
+      ((InPlaceMultiplication.code modulus prime).execute environment Reference
         (input.state.mapClassical
           (fun value => (value.1, (value.2, value.1))))).quantumMarginal :=
     AlgorithmRun.finalState_quantumMarginal
       ({ code := InPlaceMultiplication.code modulus prime, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-          (NumeratorMeasurement.context modulus.size) shape) Reference input.state
-  have actual := InPlaceBodyState.multiplication_density modulus prime
-    ((NumeratorMeasurement.allocate modulus.size).execute Reference
-      ((InPlacePreparation.circuit modulus).execute Reference
+          (NumeratorMeasurement.context modulus.size) shape) environment Reference input.state
+  have actual := InPlaceBodyState.multiplication_density (environment := environment) modulus prime
+    ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+      ((InPlacePreparation.circuit modulus).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))))
     (copied_support modulus input valid)
   exact history.trans ((prefix_marginal modulus (InPlaceMultiplication.body modulus prime)
@@ -155,7 +158,7 @@ theorem multiplication_finalState (modulus : Nat) (prime : Nat.Prime modulus)
     (actual.trans (congrArg
       (DensityOperator.applyUnitary
         (InPlaceTarget.jointOperator .multiplication modulus prime Reference))
-      (copied_preparation modulus input))))
+      (copied_preparation (environment := environment) modulus input))))
 
 end
 

@@ -64,11 +64,12 @@ def selectionChoiceStep (cells : ScanCells ctx modulusWidth candidateWidth)
       acceptCursorStep (model := model) (cellRead cells.cursor.candidate) (cellRead cells.valid)
         cells.selected cells.accepted cells.cursor.active store
 
-private theorem selectionChoice_execute (cells : ScanCells ctx modulusWidth candidateWidth)
+private lemma selectionChoice_execute (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth))
-    (value : CShape.Value .bit) (Reference : Register)
+    (value : CShape.Value .bit) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (selectionChoice (model := model) cells remainder value).execute Reference state =
+    (selectionChoice (model := model) cells remainder value).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((selectionChoiceStep (model := model) cells remainder value entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -123,21 +124,23 @@ def visitWithDivisionStep (spec : ModulusSpec modulusWidth)
   (selected.1, (materialized.2, (validated.2, ⟨value, selected.2⟩)))
 
 /-- The actual visit composes its two deterministic prefixes and same-store classical selection. -/
-theorem nativeScan_visitWithDivision_execute (spec : ModulusSpec modulusWidth)
+lemma nativeScan_visitWithDivision_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth)
     (division : CWriteRef ctx
       (.product (.unsignedWord candidateWidth) (.unsignedWord candidateWidth)))
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (visitWithDivision (model := model) spec base cells division).execute Reference state =
+    (visitWithDivision (model := model) spec base cells division).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((visitWithDivisionStep (model := model) spec base cells division entry.1).1,
           (entry.2.1, (entry.2.2,
             (visitWithDivisionStep (model := model) spec base cells division entry.1).2)))) := by
   have selectedExecute {H : Type} [Fintype H] (reference : Register)
       (initial : State ctx reference (model.HiddenState × H)) :
-      (selectCandidate (model := model) cells (.second (cellRead division))).execute
+      (selectCandidate (model := model) cells (.second (cellRead division))).execute environment
         reference initial =
         initial.mapClassical (fun entry =>
           ((selectionChoiceStep (model := model) cells (.second (cellRead division))
@@ -145,12 +148,13 @@ theorem nativeScan_visitWithDivision_execute (spec : ModulusSpec modulusWidth)
             (entry.2.1, (entry.2.2, ⟨entry.1.read (cellRead cells.valid),
               (selectionChoiceStep (model := model) cells (.second (cellRead division))
                 (entry.1.read (cellRead cells.valid)) entry.1).2⟩)))) :=
-    Circuit.execute_branch_mapClassical (cellRead cells.valid) _
+    Circuit.execute_branch_mapClassical (environment := environment) (cellRead cells.valid) _
       (fun value entry =>
         let next := selectionChoiceStep (model := model) cells (.second (cellRead division))
           value entry.1
         ((next.1, entry.2), next.2))
-      (selectionChoice_execute cells (.second (cellRead division))) reference initial
+      (fun value => selectionChoice_execute cells (.second (cellRead division)) value
+      (environment := environment)) reference initial
   simp only [visitWithDivision, Circuit.execute_seq, nativeCandidatePrefix_execute,
     nativeValidation_execute, selectedExecute, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]

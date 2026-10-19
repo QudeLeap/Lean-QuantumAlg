@@ -23,6 +23,9 @@ open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Keep the already constructed source bank abstract while checking retained-state equality.
@@ -51,10 +54,10 @@ private def bodyStep (input : Input N)
       (resultRef base N) before.1
   ((actual.1, before.2), actual.2)
 
-private theorem body_execute (input : Input N) (Reference : Register)
+private lemma body_execute (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (context base N) Reference (RuntimeRound.model.HiddenState × History)) :
-    (body base input).execute Reference state =
+    (body base input).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := bodyStep base input (entry.1, entry.2.1)
         (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) := by
@@ -97,10 +100,11 @@ def run (input : Input N) :
     (.read (.storage (resultRef base N).toCStorageRef))
 
 /-- Actual allocation and recovery preserve complete quantum-reference blocks on every history. -/
-theorem tail_execute (input : Input N) :
-    Circuit.RetainedRecord (tail base input) (step base input) := by
+lemma tail_execute (input : Input N) :
+    Circuit.RetainedRecord (environment := environment) (tail base input) (step base input) := by
   intro Reference History historyFinite state
-  have equation := Circuit.execute_retain_seq_mapClassical (model := RuntimeRound.model)
+  have equation := Circuit.execute_retain_seq_mapClassical (environment := environment)
+    (model := RuntimeRound.model)
     (NativeBatchReuse.context base N)
     (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh (body base input)
@@ -111,14 +115,16 @@ theorem tail_execute (input : Input N) :
   exact Subsingleton.elim _ _
 
 /-- The complete run maps the original source execution, retaining its original path and bank. -/
-theorem code_execute (input : Input N) :
-    Circuit.RetainedTailRecord (NativeBatchReuse.code base N sameWires originalCells)
+lemma code_execute (input : Input N) :
+    Circuit.RetainedTailRecord (environment := environment)
+      (NativeBatchReuse.code base N sameWires originalCells)
       (tail base input) (step base input) :=
-  Circuit.RetainedRecord.after (NativeBatchReuse.code base N sameWires originalCells)
+  Circuit.RetainedRecord.after (environment := environment)
+    (NativeBatchReuse.code base N sameWires originalCells)
     (tail base input) (step base input) (tail_execute base input)
 
 /-- The complete output includes the same source bank, all source cells and the retained factor. -/
-theorem output_listing (input : Input N) :
+lemma output_listing (input : Input N) :
     (run base sameWires originalCells input).output.listing = (context base N).keys := rfl
 
 end

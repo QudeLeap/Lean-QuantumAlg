@@ -32,7 +32,7 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem ownedTail_read {ctx : RuntimeCtx .quantum}
+private lemma ownedTail_read {ctx : RuntimeCtx .quantum}
     (key : StorageKey) {count : Nat} (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (store : Store (ctx.addOwnedLayout key layout fresh disjoint)) {shape : CShape}
@@ -57,7 +57,7 @@ private def samplingOriginal (I : ECDLPInstance E)
   ⟨(MeasurementCells.originalStore 2 (Sampling.sampleWidth I)
     (⟨store.cells.2⟩ : Store (Sampling.post I))).cells.2⟩
 
-private theorem samplingOriginal_read (I : ECDLPInstance E)
+private lemma samplingOriginal_read (I : ECDLPInstance E)
     (store : Store (Sampling.Reuse.context I)) {shape : CShape}
     (input : CInputRef (Sampling.pre I) shape) :
     (samplingOriginal I store).read input = store.read (originalInput I input) := by
@@ -73,7 +73,7 @@ private theorem samplingOriginal_read (I : ECDLPInstance E)
       (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.pre I)) (Sampling.bankDisjoint I))
   exact (ownedTail_read _ _ _ _ _ input).trans (measured.trans retained)
 
-private theorem samplingOriginal_borrowed (I : ECDLPInstance E)
+private lemma samplingOriginal_borrowed (I : ECDLPInstance E)
     (store : Store (Sampling.Reuse.context I)) :
     HEq store.readBorrowedClassical (samplingOriginal I store).readBorrowedClassical := by
   exact (show HEq store.readBorrowedClassical
@@ -85,7 +85,7 @@ private def persistentTail {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (width scalar : Nat) (store : Store (persistentCtx ctx width scalar)) : Store ctx :=
   ⟨store.cells.2.2.2.2.2.2.2⟩
 
-private theorem persistentTail_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma persistentTail_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (width scalar : Nat) (store : Store (persistentCtx ctx width scalar)) :
     HEq store.readBorrowedClassical (persistentTail width scalar store).readBorrowedClassical := by
   rfl
@@ -94,7 +94,7 @@ private def persistentOriginal (I : ECDLPInstance E)
     (store : Store (persistentCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I))) :
     Store (Sampling.Reuse.context I) := persistentTail (fieldWidth E) (scalarWidth I) store
 
-private theorem persistentOriginal_read (I : ECDLPInstance E)
+private lemma persistentOriginal_read (I : ECDLPInstance E)
     (store : Store (persistentCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)))
     {shape : CShape} (input : CInputRef (Sampling.Reuse.context I) shape) :
     (persistentOriginal I store).read input =
@@ -105,14 +105,14 @@ private theorem persistentOriginal_read (I : ECDLPInstance E)
     ← Store.retainedTail_read]
   rfl
 
-private theorem borrowed_transport_heq {model : ExecutionModel}
+private lemma borrowed_transport_heq {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind}
     (code : Circuit model pre post) (value : post.borrowedClassicalShape.Value) :
     HEq (code.borrowedClassicalValueTransport value) value := by
   exact ((Equiv.cast_eq_iff_heq
     (congrArg CShape.Value code.borrowedClassicalShape_preserved)).mp rfl).symm
 
-private theorem inputStore_eq_of_borrowed (I : ECDLPInstance E)
+private lemma inputStore_eq_of_borrowed (I : ECDLPInstance E)
     (store : Store (Sampling.pre I))
     (same : store.readBorrowedClassical = (Runtime.Context.inputStore I).readBorrowedClassical) :
     store = Runtime.Context.inputStore I := by
@@ -125,21 +125,23 @@ private theorem inputStore_eq_of_borrowed (I : ECDLPInstance E)
   rfl
 
 /-- Every positive actual prefix reads the two original public point values. -/
-theorem ecdlpRecovery_prefix_points (I : ECDLPInstance E) (A : Access I)
+lemma ecdlpRecovery_prefix_points (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State (Sampling.pre I) Reference
-      ((Sampling.executionModel I A).HiddenState × History))
+      ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ entry, 0 < (initial.block entry).mass → entry.1 = Runtime.Context.inputStore I)
-    (prefixCode : Circuit (Sampling.executionModel I A) (Sampling.pre I)
+    (prefixCode : Circuit (Sampling.executionModel I) (Sampling.pre I)
       (persistentCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)))
     (record : Store (persistentCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)) ×
-      ((Sampling.executionModel I A).HiddenState × (History × prefixCode.Path)))
-    (positive : 0 < ((prefixCode.execute Reference initial).block record).mass) :
+      ((Sampling.executionModel I).HiddenState × (History × prefixCode.Path)))
+    (positive : 0 < ((prefixCode.execute (Sampling.sourceEnvironment I A) Reference initial).block
+      record).mass) :
     record.1.read (persistentInput (fieldWidth E) (scalarWidth I) (baseInput I)) =
         Runtime.Context.baseValue I ∧
       record.1.read (persistentInput (fieldWidth E) (scalarWidth I) (targetInput I)) =
         Runtime.Context.targetValue I := by
-  have restored := prefixCode.borrowedRestored_of_noBorrowedQuantum (by rfl) Reference initial
+  have restored := prefixCode.borrowedRestored_of_noBorrowedQuantum
+    (Sampling.sourceEnvironment I A) (by rfl) Reference initial
   obtain ⟨previous, present, same⟩ := prefixCode.borrowedRestored_supported_initial
     Reference initial _ restored record positive
   rw [admitted previous present] at same
@@ -160,16 +162,17 @@ theorem ecdlpRecovery_prefix_points (I : ECDLPInstance E) (A : Access I)
       (readTarget.symm.trans (by rw [storeEq]; exact Runtime.Context.inputStore_target I))
 
 /-- Every actual positive prefix has the original complete point representations. -/
-theorem ecdlpRecovery_prefix_represents (I : ECDLPInstance E) (A : Access I)
+lemma ecdlpRecovery_prefix_represents (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State (Sampling.pre I) Reference
-      ((Sampling.executionModel I A).HiddenState × History))
+      ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ entry, 0 < (initial.block entry).mass → entry.1 = Runtime.Context.inputStore I)
-    (prefixCode : Circuit (Sampling.executionModel I A) (Sampling.pre I)
+    (prefixCode : Circuit (Sampling.executionModel I) (Sampling.pre I)
       (persistentCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)))
     (record : Store (persistentCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)) ×
-      ((Sampling.executionModel I A).HiddenState × (History × prefixCode.Path)))
-    (positive : 0 < ((prefixCode.execute Reference initial).block record).mass) :
+      ((Sampling.executionModel I).HiddenState × (History × prefixCode.Path)))
+    (positive : 0 < ((prefixCode.execute (Sampling.sourceEnvironment I A) Reference initial).block
+      record).mass) :
     PointRepresents (curve E)
         (record.1.read (persistentInput (fieldWidth E) (scalarWidth I) (baseInput I)))
         I.basePoint.toMathlib ∧

@@ -32,6 +32,7 @@ namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Three-CNOT swaps for every corresponding bit of two encoded words. -/
 def swapGates (left right : Word encoding width)
@@ -54,7 +55,7 @@ def swapStep (left right : Word encoding width)
 
 /-- A word-swap fold preserves every projection preserved by flips in both
 swapped words. -/
-theorem swapStep_preserves_projection
+lemma swapStep_preserves_projection
     {Projection : Type} (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (project : Data → Projection)
@@ -83,7 +84,7 @@ def swapIndicesStep (left right : Word encoding width)
         EncodedBit.swapStep (left.bit i) (right.bit i) (hleftRight i) y) x
 
 /-- The concrete word-swap gate list agrees with the indexed fold semantics. -/
-theorem swapStep_eq_indicesStep (left right : Word encoding width)
+lemma swapStep_eq_indicesStep (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     swapStep left right hleftRight =
       swapIndicesStep left right hleftRight
@@ -104,7 +105,7 @@ theorem swapStep_eq_indicesStep (left right : Word encoding width)
 
 /-- A word-swap fold preserves an observed bit disjoint from every selected
 left and right word bit. -/
-theorem swapIndicesStep_get_observed_of_swap_ne
+lemma swapIndicesStep_get_observed_of_swap_ne
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (indices : List (Fin width)) (observed : EncodedBit encoding)
@@ -154,7 +155,7 @@ theorem swapIndicesStep_get_observed_of_swap_ne
 
 /-- The complete word swap preserves an observed bit disjoint from both
 words. -/
-theorem swapStep_get_observed_of_swap_ne
+lemma swapStep_get_observed_of_swap_ne
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (observed : EncodedBit encoding)
@@ -170,7 +171,7 @@ theorem swapStep_get_observed_of_swap_ne
 
 /-- A word-swap fold sends the original right readout to the selected left bit
 exactly when the selected index occurs in the fold. -/
-theorem swapIndicesStep_get_left
+lemma swapIndicesStep_get_left
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (indices : List (Fin width)) (hnodup : indices.Nodup)
@@ -265,7 +266,7 @@ theorem swapIndicesStep_get_left
 
 /-- A word-swap fold sends the original left readout to the selected right bit
 exactly when the selected index occurs in the fold. -/
-theorem swapIndicesStep_get_right
+lemma swapIndicesStep_get_right
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (indices : List (Fin width)) (hnodup : indices.Nodup)
@@ -360,7 +361,7 @@ theorem swapIndicesStep_get_right
 
 /-- The complete word swap sends each original right readout to the
 corresponding left bit. -/
-theorem swapStep_get_left
+lemma swapStep_get_left
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (i : Fin width)
@@ -388,7 +389,7 @@ theorem swapStep_get_left
 
 /-- The complete word swap sends each original left readout to the
 corresponding right bit. -/
-theorem swapStep_get_right
+lemma swapStep_get_right
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (i : Fin width)
@@ -415,7 +416,7 @@ theorem swapStep_get_right
       (fun j _ hj => hrightRight j hj) x
 
 /-- Whole-word left readout endpoint under pairwise-disjoint word layouts. -/
-theorem swapStep_get_left_word
+lemma swapStep_get_left_word
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (hleftDistinct :
@@ -434,7 +435,7 @@ theorem swapStep_get_left_word
     (fun j hji => hrightDistinct j i hji) x
 
 /-- Whole-word right readout endpoint under pairwise-disjoint word layouts. -/
-theorem swapStep_get_right_word
+lemma swapStep_get_right_word
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (hleftDistinct :
@@ -453,7 +454,7 @@ theorem swapStep_get_right_word
     (fun j hji => hrightDistinct j i hji) x
 
 /-- Swapping two zero-width words is the identity semantic action. -/
-theorem swapStep_eq_id_of_width_zero
+lemma swapStep_eq_id_of_width_zero
     (left right : Word encoding 0)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     swapStep left right hleftRight = id := by
@@ -461,17 +462,18 @@ theorem swapStep_eq_id_of_width_zero
   simp [swapStep, swapGates, GateSpec.stepList]
 
 /-- The word-swap program realizes its folded semantic action. -/
-theorem swap_realizes (left right : Word encoding width)
+lemma swap_realizes (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding
-      (swapProgram physical oracles left right hleftRight)
+      (swapProgram physical oracles left right hleftRight) environment
       (swapStep left right hleftRight) :=
-  GateSpec.realizesList physical oracles (swapGates left right hleftRight)
+  GateSpec.realizesList physical oracles (swapGates left right hleftRight) environment
 
 /-- Direct realization proof for bitwise swap of two encoded words. -/
-theorem swapWitness (left right : Word encoding width)
+lemma swapWitness (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     UnitaryCircuit.Realizes encoding (swapProgram physical oracles left right hleftRight)
+      environment
       (swapStep left right hleftRight) :=
   swap_realizes physical oracles left right hleftRight
 
@@ -482,25 +484,25 @@ def swapCircuit (left right : Word encoding width)
   swapProgram physical oracles left right hleftRight
 
 /-- Normalized encoded-basis endpoint of the exact word-swap circuit. -/
-theorem swapCircuit_applyNormalized_encoded_ket
+lemma swapCircuit_applyNormalized_encoded_ket
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire)
     (x : Data) :
-    (swapCircuit physical oracles left right hleftRight).applyNormalized
+    (swapCircuit physical oracles left right hleftRight).applyNormalized environment
         (NormalizedVector.ket (physical.basisEquiv.symm (encoding.encode x))) =
       NormalizedVector.ket
         (physical.basisEquiv.symm (encoding.encode (swapStep left right hleftRight x))) :=
   (swapWitness physical oracles left right hleftRight).apply_encoded_ket x
 
 /-- The exact gate list contains three CNOTs per word bit. -/
-theorem swapGates_length (left right : Word encoding width)
+lemma swapGates_length (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     (swapGates left right hleftRight).length = 3 * width := by
   simp [swapGates, EncodedBit.swapGates, List.length_flatMap,
     Function.comp_def, Nat.mul_comm]
 
 /-- The exact gate list contains three CNOTs per word bit. -/
-@[simp] theorem swapGates_cnotMultiplicity_sum
+@[simp] lemma swapGates_cnotMultiplicity_sum
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     ((swapGates left right hleftRight).map
@@ -534,7 +536,7 @@ theorem swapGates_length (left right : Word encoding width)
 
 
 /-- A literal word swap contains no Toffoli gate. -/
-theorem swapGates_toffoliMultiplicity_sum
+lemma swapGates_toffoliMultiplicity_sum
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     ((swapGates left right hleftRight).map
@@ -559,7 +561,7 @@ theorem swapGates_toffoliMultiplicity_sum
       exact ih'
 
 /-- The word-swap program emits exactly three targeted primitive events per bit. -/
-theorem swapProgram_primitiveEventCount (left right : Word encoding width)
+lemma swapProgram_primitiveEventCount (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     GateSpec.primitiveEventCount (swapProgram physical oracles left right hleftRight) =
       3 * width := by
@@ -570,7 +572,7 @@ private def isCnotGate : GateSpec encoding -> Prop
   | .cnot _ _ _ => True
   | _ => False
 
-private theorem swapGates_isCnot (left right : Word encoding width)
+private lemma swapGates_isCnot (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     ∀ gate, gate ∈ swapGates left right hleftRight -> isCnotGate gate := by
   intro gate hgate
@@ -583,7 +585,7 @@ private theorem swapGates_isCnot (left right : Word encoding width)
 
 
 
-private theorem cnotList_eventCount (gates : List (GateSpec encoding))
+private lemma cnotList_eventCount (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
         (GateSpec.programList physical oracles gates).eventCost = gates.length := by
@@ -611,7 +613,7 @@ private theorem cnotList_eventCount (gates : List (GateSpec encoding))
 
 
 
-private theorem cnotList_unitEventDepth (gates : List (GateSpec encoding))
+private lemma cnotList_unitEventDepth (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
     (GateSpec.programList physical oracles gates).evaluatedEventDepth (fun _ => 1) =
       gates.length := by
@@ -634,7 +636,7 @@ private theorem cnotList_unitEventDepth (gates : List (GateSpec encoding))
 
 
 
-private theorem cnotList_eventQueryDepth (gates : List (GateSpec encoding))
+private lemma cnotList_eventQueryDepth (gates : List (GateSpec encoding))
     (hall : ∀ gate, gate ∈ gates → isCnotGate gate) :
     (GateSpec.programList physical oracles gates).eventQueryDepth
         (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .cnot) =
@@ -660,7 +662,7 @@ private theorem cnotList_eventQueryDepth (gates : List (GateSpec encoding))
 
 
 /-- Exact CNOT-event coefficient in the circuit's strict event pool. -/
-theorem swapCircuit_cnot_eventCount (left right : Word encoding width)
+lemma swapCircuit_cnot_eventCount (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
         (swapCircuit physical oracles left right hleftRight).eventCost =
@@ -676,7 +678,7 @@ theorem swapCircuit_cnot_eventCount (left right : Word encoding width)
 
 
 /-- Exact unit-weight strict event depth of the sequential circuit. -/
-theorem swapCircuit_unit_eventDepth (left right : Word encoding width)
+lemma swapCircuit_unit_eventDepth (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     (swapCircuit physical oracles left right hleftRight).evaluatedEventDepth (fun _ => 1) =
       3 * width := by
@@ -691,7 +693,7 @@ theorem swapCircuit_unit_eventDepth (left right : Word encoding width)
 
 
 /-- Exact CNOT-event query depth of the sequential circuit. -/
-theorem swapCircuit_cnot_eventQueryDepth (left right : Word encoding width)
+lemma swapCircuit_cnot_eventQueryDepth (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     (swapCircuit physical oracles left right hleftRight).eventQueryDepth
         (Resource.Event.gate (model := .quantum AlgorithmGate.model oracles) .cnot) =
@@ -707,7 +709,7 @@ theorem swapCircuit_cnot_eventQueryDepth (left right : Word encoding width)
 
 
 /-- Strict event linearization and the event pool agree for word swap. -/
-theorem swapCircuit_resourcesFromEventDepth_eq_eventCost
+lemma swapCircuit_resourcesFromEventDepth_eq_eventCost
     (left right : Word encoding width)
     (hleftRight : ∀ i, (left.bit i).wire ≠ (right.bit i).wire) :
     (swapCircuit physical oracles left right hleftRight).resourcesFromEventDepth =

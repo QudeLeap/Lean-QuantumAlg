@@ -89,7 +89,7 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
   area13AvoidsPass : refs.lovasz.passes.key ∉ refs.lovasz.area13.storageKeys
 
 /-- Different named branch cells resolve to different storage keys. -/
-theorem Separation.cellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma Separation.cellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {refs : Refs ctx width} (separation : Separation refs)
     (left right : BranchCell) (different : left ≠ right) :
     cellKey refs left ≠ cellKey refs right := by
@@ -97,7 +97,7 @@ theorem Separation.cellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
   exact different (separation.keyInjective equal)
 
 /-- The original branch separation supplies the scalar area's five actual exclusions. -/
-theorem Separation.lovasz {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+lemma Separation.lovasz {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     {refs : Refs ctx width} (separation : Separation refs) :
     LatticeLovasz.SecondLovaszSeparation refs.lovasz := by
   refine ⟨separation.area12AvoidsDoubled, separation.area13AvoidsDoubled,
@@ -105,18 +105,18 @@ theorem Separation.lovasz {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : 
   change cellKey refs .passes ∉ [cellKey refs .doubled]
   simpa only [List.mem_singleton] using separation.cellKey_ne .passes .doubled (by decide)
 
-private theorem pointSwapCellKey_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma pointSwapCellKey_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} (refs : Refs ctx width) (cell : LatticeSwap.PointSwapCell) :
     LatticeSwap.pointSwapCellKey refs.basis.second refs.basis.third refs.swapScratch cell =
       cellKey refs (swapBranchCell cell) := by
   cases cell <;> rfl
 
-private theorem swapBranchCell_injective : Function.Injective swapBranchCell := by
+private lemma swapBranchCell_injective : Function.Injective swapBranchCell := by
   intro left right equal
   cases left <;> cases right <;> cases equal <;> rfl
 
 /-- The original distinct branch cells supply the selected row exchange separation. -/
-theorem Separation.swap {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma Separation.swap {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {refs : Refs ctx width} (separation : Separation refs) :
     LatticeSwap.PointSwapSeparation refs.basis.second refs.basis.third refs.swapScratch := by
   refine ⟨?_⟩

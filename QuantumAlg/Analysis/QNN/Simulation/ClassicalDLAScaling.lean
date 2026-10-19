@@ -57,7 +57,7 @@ variable {gens : Set (Matrix (Fin N) (Fin N) ℂ)} {b : DLAHermBasis gens}
   {ρ O : Matrix (Fin N) (Fin N) ℂ}
 
 /-- For a weight state, `g`-purity is the squared length of the weight vector. -/
-theorem gPurity_eq (w : WeightStateData b ρ) (hρ : ρᴴ = ρ) :
+lemma gPurity_eq (w : WeightStateData b ρ) (hρ : ρᴴ = ρ) :
     b.gPurity ρ = ((∑ j, (w.lam j) ^ 2 : ℝ) : ℂ) := by
   have htr : ∀ j k, (w.H j * w.H k).trace = if j = k then (1 : ℂ) else 0 := by
     intro j k
@@ -82,7 +82,7 @@ theorem gPurity_eq (w : WeightStateData b ρ) (hρ : ρᴴ = ρ) :
 
 /-- Weight-state variance: with `ρ` a weight state and `O` already in the DLA projection,
 the Ragone variance formula becomes `‖λ‖² * Tr[O^2] / dim g`. -/
-theorem variance_eq (w : WeightStateData b ρ) (M : RagoneSecondMoment b ρ O)
+lemma variance_eq (w : WeightStateData b ρ) (M : RagoneSecondMoment b ρ O)
     (hρ : ρᴴ = ρ) (hO : Oᴴ = O) (hdimpos : 0 < b.dim) (hO_in_g : b.gProj O = O) :
     (M.variance : ℂ)
       = ((∑ j, (w.lam j) ^ 2 : ℝ) : ℂ) * (O * O).trace / (b.dim : ℂ) := by
@@ -95,7 +95,7 @@ end WeightStateData
 /-- If the observable has Hilbert-Schmidt bound `2^n`, the weight vector obeys
 `‖λ‖² ≤ C * sqrt(dim g) / 2^n`, and `dim g ≥ base^n` with `base > 1`, then the
 loss variance is exponentially concentrated with rate `sqrt base`. -/
-theorem hasBarrenPlateau_of_weightScale_of_expDim {sz : ℕ → ℕ}
+lemma hasBarrenPlateau_of_weightScale_of_expDim {sz : ℕ → ℕ}
     {gens : (n : ℕ) → Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)}
     {ρ O : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     {b : (n : ℕ) → DLAHermBasis (gens n)}

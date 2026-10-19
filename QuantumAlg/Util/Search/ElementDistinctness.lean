@@ -86,7 +86,7 @@ lemma sqrt_markedFraction_ge (hNpos : 0 < N) (hrpos : 0 < r) :
     ((r : ℝ) / (N : ℝ)) / Real.sqrt 2
         = Real.sqrt (((r : ℝ) / (N : ℝ)) ^ 2) / Real.sqrt 2 := by rw [Real.sqrt_sq h_nonneg_rN]
     _ = Real.sqrt ((((r : ℝ) / (N : ℝ)) ^ 2) / 2) := by rw [Real.sqrt_div (by positivity) _]
-    _ = Real.sqrt ((1/2 : ℝ) * (((r : ℝ) / (N : ℝ)) ^ 2)) := by ring
+    _ = Real.sqrt ((1/2 : ℝ) * (((r : ℝ) / (N : ℝ)) ^ 2)) := by ring_nf
     _ ≤ Real.sqrt p.markedFraction := Real.sqrt_le_sqrt h_sq
 
 lemma sqrt_spectralGap_div_bound (hNpos : 0 < N) (hrpos : 0 < r) :
@@ -112,7 +112,7 @@ end SearchCostParameters
 private lemma ratio_condition {r : ℕ} (hrpos : 0 < r) (δ : ℝ) (hδ_bound : δ ≥ 1 / (r : ℝ))
     (hδ_le_one : δ ≤ 1) :
     (1 : ℝ) ≤ Real.pi / Real.sqrt (2 * ((1 : ℝ) / 2) * δ) := by
-  have h_sqrt : Real.sqrt (2 * ((1 : ℝ) / 2) * δ) = Real.sqrt δ := by ring
+  have h_sqrt : Real.sqrt (2 * ((1 : ℝ) / 2) * δ) = Real.sqrt δ := by ring_nf
   rw [h_sqrt]
   have hsqrt_pos : 0 < Real.sqrt δ := Real.sqrt_pos.mpr (by
     have : 0 < 1 / (r : ℝ) := div_pos (by norm_num) (by exact_mod_cast hrpos)
@@ -135,7 +135,7 @@ private lemma ratio_condition {r : ℕ} (hrpos : 0 < r) (δ : ℝ) (hδ_bound : 
 
 /-- Conditional bound on the rounded scalar expression with setup `r+1`, check `0`, and update
   `1`. -/
-theorem elementDistinctness_costExpression_le (hNpos : 0 < N) (hrpos : 0 < r)
+lemma elementDistinctness_costExpression_le (hNpos : 0 < N) (hrpos : 0 < r)
     (p : SearchCostParameters N r) :
     let t₁ := Nat.ceil (Real.pi / (4 * Real.sqrt p.markedFraction))
     let t₂ := Nat.ceil (Real.logb 2 (Real.pi / Real.sqrt (2 * ((1 : ℝ) / 2) * p.spectralGap)))

@@ -21,6 +21,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.GuardedShift
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec
 
 /-- Both original predicates, the left pair, two right pairs, and both inverse cleanups. -/
@@ -32,7 +34,7 @@ def gates (width : Nat) (selected : Bool) : List (GateSpec (encoding width)) :=
     ControlledShift.rightGates width ++ ControlledShift.rightGates width ++
     (PhaseGuard.descendingGates width selected).reverse
 
-private theorem firstGates_step (width : Nat) (selected : Bool) (state : Registers width) :
+private lemma firstGates_step (width : Nat) (selected : Bool) (state : Registers width) :
     stepList ((PhaseGuard.firstGates width selected) ++ ControlledShift.leftGates width ++
       (PhaseGuard.firstGates width selected).reverse) state = firstStep selected state := by
   rw [stepList_append, stepList_append, PhaseGuard.first_step,
@@ -41,7 +43,7 @@ private theorem firstGates_step (width : Nat) (selected : Bool) (state : Registe
     ⟨p1, p2, sign, iter⟩, control⟩
   cases selected <;> cases p1 <;> cases control <;> rfl
 
-private theorem lastGates_step (width : Nat) (selected : Bool) (state : Registers width) :
+private lemma lastGates_step (width : Nat) (selected : Bool) (state : Registers width) :
     stepList ((PhaseGuard.descendingGates width selected) ++ ControlledShift.rightGates width ++
       ControlledShift.rightGates width ++
       (PhaseGuard.descendingGates width selected).reverse) state = lastStep selected state := by
@@ -53,7 +55,7 @@ private theorem lastGates_step (width : Nat) (selected : Bool) (state : Register
   cases selected <;> cases p1 <;> cases p2 <;> cases control <;> rfl
 
 /-- Full-frame basis action preserves all dirty data and the original Ctrl cleanup. -/
-theorem guardedShift_gates_step (width : Nat) (selected : Bool) (state : Registers width) :
+lemma guardedShift_gates_step (width : Nat) (selected : Bool) (state : Registers width) :
     stepList (gates width selected) state = step selected state := by
   have splitWord : gates width selected =
       ((PhaseGuard.firstGates width selected) ++ ControlledShift.leftGates width ++
@@ -72,24 +74,25 @@ def nativeProgram (width : Nat) (selected : Bool) :
   programList (QubitLayout.canonical _) .empty (gates width selected)
 
 /-- Every amplitude and relative phase agrees with the original guarded source action. -/
-theorem guardedShift_nativeProgram_realizes (width : Nat) (selected : Bool) :
-    UnitaryCircuit.Realizes (encoding width) (nativeProgram width selected) (step selected) :=
+lemma guardedShift_nativeProgram_realizes (width : Nat) (selected : Bool) :
+    UnitaryCircuit.Realizes (encoding width) (nativeProgram width selected) environment (step
+      selected) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (guardedShift_gates_step width selected)
+    (guardedShift_gates_step width selected) environment
 
 /-- Predicate, shift, inverse and cleanup events retain their exact original ordering. -/
-theorem guardedShift_gates_trace (width : Nat) (selected : Bool) :
+lemma guardedShift_gates_trace (width : Nat) (selected : Bool) :
     (gates width selected).map (event .empty) = (program width selected).eventTrace := by
   simp only [gates, List.map_append, ControlledShift.controlledShift_leftGates_trace,
     ControlledShift.controlledShift_rightGates_trace, program_eventTrace, List.append_assoc]
 
 /-- The consumer's emitted word has exactly the original ordered native trace. -/
-theorem guardedShift_nativeProgram_trace (width : Nat) (selected : Bool) :
+lemma guardedShift_nativeProgram_trace (width : Nat) (selected : Bool) :
     (nativeProgram width selected).eventTrace = (program width selected).eventTrace := by
   rw [nativeProgram, programList_eventTrace, guardedShift_gates_trace]
 
 /-- Complete native multiplicities agree with the original actual guarded program. -/
-theorem guardedShift_gates_eventCost (width : Nat) (selected : Bool) :
+lemma guardedShift_gates_eventCost (width : Nat) (selected : Bool) :
     ResourcePool.ofList ((gates width selected).map (event .empty)) =
       (program width selected).eventCost := by
   rw [guardedShift_gates_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]

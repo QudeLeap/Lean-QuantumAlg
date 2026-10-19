@@ -25,7 +25,7 @@ noncomputable section
 
 /-- Viewing the first active wire of a separated layout as a one-wire layout
 only rebrackets its untouched suffix. -/
-public theorem binaryWireVec_eq_binarySeparatedVec {width : Nat}
+public lemma binaryWireVec_eq_binarySeparatedVec {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (prefixState : HilbertVector (Qubits left.val))
     (first : HilbertVector (Qubits 1))

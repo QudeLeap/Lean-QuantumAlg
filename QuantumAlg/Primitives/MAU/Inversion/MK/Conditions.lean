@@ -26,6 +26,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -67,16 +69,16 @@ def uGreaterBranchCodeToScratchStep
 /-- The comparison-conditioned `uGreater` branch-code staging program is a
 concrete encoded-bit base-gate realization over the Montgomery--Kaliski
 register layout. -/
-theorem uGreaterBranchCodeToScratch_realizes
+lemma uGreaterBranchCodeToScratch_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (uGreaterBranchCodeToScratchProgram n counterWidth)
+      (uGreaterBranchCodeToScratchProgram n counterWidth) environment
       (uGreaterBranchCodeToScratchStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uGreaterBranchCodeToScratchGates n counterWidth)
 
 /-- The fixed `uGreater` branch code is staged by two Toffoli leaves. -/
-theorem uGreaterBranchCodeToScratchGates_length
+lemma uGreaterBranchCodeToScratchGates_length
     (n counterWidth : Nat) :
     (uGreaterBranchCodeToScratchGates n counterWidth).length = 2 := by
   simp [uGreaterBranchCodeToScratchGates,
@@ -84,7 +86,7 @@ theorem uGreaterBranchCodeToScratchGates_length
     Branch.historyBit]
 
 /-- The fixed `uGreater` branch-code staging contains no X leaf. -/
-theorem uGreaterBranchCodeToScratchGates_xMultiplicity_sum
+lemma uGreaterBranchCodeToScratchGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((uGreaterBranchCodeToScratchGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
@@ -93,7 +95,7 @@ theorem uGreaterBranchCodeToScratchGates_xMultiplicity_sum
     Branch.historyBit]
 
 /-- The fixed `uGreater` branch-code staging contains no CNOT leaf. -/
-theorem uGreaterBranchCodeToScratchGates_cnotMultiplicity_sum
+lemma uGreaterBranchCodeToScratchGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((uGreaterBranchCodeToScratchGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -102,7 +104,7 @@ theorem uGreaterBranchCodeToScratchGates_cnotMultiplicity_sum
     Branch.historyBit]
 
 /-- The fixed `uGreater` branch code has exactly two Toffoli leaves. -/
-theorem uGreaterBranchCodeToScratchGates_toffoliMultiplicity_sum
+lemma uGreaterBranchCodeToScratchGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((uGreaterBranchCodeToScratchGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 := by
@@ -112,7 +114,7 @@ theorem uGreaterBranchCodeToScratchGates_toffoliMultiplicity_sum
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves the active
 flag. -/
-theorem uGreaterBranchCodeToScratchStep_get_active
+lemma uGreaterBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
         (uGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -129,7 +131,7 @@ theorem uGreaterBranchCodeToScratchStep_get_active
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves the
 comparison selector bit. -/
-theorem uGreaterBranchCodeToScratchStep_get_compare
+lemma uGreaterBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
         (uGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -146,7 +148,7 @@ theorem uGreaterBranchCodeToScratchStep_get_compare
 
 /-- Comparison-conditioned `uGreater` branch-code staging toggles scratchA
 exactly under active `v < u`. -/
-theorem uGreaterBranchCodeToScratchStep_get_scratchA
+lemma uGreaterBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
         (uGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -165,7 +167,7 @@ theorem uGreaterBranchCodeToScratchStep_get_scratchA
 
 /-- Comparison-conditioned `uGreater` branch-code staging toggles scratchB
 exactly under active `v < u`. -/
-theorem uGreaterBranchCodeToScratchStep_get_scratchB
+lemma uGreaterBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.scratchBBit n counterWidth).get
         (uGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -184,7 +186,7 @@ theorem uGreaterBranchCodeToScratchStep_get_scratchB
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves every
 stored branch-history bit. -/
-theorem uGreaterBranchCodeToScratchStep_get_historyBit
+lemma uGreaterBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -202,7 +204,7 @@ theorem uGreaterBranchCodeToScratchStep_get_historyBit
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves every
 little-endian `u` value bit. -/
-theorem uGreaterBranchCodeToScratchStep_get_uWordBit
+lemma uGreaterBranchCodeToScratchStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth bit).get
         (uGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -229,7 +231,7 @@ theorem uGreaterBranchCodeToScratchStep_get_uWordBit
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves every
 little-endian `v` value bit. -/
-theorem uGreaterBranchCodeToScratchStep_get_vWordBit
+lemma uGreaterBranchCodeToScratchStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth bit).get
         (uGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -256,7 +258,7 @@ theorem uGreaterBranchCodeToScratchStep_get_vWordBit
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves every
 little-endian `s` coefficient value bit. -/
-theorem uGreaterBranchCodeToScratchStep_get_sCoeffValueWordBit
+lemma uGreaterBranchCodeToScratchStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth bit).get
@@ -284,7 +286,7 @@ theorem uGreaterBranchCodeToScratchStep_get_sCoeffValueWordBit
 
 /-- Comparison-conditioned `uGreater` branch-code staging preserves every
 little-endian `r` coefficient value bit. -/
-theorem uGreaterBranchCodeToScratchStep_get_rCoeffValueWordBit
+lemma uGreaterBranchCodeToScratchStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth bit).get
@@ -343,16 +345,16 @@ def vLeBranchCodeToScratchStep
 
 /-- The explicit `vLe` branch-code staging program is a concrete encoded-bit
 base-gate realization over the Montgomery--Kaliski register layout. -/
-theorem vLeBranchCodeToScratch_realizes
+lemma vLeBranchCodeToScratch_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (vLeBranchCodeToScratchProgram n counterWidth)
+      (vLeBranchCodeToScratchProgram n counterWidth) environment
       (vLeBranchCodeToScratchStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (vLeBranchCodeToScratchGates n counterWidth)
 
 /-- Explicit `vLe` branch-code staging preserves the active flag. -/
-theorem vLeBranchCodeToScratchStep_get_active
+lemma vLeBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
         (vLeBranchCodeToScratchStep n counterWidth x) =
@@ -368,7 +370,7 @@ theorem vLeBranchCodeToScratchStep_get_active
 
 /-- Explicit `vLe` branch-code staging preserves the comparison selector bit.
 -/
-theorem vLeBranchCodeToScratchStep_get_compare
+lemma vLeBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
         (vLeBranchCodeToScratchStep n counterWidth x) =
@@ -384,7 +386,7 @@ theorem vLeBranchCodeToScratchStep_get_compare
 
 /-- Explicit `vLe` branch-code staging preserves scratchA because its auxiliary
 code bit is false. -/
-theorem vLeBranchCodeToScratchStep_get_scratchA
+lemma vLeBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
         (vLeBranchCodeToScratchStep n counterWidth x) =
@@ -400,7 +402,7 @@ theorem vLeBranchCodeToScratchStep_get_scratchA
 
 /-- Explicit `vLe` branch-code staging preserves scratchB because its history
 code bit is false. -/
-theorem vLeBranchCodeToScratchStep_get_scratchB
+lemma vLeBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.scratchBBit n counterWidth).get
         (vLeBranchCodeToScratchStep n counterWidth x) =
@@ -416,7 +418,7 @@ theorem vLeBranchCodeToScratchStep_get_scratchB
 
 /-- Explicit `vLe` branch-code staging preserves every stored branch-history
 bit. -/
-theorem vLeBranchCodeToScratchStep_get_historyBit
+lemma vLeBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -433,7 +435,7 @@ theorem vLeBranchCodeToScratchStep_get_historyBit
 
 /-- Explicit `vLe` branch-code staging preserves every little-endian `u`
 value bit. -/
-theorem vLeBranchCodeToScratchStep_get_uWordBit
+lemma vLeBranchCodeToScratchStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth bit).get
         (vLeBranchCodeToScratchStep n counterWidth x) =
@@ -459,7 +461,7 @@ theorem vLeBranchCodeToScratchStep_get_uWordBit
 
 /-- Explicit `vLe` branch-code staging preserves every little-endian `v`
 value bit. -/
-theorem vLeBranchCodeToScratchStep_get_vWordBit
+lemma vLeBranchCodeToScratchStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth bit).get
         (vLeBranchCodeToScratchStep n counterWidth x) =
@@ -485,7 +487,7 @@ theorem vLeBranchCodeToScratchStep_get_vWordBit
 
 /-- Explicit `vLe` branch-code staging preserves every little-endian `s`
 coefficient value bit. -/
-theorem vLeBranchCodeToScratchStep_get_sCoeffValueWordBit
+lemma vLeBranchCodeToScratchStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth bit).get
@@ -512,7 +514,7 @@ theorem vLeBranchCodeToScratchStep_get_sCoeffValueWordBit
 
 /-- Explicit `vLe` branch-code staging preserves every little-endian `r`
 coefficient value bit. -/
-theorem vLeBranchCodeToScratchStep_get_rCoeffValueWordBit
+lemma vLeBranchCodeToScratchStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth bit).get
@@ -539,7 +541,7 @@ theorem vLeBranchCodeToScratchStep_get_rCoeffValueWordBit
 
 /-- When the compare selector is true, the compare-conditioned `uGreater`
 branch-code staging is the active-guarded fixed `uGreater` staging. -/
-theorem uGreaterBranchCodeToScratchStep_eq_activeBranchCodeToScratchStep_of_compare_true
+lemma uGreaterBranchCodeToScratchStep_eq_activeBranchCodeToScratchStep_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = true) :
     uGreaterBranchCodeToScratchStep n counterWidth x =
@@ -579,7 +581,7 @@ theorem uGreaterBranchCodeToScratchStep_eq_activeBranchCodeToScratchStep_of_comp
 
 /-- When the compare selector is false, the compare-conditioned `uGreater`
 branch-code staging is the active-guarded fixed `vLe` staging. -/
-theorem uGreaterBranchCodeToScratchStep_eq_activeBranchCodeToScratchStep_of_compare_false
+lemma uGreaterBranchCodeToScratchStep_eq_activeBranchCodeToScratchStep_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
     uGreaterBranchCodeToScratchStep n counterWidth x =
@@ -622,10 +624,10 @@ def liftedUGreaterBranchCodeToScratchProgram
     (uGreaterBranchCodeToScratchProgram n counterWidth)
 
 /-- The lifted `uGreater` circuit realizes its product action. -/
-theorem liftedUGreaterBranchCodeToScratch_realizes
+lemma liftedUGreaterBranchCodeToScratch_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (liftedUGreaterBranchCodeToScratchProgram n counterWidth)
+      (liftedUGreaterBranchCodeToScratchProgram n counterWidth) environment
       (liftedUGreaterBranchCodeToScratchStep n counterWidth) := by
   unfold liftedUGreaterBranchCodeToScratchProgram
     liftedUGreaterBranchCodeToScratchStep
@@ -635,7 +637,7 @@ theorem liftedUGreaterBranchCodeToScratch_realizes
       (uGreaterBranchCodeToScratch_realizes n counterWidth)
 
 /-- Lifted `uGreater` branch-code staging preserves the active flag. -/
-theorem liftedUGreaterBranchCodeToScratchStep_get_active
+lemma liftedUGreaterBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
         (liftedUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -647,7 +649,7 @@ theorem liftedUGreaterBranchCodeToScratchStep_get_active
 
 /-- Lifted `uGreater` branch-code staging preserves the comparison selector
 bit. -/
-theorem liftedUGreaterBranchCodeToScratchStep_get_compare
+lemma liftedUGreaterBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
         (liftedUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -659,7 +661,7 @@ theorem liftedUGreaterBranchCodeToScratchStep_get_compare
 
 /-- Lifted `uGreater` branch-code staging toggles scratchA exactly under the
 lifted active flag and comparison condition. -/
-theorem liftedUGreaterBranchCodeToScratchStep_get_scratchA
+lemma liftedUGreaterBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
         (liftedUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -675,7 +677,7 @@ theorem liftedUGreaterBranchCodeToScratchStep_get_scratchA
 
 /-- Lifted `uGreater` branch-code staging toggles scratchB exactly under the
 lifted active flag and comparison condition. -/
-theorem liftedUGreaterBranchCodeToScratchStep_get_scratchB
+lemma liftedUGreaterBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchBBit n counterWidth).get
         (liftedUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -707,10 +709,10 @@ def liftedVLeBranchCodeToScratchProgram
     (vLeBranchCodeToScratchProgram n counterWidth)
 
 /-- The lifted `vLe` circuit realizes its product action. -/
-theorem liftedVLeBranchCodeToScratch_realizes
+lemma liftedVLeBranchCodeToScratch_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (liftedVLeBranchCodeToScratchProgram n counterWidth)
+      (liftedVLeBranchCodeToScratchProgram n counterWidth) environment
       (liftedVLeBranchCodeToScratchStep n counterWidth) := by
   unfold liftedVLeBranchCodeToScratchProgram liftedVLeBranchCodeToScratchStep
   simpa [registersWithComparisonWorkEncoding] using
@@ -719,7 +721,7 @@ theorem liftedVLeBranchCodeToScratch_realizes
       (vLeBranchCodeToScratch_realizes n counterWidth)
 
 /-- Lifted explicit `vLe` branch-code staging preserves the active flag. -/
-theorem liftedVLeBranchCodeToScratchStep_get_active
+lemma liftedVLeBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
         (liftedVLeBranchCodeToScratchStep n counterWidth x) =
@@ -731,7 +733,7 @@ theorem liftedVLeBranchCodeToScratchStep_get_active
 
 /-- Lifted explicit `vLe` branch-code staging preserves the comparison
 selector bit. -/
-theorem liftedVLeBranchCodeToScratchStep_get_compare
+lemma liftedVLeBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
         (liftedVLeBranchCodeToScratchStep n counterWidth x) =
@@ -742,7 +744,7 @@ theorem liftedVLeBranchCodeToScratchStep_get_compare
   exact vLeBranchCodeToScratchStep_get_compare n counterWidth x.1
 
 /-- Lifted explicit `vLe` branch-code staging preserves scratchA. -/
-theorem liftedVLeBranchCodeToScratchStep_get_scratchA
+lemma liftedVLeBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
         (liftedVLeBranchCodeToScratchStep n counterWidth x) =
@@ -753,7 +755,7 @@ theorem liftedVLeBranchCodeToScratchStep_get_scratchA
   exact vLeBranchCodeToScratchStep_get_scratchA n counterWidth x.1
 
 /-- Lifted explicit `vLe` branch-code staging preserves scratchB. -/
-theorem liftedVLeBranchCodeToScratchStep_get_scratchB
+lemma liftedVLeBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchBBit n counterWidth).get
         (liftedVLeBranchCodeToScratchStep n counterWidth x) =
@@ -792,7 +794,7 @@ def coeffWorkUGreaterBranchCodeToScratchProgram
 
 /-- The explicit coefficient-work-lifted `uGreater` branch-code staging gate list
 has the existing lifted semantic action. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_eq_gateList
+lemma coeffWorkUGreaterBranchCodeToScratchStep_eq_gateList
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     EncodedBit.GateSpec.stepList
         (coeffWorkUGreaterBranchCodeToScratchGates n counterWidth) x =
@@ -809,26 +811,26 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_eq_gateList
 
 /-- The coefficient-work-lifted `uGreater` branch-code staging program realizes
 the existing semantic action. -/
-theorem coeffWorkUGreaterBranchCodeToScratch_realizes
+lemma coeffWorkUGreaterBranchCodeToScratch_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkUGreaterBranchCodeToScratchProgram n counterWidth)
+      (coeffWorkUGreaterBranchCodeToScratchProgram n counterWidth) environment
       (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (coeffWorkUGreaterBranchCodeToScratchGates n counterWidth)
     (coeffWorkUGreaterBranchCodeToScratchStep_eq_gateList n counterWidth)
 
 /-- Product lifting preserves the fixed `uGreater` staging length. -/
-theorem coeffWorkUGreaterBranchCodeToScratchGates_length
+lemma coeffWorkUGreaterBranchCodeToScratchGates_length
     (n counterWidth : Nat) :
     (coeffWorkUGreaterBranchCodeToScratchGates n counterWidth).length = 2 := by
   unfold coeffWorkUGreaterBranchCodeToScratchGates
     registersWithCoeffAdderWorkEncoding registersWithComparisonWorkEncoding
   simp only [List.length_map, uGreaterBranchCodeToScratchGates_length]
 
-private theorem coeffWorkUGreaterBranchCodeToScratchGates_events
+private lemma coeffWorkUGreaterBranchCodeToScratchGates_events
     (n counterWidth : Nat) :
     (coeffWorkUGreaterBranchCodeToScratchGates n counterWidth).map
         (EncodedBit.GateSpec.event .empty) =
@@ -840,7 +842,7 @@ private theorem coeffWorkUGreaterBranchCodeToScratchGates_events
     EncodedBit.GateSpec.map_event_prodLeft]
 
 /-- Product lifting preserves the fixed `uGreater` staging X coordinate. -/
-theorem coeffWorkUGreaterBranchCodeToScratchGates_xMultiplicity_sum
+lemma coeffWorkUGreaterBranchCodeToScratchGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkUGreaterBranchCodeToScratchGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
@@ -855,7 +857,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchGates_xMultiplicity_sum
     _ = 0 := uGreaterBranchCodeToScratchGates_xMultiplicity_sum n counterWidth
 
 /-- Product lifting preserves the fixed `uGreater` staging CNOT coordinate. -/
-theorem coeffWorkUGreaterBranchCodeToScratchGates_cnotMultiplicity_sum
+lemma coeffWorkUGreaterBranchCodeToScratchGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkUGreaterBranchCodeToScratchGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -871,7 +873,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchGates_cnotMultiplicity_sum
       uGreaterBranchCodeToScratchGates_cnotMultiplicity_sum n counterWidth
 
 /-- Product lifting preserves the fixed `uGreater` staging Toffoli coordinate. -/
-theorem coeffWorkUGreaterBranchCodeToScratchGates_toffoliMultiplicity_sum
+lemma coeffWorkUGreaterBranchCodeToScratchGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkUGreaterBranchCodeToScratchGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 := by
@@ -904,17 +906,17 @@ def coeffWorkVLeBranchCodeToScratchProgram
     (liftedVLeBranchCodeToScratchProgram n counterWidth)
 
 /-- The coefficient-work-lifted `vLe` circuit realizes its step. -/
-theorem coeffWorkVLeBranchCodeToScratch_realizes
+lemma coeffWorkVLeBranchCodeToScratch_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkVLeBranchCodeToScratchProgram n counterWidth)
+      (coeffWorkVLeBranchCodeToScratchProgram n counterWidth) environment
       (coeffWorkVLeBranchCodeToScratchStep n counterWidth) :=
   liftComparisonWorkProgramToCoeffAdderWork_realizes n counterWidth
     (liftedVLeBranchCodeToScratch_realizes n counterWidth)
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_carryIn
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_carryIn
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
         (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -923,7 +925,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_carryIn
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves each
 coefficient-adder temporary carry-work bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_carryWorkBit
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_carryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -933,7 +935,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_carryWorkBit
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_carryIn
+lemma coeffWorkVLeBranchCodeToScratchStep_get_carryIn
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
         (coeffWorkVLeBranchCodeToScratchStep n counterWidth x) =
@@ -942,7 +944,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_carryIn
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves each
 coefficient-adder temporary carry-work bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_carryWorkBit
+lemma coeffWorkVLeBranchCodeToScratchStep_get_carryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -952,7 +954,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_carryWorkBit
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the active
 flag. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_active
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
         (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -964,7 +966,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_active
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the
 comparison selector bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_compare
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
         (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -976,7 +978,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_compare
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging toggles scratchA
 under the active comparison condition. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_scratchA
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
         (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -993,7 +995,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_scratchA
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging toggles scratchB
 under the active comparison condition. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_scratchB
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
         (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x) =
@@ -1010,7 +1012,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_scratchB
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves every
 stored branch-history bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_historyBit
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -1027,7 +1029,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_historyBit
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves each `u`
 word bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_uWordBit
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -1043,7 +1045,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_uWordBit
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves each `v`
 word bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_vWordBit
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -1059,7 +1061,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_vWordBit
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the `u`
 source word. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_u
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_u
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x).1.1.u =
@@ -1072,7 +1074,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_u
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the `v`
 source word. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_v
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_v
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x).1.1.v =
@@ -1085,7 +1087,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_v
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves each `s`
 coefficient value bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_sCoeffValueWordBit
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -1102,7 +1104,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_sCoeffValueWordBit
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves each `r`
 coefficient value bit. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_rCoeffValueWordBit
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -1119,7 +1121,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_rCoeffValueWordBit
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the `s`
 coefficient word. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_sCoeff
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x).1.1.sCoeff =
@@ -1132,7 +1134,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_sCoeff
 
 /-- Coefficient-work-lifted `uGreater` branch-code staging preserves the `r`
 coefficient word. -/
-theorem coeffWorkUGreaterBranchCodeToScratchStep_get_rCoeff
+lemma coeffWorkUGreaterBranchCodeToScratchStep_get_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterBranchCodeToScratchStep n counterWidth x).1.1.rCoeff =
@@ -1145,7 +1147,7 @@ theorem coeffWorkUGreaterBranchCodeToScratchStep_get_rCoeff
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 active flag. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_active
+lemma coeffWorkVLeBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
         (coeffWorkVLeBranchCodeToScratchStep n counterWidth x) =
@@ -1157,7 +1159,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_active
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 comparison selector bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_compare
+lemma coeffWorkVLeBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
         (coeffWorkVLeBranchCodeToScratchStep n counterWidth x) =
@@ -1169,7 +1171,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_compare
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves
 scratchA. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_scratchA
+lemma coeffWorkVLeBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
         (coeffWorkVLeBranchCodeToScratchStep n counterWidth x) =
@@ -1181,7 +1183,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_scratchA
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves
 scratchB. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_scratchB
+lemma coeffWorkVLeBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
         (coeffWorkVLeBranchCodeToScratchStep n counterWidth x) =
@@ -1193,7 +1195,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_scratchB
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves every
 stored branch-history bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_historyBit
+lemma coeffWorkVLeBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -1210,7 +1212,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_historyBit
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves each
 `u` word bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_uWordBit
+lemma coeffWorkVLeBranchCodeToScratchStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -1226,7 +1228,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_uWordBit
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves each
 `v` word bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_vWordBit
+lemma coeffWorkVLeBranchCodeToScratchStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -1242,7 +1244,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_vWordBit
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 `u` source word. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_u
+lemma coeffWorkVLeBranchCodeToScratchStep_get_u
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeBranchCodeToScratchStep n counterWidth x).1.1.u =
@@ -1255,7 +1257,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_u
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 `v` source word. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_v
+lemma coeffWorkVLeBranchCodeToScratchStep_get_v
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeBranchCodeToScratchStep n counterWidth x).1.1.v =
@@ -1268,7 +1270,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_v
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves each
 `s` coefficient value bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_sCoeffValueWordBit
+lemma coeffWorkVLeBranchCodeToScratchStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -1285,7 +1287,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_sCoeffValueWordBit
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves each
 `r` coefficient value bit. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_rCoeffValueWordBit
+lemma coeffWorkVLeBranchCodeToScratchStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -1302,7 +1304,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_rCoeffValueWordBit
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 `s` coefficient word. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_sCoeff
+lemma coeffWorkVLeBranchCodeToScratchStep_get_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeBranchCodeToScratchStep n counterWidth x).1.1.sCoeff =
@@ -1315,7 +1317,7 @@ theorem coeffWorkVLeBranchCodeToScratchStep_get_sCoeff
 
 /-- Coefficient-work-lifted explicit `vLe` branch-code staging preserves the
 `r` coefficient word. -/
-theorem coeffWorkVLeBranchCodeToScratchStep_get_rCoeff
+lemma coeffWorkVLeBranchCodeToScratchStep_get_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeBranchCodeToScratchStep n counterWidth x).1.1.rCoeff =
@@ -1351,11 +1353,11 @@ def coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratchProgram
     (coeffWorkUGreaterBranchCodeToScratchProgram n counterWidth)
 
 /-- The staged `uGreater` add-path circuit realizes its step. -/
-theorem coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratch_realizes
+lemma coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratch_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratchProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratchStep
         n counterWidth bit historyIndex) := by
   unfold coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratchProgram
@@ -1370,7 +1372,7 @@ theorem coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratch_realizes
     (coeffWorkUGreaterBranchCodeToScratch_realizes n counterWidth)
 
 /-- The staged `uGreater` branch-code slice preserves the active flag. -/
-theorem
+lemma
     coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -1385,7 +1387,7 @@ theorem
 
 /-- On clean comparison inputs and clean scratchA, explicit `uGreater`
 branch-code staging leaves scratchA equal to active `v < u`. -/
-theorem
+lemma
     coeffWorkUGreaterSelectorThenAddRIntoSThenBranchCodeToScratchStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -1416,7 +1418,7 @@ theorem
 /-- After clean explicit `uGreater` branch-code staging, the aux-active shift
 dispatch selects the unconditioned `u/s` shift group when the round is active
 and the comparison selector is true. -/
-theorem
+lemma
     coeffWorkAuxActiveShiftDispatchStep_eq_uDiv2ThenSMul2Step_after_uGreaterBranchCodeStaging_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -1476,11 +1478,11 @@ def coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchProgram
     (coeffWorkVLeBranchCodeToScratchProgram n counterWidth)
 
 /-- The staged `vLe` add-path circuit realizes its step. -/
-theorem coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratch_realizes
+lemma coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratch_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchStep
         n counterWidth bit historyIndex) := by
   unfold coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchProgram
@@ -1493,7 +1495,7 @@ theorem coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratch_realizes
     (coeffWorkVLeBranchCodeToScratch_realizes n counterWidth)
 
 /-- The staged `vLe` branch-code slice preserves the active flag. -/
-theorem coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchStep_get_active
+lemma coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -1507,7 +1509,7 @@ theorem coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchStep_get_active
 
 /-- On clean scratchA, explicit zero-code `vLe` branch-code staging preserves
 scratchA through the selector-plus-add path. -/
-theorem
+lemma
     coeffWorkVLeSelectorThenAddSIntoRThenBranchCodeToScratchStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -1526,7 +1528,7 @@ theorem
 /-- After explicit zero-code `vLe` branch-code staging, the aux-active shift
 dispatch selects the unconditioned `v/r` shift group when the active flag
 remains true and the auxiliary bit remains false. -/
-theorem
+lemma
     coeffWorkAuxActiveShiftDispatchStep_eq_vDiv2ThenRMul2Step_after_vLeBranchCodeStaging_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -1583,11 +1585,11 @@ def coeffWorkUGreaterSubAddBranchCodeToScratchProgram
     (coeffWorkUGreaterBranchCodeToScratchProgram n counterWidth)
 
 /-- The corrected staged `uGreater` circuit realizes its step. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratch_realizes
+lemma coeffWorkUGreaterSubAddBranchCodeToScratch_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkUGreaterSubAddBranchCodeToScratchProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (coeffWorkUGreaterSubAddBranchCodeToScratchStep
         n counterWidth bit historyIndex) := by
   unfold coeffWorkUGreaterSubAddBranchCodeToScratchProgram
@@ -1603,7 +1605,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratch_realizes
 
 /-- The corrected staged `uGreater` branch-code slice preserves the active
 flag. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_active
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -1617,7 +1619,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_active
 
 /-- On clean comparison inputs and clean scratchA, corrected explicit
 `uGreater` branch-code staging leaves scratchA equal to active `v < u`. -/
-theorem
+lemma
     coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -1670,7 +1672,7 @@ theorem
 
 /-- On clean comparison inputs, corrected explicit `uGreater` branch-code
 staging preserves the staged `v < u` predicate. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_compare_clean
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -1689,7 +1691,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_compare_clean
 
 /-- Corrected explicit `uGreater` branch-code staging preserves the selector's
 branch-history toggle through the final branch-code staging step. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_history_clean
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -1712,7 +1714,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_history_clean
 
 /-- Corrected explicit `uGreater` branch-code staging preserves every history
 slot except the selected target slot. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_historyBit_of_ne
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -1728,7 +1730,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_historyBit_of_ne
 
 /-- Corrected explicit `uGreater` branch-code staging preserves the source
 subtract result on `u`. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_u_sub_of_clean
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_u_sub_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -1757,7 +1759,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_u_sub_of_clean
 
 /-- Corrected explicit `uGreater` branch-code staging preserves the
 coefficient update `r := r + s`. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_rCoeff_add_of_clean
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_rCoeff_add_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -1786,7 +1788,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_rCoeff_add_of_clean
 
 /-- Corrected explicit `uGreater` branch-code staging preserves the untouched
 `s` coefficient word. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_sCoeff
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_sCoeff
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSubAddBranchCodeToScratchStep
@@ -1817,7 +1819,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_sCoeff
 
 /-- Corrected explicit `uGreater` branch-code staging preserves the untouched
 `v` source word. -/
-theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_v
+lemma coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_v
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkUGreaterSubAddBranchCodeToScratchStep
@@ -1841,7 +1843,7 @@ theorem coeffWorkUGreaterSubAddBranchCodeToScratchStep_get_v
 /-- After clean corrected `uGreater` branch-code staging, the aux-active shift
 dispatch selects the unconditioned `u/s` shift group when the round is active
 and the comparison selector is true. -/
-theorem
+lemma
     coeffWorkAuxShiftDispatch_eq_uShift_after_uGreaterSubAddCode_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -1900,11 +1902,11 @@ def coeffWorkVLeSubAddBranchCodeToScratchProgram
     (coeffWorkVLeBranchCodeToScratchProgram n counterWidth)
 
 /-- The corrected staged `vLe` circuit realizes its step. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratch_realizes
+lemma coeffWorkVLeSubAddBranchCodeToScratch_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkVLeSubAddBranchCodeToScratchProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (coeffWorkVLeSubAddBranchCodeToScratchStep
         n counterWidth bit historyIndex) := by
   unfold coeffWorkVLeSubAddBranchCodeToScratchProgram
@@ -1919,7 +1921,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratch_realizes
     (coeffWorkVLeBranchCodeToScratch_realizes n counterWidth)
 
 /-- The corrected staged `vLe` branch-code slice preserves the active flag. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_active
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -1933,7 +1935,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_active
 
 /-- On clean scratchA, corrected explicit zero-code `vLe` branch-code staging
 preserves the clean auxiliary bit through the subtract/add path. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_scratchA_clean
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false) :
@@ -1966,7 +1968,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_scratchA_clean
 
 /-- On clean comparison inputs, corrected explicit `vLe` branch-code staging
 preserves the staged comparison predicate. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_compare_clean
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -1985,7 +1987,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_compare_clean
 
 /-- Corrected explicit zero-code `vLe` branch-code staging preserves the
 zero-code branch-history no-op through the final branch-code staging step. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_history_clean
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchB : (RegisterBits.scratchBBit n counterWidth).get x = false) :
@@ -2002,7 +2004,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_history_clean
 
 /-- Corrected explicit `vLe` branch-code staging preserves every history slot
 except the selected target slot. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_historyBit_of_ne
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -2018,7 +2020,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_historyBit_of_ne
 
 /-- Corrected explicit `vLe` branch-code staging preserves the source
 subtract result on `v`. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_v_sub_of_clean
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_v_sub_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -2047,7 +2049,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_v_sub_of_clean
 
 /-- Corrected explicit `vLe` branch-code staging preserves the coefficient
 update `s := s + r`. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_sCoeff_add_of_clean
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_sCoeff_add_of_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -2076,7 +2078,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_sCoeff_add_of_clean
 
 /-- Corrected explicit `vLe` branch-code staging preserves the untouched `r`
 coefficient word. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_rCoeff
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_rCoeff
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSubAddBranchCodeToScratchStep
@@ -2106,7 +2108,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_rCoeff
 
 /-- Corrected explicit `vLe` branch-code staging preserves the untouched `u`
 source word. -/
-theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_u
+lemma coeffWorkVLeSubAddBranchCodeToScratchStep_get_u
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkVLeSubAddBranchCodeToScratchStep
@@ -2129,7 +2131,7 @@ theorem coeffWorkVLeSubAddBranchCodeToScratchStep_get_u
 /-- After clean corrected `vLe` branch-code staging, the aux-active shift
 dispatch selects the unconditioned `v/r` shift group when the active flag
 remains true and the auxiliary bit remains false. -/
-theorem coeffWorkAuxShiftDispatch_eq_vShift_after_vLeSubAddCode_clean
+lemma coeffWorkAuxShiftDispatch_eq_vShift_after_vLeSubAddCode_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
     (hscratchA : x.scratchA = false)
@@ -2193,17 +2195,17 @@ def uBitNotToCompareStep
 
 /-- The `u`-bit-to-compare staging program is a concrete encoded-bit
 base-gate realization over the Montgomery--Kaliski register layout. -/
-theorem uBitNotToCompare_realizes
+lemma uBitNotToCompare_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (uBitNotToCompareProgram n counterWidth bit)
+      (uBitNotToCompareProgram n counterWidth bit) environment
       (uBitNotToCompareStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uBitNotToCompareGates n counterWidth bit)
 
 /-- Staging toggles compare as `!compare ^^ uBit`; in particular, clean compare
 becomes the negated selected `u` bit. -/
-theorem uBitNotToCompareStep_get_compare
+lemma uBitNotToCompareStep_get_compare
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
@@ -2221,7 +2223,7 @@ theorem uBitNotToCompareStep_get_compare
 
 /-- On a clean comparison ancilla, staging computes the negated selected `u`
 bit. -/
-theorem uBitNotToCompareStep_get_compare_clean
+lemma uBitNotToCompareStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2235,7 +2237,7 @@ theorem uBitNotToCompareStep_get_compare_clean
     simp [hcleanValue]
 
 /-- Staging preserves the selected `u` bit. -/
-theorem uBitNotToCompareStep_get_uBit
+lemma uBitNotToCompareStep_get_uBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth bit).get
@@ -2251,7 +2253,7 @@ theorem uBitNotToCompareStep_get_uBit
     (Ne.symm (RegisterBits.u_compare_wire_ne n counterWidth bit))]
 
 /-- Staging preserves the active flag. -/
-theorem uBitNotToCompareStep_get_active
+lemma uBitNotToCompareStep_get_active
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -2269,7 +2271,7 @@ theorem uBitNotToCompareStep_get_active
 
 /-- Staging a negated selected `u` bit preserves every stored branch-history
 bit. -/
-theorem uBitNotToCompareStep_get_historyBit
+lemma uBitNotToCompareStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -2323,17 +2325,17 @@ def uEvenBranchCodeToScratchStep
 
 /-- The `u`-even branch-code staging program is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem uEvenBranchCodeToScratch_realizes
+lemma uEvenBranchCodeToScratch_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (uEvenBranchCodeToScratchProgram n counterWidth bit)
+      (uEvenBranchCodeToScratchProgram n counterWidth bit) environment
       (uEvenBranchCodeToScratchStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uEvenBranchCodeToScratchGates n counterWidth bit)
 
 /-- On clean compare, the `u`-even branch-code staging restores the comparison
 ancilla after using it as the condition bit. -/
-theorem uEvenBranchCodeToScratchStep_get_compare_clean
+lemma uEvenBranchCodeToScratchStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2367,7 +2369,7 @@ theorem uEvenBranchCodeToScratchStep_get_compare_clean
 
 /-- On clean compare, `u`-even branch-code staging toggles scratchA exactly when
 the active flag is set and the selected `u` bit is zero. -/
-theorem uEvenBranchCodeToScratchStep_get_scratchA_clean
+lemma uEvenBranchCodeToScratchStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2408,7 +2410,7 @@ theorem uEvenBranchCodeToScratchStep_get_scratchA_clean
 
 /-- On clean compare, `u`-even branch-code staging preserves scratchB because
 the `u`-even code is `10` [RNSL17, ECDLP.tex:471]. -/
-theorem uEvenBranchCodeToScratchStep_get_scratchB_clean
+lemma uEvenBranchCodeToScratchStep_get_scratchB_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (_hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2439,7 +2441,7 @@ theorem uEvenBranchCodeToScratchStep_get_scratchB_clean
 
 /-- Active-guarded `u`-even branch-code staging preserves the selected `u` bit.
 -/
-theorem uEvenBranchCodeToScratchStep_get_uBit
+lemma uEvenBranchCodeToScratchStep_get_uBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth bit).get
@@ -2468,7 +2470,7 @@ theorem uEvenBranchCodeToScratchStep_get_uBit
 
 /-- Active-guarded `u`-even branch-code staging preserves every little-endian
 `u` value bit. -/
-theorem uEvenBranchCodeToScratchStep_get_uWordBit
+lemma uEvenBranchCodeToScratchStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth targetBit).get
@@ -2504,7 +2506,7 @@ theorem uEvenBranchCodeToScratchStep_get_uWordBit
 
 /-- Active-guarded `u`-even branch-code staging preserves every little-endian
 `v` value bit. -/
-theorem uEvenBranchCodeToScratchStep_get_vWordBit
+lemma uEvenBranchCodeToScratchStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth targetBit).get
@@ -2540,7 +2542,7 @@ theorem uEvenBranchCodeToScratchStep_get_vWordBit
 
 /-- Active-guarded `u`-even branch-code staging preserves every little-endian
 `s` coefficient value bit. -/
-theorem uEvenBranchCodeToScratchStep_get_sCoeffValueWordBit
+lemma uEvenBranchCodeToScratchStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth targetBit).get
@@ -2576,7 +2578,7 @@ theorem uEvenBranchCodeToScratchStep_get_sCoeffValueWordBit
 
 /-- Active-guarded `u`-even branch-code staging preserves every little-endian
 `r` coefficient value bit. -/
-theorem uEvenBranchCodeToScratchStep_get_rCoeffValueWordBit
+lemma uEvenBranchCodeToScratchStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth targetBit).get
@@ -2611,7 +2613,7 @@ theorem uEvenBranchCodeToScratchStep_get_rCoeffValueWordBit
   rw [EncodedBit.get_flip_of_wire_ne compare observed hcompareObserved]
 
 /-- Active-guarded `u`-even branch-code staging preserves the active flag. -/
-theorem uEvenBranchCodeToScratchStep_get_active
+lemma uEvenBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -2640,7 +2642,7 @@ theorem uEvenBranchCodeToScratchStep_get_active
 
 /-- Active-guarded `u`-even branch-code staging preserves every stored
 branch-history bit. -/
-theorem uEvenBranchCodeToScratchStep_get_historyBit
+lemma uEvenBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -2669,7 +2671,7 @@ theorem uEvenBranchCodeToScratchStep_get_historyBit
     (RegisterBits.compare_history_wire_ne n counterWidth historyIndex)]
 
 /-- The complete `u`-even branch-code staging list is palindromic. -/
-@[simp] theorem uEvenBranchCodeToScratchGates_reverse
+@[simp] lemma uEvenBranchCodeToScratchGates_reverse
     (n counterWidth : Nat) (bit : Fin n) :
     (uEvenBranchCodeToScratchGates n counterWidth bit).reverse =
       uEvenBranchCodeToScratchGates n counterWidth bit := by
@@ -2710,16 +2712,16 @@ def uEvenBranchHistoryWriteStep
 
 /-- The `u`-even branch-history write slice is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem uEvenBranchHistoryWrite_realizes
+lemma uEvenBranchHistoryWrite_realizes
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (uEvenBranchHistoryWriteProgram n counterWidth bit historyIndex)
+      (uEvenBranchHistoryWriteProgram n counterWidth bit historyIndex) environment
       (uEvenBranchHistoryWriteStep n counterWidth bit historyIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uEvenBranchHistoryWriteGates n counterWidth bit historyIndex)
 
-theorem uEvenBranchHistoryWriteStep_eq
+lemma uEvenBranchHistoryWriteStep_eq
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     uEvenBranchHistoryWriteStep n counterWidth bit historyIndex x =
@@ -2733,7 +2735,7 @@ theorem uEvenBranchHistoryWriteStep_eq
 /-- On clean compare and clean scratchB, the `u`-even history-write slice leaves
 the selected `m_i` bit unchanged, matching the `uEven` history code bit
 `0` [RNSL17, ECDLP.tex:471]. -/
-theorem uEvenBranchHistoryWriteStep_get_history_clean
+lemma uEvenBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false)
@@ -2752,7 +2754,7 @@ theorem uEvenBranchHistoryWriteStep_get_history_clean
 
 /-- The `u`-even branch-history write slice preserves every history slot
 except the selected target slot. -/
-theorem uEvenBranchHistoryWriteStep_get_historyBit_of_ne
+lemma uEvenBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : Registers n counterWidth) :
@@ -2783,10 +2785,10 @@ def liftedUEvenBranchHistoryWriteProgram
     (uEvenBranchHistoryWriteProgram n counterWidth bit historyIndex)
 
 /-- The lifted `uEven` circuit realizes its product action. -/
-theorem liftedUEvenBranchHistoryWrite_realizes
+lemma liftedUEvenBranchHistoryWrite_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (liftedUEvenBranchHistoryWriteProgram n counterWidth bit historyIndex)
+      (liftedUEvenBranchHistoryWriteProgram n counterWidth bit historyIndex) environment
       (liftedUEvenBranchHistoryWriteStep n counterWidth bit historyIndex) := by
   unfold liftedUEvenBranchHistoryWriteProgram liftedUEvenBranchHistoryWriteStep
   simpa [registersWithComparisonWorkEncoding] using
@@ -2796,7 +2798,7 @@ theorem liftedUEvenBranchHistoryWrite_realizes
 
 /-- On clean lifted compare and scratchB bits, the lifted `uEven` history-write
 slice leaves the selected branch-history bit unchanged. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_history_clean
+lemma liftedUEvenBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hcompare : (liftedCompareBit n counterWidth).get x = false)
@@ -2815,7 +2817,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_history_clean
 
 /-- The lifted `uEven` history-write slice preserves every history slot except
 the selected target slot. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_historyBit_of_ne
+lemma liftedUEvenBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (bit : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -2830,7 +2832,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The lifted `uEven` branch-history write preserves every comparison-work
 carry bit, because it only acts on the leading Kaliski registers. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_comparisonCarry
+lemma liftedUEvenBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -2840,7 +2842,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_comparisonCarry
 
 /-- On clean compare, the `uEven` branch-history write slice restores the
 comparison ancilla after staging, writing, and uncomputing the branch code. -/
-theorem uEvenBranchHistoryWriteStep_get_compare_clean
+lemma uEvenBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2864,7 +2866,7 @@ theorem uEvenBranchHistoryWriteStep_get_compare_clean
 
 /-- On clean compare, the `uEven` branch-history write slice restores the first
 scratch-code bit. -/
-theorem uEvenBranchHistoryWriteStep_get_scratchA_clean
+lemma uEvenBranchHistoryWriteStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2900,7 +2902,7 @@ theorem uEvenBranchHistoryWriteStep_get_scratchA_clean
 
 /-- On clean compare, the `uEven` branch-history write slice restores the
 second scratch-code bit. -/
-theorem uEvenBranchHistoryWriteStep_get_scratchB_clean
+lemma uEvenBranchHistoryWriteStep_get_scratchB_clean
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -2928,7 +2930,7 @@ theorem uEvenBranchHistoryWriteStep_get_scratchB_clean
     hcompare]
 
 /-- The `uEven` branch-history write slice preserves the active flag. -/
-theorem uEvenBranchHistoryWriteStep_get_active
+lemma uEvenBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -2940,7 +2942,7 @@ theorem uEvenBranchHistoryWriteStep_get_active
   rw [uEvenBranchCodeToScratchStep_get_active]
 
 /-- The `uEven` branch-history write slice preserves the selected `u` bit. -/
-theorem uEvenBranchHistoryWriteStep_get_uBit
+lemma uEvenBranchHistoryWriteStep_get_uBit
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth bit).get
@@ -2952,7 +2954,7 @@ theorem uEvenBranchHistoryWriteStep_get_uBit
   rw [uEvenBranchCodeToScratchStep_get_uBit]
 
 /-- Lifted clean-compare endpoint for the `uEven` branch-history write slice. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_compare_clean
+lemma liftedUEvenBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hcompare : (liftedCompareBit n counterWidth).get x = false) :
@@ -2968,7 +2970,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_compare_clean
 
 /-- Lifted scratchA restoration endpoint for the `uEven` branch-history write
 slice. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_scratchA_clean
+lemma liftedUEvenBranchHistoryWriteStep_get_scratchA_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hcompare : (liftedCompareBit n counterWidth).get x = false) :
@@ -2984,7 +2986,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_scratchA_clean
 
 /-- Lifted scratchB restoration endpoint for the `uEven` branch-history write
 slice. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_scratchB_clean
+lemma liftedUEvenBranchHistoryWriteStep_get_scratchB_clean
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
     (hcompare : (liftedCompareBit n counterWidth).get x = false) :
@@ -3000,7 +3002,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_scratchB_clean
 
 /-- Lifted active-flag preservation endpoint for the `uEven`
 branch-history write slice. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_active
+lemma liftedUEvenBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -3014,7 +3016,7 @@ theorem liftedUEvenBranchHistoryWriteStep_get_active
 
 /-- Lifted selected-`u` preservation endpoint for the `uEven`
 branch-history write slice. -/
-theorem liftedUEvenBranchHistoryWriteStep_get_uBit
+lemma liftedUEvenBranchHistoryWriteStep_get_uBit
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedUBit n counterWidth bit).get
@@ -3057,16 +3059,16 @@ def vBitNotToCompareStep
 
 /-- The single-bit `v = 0` detector atom is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem vBitNotToCompare_realizes
+lemma vBitNotToCompare_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (vBitNotToCompareProgram n counterWidth bit)
+      (vBitNotToCompareProgram n counterWidth bit) environment
       (vBitNotToCompareStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (vBitNotToCompareGates n counterWidth bit)
 
 /-- The single-bit detector toggles compare by the negated selected `v` bit. -/
-theorem vBitNotToCompareStep_get_compare
+lemma vBitNotToCompareStep_get_compare
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
@@ -3088,7 +3090,7 @@ theorem vBitNotToCompareStep_get_compare
 
 /-- On clean compare, the single-bit detector writes the negated selected
 `v` bit into compare. -/
-theorem vBitNotToCompareStep_get_compare_clean
+lemma vBitNotToCompareStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -3101,7 +3103,7 @@ theorem vBitNotToCompareStep_get_compare_clean
   cases (RegisterBits.vBit n counterWidth bit).get x <;> simp [hcleanValue]
 
 /-- The single-bit detector restores the selected `v` bit. -/
-theorem vBitNotToCompareStep_get_vBit
+lemma vBitNotToCompareStep_get_vBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vBit n counterWidth bit).get
@@ -3120,7 +3122,7 @@ theorem vBitNotToCompareStep_get_vBit
   cases sourceV.get x <;> simp
 
 /-- The single-bit detector restores every little-endian `v` value bit. -/
-theorem vBitNotToCompareStep_get_vValueBit
+lemma vBitNotToCompareStep_get_vValueBit
     (n counterWidth : Nat) (bit targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth targetBit).get
@@ -3150,7 +3152,7 @@ theorem vBitNotToCompareStep_get_vValueBit
     rw [EncodedBit.get_flip_of_wire_ne sourceV observed hsourceVObserved]
 
 /-- The single-bit detector restores the full `v` word. -/
-theorem vBitNotToCompareStep_v
+lemma vBitNotToCompareStep_v
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (vBitNotToCompareStep n counterWidth bit x).v = x.v := by
@@ -3160,7 +3162,7 @@ theorem vBitNotToCompareStep_v
     vBitNotToCompareStep_get_vValueBit n counterWidth bit targetBit x
 
 /-- In width one, the single-bit detector is the complete `v = 0` detector. -/
-theorem vBitNotToCompareStep_get_compare_clean_one
+lemma vBitNotToCompareStep_get_compare_clean_one
     (counterWidth : Nat) (x : Registers 1 counterWidth)
     (hclean : (RegisterBits.compareBit 1 counterWidth).get x = false) :
     (RegisterBits.compareBit 1 counterWidth).get
@@ -3183,7 +3185,7 @@ theorem vBitNotToCompareStep_get_compare_clean_one
   · simp [hone]
 
 /-- Distinct lifted comparison-work carry bits occupy distinct wires. -/
-theorem liftedComparisonCarry_liftedComparisonCarry_wire_ne
+lemma liftedComparisonCarry_liftedComparisonCarry_wire_ne
     (n counterWidth : Nat) (left right : Fin n) (h : left ≠ right) :
     (liftedComparisonCarryBit n counterWidth left).wire ≠
       (liftedComparisonCarryBit n counterWidth right).wire := by
@@ -3197,7 +3199,7 @@ private def encodedWordXIndicesStep
     Data -> Data :=
   fun x => indices.foldl (fun y bit => (word.bit bit).flip y) x
 
-private theorem encodedWordXIndicesStep_get_bit
+private lemma encodedWordXIndicesStep_get_bit
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (word : EncodedBit.Word encoding width) (indices : List (Fin width))
     (hnodup : indices.Nodup) (bit : Fin width)
@@ -3234,7 +3236,7 @@ private theorem encodedWordXIndicesStep_get_bit
         have hbitHead : bit ≠ head := Ne.symm hhead
         by_cases hmem : bit ∈ rest <;> simp [hbitHead, hmem]
 
-private theorem encodedWordXGateList_stepList_eq_indicesStep
+private lemma encodedWordXGateList_stepList_eq_indicesStep
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (word : EncodedBit.Word encoding width) :
     EncodedBit.GateSpec.stepList
@@ -3261,7 +3263,7 @@ private theorem encodedWordXGateList_stepList_eq_indicesStep
       simpa [gateOfIndex, EncodedBit.GateSpec.step] using
         ih ((word.bit bit).flip x)
 
-private theorem encodedWordXGateList_reverse_stepList_eq_indicesStep
+private lemma encodedWordXGateList_reverse_stepList_eq_indicesStep
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (word : EncodedBit.Word encoding width) :
     EncodedBit.GateSpec.stepList
@@ -3298,7 +3300,7 @@ def vZeroDetectorNegateVGates (n counterWidth : Nat) :
     EncodedBit.GateSpec.x ((liftedVWord n counterWidth).bit bit)
 
 /-- The `v`-negation gate list flips exactly the selected lifted `v` bit. -/
-theorem vZeroDetectorNegateVGates_get_vValueBit
+lemma vZeroDetectorNegateVGates_get_vValueBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit bit).get
@@ -3320,7 +3322,7 @@ theorem vZeroDetectorNegateVGates_get_vValueBit
 
 /-- The reversed `v`-negation gate list also flips exactly the selected lifted
 `v` bit. -/
-theorem vZeroDetectorNegateVGates_reverse_get_vValueBit
+lemma vZeroDetectorNegateVGates_reverse_get_vValueBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit bit).get
@@ -3342,7 +3344,7 @@ theorem vZeroDetectorNegateVGates_reverse_get_vValueBit
       x
 
 /-- Clean comparison work has all lifted carry bits clear. -/
-@[simp] theorem liftedComparisonCarryBit_clean
+@[simp] lemma liftedComparisonCarryBit_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (liftedComparisonCarryBit n counterWidth bit).get
@@ -3351,7 +3353,7 @@ theorem vZeroDetectorNegateVGates_reverse_get_vValueBit
   simp
 
 /-- The `v`-negation gate list preserves every comparison-work carry readout. -/
-theorem vZeroDetectorNegateVGates_get_comparisonCarry
+lemma vZeroDetectorNegateVGates_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -3371,7 +3373,7 @@ theorem vZeroDetectorNegateVGates_get_comparisonCarry
 
 /-- The reversed `v`-negation gate list preserves every comparison-work carry
 readout. -/
-theorem vZeroDetectorNegateVGates_reverse_get_comparisonCarry
+lemma vZeroDetectorNegateVGates_reverse_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -3392,7 +3394,7 @@ theorem vZeroDetectorNegateVGates_reverse_get_comparisonCarry
     y
 
 /-- The `v`-negation gate list preserves compare. -/
-theorem vZeroDetectorNegateVGates_get_compare
+lemma vZeroDetectorNegateVGates_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -3410,7 +3412,7 @@ theorem vZeroDetectorNegateVGates_get_compare
     (Ne.symm (liftedCompare_liftedVWordBit_wire_ne n counterWidth bit)) y
 
 /-- The reversed `v`-negation gate list preserves compare. -/
-theorem vZeroDetectorNegateVGates_reverse_get_compare
+lemma vZeroDetectorNegateVGates_reverse_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -3468,7 +3470,7 @@ private def vZeroDetectorPrefixUntilNextIndex (n upto : Nat) (h : upto < n)
     (bit : Fin upto) : Fin n :=
   ⟨bit.val + 1, by omega⟩
 
-private theorem vZeroDetectorPrefixUntilPrevIndex_ne_nextIndex
+private lemma vZeroDetectorPrefixUntilPrevIndex_ne_nextIndex
     (n upto : Nat) (h : upto < n) (bit : Fin upto) :
     vZeroDetectorPrefixUntilPrevIndex n upto h bit ≠
       vZeroDetectorPrefixUntilNextIndex n upto h bit := by
@@ -3510,7 +3512,7 @@ private def vZeroDetectorPrefixGatesUntil
         (vZeroDetectorPrefixUntilNextIndex n upto h bit)
         (vZeroDetectorPrefixUntilNextIndex n upto h bit)))
 
-private theorem vZeroDetectorPrefixGates_eq_until
+private lemma vZeroDetectorPrefixGates_eq_until
     (tail counterWidth : Nat) :
     vZeroDetectorPrefixGates tail counterWidth =
       vZeroDetectorPrefixGatesUntil tail.succ counterWidth tail
@@ -3524,7 +3526,7 @@ private def vZeroDetectorPrefixRead
     ((liftedVWord n counterWidth).bit
       (vZeroDetectorPrefixUntilIndex n upto h bit)).get x).all id
 
-private theorem vZeroDetectorPrefixRead_succ
+private lemma vZeroDetectorPrefixRead_succ
     (n counterWidth upto : Nat) (h : upto.succ < n)
     (x : RegistersWithComparisonWork n counterWidth) :
     vZeroDetectorPrefixRead n counterWidth upto.succ h x =
@@ -3537,7 +3539,7 @@ private theorem vZeroDetectorPrefixRead_succ
   simp [vZeroDetectorPrefixUntilIndex, vZeroDetectorPrefixUntilNextIndex,
     Bool.and_assoc]
 
-private theorem vZeroDetectorPrefixRead_eq_decide
+private lemma vZeroDetectorPrefixRead_eq_decide
     (n counterWidth upto : Nat) (h : upto < n)
     (x : RegistersWithComparisonWork n counterWidth) :
     vZeroDetectorPrefixRead n counterWidth upto h x =
@@ -3566,7 +3568,7 @@ private theorem vZeroDetectorPrefixRead_eq_decide
         List.mem_ofFn.mpr ⟨bit, rfl⟩, hbit⟩
     simp [hprefix, hall]
 
-private theorem vZeroDetectorPrefixGatesUntil_get_vValueBit
+private lemma vZeroDetectorPrefixGatesUntil_get_vValueBit
     (n counterWidth upto : Nat) (h : upto < n) (target : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit target).get
@@ -3597,7 +3599,7 @@ private theorem vZeroDetectorPrefixGatesUntil_get_vValueBit
         (liftedVWordBit_liftedComparisonCarry_wire_ne n counterWidth
           target (vZeroDetectorPrefixUntilNextIndex n upto h bit))) y
 
-private theorem vZeroDetectorPrefixGatesUntil_get_later_comparisonCarry
+private lemma vZeroDetectorPrefixGatesUntil_get_later_comparisonCarry
     (n counterWidth upto : Nat) (h : upto < n) (target : Fin n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hlater : upto < target.val) :
@@ -3659,7 +3661,7 @@ private def vZeroDetectorPrefixGatesUntilSuccGate
       (vZeroDetectorPrefixUntilNextIndex n upto.succ h (Fin.last upto))
       (vZeroDetectorPrefixUntilNextIndex n upto.succ h (Fin.last upto)))
 
-private theorem vZeroDetectorPrefixGatesUntil_succ
+private lemma vZeroDetectorPrefixGatesUntil_succ
     (n counterWidth upto : Nat) (h : upto.succ < n) :
     vZeroDetectorPrefixGatesUntil n counterWidth upto.succ h =
       vZeroDetectorPrefixGatesUntil n counterWidth upto (by omega) ++
@@ -3670,7 +3672,7 @@ private theorem vZeroDetectorPrefixGatesUntil_succ
   simp [vZeroDetectorPrefixUntilIndex,
     vZeroDetectorPrefixUntilPrevIndex, vZeroDetectorPrefixUntilNextIndex]
 
-private theorem vZeroDetectorPrefixGatesUntil_get_final_clean
+private lemma vZeroDetectorPrefixGatesUntil_get_final_clean
     (n counterWidth upto : Nat) (h : upto < n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hwork :
@@ -3752,7 +3754,7 @@ private theorem vZeroDetectorPrefixGatesUntil_get_final_clean
       rw [vZeroDetectorPrefixRead_succ]
       simp [next, vZeroDetectorPrefixUntilNextIndex]
 
-private theorem vZeroDetectorPrefixGates_get_final_clean
+private lemma vZeroDetectorPrefixGates_get_final_clean
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth)
     (hwork :
@@ -3775,7 +3777,7 @@ private theorem vZeroDetectorPrefixGates_get_final_clean
     vZeroDetectorPrefixGatesUntil_get_final_clean tail.succ counterWidth tail
       (Nat.lt_succ_self tail) x hwork
 
-private theorem vZeroDetectorPrefixRead_after_negate_eq_decide_v_zero
+private lemma vZeroDetectorPrefixRead_after_negate_eq_decide_v_zero
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     vZeroDetectorPrefixRead tail.succ counterWidth tail
@@ -3846,7 +3848,7 @@ private theorem vZeroDetectorPrefixRead_after_negate_eq_decide_v_zero
 
 /-- The forward prefix-AND network only writes comparison-work carry bits, so it
 preserves every lifted `v` value-bit readout. -/
-theorem vZeroDetectorPrefixGates_get_vValueBit
+lemma vZeroDetectorPrefixGates_get_vValueBit
     (tail counterWidth : Nat) (target : Fin tail.succ)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     ((liftedVWord tail.succ counterWidth).bit target).get
@@ -3877,7 +3879,7 @@ theorem vZeroDetectorPrefixGates_get_vValueBit
 
 /-- Reversing the prefix-AND network still preserves every lifted `v` value-bit
 readout. -/
-theorem vZeroDetectorPrefixGates_reverse_get_vValueBit
+lemma vZeroDetectorPrefixGates_reverse_get_vValueBit
     (tail counterWidth : Nat) (target : Fin tail.succ)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     ((liftedVWord tail.succ counterWidth).bit target).get
@@ -3910,7 +3912,7 @@ theorem vZeroDetectorPrefixGates_reverse_get_vValueBit
           target (Fin.succ bit))) y
 
 /-- Every prefix-AND gate is wire-disjoint from the comparison ancilla. -/
-theorem vZeroDetectorPrefixGates_bitDisjoint_compare
+lemma vZeroDetectorPrefixGates_bitDisjoint_compare
     (tail counterWidth : Nat) (gate :
       EncodedBit.GateSpec
         (registersWithComparisonWorkEncoding tail.succ counterWidth))
@@ -3940,7 +3942,7 @@ theorem vZeroDetectorPrefixGates_bitDisjoint_compare
             (Fin.succ bit))
 
 /-- The forward prefix-AND network preserves compare. -/
-theorem vZeroDetectorPrefixGates_get_compare
+lemma vZeroDetectorPrefixGates_get_compare
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (liftedCompareBit tail.succ counterWidth).get
@@ -3963,7 +3965,7 @@ theorem vZeroDetectorPrefixGates_get_compare
         (liftedCompareBit tail.succ counterWidth) hdisjoint.2.2 y
 
 /-- The reversed prefix-AND network preserves compare. -/
-theorem vZeroDetectorPrefixGates_reverse_get_compare
+lemma vZeroDetectorPrefixGates_reverse_get_compare
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (liftedCompareBit tail.succ counterWidth).get
@@ -4000,7 +4002,7 @@ def vZeroDetectorCopyOutGate (tail counterWidth : Nat) :
 
 /-- Copying the detector result into compare preserves every lifted `v`
 value-bit readout. -/
-theorem vZeroDetectorCopyOutGate_get_vValueBit
+lemma vZeroDetectorCopyOutGate_get_vValueBit
     (tail counterWidth : Nat) (target : Fin tail.succ)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     ((liftedVWord tail.succ counterWidth).bit target).get
@@ -4015,7 +4017,7 @@ theorem vZeroDetectorCopyOutGate_get_vValueBit
 
 /-- Copying the detector result into compare preserves comparison-work carry
 readouts. -/
-theorem vZeroDetectorCopyOutGate_get_comparisonCarry
+lemma vZeroDetectorCopyOutGate_get_comparisonCarry
     (tail counterWidth : Nat) (workBit : Fin tail.succ)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (liftedComparisonCarryBit tail.succ counterWidth workBit).get
@@ -4030,7 +4032,7 @@ theorem vZeroDetectorCopyOutGate_get_comparisonCarry
         workBit) x
 
 /-- Copying the detector result xors the final prefix carry into compare. -/
-theorem vZeroDetectorCopyOutGate_get_compare
+lemma vZeroDetectorCopyOutGate_get_compare
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (liftedCompareBit tail.succ counterWidth).get
@@ -4048,7 +4050,7 @@ theorem vZeroDetectorCopyOutGate_get_compare
 carry-work bit.  The compare-copy sits between compute and uncompute, but the
 prefix gates are disjoint from compare, so the uncompute still sees the same
 `v`/carry controls. -/
-theorem vZeroDetectorPrefixCopyUncompute_get_comparisonCarry
+lemma vZeroDetectorPrefixCopyUncompute_get_comparisonCarry
     (tail counterWidth : Nat) (workBit : Fin tail.succ)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (liftedComparisonCarryBit tail.succ counterWidth workBit).get
@@ -4124,15 +4126,15 @@ def vZeroDetectorWithComparisonWorkStep (n counterWidth : Nat) :
 
 /-- The comparison-work-backed `v = 0` detector is a concrete base-gate list
 over the product register layout. -/
-theorem vZeroDetectorWithComparisonWork_realizes (n counterWidth : Nat) :
+lemma vZeroDetectorWithComparisonWork_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (vZeroDetectorWithComparisonWorkProgram n counterWidth)
+      (vZeroDetectorWithComparisonWorkProgram n counterWidth) environment
       (vZeroDetectorWithComparisonWorkStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (vZeroDetectorWithComparisonWorkGates n counterWidth)
 
 /-- The comparison-work-backed detector preserves every lifted `v` value-bit. -/
-theorem vZeroDetectorWithComparisonWorkStep_get_vValueBit
+lemma vZeroDetectorWithComparisonWorkStep_get_vValueBit
     (tail counterWidth : Nat) (target : Fin tail.succ)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     ((liftedVWord tail.succ counterWidth).bit target).get
@@ -4154,7 +4156,7 @@ theorem vZeroDetectorWithComparisonWorkStep_get_vValueBit
   simp
 
 /-- The comparison-work-backed detector preserves the full `v` word. -/
-theorem vZeroDetectorWithComparisonWorkStep_v
+lemma vZeroDetectorWithComparisonWorkStep_v
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (vZeroDetectorWithComparisonWorkStep n counterWidth x).1.v =
@@ -4176,7 +4178,7 @@ theorem vZeroDetectorWithComparisonWorkStep_v
 /-- The nonempty comparison-work-backed detector preserves any observed bit
 whose wire is disjoint from the detector's writable targets: `v`, compare, and
 comparison carry-work bits. -/
-theorem vZeroDetectorWithComparisonWorkStep_get_observed_of_detector_ne
+lemma vZeroDetectorWithComparisonWorkStep_get_observed_of_detector_ne
     (tail counterWidth : Nat)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding tail.succ counterWidth))
@@ -4238,7 +4240,7 @@ theorem vZeroDetectorWithComparisonWorkStep_get_observed_of_detector_ne
       ((liftedVWord tail.succ counterWidth).bit bit) observed (hv bit) y
 
 /-- The comparison-work-backed detector preserves the `u` word. -/
-theorem vZeroDetectorWithComparisonWorkStep_u
+lemma vZeroDetectorWithComparisonWorkStep_u
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.u =
@@ -4262,7 +4264,7 @@ theorem vZeroDetectorWithComparisonWorkStep_u
     BinaryLabelEncoding.prodLeftBit] using h
 
 /-- The comparison-work-backed detector preserves the `s` coefficient word. -/
-theorem vZeroDetectorWithComparisonWorkStep_sCoeff
+lemma vZeroDetectorWithComparisonWorkStep_sCoeff
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.sCoeff =
@@ -4286,7 +4288,7 @@ theorem vZeroDetectorWithComparisonWorkStep_sCoeff
     BinaryLabelEncoding.prodLeftBit] using h
 
 /-- The comparison-work-backed detector preserves the `r` coefficient word. -/
-theorem vZeroDetectorWithComparisonWorkStep_rCoeff
+lemma vZeroDetectorWithComparisonWorkStep_rCoeff
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.rCoeff =
@@ -4310,7 +4312,7 @@ theorem vZeroDetectorWithComparisonWorkStep_rCoeff
     BinaryLabelEncoding.prodLeftBit] using h
 
 /-- The comparison-work-backed detector preserves the first scratch bit. -/
-theorem vZeroDetectorWithComparisonWorkStep_scratchA
+lemma vZeroDetectorWithComparisonWorkStep_scratchA
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.scratchA =
@@ -4337,7 +4339,7 @@ theorem vZeroDetectorWithComparisonWorkStep_scratchA
     BinaryLabelEncoding.prodLeftBit, RegisterBits.scratchABit_get] using h
 
 /-- The comparison-work-backed detector preserves the second scratch bit. -/
-theorem vZeroDetectorWithComparisonWorkStep_scratchB
+lemma vZeroDetectorWithComparisonWorkStep_scratchB
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.scratchB =
@@ -4365,7 +4367,7 @@ theorem vZeroDetectorWithComparisonWorkStep_scratchB
     BinaryLabelEncoding.prodLeftBit, RegisterBits.scratchBBit_get] using h
 
 /-- The comparison-work-backed detector preserves the history word. -/
-theorem vZeroDetectorWithComparisonWorkStep_history
+lemma vZeroDetectorWithComparisonWorkStep_history
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.history =
@@ -4405,7 +4407,7 @@ theorem vZeroDetectorWithComparisonWorkStep_history
     WireAddress.bitIndex_littleEndianWire] using h
 
 /-- The comparison-work-backed detector preserves the active flag. -/
-theorem vZeroDetectorWithComparisonWorkStep_active
+lemma vZeroDetectorWithComparisonWorkStep_active
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.active =
@@ -4434,7 +4436,7 @@ theorem vZeroDetectorWithComparisonWorkStep_active
     BinaryLabelEncoding.prodLeftBit, RegisterBits.activeBit_get] using h
 
 /-- The comparison-work-backed detector preserves the padding counter. -/
-theorem vZeroDetectorWithComparisonWorkStep_counter
+lemma vZeroDetectorWithComparisonWorkStep_counter
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth x).1.counter =
@@ -4474,7 +4476,7 @@ theorem vZeroDetectorWithComparisonWorkStep_counter
     using h
 
 /-- On clean comparison work, the detector restores the comparison-work register. -/
-theorem vZeroDetectorWithComparisonWorkStep_work_clean_any
+lemma vZeroDetectorWithComparisonWorkStep_work_clean_any
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth
         (x, cleanComparisonWork tail.succ)).2 =
@@ -4516,7 +4518,7 @@ theorem vZeroDetectorWithComparisonWorkStep_work_clean_any
 
 /-- Compatibility wrapper for callers that still carry a clean-compare
 precondition. -/
-theorem vZeroDetectorWithComparisonWorkStep_work_clean
+lemma vZeroDetectorWithComparisonWorkStep_work_clean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (_hcompare : x.compare = false) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth
@@ -4526,7 +4528,7 @@ theorem vZeroDetectorWithComparisonWorkStep_work_clean
 
 /-- On clean compare and comparison work, the comparison-work-backed detector
 writes the source-level `v = 0` predicate into compare. -/
-theorem vZeroDetectorWithComparisonWorkStep_get_compare_clean
+lemma vZeroDetectorWithComparisonWorkStep_get_compare_clean
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth)
     (hcompare : (liftedCompareBit tail.succ counterWidth).get x = false)
@@ -4578,7 +4580,7 @@ theorem vZeroDetectorWithComparisonWorkStep_get_compare_clean
 
 /-- On clean comparison work, the comparison-work-backed detector xors the
 source-level `v = 0` predicate into compare. -/
-theorem vZeroDetectorWithComparisonWorkStep_get_compare_clean_xor
+lemma vZeroDetectorWithComparisonWorkStep_get_compare_clean_xor
     (tail counterWidth : Nat)
     (x : RegistersWithComparisonWork tail.succ counterWidth)
     (hwork :
@@ -4630,7 +4632,7 @@ theorem vZeroDetectorWithComparisonWorkStep_get_compare_clean_xor
 
 /-- On clean comparison work, the detector's register endpoint only xors
 `v = 0` into compare. -/
-theorem vZeroDetectorWithComparisonWorkStep_register_cleanEndpoint
+lemma vZeroDetectorWithComparisonWorkStep_register_cleanEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (vZeroDetectorWithComparisonWorkStep tail.succ counterWidth
         (x, cleanComparisonWork tail.succ)).1 =
@@ -4723,7 +4725,7 @@ theorem vZeroDetectorWithComparisonWorkStep_register_cleanEndpoint
     by_cases hzero : xv.val = 0 <;> simp [hcmp, hzero] at hcompare ⊢
 
 /-- Clean endpoint for the comparison-work-backed `v = 0` detector. -/
-theorem vZeroDetectorWithComparisonWorkStep_cleanEndpoint
+lemma vZeroDetectorWithComparisonWorkStep_cleanEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     vZeroDetectorWithComparisonWorkStep tail.succ counterWidth
         (x, cleanComparisonWork tail.succ) =
@@ -4753,10 +4755,10 @@ def detectorCounterVZeroDetectorProgram (n counterWidth : Nat) :
     (vZeroDetectorWithComparisonWorkProgram n counterWidth)
 
 /-- The detector lifted over counter-increment work realizes its product action. -/
-theorem detectorCounterVZeroDetector_realizes (n counterWidth : Nat) :
+lemma detectorCounterVZeroDetector_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding n counterWidth)
-      (detectorCounterVZeroDetectorProgram n counterWidth)
+      (detectorCounterVZeroDetectorProgram n counterWidth) environment
       (detectorCounterVZeroDetectorStep n counterWidth) := by
   unfold detectorCounterVZeroDetectorProgram detectorCounterVZeroDetectorStep
   exact UnitaryCircuit.Realizes.onBinaryPrefix
@@ -4765,7 +4767,7 @@ theorem detectorCounterVZeroDetector_realizes (n counterWidth : Nat) :
 
 /-- The detector lifted over counter-increment work preserves the counter-work
 object. -/
-theorem detectorCounterVZeroDetectorStep_counterWork
+lemma detectorCounterVZeroDetectorStep_counterWork
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterVZeroDetectorStep n counterWidth x).2 = x.2 := by
@@ -4773,7 +4775,7 @@ theorem detectorCounterVZeroDetectorStep_counterWork
 
 /-- On clean comparison work, the lifted detector restores the comparison-work
 object and leaves counter-increment work untouched. -/
-theorem detectorCounterVZeroDetectorStep_comparisonWork_clean_any
+lemma detectorCounterVZeroDetectorStep_comparisonWork_clean_any
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (work : CounterIncrementWork counterWidth) :
@@ -4784,7 +4786,7 @@ theorem detectorCounterVZeroDetectorStep_comparisonWork_clean_any
     tail counterWidth x
 
 /-- Clean endpoint for the detector lifted over counter-increment work. -/
-theorem detectorCounterVZeroDetectorStep_cleanEndpoint
+lemma detectorCounterVZeroDetectorStep_cleanEndpoint
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (work : CounterIncrementWork counterWidth) :
@@ -4797,7 +4799,7 @@ theorem detectorCounterVZeroDetectorStep_cleanEndpoint
 
 /-- On clean comparison work, the lifted detector xors the source-level
 `v = 0` predicate into compare. -/
-theorem detectorCounterVZeroDetectorStep_get_compare_clean_xor
+lemma detectorCounterVZeroDetectorStep_get_compare_clean_xor
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (work : CounterIncrementWork counterWidth) :
@@ -4825,7 +4827,7 @@ theorem detectorCounterVZeroDetectorStep_get_compare_clean_xor
     BinaryLabelEncoding.prodLeftBit]
 
 /-- Running the lifted detector twice on clean comparison work restores compare. -/
-theorem detectorCounterVZeroDetectorStep_get_compare_clean_twice
+lemma detectorCounterVZeroDetectorStep_get_compare_clean_twice
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (work : CounterIncrementWork counterWidth) :
@@ -4909,18 +4911,18 @@ def detectorCounterTerminatingCounterModeProgram (n counterWidth : Nat) :
     (detectorCounterTerminatingCounterModeGates n counterWidth)
 
 /-- The terminating counter-mode circuit realizes its gate-list action. -/
-theorem detectorCounterTerminatingCounterMode_realizes
+lemma detectorCounterTerminatingCounterMode_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding n counterWidth)
-      (detectorCounterTerminatingCounterModeProgram n counterWidth)
+      (detectorCounterTerminatingCounterModeProgram n counterWidth) environment
       (detectorCounterTerminatingCounterModeStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (detectorCounterTerminatingCounterModeGates n counterWidth)
 
 /-- Expose the terminating detector-counter step as an active-flag flip followed
 by the clean carry/sum incrementer. -/
-theorem detectorCounterTerminatingCounterModeStep_eq_cleanCarrySum_after_active
+lemma detectorCounterTerminatingCounterModeStep_eq_cleanCarrySum_after_active
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n)
     (work : CounterIncrementWork counterWidth) :
@@ -4944,7 +4946,7 @@ theorem detectorCounterTerminatingCounterModeStep_eq_cleanCarrySum_after_active
 /-- The terminating detector-counter step preserves any lifted
 register-plus-comparison readout that is disjoint from the active flag and all
 padding-counter target bits. -/
-theorem detectorCounterTerminatingCounterModeStep_get_stateObserved
+lemma detectorCounterTerminatingCounterModeStep_get_stateObserved
     (n counterWidth : Nat)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -5007,7 +5009,7 @@ theorem detectorCounterTerminatingCounterModeStep_get_stateObserved
     hadder.trans hbefore
 
 /-- The terminating detector-counter step preserves the `u` word. -/
-theorem detectorCounterTerminatingCounterModeStep_u
+lemma detectorCounterTerminatingCounterModeStep_u
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.u =
@@ -5043,7 +5045,7 @@ theorem detectorCounterTerminatingCounterModeStep_u
     RegisterBits.uValueBit_get] using h
 
 /-- The terminating detector-counter step preserves the `v` word. -/
-theorem detectorCounterTerminatingCounterModeStep_v
+lemma detectorCounterTerminatingCounterModeStep_v
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.v =
@@ -5079,7 +5081,7 @@ theorem detectorCounterTerminatingCounterModeStep_v
     RegisterBits.vValueBit_get] using h
 
 /-- The terminating detector-counter step preserves the `s` coefficient word. -/
-theorem detectorCounterTerminatingCounterModeStep_sCoeff
+lemma detectorCounterTerminatingCounterModeStep_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.sCoeff =
@@ -5115,7 +5117,7 @@ theorem detectorCounterTerminatingCounterModeStep_sCoeff
     RegisterBits.sCoeffValueBit_get] using h
 
 /-- The terminating detector-counter step preserves the `r` coefficient word. -/
-theorem detectorCounterTerminatingCounterModeStep_rCoeff
+lemma detectorCounterTerminatingCounterModeStep_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.rCoeff =
@@ -5151,7 +5153,7 @@ theorem detectorCounterTerminatingCounterModeStep_rCoeff
     RegisterBits.rCoeffValueBit_get] using h
 
 /-- The terminating detector-counter step preserves compare. -/
-theorem detectorCounterTerminatingCounterModeStep_compare
+lemma detectorCounterTerminatingCounterModeStep_compare
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.compare =
@@ -5175,7 +5177,7 @@ theorem detectorCounterTerminatingCounterModeStep_compare
     liftRegisterBitToComparisonWork, BinaryLabelEncoding.prodLeftBit] using h
 
 /-- The terminating detector-counter step preserves scratchA. -/
-theorem detectorCounterTerminatingCounterModeStep_scratchA
+lemma detectorCounterTerminatingCounterModeStep_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.scratchA =
@@ -5202,7 +5204,7 @@ theorem detectorCounterTerminatingCounterModeStep_scratchA
     RegisterBits.scratchABit_get] using h
 
 /-- The terminating detector-counter step preserves scratchB. -/
-theorem detectorCounterTerminatingCounterModeStep_scratchB
+lemma detectorCounterTerminatingCounterModeStep_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.scratchB =
@@ -5229,7 +5231,7 @@ theorem detectorCounterTerminatingCounterModeStep_scratchB
     RegisterBits.scratchBBit_get] using h
 
 /-- The terminating detector-counter step preserves branch history. -/
-theorem detectorCounterTerminatingCounterModeStep_history
+lemma detectorCounterTerminatingCounterModeStep_history
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth x).1.1.history =
@@ -5265,7 +5267,7 @@ theorem detectorCounterTerminatingCounterModeStep_history
 
 /-- The terminating detector-counter step toggles the concrete active flag
 before incrementing the padding counter. -/
-theorem detectorCounterTerminatingCounterModeStep_active
+lemma detectorCounterTerminatingCounterModeStep_active
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (cmpWork : ComparisonWork n) (work : CounterIncrementWork counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth
@@ -5301,7 +5303,7 @@ theorem detectorCounterTerminatingCounterModeStep_active
     RegisterBits.activeBit_get] using h
 
 /-- On active inputs, the terminating detector-counter step clears `active`. -/
-theorem detectorCounterTerminatingCounterModeStep_active_of_active
+lemma detectorCounterTerminatingCounterModeStep_active_of_active
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (cmpWork : ComparisonWork n) (work : CounterIncrementWork counterWidth)
     (hactive : x.active = true) :
@@ -5311,7 +5313,7 @@ theorem detectorCounterTerminatingCounterModeStep_active_of_active
   rfl
 
 /-- The terminating detector-counter step preserves the comparison-work object. -/
-theorem detectorCounterTerminatingCounterModeStep_comparisonWork
+lemma detectorCounterTerminatingCounterModeStep_comparisonWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (cmpWork : ComparisonWork n)
     (work : CounterIncrementWork counterWidth) :
@@ -5344,7 +5346,7 @@ theorem detectorCounterTerminatingCounterModeStep_comparisonWork
     BinaryLabelEncoding.prodRightBit] using h
 
 /-- The terminating detector-counter step preserves clean comparison work. -/
-theorem detectorCounterTerminatingCounterModeStep_comparisonWork_clean
+lemma detectorCounterTerminatingCounterModeStep_comparisonWork_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (work : CounterIncrementWork counterWidth) :
     (detectorCounterTerminatingCounterModeStep n counterWidth
@@ -5355,7 +5357,7 @@ theorem detectorCounterTerminatingCounterModeStep_comparisonWork_clean
 
 /-- On clean counter-increment work inputs, the terminating detector-counter
 step restores the counter-increment work object. -/
-theorem detectorCounterTerminatingCounterModeStep_counterWork_clean
+lemma detectorCounterTerminatingCounterModeStep_counterWork_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (cmpWork : ComparisonWork n) :
     (detectorCounterTerminatingCounterModeStep n counterWidth
@@ -5415,7 +5417,7 @@ theorem detectorCounterTerminatingCounterModeStep_counterWork_clean
 
 /-- In the detector-counter workspace, the forward carry stage computes the
 propagated natural addition carry for `source + counter`. -/
-theorem detectorCounterIncrement_carryStage_get_workCarry_natAddCarry
+lemma detectorCounterIncrement_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat) (j : Fin (counterWidth - 1))
     (x : RegistersWithDetectorCounterWork n counterWidth)
     (hcarry : (detectorCounterIncrementCarryInBit n counterWidth).get x = false)
@@ -5500,7 +5502,7 @@ theorem detectorCounterIncrement_carryStage_get_workCarry_natAddCarry
 
 /-- In the detector-counter workspace, the carry selected before each counter
 target sum is the propagated natural addition carry. -/
-theorem detectorCounterIncrement_carryBeforeSum_get_natAddCarry
+lemma detectorCounterIncrement_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithDetectorCounterWork n counterWidth)
     (hcarry : (detectorCounterIncrementCarryInBit n counterWidth).get x = false)
@@ -5547,7 +5549,7 @@ theorem detectorCounterIncrement_carryBeforeSum_get_natAddCarry
 
 /-- On clean counter-increment work, each detector-counter target bit is written
 as `counter + 1`. -/
-theorem
+lemma
     detectorCounterTerminatingCounterModeStep_get_counter_add_testBit_of_clean
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n) :
@@ -5600,7 +5602,7 @@ theorem
 
 /-- On clean counter-increment work, the detector-counter terminating step
 increments the concrete padding counter. -/
-theorem detectorCounterTerminatingCounterModeStep_counter_of_clean
+lemma detectorCounterTerminatingCounterModeStep_counter_of_clean
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n) :
     (detectorCounterTerminatingCounterModeStep n counterWidth
@@ -5614,7 +5616,7 @@ theorem detectorCounterTerminatingCounterModeStep_counter_of_clean
 /-- On clean counter-increment work, the detector-counter terminating step
 preserves the source fields, toggles `active`, increments the padding counter,
 and restores its work object. -/
-theorem detectorCounterTerminatingCounterModeStep_register_cleanEndpoint_any
+lemma detectorCounterTerminatingCounterModeStep_register_cleanEndpoint_any
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n) :
     (detectorCounterTerminatingCounterModeStep n counterWidth
@@ -5683,7 +5685,7 @@ theorem detectorCounterTerminatingCounterModeStep_register_cleanEndpoint_any
 
 /-- On clean counter-increment work and active input, the detector-counter
 terminating step has the expected register endpoint. -/
-theorem detectorCounterTerminatingCounterModeStep_register_cleanEndpoint
+lemma detectorCounterTerminatingCounterModeStep_register_cleanEndpoint
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n)
     (hactive : x.active = true) :
@@ -5753,7 +5755,7 @@ theorem detectorCounterTerminatingCounterModeStep_register_cleanEndpoint
     hactiveOut, hcounter]
 
 /-- Full clean endpoint for the detector-counter terminating step. -/
-theorem detectorCounterTerminatingCounterModeStep_cleanEndpoint
+lemma detectorCounterTerminatingCounterModeStep_cleanEndpoint
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n)
     (hactive : x.active = true) :
@@ -5776,7 +5778,7 @@ theorem detectorCounterTerminatingCounterModeStep_cleanEndpoint
 terminating step flips `active` on and increments the padding counter.  This is
 the local obstruction that prevents using the clean-restoring total selector as
 the concrete route without additional path/control information. -/
-theorem detectorCounterTerminatingCounterModeStep_cleanEndpoint_of_inactive
+lemma detectorCounterTerminatingCounterModeStep_cleanEndpoint_of_inactive
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n)
     (hactive : x.active = false) :
@@ -5799,7 +5801,7 @@ theorem detectorCounterTerminatingCounterModeStep_cleanEndpoint_of_inactive
 
 /-- The terminating counter-mode gate list is disjoint from the staged compare
 control bit. -/
-theorem detectorCounterTerminatingCounterModeGates_bitDisjoint_compare
+lemma detectorCounterTerminatingCounterModeGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ detectorCounterTerminatingCounterModeGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -5853,7 +5855,7 @@ theorem detectorCounterTerminatingCounterModeGates_bitDisjoint_compare
 
 /-- The terminating counter-mode gate list is disjoint from a selected clean
 comparison-work bit, used as the extra control-work bit. -/
-theorem detectorCounterTerminatingCounterModeGates_bitDisjoint_comparisonCarry
+lemma detectorCounterTerminatingCounterModeGates_bitDisjoint_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n) :
     ∀ gate, gate ∈ detectorCounterTerminatingCounterModeGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -5903,7 +5905,7 @@ theorem detectorCounterTerminatingCounterModeGates_bitDisjoint_comparisonCarry
 
 /-- Compare and a selected comparison-work carry bit are distinct in the
 detector-plus-counter workspace. -/
-theorem detectorCounterCompareBit_comparisonCarryBit_wire_ne
+lemma detectorCounterCompareBit_comparisonCarryBit_wire_ne
     (n counterWidth : Nat) (workBit : Fin n) :
     (detectorCounterCompareBit n counterWidth).wire ≠
       (detectorCounterComparisonCarryBit n counterWidth workBit).wire :=
@@ -5948,19 +5950,19 @@ def detectorCounterControlledTerminatingCounterModeProgram
     (detectorCounterControlledTerminatingCounterModeGates tail counterWidth)
 
 /-- The compare-controlled circuit realizes its gate-list action. -/
-theorem detectorCounterControlledTerminatingCounterMode_realizes
+lemma detectorCounterControlledTerminatingCounterMode_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding tail.succ counterWidth)
       (detectorCounterControlledTerminatingCounterModeProgram
-        tail counterWidth)
+        tail counterWidth) environment
       (detectorCounterControlledTerminatingCounterModeStep tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (detectorCounterControlledTerminatingCounterModeGates tail counterWidth)
 
 /-- If compare is false, the compare-controlled terminating counter mode is a
 no-op. -/
-theorem
+lemma
     detectorCounterControlledTerminatingCounterModeStep_eq_self_of_compare_false
     (tail counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork tail.succ counterWidth)
@@ -5985,7 +5987,7 @@ theorem
 
 /-- If compare is true and the selected comparison-work bit is clean, the
 compare-controlled wrapper acts like the terminating counter-mode gate list. -/
-theorem
+lemma
     detectorCounterControlledTerminatingCounterModeStep_eq_terminating_of_compare_true
     (tail counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork tail.succ counterWidth)
@@ -6039,11 +6041,11 @@ def detectorGatedTerminatingCounterModeWithWorkProgram
 
 /-- The complete detector-gated terminating counter mode is realized by a single
 composed base-gate program. -/
-theorem detectorGatedTerminatingCounterModeWithWork_realizes
+lemma detectorGatedTerminatingCounterModeWithWork_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding tail.succ counterWidth)
-      (detectorGatedTerminatingCounterModeWithWorkProgram tail counterWidth)
+      (detectorGatedTerminatingCounterModeWithWorkProgram tail counterWidth) environment
       (detectorGatedTerminatingCounterModeWithWorkStep tail counterWidth) := by
   change UnitaryCircuit.Realizes
     (registersWithDetectorCounterWorkEncoding tail.succ counterWidth)
@@ -6052,7 +6054,7 @@ theorem detectorGatedTerminatingCounterModeWithWork_realizes
       (UnitaryCircuit.seq
         (detectorCounterControlledTerminatingCounterModeProgram
           tail counterWidth)
-        (detectorCounterVZeroDetectorProgram tail.succ counterWidth)))
+        (detectorCounterVZeroDetectorProgram tail.succ counterWidth))) environment
     (fun x =>
       detectorCounterVZeroDetectorStep tail.succ counterWidth
         (detectorCounterControlledTerminatingCounterModeStep tail counterWidth
@@ -6099,14 +6101,14 @@ def fullRoundWorkTerminatingProgram
 
 /-- The native-layout lifted circuit realizes the full-round terminating
 semantic update after relabeling only the data carrier. -/
-theorem fullRoundWorkTerminating_realizes
+lemma fullRoundWorkTerminating_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       ((BinaryLabelEncoding.prod
         (registersWithDetectorCounterWorkEncoding tail.succ counterWidth)
         (coeffAdderWorkEncoding tail.succ)).relabel
           (fullRoundWorkDetectorEquiv tail.succ counterWidth))
-      (fullRoundWorkTerminatingProgram tail counterWidth)
+      (fullRoundWorkTerminatingProgram tail counterWidth) environment
       (fullRoundWorkTerminatingStep tail counterWidth) := by
   exact UnitaryCircuit.Realizes.relabel
     (fullRoundWorkDetectorEquiv tail.succ counterWidth)
@@ -6129,7 +6131,7 @@ def fullRoundWorkTerminatingStandardLayoutStep
         (x.1.1, x.2)
     ((y.1, x.1.2), y.2)
 
-theorem fullRoundWorkTerminatingStandardLayoutStep_eq
+lemma fullRoundWorkTerminatingStandardLayoutStep_eq
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     fullRoundWorkTerminatingStandardLayoutStep tail counterWidth x =
@@ -6153,11 +6155,11 @@ def fullRoundWorkTerminatingStandardLayoutProgram
 
 /-- The standard-layout terminating circuit realizes the same full-round
 semantic update. -/
-theorem fullRoundWorkTerminatingStandardLayout_realizes
+lemma fullRoundWorkTerminatingStandardLayout_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
-      (fullRoundWorkTerminatingStandardLayoutProgram tail counterWidth)
+      (fullRoundWorkTerminatingStandardLayoutProgram tail counterWidth) environment
       (fullRoundWorkTerminatingStep tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.onBinaryMiddle
@@ -6170,7 +6172,7 @@ theorem fullRoundWorkTerminatingStandardLayout_realizes
 
 /-- Under the detector/counter native layout, the lifted terminating
 full-round step projects to the detector-gated terminating counter-mode step. -/
-theorem fullRoundWorkTerminatingStep_detectorCounterProjection
+lemma fullRoundWorkTerminatingStep_detectorCounterProjection
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkDetectorEquiv tail.succ counterWidth
@@ -6182,7 +6184,7 @@ theorem fullRoundWorkTerminatingStep_detectorCounterProjection
 
 /-- Under the detector/counter native layout, the lifted terminating
 full-round step preserves the coefficient-adder work component. -/
-theorem fullRoundWorkTerminatingStep_coeffWorkProjection
+lemma fullRoundWorkTerminatingStep_coeffWorkProjection
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkDetectorEquiv tail.succ counterWidth
@@ -6193,7 +6195,7 @@ theorem fullRoundWorkTerminatingStep_coeffWorkProjection
 
 /-- In the standard full-round product view, the lifted terminating step leaves
 the coefficient-adder work unchanged. -/
-theorem fullRoundWorkTerminatingStep_preservesCoeffAdderWork
+lemma fullRoundWorkTerminatingStep_preservesCoeffAdderWork
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkTerminatingStep tail counterWidth x).1.2 = x.1.2 := by
@@ -6202,7 +6204,7 @@ theorem fullRoundWorkTerminatingStep_preservesCoeffAdderWork
 
 /-- On clean detector work, if `v = 0`, the detector-gated wrapper runs the
 terminating counter-mode path between detector compute and uncompute. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_eq_terminating_path_of_v_zero
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6261,7 +6263,7 @@ theorem
 
 /-- On clean detector work, if `v ≠ 0`, the detector-gated wrapper does not run
 the terminating counter-mode path. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_eq_double_detector_of_v_nonzero
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6305,7 +6307,7 @@ theorem
 
 /-- Clean endpoint for the complete detector-gated terminating counter mode in
 the concrete `v = 0` case. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_cleanEndpoint_of_v_zero
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6337,7 +6339,7 @@ theorem
 still runs the terminating counter-mode action, which flips `active` on.  This
 captures why the surrounding total route needs original-active/path
 information rather than a clean-restoring semantic target. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_cleanEndpoint_of_v_zero_inactive
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6368,7 +6370,7 @@ theorem
 /-- Clean endpoint for the complete detector-gated terminating counter mode in
 the concrete `v ≠ 0` case: the detector compute/uncompute pair restores the
 input and the terminating counter mode is skipped. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_cleanEndpoint_of_v_nonzero
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6389,7 +6391,7 @@ theorem
 
 /-- Clean endpoint for the full-workspace lifted terminating counter mode in
 the concrete `v = 0` case; the coefficient-adder work is preserved. -/
-theorem fullRoundWorkTerminatingStep_cleanEndpoint_of_v_zero
+lemma fullRoundWorkTerminatingStep_cleanEndpoint_of_v_zero
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (hcompare : x.compare = false) (hactive : x.active = true)
@@ -6424,7 +6426,7 @@ theorem fullRoundWorkTerminatingStep_cleanEndpoint_of_v_zero
 flips `active` on while preserving coefficient-adder work.  The outer aggregate
 route cannot use this prefix unconditionally without retaining original-active
 control information. -/
-theorem fullRoundWorkTerminatingStep_cleanEndpoint_of_v_zero_inactive
+lemma fullRoundWorkTerminatingStep_cleanEndpoint_of_v_zero_inactive
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (hcompare : x.compare = false) (hactive : x.active = false)
@@ -6459,7 +6461,7 @@ theorem fullRoundWorkTerminatingStep_cleanEndpoint_of_v_zero_inactive
 /-- Clean endpoint for the full-workspace lifted terminating counter mode in
 the concrete `v ≠ 0` case: the terminating detector wrapper is a no-op and the
 full-round work object is restored. -/
-theorem fullRoundWorkTerminatingStep_cleanEndpoint_of_v_nonzero
+lemma fullRoundWorkTerminatingStep_cleanEndpoint_of_v_nonzero
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (hcompare : x.compare = false)
@@ -6517,16 +6519,16 @@ def uOddVBitNotToCompareStep
 
 /-- The `u`-odd/`v`-even condition staging program is a concrete encoded-bit
 base-gate realization over the Montgomery--Kaliski register layout. -/
-theorem uOddVBitNotToCompare_realizes
+lemma uOddVBitNotToCompare_realizes
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (uOddVBitNotToCompareProgram n counterWidth uIndex vIndex)
+      (uOddVBitNotToCompareProgram n counterWidth uIndex vIndex) environment
       (uOddVBitNotToCompareStep n counterWidth uIndex vIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uOddVBitNotToCompareGates n counterWidth uIndex vIndex)
 
 /-- Staging toggles compare by `uBit && !vBit`. -/
-theorem uOddVBitNotToCompareStep_get_compare
+lemma uOddVBitNotToCompareStep_get_compare
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
@@ -6552,7 +6554,7 @@ theorem uOddVBitNotToCompareStep_get_compare
   rw [EncodedBit.get_flip_self]
 
 /-- On a clean comparison ancilla, staging computes `uBit && !vBit`. -/
-theorem uOddVBitNotToCompareStep_get_compare_clean
+lemma uOddVBitNotToCompareStep_get_compare_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -6568,7 +6570,7 @@ theorem uOddVBitNotToCompareStep_get_compare_clean
       simp [hcleanValue]
 
 /-- Staging `uBit && !vBit` preserves the selected `u` bit. -/
-theorem uOddVBitNotToCompareStep_get_uBit
+lemma uOddVBitNotToCompareStep_get_uBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth uIndex).get
@@ -6590,7 +6592,7 @@ theorem uOddVBitNotToCompareStep_get_uBit
     (Ne.symm (RegisterBits.u_v_wire_ne n counterWidth uIndex vIndex)) x
 
 /-- Staging `uBit && !vBit` preserves every little-endian `u` value bit. -/
-theorem uOddVBitNotToCompareStep_get_uWordBit
+lemma uOddVBitNotToCompareStep_get_uWordBit
     (n counterWidth : Nat) (uIndex vIndex targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth targetBit).get
@@ -6622,7 +6624,7 @@ theorem uOddVBitNotToCompareStep_get_uWordBit
     rw [EncodedBit.get_flip_of_wire_ne sourceV observed hsourceVObserved]
 
 /-- Staging `uBit && !vBit` restores the selected `v` bit. -/
-theorem uOddVBitNotToCompareStep_get_vBit
+lemma uOddVBitNotToCompareStep_get_vBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vBit n counterWidth vIndex).get
@@ -6643,7 +6645,7 @@ theorem uOddVBitNotToCompareStep_get_vBit
   cases sourceV.get x <;> simp
 
 /-- Staging `uBit && !vBit` restores every little-endian `v` value bit. -/
-theorem uOddVBitNotToCompareStep_get_vWordBit
+lemma uOddVBitNotToCompareStep_get_vWordBit
     (n counterWidth : Nat) (uIndex vIndex targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth targetBit).get
@@ -6676,7 +6678,7 @@ theorem uOddVBitNotToCompareStep_get_vWordBit
 
 /-- Staging `uBit && !vBit` preserves every little-endian `s` coefficient
 value bit. -/
-theorem uOddVBitNotToCompareStep_get_sCoeffValueWordBit
+lemma uOddVBitNotToCompareStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n) (targetBit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth targetBit).get
@@ -6706,7 +6708,7 @@ theorem uOddVBitNotToCompareStep_get_sCoeffValueWordBit
 
 /-- Staging `uBit && !vBit` preserves every little-endian `r` coefficient
 value bit. -/
-theorem uOddVBitNotToCompareStep_get_rCoeffValueWordBit
+lemma uOddVBitNotToCompareStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n) (targetBit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth targetBit).get
@@ -6735,7 +6737,7 @@ theorem uOddVBitNotToCompareStep_get_rCoeffValueWordBit
   rw [EncodedBit.get_flip_of_wire_ne sourceV observed hsourceVObserved]
 
 /-- Staging `uBit && !vBit` preserves the active flag. -/
-theorem uOddVBitNotToCompareStep_get_active
+lemma uOddVBitNotToCompareStep_get_active
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -6758,7 +6760,7 @@ theorem uOddVBitNotToCompareStep_get_active
     (Ne.symm (RegisterBits.active_v_wire_ne n counterWidth vIndex))]
 
 /-- Staging `uBit && !vBit` preserves the first scratch bit. -/
-theorem uOddVBitNotToCompareStep_get_scratchA
+lemma uOddVBitNotToCompareStep_get_scratchA
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
@@ -6781,7 +6783,7 @@ theorem uOddVBitNotToCompareStep_get_scratchA
     (RegisterBits.v_scratchA_wire_ne n counterWidth vIndex)]
 
 /-- Staging `uBit && !vBit` preserves the second scratch bit. -/
-theorem uOddVBitNotToCompareStep_get_scratchB
+lemma uOddVBitNotToCompareStep_get_scratchB
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.scratchBBit n counterWidth).get
@@ -6804,7 +6806,7 @@ theorem uOddVBitNotToCompareStep_get_scratchB
     (RegisterBits.v_scratchB_wire_ne n counterWidth vIndex)]
 
 /-- Staging `uBit && !vBit` preserves every stored branch-history bit. -/
-theorem uOddVBitNotToCompareStep_get_historyBit
+lemma uOddVBitNotToCompareStep_get_historyBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -6827,7 +6829,7 @@ theorem uOddVBitNotToCompareStep_get_historyBit
     (RegisterBits.v_history_wire_ne n counterWidth vIndex historyIndex)]
 
 /-- The `u`-odd/`v`-even condition staging gate list is palindromic. -/
-@[simp] theorem uOddVBitNotToCompareGates_reverse
+@[simp] lemma uOddVBitNotToCompareGates_reverse
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     (uOddVBitNotToCompareGates n counterWidth uIndex vIndex).reverse =
       uOddVBitNotToCompareGates n counterWidth uIndex vIndex := by
@@ -6871,15 +6873,15 @@ def vEvenBranchCodeToScratchStep
 
 /-- The `vEven` branch-code staging program is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem vEvenBranchCodeToScratch_realizes
+lemma vEvenBranchCodeToScratch_realizes
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (vEvenBranchCodeToScratchProgram n counterWidth uIndex vIndex)
+      (vEvenBranchCodeToScratchProgram n counterWidth uIndex vIndex) environment
       (vEvenBranchCodeToScratchStep n counterWidth uIndex vIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (vEvenBranchCodeToScratchGates n counterWidth uIndex vIndex)
 
-theorem vEvenBranchCodeToScratchStep_eq
+lemma vEvenBranchCodeToScratchStep_eq
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     vEvenBranchCodeToScratchStep n counterWidth uIndex vIndex x =
@@ -6897,7 +6899,7 @@ theorem vEvenBranchCodeToScratchStep_eq
 
 /-- On clean compare, `vEven` branch-code staging restores the comparison
 ancilla after using it as the condition bit. -/
-theorem vEvenBranchCodeToScratchStep_get_compare_clean
+lemma vEvenBranchCodeToScratchStep_get_compare_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -6918,7 +6920,7 @@ theorem vEvenBranchCodeToScratchStep_get_compare_clean
 
 /-- On clean compare, `vEven` branch-code staging preserves scratchA because
 the `vEven` code is `01` [RNSL17, ECDLP.tex:471]. -/
-theorem vEvenBranchCodeToScratchStep_get_scratchA_clean
+lemma vEvenBranchCodeToScratchStep_get_scratchA_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -6937,7 +6939,7 @@ theorem vEvenBranchCodeToScratchStep_get_scratchA_clean
 /-- On clean compare, `vEven` branch-code staging toggles scratchB exactly when
 the active flag is set, the selected `u` bit is one, and the selected `v` bit is
 zero. -/
-theorem vEvenBranchCodeToScratchStep_get_scratchB_clean
+lemma vEvenBranchCodeToScratchStep_get_scratchB_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth)
     (hclean : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -6961,7 +6963,7 @@ theorem vEvenBranchCodeToScratchStep_get_scratchB_clean
 
 /-- Active-guarded `vEven` branch-code staging preserves the selected `u` bit.
 -/
-theorem vEvenBranchCodeToScratchStep_get_uBit
+lemma vEvenBranchCodeToScratchStep_get_uBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth uIndex).get
@@ -6974,7 +6976,7 @@ theorem vEvenBranchCodeToScratchStep_get_uBit
 
 /-- Active-guarded `vEven` branch-code staging preserves every little-endian
 `u` value bit. -/
-theorem vEvenBranchCodeToScratchStep_get_uWordBit
+lemma vEvenBranchCodeToScratchStep_get_uWordBit
     (n counterWidth : Nat) (uIndex vIndex targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uValueBit n counterWidth targetBit).get
@@ -7001,7 +7003,7 @@ theorem vEvenBranchCodeToScratchStep_get_uWordBit
 
 /-- Active-guarded `vEven` branch-code staging preserves the selected `v` bit.
 -/
-theorem vEvenBranchCodeToScratchStep_get_vBit
+lemma vEvenBranchCodeToScratchStep_get_vBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vBit n counterWidth vIndex).get
@@ -7014,7 +7016,7 @@ theorem vEvenBranchCodeToScratchStep_get_vBit
 
 /-- Active-guarded `vEven` branch-code staging preserves every little-endian
 `v` value bit. -/
-theorem vEvenBranchCodeToScratchStep_get_vWordBit
+lemma vEvenBranchCodeToScratchStep_get_vWordBit
     (n counterWidth : Nat) (uIndex vIndex targetBit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vValueBit n counterWidth targetBit).get
@@ -7041,7 +7043,7 @@ theorem vEvenBranchCodeToScratchStep_get_vWordBit
 
 /-- Active-guarded `vEven` branch-code staging preserves every little-endian
 `s` coefficient value bit. -/
-theorem vEvenBranchCodeToScratchStep_get_sCoeffValueWordBit
+lemma vEvenBranchCodeToScratchStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n) (targetBit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.sCoeffValueBit n counterWidth targetBit).get
@@ -7068,7 +7070,7 @@ theorem vEvenBranchCodeToScratchStep_get_sCoeffValueWordBit
 
 /-- Active-guarded `vEven` branch-code staging preserves every little-endian
 `r` coefficient value bit. -/
-theorem vEvenBranchCodeToScratchStep_get_rCoeffValueWordBit
+lemma vEvenBranchCodeToScratchStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n) (targetBit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (RegisterBits.rCoeffValueBit n counterWidth targetBit).get
@@ -7094,7 +7096,7 @@ theorem vEvenBranchCodeToScratchStep_get_rCoeffValueWordBit
   rw [uOddVBitNotToCompareStep_get_rCoeffValueWordBit]
 
 /-- Active-guarded `vEven` branch-code staging preserves the active flag. -/
-theorem vEvenBranchCodeToScratchStep_get_active
+lemma vEvenBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -7107,7 +7109,7 @@ theorem vEvenBranchCodeToScratchStep_get_active
 
 /-- Active-guarded `vEven` branch-code staging preserves every stored
 branch-history bit. -/
-theorem vEvenBranchCodeToScratchStep_get_historyBit
+lemma vEvenBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -7119,7 +7121,7 @@ theorem vEvenBranchCodeToScratchStep_get_historyBit
   rw [uOddVBitNotToCompareStep_get_historyBit]
 
 /-- The complete `vEven` branch-code staging list is palindromic. -/
-@[simp] theorem vEvenBranchCodeToScratchGates_reverse
+@[simp] lemma vEvenBranchCodeToScratchGates_reverse
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     (vEvenBranchCodeToScratchGates n counterWidth uIndex vIndex).reverse =
       vEvenBranchCodeToScratchGates n counterWidth uIndex vIndex := by
@@ -7160,18 +7162,18 @@ def vEvenBranchHistoryWriteStep
 
 /-- The `vEven` branch-history write program is a concrete encoded-bit
 base-gate realization over the Montgomery--Kaliski register layout. -/
-theorem vEvenBranchHistoryWrite_realizes
+lemma vEvenBranchHistoryWrite_realizes
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (vEvenBranchHistoryWriteProgram n counterWidth uIndex vIndex
-        historyIndex)
+        historyIndex) environment
       (vEvenBranchHistoryWriteStep n counterWidth uIndex vIndex
         historyIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (vEvenBranchHistoryWriteGates n counterWidth uIndex vIndex historyIndex)
 
-theorem vEvenBranchHistoryWriteStep_eq
+lemma vEvenBranchHistoryWriteStep_eq
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     vEvenBranchHistoryWriteStep n counterWidth uIndex vIndex historyIndex x =
@@ -7184,7 +7186,7 @@ theorem vEvenBranchHistoryWriteStep_eq
 
 /-- On clean compare and clean scratchB, the `vEven` history-write slice toggles
 the selected `m_i` bit exactly under the staged `vEven` branch condition. -/
-theorem vEvenBranchHistoryWriteStep_get_history_clean
+lemma vEvenBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false)
@@ -7210,7 +7212,7 @@ theorem vEvenBranchHistoryWriteStep_get_history_clean
 
 /-- The `v`-even branch-history write slice preserves every history slot
 except the selected target slot. -/
-theorem vEvenBranchHistoryWriteStep_get_historyBit_of_ne
+lemma vEvenBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : Registers n counterWidth) :
@@ -7245,13 +7247,13 @@ def liftedVEvenBranchHistoryWriteProgram
     (vEvenBranchHistoryWriteProgram n counterWidth uIndex vIndex historyIndex)
 
 /-- The lifted history-write circuit realizes the product action. -/
-theorem liftedVEvenBranchHistoryWrite_realizes
+lemma liftedVEvenBranchHistoryWrite_realizes
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes
       (registersWithComparisonWorkEncoding n counterWidth)
       (liftedVEvenBranchHistoryWriteProgram n counterWidth uIndex vIndex
-        historyIndex)
+        historyIndex) environment
       (liftedVEvenBranchHistoryWriteStep n counterWidth uIndex vIndex
         historyIndex) := by
   exact UnitaryCircuit.Realizes.onBinaryPrefix
@@ -7262,7 +7264,7 @@ theorem liftedVEvenBranchHistoryWrite_realizes
 /-- On clean lifted compare and scratchB bits, the lifted `vEven` history-write
 slice toggles the selected branch-history bit under the staged `vEven`
 condition. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_history_clean
+lemma liftedVEvenBranchHistoryWriteStep_get_history_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
@@ -7290,7 +7292,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_history_clean
 
 /-- The lifted `vEven` history-write slice preserves every history slot except
 the selected target slot. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_historyBit_of_ne
+lemma liftedVEvenBranchHistoryWriteStep_get_historyBit_of_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (target observed : Fin (2 * n)) (hne : target ≠ observed)
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -7307,7 +7309,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_historyBit_of_ne
 
 /-- The lifted `vEven` branch-history write preserves every comparison-work
 carry bit, because it only acts on the leading Kaliski registers. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_comparisonCarry
+lemma liftedVEvenBranchHistoryWriteStep_get_comparisonCarry
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (workBit : Fin n) (x : RegistersWithComparisonWork n counterWidth) :
@@ -7319,7 +7321,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_comparisonCarry
 
 /-- On clean compare, the `vEven` branch-history write slice restores the
 comparison ancilla after staging, writing, and uncomputing the branch code. -/
-theorem vEvenBranchHistoryWriteStep_get_compare_clean
+lemma vEvenBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -7344,7 +7346,7 @@ theorem vEvenBranchHistoryWriteStep_get_compare_clean
 
 /-- On clean compare, the `vEven` branch-history write slice restores the first
 scratch-code bit. -/
-theorem vEvenBranchHistoryWriteStep_get_scratchA_clean
+lemma vEvenBranchHistoryWriteStep_get_scratchA_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -7374,7 +7376,7 @@ theorem vEvenBranchHistoryWriteStep_get_scratchA_clean
 
 /-- On clean compare, the `vEven` branch-history write slice restores the
 second scratch-code bit. -/
-theorem vEvenBranchHistoryWriteStep_get_scratchB_clean
+lemma vEvenBranchHistoryWriteStep_get_scratchB_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth)
     (hcompare : (RegisterBits.compareBit n counterWidth).get x = false) :
@@ -7413,7 +7415,7 @@ theorem vEvenBranchHistoryWriteStep_get_scratchB_clean
         cases (RegisterBits.vBit n counterWidth vIndex).get x <;> simp
 
 /-- The `vEven` branch-history write slice preserves the active flag. -/
-theorem vEvenBranchHistoryWriteStep_get_active
+lemma vEvenBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -7426,7 +7428,7 @@ theorem vEvenBranchHistoryWriteStep_get_active
   rw [vEvenBranchCodeToScratchStep_get_active]
 
 /-- The `vEven` branch-history write slice preserves the selected `u` bit. -/
-theorem vEvenBranchHistoryWriteStep_get_uBit
+lemma vEvenBranchHistoryWriteStep_get_uBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth uIndex).get
@@ -7439,7 +7441,7 @@ theorem vEvenBranchHistoryWriteStep_get_uBit
   rw [vEvenBranchCodeToScratchStep_get_uBit]
 
 /-- The `vEven` branch-history write slice preserves the selected `v` bit. -/
-theorem vEvenBranchHistoryWriteStep_get_vBit
+lemma vEvenBranchHistoryWriteStep_get_vBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) (x : Registers n counterWidth) :
     (RegisterBits.vBit n counterWidth vIndex).get
@@ -7452,7 +7454,7 @@ theorem vEvenBranchHistoryWriteStep_get_vBit
   rw [vEvenBranchCodeToScratchStep_get_vBit]
 
 /-- Lifted clean-compare endpoint for the `vEven` branch-history write slice. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_compare_clean
+lemma liftedVEvenBranchHistoryWriteStep_get_compare_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
@@ -7471,7 +7473,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_compare_clean
 
 /-- Lifted scratchA restoration endpoint for the `vEven` branch-history write
 slice. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_scratchA_clean
+lemma liftedVEvenBranchHistoryWriteStep_get_scratchA_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
@@ -7490,7 +7492,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_scratchA_clean
 
 /-- Lifted scratchB restoration endpoint for the `vEven` branch-history write
 slice. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_scratchB_clean
+lemma liftedVEvenBranchHistoryWriteStep_get_scratchB_clean
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth)
@@ -7509,7 +7511,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_scratchB_clean
 
 /-- Lifted active-flag preservation endpoint for the `vEven`
 branch-history write slice. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_active
+lemma liftedVEvenBranchHistoryWriteStep_get_active
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -7526,7 +7528,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_active
 
 /-- Lifted selected-`u` preservation endpoint for the `vEven`
 branch-history write slice. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_uBit
+lemma liftedVEvenBranchHistoryWriteStep_get_uBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -7541,7 +7543,7 @@ theorem liftedVEvenBranchHistoryWriteStep_get_uBit
 
 /-- Lifted selected-`v` preservation endpoint for the `vEven`
 branch-history write slice. -/
-theorem liftedVEvenBranchHistoryWriteStep_get_vBit
+lemma liftedVEvenBranchHistoryWriteStep_get_vBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :

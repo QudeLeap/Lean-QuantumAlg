@@ -42,7 +42,7 @@ public def application {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat
   output := output
 
 /-- The random declaration fixes the uniform distribution, independently of the unit value. -/
-public theorem randomApplication_distribution {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma randomApplication_distribution {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} (unit : CInputRef ctx .unit) (output : CWriteRef ctx (.bits width))
     (value : CShape.Value .unit) :
     BitWord.model.evaluate (application unit output).token value =
@@ -60,7 +60,7 @@ public def selectedApplication (unit : CInputRef ctx .unit)
     (Selected.operations_eq (execution := execution)).symm) (application unit output)
 
 /-- Model selection preserves the exact bit-string output shape. -/
-public theorem selectedRandomApplication_output (unit : CInputRef ctx .unit)
+public lemma selectedRandomApplication_output (unit : CInputRef ctx .unit)
     (output : CWriteRef ctx (.bits width)) :
     execution.classicalOperations.outputShape
       (selectedApplication (execution := execution) unit output).token = .bits width := by
@@ -95,7 +95,7 @@ public def pathEquiv (output : CWriteRef ctx (.bits width)) :
     (output.underWorkspace ctx.canonicalFreshKey .unit ctx.runtimeCtx_canonicalFreshKey_fresh)))
 
 /-- Lexical unit allocation emits no event; the actual random leaf emits its width coordinate. -/
-public theorem randomCode_eventTrace (output : CWriteRef ctx (.bits width))
+public lemma randomCode_eventTrace (output : CWriteRef ctx (.bits width))
     (path : (code (execution := execution) output).Path) :
     (code (execution := execution) output).eventTrace path =
       [.classicalOperation (BitWord.selectedCoordinate (execution := execution)
@@ -113,14 +113,14 @@ public theorem randomCode_eventTrace (output : CWriteRef ctx (.bits width))
       rfl
 
 /-- Each actual sampling path charges precisely one native event. -/
-public theorem randomCode_eventCount (output : CWriteRef ctx (.bits width))
+public lemma randomCode_eventCount (output : CWriteRef ctx (.bits width))
     (path : (code (execution := execution) output).Path) :
     ((code (execution := execution) output).resourcePool path).card = 1 := by
   rw [Circuit.resourcePool, randomCode_eventTrace]
   rfl
 
 /-- The same declared random operation supplies one unit-duration dependency step. -/
-public theorem randomCode_unitDepth (output : CWriteRef ctx (.bits width))
+public lemma randomCode_unitDepth (output : CWriteRef ctx (.bits width))
     (path : (code (execution := execution) output).Path) :
     (code (execution := execution) output).depth (fun _ => 1) path = 1 := by
   cases execution with

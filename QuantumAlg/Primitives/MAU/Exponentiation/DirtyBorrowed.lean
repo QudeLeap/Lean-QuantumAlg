@@ -26,6 +26,8 @@ namespace MAU.Exponentiation.DirtyBorrowedCircuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MAU.Multiplication.DirtyBorrowed
 
 private abbrev CircuitOf {Data : Type} (dataEncoding : BinaryLabelEncoding Data) :=
@@ -36,12 +38,12 @@ private def programOf {Data : Type} {dataEncoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec dataEncoding)) : CircuitOf dataEncoding :=
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
 
-private theorem realizesProgramOf {Data : Type}
+private lemma realizesProgramOf {Data : Type}
     {dataEncoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec dataEncoding)) :
-    UnitaryCircuit.Realizes dataEncoding (programOf gates)
+    UnitaryCircuit.Realizes dataEncoding (programOf gates) environment
       (EncodedBit.GateSpec.stepList gates) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates environment
 
 /-- HRS word width used by this implementation. -/
 abbrev wordBits (interior : Nat) : Nat := (interior + 2).succ
@@ -72,13 +74,13 @@ abbrev workspaceEncoding (interior : Nat) :
 
 /-- The HRS `2n+1` core plus one clean control-work bit uses exactly `2n+2`
 workspace qubits. -/
-theorem workspaceEncoding_width (interior : Nat) :
+lemma workspaceEncoding_width (interior : Nat) :
     (workspaceEncoding interior).width = 2 * wordBits interior + 2 := by
   simp [workspaceEncoding, wordBits, literalR0Encoding_width]
 
 /-- The exponent-controlled encoding is the exponent width plus the shared
 HRS workspace width. -/
-theorem encoding_width (m interior : Nat) :
+lemma encoding_width (m interior : Nat) :
     (encoding m interior).width = m + (2 * wordBits interior + 2) := by
   simp [encoding, wordBits, literalR0Encoding_width]
 
@@ -88,7 +90,7 @@ def unitWord (interior N : Nat) (_hNgtOne : 1 < N)
     (unit : (ZMod N)ˣ) : PlainAdder.Word (wordBits interior) :=
   ((unit : ZMod N).val : PlainAdder.Word (wordBits interior))
 
-@[simp] theorem unitWord_val (interior N : Nat)
+@[simp] lemma unitWord_val (interior N : Nat)
     (hNgtOne : 1 < N) (hN : N < 2 ^ wordBits interior)
     (unit : (ZMod N)ˣ) :
     (unitWord interior N hNgtOne hN unit).val = (unit : ZMod N).val := by
@@ -132,7 +134,7 @@ def parameters (interior N : Nat) (hNgtOne : 1 < N)
     simpa only [unitWord_val, Nat.mod_eq_of_lt hNgtOne] using hmod
   }
 
-@[simp] theorem parameters_word_zero {n : Nat} (params : Parameters n) :
+@[simp] lemma parameters_word_zero {n : Nat} (params : Parameters n) :
     params.word 0 = 0 := by
   apply ZMod.val_injective
   rw [Parameters.word_val]
@@ -168,7 +170,7 @@ def controlWorkBit (m interior : Nat) : EncodedBit (encoding m interior) :=
       (literalR0Encoding (wordBits interior)) BinaryLabelEncoding.bool
       BinaryLabelEncoding.boolBit)
 
-@[simp] theorem exponentBit_get (m interior : Nat) (bit : Fin m)
+@[simp] lemma exponentBit_get (m interior : Nat) (bit : Fin m)
     (state : Registers m interior) :
     (exponentBit m interior bit).get state =
       state.1.val.testBit bit.val := by
@@ -176,7 +178,7 @@ def controlWorkBit (m interior : Nat) : EncodedBit (encoding m interior) :=
       (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-@[simp] theorem controlWorkBit_get (m interior : Nat)
+@[simp] lemma controlWorkBit_get (m interior : Nat)
     (state : Registers m interior) :
     (controlWorkBit m interior).get state = state.2.2 :=
   rfl
@@ -193,7 +195,7 @@ def liftedMultiplierGates (m interior N : Nat) (hNgtOne : 1 < N)
 
 /-- Lifting changes only wire addresses: the exponent and control-work fields
 are preserved, while the HRS core executes the literal multiplier list. -/
-theorem liftedMultiplierGates_stepList
+lemma liftedMultiplierGates_stepList
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
     (state : Registers m interior) :
@@ -209,7 +211,7 @@ theorem liftedMultiplierGates_stepList
     literalInPlaceGates_stepList]
 
 /-- The exponent control is disjoint from every lifted arithmetic gate. -/
-theorem controlDisjoint
+lemma controlDisjoint
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ∀ gate, gate ∈ liftedMultiplierGates m interior N hNgtOne hN unit bit →
@@ -225,7 +227,7 @@ theorem controlDisjoint
 
 /-- The reusable clean control-work bit is disjoint from every lifted HRS
 gate. -/
-theorem workDisjoint
+lemma workDisjoint
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ∀ gate, gate ∈ liftedMultiplierGates m interior N hNgtOne hN unit bit →
@@ -249,7 +251,7 @@ theorem workDisjoint
   simpa [controlWorkBit, encoding, workspaceEncoding] using houterDisjoint
 
 /-- The exponent control and clean decomposition work wires are distinct. -/
-theorem controlWork_ne (m interior : Nat) (bit : Fin m) :
+lemma controlWork_ne (m interior : Nat) (bit : Fin m) :
     (exponentBit m interior bit).wire ≠ (controlWorkBit m interior).wire := by
   simpa [exponentBit, controlWorkBit, encoding, workspaceEncoding] using
     (EncodedBit.GateSpec.prodRightBit_wire_ne_prodLeftBit_wire
@@ -264,13 +266,13 @@ theorem controlWork_ne (m interior : Nat) (bit : Fin m) :
 
 /-! #### Width-only bound for one literal HRS multiplier -/
 
-private theorem constantBitMultiplicity_le_one {width : Nat}
+private lemma constantBitMultiplicity_le_one {width : Nat}
     (constant : PlainAdder.Word width) (bit : Nat) :
     MAU.Addition.DirtyBorrowed.constantBitMultiplicity constant bit ≤ 1 := by
   unfold MAU.Addition.DirtyBorrowed.constantBitMultiplicity
   split <;> omega
 
-private theorem carryCnotClosedForm_le {width : Nat}
+private lemma carryCnotClosedForm_le {width : Nat}
     (constant : PlainAdder.Word width) : ∀ count : Nat,
     MAU.Addition.DirtyBorrowed.carryCnotClosedForm constant count ≤ count
   | 0 => by rfl
@@ -280,7 +282,7 @@ private theorem carryCnotClosedForm_le {width : Nat}
       have hbit := constantBitMultiplicity_le_one constant count
       omega
 
-private theorem carryXClosedForm_le {width : Nat}
+private lemma carryXClosedForm_le {width : Nat}
     (constant : PlainAdder.Word width) : ∀ count : Nat,
     MAU.Addition.DirtyBorrowed.carryXClosedForm constant count ≤ 2 * count
   | 0 => by rfl
@@ -290,7 +292,7 @@ private theorem carryXClosedForm_le {width : Nat}
       have hbit := constantBitMultiplicity_le_one constant (count + 1)
       omega
 
-private theorem sourceControlledHighCnotClosedForm_le {width : Nat}
+private lemma sourceControlledHighCnotClosedForm_le {width : Nat}
     (constant : PlainAdder.Word width) : ∀ count : Nat,
     sourceControlledHighCnotClosedForm constant count ≤
       count ^ 2 + 2 * count
@@ -311,7 +313,7 @@ private theorem sourceControlledHighCnotClosedForm_le {width : Nat}
             (Nat.add_le_add (Nat.mul_le_mul_left 2 hcarry) hbit) hrest
         _ = (count + 1) ^ 2 + 2 * (count + 1) := by ring
 
-private theorem sourceControlledHighXClosedForm_le {width : Nat}
+private lemma sourceControlledHighXClosedForm_le {width : Nat}
     (constant : PlainAdder.Word width) : ∀ count : Nat,
     sourceControlledHighXClosedForm constant count ≤ 2 * count ^ 2
   | 0 => by rfl
@@ -326,20 +328,20 @@ private theorem sourceControlledHighXClosedForm_le {width : Nat}
           Nat.add_le_add (Nat.mul_le_mul_left 2 hcarry) hrest
         _ ≤ 2 * (count + 1) ^ 2 := by nlinarith
 
-private theorem selectedCarryToffoliClosedForm_le (interior : Nat)
+private lemma selectedCarryToffoliClosedForm_le (interior : Nat)
     (constant : PlainAdder.Word (interior + 2).succ) :
     selectedCarryToffoliClosedForm interior constant ≤
       4 * (interior + 1) + 13 := by
   unfold selectedCarryToffoliClosedForm
   split <;> omega
 
-private theorem selectedCarryCnotClosedForm_le (interior : Nat)
+private lemma selectedCarryCnotClosedForm_le (interior : Nat)
     (constant : PlainAdder.Word (interior + 2).succ) :
     selectedCarryCnotClosedForm interior constant ≤ 2 * (interior + 2) := by
   unfold selectedCarryCnotClosedForm
   exact Nat.mul_le_mul_left 2 (carryCnotClosedForm_le constant (interior + 2))
 
-private theorem controlledAdderCnotClosedForm_le {width : Nat}
+private lemma controlledAdderCnotClosedForm_le {width : Nat}
     (constant : PlainAdder.Word width) (tail : Nat) :
     controlledAdderCnotClosedForm constant tail ≤
       tail ^ 2 + 2 * tail + 1 := by
@@ -348,7 +350,7 @@ private theorem controlledAdderCnotClosedForm_le {width : Nat}
   have hbit := constantBitMultiplicity_le_one constant 0
   omega
 
-private theorem literalControlledModularAddXCount_le
+private lemma literalControlledModularAddXCount_le
     (interior modulus addend : Nat) :
     literalControlledModularAddXCount interior modulus addend ≤
       4 * (interior + 2) ^ 2 + 8 * (interior + 1) := by
@@ -368,7 +370,7 @@ private theorem literalControlledModularAddXCount_le
   · rw [if_neg haddendZero]
     nlinarith
 
-private theorem literalControlledModularAddCnotCount_le
+private lemma literalControlledModularAddCnotCount_le
     (interior modulus addend : Nat) :
     literalControlledModularAddCnotCount interior modulus addend ≤
       2 * (interior + 2) ^ 2 + 8 * (interior + 2) + 3 := by
@@ -387,7 +389,7 @@ private theorem literalControlledModularAddCnotCount_le
   · rw [if_neg haddendZero]
     omega
 
-private theorem literalControlledModularAddToffoliCount_le
+private lemma literalControlledModularAddToffoliCount_le
     (interior modulus addend : Nat) :
     literalControlledModularAddToffoliCount interior modulus addend ≤
       4 * (interior + 2) ^ 2 + 8 * (interior + 1) + 26 := by
@@ -402,7 +404,7 @@ private theorem literalControlledModularAddToffoliCount_le
   · rw [if_neg haddendZero]
     nlinarith
 
-private theorem literalControlledModularAddGates_length_eq
+private lemma literalControlledModularAddGates_length_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     (literalControlledModularAddGates interior pivot modulus addend).length =
@@ -430,7 +432,7 @@ private theorem literalControlledModularAddGates_length_eq
 
 /-- Every selected HRS modular-add source list has a quadratic bound in the
 actual arithmetic word width. -/
-theorem literalControlledModularAddGates_length_le
+lemma literalControlledModularAddGates_length_le
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     (literalControlledModularAddGates interior pivot modulus addend).length ≤
@@ -442,7 +444,7 @@ theorem literalControlledModularAddGates_length_le
   simp only [wordBits]
   nlinarith
 
-private theorem literalSelectedGates_length_le
+private lemma literalSelectedGates_length_le
     (interior : Nat) (params : Parameters (wordBits interior))
     (subtract : Bool) : ∀ bits : List (Fin (wordBits interior)),
     (literalSelectedGates interior params subtract bits).length ≤
@@ -470,7 +472,7 @@ def multiplierPrimitiveBound (interior : Nat) : Nat :=
 
 /-- The literal compute/swap/inverse-uncompute source list obeys the public
 width-only cubic bound. -/
-theorem literalInPlaceGates_length_le_multiplierPrimitiveBound
+lemma literalInPlaceGates_length_le_multiplierPrimitiveBound
     (interior : Nat) (params : Parameters (wordBits interior)) :
     (literalInPlaceGates interior params).length ≤
       multiplierPrimitiveBound interior := by
@@ -517,7 +519,7 @@ def sourceSlotBound (interior N : Nat) (_hNgtOne : 1 < N)
   multiplierPrimitiveBound interior
 
 /-- Every literal source schedule fits the independently proved cubic slot capacity. -/
-theorem literalInPlaceGates_length_le_sourceSlotBound
+lemma literalInPlaceGates_length_le_sourceSlotBound
     (interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     (literalInPlaceGates interior
@@ -527,7 +529,7 @@ theorem literalInPlaceGates_length_le_sourceSlotBound
     (parameters interior N hNgtOne hN unit)
 
 /-- The construction's public slot capacity is the explicit width-only bound. -/
-theorem sourceSlotBound_le_multiplierPrimitiveBound
+lemma sourceSlotBound_le_multiplierPrimitiveBound
     (interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) :
     sourceSlotBound interior N hNgtOne hN ≤ multiplierPrimitiveBound interior :=
@@ -550,7 +552,7 @@ def dummyTargetBit (m interior : Nat) : EncodedBit (encoding m interior) :=
       (literalR0Encoding (wordBits interior)) BinaryLabelEncoding.bool
       (literalTargetBit (wordBits interior) 0))
 
-theorem controlWork_ne_dummySource (m interior : Nat) :
+lemma controlWork_ne_dummySource (m interior : Nat) :
     (controlWorkBit m interior).wire ≠ (dummySourceBit m interior).wire := by
   apply EncodedBit.GateSpec.prodRightWire_ne
     (BinaryLabelEncoding.finIdentity m)
@@ -558,7 +560,7 @@ theorem controlWork_ne_dummySource (m interior : Nat) :
     (literalR0Encoding (wordBits interior)) BinaryLabelEncoding.bool
     BinaryLabelEncoding.boolBit (literalSourceBit (wordBits interior) 0)
 
-theorem controlWork_ne_dummyTarget (m interior : Nat) :
+lemma controlWork_ne_dummyTarget (m interior : Nat) :
     (controlWorkBit m interior).wire ≠ (dummyTargetBit m interior).wire := by
   apply EncodedBit.GateSpec.prodRightWire_ne
     (BinaryLabelEncoding.finIdentity m)
@@ -566,7 +568,7 @@ theorem controlWork_ne_dummyTarget (m interior : Nat) :
     (literalR0Encoding (wordBits interior)) BinaryLabelEncoding.bool
     BinaryLabelEncoding.boolBit (literalTargetBit (wordBits interior) 0)
 
-theorem dummySource_ne_dummyTarget (m interior : Nat) :
+lemma dummySource_ne_dummyTarget (m interior : Nat) :
     (dummySourceBit m interior).wire ≠ (dummyTargetBit m interior).wire := by
   apply EncodedBit.GateSpec.prodRightWire_ne
     (BinaryLabelEncoding.finIdentity m)
@@ -595,7 +597,7 @@ def dummyBlock (m interior : Nat) :
   [dummyCnot m interior, dummyToffoli m interior,
     dummyToffoli m interior, dummyToffoli m interior]
 
-theorem dummyCnot_step_eq_self (m interior : Nat)
+lemma dummyCnot_step_eq_self (m interior : Nat)
     (state : Registers m interior) (hwork : state.2.2 = false) :
     (dummyCnot m interior).step state = state := by
   change EncodedBit.cnotStep (controlWorkBit m interior)
@@ -604,7 +606,7 @@ theorem dummyCnot_step_eq_self (m interior : Nat)
   rw [controlWorkBit_get, hwork]
   rfl
 
-theorem dummyToffoli_step_eq_self (m interior : Nat)
+lemma dummyToffoli_step_eq_self (m interior : Nat)
     (state : Registers m interior) (hwork : state.2.2 = false) :
     (dummyToffoli m interior).step state = state := by
   change EncodedBit.toffoliStep (controlWorkBit m interior)
@@ -614,7 +616,7 @@ theorem dummyToffoli_step_eq_self (m interior : Nat)
   rfl
 
 /-- A clean work bit makes the whole padding block a semantic no-op. -/
-theorem dummyBlock_step_eq_self (m interior : Nat)
+lemma dummyBlock_step_eq_self (m interior : Nat)
     (state : Registers m interior) (hwork : state.2.2 = false) :
     EncodedBit.GateSpec.stepList (dummyBlock m interior) state = state := by
   simp only [dummyBlock, EncodedBit.GateSpec.stepList]
@@ -625,7 +627,7 @@ theorem dummyBlock_step_eq_self (m interior : Nat)
   rfl
 
 /-- Every inactive block exposes the same four strict event labels. -/
-@[simp] theorem dummyBlock_events (m interior : Nat) :
+@[simp] lemma dummyBlock_events (m interior : Nat) :
     (dummyBlock m interior).map (EncodedBit.GateSpec.event .empty) =
       [.gate .cnot, .gate .toffoli,
         .gate .toffoli, .gate .toffoli] := by
@@ -636,7 +638,7 @@ def dummyToffoliList (m interior count : Nat) :
     List (EncodedBit.GateSpec (encoding m interior)) :=
   List.replicate count (dummyToffoli m interior)
 
-theorem dummyToffoliList_step_eq_self (m interior : Nat) :
+lemma dummyToffoliList_step_eq_self (m interior : Nat) :
     ∀ (count : Nat) (state : Registers m interior),
       state.2.2 = false →
       EncodedBit.GateSpec.stepList
@@ -687,7 +689,7 @@ def uniformControlledGate (m interior : Nat) (bit : Fin m)
       hcontrol hwork (controlWork_ne m interior bit)) ++
     dummyToffoliList m interior (uniformSuffixCount gate)
 
-theorem uniformPrefix_step_eq_self (m interior : Nat)
+lemma uniformPrefix_step_eq_self (m interior : Nat)
     (gate : EncodedBit.GateSpec (encoding m interior))
     (state : Registers m interior) (hwork : state.2.2 = false) :
     EncodedBit.GateSpec.stepList (uniformPrefix m interior gate) state =
@@ -697,7 +699,7 @@ theorem uniformPrefix_step_eq_self (m interior : Nat)
   all_goals exact dummyCnot_step_eq_self m interior state hwork
 
 /-- A fixed block is the identity when its exponent control is false. -/
-theorem uniformControlledGate_step_eq_self_of_control_false
+lemma uniformControlledGate_step_eq_self_of_control_false
     (m interior : Nat) (bit : Fin m)
     (gate : EncodedBit.GateSpec (encoding m interior))
     (hcontrol : EncodedBit.GateSpec.bitDisjoint
@@ -730,7 +732,7 @@ theorem uniformControlledGate_step_eq_self_of_control_false
 
 /-- With a true exponent control and clean work, the same fixed block applies
 its source gate and restores the clean work bit. -/
-theorem uniformControlledGate_step_eq_gate_of_control_true
+lemma uniformControlledGate_step_eq_gate_of_control_true
     (m interior : Nat) (bit : Fin m)
     (gate : EncodedBit.GateSpec (encoding m interior))
     (hcontrol : EncodedBit.GateSpec.bitDisjoint
@@ -770,7 +772,7 @@ theorem uniformControlledGate_step_eq_gate_of_control_true
     (uniformSuffixCount gate) (gate.step state) hworkAfter
 
 /-- Every fixed block has the same ordered strict event trace. -/
-theorem uniformControlledGate_events
+lemma uniformControlledGate_events
     (m interior : Nat) (bit : Fin m)
     (gate : EncodedBit.GateSpec (encoding m interior))
     (hcontrol : EncodedBit.GateSpec.bitDisjoint
@@ -795,7 +797,7 @@ def uniformEventBlock : List (Resource.Event (.quantum AlgorithmGate.model .empt
   [.gate .cnot, .gate .toffoli,
     .gate .toffoli, .gate .toffoli]
 
-theorem uniformControlledGate_events_eq_block
+lemma uniformControlledGate_events_eq_block
     (m interior : Nat) (bit : Fin m)
     (gate : EncodedBit.GateSpec (encoding m interior))
     (hcontrol : EncodedBit.GateSpec.bitDisjoint
@@ -826,7 +828,7 @@ def uniformControlledList (m interior : Nat) (bit : Fin m) :
 
 /-- With a false exponent control, a normalized source list is the identity
 on a clean work bit. -/
-theorem uniformControlledList_step_eq_self_of_control_false
+lemma uniformControlledList_step_eq_self_of_control_false
     (m interior : Nat) (bit : Fin m) :
     ∀ (gates : List (EncodedBit.GateSpec (encoding m interior)))
       (hcontrol : ∀ gate, gate ∈ gates → EncodedBit.GateSpec.bitDisjoint
@@ -852,7 +854,7 @@ theorem uniformControlledList_step_eq_self_of_control_false
 
 /-- With a true exponent control and clean work, a normalized source list has
 the exact source-list action and restores the work bit after every slot. -/
-theorem uniformControlledList_step_eq_stepList_of_control_true
+lemma uniformControlledList_step_eq_stepList_of_control_true
     (m interior : Nat) (bit : Fin m) :
     ∀ (gates : List (EncodedBit.GateSpec (encoding m interior)))
       (hcontrol : ∀ gate, gate ∈ gates → EncodedBit.GateSpec.bitDisjoint
@@ -892,7 +894,7 @@ theorem uniformControlledList_step_eq_stepList_of_control_true
         (gate.step state) hcontrolAfter hworkAfter
 
 /-- A normalized source list is a repetition of the fixed event block. -/
-theorem uniformControlledList_events
+lemma uniformControlledList_events
     (m interior : Nat) (bit : Fin m) :
     ∀ (gates : List (EncodedBit.GateSpec (encoding m interior)))
       (hcontrol : ∀ gate, gate ∈ gates → EncodedBit.GateSpec.bitDisjoint
@@ -916,7 +918,7 @@ def dummyBlocks (m interior count : Nat) :
     List (EncodedBit.GateSpec (encoding m interior)) :=
   (List.replicate count (dummyBlock m interior)).flatten
 
-theorem dummyBlocks_step_eq_self (m interior : Nat) :
+lemma dummyBlocks_step_eq_self (m interior : Nat) :
     ∀ (count : Nat) (state : Registers m interior), state.2.2 = false →
       EncodedBit.GateSpec.stepList (dummyBlocks m interior count) state = state
   | 0, _state, _hwork => rfl
@@ -927,7 +929,7 @@ theorem dummyBlocks_step_eq_self (m interior : Nat) :
       exact dummyBlocks_step_eq_self m interior count state hwork
 
 /-- Padding blocks expose exactly the same repeated strict trace. -/
-theorem dummyBlocks_events (m interior : Nat) :
+lemma dummyBlocks_events (m interior : Nat) :
     ∀ count : Nat,
       (dummyBlocks m interior count).map (EncodedBit.GateSpec.event .empty) =
         (List.replicate count uniformEventBlock).flatten
@@ -942,7 +944,7 @@ theorem dummyBlocks_events (m interior : Nat) :
       rw [dummyBlocks_events m interior count]
 
 /-- Register lifting does not change the number of literal source gates. -/
-theorem liftedMultiplierGates_length_le_sourceSlotBound
+lemma liftedMultiplierGates_length_le_sourceSlotBound
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (liftedMultiplierGates m interior N hNgtOne hN unit bit).length ≤
@@ -979,18 +981,18 @@ def uniformStageStep (m interior N : Nat) (hNgtOne : 1 < N)
     (uniformStageGates m interior N hNgtOne hN unit bit)
 
 /-- The fixed-trace list realizes its total basis permutation. -/
-theorem uniformStageProgram_realizes
+lemma uniformStageProgram_realizes
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     UnitaryCircuit.Realizes (encoding m interior)
-      (uniformStageProgram m interior N hNgtOne hN unit bit)
+      (uniformStageProgram m interior N hNgtOne hN unit bit) environment
       (uniformStageStep m interior N hNgtOne hN unit bit) := by
   exact realizesProgramOf
     (uniformStageGates m interior N hNgtOne hN unit bit)
 
 /-- The complete normalized stage has a public, unit-independent strict event
 trace. -/
-theorem uniformStageGates_events
+lemma uniformStageGates_events
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (uniformStageGates m interior N hNgtOne hN unit bit).map
@@ -1005,7 +1007,7 @@ theorem uniformStageGates_events
     (liftedMultiplierGates_length_le_sourceSlotBound
       m interior N hNgtOne hN unit bit)]
 
-theorem uniformEventBlock_toffoli_count : ∀ slots : Nat,
+lemma uniformEventBlock_toffoli_count : ∀ slots : Nat,
     List.count (.gate .toffoli)
         (List.replicate slots uniformEventBlock).flatten = 3 * slots
   | 0 => rfl
@@ -1018,7 +1020,7 @@ theorem uniformEventBlock_toffoli_count : ∀ slots : Nat,
       rw [hblock]
       omega
 
-theorem uniformEventBlock_cnot_count : ∀ slots : Nat,
+lemma uniformEventBlock_cnot_count : ∀ slots : Nat,
     List.count (.gate .cnot)
         (List.replicate slots uniformEventBlock).flatten = slots
   | 0 => rfl
@@ -1031,7 +1033,7 @@ theorem uniformEventBlock_cnot_count : ∀ slots : Nat,
       rw [hblock]
       omega
 
-theorem uniformEventBlock_x_count : ∀ slots : Nat,
+lemma uniformEventBlock_x_count : ∀ slots : Nat,
     List.count (.gate .singleQubit)
         (List.replicate slots uniformEventBlock).flatten = 0
   | 0 => rfl
@@ -1043,7 +1045,7 @@ theorem uniformEventBlock_x_count : ∀ slots : Nat,
         decide
       rw [hblock]
 
-theorem uniformEventBlock_other_count
+lemma uniformEventBlock_other_count
     (label : AlgorithmGate.Coordinate)
     (hcnot : label ≠ .cnot)
     (htoffoli : label ≠ .toffoli) : ∀ slots : Nat,
@@ -1069,7 +1071,7 @@ theorem uniformEventBlock_other_count
 
 /-- Every runtime unit and exponent wire has exactly the same stage event
 pool. -/
-theorem uniformStageProgram_eventCost_eq
+lemma uniformStageProgram_eventCost_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior)
     (left right : (ZMod N)ˣ) (leftBit rightBit : Fin m) :
@@ -1081,7 +1083,7 @@ theorem uniformStageProgram_eventCost_eq
 
 /-- Every runtime unit and exponent wire has exactly the same stage event
 path. -/
-theorem uniformStageProgram_eventDepth_eq
+lemma uniformStageProgram_eventDepth_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior)
     (left right : (ZMod N)ˣ) (leftBit rightBit : Fin m) :
@@ -1093,7 +1095,7 @@ theorem uniformStageProgram_eventDepth_eq
 
 /-- Exact primitive-leaf cardinality of one fixed-trace controlled
 multiplier. -/
-theorem uniformStageProgram_eventCost_card_eq
+lemma uniformStageProgram_eventCost_card_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (uniformStageProgram m interior N hNgtOne hN unit bit).eventCost.card =
@@ -1104,7 +1106,7 @@ theorem uniformStageProgram_eventCost_card_eq
   omega
 
 /-- Exact fixed-trace Toffoli coordinate for one controlled multiplier. -/
-theorem uniformStageProgram_toffoli_count_eq
+lemma uniformStageProgram_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -1116,7 +1118,7 @@ theorem uniformStageProgram_toffoli_count_eq
     (sourceSlotBound interior N hNgtOne hN)
 
 /-- Exact fixed-trace CNOT coordinate for one controlled multiplier. -/
-theorem uniformStageProgram_cnot_count_eq
+lemma uniformStageProgram_cnot_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -1128,7 +1130,7 @@ theorem uniformStageProgram_cnot_count_eq
     (sourceSlotBound interior N hNgtOne hN)
 
 /-- Fixed-trace control uses no physical X leaves. -/
-@[simp] theorem uniformStageProgram_x_count_eq_zero
+@[simp] lemma uniformStageProgram_x_count_eq_zero
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -1139,7 +1141,7 @@ theorem uniformStageProgram_cnot_count_eq
     (sourceSlotBound interior N hNgtOne hN)
 
 /-- No strict gate outside CNOT/Toffoli occurs in a normalized stage. -/
-theorem uniformStageProgram_gate_count_zero_of_ne
+lemma uniformStageProgram_gate_count_zero_of_ne
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
     (label : AlgorithmGate.Coordinate)
@@ -1154,7 +1156,7 @@ theorem uniformStageProgram_gate_count_zero_of_ne
 
 /-- A clean fixed-trace stage has the same action as the compact mechanical
 control expansion. -/
-theorem uniformStageStep_eq_compact_of_clean_work
+lemma uniformStageStep_eq_compact_of_clean_work
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
     (state : Registers m interior) (hwork : state.2.2 = false) :
@@ -1246,7 +1248,7 @@ def stageStep (m interior N : Nat) (hNgtOne : 1 < N)
 
 /-- On the clean endpoint, the fixed-trace and compact stage definitions have
 the same basis action. -/
-theorem uniformStageStep_eq_stageStep_of_clean_work
+lemma uniformStageStep_eq_stageStep_of_clean_work
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
     (state : Registers m interior) (hwork : state.2.2 = false) :
@@ -1256,17 +1258,17 @@ theorem uniformStageStep_eq_stageStep_of_clean_work
     m interior N hNgtOne hN unit bit state hwork
 
 /-- The compiled controlled list realizes its total basis permutation. -/
-theorem stageProgram_realizes
+lemma stageProgram_realizes
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     UnitaryCircuit.Realizes (encoding m interior)
-      (stageProgram m interior N hNgtOne hN unit bit)
+      (stageProgram m interior N hNgtOne hN unit bit) environment
       (stageStep m interior N hNgtOne hN unit bit) := by
   exact realizesProgramOf
     (stageGates m interior N hNgtOne hN unit bit)
 
 /-- Register lifting preserves the complete strict source event schedule. -/
-theorem liftedMultiplierGates_events_eq_source
+lemma liftedMultiplierGates_events_eq_source
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     (liftedMultiplierGates m interior N hNgtOne hN unit bit).map
@@ -1300,7 +1302,7 @@ def sourceXCount (interior N : Nat) (hNgtOne : 1 < N)
     EncodedBit.GateSpec.xMultiplicity).sum
 
 /-- Exact Toffoli equality for one controlled HRS multiplier. -/
-theorem stageProgram_toffoli_count_eq
+lemma stageProgram_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -1320,7 +1322,7 @@ theorem stageProgram_toffoli_count_eq
     hc (congrArg (fun value => 3 * value) ht)
 
 /-- Exact CNOT equality for one controlled HRS multiplier. -/
-theorem stageProgram_cnot_count_eq
+lemma stageProgram_cnot_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -1334,7 +1336,7 @@ theorem stageProgram_cnot_count_eq
       m interior N hNgtOne hN unit bit)
 
 /-- Mechanical control removes every physical X leaf. -/
-@[simp] theorem stageProgram_x_count_eq_zero
+@[simp] lemma stageProgram_x_count_eq_zero
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -1350,7 +1352,7 @@ theorem stageProgram_cnot_count_eq
 /-! ## Clean computational-basis endpoint -/
 
 /-- One controlled stage is the identity when its exponent bit is false. -/
-theorem stageStep_eq_self_of_control_false
+lemma stageStep_eq_self_of_control_false
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
     (state : Registers m interior)
@@ -1365,7 +1367,7 @@ theorem stageStep_eq_self_of_control_false
 
 /-- With a true exponent control and clean decomposition bit, the controlled
 stage executes the literal HRS multiplier and restores the decomposition bit. -/
-theorem stageStep_eq_lifted_of_control_true
+lemma stageStep_eq_lifted_of_control_true
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) (bit : Fin m)
     (state : Registers m interior)
@@ -1389,7 +1391,7 @@ theorem stageStep_eq_lifted_of_control_true
 
 /-- The HRS reduced product word is exactly the canonical word of the product
 unit. -/
-theorem parameters_word_mul_unit
+lemma parameters_word_mul_unit
     (interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (left right : (ZMod N)ˣ) :
     (parameters interior N hNgtOne hN left).word
@@ -1408,7 +1410,7 @@ def selectedUnit {m N : Nat} (unit : (ZMod N)ˣ)
   if exponent.val.testBit bit.val then stageUnit unit bit else 1
 
 /-- Clean endpoint of one actual exponent-controlled HRS multiplier. -/
-theorem stageStep_cleanWorkspace
+lemma stageStep_cleanWorkspace
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit value : (ZMod N)ˣ)
     (bit : Fin m) (exponent : Fin (2 ^ m)) :
@@ -1450,7 +1452,7 @@ theorem stageStep_cleanWorkspace
     simp [selectedUnit, hcontrol]
 
 /-- The fixed-trace stage has the same clean multiplication endpoint. -/
-theorem uniformStageStep_cleanWorkspace
+lemma uniformStageStep_cleanWorkspace
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit value : (ZMod N)ˣ)
     (bit : Fin m) (exponent : Fin (2 ^ m)) :
@@ -1493,26 +1495,28 @@ def programForBitsStep (m interior N : Nat) (hNgtOne : 1 < N)
 
 /-- Every selected-bit schedule is realized by its fixed-trace composed
 circuit. -/
-theorem programForBits_realizes
+lemma programForBits_realizes
     (m interior N : Nat) (hNgtOne : 1 < N)
-    (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
+    (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ)
+    {environment : OracleModel.empty.Interpretation} :
     ∀ bits : List (Fin m),
       UnitaryCircuit.Realizes (encoding m interior)
-        (programForBits m interior N hNgtOne hN unit bits)
+        (programForBits m interior N hNgtOne hN unit bits) environment
         (programForBitsStep m interior N hNgtOne hN unit bits)
   | [] => UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
-      (encoding m interior) (QubitLayout.canonical _)
+      (encoding m interior) (QubitLayout.canonical _) environment
   | bit :: rest =>
       UnitaryCircuit.Realizes.seq
         (firstStep := uniformStageStep m interior N hNgtOne hN unit bit)
         (secondStep := programForBitsStep
           m interior N hNgtOne hN unit rest)
         (uniformStageProgram_realizes m interior N hNgtOne hN unit bit)
-        (programForBits_realizes m interior N hNgtOne hN unit rest)
+        (programForBits_realizes (environment := environment)
+          m interior N hNgtOne hN unit rest)
 
 /-- A fixed exponent-bit schedule has an exact event pool independent of the
 runtime base unit. -/
-theorem programForBits_eventCost_eq
+lemma programForBits_eventCost_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (left right : (ZMod N)ˣ) :
     ∀ bits : List (Fin m),
@@ -1530,7 +1534,7 @@ theorem programForBits_eventCost_eq
 
 /-- A fixed exponent-bit schedule has an exact event path independent of the
 runtime base unit. -/
-theorem programForBits_eventDepth_eq
+lemma programForBits_eventDepth_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (left right : (ZMod N)ˣ) :
     ∀ bits : List (Fin m),
@@ -1549,7 +1553,7 @@ theorem programForBits_eventDepth_eq
         programForBits_eventDepth_eq]
 
 /-- Exact primitive-leaf cardinality of a fixed exponent-bit schedule. -/
-theorem programForBits_eventCost_card_eq
+lemma programForBits_eventCost_card_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     ∀ bits : List (Fin m),
@@ -1565,7 +1569,7 @@ theorem programForBits_eventCost_card_eq
       omega
 
 /-- No strict gate outside CNOT/Toffoli occurs in a selected-bit schedule. -/
-theorem programForBits_gate_count_zero_of_ne
+lemma programForBits_gate_count_zero_of_ne
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ)
     (label : AlgorithmGate.Coordinate)
@@ -1587,7 +1591,7 @@ theorem programForBits_gate_count_zero_of_ne
 /-- A selected-bit schedule multiplies the clean unit value by exactly the
 product of its selected static powers, restoring all HRS and control work
 after every stage. -/
-theorem programForBitsStep_cleanWorkspace
+lemma programForBitsStep_cleanWorkspace
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit value : (ZMod N)ˣ)
     (exponent : Fin (2 ^ m)) :
@@ -1611,7 +1615,7 @@ theorem programForBitsStep_cleanWorkspace
 
 /-- Product over the first `m` selected powers is the base raised to the
 selected low-bit weight. -/
-theorem selectedUnit_product_eq_pow_selectedLowWeight
+lemma selectedUnit_product_eq_pow_selectedLowWeight
     {N : Nat} (m : Nat) (unit : (ZMod N)ˣ) (exponent : Nat) :
     (∏ bit : Fin m,
       if exponent.testBit bit.val then stageUnit unit bit else 1) =
@@ -1637,7 +1641,7 @@ theorem selectedUnit_product_eq_pow_selectedLowWeight
           Nat.FixedWidth.ModularAccumulate.selectedBitWeight]
 
 /-- Scheduling every exponent wire selects exactly `unit^exponent`. -/
-theorem selectedUnit_all_eq_pow {m N : Nat} (unit : (ZMod N)ˣ)
+lemma selectedUnit_all_eq_pow {m N : Nat} (unit : (ZMod N)ˣ)
     (exponent : Fin (2 ^ m)) :
     (List.ofFn fun bit : Fin m => selectedUnit unit exponent bit).prod =
       unit ^ exponent.val := by
@@ -1665,7 +1669,7 @@ def exponentiationStep (m interior N : Nat) (hNgtOne : 1 < N)
   programForBitsStep m interior N hNgtOne hN unit (exponentBits m)
 
 /-- Complete clean basis action of the fixed-trace exponentiation step. -/
-theorem exponentiationStep_cleanWorkspace
+lemma exponentiationStep_cleanWorkspace
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit value : (ZMod N)ˣ)
     (exponent : Fin (2 ^ m)) :
@@ -1681,18 +1685,18 @@ theorem exponentiationStep_cleanWorkspace
 
 /-- The complete fixed-trace exponentiation circuit realizes its basis-state
 action. -/
-theorem exponentiationProgram_realizes
+lemma exponentiationProgram_realizes
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (encoding m interior)
-      (exponentiationProgram m interior N hNgtOne hN unit)
+      (exponentiationProgram m interior N hNgtOne hN unit) environment
       (exponentiationStep m interior N hNgtOne hN unit) := by
   exact programForBits_realizes
     m interior N hNgtOne hN unit (exponentBits m)
 
 /-- Complete exponentiation has an exact event pool independent of the
 runtime base unit. -/
-theorem exponentiationProgram_eventCost_eq
+lemma exponentiationProgram_eventCost_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (left right : (ZMod N)ˣ) :
     (exponentiationProgram m interior N hNgtOne hN left).eventCost =
@@ -1702,7 +1706,7 @@ theorem exponentiationProgram_eventCost_eq
 
 /-- Complete exponentiation has an exact event path independent of the
 runtime base unit. -/
-theorem exponentiationProgram_eventDepth_eq
+lemma exponentiationProgram_eventDepth_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (left right : (ZMod N)ˣ) :
     (exponentiationProgram m interior N hNgtOne hN left).eventDepth =
@@ -1712,7 +1716,7 @@ theorem exponentiationProgram_eventDepth_eq
 
 /-- Exact primitive-leaf cardinality of complete fixed-trace
 exponentiation. -/
-theorem exponentiationProgram_eventCost_card_eq
+lemma exponentiationProgram_eventCost_card_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     (exponentiationProgram m interior N hNgtOne hN unit).eventCost.card =
@@ -1724,7 +1728,7 @@ theorem exponentiationProgram_eventCost_card_eq
 
 /-- Complete fixed-trace exponentiation contains only CNOT and Toffoli
 strict gates. -/
-theorem exponentiationProgram_gate_count_zero_of_ne
+lemma exponentiationProgram_gate_count_zero_of_ne
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ)
     (label : AlgorithmGate.Coordinate)
@@ -1736,11 +1740,11 @@ theorem exponentiationProgram_gate_count_zero_of_ne
     m interior N hNgtOne hN unit label hcnot htoffoli (exponentBits m)
 
 /-- Complete clean computational-basis endpoint of the fixed-trace circuit. -/
-theorem exponentiationProgram_applyNormalized_clean_ket
+lemma exponentiationProgram_applyNormalized_clean_ket
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit value : (ZMod N)ˣ)
     (exponent : Fin (2 ^ m)) :
-    (exponentiationProgram m interior N hNgtOne hN unit).applyNormalized
+    (exponentiationProgram m interior N hNgtOne hN unit).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding m interior).width).basisEquiv.symm
             ((encoding m interior).encode
@@ -1750,7 +1754,7 @@ theorem exponentiationProgram_applyNormalized_clean_ket
           ((encoding m interior).encode
             (exponent, cleanWorkspace interior N hNgtOne hN
               (unit ^ exponent.val * value)))) := by
-  have hrealizes := (programForBits_realizes
+  have hrealizes := (programForBits_realizes (environment := environment)
     m interior N hNgtOne hN unit (exponentBits m)).apply_encoded_ket
       (exponent, cleanWorkspace interior N hNgtOne hN value)
   rw [programForBitsStep_cleanWorkspace] at hrealizes
@@ -1766,7 +1770,7 @@ def bitsToffoliCount {m : Nat} (interior N : Nat) (hNgtOne : 1 < N)
   (3 * sourceSlotBound interior N hNgtOne hN) * bits.length
 
 /-- Exact Toffoli equality of the fixed-trace selected-bit circuit fold. -/
-theorem programForBits_toffoli_count_eq
+lemma programForBits_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     ∀ bits : List (Fin m),
@@ -1783,7 +1787,7 @@ theorem programForBits_toffoli_count_eq
 
 /-- Exact Toffoli equality of the complete fixed-trace exponentiation
 program. -/
-theorem exponentiationProgram_toffoli_count_eq
+lemma exponentiationProgram_toffoli_count_eq
     (m interior N : Nat) (hNgtOne : 1 < N)
     (hN : N < 2 ^ wordBits interior) (unit : (ZMod N)ˣ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)

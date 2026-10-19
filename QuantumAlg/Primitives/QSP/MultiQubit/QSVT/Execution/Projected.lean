@@ -27,22 +27,22 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.Execution
 noncomputable section
 
 /-- Independent projected-word budget for every degree, including the constant boundary. -/
-public def projectedBudget {N : Nat} (U : UnitaryOperator (Qubits N))
-    (left right : OrthogonalProjector N) (L : Nat) :
-    ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model U left right)) :=
+public def projectedBudget (N L : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model N)) :=
   if L = 0 then ResourcePool.singleton (.gate .singleQubit)
-  else Native.Balanced.budget U left right false L
+  else Native.Balanced.budget (width := N) false L
 
 /-- All matching-parity source inputs admit one actual projected execution. -/
-theorem exists_projected_execution {N L : Nat} {P : Polynomial ℝ}
+lemma exists_projected_execution {N L : Nat} {P : Polynomial ℝ}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L P) :
-    ∃ word : UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right)
+    ∃ word : UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model N)
         (ProjectorPhase.layout N),
-      projectedPhasePlusBlock (projectedOutputProjector left right L) right word.binaryMatrix =
+      projectedPhasePlusBlock (projectedOutputProjector left right L) right (word.binaryMatrix
+        (ProjectedSignal.interpretation U left right)) =
         singularValuePolynomial right L (realPolynomialToComplex P)
           (projectedUnitaryBlock left right U) ∧
-      word.eventCost = projectedBudget U left right L ∧
+      word.eventCost = projectedBudget N L ∧
       word.evaluatedEventDepth (fun _ => 1) ≤ 4 * L + 1 := by
   by_cases zero : L = 0
   · subst L

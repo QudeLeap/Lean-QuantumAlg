@@ -190,12 +190,12 @@ namespace SpaceAxis
 def liftClassical : SpaceAxis .classical → SpaceAxis .quantum
   | .classicalBits => .classicalBits
 
-@[simp] theorem liftClassical_classicalBits :
+@[simp] lemma liftClassical_classicalBits :
     liftClassical .classicalBits = (.classicalBits : SpaceAxis .quantum) :=
   rfl
 
 /-- The structural classical-space embedding is injective. -/
-theorem liftClassical_injective : Function.Injective liftClassical := by
+lemma liftClassical_injective : Function.Injective liftClassical := by
   intro left right
   cases left
   cases right

@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ControlPlacement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 /-- Exchange only the two retained Boolean fields when naming the same physical coordinates. -/
@@ -39,7 +41,7 @@ def exchange {width : Nat} (state : Registers width) : Registers width :=
     flags := { state.flags with second := state.control }
     control := state.flags.second }
 
-theorem exchange_exchange (width : Nat) (state : Registers width) :
+lemma exchange_exchange (width : Nat) (state : Registers width) :
     exchange (exchange state) = state := by
   cases state
   rfl
@@ -50,24 +52,24 @@ private def fieldEquiv (width : Nat) : Registers width ≃ Registers width where
   left_inv := exchange_exchange width
   right_inv := exchange_exchange width
 
-private theorem separate (width : Nat) : (phase2Bit width).wire ≠ (controlBit width).wire := by
+private lemma separate (width : Nat) : (phase2Bit width).wire ≠ (controlBit width).wire := by
   intro same
   have values := congrArg Fin.val same
   rw [phase2Bit_wire, controlBit_wire] at values
   omega
 
 /-- The complete named-field exchange is exactly the actual two-wire swap's basis permutation. -/
-private theorem swap_step (width : Nat) (state : Registers width) :
+private lemma swap_step (width : Nat) (state : Registers width) :
     swapStep (phase2Bit width) (controlBit width) (separate width) state = exchange state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
     ⟨p1, p2, sign, iter⟩, control⟩
   cases p2 <;> cases control <;> rfl
 
 /-- Exact amplitude identification of the coordinate exchange with those two physical wires. -/
-theorem exchange_coordinate_swap (width : Nat) :
+lemma exchange_coordinate_swap (width : Nat) :
     UnitaryCircuit.Realizes (encoding width)
       (swapProgram (QubitLayout.canonical _) .empty
-        (phase2Bit width) (controlBit width) (separate width)) exchange :=
+        (phase2Bit width) (controlBit width) (separate width)) environment exchange :=
   (swap_realizes (QubitLayout.canonical _) .empty
     (phase2Bit width) (controlBit width) (separate width)).congrStep (swap_step width)
 
@@ -77,7 +79,7 @@ def indexEquiv (width : Nat) :
   (PreparedFrame.registerLabelEquiv width).symm.trans
     ((fieldEquiv width).trans (PreparedFrame.registerLabelEquiv width))
 
-theorem indexEquiv_encode (width : Nat) (state : Registers width) :
+lemma indexEquiv_encode (width : Nat) (state : Registers width) :
     indexEquiv width ((encoding width).encode state) =
       (encoding width).encode (exchange state) := by
   change PreparedFrame.registerLabelEquiv width
@@ -96,7 +98,7 @@ def placement (width : Nat) : EncodedBit.FullPlacement (encoding width) (encodin
   EncodedBit.FullPlacement.ofWires (encoding width) (encoding width)
     (encoding_surjective width) (encoding_surjective width) (wireEquiv width)
 
-private theorem placed_read (width : Nat) (state : Registers width)
+private lemma placed_read (width : Nat) (state : Registers width)
     (source target : EncodedBit (encoding width))
     (same : wireEquiv width source.wire = target.wire) :
     source.get ((placement width).grouping state) = target.get state :=
@@ -104,7 +106,7 @@ private theorem placed_read (width : Nat) (state : Registers width)
     (encoding_surjective width) (encoding_surjective width)
     (wireEquiv width) source target same state
 
-private theorem fixed_read (width : Nat) (state : Registers width)
+private lemma fixed_read (width : Nat) (state : Registers width)
     (bit : EncodedBit (encoding width))
     (notPhase : bit.wire ≠ (phase2Bit width).wire)
     (notControl : bit.wire ≠ (controlBit width).wire) :
@@ -113,7 +115,7 @@ private theorem fixed_read (width : Nat) (state : Registers width)
   exact Equiv.swap_apply_of_ne_of_ne notPhase notControl
 
 /-- Every unchanged field and both exchanged controls agree with the source grouping. -/
-theorem placement_grouping (width : Nat) (state : Registers width) :
+lemma placement_grouping (width : Nat) (state : Registers width) :
     (placement width).grouping state = exchange state := by
   apply Registers.ext_fields
   · apply BitVec.eq_of_getMsbD_eq
@@ -206,7 +208,7 @@ theorem placement_grouping (width : Nat) (state : Registers width) :
     rw [controlBit_get, phase2Bit_get] at actual
     exact actual
 
-theorem placement_grouping_eq (width : Nat) :
+lemma placement_grouping_eq (width : Nat) :
     (placement width).grouping = fieldEquiv width := by
   apply Equiv.ext
   exact placement_grouping width
@@ -225,19 +227,20 @@ def placedStep {width : Nat} (action : Registers width → Registers width)
   exchange (action (exchange state))
 
 /-- The placed actual program realizes the full exchanged action with exact amplitudes. -/
-theorem place_realizes (width : Nat)
+lemma place_realizes (width : Nat)
     {body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum}
     {action : Registers width → Registers width}
-    (realizes : UnitaryCircuit.Realizes (encoding width) body action) :
-    UnitaryCircuit.Realizes (encoding width) (place width body) (placedStep action) := by
+    (realizes : UnitaryCircuit.Realizes (encoding width) body environment action) :
+    UnitaryCircuit.Realizes (encoding width) (place width body) environment (placedStep action) :=
+      by
   apply ((placement width).place_realizes realizes).congrStep
   intro state
   simp only [EncodedBit.FullPlacement.step, placement_grouping_eq, fieldEquiv,
     Equiv.coe_fn_mk, Equiv.coe_fn_symm_mk, placedStep]
 
 /-- Placement retains the original native event order and adds no swap events. -/
-theorem place_eventTrace (width : Nat)
+lemma place_eventTrace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum) :
     (place width body).eventTrace = body.eventTrace := by

@@ -35,7 +35,7 @@ structure Outcome (spec : ModulusSpec width) (refs : Refs ctx width exponentWidt
   callerFrame : CallerFrame refs before after
 
 /-- Only the original power and comparison destinations can change in the returned caller store. -/
-theorem candidatePowerInto_callerFrame (spec : ModulusSpec width)
+lemma candidatePowerInto_callerFrame (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (store : Store ctx) :
     CallerFrame refs store (candidateStep spec refs store).1 := by
   intro shape other avoidsPower avoidsAccepted
@@ -46,7 +46,7 @@ theorem candidatePowerInto_callerFrame (spec : ModulusSpec width)
 
 omit [BitWord.Selected model] in
 /-- Original canonical base representation supplies the shared actual power's exact input. -/
-theorem power_inputRepresents (spec : ModulusSpec width) (refs : Refs ctx width exponentWidth)
+lemma power_inputRepresents (spec : ModulusSpec width) (refs : Refs ctx width exponentWidth)
     (store : Store ctx) (input : Pow.Input spec exponentWidth) (target : Residue spec)
     (initial : InitialConditions spec store refs input target) :
     InputRepresents spec refs.generator refs.exponent store input := by
@@ -59,7 +59,7 @@ theorem power_inputRepresents (spec : ModulusSpec width) (refs : Refs ctx width 
       exact Fin.ext represented
 
 /-- Actual source exponentiation and actual target read determine the original acceptance bit. -/
-theorem candidatePowerInto_correct (spec : ModulusSpec width)
+lemma candidatePowerInto_correct (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (separation : Separation refs) (store : Store ctx)
     (input : Pow.Input spec exponentWidth) (target : Residue spec)
     (initial : InitialConditions spec store refs input target) :

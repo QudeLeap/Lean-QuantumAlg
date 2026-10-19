@@ -47,7 +47,7 @@ def flagFlipOutput {width : Nat} (state : Registers width) : Registers width :=
 def comparisonOutput {width : Nat} (pivot : Nat) (state : Registers width) : Registers width :=
   (state.1 ^^ decide (state.2.1.val < pivot), state.2)
 
-private theorem oneBit_add_carry (flag carry : Bool) :
+private lemma oneBit_add_carry (flag carry : Bool) :
     HRS.addWord (0 : Fin (2 ^ 1))
         (if carry then HRS.incrementWord (BinaryLabelEncoding.bool.encode flag)
           else BinaryLabelEncoding.bool.encode flag) =
@@ -55,7 +55,7 @@ private theorem oneBit_add_carry (flag carry : Bool) :
   cases flag <;> cases carry <;> rfl
 
 /-- A zero-high-bit extended constant adds into the low word and xor-toggles the high bit. -/
-theorem gidneyPackedOffset_zero_high (width : Nat) (constant : Fin (2 ^ width))
+lemma gidneyPackedOffset_zero_high (width : Nat) (constant : Fin (2 ^ width))
     (state : Registers width) :
     packedOffsetOutput (prodEquiv (m := 1) (n := width) (0, constant)) state =
       (state.1 ^^ decide (2 ^ width ≤ state.2.1.val + constant.val),
@@ -71,7 +71,7 @@ theorem gidneyPackedOffset_zero_high (width : Nat) (constant : Fin (2 ^ width))
   · rfl
 
 /-- The two compiled low-word constants cancel on every input. -/
-theorem gidneyPivotOffsets_cancel (width pivot : Nat) (hpivot : pivot ≤ 2 ^ width)
+lemma gidneyPivotOffsets_cancel (width pivot : Nat) (hpivot : pivot ≤ 2 ^ width)
     (input : Fin (2 ^ width)) :
     HRS.addWord (pivotWord width pivot) (HRS.addWord (negatedPivot width pivot) input) =
       input := by
@@ -85,14 +85,14 @@ theorem gidneyPivotOffsets_cancel (width pivot : Nat) (hpivot : pivot ≤ 2 ^ wi
     _ = input.val := by simp only [Nat.add_mod_right, Nat.mod_eq_of_lt input.isLt]
 
 /-- A positive fitted pivot gives the exact nonnegative subtracting representative. -/
-theorem gidneyNegatedPivot_val (width pivot : Nat) (hpositive : 0 < pivot) :
+lemma gidneyNegatedPivot_val (width pivot : Nat) (hpositive : 0 < pivot) :
     (negatedPivot width pivot).val = 2 ^ width - pivot := by
   apply Nat.mod_eq_of_lt
   have := Nat.two_pow_pos width
   omega
 
 /-- The actual extended-add/low-add/flag-X arithmetic restores the word and helper exactly. -/
-theorem gidneyComparison_positive_steps (width pivot : Nat)
+lemma gidneyComparison_positive_steps (width pivot : Nat)
     (hpositive : 0 < pivot) (hpivot : pivot ≤ 2 ^ width) (state : Registers width) :
     flagFlipOutput
         (lowOffsetOutput (pivotWord width pivot)
@@ -117,7 +117,7 @@ theorem gidneyComparison_positive_steps (width pivot : Nat)
   · rfl
 
 /-- At pivot zero, the mathematical comparator is identity for every width. -/
-theorem gidneyComparison_zero (width : Nat) (state : Registers width) :
+lemma gidneyComparison_zero (width : Nat) (state : Registers width) :
     comparisonOutput 0 state = state := by
   rcases state with ⟨flag, input, helper⟩
   simp only [comparisonOutput, Nat.not_lt_zero, decide_false, Bool.xor_false]

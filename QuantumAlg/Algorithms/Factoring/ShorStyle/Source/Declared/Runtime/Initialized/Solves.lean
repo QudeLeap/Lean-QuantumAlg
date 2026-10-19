@@ -28,59 +28,60 @@ open Execution
 noncomputable section
 
 /-- An empty incoming quantum carrier has no borrowed quantum subsystem. -/
-theorem base_noBorrowedQuantum (base : RuntimeCtx .quantum)
+lemma base_noBorrowedQuantum (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) : base.borrowedQuantumWires = [] := by
   have sublist := base.borrowedQuantumWires_sublist
   rw [noQuantum] at sublist
   exact List.sublist_nil.mp sublist
 
 /-- Every actual first-round result has its full predetermined zero bank. -/
-theorem output_state (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-    {N : Nat} (model : NumberTheory.Factoring.SemiprimeFactorModel N) {Reference : Register}
+lemma output_state (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+    (N : Nat) (input : Input N)
+    (actual : (executionModel N).Environment) {Reference : Register}
     (original : OracleInput
-      (executionModel (Probability.Input.ofSemiprimeModel model)).classicalOracles base Reference) :
+      (executionModel N).classicalOracles base Reference) :
     (stateRequirement base noQuantum N).Holds original.caller
-      ((algorithm base noQuantum model).run.finalState Reference original.state) := by
+      ((algorithm base noQuantum N input).run.finalState actual Reference original.state) := by
   intro value
   apply AlgorithmRun.pure_fullSelection_of_executionReadout
-    (algorithm base noQuantum model).run
+    (algorithm base noQuantum N input).run actual
     (Iteration.context (bank base noQuantum N) N).quantumLayout.zeroLabel _ original value
   intro reference history _ state selected
   exact BasisSeeded.readout_pure_fullSelection
-    ((code base noQuantum N (Probability.Input.ofSemiprimeModel model)).execute reference state)
+    ((code base noQuantum N input).execute actual reference state)
     (Iteration.context (bank base noQuantum N) N).quantumLayout.zeroLabel
-    (code_seeded base noQuantum N (Probability.Input.ofSemiprimeModel model) state)
-    (fun store => (algorithm base noQuantum model).run.output.eval store) selected
+    (code_seeded (environment := actual) base noQuantum N input state)
+    (fun store => (algorithm base noQuantum N input).run.output.eval store) selected
 
 /-- Initialization and the first complete round satisfy every independent protocol obligation. -/
-theorem shorDeclared_first_solves (base : RuntimeCtx .quantum)
-    (noQuantum : base.quantumWires = []) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N)
-    (duration : Resource.Event (executionModel (Probability.Input.ofSemiprimeModel model)) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    (algorithm base noQuantum model).Solves
-      (problem base noQuantum model duration unitQueries) := by
+lemma shorDeclared_first_solves (base : RuntimeCtx .quantum)
+    (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) :
+    (algorithm base noQuantum N input).Solves
+      (problem base noQuantum N input) := by
   constructor
-  · intro Reference original _valid _admitted
-    exact relational_success base noQuantum model original
-  · intro Reference original _valid _admitted requirement present
+  · intro actual witness Reference original valid _admitted
+    have same := environment_eq_of_quantum input actual valid
+    subst actual
+    exact relational_success base noQuantum witness original
+  · intro actual _witness Reference original _valid _admitted requirement present
     have same : requirement = stateRequirement base noQuantum N := List.mem_singleton.mp present
     subst requirement
-    exact output_state base noQuantum model original
-  · intro Reference original _valid _admitted
+    exact output_state base noQuantum N input actual original
+  · intro actual _witness Reference original _valid _admitted
     apply AlgorithmRun.restoresBorrowed_of_circuit
     intro reference history _ state
     exact Circuit.borrowedRestored_of_noBorrowedQuantum
-      (code base noQuantum N (Probability.Input.ofSemiprimeModel model))
+      (code base noQuantum N input) actual
       (base_noBorrowedQuantum base noQuantum) reference state
-  · intro _Reference _original _valid _admitted path _supported
-    exact code_pool_le base noQuantum N (Probability.Input.ofSemiprimeModel model) path
-  · intro _Reference _original _valid _admitted path _supported
-    exact code_resident_le base noQuantum N (Probability.Input.ofSemiprimeModel model) path
-  · intro _Reference _original _valid _admitted path _supported
-    exact code_auxiliary_le base noQuantum N (Probability.Input.ofSemiprimeModel model) path
-  · intro _Reference _original _valid _admitted path _supported
-    exact code_depth_le base noQuantum N (Probability.Input.ofSemiprimeModel model) duration path
+  · intro _actual _witness _Reference _original _valid _admitted path _supported
+    exact code_pool_le base noQuantum N input path
+  · intro _actual _witness _Reference _original _valid _admitted path _supported
+    exact code_resident_le base noQuantum N input path
+  · intro _actual _witness _Reference _original _valid _admitted path _supported
+    exact code_auxiliary_le base noQuantum N input path
+  · intro _actual _witness _Reference _original _valid _admitted path _supported
+    exact code_depth_le base noQuantum N input
+      Resource.Event.quantumDuration path
 
 end
 

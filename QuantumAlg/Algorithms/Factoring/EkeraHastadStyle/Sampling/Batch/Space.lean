@@ -25,7 +25,7 @@ noncomputable section
 open Execution
 open ShortDLP.CompiledMAU
 
-private theorem sampler_budget (N : Nat) (original : SpacePool .quantum) :
+private lemma sampler_budget (N : Nat) (original : SpacePool .quantum) :
     original + ShorStyle.Canonical.Sampler.Retained.additionalSpace .quantum (modulusBits N) ≤
       original + additionalSpace N := by
   intro axis
@@ -42,20 +42,22 @@ private theorem sampler_budget (N : Nat) (original : SpacePool .quantum) :
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
-private theorem ready_bounds :
+private lemma ready_bounds :
     (readyContext base noQuantum N).residentSpace ≤ base.residentSpace + additionalSpace N ∧
       (readyContext base noQuantum N).auxiliarySpace ≤
         base.auxiliarySpace + additionalSpace N :=
   ⟨(show (readyContext base noQuantum N).residentSpace ≤
-        SpacePool.ofShape (.finite 2) + 16 • SpacePool.ofShape (.bits (measurementBits N)) +
+        RuntimeRound.resetSpace (shortLogBits N) (tradeoffBits N) (arithmeticBits N) +
+          16 • SpacePool.ofShape (.bits (measurementBits N)) +
           (readyContext base noQuantum N).residentSpace from
       fun _ => Nat.le_add_left _ _).trans (nativeBatch_rounds_resident_budget base noQuantum N),
     (show (readyContext base noQuantum N).auxiliarySpace ≤
-        SpacePool.ofShape (.finite 2) + 16 • SpacePool.ofShape (.bits (measurementBits N)) +
+        RuntimeRound.resetSpace (shortLogBits N) (tradeoffBits N) (arithmeticBits N) +
+          16 • SpacePool.ofShape (.bits (measurementBits N)) +
           (readyContext base noQuantum N).auxiliarySpace from
       fun _ => Nat.le_add_left _ _).trans (nativeBatch_rounds_auxiliary_budget base noQuantum N)⟩
 
-private theorem bank_bounds :
+private lemma bank_bounds :
     (bankContext base noQuantum N).residentSpace ≤ base.residentSpace + additionalSpace N ∧
       (bankContext base noQuantum N).auxiliarySpace ≤
         base.auxiliarySpace + additionalSpace N := by
@@ -79,7 +81,7 @@ private theorem bank_bounds :
     auxiliary.trans (ready_bounds base noQuantum N).2⟩
 
 include noQuantum in
-private theorem sampled_bounds :
+private lemma sampled_bounds :
     (sampledContext base N).residentSpace ≤ base.residentSpace + additionalSpace N ∧
       (sampledContext base N).auxiliarySpace ≤ base.auxiliarySpace + additionalSpace N := by
   have resident : (sampledContext base N).residentSpace ≤
@@ -105,7 +107,7 @@ private theorem sampled_bounds :
   exact ⟨resident.trans (bank_bounds base noQuantum N).1,
     auxiliary.trans (bank_bounds base noQuantum N).2⟩
 
-private theorem visited_bounds (path : (code base noQuantum N).Path)
+private lemma visited_bounds (path : (code base noQuantum N).Path)
     (frame : RuntimeCtx .quantum)
     (present : frame ∈ (code base noQuantum N).visitedContexts path) :
     frame.residentSpace ≤ base.residentSpace + additionalSpace N ∧
@@ -159,13 +161,13 @@ private theorem visited_bounds (path : (code base noQuantum N).Path)
             (nativeBatch_rounds_auxiliary_budget base noQuantum N)⟩
 
 /-- Every actual resident frame fits the independent first-batch allowance. -/
-theorem nativeBatch_peakResidentSpace_le (path : (code base noQuantum N).Path) :
+lemma nativeBatch_peakResidentSpace_le (path : (code base noQuantum N).Path) :
     (code base noQuantum N).peakResidentSpace path ≤ base.residentSpace + additionalSpace N :=
   Circuit.peakResidentSpace_le_of_visited _ path _
     (fun frame present => (visited_bounds base noQuantum N path frame present).1)
 
 /-- All actual owned and retained auxiliary roles fit their independent allowance. -/
-theorem nativeBatch_peakAuxiliarySpace_le (path : (code base noQuantum N).Path) :
+lemma nativeBatch_peakAuxiliarySpace_le (path : (code base noQuantum N).Path) :
     (code base noQuantum N).peakAuxiliarySpace path ≤ base.auxiliarySpace + additionalSpace N :=
   Circuit.peakAuxiliarySpace_le_of_visited _ path _
     (fun frame present => (visited_bounds base noQuantum N path frame present).2)

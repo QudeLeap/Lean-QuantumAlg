@@ -46,7 +46,7 @@ public def measurementOutcome (P : KnownOrderProblem G)
 omit [Fintype G] in
 /-- The named big-endian outcome exposes the corresponding decoded binary
 coordinate. -/
-public theorem measurementOutcome_apply (P : KnownOrderProblem G)
+public lemma measurementOutcome_apply (P : KnownOrderProblem G)
     (value : Fin (2 ^ (OrderPreparation.width P + OrderPreparation.width P)))
     (index : Fin (OrderPreparation.width P + OrderPreparation.width P)) :
     measurementOutcome P value index =
@@ -62,7 +62,7 @@ public theorem measurementOutcome_apply (P : KnownOrderProblem G)
   cases bit <;> rfl
 
 omit [Fintype G] in
-@[simp] public theorem fullRegisterIndex_measurementOutcome
+@[simp] public lemma fullRegisterIndex_measurementOutcome
     (P : KnownOrderProblem G)
     (value : Fin (2 ^ (OrderPreparation.width P + OrderPreparation.width P))) :
     TerminalZMeasure.fullRegisterIndex (measurementOutcome P value) = value := by
@@ -84,7 +84,7 @@ omit [Fintype G] in
   rw [bits, Nat.ofBits_testBit, Nat.mod_eq_of_lt value.isLt]
 
 omit [Fintype G] in
-public theorem measurementOutcome_injective (P : KnownOrderProblem G) :
+public lemma measurementOutcome_injective (P : KnownOrderProblem G) :
     Function.Injective (measurementOutcome P) := by
   intro left right equality
   have same := congrArg TerminalZMeasure.fullRegisterIndex equality
@@ -92,7 +92,7 @@ public theorem measurementOutcome_injective (P : KnownOrderProblem G) :
 
 omit [Fintype G] in
 /-- The runtime readout uses the source layer's original big-endian encoding. -/
-public theorem measurementOutcome_eq_source (P : KnownOrderProblem G)
+public lemma measurementOutcome_eq_source (P : KnownOrderProblem G)
     (value : Fin (2 ^ (OrderPreparation.width P + OrderPreparation.width P))) :
     measurementOutcome P value =
       Canonical.BornBridge.measurementOutcome P value := by
@@ -107,7 +107,7 @@ public def readout (P : KnownOrderProblem G) (basis : (OrderOracle.layout P).Bas
     (prodEquiv (OrderOracle.basisEquiv P basis).1)
 
 /-- The semantic readout is exactly the actual value on each exponent wire. -/
-public theorem readout_apply (P : KnownOrderProblem G)
+public lemma readout_apply (P : KnownOrderProblem G)
     (basis : (OrderOracle.layout P).Basis)
     (index : Fin (OrderPreparation.width P + OrderPreparation.width P)) :
     readout P basis index =
@@ -135,7 +135,7 @@ public theorem readout_apply (P : KnownOrderProblem G)
   rw [decoded]
   rfl
 
-@[simp] public theorem readout_fullBasis (P : KnownOrderProblem G)
+@[simp] public lemma readout_fullBasis (P : KnownOrderProblem G)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     readout P (fullBasis P left right tail) =
       measurementOutcome P (prodEquiv (left, right)) := by
@@ -151,13 +151,13 @@ public theorem readout_apply (P : KnownOrderProblem G)
     have semantic := congrArg (OrderOracle.basisEquiv P) same
     simpa using congrArg Prod.snd semantic
 
-@[simp] public theorem measurementFiberEmbedding_apply (P : KnownOrderProblem G)
+@[simp] public lemma measurementFiberEmbedding_apply (P : KnownOrderProblem G)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     measurementFiberEmbedding P left right tail = fullBasis P left right tail :=
   rfl
 
 /-- A readout fibre contains every group label and no other basis state. -/
-public theorem measurement_fiber (P : KnownOrderProblem G)
+public lemma measurement_fiber (P : KnownOrderProblem G)
     (left right : Fin (2 ^ OrderPreparation.width P)) :
     Finset.univ.filter
         (fun basis : (OrderOracle.layout P).Basis =>
@@ -189,7 +189,7 @@ public theorem measurement_fiber (P : KnownOrderProblem G)
       rw [← EuclideanSpace.norm_sq_eq, (evolvedState P expansion).norm_eq_one]
       norm_num)
 
-@[simp] public theorem basisPMF_apply (P : KnownOrderProblem G)
+@[simp] public lemma basisPMF_apply (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (basis : (OrderOracle.layout P).Basis) :
     basisPMF P expansion basis =
       ENNReal.ofReal (‖(evolvedState P expansion).vec basis‖ ^ 2) :=
@@ -201,7 +201,7 @@ public def outcomePMF (P : KnownOrderProblem G) (expansion : OrderExpansion P.or
       (OrderPreparation.width P + OrderPreparation.width P)) :=
   PMF.map (readout P) (basisPMF P expansion)
 
-@[simp] public theorem outcomePMF_apply (P : KnownOrderProblem G)
+@[simp] public lemma outcomePMF_apply (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (outcome : TerminalZMeasure.Outcome
       (OrderPreparation.width P + OrderPreparation.width P)) :
@@ -217,7 +217,7 @@ public def outcomePMF (P : KnownOrderProblem G) (expansion : OrderExpansion P.or
     rfl
 
 /-- Terminal probability is the exact marginal over the native group system. -/
-public theorem bornOutcomeProbability_eq_groupMarginal
+public lemma bornOutcomeProbability_eq_groupMarginal
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ OrderPreparation.width P)) :
     outcomePMF P expansion (measurementOutcome P (prodEquiv (left, right))) =

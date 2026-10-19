@@ -27,6 +27,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 /-- Finite increment, including the unique empty word. -/
@@ -34,7 +36,7 @@ def incrementWord {n : Nat} (word : Fin (2 ^ n)) : Fin (2 ^ n) :=
   ⟨(word.val + 1) % 2 ^ n, Nat.mod_lt _ (Nat.two_pow_pos n)⟩
 
 /-- Complement turns the two forward increments into an exact cancellation. -/
-theorem hrsIncrement_complement_increment (n : Nat) (word : Fin (2 ^ n)) :
+lemma hrsIncrement_complement_increment (n : Nat) (word : Fin (2 ^ n)) :
     incrementWord (complementWord (incrementWord word)) = complementWord word := by
   apply Fin.ext
   have hword := hrsComplementWord_sum n word
@@ -76,7 +78,7 @@ def bridgeOutput {Low : Type} {highWidth : Nat} (carry : Low → Bool)
   ((state.1.1, if carry state.1.1 then incrementWord state.1.2 else state.1.2), state.2)
 
 /-- The six component actions cancel an arbitrary initial dirty bit exactly. -/
-theorem hrsCarryBridge_steps {Low : Type} (highWidth : Nat) (carry : Low → Bool)
+lemma hrsCarryBridge_steps {Low : Type} (highWidth : Nat) (carry : Low → Bool)
     (state : BridgeRegisters Low highWidth) :
     bridgeComplementStep (bridgeCarryStep carry
       (bridgeIncrementStep (bridgeCarryStep carry
@@ -102,7 +104,7 @@ def carryBridgeProgram (increment complement carry : List (EncodedBit.GateSpec e
     (carryBridgeGates increment complement carry)
 
 /-- Component exact actions imply the exact all-input action of their real composition. -/
-theorem hrsCarryBridge_step (increment complement carry : List (EncodedBit.GateSpec encoding))
+lemma hrsCarryBridge_step (increment complement carry : List (EncodedBit.GateSpec encoding))
     (predicate : Low → Bool)
     (hincrement : ∀ state, stepList increment state = bridgeIncrementStep state)
     (hcomplement : ∀ state, stepList complement state = bridgeComplementStep state)
@@ -114,25 +116,26 @@ theorem hrsCarryBridge_step (increment complement carry : List (EncodedBit.GateS
   exact hrsCarryBridge_steps highWidth predicate state
 
 /-- Exact amplitudes of the six actual component lists retain all joint coherence. -/
-theorem hrsCarryBridge_realizes (increment complement carry : List (EncodedBit.GateSpec encoding))
+lemma hrsCarryBridge_realizes (increment complement carry : List (EncodedBit.GateSpec encoding))
     (predicate : Low → Bool)
     (hincrement : ∀ state, stepList increment state = bridgeIncrementStep state)
     (hcomplement : ∀ state, stepList complement state = bridgeComplementStep state)
     (hcarry : ∀ state, stepList carry state = bridgeCarryStep predicate state) :
-    UnitaryCircuit.Realizes encoding (carryBridgeProgram increment complement carry)
+    UnitaryCircuit.Realizes encoding (carryBridgeProgram increment complement carry) environment
       (bridgeOutput predicate) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
     (carryBridgeGates increment complement carry)
     (hrsCarryBridge_step increment complement carry predicate hincrement hcomplement hcarry)
+      environment
 
 /-- The semantic result restores the entire lower component and the dirty bit. -/
-theorem hrsCarryBridge_restores (predicate : Low → Bool)
+lemma hrsCarryBridge_restores (predicate : Low → Bool)
     (state : BridgeRegisters Low highWidth) :
     (bridgeOutput predicate state).1.1 = state.1.1 ∧
       (bridgeOutput predicate state).2 = state.2 := ⟨rfl, rfl⟩
 
 /-- Native coordinates count each actual component list twice. -/
-theorem hrsCarryBridge_native_count
+lemma hrsCarryBridge_native_count
     (increment complement carry : List (EncodedBit.GateSpec encoding))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (carryBridgeProgram increment complement carry).eventCost =
@@ -147,7 +150,7 @@ theorem hrsCarryBridge_native_count
   omega
 
 /-- Total events come from the six executed lists, with no separate resource witness. -/
-theorem hrsCarryBridge_event_count
+lemma hrsCarryBridge_event_count
     (increment complement carry : List (EncodedBit.GateSpec encoding)) :
     (carryBridgeProgram increment complement carry).eventCost.card =
       2 * (increment.length + complement.length + carry.length) := by
@@ -156,7 +159,7 @@ theorem hrsCarryBridge_event_count
   omega
 
 /-- Unit-duration depth of the actual serial bridge. -/
-theorem hrsCarryBridge_serial_depth
+lemma hrsCarryBridge_serial_depth
     (increment complement carry : List (EncodedBit.GateSpec encoding)) :
     (carryBridgeProgram increment complement carry).evaluatedEventDepth (fun _ => 1) =
       2 * (increment.length + complement.length + carry.length) := by

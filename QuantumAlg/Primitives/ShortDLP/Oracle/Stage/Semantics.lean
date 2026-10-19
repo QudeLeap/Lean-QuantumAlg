@@ -26,9 +26,9 @@ noncomputable section
 
 /-- The actual native preparation is the source Hadamard operator on the
 combined exponent registers, with the original workspace left untouched. -/
-theorem prepare_binaryMatrix {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) :
-    (prepare encoding).binaryMatrix =
+lemma prepare_binaryMatrix (N : Nat) (params : RegisterParameters)
+    (interpretation : (declaredModel N params).Interpretation) :
+    ((prepare N params).binaryMatrix interpretation) =
       (WalshHadamard.hadamardLayerOperator
         (firstBits params + params.ell)).tensor
           (1 : UnitaryOperator (Qubits params.workspaceBits)) := by
@@ -37,13 +37,13 @@ theorem prepare_binaryMatrix {N : Nat} {params : RegisterParameters}
     (fun operator : UnitaryOperator (Qubits (firstBits params + params.ell)) =>
       operator.tensor (1 : UnitaryOperator (Qubits params.workspaceBits)))
     (WalshHadamard.Native.native_binary_matrix
-      (declaredModel encoding) (firstBits params + params.ell))
+      (declaredModel N params) (firstBits params + params.ell) interpretation)
 
 /-- The actual preparation takes the zero exponent word and zero group
 workspace to a uniform exponent word with that workspace still zero. -/
-theorem prepare_binaryMatrix_apply_zero {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) :
-    (prepare encoding).binaryMatrix.apply
+lemma prepare_binaryMatrix_apply_zero (N : Nat) (params : RegisterParameters)
+    (interpretation : (declaredModel N params).Interpretation) :
+    ((prepare N params).binaryMatrix interpretation).apply
         (NormalizedVector.ket
           (prodEquiv
             ((0 : Fin (2 ^ (firstBits params + params.ell))),

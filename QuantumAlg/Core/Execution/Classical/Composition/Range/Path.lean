@@ -21,9 +21,11 @@ sum of the durations in a linear event list.
 namespace QuantumAlg.Circuit
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {allowAllocation : Bool}
 
 /-- Project each body's actual path from the existing finite sequential path. -/
-def forRangeComponentPath : (count : Nat) → (body : Fin count → Circuit model ctx ctx) →
+def forRangeComponentPath : (count : Nat) →
+    (body : Fin count → Circuit model ctx ctx allowAllocation) →
     (forRange count body).Path → (index : Fin count) → (body index).Path
   | 0, _, _, index => Fin.elim0 index
   | count + 1, body, path, index =>
@@ -31,7 +33,8 @@ def forRangeComponentPath : (count : Nat) → (body : Fin count → Circuit mode
         forRangeComponentPath count (fun item => body item.succ) path.2 next) index
 
 /-- Concatenation retains the complete native trace of every actual component. -/
-theorem forRange_eventTrace_eq (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_eventTrace_eq (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (path : (forRange count body).Path) :
     (forRange count body).eventTrace path =
       (List.ofFn fun index =>
@@ -48,7 +51,8 @@ theorem forRange_eventTrace_eq (count : Nat) (body : Fin count → Circuit model
       rw [ih]
 
 /-- Exact event multiplicities include each component's complete actual expansion. -/
-theorem forRange_eventCount_eq_sum (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_eventCount_eq_sum (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (path : (forRange count body).Path) :
     ((forRange count body).eventTrace path).length =
       ∑ index, ((body index).eventTrace (forRangeComponentPath count body path index)).length := by
@@ -62,7 +66,8 @@ theorem forRange_eventCount_eq_sum (count : Nat) (body : Fin count → Circuit m
       rfl
 
 /-- Sequential composition adds actual dependency depths without flattening internal parallelism. -/
-theorem forRange_depth_eq_sum (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_depth_eq_sum (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (duration : Resource.Event model → Nat) (path : (forRange count body).Path) :
     (forRange count body).depth duration path =
       ∑ index, (body index).depth duration (forRangeComponentPath count body path index) := by

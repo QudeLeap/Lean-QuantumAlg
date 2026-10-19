@@ -29,7 +29,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-private theorem encode_some_word (value : CShape.Word (modulusBits N)) :
+private lemma encode_some_word (value : CShape.Word (modulusBits N)) :
     encodeOutput (N := N) (some value.toNat) = .optionSome value := by
   cases value with
   | unsignedWord value =>
@@ -38,7 +38,7 @@ private theorem encode_some_word (value : CShape.Word (modulusBits N)) :
     apply Fin.ext
     exact Nat.mod_eq_of_lt value.isLt
 
-private theorem packOption_numeric (tag : CShape.Value .bit)
+private lemma packOption_numeric (tag : CShape.Value .bit)
     (payload : CShape.Word (modulusBits N)) :
     CShape.packOption (.product tag payload) =
       encodeOutput (N := N) (if tag.toBool then some payload.toNat else none) := by
@@ -49,7 +49,7 @@ private theorem packOption_numeric (tag : CShape.Value .bit)
     · exact (encode_some_word payload).symm
 
 /-- The actual canonical-residue pack preserves the original stored raw base word. -/
-theorem packBase_result (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
+lemma packBase_result (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (cells : Cells ctx N) (store : Store ctx) :
     ((store.applyOp (packBaseOp parameter cells)).read
       (.storage cells.base.toCStorageRef)).residueEncoding.val =
@@ -60,13 +60,13 @@ theorem packBase_result (parameter : CInputRef ctx (ParameterShape (modulusBits 
         (.first parameter) cells.base (store.read (.first parameter)))
 
 /-- The actual unpack writes precisely the original optional word's nominal pair. -/
-theorem unpackOrder_result (cells : Cells ctx N) (store : Store ctx) :
+lemma unpackOrder_result (cells : Cells ctx N) (store : Store ctx) :
     (store.applyOp (unpackOrderOp cells)).read (expandedRead cells) =
       CShape.unpackOption (store.read (.storage cells.order.toCStorageRef)) :=
   Store.read_applyOp_output store (unpackOrderOp cells)
 
 /-- A stored native recovery result exposes exactly its real acceptance tag and finite word. -/
-theorem unpackOrder_encoded (cells : Cells ctx N) (store : Store ctx)
+lemma unpackOrder_encoded (cells : Cells ctx N) (store : Store ctx)
     (recovered : Option (Fin (2 ^ (phaseBits N + 1))))
     (stored : store.read (.storage cells.order.toCStorageRef) =
       ClassicalRoutines.OrderRecovery.Native.encodeOutput recovered) :
@@ -78,7 +78,7 @@ theorem unpackOrder_encoded (cells : Cells ctx N) (store : Store ctx)
   cases recovered <;> rfl
 
 /-- Final option packing uses exactly the actual active bit and actual half-power payload. -/
-theorem packOutput_result (cells : Cells ctx N)
+lemma packOutput_result (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (store.applyOp (packOutputOp cells output)).read (.storage output.toCStorageRef) =
       encodeOutput (N := N)
@@ -88,7 +88,7 @@ theorem packOutput_result (cells : Cells ctx N)
     (packOption_numeric (store.read (activeRead cells)) (store.read (halfRead cells)))
 
 /-- The actual early-factor pack preserves both the sampler's stored tag and its payload. -/
-theorem packEarly_result (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
+lemma packEarly_result (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (store.applyOp (packEarlyOp parameter output)).read (.storage output.toCStorageRef) =
       encodeOutput (N := N)

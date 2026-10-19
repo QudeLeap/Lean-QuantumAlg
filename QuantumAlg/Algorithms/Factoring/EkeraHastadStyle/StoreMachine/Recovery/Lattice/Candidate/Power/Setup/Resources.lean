@@ -22,7 +22,8 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent native allowance for the original base packing and two constant materializations. -/
@@ -40,20 +41,20 @@ def setupEventEnvelope (model : ExecutionModel) [BitWord.Selected model]
     ClassicalRoutines.Modular.NativePower.eventEnvelope model width width
 
 /-- Actual setup traces preserve the order from shared inputs to their consumed target power. -/
-theorem setupInto_events (input : Input N) (refs : Refs ctx N)
+lemma setupInto_events (input : Input N) (refs : Refs ctx N)
     (path : (setupInto input refs).Path) :
     (setupInto input refs).eventTrace path =
       (prepareInto refs).eventTrace path.1 ++ (powerInto input refs).eventTrace path.2 := rfl
 
 /-- Actual setup native multiplicities are exactly those of its actual preparation and power. -/
-theorem setupInto_resourcePool (input : Input N) (refs : Refs ctx N)
+lemma setupInto_resourcePool (input : Input N) (refs : Refs ctx N)
     (path : (setupInto input refs).Path) :
     (setupInto input refs).resourcePool path =
       (prepareInto refs).resourcePool path.1 + (powerInto input refs).resourcePool path.2 :=
   ResourcePool.ofList_append _ _
 
 /-- Actual base packing and full-width loaders satisfy the independent native allowance. -/
-theorem prepareInto_pool_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
+lemma prepareInto_pool_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
     (prepareInto refs).resourcePool path ≤ prepareEnvelope model (modulusBits N) := by
   rw [show (prepareInto refs).resourcePool path =
       ResourcePool.ofList ((prepareInto refs).eventTrace path) from rfl]
@@ -68,7 +69,7 @@ theorem prepareInto_pool_le (refs : Refs ctx N) (path : (prepareInto refs).Path)
         (RSA.targetExponent N) path.2.2))
 
 /-- The actual complete setup fits the independently specified preparation and power budget. -/
-theorem setupInto_pool_le (input : Input N) (refs : Refs ctx N)
+lemma setupInto_pool_le (input : Input N) (refs : Refs ctx N)
     (path : (setupInto input refs).Path) :
     (setupInto input refs).resourcePool path ≤ setupEventEnvelope model (modulusBits N) := by
   rw [setupInto_resourcePool]
@@ -77,7 +78,7 @@ theorem setupInto_pool_le (input : Input N) (refs : Refs ctx N)
       (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower path.2)
 
 /-- Actual preparation charges base packing and every selected increment after every shift. -/
-theorem prepareInto_depth_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
+lemma prepareInto_depth_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
     (prepareInto refs).depth (fun _ => 1) path ≤ 4 * modulusBits N + 3 := by
   have modulusDepth := ClassicalRoutines.ConstantWord.constantWord_depth_le refs.modulus N
     (fun _ => 1) path.2.1
@@ -89,7 +90,7 @@ theorem prepareInto_depth_le (refs : Refs ctx N) (path : (prepareInto refs).Path
   omega
 
 /-- The actual full setup includes the original width-many target-power steps in its depth. -/
-theorem setupInto_depth_le (input : Input N) (refs : Refs ctx N)
+lemma setupInto_depth_le (input : Input N) (refs : Refs ctx N)
     (path : (setupInto input refs).Path) :
     (setupInto input refs).depth (fun _ => 1) path ≤ 12 * modulusBits N + 8 := by
   have prepared := prepareInto_depth_le refs path.1
@@ -102,29 +103,32 @@ theorem setupInto_depth_le (input : Input N) (refs : Refs ctx N)
   omega
 
 /-- Actual base packing and both constant loaders restore every borrowed correlation. -/
-theorem prepareInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma prepareInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (prepareInto refs).BorrowedRestored Reference state
-      ((prepareInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
-    (Circuit.borrowedRestored_seq _ _ _
+      ((prepareInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (Circuit.borrowedRestored_classical (environment :=
+    environment) _ state)
+    (Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (ClassicalRoutines.ConstantWord.constantWord_fold_borrowedRestored refs.modulus _ Reference _)
       (ClassicalRoutines.ConstantWord.constantWord_fold_borrowedRestored refs.targetExponent _
         Reference _))
 
 /-- Actual shared setup restores the entire borrowed-reference joint state. -/
-theorem setupInto_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma setupInto_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (setupInto input refs).BorrowedRestored Reference state
-      ((setupInto input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (prepareInto_borrowedRestored refs Reference state)
+      ((setupInto input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (prepareInto_borrowedRestored refs Reference state)
     (ClassicalRoutines.Modular.NativePower.nativePower_into_borrowedRestored (modulusSpec input)
       (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower Reference _)
 
 /-- Every actual preparation operation retains the original caller context. -/
-theorem prepareInto_visited (refs : Refs ctx N) (path : (prepareInto refs).Path)
+lemma prepareInto_visited (refs : Refs ctx N) (path : (prepareInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (prepareInto refs).visitedContexts path) :
     visited = ctx := by
@@ -139,21 +143,21 @@ theorem prepareInto_visited (refs : Refs ctx N) (path : (prepareInto refs).Path)
       path.2.2 visited exponent
 
 /-- Actual preparation keeps every original resident resource counted. -/
-theorem prepareInto_resident_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
+lemma prepareInto_resident_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
     (prepareInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [prepareInto_visited refs path visited present]
 
 /-- Actual preparation retains all original auxiliary roles without allocation. -/
-theorem prepareInto_auxiliary_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
+lemma prepareInto_auxiliary_le (refs : Refs ctx N) (path : (prepareInto refs).Path) :
     (prepareInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [prepareInto_visited refs path visited present]
 
 /-- The actual setup peak counts all caller storage and simultaneous real target-power scratch. -/
-theorem setupInto_resident_le (input : Input N) (refs : Refs ctx N)
+lemma setupInto_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (setupInto input refs).Path) :
     (setupInto input refs).peakResidentSpace path ≤ ctx.residentSpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
@@ -165,7 +169,7 @@ theorem setupInto_resident_le (input : Input N) (refs : Refs ctx N)
       (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower path.2
 
 /-- Every live target-power temporary is included with all original auxiliary storage. -/
-theorem setupInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
+lemma setupInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (setupInto input refs).Path) :
     (setupInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by

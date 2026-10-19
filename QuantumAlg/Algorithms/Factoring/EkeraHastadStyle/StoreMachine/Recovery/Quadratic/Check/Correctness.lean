@@ -24,7 +24,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 omit [BitWord.Selected model] in
-private theorem positiveSeed_frame (refs : Refs ctx shortWidth) (store : Store ctx)
+private lemma positiveSeed_frame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (wide : refs.candidateWide.key ∉ other.storageKeys)
     (below : refs.belowModulus.key ∉ other.storageKeys) :
@@ -33,7 +33,7 @@ private theorem positiveSeed_frame (refs : Refs ctx shortWidth) (store : Store c
     (Store.read_applyOp_of_not_mem_storageKeys store (widenOp refs) other wide)
 
 omit [BitWord.Selected model] in
-private theorem widened_value (refs : Refs ctx shortWidth) (store : Store ctx) :
+private lemma widened_value (refs : Refs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (widenOp refs)).read (writeInput refs.candidateWide)).toNat =
       (store.read refs.candidate).toNat := by
   change ((store.applyOp (widenOp refs)).read
@@ -48,7 +48,7 @@ private theorem widened_value (refs : Refs ctx shortWidth) (store : Store ctx) :
     (Nat.pow_le_pow_right (by omega) widthLe)
 
 omit [BitWord.Selected model] in
-private theorem below_value (refs : Refs ctx shortWidth) (separation : PositiveSeparation refs)
+private lemma below_value (refs : Refs ctx shortWidth) (separation : PositiveSeparation refs)
     (store : Store ctx) :
     ((positiveSeed refs store).read (writeInput refs.belowModulus)).toBool =
       decide ((store.read refs.candidate).toNat < (store.read refs.modulus).toNat) := by
@@ -61,7 +61,7 @@ private theorem below_value (refs : Refs ctx shortWidth) (separation : PositiveS
     refs.modulus separation.modulusAvoidsWide]
 
 omit [BitWord.Selected model] in
-private theorem combine_value (refs : Refs ctx shortWidth) (store : Store ctx) :
+private lemma combine_value (refs : Refs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (combineOp refs)).read (writeInput refs.eligible)).toBool =
       ((store.read (writeInput refs.belowModulus)).toBool &&
         (store.read (writeInput refs.modulusCheck.accepted)).toBool) := by
@@ -79,7 +79,7 @@ private theorem combine_value (refs : Refs ctx shortWidth) (store : Store ctx) :
           rfl
 
 /-- All caller reads outside the five actual positive-suffix writes are preserved. -/
-theorem positiveInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma positiveInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : PositiveCallerFrameAvoids refs other) :
     (positiveStep refs store).1.read other = store.read other := by
   change (((NatModCheck.step refs.modulusCheck (positiveSeed refs store)).1.applyOp
@@ -90,7 +90,7 @@ theorem positiveInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx
         (positiveSeed_frame refs store other avoids.candidateWide avoids.belowModulus))
 
 /-- Positive candidates obey exactly the original range-and-divisibility specification. -/
-theorem positiveInto_correct (refs : Refs ctx shortWidth) (separation : PositiveSeparation refs)
+lemma positiveInto_correct (refs : Refs ctx shortWidth) (separation : PositiveSeparation refs)
     (store : Store ctx) (initial : PositiveInitialConditions store refs) :
     PositiveRelation refs store (positiveStep refs store).1 := by
   have candidate := positiveSeed_frame refs store refs.candidate
@@ -119,7 +119,7 @@ theorem positiveInto_correct (refs : Refs ctx shortWidth) (separation : Positive
   simp only [Bool.decide_and]
 
 omit [BitWord.Selected model] in
-private theorem decision_value (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
+private lemma decision_value (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (decisionOp refs)).read (writeInput refs.greaterThanOne)).toBool =
       decide ((store.read refs.one).toNat < (store.read refs.positiveCheck.candidate).toNat) := by
   change ((store.applyOp (decisionOp refs)).read
@@ -128,7 +128,7 @@ private theorem decision_value (refs : TotalRefs ctx shortWidth) (store : Store 
   rfl
 
 omit [BitWord.Selected model] in
-private theorem reject_value (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
+private lemma reject_value (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
     ((store.applyOp (rejectOp refs)).read (writeInput refs.positiveCheck.eligible)).toBool =
       false := by
   change ((store.applyOp (rejectOp refs)).read
@@ -141,7 +141,7 @@ private theorem reject_value (refs : TotalRefs ctx shortWidth) (store : Store ct
   | bit flag => exact Bool.xor_self flag
 
 /-- Total checking frames every caller read outside its decision and possible suffix writes. -/
-theorem into_callerFrame (refs : TotalRefs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : TotalRefs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : TotalCallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other := by
   change (chooseStep refs (store.applyOp (decisionOp refs))).1.read other = _
@@ -154,7 +154,7 @@ theorem into_callerFrame (refs : TotalRefs ctx shortWidth) (store : Store ctx)
         (Store.read_applyOp_of_not_mem_storageKeys store (decisionOp refs) other avoids.decision)
 
 /-- The actual total checker accepts exactly the original strict proper-divisor predicate. -/
-theorem into_correct (refs : TotalRefs ctx shortWidth) (separation : TotalSeparation refs)
+lemma into_correct (refs : TotalRefs ctx shortWidth) (separation : TotalSeparation refs)
     (store : Store ctx) (initial : TotalInitialConditions store refs) :
     TotalRelation refs store (step refs store).1 := by
   have candidate := Store.read_applyOp_of_not_mem_storageKeys store (decisionOp refs)

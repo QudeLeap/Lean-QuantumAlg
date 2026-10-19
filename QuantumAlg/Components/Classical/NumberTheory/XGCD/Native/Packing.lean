@@ -93,7 +93,7 @@ def packingBodyStep {model : ExecutionModel} [BitWord.Selected model]
   (fifth.1, (first.2, (second.2, (third.2, (fourth.2, fifth.2)))))
 
 /-- The actual native result record has the original five-operation store projection. -/
-theorem xgcdNativePackingBody_step_store {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativePackingBody_step_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
@@ -102,14 +102,16 @@ theorem xgcdNativePackingBody_step_store {model : ExecutionModel} [BitWord.Selec
       packingBodyStore outputs raw left right result before := rfl
 
 /-- Every full quantum-reference block retains the actual store and all five instruction paths. -/
-theorem xgcdNativePackingBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativePackingBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (packingBody (model := model) outputs raw left right result).execute Reference state =
+    (packingBody (model := model) outputs raw left right result).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         let actual := packingBodyStep (model := model) outputs raw left right result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -140,7 +142,7 @@ def packingEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat
       (.packProduct width (coefficientWidth width + coefficientWidth width))))]
 
 /-- Original actual event list before the scratch scopes are released. -/
-theorem xgcdNativePackingBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativePackingBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))

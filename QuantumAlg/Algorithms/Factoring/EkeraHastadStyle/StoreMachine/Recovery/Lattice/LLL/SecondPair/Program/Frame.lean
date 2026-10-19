@@ -73,7 +73,7 @@ def FrameAvoids (refs : Refs ctx width) (cells : List Cell)
   ∀ cell ∈ cells, cellKey refs cell ∉ other.storageKeys
 
 /-- The original global identities provide a caller frame for every retained named word or bit. -/
-theorem write_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma write_avoids (refs : Refs ctx width) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (sourceCell : Cell)
     (sourceKey : source.key = cellKey refs sourceCell) (cells : List Cell)
     (absent : sourceCell ∉ cells) : FrameAvoids refs cells (LatticeArithmetic.writeInput source)
@@ -86,7 +86,7 @@ theorem write_avoids (refs : Refs ctx width) (separation : Separation refs)
   exact absent (separation.keyInjective equal ▸ member)
 
 /-- Original global separation gives each named basis read its phase-local caller frame. -/
-theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma basis_avoids (refs : Refs ctx width) (separation : Separation refs)
     (cell : LatticeMetricMachine.BasisCell) (cells : List Cell)
     (absent : .transition (LatticeSecondPairMachine.basisTransitionCell cell) ∉ cells) :
     FrameAvoids refs cells (LatticeMetricMachine.basisCellInput refs.machine.basis cell) := by
@@ -102,7 +102,7 @@ theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
       cellKey, LatticeSecondPairMachine.cellKey] using keyNe
 
 /-- The actual prefix preserves all reads outside its embedded writable footprint. -/
-theorem prefix_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma prefix_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs prefixCells other) :
     (LatticeSecondPairMachine.secondPairPrefixStep (model := model) refs.machine store).1.read
@@ -113,7 +113,7 @@ theorem prefix_frame {model : ExecutionModel} [BitWord.Selected model]
   exact avoids (.transition cell) (List.mem_map.mpr ⟨cell, member, rfl⟩)
 
 /-- The actual final direction preserves reads outside its original embedded writes. -/
-theorem post_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma post_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs postCells other) :
     (LatticeSecondPairPostReduction.postReductionStep (model := model) refs.post store).1.read
@@ -125,7 +125,7 @@ theorem post_frame {model : ExecutionModel} [BitWord.Selected model]
   exact avoids (.transition cell) (List.mem_map.mpr ⟨cell, member, rfl⟩)
 
 /-- Actual area-12 refresh preserves every read outside its seven named writes. -/
-theorem area12_frame (refs : Refs ctx width) (store : Store ctx)
+lemma area12_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs area12Cells other) :
     (LatticeAreaRefresh.refreshStore refs.machine.basis.first refs.machine.basis.second
       refs.area12 store).read other = store.read other :=
@@ -139,7 +139,7 @@ theorem area12_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .area12NormProduct (by decide))
 
 /-- Actual area-13 refresh preserves every read outside its seven named writes. -/
-theorem area13_frame (refs : Refs ctx width) (store : Store ctx)
+lemma area13_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs area13Cells other) :
     (LatticeAreaRefresh.refreshStore refs.machine.basis.first refs.machine.basis.third
       refs.area13 store).read other = store.read other :=
@@ -153,13 +153,13 @@ theorem area13_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .area13NormProduct (by decide))
 
 /-- Branch references resolve to the same original global cells, including the shared basis. -/
-theorem branch_key (refs : Refs ctx width) (cell : LatticeSecondLovaszBranch.BranchCell) :
+lemma branch_key (refs : Refs ctx width) (cell : LatticeSecondLovaszBranch.BranchCell) :
     LatticeSecondLovaszBranch.cellKey refs.branch cell = cellKey refs (branchCell cell) := by
   cases cell <;> simp only [LatticeSecondLovaszBranch.cellKey, branchCell, cellKey,
     refs.branchBasis, LatticeSecondPairMachine.cellKey]
 
 /-- Actual comparison and selected row exchange preserve reads outside their global footprint. -/
-theorem branch_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma branch_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : FrameAvoids refs branchCells other) :
     (LatticeSecondLovaszBranch.branchStep (model := model) refs.branch store).1.read other =
@@ -170,7 +170,7 @@ theorem branch_frame {model : ExecutionModel} [BitWord.Selected model]
   exact avoids (branchCell cell) (List.mem_map.mpr ⟨cell, member, rfl⟩)
 
 /-- Both actual area refreshes and the selected exchange preserve all reads outside their writes. -/
-theorem areaBranch_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma areaBranch_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs areaBranchCells other) :
@@ -189,7 +189,7 @@ theorem areaBranch_frame {model : ExecutionModel} [BitWord.Selected model]
     area12_frame refs _ other area12]
 
 /-- All five actual second-pair stages preserve the complete caller frame outside their writes. -/
-theorem secondPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma secondPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :
@@ -208,7 +208,7 @@ theorem secondPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected mo
     prefix_frame refs _ other prefixPhase]
 
 /-- A phase preserves the complete represented basis when none of its nine cells is written. -/
-theorem basis_raw_of_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma basis_raw_of_frame (refs : Refs ctx width) (separation : Separation refs)
     {before after : Store ctx} (basis : NumberTheory.IntegerBasis3) (cells : List Cell)
     (rep : LatticeMetricMachine.BasisRawRepresents before refs.machine.basis basis)
     (reads : ∀ {shape : CShape} (other : CInputRef ctx shape),

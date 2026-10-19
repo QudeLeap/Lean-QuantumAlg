@@ -33,7 +33,7 @@ def evolvedState {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) : QubitLayout.State (layout params) where
   state := PureState.ofNormalized
-    ((DeclaredStage.circuit encoding g x).binaryMatrix.apply
+    (((DeclaredStage.circuit N params g x).binaryMatrix (declaredInterpretation encoding)).apply
       (NormalizedVector.ket (R := Qubits (totalQubits params))
         (prodEquiv
           ((0 : Fin (2 ^ (firstBits params + params.ell))),
@@ -43,7 +43,7 @@ def evolvedState {N : Nat} {params : RegisterParameters}
 
 /-- Every terminal basis amplitude of the declared stage is the source's
 explicit double inverse-Fourier sum. -/
-theorem shortDLPCircuit_amplitude {N : Nat} {params : RegisterParameters}
+lemma shortDLPCircuit_amplitude {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
@@ -51,7 +51,8 @@ theorem shortDLPCircuit_amplitude {N : Nat} {params : RegisterParameters}
     (evolvedState encoding g x).normalized
         (tripleEquiv params ((j, k), y)) =
       circuitAmplitude encoding g x j k y := by
-  change (DeclaredStage.circuit encoding g x).binaryMatrix.applyVec
+  change ((DeclaredStage.circuit N params g x).binaryMatrix (declaredInterpretation
+    encoding)).applyVec
       (NormalizedVector.ket (R := Qubits (totalQubits params))
         (prodEquiv
           ((0 : Fin (2 ^ (firstBits params + params.ell))),
@@ -71,7 +72,7 @@ def shortDLPMeasurementOutcome (params : RegisterParameters)
       (firstBits params + params.ell - 1 - outputIndex.val)
 
 @[simp]
-theorem fullRegisterIndex_shortDLPMeasurementOutcome
+lemma fullRegisterIndex_shortDLPMeasurementOutcome
     (params : RegisterParameters)
     (value : Fin (2 ^ (firstBits params + params.ell))) :
     TerminalZMeasure.fullRegisterIndex
@@ -94,13 +95,13 @@ theorem fullRegisterIndex_shortDLPMeasurementOutcome
       _ = bit.val := congrArg Fin.val (Fin.rev_rev bit)
   rw [hbits, Nat.ofBits_testBit, Nat.mod_eq_of_lt value.isLt]
 
-theorem shortDLPMeasurementOutcome_injective (params : RegisterParameters) :
+lemma shortDLPMeasurementOutcome_injective (params : RegisterParameters) :
     Function.Injective (shortDLPMeasurementOutcome params) := by
   intro left right h
   have hindex := congrArg TerminalZMeasure.fullRegisterIndex h
   simpa using hindex
 
-private theorem shortDLPMeasurementOutcome_bijective
+private lemma shortDLPMeasurementOutcome_bijective
     (params : RegisterParameters) :
     Function.Bijective (shortDLPMeasurementOutcome params) := by
   apply (Fintype.bijective_iff_injective_and_card
@@ -109,7 +110,7 @@ private theorem shortDLPMeasurementOutcome_bijective
   simp [Outcome]
 
 @[simp]
-theorem decodeOutcome_shortDLPMeasurementOutcome
+lemma decodeOutcome_shortDLPMeasurementOutcome
     (params : RegisterParameters)
     (leftRight : Fin (2 ^ (firstBits params + params.ell))) :
     decodeOutcome params (shortDLPMeasurementOutcome params leftRight) =
@@ -117,7 +118,7 @@ theorem decodeOutcome_shortDLPMeasurementOutcome
   simp [decodeOutcome]
 
 @[simp]
-theorem shortDLPMeasurement_readout_triple (params : RegisterParameters)
+lemma shortDLPMeasurement_readout_triple (params : RegisterParameters)
     (leftRight : Fin (2 ^ (firstBits params + params.ell)))
     (workspace : Fin (2 ^ params.workspaceBits)) :
     (measurement params).readout (prodEquiv (leftRight, workspace)) =
@@ -137,7 +138,7 @@ theorem shortDLPMeasurement_readout_triple (params : RegisterParameters)
   exact prodEquiv_testBit_left leftRight workspace
     ⟨firstBits params + params.ell - 1 - outputIndex.val, by omega⟩
 
-theorem shortDLPMeasurement_readout_eq_outcome_iff
+lemma shortDLPMeasurement_readout_eq_outcome_iff
     (params : RegisterParameters)
     (basis : Fin (2 ^ totalQubits params))
     (leftRight : Fin (2 ^ (firstBits params + params.ell))) :
@@ -167,14 +168,14 @@ def shortDLPMeasurementFiberEmbedding {params : RegisterParameters}
     rfl
 
 @[simp]
-theorem shortDLPMeasurementFiberEmbedding_apply
+lemma shortDLPMeasurementFiberEmbedding_apply
     {params : RegisterParameters}
     (leftRight : Fin (2 ^ (firstBits params + params.ell)))
     (workspace : Fin (2 ^ params.workspaceBits)) :
     shortDLPMeasurementFiberEmbedding leftRight workspace =
       prodEquiv (leftRight, workspace) := rfl
 
-theorem shortDLPMeasurement_fiber (params : RegisterParameters)
+lemma shortDLPMeasurement_fiber (params : RegisterParameters)
     (leftRight : Fin (2 ^ (firstBits params + params.ell))) :
     Finset.univ.filter
         (fun basis : Fin (2 ^ totalQubits params) =>
@@ -201,7 +202,7 @@ theorem shortDLPMeasurement_fiber (params : RegisterParameters)
 
 /-- The actual terminal Born probability is the marginal over the unmeasured
 group workspace of the same stored circuit amplitude. -/
-theorem shortDLPBornOutcomeProbability_eq_workspaceMarginal
+lemma shortDLPBornOutcomeProbability_eq_workspaceMarginal
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)

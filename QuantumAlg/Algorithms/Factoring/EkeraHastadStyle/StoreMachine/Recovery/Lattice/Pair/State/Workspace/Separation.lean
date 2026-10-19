@@ -30,7 +30,7 @@ open Execution
 
 noncomputable section
 
-private theorem stateKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma stateKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (left right : LatticePairStateWorkspaceLayout.Cell)
     (different : left ≠ right) :
@@ -41,7 +41,7 @@ private theorem stateKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (LatticePairStateWorkspaceLayout.cellRef_key_injective state distinct equal)
 
 /-- A physical destination is outside the exact support of every distinct stored source. -/
-private theorem stateInput_avoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma stateInput_avoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (source target : LatticePairStateWorkspaceLayout.Cell)
     (different : source ≠ target) :
@@ -67,12 +67,12 @@ def machineCell : LatticeState.MachineCell → LatticePairStateWorkspaceLayout.C
   | .done => .done
 
 /-- The semantic-to-physical machine-cell projection is injective. -/
-theorem machineCell_injective : Function.Injective machineCell := by
+lemma machineCell_injective : Function.Injective machineCell := by
   intro left right equal
   cases left <;> cases right <;> simp [machineCell] at equal ⊢
 
 /-- Machine keys are exactly the corresponding physical state keys. -/
-theorem machineKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma machineKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (cell : LatticeState.MachineCell) :
     (LatticePairStateWorkspaceViews.machineRefs state).keyOf cell =
@@ -81,7 +81,7 @@ theorem machineKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
   cases cell <;> rfl
 
 /-- State-layout distinctness supplies the fixed-fuel machine key invariant. -/
-theorem machineSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma machineSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) :
     (LatticePairStateWorkspaceViews.machineRefs state).Separated := by
@@ -106,7 +106,7 @@ def secondOutputCell : BatchMachine.PairOutputSlot →
   | .j => .secondJ
   | .k => .secondK
 
-private theorem firstOutputKey_eq {kind : ProblemKind}
+private lemma firstOutputKey_eq {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (input : CInputRef ctx (.bits (measurementBits N)))
@@ -117,7 +117,7 @@ private theorem firstOutputKey_eq {kind : ProblemKind}
         (firstOutputCell slot)).toCStorageRef.key := by
   cases slot <;> rfl
 
-private theorem secondOutputKey_eq {kind : ProblemKind}
+private lemma secondOutputKey_eq {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (input : CInputRef ctx (.bits (measurementBits N)))
@@ -128,7 +128,7 @@ private theorem secondOutputKey_eq {kind : ProblemKind}
         (secondOutputCell slot)).toCStorageRef.key := by
   cases slot <;> rfl
 
-private theorem liftedInput_avoids_stateCell {kind : ProblemKind}
+private lemma liftedInput_avoids_stateCell {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (transport : ClassicalWorkspace.Transport outer ctx)
@@ -141,7 +141,7 @@ private theorem liftedInput_avoids_stateCell {kind : ProblemKind}
     state transport separated input
     (LatticePairStateWorkspaceLayout.cellIndex N cell)
 
-private theorem firstDecoderSeparation {kind : ProblemKind}
+private lemma firstDecoderSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (transport : ClassicalWorkspace.Transport outer ctx)
@@ -169,7 +169,7 @@ private theorem firstDecoderSeparation {kind : ProblemKind}
       (by decide)
     jAvoidsK := stateKey_ne state distinct .firstK .firstJ (by decide) }
 
-private theorem secondDecoderSeparation {kind : ProblemKind}
+private lemma secondDecoderSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (transport : ClassicalWorkspace.Transport outer ctx)
@@ -199,7 +199,7 @@ private theorem secondDecoderSeparation {kind : ProblemKind}
 
 /-- Physical state distinctness and caller transport supply the complete
 two-decoder separation package. -/
-theorem pairSeparation {kind : ProblemKind}
+lemma pairSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (transport : ClassicalWorkspace.Transport outer ctx)
@@ -260,7 +260,7 @@ def zeroCell : LatticeBasis.ZeroCell → LatticePairStateWorkspaceLayout.Cell
 
 /-- The physical state inventory supplies the complete sequential basis-loader
 separation. -/
-theorem basisSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma basisSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct)
     (firstTerminal secondTerminal : CInputRef ctx (.bits (measurementBits N))) :
@@ -347,7 +347,7 @@ def rawBasisCells : List LatticePairStateWorkspaceLayout.Cell :=
   [.basis11, .basis12, .basis13, .basis21, .basis22,
     .basis23, .basis31, .basis32, .basis33]
 
-private theorem decoderKeys_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma decoderKeys_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (firstTerminal secondTerminal : CInputRef ctx (.bits (measurementBits N))) :
     LatticeWideInitializationPrefix.decoderKeys
@@ -357,7 +357,7 @@ private theorem decoderKeys_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
         (LatticePairStateWorkspaceLayout.cellRef state cell).toCStorageRef.key := by
   rfl
 
-private theorem rawKeys_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma rawKeys_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N) :
     LatticeWideInitializationPrefix.rawKeys
         (LatticePairStateWorkspaceViews.rawRefs state) =
@@ -377,7 +377,7 @@ def prefixRefs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- State distinctness and caller transport supply the complete decoder--basis
 prefix separation. -/
-theorem prefixSeparation {kind : ProblemKind}
+lemma prefixSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (transport : ClassicalWorkspace.Transport outer ctx)

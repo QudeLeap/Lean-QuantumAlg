@@ -26,7 +26,7 @@ def layout (params : RegisterParameters) : QubitLayout (totalQubits params) wher
   physical_idx_injective := fun _ _ h => Fin.ext h
 
 @[simp]
-theorem layout_systemIdx (params : RegisterParameters) :
+lemma layout_systemIdx (params : RegisterParameters) :
     (layout params).systemIdx = List.range (totalQubits params) := by
   simp [layout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 

@@ -34,21 +34,25 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The actual retained selector, not just the packed result cell, has the
 independent source's chronological first-success law after all completed batches. -/
-theorem completed_selectedDistribution (laterCount : Nat)
+lemma completed_selectedDistribution (laterCount : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized) :
-    (((completedCode base noQuantum N input laterCount).execute Reference state).toPMF
-      (((completedCode base noQuantum N input laterCount).execute_mass Reference state).trans
+    (((completedCode base noQuantum N input laterCount).execute (sourceEnvironment input)
+      Reference state).toPMF
+      (((completedCode base noQuantum N input laterCount).execute_mass (sourceEnvironment input)
+        Reference state).trans
         normalized)).map
         (fun record => Optional.selectedValue
           (Retry.selectionRefs base noQuantum N).selection record.1) =
       Optional.Distribution.selectedDistribution
         ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue)
         (laterCount + 1) := by
-  let final := (completedCode base noQuantum N input laterCount).execute Reference state
+  let final := (completedCode base noQuantum N input laterCount).execute (sourceEnvironment
+    input) Reference state
   have finalNormalized : final.IsNormalized :=
-    ((completedCode base noQuantum N input laterCount).execute_mass Reference state).trans
+    ((completedCode base noQuantum N input laterCount).execute_mass (sourceEnvironment input)
+      Reference state).trans
       normalized
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum state final
     normalized finalNormalized
@@ -76,14 +80,16 @@ theorem completed_selectedDistribution (laterCount : Nat)
 
 /-- Every populated selector supported after any completed positive execution
 is a nontrivial factor, independently of its hidden service and reference. -/
-theorem completed_selected_some_sound (laterCount : Nat)
+lemma completed_selected_some_sound (laterCount : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (word : CShape.Word (modulusBits N))
     (supported : CShape.Value.optionSome word ∈
-      ((((completedCode base noQuantum N input laterCount).execute Reference state).toPMF
-        (((completedCode base noQuantum N input laterCount).execute_mass Reference state).trans
+      ((((completedCode base noQuantum N input laterCount).execute (sourceEnvironment input)
+        Reference state).toPMF
+        (((completedCode base noQuantum N input laterCount).execute_mass (sourceEnvironment
+          input) Reference state).trans
           normalized)).map
           (fun record => Optional.selectedValue
             (Retry.selectionRefs base noQuantum N).selection record.1)).support) :

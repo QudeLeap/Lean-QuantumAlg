@@ -27,20 +27,22 @@ namespace QuantumAlg.MeasuredUncompute.DivisionBranch
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement MAU.Inversion.SharedEEA InPlaceArithmetic
 
 /-- The exact post-reset native sequence cancels the measured character and restores the seed. -/
-theorem after_reset (modulus : Nat) (prime : Nat.Prime modulus)
+lemma after_reset (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator outcome : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
     let completed := InPlaceForward.result modulus value.val positive bounded
     let multiplied := NativeProductFrame.step modulus.size (modulusWord modulus)
       (completed, numerator)
-    ((NativeEEAFrame.backward modulus prime).seq
+    (((NativeEEAFrame.backward modulus prime).seq
       ((ReusedProduct.correction modulus.size (modulusWord modulus)
         (fun index => outcome.val.testBit index.val)).seq
-          (FrameSwap.program modulus.size))).applyVec
+          (FrameSwap.program modulus.size))).applyVec environment)
         (WalshHadamard.walshSign outcome numerator •
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
@@ -56,8 +58,8 @@ theorem after_reset (modulus : Nat) (prime : Nat.Prime modulus)
     (fun state :
       NormalizedVector (QubitLayout.canonical (frameEncoding modulus.size).width).toQuantum.register
       => state.vec)
-    (backward_reset_ket modulus prime value numerator positive bounded)
-  change (NativeEEAFrame.backward modulus prime).applyVec
+    (backward_reset_ket (environment := environment) modulus prime value numerator positive bounded)
+  change ((NativeEEAFrame.backward modulus prime).applyVec environment)
     (NormalizedVector.ket
       ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode

@@ -69,19 +69,19 @@ def ofNormalized (state : NormalizedVector R) (system_idx : List Nat) : PureStat
   system_idx := system_idx
 
 @[simp]
-theorem coe_ofNormalized (state : NormalizedVector R) (system_idx : List Nat) :
+lemma coe_ofNormalized (state : NormalizedVector R) (system_idx : List Nat) :
     ((ofNormalized state system_idx : PureState R) : HilbertVector R) = state := rfl
 
 @[simp]
-theorem ofNormalized_system_idx (state : NormalizedVector R) (system_idx : List Nat) :
+lemma ofNormalized_system_idx (state : NormalizedVector R) (system_idx : List Nat) :
     (ofNormalized state system_idx).system_idx = system_idx := rfl
 
 /-- Prepared pure states are normalized because their mathematical state is. -/
-theorem norm_eq_one (ψ : PureState R) : ‖(ψ : HilbertVector R)‖ = 1 :=
+lemma norm_eq_one (ψ : PureState R) : ‖(ψ : HilbertVector R)‖ = 1 :=
   ψ.state.norm_eq_one
 
 @[ext]
-theorem ext {ψ φ : PureState R} (hvec : ∀ i, ψ i = φ i)
+lemma ext {ψ φ : PureState R} (hvec : ∀ i, ψ i = φ i)
     (hsystem : ψ.system_idx = φ.system_idx) : ψ = φ := by
   have hstate : ψ.state = φ.state := NormalizedVector.ext hvec
   cases ψ
@@ -95,17 +95,17 @@ def basis (x : R.Index) (system_idx : List Nat) : PureState R :=
   ofNormalized (NormalizedVector.ket x) system_idx
 
 @[simp]
-theorem basis_apply (x i : R.Index) (system_idx : List Nat) :
+lemma basis_apply (x i : R.Index) (system_idx : List Nat) :
     basis x system_idx i = if i = x then 1 else 0 :=
   NormalizedVector.ket_apply x i
 
-theorem basis_injective (system_idx : List Nat) :
+lemma basis_injective (system_idx : List Nat) :
     Function.Injective (fun x => basis (R := R) x system_idx) := by
   intro x y hxy
   apply NormalizedVector.ket_injective
   exact congrArg PureState.state hxy
 
-theorem norm_basis (x : R.Index) (system_idx : List Nat) :
+lemma norm_basis (x : R.Index) (system_idx : List Nat) :
     ‖(basis x system_idx : HilbertVector R)‖ = 1 :=
   (basis x system_idx).norm_eq_one
 

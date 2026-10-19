@@ -31,7 +31,7 @@ variable {ctx frame : RuntimeCtx .quantum} {count : Nat}
 
 include key layout fresh disjoint separate in
 /-- The original context is disjoint from any frame disjoint from its complete prepared context. -/
-theorem preparation_original_disjoint : RuntimeCtx.StorageDisjoint ctx frame := by
+lemma preparation_original_disjoint : RuntimeCtx.StorageDisjoint ctx frame := by
   constructor
   · have keys := (RuntimeCtx.keysDisjoint_iff_listDisjoint _ _).mp separate.1
     change List.Disjoint (key :: ctx.keys) frame.keys at keys
@@ -47,7 +47,7 @@ theorem preparation_original_disjoint : RuntimeCtx.StorageDisjoint ctx frame := 
     rw [List.map_append]
     exact List.mem_append_right _ present
 
-private theorem preparation_fresh_union :
+private lemma preparation_fresh_union :
     key ∉ (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate)).keys := by
   rw [RuntimeCtx.keys_disjointUnion]
@@ -58,7 +58,7 @@ private theorem preparation_fresh_union :
     change List.Disjoint (key :: ctx.keys) frame.keys at keys
     exact List.disjoint_left.mp keys List.mem_cons_self framed
 
-private theorem preparation_wires_union :
+private lemma preparation_wires_union :
     List.Disjoint layout.identities (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate)).physicalIdx := by
   rw [RuntimeCtx.physicalIdx_disjointUnion]
@@ -98,7 +98,7 @@ def prepareFramed {gates : GateModel} {oracles : OracleModel}
           frame separate load))
 
 /-- The actual trace charges zero allocation and every fixed-bit loading gate. -/
-theorem prepareFramed_eventTrace {gates : GateModel} {oracles : OracleModel}
+lemma prepareFramed_eventTrace {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
@@ -113,7 +113,7 @@ theorem prepareFramed_eventTrace {gates : GateModel} {oracles : OracleModel}
       (ctx.addOwnedLayout key layout fresh disjoint) frame separate load operations services)
 
 /-- Both the allocation and the loading gate retain the complete resident frame. -/
-theorem prepareFramed_visitedContexts {gates : GateModel} {oracles : OracleModel}
+lemma prepareFramed_visitedContexts {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)

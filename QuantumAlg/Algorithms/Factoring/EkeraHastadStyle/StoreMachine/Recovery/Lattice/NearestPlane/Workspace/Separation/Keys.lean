@@ -29,7 +29,7 @@ structure PhysicalSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : N
   scratchDistinct : scratch.Distinct
   stateScratch : ClassicalWorkspace.CrossSeparated state scratch
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
@@ -55,7 +55,7 @@ def physicalKey {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- Local distinctness and the state-to-nearest cross certificate make the
 unified physical key projection injective. -/
-theorem physicalKey_injective {kind : ProblemKind}
+lemma physicalKey_injective {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}

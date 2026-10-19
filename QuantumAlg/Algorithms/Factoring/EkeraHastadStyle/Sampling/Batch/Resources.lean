@@ -51,7 +51,7 @@ def unitDepthBound (N : Nat) : Nat :=
       reloadXCount (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) +
     16 * RuntimeRound.unitDepthBound (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
 
-private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
+private lemma sequence_pool {pre middle post : RuntimeCtx .quantum}
     (first : Circuit RuntimeRound.model pre middle)
     (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
@@ -62,7 +62,7 @@ private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- The literal first-batch path obeys the independent allowance at every native coordinate. -/
-theorem nativeBatch_resourcePool_le (path : (code base noQuantum N).Path) :
+lemma nativeBatch_resourcePool_le (path : (code base noQuantum N).Path) :
     (code base noQuantum N).resourcePool path ≤ nativeEnvelope N := by
   let sampler : Circuit RuntimeRound.model base (sampledContext base N) :=
     ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N
@@ -123,7 +123,7 @@ theorem nativeBatch_resourcePool_le (path : (code base noQuantum N).Path) :
         (parameter base noQuantum N) (cells base noQuantum N) 16 path.2))
 
 /-- The same real instruction path counts preparation and every complete measured round in depth. -/
-theorem nativeBatch_unitDepth_le (path : (code base noQuantum N).Path) :
+lemma nativeBatch_unitDepth_le (path : (code base noQuantum N).Path) :
     (code base noQuantum N).depth (fun _ => 1) path ≤ unitDepthBound N := by
   have sampled := ShorStyle.Canonical.Sampler.Retained.samplerRetained_unit_depth_le
     (model := RuntimeRound.model) base N path.1.1.1

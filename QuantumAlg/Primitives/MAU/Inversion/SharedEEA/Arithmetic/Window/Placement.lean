@@ -24,6 +24,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticWindowPlacement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ArithmeticWindowRegisters ArithmeticWindowEncoding ArithmeticWindowFullCoordinates
 
 /-- The complete semantic basis transport is induced by the proved native wire bijection. -/
@@ -37,12 +39,12 @@ private def focusBit {width : Nat} (window : Window width)
     EncodedBit (groupedEncoding window) :=
   BinaryLabelEncoding.prodLeftBit _ _ bit
 
-private theorem focus_wire {width : Nat} (window : Window width)
+private lemma focus_wire {width : Nat} (window : Window width)
     (bit : EncodedBit (Addition.TTK.overflowEncoding window.length)) :
     (focusBit window bit).wire.val = bit.wire.val := rfl
 
 /-- The native TTK source lens reads the actual Work2 window through the strict placement. -/
-theorem source_read {width : Nat} (window : Window width)
+lemma source_read {width : Nat} (window : Window width)
     (index : Fin window.length) (state : Registers width) :
     (focusBit window
       (Addition.TTK.withOverflowBit (Addition.TTK.leftBit window.length index))).get
@@ -67,7 +69,7 @@ theorem source_read {width : Nat} (window : Window width)
     bit (sourceBit window index) same state
 
 /-- The native TTK target lens reads the actual Work1 window through the strict placement. -/
-theorem target_read {width : Nat} (window : Window width)
+lemma target_read {width : Nat} (window : Window width)
     (index : Fin window.length) (state : Registers width) :
     (focusBit window
       (Addition.TTK.withOverflowBit (Addition.TTK.rightBit window.length index))).get
@@ -92,7 +94,7 @@ theorem target_read {width : Nat} (window : Window width)
     bit (targetBit window index) same state
 
 /-- The TTK overflow bit reads the original Sign wire through the strict placement. -/
-theorem sign_read {width : Nat} (window : Window width) (state : Registers width) :
+lemma sign_read {width : Nat} (window : Window width) (state : Registers width) :
     (focusBit window (Addition.TTK.overflowBit window.length)).get
         ((placement window).grouping state) = (signBit width).get state := by
   let bit := focusBit window (Addition.TTK.overflowBit window.length)
@@ -111,7 +113,7 @@ theorem sign_read {width : Nat} (window : Window width) (state : Registers width
     bit (signBit width) same state
 
 /-- The derived placement and source grouping agree on every TTK source bit. -/
-theorem source_grouping {width : Nat} (window : Window width)
+lemma source_grouping {width : Nat} (window : Window width)
     (index : Fin window.length) (state : Registers width) :
     (focusBit window
       (Addition.TTK.withOverflowBit (Addition.TTK.leftBit window.length index))).get
@@ -123,7 +125,7 @@ theorem source_grouping {width : Nat} (window : Window width)
     (ArithmeticWindowRegisters.grouping_source_bit window index state).symm
 
 /-- The derived placement and source grouping agree on every TTK target bit. -/
-theorem target_grouping {width : Nat} (window : Window width)
+lemma target_grouping {width : Nat} (window : Window width)
     (index : Fin window.length) (state : Registers width) :
     (focusBit window
       (Addition.TTK.withOverflowBit (Addition.TTK.rightBit window.length index))).get
@@ -135,7 +137,7 @@ theorem target_grouping {width : Nat} (window : Window width)
     (ArithmeticWindowRegisters.grouping_target_bit window index state).symm
 
 /-- The derived placement and source grouping agree on the exact Sign output. -/
-theorem sign_grouping {width : Nat} (window : Window width) (state : Registers width) :
+lemma sign_grouping {width : Nat} (window : Window width) (state : Registers width) :
     (focusBit window (Addition.TTK.overflowBit window.length)).get
         ((placement window).grouping state) =
       (focusBit window (Addition.TTK.overflowBit window.length)).get
@@ -144,7 +146,7 @@ theorem sign_grouping {width : Nat} (window : Window width) (state : Registers w
   rfl
 
 /-- The original Ctrl is read at its unchanged source address. -/
-theorem control_read {width : Nat} (window : Window width) (state : Registers width) :
+lemma control_read {width : Nat} (window : Window width) (state : Registers width) :
     (ArithmeticWindowEncoding.controlBit window).get
       ((placement window).grouping state) = (SharedEEA.controlBit width).get state := by
   have same : wireEquiv window (ArithmeticWindowEncoding.controlBit window).wire =
@@ -156,7 +158,7 @@ theorem control_read {width : Nat} (window : Window width) (state : Registers wi
     (ArithmeticWindowEncoding.controlBit window) (SharedEEA.controlBit width) same state
 
 /-- The arbitrary Iter bit is read at its retained original source address. -/
-theorem work_read {width : Nat} (window : Window width) (state : Registers width) :
+lemma work_read {width : Nat} (window : Window width) (state : Registers width) :
     (ArithmeticWindowEncoding.workBit window).get
       ((placement window).grouping state) = (iterationBit width).get state := by
   have same : wireEquiv window (ArithmeticWindowEncoding.workBit window).wire =
@@ -168,21 +170,21 @@ theorem work_read {width : Nat} (window : Window width) (state : Registers width
     (ArithmeticWindowEncoding.workBit window) (iterationBit width) same state
 
 /-- Both groupings agree on the original Ctrl without any preparation assumption. -/
-theorem control_grouping {width : Nat} (window : Window width) (state : Registers width) :
+lemma control_grouping {width : Nat} (window : Window width) (state : Registers width) :
     (ArithmeticWindowEncoding.controlBit window).get
       ((placement window).grouping state) =
         (ArithmeticWindowEncoding.controlBit window).get (grouping window state) := by
   rw [control_read, SharedEEA.controlBit_get, ArithmeticWindowEncoding.controlBit_get]
 
 /-- Both groupings agree on the arbitrary borrowed Iter work bit. -/
-theorem work_grouping {width : Nat} (window : Window width) (state : Registers width) :
+lemma work_grouping {width : Nat} (window : Window width) (state : Registers width) :
     (ArithmeticWindowEncoding.workBit window).get
       ((placement window).grouping state) =
         (ArithmeticWindowEncoding.workBit window).get (grouping window state) := by
   rw [work_read, iterationBit_get, ArithmeticWindowEncoding.workBit_get]
 
 /-- The complete TTK source, target and overflow focus matches the registered grouping. -/
-theorem focus_grouping {width : Nat} (window : Window width) (state : Registers width) :
+lemma focus_grouping {width : Nat} (window : Window width) (state : Registers width) :
     ((placement window).grouping state).1 = (grouping window state).1 := by
   apply Prod.ext
   · apply Prod.ext
@@ -229,7 +231,7 @@ private def coefficientBit {width : Nat} (window : Window width)
   firstLengthsBit window
     (BinaryLabelEncoding.prodLeftBit _ _ (wordBit index))
 
-private theorem coefficientBit_wire {width : Nat} (window : Window width)
+private lemma coefficientBit_wire {width : Nat} (window : Window width)
     (index : Fin width.size) :
     (coefficientBit window index).wire.val =
       (window.length + window.length + 1) +
@@ -243,7 +245,7 @@ private theorem coefficientBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The first grouped length field reads the original coefficient-length wire. -/
-theorem coefficient_read {width : Nat} (window : Window width)
+lemma coefficient_read {width : Nat} (window : Window width)
     (index : Fin width.size) (state : Registers width) :
     (coefficientBit window index).get ((placement window).grouping state) =
       (coefficientLengthBit width index).get state := by
@@ -262,7 +264,7 @@ theorem coefficient_read {width : Nat} (window : Window width)
     (coefficientBit window index) (coefficientLengthBit width index) same state
 
 /-- The first grouped length field agrees bitwise with the original field grouping. -/
-theorem coefficient_grouping {width : Nat} (window : Window width)
+lemma coefficient_grouping {width : Nat} (window : Window width)
     (index : Fin width.size) (state : Registers width) :
     (coefficientBit window index).get ((placement window).grouping state) =
       (coefficientBit window index).get (grouping window state) := by
@@ -272,7 +274,7 @@ theorem coefficient_grouping {width : Nat} (window : Window width)
   exact (wordBit_get index state.coefficientLength).symm
 
 /-- The coefficient-length word is retained exactly by the physical placement. -/
-theorem coefficient_field {width : Nat} (window : Window width)
+lemma coefficient_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.2.1.1 =
       (grouping window state).2.2.2.1.1 := by
@@ -289,7 +291,7 @@ private def quotientBit {width : Nat} (window : Window width)
   firstLengthsBit window
     (BinaryLabelEncoding.prodRightBit _ _ (wordBit index))
 
-private theorem quotientBit_wire {width : Nat} (window : Window width)
+private lemma quotientBit_wire {width : Nat} (window : Window width)
     (index : Fin width.size) :
     (quotientBit window index).wire.val =
       (window.length + window.length + 1) +
@@ -300,7 +302,7 @@ private theorem quotientBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The quotient-length word is retained exactly by the physical placement. -/
-theorem quotient_field {width : Nat} (window : Window width)
+lemma quotient_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.2.1.2 =
       (grouping window state).2.2.2.1.2 := by
@@ -338,7 +340,7 @@ private def divisorBit {width : Nat} (window : Window width)
     (index : Fin width.size) : EncodedBit (groupedEncoding window) :=
   secondLengthsBit window (BinaryLabelEncoding.prodLeftBit _ _ (wordBit index))
 
-private theorem divisorBit_wire {width : Nat} (window : Window width)
+private lemma divisorBit_wire {width : Nat} (window : Window width)
     (index : Fin width.size) :
     (divisorBit window index).wire.val =
       (window.length + window.length + 1) +
@@ -349,7 +351,7 @@ private theorem divisorBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The divisor-length word is retained exactly by the physical placement. -/
-theorem divisor_field {width : Nat} (window : Window width)
+lemma divisor_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.2.2.1.1 =
       (grouping window state).2.2.2.2.1.1 := by
@@ -379,7 +381,7 @@ private def shiftBit {width : Nat} (window : Window width)
     (index : Fin width.size) : EncodedBit (groupedEncoding window) :=
   secondLengthsBit window (BinaryLabelEncoding.prodRightBit _ _ (wordBit index))
 
-private theorem shiftBit_wire {width : Nat} (window : Window width)
+private lemma shiftBit_wire {width : Nat} (window : Window width)
     (index : Fin width.size) :
     (shiftBit window index).wire.val =
       (window.length + window.length + 1) +
@@ -391,7 +393,7 @@ private theorem shiftBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The shift word is retained exactly by the physical placement. -/
-theorem shift_field {width : Nat} (window : Window width)
+lemma shift_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.2.2.1.2 =
       (grouping window state).2.2.2.2.1.2 := by
@@ -431,7 +433,7 @@ private def firstPhaseBit {width : Nat} (window : Window width) :
     (BinaryLabelEncoding.prodLeftBit _ _
       (BinaryLabelEncoding.prodLeftBit _ _ BinaryLabelEncoding.boolBit))
 
-private theorem firstPhaseBit_wire {width : Nat} (window : Window width) :
+private lemma firstPhaseBit_wire {width : Nat} (window : Window width) :
     (firstPhaseBit window).wire.val =
       2 * window.length + 1 + 2 * (window.above + window.below) +
         4 * width.size := by
@@ -447,7 +449,7 @@ private def secondPhaseBit {width : Nat} (window : Window width) :
     (BinaryLabelEncoding.prodLeftBit _ _
       (BinaryLabelEncoding.prodRightBit _ _ BinaryLabelEncoding.boolBit))
 
-private theorem secondPhaseBit_wire {width : Nat} (window : Window width) :
+private lemma secondPhaseBit_wire {width : Nat} (window : Window width) :
     (secondPhaseBit window).wire.val =
       2 * window.length + 1 + 2 * (window.above + window.below) +
         4 * width.size + 1 := by
@@ -458,7 +460,7 @@ private theorem secondPhaseBit_wire {width : Nat} (window : Window width) :
   omega
 
 /-- Both retained phase flags agree with the original full-frame grouping. -/
-theorem phases_grouping {width : Nat} (window : Window width)
+lemma phases_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.2.2.2.1 =
       (grouping window state).2.2.2.2.2.1 := by
@@ -498,7 +500,7 @@ theorem phases_grouping {width : Nat} (window : Window width)
     rw [SharedEEA.phase2Bit_get] at actual
     exact actual
 
-private theorem wordEquiv_above_bit {width : Nat} (window : Window width)
+private lemma wordEquiv_above_bit {width : Nat} (window : Window width)
     (word : BitVec (width + 3)) (index : Fin window.above) :
     (wordEquiv window word).1.getMsbD index.val = word.getMsbD index.val := by
   rw [wordEquiv_above, BitVec.getMsbD_extractLsb']
@@ -511,7 +513,7 @@ private theorem wordEquiv_above_bit {width : Nat} (window : Window width)
     omega
   simp only [within, bound, decide_true, Bool.true_and, position]
 
-private theorem wordEquiv_below_bit {width : Nat} (window : Window width)
+private lemma wordEquiv_below_bit {width : Nat} (window : Window width)
     (word : BitVec (width + 3)) (index : Fin window.below) :
     (wordEquiv window word).2.2.getMsbD index.val =
       word.getMsbD (window.above + window.length + index.val) := by
@@ -529,14 +531,14 @@ private def firstPrefixBit {width : Nat} (window : Window width)
     (BinaryLabelEncoding.prodLeftBit _ _
       (BinaryLabelEncoding.prodLeftBit _ _ (wordBit index)))
 
-private theorem firstPrefixBit_wire {width : Nat} (window : Window width)
+private lemma firstPrefixBit_wire {width : Nat} (window : Window width)
     (index : Fin window.above) :
     (firstPrefixBit window index).wire.val = 2 * window.length + 1 + index.val := by
   change (window.length + window.length + 1) + index.val = _
   omega
 
 /-- The retained Work1 prefix reads the same original physical bits. -/
-theorem firstPrefix_field {width : Nat} (window : Window width)
+lemma firstPrefix_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.1.1 = (grouping window state).2.1.1 := by
   apply BitVec.eq_of_getMsbD_eq
@@ -574,7 +576,7 @@ private def secondPrefixBit {width : Nat} (window : Window width)
       (BinaryLabelEncoding.prodLeftBit _ _
         (BinaryLabelEncoding.prodLeftBit _ _ (wordBit index))))
 
-private theorem secondPrefixBit_wire {width : Nat} (window : Window width)
+private lemma secondPrefixBit_wire {width : Nat} (window : Window width)
     (index : Fin window.above) :
     (secondPrefixBit window index).wire.val =
       2 * window.length + 1 + window.above + window.below + index.val := by
@@ -583,7 +585,7 @@ private theorem secondPrefixBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The retained Work2 prefix reads the same original physical bits. -/
-theorem secondPrefix_field {width : Nat} (window : Window width)
+lemma secondPrefix_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.1.1 =
       (grouping window state).2.2.1.1 := by
@@ -621,7 +623,7 @@ private def firstSuffixBit {width : Nat} (window : Window width)
     (BinaryLabelEncoding.prodLeftBit _ _
       (BinaryLabelEncoding.prodRightBit _ _ (wordBit index)))
 
-private theorem firstSuffixBit_wire {width : Nat} (window : Window width)
+private lemma firstSuffixBit_wire {width : Nat} (window : Window width)
     (index : Fin window.below) :
     (firstSuffixBit window index).wire.val =
       2 * window.length + 1 + window.above + index.val := by
@@ -629,7 +631,7 @@ private theorem firstSuffixBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The retained Work1 suffix reads the same original physical bits. -/
-theorem firstSuffix_field {width : Nat} (window : Window width)
+lemma firstSuffix_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.1.2 = (grouping window state).2.1.2 := by
   apply BitVec.eq_of_getMsbD_eq
@@ -671,7 +673,7 @@ private def secondSuffixBit {width : Nat} (window : Window width)
       (BinaryLabelEncoding.prodLeftBit _ _
         (BinaryLabelEncoding.prodRightBit _ _ (wordBit index))))
 
-private theorem secondSuffixBit_wire {width : Nat} (window : Window width)
+private lemma secondSuffixBit_wire {width : Nat} (window : Window width)
     (index : Fin window.below) :
     (secondSuffixBit window index).wire.val =
       2 * window.length + 1 + window.above + window.below +
@@ -681,7 +683,7 @@ private theorem secondSuffixBit_wire {width : Nat} (window : Window width)
   omega
 
 /-- The retained Work2 suffix reads the same original physical bits. -/
-theorem secondSuffix_field {width : Nat} (window : Window width)
+lemma secondSuffix_field {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2.2.1.2 =
       (grouping window state).2.2.1.2 := by
@@ -719,7 +721,7 @@ theorem secondSuffix_field {width : Nat} (window : Window width)
   exact actual.trans expected.symm
 
 /-- The strict wire placement reconstructs every field of the original source grouping. -/
-theorem placement_grouping {width : Nat} (window : Window width)
+lemma placement_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     (placement window).grouping state = grouping window state := by
   apply Prod.ext
@@ -753,12 +755,12 @@ theorem placement_grouping {width : Nat} (window : Window width)
                 exact actual
 
 /-- All source and target semantic fields use the original grouping equivalence. -/
-theorem placement_grouping_equiv {width : Nat} (window : Window width) :
+lemma placement_grouping_equiv {width : Nat} (window : Window width) :
     (placement window).grouping = grouping window :=
   Equiv.ext (placement_grouping window)
 
 /-- A second physical placement that fixes the complementary wire interval retains every field. -/
-theorem complement_ofWires_fixed {width : Nat} (window : Window width)
+lemma complement_ofWires_fixed {width : Nat} (window : Window width)
     (otherWires : Fin (groupedEncoding window).width ≃ Fin (encoding width).width)
     (fixed : ∀ index : Fin (groupedEncoding window).width,
       2 * window.length + 1 ≤ index.val → otherWires index = wireEquiv window index)
@@ -835,7 +837,7 @@ def placedStep {width : Nat} (window : Window width)
   (placement window).step action state
 
 /-- Strict physical placement has the registered full-frame arithmetic semantics. -/
-theorem placedStep_eq {width : Nat} (window : Window width)
+lemma placedStep_eq {width : Nat} (window : Window width)
     (action : Addition.TTK.OverflowRegisters window.length × Complement window →
       Addition.TTK.OverflowRegisters window.length × Complement window)
     (state : Registers width) :
@@ -845,19 +847,20 @@ theorem placedStep_eq {width : Nat} (window : Window width)
   rw [placement_grouping_equiv]
 
 /-- Exact basis amplitudes of the actual body survive the original-coordinate placement. -/
-theorem place_realizes {width : Nat} (window : Window width)
+lemma place_realizes {width : Nat} (window : Window width)
     {gates : GateModel} {oracles : OracleModel}
+    {environment : oracles.Interpretation}
     {body : UnitaryCircuit gates oracles
       (QubitLayout.canonical (groupedEncoding window).width).toQuantum}
     {action : Addition.TTK.OverflowRegisters window.length × Complement window →
       Addition.TTK.OverflowRegisters window.length × Complement window}
-    (realizes : UnitaryCircuit.Realizes (groupedEncoding window) body action) :
-    UnitaryCircuit.Realizes (encoding width) (place window body)
+    (realizes : UnitaryCircuit.Realizes (groupedEncoding window) body environment action) :
+    UnitaryCircuit.Realizes (encoding width) (place window body) environment
       (placedStep window action) :=
   (placement window).place_realizes realizes
 
 /-- Every actual native event remains present and ordered after physical placement. -/
-theorem place_eventTrace {width : Nat} (window : Window width)
+lemma place_eventTrace {width : Nat} (window : Window width)
     {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles
       (QubitLayout.canonical (groupedEncoding window).width).toQuantum) :
@@ -865,7 +868,7 @@ theorem place_eventTrace {width : Nat} (window : Window width)
   (placement window).place_eventTrace body
 
 /-- Placement preserves the actual body's depth for every native duration assignment. -/
-theorem place_evaluatedEventDepth {width : Nat} (window : Window width)
+lemma place_evaluatedEventDepth {width : Nat} (window : Window width)
     {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles
       (QubitLayout.canonical (groupedEncoding window).width).toQuantum)

@@ -55,12 +55,12 @@ def preparationRefs (cells : Cells ctx (preparationShapes width)) : PreparationR
   negationFlag := (cellAt cells (0 : Fin 13)).ref
 
 /-- Original chronological key indices are exactly the reversed actual stack indices. -/
-theorem preparationRefs_key (cells : Cells ctx (preparationShapes width)) (index : Fin 13) :
+lemma preparationRefs_key (cells : Cells ctx (preparationShapes width)) (index : Fin 13) :
     (preparationRefs cells).key index = (cellAt cells index.rev).ref.key := by
   fin_cases index <;> rfl
 
 /-- The actual thirteen allocations supply every pairwise separation used by preparation. -/
-theorem preparationRefs_separated (cells : Cells ctx (preparationShapes width))
+lemma preparationRefs_separated (cells : Cells ctx (preparationShapes width))
     (distinct : cells.Distinct) : (preparationRefs cells).Separated := by
   intro left right same
   apply Fin.rev_injective
@@ -69,7 +69,7 @@ theorem preparationRefs_separated (cells : Cells ctx (preparationShapes width))
     (same.trans (preparationRefs_key cells right))
 
 /-- Real initial cell contents provide the only two zero premises needed by preparation. -/
-theorem preparationRefs_initialized_zero (cells : Cells ctx (preparationShapes width))
+lemma preparationRefs_initialized_zero (cells : Cells ctx (preparationShapes width))
     (store : Store ctx) (initialized : cells.Initialized store) :
     (store.read (scaleRead (preparationRefs cells).denominator)).toNat = 0 ∧
       (store.read (scaleRead (preparationRefs cells).zero)).toNat = 0 := by
@@ -80,7 +80,7 @@ theorem preparationRefs_initialized_zero (cells : Cells ctx (preparationShapes w
       (Cells.workspaceCells_cellAt_initialized cells store initialized (2 : Fin 13))
 
 /-- Every actual preparation destination avoids the full storage support of all caller reads. -/
-theorem preparationRefs_transport_avoids {outer : RuntimeCtx kind}
+lemma preparationRefs_transport_avoids {outer : RuntimeCtx kind}
     (cells : Cells ctx (preparationShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (index : Fin 13)
     {shape : CShape} (input : CInputRef outer shape) :

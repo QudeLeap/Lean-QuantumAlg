@@ -10,7 +10,7 @@ import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Density
 import all QuantumAlg.Core.Execution.Context.Permutation.State
 import all QuantumAlg.Core.Execution.Context.Permutation.Layout
-import all QuantumAlg.Core.Execution.Context.Permutation.Local.State
+import all QuantumAlg.Core.Execution.Context.Embedding.Permutation
 import all QuantumAlg.Core.Execution.MarginalLaws
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation
@@ -31,32 +31,36 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem permuted_marginal {source destination : RuntimeCtx .quantum}
+private lemma permuted_marginal {source destination : RuntimeCtx .quantum}
     (same : source.entries.Perm destination.entries) {Reference : Register} {H : Type}
     [Fintype H] (original : State source Reference H) :
     (ContextPermutation.state same original).quantumMarginal =
       original.quantumMarginal.reindex (ContextPermutation.referenceBasis same Reference) := by
   rw [ContextPermutation.state, reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
 
-private theorem placed_body_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma placed_body_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) {Reference : Register} {H : Type} [Fintype H]
     (original : State (context p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((placedBody E Q).execute Reference
+    ((placedBody E Q).execute environment Reference
       (ContextPermutation.state (body_entries p.size) original)).quantumMarginal =
-      ((body E Q).execute Reference original).quantumMarginal.reindex
+      ((body E Q false).execute environment Reference original).quantumMarginal.reindex
         (ContextPermutation.referenceBasis (body_entries p.size) Reference) := by
-  have actual := ContextPermutation.localCircuit_execute (body E Q) (body_isLocal E Q)
-    (after p.size) (body_entries p.size) Reference original
+  have actual := Circuit.permutation_embed_execute (allowAllocation := true)
+    (environment := environment)
+    (body_entries p.size) (body E Q false)
+    Reference original
   have marginal := congrArg
     (fun result : State (after p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × (H × (placedBody E Q).Path)) =>
       result.quantumMarginal) actual
-  exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans (permuted_marginal _ _))
+  exact marginal.trans (permuted_marginal _ _)
 
 /-- The original independent mathematical point action on the actually allocated physical bank. -/
 def placedTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -65,7 +69,7 @@ def placedTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   UnitaryOperator.reindex (ContextPermutation.referenceBasis (body_entries p.size) Reference)
     (target E Q Reference)
 
-private theorem transport_action_of_source_support
+private lemma transport_action_of_source_support
     {source destination : RuntimeCtx .quantum}
     (same : source.entries.Perm destination.entries) (Reference : Register)
     {H : Type} [Fintype H] (domain : source.register.Index → Prop)
@@ -115,20 +119,21 @@ private theorem transport_action_of_source_support
         (permuted_marginal same preimage).symm
 
 /-- Actual placed execution has the complete point action on its internally established domain. -/
-theorem placedBody_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma placedBody_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register} {H : Type} [Fintype H]
     (original : State (after p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (after p.size).register Reference).Index,
       ¬admissible E Q ((ContextPermutation.basis (body_entries p.size)).symm input.1) →
         original.quantumMarginal.matrix input input = 0) :
-    ((placedBody E Q).execute Reference original).quantumMarginal =
+    ((placedBody E Q).execute environment Reference original).quantumMarginal =
       DensityOperator.applyUnitary (placedTarget E Q Reference) original.quantumMarginal :=
   transport_action_of_source_support (body_entries p.size) Reference (admissible E Q)
-    (target E Q Reference) (fun state => ((body E Q).execute Reference state).quantumMarginal)
-    (fun state => ((placedBody E Q).execute Reference state).quantumMarginal)
+    (target E Q Reference)
+    (fun state => ((body E Q false).execute environment Reference state).quantumMarginal)
+    (fun state => ((placedBody E Q).execute environment Reference state).quantumMarginal)
     (fun state => placed_body_marginal E Q state)
-    (fun state allowed => body_density E Q state allowed) original support
+    (fun state allowed => body_density E Q state allowed false) original support
 
 /-- Independent full-reference result retains prescribed work and the mathematical point action. -/
 def resultDensity {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -137,26 +142,27 @@ def resultDensity {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     DensityOperator (Register.prod (after p.size).register Reference) :=
   DensityOperator.applyUnitary (placedTarget E Q Reference) (initializedDensity p Reference input)
 
-private theorem sequence_marginal {first middle last : RuntimeCtx .quantum}
+private lemma sequence_marginal {first middle last : RuntimeCtx .quantum}
     (prefixCode : Circuit (.quantum AlgorithmGate.model .empty) first middle)
     (bodyCode : Circuit (.quantum AlgorithmGate.model .empty) middle last)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State first Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((prefixCode.seq bodyCode).execute Reference original).quantumMarginal =
-      (bodyCode.execute Reference (prefixCode.execute Reference original)).quantumMarginal := by
+    ((prefixCode.seq bodyCode).execute environment Reference original).quantumMarginal =
+      (bodyCode.execute environment Reference (prefixCode.execute environment Reference
+        original)).quantumMarginal := by
   rw [Circuit.execute_seq, State.mapHistory_quantumMarginal]
 
 /-- The complete actual circuit proves the original point contract without a caller work premise. -/
-theorem circuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma circuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register} {H : Type} [Fintype H]
     (original : State (before p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (before p.size).register Reference).Index,
       ¬inputAdmissible E Q input.1 → original.quantumMarginal.matrix input input = 0) :
-    ((circuit E Q).execute Reference original).quantumMarginal =
+    ((circuit E Q).execute environment Reference original).quantumMarginal =
       resultDensity E Q Reference original.quantumMarginal :=
   (sequence_marginal (initializeWork p) (placedBody E Q) original).trans
-    ((placedBody_density E Q ((initializeWork p).execute Reference original)
+    ((placedBody_density E Q ((initializeWork p).execute environment Reference original)
       (initialize_support E Q original support)).trans
         (congrArg (DensityOperator.applyUnitary (placedTarget E Q Reference))
           (initialize_density p original)))

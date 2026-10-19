@@ -70,7 +70,7 @@ public def path {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
     source.Path ≃ target.Path := association.toOperationalEquiv.path
 
 /-- Regrouping retains the complete original dependency depth on every path. -/
-public theorem reassociation_depth_eq {model : ExecutionModel}
+public lemma reassociation_depth_eq {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {source target : Circuit model pre post}
     (association : Reassociation source target) (duration : Resource.Event model → Nat)
     (sourcePath : source.Path) :

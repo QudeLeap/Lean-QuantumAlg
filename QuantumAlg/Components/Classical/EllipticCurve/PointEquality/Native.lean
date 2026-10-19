@@ -95,7 +95,7 @@ def outputAnd (scratch : Scratch ctx width) (output : CWriteRef ctx .bit) :
     ClassicalOp (.product .bit .bit) .bit ctx ctx :=
   .bit .and ctx (.product (read scratch.tag) (read scratch.x)) output
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Each indexed stage is one of the original eight actual instructions. -/

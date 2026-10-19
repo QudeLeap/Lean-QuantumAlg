@@ -25,7 +25,7 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRepetition
 noncomputable section
 
 /-- Every native coordinate is counted once for each actual repeated round. -/
-theorem shortDLP_runtimeRepetition_resourcePool_le {shape : CShape} (m ell width N : Nat)
+lemma shortDLP_runtimeRepetition_resourcePool_le {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -67,7 +67,7 @@ theorem shortDLP_runtimeRepetition_resourcePool_le {shape : CShape} (m ell width
           exact add_comm _ _
 
 /-- Every actual dependency path includes each complete reset and reload before the next round. -/
-theorem shortDLP_runtimeRepetition_unitDepth_le {shape : CShape} (m ell width N : Nat)
+lemma shortDLP_runtimeRepetition_unitDepth_le {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -98,6 +98,41 @@ theorem shortDLP_runtimeRepetition_unitDepth_le {shape : CShape} (m ell width N 
       have laterBound := ih nextCtx nextWires nextParameter nextCells path.2.2
       change 0 + (first.depth (fun _ => 1) path.2.1 +
         later.depth (fun _ => 1) path.2.2) ≤ _
+      rw [Nat.zero_add, Nat.succ_mul]
+      exact (Nat.add_le_add firstBound laterBound).trans_eq (Nat.add_comm _ _)
+
+/-- Every complete repetition pays the actual one-layer reset and literal seed reload per round. -/
+lemma shortDLP_runtimeRepetition_quantumTime_le {shape : CShape} (m ell width N : Nat)
+    (generator target : shape.Value → (ZMod N)ˣ)
+    (ctx : RuntimeCtx .quantum)
+    (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
+    (parameter : CInputRef ctx shape)
+    (cells : Fin (RuntimeRound.resultBits m ell width) → CWriteRef ctx (.finite 2))
+    (count : Nat)
+    (path : (code m ell width N generator target ctx sameWires parameter cells count).Path) :
+    (code m ell width N generator target ctx sameWires parameter cells count).quantumTime path ≤
+      count * RuntimeRound.quantumTimeBound m ell width N := by
+  induction count generalizing ctx with
+  | zero =>
+      change 0 ≤ 0 * RuntimeRound.quantumTimeBound m ell width N
+      exact Nat.zero_le _
+  | succ count ih =>
+      let nextCtx := RuntimeResults.next m ell width ctx
+      let nextWires :=
+        (RuntimeResults.shortDLP_runtimeResult_next_wires m ell width ctx).trans sameWires
+      let nextParameter := parameter.underRetained ctx.canonicalFreshKey
+        (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh
+      let nextCells := fun index => (cells index).underRetained ctx.canonicalFreshKey
+        (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh
+      let first := RuntimeRound.code m ell width nextWires nextParameter N generator target
+        nextCells (RuntimeResults.head m ell width ctx)
+      let later := code m ell width N generator target nextCtx nextWires nextParameter
+        nextCells count
+      have firstBound := RuntimeRound.shortDLP_runtimeRound_quantumTime_le m ell width nextWires
+        nextParameter N generator target nextCells (RuntimeResults.head m ell width ctx) path.2.1
+      have laterBound := ih nextCtx nextWires nextParameter nextCells path.2.2
+      change 0 + (first.quantumTime path.2.1 +
+        later.quantumTime path.2.2) ≤ _
       rw [Nat.zero_add, Nat.succ_mul]
       exact (Nat.add_le_add firstBound laterBound).trans_eq (Nat.add_comm _ _)
 

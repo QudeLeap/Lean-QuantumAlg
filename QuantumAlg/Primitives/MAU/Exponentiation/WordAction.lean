@@ -53,7 +53,7 @@ public def wordExponentiationOperator (exponentWidth width : Nat)
   UnitaryOperator.ofPerm (exponentiationPermutation exponentWidth width modulus base).symm
 
 /-- Every basis label follows the independent total arithmetic action with exact phase. -/
-public theorem wordExponentiationOperator_ket (exponentWidth width : Nat)
+public lemma wordExponentiationOperator_ket (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
     (state : (Fin (2 ^ exponentWidth) × (Fin (2 ^ width) × Fin (2 ^ width))) × Fin (2 ^ width)) :
     (wordExponentiationOperator exponentWidth width modulus base).apply
@@ -67,7 +67,7 @@ public theorem wordExponentiationOperator_ket (exponentWidth width : Nat)
     Equiv.trans_apply, Equiv.symm_apply_apply, unitPowerOracleEquiv_apply]
 
 /-- The independent operator returns the canonical work basis for every arbitrary XOR target. -/
-theorem wordExponentiationOperator_clean (exponentWidth width : Nat)
+lemma wordExponentiationOperator_clean (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth))
     (target : Fin (2 ^ width)) :

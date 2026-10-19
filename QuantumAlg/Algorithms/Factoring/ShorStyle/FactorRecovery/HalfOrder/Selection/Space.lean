@@ -30,7 +30,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem pack_visited (cells : Cells ctx N)
+private lemma pack_visited (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (pack (model := model) cells output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (pack (model := model) cells output).visitedContexts path) : visited =
@@ -38,7 +38,7 @@ private theorem pack_visited (cells : Cells ctx N)
   change visited ∈ [ctx, ctx] at present
   simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using present
 
-private theorem pack_resident_le (cells : Cells ctx N)
+private lemma pack_resident_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (pack (model := model) cells output).Path) :
     (pack (model := model) cells output).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -46,7 +46,7 @@ private theorem pack_resident_le (cells : Cells ctx N)
   intro visited present
   exact (pack_visited cells output path visited present) ▸ le_rfl
 
-private theorem pack_auxiliary_le (cells : Cells ctx N)
+private lemma pack_auxiliary_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (pack (model := model) cells output).Path) :
     (pack (model := model) cells output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
@@ -54,7 +54,7 @@ private theorem pack_auxiliary_le (cells : Cells ctx N)
   intro visited present
   exact (pack_visited cells output path visited present) ▸ le_rfl
 
-private theorem right_resident_le
+private lemma right_resident_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (right (model := model) halfPower cells output).Path) :
@@ -74,7 +74,7 @@ private theorem right_resident_le
     · exact (pack_resident_le cells output path.2.2).trans
         (fun _ => Nat.le_add_right _ _)
 
-private theorem right_auxiliary_le
+private lemma right_auxiliary_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (right (model := model) halfPower cells output).Path) :
@@ -94,7 +94,7 @@ private theorem right_auxiliary_le
     · exact (pack_auxiliary_le cells output path.2.2).trans
         (fun _ => Nat.le_add_right _ _)
 
-private theorem choose_resident_le
+private lemma choose_resident_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (choose (model := model) halfPower cells output).Path) :
@@ -107,7 +107,7 @@ private theorem choose_resident_le
       · exact right_resident_le halfPower cells output path
       · exact (pack_resident_le cells output path).trans (fun _ => Nat.le_add_right _ _)
 
-private theorem choose_auxiliary_le
+private lemma choose_auxiliary_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (choose (model := model) halfPower cells output).Path) :
@@ -121,7 +121,7 @@ private theorem choose_auxiliary_le
       · exact (pack_auxiliary_le cells output path).trans (fun _ => Nat.le_add_right _ _)
 
 /-- Sequential GCD calls share one complete peak workspace while all existing cells stay live. -/
-theorem code_resident_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_resident_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower cells output).Path) :
     (code (model := model) halfPower cells output).peakResidentSpace path ≤
@@ -140,7 +140,7 @@ theorem code_resident_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits 
     · exact choose_resident_le halfPower cells output path.2.2
 
 /-- All actual temporary GCD roles contribute to the same auxiliary peak bound. -/
-theorem code_auxiliary_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_auxiliary_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower cells output).Path) :
     (code (model := model) halfPower cells output).peakAuxiliarySpace path ≤

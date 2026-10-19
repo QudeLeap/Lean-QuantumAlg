@@ -22,9 +22,11 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth EncodedBit GateSpec
 
-theorem gidneySelectedWords_output (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneySelectedWords_output (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
     (state : CanonicalRegisters extra) :
     selectedWordsEquiv extra selected (canonicalOutput modulus constant state) =
@@ -41,7 +43,7 @@ def placedStageGates (extra : Nat) (selected : Fin (extra + 3))
   (canonicalGates extra modulus constant).map (stageFullPlacement extra selected).placeGate
 
 /-- Every source field is restored by the literal stage on the original two-word carrier. -/
-theorem gidneyPlacedStageGates_step (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyPlacedStageGates_step (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
     (state : Registers (extra + 3)) :
     stepList (placedStageGates extra selected modulus constant) state =
@@ -63,22 +65,23 @@ def placedStageProgram (extra : Nat) (selected : Fin (extra + 3))
   programList (QubitLayout.canonical _) .empty (placedStageGates extra selected modulus constant)
 
 /-- Exact coherent semantics, with both arbitrarily initialized borrowed bits returned. -/
-theorem gidneyPlacedStage_realizes (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyPlacedStage_realizes (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1)) :
     UnitaryCircuit.Realizes (encoding (extra + 3))
-      (placedStageProgram extra selected modulus constant)
+      (placedStageProgram extra selected modulus constant) environment
       (selectedOutput selected modulus constant) :=
   realizesList_congrStep _ _ _ (gidneyPlacedStageGates_step extra selected modulus constant)
+      environment
 
 /-- The placement retains each native event in its original execution order. -/
-theorem gidneyPlacedStageGates_events (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyPlacedStageGates_events (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1)) :
     (placedStageGates extra selected modulus constant).map (event .empty) =
       (canonicalGates extra modulus constant).map (event .empty) := by
   simp only [placedStageGates, List.map_map, Function.comp_def, FullPlacement.placeGate_event]
 
 /-- Exact wire placement preserves the original native pool and every evaluated duration. -/
-theorem gidneyPlacedStage_resources (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyPlacedStage_resources (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (placedStageProgram extra selected modulus constant).eventCost =

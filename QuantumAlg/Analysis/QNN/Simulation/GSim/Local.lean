@@ -48,7 +48,7 @@ noncomputable def localB (n : Nat) (i : Fin (3 * n)) :
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   embB (finProdFinEquiv.symm i).2 (finProdFinEquiv.symm i).1
 
-@[simp] theorem localB_localIdx (j : Fin n) (a : Fin 3) :
+@[simp] lemma localB_localIdx (j : Fin n) (a : Fin 3) :
     localB n (localIdx j a) = embB j a := by
   simp [localB, localIdx]
 
@@ -62,23 +62,23 @@ noncomputable def localSpan (n : Nat) :
     Submodule ℂ (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) :=
   Submodule.span ℂ (Set.range (localB n))
 
-theorem localB_mem_span (i : Fin (3 * n)) :
+lemma localB_mem_span (i : Fin (3 * n)) :
     localB n i ∈ localSpan n :=
   Submodule.subset_span ⟨i, rfl⟩
 
-theorem embB_mem_localSpan (j : Fin n) (a : Fin 3) :
+lemma embB_mem_localSpan (j : Fin n) (a : Fin 3) :
     embB j a ∈ localSpan n := by
   rw [← localB_localIdx j a]
   exact localB_mem_span (localIdx j a)
 
-theorem emb_span_le_localSpan (j : Fin n) :
+lemma emb_span_le_localSpan (j : Fin n) :
     Submodule.span ℂ (Set.range (embB j)) ≤ localSpan n := by
   rw [Submodule.span_le]
   intro X hX
   obtain ⟨a, rfl⟩ := hX
   exact embB_mem_localSpan j a
 
-theorem embB_lie_mem_localSpan_same (j : Fin n) (a b : Fin 3) :
+lemma embB_lie_mem_localSpan_same (j : Fin n) (a b : Fin 3) :
     ⁅embB j a, embB j b⁆ ∈ localSpan n := by
   have hx : embB j a ∈ Submodule.span ℂ (embSet j) := by
     rw [← emb_range_span j]
@@ -90,7 +90,7 @@ theorem embB_lie_mem_localSpan_same (j : Fin n) (a b : Fin 3) :
   rw [← emb_range_span j] at h
   exact emb_span_le_localSpan j h
 
-theorem localB_lie_mem_span (i j : Fin (3 * n)) :
+lemma localB_lie_mem_span (i j : Fin (3 * n)) :
     ⁅localB n i, localB n j⁆ ∈ localSpan n := by
   by_cases hsite : (finProdFinEquiv.symm i).2 = (finProdFinEquiv.symm j).2
   · rw [localB, localB]
@@ -100,7 +100,7 @@ theorem localB_lie_mem_span (i j : Fin (3 * n)) :
     exact zero_mem _
 
 /-- The product-local span is closed under the matrix commutator. -/
-theorem localSpan_lie_mem {x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
+lemma localSpan_lie_mem {x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
     (hx : x ∈ localSpan n) (hy : y ∈ localSpan n) :
     ⁅x, y⁆ ∈ localSpan n := by
   change x ∈ Submodule.span ℂ (Set.range (localB n)) at hx
@@ -137,14 +137,14 @@ noncomputable def localLie (n : Nat) :
   toSubmodule := localSpan n
   lie_mem' := fun hx hy => localSpan_lie_mem hx hy
 
-theorem localGens_subset_localLie (n : Nat) :
+lemma localGens_subset_localLie (n : Nat) :
     localGens n ⊆ (localLie n : Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)) := by
   intro A hA
   obtain ⟨i, rfl⟩ := hA
   exact Submodule.smul_mem _ _ (localB_mem_span i)
 
 /-- The product-local DLA is exactly the span of the `3n` local Pauli basis. -/
-theorem local_dla_toSubmodule (n : Nat) :
+lemma local_dla_toSubmodule (n : Nat) :
     (dynamicalLieAlgebra (localGens n)).toSubmodule = localSpan n := by
   apply le_antisymm
   · intro x hx
@@ -163,10 +163,10 @@ theorem local_dla_toSubmodule (n : Nat) :
       simp [Complex.I_mul_I]
     rwa [hkey] at hmem
 
-theorem localB_herm (i : Fin (3 * n)) : (localB n i)ᴴ = localB n i := by
+lemma localB_herm (i : Fin (3 * n)) : (localB n i)ᴴ = localB n i := by
   rw [localB, embB_isHermitian]
 
-theorem localB_ortho (i j : Fin (3 * n)) :
+lemma localB_ortho (i j : Fin (3 * n)) :
     hsInner (localB n i) (localB n j) = if i = j then 1 else 0 := by
   by_cases hsite : (finProdFinEquiv.symm i).2 = (finProdFinEquiv.symm j).2
   · rw [localB, localB]
@@ -201,11 +201,11 @@ noncomputable def localHermBasis (n : Nat) : DLAHermBasis (localGens n) where
   ortho := localB_ortho
   span_eq := (local_dla_toSubmodule n).symm
 
-@[simp] theorem localHermBasis_dim (n : Nat) : (localHermBasis n).dim = 3 * n := rfl
+@[simp] lemma localHermBasis_dim (n : Nat) : (localHermBasis n).dim = 3 * n := rfl
 
-@[simp] theorem localHermBasis_B (n : Nat) : (localHermBasis n).B = localB n := rfl
+@[simp] lemma localHermBasis_B (n : Nat) : (localHermBasis n).B = localB n := rfl
 
-theorem localObs_mem_product_dla (hn : 0 < n) :
+lemma localObs_mem_product_dla (hn : 0 < n) :
     localObs hn ∈ (dynamicalLieAlgebra (localGens n)).toSubmodule := by
   have hB := (localHermBasis n).basis_mem_dla (localIdx (⟨0, hn⟩ : Fin n) 0)
   rw [localHermBasis_B, localB_localIdx] at hB
@@ -219,7 +219,7 @@ theorem localObs_mem_product_dla (hn : 0 < n) :
 /-- For the product-local DLA `su(2)^n`, every gate list drawn from that DLA has
 its local-observable loss exactly reconstructed from the `3n` quantum data
 `Tr[localState * B_j]`. -/
-theorem localObs_loss_reconstruction_from_3n (hn : 0 < n)
+lemma localObs_loss_reconstruction_from_3n (hn : 0 < n)
     {Gs : List (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)}
     (hGs : ∀ A ∈ Gs, A ∈ (dynamicalLieAlgebra (localGens n)).toSubmodule) :
     ((Gs.map NormedSpace.exp).prod * localState
@@ -231,7 +231,7 @@ theorem localObs_loss_reconstruction_from_3n (hn : 0 < n)
 
 /-- The reductive sum for the unscaled local observable collapses to the distinguished-site
 closed form `1/3`. -/
-theorem localObs_productClifford_reductive_sum_closed_eq (hn : 0 < n) :
+lemma localObs_productClifford_reductive_sum_closed_eq (hn : 0 < n) :
     (∑ j : Fin n, (su2EmbHermBasis j).gPurity (localState (n := n))
         * (su2EmbHermBasis j).gPurity (localObs hn) / ((su2EmbHermBasis j).dim : ℂ))
       = 1 / 3 := by
@@ -310,7 +310,7 @@ noncomputable def rLocalProductClifford (hn : 0 < n) :
         if_neg hj, mul_zero]
 
 /-- Product-Clifford variance routed through the reductive g-sim capstone. -/
-theorem localObs_productClifford_reductive_sum_eq (hn : 0 < n) :
+lemma localObs_productClifford_reductive_sum_eq (hn : 0 < n) :
     ((rLocalProductClifford hn).variance : ℂ) =
       ∑ j : Fin n, (su2EmbHermBasis j).gPurity (localState (n := n))
         * (su2EmbHermBasis j).gPurity (localObs hn) / ((su2EmbHermBasis j).dim : ℂ) :=
@@ -320,7 +320,7 @@ theorem localObs_productClifford_reductive_sum_eq (hn : 0 < n) :
 
 /-- The product-local `su(2)^n` variance witness is the genuine product-Clifford twirl witness,
 and its compatibility closed form is exactly `1/3` for every nonempty register. -/
-theorem localObs_productClifford_totalVariance_eq (hn : 0 < n) :
+lemma localObs_productClifford_totalVariance_eq (hn : 0 < n) :
     (rLocalProductClifford hn).variance = 1 / 3 := by
   have key : ((rLocalProductClifford hn).variance : ℂ) = 1 / 3 := by
     rw [localObs_productClifford_reductive_sum_eq hn,
@@ -331,7 +331,7 @@ theorem localObs_productClifford_totalVariance_eq (hn : 0 < n) :
 
 /-- The `secondMoment` field of the local product-Clifford witness is the genuine product twirl
 closed form. This endpoint keeps the H1 equality visible to kernel-clean axiom checking. -/
-theorem localObs_productClifford_secondMoment_eq (hn : 0 < n) :
+lemma localObs_productClifford_secondMoment_eq (hn : 0 < n) :
     (rLocalProductClifford hn).secondMoment =
       ((2 ^ n : ℂ) / 3) • (su2EmbHermBasis (⟨0, hn⟩ : Fin n)).casimir :=
   productQubitClifford_twirl_localObs hn
@@ -339,7 +339,7 @@ theorem localObs_productClifford_secondMoment_eq (hn : 0 < n) :
 /-- Family-level dichotomy for `su(2)^n`: the genuine product-Clifford variance
 witness is exactly `1/3` for every nonempty register, and the loss for every
 product-local DLA gate list reconstructs from `3n` quantum data. -/
-theorem localObs_family_dichotomy (hn : 0 < n) :
+lemma localObs_family_dichotomy (hn : 0 < n) :
     (rLocalProductClifford hn).variance = 1 / 3
     ∧ ∀ (Gs : List (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)),
         (∀ A ∈ Gs, A ∈ (dynamicalLieAlgebra (localGens n)).toSubmodule) →
@@ -356,7 +356,7 @@ theorem localObs_family_dichotomy (hn : 0 < n) :
 twirl by `1/9`, so the distinguished-site Casimir coefficient is `2^n / 27`.
 This is the closed-form twirl equality used for the scaled distinguished-ideal
 purity product; it does not assert bounds on the individual per-ideal purities. -/
-theorem localObs_productClifford_scaled_secondMoment_eq (hn : 0 < n) :
+lemma localObs_productClifford_scaled_secondMoment_eq (hn : 0 < n) :
     twirl2 (productQubitClifford (n := n))
         (((1 / 3 : ℂ) • localObs hn) ⊗ₖ ((1 / 3 : ℂ) • localObs hn)) =
       ((2 ^ n : ℂ) / 27) • (su2EmbHermBasis (⟨0, hn⟩ : Fin n)).casimir := by
@@ -367,7 +367,7 @@ theorem localObs_productClifford_scaled_secondMoment_eq (hn : 0 < n) :
 
 /-- The reductive sum for the scaled local observable collapses to the distinguished-site
 closed form `1/27`. -/
-theorem localObs_productClifford_scaled_reductive_sum_closed_eq (hn : 0 < n) :
+lemma localObs_productClifford_scaled_reductive_sum_closed_eq (hn : 0 < n) :
     (∑ j : Fin n, (su2EmbHermBasis j).gPurity (localState (n := n))
         * (su2EmbHermBasis j).gPurity ((1 / 3 : ℂ) • localObs hn)
           / ((su2EmbHermBasis j).dim : ℂ)) = 1 / 27 := by
@@ -460,7 +460,7 @@ noncomputable def rLocalProductCliffordScaled (hn : 0 < n) :
       simp
 
 /-- Scaled product-Clifford variance routed through the reductive g-sim capstone. -/
-theorem localObs_productClifford_scaled_reductive_sum_eq (hn : 0 < n) :
+lemma localObs_productClifford_scaled_reductive_sum_eq (hn : 0 < n) :
     ((rLocalProductCliffordScaled hn).variance : ℂ) =
       ∑ j : Fin n, (su2EmbHermBasis j).gPurity (localState (n := n))
         * (su2EmbHermBasis j).gPurity ((1 / 3 : ℂ) • localObs hn)
@@ -475,7 +475,7 @@ theorem localObs_productClifford_scaled_reductive_sum_eq (hn : 0 < n) :
 
 /-- The scaled product-local witness has compatibility closed form `1/27`,
 derived from the reductive sum rather than by reducing the witness field. -/
-theorem localObs_productClifford_scaled_totalVariance_eq (hn : 0 < n) :
+lemma localObs_productClifford_scaled_totalVariance_eq (hn : 0 < n) :
     (rLocalProductCliffordScaled hn).variance = 1 / 27 := by
   have key : ((rLocalProductCliffordScaled hn).variance : ℂ) = 1 / 27 := by
     rw [localObs_productClifford_scaled_reductive_sum_eq hn,
@@ -489,7 +489,7 @@ variance witness is exactly `1/27` for every nonempty register, and the same
 `3n` quantum data reconstructs every scaled-observable loss. The variance uses
 only the distinguished-ideal purity product `1/9`, not individual per-ideal
 purity bounds. -/
-theorem localObs_family_dichotomy_scaled (hn : 0 < n) :
+lemma localObs_family_dichotomy_scaled (hn : 0 < n) :
     (rLocalProductCliffordScaled hn).variance = 1 / 27
     ∧ ∀ (Gs : List (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)),
         (∀ A ∈ Gs, A ∈ (dynamicalLieAlgebra (localGens n)).toSubmodule) →

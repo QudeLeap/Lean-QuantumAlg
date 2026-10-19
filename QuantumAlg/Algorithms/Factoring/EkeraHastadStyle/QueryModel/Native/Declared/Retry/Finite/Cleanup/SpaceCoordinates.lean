@@ -58,7 +58,7 @@ private def spaceExpression (M d : Nat) (allocated bank : SpacePool .quantum) :
     (SpacePool.ofShape (.product .bit (.unsignedWord M)) +
       (SpacePool.ofShape (.unsignedWord M) + SpacePool.ofShape .bit))
 
-private theorem spaceExpression_classical (M d A : Nat) {count : Nat}
+private lemma spaceExpression_classical (M d A : Nat) {count : Nat}
     (bank : QuantumLayout count) :
     spaceExpression M d (SpacePool.ofShape (.bits A)) (SpacePool.ofQuantumLayout bank)
         .classicalBits =
@@ -71,7 +71,7 @@ private theorem spaceExpression_classical (M d A : Nat) {count : Nat}
     CShape.bitWidth, PNat.val_ofNat, binaryBits, smul_eq_mul]
   exact bank_classical_arithmetic M d A
 
-private theorem spaceExpression_quantum (M d A : Nat) {count : Nat}
+private lemma spaceExpression_quantum (M d A : Nat) {count : Nat}
     (bank : QuantumLayout count) (dimension : ℕ+) :
     spaceExpression M d (SpacePool.ofShape (.bits A)) (SpacePool.ofQuantumLayout bank)
         (.quantumSystems dimension) = bank.dimensionCount dimension := by
@@ -80,18 +80,60 @@ private theorem spaceExpression_quantum (M d A : Nat) {count : Nat}
     ClassicalRoutines.Modular.NativePower.powerSpace, SpacePool.ofShape,
     SpacePool.ofQuantumLayout, SpacePool.max]
 
-private theorem additionalSpace_expression (N : Nat) :
+/-- Every bank reset cell fits the existing sampler scratch, for every modulus value. -/
+private lemma resetSpace_le_sampler (N : Nat) :
+    resetSpace N ≤ ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum
+      (modulusBits N) := by
+  intro axis
+  cases axis with
+  | classicalBits =>
+      have short := shortLogBits_le_modulusBits_add_one N
+      have tradeoff := tradeoffBits_le_modulusBits_add_one N
+      have binaryBits : Nat.clog 2 2 = 1 := by decide
+      simp only [resetSpace, ShorStyle.Canonical.Sampler.Program.additionalSpace,
+        SpacePool.ofShape, Pi.smul_apply, CShape.bitWidth, PNat.val_ofNat,
+        binaryBits, smul_eq_mul, Nat.mul_one]
+      simp only [ShortDLP.totalQubits, ShortDLP.firstBits, parameters]
+      omega
+  | quantumSystems dimension =>
+      simp [resetSpace, ShorStyle.Canonical.Sampler.Program.additionalSpace, SpacePool.ofShape]
+
+/-- The former one-cell reset expression has the same dominating scratch allowance. -/
+private lemma singleResetSpace_le_sampler (N : Nat) :
+    SpacePool.ofShape (.finite 2) ≤
+      ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N) := by
+  have binaryBits : Nat.clog 2 2 = 1 := by decide
+  intro axis
+  cases axis <;>
+    simp [ShorStyle.Canonical.Sampler.Program.additionalSpace, SpacePool.ofShape,
+      CShape.bitWidth, binaryBits]
+
+private lemma additionalSpace_expression (N : Nat) :
     Retry.additionalSpace N = spaceExpression (modulusBits N) (measurementBits N)
-      (LatticeBatchRecoveryWorkspace.allocationSpace N) (SpacePool.ofQuantumLayout (layout N)) :=
+      (LatticeBatchRecoveryWorkspace.allocationSpace N) (SpacePool.ofQuantumLayout (layout N)) := by
+  have actualScratch : Batch.scratchSpace N =
+      ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N) :=
+    SpacePool.max_eq_left (resetSpace_le_sampler N)
+  have formerScratch :
+      SpacePool.max
+        (ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N))
+        (SpacePool.ofShape (.finite 2)) =
+      ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N) :=
+    SpacePool.max_eq_left (singleResetSpace_le_sampler N)
+  unfold Retry.additionalSpace Batch.Recovery.additionalSpace
+    Batch.Recovery.scratchSpace Batch.Recovery.recoverySpace
+  rw [actualScratch]
+  unfold spaceExpression
+  rw [formerScratch]
   rfl
 
-private theorem positive_classical (N : Nat) :
+private lemma positive_classical (N : Nat) :
     Retry.additionalSpace N .classicalBits = classicalBitBound N 1 := by
   rw [additionalSpace_expression, LatticeBatchRecoveryWorkspace.batchAllocationSpace_eq_bits]
   exact spaceExpression_classical (modulusBits N) (measurementBits N)
     (LatticeBatchRecoveryWorkspace.allocationBits N) (layout N)
 
-private theorem positive_quantum (N : Nat) (dimension : ℕ+) :
+private lemma positive_quantum (N : Nat) (dimension : ℕ+) :
     Retry.additionalSpace N (.quantumSystems dimension) =
       if (2 : ℕ+) = dimension then ShortDLP.totalQubits (parameters N) else 0 := by
   rw [additionalSpace_expression, LatticeBatchRecoveryWorkspace.batchAllocationSpace_eq_bits,
@@ -99,7 +141,7 @@ private theorem positive_quantum (N : Nat) (dimension : ℕ+) :
   exact QubitLayout.toQuantumLayout_dimensionCount (ShortDLP.layout (parameters N)) dimension
 
 /-- Exact classical projection of the independent finite storage allowance. -/
-theorem declaredCleanup_additionalSpace_classicalBits (N count : Nat) :
+lemma declaredCleanup_additionalSpace_classicalBits (N count : Nat) :
     additionalSpace N count .classicalBits = classicalBitBound N count := by
   cases count with
   | zero =>
@@ -108,7 +150,7 @@ theorem declaredCleanup_additionalSpace_classicalBits (N count : Nat) :
   | succ count => exact positive_classical N
 
 /-- Every native quantum dimension of the independent allowance is explicit. -/
-theorem declaredCleanup_additionalSpace_quantum (N count : Nat) (dimension : ℕ+) :
+lemma declaredCleanup_additionalSpace_quantum (N count : Nat) (dimension : ℕ+) :
     additionalSpace N count (.quantumSystems dimension) =
       if (2 : ℕ+) = dimension then qubitBound N count else 0 := by
   cases count with
@@ -116,7 +158,7 @@ theorem declaredCleanup_additionalSpace_quantum (N count : Nat) (dimension : ℕ
   | succ count => exact positive_quantum N dimension
 
 /-- Same-bit prime inputs retain exactly the original oracle width at every positive count. -/
-theorem declaredCleanup_qubitBound_sameBit {n : Nat}
+lemma declaredCleanup_qubitBound_sameBit {n : Nat}
     (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) (laterCount : Nat) :
     qubitBound pair.modulus (laterCount + 1) = 3 * n + 2 * ((n + 2) / 2) + 1 :=
   nativeOracle_qubitCount_sameBit pair positive

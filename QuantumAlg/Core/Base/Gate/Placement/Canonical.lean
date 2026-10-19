@@ -29,7 +29,7 @@ public def canonical (model : GateModel) (token : model.Token) :
   embedding := { position := Function.Embedding.refl _, wire_eq := fun _ => rfl }
 
 /-- A complete canonical application has exactly the token's declared operator. -/
-public theorem gateApplication_canonical_operator (model : GateModel) (token : model.Token) :
+public lemma gateApplication_canonical_operator (model : GateModel) (token : model.Token) :
     (canonical model token).operator = model.operator token := by
   apply Subtype.ext
   ext row column

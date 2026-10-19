@@ -56,7 +56,7 @@ def inputData (modulus : Nat) (modulusPositive : 0 < modulus) (value : Data modu
       Accumulate.residueWord modulus modulusPositive value.target, value.flag)
 
 /-- Original data internally satisfy the complete local input domain, including modulus one. -/
-theorem modularInversion_inputData_admissible (modulus : Nat)
+lemma modularInversion_inputData_admissible (modulus : Nat)
     (modulusPositive : 0 < modulus) (value : Data modulus) :
     AccumulateSpecification.admissible modulus
       (AccumulateRuntime.inputBasisEquiv modulus.size
@@ -66,7 +66,7 @@ theorem modularInversion_inputData_admissible (modulus : Nat)
   exact ⟨ZMod.val_lt _, ZMod.val_coe_unit_coprime value.input, ZMod.val_lt _⟩
 
 /-- The independent target is exactly the original modular-add data operation for every datum. -/
-theorem modularInversion_inputData_target (modulus : Nat)
+lemma modularInversion_inputData_target (modulus : Nat)
     (modulusPositive : 0 < modulus) (value : Data modulus) :
     AccumulateTarget.inputPermutation modulus modulusPositive
         (inputData modulus modulusPositive value) =
@@ -126,20 +126,17 @@ uses [dW19, qcnotes.tex:5381,5394,5405].
 public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
     Problem (.quantum AlgorithmGate.model .empty)
       (inputContext modulus.size) (outputContext modulus.size) .unit where
-  valid := AccumulateTarget.valid modulus
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [AccumulateTarget.requirement modulus modulusPositive]
+  Witness := Unit
+  valid := fun _ _ => AccumulateTarget.valid modulus
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [AccumulateTarget.requirement modulus modulusPositive]
   resources :=
     { events := AccumulateResources.events modulus
       resident := AccumulateResources.space modulus.size
       auxiliary := AccumulateResources.space modulus.size }
-  depth :=
-    { duration := fun _ => 1
-      limit := AccumulateResources.depthBound modulus.size
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := fun coordinate => nomatch coordinate }
+  quantumTimeLimit := AccumulateResources.depthBound modulus.size
 
 /-- Execute the one actual prepared modular-add inverse and manifest every surviving system. -/
 public def algorithm (modulus : Nat) :
@@ -151,40 +148,44 @@ public def algorithm (modulus : Nat) :
 
 /-- The actual prepared native program meets the complete original modular-add inverse contract. -/
 public theorem main (modulus : Nat) (modulusPositive : 0 < modulus) :
-    ∃ candidate, Algorithm.Solves candidate (problem modulus modulusPositive) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate
+      (problem modulus modulusPositive) := by
   refine ⟨algorithm modulus, ?_⟩
   constructor
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid _initial requirement present
+  · intro environment _witness Reference input valid _initial requirement present
     have same : requirement = AccumulateTarget.requirement modulus modulusPositive :=
       List.mem_singleton.mp present
     subst requirement
-    exact AccumulateState.accumulateState_requirement_holds modulus modulusPositive
+    exact AccumulateState.accumulateState_requirement_holds
+      (runtimeEnvironment := environment) modulus modulusPositive
       (Output.all (outputContext modulus.size) .unit) input valid
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     change Execution.observeBorrowedAfter (AccumulateRuntime.code modulus) Reference
-      ((AccumulateRuntime.code modulus).execute Reference
+      ((AccumulateRuntime.code modulus).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
       Execution.observeBorrowed Reference input.state
-    refine (AccumulateState.accumulateState_borrowedRestored modulus
+    refine (AccumulateState.accumulateState_borrowedRestored
+      (runtimeEnvironment := environment) modulus
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
     refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
       (fun _ => rfl) _ _
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_events modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_resident modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact AccumulateResources.accumulateResources_auxiliary modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact AccumulateResources.accumulateResources_depth modulus path
 
 end

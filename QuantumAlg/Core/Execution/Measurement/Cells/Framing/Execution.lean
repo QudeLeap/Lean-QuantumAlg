@@ -28,7 +28,7 @@ open ContextUnion
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} (environment : model.Environment)
 
 /-- The actual recursive allocation records agree at every retained-cell instruction. -/
 def allocateFramedPathEquiv (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+) :
@@ -42,7 +42,7 @@ def allocateFramedPathEquiv (ctx frame : RuntimeCtx model.kind) (dimension : ℕ
           (context ctx dimension count).canonicalFreshKey_fresh separate)).prodCongr
             (Equiv.refl Unit)
 
-private theorem retain_splitState {ctx frame : RuntimeCtx model.kind}
+private lemma retain_splitState {ctx frame : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (separate : RuntimeCtx.StorageDisjoint (ctx.addRetained key shape fresh) frame)
     {Reference : Register} {History : Type} [Fintype History]
@@ -86,9 +86,10 @@ private theorem retain_splitState {ctx frame : RuntimeCtx model.kind}
     exact State.mapClassical_decision _ _ _ _
   exact source.trans (transported.trans target.symm)
 
-private theorem id_as_history {ctx : RuntimeCtx model.kind} {Reference : Register}
+private lemma id_as_history {ctx : RuntimeCtx model.kind} {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference (model.HiddenState × H)) :
-    (Circuit.id (model := model) ctx).execute Reference state =
+    (Circuit.id (allowAllocation := true) (model := model) ctx).execute
+          environment Reference state =
       state.skip.mapHistory
         (fun record => (record.1.1, (record.1.2, record.2))) := by
   rw [Circuit.execute_id]
@@ -97,10 +98,10 @@ private theorem id_as_history {ctx : RuntimeCtx model.kind} {Reference : Registe
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem retain_as_history {ctx : RuntimeCtx model.kind} {Reference : Register}
+private lemma retain_as_history {ctx : RuntimeCtx model.kind} {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference (model.HiddenState × H))
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
-    (Circuit.retain (model := model) ctx key shape fresh).execute Reference state =
+    (Circuit.retain (model := model) ctx key shape fresh).execute environment Reference state =
       (state.retain key shape fresh).mapHistory
         (fun record => (record.1.1, (record.1.2, record.2))) := by
   rw [Circuit.execute_retain]
@@ -109,7 +110,7 @@ private theorem retain_as_history {ctx : RuntimeCtx model.kind} {Reference : Reg
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem retain_splitServiceState {ctx frame : RuntimeCtx model.kind}
+private lemma retain_splitServiceState {ctx frame : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (separate : RuntimeCtx.StorageDisjoint (ctx.addRetained key shape fresh) frame)
     {Reference : Register} {H : Type} [Fintype H]
@@ -118,7 +119,8 @@ private theorem retain_splitServiceState {ctx frame : RuntimeCtx model.kind}
     splitServiceState (ctx.addRetained key shape fresh) frame separate
       ((Circuit.retain (model := model)
         (ctx.disjointUnion frame (retained_disjoint key shape fresh separate))
-        key shape (retained_fresh_union key shape fresh separate)).execute Reference state) =
+        key shape (retained_fresh_union key shape fresh separate)).execute
+          environment Reference state) =
       ((splitServiceState ctx frame (retained_disjoint key shape fresh separate)
         state).retain key shape fresh).mapHistory
           (fun record => (record.1.1, (record.1.2.1, (record.1.2.2, record.2)))) := by
@@ -131,7 +133,7 @@ private theorem retain_splitServiceState {ctx frame : RuntimeCtx model.kind}
   rfl
 
 /-- Actual retained allocation preserves every complete frame block and its physical reference. -/
-theorem allocateFramed_execute (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
+lemma allocateFramed_execute (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State
@@ -139,9 +141,9 @@ theorem allocateFramed_execute (ctx frame : RuntimeCtx model.kind) (dimension : 
       Reference (model.HiddenState × History)) :
     splitServiceState (context ctx dimension count) frame separate
       ((allocateFramed (model := model) ctx frame dimension count separate).execute
-        Reference state) =
+        environment Reference state) =
       ((allocate (model := model) ctx dimension count).execute
-        (Register.prod frame.register Reference)
+        environment (Register.prod frame.register Reference)
         (splitServiceState ctx frame (original_disjoint ctx frame dimension count separate)
           state)).mapHistory
             (fun record => (record.1,
@@ -150,10 +152,11 @@ theorem allocateFramed_execute (ctx frame : RuntimeCtx model.kind) (dimension : 
   induction count with
   | zero =>
       change splitServiceState ctx frame separate
-        ((Circuit.id (model := model) (ctx.disjointUnion frame separate)).execute
-          Reference state) =
-        ((Circuit.id (model := model) ctx).execute
-          (Register.prod frame.register Reference)
+        ((Circuit.id (allowAllocation := true) (model := model)
+          (ctx.disjointUnion frame separate)).execute
+          environment Reference state) =
+        ((Circuit.id (allowAllocation := true) (model := model) ctx).execute
+          environment (Register.prod frame.register Reference)
           (splitServiceState ctx frame separate state)).mapHistory _
       rw [id_as_history, id_as_history]
       unfold splitServiceState
@@ -172,22 +175,23 @@ theorem allocateFramed_execute (ctx frame : RuntimeCtx model.kind) (dimension : 
       change splitServiceState (middle.addRetained middle.canonicalFreshKey
         (.finite dimension) middle.canonicalFreshKey_fresh) frame separate
         (((Circuit.retain (middle.disjointUnion frame prefixSeparate)
-          middle.canonicalFreshKey (.finite dimension) fresh).execute Reference
-            (framedPrefix.execute Reference state)).mapHistory
+          middle.canonicalFreshKey (.finite dimension) fresh).execute environment Reference
+            (framedPrefix.execute environment Reference state)).mapHistory
               (fun history => (history.1, (history.2.1.1,
                 (history.2.1.2, history.2.2))))) = _
       have splitMapped := contextUnion_splitServiceState_mapHistory
         (middle.addRetained middle.canonicalFreshKey (.finite dimension)
           middle.canonicalFreshKey_fresh) frame separate
         ((Circuit.retain (middle.disjointUnion frame prefixSeparate)
-          middle.canonicalFreshKey (.finite dimension) fresh).execute Reference
-            (framedPrefix.execute Reference state))
+          middle.canonicalFreshKey (.finite dimension) fresh).execute environment Reference
+            (framedPrefix.execute environment Reference state))
         (fun history => (history.1.1, (history.1.2, history.2)))
       erw [splitMapped]
       rw [retain_splitServiceState, ih prefixSeparate state, State.mapHistory_retain]
       change _ = ((Circuit.seq (allocate (model := model) ctx dimension count)
         (.retain middle middle.canonicalFreshKey (.finite dimension)
-          middle.canonicalFreshKey_fresh)).execute (Register.prod frame.register Reference)
+          middle.canonicalFreshKey_fresh)).execute
+          environment (Register.prod frame.register Reference)
           (splitServiceState ctx frame
             (original_disjoint ctx frame dimension count prefixSeparate) state)).mapHistory _
       rw [Circuit.execute_seq, retain_as_history]

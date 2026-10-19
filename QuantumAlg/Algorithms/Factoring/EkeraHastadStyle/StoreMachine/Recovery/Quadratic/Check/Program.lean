@@ -23,7 +23,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Native candidate widening into the public modulus width. -/
@@ -62,10 +63,10 @@ def positiveStep (refs : Refs ctx shortWidth) (store : Store ctx) :
   (combined.1, (widened.2, (below.2, (checked.2, combined.2))))
 
 /-- The positive suffix executes its complete record on every incoming reference block. -/
-theorem positiveInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma positiveInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (positiveInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (positiveInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := positiveStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [positiveInto, positiveStep, Circuit.execute_seq,
@@ -118,7 +119,7 @@ def step (refs : TotalRefs ctx shortWidth) (store : Store ctx) : Store ctx × (i
   (chosen.1, (decision.2, chosen.2))
 
 /-- The actual selected store follows the original true-positive, false-reject branch. -/
-theorem chooseStep_store (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
+lemma chooseStep_store (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
     (chooseStep refs store).1 =
       if (store.read (writeInput refs.greaterThanOne)).toBool then
         (positiveStep refs.positiveCheck store).1 else store.applyOp (rejectOp refs) := by
@@ -126,34 +127,36 @@ theorem chooseStep_store (refs : TotalRefs ctx shortWidth) (store : Store ctx) :
   cases value : store.read (writeInput refs.greaterThanOne) with
   | bit flag => cases flag <;> rfl
 
-private theorem arm_execute (refs : TotalRefs ctx shortWidth) (flag : CShape.Value .bit)
+private lemma arm_execute (refs : TotalRefs ctx shortWidth) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (arm refs flag).execute Reference state = state.mapClassical (fun entry =>
+    (arm refs flag).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := armStep refs flag entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
       cases flag with
       | false =>
-          exact BitWord.bitWord_instruction_execute (rejectOp refs) state
+          exact BitWord.bitWord_instruction_execute
+            (environment := environment) (rejectOp refs) state
       | true => exact positiveInto_execute refs.positiveCheck Reference state
 
 /-- Actual stored-value dispatch preserves every incoming history and reference block. -/
-theorem chooseInto_execute (refs : TotalRefs ctx shortWidth) (Reference : Register)
+lemma chooseInto_execute (refs : TotalRefs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (chooseInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (chooseInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := chooseStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_branchStoreRecord (writeInput refs.greaterThanOne) (arm refs)
+  exact Circuit.execute_branchStoreRecord
+    (environment := environment) (writeInput refs.greaterThanOne) (arm refs)
     (armStep refs) (arm_execute refs) Reference state
 
 /-- The total checker executes precisely its actual full-state record. -/
-theorem into_execute (refs : TotalRefs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : TotalRefs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, BitWord.bitWord_instruction_execute,

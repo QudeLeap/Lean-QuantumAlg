@@ -32,6 +32,8 @@ attribute [local instance] Classical.decEq
 universe u
 
 variable {G : Type u} [Group G] [Fintype G] {ctx : RuntimeCtx .quantum}
+variable {oracles : OracleModel}
+variable {quantumEnvironment : oracles.Interpretation}
 
 private def selectorKeys {width : Nat} (refs : FirstAccepted.Refs ctx width) :
     List StorageKey :=
@@ -43,7 +45,7 @@ private def optionValue {width : Nat} (value : Option (CShape.Word width)) :
   | none => .optionNone
   | some word => .optionSome word
 
-private theorem selected_restrict {inner : RuntimeCtx .quantum} {width : Nat}
+private lemma selected_restrict {inner : RuntimeCtx .quantum} {width : Nat}
     (refs : FirstAccepted.Refs ctx width) (transport : Transport ctx inner)
     (store : Store inner) :
     FirstAccepted.selectedOption refs (transport.restrict store) =
@@ -54,22 +56,23 @@ private theorem selected_restrict {inner : RuntimeCtx .quantum} {width : Nat}
     transport.workspaceTransport_restrict_readsAs]
   congr 1
 
-private theorem select_correct (P : KnownOrderProblem G)
+private lemma select_correct (P : KnownOrderProblem G)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (input : CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P))
     (distinct : (selectorKeys refs).Nodup) :
-    ∃ record : Store ctx × (OrderExecution.model P).HiddenState →
-        (Store ctx × (OrderExecution.model P).HiddenState) ×
-          (selectAttempt P spec input refs).Path,
+    ∃ record : Store ctx × (recoveryModel P oracles).HiddenState →
+        (Store ctx × (recoveryModel P oracles).HiddenState) ×
+          (selectAttempt (oracles := oracles) P spec input refs).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)),
-        (selectAttempt P spec input refs).execute Reference state =
+        (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)),
+        (selectAttempt (oracles := oracles) P spec input refs).execute
+          (recoveryEnvironment P quantumEnvironment) Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
-      ∀ before : Store ctx × (OrderExecution.model P).HiddenState,
+      ∀ before : Store ctx × (recoveryModel P oracles).HiddenState,
         FirstAccepted.selectedOption refs (record before).1.1 =
           FirstAccepted.retainFirst (FirstAccepted.selectedOption refs before.1)
             (attemptOption P spec (before.1.read input)) ∧
@@ -77,7 +80,7 @@ private theorem select_correct (P : KnownOrderProblem G)
           (∀ key ∈ selectorKeys refs, key ∉ other.storageKeys) →
           (record before).1.1.read other = before.1.read other := by
   unfold selectAttempt
-  apply withAttempt_actualRecord_correct P spec input _
+  apply withAttempt_actualRecord_correct (oracles := oracles) P spec input _
     (fun before after candidate eligible =>
       FirstAccepted.selectedOption refs after =
         FirstAccepted.retainFirst (FirstAccepted.selectedOption refs before)
@@ -90,12 +93,13 @@ private theorem select_correct (P : KnownOrderProblem G)
   let inputs : FirstAccepted.Inputs inner (OrderPreparation.width P) :=
     ⟨accepted, candidate⟩
   refine ⟨fun entry =>
-      let result := FirstAccepted.step (model := OrderExecution.model P) inputs lifted entry.1
+      let result := FirstAccepted.step (model := recoveryModel P oracles) inputs lifted entry.1
       ((result.1, entry.2), result.2),
     ?_, ?_⟩
   · intro Reference History _ state
     exact (FirstAccepted.firstAccepted_execute
-      (model := OrderExecution.model P) inputs lifted Reference state).trans
+      (environment := recoveryEnvironment P quantumEnvironment)
+      (model := recoveryModel P oracles) inputs lifted Reference state).trans
         (mapClassicalExplicit_eq state _).symm
   intro before
   have separate : FirstAccepted.Separated inputs lifted := by
@@ -122,11 +126,11 @@ private theorem select_correct (P : KnownOrderProblem G)
   refine ⟨?_, ?_⟩
   · rw [selected_restrict, selected_restrict]
     exact FirstAccepted.firstAccepted_selectedOption
-      (model := OrderExecution.model P) (ctx := inner)
+      (model := recoveryModel P oracles) (ctx := inner)
       (width := OrderPreparation.width P) inputs lifted separate before.1
   · intro shape other avoids
     have frame := FirstAccepted.firstAccepted_read_other
-      (model := OrderExecution.model P) (ctx := inner)
+      (model := recoveryModel P oracles) (ctx := inner)
       (width := OrderPreparation.width P) inputs lifted
       (transport.liftInput other)
       (by simpa only [lifted, liftSelector, transport.liftWrite_key,
@@ -143,11 +147,11 @@ private theorem select_correct (P : KnownOrderProblem G)
           avoids refs.selected.key (by simp [selectorKeys]))
       before.1
     exact (transport.workspaceTransport_restrict_readsAs
-      (FirstAccepted.step (model := OrderExecution.model P) inputs lifted before.1).1
+      (FirstAccepted.step (model := recoveryModel P oracles) inputs lifted before.1).1
       other).symm.trans
         (frame.trans (transport.workspaceTransport_restrict_readsAs before.1 other))
 
-private theorem loop_store (P : KnownOrderProblem G)
+private lemma loop_store (P : KnownOrderProblem G)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (samples : Fin count → CInputRef ctx
@@ -155,9 +159,9 @@ private theorem loop_store (P : KnownOrderProblem G)
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P))
     (sampleFree : ∀ index key, key ∈ selectorKeys refs →
       key ∉ (samples index).storageKeys)
-    (records : ∀ index, Store ctx × (OrderExecution.model P).HiddenState →
-      (Store ctx × (OrderExecution.model P).HiddenState) ×
-        (selectAttempt P spec (samples index) refs).Path)
+    (records : ∀ index, Store ctx × (recoveryModel P oracles).HiddenState →
+      (Store ctx × (recoveryModel P oracles).HiddenState) ×
+        (selectAttempt (oracles := oracles) P spec (samples index) refs).Path)
     (values : ∀ index before,
       FirstAccepted.selectedOption refs (records index before).1.1 =
         FirstAccepted.retainFirst (FirstAccepted.selectedOption refs before.1)
@@ -165,9 +169,10 @@ private theorem loop_store (P : KnownOrderProblem G)
       ∀ {shape : CShape} (other : CInputRef ctx shape),
         (∀ key ∈ selectorKeys refs, key ∉ other.storageKeys) →
         (records index before).1.1.read other = before.1.read other)
-    (before : Store ctx × (OrderExecution.model P).HiddenState) :
+    (before : Store ctx × (recoveryModel P oracles).HiddenState) :
     let after := (Circuit.forRangeRecord count
-      (fun index => selectAttempt P spec (samples index) refs) records before).1
+      (fun index => selectAttempt (oracles := oracles) P spec (samples index) refs) records
+        before).1
     FirstAccepted.selectedOption refs after.1 =
       (List.ofFn (fun index => attemptOption P spec
         (before.1.read (samples index)))).foldl FirstAccepted.retainFirst
@@ -193,7 +198,7 @@ private theorem loop_store (P : KnownOrderProblem G)
       · intro shape other avoids
         exact (tail.2 other avoids).trans (head.2 other avoids)
 
-private theorem selectorKeys_cells {width : Nat}
+private lemma selectorKeys_cells {width : Nat}
     (cells : Cells ctx (selectorShapes width)) :
     selectorKeys (selectorRefs cells) = cells.keys := by
   cases cells with
@@ -205,7 +210,7 @@ private theorem selectorKeys_cells {width : Nat}
               cases rest with
               | cons accepted rest => cases rest; rfl
 
-private theorem selected_initialized {width : Nat}
+private lemma selected_initialized {width : Nat}
     (cells : Cells ctx (selectorShapes width)) (store : Store ctx)
     (initialized : cells.Initialized store) :
     FirstAccepted.selectedOption (selectorRefs cells) store = none := by
@@ -224,7 +229,7 @@ private theorem selected_initialized {width : Nat}
                     initialized.2.2.2.1, CShape.initialValue, CShape.Value.toBool,
                     Bool.false_eq_true, if_false]
 
-private theorem pack_store {width : Nat}
+private lemma pack_store {width : Nat}
     (refs : FirstAccepted.Refs ctx width)
     (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx) :
     store.applyOp (selectionPack refs output) =
@@ -241,52 +246,57 @@ private theorem pack_store {width : Nat}
 private def packStep (P : KnownOrderProblem G) {width : Nat}
     (refs : FirstAccepted.Refs ctx width)
     (output : CWriteRef ctx (.option (.unsignedWord width)))
-    (entry : Store ctx × (OrderExecution.model P).HiddenState) :
-    (Store ctx × (OrderExecution.model P).HiddenState) ×
-      (BitWord.instruction (execution := OrderExecution.model P)
+    (entry : Store ctx × (recoveryModel P oracles).HiddenState) :
+    (Store ctx × (recoveryModel P oracles).HiddenState) ×
+      (BitWord.instruction (execution := recoveryModel P oracles)
         (selectionPack refs output)).Path :=
-  let result := BitWord.instructionStep (execution := OrderExecution.model P)
+  let result := BitWord.instructionStep (execution := recoveryModel P oracles)
     (selectionPack refs output) entry.1
   ((result.1, entry.2), result.2)
 
-private theorem packStep_execute (P : KnownOrderProblem G) {width : Nat}
+private lemma packStep_execute (P : KnownOrderProblem G) {width : Nat}
     (refs : FirstAccepted.Refs ctx width)
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)) :
-    (BitWord.instruction (execution := OrderExecution.model P)
-      (selectionPack refs output)).execute Reference state =
+    (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)) :
+    (BitWord.instruction (execution := recoveryModel P oracles)
+      (selectionPack refs output)).execute
+        (recoveryEnvironment P quantumEnvironment) Reference state =
       state.mapClassical (fun entry =>
-        let result := packStep P refs output (entry.1, entry.2.1)
+        let result := packStep (oracles := oracles) P refs output (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   exact BitWord.bitWord_instruction_execute
-    (execution := OrderExecution.model P) (selectionPack refs output) state
+    (environment := recoveryEnvironment P quantumEnvironment)
+    (execution := recoveryModel P oracles) (selectionPack refs output) state
 
 /-- The complete actual recovery record writes exactly its pure chronological value. -/
-public theorem recoveryInto_actualRecord_correct (P : KnownOrderProblem G)
+public lemma recoveryInto_actualRecord_correct (P : KnownOrderProblem G)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (samples : Fin count → CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (output : CWriteRef ctx
       (.option (.unsignedWord (OrderPreparation.width P)))) :
-    ∃ record : Store ctx × (OrderExecution.model P).HiddenState →
-        (Store ctx × (OrderExecution.model P).HiddenState) ×
-          (recoveryInto P spec count samples output).Path,
+    ∃ record : Store ctx × (recoveryModel P oracles).HiddenState →
+        (Store ctx × (recoveryModel P oracles).HiddenState) ×
+          (recoveryInto (oracles := oracles) P spec count samples output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)),
-        (recoveryInto P spec count samples output).execute Reference state =
+        (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)),
+        (recoveryInto (oracles := oracles) P spec count samples output).execute
+          (recoveryEnvironment P quantumEnvironment) Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
-      ∀ before : Store ctx × (OrderExecution.model P).HiddenState,
+      ∀ before : Store ctx × (recoveryModel P oracles).HiddenState,
         (record before).1.1 = before.1.write output
           (recoveryValue P spec count (fun index => before.1.read (samples index))) := by
   apply withCells_actualRecord_initialized_restricted_post
-    (model := OrderExecution.model P) ctx
+    (environment := recoveryEnvironment P quantumEnvironment)
+    (model := recoveryModel P oracles) ctx
     (selectorShapes (OrderPreparation.width P))
     (fun cells _ transport _ =>
-      recoveryBody P spec count (fun index => transport.liftInput (samples index))
+      recoveryBody (oracles := oracles) P spec count (fun index => transport.liftInput (samples
+        index))
         (selectorRefs cells) (transport.liftWrite output))
     (fun before after => after = before.write output
       (recoveryValue P spec count (fun index => before.read (samples index))))
@@ -304,21 +314,25 @@ public theorem recoveryInto_actualRecord_correct (P : KnownOrderProblem G)
       simpa only [refs, selectorKeys_cells] using present
     exact cells.workspaceCells_transportSeparated_avoids_of_mem
       transport separated actual other
-  have each := fun index => select_correct P spec (inputs index) refs different
+  have each := fun index => select_correct
+    (quantumEnvironment := quantumEnvironment)
+    (oracles := oracles) P spec (inputs index) refs different
   choose records equations values using each
-  let loop := selectionLoop P spec count inputs refs
+  let loop := selectionLoop (oracles := oracles) P spec count inputs refs
   let first := Circuit.forRangeRecord count
-    (fun index => selectAttempt P spec (inputs index) refs) records
-  let pack := BitWord.instruction (execution := OrderExecution.model P)
+    (fun index => selectAttempt (oracles := oracles) P spec (inputs index) refs) records
+  let pack := BitWord.instruction (execution := recoveryModel P oracles)
     (selectionPack refs (transport.liftWrite output))
   refine ⟨Circuit.sequenceRecord loop pack first
-      (packStep P refs (transport.liftWrite output)),
-    Circuit.execute_sequenceRecord loop pack first
-      (packStep P refs (transport.liftWrite output))
-      (Circuit.execute_forRangeRecord count _ records equations)
-      (packStep_execute P refs (transport.liftWrite output)), ?_⟩
+      (packStep (oracles := oracles) P refs (transport.liftWrite output)),
+    Circuit.execute_sequenceRecord (environment := recoveryEnvironment P quantumEnvironment)
+      loop pack first
+      (packStep (oracles := oracles) P refs (transport.liftWrite output))
+      (Circuit.execute_forRangeRecord (environment := recoveryEnvironment P quantumEnvironment)
+        count _ records equations)
+      (packStep_execute (oracles := oracles) P refs (transport.liftWrite output)), ?_⟩
   intro before initialized
-  have actual := loop_store P spec count inputs refs
+  have actual := loop_store (oracles := oracles) P spec count inputs refs
     (fun index key present => free key present (samples index))
     records values before
   have original : transport.restrict (first before).1.1 =

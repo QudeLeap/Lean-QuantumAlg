@@ -32,15 +32,15 @@ open Execution
 
 noncomputable section
 
-variable {execution : ExecutionModel} [Selected execution]
+variable {execution : ExecutionModel} {environment : execution.Environment} [Selected execution]
   {ctx : RuntimeCtx execution.kind} {width : Nat}
 
 open scoped Classical in
 /-- The actual sampled value drives both the original output write and the real returned path. -/
-public theorem randomCode_execute (output : CWriteRef ctx (.bits width))
+public lemma randomCode_execute (output : CWriteRef ctx (.bits width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (execution.HiddenState × History)) :
-    (code (execution := execution) output).execute Reference state =
+    (code (execution := execution) output).execute environment Reference state =
       (kernelChoice state (fun _ => uniformBits width)).mapClassical (fun entry =>
         (entry.1.1.write output entry.2,
           (entry.1.2.1, (entry.1.2.2,
@@ -106,12 +106,13 @@ public theorem randomCode_execute (output : CWriteRef ctx (.bits width))
 
 open scoped Classical in
 /-- Every output block is the complete weighted sum of its actual source and random outcome. -/
-public theorem randomCode_block_matrix (output : CWriteRef ctx (.bits width))
+public lemma randomCode_block_matrix (output : CWriteRef ctx (.bits width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (execution.HiddenState × History))
     (result : Store ctx × (execution.HiddenState ×
       (History × (code (execution := execution) output).Path))) :
-    (((code (execution := execution) output).execute Reference state).block result).matrix =
+    (((code (execution := execution) output).execute environment Reference state).block
+      result).matrix =
       ∑ entry : (Store ctx × (execution.HiddenState × History)) × CShape.Value (.bits width),
         if (entry.1.1.write output entry.2,
             (entry.1.2.1, (entry.1.2.2,

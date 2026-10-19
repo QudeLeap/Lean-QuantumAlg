@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.AccumulateRuntime
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution
 
 /-- Extend the actual arithmetic by the live flag and preserve the numerical binary association. -/
@@ -46,11 +48,11 @@ def program (modulus : Nat) :
   PayloadRuntime.program modulus.size (modulus.size + 1) (nativeProgram modulus)
 
 /-- The trivial branch preserves every full basis column, including arbitrary auxiliary values. -/
-theorem accumulateRuntime_trivial_ket (modulus : Nat) (trivial : ¬1 < modulus)
+lemma accumulateRuntime_trivial_ket (modulus : Nat) (trivial : ¬1 < modulus)
     (basis : (after modulus.size).register.Index) :
-    (program modulus).applyNormalized (NormalizedVector.ket basis) =
+    (program modulus).applyNormalized environment (NormalizedVector.ket basis) =
       NormalizedVector.ket basis := by
-  have native : (nativeProgram modulus).applyNormalized
+  have native : (nativeProgram modulus).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical
           (PayloadPreparation.frameEncoding modulus.size (modulus.size + 1)).width).basisEquiv.symm
@@ -65,7 +67,8 @@ theorem accumulateRuntime_trivial_ket (modulus : Nat) (trivial : ¬1 < modulus)
     exact UnitaryOperator.one_apply _
   have selected := PayloadRuntimeFrame.selectedBasis_eq_basisEquiv modulus.size
     (modulus.size + 1) basis
-  have actual := PayloadRuntime.payloadRuntime_program_apply_ket modulus.size
+  have actual := PayloadRuntime.payloadRuntime_program_apply_ket
+      (environment := environment) modulus.size
     (modulus.size + 1) (nativeProgram modulus) _ _ native basis basis selected selected
   exact actual
 
@@ -78,13 +81,13 @@ def outputOld (modulus : Nat) (modulusPositive : 0 < modulus)
         (inputBasisEquiv modulus.size old).2.1,
       (inputBasisEquiv modulus.size old).2.2)
 
-private theorem cast_native_action {source target : Nat} (same : source = target)
+private lemma cast_native_action {source target : Nat} (same : source = target)
     (body : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical source).toQuantum)
     (input output : Fin (2 ^ source))
-    (action : body.applyNormalized
+    (action : body.applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical source).basisEquiv.symm input)) =
         NormalizedVector.ket ((QubitLayout.canonical source).basisEquiv.symm output)) :
-    (body.castCanonicalQubitWidth same).applyNormalized
+    (body.castCanonicalQubitWidth same).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical target).basisEquiv.symm
           (UnitaryCircuit.castQubitWidthIndex same input))) =
@@ -94,11 +97,11 @@ private theorem cast_native_action {source target : Nat} (same : source = target
   cases same
   exact action
 
-private theorem extendedProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
+private lemma extendedProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input target : Fin (2 ^ modulus.size)) (flag : Bool)
     (coprime : Nat.Coprime input.val modulus) (positive : 0 < input.val)
     (bounded : input.val < modulus) (targetBounded : target.val < modulus) :
-    (extendedProgram modulus nontrivial).applyNormalized
+    (extendedProgram modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (PayloadPreparation.frameEncoding modulus.size
@@ -113,10 +116,11 @@ private theorem extendedProgram_initial (modulus : Nat) (nontrivial : 1 < modulu
             ((nativeEncoding modulus.size).encode
               ((InitialFrame.initial modulus input,
                 Accumulate.output modulus (by omega) input.val target), flag)))) := by
-  have native := Accumulate.accumulateProgram_reference BinaryLabelEncoding.bool modulus nontrivial
+  have native := Accumulate.accumulateProgram_reference (environment := environment)
+    BinaryLabelEncoding.bool modulus nontrivial
     input target coprime positive bounded targetBounded flag
   change (UnitaryCircuit.onBinaryPrefix 1
-      (Accumulate.program modulus nontrivial)).applyNormalized
+      (Accumulate.program modulus nontrivial)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (nativeEncoding modulus.size).width).basisEquiv.symm
             ((nativeEncoding modulus.size).encode
@@ -134,10 +138,10 @@ private theorem extendedProgram_initial (modulus : Nat) (nontrivial : 1 < modulu
       ((InitialFrame.initial modulus input,
         Accumulate.output modulus (by omega) input.val target), flag)) native
 
-private theorem nativeProgram_prepared (modulus : Nat) (nontrivial : 1 < modulus)
+private lemma nativeProgram_prepared (modulus : Nat) (nontrivial : 1 < modulus)
     (old : (before modulus.size).register.Index)
     (allowed : AccumulateSpecification.admissible modulus (inputBasisEquiv modulus.size old)) :
-    (nativeProgram modulus).applyNormalized
+    (nativeProgram modulus).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (PayloadPreparation.frameEncoding modulus.size
@@ -162,17 +166,18 @@ private theorem nativeProgram_prepared (modulus : Nat) (nontrivial : 1 < modulus
     allowed.2.1 positive allowed.1 allowed.2.2
 
 /-- The complete native branch restores prepared fields and preserves the supplied flag. -/
-theorem accumulateRuntime_prepared_ket (modulus : Nat) (nontrivial : 1 < modulus)
+lemma accumulateRuntime_prepared_ket (modulus : Nat) (nontrivial : 1 < modulus)
     (old : (before modulus.size).register.Index)
     (allowed : AccumulateSpecification.admissible modulus (inputBasisEquiv modulus.size old)) :
-    (program modulus).applyNormalized
+    (program modulus).applyNormalized environment
         (NormalizedVector.ket (R := (after modulus.size).register)
           (PayloadPreparation.assembly modulus.size (modulus.size + 1)
             ((InputPreparation.preparation modulus).value, old))) =
       NormalizedVector.ket (R := (after modulus.size).register)
         (PayloadPreparation.assembly modulus.size (modulus.size + 1)
           ((InputPreparation.preparation modulus).value, outputOld modulus (by omega) old)) := by
-  have actual := PayloadRuntime.payloadRuntime_program_apply_ket modulus.size (modulus.size + 1)
+  have actual := PayloadRuntime.payloadRuntime_program_apply_ket
+      (environment := environment) modulus.size (modulus.size + 1)
     (nativeProgram modulus) _ _ (nativeProgram_prepared modulus nontrivial old allowed)
     (PayloadPreparation.assembly modulus.size (modulus.size + 1)
       ((InputPreparation.preparation modulus).value, old))
@@ -189,7 +194,7 @@ def code (modulus : Nat) :
   PayloadRuntime.code modulus (modulus.size + 1) (nativeProgram modulus)
 
 /-- Every actual trace includes preparation and all occurrences of the same selected native body. -/
-theorem accumulateRuntime_code_eventTrace (modulus : Nat) (path : (code modulus).Path) :
+lemma accumulateRuntime_code_eventTrace (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).eventTrace path =
       (ZeroPreparation.eventTrace AlgorithmGate.model .empty
         (InputPreparation.auxiliaryLayout modulus.size) ++

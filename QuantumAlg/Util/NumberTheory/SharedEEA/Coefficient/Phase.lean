@@ -51,7 +51,7 @@ deriving DecidableEq
 def lowBit (quotient : Nat) : Bool := decide (quotient % 2 = 1)
 
 /-- The conditional contribution equals the quotient's lowest binary digit times its place. -/
-theorem lowBit_contribution (quotient threshold : Nat) :
+lemma lowBit_contribution (quotient threshold : Nat) :
     (if lowBit quotient then threshold else 0) = quotient % 2 * threshold := by
   have remainderBound := Nat.mod_lt quotient (by decide : 0 < 2)
   by_cases odd : quotient % 2 = 1
@@ -60,7 +60,7 @@ theorem lowBit_contribution (quotient threshold : Nat) :
     simp [lowBit, even]
 
 /-- The recovered Boolean is the actual numerical lowest quotient bit. -/
-theorem lowBit_value (quotient : Nat) :
+lemma lowBit_value (quotient : Nat) :
     (if lowBit quotient then 1 else 0) = quotient % 2 := by
   simpa only [Nat.mul_one] using lowBit_contribution quotient 1
 
@@ -82,13 +82,13 @@ def Below (coefficient : Nat) (state : State) : Prop :=
   state.value < state.scale * coefficient
 
 /-- The actual quotient-bit coordinate is zero after this microstep. -/
-theorem step_clears (coefficient : Nat) (state : State) (below : Below coefficient state) :
+lemma step_clears (coefficient : Nat) (state : State) (below : Below coefficient state) :
     (QuotientBits.consumeBit (state.scale * coefficient)
       (state.value, lowBit state.remaining)).2 = false :=
   QuotientBits.consumeBit_clears _ _ _ below
 
 /-- The updated value preserves the low-contribution invariant at the next binary place. -/
-theorem step_below (coefficient : Nat) (state : State) (below : Below coefficient state) :
+lemma step_below (coefficient : Nat) (state : State) (below : Below coefficient state) :
     Below coefficient (step coefficient state) := by
   change (QuotientBits.consumeBit (state.scale * coefficient)
       (state.value, lowBit state.remaining)).1 < (2 * state.scale) * coefficient
@@ -97,7 +97,7 @@ theorem step_below (coefficient : Nat) (state : State) (below : Below coefficien
     _ = _ := by ring
 
 /-- The updated arithmetic data reconstruct the actual preceding microstate. -/
-theorem rewind_step (coefficient : Nat) (state : State) (below : Below coefficient state) :
+lemma rewind_step (coefficient : Nat) (state : State) (below : Below coefficient state) :
     rewind coefficient (step coefficient state) = state := by
   have scaleRecovered : (2 * state.scale) / 2 = state.scale :=
     Nat.mul_div_right state.scale (by decide : 0 < 2)
@@ -118,7 +118,7 @@ theorem rewind_step (coefficient : Nat) (state : State) (below : Below coefficie
   · exact scaleRecovered
 
 /-- The actual microstep is injective on the reachable arithmetic range. -/
-theorem step_injective {coefficient : Nat} {left right : State}
+lemma step_injective {coefficient : Nat} {left right : State}
     (leftBelow : Below coefficient left) (rightBelow : Below coefficient right)
     (same : step coefficient left = step coefficient right) : left = right := by
   calc
@@ -132,7 +132,7 @@ def total (coefficient : Nat) (state : State) : Nat :=
   state.value + state.remaining * state.scale * coefficient
 
 /-- Each actual bit microstep preserves the complete coefficient value being computed. -/
-theorem step_total (coefficient : Nat) (state : State) :
+lemma step_total (coefficient : Nat) (state : State) :
     total coefficient (step coefficient state) = total coefficient state := by
   change state.value + (if lowBit state.remaining then state.scale * coefficient else 0) +
       state.remaining / 2 * (2 * state.scale) * coefficient =
@@ -154,14 +154,14 @@ def rewindRun (coefficient : Nat) : Nat → State → State
   | count + 1, state => rewindRun coefficient count (rewind coefficient state)
 
 /-- The arithmetic low-part invariant holds at every intermediate microstate. -/
-theorem run_below (coefficient count : Nat) (state : State)
+lemma run_below (coefficient count : Nat) (state : State)
     (below : Below coefficient state) : Below coefficient (run coefficient count state) := by
   induction count with
   | zero => exact below
   | succ count inductionHypothesis => exact step_below coefficient _ inductionHypothesis
 
 /-- The complete microstep sequence has an actual left inverse on its reachable range. -/
-theorem rewindRun_run (coefficient count : Nat) (state : State)
+lemma rewindRun_run (coefficient count : Nat) (state : State)
     (below : Below coefficient state) :
     rewindRun coefficient count (run coefficient count state) = state := by
   induction count with
@@ -173,7 +173,7 @@ theorem rewindRun_run (coefficient count : Nat) (state : State)
     exact inductionHypothesis
 
 /-- The unconsumed quotient is exactly the suffix after the specified right shifts. -/
-theorem run_remaining (coefficient count : Nat) (state : State) :
+lemma run_remaining (coefficient count : Nat) (state : State) :
     (run coefficient count state).remaining = state.remaining / 2 ^ count := by
   induction count with
   | zero => simp [run]
@@ -182,7 +182,7 @@ theorem run_remaining (coefficient count : Nat) (state : State) :
     rw [inductionHypothesis, Nat.div_div_eq_div_mul, Nat.pow_succ]
 
 /-- The scale stores the exact binary place after all performed microsteps. -/
-theorem run_scale (coefficient count : Nat) (state : State) :
+lemma run_scale (coefficient count : Nat) (state : State) :
     (run coefficient count state).scale = 2 ^ count * state.scale := by
   induction count with
   | zero => simp [run]
@@ -192,7 +192,7 @@ theorem run_scale (coefficient count : Nat) (state : State) :
     ring
 
 /-- The value to be computed is unchanged by the actual finite sequence. -/
-theorem run_total (coefficient count : Nat) (state : State) :
+lemma run_total (coefficient count : Nat) (state : State) :
     total coefficient (run coefficient count state) = total coefficient state := by
   induction count with
   | zero => rfl
@@ -200,7 +200,7 @@ theorem run_total (coefficient count : Nat) (state : State) :
     exact (step_total coefficient (run coefficient count state)).trans inductionHypothesis
 
 /-- The accumulated value contains exactly the consumed low quotient bits from the source. -/
-theorem run_value (coefficient count : Nat) (state : State) :
+lemma run_value (coefficient count : Nat) (state : State) :
     (run coefficient count state).value =
       state.value + (state.remaining % 2 ^ count) * state.scale * coefficient := by
   have decomposed : state.value + state.remaining * state.scale * coefficient =
@@ -219,7 +219,7 @@ theorem run_value (coefficient count : Nat) (state : State) :
   exact Nat.add_right_cancel conserved
 
 /-- Every microstep before the quotient's exact bit length still has a bit to consume. -/
-theorem run_active (coefficient count : Nat) (state : State)
+lemma run_active (coefficient count : Nat) (state : State)
     (beforeEnd : count < state.remaining.size) :
     0 < (run coefficient count state).remaining := by
   rw [run_remaining]
@@ -230,13 +230,13 @@ def finish (coefficient : Nat) (state : State) : State :=
   run coefficient state.remaining.size state
 
 /-- The phase ends with all effective quotient bits consumed. -/
-theorem finish_remaining (coefficient : Nat) (state : State) :
+lemma finish_remaining (coefficient : Nat) (state : State) :
     (finish coefficient state).remaining = 0 := by
   rw [finish, run_remaining]
   exact Nat.div_eq_of_lt (Nat.lt_size_self state.remaining)
 
 /-- The phase computes the exact whole quotient contribution through its bit microsteps. -/
-theorem finish_value (coefficient : Nat) (state : State) :
+lemma finish_value (coefficient : Nat) (state : State) :
     (finish coefficient state).value =
       state.value + state.remaining * state.scale * coefficient := by
   have conserved := run_total coefficient state.remaining.size state
@@ -250,13 +250,13 @@ def start (state : IterationState) : State :=
   ⟨state.previousCoefficient, state.quotient, 1⟩
 
 /-- The reachable macro invariant establishes the actual first microstep's range. -/
-theorem start_below (state : IterationState) (valid : state.Admissible) :
+lemma start_below (state : IterationState) (valid : state.Admissible) :
     Below state.coefficient (start state) := by
   change state.previousCoefficient < 1 * state.coefficient
   simpa only [Nat.one_mul] using valid.previous_lt
 
 /-- The complete actual coefficient phase agrees with the macro iteration's coefficient. -/
-theorem finish_start_coefficient (state : IterationState) :
+lemma finish_start_coefficient (state : IterationState) :
     (finish state.coefficient (start state)).value = (IterationState.step state).coefficient := by
   rw [finish_value]
   change state.previousCoefficient + state.quotient * 1 * state.coefficient =
@@ -264,7 +264,7 @@ theorem finish_start_coefficient (state : IterationState) :
   ring
 
 /-- At every real source phase step the suffix is active, its bit clears, and the state recovers. -/
-theorem start_progress (state : IterationState) (valid : state.Admissible) (count : Nat)
+lemma start_progress (state : IterationState) (valid : state.Admissible) (count : Nat)
     (beforeEnd : count < state.quotient.size) :
     let current := run state.coefficient count (start state)
     0 < current.remaining ∧
@@ -276,7 +276,7 @@ theorem start_progress (state : IterationState) (valid : state.Admissible) (coun
     step_clears state.coefficient _ below, rewind_step state.coefficient _ below⟩
 
 /-- The original positive-residue domain supplies the whole phase's reverse guarantee. -/
-theorem folded_start_reversible (modulus input : Nat)
+lemma folded_start_reversible (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     let initial := IterationState.initial modulus (foldInput modulus input).2
     rewindRun initial.coefficient initial.quotient.size
@@ -285,7 +285,7 @@ theorem folded_start_reversible (modulus input : Nat)
     (start_below _ (folded_initial_admissible modulus input positive bounded))
 
 /-- The smallest valid input consumes a zero low bit and then its equality-boundary high bit. -/
-theorem smallest_input_two_microsteps :
+lemma smallest_input_two_microsteps :
     start (IterationState.initial 2 1) = ⟨0, 2, 1⟩ ∧
       run 1 1 (start (IterationState.initial 2 1)) = ⟨0, 1, 2⟩ ∧
       finish 1 (start (IterationState.initial 2 1)) = ⟨2, 0, 4⟩ := by

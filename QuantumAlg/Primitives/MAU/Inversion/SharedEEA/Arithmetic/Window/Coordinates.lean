@@ -33,7 +33,7 @@ def physicalIndex {width : Nat} (window : Window width) (index : Nat) : Nat :=
   else 2 * (width + 3) + 4 * width.size + 2
 
 /-- A native little-endian source bit is exactly its original Work2 address. -/
-theorem physicalIndex_source {width : Nat} (window : Window width)
+lemma physicalIndex_source {width : Nat} (window : Window width)
     (index : Fin window.length) :
     physicalIndex window
         (Addition.TTK.withOverflowBit (Addition.TTK.leftBit window.length index)).wire.val =
@@ -50,7 +50,7 @@ theorem physicalIndex_source {width : Nat} (window : Window width)
   omega
 
 /-- A native little-endian target bit is exactly its original Work1 address. -/
-theorem physicalIndex_target {width : Nat} (window : Window width)
+lemma physicalIndex_target {width : Nat} (window : Window width)
     (index : Fin window.length) :
     physicalIndex window
         (Addition.TTK.withOverflowBit (Addition.TTK.rightBit window.length index)).wire.val =
@@ -66,7 +66,7 @@ theorem physicalIndex_target {width : Nat} (window : Window width)
   rfl
 
 /-- The native carry/borrow output is the existing Sign, not a newly allocated bit. -/
-theorem physicalIndex_sign {width : Nat} (window : Window width) :
+lemma physicalIndex_sign {width : Nat} (window : Window width) :
     physicalIndex window (Addition.TTK.overflowBit window.length).wire.val =
       (signBit width).wire.val := by
   change physicalIndex window (window.length + window.length) = _
@@ -76,7 +76,7 @@ theorem physicalIndex_sign {width : Nat} (window : Window width) :
   rw [physicalIndex, if_neg initial, if_neg second]
 
 /-- No source, target, or output wire aliases another native operand address. -/
-theorem physicalIndex_injective {width : Nat} (window : Window width) :
+lemma physicalIndex_injective {width : Nat} (window : Window width) :
     Function.Injective
       (fun index : Fin (2 * window.length + 1) => physicalIndex window index.val) := by
   intro left right same
@@ -89,7 +89,7 @@ theorem physicalIndex_injective {width : Nat} (window : Window width) :
   split_ifs at same <;> omega
 
 /-- Every native operand address belongs to the original full source frame. -/
-theorem physicalIndex_within {width : Nat} (window : Window width)
+lemma physicalIndex_within {width : Nat} (window : Window width)
     (index : Fin (2 * window.length + 1)) :
     physicalIndex window index.val < (encoding width).width := by
   rw [encoding_width]
@@ -99,7 +99,7 @@ theorem physicalIndex_within {width : Nat} (window : Window width)
   split_ifs <;> omega
 
 /-- A Work1 suffix bit beyond the region cannot be a target of the mapped arithmetic. -/
-theorem target_before_suffix {width : Nat} (window : Window width)
+lemma target_before_suffix {width : Nat} (window : Window width)
     (index : Fin window.length) :
     (targetBit window index).wire.val < width + 3 - window.below := by
   change (firstWordBit width (windowIndex window index)).wire.val < _
@@ -110,7 +110,7 @@ theorem target_before_suffix {width : Nat} (window : Window width)
   omega
 
 /-- Every Work2 source bit precedes the suffix holding the wrapped coefficient fraction. -/
-theorem source_before_suffix {width : Nat} (window : Window width)
+lemma source_before_suffix {width : Nat} (window : Window width)
     (index : Fin window.length) :
     (sourceBit window index).wire.val < 2 * (width + 3) - window.below := by
   change (secondWordBit width (windowIndex window index)).wire.val < _
@@ -121,7 +121,7 @@ theorem source_before_suffix {width : Nat} (window : Window width)
   omega
 
 /-- Neither operand contains any physical prefix bit before its selected region. -/
-theorem operands_after_prefix {width : Nat} (window : Window width)
+lemma operands_after_prefix {width : Nat} (window : Window width)
     (index : Fin window.length) :
     window.above ≤ (targetBit window index).wire.val ∧
       width + 3 + window.above ≤ (sourceBit window index).wire.val := by

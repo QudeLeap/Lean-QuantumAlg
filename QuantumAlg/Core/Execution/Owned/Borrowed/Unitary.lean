@@ -34,7 +34,7 @@ def complementaryOperator (owned borrowed : Nat) (operator : UnitaryOperator (Qu
         (context owned borrowed).borrowedSelection) :=
   UnitaryOperator.reindex (ownedBinaryEquiv owned borrowed).symm operator
 
-private theorem wordBinaryEquiv_join (owned borrowed : Nat)
+private lemma wordBinaryEquiv_join (owned borrowed : Nat)
     (selected : (context owned borrowed).quantumLayout.SelectedBasis
       (context owned borrowed).borrowedSelection)
     (complement : (context owned borrowed).quantumLayout.ComplementBasis
@@ -48,7 +48,7 @@ private theorem wordBinaryEquiv_join (owned borrowed : Nat)
     (wordPairEquiv_join owned borrowed selected complement)
 
 /-- The independent owned-word operator is exactly identity on the actual borrowed selection. -/
-theorem wordOperator_complement (owned borrowed : Nat)
+lemma wordOperator_complement (owned borrowed : Nat)
     (operator : UnitaryOperator (Qubits owned)) :
     UnitaryOperator.reindex
       ((context owned borrowed).quantumLayout.selectionBasisEquiv

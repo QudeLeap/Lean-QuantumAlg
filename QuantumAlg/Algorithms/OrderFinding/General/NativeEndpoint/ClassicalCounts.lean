@@ -29,17 +29,15 @@ namespace QuantumAlg.OrderFinding.ShorSourceJoint.SourceNativeEndpoint
 
 noncomputable section
 
-private theorem sampling_classicalCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
+private lemma sampling_classicalCount (t width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (Sampling.Native.eventBudget access) = 1 := by
+      (Sampling.Native.eventBudget t width) = 1 := by
   simp [Sampling.Native.eventBudget, Sampling.Native.unitaryBudget,
     Resource.Event.classicalOperationWeight]
 
-private theorem eventBudget_classicalCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
+private lemma eventBudget_classicalCount (t width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (eventBudget access) =
+      (eventBudget t width) =
       4 * (t + 1) + 5 +
         2 * (t + 1) * (2 * width + 18 + 6 * (t + 1)) := by
   rw [eventBudget, ResourcePool.weightedCount_add, sampling_classicalCount,
@@ -47,27 +45,25 @@ private theorem eventBudget_classicalCount {N x t width : Nat}
   omega
 
 /-- The problem's independent event allowance has an explicit classical weight. -/
-public theorem generalOrderFinding_problem_classicalOperations {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
+public lemma generalOrderFinding_problem_classicalOperations {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (x t : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (problem hinput access).resources.events =
+      (problem spec x t).resources.events =
       4 * (t + 1) + 5 +
         2 * (t + 1) * (2 * width + 18 + 6 * (t + 1)) :=
-  eventBudget_classicalCount access
+  eventBudget_classicalCount t width
 
 /-- Every path of the same public algorithm fits the classical-operation allowance. -/
-public theorem generalOrderFinding_algorithm_classicalOperations_le {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width)
-    (path : (algorithm hinput access).run.code.Path) :
+public lemma generalOrderFinding_algorithm_classicalOperations_le {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat)
+    (path : (algorithm spec t).run.code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      ((algorithm hinput access).run.code.resourcePool path) ≤
+      ((algorithm spec t).run.code.resourcePool path) ≤
       4 * (t + 1) + 5 +
         2 * (t + 1) * (2 * width + 18 + 6 * (t + 1)) := by
   have bounded := ResourcePool.weightedCount_mono
-    Resource.Event.classicalOperationWeight (code_events_le hinput access path)
-  exact bounded.trans_eq (eventBudget_classicalCount access)
+    Resource.Event.classicalOperationWeight (code_events_le spec t path)
+  exact bounded.trans_eq (eventBudget_classicalCount t width)
 
 end
 

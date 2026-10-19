@@ -31,7 +31,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
 
 /-- A fixed seed in the actual complete state gives the same pure bank after
 any finite classical readout and full owned-wire selection. -/
-theorem readout_pure_fullSelection (state : State ctx Reference History)
+lemma readout_pure_fullSelection (state : State ctx Reference History)
     (seed : ctx.register.Index) (seeded : Holds seed state)
     (read : Store ctx → Outcome) (outcome : Outcome) :
     (StatePromise.pure (NormalizedVector.ket
@@ -85,16 +85,17 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A history-polymorphic pure-bank proof for the actual code transfers to
 the same run's final stored readout without exposing its path type. -/
-theorem pure_fullSelection_of_executionReadout
+lemma pure_fullSelection_of_executionReadout
     {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (program : AlgorithmRun model pre post shape) (seed : post.register.Index)
+    (program : AlgorithmRun model pre post shape)
+    (environment : model.Environment) (seed : post.register.Index)
     (pureExecution : ∀ {Reference : Register} {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History))
       (value : shape.Value),
       (StatePromise.pure (NormalizedVector.ket
         (post.quantumLayout.restrictSelectedBasis Finset.univ seed))).Holds
         (DensityOperator.observeSelection post.quantumLayout Finset.univ Reference
-          (((program.code.execute Reference state).mapClassical
+          (((program.code.execute environment Reference state).mapClassical
             (fun entry => program.output.eval entry.1)).block value)))
     {Reference : Register}
     (original : OracleInput model.classicalOracles pre Reference)
@@ -102,7 +103,7 @@ theorem pure_fullSelection_of_executionReadout
     (StatePromise.pure (NormalizedVector.ket
       (post.quantumLayout.restrictSelectedBasis Finset.univ seed))).Holds
       (DensityOperator.observeSelection post.quantumLayout Finset.univ Reference
-        (((program.finalState Reference original.state).mapClassical
+        (((program.finalState environment Reference original.state).mapClassical
           program.output.eval).block value)) := by
   let entered := original.state.mapClassical
     (fun entry => (entry.1, (entry.2, entry.1)))

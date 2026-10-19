@@ -31,41 +31,41 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-def preparationCode {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    Circuit (model E) pre (preparedContext t n) :=
+def preparationCode (n : Nat) (t : Nat) :
+    Circuit (model n) pre (preparedContext t n) :=
   .prepareZero pre ⟨0⟩ (runtimeLayout t n) preparationFresh (preparationDisjoint t n)
 
-def allocationCode {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    Circuit (model E) (preparedContext t n) (post t n) :=
-  .seq (.retain (model := model E) (preparedContext t n) ⟨1⟩ (.bits t) (resultFresh t n))
-    (MeasurementCells.allocate (model := model E) (resultContext t n) 2 t)
+def allocationCode (n : Nat) (t : Nat) :
+    Circuit (model n) (preparedContext t n) (post t n) :=
+  .seq (.retain (model := model n) (preparedContext t n) ⟨1⟩ (.bits t) (resultFresh t n))
+    (MeasurementCells.allocate (model := model n) (resultContext t n) 2 t)
 
-def beforeMeasurement {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    Circuit (model E) pre (post t n) :=
-  .seq (preparationCode E t)
-    (.seq (.unitary (nativeProgram E t)) (allocationCode E t))
+def beforeMeasurement (n : Nat) (t : Nat) :
+    Circuit (model n) pre (post t n) :=
+  .seq (preparationCode n t)
+    (.seq (.unitary (nativeProgram n t)) (allocationCode n t))
 
-def readoutCode {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    Circuit (model E) (post t n) (post t n) :=
+def readoutCode (n : Nat) (t : Nat) :
+    Circuit (model n) (post t n) (post t n) :=
   .seq (Circuit.measurementSequence (readouts t n)) (.classical (BitWord.application (packing t n)))
 
 /-- The full actual word prepares existing qubits and performs explicit classical packing. -/
-def code {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    Circuit (model E) pre (post t n) :=
-  .seq (beforeMeasurement E t) (readoutCode E t)
+def code (n : Nat) (t : Nat) :
+    Circuit (model n) pre (post t n) :=
+  .seq (beforeMeasurement n t) (readoutCode n t)
 
 /-- The explicit complete manifest reads the actual packed phase bits. -/
-def run {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    AlgorithmRun (model E) pre (post t n) (.bits t) where
-  code := code E t
+def run (n : Nat) (t : Nat) :
+    AlgorithmRun (model n) pre (post t n) (.bits t) where
+  code := code n t
   output := Output.all (post t n) (.read (.storage (resultRef t n).toCStorageRef))
 
-theorem run_result {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (record : (run E t).Record) :
-    (run E t).result record = record.1.read (.storage (resultRef t n).toCStorageRef) := rfl
+lemma run_result (n : Nat) (t : Nat)
+    (record : (run n t).Record) :
+    (run n t).result record = record.1.read (.storage (resultRef t n).toCStorageRef) := rfl
 
-theorem run_output_listing {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    (run E t).output.listing = (post t n).keys := rfl
+lemma run_output_listing (n : Nat) (t : Nat) :
+    (run n t).output.listing = (post t n).keys := rfl
 
 end
 

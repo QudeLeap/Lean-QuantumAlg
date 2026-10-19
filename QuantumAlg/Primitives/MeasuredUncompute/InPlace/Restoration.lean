@@ -28,31 +28,35 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceRestoration
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA InversePreparation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem noBorrowedQuantum (width : Nat) : (before width).borrowedQuantumWires = [] := by
+private lemma noBorrowedQuantum (width : Nat) : (before width).borrowedQuantumWires = [] := by
   rfl
 
 /-- The same actual division code restores the complete borrowed-reference observation. -/
-theorem division_restored (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_restored (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
     (InPlaceDivision.code modulus prime).BorrowedRestored Reference state
-      ((InPlaceDivision.code modulus prime).execute Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (InPlaceDivision.code modulus prime)
+      ((InPlaceDivision.code modulus prime).execute environment Reference state) :=
+  Circuit.borrowedRestored_of_noBorrowedQuantum (InPlaceDivision.code modulus prime) environment
     (noBorrowedQuantum modulus.size) Reference state
 
 /-- Actual multiplication likewise restores all borrowed-reference entries for arbitrary inputs. -/
-theorem multiplication_restored (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_restored (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
     (InPlaceMultiplication.code modulus prime).BorrowedRestored Reference state
-      ((InPlaceMultiplication.code modulus prime).execute Reference state) :=
+      ((InPlaceMultiplication.code modulus prime).execute environment Reference state) :=
   Circuit.borrowedRestored_of_noBorrowedQuantum (InPlaceMultiplication.code modulus prime)
+    environment
     (noBorrowedQuantum modulus.size) Reference state
 
 end

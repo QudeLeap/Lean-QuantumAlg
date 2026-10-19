@@ -26,7 +26,7 @@ open ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-private theorem generic_conditions_of_selected {width : Nat}
+private lemma generic_conditions_of_selected {width : Nat}
     (spec : CurveSpec width) (left right : Pure.Point spec)
     (selected :
       ClassicalAlgorithms.EllipticCurve.Add.branch spec left right =
@@ -70,7 +70,7 @@ private theorem generic_conditions_of_selected {width : Nat}
     cases selected
   exact ⟨leftNonzero, rightNonzero, notInverse, distinct⟩
 
-private theorem doubling_conditions_of_selected {width : Nat}
+private lemma doubling_conditions_of_selected {width : Nat}
     (spec : CurveSpec width) (left right : Pure.Point spec)
     (selected :
       ClassicalAlgorithms.EllipticCurve.Add.branch spec left right =
@@ -118,7 +118,7 @@ private theorem doubling_conditions_of_selected {width : Nat}
 /-- A selected generic finite branch gives a unit secant denominator.  The
 proof passes through the affine point facts, rather than treating an arbitrary
 raw coefficient as an inverse. -/
-theorem generic_denominator_isUnit_of_selected {width : Nat}
+lemma generic_denominator_isUnit_of_selected {width : Nat}
     (spec : CurveSpec width)
     (left right : Pure.Point spec)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus)
@@ -144,7 +144,7 @@ theorem generic_denominator_isUnit_of_selected {width : Nat}
       spec xDistinct
 
 /-- A selected finite doubling branch gives a unit tangent denominator. -/
-theorem doubling_denominator_isUnit_of_selected {width : Nat}
+lemma doubling_denominator_isUnit_of_selected {width : Nat}
     (spec : CurveSpec width)
     (left right : Pure.Point spec)
     (x y : ZMod spec.field.modulus)

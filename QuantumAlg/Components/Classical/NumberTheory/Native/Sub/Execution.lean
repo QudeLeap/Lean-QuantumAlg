@@ -25,7 +25,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Each selected native instruction returns its actual store and returned instruction path. -/
@@ -47,29 +47,29 @@ def branchStep (left right : CInputRef ctx (.unsignedWord width))
   let result := selectedStep (model := model) left right output value store
   (result.1, ⟨value, result.2⟩)
 
-private theorem selected_equation (left right : CInputRef ctx (.unsignedWord width))
+private lemma selected_equation (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx) Reference (model.HiddenState × History)) :
-    (selected (model := model) left right output value).execute Reference state =
+    (selected (model := model) left right output value).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((selectedStep (model := model) left right output value entry.1).1,
           (entry.2.1, (entry.2.2, (selectedStep (model := model) left right output value
             entry.1).2)))) := by
   cases value with
-  | bit flag => cases flag <;> exact BitWord.bitWord_instruction_execute _ state
+  | bit flag => cases flag <;> exact BitWord.bitWord_instruction_execute _ environment state
 
-private theorem branch_equation (left right : CInputRef ctx (.unsignedWord width))
+private lemma branch_equation (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State (context ctx) Reference (model.HiddenState ×
       History)) :
     (Circuit.branch (.storage (decision ctx).toCStorageRef)
-      (selected (model := model) left right output)).execute Reference state =
+      (selected (model := model) left right output)).execute environment Reference state =
         state.mapClassical (fun entry =>
           ((branchStep (model := model) left right output entry.1).1,
             (entry.2.1, (entry.2.2, (branchStep (model := model) left right output entry.1).2))))
               := by
-  refine (Circuit.execute_branch_mapClassical
+  refine (Circuit.execute_branch_mapClassical (environment := environment)
     (.storage (decision ctx).toCStorageRef) (selected (model := model) left right output)
     (fun flag before =>
       let actual := selectedStep (model := model) left right output flag before.1
@@ -87,11 +87,12 @@ def bodyStep (left right : CInputRef ctx (.unsignedWord width))
   (result.1, (compared.2, result.2))
 
 /-- The actual body preserves the full incoming quantum-reference state in every classical block. -/
-theorem nativeSub_body_execute (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_body_execute (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State (context ctx) Reference (model.HiddenState ×
       History)) :
-    (body (model := model) left right output).execute Reference state = state.mapClassical (fun
+    (body (model := model) left right output).execute environment
+      Reference state = state.mapClassical (fun
       entry =>
       ((bodyStep (model := model) left right output entry.1).1,
         (entry.2.1, (entry.2.2, (bodyStep (model := model) left right output entry.1).2)))) := by
@@ -109,14 +110,16 @@ def intoStep (left right : CInputRef ctx (.unsignedWord width))
   (Store.popWorkspace ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh result.1, result.2)
 
 /-- Every actual execution agrees with the complete store update and its genuine finite path. -/
-theorem nativeSub_into_execute (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_execute (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) left right output).execute Reference state = state.mapClassical (fun
+    (into (model := model) left right output).execute environment
+      Reference state = state.mapClassical (fun
       entry =>
       ((intoStep (model := model) left right output entry.1).1,
         (entry.2.1, (entry.2.2, (intoStep (model := model) left right output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey .bit
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey .bit
     ctx.canonicalFreshKey_fresh (body (model := model) left right output)
     (fun before =>
       let actual := bodyStep (model := model) left right output before.1

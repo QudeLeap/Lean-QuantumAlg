@@ -41,11 +41,11 @@ public def context : Nat → RuntimeCtx .quantum
   | _ + 1 => Retry.context base noQuantum N
 
 /-- The zero-count branch retains the caller's original physical wire list. -/
-theorem zero_wires :
+lemma zero_wires :
     (context base noQuantum N 0).quantumWires = base.quantumWires := rfl
 
 /-- Every positive count has precisely the original-width EH bank. -/
-theorem positive_wires (laterCount : Nat) :
+lemma positive_wires (laterCount : Nat) :
     (context base noQuantum N (laterCount + 1)).quantumWires =
       (Native.layout N).wires :=
   Retry.context_wires base noQuantum N

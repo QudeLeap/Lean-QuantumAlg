@@ -28,31 +28,40 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem measurement_filter_selector {gates : GateModel} {oracles : OracleModel}
+private lemma measurement_filter_selector {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum}
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     {α : Type} (selector : Store ctx → α)
     (preserved : ∀ store value, selector (store.write output value) = selector store)
     (value : α) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    ((Circuit.measureZ (gates := gates) (oracles := oracles) wire output).execute
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History)) :
+    ((Circuit.measureZ (allowAllocation := true) (classicalOracles := services)
+      (gates := gates) (oracles := oracles) wire output).execute
+        ⟨environment.quantum, environment.classical⟩
       Reference state).filterClassical
         (fun entry => selector entry.1 = value) =
-      (Circuit.measureZ (gates := gates) (oracles := oracles) wire output).execute
+      (Circuit.measureZ (allowAllocation := true) (classicalOracles := services)
+        (gates := gates) (oracles := oracles) wire output).execute
+          ⟨environment.quantum, environment.classical⟩
         Reference (state.filterClassical (fun entry => selector entry.1 = value)) := by
   simp only [Circuit.execute_measureZ, filter_map, preserved]
   congr 1
   exact filter_measureZ (C := Store ctx ×
-      ((ExecutionModel.quantum gates oracles).HiddenState × History))
+      ((ExecutionModel.quantum gates oracles .empty services).HiddenState × History))
     (Outcome := Fin (ctx.quantumLayout.wire wire).dimension)
     (R := Register.prod ctx.register Reference) state
     (fun basis => basis.1 wire) (fun entry => selector entry.1 = value)
 
-private theorem reset_filter_selector {gates : GateModel} {oracles : OracleModel}
+private lemma reset_filter_selector {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum}
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
@@ -60,26 +69,32 @@ private theorem reset_filter_selector {gates : GateModel} {oracles : OracleModel
     {α : Type} (selector : Store ctx → α)
     (preserved : ∀ store value, selector (store.write output value) = selector store)
     (value : α) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    ((ZReset.circuit wire output realizations).execute Reference state).filterClassical
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History)) :
+    ((ZReset.circuit (services := services) wire output realizations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference
+      state).filterClassical
         (fun entry => selector entry.1 = value) =
-      (ZReset.circuit wire output realizations).execute Reference
+      (ZReset.circuit (services := services) wire output realizations).execute
+        ⟨environment.quantum, environment.classical⟩ Reference
         (state.filterClassical (fun entry => selector entry.1 = value)) := by
   let body : (CShape.finite (ctx.quantumLayout.wire wire).dimension).Value →
-      Circuit (.quantum gates oracles) ctx ctx := fun result =>
+      Circuit (.quantum gates oracles .empty services) ctx ctx := fun result =>
     .unitary (realizations (-result.toFin)).circuit
-  have selected := filter_branch (.storage output.toCStorageRef) body
+  have selected := filter_branch (environment := environment) (.storage output.toCStorageRef) body
     (fun store => selector store = value)
     (fun _selected _reference {_history} _historyFinite part =>
       filter_unitary part _ (fun store => selector store = value))
-  exact filter_seq (Circuit.measureZ (gates := gates) (oracles := oracles) wire output)
+  exact filter_seq (Circuit.measureZ (allowAllocation := true) (classicalOracles := services)
+    (gates := gates) (oracles := oracles) wire output)
     (.branch (.storage output.toCStorageRef) body)
     (fun store => selector store = value)
     (fun reference {_history} _historyFinite initial =>
       measurement_filter_selector wire output selector preserved value reference initial)
     selected Reference state
 
-private theorem sequence_filter_selector {gates : GateModel} {oracles : OracleModel}
+private lemma sequence_filter_selector {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum}
     (implementations : ∀ wire,
       QuditShift.Realizations gates oracles ctx.quantumLayout wire)
@@ -87,23 +102,29 @@ private theorem sequence_filter_selector {gates : GateModel} {oracles : OracleMo
     (preserved : ∀ item ∈ readouts, ∀ store value,
       selector (store.write item.output value) = selector store)
     (value : α) (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    ((sequence implementations readouts).execute Reference state).filterClassical
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History)) :
+    ((sequence (services := services) implementations readouts).execute
+      ⟨environment.quantum, environment.classical⟩ Reference
+      state).filterClassical
         (fun entry => selector entry.1 = value) =
-      (sequence implementations readouts).execute Reference
+      (sequence (services := services) implementations readouts).execute
+        ⟨environment.quantum, environment.classical⟩ Reference
         (state.filterClassical (fun entry => selector entry.1 = value)) := by
   induction readouts generalizing Reference History with
   | nil =>
-      change ((Circuit.id (model := .quantum gates oracles) ctx).execute
+      change ((Circuit.id (model := .quantum gates oracles .empty services) ctx).execute
+        ⟨environment.quantum, environment.classical⟩
           Reference state).filterClassical (fun entry => selector entry.1 = value) =
-        (Circuit.id (model := .quantum gates oracles) ctx).execute Reference
+        (Circuit.id (model := .quantum gates oracles .empty services) ctx).execute
+          ⟨environment.quantum, environment.classical⟩ Reference
           (state.filterClassical (fun entry => selector entry.1 = value))
       rw [Circuit.execute_id, Circuit.execute_id]
       simp only [filter_map]
   | cons head tail ih =>
       exact filter_seq
-        (ZReset.circuit head.wire head.output (implementations head.wire))
-        (sequence implementations tail)
+        (ZReset.circuit (services := services) head.wire head.output (implementations head.wire))
+        (sequence (services := services) implementations tail)
         (fun store => selector store = value)
         (reset_filter_selector head.wire head.output
           (implementations head.wire) selector (preserved head (.head tail)) value)
@@ -112,7 +133,7 @@ private theorem sequence_filter_selector {gates : GateModel} {oracles : OracleMo
         Reference state
 
 /-- Writing the actual scratch key changes no cell of the complete parent store. -/
-theorem zResetBankScope_parent_write {ctx : RuntimeCtx .quantum}
+lemma zResetBankScope_parent_write {ctx : RuntimeCtx .quantum}
     {shape : CShape} (output : CWriteRef (workContext ctx) shape)
     (headKey : output.key = (scratch ctx).key)
     (store : Store (workContext ctx)) (value : shape.Value) :
@@ -134,20 +155,22 @@ theorem zResetBankScope_parent_write {ctx : RuntimeCtx .quantum}
       (Store.read_popWorkspace_underWorkspace _ _ _ store (.storage observed)).symm)
 
 /-- Every complete parent-store block is preserved by the actual scratch-bearing bank body. -/
-theorem zResetBankScope_body_filter_parent {ctx : RuntimeCtx .quantum}
+lemma zResetBankScope_body_filter_parent {ctx : RuntimeCtx .quantum}
     {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum AlgorithmGate.model oracles .empty services).Environment}
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
     (original : Store ctx) (Reference : Register) {History : Type} [Fintype History]
     (state : State (workContext ctx) Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState × History)) :
+      ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState × History))
+        :
     ExecutionState.filterClassical
-        ((Bank.code (oracles := oracles) (zResetBankScope_work_qubits qubits)
-          (scratch ctx)).execute Reference state)
+        ((Bank.code (services := services) (oracles := oracles) (zResetBankScope_work_qubits qubits)
+          (scratch ctx)).execute ⟨environment.quantum, environment.classical⟩ Reference state)
         (fun entry =>
           Store.popWorkspace ctx.canonicalFreshKey (.finite 2)
             ctx.canonicalFreshKey_fresh entry.1 = original) =
-      (Bank.code (oracles := oracles) (zResetBankScope_work_qubits qubits)
-        (scratch ctx)).execute Reference
+      (Bank.code (services := services) (oracles := oracles) (zResetBankScope_work_qubits qubits)
+        (scratch ctx)).execute ⟨environment.quantum, environment.classical⟩ Reference
         (state.filterClassical (fun entry =>
           Store.popWorkspace ctx.canonicalFreshKey (.finite 2)
             ctx.canonicalFreshKey_fresh entry.1 = original)) :=

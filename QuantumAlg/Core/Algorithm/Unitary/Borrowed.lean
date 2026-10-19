@@ -34,9 +34,10 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A complete local unitary run preserves an empty borrowed interface and its reference. -/
-theorem restoresBorrowed_unitary_noBorrowed
+lemma restoresBorrowed_unitary_noBorrowed
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {ctx : RuntimeCtx .quantum} {shape : CShape}
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = [])
@@ -44,16 +45,17 @@ theorem restoresBorrowed_unitary_noBorrowed
     {Reference : Register} (input : Execution.OracleInput services ctx Reference) :
     ({ code := Circuit.unitary program, output := output } :
       AlgorithmRun (.quantum gates oracles operations services) ctx ctx shape).RestoresBorrowed
-        input := by
+        environment input := by
   let run : AlgorithmRun (.quantum gates oracles operations services) ctx ctx shape :=
     { code := Circuit.unitary program, output := output }
-  have marginal : (run.execute Reference input.state).quantumMarginal =
+  have marginal : (run.execute environment Reference input.state).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+        (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+        (1 : UnitaryOperator Reference))
         input.state.quantumMarginal := by
     exact (ExecutionState.mapClassical_quantumMarginal
-      (run.execute Reference input.state) Prod.fst).symm.trans
-        (finalState_unitary_quantumMarginal program output Reference input.state)
+      (run.execute environment Reference input.state) Prod.fst).symm.trans
+        (finalState_unitary_quantumMarginal environment program output Reference input.state)
   unfold RestoresBorrowed Circuit.BorrowedRestored
   rw [Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
@@ -65,10 +67,11 @@ theorem restoresBorrowed_unitary_noBorrowed
   rw [Execution.observeBorrowed_empty_entry noClassical noQuantum,
     Execution.observeBorrowed_empty_entry noClassical noQuantum]
   change (∑ basis : ctx.register.Index,
-    (run.execute Reference input.state).quantumMarginal.matrix
+    (run.execute environment Reference input.state).quantumMarginal.matrix
       (basis, refLeft) (basis, refRight)) = _
   rw [marginal]
-  exact DensityOperator.localUnitary_reference_entry program.matrix input.state.quantumMarginal
+  exact DensityOperator.localUnitary_reference_entry (program.matrix environment.quantum)
+    input.state.quantumMarginal
     refLeft refRight
 
 end

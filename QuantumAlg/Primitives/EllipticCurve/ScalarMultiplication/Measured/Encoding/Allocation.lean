@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Encoding.Cascade
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation
+import all QuantumAlg.Core.Base.Accounting.Context.Embedding.Construction
 
 /-!
 # Actual allocation before the converted measured scalar cascade
@@ -29,19 +30,11 @@ open Execution
 /-- The same converted cascade executes on precisely the entries produced by actual allocation. -/
 def placedConvertedCascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (coefficient : (ZMod p)ˣ) :
+    (coefficient : (ZMod p)ˣ) (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (Allocation.after p.size count) (Allocation.after p.size count) :=
-  ContextPermutation.localCircuit (convertedCascade E points order coefficient)
-    (convertedCascade_isLocal E points order coefficient)
-    (Allocation.after p.size count) (Allocation.body_entries p.size count)
-
-/-- Post-allocation conversion and measured execution keep every allocated entry resident. -/
-theorem placedConvertedCascade_isLocal {p : Nat} (E : PrimeFieldShortWeierstrass p)
-    [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
-    (order : List (Fin count)) (coefficient : (ZMod p)ˣ) :
-    (placedConvertedCascade E points order coefficient).IsLocal :=
-  ContextPermutation.localCircuit_isLocal _ _ _ _
+      (Allocation.after p.size count) (Allocation.after p.size count) allowAllocation :=
+  .embed (ContextEmbedding.alongPermutation (Allocation.body_entries p.size count))
+    (convertedCascade E points order coefficient false)
 
 /-- One complete actual circuit allocates work, converts both coordinates, and runs the cascade. -/
 def convertedCircuit {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]

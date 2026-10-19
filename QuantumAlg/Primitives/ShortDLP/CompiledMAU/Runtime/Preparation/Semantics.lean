@@ -28,6 +28,9 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeBank
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -37,13 +40,13 @@ variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
   (m ell width : Nat)
 
 /-- Actual zero allocation and literal loading establish every complete seed block. -/
-theorem shortDLP_runtimePrepare_seedBlocks (N : Nat)
+lemma shortDLP_runtimePrepare_seedBlocks (N : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks m ell width
       (shortDLP_runtimeBank_quantumWires ctx noQuantum m ell width) N
       ((prepare (operations := BitWord.model) (services := .empty)
-        ctx noQuantum m ell width N).execute Reference state) := by
+        ctx noQuantum m ell width N).execute environment Reference state) := by
   let bank := context ctx noQuantum m ell width
   let wires := shortDLP_runtimeBank_quantumWires ctx noQuantum m ell width
   let allocated := allocateZero (operations := BitWord.model) (services := .empty)
@@ -63,23 +66,24 @@ theorem shortDLP_runtimePrepare_seedBlocks (N : Nat)
     rw [← shortDLP_runtimeLayout_zeroBasis, Equiv.apply_symm_apply]
     exact RuntimePlacement.shortDLP_runtimeBasis_zero m ell width wires
   have zeroBlocks : BasisSeeded.Holds bank.quantumLayout.zeroLabel
-      (allocated.execute Reference state) := by
-    have established := Circuit.prepareZero_empty_seeded
+      (allocated.execute environment Reference state) := by
+    have established := Circuit.prepareZero_empty_seeded (environment := environment)
       (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (services := .empty)
       ctx.canonicalFreshKey (runtimeLayout m ell width) ctx.canonicalFreshKey_fresh
       (allocationDisjoint ctx noQuantum m ell width) (input_systemCount ctx noQuantum) state
     rw [initialZero] at established
     exact established
-  have loading : (loadProgram ctx noQuantum m ell width N).applyNormalized
+  have loading : (loadProgram ctx noQuantum m ell width N).applyNormalized environment.quantum
       (NormalizedVector.ket bank.quantumLayout.zeroLabel) = NormalizedVector.ket seed :=
     RuntimePlacement.shortDLP_runtimeReload_apply_zero m ell width wires N
-  exact BasisSeeded.seq allocated
+  exact BasisSeeded.seq (environment := environment) allocated
     (Circuit.unitary (operations := BitWord.model) (classicalOracles := .empty)
       (loadProgram ctx noQuantum m ell width N)) seed state
-    (BasisSeeded.unitary (operations := BitWord.model) (services := .empty)
+    (BasisSeeded.unitary (environment := environment)
+      (operations := BitWord.model) (services := .empty)
       (loadProgram ctx noQuantum m ell width N) bank.quantumLayout.zeroLabel seed
-      loading (allocated.execute Reference state) zeroBlocks)
+      loading (allocated.execute environment Reference state) zeroBlocks)
 
 end
 

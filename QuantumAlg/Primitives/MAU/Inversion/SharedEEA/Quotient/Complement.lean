@@ -28,6 +28,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.QuotientComplement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 private def source (width : Nat) : Word (encoding width) width.size :=
@@ -36,7 +38,7 @@ private def source (width : Nat) : Word (encoding width) width.size :=
 private def target (width : Nat) : Word (encoding width) width.size :=
   ⟨quotientLengthBit width⟩
 
-private theorem separate (width : Nat) (index : Fin width.size) :
+private lemma separate (width : Nat) (index : Fin width.size) :
     ((source width).bit index).wire ≠ ((target width).bit index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -45,7 +47,7 @@ private theorem separate (width : Nat) (index : Fin width.size) :
   have within := index.isLt
   omega
 
-private theorem distinct (width : Nat) (left right : Fin width.size) (different : left ≠ right) :
+private lemma distinct (width : Nat) (left right : Fin width.size) (different : left ≠ right) :
     ((target width).bit left).wire ≠ ((target width).bit right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -61,12 +63,12 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
 private def withoutQuotient {width : Nat} (state : Registers width) : Registers width :=
   { state with quotientLength := 0#width.size }
 
-private theorem gates_preserve_complement (width : Nat) (state : Registers width) :
+private lemma gates_preserve_complement (width : Nat) (state : Registers width) :
     withoutQuotient (GateSpec.stepList (gates width) state) = withoutQuotient state :=
   Word.xorIntoStep_preserves_projection (source width) (target width) (separate width)
     withoutQuotient (fun _ _ => rfl) state
 
-private theorem gates_quotient (width : Nat) (state : Registers width) :
+private lemma gates_quotient (width : Nat) (state : Registers width) :
     (GateSpec.stepList (gates width) state).quotientLength =
       if state.flags.first then ~~~state.quotientLength else state.quotientLength := by
   apply BitVec.eq_of_getMsbD_eq
@@ -87,7 +89,7 @@ def step {width : Nat} (state : Registers width) : Registers width :=
       if state.flags.first then ~~~state.quotientLength else state.quotientLength }
 
 /-- Full actual CNOT-list correctness, without any assumptions on the remaining registers. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state = step state := by
   let result := GateSpec.stepList (gates width) state
   calc
@@ -103,24 +105,24 @@ def program (width : Nat) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Exact all-label realization of the same native complement circuit. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) step :=
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment step :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width) (gates_step width)
+    (gates width) (gates_step width) environment
 
 /-- Two complements restore every field, including the complete finite quotient word. -/
-theorem step_twice {width : Nat} (state : Registers width) : step (step state) = state := by
+lemma step_twice {width : Nat} (state : Registers width) : step (step state) = state := by
   cases selected : state.flags.first <;>
     simp only [step, selected, Bool.false_eq_true, if_false, if_true, BitVec.not_not]
 
 /-- Exact finite arithmetic identity used to select decrement with one native incrementer. -/
-theorem complement_increment (width : Nat) (word : BitVec width) :
+lemma complement_increment (width : Nat) (word : BitVec width) :
     ~~~(~~~word + 1) = word - 1 := by
   change ~~~(~~~word + 1#width) = word - 1#width
   rw [← BitVec.neg_eq_not_add, BitVec.not_eq_neg_add, BitVec.neg_neg]
 
 /-- Every quotient bit contributes one actual CNOT occurrence, including unused control branches. -/
-theorem program_eventTrace (width : Nat) :
+lemma program_eventTrace (width : Nat) :
     (program width).eventTrace =
       List.replicate width.size (.gate .cnot) := by
   rw [program, GateSpec.programList_eventTrace]

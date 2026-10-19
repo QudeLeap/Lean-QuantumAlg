@@ -34,7 +34,7 @@ def rawDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : Nat 
       ((rawOutputEvents model width).map duration).sum)
 
 /-- The actual branch emits the original active sequence precisely in its true arm. -/
-theorem xgcdNativeGuardedActive_eventTrace (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeGuardedActive_eventTrace (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (guardedActive (model := model) cells zero).Path) :
     (guardedActive (model := model) cells zero).eventTrace path =
@@ -47,7 +47,7 @@ theorem xgcdNativeGuardedActive_eventTrace (cells : Cells ctx (stateShapes width
       · exact xgcdNativeScopedActive_eventTrace cells zero path
 
 /-- An inactive slot costs zero; an active slot retains every actual serial dependency. -/
-theorem xgcdNativeGuardedActive_depth_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeGuardedActive_depth_le (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (guardedActive (model := model) cells zero).Path) :
     (guardedActive (model := model) cells zero).depth duration path ≤
@@ -60,7 +60,7 @@ theorem xgcdNativeGuardedActive_depth_le (cells : Cells ctx (stateShapes width))
       · exact (xgcdNativeScopedActive_durationDepth cells zero duration path).le
 
 /-- The real path vector contributes at most one complete active duration per public slot. -/
-theorem xgcdNativeLoop_depth_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeLoop_depth_le (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat)
     (duration : Resource.Event model → Nat)
     (path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path) :
@@ -75,7 +75,7 @@ theorem xgcdNativeLoop_depth_le (cells : Cells ctx (stateShapes width))
         xgcdNativeGuardedActive_depth_le cells zero duration (path index))
     _ = _ := by simp
 
-private theorem initialization_duration (cells : Cells ctx (stateShapes width))
+private lemma initialization_duration (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (initializationBody (model := model) cells input zero).Path) :
@@ -87,7 +87,7 @@ private theorem initialization_duration (cells : Cells ctx (stateShapes width))
     List.sum_nil, Nat.add_zero]
   rfl
 
-private theorem copyRawOutputs_duration (cells : Cells ctx (stateShapes width))
+private lemma copyRawOutputs_duration (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (duration : Resource.Event model → Nat)
     (path : (copyRawOutputs (model := model) cells outputs).Path) :
     (copyRawOutputs (model := model) cells outputs).depth duration path =
@@ -99,7 +99,7 @@ private theorem copyRawOutputs_duration (cells : Cells ctx (stateShapes width))
   rfl
 
 /-- Initialization, selected actual iterations and final raw copies retain the original budget. -/
-theorem xgcdNativeScheduledRaw_depth_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeScheduledRaw_depth_le (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (duration : Resource.Event model → Nat)
@@ -115,7 +115,7 @@ theorem xgcdNativeScheduledRaw_depth_le (cells : Cells ctx (stateShapes width))
     (xgcdNativeLoop_depth_le cells zero (Euclid.gcdFuel width) duration path.2.1) _) _
 
 /-- The seven actual state scopes add no hidden native duration. -/
-theorem xgcdNativeWithRawState_depth_le
+lemma xgcdNativeWithRawState_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (duration : Resource.Event model → Nat)
@@ -130,7 +130,7 @@ theorem xgcdNativeWithRawState_depth_le
       xgcdNativeScheduledRaw_depth_le cells _ _ _ duration selected) path
 
 omit [BitWord.Selected model] in
-private theorem lexical_depth_le {inner : RuntimeCtx model.kind}
+private lemma lexical_depth_le {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
     (duration : Resource.Event model → Nat) (budget : Nat)
@@ -139,7 +139,7 @@ private theorem lexical_depth_le {inner : RuntimeCtx model.kind}
     (Circuit.workspace inner key shape fresh body).depth duration path ≤ budget := bound path
 
 /-- The original independent zero-word allocation retains the same whole-engine duration bound. -/
-theorem xgcdNativeRawEngine_depth_le
+lemma xgcdNativeRawEngine_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (duration : Resource.Event model → Nat)
     (path : (rawEngine (model := model) input outputs).Path) :
@@ -158,7 +158,7 @@ theorem xgcdNativeRawEngine_depth_le
         ctx.canonicalFreshKey_fresh)) outputs.underZero duration) path
 
 /-- Unit native durations specialize the original schedule to its explicit linear bound. -/
-theorem xgcdNativeRawDepthLimit_unit (model : ExecutionModel) [BitWord.Selected model]
+lemma xgcdNativeRawDepthLimit_unit (model : ExecutionModel) [BitWord.Selected model]
     (width : Nat) :
     rawDepthLimit width (fun _ : Resource.Event model => 1) = 28 * width + 23 := by
   simp only [rawDepthLimit, initializationEvents, activeEvents, coefficientUpdateEvents,

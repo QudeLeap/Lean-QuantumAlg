@@ -39,19 +39,22 @@ def multiplyChoiceStep (base : CInputRef ctx (.unsignedWord width))
   | .bit false => (store, ())
   | .bit true => scopedMultiplyStep (model := model) (wordRead output) base modulus output store
 
-private theorem multiplyChoice_execute (base : CInputRef ctx (.unsignedWord width))
+private lemma multiplyChoice_execute (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (multiplyChoice (model := model) base modulus output value).execute Reference state =
+    (multiplyChoice (model := model) base modulus output value).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := multiplyChoiceStep (model := model) base modulus output value entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   cases value with
   | bit bit =>
       cases bit
-      · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+      · refine (Circuit.execute_id_mapClassical
+          (environment := environment) Reference state).trans ?_
         exact ExecutionState.executionState_mapClassical_congr _ rfl
       · refine (nativePower_scopedMultiply_execute (wordRead output) base modulus output
           Reference state).trans ?_
@@ -69,16 +72,17 @@ def bitStep (base : CInputRef ctx (.unsignedWord width))
   (selected.1, (squared.2, ⟨value, selected.2⟩))
 
 /-- Actual square-and-multiply execution records exactly its same-store classical selection. -/
-theorem nativePower_bit_execute (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_bit_execute (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (bitCircuit (model := model) base modulus output bit).execute Reference state =
+    (bitCircuit (model := model) base modulus output bit).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := bitStep (model := model) base modulus output bit entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (scopedMultiply (model := model) (wordRead output) (wordRead output) modulus output)
     (.branch bit (multiplyChoice (model := model) base modulus output))
     (fun before =>
@@ -95,7 +99,7 @@ theorem nativePower_bit_execute (base : CInputRef ctx (.unsignedWord width))
       modulus output reference initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ initial
-    refine (Circuit.execute_branch_mapClassical bit _
+    refine (Circuit.execute_branch_mapClassical (environment := environment) bit _
       (fun value before =>
         let result := multiplyChoiceStep (model := model) base modulus output value before.1
         ((result.1, before.2), result.2)) ?_ reference initial).trans ?_
@@ -118,21 +122,22 @@ def foldStep (base : CInputRef ctx (.unsignedWord width))
       (later.1, (first.2, later.2))
 
 /-- Every finite exponent prefix is interpreted by the same actual store/path composition. -/
-theorem nativePower_fold_execute (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_execute (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (foldBits (model := model) base modulus output bits).execute Reference state =
+    (foldBits (model := model) base modulus output bits).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := foldStep (model := model) base modulus output bits entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   induction bits generalizing Reference History with
   | nil =>
-      exact (Circuit.execute_id_mapClassical Reference state).trans
+      exact (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   | cons bit rest ih =>
-      refine (Circuit.execute_seq_mapClassical
+      refine (Circuit.execute_seq_mapClassical (environment := environment)
         (bitCircuit (model := model) base modulus output bit)
         (foldBits (model := model) base modulus output rest)
         (fun before =>

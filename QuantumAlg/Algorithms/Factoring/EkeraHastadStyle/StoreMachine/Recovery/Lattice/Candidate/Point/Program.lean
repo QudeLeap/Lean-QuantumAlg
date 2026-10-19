@@ -22,7 +22,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- One actual native addition writes a center-plus-offset coefficient. -/
@@ -85,10 +86,10 @@ def candidateStep (refs : Refs ctx width) (store : Store ctx) :
     (dotFirst.2, (dotSecond.2, dotThird.2))))
 
 /-- The actual circuit preserves every incoming history and quantum-reference block. -/
-theorem candidatePointInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma candidatePointInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidatePointInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidatePointInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := candidateStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [candidatePointInto, coefficientInto, pointInto, coordinateCombination,

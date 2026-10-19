@@ -26,9 +26,9 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} {environment : model.Environment}
 
-private theorem retain_pair_execute (ctx : RuntimeCtx model.kind)
+private lemma retain_pair_execute (ctx : RuntimeCtx model.kind)
     (firstKey : StorageKey) (firstShape : CShape) (firstFresh : firstKey ∉ ctx.keys)
     (secondKey : StorageKey) (secondShape : CShape)
     (secondFresh : secondKey ∉ (ctx.addRetained firstKey firstShape firstFresh).keys)
@@ -36,7 +36,7 @@ private theorem retain_pair_execute (ctx : RuntimeCtx model.kind)
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (Circuit.retain (model := model) ctx firstKey firstShape firstFresh)
       (Circuit.retain (ctx.addRetained firstKey firstShape firstFresh)
-        secondKey secondShape secondFresh)).execute Reference state =
+        secondKey secondShape secondFresh)).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((entry.1.pushRetained firstKey firstShape firstFresh).pushRetained
           secondKey secondShape secondFresh, (entry.2.1, (entry.2.2, ((), ()))))) := by
@@ -49,16 +49,18 @@ variable [BitWord.Selected model]
 
 /-- A uniform source draw followed by any deterministic selected circuit
 preserves the complete ordered store, service state and actual path. -/
-theorem sampled_sequence_execute {ctx : RuntimeCtx model.kind} (N : Nat)
+lemma sampled_sequence_execute {ctx : RuntimeCtx model.kind} (N : Nat)
     (output : CWriteRef ctx (.bits (residueSamplingBits N))) (code : Circuit model ctx ctx)
     (update : Store ctx → Store ctx × code.Path)
     (codeEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference (model.HiddenState × History)), code.execute Reference state =
+      (state : State ctx Reference (model.HiddenState × History)), code.execute
+        environment Reference state =
         state.mapClassical (fun entry =>
           ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq (PackedSample.draw (model := model) N output) code).execute Reference state =
+    (Circuit.seq (PackedSample.draw (model := model) N output) code).execute
+      environment Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
         (fun entry =>
           let next := update (entry.1.1.write output (.bits (PackedSample.storedBits entry.2)))
@@ -66,14 +68,15 @@ theorem sampled_sequence_execute {ctx : RuntimeCtx model.kind} (N : Nat)
             ((PackedSample.drawPathEquiv (model := model) N output).symm entry.2, next.2))))) := by
   let drawn : State ctx Reference
       (model.HiddenState × (History × (PackedSample.draw (model := model) N output).Path)) :=
-    (PackedSample.draw (model := model) N output).execute Reference state
+    (PackedSample.draw (model := model) N output).execute environment Reference state
   have executed := codeEquation Reference drawn
   have regrouped := congrArg
     (fun final : State ctx Reference (model.HiddenState ×
         ((History × (PackedSample.draw (model := model) N output).Path) × code.Path)) =>
       final.mapHistory
         (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2))))) executed
-  refine (Circuit.execute_seq (PackedSample.draw (model := model) N output) code state).trans
+  refine (Circuit.execute_seq (environment := environment)
+    (PackedSample.draw (model := model) N output) code state).trans
     (regrouped.trans ?_)
   let randomState := uniformChoice state
     (⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩ : ℕ+)
@@ -115,10 +118,10 @@ theorem sampled_sequence_execute {ctx : RuntimeCtx model.kind} (N : Nat)
 
 omit [BitWord.Selected model] in
 /-- Actual allocation extends the whole store and preserves every joint quantum-reference block. -/
-theorem samplerRetained_allocation_execute (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_allocation_execute (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (allocation (model := model) ctx N).execute Reference state =
+    (allocation (model := model) ctx N).execute environment Reference state =
       state.mapClassical (fun entry =>
         (pushStore N entry.1, (entry.2.1, (entry.2.2, ((), ()))))) := by
   exact retain_pair_execute ctx ctx.canonicalFreshKey (.bits (residueSamplingBits N))
@@ -126,10 +129,10 @@ theorem samplerRetained_allocation_execute (ctx : RuntimeCtx model.kind) (N : Na
     (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh Reference state
 
 /-- Each actual sampled body path retains exactly one uniform fraction of every input block. -/
-theorem samplerRetained_body_execute (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_body_execute (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) ctx N).execute Reference state =
+    (body (model := model) ctx N).execute environment Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
         (fun entry => ((outcomeStep (model := model) ctx N entry.1.1 entry.2).1,
           (entry.1.2.1,
@@ -145,10 +148,10 @@ theorem samplerRetained_body_execute (ctx : RuntimeCtx model.kind) (N : Nat)
   exact Subsingleton.elim _ _
 
 /-- The actual body implements the independent complete output store with its uniform source law. -/
-theorem samplerRetained_body_source_execute (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetained_body_source_execute (ctx : RuntimeCtx model.kind) {N : Nat}
     (input : Input N) (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) ctx N).execute Reference state =
+    (body (model := model) ctx N).execute environment Reference state =
       (uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
         (fun entry => (outputStore input entry.1.1 entry.2,
           (entry.1.2.1,

@@ -27,7 +27,7 @@ open Execution
 
 noncomputable section
 
-private theorem cells_basis_zero (ctx : RuntimeCtx .quantum)
+private lemma cells_basis_zero (ctx : RuntimeCtx .quantum)
     (dimension : ℕ+) (count : Nat) :
     MeasurementCells.basisEquiv ctx dimension count ctx.quantumLayout.zeroLabel =
       (MeasurementCells.context ctx dimension count).quantumLayout.zeroLabel := by
@@ -38,12 +38,14 @@ private theorem cells_basis_zero (ctx : RuntimeCtx .quantum)
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
+variable {environment : (executionModel N).Environment}
+
 /-- The actual initial allocation and zero preparation establish the declared
 member's zero basis in every complete input-store and reference block. -/
-theorem sampling_prepare_seeded {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History)) :
+lemma sampling_prepare_seeded {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((executionModel N).HiddenState × History)) :
     BasisSeeded.Holds (bankContext base noQuantum N).quantumLayout.zeroLabel
-      ((Sampling.prepare base noQuantum N input).execute Reference state) := by
+      ((Sampling.prepare base noQuantum N).execute environment Reference state) := by
   have empty : base.systemCount = 0 := by
     change base.quantumWires.length = 0
     rw [noQuantum]
@@ -78,9 +80,9 @@ theorem sampling_prepare_seeded {Reference : Register} {History : Type} [Fintype
       empty (BasisPreparation.zero (layout N)).value =
         (bankContext base noQuantum N).quantumLayout.zeroLabel :=
     matched.trans mapped
-  have actual := Circuit.prepareZero_empty_seeded
+  have actual := Circuit.prepareZero_empty_seeded (environment := environment)
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model)
     (services := ClassicalOracleModel.empty)
     base.canonicalFreshKey (layout N)
@@ -89,39 +91,42 @@ theorem sampling_prepare_seeded {Reference : Register} {History : Type} [Fintype
   simpa +instances only [Sampling.prepare, bankContext, seed] using actual
 
 /-- Real result retention keeps the same zero bank in every complete reference block. -/
-theorem allocate_seeded (ctx : RuntimeCtx .quantum) {Reference : Register}
+lemma allocate_seeded (ctx : RuntimeCtx .quantum) {Reference : Register}
     {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state) :
     BasisSeeded.Holds (Storage.context ctx N).quantumLayout.zeroLabel
-      ((allocate ctx N input).execute Reference state) := by
-  let retention := Circuit.retain (model := executionModel input) ctx
+      ((allocate ctx N).execute environment Reference state) := by
+  let retention := Circuit.retain (model := executionModel N) ctx
     ctx.canonicalFreshKey (.bits (phaseBits N)) ctx.canonicalFreshKey_fresh
-  have retained := BasisSeeded.retain (model := executionModel input)
+  have retained := BasisSeeded.retain (environment := environment) (model := executionModel N)
     ctx.quantumLayout.zeroLabel state seeded ctx.canonicalFreshKey
     (.bits (phaseBits N)) ctx.canonicalFreshKey_fresh
-  have cells := MeasurementCells.allocate_seeded (model := executionModel input)
+  have cells := MeasurementCells.allocate_seeded
+    (environment := environment) (model := executionModel N)
     (Storage.resultContext ctx N) 2 (phaseBits N)
-    ctx.quantumLayout.zeroLabel (retention.execute Reference state) retained
+    ctx.quantumLayout.zeroLabel (retention.execute environment Reference state) retained
   rw [show ctx.quantumLayout.zeroLabel =
     (Storage.resultContext ctx N).quantumLayout.zeroLabel from rfl, cells_basis_zero] at cells
-  exact BasisSeeded.seq retention
-    (MeasurementCells.allocate (model := executionModel input)
+  exact BasisSeeded.seq (environment := environment) retention
+    (MeasurementCells.allocate (model := executionModel N)
       (Storage.resultContext ctx N) 2 (phaseBits N))
     (Storage.context ctx N).quantumLayout.zeroLabel state cells
 
+include input in
 /-- The real prepare and sampler prefixes establish zero without a supplied state witness. -/
-theorem prepared_sample_seeded {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History)) :
+lemma prepared_sample_seeded {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((executionModel N).HiddenState × History)) :
     BasisSeeded.Holds
       (Iteration.sampledContext (bankContext base noQuantum N) N).quantumLayout.zeroLabel
-      ((Sampler.Retained.circuit (model := executionModel input)
-        (bankContext base noQuantum N) N).execute Reference
-          ((Sampling.prepare base noQuantum N input).execute Reference state)) :=
-  Sampler.Retained.samplerRetained_seeded (model := executionModel input)
+      ((Sampler.Retained.circuit (model := executionModel N)
+        (bankContext base noQuantum N) N).execute environment Reference
+          ((Sampling.prepare base noQuantum N).execute environment Reference state)) :=
+  Sampler.Retained.samplerRetained_seeded (environment := environment)
+    (model := executionModel N)
     (ctx := bankContext base noQuantum N) input
     (bankContext base noQuantum N).quantumLayout.zeroLabel _
-    (sampling_prepare_seeded base noQuantum N input state)
+    (sampling_prepare_seeded base noQuantum N state)
 
 end
 

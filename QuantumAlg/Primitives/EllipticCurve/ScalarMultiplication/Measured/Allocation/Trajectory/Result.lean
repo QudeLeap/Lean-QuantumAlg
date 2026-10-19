@@ -26,7 +26,7 @@ noncomputable section
 open MeasuredPointAddition
 
 /-- The original paired addends give the exact two-exponent group expression. -/
-theorem pairedAffinePath_groupExpression {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma pairedAffinePath_groupExpression {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {exponentWidth : Nat}
     (points : Fin (2 * exponentWidth) → AffinePoint E) (seed : AffinePoint E)
     (leftBase rightBase : E.GroupPoint)
@@ -44,7 +44,7 @@ theorem pairedAffinePath_groupExpression {p : Nat} (E : PrimeFieldShortWeierstra
     ExceptionalOffsetAveraging.prefixMultiplier_pairedBigEndian]
 
 /-- Every original admissible paired branch has its exact full-reference final affine column. -/
-theorem cascadeTarget_pairedAffineInput {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma cascadeTarget_pairedAffineInput {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {exponentWidth : Nat}
     (points : Fin (2 * exponentWidth) → AffinePoint E) (seed : AffinePoint E)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth))

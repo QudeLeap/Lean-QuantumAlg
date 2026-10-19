@@ -79,13 +79,13 @@ def writeUnderLoop {ctx : RuntimeCtx kind} {shape : CShape}
         (previousCtx ctx width).canonicalFreshKey_fresh
 
 /-- The three live state cells have their actual generated identities. -/
-theorem gcdState_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma gcdState_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (loopCtx ctx width).keys =
       [(conditionCell ctx width).key, (previousCell ctx width).key,
         (currentCell ctx width).key] ++ ctx.keys := rfl
 
 /-- Global context uniqueness proves internal separation without a caller hypothesis. -/
-theorem gcdState_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+lemma gcdState_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     [(conditionCell ctx width).key, (previousCell ctx width).key,
       (currentCell ctx width).key].Nodup := by
   have unique := (loopCtx ctx width).keysNodup
@@ -94,7 +94,7 @@ theorem gcdState_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).1
 
 /-- Actual old storage identities are distinct from all three new cells. -/
-theorem gcdState_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma gcdState_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint
       [(conditionCell ctx width).key, (previousCell ctx width).key,
         (currentCell ctx width).key] ctx.keys := by
@@ -106,7 +106,7 @@ theorem gcdState_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).2.2 key internal key external rfl
 
 /-- Lexical classical state does not allocate or discard any physical quantum wire. -/
-theorem gcdState_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma gcdState_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (loopCtx ctx width).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.GCD

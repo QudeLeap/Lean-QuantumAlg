@@ -12,8 +12,9 @@ public import QuantumAlg.Core.Algorithm.ClassicalOp
 /-!
 # Typed placement of a granted classical query
 
-The oracle declaration owns the transition, hidden state and accounting
-coordinate. A query placement supplies only the granted query instance and
+The oracle signature owns the hidden-state type and accounting coordinate.
+The execution environment supplies its transition. A query placement supplies
+only the granted query instance and
 its exact caller-visible input and output references. It cannot supply a
 replacement transition, initialize the service or read its hidden state.
 -/

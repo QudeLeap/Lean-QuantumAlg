@@ -23,7 +23,7 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Registers
 noncomputable section
 
 /-- Equal actual word, length, phase, parity, and control fields give the same whole frame. -/
-theorem ext_fields {width : Nat} (left right : Registers width)
+lemma ext_fields {width : Nat} (left right : Registers width)
     (word1 : left.firstWord = right.firstWord) (word2 : left.secondWord = right.secondWord)
     (coefficient : left.coefficientLength = right.coefficientLength)
     (quotient : left.quotientLength = right.quotientLength)

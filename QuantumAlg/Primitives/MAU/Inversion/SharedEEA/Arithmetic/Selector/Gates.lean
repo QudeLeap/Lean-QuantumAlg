@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticSelector
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec ArithmeticWindowRegisters ArithmeticWindowProgram
 open ArithmeticWindowPreservation ArithmeticSelectionKey
 
@@ -34,7 +36,7 @@ private def bodyGates {width : Nat} (window : Window width) (operation : Operati
     (ArithmeticWindowControl.gates window operation).map
       (ArithmeticWindowPlacement.placement window).placeGate
 
-private theorem bodyGates_step {width : Nat} (window : Window width) (operation : Operation)
+private lemma bodyGates_step {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (state : Registers width) :
     stepList (bodyGates window operation coefficient) state =
       controlledBodyStep window operation coefficient state := by
@@ -52,7 +54,7 @@ private theorem bodyGates_step {width : Nat} (window : Window width) (operation 
             (ArithmeticWindowControl.gates_step window operation
               ((CoefficientWindowProgram.placement window).grouping state)))
 
-private theorem bodyGates_trace {width : Nat} (window : Window width) (operation : Operation)
+private lemma bodyGates_trace {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) :
     (bodyGates window operation coefficient).map (event .empty) =
       (ArithmeticWindowControl.gates window operation).map (event .empty) := by
@@ -76,7 +78,7 @@ def gates {width : Nat} (window : Window width) (operation : Operation) (coeffic
       (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).reverse
 
 /-- Exact full-frame selector action restores arbitrary Ctrl and borrowed Iter. -/
-theorem arithmeticSelector_gates_step {width : Nat} (window : Window width)
+lemma arithmeticSelector_gates_step {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool)
     (selected : Key width (readsSign operation)) (state : Registers width) :
     stepList (gates window operation coefficient selected) state =
@@ -87,31 +89,31 @@ theorem arithmeticSelector_gates_step {width : Nat} (window : Window width)
   exact cleanup window operation coefficient selected state
 
 /-- The actual emitted word has the same complete coherent action on any supplied layout. -/
-theorem arithmeticSelector_gates_realizes {width : Nat} (window : Window width)
+lemma arithmeticSelector_gates_realizes {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool)
     (selected : Key width (readsSign operation)) (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (programList layout .empty (gates window operation coefficient selected))
+      (programList layout .empty (gates window operation coefficient selected)) environment
       (step window operation coefficient selected) :=
   realizesList_congrStep layout .empty _
-    (arithmeticSelector_gates_step window operation coefficient selected)
+    (arithmeticSelector_gates_step window operation coefficient selected) environment
 
 /-- Every emitted predicate and arithmetic event retains its exact original position. -/
-theorem arithmeticSelector_gates_trace {width : Nat} (window : Window width)
+lemma arithmeticSelector_gates_trace {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool) (selected : Key width (readsSign operation)) :
     (gates window operation coefficient selected).map (event .empty) =
       (program window operation coefficient selected).eventTrace := by
   rw [gates, List.map_append, List.map_append, bodyGates_trace, program_eventTrace]
 
 /-- All native event multiplicities are inherited from the original actual selector. -/
-theorem arithmeticSelector_gates_eventCost {width : Nat} (window : Window width)
+lemma arithmeticSelector_gates_eventCost {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool) (selected : Key width (readsSign operation)) :
     ResourcePool.ofList ((gates window operation coefficient selected).map (event .empty)) =
       (program window operation coefficient selected).eventCost := by
   rw [arithmeticSelector_gates_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
 /-- Both full predicates and every actual dirty-control arithmetic instruction are counted. -/
-theorem arithmeticSelector_gates_length {width : Nat} (window : Window width)
+lemma arithmeticSelector_gates_length {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool) (selected : Key width (readsSign operation)) :
     (gates window operation coefficient selected).length =
       2 * (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).length +

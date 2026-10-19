@@ -30,6 +30,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeProductCorrection
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MAU.Multiplication
 open EncodedBit.Word
 
@@ -40,7 +42,7 @@ def targetWord (width : Nat) : EncodedBit.Word (VariableGidney.encoding width) w
     (BinaryLabelEncoding.prodRightBit (BinaryLabelEncoding.finIdentity width)
       (BinaryLabelEncoding.finIdentity width) (VariableGidney.inputBit width index))
 
-theorem targetWord_get (width : Nat) (index : Fin width)
+lemma targetWord_get (width : Nat) (index : Fin width)
     (state : VariableGidney.Registers width) :
     ((targetWord width).bit index).get state = state.2.2.val.testBit index.val :=
   VariableGidney.variableGidney_inputBit_get width index state.2.2
@@ -53,9 +55,9 @@ def program (width : Nat) (modulus : Fin (2 ^ width + 1)) (mask : Fin width → 
     (targetWord width) mask
 
 /-- Every complete input label retains precisely the recomputed product character. -/
-theorem program_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma program_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : VariableGidney.Registers width) :
-    (program width modulus (fun index => outcome.val.testBit index.val)).applyVec
+    ((program width modulus (fun index => outcome.val.testBit index.val)).applyVec environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm
             ((VariableGidney.encoding width).encode state))).vec =
@@ -71,9 +73,9 @@ theorem program_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
   rfl
 
 /-- The actual product and its inverse cancel the previously measured product's phase. -/
-theorem program_cancels (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma program_cancels (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : VariableGidney.Registers width) :
-    (program width modulus (fun index => outcome.val.testBit index.val)).applyVec
+    ((program width modulus (fun index => outcome.val.testBit index.val)).applyVec environment)
         (WalshHadamard.walshSign outcome
           (Nat.FixedWidth.variableWordPrefix modulus state.1 state.2.1 state.2.2 width) •
             (NormalizedVector.ket
@@ -86,13 +88,13 @@ theorem program_cancels (width : Nat) (modulus : Fin (2 ^ width + 1))
     WalshHadamard.walshSign_mul_self, one_smul]
 
 /-- Every reference coordinate has the same exact complete-label phase correction. -/
-theorem program_reference_entry (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma program_reference_entry (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : VariableGidney.Registers width)
     {Reference : Register}
     (row : (QubitLayout.canonical (VariableGidney.encoding width).width).toQuantum.register.Index)
     (left right : Reference.Index) :
     UnitaryOperator.prodTensor
-        (program width modulus (fun index => outcome.val.testBit index.val)).matrix
+        ((program width modulus (fun index => outcome.val.testBit index.val)).matrix environment)
         (1 : UnitaryOperator Reference)
         (row, left)
         ((QubitLayout.canonical (VariableGidney.encoding width).width).basisEquiv.symm

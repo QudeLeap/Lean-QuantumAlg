@@ -36,7 +36,7 @@ noncomputable section
 open ArithmeticWindowRegisters ArithmeticWindowProgram
 open CoefficientWindowLaws
 
-private theorem arithmetic_fields {width : Nat} (window : Window width) (operation : Operation)
+private lemma arithmetic_fields {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (CoefficientWindowProgram.step window operation state).coefficientLength =
         state.coefficientLength ∧
@@ -45,7 +45,7 @@ private theorem arithmetic_fields {width : Nat} (window : Window width) (operati
   exact ⟨congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.1.1) actual,
     congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.2.2.1.1) actual⟩
 
-private theorem source_subtract {width : Nat} (state : Registers width)
+private lemma source_subtract {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     ArithmeticInstruction.sourceStep .coefficientSubtract state =
@@ -65,7 +65,7 @@ private theorem source_subtract {width : Nat} (state : Registers width)
   rw [ArithmeticInstruction.sourceStep, enabled, physical]
   cases digit : state.flags.sign <;> rfl
 
-private theorem source_add {width : Nat} (window : Window width) (state : Registers width)
+private lemma source_add {width : Nat} (window : Window width) (state : Registers width)
     (first : state.flags.first = true)
     (physical : ArithmeticInstruction.sourceWindow .coefficientAdd state = some window) :
     ArithmeticInstruction.sourceStep .coefficientAdd state =
@@ -78,7 +78,7 @@ private theorem source_add {width : Nat} (window : Window width) (state : Regist
   rw [first, physical]
   rfl
 
-private theorem subtraction_fields {width : Nat} (state : Registers width)
+private lemma subtraction_fields {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     let current := ArithmeticInstruction.sourceStep .coefficientSubtract state
@@ -94,7 +94,7 @@ private theorem subtraction_fields {width : Nat} (state : Registers width)
     exact ⟨fields.1, fields.2.trans first,
       ArithmeticWindowPreservation.coefficient_sign window .subtractLow state rfl⟩
 
-private theorem subtraction_second {width : Nat} (state : Registers width)
+private lemma subtraction_second {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     (ArithmeticInstruction.sourceStep .coefficientSubtract state).flags.second = false := by
@@ -107,7 +107,7 @@ private theorem subtraction_second {width : Nat} (state : Registers width)
       (fun value : ArithmeticWindowPreservation.Retained width => value.2.2.1.2)
       (ArithmeticWindowPreservation.coefficient_retained window .subtractLow state)).trans second
 
-private theorem addition_window {width : Nat} (state : Registers width)
+private lemma addition_window {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     ArithmeticInstruction.sourceWindow .coefficientAdd
@@ -139,7 +139,7 @@ private theorem addition_window {width : Nat} (state : Registers width)
     (congrArg (fun word : BitVec width.size => word.toNat + 1) fields.1))
 
 /-- Actual source operations equal the exact signed coefficient instruction for either digit. -/
-theorem source_signed_word {width : Nat} (state : Registers width)
+lemma source_signed_word {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     let window := CoefficientWindowOrientation.coefficientWindow width
@@ -176,7 +176,7 @@ theorem source_signed_word {width : Nat} (state : Registers width)
   rfl
 
 /-- The same actual block keeps every original outside coordinate, including fractional bits. -/
-theorem source_complement {width : Nat} (state : Registers width)
+lemma source_complement {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     let window := CoefficientWindowOrientation.coefficientWindow width
@@ -201,7 +201,7 @@ theorem source_complement {width : Nat} (state : Registers width)
   · exact step_complement window .subtractLow state
 
 /-- The complete emitted coefficient program has that same actual signed-word result. -/
-theorem native_signed_word (width : Nat) (state : Registers width)
+lemma native_signed_word (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false) (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     let window := CoefficientWindowOrientation.coefficientWindow width

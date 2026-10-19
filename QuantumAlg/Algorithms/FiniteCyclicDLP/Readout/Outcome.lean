@@ -39,7 +39,7 @@ public def measurementOutcome (P : KnownOrderProblem G)
     value.val.testBit
       (orderWidth P + orderWidth P - 1 - outputIndex.val)
 
-@[simp] public theorem fullRegisterIndex_measurementOutcome
+@[simp] public lemma fullRegisterIndex_measurementOutcome
     (P : KnownOrderProblem G)
     (value : Fin (2 ^ (orderWidth P + orderWidth P))) :
     TerminalZMeasure.fullRegisterIndex (measurementOutcome P value) = value := by
@@ -60,7 +60,7 @@ public def measurementOutcome (P : KnownOrderProblem G)
       _ = bit.val := congrArg Fin.val (Fin.rev_rev bit)
   rw [hbits, Nat.ofBits_testBit, Nat.mod_eq_of_lt value.isLt]
 
-public theorem measurementOutcome_injective (P : KnownOrderProblem G) :
+public lemma measurementOutcome_injective (P : KnownOrderProblem G) :
     Function.Injective (measurementOutcome P) := by
   intro left right equality
   have := congrArg TerminalZMeasure.fullRegisterIndex equality

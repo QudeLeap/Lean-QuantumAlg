@@ -23,7 +23,7 @@ noncomputable section
 
 open scoped BigOperators
 
-private theorem sourceEvent_coord_irrel {G : Type*} [Monoid G]
+private lemma sourceEvent_coord_irrel {G : Type*} [Monoid G]
     {t r : Nat} (g : G) (phase : Fin (2 ^ t)) (left right : Fin r) :
     orderFindingOutputSuccessEvent g (phase, left) ↔
       orderFindingOutputSuccessEvent g (phase, right) := by
@@ -31,7 +31,7 @@ private theorem sourceEvent_coord_irrel {G : Type*} [Monoid G]
 
 /-- The production circuit's successful Born mass equals the source-joint
 successful mass used by the typed general endpoint. -/
-theorem nativeRecoverableMass_eq_sourceSuccessMass {N x t m r : Nat}
+lemma nativeRecoverableMass_eq_sourceSuccessMass {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) :
     (OrderFinding.Native.sourceOutcomePMF A).toOuterMeasure

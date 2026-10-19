@@ -44,7 +44,7 @@ private def vectorConsEquiv (count : Nat) :
     simp only [List.Vector.head_cons, List.Vector.tail_cons]
   right_inv := List.Vector.cons_head_tail
 
-private theorem map_cons_apply [Finite Sample] {count : Nat}
+private lemma map_cons_apply [Finite Sample] {count : Nat}
     (distribution : PMF (List.Vector Sample count))
     (selected first : Sample) (tail : List.Vector Sample count) :
     (distribution.map (List.Vector.cons selected)) (List.Vector.cons first tail) =
@@ -57,7 +57,7 @@ private theorem map_cons_apply [Finite Sample] {count : Nat}
   · simp only [same, false_and, if_false, Finset.sum_const_zero]
 
 /-- A nonempty vector's exact mass factors into its first sample and the existing tail PMF. -/
-theorem independentReplicateVector_cons_apply [Finite Sample] (distribution : PMF Sample)
+lemma independentReplicateVector_cons_apply [Finite Sample] (distribution : PMF Sample)
     (count : Nat) (first : Sample) (tail : List.Vector Sample count) :
     independentReplicateVector distribution (count + 1) (List.Vector.cons first tail) =
       distribution first * independentReplicateVector distribution count tail := by
@@ -67,7 +67,7 @@ theorem independentReplicateVector_cons_apply [Finite Sample] (distribution : PM
     Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- Every point probability is the product of the original single-sample probabilities. -/
-public theorem independentReplicateVector_apply_prod [Finite Sample] (distribution : PMF Sample) :
+public lemma independentReplicateVector_apply_prod [Finite Sample] (distribution : PMF Sample) :
     ∀ (count : Nat) (samples : List.Vector Sample count),
       independentReplicateVector distribution count samples =
         ∏ index : Fin count, distribution (samples.get index) := by
@@ -85,14 +85,14 @@ public theorem independentReplicateVector_apply_prod [Finite Sample] (distributi
       simp only [List.Vector.get_cons_zero, List.Vector.get_cons_succ]
 
 /-- Finite real probabilities retain the same product, including zero-probability outcomes. -/
-theorem independentReplicateVector_toReal_prod [Finite Sample] (distribution : PMF Sample)
+lemma independentReplicateVector_toReal_prod [Finite Sample] (distribution : PMF Sample)
     (count : Nat) (samples : List.Vector Sample count) :
     (independentReplicateVector distribution count samples).toReal =
       ∏ index : Fin count, (distribution (samples.get index)).toReal := by
   rw [independentReplicateVector_apply_prod, ENNReal.toReal_prod]
 
 /-- Finite complex weights separate into the actual first-sample and tail-distribution sums. -/
-theorem independentReplicateVector_weighted_cons [Fintype Sample] (distribution : PMF Sample)
+lemma independentReplicateVector_weighted_cons [Fintype Sample] (distribution : PMF Sample)
     (count : Nat) (weight : List.Vector Sample (count + 1) → ℂ) :
     (∑ samples : List.Vector Sample (count + 1),
       ((independentReplicateVector distribution (count + 1) samples).toReal : ℂ) *

@@ -26,6 +26,8 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute
 
 /-- Actual coordinate operators surround the independent chronological point target. -/
@@ -33,38 +35,49 @@ def convertedCascadeTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (Reference : Register) :
     UnitaryOperator (Register.prod (readyContext p.size count).register Reference) :=
-  pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient Reference *
+  pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p) coefficient
+    Reference *
     (cascadeTarget E points Reference order *
-      pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
+      pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+        coefficient⁻¹ Reference)
 
 /-- The same complete converted circuit has its full joint target on the point-cascade domain. -/
-theorem convertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma convertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) {Reference : Register} {H : Type} [Fintype H]
     (original : State (readyContext p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
-        (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
-        original.quantumMarginal)) :
-    ((convertedCascade E points order coefficient).execute Reference original).quantumMarginal =
-      DensityOperator.applyUnitary (convertedCascadeTarget E points order coefficient Reference)
+        (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+          coefficient⁻¹ Reference)
+        original.quantumMarginal)) (allowAllocation : Bool := true) :
+    ((convertedCascade E points order coefficient allowAllocation).execute environment Reference
+      original).quantumMarginal =
+      DensityOperator.applyUnitary (convertedCascadeTarget (environment := environment) E points
+        order coefficient Reference)
         original.quantumMarginal := by
-  have before := pairCircuit_density p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹
-    original
+  have before := pairCircuit_density (environment := environment)
+    p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹
+    original allowAllocation
   have middleSupport : cascadeSupport E points Reference order
-      (((pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹).execute
+      (((pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹
+        allowAllocation).execute environment
         Reference original).quantumMarginal) := by
     rw [before]
     exact support
-  have middle := cascade_density E points order _ middleSupport
-  have after := pairCircuit_density p.size count (InPlaceTarget.modulusWord p) coefficient
-    ((cascade E points order).execute Reference
-      ((pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹).execute
-        Reference original))
+  have middle := cascade_density (environment := environment)
+    E points order _ middleSupport allowAllocation
+  have after := pairCircuit_density (environment := environment)
+    p.size count (InPlaceTarget.modulusWord p) coefficient
+    ((cascade E points order allowAllocation).execute environment Reference
+      ((pairCircuit p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹
+        allowAllocation).execute environment
+        Reference original)) allowAllocation
   have joined := after.trans (congrArg
     (DensityOperator.applyUnitary
-      (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient Reference))
+      (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+        coefficient Reference))
     (middle.trans (congrArg (DensityOperator.applyUnitary (cascadeTarget E points Reference order))
       before)))
   rw [convertedCascade, Circuit.execute_seq, State.mapHistory_quantumMarginal,

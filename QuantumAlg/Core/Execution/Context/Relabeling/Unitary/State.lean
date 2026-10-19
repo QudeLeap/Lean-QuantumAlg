@@ -23,6 +23,8 @@ namespace QuantumAlg.Execution.ContextRelabeling
 
 noncomputable section
 
+variable {allowAllocation : Bool}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {gates : GateModel} {oracles : OracleModel}
@@ -30,41 +32,51 @@ variable {gates : GateModel} {oracles : OracleModel}
   {source : RuntimeCtx .quantum}
   (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
   (program : UnitaryCircuit gates oracles source.quantumLayout)
+  (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
 
 /-- The complete joint operator has exactly the corresponding reference coordinates. -/
-theorem unitary_referenceBasis (Reference : Register) :
+lemma unitary_referenceBasis (Reference : Register) :
     UnitaryOperator.reindex (referenceBasis (source := source) keys physical Reference)
-      (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)) =
-        UnitaryOperator.prodTensor (unitaryProgram source keys physical program).matrix
+      (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+        (1 : UnitaryOperator Reference)) =
+        UnitaryOperator.prodTensor
+          ((unitaryProgram source keys physical program).matrix environment.quantum)
           (1 : UnitaryOperator Reference) := by
   apply Subtype.ext
   funext row column
-  exact (unitaryProgram_joint_entry source keys physical program Reference
+  exact (unitaryProgram_joint_entry source keys physical program environment.quantum Reference
     row.1 column.1 row.2 column.2).symm
 
-private theorem density_naturality {Reference : Register}
+private lemma density_naturality {Reference : Register}
     (density : DensityOperator (Register.prod source.register Reference)) :
     (DensityOperator.applyUnitary
-      (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)) density).reindex
+      (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+        (1 : UnitaryOperator Reference)) density).reindex
         (referenceBasis (source := source) keys physical Reference) =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (unitaryProgram source keys physical program).matrix
+        (UnitaryOperator.prodTensor
+          ((unitaryProgram source keys physical program).matrix environment.quantum)
           (1 : UnitaryOperator Reference))
         (density.reindex (referenceBasis (source := source) keys physical Reference)) :=
   (DensityOperator.applyUnitary_reindex
-    (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)) density
+    (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+      (1 : UnitaryOperator Reference)) density
     (referenceBasis (source := source) keys physical Reference)).trans
       (congrArg (fun operator => DensityOperator.applyUnitary operator
         (density.reindex (referenceBasis (source := source) keys physical Reference)))
-        (unitary_referenceBasis keys physical program Reference))
+        (unitary_referenceBasis keys physical program environment Reference))
 
 /-- Full unitary execution retains persistent service labels on the mapped systems. -/
-theorem state_unitary {Reference : Register} {H : Type} [Fintype H]
+lemma state_unitary {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference (services.HiddenState × H)) :
-    state keys physical ((Circuit.unitary (operations := operations)
-      (classicalOracles := services) program).execute Reference original) =
-      (Circuit.unitary (operations := operations) (classicalOracles := services)
-        (unitaryProgram source keys physical program)).execute Reference
+    state keys physical ((Circuit.unitary
+        (allowAllocation := allowAllocation)
+        (operations := operations)
+      (classicalOracles := services) program).execute environment Reference original) =
+      (Circuit.unitary
+          (allowAllocation := allowAllocation)
+          (operations := operations) (classicalOracles := services)
+        (unitaryProgram source keys physical program)).execute environment Reference
           (state keys physical original) := by
   have block_eq {K : Type} [Fintype K] (value : State source Reference K)
       (stored : Store (source.relabel keys physical)) (history : K) :
@@ -78,13 +90,18 @@ theorem state_unitary {Reference : Register} {H : Type} [Fintype H]
   rintro ⟨stored, hidden, history, path⟩
   cases path
   rw [block_eq]
-  change (((Circuit.unitary (operations := operations) (classicalOracles := services)
-    program).execute Reference original).block
+  change (((Circuit.unitary
+      (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := services)
+    program).execute environment Reference original).block
     ((storeEquiv keys physical source).symm stored, (hidden, (history, ())))).reindex
       (referenceBasis (source := source) keys physical Reference) = _
-  rw [Circuit.execute_unitary_block, density_naturality keys physical program]
+  rw [Circuit.execute_unitary_block
+      (allowAllocation := allowAllocation), density_naturality keys physical program environment]
   rw [← block_eq original stored (hidden, history)]
-  exact (Circuit.execute_unitary_block (operations := operations) (services := services)
+  exact (Circuit.execute_unitary_block
+      (allowAllocation := allowAllocation) (operations := operations) (services := services)
+      (quantumEnvironment := environment)
     (state keys physical original) (unitaryProgram source keys physical program)
     stored hidden history).symm
 

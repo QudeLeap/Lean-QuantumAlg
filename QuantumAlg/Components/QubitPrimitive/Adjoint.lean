@@ -22,7 +22,7 @@ namespace QuantumAlg.QubitPrimitive
 noncomputable section
 
 /-- Every addressed reversible qubit primitive has its original operator as its adjoint. -/
-public theorem qubitPrimitive_operator_star {n : Nat} (primitive : QubitPrimitive n) :
+public lemma qubitPrimitive_operator_star {n : Nat} (primitive : QubitPrimitive n) :
     star primitive.operator = primitive.operator := by
   have same : primitive.perm.symm = primitive.perm := by
     cases primitive <;> rfl

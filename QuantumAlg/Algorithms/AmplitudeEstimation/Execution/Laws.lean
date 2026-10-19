@@ -40,10 +40,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-theorem allocationCode_localDensity {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+lemma allocationCode_localDensity {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) {Reference : Register} {H : Type} [Fintype H]
     (state : State (preparedContext t n) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((allocationCode E t).execute Reference state).quantumMarginal.marginalLeft =
+    ((allocationCode n t).execute (sourceEnvironment E) Reference
+      state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex (S := (post t n).register)
         (MeasurementCells.basisEquiv (resultContext t n) 2 t) := by
   rw [allocationCode, Circuit.execute_seq, State.mapHistory_quantumMarginal]
@@ -54,22 +55,24 @@ theorem allocationCode_localDensity {n : Nat} (E : GeneralAmplitudeEstimationInp
       simpa only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal,
         State.retain_quantumMarginal] using
         congrArg (DensityOperator.marginalLeft (R := (post t n).register) (S := Reference))
-          (MeasurementCells.allocate_quantumMarginal (model := model E)
+          (MeasurementCells.allocate_quantumMarginal (environment := sourceEnvironment E) (model :=
+            model n)
             (resultContext t n) 2 t
-            ((Circuit.retain (model := model E) (preparedContext t n)
-              ⟨1⟩ (.bits t) (resultFresh t n)).execute Reference state))
+            ((Circuit.retain (model := model n) (preparedContext t n)
+              ⟨1⟩ (.bits t) (resultFresh t n)).execute (sourceEnvironment E) Reference state))
     _ = _ := by
       rw [MeasurementCells.jointBasisEquiv, DensityOperator.reindex_prod_marginalLeft,
         State.retain_quantumMarginal]
 
-private theorem zeroPreparation_eq (t n : Nat) :
+private lemma zeroPreparation_eq (t n : Nat) :
     BasisPreparation.zero (runtimeLayout t n) = inputPreparation t n := by
   apply congrArg BasisPreparation.mk
   exact (BinaryBasis.bigEndianEquiv_symm_zero (t + (Elementary.helperWidth t n + n))).symm
 
-private theorem nativeProgram_input {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+private lemma nativeProgram_input {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) (empty : Elementary.helperWidth t n = 0) :
-    DensityOperator.applyUnitary (nativeProgram E t).matrix
+    DensityOperator.applyUnitary ((nativeProgram n t).matrix
+      (AmplitudeAmplificationSource.interpretation E.source.preparation E.source.good true true))
       ((DensityOperator.ofPure (allZeroInput E t)).reindex
         (S := (preparedContext t n).register) (preparedOriginalBasisEquiv t n empty).symm) =
       (DensityOperator.ofPure ((evolvedState E t).normalized)).reindex
@@ -79,31 +82,38 @@ private theorem nativeProgram_input {n : Nat} (E : GeneralAmplitudeEstimationInp
   rfl
 
 /-- The actual prepared state is the original coherent source state before the real Z reads. -/
-theorem beforeMeasurement_localDensity {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+lemma beforeMeasurement_localDensity {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) (empty : Elementary.helperWidth t n = 0)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) :
-    ((beforeMeasurement E t).execute Reference state).quantumMarginal.marginalLeft =
+    ((beforeMeasurement n t).execute (sourceEnvironment E) Reference
+      state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure ((evolvedState E t).normalized)).reindex
         (S := (post t n).register) (outputOriginalBasisEquiv t n empty).symm := by
   have prepared :
-      ((preparationCode E t).execute Reference state).quantumMarginal.marginalLeft =
+      ((preparationCode n t).execute (sourceEnvironment E) Reference
+        state).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure (allZeroInput E t)).reindex
           (S := (preparedContext t n).register) (preparedOriginalBasisEquiv t n empty).symm :=
     by
       have actual := Circuit.prepareZero_empty_local_density
         (gates := AlgorithmGate.model)
-        (oracles := Elementary.oracles E.source.preparation E.source.good)
+        (oracles := Elementary.oracles n)
         (operations := BitWord.model) (classicalOracles := .empty)
-        state ⟨0⟩ (runtimeLayout t n) preparationFresh (preparationDisjoint t n)
+        (sourceEnvironment E) state ⟨0⟩ (runtimeLayout t n) preparationFresh (preparationDisjoint t
+          n)
         pre_systemCount normalized
       rw [zeroPreparation_eq] at actual
       exact actual.trans (inputPreparation_density_original E t empty)
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal, allocationCode_localDensity,
-    Circuit.unitary_localDensity, prepared, nativeProgram_input E t empty,
-    DensityOperator.reindex_trans]
+    Circuit.unitary_localDensity, prepared]
+  change (DensityOperator.applyUnitary
+    ((nativeProgram n t).matrix
+      (AmplitudeAmplificationSource.interpretation E.source.preparation E.source.good true true))
+        _).reindex _ = _
+  rw [nativeProgram_input E t empty, DensityOperator.reindex_trans]
   rfl
 
 end

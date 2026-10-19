@@ -29,11 +29,11 @@ open EncodedBit InitialLengthPredicate
 def payloadValue {width : Nat} (state : Registers width) : Nat :=
   state.secondWord.toNat % 2 ^ width
 
-theorem payloadValue_fits {width : Nat} (state : Registers width) :
+lemma payloadValue_fits {width : Nat} (state : Registers width) :
     payloadValue state < 2 ^ width := Nat.mod_lt _ (Nat.two_pow_pos width)
 
 /-- The physical payload lens agrees with the corresponding bit of its exact finite value. -/
-theorem payloadBit_testBit (width : Nat) (index : Fin width) (state : Registers width) :
+lemma payloadBit_testBit (width : Nat) (index : Fin width) (state : Registers width) :
     (payloadBit width index).get state =
       (payloadValue state).testBit (width - 1 - index.val) := by
   rw [payloadBit_get]
@@ -45,7 +45,7 @@ theorem payloadBit_testBit (width : Nat) (index : Fin width) (state : Registers 
     BitVec.getLsbD, reversed, payloadValue, Nat.testBit_mod_two_pow, reverseBound]
 
 /-- The actual native leading-one condition selects precisely the current divisor's bit length. -/
-theorem firstOne_iff_size (width : Nat) (index : Fin width) (state : Registers width) :
+lemma firstOne_iff_size (width : Nat) (index : Fin width) (state : Registers width) :
     firstOne width index state ↔ (payloadValue state).size = width - index.val := by
   trans QuantumAlg.NumberTheory.SharedEEA.LeadingBit.selected width (payloadValue state) index
   · simp only [firstOne, zeroPrefix, QuantumAlg.NumberTheory.SharedEEA.LeadingBit.selected,
@@ -54,7 +54,7 @@ theorem firstOne_iff_size (width : Nat) (index : Fin width) (state : Registers w
       (payloadValue_fits state) index
 
 /-- The exact complete-register action now refers to an arithmetic size, not a free predicate. -/
-theorem firstOneGates_step_size (width : Nat) (index : Fin width) (output : Fin width.size)
+lemma firstOneGates_step_size (width : Nat) (index : Fin width) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (firstOneGates width index output) state =
       if (payloadValue state).size = width - index.val
@@ -63,11 +63,11 @@ theorem firstOneGates_step_size (width : Nat) (index : Fin width) (output : Fin 
   simp only [firstOne_iff_size]
 
 /-- Length output flips retain the payload, so every later predicate reads the same input. -/
-theorem payloadValue_flip (width : Nat) (output : Fin width.size) (state : Registers width) :
+lemma payloadValue_flip (width : Nat) (output : Fin width.size) (state : Registers width) :
     payloadValue ((divisorLengthBit width output).flip state) = payloadValue state := rfl
 
 /-- No position is selected when the current payload is zero, including all available widths. -/
-theorem firstOneGates_step_zero (width : Nat) (index : Fin width) (output : Fin width.size)
+lemma firstOneGates_step_zero (width : Nat) (index : Fin width) (output : Fin width.size)
     (state : Registers width) (zero : payloadValue state = 0) :
     GateSpec.stepList (firstOneGates width index output) state = state := by
   rw [firstOneGates_step_size]

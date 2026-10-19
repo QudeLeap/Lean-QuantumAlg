@@ -7,7 +7,11 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm
-public import QuantumAlg.Core.Execution.CycleSchedule
+public import QuantumAlg.Core.Execution.Classical.Predicate
+public import QuantumAlg.Core.Execution.Restart
+public import QuantumAlg.Core.Execution.Input.Successor
+public import QuantumAlg.Core.Algorithm.Solves
+public import QuantumAlg.Core.Execution.Circuit.Reassociation
 public import QuantumAlg.Primitives.ZReset.Resources
 public import QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Primitives.ZReset.Circuit
@@ -17,7 +21,10 @@ import all QuantumAlg.Primitives.ZReset.Resources
 import all QuantumAlg.Core.Algorithm.AlgorithmRun
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Algorithm.Solves
-import all QuantumAlg.Core.Execution.CycleSchedule
+import all QuantumAlg.Core.Execution.Classical.Predicate
+import all QuantumAlg.Core.Execution.Restart
+import all QuantumAlg.Core.Execution.Input.Successor
+import all QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Core.Algorithm.ExecutionState
 import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Base.Accounting.Context
@@ -66,7 +73,7 @@ private def layout (dimension : ℕ+) : QuantumLayout 1 :=
   RuntimeCtx.empty.addOwnedLayout ⟨0⟩ (layout dimension) (by decide)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-public theorem resultFresh (dimension : ℕ+) :
+public lemma resultFresh (dimension : ℕ+) :
     (⟨1⟩ : StorageKey) ∉ (inputContext dimension).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
@@ -157,20 +164,17 @@ public def problem {gates : GateModel} {oracles : OracleModel} (dimension : ℕ+
     (correctionDepth : Nat) :
     Problem (.quantum gates oracles) (inputContext dimension)
       (outputContext dimension) (.finite dimension) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ result => result.toFin.val < dimension
-  successLB := ⟨1, le_rfl⟩
-  states := [stateRequirement dimension]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ result => result.toFin.val < dimension
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [stateRequirement dimension]
   resources :=
     { events := ZReset.eventEnvelope dimension correctionBudget
       resident := spaceBudget dimension
       auxiliary := spaceBudget dimension }
-  depth :=
-    { duration := fun _ => 1
-      limit := 1 + correctionDepth
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := 1 + correctionDepth
 
 /-- Allocate the result cell, execute the actual reset, and expose both live entries. -/
 public def algorithm {gates : GateModel} {oracles : OracleModel} (dimension : ℕ+)
@@ -200,20 +204,17 @@ public def retainedProblem {gates : GateModel} {oracles : OracleModel}
     (correctionDepth : Nat) :
     Problem (.quantum gates oracles) (outputContext dimension)
       (outputContext dimension) (.finite dimension) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ result => result.toFin.val < dimension
-  successLB := ⟨1, le_rfl⟩
-  states := [retainedStateRequirement dimension]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ result => result.toFin.val < dimension
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [retainedStateRequirement dimension]
   resources :=
     { events := ZReset.eventEnvelope dimension correctionBudget
       resident := spaceBudget dimension
       auxiliary := spaceBudget dimension }
-  depth :=
-    { duration := fun _ => 1
-      limit := 1 + correctionDepth
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := 1 + correctionDepth
 
 /-- Reset and overwrite the actual previously allocated result cell. -/
 public def retainedAlgorithm {gates : GateModel} {oracles : OracleModel}
@@ -226,7 +227,7 @@ public def retainedAlgorithm {gates : GateModel} {oracles : OracleModel}
     { code := retainedCode dimension realizations
       output := Output.all (outputContext dimension) (.read (resultRead dimension)) }
 
-private theorem input_resident (dimension : ℕ+) :
+private lemma input_resident (dimension : ℕ+) :
     (inputContext dimension).residentSpace = inputSpace dimension := by
   simp only [inputContext, RuntimeCtx.residentSpace_addOwnedLayout,
     RuntimeCtx.residentSpace_empty, add_zero]
@@ -236,7 +237,7 @@ private theorem input_resident (dimension : ℕ+) :
   | quantumSystems query =>
       exact QuantumLayout.dimensionCount_uniform 1 dimension query Fin.val Fin.val_injective
 
-private theorem input_auxiliary (dimension : ℕ+) :
+private lemma input_auxiliary (dimension : ℕ+) :
     (inputContext dimension).auxiliarySpace = inputSpace dimension := by
   simp only [inputContext, RuntimeCtx.auxiliarySpace_addOwnedLayout,
     RuntimeCtx.auxiliarySpace_empty, add_zero]
@@ -246,19 +247,19 @@ private theorem input_auxiliary (dimension : ℕ+) :
   | quantumSystems query =>
       exact QuantumLayout.dimensionCount_uniform 1 dimension query Fin.val Fin.val_injective
 
-private theorem output_resident (dimension : ℕ+) :
+private lemma output_resident (dimension : ℕ+) :
     (outputContext dimension).residentSpace = spaceBudget dimension := by
   rw [outputContext, RuntimeCtx.residentSpace_addRetained, input_resident]
   funext axis
   cases axis <;> simp [SpacePool.ofShape, inputSpace, spaceBudget]
 
-private theorem output_auxiliary (dimension : ℕ+) :
+private lemma output_auxiliary (dimension : ℕ+) :
     (outputContext dimension).auxiliarySpace = spaceBudget dimension := by
   rw [outputContext, RuntimeCtx.auxiliarySpace_addRetained, input_auxiliary]
   funext axis
   cases axis <;> simp [SpacePool.ofShape, inputSpace, spaceBudget]
 
-private theorem actual_visitedContexts {gates : GateModel} {oracles : OracleModel}
+private lemma actual_visitedContexts {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -272,7 +273,7 @@ private theorem actual_visitedContexts {gates : GateModel} {oracles : OracleMode
     (ZReset.zReset_visitedContexts (wire dimension) (resultWrite dimension)
       realizations path.2)
 
-private theorem actual_events {gates : GateModel} {oracles : OracleModel}
+private lemma actual_events {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -285,7 +286,7 @@ private theorem actual_events {gates : GateModel} {oracles : OracleModel}
   ZReset.zReset_resourcePool_le_envelope (wire dimension) (resultWrite dimension)
     realizations correctionBudget bounded path.2
 
-private theorem actual_resident {gates : GateModel} {oracles : OracleModel}
+private lemma actual_resident {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -302,7 +303,7 @@ private theorem actual_resident {gates : GateModel} {oracles : OracleModel}
     | quantumSystems => exact le_rfl
   · exact le_rfl
 
-private theorem actual_auxiliary {gates : GateModel} {oracles : OracleModel}
+private lemma actual_auxiliary {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -319,7 +320,7 @@ private theorem actual_auxiliary {gates : GateModel} {oracles : OracleModel}
     | quantumSystems => exact le_rfl
   · exact le_rfl
 
-private theorem actual_depth {gates : GateModel} {oracles : OracleModel}
+private lemma actual_depth {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -336,6 +337,7 @@ private theorem actual_depth {gates : GateModel} {oracles : OracleModel}
   simpa only [Nat.zero_add, ZReset.depthEnvelope] using resetBound
 
 private def retainedState {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+) (Reference : Register)
     (input : Execution.OracleInput
       (ExecutionModel.quantum gates oracles).classicalOracles
@@ -344,10 +346,11 @@ private def retainedState {gates : GateModel} {oracles : OracleModel}
       ((ExecutionModel.quantum gates oracles).HiddenState ×
         (Execution.Store (inputContext dimension) × Unit)) :=
   (Circuit.retain (model := .quantum gates oracles)
-    (inputContext dimension) ⟨1⟩ (.finite dimension) (resultFresh dimension)).execute
+    (inputContext dimension) ⟨1⟩ (.finite dimension) (resultFresh dimension)).execute environment
     Reference (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
 
-private theorem final_quantumMarginal {gates : GateModel} {oracles : OracleModel}
+private lemma final_quantumMarginal {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -355,29 +358,34 @@ private theorem final_quantumMarginal {gates : GateModel} {oracles : OracleModel
     (input : Execution.OracleInput
       (ExecutionModel.quantum gates oracles).classicalOracles
       (inputContext dimension) Reference) :
-    ((algorithm dimension realizations).run.finalState Reference input.state).quantumMarginal =
-      ((ZReset.circuit (wire dimension) (resultWrite dimension) realizations).execute Reference
-        (retainedState dimension Reference input)).quantumMarginal := by
+    ((algorithm dimension realizations).run.finalState
+      environment Reference input.state).quantumMarginal =
+      ((ZReset.circuit (wire dimension) (resultWrite dimension) realizations).execute
+        environment Reference
+        (retainedState
+          (environment := environment) dimension Reference input)).quantumMarginal := by
   let finished := (ZReset.circuit (wire dimension) (resultWrite dimension)
-    realizations).execute Reference
-    (retainedState dimension Reference input)
+    realizations).execute environment Reference
+    (retainedState (environment := environment) dimension Reference input)
   calc
-    ((algorithm dimension realizations).run.finalState Reference input.state).quantumMarginal =
-        ((algorithm dimension realizations).run.execute Reference input.state).quantumMarginal :=
+    ((algorithm dimension realizations).run.finalState
+      environment Reference input.state).quantumMarginal =
+        ((algorithm dimension realizations).run.execute
+          environment Reference input.state).quantumMarginal :=
       ExecutionState.mapClassical_quantumMarginal
-        ((algorithm dimension realizations).run.execute Reference input.state) Prod.fst
+        ((algorithm dimension realizations).run.execute environment Reference input.state) Prod.fst
     _ = (finished.mapHistory
         (fun history =>
           (history.1, (history.2.1.1, (history.2.1.2, history.2.2))))).quantumMarginal :=
       congrArg ExecutionState.quantumMarginal
-        (Circuit.execute_seq
+        (Circuit.execute_seq (environment := environment)
           (.retain (model := .quantum gates oracles)
             (inputContext dimension) ⟨1⟩ (.finite dimension) (resultFresh dimension))
           (ZReset.circuit (wire dimension) (resultWrite dimension) realizations)
           (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
     _ = finished.quantumMarginal := Execution.State.mapHistory_quantumMarginal finished _
 
-private theorem selected_row_ne_zero (dimension : ℕ+)
+private lemma selected_row_ne_zero (dimension : ℕ+)
     (row : (outputContext dimension).quantumLayout.SelectedBasis Finset.univ)
     (different : row ≠ zeroSelected dimension) :
     row ⟨wire dimension, Finset.mem_univ _⟩ ≠
@@ -395,7 +403,8 @@ private theorem selected_row_ne_zero (dimension : ℕ+)
   subst index
   exact atZero
 
-private theorem observed_row_zero {gates : GateModel} {oracles : OracleModel}
+private lemma observed_row_zero {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -406,7 +415,7 @@ private theorem observed_row_zero {gates : GateModel} {oracles : OracleModel}
     (row column : (outputContext dimension).quantumLayout.SelectedBasis Finset.univ)
     (different : row ≠ zeroSelected dimension) :
     (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ Reference
-      ((algorithm dimension realizations).run.finalState Reference
+      ((algorithm dimension realizations).run.finalState environment Reference
         input.state).quantumMarginal).matrix
         row column = 0 := by
   rw [DensityOperator.observeSelection_entry]
@@ -423,7 +432,8 @@ private theorem observed_row_zero {gates : GateModel} {oracles : OracleModel}
   rw [QuantumLayout.joinSelectedBasis_selected_value]
   exact selected_row_ne_zero dimension row different
 
-private theorem actual_state {gates : GateModel} {oracles : OracleModel}
+private lemma actual_state {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -432,13 +442,13 @@ private theorem actual_state {gates : GateModel} {oracles : OracleModel}
       (ExecutionModel.quantum gates oracles).classicalOracles
       (inputContext dimension) Reference) :
     (stateRequirement dimension).Holds input.caller
-      ((algorithm dimension realizations).run.finalState Reference input.state) := by
+      ((algorithm dimension realizations).run.finalState environment Reference input.state) := by
   intro value
   cases value with
   | unit =>
       change (StatePromise.pure (zeroTarget dimension)).Holds
         (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ
-          Reference ((((algorithm dimension realizations).run.finalState Reference
+          Reference ((((algorithm dimension realizations).run.finalState environment Reference
             input.state).mapClassical
             (fun _ => CShape.Value.unit)).block CShape.Value.unit))
       rw [ExecutionState.executionState_mapClassical_const_block]
@@ -446,14 +456,15 @@ private theorem actual_state {gates : GateModel} {oracles : OracleModel}
       intro row different column
       exact observed_row_zero dimension realizations Reference input row column different
 
-private theorem runRestoresBorrowed_of_history
-    {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
+private lemma runRestoresBorrowed_of_history
+    {model : ExecutionModel} {environment : model.Environment}
+    {pre post : RuntimeCtx model.kind} {shape : CShape}
     (run : AlgorithmRun model pre post shape) {Reference : Register}
     (input : Execution.OracleInput model.classicalOracles pre Reference)
     (restored : run.code.BorrowedRestored Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
-      (run.execute Reference input.state)) :
-    run.RestoresBorrowed input := by
+      (run.execute environment Reference input.state)) :
+    run.RestoresBorrowed environment input := by
   unfold Circuit.BorrowedRestored at restored
   unfold AlgorithmRun.RestoresBorrowed Circuit.BorrowedRestored
   apply restored.trans
@@ -463,7 +474,8 @@ private theorem runRestoresBorrowed_of_history
     (ExecutionState.executionState_mapClassical_congr_decision
       input.state _ _ (fun _ => rfl) _ _)
 
-private theorem restores_borrowed {gates : GateModel} {oracles : OracleModel}
+private lemma restores_borrowed {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -471,7 +483,7 @@ private theorem restores_borrowed {gates : GateModel} {oracles : OracleModel}
     (input : Execution.OracleInput
       (ExecutionModel.quantum gates oracles).classicalOracles
       (inputContext dimension) Reference) :
-    (algorithm dimension realizations).run.RestoresBorrowed input := by
+    (algorithm dimension realizations).run.RestoresBorrowed environment input := by
   apply runRestoresBorrowed_of_history (algorithm dimension realizations).run input
   dsimp only [AlgorithmRun.execute, algorithm]
   unfold code
@@ -480,13 +492,15 @@ private theorem restores_borrowed {gates : GateModel} {oracles : OracleModel}
       (inputContext dimension) ⟨1⟩ (.finite dimension) (resultFresh dimension))
     (second := ZReset.circuit (wire dimension) (resultWrite dimension) realizations)
     (state := input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
-  · exact Circuit.borrowedRestored_retain ⟨1⟩ (.finite dimension) (resultFresh dimension) _
+  · exact Circuit.borrowedRestored_retain environment ⟨1⟩ (.finite dimension)
+      (resultFresh dimension) _
   · exact ZReset.zReset_borrowedRestored_noBorrowed rfl rfl
       (wire dimension) (resultWrite dimension) realizations _
 
 /-- The actual reset restores the borrowed interface for every input state,
 including inputs outside any separately stated problem predicate. -/
-public theorem code_borrowedRestored {gates : GateModel} {oracles : OracleModel}
+public lemma code_borrowedRestored {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -494,21 +508,21 @@ public theorem code_borrowedRestored {gates : GateModel} {oracles : OracleModel}
     (state : Execution.State (inputContext dimension) Reference
       ((ExecutionModel.quantum gates oracles).HiddenState × H)) :
     (code dimension realizations).BorrowedRestored Reference state
-      ((code dimension realizations).execute Reference state) := by
+      ((code dimension realizations).execute environment Reference state) := by
   unfold code
   apply Circuit.borrowedRestored_seq
     (first := .retain (model := .quantum gates oracles)
       (inputContext dimension) ⟨1⟩ (.finite dimension) (resultFresh dimension))
     (second := ZReset.circuit (wire dimension) (resultWrite dimension) realizations)
     (state := state)
-  · exact Circuit.borrowedRestored_retain ⟨1⟩ (.finite dimension)
+  · exact Circuit.borrowedRestored_retain environment ⟨1⟩ (.finite dimension)
       (resultFresh dimension) _
   · exact ZReset.zReset_borrowedRestored_noBorrowed rfl rfl
       (wire dimension) (resultWrite dimension) realizations _
 
 /-- The stated reset algorithm itself solves the independent finite-outcome,
 pure-zero, and resource contract. -/
-public theorem algorithm_solves {gates : GateModel} {oracles : OracleModel}
+public lemma algorithm_solves {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -521,25 +535,26 @@ public theorem algorithm_solves {gates : GateModel} {oracles : OracleModel}
     Algorithm.Solves (algorithm dimension realizations)
       (problem dimension correctionBudget correctionDepth) := by
   constructor
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro pair _supported
     exact pair.2.toFin.isLt
-  · intro Reference input _valid _initialized requirement present
+  · intro environment _witness Reference input _valid _initialized requirement present
     have same : requirement = stateRequirement dimension := List.mem_singleton.mp present
     subst requirement
     exact actual_state dimension realizations input
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     exact restores_borrowed dimension realizations input
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_events dimension realizations correctionBudget boundedEvents path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_resident dimension realizations path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_auxiliary dimension realizations path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact actual_depth dimension realizations correctionDepth boundedDepth path
 
 /-- The actual owned reset solves its independent finite-outcome, pure-zero,
@@ -554,13 +569,13 @@ public theorem main {gates : GateModel} {oracles : OracleModel}
     (correctionDepth : Nat)
     (boundedDepth : ∀ amount,
       (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth) :
-    ∃ candidate, Algorithm.Solves candidate
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate
       (problem dimension correctionBudget correctionDepth) :=
   ⟨algorithm dimension realizations,
     algorithm_solves dimension realizations correctionBudget boundedEvents
       correctionDepth boundedDepth⟩
 
-private theorem output_borrowedSelection_empty (dimension : ℕ+) :
+private lemma output_borrowedSelection_empty (dimension : ℕ+) :
     (outputContext dimension).borrowedSelection = ∅ := by
   ext index
   constructor
@@ -571,7 +586,8 @@ private theorem output_borrowedSelection_empty (dimension : ℕ+) :
   · intro absent
     simp at absent
 
-private theorem code_block_selected_zero {gates : GateModel} {oracles : OracleModel}
+private lemma code_block_selected_zero {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -585,7 +601,7 @@ private theorem code_block_selected_zero {gates : GateModel} {oracles : OracleMo
     (leftRef rightRef : Reference.Index)
     (nonzero : left (wire dimension) ≠
       (outputContext dimension).quantumLayout.zeroLabel (wire dimension)) :
-    (((code dimension realizations).execute Reference state).block result).matrix
+    (((code dimension realizations).execute environment Reference state).block result).matrix
       (left, leftRef) (right, rightRef) = 0 := by
   unfold code at result ⊢
   rw [Circuit.execute_seq]
@@ -598,7 +614,8 @@ private theorem code_block_selected_zero {gates : GateModel} {oracles : OracleMo
       (resultWrite dimension) realizations _ record left right leftRef rightRef nonzero
   · rfl
 
-private theorem code_block_observed_row_zero {gates : GateModel} {oracles : OracleModel}
+private lemma code_block_observed_row_zero {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -611,7 +628,8 @@ private theorem code_block_observed_row_zero {gates : GateModel} {oracles : Orac
     (row column : (outputContext dimension).quantumLayout.SelectedBasis Finset.univ)
     (different : row ≠ zeroSelected dimension) :
     (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ
-      Reference (((code dimension realizations).execute Reference state).block result)).matrix
+      Reference (((code dimension realizations).execute
+        environment Reference state).block result)).matrix
         row column = 0 := by
   rw [DensityOperator.observeSelection_entry]
   apply Finset.sum_eq_zero
@@ -626,7 +644,8 @@ private theorem code_block_observed_row_zero {gates : GateModel} {oracles : Orac
   rw [QuantumLayout.joinSelectedBasis_selected_value]
   exact selected_row_ne_zero dimension row different
 
-private theorem reset_observed_zero {gates : GateModel} {oracles : OracleModel}
+private lemma reset_observed_zero {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -636,7 +655,8 @@ private theorem reset_observed_zero {gates : GateModel} {oracles : OracleModel}
     (StatePromise.pure (zeroTarget dimension)).Holds
       (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ
         Reference
-        ((retainedCode dimension realizations).execute Reference state).quantumMarginal) := by
+        ((retainedCode dimension realizations).execute
+          environment Reference state).quantumMarginal) := by
   apply StatePromise.statePromise_pureKet_of_row_support
   intro row different column
   rw [DensityOperator.observeSelection_entry]
@@ -652,7 +672,8 @@ private theorem reset_observed_zero {gates : GateModel} {oracles : OracleModel}
   rw [QuantumLayout.joinSelectedBasis_selected_value]
   exact selected_row_ne_zero dimension row different
 
-private theorem retained_actual_state {gates : GateModel} {oracles : OracleModel}
+private lemma retained_actual_state {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -661,20 +682,22 @@ private theorem retained_actual_state {gates : GateModel} {oracles : OracleModel
       (ExecutionModel.quantum gates oracles).classicalOracles
       (outputContext dimension) Reference) :
     (retainedStateRequirement dimension).Holds input.caller
-      ((retainedAlgorithm dimension realizations).run.finalState Reference input.state) := by
+      ((retainedAlgorithm dimension realizations).run.finalState
+        environment Reference input.state) := by
   intro value
   cases value with
   | unit =>
       change (StatePromise.pure (zeroTarget dimension)).Holds
         (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ
-          Reference ((((retainedAlgorithm dimension realizations).run.finalState Reference
+          Reference ((((retainedAlgorithm dimension realizations).run.finalState
+            environment Reference
             input.state).mapClassical
             (fun _ => CShape.Value.unit)).block CShape.Value.unit))
       rw [ExecutionState.executionState_mapClassical_const_block,
         AlgorithmRun.finalState_quantumMarginal]
       exact reset_observed_zero dimension realizations Reference _
 
-private theorem retained_actual_resident {gates : GateModel} {oracles : OracleModel}
+private lemma retained_actual_resident {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -683,7 +706,7 @@ private theorem retained_actual_resident {gates : GateModel} {oracles : OracleMo
   exact le_of_eq ((ZReset.zReset_peakResidentSpace (ctx := outputContext dimension)
     (wire dimension) (resultWrite dimension) realizations path).trans (output_resident dimension))
 
-private theorem retained_actual_auxiliary {gates : GateModel} {oracles : OracleModel}
+private lemma retained_actual_auxiliary {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -693,7 +716,7 @@ private theorem retained_actual_auxiliary {gates : GateModel} {oracles : OracleM
     (wire dimension) (resultWrite dimension) realizations path).trans (output_auxiliary dimension))
 
 /-- The retained reset solves its own independent problem on every admitted input. -/
-public theorem retainedAlgorithm_solves {gates : GateModel} {oracles : OracleModel}
+public lemma retainedAlgorithm_solves {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -706,38 +729,40 @@ public theorem retainedAlgorithm_solves {gates : GateModel} {oracles : OracleMod
     Algorithm.Solves (retainedAlgorithm dimension realizations)
       (retainedProblem dimension correctionBudget correctionDepth) := by
   constructor
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro pair _supported
     exact pair.2.toFin.isLt
-  · intro Reference input _valid _initialized requirement present
+  · intro environment _witness Reference input _valid _initialized requirement present
     have same : requirement = retainedStateRequirement dimension := List.mem_singleton.mp present
     subst requirement
     exact retained_actual_state dimension realizations input
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     apply runRestoresBorrowed_of_history (retainedAlgorithm dimension realizations).run input
     exact ZReset.zReset_borrowedRestored_noBorrowed rfl rfl
       (wire dimension) (resultWrite dimension) realizations _
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact ZReset.zReset_resourcePool_le_envelope (wire dimension) (resultWrite dimension)
       realizations correctionBudget boundedEvents path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact retained_actual_resident dimension realizations path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact retained_actual_auxiliary dimension realizations path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact ZReset.zReset_depth_le_envelope (wire dimension) (resultWrite dimension)
       realizations (fun _ => 1) correctionDepth boundedDepth path
 
 /-- Actual measurement and reinitialization provide physical cleanup.
 The caller's independent cycle plan separately determines whether to cut here. -/
-public theorem restartCleanup {gates : GateModel} {oracles : OracleModel}
+public lemma restartCleanup {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles).Environment}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension)) :
-    Circuit.RestartCleanup (code dimension realizations) := by
+    Circuit.RestartCleanup (code dimension realizations) environment := by
   refine { measured := ?_
            restores := ?_
            reinitialized := ?_ }
@@ -770,95 +795,6 @@ public theorem restartCleanup {gates : GateModel} {oracles : OracleModel}
     exact code_block_observed_row_zero dimension realizations Reference state label
       row column different
 
-/-- The allocated reset certifies the independently stated complete reset protocol. -/
-public def completeCycle {gates : GateModel} {oracles : OracleModel}
-    (dimension : ℕ+)
-    (realizations : QuditShift.Realizations gates oracles
-      (outputContext dimension).quantumLayout (wire dimension))
-    (correctionBudget : ResourcePool (.quantum gates oracles))
-    (boundedEvents : ∀ amount,
-      ResourcePool.ofList (realizations amount).circuit.eventTrace ≤ correctionBudget)
-    (correctionDepth : Nat)
-    (boundedDepth : ∀ amount,
-      (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth) :
-    Circuit.CompleteCycle (code dimension realizations)
-      (problem dimension correctionBudget correctionDepth) :=
-  { output := Output.all (outputContext dimension) (.read (resultRead dimension))
-    certified := algorithm_solves dimension realizations correctionBudget boundedEvents
-      correctionDepth boundedDepth }
-
-/-- The second reset is itself a complete cycle on the retained live context. -/
-public def retainedCompleteCycle {gates : GateModel} {oracles : OracleModel}
-    (dimension : ℕ+)
-    (realizations : QuditShift.Realizations gates oracles
-      (outputContext dimension).quantumLayout (wire dimension))
-    (correctionBudget : ResourcePool (.quantum gates oracles))
-    (boundedEvents : ∀ amount,
-      ResourcePool.ofList (realizations amount).circuit.eventTrace ≤ correctionBudget)
-    (correctionDepth : Nat)
-    (boundedDepth : ∀ amount,
-      (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth) :
-    Circuit.CompleteCycle (retainedCode dimension realizations)
-      (retainedProblem dimension correctionBudget correctionDepth) :=
-  { output := Output.all (outputContext dimension) (.read (resultRead dimension))
-    certified := retainedAlgorithm_solves dimension realizations correctionBudget boundedEvents
-      correctionDepth boundedDepth }
-
-/-- The caller independently requests two complete measured resets on the same system. -/
-@[expose] public def repeatedPlan {gates : GateModel} {oracles : OracleModel}
-    (dimension : ℕ+) (correctionBudget : ResourcePool (.quantum gates oracles))
-    (correctionDepth : Nat) :
-    CyclePlan (.quantum gates oracles) (inputContext dimension)
-      (outputContext dimension) (.finite dimension) :=
-  .seq (.cycle (problem dimension correctionBudget correctionDepth))
-    (.cycle (retainedProblem dimension correctionBudget correctionDepth))
-
-/-- Two actual resets form two separately certified complete quantum cycles.
-The original sequential circuit still contains both measurements and its full
-chronological depth. -/
-@[expose] public def repeatedSchedule {gates : GateModel} {oracles : OracleModel}
-    (dimension : ℕ+)
-    (realizations : QuditShift.Realizations gates oracles
-      (outputContext dimension).quantumLayout (wire dimension))
-    (correctionBudget : ResourcePool (.quantum gates oracles))
-    (boundedEvents : ∀ amount,
-      ResourcePool.ofList (realizations amount).circuit.eventTrace ≤ correctionBudget)
-    (correctionDepth : Nat)
-    (boundedDepth : ∀ amount,
-      (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth) :
-    Circuit.CycleSchedule (repeatedPlan dimension correctionBudget correctionDepth)
-      (.seq (code dimension realizations)
-      (retainedCode dimension realizations)) :=
-  .seq (code dimension realizations)
-    (retainedCode dimension realizations)
-    (.complete _ (completeCycle dimension realizations correctionBudget boundedEvents
-      correctionDepth boundedDepth))
-    (.complete _ (retainedCompleteCycle dimension realizations correctionBudget boundedEvents
-      correctionDepth boundedDepth))
-    (by intro Reference input _admitted; exact ⟨True.intro, True.intro⟩)
-    (.inr ⟨restartCleanup dimension realizations⟩)
-
-/-- The repeated schedule charges the larger full reset cycle while retaining
-the sequential circuit as the source of whole-run depth. -/
-public theorem repeatedSchedule_maximumCycleDepth {gates : GateModel}
-    {oracles : OracleModel} (dimension : ℕ+)
-    (realizations : QuditShift.Realizations gates oracles
-      (outputContext dimension).quantumLayout (wire dimension))
-    (correctionBudget : ResourcePool (.quantum gates oracles))
-    (boundedEvents : ∀ amount,
-      ResourcePool.ofList (realizations amount).circuit.eventTrace ≤ correctionBudget)
-    (correctionDepth : Nat)
-    (boundedDepth : ∀ amount,
-      (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth)
-    (duration : Resource.Event (.quantum gates oracles) → Nat)
-    (path : (Circuit.seq (code dimension realizations)
-      (retainedCode dimension realizations)).Path) :
-    (repeatedSchedule dimension realizations correctionBudget boundedEvents
-      correctionDepth boundedDepth).maximumCycleDepth duration path =
-        max ((code dimension realizations).depth duration path.1)
-          ((retainedCode dimension realizations).depth
-            duration path.2) := rfl
-
 /-- Independently specified final outcome and whole-run budget of two resets.
 
 **Input.** One owned system of any positive dimension in an arbitrary joint state.
@@ -880,20 +816,7 @@ public def repeatedProblem {gates : GateModel} {oracles : OracleModel}
           ZReset.eventEnvelope dimension correctionBudget
         resident := spaceBudget dimension
         auxiliary := spaceBudget dimension }
-    depth :=
-      { duration := fun _ => 1
-        limit := (1 + correctionDepth) + (1 + correctionDepth)
-        classicalQuery_unit := fun _ => rfl
-        quantumQuery_unit := fun _ => rfl } }
-
-/-- The caller fixes both its final result and its two complete reset protocols. -/
-public def repeatedCycleProblem {gates : GateModel} {oracles : OracleModel}
-    (dimension : ℕ+) (correctionBudget : ResourcePool (.quantum gates oracles))
-    (correctionDepth : Nat) :
-    CycleProblem (.quantum gates oracles) (inputContext dimension)
-      (outputContext dimension) (.finite dimension) where
-  outcome := repeatedProblem dimension correctionBudget correctionDepth
-  plan := repeatedPlan dimension correctionBudget correctionDepth
+    quantumTimeLimit := (1 + correctionDepth) + (1 + correctionDepth) }
 
 /-- Execute both complete resets and read the actual final result cell. -/
 public def repeatedAlgorithm {gates : GateModel} {oracles : OracleModel}
@@ -907,7 +830,7 @@ public def repeatedAlgorithm {gates : GateModel} {oracles : OracleModel}
       output := Output.all (outputContext dimension) (.read (resultRead dimension)) }
 
 /-- The repeated actual execution solves the independently stated whole-run problem. -/
-public theorem repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleModel}
+public lemma repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
     (realizations : QuditShift.Realizations gates oracles
       (outputContext dimension).quantumLayout (wire dimension))
@@ -920,13 +843,13 @@ public theorem repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleMod
     Algorithm.Solves (repeatedAlgorithm dimension realizations)
       (repeatedProblem dimension correctionBudget correctionDepth) := by
   constructor
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro pair _supported
     exact pair.2.toFin.isLt
-  · intro Reference input _valid _initialized requirement present
+  · intro environment _witness Reference input _valid _initialized requirement present
     have same : requirement = stateRequirement dimension := List.mem_singleton.mp present
     subst requirement
     intro value
@@ -934,7 +857,8 @@ public theorem repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleMod
     | unit =>
         change (StatePromise.pure (zeroTarget dimension)).Holds
           (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ
-            Reference ((((repeatedAlgorithm dimension realizations).run.finalState Reference
+            Reference ((((repeatedAlgorithm dimension realizations).run.finalState
+              environment Reference
               input.state).mapClassical
               (fun _ => CShape.Value.unit)).block CShape.Value.unit))
         rw [ExecutionState.executionState_mapClassical_const_block,
@@ -942,12 +866,12 @@ public theorem repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleMod
         change (StatePromise.pure (zeroTarget dimension)).Holds
           (DensityOperator.observeSelection (outputContext dimension).quantumLayout Finset.univ
             Reference ((Circuit.seq (code dimension realizations)
-              (retainedCode dimension realizations)).execute Reference
+              (retainedCode dimension realizations)).execute environment Reference
                 (input.state.mapClassical
                   (fun value => (value.1, (value.2, value.1))))).quantumMarginal)
         rw [Circuit.execute_seq, Execution.State.mapHistory_quantumMarginal]
         exact reset_observed_zero dimension realizations Reference _
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     apply runRestoresBorrowed_of_history (repeatedAlgorithm dimension realizations).run input
     dsimp only [AlgorithmRun.execute, repeatedAlgorithm]
     apply Circuit.borrowedRestored_seq
@@ -955,7 +879,7 @@ public theorem repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleMod
     · exact code_borrowedRestored dimension realizations Reference _
     · exact ZReset.zReset_borrowedRestored_noBorrowed rfl rfl
         (wire dimension) (resultWrite dimension) realizations _
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     change ResourcePool.ofList
       ((code dimension realizations).eventTrace path.1 ++
         (retainedCode dimension realizations).eventTrace path.2) ≤
@@ -965,69 +889,28 @@ public theorem repeatedAlgorithm_solves {gates : GateModel} {oracles : OracleMod
     exact add_le_add (actual_events dimension realizations correctionBudget boundedEvents path.1)
       (ZReset.zReset_resourcePool_le_envelope (wire dimension) (resultWrite dimension)
         realizations correctionBudget boundedEvents path.2)
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     change (Circuit.seq (code dimension realizations)
       (retainedCode dimension realizations)).peakResidentSpace path ≤ spaceBudget dimension
     exact (Circuit.peakResidentSpace_seq (code dimension realizations)
       (retainedCode dimension realizations) path).trans_le
         (SpacePool.max_le (actual_resident dimension realizations path.1)
           (retained_actual_resident dimension realizations path.2))
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     change (Circuit.seq (code dimension realizations)
       (retainedCode dimension realizations)).peakAuxiliarySpace path ≤ spaceBudget dimension
     exact (Circuit.peakAuxiliarySpace_seq (code dimension realizations)
       (retainedCode dimension realizations) path).trans_le
         (SpacePool.max_le (actual_auxiliary dimension realizations path.1)
           (retained_actual_auxiliary dimension realizations path.2))
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     change (code dimension realizations).depth (fun _ => 1) path.1 +
       (retainedCode dimension realizations).depth (fun _ => 1) path.2 ≤
       (1 + correctionDepth) + (1 + correctionDepth)
     exact Nat.add_le_add (actual_depth dimension realizations correctionDepth boundedDepth path.1)
       (ZReset.zReset_depth_le_envelope (wire dimension) (resultWrite dimension)
         realizations (fun _ => 1) correctionDepth boundedDepth path.2)
-
-/-- The same actual repetition satisfies the caller's final problem and fixed two-cycle plan. -/
-public def repeatedCycleSolves {gates : GateModel} {oracles : OracleModel}
-    (dimension : ℕ+)
-    (realizations : QuditShift.Realizations gates oracles
-      (outputContext dimension).quantumLayout (wire dimension))
-    (correctionBudget : ResourcePool (.quantum gates oracles))
-    (boundedEvents : ∀ amount,
-      ResourcePool.ofList (realizations amount).circuit.eventTrace ≤ correctionBudget)
-    (correctionDepth : Nat)
-    (boundedDepth : ∀ amount,
-      (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth) :
-    Algorithm.CycleSolves (repeatedAlgorithm dimension realizations)
-      (repeatedCycleProblem dimension correctionBudget correctionDepth) where
-  correctness := repeatedAlgorithm_solves dimension realizations correctionBudget boundedEvents
-    correctionDepth boundedDepth
-  schedule := repeatedSchedule dimension realizations correctionBudget boundedEvents
-    correctionDepth boundedDepth
-  entry := by intro Reference input admitted; exact admitted
-
-/-- Two genuinely specified reset cycles each satisfy the same independent
-cycle bound, while the whole-run problem retains their summed depth. -/
-public theorem repeatedCycleSolves_maximumCycleDepth_le {gates : GateModel}
-    {oracles : OracleModel} (dimension : ℕ+)
-    (realizations : QuditShift.Realizations gates oracles
-      (outputContext dimension).quantumLayout (wire dimension))
-    (correctionBudget : ResourcePool (.quantum gates oracles))
-    (boundedEvents : ∀ amount,
-      ResourcePool.ofList (realizations amount).circuit.eventTrace ≤ correctionBudget)
-    (correctionDepth : Nat)
-    (boundedDepth : ∀ amount,
-      (realizations amount).circuit.evaluatedEventDepth (fun _ => 1) ≤ correctionDepth)
-    (path : (repeatedAlgorithm dimension realizations).run.code.Path) :
-    (repeatedCycleSolves dimension realizations correctionBudget boundedEvents
-      correctionDepth boundedDepth).maximumCycleDepth (fun _ => 1) path ≤
-      1 + correctionDepth := by
-  unfold Algorithm.CycleSolves.maximumCycleDepth repeatedCycleSolves
-  change max ((code dimension realizations).depth (fun _ => 1) path.1)
-    ((retainedCode dimension realizations).depth (fun _ => 1) path.2) ≤ 1 + correctionDepth
-  exact max_le (actual_depth dimension realizations correctionDepth boundedDepth path.1)
-    (ZReset.zReset_depth_le_envelope (wire dimension) (resultWrite dimension)
-      realizations (fun _ => 1) correctionDepth boundedDepth path.2)
 
 end
 

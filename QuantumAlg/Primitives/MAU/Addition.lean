@@ -83,37 +83,37 @@ def subFromRight {N : ℕ} (x : Data N) : Data N where
   right := x.right - x.left
   flag := x.flag
 
-@[simp] theorem addIntoRight_left {N : ℕ} (x : Data N) :
+@[simp] lemma addIntoRight_left {N : ℕ} (x : Data N) :
     x.addIntoRight.left = x.left :=
   rfl
 
-@[simp] theorem addIntoRight_right {N : ℕ} (x : Data N) :
+@[simp] lemma addIntoRight_right {N : ℕ} (x : Data N) :
     x.addIntoRight.right = x.right + x.left :=
   rfl
 
-@[simp] theorem addIntoRight_flag {N : ℕ} (x : Data N) :
+@[simp] lemma addIntoRight_flag {N : ℕ} (x : Data N) :
     x.addIntoRight.flag = x.flag :=
   rfl
 
-@[simp] theorem subFromRight_left {N : ℕ} (x : Data N) :
+@[simp] lemma subFromRight_left {N : ℕ} (x : Data N) :
     x.subFromRight.left = x.left :=
   rfl
 
-@[simp] theorem subFromRight_right {N : ℕ} (x : Data N) :
+@[simp] lemma subFromRight_right {N : ℕ} (x : Data N) :
     x.subFromRight.right = x.right - x.left :=
   rfl
 
-@[simp] theorem subFromRight_flag {N : ℕ} (x : Data N) :
+@[simp] lemma subFromRight_flag {N : ℕ} (x : Data N) :
     x.subFromRight.flag = x.flag :=
   rfl
 
 /-- Clean temporary flags remain clean after modular addition. -/
-theorem addIntoRight_preserves_clean {N : ℕ} (x : Data N)
+lemma addIntoRight_preserves_clean {N : ℕ} (x : Data N)
     (h : x.FlagClean) : x.addIntoRight.FlagClean :=
   h
 
 /-- Clean temporary flags remain clean after modular subtraction. -/
-theorem subFromRight_preserves_clean {N : ℕ} (x : Data N)
+lemma subFromRight_preserves_clean {N : ℕ} (x : Data N)
     (h : x.FlagClean) : x.subFromRight.FlagClean :=
   h
 
@@ -130,7 +130,7 @@ def addEquiv (N : ℕ) : Equiv.Perm (Data N) where
     cases x
     simp [addIntoRight, subFromRight]
 
-@[simp] theorem addEquiv_apply {N : ℕ} (x : Data N) :
+@[simp] lemma addEquiv_apply {N : ℕ} (x : Data N) :
     addEquiv N x = x.addIntoRight :=
   rfl
 
@@ -138,12 +138,12 @@ def addEquiv (N : ℕ) : Equiv.Perm (Data N) where
 def withWorkEquiv (N : ℕ) (Work : Type) : Equiv.Perm (Data N × Work) :=
   Equiv.prodCongr (addEquiv N) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {N : ℕ} {Work : Type} (x : Data N) (w : Work) :
+@[simp] lemma withWorkEquiv_apply {N : ℕ} {Work : Type} (x : Data N) (w : Work) :
     withWorkEquiv N Work (x, w) = (x.addIntoRight, w) :=
   rfl
 
 /-- The modular adder leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
+lemma withWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
     WorkRegister.Preserves (Data := Data N) (Work := Work) (withWorkEquiv N Work) := by
   intro x
   cases x
@@ -173,7 +173,7 @@ noncomputable def addOp (N : ℕ) [NeZero N] : UnitaryOperator (register N) :=
   UnitaryOperator.ofPerm (Data.addEquiv N).symm
 
 /-- Clean basis action of `ADD_N`: `|a,b,0> ↦ |a,a+b mod N,0>`. -/
-theorem addOp_apply_ket (N : ℕ) [NeZero N] (x : Data N) :
+lemma addOp_apply_ket (N : ℕ) [NeZero N] (x : Data N) :
     (addOp N).apply (NormalizedVector.ket (R := register N) x) =
       NormalizedVector.ket (R := register N) x.addIntoRight := by
   rw [addOp, UnitaryOperator.ofPerm_apply_ket]
@@ -187,7 +187,7 @@ def compareSubtractAddBack (N a b : ℕ) : ℕ :=
   if N ≤ a + b then a + b - N else a + b
 
 /-- For canonical representatives, compare/subtract/add-back is reduction modulo `N`. -/
-theorem compareSubtractAddBack_eq_mod {N a b : ℕ}
+lemma compareSubtractAddBack_eq_mod {N a b : ℕ}
     (_hN : 0 < N) (ha : a < N) (hb : b < N) :
     compareSubtractAddBack N a b = (a + b) % N := by
   unfold compareSubtractAddBack
@@ -198,7 +198,7 @@ theorem compareSubtractAddBack_eq_mod {N a b : ℕ}
     rw [if_neg hoverflow, Nat.mod_eq_of_lt hlt]
 
 /-- The compare/subtract/add-back representative denotes modular addition in `ZMod N`. -/
-private theorem natCast_compareSubtractAddBack {N a b : ℕ}
+private lemma natCast_compareSubtractAddBack {N a b : ℕ}
     (hN : 0 < N) (ha : a < N) (hb : b < N) :
     (compareSubtractAddBack N a b : ZMod N) = (a : ZMod N) + (b : ZMod N) := by
   rw [compareSubtractAddBack_eq_mod hN ha hb]

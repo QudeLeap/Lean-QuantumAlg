@@ -27,6 +27,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 open ClassicalAlgorithms
 
@@ -45,7 +47,7 @@ def borrowedIncrementProgram (n : Nat) :
       (QubitLayout.canonical (TTK.encoding n).width).toQuantum :=
   programList (QubitLayout.canonical _) .empty (borrowedIncrementGates n)
 
-private theorem two_subtractions (n : Nat) (state : TTK.Registers n) :
+private lemma two_subtractions (n : Nat) (state : TTK.Registers n) :
     complementOutput (TTK.subtractionOutput
       (complementOutput (TTK.subtractionOutput state))) =
         borrowedIncrementOutput state := by
@@ -78,34 +80,34 @@ private theorem two_subtractions (n : Nat) (state : TTK.Registers n) :
     exact htarget
 
 /-- The literal gate list restores every borrowed word and increments the target. -/
-theorem hrsBorrowedIncrement_step (n : Nat) (state : TTK.Registers n) :
+lemma hrsBorrowedIncrement_step (n : Nat) (state : TTK.Registers n) :
     stepList (borrowedIncrementGates n) state = borrowedIncrementOutput state := by
   simp only [borrowedIncrementGates, stepList_append,
     TTK.ttkSubtraction_step, hrsComplement_step]
   exact two_subtractions n state
 
 /-- Exact all-input realization includes all borrowed-word relative phases. -/
-theorem hrsBorrowedIncrement_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (TTK.encoding n) (borrowedIncrementProgram n)
+lemma hrsBorrowedIncrement_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (TTK.encoding n) (borrowedIncrementProgram n) environment
       borrowedIncrementOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (borrowedIncrementGates n) (hrsBorrowedIncrement_step n)
+    (borrowedIncrementGates n) (hrsBorrowedIncrement_step n) environment
 
 /-- An untouched reference can accompany every input without changing the
 exact action. Linearity therefore retains arbitrary joint superpositions. -/
-theorem hrsBorrowedIncrement_realizes_with_reference (n : Nat) {Reference : Type}
+lemma hrsBorrowedIncrement_realizes_with_reference (n : Nat) {Reference : Type}
     (reference : BinaryLabelEncoding Reference) :
     UnitaryCircuit.Realizes
       (layout := QubitLayout.canonical ((TTK.encoding n).width + reference.width))
       (BinaryLabelEncoding.prod (TTK.encoding n) reference)
-      (UnitaryCircuit.onBinaryPrefix reference.width (borrowedIncrementProgram n))
+      (UnitaryCircuit.onBinaryPrefix reference.width (borrowedIncrementProgram n)) environment
       (fun state : TTK.Registers n × Reference =>
         (borrowedIncrementOutput state.1, state.2)) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
     (hrsBorrowedIncrement_realizes n)
 
 /-- Every native count is derived from the four executed primitive lists. -/
-theorem hrsBorrowedIncrement_native_count (n : Nat)
+lemma hrsBorrowedIncrement_native_count (n : Nat)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (borrowedIncrementProgram n).eventCost =
       2 * ResourcePool.count focus (TTK.lowRippleProgram n).eventCost +
@@ -124,7 +126,7 @@ theorem hrsBorrowedIncrement_native_count (n : Nat)
   omega
 
 /-- Exactly two X gates are executed for every borrowed bit. -/
-theorem hrsBorrowedIncrement_x_count (n : Nat) :
+lemma hrsBorrowedIncrement_x_count (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
       (borrowedIncrementProgram n).eventCost =
       2 * n := by
@@ -132,7 +134,7 @@ theorem hrsBorrowedIncrement_x_count (n : Nat) :
   simp
 
 /-- The two literal TTK inverse lists determine the full CNOT count. -/
-theorem hrsBorrowedIncrement_cnot_count (n : Nat) :
+lemma hrsBorrowedIncrement_cnot_count (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (borrowedIncrementProgram n).eventCost =
       2 * (n + 2 * (n - 1) + 2 * (n - 2)) := by
@@ -140,7 +142,7 @@ theorem hrsBorrowedIncrement_cnot_count (n : Nat) :
   simp
 
 /-- The Toffoli formula follows from the actual all-width TTK implementation. -/
-theorem hrsBorrowedIncrement_toffoli_count (n : Nat) :
+lemma hrsBorrowedIncrement_toffoli_count (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (borrowedIncrementProgram n).eventCost =
       4 * (n - 1) := by
@@ -148,7 +150,7 @@ theorem hrsBorrowedIncrement_toffoli_count (n : Nat) :
   simp [← Nat.mul_assoc]
 
 /-- Event count of the actual serial program, including widths zero and one. -/
-theorem hrsBorrowedIncrement_event_count (n : Nat) :
+lemma hrsBorrowedIncrement_event_count (n : Nat) :
     (borrowedIncrementProgram n).eventCost.card =
       4 * n + 8 * (n - 1) + 4 * (n - 2) := by
   have h : (borrowedIncrementProgram n).eventCost.card =
@@ -164,7 +166,7 @@ theorem hrsBorrowedIncrement_event_count (n : Nat) :
 
 /-- Unit-duration depth of the executed serial gate list, without a parallel
 rescheduling claim. -/
-theorem hrsBorrowedIncrement_serial_depth (n : Nat) :
+lemma hrsBorrowedIncrement_serial_depth (n : Nat) :
     (borrowedIncrementProgram n).evaluatedEventDepth (fun _ => 1) =
       4 * n + 8 * (n - 1) + 4 * (n - 2) := by
   calc
@@ -175,7 +177,7 @@ theorem hrsBorrowedIncrement_serial_depth (n : Nat) :
     _ = _ := hrsBorrowedIncrement_event_count n
 
 /-- The internal incrementer uses its target and borrowed words only. -/
-theorem hrsBorrowedIncrement_interface (n : Nat) :
+lemma hrsBorrowedIncrement_interface (n : Nat) :
     (TTK.encoding n).width = 2 * n ∧
       (QubitLayout.canonical (TTK.encoding n).width).systemIdx =
         List.range (2 * n) := by

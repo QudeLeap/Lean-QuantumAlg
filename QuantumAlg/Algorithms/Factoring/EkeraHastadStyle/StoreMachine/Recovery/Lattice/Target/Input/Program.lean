@@ -48,7 +48,8 @@ structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (m ell : Nat) where
   firstModulus : target.first.modulus = modulus
   secondModulus : target.second.modulus = modulus
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {m ell : Nat}
 
 /-- The original narrow target layout has the exact common-width view of the same physical cells. -/
@@ -80,9 +81,10 @@ def targetMachineStep (refs : Refs ctx m ell) (store : Store ctx) :
   LatticeWideTargetMachine.targetStep (wideRefs refs) store
 
 /-- Actual original-width target loading retains every original state block and incoming history. -/
-theorem loadTargetMachineInto_execute (refs : Refs ctx m ell) (Reference : Register)
+lemma loadTargetMachineInto_execute (refs : Refs ctx m ell) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (loadTargetMachineInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (loadTargetMachineInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       ((targetMachineStep refs entry.1).1,
         (entry.2.1, (entry.2.2, (targetMachineStep refs entry.1).2)))) :=
   LatticeWideTargetMachine.loadTargetInto_execute (wideRefs refs) Reference state
@@ -94,7 +96,7 @@ abbrev TargetMachineOutcome (refs : Refs ctx m ell)
   LatticeWideTargetMachine.TargetOutcome (wideRefs refs) samples before after
 
 /-- Actual source-width scaling and centering produce the original sample lattice target. -/
-theorem loadTargetMachineInto_correct (refs : Refs ctx m ell) (separation : Separation refs)
+lemma loadTargetMachineInto_correct (refs : Refs ctx m ell) (separation : Separation refs)
     (store : Store ctx) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (first : SampleKRepresents store refs.first.k samples.1)
     (second : SampleKRepresents store refs.second.k samples.2)
@@ -106,7 +108,7 @@ theorem loadTargetMachineInto_correct (refs : Refs ctx m ell) (separation : Sepa
     le_rfl first second modulus thirdZero
 
 /-- Actual original-width target loading retains every read outside its original ten write cells. -/
-theorem loadTargetMachineInto_callerFrame (refs : Refs ctx m ell) (store : Store ctx)
+lemma loadTargetMachineInto_callerFrame (refs : Refs ctx m ell) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (preimages : AvoidsPreimageWrites other refs)
     (first : LatticeTargetPoint.AvoidsTargetWrites other refs.target.first)
     (second : LatticeTargetPoint.AvoidsTargetWrites other refs.target.second) :
@@ -115,7 +117,7 @@ theorem loadTargetMachineInto_callerFrame (refs : Refs ctx m ell) (store : Store
     preimages first second
 
 /-- The original-width path emits the independent native formula for its selected arithmetic. -/
-theorem loadTargetMachineInto_events (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_events (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     (loadTargetMachineInto refs).eventTrace path =
       LatticeWideTargetMachine.targetTrace m ell (ell + m + 1)
@@ -124,7 +126,7 @@ theorem loadTargetMachineInto_events (refs : Refs ctx m ell)
   LatticeWideTargetMachine.loadTargetInto_events (wideRefs refs) path
 
 /-- Actual original-width native multiplicities equal the independently selected target formula. -/
-theorem loadTargetMachineInto_resourcePool (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_resourcePool (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     (loadTargetMachineInto refs).resourcePool path = ResourcePool.ofList
       (LatticeWideTargetMachine.targetTrace m ell (ell + m + 1)
@@ -137,44 +139,44 @@ def targetMachineEventEnvelope (m ell : Nat) : ResourcePool model :=
   LatticeWideTargetMachine.eventEnvelope m ell (ell + m + 1)
 
 /-- The actual original-width target obeys its complete independent coordinate envelope. -/
-theorem loadTargetMachineInto_resourcePool_le (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_resourcePool_le (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     (loadTargetMachineInto refs).resourcePool path ≤ targetMachineEventEnvelope m ell :=
   LatticeWideTargetMachine.loadTargetInto_resourcePool_le (wideRefs refs) path
 
 /-- The actual source-width target uses at most two shifts per bit and sixteen other operations. -/
-theorem loadTargetMachineInto_eventCount_le (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_eventCount_le (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     ((loadTargetMachineInto refs).eventTrace path).length ≤ 2 * m + 16 :=
   LatticeWideTargetMachine.loadTargetInto_eventCount_le (wideRefs refs) path
 
 /-- Actual original-width depth includes both preimages and both selected centered coordinates. -/
-theorem loadTargetMachineInto_depth_le (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_depth_le (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     (loadTargetMachineInto refs).depth (fun _ => 1) path ≤ 2 * m + 16 :=
   LatticeWideTargetMachine.loadTargetInto_depth_le (wideRefs refs) path
 
 /-- Actual original-width target loading preserves all original borrowed-reference correlations. -/
-theorem loadTargetMachineInto_borrowedRestored (refs : Refs ctx m ell) (Reference : Register)
+lemma loadTargetMachineInto_borrowedRestored (refs : Refs ctx m ell) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetMachineInto refs).BorrowedRestored Reference state
-      ((loadTargetMachineInto refs).execute Reference state) :=
+      ((loadTargetMachineInto refs).execute environment Reference state) :=
   LatticeWideTargetMachine.loadTargetInto_borrowedRestored (wideRefs refs) Reference state
 
 /-- Every actual original-width target instruction retains the complete supplied context. -/
-theorem loadTargetMachineInto_visited (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_visited (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadTargetMachineInto refs).visitedContexts path) : visited = ctx :=
   LatticeWideTargetMachine.loadTargetInto_visited (wideRefs refs) path visited present
 
 /-- Actual original-width resident accounting retains every supplied runtime entry. -/
-theorem loadTargetMachineInto_resident_le (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_resident_le (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     (loadTargetMachineInto refs).peakResidentSpace path ≤ ctx.residentSpace :=
   LatticeWideTargetMachine.loadTargetInto_resident_le (wideRefs refs) path
 
 /-- Actual original-width auxiliary accounting retains every original workspace role. -/
-theorem loadTargetMachineInto_auxiliary_le (refs : Refs ctx m ell)
+lemma loadTargetMachineInto_auxiliary_le (refs : Refs ctx m ell)
     (path : (loadTargetMachineInto refs).Path) :
     (loadTargetMachineInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=
   LatticeWideTargetMachine.loadTargetInto_auxiliary_le (wideRefs refs) path

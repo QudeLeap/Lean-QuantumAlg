@@ -34,7 +34,7 @@ def modularWordEquiv {width : Nat} (modulus : Fin (2 ^ width + 1))
   ((pivotWordEquiv (offsetFirstPivot modulus constant)).trans (pivotWordEquiv modulus)).trans
     (pivotWordEquiv (offsetLastPivot modulus constant))
 
-theorem modularWordEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma modularWordEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) (input : Fin (2 ^ width)) :
     modularWordEquiv modulus constant input = modularWordOutput modulus constant input :=
   gidneyModularWord_three_pivots modulus constant input
@@ -46,7 +46,7 @@ def selectedWordEquiv {width : Nat} (modulus : Fin (2 ^ width + 1)) (coefficient
     modularWordEquiv modulus (accumulateConstant modulus coefficient index)
   else Equiv.refl _
 
-theorem selectedWordEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma selectedWordEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source : Fin (2 ^ width)) (index : Nat) (target : Fin (2 ^ width)) :
     selectedWordEquiv modulus coefficient source index target =
       selectedWordOffset modulus coefficient source index target := by
@@ -62,7 +62,7 @@ def accumulateWordEquiv {width : Nat} (modulus : Fin (2 ^ width + 1)) (coefficie
   | index + 1 => (accumulateWordEquiv modulus coefficient source index).trans
       (selectedWordEquiv modulus coefficient source index)
 
-theorem accumulateWordEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulateWordEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source target : Fin (2 ^ width)) (count : Nat) :
     accumulateWordEquiv modulus coefficient source count target =
       accumulateWordPrefix modulus coefficient source target count := by
@@ -86,7 +86,7 @@ def accumulatePairEquiv {width : Nat} (modulus : Fin (2 ^ width + 1)) (coefficie
     rintro ⟨source, target⟩
     simp only [Equiv.apply_symm_apply]
 
-theorem accumulatePairEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma accumulatePairEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
     (coefficient count : Nat) (state : Fin (2 ^ width) × Fin (2 ^ width)) :
     accumulatePairEquiv modulus coefficient count state =
       (state.1, accumulateWordPrefix modulus coefficient state.1 state.2 count) :=

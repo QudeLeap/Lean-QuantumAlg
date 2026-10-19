@@ -25,7 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Resize the actual computed center into the original extra-bit candidate cell. -/
@@ -60,10 +61,10 @@ def suffixStep (refs : Refs ctx shortWidth) (store : Store ctx) :
   (second.1, (center.2, (root.2, (firstResult.2, second.2))))
 
 /-- The actual suffix preserves incoming history and every external quantum-reference block. -/
-theorem suffixInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma suffixInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (suffixInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (suffixInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := suffixStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [suffixInto, suffixStep, Circuit.execute_seq, NatSub.into_execute,
@@ -81,13 +82,14 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
     (QuadraticPrefix.step refs.quadraticPrefix) (suffixStep refs) store
 
 /-- Complete actual execution preserves original history and arbitrary quantum correlations. -/
-theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
+  Circuit.execute_sequenceStoreRecord
+    (environment := environment) (QuadraticPrefix.into refs.quadraticPrefix) (suffixInto refs)
     (QuadraticPrefix.step refs.quadraticPrefix) (suffixStep refs)
     (QuadraticPrefix.into_execute refs.quadraticPrefix) (suffixInto_execute refs) Reference state
 

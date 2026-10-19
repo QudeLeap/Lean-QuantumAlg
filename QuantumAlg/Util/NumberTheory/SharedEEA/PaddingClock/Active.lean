@@ -31,7 +31,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.PaddingClockActive
 
 variable {highWidth lowWidth mainWidth : Nat}
 
-private theorem append_increment (high : BitVec highWidth) (low : BitVec lowWidth)
+private lemma append_increment (high : BitVec highWidth) (low : BitVec lowWidth)
     (within : low.toNat + 1 < 2 ^ lowWidth) :
     (high ++ low) + 1 = high ++ (low + 1) := by
   have upper := Nat.mul_le_mul_right (2 ^ lowWidth)
@@ -47,7 +47,7 @@ private theorem append_increment (high : BitVec highWidth) (low : BitVec lowWidt
     Nat.mod_eq_of_lt within, Nat.mod_eq_of_lt fullWithin]
   omega
 
-private theorem append_decrement (high : BitVec highWidth) (low : BitVec lowWidth)
+private lemma append_decrement (high : BitVec highWidth) (low : BitVec lowWidth)
     (positive : 0 < low.toNat) :
     (high ++ low) - 1 = high ++ (low - 1) := by
   have capacity := low.isLt
@@ -67,7 +67,7 @@ private theorem append_decrement (high : BitVec highWidth) (low : BitVec lowWidt
   exact BitVec.sub_eq_iff_eq_add.mpr restored.symm
 
 /-- A real active ascending step leaves every original Work1 bit unchanged. -/
-theorem increment_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
+lemma increment_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
     (within : state.2.toNat + 1 < 2 ^ lowWidth) :
     PaddingClock.increment state = (state.1, state.2 + 1) := by
   unfold PaddingClock.increment
@@ -78,7 +78,7 @@ theorem increment_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
   exact PaddingClock.join_split (state.1, state.2 + 1)
 
 /-- A real active decrement preserves arbitrary high-position data, not only zero padding. -/
-theorem decrement_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
+lemma decrement_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
     (positive : 0 < state.2.toNat) :
     PaddingClock.decrement state = (state.1, state.2 - 1) := by
   unfold PaddingClock.decrement
@@ -89,7 +89,7 @@ theorem decrement_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
   exact PaddingClock.join_split (state.1, state.2 - 1)
 
 /-- Both inverse increments follow the real increment; arbitrary intermediate carry is undone. -/
-theorem descending_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
+lemma descending_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
     (positive : 0 < state.2.toNat) :
     PaddingClock.decrement (PaddingClock.decrement (PaddingClock.increment state)) =
       (state.1, state.2 - 1) := by
@@ -97,7 +97,7 @@ theorem descending_eq_low (state : BitVec (mainWidth + 3) × BitVec lowWidth)
   exact decrement_eq_low state positive
 
 /-- An ascending reachable count below the input width supplies the original low capacity itself. -/
-theorem active_increment (width count : Nat) (word : BitVec (width + 3))
+lemma active_increment (width count : Nat) (word : BitVec (width + 3))
     (within : count < width) :
     PaddingClock.increment (word, BitVec.ofNat width.size count) =
       (word, BitVec.ofNat width.size count + 1) := by
@@ -108,7 +108,7 @@ theorem active_increment (width count : Nat) (word : BitVec (width + 3))
   exact (show count + 1 ≤ width from within).trans_lt (Nat.lt_size_self width)
 
 /-- Each positive reachable descending count supplies the required no-borrow boundary internally. -/
-theorem active_descending (width count : Nat) (word : BitVec (width + 3))
+lemma active_descending (width count : Nat) (word : BitVec (width + 3))
     (positive : 0 < count) (within : count ≤ width) :
     PaddingClock.decrement (PaddingClock.decrement
       (PaddingClock.increment (word, BitVec.ofNat width.size count))) =

@@ -22,13 +22,13 @@ the input projector, including its complement and any zero-width source.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.Native
 noncomputable section
 
-private theorem evenSquareQuotient_constant (c : ℂ) :
+private lemma evenSquareQuotient_constant (c : ℂ) :
     evenSquareQuotient (Polynomial.C c) = Polynomial.C c := by
   simpa only [evenSquareQuotient_one, Polynomial.smul_eq_C_mul, mul_one] using
     evenSquareQuotient_smul c (1 : Polynomial ℂ)
 
 /-- The degree-zero singular-value transform is scalar on the input projector. -/
-theorem singularValuePolynomial_constant {N : Nat} (input : OrthogonalProjector N)
+lemma singularValuePolynomial_constant {N : Nat} (input : OrthogonalProjector N)
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits N)) (degree : P.natDegree = 0) :
     singularValuePolynomial input 0 P A = P.coeff 0 • input.op := by
   simp only [singularValuePolynomial, Nat.zero_mod, ↓reduceIte, evenSingularValuePolynomial]
@@ -38,16 +38,17 @@ theorem singularValuePolynomial_constant {N : Nat} (input : OrthogonalProjector 
     Polynomial.coeff_C_zero]
 
 /-- The actual single rotation implements every admissible real degree-zero projected target. -/
-theorem exists_native_constant_word {N : Nat} {P : Polynomial ℝ}
+lemma exists_native_constant_word {N : Nat} {P : Polynomial ℝ}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity 0 P) :
-    ∃ word : UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right)
+    ∃ word : UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model N)
         (ProjectorPhase.layout N),
-      projectedPhasePlusBlock right right word.binaryMatrix =
+      projectedPhasePlusBlock right right (word.binaryMatrix (ProjectedSignal.interpretation U
+        left right)) =
         singularValuePolynomial right 0 (realPolynomialToComplex P)
           (projectedUnitaryBlock left right U) ∧
       word.eventCost = ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (ProjectedSignal.model U left right))
+        (model := .quantum AlgorithmGate.model (ProjectedSignal.model N))
         (.gate .singleQubit) ∧
       word.evaluatedEventDepth (fun _ => 1) = 1 := by
   have bound : |P.coeff 0| ≤ 1 := by
@@ -56,10 +57,11 @@ theorem exists_native_constant_word {N : Nat} {P : Polynomial ℝ}
   have degree : (realPolynomialToComplex P).natDegree = 0 := by
     rw [realPolynomialToComplex_natDegree]
     exact Nat.eq_zero_of_le_zero source.degree_le
-  refine ⟨Shared.constantInitial (ProjectedSignal.model U left right) N (P.coeff 0),
+  refine ⟨Shared.constantInitial (ProjectedSignal.model N) N (P.coeff 0),
     ?_, rfl, rfl⟩
   rw [projectedPhasePlusBlock,
-    Shared.constantInitial_correct _ _ _ (abs_le.mp bound).1 (abs_le.mp bound).2,
+    Shared.constantInitial_correct _ _ _ (abs_le.mp bound).1 (abs_le.mp bound).2
+      (ProjectedSignal.interpretation U left right),
     singularValuePolynomial_constant right _ _ degree]
   simp only [Matrix.mul_smul, mul_one, Matrix.smul_mul, right.idempotent]
   congr 1

@@ -47,7 +47,7 @@ def valueWord (state : IterationState) (modulus count : Nat)
     exact fits)
 
 /-- The word given to subtraction is exactly the already encoded source remainder region. -/
-theorem valueWord_eq_payload (state : IterationState) (modulus count : Nat)
+lemma valueWord_eq_payload (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -81,7 +81,7 @@ def thresholdWord (state : IterationState) (modulus count : Nat)
       omega)))
 
 /-- The old-width operand retains every bit of the actual intermediate remainder. -/
-theorem valueWord_toNat (state : IterationState) (modulus count : Nat)
+lemma valueWord_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -90,7 +90,7 @@ theorem valueWord_toNat (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The threshold operand retains exactly the actual right-shifted divisor value. -/
-theorem thresholdWord_toNat (state : IterationState) (modulus count : Nat)
+lemma thresholdWord_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -99,7 +99,7 @@ theorem thresholdWord_toNat (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The actual next division state uses exactly the comparison implemented by the signed words. -/
-theorem next_remainder (state : IterationState) (count : Nat) :
+lemma next_remainder (state : IterationState) (count : Nat) :
     (DivisionProgress.current state (count + 1)).remainder =
       if DivisionThreshold.threshold state count ≤ (DivisionProgress.current state count).remainder
       then (DivisionProgress.current state count).remainder -
@@ -109,7 +109,7 @@ theorem next_remainder (state : IterationState) (count : Nat) :
   rfl
 
 /-- The next-state invariant supplies the signed instruction's shrinking condition. -/
-theorem next_fits (state : IterationState) (modulus count : Nat)
+lemma next_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -133,7 +133,7 @@ def instruction (state : IterationState) (modulus count : Nat)
     (thresholdWord state modulus count valid conserved active beforeEnd)
 
 /-- Actual signed instructions clear Sign and compute the exact next quotient bit and remainder. -/
-theorem instruction_spec (state : IterationState) (modulus count : Nat)
+lemma instruction_spec (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -155,7 +155,7 @@ theorem instruction_spec (state : IterationState) (modulus count : Nat)
     simpa only [valueWord_toNat, thresholdWord_toNat, ← next_remainder] using remainder
 
 /-- Appending the actual output bit produces precisely the next source quotient prefix. -/
-theorem instruction_quotient (state : IterationState) (modulus count : Nat)
+lemma instruction_quotient (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -175,7 +175,7 @@ theorem instruction_quotient (state : IterationState) (modulus count : Nat)
       (DivisionProgress.current state count).remainder <;> simp [selected]
 
 /-- The actual output bit reconstructs the old source region without an extra domain hypothesis. -/
-theorem instruction_rewind (state : IterationState) (modulus count : Nat)
+lemma instruction_rewind (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -185,7 +185,7 @@ theorem instruction_rewind (state : IterationState) (modulus count : Nat)
   SignedDivision.rewind_extract _ _ (next_fits state modulus count valid conserved active beforeEnd)
 
 /-- The actual prime-input path reaches the shrinking-field boundary and computes it correctly. -/
-theorem prime_twenty_nine_actual_step :
+lemma prime_twenty_nine_actual_step :
     let state := IterationState.initial 29 (foldInput 29 3).2
     let valid := folded_initial_admissible 29 3 (by decide) (by decide)
     let conserved := IterationState.initial_balance 29 (foldInput 29 3).2

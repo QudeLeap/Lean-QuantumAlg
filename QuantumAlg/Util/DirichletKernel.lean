@@ -45,7 +45,7 @@ open scoped BigOperators
 /-- Closed form for the finite sum of squares, `∑_{ℓ<R} ℓ² = R(R-1)(2R-1)/6`
 (real-valued; the subtractions are over `ℝ`, so the `R = 0` case is `0`). Mathlib
 provides the linear analogue but not this one. -/
-theorem sum_sq_range (R : ℕ) :
+lemma sum_sq_range (R : ℕ) :
     ∑ ℓ ∈ Finset.range R, (ℓ : ℝ) ^ 2 = (R : ℝ) * ((R : ℝ) - 1) * (2 * (R : ℝ) - 1) / 6 := by
   induction R with
   | zero => norm_num
@@ -55,7 +55,7 @@ theorem sum_sq_range (R : ℕ) :
     ring
 
 /-- Closed form for the same square sum over the interval `1 ≤ ℓ ≤ R - 1`. -/
-theorem sum_sq_Icc_one_sub (R : ℕ) :
+lemma sum_sq_Icc_one_sub (R : ℕ) :
     ∑ ℓ ∈ Finset.Icc 1 (R - 1), (ℓ : ℝ) ^ 2
       = (R : ℝ) * ((R : ℝ) - 1) * (2 * (R : ℝ) - 1) / 6 := by
   induction R with
@@ -97,7 +97,7 @@ noncomputable def psWeight2 (R μ : ℕ) : ℝ :=
 half-angle stays inside `(0, π)` where `sin` does not vanish. -/
 
 /-- `cos(R x_μ) = 0`: the top-frequency cosine vanishes at every odd node. -/
-theorem cos_R_mul_psPoint (R μ : ℕ) (hR : 1 ≤ R) :
+lemma cos_R_mul_psPoint (R μ : ℕ) (hR : 1 ≤ R) :
     Real.cos ((R : ℝ) * psPoint R μ) = 0 := by
   have hR0 : (R : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
   have key : (R : ℝ) * psPoint R μ = (μ : ℝ) * Real.pi - Real.pi / 2 := by
@@ -106,7 +106,7 @@ theorem cos_R_mul_psPoint (R μ : ℕ) (hR : 1 ≤ R) :
   simp [Real.sin_nat_mul_pi]
 
 /-- `sin(R x_μ) = (-1)^{μ-1}`: the top-frequency sine at the odd nodes alternates. -/
-theorem sin_R_mul_psPoint (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
+lemma sin_R_mul_psPoint (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
     Real.sin ((R : ℝ) * psPoint R μ) = (-1 : ℝ) ^ (μ - 1) := by
   have hR0 : (R : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
   have key : (R : ℝ) * psPoint R μ = (μ : ℝ) * Real.pi - Real.pi / 2 := by
@@ -119,7 +119,7 @@ theorem sin_R_mul_psPoint (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
   simp [Real.sin_nat_mul_pi, Real.cos_nat_mul_pi, hpow]
 
 /-- The half-angle at an odd node lies in `(0, π)`, so `sin(x_μ/2) ≠ 0`. -/
-theorem sin_half_psPoint_ne (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) (hμR : μ ≤ 2 * R) :
+lemma sin_half_psPoint_ne (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) (hμR : μ ≤ 2 * R) :
     Real.sin (psPoint R μ / 2) ≠ 0 := by
   have hRpos : (0 : ℝ) < (R : ℝ) := by exact_mod_cast hR
   have hR0 : (R : ℝ) ≠ 0 := ne_of_gt hRpos
@@ -148,7 +148,7 @@ weights without ever dividing by `sin`. -/
 
 /-- **Master identity.** `sin(R x) cos(x/2) = sin(x/2) · (1 + cos(R x) + 2 ∑_{ℓ=1}^{R-1} cos(ℓ x))`.
 Proved by induction on `R` with the sum-to-product identities. -/
-theorem dirichlet_master (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
+lemma dirichlet_master (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
     Real.sin ((R : ℝ) * x) * Real.cos (x / 2)
       = Real.sin (x / 2) * (1 + Real.cos ((R : ℝ) * x)
           + 2 * ∑ ℓ ∈ Finset.Icc 1 (R - 1), Real.cos ((ℓ : ℝ) * x)) := by
@@ -187,7 +187,7 @@ theorem dirichlet_master (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
 /-- **First derivative of the master identity** (as a pointwise value equality obtained by
 differentiating both sides). The sine sub-sum appears in the raw form
 `∑ -sin(ℓ x)·ℓ` coming from term-by-term differentiation. -/
-theorem dirichlet_master_deriv (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
+lemma dirichlet_master_deriv (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
     (R : ℝ) * Real.cos ((R : ℝ) * x) * Real.cos (x / 2)
         - (1 / 2) * Real.sin ((R : ℝ) * x) * Real.sin (x / 2)
       = (1 / 2) * Real.cos (x / 2)
@@ -243,7 +243,7 @@ theorem dirichlet_master_deriv (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
 /-- **Second derivative of the master identity.** This pointwise equality is used only at
 the even nodes, where `sin(R x) = 0`; it resolves the second-derivative weights into a
 finite cosine polynomial. -/
-theorem dirichlet_master_deriv2 (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
+lemma dirichlet_master_deriv2 (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
     -((R : ℝ) ^ 2) * Real.sin ((R : ℝ) * x) * Real.cos (x / 2)
         - (R : ℝ) * Real.cos ((R : ℝ) * x) * Real.sin (x / 2)
         - (1 / 4) * Real.sin ((R : ℝ) * x) * Real.cos (x / 2)
@@ -361,7 +361,7 @@ theorem dirichlet_master_deriv2 (R : ℕ) (hR : 1 ≤ R) (x : ℝ) :
 /-- **Odd-node weight resolution.** Where `cos(R x) = 0` (an odd node) and `sin(x/2) ≠ 0`,
 the singular weight `sin(R x)/(4R sin²(x/2))` equals a trigonometric polynomial of degree `R`.
 This is the identity that removes the `1/sin²` from the parameter-shift weights. -/
-theorem weight_odd_resolve (R : ℕ) (hR : 1 ≤ R) (x : ℝ)
+lemma weight_odd_resolve (R : ℕ) (hR : 1 ≤ R) (x : ℝ)
     (hcos : Real.cos ((R : ℝ) * x) = 0) (hsin : Real.sin (x / 2) ≠ 0) :
     Real.sin ((R : ℝ) * x) / (4 * (R : ℝ) * Real.sin (x / 2) ^ 2)
       = (1 / 2) * Real.sin ((R : ℝ) * x)
@@ -394,7 +394,7 @@ theorem weight_odd_resolve (R : ℕ) (hR : 1 ≤ R) (x : ℝ)
 
 /-- **Even-node weight resolution.** Where `sin(R x) = 0` and `sin(x/2) ≠ 0`,
 the second-derivative singular weight is a finite cosine polynomial. -/
-theorem weight_even_resolve (R : ℕ) (hR : 1 ≤ R) (x : ℝ)
+lemma weight_even_resolve (R : ℕ) (hR : 1 ≤ R) (x : ℝ)
     (hsinR : Real.sin ((R : ℝ) * x) = 0) (hsin : Real.sin (x / 2) ≠ 0) :
     -Real.cos ((R : ℝ) * x) / (2 * Real.sin (x / 2) ^ 2)
       = -((R : ℝ) / 2) * Real.cos ((R : ℝ) * x)
@@ -501,7 +501,7 @@ Two telescoping identities give the finite trigonometric sums over the `2R` odd 
 `(2μ-1)π/(2R)` without any complex-exponential machinery. -/
 
 /-- Telescoping cosine sum: `2 sinθ · ∑_{μ=1}^{n} cos((2μ-1)θ) = sin(2nθ)`. -/
-theorem sin_mul_sum_cos_odd (θ : ℝ) (n : ℕ) :
+lemma sin_mul_sum_cos_odd (θ : ℝ) (n : ℕ) :
     2 * Real.sin θ * ∑ μ ∈ Finset.Icc 1 n, Real.cos ((2 * (μ : ℝ) - 1) * θ)
       = Real.sin (2 * (n : ℝ) * θ) := by
   induction n with
@@ -518,7 +518,7 @@ theorem sin_mul_sum_cos_odd (θ : ℝ) (n : ℕ) :
     linear_combination -hps
 
 /-- Telescoping sine sum: `2 sinθ · ∑_{μ=1}^{n} sin((2μ-1)θ) = 1 - cos(2nθ)`. -/
-theorem sin_mul_sum_sin_odd (θ : ℝ) (n : ℕ) :
+lemma sin_mul_sum_sin_odd (θ : ℝ) (n : ℕ) :
     2 * Real.sin θ * ∑ μ ∈ Finset.Icc 1 n, Real.sin ((2 * (μ : ℝ) - 1) * θ)
       = 1 - Real.cos (2 * (n : ℝ) * θ) := by
   induction n with
@@ -537,7 +537,7 @@ theorem sin_mul_sum_sin_odd (θ : ℝ) (n : ℕ) :
 
 /-- Telescoping cosine sum on the ordinary grid:
 `2 sin(θ/2) · ∑_{μ=1}^{n} cos(μθ) = sin(nθ + θ/2) - sin(θ/2)`. -/
-theorem sin_half_mul_sum_cos_even (θ : ℝ) (n : ℕ) :
+lemma sin_half_mul_sum_cos_even (θ : ℝ) (n : ℕ) :
     2 * Real.sin (θ / 2) * ∑ μ ∈ Finset.Icc 1 n, Real.cos ((μ : ℝ) * θ)
       = Real.sin ((n : ℝ) * θ + θ / 2) - Real.sin (θ / 2) := by
   induction n with
@@ -555,7 +555,7 @@ theorem sin_half_mul_sum_cos_even (θ : ℝ) (n : ℕ) :
 
 /-- Telescoping sine sum on the ordinary grid:
 `2 sin(θ/2) · ∑_{μ=1}^{n} sin(μθ) = cos(θ/2) - cos(nθ + θ/2)`. -/
-theorem sin_half_mul_sum_sin_even (θ : ℝ) (n : ℕ) :
+lemma sin_half_mul_sum_sin_even (θ : ℝ) (n : ℕ) :
     2 * Real.sin (θ / 2) * ∑ μ ∈ Finset.Icc 1 n, Real.sin ((μ : ℝ) * θ)
       = Real.cos (θ / 2) - Real.cos ((n : ℝ) * θ + θ / 2) := by
   induction n with
@@ -575,32 +575,32 @@ theorem sin_half_mul_sum_sin_even (θ : ℝ) (n : ℕ) :
     linear_combination -hps
 
 /-- A node multiple rewritten into telescoping form: `m · x_μ = (2μ-1)·(mπ/2R)`. -/
-theorem mul_psPoint (R m μ : ℕ) :
+lemma mul_psPoint (R m μ : ℕ) :
     (m : ℝ) * psPoint R μ = (2 * (μ : ℝ) - 1) * ((m : ℝ) * Real.pi / (2 * R)) := by
   unfold psPoint; ring
 
 /-- A node multiple rewritten into ordinary-grid form: `m · y_μ = μ·(mπ/R)`. -/
-theorem mul_psPoint2 (R m μ : ℕ) :
+lemma mul_psPoint2 (R m μ : ℕ) :
     (m : ℝ) * psPoint2 R μ = (μ : ℝ) * ((m : ℝ) * Real.pi / R) := by
   unfold psPoint2; ring
 
-private theorem sin_mul_cos_eq (x y : ℝ) :
+private lemma sin_mul_cos_eq (x y : ℝ) :
     Real.sin x * Real.cos y = (Real.sin (x + y) + Real.sin (x - y)) / 2 := by
   rw [Real.sin_add, Real.sin_sub]
   ring
 
-private theorem sin_mul_sin_eq (x y : ℝ) :
+private lemma sin_mul_sin_eq (x y : ℝ) :
     Real.sin x * Real.sin y = (Real.cos (x - y) - Real.cos (x + y)) / 2 := by
   rw [Real.cos_sub, Real.cos_add]
   ring
 
-private theorem cos_mul_cos_eq (x y : ℝ) :
+private lemma cos_mul_cos_eq (x y : ℝ) :
     Real.cos x * Real.cos y = (Real.cos (x + y) + Real.cos (x - y)) / 2 := by
   rw [Real.cos_add, Real.cos_sub]
   ring
 
 /-- Every sine sum over the `2R` odd nodes vanishes. -/
-theorem sum_sin_psPoint (R m : ℕ) (hR : 1 ≤ R) :
+lemma sum_sin_psPoint (R m : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R), Real.sin ((m : ℝ) * psPoint R μ) = 0 := by
   simp only [mul_psPoint]
   set θ := (m : ℝ) * Real.pi / (2 * R) with hθdef
@@ -625,7 +625,7 @@ theorem sum_sin_psPoint (R m : ℕ) (hR : 1 ≤ R) :
     · exact h
 
 /-- Interior cosine sums over the odd nodes vanish (`1 ≤ m ≤ 2R-1`). -/
-theorem sum_cos_psPoint_of_lt (R m : ℕ) (hR : 1 ≤ R) (hm1 : 1 ≤ m) (hm2 : m ≤ 2 * R - 1) :
+lemma sum_cos_psPoint_of_lt (R m : ℕ) (hR : 1 ≤ R) (hm1 : 1 ≤ m) (hm2 : m ≤ 2 * R - 1) :
     ∑ μ ∈ Finset.Icc 1 (2 * R), Real.cos ((m : ℝ) * psPoint R μ) = 0 := by
   simp only [mul_psPoint]
   set θ := (m : ℝ) * Real.pi / (2 * R) with hθdef
@@ -654,14 +654,14 @@ theorem sum_cos_psPoint_of_lt (R m : ℕ) (hR : 1 ≤ R) (hm1 : 1 ≤ m) (hm2 : 
   · exact h
 
 /-- The zero-frequency cosine sum counts the nodes: `∑ cos(0·x_μ) = 2R`. -/
-theorem sum_cos_psPoint_zero (R : ℕ) :
+lemma sum_cos_psPoint_zero (R : ℕ) :
     ∑ μ ∈ Finset.Icc 1 (2 * R), Real.cos ((0 : ℝ) * psPoint R μ) = 2 * (R : ℝ) := by
   simp only [zero_mul, Real.cos_zero, Finset.sum_const, Nat.card_Icc, Nat.add_sub_cancel,
     nsmul_eq_mul, mul_one]
   push_cast; ring
 
 /-- The top even-multiple cosine sum: `∑ cos(2R·x_μ) = -2R` (each `cos((2μ-1)π) = -1`). -/
-theorem sum_cos_psPoint_2R (R : ℕ) (hR : 1 ≤ R) :
+lemma sum_cos_psPoint_2R (R : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R), Real.cos (((2 * R : ℕ) : ℝ) * psPoint R μ) = -(2 * (R : ℝ)) := by
   have hR0 : (R : ℝ) ≠ 0 := by
     have : (0 : ℝ) < (R : ℝ) := by exact_mod_cast hR
@@ -683,7 +683,7 @@ theorem sum_cos_psPoint_2R (R : ℕ) (hR : 1 ≤ R) :
 /-! ### Discrete sums on the even nodes -/
 
 /-- Every sine sum over the `2R - 1` nonzero even nodes vanishes. -/
-theorem sum_sin_psPoint2 (R m : ℕ) (hR : 1 ≤ R) :
+lemma sum_sin_psPoint2 (R m : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1), Real.sin ((m : ℝ) * psPoint2 R μ) = 0 := by
   simp only [mul_psPoint2]
   set θ := (m : ℝ) * Real.pi / R with hθdef
@@ -721,7 +721,7 @@ theorem sum_sin_psPoint2 (R m : ℕ) (hR : 1 ≤ R) :
     · exact h
 
 /-- The zero-frequency cosine sum over the even nodes counts `2R - 1` samples. -/
-theorem sum_cos_psPoint2_zero (R : ℕ) (hR : 1 ≤ R) :
+lemma sum_cos_psPoint2_zero (R : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1), Real.cos ((0 : ℝ) * psPoint2 R μ)
       = 2 * (R : ℝ) - 1 := by
   simp only [zero_mul, Real.cos_zero, Finset.sum_const, Nat.card_Icc, nsmul_eq_mul, mul_one]
@@ -732,7 +732,7 @@ theorem sum_cos_psPoint2_zero (R : ℕ) (hR : 1 ≤ R) :
   ring_nf
 
 /-- Interior cosine sums over the even nodes equal `-1` (`1 ≤ m ≤ 2R - 1`). -/
-theorem sum_cos_psPoint2_of_lt (R m : ℕ) (hR : 1 ≤ R) (hm1 : 1 ≤ m) (hm2 : m ≤ 2 * R - 1) :
+lemma sum_cos_psPoint2_of_lt (R m : ℕ) (hR : 1 ≤ R) (hm1 : 1 ≤ m) (hm2 : m ≤ 2 * R - 1) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1), Real.cos ((m : ℝ) * psPoint2 R μ) = -1 := by
   simp only [mul_psPoint2]
   set θ := (m : ℝ) * Real.pi / R with hθdef
@@ -780,7 +780,7 @@ theorem sum_cos_psPoint2_of_lt (R m : ℕ) (hR : 1 ≤ R) (hm1 : 1 ≤ m) (hm2 :
   exact mul_left_cancel₀ hne hclear'
 
 /-- The full-period cosine sum over the even nodes counts all samples. -/
-theorem sum_cos_psPoint2_2R (R : ℕ) (hR : 1 ≤ R) :
+lemma sum_cos_psPoint2_2R (R : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1), Real.cos (((2 * R : ℕ) : ℝ) * psPoint2 R μ)
       = 2 * (R : ℝ) - 1 := by
   have hR0 : (R : ℝ) ≠ 0 := by
@@ -803,7 +803,7 @@ theorem sum_cos_psPoint2_2R (R : ℕ) (hR : 1 ≤ R) :
   ring_nf
 
 /-- Every integer-frequency sine sum over the nonzero even nodes vanishes. -/
-theorem sum_sin_int_mul_psPoint2 (R : ℕ) (m : ℤ) (hR : 1 ≤ R) :
+lemma sum_sin_int_mul_psPoint2 (R : ℕ) (m : ℤ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1), Real.sin ((m : ℝ) * psPoint2 R μ) = 0 := by
   obtain ⟨n, rfl | rfl⟩ := m.eq_nat_or_neg
   · simpa using sum_sin_psPoint2 R n hR
@@ -815,7 +815,7 @@ theorem sum_sin_int_mul_psPoint2 (R : ℕ) (m : ℤ) (hR : 1 ≤ R) :
       _ = 0 := by rw [sum_sin_psPoint2 R n hR, neg_zero]
 
 /-- Even-node mixed sine/cosine orthogonality. -/
-theorem sum_sin_mul_cos_psPoint2_eq_zero (R p q : ℕ) (hR : 1 ≤ R) :
+lemma sum_sin_mul_cos_psPoint2_eq_zero (R p q : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
       Real.sin ((p : ℝ) * psPoint2 R μ) * Real.cos ((q : ℝ) * psPoint2 R μ) = 0 := by
   have hprod : ∀ μ ∈ Finset.Icc 1 (2 * R - 1),
@@ -849,7 +849,7 @@ theorem sum_sin_mul_cos_psPoint2_eq_zero (R p q : ℕ) (hR : 1 ≤ R) :
   ring
 
 /-- Even-node cosine/cosine products below the top second factor. -/
-theorem sum_cos_mul_cos_psPoint2_of_lt (R p q : ℕ) (hR : 1 ≤ R)
+lemma sum_cos_mul_cos_psPoint2_of_lt (R p q : ℕ) (hR : 1 ≤ R)
     (hp1 : 1 ≤ p) (hpR : p ≤ R) (hq1 : 1 ≤ q) (hqR : q ≤ R - 1) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
       Real.cos ((p : ℝ) * psPoint2 R μ) * Real.cos ((q : ℝ) * psPoint2 R μ)
@@ -947,7 +947,7 @@ theorem sum_cos_mul_cos_psPoint2_of_lt (R p q : ℕ) (hR : 1 ≤ R)
       ring
 
 /-- Even-node cosine/top-frequency cosine products. -/
-theorem sum_cos_mul_cos_top_psPoint2 (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
+lemma sum_cos_mul_cos_top_psPoint2 (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
       Real.cos ((p : ℝ) * psPoint2 R μ) * Real.cos ((R : ℝ) * psPoint2 R μ)
         = if p = R then 2 * (R : ℝ) - 1 else -1 := by
@@ -1017,7 +1017,7 @@ theorem sum_cos_mul_cos_top_psPoint2 (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) 
 /-! ### Per-frequency parameter-shift identities (second derivative) -/
 
 /-- `sin(R y_μ) = 0` on the even nodes. -/
-theorem sin_R_mul_psPoint2 (R μ : ℕ) (hR : 1 ≤ R) :
+lemma sin_R_mul_psPoint2 (R μ : ℕ) (hR : 1 ≤ R) :
     Real.sin ((R : ℝ) * psPoint2 R μ) = 0 := by
   have hR0 : (R : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
   have key : (R : ℝ) * psPoint2 R μ = (μ : ℝ) * Real.pi := by
@@ -1027,7 +1027,7 @@ theorem sin_R_mul_psPoint2 (R μ : ℕ) (hR : 1 ≤ R) :
   exact Real.sin_nat_mul_pi μ
 
 /-- `cos(R y_μ) = (-1)^μ` on the even nodes. -/
-theorem cos_R_mul_psPoint2 (R μ : ℕ) (hR : 1 ≤ R) :
+lemma cos_R_mul_psPoint2 (R μ : ℕ) (hR : 1 ≤ R) :
     Real.cos ((R : ℝ) * psPoint2 R μ) = (-1 : ℝ) ^ μ := by
   have hR0 : (R : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
   have key : (R : ℝ) * psPoint2 R μ = (μ : ℝ) * Real.pi := by
@@ -1036,7 +1036,7 @@ theorem cos_R_mul_psPoint2 (R μ : ℕ) (hR : 1 ≤ R) :
   rw [key, Real.cos_nat_mul_pi]
 
 /-- The half-angle at a nonzero even node lies in `(0, π)`, so its sine is nonzero. -/
-theorem sin_half_psPoint2_ne (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) (hμR : μ ≤ 2 * R - 1) :
+lemma sin_half_psPoint2_ne (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) (hμR : μ ≤ 2 * R - 1) :
     Real.sin (psPoint2 R μ / 2) ≠ 0 := by
   have hRpos : (0 : ℝ) < (R : ℝ) := by exact_mod_cast hR
   have hR0 : (R : ℝ) ≠ 0 := ne_of_gt hRpos
@@ -1056,7 +1056,7 @@ theorem sin_half_psPoint2_ne (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) (hμR 
       _ = Real.pi * (2 * (R : ℝ)) := by ring
 
 /-- The second-derivative weight rewritten with `-cos(R y_μ)` in the numerator. -/
-theorem psWeight2_eq (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
+lemma psWeight2_eq (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
     psWeight2 R μ
       = -Real.cos ((R : ℝ) * psPoint2 R μ) / (2 * Real.sin (psPoint2 R μ / 2) ^ 2) := by
   have hhalf : psPoint2 R μ / 2 = (μ : ℝ) * Real.pi / (2 * R) := by
@@ -1074,7 +1074,7 @@ theorem psWeight2_eq (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
   rw [hhalf, hsign]
 
 /-- **(E0)** The second-derivative weights sum to the constant-cancellation coefficient. -/
-theorem sum_psWeight2_eq (R : ℕ) (hR : 1 ≤ R) :
+lemma sum_psWeight2_eq (R : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1), psWeight2 R μ
       = (2 * (R : ℝ) ^ 2 + 1) / 6 := by
   have hstep : ∀ μ ∈ Finset.Icc 1 (2 * R - 1),
@@ -1131,7 +1131,7 @@ theorem sum_psWeight2_eq (R : ℕ) (hR : 1 ≤ R) :
   ring
 
 /-- **(E1)** The second-derivative weights annihilate every sine coefficient. -/
-theorem sum_sin_mul_psWeight2_eq_zero (R p : ℕ) (hR : 1 ≤ R) :
+lemma sum_sin_mul_psWeight2_eq_zero (R p : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
       Real.sin ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ = 0 := by
   have hstep : ∀ μ ∈ Finset.Icc 1 (2 * R - 1),
@@ -1195,7 +1195,7 @@ theorem sum_sin_mul_psWeight2_eq_zero (R p : ℕ) (hR : 1 ≤ R) :
 
 /-- **(E2)** The second-derivative weights extract the cosine coefficient
 `(2R² + 1)/6 - p²`. -/
-theorem sum_cos_mul_psWeight2_eq (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
+lemma sum_cos_mul_psWeight2_eq (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R - 1),
       Real.cos ((p : ℝ) * psPoint2 R μ) * psWeight2 R μ
         = (2 * (R : ℝ) ^ 2 + 1) / 6 - (p : ℝ) ^ 2 := by
@@ -1340,7 +1340,7 @@ theorem sum_cos_mul_psWeight2_eq (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR
 /-! ### Per-frequency parameter-shift identities (first derivative) -/
 
 /-- The parameter-shift weight rewritten with `sin(R x_μ)` in the numerator. -/
-theorem psWeight_eq (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
+lemma psWeight_eq (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
     psWeight R μ
       = Real.sin ((R : ℝ) * psPoint R μ) / (4 * (R : ℝ) * Real.sin (psPoint R μ / 2) ^ 2) := by
   have h2 : psPoint R μ / 2 = (2 * (μ : ℝ) - 1) * Real.pi / (4 * R) := by unfold psPoint; ring
@@ -1348,7 +1348,7 @@ theorem psWeight_eq (R μ : ℕ) (hR : 1 ≤ R) (hμ : 1 ≤ μ) :
   rw [sin_R_mul_psPoint R μ hR hμ, h2]
 
 /-- **(C0)** The weights sum to zero, so a constant loss contributes nothing to the rule. -/
-theorem sum_psWeight_eq_zero (R : ℕ) (hR : 1 ≤ R) :
+lemma sum_psWeight_eq_zero (R : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R), psWeight R μ = 0 := by
   have hstep : ∀ μ ∈ Finset.Icc 1 (2 * R), psWeight R μ
       = (1 / 2) * Real.sin ((R : ℝ) * psPoint R μ)
@@ -1371,7 +1371,7 @@ theorem sum_psWeight_eq_zero (R : ℕ) (hR : 1 ≤ R) :
   ring
 
 /-- Every integer-frequency sine sum over the `2R` odd nodes vanishes. -/
-theorem sum_sin_int_mul_psPoint (R : ℕ) (m : ℤ) (hR : 1 ≤ R) :
+lemma sum_sin_int_mul_psPoint (R : ℕ) (m : ℤ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R), Real.sin ((m : ℝ) * psPoint R μ) = 0 := by
   obtain ⟨n, rfl | rfl⟩ := m.eq_nat_or_neg
   · simpa using sum_sin_psPoint R n hR
@@ -1383,7 +1383,7 @@ theorem sum_sin_int_mul_psPoint (R : ℕ) (m : ℤ) (hR : 1 ≤ R) :
       _ = 0 := by rw [sum_sin_psPoint R n hR, neg_zero]
 
 /-- Odd-node mixed cosine/sine orthogonality. -/
-theorem sum_cos_mul_sin_psPoint_eq_zero (R m n : ℕ) (hR : 1 ≤ R) :
+lemma sum_cos_mul_sin_psPoint_eq_zero (R m n : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R),
       Real.cos ((m : ℝ) * psPoint R μ) * Real.sin ((n : ℝ) * psPoint R μ) = 0 := by
   have hprod : ∀ μ ∈ Finset.Icc 1 (2 * R),
@@ -1418,7 +1418,7 @@ theorem sum_cos_mul_sin_psPoint_eq_zero (R m n : ℕ) (hR : 1 ≤ R) :
   ring
 
 /-- Odd-node sine/sine orthogonality below the top frequency. -/
-theorem sum_sin_mul_sin_psPoint_of_lt (R m n : ℕ) (hR : 1 ≤ R)
+lemma sum_sin_mul_sin_psPoint_of_lt (R m n : ℕ) (hR : 1 ≤ R)
     (hm1 : 1 ≤ m) (hmR : m ≤ R - 1) (hn1 : 1 ≤ n) (hnR : n ≤ R - 1) :
     ∑ μ ∈ Finset.Icc 1 (2 * R),
       Real.sin ((m : ℝ) * psPoint R μ) * Real.sin ((n : ℝ) * psPoint R μ)
@@ -1510,7 +1510,7 @@ theorem sum_sin_mul_sin_psPoint_of_lt (R m n : ℕ) (hR : 1 ≤ R)
       ring
 
 /-- Odd-node sine/top-frequency sine orthogonality. -/
-theorem sum_sin_mul_sin_top_psPoint (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
+lemma sum_sin_mul_sin_top_psPoint (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R),
       Real.sin ((p : ℝ) * psPoint R μ) * Real.sin ((R : ℝ) * psPoint R μ)
         = if p = R then 2 * (R : ℝ) else 0 := by
@@ -1572,7 +1572,7 @@ theorem sum_sin_mul_sin_top_psPoint (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (
     ring
 
 /-- **(C1)** Odd-node weights annihilate every cosine coefficient. -/
-theorem sum_cos_mul_psWeight_eq_zero (R p : ℕ) (hR : 1 ≤ R) :
+lemma sum_cos_mul_psWeight_eq_zero (R p : ℕ) (hR : 1 ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R),
       Real.cos ((p : ℝ) * psPoint R μ) * psWeight R μ = 0 := by
   have hstep : ∀ μ ∈ Finset.Icc 1 (2 * R),
@@ -1621,7 +1621,7 @@ theorem sum_cos_mul_psWeight_eq_zero (R p : ℕ) (hR : 1 ≤ R) :
   ring
 
 /-- **(S1)** Odd-node weights extract the sine coefficient `p`. -/
-theorem sum_sin_mul_psWeight_eq (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
+lemma sum_sin_mul_psWeight_eq (R p : ℕ) (hR : 1 ≤ R) (hp1 : 1 ≤ p) (hpR : p ≤ R) :
     ∑ μ ∈ Finset.Icc 1 (2 * R),
       Real.sin ((p : ℝ) * psPoint R μ) * psWeight R μ = (p : ℝ) := by
   have hstep : ∀ μ ∈ Finset.Icc 1 (2 * R),

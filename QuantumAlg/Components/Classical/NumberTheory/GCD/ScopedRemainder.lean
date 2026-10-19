@@ -48,12 +48,14 @@ def scopedRemainderStep {model : ExecutionModel} [BitWord.Selected model]
   (Store.popWorkspace key (operandShape width) fresh final.1, final.2)
 
 /-- Actual lexical execution is the exact allocated-store update with its real body path. -/
-theorem gcdScopedRemainder_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdScopedRemainder_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scopedRemainder (model := model) first second zero active).execute Reference state =
+    (scopedRemainder (model := model) first second zero active).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := scopedRemainderStep (model := model) first second zero active entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -64,7 +66,8 @@ theorem gcdScopedRemainder_execute {model : ExecutionModel} [BitWord.Selected mo
   let zero' := zero.underWorkspace key (operandShape width) fresh
   let active' := active.underWorkspace key (operandShape width) fresh
   let scratch := CWriteRef.workspaceHead ctx key (operandShape width) fresh
-  refine (Circuit.execute_workspace_mapClassical key (operandShape width) fresh
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) key (operandShape width) fresh
     (remainderBody (model := model) first' second' zero' active' scratch)
     (fun before =>
       let result := remainderStep (model := model) first' second' zero' active' scratch before.1
@@ -76,11 +79,11 @@ theorem gcdScopedRemainder_execute {model : ExecutionModel} [BitWord.Selected mo
             (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 
-private theorem liftedWrite_key {shape workspaceShape : CShape} (output : CWriteRef ctx shape)
+private lemma liftedWrite_key {shape workspaceShape : CShape} (output : CWriteRef ctx shape)
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     (output.underWorkspace key workspaceShape fresh).key = output.key := rfl
 
-private theorem fresh_ne_cell {shape : CShape} (output : CWriteRef ctx shape) :
+private lemma fresh_ne_cell {shape : CShape} (output : CWriteRef ctx shape) :
     ctx.canonicalFreshKey ≠ output.key := by
   intro same
   apply ctx.canonicalFreshKey_fresh
@@ -88,7 +91,7 @@ private theorem fresh_ne_cell {shape : CShape} (output : CWriteRef ctx shape) :
   exact List.mem_map_of_mem output.toCStorageRef.present
 
 /-- Every original structural read outside the three persistent written cells is unchanged. -/
-theorem gcdScopedRemainder_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdScopedRemainder_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     {observed : CShape} (other : CInputRef ctx observed)
@@ -109,7 +112,7 @@ theorem gcdScopedRemainder_read_other {model : ExecutionModel} [BitWord.Selected
       (other.storageKeys_subset_context present)
 
 /-- The scoped update implements exact total division and rotation on its persistent cells. -/
-theorem gcdScopedRemainder_store_values {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdScopedRemainder_store_values {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (firstSecond : first.key ≠ second.key)

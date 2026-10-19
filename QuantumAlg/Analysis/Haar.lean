@@ -62,7 +62,7 @@ def pauliTwirl (X : Matrix (Fin 2) (Fin 2) ℂ) : Matrix (Fin 2) (Fin 2) ℂ :=
 /-- **Pauli 1-design identity (Haar first moment).** The single-qubit Pauli twirl sends every `X`
 to `(tr X / 2) · 1`. This is the canonical `t = 1` Haar moment, realized concretely by the
 single-qubit Pauli group (a unitary 1-design). -/
-theorem pauliTwirl_eq (X : Matrix (Fin 2) (Fin 2) ℂ) :
+lemma pauliTwirl_eq (X : Matrix (Fin 2) (Fin 2) ℂ) :
     pauliTwirl X = (X.trace / 2) • (1 : Matrix (Fin 2) (Fin 2) ℂ) := by
   rw [Matrix.eta_fin_two X]
   simp only [pauliTwirl, pauliX, pauliY, pauliZ, Matrix.mul_fin_two]
@@ -92,7 +92,7 @@ noncomputable def repTwirl (u : G → Matrix m m ℂ) (X : Matrix m m ℂ) :
 omit [DecidableEq m] in
 /-- **Conjugation-invariance.** For a multiplicative `u`, the twirl is fixed by conjugation by any
 `u V` — the defining property of the invariant (Haar) average, proved by re-indexing the sum. -/
-theorem repTwirl_conj (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u a * u b)
+lemma repTwirl_conj (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u a * u b)
     (X : Matrix m m ℂ) (V : G) :
     u V * repTwirl u X * (u V)ᴴ = repTwirl u X := by
   classical
@@ -108,7 +108,7 @@ theorem repTwirl_conj (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u 
 
 omit [DecidableEq m] in
 /-- **Idempotence.** The twirl is a projection. -/
-theorem repTwirl_idem (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u a * u b)
+lemma repTwirl_idem (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u a * u b)
     (X : Matrix m m ℂ) :
     repTwirl u (repTwirl u X) = repTwirl u X := by
   classical
@@ -121,7 +121,7 @@ theorem repTwirl_idem (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u 
 
 /-- **Commutation with the group.** For a unitary representation `u` the twirl lands in the
 commutant: it commutes with every `u V`. -/
-theorem repTwirl_commute (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u a * u b)
+lemma repTwirl_commute (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) = u a * u b)
     (hunit : ∀ a, (u a)ᴴ * u a = 1) (X : Matrix m m ℂ) (V : G) :
     u V * repTwirl u X = repTwirl u X * u V := by
   have h := repTwirl_conj u hmul X V
@@ -132,7 +132,7 @@ theorem repTwirl_commute (u : G → Matrix m m ℂ) (hmul : ∀ a b, u (a * b) =
 
 /-- **Trace preservation.** A unitary twirl preserves the trace (each summand `u g · X · (u g)†`
 is trace-equal to `X` by cyclicity and unitarity). -/
-theorem repTwirl_trace (u : G → Matrix m m ℂ) (hunit : ∀ a, (u a)ᴴ * u a = 1)
+lemma repTwirl_trace (u : G → Matrix m m ℂ) (hunit : ∀ a, (u a)ᴴ * u a = 1)
     (X : Matrix m m ℂ) : (repTwirl u X).trace = X.trace := by
   have hcard : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
   have hterm : ∀ g : G, (u g * X * (u g)ᴴ).trace = X.trace := by
@@ -147,7 +147,7 @@ theorem repTwirl_trace (u : G → Matrix m m ℂ) (hunit : ∀ a, (u a)ᴴ * u a
 irreducible — its commutant is the scalars — then the twirl is the depolarizing map
 `X ↦ (tr X / N) · 1`. For the full unitary group (which acts irreducibly on `ℂ^N`) this is the
 Haar first moment; concretely it is realised by any 1-design (e.g. `pauliTwirl_eq` for `N = 2`). -/
-theorem repTwirl_eq_scalar [NeZero N] (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma repTwirl_eq_scalar [NeZero N] (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1)
     (X : Matrix (Fin N) (Fin N) ℂ)
     (hirr : ∀ M : Matrix (Fin N) (Fin N) ℂ, (∀ g, u g * M = M * u g) → ∃ c : ℂ, M = c • 1) :
@@ -165,7 +165,7 @@ omit [Group G] in
 /-- A scalar first-moment twirl kills traceless observables. This is the reusable
 mean-zero endpoint: once a finite average has been identified with the scalar Haar
 first moment, `trace O = 0` forces the averaged observable to vanish. -/
-theorem repTwirl_eq_zero_of_trace_eq_zero (u : G → Matrix (Fin N) (Fin N) ℂ)
+lemma repTwirl_eq_zero_of_trace_eq_zero (u : G → Matrix (Fin N) (Fin N) ℂ)
     (O : Matrix (Fin N) (Fin N) ℂ)
     (hscalar : repTwirl u O = (O.trace / (N : ℂ)) • (1 : Matrix (Fin N) (Fin N) ℂ))
     (htr : O.trace = 0) :
@@ -173,7 +173,7 @@ theorem repTwirl_eq_zero_of_trace_eq_zero (u : G → Matrix (Fin N) (Fin N) ℂ)
   rw [hscalar, htr, zero_div, zero_smul]
 
 /-- Irreducibility-specialized version of `repTwirl_eq_zero_of_trace_eq_zero`. -/
-theorem repTwirl_eq_zero_of_trace_eq_zero_of_irreducible [NeZero N]
+lemma repTwirl_eq_zero_of_trace_eq_zero_of_irreducible [NeZero N]
     (u : G → Matrix (Fin N) (Fin N) ℂ)
     (hmul : ∀ a b, u (a * b) = u a * u b) (hunit : ∀ a, (u a)ᴴ * u a = 1)
     (O : Matrix (Fin N) (Fin N) ℂ)
@@ -185,7 +185,7 @@ theorem repTwirl_eq_zero_of_trace_eq_zero_of_irreducible [NeZero N]
 omit [Group G] in
 /-- Any state/observable trace pairing has zero finite-average mean once the averaged observable
 is the scalar first moment and the observable is traceless. -/
-theorem repTwirl_trace_pairing_eq_zero_of_trace_eq_zero
+lemma repTwirl_trace_pairing_eq_zero_of_trace_eq_zero
     (u : G → Matrix (Fin N) (Fin N) ℂ) (ρ O : Matrix (Fin N) (Fin N) ℂ)
     (hscalar : repTwirl u O = (O.trace / (N : ℂ)) • (1 : Matrix (Fin N) (Fin N) ℂ))
     (htr : O.trace = 0) :
@@ -196,7 +196,7 @@ theorem repTwirl_trace_pairing_eq_zero_of_trace_eq_zero
 /-- For a finite uniform average, a zero mean makes the centered second moment equal the
 uncentered second moment. This is purely algebraic; it does not introduce a probability model
 or an ansatz distribution. -/
-theorem secondMoment_eq_centered_of_mean_zero {α : Type*} [Fintype α] (loss : α → ℂ)
+lemma secondMoment_eq_centered_of_mean_zero {α : Type*} [Fintype α] (loss : α → ℂ)
     (hmean : (Fintype.card α : ℂ)⁻¹ * ∑ a, loss a = 0) :
     (Fintype.card α : ℂ)⁻¹ * ∑ a, (loss a - ((Fintype.card α : ℂ)⁻¹ * ∑ b, loss b)) ^ 2
       = (Fintype.card α : ℂ)⁻¹ * ∑ a, (loss a) ^ 2 := by

@@ -23,7 +23,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchSuccess
 noncomputable section
 
 /-- The original uniform source has at least the complement of the stated sampler loss. -/
-theorem samplerGoodMass_ge {N : Nat} (model : GoodKeyModel N) :
+lemma samplerGoodMass_ge {N : Nat} (model : GoodKeyModel N) :
     1 - ENNReal.ofReal (RSA.FixedWidthSampling.samplerFailureBound model.bitWidth) ≤
       (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).toOuterMeasure
         {sample | ¬ RSA.FixedWidthSampling.SamplerExceptional model.pair
@@ -59,7 +59,7 @@ theorem samplerGoodMass_ge {N : Nat} (model : GoodKeyModel N) :
   exact tsub_le_tsub_left (ENNReal.ofReal_le_ofReal fractionLe) 1
 
 /-- The original same-source sampled batch returns a declared factor with the original floor. -/
-theorem sampled_ge {N : Nat} (model : GoodKeyModel N) :
+lemma sampled_ge {N : Nat} (model : GoodKeyModel N) :
     successFloor model.bitWidth ≤
       (sampledBatchOutputPMF model.input).toOuterMeasure (accepts model) := by
   have conditional := PMF.bind_eventProbability_ge_goodMass_mul
@@ -73,7 +73,7 @@ theorem sampled_ge {N : Nat} (model : GoodKeyModel N) :
   exact (mul_le_mul_left (samplerGoodMass_ge model) _).trans conditional
 
 /-- The original sampled batch's empty-result mass is bounded by the complementary floor. -/
-theorem sampled_none_le {N : Nat} (model : GoodKeyModel N) :
+lemma sampled_none_le {N : Nat} (model : GoodKeyModel N) :
     sampledBatchOutputPMF model.input none ≤ 1 - successFloor model.bitWidth := by
   have complement :
       (sampledBatchOutputPMF model.input).toOuterMeasure {output | output ∉ accepts model} =

@@ -69,7 +69,7 @@ def nativeDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : N
           (.nominalEncoding (.packProduct width (1 + width))))))
 
 /-- The real result condition selects at most the larger native instruction-chain duration. -/
-theorem decisionResult_depth_le (shared : Proposal.SharedRefs ctx width)
+lemma decisionResult_depth_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (duration : Resource.Event model → Nat)
@@ -92,7 +92,7 @@ theorem decisionResult_depth_le (shared : Proposal.SharedRefs ctx width)
         exact Nat.le_max_left _ _
 
 /-- The accepted path includes each real GCD and comparison dependency. -/
-theorem decisionAccepted_depth_le (shared : Proposal.SharedRefs ctx width)
+lemma decisionAccepted_depth_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (duration : Resource.Event model → Nat)
@@ -119,7 +119,7 @@ theorem decisionAccepted_depth_le (shared : Proposal.SharedRefs ctx width)
       (decisionResult_depth_le shared scratch gcdResult duration selected) _) _)) _
 
 /-- Acceptance selection retains the dependency of its actual chosen branch. -/
-theorem decisionAcceptance_depth_le (shared : Proposal.SharedRefs ctx width)
+lemma decisionAcceptance_depth_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (duration : Resource.Event model → Nat)
@@ -142,7 +142,7 @@ theorem decisionAcceptance_depth_le (shared : Proposal.SharedRefs ctx width)
           (Nat.le_max_left _ _)
 
 /-- The complete actual decision satisfies the independently stated native duration bound. -/
-theorem decision_depth_le (shared : Proposal.SharedRefs ctx width)
+lemma decision_depth_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
@@ -161,7 +161,7 @@ theorem decision_depth_le (shared : Proposal.SharedRefs ctx width)
     (decisionAcceptance_depth_le shared scratch gcdResult duration chosen) _) _
 
 /-- Unit event duration gives an explicit linear bound and counts only the selected result arm. -/
-theorem decisionNativeDepthLimit_unit (model : ExecutionModel) [BitWord.Selected model]
+lemma decisionNativeDepthLimit_unit (model : ExecutionModel) [BitWord.Selected model]
     (width : Nat) :
     nativeDepthLimit width (fun _ : Resource.Event model => 1) = 10 * width + 30 := by
   simp only [nativeDepthLimit, initializationDuration, acceptedDuration, resultDuration,

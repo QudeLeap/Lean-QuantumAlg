@@ -53,13 +53,13 @@ def continuousSuperOp {R : Register} (Φ : SuperOp R) :
   LinearMap.toContinuousLinearMap Φ
 
 @[simp]
-theorem continuousSuperOp_apply {R : Register} (Φ : SuperOp R)
+lemma continuousSuperOp_apply {R : Register} (Φ : SuperOp R)
     (X : HilbertOperator R) :
     continuousSuperOp Φ X = Φ X := by
   rfl
 
 @[simp]
-theorem continuousSuperOp_coe {R : Register} (Φ : SuperOp R) :
+lemma continuousSuperOp_coe {R : Register} (Φ : SuperOp R) :
     ((continuousSuperOp Φ) : HilbertOperator R →ₗ[ℂ] HilbertOperator R) = Φ := by
   rfl
 
@@ -75,44 +75,44 @@ def traceNormedSuperOp {R : Register} (Φ : SuperOp R) :
     simp
 
 @[simp]
-theorem traceNormedSuperOp_apply {R : Register} (Φ : SuperOp R)
+lemma traceNormedSuperOp_apply {R : Register} (Φ : SuperOp R)
     (X : TraceNormedMatrix R.Index) :
     ((traceNormedSuperOp Φ X : TraceNormedMatrix R.Index) : HilbertOperator R) =
       Φ (X : HilbertOperator R) := by
   rfl
 
 @[simp]
-theorem traceNormedSuperOp_zero {R : Register} :
+lemma traceNormedSuperOp_zero {R : Register} :
     traceNormedSuperOp (0 : SuperOp R) = 0 := by
   ext X
   simp
 
 @[simp]
-theorem traceNormedSuperOp_add {R : Register} (Φ Ψ : SuperOp R) :
+lemma traceNormedSuperOp_add {R : Register} (Φ Ψ : SuperOp R) :
     traceNormedSuperOp (Φ + Ψ) = traceNormedSuperOp Φ + traceNormedSuperOp Ψ := by
   ext X
   simp
 
 @[simp]
-theorem traceNormedSuperOp_smul {R : Register} (c : ℂ) (Φ : SuperOp R) :
+lemma traceNormedSuperOp_smul {R : Register} (c : ℂ) (Φ : SuperOp R) :
     traceNormedSuperOp (c • Φ) = c • traceNormedSuperOp Φ := by
   ext X
   simp
 
 @[simp]
-theorem traceNormedSuperOp_neg {R : Register} (Φ : SuperOp R) :
+lemma traceNormedSuperOp_neg {R : Register} (Φ : SuperOp R) :
     traceNormedSuperOp (-Φ) = -traceNormedSuperOp Φ := by
   ext X
   simp
 
 @[simp]
-theorem traceNormedSuperOp_sub {R : Register} (Φ Ψ : SuperOp R) :
+lemma traceNormedSuperOp_sub {R : Register} (Φ Ψ : SuperOp R) :
     traceNormedSuperOp (Φ - Ψ) = traceNormedSuperOp Φ - traceNormedSuperOp Ψ := by
   ext X
   simp [sub_eq_add_neg]
 
 @[simp]
-theorem traceNormedSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
+lemma traceNormedSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
     (Φ : ι → SuperOp R) :
     traceNormedSuperOp (∑ i, Φ i) = ∑ i, traceNormedSuperOp (Φ i) := by
   classical
@@ -136,7 +136,7 @@ def superOpComp {R : Register} (Φ Ψ : SuperOp R) : SuperOp R :=
   Φ.comp Ψ
 
 @[simp]
-theorem superOpComp_apply {R : Register} (Φ Ψ : SuperOp R) (X : HilbertOperator R) :
+lemma superOpComp_apply {R : Register} (Φ Ψ : SuperOp R) (X : HilbertOperator R) :
     superOpComp Φ Ψ X = Φ (Ψ X) := by
   rfl
 
@@ -145,17 +145,17 @@ def superOpPower {R : Register} (Φ : SuperOp R) (n : ℕ) : SuperOp R :=
   Φ ^ n
 
 @[simp]
-theorem superOpPower_zero {R : Register} (Φ : SuperOp R) :
+lemma superOpPower_zero {R : Register} (Φ : SuperOp R) :
     superOpPower Φ 0 = LinearMap.id := by
   rfl
 
 @[simp]
-theorem superOpPower_succ {R : Register} (Φ : SuperOp R) (n : ℕ) :
+lemma superOpPower_succ {R : Register} (Φ : SuperOp R) (n : ℕ) :
     superOpPower Φ (n + 1) = superOpComp (superOpPower Φ n) Φ := by
   rfl
 
 /-- Telescoping identity for powers of superoperators under composition. -/
-theorem superOpPower_diff_eq_sum {R : Register} (U E : SuperOp R) (r : ℕ) :
+lemma superOpPower_diff_eq_sum {R : Register} (U E : SuperOp R) (r : ℕ) :
     superOpPower U r - superOpPower E r =
       ∑ k ∈ Finset.range r,
         superOpComp (superOpPower U (r - 1 - k))
@@ -181,7 +181,7 @@ structure SuperOpNormProperties {R : Register} (superOpNorm : SuperOp R → ℝ)
 
 namespace SuperOpNormProperties
 
-theorem norm_add_le {R : Register} {superOpNorm : SuperOp R → ℝ}
+lemma norm_add_le {R : Register} {superOpNorm : SuperOp R → ℝ}
     {scalarNorm : ℂ → ℝ}
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (Φ Ψ : SuperOp R) :
@@ -192,7 +192,7 @@ theorem norm_add_le {R : Register} {superOpNorm : SuperOp R → ℝ}
 
 end SuperOpNormProperties
 
-theorem inducedTraceNorm_properties {R : Register} :
+lemma inducedTraceNorm_properties {R : Register} :
     SuperOpNormProperties (R := R) inducedTraceNorm (fun c : ℂ => ‖c‖) where
   norm_sum_le := by
     intro ι _ Φ
@@ -211,7 +211,7 @@ theorem inducedTraceNorm_properties {R : Register} :
         (LinearMap.toContinuousLinearMap (traceNormedSuperOp Ψ)))
 
 @[simp]
-theorem inducedTraceNorm_neg {R : Register} (Φ : SuperOp R) :
+lemma inducedTraceNorm_neg {R : Register} (Φ : SuperOp R) :
     inducedTraceNorm (-Φ) = inducedTraceNorm Φ := by
   simp [inducedTraceNorm,
     (norm_neg (LinearMap.toContinuousLinearMap (traceNormedSuperOp Φ)))]
@@ -251,20 +251,20 @@ def qdriftStepTime {ι : Type} [Fintype ι]
     (h : ι → ℝ) (t : ℝ) (steps : ℕ) : ℝ :=
   t * qdriftLambda h / steps
 
-theorem qdriftProbabilities_nonneg {ι : Type} [Fintype ι]
+lemma qdriftProbabilities_nonneg {ι : Type} [Fintype ι]
     (h : ι → ℝ) (h_nonneg : ∀ j, 0 ≤ h j) :
     ∀ j, 0 ≤ qdriftProbabilities h j := by
   intro j
   exact div_nonneg (h_nonneg j) (Finset.sum_nonneg fun i _ => h_nonneg i)
 
-theorem qdriftProbabilities_sum_eq_one {ι : Type} [Fintype ι]
+lemma qdriftProbabilities_sum_eq_one {ι : Type} [Fintype ι]
     (h : ι → ℝ) (h_lambda_ne_zero : qdriftLambda h ≠ 0) :
     ∑ j, qdriftProbabilities h j = 1 := by
   rw [show (∑ j, qdriftProbabilities h j) = qdriftLambda h / qdriftLambda h by
     simp [qdriftProbabilities, qdriftLambda, Finset.sum_div]]
   exact div_self h_lambda_ne_zero
 
-theorem qdriftProbabilityWeights {ι : Type} [Fintype ι]
+lemma qdriftProbabilityWeights {ι : Type} [Fintype ι]
     (h : ι → ℝ) (h_nonneg : ∀ j, 0 ≤ h j)
     (h_lambda_ne_zero : qdriftLambda h ≠ 0) :
     QDriftProbabilityWeights (qdriftProbabilities h) :=
@@ -274,7 +274,7 @@ theorem qdriftProbabilityWeights {ι : Type} [Fintype ι]
 namespace QDriftWeightConditions
 
 /-- Build abstract qDRIFT weight conditions from real probability weights. -/
-theorem of_probability_weights {ι : Type} [Fintype ι]
+lemma of_probability_weights {ι : Type} [Fintype ι]
     (scalarNorm : ℂ → ℝ) (p : ι → ℝ)
     (hscalar : ∀ j, scalarNorm (p j : ℂ) = p j)
     (hprob : QDriftProbabilityWeights p) :
@@ -293,7 +293,7 @@ theorem of_probability_weights {ι : Type} [Fintype ι]
     exact hprob.nonneg j
 
 /-- Real probability weights are valid for the usual complex norm. -/
-theorem of_probability_weights_norm {ι : Type} [Fintype ι]
+lemma of_probability_weights_norm {ι : Type} [Fintype ι]
     (p : ι → ℝ) (hprob : QDriftProbabilityWeights p) :
     QDriftWeightConditions (fun c : ℂ => ‖c‖) p :=
   of_probability_weights (fun c : ℂ => ‖c‖) p
@@ -313,12 +313,12 @@ def rightMulSuperOp {R : Register} (A : HilbertOperator R) : SuperOp R :=
   LinearMap.mulRight ℂ A
 
 @[simp]
-theorem leftMulSuperOp_apply {R : Register} (A X : HilbertOperator R) :
+lemma leftMulSuperOp_apply {R : Register} (A X : HilbertOperator R) :
     leftMulSuperOp A X = A * X := by
   rfl
 
 @[simp]
-theorem rightMulSuperOp_apply {R : Register} (A X : HilbertOperator R) :
+lemma rightMulSuperOp_apply {R : Register} (A X : HilbertOperator R) :
     rightMulSuperOp A X = X * A := by
   rfl
 
@@ -327,7 +327,7 @@ def twoSidedMulSuperOp {R : Register} (A B : HilbertOperator R) : SuperOp R :=
   (leftMulSuperOp A).comp (rightMulSuperOp B)
 
 @[simp]
-theorem twoSidedMulSuperOp_apply {R : Register} (A B X : HilbertOperator R) :
+lemma twoSidedMulSuperOp_apply {R : Register} (A B X : HilbertOperator R) :
     twoSidedMulSuperOp A B X = A * (X * B) := by
   rfl
 
@@ -363,7 +363,7 @@ structure TraceNormHolderControl (R : Register) : Prop where
     ∀ C X : HilbertOperator R,
       ‖(C * X).trace‖ ≤ opNorm C * Matrix.traceNorm X
 
-private theorem opNorm_entry_le {R : Register}
+private lemma opNorm_entry_le {R : Register}
     (A : HilbertOperator R) (i j : R.Index) :
     ‖A i j‖ ≤ opNorm A := by
   unfold opNorm
@@ -386,7 +386,7 @@ private theorem opNorm_entry_le {R : Register}
     _ = ‖A‖ * 1 := by rw [← Matrix.cstar_norm_def A, he]
     _ = ‖A‖ := by ring
 
-private theorem trace_mul_posSemidef_abs_le_operatorNorm_mul_trace
+private lemma trace_mul_posSemidef_abs_le_operatorNorm_mul_trace
     {R : Register} (D P : HilbertOperator R)
     (hP : P.PosSemidef) :
     ‖(D * P).trace‖ ≤ opNorm D * RCLike.re P.trace := by
@@ -463,7 +463,7 @@ private theorem trace_mul_posSemidef_abs_le_operatorNorm_mul_trace
       intro i _
       ring
 
-theorem traceNormHolderControl_of_operatorNorm {R : Register} :
+lemma traceNormHolderControl_of_operatorNorm {R : Register} :
     TraceNormHolderControl R where
   trace_abs_mul_le C X := by
     let P : HilbertOperator R := CFC.sqrt (X.conjTranspose * X)
@@ -488,7 +488,7 @@ theorem traceNormHolderControl_of_operatorNorm {R : Register} :
           rfl
 
 /-- Left multiplication is linear in the multiplier. -/
-theorem leftMulSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
+lemma leftMulSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (w : ι → ℂ) :
     leftMulSuperOp (∑ j, w j • H j)
       = ∑ j, w j • leftMulSuperOp (H j) := by
@@ -496,7 +496,7 @@ theorem leftMulSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
   simp [leftMulSuperOp, Finset.sum_mul]
 
 /-- Right multiplication is linear in the multiplier. -/
-theorem rightMulSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
+lemma rightMulSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (w : ι → ℂ) :
     rightMulSuperOp (∑ j, w j • H j)
       = ∑ j, w j • rightMulSuperOp (H j) := by
@@ -508,12 +508,12 @@ def commutatorSuperOp {R : Register} (H : HilbertOperator R) : SuperOp R :=
   leftMulSuperOp H - rightMulSuperOp H
 
 @[simp]
-theorem commutatorSuperOp_apply {R : Register} (H X : HilbertOperator R) :
+lemma commutatorSuperOp_apply {R : Register} (H X : HilbertOperator R) :
     commutatorSuperOp H X = H * X - X * H := by
   rfl
 
 /-- The commutator superoperator is linear in its Hamiltonian argument. -/
-theorem commutatorSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
+lemma commutatorSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (w : ι → ℂ) :
     commutatorSuperOp (∑ j, w j • H j)
       = ∑ j, w j • commutatorSuperOp (H j) := by
@@ -526,12 +526,12 @@ def liouvillianSuperOp {R : Register} (H : HilbertOperator R) : SuperOp R :=
   (-Complex.I) • commutatorSuperOp H
 
 @[simp]
-theorem liouvillianSuperOp_apply {R : Register} (H X : HilbertOperator R) :
+lemma liouvillianSuperOp_apply {R : Register} (H X : HilbertOperator R) :
     liouvillianSuperOp H X = (-Complex.I) • (H * X - X * H) := by
   rfl
 
 /-- The Liouvillian generator is linear in its Hamiltonian argument. -/
-theorem liouvillianSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
+lemma liouvillianSuperOp_sum {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (w : ι → ℂ) :
     liouvillianSuperOp (∑ j, w j • H j)
       = ∑ j, w j • liouvillianSuperOp (H j) := by
@@ -544,13 +544,13 @@ def firstOrderSuperOp {R : Register} (G : SuperOp R) (τ : ℝ) : SuperOp R :=
   LinearMap.id + (τ : ℂ) • G
 
 @[simp]
-theorem firstOrderSuperOp_apply {R : Register} (G : SuperOp R) (τ : ℝ)
+lemma firstOrderSuperOp_apply {R : Register} (G : SuperOp R) (τ : ℝ)
     (X : HilbertOperator R) :
     firstOrderSuperOp G τ X = X + (τ : ℂ) • G X := by
   rfl
 
 @[simp]
-theorem firstOrderSuperOp_zero {R : Register} (G : SuperOp R) :
+lemma firstOrderSuperOp_zero {R : Register} (G : SuperOp R) :
     firstOrderSuperOp G 0 = LinearMap.id := by
   ext X
   simp [firstOrderSuperOp]
@@ -560,7 +560,7 @@ def conjugationSuperOp {R : Register} (U : HilbertOperator R) : SuperOp R :=
   (leftMulSuperOp U).comp (rightMulSuperOp (star U))
 
 @[simp]
-theorem conjugationSuperOp_apply {R : Register} (U X : HilbertOperator R) :
+lemma conjugationSuperOp_apply {R : Register} (U X : HilbertOperator R) :
     conjugationSuperOp U X = U * (X * star U) := by
   rfl
 
@@ -570,17 +570,17 @@ def TraceNormNonexpansive {R : Register} (Φ : SuperOp R) : Prop :=
 
 namespace TraceNormNonexpansive
 
-theorem one {R : Register} : TraceNormNonexpansive (1 : SuperOp R) := by
+lemma one {R : Register} : TraceNormNonexpansive (1 : SuperOp R) := by
   intro X
   simp
 
-theorem comp {R : Register} {Φ Ψ : SuperOp R}
+lemma comp {R : Register} {Φ Ψ : SuperOp R}
     (hΦ : TraceNormNonexpansive Φ) (hΨ : TraceNormNonexpansive Ψ) :
     TraceNormNonexpansive (superOpComp Φ Ψ) := by
   intro X
   exact (hΦ (Ψ X)).trans (hΨ X)
 
-theorem power {R : Register} {Φ : SuperOp R}
+lemma power {R : Register} {Φ : SuperOp R}
     (hΦ : TraceNormNonexpansive Φ) :
     ∀ n : ℕ, TraceNormNonexpansive (superOpPower Φ n)
   | 0 => by
@@ -591,7 +591,7 @@ theorem power {R : Register} {Φ : SuperOp R}
 
 end TraceNormNonexpansive
 
-theorem inducedTraceNorm_le_one_of_traceNorm_nonexpansive {R : Register}
+lemma inducedTraceNorm_le_one_of_traceNorm_nonexpansive {R : Register}
     {Φ : SuperOp R} (hΦ : TraceNormNonexpansive Φ) :
     inducedTraceNorm Φ ≤ 1 := by
   unfold inducedTraceNorm
@@ -599,7 +599,7 @@ theorem inducedTraceNorm_le_one_of_traceNorm_nonexpansive {R : Register}
   intro X
   simpa using hΦ (X : HilbertOperator R)
 
-theorem traceNormNonexpansive_left_inducedTraceNorm_nonexpansive {R : Register}
+lemma traceNormNonexpansive_left_inducedTraceNorm_nonexpansive {R : Register}
     {pre : SuperOp R} (hpre : TraceNormNonexpansive pre) :
     SuperOpLeftNonexpansive inducedTraceNorm pre where
   norm_comp_le Ψ := by
@@ -613,7 +613,7 @@ theorem traceNormNonexpansive_left_inducedTraceNorm_nonexpansive {R : Register}
       _ ≤ ‖LinearMap.toContinuousLinearMap (traceNormedSuperOp Ψ)‖ * ‖X‖ :=
           ContinuousLinearMap.le_opNorm _ _
 
-theorem traceNormNonexpansive_right_inducedTraceNorm_nonexpansive {R : Register}
+lemma traceNormNonexpansive_right_inducedTraceNorm_nonexpansive {R : Register}
     {post : SuperOp R} (hpost : TraceNormNonexpansive post) :
     SuperOpRightNonexpansive inducedTraceNorm post where
   norm_comp_le Ψ := by
@@ -633,7 +633,7 @@ theorem traceNormNonexpansive_right_inducedTraceNorm_nonexpansive {R : Register}
             (by simpa using hpost (X : HilbertOperator R))
             (norm_nonneg _)
 
-theorem inducedTraceNorm_twoSidedMul_control_of_matrix_control {R : Register}
+lemma inducedTraceNorm_twoSidedMul_control_of_matrix_control {R : Register}
     (hcontrol : TraceNormTwoSidedMulControl R) :
     SuperOpTwoSidedMulNormControl (R := R) inducedTraceNorm opNorm where
   norm_nonneg := opNorm_nonneg
@@ -645,7 +645,7 @@ theorem inducedTraceNorm_twoSidedMul_control_of_matrix_control {R : Register}
     simpa [twoSidedMulSuperOp_apply, mul_assoc] using
       hcontrol.traceNorm_two_sided A B (X : HilbertOperator R)
 
-theorem traceNormTwoSidedMulControl_of_holder {R : Register} [Nonempty R.Index]
+lemma traceNormTwoSidedMulControl_of_holder {R : Register} [Nonempty R.Index]
     (hholder : TraceNormHolderControl R) :
     TraceNormTwoSidedMulControl R where
   traceNorm_two_sided A B X := by
@@ -688,22 +688,22 @@ theorem traceNormTwoSidedMulControl_of_holder {R : Register} [Nonempty R.Index]
       _ = opNorm A * opNorm B * Matrix.traceNorm X := by
           ring
 
-theorem inducedTraceNorm_twoSidedMul_control_of_holder {R : Register}
+lemma inducedTraceNorm_twoSidedMul_control_of_holder {R : Register}
     [Nonempty R.Index] (hholder : TraceNormHolderControl R) :
     SuperOpTwoSidedMulNormControl (R := R) inducedTraceNorm opNorm :=
   inducedTraceNorm_twoSidedMul_control_of_matrix_control
     (traceNormTwoSidedMulControl_of_holder hholder)
 
-theorem traceNormTwoSidedMulControl_operatorNorm {R : Register} [Nonempty R.Index] :
+lemma traceNormTwoSidedMulControl_operatorNorm {R : Register} [Nonempty R.Index] :
     TraceNormTwoSidedMulControl R :=
   traceNormTwoSidedMulControl_of_holder traceNormHolderControl_of_operatorNorm
 
-theorem inducedTraceNorm_twoSidedMul_control_operatorNorm {R : Register}
+lemma inducedTraceNorm_twoSidedMul_control_operatorNorm {R : Register}
     [Nonempty R.Index] :
     SuperOpTwoSidedMulNormControl (R := R) inducedTraceNorm opNorm :=
   inducedTraceNorm_twoSidedMul_control_of_holder traceNormHolderControl_of_operatorNorm
 
-private theorem conjugationSuperOp_traceNorm_nonexpansive {R : Register}
+private lemma conjugationSuperOp_traceNorm_nonexpansive {R : Register}
     (U : HilbertOperator R) (hU : U ∈ Matrix.unitaryGroup R.Index ℂ) :
     TraceNormNonexpansive (conjugationSuperOp U) := by
   intro X
@@ -717,37 +717,37 @@ def idealStepSuperOp {R : Register} (H : HilbertOperator R) (τ : ℝ) : SuperOp
   conjugationSuperOp (timeEvolutionOp H τ)
 
 @[simp]
-theorem idealStepSuperOp_apply {R : Register} (H X : HilbertOperator R) (τ : ℝ) :
+lemma idealStepSuperOp_apply {R : Register} (H X : HilbertOperator R) (τ : ℝ) :
     idealStepSuperOp H τ X =
       timeEvolutionOp H τ * (X * star (timeEvolutionOp H τ)) := by
   rfl
 
-theorem idealStepSuperOp_traceNorm_nonexpansive {R : Register}
+lemma idealStepSuperOp_traceNorm_nonexpansive {R : Register}
     (H : HilbertOperator R) (τ : ℝ) (hH : H.IsHermitian) :
     TraceNormNonexpansive (idealStepSuperOp H τ) :=
   conjugationSuperOp_traceNorm_nonexpansive (timeEvolutionOp H τ)
     (timeEvolutionOp_mem_unitaryGroup hH τ)
 
-theorem idealStepSuperOp_inducedTraceNorm_le_one {R : Register}
+lemma idealStepSuperOp_inducedTraceNorm_le_one {R : Register}
     (H : HilbertOperator R) (τ : ℝ) (hH : H.IsHermitian) :
     inducedTraceNorm (idealStepSuperOp H τ) ≤ 1 :=
   inducedTraceNorm_le_one_of_traceNorm_nonexpansive
     (idealStepSuperOp_traceNorm_nonexpansive H τ hH)
 
-theorem idealStepSuperOp_left_inducedTraceNorm_nonexpansive {R : Register}
+lemma idealStepSuperOp_left_inducedTraceNorm_nonexpansive {R : Register}
     (H : HilbertOperator R) (τ : ℝ) (hH : H.IsHermitian) :
     SuperOpLeftNonexpansive inducedTraceNorm (idealStepSuperOp H τ) :=
   traceNormNonexpansive_left_inducedTraceNorm_nonexpansive
     (idealStepSuperOp_traceNorm_nonexpansive H τ hH)
 
-theorem idealStepSuperOp_right_inducedTraceNorm_nonexpansive {R : Register}
+lemma idealStepSuperOp_right_inducedTraceNorm_nonexpansive {R : Register}
     (H : HilbertOperator R) (τ : ℝ) (hH : H.IsHermitian) :
     SuperOpRightNonexpansive inducedTraceNorm (idealStepSuperOp H τ) :=
   traceNormNonexpansive_right_inducedTraceNorm_nonexpansive
     (idealStepSuperOp_traceNorm_nonexpansive H τ hH)
 
 @[simp]
-theorem idealStepSuperOp_zero {R : Register} (H : HilbertOperator R) :
+lemma idealStepSuperOp_zero {R : Register} (H : HilbertOperator R) :
     idealStepSuperOp H 0 = LinearMap.id := by
   ext X
   simp [idealStepSuperOp, conjugationSuperOp, timeEvolutionOp]
@@ -757,7 +757,7 @@ def unitaryStepRemainderSuperOp {R : Register} (H : HilbertOperator R) (τ : ℝ
   idealStepSuperOp H τ - firstOrderSuperOp (liouvillianSuperOp H) τ
 
 @[simp]
-theorem unitaryStepRemainderSuperOp_apply {R : Register}
+lemma unitaryStepRemainderSuperOp_apply {R : Register}
     (H X : HilbertOperator R) (τ : ℝ) :
     unitaryStepRemainderSuperOp H τ X =
       idealStepSuperOp H τ X - firstOrderSuperOp (liouvillianSuperOp H) τ X := by
@@ -766,7 +766,7 @@ theorem unitaryStepRemainderSuperOp_apply {R : Register}
 /-- Pointwise algebraic decomposition of a one-step unitary-conjugation
 remainder into left and right exponential remainders plus the quadratic
 cross term. -/
-theorem unitaryStepRemainderSuperOp_apply_decompose {R : Register}
+lemma unitaryStepRemainderSuperOp_apply_decompose {R : Register}
     (H X : HilbertOperator R) (τ : ℝ) :
     let U : HilbertOperator R := timeEvolutionOp H τ
     let A : HilbertOperator R := (-((τ : ℂ) * Complex.I)) • H
@@ -796,7 +796,7 @@ theorem unitaryStepRemainderSuperOp_apply_decompose {R : Register}
 
 /-- Superoperator-level version of
 `unitaryStepRemainderSuperOp_apply_decompose`. -/
-theorem unitaryStepRemainderSuperOp_eq_twoSidedMul {R : Register}
+lemma unitaryStepRemainderSuperOp_eq_twoSidedMul {R : Register}
     (H : HilbertOperator R) (τ : ℝ) :
     let U : HilbertOperator R := timeEvolutionOp H τ
     let A : HilbertOperator R := (-((τ : ℂ) * Complex.I)) • H
@@ -813,7 +813,7 @@ theorem unitaryStepRemainderSuperOp_eq_twoSidedMul {R : Register}
 
 /-- Abstract norm bound for a unitary-conjugation first-order remainder from
 two-sided multiplication control. -/
-theorem unitaryStepRemainderSuperOp_norm_le_twoSided_budget {R : Register}
+lemma unitaryStepRemainderSuperOp_norm_le_twoSided_budget {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -918,7 +918,7 @@ structure UnitaryStepRemainderNormBudget {R : Register}
 
 namespace UnitaryStepRemainderNormBudget
 
-theorem norm_le {R : Register}
+lemma norm_le {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -945,7 +945,7 @@ theorem norm_le {R : Register}
 end UnitaryStepRemainderNormBudget
 
 @[simp]
-theorem unitaryStepRemainderSuperOp_zero {R : Register} (H : HilbertOperator R) :
+lemma unitaryStepRemainderSuperOp_zero {R : Register} (H : HilbertOperator R) :
     unitaryStepRemainderSuperOp H 0 = 0 := by
   rw [unitaryStepRemainderSuperOp, idealStepSuperOp_zero, firstOrderSuperOp_zero]
   simp
@@ -956,11 +956,11 @@ def IsQuadraticRemainder {R : Register} (τ : ℝ) (Φ : SuperOp R) : Prop :=
 
 namespace IsQuadraticRemainder
 
-theorem zero {R : Register} (τ : ℝ) : IsQuadraticRemainder τ (0 : SuperOp R) := by
+lemma zero {R : Register} (τ : ℝ) : IsQuadraticRemainder τ (0 : SuperOp R) := by
   use 0
   simp
 
-theorem add {R : Register} {τ : ℝ} {Φ Ψ : SuperOp R}
+lemma add {R : Register} {τ : ℝ} {Φ Ψ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) (hΨ : IsQuadraticRemainder τ Ψ) :
     IsQuadraticRemainder τ (Φ + Ψ) := by
   rcases hΦ with ⟨Φ', rfl⟩
@@ -968,19 +968,19 @@ theorem add {R : Register} {τ : ℝ} {Φ Ψ : SuperOp R}
   use Φ' + Ψ'
   simp [smul_add]
 
-theorem neg {R : Register} {τ : ℝ} {Φ : SuperOp R}
+lemma neg {R : Register} {τ : ℝ} {Φ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) :
     IsQuadraticRemainder τ (-Φ) := by
   rcases hΦ with ⟨Φ', rfl⟩
   use -Φ'
   simp
 
-theorem sub {R : Register} {τ : ℝ} {Φ Ψ : SuperOp R}
+lemma sub {R : Register} {τ : ℝ} {Φ Ψ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) (hΨ : IsQuadraticRemainder τ Ψ) :
     IsQuadraticRemainder τ (Φ - Ψ) := by
   simpa [sub_eq_add_neg] using hΦ.add hΨ.neg
 
-theorem smul {R : Register} {τ : ℝ} (c : ℂ) {Φ : SuperOp R}
+lemma smul {R : Register} {τ : ℝ} (c : ℂ) {Φ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) :
     IsQuadraticRemainder τ (c • Φ) := by
   rcases hΦ with ⟨Φ', rfl⟩
@@ -988,7 +988,7 @@ theorem smul {R : Register} {τ : ℝ} (c : ℂ) {Φ : SuperOp R}
   ext X
   simp [smul_smul, mul_comm, mul_assoc]
 
-theorem sum {R : Register} {τ : ℝ} {ι : Type} [Fintype ι] (Φ : ι → SuperOp R)
+lemma sum {R : Register} {τ : ℝ} {ι : Type} [Fintype ι] (Φ : ι → SuperOp R)
     (hΦ : ∀ j, IsQuadraticRemainder τ (Φ j)) :
     IsQuadraticRemainder τ (∑ j, Φ j) := by
   classical
@@ -997,7 +997,7 @@ theorem sum {R : Register} {τ : ℝ} {ι : Type} [Fintype ι] (Φ : ι → Supe
   ext X
   simp [hΨ, Finset.smul_sum]
 
-theorem comp_left {R : Register} {τ : ℝ} (pre : SuperOp R) {Φ : SuperOp R}
+lemma comp_left {R : Register} {τ : ℝ} (pre : SuperOp R) {Φ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) :
     IsQuadraticRemainder τ (superOpComp pre Φ) := by
   rcases hΦ with ⟨Φ', rfl⟩
@@ -1005,14 +1005,14 @@ theorem comp_left {R : Register} {τ : ℝ} (pre : SuperOp R) {Φ : SuperOp R}
   ext X
   simp [superOpComp]
 
-theorem comp_right {R : Register} {τ : ℝ} (post : SuperOp R) {Φ : SuperOp R}
+lemma comp_right {R : Register} {τ : ℝ} (post : SuperOp R) {Φ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) :
     IsQuadraticRemainder τ (superOpComp Φ post) := by
   rcases hΦ with ⟨Φ', rfl⟩
   use superOpComp Φ' post
   rfl
 
-theorem comp_left_right {R : Register} {τ : ℝ} (pre post : SuperOp R) {Φ : SuperOp R}
+lemma comp_left_right {R : Register} {τ : ℝ} (pre post : SuperOp R) {Φ : SuperOp R}
     (hΦ : IsQuadraticRemainder τ Φ) :
     IsQuadraticRemainder τ (superOpComp pre (superOpComp Φ post)) :=
   (hΦ.comp_right post).comp_left pre
@@ -1034,7 +1034,7 @@ namespace QuadraticRemainderNormBudget
 
 /-- A quadratic-remainder norm budget gives the expected `τ^2`-scaled norm
 bound, expressed through the abstract scalar norm. -/
-theorem norm_le {R : Register}
+lemma norm_le {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (τ Λ : ℝ) (Φ : SuperOp R)
@@ -1059,7 +1059,7 @@ def weightedHamiltonianOp {R : Register} {ι : Type} [Fintype ι]
   ∑ j, (p j : ℂ) • H j
 
 /-- A real probability-weighted Hamiltonian remains Hermitian. -/
-theorem weightedHamiltonianOp_isHermitian {R : Register} {ι : Type} [Fintype ι]
+lemma weightedHamiltonianOp_isHermitian {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (hH : ∀ j, (H j).IsHermitian) :
     (weightedHamiltonianOp H p).IsHermitian := by
@@ -1074,7 +1074,7 @@ theorem weightedHamiltonianOp_isHermitian {R : Register} {ι : Type} [Fintype ι
       exact (hermitian_term a).add ih
 
 /-- A convex real weighting preserves a common operator-norm upper bound. -/
-theorem opNorm_weightedHamiltonianOp_le {R : Register} {ι : Type} [Fintype ι]
+lemma opNorm_weightedHamiltonianOp_le {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (Λ : ℝ)
     (hprob : QDriftProbabilityWeights p)
     (hHnorm : ∀ j, opNorm (H j) ≤ Λ) :
@@ -1096,7 +1096,7 @@ theorem opNorm_weightedHamiltonianOp_le {R : Register} {ι : Type} [Fintype ι]
       exact mul_le_mul_of_nonneg_left (hHnorm j) (hprob.nonneg j)
     _ = Λ := by rw [← Finset.sum_mul, hprob.sum_eq_one, one_mul]
 
-theorem qdrift_weightedHamiltonian_scale {R : Register} {ι : Type} [Fintype ι]
+lemma qdrift_weightedHamiltonian_scale {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (h : ι → ℝ)
     (h_lambda_ne_zero : qdriftLambda h ≠ 0) :
     (qdriftLambda h : ℂ) • weightedHamiltonianOp H (qdriftProbabilities h)
@@ -1114,7 +1114,7 @@ def qdriftStepSuperOp {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) : SuperOp R :=
   ∑ j, (p j : ℂ) • idealStepSuperOp (H j) τ
 
-theorem qdriftStepSuperOp_traceNorm_nonexpansive {R : Register}
+lemma qdriftStepSuperOp_traceNorm_nonexpansive {R : Register}
     {ι : Type} [Fintype ι] (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hH : ∀ j, (H j).IsHermitian) (hp : QDriftProbabilityWeights p) :
     TraceNormNonexpansive (qdriftStepSuperOp H p τ) := by
@@ -1139,21 +1139,21 @@ theorem qdriftStepSuperOp_traceNorm_nonexpansive {R : Register}
     _ = Matrix.traceNorm X := by
       rw [← Finset.sum_mul, hp.sum_eq_one, one_mul]
 
-theorem qdriftStepSuperOp_inducedTraceNorm_le_one {R : Register}
+lemma qdriftStepSuperOp_inducedTraceNorm_le_one {R : Register}
     {ι : Type} [Fintype ι] (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hH : ∀ j, (H j).IsHermitian) (hp : QDriftProbabilityWeights p) :
     inducedTraceNorm (qdriftStepSuperOp H p τ) ≤ 1 :=
   inducedTraceNorm_le_one_of_traceNorm_nonexpansive
     (qdriftStepSuperOp_traceNorm_nonexpansive H p τ hH hp)
 
-theorem qdriftStepSuperOp_left_inducedTraceNorm_nonexpansive {R : Register}
+lemma qdriftStepSuperOp_left_inducedTraceNorm_nonexpansive {R : Register}
     {ι : Type} [Fintype ι] (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hH : ∀ j, (H j).IsHermitian) (hp : QDriftProbabilityWeights p) :
     SuperOpLeftNonexpansive inducedTraceNorm (qdriftStepSuperOp H p τ) :=
   traceNormNonexpansive_left_inducedTraceNorm_nonexpansive
     (qdriftStepSuperOp_traceNorm_nonexpansive H p τ hH hp)
 
-theorem qdriftStepSuperOp_right_inducedTraceNorm_nonexpansive {R : Register}
+lemma qdriftStepSuperOp_right_inducedTraceNorm_nonexpansive {R : Register}
     {ι : Type} [Fintype ι] (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hH : ∀ j, (H j).IsHermitian) (hp : QDriftProbabilityWeights p) :
     SuperOpRightNonexpansive inducedTraceNorm (qdriftStepSuperOp H p τ) :=
@@ -1176,7 +1176,7 @@ def qdriftTargetSegmentChannel {R : Register} {ι : Type} [Fintype ι]
   qdriftIdealStepSuperOp H (qdriftProbabilities h) (qdriftStepTime h t steps)
 
 /-- Campbell's averaged qDRIFT channel is nonexpansive for the matrix trace norm. -/
-theorem qdriftAverageChannel_traceNorm_nonexpansive {R : Register}
+lemma qdriftAverageChannel_traceNorm_nonexpansive {R : Register}
     {ι : Type} [Fintype ι] (H : ι → HilbertOperator R) (h : ι → ℝ)
     (t : ℝ) (steps : ℕ)
     (h_nonneg : ∀ j, 0 ≤ h j) (h_lambda_ne_zero : qdriftLambda h ≠ 0)
@@ -1189,7 +1189,7 @@ theorem qdriftAverageChannel_traceNorm_nonexpansive {R : Register}
       H (qdriftProbabilities h) (qdriftStepTime h t steps) hH hprob
 
 /-- The qDRIFT target segment channel is nonexpansive for the matrix trace norm. -/
-theorem qdriftTargetSegmentChannel_traceNorm_nonexpansive {R : Register}
+lemma qdriftTargetSegmentChannel_traceNorm_nonexpansive {R : Register}
     {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (h : ι → ℝ) (t : ℝ) (steps : ℕ)
     (hH : ∀ j, (H j).IsHermitian) :
@@ -1278,7 +1278,7 @@ structure QDriftOneStepQuadraticBounds {R : Register} {ι : Type} [Fintype ι]
 
 /-- Build qDRIFT one-step remainder bounds from sampled and ideal
 unitary-step two-sided multiplication budgets. -/
-theorem qdriftOneStepRemainderBounds_of_unitaryStepBudgets
+lemma qdriftOneStepRemainderBounds_of_unitaryStepBudgets
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
@@ -1313,7 +1313,7 @@ theorem qdriftOneStepRemainderBounds_of_unitaryStepBudgets
 
 /-- Build qDRIFT quadratic one-step bounds from sampled and ideal
 unitary-step two-sided multiplication budgets. -/
-theorem qdriftOneStepQuadraticBounds_of_unitaryStepBudgets
+lemma qdriftOneStepQuadraticBounds_of_unitaryStepBudgets
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
@@ -1341,33 +1341,33 @@ theorem qdriftOneStepQuadraticBounds_of_unitaryStepBudgets
   quadratic_budget := hquadratic
 
 @[simp]
-theorem qdriftStepSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftStepSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftStepSuperOp H p τ X =
       ∑ j, (p j : ℂ) • idealStepSuperOp (H j) τ X := by
   simp [qdriftStepSuperOp]
 
 @[simp]
-theorem qdriftIdealStepSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealStepSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftIdealStepSuperOp H p τ X =
       idealStepSuperOp (weightedHamiltonianOp H p) τ X := by
   rfl
 
 @[simp]
-theorem qdriftIdealStepSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealStepSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) :
     qdriftIdealStepSuperOp H p 0 = LinearMap.id := by
   simp [qdriftIdealStepSuperOp]
 
-theorem qdriftStepSuperOp_zero_of_sum_eq_one {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftStepSuperOp_zero_of_sum_eq_one {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (hp : ∑ j, (p j : ℂ) = 1) :
     qdriftStepSuperOp H p 0 = LinearMap.id := by
   ext X
   simp [qdriftStepSuperOp, hp, ← Finset.sum_smul]
 
-theorem qdriftStepErrorSuperOp_zero_of_sum_eq_one {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftStepErrorSuperOp_zero_of_sum_eq_one {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (hp : ∑ j, (p j : ℂ) = 1) :
     qdriftStepErrorSuperOp H p 0 = 0 := by
@@ -1376,33 +1376,33 @@ theorem qdriftStepErrorSuperOp_zero_of_sum_eq_one {R : Register} {ι : Type} [Fi
   simp
 
 @[simp]
-theorem qdriftIdealFirstOrderSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealFirstOrderSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) :
     qdriftIdealFirstOrderSuperOp H p 0 = LinearMap.id := by
   simp [qdriftIdealFirstOrderSuperOp]
 
 @[simp]
-theorem qdriftWeightedFirstOrderSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftWeightedFirstOrderSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) :
     qdriftWeightedFirstOrderSuperOp H p 0 = LinearMap.id := by
   simp [qdriftWeightedFirstOrderSuperOp]
 
 @[simp]
-theorem qdriftStepErrorSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftStepErrorSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftStepErrorSuperOp H p τ X =
       qdriftStepSuperOp H p τ X - qdriftIdealStepSuperOp H p τ X := by
   rfl
 
 @[simp]
-theorem qdriftPropagatedStepError_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftPropagatedStepError_apply {R : Register} {ι : Type} [Fintype ι]
     (pre post : SuperOp R) (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (X : HilbertOperator R) :
     qdriftPropagatedStepError pre post H p τ X =
       pre (qdriftStepErrorSuperOp H p τ (post X)) := by
   rfl
 
-theorem qdriftPropagatedStepError_norm_le {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftPropagatedStepError_norm_le {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ)
     (pre post : SuperOp R) (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hpre : SuperOpLeftNonexpansive superOpNorm pre)
@@ -1415,7 +1415,7 @@ theorem qdriftPropagatedStepError_norm_le {R : Register} {ι : Type} [Fintype ι
 
 /-- Propagating a quadratic one-step error on the left and right preserves the
 explicit quadratic-remainder shape. -/
-theorem qdriftPropagatedStepError_isQuadraticRemainder
+lemma qdriftPropagatedStepError_isQuadraticRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (pre post : SuperOp R) (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hstep : IsQuadraticRemainder τ (qdriftStepErrorSuperOp H p τ)) :
@@ -1424,56 +1424,56 @@ theorem qdriftPropagatedStepError_isQuadraticRemainder
   exact IsQuadraticRemainder.comp_left_right pre post hstep
 
 @[simp]
-theorem qdriftIdealGeneratorSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealGeneratorSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (X : HilbertOperator R) :
     qdriftIdealGeneratorSuperOp H p X =
       liouvillianSuperOp (weightedHamiltonianOp H p) X := by
   rfl
 
 @[simp]
-theorem qdriftWeightedGeneratorSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftWeightedGeneratorSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (X : HilbertOperator R) :
     qdriftWeightedGeneratorSuperOp H p X =
       ∑ j, (p j : ℂ) • liouvillianSuperOp (H j) X := by
   simp [qdriftWeightedGeneratorSuperOp]
 
 @[simp]
-theorem qdriftIdealFirstOrderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealFirstOrderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftIdealFirstOrderSuperOp H p τ X =
       X + (τ : ℂ) • qdriftIdealGeneratorSuperOp H p X := by
   rfl
 
 @[simp]
-theorem qdriftWeightedFirstOrderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftWeightedFirstOrderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftWeightedFirstOrderSuperOp H p τ X =
       X + (τ : ℂ) • qdriftWeightedGeneratorSuperOp H p X := by
   rfl
 
 @[simp]
-theorem qdriftIdealRemainderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealRemainderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftIdealRemainderSuperOp H p τ X =
       qdriftIdealStepSuperOp H p τ X - qdriftIdealFirstOrderSuperOp H p τ X := by
   rfl
 
 @[simp]
-theorem qdriftWeightedRemainderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftWeightedRemainderSuperOp_apply {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) (X : HilbertOperator R) :
     qdriftWeightedRemainderSuperOp H p τ X =
       qdriftStepSuperOp H p τ X - qdriftWeightedFirstOrderSuperOp H p τ X := by
   rfl
 
 @[simp]
-theorem qdriftIdealRemainderSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftIdealRemainderSuperOp_zero {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) :
     qdriftIdealRemainderSuperOp H p 0 = 0 := by
   rw [qdriftIdealRemainderSuperOp, qdriftIdealStepSuperOp_zero,
     qdriftIdealFirstOrderSuperOp_zero]
   simp
 
-theorem qdriftWeightedRemainderSuperOp_zero_of_sum_eq_one
+lemma qdriftWeightedRemainderSuperOp_zero_of_sum_eq_one
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (hp : ∑ j, (p j : ℂ) = 1) :
@@ -1482,7 +1482,7 @@ theorem qdriftWeightedRemainderSuperOp_zero_of_sum_eq_one
     qdriftWeightedFirstOrderSuperOp_zero]
   simp
 
-theorem qdriftIdealRemainderSuperOp_eq_unitaryStepRemainder
+lemma qdriftIdealRemainderSuperOp_eq_unitaryStepRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) :
     qdriftIdealRemainderSuperOp H p τ =
@@ -1492,7 +1492,7 @@ theorem qdriftIdealRemainderSuperOp_eq_unitaryStepRemainder
 -- Declaration-scoped exception: flexible simplification exposes the weighted sum
 -- before the final pointwise `Finset.sum_congr`.
 set_option linter.flexible false in
-theorem qdriftWeightedRemainderSuperOp_eq_sum_unitaryStepRemainder
+lemma qdriftWeightedRemainderSuperOp_eq_sum_unitaryStepRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hp : ∑ j, (p j : ℂ) = 1) :
@@ -1515,7 +1515,7 @@ theorem qdriftWeightedRemainderSuperOp_eq_sum_unitaryStepRemainder
   simp [mul_comm, mul_left_comm]
 
 /-- Norm bound for the weighted qDRIFT remainder from abstract norm properties. -/
-theorem qdriftWeightedRemainderSuperOp_norm_le_sum_unitaryStepRemainder
+lemma qdriftWeightedRemainderSuperOp_norm_le_sum_unitaryStepRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1535,7 +1535,7 @@ theorem qdriftWeightedRemainderSuperOp_norm_le_sum_unitaryStepRemainder
       simp [hnorm.norm_smul]
 
 /-- Budgeted version of the weighted qDRIFT remainder bound. -/
-theorem qdriftWeightedRemainderSuperOp_norm_le_budget
+lemma qdriftWeightedRemainderSuperOp_norm_le_budget
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1550,7 +1550,7 @@ theorem qdriftWeightedRemainderSuperOp_norm_le_budget
     hbudget
 
 /-- Uniform single-term remainder bound implies a weighted qDRIFT remainder bound. -/
-theorem qdriftWeightedRemainderSuperOp_norm_le_uniform_bound
+lemma qdriftWeightedRemainderSuperOp_norm_le_uniform_bound
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1578,14 +1578,14 @@ theorem qdriftWeightedRemainderSuperOp_norm_le_uniform_bound
       mul_le_mul_of_nonneg_right hweights hterm_nonneg
 
 /-- qDRIFT and ideal evolution have the same first-order generator. -/
-theorem qdriftGenerator_firstOrder_cancel {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftGenerator_firstOrder_cancel {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) :
     qdriftIdealGeneratorSuperOp H p = qdriftWeightedGeneratorSuperOp H p := by
   rw [qdriftIdealGeneratorSuperOp, qdriftWeightedGeneratorSuperOp,
     weightedHamiltonianOp, liouvillianSuperOp_sum]
 
 /-- The ideal and weighted qDRIFT first-order models coincide. -/
-theorem qdriftFirstOrderSuperOp_eq {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftFirstOrderSuperOp_eq {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) :
     qdriftIdealFirstOrderSuperOp H p τ =
       qdriftWeightedFirstOrderSuperOp H p τ := by
@@ -1593,7 +1593,7 @@ theorem qdriftFirstOrderSuperOp_eq {R : Register} {ι : Type} [Fintype ι]
     qdriftGenerator_firstOrder_cancel]
 
 /-- The qDRIFT one-step error is the difference of the two second-order remainders. -/
-theorem qdriftStepErrorSuperOp_eq_remainder_sub {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftStepErrorSuperOp_eq_remainder_sub {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ) :
     qdriftStepErrorSuperOp H p τ =
       qdriftWeightedRemainderSuperOp H p τ - qdriftIdealRemainderSuperOp H p τ := by
@@ -1603,7 +1603,7 @@ theorem qdriftStepErrorSuperOp_eq_remainder_sub {R : Register} {ι : Type} [Fint
 
 /-- If every sampled unitary remainder is quadratic, then the weighted qDRIFT
 remainder is quadratic. -/
-theorem qdriftWeightedRemainderSuperOp_isQuadraticRemainder
+lemma qdriftWeightedRemainderSuperOp_isQuadraticRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hp : ∑ j, (p j : ℂ) = 1)
@@ -1616,7 +1616,7 @@ theorem qdriftWeightedRemainderSuperOp_isQuadraticRemainder
 
 /-- The ideal qDRIFT remainder is quadratic when the weighted Hamiltonian
 unitary remainder is quadratic. -/
-theorem qdriftIdealRemainderSuperOp_isQuadraticRemainder
+lemma qdriftIdealRemainderSuperOp_isQuadraticRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hideal :
@@ -1628,7 +1628,7 @@ theorem qdriftIdealRemainderSuperOp_isQuadraticRemainder
 
 /-- The qDRIFT one-step error is quadratic once the weighted and ideal
 remainders are quadratic. -/
-theorem qdriftStepErrorSuperOp_isQuadraticRemainder_of_remainders
+lemma qdriftStepErrorSuperOp_isQuadraticRemainder_of_remainders
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hweighted : IsQuadraticRemainder τ (qdriftWeightedRemainderSuperOp H p τ))
@@ -1639,7 +1639,7 @@ theorem qdriftStepErrorSuperOp_isQuadraticRemainder_of_remainders
 
 /-- One-step qDRIFT error is quadratic from pointwise sampled-unitary
 remainders and the ideal weighted-Hamiltonian remainder. -/
-theorem qdriftStepErrorSuperOp_isQuadraticRemainder
+lemma qdriftStepErrorSuperOp_isQuadraticRemainder
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hp : ∑ j, (p j : ℂ) = 1)
@@ -1653,7 +1653,7 @@ theorem qdriftStepErrorSuperOp_isQuadraticRemainder
     (qdriftIdealRemainderSuperOp_isQuadraticRemainder H p τ hideal)
 
 /-- Abstract qDRIFT one-step error bound from weighted and ideal remainder budgets. -/
-theorem qdriftStepErrorSuperOp_norm_le_remainder_budgets
+lemma qdriftStepErrorSuperOp_norm_le_remainder_budgets
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1676,7 +1676,7 @@ theorem qdriftStepErrorSuperOp_norm_le_remainder_budgets
       add_le_add hweighted hideal
 
 /-- qDRIFT one-step error bound from uniform weighted and ideal remainder bounds. -/
-theorem qdriftStepErrorSuperOp_norm_le_uniform_weighted_remainder_and_ideal
+lemma qdriftStepErrorSuperOp_norm_le_uniform_weighted_remainder_and_ideal
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1701,7 +1701,7 @@ theorem qdriftStepErrorSuperOp_norm_le_uniform_weighted_remainder_and_ideal
   · exact hideal
 
 /-- Common qDRIFT specialization when the scalar weights have total norm at most one. -/
-theorem qdriftStepErrorSuperOp_norm_le_uniform_remainder_and_ideal
+lemma qdriftStepErrorSuperOp_norm_le_uniform_remainder_and_ideal
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1722,7 +1722,7 @@ theorem qdriftStepErrorSuperOp_norm_le_uniform_remainder_and_ideal
       hterm hweights hscalar_nonneg hterm_nonneg hideal
 
 /-- qDRIFT one-step error bound using packaged weight conditions. -/
-theorem qdriftStepErrorSuperOp_norm_le_of_weight_conditions
+lemma qdriftStepErrorSuperOp_norm_le_of_weight_conditions
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1740,7 +1740,7 @@ theorem qdriftStepErrorSuperOp_norm_le_of_weight_conditions
     hterm hweights.scalar_weights_bound hweights.scalar_nonneg hterm_nonneg hideal
 
 /-- qDRIFT one-step error bound from packaged abstract remainder estimates. -/
-theorem qdriftStepErrorSuperOp_norm_le_of_remainder_bounds
+lemma qdriftStepErrorSuperOp_norm_le_of_remainder_bounds
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1758,7 +1758,7 @@ theorem qdriftStepErrorSuperOp_norm_le_of_remainder_bounds
     hbounds.term_bound_nonneg hbounds.ideal_bound
 
 /-- Abstract qDRIFT one-step error theorem with a caller-provided error budget. -/
-theorem qdriftStepErrorSuperOp_norm_le_error_budget
+lemma qdriftStepErrorSuperOp_norm_le_error_budget
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1777,7 +1777,7 @@ theorem qdriftStepErrorSuperOp_norm_le_error_budget
     hbudget
 
 /-- Abstract qDRIFT one-step error theorem with a quadratic step-size budget. -/
-theorem qdriftStepErrorSuperOp_norm_le_quadratic_budget
+lemma qdriftStepErrorSuperOp_norm_le_quadratic_budget
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1795,7 +1795,7 @@ theorem qdriftStepErrorSuperOp_norm_le_quadratic_budget
     (errorBudget := constant * τ ^ 2) hbounds hbudget
 
 /-- qDRIFT one-step quadratic error bound from packaged estimates. -/
-theorem qdriftStepErrorSuperOp_norm_le_of_quadratic_bounds
+lemma qdriftStepErrorSuperOp_norm_le_of_quadratic_bounds
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1814,7 +1814,7 @@ theorem qdriftStepErrorSuperOp_norm_le_of_quadratic_bounds
     hbounds.remainder_bounds hbounds.quadratic_budget
 
 /-- qDRIFT quadratic error bound using packaged weight conditions. -/
-theorem qdriftStepErrorSuperOp_norm_le_quadratic_of_weight_conditions
+lemma qdriftStepErrorSuperOp_norm_le_quadratic_of_weight_conditions
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1832,7 +1832,7 @@ theorem qdriftStepErrorSuperOp_norm_le_quadratic_of_weight_conditions
     (constant := constant) hbounds
 
 /-- qDRIFT quadratic error bound using real probability weights. -/
-theorem qdriftStepErrorSuperOp_norm_le_quadratic_of_probability_weights
+lemma qdriftStepErrorSuperOp_norm_le_quadratic_of_probability_weights
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1852,7 +1852,7 @@ theorem qdriftStepErrorSuperOp_norm_le_quadratic_of_probability_weights
     (constant := constant) hbounds
 
 /-- Abstract qDRIFT one-step error theorem for the step size `t / steps`. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_quadratic_budget
+lemma qdriftStepErrorSuperOp_norm_le_time_div_steps_quadratic_budget
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1872,7 +1872,7 @@ theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_quadratic_budget
     (constant := constant) hbounds hbudget
 
 /-- qDRIFT one-step quadratic error bound for the step size `t / steps`. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_of_quadratic_bounds
+lemma qdriftStepErrorSuperOp_norm_le_time_div_steps_of_quadratic_bounds
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1891,7 +1891,7 @@ theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_of_quadratic_bounds
     (constant := constant) hbounds
 
 /-- qDRIFT quadratic error bound for step size `t / steps` using packaged weights. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_of_weight_conditions
+lemma qdriftStepErrorSuperOp_norm_le_time_div_steps_of_weight_conditions
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1911,7 +1911,7 @@ theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_of_weight_conditions
     (constant := constant) hbounds
 
 /-- qDRIFT quadratic error bound for step size `t / steps` using probability weights. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_of_probability_weights
+lemma qdriftStepErrorSuperOp_norm_le_time_div_steps_of_probability_weights
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1932,7 +1932,7 @@ theorem qdriftStepErrorSuperOp_norm_le_time_div_steps_of_probability_weights
     (constant := constant) hbounds
 
 /-- qDRIFT one-step quadratic error bound written as `constant * t^2 / steps^2`. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_of_weight_conditions
+lemma qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_of_weight_conditions
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1957,7 +1957,7 @@ theorem qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_of_weight_conditions
       ring_nf
 
 /-- qDRIFT one-step error bound at `t / steps` with a caller-provided budget. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_budget
+lemma qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_budget
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -1979,7 +1979,7 @@ theorem qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_budget
     hbudget
 
 /-- qDRIFT one-step quadratic error bound using probability weights. -/
-theorem qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_of_probability_weights
+lemma qdriftStepErrorSuperOp_norm_le_time_sq_div_steps_sq_of_probability_weights
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2012,7 +2012,7 @@ def qdriftOneStepQuadraticBudget (constant t : ℝ) (steps : ℕ) : ℝ :=
 def qdriftTotalQuadraticBudget (constant t : ℝ) (steps : ℕ) : ℝ :=
   (steps : ℝ) * qdriftOneStepQuadraticBudget constant t steps
 
-theorem qdriftTotalQuadraticBudget_eq (constant t : ℝ) (steps : ℕ) :
+lemma qdriftTotalQuadraticBudget_eq (constant t : ℝ) (steps : ℕ) :
     qdriftTotalQuadraticBudget constant t steps = constant * t ^ 2 / (steps : ℝ) := by
   by_cases hsteps : (steps : ℝ) = 0
   · simp [qdriftTotalQuadraticBudget, qdriftOneStepQuadraticBudget, hsteps]
@@ -2035,7 +2035,7 @@ def qdriftHybridStepErrorFamily {R : Register} {ι : Type} [Fintype ι]
 
 /-- A finite hybrid decomposition is quadratic when each step error is
 quadratic in the same step size. -/
-theorem qdriftTotalError_isQuadraticRemainder_of_step_error_family
+lemma qdriftTotalError_isQuadraticRemainder_of_step_error_family
     {R : Register} {steps : ℕ} (totalError : QDriftTotalError R)
     (stepError : Fin steps → SuperOp R) (τ : ℝ)
     (hdecomp : totalError = ∑ k, stepError k)
@@ -2046,7 +2046,7 @@ theorem qdriftTotalError_isQuadraticRemainder_of_step_error_family
 
 /-- Hybrid qDRIFT total error is quadratic when each propagated hybrid step is
 quadratic. -/
-theorem qdriftTotalError_isQuadraticRemainder_of_hybrid_family
+lemma qdriftTotalError_isQuadraticRemainder_of_hybrid_family
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (τ : ℝ) (steps : ℕ)
@@ -2063,7 +2063,7 @@ theorem qdriftTotalError_isQuadraticRemainder_of_hybrid_family
 
 /-- Hybrid qDRIFT total error is quadratic from a quadratic unpropagated
 one-step error. -/
-theorem qdriftTotalError_isQuadraticRemainder_of_hybrid_propagation
+lemma qdriftTotalError_isQuadraticRemainder_of_hybrid_propagation
     {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (τ : ℝ) (steps : ℕ)
@@ -2085,7 +2085,7 @@ def qdriftTotalErrorStatement {R : Register}
     (constant t : ℝ) (steps : ℕ) : Prop :=
   superOpNorm totalError ≤ constant * t ^ 2 / (steps : ℝ)
 
-theorem qdriftTotalError_norm_le_of_budget {R : Register}
+lemma qdriftTotalError_norm_le_of_budget {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ)
     (hbudget : superOpNorm totalError ≤ qdriftTotalQuadraticBudget constant t steps) :
@@ -2093,7 +2093,7 @@ theorem qdriftTotalError_norm_le_of_budget {R : Register}
   rw [qdriftTotalErrorStatement, qdriftTotalQuadraticBudget_eq] at *
   exact hbudget
 
-theorem qdriftTotalError_norm_le_of_summed_one_step_budget {R : Register}
+lemma qdriftTotalError_norm_le_of_summed_one_step_budget {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ)
     (hbudget :
@@ -2105,7 +2105,7 @@ theorem qdriftTotalError_norm_le_of_summed_one_step_budget {R : Register}
     (constant := constant) (t := t) (steps := steps)
     hbudget
 
-theorem qdriftTotalError_norm_le_of_fin_sum_one_step_budget {R : Register}
+lemma qdriftTotalError_norm_le_of_fin_sum_one_step_budget {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ)
     (hbudget :
@@ -2121,7 +2121,7 @@ theorem qdriftTotalError_norm_le_of_fin_sum_one_step_budget {R : Register}
     _ = (steps : ℝ) * qdriftOneStepQuadraticBudget constant t steps := by
       simp
 
-theorem qdriftTotalError_norm_le_of_fin_sum_step_budgets {R : Register}
+lemma qdriftTotalError_norm_le_of_fin_sum_step_budgets {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ) (stepBudget : Fin steps → ℝ)
     (hbudget : superOpNorm totalError ≤ ∑ k, stepBudget k)
@@ -2137,7 +2137,7 @@ theorem qdriftTotalError_norm_le_of_fin_sum_step_budgets {R : Register}
       intro k _
       exact hstep k
 
-theorem qdriftTotalError_norm_le_of_step_error_family {R : Register}
+lemma qdriftTotalError_norm_le_of_step_error_family {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (totalError : QDriftTotalError R) (constant t : ℝ) (steps : ℕ)
@@ -2154,7 +2154,7 @@ theorem qdriftTotalError_norm_le_of_step_error_family {R : Register}
     exact hnorm.norm_sum_le stepError
   · exact hstep
 
-theorem qdriftTotalError_norm_le_of_hybrid_family {R : Register} {ι : Type} [Fintype ι]
+lemma qdriftTotalError_norm_le_of_hybrid_family {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (H : ι → HilbertOperator R) (p : ι → ℝ)
@@ -2172,7 +2172,7 @@ theorem qdriftTotalError_norm_le_of_hybrid_family {R : Register} {ι : Type} [Fi
     (stepError := qdriftHybridStepErrorFamily pre post H p (t / (steps : ℝ)))
     hdecomp hstep
 
-theorem qdriftTotalError_norm_le_of_hybrid_family_nonexpansive
+lemma qdriftTotalError_norm_le_of_hybrid_family_nonexpansive
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2203,7 +2203,7 @@ theorem qdriftTotalError_norm_le_of_hybrid_family_nonexpansive
 
 /-- A hybrid decomposition with a uniform quadratic remainder budget on each
 step accumulates to `steps * scalarNorm τ^2 * Λ`. -/
-theorem qdriftTotalError_norm_le_of_quadratic_step_budgets
+lemma qdriftTotalError_norm_le_of_quadratic_step_budgets
     {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2230,7 +2230,7 @@ theorem qdriftTotalError_norm_le_of_quadratic_step_budgets
 
 /-- Hybrid qDRIFT total error bound from uniform quadratic budgets on the
 propagated hybrid summands. -/
-theorem qdriftTotalError_norm_le_of_hybrid_quadratic_budgets
+lemma qdriftTotalError_norm_le_of_hybrid_quadratic_budgets
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2252,7 +2252,7 @@ theorem qdriftTotalError_norm_le_of_hybrid_quadratic_budgets
 /-- Final abstract qDRIFT global error bound.  The hypothesis `hscale` is where
 an eventual concrete scalar norm turns `steps * ‖(t / steps)^2‖ * Λ` into
 `t^2 / steps * Λ`. -/
-theorem qdrift_global_error_bound_of_hybrid_quadratic_budgets
+lemma qdrift_global_error_bound_of_hybrid_quadratic_budgets
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2278,7 +2278,7 @@ theorem qdrift_global_error_bound_of_hybrid_quadratic_budgets
     hscale
 
 /-- Scalar-norm scale conversion for the qDRIFT global error bound. -/
-theorem qdrift_global_error_scale_le
+lemma qdrift_global_error_scale_le
     (scalarNorm : ℂ → ℝ) (t Λ : ℝ) (steps : ℕ)
     (hsteps : steps ≠ 0)
     (hΛ : 0 ≤ Λ)
@@ -2301,7 +2301,7 @@ theorem qdrift_global_error_scale_le
 open scoped Matrix.Norms.L2Operator in
 /-- Concrete second-order bound for the Hamiltonian time-evolution generator
 `exp(-i τ H) - 1 - (-i τ H)`. -/
-theorem timeEvolutionOp_generator_remainder_norm_le {R : Register}
+lemma timeEvolutionOp_generator_remainder_norm_le {R : Register}
     (H : HilbertOperator R) {τ : ℝ} (hτ : 0 ≤ τ) :
     ‖NormedSpace.exp ((-(Complex.I * (τ : ℂ))) • H) - 1 -
         ((-(Complex.I * (τ : ℂ))) • H)‖
@@ -2331,7 +2331,7 @@ theorem timeEvolutionOp_generator_remainder_norm_le {R : Register}
 
 /-- The adjoint of a time-evolution operator is the exponential with the
 opposite skew-Hermitian generator. -/
-theorem star_timeEvolutionOp_eq_exp_pos_generator {R : Register}
+lemma star_timeEvolutionOp_eq_exp_pos_generator {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) (τ : ℝ) :
     star (timeEvolutionOp H τ) =
       NormedSpace.exp (((τ : ℂ) * Complex.I) • H) := by
@@ -2348,7 +2348,7 @@ theorem star_timeEvolutionOp_eq_exp_pos_generator {R : Register}
 open scoped Matrix.Norms.L2Operator in
 /-- Concrete second-order bound for the adjoint time-evolution generator
 `U† - 1 - i τ H`. -/
-theorem star_timeEvolutionOp_generator_remainder_norm_le {R : Register}
+lemma star_timeEvolutionOp_generator_remainder_norm_le {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) {τ : ℝ} (hτ : 0 ≤ τ) :
     ‖star (timeEvolutionOp H τ) - 1 - (((τ : ℂ) * Complex.I) • H)‖
       ≤ (1 / 2) * τ ^ 2 * ‖H‖ ^ 2 * Real.exp (τ * ‖H‖) := by
@@ -2376,7 +2376,7 @@ theorem star_timeEvolutionOp_generator_remainder_norm_le {R : Register}
 
 open scoped Matrix.Norms.L2Operator in
 /-- Uniform budget version of the adjoint time-evolution generator remainder. -/
-theorem star_timeEvolutionOp_generator_remainder_norm_le_budget {R : Register}
+lemma star_timeEvolutionOp_generator_remainder_norm_le_budget {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) {τ Λ : ℝ}
     (hτ : 0 ≤ τ) (hHnorm : ‖H‖ ≤ Λ) :
     ‖star (timeEvolutionOp H τ) - 1 - (((τ : ℂ) * Complex.I) • H)‖
@@ -2401,7 +2401,7 @@ theorem star_timeEvolutionOp_generator_remainder_norm_le_budget {R : Register}
 open scoped Matrix.Norms.L2Operator in
 /-- Uniform adjoint-generator remainder bound with qDRIFT step size and the
 global exponential factor. -/
-theorem star_timeEvolutionOp_generator_remainder_norm_le_global_exp {R : Register}
+lemma star_timeEvolutionOp_generator_remainder_norm_le_global_exp {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) {t Λ : ℝ} {r : ℕ}
     (ht : 0 ≤ t) (hr : 0 < r) (hHnorm : ‖H‖ ≤ Λ) :
     let τ : ℝ := t / (r : ℝ)
@@ -2430,7 +2430,7 @@ theorem star_timeEvolutionOp_generator_remainder_norm_le_global_exp {R : Registe
 open scoped Matrix.Norms.L2Operator in
 /-- The same generator-level exponential remainder bound, specialized to the
 qDRIFT step size `τ = t / r`. -/
-theorem timeEvolutionOp_generator_remainder_norm_le_div_steps {R : Register}
+lemma timeEvolutionOp_generator_remainder_norm_le_div_steps {R : Register}
     (H : HilbertOperator R) {t : ℝ} {r : ℕ} (ht : 0 ≤ t) (hr : 0 < r) :
     let τ : ℝ := t / (r : ℝ)
     ‖NormedSpace.exp ((-(Complex.I * (τ : ℂ))) • H) - 1 -
@@ -2444,7 +2444,7 @@ theorem timeEvolutionOp_generator_remainder_norm_le_div_steps {R : Register}
 open scoped Matrix.Norms.L2Operator in
 /-- Generator-level exponential remainder bound with a uniform Hamiltonian
 norm budget. -/
-theorem timeEvolutionOp_generator_remainder_norm_le_budget {R : Register}
+lemma timeEvolutionOp_generator_remainder_norm_le_budget {R : Register}
     (H : HilbertOperator R) {τ Λ : ℝ} (hτ : 0 ≤ τ) (hH : ‖H‖ ≤ Λ) :
     ‖NormedSpace.exp ((-(Complex.I * (τ : ℂ))) • H) - 1 -
         ((-(Complex.I * (τ : ℂ))) • H)‖
@@ -2469,7 +2469,7 @@ theorem timeEvolutionOp_generator_remainder_norm_le_budget {R : Register}
 
 open scoped Matrix.Norms.L2Operator in
 /-- Uniform generator-level remainder bound at qDRIFT step size `τ = t / r`. -/
-theorem timeEvolutionOp_generator_remainder_norm_le_div_steps_budget {R : Register}
+lemma timeEvolutionOp_generator_remainder_norm_le_div_steps_budget {R : Register}
     (H : HilbertOperator R) {t Λ : ℝ} {r : ℕ}
     (ht : 0 ≤ t) (hr : 0 < r) (hH : ‖H‖ ≤ Λ) :
     let τ : ℝ := t / (r : ℝ)
@@ -2484,7 +2484,7 @@ theorem timeEvolutionOp_generator_remainder_norm_le_div_steps_budget {R : Regist
 open scoped Matrix.Norms.L2Operator in
 /-- Uniform generator-level remainder bound with the global exponential factor
 `exp (t * Λ)`. -/
-theorem timeEvolutionOp_generator_remainder_norm_le_global_exp {R : Register}
+lemma timeEvolutionOp_generator_remainder_norm_le_global_exp {R : Register}
     (H : HilbertOperator R) {t Λ : ℝ} {r : ℕ}
     (ht : 0 ≤ t) (hr : 0 < r) (hH : ‖H‖ ≤ Λ) :
     let τ : ℝ := t / (r : ℝ)
@@ -2513,7 +2513,7 @@ theorem timeEvolutionOp_generator_remainder_norm_le_global_exp {R : Register}
 open scoped Matrix.Norms.L2Operator in
 /-- Left exponential remainder in the notation used by the conjugation
 decomposition, with `A = -i τ H` and `τ = t / r`. -/
-theorem timeEvolutionOp_left_remainder_norm_le_global_exp {R : Register}
+lemma timeEvolutionOp_left_remainder_norm_le_global_exp {R : Register}
     (H : HilbertOperator R) {t Λ : ℝ} {r : ℕ}
     (ht : 0 ≤ t) (hr : 0 < r) (hHnorm : ‖H‖ ≤ Λ) :
     let τ : ℝ := t / (r : ℝ)
@@ -2527,7 +2527,7 @@ theorem timeEvolutionOp_left_remainder_norm_le_global_exp {R : Register}
 open scoped Matrix.Norms.L2Operator in
 /-- Right exponential remainder in the notation used by the conjugation
 decomposition, with `A = -i τ H` and `τ = t / r`. -/
-theorem star_timeEvolutionOp_right_remainder_norm_le_global_exp {R : Register}
+lemma star_timeEvolutionOp_right_remainder_norm_le_global_exp {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) {t Λ : ℝ} {r : ℕ}
     (ht : 0 ≤ t) (hr : 0 < r) (hHnorm : ‖H‖ ≤ Λ) :
     let τ : ℝ := t / (r : ℝ)
@@ -2619,7 +2619,7 @@ def qdriftUnitaryStepRemainderBudgetsOperatorNorm {R : Register} [Nonempty R.Ind
 
 /-- The concrete unitary-step budget is uniformly quadratic when the step size
 is bounded by `T`; its exponential tail is controlled by `exp (T * Λ)`. -/
-theorem unitaryStepRemainderBudget_operatorNorm_le_quadratic
+lemma unitaryStepRemainderBudget_operatorNorm_le_quadratic
     {τ T Λ : ℝ} (hτ : 0 ≤ τ) (hT : 0 ≤ T) (hτT : τ ≤ T) (hΛ : 0 ≤ Λ) :
     let tail := (1 / 2) * τ ^ 2 * Λ ^ 2 * Real.exp (τ * Λ)
     let budget := tail * 1 + (1 + τ * Λ) * tail + (τ * Λ) * (τ * Λ)
@@ -2665,14 +2665,14 @@ def qdriftOperatorNormConstant (T Λ : ℝ) : ℝ :=
   2 * ((1 / 2) * Λ ^ 2 * Real.exp (T * Λ) * (2 + T * Λ) + Λ ^ 2)
 
 /-- A readable closed form for `qdriftOperatorNormConstant`. -/
-theorem qdriftOperatorNormConstant_eq (T Λ : ℝ) :
+lemma qdriftOperatorNormConstant_eq (T Λ : ℝ) :
     qdriftOperatorNormConstant T Λ =
       Λ ^ 2 * (Real.exp (T * Λ) * (2 + T * Λ) + 2) := by
   unfold qdriftOperatorNormConstant
   ring
 
 /-- A coarse constant bound for the small-step regime `0 ≤ T * Λ ≤ 1`. -/
-theorem qdriftOperatorNormConstant_le_small {T Λ : ℝ}
+lemma qdriftOperatorNormConstant_le_small {T Λ : ℝ}
     (h_nonneg : 0 ≤ T * Λ) (h_small : T * Λ ≤ 1) :
     qdriftOperatorNormConstant T Λ ≤ (3 * Real.exp 1 + 2) * Λ ^ 2 := by
   rw [qdriftOperatorNormConstant_eq]
@@ -2693,7 +2693,7 @@ theorem qdriftOperatorNormConstant_le_small {T Λ : ℝ}
 
 /-- Concrete qDRIFT one-step quadratic bounds assembled from operator-norm
 Hamiltonian budgets. -/
-theorem qdriftOneStepQuadraticBoundsOperatorNorm {R : Register} [Nonempty R.Index]
+lemma qdriftOneStepQuadraticBoundsOperatorNorm {R : Register} [Nonempty R.Index]
     {ι : Type} [Fintype ι] (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (hmul : SuperOpTwoSidedMulNormControl superOpNorm opNorm)
@@ -2733,7 +2733,7 @@ structure ExpSecondOrderRemainderBudget {R : Register}
 /-- Package the usual analytic estimate
 `‖remainder‖ ≤ analyticNorm^2 * exp analyticNorm` as an abstract qDRIFT
 remainder budget. -/
-theorem ExpSecondOrderRemainderBudget.of_exp_tail_bound
+lemma ExpSecondOrderRemainderBudget.of_exp_tail_bound
     {R : Register}
     (superOpNorm : SuperOp R → ℝ) (expRemainder : SuperOp R)
     (analyticNorm Λ : ℝ)
@@ -2744,7 +2744,7 @@ theorem ExpSecondOrderRemainderBudget.of_exp_tail_bound
 
 /-- Pull a continuous-operator norm estimate back to the algebraic
 superoperator remainder interface. -/
-theorem ExpSecondOrderRemainderBudget.of_continuous_pullback_bound
+lemma ExpSecondOrderRemainderBudget.of_continuous_pullback_bound
     {R : Register}
     (continuousNorm : (HilbertOperator R →L[ℂ] HilbertOperator R) → ℝ)
     (expRemainder : SuperOp R) (Λ : ℝ)
@@ -2755,7 +2755,7 @@ theorem ExpSecondOrderRemainderBudget.of_continuous_pullback_bound
 
 /-- Turn a second-order exponential remainder estimate into the quadratic
 budget format used by the global qDRIFT theorem, with step size `τ = 1`. -/
-theorem expSecondOrderRemainderBudget.to_quadratic_budget_one
+lemma expSecondOrderRemainderBudget.to_quadratic_budget_one
     {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (expRemainder : SuperOp R) (Λ : ℝ)
@@ -2775,7 +2775,7 @@ theorem expSecondOrderRemainderBudget.to_quadratic_budget_one
 
 /-- Final abstract qDRIFT global error bound using a scalar-norm square bound
 instead of an explicit scale hypothesis. -/
-theorem qdrift_global_error_bound_of_hybrid_quadratic_budgets_of_scalar_square
+lemma qdrift_global_error_bound_of_hybrid_quadratic_budgets_of_scalar_square
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2805,7 +2805,7 @@ theorem qdrift_global_error_bound_of_hybrid_quadratic_budgets_of_scalar_square
 
 /-- Global error bound for an explicit composition-power difference.  This is
 the telescoping specialization of the hybrid bound. -/
-theorem qdrift_global_error_bound_of_power_diff_quadratic_budgets
+lemma qdrift_global_error_bound_of_power_diff_quadratic_budgets
     {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -2933,7 +2933,7 @@ structure NonexpansiveHybridFamilyAssumptions {R : Register} {ι : Type} [Fintyp
       ≤ qdriftOneStepQuadraticBudget constant t steps
 
 /-- Abstract qDRIFT total error bound from a packaged total-budget estimate. -/
-theorem bound {R : Register}
+lemma bound {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ)
     (hassumptions : Assumptions superOpNorm totalError constant t steps) :
@@ -2944,7 +2944,7 @@ theorem bound {R : Register}
     hassumptions.total_budget
 
 /-- Abstract qDRIFT total error bound from summed one-step budget assumptions. -/
-theorem bound_of_summed_one_step_assumptions {R : Register}
+lemma bound_of_summed_one_step_assumptions {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ)
     (hassumptions :
@@ -2956,7 +2956,7 @@ theorem bound_of_summed_one_step_assumptions {R : Register}
     hassumptions.summed_one_step_budget
 
 /-- Abstract qDRIFT total error bound from a `Fin steps` sum of one-step budgets. -/
-theorem bound_of_fin_sum_one_step_assumptions {R : Register}
+lemma bound_of_fin_sum_one_step_assumptions {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ)
     (hassumptions :
@@ -2968,7 +2968,7 @@ theorem bound_of_fin_sum_one_step_assumptions {R : Register}
     hassumptions.fin_sum_one_step_budget
 
 /-- Abstract qDRIFT total error bound from per-step budget assumptions. -/
-theorem bound_of_fin_sum_step_budget_assumptions {R : Register}
+lemma bound_of_fin_sum_step_budget_assumptions {R : Register}
     (superOpNorm : SuperOp R → ℝ) (totalError : QDriftTotalError R)
     (constant t : ℝ) (steps : ℕ) (stepBudget : Fin steps → ℝ)
     (hassumptions :
@@ -2981,7 +2981,7 @@ theorem bound_of_fin_sum_step_budget_assumptions {R : Register}
     hassumptions.total_le_sum_step_budgets hassumptions.step_budget_le
 
 /-- Abstract qDRIFT total error bound from a per-step error family. -/
-theorem bound_of_step_error_family_assumptions {R : Register}
+lemma bound_of_step_error_family_assumptions {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (totalError : QDriftTotalError R) (constant t : ℝ) (steps : ℕ)
     (stepError : Fin steps → SuperOp R)
@@ -2998,7 +2998,7 @@ theorem bound_of_step_error_family_assumptions {R : Register}
     hassumptions.total_error_decomposition hassumptions.step_error_bound
 
 /-- Abstract qDRIFT total error bound from a hybrid-argument decomposition. -/
-theorem bound_of_hybrid_argument {R : Register}
+lemma bound_of_hybrid_argument {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (totalError : QDriftTotalError R) (constant t : ℝ) (steps : ℕ)
     (propagatedStepError : Fin steps → SuperOp R)
@@ -3015,7 +3015,7 @@ theorem bound_of_hybrid_argument {R : Register}
     hassumptions.hybrid_decomposition hassumptions.hybrid_step_bound
 
 /-- Abstract qDRIFT total error bound from explicit hybrid propagation maps. -/
-theorem bound_of_hybrid_family {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_hybrid_family {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (constant t : ℝ) (steps : ℕ)
@@ -3033,7 +3033,7 @@ theorem bound_of_hybrid_family {R : Register} {ι : Type} [Fintype ι]
     hassumptions.hybrid_decomposition hassumptions.hybrid_step_bound
 
 /-- Abstract qDRIFT total error bound from nonexpansive hybrid propagation maps. -/
-theorem bound_of_nonexpansive_hybrid_family {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_nonexpansive_hybrid_family {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (constant t : ℝ) (steps : ℕ)
@@ -3055,7 +3055,7 @@ theorem bound_of_nonexpansive_hybrid_family {R : Register} {ι : Type} [Fintype 
 
 /-- Abstract qDRIFT total error bound from nonexpansive hybrid propagation and
 two-sided unitary-step remainder budgets. -/
-theorem bound_of_nonexpansive_hybrid_family_unitaryStepBudgets
+lemma bound_of_nonexpansive_hybrid_family_unitaryStepBudgets
     {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
@@ -3125,7 +3125,7 @@ structure Assumptions {R : Register} {ι : Type} [Fintype ι]
       (t / (steps : ℝ)) termBound idealBudget constant
 
 /-- Abstract qDRIFT one-step error bound from packaged weight and remainder assumptions. -/
-theorem bound {R : Register} {ι : Type} [Fintype ι]
+lemma bound {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (H : ι → HilbertOperator R) (p : ι → ℝ) (t : ℝ) (steps : ℕ)
@@ -3143,7 +3143,7 @@ theorem bound {R : Register} {ι : Type} [Fintype ι]
     (constant := constant) hbounds
 
 /-- Abstract qDRIFT one-step error bound from one packaged assumptions object. -/
-theorem bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (H : ι → HilbertOperator R) (p : ι → ℝ) (t : ℝ) (steps : ℕ)
     (termBound idealBudget constant : ℝ)
@@ -3159,7 +3159,7 @@ theorem bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
     (constant := constant) hassumptions.quadratic_bounds
 
 /-- Abstract qDRIFT one-step error bound from real probability weights. -/
-theorem bound_of_probability_weights {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_probability_weights {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (H : ι → HilbertOperator R) (p : ι → ℝ) (t : ℝ) (steps : ℕ)
@@ -3178,7 +3178,7 @@ theorem bound_of_probability_weights {R : Register} {ι : Type} [Fintype ι]
     (constant := constant) hbounds
 
 /-- One-step qDRIFT error bound from two-sided unitary-step remainder budgets. -/
-theorem bound_of_unitaryStepBudgets {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_unitaryStepBudgets {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -3212,7 +3212,7 @@ theorem bound_of_unitaryStepBudgets {R : Register} {ι : Type} [Fintype ι]
 
 /-- One-step qDRIFT error bound with the concrete operator-norm remainder
 budget and the uniform global exponential factor `exp (t * Λ)`. -/
-theorem bound_of_operatorNorm {R : Register} [Nonempty R.Index]
+lemma bound_of_operatorNorm {R : Register} [Nonempty R.Index]
     {ι : Type} [Fintype ι] (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (hmul : SuperOpTwoSidedMulNormControl superOpNorm opNorm)
@@ -3247,7 +3247,7 @@ theorem bound_of_operatorNorm {R : Register} [Nonempty R.Index]
       hprob hweights hH hstep_nonneg ht hstep_le hΛ hHnorm)
 
 /-- One-step qDRIFT error bound specialized to the induced trace norm. -/
-theorem bound_of_inducedTraceNorm_operatorNorm {R : Register} [Nonempty R.Index]
+lemma bound_of_inducedTraceNorm_operatorNorm {R : Register} [Nonempty R.Index]
     {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (t Λ : ℝ) (steps : ℕ)
     (hprob : QDriftProbabilityWeights p)
@@ -3269,7 +3269,7 @@ namespace QDriftTotalErrorBound
 /-- Global qDRIFT error bound using the concrete operator-norm one-step
 estimate.  Only the hybrid decomposition and propagation nonexpansivity remain
 as superoperator-level assumptions. -/
-theorem bound_of_operatorNorm {R : Register} [Nonempty R.Index]
+lemma bound_of_operatorNorm {R : Register} [Nonempty R.Index]
     {ι : Type} [Fintype ι] (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
     (hmul : SuperOpTwoSidedMulNormControl superOpNorm opNorm)
@@ -3300,7 +3300,7 @@ theorem bound_of_operatorNorm {R : Register} [Nonempty R.Index]
 
 /-- Global hybrid qDRIFT error bound specialized to the induced trace norm.
 The hybrid propagators are supplied as pointwise trace-norm nonexpansive maps. -/
-theorem bound_of_inducedTraceNorm_operatorNorm {R : Register} [Nonempty R.Index]
+lemma bound_of_inducedTraceNorm_operatorNorm {R : Register} [Nonempty R.Index]
     {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (t Λ : ℝ) (steps : ℕ)
@@ -3347,7 +3347,7 @@ structure Assumptions {R : Register} {ι : Type} [Fintype ι]
 
 /-- Algebraic qDRIFT one-step quadratic remainder from explicit Taylor-style
 unitary remainder assumptions. -/
-theorem bound {R : Register} {ι : Type} [Fintype ι]
+lemma bound {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hp : ∑ j, (p j : ℂ) = 1)
     (hunit : ∀ j, IsQuadraticRemainder τ (unitaryStepRemainderSuperOp (H j) τ))
@@ -3359,7 +3359,7 @@ theorem bound {R : Register} {ι : Type} [Fintype ι]
 
 /-- Algebraic qDRIFT one-step quadratic remainder from one packaged assumptions
 object. -/
-theorem bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ) (τ : ℝ)
     (hassumptions : Assumptions H p τ) :
     Statement H p τ :=
@@ -3389,7 +3389,7 @@ structure Assumptions {R : Register} {ι : Type} [Fintype ι]
     IsQuadraticRemainder τ (qdriftStepErrorSuperOp H p τ)
 
 /-- The hybrid argument preserves the algebraic quadratic-remainder shape. -/
-theorem bound {R : Register} {ι : Type} [Fintype ι]
+lemma bound {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (τ : ℝ) (steps : ℕ)
     (pre post : Fin steps → SuperOp R)
@@ -3402,7 +3402,7 @@ theorem bound {R : Register} {ι : Type} [Fintype ι]
     (steps := steps) (pre := pre) (post := post) hdecomp hstep
 
 /-- Hybrid quadratic remainder from one packaged assumptions object. -/
-theorem bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (τ : ℝ) (steps : ℕ)
     (pre post : Fin steps → SuperOp R)
@@ -3414,7 +3414,7 @@ theorem bound_of_assumptions {R : Register} {ι : Type} [Fintype ι]
 
 /-- Hybrid quadratic remainder directly from the one-step Taylor-style
 remainder assumptions. -/
-theorem bound_of_one_step_assumptions {R : Register} {ι : Type} [Fintype ι]
+lemma bound_of_one_step_assumptions {R : Register} {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (τ : ℝ) (steps : ℕ)
     (pre post : Fin steps → SuperOp R)
@@ -3472,7 +3472,7 @@ structure PowerDiffAssumptions {R : Register}
         (superOpComp (U - E) (superOpPower E (k : ℕ))))
 
 /-- Abstract qDRIFT global error bound from packaged hybrid quadratic budgets. -/
-theorem bound {R : Register} {ι : Type} [Fintype ι]
+lemma bound {R : Register} {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (H : ι → HilbertOperator R) (p : ι → ℝ)
     (totalError : QDriftTotalError R) (t Λ : ℝ) (steps : ℕ)
@@ -3493,7 +3493,7 @@ theorem bound {R : Register} {ι : Type} [Fintype ι]
 
 /-- Abstract qDRIFT global error bound from a direct power-difference
 telescoping expansion. -/
-theorem bound_of_power_diff {R : Register}
+lemma bound_of_power_diff {R : Register}
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (U E : SuperOp R) (t Λ : ℝ) (steps : ℕ)
     (hassumptions : PowerDiffAssumptions superOpNorm scalarNorm U E t Λ steps) :
@@ -3509,7 +3509,7 @@ theorem bound_of_power_diff {R : Register}
 
 /-- Power-difference global error bound specialized to the concrete complex
 scalar norm. -/
-theorem bound_of_power_diff_complex_norm {R : Register}
+lemma bound_of_power_diff_complex_norm {R : Register}
     (superOpNorm : SuperOp R → ℝ)
     (U E : SuperOp R) (t Λ : ℝ) (steps : ℕ)
     (hnorm : SuperOpNormProperties superOpNorm fun z : ℂ => ‖z‖)
@@ -3536,7 +3536,7 @@ end QDriftGlobalErrorBound
 The analytic one-step estimate and norm laws stay abstract in
 `PowerDiffAssumptions`; this theorem fixes their channel arguments and the
 physical total time `t λ`. -/
-theorem qdriftAverageChannel_global_error_bound {R : Register}
+lemma qdriftAverageChannel_global_error_bound {R : Register}
     {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (H : ι → HilbertOperator R) (h : ι → ℝ) (t κ : ℝ) (steps : ℕ)
@@ -3554,7 +3554,7 @@ theorem qdriftAverageChannel_global_error_bound {R : Register}
       (qdriftAverageTotalTime h t) κ steps hassumptions)
 
 /-- One-step qDRIFT error bound expressed in Campbell's coefficient parameters. -/
-theorem qdriftAverageChannel_oneStep_error_bound {R : Register}
+lemma qdriftAverageChannel_oneStep_error_bound {R : Register}
     {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (matrixNorm : HilbertOperator R → ℝ)
@@ -3588,7 +3588,7 @@ theorem qdriftAverageChannel_oneStep_error_bound {R : Register}
 
 /-- One-step qDRIFT error bound in Campbell's coefficient parameters, using
 the concrete operator-norm unitary-step remainder estimate. -/
-theorem qdriftAverageChannel_oneStep_error_bound_operatorNorm {R : Register}
+lemma qdriftAverageChannel_oneStep_error_bound_operatorNorm {R : Register}
     [Nonempty R.Index] {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -3626,7 +3626,7 @@ theorem qdriftAverageChannel_oneStep_error_bound_operatorNorm {R : Register}
 
 /-- One-step qDRIFT error bound for the induced trace norm, using the concrete
 operator-norm two-sided multiplication control proved above. -/
-theorem qdriftAverageChannel_oneStep_error_bound_inducedTraceNorm_operatorNorm {R : Register}
+lemma qdriftAverageChannel_oneStep_error_bound_inducedTraceNorm_operatorNorm {R : Register}
     [Nonempty R.Index] {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (h : ι → ℝ) (t Λ : ℝ) (steps : ℕ)
     (h_nonneg : ∀ j, 0 ≤ h j) (h_lambda_ne_zero : qdriftLambda h ≠ 0)
@@ -3651,7 +3651,7 @@ theorem qdriftAverageChannel_oneStep_error_bound_inducedTraceNorm_operatorNorm {
 /-- Hybrid global qDRIFT error bound in Campbell's coefficient parameters,
 using the concrete operator-norm one-step estimate.  The hybrid decomposition
 and propagation nonexpansivity remain explicit superoperator assumptions. -/
-theorem qdriftAverageChannel_hybrid_global_error_bound_operatorNorm {R : Register}
+lemma qdriftAverageChannel_hybrid_global_error_bound_operatorNorm {R : Register}
     [Nonempty R.Index] {ι : Type} [Fintype ι]
     (superOpNorm : SuperOp R → ℝ) (scalarNorm : ℂ → ℝ)
     (hnorm : SuperOpNormProperties superOpNorm scalarNorm)
@@ -3700,7 +3700,7 @@ theorem qdriftAverageChannel_hybrid_global_error_bound_operatorNorm {R : Registe
 /-- Hybrid global qDRIFT error bound for the induced trace norm.  Hybrid
 propagators are supplied as pointwise trace-norm nonexpansive maps and are
 converted to induced-norm nonexpansive maps internally. -/
-theorem qdriftAverageChannel_hybrid_global_error_bound_inducedTraceNorm_operatorNorm
+lemma qdriftAverageChannel_hybrid_global_error_bound_inducedTraceNorm_operatorNorm
     {R : Register} [Nonempty R.Index] {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (h : ι → ℝ)
     (totalError : QDriftTotalError R) (t Λ : ℝ) (steps : ℕ)
@@ -3801,7 +3801,7 @@ public theorem qdriftAveragePowerError_bound_inducedTraceNorm_operatorNorm {R : 
 When the total simulated time-energy product satisfies `T * Λ ≤ 1`, the
 operator-norm constant can be replaced by the simpler
 `(3 * exp 1 + 2) * Λ^2`. -/
-theorem qdriftAveragePowerError_bound_inducedTraceNorm_operatorNorm_small
+lemma qdriftAveragePowerError_bound_inducedTraceNorm_operatorNorm_small
     {R : Register} [Nonempty R.Index] {ι : Type} [Fintype ι]
     (H : ι → HilbertOperator R) (h : ι → ℝ) (t Λ : ℝ) (steps : ℕ)
     (h_nonneg : ∀ j, 0 ≤ h j) (h_lambda_ne_zero : qdriftLambda h ≠ 0)

@@ -31,7 +31,7 @@ variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx mod
   {N : Nat}
 
 omit [BitWord.Selected model] in
-private theorem canonical_eq_of_val {width : Nat}
+private lemma canonical_eq_of_val {width : Nat}
     (actual : CShape.Value (.canonicalResidue width)) (expected : Fin (2 ^ width))
     (same : actual.residueEncoding.val = expected.val) : actual = .canonicalResidue expected := by
   cases actual with
@@ -48,7 +48,7 @@ def recoveredInputStore (source : Input N)
 
 omit [BitWord.Selected model] in
 /-- Base packing writes exactly the source input's canonical word from its original raw value. -/
-theorem packedBase_source (source : Input N)
+lemma packedBase_source (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (store : Store ctx)
@@ -58,7 +58,7 @@ theorem packedBase_source (source : Input N)
   canonical_eq_of_val _ _ ((packBase_result parameter cells store).trans baseValue)
 
 /-- The real optional order from intrinsic recovery supplies the actual decoded tag and word. -/
-theorem recoveredInput_order (source : Input N)
+lemma recoveredInput_order (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N) (store : Store ctx)
@@ -99,7 +99,7 @@ theorem recoveredInput_order (source : Input N)
         phase cells.order packed).1 (some word) (by simpa only [recovered] using actual)
 
 /-- The actual recovery prefix keeps the same retained sampler parameter for its priority branch. -/
-theorem recoveredInput_parameter (source : Input N)
+lemma recoveredInput_parameter (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N) (store : Store ctx)
     (baseFree : cells.base.key ∉ parameter.storageKeys)
@@ -119,7 +119,7 @@ theorem recoveredInput_parameter (source : Input N)
         parameter baseFree))
 
 /-- The same real canonical base remains available to the subsequent actual half-order power. -/
-theorem recoveredInput_base (source : Input N)
+lemma recoveredInput_base (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N) (store : Store ctx)

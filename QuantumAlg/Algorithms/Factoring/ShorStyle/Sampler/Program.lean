@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Load, scan, decide and pack within the real eleven-cell sampler context. -/
@@ -51,15 +51,16 @@ def innerStep (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
   (prepared.1, (scanned.2, prepared.2))
 
 /-- The complete inner program follows its literal full-state instruction semantics. -/
-theorem samplerInner_execute (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
+lemma samplerInner_execute (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (Layout.context ctx (modulusBits N)) Reference (model.HiddenState × History)) :
-    (inner (model := model) N sample output).execute Reference state =
+    (inner (model := model) N sample output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := innerStep (model := model) N sample output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (Scan.circuit (model := model) N sample) _
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
+    (Scan.circuit (model := model) N sample) _
     (fun entry =>
       let result := Scan.step (model := model) N sample entry.1
       ((result.1, entry.2), result.2))

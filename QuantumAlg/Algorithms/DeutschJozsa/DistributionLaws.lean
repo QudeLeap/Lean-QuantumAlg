@@ -36,14 +36,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open Execution
 
 /-- Under the original promise the actual relational result makes the correct decision surely. -/
-theorem actual_success {n : Nat} (f : WalshHadamard.Oracle n) (promised : Promise f)
+lemma actual_success {n : Nat} (f : WalshHadamard.Oracle n) (promised : Promise f)
     {Reference : Register} (input : OracleInput ClassicalOracleModel.empty pre Reference) :
-    ((run f).relationalDistribution input).toOuterMeasure
+    ((run n).relationalDistribution (environment f) input).toOuterMeasure
       {pair | accepts f pair.1 pair.2} = 1 := by
   have projection :
-      ((run f).relationalDistribution input).toOuterMeasure
+      ((run n).relationalDistribution (environment f) input).toOuterMeasure
         {pair | accepts f pair.1 pair.2} =
-      ((run f).outputDistribution input).toOuterMeasure
+      ((run n).outputDistribution (environment f) input).toOuterMeasure
         {result | match result with | .bits outcome => CorrectDecision f outcome} := by
     simp only [AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
       PMF.toOuterMeasure_map_apply]

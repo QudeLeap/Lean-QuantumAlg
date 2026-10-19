@@ -49,7 +49,7 @@ def interfaceSpaceFlow (_circuit : UnitaryCircuit gates oracles layout) :
     SpaceFlow (interfaceContext layout) (interfaceContext layout) :=
   SpaceFlow.stay (interfaceContext layout)
 
-@[simp] theorem interfaceContext_physicalIdx {count : Nat}
+@[simp] lemma interfaceContext_physicalIdx {count : Nat}
     (layout : QuantumLayout count) :
     (interfaceContext layout).physicalIdx = layout.identities := by
   rw [RuntimeCtx.physicalIdx_eq_flatMap]
@@ -60,36 +60,36 @@ def interfaceSpaceFlow (_circuit : UnitaryCircuit gates oracles layout) :
   rw [List.map_ofFn]
   rfl
 
-@[simp] theorem interfaceContext_residentSpace {count : Nat}
+@[simp] lemma interfaceContext_residentSpace {count : Nat}
     (layout : QuantumLayout count) :
     (interfaceContext layout).residentSpace = SpacePool.ofQuantumLayout layout := by
   simp [interfaceContext]
 
-@[simp] theorem interfaceContext_auxiliarySpace {count : Nat}
+@[simp] lemma interfaceContext_auxiliarySpace {count : Nat}
     (layout : QuantumLayout count) : (interfaceContext layout).auxiliarySpace = 0 := by
   simp [interfaceContext]
 
 /-- Resident space counts every actual interface system once, independently of touched gates. -/
-@[simp] theorem interfaceSpaceFlow_peakResidentSpace
+@[simp] lemma interfaceSpaceFlow_peakResidentSpace
     (circuit : UnitaryCircuit gates oracles layout) :
     circuit.interfaceSpaceFlow.peakResidentSpace = SpacePool.ofQuantumLayout layout := by
   simp [interfaceSpaceFlow]
 
 /-- The unitary construction itself introduces no owned auxiliary storage. -/
-@[simp] theorem interfaceSpaceFlow_peakAuxiliarySpace
+@[simp] lemma interfaceSpaceFlow_peakAuxiliarySpace
     (circuit : UnitaryCircuit gates oracles layout) :
     circuit.interfaceSpaceFlow.peakAuxiliarySpace = 0 := by
   simp [interfaceSpaceFlow]
 
 /-- Native dimension coordinates retain heterogeneous systems instead of converting Hilbert size. -/
-theorem interfaceSpaceFlow_systems
+lemma interfaceSpaceFlow_systems
     (circuit : UnitaryCircuit gates oracles layout) (dimension : ℕ+) :
     SpacePool.count (.quantumSystems dimension) circuit.interfaceSpaceFlow.peakResidentSpace =
       layout.dimensionCount dimension := by
   simp
 
 /-- A quantum-only borrowed interface introduces no classical storage cells. -/
-theorem interfaceSpaceFlow_classicalBits
+lemma interfaceSpaceFlow_classicalBits
     (circuit : UnitaryCircuit gates oracles layout) :
     SpacePool.count .classicalBits circuit.interfaceSpaceFlow.peakResidentSpace = 0 := by
   simp

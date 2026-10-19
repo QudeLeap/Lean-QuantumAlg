@@ -28,7 +28,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- The real comparison record is followed by actual option packaging. -/
@@ -83,13 +84,12 @@ def step (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Ce
   let next := checkedChooseStep (model := model) halfPower cells output reduced.1
   (next.1, (reduced.2, next.2))
 
-private theorem checkedPack_execute (cells : Cells ctx N)
+private lemma checkedPack_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (FactorRange.code (model := model) (checkRefs cells)) (pack (model := model)
-        cells output)).execute
-        Reference state =
+        cells output)).execute environment Reference state =
       state.mapClassical (fun entry => ((checkedPackStep (model := model) cells output entry.1).1,
         (entry.2.1, (entry.2.2, (checkedPackStep (model := model) cells output entry.1).2)))) := by
   rw [Circuit.execute_seq, pack_execute, FactorRange.code_execute]
@@ -97,11 +97,11 @@ private theorem checkedPack_execute (cells : Cells ctx N)
     Function.comp_def]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem right_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma right_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (right (model := model) halfPower cells output).execute Reference state =
+    (right (model := model) halfPower cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((rightStep (model := model) halfPower cells output
           entry.1).1,
         (entry.2.1, (entry.2.2, (rightStep (model := model) halfPower cells output entry.1).2))))
@@ -112,13 +112,12 @@ private theorem right_execute (halfPower : CInputRef ctx (.unsignedWord (modulus
     Function.comp_def]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem chooseArm_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma chooseArm_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then pack (model := model) cells output else right (model := model) halfPower
-        cells output).execute
-        Reference state =
+        cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((chooseArmStep (model := model) halfPower cells output
           value entry.1).1,
         (entry.2.1, (entry.2.2, (chooseArmStep (model := model) halfPower cells output value
@@ -129,16 +128,17 @@ private theorem chooseArm_execute (halfPower : CInputRef ctx (.unsignedWord (mod
       · exact right_execute halfPower cells output Reference state
       · exact pack_execute cells output Reference state
 
-private theorem choose_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma choose_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (choose (model := model) halfPower cells output).execute Reference state =
+    (choose (model := model) halfPower cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((chooseStep (model := model) halfPower cells output
           entry.1).1,
         (entry.2.1, (entry.2.2, (chooseStep (model := model) halfPower cells output entry.1).2))))
             := by
-  refine (Circuit.execute_branch_mapClassical (.storage cells.lower.toCStorageRef)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (.storage cells.lower.toCStorageRef)
     (fun value => if value.toBool then pack (model := model) cells output
       else right (model := model) halfPower cells output)
     (fun value entry =>
@@ -147,13 +147,12 @@ private theorem choose_execute (halfPower : CInputRef ctx (.unsignedWord (modulu
     (chooseArm_execute (model := model) halfPower cells output) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem checkedChoose_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma checkedChoose_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (FactorRange.code (model := model) (checkRefs cells))
-        (choose (model := model) halfPower cells output)).execute
-        Reference state =
+        (choose (model := model) halfPower cells output)).execute environment Reference state =
       state.mapClassical (fun entry => ((checkedChooseStep (model := model) halfPower cells output
           entry.1).1,
         (entry.2.1, (entry.2.2, (checkedChooseStep (model := model) halfPower cells output
@@ -164,11 +163,11 @@ private theorem checkedChoose_execute (halfPower : CInputRef ctx (.unsignedWord 
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The real left-priority circuit executes exactly its actual store and path on full CQ blocks. -/
-theorem code_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) halfPower cells output).execute Reference state =
+    (code (model := model) halfPower cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((step (model := model) halfPower cells output entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) halfPower cells output entry.1).2)))) := by
   unfold code

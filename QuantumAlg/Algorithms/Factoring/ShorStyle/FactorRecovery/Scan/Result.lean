@@ -58,12 +58,12 @@ structure Separated (cells : Cells ctx N)
   resultAccepted : result.key ≠ cells.accepted.key
   resultSelected : result.key ≠ cells.selected.key
 
-private theorem firstPresent_none_right {width : Nat}
+private lemma firstPresent_none_right {width : Nat}
     (value : CShape.Value (.option (.unsignedWord width))) :
     firstPresent value .optionNone = value := by
   cases value <;> rfl
 
-private theorem firstPresent_assoc {width : Nat}
+private lemma firstPresent_assoc {width : Nat}
     (first second third : CShape.Value (.option (.unsignedWord width))) :
     firstPresent (firstPresent first second) third =
       firstPresent first (firstPresent second third) := by
@@ -86,7 +86,7 @@ def Frames (cells : Cells ctx N)
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual factor recovery and selection preserve the first successful factor exactly. -/
-theorem visit_latchValue (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
+lemma visit_latchValue (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : Separated cells result) (store : Store ctx) (outcome : SourceOutcome N)
     (parameterRead : store.read inputs.parameter = parameterValue source outcome.sample)
@@ -122,7 +122,7 @@ theorem visit_latchValue (source : Input N) (inputs : Inputs ctx N) (cells : Cel
     (congrArg₂ firstPresent latchesSame actualResult)
 
 /-- Actual scanning folds the source selector while retaining an earlier accepted result. -/
-theorem scan_latchValue (source : Input N) (cells : Cells ctx N)
+lemma scan_latchValue (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : Separated cells result) (entries : List (Inputs ctx N × SourceOutcome N)) :
     ∀ (store : Store ctx), Frames cells result entries → Represents source entries store →
@@ -157,7 +157,7 @@ theorem scan_latchValue (source : Input N) (cells : Cells ctx N)
         (firstPresent_assoc _ _ _)
 
 /-- The actual initialized scan writes exactly the first successful original source result. -/
-theorem code_result (source : Input N) (entries : List (Inputs ctx N × SourceOutcome N))
+lemma code_result (source : Input N) (entries : List (Inputs ctx N × SourceOutcome N))
     (cells : Cells ctx N) (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : Separated cells result) (store : Store ctx)
     (frames : Frames cells result entries) (represented : Represents source entries store) :

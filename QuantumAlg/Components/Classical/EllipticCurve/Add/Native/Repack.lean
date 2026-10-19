@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original native adapter consumes an actual raw point and writes the nominal destination. -/
@@ -46,21 +46,21 @@ def repackStore (raw : CInputRef ctx (PointEquality.RawPointShape width))
   store.write output (CShape.packEllipticCurvePoint width (store.read raw))
 
 /-- Repacking retains each complete quantum-reference block and records its actual native path. -/
-theorem repackRawInto_execute (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_execute (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (repackRawInto raw output).execute Reference state = state.mapClassical
+    (repackRawInto raw output).execute environment Reference state = state.mapClassical
       (fun entry => (repackStore raw output entry.1,
         (entry.2.1, (entry.2.2, (BitWord.instructionStep (execution := model)
           (repackOp raw output) entry.1).2)))) := by
-  refine (BitWord.bitWord_instruction_execute (execution := model)
+  refine (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
     (repackOp raw output) state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 omit [BitWord.Selected model] in
 /-- The native output contains exactly the nominal form of the actual incoming raw value. -/
-theorem repackRawInto_read_output (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_read_output (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx) :
     (repackStore raw output store).read (classifierRead output) =
       CShape.packEllipticCurvePoint width (store.read raw) :=
@@ -68,7 +68,7 @@ theorem repackRawInto_read_output (raw : CInputRef ctx (PointEquality.RawPointSh
 
 omit [BitWord.Selected model] in
 /-- Repacking a real complete snapshot restores the exact original nominal point value. -/
-theorem repackRawInto_snapshot (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_snapshot (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
     (value : CShape.Value (PointShape width))
     (snapshot : store.read raw = CShape.unpackEllipticCurvePoint width value) :
@@ -77,7 +77,7 @@ theorem repackRawInto_snapshot (raw : CInputRef ctx (PointEquality.RawPointShape
 
 omit [BitWord.Selected model] in
 /-- A represented point in the snapshot remains that same semantic point after the actual write. -/
-theorem repackRawInto_represents (spec : ClassicalAlgorithms.EllipticCurve.CurveSpec width)
+lemma repackRawInto_represents (spec : ClassicalAlgorithms.EllipticCurve.CurveSpec width)
     (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
     (value : CShape.Value (PointShape width)) (point : Pure.Point spec)
@@ -89,14 +89,14 @@ theorem repackRawInto_represents (spec : ClassicalAlgorithms.EllipticCurve.Curve
 
 omit [BitWord.Selected model] in
 /-- All structural reads disjoint from the actual destination remain bitwise unchanged. -/
-theorem repackRawInto_preserves_read (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_preserves_read (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (separate : output.key ∉ input.storageKeys) :
     (repackStore raw output store).read input = store.read input :=
   Store.read_write_of_not_mem_storageKeys store output _ input separate
 
 /-- The one original nominal-packing event comes from the same actual native instruction. -/
-theorem repackRawInto_eventTrace (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_eventTrace (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (path : (repackRawInto raw output).Path) :
     (repackRawInto raw output).eventTrace path =
       [.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -104,7 +104,7 @@ theorem repackRawInto_eventTrace (raw : CInputRef ctx (PointEquality.RawPointSha
   exact BitWord.bitWord_instruction_eventTrace (repackOp raw output) path
 
 /-- The original single adapter has exactly its independent native duration. -/
-theorem repackRawInto_depth (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_depth (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (duration : Resource.Event model → Nat)
     (path : (repackRawInto raw output).Path) :
     (repackRawInto raw output).depth duration path =
@@ -113,13 +113,13 @@ theorem repackRawInto_depth (raw : CInputRef ctx (PointEquality.RawPointShape wi
   exact BitWord.bitWord_instruction_depth (repackOp raw output) duration path
 
 /-- Repacking allocates no storage beyond the actual caller context. -/
-theorem repackRawInto_resident (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_resident (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (path : (repackRawInto raw output).Path) :
     (repackRawInto raw output).peakResidentSpace path = ctx.residentSpace :=
   Circuit.peakResidentSpace_classical _ path
 
 /-- The actual auxiliary roles are unchanged by the native nominal adapter. -/
-theorem repackRawInto_auxiliary (raw : CInputRef ctx (PointEquality.RawPointShape width))
+lemma repackRawInto_auxiliary (raw : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (path : (repackRawInto raw output).Path) :
     (repackRawInto raw output).peakAuxiliarySpace path = ctx.auxiliarySpace :=
   Circuit.peakAuxiliarySpace_classical _ path

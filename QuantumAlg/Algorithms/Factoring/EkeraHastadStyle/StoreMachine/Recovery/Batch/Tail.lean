@@ -106,7 +106,8 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   seed : LatticeEarlyFactorSeed.CallerFrameAvoids refs.seed other
   fold : LatticePairRecoveryFold.CallerFrameAvoids refs.fold other
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Seed the early factor and execute every unordered terminal pair. -/
@@ -123,31 +124,31 @@ noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     (LatticePairRecoveryFold.step input refs.fold) store
 
 /-- The complete pair sequence receives the actual store produced by the seed. -/
-theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (step input refs store).1 = (LatticePairRecoveryFold.step input refs.fold
       (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1).1 :=
   Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The seed-and-fold record executes on arbitrary histories and external references. -/
-theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into input refs).execute Reference state = state.mapClassical (fun entry =>
+    (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord _ _ _ _
+  Circuit.execute_sequenceStoreRecord (environment := environment) _ _ _ _
     (LatticeEarlyFactorSeed.into_execute refs.parameter refs.seed)
     (LatticePairRecoveryFold.into_execute input refs.fold) Reference state
 
 /-- All structural caller reads outside seed and fold survive on arbitrary numerical stores. -/
-theorem into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other := by
   rw [step_store]
   exact (LatticePairRecoveryFold.into_callerFrame input refs.fold _ other avoids.fold).trans
     (LatticeEarlyFactorSeed.into_callerFrame refs.parameter refs.seed store other avoids.seed)
 
-private theorem pairInitial_afterSeed (input : Input N)
+private lemma pairInitial_afterSeed (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
     (store : Store ctx) (pair : LatticePairFactorRecovery.Refs ctx N)
     (initial : LatticePairReusableRecovery.InitialConditions input
@@ -182,7 +183,7 @@ private theorem pairInitial_afterSeed (input : Input N)
     exact initial.quadratic.pair
   · exact (congrArg CShape.Value.toNat modulus).trans initial.quadratic.modulusValue
 
-private theorem foldInitial_afterSeed (input : Input N)
+private lemma foldInitial_afterSeed (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N)
     (separation : Separation refs) (store : Store ctx)
     (initial : LatticePairRecoveryFold.InitialConditions input
@@ -193,7 +194,7 @@ private theorem foldInitial_afterSeed (input : Input N)
   exact pairInitial_afterSeed input sample refs store (refs.fold.pair index)
     (initial index) (separation.seedInitialFrames index)
 
-private theorem sourceBits_afterSeed (refs : Refs ctx N) (separation : Separation refs)
+private lemma sourceBits_afterSeed (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (terminalIndex : Fin 16) :
     BatchMachine.sourceBits N (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1
         (refs.terminals terminalIndex) =
@@ -204,7 +205,7 @@ private theorem sourceBits_afterSeed (refs : Refs ctx N) (separation : Separatio
     (LatticeEarlyFactorSeed.into_callerFrame refs.parameter refs.seed store _
       (separation.seedTerminalFrames.bit terminalIndex bitIndex))
 
-private theorem preparedSamples_afterSeed (sample : Fin (2 ^ residueSamplingBits N))
+private lemma preparedSamples_afterSeed (sample : Fin (2 ^ residueSamplingBits N))
     (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx) :
     LatticePairRecoveryBatch.preparedSamples (preparedResidue sample) refs.terminals
         (LatticeEarlyFactorSeed.step refs.parameter refs.seed store).1 =
@@ -227,7 +228,7 @@ structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- The actual early-factor seed and full pair sequence realize the original pure batch value. -/
-theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input sample store refs) :
     Relation sample refs store (step input refs store).1 := by
@@ -263,7 +264,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
 def depthBound (N : Nat) : Nat := 5 + LatticePairRecoveryFold.depthBound N
 
 omit [BitWord.Selected model] in
-private theorem sequence_pool_le (first second : Circuit model ctx ctx)
+private lemma sequence_pool_le (first second : Circuit model ctx ctx)
     (firstBound secondBound : ResourcePool model)
     (firstLe : ∀ path, first.resourcePool path ≤ firstBound)
     (secondLe : ∀ path, second.resourcePool path ≤ secondBound)
@@ -274,7 +275,7 @@ private theorem sequence_pool_le (first second : Circuit model ctx ctx)
   exact add_le_add (firstLe path.1) (secondLe path.2)
 
 /-- Every actual native coordinate is bounded by the independent seed-and-fold allowance. -/
-theorem into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).resourcePool path ≤ eventEnvelope N := by
   unfold into at path ⊢
   unfold eventEnvelope
@@ -284,13 +285,13 @@ theorem into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input r
       (LatticePairRecoveryFold.into_pool_le input refs.fold) path
 
 /-- The actual complete sequential path meets the independent dependency-depth bound. -/
-theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).depth (fun _ => 1) path ≤ depthBound N :=
   Nat.add_le_add (LatticeEarlyFactorSeed.into_depth_le refs.parameter refs.seed path.1)
     (LatticePairRecoveryFold.into_depth_le input refs.fold path.2)
 
 /-- Seeding and pair reuse retain the context plus the actual native-power resident peak. -/
-theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤
       ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
@@ -301,7 +302,7 @@ theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into inp
     (LatticePairRecoveryFold.into_resident_le input refs.fold path.2)
 
 /-- Auxiliary accounting follows the same actual scopes and retained context roles. -/
-theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq (LatticeEarlyFactorSeed.into refs.parameter refs.seed)
@@ -312,12 +313,12 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into in
     (LatticePairRecoveryFold.into_auxiliary_le input refs.fold path.2)
 
 /-- Seed and full recovery jointly restore all borrowed systems with arbitrary references. -/
-theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
-      ((into input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((into input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeEarlyFactorSeed.into_borrowedRestored refs.parameter refs.seed Reference state)
     (LatticePairRecoveryFold.into_borrowedRestored input refs.fold Reference _)
 

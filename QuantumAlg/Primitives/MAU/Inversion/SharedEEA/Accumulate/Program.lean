@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Accumulate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Multiplication.Accumulate
 
 private def middleBody (width : Nat) (modulus : Fin (2 ^ width + 1)) :
@@ -40,7 +42,7 @@ def middleProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) :
 def middleStep (width : Nat) (modulus : Fin (2 ^ width + 1)) (state : Frame width) : Frame width :=
   (state.1, (Gidney.prefixOutput modulus 1 width (OutputCopy.value state.1, state.2)).2)
 
-private theorem middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) :
     (placement width).step (fun value =>
       (Gidney.prefixOutput modulus 1 width value.1, value.2)) state =
@@ -62,8 +64,8 @@ private theorem middle_grouping (width : Nat) (modulus : Fin (2 ^ width + 1))
   · exact accumulateGrouping_history width state.1 state.2 _
 
 /-- Full-frame basis equality for the actual placed MAC, including arbitrary history and target. -/
-theorem accumulateMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (frameEncoding width) (middleProgram width modulus)
+lemma accumulateMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+    UnitaryCircuit.Realizes (frameEncoding width) (middleProgram width modulus) environment
       (middleStep width modulus) :=
   ((placement width).place_realizes
     (UnitaryCircuit.Realizes.onBinaryPrefix
@@ -72,7 +74,7 @@ theorem accumulateMiddle_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) 
         (middle_grouping width modulus)
 
 /-- Every canonical target receives modular addition of the complete physical source read. -/
-theorem accumulateMiddle_target (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma accumulateMiddle_target (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) (valid : state.2.val < modulus.val) :
     (middleStep width modulus state).2.val =
       (state.2.val + (OutputCopy.value state.1).val) % modulus.val := by
@@ -80,7 +82,7 @@ theorem accumulateMiddle_target (width : Nat) (modulus : Fin (2 ^ width + 1))
     Gidney.gidneyAccumulate_valid width modulus 1 (OutputCopy.value state.1, state.2) valid
 
 /-- Noncanonical target labels are fixed by the same actual all-label binary extension. -/
-theorem accumulateMiddle_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma accumulateMiddle_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) (outside : modulus.val ≤ state.2.val) :
     middleStep width modulus state = state := by
   have actual := Gidney.gidneyAccumulate_outside width modulus 1

@@ -20,22 +20,23 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total.Four
 open SharedFour
 noncomputable section
 
-/-- Original complex interval bounds synthesize a normalization-four native execution. -/
-theorem exists_total_complex_polynomial_execution {m n L : Nat}
-    (U : UnitaryOperator (Qubits (m + n)))
-    (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
-    (hermitian : A.IsHermitian) (P : Polynomial ℂ) (degree : P.natDegree ≤ L)
+/-- Complex interval bounds select one phase tuple for every encoded Hermitian operator. -/
+lemma exists_total_complex_polynomial_execution {L : Nat}
+    (P : Polynomial ℂ) (degree : P.natDegree ≤ L)
     (positiveDegree : 0 < L)
     (bounded : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∃ phases : List ((ℝ × ℝ) × (ℝ × ℝ)), ∃ realAngle imaginaryAngle realConstant
       imaginaryConstant : ℝ,
       phases.length = L - 1 ∧
+      ∀ (m n : Nat) (U : UnitaryOperator (Qubits (m + n)))
+        (A : HilbertOperator (Qubits n)), ExactBlockEncoding m n U A → A.IsHermitian →
       projectedBlock (1 + (1 + (1 + m))) n
-        (reassociateThree (complexWord U phases realAngle imaginaryAngle
-          realConstant imaginaryConstant).binaryMatrix) =
+        (reassociateThree ((complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+          realConstant imaginaryConstant).binaryMatrix
+            (UnitarySource.interpretation U true true false))) =
         (1 / 4 : ℂ) • polynomialOperator P A ∧
-      (complexWord U phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).eventCost = complexBudget U (L - 1) := by
+      (complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).eventCost = complexBudget (m := m) (n := n) (L - 1) := by
   have re := ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_realEvenPart_branch_of_normSq_le
     P degree bounded
   have im := ReflectionQSPPhaseSynthesis.realBoundedMatchingParity_imagEvenPart_branch_of_normSq_le
@@ -48,11 +49,14 @@ theorem exists_total_complex_polynomial_execution {m n L : Nat}
   by_cases even : L % 2 = 0
   · simp only [ReflectionQSPPhaseSynthesis.evenBranchDegree,
       ReflectionQSPPhaseSynthesis.oddBranchDegree, even, if_true] at re im ro io
-    obtain ⟨phases, ra, ia, rc, ic, length, block, budget⟩ :=
-      exists_total_four_polynomial_execution (L := L - 1) U A encoding hermitian
+    obtain ⟨phases, ra, ia, rc, ic, length, correct⟩ :=
+      exists_total_four_polynomial_execution (L := L - 1)
         _ _ _ _ ro (by simpa only [successor] using re)
         io (by simpa only [successor] using im)
-    refine ⟨phases, ra, ia, rc, ic, length, ?_, budget⟩
+    refine ⟨phases, ra, ia, rc, ic, length, ?_⟩
+    intro m n U A encoding hermitian
+    obtain ⟨block, budget⟩ := correct m n U A encoding hermitian
+    refine ⟨?_, budget⟩
     rw [block]
     have recomposed := polynomialOperator_complex_fourPart_average_recompose P A
     rw [add_comm ((1 / 4 : ℂ) • polynomialOperator
@@ -64,11 +68,14 @@ theorem exists_total_complex_polynomial_execution {m n L : Nat}
   · have odd : L % 2 = 1 := by omega
     simp only [ReflectionQSPPhaseSynthesis.evenBranchDegree,
       ReflectionQSPPhaseSynthesis.oddBranchDegree, odd, if_true] at re im ro io
-    obtain ⟨phases, ra, ia, rc, ic, length, block, budget⟩ :=
-      exists_total_four_polynomial_execution (L := L - 1) U A encoding hermitian
+    obtain ⟨phases, ra, ia, rc, ic, length, correct⟩ :=
+      exists_total_four_polynomial_execution (L := L - 1)
         _ _ _ _ re (by simpa only [successor] using ro)
         im (by simpa only [successor] using io)
-    refine ⟨phases, ra, ia, rc, ic, length, ?_, budget⟩
+    refine ⟨phases, ra, ia, rc, ic, length, ?_⟩
+    intro m n U A encoding hermitian
+    obtain ⟨block, budget⟩ := correct m n U A encoding hermitian
+    refine ⟨?_, budget⟩
     rw [block]
     exact polynomialOperator_complex_fourPart_average_recompose P A
 

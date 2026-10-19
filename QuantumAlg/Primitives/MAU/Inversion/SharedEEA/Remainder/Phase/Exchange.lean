@@ -33,7 +33,7 @@ noncomputable section
 open ArithmeticWindowRegisters RemainderReassembly RemainderPhaseFrame
 open NumberTheory.SharedEEA
 
-private theorem read_width (state : IterationState) (modulus count : Nat)
+private lemma read_width (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -43,7 +43,7 @@ private theorem read_width (state : IterationState) (modulus count : Nat)
   (remainder_width state modulus count valid conserved active beforeEnd).trans
     (DivisionThreshold.remainder_width_succ state modulus count valid conserved active beforeEnd)
 
-private theorem native_old_read (state : IterationState) (modulus count : Nat)
+private lemma native_old_read (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -70,7 +70,7 @@ private theorem native_old_read (state : IterationState) (modulus count : Nat)
   exact (congrArg BitVec.toNat castRead).trans
     ((congrArg (fun width => (after.firstWord.extractLsb' 0 width).toNat) size).symm.trans read)
 
-private theorem native_low_read (state : IterationState) (modulus count : Nat)
+private lemma native_low_read (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -94,7 +94,7 @@ private theorem native_low_read (state : IterationState) (modulus count : Nat)
     BitVec.setWidth_setWidth_of_le after.firstWord (by omega)
   exact (congrArg BitVec.toNat collapse).symm.trans narrowed
 
-private theorem native_fields (state : IterationState) (modulus count : Nat)
+private lemma native_fields (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -121,7 +121,7 @@ private theorem native_fields (state : IterationState) (modulus count : Nat)
   · exact ArithmeticBlocks.remainderStep_control modulus.size
       (frame state modulus count valid conserved active beforeEnd iteration)
 
-private theorem next_position (state : IterationState) (modulus count : Nat)
+private lemma next_position (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -147,7 +147,7 @@ private theorem next_position (state : IterationState) (modulus count : Nat)
   omega
 
 /-- Actual subtraction and the subsequent native exchange clear Sign at every reachable position. -/
-theorem native_sign_clear (state : IterationState) (modulus count : Nat)
+lemma native_sign_clear (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -172,7 +172,7 @@ theorem native_sign_clear (state : IterationState) (modulus count : Nat)
     (SignQuotient.step_eq_sourceStep modulus.size after fields.2.2.2.2)).trans cleared
 
 /-- The same actual two native blocks produce the complete old-width signed-instruction word. -/
-theorem native_word (state : IterationState) (modulus count : Nat)
+lemma native_word (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

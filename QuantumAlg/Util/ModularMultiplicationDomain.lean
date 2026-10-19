@@ -109,48 +109,48 @@ def canonicalLabel {N n : ℕ} (D : ModularMultiplicationDomain N n)
   D.toBinaryResidueEncoding.encode (u : ZMod N)
 
 @[simp]
-theorem selectedCarrier_eq_unitGroup {N n : ℕ} (D : ModularMultiplicationDomain N n) :
+lemma selectedCarrier_eq_unitGroup {N n : ℕ} (D : ModularMultiplicationDomain N n) :
     D.selectedCarrier = .unitGroup := rfl
 
 @[simp]
-theorem unitResidue_eq_coe {N n : ℕ} (D : ModularMultiplicationDomain N n)
+lemma unitResidue_eq_coe {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (u : UnitCarrier D) :
     D.unitResidue u = (u : ZMod N) := rfl
 
 @[simp]
-theorem unitOfCoprime_coe {N n : ℕ} (D : ModularMultiplicationDomain N n)
+lemma unitOfCoprime_coe {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (a : ℕ) (ha : Nat.Coprime a N) :
     (D.unitOfCoprime a ha : ZMod N) = a :=
   ZMod.coe_unitOfCoprime a ha
 
 @[simp]
-theorem multiplyUnit_apply {N n : ℕ} (D : ModularMultiplicationDomain N n)
+lemma multiplyUnit_apply {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (a x : UnitCarrier D) :
     D.multiplyUnit a x = a * x := rfl
 
 @[simp]
-theorem multiplicationPerm_apply {N n : ℕ} (D : ModularMultiplicationDomain N n)
+lemma multiplicationPerm_apply {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (a x : UnitCarrier D) :
     D.multiplicationPerm a x = a * x := rfl
 
 @[simp]
-theorem multiplicationPerm_symm_apply {N n : ℕ} (D : ModularMultiplicationDomain N n)
+lemma multiplicationPerm_symm_apply {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (a x : UnitCarrier D) :
     (D.multiplicationPerm a).symm x = a⁻¹ * x := rfl
 
-private theorem multiplyUnit_bijective {N n : ℕ} (D : ModularMultiplicationDomain N n)
+private lemma multiplyUnit_bijective {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (a : UnitCarrier D) :
     Function.Bijective (D.multiplyUnit a) :=
   (D.multiplicationPerm a).bijective
 
 /-- Canonical labels for units are valid residue-register labels. -/
-private theorem canonicalLabel_valid {N n : ℕ} (D : ModularMultiplicationDomain N n)
+private lemma canonicalLabel_valid {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (u : UnitCarrier D) :
     D.toBinaryResidueEncoding.IsValid (D.canonicalLabel u) :=
   D.toBinaryResidueEncoding.encode_isValid (u : ZMod N)
 
 @[simp]
-theorem decode_canonicalLabel {N n : ℕ} (D : ModularMultiplicationDomain N n)
+lemma decode_canonicalLabel {N n : ℕ} (D : ModularMultiplicationDomain N n)
     (u : UnitCarrier D) :
     D.toBinaryResidueEncoding.decode (D.canonicalLabel u) = (u : ZMod N) := by
   simp [canonicalLabel]

@@ -28,6 +28,8 @@ namespace QuantumAlg.ZReset.BankScope
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 variable {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
 
 /-- The single actual scratch cell is fresh from every incoming live key. -/
@@ -39,7 +41,7 @@ def scratch (ctx : RuntimeCtx .quantum) : CWriteRef (workContext ctx) (.finite 2
   CWriteRef.workspaceHead ctx ctx.canonicalFreshKey (.finite 2) ctx.canonicalFreshKey_fresh
 
 /-- Adding the actual classical scratch preserves every wire's physical dimension. -/
-theorem zResetBankScope_work_qubits (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_work_qubits (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2) :
     ∀ wire : Fin (workContext ctx).systemCount,
       ((workContext ctx).quantumLayout.wire wire).dimension = 2 :=
@@ -48,79 +50,82 @@ theorem zResetBankScope_work_qubits (qubits : ∀ wire : Fin ctx.systemCount,
 /-- Enter one real scratch scope, reset the existing bank and pop only that classical cell. -/
 def code (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (operations : ClassicalOpModel := .empty) :
-    Circuit (.quantum AlgorithmGate.model oracles operations) ctx ctx :=
-  Circuit.workspace (model := .quantum AlgorithmGate.model oracles operations)
+    (operations : ClassicalOpModel := .empty)
+    (services : ClassicalOracleModel := .empty) :
+    Circuit (.quantum AlgorithmGate.model oracles operations services) ctx ctx :=
+  Circuit.workspace (model := .quantum AlgorithmGate.model oracles operations services)
     ctx ctx.canonicalFreshKey (.finite 2) ctx.canonicalFreshKey_fresh
-    (Bank.code (oracles := oracles)
+    (Bank.code (services := services) (oracles := oracles)
       (zResetBankScope_work_qubits qubits) (scratch ctx) operations)
 
 /-- A positive-width scoped reset contains an actual Z measurement despite
 the lexical scratch cell being removed at the boundary. -/
-theorem zResetBankScope_measured (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_measured (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
     (operations : ClassicalOpModel) (positive : 0 < ctx.systemCount)
-    (path : (code (oracles := oracles) qubits operations).Path) :
+    (path : (code (services := services) (oracles := oracles) qubits operations).Path) :
     ∃ dimension : ℕ+,
       Resource.Event.measurement
-        (model := .quantum AlgorithmGate.model oracles operations) dimension ∈
-        (code (oracles := oracles) qubits operations).eventTrace path := by
+        (model := .quantum AlgorithmGate.model oracles operations services) dimension ∈
+        (code (services := services) (oracles := oracles) qubits operations).eventTrace path := by
   exact Bank.zResetBank_measured (operations := operations)
     (zResetBankScope_work_qubits qubits) (scratch ctx) positive path
 
 /-- The complete final manifest lists every original bank and classical-result key. -/
 def run (qubits : ∀ wire : Fin ctx.systemCount,
-    (ctx.quantumLayout.wire wire).dimension = 2) :
-    AlgorithmRun (.quantum AlgorithmGate.model oracles) ctx ctx .unit where
-  code := code (oracles := oracles) qubits
+    (ctx.quantumLayout.wire wire).dimension = 2)
+    (services : ClassicalOracleModel := .empty) :
+    AlgorithmRun (.quantum AlgorithmGate.model oracles .empty services) ctx ctx .unit where
+  code := code (services := services) (oracles := oracles) qubits
   output := Output.all ctx .unit
 
 /-- The actual classical scratch adds no physical quantum identity. -/
-theorem zResetBankScope_work_physicalIdx :
+lemma zResetBankScope_work_physicalIdx :
     (workContext ctx).physicalIdx = ctx.physicalIdx := rfl
 
 /-- The actual lexical body retains exactly the incoming number of physical systems. -/
-theorem zResetBankScope_work_systemCount :
+lemma zResetBankScope_work_systemCount :
     (workContext ctx).systemCount = ctx.systemCount := rfl
 
 variable {operations : ClassicalOpModel}
 
 /-- Every actual scope path has the independent native reset envelope for its physical width. -/
-theorem zResetBankScope_resourcePool_le (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_resourcePool_le (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (path : (code (oracles := oracles) qubits operations).Path) :
-    (code (oracles := oracles) qubits operations).resourcePool path ≤
-      Bank.envelope (oracles := oracles) ctx.systemCount operations :=
+    (path : (code (services := services) (oracles := oracles) qubits operations).Path) :
+    (code (services := services) (oracles := oracles) qubits operations).resourcePool path ≤
+      Bank.envelope (services := services) (oracles := oracles) ctx.systemCount operations :=
   Bank.zResetBank_resourcePool_le (operations := operations)
     (zResetBankScope_work_qubits qubits) (scratch ctx) path
 
 /-- The lexical scope emits at most one Z and one native X per existing qubit. -/
-theorem zResetBankScope_eventTrace_length_le (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_eventTrace_length_le (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (path : (code (oracles := oracles) qubits operations).Path) :
-    ((code (oracles := oracles) qubits operations).eventTrace path).length ≤
+    (path : (code (services := services) (oracles := oracles) qubits operations).Path) :
+    ((code (services := services) (oracles := oracles) qubits operations).eventTrace path).length ≤
       2 * ctx.systemCount :=
   Bank.zResetBank_eventTrace_length_le (operations := operations)
     (zResetBankScope_work_qubits qubits) (scratch ctx) path
 
 /-- Unit-duration depth is bounded by the serial Z/X allowance. -/
-theorem zResetBankScope_unitDepth_le (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_unitDepth_le (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (path : (code (oracles := oracles) qubits operations).Path) :
-    (code (oracles := oracles) qubits operations).depth (fun _ => 1) path ≤
+    (path : (code (services := services) (oracles := oracles) qubits operations).Path) :
+    (code (services := services) (oracles := oracles) qubits operations).depth (fun _ => 1) path ≤
       2 * ctx.systemCount :=
   Bank.zResetBank_unitDepth_le (operations := operations) (zResetBankScope_work_qubits qubits)
     (scratch ctx) path
 
 /-- The resident peak counts the existing bank and exactly the one live scratch cell. -/
-theorem zResetBankScope_peakResidentSpace (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_peakResidentSpace (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (path : (code (oracles := oracles) qubits operations).Path) :
-    (code (oracles := oracles) qubits operations).peakResidentSpace path =
+    (path : (code (services := services) (oracles := oracles) qubits operations).Path) :
+    (code (services := services) (oracles := oracles) qubits operations).peakResidentSpace path =
       SpacePool.ofShape (.finite 2) + ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_workspace ctx.canonicalFreshKey (.finite 2)
     ctx.canonicalFreshKey_fresh
-    (Bank.code (oracles := oracles) (zResetBankScope_work_qubits qubits) (scratch ctx) operations)
+    (Bank.code (services := services) (oracles := oracles) (zResetBankScope_work_qubits qubits)
+      (scratch ctx) operations)
       path).trans
       ((congrArg (SpacePool.max ctx.residentSpace)
         (Bank.zResetBank_peakResidentSpace (operations := operations)
@@ -132,14 +137,15 @@ theorem zResetBankScope_peakResidentSpace (qubits : ∀ wire : Fin ctx.systemCou
   exact max_eq_right (Nat.le_add_left _ _)
 
 /-- The same one-bit lexical cell contributes to auxiliary peak without a second bank. -/
-theorem zResetBankScope_peakAuxiliarySpace (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_peakAuxiliarySpace (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2)
-    (path : (code (oracles := oracles) qubits operations).Path) :
-    (code (oracles := oracles) qubits operations).peakAuxiliarySpace path =
+    (path : (code (services := services) (oracles := oracles) qubits operations).Path) :
+    (code (services := services) (oracles := oracles) qubits operations).peakAuxiliarySpace path =
       SpacePool.ofShape (.finite 2) + ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_workspace ctx.canonicalFreshKey (.finite 2)
     ctx.canonicalFreshKey_fresh
-    (Bank.code (oracles := oracles) (zResetBankScope_work_qubits qubits) (scratch ctx) operations)
+    (Bank.code (services := services) (oracles := oracles) (zResetBankScope_work_qubits qubits)
+      (scratch ctx) operations)
       path).trans
       ((congrArg (SpacePool.max ctx.auxiliarySpace)
         (Bank.zResetBank_peakAuxiliarySpace (operations := operations)
@@ -151,7 +157,7 @@ theorem zResetBankScope_peakAuxiliarySpace (qubits : ∀ wire : Fin ctx.systemCo
   exact max_eq_right (Nat.le_add_left _ _)
 
 /-- The unchanged final manifest omits no incoming live key. -/
-theorem zResetBankScope_output_listing (qubits : ∀ wire : Fin ctx.systemCount,
+lemma zResetBankScope_output_listing (qubits : ∀ wire : Fin ctx.systemCount,
     (ctx.quantumLayout.wire wire).dimension = 2) :
     (run (oracles := oracles) qubits).output.listing = ctx.keys := rfl
 

@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
 /-- Actual copying preserves a represented point whose reads avoid the saved destinations. -/
-theorem point_after_copy (refs : Refs ctx N) (store : Store ctx)
+lemma point_after_copy (refs : Refs ctx N) (store : Store ctx)
     (point : LatticeState.PointRefs ctx (LatticeWideLllMachine.Width N))
     (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store point value)
@@ -51,7 +51,7 @@ theorem point_after_copy (refs : Refs ctx N) (store : Store ctx)
     exact rep.2.2
 
 /-- Actual target copying retains every mathematical input needed by the original nearest plane. -/
-theorem nearest_initial_after_copy (refs : Refs ctx N) (separation : Separation refs)
+lemma nearest_initial_after_copy (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeNearestPlaneThree.Initial (nearestRefs refs)
       (copyStore refs (LatticeWideLllMachine.pairToLllStep refs.pairNearest.wide store).1)
@@ -72,7 +72,7 @@ theorem nearest_initial_after_copy (refs : Refs ctx N) (separation : Separation 
       frames.targetFirst frames.targetSecond frames.targetThird⟩
 
 /-- Actual nearest-plane execution preserves any point with the supplied three read frames. -/
-theorem point_after_nearest (refs : Refs ctx N) (store : Store ctx)
+lemma point_after_nearest (refs : Refs ctx N) (store : Store ctx)
     (point : LatticeState.PointRefs ctx (LatticeWideLllMachine.Width N))
     (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store point value)
@@ -99,7 +99,7 @@ theorem point_after_nearest (refs : Refs ctx N) (store : Store ctx)
     exact rep.2.2
 
 /-- The original reduced source basis survives copying and every actual nearest-plane stage. -/
-theorem savedTargetInto_basis (refs : Refs ctx N) (separation : Separation refs)
+lemma savedTargetInto_basis (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeMetricMachine.BasisRawRepresents (savedTargetStore refs store) (nearestRefs refs).basis
       (LatticeNearestPlaneShortLog.basis (shortLogBits N) (tradeoffBits N)
@@ -124,7 +124,7 @@ theorem savedTargetInto_basis (refs : Refs ctx N) (separation : Separation refs)
       separation.basisAvoidsNearestWrites.third.third
 
 /-- The copied target remains the original source target after all nearest-plane reductions. -/
-theorem savedTargetInto_savedTarget (refs : Refs ctx N) (separation : Separation refs)
+lemma savedTargetInto_savedTarget (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     LatticeArithmetic.PointRawRepresents (savedTargetStore refs store) refs.savedTarget
       (LatticeNearestPlaneShortLog.target (shortLogBits N) (tradeoffBits N)

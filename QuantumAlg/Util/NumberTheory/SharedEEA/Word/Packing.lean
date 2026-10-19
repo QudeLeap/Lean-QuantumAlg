@@ -59,7 +59,7 @@ def unpackWork1
     tail.extractLsb' remainderWidth quotientWidth, tail.extractLsb' 0 remainderWidth⟩
 
 /-- The actual first-word bits recover every bounded logical segment exactly. -/
-theorem unpackWork1_packWork1
+lemma unpackWork1_packWork1
     (payload : Work1Payload coefficientWidth quotientWidth remainderWidth) :
     unpackWork1 (packWork1 payload) = payload := by
   apply Work1Payload.ext
@@ -70,7 +70,7 @@ theorem unpackWork1_packWork1
   · simp only [unpackWork1, packWork1, BitVec.extractLsb'_append_eq_right]
 
 /-- Distinct bounded first-word payloads have distinct literal bit encodings. -/
-theorem packWork1_injective :
+lemma packWork1_injective :
     Function.Injective (packWork1 (coefficientWidth := coefficientWidth)
       (quotientWidth := quotientWidth) (remainderWidth := remainderWidth)) := by
   intro left right same
@@ -80,7 +80,7 @@ theorem packWork1_injective :
     _ = right := unpackWork1_packWork1 right
 
 /-- Physical bits at the left read the coefficient from least to most significant. -/
-theorem packWork1_coefficient_bit
+lemma packWork1_coefficient_bit
     (payload : Work1Payload coefficientWidth quotientWidth remainderWidth)
     (index : Nat) (within : index < coefficientWidth) :
     (packWork1 payload).getMsbD index = payload.coefficientBits.getLsbD index := by
@@ -90,13 +90,13 @@ theorem packWork1_coefficient_bit
     BitVec.getMsbD_reverse]
 
 /-- The prescribed bit immediately after the coefficient is actually zero. -/
-theorem packWork1_separator
+lemma packWork1_separator
     (payload : Work1Payload coefficientWidth quotientWidth remainderWidth) :
     (packWork1 payload).getMsbD coefficientWidth = false := by
   simp [packWork1]
 
 /-- The middle physical segment reads the effective quotient in big-endian order. -/
-theorem packWork1_quotient_bit
+lemma packWork1_quotient_bit
     (payload : Work1Payload coefficientWidth quotientWidth remainderWidth)
     (index : Nat) (within : index < quotientWidth) :
     (packWork1 payload).getMsbD (coefficientWidth + 1 + index) =
@@ -107,7 +107,7 @@ theorem packWork1_quotient_bit
     if_neg withinQuotient]
 
 /-- The right physical segment reads the remainder in big-endian order. -/
-theorem packWork1_remainder_bit
+lemma packWork1_remainder_bit
     (payload : Work1Payload coefficientWidth quotientWidth remainderWidth) (index : Nat) :
     (packWork1 payload).getMsbD (coefficientWidth + 1 + quotientWidth + index) =
       payload.remainderBits.getMsbD index := by
@@ -137,7 +137,7 @@ def unpackWork2 (word : BitVec (coefficientWidth + remainderWidth)) :
     word.extractLsb' 0 remainderWidth⟩
 
 /-- The second-word bit layout also has an exact left inverse. -/
-theorem unpackWork2_packWork2 (payload : Work2Payload coefficientWidth remainderWidth) :
+lemma unpackWork2_packWork2 (payload : Work2Payload coefficientWidth remainderWidth) :
     unpackWork2 (packWork2 payload) = payload := by
   apply Work2Payload.ext
   · simp only [unpackWork2, packWork2, BitVec.extractLsb'_append_eq_left,
@@ -145,7 +145,7 @@ theorem unpackWork2_packWork2 (payload : Work2Payload coefficientWidth remainder
   · simp only [unpackWork2, packWork2, BitVec.extractLsb'_append_eq_right]
 
 /-- Distinct second-word logical values remain distinguishable in the actual bits. -/
-theorem packWork2_injective :
+lemma packWork2_injective :
     Function.Injective (packWork2 (coefficientWidth := coefficientWidth)
       (remainderWidth := remainderWidth)) := by
   intro left right same
@@ -155,14 +155,14 @@ theorem packWork2_injective :
     _ = right := unpackWork2_packWork2 right
 
 /-- The second word's left physical segment has the source's little-endian coefficient. -/
-theorem packWork2_coefficient_bit (payload : Work2Payload coefficientWidth remainderWidth)
+lemma packWork2_coefficient_bit (payload : Work2Payload coefficientWidth remainderWidth)
     (index : Nat) (within : index < coefficientWidth) :
     (packWork2 payload).getMsbD index = payload.coefficientBits.getLsbD index := by
   simp only [packWork2, BitVec.getMsbD_append, if_neg (Nat.not_le_of_lt within),
     BitVec.getMsbD_reverse]
 
 /-- Its right physical segment retains the source's big-endian remainder. -/
-theorem packWork2_remainder_bit (payload : Work2Payload coefficientWidth remainderWidth)
+lemma packWork2_remainder_bit (payload : Work2Payload coefficientWidth remainderWidth)
     (index : Nat) :
     (packWork2 payload).getMsbD (coefficientWidth + index) =
       payload.remainderBits.getMsbD index := by
@@ -170,11 +170,11 @@ theorem packWork2_remainder_bit (payload : Work2Payload coefficientWidth remaind
     Nat.add_sub_cancel_left]
 
 /-- Empty effective segments still retain the one explicitly prescribed separator bit. -/
-theorem empty_work1_payload :
+lemma empty_work1_payload :
     packWork1 (⟨0, 0, 0⟩ : Work1Payload 0 0 0) = (0 : BitVec 1) := by decide
 
 /-- The smallest modulus uses the source's literal five-bit initial first word. -/
-theorem smallest_initial_work1 :
+lemma smallest_initial_work1 :
     packWork1 (⟨1, 0, 2⟩ : Work1Payload 1 0 3) = (18 : BitVec 5) := by decide
 
 end QuantumAlg.NumberTheory.SharedEEA.WordPacking

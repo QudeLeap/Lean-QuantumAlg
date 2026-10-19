@@ -41,7 +41,7 @@ public def observedOutcome (P : KnownOrderProblem G)
   fun index => decide ((value.get index).toFin.val = 1)
 
 /-- Every exponent position writes a distinct retained cell. -/
-public theorem readouts_nodup (P : KnownOrderProblem G) :
+public lemma readouts_nodup (P : KnownOrderProblem G) :
     ((readouts P).map fun item => item.output.key).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -53,18 +53,19 @@ public theorem readouts_nodup (P : KnownOrderProblem G) :
 
 /-- Each retained cell contains the actual finite value measured at its named
 physical exponent wire. -/
-public theorem measured_cell (P : KnownOrderProblem G)
+public lemma measured_cell (P : KnownOrderProblem G)
     (store : Store (post P)) (basis : (post P).register.Index)
     (index : Fin (sampleWidth P)) :
-    ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+    ((Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
       (oracles := OrderOracle.model P) (operations := BitWord.model)
       (classicalOracles := ClassicalFiniteGroupOracle.model G) (readouts P) store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
         (oracles := OrderOracle.model P) (operations := BitWord.model)
         (classicalOracles := ClassicalFiniteGroupOracle.model G) (readouts P) basis)).read
         (.storage (cell P index).toCStorageRef)).toFin.val =
       (basis (readout P index).wire).val := by
-  have actual := Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model)
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
+    (gates := AlgorithmGate.model)
     (oracles := OrderOracle.model P) (operations := BitWord.model)
     (services := ClassicalFiniteGroupOracle.model G) (readouts P) (readouts_nodup P)
     (readout P index) (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
@@ -75,23 +76,23 @@ public theorem measured_cell (P : KnownOrderProblem G)
 
 /-- Reading all retained cells yields exactly the source Born readout for the
 corresponding complete physical basis label. -/
-public theorem observedOutcome_after_measurement (P : KnownOrderProblem G)
+public lemma observedOutcome_after_measurement (P : KnownOrderProblem G)
     (store : Store (post P)) (basis : (post P).register.Index) :
     observedOutcome P
-        ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+        ((Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
           (oracles := OrderOracle.model P) (operations := BitWord.model)
           (classicalOracles := ClassicalFiniteGroupOracle.model G) (readouts P) store
-          (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+          (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
             (oracles := OrderOracle.model P) (operations := BitWord.model)
             (classicalOracles := ClassicalFiniteGroupOracle.model G)
             (readouts P) basis)).read (sampleInput P)) =
       OrderBornBridge.readout P (basisEquiv P basis) := by
   funext index
   change decide
-      ((((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      ((((Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
         (oracles := OrderOracle.model P) (operations := BitWord.model)
         (classicalOracles := ClassicalFiniteGroupOracle.model G) (readouts P) store
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
           (oracles := OrderOracle.model P) (operations := BitWord.model)
           (classicalOracles := ClassicalFiniteGroupOracle.model G)
           (readouts P) basis)).read
@@ -111,10 +112,10 @@ public theorem observedOutcome_after_measurement (P : KnownOrderProblem G)
   exact congrArg (fun value : Nat => decide (value = 1)) sameValue
 
 /-- Equal-wire placement preserves each source-circuit matrix entry. -/
-public theorem nativeProgram_matrix_entry (P : KnownOrderProblem G)
+public lemma nativeProgram_matrix_entry (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (row column : (post P).register.Index) :
-    (nativeProgram P expansion).matrix row column =
-      (OrderCircuit.circuit P expansion).matrix
+    ((nativeProgram P expansion).matrix (OrderOracle.interpretation P)) row column =
+      ((OrderCircuit.circuit P expansion).matrix (OrderOracle.interpretation P))
         (basisEquiv P row) (basisEquiv P column) := by
   unfold nativeProgram basisEquiv
   rw [Execution.unitaryOfEqualWires_matrix]
@@ -122,15 +123,16 @@ public theorem nativeProgram_matrix_entry (P : KnownOrderProblem G)
 
 /-- The actual runtime zero column is the normalized Born vector of the same
 source circuit. -/
-public theorem nativeProgram_zero_amplitude (P : KnownOrderProblem G)
+public lemma nativeProgram_zero_amplitude (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (row : (post P).register.Index) :
-    (nativeProgram P expansion).matrix row (post P).quantumLayout.zeroLabel =
+    ((nativeProgram P expansion).matrix
+      (OrderOracle.interpretation P)) row (post P).quantumLayout.zeroLabel =
       OrderBornBridge.evolvedState P expansion (basisEquiv P row) := by
   rw [nativeProgram_matrix_entry, basisEquiv_zero]
   unfold OrderBornBridge.evolvedState UnitaryCircuit.applyNormalized
   rw [UnitaryOperator.apply_coe]
   exact (HilbertOperator.applyVec_ket
-    ((OrderCircuit.circuit P expansion).matrix :
+    (((OrderCircuit.circuit P expansion).matrix (OrderOracle.interpretation P)) :
       HilbertOperator (OrderOracle.layout P).register)
     (OrderOracle.layout P).zeroLabel (basisEquiv P row)).symm
 

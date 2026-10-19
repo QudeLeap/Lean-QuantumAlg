@@ -49,7 +49,7 @@ abbrev cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 end Layout
 
 /-- Distinct named quadratic cells avoid each other's storage key. -/
-private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (left right : Layout.Cell) (different : left ≠ right) :
     (Layout.cellRef cells right).toCStorageRef.key ∉
@@ -60,7 +60,7 @@ private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat
     (QuadraticScratchLayout.cellRef_key_injective cells distinct equal.symm)
 
 /-- Any of the three persistent constants avoids every generator write. -/
-private theorem constantCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma constantCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (source : Layout.Cell)
     (allowed : source = .one ∨ source = .zero ∨ source = .modulus) :
@@ -87,7 +87,7 @@ private theorem constantCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind
         cellAvoids cells distinct _ .secondCandidate (by decide)⟩
 
 /-- One persistent factor-selector cell avoids every generator write. -/
-private theorem factorCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma factorCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (selection : FirstAccepted.Refs ctx
       (QuadraticScratchLayout.CandidateWidth N))
@@ -114,7 +114,7 @@ private theorem factorCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     separation.avoidsQuadratic factor .secondCandidate⟩
 
 /-- One allocator and two compact external contracts supply full recovery. -/
-theorem recoverySeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma recoverySeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (shortAvoids : QuadraticPrefixSeparation.ShortLogAvoids cells shortLog)

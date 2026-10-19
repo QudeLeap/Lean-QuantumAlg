@@ -20,7 +20,7 @@ section
 namespace QuantumAlg.QubitTwoDesign.OctNumeratorClosed.Edge
 
 /-- Multiplication by edge-pair 3 numerators stays in the doubled numerator set. -/
-theorem pair3 :
+lemma pair3 :
     ∀ negativeLeft negativeRight b, ∃ c,
       octNumerator (.edge (3 : Fin 6) negativeLeft negativeRight) * octNumerator b =
         octNumerator c + octNumerator c := by

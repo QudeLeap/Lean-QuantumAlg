@@ -30,19 +30,19 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem pop_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma pop_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (width : Nat) (store : Store (Layout.context ctx width)) :
     (Layout.popStore width store).readBorrowedClassical = store.readBorrowedClassical := rfl
 
-private theorem push_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma push_borrowed {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (width : Nat) (store : Store ctx) :
     (Layout.pushStore width store).readBorrowedClassical = store.readBorrowedClassical := rfl
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The literal modulus loader and ordered scan preserve every borrowed classical value. -/
-theorem samplerScan_borrowed_values (N : Nat)
+lemma samplerScan_borrowed_values (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (store : Store (Layout.context ctx (modulusBits N))) :
     (Scan.step (model := model) N sample store).1.readBorrowedClassical =
@@ -57,7 +57,7 @@ theorem samplerScan_borrowed_values (N : Nat)
         (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) store)
 
 /-- The complete actual inner program keeps the entire borrowed classical readout. -/
-theorem samplerInner_borrowed_values (N : Nat)
+lemma samplerInner_borrowed_values (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (store : Store (Layout.context ctx (modulusBits N))) :
@@ -69,7 +69,7 @@ theorem samplerInner_borrowed_values (N : Nat)
       (samplerScan_borrowed_values (model := model) N sample store)
 
 /-- Entering and leaving the eleven real scopes changes no borrowed classical value. -/
-theorem samplerProgram_borrowed_values (N : Nat)
+lemma samplerProgram_borrowed_values (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx) :
     (step (model := model) N sample output store).1.readBorrowedClassical =
@@ -86,12 +86,12 @@ theorem samplerProgram_borrowed_values (N : Nat)
     (Layout.pushStore (modulusBits N) store)).trans entered)
 
 /-- The actual sampler restores borrowed systems with arbitrary external-reference coherence. -/
-theorem samplerProgram_borrowedRestored (N : Nat)
+lemma samplerProgram_borrowedRestored (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (circuit (model := model) N sample output).BorrowedRestored Reference state
-      ((circuit (model := model) N sample output).execute Reference state) := by
+      ((circuit (model := model) N sample output).execute environment Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, samplerProgram_execute]
   refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
     (H := model.HiddenState × History)

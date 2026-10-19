@@ -30,28 +30,32 @@ variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
 /-- Native phase execution before converting the three plus ancillas to zero ancillas. -/
 def complexCore (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true true false) (layout m n) :=
-  (((selectedInitial (UnitarySource.model U true true false) (m + n)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) true true false) (layout m n) :=
+  (((selectedInitial (UnitarySource.model (m + n) true true false) (m + n)
     realConstant 1 imaginaryConstant 1).seq
-      (unmatched U phases realAngle imaginaryAngle)).seq
-        (relative (UnitarySource.model U true true false) (1 + (1 + (m + n)))))
+      (unmatched (m := m) (n := n) phases realAngle imaginaryAngle)).seq
+        (relative (UnitarySource.model (m + n) true true false) (1 + (1 + (m + n)))))
 
 /-- The entire native word, including all initialization and all boundary gates. -/
 def complexWord (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true true false) (layout m n) :=
-  wrap (complexCore U phases realAngle imaginaryAngle realConstant imaginaryConstant)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) true true false) (layout m n) :=
+  wrap (complexCore (m := m) (n := n) phases realAngle imaginaryAngle realConstant
+    imaginaryConstant)
 
 private def initializedBranch (phases : List ℝ) (constant : ℝ) :
     UnitaryOperator (Qubits (1 + (m + n))) :=
-  (Total.circuit U true phases).binaryMatrix *
-    (Shared.constantInitial (UnitarySource.model U true true false) (m + n) constant).binaryMatrix
+  ((Total.circuit (m := m) (n := n) true phases).binaryMatrix
+    (UnitarySource.interpretation U true true false)) *
+    ((Shared.constantInitial (UnitarySource.model (m + n) true true false) (m + n)
+      constant).binaryMatrix (UnitarySource.interpretation U true true false))
 
 /-- The complete unwrapped word has the four original branches and the exact relative i. -/
-theorem totalComplexCore_matrix (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma totalComplexCore_matrix (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    ((complexCore U phases realAngle imaginaryAngle
-      realConstant imaginaryConstant).binaryMatrix :
+    (((complexCore (m := m) (n := n) phases realAngle imaginaryAngle
+      realConstant imaginaryConstant).binaryMatrix
+        (UnitarySource.interpretation U true true false)) :
         HilbertOperator (Qubits (1 + (1 + (1 + (m + n)))))) =
       Native.branchMatrix
         (Native.branchMatrix
@@ -70,21 +74,23 @@ theorem totalComplexCore_matrix (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
 
 /-- Independent budget includes every selector, relative phase and boundary gate. -/
 def complexBudget (L : Nat) :
-    ResourcePool (.quantum AlgorithmGate.model (UnitarySource.model U true true false)) :=
-  unmatchedBudget U L + 11 • eventPool U true (.gate .singleQubit) +
-    6 • eventPool U true (.gate .cnot)
+    ResourcePool (.quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false)) :=
+  unmatchedBudget (m := m) (n := n) L + 11 • eventPool (m := m) (n := n) true (.gate .singleQubit) +
+    6 • eventPool (m := m) (n := n) true (.gate .cnot)
 
-private theorem initial_events (realConstant imaginaryConstant : ℝ) :
-    (selectedInitial (UnitarySource.model U true true false) (m + n)
+private lemma initial_events (realConstant imaginaryConstant : ℝ) :
+    (selectedInitial (UnitarySource.model (m + n) true true false) (m + n)
       realConstant 1 imaginaryConstant 1).eventCost =
-      4 • eventPool U true (.gate .singleQubit) + 6 • eventPool U true (.gate .cnot) :=
-  selector_events U true _ _ _ _
+      4 • eventPool (m := m) (n := n) true (.gate .singleQubit) + 6 • eventPool (m := m) (n := n)
+        true (.gate .cnot) :=
+  selector_events (m := m) (n := n) true _ _ _ _
 
 /-- The independent native budget is exactly the event pool of the complete executed word. -/
-theorem totalComplexWord_events (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma totalComplexWord_events (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    (complexWord U phases realAngle imaginaryAngle
-      realConstant imaginaryConstant).eventCost = complexBudget U phases.length := by
+    (complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+      realConstant imaginaryConstant).eventCost
+        = complexBudget (m := m) (n := n) phases.length := by
   rw [complexWord, fourWrapper_events, complexCore, UnitaryCircuit.seq_eventCost,
     UnitaryCircuit.seq_eventCost, initial_events, totalFourUnmatched_events, relative_native_events]
   simp only [complexBudget, show (11 : Nat) = 4 + 1 + 6 from rfl, add_nsmul, one_nsmul,
@@ -92,15 +98,16 @@ theorem totalComplexWord_events (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
   ac_rfl
 
 /-- Seventeen boundary and initialization steps supplement the complete unmatched source word. -/
-theorem totalComplexWord_depth (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma totalComplexWord_depth (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    (complexWord U phases realAngle imaginaryAngle
+    (complexWord (m := m) (n := n) phases realAngle imaginaryAngle
       realConstant imaginaryConstant).evaluatedEventDepth (fun _ => 1) =
-      (unmatched U phases realAngle imaginaryAngle).evaluatedEventDepth (fun _ => 1) +
+      (unmatched (m := m) (n := n) phases realAngle imaginaryAngle).evaluatedEventDepth (fun _
+        => 1) +
         17 := by
   rw [complexWord, fourWrapper_depth, complexCore, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.evaluatedEventDepth_seq, fourInitial_depth]
-  have relativeDepth : (relative (UnitarySource.model U true true false)
+  have relativeDepth : (relative (UnitarySource.model (m + n) true true false)
       (1 + (1 + (m + n)))).evaluatedEventDepth (fun _ => 1) = 1 := rfl
   rw [relativeDepth]
   omega

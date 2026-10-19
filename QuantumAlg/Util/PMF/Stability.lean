@@ -26,7 +26,7 @@ noncomputable section
 
 /-- Taking complements reverses a one-sided additive bound inside the unit
 interval. -/
-theorem one_tsub_le_one_tsub_add {left right error : ENNReal}
+lemma one_tsub_le_one_tsub_add {left right error : ENNReal}
     (bound : left ≤ right + error) :
     1 - right ≤ 1 - left + error := by
   rw [tsub_le_iff_right]
@@ -37,7 +37,7 @@ theorem one_tsub_le_one_tsub_add {left right error : ENNReal}
 
 /-- On the unit interval, a one-step additive perturbation grows at most
 linearly under natural powers. -/
-theorem pow_le_pow_add_nat_mul {left right error : ENNReal}
+lemma pow_le_pow_add_nat_mul {left right error : ENNReal}
     (left_le_one : left ≤ 1) (right_le_one : right ≤ 1)
     (bound : left ≤ right + error) (count : Nat) :
     left ^ count ≤ right ^ count + (count : ENNReal) * error := by
@@ -82,7 +82,7 @@ theorem pow_le_pow_add_nat_mul {left right error : ENNReal}
 event under `actual` plus `error`, then the probability of seeing the event at
 least once in `count` independent draws obeys the same bound with loss
 `count * error`. -/
-theorem independentReplicate_successProbability_le_add
+lemma independentReplicate_successProbability_le_add
     {Sample : Type} (ideal actual : PMF Sample) (event : Sample → Prop)
     (count : Nat) (error : ENNReal)
     (oneDraw :
@@ -120,7 +120,7 @@ theorem independentReplicate_successProbability_le_add
 
 /-- The same independent-repetition perturbation bound with the sample count
 retained in the result type. -/
-theorem independentReplicateVector_successProbability_le_add
+lemma independentReplicateVector_successProbability_le_add
     {Sample : Type} (ideal actual : PMF Sample) (event : Sample → Prop)
     (count : Nat) (error : ENNReal)
     (oneDraw :

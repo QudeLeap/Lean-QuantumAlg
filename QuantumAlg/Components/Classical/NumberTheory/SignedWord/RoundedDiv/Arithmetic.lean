@@ -20,7 +20,7 @@ of the circuit assembled by the executable owner.
 namespace QuantumAlg.ClassicalRoutines.NumberTheory.SignedWord.RoundedDiv
 
 /-- The positive raw branch uses the imported unsigned nearest-integer formula. -/
-theorem nearestIntegerCoefficient_ofNat_formula
+lemma nearestIntegerCoefficient_ofNat_formula
     (numerator denominator : Nat) (positive : 0 < denominator) :
     QuantumAlg.NumberTheory.nearestIntegerCoefficient (numerator : Int)
         (denominator : Int) =
@@ -29,7 +29,7 @@ theorem nearestIntegerCoefficient_ofNat_formula
     numerator denominator positive
 
 /-- The negative raw branch uses the imported predecessor-corrected formula. -/
-theorem nearestIntegerCoefficient_neg_ofNat_formula
+lemma nearestIntegerCoefficient_neg_ofNat_formula
     (magnitude denominator : Nat) (magnitudePositive : 0 < magnitude)
     (denominatorPositive : 0 < denominator) :
     QuantumAlg.NumberTheory.nearestIntegerCoefficient (-(magnitude : Int))
@@ -39,7 +39,7 @@ theorem nearestIntegerCoefficient_neg_ofNat_formula
     magnitudePositive denominatorPositive
 
 /-- At positive width the word modulus splits into two sign thresholds. -/
-theorem wordModulus_split {width : Nat} (widthPositive : 0 < width) :
+lemma wordModulus_split {width : Nat} (widthPositive : 0 < width) :
     CShape.wordModulus width = 2 * 2 ^ (width - 1) := by
   simp only [CShape.wordModulus]
   calc
@@ -50,20 +50,20 @@ theorem wordModulus_split {width : Nat} (widthPositive : 0 < width) :
     _ = 2 * 2 ^ (width - 1) := Nat.mul_comm _ _
 
 /-- Every raw word fits strictly into the next wider word. -/
-theorem wordModulus_lt_succ (width : Nat) :
+lemma wordModulus_lt_succ (width : Nat) :
     CShape.wordModulus width < CShape.wordModulus (width + 1) := by
   simp only [CShape.wordModulus, pow_succ]
   have positive : 0 < 2 ^ width := Nat.two_pow_pos _
   omega
 
 /-- The next wider word has twice the modulus of the source word. -/
-theorem wordModulus_succ (width : Nat) :
+lemma wordModulus_succ (width : Nat) :
     CShape.wordModulus (width + 1) = 2 * CShape.wordModulus width := by
   simp only [CShape.wordModulus, pow_succ]
   exact Nat.mul_comm _ _
 
 /-- The selected unsigned magnitude always fits its source raw word width. -/
-theorem rawMagnitude_lt_wordModulus {width : Nat}
+lemma rawMagnitude_lt_wordModulus {width : Nat}
     (raw : CShape.Word width) :
     rawMagnitude raw < CShape.wordModulus width := by
   by_cases negative : rawIsNegative raw = true
@@ -77,7 +77,7 @@ theorem rawMagnitude_lt_wordModulus {width : Nat}
     simpa only [CShape.wordModulus] using raw.toNat_lt
 
 /-- The generic raw decoder agrees with the sign and magnitude used by this body. -/
-theorem decodeRawSignedWord_eq_signedMagnitude {width : Nat}
+lemma decodeRawSignedWord_eq_signedMagnitude {width : Nat}
     (widthPositive : 0 < width) (raw : CShape.Word width) :
     decodeRawSignedWord raw =
       if rawIsNegative raw then
@@ -119,7 +119,7 @@ theorem decodeRawSignedWord_eq_signedMagnitude {width : Nat}
     simp [rawMagnitude, nonnegative]
 
 /-- A positive-width signed magnitude is at most half of the raw modulus. -/
-theorem rawMagnitude_twice_le {width : Nat} (positive : 0 < width)
+lemma rawMagnitude_twice_le {width : Nat} (positive : 0 < width)
     (raw : CShape.Word width) : 2 * rawMagnitude raw ≤ CShape.wordModulus width := by
   have split := wordModulus_split positive
   by_cases negative : rawIsNegative raw = true
@@ -135,7 +135,7 @@ theorem rawMagnitude_twice_le {width : Nat} (positive : 0 < width)
     omega
 
 /-- The uncorrected doubled-magnitude dividend fits the actual one-bit-wider word. -/
-theorem roundedDividend_fits {width : Nat} (positive : 0 < width)
+lemma roundedDividend_fits {width : Nat} (positive : 0 < width)
     (raw denominator : CShape.Word width) :
     2 * rawMagnitude raw + denominator.toNat < CShape.wordModulus (width + 1) := by
   have magnitudeBound := rawMagnitude_twice_le positive raw
@@ -144,7 +144,7 @@ theorem roundedDividend_fits {width : Nat} (positive : 0 < width)
   omega
 
 /-- Doubling an unsigned denominator is exact in the one-bit-wider word. -/
-theorem doubledDenominator_fits {width : Nat} (denominator : CShape.Word width) :
+lemma doubledDenominator_fits {width : Nat} (denominator : CShape.Word width) :
     2 * denominator.toNat < CShape.wordModulus (width + 1) := by
   have bounded : denominator.toNat < CShape.wordModulus width := denominator.toNat_lt
   rw [wordModulus_succ]

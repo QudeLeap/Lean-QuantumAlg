@@ -34,7 +34,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.LengthRefresh
 variable {wordWidth coefficientWidth remainderWidth clockWidth : Nat}
 
 /-- Reading the actual left region of a packed pair recovers its entire arithmetic coefficient. -/
-theorem read_left_work2 (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
+lemma read_left_work2 (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (widths : coefficientWidth + remainderWidth = wordWidth) :
     PhysicalWindow.read coefficientWidth ((WordPacking.packWork2 payload).cast widths) =
       payload.coefficientBits := by
@@ -48,12 +48,12 @@ def serialXor (length oldLength newLength : BitVec clockWidth) : BitVec clockWid
   (length ^^^ oldLength) ^^^ newLength
 
 /-- The two actual writes replace a correctly retained old length by the new length. -/
-theorem serialXor_old (oldLength newLength : BitVec clockWidth) :
+lemma serialXor_old (oldLength newLength : BitVec clockWidth) :
     serialXor oldLength oldLength newLength = newLength := by
   simp only [serialXor, BitVec.xor_self, BitVec.zero_xor]
 
 /-- Reversing those same writes restores every input length-register value exactly. -/
-theorem serialXor_reverse (length oldLength newLength : BitVec clockWidth) :
+lemma serialXor_reverse (length oldLength newLength : BitVec clockWidth) :
     serialXor (serialXor length oldLength newLength) newLength oldLength = length := by
   unfold serialXor
   rw [BitVec.xor_assoc (length ^^^ oldLength) newLength newLength,
@@ -68,13 +68,13 @@ def coefficientUpdate (readWidth : Nat) (first second : BitVec wordWidth)
     (BitVec.ofNat clockWidth (PhysicalWindow.read readWidth first).toNat.size)
 
 /-- Reading the same untouched work words in reverse order undoes the length update. -/
-theorem coefficientUpdate_reverse (readWidth : Nat) (first second : BitVec wordWidth)
+lemma coefficientUpdate_reverse (readWidth : Nat) (first second : BitVec wordWidth)
     (length : BitVec clockWidth) :
     coefficientUpdate readWidth second first (coefficientUpdate readWidth first second length) =
       length :=
   serialXor_reverse length _ _
 
-private theorem old_coefficient_fits (state : IterationState) (modulus : Nat)
+private lemma old_coefficient_fits (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     state.coefficient < 2 ^ CoefficientCapacity.work2CoefficientWidth state modulus := by
@@ -97,7 +97,7 @@ private def oldReadPayload (state : IterationState) (modulus : Nat)
     ((Nat.mod_lt _ active).trans (Nat.lt_size_self state.divisor))
 
 /-- The old coefficient is read from the actual post-swap second word at the source boundary. -/
-theorem read_old_coefficient (state : IterationState) (modulus : Nat)
+lemma read_old_coefficient (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (PhysicalWindow.read (CoefficientCapacity.work2CoefficientWidth state modulus)
@@ -117,7 +117,7 @@ theorem read_old_coefficient (state : IterationState) (modulus : Nat)
   rfl
 
 /-- The new coefficient is read from the actual post-swap first word at that same boundary. -/
-theorem read_new_coefficient (state : IterationState) (modulus : Nat)
+lemma read_new_coefficient (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (PhysicalWindow.read (CoefficientCapacity.work2CoefficientWidth state modulus)
@@ -128,18 +128,18 @@ theorem read_new_coefficient (state : IterationState) (modulus : Nat)
   exact CoefficientPhase.finish_start_coefficient state
 
 /-- A value bounded by the modulus has its exact length in the stated finite length register. -/
-theorem length_fits (value modulus : Nat) (bounded : value ≤ modulus) :
+lemma length_fits (value modulus : Nat) (bounded : value ≤ modulus) :
     value.size < 2 ^ modulus.size.size :=
   (Nat.size_le_size bounded).trans_lt (Nat.lt_size_self modulus.size)
 
 /-- The source's finite length encoding retains the actual size without truncation. -/
-theorem encoded_length_toNat (value modulus : Nat) (bounded : value ≤ modulus) :
+lemma encoded_length_toNat (value modulus : Nat) (bounded : value ≤ modulus) :
     (BitVec.ofNat modulus.size.size value.size).toNat = value.size := by
   change value.size % 2 ^ modulus.size.size = value.size
   exact Nat.mod_eq_of_lt (length_fits value modulus bounded)
 
 /-- The actual reads and XOR writes give the complete next finite coefficient-length register. -/
-theorem coefficient_update_exact (state : IterationState) (modulus : Nat)
+lemma coefficient_update_exact (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     coefficientUpdate (CoefficientCapacity.work2CoefficientWidth state modulus)
@@ -153,7 +153,7 @@ theorem coefficient_update_exact (state : IterationState) (modulus : Nat)
   exact serialXor_old _ _
 
 /-- The actual refreshed register decodes to the new coefficient length, also at termination. -/
-theorem coefficient_update_toNat (state : IterationState) (modulus : Nat)
+lemma coefficient_update_toNat (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (coefficientUpdate (CoefficientCapacity.work2CoefficientWidth state modulus)
@@ -168,7 +168,7 @@ theorem coefficient_update_toNat (state : IterationState) (modulus : Nat)
       ((IterationState.step_balance state).trans conserved)).2.2.1
 
 /-- Reversing the actual exchanged-word reads restores the precise old finite length register. -/
-theorem coefficient_update_restores (state : IterationState) (modulus : Nat)
+lemma coefficient_update_restores (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     coefficientUpdate (CoefficientCapacity.work2CoefficientWidth state modulus)

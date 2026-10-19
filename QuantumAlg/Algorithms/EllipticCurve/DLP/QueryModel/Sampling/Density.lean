@@ -39,43 +39,50 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
     ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I)).symm.trans (basisEquiv I).symm)
     (sourceState I A)
 
-private theorem nativeProgram_apply_zero (I : ECDLPInstance E) (A : Access I)
+private lemma nativeProgram_apply_zero (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (nativeProgram I A expansion).matrix.apply
+    ((nativeProgram I expansion).matrix (interpretation I A)).apply
         (NormalizedVector.ket (R := (post I).register) (post I).quantumLayout.zeroLabel) =
       runtimeSourceState I A := by
   apply NormalizedVector.ext
   intro row
-  change (nativeProgram I A expansion).matrix.applyVec
+  change ((nativeProgram I expansion).matrix (interpretation I A)).applyVec
     (NormalizedVector.ket (R := (post I).register) (post I).quantumLayout.zeroLabel :
       HilbertVector (post I).register) row = _
   rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket, nativeProgram_zero_amplitude]
   rfl
 
 /-- The actual initialized bank is a pure zero marginal; no caller seed is assumed. -/
-public theorem initialCode_localDensity (I : ECDLPInstance E) (A : Access I)
+public lemma initialCode_localDensity (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (pre I) Reference ((executionModel I).HiddenState × History))
     (normalized : state.IsNormalized) :
-    ((initialCode I A).execute Reference state).quantumMarginal.marginalLeft =
+    ((initialCode I).execute (sourceEnvironment I A) Reference state).quantumMarginal.marginalLeft =
       DensityOperator.ofPure
         (NormalizedVector.ket (R := (post I).register) (post I).quantumLayout.zeroLabel) := by
   apply BasisSeeded.basisSeeded_localDensity
-    ((initialCode I A).execute Reference state) (post I).quantumLayout.zeroLabel
+    ((initialCode I).execute (sourceEnvironment I A) Reference state) (post
+      I).quantumLayout.zeroLabel
     (initialCode_seeded I A state)
-  exact (Circuit.execute_mass (initialCode I A) Reference state).trans normalized
+  exact (Circuit.execute_mass (initialCode I) (sourceEnvironment I A) Reference state).trans
+    normalized
 
 /-- Every normalized original input has the actual source density before measurement. -/
-public theorem ecdlpBeforeMeasurement_localDensity (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpBeforeMeasurement_localDensity (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (pre I) Reference ((executionModel I).HiddenState × History))
     (normalized : state.IsNormalized) :
-    ((beforeMeasurement I A expansion).execute Reference state).quantumMarginal.marginalLeft =
+    ((beforeMeasurement I expansion).execute (sourceEnvironment I A) Reference
+      state).quantumMarginal.marginalLeft =
       DensityOperator.ofPure (runtimeSourceState I A) := by
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.unitary_localDensity, initialCode_localDensity I A state normalized,
-    ← DensityOperator.ofPure_apply, nativeProgram_apply_zero]
+    ← DensityOperator.ofPure_apply]
+  change DensityOperator.ofPure
+    (((nativeProgram I expansion).matrix (interpretation I A)).apply
+      (NormalizedVector.ket (post I).quantumLayout.zeroLabel)) = _
+  rw [nativeProgram_apply_zero]
 
 end
 

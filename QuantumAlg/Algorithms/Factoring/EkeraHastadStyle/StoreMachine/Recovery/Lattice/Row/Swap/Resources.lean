@@ -30,7 +30,7 @@ def pointSwapTrace {model : ExecutionModel} [BitWord.Selected model] (width : Na
     (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)))
 
 /-- The actual row exchange emits exactly the nine independently specified copy operations. -/
-theorem pointSwap_events {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (path : (pointSwap (model := model) left right scratch).Path) :
@@ -41,7 +41,7 @@ theorem pointSwap_events {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- Actual native multiplicity comes from the same independent nine-copy formula. -/
-theorem pointSwap_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (path : (pointSwap (model := model) left right scratch).Path) :
@@ -51,40 +51,47 @@ theorem pointSwap_resourcePool {model : ExecutionModel} [BitWord.Selected model]
   rw [pointSwap_events]
 
 /-- Actual serial depth is exactly nine at unit native instruction duration. -/
-theorem pointSwap_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (path : (pointSwap (model := model) left right scratch).Path) :
     (pointSwap (model := model) left right scratch).depth (fun _ => 1) path = 9 := rfl
 
 /-- One actual coordinate swap restores all borrowed-reference correlations. -/
-theorem coordinateSwap_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateSwap_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (coordinateSwap (model := model) left right scratch).BorrowedRestored Reference state
-      ((coordinateSwap (model := model) left right scratch).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq
+      ((coordinateSwap (model := model) left right scratch).execute environment
+        Reference state) := by
+  refine Circuit.borrowedRestored_seq (environment := environment)
     (BitWord.instruction (execution := model) (LatticeRows.copyOp left scratch)) _ state
-    (Circuit.borrowedRestored_classical _ state) ?_
-  exact Circuit.borrowedRestored_seq _ _ _ (Circuit.borrowedRestored_classical _ _)
-    (Circuit.borrowedRestored_classical _ _)
+    (Circuit.borrowedRestored_classical (environment := environment) _ state) ?_
+  exact Circuit.borrowedRestored_seq
+    (environment := environment) _ _ _ (Circuit.borrowedRestored_classical (environment :=
+    environment) _ _)
+    (Circuit.borrowedRestored_classical (environment := environment) _ _)
 
 /-- Complete actual row swapping restores the full borrowed-reference joint state. -/
-theorem pointSwap_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (pointSwap (model := model) left right scratch).BorrowedRestored Reference state
-      ((pointSwap (model := model) left right scratch).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq (coordinateSwap left.first right.first scratch) _ state
+      ((pointSwap (model := model) left right scratch).execute environment Reference state) := by
+  refine Circuit.borrowedRestored_seq
+    (environment := environment) (coordinateSwap left.first right.first scratch) _ state
     (coordinateSwap_borrowedRestored _ _ _ Reference state) ?_
-  exact Circuit.borrowedRestored_seq _ _ _ (coordinateSwap_borrowedRestored _ _ _ Reference _)
+  exact Circuit.borrowedRestored_seq
+    (environment := environment) _ _ _ (coordinateSwap_borrowedRestored _ _ _ Reference _)
     (coordinateSwap_borrowedRestored _ _ _ Reference _)
 
 /-- Every actual copy visits the complete original context including scratch. -/
-theorem pointSwap_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (path : (pointSwap (model := model) left right scratch).Path) :
@@ -92,7 +99,7 @@ theorem pointSwap_visited {model : ExecutionModel} [BitWord.Selected model]
       List.replicate 9 ctx := rfl
 
 /-- All supplied resident quantum and classical resources remain counted throughout swapping. -/
-theorem pointSwap_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (path : (pointSwap (model := model) left right scratch).Path) :
@@ -104,7 +111,7 @@ theorem pointSwap_resident_le {model : ExecutionModel} [BitWord.Selected model]
   rw [(List.mem_replicate.mp present).2]
 
 /-- Auxiliary roles and scratch residency remain counted throughout the actual exchange. -/
-theorem pointSwap_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (path : (pointSwap (model := model) left right scratch).Path) :

@@ -35,11 +35,11 @@ def coordinateWidth (N m ell : Nat) : Nat :=
   2 * operandWidthBound N m ell + 2
 
 /-- The uniform coordinate width is positive. -/
-theorem coordinateWidth_pos (N m ell : Nat) : 0 < coordinateWidth N m ell := by
+lemma coordinateWidth_pos (N m ell : Nat) : 0 < coordinateWidth N m ell := by
   simp [coordinateWidth]
 
 /-- The canonical reduction word contains the complete source target word. -/
-theorem sourceWidth_le_coordinateWidth (N m ell : Nat) :
+lemma sourceWidth_le_coordinateWidth (N m ell : Nat) :
     ell + m + 1 ≤ coordinateWidth N m ell := by
   unfold coordinateWidth operandWidthBound
     inputBitWidth RSA.shortLogRecoveryInputBits

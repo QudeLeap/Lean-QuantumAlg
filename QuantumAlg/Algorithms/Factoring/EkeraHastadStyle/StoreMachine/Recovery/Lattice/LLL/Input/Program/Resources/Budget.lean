@@ -39,7 +39,7 @@ def decodeTargetEventEnvelope (N : Nat) : ResourcePool model :=
     LatticeFixedFuelMachine.fixedFuelEventEnvelope fuel width
 
 /-- The folded initialization allowance is exactly the original reset and fixed-fuel formula. -/
-theorem initializedEventEnvelope_eq (fuel width : Nat) :
+lemma initializedEventEnvelope_eq (fuel width : Nat) :
     initializedEventEnvelope (model := model) fuel width =
       ResourcePool.ofList (LatticeFixedFuelMachine.refreshResetTrace width) +
         LatticeFixedFuelMachine.fixedFuelEventEnvelope fuel width := by
@@ -53,7 +53,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
       (RSA.shortLogRecoveryFuel (shortLogBits N) (tradeoffBits N)) (Width N)
 
 /-- Every actual source-and-target path meets the independent combined coordinate allowance. -/
-theorem decodeTargetInto_pool_le (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) :
+lemma decodeTargetInto_pool_le (refs : Refs ctx N) (path : (decodeTargetInto refs).Path) :
     (decodeTargetInto refs).resourcePool path ≤ decodeTargetEventEnvelope N := by
   unfold decodeTargetEventEnvelope
   change ResourcePool.ofList (_ ++ _) ≤ _
@@ -63,7 +63,7 @@ theorem decodeTargetInto_pool_le (refs : Refs ctx N) (path : (decodeTargetInto r
     (LatticeWideTargetMachine.loadTargetInto_resourcePool_le refs.target path.2)
 
 /-- Reset and iteration allowances compose before specializing the public recovery fuel. -/
-private theorem initialized_pool_le {width : Nat} (fuel : Nat)
+private lemma initialized_pool_le {width : Nat} (fuel : Nat)
     (refs : LatticeFixedFuelMachine.Refs ctx width)
     (path : (LatticeFixedFuelMachine.initializedInto fuel refs).Path) :
     (LatticeFixedFuelMachine.initializedInto fuel refs).resourcePool path ≤
@@ -75,7 +75,7 @@ private theorem initialized_pool_le {width : Nat} (fuel : Nat)
     (LatticeFixedFuelMachine.fixedFuelInto_pool_le fuel refs path.2)
 
 /-- Every actual source-to-LLL path satisfies the independent full native coordinate budget. -/
-theorem pairToLllInto_pool_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
+lemma pairToLllInto_pool_le (refs : Refs ctx N) (path : (pairToLllInto refs).Path) :
     (pairToLllInto refs).resourcePool path ≤ eventEnvelope N := by
   have decoded := decodeTargetInto_pool_le refs path.1
   have initialized :

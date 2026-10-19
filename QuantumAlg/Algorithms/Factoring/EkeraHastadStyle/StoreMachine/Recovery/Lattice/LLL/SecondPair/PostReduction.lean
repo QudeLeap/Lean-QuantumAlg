@@ -60,15 +60,16 @@ def postReductionStep {model : ExecutionModel} [BitWord.Selected model]
   (reduced.1, (refreshed.2, reduced.2))
 
 /-- The actual stored quotient feeds the final row reduction in the complete interpreter. -/
-theorem divisionReductionInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma divisionReductionInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (divisionReductionInto (model := model) refs).execute Reference state =
+    (divisionReductionInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := divisionReductionStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (RoundedDiv.body (model := model) refs.machine.division31)
     (LatticeArithmetic.pointReduce (model := model)
       (writeInput refs.machine.division31.output)
@@ -88,15 +89,16 @@ theorem divisionReductionInto_execute {model : ExecutionModel} [BitWord.Selected
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual final reduction uses the actual refreshed numerator without a second runtime. -/
-theorem postReductionInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma postReductionInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (postReductionInto (model := model) refs).execute Reference state =
+    (postReductionInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := postReductionStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeDotRefresh.refreshInto (model := model)
       refs.machine.basis.third refs.machine.basis.first (refreshG31Refs refs))
     (divisionReductionInto (model := model) refs)

@@ -27,6 +27,8 @@ namespace BitSlice
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 namespace Raw
 
 /-- Raw two-bit target-add block: compute the low-bit carry from `srcLo` and
@@ -68,7 +70,7 @@ namespace Boolean
 /-- The pairwise-product XOR form of a full-adder carry agrees with
 `Bool.carry`.  This is the Boolean recurrence used by the plain-adder carry
 stage [VBE95, 9511018.tex:248-253]. -/
-theorem pairwiseXor_eq_carry (left right carryIn : Bool) :
+lemma pairwiseXor_eq_carry (left right carryIn : Bool) :
     Bool.xor (Bool.xor (left && right) (left && carryIn))
         (right && carryIn) =
       Bool.carry left right carryIn := by
@@ -89,7 +91,7 @@ def sumGates (left carry target : EncodedBit encoding)
 
 /-- The local sum gate list is disjoint from an observed bit when all three
 participating wires are disjoint from it. -/
-theorem sumGates_bitDisjoint
+lemma sumGates_bitDisjoint
     (left carry target observed : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire)
     (hleft : left.wire ≠ observed.wire)
@@ -123,7 +125,7 @@ def sumStep (left carry target : EncodedBit encoding)
   EncodedBit.GateSpec.stepList (sumGates left carry target hlt hct)
 
 /-- Closed-form target readout of the local two-control xor/sum block. -/
-theorem sumStep_get_target (left carry target : EncodedBit encoding)
+lemma sumStep_get_target (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire)
     (x : Data) :
     target.get (sumStep left carry target hlt hct x) =
@@ -133,7 +135,7 @@ theorem sumStep_get_target (left carry target : EncodedBit encoding)
     EncodedBit.cnotStep_get_of_target_ne, Ne.symm hct]
 
 /-- The local two-control xor/sum block preserves its left readout. -/
-theorem sumStep_get_left (left carry target : EncodedBit encoding)
+lemma sumStep_get_left (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire)
     (x : Data) :
     left.get (sumStep left carry target hlt hct x) = left.get x := by
@@ -142,7 +144,7 @@ theorem sumStep_get_left (left carry target : EncodedBit encoding)
     Ne.symm hlt]
 
 /-- The local two-control xor/sum block preserves its carry readout. -/
-theorem sumStep_get_carry (left carry target : EncodedBit encoding)
+lemma sumStep_get_carry (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire)
     (x : Data) :
     carry.get (sumStep left carry target hlt hct x) = carry.get x := by
@@ -152,7 +154,7 @@ theorem sumStep_get_carry (left carry target : EncodedBit encoding)
 
 /-- The local two-control xor/sum block preserves any readout whose wire is
 not the target wire. -/
-theorem sumStep_get_of_target_ne
+lemma sumStep_get_of_target_ne
     (left carry target observed : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire)
     (hobs : target.wire ≠ observed.wire) (x : Data) :
@@ -161,11 +163,11 @@ theorem sumStep_get_of_target_ne
     EncodedBit.GateSpec.step, EncodedBit.cnotStep_get_of_target_ne, hobs]
 
 /-- The local two-control xor/sum program realizes its folded bit semantics. -/
-theorem sum_realizes (left carry target : EncodedBit encoding)
+lemma sum_realizes (left carry target : EncodedBit encoding)
     (hlt : left.wire ≠ target.wire) (hct : carry.wire ≠ target.wire) :
-    UnitaryCircuit.Realizes encoding (sumProgram left carry target hlt hct)
+    UnitaryCircuit.Realizes encoding (sumProgram left carry target hlt hct) environment
       (sumStep left carry target hlt hct) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (sumGates left carry target hlt hct)
 
 /-- Three Toffoli gates that xor the pairwise-control products
@@ -184,7 +186,7 @@ def carryOutGates (left right carryIn carryOut : EncodedBit encoding)
 
 /-- The local carry-output gate list is disjoint from an observed bit when all
 four participating wires are disjoint from it. -/
-theorem carryOutGates_bitDisjoint
+lemma carryOutGates_bitDisjoint
     (left right carryIn carryOut observed : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -240,7 +242,7 @@ def carryOutStep (left right carryIn carryOut : EncodedBit encoding)
 
 /-- Closed-form output readout of the separate-output carry block.  The three
 Toffoli gates xor the pairwise-control products into the output carry wire. -/
-theorem carryOutStep_get_carryOut
+lemma carryOutStep_get_carryOut
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -260,7 +262,7 @@ theorem carryOutStep_get_carryOut
 /-- On a clean output carry wire, the separate-output carry block computes the
 Boolean full-adder carry used by the VBE recurrence [VBE95,
 9511018.tex:248-253]. -/
-theorem carryOutStep_get_carryOut_clean
+lemma carryOutStep_get_carryOut_clean
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -296,7 +298,7 @@ def borrowOutGates
   [EncodedBit.GateSpec.x minuend]
 
 /-- One subtract-borrow block has two X gates around three Toffoli gates. -/
-@[simp] theorem borrowOutGates_length
+@[simp] lemma borrowOutGates_length
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -309,7 +311,7 @@ def borrowOutGates
   simp [borrowOutGates, carryOutGates]
 
 /-- Exact X coordinate of one subtract-borrow block. -/
-@[simp] theorem borrowOutGates_xMultiplicity_sum
+@[simp] lemma borrowOutGates_xMultiplicity_sum
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -323,7 +325,7 @@ def borrowOutGates
   simp [borrowOutGates, carryOutGates]
 
 /-- One subtract-borrow block contains no CNOT gate. -/
-@[simp] theorem borrowOutGates_cnotMultiplicity_sum
+@[simp] lemma borrowOutGates_cnotMultiplicity_sum
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -337,7 +339,7 @@ def borrowOutGates
   simp [borrowOutGates, carryOutGates]
 
 /-- Exact Toffoli coordinate of one subtract-borrow block. -/
-@[simp] theorem borrowOutGates_toffoliMultiplicity_sum
+@[simp] lemma borrowOutGates_toffoliMultiplicity_sum
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -352,7 +354,7 @@ def borrowOutGates
 
 /-- The local borrow-output gate list is disjoint from an observed bit when all
 four participating wires are disjoint from it. -/
-theorem borrowOutGates_bitDisjoint
+lemma borrowOutGates_bitDisjoint
     (minuend subtrahend borrowIn borrowOut observed : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -409,7 +411,7 @@ def borrowOutStep
       hms hmbi hmbo hsbi hsbo hbibo)
 
 /-- The local borrow block is a concrete encoded-bit base-gate realization. -/
-theorem borrowOut_realizes
+lemma borrowOut_realizes
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -419,15 +421,15 @@ theorem borrowOut_realizes
     (hbibo : borrowIn.wire ≠ borrowOut.wire) :
     UnitaryCircuit.Realizes encoding
       (borrowOutProgram minuend subtrahend borrowIn borrowOut
-        hms hmbi hmbo hsbi hsbo hbibo)
+        hms hmbi hmbo hsbi hsbo hbibo) environment
       (borrowOutStep minuend subtrahend borrowIn borrowOut
         hms hmbi hmbo hsbi hsbo hbibo) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (borrowOutGates minuend subtrahend borrowIn borrowOut
       hms hmbi hmbo hsbi hsbo hbibo)
 
 /-- Closed-form output readout of the local separate-output borrow block. -/
-theorem borrowOutStep_get_borrowOut
+lemma borrowOutStep_get_borrowOut
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -457,7 +459,7 @@ theorem borrowOutStep_get_borrowOut
 
 /-- On a clean output borrow wire, the block computes the subtract-borrow
 recurrence for `minuend - subtrahend - borrowIn`. -/
-theorem borrowOutStep_get_borrowOut_clean
+lemma borrowOutStep_get_borrowOut_clean
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -476,7 +478,7 @@ theorem borrowOutStep_get_borrowOut_clean
       (borrowIn.get x)
 
 /-- The local borrow block restores the minuend readout. -/
-theorem borrowOutStep_get_minuend
+lemma borrowOutStep_get_minuend
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -507,7 +509,7 @@ theorem borrowOutStep_get_minuend
   cases minuend.get x <;> rfl
 
 /-- The local borrow block preserves the subtrahend readout. -/
-theorem borrowOutStep_get_subtrahend
+lemma borrowOutStep_get_subtrahend
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -537,7 +539,7 @@ theorem borrowOutStep_get_subtrahend
   rw [EncodedBit.get_flip_of_wire_ne minuend subtrahend hms]
 
 /-- The local borrow block preserves the input borrow readout. -/
-theorem borrowOutStep_get_borrowIn
+lemma borrowOutStep_get_borrowIn
     (minuend subtrahend borrowIn borrowOut : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -567,7 +569,7 @@ theorem borrowOutStep_get_borrowIn
   rw [EncodedBit.get_flip_of_wire_ne minuend borrowIn hmbi]
 
 /-- The separate-output carry block preserves the left input readout. -/
-theorem carryOutStep_get_left
+lemma carryOutStep_get_left
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -582,7 +584,7 @@ theorem carryOutStep_get_left
     Ne.symm hlco]
 
 /-- The separate-output carry block preserves the right input readout. -/
-theorem carryOutStep_get_right
+lemma carryOutStep_get_right
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -597,7 +599,7 @@ theorem carryOutStep_get_right
     Ne.symm hrco]
 
 /-- The separate-output carry block preserves the input carry readout. -/
-theorem carryOutStep_get_carryIn
+lemma carryOutStep_get_carryIn
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -613,7 +615,7 @@ theorem carryOutStep_get_carryIn
 
 /-- The separate-output carry block preserves any readout whose wire is not the
 output carry wire. -/
-theorem carryOutStep_get_of_carryOut_ne
+lemma carryOutStep_get_of_carryOut_ne
     (left right carryIn carryOut observed : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -629,7 +631,7 @@ theorem carryOutStep_get_of_carryOut_ne
 
 /-- The local borrow block preserves any readout whose wire is distinct from
 both the temporary minuend flip and the borrow-output wire. -/
-theorem borrowOutStep_get_of_minuend_borrowOut_ne
+lemma borrowOutStep_get_of_minuend_borrowOut_ne
     (minuend subtrahend borrowIn borrowOut observed : EncodedBit encoding)
     (hms : minuend.wire ≠ subtrahend.wire)
     (hmbi : minuend.wire ≠ borrowIn.wire)
@@ -667,7 +669,7 @@ def carryOutCleanupGates (left right carryIn carryOut : EncodedBit encoding)
 
 /-- The reverse local carry cleanup gate list is disjoint from an observed bit
 when all four participating wires are disjoint from it. -/
-theorem carryOutCleanupGates_bitDisjoint
+lemma carryOutCleanupGates_bitDisjoint
     (left right carryIn carryOut observed : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -701,7 +703,7 @@ def carryOutCleanupStep (left right carryIn carryOut : EncodedBit encoding)
       hlr hlci hlco hrci hrco hcico)
 
 /-- Closed-form output readout of the reverse separate-output carry block. -/
-theorem carryOutCleanupStep_get_carryOut
+lemma carryOutCleanupStep_get_carryOut
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -721,7 +723,7 @@ theorem carryOutCleanupStep_get_carryOut
 
 /-- If the separate-output carry wire currently stores the full-adder carry,
 the reverse block restores it to zero. -/
-theorem carryOutCleanupStep_get_carryOut_computed
+lemma carryOutCleanupStep_get_carryOut_computed
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -741,7 +743,7 @@ theorem carryOutCleanupStep_get_carryOut_computed
     simp_all [Bool.carry]
 
 /-- The reverse separate-output carry block preserves the left input readout. -/
-theorem carryOutCleanupStep_get_left
+lemma carryOutCleanupStep_get_left
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -756,7 +758,7 @@ theorem carryOutCleanupStep_get_left
     EncodedBit.toffoliStep_get_of_target_ne, Ne.symm hlco]
 
 /-- The reverse separate-output carry block preserves the right input readout. -/
-theorem carryOutCleanupStep_get_right
+lemma carryOutCleanupStep_get_right
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -771,7 +773,7 @@ theorem carryOutCleanupStep_get_right
     EncodedBit.toffoliStep_get_of_target_ne, Ne.symm hrco]
 
 /-- The reverse separate-output carry block preserves the input carry readout. -/
-theorem carryOutCleanupStep_get_carryIn
+lemma carryOutCleanupStep_get_carryIn
     (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -787,7 +789,7 @@ theorem carryOutCleanupStep_get_carryIn
 
 /-- The reverse separate-output carry block preserves any readout whose wire is
 not the output carry wire. -/
-theorem carryOutCleanupStep_get_of_carryOut_ne
+lemma carryOutCleanupStep_get_of_carryOut_ne
     (left right carryIn carryOut observed : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
@@ -804,17 +806,17 @@ theorem carryOutCleanupStep_get_of_carryOut_ne
 
 /-- The local separate-output carry program realizes its folded bit
 semantics. -/
-theorem carryOut_realizes (left right carryIn carryOut : EncodedBit encoding)
+lemma carryOut_realizes (left right carryIn carryOut : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlci : left.wire ≠ carryIn.wire)
     (hlco : left.wire ≠ carryOut.wire) (hrci : right.wire ≠ carryIn.wire)
     (hrco : right.wire ≠ carryOut.wire)
     (hcico : carryIn.wire ≠ carryOut.wire) :
     UnitaryCircuit.Realizes encoding
       (carryOutProgram left right carryIn carryOut
-        hlr hlci hlco hrci hrco hcico)
+        hlr hlci hlco hrci hrco hcico) environment
       (carryOutStep left right carryIn carryOut
         hlr hlci hlco hrci hrco hcico) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (carryOutGates left right carryIn carryOut
       hlr hlci hlco hrci hrco hcico)
 
@@ -857,17 +859,17 @@ def targetAdd2Step (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
 
 /-- The local encoded two-bit target-add program realizes its folded bit
 semantics. -/
-theorem targetAdd2_realizes (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
+lemma targetAdd2_realizes (srcLo tgtLo srcHi tgtHi : EncodedBit encoding)
     (hSrcLoTgtLo : srcLo.wire ≠ tgtLo.wire)
     (hSrcLoTgtHi : srcLo.wire ≠ tgtHi.wire)
     (hTgtLoTgtHi : tgtLo.wire ≠ tgtHi.wire)
     (hSrcHiTgtHi : srcHi.wire ≠ tgtHi.wire) :
     UnitaryCircuit.Realizes encoding
       (targetAdd2Program srcLo tgtLo srcHi tgtHi
-        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
+        hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi) environment
       (targetAdd2Step srcLo tgtLo srcHi tgtHi
         hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (targetAdd2Gates srcLo tgtLo srcHi tgtHi
       hSrcLoTgtLo hSrcLoTgtHi hTgtLoTgtHi hSrcHiTgtHi)
 
@@ -891,7 +893,7 @@ def unmajorityGates (left right carry : EncodedBit encoding)
   , EncodedBit.GateSpec.cnot carry left (Ne.symm hlc)
   , EncodedBit.GateSpec.cnot carry right (Ne.symm hrc) ]
 
-@[simp] theorem unmajorityGates_eq_reverse
+@[simp] lemma unmajorityGates_eq_reverse
     (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
     (hrc : right.wire ≠ carry.wire) :
@@ -932,23 +934,23 @@ def unmajorityStep (left right carry : EncodedBit encoding)
     (unmajorityGates left right carry hlr hlc hrc)
 
 /-- The local majority-style program realizes its folded bit semantics. -/
-theorem majority_realizes (left right carry : EncodedBit encoding)
+lemma majority_realizes (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
     (hrc : right.wire ≠ carry.wire) :
     UnitaryCircuit.Realizes encoding
-      (majorityProgram left right carry hlr hlc hrc)
+      (majorityProgram left right carry hlr hlc hrc) environment
       (majorityStep left right carry hlr hlc hrc) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (majorityGates left right carry hlr hlc hrc)
 
 /-- The reverse cleanup program realizes its folded bit semantics. -/
-theorem unmajority_realizes (left right carry : EncodedBit encoding)
+lemma unmajority_realizes (left right carry : EncodedBit encoding)
     (hlr : left.wire ≠ right.wire) (hlc : left.wire ≠ carry.wire)
     (hrc : right.wire ≠ carry.wire) :
     UnitaryCircuit.Realizes encoding
-      (unmajorityProgram left right carry hlr hlc hrc)
+      (unmajorityProgram left right carry hlr hlc hrc) environment
       (unmajorityStep left right carry hlr hlc hrc) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (unmajorityGates left right carry hlr hlc hrc)
 
 end Encoded

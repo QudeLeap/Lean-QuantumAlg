@@ -23,7 +23,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.OracleModel.Native
 noncomputable section
 
 /-- The original-width XOR member has the already accepted source exponent law. -/
-theorem source_outcomePMF_eq_selected {N : Nat} (input : Input N)
+lemma source_outcomePMF_eq_selected {N : Nat} (input : Input N)
     (parameter : (ParameterShape N).Value) :
     (ShortDLP.measurement (parameters N)).outcomePMF
       (ShortDLP.BornProbability.evolvedState (encoding input)

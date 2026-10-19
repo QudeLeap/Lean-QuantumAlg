@@ -39,7 +39,7 @@ private def triple {leftWidth middleWidth rightWidth : Nat}
     (leftWidth + middleWidth + rightWidth)).symm
       (prodEquiv (prodEquiv (left, middle), right))
 
-private theorem selected_triple {leftWidth middleWidth rightWidth : Nat}
+private lemma selected_triple {leftWidth middleWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (middle : Fin (2 ^ middleWidth))
     (right : Fin (2 ^ rightWidth)) :
     ((binaryMiddleEmbedding leftWidth middleWidth rightWidth).splitBasis
@@ -82,7 +82,7 @@ private theorem selected_triple {leftWidth middleWidth rightWidth : Nat}
     exact actual.trans
       ((congrArg Fin.val outer).trans (congrArg Fin.val source).symm)
 
-private theorem middle_outside (leftWidth middleWidth rightWidth : Nat)
+private lemma middle_outside (leftWidth middleWidth rightWidth : Nat)
     (index : Fin middleWidth) :
     Fin.castAdd rightWidth (Fin.natAdd leftWidth index) ∈
       (binaryMiddleEmbedding leftWidth middleWidth rightWidth).selectionᶜ := by
@@ -95,7 +95,7 @@ private theorem middle_outside (leftWidth middleWidth rightWidth : Nat)
   unfold binaryMiddleIndex at values
   split at values <;> omega
 
-private theorem outside_middle (leftWidth middleWidth rightWidth : Nat)
+private lemma outside_middle (leftWidth middleWidth rightWidth : Nat)
     (position : Fin (leftWidth + middleWidth + rightWidth))
     (outside : position ∈
       (binaryMiddleEmbedding leftWidth middleWidth rightWidth).selectionᶜ) :
@@ -123,7 +123,7 @@ private theorem outside_middle (leftWidth middleWidth rightWidth : Nat)
           (binaryMiddleEmbedding leftWidth middleWidth rightWidth).position
           (Finset.mem_univ _)))
 
-private theorem complement_triple {leftWidth middleWidth rightWidth : Nat}
+private lemma complement_triple {leftWidth middleWidth rightWidth : Nat}
     (left first : Fin (2 ^ leftWidth))
     (middle second : Fin (2 ^ middleWidth))
     (right third : Fin (2 ^ rightWidth)) :
@@ -175,29 +175,29 @@ private theorem complement_triple {leftWidth middleWidth rightWidth : Nat}
 
 /-- Middle placement acts by the original outer-field matrix and an identity
 matrix entry on the preserved middle field. -/
-public theorem unitaryCircuit_onBinaryMiddle_binaryMatrix_entry
+public lemma unitaryCircuit_onBinaryMiddle_binaryMatrix_entry
     {gates : GateModel} {oracles : OracleModel}
     {leftWidth middleWidth rightWidth : Nat}
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout)
     (rowLeft columnLeft : Fin (2 ^ leftWidth))
     (rowMiddle columnMiddle : Fin (2 ^ middleWidth))
-    (rowRight columnRight : Fin (2 ^ rightWidth)) :
-    (onBinaryMiddle middleWidth body).binaryMatrix
+    (rowRight columnRight : Fin (2 ^ rightWidth)) (environment : oracles.Interpretation) :
+    ((onBinaryMiddle middleWidth body).binaryMatrix environment)
         (prodEquiv (prodEquiv (rowLeft, rowMiddle), rowRight))
         (prodEquiv (prodEquiv (columnLeft, columnMiddle), columnRight)) =
-      body.binaryMatrix (prodEquiv (rowLeft, rowRight))
+      (body.binaryMatrix environment) (prodEquiv (rowLeft, rowRight))
           (prodEquiv (columnLeft, columnRight)) *
         (if rowMiddle = columnMiddle then 1 else 0) := by
   change (binaryMiddleEmbedding leftWidth middleWidth rightWidth).liftOperator
-      (body.relabel (binaryMiddleShift leftWidth middleWidth)).matrix
+      ((body.relabel (binaryMiddleShift leftWidth middleWidth)).matrix environment)
       (triple rowLeft rowMiddle rowRight)
       (triple columnLeft columnMiddle columnRight) = _
   rw [QuantumLayout.Embedding.liftOperator_entry, selected_triple, selected_triple,
     relabel_matrix]
   have same := complement_triple rowLeft columnLeft rowMiddle columnMiddle
     rowRight columnRight
-  change body.binaryMatrix (prodEquiv (rowLeft, rowRight))
+  change (body.binaryMatrix environment) (prodEquiv (rowLeft, rowRight))
       (prodEquiv (columnLeft, columnRight)) * (if _ then (1 : ℂ) else 0) = _
   simp only [same]
 
@@ -215,7 +215,7 @@ of an outer binary vector. -/
     outer (prodEquiv (leftMiddle.1, outerCoordinates.2)) * middle leftMiddle.2
 
 /-- Pointwise form of middle-vector insertion in the canonical binary basis. -/
-@[simp] public theorem binaryMiddleVec_apply
+@[simp] public lemma binaryMiddleVec_apply
     {leftWidth middleWidth rightWidth : Nat}
     (outer : HilbertVector (Qubits (leftWidth + rightWidth)))
     (middle : HilbertVector (Qubits middleWidth))
@@ -227,7 +227,7 @@ of an outer binary vector. -/
 
 /-- Inserting a middle vector into a tensor of the two outer fields preserves
 their physical order. -/
-public theorem binaryMiddleVec_tensor
+public lemma binaryMiddleVec_tensor
     {leftWidth middleWidth rightWidth : Nat}
     (left : HilbertVector (Qubits leftWidth))
     (right : HilbertVector (Qubits rightWidth))
@@ -246,16 +246,16 @@ public theorem binaryMiddleVec_tensor
 
 /-- Middle placement applies the original word to the two outer fields and
 leaves an arbitrary inserted middle vector unchanged. -/
-public theorem unitaryCircuit_onBinaryMiddle_applyVec
+public lemma unitaryCircuit_onBinaryMiddle_applyVec
     {gates : GateModel} {oracles : OracleModel}
     {leftWidth middleWidth rightWidth : Nat}
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout)
     (outer : HilbertVector (Qubits (leftWidth + rightWidth)))
-    (middle : HilbertVector (Qubits middleWidth)) :
-    (onBinaryMiddle middleWidth body).binaryMatrix.applyVec
+    (middle : HilbertVector (Qubits middleWidth)) (environment : oracles.Interpretation) :
+    ((onBinaryMiddle middleWidth body).binaryMatrix environment).applyVec
         (binaryMiddleVec outer middle) =
-      binaryMiddleVec (body.binaryMatrix.applyVec outer) middle := by
+      binaryMiddleVec ((body.binaryMatrix environment).applyVec outer) middle := by
   apply WithLp.ofLp_injective
   funext row
   obtain ⟨⟨rowLeftMiddle, rowRight⟩, rfl⟩ :=
@@ -280,7 +280,7 @@ public theorem unitaryCircuit_onBinaryMiddle_applyVec
   · simp only [if_pos]
     calc
       _ = ∑ right : Fin (2 ^ rightWidth),
-          (body.binaryMatrix (prodEquiv (rowLeft, rowRight))
+          ((body.binaryMatrix environment) (prodEquiv (rowLeft, rowRight))
               (prodEquiv (left, right)) *
             outer (prodEquiv (left, right))) * middle rowMiddle := by
             apply Finset.sum_congr rfl

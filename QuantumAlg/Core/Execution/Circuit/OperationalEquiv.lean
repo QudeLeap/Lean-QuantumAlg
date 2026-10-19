@@ -26,7 +26,9 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem mapHistory_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
+variable {allowAllocation : Bool}
+
+private lemma mapHistory_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference H) : state.mapHistory _root_.id = state := by
   change state.mapClassical (fun value => (value.1, value.2)) = state
@@ -39,10 +41,10 @@ private theorem mapHistory_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Every circuit is equivalent to itself with exactly the same path. -/
 def refl {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) : OperationalEquiv code code where
+    (code : Circuit model pre post allowAllocation) : OperationalEquiv code code where
   path := Equiv.refl _
   execute := by
-    intro Reference H _ state
+    intro environment Reference H _ state
     have same : (fun history : model.HiddenState × (H × code.Path) =>
         (history.1, (history.2.1, (Equiv.refl code.Path).symm history.2.2))) =
         _root_.id := by
@@ -50,7 +52,7 @@ def refl {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
       rcases history with ⟨hidden, old, path⟩
       rfl
     rw [same]
-    exact (mapHistory_id (code.execute Reference state)).symm
+    exact (mapHistory_id (code.execute environment Reference state)).symm
   events := by intro path; rfl
   depth := by intro duration path; rfl
   resident := by intro path; rfl
@@ -58,24 +60,24 @@ def refl {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
 
 /-- Compose complete execution equivalences without changing the native run. -/
 def trans {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    {first middle last : Circuit model pre post}
+    {first middle last : Circuit model pre post allowAllocation}
     (left : OperationalEquiv first middle) (right : OperationalEquiv middle last) :
     OperationalEquiv first last where
   path := left.path.trans right.path
   execute := by
-    intro Reference H _ state
+    intro environment Reference H _ state
     calc
-      first.execute Reference state =
-          (middle.execute Reference state).mapHistory
+      first.execute environment Reference state =
+          (middle.execute environment Reference state).mapHistory
             (fun history => (history.1, (history.2.1, left.path.symm history.2.2))) :=
-        left.execute Reference state
-      _ = (((last.execute Reference state).mapHistory
+        left.execute environment Reference state
+      _ = (((last.execute environment Reference state).mapHistory
             (fun history => (history.1, (history.2.1, right.path.symm history.2.2)))).mapHistory
             (fun history => (history.1, (history.2.1, left.path.symm history.2.2)))) :=
         congrArg (fun output => output.mapHistory
           (fun history => (history.1, (history.2.1, left.path.symm history.2.2))))
-          (right.execute Reference state)
-      _ = (last.execute Reference state).mapHistory
+          (right.execute environment Reference state)
+      _ = (last.execute environment Reference state).mapHistory
           (fun history => (history.1,
             (history.2.1, (left.path.trans right.path).symm history.2.2))) := by
         rw [State.mapHistory_comp]
@@ -95,20 +97,20 @@ def trans {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
 
 /-- Reverse an exact path equivalence without changing the physical execution. -/
 def symm {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    {source target : Circuit model pre post}
+    {source target : Circuit model pre post allowAllocation}
     (certificate : OperationalEquiv source target) :
     OperationalEquiv target source where
   path := certificate.path.symm
   execute := by
-    intro Reference H _ state
+    intro environment Reference H _ state
     let forward : model.HiddenState × (H × source.Path) →
         model.HiddenState × (H × target.Path) :=
       fun history => (history.1, (history.2.1, certificate.path history.2.2))
     let backward : model.HiddenState × (H × target.Path) →
         model.HiddenState × (H × source.Path) :=
       fun history => (history.1, (history.2.1, certificate.path.symm history.2.2))
-    have identity : (((target.execute Reference state).mapHistory backward).mapHistory
-        forward) = target.execute Reference state := by
+    have identity : (((target.execute environment Reference state).mapHistory backward).mapHistory
+        forward) = target.execute environment Reference state := by
       rw [State.mapHistory_comp]
       have same : (forward ∘ backward) = _root_.id := by
         funext history
@@ -116,9 +118,9 @@ def symm {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
         simp [forward, backward]
       rw [same]
       exact mapHistory_id _
-    have original := certificate.execute Reference state
-    change source.execute Reference state =
-      (target.execute Reference state).mapHistory backward at original
+    have original := certificate.execute environment Reference state
+    change source.execute environment Reference state =
+      (target.execute environment Reference state).mapHistory backward at original
     rw [← original] at identity
     exact identity.symm
   events := by
@@ -141,14 +143,15 @@ def symm {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
 /-- The same preceding physical section preserves an exact equivalence of
 the complete suffix execution, including the preceding path history. -/
 def prepend {model : ExecutionModel} {pre middle post : RuntimeCtx model.kind}
-    (initial : Circuit model pre middle) {source target : Circuit model middle post}
+    (initial : Circuit model pre middle allowAllocation)
+    {source target : Circuit model middle post allowAllocation}
     (certificate : OperationalEquiv source target) :
     OperationalEquiv (initial.seq source) (initial.seq target) where
   path := (Equiv.refl initial.Path).prodCongr certificate.path
   execute := by
-    intro Reference H _ state
-    let prior := initial.execute Reference state
-    have step := certificate.execute Reference prior
+    intro environment Reference H _ state
+    let prior := initial.execute environment Reference state
+    have step := certificate.execute environment Reference prior
     simp only [Circuit.execute_seq]
     rw [step]
     simp only [State.mapHistory_comp, Function.comp_def]
@@ -188,16 +191,18 @@ def prepend {model : ExecutionModel} {pre middle post : RuntimeCtx model.kind}
 /-- The same following physical section preserves an exact equivalence of
 the complete prefix execution and every resulting history. -/
 def append {model : ExecutionModel} {pre middle post : RuntimeCtx model.kind}
-    {source target : Circuit model pre middle}
-    (certificate : OperationalEquiv source target) (suffix : Circuit model middle post) :
+    {source target : Circuit model pre middle allowAllocation}
+    (certificate : OperationalEquiv source target)
+    (suffix : Circuit model middle post allowAllocation) :
     OperationalEquiv (source.seq suffix) (target.seq suffix) where
   path := certificate.path.prodCongr (Equiv.refl suffix.Path)
   execute := by
-    intro Reference H _ state
-    have step := certificate.execute Reference state
+    intro environment Reference H _ state
+    have step := certificate.execute environment Reference state
     simp only [Circuit.execute_seq]
     rw [step]
-    rw [Circuit.execute_mapHistory suffix Reference (target.execute Reference state)
+    rw [Circuit.execute_mapHistory suffix environment Reference
+      (target.execute environment Reference state)
       (fun history : H × target.Path => (history.1, certificate.path.symm history.2))]
     simp only [State.mapHistory_comp, Function.comp_def]
     rfl

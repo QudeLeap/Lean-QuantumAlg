@@ -29,7 +29,7 @@ open NormalizedVector
 open scoped BigOperators
 
 /-- The complete zero label is the tensor of the two original zero words. -/
-private theorem zeroInput_eq_tensor (t width : Nat) :
+private lemma zeroInput_eq_tensor (t width : Nat) :
     zeroInput t width =
       (NormalizedVector.ket (R := Qubits t) (0 : Fin (2 ^ t))).tensor
         (NormalizedVector.ket (R := Qubits width) (0 : Fin (2 ^ width))) := by
@@ -38,9 +38,9 @@ private theorem zeroInput_eq_tensor (t width : Nat) :
   congr 1
 
 /-- Native phase preparation produces the source's uniform phase word and zero target. -/
-theorem initialLayer_apply_zero {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (initialLayer access).binaryMatrix.applyVec (zeroInput t width) =
+lemma initialLayer_apply_zero (t width : Nat)
+    (environment : (sourceModel t width).Interpretation) :
+    ((initialLayer t width).binaryMatrix environment).applyVec (zeroInput t width) =
       HilbertVector.tensor
         (WalshHadamard.uniformState t : HilbertVector (Qubits t))
         (NormalizedVector.ket (R := Qubits width) (0 : Fin (2 ^ width)) :
@@ -70,7 +70,7 @@ def postOracleVec {N x t width : Nat}
     else
       0
 
-private theorem target_eq_zero_iff {N x t width : Nat}
+private lemma target_eq_zero_iff {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     (phase : Fin (2 ^ t)) (target : Fin (2 ^ width)) :
     modExpOracleTarget access phase target = 0 ↔
@@ -85,10 +85,11 @@ private theorem target_eq_zero_iff {N x t width : Nat}
     simp [modExpOracleTarget]
 
 /-- One declared native XOR query maps the prepared zero target to exact orbit fibers. -/
-theorem oracleLayer_apply_initial {N x t width : Nat}
+lemma oracleLayer_apply_initial {N x t width : Nat}
     (access : ModExpOracleAccess N x t width) :
-    (oracleLayer access).binaryMatrix.applyVec
-        ((initialLayer access).binaryMatrix.applyVec (zeroInput t width)) =
+    ((oracleLayer t width).binaryMatrix (interpretation access)).applyVec
+        (((initialLayer t width).binaryMatrix (interpretation access)).applyVec
+          (zeroInput t width)) =
       postOracleVec access := by
   rw [initialLayer_apply_zero, oracleLayer_binaryMatrix]
   apply WithLp.ofLp_injective
@@ -133,18 +134,18 @@ def sourceAmplitude {N x t width : Nat}
         0
 
 /-- The accepted native word has exactly the source geometric-sum amplitude. -/
-theorem evolvedState_amplitude {N x t width : Nat}
+lemma evolvedState_amplitude {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     (phase : Fin (2 ^ t)) (target : Fin (2 ^ width)) :
     (evolvedState access).normalized (prodEquiv (phase, target)) =
       sourceAmplitude access phase target := by
-  change ((circuit access).binaryMatrix.applyVec (zeroInput t width))
+  change (((circuit t width).binaryMatrix (interpretation access)).applyVec (zeroInput t width))
     (prodEquiv (phase, target)) = _
   rw [circuit_binaryMatrix, UnitaryOperator.mul_applyVec,
     UnitaryOperator.mul_applyVec,
-    ← initialLayer_binaryMatrix access,
+    ← initialLayer_binaryMatrix t width (interpretation access),
     ← oracleLayer_binaryMatrix access,
-    ← readoutLayer_binaryMatrix access,
+    ← readoutLayer_binaryMatrix t width (interpretation access),
     oracleLayer_apply_initial, readoutLayer_binaryMatrix]
   change HilbertOperator.applyVec
       (((star (QFTOperator t)).tensor (1 : UnitaryOperator (Qubits width))) :

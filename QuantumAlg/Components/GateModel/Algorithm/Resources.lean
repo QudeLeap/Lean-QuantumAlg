@@ -19,7 +19,7 @@ noncomputable section
 
 /-- Every literal event in an oracle-free unitary word belongs to one of
 the three native coordinates. No circuit or repetition is expanded. -/
-public theorem algorithmGate_unitaryEventCost_eq_counts {count : Nat}
+public lemma algorithmGate_unitaryEventCost_eq_counts {count : Nat}
     {layout : QuantumLayout count} (body : UnitaryCircuit model .empty layout) :
     body.eventCost =
       ResourcePool.singleton (model := .quantum model .empty) (.gate Coordinate.singleQubit)
@@ -51,7 +51,7 @@ public theorem algorithmGate_unitaryEventCost_eq_counts {count : Nat}
       simpa [ResourcePool.singleton, ResourcePool.count, Multiset.count_replicate] using zero
 
 /-- The total literal count is the sum of the same word's native gate counts. -/
-public theorem algorithmGate_unitaryEventCost_card {count : Nat}
+public lemma algorithmGate_unitaryEventCost_card {count : Nat}
     {layout : QuantumLayout count} (body : UnitaryCircuit model .empty layout) :
     body.eventCost.card =
       ResourcePool.count (model := .quantum model .empty)

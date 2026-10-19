@@ -39,7 +39,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The exact prefix store preserves every structural read outside its five written cells. -/
-theorem proposalPrefix_read_other
+lemma proposalPrefix_read_other
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -63,7 +63,7 @@ theorem proposalPrefix_read_other
                 (separate _ (by simp [prefixKeys, extendOp]))).trans decoded)))
 
 /-- The actual selected arm introduces no writes beyond the nine supplied cells. -/
-theorem proposalSlot_read_other
+lemma proposalSlot_read_other
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -80,7 +80,7 @@ theorem proposalSlot_read_other
     (fun key member => separate key (List.mem_append_left _ member)) store
 
 /-- Every ordered finite proposal scan preserves all structural reads outside its actual writes. -/
-theorem proposalFold_read_other
+lemma proposalFold_read_other
     (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) {shape : CShape} (other : CInputRef ctx shape)

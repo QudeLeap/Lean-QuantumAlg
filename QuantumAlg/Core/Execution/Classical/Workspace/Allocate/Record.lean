@@ -16,7 +16,8 @@ namespace QuantumAlg.Execution.ClassicalWorkspace
 noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 /-- A deterministic actual body has a deterministic full-state record after lexical allocation. -/
-theorem withCellsFrom_hasRecord {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
+lemma withCellsFrom_hasRecord {model : ExecutionModel}
+    (environment : model.Environment) {outer ctx : RuntimeCtx model.kind}
     (transport : Transport outer ctx) (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
@@ -28,7 +29,7 @@ theorem withCellsFrom_hasRecord {model : ExecutionModel} {outer ctx : RuntimeCtx
         (Store inner × model.HiddenState) × (body cells distinct innerTransport separated).Path,
         ∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct innerTransport separated).execute Reference state =
+          (body cells distinct innerTransport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) :
@@ -36,7 +37,7 @@ theorem withCellsFrom_hasRecord {model : ExecutionModel} {outer ctx : RuntimeCtx
       (Store ctx × model.HiddenState) × (withCellsFrom transport shapes body).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCellsFrom transport shapes body).execute Reference state =
+        (withCellsFrom transport shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
@@ -45,13 +46,13 @@ theorem withCellsFrom_hasRecord {model : ExecutionModel} {outer ctx : RuntimeCtx
       (Store inner × model.HiddenState) × code.Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State inner Reference (model.HiddenState × History)),
-        code.execute Reference state = state.mapClassical (fun entry =>
+        code.execute environment Reference state = state.mapClassical (fun entry =>
           let result := step (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2)))))
   · intro inner innerTransport key shape fresh code available
     obtain ⟨step, equation⟩ := available
     exact ⟨Circuit.workspaceRecord key shape fresh code step,
-      Circuit.execute_workspaceRecord key shape fresh code step equation⟩
+      Circuit.execute_workspaceRecord environment key shape fresh code step equation⟩
   · exact bodyRecord
 end
 end QuantumAlg.Execution.ClassicalWorkspace

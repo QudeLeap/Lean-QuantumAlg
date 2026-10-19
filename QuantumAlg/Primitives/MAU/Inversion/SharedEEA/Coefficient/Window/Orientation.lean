@@ -47,21 +47,21 @@ def reverseValue (length : Nat) : Fin (2 ^ length) ≃ Fin (2 ^ length) :=
   BitVec.equivFin.toEquiv.symm.trans
     ((reverseWord length).trans BitVec.equivFin.toEquiv)
 
-private theorem reverseValue_word {length : Nat} (word : BitVec length) :
+private lemma reverseValue_word {length : Nat} (word : BitVec length) :
     reverseValue length (BitVec.equivFin word) = BitVec.equivFin word.reverse := by
   change BitVec.equivFin
     (BitVec.equivFin.toEquiv.symm (BitVec.equivFin.toEquiv word)).reverse = _
   rw [Equiv.symm_apply_apply]
 
 /-- Two actual bit reversals restore the complete finite operand. -/
-theorem reverseValue_twice (length : Nat) (value : Fin (2 ^ length)) :
+lemma reverseValue_twice (length : Nat) (value : Fin (2 ^ length)) :
     reverseValue length (reverseValue length value) = value := by
   obtain ⟨word, rfl⟩ := BitVec.equivFin.toEquiv.surjective value
   change reverseValue length (reverseValue length (BitVec.equivFin word)) = BitVec.equivFin word
   rw [reverseValue_word, reverseValue_word, BitVec.reverse_reverse_eq]
 
 /-- A reflected coefficient operand reads the opposite bit of the original finite word. -/
-theorem reverseValue_testBit (length : Nat) (value : Fin (2 ^ length))
+lemma reverseValue_testBit (length : Nat) (value : Fin (2 ^ length))
     (index : Fin length) :
     (reverseValue length value).val.testBit index.val =
       value.val.testBit index.rev.val := by
@@ -101,15 +101,15 @@ def grouping {width : Nat} (window : Window width) :
   (ArithmeticWindowRegisters.grouping window).trans (orientation window)
 
 /-- Original Sign remains the TTK overflow output under coefficient orientation. -/
-theorem grouping_sign {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_sign {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).1.2 = state.flags.sign := rfl
 
 /-- Every original non-window field is retained by the exact coefficient grouping. -/
-theorem grouping_complement {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_complement {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).2 = (ArithmeticWindowRegisters.grouping window state).2 := rfl
 
 /-- The source is the actual Work1 slice, interpreted in its physical little-endian order. -/
-theorem grouping_source {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_source {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).1.1.1 =
       BitVec.equivFin (state.firstWord.extractLsb' window.below window.length).reverse := by
   change reverseValue window.length
@@ -117,7 +117,7 @@ theorem grouping_source {width : Nat} (window : Window width) (state : Registers
   rw [reverseValue_word, wordEquiv_window]
 
 /-- The target is the actual Work2 slice; no wrapped fractional suffix is part of this operand. -/
-theorem grouping_target {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_target {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).1.1.2 =
       BitVec.equivFin (state.secondWord.extractLsb' window.below window.length).reverse := by
   change reverseValue window.length
@@ -132,7 +132,7 @@ def windowIndex {width : Nat} (window : Window width) (index : Fin window.length
     have within := index.isLt
     omega⟩
 
-private theorem reverse_slice_bit {width : Nat} (window : Window width)
+private lemma reverse_slice_bit {width : Nat} (window : Window width)
     (word : BitVec (width + 3)) (index : Fin window.length) :
     (word.extractLsb' window.below window.length).reverse.getLsbD index.val =
       word.getMsbD (windowIndex window index).val := by
@@ -147,7 +147,7 @@ private theorem reverse_slice_bit {width : Nat} (window : Window width)
   simp only [within, bound, decide_true, Bool.true_and, position]
 
 /-- Every source TTK bit reads its exact original Work1 coefficient wire. -/
-theorem grouping_source_bit {width : Nat} (window : Window width) (index : Fin window.length)
+lemma grouping_source_bit {width : Nat} (window : Window width) (index : Fin window.length)
     (state : Registers width) :
     (Addition.TTK.withOverflowBit (Addition.TTK.leftBit window.length index)).get
         (grouping window state).1 =
@@ -158,7 +158,7 @@ theorem grouping_source_bit {width : Nat} (window : Window width) (index : Fin w
     (firstWordBit_get width (windowIndex window index) state).symm
 
 /-- Every target TTK bit reads its exact original Work2 coefficient wire. -/
-theorem grouping_target_bit {width : Nat} (window : Window width) (index : Fin window.length)
+lemma grouping_target_bit {width : Nat} (window : Window width) (index : Fin window.length)
     (state : Registers width) :
     (Addition.TTK.withOverflowBit (Addition.TTK.rightBit window.length index)).get
         (grouping window state).1 =
@@ -175,7 +175,7 @@ def indexEquiv {width : Nat} (window : Window width) :
     ((grouping window).symm.trans (registerLabelEquiv width))
 
 /-- The exact coefficient reassembly commutes with the complete real binary encodings. -/
-theorem indexEquiv_encode {width : Nat} (window : Window width) (state : Registers width) :
+lemma indexEquiv_encode {width : Nat} (window : Window width) (state : Registers width) :
     indexEquiv window ((groupedEncoding window).encode (grouping window state)) =
       (encoding width).encode state := by
   change registerLabelEquiv width ((grouping window).symm

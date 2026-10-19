@@ -26,7 +26,7 @@ noncomputable section
 open NormalizedVector
 
 /-- The Hadamard operator sends zero to the positive equal superposition. -/
-public theorem hadamardOperator_apply_ket0 : HOp.apply ket0 = ketPlus := by
+public lemma hadamardOperator_apply_ket0 : HOp.apply ket0 = ketPlus := by
   apply NormalizedVector.ext
   intro index
   change HOp.applyVec ((ket (R := Qubits 1) 0) : HilbertVector (Qubits 1)) index = ketPlus index
@@ -34,7 +34,7 @@ public theorem hadamardOperator_apply_ket0 : HOp.apply ket0 = ketPlus := by
   fin_cases index <;> simp [HOp, UnitaryOperator.ofMatrix, ketPlus_apply]
 
 /-- The Hadamard operator sends one to the signed equal superposition. -/
-public theorem hadamardOperator_apply_ket1 : HOp.apply ket1 = ketMinus := by
+public lemma hadamardOperator_apply_ket1 : HOp.apply ket1 = ketMinus := by
   apply NormalizedVector.ext
   intro index
   change HOp.applyVec ((ket (R := Qubits 1) 1) : HilbertVector (Qubits 1)) index = ketMinus index
@@ -42,7 +42,7 @@ public theorem hadamardOperator_apply_ket1 : HOp.apply ket1 = ketMinus := by
   fin_cases index <;> simp [HOp, UnitaryOperator.ofMatrix, ketMinus_apply]
 
 /-- Raw-vector form of the Hadamard action on zero. -/
-public theorem hadamardOperator_applyVec_ket0 :
+public lemma hadamardOperator_applyVec_ket0 :
     HOp.applyVec (ket0 : HilbertVector (Qubits 1)) =
       (ketPlus : HilbertVector (Qubits 1)) := by
   have normalized := congrArg

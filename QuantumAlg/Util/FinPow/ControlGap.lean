@@ -32,14 +32,14 @@ public def controlGapEquiv (gap width : Nat) :
     (prodEquiv (m := 1) (n := gap + width))
 
 /-- The gap, distinguished bit, and source values are retained exactly. -/
-public theorem controlGapEquiv_apply {gap width : Nat}
+public lemma controlGapEquiv_apply {gap width : Nat}
     (before : Fin (2 ^ gap)) (control : Fin 2) (source : Fin (2 ^ width)) :
     controlGapEquiv gap width (prodEquiv (before, prodEquiv (control, source))) =
       prodEquiv (control, prodEquiv (before, source)) := by
   simp [controlGapEquiv]
 
 /-- The inverse also retains all three original coordinate values. -/
-public theorem controlGapEquiv_symm_apply {gap width : Nat}
+public lemma controlGapEquiv_symm_apply {gap width : Nat}
     (before : Fin (2 ^ gap)) (control : Fin 2) (source : Fin (2 ^ width)) :
     (controlGapEquiv gap width).symm (prodEquiv (control, prodEquiv (before, source))) =
       prodEquiv (before, prodEquiv (control, source)) := by

@@ -262,7 +262,7 @@ private lemma global_algebra (r : ℕ) (C ν t : ℝ) (c : ℝ)
     _ = (C * c + 1) * (ν ^ 2 * t ^ 2 / (r : ℝ)) := by ring
 
 /-- Repeated-product error and a sufficient number of steps for prescribed precision. -/
-theorem error_and_precision_bound
+lemma error_and_precision_bound
     {d : ℕ}
     (A B : Matrix (Fin d) (Fin d) ℂ)
     (opnorm : Matrix (Fin d) (Fin d) ℂ → ℝ)

@@ -24,6 +24,7 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {tail : Nat}
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- An actual conjunction computation, one output Toffoli, and its literal inverse. -/
 def conjunctionSandwich (compute : List (GateSpec encoding)) : List (GateSpec encoding) :=
@@ -34,7 +35,7 @@ def dirtyConjunctionGates : List (GateSpec encoding) :=
   conjunctionSandwich layout (andGates layout) ++
     conjunctionSandwich layout (andGates layout).tail
 
-private theorem andGates_cons (positive : 0 < tail) :
+private lemma andGates_cons (positive : 0 < tail) :
     andGates layout = andGateAt layout ⟨0, positive⟩ :: (andGates layout).tail := by
   have nonempty : andGates layout ≠ [] := by
     intro empty
@@ -46,13 +47,13 @@ private theorem andGates_cons (positive : 0 < tail) :
   rw [← head]
   exact (List.cons_head_tail nonempty).symm
 
-private theorem shortened_step (positive : 0 < tail) (state : Data) :
+private lemma shortened_step (positive : 0 < tail) (state : Data) :
     GateSpec.stepList (andGates layout).tail state =
       andStageIndexStep layout ((andGateAt layout ⟨0, positive⟩).step state) := by
   rw [← andGates_stepList_eq_indexStep, andGates_cons layout positive]
   simp only [List.tail_cons, GateSpec.stepList, GateSpec.step_step]
 
-private theorem finalControl_output_flip (state : Data) :
+private lemma finalControl_output_flip (state : Data) :
     finalControl layout (layout.output.flip state) = finalControl layout state := by
   unfold finalControl
   split
@@ -61,7 +62,7 @@ private theorem finalControl_output_flip (state : Data) :
   · rw [EncodedBit.get_flip_of_wire_ne _ _ (layout.work_output_ne _).symm,
       EncodedBit.get_flip_of_wire_ne _ _ (layout.source_output_ne _).symm]
 
-private theorem computeControl_output_flip (compute : List (GateSpec encoding))
+private lemma computeControl_output_flip (compute : List (GateSpec encoding))
     (disjoint : ∀ gate, gate ∈ compute → GateSpec.bitDisjoint layout.output gate)
     (state : Data) :
     finalControl layout (GateSpec.stepList compute (layout.output.flip state)) =
@@ -69,7 +70,7 @@ private theorem computeControl_output_flip (compute : List (GateSpec encoding))
   rw [GateSpec.stepList_flip_comm_of_bitDisjoint compute layout.output disjoint,
     finalControl_output_flip]
 
-private theorem paired_sandwiches (first second : List (GateSpec encoding))
+private lemma paired_sandwiches (first second : List (GateSpec encoding))
     (firstDisjoint : ∀ gate, gate ∈ first → GateSpec.bitDisjoint layout.output gate)
     (secondDisjoint : ∀ gate, gate ∈ second → GateSpec.bitDisjoint layout.output gate)
     (state : Data) :
@@ -92,7 +93,7 @@ private theorem paired_sandwiches (first second : List (GateSpec encoding))
       simp [EncodedBit.flip_flip]
 
 /-- All borrowed coordinates return exactly, with no restriction on their initial values. -/
-theorem dirtyConjunctionGates_step (positive : 0 < tail) (state : Data) :
+lemma dirtyConjunctionGates_step (positive : 0 < tail) (state : Data) :
     GateSpec.stepList (dirtyConjunctionGates layout) state =
       if sourceConjunction layout state (tail + 2) then layout.output.flip state else state := by
   have shortenedDisjoint : ∀ gate, gate ∈ (andGates layout).tail →
@@ -105,19 +106,20 @@ theorem dirtyConjunctionGates_step (positive : 0 < tail) (state : Data) :
     dirtyFinal_firstGate_difference]
 
 /-- Exact number of elementary Toffoli leaves when there is at least one borrowed work bit. -/
-theorem dirtyConjunctionGates_length (positive : 0 < tail) :
+lemma dirtyConjunctionGates_length (positive : 0 < tail) :
     (dirtyConjunctionGates layout).length = 4 * tail := by
   simp only [dirtyConjunctionGates, conjunctionSandwich, List.length_append,
     List.length_singleton, List.length_reverse, List.length_tail, andGates, List.length_ofFn]
   omega
 
 /-- The actual elementary circuit agrees on every computational label, including dirty work. -/
-theorem dirtyConjunctionGates_realizes (positive : 0 < tail) :
+lemma dirtyConjunctionGates_realizes (positive : 0 < tail) :
     UnitaryCircuit.Realizes encoding
-      (GateSpec.programList physical oracles (dirtyConjunctionGates layout))
+      (GateSpec.programList physical oracles (dirtyConjunctionGates layout)) environment
       (fun state => if sourceConjunction layout state (tail + 2)
         then layout.output.flip state else state) := by
-  exact GateSpec.realizesList_congrStep physical oracles (dirtyConjunctionGates layout)
+  exact GateSpec.realizesList_congrStep physical oracles (environment := environment)
+    (dirtyConjunctionGates layout)
     (dirtyConjunctionGates_step layout positive)
 
 end

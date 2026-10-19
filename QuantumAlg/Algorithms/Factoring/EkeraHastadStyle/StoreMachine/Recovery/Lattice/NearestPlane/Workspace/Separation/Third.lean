@@ -83,20 +83,20 @@ private def thirdCellInverse : PhysicalCell →
   | .inr .reduceProduct => some .reduceProduct
   | _ => none
 
-private theorem thirdCellInverse_apply
+private lemma thirdCellInverse_apply
     (cell : LatticeNearestPlaneThird.PhaseCell) :
     thirdCellInverse (thirdCell cell) = some cell := by
   cases cell <;> rfl
 
 /-- The third-phase semantic projection is injective. -/
-theorem thirdCell_injective : Function.Injective thirdCell := by
+lemma thirdCell_injective : Function.Injective thirdCell := by
   intro left right equal
   have mapped := congrArg thirdCellInverse equal
   rw [thirdCellInverse_apply, thirdCellInverse_apply] at mapped
   exact Option.some.inj mapped
 
 /-- Third-phase semantic keys are their unified physical keys. -/
-theorem thirdCellKey_eq_physicalKey {kind : ProblemKind}
+lemma thirdCellKey_eq_physicalKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N)
@@ -108,7 +108,7 @@ theorem thirdCellKey_eq_physicalKey {kind : ProblemKind}
   cases cell <;> rfl
 
 /-- Physical packages supply the third-phase global key separation. -/
-theorem thirdPhaseSeparation {kind : ProblemKind}
+lemma thirdPhaseSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -131,12 +131,12 @@ private def thirdCrossMutableCell : LatticeCross.MutableCell →
   | .productLeft => .productLeft
   | .productRight => .productRight
 
-private theorem thirdCrossMutableCell_injective :
+private lemma thirdCrossMutableCell_injective :
     Function.Injective thirdCrossMutableCell := by
   intro left right equal
   cases left <;> cases right <;> cases equal <;> rfl
 
-private theorem thirdCrossMutableKey {kind : ProblemKind}
+private lemma thirdCrossMutableKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (cell : LatticeCross.MutableCell) :
@@ -155,7 +155,7 @@ private def thirdCrossSourceCell : LatticeCross.SourceCell →
 
 /-- Physical phase separation supplies the complete third-coordinate cross
 product subcontract. -/
-theorem thirdCrossSeparation {kind : ProblemKind}
+lemma thirdCrossSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -186,7 +186,7 @@ theorem thirdCrossSeparation {kind : ProblemKind}
     apply phase.keyInjective
     simpa only [thirdCrossMutableKey] using equal
 
-private theorem thirdWriteInputAvoids {kind : ProblemKind}
+private lemma thirdWriteInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} {shape : CShape}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (phase : LatticeNearestPlaneThird.PhaseSeparation refs)
@@ -201,7 +201,7 @@ private theorem thirdWriteInputAvoids {kind : ProblemKind}
   rw [sourceKey]
   exact phase.phaseCellKey_ne sourceCell target different
 
-private theorem thirdCoordinateInputAvoids {kind : ProblemKind}
+private lemma thirdCoordinateInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (phase : LatticeNearestPlaneThird.PhaseSeparation refs)
@@ -216,7 +216,7 @@ private theorem thirdCoordinateInputAvoids {kind : ProblemKind}
   rw [sourceKey]
   exact phase.phaseCellKey_ne sourceCell target different
 
-private theorem thirdDotCoordinateSeparation {kind : ProblemKind}
+private lemma thirdDotCoordinateSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (phase : LatticeNearestPlaneThird.PhaseSeparation refs)
@@ -269,7 +269,7 @@ private theorem thirdDotCoordinateSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the refreshed third-coordinate
 numerator dot product. -/
-theorem thirdNumeratorDotSeparation {kind : ProblemKind}
+lemma thirdNumeratorDotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -302,7 +302,7 @@ theorem thirdNumeratorDotSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the refreshed signed third-coordinate
 denominator dot product. -/
-theorem thirdDenominatorDotSeparation {kind : ProblemKind}
+lemma thirdDenominatorDotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -335,7 +335,7 @@ theorem thirdDenominatorDotSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the third-coordinate rounded-division
 subcontract. -/
-theorem thirdDivisionSeparation {kind : ProblemKind}
+lemma thirdDivisionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -426,7 +426,7 @@ theorem thirdDivisionSeparation {kind : ProblemKind}
   · exact divisionKeyNe .divisionWideDenominator .divisionOutput (by decide)
   · exact divisionKeyNe .divisionQuotientRemainder .divisionOutput (by decide)
 
-private theorem thirdCoordinateAvoidsWrite {kind : ProblemKind}
+private lemma thirdCoordinateAvoidsWrite {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (phase : LatticeNearestPlaneThird.PhaseSeparation refs)
@@ -442,7 +442,7 @@ private theorem thirdCoordinateAvoidsWrite {kind : ProblemKind}
   exact thirdCoordinateInputAvoids refs phase source sourceCell targetCell
     sourceKey different
 
-private theorem thirdWriteInputAvoidsWrite {kind : ProblemKind}
+private lemma thirdWriteInputAvoidsWrite {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (phase : LatticeNearestPlaneThird.PhaseSeparation refs)
@@ -458,7 +458,7 @@ private theorem thirdWriteInputAvoidsWrite {kind : ProblemKind}
   exact thirdWriteInputAvoids refs phase source sourceCell targetCell sourceKey
     different
 
-private theorem thirdReduceCoordinateSeparation {kind : ProblemKind}
+private lemma thirdReduceCoordinateSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneThird.Refs ctx width)
     (phase : LatticeNearestPlaneThird.PhaseSeparation refs)
@@ -505,7 +505,7 @@ private theorem thirdReduceCoordinateSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the third-coordinate point reduction
 subcontract. -/
-theorem thirdReductionSeparation {kind : ProblemKind}
+lemma thirdReductionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -567,7 +567,7 @@ theorem thirdReductionSeparation {kind : ProblemKind}
 
 /-- The persistent state and reusable scratch package satisfy the complete
 third-coordinate separation contract. -/
-theorem thirdSeparation {kind : ProblemKind}
+lemma thirdSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}

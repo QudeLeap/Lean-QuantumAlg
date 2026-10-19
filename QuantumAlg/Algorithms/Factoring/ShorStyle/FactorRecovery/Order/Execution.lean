@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- The actual optional-word unpack precedes the same real stored-flag dispatch. -/
@@ -66,13 +67,14 @@ def recoveredStep (source : Input N)
   let selected := recoveryTailStep (model := model) source parameter phase cells output packed.1
   (selected.1, (packed.2, selected.2))
 
-private theorem unpackedDispatch_execute (source : Input N)
+private lemma unpackedDispatch_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (BitWord.instruction (execution := model) (unpackOrderOp cells))
-      (dispatch (model := model) source parameter cells output)).execute Reference state =
+      (dispatch (model := model) source parameter cells output)).execute
+        environment Reference state =
       state.mapClassical (fun entry =>
         ((unpackedDispatchStep (model := model) source parameter cells output entry.1).1,
           (entry.2.1, (entry.2.2, (unpackedDispatchStep (model := model) source parameter cells
@@ -82,7 +84,7 @@ private theorem unpackedDispatch_execute (source : Input N)
     Function.comp_def]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem recoveryTail_execute (source : Input N)
+private lemma recoveryTail_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -93,7 +95,8 @@ private theorem recoveryTail_execute (source : Input N)
           cells.base.toCStorageRef)
         phase cells.order)
       (.seq (BitWord.instruction (execution := model) (unpackOrderOp cells))
-        (dispatch (model := model) source parameter cells output))).execute Reference state =
+        (dispatch (model := model) source parameter cells output))).execute
+          environment Reference state =
       state.mapClassical (fun entry =>
         ((recoveryTailStep (model := model) source parameter phase cells output entry.1).1,
           (entry.2.1, (entry.2.2, (recoveryTailStep (model := model) source parameter phase cells
@@ -105,13 +108,14 @@ private theorem recoveryTail_execute (source : Input N)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The real complete stored-outcome recovery prefix has its actual full CQ execution record. -/
-theorem recovered_execute (source : Input N)
+lemma recovered_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (recovered (model := model) source parameter phase cells output).execute Reference state =
+    (recovered (model := model) source parameter phase cells output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((recoveredStep (model := model) source parameter phase cells output entry.1).1,
           (entry.2.1, (entry.2.2, (recoveredStep (model := model) source parameter phase cells

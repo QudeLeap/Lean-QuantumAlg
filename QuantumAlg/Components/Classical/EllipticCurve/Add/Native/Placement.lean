@@ -26,7 +26,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem classifierOfCells_keys (cells : Cells ctx (classifierShapes width)) :
+private lemma classifierOfCells_keys (cells : Cells ctx (classifierShapes width)) :
     (classifierOfCells cells).keys = cells.keys := by
   cases cells with
   | cons left rest =>
@@ -44,7 +44,7 @@ private theorem classifierOfCells_keys (cells : Cells ctx (classifierShapes widt
               rfl
 
 /-- Actual allocation establishes every separation used by the internal classifier proof. -/
-theorem classifierOfCells_separation {outer : RuntimeCtx kind}
+lemma classifierOfCells_separation {outer : RuntimeCtx kind}
     (left right : CInputRef outer (PointShape width))
     (cells : Cells ctx (classifierShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -63,7 +63,7 @@ theorem classifierOfCells_separation {outer : RuntimeCtx kind}
       member right
 
 /-- The original zero word is supplied by real lexical initialization, including width zero. -/
-theorem classifierOfCells_zero_initialized (cells : Cells ctx (classifierShapes width))
+lemma classifierOfCells_zero_initialized (cells : Cells ctx (classifierShapes width))
     (store : Store ctx) (initialized : cells.Initialized store) :
     store.read (classifierRead (classifierOfCells cells).zero) = .unsignedWord 0 := by
   cases cells with
@@ -81,7 +81,7 @@ theorem classifierOfCells_zero_initialized (cells : Cells ctx (classifierShapes 
               cases rest
               exact initialized.2.2.2.2.1
 
-private theorem classifierStore_readsAs {outer : RuntimeCtx kind}
+private lemma classifierStore_readsAs {outer : RuntimeCtx kind}
     (left right : CInputRef outer (PointShape width))
     (cells : Cells ctx (classifierShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (source : Store outer) (before : Store ctx)
@@ -97,11 +97,11 @@ private theorem classifierStore_readsAs {outer : RuntimeCtx kind}
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Real allocation and classification discharge the continuation's original input predicates. -/
-theorem withClassification_actualRecord_post (left right : CInputRef ctx (PointShape width))
+lemma withClassification_actualRecord_post (left right : CInputRef ctx (PointShape width))
     (body : ∀ {inner : RuntimeCtx model.kind}, Classifier inner width →
       Transport ctx inner → Circuit model inner inner)
     (Post : Store ctx → Store ctx → Prop)
@@ -111,7 +111,8 @@ theorem withClassification_actualRecord_post (left right : CInputRef ctx (PointS
           (Store inner × model.HiddenState) × (body classifier transport).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body classifier transport).execute Reference state = state.mapClassical (fun entry =>
+          (body classifier transport).execute environment Reference state = state.mapClassical
+            (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
         ∀ (source : Store ctx) (before : Store inner × model.HiddenState),
@@ -123,12 +124,14 @@ theorem withClassification_actualRecord_post (left right : CInputRef ctx (PointS
         (Store ctx × model.HiddenState) × (withClassification left right body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withClassification left right body).execute Reference state = state.mapClassical
+        (withClassification left right body).execute environment Reference state =
+          state.mapClassical
           (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, Post before.1 (step before).1.1 := by
-  apply withCells_actualRecord_initialized_post ctx (classifierShapes width)
+  apply withCells_actualRecord_initialized_post (environment := environment) ctx
+    (classifierShapes width)
     (fun cells _ transport _ =>
       .seq (classifierBody (transport.liftInput left) (transport.liftInput right)
         (classifierOfCells cells)) (body (classifierOfCells cells) transport)) Post
@@ -136,7 +139,7 @@ theorem withClassification_actualRecord_post (left right : CInputRef ctx (PointS
   obtain ⟨bodyStep, bodyEquation, bodyCorrect⟩ := bodyContract (classifierOfCells cells) transport
   refine ⟨Circuit.sequenceRecord _ _
       (Circuit.preserveHiddenRecord (classifierRecord _ _ _)) bodyStep,
-    Circuit.execute_sequenceRecord _ _ _ _ (by
+    Circuit.execute_sequenceRecord (environment := environment) _ _ _ _ (by
       intro reference history _ state
       exact classifierBody_execute _ _ _ reference state) bodyEquation, ?_⟩
   intro source before reads initialized

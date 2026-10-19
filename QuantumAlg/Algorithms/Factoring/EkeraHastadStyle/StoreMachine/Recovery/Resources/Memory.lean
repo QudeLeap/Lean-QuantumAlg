@@ -29,7 +29,7 @@ def fixedBatchRecoveryAdditionalBits (N : Nat) : Nat :=
     9 * QuadraticScratchLayout.CandidateWidth N + QuadraticScratchLayout.CenterWidth N +
     8 * QuadraticScratchLayout.WorkWidth N + 48
 
-private theorem recoverySpaceArithmetic {kind : ProblemKind}
+private lemma recoverySpaceArithmetic {kind : ProblemKind}
     (width modulus measured jWidth kWidth discriminant candidate center work : Nat) :
     ((SpacePool.ofShape (.bits (2 * candidate + modulus + 3 +
       (104 * width + 5 * modulus + 4 * measured + 2 * jWidth + 2 * kWidth + 33) +
@@ -42,7 +42,7 @@ private theorem recoverySpaceArithmetic {kind : ProblemKind}
   omega
 
 /-- The independent additional-space pool has exactly the displayed classical-bit formula. -/
-theorem fixedBatchRecovery_additionalSpace_eq_bits {model : ExecutionModel} (N : Nat) :
+lemma fixedBatchRecovery_additionalSpace_eq_bits {model : ExecutionModel} (N : Nat) :
     LatticeFixedBatchRecoveryMachine.additionalSpace (model := model) N =
       SpacePool.ofShape (.bits (fixedBatchRecoveryAdditionalBits N)) := by
   rw [LatticeFixedBatchRecoveryMachine.additionalSpace,
@@ -56,7 +56,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Every actual resident peak includes the caller plus the explicit extra classical capacity. -/
-theorem fixedBatchRecovery_resident_le_bits (input : Input N)
+lemma fixedBatchRecovery_resident_le_bits (input : Input N)
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
@@ -70,7 +70,7 @@ theorem fixedBatchRecovery_resident_le_bits (input : Input N)
   exact LatticeFixedBatchRecoveryMachine.into_resident_le input parameter terminals result path
 
 /-- Every actual auxiliary peak includes the same complete additional classical capacity. -/
-theorem fixedBatchRecovery_auxiliary_le_bits (input : Input N)
+lemma fixedBatchRecovery_auxiliary_le_bits (input : Input N)
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))

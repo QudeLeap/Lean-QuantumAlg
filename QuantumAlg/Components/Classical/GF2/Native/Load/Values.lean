@@ -29,14 +29,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
+private lemma word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
       cases right with
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
-private theorem rowDecode_value (input : CInputRef ctx (.bits width))
+private lemma rowDecode_value (input : CInputRef ctx (.bits width))
     (loader : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (separate : loader.key ∉ input.storageKeys) :
     ((rowDecodeStep input loader (store.applyOp (rowClearOp loader))).1.read
@@ -61,7 +61,7 @@ private theorem rowDecode_value (input : CInputRef ctx (.bits width))
       (ClassicalAlgorithms.TerminalDecode.eval value).val) source)
 
 /-- The actual row body writes the original big-endian value after clearing its real decoder. -/
-theorem gf2RowBody_read_matrix (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+lemma gf2RowBody_read_matrix (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (sourceSeparate : loader.key ∉ input.storageKeys) (matrixSeparate : loader.key ≠ matrix.key) :
@@ -85,7 +85,7 @@ theorem gf2RowBody_read_matrix (input : CInputRef ctx (.bits width)) (row : Fin 
   rw [preserved, rowDecode_value input loader store sourceSeparate]
 
 /-- Every structural read outside the two actual written cells survives the complete row body. -/
-theorem gf2RowBody_read_other (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+lemma gf2RowBody_read_other (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -100,7 +100,7 @@ theorem gf2RowBody_read_other (input : CInputRef ctx (.bits width)) (row : Fin r
       (Store.read_applyOp_of_not_mem_storageKeys store (rowClearOp loader) other loaderSeparate))
 
 omit [BitWord.Selected model] in
-private theorem loader_fresh {shape : CShape} (input : CInputRef ctx shape) :
+private lemma loader_fresh {shape : CShape} (input : CInputRef ctx shape) :
     (rowCell ctx width).key ∉
       (input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
         ctx.canonicalFreshKey_fresh).storageKeys := by
@@ -108,7 +108,7 @@ private theorem loader_fresh {shape : CShape} (input : CInputRef ctx shape) :
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
 /-- The one-word lexical scope supplies every separation needed for the original row value. -/
-theorem gf2LoadRow_read_matrix (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_read_matrix (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (store : Store ctx) :
     (loadRowStep input matrix row store).1.read (.storage matrix.toCStorageRef) =
@@ -135,7 +135,7 @@ theorem gf2LoadRow_read_matrix (input : CInputRef ctx (.fixedVector rowCount (.b
       ctx.canonicalFreshKey_fresh (.storage matrix.toCStorageRef))
 
 /-- Popping the real temporary leaves every other caller read unchanged. -/
-theorem gf2LoadRow_read_other (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_read_other (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : matrix.key ∉ other.storageKeys) :
@@ -151,7 +151,7 @@ theorem gf2LoadRow_read_other (input : CInputRef ctx (.fixedVector rowCount (.bi
   · exact Store.read_pushWorkspace_underWorkspace store _ _ _ other
 
 /-- The complete caller store equals the original matrix-row update, without a workspace premise. -/
-theorem gf2LoadRow_store (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_store (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (store : Store ctx) :
     (loadRowStep input matrix row store).1 = store.write matrix
@@ -165,7 +165,7 @@ theorem gf2LoadRow_store (input : CInputRef ctx (.fixedVector rowCount (.bits wi
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 /-- The whole actual loader applies its original row updates in increasing-index order. -/
-theorem gf2LoadMatrix_store (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_store (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (store : Store ctx) :
     (loadMatrixStep input matrix store).1 =
       (List.ofFn (fun row : Fin rowCount => fun current : Store ctx => current.write matrix

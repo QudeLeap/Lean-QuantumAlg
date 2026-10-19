@@ -20,6 +20,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.QuotientIncrement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec
 
 /-- The actual low-counter list placed first at Ctrl and then at the quotient field. -/
@@ -28,7 +30,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
     (QuotientPlacement.placement width).placeGate
 
 /-- The complete list increments only the selected quotient and restores all dirty data. -/
-theorem quotientIncrement_gates_step (width : Nat) (state : Registers width) :
+lemma quotientIncrement_gates_step (width : Nat) (state : Registers width) :
     stepList (gates width) state = step state := by
   rw [gates, EncodedBit.FullPlacement.placeGates_step]
   unfold EncodedBit.FullPlacement.step
@@ -43,20 +45,20 @@ theorem quotientIncrement_gates_step (width : Nat) (state : Registers width) :
   cases control <;> rfl
 
 /-- Exact amplitude realization imposes no condition on the borrowed word or incoming Ctrl. -/
-theorem quotientIncrement_gates_realizes (width : Nat)
+lemma quotientIncrement_gates_realizes (width : Nat)
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (programList layout .empty (gates width)) step :=
-  realizesList_congrStep layout .empty _ (quotientIncrement_gates_step width)
+      (programList layout .empty (gates width)) environment step :=
+  realizesList_congrStep layout .empty _ (quotientIncrement_gates_step width) environment
 
 /-- Both complete wire placements preserve the original ordered HRS trace. -/
-theorem quotientIncrement_gates_trace (width : Nat) :
+lemma quotientIncrement_gates_trace (width : Nat) :
     (gates width).map (event .empty) = (program width).eventTrace := by
   simp only [gates, List.map_map, Function.comp_def, EncodedBit.FullPlacement.placeGate_event]
   rw [LowShiftIncrement.lowShiftIncrement_gates_trace, program_eventTrace]
 
 /-- Every native gate multiplicity is the original actual quotient incrementer's multiplicity. -/
-theorem quotientIncrement_gates_eventCost (width : Nat) :
+lemma quotientIncrement_gates_eventCost (width : Nat) :
     ResourcePool.ofList ((gates width).map (event .empty)) = (program width).eventCost := by
   rw [quotientIncrement_gates_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 

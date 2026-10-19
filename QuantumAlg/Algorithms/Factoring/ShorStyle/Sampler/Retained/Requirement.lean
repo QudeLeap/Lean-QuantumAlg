@@ -37,7 +37,7 @@ private def incomingTarget (ctx : RuntimeCtx kind) (N : Nat) (Reference : Regist
   DensityOperator.observeSelectionWithReference (context ctx N).quantumLayout
     Finset.univ Reference input.state.quantumMarginal
 
-private theorem incomingTarget_normalized (ctx : RuntimeCtx kind) (N : Nat)
+private lemma incomingTarget_normalized (ctx : RuntimeCtx kind) (N : Nat)
     (Reference : Register) (input : Execution.Input ctx Reference) :
     (incomingTarget ctx N Reference input).IsNormalized :=
   (DensityOperator.observeSelectionWithReference_mass (context ctx N).quantumLayout
@@ -49,20 +49,21 @@ def requirement (ctx : RuntimeCtx kind) (N : Nat) : StateRequirement ctx (contex
   .jointReference Finset.univ .unit fun Reference input _ =>
     .mixed (incomingTarget ctx N Reference input) (incomingTarget_normalized ctx N Reference input)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
 
 /-- Actual retained sampling satisfies the independent full-state promise for every reference. -/
-theorem samplerRetainedRequirement_holds (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetainedRequirement_holds (ctx : RuntimeCtx model.kind) {N : Nat}
     (specification : Input N) {Reference : Register}
       (input : Execution.OracleInput model.classicalOracles ctx Reference) :
     (requirement ctx N).Holds input.caller
-      ((run (model := model) ctx N).finalState Reference input.state) := by
+      ((run (model := model) ctx N).finalState environment Reference input.state) := by
   intro value
   cases value with
   | unit =>
-      let result := (run (model := model) ctx N).finalState Reference input.state
+      let result := (run (model := model) ctx N).finalState environment Reference input.state
       have actual : result.quantumMarginal = input.caller.state.quantumMarginal :=
-        (samplerRetained_run_quantumMarginal ctx specification Reference input.state).trans
+        (samplerRetained_run_quantumMarginal (environment := environment)
+          ctx specification Reference input.state).trans
           input.oracleInput_caller_quantumMarginal.symm
       have observed := congrArg
         (fun density : DensityOperator (Register.prod (context ctx N).register Reference) =>

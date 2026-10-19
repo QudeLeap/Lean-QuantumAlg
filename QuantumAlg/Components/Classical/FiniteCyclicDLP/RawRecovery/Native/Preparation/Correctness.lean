@@ -28,12 +28,12 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem key_free (refs : PreparationRefs ctx width) (separate : refs.Separated)
+private lemma key_free (refs : PreparationRefs ctx width) (separate : refs.Separated)
     (left right : Fin 13) (different : left ≠ right) : refs.key left ∉ [refs.key right] :=
   fun member => refs.key_ne separate left right different (List.mem_singleton.mp member)
 
 /-- The two actual scalings preserve reads outside their four reused destinations. -/
-theorem preparationScale_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationScale_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : PreparationRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (productFree : refs.product.key ∉ other.storageKeys)
@@ -46,7 +46,7 @@ theorem preparationScale_read_other {model : ExecutionModel} [BitWord.Selected m
     refs.left refs.right other productFree divisionFree leftFree rightFree store
 
 /-- Final normalization writes only the narrowed modulus, equality flag and negative frequency. -/
-theorem preparationFinalize_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationFinalize_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : PreparationRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (modulusFree : refs.modulus.key ∉ other.storageKeys)
@@ -59,7 +59,7 @@ theorem preparationFinalize_read_other {model : ExecutionModel} [BitWord.Selecte
     (Store.read_applyOp_of_not_mem_storageKeys store refs.narrowOp other modulusFree)
 
 /-- Actual narrowing and the original branch compute the canonical modular negative frequency. -/
-theorem preparationFinalize_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationFinalize_original_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx)
     (modulusValue : (store.read (scaleRead refs.modulusWide)).toNat = spec.modulus)
@@ -100,7 +100,7 @@ theorem preparationFinalize_original_value {model : ExecutionModel} [BitWord.Sel
   exact natural.trans (negateNatural_original spec _ _ rfl rightCanonical)
 
 /-- The complete actual pre-engine store contains exactly the original normalized inputs. -/
-theorem preparationBody_original_values {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationBody_original_values {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx)
@@ -179,7 +179,7 @@ theorem preparationBody_original_values {model : ExecutionModel} [BitWord.Select
     finalNegative.trans (by rw [rightValue]; rfl)⟩
 
 /-- The complete actual prefix preserves every structural caller read outside its live cells. -/
-theorem preparationBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationBody_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) {shape : CShape} (other : CInputRef ctx shape)

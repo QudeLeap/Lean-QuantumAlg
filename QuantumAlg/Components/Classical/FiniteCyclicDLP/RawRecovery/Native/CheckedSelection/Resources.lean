@@ -54,7 +54,7 @@ def checkedRecoveryActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool ki
   SpacePool.max (((checkedInverseShapes width).map SpacePool.ofShape).sum +
     checkedInverseActiveSpace kind width) (selectedRecoveryScratchSpace width true)
 
-private theorem selected_pool_le (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+private lemma selected_pool_le (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
     (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
@@ -67,7 +67,7 @@ private theorem selected_pool_le (input : CInputRef ctx (FiniteCyclicDLP.InputSh
     exact le_add_self
   · exact le_rfl
 
-private theorem selected_depth_le (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
+private lemma selected_depth_le (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
     (path : (withSelectedRecovery (model := model) input modulus success output).Path) :
@@ -79,14 +79,14 @@ private theorem selected_depth_le (input : CInputRef ctx (FiniteCyclicDLP.InputS
     omega
   · exact le_rfl
 
-private theorem selected_scratch_le {kind : ProblemKind} (selected : Bool) :
+private lemma selected_scratch_le {kind : ProblemKind} (selected : Bool) :
     (selectedRecoveryScratchSpace width selected : SpacePool kind) ≤
       selectedRecoveryScratchSpace width true := by
   cases selected
   · exact add_le_add zero_le le_rfl
   · exact le_rfl
 
-private theorem checked_recovery_body_pool_le (spec : ModulusSpec width)
+private lemma checked_recovery_body_pool_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -106,7 +106,7 @@ private theorem checked_recovery_body_pool_le (spec : ModulusSpec width)
     (selected_pool_le _ _ _ _ path.2)
 
 /-- Real allocation of both checked result cells adds no fictitious native operations. -/
-theorem withCheckedSelection_pool_le (spec : ModulusSpec width)
+lemma withCheckedSelection_pool_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
     (path : (withCheckedSelection (model := model) spec refs result).Path) :
     (withCheckedSelection (model := model) spec refs result).resourcePool path ≤
@@ -120,7 +120,7 @@ theorem withCheckedSelection_pool_le (spec : ModulusSpec width)
     (checkedRecoveryEnvelope model spec)
     (fun cells _ transport _ selected => checked_recovery_body_pool_le _ _ _ _ _ _ _ selected) path
 
-private theorem checked_recovery_body_depth_le (spec : ModulusSpec width)
+private lemma checked_recovery_body_depth_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -134,7 +134,7 @@ private theorem checked_recovery_body_depth_le (spec : ModulusSpec width)
     (selected_depth_le _ _ _ _ duration path.2)
 
 /-- Actual stored success selects a serial recovery whose original duration is fully charged. -/
-theorem withCheckedSelection_depth_le (spec : ModulusSpec width)
+lemma withCheckedSelection_depth_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
     (duration : Resource.Event model → Nat) (path : (withCheckedSelection (model := model) spec
       refs result).Path) :
@@ -150,7 +150,7 @@ theorem withCheckedSelection_depth_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       checked_recovery_body_depth_le _ _ _ _ _ _ _ duration selected) path
 
-private theorem checked_recovery_body_resident_le (spec : ModulusSpec width)
+private lemma checked_recovery_body_resident_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -166,7 +166,7 @@ private theorem checked_recovery_body_resident_le (spec : ModulusSpec width)
   · exact (withSelectedRecovery_resident _ _ _ _ path.2).le.trans
       (add_le_add ((selected_scratch_le _).trans (SpacePool.le_max_right _ _)) le_rfl)
 
-private theorem checked_recovery_body_auxiliary_le (spec : ModulusSpec width)
+private lemma checked_recovery_body_auxiliary_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -183,7 +183,7 @@ private theorem checked_recovery_body_auxiliary_le (spec : ModulusSpec width)
       (add_le_add ((selected_scratch_le _).trans (SpacePool.le_max_right _ _)) le_rfl)
 
 /-- Both original checked result cells coexist with the larger actual checked or recovery scope. -/
-theorem withCheckedSelection_resident_le (spec : ModulusSpec width)
+lemma withCheckedSelection_resident_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
     (path : (withCheckedSelection (model := model) spec refs result).Path) :
     (withCheckedSelection (model := model) spec refs result).peakResidentSpace path ≤
@@ -200,7 +200,7 @@ theorem withCheckedSelection_resident_le (spec : ModulusSpec width)
     path
 
 /-- Real auxiliary ownership includes both checked result cells and the complete caller context. -/
-theorem withCheckedSelection_auxiliary_le (spec : ModulusSpec width)
+lemma withCheckedSelection_auxiliary_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width))
     (path : (withCheckedSelection (model := model) spec refs result).Path) :
     (withCheckedSelection (model := model) spec refs result).peakAuxiliarySpace path ≤

@@ -26,10 +26,10 @@ private abbrev stageLayout (N : Nat) : QuantumLayout
     (ShortDLP.totalQubits (parameters N)) :=
   (QuantumSignature.qubits (ShortDLP.totalQubits (parameters N))).canonicalPlacement.layout
 
-private theorem stageLayout_wires (N : Nat) :
+private lemma stageLayout_wires (N : Nat) :
     (stageLayout N).wires = (layout N).wires := rfl
 
-private theorem stageLayout_eq_layout (N : Nat) :
+private lemma stageLayout_eq_layout (N : Nat) :
     stageLayout N = layout N := by
   apply QuantumLayout.eq_of_wire_eq
   funext index
@@ -39,7 +39,7 @@ variable {ctx : RuntimeCtx .quantum} (N : Nat)
   (sameWires : ctx.quantumWires = (layout N).wires)
 
 include sameWires in
-private theorem stageContextWires :
+private lemma stageContextWires :
     (stageLayout N).wires = ctx.quantumLayout.wires :=
   (stageLayout_wires N).trans (ctx.quantumLayout_wires.trans sameWires).symm
 
@@ -55,7 +55,7 @@ def declaredBasisEquiv : ctx.register.Index ≃
 include sameWires in
 /-- The declared stage's binary labels coincide with the original bank's
 source labels, including all group-workspace coordinates. -/
-theorem declaredBasisEquiv_eq_basisEquiv :
+lemma declaredBasisEquiv_eq_basisEquiv :
     declaredBasisEquiv N sameWires = basisEquiv N sameWires := by
   unfold declaredBasisEquiv basisEquiv
   cases stageLayout_eq_layout N
@@ -63,47 +63,48 @@ theorem declaredBasisEquiv_eq_basisEquiv :
 
 include sameWires in
 /-- The model-owned full short-DLP stage on the actual original-width bank. -/
-def declaredMember (input : Input N) (parameter : (ParameterShape N).Value) :
+def declaredMember (parameter : (ParameterShape N).Value) :
     UnitaryCircuit AlgorithmGate.model
-      (ShortDLP.declaredModel (encoding input))
+      (ShortDLP.declaredModel N (parameters N))
       ctx.quantumLayout :=
   Execution.unitaryOfEqualWires (stageLayout N) ctx.quantumLayout
     (stageContextWires N sameWires)
-    (ShortDLP.DeclaredStage.circuit (encoding input)
+    (ShortDLP.DeclaredStage.circuit N (parameters N)
       (parameterUnit parameter) (parameterTarget parameter))
 
 /-- Placement transports the exact complete operator, including the one
 declared group permutation, into the live bank basis. -/
-theorem declaredMember_matrix (input : Input N)
+lemma declaredMember_matrix
+    (interpretation : (ShortDLP.declaredModel N (parameters N)).Interpretation)
     (parameter : (ParameterShape N).Value) :
-    (declaredMember N sameWires input parameter).matrix =
+    ((declaredMember N sameWires parameter).matrix interpretation) =
       UnitaryOperator.reindex
         (Execution.basisOfEqualWires (stageLayout N) ctx.quantumLayout
           (stageContextWires N sameWires))
-        (ShortDLP.DeclaredStage.circuit (encoding input)
-          (parameterUnit parameter) (parameterTarget parameter)).matrix := by
+        ((ShortDLP.DeclaredStage.circuit N (parameters N)
+          (parameterUnit parameter) (parameterTarget parameter)).matrix interpretation) := by
   exact Execution.unitaryOfEqualWires_matrix (stageLayout N) ctx.quantumLayout
-    (stageContextWires N sameWires) _
+    (stageContextWires N sameWires) interpretation _
 
 /-- Equal-wire placement preserves the exact charged event ledger. -/
-theorem declaredMember_eventCost (input : Input N)
+lemma declaredMember_eventCost
     (parameter : (ParameterShape N).Value) :
-    (declaredMember N sameWires input parameter).eventCost =
-      (ShortDLP.DeclaredStage.circuit (encoding input)
+    (declaredMember N sameWires parameter).eventCost =
+      (ShortDLP.DeclaredStage.circuit N (parameters N)
         (parameterUnit parameter) (parameterTarget parameter)).eventCost := by
   exact Execution.unitaryOfEqualWires_cost (stageLayout N) ctx.quantumLayout
     (stageContextWires N sameWires) _ .empty .empty
 
 /-- The physically placed member still makes exactly one group-operation query. -/
-theorem declaredMember_groupQueryCount (input : Input N)
+lemma declaredMember_groupQueryCount
     (parameter : (ParameterShape N).Value) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model
-        (ShortDLP.declaredModel (encoding input)))
+        (ShortDLP.declaredModel N (parameters N)))
       (.oracle .groupOperation)
-      (declaredMember N sameWires input parameter).eventCost = 1 := by
+      (declaredMember N sameWires parameter).eventCost = 1 := by
   rw [declaredMember_eventCost]
-  exact ShortDLP.DeclaredStage.circuit_groupQueryCount (encoding input)
+  exact ShortDLP.DeclaredStage.circuit_groupQueryCount N (parameters N)
     (parameterUnit parameter) (parameterTarget parameter)
 
 end

@@ -23,7 +23,8 @@ open Execution
 
 noncomputable section
 
-variable {width : Nat} {model : ExecutionModel} [BitWord.Selected model]
+variable {width : Nat} {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent native dot-refresh formula, including its initial overwrite. -/
@@ -65,7 +66,7 @@ def secondPairPrefixTrace (width : Nat)
       restoreNegative ++ reductionTrace (model := model) width)
 
 /-- The actual path emits exactly the independent five-stage native instruction sequence. -/
-theorem secondPairPrefixInto_events (refs : Refs ctx width)
+lemma secondPairPrefixInto_events (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) :
     (secondPairPrefixInto (model := model) refs).eventTrace path =
       secondPairPrefixTrace (model := model) width
@@ -77,7 +78,7 @@ theorem secondPairPrefixInto_events (refs : Refs ctx width)
   rfl
 
 /-- Actual native multiplicity is computed from the independently specified event sequence. -/
-theorem secondPairPrefixInto_resourcePool (refs : Refs ctx width)
+lemma secondPairPrefixInto_resourcePool (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) :
     (secondPairPrefixInto (model := model) refs).resourcePool path =
       ResourcePool.ofList (secondPairPrefixTrace (model := model) width
@@ -86,7 +87,7 @@ theorem secondPairPrefixInto_resourcePool (refs : Refs ctx width)
   rw [secondPairPrefixInto_events]
 
 /-- Every actual prefix path executes at most 35 native classical instructions. -/
-theorem secondPairPrefixInto_eventCount_le (refs : Refs ctx width)
+lemma secondPairPrefixInto_eventCount_le (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) :
     ((secondPairPrefixInto (model := model) refs).eventTrace path).length ≤ 35 := by
   have division := RoundedDiv.body_eventCount_le refs.division32 path.2.1
@@ -97,7 +98,7 @@ theorem secondPairPrefixInto_eventCount_le (refs : Refs ctx width)
   omega
 
 /-- Unit-duration serial depth includes all dependencies on actual earlier writes and decisions. -/
-theorem secondPairPrefixInto_depth_le (refs : Refs ctx width)
+lemma secondPairPrefixInto_depth_le (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) :
     (secondPairPrefixInto (model := model) refs).depth (fun _ => 1) path ≤ 35 := by
   have division := RoundedDiv.body_depth_le refs.division32 path.2.1
@@ -106,26 +107,26 @@ theorem secondPairPrefixInto_depth_le (refs : Refs ctx width)
   omega
 
 /-- Actual prefix execution restores all borrowed correlations jointly with external references. -/
-theorem secondPairPrefixInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma secondPairPrefixInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (secondPairPrefixInto (model := model) refs).BorrowedRestored Reference state
-      ((secondPairPrefixInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((secondPairPrefixInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
     (refreshInputsInto (model := model) refs) (divisionReductionInto (model := model) refs)
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
       (LatticeDotRefresh.refreshInto (model := model)
         refs.basis.second refs.basis.first (refreshG21Refs refs))
       (refresh32InputsInto refs)
     · exact LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference state
-    · exact Circuit.borrowedRestored_seq _ _ _
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
         (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _)
         (LatticeSecondReductionInputs.secondReductionInputsInto_borrowedRestored _ _ Reference _)
-  · exact Circuit.borrowedRestored_seq _ _ _
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (RoundedDiv.body_borrowedRestored refs.division32 Reference _)
       (LatticeArithmetic.pointReduce_borrowedRestored _ _ _ _ Reference _)
 
 /-- Every actual prefix phase uses the complete supplied context without hidden allocation. -/
-theorem secondPairPrefixInto_visited (refs : Refs ctx width)
+lemma secondPairPrefixInto_visited (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (secondPairPrefixInto (model := model) refs).visitedContexts path) :
     visited = ctx := by
@@ -143,7 +144,7 @@ theorem secondPairPrefixInto_visited (refs : Refs ctx width)
     simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using reduction
 
 /-- Resident space counts every supplied quantum system and actual classical cell. -/
-theorem secondPairPrefixInto_resident_le (refs : Refs ctx width)
+lemma secondPairPrefixInto_resident_le (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) :
     (secondPairPrefixInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -151,7 +152,7 @@ theorem secondPairPrefixInto_resident_le (refs : Refs ctx width)
   rw [secondPairPrefixInto_visited refs path visited present]
 
 /-- Auxiliary accounting preserves all caller roles and counts every scratch cell throughout. -/
-theorem secondPairPrefixInto_auxiliary_le (refs : Refs ctx width)
+lemma secondPairPrefixInto_auxiliary_le (refs : Refs ctx width)
     (path : (secondPairPrefixInto (model := model) refs).Path) :
     (secondPairPrefixInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

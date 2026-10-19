@@ -26,7 +26,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Decode the actual original samples and source basis before loading the actual target. -/
@@ -42,13 +43,13 @@ def decodeTargetStep (refs : Refs ctx N) (store : Store ctx) :
   (second.1, (first.2, second.2))
 
 /-- The actual composed execution retains every incoming state block and original history. -/
-theorem decodeTargetInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma decodeTargetInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (decodeTargetInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (decodeTargetInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := decodeTargetStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeWideInitializationPrefix.decodeBasisInto (prefixRefs refs))
     (LatticeWideTargetMachine.loadTargetInto refs.target)
     (fun before =>
@@ -79,13 +80,13 @@ def initializeWideStep (refs : Refs ctx N) (store : Store ctx) :
   (second.1, (first.2, second.2))
 
 /-- The actual composed execution retains every incoming state block and original history. -/
-theorem initializeWideInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma initializeWideInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (initializeWideInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (initializeWideInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := initializeWideStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (decodeTargetInto refs)
     (LatticeFixedFuelMachine.refreshResetInto refs.initialization.driver)
     (fun before =>
@@ -117,13 +118,13 @@ def pairToLllStep (refs : Refs ctx N) (store : Store ctx) :
   (second.1, (first.2, second.2))
 
 /-- The actual composed execution retains every incoming state block and original history. -/
-theorem pairToLllInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma pairToLllInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pairToLllInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (pairToLllInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := pairToLllStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (decodeTargetInto refs)
     (LatticeFixedFuelMachine.initializedInto (RSA.shortLogRecoveryFuel
       (shortLogBits N) (tradeoffBits N)) refs.initialization.driver)

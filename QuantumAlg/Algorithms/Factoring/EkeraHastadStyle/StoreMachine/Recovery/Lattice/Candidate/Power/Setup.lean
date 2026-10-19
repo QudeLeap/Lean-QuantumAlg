@@ -19,7 +19,8 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -83,15 +84,16 @@ def setupStep (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
   let powered := powerStep input refs prepared.1
   (powered.1, (prepared.2, powered.2))
 
-private theorem modulusExponent_execute (refs : Refs ctx N) (Reference : Register)
+private lemma modulusExponent_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq (modulusInto refs) (exponentInto refs)).execute Reference state =
+    (Circuit.seq (modulusInto refs) (exponentInto refs)).execute environment Reference state =
       state.mapClassical (fun entry =>
         let loaded := modulusStep refs entry.1
         let exponent := exponentStep refs loaded.1
         (exponent.1, (entry.2.1, (entry.2.2, (loaded.2, exponent.2))))) := by
-  refine (Circuit.execute_seq_mapClassical (modulusInto refs) (exponentInto refs)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (modulusInto refs) (exponentInto refs)
     (fun before =>
       let actual := modulusStep refs before.1
       ((actual.1, before.2), actual.2))
@@ -109,13 +111,13 @@ private theorem modulusExponent_execute (refs : Refs ctx N) (Reference : Registe
 
 /-- Actual base packing and constant materialization retain all incoming histories and
 references. -/
-theorem prepareInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma prepareInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (prepareInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (prepareInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := prepareStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (packOp refs))
     (.seq (modulusInto refs) (exponentInto refs))
     (fun before =>
@@ -125,7 +127,8 @@ theorem prepareInto_execute (refs : Refs ctx N) (Reference : Register)
       let loaded := modulusStep refs before.1
       let exponent := exponentStep refs loaded.1
       ((exponent.1, before.2), (loaded.2, exponent.2)))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (fun reference _history _ current =>
       (modulusExponent_execute refs reference current).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl))
@@ -134,13 +137,14 @@ theorem prepareInto_execute (refs : Refs ctx N) (Reference : Register)
 
 /-- The actual full interpreter connects the retained base, initialized constants and target
 power. -/
-theorem setupInto_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma setupInto_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (setupInto input refs).execute Reference state = state.mapClassical (fun entry =>
+    (setupInto input refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := setupStep input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (prepareInto refs) (powerInto input refs)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (prepareInto refs) (powerInto input refs)
     (fun before =>
       let actual := prepareStep refs before.1
       ((actual.1, before.2), actual.2))

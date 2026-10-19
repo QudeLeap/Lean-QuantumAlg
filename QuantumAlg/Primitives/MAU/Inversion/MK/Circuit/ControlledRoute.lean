@@ -29,6 +29,8 @@ namespace Circuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -79,7 +81,7 @@ def controlledActiveOnlyStep (tail counterWidth : Nat)
     (controlledActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
 
-theorem controlledActiveOnly_realizes
+lemma controlledActiveOnly_realizes
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -87,10 +89,10 @@ theorem controlledActiveOnly_realizes
     UnitaryCircuit.Realizes
       (encoding tail.succ counterWidth)
       (controlledActiveOnlyProgram tail counterWidth comparisonIndex
-        historyIndex workIndex)
+        historyIndex workIndex) environment
       (controlledActiveOnlyStep tail counterWidth comparisonIndex
         historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (controlledActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
 
@@ -111,7 +113,7 @@ def controlledActiveOnlyStructuredStep (tail counterWidth : Nat)
 
 /-- With clean control work, the exact controlled step reduces to the lifted
 active-only route when the path is true and to identity when it is false. -/
-theorem controlledActiveOnlyStep_eq_semantic_of_clean
+lemma controlledActiveOnlyStep_eq_semantic_of_clean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -172,7 +174,7 @@ theorem controlledActiveOnlyStep_eq_semantic_of_clean
 /-- Normalize the latch/padding/controlled-route prefix on a clean active
 round boundary.  The active-only concrete route receives exactly the standard
 clean full-round workspace, while the latched path remains true. -/
-theorem controlledActiveOnlyStructuredStep_after_latch_padding_active_eq
+lemma controlledActiveOnlyStructuredStep_after_latch_padding_active_eq
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -209,7 +211,7 @@ theorem controlledActiveOnlyStructuredStep_after_latch_padding_active_eq
 /-- Normalize the same prefix on a clean inactive round boundary.  Padding
 increments the source counter, all reusable work stays clean, and the false
 path makes the controlled active-only route an exact no-op. -/
-theorem controlledActiveOnlyStructuredStep_after_latch_padding_inactive_eq
+lemma controlledActiveOnlyStructuredStep_after_latch_padding_inactive_eq
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -262,7 +264,7 @@ def routedStepBeforeCleanup (tail counterWidth : Nat)
 
 /-- The latch/padding/controlled-route prefix does not consume any persistent
 route-history slot. -/
-theorem routedStepBeforeCleanup_get_route
+lemma routedStepBeforeCleanup_get_route
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex observed : Fin (2 * tail.succ))
@@ -278,7 +280,7 @@ theorem routedStepBeforeCleanup_get_route
 
 /-- On a clean round boundary the working path records exactly the original
 active flag, independently of the branch taken by the controlled route. -/
-theorem routedStepBeforeCleanup_get_path_eq_originalActive
+lemma routedStepBeforeCleanup_get_path_eq_originalActive
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -303,7 +305,7 @@ theorem routedStepBeforeCleanup_get_path_eq_originalActive
 
 /-- The selected even-branch dispatcher restores every comparison-work bit,
 including the one temporarily borrowed for branch-code staging. -/
-private theorem selectedDispatch_comparisonWork_clean
+private lemma selectedDispatch_comparisonWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (d : Registers tail.succ counterWidth)
@@ -362,7 +364,7 @@ private theorem selectedDispatch_comparisonWork_clean
 
 /-- The selected even-branch dispatcher also restores the dedicated
 coefficient-adder carry-in and complete carry-work word. -/
-private theorem selectedDispatch_coefficientWork_clean
+private lemma selectedDispatch_coefficientWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (d : Registers tail.succ counterWidth) :
@@ -401,7 +403,7 @@ private theorem selectedDispatch_coefficientWork_clean
           workBit (d, cleanComparisonWork tail.succ)
 
 /-- The carried odd dispatcher restores the complete comparison workspace. -/
-private theorem oddCarriedDispatch_comparisonWork_clean
+private lemma oddCarriedDispatch_comparisonWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (d : Registers tail.succ counterWidth)
@@ -492,7 +494,7 @@ private theorem oddCarriedDispatch_comparisonWork_clean
     BinaryLabelEncoding.prodRightBit] using hbit
 
 /-- The carried odd dispatcher restores the complete coefficient-adder work. -/
-private theorem oddCarriedDispatch_coefficientWork_clean
+private lemma oddCarriedDispatch_coefficientWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (d : Registers tail.succ counterWidth)
@@ -575,7 +577,7 @@ private theorem oddCarriedDispatch_coefficientWork_clean
 
 /-- Inactive padding leaves no branch residue: the path-controlled active
 route is skipped and the counter incrementer restores its physical work. -/
-theorem routedStepBeforeCleanup_inactive_residueCertificate
+lemma routedStepBeforeCleanup_inactive_residueCertificate
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -611,7 +613,7 @@ theorem routedStepBeforeCleanup_inactive_residueCertificate
 
 /-- An active terminating round clears active and restores all full-round
 work, so it likewise reaches the all-zero branch-residue certificate. -/
-theorem routedStepBeforeCleanup_active_terminated_residueCertificate
+lemma routedStepBeforeCleanup_active_terminated_residueCertificate
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -651,7 +653,7 @@ theorem routedStepBeforeCleanup_active_terminated_residueCertificate
 
 /-- The active nonterminating `uEven` route reaches the exact six-bit residue
 pattern required by the physical cleanup suffix. -/
-theorem routedStepBeforeCleanup_active_uEven_residueCertificate
+lemma routedStepBeforeCleanup_active_uEven_residueCertificate
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -868,7 +870,7 @@ theorem routedStepBeforeCleanup_active_uEven_residueCertificate
 /-- The active nonterminating `vEven` route reaches the complementary even
 residue pattern.  Its low `r` bit is read from the physical cyclic shift and
 therefore depends only on the explicit source-MSB arithmetic certificate. -/
-theorem routedStepBeforeCleanup_active_vEven_residueCertificate
+lemma routedStepBeforeCleanup_active_vEven_residueCertificate
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1069,7 +1071,7 @@ theorem routedStepBeforeCleanup_active_vEven_residueCertificate
 
 /-- The active nonterminating odd `uGreater` route leaves the carried
 comparison/branch-code residue expected by the physical cleanup suffix. -/
-theorem routedStepBeforeCleanup_active_uGreater_residueCertificate
+lemma routedStepBeforeCleanup_active_uGreater_residueCertificate
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1425,7 +1427,7 @@ theorem routedStepBeforeCleanup_active_uGreater_residueCertificate
 /-- The active nonterminating odd `vLe` route leaves the zero-valued carried
 branch code together with the odd-route counter latch.  The low `r` bit is
 proved directly from the physical doubling path. -/
-theorem routedStepBeforeCleanup_active_vLe_residueCertificate
+lemma routedStepBeforeCleanup_active_vLe_residueCertificate
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1739,7 +1741,7 @@ theorem routedStepBeforeCleanup_active_vLe_residueCertificate
 
 /-- Inactive padding reaches the complete reusable-work boundary before the
 four residue targets are inspected. -/
-theorem routedStepBeforeCleanup_inactive_reusableWorkspaceClean
+lemma routedStepBeforeCleanup_inactive_reusableWorkspaceClean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1758,7 +1760,7 @@ theorem routedStepBeforeCleanup_inactive_reusableWorkspaceClean
 
 /-- The terminating active route restores every reusable work register before
 the common residue-cleanup suffix. -/
-theorem routedStepBeforeCleanup_active_terminated_reusableWorkspaceClean
+lemma routedStepBeforeCleanup_active_terminated_reusableWorkspaceClean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1782,7 +1784,7 @@ theorem routedStepBeforeCleanup_active_terminated_reusableWorkspaceClean
 
 /-- The concrete active `uEven` route preserves all reusable work objects;
 only the four certified branch residues remain for the common cleanup. -/
-theorem routedStepBeforeCleanup_active_uEven_reusableWorkspaceClean
+lemma routedStepBeforeCleanup_active_uEven_reusableWorkspaceClean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1854,7 +1856,7 @@ theorem routedStepBeforeCleanup_active_uEven_reusableWorkspaceClean
       counterCarryWork := rfl
       control := rfl }
 
-private theorem routedStepBeforeCleanup_active_uEven_counter
+private lemma routedStepBeforeCleanup_active_uEven_counter
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1917,7 +1919,7 @@ private theorem routedStepBeforeCleanup_active_uEven_counter
     (coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_counter
       tail counterWidth comparisonIndex roundIndex coeffInput)
 
-private theorem routedStepBeforeCleanup_active_vEven_counter
+private lemma routedStepBeforeCleanup_active_vEven_counter
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -1992,7 +1994,7 @@ private theorem routedStepBeforeCleanup_active_vEven_counter
 
 /-- The concrete active `vEven` route has the same complete reusable-work
 boundary as `uEven`. -/
-theorem routedStepBeforeCleanup_active_vEven_reusableWorkspaceClean
+lemma routedStepBeforeCleanup_active_vEven_reusableWorkspaceClean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -2080,7 +2082,7 @@ set_option maxHeartbeats 800000 in
 comparison decision affects source data and branch-code residue, but the
 complete comparison/coefficient work and the non-latch counter work are clean
 on either side of that decision. -/
-theorem routedStepBeforeCleanup_active_odd_reusableWorkspaceClean
+lemma routedStepBeforeCleanup_active_odd_reusableWorkspaceClean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -2233,7 +2235,7 @@ theorem routedStepBeforeCleanup_active_odd_reusableWorkspaceClean
 
 set_option maxHeartbeats 800000 in
 -- The counter proof expands both even dispatches and the carried odd route.
-private theorem routedStepBeforeCleanup_active_odd_counter
+private lemma routedStepBeforeCleanup_active_odd_counter
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -2362,7 +2364,7 @@ private theorem routedStepBeforeCleanup_active_odd_counter
 /-- Every active nonterminating route preserves the physical padding counter.
 The proof splits only on the physical parity controls used by the static
 dispatcher. -/
-theorem routedStepBeforeCleanup_active_nonzero_counter
+lemma routedStepBeforeCleanup_active_nonzero_counter
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -2399,7 +2401,7 @@ theorem routedStepBeforeCleanup_active_nonzero_counter
         tail counterWidth comparisonIndex roundIndex workIndex x hinput
         hactive hvNonzero huOdd hvOdd hfinal
 
-private theorem routedPersistentBoundary_of_raw
+private lemma routedPersistentBoundary_of_raw
     (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) (source : RoundState)
     (before routed : RegistersWithRouteHistory tail.succ counterWidth)
@@ -2436,7 +2438,7 @@ private theorem routedPersistentBoundary_of_raw
 
 set_option maxHeartbeats 800000 in
 -- The active getter unfolds the complete routed concrete round and cleanup suffix.
-private theorem routedStepBeforeCleanup_active_nonzero_get_active
+private lemma routedStepBeforeCleanup_active_nonzero_get_active
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -2466,7 +2468,7 @@ private theorem routedStepBeforeCleanup_active_nonzero_get_active
 
 set_option maxHeartbeats 800000 in
 -- Preserving an arbitrary history slot unfolds the routed round's nested products.
-private theorem routedStepBeforeCleanup_active_nonzero_get_historyBit_of_ne
+private lemma routedStepBeforeCleanup_active_nonzero_get_historyBit_of_ne
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex observed : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -2501,7 +2503,7 @@ private theorem routedStepBeforeCleanup_active_nonzero_get_historyBit_of_ne
 
 set_option maxHeartbeats 800000 in
 -- Packaging the raw branch readouts normalizes every persistent register projection.
-private theorem routedPersistentBoundary_active_nonzero_of_raw
+private lemma routedPersistentBoundary_active_nonzero_of_raw
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
@@ -2606,7 +2608,7 @@ private theorem routedPersistentBoundary_active_nonzero_of_raw
 
 /-- Inactive padding preserves source data/history, advances only the physical
 counter, and matches the source inactive round. -/
-theorem routedStepBeforeCleanup_inactive_persistentBoundary
+lemma routedStepBeforeCleanup_inactive_persistentBoundary
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -2696,7 +2698,7 @@ theorem routedStepBeforeCleanup_inactive_persistentBoundary
 
 /-- An active terminating round preserves source data/history, clears active,
 and advances the physical padding counter exactly once. -/
-theorem routedStepBeforeCleanup_active_terminated_persistentBoundary
+lemma routedStepBeforeCleanup_active_terminated_persistentBoundary
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -2809,7 +2811,7 @@ set_option maxHeartbeats 800000 in
 -- The u-even boundary combines all raw readouts with the full source-state extensionality.
 /-- The active nonterminating `uEven` route matches the raw source round and
 preserves all persistent state outside the selected history slot. -/
-theorem routedStepBeforeCleanup_active_uEven_persistentBoundary
+lemma routedStepBeforeCleanup_active_uEven_persistentBoundary
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -2966,7 +2968,7 @@ theorem routedStepBeforeCleanup_active_uEven_persistentBoundary
 
 set_option maxHeartbeats 800000 in
 -- This wrapper normalizes the concrete branch readouts before applying the raw boundary.
-private theorem routedPersistentBoundary_active_nonzero_of_concrete
+private lemma routedPersistentBoundary_active_nonzero_of_concrete
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -3102,7 +3104,7 @@ set_option maxHeartbeats 800000 in
 -- The v-even boundary combines the complete concrete route and source-state readout.
 /-- The active nonterminating `vEven` route matches the raw source round and
 preserves all persistent state outside the selected history slot. -/
-theorem routedStepBeforeCleanup_active_vEven_persistentBoundary
+lemma routedStepBeforeCleanup_active_vEven_persistentBoundary
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -3179,7 +3181,7 @@ set_option maxHeartbeats 800000 in
 -- The u-greater boundary combines the carried odd route and all persistent readouts.
 /-- The active odd `uGreater` route matches the raw source round and preserves
 all persistent state outside the selected history slot. -/
-theorem routedStepBeforeCleanup_active_uGreater_persistentBoundary
+lemma routedStepBeforeCleanup_active_uGreater_persistentBoundary
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -3261,7 +3263,7 @@ set_option maxHeartbeats 800000 in
 -- The v-less-or-equal boundary combines the carried odd route and persistent readouts.
 /-- The active odd `vLe` route matches the raw source round and preserves all
 persistent state outside the selected history slot. -/
-theorem routedStepBeforeCleanup_active_vLe_persistentBoundary
+lemma routedStepBeforeCleanup_active_vLe_persistentBoundary
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) (source : RoundState)
@@ -3339,7 +3341,7 @@ theorem routedStepBeforeCleanup_active_vLe_persistentBoundary
         huOdd hvOdd hnlt)
 
 
-theorem workingPathBit_routeHistoryBit_wire_ne
+lemma workingPathBit_routeHistoryBit_wire_ne
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (workingPathBit tail counterWidth).wire ≠
       (routeHistoryBit tail counterWidth roundIndex).wire :=
@@ -3349,7 +3351,7 @@ theorem workingPathBit_routeHistoryBit_wire_ne
     (fullRoundPathControlWorkPathBit tail counterWidth)
     (BinaryLabelEncoding.finIdentityBit (2 * tail.succ) roundIndex)
 
-theorem routeHistoryBit_routeHistoryBit_wire_ne
+lemma routeHistoryBit_routeHistoryBit_wire_ne
     (tail counterWidth : Nat)
     (left right : Fin (2 * tail.succ)) (h : left ≠ right) :
     (routeHistoryBit tail counterWidth left).wire ≠

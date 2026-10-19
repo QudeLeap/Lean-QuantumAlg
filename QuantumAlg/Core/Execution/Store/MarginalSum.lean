@@ -25,7 +25,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Summing every actual complete stored block gives the entire quantum-reference marginal. -/
-theorem sum_store_matrices {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma sum_store_matrices {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) :
     (∑ stored : Store ctx,
@@ -38,7 +38,7 @@ theorem sum_store_matrices {kind : ProblemKind} {ctx : RuntimeCtx kind}
   simpa only [BasisSeeded.store_matrix] using actual
 
 /-- A normalized common matrix coefficient on every actual store reconstructs the full matrix. -/
-theorem matrix_of_uniform_store_blocks {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma matrix_of_uniform_store_blocks {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History)
     (target : HilbertOperator (Register.prod ctx.register Reference)) (coefficient : ℂ)

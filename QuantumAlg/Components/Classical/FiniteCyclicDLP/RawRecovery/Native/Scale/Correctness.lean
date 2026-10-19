@@ -30,7 +30,7 @@ section Placement
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Each actual lexical entry preserves all original structural source values. -/
-theorem enterScale_read (store : Store ctx) {shape : CShape}
+lemma enterScale_read (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (enterScale store width).read (underScale input width) = store.read input := by
   unfold enterScale underScale
@@ -38,7 +38,7 @@ theorem enterScale_read (store : Store ctx) {shape : CShape}
     Store.read_pushWorkspace_underWorkspace]
 
 /-- Each matching lexical release exposes the unchanged old structural reference. -/
-theorem leaveScale_read (store : Store (scaleCtx ctx width)) {shape : CShape}
+lemma leaveScale_read (store : Store (scaleCtx ctx width)) {shape : CShape}
     (input : CInputRef ctx shape) :
     (leaveScale store).read input = store.read (underScale input width) := by
   unfold leaveScale underScale
@@ -46,7 +46,7 @@ theorem leaveScale_read (store : Store (scaleCtx ctx width)) {shape : CShape}
     Store.read_popWorkspace_underWorkspace]
 
 /-- The denominator's actual allocation supplies exactly the loader's zero initial value. -/
-theorem enterScale_denominator_zero (store : Store ctx) (width : Nat) :
+lemma enterScale_denominator_zero (store : Store ctx) (width : Nat) :
     ((enterScale store width).read (scaleRead (scaleDenominatorCell ctx width))).toNat = 0 := by
   unfold enterScale scaleDenominatorCell scaleRead
   change ((((store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
@@ -65,13 +65,13 @@ theorem enterScale_denominator_zero (store : Store ctx) (width : Nat) :
     Store.read_pushWorkspace_head]
   rfl
 
-private theorem scaleDenominator_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma scaleDenominator_free {shape : CShape} (input : CInputRef ctx shape) :
     (scaleDenominatorCell ctx width).key ∉ (underScale input width).storageKeys := by
   change ctx.canonicalFreshKey ∉ (underScale input width).storageKeys
   simp only [underScale, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
-private theorem scaleProduct_denominator_separate :
+private lemma scaleProduct_denominator_separate :
     (scaleProductCell ctx width).key ∉
       (scaleRead (scaleDenominatorCell ctx width)).storageKeys := by
   change (scaleDenominatorCtx ctx width).canonicalFreshKey ∉ [ctx.canonicalFreshKey]
@@ -82,20 +82,20 @@ private theorem scaleProduct_denominator_separate :
 
 end Placement
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The real loader and arithmetic compose on the complete service-aware execution state. -/
-theorem scalePrepared_execute (raw : CInputRef ctx (.unsignedWord width))
+lemma scalePrepared_execute (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (scaleCtx ctx width) Reference (model.HiddenState × History)) :
-    (scalePrepared (model := model) raw modulus output).execute Reference state =
+    (scalePrepared (model := model) raw modulus output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := scalePreparedStep (model := model) raw modulus output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (scaleSeed (model := model) (scaleDenominatorCell ctx width))
     (scalePlaced (model := model) raw modulus output)
     (fun before =>
@@ -134,16 +134,17 @@ private def divisionScopeStep (raw : CInputRef ctx (.unsignedWord width))
   (Store.popWorkspace (scaleProductCtx ctx width).canonicalFreshKey (scaleDivisionShape width)
     (scaleProductCtx ctx width).canonicalFreshKey_fresh result.1, result.2)
 
-private theorem divisionScope_execute (raw : CInputRef ctx (.unsignedWord width))
+private lemma divisionScope_execute (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (scaleProductCtx ctx width) Reference (model.HiddenState × History)) :
-    (divisionScope (model := model) raw modulus output).execute Reference state =
+    (divisionScope (model := model) raw modulus output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := divisionScopeStep (model := model) raw modulus output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (scaleProductCtx ctx width).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (scaleProductCtx ctx width).canonicalFreshKey
     (scaleDivisionShape width) (scaleProductCtx ctx width).canonicalFreshKey_fresh
     (scalePrepared (model := model) raw modulus output)
     (fun before =>
@@ -174,16 +175,17 @@ private def productScopeStep (raw : CInputRef ctx (.unsignedWord width))
     (.unsignedWord (width + (width + 1))) (scaleDenominatorCtx ctx width).canonicalFreshKey_fresh
     result.1, result.2)
 
-private theorem productScope_execute (raw : CInputRef ctx (.unsignedWord width))
+private lemma productScope_execute (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (scaleDenominatorCtx ctx width) Reference (model.HiddenState × History)) :
-    (productScope (model := model) raw modulus output).execute Reference state =
+    (productScope (model := model) raw modulus output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := productScopeStep (model := model) raw modulus output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (scaleDenominatorCtx ctx width).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (scaleDenominatorCtx ctx width).canonicalFreshKey
     (.unsignedWord (width + (width + 1))) (scaleDenominatorCtx ctx width).canonicalFreshKey_fresh
     (divisionScope (model := model) raw modulus output)
     (fun before =>
@@ -195,16 +197,16 @@ private theorem productScope_execute (raw : CInputRef ctx (.unsignedWord width))
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete actual three-scope circuit preserves all quantum-reference blocks and paths. -/
-theorem withScale_execute (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_execute (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (withScale (model := model) raw modulus output).execute Reference state =
+    (withScale (model := model) raw modulus output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := withScaleStep (model := model) raw modulus output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh
     (productScope (model := model) raw modulus output)
     (fun before =>
@@ -216,7 +218,7 @@ theorem withScale_execute (raw : CInputRef ctx (.unsignedWord width))
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete actual scale writes the original model's exact canonical rescaled frequency. -/
-theorem withScale_original_value (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_original_value (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) (store : Store ctx)
     (orderValue : (store.read modulus).toNat = spec.modulus) :
@@ -254,7 +256,7 @@ def scaleEvents (width : Nat) : List (Resource.Event model) :=
       scaleBodyEvents (model := model) width
 
 /-- Actual allocations and releases surround precisely the original charged native sequence. -/
-theorem withScale_eventTrace (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_eventTrace (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) :
@@ -274,7 +276,7 @@ theorem withScale_eventTrace (raw : CInputRef ctx (.unsignedWord width))
       (scaleDivisionCell ctx width) (writeUnderScale output width) path.2)
 
 /-- Native multiplicities derive from the same original loader and arithmetic instructions. -/
-theorem withScale_resourcePool (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_resourcePool (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) :
@@ -283,7 +285,7 @@ theorem withScale_resourcePool (raw : CInputRef ctx (.unsignedWord width))
   congrArg ResourcePool.ofList (withScale_eventTrace raw modulus output path)
 
 /-- Exact serial unit-duration depth includes every denominator-loader and arithmetic event. -/
-theorem withScale_depth (raw : CInputRef ctx (.unsignedWord width))
+lemma withScale_depth (raw : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withScale (model := model) raw modulus output).Path) :

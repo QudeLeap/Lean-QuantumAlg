@@ -30,6 +30,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.OutputCopy
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 
 /-- The complete retained forward frame and a separate arbitrary n-bit XOR output. -/
@@ -54,7 +56,7 @@ private def targetWord (width : Nat) : EncodedBit.Word (encoding width) width wh
 def value {width : Nat} (state : Registers width) : Fin (2 ^ width) :=
   BitVec.equivFin (state.secondWord.reverse.setWidth width)
 
-private theorem source_get (width : Nat) (index : Fin width) (state : Data width) :
+private lemma source_get (width : Nat) (index : Fin width) (state : Data width) :
     ((sourceWord width).bit index).get state = (value state.1).val.testBit index.val := by
   change (secondWordBit width (sourceIndex width index)).get state.1 =
     (state.1.secondWord.reverse.setWidth width).getLsbD index.val
@@ -62,20 +64,20 @@ private theorem source_get (width : Nat) (index : Fin width) (state : Data width
   simp only [index.isLt, decide_true, Bool.true_and]
   rfl
 
-private theorem target_get (width : Nat) (index : Fin width) (state : Data width) :
+private lemma target_get (width : Nat) (index : Fin width) (state : Data width) :
     ((targetWord width).bit index).get state = state.2.val.testBit index.val := by
   change state.2.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire index)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem source_target_disjoint (width : Nat) (source target : Fin width) :
+private lemma source_target_disjoint (width : Nat) (source target : Fin width) :
     ((sourceWord width).bit source).wire ≠ ((targetWord width).bit target).wire :=
   (EncodedBit.GateSpec.prodRightBit_wire_ne_prodLeftBit_wire
     (SharedEEA.encoding width) (finIdentity width)
     (finIdentityBit width (WireAddress.littleEndianWire target))
     (secondWordBit width (sourceIndex width source))).symm
 
-private theorem target_disjoint (width : Nat) (left right : Fin width)
+private lemma target_disjoint (width : Nat) (left right : Fin width)
     (distinct : left ≠ right) :
     ((targetWord width).bit left).wire ≠ ((targetWord width).bit right).wire := by
   intro same
@@ -101,7 +103,7 @@ def step {width : Nat} (state : Data width) : Data width :=
   (state.1, ⟨state.2.val ^^^ (value state.1).val,
     Nat.xor_lt_two_pow state.2.isLt (value state.1).isLt⟩)
 
-private theorem gates_step (width : Nat) (state : Data width) :
+private lemma gates_step (width : Nat) (state : Data width) :
     EncodedBit.Word.xorIntoStep (sourceWord width) (targetWord width)
       (fun index => source_target_disjoint width index index) state = step state := by
   apply Prod.ext
@@ -120,29 +122,30 @@ private theorem gates_step (width : Nat) (state : Data width) :
     exact actual.trans (Nat.testBit_xor state.2.val (value state.1).val index.val).symm
 
 /-- Exact native action preserves every compute-state correlation and arbitrary target value. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) step :=
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment step :=
   (EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty
     (sourceWord width) (targetWord width)
-    (fun index => source_target_disjoint width index index)).congrStep (gates_step width)
+    (fun index => source_target_disjoint width index index) environment).congrStep (gates_step
+      width)
 
 /-- An internally proved fitted coefficient is copied completely without truncation. -/
-theorem value_of_fits {width : Nat} (state : Registers width)
+lemma value_of_fits {width : Nat} (state : Registers width)
     (fits : state.secondWord.reverse.toNat < 2 ^ width) :
     (value state).val = state.secondWord.reverse.toNat := by
   change (state.secondWord.reverse.setWidth width).toNat = _
   rw [BitVec.toNat_setWidth, Nat.mod_eq_of_lt fits]
 
 /-- The actual copy leaves the entire input frame available to the same computation's dagger. -/
-theorem step_frame (width : Nat) (state : Data width) : (step state).1 = state.1 := rfl
+lemma step_frame (width : Nat) (state : Data width) : (step state).1 = state.1 := rfl
 
 /-- The actual event list contains exactly one CNOT for each output position. -/
-theorem gates_length (width : Nat) : (gates width).length = width :=
+lemma gates_length (width : Nat) : (gates width).length = width :=
   EncodedBit.Word.xorIntoGates_length (sourceWord width) (targetWord width)
     (fun index => source_target_disjoint width index index)
 
 /-- Literal native coordinates are n uncontrolled CNOT occurrences. -/
-theorem program_eventCost (width : Nat) :
+lemma program_eventCost (width : Nat) :
     (program width).eventCost =
       ResourcePool.ofList (List.replicate width
         (Resource.Event.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) := by
@@ -155,7 +158,7 @@ theorem program_eventCost (width : Nat) :
   rw [List.ofFn_const]
 
 /-- Literal list scheduling charges each of those same actual CNOT occurrences. -/
-theorem program_serial_resources (width : Nat) :
+lemma program_serial_resources (width : Nat) :
     (program width).eventCost.card = width ∧
       (program width).evaluatedEventDepth (fun _ => 1) = width := by
   constructor

@@ -32,6 +32,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InitialFrame
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit InitialLengthSemantics
 
 /-- Embed the original input word in the existing Work2, with three leading zero bits. -/
@@ -52,11 +54,11 @@ def initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) : Registers modulus
     control := false }
 
 /-- The entire padded input word has the original value, not a truncated or recomputed input. -/
-theorem initial_secondWord (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma initial_secondWord (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (initial modulus input).secondWord.toNat = input.val := rfl
 
 /-- The source's fixed Work1 pattern fits in its real word for every modulus. -/
-theorem initial_firstWord (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma initial_firstWord (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (initial modulus input).firstWord.toNat = 4 * 2 ^ modulus.size + modulus := by
   have modulusFits := Nat.lt_size_self modulus
   have positive := Nat.two_pow_pos modulus.size
@@ -80,17 +82,17 @@ def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   (FoldProgram.nativeProgram modulus).seq (InitialLengthWrite.program modulus.size)
 
 /-- Complete action on all frames, including arbitrary incoming fields outside the input domain. -/
-theorem program_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus)
+lemma program_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) environment
       (fun state => GateSpec.stepList (InitialLengthWrite.gates modulus.size)
         (FoldProgram.step modulus state)) :=
   (FoldProgram.foldProgram_nativeProgram_realizes modulus).seq
     (GateSpec.realizesList (QubitLayout.canonical _) .empty
-      (InitialLengthWrite.gates modulus.size))
+      (InitialLengthWrite.gates modulus.size) environment)
 
 /-- The encoded initial basis is sent to the actual two-stage result with exact amplitudes. -/
-theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
-    (program modulus).applyNormalized
+lemma program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+    (program modulus).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (initial modulus input)))) =
@@ -100,13 +102,13 @@ theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
   (program_realizes modulus).apply_encoded_ket (initial modulus input)
 
 /-- The actual fold produces both the mathematical folded value and its retained history bit. -/
-theorem folded_record_value (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma folded_record_value (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     ((folded modulus input).flags.iteration, (folded modulus input).secondWord.toNat) =
       NumberTheory.SharedEEA.foldInput modulus input.val :=
   FoldSourceProgram.step_foldInput modulus (inputWord modulus input) false bounded
 
-private theorem folded_value_fits (modulus : Nat) (input : Fin (2 ^ modulus.size))
+private lemma folded_value_fits (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     (NumberTheory.SharedEEA.foldInput modulus input.val).2 < 2 ^ modulus.size := by
   by_cases complemented : modulus / 2 < input.val
@@ -116,7 +118,7 @@ private theorem folded_value_fits (modulus : Nat) (input : Fin (2 ^ modulus.size
     exact (Nat.le_of_lt bounded).trans_lt (Nat.lt_size_self modulus)
 
 /-- Reading the actual low payload after folding gives the same complete folded residue. -/
-theorem folded_payload (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma folded_payload (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     payloadValue (folded modulus input) =
       (NumberTheory.SharedEEA.foldInput modulus input.val).2 := by
@@ -128,7 +130,7 @@ theorem folded_payload (modulus : Nat) (input : Fin (2 ^ modulus.size))
   exact Nat.mod_eq_of_lt (folded_value_fits modulus input bounded)
 
 /-- The entire result differs from the actual folded frame only by the newly computed length. -/
-theorem result_eq (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma result_eq (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     result modulus input =
       { folded modulus input with
         divisorLength := BitVec.ofNat modulus.size.size
@@ -138,7 +140,7 @@ theorem result_eq (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
   rw [zero, BitVec.zero_xor]
 
 /-- The actual length writer retains the folded divisor and its complement history together. -/
-theorem result_record_value (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma result_record_value (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     ((result modulus input).flags.iteration, (result modulus input).secondWord.toNat) =
       NumberTheory.SharedEEA.foldInput modulus input.val := by
@@ -146,7 +148,7 @@ theorem result_record_value (modulus : Nat) (input : Fin (2 ^ modulus.size))
   exact folded_record_value modulus input bounded
 
 /-- The stored divisor length is computed from the actual folded value, including equality. -/
-theorem result_divisorLength (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma result_divisorLength (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     (result modulus input).divisorLength = BitVec.ofNat modulus.size.size
       (NumberTheory.SharedEEA.foldInput modulus input.val).2.size := by
@@ -155,7 +157,7 @@ theorem result_divisorLength (modulus : Nat) (input : Fin (2 ^ modulus.size))
   rw [folded_payload modulus input bounded]
 
 /-- The exact current length fits in its original finite field, without modular truncation. -/
-theorem result_divisorLength_toNat (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma result_divisorLength_toNat (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     (result modulus input).divisorLength.toNat =
       (NumberTheory.SharedEEA.foldInput modulus input.val).2.size := by
@@ -164,13 +166,13 @@ theorem result_divisorLength_toNat (modulus : Nat) (input : Fin (2 ^ modulus.siz
   exact Nat.mod_eq_of_lt (sizeBound.trans_lt (Nat.lt_size_self modulus.size))
 
 /-- The actual first word remains the original fixed source pattern after both native stages. -/
-theorem result_firstWord (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma result_firstWord (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (result modulus input).firstWord = (initial modulus input).firstWord := by
   rw [result_eq]
   exact FoldProgram.step_firstWord modulus (initial modulus input)
 
 /-- The original source domain alone gives the invariant needed by the later four-phase loop. -/
-theorem result_initial_admissible (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma result_initial_admissible (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     (NumberTheory.SharedEEA.IterationState.initial modulus
       (result modulus input).secondWord.toNat).Admissible := by
@@ -181,7 +183,7 @@ theorem result_initial_admissible (modulus : Nat) (input : Fin (2 ^ modulus.size
   exact NumberTheory.SharedEEA.folded_initial_admissible modulus input.val positive bounded
 
 /-- The history and the actual folded residue reconstruct the original residue exactly. -/
-theorem result_unfoldInput (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma result_unfoldInput (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (bounded : input.val < modulus) :
     NumberTheory.SharedEEA.unfoldInput modulus
       ((result modulus input).flags.iteration, (result modulus input).secondWord.toNat) =
@@ -190,7 +192,7 @@ theorem result_unfoldInput (modulus : Nat) (input : Fin (2 ^ modulus.size))
   exact NumberTheory.SharedEEA.unfoldInput_foldInput modulus input.val (Nat.le_of_lt bounded)
 
 /-- Both real native stages remain in the actual trace in the required data-dependency order. -/
-theorem program_eventTrace (modulus : Nat) :
+lemma program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace = (FoldSourceProgram.program modulus).eventTrace ++
       (InitialLengthWrite.program modulus.size).eventTrace := by
   rw [program, UnitaryCircuit.seq_eventTrace, FoldProgram.foldProgram_nativeProgram_trace,

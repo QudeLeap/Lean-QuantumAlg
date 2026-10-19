@@ -57,7 +57,7 @@ def halfResidueWord (fieldTail p : Nat) (_hpPos : 0 < p)
         omega
       omega⟩
 
-@[simp] theorem halfResidueWord_val (fieldTail p : Nat) (hpPos : 0 < p)
+@[simp] lemma halfResidueWord_val (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (coefficient : Word (fieldTail.succ + 1)) :
     (halfResidueWord fieldTail p hpPos hp coefficient).val =
@@ -66,7 +66,7 @@ def halfResidueWord (fieldTail p : Nat) (_hpPos : 0 < p)
   rfl
 
 /-- A canonical residue remains canonical after modular halving. -/
-theorem halfResidueWord_lt (fieldTail p : Nat) (hpPos : 0 < p)
+lemma halfResidueWord_lt (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (coefficient : Word (fieldTail.succ + 1))
     (hcoefficient : coefficient.val < p) :
@@ -84,7 +84,7 @@ theorem halfResidueWord_lt (fieldTail p : Nat) (hpPos : 0 < p)
 
 /-- Modular doubling of the canonical half returns the original residue
 exactly, not merely after a cast into the residue field. -/
-theorem doublingResidueWord_halfResidueWord
+lemma doublingResidueWord_halfResidueWord
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (coefficient : Word (fieldTail.succ + 1))
@@ -108,7 +108,7 @@ theorem doublingResidueWord_halfResidueWord
 
 /-- Running the literal doubling ledger backwards performs one canonical
 modular halving while restoring the same borrowed arithmetic boundary. -/
-theorem reverseDoublingStep_state
+lemma reverseDoublingStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))
@@ -163,7 +163,7 @@ def inverseScaleWord (fieldTail p : Nat) (hpPos : 0 < p)
         (inverseScaleWord fieldTail p hpPos hp rounds coefficient)
 
 /-- Every intermediate radix-division residue stays canonical. -/
-theorem inverseScaleWord_lt
+lemma inverseScaleWord_lt
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p) :
     ∀ rounds (coefficient : Word (fieldTail.succ + 1)),
@@ -181,7 +181,7 @@ theorem inverseScaleWord_lt
 
 /-- The repeated literal reverse ledger implements exact radix division and
 returns every borrowed arithmetic field to its clean boundary. -/
-theorem inverseScaleGates_stepList
+lemma inverseScaleGates_stepList
     (fieldTail counterWidth p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p) :
     ∀ rounds (base : MK.Compact.Registers fieldTail.succ counterWidth)
@@ -240,7 +240,7 @@ def targetAddGates (fieldTail counterWidth p : Nat) :
     (targetAddSourceGates fieldTail counterWidth p)
 
 /-- The lifted modular-add ledger is disjoint from its clean path work bit. -/
-theorem targetAddGates_bitDisjoint_path
+lemma targetAddGates_bitDisjoint_path
     (fieldTail counterWidth p : Nat) :
     ∀ gate, gate ∈ targetAddGates fieldTail counterWidth p →
       EncodedBit.GateSpec.bitDisjoint
@@ -254,7 +254,7 @@ theorem targetAddGates_bitDisjoint_path
       fieldTail counterWidth p)
 
 /-- The lifted modular-add ledger is disjoint from every multiplier bit. -/
-theorem targetAddGates_bitDisjoint_multiplier
+lemma targetAddGates_bitDisjoint_multiplier
     (fieldTail counterWidth p : Nat) (bit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ targetAddGates fieldTail counterWidth p →
       EncodedBit.GateSpec.bitDisjoint
@@ -280,7 +280,7 @@ def selectedAddGates (fieldTail counterWidth p : Nat)
       (MK.Compact.pathBit fieldTail.succ counterWidth))
 
 /-- One selected-add ledger never reads or writes the persistent slope word. -/
-theorem selectedAddGates_bitDisjoint_lambdaBit
+lemma selectedAddGates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p : Nat) (multiplierBit lambdaBit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ selectedAddGates fieldTail counterWidth p multiplierBit →
       EncodedBit.GateSpec.bitDisjoint
@@ -315,7 +315,7 @@ def selectedAddStep (fieldTail counterWidth p : Nat)
 /-- One selected-add stage adds the canonical coefficient exactly when the
 chosen multiplier bit is set.  The multiplier, clean path work, coefficient,
 and complete borrowed VBE boundary are restored. -/
-theorem selectedAddStep_state
+lemma selectedAddStep_state
     (fieldTail counterWidth p : Nat)
     (bit : Fin fieldTail.succ)
     (base : Layout.Registers fieldTail.succ counterWidth)
@@ -426,7 +426,7 @@ def coefficientDoublingGates (fieldTail counterWidth p : Nat) :
     (CompactCorrection.doublingGates fieldTail counterWidth p)
 
 /-- Coefficient doubling is entirely inside the compact arithmetic suffix. -/
-theorem coefficientDoublingGates_bitDisjoint_lambdaBit
+lemma coefficientDoublingGates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p : Nat) (bit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ coefficientDoublingGates fieldTail counterWidth p →
       EncodedBit.GateSpec.bitDisjoint
@@ -443,7 +443,7 @@ def coefficientDoublingStep (fieldTail counterWidth p : Nat) :
 
 /-- Lifted modular doubling updates only the retained coefficient and restores
 the accumulator and complete borrowed arithmetic boundary. -/
-theorem coefficientDoublingStep_state
+lemma coefficientDoublingStep_state
     (fieldTail counterWidth p : Nat)
     (base : Layout.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))
@@ -476,7 +476,7 @@ def roundGates (fieldTail counterWidth p : Nat)
     coefficientDoublingGates fieldTail counterWidth p
 
 /-- A complete multiplication round leaves the persistent slope untouched. -/
-theorem roundGates_bitDisjoint_lambdaBit
+lemma roundGates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p : Nat)
     (multiplierBit lambdaBit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ roundGates fieldTail counterWidth p multiplierBit →
@@ -517,7 +517,7 @@ def residueRound (fieldTail p : Nat) (hpPos : 0 < p)
   else state.target
 
 /-- One pure multiplication round preserves coefficient canonicity. -/
-theorem residueRound_coefficient_lt
+lemma residueRound_coefficient_lt
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (multiplier : Word fieldTail.succ) (bit : Fin fieldTail.succ)
@@ -529,7 +529,7 @@ theorem residueRound_coefficient_lt
   exact Nat.mod_lt _ hpPos
 
 /-- One pure multiplication round preserves accumulator canonicity. -/
-theorem residueRound_target_lt
+lemma residueRound_target_lt
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (multiplier : Word fieldTail.succ) (bit : Fin fieldTail.succ)
@@ -543,7 +543,7 @@ theorem residueRound_target_lt
 
 /-- The physical round realizes the pure selected-add/doubling transition on
 the same clean point-carrier boundary. -/
-theorem roundStep_state
+lemma roundStep_state
     (fieldTail counterWidth p : Nat)
     (bit : Fin fieldTail.succ)
     (base : Layout.Registers fieldTail.succ counterWidth)
@@ -589,7 +589,7 @@ def roundsGates (fieldTail counterWidth p : Nat) :
       roundsGates fieldTail counterWidth p rest
 
 /-- Every finite multiplication-round fold leaves `lambda` untouched. -/
-theorem roundsGates_bitDisjoint_lambdaBit
+lemma roundsGates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p : Nat) (lambdaBit : Fin fieldTail.succ) :
     ∀ bits gate, gate ∈ roundsGates fieldTail counterWidth p bits →
       EncodedBit.GateSpec.bitDisjoint
@@ -616,7 +616,7 @@ def residueRounds (fieldTail p : Nat) (hpPos : 0 < p)
         (residueRound fieldTail p hpPos hp multiplier bit state)
 
 /-- The pure round fold preserves both canonical residue bounds. -/
-theorem residueRounds_bounds
+lemma residueRounds_bounds
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (multiplier : Word fieldTail.succ) :
     ∀ bits (state : Residues fieldTail.succ),
@@ -639,7 +639,7 @@ theorem residueRounds_bounds
           htarget)
 
 /-- Residue folding over concatenated bit schedules is sequential folding. -/
-theorem residueRounds_append
+lemma residueRounds_append
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (multiplier : Word fieldTail.succ) :
     ∀ first second (state : Residues fieldTail.succ),
@@ -667,7 +667,7 @@ def forwardScaleWord (fieldTail p : Nat) (hpPos : 0 < p)
 
 /-- The coefficient component of a bit schedule depends only on the schedule
 length and is exactly repeated modular doubling. -/
-theorem residueRounds_coefficient_eq_forwardScaleWord
+lemma residueRounds_coefficient_eq_forwardScaleWord
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (multiplier : Word fieldTail.succ) :
     ∀ bits (state : Residues fieldTail.succ),
@@ -685,7 +685,7 @@ theorem residueRounds_coefficient_eq_forwardScaleWord
 
 /-- Forward modular doubling cancels the same number of certified reverse
 doublings exactly on every canonical residue. -/
-theorem forwardScaleWord_inverseScaleWord
+lemma forwardScaleWord_inverseScaleWord
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p) :
     ∀ rounds (coefficient : Word (fieldTail.succ + 1)),
@@ -709,7 +709,7 @@ theorem forwardScaleWord_inverseScaleWord
 
 /-- After all width-many rounds, the pre-scaled coefficient is restored
 exactly. -/
-theorem residueRounds_finRange_coefficient_restored
+lemma residueRounds_finRange_coefficient_restored
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (multiplier : Word fieldTail.succ)
@@ -729,7 +729,7 @@ theorem residueRounds_finRange_coefficient_restored
     fieldTail.succ coefficient hcoefficient
 
 /-- Modular doubling has its expected residue-field action. -/
-theorem doublingResidueWord_cast
+lemma doublingResidueWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (coefficient : Word (fieldTail.succ + 1)) :
@@ -742,7 +742,7 @@ theorem doublingResidueWord_cast
 
 /-- Repeated modular doubling multiplies by the corresponding power of two in
 the residue field. -/
-theorem forwardScaleWord_cast
+lemma forwardScaleWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) :
     ∀ rounds (coefficient : Word (fieldTail.succ + 1)),
@@ -774,7 +774,7 @@ theorem forwardScaleWord_cast
 
 /-- The canonical fixed-width modular sum has its expected residue-field
 action. -/
-theorem modularSumFixedWord_cast
+lemma modularSumFixedWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (target source : Word fieldTail.succ) :
@@ -786,7 +786,7 @@ theorem modularSumFixedWord_cast
   rfl
 
 /-- The next canonical finite index extends its low-to-high prefix by one. -/
-theorem finRange_take_succ {width : Nat} (round : Fin width) :
+lemma finRange_take_succ {width : Nat} (round : Fin width) :
     (List.finRange width).take (round.val + 1) =
       (List.finRange width).take round.val ++ [round] := by
   have hround : round.val < (List.finRange width).length := by
@@ -799,7 +799,7 @@ theorem finRange_take_succ {width : Nat} (round : Fin width) :
 /-- The target after a canonical low-bit prefix is the initial target plus the
 corresponding binary prefix times the initial coefficient, in the residue
 field. -/
-theorem residueRounds_finRange_take_target_cast
+lemma residueRounds_finRange_take_target_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (multiplier : Word fieldTail.succ) :
     ∀ rounds, rounds ≤ fieldTail.succ →
@@ -877,7 +877,7 @@ theorem residueRounds_finRange_take_target_cast
 
 /-- Consuming the full finite range replaces the low-bit prefix by the exact
 fixed-width multiplier value. -/
-theorem residueRounds_finRange_target_cast
+lemma residueRounds_finRange_target_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (multiplier : Word fieldTail.succ)
     (initial : Residues fieldTail.succ)
@@ -911,7 +911,7 @@ def inverseRadixUnit (p : Nat) (hpOdd : Odd p) : Nat → (ZMod p)ˣ
   | rounds + 1 => (twoUnit p hpOdd)⁻¹ * inverseRadixUnit p hpOdd rounds
 
 /-- One canonical modular half is multiplication by the inverse-two unit. -/
-theorem halfResidueWord_cast
+lemma halfResidueWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (coefficient : Word (fieldTail.succ + 1))
@@ -946,7 +946,7 @@ theorem halfResidueWord_cast
 
 /-- The certified reverse-doubling chain multiplies by the inverse Montgomery
 radix in the residue field. -/
-theorem inverseScaleWord_cast
+lemma inverseScaleWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p) :
     ∀ rounds (coefficient : Word (fieldTail.succ + 1)),
@@ -973,7 +973,7 @@ theorem inverseScaleWord_cast
 
 /-- The concatenated literal round ledger realizes the complete pure residue
 fold without changing the carrier base. -/
-theorem roundsGates_stepList
+lemma roundsGates_stepList
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p) :
     ∀ bits (base : Layout.Registers fieldTail.succ counterWidth)
@@ -1019,7 +1019,7 @@ def inverseScalePointGates (fieldTail counterWidth p rounds : Nat) :
     (inverseScaleGates fieldTail counterWidth p rounds)
 
 /-- The lifted inverse-scaling prefix leaves `lambda` untouched. -/
-theorem inverseScalePointGates_bitDisjoint_lambdaBit
+lemma inverseScalePointGates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p rounds : Nat) (bit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ inverseScalePointGates fieldTail counterWidth p rounds →
       EncodedBit.GateSpec.bitDisjoint
@@ -1028,7 +1028,7 @@ theorem inverseScalePointGates_bitDisjoint_lambdaBit
     (inverseScaleGates fieldTail counterWidth p rounds)
 
 /-- The lifted inverse scaling changes only the retained coefficient. -/
-theorem inverseScalePointGates_stepList
+lemma inverseScalePointGates_stepList
     (fieldTail counterWidth p rounds : Nat)
     (base : Layout.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))
@@ -1060,7 +1060,7 @@ def gates (fieldTail counterWidth p : Nat) :
 
 /-- The complete Montgomery multiplication reads `mutableY` but never reads
 or writes the persistent slope word. -/
-theorem gates_bitDisjoint_lambdaBit
+lemma gates_bitDisjoint_lambdaBit
     (fieldTail counterWidth p : Nat) (bit : Fin fieldTail.succ) :
     ∀ gate, gate ∈ gates fieldTail counterWidth p →
       EncodedBit.GateSpec.bitDisjoint
@@ -1080,7 +1080,7 @@ def step (fieldTail counterWidth p : Nat) :
 
 /-- Exact cleaned endpoint of the complete physical ledger, before reducing
 the pure residue fold to the closed Montgomery-product formula. -/
-theorem step_state
+lemma step_state
     (fieldTail counterWidth p : Nat)
     (base : Layout.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))
@@ -1116,7 +1116,7 @@ theorem step_state
 /-- Clean Montgomery-accumulation endpoint of the literal physical ledger.
 The coefficient is restored exactly; the only live change is
 `target + multiplier * R⁻¹ * coefficient`, where `R = 2^fieldWidth`. -/
-theorem step_cleanMontgomeryEndpoint
+lemma step_cleanMontgomeryEndpoint
     (fieldTail counterWidth p : Nat)
     (base : Layout.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))

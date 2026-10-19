@@ -24,7 +24,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA EncodedBit GateSpec PredicateLayout
 
-private theorem repeated_step {Data : Type} {source : BinaryLabelEncoding Data}
+private lemma repeated_step {Data : Type} {source : BinaryLabelEncoding Data}
     (instructions : List (GateSpec source)) (count : Nat) (state : Data) :
     stepList (List.replicate count instructions).flatten state =
       (stepList instructions)^[count] state := by
@@ -40,7 +40,7 @@ def bitGates (width : Nat) (index : Fin (width.size + 2)) :
   (List.replicate (ClockDecodeWeight.weight width index)
     (ClockDecodeBit.gates width index)).flatten
 
-private theorem bitGates_step (width : Nat) (index : Fin (width.size + 2))
+private lemma bitGates_step (width : Nat) (index : Fin (width.size + 2))
     (state : Registers width) :
     stepList (bitGates width index) state = rotateFrame state
       (((clockBit width index).get state).toNat * ClockDecodeWeight.weight width index) := by
@@ -48,7 +48,7 @@ private theorem bitGates_step (width : Nat) (index : Fin (width.size + 2))
     funext (ClockDecodeBit.gates_step width index)
   rw [bitGates, repeated_step, same, bit_iterate]
 
-private theorem bitGates_trace (width : Nat) (index : Fin (width.size + 2)) :
+private lemma bitGates_trace (width : Nat) (index : Fin (width.size + 2)) :
     (bitGates width index).map (event .empty) = (bitProgram width index).eventTrace := by
   rw [bitProgram, UnitaryCircuit.iterate_eventTrace, ClockDecodeBit.program_eventTrace]
   simp only [bitGates, List.map_flatten, List.map_replicate]
@@ -58,7 +58,7 @@ private def sequenceGates (width : Nat) :
   | [] => []
   | index :: rest => bitGates width index ++ sequenceGates width rest
 
-private theorem sequenceGates_step (width : Nat) (indices : List (Fin (width.size + 2)))
+private lemma sequenceGates_step (width : Nat) (indices : List (Fin (width.size + 2)))
     (state : Registers width) :
     stepList (sequenceGates width indices) state = rotateFrame state
       ((indices.map fun index =>
@@ -80,7 +80,7 @@ private theorem sequenceGates_step (width : Nat) (indices : List (Fin (width.siz
       rw [retained, rotateFrame_comp]
       rfl
 
-private theorem sequenceGates_trace (width : Nat) (indices : List (Fin (width.size + 2))) :
+private lemma sequenceGates_trace (width : Nat) (indices : List (Fin (width.size + 2))) :
     (sequenceGates width indices).map (event .empty) = (sequence width indices).eventTrace := by
   induction indices with
   | nil => rfl
@@ -93,7 +93,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
   sequenceGates width (List.finRange (width.size + 2))
 
 /-- The literal list rotates exactly by the retained complete clock and keeps every other field. -/
-theorem clockDecode_gates_step (width : Nat) (state : Registers width) :
+lemma clockDecode_gates_step (width : Nat) (state : Registers width) :
     stepList (gates width) state =
       { state with secondWord :=
           state.secondWord.rotateRight (ExtendedClockRegisters.clock state).toNat } := by
@@ -106,17 +106,17 @@ theorem clockDecode_gates_step (width : Nat) (state : Registers width) :
   exact congrArg (rotateFrame state) total
 
 /-- Flattening retains the exact execution order, including every fixed repeated native gate. -/
-theorem clockDecode_gates_trace (width : Nat) :
+lemma clockDecode_gates_trace (width : Nat) :
     (gates width).map (event .empty) = (program width).eventTrace :=
   sequenceGates_trace width (List.finRange (width.size + 2))
 
 /-- Every resource coordinate agrees with the original symbolic decoder. -/
-theorem clockDecode_gates_eventCost (width : Nat) :
+lemma clockDecode_gates_eventCost (width : Nat) :
     ResourcePool.ofList ((gates width).map (event .empty)) = (program width).eventCost := by
   rw [clockDecode_gates_trace, UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
 /-- The actual list has the same exact weighted count, with no new gate or ancillary wire. -/
-theorem clockDecode_gates_length (width : Nat) :
+lemma clockDecode_gates_length (width : Nat) :
     (gates width).length = ClockDecodeResources.count width := by
   have count := congrArg Multiset.card (clockDecode_gates_eventCost width)
   simp only [ResourcePool.ofList, Multiset.coe_card, List.length_map] at count

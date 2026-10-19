@@ -28,22 +28,22 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem state_ne (cells : Cells ctx (stateShapes width))
+private lemma state_ne (cells : Cells ctx (stateShapes width))
     (distinct : cells.Distinct) (left right : Fin 7) (different : left ≠ right) :
     stateKey cells left ≠ stateKey cells right :=
   fun same => different (xgcdNativeState_key_injective cells distinct same)
 
-private theorem scratch_ne (scratch : Cells ctx (activeScratchShapes width))
+private lemma scratch_ne (scratch : Cells ctx (activeScratchShapes width))
     (distinct : scratch.Distinct) (left right : Fin 4) (different : left ≠ right) :
     (cellAt scratch left).ref.key ≠ (cellAt scratch right).ref.key := by
   exact fun same => different (workspaceCells_cellAt_key_injective scratch distinct same)
 
-private theorem cross_ne (cells : Cells ctx (stateShapes width))
+private lemma cross_ne (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width)) (cross : CrossSeparated cells scratch)
     (left : Fin 7) (right : Fin 4) :
     stateKey cells left ≠ (cellAt scratch right).ref.key := cross.keysNe left right
 
-private theorem coefficient_preserves_cell {shape : CShape}
+private lemma coefficient_preserves_cell {shape : CShape}
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (other : CWriteRef ctx shape)
@@ -59,7 +59,7 @@ private theorem coefficient_preserves_cell {shape : CShape}
   · simpa only [GCD.cellRead, CInputRef.storageKeys, List.mem_singleton] using updatedFree
 
 /-- Every caller read outside both actual packages survives the full fourteen-operation body. -/
-theorem xgcdNativeActiveBody_read_other (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeActiveBody_read_other (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) {shape : CShape}
     (other : CInputRef ctx shape)
@@ -91,7 +91,7 @@ theorem xgcdNativeActiveBody_read_other (cells : Cells ctx (stateShapes width))
       other (scratchFree 0)]
 
 /-- Literal modular word operations in both coefficient pairs, with the actual resized quotient. -/
-theorem xgcdNativeActiveBody_coefficient_values
+lemma xgcdNativeActiveBody_coefficient_values
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (scratch : Cells ctx (activeScratchShapes width)) (scratchDistinct : scratch.Distinct)
     (cross : CrossSeparated cells scratch) (zero : CInputRef ctx (.unsignedWord width))

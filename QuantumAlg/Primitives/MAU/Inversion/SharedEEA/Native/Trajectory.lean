@@ -34,7 +34,7 @@ open NumberTheory.SharedEEA
 open QuantumAlg.ClassicalAlgorithms.NumberTheory
 
 /-- The entire actual active prefix reaches its canonical frame and exact retained iteration bit. -/
-theorem iterate_frame (fuel : Nat) (state : IterationState) (modulus : Nat)
+lemma iterate_frame (fuel : Nat) (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[4 * QuotientTrajectory.weight fuel state]
@@ -66,7 +66,7 @@ theorem iterate_frame (fuel : Nat) (state : IterationState) (modulus : Nat)
           ((IterationState.step_gcd state).trans coprime) (!iteration)
 
 /-- Actual active execution reaches the full terminal frame for every coprime positive residue. -/
-theorem folded_frame (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma folded_frame (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (NativeMicrostep.step modulus.size)^[QuotientSchedule.phaseWeight modulus input]
       (MacroBoundary.frame (IterationState.initial modulus (foldInput modulus input).2) modulus

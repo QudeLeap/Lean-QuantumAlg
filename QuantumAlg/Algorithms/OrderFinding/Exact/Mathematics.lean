@@ -27,7 +27,7 @@ open NormalizedVector
 noncomputable section
 
 /-- Inverse-QFT recovery for an exact dyadic phase. -/
-theorem main_exact_dyadic {t s r : Nat} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
+lemma main_exact_dyadic {t s r : Nat} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
     (hsr : Nat.Coprime s r) (j : Fin (2 ^ t))
     (hj : j.val = s * (2 ^ t / r)) :
     (invQFT t).applyVec (phaseState t ((s : Real) / r)) =
@@ -67,7 +67,7 @@ def encodedOutcome {t : Nat} (outcome : TerminalZMeasure.Outcome t) : Output t :
   .unsignedWord
     (ClassicalAlgorithms.TerminalDecode.fullRegisterIndex outcome)
 
-@[simp] theorem successful_encodedOutcome_iff {r t : Nat}
+@[simp] lemma successful_encodedOutcome_iff {r t : Nat}
     (outcome : TerminalZMeasure.Outcome t) :
     SuccessfulOutcome r (encodedOutcome outcome) ↔ Native.ExactOutcome r t outcome := by
   rfl

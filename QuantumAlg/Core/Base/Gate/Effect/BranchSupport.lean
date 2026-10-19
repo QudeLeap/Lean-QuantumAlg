@@ -24,7 +24,7 @@ noncomputable section
 variable {R : Register} {Branch : Type*}
 
 /-- Any subfamily of an injective normalized branch expansion has norm at most one. -/
-theorem norm_branch_sum_le_one (branches good : Finset Branch) (included : good ⊆ branches)
+lemma norm_branch_sum_le_one (branches good : Finset Branch) (included : good ⊆ branches)
     (source : Branch → R.Index) (sourceInjective : Function.Injective source)
     (amplitude : Branch → ℂ) (input : NormalizedVector R)
     (expansion : (∑ branch ∈ branches,
@@ -41,7 +41,7 @@ theorem norm_branch_sum_le_one (branches good : Finset Branch) (included : good 
 variable [DecidableEq Branch]
 
 /-- A disjoint complete branch partition decomposes the exact coherent input without projection. -/
-theorem sub_branch_sum_eq_bad (branches good bad : Finset Branch)
+lemma sub_branch_sum_eq_bad (branches good bad : Finset Branch)
     (partition : good ∪ bad = branches) (disjoint : Disjoint good bad)
     (source : Branch → R.Index) (amplitude : Branch → ℂ) (input : HilbertVector R)
     (expansion : (∑ branch ∈ branches,
@@ -54,7 +54,7 @@ theorem sub_branch_sum_eq_bad (branches good bad : Finset Branch)
   exact add_sub_cancel_left _ _
 
 /-- The omitted coherent vector has exactly the square root of the bad amplitude mass. -/
-theorem norm_sub_branch_sum_eq_sqrt_bad (branches good bad : Finset Branch)
+lemma norm_sub_branch_sum_eq_sqrt_bad (branches good bad : Finset Branch)
     (partition : good ∪ bad = branches) (disjoint : Disjoint good bad)
     (source : Branch → R.Index) (sourceInjective : Function.Injective source)
     (amplitude : Branch → ℂ) (input : HilbertVector R)

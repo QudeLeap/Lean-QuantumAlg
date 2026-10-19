@@ -6,8 +6,12 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Primitives.LCU.Endpoint.Execution
+import all QuantumAlg.Primitives.LCU.Endpoint.Execution
+
 public import QuantumAlg.Primitives.LCU.Construction
 public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Core.Algorithm.Unitary.Requirement
 public import QuantumAlg.Core.Execution.Owned.Qubits
 import all QuantumAlg.Primitives.LCU.Construction
 import all QuantumAlg.Primitives.LCU.Basic
@@ -45,46 +49,6 @@ open Execution.OwnedQubits
 
 variable {a n : Nat}
 
-private def semanticOperator (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    UnitaryOperator (context (a + n)).register :=
-  UnitaryOperator.reindex (basisEquiv (a + n)).symm (lcuWalk V U)
-
-/-- Default native gates and the three explicitly granted LCU accesses. -/
-public abbrev model (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) : ExecutionModel :=
-  .quantum AlgorithmGate.model (LCUOracle.model V U)
-
-private def program (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
-      (context (a + n)).quantumLayout :=
-  Execution.unitaryOfEqualWires (layout (a + n)) (context (a + n)).quantumLayout
-    (layout_wires (a + n)) (circuit V U)
-
-private theorem program_matrix (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (program V U).matrix = semanticOperator V U := by
-  have physical : (circuit V U).matrix =
-      UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (a + n)).symm
-        (lcuWalk V U) := by
-    rw [← circuit_matrix V U]
-    exact (UnitaryOperator.unitaryOperator_reindex_cancel
-      (QuantumSignature.qubitsIndexEquiv (a + n)) (circuit V U).matrix).symm
-  refine (Execution.unitaryOfEqualWires_matrix (layout (a + n))
-    (context (a + n)).quantumLayout (layout_wires (a + n)) (circuit V U)).trans ?_
-  refine (congrArg
-    (UnitaryOperator.reindex (R := (layout (a + n)).register)
-      (S := (context (a + n)).register)
-      (Execution.basisOfEqualWires (layout (a + n)) (context (a + n)).quantumLayout
-        (layout_wires (a + n)))) physical).trans ?_
-  exact UnitaryOperator.unitaryOperator_reindex_trans _ _ _
-
-private def code (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    Circuit (model V U) (context (a + n)) (context (a + n)) :=
-  .unitary (program V U)
-
 /-- Independent complete LCU execution contract.
 
 **Input.** A supplied owned a+n-qubit register in any normalized joint state,
@@ -105,109 +69,60 @@ the coefficient-weighted unitary sum divided by the coefficient sum.
 [Lin22, hermfunc.tex:531-554]. The statement does not assert a gate synthesis
 cost or a successful postselection probability for arbitrary input states.
 -/
-public def problem (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    Problem (model V U) (context (a + n)) (context (a + n)) .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary (semanticOperator V U)]
+@[expose] public def problem (a n : Nat) :
+    Problem (model a n) (context (a + n)) (context (a + n)) .unit where
+  Witness := UnitaryOperator (Qubits a) × (Fin (2 ^ a) → UnitaryOperator (Qubits n))
+  valid := fun environment witness _ =>
+    environment.quantum = LCUOracle.interpretation witness.1 witness.2
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ witness => [StateRequirement.unitary (semanticOperator witness.1 witness.2)]
   resources :=
-    { events := ResourcePool.singleton (model := model V U) (.oracle .prepare) +
-        ResourcePool.singleton (model := model V U) (.oracle .select) +
-        ResourcePool.singleton (model := model V U) (.oracle .unprepare)
+    { events := ResourcePool.singleton (model := model a n) (.oracle .prepare) +
+        ResourcePool.singleton (model := model a n) (.oracle .select) +
+        ResourcePool.singleton (model := model a n) (.oracle .unprepare)
       resident := space (a + n)
       auxiliary := space (a + n) }
-  depth :=
-    { duration := fun _ => 1
-      limit := 3
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := 3
 
-/-- Execute the actual LCU queries and retain the complete supplied joint register. -/
-public def algorithm (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    Algorithm (model V U) (context (a + n)) (context (a + n)) .unit where
-  run := { code := code V U, output := Output.all (context (a + n)) .unit }
-
-/-- Complete Output lists the same original owned systems. -/
-private theorem output_listing (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (algorithm V U).run.output.listing = (context (a + n)).keys := rfl
-
-/-- Complete Output keeps every supplied system. -/
-public theorem algorithm_output_listing (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (algorithm V U).run.output.listing = (context (a + n)).keys := output_listing V U
-
-private theorem actual_events (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) (path : (code V U).Path) :
-    (code V U).resourcePool path = (problem V U).resources.events := by
-  change ResourcePool.ofList (program V U).eventTrace = _
-  refine (UnitaryCircuit.ofList_eventTrace_eq_eventCost (program V U)).trans ?_
-  refine (Execution.unitaryOfEqualWires_cost (layout (a + n))
-    (context (a + n)).quantumLayout (layout_wires (a + n)) (circuit V U) .empty .empty).trans ?_
-  exact circuit_events V U
-
-
-private theorem actual_resident (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) (path : (code V U).Path) :
-    (code V U).peakResidentSpace path ≤ space (a + n) := by
-  intro axis
-  change Nat.max ((context (a + n)).residentSpace axis) 0 ≤ space (a + n) axis
-  rw [ownedQubits_resident]
-  exact le_of_eq (Nat.max_zero _)
-
-private theorem actual_auxiliary (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) (path : (code V U).Path) :
-    (code V U).peakAuxiliarySpace path ≤ space (a + n) := by
-  intro axis
-  change Nat.max ((context (a + n)).auxiliarySpace axis) 0 ≤ space (a + n) axis
-  rw [ownedQubits_auxiliary]
-  exact le_of_eq (Nat.max_zero _)
-
-private theorem algorithm_solves (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    Algorithm.Solves (algorithm V U) (problem V U) := by
+private lemma algorithm_solves (a n : Nat) :
+    Algorithm.Solves (algorithm a n) (problem a n) := by
   constructor
-  · intro Reference input _valid _initialization
+  · intro environment witness Reference input admitted _initialization
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialization requirement present
-    have same : requirement = StateRequirement.unitary (semanticOperator V U) :=
+  · intro environment witness Reference input admitted _initialization requirement present
+    have same : requirement = StateRequirement.unitary (semanticOperator witness.1 witness.2) :=
       List.mem_singleton.mp present
     subst requirement
-    exact StateRequirement.unitary_holds (semanticOperator V U)
-      (program V U) (program_matrix V U)
+    apply StateRequirement.unitary_holds environment (semanticOperator witness.1 witness.2)
+      (program a n) ?_
       (Output.all (context (a + n)) .unit) input
-  · intro Reference input _valid _initialization
-    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
-      (program V U) (Output.all (context (a + n)) .unit) input
-  · intro _Reference _input _valid _initialization path _supported
-    exact le_of_eq (actual_events V U path)
-  · intro _Reference _input _valid _initialization path _supported
-    exact actual_resident V U path
-  · intro _Reference _input _valid _initialization path _supported
-    exact actual_auxiliary V U path
-  · intro _Reference _input _valid _initialization _path _supported
-    exact le_of_eq (circuit_depth V U)
+    change environment.quantum = LCUOracle.interpretation witness.1 witness.2 at admitted
+    rw [admitted]
+    exact program_matrix witness.1 witness.2
+  · intro environment witness Reference input admitted _initialization
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed environment rfl rfl
+      (program a n) (Output.all (context (a + n)) .unit) input
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    exact le_of_eq (actual_events a n path)
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    exact actual_resident a n path
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    exact actual_auxiliary a n path
+  · intro _environment _witness _Reference _input _valid _initialization _path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
+    exact le_of_eq (circuit_depth a n)
 
-/-- The complete native circuit solves its independent execution problem and
-has the original exact normalized linear-combination block. -/
-public theorem main (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
-    (α : Fin (2 ^ a) → ℝ) (halpha : ∀ i, 0 ≤ α i) (hlam : 0 < lcuNorm α)
-    (hV : ∀ i, V i 0 = ((Real.sqrt (α i / lcuNorm α) : ℝ) : ℂ)) :
-    ∃ candidate, Algorithm.Solves candidate (problem V U) ∧
-      ExactBlockEncoding a n (circuit V U).binaryMatrix
-        (((lcuNorm α : ℂ))⁻¹ • lcuCombination α U) := by
-  refine ⟨algorithm V U, algorithm_solves V U, ?_⟩
-  rw [circuit_matrix]
-  exact lcuWalk_exactBlockEncoding V U α halpha hlam hV
+/-- The actual LCU circuit solves the independent complete operator problem. -/
+public theorem main (a n : Nat) :
+    ∃ candidate : Algorithm (model a n) (context (a + n)) (context (a + n)) .unit,
+      Algorithm.Solves candidate (problem a n) :=
+  ⟨algorithm a n, algorithm_solves a n⟩
 
 end
 

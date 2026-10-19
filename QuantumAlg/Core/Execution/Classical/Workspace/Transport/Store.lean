@@ -22,7 +22,7 @@ Allocation, output release and quantum state changes belong to Circuit execution
 
 namespace QuantumAlg.Execution.ClassicalWorkspace.Transport
 
-private theorem entrySlot_nonempty_of_mem {kind : ProblemKind} {entry : RuntimeEntry kind}
+private lemma entrySlot_nonempty_of_mem {kind : ProblemKind} {entry : RuntimeEntry kind}
     {entries : List (RuntimeEntry kind)} (present : entry ∈ entries) :
     Nonempty (RuntimeEntrySlot entry entries) := by
   induction entries with
@@ -48,7 +48,7 @@ public noncomputable def restrict {kind : ProblemKind} {outer inner : RuntimeCtx
     store.read (.storage (transport.liftStorage (storageRefOfMem outer key role shape present)))
 
 /-- Restriction agrees with every actual transported structural input read. -/
-theorem workspaceTransport_restrict_readsAs {kind : ProblemKind}
+lemma workspaceTransport_restrict_readsAs {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner) (store : Store inner) :
     transport.ReadsAs (transport.restrict store) store := by
   intro shape input
@@ -68,7 +68,7 @@ theorem workspaceTransport_restrict_readsAs {kind : ProblemKind}
   | wordBitGet input index ih => exact congrArg (fun entry => entry.wordBitGet index) ih
 
 /-- Agreement of actual transported reads is equality with the restricted caller Store. -/
-theorem workspaceTransport_readsAs_restrict_iff {kind : ProblemKind}
+lemma workspaceTransport_readsAs_restrict_iff {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     {source : Store outer} {after : Store inner} :
     transport.ReadsAs source after ↔ transport.restrict after = source := by
@@ -82,12 +82,12 @@ theorem workspaceTransport_readsAs_restrict_iff {kind : ProblemKind}
     exact transport.workspaceTransport_restrict_readsAs after
 
 /-- Identity restriction returns the same actual Store. -/
-theorem workspaceTransport_restrict_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma workspaceTransport_restrict_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) : (id ctx).restrict store = store :=
   (workspaceTransport_readsAs_restrict_iff (id ctx)).mp (workspaceTransport_readsAs_id store)
 
 /-- Restriction composes through the same intermediate classical store values. -/
-theorem workspaceTransport_restrict_compose {kind : ProblemKind}
+lemma workspaceTransport_restrict_compose {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind}
     (first : Transport outer middle) (second : Transport middle inner) (store : Store inner) :
     (first.compose second).restrict store = first.restrict (second.restrict store) := by
@@ -97,7 +97,7 @@ theorem workspaceTransport_restrict_compose {kind : ProblemKind}
     (second.workspaceTransport_restrict_readsAs store)
 
 /-- Restriction through a lexical extension agrees with restriction after the actual Store pop. -/
-theorem workspaceTransport_restrict_underWorkspace {kind : ProblemKind}
+lemma workspaceTransport_restrict_underWorkspace {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (store : Store (inner.addWorkspace key shape fresh)) :
@@ -108,7 +108,7 @@ theorem workspaceTransport_restrict_underWorkspace {kind : ProblemKind}
   exact transport.workspaceTransport_restrict_readsAs _
 
 /-- Restriction commutes with writing the same value to a caller output and its lifted output. -/
-theorem workspaceTransport_restrict_write {kind : ProblemKind}
+lemma workspaceTransport_restrict_write {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner) (store : Store inner)
     {shape : CShape} (output : CWriteRef outer shape) (value : shape.Value) :
     transport.restrict (store.write (transport.liftWrite output) value) =

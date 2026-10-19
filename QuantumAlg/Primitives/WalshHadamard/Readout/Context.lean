@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Primitives.WalshHadamard.Pipeline
 
+public import QuantumAlg.Primitives.WalshHadamard.Mathematics
 public import QuantumAlg.Core.Base.Accounting.Context
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Geometry
 import all QuantumAlg.Core.Base.Accounting.Context
@@ -46,23 +47,40 @@ namespace QuantumAlg.WalshHadamard.Readout
 noncomputable section
 
 /-- Default native gates, explicitly granted XOR access, and the selected bit/word operations. -/
-public abbrev model {n : Nat} (function : Fin (2 ^ n) → Bool) : ExecutionModel :=
-  .quantum AlgorithmGate.model (XorOracle.model function) BitWord.model .empty
+public abbrev model (n : Nat) : ExecutionModel :=
+  .quantum AlgorithmGate.model (XorOracle.model n) BitWord.model .empty
+
+/-- The hidden XOR function is interpreted after the fixed execution has been chosen. -/
+@[expose]
+public def environment {n : Nat} (function : WalshHadamard.Oracle n) : (model n).Environment where
+  quantum := XorOracle.interpretation function
+  classical := ClassicalOracleModel.emptyInterpretation
+
+/-- With no classical oracle, the quantum interpretation determines the full environment. -/
+lemma environment_eq_of_quantum {n : Nat} (function : WalshHadamard.Oracle n)
+    (actual : (model n).Environment)
+    (same : actual.quantum = XorOracle.interpretation function) :
+    actual = environment function := by
+  cases actual with
+  | mk quantum classical =>
+      cases same
+      cases classical
+      rfl
 
 /-- The original zero-bit borrowed input, with no supplied quantum systems. -/
 @[reducible] public def pre : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addBorrowedInput ⟨0⟩ .unit (by decide)
 
-theorem pre_systemCount : pre.systemCount = 0 := rfl
+lemma pre_systemCount : pre.systemCount = 0 := rfl
 
 /-- The same n query positions and target position, each of dimension two. -/
 @[implicit_reducible]
 def runtimeLayout (n : Nat) : QuantumLayout (n + 1) :=
   (layout n).toQuantumLayout
 
-theorem preparationFresh : (⟨1⟩ : StorageKey) ∉ pre.keys := by decide
+lemma preparationFresh : (⟨1⟩ : StorageKey) ∉ pre.keys := by decide
 
-theorem preparationDisjoint (n : Nat) :
+lemma preparationDisjoint (n : Nat) :
     List.Disjoint (runtimeLayout n).identities pre.physicalIdx := by
   exact List.disjoint_nil_right _
 
@@ -71,12 +89,12 @@ theorem preparationDisjoint (n : Nat) :
 def preparedContext (n : Nat) : RuntimeCtx .quantum :=
   pre.addOwnedLayout ⟨1⟩ (runtimeLayout n) preparationFresh (preparationDisjoint n)
 
-theorem preparedContext_quantumWires (n : Nat) :
+lemma preparedContext_quantumWires (n : Nat) :
     (preparedContext n).quantumWires = (runtimeLayout n).wires := by
   change (runtimeLayout n).wires ++ [] = _
   exact List.append_nil _
 
-theorem preparedContext_physicalIdx (n : Nat) :
+lemma preparedContext_physicalIdx (n : Nat) :
     (preparedContext n).physicalIdx = List.range (n + 1) := by
   rw [RuntimeCtx.physicalIdx, preparedContext_quantumWires]
   change (List.ofFn fun index : Fin (n + 1) =>
@@ -100,7 +118,7 @@ def inputPreparation (n : Nat) : BasisPreparation (runtimeLayout n) :=
   BasisPreparation.zero (runtimeLayout n)
 
 /-- Fixed zero preparation is the original zero binary label on the same physical systems. -/
-theorem inputPreparation_density (n : Nat) :
+lemma inputPreparation_density (n : Nat) :
     (DensityOperator.ofPure (inputPreparation n).normalized).reindex
       (S := (preparedContext n).register) (preparedLayoutEquiv n) =
         (DensityOperator.ofPure (NormalizedVector.ket (R := Qubits (n + 1)) 0)).reindex
@@ -121,16 +139,16 @@ theorem inputPreparation_density (n : Nat) :
   rfl
 
 /-- Allocating these wires retains their exact canonical order in the prepared context. -/
-theorem runtime_wires (n : Nat) :
+lemma runtime_wires (n : Nat) :
     (runtimeLayout n).wires = (preparedContext n).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
 
 /-- The actual X-and-query native word on exactly the complete live prepared register. -/
-def program {n : Nat} (function : WalshHadamard.Oracle n) :
-    UnitaryCircuit AlgorithmGate.model (XorOracle.model function)
+def program (n : Nat) :
+    UnitaryCircuit AlgorithmGate.model (XorOracle.model n)
       (preparedContext n).quantumLayout :=
   Execution.unitaryOfEqualWires (runtimeLayout n) (preparedContext n).quantumLayout
-    (runtime_wires n) (WalshHadamard.Native.zeroInputProgram function)
+    (runtime_wires n) (WalshHadamard.Native.zeroInputProgram n)
 
 end
 

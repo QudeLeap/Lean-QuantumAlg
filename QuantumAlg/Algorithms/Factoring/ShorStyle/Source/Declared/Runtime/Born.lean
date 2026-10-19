@@ -19,13 +19,13 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.DeclaredSource.Runtime
 
 noncomputable section
 
-private theorem bornLayoutWires {ctx : RuntimeCtx .quantum} (N : Nat)
+private lemma bornLayoutWires {ctx : RuntimeCtx .quantum} (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires) :
     (layout N).wires = ctx.quantumLayout.wires :=
   (ctx.quantumLayout_wires.trans sameWires).symm
 
 /-- The physical zero has precisely the source binary zero label. -/
-theorem basis_zero {ctx : RuntimeCtx .quantum} (N : Nat)
+lemma basis_zero {ctx : RuntimeCtx .quantum} (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires) :
     (basisEquiv N sameWires).symm 0 = ctx.quantumLayout.zeroLabel := by
   funext target
@@ -41,23 +41,25 @@ theorem basis_zero {ctx : RuntimeCtx .quantum} (N : Nat)
   rfl
 
 /-- The actual placed operator's zero column is the full declared Born vector. -/
-theorem member_zero_amplitude {ctx : RuntimeCtx .quantum} (N : Nat)
+lemma member_zero_amplitude {ctx : RuntimeCtx .quantum} (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires) (input : Input N)
     (parameter : (ParameterShape (modulusBits N)).Value) (row : ctx.register.Index) :
-    (member N sameWires input parameter).matrix row ctx.quantumLayout.zeroLabel =
+    (member N sameWires parameter).matrix (environment input).quantum
+      row ctx.quantumLayout.zeroLabel =
       (DeclaredSource.evolvedState (sourceBounds input) (phaseBits N)
         (selectedBase parameter)).normalized (basisEquiv N sameWires row) := by
   rw [← basis_zero N sameWires, member_binaryMatrix_entry, Equiv.apply_symm_apply]
-  change (DeclaredSource.circuit (sourceBounds input) (phaseBits N)
-      (selectedBase parameter)).binaryMatrix (basisEquiv N sameWires row)
+  change (DeclaredSource.circuit (modulusBits N) (phaseBits N)
+      (selectedBase parameter)).binaryMatrix (environment input).quantum
+        (basisEquiv N sameWires row)
         (prodEquiv ((0 : Fin (2 ^ phaseBits N)), (0 : Fin (2 ^ modulusBits N)))) =
-      (DeclaredSource.circuit (sourceBounds input) (phaseBits N)
-        (selectedBase parameter)).binaryMatrix.applyVec
+      ((DeclaredSource.circuit (modulusBits N) (phaseBits N)
+        (selectedBase parameter)).binaryMatrix (environment input).quantum).applyVec
           (OrderFinding.Native.zeroInput (phaseBits N) (modulusBits N))
           (basisEquiv N sameWires row)
   exact (HilbertOperator.applyVec_ket
-    ((DeclaredSource.circuit (sourceBounds input) (phaseBits N)
-      (selectedBase parameter)).binaryMatrix :
+    ((DeclaredSource.circuit (modulusBits N) (phaseBits N)
+      (selectedBase parameter)).binaryMatrix (environment input).quantum :
         HilbertOperator (Qubits (phaseBits N + modulusBits N)))
     (prodEquiv ((0 : Fin (2 ^ phaseBits N)), (0 : Fin (2 ^ modulusBits N))))
     (basisEquiv N sameWires row)).symm

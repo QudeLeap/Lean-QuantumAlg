@@ -23,7 +23,7 @@ namespace QuantumAlg.DensityOperator
 noncomputable section
 
 /-- A pure local promise in explicit coordinates forces the same complete joint factorization. -/
-theorem pureMarginal_reindexed_entry {R S Reference : Register}
+lemma pureMarginal_reindexed_entry {R S Reference : Register}
     (state : DensityOperator (Register.prod R Reference)) (basisEquiv : R.Index ≃ S.Index)
     (pure : NormalizedVector S)
     (promised : state.marginalLeft = (ofPure pure).reindex (S := R) basisEquiv.symm)

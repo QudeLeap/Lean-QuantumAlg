@@ -38,7 +38,7 @@ def admissible (modulus : Nat) (basis : (before modulus.size).register.Index) : 
     Nat.Coprime (inputBasisEquiv modulus.size basis).1.val modulus
 
 /-- A bounded unit of a nontrivial modulus supplies the native positivity premise internally. -/
-theorem admissible_positive (modulus : Nat) (nontrivial : 1 < modulus)
+lemma admissible_positive (modulus : Nat) (nontrivial : 1 < modulus)
     (basis : (before modulus.size).register.Index) (allowed : admissible modulus basis) :
     0 < (inputBasisEquiv modulus.size basis).1.val := by
   have coprime := allowed.2
@@ -60,7 +60,7 @@ def wordStep (modulus : Nat) (modulusPositive : 0 < modulus)
     Nat.xor_lt_two_pow pair.2.isLt (CanonicalInverse.word modulus modulusPositive pair.1.val).isLt⟩)
 
 /-- XOR with the same canonical inverse twice restores both complete arbitrary words. -/
-theorem wordStep_involutive (modulus : Nat) (modulusPositive : 0 < modulus) :
+lemma wordStep_involutive (modulus : Nat) (modulusPositive : 0 < modulus) :
     Function.Involutive (wordStep modulus modulusPositive) := by
   intro pair
   apply Prod.ext
@@ -84,14 +84,14 @@ def permutation (modulus : Nat) (modulusPositive : 0 < modulus) :
     ((wordEquiv modulus modulusPositive).trans (inputBasisEquiv modulus.size).symm)
 
 /-- The exact physical input labels undergo the independent two-word arithmetic. -/
-theorem permutation_read (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma permutation_read (modulus : Nat) (modulusPositive : 0 < modulus)
     (basis : (before modulus.size).register.Index) :
     inputBasisEquiv modulus.size (permutation modulus modulusPositive basis) =
       wordStep modulus modulusPositive (inputBasisEquiv modulus.size basis) :=
   (inputBasisEquiv modulus.size).apply_symm_apply _
 
 /-- Modulus one has zero canonical inverse, so every original target is unchanged. -/
-theorem permutation_one (basis : (before (1 : Nat).size).register.Index) :
+lemma permutation_one (basis : (before (1 : Nat).size).register.Index) :
     permutation 1 (by decide) basis = basis := by
   apply (inputBasisEquiv (1 : Nat).size).injective
   rw [permutation_read]
@@ -110,7 +110,7 @@ def operator (modulus : Nat) (modulusPositive : 0 < modulus) :
     (permutation modulus modulusPositive).symm
 
 /-- Every mathematical basis column includes the exact amplitude, without a phase quotient. -/
-theorem operator_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma operator_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (basis : (before modulus.size).register.Index) :
     (operator modulus modulusPositive).apply
         (NormalizedVector.ket (R := (before modulus.size).register) basis) =

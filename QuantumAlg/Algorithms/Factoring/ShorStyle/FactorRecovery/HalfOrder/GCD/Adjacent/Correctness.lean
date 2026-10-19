@@ -29,7 +29,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {width : Nat}
 
-private theorem trim_read_toNat (output : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma trim_read_toNat (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (store : Store ctx) :
     ((trimStep (model := model) output store).1.read (read output)).toNat =
       if (store.read (highBit output)).toBool then 0 else (store.read (read output)).toNat := by
@@ -45,7 +45,7 @@ private theorem trim_read_toNat (output : CWriteRef ctx (.unsignedWord (width + 
           (selfXor_toNat (store.read (read output)))
 
 /-- The real adjacent program returns exactly the original natural successor or predecessor. -/
-theorem result_toNat (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma result_toNat (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     ((step (model := model) successor input output store).1.read (read output)).toNat =
       if successor then (store.read input).toNat + 1 else (store.read input).toNat - 1 := by
@@ -81,7 +81,7 @@ theorem result_toNat (successor : Bool) (input : CInputRef ctx (.unsignedWord wi
         (congrArg (Resource.WordUnaryOpcode.eval .increment (width + 1)) resizedRead))).trans
       (increment_toNat (store.read input))
 
-private theorem trim_read_other (output : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma trim_read_other (output : CWriteRef ctx (.unsignedWord (width + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
     (trimStep (model := model) output store).1.read other = store.read other := by
@@ -94,7 +94,7 @@ private theorem trim_read_other (output : CWriteRef ctx (.unsignedWord (width + 
         exact Store.read_applyOp_of_not_mem_storageKeys store (clearOp output) other separate
 
 /-- Every other original structural operand retains its value through the genuine adjacent code. -/
-theorem read_other (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma read_other (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1))) {shape : CShape}
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys)
     (store : Store ctx) :

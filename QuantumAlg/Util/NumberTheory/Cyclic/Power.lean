@@ -23,7 +23,7 @@ namespace NumberTheory
 
 /-- Two integer powers of the same group element cannot collide when the
 absolute exponent difference is strictly smaller than the element order. -/
-theorem zpow_eq_zpow_iff_of_abs_sub_lt_orderOf
+lemma zpow_eq_zpow_iff_of_abs_sub_lt_orderOf
     {G : Type*} [Group G] (g : G) (left right : Int)
     (hsmall : |left - right| < (orderOf g : Int)) :
     g ^ left = g ^ right ↔ left = right := by

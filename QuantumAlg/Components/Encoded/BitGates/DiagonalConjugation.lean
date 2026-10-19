@@ -24,6 +24,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 variable (layout : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Execute the actual list, the supplied unitary program, and the inverse list. -/
 def conjugateProgram (gates : List (GateSpec encoding))
@@ -31,25 +32,26 @@ def conjugateProgram (gates : List (GateSpec encoding))
     UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum :=
   ((programList layout oracles gates).seq program).seq (programList layout oracles gates.reverse)
 
-private theorem list_applyVec (gates : List (GateSpec encoding)) (state : Data) :
-    (programList layout oracles gates).applyVec
+private lemma list_applyVec (gates : List (GateSpec encoding)) (state : Data) :
+    (programList layout oracles gates).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       (NormalizedVector.ket (R := layout.toQuantum.register)
         (layout.basisEquiv.symm (encoding.encode (stepList gates state)))).vec :=
-  congrArg NormalizedVector.vec ((realizesList layout oracles gates).apply_encoded_ket state)
+  congrArg NormalizedVector.vec ((realizesList layout oracles (environment := environment)
+    gates).apply_encoded_ket state)
 
 /-- The actual diagonal middle action is evaluated after the actual forward permutation. -/
-theorem conjugateProgram_applyVec_encoded_ket (gates : List (GateSpec encoding))
+lemma conjugateProgram_applyVec_encoded_ket (gates : List (GateSpec encoding))
     (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum) (phase : Data → ℂ)
-    (actual : ∀ state, program.applyVec
+    (actual : ∀ state, program.applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       phase state •
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec)
     (state : Data) :
-    (conjugateProgram layout oracles gates program).applyVec
+    (conjugateProgram layout oracles gates program).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       phase (stepList gates state) •
@@ -60,7 +62,7 @@ theorem conjugateProgram_applyVec_encoded_ket (gates : List (GateSpec encoding))
     stepList_reverse_stepList]
 
 /-- Both occurrences of every actual list element contribute to the same event trace. -/
-theorem conjugateProgram_eventTrace_length (gates : List (GateSpec encoding))
+lemma conjugateProgram_eventTrace_length (gates : List (GateSpec encoding))
     (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum) :
     (conjugateProgram layout oracles gates program).eventTrace.length =
       2 * gates.length + program.eventTrace.length := by

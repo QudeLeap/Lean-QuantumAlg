@@ -29,6 +29,8 @@ namespace QuantumAlg.MeasuredUncompute.InPlacePreparedSupport
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA InversePreparation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -45,7 +47,7 @@ def admissible (modulus : Nat)
     ((MeasurementCells.basisEquiv (after modulus.size) 2 modulus.size).symm basis)
 
 /-- Every allowed actual label is the fixed preparation beside two original-domain words. -/
-theorem admissible_cases (modulus : Nat)
+lemma admissible_cases (modulus : Nat)
     (basis : (NumeratorMeasurement.context modulus.size).register.Index)
     (allowed : admissible modulus basis) :
     ∃ value numerator : Fin (2 ^ modulus.size),
@@ -76,7 +78,7 @@ def density (modulus : Nat) (Reference : Register)
     (InPlacePreparation.preparation modulus).normalized Reference state
 
 /-- Local validity implies every forbidden prepared diagonal vanishes. -/
-theorem prepared_diagonal (modulus : Nat) {Reference : Register}
+lemma prepared_diagonal (modulus : Nat) {Reference : Register}
     (input : Input (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.localState)
     (basis : (after modulus.size).register.Index) (outside : ¬prepared modulus basis) :
@@ -91,17 +93,17 @@ theorem prepared_diagonal (modulus : Nat) {Reference : Register}
   exact valid old absent
 
 /-- Both actual allocations produce precisely the independent prepared full joint matrix. -/
-theorem actual_density (modulus : Nat) {Reference : Register} {H : Type} [Fintype H]
+lemma actual_density (modulus : Nat) {Reference : Register} {H : Type} [Fintype H]
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((NumeratorMeasurement.allocate modulus.size).execute Reference
-      ((InPlacePreparation.circuit modulus).execute Reference state)).quantumMarginal =
+    ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+      ((InPlacePreparation.circuit modulus).execute environment Reference state)).quantumMarginal =
       (density modulus Reference state.quantumMarginal).reindex
         (MeasurementCells.jointBasisEquiv (after modulus.size) 2 modulus.size Reference) := by
-  refine (MeasurementCells.allocate_quantumMarginal
+  refine (MeasurementCells.allocate_quantumMarginal environment
     (model := .quantum AlgorithmGate.model .empty)
     (after modulus.size) 2 modulus.size
-    ((InPlacePreparation.circuit modulus).execute Reference state)).trans ?_
+    ((InPlacePreparation.circuit modulus).execute environment Reference state)).trans ?_
   apply congrArg (fun value :
     DensityOperator (Register.prod (after modulus.size).register Reference) =>
       value.reindex
@@ -109,13 +111,13 @@ theorem actual_density (modulus : Nat) {Reference : Register} {H : Type} [Fintyp
   exact InPlacePreparation.execute_preparedDensity modulus state
 
 /-- The actual pre-body state has the required support in every full reference coordinate. -/
-theorem actual_joint_diagonal (modulus : Nat) {Reference : Register}
+lemma actual_joint_diagonal (modulus : Nat) {Reference : Register}
     (input : Input (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.localState)
     (basis : (Register.prod (NumeratorMeasurement.context modulus.size).register Reference).Index)
     (outside : ¬admissible modulus basis.1) :
-    ((NumeratorMeasurement.allocate modulus.size).execute Reference
-      ((InPlacePreparation.circuit modulus).execute Reference
+    ((NumeratorMeasurement.allocate modulus.size).execute environment Reference
+      ((InPlacePreparation.circuit modulus).execute environment Reference
         (input.state.mapClassical (fun stored => (stored, ((), ())))))).quantumMarginal.matrix
         basis basis = 0 := by
   rw [actual_density, ExecutionState.mapClassical_quantumMarginal]

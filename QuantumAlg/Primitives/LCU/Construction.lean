@@ -36,25 +36,26 @@ variable {a n : Nat} (V : UnitaryOperator (Qubits a))
   (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
 
 /-- A genuine ordinary or inverse preparation query on the coefficient register. -/
-def preparation (inverse : Bool) :
-    UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
+def preparation (a n : Nat) (inverse : Bool) :
+    UnitaryCircuit AlgorithmGate.model (LCUOracle.model a n)
       (QuantumSignature.qubits a).canonicalPlacement.layout :=
   if inverse then
-    .query (OracleModel.Application.onPlacement (LCUOracle.model V U)
+    .query (OracleModel.Application.onPlacement (LCUOracle.model a n)
       .unprepare (QuantumSignature.qubits a).canonicalPlacement)
   else
-    .query (OracleModel.Application.onPlacement (LCUOracle.model V U)
+    .query (OracleModel.Application.onPlacement (LCUOracle.model a n)
       .prepare (QuantumSignature.qubits a).canonicalPlacement)
 
 /-- A single SELECT query uses the complete joint register and its fixed family. -/
-def selection : UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
+def selection (a n : Nat) : UnitaryCircuit AlgorithmGate.model (LCUOracle.model a n)
     (QuantumSignature.qubits (a + n)).canonicalPlacement.layout :=
-  .query (OracleModel.Application.onPlacement (LCUOracle.model V U)
+  .query (OracleModel.Application.onPlacement (LCUOracle.model a n)
     .select (QuantumSignature.qubits (a + n)).canonicalPlacement)
 
 /-- Preparation and inverse preparation have exactly their independently granted semantics. -/
-theorem preparation_matrix (inverse : Bool) :
-    (preparation V U inverse).binaryMatrix = if inverse then V⁻¹ else V := by
+lemma preparation_matrix (inverse : Bool) :
+    (preparation a n inverse).binaryMatrix (LCUOracle.interpretation V U)
+      = if inverse then V⁻¹ else V := by
   cases inverse <;>
     simp only [preparation, Bool.false_eq_true, ↓reduceIte, UnitaryCircuit.binaryMatrix,
       UnitaryCircuit.query_matrix, OracleModel.Application.queryApplication_onPlacement_operator]
@@ -68,7 +69,8 @@ theorem preparation_matrix (inverse : Bool) :
       (QuantumSignature.qubitsIndexEquiv a).symm _
 
 /-- The SELECT query is the registered diagonal controlled family, with exact phase. -/
-theorem selection_matrix : (selection V U).binaryMatrix = lcuSelectOp U := by
+lemma selection_matrix : (selection a n).binaryMatrix (LCUOracle.interpretation V U)
+    = lcuSelectOp U := by
   simp only [selection, UnitaryCircuit.binaryMatrix, UnitaryCircuit.query_matrix,
     OracleModel.Application.queryApplication_onPlacement_operator]
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (a + n))
@@ -78,12 +80,12 @@ theorem selection_matrix : (selection V U).binaryMatrix = lcuSelectOp U := by
     (QuantumSignature.qubitsIndexEquiv (a + n)).symm _
 
 /-- The three actual granted calls, in execution order, on the same physical interface. -/
-public def circuit : UnitaryCircuit AlgorithmGate.model (LCUOracle.model V U)
+public def circuit (a n : Nat) : UnitaryCircuit AlgorithmGate.model (LCUOracle.model a n)
     (QuantumSignature.qubits (a + n)).canonicalPlacement.layout :=
-  ((UnitaryCircuit.onBinaryPrefix n (preparation V U false)).seq (selection V U)).seq
-    (UnitaryCircuit.onBinaryPrefix n (preparation V U true))
+  ((UnitaryCircuit.onBinaryPrefix n (preparation a n false)).seq (selection a n)).seq
+    (UnitaryCircuit.onBinaryPrefix n (preparation a n true))
 
-private theorem inverse_tensor_identity :
+private lemma inverse_tensor_identity :
     (V⁻¹).tensor (1 : UnitaryOperator (Qubits n)) =
       (V.tensor (1 : UnitaryOperator (Qubits n))).dagger := by
   apply Subtype.ext
@@ -97,7 +99,8 @@ private theorem inverse_tensor_identity :
   rw [identityMatrix, Matrix.conjTranspose_one]
 
 /-- The very circuit being counted has the original independently defined LCU operator. -/
-theorem circuit_matrix : (circuit V U).binaryMatrix = lcuWalk V U := by
+lemma circuit_matrix : (circuit a n).binaryMatrix (LCUOracle.interpretation V U)
+    = lcuWalk V U := by
   rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix,
@@ -108,17 +111,17 @@ theorem circuit_matrix : (circuit V U).binaryMatrix = lcuWalk V U := by
   rfl
 
 /-- The exact pool distinguishes forward preparation, inverse preparation and SELECT. -/
-theorem circuit_events : (circuit V U).eventCost =
+lemma circuit_events (a n : Nat) : (circuit a n).eventCost =
     ResourcePool.singleton
-      (model := .quantum AlgorithmGate.model (LCUOracle.model V U)) (.oracle .prepare) +
+      (model := .quantum AlgorithmGate.model (LCUOracle.model a n)) (.oracle .prepare) +
     ResourcePool.singleton
-      (model := .quantum AlgorithmGate.model (LCUOracle.model V U)) (.oracle .select) +
+      (model := .quantum AlgorithmGate.model (LCUOracle.model a n)) (.oracle .select) +
     ResourcePool.singleton
-      (model := .quantum AlgorithmGate.model (LCUOracle.model V U)) (.oracle .unprepare) := rfl
+      (model := .quantum AlgorithmGate.model (LCUOracle.model a n)) (.oracle .unprepare) := rfl
 
 /-- Each of the three granted queries occupies one full sequential abstract step. -/
-theorem circuit_depth :
-    (circuit V U).evaluatedEventDepth (fun _ => 1) = 3 := rfl
+lemma circuit_depth (a n : Nat) :
+    (circuit a n).evaluatedEventDepth (fun _ => 1) = 3 := rfl
 
 end
 end QuantumAlg.LinearCombinationOfUnitaries

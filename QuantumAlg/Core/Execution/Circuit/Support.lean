@@ -27,7 +27,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace ExecutionState
 
 /-- A definite input observes its own effect regardless of the equality decision procedure. -/
-theorem effectWeight_ofValue_decision {C : Type} [Fintype C] {R : Register}
+lemma effectWeight_ofValue_decision {C : Type} [Fintype C] {R : Register}
     (decision : DecidableEq C) (value : C) (state : DensityOperator R)
     (effects : C → Effect R) :
     (@ofValue C _ R decision value state).effectWeight effects =
@@ -36,7 +36,7 @@ theorem effectWeight_ofValue_decision {C : Type} [Fintype C] {R : Register}
   exact effectWeight_ofValue value state effects
 
 /-- An observation independent of the classical record depends only on the full quantum marginal. -/
-theorem effectWeight_constant {C : Type} [Fintype C] {R : Register}
+lemma effectWeight_constant {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (effect : Effect R) :
     state.effectWeight (fun _ => effect) = effect.weight state.quantumMarginal := by
   unfold effectWeight Effect.weight
@@ -51,9 +51,10 @@ namespace Circuit
 open Execution
 
 /-- Coherent good-input agreement gives the same error constant for actual measured circuits. -/
-theorem effectWeight_execute_le_add_four_mul_omitted_norm
+lemma effectWeight_execute_le_add_four_mul_omitted_norm
     {model : ExecutionModel} {pre actualPost idealPost : RuntimeCtx model.kind}
     (actual : Circuit model pre actualPost) (ideal : Circuit model pre idealPost)
+    (environment : model.Environment)
     (Reference : Register)
     (store : Store pre) (hidden : model.HiddenState)
     (input : NormalizedVector (Register.prod pre.register Reference))
@@ -61,19 +62,20 @@ theorem effectWeight_execute_le_add_four_mul_omitted_norm
     (actualEffects : EffectFamily actualPost Reference (model.HiddenState × (Unit × actual.Path)))
     (idealEffects : EffectFamily idealPost Reference (model.HiddenState × (Unit × ideal.Path)))
     (agrees :
-      (actual.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+      (actual.execute environment Reference (ExecutionState.ofValue (store, (hidden, ()))
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight actualEffects =
-      (ideal.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+      (ideal.execute environment Reference (ExecutionState.ofValue (store, (hidden, ()))
         (DensityOperator.ofSubnormalizedVector good bounded))).effectWeight idealEffects) :
-    (ideal.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+    (ideal.execute environment Reference (ExecutionState.ofValue (store, (hidden, ()))
       (DensityOperator.ofPure input))).effectWeight idealEffects ≤
-      (actual.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+      (actual.execute environment Reference (ExecutionState.ofValue (store, (hidden, ()))
         (DensityOperator.ofPure input))).effectWeight actualEffects +
           4 * ‖(input : HilbertVector (Register.prod pre.register Reference)) - good‖ := by
   simp only [effectWeight_execute, ExecutionState.effectWeight_ofValue_decision] at agrees ⊢
   exact Effect.weight_le_add_four_mul_omitted_norm
-    (effectPullback actual Reference actualEffects (store, (hidden, ())))
-    (effectPullback ideal Reference idealEffects (store, (hidden, ()))) input good bounded agrees
+    (effectPullback actual environment Reference actualEffects (store, (hidden, ())))
+    (effectPullback ideal environment Reference idealEffects (store, (hidden, ())))
+    input good bounded agrees
 
 end Circuit
 

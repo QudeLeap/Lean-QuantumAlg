@@ -50,7 +50,7 @@ variable {N : ℕ}
 /-- **`pad_block` structural identity.** The `M`-generator QFIM is the top-left `M × M` principal
 block of the `(M+1)`-generator QFIM, because each QFIM entry depends only on its two indexed
 generators and `↑(castSucc a) = ↑a`. -/
-theorem qfim_prefix_submatrix {n : Type*} [Fintype n] (ψ : n → ℂ)
+lemma qfim_prefix_submatrix {n : Type*} [Fintype n] (ψ : n → ℂ)
     (gen : ℕ → Matrix n n ℂ) (M : ℕ) :
     qfim ψ (fun a : Fin M => gen a)
       = (qfim ψ (fun a : Fin (M + 1) => gen a)).submatrix Fin.castSucc Fin.castSucc := by
@@ -80,10 +80,10 @@ noncomputable def OverparamData.ofQFIM {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
 noncomputable def su2GenSeq (k : ℕ) : Matrix (Fin 2) (Fin 2) ℂ :=
   su2HermBasis.B ⟨k % 3, Nat.mod_lt k (by norm_num)⟩
 
-theorem su2GenSeq_isHermitian (k : ℕ) : (su2GenSeq k)ᴴ = su2GenSeq k :=
+lemma su2GenSeq_isHermitian (k : ℕ) : (su2GenSeq k)ᴴ = su2GenSeq k :=
   su2HermBasis.herm _
 
-theorem su2GenSeq_smul_I_mem (k : ℕ) :
+lemma su2GenSeq_smul_I_mem (k : ℕ) :
     Complex.I • su2GenSeq k ∈ (dynamicalLieAlgebra su2Gens).toSubmodule := by
   refine Submodule.smul_mem _ _ ?_
   rw [← su2HermBasis.span_eq]
@@ -99,7 +99,7 @@ namespace QFIMOverparam
 
 /-- The one-parameter slice of the concrete `su(2)` QFIM already has positive rank: on `|0⟩`,
 the normalized Pauli-`X` generator has QFIM entry `2`. -/
-private theorem su2QFIMOverparam_oneParam_rank_pos :
+private lemma su2QFIMOverparam_oneParam_rank_pos :
     0 < (qfim (fun i : Fin 2 => if i = 0 then (1 : ℂ) else 0)
       (fun _ : Fin 1 => rt2inv • pauliX)).rank := by
   have h20 :
@@ -121,7 +121,7 @@ private theorem su2QFIMOverparam_oneParam_rank_pos :
 /-- **Non-vacuity of the concrete QFIM onset witness.** The saturated QFIM rank of the `su(2)`
 single-state witness is positive, so the onset theorem is not satisfied merely by the degenerate
 all-zero QFIM family. -/
-theorem su2QFIMOverparam_saturatedRank_pos (μ : su2QFIMOverparam.ι) :
+lemma su2QFIMOverparam_saturatedRank_pos (μ : su2QFIMOverparam.ι) :
     0 < su2QFIMOverparam.saturatedRank μ := by
   have hgen0 : (fun a : Fin 1 => su2GenSeq a) = fun _ : Fin 1 => rt2inv • pauliX := by
     funext a
@@ -152,7 +152,7 @@ well-defined critical count `M_c`) holds for the **real** `su(2)` Quantum Fisher
 Information Matrix —
 upgrading the overparametrization predicate from its previous `gl(1)` placeholder to a genuine DLA
 QFIM. -/
-theorem exists_isOverparametrized : ∃ M, su2QFIMOverparam.IsOverparametrized M :=
+lemma exists_isOverparametrized : ∃ M, su2QFIMOverparam.IsOverparametrized M :=
   main.1
 
 end QFIMOverparam

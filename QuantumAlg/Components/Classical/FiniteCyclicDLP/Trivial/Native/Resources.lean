@@ -40,7 +40,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
       (BitWord.selectedCoordinate (execution := model) (.nominalEncoding (.packOption width)))]
 
 /-- Actual allocation and release preserve the original two-event trace. -/
-public theorem zeroInto_eventTrace (output : CWriteRef ctx (.option (.unsignedWord width)))
+public lemma zeroInto_eventTrace (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
     (zeroInto output).eventTrace path = zeroEvents model width := by
   unfold zeroInto withCells
@@ -59,13 +59,13 @@ public theorem zeroInto_eventTrace (output : CWriteRef ctx (.option (.unsignedWo
   exact exactTrace path
 
 /-- The exact native pool is derived from the same actual two-event trace. -/
-public theorem zeroInto_resourcePool (output : CWriteRef ctx (.option (.unsignedWord width)))
+public lemma zeroInto_resourcePool (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
     (zeroInto output).resourcePool path = ResourcePool.ofList (zeroEvents model width) := by
   rw [Circuit.resourcePool, zeroInto_eventTrace]
 
 /-- The actual dependency chain charges equality followed by the original option pack. -/
-public theorem zeroInto_durationDepth (output : CWriteRef ctx (.option (.unsignedWord width)))
+public lemma zeroInto_durationDepth (output : CWriteRef ctx (.option (.unsignedWord width)))
     (duration : Resource.Event model → Nat) (path : (zeroInto output).Path) :
     (zeroInto output).depth duration path =
       duration (.classicalOperation
@@ -104,7 +104,7 @@ public theorem zeroInto_durationDepth (output : CWriteRef ctx (.option (.unsigne
   exact exactDepth path
 
 /-- Exactly two actual native instructions execute, also at width zero. -/
-public theorem zeroInto_eventCount (output : CWriteRef ctx (.option (.unsignedWord width)))
+public lemma zeroInto_eventCount (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) : ((zeroInto output).eventTrace path).length = 2 := by
   rw [zeroInto_eventTrace]
   rfl
@@ -113,7 +113,7 @@ public theorem zeroInto_eventCount (output : CWriteRef ctx (.option (.unsignedWo
 public def zeroActiveSpace (width : Nat) : SpacePool model.kind :=
   ((zeroShapes width).map SpacePool.ofShape).sum
 
-private theorem zeroBody_resident_le
+private lemma zeroBody_resident_le
     {inner : RuntimeCtx model.kind} (candidate : CInputRef inner (.unsignedWord width))
     (tag : CWriteRef inner .bit) (output : CWriteRef inner (.option (.unsignedWord width)))
     (path : (zeroBody candidate tag output).Path) :
@@ -124,7 +124,7 @@ private theorem zeroBody_resident_le
     (le_of_eq (Circuit.peakResidentSpace_classical _ path.1))
     (le_of_eq (Circuit.peakResidentSpace_classical _ path.2))
 
-private theorem zeroBody_auxiliary_le
+private lemma zeroBody_auxiliary_le
     {inner : RuntimeCtx model.kind} (candidate : CInputRef inner (.unsignedWord width))
     (tag : CWriteRef inner .bit) (output : CWriteRef inner (.option (.unsignedWord width)))
     (path : (zeroBody candidate tag output).Path) :
@@ -136,7 +136,7 @@ private theorem zeroBody_auxiliary_le
     (le_of_eq (Circuit.peakAuxiliarySpace_classical _ path.2))
 
 /-- The order-one routine charges its two actual workspace cells and caller resident state. -/
-public theorem zeroInto_resident_le
+public lemma zeroInto_resident_le
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
     (zeroInto output).peakResidentSpace path ≤
@@ -150,7 +150,7 @@ public theorem zeroInto_resident_le
         (transport.liftWrite output) selected) path
 
 /-- The same live scope gives the complete auxiliary-role bound. -/
-public theorem zeroInto_auxiliary_le
+public lemma zeroInto_auxiliary_le
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (zeroInto output).Path) :
     (zeroInto output).peakAuxiliarySpace path ≤

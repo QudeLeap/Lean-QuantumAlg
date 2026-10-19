@@ -22,7 +22,7 @@ import all QuantumAlg.Core.Base.Control.Operator
 The QPP signal has exactly two query forms: control-on-one `U` and
 control-on-zero `U†`. Both act on the ancilla followed by the original target
 systems, and both count as one controlled-unitary query. The declaration owns
-their operators and common query coordinate; a caller supplies only placement.
+their common query coordinate. The execution environment supplies the operators.
 -/
 
 namespace QuantumAlg.QSP.MultiQubit.QPPOracle
@@ -40,13 +40,18 @@ public inductive Coordinate where
   | controlled
   deriving DecidableEq
 
-/-- A supplied unitary with explicit access to the two controlled signal forms. -/
+/-- The public source width fixes the two controlled signal forms. -/
 @[expose, implicit_reducible]
-public def model {n : Nat} (U : UnitaryOperator (Qubits n)) : OracleModel where
+public def model (n : Nat) : OracleModel where
   Query := Query
   Coordinate := Coordinate
   coordinateDecidableEq := inferInstance
   signature _ := QuantumSignature.qubits (1 + n)
+  coordinate _ := .controlled
+
+/-- The hidden source operator interprets the fixed two-query interface. -/
+public def interpretation {n : Nat} (U : UnitaryOperator (Qubits n)) :
+    (model n).Interpretation where
   operator
     | .forward =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + n)).symm
@@ -54,16 +59,15 @@ public def model {n : Nat} (U : UnitaryOperator (Qubits n)) : OracleModel where
     | .inverseZero =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + n)).symm
           (UnitaryOperator.controlledQubitsOnZero U⁻¹)
-  coordinate _ := .controlled
 
 /-- Every permitted access form is a controlled call on the complete ancilla-target word. -/
-public theorem query_signature {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma query_signature (n : Nat)
     (query : Query) :
-    (model U).signature query = QuantumSignature.qubits (1 + n) := by
+    (model n).signature query = QuantumSignature.qubits (1 + n) := by
   cases query <;> rfl
 
 /-- The declaration grants exactly the two controlled forms used by QPP. -/
-public theorem query_cases (query : Query) :
+public lemma query_cases (query : Query) :
     query = .forward ∨ query = .inverseZero := by
   cases query with
   | forward => exact Or.inl rfl
@@ -71,21 +75,22 @@ public theorem query_cases (query : Query) :
 
 /-- Both declared forms share the controlled-query accounting coordinate. -/
 @[expose]
-public def event {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    Resource.Event (.quantum AlgorithmGate.model (model U)) :=
+public def event (n : Nat) :
+    Resource.Event (.quantum AlgorithmGate.model (model n)) :=
   .oracle .controlled
 
 /-- Execute one granted QPP signal query on the canonical ancilla and target layout. -/
 @[expose]
-public def circuit {n : Nat} (U : UnitaryOperator (Qubits n)) (query : Query) :
-    UnitaryCircuit AlgorithmGate.model (model U)
+public def circuit (n : Nat) (query : Query) :
+    UnitaryCircuit AlgorithmGate.model (model n)
       (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout :=
-  .query (OracleModel.Application.onPlacement (model U) query
+  .query (OracleModel.Application.onPlacement (model n) query
     (QuantumSignature.qubits (1 + n)).canonicalPlacement)
 
 /-- The forward query has the declared controlled-`U` matrix in binary coordinates. -/
-public theorem circuit_forward_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U .forward).binaryMatrix = UnitaryOperator.controlledQubits U := by
+public lemma circuit_forward_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
+    ((circuit n .forward).binaryMatrix
+      (interpretation U)) = UnitaryOperator.controlledQubits U := by
   rw [circuit, UnitaryCircuit.binaryMatrix, UnitaryCircuit.query_matrix,
     OracleModel.Application.queryApplication_onPlacement_operator]
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + n))
@@ -95,8 +100,8 @@ public theorem circuit_forward_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubi
     (QuantumSignature.qubitsIndexEquiv (1 + n)).symm _
 
 /-- The inverse query has the declared zero-controlled-`U†` matrix. -/
-public theorem circuit_inverseZero_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
-    (circuit U .inverseZero).binaryMatrix =
+public lemma circuit_inverseZero_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n)) :
+    ((circuit n .inverseZero).binaryMatrix (interpretation U)) =
       UnitaryOperator.controlledQubitsOnZero U⁻¹ := by
   rw [circuit, UnitaryCircuit.binaryMatrix, UnitaryCircuit.query_matrix,
     OracleModel.Application.queryApplication_onPlacement_operator]
@@ -107,9 +112,9 @@ public theorem circuit_inverseZero_binaryMatrix {n : Nat} (U : UnitaryOperator (
     (QuantumSignature.qubitsIndexEquiv (1 + n)).symm _
 
 /-- Every executed signal query is counted in the declared controlled coordinate. -/
-public theorem circuit_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma circuit_eventCost (n : Nat)
     (query : Query) :
-    (circuit U query).eventCost = ResourcePool.singleton (event U) := by
+    (circuit n query).eventCost = ResourcePool.singleton (event n) := by
   cases query <;> rfl
 
 end

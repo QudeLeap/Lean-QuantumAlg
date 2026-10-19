@@ -39,7 +39,7 @@ def borrowedContext (owned borrowed : Nat) : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addBorrowedLayout ⟨1⟩ (borrowedLayout owned borrowed).toQuantumLayout
     (by decide) (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-private theorem disjointWords (owned borrowed : Nat) :
+private lemma disjointWords (owned borrowed : Nat) :
     List.Disjoint (wordLayout owned).toQuantumLayout.identities
       (borrowedContext owned borrowed).physicalIdx := by
   change List.Disjoint (List.ofFn (fun index : Fin owned => index.val))
@@ -60,7 +60,7 @@ private theorem disjointWords (owned borrowed : Nat) :
   (borrowedContext owned borrowed).addOwnedLayout ⟨0⟩ (wordLayout owned).toQuantumLayout
     (by change (⟨0⟩ : StorageKey) ∉ [⟨1⟩]; decide) (disjointWords owned borrowed)
 
-theorem context_wires (owned borrowed : Nat) :
+lemma context_wires (owned borrowed : Nat) :
     (wordLayout (owned + borrowed)).toQuantumLayout.wires =
       (context owned borrowed).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
@@ -81,7 +81,7 @@ public def basisEquiv (owned borrowed : Nat) :
       (wordLayout (owned + borrowed)).binaryIndexEquiv
 
 /-- Every actual owned and borrowed physical system appears exactly once. -/
-public theorem context_physicalIdx (owned borrowed : Nat) :
+public lemma context_physicalIdx (owned borrowed : Nat) :
     (context owned borrowed).physicalIdx = List.range (owned + borrowed) := by
   change (context owned borrowed).quantumWires.map QuantumWire.identity = _
   rw [← RuntimeCtx.quantumLayout_wires, ← context_wires]
@@ -98,7 +98,7 @@ public def space (width : Nat) : SpacePool .quantum
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then width else 0
 
 /-- Both supplied words remain resident throughout a same-context unitary execution. -/
-theorem context_resident (owned borrowed : Nat) :
+lemma context_resident (owned borrowed : Nat) :
     (context owned borrowed).residentSpace = space (owned + borrowed) := by
   simp only [context, borrowedContext, RuntimeCtx.residentSpace_addOwnedLayout,
     RuntimeCtx.residentSpace_addBorrowedLayout, RuntimeCtx.residentSpace_empty]
@@ -112,7 +112,7 @@ theorem context_resident (owned borrowed : Nat) :
       by_cases same : (2 : ℕ+) = dimension <;> simp [space, same]
 
 /-- The borrowed word is resident without being counted again as owned auxiliary storage. -/
-theorem context_auxiliary (owned borrowed : Nat) :
+lemma context_auxiliary (owned borrowed : Nat) :
     (context owned borrowed).auxiliarySpace = space owned := by
   simp only [context, borrowedContext, RuntimeCtx.auxiliarySpace_addOwnedLayout,
     RuntimeCtx.auxiliarySpace_addBorrowedLayout, RuntimeCtx.auxiliarySpace_empty]
@@ -123,7 +123,7 @@ theorem context_auxiliary (owned borrowed : Nat) :
       exact (wordLayout owned).toQuantumLayout_dimensionCount dimension
 
 /-- The borrowed word contains precisely its supplied physical wire records. -/
-theorem context_borrowedWires (owned borrowed : Nat) :
+lemma context_borrowedWires (owned borrowed : Nat) :
     (context owned borrowed).borrowedQuantumWires =
       (borrowedLayout owned borrowed).toQuantumLayout.wires := by
   change [] ++ ((borrowedLayout owned borrowed).toQuantumLayout.wires ++ []) = _

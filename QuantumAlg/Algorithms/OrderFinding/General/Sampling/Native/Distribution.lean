@@ -24,12 +24,12 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The borrowed-base sample has the native source phase distribution. -/
-theorem distribution {N x t width : Nat}
+lemma distribution {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference) :
-    (run access).outputDistribution input =
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference) :
+    (run t width).outputDistribution (Sampling.Native.environment access) input =
       (OrderFinding.Native.sourceOutcomePMF access).map CShape.Value.bits :=
   Sampling.Native.Framed.outputDistribution_eq
     (pre width) (pre_quantumWires width) access input

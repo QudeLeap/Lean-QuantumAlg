@@ -26,7 +26,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual native remainder is exact for every divisor word, including zero and width zero. -/
-theorem nativeQuadratic_remainder_read (refs : Refs ctx width) (store : Store ctx) :
+lemma nativeQuadratic_remainder_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (remainderOp refs)).read (.storage refs.remainder.toCStorageRef)).toNat =
       (store.read refs.modulus).toNat % (store.read refs.candidate).toNat := by
   change ((store.applyOp (remainderOp refs)).read
@@ -36,7 +36,7 @@ theorem nativeQuadratic_remainder_read (refs : Refs ctx width) (store : Store ct
     ((Nat.mod_le _ _).trans_lt (store.read refs.modulus).toNat_lt)
 
 /-- The actual final bit conjoins the old range result and the computed remainder comparison. -/
-theorem nativeQuadratic_divisibility_read (refs : Refs ctx width) (store : Store ctx)
+lemma nativeQuadratic_divisibility_read (refs : Refs ctx width) (store : Store ctx)
     (zeroFree : refs.remainder.key ∉ refs.zero.storageKeys)
     (remainderValid : refs.remainder.key ≠ refs.valid.key)
     (dividesValid : refs.divides.key ≠ refs.valid.key) :
@@ -79,7 +79,7 @@ theorem nativeQuadratic_divisibility_read (refs : Refs ctx width) (store : Store
   rw [combined, validValue, decision]
 
 /-- Every original structural read outside the three actual destinations keeps its full value. -/
-theorem nativeQuadratic_divisibility_read_other (refs : Refs ctx width) {shape : CShape}
+lemma nativeQuadratic_divisibility_read_other (refs : Refs ctx width) {shape : CShape}
     (other : CInputRef ctx shape) (remainderFree : refs.remainder.key ∉ other.storageKeys)
     (dividesFree : refs.divides.key ∉ other.storageKeys)
     (validFree : refs.valid.key ∉ other.storageKeys) (store : Store ctx) :

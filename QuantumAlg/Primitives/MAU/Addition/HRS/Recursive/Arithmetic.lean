@@ -20,7 +20,7 @@ needed when composing the recursive circuits [HRS16, paper.tex:232-245].
 namespace QuantumAlg.MAU.Addition.HRS
 
 /-- Rejoining the two recursive additions yields constant addition at the original width. -/
-theorem hrsJoin_recursive_addition (width : Nat) (constant input : Fin (2 ^ width)) :
+lemma hrsJoin_recursive_addition (width : Nat) (constant input : Fin (2 ^ width)) :
     joinWord width
         (addWord ((splitWord width) constant).1 ((splitWord width) input).1,
           addWord ((splitWord width) constant).2

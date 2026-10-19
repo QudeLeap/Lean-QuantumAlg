@@ -85,17 +85,17 @@ def output (width : Nat) :
   Output.all (NumeratorMeasurement.context width) (.read (NumeratorMeasurement.input width))
 
 /-- The output contains every live bank and measurement cell, without omitting auxiliary state. -/
-theorem output_listing (width : Nat) :
+lemma output_listing (width : Nat) :
     (output width).listing = (NumeratorMeasurement.context width).keys :=
   Output.all_listing _ _
 
 /-- The classical result is the actual structural read of the cells written by measurement. -/
-theorem output_read (width : Nat) (store : Store (NumeratorMeasurement.context width)) :
+lemma output_read (width : Nat) (store : Store (NumeratorMeasurement.context width)) :
     (output width).eval store = store.read (NumeratorMeasurement.input width) :=
   Output.all_eval _ _ _
 
 /-- The only extra quantum bank is the original shared-frame complement prepared beside X/Y. -/
-theorem final_physical (width : Nat) :
+lemma final_physical (width : Nat) :
     (NumeratorMeasurement.context width).physicalIdx =
       (InversePreparation.after width).physicalIdx :=
   NumeratorMeasurement.context_physical width

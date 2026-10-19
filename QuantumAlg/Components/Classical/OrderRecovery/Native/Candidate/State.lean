@@ -36,7 +36,7 @@ def candidateState {width : Nat} (cells : ScanCells ctx modulusWidth width)
     division cells.cursor.candidate store).1
 
 /-- The same materialization record preserves every read outside its two actual destinations. -/
-theorem nativeScan_candidateState_read_other {width : Nat}
+lemma nativeScan_candidateState_read_other {width : Nat}
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width)) {shape : CShape}
     (other : CInputRef ctx shape) (divisionFree : division.key ∉ other.storageKeys)
@@ -48,7 +48,7 @@ theorem nativeScan_candidateState_read_other {width : Nat}
     divisionFree candidateFree store
 
 /-- Materialization preserves all four actual source cursor coordinates. -/
-theorem nativeScan_candidateState_cursor {width : Nat}
+lemma nativeScan_candidateState_cursor {width : Nat}
     (cells : ScanCells ctx modulusWidth width) (separated : cells.Separated)
     (division : CWriteRef ctx (cursorDivisionShape width))
     (divisionFree : ∀ key ∈ cells.writeKeys, division.key ≠ key)
@@ -83,7 +83,7 @@ theorem nativeScan_candidateState_cursor {width : Nat}
         (List.mem_singleton.mp present)) store)).trans reads.previous
 
 /-- The actual materialized word equals the fitted next source cursor candidate. -/
-theorem nativeScan_candidateState_candidate {width : Nat}
+lemma nativeScan_candidateState_candidate {width : Nat}
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width))
     (divisionFree : ∀ key ∈ cells.writeKeys, division.key ≠ key)
@@ -102,7 +102,7 @@ theorem nativeScan_candidateState_candidate {width : Nat}
     store cursor reads.numerator reads.denominator reads.previous reads.older fits
 
 /-- The retained division pair is exactly the result of the original two actual operand reads. -/
-theorem nativeScan_candidateState_division {width : Nat}
+lemma nativeScan_candidateState_division {width : Nat}
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width))
     (different : cells.cursor.candidate.key ≠ division.key) (store : Store ctx) :
@@ -119,7 +119,7 @@ theorem nativeScan_candidateState_division {width : Nat}
         (cellRead cells.cursor.denominator) division))
 
 /-- The actual retained remainder agrees with the same represented source Euclidean cursor. -/
-theorem nativeScan_candidateState_remainder {width : Nat}
+lemma nativeScan_candidateState_remainder {width : Nat}
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (cursorDivisionShape width))
     (different : cells.cursor.candidate.key ≠ division.key) (store : Store ctx)
@@ -135,7 +135,7 @@ theorem nativeScan_candidateState_remainder {width : Nat}
   rfl
 
 /-- The real prefix also preserves the source base and comparison constants. -/
-theorem nativeScan_candidateState_source
+lemma nativeScan_candidateState_source
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

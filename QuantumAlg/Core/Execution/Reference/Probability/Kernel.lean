@@ -27,7 +27,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Summing the diagonal reference fibers of an input-dependent real weight
 is exactly the weighted sum of the actual classical block masses. -/
-theorem referenceFiberSum_diagonal_weighted_mass
+lemma referenceFiberSum_diagonal_weighted_mass
     (state : ExecutionState C (Register.prod R Reference)) (weight : C → ℝ) :
     (∑ reference : Reference.Index,
       referenceFiberSum state (fun entry _ => (weight entry : ℂ))
@@ -71,7 +71,7 @@ theorem referenceFiberSum_diagonal_weighted_mass
 
 /-- A reference-safe fiber equation with an input-dependent finite probability
 kernel determines the actual classical output PMF as a bind of the input PMF. -/
-theorem toPMF_map_eq_bind_of_referenceFiberSum
+lemma toPMF_map_eq_bind_of_referenceFiberSum
     {D Outcome : Type} [Fintype D] [Finite Outcome] {S : Register}
     (initial : ExecutionState C (Register.prod R Reference))
     (final : ExecutionState D (Register.prod S Reference))

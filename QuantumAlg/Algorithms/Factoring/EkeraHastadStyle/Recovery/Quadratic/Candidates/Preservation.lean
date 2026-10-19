@@ -26,11 +26,11 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines.NumberTheory
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every actual input read outside the four arithmetic destinations keeps its complete value. -/
-theorem nativeQuadratic_candidates_read_other (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_read_other (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (separated : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys) (store : Store ctx) :
@@ -69,7 +69,7 @@ theorem nativeQuadratic_candidates_read_other (input : CInputRef ctx (.unsignedW
                 other centerFree))))))
 
 /-- Actual one loading still writes only the same four candidate-generation destinations. -/
-theorem nativeQuadratic_initialized_read_other (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_initialized_read_other (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (separated : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys) (store : Store ctx) :
@@ -80,19 +80,19 @@ theorem nativeQuadratic_initialized_read_other (input : CInputRef ctx (.unsigned
     (nativeQuadratic_candidates_read_other input modulus refs other separated store)
 
 /-- The actual candidate arithmetic restores every complete borrowed joint state. -/
-theorem nativeQuadratic_candidates_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidates (model := model) input modulus refs).BorrowedRestored Reference state
-      ((candidates (model := model) input modulus refs).execute Reference state) := by
+      ((candidates (model := model) input modulus refs).execute environment Reference state) := by
   unfold candidates
   apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical _ state
+  · exact Circuit.borrowedRestored_classical (environment := environment) _ state
   · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_classical _ _
+    · exact Circuit.borrowedRestored_classical (environment := environment) _ _
     · apply Circuit.borrowedRestored_seq
-      · exact Circuit.borrowedRestored_classical _ _
+      · exact Circuit.borrowedRestored_classical (environment := environment) _ _
       · apply Circuit.borrowedRestored_seq
         · exact NativeSub.nativeSub_into_borrowedRestored (model := model)
             (.storage refs.root.toCStorageRef) modulus refs.root Reference _
@@ -103,16 +103,18 @@ theorem nativeQuadratic_candidates_borrowedRestored (input : CInputRef ctx (.uns
             · exact NativeSub.nativeSub_into_borrowedRestored (model := model)
                 (.storage refs.center.toCStorageRef) (.storage refs.root.toCStorageRef)
                 refs.first Reference _
-            · exact Circuit.borrowedRestored_classical _ _
+            · exact Circuit.borrowedRestored_classical (environment := environment) _ _
 
 /-- Appending the two real one-loading instructions preserves the same full borrowed interface. -/
-theorem nativeQuadratic_initialized_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_initialized_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Initialized.code (model := model) input modulus refs).BorrowedRestored Reference state
-      ((Initialized.code (model := model) input modulus refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq (candidates (model := model) input modulus refs)
+      ((Initialized.code (model := model) input modulus refs).execute environment
+        Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) (candidates (model := model) input modulus refs)
     (CheckConstants.code (model := model) refs.center)
     state (nativeQuadratic_candidates_borrowedRestored input modulus refs Reference state)
     (CheckConstants.nativeQuadratic_check_one_borrowedRestored refs.center Reference _)

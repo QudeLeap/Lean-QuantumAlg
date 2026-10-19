@@ -38,7 +38,7 @@ def modulusBits : Nat := 2 * primeBits
 batches of sixteen measurements each. -/
 def memberExecutionCount : Nat := rounds * 16
 
-@[simp] theorem memberExecutionCount_eq : memberExecutionCount = 112 := by
+@[simp] lemma memberExecutionCount_eq : memberExecutionCount = 112 := by
   norm_num [memberExecutionCount, rounds]
 
 /-- The public success threshold intended for the fixed RSA-2048 endpoint. -/
@@ -67,7 +67,7 @@ public def FixedKeyModel.widthModel {N : Nat} (model : FixedKeyModel N) :
   ⟨model.1.bitWidth, model.1.pair, model.1.modulus_eq, model.2⟩
 
 /-- The public modulus of every fixed-width model has exactly 2048 bits. -/
-theorem model_modulusBits_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_modulusBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.modulusBits N = modulusBits := by
   rcases model with ⟨bitWidth, pair, rfl, widthEq⟩
   change bitWidth = primeBits at widthEq
@@ -81,7 +81,7 @@ theorem model_modulusBits_eq {N : Nat} (model : FixedWidthModel N) :
 
 /-- The ordinary binary digit count of every fixed-width public modulus is
 also exactly 2,048. -/
-theorem model_natSize_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_natSize_eq {N : Nat} (model : FixedWidthModel N) :
     Nat.size N = modulusBits := by
   rcases model with ⟨bitWidth, pair, rfl, widthEq⟩
   change bitWidth = primeBits at widthEq
@@ -93,7 +93,7 @@ theorem model_natSize_eq {N : Nat} (model : FixedWidthModel N) :
 
 /-- The public arithmetic width used by the shared arithmetic carrier is also exactly 2048
 bits. -/
-theorem model_arithmeticBits_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_arithmeticBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.arithmeticBits N = modulusBits := by
   rcases model with ⟨bitWidth, pair, rfl, widthEq⟩
   change bitWidth = primeBits at widthEq
@@ -117,7 +117,7 @@ theorem model_arithmeticBits_eq {N : Nat} (model : FixedWidthModel N) :
 
 /-- The short-log exponent register has 1,025 bits on every fixed-width
 RSA-2048 model. -/
-theorem model_shortLogBits_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_shortLogBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.shortLogBits N = 1_025 := by
   unfold Canonical.shortLogBits Canonical.factorBits
   rw [model_modulusBits_eq model]
@@ -125,19 +125,19 @@ theorem model_shortLogBits_eq {N : Nat} (model : FixedWidthModel N) :
 
 /-- The fixed `s = 2` tradeoff register has 513 bits on every fixed-width
 RSA-2048 model. -/
-theorem model_tradeoffBits_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_tradeoffBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.tradeoffBits N = 513 := by
   unfold Canonical.tradeoffBits
   rw [model_shortLogBits_eq model]
 
 /-- One terminal short-DLP measurement contains 2,051 bits. -/
-theorem model_measurementBits_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_measurementBits_eq {N : Nat} (model : FixedWidthModel N) :
     Canonical.measurementBits N = 2_051 := by
   unfold Canonical.measurementBits
   rw [model_shortLogBits_eq model, model_tradeoffBits_eq model]
 
 /-- The uniform signed-word width of the fixed RSA-2048 lattice recovery. -/
-theorem model_coordinateWidth_eq {N : Nat} (model : FixedWidthModel N) :
+lemma model_coordinateWidth_eq {N : Nat} (model : FixedWidthModel N) :
     RSA.ShortLogWidths.coordinateWidth N (Canonical.shortLogBits N)
       (Canonical.tradeoffBits N) = 7_522_484_226 := by
   unfold RSA.ShortLogWidths.coordinateWidth RSA.ShortLogWidths.operandWidthBound
@@ -147,7 +147,7 @@ theorem model_coordinateWidth_eq {N : Nat} (model : FixedWidthModel N) :
   norm_num [modulusBits, primeBits]
 
 /-- The original explicit prime-count theorem makes the fixed key carrier nonempty. -/
-theorem keygenNonempty : Nonempty (RSA.RSAKeyPairBits primeBits) := by
+lemma keygenNonempty : Nonempty (RSA.RSAKeyPairBits primeBits) := by
   apply RSA.rsaKeyPairBits_nonempty
   norm_num [primeBits]
 

@@ -56,7 +56,7 @@ structure StepFits (width : Nat) (basis : NumberTheory.IntegerBasis3) : Prop whe
 
 /-- A natural scalar below a capacity with binary size below `width` fits in
 one unsigned `width`-bit word. -/
-private theorem nat_lt_wordModulus_of_le
+private lemma nat_lt_wordModulus_of_le
     {width magnitude value : Nat}
     (capacity : Nat.size magnitude + 1 ≤ width)
     (valueBound : value ≤ magnitude) :
@@ -70,7 +70,7 @@ private theorem nat_lt_wordModulus_of_le
 
 /-- An integer whose magnitude fits below the positive signed capacity of a
 `width`-bit two's-complement word is signed-representable at that width. -/
-private theorem signedRepresentable_of_natAbs_le
+private lemma signedRepresentable_of_natAbs_le
     {width magnitude : Nat} {value : Int}
     (capacity : Nat.size magnitude + 1 ≤ width)
     (valueBound : value.natAbs ≤ magnitude) :
@@ -111,7 +111,7 @@ private theorem signedRepresentable_of_natAbs_le
 /-- Every state in the mathematical LLL reachable-state envelope satisfies
 the seven fixed-width scalar obligations once the common operand magnitude
 fits below the chosen width. -/
-theorem stepFits_of_boundedFrom
+lemma stepFits_of_boundedFrom
     {input : NumberTheory.IntegerBasis3} {state : NumberTheory.LLLState3}
     {width : Nat} (h : state.BoundedFrom input)
     (capacity :
@@ -159,7 +159,7 @@ theorem stepFits_of_boundedFrom
 
 /-- The canonical short-log coordinate width exceeds the binary size of the
 complete literal LLL-step scalar magnitude. -/
-theorem shortLog_coordinateWidth_capacity
+lemma shortLog_coordinateWidth_capacity
     (N m ell : Nat) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     Nat.size
         (256 * (NumberTheory.lllStateEnvelope3 (RSA.shortLogLatticeBasis m ell samples) +
@@ -192,7 +192,7 @@ theorem shortLog_coordinateWidth_capacity
 
 /-- The initial short-log basis already satisfies the literal LLL-step
 fixed-width scalar obligations at the canonical coordinate width. -/
-theorem shortLog_initial_stepFits
+lemma shortLog_initial_stepFits
     (N m ell : Nat) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     StepFits (RSA.ShortLogWidths.coordinateWidth N m ell)
       (RSA.shortLogLatticeBasis m ell samples) := by

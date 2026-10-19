@@ -22,7 +22,7 @@ noncomputable section
 
 /-- First-phase global key separation supplies the complete rounded-division
 subcontract. -/
-theorem firstDivisionSeparation {kind : ProblemKind}
+lemma firstDivisionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -118,7 +118,7 @@ theorem firstDivisionSeparation {kind : ProblemKind}
 
 /-- First-phase global key separation supplies the three-coordinate reduction
 subcontract. -/
-theorem firstReductionSeparation {kind : ProblemKind}
+lemma firstReductionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -238,7 +238,7 @@ theorem firstReductionSeparation {kind : ProblemKind}
       .b23 .b22 rfl rfl (by decide)
 
 /-- First-phase global key separation supplies the norm-refresh subcontract. -/
-theorem firstRefreshSeparation {kind : ProblemKind}
+lemma firstRefreshSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -318,7 +318,7 @@ theorem firstRefreshSeparation {kind : ProblemKind}
 
 /-- First-phase global key separation supplies the Lovasz-decision
 subcontract. -/
-theorem firstLovaszSeparation {kind : ProblemKind}
+lemma firstLovaszSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -358,13 +358,13 @@ private def firstSwapTransitionCell : LatticeSwap.PointSwapCell →
   | .rightThird => .b23
   | .scratch => .swapScratch
 
-private theorem firstSwapTransitionCell_injective :
+private lemma firstSwapTransitionCell_injective :
     Function.Injective firstSwapTransitionCell := by
   intro left right equal
   cases left <;> cases right <;> simp [firstSwapTransitionCell] at equal ⊢
 
 /-- First-phase global key separation supplies the point-swap subcontract. -/
-theorem firstSwapSeparation {kind : ProblemKind}
+lemma firstSwapSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -387,7 +387,7 @@ theorem firstSwapSeparation {kind : ProblemKind}
 
 /-- The physical state and reusable scratch packages satisfy the complete
 first-pair semantic separation contract. -/
-theorem firstSeparation {kind : ProblemKind}
+lemma firstSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}

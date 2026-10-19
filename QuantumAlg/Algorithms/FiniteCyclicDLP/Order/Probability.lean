@@ -45,7 +45,7 @@ def selectedTail (P : KnownOrderProblem G) (k : Fin P.order) : G :=
 omit [Fintype G] in
 /-- Distinct generator powers in the declared order occupy distinct clean-tail
 basis states. -/
-theorem selectedTail_injective (P : KnownOrderProblem G) :
+lemma selectedTail_injective (P : KnownOrderProblem G) :
     Function.Injective (selectedTail P) := by
   intro left right h
   have hmod := (pow_inj_mod).mp h
@@ -55,7 +55,7 @@ theorem selectedTail_injective (P : KnownOrderProblem G) :
 
 /-- On one selected group fiber, the native post-oracle state has one
 contributing left exponent for each source-range right exponent. -/
-theorem postOracleVec_apply_selectedTail
+lemma postOracleVec_apply_selectedTail
     (input : FiniteCyclicDLP.Input P) (expansion : OrderExpansion P.order)
     (left : Fin (2 ^ orderWidth P)) (right k : Fin P.order) :
     OrderBornBridge.postOracleVec P expansion
@@ -103,7 +103,7 @@ theorem postOracleVec_apply_selectedTail
     simp [hleft, hne]
 
 /-- Zero-extended selected-tail formula for an arbitrary raw right label. -/
-theorem postOracleVec_apply_selectedTail_raw
+lemma postOracleVec_apply_selectedTail_raw
     (input : FiniteCyclicDLP.Input P) (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ orderWidth P)) (k : Fin P.order) :
     OrderBornBridge.postOracleVec P expansion
@@ -131,7 +131,7 @@ theorem postOracleVec_apply_selectedTail_raw
 
 /-- At a selected group tail, the native-circuit amplitude is the same exact
 hidden-line sum used by the finite-cyclic DLP analysis. -/
-theorem circuitAmplitude_selectedTail_eq_sum
+lemma circuitAmplitude_selectedTail_eq_sum
     (input : FiniteCyclicDLP.Input P) (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ orderWidth P)) (k : Fin P.order) :
     OrderBornBridge.circuitAmplitude P expansion left right (selectedTail P k) =
@@ -188,7 +188,7 @@ theorem circuitAmplitude_selectedTail_eq_sum
         (FiniteCyclicDLP.Probability.selectedFiberTerm input left right k)
 
 /-- The selected native amplitude has norm at least `1/(2q)`. -/
-theorem one_div_two_fourierModulus_le_norm_circuitAmplitude_selected
+lemma one_div_two_fourierModulus_le_norm_circuitAmplitude_selected
     (input : FiniteCyclicDLP.Input P) (expansion : OrderExpansion P.order)
     (unit : (ZMod P.order)ˣ) (tail : Fin P.order) :
     1 / (2 * (fourierModulus P : ℝ)) ≤
@@ -250,7 +250,7 @@ theorem one_div_two_fourierModulus_le_norm_circuitAmplitude_selected
 
 /-- Every selected recoverable outcome has the existing pointwise floor in
 the actual native terminal Born distribution. -/
-theorem selectedOutcomePointwiseLowerBound_le_bornProbability
+lemma selectedOutcomePointwiseLowerBound_le_bornProbability
     (input : FiniteCyclicDLP.Input P) (expansion : OrderExpansion P.order)
     (unit : (ZMod P.order)ˣ) :
     FiniteCyclicDLP.Probability.selectedOutcomePointwiseLowerBound P ≤
@@ -345,7 +345,7 @@ theorem selectedOutcomePointwiseLowerBound_le_bornProbability
 
 /-- The summed selected-family floor lies below the mass of that exact finite
 family in the actual native terminal Born distribution. -/
-public theorem selectedOutcomeFamilyLowerBound_le_bornSelectedProbability
+public lemma selectedOutcomeFamilyLowerBound_le_bornSelectedProbability
     (input : FiniteCyclicDLP.Input P) (expansion : OrderExpansion P.order) :
     FiniteCyclicDLP.Probability.selectedOutcomeFamilyLowerBound P ≤
       (OrderBornBridge.outcomePMF P expansion).toOuterMeasure

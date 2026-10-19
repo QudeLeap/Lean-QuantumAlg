@@ -32,7 +32,7 @@ def frameBasis (width : Nat) :
   (MeasurementCells.basisEquiv (InversePreparation.after width) 2 width).symm.trans
     (InverseAssembly.basisEquiv width)
 
-private theorem supplied_value (width : Nat)
+private lemma supplied_value (width : Nat)
     (old : (InversePreparation.before width).register.Index) (index : Fin width) :
     decide ((old (suppliedWire width index)).val = 1) =
       (InversePreparation.inputBasisEquiv width old).2.val.testBit index.val := by
@@ -63,7 +63,7 @@ private theorem supplied_value (width : Nat)
     ((finite (raw (sourcePosition width index))).symm.trans right)
 
 /-- Arbitrary fresh values never change the supplied numerator's actual finite wire value. -/
-theorem preparedWire_value (width : Nat)
+lemma preparedWire_value (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (old : (InversePreparation.before width).register.Index) (index : Fin width) :
     (InversePreparation.assembly width (fresh, old) (preparedWire width index)).val =
@@ -74,7 +74,7 @@ theorem preparedWire_value (width : Nat)
         fresh old (suppliedWire width index)
 
 /-- Every measured physical bit is exactly the corresponding low native-frame bit. -/
-theorem wire_basis_bit (width : Nat) (basis : (context width).register.Index)
+lemma wire_basis_bit (width : Nat) (basis : (context width).register.Index)
     (index : Fin width) :
     decide ((basis (wire width index)).val = 1) =
       (frameBasis width basis).val.testBit index.val := by
@@ -97,12 +97,14 @@ theorem wire_basis_bit (width : Nat) (basis : (context width).register.Index)
     ((supplied_value width old index).trans native.symm)
 
 /-- The actual stored result selects exactly the native numerator mask for that Z branch. -/
-theorem stored_native_mask (width : Nat) (store : Store (context width))
+lemma stored_native_mask (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) (index : Fin width) :
     QubitReadouts.mask ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (allowAllocation := true)
       (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
       (readouts width) store
       (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (allowAllocation := true)
         (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
         (readouts width) basis)).read (input width)) index =
         (frameBasis width basis).val.testBit index.val :=

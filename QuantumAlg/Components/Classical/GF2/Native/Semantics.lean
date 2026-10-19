@@ -29,23 +29,27 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
+private lemma operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (BitWord.instruction (execution := model) op).execute Reference state =
+    (BitWord.instruction (execution := model) op).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := BitWord.instructionStep (execution := model) op entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
-  BitWord.bitWord_instruction_execute (execution := model) op state
+  BitWord.bitWord_instruction_execute (environment := environment) (execution := model) op state
 
 omit [BitWord.Selected model] in
-private theorem idle_execute (Reference : Register) {History : Type} [Fintype History]
+private lemma idle_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.id (model := model) ctx).execute Reference state =
+    (Circuit.id (model := model) (allowAllocation := true) ctx).execute environment Reference state
+      =
       state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
-  exact (Circuit.execute_id_mapClassical (model := model) Reference state).trans
+  exact (Circuit.execute_id_mapClassical
+    (environment := environment) (model := model) (allowAllocation := true)
+    Reference state).trans
     (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 private def successChoiceStep (body : Circuit model ctx ctx)
@@ -56,15 +60,16 @@ private def successChoiceStep (body : Circuit model ctx ctx)
   | .bit true => record store
 
 omit [BitWord.Selected model] in
-private theorem successChoice_execute (body : Circuit model ctx ctx)
+private lemma successChoice_execute (body : Circuit model ctx ctx)
     (record : Store ctx → Store ctx × body.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference (model.HiddenState × History)), body.execute Reference state =
+      (state : State ctx Reference (model.HiddenState × History)), body.execute environment
+        Reference state =
         state.mapClassical (fun entry =>
           ((record entry.1).1, (entry.2.1, (entry.2.2, (record entry.1).2)))))
     (value : CShape.Value .bit) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (successChoice body value).execute Reference state =
+    (successChoice body value).execute environment Reference state =
       state.mapClassical (fun entry => ((successChoiceStep body record value entry.1).1,
         (entry.2.1, (entry.2.2, (successChoiceStep body record value entry.1).2)))) := by
   cases value with
@@ -82,19 +87,21 @@ private def whenSuccessfulStep (success : CWriteRef ctx .bit) (body : Circuit mo
   (actual.1, ⟨value, actual.2⟩)
 
 omit [BitWord.Selected model] in
-private theorem whenSuccessful_execute (success : CWriteRef ctx .bit)
+private lemma whenSuccessful_execute (success : CWriteRef ctx .bit)
     (body : Circuit model ctx ctx)
     (record : Store ctx → Store ctx × body.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference (model.HiddenState × History)), body.execute Reference state =
+      (state : State ctx Reference (model.HiddenState × History)), body.execute environment
+        Reference state =
         state.mapClassical (fun entry =>
           ((record entry.1).1, (entry.2.1, (entry.2.2, (record entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (whenSuccessful success body).execute Reference state =
+    (whenSuccessful success body).execute environment Reference state =
       state.mapClassical (fun entry => ((whenSuccessfulStep success body record entry.1).1,
         (entry.2.1, (entry.2.2, (whenSuccessfulStep success body record entry.1).2)))) :=
-  Circuit.execute_branchStoreRecord (model := model) (.storage success.toCStorageRef)
+  Circuit.execute_branchStoreRecord
+    (environment := environment) (model := model) (.storage success.toCStorageRef)
     (successChoice body)
     (successChoiceStep body record) (successChoice_execute body record equation) Reference state
 
@@ -107,18 +114,18 @@ def packOutputStep (success : CWriteRef ctx .bit)
     (.product (.storage success.toCStorageRef) (.storage candidate.toCStorageRef)) output) store
 
 /-- The actual packOption preserves every complete old store/reference/history correlation. -/
-theorem gf2PackOutput_execute (success : CWriteRef ctx .bit)
+lemma gf2PackOutput_execute (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (packOutput (model := model) success candidate output).execute Reference state =
+    (packOutput (model := model) success candidate output).execute environment Reference state =
       state.mapClassical (fun entry => ((packOutputStep success candidate output entry.1).1,
         (entry.2.1, (entry.2.2, (packOutputStep success candidate output entry.1).2)))) :=
   operation_execute _ Reference state
 
 /-- The final actual destination contains the original packing of both current input values. -/
-theorem gf2PackOutput_value (success : CWriteRef ctx .bit)
+lemma gf2PackOutput_value (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.option (.unsignedWord width))) (store : Store ctx) :
     (packOutputStep success candidate output store).1.read (.storage output.toCStorageRef) =
@@ -203,29 +210,30 @@ def intoStep (store : Store ctx) :
   (packOutputStep success candidate output)))))))) store
 
 /-- The original complete same-context circuit preserves the full actual state interpretation. -/
-theorem gf2Into_execute (Reference : Register) {History : Type} [Fintype History]
+lemma gf2Into_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) input matrix used rows columns candidate zero success output).execute
+      environment
         Reference state =
       state.mapClassical (fun entry =>
         ((intoStep input matrix used rows columns candidate zero success output entry.1).1,
           (entry.2.1, (entry.2.2,
             (intoStep input matrix used rows columns candidate zero success output entry.1).2)))) :=
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (gf2LoadAndReduce_execute (model := model) matrix used rows columns input)
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (operation_execute (complementPivotMaskOp columns))
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (operation_execute (pivotFoundOp success))
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (gf2UniqueFree_execute (model := model) columns zero success)
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (whenSuccessful_execute success _ _
       (gf2BuildCandidate_execute (model := model) matrix rows columns candidate zero))
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (whenSuccessful_execute success _ _
       (gf2CandidateNonzero_execute (model := model) candidate zero success))
-  (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (whenSuccessful_execute success _ _
       (gf2ValidationSamples_execute (model := model) input candidate success))
   (gf2PackOutput_execute (model := model) success candidate output)))))))) Reference state

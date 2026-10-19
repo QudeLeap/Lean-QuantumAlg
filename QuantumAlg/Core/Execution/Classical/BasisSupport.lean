@@ -27,7 +27,7 @@ open scoped ComplexOrder
 variable {C : Type} [Fintype C] {R Reference : Register}
 
 /-- A zero quantum-marginal diagonal forces the same diagonal to vanish in each actual block. -/
-theorem block_diagonal_zero (state : ExecutionState C R) (basis : R.Index)
+lemma block_diagonal_zero (state : ExecutionState C R) (basis : R.Index)
     (zero : state.quantumMarginal.matrix basis basis = 0) (value : C) :
     (state.block value).matrix basis basis = 0 := by
   classical
@@ -40,7 +40,7 @@ theorem block_diagonal_zero (state : ExecutionState C R) (basis : R.Index)
   exact le_antisymm (bound.trans_eq total) (state.block value).positive.diag_nonneg
 
 /-- Selecting actual classical blocks cannot introduce a previously absent basis coordinate. -/
-theorem filterClassical_diagonal_zero (state : ExecutionState C R)
+lemma filterClassical_diagonal_zero (state : ExecutionState C R)
     (predicate : C → Prop) [DecidablePred predicate] (basis : R.Index)
     (zero : state.quantumMarginal.matrix basis basis = 0) :
     (state.filterClassical predicate).quantumMarginal.matrix basis basis = 0 := by
@@ -55,7 +55,7 @@ theorem filterClassical_diagonal_zero (state : ExecutionState C R)
       DensityOperator.zero_matrix, Matrix.zero_apply]
 
 /-- Locally stated support remains valid in every selected full reference-correlated state. -/
-theorem filterClassical_local_diagonal_zero
+lemma filterClassical_local_diagonal_zero
     (state : ExecutionState C (Register.prod R Reference))
     (predicate : C → Prop) [DecidablePred predicate] (basis : R.Index)
     (zero : state.quantumMarginal.marginalLeft.matrix basis basis = 0) :

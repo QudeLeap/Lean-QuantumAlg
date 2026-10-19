@@ -43,7 +43,7 @@ def ownedPositionEquiv (owned borrowed : Nat) :
     apply Fin.ext
     simp only [Equiv.symm_apply_apply, Fin.val_castAdd]
 
-private theorem owned_position_dimension (owned borrowed : Nat)
+private lemma owned_position_dimension (owned borrowed : Nat)
     (position : QuantumLayout.SelectedPosition (context owned borrowed).borrowedSelectionᶜ) :
     ((context owned borrowed).quantumLayout.wire position.val).dimension = 2 := by
   have wire := position_wire owned borrowed ((positionEquiv owned borrowed).symm position.val)
@@ -59,7 +59,7 @@ def ownedBinaryEquiv (owned borrowed : Nat) :
       (owned_position_dimension owned borrowed position))).trans
         (BinaryBasis.bigEndianEquiv owned)
 
-private theorem borrowed_ordered_wires (owned borrowed : Nat) :
+private lemma borrowed_ordered_wires (owned borrowed : Nat) :
     (borrowedLayout owned borrowed).toQuantumLayout.wires =
       (context owned borrowed).borrowedQuantumLayout.wires := by
   rw [RuntimeCtx.borrowedQuantumLayout_wires, context_borrowedWires]
@@ -87,7 +87,7 @@ def wordBinaryEquiv (owned borrowed : Nat) :
     (context owned borrowed).register.Index ≃ (Qubits (owned + borrowed)).Index :=
   (wordPairEquiv owned borrowed).trans (prodEquiv (m := owned) (n := borrowed))
 
-private theorem selected_pair_join {count : Nat} (layout : QuantumLayout count)
+private lemma selected_pair_join {count : Nat} (layout : QuantumLayout count)
     (selection : Finset (Fin count)) {A B : Type}
     (selectedEquiv : layout.SelectedBasis selection ≃ A)
     (complementEquiv : layout.ComplementBasis selection ≃ B)
@@ -102,7 +102,7 @@ private theorem selected_pair_join {count : Nat} (layout : QuantumLayout count)
     (layout.selectionBasisEquiv_join selection selected complement)
 
 /-- Reassembly gives the supplied word pair with the owned word first. -/
-theorem wordPairEquiv_join (owned borrowed : Nat)
+lemma wordPairEquiv_join (owned borrowed : Nat)
     (selected : (context owned borrowed).quantumLayout.SelectedBasis
       (context owned borrowed).borrowedSelection)
     (complement : (context owned borrowed).quantumLayout.ComplementBasis

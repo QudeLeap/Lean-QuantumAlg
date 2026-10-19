@@ -28,7 +28,7 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private def caseMaximum {α : Type} (combine : α → α → α) (values : Case → α) : α :=
@@ -36,7 +36,7 @@ private def caseMaximum {α : Type} (combine : α → α → α) (values : Case 
     (combine (combine (combine (values .vertical) (values .doubling)) (values .vertical))
       (values .generic)))
 
-private theorem case_le_caseMaximum {α : Type} [Preorder α]
+private lemma case_le_caseMaximum {α : Type} [Preorder α]
     (combine : α → α → α) (belowLeft : ∀ left right, left ≤ combine left right)
     (belowRight : ∀ left right, right ≤ combine left right) (values : Case → α)
     (selected : Case) : values selected ≤ caseMaximum combine values := by
@@ -105,7 +105,7 @@ def additionScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   ((classifierShapes width).map SpacePool.ofShape).sum + additionActiveSpace kind width
 
 
-private theorem additionArm_pool_le (spec : CurveSpec width)
+private lemma additionArm_pool_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
@@ -118,7 +118,7 @@ private theorem additionArm_pool_le (spec : CurveSpec width)
   · exact doublingInto_pool_le _ _ _ path
   · exact genericInto_pool_le _ _ _ _ path
 
-private theorem additionDispatch_pool_le (spec : CurveSpec width)
+private lemma additionDispatch_pool_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
@@ -131,7 +131,7 @@ private theorem additionDispatch_pool_le (spec : CurveSpec width)
       (case_le_caseMaximum ResourcePool.max ResourcePool.le_max_left ResourcePool.le_max_right
         (additionArmEnvelope model spec) selected))
 
-private theorem additionArm_depth_le (spec : CurveSpec width)
+private lemma additionArm_depth_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -145,7 +145,7 @@ private theorem additionArm_depth_le (spec : CurveSpec width)
     | exact doublingInto_depth_le _ _ _ duration path
     | exact genericInto_depth_le _ _ _ _ duration path
 
-private theorem additionDispatch_depth_le (spec : CurveSpec width)
+private lemma additionDispatch_depth_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -159,7 +159,7 @@ private theorem additionDispatch_depth_le (spec : CurveSpec width)
       (case_le_caseMaximum Nat.max Nat.le_max_left Nat.le_max_right
         (additionArmDepthLimit spec duration) selected))
 
-private theorem additionArm_duration_eventTrace (spec : CurveSpec width)
+private lemma additionArm_duration_eventTrace (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -177,7 +177,7 @@ private theorem additionArm_duration_eventTrace (spec : CurveSpec width)
   · exact genericInto_duration_eventTrace spec.field (classifierRead classifier.leftRaw)
       (classifierRead classifier.rightRaw) output duration path
 
-private theorem additionDispatch_duration_eventTrace (spec : CurveSpec width)
+private lemma additionDispatch_duration_eventTrace (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -192,7 +192,7 @@ private theorem additionDispatch_duration_eventTrace (spec : CurveSpec width)
       (congrArg (fun events => (events.map duration).sum) trace.symm))
 
 /-- The actual complete path retains the original classifier and selected-arm accounting. -/
-theorem addInto_pool_le (spec : CurveSpec width)
+lemma addInto_pool_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :
@@ -212,7 +212,7 @@ theorem addInto_pool_le (spec : CurveSpec width)
     (additionDispatch_pool_le _ _ _ selected.2)
 
 /-- The actual complete path retains the original classifier and selected-arm accounting. -/
-theorem addInto_depth_le (spec : CurveSpec width)
+lemma addInto_depth_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -231,7 +231,7 @@ theorem addInto_depth_le (spec : CurveSpec width)
     (additionDispatch_depth_le _ _ _ duration selected.2)
 
 /-- The actual complete path retains the original classifier and selected-arm accounting. -/
-theorem addInto_duration_eventTrace (spec : CurveSpec width)
+lemma addInto_duration_eventTrace (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -264,7 +264,7 @@ theorem addInto_duration_eventTrace (spec : CurveSpec width)
   exact congrArg₂ Nat.add classifiedDepth
     (additionDispatch_duration_eventTrace _ _ _ duration selected.2)
 
-private theorem additionArm_resident_le (spec : CurveSpec width)
+private lemma additionArm_resident_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
@@ -277,7 +277,7 @@ private theorem additionArm_resident_le (spec : CurveSpec width)
     | exact doublingInto_resident_le _ _ _ path
     | exact genericInto_resident_le _ _ _ _ path
 
-private theorem additionDispatch_resident_le (spec : CurveSpec width)
+private lemma additionDispatch_resident_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
@@ -291,7 +291,7 @@ private theorem additionDispatch_resident_le (spec : CurveSpec width)
         (additionArmSpace model.kind width) selected) le_rfl))
 
 /-- All original classifier cells coexist with the largest actual complete arm scope. -/
-theorem addInto_resident_le (spec : CurveSpec width)
+lemma addInto_resident_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :
@@ -304,7 +304,7 @@ theorem addInto_resident_le (spec : CurveSpec width)
     (fun classifier transport selected =>
       additionDispatch_resident_le spec classifier (transport.liftWrite output) selected) path
 
-private theorem additionArm_auxiliary_le (spec : CurveSpec width)
+private lemma additionArm_auxiliary_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (selected : Case) (path : (additionArm spec classifier output selected).Path) :
@@ -317,7 +317,7 @@ private theorem additionArm_auxiliary_le (spec : CurveSpec width)
     | exact doublingInto_auxiliary_le _ _ _ path
     | exact genericInto_auxiliary_le _ _ _ _ path
 
-private theorem additionDispatch_auxiliary_le (spec : CurveSpec width)
+private lemma additionDispatch_auxiliary_le (spec : CurveSpec width)
     (classifier : Classifier ctx width)
     (output : CWriteRef ctx (PointShape width))
     (path : (dispatch classifier (additionArm spec classifier output)).Path) :
@@ -331,7 +331,7 @@ private theorem additionDispatch_auxiliary_le (spec : CurveSpec width)
         (additionArmSpace model.kind width) selected) le_rfl))
 
 /-- All original classifier cells coexist with the largest actual complete arm scope. -/
-theorem addInto_auxiliary_le (spec : CurveSpec width)
+lemma addInto_auxiliary_le (spec : CurveSpec width)
     (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (addInto spec left right output).Path) :

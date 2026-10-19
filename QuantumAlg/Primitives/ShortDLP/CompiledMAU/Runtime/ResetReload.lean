@@ -8,7 +8,7 @@ module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Round
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Seed
-import all QuantumAlg.Primitives.ZReset.Bank.Scope.Semantics
+import all QuantumAlg.Primitives.ZReset.Bank.Parallel.Semantics
 import all QuantumAlg.Primitives.ZReset.Frame
 import all QuantumAlg.Core.Execution.Unitary.StoreFilter
 import all QuantumAlg.Core.Execution.Reference.Unitary
@@ -31,12 +31,15 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem local_basis_block {R Reference : Register} (program : UnitaryOperator R)
+private lemma local_basis_block {R Reference : Register} (program : UnitaryOperator R)
     (state : DensityOperator (Register.prod R Reference)) (zero : R.Index)
     (left right : R.Index) (leftRef rightRef : Reference.Index) (coefficient : ℂ)
     (atZero : ∀ row column,
@@ -54,26 +57,27 @@ private theorem local_basis_block {R Reference : Register} (program : UnitaryOpe
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
-private theorem reload_column (N : Nat) (row : ctx.register.Index) :
-    (RuntimePlacement.reloadProgram m ell width sameWires N).matrix
+private lemma reload_column (N : Nat) (row : ctx.register.Index) :
+    ((RuntimePlacement.reloadProgram m ell width sameWires N).matrix environment.quantum)
         row ctx.quantumLayout.zeroLabel =
       NormalizedVector.ket (R := ctx.register)
         ((RuntimePlacement.basisEquiv m ell width sameWires).symm
           (CompiledMAU.reloadLabel m ell width N)) row := by
   have action := congrArg (fun vector : NormalizedVector ctx.register => vector row)
-    (RuntimePlacement.shortDLP_runtimeReload_apply_zero m ell width sameWires N)
-  change (RuntimePlacement.reloadProgram m ell width sameWires N).applyVec
+    (RuntimePlacement.shortDLP_runtimeReload_apply_zero (environment := environment.quantum) m ell
+      width sameWires N)
+  change (RuntimePlacement.reloadProgram m ell width sameWires N).applyVec environment.quantum
     (NormalizedVector.ket (R := ctx.register) ctx.quantumLayout.zeroLabel).vec row = _ at action
   rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at action
   exact action
 
 /-- Each actual complete store-reference block ends with the original source seed exactly. -/
-theorem shortDLP_runtimeResetReload_store_entry (N : Nat)
+lemma shortDLP_runtimeResetReload_store_entry (N : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((resetReload m ell width sameWires N).execute Reference state)
+      ((resetReload m ell width sameWires N).execute environment Reference state)
       (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       NormalizedVector.ket (R := ctx.register)
@@ -85,20 +89,20 @@ theorem shortDLP_runtimeResetReload_store_entry (N : Nat)
         star (NormalizedVector.ket (R := ctx.register)
           ((RuntimePlacement.basisEquiv m ell width sameWires).symm
             (CompiledMAU.reloadLabel m ell width N)) right) := by
-  let reset : Circuit model ctx ctx := ZReset.BankScope.code
+  let reset : Circuit model ctx ctx := ZReset.BankParallel.code
     (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) BitWord.model
   let reload : Circuit model ctx ctx :=
     .unitary (RuntimePlacement.reloadProgram m ell width sameWires N)
   let predicate := fun store : Store ctx => store = original
-  let resetState := reset.execute Reference state
-  let reloaded := reload.execute Reference resetState
+  let resetState := reset.execute environment Reference state
+  let reloaded := reload.execute environment Reference resetState
   let reassociate := fun history : model.HiddenState × ((History × reset.Path) × reload.Path) =>
     (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))
   have executed := congrArg
     (fun output : State ctx Reference
       (model.HiddenState × (History × (Circuit.seq reset reload).Path)) =>
       (output.filterClassical (fun entry => predicate entry.1)).quantumMarginal)
-    (Circuit.execute_seq reset reload state)
+    (Circuit.execute_seq (environment := environment) reset reload state)
   have history := congrArg ExecutionState.quantumMarginal
     (ZReset.filter_mapHistory (ctx := ctx) (Reference := Reference)
       (History := model.HiddenState × ((History × reset.Path) × reload.Path))
@@ -106,7 +110,8 @@ theorem shortDLP_runtimeResetReload_store_entry (N : Nat)
       reloaded reassociate predicate)
   have erased := State.mapHistory_quantumMarginal
     (reloaded.filterClassical (fun entry => predicate entry.1)) reassociate
-  have acted := Circuit.unitary_store_filter (operations := BitWord.model) (services := .empty)
+  have acted := Circuit.unitary_store_filter (environment := environment) (allowAllocation := true)
+    (operations := BitWord.model) (services := .empty)
     (RuntimePlacement.reloadProgram m ell width sameWires N)
     resetState predicate
   have composed := executed.trans (history.trans (erased.trans acted))
@@ -114,12 +119,13 @@ theorem shortDLP_runtimeResetReload_store_entry (N : Nat)
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
       density.matrix (left, leftRef) (right, rightRef)) composed).trans ?_
   refine (local_basis_block
-    (RuntimePlacement.reloadProgram m ell width sameWires N).matrix _
+    ((RuntimePlacement.reloadProgram m ell width sameWires N).matrix environment.quantum) _
     ctx.quantumLayout.zeroLabel left right leftRef rightRef _
-    (fun row column => ZReset.BankScope.zResetBankScope_complete_store_entry_operationModel
-      (oracles := .empty)
+    (fun row column => ZReset.BankParallel.code_complete_store_entry
+      (services := .empty)
+      (oracles := .empty) (operations := BitWord.model)
       (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires)
-      BitWord.model state original row column leftRef rightRef)).trans ?_
+      state original row column leftRef rightRef)).trans ?_
   exact congrArg₂ (fun first second : ℂ => first *
     (∑ basis : ctx.register.Index,
       (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix

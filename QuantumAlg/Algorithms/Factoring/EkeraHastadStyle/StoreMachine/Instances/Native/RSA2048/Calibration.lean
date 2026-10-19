@@ -24,7 +24,7 @@ noncomputable section
 
 /-- The one-time RSA-2048 key exception plus seven conditional batch failures
 is strictly below one percent. -/
-theorem keygenFailure_seven_lt_onePercent :
+lemma keygenFailure_seven_lt_onePercent :
     ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound 1024) +
         NativeFiniteRetry.Calibration.batchFailure 1024 ^ 7 <
       ENNReal.ofReal ((1 : Real) / 100) := by
@@ -52,7 +52,7 @@ theorem keygenFailure_seven_lt_onePercent :
 
 /-- The conditional seven-batch failure term alone is strictly below one
 percent at the RSA-2048 width. -/
-theorem batchFailure_seven_lt_onePercent :
+lemma batchFailure_seven_lt_onePercent :
     NativeFiniteRetry.Calibration.batchFailure 1024 ^ 7 <
       ENNReal.ofReal ((1 : Real) / 100) := by
   have addBound :
@@ -71,7 +71,7 @@ theorem batchFailure_seven_lt_onePercent :
 
 /-- The complement of conditional seven-batch failure is at least `99 / 100`.
 No key-generation exceptional mass is charged to this conditional bound. -/
-theorem conditionalSuccess_seven_ge_99 :
+lemma conditionalSuccess_seven_ge_99 :
     ENNReal.ofReal ((99 : Real) / 100) ≤
       1 - NativeFiniteRetry.Calibration.batchFailure 1024 ^ 7 := by
   rw [show (99 : Real) / 100 = 1 - 1 / 100 by norm_num,
@@ -81,7 +81,7 @@ theorem conditionalSuccess_seven_ge_99 :
 
 /-- The complement of the combined one-time key exception and seven-batch
 conditional failure is at least `99 / 100`. -/
-theorem combinedSuccess_seven_ge_99 :
+lemma combinedSuccess_seven_ge_99 :
     ENNReal.ofReal ((99 : Real) / 100) ≤
       1 - (ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound 1024) +
         NativeFiniteRetry.Calibration.batchFailure 1024 ^ 7) := by

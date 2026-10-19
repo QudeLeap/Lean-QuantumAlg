@@ -54,6 +54,8 @@ public def model (cardinality : ℕ+)
 variable {cardinality : ℕ+}
   (distribution : PMF (CShape.Value (.finite cardinality)))
   {gates : GateModel} {oracles : OracleModel} {services : ClassicalOracleModel}
+  {environment :
+    (ExecutionModel.quantum gates oracles (model cardinality distribution) services).Environment}
   {ctx : RuntimeCtx .quantum}
 
 /-- Place the declared sampler at one real result cell. Its previous value is
@@ -65,14 +67,14 @@ public def application (output : CWriteRef ctx (.finite cardinality)) :
   output := output
 
 /-- Every occurrence uses the same law, independently of prior visible values. -/
-public theorem application_distribution (output : CWriteRef ctx (.finite cardinality))
+public lemma application_distribution (output : CWriteRef ctx (.finite cardinality))
     (input : CShape.Value (.finite cardinality)) :
     (model cardinality distribution).evaluate
       (application distribution output).token input = distribution := rfl
 
 /-- Two stateless occurrences assign the product of their declared weights;
 this is the independence premise used when the circuit nodes are sequenced. -/
-public theorem repeated_weight
+public lemma repeated_weight
     (firstInput secondInput firstOutcome secondOutcome :
       CShape.Value (.finite cardinality)) :
     ((model cardinality distribution).evaluate () firstInput firstOutcome).toReal *
@@ -89,18 +91,18 @@ public def code (output : CWriteRef ctx (.finite cardinality))
 
 /-- The actual result is the full weighted mixture of all selected words,
 including zero-probability labels and arbitrary external references. -/
-public theorem code_quantumMarginal_matrix
+public lemma code_quantumMarginal_matrix
     (output : CWriteRef ctx (.finite cardinality))
     (words : CShape.Value (.finite cardinality) →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (services.HiddenState × History)) :
-    ((code (services := services) distribution output words).execute
+    ((code (services := services) distribution output words).execute environment
       Reference state).quantumMarginal.matrix =
       ∑ entry : Store ctx × (services.HiddenState × History),
         ∑ outcome : CShape.Value (.finite cardinality),
           (distribution outcome).toReal •
-            (let operator := UnitaryOperator.prodTensor (words outcome).matrix
+            (let operator := UnitaryOperator.prodTensor ((words outcome).matrix environment.quantum)
               (1 : UnitaryOperator Reference)
              (operator : HilbertOperator (ctx.register.prod Reference)) *
                (state.block entry).matrix *
@@ -116,7 +118,7 @@ public theorem code_quantumMarginal_matrix
     rfl
 
 /-- Every occurrence charges its sampling event before the selected word. -/
-public theorem code_eventTrace (output : CWriteRef ctx (.finite cardinality))
+public lemma code_eventTrace (output : CWriteRef ctx (.finite cardinality))
     (words : CShape.Value (.finite cardinality) →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (sample selected : CShape.Value (.finite cardinality)) :
@@ -137,7 +139,7 @@ public abbrev twice (output : CWriteRef ctx (.finite cardinality))
 
 /-- Both actual occurrences charge their own sampling event, in order, before
 their respective selected quantum words. -/
-public theorem twice_eventTrace (output : CWriteRef ctx (.finite cardinality))
+public lemma twice_eventTrace (output : CWriteRef ctx (.finite cardinality))
     (words : CShape.Value (.finite cardinality) →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     (firstSample firstSelected secondSample secondSelected :
@@ -159,20 +161,21 @@ open scoped Classical in
 /-- The second actual draw applies the same nonuniform law to every complete
 block produced by the first selected quantum word. Thus the law is sampled
 again on the executed program, including arbitrary reference correlations. -/
-public theorem twice_execute (output : CWriteRef ctx (.finite cardinality))
+public lemma twice_execute (output : CWriteRef ctx (.finite cardinality))
     (words : CShape.Value (.finite cardinality) →
       UnitaryCircuit gates oracles ctx.quantumLayout)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (services.HiddenState × History)) :
     (((code (services := services) distribution output words).seq
-      (code (services := services) distribution output words)).execute Reference state) =
-      let first := (code (services := services) distribution output words).execute
+      (code (services := services) distribution output words)).execute
+        environment Reference state) =
+      let first := (code (services := services) distribution output words).execute environment
         Reference state
       (((kernelChoice first (fun entry =>
           (model cardinality distribution).evaluate
             (application distribution output).token
             (entry.1.read (application distribution output).input))).applyUnitary fun entry =>
-          UnitaryOperator.prodTensor (words entry.2).matrix
+          UnitaryOperator.prodTensor ((words entry.2).matrix environment.quantum)
             (1 : UnitaryOperator Reference)).mapClassical fun entry =>
           let nextPath : (code (services := services) distribution output words).Path :=
             (entry.2, ⟨entry.2, ()⟩)

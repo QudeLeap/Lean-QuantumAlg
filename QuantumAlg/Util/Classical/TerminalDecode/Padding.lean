@@ -18,7 +18,7 @@ big-endian terminal word while increasing its declared width by one.
 namespace QuantumAlg.ClassicalAlgorithms.TerminalDecode
 
 /-- A leading false bit does not change the exact big-endian natural value. -/
-theorem terminalDecode_bigEndian_zero_prefix {width : Nat} (bits : Fin width → Bool) :
+lemma terminalDecode_bigEndian_zero_prefix {width : Nat} (bits : Fin width → Bool) :
     bigEndianFold (Fin.cons false bits) = bigEndianFold bits := by
   rw [← accumulatorFold_zero_eq_bigEndianFold, ← accumulatorFold_zero_eq_bigEndianFold]
   change accumulatorFold width (appendBit 0 false) ((Fin.cons false bits) ∘ Fin.succ) =
@@ -26,7 +26,7 @@ theorem terminalDecode_bigEndian_zero_prefix {width : Nat} (bits : Fin width →
   rfl
 
 /-- The widened canonical terminal word represents precisely its original bounded index. -/
-theorem terminalDecode_fullRegister_zero_prefix {width : Nat} (bits : Fin width → Bool) :
+lemma terminalDecode_fullRegister_zero_prefix {width : Nat} (bits : Fin width → Bool) :
     (fullRegisterIndex (Fin.cons false bits)).val = (fullRegisterIndex bits).val := by
   rw [fullRegisterIndex_val, fullRegisterIndex_val,
     ← bigEndianFold_eq_ofBits, ← bigEndianFold_eq_ofBits]

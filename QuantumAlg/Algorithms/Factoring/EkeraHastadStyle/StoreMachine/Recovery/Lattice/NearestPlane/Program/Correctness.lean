@@ -47,7 +47,7 @@ def Result (refs : Refs ctx width) (store : Store ctx)
       (target.sub (basis.linearCombination (basis.nearestPlaneCoefficientCenter target)))
 
 /-- Actual three-stage execution computes the original coefficient center and target residual. -/
-theorem threeInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma threeInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (target : NumberTheory.IntegerPoint3)
     (initial : Initial refs store basis target) (fits : Fits width basis target) :
     Result refs (threeStep refs store).1 basis target := by

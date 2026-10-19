@@ -38,6 +38,8 @@ namespace VBECircuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The complete multiplier word paired with the reusable VBE arithmetic
 workspace.  No isolated classical multiplier bit or fixed-true control ancilla
 is present. -/
@@ -75,7 +77,7 @@ def rawEncoding (n : Nat) : BinaryLabelEncoding (RawRegisters n) :=
 def encoding (n : Nat) : BinaryLabelEncoding (Registers n) :=
   (rawEncoding n).relabel (registersEquiv n)
 
-@[simp] theorem encoding_width (n : Nat) :
+@[simp] lemma encoding_width (n : Nat) :
     (encoding n).width = 5 * n + 4 := by
   simp [encoding, rawEncoding,
     PlainAdder.Schedule.PowerOfTwo.wordEncoding,
@@ -104,7 +106,7 @@ def liftArithmeticBit (n : Nat)
 
 /-- Lifting arithmetic bits into the full MAC layout preserves wire
 distinctness. -/
-theorem liftArithmeticBit_ne (n : Nat)
+lemma liftArithmeticBit_ne (n : Nat)
     {left right : EncodedBit (MAU.Addition.VBECircuit.encoding n)}
     (hne : left.wire ≠ right.wire) :
     (liftArithmeticBit n left).wire ≠
@@ -131,13 +133,13 @@ def liftArithmeticGate (n : Nat) :
         (liftArithmeticBit_ne n hab) (liftArithmeticBit_ne n ha)
         (liftArithmeticBit_ne n hb)
 
-@[simp] private theorem event_liftArithmeticGate (n : Nat)
+@[simp] private lemma event_liftArithmeticGate (n : Nat)
     (gate : EncodedBit.GateSpec (MAU.Addition.VBECircuit.encoding n)) :
     (EncodedBit.GateSpec.event .empty) (liftArithmeticGate n gate) =
       (EncodedBit.GateSpec.event .empty) gate := by
   cases gate <;> rfl
 
-private theorem step_liftArithmeticGate (n : Nat)
+private lemma step_liftArithmeticGate (n : Nat)
     (gate : EncodedBit.GateSpec (MAU.Addition.VBECircuit.encoding n))
     (x : Registers n) :
     (liftArithmeticGate n gate).step x =
@@ -160,7 +162,7 @@ private theorem step_liftArithmeticGate (n : Nat)
               EncodedBit.relabel, BinaryLabelEncoding.prodRightBit,
               registersEquiv, hcontrols]
 
-private theorem stepList_liftArithmeticGates (n : Nat) :
+private lemma stepList_liftArithmeticGates (n : Nat) :
     ∀ (gates : List
         (EncodedBit.GateSpec (MAU.Addition.VBECircuit.encoding n)))
       (x : Registers n),
@@ -209,7 +211,7 @@ def targetWord (n : Nat) :
     EncodedBit.Word (encoding n) (MAU.Addition.VBECircuit.AdderWidth n) where
   bit := targetBit n
 
-@[simp] theorem multiplicandBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma multiplicandBit_get (n : Nat) (bit : Fin n)
     (x : Registers n) :
     (multiplicandBit n bit).get x =
       x.multiplicand.val.testBit bit.val := by
@@ -218,13 +220,13 @@ def targetWord (n : Nat) :
       x.multiplicand.val.testBit bit.val
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get n bit x.multiplicand
 
-@[simp] theorem liftArithmeticBit_get (n : Nat)
+@[simp] lemma liftArithmeticBit_get (n : Nat)
     (bit : EncodedBit (MAU.Addition.VBECircuit.encoding n))
     (x : Registers n) :
     (liftArithmeticBit n bit).get x = bit.get x.arithmetic := by
   rfl
 
-@[simp] theorem activeSourceBit_get (n : Nat)
+@[simp] lemma activeSourceBit_get (n : Nat)
     (bit : Fin (MAU.Addition.VBECircuit.AdderWidth n))
     (x : Registers n) :
     (activeSourceBit n bit).get x =
@@ -235,7 +237,7 @@ def targetWord (n : Nat) :
   rw [MAU.Addition.VBECircuit.activeSourceBit_get,
     PlainAdder.Schedule.PowerOfTwo.wordBit_get]
 
-@[simp] theorem targetBit_get (n : Nat)
+@[simp] lemma targetBit_get (n : Nat)
     (bit : Fin (MAU.Addition.VBECircuit.AdderWidth n))
     (x : Registers n) :
     (targetBit n bit).get x = x.arithmetic.target.val.testBit bit.val := by
@@ -245,7 +247,7 @@ def targetWord (n : Nat) :
   rw [MAU.Addition.VBECircuit.targetBit_get,
     PlainAdder.Schedule.PowerOfTwo.wordBit_get]
 
-theorem multiplicand_activeSource_ne (n : Nat) (multiplierBit : Fin n) :
+lemma multiplicand_activeSource_ne (n : Nat) (multiplierBit : Fin n) :
     ∀ sourceBit,
       (multiplicandBit n multiplierBit).wire ≠
         ((activeSourceWord n).bit sourceBit).wire := by
@@ -262,7 +264,7 @@ theorem multiplicand_activeSource_ne (n : Nat) (multiplierBit : Fin n) :
     BinaryLabelEncoding.prodRightWire] at hv
   omega
 
-theorem activeSource_pairwise_ne (n : Nat) :
+lemma activeSource_pairwise_ne (n : Nat) :
     ∀ left right,
       left ≠ right →
         ((activeSourceWord n).bit left).wire ≠
@@ -278,13 +280,13 @@ theorem activeSource_pairwise_ne (n : Nat) :
   exact MAU.Addition.VBECircuit.activeSource_pairwise_ne n left right hne
     (Fin.ext hraw)
 
-@[simp] theorem reductionFlagBit_get (n : Nat) (x : Registers n) :
+@[simp] lemma reductionFlagBit_get (n : Nat) (x : Registers n) :
     (reductionFlagBit n).get x = x.arithmetic.reductionFlag := by
   rfl
 
 /-- Lifting the VBE arithmetic workspace past the complete multiplier word
 preserves every separation internal to that workspace. -/
-theorem activeSource_liftArithmetic_ne (n : Nat)
+lemma activeSource_liftArithmetic_ne (n : Nat)
     (observed : EncodedBit (MAU.Addition.VBECircuit.encoding n))
     (hne : ∀ bit,
       ((MAU.Addition.VBECircuit.activeSourceWord n).bit bit).wire ≠
@@ -315,7 +317,7 @@ theorem activeSource_liftArithmetic_ne (n : Nat)
   apply Fin.ext
   simpa only [MAU.Addition.VBECircuit.activeSourceWord] using hval
 
-theorem reductionFlag_activeSource_ne (n : Nat) :
+lemma reductionFlag_activeSource_ne (n : Nat) :
     ∀ bit,
       (reductionFlagBit n).wire ≠ ((activeSourceWord n).bit bit).wire := by
   intro bit
@@ -327,7 +329,7 @@ theorem reductionFlag_activeSource_ne (n : Nat) :
 
 /-- A small natural fits the same way in the low word and its one-bit-wider
 VBE target word. -/
-theorem widenWord_natCast_of_lt (n value : Nat) (hvalue : value < 2 ^ n) :
+lemma widenWord_natCast_of_lt (n value : Nat) (hvalue : value < 2 ^ n) :
     MAU.Addition.VBECircuit.widenWord n
         (value : PlainAdder.Word n) =
       (value : PlainAdder.Word (MAU.Addition.VBECircuit.AdderWidth n)) := by
@@ -366,7 +368,7 @@ def stageConstantLabel (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     (MAU.Addition.VBECircuit.AdderWidth n)
     (MAU.Addition.VBECircuit.widenWord n (stageConstant n N a bit))
 
-theorem stageConstantLabel_testBit (n N : Nat) (a : PlainAdder.Word n)
+lemma stageConstantLabel_testBit (n N : Nat) (a : PlainAdder.Word n)
     (stageBit : Fin n)
     (wordBit : Fin (MAU.Addition.VBECircuit.AdderWidth n)) :
     (stageConstantLabel n N a stageBit).val.testBit wordBit.val =
@@ -397,10 +399,11 @@ def stageLoadStep (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
 
-theorem stageLoad_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    UnitaryCircuit.Realizes (encoding n) (stageLoadProgram n N a bit)
+lemma stageLoad_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
+    UnitaryCircuit.Realizes (encoding n) (stageLoadProgram n N a bit) environment
       (stageLoadStep n N a bit) :=
   EncodedBit.Word.controlledXorConstant_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (activeSourceWord n)
     (stageConstantLabel n N a bit)
@@ -409,7 +412,7 @@ theorem stageLoad_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
 /-- Loading into a zero active source selects the fixed stage constant using
 the actual multiplier wire, while preserving the complete multiplier and every
 other VBE arithmetic field. -/
-theorem stageLoadStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
+lemma stageLoadStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
     (bit : Fin n) (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (MAU.Addition.VBECircuit.AdderWidth n))
     (flag : Bool) :
@@ -630,11 +633,12 @@ def uniformStageLoadStep (n N : Nat) (a : PlainAdder.Word n)
     (multiplicand_activeSource_ne n bit)
     (reductionFlag_activeSource_ne n)
 
-theorem uniformStageLoad_realizes (n N : Nat) (a : PlainAdder.Word n)
+lemma uniformStageLoad_realizes (n N : Nat) (a : PlainAdder.Word n)
     (bit : Fin n) :
-    UnitaryCircuit.Realizes (encoding n) (uniformStageLoadProgram n N a bit)
+    UnitaryCircuit.Realizes (encoding n) (uniformStageLoadProgram n N a bit) environment
       (uniformStageLoadStep n N a bit) :=
   EncodedBit.Word.constantSchedule_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
@@ -643,7 +647,7 @@ theorem uniformStageLoad_realizes (n N : Nat) (a : PlainAdder.Word n)
 
 /-- On the clean VBE subspace, the fixed schedule has the same constant-load
 semantics as the optimized compiler. -/
-theorem uniformStageLoadStep_cleanEndpoint
+lemma uniformStageLoadStep_cleanEndpoint
     (n N : Nat) (a x : PlainAdder.Word n) (bit : Fin n)
     (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (MAU.Addition.VBECircuit.AdderWidth n)) :
@@ -681,7 +685,7 @@ def liftedModularAddGates (n N : Nat) :
 
 /-- The lifted gate list agrees pointwise with the established modular-add
 action on the arithmetic workspace. -/
-theorem liftedModularAddStep_eq_gateList (n N : Nat) (x : Registers n) :
+lemma liftedModularAddStep_eq_gateList (n N : Nat) (x : Registers n) :
     EncodedBit.GateSpec.stepList (liftedModularAddGates n N) x =
       liftedModularAddStep n N x := by
   rw [liftedModularAddGates, stepList_liftArithmeticGates]
@@ -696,10 +700,10 @@ def liftedModularAddProgram (n N : Nat) :
     (liftedModularAddGates n N)
 
 /-- Direct realization of modular addition in the full MAC layout. -/
-theorem liftedModularAdd_realizes (n N : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (liftedModularAddProgram n N)
+lemma liftedModularAdd_realizes (n N : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (liftedModularAddProgram n N) environment
       (liftedModularAddStep n N) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (liftedModularAddGates n N)
     (liftedModularAddStep_eq_gateList n N)
 
@@ -730,11 +734,12 @@ def uniformStageUnloadStep (n N : Nat) (a : PlainAdder.Word n)
     (multiplicand_activeSource_ne n bit)
     (reductionFlag_activeSource_ne n)
 
-theorem uniformStageUnload_realizes (n N : Nat) (a : PlainAdder.Word n)
+lemma uniformStageUnload_realizes (n N : Nat) (a : PlainAdder.Word n)
     (bit : Fin n) :
-    UnitaryCircuit.Realizes (encoding n) (uniformStageUnloadProgram n N a bit)
+    UnitaryCircuit.Realizes (encoding n) (uniformStageUnloadProgram n N a bit) environment
       (uniformStageUnloadStep n N a bit) :=
   EncodedBit.Word.constantScheduleUnload_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (reductionFlagBit n) (activeSourceWord n)
     (stageConstantLabel n N a bit)
@@ -742,7 +747,7 @@ theorem uniformStageUnload_realizes (n N : Nat) (a : PlainAdder.Word n)
     (reductionFlag_activeSource_ne n)
 
 /-- The reverse fixed schedule clears the clean loaded source exactly. -/
-theorem uniformStageUnloadStep_cleanEndpoint
+lemma uniformStageUnloadStep_cleanEndpoint
     (n N : Nat) (a x : PlainAdder.Word n) (bit : Fin n)
     (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (MAU.Addition.VBECircuit.AdderWidth n)) :
@@ -782,11 +787,12 @@ def stageUnloadStep (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     (stageConstantLabel n N a bit)
     (multiplicand_activeSource_ne n bit)
 
-theorem stageUnload_realizes
+lemma stageUnload_realizes
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    UnitaryCircuit.Realizes (encoding n) (stageUnloadProgram n N a bit)
+    UnitaryCircuit.Realizes (encoding n) (stageUnloadProgram n N a bit) environment
       (stageUnloadStep n N a bit) :=
   EncodedBit.Word.controlledXorConstantUnload_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (multiplicandBit n bit) (activeSourceWord n)
     (stageConstantLabel n N a bit)
@@ -794,7 +800,7 @@ theorem stageUnload_realizes
 
 /-- The reverse-list unload removes exactly the active source created by the
 matching single-controlled load. -/
-theorem stageUnloadStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
+lemma stageUnloadStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
     (bit : Fin n) (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (MAU.Addition.VBECircuit.AdderWidth n))
     (flag : Bool) :
@@ -836,10 +842,10 @@ def stageSteps (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     liftedModularAddStep n N,
     uniformStageUnloadStep n N a bit ]
 
-theorem stageStages_realize
+lemma stageStages_realize
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     List.Forall₂
-      (fun program step => UnitaryCircuit.Realizes (encoding n) program step)
+      (fun program step => UnitaryCircuit.Realizes (encoding n) program environment step)
       (stagePrograms n N a bit) (stageSteps n N a bit) := by
   unfold stagePrograms stageSteps
   exact .cons (uniformStageLoad_realizes n N a bit) <|
@@ -853,7 +859,7 @@ def stageStep (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
 
 /-- The flattened stage gates agree pointwise with the established three-part
 stage action. -/
-theorem stageStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
+lemma stageStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
     (bit : Fin n) (x : Registers n) :
     EncodedBit.GateSpec.stepList (stageGates n N a bit) x =
       stageStep n N a bit x := by
@@ -889,7 +895,7 @@ def stageProgram (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
 
 /-- The strict event schedule of one uniform stage is independent of its
 compiled classical multiplicand. -/
-theorem stageGates_events_eq (n N : Nat)
+lemma stageGates_events_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (stageGates n N left bit).map (EncodedBit.GateSpec.event .empty) =
       (stageGates n N right bit).map (EncodedBit.GateSpec.event .empty) := by
@@ -913,7 +919,7 @@ theorem stageGates_events_eq (n N : Nat)
 
 /-- The fixed-schedule load has the same strict event pool for every
 multiplier constant. -/
-theorem uniformStageLoadProgram_eventCost_eq (n N : Nat)
+lemma uniformStageLoadProgram_eventCost_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (uniformStageLoadProgram n N left bit).eventCost =
       (uniformStageLoadProgram n N right bit).eventCost := by
@@ -926,7 +932,7 @@ theorem uniformStageLoadProgram_eventCost_eq (n N : Nat)
 
 /-- The fixed-schedule load has the same strict event critical path for every
 multiplier constant. -/
-theorem uniformStageLoadProgram_eventDepth_eq (n N : Nat)
+lemma uniformStageLoadProgram_eventDepth_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (uniformStageLoadProgram n N left bit).eventDepth =
       (uniformStageLoadProgram n N right bit).eventDepth := by
@@ -943,7 +949,7 @@ theorem uniformStageLoadProgram_eventDepth_eq (n N : Nat)
 
 /-- The reverse fixed schedule has the same strict event pool for every
 multiplier constant. -/
-theorem uniformStageUnloadProgram_eventCost_eq (n N : Nat)
+lemma uniformStageUnloadProgram_eventCost_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (uniformStageUnloadProgram n N left bit).eventCost =
       (uniformStageUnloadProgram n N right bit).eventCost := by
@@ -956,7 +962,7 @@ theorem uniformStageUnloadProgram_eventCost_eq (n N : Nat)
 
 /-- The reverse fixed schedule has the same strict event critical path for
 every multiplier constant. -/
-theorem uniformStageUnloadProgram_eventDepth_eq (n N : Nat)
+lemma uniformStageUnloadProgram_eventDepth_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (uniformStageUnloadProgram n N left bit).eventDepth =
       (uniformStageUnloadProgram n N right bit).eventDepth := by
@@ -973,7 +979,7 @@ theorem uniformStageUnloadProgram_eventDepth_eq (n N : Nat)
 
 /-- One complete load/add/unload stage has a strict event pool independent of
 its compiled multiplier constant. -/
-theorem stageProgram_eventCost_eq (n N : Nat)
+lemma stageProgram_eventCost_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (stageProgram n N left bit).eventCost =
       (stageProgram n N right bit).eventCost := by
@@ -989,7 +995,7 @@ theorem stageProgram_eventCost_eq (n N : Nat)
 
 /-- One complete load/add/unload stage has a strict event critical path
 independent of its compiled multiplier constant. -/
-theorem stageProgram_eventDepth_eq (n N : Nat)
+lemma stageProgram_eventDepth_eq (n N : Nat)
     (left right : PlainAdder.Word n) (bit : Fin n) :
     (stageProgram n N left bit).eventDepth =
       (stageProgram n N right bit).eventDepth := by
@@ -1005,16 +1011,17 @@ theorem stageProgram_eventDepth_eq (n N : Nat)
   rw [uniformStageLoadProgram_eventDepth_eq n N left right bit,
     uniformStageUnloadProgram_eventDepth_eq n N left right bit]
 
-theorem stage_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
-    UnitaryCircuit.Realizes (encoding n) (stageProgram n N a bit)
+lemma stage_realizes (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
+    UnitaryCircuit.Realizes (encoding n) (stageProgram n N a bit) environment
       (stageStep n N a bit) :=
-  UnitaryCircuit.Realizes.appendList (encoding n) (QubitLayout.canonical _)
+  UnitaryCircuit.Realizes.appendList (environment := environment) (encoding n)
+    (QubitLayout.canonical _)
     (stagePrograms n N a bit)
     (stageSteps n N a bit) (stageStages_realize n N a bit)
 
 /-- One exact load/add/unload stage conditionally contributes the fixed
 `a * 2^bit` residue and restores every work register. -/
-theorem stageStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
+lemma stageStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
     (bit : Fin n) (accumulator : Nat)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (haccumulator : accumulator < N) :
@@ -1123,7 +1130,7 @@ def macGates (n N : Nat) (a : PlainAdder.Word n) :
 /-! ### Strict-event size bounds -/
 
 /-- One flattened load/add/unload stage has a linear gate-list bound. -/
-theorem stageGates_length_le (n N : Nat) (a : PlainAdder.Word n)
+lemma stageGates_length_le (n N : Nat) (a : PlainAdder.Word n)
     (bit : Fin n) :
     (stageGates n N a bit).length ≤ 54 * n + 51 := by
   have hload : (uniformStageLoadGates n N a bit).length =
@@ -1142,7 +1149,7 @@ theorem stageGates_length_le (n N : Nat) (a : PlainAdder.Word n)
   simp only [stageGates, List.length_append]
   omega
 
-private theorem primitiveMultiplicity_sums_eq_length
+private lemma primitiveMultiplicity_sums_eq_length
     {Data : Type} {dataEncoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec dataEncoding)) :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum +
@@ -1157,7 +1164,7 @@ private theorem primitiveMultiplicity_sums_eq_length
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum] at h
   exact h
 
-private theorem uniformStageLoadGates_cnotMultiplicity_sum
+private lemma uniformStageLoadGates_cnotMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     ((uniformStageLoadGates n N a bit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 3 * (n + 1) := by
@@ -1169,7 +1176,7 @@ private theorem uniformStageLoadGates_cnotMultiplicity_sum
     (multiplicand_activeSource_ne n bit)
     (reductionFlag_activeSource_ne n)
 
-private theorem uniformStageLoadGates_toffoliMultiplicity_sum
+private lemma uniformStageLoadGates_toffoliMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     ((uniformStageLoadGates n N a bit).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
@@ -1184,7 +1191,7 @@ private theorem uniformStageLoadGates_toffoliMultiplicity_sum
       (reductionFlag_activeSource_ne n)
   omega
 
-private theorem uniformStageLoadGates_xMultiplicity_sum
+private lemma uniformStageLoadGates_xMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     ((uniformStageLoadGates n N a bit).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
@@ -1199,13 +1206,13 @@ private theorem uniformStageLoadGates_xMultiplicity_sum
       (reductionFlag_activeSource_ne n)
   omega
 
-private theorem liftedModularAddGates_events_eq_source (n N : Nat) :
+private lemma liftedModularAddGates_events_eq_source (n N : Nat) :
     (liftedModularAddGates n N).map (EncodedBit.GateSpec.event .empty) =
       (MAU.Addition.VBECircuit.modularAddGates n N).map
         (EncodedBit.GateSpec.event .empty) := by
   simp [liftedModularAddGates, List.map_map]
 
-private theorem liftedModularAddGates_toffoliMultiplicity_sum
+private lemma liftedModularAddGates_toffoliMultiplicity_sum
     (n N : Nat) :
     ((liftedModularAddGates n N).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 30 * n := by
@@ -1213,7 +1220,7 @@ private theorem liftedModularAddGates_toffoliMultiplicity_sum
     (liftedModularAddGates_events_eq_source n N)]
   exact MAU.Addition.VBECircuit.modularAddGates_toffoliMultiplicity_sum n N
 
-private theorem liftedModularAddGates_cnotMultiplicity_sum_le
+private lemma liftedModularAddGates_cnotMultiplicity_sum_le
     (n N : Nat) :
     ((liftedModularAddGates n N).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤ 18 * n + 14 := by
@@ -1221,14 +1228,14 @@ private theorem liftedModularAddGates_cnotMultiplicity_sum_le
     (liftedModularAddGates_events_eq_source n N)]
   exact MAU.Addition.VBECircuit.modularAddGates_cnotMultiplicity_sum_le n N
 
-private theorem liftedModularAddGates_xMultiplicity_sum (n N : Nat) :
+private lemma liftedModularAddGates_xMultiplicity_sum (n N : Nat) :
     ((liftedModularAddGates n N).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 := by
   rw [EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty
     (liftedModularAddGates_events_eq_source n N)]
   exact MAU.Addition.VBECircuit.modularAddGates_xMultiplicity_sum n N
 
-theorem stageGates_toffoliMultiplicity_sum
+lemma stageGates_toffoliMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     ((stageGates n N a bit).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 30 * n := by
@@ -1236,7 +1243,7 @@ theorem stageGates_toffoliMultiplicity_sum
     uniformStageLoadGates_toffoliMultiplicity_sum,
     liftedModularAddGates_toffoliMultiplicity_sum]
 
-theorem stageGates_cnotMultiplicity_sum_le
+lemma stageGates_cnotMultiplicity_sum_le
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     ((stageGates n N a bit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤ 24 * n + 20 := by
@@ -1246,7 +1253,7 @@ theorem stageGates_cnotMultiplicity_sum_le
     List.sum_append, List.map_reverse, List.sum_reverse]
   omega
 
-theorem stageGates_xMultiplicity_sum
+lemma stageGates_xMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     ((stageGates n N a bit).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 := by
@@ -1254,7 +1261,7 @@ theorem stageGates_xMultiplicity_sum
     uniformStageLoadGates_xMultiplicity_sum,
     liftedModularAddGates_xMultiplicity_sum]
 
-private theorem flatMap_stageGates_toffoliMultiplicity_sum
+private lemma flatMap_stageGates_toffoliMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) :
     ∀ bits : List (Fin n),
       (((bits.flatMap (stageGates n N a)).map
@@ -1268,7 +1275,7 @@ private theorem flatMap_stageGates_toffoliMultiplicity_sum
         flatMap_stageGates_toffoliMultiplicity_sum n N a rest]
       ring
 
-private theorem flatMap_stageGates_cnotMultiplicity_sum_le
+private lemma flatMap_stageGates_cnotMultiplicity_sum_le
     (n N : Nat) (a : PlainAdder.Word n) :
     ∀ bits : List (Fin n),
       (((bits.flatMap (stageGates n N a)).map
@@ -1294,7 +1301,7 @@ private theorem flatMap_stageGates_cnotMultiplicity_sum_le
           rw [Nat.succ_mul]
           exact Nat.add_comm _ _
 
-private theorem flatMap_stageGates_xMultiplicity_sum
+private lemma flatMap_stageGates_xMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) :
     ∀ bits : List (Fin n),
       (((bits.flatMap (stageGates n N a)).map
@@ -1307,7 +1314,7 @@ private theorem flatMap_stageGates_xMultiplicity_sum
         flatMap_stageGates_xMultiplicity_sum n N a rest]
       omega
 
-theorem macGates_toffoliMultiplicity_sum
+lemma macGates_toffoliMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) :
     ((macGates n N a).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 30 * n ^ 2 := by
@@ -1317,7 +1324,7 @@ theorem macGates_toffoliMultiplicity_sum
   rw [show n * (30 * n) = 30 * n ^ 2 by ring] at h
   simpa [macGates] using h
 
-theorem macGates_cnotMultiplicity_sum_le
+lemma macGates_cnotMultiplicity_sum_le
     (n N : Nat) (a : PlainAdder.Word n) :
     ((macGates n N a).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤ 24 * n ^ 2 + 20 * n := by
@@ -1326,13 +1333,13 @@ theorem macGates_cnotMultiplicity_sum_le
   simp only [macGates, List.length_ofFn] at h ⊢
   nlinarith
 
-theorem macGates_xMultiplicity_sum
+lemma macGates_xMultiplicity_sum
     (n N : Nat) (a : PlainAdder.Word n) :
     ((macGates n N a).map EncodedBit.GateSpec.xMultiplicity).sum = n := by
   simpa [macGates] using flatMap_stageGates_xMultiplicity_sum n N a
     (List.ofFn fun bit : Fin n => bit)
 
-private theorem flatMap_stageGates_length_le (n N : Nat)
+private lemma flatMap_stageGates_length_le (n N : Nat)
     (a : PlainAdder.Word n) :
     ∀ bits : List (Fin n),
       (bits.flatMap (stageGates n N a)).length ≤
@@ -1352,7 +1359,7 @@ private theorem flatMap_stageGates_length_le (n N : Nat)
           ac_rfl
 
 /-- The flattened full-MAC gate list has the corresponding quadratic bound. -/
-theorem macGates_length_le (n N : Nat) (a : PlainAdder.Word n) :
+lemma macGates_length_le (n N : Nat) (a : PlainAdder.Word n) :
     (macGates n N a).length ≤ 54 * n ^ 2 + 51 * n := by
   have h := flatMap_stageGates_length_le n N a
     (List.ofFn fun bit : Fin n => bit)
@@ -1366,7 +1373,7 @@ theorem macGates_length_le (n N : Nat) (a : PlainAdder.Word n) :
 
 
 
-private theorem map_event_flatMap_stageGates_eq (n N : Nat)
+private lemma map_event_flatMap_stageGates_eq (n N : Nat)
     (left right : PlainAdder.Word n) :
     ∀ bits : List (Fin n),
       (bits.flatMap (stageGates n N left)).map (EncodedBit.GateSpec.event .empty) =
@@ -1379,22 +1386,22 @@ private theorem map_event_flatMap_stageGates_eq (n N : Nat)
 
 /-- The complete MAC strict event schedule is independent of the compiled
 classical multiplicand. -/
-theorem macGates_events_eq (n N : Nat)
+lemma macGates_events_eq (n N : Nat)
     (left right : PlainAdder.Word n) :
     (macGates n N left).map (EncodedBit.GateSpec.event .empty) =
       (macGates n N right).map (EncodedBit.GateSpec.event .empty) := by
   exact map_event_flatMap_stageGates_eq n N left right
     (List.ofFn fun bit : Fin n => bit)
 
-@[simp] theorem macPrograms_length (n N : Nat) (a : PlainAdder.Word n) :
+@[simp] lemma macPrograms_length (n N : Nat) (a : PlainAdder.Word n) :
     (macPrograms n N a).length = n := by
   simp [macPrograms]
 
-@[simp] theorem macSteps_length (n N : Nat) (a : PlainAdder.Word n) :
+@[simp] lemma macSteps_length (n N : Nat) (a : PlainAdder.Word n) :
     (macSteps n N a).length = n := by
   simp [macSteps]
 
-theorem macSteps_get (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
+lemma macSteps_get (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
     (macSteps n N a).get
         ⟨bit.val, by simp [macSteps]⟩ =
       stageStep n N a bit := by
@@ -1405,9 +1412,9 @@ theorem macSteps_get (n N : Nat) (a : PlainAdder.Word n) (bit : Fin n) :
   rw [List.get_ofFn]
   congr 1
 
-theorem macStages_realize (n N : Nat) (a : PlainAdder.Word n) :
+lemma macStages_realize (n N : Nat) (a : PlainAdder.Word n) :
     List.Forall₂
-      (fun program step => UnitaryCircuit.Realizes (encoding n) program step)
+      (fun program step => UnitaryCircuit.Realizes (encoding n) program environment step)
       (macPrograms n N a) (macSteps n N a) := by
   apply List.forall₂_of_length_eq_of_get
   · rw [macPrograms_length, macSteps_length]
@@ -1418,7 +1425,7 @@ theorem macStages_realize (n N : Nat) (a : PlainAdder.Word n) :
     change
       UnitaryCircuit.Realizes (encoding n)
         ((List.ofFn
-          (fun bit : Fin n => stageProgram n N a bit)).get ⟨i, hprogram⟩)
+          (fun bit : Fin n => stageProgram n N a bit)).get ⟨i, hprogram⟩) environment
         ((List.ofFn
           (fun bit : Fin n => stageStep n N a bit)).get ⟨i, hstep⟩)
     rw [List.get_ofFn, List.get_ofFn]
@@ -1444,7 +1451,7 @@ def macProgram (n N : Nat) (a : PlainAdder.Word n) :
 
 /-- Pairwise strict-event-pool equality is preserved by sequential list
 folding. -/
-theorem appendList_eventCost_eq_of_forall₂ {width : Nat}
+lemma appendList_eventCost_eq_of_forall₂ {width : Nat}
     {left right : List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       (width)).toQuantum)}
     (h : List.Forall₂
@@ -1465,7 +1472,7 @@ theorem appendList_eventCost_eq_of_forall₂ {width : Nat}
 
 /-- Pairwise strict-event-depth equality is preserved by sequential list
 folding. -/
-theorem appendList_eventDepth_eq_of_forall₂ {width : Nat}
+lemma appendList_eventDepth_eq_of_forall₂ {width : Nat}
     {left right : List (UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       (width)).toQuantum)}
     (h : List.Forall₂
@@ -1490,7 +1497,7 @@ theorem appendList_eventDepth_eq_of_forall₂ {width : Nat}
 
 /-- The actual MAC program has a strict event pool independent of its
 compiled constant. -/
-theorem macProgram_eventCost_eq (n N : Nat)
+lemma macProgram_eventCost_eq (n N : Nat)
     (left right : PlainAdder.Word n) :
     (macProgram n N left).eventCost =
       (macProgram n N right).eventCost := by
@@ -1509,7 +1516,7 @@ theorem macProgram_eventCost_eq (n N : Nat)
 
 /-- The actual MAC program has a strict event critical path independent of
 its compiled constant. -/
-theorem macProgram_eventDepth_eq (n N : Nat)
+lemma macProgram_eventDepth_eq (n N : Nat)
     (left right : PlainAdder.Word n) :
     (macProgram n N left).eventDepth =
       (macProgram n N right).eventDepth := by
@@ -1530,7 +1537,7 @@ theorem macProgram_eventDepth_eq (n N : Nat)
 def macStep (n N : Nat) (a : PlainAdder.Word n) : Registers n → Registers n :=
   UnitaryCircuit.Realizes.stepList (macSteps n N a)
 
-private theorem stepList_flatMap_stageGates (n N : Nat)
+private lemma stepList_flatMap_stageGates (n N : Nat)
     (a : PlainAdder.Word n) :
     ∀ (bits : List (Fin n)) (x : Registers n),
       EncodedBit.GateSpec.stepList
@@ -1553,7 +1560,7 @@ private theorem stepList_flatMap_stageGates (n N : Nat)
 
 /-- The flattened MAC primitive list agrees pointwise with the established
 full-multiplier semantic fold. -/
-theorem macStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
+lemma macStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
     (x : Registers n) :
     EncodedBit.GateSpec.stepList (macGates n N a) x =
       macStep n N a x := by
@@ -1562,10 +1569,11 @@ theorem macStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
     stepList_flatMap_stageGates n N a
       (List.ofFn fun bit : Fin n => bit) x
 
-theorem mac_realizes (n N : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit.Realizes (encoding n) (macProgram n N a)
+lemma mac_realizes (n N : Nat) (a : PlainAdder.Word n) :
+    UnitaryCircuit.Realizes (encoding n) (macProgram n N a) environment
       (macStep n N a) :=
-  UnitaryCircuit.Realizes.appendList (encoding n) (QubitLayout.canonical _)
+  UnitaryCircuit.Realizes.appendList (environment := environment) (encoding n)
+    (QubitLayout.canonical _)
     (macPrograms n N a)
     (macSteps n N a) (macStages_realize n N a)
 
@@ -1574,12 +1582,12 @@ def macPrefixStep (n N : Nat) (a : PlainAdder.Word n) (bits : Nat) :
     Registers n → Registers n :=
   UnitaryCircuit.Realizes.stepList ((macSteps n N a).take bits)
 
-@[simp] theorem macPrefixStep_zero (n N : Nat) (a : PlainAdder.Word n)
+@[simp] lemma macPrefixStep_zero (n N : Nat) (a : PlainAdder.Word n)
     (x : Registers n) :
     macPrefixStep n N a 0 x = x :=
   rfl
 
-theorem macPrefixStep_succ (n N : Nat) (a : PlainAdder.Word n)
+lemma macPrefixStep_succ (n N : Nat) (a : PlainAdder.Word n)
     (bit : Fin n) (x : Registers n) :
     macPrefixStep n N a (bit.val + 1) x =
       stageStep n N a bit (macPrefixStep n N a bit.val x) := by
@@ -1594,7 +1602,7 @@ theorem macPrefixStep_succ (n N : Nat) (a : PlainAdder.Word n)
     simpa [schedule] using macSteps_get n N a bit
   rw [hget]
 
-theorem macPrefixStep_full (n N : Nat) (a : PlainAdder.Word n) :
+lemma macPrefixStep_full (n N : Nat) (a : PlainAdder.Word n) :
     macPrefixStep n N a n = macStep n N a := by
   funext x
   unfold macPrefixStep macStep
@@ -1603,7 +1611,7 @@ theorem macPrefixStep_full (n N : Nat) (a : PlainAdder.Word n) :
 
 /-- Prefix invariant: after `k` stages, the clean target contains the modular
 sum selected by exactly the first `k` multiplier bits. -/
-theorem macPrefixStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
+lemma macPrefixStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
     (initial : Nat) (hNpos : 0 < N) (hN : N < 2 ^ n)
     (hinitial : initial < N) :
     ∀ bits, ∀ _hbits : bits ≤ n,
@@ -1632,7 +1640,7 @@ theorem macPrefixStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
           hNpos hN haccumulator
 
 /-- Full-width clean endpoint of the exact uniform VBE MAC program. -/
-theorem macStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
+lemma macStep_cleanEndpoint (n N : Nat) (a x : PlainAdder.Word n)
     (initial : Nat) (hNpos : 0 < N) (hN : N < 2 ^ n)
     (hinitial : initial < N) :
     macStep n N a (cleanState n N x initial) =
@@ -1666,7 +1674,7 @@ def cleanEmbedding (n N : Nat) (x : MAU.Multiplication.Accumulate.Data N) :
 
 /-- Under the layout bound, the explicit high-level-to-physical map is
 injective; in particular, `cleanEmbedding` does not erase the logical flag. -/
-theorem cleanEmbedding_injective (n N : Nat)
+lemma cleanEmbedding_injective (n N : Nat)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
     Function.Injective (cleanEmbedding n N) := by
   let _ : NeZero N := ⟨Nat.ne_of_gt hNpos⟩
@@ -1725,7 +1733,7 @@ theorem cleanEmbedding_injective (n N : Nat)
 
 /-- The physical full-register endpoint realizes the public `Data.addScaled`
 statement on clean inputs. -/
-theorem macStep_cleanEmbedding (n N : Nat) (a : ZMod N)
+lemma macStep_cleanEmbedding (n N : Nat) (a : ZMod N)
     (x : MAU.Multiplication.Accumulate.Data N)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (hx : x.FlagClean) :
@@ -1783,27 +1791,29 @@ def macInverseStep (n N : Nat) (a : PlainAdder.Word n) :
     Registers n → Registers n :=
   Function.invFun (macStep n N a)
 
-theorem macStep_macInverseStep (n N : Nat) (a : PlainAdder.Word n) :
+lemma macStep_macInverseStep (n N : Nat) (a : PlainAdder.Word n) :
     Function.RightInverse (macInverseStep n N a) (macStep n N a) := by
+  let environment : OracleModel.empty.Interpretation := OracleModel.emptyInterpretation
   let _ : Finite (Registers n) :=
     Finite.of_injective (encoding n).encode (encoding n).encode_injective
   unfold macInverseStep
   exact Function.rightInverse_invFun
-    (Finite.surjective_of_injective (mac_realizes n N a).injective)
+    (Finite.surjective_of_injective (mac_realizes (environment := environment) n N a).injective)
 
 /-- Reversing the exact flattened MAC gate list agrees pointwise with the
 established inverse permutation. -/
-theorem macInverseStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
+lemma macInverseStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
     (x : Registers n) :
     EncodedBit.GateSpec.stepList (macInverseGates n N a) x =
       macInverseStep n N a x := by
+  let environment : OracleModel.empty.Interpretation := OracleModel.emptyInterpretation
   have hreverse :
       EncodedBit.GateSpec.stepList (macGates n N a)
           (EncodedBit.GateSpec.stepList (macInverseGates n N a) x) = x := by
     simpa [macInverseGates] using
       EncodedBit.GateSpec.stepList_reverse_stepList
         (macGates n N a).reverse x
-  apply (mac_realizes n N a).injective
+  apply (mac_realizes (environment := environment) n N a).injective
   calc
     macStep n N a
         (EncodedBit.GateSpec.stepList (macInverseGates n N a) x) = x := by
@@ -1814,12 +1824,14 @@ theorem macInverseStep_eq_gateList (n N : Nat) (a : PlainAdder.Word n)
 
 /-- The actual adjoint MAC circuit realizes the inverse full-register
 permutation induced by the forward circuit. -/
-theorem macInverse_realizes (n N : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit.Realizes (encoding n) (macInverseProgram n N a)
+lemma macInverse_realizes (n N : Nat) (a : PlainAdder.Word n) :
+    UnitaryCircuit.Realizes (encoding n) (macInverseProgram n N a) environment
       (macInverseStep n N a) :=
-  UnitaryCircuit.Realizes.dagger_of_rightInverse (mac_realizes n N a)
+  UnitaryCircuit.Realizes.dagger_of_rightInverse (mac_realizes (environment := environment) n N a)
     (by
       rw [macInverseProgram, UnitaryCircuit.dagger_matrix]
+      rw [Subsingleton.elim
+        ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
       exact Unitary.star_eq_inv _)
     (macStep_macInverseStep n N a)
 
@@ -1837,11 +1849,11 @@ def macInverseCircuit (n N : Nat) (a : PlainAdder.Word n) :
 
 /-- Applying the reverse-list program to a clean forward endpoint restores the
 complete encoded physical state, not merely the high-level accumulator. -/
-theorem macInverseProgram_cleanEndpoint (n N : Nat) (a : ZMod N)
+lemma macInverseProgram_cleanEndpoint (n N : Nat) (a : ZMod N)
     (x : MAU.Multiplication.Accumulate.Data N)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (hx : x.FlagClean) :
-    (macInverseProgram n N (a.val : PlainAdder.Word n)).applyNormalized
+    (macInverseProgram n N (a.val : PlainAdder.Word n)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
             ((encoding n).encode (cleanEmbedding n N (x.addScaled a))))) =
@@ -1849,7 +1861,7 @@ theorem macInverseProgram_cleanEndpoint (n N : Nat) (a : ZMod N)
         ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
           ((encoding n).encode (cleanEmbedding n N x))) := by
   have hforward :=
-    (mac_realizes n N (a.val : PlainAdder.Word n)).apply_encoded_ket
+    (mac_realizes (environment := environment) n N (a.val : PlainAdder.Word n)).apply_encoded_ket
       (cleanEmbedding n N x)
   rw [macStep_cleanEmbedding n N a x hNpos hN hx] at hforward
   rw [← hforward]
@@ -1859,6 +1871,8 @@ theorem macInverseProgram_cleanEndpoint (n N : Nat) (a : ZMod N)
       (macInverseProgram n N (a.val : PlainAdder.Word n))
       (by
         rw [macInverseProgram, UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       (NormalizedVector.ket
         ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
@@ -1866,15 +1880,17 @@ theorem macInverseProgram_cleanEndpoint (n N : Nat) (a : ZMod N)
 
 /-- On clean forward endpoints, the semantic inverse permutation restores the
 complete physical register. -/
-theorem macInverseStep_cleanEndpoint (n N : Nat) (a : ZMod N)
+lemma macInverseStep_cleanEndpoint (n N : Nat) (a : ZMod N)
     (x : MAU.Multiplication.Accumulate.Data N)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (hx : x.FlagClean) :
     macInverseStep n N (a.val : PlainAdder.Word n)
         (cleanEmbedding n N (x.addScaled a)) =
       cleanEmbedding n N x := by
+  let environment : OracleModel.empty.Interpretation := OracleModel.emptyInterpretation
   have hrealizes :=
-    (macInverse_realizes n N (a.val : PlainAdder.Word n)).apply_encoded_ket
+    (macInverse_realizes (environment := environment) n N (a.val : PlainAdder.Word
+      n)).apply_encoded_ket
       (cleanEmbedding n N (x.addScaled a))
   rw [macInverseProgram_cleanEndpoint n N a x hNpos hN hx] at hrealizes
   apply (encoding n).encode_injective
@@ -1920,7 +1936,7 @@ def macEventGateCount (n N : Nat) (a : PlainAdder.Word n)
     (macCircuit n N a).eventCost
 
 /-- Linearizing MAC event depth recovers its exact strict event pool. -/
-theorem macCircuit_resourcesFromEventDepth_eq_eventCost
+lemma macCircuit_resourcesFromEventDepth_eq_eventCost
     (n N : Nat) (a : PlainAdder.Word n) :
     (macCircuit n N a).resourcesFromEventDepth =
       (macCircuit n N a).eventCost :=
@@ -1943,7 +1959,7 @@ projections, while the fixed encoding makes the result depend only on `n`. -/
 def macQubitCount (n _N : Nat) (_a : PlainAdder.Word n) : Nat :=
   (encoding n).width
 
-@[simp] theorem macQubitCount_eq (n N : Nat) (a : PlainAdder.Word n) :
+@[simp] lemma macQubitCount_eq (n N : Nat) (a : PlainAdder.Word n) :
     macQubitCount n N a = 5 * n + 4 := by
   simp [macQubitCount]
 
@@ -1951,11 +1967,11 @@ def macQubitCount (n _N : Nat) (_a : PlainAdder.Word n) : Nat :=
 
 /-- Normalized-ket correctness for the same physical circuit whose exact
 resources are projected above. -/
-theorem macCircuit_applyNormalized_clean_ket (n N : Nat) (a : ZMod N)
+lemma macCircuit_applyNormalized_clean_ket (n N : Nat) (a : ZMod N)
     (x : MAU.Multiplication.Accumulate.Data N)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (hx : x.FlagClean) :
-    (macCircuit n N (a.val : PlainAdder.Word n)).applyNormalized
+    (macCircuit n N (a.val : PlainAdder.Word n)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
             ((encoding n).encode (cleanEmbedding n N x)))) =
@@ -1964,7 +1980,7 @@ theorem macCircuit_applyNormalized_clean_ket (n N : Nat) (a : ZMod N)
           ((encoding n).encode (cleanEmbedding n N (x.addScaled a)))) := by
   simpa only [macCircuit,
     macStep_cleanEmbedding n N a x hNpos hN hx] using
-    (mac_realizes n N (a.val : PlainAdder.Word n)).apply_encoded_ket
+    (mac_realizes (environment := environment) n N (a.val : PlainAdder.Word n)).apply_encoded_ket
       (cleanEmbedding n N x)
 
 end

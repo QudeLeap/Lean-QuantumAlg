@@ -67,7 +67,7 @@ def comparedStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   ((store.applyOp (doubleOp refs)).applyOp (compareOp refs)).applyOp (complementOp refs)
 
 /-- Reads outside the two actual writable cells are unchanged by the comparison. -/
-theorem compareInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma compareInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (doubled : refs.doubled.key ∉ other.storageKeys)
     (passes : refs.passes.key ∉ other.storageKeys) :
@@ -77,7 +77,8 @@ theorem compareInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     Store.read_applyOp_of_not_mem_storageKeys _ (compareOp refs) other passes,
     Store.read_applyOp_of_not_mem_storageKeys _ (doubleOp refs) other doubled]
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
+  {ctx : RuntimeCtx model.kind}
 
 /-- Execute the three selected instructions in their data-dependent order. -/
 def compareInto (refs : Refs ctx width) : Circuit model ctx ctx :=
@@ -94,10 +95,10 @@ def executionStep (refs : Refs ctx width) (store : Store ctx) :
   (complemented.1, (doubled.2, (compared.2, complemented.2)))
 
 /-- Full actual execution preserves service history and quantum-reference blocks. -/
-theorem compareInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma compareInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (compareInto (model := model) refs).execute Reference state =
+    (compareInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := executionStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by

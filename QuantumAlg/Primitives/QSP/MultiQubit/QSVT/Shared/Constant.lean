@@ -22,7 +22,7 @@ suffix. No source-unitary entry is inspected and no source query is executed.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.Shared
 noncomputable section
 
-private theorem rotation_plus_block (width : Nat) (angle : ℝ) :
+private lemma rotation_plus_block (width : Nat) (angle : ℝ) :
     phasePlusBlock ((rotZOp angle).tensor (1 : UnitaryOperator (Qubits width))) =
       (Real.cos angle : ℂ) • (1 : HilbertOperator (Qubits width)) := by
   rw [phasePlusBlock_eq_sum_ancillaBlock]
@@ -57,15 +57,15 @@ def constantInitial (oracles : OracleModel) (width : Nat) (constant : ℝ) :
     (rotZOp (Real.arccos constant)) (0 : Fin (1 + width)) rfl
 
 /-- The complete plus-state block equals the known real constant on the unchanged source. -/
-theorem constantInitial_correct (oracles : OracleModel) (width : Nat) (constant : ℝ)
-    (lower : -1 ≤ constant) (upper : constant ≤ 1) :
-    phasePlusBlock (constantInitial oracles width constant).binaryMatrix =
+lemma constantInitial_correct (oracles : OracleModel) (width : Nat) (constant : ℝ)
+    (lower : -1 ≤ constant) (upper : constant ≤ 1) (environment : oracles.Interpretation) :
+    phasePlusBlock ((constantInitial oracles width constant).binaryMatrix environment) =
       (constant : ℂ) • (1 : HilbertOperator (Qubits width)) := by
   rw [constantInitial, Gate.singleQubitAt_first_binaryMatrix, rotation_plus_block,
     Real.cos_arccos lower upper]
 
 /-- Constant branch initialization contributes one native rotation and no query. -/
-theorem constantInitial_events (oracles : OracleModel) (width : Nat) (constant : ℝ) :
+lemma constantInitial_events (oracles : OracleModel) (width : Nat) (constant : ℝ) :
     (constantInitial oracles width constant).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := rfl

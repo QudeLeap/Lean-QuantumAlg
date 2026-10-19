@@ -25,6 +25,8 @@ namespace Circuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -153,7 +155,7 @@ def dataRegisters (tail counterWidth : Nat)
     Registers tail.succ counterWidth :=
   x.1.1.1.1.1.1
 
-@[simp] theorem activeBit_get_dataRegisters
+@[simp] lemma activeBit_get_dataRegisters
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (activeBit tail counterWidth).get x =
@@ -161,7 +163,7 @@ def dataRegisters (tail counterWidth : Nat)
         (dataRegisters tail counterWidth x) := by
   rfl
 
-@[simp] theorem compareBit_get_dataRegisters
+@[simp] lemma compareBit_get_dataRegisters
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (compareBit tail counterWidth).get x =
@@ -169,7 +171,7 @@ def dataRegisters (tail counterWidth : Nat)
         (dataRegisters tail counterWidth x) := by
   rfl
 
-@[simp] theorem scratchABit_get_dataRegisters
+@[simp] lemma scratchABit_get_dataRegisters
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (scratchABit tail counterWidth).get x =
@@ -177,7 +179,7 @@ def dataRegisters (tail counterWidth : Nat)
         (dataRegisters tail counterWidth x) := by
   rfl
 
-@[simp] theorem scratchBBit_get_dataRegisters
+@[simp] lemma scratchBBit_get_dataRegisters
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (scratchBBit tail counterWidth).get x =
@@ -185,7 +187,7 @@ def dataRegisters (tail counterWidth : Nat)
         (dataRegisters tail counterWidth x) := by
   rfl
 
-@[simp] theorem historyBit_get_dataRegisters
+@[simp] lemma historyBit_get_dataRegisters
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (historyBit tail counterWidth roundIndex).get x =
@@ -193,7 +195,7 @@ def dataRegisters (tail counterWidth : Nat)
         (dataRegisters tail counterWidth x) := by
   rfl
 
-@[simp] theorem rCoeffLowBit_get_dataRegisters
+@[simp] lemma rCoeffLowBit_get_dataRegisters
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (rCoeffLowBit tail counterWidth).get x =
@@ -205,7 +207,7 @@ def dataRegisters (tail counterWidth : Nat)
 /-- Direct projection of the low `r` bit from an explicitly assembled
 full-round/path/control/history state.  Keeping the full-round payload opaque
 prevents endpoint proofs from unfolding the complete concrete circuit. -/
-theorem rCoeffLowBit_get_fullRoundWork
+lemma rCoeffLowBit_get_fullRoundWork
     (tail counterWidth : Nat)
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -219,7 +221,7 @@ theorem rCoeffLowBit_get_fullRoundWork
   exact coeffAdderRCoeffValueWord_get_testBit tail.succ counterWidth
     (0 : Fin (tail.succ + 1)) fullRound.1
 
-theorem activeBit_get_fullRoundWork
+lemma activeBit_get_fullRoundWork
     (tail counterWidth : Nat)
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -228,7 +230,7 @@ theorem activeBit_get_fullRoundWork
       (coeffAdderActiveBit tail.succ counterWidth).get fullRound.1 := by
   rfl
 
-theorem compareBit_get_fullRoundWork
+lemma compareBit_get_fullRoundWork
     (tail counterWidth : Nat)
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -237,7 +239,7 @@ theorem compareBit_get_fullRoundWork
       (coeffAdderCompareBit tail.succ counterWidth).get fullRound.1 := by
   rfl
 
-theorem scratchABit_get_fullRoundWork
+lemma scratchABit_get_fullRoundWork
     (tail counterWidth : Nat)
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -246,7 +248,7 @@ theorem scratchABit_get_fullRoundWork
       (coeffAdderScratchABit tail.succ counterWidth).get fullRound.1 := by
   rfl
 
-theorem scratchBBit_get_fullRoundWork
+lemma scratchBBit_get_fullRoundWork
     (tail counterWidth : Nat)
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -255,7 +257,7 @@ theorem scratchBBit_get_fullRoundWork
       (coeffAdderScratchBBit tail.succ counterWidth).get fullRound.1 := by
   rfl
 
-theorem historyBit_get_fullRoundWork
+lemma historyBit_get_fullRoundWork
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -265,7 +267,7 @@ theorem historyBit_get_fullRoundWork
         fullRound.1 := by
   rfl
 
-theorem counterCarryInBit_get_fullRoundWork
+lemma counterCarryInBit_get_fullRoundWork
     (tail counterWidth : Nat)
     (fullRound : RegistersWithFullRoundWork tail.succ counterWidth)
     (path control : Bool) (history : Word (2 * tail.succ)) :
@@ -274,7 +276,7 @@ theorem counterCarryInBit_get_fullRoundWork
       (fullRoundWorkCounterCarryInBit tail counterWidth).get fullRound := by
   rfl
 
-@[simp] theorem counterCarryInBit_get_counterWork
+@[simp] lemma counterCarryInBit_get_counterWork
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (counterCarryInBit tail counterWidth).get x =
@@ -381,7 +383,7 @@ structure RoutedPersistentBoundary (tail counterWidth : Nat)
         (RegisterBits.historyBit tail.succ counterWidth observed).get
           (dataRegisters tail counterWidth before)
 
-theorem prodLeftBit_prodRightBit_wire_ne
+lemma prodLeftBit_prodRightBit_wire_ne
     {Left Right : Type} (left : BinaryLabelEncoding Left)
     (right : BinaryLabelEncoding Right)
     (leftBit : EncodedBit left) (rightBit : EncodedBit right) :
@@ -396,7 +398,7 @@ theorem prodLeftBit_prodRightBit_wire_ne
     BinaryLabelEncoding.prodRightWire] at hval
   omega
 
-private theorem liftFullRoundBit_wire_ne
+private lemma liftFullRoundBit_wire_ne
     (tail counterWidth : Nat)
     {left right : EncodedBit
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)}
@@ -408,7 +410,7 @@ private theorem liftFullRoundBit_wire_ne
     (EncodedBit.GateSpec.prodLeftWire_ne BinaryLabelEncoding.bool
       (EncodedBit.GateSpec.prodLeftWire_ne BinaryLabelEncoding.bool h))
 
-private theorem liftCoeffStateBit_wire_ne
+private lemma liftCoeffStateBit_wire_ne
     (tail counterWidth : Nat)
     {left right : EncodedBit
       (registersWithCoeffAdderWorkEncoding tail.succ counterWidth)}
@@ -419,7 +421,7 @@ private theorem liftCoeffStateBit_wire_ne
     (EncodedBit.GateSpec.prodLeftWire_ne
       (counterIncrementWorkEncoding counterWidth) h)
 
-private theorem liftRegisterBit_wire_ne
+private lemma liftRegisterBit_wire_ne
     (tail counterWidth : Nat)
     {left right : EncodedBit (registerEncoding tail.succ counterWidth)}
     (h : left.wire ≠ right.wire) :
@@ -433,7 +435,7 @@ private theorem liftRegisterBit_wire_ne
     (EncodedBit.GateSpec.prodLeftWire_ne (coeffAdderWorkEncoding tail.succ)
       (EncodedBit.GateSpec.prodLeftWire_ne (comparisonWorkEncoding tail.succ) h))
 
-theorem activeBit_counterCarryInBit_wire_ne
+lemma activeBit_counterCarryInBit_wire_ne
     (tail counterWidth : Nat) :
     (activeBit tail counterWidth).wire ≠
       (counterCarryInBit tail counterWidth).wire := by
@@ -444,7 +446,7 @@ theorem activeBit_counterCarryInBit_wire_ne
     (coeffAdderActiveBit tail.succ counterWidth)
     (counterIncrementCarryInBit counterWidth)
 
-theorem scratchABit_counterCarryInBit_wire_ne
+lemma scratchABit_counterCarryInBit_wire_ne
     (tail counterWidth : Nat) :
     (scratchABit tail counterWidth).wire ≠
       (counterCarryInBit tail counterWidth).wire := by
@@ -455,7 +457,7 @@ theorem scratchABit_counterCarryInBit_wire_ne
     (coeffAdderScratchABit tail.succ counterWidth)
     (counterIncrementCarryInBit counterWidth)
 
-theorem scratchBBit_counterCarryInBit_wire_ne
+lemma scratchBBit_counterCarryInBit_wire_ne
     (tail counterWidth : Nat) :
     (scratchBBit tail counterWidth).wire ≠
       (counterCarryInBit tail counterWidth).wire := by
@@ -466,7 +468,7 @@ theorem scratchBBit_counterCarryInBit_wire_ne
     (coeffAdderScratchBBit tail.succ counterWidth)
     (counterIncrementCarryInBit counterWidth)
 
-theorem compareBit_counterCarryInBit_wire_ne
+lemma compareBit_counterCarryInBit_wire_ne
     (tail counterWidth : Nat) :
     (compareBit tail counterWidth).wire ≠
       (counterCarryInBit tail counterWidth).wire := by
@@ -477,7 +479,7 @@ theorem compareBit_counterCarryInBit_wire_ne
     (coeffAdderCompareBit tail.succ counterWidth)
     (counterIncrementCarryInBit counterWidth)
 
-theorem historyBit_counterCarryInBit_wire_ne
+lemma historyBit_counterCarryInBit_wire_ne
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (historyBit tail counterWidth roundIndex).wire ≠
       (counterCarryInBit tail counterWidth).wire := by
@@ -488,7 +490,7 @@ theorem historyBit_counterCarryInBit_wire_ne
     (coeffAdderHistoryBit tail.succ counterWidth roundIndex)
     (counterIncrementCarryInBit counterWidth)
 
-theorem rCoeffLowBit_counterCarryInBit_wire_ne
+lemma rCoeffLowBit_counterCarryInBit_wire_ne
     (tail counterWidth : Nat) :
     (rCoeffLowBit tail counterWidth).wire ≠
       (counterCarryInBit tail counterWidth).wire := by
@@ -500,7 +502,7 @@ theorem rCoeffLowBit_counterCarryInBit_wire_ne
       (0 : Fin (tail.succ + 1)))
     (counterIncrementCarryInBit counterWidth)
 
-theorem scratchABit_scratchBBit_wire_ne (tail counterWidth : Nat) :
+lemma scratchABit_scratchBBit_wire_ne (tail counterWidth : Nat) :
     (scratchABit tail counterWidth).wire ≠
       (scratchBBit tail counterWidth).wire := by
   simpa [scratchABit, scratchBBit, coeffAdderScratchABit,
@@ -508,7 +510,7 @@ theorem scratchABit_scratchBBit_wire_ne (tail counterWidth : Nat) :
     liftRegisterBit_wire_ne tail counterWidth
       (RegisterBits.scratchA_scratchB_wire_ne tail.succ counterWidth)
 
-theorem scratchABit_compareBit_wire_ne (tail counterWidth : Nat) :
+lemma scratchABit_compareBit_wire_ne (tail counterWidth : Nat) :
     (scratchABit tail counterWidth).wire ≠
       (compareBit tail counterWidth).wire := by
   simpa [scratchABit, compareBit, coeffAdderScratchABit,
@@ -516,7 +518,7 @@ theorem scratchABit_compareBit_wire_ne (tail counterWidth : Nat) :
     (liftRegisterBit_wire_ne tail counterWidth
       (RegisterBits.compare_scratchA_wire_ne tail.succ counterWidth).symm)
 
-theorem scratchBBit_compareBit_wire_ne (tail counterWidth : Nat) :
+lemma scratchBBit_compareBit_wire_ne (tail counterWidth : Nat) :
     (scratchBBit tail counterWidth).wire ≠
       (compareBit tail counterWidth).wire := by
   simpa [scratchBBit, compareBit, coeffAdderScratchBBit,
@@ -524,7 +526,7 @@ theorem scratchBBit_compareBit_wire_ne (tail counterWidth : Nat) :
     (liftRegisterBit_wire_ne tail counterWidth
       (RegisterBits.compare_scratchB_wire_ne tail.succ counterWidth).symm)
 
-theorem historyBit_scratchBBit_wire_ne
+lemma historyBit_scratchBBit_wire_ne
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (historyBit tail counterWidth roundIndex).wire ≠
       (scratchBBit tail counterWidth).wire := by
@@ -534,7 +536,7 @@ theorem historyBit_scratchBBit_wire_ne
       (RegisterBits.scratchB_history_wire_ne
         tail.succ counterWidth roundIndex).symm)
 
-theorem scratchABit_historyBit_wire_ne
+lemma scratchABit_historyBit_wire_ne
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (scratchABit tail counterWidth).wire ≠
       (historyBit tail counterWidth roundIndex).wire := by
@@ -544,7 +546,7 @@ theorem scratchABit_historyBit_wire_ne
       (RegisterBits.scratchA_history_wire_ne
         tail.succ counterWidth roundIndex)
 
-theorem compareBit_historyBit_wire_ne
+lemma compareBit_historyBit_wire_ne
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (compareBit tail counterWidth).wire ≠
       (historyBit tail counterWidth roundIndex).wire := by
@@ -554,21 +556,21 @@ theorem compareBit_historyBit_wire_ne
       (RegisterBits.compare_history_wire_ne
         tail.succ counterWidth roundIndex)
 
-theorem activeBit_compareBit_wire_ne (tail counterWidth : Nat) :
+lemma activeBit_compareBit_wire_ne (tail counterWidth : Nat) :
     (activeBit tail counterWidth).wire ≠
       (compareBit tail counterWidth).wire := by
   exact liftCoeffStateBit_wire_ne tail counterWidth
     (coeffAdderActiveBit_coeffAdderCompareBit_wire_ne
       tail.succ counterWidth)
 
-theorem activeBit_scratchBBit_wire_ne (tail counterWidth : Nat) :
+lemma activeBit_scratchBBit_wire_ne (tail counterWidth : Nat) :
     (activeBit tail counterWidth).wire ≠
       (scratchBBit tail counterWidth).wire := by
   exact liftCoeffStateBit_wire_ne tail counterWidth
     (coeffAdderActiveBit_coeffAdderScratchBBit_wire_ne
       tail.succ counterWidth)
 
-theorem compareBit_rCoeffLowBit_wire_ne (tail counterWidth : Nat) :
+lemma compareBit_rCoeffLowBit_wire_ne (tail counterWidth : Nat) :
     (compareBit tail counterWidth).wire ≠
       (rCoeffLowBit tail counterWidth).wire := by
   apply liftCoeffStateBit_wire_ne
@@ -580,7 +582,7 @@ theorem compareBit_rCoeffLowBit_wire_ne (tail counterWidth : Nat) :
     (liftedCompare_liftedRCoeffValueWordBit_wire_ne
       tail.succ counterWidth (0 : Fin (tail.succ + 1)))
 
-theorem rCoeffLowBit_scratchBBit_wire_ne (tail counterWidth : Nat) :
+lemma rCoeffLowBit_scratchBBit_wire_ne (tail counterWidth : Nat) :
     (rCoeffLowBit tail counterWidth).wire ≠
       (scratchBBit tail counterWidth).wire := by
   apply liftCoeffStateBit_wire_ne
@@ -601,21 +603,21 @@ theorem rCoeffLowBit_scratchBBit_wire_ne (tail counterWidth : Nat) :
               (WireAddress.littleEndianWire
                 (0 : Fin (tail.succ + 1)))))
 
-theorem activeBit_rCoeffLowBit_wire_ne (tail counterWidth : Nat) :
+lemma activeBit_rCoeffLowBit_wire_ne (tail counterWidth : Nat) :
     (activeBit tail counterWidth).wire ≠
       (rCoeffLowBit tail counterWidth).wire := by
   exact liftCoeffStateBit_wire_ne tail counterWidth
     (coeffAdderActiveBit_coeffAdderRCoeffValueWordBit_wire_ne
       tail.succ counterWidth (0 : Fin (tail.succ + 1)))
 
-theorem activeBit_scratchABit_wire_ne (tail counterWidth : Nat) :
+lemma activeBit_scratchABit_wire_ne (tail counterWidth : Nat) :
     (activeBit tail counterWidth).wire ≠
       (scratchABit tail counterWidth).wire := by
   exact liftCoeffStateBit_wire_ne tail counterWidth
     (coeffAdderActiveBit_coeffAdderScratchABit_wire_ne
       tail.succ counterWidth)
 
-theorem rCoeffLowBit_scratchABit_wire_ne (tail counterWidth : Nat) :
+lemma rCoeffLowBit_scratchABit_wire_ne (tail counterWidth : Nat) :
     (rCoeffLowBit tail counterWidth).wire ≠
       (scratchABit tail counterWidth).wire := by
   exact liftCoeffStateBit_wire_ne tail counterWidth
@@ -678,12 +680,12 @@ def branchResidueCleanupProgram (tail counterWidth : Nat)
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (branchResidueCleanupGates tail counterWidth roundIndex)
 
-theorem branchResidueCleanup_realizes (tail counterWidth : Nat)
+lemma branchResidueCleanup_realizes (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (branchResidueCleanupProgram tail counterWidth roundIndex)
+      (branchResidueCleanupProgram tail counterWidth roundIndex) environment
       (branchResidueCleanupStep tail counterWidth roundIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (branchResidueCleanupGates tail counterWidth roundIndex)
 
 /-- The four Boolean identities that characterize the garbage left by one
@@ -711,7 +713,7 @@ structure BranchResidueCertificate (tail counterWidth : Nat)
 /-- Degenerate certificate shared by inactive and terminating paths.  When
 active and all named residue bits are false, coefficient parity is irrelevant
 because the final auxiliary cleanup Toffoli is inactive. -/
-theorem branchResidueCertificate_of_all_false
+lemma branchResidueCertificate_of_all_false
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hactive : (activeBit tail counterWidth).get x = false)
@@ -735,7 +737,7 @@ theorem branchResidueCertificate_of_all_false
     rfl
 
 /-- Residue truth table for the active `uEven` route. -/
-theorem branchResidueCertificate_uEven
+lemma branchResidueCertificate_uEven
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hactive : (activeBit tail counterWidth).get x = true)
@@ -760,7 +762,7 @@ theorem branchResidueCertificate_uEven
     rfl
 
 /-- Residue truth table for the active `vEven` route. -/
-theorem branchResidueCertificate_vEven
+lemma branchResidueCertificate_vEven
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hactive : (activeBit tail counterWidth).get x = true)
@@ -785,7 +787,7 @@ theorem branchResidueCertificate_vEven
     rfl
 
 /-- Residue truth table for the active odd `uGreater` route. -/
-theorem branchResidueCertificate_uGreater
+lemma branchResidueCertificate_uGreater
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hactive : (activeBit tail counterWidth).get x = true)
@@ -810,7 +812,7 @@ theorem branchResidueCertificate_uGreater
     rfl
 
 /-- Residue truth table for the active odd `vLe` route. -/
-theorem branchResidueCertificate_vLe
+lemma branchResidueCertificate_vLe
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hactive : (activeBit tail counterWidth).get x = true)
@@ -836,7 +838,7 @@ theorem branchResidueCertificate_vLe
 
 /-- Carried branch-code staging changes only the two scratch-code targets, so
 the physical compare bit is preserved. -/
-theorem coeffWorkActiveBranchCodeToScratchStep_get_compare
+lemma coeffWorkActiveBranchCodeToScratchStep_get_compare
     (n counterWidth : Nat) (branch : Branch)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -855,7 +857,7 @@ theorem coeffWorkActiveBranchCodeToScratchStep_get_compare
 
 /-- The complete carried branch-code/history/aux-shift suffix preserves the
 physical compare bit. -/
-theorem
+lemma
     coeffWorkActiveBranchCodeThenHistoryThenAuxShiftDispatchStep_get_compare
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (branch : Branch)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -869,7 +871,7 @@ theorem
     n counterWidth branch x
 
 /-- Exact carry-bit effect of the first three cleanup CNOTs. -/
-theorem branchResidueCleanupStep_get_counterCarry
+lemma branchResidueCleanupStep_get_counterCarry
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (counterCarryInBit tail counterWidth).get
@@ -908,7 +910,7 @@ theorem branchResidueCleanupStep_get_counterCarry
       (scratchBBit_counterCarryInBit_wire_ne tail counterWidth).symm]
 
 /-- Exact compare-bit effect of the fourth cleanup gate. -/
-theorem branchResidueCleanupStep_get_compare
+lemma branchResidueCleanupStep_get_compare
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (compareBit tail counterWidth).get
@@ -948,7 +950,7 @@ theorem branchResidueCleanupStep_get_compare
       tail counterWidth).symm]
 
 /-- Exact second-scratch effect of the selected-history cleanup CNOT. -/
-theorem branchResidueCleanupStep_get_scratchB
+lemma branchResidueCleanupStep_get_scratchB
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (scratchBBit tail counterWidth).get
@@ -993,7 +995,7 @@ theorem branchResidueCleanupStep_get_scratchB
 
 /-- Exact first-scratch effect of the active-controlled coefficient-parity
 cleanup Toffoli. -/
-theorem branchResidueCleanupStep_get_scratchA
+lemma branchResidueCleanupStep_get_scratchA
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (scratchABit tail counterWidth).get
@@ -1054,7 +1056,7 @@ structure BranchResidueCleanEndpoint (tail counterWidth : Nat)
 /-- The six physical cleanup gates erase every branch residue described by
 the certificate; this is a statement about the actual encoded bits, not a
 masked semantic readout. -/
-theorem branchResidueCleanupStep_cleanEndpoint
+lemma branchResidueCleanupStep_cleanEndpoint
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (cert : BranchResidueCertificate tail counterWidth roundIndex x) :
@@ -1078,7 +1080,7 @@ theorem branchResidueCleanupStep_cleanEndpoint
 /-- The branch-residue cleanup touches exactly its four target wires.  This
 generic preservation lemma is the physical bridge used to reconstruct source
 registers, persistent history, and every remaining work word bit-by-bit. -/
-theorem branchResidueCleanupStep_get_of_targets_ne
+lemma branchResidueCleanupStep_get_of_targets_ne
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (observed : EncodedBit (encoding tail.succ counterWidth))
@@ -1130,7 +1132,7 @@ theorem branchResidueCleanupStep_get_of_targets_ne
       (activeBit tail counterWidth)
       (counterCarryInBit tail counterWidth) observed hcarry]
 
-theorem branchResidueCleanupStep_get_historyBit
+lemma branchResidueCleanupStep_get_historyBit
     (tail counterWidth : Nat) (roundIndex observed : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (historyBit tail counterWidth observed).get
@@ -1170,7 +1172,7 @@ private def reusableWorkspaceSnapshot (tail counterWidth : Nat)
 /-- Cleanup writes only the four residue targets, so all reusable ancillas,
 the working path, and clean control are preserved as one structural
 projection. -/
-private theorem branchResidueCleanupStep_reusableWorkspaceSnapshot
+private lemma branchResidueCleanupStep_reusableWorkspaceSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     reusableWorkspaceSnapshot tail counterWidth
@@ -1186,7 +1188,7 @@ private theorem branchResidueCleanupStep_reusableWorkspaceSnapshot
     intro y
     rfl
 
-theorem branchResidueCleanupStep_reusableWorkspaceClean
+lemma branchResidueCleanupStep_reusableWorkspaceClean
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hclean : ReusableWorkspaceClean tail counterWidth x) :
@@ -1208,7 +1210,7 @@ theorem branchResidueCleanupStep_reusableWorkspaceClean
   · exact (congrArg ReusableWorkspaceSnapshot.control hsnapshot).trans
       hclean.control
 
-theorem branchResidueCleanupStep_get_path
+lemma branchResidueCleanupStep_get_path
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (workingPathBit tail counterWidth).get
@@ -1219,7 +1221,7 @@ theorem branchResidueCleanupStep_get_path
       tail counterWidth roundIndex x
   exact congrArg ReusableWorkspaceSnapshot.path hsnapshot
 
-theorem branchResidueCleanupStep_get_route
+lemma branchResidueCleanupStep_get_route
     (tail counterWidth : Nat) (roundIndex observed : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (routeHistoryBit tail counterWidth observed).get

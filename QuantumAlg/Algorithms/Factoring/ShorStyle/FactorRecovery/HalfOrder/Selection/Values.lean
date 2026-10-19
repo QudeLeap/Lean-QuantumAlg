@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx mod
   {N : Nat}
 
 /-- The real option instruction retains precisely the stored tag and candidate's natural value. -/
-theorem pack_result_numeric (cells : Cells ctx N)
+lemma pack_result_numeric (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : cells.payload.key ≠ cells.lower.key) :
     (packStep (model := model) cells output store).1.read (.storage output.toCStorageRef) =
@@ -42,7 +42,7 @@ theorem pack_result_numeric (cells : Cells ctx N)
   | bit value => cases value <;> rfl
 
 /-- The actual comparisons and packaging return the same tested original candidate. -/
-theorem checkedPack_result (cells : Cells ctx N)
+lemma checkedPack_result (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (lowerFree : cells.lower.key ∉
       (CInputRef.product (.storage cells.candidate.toCStorageRef) cells.modulus).storageKeys)

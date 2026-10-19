@@ -53,7 +53,7 @@ def doublingScratch (cells : Cells ctx (doublingShapes width)) : DoublingScratch
   numerator := (cellAt cells ⟨1, by change 1 < 6; decide⟩).ref
   denominator := (cellAt cells ⟨0, by change 0 < 6; decide⟩).ref
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Every arithmetic and constant-loading call precedes the original tail in its original slot. -/

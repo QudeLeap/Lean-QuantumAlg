@@ -26,7 +26,7 @@ variable {ctx frame : RuntimeCtx .quantum} {count : Nat}
   (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
   (separate : RuntimeCtx.StorageDisjoint (ctx.addOwnedLayout key layout fresh disjoint) frame)
 
-private theorem original_resident_le_prepared :
+private lemma original_resident_le_prepared :
     (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate)).residentSpace ≤
     ((ctx.addOwnedLayout key layout fresh disjoint).disjointUnion frame
@@ -35,7 +35,7 @@ private theorem original_resident_le_prepared :
     RuntimeCtx.residentSpace_addOwnedLayout]
   exact fun axis => Nat.add_le_add_right (Nat.le_add_left _ _) _
 
-private theorem original_auxiliary_le_prepared :
+private lemma original_auxiliary_le_prepared :
     (ctx.disjointUnion frame
       (preparation_original_disjoint key layout fresh disjoint separate)).auxiliarySpace ≤
     ((ctx.addOwnedLayout key layout fresh disjoint).disjointUnion frame
@@ -45,7 +45,7 @@ private theorem original_auxiliary_le_prepared :
   exact fun axis => Nat.add_le_add_right (Nat.le_add_left _ _) _
 
 /-- Fixed zero preparation and loading attain exactly their final resident context. -/
-theorem prepareFramed_peakResidentSpace {gates : GateModel} {oracles : OracleModel}
+lemma prepareFramed_peakResidentSpace {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
@@ -62,7 +62,7 @@ theorem prepareFramed_peakResidentSpace {gates : GateModel} {oracles : OracleMod
     (original_resident_le_prepared key layout fresh disjoint separate)
 
 /-- Fixed zero preparation and loading attain exactly their final auxiliary context. -/
-theorem prepareFramed_peakAuxiliarySpace {gates : GateModel} {oracles : OracleModel}
+lemma prepareFramed_peakAuxiliarySpace {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)

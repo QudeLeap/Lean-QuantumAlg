@@ -52,7 +52,7 @@ public def rightControlledQubitsOnZero (operator : UnitaryOperator (Qubits 1)) :
 
 /-- Swapping two one-qubit basis coordinates exchanges arbitrary raw tensor
 factors. -/
-public theorem reindex_swapQubitIndex_tensor
+public lemma reindex_swapQubitIndex_tensor
     (left right : HilbertVector (Qubits 1)) :
     HilbertVector.reindex swapQubitIndex (HilbertVector.tensor left right) =
       HilbertVector.tensor right left := by
@@ -64,7 +64,7 @@ public theorem reindex_swapQubitIndex_tensor
   ring
 
 /-- A trailing zero control activates the operator on the leading target. -/
-public theorem rightControlledQubitsOnZero_applyVec_tensor_ket0
+public lemma rightControlledQubitsOnZero_applyVec_tensor_ket0
     (operator : UnitaryOperator (Qubits 1))
     (target : HilbertVector (Qubits 1)) :
     (rightControlledQubitsOnZero operator).applyVec
@@ -79,7 +79,7 @@ public theorem rightControlledQubitsOnZero_applyVec_tensor_ket0
     reindex_swapQubitIndex_tensor]
 
 /-- A trailing one control leaves the leading target unchanged. -/
-public theorem rightControlledQubitsOnZero_applyVec_tensor_ket1
+public lemma rightControlledQubitsOnZero_applyVec_tensor_ket1
     (operator : UnitaryOperator (Qubits 1))
     (target : HilbertVector (Qubits 1)) :
     (rightControlledQubitsOnZero operator).applyVec
@@ -93,8 +93,9 @@ public theorem rightControlledQubitsOnZero_applyVec_tensor_ket1
     reindex_swapQubitIndex_tensor]
 
 /-- The canonical native CNOT has its standard binary-coordinate operator. -/
-private theorem cnot_binaryMatrix (oracles : OracleModel) :
-    (cnot oracles).binaryMatrix = Gate.CNOTOp := by
+private lemma cnot_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} :
+    ((cnot oracles).binaryMatrix environment) = Gate.CNOTOp := by
   unfold UnitaryCircuit.binaryMatrix cnot
   rw [UnitaryCircuit.native_matrix,
     GateModel.Application.gateApplication_canonical_operator]
@@ -106,11 +107,12 @@ private theorem cnot_binaryMatrix (oracles : OracleModel) :
 
 /-- Placing a complete two-qubit word in reversed physical order is exactly
 the corresponding exchange of its binary basis coordinates. -/
-private theorem swappedPlacement_binaryMatrix (oracles : OracleModel)
+private lemma swappedPlacement_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (body : UnitaryCircuit AlgorithmGate.model oracles layout) :
-    (UnitaryCircuit.placeAt layout layout swappedPosition
-      swappedDimensions body).binaryMatrix =
-        UnitaryOperator.reindex swapQubitIndex body.binaryMatrix := by
+    ((UnitaryCircuit.placeAt layout layout swappedPosition
+      swappedDimensions body).binaryMatrix environment) =
+        UnitaryOperator.reindex swapQubitIndex (body.binaryMatrix environment) := by
   apply Subtype.ext
   ext row column
   unfold UnitaryCircuit.binaryMatrix
@@ -123,14 +125,14 @@ private theorem swappedPlacement_binaryMatrix (oracles : OracleModel)
         fin_cases index
         · exact ⟨1, rfl⟩
         · exact ⟨0, rfl⟩)]
-  change body.matrix
+  change (body.matrix environment)
       (UnitaryCircuit.basisAt layout layout swappedPosition
         swappedDimensions
         ((QuantumSignature.qubitsIndexEquiv 2).symm row))
       (UnitaryCircuit.basisAt layout layout swappedPosition
         swappedDimensions
         ((QuantumSignature.qubitsIndexEquiv 2).symm column)) =
-    body.matrix
+    (body.matrix environment)
       ((QuantumSignature.qubitsIndexEquiv 2).symm (swapQubitIndex.symm row))
       ((QuantumSignature.qubitsIndexEquiv 2).symm (swapQubitIndex.symm column))
   have rowBasis :
@@ -148,7 +150,7 @@ private theorem swappedPlacement_binaryMatrix (oracles : OracleModel)
   rw [rowBasis, columnBasis]
 
 /-- A parallel local pair is exactly the tensor of its two supplied operators. -/
-private theorem prefixBasis (basis : layout.Basis) :
+private lemma prefixBasis (basis : layout.Basis) :
     (QuantumLayout.appendBasisEquiv (Gate.HadamardLayer.layout 1)
       (Gate.HadamardLayer.lastLayout 1)
       (Gate.HadamardLayer.hadamardLayer_layout_disjoint 1)
@@ -160,7 +162,7 @@ private theorem prefixBasis (basis : layout.Basis) :
     (Gate.HadamardLayer.hadamardLayer_layout_append 1).symm basis
     (Fin.castAdd 1 index)
 
-private theorem suffixBasis (basis : layout.Basis) :
+private lemma suffixBasis (basis : layout.Basis) :
     (QuantumLayout.appendBasisEquiv (Gate.HadamardLayer.layout 1)
       (Gate.HadamardLayer.lastLayout 1)
       (Gate.HadamardLayer.hadamardLayer_layout_disjoint 1)
@@ -173,11 +175,12 @@ private theorem suffixBasis (basis : layout.Basis) :
     (Gate.HadamardLayer.hadamardLayer_layout_append 1).symm basis
     (Fin.natAdd 1 0)
 
-private theorem firstGate_entry (oracles : OracleModel)
+private lemma firstGate_entry (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (operator : UnitaryOperator (Qubits 1))
     (qubit : ((Gate.HadamardLayer.layout 1).wire 0).dimension = 2)
     (row column : (Gate.HadamardLayer.layout 1).Basis) :
-    (Gate.singleQubitAt (Gate.HadamardLayer.layout 1) oracles operator 0 qubit).matrix
+    ((Gate.singleQubitAt (Gate.HadamardLayer.layout 1) oracles operator 0 qubit).matrix environment)
         row column = operator (row 0) (column 0) := by
   let application := Gate.singleQubitApplication
     (Gate.HadamardLayer.layout 1) operator 0 qubit
@@ -191,12 +194,13 @@ private theorem firstGate_entry (oracles : OracleModel)
   rw [Gate.singleQubitAt_matrix_entry, if_pos complement, mul_one]
   congr 1
 
-private theorem lastGate_entry (oracles : OracleModel)
+private lemma lastGate_entry (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (operator : UnitaryOperator (Qubits 1))
     (qubit : ((Gate.HadamardLayer.lastLayout 1).wire 0).dimension = 2)
     (row column : (Gate.HadamardLayer.lastLayout 1).Basis) :
-    (Gate.singleQubitAt (Gate.HadamardLayer.lastLayout 1) oracles operator 0
-      qubit).matrix row column =
+    ((Gate.singleQubitAt (Gate.HadamardLayer.lastLayout 1) oracles operator 0
+      qubit).matrix environment) row column =
         operator (row 0) (column 0) := by
   let application := Gate.singleQubitApplication
     (Gate.HadamardLayer.lastLayout 1) operator 0
@@ -211,52 +215,58 @@ private theorem lastGate_entry (oracles : OracleModel)
   rw [Gate.singleQubitAt_matrix_entry, if_pos complement, mul_one]
   congr 1
 
-private theorem parallelPair_matrix_entry (oracles : OracleModel)
+private lemma parallelPair_matrix_entry (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (controlOp targetOp : UnitaryOperator (Qubits 1)) (row column : layout.Basis) :
-    (parallelPair oracles controlOp targetOp).matrix row column =
+    ((parallelPair oracles controlOp targetOp).matrix environment) row column =
       controlOp (row 0) (column 0) * targetOp (row 1) (column 1) := by
   rw [parallelPair, UnitaryCircuit.castLayout_matrix_entry,
     UnitaryCircuit.tensor_native_matrix_entry, prefixBasis, prefixBasis,
     suffixBasis, suffixBasis, firstGate_entry]
   let targetRow : (Gate.HadamardLayer.lastLayout 1).Basis := fun _ => row 1
   let targetColumn : (Gate.HadamardLayer.lastLayout 1).Basis := fun _ => column 1
-  have targetEntry := lastGate_entry oracles targetOp
+  have targetEntry := lastGate_entry oracles (environment := environment) targetOp
     (Gate.HadamardLayer.hadamardLayer_last_dimension 1) targetRow targetColumn
   change controlOp (row (Fin.castSucc 0)) (column (Fin.castSucc 0)) *
-      (Gate.singleQubitAt (Gate.HadamardLayer.lastLayout 1) oracles targetOp 0 _).matrix
+      ((Gate.singleQubitAt (Gate.HadamardLayer.lastLayout 1) oracles targetOp 0 _).matrix
+        environment)
         targetRow targetColumn = _
   rw [targetEntry]
   rfl
 
-private theorem parallelPair_binaryMatrix (oracles : OracleModel)
+private lemma parallelPair_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (controlOp targetOp : UnitaryOperator (Qubits 1)) :
-    (parallelPair oracles controlOp targetOp).binaryMatrix =
+    ((parallelPair oracles controlOp targetOp).binaryMatrix environment) =
       controlOp.tensor targetOp := by
   ext row column
   rw [UnitaryOperator.tensor_apply]
-  change (parallelPair oracles controlOp targetOp).matrix
+  change ((parallelPair oracles controlOp targetOp).matrix environment)
       ((QuantumSignature.qubitsIndexEquiv 2).symm row)
       ((QuantumSignature.qubitsIndexEquiv 2).symm column) = _
   rw [parallelPair_matrix_entry]
   fin_cases row <;> fin_cases column <;> rfl
 
 /-- A local target gate is identity tensor its supplied operator. -/
-private theorem targetGate_binaryMatrix (oracles : OracleModel)
+private lemma targetGate_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (operator : UnitaryOperator (Qubits 1)) :
-    (targetGate oracles operator).binaryMatrix =
+    ((targetGate oracles operator).binaryMatrix environment) =
       (1 : UnitaryOperator (Qubits 1)).tensor operator := by
-  exact Gate.singleQubitAt_last_binaryMatrix oracles 1 operator
+  exact Gate.singleQubitAt_last_binaryMatrix oracles 1 operator environment
 
 /-- A local control gate is its supplied operator tensor identity. -/
-private theorem controlGate_binaryMatrix (oracles : OracleModel)
+private lemma controlGate_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (operator : UnitaryOperator (Qubits 1)) :
-    (controlGate oracles operator).binaryMatrix =
+    ((controlGate oracles operator).binaryMatrix environment) =
       operator.tensor (1 : UnitaryOperator (Qubits 1)) := by
-  exact Gate.singleQubitAt_first_binaryMatrix oracles 1 operator
+  exact Gate.singleQubitAt_first_binaryMatrix oracles 1 operator environment
 
 /-- Exact binary matrix of the literal open-controlled rotation word. -/
-private theorem rotY_binary_word (oracles : OracleModel) (angle : Real) :
-    (rotY oracles angle).binaryMatrix =
+private lemma rotY_binary_word (oracles : OracleModel)
+    {environment : oracles.Interpretation} (angle : Real) :
+    ((rotY oracles angle).binaryMatrix environment) =
       (Gate.XOp.tensor (1 : UnitaryOperator (Qubits 1))) * Gate.CNOTOp *
         ((1 : UnitaryOperator (Qubits 1)).tensor (rotYOp (-(angle / 2)))) *
         Gate.CNOTOp * (Gate.XOp.tensor (rotYOp (angle / 2))) := by
@@ -267,8 +277,9 @@ private theorem rotY_binary_word (oracles : OracleModel) (angle : Real) :
   noncomm_ring
 
 /-- Exact binary matrix of the literal open-controlled Hadamard word. -/
-private theorem hadamard_binary_word (oracles : OracleModel) :
-    (hadamard oracles).binaryMatrix =
+private lemma hadamard_binary_word (oracles : OracleModel)
+    {environment : oracles.Interpretation} :
+    ((hadamard oracles).binaryMatrix environment) =
       (Gate.XOp.tensor (rotYOp (-(Real.pi / 4)))) * Gate.CNOTOp *
         (Gate.XOp.tensor (rotYOp (Real.pi / 4))) := by
   simp only [hadamard,
@@ -281,15 +292,15 @@ private abbrev basisKetVec {width : Nat} (index : Fin (2 ^ width)) :
     HilbertVector (Qubits width) :=
   (NormalizedVector.ket (R := Qubits width) index).vec
 
-@[simp] private theorem basisKetVec_zero :
+@[simp] private lemma basisKetVec_zero :
     basisKetVec (width := 1) (0 : Fin 2) =
       (ket0 : HilbertVector (Qubits 1)) := rfl
 
-@[simp] private theorem basisKetVec_one :
+@[simp] private lemma basisKetVec_one :
     basisKetVec (width := 1) (1 : Fin 2) =
       (ket1 : HilbertVector (Qubits 1)) := rfl
 
-private theorem raw_tensor_ket {m n : Nat}
+private lemma raw_tensor_ket {m n : Nat}
     (left : Fin (2 ^ m)) (right : Fin (2 ^ n)) :
     HilbertVector.tensor (basisKetVec left) (basisKetVec right) =
       basisKetVec (prodEquiv (m := m) (n := n) (left, right)) := by
@@ -298,7 +309,7 @@ private theorem raw_tensor_ket {m n : Nat}
       (state : HilbertVector (Qubits (m + n))))
     (NormalizedVector.tensor_ket left right)
 
-private theorem unitary_eq_of_applyVec_ket {R : Register}
+private lemma unitary_eq_of_applyVec_ket {R : Register}
     (left right : UnitaryOperator R)
     (same : ∀ input : R.Index,
       left.applyVec (NormalizedVector.ket input : HilbertVector R) =
@@ -313,7 +324,7 @@ private theorem unitary_eq_of_applyVec_ket {R : Register}
       (NormalizedVector.ket input : HilbertVector R) output at point
   simpa only [HilbertOperator.applyVec_ket] using point
 
-@[simp] private theorem XOp_applyVec_ket0 :
+@[simp] private lemma XOp_applyVec_ket0 :
     Gate.XOp.applyVec (ket0 : HilbertVector (Qubits 1)) =
       (ket1 : HilbertVector (Qubits 1)) := by
   have same := congrArg
@@ -321,7 +332,7 @@ private theorem unitary_eq_of_applyVec_ket {R : Register}
     Gate.pauliXOperator_apply_ket0
   simpa only [UnitaryOperator.apply_coe] using same
 
-@[simp] private theorem XOp_applyVec_ket1 :
+@[simp] private lemma XOp_applyVec_ket1 :
     Gate.XOp.applyVec (ket1 : HilbertVector (Qubits 1)) =
       (ket0 : HilbertVector (Qubits 1)) := by
   have same := congrArg
@@ -330,7 +341,7 @@ private theorem unitary_eq_of_applyVec_ket {R : Register}
   simpa only [UnitaryOperator.apply_coe] using same
 
 /-- The named CNOT is the standard leading-control Pauli-X operator. -/
-private theorem CNOTOp_eq_controlled :
+private lemma CNOTOp_eq_controlled :
     Gate.CNOTOp = UnitaryOperator.controlledQubits Gate.XOp := by
   apply Subtype.ext
   ext row column
@@ -353,7 +364,7 @@ private theorem CNOTOp_eq_controlled :
       UnitaryOperator.controlled_apply, Gate.XOp, prodEquiv, finProdFinEquiv,
       Fin.divNat, Fin.modNat]
 
-private theorem rotYOp_mul (left right : Real) :
+private lemma rotYOp_mul (left right : Real) :
     (rotYOp left : HilbertOperator (Qubits 1)) *
         (rotYOp right : HilbertOperator (Qubits 1)) =
       (rotYOp (left + right) : HilbertOperator (Qubits 1)) := by
@@ -363,17 +374,17 @@ private theorem rotYOp_mul (left right : Real) :
     simp [rotYOp, Matrix.mul_apply, Fin.sum_univ_two, half,
       Real.sin_add, Real.cos_add] <;> ring
 
-private theorem rotYOp_zero :
+private lemma rotYOp_zero :
     (rotYOp 0 : HilbertOperator (Qubits 1)) = 1 := by
   ext output input
   fin_cases output <;> fin_cases input <;> simp [rotYOp]
 
-private theorem rotYOp_neg_mul_rotYOp (angle : Real) :
+private lemma rotYOp_neg_mul_rotYOp (angle : Real) :
     (rotYOp (-angle) : HilbertOperator (Qubits 1)) *
         (rotYOp angle : HilbertOperator (Qubits 1)) = 1 := by
   rw [rotYOp_mul, neg_add_cancel, rotYOp_zero]
 
-private theorem XOp_mul_rotYOp_neg_mul_XOp (angle : Real) :
+private lemma XOp_mul_rotYOp_neg_mul_XOp (angle : Real) :
     ((Gate.XOp : HilbertOperator (Qubits 1)) *
         (rotYOp (-angle) : HilbertOperator (Qubits 1))) *
         (Gate.XOp : HilbertOperator (Qubits 1)) =
@@ -385,7 +396,7 @@ private theorem XOp_mul_rotYOp_neg_mul_XOp (angle : Real) :
       Fin.sum_univ_two, Equiv.swap_apply_def, half,
       Real.sin_neg, Real.cos_neg]
 
-private theorem controlledRotY_target_operator (angle : Real) :
+private lemma controlledRotY_target_operator (angle : Real) :
     (((Gate.XOp : HilbertOperator (Qubits 1)) *
           (rotYOp (-(angle / 2)) : HilbertOperator (Qubits 1))) *
         (Gate.XOp : HilbertOperator (Qubits 1))) *
@@ -395,7 +406,7 @@ private theorem controlledRotY_target_operator (angle : Real) :
   congr 2
   ring
 
-private theorem rotY_cancel_applyVec (angle : Real)
+private lemma rotY_cancel_applyVec (angle : Real)
     (state : HilbertVector (Qubits 1)) :
     (rotYOp (-angle)).applyVec ((rotYOp angle).applyVec state) = state := by
   change HilbertOperator.applyVec (rotYOp (-angle) : HilbertOperator (Qubits 1))
@@ -404,7 +415,7 @@ private theorem rotY_cancel_applyVec (angle : Real)
   rw [← HilbertOperator.mul_applyVec, rotYOp_neg_mul_rotYOp,
     HilbertOperator.one_applyVec]
 
-private theorem controlledRotY_target_applyVec (angle : Real)
+private lemma controlledRotY_target_applyVec (angle : Real)
     (state : HilbertVector (Qubits 1)) :
     Gate.XOp.applyVec
         ((rotYOp (-(angle / 2))).applyVec
@@ -421,8 +432,9 @@ private theorem controlledRotY_target_applyVec (angle : Real)
   rfl
 
 /-- The generated word is exactly the complete open-controlled rotation operator. -/
-public theorem rotY_binaryMatrix (oracles : OracleModel) (angle : Real) :
-    (rotY oracles angle).binaryMatrix =
+public lemma rotY_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} (angle : Real) :
+    ((rotY oracles angle).binaryMatrix environment) =
       UnitaryOperator.controlledQubitsOnZero (rotYOp angle) := by
   rw [rotY_binary_word]
   apply unitary_eq_of_applyVec_ket
@@ -457,17 +469,19 @@ public theorem rotY_binaryMatrix (oracles : OracleModel) (angle : Real) :
 
 /-- The reoriented native word is the complete trailing-zero-control
 rotation operator, including exact phase on arbitrary inputs. -/
-public theorem rotYRight_binaryMatrix (oracles : OracleModel) (angle : Real) :
-    (rotYRight oracles angle).binaryMatrix =
+public lemma rotYRight_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} (angle : Real) :
+    ((rotYRight oracles angle).binaryMatrix environment) =
       rightControlledQubitsOnZero (rotYOp angle) := by
   rw [rotYRight, swappedPlacement_binaryMatrix, rotY_binaryMatrix]
   rfl
 
 /-- On target one with a trailing zero control, the literal reoriented
 rotation word produces its exact signed two-branch decomposition. -/
-public theorem rotYRight_applyVec_ket1_tensor_ket0
-    (oracles : OracleModel) (angle : Real) :
-    (rotYRight oracles angle).binaryMatrix.applyVec
+public lemma rotYRight_applyVec_ket1_tensor_ket0
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (angle : Real) :
+    ((rotYRight oracles angle).binaryMatrix environment).applyVec
         (HilbertVector.tensor (ket1 : HilbertVector (Qubits 1))
           (ket0 : HilbertVector (Qubits 1))) =
       (-(Real.sin (angle / 2)) : ℂ) •
@@ -481,7 +495,7 @@ public theorem rotYRight_applyVec_ket1_tensor_ket0
     rotYOp_applyVec_ket1, HilbertVector.add_tensor,
     HilbertVector.smul_tensor, HilbertVector.smul_tensor]
 
-private theorem rotYOp_neg_mul_XOp (angle : Real) :
+private lemma rotYOp_neg_mul_XOp (angle : Real) :
     (rotYOp (-angle) : HilbertOperator (Qubits 1)) *
         (Gate.XOp : HilbertOperator (Qubits 1)) =
       (Gate.XOp : HilbertOperator (Qubits 1)) *
@@ -493,7 +507,7 @@ private theorem rotYOp_neg_mul_XOp (angle : Real) :
       Fin.sum_univ_two, Equiv.swap_apply_def, half,
       Real.sin_neg, Real.cos_neg]
 
-private theorem XOp_mul_rotYOp_pi_div_two :
+private lemma XOp_mul_rotYOp_pi_div_two :
     (Gate.XOp : HilbertOperator (Qubits 1)) *
         (rotYOp (Real.pi / 2) : HilbertOperator (Qubits 1)) =
       (Gate.HOp : HilbertOperator (Qubits 1)) := by
@@ -518,7 +532,7 @@ private theorem XOp_mul_rotYOp_pi_div_two :
     simp [Gate.XOp, UnitaryOperator.ofPerm, Gate.HOp, rotYOp,
       Matrix.mul_apply, inverse, half]
 
-private theorem controlledH_target_operator :
+private lemma controlledH_target_operator :
     ((rotYOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) *
         (Gate.XOp : HilbertOperator (Qubits 1))) *
         (rotYOp (Real.pi / 4) : HilbertOperator (Qubits 1)) =
@@ -527,7 +541,7 @@ private theorem controlledH_target_operator :
   rw [show Real.pi / 4 + Real.pi / 4 = Real.pi / 2 by ring,
     XOp_mul_rotYOp_pi_div_two]
 
-private theorem controlledH_target_applyVec (state : HilbertVector (Qubits 1)) :
+private lemma controlledH_target_applyVec (state : HilbertVector (Qubits 1)) :
     (rotYOp (-(Real.pi / 4))).applyVec
         (Gate.XOp.applyVec ((rotYOp (Real.pi / 4)).applyVec state)) =
       Gate.HOp.applyVec state := by
@@ -541,8 +555,9 @@ private theorem controlledH_target_applyVec (state : HilbertVector (Qubits 1)) :
   rfl
 
 /-- The generated word is exactly the complete open-controlled Hadamard operator. -/
-public theorem hadamard_binaryMatrix (oracles : OracleModel) :
-    (hadamard oracles).binaryMatrix =
+public lemma hadamard_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} :
+    ((hadamard oracles).binaryMatrix environment) =
       UnitaryOperator.controlledQubitsOnZero Gate.HOp := by
   rw [hadamard_binary_word]
   apply unitary_eq_of_applyVec_ket
@@ -574,8 +589,9 @@ public theorem hadamard_binaryMatrix (oracles : OracleModel) :
 
 /-- On an active zero control and zero target, the literal open-controlled
 Hadamard word creates the physical `|+>` target. -/
-public theorem hadamard_applyVec_ket0_tensor_ket0 (oracles : OracleModel) :
-    (hadamard oracles).binaryMatrix.applyVec
+public lemma hadamard_applyVec_ket0_tensor_ket0 (oracles : OracleModel)
+    {environment : oracles.Interpretation} :
+    ((hadamard oracles).binaryMatrix environment).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1))
           (ket0 : HilbertVector (Qubits 1))) =
       HilbertVector.tensor (ket0 : HilbertVector (Qubits 1))

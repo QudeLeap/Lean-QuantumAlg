@@ -27,7 +27,7 @@ namespace NumberTheory.BinaryGCD
 /-- Number of rounds in the width-indexed fixed binary-GCD schedule. -/
 def fixedRoundCount (width : Nat) : Nat := 2 * width
 
-@[simp] theorem fixedRoundCount_eq (width : Nat) :
+@[simp] lemma fixedRoundCount_eq (width : Nat) :
     fixedRoundCount width = 2 * width := rfl
 
 /-! ## Branch encoding -/
@@ -68,13 +68,13 @@ uncomputed. -/
 def code (branch : Branch) : Bool × Bool :=
   (branch.auxBit, branch.historyBit)
 
-@[simp] theorem code_uEven : code uEven = (true, false) := rfl
+@[simp] lemma code_uEven : code uEven = (true, false) := rfl
 
-@[simp] theorem code_vEven : code vEven = (false, true) := rfl
+@[simp] lemma code_vEven : code vEven = (false, true) := rfl
 
-@[simp] theorem code_uGreater : code uGreater = (true, true) := rfl
+@[simp] lemma code_uGreater : code uGreater = (true, true) := rfl
 
-@[simp] theorem code_vLe : code vLe = (false, false) := rfl
+@[simp] lemma code_vLe : code vLe = (false, false) := rfl
 
 /-- Branch selected from the circuit-facing condition signals: the low `u`
 bit, the low `v` bit, and the staged comparison bit `v < u`. -/
@@ -86,56 +86,56 @@ def fromCircuitSignals (uOdd vOdd compare : Bool) : Branch :=
   else uEven
 
 
-@[simp] theorem fromCircuitSignals_uEven (vOdd compare : Bool) :
+@[simp] lemma fromCircuitSignals_uEven (vOdd compare : Bool) :
     fromCircuitSignals false vOdd compare = uEven := by
   simp [fromCircuitSignals]
 
-@[simp] theorem fromCircuitSignals_vEven (compare : Bool) :
+@[simp] lemma fromCircuitSignals_vEven (compare : Bool) :
     fromCircuitSignals true false compare = vEven := by
   simp [fromCircuitSignals]
 
-@[simp] theorem fromCircuitSignals_uGreater :
+@[simp] lemma fromCircuitSignals_uGreater :
     fromCircuitSignals true true true = uGreater := by
   simp [fromCircuitSignals]
 
-@[simp] theorem fromCircuitSignals_vLe :
+@[simp] lemma fromCircuitSignals_vLe :
     fromCircuitSignals true true false = vLe := by
   simp [fromCircuitSignals]
 
 /-- The auxiliary branch-code bit selected by the circuit-facing condition
 signals. -/
-theorem fromCircuitSignals_auxBit (uOdd vOdd compare : Bool) :
+lemma fromCircuitSignals_auxBit (uOdd vOdd compare : Bool) :
     (fromCircuitSignals uOdd vOdd compare).auxBit =
       (!uOdd || (vOdd && compare)) := by
   cases uOdd <;> cases vOdd <;> cases compare <;> rfl
 
 /-- The branch-history code bit selected by the circuit-facing condition
 signals. -/
-theorem fromCircuitSignals_historyBit (uOdd vOdd compare : Bool) :
+lemma fromCircuitSignals_historyBit (uOdd vOdd compare : Bool) :
     (fromCircuitSignals uOdd vOdd compare).historyBit =
       (uOdd && (!vOdd || compare)) := by
   cases uOdd <;> cases vOdd <;> cases compare <;> rfl
 
 /-- The full branch code selected by the circuit-facing condition signals. -/
-theorem fromCircuitSignals_code (uOdd vOdd compare : Bool) :
+lemma fromCircuitSignals_code (uOdd vOdd compare : Bool) :
     code (fromCircuitSignals uOdd vOdd compare) =
       (!uOdd || (vOdd && compare), uOdd && (!vOdd || compare)) := by
   rw [code, fromCircuitSignals_auxBit, fromCircuitSignals_historyBit]
 
 /-- The selected auxiliary code bit in disjoint selector-term form. -/
-theorem fromCircuitSignals_auxBit_disjoint (uOdd vOdd compare : Bool) :
+lemma fromCircuitSignals_auxBit_disjoint (uOdd vOdd compare : Bool) :
     (fromCircuitSignals uOdd vOdd compare).auxBit =
       (!uOdd || (uOdd && vOdd && compare)) := by
   cases uOdd <;> cases vOdd <;> cases compare <;> rfl
 
 /-- The selected branch-history code bit in disjoint selector-term form. -/
-theorem fromCircuitSignals_historyBit_disjoint (uOdd vOdd compare : Bool) :
+lemma fromCircuitSignals_historyBit_disjoint (uOdd vOdd compare : Bool) :
     (fromCircuitSignals uOdd vOdd compare).historyBit =
       ((uOdd && !vOdd) || (uOdd && vOdd && compare)) := by
   cases uOdd <;> cases vOdd <;> cases compare <;> rfl
 
 /-- The selected two-bit branch code in disjoint selector-term form. -/
-theorem fromCircuitSignals_code_disjoint (uOdd vOdd compare : Bool) :
+lemma fromCircuitSignals_code_disjoint (uOdd vOdd compare : Bool) :
     code (fromCircuitSignals uOdd vOdd compare) =
       (!uOdd || (uOdd && vOdd && compare),
        (uOdd && !vOdd) || (uOdd && vOdd && compare)) := by
@@ -187,7 +187,7 @@ def initial (p x : Nat) : RoundState where
 def totalRounds (st : RoundState) : Nat :=
   st.kaliskiSteps + st.paddingSteps
 
-@[simp] theorem totalRounds_initial (p x : Nat) :
+@[simp] lemma totalRounds_initial (p x : Nat) :
     totalRounds (initial p x) = 0 := by
   rfl
 
@@ -206,7 +206,7 @@ def selectBranch (st : RoundState) : Branch :=
 
 /-- Source-level branch selection agrees with the circuit-facing selector
 signals: low `u`, low `v`, and the staged comparison predicate `v < u`. -/
-theorem selectBranch_eq_fromCircuitSignals (st : RoundState) :
+lemma selectBranch_eq_fromCircuitSignals (st : RoundState) :
     selectBranch st =
       Branch.fromCircuitSignals (decide (st.u % 2 ≠ 0))
         (decide (st.v % 2 ≠ 0)) (decide (st.v < st.u)) := by
@@ -220,28 +220,28 @@ theorem selectBranch_eq_fromCircuitSignals (st : RoundState) :
 
 
 /-- If `u` is even, the active Kaliski selector chooses `uEven`. -/
-theorem selectBranch_uEven_of_even (st : RoundState)
+lemma selectBranch_uEven_of_even (st : RoundState)
     (hu : st.u % 2 = 0) :
     selectBranch st = Branch.uEven := by
   simp [selectBranch, hu]
 
 /-- If `u` is odd and `v` is even, the active Kaliski selector chooses
 `vEven`. -/
-theorem selectBranch_vEven_of_u_odd_v_even (st : RoundState)
+lemma selectBranch_vEven_of_u_odd_v_even (st : RoundState)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 = 0) :
     selectBranch st = Branch.vEven := by
   simp [selectBranch, hu, hv]
 
 /-- If both words are odd and `v < u`, the active Kaliski selector chooses
 `uGreater`. -/
-theorem selectBranch_uGreater_of_odd_odd_lt (st : RoundState)
+lemma selectBranch_uGreater_of_odd_odd_lt (st : RoundState)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 ≠ 0) (hlt : st.v < st.u) :
     selectBranch st = Branch.uGreater := by
   simp [selectBranch, hu, hv, hlt]
 
 /-- If both words are odd and `v < u` is false, the active Kaliski selector
 chooses `vLe`. -/
-theorem selectBranch_vLe_of_odd_odd_not_lt (st : RoundState)
+lemma selectBranch_vLe_of_odd_odd_not_lt (st : RoundState)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 ≠ 0) (hlt : ¬ st.v < st.u) :
     selectBranch st = Branch.vLe := by
   simp [selectBranch, hu, hv, hlt]
@@ -284,7 +284,7 @@ def bezoutValue (st : RoundState) : Nat :=
 def BezoutInvariant (p : Nat) (st : RoundState) : Prop :=
   bezoutValue st = p
 
-theorem initial_bezoutInvariant (p x : Nat) :
+lemma initial_bezoutInvariant (p x : Nat) :
     BezoutInvariant p (initial p x) := by
   simp [BezoutInvariant, bezoutValue, initial]
 
@@ -306,7 +306,7 @@ the input word throughout the Kaliski loop. -/
 def scaledInputCongruence (p x : Nat) (st : RoundState) : Prop :=
   scaledUCongruence p x st ∧ scaledVCongruence p x st
 
-theorem initial_scaledInputCongruence (p x : Nat) :
+lemma initial_scaledInputCongruence (p x : Nat) :
     scaledInputCongruence p x (initial p x) := by
   simp [scaledInputCongruence, scaledUCongruence, scaledVCongruence, initial]
 
@@ -314,7 +314,7 @@ theorem initial_scaledInputCongruence (p x : Nat) :
 
 /-- The `uEven` source branch preserves the coefficient invariant value when
 the halving side condition is supplied explicitly. -/
-theorem applyBranch_uEven_bezoutValue_of_halving
+lemma applyBranch_uEven_bezoutValue_of_halving
     (st : RoundState) (hhalf : 2 * (st.u / 2) = st.u) :
     bezoutValue (applyBranch Branch.uEven st) = bezoutValue st := by
   change
@@ -324,7 +324,7 @@ theorem applyBranch_uEven_bezoutValue_of_halving
 
 /-- The `vEven` source branch preserves the coefficient invariant value when
 the halving side condition is supplied explicitly. -/
-theorem applyBranch_vEven_bezoutValue_of_halving
+lemma applyBranch_vEven_bezoutValue_of_halving
     (st : RoundState) (hhalf : 2 * (st.v / 2) = st.v) :
     bezoutValue (applyBranch Branch.vEven st) = bezoutValue st := by
   change
@@ -334,7 +334,7 @@ theorem applyBranch_vEven_bezoutValue_of_halving
 
 /-- The `uGreater` source branch preserves the coefficient invariant value when
 the subtraction and halving side conditions are supplied explicitly. -/
-theorem applyBranch_uGreater_bezoutValue_of_sub_halving
+lemma applyBranch_uGreater_bezoutValue_of_sub_halving
     (st : RoundState)
     (hsub : st.v <= st.u)
     (hhalf : 2 * ((st.u - st.v) / 2) = st.u - st.v) :
@@ -348,7 +348,7 @@ theorem applyBranch_uGreater_bezoutValue_of_sub_halving
 
 /-- The `vLe` source branch preserves the coefficient invariant value when the
 subtraction and halving side conditions are supplied explicitly. -/
-theorem applyBranch_vLe_bezoutValue_of_sub_halving
+lemma applyBranch_vLe_bezoutValue_of_sub_halving
     (st : RoundState)
     (hsub : st.u <= st.v)
     (hhalf : 2 * ((st.v - st.u) / 2) = st.v - st.u) :
@@ -360,7 +360,7 @@ theorem applyBranch_vLe_bezoutValue_of_sub_halving
   have hcancel : st.v - st.u + st.u = st.v := Nat.sub_add_cancel hsub
   nlinarith
 
-theorem applyBranch_uEven_scaledInputCongruence_of_halving
+lemma applyBranch_uEven_scaledInputCongruence_of_halving
     (p x : Nat) (st : RoundState)
     (hhalf : 2 * (st.u / 2) = st.u)
     (hinv : scaledInputCongruence p x st) :
@@ -397,7 +397,7 @@ theorem applyBranch_uEven_scaledInputCongruence_of_halving
       _ = (2 : ZMod p) ^ (st.kaliskiSteps + 1) * (st.v : ZMod p) := by
         ring
 
-theorem applyBranch_vEven_scaledInputCongruence_of_halving
+lemma applyBranch_vEven_scaledInputCongruence_of_halving
     (p x : Nat) (st : RoundState)
     (hhalf : 2 * (st.v / 2) = st.v)
     (hinv : scaledInputCongruence p x st) :
@@ -434,7 +434,7 @@ theorem applyBranch_vEven_scaledInputCongruence_of_halving
         rw [hhalfZ]
         ring
 
-theorem applyBranch_uGreater_scaledInputCongruence_of_sub_halving
+lemma applyBranch_uGreater_scaledInputCongruence_of_sub_halving
     (p x : Nat) (st : RoundState)
     (hsub : st.v <= st.u)
     (hhalf : 2 * ((st.u - st.v) / 2) = st.u - st.v)
@@ -494,7 +494,7 @@ theorem applyBranch_uGreater_scaledInputCongruence_of_sub_halving
       _ = (2 : ZMod p) ^ (st.kaliskiSteps + 1) * (st.v : ZMod p) := by
         ring
 
-theorem applyBranch_vLe_scaledInputCongruence_of_sub_halving
+lemma applyBranch_vLe_scaledInputCongruence_of_sub_halving
     (p x : Nat) (st : RoundState)
     (hsub : st.u <= st.v)
     (hhalf : 2 * ((st.v - st.u) / 2) = st.v - st.u)
@@ -568,7 +568,7 @@ def historyBit (st : RoundState) : Bool :=
 
 /-- On a non-terminated active round, the `uEven` branch records history bit
 zero. -/
-theorem historyBit_active_nonzero_uEven (st : RoundState)
+lemma historyBit_active_nonzero_uEven (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 = 0) :
     historyBit st = false := by
@@ -577,7 +577,7 @@ theorem historyBit_active_nonzero_uEven (st : RoundState)
 
 /-- On a non-terminated active round, the `vEven` branch records history bit
 one. -/
-theorem historyBit_active_nonzero_vEven (st : RoundState)
+lemma historyBit_active_nonzero_vEven (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 = 0) :
     historyBit st = true := by
@@ -587,7 +587,7 @@ theorem historyBit_active_nonzero_vEven (st : RoundState)
 
 /-- On a non-terminated active round, the `uGreater` branch records history
 bit one. -/
-theorem historyBit_active_nonzero_uGreater (st : RoundState)
+lemma historyBit_active_nonzero_uGreater (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 ≠ 0) (hlt : st.v < st.u) :
     historyBit st = true := by
@@ -597,7 +597,7 @@ theorem historyBit_active_nonzero_uGreater (st : RoundState)
 
 /-- On a non-terminated active round, the `vLe` branch records history bit
 zero. -/
-theorem historyBit_active_nonzero_vLe (st : RoundState)
+lemma historyBit_active_nonzero_vLe (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 ≠ 0) (hlt : ¬ st.v < st.u) :
     historyBit st = false := by
@@ -606,13 +606,13 @@ theorem historyBit_active_nonzero_vLe (st : RoundState)
     Branch.historyBit]
 
 /-- A terminating active round records history bit zero. -/
-theorem historyBit_active_terminated (st : RoundState)
+lemma historyBit_active_terminated (st : RoundState)
     (hactive : st.active = true) (hv : st.v = 0) :
     historyBit st = false := by
   simp [historyBit, hactive, hv]
 
 /-- In padding/counter mode, the fixed-round history bit is zero. -/
-theorem historyBit_inactive (st : RoundState)
+lemma historyBit_inactive (st : RoundState)
     (hactive : st.active = false) :
     historyBit st = false := by
   simp [historyBit, hactive]
@@ -631,13 +631,13 @@ def round (st : RoundState) : RoundState :=
 
 /-- A non-terminated active fixed round is exactly the selected active branch
 update. -/
-theorem round_active_nonzero_eq_applyBranch_selectBranch (st : RoundState)
+lemma round_active_nonzero_eq_applyBranch_selectBranch (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0) :
     round st = applyBranch (selectBranch st) st := by
   simp [round, hactive, hv0]
 
 /-- Source-round dispatch for the active non-terminated `uEven` case. -/
-theorem round_active_nonzero_uEven (st : RoundState)
+lemma round_active_nonzero_uEven (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 = 0) :
     round st = applyBranch Branch.uEven st := by
@@ -645,7 +645,7 @@ theorem round_active_nonzero_uEven (st : RoundState)
   rw [selectBranch_uEven_of_even st hu]
 
 /-- Source-round dispatch for the active non-terminated `vEven` case. -/
-theorem round_active_nonzero_vEven (st : RoundState)
+lemma round_active_nonzero_vEven (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 = 0) :
     round st = applyBranch Branch.vEven st := by
@@ -653,7 +653,7 @@ theorem round_active_nonzero_vEven (st : RoundState)
   rw [selectBranch_vEven_of_u_odd_v_even st hu hv]
 
 /-- Source-round dispatch for the active non-terminated `uGreater` case. -/
-theorem round_active_nonzero_uGreater (st : RoundState)
+lemma round_active_nonzero_uGreater (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 ≠ 0) (hlt : st.v < st.u) :
     round st = applyBranch Branch.uGreater st := by
@@ -661,7 +661,7 @@ theorem round_active_nonzero_uGreater (st : RoundState)
   rw [selectBranch_uGreater_of_odd_odd_lt st hu hv hlt]
 
 /-- Source-round dispatch for the active non-terminated `vLe` case. -/
-theorem round_active_nonzero_vLe (st : RoundState)
+lemma round_active_nonzero_vLe (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0)
     (hu : st.u % 2 ≠ 0) (hv : st.v % 2 ≠ 0) (hlt : ¬ st.v < st.u) :
     round st = applyBranch Branch.vLe st := by
@@ -669,18 +669,18 @@ theorem round_active_nonzero_vLe (st : RoundState)
   rw [selectBranch_vLe_of_odd_odd_not_lt st hu hv hlt]
 
 /-- Source-round dispatch for the active termination case. -/
-theorem round_active_terminated (st : RoundState)
+lemma round_active_terminated (st : RoundState)
     (hactive : st.active = true) (hv : st.v = 0) :
     round st = { st with active := false, paddingSteps := st.paddingSteps + 1 } := by
   simp [round, hactive, hv]
 
 /-- Source-round dispatch for inactive padding/counter mode. -/
-theorem round_inactive (st : RoundState)
+lemma round_inactive (st : RoundState)
     (hactive : st.active = false) :
     round st = { st with paddingSteps := st.paddingSteps + 1 } := by
   simp [round, hactive]
 
-theorem round_bezoutValue (st : RoundState) :
+lemma round_bezoutValue (st : RoundState) :
     bezoutValue (round st) = bezoutValue st := by
   cases hactive : st.active
   · rw [round_inactive st hactive]
@@ -712,14 +712,14 @@ theorem round_bezoutValue (st : RoundState) :
             rw [round_active_nonzero_vLe st hactive hv0 hu hv hlt]
             exact applyBranch_vLe_bezoutValue_of_sub_halving st hsub hhalf
 
-theorem round_bezoutInvariant (p : Nat) (st : RoundState)
+lemma round_bezoutInvariant (p : Nat) (st : RoundState)
     (hinv : BezoutInvariant p st) :
     BezoutInvariant p (round st) := by
   rw [BezoutInvariant] at *
   rw [round_bezoutValue]
   exact hinv
 
-theorem round_scaledInputCongruence (p x : Nat) (st : RoundState)
+lemma round_scaledInputCongruence (p x : Nat) (st : RoundState)
     (hinv : scaledInputCongruence p x st) :
     scaledInputCongruence p x (round st) := by
   cases hactive : st.active
@@ -755,22 +755,22 @@ theorem round_scaledInputCongruence (p x : Nat) (st : RoundState)
               p x st hsub hhalf hinv
 
 /-- An active branch update consumes one Kaliski update. -/
-theorem applyBranch_kaliskiSteps (branch : Branch) (st : RoundState) :
+lemma applyBranch_kaliskiSteps (branch : Branch) (st : RoundState) :
     (applyBranch branch st).kaliskiSteps = st.kaliskiSteps + 1 := by
   cases branch <;> rfl
 
 /-- An active branch update does not consume a padding/counter round. -/
-theorem applyBranch_paddingSteps (branch : Branch) (st : RoundState) :
+lemma applyBranch_paddingSteps (branch : Branch) (st : RoundState) :
     (applyBranch branch st).paddingSteps = st.paddingSteps := by
   cases branch <;> rfl
 
 /-- An active branch update preserves the source active flag. -/
-theorem applyBranch_active (branch : Branch) (st : RoundState) :
+lemma applyBranch_active (branch : Branch) (st : RoundState) :
     (applyBranch branch st).active = st.active := by
   cases branch <;> rfl
 
 /-- A non-terminated active source round consumes one Kaliski update. -/
-theorem round_active_nonzero_kaliskiSteps (st : RoundState)
+lemma round_active_nonzero_kaliskiSteps (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0) :
     (round st).kaliskiSteps = st.kaliskiSteps + 1 := by
   rw [round_active_nonzero_eq_applyBranch_selectBranch st hactive hv0]
@@ -778,14 +778,14 @@ theorem round_active_nonzero_kaliskiSteps (st : RoundState)
 
 /-- A non-terminated active source round leaves the padding/counter count
 unchanged. -/
-theorem round_active_nonzero_paddingSteps (st : RoundState)
+lemma round_active_nonzero_paddingSteps (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0) :
     (round st).paddingSteps = st.paddingSteps := by
   rw [round_active_nonzero_eq_applyBranch_selectBranch st hactive hv0]
   exact applyBranch_paddingSteps (selectBranch st) st
 
 /-- A non-terminated active source round stays in active mode. -/
-theorem round_active_nonzero_active (st : RoundState)
+lemma round_active_nonzero_active (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0) :
     (round st).active = true := by
   rw [round_active_nonzero_eq_applyBranch_selectBranch st hactive hv0]
@@ -794,53 +794,53 @@ theorem round_active_nonzero_active (st : RoundState)
 
 /-- A terminating active source round does not consume another Kaliski update.
 -/
-theorem round_active_terminated_kaliskiSteps (st : RoundState)
+lemma round_active_terminated_kaliskiSteps (st : RoundState)
     (hactive : st.active = true) (hv : st.v = 0) :
     (round st).kaliskiSteps = st.kaliskiSteps := by
   simpa using congrArg RoundState.kaliskiSteps
     (round_active_terminated st hactive hv)
 
 /-- A terminating active source round consumes one padding/counter round. -/
-theorem round_active_terminated_paddingSteps (st : RoundState)
+lemma round_active_terminated_paddingSteps (st : RoundState)
     (hactive : st.active = true) (hv : st.v = 0) :
     (round st).paddingSteps = st.paddingSteps + 1 := by
   simpa using congrArg RoundState.paddingSteps
     (round_active_terminated st hactive hv)
 
 /-- A terminating active source round turns off active mode. -/
-theorem round_active_terminated_active (st : RoundState)
+lemma round_active_terminated_active (st : RoundState)
     (hactive : st.active = true) (hv : st.v = 0) :
     (round st).active = false := by
   simpa using congrArg RoundState.active
     (round_active_terminated st hactive hv)
 
 /-- An inactive source round does not consume a Kaliski update. -/
-theorem round_inactive_kaliskiSteps (st : RoundState)
+lemma round_inactive_kaliskiSteps (st : RoundState)
     (hactive : st.active = false) :
     (round st).kaliskiSteps = st.kaliskiSteps := by
   simpa using congrArg RoundState.kaliskiSteps
     (round_inactive st hactive)
 
 /-- An inactive source round consumes one padding/counter round. -/
-theorem round_inactive_paddingSteps (st : RoundState)
+lemma round_inactive_paddingSteps (st : RoundState)
     (hactive : st.active = false) :
     (round st).paddingSteps = st.paddingSteps + 1 := by
   simpa using congrArg RoundState.paddingSteps
     (round_inactive st hactive)
 
 /-- An inactive source round remains in inactive padding/counter mode. -/
-theorem round_inactive_active (st : RoundState)
+lemma round_inactive_active (st : RoundState)
     (hactive : st.active = false) :
     (round st).active = false := by
   rw [round_inactive st hactive]
   exact hactive
 
-theorem applyBranch_totalRounds (branch : Branch) (st : RoundState) :
+lemma applyBranch_totalRounds (branch : Branch) (st : RoundState) :
     totalRounds (applyBranch branch st) = totalRounds st + 1 := by
   cases branch <;>
     simp [applyBranch, totalRounds, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm]
 
-theorem round_totalRounds (st : RoundState) :
+lemma round_totalRounds (st : RoundState) :
     totalRounds (round st) = totalRounds st + 1 := by
   cases hactive : st.active
   · simp [round, hactive, totalRounds, Nat.add_assoc]
@@ -853,12 +853,12 @@ when no padding/counter round has yet been consumed. -/
 def activeCounterInvariant (st : RoundState) : Prop :=
   st.active = decide (st.paddingSteps = 0)
 
-theorem initial_activeCounterInvariant (p x : Nat) :
+lemma initial_activeCounterInvariant (p x : Nat) :
     activeCounterInvariant (initial p x) := by
   simp [activeCounterInvariant, initial]
 
 /-- One fixed source round preserves the mode/counter invariant. -/
-theorem round_activeCounterInvariant (st : RoundState)
+lemma round_activeCounterInvariant (st : RoundState)
     (hinv : activeCounterInvariant st) :
     activeCounterInvariant (round st) := by
   rw [activeCounterInvariant] at hinv ⊢
@@ -878,7 +878,7 @@ def runRounds : Nat -> RoundState -> RoundState
   | 0, st => st
   | m + 1, st => runRounds m (round st)
 
-theorem runRounds_bezoutValue (m : Nat) (st : RoundState) :
+lemma runRounds_bezoutValue (m : Nat) (st : RoundState) :
     bezoutValue (runRounds m st) = bezoutValue st := by
   induction m generalizing st with
   | zero =>
@@ -890,14 +890,14 @@ theorem runRounds_bezoutValue (m : Nat) (st : RoundState) :
         _ = bezoutValue (round st) := ih (round st)
         _ = bezoutValue st := round_bezoutValue st
 
-theorem runRounds_bezoutInvariant (m p : Nat) (st : RoundState)
+lemma runRounds_bezoutInvariant (m p : Nat) (st : RoundState)
     (hinv : BezoutInvariant p st) :
     BezoutInvariant p (runRounds m st) := by
   rw [BezoutInvariant] at *
   rw [runRounds_bezoutValue]
   exact hinv
 
-theorem runRounds_scaledInputCongruence (m p x : Nat) (st : RoundState)
+lemma runRounds_scaledInputCongruence (m p x : Nat) (st : RoundState)
     (hinv : scaledInputCongruence p x st) :
     scaledInputCongruence p x (runRounds m st) := by
   induction m generalizing st with
@@ -906,7 +906,7 @@ theorem runRounds_scaledInputCongruence (m p x : Nat) (st : RoundState)
   | succ m ih =>
       exact ih (round st) (round_scaledInputCongruence p x st hinv)
 
-theorem runRounds_totalRounds (m : Nat) (st : RoundState) :
+lemma runRounds_totalRounds (m : Nat) (st : RoundState) :
     totalRounds (runRounds m st) = totalRounds st + m := by
   induction m generalizing st with
   | zero =>
@@ -921,7 +921,7 @@ theorem runRounds_totalRounds (m : Nat) (st : RoundState) :
           omega
 
 /-- Fixed source iteration preserves the mode/counter invariant. -/
-theorem runRounds_activeCounterInvariant (rounds : Nat) (st : RoundState)
+lemma runRounds_activeCounterInvariant (rounds : Nat) (st : RoundState)
     (hinv : activeCounterInvariant st) :
     activeCounterInvariant (runRounds rounds st) := by
   induction rounds generalizing st with
@@ -932,7 +932,7 @@ theorem runRounds_activeCounterInvariant (rounds : Nat) (st : RoundState)
 
 /-- Starting from the source initial state, active Kaliski mode is equivalent
 to a zero padding/counter value after any fixed-round prefix. -/
-theorem runRounds_initial_active_iff_paddingSteps_eq_zero
+lemma runRounds_initial_active_iff_paddingSteps_eq_zero
     (rounds p x : Nat) :
     (runRounds rounds (initial p x)).active = true ↔
       (runRounds rounds (initial p x)).paddingSteps = 0 := by
@@ -943,7 +943,7 @@ theorem runRounds_initial_active_iff_paddingSteps_eq_zero
   simp
 
 /-- One fixed round never decreases the number of active Kaliski updates. -/
-theorem kaliskiSteps_le_round (st : RoundState) :
+lemma kaliskiSteps_le_round (st : RoundState) :
     st.kaliskiSteps <= (round st).kaliskiSteps := by
   cases hactive : st.active
   · rw [round_inactive st hactive]
@@ -954,7 +954,7 @@ theorem kaliskiSteps_le_round (st : RoundState) :
 
 /-- Running any fixed suffix never decreases the number of active Kaliski
 updates already executed. -/
-theorem kaliskiSteps_le_runRounds (m : Nat) (st : RoundState) :
+lemma kaliskiSteps_le_runRounds (m : Nat) (st : RoundState) :
     st.kaliskiSteps <= (runRounds m st).kaliskiSteps := by
   induction m generalizing st with
   | zero =>
@@ -964,7 +964,7 @@ theorem kaliskiSteps_le_runRounds (m : Nat) (st : RoundState) :
 
 /-- A positive source prefix with positive input has executed at least one
 Kaliski update: its first round cannot be a padding/counter round. -/
-theorem runRounds_kaliskiSteps_pos_of_pos
+lemma runRounds_kaliskiSteps_pos_of_pos
     (rounds p x : Nat) (hrounds : 0 < rounds) (hx : 0 < x) :
     0 < (runRounds rounds (initial p x)).kaliskiSteps := by
   have hfirst :
@@ -981,7 +981,7 @@ theorem runRounds_kaliskiSteps_pos_of_pos
 /-- For a positive modulus width and positive input, every strict source
 prefix has a padding/counter successor that fits in the logarithmic counter.
 This is the source-level no-wrap bound for the compact MK handoff. -/
-theorem runRounds_paddingSteps_succ_lt_pow_clog
+lemma runRounds_paddingSteps_succ_lt_pow_clog
     (n p x rounds : Nat) (hn : 0 < n) (hx : 0 < x)
     (hrounds : rounds < 2 * n) :
     (runRounds rounds (initial p x)).paddingSteps + 1 <
@@ -1007,7 +1007,7 @@ theorem runRounds_paddingSteps_succ_lt_pow_clog
 /-- Successor form of the fixed-round source iteration.  This direction
 matches the folded circuit-prefix induction: a one-step extension rounds the
 current prefix state. -/
-theorem runRounds_succ_eq_round_runRounds (m : Nat) (st : RoundState) :
+lemma runRounds_succ_eq_round_runRounds (m : Nat) (st : RoundState) :
     runRounds (m + 1) st = round (runRounds m st) := by
   induction m generalizing st with
   | zero =>
@@ -1023,7 +1023,7 @@ def historyBits : Nat -> RoundState -> List Bool
   | 0, _ => []
   | m + 1, st => historyBit st :: historyBits m (round st)
 
-@[simp] theorem historyBits_length (m : Nat) (st : RoundState) :
+@[simp] lemma historyBits_length (m : Nat) (st : RoundState) :
     (historyBits m st).length = m := by
   induction m generalizing st with
   | zero =>
@@ -1041,7 +1041,7 @@ def historyBitsAt : (m : Nat) -> RoundState -> Fin m -> Bool
 
 /-- The `i`-th branch-history slot is the source history bit of the prefix state
 after `i` rounds. -/
-theorem historyBitsAt_eq_historyBit_runRounds :
+lemma historyBitsAt_eq_historyBit_runRounds :
     ∀ (m : Nat) (st : RoundState) (i : Fin m),
       historyBitsAt m st i = historyBit (runRounds i.val st)
   | 0, _, i => by exact Fin.elim0 i
@@ -1053,7 +1053,7 @@ theorem historyBitsAt_eq_historyBit_runRounds :
 
 /-- The indexed branch-history readout agrees with the materialized history
 list. -/
-theorem historyBitsAt_eq_get :
+lemma historyBitsAt_eq_get :
     ∀ (m : Nat) (st : RoundState) (i : Fin m),
       historyBitsAt m st i =
         (historyBits m st).get ⟨i.val, by simp [i.isLt]⟩
@@ -1065,7 +1065,7 @@ theorem historyBitsAt_eq_get :
 
 /-- The materialized source history list is exactly the finite table of
 indexed source history readouts. -/
-theorem historyBits_eq_ofFn_historyBitsAt :
+lemma historyBits_eq_ofFn_historyBitsAt :
     ∀ (m : Nat) (st : RoundState),
       historyBits m st =
         List.ofFn (fun roundIndex : Fin m => historyBitsAt m st roundIndex)
@@ -1089,7 +1089,7 @@ private def rCoeffReachabilityInvariant (p : Nat) (st : RoundState) : Prop :=
     0 < st.sCoeff ∧
     (st.v = 0 → st.rCoeff < 2 * p)
 
-private theorem rCoeff_lt_modulus_of_reachabilityInvariant
+private lemma rCoeff_lt_modulus_of_reachabilityInvariant
     (p : Nat) (st : RoundState)
     (hinv : rCoeffReachabilityInvariant p st) (hv : st.v ≠ 0) :
     st.rCoeff < p := by
@@ -1104,7 +1104,7 @@ private theorem rCoeff_lt_modulus_of_reachabilityInvariant
   have hsuPos : 0 < st.sCoeff * st.u := Nat.mul_pos hs hu
   omega
 
-private theorem initial_rCoeffReachabilityInvariant
+private lemma initial_rCoeffReachabilityInvariant
     (p x : Nat) (hp : 0 < p) :
     rCoeffReachabilityInvariant p (initial p x) := by
   rw [rCoeffReachabilityInvariant]
@@ -1113,7 +1113,7 @@ private theorem initial_rCoeffReachabilityInvariant
   change 0 < 2 * p
   omega
 
-private theorem round_rCoeffReachabilityInvariant
+private lemma round_rCoeffReachabilityInvariant
     (p : Nat) (st : RoundState)
     (hinv : rCoeffReachabilityInvariant p st) :
     rCoeffReachabilityInvariant p (round st) := by
@@ -1174,7 +1174,7 @@ private theorem round_rCoeffReachabilityInvariant
               change 2 * st.rCoeff < 2 * p
               omega
 
-private theorem runRounds_rCoeffReachabilityInvariant
+private lemma runRounds_rCoeffReachabilityInvariant
     (rounds p : Nat) (st : RoundState)
     (hinv : rCoeffReachabilityInvariant p st) :
     rCoeffReachabilityInvariant p (runRounds rounds st) := by
@@ -1190,7 +1190,7 @@ def fixedRoundState (n p x : Nat) : RoundState :=
 
 /-- The reachable fixed-round Kaliski coefficient occupies less than twice the
 modulus, including the terminal round where `v` first becomes zero. -/
-theorem fixedRoundState_rCoeff_lt_two_mul_modulus
+lemma fixedRoundState_rCoeff_lt_two_mul_modulus
     (n p x : Nat) (hp : 0 < p) :
     (fixedRoundState n p x).rCoeff < 2 * p := by
   have hinv :
@@ -1205,17 +1205,17 @@ theorem fixedRoundState_rCoeff_lt_two_mul_modulus
         p (fixedRoundState n p x) hinv hv
     omega
 
-theorem fixedRoundState_bezoutInvariant (n p x : Nat) :
+lemma fixedRoundState_bezoutInvariant (n p x : Nat) :
     BezoutInvariant p (fixedRoundState n p x) :=
   runRounds_bezoutInvariant (fixedRoundCount n) p
     (initial p x) (initial_bezoutInvariant p x)
 
-theorem fixedRoundState_scaledInputCongruence (n p x : Nat) :
+lemma fixedRoundState_scaledInputCongruence (n p x : Nat) :
     scaledInputCongruence p x (fixedRoundState n p x) :=
   runRounds_scaledInputCongruence (fixedRoundCount n) p x
     (initial p x) (initial_scaledInputCongruence p x)
 
-theorem bezoutInvariant_zmod_eq_zero (p : Nat) (st : RoundState)
+lemma bezoutInvariant_zmod_eq_zero (p : Nat) (st : RoundState)
     (hinv : BezoutInvariant p st) :
     (st.rCoeff : ZMod p) * (st.v : ZMod p) +
         (st.sCoeff : ZMod p) * (st.u : ZMod p) = 0 := by
@@ -1224,7 +1224,7 @@ theorem bezoutInvariant_zmod_eq_zero (p : Nat) (st : RoundState)
     congrArg (fun value : Nat => (value : ZMod p)) hinv
   simpa [bezoutValue, Nat.cast_add, Nat.cast_mul] using hcast
 
-theorem fixedRoundState_bezoutInvariant_zmod_eq_zero (n p x : Nat) :
+lemma fixedRoundState_bezoutInvariant_zmod_eq_zero (n p x : Nat) :
     ((fixedRoundState n p x).rCoeff : ZMod p) *
           ((fixedRoundState n p x).v : ZMod p) +
         ((fixedRoundState n p x).sCoeff : ZMod p) *
@@ -1237,7 +1237,7 @@ theorem fixedRoundState_bezoutInvariant_zmod_eq_zero (n p x : Nat) :
 def fixedRoundHistory (n p x : Nat) : List Bool :=
   historyBits (fixedRoundCount n) (initial p x)
 
-theorem fixedRoundState_totalRounds (n p x : Nat) :
+lemma fixedRoundState_totalRounds (n p x : Nat) :
     totalRounds (fixedRoundState n p x) = 2 * n := by
   calc
     totalRounds (fixedRoundState n p x)
@@ -1248,7 +1248,7 @@ theorem fixedRoundState_totalRounds (n p x : Nat) :
 
 /-- A positive input consumes at least one active Kaliski update in every
 positive-width fixed schedule. -/
-theorem fixedRoundState_kaliskiSteps_pos
+lemma fixedRoundState_kaliskiSteps_pos
     (n p x : Nat) (hn : 0 < n) (hx : 0 < x) :
     0 < (fixedRoundState n p x).kaliskiSteps := by
   have hcount : 0 < fixedRoundCount n := by
@@ -1269,7 +1269,7 @@ theorem fixedRoundState_kaliskiSteps_pos
 /-- For a positive input, the `2n-k` correction count is strictly below the
 full `2n` schedule length.  This is the exact no-wrap fact needed by the
 logarithmic padding counter. -/
-theorem fixedRoundState_paddingSteps_lt_two_mul
+lemma fixedRoundState_paddingSteps_lt_two_mul
     (n p x : Nat) (hn : 0 < n) (hx : 0 < x) :
     (fixedRoundState n p x).paddingSteps < 2 * n := by
   have htotal := fixedRoundState_totalRounds n p x
@@ -1277,7 +1277,7 @@ theorem fixedRoundState_paddingSteps_lt_two_mul
   unfold totalRounds at htotal
   omega
 
-theorem fixedRoundHistory_length (n p x : Nat) :
+lemma fixedRoundHistory_length (n p x : Nat) :
     (fixedRoundHistory n p x).length = 2 * n := by
   simp [fixedRoundHistory]
 
@@ -1289,7 +1289,7 @@ def fixedRoundHistoryAt (n p x : Nat)
 
 /-- Fixed-round indexed history readout agrees with the source prefix state
 after the same number of rounds. -/
-theorem fixedRoundHistoryAt_eq_historyBit_prefix (n p x : Nat)
+lemma fixedRoundHistoryAt_eq_historyBit_prefix (n p x : Nat)
     (roundIndex : Fin (fixedRoundCount n)) :
     fixedRoundHistoryAt n p x roundIndex =
       historyBit (runRounds roundIndex.val (initial p x)) := by
@@ -1299,7 +1299,7 @@ theorem fixedRoundHistoryAt_eq_historyBit_prefix (n p x : Nat)
 
 /-- Fixed-round indexed history readout agrees with the materialized `m_i`
 history list. -/
-theorem fixedRoundHistoryAt_eq_get (n p x : Nat)
+lemma fixedRoundHistoryAt_eq_get (n p x : Nat)
     (roundIndex : Fin (fixedRoundCount n)) :
     fixedRoundHistoryAt n p x roundIndex =
       (fixedRoundHistory n p x).get
@@ -1317,19 +1317,19 @@ modular-arithmetic.tex:141-144]. -/
 def correctionRounds (st : RoundState) : Nat :=
   st.paddingSteps
 
-theorem correctionRounds_eq_paddingSteps (st : RoundState) :
+lemma correctionRounds_eq_paddingSteps (st : RoundState) :
     correctionRounds st = st.paddingSteps :=
   rfl
 
 /-- For a completed `2n` fixed-round state, the correction counter is the source
 `2n-k` value. -/
-theorem correctionRounds_eq_two_mul_sub_kaliskiSteps_of_totalRounds
+lemma correctionRounds_eq_two_mul_sub_kaliskiSteps_of_totalRounds
     (n : Nat) (st : RoundState) (hrounds : totalRounds st = 2 * n) :
     correctionRounds st = 2 * n - st.kaliskiSteps := by
   simp [correctionRounds, totalRounds] at *
   omega
 
-theorem fixedRoundState_correctionRounds_eq_two_mul_sub_kaliskiSteps
+lemma fixedRoundState_correctionRounds_eq_two_mul_sub_kaliskiSteps
     (n p x : Nat) :
     correctionRounds (fixedRoundState n p x) =
       2 * n - (fixedRoundState n p x).kaliskiSteps :=
@@ -1348,11 +1348,11 @@ def pseudoInverseResidue (p : Nat) (st : RoundState) : ZMod p :=
 def correctionFactor (p rounds : Nat) : ZMod p :=
   (2 : ZMod p) ^ rounds
 
-@[simp] theorem correctionFactor_zero (p : Nat) :
+@[simp] lemma correctionFactor_zero (p : Nat) :
     correctionFactor p 0 = 1 := by
   simp [correctionFactor]
 
-theorem correctionFactor_succ (p rounds : Nat) :
+lemma correctionFactor_succ (p rounds : Nat) :
     correctionFactor p (rounds + 1) =
       (2 : ZMod p) * correctionFactor p rounds := by
   simp [correctionFactor, pow_succ, mul_comm]
@@ -1364,7 +1364,7 @@ definition fixes the trace-side expression. -/
 def correctedInverseResidue (p : Nat) (st : RoundState) : ZMod p :=
   correctionFactor p (correctionRounds st) * pseudoInverseResidue p st
 
-theorem correctedInverseResidue_eq_pow_mul (p : Nat) (st : RoundState) :
+lemma correctedInverseResidue_eq_pow_mul (p : Nat) (st : RoundState) :
     correctedInverseResidue p st =
       (2 : ZMod p) ^ correctionRounds st * (st.rCoeff : ZMod p) :=
   rfl
@@ -1375,7 +1375,7 @@ input has the positive Montgomery scale [RNSL17, ECDLP.tex:399-412]. -/
 def signedCorrectedInverseResidue (p : Nat) (st : RoundState) : ZMod p :=
   -correctedInverseResidue p st
 
-theorem signedCorrectedInverseResidue_eq_neg (p : Nat) (st : RoundState) :
+lemma signedCorrectedInverseResidue_eq_neg (p : Nat) (st : RoundState) :
     signedCorrectedInverseResidue p st = -correctedInverseResidue p st :=
   rfl
 
@@ -1383,7 +1383,7 @@ theorem signedCorrectedInverseResidue_eq_neg (p : Nat) (st : RoundState) :
 times the input with the fixed Montgomery scaling factor when the fixed trace
 has terminated at `u = 1` [RNSL17, ECDLP.tex:399-412,442-475; HJN+20,
 modular-arithmetic.tex:141-144]. -/
-theorem correctedInverseResidue_mul_input_eq_neg_pow_of_scaled
+lemma correctedInverseResidue_mul_input_eq_neg_pow_of_scaled
     (p x n : Nat) (st : RoundState)
     (hinv : scaledInputCongruence p x st)
     (hrounds : correctionRounds st + st.kaliskiSteps = 2 * n)
@@ -1414,7 +1414,7 @@ theorem correctedInverseResidue_mul_input_eq_neg_pow_of_scaled
 
 /-- After making the source sign explicit, the corrected residue has the
 positive Montgomery scale `2^(2n)` at a terminating fixed-round endpoint. -/
-theorem signedCorrectedInverseResidue_mul_input_eq_pow_of_scaled
+lemma signedCorrectedInverseResidue_mul_input_eq_pow_of_scaled
     (p x n : Nat) (st : RoundState)
     (hinv : scaledInputCongruence p x st)
     (hrounds : correctionRounds st + st.kaliskiSteps = 2 * n)

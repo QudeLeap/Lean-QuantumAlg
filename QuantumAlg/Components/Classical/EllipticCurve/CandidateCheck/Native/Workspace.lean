@@ -28,7 +28,7 @@ open Execution QuantumAlg.ClassicalRoutines QuantumAlg.ClassicalRoutines.Ellipti
 open QuantumAlg.ClassicalRoutines.NumberTheory QuantumAlg.ClassicalRoutines.FiniteCyclicDLP
 open Checked.SignedReduction
 
-private theorem raw_space {kind : ProblemKind} (width : Nat) :
+private lemma raw_space {kind : ProblemKind} (width : Nat) :
     XGCD.Native.rawScratchSpace kind width = SpacePool.ofShape
       (.bits (5 * width +
         7 * ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth width + 1)) := by
@@ -42,7 +42,7 @@ private theorem raw_space {kind : ProblemKind} (width : Nat) :
       simp [XGCD.Native.rawScratchSpace, XGCD.Native.stateShapes, XGCD.Native.activeScratchShapes,
         SpacePool.ofShape, XGCD.PureXGCD.executionCoefficientWidth]
 
-private theorem signed_space_le {kind : ProblemKind} (width : Nat) :
+private lemma signed_space_le {kind : ProblemKind} (width : Nat) :
     Checked.SignedReduction.Native.signedReductionSpaceLimit kind width ≤
       SpacePool.ofShape (.bits (6 * width + 7 * signedWidth width + 7)) := by
   intro axis
@@ -62,7 +62,7 @@ private theorem signed_space_le {kind : ProblemKind} (width : Nat) :
         Checked.SignedReduction.Native.negativeCorrectionScratchSpace,
         Modular.Reduce.Native.divisionShape, SpacePool.ofShape, SpacePool.max]
 
-private theorem coefficient_active {kind : ProblemKind} (width : Nat) :
+private lemma coefficient_active {kind : ProblemKind} (width : Nat) :
     Field.Native.coefficientActiveSpace kind width =
       SpacePool.ofShape (.bits (6 * width + 7 * signedWidth width + 7)) := by
   have bounded := signed_space_le (kind := kind) width
@@ -78,7 +78,7 @@ private theorem coefficient_active {kind : ProblemKind} (width : Nat) :
       simp_all [SpacePool.ofShape, SpacePool.max, signedWidth, xgcdWidth,
         XGCD.PureXGCD.executionCoefficientWidth]
 
-private theorem checked_active {kind : ProblemKind} (width : Nat) :
+private lemma checked_active {kind : ProblemKind} (width : Nat) :
     Checked.Native.checkedInverseActiveSpace kind width =
       SpacePool.ofShape (.bits (6 * width + 7 * signedWidth width + 7)) := by
   have bounded := signed_space_le (kind := kind) width
@@ -95,7 +95,7 @@ private theorem checked_active {kind : ProblemKind} (width : Nat) :
       simp_all [Checked.Native.checkedSelectionSpaceLimit, SpacePool.ofShape, SpacePool.max,
         signedWidth, xgcdWidth, XGCD.PureXGCD.executionCoefficientWidth]
 
-private theorem affine_active {kind : ProblemKind} (width : Nat) :
+private lemma affine_active {kind : ProblemKind} (width : Nat) :
     Add.Native.affineActiveSpace kind width =
       SpacePool.ofShape (.bits (8 * width + 9 * signedWidth width + 9)) := by
   have positive := signedWidth_pos width
@@ -113,7 +113,7 @@ private theorem affine_active {kind : ProblemKind} (width : Nat) :
         Field.Native.subtractionShapes, Field.Native.subtractionReductionSpace,
         Modular.Reduce.Native.divisionShape, SpacePool.ofShape, SpacePool.max]
 
-private theorem generic_active {kind : ProblemKind} (width : Nat) :
+private lemma generic_active {kind : ProblemKind} (width : Nat) :
     Add.Native.genericActiveSpace kind width =
       SpacePool.ofShape (.bits (16 * width + 9 * signedWidth width + 10)) := by
   rw [Add.Native.genericActiveSpace, affine_active]
@@ -129,7 +129,7 @@ private theorem generic_active {kind : ProblemKind} (width : Nat) :
         Add.Native.affineShapes, Modular.Reduce.Native.divisionShape, SpacePool.ofShape,
         SpacePool.max]
 
-private theorem doubling_active {kind : ProblemKind} (width : Nat) :
+private lemma doubling_active {kind : ProblemKind} (width : Nat) :
     Add.Native.doublingActiveSpace kind width =
       SpacePool.ofShape (.bits (16 * width + 9 * signedWidth width + 10)) := by
   rw [Add.Native.doublingActiveSpace, affine_active]
@@ -146,7 +146,7 @@ private theorem doubling_active {kind : ProblemKind} (width : Nat) :
         Field.Native.additionReductionSpace, Add.Native.affineShapes,
         Modular.Reduce.Native.divisionShape, SpacePool.ofShape, SpacePool.max]
 
-private theorem addition_scratch {kind : ProblemKind} (width : Nat) :
+private lemma addition_scratch {kind : ProblemKind} (width : Nat) :
     Add.Native.additionScratchSpace kind width =
       SpacePool.ofShape (.bits (27 * width + 9 * signedWidth width + 15)) := by
   simp only [Add.Native.additionScratchSpace, Add.Native.additionActiveSpace,
@@ -163,7 +163,7 @@ private theorem addition_scratch {kind : ProblemKind} (width : Nat) :
         Add.Native.genericShapes, PointEquality.RawPointShape, SpacePool.ofShape,
         SpacePool.max]
 
-private theorem verification_scratch {kind : ProblemKind} (width : Nat) :
+private lemma verification_scratch {kind : ProblemKind} (width : Nat) :
     verificationScratchSpace kind width =
       SpacePool.ofShape (.bits (27 * width + 9 * signedWidth width + 15)) := by
   rw [verificationScratchSpace, ScalarMul.Native.scalarScratchSpace,
@@ -179,7 +179,7 @@ private theorem verification_scratch {kind : ProblemKind} (width : Nat) :
       simp [Add.Native.infinityShapes, PointEquality.Native.scratchShapes,
         PointEquality.RawPointShape, SpacePool.ofShape, SpacePool.max]
 
-private theorem checked_recovery {kind : ProblemKind} (width : Nat) :
+private lemma checked_recovery {kind : ProblemKind} (width : Nat) :
     RawRecovery.Native.checkedRecoveryActiveSpace kind width =
       SpacePool.ofShape (.bits (8 * width + 9 * signedWidth width + 9)) := by
   rw [RawRecovery.Native.checkedRecoveryActiveSpace, checked_active]
@@ -195,7 +195,7 @@ private theorem checked_recovery {kind : ProblemKind} (width : Nat) :
       simp [Checked.Native.checkedInverseShapes, FiniteCyclicDLP.OutputShape,
         SpacePool.ofShape, SpacePool.max]
 
-private theorem exposure_active {kind : ProblemKind} (width : Nat) :
+private lemma exposure_active {kind : ProblemKind} (width : Nat) :
     RawRecovery.Native.singleExposureActiveSpace kind width =
       SpacePool.ofShape (.bits (9 * width + 9 * signedWidth width + 10)) := by
   rw [RawRecovery.Native.singleExposureActiveSpace,
@@ -211,7 +211,7 @@ private theorem exposure_active {kind : ProblemKind} (width : Nat) :
       simp [RawRecovery.Native.checkedResultShapes, SpacePool.ofShape, SpacePool.max]
 
 /-- The original successive scratch scopes retain only the necessary field/sample maximum. -/
-theorem recoveryTailScratchSpace_eq_bits (kind : ProblemKind)
+lemma recoveryTailScratchSpace_eq_bits (kind : ProblemKind)
     (fieldWidth sampleWidth : Nat) :
     recoveryTailScratchSpace kind fieldWidth sampleWidth =
       SpacePool.ofShape (.bits (max
@@ -231,7 +231,7 @@ theorem recoveryTailScratchSpace_eq_bits (kind : ProblemKind)
         FirstAccepted.selectionScratchSpace, SpacePool.ofShape, SpacePool.max]
 
 /-- The seven actual persistent cells contribute two scalar words, one point and four bits. -/
-theorem persistentCellSpace_eq_bits (kind : ProblemKind) (fieldWidth sampleWidth : Nat) :
+lemma persistentCellSpace_eq_bits (kind : ProblemKind) (fieldWidth sampleWidth : Nat) :
     persistentCellSpace kind fieldWidth sampleWidth =
       SpacePool.ofShape (.bits (2 * fieldWidth + 2 * sampleWidth + 5)) := by
   ext axis

@@ -39,6 +39,8 @@ namespace MAU.Addition
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 namespace TargetAdd
 
 /-- Field tuple for a target-add block: target, scratch source, and one clean
@@ -83,17 +85,17 @@ def flagWire {N n : Nat} (E : BinaryResidueEncoding N n) :
     change n + n < n + (n + 1)
     omega⟩
 
-@[simp] theorem targetWire_val {N n : Nat}
+@[simp] lemma targetWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (targetWire E bit).val = bit.val :=
   rfl
 
-@[simp] theorem scratchWire_val {N n : Nat}
+@[simp] lemma scratchWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (scratchWire E bit).val = n + bit.val :=
   rfl
 
-@[simp] theorem flagWire_val {N n : Nat}
+@[simp] lemma flagWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) :
     (flagWire E).val = n + n :=
   rfl
@@ -152,7 +154,8 @@ structure Witness {N n : Nat} (E : BinaryResidueEncoding N n) where
   program : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical (encoding E).width).toQuantum
   /-- Correctness of the target-add program on encoded basis states. -/
-  realizes : UnitaryCircuit.Realizes (encoding E) program step
+  realizes : ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes (encoding E) program environment step
 
 /-- Raw-label correctness package for a target-add program on canonical
 target/scratch/flag inputs.  This is the shape naturally discharged by a
@@ -163,8 +166,9 @@ structure RawCanonicalWitness {N n : Nat} (E : BinaryResidueEncoding N n) where
     (QubitLayout.canonical (encoding E).width).toQuantum
   /-- The same program has the required action on canonical basis states. -/
   applyNormalized_encode_eq :
+    ∀ (environment : OracleModel.empty.Interpretation),
     ∀ (target scratch : ZMod N) (flag : Bool),
-      program.applyNormalized
+      program.applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (encoding E).width).basisEquiv.symm
               ((encoding E).encode (target, (scratch, flag))))) =
@@ -180,13 +184,13 @@ variable {N n : Nat} {E : BinaryResidueEncoding N n}
 semantic target-add witness used by staged modular-arithmetic callers. -/
 def toWitness (w : RawCanonicalWitness E) : Witness E where
   program := w.program
-  realizes := by
+  realizes := fun environment => by
     exact
       { apply_encoded_ket := by
           intro x
           rcases x with ⟨target, rest⟩
           rcases rest with ⟨scratch, flag⟩
-          exact w.applyNormalized_encode_eq target scratch flag }
+          exact w.applyNormalized_encode_eq environment target scratch flag }
 
 end RawCanonicalWitness
 
@@ -211,7 +215,7 @@ def carryWorkEncoding (n : Nat) : BinaryLabelEncoding (CarryWork n) :=
 def cleanCarryWork (n : Nat) : CarryWork n :=
   PlainAdder.Schedule.PowerOfTwo.cleanCarryWork n
 
-@[simp] theorem targetEncoding_width (n : Nat) :
+@[simp] lemma targetEncoding_width (n : Nat) :
     (encoding (residueEncoding n)).width = n + (n + 1) := by
   rfl
 
@@ -282,7 +286,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     (carryWorkEncoding n)
     (BinaryLabelEncoding.finIdentityBit (n - 1) bit)
 
-@[simp] theorem targetBit_get_testBit (n : Nat) (bit : Fin n)
+@[simp] lemma targetBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) :
     (targetBit n bit).get x = x.1.val.testBit bit.val := by
   rcases x with ⟨target, scratch, flag⟩
@@ -290,7 +294,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     target.val.testBit bit.val
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get n bit target
 
-@[simp] theorem scratchBit_get_testBit (n : Nat) (bit : Fin n)
+@[simp] lemma scratchBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) :
     (scratchBit n bit).get x = x.2.1.val.testBit bit.val := by
   rcases x with ⟨target, scratch, flag⟩
@@ -298,32 +302,32 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     scratch.val.testBit bit.val
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get n bit scratch
 
-@[simp] theorem flagBit_get (n : Nat) (x : Data (2 ^ n)) :
+@[simp] lemma flagBit_get (n : Nat) (x : Data (2 ^ n)) :
     (flagBit n).get x = x.2.2 := by
   rcases x with ⟨target, scratch, flag⟩
   rfl
 
-theorem withCarryWorkTargetBit_get_testBit (n : Nat) (bit : Fin n)
+lemma withCarryWorkTargetBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) (work : CarryWork n) :
     (withCarryWorkTargetBit n bit).get (x, work) =
       x.1.val.testBit bit.val := by
   change (targetBit n bit).get x = x.1.val.testBit bit.val
   exact targetBit_get_testBit n bit x
 
-theorem withCarryWorkScratchBit_get_testBit (n : Nat) (bit : Fin n)
+lemma withCarryWorkScratchBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) (work : CarryWork n) :
     (withCarryWorkScratchBit n bit).get (x, work) =
       x.2.1.val.testBit bit.val := by
   change (scratchBit n bit).get x = x.2.1.val.testBit bit.val
   exact scratchBit_get_testBit n bit x
 
-theorem withCarryWorkFlagBit_get (n : Nat)
+lemma withCarryWorkFlagBit_get (n : Nat)
     (x : Data (2 ^ n)) (work : CarryWork n) :
     (withCarryWorkFlagBit n).get (x, work) = x.2.2 := by
   change (flagBit n).get x = x.2.2
   exact flagBit_get n x
 
-theorem carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
+lemma carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
     (x : Data (2 ^ n)) :
     (carryWorkBit n bit).get (x, cleanCarryWork n) = false := by
   change
@@ -331,27 +335,27 @@ theorem carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
       (cleanCarryWork n) = false
   exact PlainAdder.Schedule.PowerOfTwo.finIdentityBit_get_zero (n - 1) bit
 
-@[simp] theorem withCarryWorkTargetBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkTargetBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkTargetBit n bit).get x =
       x.1.1.val.testBit bit.val := by
   rcases x with ⟨data, work⟩
   exact withCarryWorkTargetBit_get_testBit n bit data work
 
-@[simp] theorem withCarryWorkScratchBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkScratchBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkScratchBit n bit).get x =
       x.1.2.1.val.testBit bit.val := by
   rcases x with ⟨data, work⟩
   exact withCarryWorkScratchBit_get_testBit n bit data work
 
-@[simp] theorem withCarryWorkFlagBit_get_fst (n : Nat)
+@[simp] lemma withCarryWorkFlagBit_get_fst (n : Nat)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkFlagBit n).get x = x.1.2.2 := by
   rcases x with ⟨data, work⟩
   exact withCarryWorkFlagBit_get n data work
 
-@[simp] theorem carryWorkBit_get_snd (n : Nat) (bit : Fin (n - 1))
+@[simp] lemma carryWorkBit_get_snd (n : Nat) (bit : Fin (n - 1))
     (x : Data (2 ^ n) × CarryWork n) :
     (carryWorkBit n bit).get x =
       (BinaryLabelEncoding.finIdentityBit (n - 1) bit).get x.2 := by
@@ -372,31 +376,31 @@ def carryWorkWord (n : Nat) :
     EncodedBit.Word (withCarryWorkEncoding n) (n - 1) where
   bit := carryWorkBit n
 
-@[simp] theorem targetBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma targetBit_wire_val (n : Nat) (bit : Fin n) :
     ((targetBit n bit).wire).val = n - 1 - bit.val := by
   rfl
 
-@[simp] theorem scratchBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma scratchBit_wire_val (n : Nat) (bit : Fin n) :
     ((scratchBit n bit).wire).val = n + (n - 1 - bit.val) := by
   rfl
 
-@[simp] theorem flagBit_wire_val (n : Nat) :
+@[simp] lemma flagBit_wire_val (n : Nat) :
     ((flagBit n).wire).val = n + n := by
   rfl
 
-@[simp] theorem withCarryWorkTargetBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkTargetBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkTargetBit n bit).wire).val = n - 1 - bit.val := by
   rfl
 
-@[simp] theorem withCarryWorkScratchBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkScratchBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkScratchBit n bit).wire).val = n + (n - 1 - bit.val) := by
   rfl
 
-@[simp] theorem withCarryWorkFlagBit_wire_val (n : Nat) :
+@[simp] lemma withCarryWorkFlagBit_wire_val (n : Nat) :
     ((withCarryWorkFlagBit n).wire).val = n + n := by
   rfl
 
-@[simp] theorem carryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
+@[simp] lemma carryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
     ((carryWorkBit n bit).wire).val =
       (encoding (residueEncoding n)).width + bit.val := by
   rfl
@@ -497,7 +501,7 @@ def carryWorkLayout (n : Nat) :
     simp only [carryWorkBit_wire_val] at hv
     omega
 
-@[simp] theorem carryWorkLayout_carryInput_get_clean
+@[simp] lemma carryWorkLayout_carryInput_get_clean
     (n : Nat) (j : Fin (n - 1)) (x : Data (2 ^ n)) :
     (PlainAdder.Schedule.CarryWorkLayout.carryInput (carryWorkLayout n) j).get
         (x, cleanCarryWork n) =
@@ -527,12 +531,12 @@ def cleanCarrySumStep (n : Nat) :
 
 /-- The target-layout carry-work schedule is realized by the same folded
 base-gate program used for resources. -/
-theorem cleanCarrySum_realizes (n : Nat) :
+lemma cleanCarrySum_realizes (n : Nat) :
     UnitaryCircuit.Realizes (withCarryWorkEncoding n)
-      (cleanCarrySumProgram n) (cleanCarrySumStep n) :=
+      (cleanCarrySumProgram n) environment (cleanCarrySumStep n) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes (carryWorkLayout n)
 
-theorem carryStageIndexStep_get_workCarry_recurrence_testBit
+lemma carryStageIndexStep_get_workCarry_recurrence_testBit
     (n : Nat) (j : Fin (n - 1)) (x : Data (2 ^ n)) :
     (carryWorkBit n j).get
         (PlainAdder.Schedule.CarryWorkLayout.carryStageIndexStep
@@ -554,7 +558,7 @@ theorem carryStageIndexStep_get_workCarry_recurrence_testBit
 
 /-- The forward carry pass computes the propagated carry for the scratch+target
 sum on clean flag/work inputs [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem carryStageIndexStep_get_workCarry_natAddCarry
+lemma carryStageIndexStep_get_workCarry_natAddCarry
     (n : Nat) (j : Fin (n - 1)) (x : Data (2 ^ n))
     (hflag : x.2.2 = false) :
     (carryWorkBit n j).get
@@ -610,7 +614,7 @@ theorem carryStageIndexStep_get_workCarry_natAddCarry
 
 /-- The carry selected before target bit `i` is the propagated natural carry
 for the scratch+target sum. -/
-theorem carryBeforeSum_get_natAddCarry
+lemma carryBeforeSum_get_natAddCarry
     (n : Nat) (i : Fin n) (x : Data (2 ^ n)) (hflag : x.2.2 = false) :
     (PlainAdder.Schedule.CarryWorkLayout.carryBeforeSum (carryWorkLayout n) i).get
         (PlainAdder.Schedule.CarryWorkLayout.carryStageIndexStep
@@ -643,7 +647,7 @@ theorem carryBeforeSum_get_natAddCarry
     rw [hwork, hjSucc]
 
 /-- Target-bit formula for the target-layout cleanup-aware carry/sum schedule. -/
-theorem cleanCarrySumStep_get_target_testBit
+lemma cleanCarrySumStep_get_target_testBit
     (n : Nat) (i : Fin n) (x : Data (2 ^ n)) :
     (Prod.fst
         (cleanCarrySumStep n (x, cleanCarryWork n))).1.val.testBit i.val =
@@ -661,7 +665,7 @@ theorem cleanCarrySumStep_get_target_testBit
 
 /-- On clean flag/work inputs, the target word is updated by adding the scratch
 word. -/
-theorem cleanCarrySumStep_get_target_add
+lemma cleanCarrySumStep_get_target_add
     (n : Nat) (x : Data (2 ^ n)) (hflag : x.2.2 = false) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).1 =
       (step x).1 := by
@@ -675,7 +679,7 @@ theorem cleanCarrySumStep_get_target_add
       n x.2.1 x.1 i).symm
 
 /-- The cleanup-aware target-add schedule preserves the scratch/source word. -/
-theorem cleanCarrySumStep_get_scratch
+lemma cleanCarrySumStep_get_scratch
     (n : Nat) (x : Data (2 ^ n)) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).2.1 = x.2.1 := by
   apply PlainAdder.Schedule.PowerOfTwo.word_eq_of_testBit_eq
@@ -687,7 +691,7 @@ theorem cleanCarrySumStep_get_scratch
     carryWorkLayout, carryWorkWord, withCarryWorkScratchWord] using h
 
 /-- The cleanup-aware target-add schedule preserves the flag bit. -/
-theorem cleanCarrySumStep_get_flag
+lemma cleanCarrySumStep_get_flag
     (n : Nat) (x : Data (2 ^ n)) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).2.2 = x.2.2 := by
   have h :=
@@ -697,7 +701,7 @@ theorem cleanCarrySumStep_get_flag
     carryWorkLayout] using h
 
 /-- The cleanup-aware target-add schedule restores the carry-work register. -/
-theorem cleanCarrySumStep_get_work_clean
+lemma cleanCarrySumStep_get_work_clean
     (n : Nat) (x : Data (2 ^ n)) :
     Prod.snd (cleanCarrySumStep n (x, cleanCarryWork n)) =
       cleanCarryWork n := by
@@ -731,7 +735,7 @@ theorem cleanCarrySumStep_get_work_clean
 /-- Full clean endpoint for target-add with VBE carry work.  The statement is
 intentionally conditional on a clean input flag, matching the reusable
 plain-adder carry convention [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem cleanCarrySumStep_cleanEndpoint
+lemma cleanCarrySumStep_cleanEndpoint
     (n : Nat) (x : Data (2 ^ n)) (hflag : x.2.2 = false) :
     cleanCarrySumStep n (x, cleanCarryWork n) =
       (step x, cleanCarryWork n) := by
@@ -766,7 +770,8 @@ structure CleanWorkWitness (n : Nat) where
     (QubitLayout.canonical (withCarryWorkEncoding n).width).toQuantum
   /-- Direct realization of the folded full-register action. -/
   realizes :
-    UnitaryCircuit.Realizes (withCarryWorkEncoding n) program stepWithWork
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes (withCarryWorkEncoding n) program environment stepWithWork
   /-- Clean endpoint for target-add when the flag/work registers start clean. -/
   cleanEndpoint :
     ∀ x : Data (2 ^ n), x.2.2 = false ->
@@ -779,7 +784,7 @@ def cleanWorkWitness (n : Nat) : CleanWorkWitness n where
   cleanWork := cleanCarryWork n
   stepWithWork := cleanCarrySumStep n
   program := cleanCarrySumProgram n
-  realizes := cleanCarrySum_realizes n
+  realizes := fun environment => cleanCarrySum_realizes (environment := environment) n
   cleanEndpoint := cleanCarrySumStep_cleanEndpoint n
 
 end PowerOfTwo
@@ -799,9 +804,9 @@ def cnotProgram :
   RawLayout.cnotScratchToTarget residueEncoding ⟨0, by decide⟩
 
 /-- Raw canonical-label action of the one-CNOT `ZMod 2` target update. -/
-theorem cnotProgram_applyNormalized_encode_eq
+lemma cnotProgram_applyNormalized_encode_eq
     (target scratch : ZMod 2) (flag : Bool) :
-    cnotProgram.applyNormalized
+    cnotProgram.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding residueEncoding).width).basisEquiv.symm
@@ -819,7 +824,8 @@ theorem cnotProgram_applyNormalized_encode_eq
 /-- End-to-end raw witness for the one-bit modular-add target update. -/
 def rawCanonicalWitness : RawCanonicalWitness residueEncoding where
   program := cnotProgram
-  applyNormalized_encode_eq := cnotProgram_applyNormalized_encode_eq
+  applyNormalized_encode_eq := fun environment => cnotProgram_applyNormalized_encode_eq
+    (environment := environment)
 
 /-- Semantic witness obtained from the same one-CNOT raw program. -/
 def witness : Witness residueEncoding :=
@@ -863,9 +869,9 @@ def rippleProgram :
 
 /-- Raw canonical-label action of the two-bit ripple-carry `ZMod 4` target
 update. -/
-theorem rippleProgram_applyNormalized_encode_eq
+lemma rippleProgram_applyNormalized_encode_eq
     (target scratch : ZMod 4) (flag : Bool) :
-    rippleProgram.applyNormalized
+    rippleProgram.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding residueEncoding).width).basisEquiv.symm
@@ -889,7 +895,8 @@ theorem rippleProgram_applyNormalized_encode_eq
 /-- End-to-end raw witness for the two-bit modular-add target update. -/
 def rawCanonicalWitness : RawCanonicalWitness residueEncoding where
   program := rippleProgram
-  applyNormalized_encode_eq := rippleProgram_applyNormalized_encode_eq
+  applyNormalized_encode_eq := fun environment => rippleProgram_applyNormalized_encode_eq
+    (environment := environment)
 
 /-- Semantic witness obtained from the same two-bit ripple raw program. -/
 def witness : Witness residueEncoding :=
@@ -953,22 +960,22 @@ def flagWire {N n : Nat} (E : BinaryResidueEncoding N n) :
     change n + n + n < n + (n + (n + 1))
     omega⟩
 
-@[simp] theorem targetWire_val {N n : Nat}
+@[simp] lemma targetWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (targetWire E bit).val = bit.val :=
   rfl
 
-@[simp] theorem auxWire_val {N n : Nat}
+@[simp] lemma auxWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (auxWire E bit).val = n + bit.val :=
   rfl
 
-@[simp] theorem scratchWire_val {N n : Nat}
+@[simp] lemma scratchWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (scratchWire E bit).val = n + n + bit.val :=
   rfl
 
-@[simp] theorem flagWire_val {N n : Nat}
+@[simp] lemma flagWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) :
     (flagWire E).val = n + n + n :=
   rfl
@@ -1027,7 +1034,8 @@ structure Witness {N n : Nat} (E : BinaryResidueEncoding N n) where
   program : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical (encoding E).width).toQuantum
   /-- Correctness of the target-add program on encoded basis states. -/
-  realizes : UnitaryCircuit.Realizes (encoding E) program step
+  realizes : ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes (encoding E) program environment step
 
 /-- Raw-label correctness package for a target-add program on canonical
 target/auxiliary/scratch/flag inputs. -/
@@ -1037,8 +1045,9 @@ structure RawCanonicalWitness {N n : Nat} (E : BinaryResidueEncoding N n) where
     (QubitLayout.canonical (encoding E).width).toQuantum
   /-- The same program has the required action on canonical basis states. -/
   applyNormalized_encode_eq :
+    ∀ (environment : OracleModel.empty.Interpretation),
     ∀ (target aux scratch : ZMod N) (flag : Bool),
-      program.applyNormalized
+      program.applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (encoding E).width).basisEquiv.symm
               ((encoding E).encode (target, (aux, (scratch, flag)))))) =
@@ -1054,14 +1063,14 @@ variable {N n : Nat} {E : BinaryResidueEncoding N n}
 semantic target-add-with-aux witness used by staged modular-arithmetic callers. -/
 def toWitness (w : RawCanonicalWitness E) : Witness E where
   program := w.program
-  realizes := by
+  realizes := fun environment => by
     exact
       { apply_encoded_ket := by
           intro x
           rcases x with ⟨target, rest⟩
           rcases rest with ⟨aux, rest⟩
           rcases rest with ⟨scratch, flag⟩
-          exact w.applyNormalized_encode_eq target aux scratch flag }
+          exact w.applyNormalized_encode_eq environment target aux scratch flag }
 
 end RawCanonicalWitness
 
@@ -1087,7 +1096,7 @@ def carryWorkEncoding (n : Nat) : BinaryLabelEncoding (CarryWork n) :=
 def cleanCarryWork (n : Nat) : CarryWork n :=
   TargetAdd.PowerOfTwo.cleanCarryWork n
 
-@[simp] theorem targetAuxEncoding_width (n : Nat) :
+@[simp] lemma targetAuxEncoding_width (n : Nat) :
     (encoding (residueEncoding n)).width = n + (n + (n + 1)) := by
   rfl
 
@@ -1196,7 +1205,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     (carryWorkEncoding n)
     (BinaryLabelEncoding.finIdentityBit (n - 1) bit)
 
-@[simp] theorem targetBit_get_testBit (n : Nat) (bit : Fin n)
+@[simp] lemma targetBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) :
     (targetBit n bit).get x = x.1.val.testBit bit.val := by
   rcases x with ⟨target, aux, scratch, flag⟩
@@ -1204,7 +1213,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     target.val.testBit bit.val
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get n bit target
 
-@[simp] theorem auxBit_get_testBit (n : Nat) (bit : Fin n)
+@[simp] lemma auxBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) :
     (auxBit n bit).get x = x.2.1.val.testBit bit.val := by
   rcases x with ⟨target, aux, scratch, flag⟩
@@ -1212,7 +1221,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     aux.val.testBit bit.val
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get n bit aux
 
-@[simp] theorem scratchBit_get_testBit (n : Nat) (bit : Fin n)
+@[simp] lemma scratchBit_get_testBit (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n)) :
     (scratchBit n bit).get x = x.2.2.1.val.testBit bit.val := by
   rcases x with ⟨target, aux, scratch, flag⟩
@@ -1220,12 +1229,12 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
     scratch.val.testBit bit.val
   exact PlainAdder.Schedule.PowerOfTwo.wordBit_get n bit scratch
 
-@[simp] theorem flagBit_get (n : Nat) (x : Data (2 ^ n)) :
+@[simp] lemma flagBit_get (n : Nat) (x : Data (2 ^ n)) :
     (flagBit n).get x = x.2.2.2 := by
   rcases x with ⟨target, aux, scratch, flag⟩
   rfl
 
-@[simp] theorem withCarryWorkTargetBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkTargetBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkTargetBit n bit).get x =
       x.1.1.val.testBit bit.val := by
@@ -1233,7 +1242,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
   change (targetBit n bit).get data = data.1.val.testBit bit.val
   exact targetBit_get_testBit n bit data
 
-@[simp] theorem withCarryWorkAuxBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkAuxBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkAuxBit n bit).get x =
       x.1.2.1.val.testBit bit.val := by
@@ -1241,7 +1250,7 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
   change (auxBit n bit).get data = data.2.1.val.testBit bit.val
   exact auxBit_get_testBit n bit data
 
-@[simp] theorem withCarryWorkScratchBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkScratchBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkScratchBit n bit).get x =
       x.1.2.2.1.val.testBit bit.val := by
@@ -1249,20 +1258,20 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
   change (scratchBit n bit).get data = data.2.2.1.val.testBit bit.val
   exact scratchBit_get_testBit n bit data
 
-@[simp] theorem withCarryWorkFlagBit_get_fst (n : Nat)
+@[simp] lemma withCarryWorkFlagBit_get_fst (n : Nat)
     (x : Data (2 ^ n) × CarryWork n) :
     (withCarryWorkFlagBit n).get x = x.1.2.2.2 := by
   rcases x with ⟨data, work⟩
   change (flagBit n).get data = data.2.2.2
   exact flagBit_get n data
 
-@[simp] theorem carryWorkBit_get_snd (n : Nat) (bit : Fin (n - 1))
+@[simp] lemma carryWorkBit_get_snd (n : Nat) (bit : Fin (n - 1))
     (x : Data (2 ^ n) × CarryWork n) :
     (carryWorkBit n bit).get x =
       (BinaryLabelEncoding.finIdentityBit (n - 1) bit).get x.2 := by
   rfl
 
-theorem carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
+lemma carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
     (x : Data (2 ^ n)) :
     (carryWorkBit n bit).get (x, cleanCarryWork n) = false := by
   change
@@ -1290,27 +1299,27 @@ def carryWorkWord (n : Nat) :
     EncodedBit.Word (withCarryWorkEncoding n) (n - 1) where
   bit := carryWorkBit n
 
-@[simp] theorem withCarryWorkTargetBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkTargetBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkTargetBit n bit).wire).val = n - 1 - bit.val := by
   rfl
 
-@[simp] theorem withCarryWorkAuxBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkAuxBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkAuxBit n bit).wire).val = n + (n - 1 - bit.val) := by
   rfl
 
-@[simp] theorem withCarryWorkScratchBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkScratchBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkScratchBit n bit).wire).val =
       n + n + (n - 1 - bit.val) := by
   change n + (n + (n - 1 - bit.val)) =
     n + n + (n - 1 - bit.val)
   omega
 
-@[simp] theorem withCarryWorkFlagBit_wire_val (n : Nat) :
+@[simp] lemma withCarryWorkFlagBit_wire_val (n : Nat) :
     ((withCarryWorkFlagBit n).wire).val = n + n + n := by
   change n + (n + n) = n + n + n
   omega
 
-@[simp] theorem carryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
+@[simp] lemma carryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
     ((carryWorkBit n bit).wire).val =
       (encoding (residueEncoding n)).width + bit.val := by
   rfl
@@ -1411,7 +1420,7 @@ def carryWorkLayout (n : Nat) :
     simp only [carryWorkBit_wire_val] at hv
     omega
 
-@[simp] theorem auxTarget_ne (n : Nat) (aux target : Fin n) :
+@[simp] lemma auxTarget_ne (n : Nat) (aux target : Fin n) :
     (withCarryWorkAuxBit n aux).wire ≠
       (withCarryWorkTargetBit n target).wire := by
   intro h
@@ -1421,7 +1430,7 @@ def carryWorkLayout (n : Nat) :
     withCarryWorkTargetBit_wire_val] at hv
   omega
 
-@[simp] theorem auxWork_ne (n : Nat) (aux : Fin n) (work : Fin (n - 1)) :
+@[simp] lemma auxWork_ne (n : Nat) (aux : Fin n) (work : Fin (n - 1)) :
     (withCarryWorkAuxBit n aux).wire ≠ (carryWorkBit n work).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -1430,7 +1439,7 @@ def carryWorkLayout (n : Nat) :
     targetAuxEncoding_width] at hv
   omega
 
-@[simp] theorem carryWorkLayout_carryInput_get_clean
+@[simp] lemma carryWorkLayout_carryInput_get_clean
     (n : Nat) (j : Fin (n - 1)) (x : Data (2 ^ n)) :
     (PlainAdder.Schedule.CarryWorkLayout.carryInput (carryWorkLayout n) j).get
         (x, cleanCarryWork n) =
@@ -1461,12 +1470,12 @@ def cleanCarrySumStep (n : Nat) :
 
 /-- The target-add-with-aux carry-work schedule is realized by the same folded
 base-gate program used for resources. -/
-theorem cleanCarrySum_realizes (n : Nat) :
+lemma cleanCarrySum_realizes (n : Nat) :
     UnitaryCircuit.Realizes (withCarryWorkEncoding n)
-      (cleanCarrySumProgram n) (cleanCarrySumStep n) :=
+      (cleanCarrySumProgram n) environment (cleanCarrySumStep n) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes (carryWorkLayout n)
 
-theorem carryStageIndexStep_get_workCarry_recurrence_testBit
+lemma carryStageIndexStep_get_workCarry_recurrence_testBit
     (n : Nat) (j : Fin (n - 1)) (x : Data (2 ^ n)) :
     (carryWorkBit n j).get
         (PlainAdder.Schedule.CarryWorkLayout.carryStageIndexStep
@@ -1488,7 +1497,7 @@ theorem carryStageIndexStep_get_workCarry_recurrence_testBit
 
 /-- The forward carry pass computes the propagated carry for the scratch+target
 sum on clean flag/work inputs [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem carryStageIndexStep_get_workCarry_natAddCarry
+lemma carryStageIndexStep_get_workCarry_natAddCarry
     (n : Nat) (j : Fin (n - 1)) (x : Data (2 ^ n))
     (hflag : x.2.2.2 = false) :
     (carryWorkBit n j).get
@@ -1545,7 +1554,7 @@ theorem carryStageIndexStep_get_workCarry_natAddCarry
 
 /-- The carry selected before target bit `i` is the propagated natural carry
 for the scratch+target sum. -/
-theorem carryBeforeSum_get_natAddCarry
+lemma carryBeforeSum_get_natAddCarry
     (n : Nat) (i : Fin n) (x : Data (2 ^ n)) (hflag : x.2.2.2 = false) :
     (PlainAdder.Schedule.CarryWorkLayout.carryBeforeSum (carryWorkLayout n) i).get
         (PlainAdder.Schedule.CarryWorkLayout.carryStageIndexStep
@@ -1579,7 +1588,7 @@ theorem carryBeforeSum_get_natAddCarry
 
 /-- Target-bit formula for the target/auxiliary/scratch/flag cleanup-aware
 carry/sum schedule. -/
-theorem cleanCarrySumStep_get_target_testBit
+lemma cleanCarrySumStep_get_target_testBit
     (n : Nat) (i : Fin n) (x : Data (2 ^ n)) :
     (Prod.fst
         (cleanCarrySumStep n (x, cleanCarryWork n))).1.val.testBit i.val =
@@ -1597,7 +1606,7 @@ theorem cleanCarrySumStep_get_target_testBit
 
 /-- On clean flag/work inputs, the target word is updated by adding the scratch
 word. -/
-theorem cleanCarrySumStep_get_target_add
+lemma cleanCarrySumStep_get_target_add
     (n : Nat) (x : Data (2 ^ n)) (hflag : x.2.2.2 = false) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).1 =
       (step x).1 := by
@@ -1612,7 +1621,7 @@ theorem cleanCarrySumStep_get_target_add
 
 /-- The cleanup-aware target-add-with-aux schedule preserves the auxiliary
 word because no gate targets its wires. -/
-theorem cleanCarrySumStep_get_aux
+lemma cleanCarrySumStep_get_aux
     (n : Nat) (x : Data (2 ^ n)) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).2.1 = x.2.1 := by
   apply PlainAdder.Schedule.PowerOfTwo.word_eq_of_testBit_eq
@@ -1632,7 +1641,7 @@ theorem cleanCarrySumStep_get_aux
 
 /-- The cleanup-aware target-add-with-aux schedule preserves the scratch/source
 word. -/
-theorem cleanCarrySumStep_get_scratch
+lemma cleanCarrySumStep_get_scratch
     (n : Nat) (x : Data (2 ^ n)) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).2.2.1 =
       x.2.2.1 := by
@@ -1645,7 +1654,7 @@ theorem cleanCarrySumStep_get_scratch
     carryWorkLayout, carryWorkWord, withCarryWorkScratchWord] using h
 
 /-- The cleanup-aware target-add-with-aux schedule preserves the flag bit. -/
-theorem cleanCarrySumStep_get_flag
+lemma cleanCarrySumStep_get_flag
     (n : Nat) (x : Data (2 ^ n)) :
     (Prod.fst (cleanCarrySumStep n (x, cleanCarryWork n))).2.2.2 =
       x.2.2.2 := by
@@ -1657,7 +1666,7 @@ theorem cleanCarrySumStep_get_flag
 
 /-- The cleanup-aware target-add-with-aux schedule restores the carry-work
 register. -/
-theorem cleanCarrySumStep_get_work_clean
+lemma cleanCarrySumStep_get_work_clean
     (n : Nat) (x : Data (2 ^ n)) :
     Prod.snd (cleanCarrySumStep n (x, cleanCarryWork n)) =
       cleanCarryWork n := by
@@ -1691,7 +1700,7 @@ theorem cleanCarrySumStep_get_work_clean
 /-- Full clean endpoint for target-add-with-aux with VBE carry work.  The
 statement is conditional on clean flag/work inputs, matching the reusable
 plain-adder carry convention [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem cleanCarrySumStep_cleanEndpoint
+lemma cleanCarrySumStep_cleanEndpoint
     (n : Nat) (x : Data (2 ^ n)) (hflag : x.2.2.2 = false) :
     cleanCarrySumStep n (x, cleanCarryWork n) =
       (step x, cleanCarryWork n) := by
@@ -1730,7 +1739,8 @@ structure CleanWorkWitness (n : Nat) where
     (QubitLayout.canonical (withCarryWorkEncoding n).width).toQuantum
   /-- Direct realization of the folded full-register action. -/
   realizes :
-    UnitaryCircuit.Realizes (withCarryWorkEncoding n) program stepWithWork
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes (withCarryWorkEncoding n) program environment stepWithWork
   /-- Clean endpoint for target-add-with-aux when flag/work start clean. -/
   cleanEndpoint :
     ∀ x : Data (2 ^ n), x.2.2.2 = false ->
@@ -1744,7 +1754,7 @@ def cleanWorkWitness (n : Nat) : CleanWorkWitness n where
   cleanWork := cleanCarryWork n
   stepWithWork := cleanCarrySumStep n
   program := cleanCarrySumProgram n
-  realizes := cleanCarrySum_realizes n
+  realizes := fun environment => cleanCarrySum_realizes (environment := environment) n
   cleanEndpoint := cleanCarrySumStep_cleanEndpoint n
 
 end PowerOfTwo
@@ -1766,9 +1776,9 @@ def cnotProgram :
 
 /-- Raw canonical-label action of the one-CNOT `ZMod 2` target update with an
 untouched auxiliary field. -/
-theorem cnotProgram_applyNormalized_encode_eq
+lemma cnotProgram_applyNormalized_encode_eq
     (target aux scratch : ZMod 2) (flag : Bool) :
-    cnotProgram.applyNormalized
+    cnotProgram.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding residueEncoding).width).basisEquiv.symm
@@ -1789,7 +1799,8 @@ theorem cnotProgram_applyNormalized_encode_eq
 auxiliary field. -/
 def rawCanonicalWitness : RawCanonicalWitness residueEncoding where
   program := cnotProgram
-  applyNormalized_encode_eq := cnotProgram_applyNormalized_encode_eq
+  applyNormalized_encode_eq := fun environment => cnotProgram_applyNormalized_encode_eq
+    (environment := environment)
 
 /-- Semantic witness obtained from the same one-CNOT raw program. -/
 def witness : Witness residueEncoding :=
@@ -1835,9 +1846,9 @@ def rippleProgram :
 
 /-- Raw canonical-label action of the two-bit ripple-carry `ZMod 4` target
 update with an untouched auxiliary field. -/
-theorem rippleProgram_applyNormalized_encode_eq
+lemma rippleProgram_applyNormalized_encode_eq
     (target aux scratch : ZMod 4) (flag : Bool) :
-    rippleProgram.applyNormalized
+    rippleProgram.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding residueEncoding).width).basisEquiv.symm
@@ -1864,7 +1875,8 @@ theorem rippleProgram_applyNormalized_encode_eq
 auxiliary field. -/
 def rawCanonicalWitness : RawCanonicalWitness residueEncoding where
   program := rippleProgram
-  applyNormalized_encode_eq := rippleProgram_applyNormalized_encode_eq
+  applyNormalized_encode_eq := fun environment => rippleProgram_applyNormalized_encode_eq
+    (environment := environment)
 
 /-- Semantic witness obtained from the same two-bit ripple raw program. -/
 def witness : Witness residueEncoding :=

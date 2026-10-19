@@ -92,15 +92,16 @@ def doublingStageStore (spec : CurveSpec width)
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The certified actual path of each original stage returns that precise complete Store. -/
-theorem doublingStageRecord_store (spec : CurveSpec width)
+lemma doublingStageRecord_store (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (index : Fin 7) (store : Store ctx) (hidden : model.HiddenState) :
-    (doublingStageRecord spec pointX pointY scratch output index (store, hidden)).1.1 =
+    (doublingStageRecord (environment := environment) spec pointX pointY scratch output index
+      (store, hidden)).1.1 =
       doublingStageStore spec pointX pointY scratch output index store := by
   refine Fin.cases ?_ (fun index => ?_) index
   · exact Field.Native.mulIntoWordStep_store _ _ _ _ _
@@ -130,20 +131,22 @@ def doublingBodyStore (spec : CurveSpec width)
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual complete execution returns the same seven-stage chronological Store. -/
-theorem doublingBodyStep_store (spec : CurveSpec width)
+lemma doublingBodyStep_store (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (store : Store ctx) (hidden : model.HiddenState) :
-    (doublingBodyStep spec pointX pointY scratch output (store, hidden)).1.1 =
+    (doublingBodyStep (environment := environment) spec pointX pointY scratch output (store,
+      hidden)).1.1 =
       doublingBodyStore spec pointX pointY scratch output store := by
   have fold_store (indices : List (Fin 7))
       (entry : Store ctx × model.HiddenState) :
       ((indices.map (fun index => fun current =>
-        (doublingStageRecord spec pointX pointY scratch output index current).1)).foldl
+        (doublingStageRecord (environment := environment) spec pointX pointY scratch output
+          index current).1)).foldl
           (fun current update => update current) entry).1 =
         (indices.map (doublingStageStore spec pointX pointY scratch output)).foldl
           (fun current update => update current) entry.1 := by
@@ -166,13 +169,13 @@ def doublingArithmeticStore (scratch : DoublingScratch ctx width) (values : Doub
     scratch.a values.a).write scratch.numerator values.numerator).write
     scratch.denominator values.denominator)
 
-private theorem doubling_key_ne (scratch : DoublingScratch ctx width)
+private lemma doubling_key_ne (scratch : DoublingScratch ctx width)
     (distinct : scratch.keys.Nodup) (first second : Fin 6) (different : first ≠ second) :
     scratch.keys.get first ≠ scratch.keys.get second :=
   fun same => different ((List.nodup_iff_injective_get.mp distinct) same)
 
 /-- The actual seven-call body writes exactly the original finite prefix and nominal result. -/
-theorem doublingBodyStore_values (spec : CurveSpec width)
+lemma doublingBodyStore_values (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (separate : scratch.Separation pointX pointY) (store : Store ctx) :
@@ -287,7 +290,7 @@ theorem doublingBodyStore_values (spec : CurveSpec width)
   rfl
 
 /-- Every caller read is retained outside the six actual prefix destinations. -/
-theorem doublingArithmeticStore_preserves (scratch : DoublingScratch ctx width)
+lemma doublingArithmeticStore_preserves (scratch : DoublingScratch ctx width)
     (values : DoublingValues width) (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (separate : ∀ key ∈ scratch.keys, key ∉ input.storageKeys) :
     (doublingArithmeticStore scratch values store).read input = store.read input := by

@@ -30,7 +30,7 @@ open Execution
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
   (m ell width : Nat)
 
-private theorem prepared_wire_value (basis : (runtimeLayout m ell width).register.Index)
+private lemma prepared_wire_value (basis : (runtimeLayout m ell width).register.Index)
     (index : Fin (totalQubits (registerParameters m ell width))) :
     (preparedEmptyBasisEquiv ctx ctx.canonicalFreshKey (runtimeLayout m ell width)
       ctx.canonicalFreshKey_fresh (allocationDisjoint ctx noQuantum m ell width)
@@ -64,7 +64,7 @@ private theorem prepared_wire_value (basis : (runtimeLayout m ell width).registe
     (assembledValue.trans sourceValue)
 
 /-- The preparation and reused bank represent exactly the same local physical basis. -/
-theorem shortDLP_runtimePrepared_basis (basis : (runtimeLayout m ell width).register.Index) :
+lemma shortDLP_runtimePrepared_basis (basis : (runtimeLayout m ell width).register.Index) :
     preparedEmptyBasisEquiv ctx ctx.canonicalFreshKey (runtimeLayout m ell width)
         ctx.canonicalFreshKey_fresh (allocationDisjoint ctx noQuantum m ell width)
         (input_systemCount ctx noQuantum) basis =

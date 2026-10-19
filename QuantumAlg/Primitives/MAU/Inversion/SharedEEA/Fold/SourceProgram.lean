@@ -32,10 +32,12 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.FoldSourceProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The existing complete Work2 word, including its three physical padding bits. -/
 def wordWidth (modulus : Nat) : Nat := modulus.size + 3
 
-private theorem modulus_fits (modulus : Nat) : modulus < 2 ^ wordWidth modulus :=
+private lemma modulus_fits (modulus : Nat) : modulus < 2 ^ wordWidth modulus :=
   (Nat.lt_size_self modulus).trans_le
     (Nat.pow_le_pow_right (by decide) (by unfold wordWidth; omega))
 
@@ -70,7 +72,7 @@ def step (modulus : Nat) (state : Addition.Gidney.Registers (wordWidth modulus))
       Nat.FixedWidth.biFlipWordOutput (reflectionPivot modulus) state.2.1 else state.2.1,
       state.2.2))
 
-private theorem component_steps (modulus : Nat)
+private lemma component_steps (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     Addition.Gidney.biFlipOutput (reflectionPivot modulus)
       (Addition.Gidney.flagFlipOutput
@@ -92,28 +94,30 @@ private theorem component_steps (modulus : Nat)
         Addition.Gidney.comparisonOutput, step, record, greater, less]
 
 /-- Exact coherent action comes from the same three real native component programs. -/
-theorem program_realizes (modulus : Nat) :
+lemma program_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (Addition.Gidney.encoding (wordWidth modulus)) (program modulus)
+      environment
       (step modulus) := by
-  have comparison := Addition.Gidney.gidneyComparison_realizes
+  have comparison := Addition.Gidney.gidneyComparison_realizes (environment := environment)
     (wordWidth modulus) (comparisonPivot modulus)
-  have flag := Addition.Gidney.gidneyFlagFlip_realizes (wordWidth modulus)
-  have reflection := Addition.Gidney.gidneyBiFlip_realizes
+  have flag := Addition.Gidney.gidneyFlagFlip_realizes
+    (environment := environment) (wordWidth modulus)
+  have reflection := Addition.Gidney.gidneyBiFlip_realizes (environment := environment)
     (wordWidth modulus) (reflectionPivot modulus)
   exact ((comparison.seq flag).seq reflection).congrStep (component_steps modulus)
 
 /-- The arbitrary existing helper is returned exactly, independently of the input and flag. -/
-theorem step_helper (modulus : Nat)
+lemma step_helper (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     (step modulus state).2.2 = state.2.2 := rfl
 
 /-- The complement history remains present in the actual result. -/
-theorem step_record (modulus : Nat)
+lemma step_record (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     (step modulus state).1 = record modulus state := rfl
 
 /-- Internally prepared Iter zero gives exactly the original folded value and its retained flag. -/
-theorem step_foldInput (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
+lemma step_foldInput (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
     (helper : Bool) (bounded : input.val < modulus) :
     ((step modulus (false, (input, helper))).1,
       (step modulus (false, (input, helper))).2.1.val) =
@@ -125,7 +129,7 @@ theorem step_foldInput (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
   · simp [step, record, complemented, NumberTheory.SharedEEA.foldInput]
 
 /-- The retained record reconstructs the original residue, so folding does not erase its history. -/
-theorem step_unfoldInput (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
+lemma step_unfoldInput (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
     (helper : Bool) (bounded : input.val < modulus) :
     NumberTheory.SharedEEA.unfoldInput modulus
         ((step modulus (false, (input, helper))).1,
@@ -134,7 +138,7 @@ theorem step_unfoldInput (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
   exact NumberTheory.SharedEEA.unfoldInput_foldInput modulus input.val (Nat.le_of_lt bounded)
 
 /-- The original residue domain supplies the macro initialization invariant internally. -/
-theorem step_initial_admissible (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
+lemma step_initial_admissible (modulus : Nat) (input : Fin (2 ^ wordWidth modulus))
     (helper : Bool) (positive : 0 < input.val) (bounded : input.val < modulus) :
     (NumberTheory.SharedEEA.IterationState.initial modulus
       (step modulus (false, (input, helper))).2.1.val).Admissible := by
@@ -145,7 +149,7 @@ theorem step_initial_admissible (modulus : Nat) (input : Fin (2 ^ wordWidth modu
   exact NumberTheory.SharedEEA.folded_initial_admissible modulus input.val positive bounded
 
 /-- The actual native trace includes all three blocks in their execution order. -/
-theorem program_eventTrace (modulus : Nat) :
+lemma program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace =
       (Addition.Gidney.comparisonProgram
         (wordWidth modulus) (comparisonPivot modulus)).eventTrace ++
@@ -155,7 +159,7 @@ theorem program_eventTrace (modulus : Nat) :
   simp only [program, UnitaryCircuit.seq_eventTrace]
 
 /-- The actual native pool retains the controlled arithmetic coordinates of the final bi-flip. -/
-theorem program_eventCost (modulus : Nat) :
+lemma program_eventCost (modulus : Nat) :
     (program modulus).eventCost =
       (Addition.Gidney.comparisonProgram (wordWidth modulus) (comparisonPivot modulus)).eventCost +
         (Addition.Gidney.flagFlipProgram (wordWidth modulus)).eventCost +

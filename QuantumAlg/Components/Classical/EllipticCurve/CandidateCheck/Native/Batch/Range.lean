@@ -27,11 +27,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- Every actual selector branch preserves the original modulus bound of the selected word. -/
-theorem persistentAttemptStore_selected_lt
+lemma persistentAttemptStore_selected_lt
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -39,10 +39,12 @@ theorem persistentAttemptStore_selected_lt
     (prior : (before.1.read
       (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
         modulus.modulus) :
-    ((persistentAttemptStore curve modulus sample base target before).read
+    ((persistentAttemptStore (environment := environment) curve modulus sample base target
+      before).read
       (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
         modulus.modulus := by
-  have latches := attempt_latches curve modulus (persistentInput width scalarWidth sample)
+  have latches := attempt_latches (environment := environment)
+    curve modulus (persistentInput width scalarWidth sample)
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
     (persistentReconstruction ctx width scalarWidth) (persistentScalar ctx width scalarWidth)
@@ -58,7 +60,7 @@ theorem persistentAttemptStore_selected_lt
         (before.1.read (persistentInput width scalarWidth sample)))
   · exact prior
 
-private theorem fold_selected_lt
+private lemma fold_selected_lt
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : List (CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2))))
     (base target : CInputRef ctx (PointShape width))
@@ -67,17 +69,19 @@ private theorem fold_selected_lt
       (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
         modulus.modulus) :
     ((samples.foldl (fun current sample =>
-      persistentAttemptState curve modulus sample base target current) before).1.read
+      persistentAttemptState (environment := environment) curve modulus sample base target
+        current) before).1.read
         (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
           modulus.modulus := by
   induction samples generalizing before with
   | nil => exact prior
   | cons sample rest ih =>
-      exact ih (persistentAttemptState curve modulus sample base target before)
+      exact ih (persistentAttemptState (environment := environment) curve modulus sample base
+        target before)
         (persistentAttemptStore_selected_lt curve modulus sample base target before prior)
 
 /-- The actual chronological loop preserves the original selected-word modulus bound. -/
-theorem repeatedAttemptsStore_selected_lt
+lemma repeatedAttemptsStore_selected_lt
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -85,19 +89,20 @@ theorem repeatedAttemptsStore_selected_lt
     (prior : (before.1.read
       (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
         modulus.modulus) :
-    ((repeatedAttemptsStore curve modulus samples base target before).read
+    ((repeatedAttemptsStore (environment := environment) curve modulus samples base target
+      before).read
       (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
         modulus.modulus := by
   rw [repeatedAttemptsStore_fold]
   exact fold_selected_lt curve modulus (List.ofFn samples) base target before prior
 
 /-- Actual fresh initialization supplies the selected-word bound without a caller promise. -/
-theorem repeatedAttemptsStore_initial_selected_lt
+lemma repeatedAttemptsStore_initial_selected_lt
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (before : Store ctx)
     (hidden : model.HiddenState) :
-    ((repeatedAttemptsStore curve modulus samples base target
+    ((repeatedAttemptsStore (environment := environment) curve modulus samples base target
       (persistentInitialStore width scalarWidth before, hidden)).read
         (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
           modulus.modulus := by

@@ -24,7 +24,7 @@ noncomputable section
 
 open MAU.Inversion.SharedEEA MeasuredUncompute
 
-private theorem controlled_card (control : OffsetControl) (count : Nat) :
+private lemma controlled_card (control : OffsetControl) (count : Nat) :
     (controlledBudget control count).card =
       match control with | .supplied => 5 * count | .exceptional => 16 * count + 2 := by
   cases control <;>
@@ -32,7 +32,7 @@ private theorem controlled_card (control : OffsetControl) (count : Nat) :
       ResourcePool.singleton, Multiset.card_replicate] <;> ring
 
 /-- The scalar allowance includes every literal control expansion and exceptional toggle. -/
-theorem measuredPointAddition_budget_card (width : Nat) :
+lemma measuredPointAddition_budget_card (width : Nat) :
     (events width).card = 20 * ForwardResources.inPlaceBound width +
       27 * MAU.Multiplication.VariableGidney.eventBound width +
       41 * MAU.Addition.Gidney.modularOffsetEventBound width +
@@ -47,7 +47,7 @@ theorem measuredPointAddition_budget_card (width : Nat) :
   ring
 
 /-- Accepted measured depths retain their parallel Hadamards; all native stages are serial. -/
-theorem measuredPointAddition_depthBound_eq (width : Nat) :
+lemma measuredPointAddition_depthBound_eq (width : Nat) :
     depthBound width = 20 * ForwardResources.inPlaceBound width +
       27 * MAU.Multiplication.VariableGidney.eventBound width +
       41 * MAU.Addition.Gidney.modularOffsetEventBound width +

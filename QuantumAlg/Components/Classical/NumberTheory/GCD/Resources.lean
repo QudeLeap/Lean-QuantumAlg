@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Classical.Model.BitWord.Selection
+public import QuantumAlg.Core.Base.Accounting.ResourcePool
+
 import all QuantumAlg.Components.Classical.NumberTheory.GCD.Construction
 import all QuantumAlg.Core.Execution.Trace.Bounds
 
@@ -38,15 +41,15 @@ def initializationEvents (model : ExecutionModel) [BitWord.Selected model] (widt
     .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))]
 
 /-- One fixed coordinatewise allowance for every admitted total GCD input. -/
-def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat) : ResourcePool
-  model :=
+public def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+    ResourcePool model :=
   ResourcePool.ofList (initializationEvents model width) +
     (ResourcePool.scale (Euclid.gcdFuel width) (ResourcePool.ofList (remainderEvents model width)) +
       ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
         (.wordUnary .copy width))))
 
 /-- Actual initialization emits exactly the four stated native events. -/
-theorem gcdInitialization_eventTrace (input : CInputRef ctx (operandShape width))
+lemma gcdInitialization_eventTrace (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (path : (initializationBody (model := model) input first second zero active).Path) :
@@ -64,7 +67,7 @@ theorem gcdInitialization_eventTrace (input : CInputRef ctx (operandShape width)
   rfl
 
 /-- Actual selection charges the full five-event body exactly when its active arm is chosen. -/
-theorem gcdGuardedRemainder_pool_le (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdGuardedRemainder_pool_le (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (path : (guardedRemainder (model := model) first second zero active).Path) :
     (guardedRemainder (model := model) first second zero active).resourcePool path ≤
@@ -75,7 +78,7 @@ theorem gcdGuardedRemainder_pool_le (first second : CWriteRef ctx (.unsignedWord
   · exact zero_le
 
 /-- The real finite path vector contains at most one remainder allowance per iteration. -/
-theorem gcdLoop_pool_le (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdLoop_pool_le (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (count : Nat) :
     ∀ path : (Circuit.iterate count (guardedRemainder (model := model) first second zero
@@ -97,7 +100,7 @@ theorem gcdLoop_pool_le (first second : CWriteRef ctx (.unsignedWord width))
         (ih (fun index => path index.succ))
 
 /-- Initialization, actual selected iterations and the final copy fit the independent ledger. -/
-theorem gcdScheduled_pool_le (input : CInputRef ctx (operandShape width))
+lemma gcdScheduled_pool_le (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     (path : (scheduledBody (model := model) input first second active result).Path) :
@@ -115,7 +118,7 @@ theorem gcdScheduled_pool_le (input : CInputRef ctx (operandShape width))
     (gcdLoop_pool_le first second (cellRead result) active (Euclid.gcdFuel width) path.2.1) le_rfl)
 
 /-- Real lexical allocation and release introduce no hidden arithmetic or oracle events. -/
-theorem gcdLexical_pool_le (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_pool_le (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width))
     (path : (lexicalBody (model := model) input result).Path) :
     (lexicalBody (model := model) input result).resourcePool path ≤ nativeEnvelope model width :=
@@ -123,7 +126,7 @@ theorem gcdLexical_pool_le (input : CInputRef ctx (operandShape width))
     (conditionCell ctx width) (writeUnderLoop result width) path
 
 /-- The full retained GCD circuit satisfies the same independent native coordinate budget. -/
-theorem gcdRetained_pool_le (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_pool_le (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
     (retainedCircuit (model := model) input key fresh).resourcePool path ≤ nativeEnvelope model

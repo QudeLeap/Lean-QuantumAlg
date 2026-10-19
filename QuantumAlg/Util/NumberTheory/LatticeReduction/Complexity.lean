@@ -39,7 +39,7 @@ def lllStateEnvelope3 (input : IntegerBasis3) : Nat :=
     potential * determinant ^ 2
 
 /-- Natural-number form of the first Gram identity. -/
-theorem firstGram_nat_identity (basis : IntegerBasis3) :
+lemma firstGram_nat_identity (basis : IntegerBasis3) :
     integerPointSquaredNorm basis.first *
         integerPointSquaredNorm basis.second =
       integerPointAreaSquared basis.first basis.second +
@@ -60,7 +60,7 @@ theorem firstGram_nat_identity (basis : IntegerBasis3) :
   exact_mod_cast hInt
 
 /-- Natural-number three-dimensional Gram determinant decomposition. -/
-theorem thirdGram_nat_identity (basis : IntegerBasis3) :
+lemma thirdGram_nat_identity (basis : IntegerBasis3) :
     integerPointSquaredNorm basis.first *
         integerPointAreaSquared basis.first basis.second *
           integerPointSquaredNorm basis.third =
@@ -117,14 +117,14 @@ theorem thirdGram_nat_identity (basis : IntegerBasis3) :
             basis.determinant.natAbs ^ 2 := by ring
 
 /-- Every input row norm is bounded by the positive squared-height measure. -/
-theorem IntegerBasis3.squaredNormsLe_squaredHeight (basis : IntegerBasis3) :
+lemma IntegerBasis3.squaredNormsLe_squaredHeight (basis : IntegerBasis3) :
     basis.SquaredNormsLe basis.squaredHeight := by
   simp only [IntegerBasis3.SquaredNormsLe, IntegerBasis3.squaredHeight]
   omega
 
 /-- The initial LLL potential is at most the cube of the positive squared
 height. -/
-theorem lllPotential3_le_squaredHeight_pow_three (input : IntegerBasis3) :
+lemma lllPotential3_le_squaredHeight_pow_three (input : IntegerBasis3) :
     lllPotential3 input ≤ input.squaredHeight ^ 3 := by
   have hnorms := input.squaredNormsLe_squaredHeight
   have harea : integerPointAreaSquared input.first input.second ≤
@@ -143,7 +143,7 @@ theorem lllPotential3_le_squaredHeight_pow_three (input : IntegerBasis3) :
 
 /-- The squared determinant magnitude is at most the cube of the positive
 squared height. -/
-theorem IntegerBasis3.determinant_natAbs_sq_le_squaredHeight_pow_three
+lemma IntegerBasis3.determinant_natAbs_sq_le_squaredHeight_pow_three
     (input : IntegerBasis3) :
     input.determinant.natAbs ^ 2 ≤ input.squaredHeight ^ 3 := by
   have hnorms := input.squaredNormsLe_squaredHeight
@@ -180,7 +180,7 @@ theorem IntegerBasis3.determinant_natAbs_sq_le_squaredHeight_pow_three
 
 /-- The input-derived reachable-state envelope is at most a fixed sixth-degree
 polynomial in the positive squared height. -/
-theorem lllStateEnvelope3_le_five_mul_squaredHeight_pow_six
+lemma lllStateEnvelope3_le_five_mul_squaredHeight_pow_six
     (input : IntegerBasis3) :
     lllStateEnvelope3 input ≤ 5 * input.squaredHeight ^ 6 := by
   let height := input.squaredHeight
@@ -226,7 +226,7 @@ theorem lllStateEnvelope3_le_five_mul_squaredHeight_pow_six
 
 /-- The successor of the reachable-state magnitude envelope has binary size
 linear in the mathematical input bit size. -/
-theorem lllStateEnvelope3_succ_size_le (input : IntegerBasis3) :
+lemma lllStateEnvelope3_succ_size_le (input : IntegerBasis3) :
     Nat.size (lllStateEnvelope3 input + 1) ≤
       4 + 6 * input.inputBitSize := by
   let height := input.squaredHeight
@@ -264,7 +264,7 @@ theorem lllStateEnvelope3_succ_size_le (input : IntegerBasis3) :
 
 /-- The operand-magnitude expression used by one LLL step has binary size
 linear in the mathematical input bit size. -/
-theorem lllStepOperandMagnitude_size_le (input : IntegerBasis3) :
+lemma lllStepOperandMagnitude_size_le (input : IntegerBasis3) :
     Nat.size (256 * (lllStateEnvelope3 input + 1) ^ 8) ≤
       64 * (input.inputBitSize + 1) := by
   let height := input.squaredHeight
@@ -293,7 +293,7 @@ theorem lllStepOperandMagnitude_size_le (input : IntegerBasis3) :
 
 /-- The logarithmic-potential reducer budget is linear in the mathematical
 input bit size. -/
-theorem lllFuel3_le_eight_mul_inputBitSize (input : IntegerBasis3) :
+lemma lllFuel3_le_eight_mul_inputBitSize (input : IntegerBasis3) :
     lllFuel3 input ≤ 8 * (input.inputBitSize + 1) := by
   let height := input.squaredHeight
   let potential := lllPotential3 input
@@ -337,7 +337,7 @@ theorem lllFuel3_le_eight_mul_inputBitSize (input : IntegerBasis3) :
 
 /-- A rational half-interval bound implies the weaker integral numerator
 bound used by the state-envelope proof. -/
-theorem natAbs_le_den_of_abs_div_le_half
+lemma natAbs_le_den_of_abs_div_le_half
     {numerator : Int} {denominator : Nat}
     (hdenominator : 0 < denominator)
     (hhalf :
@@ -356,7 +356,7 @@ theorem natAbs_le_den_of_abs_div_le_half
 
 /-- First-pair size reduction bounds the new second-row norm by the global
 potential and its square. -/
-theorem sizeReduceFirstPair_secondNorm_le
+lemma sizeReduceFirstPair_secondNorm_le
     (basis : IntegerBasis3) (hfull : basis.FullRank) :
     integerPointSquaredNorm basis.sizeReduceFirstPair.1.second ≤
       lllPotential3 basis + lllPotential3 basis ^ 2 := by
@@ -408,7 +408,7 @@ theorem sizeReduceFirstPair_secondNorm_le
 
 /-- Second-pair size reduction bounds the new third-row norm by the potential
 and determinant terms of the input basis. -/
-theorem sizeReduceSecondPair_thirdNorm_le
+lemma sizeReduceSecondPair_thirdNorm_le
     (basis : IntegerBasis3) (hfull : basis.FullRank) :
     integerPointSquaredNorm basis.sizeReduceSecondPair.1.third ≤
       2 * lllPotential3 basis ^ 2 +
@@ -529,7 +529,7 @@ structure LLLState3.BoundedFrom
 
 /-- The initial reducer state satisfies the complete reachable-state
 invariant. -/
-theorem LLLState3.boundedFrom_initial
+lemma LLLState3.boundedFrom_initial
     (input : IntegerBasis3) (hfull : input.FullRank) :
     let initial : LLLState3 :=
       { basis := input, phase := .first, steps := [] }
@@ -548,7 +548,7 @@ theorem LLLState3.boundedFrom_initial
 
 /-- The first exact size-reduction result stays inside the same input-derived
 row-norm envelope as every reachable state. -/
-theorem LLLState3.BoundedFrom.firstSizeReduced_norms_le
+lemma LLLState3.BoundedFrom.firstSizeReduced_norms_le
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     state.basis.sizeReduceFirstPair.1.SquaredNormsLe
@@ -576,7 +576,7 @@ theorem LLLState3.BoundedFrom.firstSizeReduced_norms_le
 
 /-- The two-direction exact size-reduction result stays inside the same
 input-derived row-norm envelope as every reachable state. -/
-theorem LLLState3.BoundedFrom.secondSizeReduced_norms_le
+lemma LLLState3.BoundedFrom.secondSizeReduced_norms_le
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     state.basis.sizeReduceSecondPair.1.SquaredNormsLe
@@ -615,7 +615,7 @@ theorem LLLState3.BoundedFrom.secondSizeReduced_norms_le
 
 /-- Every scalar consumed by the two literal pair reductions is bounded by
 the common reachable-state arithmetic magnitude. -/
-theorem LLLState3.BoundedFrom.literalPairScalarBounds
+lemma LLLState3.BoundedFrom.literalPairScalarBounds
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     let magnitude := 256 * (lllStateEnvelope3 input + 1) ^ 8
@@ -639,7 +639,7 @@ theorem LLLState3.BoundedFrom.literalPairScalarBounds
 
 /-- The actual arithmetic emitted by one reachable reducer state has a uniform
 input-derived operand-width bound. -/
-theorem LLLState3.BoundedFrom.step_maxOperandWidth_le
+lemma LLLState3.BoundedFrom.step_maxOperandWidth_le
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     arithmeticEventListMaxOperandWidth
@@ -650,7 +650,7 @@ theorem LLLState3.BoundedFrom.step_maxOperandWidth_le
     h.firstSizeReduced_norms_le h.secondSizeReduced_norms_le
 
 /-- One reducer step preserves the complete input-derived state envelope. -/
-theorem LLLState3.BoundedFrom.step
+lemma LLLState3.BoundedFrom.step
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     (lllStep3 state).BoundedFrom input := by
@@ -666,7 +666,7 @@ theorem LLLState3.BoundedFrom.step
 
 /-- Every fixed-fuel reducer run preserves the complete input-derived state
 envelope. -/
-theorem lllRun3_boundedFrom (fuel : Nat)
+lemma lllRun3_boundedFrom (fuel : Nat)
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     (lllRun3 fuel state).BoundedFrom input := by
@@ -678,7 +678,7 @@ theorem lllRun3_boundedFrom (fuel : Nat)
 
 /-- The public fixed-fuel reducer exposes the same input-derived row-norm
 envelope preserved by its internal state machine. -/
-theorem lllReduce3WithFuel_output_squaredNormsLe
+lemma lllReduce3WithFuel_output_squaredNormsLe
     (fuel : Nat) (basis : IntegerBasis3) (hfull : basis.FullRank) :
     (lllReduce3WithFuel fuel basis).output.SquaredNormsLe
       (lllStateEnvelope3 basis) := by
@@ -691,7 +691,7 @@ theorem lllReduce3WithFuel_output_squaredNormsLe
 
 /-- Every arithmetic operand in a reachable fixed-fuel execution has width
 linear in the original basis input size. -/
-theorem lllRunExecution3_maxOperandWidth_le (fuel : Nat)
+lemma lllRunExecution3_maxOperandWidth_le (fuel : Nat)
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     arithmeticEventListMaxOperandWidth
@@ -711,7 +711,7 @@ theorem lllRunExecution3_maxOperandWidth_le (fuel : Nat)
 
 /-- A fixed-fuel execution has an explicit quadratic-per-bit schoolbook charge
 bound, multiplied only by its actual iteration budget. -/
-theorem lllRunExecution3_schoolbookCharge_le (fuel : Nat)
+lemma lllRunExecution3_schoolbookCharge_le (fuel : Nat)
     {input : IntegerBasis3} {state : LLLState3}
     (h : state.BoundedFrom input) :
     arithmeticEventListCharge
@@ -748,7 +748,7 @@ theorem lllRunExecution3_schoolbookCharge_le (fuel : Nat)
 
 /-- The public fixed-fuel reducer exposes exactly the schoolbook charge bounded
 by the sealed execution theorem above. -/
-theorem lllReduce3WithFuel_schoolbookCharge_le
+lemma lllReduce3WithFuel_schoolbookCharge_le
     (fuel : Nat) (basis : IntegerBasis3) (hfull : basis.FullRank) :
     (lllReduce3WithFuel fuel basis).schoolbookCharge ≤
       1_537_900 * fuel * (basis.inputBitSize + 1) ^ 2 := by
@@ -762,7 +762,7 @@ theorem lllReduce3WithFuel_schoolbookCharge_le
 
 /-- The complete exact three-dimensional reducer has an explicit cubic
 schoolbook-charge bound in its growing binary input size. -/
-theorem lllReduce3_schoolbookCharge_le
+lemma lllReduce3_schoolbookCharge_le
     (basis : IntegerBasis3) (hfull : basis.FullRank) :
     (lllReduce3 basis).schoolbookCharge ≤
       12_303_200 * (basis.inputBitSize + 1) ^ 3 := by

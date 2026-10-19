@@ -25,7 +25,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem third_supported (width : Nat)
+private lemma third_supported (width : Nat)
     (denominator numerator magnitude correction restore : Bool) :
     NativeTraceSupported width
       (LatticeNearestPlaneThird.phaseTrace (model := model) width denominator numerator magnitude
@@ -45,13 +45,13 @@ private theorem third_supported (width : Nat)
   all_goals simp [LatticeNearestPlaneThird.prefixTrace, NativeTraceSupported, nativeAlphabet,
     ResourcePool.ofList]
 
-private theorem secondPrefix_supported (width : Nat) :
+private lemma secondPrefix_supported (width : Nat) :
     NativeTraceSupported width
       (LatticeNearestPlaneSecond.prefixTrace (model := model) width) := by
   simp [LatticeNearestPlaneSecond.prefixTrace, NativeTraceSupported, nativeAlphabet,
     ResourcePool.ofList]
 
-private theorem second_supported (width : Nat) (magnitude correction restore : Bool) :
+private lemma second_supported (width : Nat) (magnitude correction restore : Bool) :
     NativeTraceSupported width
       (LatticeNearestPlaneSecond.phaseTrace (model := model) width magnitude correction
         restore) := by
@@ -61,7 +61,7 @@ private theorem second_supported (width : Nat) (magnitude correction restore : B
   all_goals simp [LatticeNearestPlaneSecond.numeratorTrace, NativeTraceSupported, nativeAlphabet,
     ResourcePool.ofList]
 
-private theorem first_supported (width : Nat) (magnitude correction restore : Bool) :
+private lemma first_supported (width : Nat) (magnitude correction restore : Bool) :
     NativeTraceSupported width
       (LatticeNearestPlaneFirst.phaseTrace (model := model) width magnitude correction
         restore) := by
@@ -70,7 +70,7 @@ private theorem first_supported (width : Nat) (magnitude correction restore : Bo
   all_goals simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
 
 /-- Every three-phase formula has finite native support independently of its eleven decisions. -/
-theorem phaseTrace_nativeSupported (width : Nat) (denominatorNegative numeratorNegative : Bool)
+lemma phaseTrace_nativeSupported (width : Nat) (denominatorNegative numeratorNegative : Bool)
     (thirdMagnitude thirdCorrection thirdRestore : Bool)
     (secondMagnitude secondCorrection secondRestore : Bool)
     (firstMagnitude firstCorrection firstRestore : Bool) :
@@ -89,7 +89,7 @@ def eventEnvelope (width : Nat) : ResourcePool model := 128 • nativeAlphabet w
 -- The generic accounting application elaborates the full dependent three-stage path.
 set_option maxRecDepth 4096 in
 /-- Every actual nearest-plane path satisfies the independent native coordinate allowance. -/
-theorem threeInto_pool_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_pool_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
     (threeInto refs).resourcePool path ≤ eventEnvelope width := by
   refine ResourcePool.le_scaled_of_support_card_le
     ((threeInto refs).resourcePool path) (nativeAlphabet width) 128 ?_ ?_

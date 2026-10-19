@@ -24,9 +24,9 @@ open Execution
 noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
 
-private theorem readout_key (index : Fin (measurementBits N)) :
+private lemma readout_key (index : Fin (measurementBits N)) :
     (readout base noQuantum N index).output.key =
       (Native.cells base noQuantum N index).key :=
   FiniteReadout.transported_key
@@ -36,7 +36,7 @@ private theorem readout_key (index : Fin (measurementBits N)) :
 
 /-- The selected physical exponent measurement and paid packing retain an
 old structural read outside their measurement cells and working result. -/
-theorem measured_packed_frame {shape : CShape}
+lemma measured_packed_frame {shape : CShape}
     (observed : CInputRef (Native.context base noQuantum N) shape)
     (measuredSeparate : ∀ index : Fin (measurementBits N),
       (Native.cells base noQuantum N index).key ∉ observed.storageKeys)
@@ -44,7 +44,7 @@ theorem measured_packed_frame {shape : CShape}
       (Native.resultRef base noQuantum N).key ∉ observed.storageKeys)
     (store : Store (Native.context base noQuantum N))
     (basis : (Native.context base noQuantum N).register.Index) :
-    ((measuredStore base noQuantum N input store basis).applyOp
+    ((measuredStore base noQuantum N store basis).applyOp
       (packing base noQuantum N)).read observed = store.read observed := by
   refine (Store.read_applyOp_of_not_mem_storageKeys _
     (packing base noQuantum N) observed workingSeparate).trans ?_

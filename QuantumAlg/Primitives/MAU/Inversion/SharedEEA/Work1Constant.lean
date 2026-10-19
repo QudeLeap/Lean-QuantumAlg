@@ -24,12 +24,14 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Work1Constant
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 private def word (width : Nat) : Word (encoding width) (width + 3) :=
   ⟨fun index => firstWordBit width index.rev⟩
 
-private theorem word_distinct (width : Nat) (left right : Fin (width + 3))
+private lemma word_distinct (width : Nat) (left right : Fin (width + 3))
     (different : left ≠ right) :
     ((word width).bit left).wire ≠ ((word width).bit right).wire := by
   intro same
@@ -43,7 +45,7 @@ private theorem word_distinct (width : Nat) (left right : Fin (width + 3))
   simp only [Fin.val_rev] at values
   omega
 
-private theorem word_get (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+private lemma word_get (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     ((word width).bit index).get state = state.firstWord.getLsbD index.val := by
   change (firstWordBit width index.rev).get state = _
   rw [firstWordBit_get]
@@ -60,7 +62,7 @@ def gates (width : Nat) (constant : Fin (2 ^ (width + 3))) : List (GateSpec (enc
 private def withoutWorkspace {width : Nat} (state : Registers width) : Registers width :=
   { state with firstWord := 0#(width + 3) }
 
-private theorem gates_complement (width : Nat) (constant : Fin (2 ^ (width + 3)))
+private lemma gates_complement (width : Nat) (constant : Fin (2 ^ (width + 3)))
     (state : Registers width) :
     withoutWorkspace (GateSpec.stepList (gates width constant) state) = withoutWorkspace state := by
   apply GateSpec.stepList_preserves_of_targetFlipPreserves
@@ -69,7 +71,7 @@ private theorem gates_complement (width : Nat) (constant : Fin (2 ^ (width + 3))
   rcases List.mem_map.mp member with ⟨index, _, rfl⟩
   exact fun _ => rfl
 
-private theorem gates_word (width : Nat) (constant : Fin (2 ^ (width + 3)))
+private lemma gates_word (width : Nat) (constant : Fin (2 ^ (width + 3)))
     (state : Registers width) :
     (GateSpec.stepList (gates width constant) state).firstWord =
       state.firstWord ^^^ BitVec.ofFin constant := by
@@ -85,7 +87,7 @@ private theorem gates_word (width : Nat) (constant : Fin (2 ^ (width + 3)))
   exact actual
 
 /-- Constant unloading is an actual all-label XOR and retains all other complete fields. -/
-theorem gates_step (width : Nat) (constant : Fin (2 ^ (width + 3))) (state : Registers width) :
+lemma gates_step (width : Nat) (constant : Fin (2 ^ (width + 3))) (state : Registers width) :
     GateSpec.stepList (gates width constant) state =
       { state with firstWord := state.firstWord ^^^ BitVec.ofFin constant } := by
   let after := GateSpec.stepList (gates width constant) state
@@ -102,14 +104,14 @@ def program (width : Nat) (constant : Fin (2 ^ (width + 3))) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width constant)
 
 /-- Exact complete-data semantics of the native constant load or unload. -/
-theorem program_realizes (width : Nat) (constant : Fin (2 ^ (width + 3))) :
-    UnitaryCircuit.Realizes (encoding width) (program width constant)
+lemma program_realizes (width : Nat) (constant : Fin (2 ^ (width + 3))) :
+    UnitaryCircuit.Realizes (encoding width) (program width constant) environment
       (fun state => { state with firstWord := state.firstWord ^^^ BitVec.ofFin constant }) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (gates_step width constant)
+    (gates_step width constant) environment
 
 /-- Exactly one X is emitted per selected bit of the fixed numerical constant. -/
-theorem gates_length (width : Nat) (constant : Fin (2 ^ (width + 3))) :
+lemma gates_length (width : Nat) (constant : Fin (2 ^ (width + 3))) :
     (gates width constant).length = (Word.constantOneIndices constant).length :=
   Word.xorConstantGates_length (word width) constant
 

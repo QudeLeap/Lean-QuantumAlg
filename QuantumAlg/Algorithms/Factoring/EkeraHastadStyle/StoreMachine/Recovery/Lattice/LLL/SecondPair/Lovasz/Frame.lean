@@ -43,7 +43,7 @@ def FrameAvoids (refs : Refs ctx width) (cells : List BranchCell)
   ∀ cell ∈ cells, cellKey refs cell ∉ other.storageKeys
 
 /-- Original distinct branch identities provide the caller frame for each named basis read. -/
-theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma basis_avoids (refs : Refs ctx width) (separation : Separation refs)
     (cell : LatticeMetricMachine.BasisCell) (cells : List BranchCell)
     (absent : basisBranchCell cell ∉ cells) :
     FrameAvoids refs cells (LatticeMetricMachine.basisCellInput refs.basis cell) := by
@@ -55,7 +55,7 @@ theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
       CInputRef.storageKeys, List.mem_singleton, basisBranchCell, cellKey] using keyNe
 
 /-- Actual comparison preserves all caller reads outside its two written cells. -/
-theorem comparison_frame (refs : Refs ctx width) (store : Store ctx)
+lemma comparison_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs comparisonCells other) :
     (LatticeLovasz.secondLovaszStore refs.lovasz store).read other = store.read other :=
@@ -63,7 +63,7 @@ theorem comparison_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .doubled (by decide)) (avoids .passes (by decide))
 
 /-- Actual exchange of the final two rows preserves every read outside its seven written cells. -/
-theorem swap_frame (refs : Refs ctx width) (store : Store ctx)
+lemma swap_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
     (LatticeSwap.pointSwapStore refs.basis.second refs.basis.third refs.swapScratch store).read
@@ -79,7 +79,7 @@ theorem swap_frame (refs : Refs ctx width) (store : Store ctx)
   · exact avoids .b33 (by decide)
   · exact avoids .swapScratch (by decide)
 
-private theorem selectArm_frame {model : ExecutionModel} [BitWord.Selected model]
+private lemma selectArm_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
@@ -91,7 +91,7 @@ private theorem selectArm_frame {model : ExecutionModel} [BitWord.Selected model
     · rfl
 
 /-- Both possible actual selected arms retain every read outside the row-exchange footprint. -/
-theorem select_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma select_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
@@ -99,7 +99,7 @@ theorem select_frame {model : ExecutionModel} [BitWord.Selected model]
   selectArm_frame refs (store.read (writeInput refs.lovasz.passes)) store other avoids
 
 /-- Both actual selected arms retain the stored comparison bit exactly. -/
-theorem select_passes {model : ExecutionModel} [BitWord.Selected model]
+lemma select_passes {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (selectStep (model := model) refs store).1.read (writeInput refs.lovasz.passes) =
@@ -114,7 +114,7 @@ theorem select_passes {model : ExecutionModel} [BitWord.Selected model]
   simpa only [writeInput, CInputRef.storageKeys, List.mem_singleton, cellKey] using keyNe
 
 /-- Complete actual second-Lovasz execution retains every read outside its nine possible writes. -/
-theorem branchInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma branchInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :

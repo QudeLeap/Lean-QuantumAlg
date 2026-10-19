@@ -40,7 +40,7 @@ private def selectedRuntimeBasis (I : ECDLPInstance E) (input : SecretInput (pro
     (selectedIndex (problem I) (-input.secret * (unit : ZMod (problem I).order)))
     (selectedPointLabel I index))
 
-private theorem selectedRuntimeBasis_injective (I : ECDLPInstance E)
+private lemma selectedRuntimeBasis_injective (I : ECDLPInstance E)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ) :
     Function.Injective (selectedRuntimeBasis I input unit) := by
   intro left right same
@@ -51,7 +51,7 @@ private theorem selectedRuntimeBasis_injective (I : ECDLPInstance E)
     prodEquiv (_, selectedPointLabel I right) at binary
   exact selectedPointLabel_injective I (congrArg Prod.snd (prodEquiv.injective binary))
 
-private theorem selectedRuntimeBasis_outcome (I : ECDLPInstance E)
+private lemma selectedRuntimeBasis_outcome (I : ECDLPInstance E)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ)
     (index : Fin I.subgroupOrder) :
     basisOutcome I (selectedRuntimeBasis I input unit index) =
@@ -60,13 +60,13 @@ private theorem selectedRuntimeBasis_outcome (I : ECDLPInstance E)
   rfl
 
 /-- Each selected raw result has its original floor in the actual retained output distribution. -/
-public theorem ecdlpSampling_selectedOutcome_floor (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpSampling_selectedOutcome_floor (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (secretInput : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ)
     {Reference : Register}
-    (input : Execution.OracleInput (executionModel I A).classicalOracles (pre I) Reference) :
+    (input : Execution.OracleInput (executionModel I).classicalOracles (pre I) Reference) :
     selectedRawOutcomePointwiseLowerBound (problem I) ≤
-      (((run I A expansion).outputDistribution input).map (observedOutcome I))
+      (((run I expansion).outputDistribution (sourceEnvironment I A) input).map (observedOutcome I))
         (selectedRawOutcome (problem I) secretInput unit) := by
   let weight : (post I).register.Index → ENNReal := fun basis =>
     ENNReal.ofReal (if basisOutcome I basis = selectedRawOutcome (problem I) secretInput unit then
@@ -103,23 +103,26 @@ public theorem ecdlpSampling_selectedOutcome_floor (I : ECDLPInstance E) (A : Ac
       (fun basis _ _ => by positivity)
 
 /-- The actual output retains the original complete selected-family probability floor. -/
-public theorem ecdlpSampling_selectedFamily_floor (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpSampling_selectedFamily_floor (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (secretInput : SecretInput (problem I)) {Reference : Register}
-    (input : Execution.OracleInput (executionModel I A).classicalOracles (pre I) Reference) :
+    (input : Execution.OracleInput (executionModel I).classicalOracles (pre I) Reference) :
     selectedRawOutcomeFamilyLowerBound (problem I) ≤
       (selectedRawOutcomeFamily (problem I) secretInput).sum
-        (((run I A expansion).outputDistribution input).map (observedOutcome I)) := by
+        (((run I expansion).outputDistribution (sourceEnvironment I A) input).map
+          (observedOutcome I)) := by
   let _ : NeZero (problem I).order := ⟨(problem I).order_ne_zero⟩
   rw [selectedRawOutcomeFamily]
   have imageSum := Finset.sum_image
     (s := Finset.univ)
     (f := fun outcome : FiniteCyclicDLP.Canonical.BornBridge.Outcome (problem I) =>
-      ((run I A expansion).outputDistribution input).map (observedOutcome I) outcome)
+      ((run I expansion).outputDistribution (sourceEnvironment I A) input).map (observedOutcome
+        I) outcome)
     (selectedRawOutcome_injective (problem I) secretInput).injOn
   change selectedRawOutcomeFamilyLowerBound (problem I) ≤
     (Finset.univ.image (selectedRawOutcome (problem I) secretInput)).sum
-      (fun outcome => ((run I A expansion).outputDistribution input).map (observedOutcome I)
+      (fun outcome => ((run I expansion).outputDistribution (sourceEnvironment I A) input).map
+        (observedOutcome I)
         outcome)
   rw [imageSum]
   change Fintype.card (ZMod (problem I).order)ˣ •

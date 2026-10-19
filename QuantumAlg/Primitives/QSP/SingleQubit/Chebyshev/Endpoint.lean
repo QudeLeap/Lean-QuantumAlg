@@ -6,180 +6,27 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Construction
-public import QuantumAlg.Core.Algorithm
-public import QuantumAlg.Core.Execution.Owned.Qubits
-import all QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Construction
+public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Basic
 import all QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Basic
-import all QuantumAlg.Core.Algorithm.AlgorithmRun
-import all QuantumAlg.Core.Algorithm.Problem
-import all QuantumAlg.Core.Algorithm.Solves
-import all QuantumAlg.Core.Algorithm.Unitary.Requirement
-import all QuantumAlg.Core.Execution.Owned.Qubits
-import all QuantumAlg.Core.Execution.Borrowed.Empty
-import all QuantumAlg.Core.Execution.Output
-import all QuantumAlg.Core.Execution.Trace
-import all QuantumAlg.Core.Base.UnitaryCircuit.Physical
-import all QuantumAlg.Core.Base.UnitaryCircuit.Binary
-import all QuantumAlg.Core.Execution.Context.Layout.Unitary
-import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
-import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
 
 /-!
-# Complete reflection-convention quantum signal processing
+# Reflection-based QSP polynomial characterization
 
-The source characterization is realized by complete one-qubit executions.
-The full operator, native budget and original polynomial conditions remain
-independent of the candidate run [Lin22, hermfunc.tex:1118-1138].
+The phase sequence is chosen once and works for every signal value. Degree,
+parity and normalization are both necessary and sufficient
+[Lin22, hermfunc.tex:1118-1138].
 -/
 
 namespace QuantumAlg.ReflectionBasedQuantumSignalProcessing
 
-noncomputable section
+open Polynomial
 
-local instance {α : Type} : DecidableEq α := Classical.decEq α
-
-open Execution.OwnedQubits Polynomial
-
-variable (φ₀ : Real) (φs : List Real) (x : Real) (hx : x ∈ Set.Icc (-1 : Real) 1)
-
-private def semanticOperator : UnitaryOperator (context 1).register :=
-  UnitaryOperator.reindex (basisEquiv 1).symm (operator φ₀ φs x hx)
-
-private theorem supplied_wires : layout.wires = (context 1).quantumLayout.wires :=
-  Execution.OwnedQubits.layout_wires 1
-
-private def program :
-    UnitaryCircuit AlgorithmGate.model .empty (context 1).quantumLayout :=
-  Execution.unitaryOfEqualWires layout (context 1).quantumLayout supplied_wires
-    (circuit φ₀ φs x hx)
-
-private theorem program_matrix :
-    (program φ₀ φs x hx).matrix = semanticOperator φ₀ φs x hx := by
-  unfold semanticOperator
-  rw [← circuit_matrix φ₀ φs x hx]
-  rw [program, Execution.unitaryOfEqualWires_matrix, UnitaryCircuit.binaryMatrix,
-    UnitaryOperator.unitaryOperator_reindex_trans]
-  apply congrArg (fun equivalence : layout.register.Index ≃ (context 1).register.Index =>
-    UnitaryOperator.reindex equivalence (circuit φ₀ φs x hx).matrix)
-  apply Equiv.ext
-  intro basis
-  change (Execution.basisOfEqualWires layout (context 1).quantumLayout supplied_wires) basis =
-    (Execution.basisOfEqualWires layout (context 1).quantumLayout supplied_wires)
-      ((QuantumSignature.qubitsIndexEquiv 1).symm ((QuantumSignature.qubitsIndexEquiv 1) basis))
-  rw [Equiv.symm_apply_apply]
-
-private def code : Circuit model (context 1) (context 1) :=
-  .unitary (program φ₀ φs x hx)
-
-/-- Complete execution of a reflection-convention QSP word.
-
-**Input.** One supplied owned qubit in any normalized joint state, arbitrary
-external references, arbitrary real processing phases and x in [-1,1].
-**Output.** The same qubit and the classical unit result. The exact algebraic
-QSP product acts on the qubit, tensor the identity on every external reference.
-**Resource budget.** With d = φs.length, exactly 2d + 1 native single-qubit gates
-implement d signal factors and d + 1 exact Z processing rotations.
-Unit-event depth is at most 2d + 1.
-Resident and owned auxiliary space each count the same supplied qubit. No
-new quantum systems or classical cells are allocated.
-**Success.** Probability one and exact full-operator action.
-**Source.** The product and characterization are [Lin22, hermfunc.tex:1103-1138].
--/
-public def problem : Problem model (context 1) (context 1) .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary (semanticOperator φ₀ φs x hx)]
-  resources := { events := eventBudget φs.length, resident := space 1, auxiliary := space 1 }
-  depth :=
-    { duration := fun _ => 1
-      limit := 2 * φs.length + 1
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
-
-/-- Execute the actual processing word and retain its entire supplied register. -/
-public def algorithm : Algorithm model (context 1) (context 1) .unit where
-  run := { code := code φ₀ φs x hx, output := Output.all (context 1) .unit }
-
-private theorem output_listing :
-    (algorithm φ₀ φs x hx).run.output.listing = (context 1).keys := rfl
-
-/-- The complete Output keeps the original qubit. -/
-public theorem algorithm_output_listing :
-    (algorithm φ₀ φs x hx).run.output.listing = (context 1).keys :=
-  output_listing φ₀ φs x hx
-
-private theorem actual_events (path : (code φ₀ φs x hx).Path) :
-    (code φ₀ φs x hx).resourcePool path = eventBudget φs.length := by
-  change ResourcePool.ofList (program φ₀ φs x hx).eventTrace = _
-  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (program φ₀ φs x hx), program,
-    Execution.unitaryOfEqualWires_cost, circuit_events]
-
-/-- Exact expanded native gate multiplicities of every actual execution path. -/
-public theorem algorithm_eventPool (path : (algorithm φ₀ φs x hx).run.code.Path) :
-    (algorithm φ₀ φs x hx).run.code.resourcePool path = eventBudget φs.length :=
-  actual_events φ₀ φs x hx path
-
-private theorem actual_resident (path : (code φ₀ φs x hx).Path) :
-    (code φ₀ φs x hx).peakResidentSpace path ≤ space 1 := by
-  intro axis
-  change Nat.max ((context 1).residentSpace axis) 0 ≤ space 1 axis
-  rw [ownedQubits_resident]
-  exact le_of_eq (Nat.max_zero _)
-
-private theorem actual_auxiliary (path : (code φ₀ φs x hx).Path) :
-    (code φ₀ φs x hx).peakAuxiliarySpace path ≤ space 1 := by
-  intro axis
-  change Nat.max ((context 1).auxiliarySpace axis) 0 ≤ space 1 axis
-  rw [ownedQubits_auxiliary]
-  exact le_of_eq (Nat.max_zero _)
-
-theorem algorithm_solves : Algorithm.Solves (algorithm φ₀ φs x hx) (problem φ₀ φs x hx) := by
-  constructor
-  · intro Reference input _valid _initialized
-    apply le_of_eq
-    symm
-    apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
-    intro _pair _supported
-    trivial
-  · intro Reference input _valid _initialized requirement present
-    have same : requirement = StateRequirement.unitary (semanticOperator φ₀ φs x hx) :=
-      List.mem_singleton.mp present
-    subst requirement
-    exact StateRequirement.unitary_holds (semanticOperator φ₀ φs x hx)
-      (program φ₀ φs x hx) (program_matrix φ₀ φs x hx)
-      (Output.all (context 1) .unit) input
-  · intro Reference input _valid _initialized
-    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
-      (program φ₀ φs x hx) (Output.all (context 1) .unit) input
-  · intro _Reference _input _valid _initialized path _supported
-    exact le_of_eq (actual_events φ₀ φs x hx path)
-  · intro _Reference _input _valid _initialized path _supported
-    exact actual_resident φ₀ φs x hx path
-  · intro _Reference _input _valid _initialized path _supported
-    exact actual_auxiliary φ₀ φs x hx path
-  · intro _Reference _input _valid _initialized _path _supported
-    exact le_of_eq (circuit_depth φ₀ φs x hx)
-
-/-- The original degree/parity/normalization characterization holds exactly,
-and each synthesizing source word has a complete execution satisfying its
-independent native contract [Lin22, hermfunc.tex:1118-1138]. -/
+/-- Exact polynomial characterization with a single phase sequence valid on the entire interval. -/
 public theorem main (d : Nat) (P Q : ℂ[X]) :
     IsQSPPair d P Q ↔
       ∃ (φ₀ : Real) (φs : List Real), φs.length = d ∧
-        ∀ (x : Real) (hx : x ∈ Set.Icc (-1 : Real) 1),
-          qspO φ₀ φs x = qspMat P Q x ∧
-            ∃ candidate, Algorithm.Solves candidate (problem φ₀ φs x hx) := by
-  constructor
-  · intro admissible
-    obtain ⟨φ₀, φs, length, realizes⟩ := (characterization d P Q).mp admissible
-    exact ⟨φ₀, φs, length, fun x hx =>
-      ⟨realizes x hx, algorithm φ₀ φs x hx, algorithm_solves φ₀ φs x hx⟩⟩
-  · rintro ⟨φ₀, φs, length, realizes⟩
-    exact (characterization d P Q).mpr ⟨φ₀, φs, length, fun x hx => (realizes x hx).1⟩
-
-end
+        ∀ (x : Real) (_hx : x ∈ Set.Icc (-1 : Real) 1),
+          qspO φ₀ φs x = qspMat P Q x :=
+  characterization d P Q
 
 end QuantumAlg.ReflectionBasedQuantumSignalProcessing

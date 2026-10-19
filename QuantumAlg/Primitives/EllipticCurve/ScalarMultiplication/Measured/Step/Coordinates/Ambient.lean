@@ -35,14 +35,14 @@ def ambientPosition (width : Nat) {count : Nat} (active : Fin count)
       index)
 
 /-- Ambient placement retains each original physical identity and local dimension. -/
-theorem ambientPosition_wire (width : Nat) {count : Nat} (active : Fin count)
+lemma ambientPosition_wire (width : Nat) {count : Nat} (active : Fin count)
     (index : Fin (ambientContext width active).systemCount) :
     (readyContext width count).quantumLayout.wire (ambientPosition width active index) =
       (ambientContext width active).quantumLayout.wire index := by
   rw [ambientPosition, ContextPermutation.positions_wire, ContextUnion.contextUnion_right_wire]
 
 /-- The ambient component reads exactly the finite value on its actual resident system. -/
-theorem pointBasis_ambient_value (width : Nat) {count : Nat} (active : Fin count)
+lemma pointBasis_ambient_value (width : Nat) {count : Nat} (active : Fin count)
     (value : (readyContext width count).register.Index)
     (index : Fin (ambientContext width active).systemCount) :
     ((pointBasis width active value).2 index).val =
@@ -64,7 +64,7 @@ theorem pointBasis_ambient_value (width : Nat) {count : Nat} (active : Fin count
   exact framedValue.symm.trans readyValue.symm
 
 /-- The independent step retains every finite value on the actual ambient physical systems. -/
-theorem stepPermutation_ambient_value {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma stepPermutation_ambient_value {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index)
     (index : Fin (ambientContext p.size active).systemCount) :

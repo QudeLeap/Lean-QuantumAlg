@@ -33,26 +33,29 @@ attribute [local instance] Classical.decEq
 universe u
 
 variable {G : Type u} [Group G] [Fintype G]
+variable {oracles : OracleModel}
+variable {quantumEnvironment : oracles.Interpretation}
 variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum}
 
 /-- The actual attempt and first-accepted update have one chronological record. -/
-public theorem selectAttempt_actualRecord
+public lemma selectAttempt_actualRecord
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (input : CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P)) :
-    ∃ record : Store ctx × (OrderExecution.model P).HiddenState →
-        (Store ctx × (OrderExecution.model P).HiddenState) ×
-          (selectAttempt P spec input refs).Path,
+    ∃ record : Store ctx × (recoveryModel P oracles).HiddenState →
+        (Store ctx × (recoveryModel P oracles).HiddenState) ×
+          (selectAttempt (oracles := oracles) P spec input refs).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)),
-        (selectAttempt P spec input refs).execute Reference state =
+        (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)),
+        (selectAttempt (oracles := oracles) P spec input refs).execute
+          (recoveryEnvironment P quantumEnvironment) Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  obtain ⟨record, equation⟩ := withAttempt_actualRecord P spec input (fun
+  obtain ⟨record, equation⟩ := withAttempt_actualRecord (oracles := oracles) P spec input (fun
       {inner} candidate accepted transport =>
-        FirstAccepted.circuit (model := OrderExecution.model P)
+        FirstAccepted.circuit (model := recoveryModel P oracles)
           ⟨accepted, candidate⟩ (liftSelector refs transport)) (by
     intro inner candidate accepted transport
     let inputs : FirstAccepted.Inputs inner (OrderPreparation.width P) :=
@@ -60,11 +63,12 @@ public theorem selectAttempt_actualRecord
     let lifted := liftSelector refs transport
     refine ⟨(fun entry =>
         let result := FirstAccepted.step
-          (model := OrderExecution.model P) inputs lifted entry.1
+          (model := recoveryModel P oracles) inputs lifted entry.1
         ((result.1, entry.2), result.2)), ?_⟩
     intro Reference History _ state
     exact (FirstAccepted.firstAccepted_execute
-      (model := OrderExecution.model P) inputs lifted Reference state).trans
+      (environment := recoveryEnvironment P quantumEnvironment)
+      (model := recoveryModel P oracles) inputs lifted Reference state).trans
         (mapClassicalExplicit_eq state _).symm)
   refine ⟨record, ?_⟩
   intro Reference History _ state
@@ -76,24 +80,31 @@ public def selectionAttemptRecord
     (input : CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P)) :
-    Store ctx × (OrderExecution.model P).HiddenState →
-      (Store ctx × (OrderExecution.model P).HiddenState) ×
-        (selectAttempt P spec input refs).Path :=
-  Classical.choose (selectAttempt_actualRecord P spec input refs)
+    Store ctx × (recoveryModel P oracles).HiddenState →
+      (Store ctx × (recoveryModel P oracles).HiddenState) ×
+        (selectAttempt (oracles := oracles) P spec input refs).Path :=
+  Classical.choose (selectAttempt_actualRecord
+    (quantumEnvironment := quantumEnvironment) (oracles := oracles) P spec input refs)
 
 /-- The chosen attempt record is witnessed by the full interpreter equation. -/
-public theorem selectionAttemptRecord_execute
+public lemma selectionAttemptRecord_execute
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (input : CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)) :
-    (selectAttempt P spec input refs).execute Reference state =
+    (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)) :
+    (selectAttempt (oracles := oracles) P spec input refs).execute
+      (recoveryEnvironment P quantumEnvironment) Reference state =
       state.mapClassical (fun entry =>
-        let result := selectionAttemptRecord P spec input refs (entry.1, entry.2.1)
+        let result := selectionAttemptRecord
+          (quantumEnvironment := quantumEnvironment)
+          (oracles := oracles) P spec input refs (entry.1,
+          entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  Classical.choose_spec (selectAttempt_actualRecord P spec input refs) Reference state
+  Classical.choose_spec (selectAttempt_actualRecord
+    (quantumEnvironment := quantumEnvironment) (oracles := oracles) P spec input refs)
+    Reference state
 
 /-- Complete record of all retained attempts in chronological order. -/
 public def selectionLoopRecord
@@ -102,51 +113,58 @@ public def selectionLoopRecord
     (samples : Fin count → CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P)) :
-    Store ctx × (OrderExecution.model P).HiddenState →
-      (Store ctx × (OrderExecution.model P).HiddenState) ×
-        (selectionLoop P spec count samples refs).Path :=
-  Circuit.forRangeRecord (model := OrderExecution.model P) count
-    (fun index => selectAttempt P spec (samples index) refs)
-    (fun index => selectionAttemptRecord P spec (samples index) refs)
+    Store ctx × (recoveryModel P oracles).HiddenState →
+      (Store ctx × (recoveryModel P oracles).HiddenState) ×
+        (selectionLoop (oracles := oracles) P spec count samples refs).Path :=
+  Circuit.forRangeRecord (model := recoveryModel P oracles) count
+    (fun index => selectAttempt (oracles := oracles) P spec (samples index) refs)
+    (fun index => selectionAttemptRecord
+      (quantumEnvironment := quantumEnvironment) (oracles := oracles) P spec (samples index) refs)
 
 /-- Every retained attempt preserves arbitrary reference blocks and prior history. -/
-public theorem selectionLoop_execute
+public lemma selectionLoop_execute
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (samples : Fin count → CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)) :
-    (selectionLoop P spec count samples refs).execute Reference state =
+    (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)) :
+    (selectionLoop (oracles := oracles) P spec count samples refs).execute
+      (recoveryEnvironment P quantumEnvironment) Reference state =
       state.mapClassical (fun entry =>
-        let result := selectionLoopRecord P spec count samples refs (entry.1, entry.2.1)
+        let result := selectionLoopRecord
+          (quantumEnvironment := quantumEnvironment) (oracles := oracles) P spec count samples refs
+          (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  Circuit.execute_forRangeRecord (model := OrderExecution.model P) count _ _
-    (fun index => selectionAttemptRecord_execute P spec (samples index) refs)
+  Circuit.execute_forRangeRecord (environment := recoveryEnvironment P quantumEnvironment)
+    (model := recoveryModel P oracles) count _ _
+    (fun index => selectionAttemptRecord_execute (oracles := oracles) P spec (samples index) refs)
     Reference state
 
 private def packRecord {width : Nat} (refs : FirstAccepted.Refs ctx width)
     (output : CWriteRef ctx (.option (.unsignedWord width)))
-    (entry : Store ctx × (OrderExecution.model P).HiddenState) :
-    (Store ctx × (OrderExecution.model P).HiddenState) ×
-      (BitWord.instruction (execution := OrderExecution.model P)
+    (entry : Store ctx × (recoveryModel P oracles).HiddenState) :
+    (Store ctx × (recoveryModel P oracles).HiddenState) ×
+      (BitWord.instruction (execution := recoveryModel P oracles)
         (selectionPack refs output)).Path :=
-  let result := BitWord.instructionStep (execution := OrderExecution.model P)
+  let result := BitWord.instructionStep (execution := recoveryModel P oracles)
     (selectionPack refs output) entry.1
   ((result.1, entry.2), result.2)
 
-private theorem pack_execute {width : Nat} (refs : FirstAccepted.Refs ctx width)
+private lemma pack_execute {width : Nat} (refs : FirstAccepted.Refs ctx width)
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)) :
-    (BitWord.instruction (execution := OrderExecution.model P)
-      (selectionPack refs output)).execute Reference state =
+    (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)) :
+    (BitWord.instruction (execution := recoveryModel P oracles)
+      (selectionPack refs output)).execute
+        (recoveryEnvironment P quantumEnvironment) Reference state =
       state.mapClassical (fun entry =>
-        let result := packRecord P refs output (entry.1, entry.2.1)
+        let result := packRecord (oracles := oracles) P refs output (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   exact BitWord.bitWord_instruction_execute
-    (execution := OrderExecution.model P) (selectionPack refs output) state
+    (environment := recoveryEnvironment P quantumEnvironment)
+    (execution := recoveryModel P oracles) (selectionPack refs output) state
 
 /-- The loop and final optional pack have one complete actual record. -/
 public def recoveryBodyRecord
@@ -157,15 +175,16 @@ public def recoveryBodyRecord
     (refs : FirstAccepted.Refs ctx (OrderPreparation.width P))
     (output : CWriteRef ctx
       (.option (.unsignedWord (OrderPreparation.width P)))) :
-    Store ctx × (OrderExecution.model P).HiddenState →
-      (Store ctx × (OrderExecution.model P).HiddenState) ×
-        (recoveryBody P spec count samples refs output).Path :=
-  Circuit.sequenceRecord (model := OrderExecution.model P) _ _
-    (selectionLoopRecord P spec count samples refs)
-    (packRecord P refs output)
+    Store ctx × (recoveryModel P oracles).HiddenState →
+      (Store ctx × (recoveryModel P oracles).HiddenState) ×
+        (recoveryBody (oracles := oracles) P spec count samples refs output).Path :=
+  Circuit.sequenceRecord (model := recoveryModel P oracles) _ _
+    (selectionLoopRecord
+      (quantumEnvironment := quantumEnvironment) (oracles := oracles) P spec count samples refs)
+    (packRecord (oracles := oracles) P refs output)
 
 /-- The complete recovery body preserves the entire execution state shape. -/
-public theorem recoveryBody_execute
+public lemma recoveryBody_execute
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (samples : Fin count → CInputRef ctx
@@ -174,47 +193,55 @@ public theorem recoveryBody_execute
     (output : CWriteRef ctx
       (.option (.unsignedWord (OrderPreparation.width P))))
     (Reference : Register) {History : Type} [Fintype History]
-    (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)) :
-    (recoveryBody P spec count samples refs output).execute Reference state =
+    (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)) :
+    (recoveryBody (oracles := oracles) P spec count samples refs output).execute
+      (recoveryEnvironment P quantumEnvironment) Reference state =
       state.mapClassical (fun entry =>
-        let result := recoveryBodyRecord P spec count samples refs output
+        let result := recoveryBodyRecord
+          (quantumEnvironment := quantumEnvironment)
+          (oracles := oracles) P spec count samples refs output
           (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  Circuit.execute_sequenceRecord (model := OrderExecution.model P) _ _ _ _
-    (selectionLoop_execute P spec count samples refs) (pack_execute P refs output)
+  Circuit.execute_sequenceRecord (environment := recoveryEnvironment P quantumEnvironment)
+    (model := recoveryModel P oracles) _ _ _ _
+    (selectionLoop_execute (oracles := oracles) P spec count samples refs) (pack_execute
+      (oracles := oracles) P refs output)
     Reference state
 
 /-- Actual selector allocation surrounds the same complete loop and pack record. -/
-public theorem recoveryInto_actualRecord
+public lemma recoveryInto_actualRecord
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (count : Nat)
     (samples : Fin count → CInputRef ctx
       (.fixedVector (OrderPreparation.width P + OrderPreparation.width P) (.finite 2)))
     (output : CWriteRef ctx
       (.option (.unsignedWord (OrderPreparation.width P)))) :
-    ∃ record : Store ctx × (OrderExecution.model P).HiddenState →
-        (Store ctx × (OrderExecution.model P).HiddenState) ×
-          (recoveryInto P spec count samples output).Path,
+    ∃ record : Store ctx × (recoveryModel P oracles).HiddenState →
+        (Store ctx × (recoveryModel P oracles).HiddenState) ×
+          (recoveryInto (oracles := oracles) P spec count samples output).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)),
-        (recoveryInto P spec count samples output).execute Reference state =
+        (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)),
+        (recoveryInto (oracles := oracles) P spec count samples output).execute
+          (recoveryEnvironment P quantumEnvironment) Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   obtain ⟨record, equation, _⟩ :=
     withCells_actualRecord_initialized_restricted_post
-      (model := OrderExecution.model P) ctx
+      (environment := recoveryEnvironment P quantumEnvironment)
+      (model := recoveryModel P oracles) ctx
       (selectorShapes (OrderPreparation.width P))
       (fun cells _ transport _ =>
-        recoveryBody P spec count
+        recoveryBody (oracles := oracles) P spec count
           (fun index => transport.liftInput (samples index))
           (selectorRefs cells) (transport.liftWrite output))
       (fun _ _ => True) (by
         intro inner cells _distinct transport _separated
-        exact ⟨recoveryBodyRecord P spec count
+        exact ⟨recoveryBodyRecord
+          (quantumEnvironment := quantumEnvironment) (oracles := oracles) P spec count
             (fun index => transport.liftInput (samples index))
             (selectorRefs cells) (transport.liftWrite output),
-          recoveryBody_execute P spec count
+          recoveryBody_execute (oracles := oracles) P spec count
             (fun index => transport.liftInput (samples index))
             (selectorRefs cells) (transport.liftWrite output),
           by intros; trivial⟩)

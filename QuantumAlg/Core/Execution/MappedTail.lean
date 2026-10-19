@@ -30,22 +30,23 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A proved deterministic tail maps the actual preceding execution and its original history. -/
-theorem execute_seq_retained_mapClassical_tail {model : ExecutionModel}
+lemma execute_seq_retained_mapClassical_tail {model : ExecutionModel}
     {pre middle : RuntimeCtx model.kind} (key : StorageKey) (shape : CShape)
     (fresh : key ∉ middle.keys)
     (first : Circuit model pre middle)
     (second : Circuit model middle (middle.addRetained key shape fresh))
+    (environment : model.Environment)
     (step : Store middle × model.HiddenState →
       (Store (middle.addRetained key shape fresh) × model.HiddenState) × second.Path)
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State middle Reference (model.HiddenState × History)),
-      second.execute Reference state = state.mapClassical (fun entry =>
+      second.execute environment Reference state = state.mapClassical (fun entry =>
         let result := step (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State pre Reference (model.HiddenState × History)) :
-    (Circuit.seq first second).execute Reference state =
-      (first.execute Reference state).mapClassical (fun entry =>
+    (Circuit.seq first second).execute environment Reference state =
+      (first.execute environment Reference state).mapClassical (fun entry =>
         let result := step (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2.1, (entry.2.2.2, result.2))))) := by
   rw [execute_seq, secondEquation]

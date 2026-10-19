@@ -45,9 +45,10 @@ def reflection (oracles : OracleModel) {t : Nat} : (n : Nat) → Fin t →
       (controlWire_ne_workWire (extra + 3) stage (by omega))
 
 /-- Full-register action restores every phase and work coordinate on both control branches. -/
-theorem reflection_applyVec_pair (oracles : OracleModel) {t : Nat} (n : Nat) (stage : Fin t)
+lemma reflection_applyVec_pair (oracles : OracleModel) {environment : oracles.Interpretation}
+    {t : Nat} (n : Nat) (stage : Fin t)
     (phase : Fin (2 ^ phaseWidth t n)) (source : Fin (2 ^ n)) :
-    (reflection oracles n stage).applyVec
+    (reflection oracles n stage).applyVec environment
         (NormalizedVector.ket (R := (physical (totalQubits t n)).toQuantum.register)
           ((physical (totalQubits t n)).basisEquiv.symm (prodEquiv (phase, source)))).vec =
       if (BinaryLabelEncoding.finIdentityBit (phaseWidth t n) (controlWire n stage)).get phase then
@@ -79,7 +80,7 @@ theorem reflection_applyVec_pair (oracles : OracleModel) {t : Nat} (n : Nat) (st
         (controlWire_ne_workWire (extra + 3) stage (by omega)) phase source
 
 /-- The actual native coordinate pool is the independent width-only elementary formula. -/
-theorem reflection_eventCost (oracles : OracleModel) {t : Nat} (n : Nat) (stage : Fin t) :
+lemma reflection_eventCost (oracles : OracleModel) {t : Nat} (n : Nat) (stage : Fin t) :
     (reflection oracles n stage).eventCost =
       ZeroReflection.controlledElementaryEventPool oracles n := by
   match n with
@@ -100,7 +101,7 @@ theorem reflection_eventCost (oracles : OracleModel) {t : Nat} (n : Nat) (stage 
         (controlWire_ne_workWire (extra + 3) stage (by omega))
 
 /-- Every selected elementary reflection runs sequentially with exactly its native gate count. -/
-theorem reflection_unitDepth (oracles : OracleModel) {t : Nat} (n : Nat) (stage : Fin t) :
+lemma reflection_unitDepth (oracles : OracleModel) {t : Nat} (n : Nat) (stage : Fin t) :
     (reflection oracles n stage).evaluatedEventDepth (fun _ => 1) =
       ZeroReflection.controlledElementaryGateCount n := by
   match n with

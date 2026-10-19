@@ -32,23 +32,25 @@ noncomputable section
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Reserve both real resets, the initialized native word and all exponent measurements. -/
-public def eventBudget (I : ECDLPInstance E) (A : Access I)
+public def eventBudget (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    ResourcePool (executionModel I A) :=
-  ZReset.Bank.envelope (oracles := model I A) (context I).systemCount BitWord.model +
-    ((nativeProgram I A expansion).eventCost BitWord.model .empty +
-      (sampleWidth I • ResourcePool.singleton (model := executionModel I A)
+    ResourcePool (executionModel I) :=
+  ZReset.Bank.envelope (oracles := model I) (context I).systemCount BitWord.model +
+    ((nativeProgram I expansion).eventCost BitWord.model .empty +
+      (sampleWidth I • ResourcePool.singleton (model := executionModel I)
         (.measurement (2 : ℕ+)) +
-          ZReset.Bank.envelope (oracles := model I A) (context I).systemCount BitWord.model))
+          ZReset.Bank.envelope (oracles := model I) (context I).systemCount BitWord.model))
 
-private theorem readout_pool (I : ECDLPInstance E) (A : Access I)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := model I A)
+private lemma readout_pool {allowAllocation : Bool} (I : ECDLPInstance E)
+    (path : (Circuit.measurementSequence (allowAllocation := allowAllocation)
+      (gates := AlgorithmGate.model) (oracles := model I)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts I)).Path) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := model I A)
+    (Circuit.measurementSequence (allowAllocation := allowAllocation)
+      (gates := AlgorithmGate.model) (oracles := model I)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts I)).resourcePool path =
-        sampleWidth I • ResourcePool.singleton (model := executionModel I A)
+        sampleWidth I • ResourcePool.singleton (model := executionModel I)
           (.measurement (2 : ℕ+)) := by
   rw [Circuit.measurementSequence_qubit_resourcePool (readouts I)
     (fun item _ => ecdlpReuse_qubits I item.wire)]
@@ -56,33 +58,37 @@ private theorem readout_pool (I : ECDLPInstance E) (A : Access I)
   rfl
 
 /-- Every actual round path includes all reset, native, query and terminal-read events. -/
-public theorem ecdlpReuse_code_events_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_events_le {allowAllocation : Bool}
+    (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (path : (code I A expansion).Path) :
-    (code I A expansion).resourcePool path ≤ eventBudget I A expansion := by
-  have resets := ZReset.Bank.zResetBank_resourcePool_le (oracles := model I A)
+    (path : (code (allowAllocation := allowAllocation) I expansion).Path) :
+    (code (allowAllocation := allowAllocation) I expansion).resourcePool path ≤ eventBudget I
+        expansion := by
+  have resets := ZReset.Bank.zResetBank_resourcePool_le (allowAllocation := allowAllocation)
+      (services := .empty) (oracles := model I)
     (operations := BitWord.model) (ecdlpReuse_qubits I) (scratch I)
-  have measures := readout_pool I A path.2.2.1
+  have measures := readout_pool (allowAllocation := allowAllocation) I path.2.2.1
   have program := UnitaryCircuit.ofList_eventTrace_eq_eventCost
-    (nativeProgram I A expansion) BitWord.model .empty
+    (nativeProgram I expansion) BitWord.model .empty
   change ResourcePool.ofList (_ ++ (_ ++ (_ ++ _))) ≤ _
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append, ResourcePool.ofList_append]
-  change (reset I A).resourcePool path.1 +
-    (ResourcePool.ofList ((nativeProgram I A expansion).eventTrace BitWord.model .empty) +
-      ((Circuit.measurementSequence (readouts I)).resourcePool path.2.2.1 +
-        (reset I A).resourcePool path.2.2.2)) ≤ _
+  change (reset (allowAllocation := allowAllocation) I).resourcePool path.1 +
+    (ResourcePool.ofList ((nativeProgram I expansion).eventTrace BitWord.model .empty) +
+      ((Circuit.measurementSequence (allowAllocation := allowAllocation)
+        (readouts I)).resourcePool path.2.2.1 +
+        (reset (allowAllocation := allowAllocation) I).resourcePool path.2.2.2)) ≤ _
   rw [program]
   exact add_le_add (resets path.1)
     (add_le_add le_rfl (add_le_add measures.le (resets path.2.2.2)))
 
 /-- Resident storage contains the entire original sampling context and the one real reset cell. -/
-public theorem ecdlpReuse_context_resident (I : ECDLPInstance E) :
+public lemma ecdlpReuse_context_resident (I : ECDLPInstance E) :
     (context I).residentSpace = SpacePool.ofShape (.finite 2) +
       (Sampling.post I).residentSpace := by
   rw [context, RuntimeCtx.residentSpace_addRetained]
 
 /-- The same reset destination is charged to auxiliary storage beside all original roles. -/
-public theorem ecdlpReuse_context_auxiliary (I : ECDLPInstance E) :
+public lemma ecdlpReuse_context_auxiliary (I : ECDLPInstance E) :
     (context I).auxiliarySpace = SpacePool.ofShape (.finite 2) +
       (Sampling.post I).auxiliarySpace := by
   rw [context, RuntimeCtx.auxiliarySpace_addRetained]

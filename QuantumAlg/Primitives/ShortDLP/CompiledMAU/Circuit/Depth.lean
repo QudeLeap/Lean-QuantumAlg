@@ -31,7 +31,7 @@ def preparationDepthEnvelope (m ell : Nat) :
     DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   if ell + m + ell = 0 then .id else .atom (.gate .singleQubit)
 
-private theorem hadamardLayer_duration (bits : Nat)
+private lemma hadamardLayer_duration (bits : Nat)
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (Gate.HadamardLayer.circuit .empty bits).evaluatedEventDepth assignment =
       if bits = 0 then 0 else assignment (.gate .singleQubit) := by
@@ -47,7 +47,7 @@ private theorem hadamardLayer_duration (bits : Nat)
       split <;> simp
 
 /-- Preparation has exactly one native dependency layer for nonempty exponent storage. -/
-theorem preparationCircuit_eventDepth_eval_eq_envelope (m ell width : Nat)
+lemma preparationCircuit_eventDepth_eval_eq_envelope (m ell width : Nat)
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment
         (preparationCircuit (registerParameters m ell width)).eventDepth =
@@ -63,7 +63,7 @@ def qftDepthEnvelope (bits : Nat) :
   .seq (.iterate (bits + 3 * bits.choose 2) (.atom (.gate .singleQubit)))
     (.iterate (2 * bits.choose 2 + 3 * (bits / 2)) (.atom (.gate .cnot)))
 
-theorem qftDepthEnvelope_eval (bits : Nat)
+lemma qftDepthEnvelope_eval (bits : Nat)
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (qftDepthEnvelope bits) =
       ResourcePool.weightedCount assignment (qftEventEnvelope bits) := by
@@ -71,7 +71,7 @@ theorem qftDepthEnvelope_eval (bits : Nat)
     DepthExpr.depthEval_atom, qftEventEnvelope, ResourcePool.weightedCount_add,
     ResourcePool.weightedCount_singleton]
 
-theorem shortDLP_inverseQFT_eventDepth_le_envelope (bits : Nat)
+lemma shortDLP_inverseQFT_eventDepth_le_envelope (bits : Nat)
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment
         (QuantumFourierTransform.Native.inverseCircuit .empty bits).eventDepth ≤
@@ -82,7 +82,7 @@ theorem shortDLP_inverseQFT_eventDepth_le_envelope (bits : Nat)
   exact le_of_eq ((UnitaryCircuit.resourcesFromEventDepth_eq_eventCost _).trans
     (shortDLP_inverseQFT_eventCost_eq_envelope bits))
 
-@[simp] theorem qftDepthEnvelope_unit (bits : Nat) :
+@[simp] lemma qftDepthEnvelope_unit (bits : Nat) :
     DepthExpr.depthEval (fun _ => 1) (qftDepthEnvelope bits) = qftPrimitiveBound bits := by
   simp only [qftDepthEnvelope, DepthExpr.depthEval_seq, DepthExpr.depthEval_iterate,
     DepthExpr.depthEval_atom, Nat.mul_one, qftPrimitiveBound]
@@ -93,7 +93,7 @@ def readoutDepthEnvelope (m ell : Nat) :
     DepthExpr (Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   .tensor (qftDepthEnvelope (ell + m)) (qftDepthEnvelope ell)
 
-theorem readoutCircuit_eventDepth_le_envelope (m ell width : Nat)
+lemma readoutCircuit_eventDepth_le_envelope (m ell width : Nat)
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment
         (readoutCircuit (registerParameters m ell width)).eventDepth ≤
@@ -114,7 +114,7 @@ def compiledCircuitDepthEnvelope (m ell width N : Nat) :
   .seq (preparationDepthEnvelope m ell)
     (.seq (compiledGroupActionDepthEnvelope m ell width N) (readoutDepthEnvelope m ell))
 
-theorem compiledCircuit_eventDepth_le (m ell width N : Nat) (g x : (ZMod N)ˣ)
+lemma compiledCircuit_eventDepth_le (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     DepthExpr.depthEval assignment (compiledCircuit m ell width N g x).eventDepth ≤
       DepthExpr.depthEval assignment (compiledCircuitDepthEnvelope m ell width N) := by
@@ -137,7 +137,7 @@ def compiledCircuitEventUnitDepthWidthBound (m ell width : Nat) : Nat :=
     (groupActionPrimitiveWidthBound m ell width +
       max (qftPrimitiveBound (ell + m)) (qftPrimitiveBound ell))
 
-theorem compiledCircuitDepthEnvelope_unit (m ell width N : Nat) :
+lemma compiledCircuitDepthEnvelope_unit (m ell width N : Nat) :
     DepthExpr.depthEval (fun _ => 1) (compiledCircuitDepthEnvelope m ell width N) =
       compiledCircuitEventUnitDepth m ell width N := by
   simp only [compiledCircuitDepthEnvelope, DepthExpr.depthEval_seq,
@@ -146,13 +146,13 @@ theorem compiledCircuitDepthEnvelope_unit (m ell width N : Nat) :
   unfold compiledCircuitEventUnitDepth preparationDepthEnvelope
   split <;> rfl
 
-theorem compiledCircuitEventUnitDepth_le_widthBound (m ell width N : Nat) :
+lemma compiledCircuitEventUnitDepth_le_widthBound (m ell width N : Nat) :
     compiledCircuitEventUnitDepth m ell width N ≤
       compiledCircuitEventUnitDepthWidthBound m ell width := by
   exact Nat.add_le_add_left
     (Nat.add_le_add_right (groupActionPrimitiveBound_le_widthBound m ell width N) _) _
 
-theorem compiledCircuitEventUnitDepth_le_polynomial (m ell width N : Nat) :
+lemma compiledCircuitEventUnitDepth_le_polynomial (m ell width N : Nat) :
     compiledCircuitEventUnitDepth m ell width N ≤ polynomialPrimitiveBound m ell width N := by
   have preparation : (if ell + m + ell = 0 then 0 else 1) ≤ m + 2 * ell := by
     split <;> omega
@@ -163,14 +163,14 @@ theorem compiledCircuitEventUnitDepth_le_polynomial (m ell width N : Nat) :
   unfold compiledCircuitEventUnitDepth polynomialPrimitiveBound
   omega
 
-theorem compiledCircuit_eventUnitDepth_le (m ell width N : Nat) (g x : (ZMod N)ˣ) :
+lemma compiledCircuit_eventUnitDepth_le (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (compiledCircuit m ell width N g x).evaluatedEventDepth (fun _ => 1) ≤
       compiledCircuitEventUnitDepth m ell width N :=
   (compiledCircuit_eventDepth_le m ell width N g x (fun _ => 1)).trans_eq
     (compiledCircuitDepthEnvelope_unit m ell width N)
 
 /-- Native depth is unchanged when the complete member runs inside a classical controller. -/
-theorem compiledCircuit_eventUnitDepth_classical_context_le
+lemma compiledCircuit_eventUnitDepth_classical_context_le
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     DepthExpr.depthEval (fun _ => 1)
@@ -185,7 +185,7 @@ def compiledCircuitActualDepthBound (m ell width : Nat) : Nat :=
     (groupActionActualEventBound m ell width +
       max (qftPrimitiveBound (ell + m)) (qftPrimitiveBound ell))
 
-theorem compiledCircuit_actual_depth_bound (m ell width N : Nat) (g x : (ZMod N)ˣ) :
+lemma compiledCircuit_actual_depth_bound (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (compiledCircuit m ell width N g x).evaluatedEventDepth (fun _ => 1) ≤
       compiledCircuitActualDepthBound m ell width := by
   have group := compiledGroupActionProgram_actual_depth_bound m ell width N g x

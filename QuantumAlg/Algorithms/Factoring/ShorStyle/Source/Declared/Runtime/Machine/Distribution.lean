@@ -36,48 +36,50 @@ def sourceDistribution {N : Nat} (input : Input N) (count : Nat) :
     (fun samples => NativeFactorScan.sourceResults input samples.toList)
 
 /-- Actual initialization supplies the empty latch inside the complete reference equation. -/
-theorem code_output_reference (base : RuntimeCtx .quantum)
+lemma code_output_reference (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code base noQuantum N input count).execute Reference state)
+      ((code base noQuantum N input count).execute (environment input) Reference state)
       (fun entry _ => weight (entry.1.read
         (.storage (result base noQuantum N count).toCStorageRef))) left right =
     ExecutionState.referenceFiberSum state
       (fun _ _ => SourceWeights.batch input count
         (fun outcomes => weight (NativeFactorScan.sourceResults input (List.ofFn outcomes))))
       left right := by
-  let initial := Initialized.ready base noQuantum N input
+  let initial := Initialized.ready base noQuantum N
   let later := Finite.code (Initialized.bank base noQuantum N) N input
     (Initialized.bank_wires base noQuantum N) count
     (Initialized.cells base noQuantum N) (Initialized.result base noQuantum N)
-  have sequence := Circuit.referenceFiberSum_execute_seq initial later state
+  have sequence := Circuit.referenceFiberSum_execute_seq (environment := environment input)
+    initial later state
     (fun store => weight (store.read
       (.storage (result base noQuantum N count).toCStorageRef))) left right
   have repeated := Finite.code_output_reference
     (Initialized.bank base noQuantum N) N input (Initialized.bank_wires base noQuantum N)
     count (Initialized.cells base noQuantum N) (Initialized.result base noQuantum N)
-    (Initialized.separated base noQuantum N) (initial.execute Reference state)
-    (Initialized.ready_seeded base noQuantum N input state)
-    ((initial.execute_mass Reference state).trans normalized) weight left right
-  have initialized := Initialized.ready_latch_reference base noQuantum N input state
+    (Initialized.separated base noQuantum N) (initial.execute (environment input) Reference state)
+    (Initialized.ready_seeded (environment := environment input) base noQuantum N state)
+    ((initial.execute_mass (environment input) Reference state).trans normalized) weight left right
+  have initialized := Initialized.ready_latch_reference (environment := environment input)
+    base noQuantum N state
     (latchedWeight input count weight) left right
   exact sequence.trans (repeated.trans initialized)
 
 /-- Every packed output point preserves all original reference matrix coordinates. -/
-theorem code_output_point_reference (base : RuntimeCtx .quantum)
+lemma code_output_point_reference (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (normalized : state.IsNormalized)
     (value : CShape.Value (.option (.unsignedWord (modulusBits N))))
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code base noQuantum N input count).execute Reference state)
+      ((code base noQuantum N input count).execute (environment input) Reference state)
       (fun entry _ => if entry.1.read
         (.storage (result base noQuantum N count).toCStorageRef) = value then 1 else 0)
       left right =
@@ -102,29 +104,31 @@ theorem code_output_point_reference (base : RuntimeCtx .quantum)
     (fun _ _ => coefficient) left right) weights
 
 /-- Traces of the very same actual execution give the original finite output PMF. -/
-theorem code_output_toPMF (base : RuntimeCtx .quantum)
+lemma code_output_toPMF (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (normalized : state.IsNormalized) :
-    (((code base noQuantum N input count).execute Reference state).toPMF
-      (((code base noQuantum N input count).execute_mass Reference state).trans normalized)).map
+    (((code base noQuantum N input count).execute (environment input) Reference state).toPMF
+      (((code base noQuantum N input count).execute_mass (environment input) Reference
+        state).trans normalized)).map
         (fun entry => entry.1.read
           (.storage (result base noQuantum N count).toCStorageRef)) =
       sourceDistribution input count :=
   ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((code base noQuantum N input count).execute Reference state) normalized
-    (((code base noQuantum N input count).execute_mass Reference state).trans normalized)
+    ((code base noQuantum N input count).execute (environment input) Reference state) normalized
+    (((code base noQuantum N input count).execute_mass (environment input) Reference
+      state).trans normalized)
     (fun entry => entry.1.read (.storage (result base noQuantum N count).toCStorageRef))
     (sourceDistribution input count)
     (code_output_point_reference base noQuantum N input count state normalized)
 
 /-- The public run reads its real result with the actual original-store execution history. -/
-theorem outputDistribution_eq (base : RuntimeCtx .quantum)
+lemma outputDistribution_eq (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register}
-    (original : OracleInput (executionModel input).classicalOracles base Reference) :
-    (run base noQuantum N input count).outputDistribution original =
+    (original : OracleInput (executionModel N).classicalOracles base Reference) :
+    (run base noQuantum N input count).outputDistribution (environment input) original =
       sourceDistribution input count :=
   code_output_toPMF base noQuantum N input count
     (original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))

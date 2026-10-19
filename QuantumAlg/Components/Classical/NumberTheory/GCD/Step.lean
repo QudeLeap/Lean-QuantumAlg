@@ -100,12 +100,14 @@ def remainderStep {model : ExecutionModel} [BitWord.Selected model]
   (negated.1, (divided.2, (rotated.2, (taken.2, (compared.2, negated.2)))))
 
 /-- The complete execution acts on the actual store and leaves every full quantum block intact. -/
-theorem gcdRemainder_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdRemainder_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
-    (scratch : CWriteRef ctx (operandShape width)) (Reference : Register)
+    (scratch : CWriteRef ctx (operandShape width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (remainderBody (model := model) first second zero active scratch).execute Reference state =
+    (remainderBody (model := model) first second zero active scratch).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := remainderStep (model := model) first second zero active scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -124,7 +126,7 @@ def remainderEvents (model : ExecutionModel) [BitWord.Selected model] (width : N
     .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))]
 
 /-- Every actual path emits exactly division, two copies, equality and negation. -/
-theorem gcdRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (scratch : CWriteRef ctx (operandShape width))
@@ -146,7 +148,7 @@ theorem gcdRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model
   rfl
 
 /-- The actual native ledger contains the same five explicit classical coordinates. -/
-theorem gcdRemainder_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdRemainder_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (scratch : CWriteRef ctx (operandShape width))
@@ -156,7 +158,7 @@ theorem gcdRemainder_resourcePool {model : ExecutionModel} [BitWord.Selected mod
   congrArg ResourcePool.ofList (gcdRemainder_eventTrace first second zero active scratch path)
 
 /-- All five dependent classical instructions contribute serial unit-duration depth. -/
-theorem gcdRemainder_unitDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdRemainder_unitDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (scratch : CWriteRef ctx (operandShape width))

@@ -31,24 +31,25 @@ open QuantumAlg.Execution
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
 /-- The actual sampler output law equals the native source Born law. -/
-theorem outputDistribution_eq {N x t width : Nat}
+lemma outputDistribution_eq {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
-    (input : Execution.OracleInput (model access).classicalOracles ctx Reference) :
-    (run ctx noQuantum access).outputDistribution input =
+    (input : Execution.OracleInput (model t width).classicalOracles ctx Reference) :
+    (run ctx noQuantum t width).outputDistribution (Sampling.Native.environment access) input =
       (OrderFinding.Native.sourceOutcomePMF access).map CShape.Value.bits := by
   apply PMF.ext
   intro output
   have actual := congrArg (fun distribution : PMF (CShape.Value (.bits t)) =>
       distribution output)
-    (ExecutionState.toPMF_mapClassical ((run ctx noQuantum access).execute Reference input.state)
-      ((run ctx noQuantum access).execute_normalized input)
-      (run ctx noQuantum access).result)
+    (ExecutionState.toPMF_mapClassical ((run ctx noQuantum t width).execute
+      (Sampling.Native.environment access) Reference input.state)
+      ((run ctx noQuantum t width).execute_normalized (Sampling.Native.environment access) input)
+      (run ctx noQuantum t width).result)
   simp only [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code ctx noQuantum access).execute Reference
+    (((code ctx noQuantum t width).execute (Sampling.Native.environment access) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read
         (.storage (resultRef ctx noQuantum t width).toCStorageRef))

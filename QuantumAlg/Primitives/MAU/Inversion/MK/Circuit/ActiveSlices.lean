@@ -26,6 +26,8 @@ namespace Circuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -50,7 +52,7 @@ def originalActiveLatchGates (tail counterWidth : Nat) :
 
 /-- The lifted original-active latch list has exactly the named route-history
 action. -/
-theorem originalActiveLatchGates_stepList_eq
+lemma originalActiveLatchGates_stepList_eq
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -87,27 +89,27 @@ def originalActiveLatchProgram (tail counterWidth : Nat) :
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (originalActiveLatchGates tail counterWidth)
 
-theorem originalActiveLatch_realizes (tail counterWidth : Nat) :
+lemma originalActiveLatch_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (originalActiveLatchProgram tail counterWidth)
+      (originalActiveLatchProgram tail counterWidth) environment
       (originalActiveLatchStep tail counterWidth) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (originalActiveLatchGates tail counterWidth)
     (originalActiveLatchGates_stepList_eq tail counterWidth)
 
 /-- The directly compiled original-active gate list realizes the same named
 route-history action as the structural lifted circuit. -/
-theorem originalActiveLatchGates_realizes (tail counterWidth : Nat) :
+lemma originalActiveLatchGates_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (originalActiveLatchGates tail counterWidth))
+        (originalActiveLatchGates tail counterWidth)) environment
       (originalActiveLatchStep tail counterWidth) :=
   originalActiveLatch_realizes tail counterWidth
 
 /-- The structural original-active circuit has exactly its lifted primitive
 event trace. -/
-theorem originalActiveLatchProgram_eventTrace (tail counterWidth : Nat) :
+lemma originalActiveLatchProgram_eventTrace (tail counterWidth : Nat) :
     (originalActiveLatchProgram tail counterWidth).eventTrace =
       (originalActiveLatchGates tail counterWidth).map
         (EncodedBit.GateSpec.event .empty) := by
@@ -135,7 +137,7 @@ def inactivePaddingGates (tail counterWidth : Nat) :
     (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)).map
     (EncodedBit.GateSpec.prodLeft (wordEncoding (2 * tail.succ)))
 
-theorem event_insertMiddleGateSpec
+lemma event_insertMiddleGateSpec
     {Left Middle Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     (middle : BinaryLabelEncoding Middle)
@@ -147,7 +149,7 @@ theorem event_insertMiddleGateSpec
 
 /-- The lifted inactive-padding list has exactly the named route-history
 action. -/
-theorem inactivePaddingGates_stepList_eq
+lemma inactivePaddingGates_stepList_eq
     (tail counterWidth : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -210,27 +212,27 @@ def inactivePaddingProgram (tail counterWidth : Nat) :
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (inactivePaddingGates tail counterWidth)
 
-theorem inactivePadding_realizes (tail counterWidth : Nat) :
+lemma inactivePadding_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (inactivePaddingProgram tail counterWidth)
+      (inactivePaddingProgram tail counterWidth) environment
       (inactivePaddingStep tail counterWidth) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (inactivePaddingGates tail counterWidth)
     (inactivePaddingGates_stepList_eq tail counterWidth)
 
 /-- The directly compiled inactive-padding list realizes the same named
 route-history action as the structural lifted circuit. -/
-theorem inactivePaddingGates_realizes (tail counterWidth : Nat) :
+lemma inactivePaddingGates_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (inactivePaddingGates tail counterWidth))
+        (inactivePaddingGates tail counterWidth)) environment
       (inactivePaddingStep tail counterWidth) :=
   inactivePadding_realizes tail counterWidth
 
 /-- The structural inactive-padding circuit has exactly its lifted primitive
 event trace. -/
-theorem inactivePaddingProgram_eventTrace (tail counterWidth : Nat) :
+lemma inactivePaddingProgram_eventTrace (tail counterWidth : Nat) :
     (inactivePaddingProgram tail counterWidth).eventTrace =
       (inactivePaddingGates tail counterWidth).map
         (EncodedBit.GateSpec.event .empty) := by
@@ -249,7 +251,7 @@ def detectorCounterVZeroDetectorGates (n counterWidth : Nat) :
 
 /-- The lifted detector gate list has the same action as the existing
 detector/counter step. -/
-theorem detectorCounterVZeroDetectorGates_stepList_eq
+lemma detectorCounterVZeroDetectorGates_stepList_eq
     (n counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork n counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -273,7 +275,7 @@ def detectorGatedTerminatingCounterModeWithWorkGates
 
 /-- The explicit detector-gated terminating list realizes the same folded
 detector/counter action as the existing actual circuit. -/
-theorem detectorGatedTerminatingCounterModeWithWorkGates_stepList_eq
+lemma detectorGatedTerminatingCounterModeWithWorkGates_stepList_eq
     (tail counterWidth : Nat)
     (x : RegistersWithDetectorCounterWork tail.succ counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -303,7 +305,7 @@ def fullRoundWorkTerminatingStandardLayoutGates
 
 /-- The inserted-middle terminating list has the standard full-round
 terminating action and preserves coefficient-adder work. -/
-theorem fullRoundWorkTerminatingStandardLayoutGates_stepList_eq
+lemma fullRoundWorkTerminatingStandardLayoutGates_stepList_eq
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -348,7 +350,7 @@ def fullRoundWorkKaliskiActiveOnlyRoundConcreteGates
 
 /-- The explicit complete active-only list realizes the existing folded
 terminating-prefix-then-dispatch semantic route. -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_stepList_eq
+lemma fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_stepList_eq
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -391,7 +393,7 @@ def liftedActiveOnlyGates (tail counterWidth : Nat)
     (EncodedBit.GateSpec.prodLeft (wordEncoding (2 * tail.succ)))
 
 /-- The triply lifted list has exactly the named lifted active-only action. -/
-theorem liftedActiveOnlyGates_stepList_eq
+lemma liftedActiveOnlyGates_stepList_eq
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -458,16 +460,16 @@ def liftedActiveOnlyProgram (tail counterWidth : Nat)
     (liftedActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
 
-theorem liftedActiveOnly_realizes (tail counterWidth : Nat)
+lemma liftedActiveOnly_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (liftedActiveOnlyProgram tail counterWidth comparisonIndex
-        historyIndex workIndex)
+        historyIndex workIndex) environment
       (liftedActiveOnlyStep tail counterWidth comparisonIndex
         historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (liftedActiveOnlyGates tail counterWidth comparisonIndex historyIndex
       workIndex)
@@ -476,7 +478,7 @@ theorem liftedActiveOnly_realizes (tail counterWidth : Nat)
 
 /-- Lifting the complete active-only route over path, control work, and route
 history leaves the path bit untouched. -/
-theorem liftedActiveOnlyGates_bitDisjoint_path
+lemma liftedActiveOnlyGates_bitDisjoint_path
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -507,7 +509,7 @@ theorem liftedActiveOnlyGates_bitDisjoint_path
 
 /-- The same lifted route also leaves the dedicated clean control-work bit
 untouched. -/
-theorem liftedActiveOnlyGates_bitDisjoint_controlWork
+lemma liftedActiveOnlyGates_bitDisjoint_controlWork
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -532,7 +534,7 @@ theorem liftedActiveOnlyGates_bitDisjoint_controlWork
         BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit pathGate)
 
 /-- The shared path and clean control-work wires are physically distinct. -/
-theorem workingPathBit_workingControlBit_wire_ne
+lemma workingPathBit_workingControlBit_wire_ne
     (tail counterWidth : Nat) :
     (workingPathBit tail counterWidth).wire ≠
       (workingControlBit tail counterWidth).wire :=

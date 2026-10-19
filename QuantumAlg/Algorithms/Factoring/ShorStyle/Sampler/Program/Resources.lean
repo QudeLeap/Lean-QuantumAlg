@@ -37,7 +37,7 @@ def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) :
       Decision.nativeEnvelope model (modulusBits N)
 
 /-- The real loader and ordered scan respect their two independent native allowances. -/
-theorem samplerScan_pool_le (N : Nat)
+lemma samplerScan_pool_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (path : (Scan.circuit (model := model) N sample).Path) :
     (Scan.circuit (model := model) N sample).resourcePool path ≤
@@ -55,7 +55,7 @@ theorem samplerScan_pool_le (N : Nat)
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2)
 
 /-- Every actual inner path includes its selected decision's exact native coordinates. -/
-theorem samplerInner_pool_le (N : Nat)
+lemma samplerInner_pool_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (inner (model := model) N sample output).Path) :
@@ -72,13 +72,13 @@ theorem samplerInner_pool_le (N : Nat)
 
 omit [BitWord.Selected model] in
 /-- The actual eleven allocations and releases leave the inner event trace unchanged. -/
-theorem samplerScopes_eventTrace (width : Nat)
+lemma samplerScopes_eventTrace (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (path : (scopes ctx width body).Path) :
     (scopes ctx width body).eventTrace path = body.eventTrace path := rfl
 
 /-- Every full scoped execution satisfies the independently stated native coordinate budget. -/
-theorem samplerProgram_pool_le (N : Nat)
+lemma samplerProgram_pool_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (circuit (model := model) N sample output).Path) :
@@ -86,7 +86,7 @@ theorem samplerProgram_pool_le (N : Nat)
   samplerInner_pool_le (model := model) N sample output path
 
 /-- The deterministic allowance contains exactly this many native event slots. -/
-theorem samplerProgramEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (N : Nat) :
+lemma samplerProgramEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (N : Nat) :
     (nativeEnvelope model N).card = 44 * modulusBits N + 162 := by
   have loaderCard : (ConstantWord.envelope model (modulusBits N + 1)).card =
       2 * (modulusBits N + 1) := by

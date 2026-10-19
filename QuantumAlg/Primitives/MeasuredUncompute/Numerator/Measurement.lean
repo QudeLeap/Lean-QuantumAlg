@@ -41,7 +41,7 @@ private def suppliedWire (width : Nat) (index : Fin width) :
     (InversePreparation.before width).quantumLayout (InversePreparation.input_wires width)
       (sourcePosition width index)
 
-private theorem suppliedWire_record (width : Nat) (index : Fin width) :
+private lemma suppliedWire_record (width : Nat) (index : Fin width) :
     (InversePreparation.before width).quantumLayout.wire (suppliedWire width index) =
       ({ identity := (encoding width).width + index.rev.val, dimension := 2 } : QuantumWire) := by
   have actual := wireAtCorrespondingPosition (InversePreparation.inputLayout width)
@@ -60,7 +60,7 @@ def preparedWire (width : Nat) (index : Fin width) :
       (InversePreparation.auxiliary_fresh width) (InversePreparation.auxiliary_disjoint width)
         (.inr (suppliedWire width index))
 
-theorem preparedWire_record (width : Nat) (index : Fin width) :
+lemma preparedWire_record (width : Nat) (index : Fin width) :
     (InversePreparation.after width).quantumLayout.wire (preparedWire width index) =
       ({ identity := (encoding width).width + index.rev.val, dimension := 2 } : QuantumWire) :=
   (PreparationBorrowed.fullPositionEquiv_old_wire (InversePreparation.before width)
@@ -73,13 +73,13 @@ def wire (width : Nat) (index : Fin width) : Fin (context width).systemCount :=
   MeasurementCells.wireEquiv (InversePreparation.after width) 2 width (preparedWire width index)
 
 /-- The measured position is the literal original numerator wire, never an EEA history bit. -/
-theorem wire_record (width : Nat) (index : Fin width) :
+lemma wire_record (width : Nat) (index : Fin width) :
     (context width).quantumLayout.wire (wire width index) =
       ({ identity := (encoding width).width + index.rev.val, dimension := 2 } : QuantumWire) :=
   (MeasurementCells.wireEquiv_preserved (InversePreparation.after width) 2 width
     (preparedWire width index)).trans (preparedWire_record width index)
 
-theorem wire_dimension (width : Nat) (index : Fin width) :
+lemma wire_dimension (width : Nat) (index : Fin width) :
     ((context width).quantumLayout.wire (wire width index)).dimension = 2 :=
   congrArg QuantumWire.dimension (wire_record width index)
 
@@ -107,17 +107,19 @@ def measure (width : Nat) :
     Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) :=
   Circuit.measurementSequence (readouts width)
 
-theorem cells_distinct (width : Nat) :
+lemma cells_distinct (width : Nat) :
     Function.Injective fun index : Fin width => (cell width index).key :=
   MeasurementCells.reference_key_injective (InversePreparation.after width) 2 width
 
 /-- Direct correction selection uses precisely the values that the actual measurements wrote. -/
-theorem stored_mask (width : Nat) (store : Store (context width))
+lemma stored_mask (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) (index : Fin width) :
     QubitReadouts.mask ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      (allowAllocation := true)
       (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
       (readouts width) store
       (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+        (allowAllocation := true)
         (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
         (readouts width) basis)).read (input width)) index =
         decide ((basis (wire width index)).val = 1) :=
@@ -125,18 +127,18 @@ theorem stored_mask (width : Nat) (store : Store (context width))
     (wire width) (wire_dimension width) (cell width) (cells_distinct width) store basis index
 
 /-- The classical cells add no quantum wire or physical identity. -/
-theorem context_physical (width : Nat) :
+lemma context_physical (width : Nat) :
     (context width).physicalIdx = (InversePreparation.after width).physicalIdx :=
   MeasurementCells.context_physicalIdx (InversePreparation.after width) 2 width
 
 /-- Every requested numerator bit contributes one actual Z event. -/
-theorem measurement_resources (width : Nat) (path : (measure width).Path) :
+lemma measurement_resources (width : Nat) (path : (measure width).Path) :
     (measure width).resourcePool path = width • ResourcePool.singleton
       (Circuit.zEvent (gates := AlgorithmGate.model) (oracles := .empty) 2 .empty .empty) :=
   QubitReadouts.measurement_resources (wire width) (wire_dimension width) (cell width) path
 
 /-- Real retained result storage is included beside all existing inputs and EEA auxiliaries. -/
-theorem context_space (width : Nat) :
+lemma context_space (width : Nat) :
     (context width).residentSpace = width • SpacePool.ofShape (.finite 2) +
       (InversePreparation.after width).residentSpace :=
   MeasurementCells.context_residentSpace (InversePreparation.after width) 2 width

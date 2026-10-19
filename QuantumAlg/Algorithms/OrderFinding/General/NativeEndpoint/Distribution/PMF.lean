@@ -23,21 +23,21 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The complete record law maps the genuine sample law through finite recovery. -/
-theorem executionDistribution_eq_map {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width)
+lemma executionDistribution_eq_map {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat)
+    (environment : (Sampling.Native.model t width).Environment)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference) :
-    (run hinput access).executionDistribution input =
-      ((SourceNativeSampling.run access).executionDistribution input).map
-        (recoveredRecord hinput access) := by
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference) :
+    (run spec t).executionDistribution environment input =
+      ((SourceNativeSampling.run t width).executionDistribution environment input).map
+        (recoveredRecord spec t) := by
   exact AlgorithmRun.RetainedRecord.executionDistribution_eq_map
     (key := resultKey t width) (shape := outputShape t)
     (fresh := resultFresh t width)
-    (SourceNativeSampling.run access) (run hinput access)
-    (recoveredRecord hinput access)
-    (fun Reference state => execute_eq_map hinput access Reference state)
+    (SourceNativeSampling.run t width) (run spec t) environment
+    (recoveredRecord spec t)
+    (fun Reference state => execute_eq_map spec t environment Reference state)
     input
 
 end

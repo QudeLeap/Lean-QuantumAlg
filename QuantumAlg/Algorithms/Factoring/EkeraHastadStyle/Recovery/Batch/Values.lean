@@ -53,7 +53,7 @@ def decodeFullRegisterIndex (m ell : Nat)
   ⟨Nat.ofBits (bits ∘ Fin.rev), Nat.ofBits_lt_two_pow _⟩
 
 /-- The finite full-register index is the reversed little-endian decoding. -/
-@[simp] theorem decodeFullRegisterIndex_val (m ell : Nat)
+@[simp] lemma decodeFullRegisterIndex_val (m ell : Nat)
     (bits : ShortLogTerminalBits m ell) :
     (decodeFullRegisterIndex m ell bits).val =
       decodeLittleEndianValue (bits ∘ Fin.rev) :=
@@ -66,14 +66,14 @@ def decodeTerminalSample (m ell : Nat)
     (decodeFullRegisterIndex m ell bits)
 
 /-- The high register is the quotient by the low-register cardinality. -/
-theorem decodeTerminalSample_fst_val (m ell : Nat)
+lemma decodeTerminalSample_fst_val (m ell : Nat)
     (bits : ShortLogTerminalBits m ell) :
     (decodeTerminalSample m ell bits).1.val =
       (decodeFullRegisterIndex m ell bits).val / 2 ^ ell := by
   exact prodEquiv_symm_fst_val (decodeFullRegisterIndex m ell bits)
 
 /-- The low register is the remainder modulo its cardinality. -/
-theorem decodeTerminalSample_snd_val (m ell : Nat)
+lemma decodeTerminalSample_snd_val (m ell : Nat)
     (bits : ShortLogTerminalBits m ell) :
     (decodeTerminalSample m ell bits).2.val =
       (decodeFullRegisterIndex m ell bits).val % 2 ^ ell := by
@@ -93,7 +93,7 @@ def recoverPreparedPair (modulus m ell : Nat)
       else none))
 
 /-- Stable value-level bridge for the pair recovery priority. -/
-theorem recoverPreparedPair_eq (modulus m ell : Nat)
+lemma recoverPreparedPair_eq (modulus m ell : Nat)
     (input : PreparedSample modulus m ell × PreparedSample modulus m ell) :
     recoverPreparedPair modulus m ell input =
       input.1.prepared.earlyFactor.orElse (fun _ =>
@@ -107,7 +107,7 @@ theorem recoverPreparedPair_eq (modulus m ell : Nat)
 
 /-- With one shared prepared residue, the unit guard is discharged and its
 early factor remains the pair result's highest-priority outcome. -/
-theorem recoverPreparedPair_same_prepared (modulus m ell : Nat)
+lemma recoverPreparedPair_same_prepared (modulus m ell : Nat)
     (prepared : RSA.PreparedResidue modulus)
     (first second : ShortLogTerminalBits m ell) :
     recoverPreparedPair modulus m ell
@@ -118,7 +118,7 @@ theorem recoverPreparedPair_same_prepared (modulus m ell : Nat)
   cases h : prepared.earlyFactor <;> simp [recoverPreparedPair, h]
 
 /-- A recovered pair factor is always a nontrivial divisor of the modulus. -/
-theorem recoverPreparedPair_some_sound
+lemma recoverPreparedPair_some_sound
     {modulus m ell factor : Nat}
     {input : PreparedSample modulus m ell × PreparedSample modulus m ell}
     (hresult : recoverPreparedPair modulus m ell input = some factor) :
@@ -153,7 +153,7 @@ def retainFirstSuccessful {Value : Type}
 def firstSuccessful {Value : Type} (values : List (Option Value)) : Option Value :=
   values.foldl retainFirstSuccessful none
 
-private theorem foldl_retainFirstSuccessful_of_some
+private lemma foldl_retainFirstSuccessful_of_some
     {Value : Type} (values : List (Option Value)) (value : Value) :
     values.foldl retainFirstSuccessful (some value) = some value := by
   induction values with
@@ -162,7 +162,7 @@ private theorem foldl_retainFirstSuccessful_of_some
       simpa [retainFirstSuccessful] using ih
 
 /-- A successful full-scan value occurs in the scanned list. -/
-theorem firstSuccessful_some_mem
+lemma firstSuccessful_some_mem
     {Value : Type} {values : List (Option Value)} {candidate : Value}
     (hresult : firstSuccessful values = some candidate) :
     some candidate ∈ values := by
@@ -182,7 +182,7 @@ theorem firstSuccessful_some_mem
           exact List.mem_cons_self
 
 /-- A list containing a success produces a success under the full scan. -/
-theorem firstSuccessful_eq_some_of_exists
+lemma firstSuccessful_eq_some_of_exists
     {Value : Type} {values : List (Option Value)}
     (hexists : ∃ candidate, some candidate ∈ values) :
     ∃ candidate, firstSuccessful values = some candidate := by
@@ -213,14 +213,14 @@ def batchValue (modulus m ell : Nat)
   firstSuccessful (batchPairValues modulus m ell inputs)
 
 /-- Forgetting vector lengths exposes the canonical list pair enumeration. -/
-theorem batchPairValues_eq_list (modulus m ell : Nat)
+lemma batchPairValues_eq_list (modulus m ell : Nat)
     (inputs : List.Vector (PreparedSample modulus m ell) 16) :
     batchPairValues modulus m ell inputs =
       inputs.toList.unorderedPairs.map (recoverPreparedPair modulus m ell) := by
   simp only [batchPairValues, List.Vector.toList_unorderedPairs]
 
 /-- The fixed batch scans exactly all `choose 16 2 = 120` pair values. -/
-theorem batchPairValues_length (modulus m ell : Nat)
+lemma batchPairValues_length (modulus m ell : Nat)
     (inputs : List.Vector (PreparedSample modulus m ell) 16) :
     (batchPairValues modulus m ell inputs).length = 120 := by
   rw [batchPairValues_eq_list, List.length_map, List.length_unorderedPairs]
@@ -228,7 +228,7 @@ theorem batchPairValues_length (modulus m ell : Nat)
   norm_num [Nat.choose]
 
 /-- List-level bridge for the fixed batch value. -/
-theorem batchValue_eq_list (modulus m ell : Nat)
+lemma batchValue_eq_list (modulus m ell : Nat)
     (inputs : List.Vector (PreparedSample modulus m ell) 16) :
     batchValue modulus m ell inputs =
       firstSuccessful
@@ -236,7 +236,7 @@ theorem batchValue_eq_list (modulus m ell : Nat)
   simp only [batchValue, batchPairValues, List.Vector.toList_unorderedPairs]
 
 /-- Any successful pair value makes the fixed batch return some pair value. -/
-theorem batchValue_eq_some_of_exists (modulus m ell : Nat)
+lemma batchValue_eq_some_of_exists (modulus m ell : Nat)
     (inputs : List.Vector (PreparedSample modulus m ell) 16)
     (hexists : ∃ factor, some factor ∈ batchPairValues modulus m ell inputs) :
     ∃ factor, batchValue modulus m ell inputs = some factor := by
@@ -244,7 +244,7 @@ theorem batchValue_eq_some_of_exists (modulus m ell : Nat)
   exact firstSuccessful_eq_some_of_exists hexists
 
 /-- A successful batch result is always a nontrivial divisor of the modulus. -/
-theorem batchValue_some_sound
+lemma batchValue_some_sound
     {modulus m ell factor : Nat}
     {inputs : List.Vector (PreparedSample modulus m ell) 16}
     (hresult : batchValue modulus m ell inputs = some factor) :

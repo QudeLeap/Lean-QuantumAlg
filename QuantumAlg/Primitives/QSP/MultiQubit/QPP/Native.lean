@@ -36,45 +36,46 @@ public abbrev layout (n : Nat) :=
   (QuantumSignature.qubits (1 + n)).canonicalPlacement.layout
 
 /-- One actual processing gate on the signal ancilla. -/
-public def ancillaGate {n : Nat} (U : UnitaryOperator (Qubits n))
+public def ancillaGate (n : Nat)
     (operator : UnitaryOperator (Qubits 1)) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  Gate.singleQubitAt (layout n) (QPPOracle.model U) operator
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  Gate.singleQubitAt (layout n) (QPPOracle.model n) operator
     (0 : Fin (1 + n)) rfl
 
 /-- The gate acts on the original ancilla, leaving every target wire fixed. -/
-public theorem ancillaGate_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma ancillaGate_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (operator : UnitaryOperator (Qubits 1)) :
-    (ancillaGate U operator).binaryMatrix =
+    ((ancillaGate n operator).binaryMatrix (QPPOracle.interpretation U)) =
       operator.tensor (1 : UnitaryOperator (Qubits n)) :=
-  Gate.singleQubitAt_first_binaryMatrix (QPPOracle.model U) n operator
+  Gate.singleQubitAt_first_binaryMatrix (QPPOracle.model n) n operator
+    (QPPOracle.interpretation U)
 
 /-- A supplied one-qubit operator costs one actual default-model gate. -/
-public theorem ancillaGate_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma ancillaGate_eventCost (n : Nat)
     (operator : UnitaryOperator (Qubits 1)) :
-    (ancillaGate U operator).eventCost =
+    (ancillaGate n operator).eventCost =
       ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+        (model := .quantum AlgorithmGate.model (QPPOracle.model n))
         (.gate .singleQubit) :=
-  Gate.singleQubitAt_eventCost (layout n) (QPPOracle.model U) operator
+  Gate.singleQubitAt_eventCost (layout n) (QPPOracle.model n) operator
     (0 : Fin (1 + n)) rfl
 
 /-- Three front processing rotations in their original execution order. -/
-public def initial {n : Nat} (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : Real) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  ((ancillaGate U (rotZStdOp φ₀)).seq (ancillaGate U (rotYOp θ₀))).seq
-    (ancillaGate U (rotZStdOp φ))
+public def initial (n : Nat) (φ θ₀ φ₀ : Real) :
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  ((ancillaGate n (rotZStdOp φ₀)).seq (ancillaGate n (rotYOp θ₀))).seq
+    (ancillaGate n (rotZStdOp φ))
 
 /-- The two trainable rotations preceding one controlled signal query. -/
-public def processingPair {n : Nat} (U : UnitaryOperator (Qubits n))
+public def processingPair (n : Nat)
     (angles : Real × Real) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  (ancillaGate U (rotZStdOp angles.2)).seq (ancillaGate U (rotYOp angles.1))
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  (ancillaGate n (rotZStdOp angles.2)).seq (ancillaGate n (rotYOp angles.1))
 
 /-- The first three native gates retain the exact source rotation product. -/
-public theorem initial_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma initial_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (φ θ₀ φ₀ : Real) :
-    (initial U φ θ₀ φ₀).binaryMatrix =
+    ((initial n φ θ₀ φ₀).binaryMatrix (QPPOracle.interpretation U)) =
       (rotZStdOp φ * (rotYOp θ₀ * rotZStdOp φ₀)).tensor
         (1 : UnitaryOperator (Qubits n)) := by
   simp only [initial, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
@@ -88,9 +89,9 @@ public theorem initial_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
   rfl
 
 /-- Two native rotations have exactly the source processing-pair operator. -/
-public theorem processingPair_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma processingPair_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (angles : Real × Real) :
-    (processingPair U angles).binaryMatrix =
+    ((processingPair n angles).binaryMatrix (QPPOracle.interpretation U)) =
       (rotYOp angles.1 * rotZStdOp angles.2).tensor
         (1 : UnitaryOperator (Qubits n)) := by
   simp only [processingPair, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
@@ -102,63 +103,64 @@ public theorem processingPair_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubit
   rfl
 
 /-- The alternating query explicitly selects zero-controlled `U†` or controlled `U`. -/
-public def oracle {n : Nat} (U : UnitaryOperator (Qubits n)) (index : Nat) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  if index % 2 = 0 then QPPOracle.circuit U .inverseZero
-  else QPPOracle.circuit U .forward
+public def oracle (n : Nat) (index : Nat) :
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  if index % 2 = 0 then QPPOracle.circuit n .inverseZero
+  else QPPOracle.circuit n .forward
 
 /-- The query's exact binary matrix preserves both activation conventions. -/
-public theorem oracle_binaryMatrix_even {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma oracle_binaryMatrix_even {n : Nat} (U : UnitaryOperator (Qubits n))
     {index : Nat} (even : index % 2 = 0) :
-    (oracle U index).binaryMatrix =
+    ((oracle n index).binaryMatrix (QPPOracle.interpretation U)) =
       UnitaryOperator.controlledQubitsOnZero U⁻¹ := by
   simp [oracle, even, QPPOracle.circuit_inverseZero_binaryMatrix]
 
-public theorem oracle_binaryMatrix_odd {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma oracle_binaryMatrix_odd {n : Nat} (U : UnitaryOperator (Qubits n))
     {index : Nat} (odd : index % 2 ≠ 0) :
-    (oracle U index).binaryMatrix = UnitaryOperator.controlledQubits U := by
+    ((oracle n index).binaryMatrix (QPPOracle.interpretation U))
+      = UnitaryOperator.controlledQubits U := by
   simp only [oracle, if_neg odd, QPPOracle.circuit_forward_binaryMatrix]
 
 /-- The full oracle call emits one controlled-query event in either branch. -/
-public theorem oracle_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma oracle_eventCost (n : Nat)
     (index : Nat) :
-    (oracle U index).eventCost = ResourcePool.singleton (QPPOracle.event U) := by
+    (oracle n index).eventCost = ResourcePool.singleton (QPPOracle.event n) := by
   by_cases even : index % 2 = 0
   · simp [oracle, even, QPPOracle.circuit_eventCost]
   · simp [oracle, even, QPPOracle.circuit_eventCost]
 
 /-- One source-aligned step executes two rotations and then the controlled query. -/
-public def step {n : Nat} (U : UnitaryOperator (Qubits n)) (index : Nat)
+public def step (n : Nat) (index : Nat)
     (angles : Real × Real) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  (processingPair U angles).seq (oracle U index)
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  (processingPair n angles).seq (oracle n index)
 
-public theorem step_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma step_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (index : Nat) (angles : Real × Real) :
-    (step U index angles).binaryMatrix =
-      (oracle U index).binaryMatrix *
+    ((step n index angles).binaryMatrix (QPPOracle.interpretation U)) =
+      ((oracle n index).binaryMatrix (QPPOracle.interpretation U)) *
         (rotYOp angles.1 * rotZStdOp angles.2).tensor
           (1 : UnitaryOperator (Qubits n)) := by
   rw [step, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     processingPair_binaryMatrix]
 
 /-- The schedule has the original input wire order and exactly one ancilla. -/
-public def circuit {n : Nat} (U : UnitaryOperator (Qubits n))
+public def circuit (n : Nat)
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
   angles.zipIdx.foldl
-    (fun accumulated item => (step U item.2 item.1).seq accumulated)
-    (initial U φ θ₀ φ₀)
+    (fun accumulated item => (step n item.2 item.1).seq accumulated)
+    (initial n φ θ₀ φ₀)
 
 /-- A direct YZZYZ step always uses the one-controlled `U` grant. -/
-public def directStep {n : Nat} (U : UnitaryOperator (Qubits n))
+public def directStep (n : Nat)
     (angles : Real × Real) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  (processingPair U angles).seq (QPPOracle.circuit U .forward)
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  (processingPair n angles).seq (QPPOracle.circuit n .forward)
 
-public theorem directStep_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma directStep_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (angles : Real × Real) :
-    (directStep U angles).binaryMatrix =
+    ((directStep n angles).binaryMatrix (QPPOracle.interpretation U)) =
       UnitaryOperator.controlledQubits U *
         (rotYOp angles.1 * rotZStdOp angles.2).tensor
           (1 : UnitaryOperator (Qubits n)) := by
@@ -166,20 +168,21 @@ public theorem directStep_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n)
     QPPOracle.circuit_forward_binaryMatrix, processingPair_binaryMatrix]
 
 /-- The direct YZZYZ word uses the same native placement and access model. -/
-public def directCircuit {n : Nat} (U : UnitaryOperator (Qubits n))
+public def directCircuit (n : Nat)
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n) :=
-  angles.foldl (fun accumulated item => (directStep U item).seq accumulated)
-    (initial U φ θ₀ φ₀)
+    UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n) :=
+  angles.foldl (fun accumulated item => (directStep n item).seq accumulated)
+    (initial n φ θ₀ φ₀)
 
-private theorem circuitFold_binaryMatrix {n : Nat} {α : Type}
+private lemma circuitFold_binaryMatrix {n : Nat} {α : Type}
     (U : UnitaryOperator (Qubits n)) (schedule : List α)
-    (start : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n))
-    (atom : α → UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n)) :
-    (schedule.foldl (fun accumulated item => (atom item).seq accumulated)
-      start).binaryMatrix =
-        schedule.foldl (fun accumulated item => accumulated * (atom item).binaryMatrix)
-          start.binaryMatrix := by
+    (start : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n))
+    (atom : α → UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n)) :
+    ((schedule.foldl (fun accumulated item => (atom item).seq accumulated)
+      start).binaryMatrix (QPPOracle.interpretation U)) =
+        schedule.foldl (fun accumulated item
+          => accumulated * ((atom item).binaryMatrix (QPPOracle.interpretation U)))
+          (start.binaryMatrix (QPPOracle.interpretation U)) := by
   induction schedule generalizing start with
   | nil => rfl
   | cons item tail ih =>
@@ -187,83 +190,85 @@ private theorem circuitFold_binaryMatrix {n : Nat} {α : Type}
       rw [ih, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq]
 
 /-- The whole circuit matrix is the ordered product of its actual native steps. -/
-public theorem circuit_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma circuit_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    (circuit U φ θ₀ φ₀ angles).binaryMatrix =
+    ((circuit n φ θ₀ φ₀ angles).binaryMatrix (QPPOracle.interpretation U)) =
       angles.zipIdx.foldl
-        (fun accumulated item => accumulated * (step U item.2 item.1).binaryMatrix)
-        (initial U φ θ₀ φ₀).binaryMatrix := by
-  exact circuitFold_binaryMatrix U angles.zipIdx (initial U φ θ₀ φ₀)
-    (fun item => step U item.2 item.1)
+        (fun accumulated item
+          => accumulated * ((step n item.2 item.1).binaryMatrix (QPPOracle.interpretation U)))
+        ((initial n φ θ₀ φ₀).binaryMatrix (QPPOracle.interpretation U)) := by
+  exact circuitFold_binaryMatrix U angles.zipIdx (initial n φ θ₀ φ₀)
+    (fun item => step n item.2 item.1)
 
-public theorem directCircuit_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma directCircuit_binaryMatrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    (directCircuit U φ θ₀ φ₀ angles).binaryMatrix =
+    ((directCircuit n φ θ₀ φ₀ angles).binaryMatrix (QPPOracle.interpretation U)) =
       angles.foldl
-        (fun accumulated item => accumulated * (directStep U item).binaryMatrix)
-        (initial U φ θ₀ φ₀).binaryMatrix := by
-  exact circuitFold_binaryMatrix U angles (initial U φ θ₀ φ₀) (directStep U)
+        (fun accumulated item
+          => accumulated * ((directStep n item).binaryMatrix (QPPOracle.interpretation U)))
+        ((initial n φ θ₀ φ₀).binaryMatrix (QPPOracle.interpretation U)) := by
+  exact circuitFold_binaryMatrix U angles (initial n φ θ₀ φ₀) (directStep n)
 
 /-- Count the actual controlled source queries of the native word. -/
-public def queryCount {n : Nat} (U : UnitaryOperator (Qubits n))
-    (resources : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model U))) : Nat :=
-  ResourcePool.count (QPPOracle.event U) resources
+public def queryCount (n : Nat)
+    (resources : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model n))) : Nat :=
+  ResourcePool.count (QPPOracle.event n) resources
 
 /-- Count the actual default-model one-qubit gates of the native word. -/
-public def rotationCount {n : Nat} (U : UnitaryOperator (Qubits n))
-    (resources : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model U))) : Nat :=
+public def rotationCount (n : Nat)
+    (resources : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model n))) : Nat :=
   ResourcePool.count
-    (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+    (model := .quantum AlgorithmGate.model (QPPOracle.model n))
     (.gate .singleQubit) resources
 
 /-- The front block contains exactly three native one-qubit gates. -/
-public theorem initial_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma initial_eventCost (n : Nat)
     (φ θ₀ φ₀ : Real) :
-    (initial U φ θ₀ φ₀).eventCost =
+    (initial n φ θ₀ φ₀).eventCost =
       3 • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+        (model := .quantum AlgorithmGate.model (QPPOracle.model n))
         (.gate .singleQubit) := by
   simp only [initial, UnitaryCircuit.seq_eventCost, ancillaGate_eventCost,
     show (3 : Nat) = 2 + 1 from rfl, add_nsmul, two_nsmul, one_nsmul]
 
 /-- The processing pair contains precisely two native one-qubit gates. -/
-public theorem processingPair_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma processingPair_eventCost (n : Nat)
     (angles : Real × Real) :
-    (processingPair U angles).eventCost =
+    (processingPair n angles).eventCost =
       2 • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+        (model := .quantum AlgorithmGate.model (QPPOracle.model n))
         (.gate .singleQubit) := by
   simp only [processingPair, UnitaryCircuit.seq_eventCost,
     ancillaGate_eventCost, two_nsmul]
 
 /-- One step contains one granted controlled query and two native rotations. -/
-public theorem step_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma step_eventCost (n : Nat)
     (index : Nat) (angles : Real × Real) :
-    (step U index angles).eventCost =
-      ResourcePool.singleton (QPPOracle.event U) +
+    (step n index angles).eventCost =
+      ResourcePool.singleton (QPPOracle.event n) +
         2 • ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+          (model := .quantum AlgorithmGate.model (QPPOracle.model n))
           (.gate .singleQubit) := by
   rw [step, UnitaryCircuit.seq_eventCost, processingPair_eventCost,
     oracle_eventCost]
   ac_rfl
 
-public theorem directStep_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma directStep_eventCost (n : Nat)
     (angles : Real × Real) :
-    (directStep U angles).eventCost =
-      ResourcePool.singleton (QPPOracle.event U) +
+    (directStep n angles).eventCost =
+      ResourcePool.singleton (QPPOracle.event n) +
         2 • ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+          (model := .quantum AlgorithmGate.model (QPPOracle.model n))
           (.gate .singleQubit) := by
   rw [directStep, UnitaryCircuit.seq_eventCost, processingPair_eventCost,
     QPPOracle.circuit_eventCost]
   ac_rfl
 
-private theorem circuitFold_eventCost {n : Nat} {α : Type}
-    (U : UnitaryOperator (Qubits n)) (schedule : List α)
-    (start : UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n))
-    (atom : α → UnitaryCircuit AlgorithmGate.model (QPPOracle.model U) (layout n))
-    (cost : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model U)))
+private lemma circuitFold_eventCost {α : Type}
+    (n : Nat) (schedule : List α)
+    (start : UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n))
+    (atom : α → UnitaryCircuit AlgorithmGate.model (QPPOracle.model n) (layout n))
+    (cost : ResourcePool (.quantum AlgorithmGate.model (QPPOracle.model n)))
     (atomCost : ∀ item, (atom item).eventCost = cost) :
     (schedule.foldl (fun accumulated item => (atom item).seq accumulated)
       start).eventCost = schedule.length • cost + start.eventCost := by
@@ -275,53 +280,53 @@ private theorem circuitFold_eventCost {n : Nat} {α : Type}
       ac_rfl
 
 /-- No hidden gate or uncontrolled query occurs in the native QPP word. -/
-public theorem circuit_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma circuit_eventCost (n : Nat)
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    (circuit U φ θ₀ φ₀ angles).eventCost =
-      angles.length • ResourcePool.singleton (QPPOracle.event U) +
+    (circuit n φ θ₀ φ₀ angles).eventCost =
+      angles.length • ResourcePool.singleton (QPPOracle.event n) +
         (2 * angles.length + 3) • ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+          (model := .quantum AlgorithmGate.model (QPPOracle.model n))
           (.gate .singleQubit) := by
-  rw [circuit, circuitFold_eventCost U angles.zipIdx
-    (initial U φ θ₀ φ₀) (fun item => step U item.2 item.1)
-    (ResourcePool.singleton (QPPOracle.event U) +
+  rw [circuit, circuitFold_eventCost n angles.zipIdx
+    (initial n φ θ₀ φ₀) (fun item => step n item.2 item.1)
+    (ResourcePool.singleton (QPPOracle.event n) +
       2 • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (QPPOracle.model U))
-        (.gate .singleQubit)) (fun item => step_eventCost U item.2 item.1)]
+        (model := .quantum AlgorithmGate.model (QPPOracle.model n))
+        (.gate .singleQubit)) (fun item => step_eventCost n item.2 item.1)]
   rw [List.length_zipIdx, initial_eventCost, smul_add, smul_smul]
   rw [add_assoc, ← add_nsmul, Nat.mul_comm angles.length 2]
 
 /-- The direct YZZYZ word has the same exact query and native-rotation ledger. -/
-public theorem directCircuit_eventCost {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma directCircuit_eventCost (n : Nat)
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    (directCircuit U φ θ₀ φ₀ angles).eventCost =
-      angles.length • ResourcePool.singleton (QPPOracle.event U) +
+    (directCircuit n φ θ₀ φ₀ angles).eventCost =
+      angles.length • ResourcePool.singleton (QPPOracle.event n) +
         (2 * angles.length + 3) • ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (QPPOracle.model U))
+          (model := .quantum AlgorithmGate.model (QPPOracle.model n))
           (.gate .singleQubit) := by
-  rw [directCircuit, circuitFold_eventCost U angles (initial U φ θ₀ φ₀)
-    (directStep U)
-    (ResourcePool.singleton (QPPOracle.event U) +
+  rw [directCircuit, circuitFold_eventCost n angles (initial n φ θ₀ φ₀)
+    (directStep n)
+    (ResourcePool.singleton (QPPOracle.event n) +
       2 • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (QPPOracle.model U))
-        (.gate .singleQubit)) (fun item => directStep_eventCost U item)]
+        (model := .quantum AlgorithmGate.model (QPPOracle.model n))
+        (.gate .singleQubit)) (fun item => directStep_eventCost n item)]
   rw [initial_eventCost, smul_add, smul_smul]
   rw [add_assoc, ← add_nsmul, Nat.mul_comm angles.length 2]
 
 /-- Every word has one controlled query per step and exactly `2L+3` native
 one-qubit gates, both read from the same executable circuit. -/
-public theorem circuit_counts {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma circuit_counts (n : Nat)
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    queryCount U (circuit U φ θ₀ φ₀ angles).eventCost = angles.length ∧
-      rotationCount U (circuit U φ θ₀ φ₀ angles).eventCost =
+    queryCount n (circuit n φ θ₀ φ₀ angles).eventCost = angles.length ∧
+      rotationCount n (circuit n φ θ₀ φ₀ angles).eventCost =
         2 * angles.length + 3 := by
   rw [circuit_eventCost]
   constructor <;> simp [queryCount, rotationCount, QPPOracle.event]
 
-public theorem directCircuit_counts {n : Nat} (U : UnitaryOperator (Qubits n))
+public lemma directCircuit_counts (n : Nat)
     (φ θ₀ φ₀ : Real) (angles : List (Real × Real)) :
-    queryCount U (directCircuit U φ θ₀ φ₀ angles).eventCost = angles.length ∧
-      rotationCount U (directCircuit U φ θ₀ φ₀ angles).eventCost =
+    queryCount n (directCircuit n φ θ₀ φ₀ angles).eventCost = angles.length ∧
+      rotationCount n (directCircuit n φ θ₀ φ₀ angles).eventCost =
         2 * angles.length + 3 := by
   rw [directCircuit_eventCost]
   constructor <;> simp [queryCount, rotationCount, QPPOracle.event]

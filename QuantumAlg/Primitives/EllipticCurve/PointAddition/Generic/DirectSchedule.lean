@@ -55,7 +55,7 @@ def liftAuxGates (gates : List (EncodedBit.GateSpec auxEncoding)) :
     List (EncodedBit.GateSpec rawEncoding) :=
   PointAddition.PortFrame.liftAuxGates auxEncoding params.width gates
 
-theorem public_aux_cross_ne
+lemma public_aux_cross_ne
     (publicPort : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (auxPort : Arithmetic.BlockBank.WordPort auxEncoding params.width)
@@ -87,7 +87,7 @@ def publicToAuxStep
     (liftAuxPort target)
     (fun bit => public_aux_cross_ne source target bit bit)
 
-theorem publicToAuxGates_stepList
+lemma publicToAuxGates_stepList
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width)
@@ -97,7 +97,7 @@ theorem publicToAuxGates_stepList
   rfl
 
 /-- A public word is installed exactly when its auxiliary target is clean. -/
-theorem publicToAuxStep_eq_set_of_clean
+lemma publicToAuxStep_eq_set_of_clean
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width)
@@ -114,7 +114,7 @@ theorem publicToAuxStep_eq_set_of_clean
     state value hsource htarget
 
 /-- Repeating a public-to-workspace copy clears an equal auxiliary word. -/
-theorem publicToAuxStep_eq_set_zero_of_equal
+lemma publicToAuxStep_eq_set_zero_of_equal
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width)
@@ -149,7 +149,7 @@ def auxCopyStep {wordWidth : Nat}
     Arithmetic.BlockBank.WordPort.directCopyStep source target
       (fun bit => hcross bit bit) state.2.1.2), state.2.2))
 
-theorem auxCopyGates_stepList {wordWidth : Nat}
+lemma auxCopyGates_stepList {wordWidth : Nat}
     (source target : Arithmetic.BlockBank.WordPort auxEncoding wordWidth)
     (hcross : ∀ sourceBit targetBit,
       (source.word.bit sourceBit).wire ≠ (target.word.bit targetBit).wire)
@@ -160,7 +160,7 @@ theorem auxCopyGates_stepList {wordWidth : Nat}
   rw [PointAddition.PortFrame.liftAuxGates_stepList]
   rfl
 
-@[simp] theorem auxCopyGates_length {wordWidth : Nat}
+@[simp] lemma auxCopyGates_length {wordWidth : Nat}
     (source target : Arithmetic.BlockBank.WordPort auxEncoding wordWidth)
     (hcross : ∀ sourceBit targetBit,
       (source.word.bit sourceBit).wire ≠ (target.word.bit targetBit).wire) :
@@ -170,7 +170,7 @@ theorem auxCopyGates_stepList {wordWidth : Nat}
   exact Arithmetic.BlockBank.WordPort.directCopyGates_length _ _ _
 
 /-- A lifted auxiliary copy installs its source in a clean target port. -/
-theorem auxCopyStep_eq_set_of_clean {wordWidth : Nat}
+lemma auxCopyStep_eq_set_of_clean {wordWidth : Nat}
     (source target : Arithmetic.BlockBank.WordPort auxEncoding wordWidth)
     (hcross : ∀ sourceBit targetBit,
       (source.word.bit sourceBit).wire ≠ (target.word.bit targetBit).wire)
@@ -190,7 +190,7 @@ theorem auxCopyStep_eq_set_of_clean {wordWidth : Nat}
   rw [h]
 
 /-- A lifted auxiliary copy clears an equal target word. -/
-theorem auxCopyStep_eq_set_zero_of_equal {wordWidth : Nat}
+lemma auxCopyStep_eq_set_zero_of_equal {wordWidth : Nat}
     (source target : Arithmetic.BlockBank.WordPort auxEncoding wordWidth)
     (hcross : ∀ sourceBit targetBit,
       (source.word.bit sourceBit).wire ≠ (target.word.bit targetBit).wire)
@@ -209,7 +209,7 @@ theorem auxCopyStep_eq_set_zero_of_equal {wordWidth : Nat}
     (state.1, ((state.2.1.1, target.set state.2.1.2 0), state.2.2))
   rw [h]
 
-theorem thin_product_cross_ne
+lemma thin_product_cross_ne
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (product : Arithmetic.BlockBank.WordPort
@@ -221,7 +221,7 @@ theorem thin_product_cross_ne
   (ParameterizedPointAddition.Workspace.productPort_thinPort_cross_ne
     product thin productBit thinBit).symm
 
-theorem product_thin_cross_ne
+lemma product_thin_cross_ne
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -233,7 +233,7 @@ theorem product_thin_cross_ne
   ParameterizedPointAddition.Workspace.productPort_thinPort_cross_ne
     product thin productBit thinBit
 
-theorem accumulator_multiplier_cross_ne
+lemma accumulator_multiplier_cross_ne
     (accumulatorBit multiplierBit : Fin params.width) :
     (ParameterizedPointAddition.Workspace.divisionQuotientPort.word.bit
       accumulatorBit).wire ≠
@@ -242,7 +242,7 @@ theorem accumulator_multiplier_cross_ne
   (ParameterizedPointAddition.Workspace.productMultiplier_productAccumulator_cross_ne
     multiplierBit accumulatorBit).symm
 
-theorem multiplier_accumulator_cross_ne
+lemma multiplier_accumulator_cross_ne
     (multiplierBit accumulatorBit : Fin params.width) :
     (ParameterizedPointAddition.Workspace.divisionNumeratorPort.word.bit
       multiplierBit).wire ≠
@@ -273,7 +273,7 @@ def productToThinGates
     (ParameterizedPointAddition.Workspace.thinPort thin)
     (product_thin_cross_ne product thin)
 
-theorem thinToProductGates_stepList
+lemma thinToProductGates_stepList
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (product : Arithmetic.BlockBank.WordPort
@@ -285,7 +285,7 @@ theorem thinToProductGates_stepList
         (thin_product_cross_ne thin product) state := by
   exact auxCopyGates_stepList _ _ (thin_product_cross_ne thin product) state
 
-theorem productToThinGates_stepList
+lemma productToThinGates_stepList
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -317,14 +317,14 @@ def multiplierToAccumulatorGates : List (EncodedBit.GateSpec rawEncoding) :=
     ParameterizedPointAddition.Workspace.divisionQuotientPort
     multiplier_accumulator_cross_ne
 
-theorem accumulatorToMultiplierGates_stepList (state : RawRegisters) :
+lemma accumulatorToMultiplierGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList accumulatorToMultiplierGates state =
       auxCopyStep ParameterizedPointAddition.Workspace.divisionQuotientPort
         ParameterizedPointAddition.Workspace.divisionNumeratorPort
         accumulator_multiplier_cross_ne state := by
   exact auxCopyGates_stepList _ _ accumulator_multiplier_cross_ne state
 
-theorem multiplierToAccumulatorGates_stepList (state : RawRegisters) :
+lemma multiplierToAccumulatorGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList multiplierToAccumulatorGates state =
       auxCopyStep ParameterizedPointAddition.Workspace.divisionNumeratorPort
         ParameterizedPointAddition.Workspace.divisionQuotientPort
@@ -347,7 +347,7 @@ def selectedSubtractGates : List (EncodedBit.GateSpec rawEncoding) :=
 
 /-- The auxiliary selected-subtract schedule subtracts the multiplicand from
 the accumulator and returns its one-bit selector to zero. -/
-theorem selectedSubtractAuxGates_clean
+lemma selectedSubtractAuxGates_clean
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ParameterizedPointAddition.Workspace.ThinRegisters ×
@@ -386,7 +386,7 @@ theorem selectedSubtractAuxGates_clean
 
 /-- Lifting selected subtraction through the public frame preserves all public
 and framing fields. -/
-theorem selectedSubtractGates_clean
+lemma selectedSubtractGates_clean
     (state : RawRegisters)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
@@ -506,19 +506,19 @@ def computeGates : List (EncodedBit.GateSpec rawEncoding) :=
   denominatorGates ++ numeratorGates ++ divisionAndSaveGates ++
     xCoordinateGates ++ yCoordinateGates
 
-@[simp] theorem liftAuxGates_length
+@[simp] lemma liftAuxGates_length
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     (liftAuxGates gates).length = gates.length :=
   PointAddition.PortFrame.liftAuxGates_length auxEncoding params.width gates
 
-@[simp] theorem publicToAuxGates_length
+@[simp] lemma publicToAuxGates_length
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width) :
     (publicToAuxGates source target).length = params.width := by
   exact Arithmetic.BlockBank.WordPort.directCopyGates_length _ _ _
 
-@[simp] theorem thinToProductGates_length
+@[simp] lemma thinToProductGates_length
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (product : Arithmetic.BlockBank.WordPort
@@ -527,7 +527,7 @@ def computeGates : List (EncodedBit.GateSpec rawEncoding) :=
   rw [thinToProductGates, auxCopyGates, liftAuxGates_length]
   exact Arithmetic.BlockBank.WordPort.directCopyGates_length _ _ _
 
-@[simp] theorem productToThinGates_length
+@[simp] lemma productToThinGates_length
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -536,7 +536,7 @@ def computeGates : List (EncodedBit.GateSpec rawEncoding) :=
   rw [productToThinGates, auxCopyGates, liftAuxGates_length]
   exact Arithmetic.BlockBank.WordPort.directCopyGates_length _ _ _
 
-@[simp] theorem moveProductToThinGates_length
+@[simp] lemma moveProductToThinGates_length
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -546,7 +546,7 @@ def computeGates : List (EncodedBit.GateSpec rawEncoding) :=
     productToThinGates_length, thinToProductGates_length]
   omega
 
-@[simp] theorem selectedSubtractGates_length :
+@[simp] lemma selectedSubtractGates_length :
     selectedSubtractGates.length =
       2 + (ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).length := by
@@ -557,7 +557,7 @@ def computeGates : List (EncodedBit.GateSpec rawEncoding) :=
     ParameterizedPointAddition.Workspace.sharedProductGates_length]
   omega
 
-@[simp] theorem subtractPublicGates_length
+@[simp] lemma subtractPublicGates_length
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width) :
     (subtractPublicGates source).length =
@@ -567,7 +567,7 @@ def computeGates : List (EncodedBit.GateSpec rawEncoding) :=
   simp [subtractPublicGates]
   omega
 
-private theorem denominatorGates_length :
+private lemma denominatorGates_length :
     denominatorGates.length =
       6 * params.width + 2 +
         (ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -581,7 +581,7 @@ private theorem denominatorGates_length :
   rw [Arithmetic.ModularInversion.arithmeticWidth_eq]
   omega
 
-private theorem numeratorGates_length :
+private lemma numeratorGates_length :
     numeratorGates.length =
       5 * params.width + 2 +
         (ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -592,7 +592,7 @@ private theorem numeratorGates_length :
     auxCopyGates_length]
   omega
 
-private theorem divisionAndSaveGates_length :
+private lemma divisionAndSaveGates_length :
     divisionAndSaveGates.length =
       4 * params.width +
         ParameterizedPointAddition.Workspace.divisionGates.length := by
@@ -600,7 +600,7 @@ private theorem divisionAndSaveGates_length :
     moveProductToThinGates_length]
   omega
 
-private theorem xCoordinateGates_length :
+private lemma xCoordinateGates_length :
     xCoordinateGates.length =
       10 * params.width + 4 +
         2 * (ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -612,7 +612,7 @@ private theorem xCoordinateGates_length :
     subtractPublicGates_length, moveProductToThinGates_length]
   omega
 
-private theorem yCoordinateGates_length :
+private lemma yCoordinateGates_length :
     yCoordinateGates.length =
       12 * params.width + 2 +
         (ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -626,7 +626,7 @@ private theorem yCoordinateGates_length :
   omega
 
 /-- Exact primitive-leaf count of one direct forward affine computation. -/
-theorem computeGates_length :
+lemma computeGates_length :
     computeGates.length =
       37 * params.width + 10 +
         5 * (ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -638,7 +638,7 @@ theorem computeGates_length :
     xCoordinateGates_length, yCoordinateGates_length]
   omega
 
-@[simp] theorem liftAuxGates_cnotMultiplicity_sum
+@[simp] lemma liftAuxGates_cnotMultiplicity_sum
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     ((liftAuxGates gates).map EncodedBit.GateSpec.cnotMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum := by
@@ -646,14 +646,14 @@ theorem computeGates_length :
     (PointAddition.PortFrame.liftAuxGates_map_event
       auxEncoding params.width gates)
 
-@[simp] theorem liftAuxGates_toffoliMultiplicity_sum
+@[simp] lemma liftAuxGates_toffoliMultiplicity_sum
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     ((liftAuxGates gates).map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum := by
   exact PointAddition.PortFrame.liftAuxGates_toffoliMultiplicity_sum
     auxEncoding params.width gates
 
-@[simp] private theorem publicToAuxGates_cnotMultiplicity_sum
+@[simp] private lemma publicToAuxGates_cnotMultiplicity_sum
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width) :
@@ -661,7 +661,7 @@ theorem computeGates_length :
       EncodedBit.GateSpec.cnotMultiplicity).sum = params.width := by
   exact Arithmetic.BlockBank.WordPort.directCopyGates_cnotMultiplicity_sum _ _ _
 
-@[simp] private theorem publicToAuxGates_toffoliMultiplicity_sum
+@[simp] private lemma publicToAuxGates_toffoliMultiplicity_sum
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width) :
@@ -669,7 +669,7 @@ theorem computeGates_length :
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   exact Arithmetic.BlockBank.WordPort.directCopyGates_toffoliMultiplicity_sum _ _ _
 
-@[simp] private theorem auxCopyGates_cnotMultiplicity_sum {wordWidth : Nat}
+@[simp] private lemma auxCopyGates_cnotMultiplicity_sum {wordWidth : Nat}
     (source target : Arithmetic.BlockBank.WordPort auxEncoding wordWidth)
     (hcross : ∀ sourceBit targetBit,
       (source.word.bit sourceBit).wire ≠ (target.word.bit targetBit).wire) :
@@ -678,7 +678,7 @@ theorem computeGates_length :
   rw [auxCopyGates, liftAuxGates_cnotMultiplicity_sum]
   exact Arithmetic.BlockBank.WordPort.directCopyGates_cnotMultiplicity_sum _ _ _
 
-@[simp] private theorem auxCopyGates_toffoliMultiplicity_sum {wordWidth : Nat}
+@[simp] private lemma auxCopyGates_toffoliMultiplicity_sum {wordWidth : Nat}
     (source target : Arithmetic.BlockBank.WordPort auxEncoding wordWidth)
     (hcross : ∀ sourceBit targetBit,
       (source.word.bit sourceBit).wire ≠ (target.word.bit targetBit).wire) :
@@ -687,7 +687,7 @@ theorem computeGates_length :
   rw [auxCopyGates, liftAuxGates_toffoliMultiplicity_sum]
   exact Arithmetic.BlockBank.WordPort.directCopyGates_toffoliMultiplicity_sum _ _ _
 
-@[simp] private theorem thinToProductGates_cnotMultiplicity_sum
+@[simp] private lemma thinToProductGates_cnotMultiplicity_sum
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (product : Arithmetic.BlockBank.WordPort
@@ -696,7 +696,7 @@ theorem computeGates_length :
       EncodedBit.GateSpec.cnotMultiplicity).sum = params.width := by
   simp [thinToProductGates]
 
-@[simp] private theorem thinToProductGates_toffoliMultiplicity_sum
+@[simp] private lemma thinToProductGates_toffoliMultiplicity_sum
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (product : Arithmetic.BlockBank.WordPort
@@ -705,7 +705,7 @@ theorem computeGates_length :
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [thinToProductGates]
 
-@[simp] private theorem productToThinGates_cnotMultiplicity_sum
+@[simp] private lemma productToThinGates_cnotMultiplicity_sum
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -714,7 +714,7 @@ theorem computeGates_length :
       EncodedBit.GateSpec.cnotMultiplicity).sum = params.width := by
   simp [productToThinGates]
 
-@[simp] private theorem productToThinGates_toffoliMultiplicity_sum
+@[simp] private lemma productToThinGates_toffoliMultiplicity_sum
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -723,7 +723,7 @@ theorem computeGates_length :
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [productToThinGates]
 
-@[simp] private theorem moveProductToThinGates_cnotMultiplicity_sum
+@[simp] private lemma moveProductToThinGates_cnotMultiplicity_sum
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -733,7 +733,7 @@ theorem computeGates_length :
   simp [moveProductToThinGates]
   omega
 
-@[simp] private theorem moveProductToThinGates_toffoliMultiplicity_sum
+@[simp] private lemma moveProductToThinGates_toffoliMultiplicity_sum
     (product : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort
@@ -742,20 +742,20 @@ theorem computeGates_length :
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [moveProductToThinGates]
 
-private theorem moveAccumulatorToMultiplierGates_cnotMultiplicity_sum :
+private lemma moveAccumulatorToMultiplierGates_cnotMultiplicity_sum :
     (moveAccumulatorToMultiplierGates.map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * params.width := by
   simp [moveAccumulatorToMultiplierGates, accumulatorToMultiplierGates,
     multiplierToAccumulatorGates]
   omega
 
-private theorem moveAccumulatorToMultiplierGates_toffoliMultiplicity_sum :
+private lemma moveAccumulatorToMultiplierGates_toffoliMultiplicity_sum :
     (moveAccumulatorToMultiplierGates.map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [moveAccumulatorToMultiplierGates, accumulatorToMultiplierGates,
     multiplierToAccumulatorGates]
 
-private theorem selectedSubtractGates_cnotMultiplicity_sum :
+private lemma selectedSubtractGates_cnotMultiplicity_sum :
     (selectedSubtractGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -772,7 +772,7 @@ private theorem selectedSubtractGates_cnotMultiplicity_sum :
     EncodedBit.GateSpec.cnotMultiplicity_x, zero_add, add_zero]
   rw [hshared]
 
-private theorem selectedSubtractGates_toffoliMultiplicity_sum :
+private lemma selectedSubtractGates_toffoliMultiplicity_sum :
     (selectedSubtractGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -789,7 +789,7 @@ private theorem selectedSubtractGates_toffoliMultiplicity_sum :
     EncodedBit.GateSpec.toffoliMultiplicity_x, zero_add, add_zero]
   rw [hshared]
 
-private theorem subtractPublicGates_cnotMultiplicity_sum
+private lemma subtractPublicGates_cnotMultiplicity_sum
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width) :
     ((subtractPublicGates source).map
@@ -803,7 +803,7 @@ private theorem subtractPublicGates_cnotMultiplicity_sum
     selectedSubtractGates_cnotMultiplicity_sum]
   omega
 
-private theorem subtractPublicGates_toffoliMultiplicity_sum
+private lemma subtractPublicGates_toffoliMultiplicity_sum
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width) :
     ((subtractPublicGates source).map
@@ -815,7 +815,7 @@ private theorem subtractPublicGates_toffoliMultiplicity_sum
     publicToAuxGates_toffoliMultiplicity_sum,
     selectedSubtractGates_toffoliMultiplicity_sum, zero_add, add_zero]
 
-private theorem liftedMultiplicationGates_cnotMultiplicity_sum :
+private lemma liftedMultiplicationGates_cnotMultiplicity_sum :
     ((liftAuxGates (ParameterizedPointAddition.Workspace.sharedProductGates
       ParameterizedPointAddition.Workspace.multiplicationGates)).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -826,7 +826,7 @@ private theorem liftedMultiplicationGates_cnotMultiplicity_sum :
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
-private theorem liftedMultiplicationGates_toffoliMultiplicity_sum :
+private lemma liftedMultiplicationGates_toffoliMultiplicity_sum :
     ((liftAuxGates (ParameterizedPointAddition.Workspace.sharedProductGates
       ParameterizedPointAddition.Workspace.multiplicationGates)).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -837,7 +837,7 @@ private theorem liftedMultiplicationGates_toffoliMultiplicity_sum :
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
-private theorem liftedReverseMultiplicationGates_cnotMultiplicity_sum :
+private lemma liftedReverseMultiplicationGates_cnotMultiplicity_sum :
     ((liftAuxGates (ParameterizedPointAddition.Workspace.sharedProductGates
       ParameterizedPointAddition.Workspace.multiplicationGates).reverse).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -848,7 +848,7 @@ private theorem liftedReverseMultiplicationGates_cnotMultiplicity_sum :
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
-private theorem liftedReverseMultiplicationGates_toffoliMultiplicity_sum :
+private lemma liftedReverseMultiplicationGates_toffoliMultiplicity_sum :
     ((liftAuxGates (ParameterizedPointAddition.Workspace.sharedProductGates
       ParameterizedPointAddition.Workspace.multiplicationGates).reverse).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -859,7 +859,7 @@ private theorem liftedReverseMultiplicationGates_toffoliMultiplicity_sum :
     (ParameterizedPointAddition.Workspace.sharedProductGates_map_event
       ParameterizedPointAddition.Workspace.multiplicationGates)
 
-private theorem denominatorGates_cnotMultiplicity_sum :
+private lemma denominatorGates_cnotMultiplicity_sum :
     (denominatorGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       6 * params.width +
         ((ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -876,7 +876,7 @@ private theorem denominatorGates_cnotMultiplicity_sum :
   rw [Arithmetic.ModularInversion.arithmeticWidth_eq]
   omega
 
-private theorem denominatorGates_toffoliMultiplicity_sum :
+private lemma denominatorGates_toffoliMultiplicity_sum :
     (denominatorGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -891,7 +891,7 @@ private theorem denominatorGates_toffoliMultiplicity_sum :
     denominatorPreservedToProductAccumulatorGates_toffoliMultiplicity_sum,
     zero_add, add_zero]
 
-private theorem numeratorGates_cnotMultiplicity_sum :
+private lemma numeratorGates_cnotMultiplicity_sum :
     (numeratorGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       5 * params.width +
         ((ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -903,7 +903,7 @@ private theorem numeratorGates_cnotMultiplicity_sum :
     moveAccumulatorToMultiplierGates_cnotMultiplicity_sum]
   omega
 
-private theorem numeratorGates_toffoliMultiplicity_sum :
+private lemma numeratorGates_toffoliMultiplicity_sum :
     (numeratorGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -914,7 +914,7 @@ private theorem numeratorGates_toffoliMultiplicity_sum :
     moveAccumulatorToMultiplierGates_toffoliMultiplicity_sum,
     zero_add, add_zero]
 
-private theorem divisionAndSaveGates_cnotMultiplicity_sum :
+private lemma divisionAndSaveGates_cnotMultiplicity_sum :
     (divisionAndSaveGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       4 * params.width +
         (ParameterizedPointAddition.Workspace.divisionGates.map
@@ -924,7 +924,7 @@ private theorem divisionAndSaveGates_cnotMultiplicity_sum :
     moveProductToThinGates_cnotMultiplicity_sum]
   omega
 
-private theorem divisionAndSaveGates_toffoliMultiplicity_sum :
+private lemma divisionAndSaveGates_toffoliMultiplicity_sum :
     (divisionAndSaveGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (ParameterizedPointAddition.Workspace.divisionGates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum := by
@@ -932,7 +932,7 @@ private theorem divisionAndSaveGates_toffoliMultiplicity_sum :
     liftAuxGates_toffoliMultiplicity_sum,
     moveProductToThinGates_toffoliMultiplicity_sum, add_zero]
 
-private theorem xCoordinateGates_cnotMultiplicity_sum :
+private lemma xCoordinateGates_cnotMultiplicity_sum :
     (xCoordinateGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       10 * params.width +
         2 * ((ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -948,7 +948,7 @@ private theorem xCoordinateGates_cnotMultiplicity_sum :
     moveProductToThinGates_cnotMultiplicity_sum]
   omega
 
-private theorem xCoordinateGates_toffoliMultiplicity_sum :
+private lemma xCoordinateGates_toffoliMultiplicity_sum :
     (xCoordinateGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       2 * ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -963,7 +963,7 @@ private theorem xCoordinateGates_toffoliMultiplicity_sum :
     moveProductToThinGates_toffoliMultiplicity_sum, zero_add, add_zero]
   omega
 
-private theorem yCoordinateGates_cnotMultiplicity_sum :
+private lemma yCoordinateGates_cnotMultiplicity_sum :
     (yCoordinateGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       12 * params.width +
         ((ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -981,7 +981,7 @@ private theorem yCoordinateGates_cnotMultiplicity_sum :
     moveProductToThinGates_cnotMultiplicity_sum]
   omega
 
-private theorem yCoordinateGates_toffoliMultiplicity_sum :
+private lemma yCoordinateGates_toffoliMultiplicity_sum :
     (yCoordinateGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -999,7 +999,7 @@ private theorem yCoordinateGates_toffoliMultiplicity_sum :
   omega
 
 /-- Exact CNOT coordinate of one direct forward affine computation. -/
-theorem computeGates_cnotMultiplicity_sum :
+lemma computeGates_cnotMultiplicity_sum :
     (computeGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       37 * params.width +
         5 * ((ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -1018,7 +1018,7 @@ theorem computeGates_cnotMultiplicity_sum :
   omega
 
 /-- Exact Toffoli coordinate of one direct forward affine computation. -/
-theorem computeGates_toffoliMultiplicity_sum :
+lemma computeGates_toffoliMultiplicity_sum :
     (computeGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       5 * ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -1037,7 +1037,7 @@ theorem computeGates_toffoliMultiplicity_sum :
 
 
 
-private theorem xorIntoGates_bitDisjoint {width : Nat}
+private lemma xorIntoGates_bitDisjoint {width : Nat}
     (observed : EncodedBit rawEncoding)
     (source target : EncodedBit.Word rawEncoding width)
     (hcross : ∀ bit, (source.bit bit).wire ≠ (target.bit bit).wire)
@@ -1050,7 +1050,7 @@ private theorem xorIntoGates_bitDisjoint {width : Nat}
   rcases List.mem_ofFn.mp hgate with ⟨bit, rfl⟩
   exact ⟨hsource bit, htarget bit⟩
 
-private theorem publicToAuxGates_bitDisjoint_controlBit
+private lemma publicToAuxGates_bitDisjoint_controlBit
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width) :
@@ -1065,7 +1065,7 @@ private theorem publicToAuxGates_bitDisjoint_controlBit
     (fun bit => PointAddition.PortFrame.liftAuxBit_wire_ne_controlBit
       auxEncoding params.width (target.word.bit bit)) gate hgate
 
-private theorem publicToAuxGates_bitDisjoint_controlWorkBit
+private lemma publicToAuxGates_bitDisjoint_controlWorkBit
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (target : Arithmetic.BlockBank.WordPort auxEncoding params.width) :
@@ -1084,7 +1084,7 @@ private def AllBitDisjoint (observed : EncodedBit rawEncoding)
     (gates : List (EncodedBit.GateSpec rawEncoding)) : Prop :=
   ∀ gate, gate ∈ gates → EncodedBit.GateSpec.bitDisjoint observed gate
 
-private theorem AllBitDisjoint.append
+private lemma AllBitDisjoint.append
     {observed : EncodedBit rawEncoding}
     {left right : List (EncodedBit.GateSpec rawEncoding)}
     (hleft : AllBitDisjoint observed left)
@@ -1093,7 +1093,7 @@ private theorem AllBitDisjoint.append
   intro gate hgate
   exact (List.mem_append.mp hgate).elim (hleft gate) (hright gate)
 
-private theorem computeGates_allBitDisjoint
+private lemma computeGates_allBitDisjoint
     (observed : EncodedBit rawEncoding)
     (hpublic : ∀ source target,
       AllBitDisjoint observed (publicToAuxGates source target))
@@ -1206,7 +1206,7 @@ private theorem computeGates_allBitDisjoint
     hy
 
 /-- The direct affine schedule never touches the leading public control. -/
-theorem computeGates_bitDisjoint_controlBit :
+lemma computeGates_bitDisjoint_controlBit :
     ∀ gate, gate ∈ computeGates →
       EncodedBit.GateSpec.bitDisjoint
         (PointAddition.PortFrame.controlBit auxEncoding params.width) gate := by
@@ -1218,7 +1218,7 @@ theorem computeGates_bitDisjoint_controlBit :
         auxEncoding params.width gates gate hgate)
 
 /-- The direct affine schedule never touches the clean control-work bit. -/
-theorem computeGates_bitDisjoint_controlWorkBit :
+lemma computeGates_bitDisjoint_controlWorkBit :
     ∀ gate, gate ∈ computeGates →
       EncodedBit.GateSpec.bitDisjoint
         (PointAddition.PortFrame.controlWorkBit auxEncoding params.width) gate := by

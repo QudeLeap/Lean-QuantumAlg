@@ -47,33 +47,33 @@ public def additionalSpace (N : Nat) : Nat → SpacePool .quantum
   | count + 1 => NativeRetrySelection.additionalSpace N count
 
 /-- Zero requested batches have no independent native events. -/
-theorem eventEnvelope_zero (N : Nat) : eventEnvelope N 0 = 0 := rfl
+lemma eventEnvelope_zero (N : Nat) : eventEnvelope N 0 = 0 := rfl
 
 /-- Positive requested batches use exactly the original selected-chain ledger. -/
-theorem eventEnvelope_positive (N count : Nat) :
+lemma eventEnvelope_positive (N count : Nat) :
     eventEnvelope N (count + 1) = NativeRetrySelection.eventEnvelope N count := rfl
 
 /-- Empty-result allocation has no native event duration. -/
-theorem depthBound_zero (N : Nat) : depthBound N 0 = 0 := rfl
+lemma depthBound_zero (N : Nat) : depthBound N 0 = 0 := rfl
 
 /-- Positive-count serial duration is exactly the existing selected-chain formula. -/
-theorem depthBound_succ (N count : Nat) :
+lemma depthBound_succ (N count : Nat) :
     depthBound N (count + 1) = NativeRetrySelection.depthBound N count := rfl
 
 /-- Zero batches still charge the actual retained optional-result capacity. -/
-theorem additionalSpace_zero (N : Nat) :
+lemma additionalSpace_zero (N : Nat) :
     additionalSpace N 0 = NativeRetryEmpty.additionalSpace N := rfl
 
 /-- Positive counts charge their complete retained layout and one actual temporary peak. -/
-theorem additionalSpace_succ (N count : Nat) :
+lemma additionalSpace_succ (N count : Nat) :
     additionalSpace N (count + 1) = NativeRetrySelection.additionalSpace N count := rfl
 
 /-- The empty-result branch adds no quantum capacity. -/
-theorem additionalSpace_zero_quantum (N : Nat) (dimension : ℕ+) :
+lemma additionalSpace_zero_quantum (N : Nat) (dimension : ℕ+) :
     additionalSpace N 0 (.quantumSystems dimension) = 0 := rfl
 
 /-- All positive batch counts share the same quantum peak allowance as one batch. -/
-theorem additionalSpace_succ_quantum (N count : Nat) (dimension : ℕ+) :
+lemma additionalSpace_succ_quantum (N count : Nat) (dimension : ℕ+) :
     additionalSpace N (count + 1) (.quantumSystems dimension) =
       additionalSpace N 1 (.quantumSystems dimension) :=
   NativeRetrySelection.additionalSpace_quantum N count dimension
@@ -81,7 +81,7 @@ theorem additionalSpace_succ_quantum (N count : Nat) (dimension : ℕ+) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every path of the actual finite code satisfies the independent native event budget. -/
-theorem code_pool_le (input : Input N) (totalRounds : Nat)
+lemma code_pool_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).resourcePool path ≤ eventEnvelope N totalRounds := by
   cases totalRounds with
@@ -89,14 +89,14 @@ theorem code_pool_le (input : Input N) (totalRounds : Nat)
   | succ count => exact NativeRetrySelection.code_pool_le base noQuantum input count path
 
 /-- The same actual finite path obeys the independent native operation-count budget. -/
-theorem code_eventCount_le (input : Input N) (totalRounds : Nat)
+lemma code_eventCount_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     ((code base noQuantum input totalRounds).eventTrace path).length ≤
       (eventEnvelope N totalRounds).card :=
   Multiset.card_le_card (code_pool_le base noQuantum input totalRounds path)
 
 /-- Native dependency depth follows the same zero or positive actual execution branch. -/
-theorem code_depth_le (input : Input N) (totalRounds : Nat)
+lemma code_depth_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).depth (fun _ => 1) path ≤ depthBound N totalRounds := by
   cases totalRounds with
@@ -104,7 +104,7 @@ theorem code_depth_le (input : Input N) (totalRounds : Nat)
   | succ count => exact NativeRetrySelection.code_depth_le base noQuantum input count path
 
 /-- The actual finite resident peak includes the caller and every branch's real allocation. -/
-theorem code_resident_le (input : Input N) (totalRounds : Nat)
+lemma code_resident_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).peakResidentSpace path ≤
       base.residentSpace + additionalSpace N totalRounds := by
@@ -113,7 +113,7 @@ theorem code_resident_le (input : Input N) (totalRounds : Nat)
   | succ count => exact NativeRetrySelection.code_resident_le base noQuantum input count path
 
 /-- The same actual finite path includes its real retained and temporary auxiliary capacity. -/
-theorem code_auxiliary_le (input : Input N) (totalRounds : Nat)
+lemma code_auxiliary_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N totalRounds := by
@@ -122,7 +122,7 @@ theorem code_auxiliary_le (input : Input N) (totalRounds : Nat)
   | succ count => exact NativeRetrySelection.code_auxiliary_le base noQuantum input count path
 
 /-- Every complete run path has the same actual native ledger as the selected finite code. -/
-theorem run_pool_le (input : Input N) (totalRounds : Nat)
+lemma run_pool_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.resourcePool path ≤
       eventEnvelope N totalRounds := by
@@ -131,14 +131,14 @@ theorem run_pool_le (input : Input N) (totalRounds : Nat)
   | succ count => exact code_pool_le base noQuantum input (count + 1) path
 
 /-- The complete actual run's native operation count satisfies the same independent budget. -/
-theorem run_eventCount_le (input : Input N) (totalRounds : Nat)
+lemma run_eventCount_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     ((run base noQuantum input totalRounds).code.eventTrace path).length ≤
       (eventEnvelope N totalRounds).card :=
   Multiset.card_le_card (run_pool_le base noQuantum input totalRounds path)
 
 /-- The complete actual run has the same serial event-depth budget. -/
-theorem run_depth_le (input : Input N) (totalRounds : Nat)
+lemma run_depth_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.depth (fun _ => 1) path ≤
       depthBound N totalRounds := by
@@ -146,8 +146,17 @@ theorem run_depth_le (input : Input N) (totalRounds : Nat)
   | zero => exact code_depth_le base noQuantum input 0 path
   | succ count => exact code_depth_le base noQuantum input (count + 1) path
 
+/-- Every complete run path has a canonical quantum-time bound from an independent full-run ceiling.
+The same actual run includes its initial seed, every reused batch, reset and reload. -/
+lemma run_quantumTime_le (input : Input N) (totalRounds : Nat)
+    (path : (run base noQuantum input totalRounds).code.Path) :
+    (run base noQuantum input totalRounds).code.quantumTime path ≤
+      depthBound N totalRounds :=
+  (Circuit.quantumTime_le_unitDepth _ path).trans
+    (run_depth_le base noQuantum input totalRounds path)
+
 /-- The complete actual run preserves the finite code's resident peak accounting. -/
-theorem run_resident_le (input : Input N) (totalRounds : Nat)
+lemma run_resident_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.peakResidentSpace path ≤
       base.residentSpace + additionalSpace N totalRounds := by
@@ -156,7 +165,7 @@ theorem run_resident_le (input : Input N) (totalRounds : Nat)
   | succ count => exact code_resident_le base noQuantum input (count + 1) path
 
 /-- The complete actual run preserves the finite code's auxiliary peak accounting. -/
-theorem run_auxiliary_le (input : Input N) (totalRounds : Nat)
+lemma run_auxiliary_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N totalRounds := by

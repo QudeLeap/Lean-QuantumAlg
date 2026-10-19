@@ -36,7 +36,7 @@ def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (sourceWidt
     FirstAccepted.nativeEnvelope model width
 
 /-- The true trace records one resize and exactly the actual stored selection branch. -/
-theorem nativeQuadratic_narrow_eventTrace (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_eventTrace (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (path : (code eligible candidate original).Path) :
@@ -49,7 +49,7 @@ theorem nativeQuadratic_narrow_eventTrace (eligible : CInputRef ctx .bit)
   rfl
 
 /-- All actual native coordinates fit the independent five-event allowance. -/
-theorem nativeQuadratic_narrow_pool_le (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_pool_le (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (path : (code eligible candidate original).Path) :
@@ -59,12 +59,12 @@ theorem nativeQuadratic_narrow_pool_le (eligible : CInputRef ctx .bit)
   exact add_le_add le_rfl (FirstAccepted.firstAccepted_pool_le _ _ path.2)
 
 /-- The independent native budget has five entries, including both possible copies. -/
-theorem nativeQuadratic_narrow_nativeEnvelope_card (model : ExecutionModel)
+lemma nativeQuadratic_narrow_nativeEnvelope_card (model : ExecutionModel)
     [BitWord.Selected model] (sourceWidth width : Nat) :
     (nativeEnvelope model sourceWidth width).card = 5 := rfl
 
 /-- The actual event total is three or five according to the real selector branch. -/
-theorem nativeQuadratic_narrow_eventCount (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_eventCount (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (path : (code eligible candidate original).Path) :
@@ -86,7 +86,7 @@ theorem nativeQuadratic_narrow_eventCount (eligible : CInputRef ctx .bit)
   exact actual.trans (count selected.2.1.toBool)
 
 /-- Serial unit-duration depth counts the same actual conversion and selected instructions. -/
-theorem nativeQuadratic_narrow_unitDepth (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_unitDepth (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (path : (code eligible candidate original).Path) :
@@ -103,7 +103,7 @@ theorem nativeQuadratic_narrow_unitDepth (eligible : CInputRef ctx .bit)
   exact actual.trans (count selected.2.1.toBool)
 
 /-- Every actual visited context is either the caller or its one-word lexical extension. -/
-theorem nativeQuadratic_narrow_visited (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_visited (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (path : (code eligible candidate original).Path) :
@@ -121,7 +121,7 @@ theorem nativeQuadratic_narrow_visited (eligible : CInputRef ctx .bit)
   · exact Or.inl same
 
 /-- Resident and auxiliary peaks are bounded by the caller plus the real extra classical word. -/
-theorem nativeQuadratic_narrow_space_le (eligible : CInputRef ctx .bit)
+lemma nativeQuadratic_narrow_space_le (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord sourceWidth))
     (original : FirstAccepted.Refs ctx width)
     (path : (code eligible candidate original).Path) :

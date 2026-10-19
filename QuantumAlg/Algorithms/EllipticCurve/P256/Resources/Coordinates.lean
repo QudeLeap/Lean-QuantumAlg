@@ -6,19 +6,71 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Problem
+public import QuantumAlg.Algorithms.EllipticCurve.P256.ActualRun
+public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Limits
+import all QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Limits
 public import QuantumAlg.Core.Base.Accounting.Space
-import all QuantumAlg.Algorithms.EllipticCurve.P256.Resources.Problem
-import all QuantumAlg.Algorithms.EllipticCurve.P256.Measured.Space
 import all QuantumAlg.Algorithms.EllipticCurve.Resources.Spec
 
-/-!
-# Explicit coordinates of the independent complete P-256 problem
+import all QuantumAlg.Algorithms.EllipticCurve.P256.ActualRun
+import all QuantumAlg.Algorithms.EllipticCurve.Resources.Execution
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Resources.Coordinates
+import all QuantumAlg.Algorithms.EllipticCurve.P256.Cascade.Parameters
+import all QuantumAlg.Algorithms.EllipticCurve.P256.Measured.Parameters
+import all QuantumAlg.Algorithms.EllipticCurve.P256.Measured.Seed
 
-These projections belong to the same independent problem solved by the one
-actual fixed run. Original widened coefficient encodings remain intact.
-The classical formulas are exact allowance coordinates; they do not claim
-a tight reached peak. Every dimension other than qubits has zero allowance.
+/-!
+# Both actual P-256 storage roles in every quantum dimension
+
+The same complete 4714-attempt Run3 uses at most 818 qubits in both storage
+roles, with no other quantum dimension. The same 818 bound is used by the complete
+seven-coordinate theorem.
+The quantum-time comparison has its separate owner; these resource results
+remain separate from the public existential Solves conclusion.
+
+
+-/
+
+namespace QuantumAlg.EllipticCurve.P256.StreamingResources.Coordinates
+
+noncomputable section
+
+open QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ECDLP.Measured.Recovery.ExecutionContract
+
+open QuantumAlg QuantumAlg.Execution
+open QuantumAlg.EllipticCurve QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass
+open QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.GenericPointAddition.InPlace
+
+/-- Every quantum dimension retains both storage roles of the same complete actual Path. -/
+lemma run_quantumSystems_le (I : P256.DomainParameters.PublicKeyInstance)
+    (path : (P256.ActualRun.algorithm I).run.code.Path) (dimension : ℕ+) :
+    SpacePool.count (.quantumSystems dimension)
+        ((P256.ActualRun.algorithm I).run.code.peakResidentSpace path) ≤
+        (if 2 = dimension then 818 else 0) ∧
+      SpacePool.count (.quantumSystems dimension)
+        ((P256.ActualRun.algorithm I).run.code.peakAuxiliarySpace path) ≤
+        (if 2 = dimension then 818 else 0) := by
+  have : Fact P256.DomainParameters.fieldModulus.Prime := ⟨I.curveCert.prime⟩
+  have both := Coordinates.run_quantumSystems_both_le
+    (P256.DomainParameters.curve I.curveCert) 255
+    (ECDLP.Canonical.problem (P256.Cascade.ecdlpInstance I))
+    (P256.Cascade.addend I) (P256.Measured.fixedSeed I) P256.DomainParameters.subgroupOrder
+    (Semantics.radixUnit P256.DomainParameters.fieldModulus (Nat.succ 255)
+      (P256.Measured.fieldModulus_odd I.curveCert)) I.subgroupCert.prime.two_le 4714 path dimension
+  have arithmetic : 3 * (256 : Nat) + 4 * (256 : Nat).size + 14 = 818 :=
+    P256LogicalResources.Limits.qubits_eq
+  rw [P256.Measured.fieldModulus_size, arithmetic] at both
+  exact both
+
+end
+
+end QuantumAlg.EllipticCurve.P256.StreamingResources.Coordinates
+
+/-!
+# Preserved independent classical allowances and lossless IEC display
+
+These original pure formulas retain the execution coefficient widths and both
+classical storage roles. The separate actual quantum bound above remains 818.
 -/
 
 namespace QuantumAlg.EllipticCurve.P256LogicalResources
@@ -27,46 +79,10 @@ noncomputable section
 
 attribute [local irreducible] ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth
 
-private theorem resident_pool (I : P256.DomainParameters.PublicKeyInstance) :
-    (problem I).resources.resident =
-      ClassicalRoutines.EllipticCurve.CandidateCheck.Native.recoveryTailScratchSpace .quantum
-          (PrimeFieldShortWeierstrass.ECDLP.Canonical.Layout.fieldWidth
-            (P256.DomainParameters.curve I.curveCert))
-          (FiniteCyclicDLP.orderWidth
-            (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem (P256.Cascade.ecdlpInstance I))) +
-        ClassicalRoutines.EllipticCurve.CandidateCheck.Native.persistentCellSpace .quantum
-          (PrimeFieldShortWeierstrass.ECDLP.Canonical.Layout.fieldWidth
-            (P256.DomainParameters.curve I.curveCert))
-          (FiniteCyclicDLP.orderWidth
-            (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem (P256.Cascade.ecdlpInstance I))) +
-        (PrimeFieldShortWeierstrass.ECDLP.Measured.PublicInput.terminal
-          (P256.DomainParameters.curve I.curveCert)
-          (FiniteCyclicDLP.orderWidth
-            (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem
-              (P256.Cascade.ecdlpInstance I)))).residentSpace := rfl
-
-private theorem auxiliary_pool (I : P256.DomainParameters.PublicKeyInstance) :
-    (problem I).resources.auxiliary =
-      ClassicalRoutines.EllipticCurve.CandidateCheck.Native.recoveryTailScratchSpace .quantum
-          (PrimeFieldShortWeierstrass.ECDLP.Canonical.Layout.fieldWidth
-            (P256.DomainParameters.curve I.curveCert))
-          (FiniteCyclicDLP.orderWidth
-            (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem (P256.Cascade.ecdlpInstance I))) +
-        ClassicalRoutines.EllipticCurve.CandidateCheck.Native.persistentCellSpace .quantum
-          (PrimeFieldShortWeierstrass.ECDLP.Canonical.Layout.fieldWidth
-            (P256.DomainParameters.curve I.curveCert))
-          (FiniteCyclicDLP.orderWidth
-            (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem (P256.Cascade.ecdlpInstance I))) +
-        (PrimeFieldShortWeierstrass.ECDLP.Measured.PublicInput.terminal
-          (P256.DomainParameters.curve I.curveCert)
-          (FiniteCyclicDLP.orderWidth
-            (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem
-              (P256.Cascade.ecdlpInstance I)))).auxiliarySpace := rfl
-
 private def classicalBitLimit (coefficient : Nat → Nat) (extra : Nat) : Nat :=
   max (6516 + 9 * coefficient 261) (6927 + 9 * coefficient 257) + extra
 
-private theorem classicalBitLimit_eq (coefficient : Nat → Nat) (extra : Nat) :
+private lemma classicalBitLimit_eq (coefficient : Nat → Nat) (extra : Nat) :
     max (6516 + 9 * coefficient 261) (6927 + 9 * coefficient 257) + extra =
       classicalBitLimit coefficient extra := rfl
 
@@ -77,45 +93,6 @@ public def residentClassicalBitLimit : Nat :=
 /-- Auxiliary classical bits exclude precisely the two original borrowed public point encodings. -/
 public def auxiliaryClassicalBitLimit : Nat :=
   classicalBitLimit ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth 1813
-
-/-- The independent complete problem has the explicit original resident classical allowance. -/
-public theorem resident_classicalBits (I : P256.DomainParameters.PublicKeyInstance) :
-    SpacePool.count .classicalBits (problem I).resources.resident =
-      residentClassicalBitLimit :=
-  ((congrArg (SpacePool.count .classicalBits) (resident_pool I)).trans
-    (P256.Measured.residentAllowance_classicalBits I)).trans
-      (classicalBitLimit_eq ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth 2839)
-
-/-- The independent complete problem has the corresponding auxiliary classical allowance. -/
-public theorem auxiliary_classicalBits (I : P256.DomainParameters.PublicKeyInstance) :
-    SpacePool.count .classicalBits (problem I).resources.auxiliary =
-      auxiliaryClassicalBitLimit :=
-  ((congrArg (SpacePool.count .classicalBits) (auxiliary_pool I)).trans
-    (P256.Measured.auxiliaryAllowance_classicalBits I)).trans
-      (classicalBitLimit_eq ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth 1813)
-
-/-- Exactly 1336 qubits, and no other quantum dimensions, occur in the resident allowance. -/
-public theorem resident_quantumSystems (I : P256.DomainParameters.PublicKeyInstance)
-    (dimension : ℕ+) :
-    SpacePool.count (.quantumSystems dimension) (problem I).resources.resident =
-      if 2 = dimension then 1336 else 0 :=
-  (congrArg (SpacePool.count (.quantumSystems dimension)) (resident_pool I)).trans
-    (P256.Measured.residentAllowance_quantumSystems I dimension)
-
-/-- Quantum systems are counted equally in the auxiliary and resident allowances. -/
-public theorem auxiliary_quantumSystems (I : P256.DomainParameters.PublicKeyInstance)
-    (dimension : ℕ+) :
-    SpacePool.count (.quantumSystems dimension) (problem I).resources.auxiliary =
-      if 2 = dimension then 1336 else 0 :=
-  (congrArg (SpacePool.count (.quantumSystems dimension)) (auxiliary_pool I)).trans
-    (P256.Measured.auxiliaryAllowance_quantumSystems I dimension)
-
-/-- The complete exceptional-error budget requires exactly ninety-nine-percent success. -/
-public theorem successLowerBound_eq (I : P256.DomainParameters.PublicKeyInstance) :
-    (problem I).successLB.value = ENNReal.ofReal ((99 : ℝ) / 100) := by
-  change 1 - ENNReal.ofReal ((1 : ℝ) / 100) = ENNReal.ofReal ((99 : ℝ) / 100)
-  rw [← ENNReal.ofReal_one, ← ENNReal.ofReal_sub _ (by norm_num)]
-  norm_num
 
 /-- Lossless IEC display of the same resident classical allowance. -/
 public def residentClassicalMemoryIEC (unit : IECUnit) : Nat × Nat :=

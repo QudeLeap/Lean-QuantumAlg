@@ -8,6 +8,7 @@ module
 
 import all QuantumAlg.Core.Base.Accounting.Context.Relabeling
 import all QuantumAlg.Core.Execution.Context.Union.References
+import all QuantumAlg.Core.Execution.Context.Relabeling.Layout
 
 /-!
 # Actual references under injective context placement
@@ -48,15 +49,30 @@ def input {ctx : RuntimeCtx kind} {shape : CShape} (ref : CInputRef ctx shape) :
   ContextUnion.mapInput (storage keys physical) ref
 
 /-- The mapped reference uses exactly the declared storage embedding. -/
-theorem storage_key {ctx : RuntimeCtx kind} {shape : CShape} (ref : CStorageRef ctx shape) :
+lemma storage_key {ctx : RuntimeCtx kind} {shape : CShape} (ref : CStorageRef ctx shape) :
     (storage keys physical ref).key = keys ref.key := rfl
 
 /-- The original role is retained, including read-only borrowed inputs. -/
-theorem storage_role {ctx : RuntimeCtx kind} {shape : CShape} (ref : CStorageRef ctx shape) :
+lemma storage_role {ctx : RuntimeCtx kind} {shape : CShape} (ref : CStorageRef ctx shape) :
     (storage keys physical ref).role = ref.role := rfl
 
 /-- Writable cells use the same storage-key map as read operands. -/
-theorem writable_key {ctx : RuntimeCtx kind} {shape : CShape} (ref : CWriteRef ctx shape) :
+lemma writable_key {ctx : RuntimeCtx kind} {shape : CShape} (ref : CWriteRef ctx shape) :
     (writable keys physical ref).key = keys ref.key := rfl
+
+noncomputable section
+
+/-- Name the mapped actual writable cell at the corresponding system's proved dimension. -/
+def measurement (ctx : RuntimeCtx .quantum) (keys : StorageKey ↪ StorageKey)
+    (physical : Nat ↪ Nat) (wire : Fin ctx.systemCount)
+    (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) :
+    CWriteRef (ctx.relabel keys physical)
+      (.finite ((ctx.relabel keys physical).quantumLayout.wire
+        (positions ctx keys physical wire)).dimension) :=
+  Eq.mp (congrArg
+    (fun dimension : ℕ+ => CWriteRef (ctx.relabel keys physical) (.finite dimension))
+    (positions_dimension ctx keys physical wire).symm) (writable keys physical output)
+
+end
 
 end QuantumAlg.Execution.ContextRelabeling

@@ -37,13 +37,13 @@ def referenceMarginal (state : ExecutionState C (Register.prod R Reference)) :
       (Equiv.prodComm R.Index Reference.Index))
 
 /-- The reference observation retains the total probability of the same state. -/
-theorem referenceMarginal_mass (state : ExecutionState C (Register.prod R Reference)) :
+lemma referenceMarginal_mass (state : ExecutionState C (Register.prod R Reference)) :
     state.referenceMarginal.mass = state.mass :=
   (DensityOperator.marginalLeft_mass _).trans
     ((DensityOperator.reindex_mass _ _).trans (quantumMarginal_mass state))
 
 /-- A constant full-reference fiber is the same scalar times the actual reference marginal. -/
-theorem referenceFiberSum_constant_eq
+lemma referenceFiberSum_constant_eq
     (state : ExecutionState C (Register.prod R Reference)) (coefficient : ℂ)
     (left right : Reference.Index) :
     referenceFiberSum state (fun _ _ => coefficient) left right =
@@ -64,17 +64,17 @@ def target (seed : R.Index) (reference : DensityOperator Reference) :
   prependPrepared reference (NormalizedVector.ket seed)
 
 /-- The basis factor has trace one, so the target retains exactly the reference mass. -/
-theorem target_mass (seed : R.Index) (reference : DensityOperator Reference) :
+lemma target_mass (seed : R.Index) (reference : DensityOperator Reference) :
     (target seed reference).mass = reference.mass :=
   prependPrepared_mass reference (NormalizedVector.ket seed)
 
 /-- A normalized incoming reference gives a normalized independent joint target. -/
-theorem target_normalized (seed : R.Index) (reference : DensityOperator Reference)
+lemma target_normalized (seed : R.Index) (reference : DensityOperator Reference)
     (normalized : reference.IsNormalized) : (target seed reference).IsNormalized :=
   (target_mass seed reference).trans normalized
 
 /-- Every target entry keeps both reference coordinates and fixes both local coordinates. -/
-theorem target_entry (seed : R.Index) (reference : DensityOperator Reference)
+lemma target_entry (seed : R.Index) (reference : DensityOperator Reference)
     (left right : R.Index) (leftRef rightRef : Reference.Index) :
     (target seed reference).matrix (left, leftRef) (right, rightRef) =
       if left = seed ∧ right = seed then reference.matrix leftRef rightRef else 0 := by
@@ -86,7 +86,7 @@ theorem target_entry (seed : R.Index) (reference : DensityOperator Reference)
       star_one, star_zero, one_mul, zero_mul, mul_zero]
 
 /-- A complete entry formula is precisely a scalar multiple of the independent target. -/
-theorem matrix_eq_smul_of_entries (seed : R.Index) (reference : DensityOperator Reference)
+lemma matrix_eq_smul_of_entries (seed : R.Index) (reference : DensityOperator Reference)
     (state : DensityOperator (Register.prod R Reference)) (probability : ℝ)
     (entries : ∀ left right leftRef rightRef,
       state.matrix (left, leftRef) (right, rightRef) =
@@ -100,7 +100,7 @@ theorem matrix_eq_smul_of_entries (seed : R.Index) (reference : DensityOperator 
   split_ifs <;> simp only [Complex.real_smul, smul_zero]
 
 /-- The exact joint entry formula establishes the existing mass-weighted mixed promise. -/
-theorem promise_of_entries (seed : R.Index) (reference : DensityOperator Reference)
+lemma promise_of_entries (seed : R.Index) (reference : DensityOperator Reference)
     (normalized : reference.IsNormalized)
     (state : DensityOperator (Register.prod R Reference)) (probability : ℝ)
     (entries : ∀ left right leftRef rightRef,

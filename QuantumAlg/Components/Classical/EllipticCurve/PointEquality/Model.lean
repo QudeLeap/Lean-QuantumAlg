@@ -32,7 +32,7 @@ def pointEqual {width : Nat} (left right : CShape.Value (PointShape width)) : Bo
   decide (decodeCode left = decodeCode right)
 
 /-- The pure comparison accepts exactly structurally equal nominal points. -/
-theorem pointEqual_eq_true_iff {width : Nat}
+lemma pointEqual_eq_true_iff {width : Nat}
     (left right : CShape.Value (PointShape width)) :
     pointEqual left right = true ↔ left = right := by
   cases left
@@ -41,7 +41,7 @@ theorem pointEqual_eq_true_iff {width : Nat}
 
 /-- Structural equality is exactly tag equality conjoined with both coordinate
 equalities. -/
-theorem pointEqual_eq_components {width : Nat}
+lemma pointEqual_eq_components {width : Nat}
     (left right : CShape.Value (PointShape width)) :
     pointEqual left right =
       (!(Bool.xor left.ellipticCurvePointInfinityTag

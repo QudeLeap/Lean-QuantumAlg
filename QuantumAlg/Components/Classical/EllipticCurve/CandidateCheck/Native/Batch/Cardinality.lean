@@ -22,11 +22,11 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- The original independent pool contains every attempt allowance and exactly one final pack. -/
-theorem recoveryTailEnvelope_card (model : ExecutionModel) [BitWord.Selected model]
+lemma recoveryTailEnvelope_card (model : ExecutionModel) [BitWord.Selected model]
     (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth) (count : Nat) :
     (recoveryTailEnvelope model curve modulus count).card =
@@ -36,7 +36,7 @@ theorem recoveryTailEnvelope_card (model : ExecutionModel) [BitWord.Selected mod
   rfl
 
 /-- All actual stages retain the original complete batch numerical event ceiling. -/
-theorem recoveryTailEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma recoveryTailEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth) (count : Nat) :
     (recoveryTailEnvelope model curve modulus count).card ≤
@@ -46,7 +46,7 @@ theorem recoveryTailEnvelope_card_le (model : ExecutionModel) [BitWord.Selected 
     (Nat.mul_le_mul_left count (attemptEnvelope_card_le model curve modulus)) 1
 
 /-- Every actual allocated tail path satisfies that same original complete numerical ceiling. -/
-theorem recoveryTail_eventCount_le (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma recoveryTail_eventCount_le (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (path : (recoveryTail curve modulus samples base target).Path) :
@@ -56,7 +56,7 @@ theorem recoveryTail_eventCount_le (curve : CurveSpec width) (modulus : ModulusS
     (recoveryTailEnvelope_card_le model curve modulus count)
 
 /-- With no attempts, the real final retained result still incurs exactly its one pack event. -/
-theorem recoveryTail_eventCount_zero (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma recoveryTail_eventCount_zero (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin 0 → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (path : (recoveryTail curve modulus samples base target).Path) :

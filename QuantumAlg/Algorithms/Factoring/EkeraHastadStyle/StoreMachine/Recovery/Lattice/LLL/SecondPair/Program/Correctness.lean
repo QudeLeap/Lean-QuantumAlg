@@ -28,7 +28,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual prefix supplies the original input domain of the final direction reduction. -/
-theorem post_initial {model : ExecutionModel} [BitWord.Selected model]
+lemma post_initial {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     (basis : NumberTheory.IntegerBasis3) (initial : Initial refs store basis)
     (result : LatticeSecondPairMachine.Outcome refs.machine store
@@ -44,7 +44,7 @@ theorem post_initial {model : ExecutionModel} [BitWord.Selected model]
     exact initial.firstNorm
 
 /-- Both actual rounded quotients survive together with the fully size-reduced basis. -/
-theorem sizeReduction_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma sizeReduction_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
@@ -77,7 +77,7 @@ theorem sizeReduction_correct {model : ExecutionModel} [BitWord.Selected model]
     exact coefficient
 
 /-- The actual area-12 scratch writes leave every represented basis coordinate intact. -/
-theorem area12_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma area12_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -88,7 +88,7 @@ theorem area12_basis (refs : Refs ctx width) (separation : Separation refs)
   cases cell <;> decide
 
 /-- The actual area-13 scratch writes leave every represented basis coordinate intact. -/
-theorem area13_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma area13_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -99,7 +99,7 @@ theorem area13_basis (refs : Refs ctx width) (separation : Separation refs)
   cases cell <;> decide
 
 /-- The two actual area refreshes supply the original branch input, retaining the first area. -/
-theorem branch_initial (refs : Refs ctx width) (separation : Separation refs)
+lemma branch_initial (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
     LatticeSecondLovaszBranch.Initial refs.branch
@@ -134,7 +134,7 @@ structure AreaOutcome (refs : Refs ctx width) (after : Store ctx)
     basis.secondLovasz
 
 /-- Actual area computations and the selected branch realize all original suffix outputs. -/
-theorem areaBranch_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma areaBranch_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
@@ -186,7 +186,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
     FrameAvoids refs mutableCells other → after.read other = before.read other
 
 /-- The complete actual transition realizes every original output on the original input domain. -/
-theorem secondPairInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma secondPairInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :

@@ -34,7 +34,7 @@ def fields (shared : Proposal.SharedRefs ctx width) (scratch : Proposal.ScratchR
       (store.read (FirstAccepted.cellRead scratch.candidate)))
 
 /-- The real packing operation writes the complete parameter, including both factor fields. -/
-theorem decisionPack_read (shared : Proposal.SharedRefs ctx width)
+lemma decisionPack_read (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :
     (store.applyOp (packOp shared scratch output)).read (FirstAccepted.cellRead output) =
@@ -42,7 +42,7 @@ theorem decisionPack_read (shared : Proposal.SharedRefs ctx width)
   Store.read_applyOp_output store (packOp shared scratch output)
 
 /-- The real unit arm copies the candidate and clears only its factor payload. -/
-theorem decisionUnit_fields (shared : Proposal.SharedRefs ctx width)
+lemma decisionUnit_fields (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (candidateUnit : scratch.candidate.key ≠ shared.selector.selected.key)
     (candidateFlag : scratch.candidate.key ≠ scratch.eligible.key)
@@ -76,7 +76,7 @@ theorem decisionUnit_fields (shared : Proposal.SharedRefs ctx width)
   rw [unitRead, flagRead, payloadRead]
 
 /-- The real factor arm preserves the unit and writes the resized GCD and negated incoming tag. -/
-theorem decisionFactor_fields (shared : Proposal.SharedRefs ctx width)
+lemma decisionFactor_fields (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (candidateUnit : scratch.candidate.key ≠ shared.selector.selected.key)

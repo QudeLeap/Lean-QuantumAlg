@@ -21,7 +21,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.QuadraticScratchLayout
 def allocationBits (N : Nat) : Nat :=
   5 * DiscriminantWidth N + 7 * CandidateWidth N + CenterWidth N + 8 * WorkWidth N + 10
 
-private theorem quadraticSpaceArithmetic {kind : ProblemKind}
+private lemma quadraticSpaceArithmetic {kind : ProblemKind}
     (discriminant candidate center work : Nat) :
     (([.unsignedWord discriminant, .unsignedWord candidate, .unsignedWord candidate,
       .unsignedWord center, .unsignedWord discriminant, .bit, .unsignedWord discriminant,
@@ -39,7 +39,7 @@ private theorem quadraticSpaceArithmetic {kind : ProblemKind}
       SpacePool.ofShape, Pi.add_apply, Pi.zero_apply, CShape.bitWidth] <;> omega
 
 /-- All allocated quadratic capacity is classical and has the stated exact width sum. -/
-theorem quadraticAllocationSpace_eq_bits {kind : ProblemKind} (N : Nat) :
+lemma quadraticAllocationSpace_eq_bits {kind : ProblemKind} (N : Nat) :
     (((shapes N).map SpacePool.ofShape).sum : SpacePool kind) =
       SpacePool.ofShape (.bits (allocationBits N)) :=
   quadraticSpaceArithmetic (DiscriminantWidth N) (CandidateWidth N) (CenterWidth N) (WorkWidth N)

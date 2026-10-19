@@ -29,21 +29,22 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open Execution
 
 /-- The complete run's actual zero-result probability is exactly the source formula. -/
-theorem outputDistribution_zero {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma outputDistribution_zero {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (source : NormalizedVector (Qubits width)) {Reference : Register}
     (input : OracleInput .empty (pre width) Reference)
     (promised : inputPromise source input.caller.localState.quantumMarginal) :
-    (run unitary).outputDistribution input (.finite 0) =
+    (run width).outputDistribution (environment unitary) input (.finite 0) =
       ENNReal.ofReal (probabilityZero unitary source) := by
   have actual := congrArg (fun distribution : PMF (CShape.Value (.finite 2)) =>
       distribution (.finite 0))
-    (ExecutionState.toPMF_mapClassical ((run unitary).execute Reference input.state)
-      ((run unitary).execute_normalized input) (run unitary).result)
+    (ExecutionState.toPMF_mapClassical ((run width).execute (environment unitary) Reference
+      input.state)
+      ((run width).execute_normalized (environment unitary) input) (run width).result)
   simp only [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code unitary).execute Reference
+    (((code width).execute (environment unitary) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef width).toCStorageRef))
       |>.block (.finite 0)).mass) = _
@@ -54,17 +55,17 @@ theorem outputDistribution_zero {width : Nat} (unitary : UnitaryOperator (Qubits
   exact promised
 
 /-- The relational success event of the same run attains exactly its independent lower bound. -/
-theorem actual_success {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma actual_success {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (source : NormalizedVector (Qubits width)) {Reference : Register}
     (input : OracleInput .empty (pre width) Reference)
     (promised : inputPromise source input.caller.localState.quantumMarginal) :
     ENNReal.ofReal (probabilityZero unitary source) =
-      ((run unitary).relationalDistribution input).toOuterMeasure
+      ((run width).relationalDistribution (environment unitary) input).toOuterMeasure
         {pair | pair.2 = .finite 0} := by
   have projection :
-      ((run unitary).relationalDistribution input).toOuterMeasure
+      ((run width).relationalDistribution (environment unitary) input).toOuterMeasure
         {pair | pair.2 = .finite 0} =
-      ((run unitary).outputDistribution input).toOuterMeasure
+      ((run width).outputDistribution (environment unitary) input).toOuterMeasure
         {CShape.Value.finite (cardinality := 2) (0 : Fin 2)} := by
     simp only [AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
       PMF.toOuterMeasure_map_apply]

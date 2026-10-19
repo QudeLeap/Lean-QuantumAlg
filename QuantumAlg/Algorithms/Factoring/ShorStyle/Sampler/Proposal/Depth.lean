@@ -26,7 +26,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width count : Nat}
 
 /-- Actual candidate decoding and interval checks have at most two events per bit plus four. -/
-theorem proposalPrefix_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalPrefix_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (prefixBody (model := model) sample proposal shared scratch).Path) :
     (prefixBody (model := model)
@@ -40,7 +40,7 @@ theorem proposalPrefix_unit_depth_le (sample : CInputRef ctx (.bits (count * wid
   omega
 
 /-- One full actual slot includes its selected latch writes in the serial depth. -/
-theorem proposalSlot_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalSlot_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (slot (model := model) sample proposal shared scratch).Path) :
     (slot (model := model)
@@ -60,7 +60,7 @@ theorem proposalSlot_unit_depth_le (sample : CInputRef ctx (.bits (count * width
   omega
 
 /-- Every original slot contributes its actual serial instruction dependencies. -/
-theorem proposalFold_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalFold_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) :
     ∀ path : (foldSlots (model := model) sample shared scratch proposals).Path,
@@ -79,7 +79,7 @@ theorem proposalFold_unit_depth_le (sample : CInputRef ctx (.bits (count * width
         ((Nat.add_comm _ _).trans (Nat.succ_mul remaining.length (2 * width + 8)).symm)
 
 /-- The complete finite source scan has the explicit serial-depth bound for its proposal count. -/
-theorem proposalScan_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalScan_unit_depth_le (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (scan (model := model) sample shared scratch).Path) :
     (scan (model := model)

@@ -48,7 +48,7 @@ def qftPhaseFactorAt (n : Nat) (offset : Fin n)
     (qftPhaseAngle offset.val) label
 
 /-- Reconstruct a natural number as the weighted sum of its finite bit vector. -/
-theorem natOfBits_eq_sum {n : Nat} (bits : Fin n → Bool) :
+lemma natOfBits_eq_sum {n : Nat} (bits : Fin n → Bool) :
     Nat.ofBits bits = ∑ bit : Fin n, (bits bit).toNat * 2 ^ bit.val := by
   induction n with
   | zero => simp
@@ -71,7 +71,7 @@ theorem natOfBits_eq_sum {n : Nat} (bits : Fin n → Bool) :
 
 /-- The recursive scalar accumulator is exactly the product of the phase
 factors represented by its first `count` structural leaves. -/
-theorem qftPhaseLayerFactorPrefix_eq_prod (n count : Nat)
+lemma qftPhaseLayerFactorPrefix_eq_prod (n count : Nat)
     (hcount : count ≤ n) (label : Fin (2 ^ (n + 1))) :
     qftPhaseLayerFactorPrefix n count hcount label =
       ∏ offset : Fin count,
@@ -86,7 +86,7 @@ theorem qftPhaseLayerFactorPrefix_eq_prod (n count : Nat)
 
 /-- The source angle of one phase leaf is the corresponding binary-weight
 power of the common `(n+1)`-qubit Fourier root. -/
-theorem qftPhaseAngle_exp_eq_omega_pow (n : Nat) (offset : Fin n) :
+lemma qftPhaseAngle_exp_eq_omega_pow (n : Nat) (offset : Fin n) :
     Complex.exp (qftPhaseAngle offset.val * Complex.I) =
       ω (n + 1) ^ (2 ^ (Fin.rev offset).val) := by
   rw [ω, ← Complex.exp_nat_mul]
@@ -101,7 +101,7 @@ theorem qftPhaseAngle_exp_eq_omega_pow (n : Nat) (offset : Fin n) :
 
 /-- Each actual controlled-phase leaf contributes the Fourier-root power of
 its addressed input bit, and contributes one when the leading bit is zero. -/
-theorem qftPhaseFactorAt_eq_omega_pow (n : Nat) (offset : Fin n)
+lemma qftPhaseFactorAt_eq_omega_pow (n : Nat) (offset : Fin n)
     (label : Fin (2 ^ (n + 1))) :
     qftPhaseFactorAt n offset label =
       if label.val.testBit n then
@@ -129,7 +129,7 @@ theorem qftPhaseFactorAt_eq_omega_pow (n : Nat) (offset : Fin n)
 
 /-- The complete phase layer contributes the Fourier root raised to the lower
 `n` input bits whenever the leading output branch is one. -/
-theorem qftPhaseLayerFactor_eq (n : Nat)
+lemma qftPhaseLayerFactor_eq (n : Nat)
     (label : Fin (2 ^ (n + 1))) :
     qftPhaseLayerFactorPrefix n n le_rfl label =
       if label.val.testBit n then

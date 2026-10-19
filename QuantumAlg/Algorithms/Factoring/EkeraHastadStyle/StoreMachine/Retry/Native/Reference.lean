@@ -24,6 +24,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetryChain
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -31,7 +34,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 attribute [local irreducible] RuntimeResults.context RuntimeResults.liftInput
   RuntimeResults.liftWrite RuntimeResults.input
 
-private theorem reuseInput_storage (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+private lemma reuseInput_storage (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) :
     NativeBatchReuseRecovery.callerInput start N (.storage ref.toCStorageRef) =
       .storage (reuseWrite N ref).toCStorageRef := by
@@ -46,7 +49,7 @@ private theorem reuseInput_storage (N : Nat) {start : RuntimeCtx .quantum} {shap
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatchReuse.sampledWrite start N ref) 16)
 
-private theorem reuseInput_product (N : Nat) {start : RuntimeCtx .quantum}
+private lemma reuseInput_product (N : Nat) {start : RuntimeCtx .quantum}
     {left right : CShape} (first : CInputRef start left) (second : CInputRef start right) :
     NativeBatchReuseRecovery.callerInput start N (.product first second) =
       .product (NativeBatchReuseRecovery.callerInput start N first)
@@ -63,7 +66,7 @@ private theorem reuseInput_product (N : Nat) {start : RuntimeCtx .quantum}
       (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) first)
       (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) second) 16)
 
-private theorem reuseInput_keys (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+private lemma reuseInput_keys (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (input : CInputRef start shape) :
     (NativeBatchReuseRecovery.callerInput start N input).storageKeys = input.storageKeys := by
   let sampled := ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) input
@@ -76,7 +79,7 @@ private theorem reuseInput_keys (N : Nat) {start : RuntimeCtx .quantum} {shape :
   unfold NativeBatchReuseRecovery.callerInput NativeBatchReuseRecovery.liftInput
   exact (CInputRef.storageKeys_underRetained _ _ _ _).trans (roundKeys.trans sampleKeys)
 
-private theorem suffixInput_storage (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+private lemma suffixInput_storage (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) (count : Nat) :
     suffixInput N (.storage ref.toCStorageRef) count =
       .storage (suffixWrite N ref count).toCStorageRef := by
@@ -86,7 +89,7 @@ private theorem suffixInput_storage (N : Nat) {start : RuntimeCtx .quantum} {sha
       exact (congrArg (fun input => suffixInput N input count)
         (reuseInput_storage N ref)).trans (induction (reuseWrite N ref))
 
-private theorem suffixInput_product (N : Nat) {start : RuntimeCtx .quantum}
+private lemma suffixInput_product (N : Nat) {start : RuntimeCtx .quantum}
     {left right : CShape} (first : CInputRef start left) (second : CInputRef start right)
     (count : Nat) :
     suffixInput N (.product first second) count =
@@ -99,7 +102,7 @@ private theorem suffixInput_product (N : Nat) {start : RuntimeCtx .quantum}
         (induction (NativeBatchReuseRecovery.callerInput start N first)
           (NativeBatchReuseRecovery.callerInput start N second))
 
-private theorem reuseWrite_result_ne (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+private lemma reuseWrite_result_ne (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) :
     (reuseWrite N ref).key ≠ (NativeBatchReuseRecovery.resultRef start N).key := by
   let before := RuntimeResults.liftWrite (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -118,7 +121,7 @@ def suffixValues (N : Nat) (start : RuntimeCtx .quantum) (count : Nat)
   List.Vector.ofFn (fun index => store.read
     (.storage (suffixResults N start count index).toCStorageRef))
 
-private theorem suffixValues_cons (N : Nat) (start : RuntimeCtx .quantum) (count : Nat)
+private lemma suffixValues_cons (N : Nat) (start : RuntimeCtx .quantum) (count : Nat)
     (store : Store (suffixContext N start (count + 1))) :
     suffixValues N start (count + 1) store =
       List.Vector.cons
@@ -137,7 +140,7 @@ attribute [local irreducible] NativeBatchReuseRecovery.code NativeBatchReuseReco
   NativeBatchReuseRecovery.context NativeBatchReuse.code reuseWrite
   ExecutionState.referenceFiberSum
 
-private theorem reuse_joint_separate (N : Nat) {start : RuntimeCtx .quantum}
+private lemma reuse_joint_separate (N : Nat) {start : RuntimeCtx .quantum}
     {shape : CShape} (previous : CInputRef start shape)
     (originalCells : Fin (measurementBits N) → CWriteRef start (.finite 2))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
@@ -154,7 +157,7 @@ private theorem reuse_joint_separate (N : Nat) {start : RuntimeCtx .quantum}
   · exact reuseWrite_result_ne N (originalCells index) (List.mem_singleton.mp headKey)
 
 /-- The real suffix's complete joint weights follow the original independent factor-vector PMF. -/
-theorem suffix_weighted_reference {N : Nat} (input : Input N) :
+lemma suffix_weighted_reference {N : Nat} (input : Input N) :
     ∀ (count : Nat) {previousShape : CShape} (start : RuntimeCtx .quantum)
       (wires : start.quantumWires =
         (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
@@ -170,7 +173,7 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
           List.Vector (LatticeBatchRecoveryOutput.OutputShape N).Value count → ℂ)
         (leftRef rightRef : Reference.Index),
       ExecutionState.referenceFiberSum
-          ((suffixCode input start wires originalCells count).execute Reference state)
+          ((suffixCode input start wires originalCells count).execute environment Reference state)
           (fun entry _ => weight (entry.1.read (suffixInput N previous count))
             (suffixValues N start count entry.1)) leftRef rightRef =
         ExecutionState.referenceFiberSum state
@@ -190,7 +193,8 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
         (fun final : State start Reference (RuntimeRound.model.HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum final (fun entry _ => observe entry.1)
             leftRef rightRef)
-        (Circuit.execute_id_mapClassical (model := RuntimeRound.model) Reference state)
+        (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
+          (model := RuntimeRound.model) Reference state)
       have transported := executed.trans (ExecutionState.referenceFiberSum_mapClassical state
         (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
         (fun entry _ => observe entry.1) leftRef rightRef)
@@ -198,7 +202,8 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
         Subsingleton.elim _ _
       have aligned := congrArg
         (fun read : Store start → ℂ => ExecutionState.referenceFiberSum
-          ((Circuit.id (model := RuntimeRound.model) start).execute Reference state)
+          ((Circuit.id (allowAllocation := true)
+            (model := RuntimeRound.model) start).execute environment Reference state)
           (fun entry _ => read entry.1)
             leftRef rightRef)
         (funext fun store => congrArg (weight (store.read previous)) (empty store))
@@ -220,7 +225,8 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
       let first := NativeBatchReuseRecovery.code start wires originalCells input
       let rest := suffixCode input next nextWires nextCells count
       let advanced : State next Reference
-          (RuntimeRound.model.HiddenState × (History × first.Path)) := first.execute Reference state
+          (RuntimeRound.model.HiddenState × (History × first.Path)) := first.execute
+            environment Reference state
       let finalWeight := fun store : Store (suffixContext N start (count + 1)) =>
         weight (store.read (suffixInput N previous (count + 1)))
           (suffixValues N start (count + 1) store)
@@ -233,7 +239,8 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
         exact distinct ((reuseWrite_key N (originalCells left)).symm.trans
           (same.trans (reuseWrite_key N (originalCells right))))
       have nextSeparate := reuse_joint_separate N previous originalCells separate
-      have nextSeed := NativeBatchReuseRecovery.code_seedBlocks start wires originalCells
+      have nextSeed := NativeBatchReuseRecovery.code_seedBlocks (environment := environment)
+        start wires originalCells
         input state seeded
       have restLaw := induction next nextWires joint nextCells nextDistinct nextSeparate
         advanced nextSeed restWeight leftRef rightRef
@@ -259,7 +266,7 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
           (fun old => restWeight old (suffixValues N next count store)) jointValue.symm)
       have aligned := congrArg
         (fun read : Store (suffixContext N next count) → ℂ =>
-          ExecutionState.referenceFiberSum (rest.execute Reference advanced)
+          ExecutionState.referenceFiberSum (rest.execute environment Reference advanced)
             (fun entry _ => read entry.1) leftRef rightRef) (funext finalRead)
       let firstWeight := fun old : previousShape.Value =>
         fun factor : (LatticeBatchRecoveryOutput.OutputShape N).Value =>
@@ -268,6 +275,7 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
               ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue)
               count values).toReal : ℂ) * weight old (List.Vector.cons factor values)
       have firstLaw := NativeBatchReuseRecovery.nativeBatchReuseRecovery_output_weighted_reference
+        (environment := environment)
         start wires originalCells input previous distinct separate state seeded firstWeight
         leftRef rightRef
       have summed := congrArg
@@ -276,7 +284,8 @@ theorem suffix_weighted_reference {N : Nat} (input : Input N) :
         (funext fun store => (PMF.independentReplicateVector_weighted_cons
           ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue)
           count (weight (store.read previous))).symm)
-      exact (Circuit.referenceFiberSum_execute_seq first rest state finalWeight
+      exact (Circuit.referenceFiberSum_execute_seq (environment := environment)
+        first rest state finalWeight
         leftRef rightRef).trans (aligned.trans (restLaw.trans (firstLaw.trans summed)))
 
 end

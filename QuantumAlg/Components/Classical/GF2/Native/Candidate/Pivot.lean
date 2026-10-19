@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- The original outer pivot-record branch preserves all reads outside its candidate word. -/
-theorem gf2CandidatePivotRow_read_other
+lemma gf2CandidatePivotRow_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -48,7 +48,7 @@ theorem gf2CandidatePivotRow_read_other
           store other separate
 
 /-- The original stored pivot bit and real row intersection determine the candidate update. -/
-theorem gf2CandidatePivotRow_candidate
+lemma gf2CandidatePivotRow_candidate
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -72,7 +72,7 @@ theorem gf2CandidatePivotRow_candidate
 
 omit [BitWord.Selected model] in
 /-- A canonical recorded pivot row reads exactly its original first-match row decision. -/
-theorem gf2CandidatePivotBit_of_record
+lemma gf2CandidatePivotBit_of_record
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (result : ClassicalAlgorithms.GF2.Result rowCount width) (store : Store ctx)
     (represented : store.read (.storage rows.toCStorageRef) =

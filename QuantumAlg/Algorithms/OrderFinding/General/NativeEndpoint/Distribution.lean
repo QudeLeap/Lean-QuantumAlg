@@ -30,40 +30,39 @@ open QuantumAlg.Execution
 open ClassicalRoutines.OrderRecovery.Native
 
 /-- Extend each actual sampling record by its own finite recovery path. -/
-def recoveredRecord {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width)
-    (record : (SourceNativeSampling.run access).Record) :
-    (run hinput access).Record :=
-  ((recoveryStep hinput access record.1).1,
+def recoveredRecord {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat)
+    (record : (SourceNativeSampling.run t width).Record) :
+    (run spec t).Record :=
+  ((recoveryStep spec t record.1).1,
     (record.2.1, (record.2.2.1,
-      (record.2.2.2, (recoveryStep hinput access record.1).2))))
+      (record.2.2.2, (recoveryStep spec t record.1).2))))
 
 /-- The final run maps the very same source-sample density blocks. -/
-theorem execute_eq_map {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) (Reference : Register)
+lemma execute_eq_map {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat)
+    (environment : (Sampling.Native.model t width).Environment) (Reference : Register)
     (state : ExecutionState
-      (Store (pre width) × (Sampling.Native.Framed.model access).HiddenState)
+      (Store (pre width) × (Sampling.Native.Framed.model t width).HiddenState)
       (Register.prod (pre width).register Reference)) :
-    (run hinput access).execute Reference state =
-      ((SourceNativeSampling.run access).execute Reference state).mapClassical
-        (recoveredRecord hinput access) := by
+    (run spec t).execute environment Reference state =
+      ((SourceNativeSampling.run t width).execute environment Reference state).mapClassical
+        (recoveredRecord spec t) := by
   refine (Circuit.execute_seq_retained_mapClassical_tail
-    (model := Sampling.Native.Framed.model access)
+    (model := Sampling.Native.Framed.model t width)
     (resultKey t width) (outputShape t) (resultFresh t width)
-    (SourceNativeSampling.code access) (recoveryStage hinput access)
+    (SourceNativeSampling.code t width) (recoveryStage spec t) environment
     (fun entry =>
-      (((recoveryStep hinput access entry.1).1, entry.2),
-        (recoveryStep hinput access entry.1).2))
-    (recoveryStage_execute hinput access) Reference
+      (((recoveryStep spec t entry.1).1, entry.2),
+        (recoveryStep spec t entry.1).2))
+    (recoveryStage_execute spec t environment) Reference
     (state.mapClassical (fun store => (store.1, (store.2, store.1))))).trans ?_
-  exact congrArg (fun decision : DecidableEq (run hinput access).Record =>
-    @ExecutionState.mapClassical (SourceNativeSampling.run access).Record
-      (run hinput access).Record _ _
+  exact congrArg (fun decision : DecidableEq (run spec t).Record =>
+    @ExecutionState.mapClassical (SourceNativeSampling.run t width).Record
+      (run spec t).Record _ _
       (Register.prod (SourceNativeSampling.post t width).register Reference) decision
-      ((SourceNativeSampling.run access).execute Reference state)
-      (recoveredRecord hinput access))
+      ((SourceNativeSampling.run t width).execute environment Reference state)
+      (recoveredRecord spec t))
     (Subsingleton.elim _ _)
 
 end

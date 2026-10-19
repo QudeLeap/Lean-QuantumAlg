@@ -37,7 +37,7 @@ def pivotRowsClearEvent (rowCount width : Nat) : Resource.Event model :=
   echelonOperationEvent (model := model) (.vector .write width rowCount)
 
 omit [BitWord.Selected model] in
-private theorem repeated_trace (count : Nat) (body : Fin count → Circuit model ctx ctx)
+private lemma repeated_trace (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (event : Resource.Event model)
     (events : ∀ index path, (body index).eventTrace path = [event])
     (path : (Circuit.forRange count body).Path) :
@@ -51,7 +51,7 @@ private theorem repeated_trace (count : Nat) (body : Fin count → Circuit model
       rfl
 
 /-- Every initialization path contains exactly the original ordered vector writes. -/
-theorem gf2PivotRowsClearBody_events
+lemma gf2PivotRowsClearBody_events
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount))
     (path : (pivotRowsClearBody rows zero).Path) :
@@ -63,7 +63,7 @@ theorem gf2PivotRowsClearBody_events
     rfl) path
 
 /-- The same actual initialization path has exact serial event-duration accounting. -/
-theorem gf2PivotRowsClearBody_duration_eventTrace
+lemma gf2PivotRowsClearBody_duration_eventTrace
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (duration : Resource.Event model → Nat)
     (path : (pivotRowsClearBody rows zero).Path) :
@@ -75,7 +75,7 @@ theorem gf2PivotRowsClearBody_duration_eventTrace
       simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]) path
 
 /-- Real lexical entry and exit add no events to the original initialization writes. -/
-theorem gf2ClearPivotRows_events
+lemma gf2ClearPivotRows_events
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (path : (clearPivotRows rows).Path) :
     (clearPivotRows rows).eventTrace path =
@@ -83,7 +83,7 @@ theorem gf2ClearPivotRows_events
   gf2PivotRowsClearBody_events _ _ path
 
 /-- The complete initialization scope charges every vector-write duration exactly once. -/
-theorem gf2ClearPivotRows_depth
+lemma gf2ClearPivotRows_depth
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (duration : Resource.Event model → Nat) (path : (clearPivotRows rows).Path) :
     (clearPivotRows rows).depth duration path =
@@ -120,7 +120,7 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (columns : CWriteRef ctx (.unsignedWord width))
 
 /-- Complete reduction charges both real self-XORs, all initialization writes and all columns. -/
-theorem gf2ReduceMatrix_pool_le (path : (reduceMatrix matrix used rows columns).Path) :
+lemma gf2ReduceMatrix_pool_le (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).resourcePool path ≤
       echelonEnvelope (model := model) rowCount width := by
     change (Circuit.seq
@@ -152,7 +152,7 @@ theorem gf2ReduceMatrix_pool_le (path : (reduceMatrix matrix used rows columns).
         (gf2ReduceColumn_pool_le matrix used rows columns) path.2.2.2)))
 
 /-- The original serial initialization precedes each column's actual duration allowance. -/
-theorem gf2ReduceMatrix_depth_le (duration : Resource.Event model → Nat)
+lemma gf2ReduceMatrix_depth_le (duration : Resource.Event model → Nat)
     (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).depth duration path ≤
       echelonDepthLimit rowCount width duration := by
@@ -183,7 +183,7 @@ theorem gf2ReduceMatrix_depth_le (duration : Resource.Event model → Nat)
       path.2.2.2) _) _) _
 
 /-- Every complete reduction path retains its exact emitted serial-duration sum. -/
-theorem gf2ReduceMatrix_duration_eventTrace (duration : Resource.Event model → Nat)
+lemma gf2ReduceMatrix_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (reduceMatrix matrix used rows columns).Path) :
     (reduceMatrix matrix used rows columns).depth duration path =
       (((reduceMatrix matrix used rows columns).eventTrace path).map duration).sum := by
@@ -229,7 +229,7 @@ theorem gf2ReduceMatrix_duration_eventTrace (duration : Resource.Event model →
     List.sum_cons, List.sum_nil, List.map_replicate, List.sum_replicate, smul_eq_mul, Nat.add_zero]
 
 /-- The actual loading and reduction prefix adds both original native resource allowances. -/
-theorem gf2LoadAndReduce_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadAndReduce_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).resourcePool path ≤
       ResourcePool.scale rowCount (rowEnvelope (model := model) rowCount width) +
@@ -241,7 +241,7 @@ theorem gf2LoadAndReduce_pool_le (input : CInputRef ctx (.fixedVector rowCount (
     (gf2ReduceMatrix_pool_le matrix used rows columns path.2)
 
 /-- The complete original loading duration is followed by the initialized reduction duration. -/
-theorem gf2LoadAndReduce_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadAndReduce_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (duration : Resource.Event model → Nat)
     (path : (loadAndReduce input matrix used rows columns).Path) :
     (loadAndReduce input matrix used rows columns).depth duration path ≤
@@ -251,7 +251,7 @@ theorem gf2LoadAndReduce_depth_le (input : CInputRef ctx (.fixedVector rowCount 
     (gf2ReduceMatrix_depth_le matrix used rows columns duration path.2)
 
 /-- Both real prefix phases retain the exact duration sum of their original emitted events. -/
-theorem gf2LoadAndReduce_duration_eventTrace
+lemma gf2LoadAndReduce_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (duration : Resource.Event model → Nat)
     (path : (loadAndReduce input matrix used rows columns).Path) :

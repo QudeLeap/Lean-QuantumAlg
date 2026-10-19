@@ -27,6 +27,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -59,7 +61,7 @@ def fromRegisters
 
 /-- The clean finite register seed reads out to the source-level initial
 state [RNSL17, ECDLP.tex:409,445-446,468]. -/
-theorem fromRegisters_initialRegisters
+lemma fromRegisters_initialRegisters
     (n counterWidth : Nat) (p x : Word n) :
     fromRegisters n counterWidth (initialRegisters n counterWidth p x) 0 0 =
       initial p.val x.val :=
@@ -68,7 +70,7 @@ theorem fromRegisters_initialRegisters
 
 /-- Source-level branch selection from concrete registers agrees with the
 register-facing selector signals when the staged comparison bit is valid. -/
-theorem selectBranch_fromRegisters_eq_fromRegisterSignals_of_compare
+lemma selectBranch_fromRegisters_eq_fromRegisterSignals_of_compare
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (kaliskiSteps paddingSteps : Nat)
     (hcompare : x.compare = decide (x.v.val < x.u.val)) :
@@ -80,7 +82,7 @@ theorem selectBranch_fromRegisters_eq_fromRegisterSignals_of_compare
 /-- Source-level branch selection from the registers inside coefficient-adder
 work agrees with the coefficient-work selector signals when the staged
 comparison bit is valid. -/
-theorem selectBranch_fromRegisters_eq_fromCoeffWorkSignals_of_compare
+lemma selectBranch_fromRegisters_eq_fromCoeffWorkSignals_of_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (kaliskiSteps paddingSteps : Nat)
@@ -99,7 +101,7 @@ theorem selectBranch_fromRegisters_eq_fromCoeffWorkSignals_of_compare
 /-- When the low `u` and low `v` readouts are true and the staged comparison is
 valid with `v < u`, the source selector agrees with the circuit-facing
 `uGreater` odd branch. -/
-theorem selectBranch_fromRegisters_eq_uGreater_of_coeffWork_odd_compare_valid_lt
+lemma selectBranch_fromRegisters_eq_uGreater_of_coeffWork_odd_compare_valid_lt
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth)
     (kaliskiSteps paddingSteps : Nat)
@@ -125,7 +127,7 @@ theorem selectBranch_fromRegisters_eq_uGreater_of_coeffWork_odd_compare_valid_lt
 /-- When the low `u` and low `v` readouts are true and the staged comparison is
 valid with `v < u` false, the source selector agrees with the circuit-facing
 `vLe` odd branch. -/
-theorem selectBranch_fromRegisters_eq_vLe_of_coeffWork_odd_compare_valid_not_lt
+lemma selectBranch_fromRegisters_eq_vLe_of_coeffWork_odd_compare_valid_not_lt
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth)
     (kaliskiSteps paddingSteps : Nat)
@@ -156,14 +158,14 @@ def fixedRoundHistoryIndex (n : Nat)
     Fin (2 * n) :=
   roundIndex
 
-@[simp] theorem fixedRoundHistoryIndex_val (n : Nat)
+@[simp] lemma fixedRoundHistoryIndex_val (n : Nat)
     (roundIndex : Fin (fixedRoundCount n)) :
     (fixedRoundHistoryIndex n roundIndex).val = roundIndex.val := by
   rfl
 
 /-- Distinct fixed-round schedule slots select distinct history-register
 slots. -/
-theorem fixedRoundHistoryIndex_ne_of_ne (n : Nat)
+lemma fixedRoundHistoryIndex_ne_of_ne (n : Nat)
     {left right : Fin (fixedRoundCount n)}
     (hne : left ≠ right) :
     fixedRoundHistoryIndex n left ≠ fixedRoundHistoryIndex n right := by
@@ -174,7 +176,7 @@ theorem fixedRoundHistoryIndex_ne_of_ne (n : Nat)
 
 /-- The fixed-round history slot selected by a schedule index is initially
 clean in the finite register seed. -/
-theorem initialRegisters_fixedRoundHistoryBit_get
+lemma initialRegisters_fixedRoundHistoryBit_get
     (n counterWidth : Nat) (p x : Word n)
     (roundIndex : Fin (fixedRoundCount n)) :
     (RegisterBits.historyBit n counterWidth
@@ -190,13 +192,13 @@ def fixedRoundHistorySchedule (n : Nat) : List (Fin (2 * n)) :=
   List.ofFn fun roundIndex : Fin (fixedRoundCount n) =>
     fixedRoundHistoryIndex n roundIndex
 
-@[simp] theorem fixedRoundHistorySchedule_length (n : Nat) :
+@[simp] lemma fixedRoundHistorySchedule_length (n : Nat) :
     (fixedRoundHistorySchedule n).length = 2 * n := by
   simp [fixedRoundHistorySchedule]
 
 /-- The `roundIndex`-th fixed schedule entry is the matching `m_i`
 history-register slot. -/
-theorem fixedRoundHistorySchedule_get (n : Nat)
+lemma fixedRoundHistorySchedule_get (n : Nat)
     (roundIndex : Fin (fixedRoundCount n)) :
     (fixedRoundHistorySchedule n).get
         ⟨roundIndex.val, by
@@ -217,6 +219,8 @@ namespace MAU.Inversion
 namespace MK
 
 noncomputable section
+
+variable {environment : OracleModel.empty.Interpretation}
 
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -274,13 +278,13 @@ def coeffWorkKaliskiActiveBranchRoundProgram
 
 /-- The explicit active-branch circuit realizes the branch-selected semantic
 step. -/
-theorem coeffWorkKaliskiActiveBranchRound_realizes
+lemma coeffWorkKaliskiActiveBranchRound_realizes
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (branch : Branch) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
       (coeffWorkKaliskiActiveBranchRoundProgram
-        n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
+        n counterWidth uIndex vIndex comparisonIndex historyIndex branch) environment
       (coeffWorkKaliskiActiveBranchRoundStep
         n counterWidth uIndex vIndex comparisonIndex historyIndex branch) := by
   cases branch with
@@ -322,13 +326,13 @@ def fullRoundWorkKaliskiActiveBranchRoundProgram
       n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
 
 /-- The lifted active-branch circuit realizes the full-round semantic step. -/
-theorem fullRoundWorkKaliskiActiveBranchRound_realizes
+lemma fullRoundWorkKaliskiActiveBranchRound_realizes
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (branch : Branch) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding n counterWidth)
       (fullRoundWorkKaliskiActiveBranchRoundProgram
-        n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
+        n counterWidth uIndex vIndex comparisonIndex historyIndex branch) environment
       (fullRoundWorkKaliskiActiveBranchRoundStep
         n counterWidth uIndex vIndex comparisonIndex historyIndex branch) :=
   UnitaryCircuit.Realizes.onBinaryPrefix
@@ -368,7 +372,7 @@ def fullRoundWorkOddOddSelectorToCarryProgram
 
 /-- The full-round odd-odd selector latch gate list has its lifted semantic
 step. -/
-theorem fullRoundWorkOddOddSelectorToCarryStep_eq_gateList
+lemma fullRoundWorkOddOddSelectorToCarryStep_eq_gateList
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -384,15 +388,15 @@ theorem fullRoundWorkOddOddSelectorToCarryStep_eq_gateList
 
 /-- The full-round odd-odd selector latch program realizes its lifted semantic
 step. -/
-theorem fullRoundWorkOddOddSelectorToCarry_realizes
+lemma fullRoundWorkOddOddSelectorToCarry_realizes
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkOddOddSelectorToCarryProgram
-        tail counterWidth selectorIndex)
+        tail counterWidth selectorIndex) environment
       (fullRoundWorkOddOddSelectorToCarryStep
         tail counterWidth selectorIndex) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddSelectorToCarryGates
       tail counterWidth selectorIndex)
@@ -401,7 +405,7 @@ theorem fullRoundWorkOddOddSelectorToCarry_realizes
 
 /-- The full-round odd-odd selector latch preserves the padding-counter
 increment work. -/
-theorem fullRoundWorkOddOddSelectorToCarryStep_counterWork
+lemma fullRoundWorkOddOddSelectorToCarryStep_counterWork
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkOddOddSelectorToCarryStep
@@ -410,7 +414,7 @@ theorem fullRoundWorkOddOddSelectorToCarryStep_counterWork
 
 /-- The full-round odd-odd selector latch xors `u[0] && v[0]` into the selected
 comparison-carry bit in the lifted coefficient-work state. -/
-theorem fullRoundWorkOddOddSelectorToCarryStep_get_selector
+lemma fullRoundWorkOddOddSelectorToCarryStep_get_selector
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (coeffAdderComparisonCarryBit
@@ -431,7 +435,7 @@ theorem fullRoundWorkOddOddSelectorToCarryStep_get_selector
 
 /-- On a clean latch bit, the full-round odd-odd selector latch records exactly
 `u[0] && v[0]` in the lifted coefficient-work state. -/
-theorem fullRoundWorkOddOddSelectorToCarryStep_get_selector_clean
+lemma fullRoundWorkOddOddSelectorToCarryStep_get_selector_clean
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hclean :
@@ -453,7 +457,7 @@ theorem fullRoundWorkOddOddSelectorToCarryStep_get_selector_clean
 
 /-- The full-round odd-odd selector latch preserves the low `u` selector readout
 in the lifted coefficient-work state. -/
-theorem fullRoundWorkOddOddSelectorToCarryStep_get_u_low
+lemma fullRoundWorkOddOddSelectorToCarryStep_get_u_low
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (coeffAdderUBit tail.succ counterWidth
@@ -470,7 +474,7 @@ theorem fullRoundWorkOddOddSelectorToCarryStep_get_u_low
 
 /-- The full-round odd-odd selector latch preserves the low `v` selector readout
 in the lifted coefficient-work state. -/
-theorem fullRoundWorkOddOddSelectorToCarryStep_get_v_low
+lemma fullRoundWorkOddOddSelectorToCarryStep_get_v_low
     (tail counterWidth : Nat) (selectorIndex : Fin tail.succ)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (coeffAdderVBit tail.succ counterWidth
@@ -534,7 +538,7 @@ def fullRoundWorkOddOddSelectorToCounterCarryInStep
       tail counterWidth)
 
 /-- The counter-work odd-odd selector latch gate list has its semantic step. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_gateList
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_gateList
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -546,15 +550,15 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_gateList
 
 /-- The counter-work odd-odd selector latch program realizes its semantic step.
 -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryIn_realizes
+lemma fullRoundWorkOddOddSelectorToCounterCarryIn_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkOddOddSelectorToCounterCarryInProgram
-        tail counterWidth)
+        tail counterWidth) environment
       (fullRoundWorkOddOddSelectorToCounterCarryInStep
         tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddSelectorToCounterCarryInGates
       tail counterWidth)
@@ -625,7 +629,7 @@ def fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
         (coeffAdderUBit tail.succ counterWidth low)
         (counterIncrementCarryWorkBit counterWidth workIndex)) ]
 
-private theorem
+private lemma
     fullRoundWorkActiveOddOddSelectorToCounterCarryInGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1)) :
     ((fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
@@ -634,7 +638,7 @@ private theorem
   change 1 + 1 + 1 + 0 = 3
   rfl
 
-private theorem
+private lemma
     fullRoundWorkActiveOddOddSelectorToCounterCarryInGates_xMultiplicity_sum
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1)) :
     ((fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
@@ -643,7 +647,7 @@ private theorem
   change 0 + 0 + 0 + 0 = 0
   rfl
 
-private theorem
+private lemma
     fullRoundWorkActiveOddOddSelectorToCounterCarryInGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1)) :
     ((fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
@@ -671,22 +675,22 @@ def fullRoundWorkActiveOddOddSelectorToCounterCarryInProgram
       tail counterWidth workIndex)
 
 /-- The active-guarded latch circuit realizes its gate-list step. -/
-theorem fullRoundWorkActiveOddOddSelectorToCounterCarryIn_realizes
+lemma fullRoundWorkActiveOddOddSelectorToCounterCarryIn_realizes
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkActiveOddOddSelectorToCounterCarryInProgram
-        tail counterWidth workIndex)
+        tail counterWidth workIndex) environment
       (fullRoundWorkActiveOddOddSelectorToCounterCarryInStep
         tail counterWidth workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkActiveOddOddSelectorToCounterCarryInGates
       tail counterWidth workIndex)
 
 /-- Starting from clean counter carry-in and carry-work bits, the
 active-guarded selector latch records exactly `active && u[0] && v[0]` in the
 counter carry-in bit. -/
-theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_get_control_clean
+lemma fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_get_control_clean
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hcontrol :
@@ -761,7 +765,7 @@ theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_get_control_clean
 
 /-- Starting from clean counter carry-work, the active-guarded selector latch
 restores its temporary counter carry-work bit to clean. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_get_counterCarryWork_clean
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -838,7 +842,7 @@ theorem
 
 /-- If the active guard is false and the temporary carry-work bit is clean,
 the active-guarded odd-odd selector latch is a no-op. -/
-theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_active_false
+lemma fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_active_false
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hactive : (fullRoundWorkActiveBit tail counterWidth).get x = false)
@@ -880,7 +884,7 @@ theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_active_
 
 /-- If low `u` is false and the temporary carry-work bit is clean, the
 active-guarded odd-odd selector latch is a no-op. -/
-theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_uLow_false
+lemma fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_uLow_false
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (huLow :
@@ -925,7 +929,7 @@ theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_uLow_fa
 
 /-- If low `v` is false, the active-guarded odd-odd selector latch leaves the
 state unchanged after uncomputing its temporary carry-work bit. -/
-theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_vLow_false
+lemma fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_vLow_false
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hvLow :
@@ -981,7 +985,7 @@ theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_self_of_vLow_fa
 /-- If the active guard and both low readouts are true and the temporary
 carry-work bit is clean, the active-guarded selector latch flips the counter
 carry-in bit and restores the temporary work. -/
-theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_flip_of_active_lsb_true
+lemma fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_flip_of_active_lsb_true
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hactive : (fullRoundWorkActiveBit tail counterWidth).get x = true)
@@ -1082,7 +1086,7 @@ theorem fullRoundWorkActiveOddOddSelectorToCounterCarryInStep_eq_flip_of_active_
 
 /-- The counter-work odd-odd selector latch xors `u[0] && v[0]` into the
 counter carry-in latch bit. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_control
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_get_control
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkCounterCarryInBit tail counterWidth).get
@@ -1112,7 +1116,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_control
 
 /-- On clean counter carry-in work, the counter-work odd-odd selector latch
 records exactly `u[0] && v[0]`. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_control_clean
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_get_control_clean
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hclean :
@@ -1129,7 +1133,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_control_clean
 
 /-- Latching the odd-odd selector into counter work preserves the entire
 coefficient-work state. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_coeffState
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_coeffState
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkOddOddSelectorToCounterCarryInStep
@@ -1153,7 +1157,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_coeffState
 
 /-- Latching the odd-odd selector into counter carry-in preserves each
 counter-increment source bit. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_counterSource
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_get_counterSource
     (tail counterWidth : Nat) (bit : Fin counterWidth)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkCounterSourceBit tail counterWidth bit).get
@@ -1179,7 +1183,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_counterSource
 
 /-- Latching the odd-odd selector into counter carry-in preserves each
 counter-increment carry-work bit. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_counterCarryWork
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_get_counterCarryWork
     (tail counterWidth : Nat) (bit : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     (fullRoundWorkCounterCarryWorkBit tail counterWidth bit).get
@@ -1205,7 +1209,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_get_counterCarryWork
 
 /-- If the low `u` readout is false, the counter-work odd-odd selector latch
 is a no-op. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_self_of_uLow_false
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_self_of_uLow_false
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (huLow :
@@ -1232,7 +1236,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_self_of_uLow_false
 
 /-- If the low `v` readout is false, the counter-work odd-odd selector latch
 is a no-op. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_self_of_vLow_false
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_self_of_vLow_false
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (hvLow :
@@ -1259,7 +1263,7 @@ theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_self_of_vLow_false
 
 /-- If both low readouts are true, the counter-work odd-odd selector latch is
 exactly a flip of the counter carry-in latch bit. -/
-theorem fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_flip_of_lsb_true
+lemma fullRoundWorkOddOddSelectorToCounterCarryInStep_eq_flip_of_lsb_true
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
     (huLow :
@@ -1328,7 +1332,7 @@ def fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchProgram
 
 /-- The explicit full-round selected branch-code/history/aux-shift gate list has
 the existing lifted semantic action. -/
-theorem
+lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_eq_gateList
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1346,16 +1350,16 @@ theorem
 
 /-- The full-round selected branch-code/history/aux-shift program realizes the
 existing lifted semantic action. -/
-theorem fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
+lemma fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchProgram
-        tail counterWidth tempIndex historyIndex)
+        tail counterWidth tempIndex historyIndex) environment
       (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep
         tail counterWidth tempIndex historyIndex) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
       tail counterWidth tempIndex historyIndex)
@@ -1363,7 +1367,7 @@ theorem fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
       tail counterWidth tempIndex historyIndex)
 
 /-- Full-round product lifting preserves the selected source length. -/
-theorem fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_length
+lemma fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_length
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
     (fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates
@@ -1372,7 +1376,7 @@ theorem fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_leng
     List.length_map,
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_length]
 
-private theorem
+private lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_events
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1386,7 +1390,7 @@ private theorem
   rw [EncodedBit.GateSpec.map_event_prodLeft]
 
 /-- Full-round product lifting preserves the selected source CNOT coordinate. -/
-theorem
+lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1409,7 +1413,7 @@ theorem
         tail counterWidth tempIndex historyIndex
 
 /-- Full-round product lifting preserves the selected source Toffoli coordinate. -/
-theorem
+lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1432,7 +1436,7 @@ theorem
         tail counterWidth tempIndex historyIndex
 
 /-- The selected dispatch source contains exactly four X leaves. -/
-theorem
+lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchGates_xMultiplicity_sum
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1451,7 +1455,7 @@ theorem
 /-- The lifted selected branch-code/history/aux-shift dispatch preserves every
 history slot except the selected target slot while carrying padding-counter
 work unchanged. -/
-theorem
+lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_historyBit_of_ne
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (target observed : Fin (2 * tail.succ)) (hne : target ≠ observed)
@@ -1467,7 +1471,7 @@ theorem
 
 /-- On inactive clean branch-code work, the lifted selected branch-code/history/
 aux-shift dispatch is a no-op and preserves counter work. -/
-theorem
+lemma
     fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_eq_self_of_active_false_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1521,7 +1525,7 @@ def fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep
 /-- The lifted latched carried odd route preserves every non-target history
 slot on clean selected-control inputs while carrying padding-counter work
 unchanged. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCarriedBranchDispatchStep_get_historyBit_of_ne_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (target observed : Fin (2 * tail.succ)) (hne : target ≠ observed)
@@ -1545,7 +1549,7 @@ theorem
 /-- The lifted concrete compare-carried odd route preserves every non-target
 history slot on clean selected-control inputs while carrying padding-counter
 work unchanged. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep_get_historyBit_of_ne_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (target observed : Fin (2 * tail.succ)) (hne : target ≠ observed)
@@ -1568,7 +1572,7 @@ theorem
 
 /-- Short theorem name for non-target history preservation along the
 compare-carried branch on clean work inputs. -/
-theorem fullRoundWorkCompareCarriedHistoryBitOfNeClean
+lemma fullRoundWorkCompareCarriedHistoryBitOfNeClean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (target observed : Fin (2 * tail.succ)) (hne : target ≠ observed)
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -1611,7 +1615,7 @@ def fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchProgram
 
 /-- The explicit full-round compare-carried odd dispatch gate list has the
 existing lifted semantic action. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep_eq_gateList
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1629,17 +1633,17 @@ theorem
 
 /-- The full-round compare-carried odd dispatch program realizes the existing
 lifted semantic action. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatch_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchProgram
-        tail counterWidth comparisonIndex historyIndex)
+        tail counterWidth comparisonIndex historyIndex) environment
       (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex)
@@ -1647,7 +1651,7 @@ theorem
       tail counterWidth comparisonIndex historyIndex)
 
 /-- Full-round product lifting preserves the compare-carried source length. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_length
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1658,7 +1662,7 @@ theorem
     List.length_map,
     coeffWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_length]
 
-private theorem
+private lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_events
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1673,7 +1677,7 @@ private theorem
   rw [EncodedBit.GateSpec.map_event_prodLeft]
 
 /-- Full-round product lifting preserves the compare-carried CNOT coordinate. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1696,7 +1700,7 @@ theorem
         tail counterWidth comparisonIndex historyIndex
 
 /-- Full-round product lifting preserves the compare-carried Toffoli coordinate. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1719,7 +1723,7 @@ theorem
         tail counterWidth comparisonIndex historyIndex
 
 /-- The compare-carried dispatch source contains exactly `4t+8` X leaves. -/
-theorem
+lemma
     fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchGates_xMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1737,7 +1741,7 @@ theorem
 
 /-- A gate list whose gates are all wire-disjoint from an observed bit preserves
 that bit's readout. -/
-private theorem gateSpecStepList_get_of_bitDisjoint
+private lemma gateSpecStepList_get_of_bitDisjoint
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec encoding))
     (observed : EncodedBit encoding)
@@ -1758,7 +1762,7 @@ private theorem gateSpecStepList_get_of_bitDisjoint
 
 /-- The lifted selected branch-code/history/aux-shift dispatch is wire-disjoint
 from the full-round counter carry-in latch. -/
-theorem
+lemma
     fullRoundWorkSelectedDispatchGates_bitDisjoint_counterCarryIn
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1778,7 +1782,7 @@ theorem
 
 /-- The lifted selected branch-code/history/aux-shift dispatch is wire-disjoint
 from any full-round counter carry-work bit. -/
-theorem
+lemma
     fullRoundWorkSelectedDispatchGates_bitDisjoint_counterCarryWork
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1800,7 +1804,7 @@ theorem
 
 /-- The lifted compare-carried odd dispatch is wire-disjoint from the
 full-round counter carry-in latch. -/
-theorem
+lemma
     fullRoundWorkCompareCarriedOddDispatchGates_bitDisjoint_counterCarryIn
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ)) :
@@ -1820,7 +1824,7 @@ theorem
 
 /-- The lifted compare-carried odd dispatch is wire-disjoint from any
 full-round counter carry-work bit. -/
-theorem
+lemma
     fullRoundWorkCompareCarriedOddDispatchGates_bitDisjoint_counterCarryWork
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1842,7 +1846,7 @@ theorem
 
 /-- The lifted selected branch-code/history/aux-shift dispatch preserves the
 full-round counter carry-in latch readout. -/
-theorem fullRoundWorkSelectedDispatchStep_get_counterCarryIn
+lemma fullRoundWorkSelectedDispatchStep_get_counterCarryIn
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
@@ -1864,7 +1868,7 @@ theorem fullRoundWorkSelectedDispatchStep_get_counterCarryIn
 
 /-- The lifted selected branch-code/history/aux-shift dispatch preserves any
 full-round counter carry-work readout. -/
-theorem fullRoundWorkSelectedDispatchStep_get_counterCarryWork
+lemma fullRoundWorkSelectedDispatchStep_get_counterCarryWork
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -1887,7 +1891,7 @@ theorem fullRoundWorkSelectedDispatchStep_get_counterCarryWork
 
 /-- The lifted compare-carried odd dispatch preserves the full-round counter
 carry-in latch readout. -/
-theorem fullRoundWorkCompareCarriedDispatchStep_get_counterCarryIn
+lemma fullRoundWorkCompareCarriedDispatchStep_get_counterCarryIn
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
@@ -1909,7 +1913,7 @@ theorem fullRoundWorkCompareCarriedDispatchStep_get_counterCarryIn
 
 /-- The lifted compare-carried odd dispatch preserves any full-round counter
 carry-work readout. -/
-theorem fullRoundWorkCompareCarriedDispatchStep_get_counterCarryWork
+lemma fullRoundWorkCompareCarriedDispatchStep_get_counterCarryWork
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -1933,7 +1937,7 @@ theorem fullRoundWorkCompareCarriedDispatchStep_get_counterCarryWork
 /-- The lifted compare-carried odd dispatch commutes with flipping the
 full-round counter carry-in latch, since that latch is wire-disjoint from the
 dispatch body. -/
-theorem fullRoundWorkCompareCarriedDispatchStep_flip_counterCarryIn
+lemma fullRoundWorkCompareCarriedDispatchStep_flip_counterCarryIn
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
@@ -2005,23 +2009,23 @@ def
       tail counterWidth tempIndex historyIndex workIndex)
 
 /-- The controlled selected-dispatch circuit realizes its gate-list step. -/
-theorem fullRoundWorkCounterCarryInControlledSelectedDispatch_realizes
+lemma fullRoundWorkCounterCarryInControlledSelectedDispatch_realizes
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkCounterCarryInControlledSelectedDispatchProgram
-        tail counterWidth tempIndex historyIndex workIndex)
+        tail counterWidth tempIndex historyIndex workIndex) environment
       (fullRoundWorkCounterCarryInControlledSelectedDispatchStep
         tail counterWidth tempIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInControlledSelectedDispatchGates
       tail counterWidth tempIndex historyIndex workIndex)
 
 /-- If the counter carry-in control is false, the controlled selected dispatch
 is a no-op. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInControlledSelectedDispatchStep_eq_self_of_control_false
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2051,7 +2055,7 @@ theorem
 
 /-- If the counter carry-in control is true and the carry-work bit is clean, the
 controlled selected dispatch acts like the original selected dispatch. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInControlledSelectedDispatchStep_eq_dispatch_of_control_true
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2135,23 +2139,23 @@ def
 
 /-- The false-controlled selected-dispatch circuit realizes its gate-list
 step. -/
-theorem fullRoundWorkCounterCarryInFalseControlledSelectedDispatch_realizes
+lemma fullRoundWorkCounterCarryInFalseControlledSelectedDispatch_realizes
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkCounterCarryInFalseControlledSelectedDispatchProgram
-        tail counterWidth tempIndex historyIndex workIndex)
+        tail counterWidth tempIndex historyIndex workIndex) environment
       (fullRoundWorkCounterCarryInFalseControlledSelectedDispatchStep
         tail counterWidth tempIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInFalseControlledSelectedDispatchGates
       tail counterWidth tempIndex historyIndex workIndex)
 
 /-- The false-control wrapper is a flip-run-flip use of the true-control
 selected-dispatch wrapper. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInFalseControlledSelectedDispatchStep_eq_flip_run_flip
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2172,7 +2176,7 @@ theorem
 
 /-- If the counter carry-in latch is false and the carry-work bit is clean, the
 false-controlled selected dispatch acts like the original selected dispatch. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInFalseControlledSelectedDispatchStep_eq_dispatch
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2231,7 +2235,7 @@ theorem
 
 /-- If the counter carry-in latch is true, the false-controlled selected
 dispatch is a no-op. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInFalseControlledSelectedDispatchStep_eq_self
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2303,23 +2307,23 @@ def
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The controlled compare-carried circuit realizes its gate-list step. -/
-theorem fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatch_realizes
+lemma fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatch_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- If the counter carry-in control is false, the controlled compare-carried
 odd dispatch is a no-op. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchStep_eq_self_of_control_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2349,7 +2353,7 @@ theorem
 
 /-- If the counter carry-in control is true and the carry-work bit is clean, the
 controlled compare-carried odd dispatch acts like the original odd dispatch. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInControlledCompareCarriedOddDispatchStep_eq_dispatch_of_control_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2430,17 +2434,17 @@ def fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The latched body-dispatch circuit realizes its gate-list step. -/
-theorem fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatch_realizes
+lemma fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatch_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -2460,7 +2464,7 @@ def fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates
 
 /-- Exact physical length of the active-latched selected/compare-carried
 dispatcher. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_length
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2485,7 +2489,7 @@ theorem
 
 /-- Exact Toffoli coordinate of the active-latched selected/compare-carried
 dispatcher. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2513,7 +2517,7 @@ theorem
 
 /-- Exact X coordinate of the active-latched dispatcher.  Only the two
 false-control conjugation flips contribute X leaves. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_xMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2536,7 +2540,7 @@ theorem
 
 /-- Exact CNOT coordinate of the active-latched dispatcher.  Each controlled
 body contributes the X coordinate of its source list. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2584,22 +2588,22 @@ def fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The active-guarded latch-then-body circuit realizes its gate-list step. -/
-theorem fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
+lemma fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- Exact actual Toffoli count of the active-latched dispatcher circuit. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram_toffoli_count
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2631,7 +2635,7 @@ def fullRoundPathControlWorkActiveBodyGates
     (EncodedBit.GateSpec.prodLeft BinaryLabelEncoding.bool)
 
 /-- The lifted active-body gates do not touch the explicit path bit. -/
-theorem fullRoundPathControlWorkActiveBodyGates_bitDisjoint_path
+lemma fullRoundPathControlWorkActiveBodyGates_bitDisjoint_path
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -2652,7 +2656,7 @@ theorem fullRoundPathControlWorkActiveBodyGates_bitDisjoint_path
         BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit baseGate)
 
 /-- The lifted active-body gates do not touch the explicit control-work bit. -/
-theorem fullRoundPathControlWorkActiveBodyGates_bitDisjoint_controlWork
+lemma fullRoundPathControlWorkActiveBodyGates_bitDisjoint_controlWork
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -2669,7 +2673,7 @@ theorem fullRoundPathControlWorkActiveBodyGates_bitDisjoint_controlWork
       BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit pathGate
 
 /-- The path bit and the control-work bit are distinct. -/
-theorem fullRoundPathControlWorkPathBit_controlWorkBit_wire_ne
+lemma fullRoundPathControlWorkPathBit_controlWorkBit_wire_ne
     (tail counterWidth : Nat) :
     (fullRoundPathControlWorkPathBit tail counterWidth).wire ≠
       (fullRoundPathControlWorkControlWorkBit tail counterWidth).wire :=
@@ -2724,7 +2728,7 @@ def fullRoundPathControlWorkOriginalActiveControlledBodyProgram
 
 /-- The original-active-controlled active body is realized by its base-gate
 program. -/
-theorem fullRoundPathControlWorkOriginalActiveControlledBody_realizes
+lemma fullRoundPathControlWorkOriginalActiveControlledBody_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -2732,16 +2736,16 @@ theorem fullRoundPathControlWorkOriginalActiveControlledBody_realizes
       (registersWithFullRoundPathControlWorkEncoding
         tail.succ counterWidth)
       (fullRoundPathControlWorkOriginalActiveControlledBodyProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundPathControlWorkOriginalActiveControlledBodyStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundPathControlWorkOriginalActiveControlledBodyGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- If the explicit original-active path bit is false, the controlled active
 body is a no-op. -/
-theorem
+lemma
     fullRoundPathControlWorkOriginalActiveControlledBodyStep_eq_self_of_path_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2771,7 +2775,7 @@ theorem
 
 /-- The lifted active-body gate list has the lifted full-round active-body
 semantic action and preserves the explicit path/control bits. -/
-theorem fullRoundPathControlWorkActiveBodyStep_eq_lifted
+lemma fullRoundPathControlWorkActiveBodyStep_eq_lifted
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -2795,7 +2799,7 @@ theorem fullRoundPathControlWorkActiveBodyStep_eq_lifted
 /-- If the explicit original-active path bit is true and the control-work bit
 is clean, the controlled active body reduces to the lifted active-body gate
 list. -/
-theorem
+lemma
     fullRoundPathControlWorkOriginalActiveControlledBodyStep_eq_activeBody_of_path_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2831,7 +2835,7 @@ theorem
 /-- If the explicit original-active path bit is true and the control-work bit
 is clean, the controlled active body has the lifted full-round active-body
 semantic action. -/
-theorem
+lemma
     fullRoundPathControlWorkOriginalActiveControlledBodyStep_eq_lifted_of_path_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2869,7 +2873,7 @@ def fullRoundWorkActiveOddOddLatchThenBodyUncomputeStep
 
 /-- Reversing the active-guarded latch-then-body gate list uncomputes a
 forward run. -/
-theorem fullRoundWorkActiveOddOddLatchThenBody_uncompute_leftInverse
+lemma fullRoundWorkActiveOddOddLatchThenBody_uncompute_leftInverse
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -2888,7 +2892,7 @@ theorem fullRoundWorkActiveOddOddLatchThenBody_uncompute_leftInverse
 
 /-- The same reversed gate list is also a right inverse for the forward
 active-guarded latch-then-body semantic step. -/
-theorem fullRoundWorkActiveOddOddLatchThenBody_compute_rightInverse
+lemma fullRoundWorkActiveOddOddLatchThenBody_compute_rightInverse
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -2919,14 +2923,14 @@ def fullRoundWorkActiveOddOddLatchThenBodyUncomputeProgram
 
 /-- The reversed active-guarded latch-then-body program realizes the uncompute
 semantic step. -/
-theorem fullRoundWorkActiveOddOddLatchThenBody_uncompute_realizes
+lemma fullRoundWorkActiveOddOddLatchThenBody_uncompute_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkActiveOddOddLatchThenBodyUncomputeProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkActiveOddOddLatchThenBodyUncomputeStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   UnitaryCircuit.Realizes.dagger_of_rightInverse
@@ -2935,13 +2939,15 @@ theorem fullRoundWorkActiveOddOddLatchThenBody_uncompute_realizes
     (by
       rw [fullRoundWorkActiveOddOddLatchThenBodyUncomputeProgram,
         UnitaryCircuit.dagger_matrix]
+      rw [Subsingleton.elim
+        ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
       exact Unitary.star_eq_inv _)
     (fullRoundWorkActiveOddOddLatchThenBody_compute_rightInverse
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- With a false latch and clean carry-work bit, the latched body dispatcher
 reduces to the selected branch-code/history/aux-shift dispatch. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchStep_eq_selected
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2987,7 +2993,7 @@ theorem
 
 /-- With a true latch and clean carry-work bit, the latched body dispatcher
 reduces to the compare-carried odd dispatch. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchStep_eq_compareCarried
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3024,7 +3030,7 @@ theorem
 
 /-- With a clean carry-work bit, the latched body dispatcher preserves the
 counter carry-in latch. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchStep_get_counterCarryIn_of_clean_work
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3054,7 +3060,7 @@ theorem
 
 /-- With a clean carry-work bit, the latched body dispatcher restores that
 carry-work bit to clean. -/
-theorem
+lemma
     fullRoundWorkCounterCarryInSelectedOrCompareCarriedDispatchStep_get_counterCarryWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3084,7 +3090,7 @@ theorem
 
 /-- The active-guarded latch-then-body dispatcher is the latched body
 dispatcher applied to the output of the active-guarded odd-odd latch step. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchStep_eq_body_after_latch
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3105,7 +3111,7 @@ theorem
 /-- Starting from clean counter carry-in and carry-work bits, the
 active-guarded latch-then-body wrapper leaves the counter carry-in latch equal
 to `active && u[0] && v[0]`. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchStep_get_counterCarryIn_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3138,7 +3144,7 @@ theorem
 
 /-- Starting from clean counter carry-work, the active-guarded latch-then-body
 wrapper restores the dispatcher carry-work bit to clean. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_counterCarryWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3163,7 +3169,7 @@ theorem
 
 /-- If the active guard is false, active-guarded latch-then-body reduces to
 the selected branch-code/history/aux-shift dispatch. -/
-theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_inactive
+lemma fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_inactive
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3190,7 +3196,7 @@ theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_inactive
 
 /-- If the active guard is false and the selected-dispatch scratch work is
 clean, the active-guarded latch-then-body dispatcher is a no-op. -/
-theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_self_of_inactive_clean
+lemma fullRoundWorkActiveOddOddLatchThenBodyStep_eq_self_of_inactive_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3226,7 +3232,7 @@ theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_self_of_inactive_clean
 
 /-- If low `u` is false, active-guarded latch-then-body reduces to the
 selected branch-code/history/aux-shift dispatch. -/
-theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_uLow_false
+lemma fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_uLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3256,7 +3262,7 @@ theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_uLow_false
 
 /-- If low `u` is true and low `v` is false, active-guarded latch-then-body
 reduces to the selected branch-code/history/aux-shift dispatch. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_selected_of_uLow_true_vLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3291,7 +3297,7 @@ theorem
 
 /-- In the active odd-odd branch, active-guarded latch-then-body equals the
 compare-carried body with the counter carry-in latch flipped. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_compareCarried_of_active_lsb_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3381,17 +3387,17 @@ def fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The latch-then-body circuit realizes its gate-list semantic step. -/
-theorem fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
+lemma fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchGates
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -3410,7 +3416,7 @@ def fullRoundWorkOddOddLatchThenBodyUncomputeStep
       tail counterWidth comparisonIndex historyIndex workIndex).reverse
 
 /-- Reversing the latch-then-body gate list uncomputes a forward run. -/
-theorem fullRoundWorkOddOddLatchThenBody_uncompute_leftInverse
+lemma fullRoundWorkOddOddLatchThenBody_uncompute_leftInverse
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3429,7 +3435,7 @@ theorem fullRoundWorkOddOddLatchThenBody_uncompute_leftInverse
 
 /-- The same reversed gate list is also a right inverse for the forward
 latch-then-body semantic step. -/
-theorem fullRoundWorkOddOddLatchThenBody_compute_rightInverse
+lemma fullRoundWorkOddOddLatchThenBody_compute_rightInverse
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3459,14 +3465,14 @@ def fullRoundWorkOddOddLatchThenBodyUncomputeProgram
 
 /-- The reversed latch-then-body program realizes the uncompute semantic step.
 -/
-theorem fullRoundWorkOddOddLatchThenBody_uncompute_realizes
+lemma fullRoundWorkOddOddLatchThenBody_uncompute_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkOddOddLatchThenBodyUncomputeProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkOddOddLatchThenBodyUncomputeStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   UnitaryCircuit.Realizes.dagger_of_rightInverse
@@ -3475,13 +3481,15 @@ theorem fullRoundWorkOddOddLatchThenBody_uncompute_realizes
     (by
       rw [fullRoundWorkOddOddLatchThenBodyUncomputeProgram,
         UnitaryCircuit.dagger_matrix]
+      rw [Subsingleton.elim
+        ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
       exact Unitary.star_eq_inv _)
     (fullRoundWorkOddOddLatchThenBody_compute_rightInverse
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The latch-then-body dispatcher is the latched body dispatcher applied to
 the output of the odd-odd latch step. -/
-theorem
+lemma
     fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchStep_eq_body_after_latch
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3501,7 +3509,7 @@ theorem
 
 /-- Starting from clean counter carry-in and carry-work bits, latch-then-body
 leaves the counter carry-in latch equal to the original odd-odd predicate. -/
-theorem
+lemma
     fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchStep_get_counterCarryIn_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3532,7 +3540,7 @@ theorem
 
 /-- Starting from clean counter carry-in and carry-work bits, latch-then-body
 restores the dispatcher carry-work bit to clean. -/
-theorem
+lemma
     fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchStep_get_counterCarryWork_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3560,7 +3568,7 @@ theorem
 
 /-- If low `u` is false, latch-then-body reduces to the selected dispatch.
 The odd-odd latch is a no-op in this branch. -/
-theorem fullRoundWorkOddOddLatchThenBodyStep_eq_selected_of_uLow_false
+lemma fullRoundWorkOddOddLatchThenBodyStep_eq_selected_of_uLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3590,7 +3598,7 @@ theorem fullRoundWorkOddOddLatchThenBodyStep_eq_selected_of_uLow_false
 
 /-- If low `u` is true and low `v` is false, latch-then-body reduces to the
 selected dispatch.  The odd-odd latch is still a no-op in this branch. -/
-theorem fullRoundWorkOddOddLatchThenBodyStep_eq_selected_of_uLow_true_vLow_false
+lemma fullRoundWorkOddOddLatchThenBodyStep_eq_selected_of_uLow_true_vLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3624,7 +3632,7 @@ theorem fullRoundWorkOddOddLatchThenBodyStep_eq_selected_of_uLow_true_vLow_false
 
 /-- In the odd-odd branch, latch-then-body equals the compare-carried body with
 the counter carry-in latch flipped. -/
-theorem fullRoundWorkOddOddLatchThenBodyStep_eq_flip_compareCarried_of_lsb_true
+lemma fullRoundWorkOddOddLatchThenBodyStep_eq_flip_compareCarried_of_lsb_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3692,7 +3700,7 @@ def coeffWorkKaliskiActiveSelectedBranchRoundStep
 
 /-- The semantic selected-branch wrapper reads the same concrete selector bits
 as the coefficient-work branch-signal bridge. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_from_readout_bits
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_from_readout_bits
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
@@ -3713,7 +3721,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_from_readout_bits
 
 /-- If the concrete low `u` readout is false, the selected active wrapper
 reduces to the fixed `uEven` branch family. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_uEven_of_u_lsb_false
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_uEven_of_u_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth)
@@ -3731,7 +3739,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_uEven_of_u_lsb_false
 
 /-- If the concrete low `u` readout is true and low `v` readout is false, the
 selected active wrapper reduces to the fixed `vEven` branch family. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_vEven_of_u_lsb_true_v_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3754,7 +3762,7 @@ theorem
 /-- If both concrete low readouts are true and the staged comparison readout is
 true, the selected active wrapper reduces to the fixed `uGreater` branch
 family. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_uGreater_of_odd_odd_compare_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3778,7 +3786,7 @@ theorem
 
 /-- If both concrete low readouts are true and the staged comparison readout is
 false, the selected active wrapper reduces to the fixed `vLe` branch family. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_vLe_of_odd_odd_compare_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3802,7 +3810,7 @@ theorem
 
 /-- The explicit active-branch family specializes to the concrete `uEven`
 branch wrapper. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_uEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_uEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     coeffWorkKaliskiActiveBranchRoundStep
@@ -3813,7 +3821,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_uEven
 
 /-- The explicit active-branch family specializes to the concrete `vEven`
 branch wrapper. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_vEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_vEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     coeffWorkKaliskiActiveBranchRoundStep
@@ -3824,7 +3832,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_vEven
 
 /-- The explicit active-branch family specializes to the corrected `uGreater`
 branch wrapper. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_uGreater
+lemma coeffWorkKaliskiActiveBranchRoundStep_uGreater
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     coeffWorkKaliskiActiveBranchRoundStep
@@ -3836,7 +3844,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_uGreater
 
 /-- The explicit active-branch family specializes to the corrected `vLe`
 branch wrapper. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_vLe
+lemma coeffWorkKaliskiActiveBranchRoundStep_vLe
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     coeffWorkKaliskiActiveBranchRoundStep
@@ -3847,7 +3855,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_vLe
 
 /-- In the explicit active-round family, the `uEven` branch preserves the
 active flag. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_uEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_active_uEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3865,7 +3873,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_uEven
 
 /-- In the explicit active-round family, the `vEven` branch preserves the
 active flag. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_vEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_active_vEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3883,7 +3891,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_vEven
 
 /-- In the explicit active-round family, the corrected `uGreater` branch
 preserves the active flag. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_uGreater
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_active_uGreater
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3899,7 +3907,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_uGreater
 
 /-- In the explicit active-round family, the corrected `vLe` branch preserves
 the active flag. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_vLe
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_active_vLe
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3915,7 +3923,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_active_vLe
 
 /-- The explicit active-round family preserves the active flag for every
 branch selection. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_active
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_active
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (branch : Branch)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -3939,7 +3947,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_active
 
 /-- In the explicit active-round family, the `uEven` branch restores clean
 compare. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_uEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_compare_uEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -3955,7 +3963,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_uEven_clean
 
 /-- In the explicit active-round family, the `vEven` branch restores clean
 compare. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_vEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_compare_vEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -3971,7 +3979,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_vEven_clean
 
 /-- In the explicit active-round family, the corrected `uGreater` branch
 preserves the staged `v < u` comparison predicate. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_uGreater_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_compare_uGreater_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -3991,7 +3999,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_uGreater_clean
 
 /-- In the explicit active-round family, the corrected `vLe` branch preserves
 the staged comparison predicate. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_vLe_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_compare_vLe_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -4011,7 +4019,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_compare_vLe_clean
 
 /-- The selected active wrapper preserves the active flag for the branch
 chosen by the concrete coefficient-work selector bits. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_active
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_get_active
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
@@ -4029,7 +4037,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_active
 
 /-- The selected active wrapper restores clean compare in the concrete
 `uEven` case. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_compare_uEven_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4054,7 +4062,7 @@ theorem
 
 /-- The selected active wrapper restores clean compare in the concrete
 `vEven` case. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_compare_vEven_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4082,7 +4090,7 @@ theorem
 
 /-- In the explicit active-round family, the `uEven` branch leaves the selected
 history slot unchanged under clean compare/scratchB assumptions. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_uEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_history_uEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4098,7 +4106,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_uEven_clean
 
 /-- In the explicit active-round family, the `vEven` branch writes the selected
 history slot under the active `u`-odd/`v`-even condition. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_vEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_history_vEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4118,7 +4126,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_vEven_clean
 /-- In the explicit active-round family, the corrected `uGreater` branch
 preserves the selector's branch-history toggle through subtract/add staging and
 auxiliary shift dispatch. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_uGreater_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_history_uGreater_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -4140,7 +4148,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_uGreater_clean
 
 /-- In the explicit active-round family, the corrected `vLe` branch leaves the
 selected history slot unchanged. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_vLe_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_history_vLe_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) (work : CoeffAdderWork n)
@@ -4156,7 +4164,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_history_vLe_clean
 
 /-- In the explicit active-round family, every branch preserves all history
 slots except the selected target slot. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_historyBit_of_ne
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_historyBit_of_ne
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (target observed : Fin (2 * n)) (branch : Branch)
     (hne : target ≠ observed)
@@ -4185,7 +4193,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_historyBit_of_ne
 
 /-- The semantic selected active-branch wrapper preserves every history slot
 except the selected target slot. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_historyBit_of_ne
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_get_historyBit_of_ne
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (target observed : Fin (2 * tail.succ)) (hne : target ≠ observed)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
@@ -4204,7 +4212,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_historyBit_of_ne
 
 /-- The explicit active-branch full-round wrapper preserves every history slot
 except the selected target slot while carrying padding-counter work unchanged. -/
-theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_historyBit_of_ne
+lemma fullRoundWorkKaliskiActiveBranchRoundStep_get_historyBit_of_ne
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (target observed : Fin (2 * n)) (branch : Branch)
     (hne : target ≠ observed)
@@ -4221,7 +4229,7 @@ theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_historyBit_of_ne
 
 /-- In the explicit active-round family, the `uEven` branch preserves the
 staged scratchA equation under clean compare. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchA_uEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_scratchA_uEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4238,7 +4246,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchA_uEven_clean
 
 /-- In the explicit active-round family, the `uEven` branch preserves scratchB
 under clean compare. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchB_uEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_scratchB_uEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4253,7 +4261,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchB_uEven_clean
 
 /-- In the explicit active-round family, the `vEven` branch preserves scratchA
 under clean compare. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchA_vEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_scratchA_vEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4268,7 +4276,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchA_vEven_clean
 
 /-- In the explicit active-round family, the `vEven` branch preserves the
 staged scratchB equation under clean compare. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchB_vEven_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_scratchB_vEven_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4286,7 +4294,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_scratchB_vEven_clean
 
 /-- In the explicit active-round family, the `uEven` branch preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryIn_uEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_carryIn_uEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -4300,7 +4308,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryIn_uEven
 
 /-- In the explicit active-round family, the `uEven` branch preserves each
 coefficient-adder temporary carry-work bit. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryWorkBit_uEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_carryWorkBit_uEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -4314,7 +4322,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryWorkBit_uEven
 
 /-- In the explicit active-round family, the `vEven` branch preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryIn_vEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_carryIn_vEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -4328,7 +4336,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryIn_vEven
 
 /-- In the explicit active-round family, the `vEven` branch preserves each
 coefficient-adder temporary carry-work bit. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryWorkBit_vEven
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_carryWorkBit_vEven
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n)) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
@@ -4342,7 +4350,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_carryWorkBit_vEven
 
 /-- The selected active wrapper preserves the staged scratchA equation in the
 concrete `uEven` case. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_scratchA_uEven_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4370,7 +4378,7 @@ theorem
 
 /-- The selected active wrapper preserves scratchB in the concrete `uEven`
 case. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_scratchB_uEven_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4395,7 +4403,7 @@ theorem
 
 /-- The selected active wrapper preserves scratchA in the concrete `vEven`
 case. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_scratchA_vEven_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4423,7 +4431,7 @@ theorem
 
 /-- The selected active wrapper preserves the staged scratchB equation in the
 concrete `vEven` case. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_scratchB_vEven_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4456,7 +4464,7 @@ theorem
 
 /-- The selected active wrapper preserves the coefficient-adder carry-in flag
 in the concrete `uEven` case. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryIn_uEven
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryIn_uEven
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth)
@@ -4478,7 +4486,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryIn_uEven
 
 /-- The selected active wrapper preserves each coefficient-adder carry-work
 bit in the concrete `uEven` case. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryWorkBit_uEven
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryWorkBit_uEven
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workBit : Fin ((tail.succ + 1) - 1))
@@ -4502,7 +4510,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryWorkBit_uEven
 
 /-- The selected active wrapper preserves the coefficient-adder carry-in flag
 in the concrete `vEven` case. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryIn_vEven
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryIn_vEven
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth)
@@ -4527,7 +4535,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryIn_vEven
 
 /-- The selected active wrapper preserves each coefficient-adder carry-work
 bit in the concrete `vEven` case. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryWorkBit_vEven
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryWorkBit_vEven
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workBit : Fin ((tail.succ + 1) - 1))
@@ -4554,7 +4562,7 @@ theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_get_carryWorkBit_vEven
 
 /-- The explicit active-round family writes `u := u / 2` in the `uEven`
 branch under the clean active/even assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_u_uEven_wordHalf_of_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4574,7 +4582,7 @@ theorem
 
 /-- The explicit active-round family writes `s := 2 * s` in the `uEven`
 branch under the clean active/even/top-bit assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_uEven_wordDouble_of_msb_false
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -4593,7 +4601,7 @@ theorem
 
 /-- The explicit active-round family writes `v := v / 2` in the `vEven`
 branch under the clean active/even assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_v_vEven_wordHalf_of_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4612,7 +4620,7 @@ theorem
 
 /-- The explicit active-round family writes `r := 2 * r` in the `vEven`
 branch under the clean active/top-bit assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_vEven_wordDouble_of_msb_false
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -4631,7 +4639,7 @@ theorem
 
 /-- The explicit active-round family writes `u := (u - v) / 2` in the
 corrected `uGreater` branch under the clean assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_u_uGreater_wordHalf_sub_of_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4657,7 +4665,7 @@ theorem
 
 /-- The explicit active-round family preserves `r := r + s` in the corrected
 `uGreater` branch through the paired shift group. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_uGreater_add_of_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -4685,7 +4693,7 @@ theorem
 
 /-- The explicit active-round family writes `s := 2 * s` in the corrected
 `uGreater` branch under the clean active/top-bit assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_uGreater_wordDouble_of_msb_false
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -4707,7 +4715,7 @@ theorem
 
 /-- The explicit active-round family writes `v := (v - u) / 2` in the
 corrected `vLe` branch under the clean assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_v_vLe_wordHalf_sub_of_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4730,7 +4738,7 @@ theorem
 
 /-- The explicit active-round family preserves `s := s + r` in the corrected
 `vLe` branch through the paired shift group. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_vLe_add_of_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -4755,7 +4763,7 @@ theorem
 
 /-- The explicit active-round family writes `r := 2 * r` in the corrected
 `vLe` branch under the clean active/top-bit assumptions. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_vLe_wordDouble_of_msb_false
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -4779,7 +4787,7 @@ def scaledInverseResidue {p : Nat} (scale : ZMod p) (u : (ZMod p)ˣ) :
     ZMod p :=
   scale * inverseResidue u
 
-theorem scaledInverseResidue_mul_input {p : Nat}
+lemma scaledInverseResidue_mul_input {p : Nat}
     (scale : ZMod p) (u : (ZMod p)ˣ) :
     scaledInverseResidue scale u * (u : ZMod p) = scale := by
   have hunit : inverseResidue u * (u : ZMod p) = 1 := by
@@ -4794,7 +4802,7 @@ theorem scaledInverseResidue_mul_input {p : Nat}
     _ = scale := by
       ring
 
-theorem eq_scaledInverseResidue_of_mul_input_eq {p : Nat}
+lemma eq_scaledInverseResidue_of_mul_input_eq {p : Nat}
     (r scale : ZMod p) (u : (ZMod p)ˣ)
     (hmul : r * (u : ZMod p) = scale) :
     r = scaledInverseResidue scale u := by
@@ -4819,7 +4827,7 @@ def unscaleResidue {p : Nat}
     (inverseScale residue : ZMod p) : ZMod p :=
   inverseScale * residue
 
-theorem unscaleResidue_scaledInverseResidue {p : Nat}
+lemma unscaleResidue_scaledInverseResidue {p : Nat}
     (inverseScale scale : ZMod p) (u : (ZMod p)ˣ)
     (hinverseScale : inverseScale * scale = 1) :
     unscaleResidue inverseScale (scaledInverseResidue scale u) =
@@ -4846,7 +4854,7 @@ def montgomeryScaleUnit (p n : Nat) (hodd : Odd p) : (ZMod p)ˣ :=
 def inverseMontgomeryScale (p n : Nat) (hodd : Odd p) : ZMod p :=
   ↑((montgomeryScaleUnit p n hodd)⁻¹)
 
-theorem inverseMontgomeryScale_mul_scale
+lemma inverseMontgomeryScale_mul_scale
     (p n : Nat) (hodd : Odd p) :
     inverseMontgomeryScale p n hodd * (2 : ZMod p) ^ (2 * n) = 1 := by
   have hscale :
@@ -4871,7 +4879,7 @@ def stageWithScaledInverse {p : Nat}
   inverseScratch := scaledInverseResidue scale s.input
   flag := s.flag
 
-theorem stageWithScaledInverse_eq_computeInverse_of_scale_eq_one {p : Nat}
+lemma stageWithScaledInverse_eq_computeInverse_of_scale_eq_one {p : Nat}
     (s : StageState p) (scale : ZMod p) (hscale : scale = 1) :
     stageWithScaledInverse scale s = StageState.computeInverse s := by
   cases s with
@@ -4891,7 +4899,7 @@ theorem stageWithScaledInverse_eq_computeInverse_of_scale_eq_one {p : Nat}
 /-- In the source terminating case, the active-flag X atom matches the source
 round's active-field projection.  This is still the flag-only slice; the
 counter incrementer remains a separate gate-level obligation. -/
-theorem activeFlagToggleStep_active_eq_source_round_active_of_terminated
+lemma activeFlagToggleStep_active_eq_source_round_active_of_terminated
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hv : x.v.val = 0) :
@@ -4913,7 +4921,7 @@ theorem activeFlagToggleStep_active_eq_source_round_active_of_terminated
 
 /-- In the source terminating case, the active-flag X atom preserves the same
 `u` field as the source round. -/
-theorem activeFlagToggleStep_u_eq_source_round_u_of_terminated
+lemma activeFlagToggleStep_u_eq_source_round_u_of_terminated
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hv : x.v.val = 0) :
@@ -4936,7 +4944,7 @@ theorem activeFlagToggleStep_u_eq_source_round_u_of_terminated
 
 /-- In the source terminating case, the active-flag X atom preserves the same
 `v` field as the source round. -/
-theorem activeFlagToggleStep_v_eq_source_round_v_of_terminated
+lemma activeFlagToggleStep_v_eq_source_round_v_of_terminated
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hv : x.v.val = 0) :
@@ -4959,7 +4967,7 @@ theorem activeFlagToggleStep_v_eq_source_round_v_of_terminated
 
 /-- In the source terminating case, the active-flag X atom preserves the same
 `s` coefficient field as the source round. -/
-theorem activeFlagToggleStep_sCoeff_eq_source_round_sCoeff_of_terminated
+lemma activeFlagToggleStep_sCoeff_eq_source_round_sCoeff_of_terminated
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hv : x.v.val = 0) :
@@ -4982,7 +4990,7 @@ theorem activeFlagToggleStep_sCoeff_eq_source_round_sCoeff_of_terminated
 
 /-- In the source terminating case, the active-flag X atom preserves the same
 `r` coefficient field as the source round. -/
-theorem activeFlagToggleStep_rCoeff_eq_source_round_rCoeff_of_terminated
+lemma activeFlagToggleStep_rCoeff_eq_source_round_rCoeff_of_terminated
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hv : x.v.val = 0) :
@@ -5007,7 +5015,7 @@ theorem activeFlagToggleStep_rCoeff_eq_source_round_rCoeff_of_terminated
 semantic padding-count increment, matches the source terminating round.  The
 newer counter-work wrapper below adds the concrete padding-counter endpoint;
 this bridge only records the source `paddingSteps + 1` projection. -/
-theorem activeFlagToggleStep_fromRegisters_eq_source_round_of_terminated
+lemma activeFlagToggleStep_fromRegisters_eq_source_round_of_terminated
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hv : x.v.val = 0) :
@@ -5033,7 +5041,7 @@ theorem activeFlagToggleStep_fromRegisters_eq_source_round_of_terminated
 
 /-- Under the concrete `v`-zero guard, the active-flag X atom matches the
 source terminating round's active-field projection. -/
-theorem activeFlagToggleStep_active_eq_source_round_active_of_vZeroGuard
+lemma activeFlagToggleStep_active_eq_source_round_active_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hguard : vZeroGuard n counterWidth x) :
@@ -5046,7 +5054,7 @@ theorem activeFlagToggleStep_active_eq_source_round_active_of_vZeroGuard
 
 /-- Under the concrete `v`-zero guard, the active-flag X atom preserves the
 same `u` field as the source terminating round. -/
-theorem activeFlagToggleStep_u_eq_source_round_u_of_vZeroGuard
+lemma activeFlagToggleStep_u_eq_source_round_u_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hguard : vZeroGuard n counterWidth x) :
@@ -5059,7 +5067,7 @@ theorem activeFlagToggleStep_u_eq_source_round_u_of_vZeroGuard
 
 /-- Under the concrete `v`-zero guard, the active-flag X atom preserves the
 same `v` field as the source terminating round. -/
-theorem activeFlagToggleStep_v_eq_source_round_v_of_vZeroGuard
+lemma activeFlagToggleStep_v_eq_source_round_v_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hguard : vZeroGuard n counterWidth x) :
@@ -5072,7 +5080,7 @@ theorem activeFlagToggleStep_v_eq_source_round_v_of_vZeroGuard
 
 /-- Under the concrete `v`-zero guard, the active-flag X atom preserves the
 same `s` coefficient field as the source terminating round. -/
-theorem activeFlagToggleStep_sCoeff_eq_source_round_sCoeff_of_vZeroGuard
+lemma activeFlagToggleStep_sCoeff_eq_source_round_sCoeff_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hguard : vZeroGuard n counterWidth x) :
@@ -5085,7 +5093,7 @@ theorem activeFlagToggleStep_sCoeff_eq_source_round_sCoeff_of_vZeroGuard
 
 /-- Under the concrete `v`-zero guard, the active-flag X atom preserves the
 same `r` coefficient field as the source terminating round. -/
-theorem activeFlagToggleStep_rCoeff_eq_source_round_rCoeff_of_vZeroGuard
+lemma activeFlagToggleStep_rCoeff_eq_source_round_rCoeff_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hguard : vZeroGuard n counterWidth x) :
@@ -5098,7 +5106,7 @@ theorem activeFlagToggleStep_rCoeff_eq_source_round_rCoeff_of_vZeroGuard
 
 /-- Under the concrete `v`-zero guard, the flag-only active atom plus the
 semantic padding-count increment matches the source terminating round. -/
-theorem activeFlagToggleStep_fromRegisters_eq_source_round_of_vZeroGuard
+lemma activeFlagToggleStep_fromRegisters_eq_source_round_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
     (hactive : x.active = true) (hguard : vZeroGuard n counterWidth x) :
@@ -5114,7 +5122,7 @@ theorem activeFlagToggleStep_fromRegisters_eq_source_round_of_vZeroGuard
 /-- Under the concrete `v`-zero guard, the terminating counter-mode wrapper
 matches the source terminating round while also incrementing the concrete
 padding counter in its own register endpoint. -/
-theorem
+lemma
     terminatingCounterModeWithWorkStep_fromRegisters_eq_source_round_of_vZeroGuard
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth)
@@ -5136,7 +5144,7 @@ theorem
 
 /-- The detector-counter terminating counter-mode step matches the source
 terminating round on the fields observed by `RoundState.fromRegisters`. -/
-theorem
+lemma
     detectorCounterTerminatingCounterModeStep_fromRegisters_eq_source_round_of_v_zero
     (n counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n)
@@ -5201,7 +5209,7 @@ theorem
 
 /-- A clean detector pass only changes compare, which is ignored by
 `RoundState.fromRegisters`. -/
-theorem detectorCounterVZeroDetectorStep_fromRegisters_eq_self_clean
+lemma detectorCounterVZeroDetectorStep_fromRegisters_eq_self_clean
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
     (work : CounterIncrementWork counterWidth) :
@@ -5217,7 +5225,7 @@ theorem detectorCounterVZeroDetectorStep_fromRegisters_eq_self_clean
 /-- In the concrete `v = 0` case, the complete detector-gated terminating
 counter-mode wrapper matches the source terminating round on the source-state
 projection. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_fromRegisters_eq_source_round_of_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
@@ -5299,7 +5307,7 @@ theorem
 /-- In the concrete `v ≠ 0` case, the complete detector-gated terminating
 counter-mode wrapper is a no-op on the source-state projection and does not
 consume a padding round. -/
-theorem
+lemma
     detectorGatedTerminatingCounterModeWithWorkStep_fromRegisters_eq_self_of_v_nonzero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
@@ -5319,7 +5327,7 @@ theorem
 wrapper lifted to the full fixed-round workspace matches the source
 terminating round on the source-state projection and preserves the
 coefficient-adder work. -/
-theorem
+lemma
     fullRoundWorkTerminatingStep_fromRegisters_eq_source_round_of_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
@@ -5351,7 +5359,7 @@ theorem
 /-- In the concrete `v ≠ 0` case, the detector-gated terminating counter-mode
 wrapper lifted to the full fixed-round workspace is a no-op on the source-state
 projection and does not consume a padding round. -/
-theorem
+lemma
     fullRoundWorkTerminatingStep_fromRegisters_eq_self_of_v_nonzero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
@@ -5391,11 +5399,11 @@ def detectorCounterInactivePaddingProgram
     (counterIncrementWithWorkProgram n counterWidth)
 
 /-- The inactive-padding circuit realizes the lifted counter increment. -/
-theorem detectorCounterInactivePadding_realizes
+lemma detectorCounterInactivePadding_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithDetectorCounterWorkEncoding n counterWidth)
-      (detectorCounterInactivePaddingProgram n counterWidth)
+      (detectorCounterInactivePaddingProgram n counterWidth) environment
       (detectorCounterInactivePaddingStep n counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.onBinaryMiddle
@@ -5409,7 +5417,7 @@ theorem detectorCounterInactivePadding_realizes
 
 /-- On inactive clean inputs, the explicit detector-counter inactive-padding
 gate list increments the padding counter and restores its clean work. -/
-theorem detectorCounterInactivePaddingGateStep_cleanEndpoint_of_inactive
+lemma detectorCounterInactivePaddingGateStep_cleanEndpoint_of_inactive
     (n counterWidth : Nat)
     (x : Registers n counterWidth) (cmpWork : ComparisonWork n)
     (hactive : x.active = false) :
@@ -5466,11 +5474,11 @@ def fullRoundWorkInactivePaddingProgram
     (detectorCounterInactivePaddingProgram tail.succ counterWidth)
 
 /-- The standard-layout inactive-padding circuit realizes its semantic step. -/
-theorem fullRoundWorkInactivePadding_realizes
+lemma fullRoundWorkInactivePadding_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
-      (fullRoundWorkInactivePaddingProgram tail counterWidth)
+      (fullRoundWorkInactivePaddingProgram tail counterWidth) environment
       (fullRoundWorkInactivePaddingStep tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.onBinaryMiddle
@@ -5515,11 +5523,11 @@ def fullRoundWorkInactivePaddingGateProgram
 
 /-- The lifted inactive-padding gate-list circuit realizes its semantic
 step. -/
-theorem fullRoundWorkInactivePaddingGate_realizes
+lemma fullRoundWorkInactivePaddingGate_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
-      (fullRoundWorkInactivePaddingGateProgram tail counterWidth)
+      (fullRoundWorkInactivePaddingGateProgram tail counterWidth) environment
       (fullRoundWorkInactivePaddingGateStep tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.onBinaryMiddle
@@ -5559,12 +5567,12 @@ def fullRoundWorkActiveFalseControlledInactivePaddingProgram
       tail counterWidth)
 
 /-- The lifted active-false-controlled circuit realizes its semantic step. -/
-theorem fullRoundWorkActiveFalseControlledInactivePadding_realizes
+lemma fullRoundWorkActiveFalseControlledInactivePadding_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkActiveFalseControlledInactivePaddingProgram
-        tail counterWidth)
+        tail counterWidth) environment
       (fullRoundWorkActiveFalseControlledInactivePaddingStep
         tail counterWidth) := by
   apply UnitaryCircuit.Realizes.congrStep
@@ -5600,12 +5608,12 @@ def fullRoundPathControlWorkActiveFalseInactivePaddingProgram
 
 /-- The path/control-work-lifted inactive-padding circuit realizes its lifted
 step. -/
-theorem fullRoundPathControlWorkActiveFalseInactivePadding_realizes
+lemma fullRoundPathControlWorkActiveFalseInactivePadding_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
       (fullRoundPathControlWorkActiveFalseInactivePaddingProgram
-        tail counterWidth)
+        tail counterWidth) environment
       (fullRoundPathControlWorkActiveFalseInactivePaddingStep
         tail counterWidth) :=
   liftFullRoundWorkProgramToPathControlWork_realizes tail.succ counterWidth
@@ -5631,11 +5639,11 @@ def fullRoundPathControlWorkTerminatingProgram
 
 /-- The path/control-work-lifted terminating circuit realizes its lifted
 step. -/
-theorem fullRoundPathControlWorkTerminating_realizes
+lemma fullRoundPathControlWorkTerminating_realizes
     (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
-      (fullRoundPathControlWorkTerminatingProgram tail counterWidth)
+      (fullRoundPathControlWorkTerminatingProgram tail counterWidth) environment
       (fullRoundPathControlWorkTerminatingStep tail counterWidth) :=
   liftFullRoundWorkProgramToPathControlWork_realizes tail.succ counterWidth
     (fullRoundWorkTerminatingStandardLayout_realizes tail counterWidth)
@@ -5679,7 +5687,7 @@ def fullRoundPathControlWorkKaliskiRoundControlledProgram
 
 /-- The original-active-controlled concrete route is realized by its composed
 base-gate program. -/
-theorem fullRoundPathControlWorkKaliskiRoundControlled_realizes
+lemma fullRoundPathControlWorkKaliskiRoundControlled_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -5687,7 +5695,7 @@ theorem fullRoundPathControlWorkKaliskiRoundControlled_realizes
       (registersWithFullRoundPathControlWorkEncoding
         tail.succ counterWidth)
       (fullRoundPathControlWorkKaliskiRoundControlledProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundPathControlWorkKaliskiRoundControlledStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   UnitaryCircuit.Realizes.seq
@@ -5746,14 +5754,14 @@ def fixedRoundPathControlWorkKaliskiRoundProgram
 
 /-- The fixed-round schedule view of the path/control-work concrete route is
 realized by its composed base-gate program. -/
-theorem fixedRoundPathControlWorkKaliskiRound_realizes
+lemma fixedRoundPathControlWorkKaliskiRound_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
       (fixedRoundPathControlWorkKaliskiRoundProgram
-        tail counterWidth comparisonIndex roundIndex workIndex)
+        tail counterWidth comparisonIndex roundIndex workIndex) environment
       (fixedRoundPathControlWorkKaliskiRoundStep
         tail counterWidth comparisonIndex roundIndex workIndex) :=
   fullRoundPathControlWorkKaliskiRoundControlled_realizes tail counterWidth
@@ -5771,7 +5779,7 @@ def fixedRoundPathControlWorkKaliskiRoundStepSchedule
     fixedRoundPathControlWorkKaliskiRoundStep tail counterWidth
       comparisonIndex roundIndex workIndex
 
-@[simp] theorem fixedRoundPathControlWorkKaliskiRoundStepSchedule_length
+@[simp] lemma fixedRoundPathControlWorkKaliskiRoundStepSchedule_length
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     (fixedRoundPathControlWorkKaliskiRoundStepSchedule
@@ -5782,7 +5790,7 @@ def fixedRoundPathControlWorkKaliskiRoundStepSchedule
 
 /-- The `roundIndex`-th fixed-round schedule entry is the path/control-work route
 using the matching `m_i` history register slot. -/
-theorem fixedRoundPathControlWorkKaliskiRoundStepSchedule_get
+lemma fixedRoundPathControlWorkKaliskiRoundStepSchedule_get
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds) :
@@ -5817,7 +5825,7 @@ def fixedRoundPathControlWorkKaliskiRoundProgramSchedule
     fixedRoundPathControlWorkKaliskiRoundProgram tail counterWidth
       comparisonIndex roundIndex workIndex
 
-@[simp] theorem fixedRoundPathControlWorkKaliskiRoundProgramSchedule_length
+@[simp] lemma fixedRoundPathControlWorkKaliskiRoundProgramSchedule_length
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     (fixedRoundPathControlWorkKaliskiRoundProgramSchedule
@@ -5828,7 +5836,7 @@ def fixedRoundPathControlWorkKaliskiRoundProgramSchedule
 
 /-- The `roundIndex`-th fixed-round program entry is the program for the
 matching path/control-work one-round route. -/
-theorem fixedRoundPathControlWorkKaliskiRoundProgramSchedule_get
+lemma fixedRoundPathControlWorkKaliskiRoundProgramSchedule_get
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds) :
@@ -5854,7 +5862,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundProgramSchedule_get
 
 /-- The fixed-round program and step schedules are related pointwise by the
 one-round path/control-work realization theorem. -/
-theorem fixedRoundPathControlWorkKaliskiRoundSchedule_forall₂_realizes
+lemma fixedRoundPathControlWorkKaliskiRoundSchedule_forall₂_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     List.Forall₂
@@ -5862,7 +5870,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundSchedule_forall₂_realizes
         UnitaryCircuit.Realizes
           (registersWithFullRoundPathControlWorkEncoding
             tail.succ counterWidth)
-          program step)
+          program environment step)
       (fixedRoundPathControlWorkKaliskiRoundProgramSchedule
         tail counterWidth comparisonIndex workIndex)
       (fixedRoundPathControlWorkKaliskiRoundStepSchedule
@@ -5882,7 +5890,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundSchedule_forall₂_realizes
         ((List.ofFn
           (fun roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds =>
             fixedRoundPathControlWorkKaliskiRoundProgram tail counterWidth
-              comparisonIndex roundIndex workIndex)).get ⟨i, hprogram⟩)
+              comparisonIndex roundIndex workIndex)).get ⟨i, hprogram⟩) environment
         ((List.ofFn
           (fun roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds =>
             fixedRoundPathControlWorkKaliskiRoundStep tail counterWidth
@@ -5931,7 +5939,7 @@ def fixedRoundPathControlWorkKaliskiRoundPrefixStep
     ((fixedRoundPathControlWorkKaliskiRoundStepSchedule
       tail counterWidth comparisonIndex workIndex).take rounds)
 
-@[simp] theorem fixedRoundPathControlWorkKaliskiRoundPrefixStep_zero
+@[simp] lemma fixedRoundPathControlWorkKaliskiRoundPrefixStep_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithFullRoundPathControlWork tail.succ counterWidth) :
@@ -5941,7 +5949,7 @@ def fixedRoundPathControlWorkKaliskiRoundPrefixStep
 
 /-- Prefix successor form for the fixed-round path/control-work route schedule.
 This is the induction step shape used by the folded readout-to-trace bridge. -/
-theorem fixedRoundPathControlWorkKaliskiRoundPrefixStep_succ
+lemma fixedRoundPathControlWorkKaliskiRoundPrefixStep_succ
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1))
@@ -5971,7 +5979,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundPrefixStep_succ
   rw [hget]
 
 /-- The full schedule prefix is the existing folded semantic shell. -/
-theorem fixedRoundPathControlWorkKaliskiRoundPrefixStep_full
+lemma fixedRoundPathControlWorkKaliskiRoundPrefixStep_full
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     fixedRoundPathControlWorkKaliskiRoundPrefixStep
@@ -5988,16 +5996,16 @@ theorem fixedRoundPathControlWorkKaliskiRoundPrefixStep_full
 
 /-- The folded fixed-round path/control-work route shell is realized by its
 folded base-gate program. -/
-theorem fixedRoundPathControlWorkKaliskiRoundFold_realizes
+lemma fixedRoundPathControlWorkKaliskiRoundFold_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
       (fixedRoundPathControlWorkKaliskiRoundFoldProgram
-        tail counterWidth comparisonIndex workIndex)
+        tail counterWidth comparisonIndex workIndex) environment
       (fixedRoundPathControlWorkKaliskiRoundFoldStep
         tail counterWidth comparisonIndex workIndex) :=
-  UnitaryCircuit.Realizes.appendList
+  UnitaryCircuit.Realizes.appendList (environment := environment)
     (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
     (QubitLayout.canonical _)
     (fixedRoundPathControlWorkKaliskiRoundProgramSchedule
@@ -6025,7 +6033,7 @@ noncomputable def fixedRoundPathControlWorkKaliskiRoundFoldUncomputeStep
 
 /-- The folded fixed-round path/control semantics is surjective because the
 same base-gate program that realizes it is reversible on encoded labels. -/
-theorem fixedRoundPathControlWorkKaliskiRoundFoldStep_surjective
+lemma fixedRoundPathControlWorkKaliskiRoundFoldStep_surjective
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     Function.Surjective
@@ -6041,11 +6049,12 @@ theorem fixedRoundPathControlWorkKaliskiRoundFoldStep_surjective
   Finite.surjective_of_injective
     (UnitaryCircuit.Realizes.injective
       (fixedRoundPathControlWorkKaliskiRoundFold_realizes
+        (environment := OracleModel.emptyInterpretation)
         tail counterWidth comparisonIndex workIndex))
 
 /-- The selected semantic inverse is a right inverse for the folded
 path/control fixed-round route. -/
-theorem fixedRoundPathControlWorkKaliskiRoundFold_compute_rightInverse
+lemma fixedRoundPathControlWorkKaliskiRoundFold_compute_rightInverse
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ x,
@@ -6064,7 +6073,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_compute_rightInverse
 
 /-- Running the selected semantic inverse after a folded path/control compute
 run restores the original workspace. -/
-theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_leftInverse_on_range
+lemma fixedRoundPathControlWorkKaliskiRoundFold_uncompute_leftInverse_on_range
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ x,
@@ -6076,6 +6085,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_leftInverse_on_range
   intro x
   apply UnitaryCircuit.Realizes.injective
     (fixedRoundPathControlWorkKaliskiRoundFold_realizes
+        (environment := OracleModel.emptyInterpretation)
       tail counterWidth comparisonIndex workIndex)
   exact
     fixedRoundPathControlWorkKaliskiRoundFold_compute_rightInverse
@@ -6096,13 +6106,13 @@ noncomputable def fixedRoundPathControlWorkKaliskiRoundFoldUncomputeProgram
 
 /-- The reversed folded path/control program realizes the selected semantic
 uncompute step. -/
-theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_realizes
+lemma fixedRoundPathControlWorkKaliskiRoundFold_uncompute_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathControlWorkEncoding tail.succ counterWidth)
       (fixedRoundPathControlWorkKaliskiRoundFoldUncomputeProgram
-        tail counterWidth comparisonIndex workIndex)
+        tail counterWidth comparisonIndex workIndex) environment
       (fixedRoundPathControlWorkKaliskiRoundFoldUncomputeStep
         tail counterWidth comparisonIndex workIndex) :=
   UnitaryCircuit.Realizes.dagger_of_rightInverse
@@ -6111,6 +6121,8 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_realizes
     (by
       rw [fixedRoundPathControlWorkKaliskiRoundFoldUncomputeProgram,
         UnitaryCircuit.dagger_matrix]
+      rw [Subsingleton.elim
+        ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
       exact Unitary.star_eq_inv _)
     (fixedRoundPathControlWorkKaliskiRoundFold_compute_rightInverse
       tail counterWidth comparisonIndex workIndex)
@@ -6118,7 +6130,7 @@ theorem fixedRoundPathControlWorkKaliskiRoundFold_uncompute_realizes
 /-- If active is false and the selected comparison-work bit is clean, the
 full-round active-false wrapper runs the explicit inactive-padding gate-list
 action. -/
-theorem
+lemma
     fullRoundWorkActiveFalseControlledInactivePaddingStep_eq_gatePadding_of_active_false_clean
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -6156,7 +6168,7 @@ theorem
 
 /-- If active is true, the full-round active-false inactive-padding wrapper is
 a no-op. -/
-theorem
+lemma
     fullRoundWorkActiveFalseControlledInactivePaddingStep_eq_self_of_active_true
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -6176,7 +6188,7 @@ theorem
       tail counterWidth ((regs, comparisonWork), counterWork) hdetActive]
 
 /-- Clean endpoint for the full-workspace inactive padding mode. -/
-theorem fullRoundWorkInactivePaddingStep_cleanEndpoint
+lemma fullRoundWorkInactivePaddingStep_cleanEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     fullRoundWorkInactivePaddingStep tail counterWidth
         (((x, cleanComparisonWork tail.succ),
@@ -6191,7 +6203,7 @@ theorem fullRoundWorkInactivePaddingStep_cleanEndpoint
 
 /-- On clean inactive inputs, the lifted explicit inactive-padding gate-list
 action increments the padding counter and restores its clean work. -/
-theorem fullRoundWorkInactivePaddingGateStep_cleanEndpoint_of_inactive
+lemma fullRoundWorkInactivePaddingGateStep_cleanEndpoint_of_inactive
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hactive : x.active = false) :
     fullRoundWorkInactivePaddingGateStep tail counterWidth
@@ -6208,7 +6220,7 @@ theorem fullRoundWorkInactivePaddingGateStep_cleanEndpoint_of_inactive
 
 /-- On clean inactive inputs, the full-round active-false wrapper increments
 the padding counter and restores its clean work. -/
-theorem
+lemma
     fullRoundWorkActiveFalseControlledInactivePaddingStep_cleanInactiveEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hactive : x.active = false) :
@@ -6249,7 +6261,7 @@ theorem
       tail counterWidth x hactive
 
 /-- On clean active inputs, the full-round active-false wrapper is a no-op. -/
-theorem
+lemma
     fullRoundWorkActiveFalseControlledInactivePaddingStep_cleanActiveEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hactive : x.active = true) :
@@ -6277,7 +6289,7 @@ theorem
 
 /-- On clean inactive path/control-work inputs, the lifted active-false wrapper
 increments the padding counter and preserves the explicit path/control bits. -/
-theorem
+lemma
     fullRoundPathControlWorkActiveFalseInactivePaddingStep_cleanInactiveEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hactive : x.active = false) :
@@ -6309,7 +6321,7 @@ theorem
 /-- On clean inactive `v = 0` path/control-work inputs, the lifted terminating
 prefix flips active on, increments the counter, and preserves path/control
 bits. -/
-theorem
+lemma
     fullRoundPathControlWorkTerminatingStep_cleanEndpoint_of_v_zero_inactive
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6347,7 +6359,7 @@ theorem
 /-- On inactive clean `v = 0` inputs, the original-active-controlled concrete
 route runs inactive padding and the terminating prefix, then skips the active
 body because the explicit original-active path bit is false. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_cleanEndpoint_of_inactive_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6457,7 +6469,7 @@ theorem
 
 /-- On clean inactive inputs, the full-round active-false wrapper matches the
 source inactive round on the source-state projection. -/
-theorem
+lemma
     fullRoundWorkActiveFalseControlledInactivePaddingStep_fromRegisters_eq_source_round_of_inactive
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6485,7 +6497,7 @@ theorem
 
 /-- On clean work in inactive mode, the full-workspace padding step matches
 the source inactive round on the source-state projection. -/
-theorem
+lemma
     fullRoundWorkInactivePaddingStep_fromRegisters_eq_source_round_of_inactive
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (x : Registers tail.succ counterWidth)
@@ -6512,7 +6524,7 @@ theorem
 /-- Under an explicit valid-comparison assumption, the semantic selected-branch
 wrapper dispatches to the same fixed branch as the source-level Kaliski
 selector viewed from concrete registers. -/
-theorem coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_selectBranch_of_compare
+lemma coeffWorkKaliskiActiveSelectedBranchRoundStep_eq_selectBranch_of_compare
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -6574,7 +6586,7 @@ def fullRoundWorkKaliskiActiveNonzeroRoundStep
 
 /-- If the concrete low `u` readout is false, the nonzero-active selected
 wrapper uses the even selected branch-code/history/aux-shift dispatch. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_eq_evenDispatch_of_u_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6591,7 +6603,7 @@ theorem
 /-- In the full fixed-round workspace, if the concrete low `u` readout is
 false, the lifted nonzero-active semantic wrapper uses the even selected
 branch-code/history/aux-shift dispatch and preserves counter work. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_eq_evenDispatch_of_u_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6612,7 +6624,7 @@ theorem
 
 /-- If low `u` is false, the lifted nonzero-active semantic wrapper agrees
 with the lifted selected branch-code/history/aux-shift dispatch. -/
-theorem fullRoundWorkActiveNonzero_eq_selectedDispatch_of_u_lsb_false
+lemma fullRoundWorkActiveNonzero_eq_selectedDispatch_of_u_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -6630,7 +6642,7 @@ theorem fullRoundWorkActiveNonzero_eq_selectedDispatch_of_u_lsb_false
 /-- If the concrete low `u` readout is true and low `v` readout is false, the
 nonzero-active selected wrapper uses the even selected
 branch-code/history/aux-shift dispatch. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_eq_evenDispatch_of_u_lsb_true_v_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6650,7 +6662,7 @@ theorem
 /-- In the full fixed-round workspace, if low `u` is true and low `v` is
 false, the lifted nonzero-active semantic wrapper uses the even selected
 branch-code/history/aux-shift dispatch and preserves counter work. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_eq_evenDispatch_of_u_lsb_true_v_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6675,7 +6687,7 @@ theorem
 /-- If low `u` is true and low `v` is false, the lifted nonzero-active
 semantic wrapper agrees with the lifted selected branch-code/history/aux-shift
 dispatch. -/
-theorem fullRoundWorkActiveNonzero_eq_selectedDispatch_of_u_lsb_true_v_lsb_false
+lemma fullRoundWorkActiveNonzero_eq_selectedDispatch_of_u_lsb_true_v_lsb_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -6698,7 +6710,7 @@ theorem fullRoundWorkActiveNonzero_eq_selectedDispatch_of_u_lsb_true_v_lsb_false
 /-- If both concrete low readouts are true, the nonzero-active selected wrapper
 uses the carried odd dispatch route so branch signals are not recomputed after
 the selected odd data path mutates `u` or `v`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_eq_carriedOddDispatch_of_lsb_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6718,7 +6730,7 @@ theorem
 /-- In the full fixed-round workspace, if both low readouts are true, the
 lifted nonzero-active semantic wrapper uses the carried odd dispatch route and
 preserves counter work. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_eq_carriedOddDispatch_of_lsb_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6742,7 +6754,7 @@ theorem
 
 /-- If both low readouts are true, the lifted nonzero-active semantic wrapper
 agrees with the lifted selector-selected odd carried dispatch route. -/
-theorem fullRoundWorkActiveNonzero_eq_selectedOddCarriedDispatch_of_lsb_true
+lemma fullRoundWorkActiveNonzero_eq_selectedOddCarriedDispatch_of_lsb_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -6764,7 +6776,7 @@ theorem fullRoundWorkActiveNonzero_eq_selectedOddCarriedDispatch_of_lsb_true
 /-- In the active clean odd-odd `v < u` case, the lifted nonzero-active
 semantic wrapper agrees with the concrete compare-carried odd dispatch route.
 -/
-theorem fullRoundWorkActiveNonzero_eq_compareCarriedDispatch_clean_lt
+lemma fullRoundWorkActiveNonzero_eq_compareCarriedDispatch_clean_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -6808,7 +6820,7 @@ theorem fullRoundWorkActiveNonzero_eq_compareCarriedDispatch_clean_lt
 /-- In the active clean odd-odd non-`v < u` case, the lifted nonzero-active
 semantic wrapper agrees with the concrete compare-carried odd dispatch route.
 -/
-theorem fullRoundWorkActiveNonzero_eq_compareCarriedDispatch_clean_not_lt
+lemma fullRoundWorkActiveNonzero_eq_compareCarriedDispatch_clean_not_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth) (work : CoeffAdderWork tail.succ)
@@ -6851,7 +6863,7 @@ theorem fullRoundWorkActiveNonzero_eq_compareCarriedDispatch_clean_not_lt
 
 /-- In the low-`u` false branch, the odd-odd latch-then-body wrapper agrees
 with the nonzero-active semantic wrapper. -/
-theorem fullRoundWorkOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_false
+lemma fullRoundWorkOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -6877,7 +6889,7 @@ theorem fullRoundWorkOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_false
 
 /-- In the low-`u` true and low-`v` false branch, the odd-odd latch-then-body
 wrapper agrees with the nonzero-active semantic wrapper. -/
-theorem
+lemma
     fullRoundWorkOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_true_vLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6911,7 +6923,7 @@ theorem
 /-- In the clean odd-odd `v < u` branch, latch-then-body agrees with the
 nonzero-active semantic wrapper up to the remaining counter carry-in latch
 flip. -/
-theorem fullRoundWorkOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_lt
+lemma fullRoundWorkOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -6958,7 +6970,7 @@ theorem fullRoundWorkOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_lt
 /-- In the clean odd-odd non-`v < u` branch, latch-then-body agrees with the
 nonzero-active semantic wrapper up to the remaining counter carry-in latch
 flip. -/
-theorem fullRoundWorkOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_not_lt
+lemma fullRoundWorkOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_not_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7004,7 +7016,7 @@ theorem fullRoundWorkOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_not_lt
 
 /-- In the low-`u` false branch, the active-guarded latch-then-body wrapper
 agrees with the nonzero-active semantic wrapper. -/
-theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_false
+lemma fullRoundWorkActiveOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7030,7 +7042,7 @@ theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_fals
 
 /-- In the low-`u` true and low-`v` false branch, the active-guarded
 latch-then-body wrapper agrees with the nonzero-active semantic wrapper. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_activeNonzero_of_uLow_true_vLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7064,7 +7076,7 @@ theorem
 /-- In the active clean odd-odd `v < u` branch, active-guarded
 latch-then-body agrees with the nonzero-active semantic wrapper up to the
 remaining counter carry-in latch flip. -/
-theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_lt
+lemma fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7116,7 +7128,7 @@ theorem fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_l
 /-- In the active clean odd-odd non-`v < u` branch, active-guarded
 latch-then-body agrees with the nonzero-active semantic wrapper up to the
 remaining counter carry-in latch flip. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_activeNonzero_clean_not_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7200,14 +7212,14 @@ def fullRoundWorkKaliskiActiveOnlyRoundConcreteProgram
 
 /-- The concrete active-only fixed-round program realizes its folded semantic
 route. -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundConcrete_realizes
+lemma fullRoundWorkKaliskiActiveOnlyRoundConcrete_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkKaliskiActiveOnlyRoundConcreteProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkKaliskiActiveOnlyRoundConcreteStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   UnitaryCircuit.Realizes.seq
@@ -7222,7 +7234,7 @@ theorem fullRoundWorkKaliskiActiveOnlyRoundConcrete_realizes
 /-- On clean work in the concrete `v ≠ 0` case, the terminating prefix of the
 concrete active-only route cancels and the route reduces to the active-guarded
 latch/body dispatch. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_eq_activeLatchBody_of_v_nonzero_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7246,7 +7258,7 @@ theorem
 
 /-- The full-round counter carry-in latch is clean on the standard clean
 full-round work object. -/
-theorem fullRoundWorkCounterCarryInBit_get_clean
+lemma fullRoundWorkCounterCarryInBit_get_clean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (fullRoundWorkCounterCarryInBit tail counterWidth).get
         (((x, cleanComparisonWork tail.succ),
@@ -7262,7 +7274,7 @@ theorem fullRoundWorkCounterCarryInBit_get_clean
 
 /-- Each full-round counter carry-work bit is clean on the standard clean
 full-round work object. -/
-theorem fullRoundWorkCounterCarryWorkBit_get_clean
+lemma fullRoundWorkCounterCarryWorkBit_get_clean
     (tail counterWidth : Nat) (workIndex : Fin (counterWidth - 1))
     (x : Registers tail.succ counterWidth) :
     (fullRoundWorkCounterCarryWorkBit tail counterWidth workIndex).get
@@ -7280,7 +7292,7 @@ theorem fullRoundWorkCounterCarryWorkBit_get_clean
 
 /-- The lifted coefficient-adder carry-in flag is clean on the standard clean
 coefficient work object. -/
-theorem liftedCoeffAdderCarryInBit_get_clean
+lemma liftedCoeffAdderCarryInBit_get_clean
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
         (x, cleanCoeffAdderWork n) =
@@ -7290,7 +7302,7 @@ theorem liftedCoeffAdderCarryInBit_get_clean
 
 /-- Each lifted coefficient-adder carry-work bit is clean on the standard clean
 coefficient work object. -/
-theorem liftedCoeffAdderCarryWorkBit_get_clean
+lemma liftedCoeffAdderCarryWorkBit_get_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit bit).get
@@ -7306,7 +7318,7 @@ theorem liftedCoeffAdderCarryWorkBit_get_clean
 
 /-- Each lifted comparison-carry prefix bit is clean on the standard clean
 comparison and coefficient work objects. -/
-theorem coeffAdderComparisonCarryPrefixWord_get_clean
+lemma coeffAdderComparisonCarryPrefixWord_get_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : Registers n counterWidth) :
     ((coeffAdderComparisonCarryPrefixWord n counterWidth).bit bit).get
@@ -7323,7 +7335,7 @@ theorem coeffAdderComparisonCarryPrefixWord_get_clean
 active-only route has the same clean endpoint as the terminating
 counter-mode prefix.  The inactive latch/body suffix is a no-op under clean
 source scratch bits. -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_cleanEndpoint_of_v_zero
+lemma fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_cleanEndpoint_of_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7412,7 +7424,7 @@ theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_cleanEndpoint_of_v_zero
 active-only route matches the source terminating round on the source-state
 projection.  The inactive latch/body suffix is a no-op under clean source
 scratch bits. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_fromRegisters_eq_source_round_of_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7445,7 +7457,7 @@ theorem
 /-- On clean inactive `v ≠ 0` inputs, the folded concrete active-only route is
 a no-op: the terminating detector/counter prefix cancels and the active-guarded
 latch/body suffix is inactive. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyConcreteStep_eq_self_of_inactive_v_nonzero_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7519,7 +7531,7 @@ theorem
 
 /-- If inactive padding runs before the folded concrete active-only route, the
 composition still has the padding endpoint on clean inactive `v ≠ 0` inputs. -/
-theorem
+lemma
     fullRoundWorkInactivePaddingThenConcrete_cleanEndpoint_of_inactive_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7601,14 +7613,14 @@ def fullRoundWorkKaliskiRoundConcreteProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The concrete outer route is realized by its composed base-gate program. -/
-theorem fullRoundWorkKaliskiRoundConcrete_realizes
+lemma fullRoundWorkKaliskiRoundConcrete_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundWorkEncoding tail.succ counterWidth)
       (fullRoundWorkKaliskiRoundConcreteProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundWorkKaliskiRoundConcreteStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   UnitaryCircuit.Realizes.seq
@@ -7649,14 +7661,14 @@ def fullRoundPathWorkKaliskiRoundConcreteProgram
 
 /-- The path-work-lifted concrete outer route is realized by its composed
 base-gate program. -/
-theorem fullRoundPathWorkKaliskiRoundConcrete_realizes
+lemma fullRoundPathWorkKaliskiRoundConcrete_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathWorkEncoding tail.succ counterWidth)
       (fullRoundPathWorkKaliskiRoundConcreteProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundPathWorkKaliskiRoundConcreteStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   liftFullRoundWorkProgramToPathWork_realizes tail.succ counterWidth
@@ -7664,7 +7676,7 @@ theorem fullRoundPathWorkKaliskiRoundConcrete_realizes
       tail counterWidth comparisonIndex historyIndex workIndex)
 
 /-- The lifted concrete outer route preserves the explicit path bit. -/
-theorem fullRoundPathWorkKaliskiRoundConcreteStep_path
+lemma fullRoundPathWorkKaliskiRoundConcreteStep_path
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7674,7 +7686,7 @@ theorem fullRoundPathWorkKaliskiRoundConcreteStep_path
   rfl
 
 /-- The original-active latch only changes the path bit. -/
-theorem fullRoundPathWorkOriginalActiveLatchStep_fullRound
+lemma fullRoundPathWorkOriginalActiveLatchStep_fullRound
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundPathWork tail.succ counterWidth) :
     (fullRoundPathWorkOriginalActiveLatchStep tail counterWidth x).1 =
@@ -7690,7 +7702,7 @@ theorem fullRoundPathWorkOriginalActiveLatchStep_fullRound
   · simp [hactive]
 
 /-- The path bit is clean in the standard clean path-work input. -/
-theorem fullRoundPathWorkPathBit_get_withClean
+lemma fullRoundPathWorkPathBit_get_withClean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (fullRoundPathWorkPathBit tail counterWidth).get
       (withCleanFullRoundPathWork tail.succ counterWidth x) = false := by
@@ -7698,7 +7710,7 @@ theorem fullRoundPathWorkPathBit_get_withClean
 
 /-- The lifted active bit reads the source register active flag in the standard
 clean path-work input. -/
-theorem fullRoundPathWorkActiveBit_get_withClean
+lemma fullRoundPathWorkActiveBit_get_withClean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (fullRoundPathWorkActiveBit tail counterWidth).get
       (withCleanFullRoundPathWork tail.succ counterWidth x) = x.active := by
@@ -7709,7 +7721,7 @@ theorem fullRoundPathWorkActiveBit_get_withClean
     BinaryLabelEncoding.prodLeftBit, RegisterBits.activeBit_get]
 
 /-- The path bit is clean in the standard clean path/control-work input. -/
-theorem fullRoundPathControlWorkPathBit_get_withClean
+lemma fullRoundPathControlWorkPathBit_get_withClean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (fullRoundPathControlWorkPathBit tail counterWidth).get
       (withCleanFullRoundPathControlWork tail.succ counterWidth x) = false := by
@@ -7717,7 +7729,7 @@ theorem fullRoundPathControlWorkPathBit_get_withClean
 
 /-- The control-work bit is clean in the standard clean path/control-work
 input. -/
-theorem fullRoundPathControlWorkControlWorkBit_get_withClean
+lemma fullRoundPathControlWorkControlWorkBit_get_withClean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (fullRoundPathControlWorkControlWorkBit tail counterWidth).get
       (withCleanFullRoundPathControlWork tail.succ counterWidth x) =
@@ -7726,7 +7738,7 @@ theorem fullRoundPathControlWorkControlWorkBit_get_withClean
 
 /-- The lifted active bit reads the source register active flag in the standard
 clean path/control-work input. -/
-theorem fullRoundPathControlWorkActiveBit_get_withClean
+lemma fullRoundPathControlWorkActiveBit_get_withClean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (fullRoundPathControlWorkActiveBit tail counterWidth).get
       (withCleanFullRoundPathControlWork tail.succ counterWidth x) =
@@ -7735,7 +7747,7 @@ theorem fullRoundPathControlWorkActiveBit_get_withClean
 
 /-- On clean active path/control-work inputs, the original-active latch keeps
 the full-round component and records the source active flag in the path bit. -/
-theorem
+lemma
     fullRoundPathControlWorkOriginalActiveLatchStep_cleanActiveEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hactive : x.active = true) :
@@ -7792,14 +7804,14 @@ def fullRoundPathWorkKaliskiRoundWithOriginalActiveProgram
 
 /-- The original-active-latched concrete route is realized by its composed
 base-gate program. -/
-theorem fullRoundPathWorkKaliskiRoundWithOriginalActive_realizes
+lemma fullRoundPathWorkKaliskiRoundWithOriginalActive_realizes
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (registersWithFullRoundPathWorkEncoding tail.succ counterWidth)
       (fullRoundPathWorkKaliskiRoundWithOriginalActiveProgram
-        tail counterWidth comparisonIndex historyIndex workIndex)
+        tail counterWidth comparisonIndex historyIndex workIndex) environment
       (fullRoundPathWorkKaliskiRoundWithOriginalActiveStep
         tail counterWidth comparisonIndex historyIndex workIndex) :=
   UnitaryCircuit.Realizes.seq
@@ -7812,7 +7824,7 @@ theorem fullRoundPathWorkKaliskiRoundWithOriginalActive_realizes
 
 /-- The latched route has the same full-round component as the concrete outer
 route on the original full-round input. -/
-theorem fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_fullRound
+lemma fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_fullRound
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7828,7 +7840,7 @@ theorem fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_fullRound
 
 /-- If the path bit starts clean, the latched route leaves the path bit equal
 to the original active flag. -/
-theorem fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_path_of_clean
+lemma fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_path_of_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7849,7 +7861,7 @@ theorem fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_path_of_clean
 
 /-- On standard clean path-work input, the latched route records the source
 active flag in the path bit. -/
-theorem fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_path_withClean
+lemma fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_path_withClean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -7865,7 +7877,7 @@ theorem fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_path_withClean
 
 /-- On clean active `v = 0` inputs, the concrete outer route agrees with the
 active terminating endpoint. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundConcreteStep_cleanEndpoint_of_active_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7897,7 +7909,7 @@ theorem
 
 /-- On clean active `v = 0` inputs, the concrete outer route matches the
 source terminating round on the source-state projection. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundConcreteStep_fromRegisters_eq_source_round_of_active_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7932,7 +7944,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the concrete outer route has the inactive
 padding endpoint. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundConcreteStep_cleanEndpoint_of_inactive_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7961,7 +7973,7 @@ theorem
 /-- On clean active `v = 0` inputs, the original-active-latched path-work
 route has the concrete terminating endpoint and records that the source state
 was active. -/
-theorem
+lemma
     fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_cleanEndpoint_of_active_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8008,7 +8020,7 @@ theorem
 /-- On clean inactive `v ≠ 0` inputs, the original-active-latched path-work
 route has the inactive padding endpoint and records that the source state was
 inactive. -/
-theorem
+lemma
     fullRoundPathWorkKaliskiRoundWithOriginalActiveStep_cleanEndpoint_of_inactive_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8051,7 +8063,7 @@ theorem
 
 /-- On clean active inputs, the path/control lifted active-false wrapper is a
 no-op and preserves the explicit path/control bits. -/
-theorem
+lemma
     fullRoundPathControlWorkActiveFalseInactivePaddingStep_cleanActiveEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (pathBit controlBit : Bool)
@@ -8086,7 +8098,7 @@ theorem
 /-- On clean active `v = 0` inputs, the path/control lifted terminating prefix
 has the active terminating endpoint and preserves the explicit path/control
 bits. -/
-theorem
+lemma
     fullRoundPathControlWorkTerminatingStep_cleanEndpoint_of_v_zero_active
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (pathBit controlBit : Bool)
@@ -8127,7 +8139,7 @@ theorem
 
 /-- On clean `v ≠ 0` inputs, the path/control lifted terminating prefix is a
 no-op and preserves the explicit path/control bits. -/
-theorem fullRoundPathControlWorkTerminatingStep_cleanEndpoint_of_v_nonzero
+lemma fullRoundPathControlWorkTerminatingStep_cleanEndpoint_of_v_nonzero
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (pathBit controlBit : Bool)
     (hcompare : x.compare = false) (hvNonzero : x.v.val ≠ 0) :
@@ -8160,7 +8172,7 @@ theorem fullRoundPathControlWorkTerminatingStep_cleanEndpoint_of_v_nonzero
 
 /-- On clean active `v = 0` inputs, the path/control concrete route has the
 terminating endpoint and records that the source state was active. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_cleanEndpoint_of_active_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8252,7 +8264,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the path/control concrete route has the
 inactive padding endpoint and records that the source state was inactive. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_cleanEndpoint_of_inactive_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8329,7 +8341,7 @@ def fullRoundPathControlWorkOriginalActiveControlledActiveOnlySemanticStep
 
 /-- If the latched original-active path bit is false, the semantic
 active-only wrapper is a no-op. -/
-theorem
+lemma
     fullRoundPathControlWorkOriginalActiveControlledActiveOnlySemanticStep_eq_self_of_path_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8346,7 +8358,7 @@ theorem
 
 /-- If the latched original-active path bit is true, the semantic active-only
 wrapper runs the lifted active-only concrete round. -/
-theorem
+lemma
     fullRoundPathControlWorkOriginalActiveControlledActiveOnlySemanticStep_eq_lifted_of_path_true
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8382,7 +8394,7 @@ def fullRoundPathControlWorkKaliskiRoundModeControlledSemanticStep
 /-- On clean active `v = 0` inputs, the mode-controlled semantic route runs
 the active-only terminating round and records that the source state was active.
 -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundModeControlledSemanticStep_cleanEndpoint_of_active_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8472,7 +8484,7 @@ theorem
 
 /-- Short theorem name for the clean active-mode endpoint when the second
 binary-GCD operand has reached zero. -/
-theorem modeControlledSemanticActiveVZeroEndpoint
+lemma modeControlledSemanticActiveVZeroEndpoint
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -8499,7 +8511,7 @@ theorem modeControlledSemanticActiveVZeroEndpoint
 /-- On clean active inputs, the mode-controlled semantic route reduces to the
 lifted active-only concrete round and records that the source state was active.
 -/
-theorem
+lemma
     modeControlledSemanticStep_eq_activeOnlyConcrete_clean_of_active
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8560,7 +8572,7 @@ theorem
 
 /-- On clean inactive inputs, the mode-controlled semantic route runs only
 counter-padding and skips the active-only terminating prefix. -/
-theorem
+lemma
     modeControlledSemanticStep_cleanEndpoint_of_inactive
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8617,7 +8629,7 @@ theorem
 
 /-- On clean inactive `v = 0` inputs, the mode-controlled semantic route has
 the inactive padding endpoint. -/
-theorem
+lemma
     modeControlledSemanticStep_cleanEndpoint_of_inactive_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8640,7 +8652,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the mode-controlled semantic route has
 the inactive padding endpoint. -/
-theorem
+lemma
     modeControlledSemanticStep_cleanEndpoint_of_inactive_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8685,7 +8697,7 @@ def fixedRoundModeControlledSemanticStepSchedule
     fixedRoundModeControlledSemanticStep
       tail counterWidth comparisonIndex roundIndex workIndex
 
-@[simp] theorem
+@[simp] lemma
     fixedRoundModeControlledSemanticStepSchedule_length
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -8697,7 +8709,7 @@ def fixedRoundModeControlledSemanticStepSchedule
 
 /-- The `roundIndex`-th corrected semantic schedule entry uses the matching
 `m_i` history register slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStepSchedule_get
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -8743,7 +8755,7 @@ def fixedRoundModeControlledSemanticPrefixStep
     ((fixedRoundModeControlledSemanticStepSchedule
       tail counterWidth comparisonIndex workIndex).take rounds)
 
-@[simp] theorem
+@[simp] lemma
     fixedRoundModeControlledSemanticPrefixStep_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -8753,7 +8765,7 @@ def fixedRoundModeControlledSemanticPrefixStep
   rfl
 
 /-- Prefix successor form for the corrected semantic fixed-round route. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticPrefixStep_succ
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -8785,7 +8797,7 @@ theorem
   rw [hget]
 
 /-- The full corrected semantic prefix is the folded semantic shell. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticPrefixStep_full
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -8823,7 +8835,7 @@ def fullRoundPathControlWorkRoundStateReadoutRegisters
 
 /-- The source-shaped readout may restore the active flag, but it does not
 change any branch-history register slot. -/
-theorem fullRoundPathControlWorkRoundStateReadoutRegisters_get_historyBit
+lemma fullRoundPathControlWorkRoundStateReadoutRegisters_get_historyBit
     (n counterWidth : Nat) (observed : Fin (2 * n))
     (x : RegistersWithFullRoundPathControlWork n counterWidth) :
     (RegisterBits.historyBit n counterWidth observed).get
@@ -8835,7 +8847,7 @@ theorem fullRoundPathControlWorkRoundStateReadoutRegisters_get_historyBit
   · simp [hpath, RegisterBits.historyBit_get]
   · simp [hpath, RegisterBits.historyBit_get]
 
-@[simp] theorem fullRoundPathControlWorkRoundStateReadoutRegisters_compare
+@[simp] lemma fullRoundPathControlWorkRoundStateReadoutRegisters_compare
     (n counterWidth : Nat)
     (x : RegistersWithFullRoundPathControlWork n counterWidth) :
     (fullRoundPathControlWorkRoundStateReadoutRegisters
@@ -8844,7 +8856,7 @@ theorem fullRoundPathControlWorkRoundStateReadoutRegisters_get_historyBit
   unfold fullRoundPathControlWorkRoundStateReadoutRegisters
   by_cases hpath : x.1.2 <;> simp [hpath]
 
-@[simp] theorem fullRoundPathControlWorkRoundStateReadoutRegisters_scratchA
+@[simp] lemma fullRoundPathControlWorkRoundStateReadoutRegisters_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithFullRoundPathControlWork n counterWidth) :
     (fullRoundPathControlWorkRoundStateReadoutRegisters
@@ -8853,7 +8865,7 @@ theorem fullRoundPathControlWorkRoundStateReadoutRegisters_get_historyBit
   unfold fullRoundPathControlWorkRoundStateReadoutRegisters
   by_cases hpath : x.1.2 <;> simp [hpath]
 
-@[simp] theorem fullRoundPathControlWorkRoundStateReadoutRegisters_scratchB
+@[simp] lemma fullRoundPathControlWorkRoundStateReadoutRegisters_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithFullRoundPathControlWork n counterWidth) :
     (fullRoundPathControlWorkRoundStateReadoutRegisters
@@ -8864,7 +8876,7 @@ theorem fullRoundPathControlWorkRoundStateReadoutRegisters_get_historyBit
 
 /-- On clean active `v = 0` inputs, the corrected semantic path/control route's
 RoundState readout matches the source terminating round. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_active_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -8900,7 +8912,7 @@ theorem
 
 /-- On clean inactive inputs, the corrected semantic path/control route's
 RoundState readout matches the source inactive padding round. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_inactive
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -8932,7 +8944,7 @@ theorem
 
 /-- On clean active `v = 0` inputs, the corrected semantic path/control route's
 selected history readout matches the terminating source branch-history bit. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_history_active_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -8976,7 +8988,7 @@ theorem
 
 /-- On clean inactive inputs, the corrected semantic path/control route's
 selected history readout matches the inactive source branch-history bit. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_history_inactive
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9012,7 +9024,7 @@ theorem
 /-- On clean active `v = 0` inputs, the corrected semantic path/control route's
 complete terminating readout matches the source round and selected history bit.
 -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_active_v_zero_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9054,7 +9066,7 @@ theorem
 
 /-- On clean inactive inputs, the corrected semantic path/control route's
 complete readout matches the inactive source round and selected history bit. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_inactive_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9091,7 +9103,7 @@ theorem
 
 /-- Corrected semantic fixed-round wrapper for a clean active terminating slot.
 The history register is the slot selected by `roundIndex`. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_roundStateReadout_active_v_zero_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -9132,7 +9144,7 @@ theorem
 
 /-- Corrected semantic fixed-round wrapper for a clean inactive slot.  The
 result is independent of whether `v` is zero. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_roundStateReadout_inactive_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -9169,7 +9181,7 @@ theorem
 
 /-- On clean active `v = 0` inputs, the path/control route's RoundState readout
 matches the source terminating round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_active_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9206,7 +9218,7 @@ theorem
 /-- On clean inactive `v = 0` inputs, the path/control route's RoundState
 readout restores the source inactive mode even though the reversible route keeps
 distinct concrete state from the active terminating input. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_inactive_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9241,7 +9253,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the path/control route's RoundState
 readout matches the source inactive padding round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_inactive_v_nonzero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9276,7 +9288,7 @@ theorem
 
 /-- On clean active `v = 0` inputs, the path/control route's selected history
 readout matches the terminating source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_active_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9320,7 +9332,7 @@ theorem
 
 /-- On clean inactive `v = 0` inputs, the path/control route's selected history
 readout matches the inactive source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_inactive_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9358,7 +9370,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the path/control route's selected history
 readout matches the inactive source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_inactive_v_nonzero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9396,7 +9408,7 @@ theorem
 
 /-- On clean active `v = 0` inputs, the path/control route's complete
 terminating readout matches the source round and selected history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_active_v_zero_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9438,7 +9450,7 @@ theorem
 
 /-- On clean inactive `v = 0` inputs, the path/control route's complete readout
 matches the inactive source round and selected history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_inactive_v_zero_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9477,7 +9489,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the path/control route's complete readout
 matches the inactive source round and selected history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_inactive_nonzero_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9516,7 +9528,7 @@ theorem
 
 /-- On clean inactive inputs, the path/control route's complete readout matches
 the inactive source round and selected history bit, regardless of `v`. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_inactive_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9557,7 +9569,7 @@ theorem
 existing concrete active-only route and records that the source state was
 active.  The active-only route carries the branch-specific active-nonzero
 source-readout facts. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_eq_activeOnlyConcrete_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -9630,7 +9642,7 @@ theorem
 
 /-- On clean inactive `v ≠ 0` inputs, the concrete outer route matches the
 source inactive round on the source-state projection. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundConcreteStep_fromRegisters_eq_source_round_of_inactive_v_nonzero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -9666,7 +9678,7 @@ theorem
 
 /-- In the active nonzero low-`u` false case, the concrete active-only route on
 clean full-round work agrees with the active-nonzero semantic wrapper. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_eq_activeNonzero_of_uLow_false_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -9707,7 +9719,7 @@ theorem
 /-- In the active nonzero low-`u` true and low-`v` false case, the concrete
 active-only route on clean full-round work agrees with the active-nonzero
 semantic wrapper. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_eq_activeNonzero_of_uLow_true_vLow_false_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))

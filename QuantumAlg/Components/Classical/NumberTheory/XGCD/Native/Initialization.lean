@@ -102,13 +102,14 @@ def initializationStep {model : ExecutionModel} [BitWord.Selected model]
   (sixth.1, (first.2, (second.2, (third.2, (fourth.2, (fifth.2, sixth.2))))))
 
 /-- All original quantum-reference blocks and the complete six-step path are retained. -/
-theorem xgcdNativeInitialization_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitialization_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (initializationBody (model := model) cells input zero).execute Reference state =
+    (initializationBody (model := model) cells input zero).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := initializationStep (model := model) cells input zero entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -129,7 +130,7 @@ def initializationEvents (model : ExecutionModel) [BitWord.Selected model] (widt
       width)), .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))]
 
 /-- Every actual initialization path emits precisely the original six native operations. -/
-theorem xgcdNativeInitialization_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitialization_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -155,7 +156,7 @@ theorem xgcdNativeInitialization_eventTrace {model : ExecutionModel} [BitWord.Se
   rfl
 
 /-- Resource accounting follows those same actual initialization operations. -/
-theorem xgcdNativeInitialization_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitialization_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -165,7 +166,7 @@ theorem xgcdNativeInitialization_resourcePool {model : ExecutionModel} [BitWord.
   congrArg ResourcePool.ofList (xgcdNativeInitialization_eventTrace cells input zero path)
 
 /-- The six actual dependent operations contribute six units of serial depth. -/
-theorem xgcdNativeInitialization_unitDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitialization_unitDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))

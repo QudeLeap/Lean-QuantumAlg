@@ -53,6 +53,19 @@ public def classicalOracles : ExecutionModel → ClassicalOracleModel
   | .classical _ oracles => oracles
   | .quantum _ _ _ oracles => oracles
 
+/-- Quantum query syntax is absent from classical execution. -/
+@[expose, implicit_reducible]
+public def quantumOracles : ExecutionModel → OracleModel
+  | .classical _ _ => .empty
+  | .quantum _ oracles _ _ => oracles
+
+/-- Fixed query interpretations supplied to the interpreter, never stored in program syntax. -/
+public structure Environment (model : ExecutionModel) where
+  /-- Interpretation of the granted quantum query interface. -/
+  quantum : model.quantumOracles.Interpretation
+  /-- Separate transition laws of the declared persistent classical services. -/
+  classical : model.classicalOracles.Interpretation
+
 /-- Model-owned native coordinates for actual classical instructions. -/
 @[expose, implicit_reducible]
 public def ClassicalCoordinate (model : ExecutionModel) : Type :=
@@ -77,11 +90,11 @@ public instance hiddenStateFintype (model : ExecutionModel) : Fintype model.Hidd
   model.classicalOracles.stateFintype
 
 /-- Classical state and storage types do not depend on operation selection. -/
-@[simp] public theorem classical_kind (operations : ClassicalOpModel)
+@[simp] public lemma classical_kind (operations : ClassicalOpModel)
     (oracles : ClassicalOracleModel) : (classical operations oracles).kind = .classical := rfl
 
 /-- Quantum state and storage types do not depend on operation selection. -/
-@[simp] public theorem quantum_kind (gates : GateModel) (oracles : OracleModel)
+@[simp] public lemma quantum_kind (gates : GateModel) (oracles : OracleModel)
     (operations : ClassicalOpModel) (classicalOracles : ClassicalOracleModel) :
     (quantum gates oracles operations classicalOracles).kind = .quantum := rfl
 

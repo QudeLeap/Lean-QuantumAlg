@@ -26,7 +26,7 @@ noncomputable section
 
 open Nat.FixedWidth EncodedBit.GateSpec
 
-theorem gidneyComparison_native_support (width : Nat) (pivot : Fin (2 ^ width + 1))
+lemma gidneyComparison_native_support (width : Nat) (pivot : Fin (2 ^ width + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (comparisonProgram width pivot).eventCost) :
     focus ∈ primitiveAlphabet := by
@@ -36,20 +36,20 @@ theorem gidneyComparison_native_support (width : Nat) (pivot : Fin (2 ^ width + 
   rw [← same] at present
   exact programList_native_support _ _ focus present
 
-theorem gidneyBiFlip_native_support (width : Nat) (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlip_native_support (width : Nat) (pivot : Fin (2 ^ width + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (biFlipProgram width pivot).eventCost) :
     focus ∈ primitiveAlphabet :=
   programList_native_support _ (biFlipGates width pivot) focus present
 
-theorem gidneyPivot_native_support (width : Nat) (pivot : Fin (2 ^ width + 1))
+lemma gidneyPivot_native_support (width : Nat) (pivot : Fin (2 ^ width + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (pivotProgram width pivot).eventCost) :
     focus ∈ offsetAlphabet :=
   programList_native_support _ (pivotGates width pivot) focus present
 
 /-- Every emitted event is one of the three actual default-model native coordinates. -/
-theorem gidneyModularOffset_native_support (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_native_support (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (modularOffsetProgram width modulus constant).eventCost) :
@@ -60,14 +60,14 @@ theorem gidneyModularOffset_native_support (width : Nat) (modulus : Fin (2 ^ wid
 def modularOffsetNativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   modularOffsetEventBound width • offsetAlphabet
 
-theorem gidneyModularOffset_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).eventCost ≤ modularOffsetNativeBudget width :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
     (gidneyModularOffset_native_support width modulus constant)
     (gidneyModularOffset_event_count_bound width modulus constant)
 
-theorem gidneySmallPivot_native_support (width : Nat) (small : width ≤ 2)
+lemma gidneySmallPivot_native_support (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (Small.pivotProgram width small pivot).eventCost) :
     focus ∈ primitiveAlphabet := by
@@ -83,7 +83,7 @@ theorem gidneySmallPivot_native_support (width : Nat) (small : width ≤ 2)
     fin_cases pivot <;> simp [ResourcePool.ofList, primitiveAlphabet] at * <;> tauto
 
 /-- Small offsets use only the original primitive labels and allocate no borrowed bits. -/
-theorem gidneySmallModularOffset_native_support (width : Nat) (small : width ≤ 2)
+lemma gidneySmallModularOffset_native_support (width : Nat) (small : width ≤ 2)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (Small.modularOffsetProgram width small modulus constant).eventCost) :

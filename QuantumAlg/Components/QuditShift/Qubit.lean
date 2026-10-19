@@ -38,14 +38,14 @@ private def xPermutation : Equiv.Perm (QuantumSignature.qubits 1).Basis :=
   ((QuantumSignature.qubitsIndexEquiv 1).trans (Equiv.swap 0 1)).trans
     (QuantumSignature.qubitsIndexEquiv 1).symm
 
-private theorem x_operator_permutation :
+private lemma x_operator_permutation :
     AlgorithmGate.model.operator (.singleQubit Gate.XOp) =
       UnitaryOperator.ofPerm xPermutation := by
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 1).symm
     (UnitaryOperator.ofPerm (Equiv.swap 0 1)) = _
   exact UnitaryOperator.reindex_ofPerm (QuantumSignature.qubitsIndexEquiv 1).symm _
 
-private theorem xPermutation_value (basis : Fin 1 → Fin 2) :
+private lemma xPermutation_value (basis : Fin 1 → Fin 2) :
     (xPermutation basis (0 : Fin 1)).val = ((basis 0).val + 1) % 2 := by
   have coordinates : basis = ![basis 0] := by
     funext index
@@ -64,11 +64,11 @@ private abbrev xApplication : GateModel.Application AlgorithmGate.model layout :
 private def qubitValue (basis : layout.Basis) : Fin 2 :=
   Fin.cast (congrArg PNat.val qubit) (basis wire)
 
-private theorem x_selected (basis : layout.Basis) :
+private lemma x_selected (basis : layout.Basis) :
     ((xApplication layout wire qubit).basisEquiv basis).1 =
       fun _ : Fin 1 => qubitValue layout wire qubit basis := rfl
 
-private theorem x_lift_permutation :
+private lemma x_lift_permutation :
     (xApplication layout wire qubit).liftPermutation xPermutation =
       (labelShift layout wire 1).symm := by
   apply Equiv.ext
@@ -108,13 +108,13 @@ private theorem x_lift_permutation :
     change basis position.val = Function.update basis wire (basis wire - 1) position.val
     rw [Function.update_of_ne outside]
 
-private theorem x_application_operator :
+private lemma x_application_operator :
     (xApplication layout wire qubit).operator = operator layout wire 1 := by
   rw [(xApplication layout wire qubit).operator_ofPerm xPermutation x_operator_permutation,
     x_lift_permutation]
   rfl
 
-private theorem zero_shift_operator : operator layout wire 0 = 1 := by
+private lemma zero_shift_operator : operator layout wire 0 = 1 := by
   apply Subtype.ext
   ext row column
   rw [operator, UnitaryOperator.ofPerm_entry]
@@ -130,9 +130,10 @@ public def qubitShiftCircuit (oracles : OracleModel)
   else Gate.singleQubitAt layout oracles Gate.XOp wire qubit
 
 /-- The actual identity/X implementation equals the independent shift with exact phase. -/
-public theorem qubitShiftCircuit_matrix (oracles : OracleModel)
-    (amount : Fin (layout.wire wire).dimension) :
-    (qubitShiftCircuit layout wire qubit oracles amount).matrix = operator layout wire amount := by
+public lemma qubitShiftCircuit_matrix (oracles : OracleModel)
+    (amount : Fin (layout.wire wire).dimension) (environment : oracles.Interpretation) :
+    (qubitShiftCircuit layout wire qubit oracles amount).matrix environment =
+      operator layout wire amount := by
   by_cases zero : amount = 0
   · subst amount
     rw [qubitShiftCircuit, if_pos rfl, UnitaryCircuit.identity_matrix, zero_shift_operator]
@@ -155,10 +156,11 @@ public def qubitRealizations (oracles : OracleModel) :
     matrix_eq := qubitShiftCircuit_matrix layout wire qubit oracles amount }
 
 /-- The native trace charges only the X that is actually executed. -/
-public theorem qubitShiftCircuit_events (oracles : OracleModel)
+public lemma qubitShiftCircuit_events (oracles : OracleModel)
     (amount : Fin (layout.wire wire).dimension)
-    (operations : ClassicalOpModel := .empty) :
-    (qubitShiftCircuit layout wire qubit oracles amount).eventTrace operations =
+    (operations : ClassicalOpModel := .empty)
+    (services : ClassicalOracleModel := .empty) :
+    (qubitShiftCircuit layout wire qubit oracles amount).eventTrace operations services =
       if amount = 0 then [] else [.gate .singleQubit] := by
   by_cases zero : amount = 0 <;> simp only [qubitShiftCircuit, zero, if_true, if_false]
   all_goals rfl

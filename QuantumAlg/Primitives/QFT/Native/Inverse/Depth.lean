@@ -23,9 +23,9 @@ namespace QuantumAlg.QuantumFourierTransform.Native
 noncomputable section
 
 /-- Inversion retains all layers of the actual phase and SWAP expansions. -/
-public theorem qftNative_inverseCircuit_unit_depth (oracles : OracleModel) (n : Nat) :
+public lemma qftNative_inverseCircuit_unit_depth (oracles : OracleModel) (n : Nat) :
     (inverseCircuit oracles n).evaluatedEventDepth (fun _ => 1) =
-      n + 5 * n.choose 2 + 3 * (n / 2) := by
+      n + 5 * n.choose 2 + (if n / 2 = 0 then 0 else 3) := by
   exact (AlgorithmGate.algorithmGate_oracleFreeAdjoints_unit_depth oracles
     (circuit .empty n)).trans (qftNative_circuit_unit_depth .empty n)
 

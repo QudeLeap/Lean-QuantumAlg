@@ -27,33 +27,36 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} {environment : model.Environment}
 
 /-- Both real result allocations restore the original complete borrowed interface. -/
-theorem samplerRetained_allocation_borrowedRestored (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_allocation_borrowedRestored (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (allocation (model := model) ctx N).BorrowedRestored Reference state
-      ((allocation (model := model) ctx N).execute Reference state) := by
-  exact Circuit.borrowedRestored_seq
+      ((allocation (model := model) ctx N).execute environment Reference state) := by
+  exact Circuit.borrowedRestored_seq (environment := environment)
     (Circuit.retain (model := model) ctx ctx.canonicalFreshKey (.bits (residueSamplingBits N))
       ctx.canonicalFreshKey_fresh)
     (Circuit.retain (sampleContext ctx N) (sampleContext ctx N).canonicalFreshKey
       (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh) state
-    (Circuit.borrowedRestored_retain ctx.canonicalFreshKey (.bits (residueSamplingBits N))
+    (Circuit.borrowedRestored_retain (environment := environment)
+      ctx.canonicalFreshKey (.bits (residueSamplingBits N))
       ctx.canonicalFreshKey_fresh state)
-    (Circuit.borrowedRestored_retain (sampleContext ctx N).canonicalFreshKey
+    (Circuit.borrowedRestored_retain (environment := environment)
+      (sampleContext ctx N).canonicalFreshKey
       (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh _)
 
 variable [BitWord.Selected model]
 
 /-- The actual random draw and native preparation jointly restore every borrowed correlation. -/
-theorem samplerRetained_body_borrowedRestored (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_body_borrowedRestored (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
     (body (model := model) ctx N).BorrowedRestored Reference state
-      ((body (model := model) ctx N).execute Reference state) := by
-  exact Circuit.borrowedRestored_seq (PackedSample.draw (model := model) N (sampleRef ctx N))
+      ((body (model := model) ctx N).execute environment Reference state) := by
+  exact Circuit.borrowedRestored_seq (environment := environment)
+    (PackedSample.draw (model := model) N (sampleRef ctx N))
     (Program.circuit (model := model) N
       (FirstAccepted.cellRead (sampleRef ctx N)) (parameterRef ctx N)) state
     (BitWord.Random.randomCode_borrowedRestored (sampleRef ctx N) Reference state)
@@ -61,12 +64,12 @@ theorem samplerRetained_body_borrowedRestored (ctx : RuntimeCtx model.kind) (N :
       (parameterRef ctx N) Reference _)
 
 /-- The complete retained sampler restores its original borrowed interface with every reference. -/
-theorem samplerRetained_borrowedRestored (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_borrowedRestored (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (circuit (model := model) ctx N).BorrowedRestored Reference state
-      ((circuit (model := model) ctx N).execute Reference state) :=
-  Circuit.borrowedRestored_seq (allocation (model := model) ctx N)
+      ((circuit (model := model) ctx N).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) (allocation (model := model) ctx N)
     (body (model := model) ctx N) state
     (samplerRetained_allocation_borrowedRestored (model := model) ctx N Reference state)
     (samplerRetained_body_borrowedRestored (model := model) ctx N Reference _)

@@ -60,12 +60,12 @@ def decodeOutput {phaseBits : Nat} : CShape.Value (outputShape phaseBits) →
   | .optionNone => none
   | .optionSome (.unsignedWord word) => some word
 
-@[simp] theorem nativeRecovery_decode_encode {phaseBits : Nat}
+@[simp] lemma nativeRecovery_decode_encode {phaseBits : Nat}
     (output : Option (Fin (2 ^ (phaseBits + 1)))) :
     decodeOutput (encodeOutput output) = output := by
   cases output <;> rfl
 
-@[simp] theorem nativeRecovery_encode_decode {phaseBits : Nat}
+@[simp] lemma nativeRecovery_encode_decode {phaseBits : Nat}
     (output : CShape.Value (outputShape phaseBits)) :
     encodeOutput (decodeOutput output) = output := by
   cases output with

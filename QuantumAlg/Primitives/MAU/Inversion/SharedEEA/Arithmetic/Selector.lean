@@ -28,6 +28,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticSelector
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit ArithmeticWindowRegisters ArithmeticWindowProgram
 open ArithmeticWindowPreservation ArithmeticSelectionKey ArithmeticSelectionPredicate
 open NativePredicate
@@ -49,15 +51,16 @@ private def controlledBodyStep {width : Nat} (window : Window width) (operation 
   if coefficient then CoefficientWindowProgram.controlledStep window operation
   else ArithmeticWindowControl.step window operation
 
-private theorem controlledBody_realizes {width : Nat} (window : Window width)
+private lemma controlledBody_realizes {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool) :
     UnitaryCircuit.Realizes (encoding width) (controlledBody window operation coefficient)
+      environment
       (controlledBodyStep window operation coefficient) := by
   cases coefficient with
   | false => exact ArithmeticWindowControl.program_realizes window operation
   | true => exact CoefficientWindowProgram.controlledProgram_realizes window operation
 
-private theorem controlledBodyStep_eq_if {width : Nat} (window : Window width)
+private lemma controlledBodyStep_eq_if {width : Nat} (window : Window width)
     (operation : Operation) (coefficient : Bool) (state : Registers width) :
     controlledBodyStep window operation coefficient state =
       if state.control then bodyStep window operation coefficient state else state := by
@@ -66,7 +69,7 @@ private theorem controlledBodyStep_eq_if {width : Nat} (window : Window width)
   | true => exact CoefficientWindowProgram.controlledStep_eq_if window operation state
 
 /-- The actual chosen body retains the complete key needed by its own inverse predicate. -/
-theorem bodyStep_readKey {width : Nat} (window : Window width) (operation : Operation)
+lemma bodyStep_readKey {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (state : Registers width) :
     readKey width (readsSign operation) (bodyStep window operation coefficient state) =
       readKey width (readsSign operation) state := by
@@ -74,14 +77,14 @@ theorem bodyStep_readKey {width : Nat} (window : Window width) (operation : Oper
   | false => exact ArithmeticWindowPreservation.remainder_readKey window operation state
   | true => exact ArithmeticWindowPreservation.coefficient_readKey window operation state
 
-private theorem bodyStep_condition {width : Nat} (window : Window width) (operation : Operation)
+private lemma bodyStep_condition {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) (state : Registers width) :
     condition selected (bodyStep window operation coefficient state) =
       condition selected state := by
   simp only [condition, matches_key_iff, bodyStep_readKey]
 
 /-- The ungated selected arithmetic retains arbitrary Ctrl, independently of its initial value. -/
-theorem bodyStep_control {width : Nat} (window : Window width) (operation : Operation)
+lemma bodyStep_control {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (state : Registers width) :
     (bodyStep window operation coefficient state).control = state.control := by
   cases coefficient with
@@ -89,14 +92,14 @@ theorem bodyStep_control {width : Nat} (window : Window width) (operation : Oper
   | true => exact ArithmeticWindowPreservation.coefficient_control window operation state
 
 /-- The complete selected arithmetic retains arbitrary original Iter as part of the full frame. -/
-theorem bodyStep_iteration {width : Nat} (window : Window width) (operation : Operation)
+lemma bodyStep_iteration {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (state : Registers width) :
     (bodyStep window operation coefficient state).flags.iteration = state.flags.iteration := by
   cases coefficient with
   | false => exact ArithmeticWindowPreservation.remainder_iteration window operation state
   | true => exact ArithmeticWindowPreservation.coefficient_iteration window operation state
 
-private theorem bodyStep_xorControl {width : Nat} (window : Window width) (operation : Operation)
+private lemma bodyStep_xorControl {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (value : Bool) (state : Registers width) :
     bodyStep window operation coefficient (xorControl value state) =
       xorControl value (bodyStep window operation coefficient state) := by
@@ -120,7 +123,7 @@ def step {width : Nat} (window : Window width) (operation : Operation) (coeffici
   if state.control ^^ condition selected state then
     bodyStep window operation coefficient state else state
 
-private theorem cleanup {width : Nat} (window : Window width) (operation : Operation)
+private lemma cleanup {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) (state : Registers width) :
     xorControl
         (condition selected (controlledBodyStep window operation coefficient
@@ -143,9 +146,10 @@ private theorem cleanup {width : Nat} (window : Window width) (operation : Opera
   · rw [if_neg active, condition_xorControl, xorControl_twice, if_neg active]
 
 /-- The exact selector law follows from the three actual composed native programs. -/
-theorem program_realizes {width : Nat} (window : Window width) (operation : Operation)
+lemma program_realizes {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) :
     UnitaryCircuit.Realizes (encoding width) (program window operation coefficient selected)
+      environment
       (step window operation coefficient selected) := by
   have actual :=
     (ArithmeticSelectionPredicate.program_realizes width (readsSign operation) selected).seq
@@ -153,11 +157,12 @@ theorem program_realizes {width : Nat} (window : Window width) (operation : Oper
         (GateSpec.realizesList_congrStep
           (QubitLayout.canonical _) .empty
           (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).reverse
-          (ArithmeticSelectionPredicate.reverse_step width (readsSign operation) selected)))
+          (ArithmeticSelectionPredicate.reverse_step width (readsSign operation) selected)
+          environment))
   exact actual.congrStep (cleanup window operation coefficient selected)
 
 /-- Actual predicate cleanup restores the complete original Ctrl for every input frame. -/
-theorem step_control {width : Nat} (window : Window width) (operation : Operation)
+lemma step_control {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) (state : Registers width) :
     (step window operation coefficient selected state).control = state.control := by
   unfold step
@@ -166,7 +171,7 @@ theorem step_control {width : Nat} (window : Window width) (operation : Operatio
   · rfl
 
 /-- Every actual selector restores arbitrary Iter, including its correlations with other fields. -/
-theorem step_iteration {width : Nat} (window : Window width) (operation : Operation)
+lemma step_iteration {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) (state : Registers width) :
     (step window operation coefficient selected state).flags.iteration = state.flags.iteration := by
   unfold step
@@ -175,7 +180,7 @@ theorem step_iteration {width : Nat} (window : Window width) (operation : Operat
   · rfl
 
 /-- Every source bit used to select this arithmetic remains available to later selectors. -/
-theorem step_readKey {width : Nat} (window : Window width) (operation : Operation)
+lemma step_readKey {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) (state : Registers width) :
     readKey width (readsSign operation) (step window operation coefficient selected state) =
       readKey width (readsSign operation) state := by
@@ -185,7 +190,7 @@ theorem step_readKey {width : Nat} (window : Window width) (operation : Operatio
   · rfl
 
 /-- A nonmatching fixed key is exactly inactive on an internally initialized Ctrl-zero frame. -/
-theorem step_inactive {width : Nat} (window : Window width) (operation : Operation)
+lemma step_inactive {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) (state : Registers width)
     (clean : state.control = false)
     (different : selected ≠ readKey width (readsSign operation) state) :
@@ -194,7 +199,7 @@ theorem step_inactive {width : Nat} (window : Window width) (operation : Operati
   rfl
 
 /-- The unique matching key executes precisely its chosen actual arithmetic body. -/
-theorem step_matching {width : Nat} (window : Window width) (operation : Operation)
+lemma step_matching {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (state : Registers width) (clean : state.control = false) :
     step window operation coefficient (readKey width (readsSign operation) state) state =
       bodyStep window operation coefficient state := by
@@ -202,7 +207,7 @@ theorem step_matching {width : Nat} (window : Window width) (operation : Operati
   rfl
 
 /-- Exact trace includes both real equality computations and the actual selected TTK list. -/
-theorem program_eventTrace {width : Nat} (window : Window width) (operation : Operation)
+lemma program_eventTrace {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) :
     (program window operation coefficient selected).eventTrace =
       (ArithmeticSelectionPredicate.gates width (readsSign operation) selected).map

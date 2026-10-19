@@ -36,7 +36,7 @@ def resizeOp (input : CInputRef ctx (.unsignedWord sourceWidth))
   .wordResize sourceWidth width ctx input output
 
 /-- Native resizing materializes the original source value modulo the destination width. -/
-theorem resize_read (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma resize_read (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((store.applyOp (resizeOp input output)).read (.storage output.toCStorageRef)).toNat =
       (store.read input).toNat % 2 ^ width := by
@@ -45,7 +45,7 @@ theorem resize_read (input : CInputRef ctx (.unsignedWord sourceWidth))
   rfl
 
 /-- The original source width and the requested shift count give a sufficient exact output width. -/
-theorem scaled_lt_capacity (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma scaled_lt_capacity (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (store : Store ctx) (capacity : sourceWidth + count ≤ width) :
     (store.read input).toNat * 2 ^ count < 2 ^ width := by
   have sourceFits : (store.read input).toNat < 2 ^ sourceWidth := (store.read input).toNat_lt
@@ -59,7 +59,7 @@ theorem scaled_lt_capacity (count : Nat) (input : CInputRef ctx (.unsignedWord s
 
 end Descriptor
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {sourceWidth width : Nat}
 
 /-- The actual original source resize precedes the prescribed native left shifts. -/
@@ -77,15 +77,15 @@ def step (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
   (shifted.1, (first.2, shifted.2))
 
 /-- Actual scaling preserves all original service, history and quantum-reference correlations. -/
-theorem into_execute (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_execute (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) count input output).execute Reference state =
+    (into (model := model) count input output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (model := model) count input output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (resizeOp input output))
     (PowerOfTwo.shiftInto (model := model) count output)
     (fun before =>
@@ -95,7 +95,8 @@ theorem into_execute (count : Nat) (input : CInputRef ctx (.unsignedWord sourceW
       let result := PowerOfTwo.shiftStep (model := model) count output before.1
       ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ state
-    exact (BitWord.bitWord_instruction_execute (execution := model) (resizeOp input output)
+    exact (BitWord.bitWord_instruction_execute
+      (environment := environment) (execution := model) (resizeOp input output)
       state).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ state
     exact (PowerOfTwo.shiftInto_execute (model := model) count output reference state).trans
@@ -103,7 +104,7 @@ theorem into_execute (count : Nat) (input : CInputRef ctx (.unsignedWord sourceW
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual resize-and-shift sequence scales the original source modulo the output width. -/
-theorem into_read_mod (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_read_mod (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((step (model := model) count input output store).1.read
       (.storage output.toCStorageRef)).toNat =
@@ -114,7 +115,7 @@ theorem into_read_mod (count : Nat) (input : CInputRef ctx (.unsignedWord source
   exact PowerOfTwo.mod_mul _ _ _
 
 /-- The actual native result is the exact scaled original input whenever its full width fits. -/
-theorem into_read (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_read (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (capacity : sourceWidth + count ≤ width) :
     ((step (model := model) count input output store).1.read
@@ -123,7 +124,7 @@ theorem into_read (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidt
   rw [into_read_mod, Nat.mod_eq_of_lt (scaled_lt_capacity count input store capacity)]
 
 /-- Every actual read outside the supplied destination survives the complete native scale. -/
-theorem into_callerFrame (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_callerFrame (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : output.key ∉ other.storageKeys) :
     (step (model := model) count input output store).1.read other = store.read other := by

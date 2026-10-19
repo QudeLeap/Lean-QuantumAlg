@@ -28,9 +28,11 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The matrix column of every canonical clean input is fixed by the actual
 `UnitaryCircuit.Realizes` proof for the same circuit used by accounting. -/
-theorem compiledGroupActionProgram_matrix_clean
+lemma compiledGroupActionProgram_matrix_clean
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (output :
       Fin
@@ -39,7 +41,7 @@ theorem compiledGroupActionProgram_matrix_clean
     (a : Fin (2 ^ firstBits (registerParameters m ell width)))
     (b : Fin (2 ^ ell))
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
-    ((compiledGroupActionProgram m ell width N g x).binaryMatrix :
+    ((compiledGroupActionProgram m ell width N g x).binaryMatrix environment :
         HilbertOperator
           (Qubits
             (firstBits (registerParameters m ell width) + ell +
@@ -61,7 +63,7 @@ theorem compiledGroupActionProgram_matrix_clean
         (QubitLayout.canonical
           (totalQubits (registerParameters m ell width))).toQuantum.register)
         (basis.symm output))
-    (compiledGroupActionProgram_applyLabel_clean
+    (compiledGroupActionProgram_applyLabel_clean (environment := environment)
       m ell width N g x a b 1 hNgtOne hN)
   simp only [UnitaryCircuit.applyNormalized, UnitaryOperator.apply_coe,
     UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
@@ -71,13 +73,13 @@ theorem compiledGroupActionProgram_matrix_clean
         (cleanLabel m ell width N a b (oracleValue g x a.val b.val)) ↔
       output = cleanLabel m ell width N a b (oracleValue g x a.val b.val) :=
     basis.symm.injective.eq_iff
-  change (compiledGroupActionProgram m ell width N g x).binaryMatrix output
+  change (compiledGroupActionProgram m ell width N g x).binaryMatrix environment output
       (cleanLabel m ell width N a b 1) =
     if basis.symm output = basis.symm
       (cleanLabel m ell width N a b (oracleValue g x a.val b.val)) then 1 else 0 at haction
   simpa only [labels] using haction
 
-private theorem invSqrtCard_add (left right : Nat) :
+private lemma invSqrtCard_add (left right : Nat) :
     WalshHadamard.invSqrtCard (left + right) =
       WalshHadamard.invSqrtCard left * WalshHadamard.invSqrtCard right := by
   induction right with
@@ -89,21 +91,21 @@ private theorem invSqrtCard_add (left right : Nat) :
 
 /-- The actual native Hadamard prefix has its Walsh operator and leaves the
 entire arithmetic workspace untouched. -/
-theorem preparationCircuit_binaryMatrix (params : RegisterParameters) :
-    (preparationCircuit params).binaryMatrix =
+lemma preparationCircuit_binaryMatrix (params : RegisterParameters) :
+    (preparationCircuit params).binaryMatrix environment =
       (WalshHadamard.hadamardLayerOperator (firstBits params + params.ell)).tensor
         (1 : UnitaryOperator (Qubits params.workspaceBits)) := by
   rw [preparationCircuit, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   exact congrArg
     (fun operator : UnitaryOperator (Qubits (firstBits params + params.ell)) =>
       operator.tensor (1 : UnitaryOperator (Qubits params.workspaceBits)))
-    (WalshHadamard.Native.native_binary_matrix .empty (firstBits params + params.ell))
+    (WalshHadamard.Native.native_binary_matrix .empty (firstBits params + params.ell) environment)
 
 /-- Native preparation produces the two source uniform exponent vectors for
 any supplied computational-basis workspace, including the clean unit word. -/
-theorem preparationCircuit_apply_basisWorkspace (params : RegisterParameters)
+lemma preparationCircuit_apply_basisWorkspace (params : RegisterParameters)
     (workspace : Fin (2 ^ params.workspaceBits)) :
-    (preparationCircuit params).applyBinaryVec
+    (preparationCircuit params).applyBinaryVec environment
         (NormalizedVector.ket (R := Qubits (totalQubits params))
           (tripleIndex params 0 0 workspace) :
           HilbertVector (Qubits (totalQubits params))) =
@@ -115,7 +117,7 @@ theorem preparationCircuit_apply_basisWorkspace (params : RegisterParameters)
         (NormalizedVector.ket (R := Qubits params.workspaceBits) workspace :
           HilbertVector (Qubits params.workspaceBits)) := by
   have prepared :
-      (preparationCircuit params).binaryMatrix.apply
+      ((preparationCircuit params).binaryMatrix environment).apply
           (NormalizedVector.ket
             (prodEquiv ((0 : Fin (2 ^ (firstBits params + params.ell))), workspace))) =
         (WalshHadamard.uniformState (firstBits params + params.ell)).tensor
@@ -144,7 +146,7 @@ theorem preparationCircuit_apply_basisWorkspace (params : RegisterParameters)
     (fun state : NormalizedVector (Qubits (totalQubits params)) =>
       (state : HilbertVector (Qubits (totalQubits params)))) prepared
   simp only [UnitaryOperator.apply_coe, NormalizedVector.coe_tensor] at raw
-  change (preparationCircuit params).binaryMatrix.applyVec
+  change ((preparationCircuit params).binaryMatrix environment).applyVec
     (NormalizedVector.ket (R := Qubits (totalQubits params))
       (prodEquiv (prodEquiv (0, 0), workspace)) :
       HilbertVector (Qubits (totalQubits params))) = _
@@ -153,11 +155,11 @@ theorem preparationCircuit_apply_basisWorkspace (params : RegisterParameters)
 /-- The actual two-selected-exponentiation group-action circuit maps the physically prepared clean
 workspace state to exactly the graph state used by the short-DLP Born analysis.
 No oracle leaf or detached resource metadata occurs in this bridge. -/
-theorem compiledGroupActionProgram_apply_preparation
+lemma compiledGroupActionProgram_apply_preparation
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
-    (compiledGroupActionProgram m ell width N g x).applyBinaryVec
-        ((preparationCircuit (registerParameters m ell width)).applyBinaryVec
+    (compiledGroupActionProgram m ell width N g x).applyBinaryVec environment
+        ((preparationCircuit (registerParameters m ell width)).applyBinaryVec environment
           (NormalizedVector.ket
             (R := Qubits
               (totalQubits (registerParameters m ell width)))
@@ -176,7 +178,7 @@ theorem compiledGroupActionProgram_apply_preparation
   change
     (∑ source : Fin
         (2 ^ (firstBits params + params.ell + params.workspaceBits)),
-      (compiledGroupActionProgram m ell width N g x).binaryMatrix output source *
+      (compiledGroupActionProgram m ell width N g x).binaryMatrix environment output source *
         HilbertVector.tensor
           (HilbertVector.tensor
             (WalshHadamard.uniformState (firstBits params) :
@@ -206,7 +208,7 @@ theorem compiledGroupActionProgram_apply_preparation
     (∑ sourceA : Fin (2 ^ firstBits params),
       ∑ sourceB : Fin (2 ^ params.ell),
         ∑ sourceWorkspace : Fin (2 ^ params.workspaceBits),
-          (compiledGroupActionProgram m ell width N g x).binaryMatrix output
+          (compiledGroupActionProgram m ell width N g x).binaryMatrix environment output
               (tripleIndex params sourceA sourceB sourceWorkspace) *
             HilbertVector.tensor
               (HilbertVector.tensor
@@ -257,18 +259,18 @@ theorem compiledGroupActionProgram_apply_preparation
   have hmatrix
       (sourceA : Fin (2 ^ firstBits params))
       (sourceB : Fin (2 ^ params.ell)) :
-      (compiledGroupActionProgram m ell width N g x).binaryMatrix output
+      (compiledGroupActionProgram m ell width N g x).binaryMatrix environment output
           (tripleIndex params sourceA sourceB
             (cleanUnitLabel width N 1)) =
         if output = tripleIndex params sourceA sourceB
             (cleanUnitLabel width N
               (oracleValue g x sourceA.val sourceB.val)) then 1 else 0 := by
     calc
-      _ = (compiledGroupActionProgram m ell width N g x).binaryMatrix output
+      _ = (compiledGroupActionProgram m ell width N g x).binaryMatrix environment output
           (cleanLabel m ell width N sourceA sourceB 1) :=
         congrArg
           (fun source : Fin (2 ^ totalQubits params) =>
-            (compiledGroupActionProgram m ell width N g x).binaryMatrix output source)
+            (compiledGroupActionProgram m ell width N g x).binaryMatrix environment output source)
           (cleanLabel_eq_tripleIndex m ell width N sourceA sourceB 1).symm
       _ = if output = cleanLabel m ell width N sourceA sourceB
           (oracleValue g x sourceA.val sourceB.val) then 1 else 0 :=

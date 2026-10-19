@@ -26,7 +26,7 @@ namespace QuantumAlg.Execution.MeasurementCells
 variable {kind : ProblemKind}
 
 /-- Every visited frame contains exactly an already allocated number of the requested cells. -/
-theorem allocate_visitedContexts {model : ExecutionModel}
+lemma allocate_visitedContexts {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     (path : (allocate (model := model) ctx dimension count).Path) (frame : RuntimeCtx model.kind)
     (present : frame ∈ (allocate (model := model) ctx dimension count).visitedContexts path) :
@@ -46,7 +46,7 @@ theorem allocate_visitedContexts {model : ExecutionModel}
         · exact ⟨count + 1, le_rfl, List.mem_singleton.mp last⟩
 
 /-- Every added finite cell contributes its nonnegative actual resident capacity. -/
-theorem context_residentSpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
+lemma context_residentSpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
     {used count : Nat} (bounded : used ≤ count) :
     (context ctx dimension used).residentSpace ≤ (context ctx dimension count).residentSpace := by
   rw [context_residentSpace, context_residentSpace]
@@ -57,7 +57,7 @@ theorem context_residentSpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
   exact Nat.add_le_add_right (Nat.mul_le_mul_right _ bounded) _
 
 /-- All retained finite cells contribute the same actual auxiliary capacity. -/
-theorem context_auxiliarySpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
+lemma context_auxiliarySpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
     {used count : Nat} (bounded : used ≤ count) :
     (context ctx dimension used).auxiliarySpace ≤ (context ctx dimension count).auxiliarySpace := by
   rw [context_auxiliarySpace, context_auxiliarySpace]
@@ -68,7 +68,7 @@ theorem context_auxiliarySpace_mono (ctx : RuntimeCtx kind) (dimension : ℕ+)
   exact Nat.add_le_add_right (Nat.mul_le_mul_right _ bounded) _
 
 /-- Actual resident peak is bounded by the complete final retained-cell frame. -/
-theorem allocate_peakResidentSpace {model : ExecutionModel}
+lemma allocate_peakResidentSpace {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     (path : (allocate (model := model) ctx dimension count).Path) :
     (allocate (model := model) ctx dimension count).peakResidentSpace path ≤
@@ -80,7 +80,7 @@ theorem allocate_peakResidentSpace {model : ExecutionModel}
   exact context_residentSpace_mono ctx dimension bounded
 
 /-- Auxiliary peak counts the same retained cells throughout their actual allocation. -/
-theorem allocate_peakAuxiliarySpace {model : ExecutionModel}
+lemma allocate_peakAuxiliarySpace {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     (path : (allocate (model := model) ctx dimension count).Path) :
     (allocate (model := model) ctx dimension count).peakAuxiliarySpace path ≤

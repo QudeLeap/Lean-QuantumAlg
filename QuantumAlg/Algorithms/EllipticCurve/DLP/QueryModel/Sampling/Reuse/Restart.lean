@@ -7,11 +7,19 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.Reuse.Cleanup
-public import QuantumAlg.Core.Execution.CycleSchedule
+public import QuantumAlg.Core.Execution.Classical.Predicate
+public import QuantumAlg.Core.Execution.Restart
+public import QuantumAlg.Core.Execution.Input.Successor
+public import QuantumAlg.Core.Algorithm.Solves
+public import QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.Reuse
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.Layout
 import all QuantumAlg.Core.Execution.Pure.Selection
-import all QuantumAlg.Core.Execution.CycleSchedule
+import all QuantumAlg.Core.Execution.Classical.Predicate
+import all QuantumAlg.Core.Execution.Restart
+import all QuantumAlg.Core.Execution.Input.Successor
+import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Core.Execution.Borrowed
 import all QuantumAlg.Core.Execution.Circuit.Restoration
 import all QuantumAlg.Primitives.ZReset.Bank
@@ -35,7 +43,7 @@ open Execution
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem cells_noBorrowed {kind : ProblemKind} (ctx : RuntimeCtx kind)
+private lemma cells_noBorrowed {kind : ProblemKind} (ctx : RuntimeCtx kind)
     (dimension : ℕ+) (count : Nat) :
     (MeasurementCells.context ctx dimension count).borrowedQuantumWires =
       ctx.borrowedQuantumWires := by
@@ -46,7 +54,7 @@ private theorem cells_noBorrowed {kind : ProblemKind} (ctx : RuntimeCtx kind)
         using ih
 
 /-- The original point inputs are classical; the entire intrinsic quantum bank is owned. -/
-theorem ecdlpReuse_noBorrowedQuantum (I : ECDLPInstance E) :
+lemma ecdlpReuse_noBorrowedQuantum (I : ECDLPInstance E) :
     (context I).borrowedQuantumWires = [] := by
   have original : (Sampling.pre I).borrowedQuantumWires = [] := rfl
   simpa only [context, RuntimeCtx.borrowedQuantumWires_addRetained, Sampling.post,
@@ -54,7 +62,7 @@ theorem ecdlpReuse_noBorrowedQuantum (I : ECDLPInstance E) :
       using original
 
 /-- Every reused bank is nonempty because the original point encoding retains its infinity tag. -/
-public theorem ecdlpReuse_systemCount_pos (I : ECDLPInstance E) : 0 < (context I).systemCount := by
+public lemma ecdlpReuse_systemCount_pos (I : ECDLPInstance E) : 0 < (context I).systemCount := by
   have positive : 0 < Layout.totalQubits I := by
     unfold Layout.totalQubits Layout.pointWidth
     omega
@@ -69,9 +77,12 @@ public def zeroSeed (I : ECDLPInstance E) :
     (context I).quantumLayout.zeroLabel
 
 /-- Every complete actual sample record has the same zero state on every owned physical wire. -/
-public theorem ecdlpReuse_code_reinitializedAt (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_reinitializedAt {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    Circuit.ReinitializedAt (code I A expansion) (zeroSeed I) := by
+    Circuit.ReinitializedAt (code (allowAllocation := allowAllocation) I expansion)
+      (sourceEnvironment I A) (zeroSeed I)
+        := by
   have empty : (context I).borrowedSelection = ∅ := by
     ext wire
     simp [RuntimeCtx.mem_borrowedSelection, ecdlpReuse_noBorrowedQuantum I]
@@ -80,24 +91,32 @@ public theorem ecdlpReuse_code_reinitializedAt (I : ECDLPInstance E) (A : Access
   rw [all]
   intro Reference History _ state record
   exact StatePromise.pureKet_fullSelection_of_localMarginal (context I).quantumLayout
-    (((code I A expansion).execute Reference state).block record)
-    (context I).quantumLayout.zeroLabel (ecdlpReuse_code_block_pure I A expansion state record)
+    (((code (allowAllocation := allowAllocation) I expansion).execute (sourceEnvironment I A)
+      Reference state).block
+        record)
+    (context I).quantumLayout.zeroLabel (ecdlpReuse_code_block_pure
+        (allowAllocation := allowAllocation) I A expansion state record)
 
 /-- The same full sample circuit has its own physical measurement/restoration/restart evidence. -/
-public theorem ecdlpReuse_code_restartCleanup (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_restartCleanup {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    Circuit.RestartCleanup (code I A expansion) where
+    Circuit.RestartCleanup (code (allowAllocation := allowAllocation) I expansion)
+      (sourceEnvironment I A) where
   measured := by
     intro path
     obtain ⟨dimension, present⟩ := ZReset.Bank.zResetBank_measured
-      (oracles := model I A) (ecdlpReuse_qubits I) (scratch I) BitWord.model
+        (allowAllocation := allowAllocation) (services := .empty)
+      (oracles := model I) (ecdlpReuse_qubits I) (scratch I) BitWord.model
       (ecdlpReuse_systemCount_pos I) path.1
     exact ⟨dimension, List.mem_append.mpr (Or.inl present)⟩
   restores := by
     intro Reference History _ state
-    exact Circuit.borrowedRestored_of_noBorrowedQuantum (code I A expansion)
-      (ecdlpReuse_noBorrowedQuantum I) Reference state
-  reinitialized := ⟨zeroSeed I, ecdlpReuse_code_reinitializedAt I A expansion⟩
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum (code (allowAllocation := allowAllocation)
+      I expansion)
+      (sourceEnvironment I A) (ecdlpReuse_noBorrowedQuantum I) Reference state
+  reinitialized := ⟨zeroSeed I, ecdlpReuse_code_reinitializedAt (allowAllocation := allowAllocation)
+      I A expansion⟩
 
 end
 

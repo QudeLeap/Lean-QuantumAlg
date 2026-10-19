@@ -6,7 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Setup.Probability
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Setup.Probability
 import all QuantumAlg.Core.Execution.Reference.Probability
 
 /-!
@@ -27,7 +28,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 attribute [local irreducible] context setup firstBatch code
 
-private theorem vector_indicator (length width : Nat)
+private lemma vector_indicator (length width : Nat)
     (values : Fin length → (CShape.bits width).Value)
     (outcomes : Fin length → Fin width → Bool) :
     (if CShape.Value.fixedVector values =
@@ -45,7 +46,7 @@ private theorem vector_indicator (length width : Nat)
     rw [if_neg differentVector]
     exact (Finset.prod_eq_zero (Finset.mem_univ index) (if_neg different)).symm
 
-private theorem source_probability_cast (N : Nat) (input : Input N)
+private lemma source_probability_cast (N : Nat) (input : Input N)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool) :
     (∑ value : Fin (2 ^ residueSamplingBits N),
       (((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ : ℂ) *
@@ -65,17 +66,17 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 /-- The actual sixteen retained output cells have the source-mixture joint
 distribution of the original selected short-DLP law on every normalized
 caller, hidden-service and external-reference state. -/
-theorem outputDistribution
+lemma outputDistribution
     {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference)
+    (original : Execution.OracleInput (model N).classicalOracles base Reference)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool) :
-    (run base noQuantum N input).outputDistribution original
+    (run base noQuantum N).outputDistribution (sourceEnvironment input) original
         (.fixedVector fun index => .bits (outcomes index)) =
       ENNReal.ofReal (∑ value : Fin (2 ^ residueSamplingBits N),
         ((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ *
           ∏ index : Fin 16,
             (selectedOutcomePMF (parameterValue input value) (outcomes index)).toReal) := by
-  let actual := run base noQuantum N input
+  let actual := run base noQuantum N
   let read := fun record : actual.Record => actual.result record
   let probability : ℝ := ∑ value : Fin (2 ^ residueSamplingBits N),
     ((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ *
@@ -84,18 +85,21 @@ theorem outputDistribution
   have mapped := congrArg
     (fun distribution : PMF (CShape.Value (.fixedVector 16 (.bits (measurementBits N)))) =>
       distribution (.fixedVector fun index => .bits (outcomes index)))
-    (ExecutionState.toPMF_mapClassical (actual.execute Reference original.state)
-      (actual.execute_normalized original) read).symm
+    (ExecutionState.toPMF_mapClassical (actual.execute (sourceEnvironment input) Reference
+      original.state)
+      (actual.execute_normalized (sourceEnvironment input) original) read).symm
   refine mapped.trans ?_
   rw [ExecutionState.toPMF_apply, ExecutionState.mapClassical_block_mass_referenceFiberSum]
   apply congrArg ENNReal.ofReal
   have full : (∑ reference : Reference.Index,
-      ExecutionState.referenceFiberSum (actual.execute Reference original.state)
+      ExecutionState.referenceFiberSum (actual.execute (sourceEnvironment input) Reference
+        original.state)
         (fun entry _ => if read entry =
           CShape.Value.fixedVector (fun index => CShape.Value.bits (outcomes index))
           then 1 else 0) reference reference) = (probability : ℂ) := by
     have entries : ∀ reference : Reference.Index,
-        ExecutionState.referenceFiberSum (actual.execute Reference original.state)
+        ExecutionState.referenceFiberSum (actual.execute (sourceEnvironment input) Reference
+          original.state)
           (fun entry _ => if read entry =
             CShape.Value.fixedVector (fun index => CShape.Value.bits (outcomes index))
             then 1 else 0) reference reference =
@@ -104,7 +108,8 @@ theorem outputDistribution
       intro reference
       have aligned := congrArg
         (fun observe : actual.Record → (context base noQuantum N).register.Index → ℂ =>
-          ExecutionState.referenceFiberSum (actual.execute Reference original.state)
+          ExecutionState.referenceFiberSum (actual.execute (sourceEnvironment input) Reference
+            original.state)
             observe reference reference)
         (funext fun entry => funext fun _ => vector_indicator 16 (measurementBits N)
           (fun index => entry.1.read (.storage (terminalRef base noQuantum N index).toCStorageRef))

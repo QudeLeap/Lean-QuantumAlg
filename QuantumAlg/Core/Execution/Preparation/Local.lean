@@ -24,8 +24,9 @@ namespace QuantumAlg.Circuit
 noncomputable section
 
 /-- Local zero preparation tensors its fixed amplitudes with the actual incoming local entries. -/
-theorem prepareZero_local_joined_entry {gates : GateModel} {oracles : OracleModel}
+lemma prepareZero_local_joined_entry {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {ctx : RuntimeCtx .quantum} {Reference : Register}
     {H : Type} [Fintype H] (state : Execution.State ctx Reference (services.HiddenState × H))
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
@@ -34,7 +35,7 @@ theorem prepareZero_local_joined_entry {gates : GateModel} {oracles : OracleMode
     (((Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services)
       ctx key layout fresh disjoint).execute
-      Reference state).quantumMarginal.marginalLeft).matrix
+      environment Reference state).quantumMarginal.marginalLeft).matrix
         (Execution.preparedLocalBasisEquiv ctx key layout fresh disjoint (newRow, oldRow))
         (Execution.preparedLocalBasisEquiv ctx key layout fresh disjoint (newColumn, oldColumn)) =
       ((BasisPreparation.zero layout).normalized newRow *
@@ -50,7 +51,7 @@ theorem prepareZero_local_joined_entry {gates : GateModel} {oracles : OracleMode
       intro reference _
       exact prepareZero_joined_entry (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
-        state key layout fresh disjoint
+        environment state key layout fresh disjoint
         newRow newColumn (oldRow, reference) (oldColumn, reference)
     _ = _ := by
       rw [← Finset.mul_sum]

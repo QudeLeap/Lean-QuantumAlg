@@ -40,7 +40,7 @@ namespace QuantumAlg.BinaryBasis
       Nat.mod_eq_of_lt label.isLt]
 
 /-- The logical wire index selects the corresponding most-significant-first bit. -/
-public theorem bigEndianEquiv_bit (width : Nat) (basis : Fin width → Fin 2) (index : Fin width) :
+public lemma bigEndianEquiv_bit (width : Nat) (basis : Fin width → Fin 2) (index : Fin width) :
     (bigEndianEquiv width basis).val.testBit index.rev.val = finTwoEquiv (basis index) := by
   change (Nat.ofBits fun position : Fin width => finTwoEquiv (basis position.rev)).testBit
     index.rev.val = finTwoEquiv (basis index)
@@ -49,7 +49,7 @@ public theorem bigEndianEquiv_bit (width : Nat) (basis : Fin width → Fin 2) (i
   · exact index.rev.isLt
 
 /-- Decoding a label yields the original finite value on every logical wire. -/
-public theorem bigEndianEquiv_symm_value (width : Nat) (label : Fin (2 ^ width))
+public lemma bigEndianEquiv_symm_value (width : Nat) (label : Fin (2 ^ width))
     (index : Fin width) :
     (bigEndianEquiv width).symm label index =
       finTwoEquiv.symm (label.val.testBit index.rev.val) := rfl

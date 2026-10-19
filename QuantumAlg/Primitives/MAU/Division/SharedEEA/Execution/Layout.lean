@@ -41,7 +41,7 @@ def payloadEquiv (width : Nat) :
     (prodEquiv (m := width + width) (n := 1))
 
 /-- The flag's mathematical zero/one label matches its actual binary physical encoding. -/
-theorem divisionPayload_encode (width : Nat)
+lemma divisionPayload_encode (width : Nat)
     (value : (Fin (2 ^ width) × Fin (2 ^ width)) × Bool) :
     payloadEquiv width value =
       (BinaryLabelEncoding.prod
@@ -57,7 +57,7 @@ def inputBasisEquiv (width : Nat) :
     (Equiv.prodCongr (Equiv.refl _) (payloadEquiv width).symm)
 
 /-- Repacking all decoded payload fields recovers the original supplied binary word exactly. -/
-theorem divisionPayload_input (width : Nat) (old : (before width).register.Index) :
+lemma divisionPayload_input (width : Nat) (old : (before width).register.Index) :
     payloadEquiv width (inputBasisEquiv width old).2 =
       (PayloadPreparation.inputBasisEquiv width (payloadWidth width) old).2 :=
   (payloadEquiv width).apply_symm_apply _
@@ -67,7 +67,7 @@ def nativeEncoding (width : Nat) : BinaryLabelEncoding (Frame width × Bool) :=
   BinaryLabelEncoding.prod (frameEncoding width) BinaryLabelEncoding.bool
 
 /-- The two associations enumerate precisely the same full native wire set. -/
-theorem divisionPayload_width (width : Nat) :
+lemma divisionPayload_width (width : Nat) :
     (nativeEncoding width).width =
       (PayloadPreparation.frameEncoding width (payloadWidth width)).width := by
   change ((Inversion.SharedEEA.encoding width).width + (width + width)) + 1 =
@@ -81,7 +81,7 @@ def nativeLabelEquiv (width : Nat) :
   finCongr (congrArg (fun count => 2 ^ count) (divisionPayload_width width))
 
 /-- The complete frame and payload have identical binary values before and after reassociation. -/
-theorem divisionPayload_native_encode (width : Nat) (frame : Inversion.SharedEEA.Registers width)
+lemma divisionPayload_native_encode (width : Nat) (frame : Inversion.SharedEEA.Registers width)
     (numerator target : Fin (2 ^ width)) (flag : Bool) :
     nativeLabelEquiv width ((nativeEncoding width).encode ((frame, numerator, target), flag)) =
       (PayloadPreparation.frameEncoding width (payloadWidth width)).encode
@@ -102,7 +102,7 @@ theorem divisionPayload_native_encode (width : Nat) (frame : Inversion.SharedEEA
     ring
 
 /-- One fixed preparation yields the exact complete initial EEA frame and all untouched data. -/
-theorem divisionPayload_prepared_initial (modulus : Nat)
+lemma divisionPayload_prepared_initial (modulus : Nat)
     (old : (before modulus.size).register.Index) :
     PayloadAssembly.basisEquiv modulus.size (payloadWidth modulus.size)
         (PayloadPreparation.assembly modulus.size (payloadWidth modulus.size)

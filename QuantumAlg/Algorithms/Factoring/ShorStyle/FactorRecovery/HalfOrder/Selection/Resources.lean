@@ -52,20 +52,20 @@ def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : 
 def depthBound (N : Nat) : Nat :=
   NativeHalfGCD.depthBound false N + 3 + (NativeHalfGCD.depthBound true N + 5)
 
-private theorem pack_pool (cells : Cells ctx N)
+private lemma pack_pool (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (pack (model := model) cells output).Path) :
     (pack (model := model) cells output).resourcePool path = packBudget model N :=
   congrArg ResourcePool.ofList (pack_eventTrace cells output path)
 
-private theorem pack_budget_le : packBudget model N ≤ rightEnvelope model N :=
+private lemma pack_budget_le : packBudget model N ≤ rightEnvelope model N :=
   (le_add_of_nonneg_left
     (zero_le : (0 : ResourcePool model) ≤ FactorRange.eventBudget (model := model) (modulusBits N
         + 1))).trans
       (le_add_of_nonneg_left
         (zero_le : (0 : ResourcePool model) ≤ NativeHalfGCD.eventEnvelope model true N))
 
-private theorem right_pool_le
+private lemma right_pool_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (right (model := model) halfPower cells output).Path) :
@@ -80,7 +80,7 @@ private theorem right_pool_le
     (add_le_add (FactorRange.code_pool (checkRefs cells) path.2.1).le
       (pack_pool cells output path.2.2).le)
 
-private theorem choose_pool_le
+private lemma choose_pool_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (choose (model := model) halfPower cells output).Path) :
@@ -93,7 +93,7 @@ private theorem choose_pool_le
       · exact (pack_pool cells output path).le.trans pack_budget_le
 
 /-- The selected actual factor-recovery path fits the independent native coordinate ledger. -/
-theorem code_pool_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_pool_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower cells output).Path) :
     (code (model := model) halfPower cells output).resourcePool path ≤ eventEnvelope model N := by
@@ -107,7 +107,7 @@ theorem code_pool_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (add_le_add (FactorRange.code_pool (checkRefs cells) path.2.1).le
       (choose_pool_le halfPower cells output path.2.2))
 
-private theorem right_unitDepth_le
+private lemma right_unitDepth_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (right (model := model) halfPower cells output).Path) :
@@ -120,7 +120,7 @@ private theorem right_unitDepth_le
       (fun _ => 1) path.2.1 + 2) ≤ _
   omega
 
-private theorem choose_unitDepth_le
+private lemma choose_unitDepth_le
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (choose (model := model) halfPower cells output).Path) :
@@ -135,7 +135,7 @@ private theorem choose_unitDepth_le
         omega
 
 /-- The depth bound includes every selected serial arithmetic and packaging dependency. -/
-theorem code_unitDepth_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_unitDepth_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower cells output).Path) :
     (code (model := model) halfPower cells output).depth (fun _ => 1) path ≤ depthBound N := by
@@ -150,7 +150,7 @@ theorem code_unitDepth_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits
   omega
 
 /-- The independent depth formula is linear in the actual widened GCD width. -/
-theorem depthBound_eq (N : Nat) : depthBound N = 24 * (modulusBits N + 1) + 35 := by
+lemma depthBound_eq (N : Nat) : depthBound N = 24 * (modulusBits N + 1) + 35 := by
   unfold depthBound NativeHalfGCD.depthBound
   simp only [Bool.false_eq_true, if_false, if_true]
   omega

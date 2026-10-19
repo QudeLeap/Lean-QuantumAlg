@@ -30,7 +30,7 @@ private def persistentKey (original : FirstAccepted.Refs ctx resultWidth)
   ([original.take.key, original.available.key, original.selected.key,
     original.accepted.key] : List StorageKey).get index
 
-private theorem persistentKey_ne (original : FirstAccepted.Refs ctx resultWidth)
+private lemma persistentKey_ne (original : FirstAccepted.Refs ctx resultWidth)
     (unique : ([original.take.key, original.available.key, original.selected.key,
       original.accepted.key] : List StorageKey).Nodup)
     (left right : Fin 4) (different : left ≠ right) :
@@ -39,7 +39,7 @@ private theorem persistentKey_ne (original : FirstAccepted.Refs ctx resultWidth)
   exact different (unique.injective_get same)
 
 /-- Actual local allocation separates its eligibility bit from every original writable cell. -/
-theorem nativeQuadratic_persistent_eligibility_free
+lemma nativeQuadratic_persistent_eligibility_free
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     {shape : CShape} (output : CWriteRef ctx shape) :
     (underWrite output width).key ∉
@@ -54,7 +54,7 @@ theorem nativeQuadratic_persistent_eligibility_free
   exact localFree (support.symm ▸ (List.mem_singleton.mpr same.symm))
 
 /-- Intrinsic persistent identities suffice for the final actual narrowing selector. -/
-theorem nativeQuadratic_persistent_narrow_separated
+lemma nativeQuadratic_persistent_narrow_separated
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (unique : ([original.take.key, original.available.key, original.selected.key,
@@ -69,7 +69,7 @@ theorem nativeQuadratic_persistent_narrow_separated
   acceptedSelected := persistentKey_ne original unique 3 2 (by decide)
 
 /-- The real outer persistent selector automatically supplies every required position fact. -/
-theorem nativeQuadratic_persistent_allocated_separated
+lemma nativeQuadratic_persistent_allocated_separated
     (modulus : CInputRef (SelectionLayout.context ctx resultWidth)
       (.unsignedWord (RSA.quadraticWordWidth width))) :
     NarrowSelection.Separated (FirstAccepted.cellRead (pairRefs modulus).selection.accepted)

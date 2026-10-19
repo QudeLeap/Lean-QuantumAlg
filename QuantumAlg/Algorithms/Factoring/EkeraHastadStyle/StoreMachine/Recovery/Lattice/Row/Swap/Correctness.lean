@@ -25,14 +25,14 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem cell_ne (left right : LatticeState.PointRefs ctx width)
+private lemma cell_ne (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (separation : PointSwapSeparation left right scratch) (a b : PointSwapCell)
     (different : a ≠ b) :
     pointSwapCellKey left right scratch a ≠ pointSwapCellKey left right scratch b :=
   fun equal => different (separation.keyInjective equal)
 
-private theorem named_frame (left right : LatticeState.PointRefs ctx width)
+private lemma named_frame (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (separation : PointSwapSeparation left right scratch) (store : Store ctx)
     (a b source : PointSwapCell) (avoidA : a ≠ source) (avoidB : b ≠ source)
@@ -52,7 +52,7 @@ private theorem named_frame (left right : LatticeState.PointRefs ctx width)
       cell_ne left right scratch separation .scratch source avoidScratch
 
 /-- Every actual final row word is exactly the corresponding original word from the opposite row. -/
-theorem pointSwap_reads (left right : LatticeState.PointRefs ctx width)
+lemma pointSwap_reads (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (separation : PointSwapSeparation left right scratch) (store : Store ctx) :
     (pointSwapStore left right scratch store).read (writeInput left.first) =
@@ -119,7 +119,7 @@ theorem pointSwap_reads (left right : LatticeState.PointRefs ctx width)
       .leftThird (by decide) (by decide) (by decide)]
 
 /-- The actual word exchange preserves the original raw integer representation of both points. -/
-theorem pointSwap_correct (left right : LatticeState.PointRefs ctx width)
+lemma pointSwap_correct (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (separation : PointSwapSeparation left right scratch) (store : Store ctx)
     (leftValue rightValue : NumberTheory.IntegerPoint3)
@@ -138,7 +138,7 @@ theorem pointSwap_correct (left right : LatticeState.PointRefs ctx width)
   · rw [reads.2.2.2.2.2]; exact leftRep.2.2
 
 /-- The actual final scratch contains the original left row's third coordinate. -/
-theorem pointSwap_scratch (left right : LatticeState.PointRefs ctx width)
+lemma pointSwap_scratch (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width))
     (separation : PointSwapSeparation left right scratch) (store : Store ctx) :
     (pointSwapStore left right scratch store).read (writeInput scratch) =

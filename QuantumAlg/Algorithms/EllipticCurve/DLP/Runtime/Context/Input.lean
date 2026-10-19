@@ -30,7 +30,7 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 def baseKey : StorageKey :=
   RuntimeCtx.canonicalFreshKey (RuntimeCtx.empty : RuntimeCtx .quantum)
 
-theorem baseFresh :
+lemma baseFresh :
     baseKey ∉ (RuntimeCtx.empty : RuntimeCtx .quantum).keys :=
   RuntimeCtx.canonicalFreshKey_fresh _
 
@@ -42,7 +42,7 @@ abbrev baseInputCtx (E : PrimeFieldShortWeierstrass p) : RuntimeCtx .quantum :=
 def targetKey (E : PrimeFieldShortWeierstrass p) : StorageKey :=
   RuntimeCtx.canonicalFreshKey (baseInputCtx E)
 
-theorem targetFresh (E : PrimeFieldShortWeierstrass p) :
+lemma targetFresh (E : PrimeFieldShortWeierstrass p) :
     targetKey E ∉ (baseInputCtx E).keys :=
   RuntimeCtx.canonicalFreshKey_fresh _
 
@@ -68,11 +68,11 @@ def targetRef (I : ECDLPInstance E) : CInputRef (pre I) (PointShape E) :=
     (CStorageRef.borrowedInputHead (baseInputCtx E) (targetKey E)
       (PointShape E) (targetFresh E))
 
-@[simp] theorem inputStore_base (I : ECDLPInstance E) :
+@[simp] lemma inputStore_base (I : ECDLPInstance E) :
     (inputStore I).read (baseRef I) = baseValue I := by
   rfl
 
-@[simp] theorem inputStore_target (I : ECDLPInstance E) :
+@[simp] lemma inputStore_target (I : ECDLPInstance E) :
     (inputStore I).read (targetRef I) = targetValue I := by
   rfl
 

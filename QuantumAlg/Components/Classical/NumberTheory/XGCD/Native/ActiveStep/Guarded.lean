@@ -46,21 +46,23 @@ private def activeChoiceRecord {model : ExecutionModel} [BitWord.Selected model]
   | .bit false => (store, ())
   | .bit true => record store
 
-private theorem activeChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma activeChoice_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (scopedActive
       (model := model) cells zero).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (scopedActive (model := model) cells zero).execute Reference state = state.mapClassical
+      (scopedActive (model := model) cells zero).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (value : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then scopedActive (model := model) cells zero else Circuit.id ctx).execute
-      Reference state =
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := activeChoiceRecord (model := model) cells zero record value (entry.1,
           entry.2.1)
@@ -69,7 +71,8 @@ private theorem activeChoice_execute {model : ExecutionModel} [BitWord.Selected 
   | bit bit =>
       cases bit
       · simp only [CShape.Value.toBool, activeChoiceRecord]
-        refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+        refine (Circuit.execute_id_mapClassical
+          (environment := environment) Reference state).trans ?_
         exact ExecutionState.executionState_mapClassical_congr _ rfl
       · simp only [CShape.Value.toBool, activeChoiceRecord]
         exact equation Reference state
@@ -87,30 +90,34 @@ def guardedActiveRecord {model : ExecutionModel} [BitWord.Selected model]
   (selected.1, ⟨value, selected.2⟩)
 
 /-- The actual branch has the same complete store and path record as its selected execution. -/
-theorem xgcdNativeGuardedActive_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeGuardedActive_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (scopedActive
       (model := model) cells zero).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (scopedActive (model := model) cells zero).execute Reference state = state.mapClassical
+      (scopedActive (model := model) cells zero).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (guardedActive (model := model) cells zero).execute Reference state = state.mapClassical (fun
+    (guardedActive (model := model) cells zero).execute
+      environment Reference state = state.mapClassical (fun
       entry =>
       let result := guardedActiveRecord (model := model) cells zero record (entry.1, entry.2.1)
       (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  exact Circuit.execute_branch_mapClassical (GCD.cellRead (activeCell cells)) _
+  exact Circuit.execute_branch_mapClassical
+    (environment := environment) (GCD.cellRead (activeCell cells)) _
     (activeChoiceRecord (model := model) cells zero record) (activeChoice_execute cells zero
       record equation)
     Reference state
 
 /-- The returned store follows the real bit; the inactive arm retains the entire input store. -/
-theorem xgcdNativeGuardedActive_record_store {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeGuardedActive_record_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (scopedActive
@@ -124,7 +131,8 @@ theorem xgcdNativeGuardedActive_record_store {model : ExecutionModel} [BitWord.S
   | bit bit => cases bit <;> rfl
 
 /-- The actual selected record preserves readiness and realizes the original stopping rule. -/
-theorem xgcdNativeGuardedActive_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeGuardedActive_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
@@ -133,7 +141,7 @@ theorem xgcdNativeGuardedActive_actualRecord {model : ExecutionModel} [BitWord.S
       (model := model) cells zero).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (guardedActive (model := model) cells zero).execute Reference state =
+        (guardedActive (model := model) cells zero).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧

@@ -59,43 +59,42 @@ public def sourcePositions {phaseWidth : Nat} (systemWidth : Nat) (stage : Fin p
 
 /-- The declared controlled query is placed at its original stage and source positions. -/
 @[expose]
-public def queryApplication {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth) :
-    OracleModel.Application (UnitarySource.model unitary true)
+public def queryApplication {phaseWidth : Nat} (systemWidth : Nat) (stage : Fin phaseWidth) :
+    OracleModel.Application (UnitarySource.model systemWidth true)
       (QuantumSignature.qubits (phaseWidth + systemWidth)).canonicalPlacement.layout :=
-  OracleModel.Application.ofPositions (UnitarySource.model unitary true) (.controlled rfl)
+  OracleModel.Application.ofPositions (UnitarySource.model systemWidth true) (.controlled rfl)
     (QuantumSignature.qubits (phaseWidth + systemWidth)).canonicalPlacement.layout
     (sourcePositions systemWidth stage) (fun _ => rfl)
 
 /-- One actual explicitly granted controlled query at its stage control and source wires. -/
-public def sourceQuery (gates : GateModel) {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth) :
-    UnitaryCircuit gates (UnitarySource.model unitary true)
+public def sourceQuery (gates : GateModel) {phaseWidth : Nat} (systemWidth : Nat) (stage : Fin
+  phaseWidth) :
+    UnitaryCircuit gates (UnitarySource.model systemWidth true)
       (QuantumSignature.qubits (phaseWidth + systemWidth)).canonicalPlacement.layout :=
-  .query (queryApplication unitary stage)
+  .query (queryApplication systemWidth stage)
 
 /-- Actual repeated source access realizes the binary stage multiplicity. -/
-public def powerStage (gates : GateModel) {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth) :
-    UnitaryCircuit gates (UnitarySource.model unitary true)
+public def powerStage (gates : GateModel) {phaseWidth : Nat} (systemWidth : Nat) (stage : Fin
+  phaseWidth) :
+    UnitaryCircuit gates (UnitarySource.model systemWidth true)
       (QuantumSignature.qubits (phaseWidth + systemWidth)).canonicalPlacement.layout :=
-  UnitaryCircuit.iterate (2 ^ stage.val) (sourceQuery gates unitary stage)
+  UnitaryCircuit.iterate (2 ^ stage.val) (sourceQuery gates systemWidth stage)
 
 /-- The placed source query emits the granted controlled coordinate exactly once. -/
-public theorem qpeNative_sourceQuery_eventCost (gates : GateModel)
-    {phaseWidth systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth))
+public lemma qpeNative_sourceQuery_eventCost (gates : GateModel)
+    {phaseWidth : Nat} (systemWidth : Nat)
     (stage : Fin phaseWidth) :
-    (sourceQuery gates unitary stage).eventCost =
-      ResourcePool.singleton (model := .quantum gates (UnitarySource.model unitary true))
+    (sourceQuery gates systemWidth stage).eventCost =
+      ResourcePool.singleton (model := .quantum gates (UnitarySource.model systemWidth true))
         (.oracle UnitarySource.Coordinate.controlled) := by
   rfl
 
 /-- Stage multiplicities are counted from actual repetitions of the granted source query. -/
-public theorem qpeNative_powerStage_eventCost (gates : GateModel)
-    {phaseWidth systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth))
+public lemma qpeNative_powerStage_eventCost (gates : GateModel)
+    {phaseWidth : Nat} (systemWidth : Nat)
     (stage : Fin phaseWidth) :
-    (powerStage gates unitary stage).eventCost = (2 ^ stage.val) •
-      ResourcePool.singleton (model := .quantum gates (UnitarySource.model unitary true))
+    (powerStage gates systemWidth stage).eventCost = (2 ^ stage.val) •
+      ResourcePool.singleton (model := .quantum gates (UnitarySource.model systemWidth true))
         (.oracle UnitarySource.Coordinate.controlled) := by
   rw [powerStage, UnitaryCircuit.iterate_eventCost, qpeNative_sourceQuery_eventCost]
 

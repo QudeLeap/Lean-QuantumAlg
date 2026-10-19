@@ -32,7 +32,7 @@ private def equalWiresPlacement : QuantumLayout.Embedding left right where
   position := (positionsOfEqualWires left right sameWires).toEmbedding
   wire_eq := wireAtCorrespondingPosition left right sameWires
 
-private theorem equalWiresPlacement_basis (value : right.Basis) :
+private lemma equalWiresPlacement_basis (value : right.Basis) :
     ((equalWiresPlacement left right sameWires).splitBasis value).1 =
       (basisOfEqualWires left right sameWires).symm value := by
   funext index
@@ -50,34 +50,38 @@ public def unitaryOfEqualWires (program : UnitaryCircuit gates oracles left) :
   UnitaryCircuit.embed (equalWiresPlacement left right sameWires) program
 
 /-- The exact source operator is transported by corresponding physical-wire values only. -/
-public theorem unitaryOfEqualWires_matrix (program : UnitaryCircuit gates oracles left) :
-    (unitaryOfEqualWires left right sameWires program).matrix =
-      UnitaryOperator.reindex (basisOfEqualWires left right sameWires) program.matrix := by
+public lemma unitaryOfEqualWires_matrix (environment : oracles.Interpretation)
+    (program : UnitaryCircuit gates oracles left) :
+    (unitaryOfEqualWires left right sameWires program).matrix environment =
+      UnitaryOperator.reindex (basisOfEqualWires left right sameWires)
+        (program.matrix environment) := by
   apply Subtype.ext
   ext row column
-  change (equalWiresPlacement left right sameWires).liftOperator program.matrix row column = _
+  change (equalWiresPlacement left right sameWires).liftOperator
+    (program.matrix environment) row column = _
   refine (QuantumLayout.Embedding.liftOperator_entry_of_surjective
     (equalWiresPlacement left right sameWires)
-    (positionsOfEqualWires left right sameWires).surjective program.matrix row column).trans ?_
+    (positionsOfEqualWires left right sameWires).surjective
+    (program.matrix environment) row column).trans ?_
   rw [equalWiresPlacement_basis, equalWiresPlacement_basis]
   rfl
 
 /-- No native event or declared query is introduced or removed by equal-wire placement. -/
-public theorem unitaryOfEqualWires_trace (program : UnitaryCircuit gates oracles left)
+public lemma unitaryOfEqualWires_trace (program : UnitaryCircuit gates oracles left)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (unitaryOfEqualWires left right sameWires program).eventTrace operations services =
       program.eventTrace operations services := by
   rfl
 
 /-- Every native coordinate retains its multiplicity under equal-wire placement. -/
-public theorem unitaryOfEqualWires_cost (program : UnitaryCircuit gates oracles left)
+public lemma unitaryOfEqualWires_cost (program : UnitaryCircuit gates oracles left)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (unitaryOfEqualWires left right sameWires program).eventCost operations services =
       program.eventCost operations services := by
   rfl
 
 /-- The complete dependency expression is unchanged, including macro boundaries. -/
-public theorem unitaryOfEqualWires_depth (program : UnitaryCircuit gates oracles left)
+public lemma unitaryOfEqualWires_depth (program : UnitaryCircuit gates oracles left)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (unitaryOfEqualWires left right sameWires program).eventDepth operations services =
       program.eventDepth operations services := by

@@ -25,7 +25,7 @@ open EncodedBit.GateSpec
 open Nat.BinaryArithmetic
 
 /-- Lifting a literal operand gate list preserves an arbitrary output bit. -/
-theorem ttkWithOverflowGateList_step {n : Nat}
+lemma ttkWithOverflowGateList_step {n : Nat}
     (gates : List (EncodedBit.GateSpec (encoding n))) (s : OverflowRegisters n) :
     stepList (gates.map withOverflowGate) s = (stepList gates s.1, s.2) := by
   induction gates generalizing s with
@@ -35,7 +35,7 @@ theorem ttkWithOverflowGateList_step {n : Nat}
       rw [ttkWithOverflowGate_step, ih]
 
 /-- The top stage-two CNOT changes only the explicit output bit. -/
-theorem ttkOverflowPreGate_step (n : Nat) (s : OverflowRegisters (n + 1)) :
+lemma ttkOverflowPreGate_step (n : Nat) (s : OverflowRegisters (n + 1)) :
     (overflowPreGate n).step s =
       (s.1, s.2 ^^ s.1.1.val.testBit n) := by
   change (if (leftBit (n + 1) ⟨n, Nat.lt_succ_self n⟩).get s.1 then
@@ -44,7 +44,7 @@ theorem ttkOverflowPreGate_step (n : Nat) (s : OverflowRegisters (n + 1)) :
   cases s.1.1.val.testBit n <;> simp
 
 /-- The top stage-three Toffoli changes only the explicit output bit. -/
-theorem ttkOverflowCarryGate_step (n : Nat) (s : OverflowRegisters (n + 1)) :
+lemma ttkOverflowCarryGate_step (n : Nat) (s : OverflowRegisters (n + 1)) :
     (overflowCarryGate n).step s =
       (s.1, s.2 ^^ (s.1.2.val.testBit n && s.1.1.val.testBit n)) := by
   change (if (rightBit (n + 1) ⟨n, Nat.lt_succ_self n⟩).get s.1 &&
@@ -55,7 +55,7 @@ theorem ttkOverflowCarryGate_step (n : Nat) (s : OverflowRegisters (n + 1)) :
 
 /-- At the source's stage-three boundary, the output becomes `z xor carry`.
 The operand state is preserved and the original output bit is unrestricted. -/
-theorem ttkOverflowCarryGate_addition (n : Nat)
+lemma ttkOverflowCarryGate_addition (n : Nat)
     (original s : Registers (n + 1)) (z : Bool)
     (hleft : s.1.val.testBit n =
       (original.1.val.testBit n ^^ natAddCarry original.1.val original.2.val n))

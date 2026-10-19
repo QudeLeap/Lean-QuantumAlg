@@ -42,7 +42,7 @@ public def circuit (oracles : OracleModel) :
         (hadamardLayer_layout_disjoint width)).castLayout (hadamardLayer_layout_append width)
 
 /-- The native ledger contains exactly one single-qubit instruction per actual system. -/
-public theorem hadamardLayer_circuit_eventCost (oracles : OracleModel) (width : Nat) :
+public lemma hadamardLayer_circuit_eventCost (oracles : OracleModel) (width : Nat) :
     (circuit oracles width).eventCost = width •
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
@@ -54,7 +54,7 @@ public theorem hadamardLayer_circuit_eventCost (oracles : OracleModel) (width : 
         add_nsmul, one_nsmul]
 
 /-- Empty layers have no dependency; all nonempty disjoint layers have depth one. -/
-public theorem hadamardLayer_circuit_unit_depth (oracles : OracleModel) (width : Nat) :
+public lemma hadamardLayer_circuit_unit_depth (oracles : OracleModel) (width : Nat) :
     (circuit oracles width).evaluatedEventDepth (fun _ => 1) =
       if width = 0 then 0 else 1 := by
   induction width with

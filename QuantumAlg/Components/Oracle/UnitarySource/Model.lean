@@ -15,9 +15,10 @@ import all QuantumAlg.Components.Control
 /-!
 # Explicit source-unitary access capabilities
 
-The declaration fixes the supplied unitary and independently grants controlled,
-inverse, and controlled-inverse access. Each nonordinary query carries its own
-grant; neither ordinary access nor a combination of other grants supplies it.
+The declaration fixes the source width and independently grants controlled,
+inverse, and controlled-inverse access. The execution environment supplies the
+unitary interpretation. Each nonordinary query carries its own grant; neither
+ordinary access nor a combination of other grants supplies it.
 The controlled query is the operation used in the Hadamard test
 [AJL06, qf2.tex:635-642] and QPE [Lin22, phaseestimation.tex:514-523].
 -/
@@ -42,9 +43,9 @@ public inductive Query (allowControlled : Bool) (allowInverse : Bool := false)
   | inverse (granted : allowInverse = true)
   | controlledInverse (granted : allowControlledInverse = true)
 
-/-- Fixed source semantics and independent access grants, separate from the native gate basis. -/
+/-- Fixed source dimensions and independent grants, without a source operator in the syntax. -/
 @[expose, implicit_reducible]
-public def model {width : Nat} (unitary : UnitaryOperator (Qubits width))
+public def model (width : Nat)
     (allowControlled : Bool := false) (allowInverse : Bool := false)
     (allowControlledInverse : Bool := false) : OracleModel where
   Query := Query allowControlled allowInverse allowControlledInverse
@@ -53,6 +54,18 @@ public def model {width : Nat} (unitary : UnitaryOperator (Qubits width))
   signature query := match query with
     | .ordinary | .inverse _ => QuantumSignature.qubits width
     | .controlled _ | .controlledInverse _ => QuantumSignature.qubits (1 + width)
+  coordinate query := match query with
+    | .ordinary => .ordinary
+    | .controlled _ => .controlled
+    | .inverse _ => .inverse
+    | .controlledInverse _ => .controlledInverse
+
+/-- Interpret the granted source forms consistently with one mathematical unitary. -/
+@[expose]
+public def interpretation {width : Nat} (unitary : UnitaryOperator (Qubits width))
+    (allowControlled : Bool := false) (allowInverse : Bool := false)
+    (allowControlledInverse : Bool := false) :
+    (model width allowControlled allowInverse allowControlledInverse).Interpretation where
   operator query := match query with
     | .ordinary =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm unitary
@@ -64,14 +77,9 @@ public def model {width : Nat} (unitary : UnitaryOperator (Qubits width))
     | .controlledInverse _ =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
           (UnitaryOperator.controlledQubits unitary⁻¹)
-  coordinate query := match query with
-    | .ordinary => .ordinary
-    | .controlled _ => .controlled
-    | .inverse _ => .inverse
-    | .controlledInverse _ => .controlledInverse
 
 /-- A declaration with all optional grants disabled contains only ordinary access. -/
-public theorem unitarySource_disabled_query_ordinary (query : Query false) :
+public lemma unitarySource_disabled_query_ordinary (query : Query false) :
     query = .ordinary := by
   cases query with
   | ordinary => rfl
@@ -80,15 +88,15 @@ public theorem unitarySource_disabled_query_ordinary (query : Query false) :
   | controlledInverse granted => cases granted
 
 /-- Ordinary inverse access returns exactly the adjoint of the declared source. -/
-public theorem unitarySource_inverse_operator {width : Nat}
+public lemma unitarySource_inverse_operator {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) (controlled controlledInverse : Bool) :
-    (model unitary controlled true controlledInverse).operator (.inverse rfl) =
+    (interpretation unitary controlled true controlledInverse).operator (.inverse rfl) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm unitary⁻¹ := rfl
 
 /-- Control and inverse grants together still do not grant controlled-inverse access. -/
-public theorem unitarySource_control_inverse_no_controlledInverse
-    {width : Nat} (unitary : UnitaryOperator (Qubits width)) (query : Query true true false) :
-    (model unitary true true false).coordinate query ≠ Coordinate.controlledInverse := by
+public lemma unitarySource_control_inverse_no_controlledInverse
+    (width : Nat) (query : Query true true false) :
+    (model width true true false).coordinate query ≠ Coordinate.controlledInverse := by
   cases query with
   | ordinary => change Coordinate.ordinary ≠ Coordinate.controlledInverse; decide
   | controlled _ => change Coordinate.controlled ≠ Coordinate.controlledInverse; decide
@@ -96,10 +104,9 @@ public theorem unitarySource_control_inverse_no_controlledInverse
   | controlledInverse granted => cases granted
 
 /-- Enabling control still keeps its accounting coordinate distinct from the ordinary query. -/
-public theorem unitarySource_query_coordinates_distinct {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    (model unitary true).coordinate .ordinary ≠
-      (model unitary true).coordinate (.controlled rfl) := by
+public lemma unitarySource_query_coordinates_distinct (width : Nat) :
+    (model width true).coordinate .ordinary ≠
+      (model width true).coordinate (.controlled rfl) := by
   change Coordinate.ordinary ≠ Coordinate.controlled
   decide
 

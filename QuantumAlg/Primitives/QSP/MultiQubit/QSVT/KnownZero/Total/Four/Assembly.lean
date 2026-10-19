@@ -22,8 +22,8 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total.Four
 open SharedFour
 noncomputable section
 
-/-- Four independently specified source words are realized by one actual shared native execution. -/
-theorem exists_totalComplexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
+/-- Deterministic list packing fixes the shared phase data before any source unitary. -/
+lemma exists_totalComplexWord_for_lists
     (realShort realLong imaginaryShort imaginaryLong : List ℝ)
     (realLength : realLong.length = realShort.length + 1)
     (imaginaryShortLength : imaginaryShort.length = realShort.length)
@@ -31,8 +31,10 @@ theorem exists_totalComplexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubi
     (realConstant imaginaryConstant : ℝ) :
     ∃ phases : List ((ℝ × ℝ) × (ℝ × ℝ)), ∃ realAngle imaginaryAngle : ℝ,
       phases.length = realShort.length ∧
-      (complexWord U phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).binaryMatrix =
+      ∀ (m n : Nat) (U : UnitaryOperator (Qubits (m + n))),
+      ((complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).binaryMatrix
+          (UnitarySource.interpretation U true true false)) =
         threeAverage
           (initializedBranch U realShort realConstant)
           (initializedBranch U realLong 1)
@@ -40,8 +42,9 @@ theorem exists_totalComplexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubi
             (initializedBranch U imaginaryShort imaginaryConstant))
           (phaseScaledOperator Complex.I complex_normSq_I
             (initializedBranch U imaginaryLong 1)) ∧
-      (complexWord U phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).eventCost = complexBudget U realShort.length := by
+      (complexWord (m := m) (n := n) phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).eventCost
+          = complexBudget (m := m) (n := n) realShort.length := by
   cases realLong with
   | nil => simp at realLength
   | cons realHead realTail =>
@@ -55,7 +58,9 @@ theorem exists_totalComplexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubi
           obtain ⟨a, b, c, d, count⟩ := pack_lists realShort realTail
             imaginaryShort imaginaryTail realTailLength imaginaryShortLength imaginaryTailLength
           refine ⟨(realShort.zip realTail).zip (imaginaryShort.zip imaginaryTail),
-            realHead, imaginaryHead, count, ?_, ?_⟩
+            realHead, imaginaryHead, count, ?_⟩
+          intro m n U
+          constructor
           · rw [totalComplexWord_average_operator, a, b, c, d]
           · rw [totalComplexWord_events, count]
 

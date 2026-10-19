@@ -29,7 +29,7 @@ def registerParameters (N : Nat) : ShortDLP.RegisterParameters :=
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
 
 /-- The compiled terminal registers contain exactly the source-prescribed measured bits. -/
-theorem measurementBits_compiledRegisters (N : Nat) :
+lemma measurementBits_compiledRegisters (N : Nat) :
     measurementBits N =
       ShortDLP.firstBits (registerParameters N) + (registerParameters N).ell := by
   rfl

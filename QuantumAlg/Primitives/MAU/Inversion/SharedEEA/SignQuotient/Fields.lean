@@ -31,7 +31,7 @@ noncomputable section
 open RemainderPhaseFrame
 open NumberTheory.SharedEEA
 
-private theorem exchange_fields (width : Nat) (selected : Fin (width + 3))
+private lemma exchange_fields (width : Nat) (selected : Fin (width + 3))
     (state : Registers width) :
     (SelectionSwap.exchange width selected state).coefficientLength = state.coefficientLength ∧
       (SelectionSwap.exchange width selected state).quotientLength = state.quotientLength ∧
@@ -60,7 +60,7 @@ private theorem exchange_fields (width : Nat) (selected : Fin (width + 3))
         (SelectionKey.source_second width state))
 
 /-- The actual phase-two source block increments the live finite quotient length by one. -/
-theorem source_quotientLength (width : Nat) (state : Registers width)
+lemma source_quotientLength (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
     (SignQuotient.sourceStep width state).quotientLength = state.quotientLength + 1 := by
@@ -80,7 +80,7 @@ theorem source_quotientLength (width : Nat) (state : Registers width)
     Bool.false_eq_true, if_false, retained.2.1]
 
 /-- The actual selector and length program retain the coefficient length and both source phases. -/
-theorem source_retained (width : Nat) (state : Registers width)
+lemma source_retained (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
     (SignQuotient.sourceStep width state).coefficientLength = state.coefficientLength ∧
@@ -93,7 +93,7 @@ theorem source_retained (width : Nat) (state : Registers width)
   exact ⟨retained.1, retained.2.2.1.trans first, retained.2.2.2.trans second⟩
 
 /-- Internal Ctrl-zero specializes the same native quotient update, including all finite widths. -/
-theorem native_quotientLength (width : Nat) (state : Registers width)
+lemma native_quotientLength (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
@@ -102,7 +102,7 @@ theorem native_quotientLength (width : Nat) (state : Registers width)
   exact source_quotientLength width state first second within
 
 /-- The actual quotient counter reaches the next written length without a reachable wrap. -/
-theorem division_quotientLength_toNat (state : IterationState) (modulus count : Nat)
+lemma division_quotientLength_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -130,7 +130,7 @@ theorem division_quotientLength_toNat (state : IterationState) (modulus count : 
   rw [Nat.mod_eq_of_lt oneBound, Nat.mod_eq_of_lt countBound]
 
 /-- Every real division update leaves a nonzero written quotient length for phase control. -/
-theorem division_quotientLength_ne_zero (state : IterationState) (modulus count : Nat)
+lemma division_quotientLength_ne_zero (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

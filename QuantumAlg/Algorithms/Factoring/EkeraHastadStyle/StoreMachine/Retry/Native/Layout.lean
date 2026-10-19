@@ -37,7 +37,7 @@ def reuseWrite (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
       (NativeBatchReuse.context start N).canonicalFreshKey_fresh
 
 /-- Lifting through a complete later batch keeps exactly the existing storage identity. -/
-theorem reuseWrite_key (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+lemma reuseWrite_key (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) : (reuseWrite N ref).key = ref.key :=
   by
     unfold reuseWrite
@@ -46,7 +46,7 @@ theorem reuseWrite_key (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatchReuse.sampledWrite start N ref) 16
 
-private theorem resultWrite_role (m ell width : Nat) {shape : CShape}
+private lemma resultWrite_role (m ell width : Nat) {shape : CShape}
     {ctx : RuntimeCtx .quantum} (ref : CWriteRef ctx shape) (count : Nat) :
     (RuntimeResults.liftWrite m ell width ref count).toCStorageRef.role =
       ref.toCStorageRef.role := by
@@ -57,7 +57,7 @@ private theorem resultWrite_role (m ell width : Nat) {shape : CShape}
         (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh)
 
 /-- The writable cell keeps its original ownership role through the actual retained layout. -/
-theorem reuseWrite_role (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+lemma reuseWrite_role (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) :
     (reuseWrite N ref).toCStorageRef.role = ref.toCStorageRef.role :=
   by
@@ -85,7 +85,7 @@ def suffixInput (N : Nat) {shape : CShape} : {start : RuntimeCtx .quantum} →
       suffixInput N (NativeBatchReuseRecovery.callerInput start N ref) count
 
 /-- No suffix changes a preexisting writable storage identity. -/
-theorem suffixWrite_key (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+lemma suffixWrite_key (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) (count : Nat) :
     (suffixWrite N ref count).key = ref.key := by
   induction count generalizing start with
@@ -93,7 +93,7 @@ theorem suffixWrite_key (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
   | succ count induction => exact (induction (reuseWrite N ref)).trans (reuseWrite_key N ref)
 
 /-- Every later batch preserves the original writable cell's ownership role. -/
-theorem suffixWrite_role (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
+lemma suffixWrite_role (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef start shape) (count : Nat) :
     (suffixWrite N ref count).toCStorageRef.role = ref.toCStorageRef.role := by
   induction count generalizing start with
@@ -101,7 +101,7 @@ theorem suffixWrite_role (N : Nat) {start : RuntimeCtx .quantum} {shape : CShape
   | succ count induction => exact (induction (reuseWrite N ref)).trans (reuseWrite_role N ref)
 
 /-- Every suffix retains precisely the starting bank's ordered physical wire identities. -/
-theorem suffixWires (N : Nat) (start : RuntimeCtx .quantum) (count : Nat) :
+lemma suffixWires (N : Nat) (start : RuntimeCtx .quantum) (count : Nat) :
     (suffixContext N start count).quantumWires = start.quantumWires := by
   induction count generalizing start with
   | zero => rfl
@@ -137,7 +137,7 @@ def cells (count : Nat) (index : Fin (measurementBits N)) :
   suffixWrite N (firstCells base noQuantum N index) count
 
 /-- Every final measured-cell reference has its original first-allocation identity. -/
-theorem cells_key (count : Nat) (index : Fin (measurementBits N)) :
+lemma cells_key (count : Nat) (index : Fin (measurementBits N)) :
     (cells base noQuantum N count index).key = (NativeBatch.cells base noQuantum N index).key :=
   by
     refine (suffixWrite_key N (firstCells base noQuantum N index) count).trans ?_
@@ -148,7 +148,7 @@ theorem cells_key (count : Nat) (index : Fin (measurementBits N)) :
       (NativeBatch.cells base noQuantum N index) 16
 
 /-- Every original measured-cell ownership role survives all later retained allocations. -/
-theorem cells_role (count : Nat) (index : Fin (measurementBits N)) :
+lemma cells_role (count : Nat) (index : Fin (measurementBits N)) :
     (cells base noQuantum N count index).toCStorageRef.role =
       (NativeBatch.cells base noQuantum N index).toCStorageRef.role :=
   by
@@ -159,7 +159,7 @@ theorem cells_role (count : Nat) (index : Fin (measurementBits N)) :
       (NativeBatch.cells base noQuantum N index) 16
 
 /-- Distinct measured positions continue to refer to distinct original physical cells. -/
-theorem cells_distinct (count : Nat) :
+lemma cells_distinct (count : Nat) :
     Function.Injective (fun index => (cells base noQuantum N count index).key) := by
   intro left right equal
   apply NativeBatch.nativeBatch_cells_distinct base noQuantum N
@@ -167,14 +167,14 @@ theorem cells_distinct (count : Nat) :
     (equal.trans (cells_key base noQuantum N count right))
 
 /-- The first completed batch has exactly the one originally allocated bank. -/
-theorem firstWires :
+lemma firstWires :
     (NativeBatchRecovery.context base noQuantum N).quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires :=
   (NativeBatchRecovery.context_quantumWires base noQuantum N).trans
     (NativeBatch.nativeBatch_context_wires base noQuantum N)
 
 /-- Every completed chain preserves that same ordered bank, with no subsequent bank allocation. -/
-theorem sameWires (count : Nat) :
+lemma sameWires (count : Nat) :
     (context base noQuantum N count).quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires :=
   (suffixWires N (NativeBatchRecovery.context base noQuantum N) count).trans

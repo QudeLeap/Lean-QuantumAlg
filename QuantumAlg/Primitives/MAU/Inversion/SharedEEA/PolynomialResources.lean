@@ -28,25 +28,25 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.PolynomialResources
 
 noncomputable section
 
-private theorem size_le (width : Nat) : width.size ≤ width :=
+private lemma size_le (width : Nat) : width.size ≤ width :=
   Nat.size_le.mpr Nat.lt_two_pow_self
 
-private theorem power_size_le (width : Nat) : 2 ^ width.size ≤ 2 * (width + 1) := by
+private lemma power_size_le (width : Nat) : 2 ^ width.size ≤ 2 * (width + 1) := by
   by_cases zero : width = 0
   · subst width
     decide
   · exact (SelectionResources.power_size_le width (by omega)).trans (by omega)
 
-private theorem gateCount_le (tail : Nat) : NativePredicate.gateCount tail ≤ 6 * tail + 5 := by
+private lemma gateCount_le (tail : Nat) : NativePredicate.gateCount tail ≤ 6 * tail + 5 := by
   unfold NativePredicate.gateCount
   split_ifs <;> omega
 
-private theorem increment_le (width : Nat) :
+private lemma increment_le (width : Nat) :
     ShiftResources.incrementCount width ≤ 28 * width := by
   unfold ShiftResources.incrementCount
   omega
 
-private theorem condition_le (width : Nat) :
+private lemma condition_le (width : Nat) :
     NativeControl.conditionCount width ≤ 18 * width + 10 := by
   have first := gateCount_le (width.size - 2)
   have second := gateCount_le (2 * width.size - 2)
@@ -58,7 +58,7 @@ private theorem condition_le (width : Nat) :
 def instruction (width : Nat) : Nat :=
   8 * (2 * (width + 1)) ^ 4 * (20 * (4 * width + 3) + 28 * (width + 3) + 10)
 
-private theorem instruction_le (width : Nat) (operation : ArithmeticInstruction.Instruction) :
+private lemma instruction_le (width : Nat) (operation : ArithmeticInstruction.Instruction) :
     MicrostepResources.instructionBound width operation ≤ instruction width := by
   have length := size_le width
   have source : ArithmeticSelectionLayout.sourceCount width
@@ -83,13 +83,18 @@ private theorem instruction_le (width : Nat) (operation : ArithmeticInstruction.
         rw [Nat.mul_comm 4 width.size, pow_add, pow_mul]
         ring
       _ ≤ _ := Nat.mul_le_mul_left 8 (Nat.pow_le_pow_left (power_size_le width) 4)
-  exact Nat.mul_le_mul candidates selector
+  have phaseCandidates :
+      2 ^ ((4 * width.size + 2 +
+        if ArithmeticInstruction.includeSign operation then 1 else 0) - 1) ≤
+          8 * (2 * (width + 1)) ^ 4 :=
+    (Nat.pow_le_pow_right (by decide) (Nat.sub_le _ 1)).trans candidates
+  exact Nat.mul_le_mul phaseCandidates selector
 
 /-- The real dynamic Sign exchange has a quadratic number of candidates and linear gate lists. -/
 def signQuotient (width : Nat) : Nat :=
   2 * (2 * (width + 1)) ^ 2 * (32 * width + 21) + 28 * width + 2 * width + 4
 
-private theorem signQuotient_le (width : Nat) :
+private lemma signQuotient_le (width : Nat) :
     MicrostepResources.signQuotientBound width ≤ signQuotient width := by
   have length := size_le width
   have power := power_size_le width
@@ -109,7 +114,7 @@ def refresh (width : Nat) : Nat :=
   4 * (2 * (width + 1) * ((width + 3) *
     (width * (10 * (width + (width + 3) + 1) + 1))))
 
-private theorem refresh_le (width : Nat) :
+private lemma refresh_le (width : Nat) :
     ControlledLengthResources.refreshBound width ≤ refresh width := by
   have length := size_le width
   have predicate : ControlledLengthResources.predicateBound width ≤
@@ -123,7 +128,7 @@ private theorem refresh_le (width : Nat) :
 def boundary (width : Nat) : Nat :=
   2 * (72 * width + 27) + 3 * (width + 3) + refresh width + 1
 
-private theorem boundary_le (width : Nat) :
+private lemma boundary_le (width : Nat) :
     TerminalBoundaryResources.boundaryBound width ≤ boundary width := by
   have length := size_le width
   have conjunction := gateCount_le (2 * width.size - 2)
@@ -141,7 +146,7 @@ def microstep (width : Nat) : Nat :=
     (2 * ((18 * width + 10) + (10 * (width + 2 + width) + 1)) + 2) + boundary width
 
 /-- The original finite enumeration envelope is bounded without a positive-width premise. -/
-theorem microstep_le (width : Nat) : MicrostepResources.bound width ≤ microstep width := by
+lemma microstep_le (width : Nat) : MicrostepResources.bound width ≤ microstep width := by
   have length := size_le width
   have increment := increment_le (2 + width.size)
   have shift : ShiftResources.guardedBound width ≤ 93 * (width + 2) + 10 := by
@@ -164,7 +169,7 @@ theorem microstep_le (width : Nat) : MicrostepResources.bound width ≤ microste
 /-- A direct polynomial replaces the logarithmic offset envelope at every word width. -/
 def offset (width : Nat) : Nat := width * (39 * width + 1)
 
-private theorem offset_le (width : Nat) :
+private lemma offset_le (width : Nat) :
     Addition.Gidney.constantOffsetEventBound width ≤ offset width := by
   have logarithm : Nat.clog 2 width ≤ width :=
     Nat.clog_le_of_le_pow (Nat.le_of_lt Nat.lt_two_pow_self)
@@ -177,7 +182,7 @@ def initialization (width : Nat) : Nat :=
     (4 * (offset (width + 3) + (width + 3)) + 2) +
       width * (width * (12 * width + 2))
 
-private theorem initialization_le (width : Nat) :
+private lemma initialization_le (width : Nat) :
     InitializationResources.bound width ≤ initialization width := by
   have high := offset_le (1 + (width + 3))
   have low := offset_le (width + 3)
@@ -187,7 +192,7 @@ private theorem initialization_le (width : Nat) :
     Addition.Gidney.comparisonEventBound Addition.Gidney.biFlipEventBound initialization
   omega
 
-private theorem decoder_le (width : Nat) :
+private lemma decoder_le (width : Nat) :
     ClockDecodeResources.count width ≤ 3 * (width + 2) * (8 * (width + 1)) := by
   have power : 2 ^ (width.size + 2) ≤ 8 * (width + 1) := by
     calc
@@ -203,7 +208,7 @@ def corrected (width : Nat) : Nat :=
       4 * (offset (width + 3) + (width + 3)) + 2 + 2
 
 /-- The complete corrected forward envelope has this fixed-degree polynomial upper bound. -/
-theorem corrected_le (width : Nat) : ForwardResources.correctedBound width ≤ corrected width := by
+lemma corrected_le (width : Nat) : ForwardResources.correctedBound width ≤ corrected width := by
   have initial := initialization_le width
   have repeated := Nat.mul_le_mul (show 4 * (2 * width - 1) ≤ 8 * width by omega)
     (microstep_le width)
@@ -220,7 +225,7 @@ def inPlace (width : Nat) : Nat :=
 def xor (width : Nat) : Nat := 2 * corrected width + width
 
 /-- Actual in-place native event count is polynomial on the unchanged original prime domain. -/
-theorem inPlace_count (modulus : Nat) (prime : Nat.Prime modulus) :
+lemma inPlace_count (modulus : Nat) (prime : Nat.Prime modulus) :
     (InPlaceForward.program modulus prime.one_lt).eventCost.card ≤ inPlace modulus.size := by
   have actual := ForwardResources.inPlace_count modulus prime.one_lt
   have corrected := corrected_le modulus.size
@@ -229,7 +234,7 @@ theorem inPlace_count (modulus : Nat) (prime : Nat.Prime modulus) :
   omega
 
 /-- Actual standalone native event count is polynomial, including complete reversible cleanup. -/
-theorem xor_count (modulus : Nat) (prime : Nat.Prime modulus) :
+lemma xor_count (modulus : Nat) (prime : Nat.Prime modulus) :
     (NativeInverse.program modulus prime.one_lt).eventCost.card ≤ xor modulus.size :=
   (ForwardResources.xor_count modulus prime.one_lt).trans
     (Nat.add_le_add_right (Nat.mul_le_mul_left 2 (corrected_le modulus.size)) modulus.size)

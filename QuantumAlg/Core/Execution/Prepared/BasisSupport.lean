@@ -29,7 +29,7 @@ noncomputable section
 variable {ctx : RuntimeCtx .quantum} {count : Nat} {Reference : Register}
 
 /-- Exact independent tensor entries use the same actual fresh/old/reference wire equivalence. -/
-theorem preparedDensity_joined_entry (key : StorageKey) (layout : QuantumLayout count)
+lemma preparedDensity_joined_entry (key : StorageKey) (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (prepared : NormalizedVector layout.register)
     (state : DensityOperator (Register.prod ctx.register Reference))
@@ -44,7 +44,7 @@ theorem preparedDensity_joined_entry (key : StorageKey) (layout : QuantumLayout 
   rfl
 
 /-- Tracing only the reference retains the same actual fresh amplitudes and old local entries. -/
-theorem preparedDensity_local_joined_entry (key : StorageKey) (layout : QuantumLayout count)
+lemma preparedDensity_local_joined_entry (key : StorageKey) (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (prepared : NormalizedVector layout.register)
     (state : DensityOperator (Register.prod ctx.register Reference))
@@ -70,7 +70,7 @@ theorem preparedDensity_local_joined_entry (key : StorageKey) (layout : QuantumL
           (DensityOperator.marginalLeft_matrix state oldRow oldColumn).symm
 
 /-- Local old support and the fixed fresh basis determine the actual prepared local support. -/
-theorem preparedDensity_basis_support (key : StorageKey) (layout : QuantumLayout count)
+lemma preparedDensity_basis_support (key : StorageKey) (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (seed : layout.register.Index) (state : DensityOperator (Register.prod ctx.register Reference))
     (admissible : ctx.register.Index → Prop)
@@ -95,7 +95,7 @@ theorem preparedDensity_basis_support (key : StorageKey) (layout : QuantumLayout
 
 /-- A local unitary that loads one fixed fresh ket transports the entire old
 quantum-reference density, including its off-diagonal entries. -/
-theorem preparedDensity_load_ket (key : StorageKey) (layout : QuantumLayout count)
+lemma preparedDensity_load_ket (key : StorageKey) (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (source target : layout.register.Index)
     (operator : UnitaryOperator (ctx.addOwnedLayout key layout fresh disjoint).register)

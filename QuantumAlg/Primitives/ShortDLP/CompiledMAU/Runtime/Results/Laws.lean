@@ -31,7 +31,7 @@ open Execution
 variable (m ell width : Nat)
 
 /-- Moving an old writable reference under later results preserves its storage identity. -/
-theorem shortDLP_runtimeResults_liftWrite_key {ctx : RuntimeCtx .quantum} {shape : CShape}
+lemma shortDLP_runtimeResults_liftWrite_key {ctx : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef ctx shape) (count : Nat) :
     (liftWrite m ell width ref count).key = ref.key := by
   induction count generalizing ctx with
@@ -41,7 +41,7 @@ theorem shortDLP_runtimeResults_liftWrite_key {ctx : RuntimeCtx .quantum} {shape
         (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh)
 
 /-- Existing structural inputs traverse exactly the same keys after all result allocations. -/
-theorem shortDLP_runtimeResults_liftInput_keys {ctx : RuntimeCtx .quantum} {shape : CShape}
+lemma shortDLP_runtimeResults_liftInput_keys {ctx : RuntimeCtx .quantum} {shape : CShape}
     (input : CInputRef ctx shape) (count : Nat) :
     (liftInput m ell width input count).storageKeys = input.storageKeys := by
   induction count generalizing ctx with
@@ -53,7 +53,7 @@ theorem shortDLP_runtimeResults_liftInput_keys {ctx : RuntimeCtx .quantum} {shap
           (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh)
 
 /-- Each newly recorded result is separate from every entry present before repetition. -/
-theorem shortDLP_runtimeResults_reference_fresh (ctx : RuntimeCtx .quantum) (count : Nat)
+lemma shortDLP_runtimeResults_reference_fresh (ctx : RuntimeCtx .quantum) (count : Nat)
     (index : Fin count) :
     (reference m ell width ctx count index).key ∉ ctx.keys := by
   induction count generalizing ctx with
@@ -67,7 +67,7 @@ theorem shortDLP_runtimeResults_reference_fresh (ctx : RuntimeCtx .quantum) (cou
         exact List.mem_cons_of_mem _ present
 
 /-- Chronological result references denote pairwise distinct live storage cells. -/
-theorem shortDLP_runtimeResults_reference_injective (ctx : RuntimeCtx .quantum) (count : Nat) :
+lemma shortDLP_runtimeResults_reference_injective (ctx : RuntimeCtx .quantum) (count : Nat) :
     Function.Injective (fun index => (reference m ell width ctx count index).key) := by
   induction count generalizing ctx with
   | zero => intro index; exact Fin.elim0 index
@@ -102,7 +102,7 @@ theorem shortDLP_runtimeResults_reference_injective (ctx : RuntimeCtx .quantum) 
           exact congrArg Fin.succ (induction (next m ell width ctx) same)
 
 /-- An old structural operand cannot alias any of the newly retained results. -/
-theorem shortDLP_runtimeResults_reference_separate {ctx : RuntimeCtx .quantum}
+lemma shortDLP_runtimeResults_reference_separate {ctx : RuntimeCtx .quantum}
     {shape : CShape} (input : CInputRef ctx shape) (count : Nat) (index : Fin count) :
     (reference m ell width ctx count index).key ∉
       (liftInput m ell width input count).storageKeys := by
@@ -111,7 +111,7 @@ theorem shortDLP_runtimeResults_reference_separate {ctx : RuntimeCtx .quantum}
     (CInputRef.storageKeys_subset_context input present)
 
 /-- Every pre-existing writable cell is disjoint from the complete recorded result vector. -/
-theorem shortDLP_runtimeResults_oldWrite_separate {ctx : RuntimeCtx .quantum}
+lemma shortDLP_runtimeResults_oldWrite_separate {ctx : RuntimeCtx .quantum}
     {shape : CShape} (ref : CWriteRef ctx shape) (count : Nat) :
     (liftWrite m ell width ref count).key ∉ (input m ell width ctx count).storageKeys := by
   intro present
@@ -126,7 +126,7 @@ theorem shortDLP_runtimeResults_oldWrite_separate {ctx : RuntimeCtx .quantum}
     ((same.symm.trans original).symm ▸ live)
 
 /-- The actual vector read consists of the first retained result and the recursive tail. -/
-theorem shortDLP_runtimeResults_read_succ (ctx : RuntimeCtx .quantum) (count : Nat)
+lemma shortDLP_runtimeResults_read_succ (ctx : RuntimeCtx .quantum) (count : Nat)
     (store : Store (context m ell width ctx (count + 1))) :
     store.read (input m ell width ctx (count + 1)) =
       .fixedVector (Fin.cons

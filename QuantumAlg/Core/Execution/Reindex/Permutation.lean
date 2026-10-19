@@ -25,7 +25,7 @@ noncomputable section
 variable {R : Register}
 
 /-- Unitary conjugation by the forward basis permutation transports both density indices. -/
-theorem applyUnitary_ofPerm (state : DensityOperator R) (permutation : Equiv.Perm R.Index) :
+lemma applyUnitary_ofPerm (state : DensityOperator R) (permutation : Equiv.Perm R.Index) :
     applyUnitary (UnitaryOperator.ofPerm permutation.symm) state =
       state.reindex permutation := by
   classical
@@ -38,7 +38,7 @@ theorem applyUnitary_ofPerm (state : DensityOperator R) (permutation : Equiv.Per
   rfl
 
 /-- Exact permutation action on all kets fixes the action on the complete mixed density. -/
-theorem applyUnitary_eq_reindex_of_kets (state : DensityOperator R)
+lemma applyUnitary_eq_reindex_of_kets (state : DensityOperator R)
     (operator : UnitaryOperator R) (permutation : Equiv.Perm R.Index)
     (action : ∀ input, operator.applyVec (NormalizedVector.ket input).vec =
       (NormalizedVector.ket (permutation input)).vec) :
@@ -55,7 +55,7 @@ theorem applyUnitary_eq_reindex_of_kets (state : DensityOperator R)
   rw [same, applyUnitary_ofPerm]
 
 /-- A basis-permuting unitary carries the full density support through the same permutation. -/
-theorem applyUnitary_support_of_kets (state : DensityOperator R)
+lemma applyUnitary_support_of_kets (state : DensityOperator R)
     (operator : UnitaryOperator R) (permutation : Equiv.Perm R.Index)
     (action : ∀ input, operator.applyVec (NormalizedVector.ket input).vec =
       (NormalizedVector.ket (permutation input)).vec)

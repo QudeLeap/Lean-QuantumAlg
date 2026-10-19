@@ -13,6 +13,7 @@ import all QuantumAlg.Primitives.AmplitudeAmplification.Construction
 import Mathlib.Algebra.Order.Floor.Semiring
 import Mathlib.Data.Nat.Log
 import Mathlib.Analysis.Real.Pi.Bounds
+public import QuantumAlg.Util.Real.LogCeiling
 
 /-!
 # Source domain and precision selection for amplitude estimation
@@ -58,23 +59,23 @@ public structure GeneralAmplitudeEstimationInput (n : Nat) where
 
 namespace GeneralAmplitudeEstimationInput
 
-theorem interiorPromise {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
+lemma interiorPromise {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
     InteriorProbabilityPromise E.source :=
   ⟨E.interiorLowerBound, E.interiorLowerBound_pos, E.interior_probability⟩
 
-theorem sin_theta_nonneg {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
+lemma sin_theta_nonneg {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
     0 <= Real.sin E.source.θ :=
   Real.sin_nonneg_of_nonneg_of_le_pi E.theta_nonneg
     (E.theta_le_pi_div_two.trans (by linarith [Real.pi_pos]))
 
-theorem cos_theta_nonneg {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
+lemma cos_theta_nonneg {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
     0 <= Real.cos E.source.θ :=
   Real.cos_nonneg_of_neg_pi_div_two_le_of_le
     (by linarith [E.theta_nonneg, Real.pi_pos]) E.theta_le_pi_div_two
 
 /-- The intrinsic trigonometric preparation is exactly the source's
 `sqrt p |psi_1> + sqrt (1-p) |psi_0>` decomposition. -/
-theorem prepared_eq_sqrt_decomposition {n : Nat}
+lemma prepared_eq_sqrt_decomposition {n : Nat}
     (E : GeneralAmplitudeEstimationInput n) :
     E.source.preparation.applyVec
         (E.source.zeroKet : HilbertVector (Qubits n)) =
@@ -139,12 +140,23 @@ def phaseScaleTarget (eps η : Real) : Nat :=
 public def selectedPhaseQubits (eps η : Real) : Nat :=
   Nat.clog 2 (Nat.ceil (η⁻¹ / precisionRadius eps))
 
-theorem precisionRadius_pos {eps : Real} (heps : 0 < eps) :
+/-- The execution uses exactly the register width specified by the real logarithm. -/
+public lemma selectedPhaseQubits_eq_logCeiling {eps η : Real}
+    (heps : 0 < eps) (heta : 0 < η) :
+    selectedPhaseQubits eps η = ⌈Real.logb 2 (Real.pi / (eps * η))⌉₊ := by
+  have scale : η⁻¹ / precisionRadius eps = Real.pi / (eps * η) := by
+    unfold precisionRadius
+    field_simp [heps.ne', heta.ne']
+  rw [selectedPhaseQubits, scale]
+  exact RealLog.clog_ceil_eq_natCeil_logb (by decide)
+    (div_pos Real.pi_pos (mul_pos heps heta))
+
+lemma precisionRadius_pos {eps : Real} (heps : 0 < eps) :
     0 < precisionRadius eps := by
   exact div_pos heps Real.pi_pos
 
 /-- The selected width satisfies the high-confidence QPE scale condition. -/
-theorem selectedPhaseQubits_scale {eps η : Real}
+lemma selectedPhaseQubits_scale {eps η : Real}
     (heps : 0 < eps) (heta : 0 < η) :
     η⁻¹ <=
       (2 : Real) ^ selectedPhaseQubits eps η * precisionRadius eps := by
@@ -169,7 +181,7 @@ theorem selectedPhaseQubits_scale {eps η : Real}
 
 /-- Valid precision and confidence parameters always select a nonempty phase
 register for every admitted execution. -/
-theorem selectedPhaseQubits_pos {eps η : Real}
+lemma selectedPhaseQubits_pos {eps η : Real}
     (heps : 0 < eps) (heps_le : eps ≤ 1)
     (heta : 0 < η) (heta_le : η ≤ 1) :
     0 < selectedPhaseQubits eps η := by

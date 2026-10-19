@@ -43,6 +43,24 @@ public abbrev model (P : KnownOrderProblem G) : ExecutionModel :=
   .quantum AlgorithmGate.model (OrderOracle.model P) BitWord.model
     (ClassicalFiniteGroupOracle.model G)
 
+/-- The source interprets both granted interfaces independently of the stored program. -/
+@[expose] public def sourceEnvironment (P : KnownOrderProblem G) : (model P).Environment where
+  quantum := OrderOracle.interpretation P
+  classical := ClassicalFiniteGroupOracle.interpretation G
+
+/-- Matching the source interpretations fixes the environment, independently of hidden state. -/
+public lemma sourceEnvironment_eq (P : KnownOrderProblem G)
+    (environment : (model P).Environment)
+    (quantum : environment.quantum = OrderOracle.interpretation P)
+    (classical : environment.classical = ClassicalFiniteGroupOracle.interpretation G) :
+    environment = sourceEnvironment P := by
+  rcases environment with ⟨quantumEnvironment, classicalEnvironment⟩
+  change quantumEnvironment = _ at quantum
+  change classicalEnvironment = _ at classical
+  subst quantumEnvironment
+  subst classicalEnvironment
+  rfl
+
 /-- One raw sample contains both ordered exponent-register bit strings. -/
 @[expose, implicit_reducible] public def sampleWidth (P : KnownOrderProblem G) : Nat :=
   OrderPreparation.width P + OrderPreparation.width P
@@ -55,17 +73,17 @@ public def canonicalExpansion (P : KnownOrderProblem G) : OrderExpansion P.order
 @[expose, reducible] public def pre : RuntimeCtx .quantum := RuntimeCtx.empty
 
 /-- The canonical bank key is fresh in the empty input context. -/
-public theorem bankFresh : (pre : RuntimeCtx .quantum).canonicalFreshKey ∉ pre.keys := by
+public lemma bankFresh : (pre : RuntimeCtx .quantum).canonicalFreshKey ∉ pre.keys := by
   exact RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh pre
 
 /-- The fresh bank shares no physical system with the empty input context. -/
-public theorem bankDisjoint (P : KnownOrderProblem G) :
+public lemma bankDisjoint (P : KnownOrderProblem G) :
     List.Disjoint (OrderOracle.layout P).identities pre.physicalIdx := by
   rw [pre, RuntimeCtx.runtimeCtx_empty_physicalIdx]
   exact List.disjoint_nil_right _
 
 /-- The empty input contributes no resident storage to the owned bank. -/
-public theorem pre_residentSpace : (pre : RuntimeCtx .quantum).residentSpace = 0 := by
+public lemma pre_residentSpace : (pre : RuntimeCtx .quantum).residentSpace = 0 := by
   rfl
 
 /-- The complete native-dimensional bank allocated and initialized by this cycle. -/
@@ -88,18 +106,18 @@ public def sampleInput (P : KnownOrderProblem G) :
   MeasurementCells.input (bankContext P) 2 (sampleWidth P)
 
 /-- Adding the bank to the empty context preserves its exact ordered wire list. -/
-theorem bankContext_wires (P : KnownOrderProblem G) :
+lemma bankContext_wires (P : KnownOrderProblem G) :
     (bankContext P).quantumWires = (OrderOracle.layout P).wires := by
   change (OrderOracle.layout P).wires ++ ([] : List QuantumWire) = _
   rw [List.append_nil]
 
 /-- Retaining finite cells adds no quantum system and changes no physical dimension. -/
-theorem post_wires (P : KnownOrderProblem G) :
+lemma post_wires (P : KnownOrderProblem G) :
     (post P).quantumWires = (OrderOracle.layout P).wires := by
   rw [post, MeasurementCells.context_quantumWires, bankContext_wires]
 
 /-- The source layout and terminal runtime have the same ordered physical wires. -/
-public theorem sourceWires (P : KnownOrderProblem G) :
+public lemma sourceWires (P : KnownOrderProblem G) :
     (OrderOracle.layout P).wires = (post P).quantumLayout.wires :=
   (RuntimeCtx.quantumLayout_wires (post P)).trans (post_wires P) |>.symm
 
@@ -118,7 +136,7 @@ public def basisEquiv (P : KnownOrderProblem G) :
     (sourceWires P)).symm
 
 /-- The inverse correspondence is the transport used by the native circuit. -/
-public theorem basisEquiv_symm (P : KnownOrderProblem G) :
+public lemma basisEquiv_symm (P : KnownOrderProblem G) :
     (basisEquiv P).symm =
       Execution.basisOfEqualWires (OrderOracle.layout P) (post P).quantumLayout
         (sourceWires P) := by
@@ -126,7 +144,7 @@ public theorem basisEquiv_symm (P : KnownOrderProblem G) :
 
 /-- The basis correspondence changes only dependent types, never the value at
 an actual physical position. -/
-public theorem basisEquiv_wire_value (P : KnownOrderProblem G)
+public lemma basisEquiv_wire_value (P : KnownOrderProblem G)
     (basis : (post P).register.Index)
     (index : Fin (OrderPreparation.width P + OrderPreparation.width P + 1)) :
     (basis (wireEquiv P index)).val = (basisEquiv P basis index).val := by
@@ -141,7 +159,7 @@ public theorem basisEquiv_wire_value (P : KnownOrderProblem G)
 
 /-- The runtime wirewise zero label is the source circuit's wirewise zero
 label under the exact physical correspondence. -/
-@[simp] public theorem basisEquiv_zero (P : KnownOrderProblem G) :
+@[simp] public lemma basisEquiv_zero (P : KnownOrderProblem G) :
     basisEquiv P (post P).quantumLayout.zeroLabel =
       (OrderOracle.layout P).zeroLabel := by
   funext index
@@ -150,7 +168,7 @@ label under the exact physical correspondence. -/
     (basisEquiv_wire_value P (post P).quantumLayout.zeroLabel index).symm
 
 /-- Every measured source position is one of the two actual exponent qubits. -/
-public theorem exponent_dimension (P : KnownOrderProblem G) (index : Fin (sampleWidth P)) :
+public lemma exponent_dimension (P : KnownOrderProblem G) (index : Fin (sampleWidth P)) :
     ((post P).quantumLayout.wire
       (wireEquiv P ⟨index.val, by
         have bound := index.isLt
@@ -186,7 +204,7 @@ public theorem exponent_dimension (P : KnownOrderProblem G) (index : Fin (sample
     unfold sampleWidth at bound
     omega⟩) (exponent_dimension P index) (cell P index)
 
-@[simp] public theorem readout_output_key (P : KnownOrderProblem G)
+@[simp] public lemma readout_output_key (P : KnownOrderProblem G)
     (index : Fin (sampleWidth P)) :
     (readout P index).output.key = (cell P index).key :=
   Execution.QubitReadouts.readout_key _ (exponent_dimension P index) (cell P index)
@@ -213,7 +231,7 @@ public def nativeProgram (P : KnownOrderProblem G) (expansion : OrderExpansion P
     (sourceWires P) (OrderCircuit.circuit P expansion)
 
 /-- Equal-wire transport preserves the native dependency expression verbatim. -/
-public theorem nativeProgram_eventDepth
+public lemma nativeProgram_eventDepth
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
     (nativeProgram P expansion).eventDepth BitWord.model
         (ClassicalFiniteGroupOracle.model G) =
@@ -259,21 +277,21 @@ public def canonicalRun (P : KnownOrderProblem G) :
     AlgorithmRun (model P) pre (post P) (.fixedVector (sampleWidth P) (.finite 2)) :=
   run P (canonicalExpansion P)
 
-private theorem run_result_internal (P : KnownOrderProblem G)
+private lemma run_result_internal (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (record : (run P expansion).Record) :
     (run P expansion).result record = record.1.read (sampleInput P) := rfl
 
-public theorem run_result (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
+public lemma run_result (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
     (record : (run P expansion).Record) :
     (run P expansion).result record = record.1.read (sampleInput P) :=
   run_result_internal P expansion record
 
-private theorem run_output_listing_internal (P : KnownOrderProblem G)
+private lemma run_output_listing_internal (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     (run P expansion).output.listing = (post P).keys := rfl
 
-public theorem run_output_listing (P : KnownOrderProblem G)
+public lemma run_output_listing (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     (run P expansion).output.listing = (post P).keys :=
   run_output_listing_internal P expansion

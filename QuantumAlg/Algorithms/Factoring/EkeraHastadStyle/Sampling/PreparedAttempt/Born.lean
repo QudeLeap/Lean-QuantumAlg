@@ -42,7 +42,7 @@ def compiledUnitEncoding {N : Nat} (input : Input N) :
       input.modulus_gt_one (modulus_lt_arithmeticCapacity N)).encode_injective
 
 /-- The canonical wrapper has exactly the raw compiled two-word encoding. -/
-theorem compiledUnitEncoding_eq_raw {N : Nat} (input : Input N) :
+lemma compiledUnitEncoding_eq_raw {N : Nat} (input : Input N) :
     compiledUnitEncoding input =
       ShortDLP.CompiledMAU.unitEncoding (arithmeticBits N) N
         input.modulus_gt_one (modulus_lt_arithmeticCapacity N) := by
@@ -57,7 +57,7 @@ theorem compiledUnitEncoding_eq_raw {N : Nat} (input : Input N) :
   rfl
 
 /-- Attaching one fixed prepared residue preserves terminal-outcome equality. -/
-theorem preparedSampleOfMeasurement_injective {N : Nat}
+lemma preparedSampleOfMeasurement_injective {N : Nat}
     (sample : Fin (2 ^ residueSamplingBits N)) :
     Function.Injective (preparedSampleOfMeasurement sample) := by
   intro left right h
@@ -93,7 +93,7 @@ def sampleGoodFirstEmbedding (N secret : Nat)
     (registerParameters N) secret).trans (samplePairEmbedding N sample)
 
 /-- The selected compiled-member Born law at one pair is the original workspace marginal. -/
-theorem selectedOutcomePMF_pair_apply {N : Nat} (input : Input N)
+lemma selectedOutcomePMF_pair_apply {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (pair : Fin (2 ^ ShortDLP.firstBits (registerParameters N)) ×
       Fin (2 ^ (registerParameters N).ell)) :
@@ -116,7 +116,7 @@ theorem selectedOutcomePMF_pair_apply {N : Nat} (input : Input N)
 
 /-- The fixed-sample prepared-output PMF has the same point mass at the
 embedded pair as the actual selected member's terminal PMF. -/
-theorem fixedPreparedSamplePMF_samplePairEmbedding_apply {N : Nat}
+lemma fixedPreparedSamplePMF_samplePairEmbedding_apply {N : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (pair : Fin (2 ^ ShortDLP.firstBits (registerParameters N)) ×
       Fin (2 ^ (registerParameters N).ell)) :
@@ -149,7 +149,7 @@ noncomputable def exactNarrowGoodSampleCore (N secret : Nat)
       (sampleGoodFirstEmbedding N secret sample)
 
 /-- The selected narrow-good core retains the exact source cardinality. -/
-theorem exactNarrowGoodSampleCore_card (N secret : Nat)
+lemma exactNarrowGoodSampleCore_card (N secret : Nat)
     (sample : Fin (2 ^ residueSamplingBits N))
     (hm : 2 ≤ (registerParameters N).m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ (registerParameters N).m) :
@@ -166,7 +166,7 @@ def exactNarrowGoodAtomFloor (N : Nat) : ENNReal :=
 
 /-- Every atom in the selected core receives the source-derived Fourier floor
 from the PMF of that same selected member. -/
-theorem fixedPreparedSamplePMF_exactNarrowGoodSampleCore_apply_ge {N : Nat}
+lemma fixedPreparedSamplePMF_exactNarrowGoodSampleCore_apply_ge {N : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (secret : Nat) (hm : 2 ≤ (registerParameters N).m)
     (hsecretPos : 0 < secret)
@@ -219,7 +219,7 @@ noncomputable def fixedPreparedSampleMinorization {N : Nat}
         input sample secret hm hsecretPos hsecretLt htarget horder houtcome)
 
 /-- Forgetting the proof-side mark recovers the exact selected-member PMF. -/
-theorem fixedPreparedSampleMinorization_map_fst {N : Nat}
+lemma fixedPreparedSampleMinorization_map_fst {N : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (secret : Nat) (hm : 2 ≤ (registerParameters N).m)
     (hsecretPos : 0 < secret)
@@ -241,7 +241,7 @@ theorem fixedPreparedSampleMinorization_map_fst {N : Nat}
 
 /-- The literal source floor marks exactly one eighth of the fixed-sample
 actual PMF. -/
-theorem fixedPreparedSampleMinorization_markedMass {N : Nat}
+lemma fixedPreparedSampleMinorization_markedMass {N : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (secret : Nat) (hm : 2 ≤ (registerParameters N).m)
     (hsecretPos : 0 < secret)
@@ -287,7 +287,7 @@ def fixedPreparedFirstRegisterIndex (N : Nat) (outcome : PreparedBatchSample N) 
 
 /-- Decoding an embedded source pair recovers that pair through the same
 terminal-bit representation used by the fixed batch. -/
-@[simp] theorem fixedPreparedDecodedSample_samplePairEmbedding
+@[simp] lemma fixedPreparedDecodedSample_samplePairEmbedding
     (N : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (pair : Fin (2 ^ ShortDLP.firstBits (registerParameters N)) ×
       Fin (2 ^ (registerParameters N).ell)) :
@@ -300,7 +300,7 @@ terminal-bit representation used by the fixed batch. -/
 
 /-- The selected exact-good embedding preserves its source first-register
 index after the canonical fixed-batch decoder. -/
-@[simp] theorem fixedPreparedFirstRegisterIndex_sampleGoodFirstEmbedding
+@[simp] lemma fixedPreparedFirstRegisterIndex_sampleGoodFirstEmbedding
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (j : Fin (2 ^ ShortDLP.firstBits (registerParameters N))) :
     fixedPreparedFirstRegisterIndex N
@@ -324,7 +324,7 @@ def FixedPreparedNarrowGoodSample (N secret : Nat)
 
 /-- Every atom of the fixed selected core is an actual narrow-good terminal
 sample tagged with its own selected prepared residue. -/
-theorem exactNarrowGoodSampleCore_mem_fixedPreparedNarrowGoodSample
+lemma exactNarrowGoodSampleCore_mem_fixedPreparedNarrowGoodSample
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (hm : 2 ≤ (registerParameters N).m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ (registerParameters N).m)
@@ -392,7 +392,7 @@ noncomputable def exactNarrowGoodSampleObstructionPairs
 
 /-- The fixed selected obstruction carrier injects into the global pure-RSA
 first-index obstruction carrier. -/
-theorem exactNarrowGoodSampleObstructionPairs_card_le
+lemma exactNarrowGoodSampleObstructionPairs_card_le
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (hm : 2 ≤ (registerParameters N).m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ (registerParameters N).m) :
@@ -409,7 +409,7 @@ theorem exactNarrowGoodSampleObstructionPairs_card_le
 
 /-- Every pair in the fixed selected obstruction carrier has both coordinates
 inside the same selected exact-good core. -/
-theorem exactNarrowGoodSampleObstructionPairs_mem_core
+lemma exactNarrowGoodSampleObstructionPairs_mem_core
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (hm : 2 ≤ (registerParameters N).m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ (registerParameters N).m)
@@ -433,7 +433,7 @@ theorem exactNarrowGoodSampleObstructionPairs_mem_core
 
 /-- Two selected core atoms enter the finite obstruction carrier whenever
 their decoded first indices form a tiny-multiplier obstruction. -/
-theorem exactNarrowGoodSampleObstructionPairs_mem_of_core_of_obstruction
+lemma exactNarrowGoodSampleObstructionPairs_mem_of_core_of_obstruction
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (hm : 2 ≤ (registerParameters N).m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ (registerParameters N).m)
@@ -465,7 +465,7 @@ theorem exactNarrowGoodSampleObstructionPairs_mem_of_core_of_obstruction
 
 /-- The marked branch restricted to the actual fixed selected core has the
 same literal one-eighth mass as the full mark event. -/
-theorem fixedPreparedSampleMinorization_markedCoreMass {N : Nat}
+lemma fixedPreparedSampleMinorization_markedCoreMass {N : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (secret : Nat) (hm : 2 ≤ (registerParameters N).m)
     (hsecretPos : 0 < secret)
@@ -491,7 +491,7 @@ theorem fixedPreparedSampleMinorization_markedCoreMass {N : Nat}
 /-- Two independent marked draws hit the finite fixed-sample obstruction
 carrier with probability at most `1/2048`.  The bound is the global pure-RSA
 carrier count scaled by the literal selected-atom floor. -/
-theorem fixedPreparedSampleMinorization_markedObstructionMass_le_oneOver2048
+lemma fixedPreparedSampleMinorization_markedObstructionMass_le_oneOver2048
     {N : Nat} (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (secret : Nat) (hm : 3 ≤ (registerParameters N).m)
     (htradeoff : (registerParameters N).m ≤
@@ -615,7 +615,7 @@ def FixedPreparedFeasibleNarrowGoodPair (N secret : Nat)
 /-- A marked fixed-sample transcript with two selected core atoms and no
 marked obstruction pair projects to a transcript containing an actual
 feasible narrow-good pair. -/
-theorem hasFixedPreparedFeasibleNarrowGoodPair_map_fst_of_markedCore
+lemma hasFixedPreparedFeasibleNarrowGoodPair_map_fst_of_markedCore
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (hm : 2 ≤ (registerParameters N).m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ (registerParameters N).m)
@@ -660,7 +660,7 @@ theorem hasFixedPreparedFeasibleNarrowGoodPair_map_fst_of_markedCore
 contain a feasible narrow-good pair with the source-shaped batch floor.  All
 sixteen draws use the same raw residue sampler value; only their terminal
 measurements are independent. -/
-theorem fixedPreparedSample_sixteen_hasFeasibleNarrowGoodPair_ge
+lemma fixedPreparedSample_sixteen_hasFeasibleNarrowGoodPair_ge
     {N : Nat} (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (secret : Nat) (hm : 3 ≤ (registerParameters N).m)
     (htradeoff : (registerParameters N).m ≤
@@ -852,7 +852,7 @@ def fixedPreparedPairFeasible (N : Nat)
 
 /-- Excluding the actual fixed-sample obstruction supplies the pure RSA
 lattice-feasibility certificate for its decoded terminal pair. -/
-theorem fixedPreparedPairFeasible_of_noTinyMultiplierObstruction
+lemma fixedPreparedPairFeasible_of_noTinyMultiplierObstruction
     (N : Nat) (pair : PreparedBatchSample N × PreparedBatchSample N)
     (hm : 3 ≤ (registerParameters N).m)
     (hclear : ¬ fixedPreparedTinyMultiplierObstructionPair N pair) :
@@ -864,7 +864,7 @@ theorem fixedPreparedPairFeasible_of_noTinyMultiplierObstruction
 
 /-- Every fixed-sample feasible narrow-good pair carries the exact pure RSA
 feasibility certificate consumed by the canonical batch recovery. -/
-theorem fixedPreparedFeasibleNarrowGoodPair_feasible
+lemma fixedPreparedFeasibleNarrowGoodPair_feasible
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (pair : PreparedBatchSample N × PreparedBatchSample N)
     (hm : 3 ≤ (registerParameters N).m)
@@ -874,7 +874,7 @@ theorem fixedPreparedFeasibleNarrowGoodPair_feasible
 
 /-- The source narrow-good predicate on one canonical terminal decoder is
 definitionally the pure RSA short-log good-sample predicate. -/
-theorem fixedPreparedNarrowGood_iff_shortLogGoodSample
+lemma fixedPreparedNarrowGood_iff_shortLogGoodSample
     (N secret : Nat) (outcome : PreparedBatchSample N) :
     ShortDLP.BornProbability.NarrowGoodPair (registerParameters N) secret
       (fixedPreparedDecodedSample N outcome) ↔
@@ -890,7 +890,7 @@ theorem fixedPreparedNarrowGood_iff_shortLogGoodSample
 
 /-- Two actual narrow-good terminal samples of the same fixed prepared
 residue admit the hidden short logarithm as a pure RSA recovery candidate. -/
-theorem fixedPreparedShortLogPairCandidate_of_narrowGood
+lemma fixedPreparedShortLogPairCandidate_of_narrowGood
     (N secret : Nat) (sample : Fin (2 ^ residueSamplingBits N))
     (first second : PreparedBatchSample N)
     (hsecretPos : 0 < secret)
@@ -912,7 +912,7 @@ theorem fixedPreparedShortLogPairCandidate_of_narrowGood
 /-- A feasible fixed-sample pair makes the canonical pair recovery return
 some factor.  If preparation exposed an early factor it is retained; otherwise
 the pure RSA short-log recovery returns one of the declared factors. -/
-theorem recoverPreparedPair_some_of_fixedPreparedFeasibleNarrowGoodPair
+lemma recoverPreparedPair_some_of_fixedPreparedFeasibleNarrowGoodPair
     {p q : Nat} (sample : Fin (2 ^ residueSamplingBits (p * q)))
     (hp : p.Prime) (hq : q.Prime) (hpq : p ≠ q)
     (hpOdd : Odd p) (hqOdd : Odd q)
@@ -977,7 +977,7 @@ theorem recoverPreparedPair_some_of_fixedPreparedFeasibleNarrowGoodPair
 
 /-- One feasible narrow-good pair among the 120 ordered recovery inputs makes
 the canonical fixed sixteen-sample batch value return some factor. -/
-theorem batchValue_eq_some_of_fixedPreparedFeasibleNarrowGoodPair
+lemma batchValue_eq_some_of_fixedPreparedFeasibleNarrowGoodPair
     {p q : Nat} (sample : Fin (2 ^ residueSamplingBits (p * q)))
     (hp : p.Prime) (hq : q.Prime) (hpq : p ≠ q)
     (hpOdd : Odd p) (hqOdd : Odd q)

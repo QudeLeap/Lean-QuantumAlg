@@ -41,7 +41,7 @@ def sourceLabelEquiv (extra : Nat) : SourceParts extra ≃ Fin (2 ^ (extra + 3))
           (finCongr (congrArg (fun width : Nat => 2 ^ width) (by omega)))
 
 /-- The leading source bit before the selector permutation is exactly the selector value. -/
-theorem gidneySourceLabel_selector (extra : Nat) (state : SourceParts extra) :
+lemma gidneySourceLabel_selector (extra : Nat) (state : SourceParts extra) :
     (sourceLabelEquiv extra state).val.testBit (extra + 2) = state.1 := by
   rcases state with ⟨selected, unused, flag, helper⟩
   change (prodEquiv (m := 1) (n := extra + (1 + 1))
@@ -76,7 +76,7 @@ def canonicalLabelEquiv (extra : Nat) :
               (prodEquiv (m := extra) (n := 1 + ((extra + 3) + 1))))).trans
                 (prodEquiv (m := 1) (n := extra + (1 + ((extra + 3) + 1))))
 
-theorem gidneyCanonicalLabel_encode (extra : Nat) (state : CanonicalRegisters extra) :
+lemma gidneyCanonicalLabel_encode (extra : Nat) (state : CanonicalRegisters extra) :
     canonicalLabelEquiv extra state = (canonicalEncoding extra).encode state := by
   rcases state with ⟨selected, unused, flag, target, helper⟩
   cases selected <;> cases flag <;> cases helper <;> rfl
@@ -94,7 +94,7 @@ def selectedWordsEquiv (extra : Nat) (selected : Fin (extra + 3)) :
       (BinaryBasis.permuteLabel (selectorPermutation extra selected))) (Equiv.refl _))
 
 /-- The chosen standard-word readout is exactly the canonical selector. -/
-theorem gidneySelectedWords_selector (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneySelectedWords_selector (extra : Nat) (selected : Fin (extra + 3))
     (state : CanonicalRegisters extra) :
     (selectedWordsEquiv extra selected state).1.val.testBit selected.val = state.1 := by
   have h := BinaryBasis.binaryPermuteLabel_bit (selectorPermutation extra selected)
@@ -118,7 +118,7 @@ def stagePlacementIndex (extra : Nat) (selected : Fin (extra + 3)) :
   (canonicalLabelEquiv extra).symm |>.trans (selectedWordsEquiv extra selected) |>.trans
     (prodEquiv (m := extra + 3) (n := extra + 3))
 
-theorem gidneyStagePlacementIndex_encode (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyStagePlacementIndex_encode (extra : Nat) (selected : Fin (extra + 3))
     (state : CanonicalRegisters extra) :
     stagePlacementIndex extra selected ((canonicalEncoding extra).encode state) =
       (encoding (extra + 3)).encode (selectedWordsEquiv extra selected state) := by
@@ -138,12 +138,12 @@ private def unpackHelperWire (extra wire : Nat) : Nat :=
   else if wire = extra + 2 then extra + 2 + (extra + 3)
   else if wire < 2 * (extra + 3) then wire - 1 else wire
 
-private theorem unpack_packHelperWire (extra wire : Nat) :
+private lemma unpack_packHelperWire (extra wire : Nat) :
     unpackHelperWire extra (packHelperWire extra wire) = wire := by
   unfold unpackHelperWire packHelperWire
   split_ifs <;> omega
 
-theorem gidneyPackHelperWire_injective (extra : Nat) :
+lemma gidneyPackHelperWire_injective (extra : Nat) :
     Function.Injective (packHelperWire extra) := by
   intro first second h
   have h' := congrArg (unpackHelperWire extra) h
@@ -153,12 +153,12 @@ theorem gidneyPackHelperWire_injective (extra : Nat) :
 def stagePlacementWire (extra : Nat) (selected : Fin (extra + 3)) (wire : Nat) : Nat :=
   BinaryBasis.extendWirePermutation (selectorPermutation extra selected) (packHelperWire extra wire)
 
-theorem gidneyStagePlacementWire_injective (extra : Nat) (selected : Fin (extra + 3)) :
+lemma gidneyStagePlacementWire_injective (extra : Nat) (selected : Fin (extra + 3)) :
     Function.Injective (stagePlacementWire extra selected) :=
   (BinaryBasis.binaryExtendWirePermutation_injective
     (selectorPermutation extra selected)).comp (gidneyPackHelperWire_injective extra)
 
-theorem gidneyStagePlacementWire_range (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyStagePlacementWire_range (extra : Nat) (selected : Fin (extra + 3))
     (wire : Nat) (inside : wire < 2 * (extra + 3)) :
     stagePlacementWire extra selected wire < 2 * (extra + 3) := by
   have hpacked : packHelperWire extra wire < 2 * (extra + 3) := by

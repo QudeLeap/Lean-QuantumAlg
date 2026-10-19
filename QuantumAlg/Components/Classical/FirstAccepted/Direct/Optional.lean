@@ -71,11 +71,13 @@ def step {model : ExecutionModel} [BitWord.Selected model]
   (selected.1, (unpacked.2, selected.2))
 
 /-- Exact whole-store execution preserves every quantum-reference block and caller history. -/
-theorem into_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma into_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) input refs).execute Reference state = state.mapClassical (fun entry =>
+    (into (model := model) input refs).execute
+      environment Reference state = state.mapClassical (fun entry =>
       let actual := step (model := model) input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
@@ -84,7 +86,7 @@ theorem into_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The native unpack gives exactly the structural eligibility and candidate values. -/
-theorem unpack_reads (input : CInputRef ctx (.option (.unsignedWord width)))
+lemma unpack_reads (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (store : Store ctx) :
     (store.applyOp (unpackOp input refs)).read (eligible refs) =
         (CShape.unpackOption (store.read input)).first ∧
@@ -94,7 +96,7 @@ theorem unpack_reads (input : CInputRef ctx (.option (.unsignedWord width)))
   exact ⟨congrArg CShape.Value.first actual, congrArg CShape.Value.second actual⟩
 
 /-- The direct selector consumes disjoint actual projections after the real unpack. -/
-theorem directSeparation (refs : Refs ctx width) (separated : Separation refs) :
+lemma directSeparation (refs : Refs ctx width) (separated : Separation refs) :
     Direct.Separation (eligible refs) (candidate refs) refs.selection := by
   refine ⟨?_, ?_, ?_, ?_, separated.acceptedNeSelected⟩
   all_goals
@@ -106,7 +108,7 @@ theorem directSeparation (refs : Refs ctx width) (separated : Separation refs) :
   · exact separated.selectedNeUnpacked
 
 /-- Every structural caller read outside the three actual writes survives the entire step. -/
-theorem into_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma into_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (acceptedFree : refs.selection.accepted.key ∉ other.storageKeys)
@@ -130,11 +132,11 @@ def retainValue (previous current : (CShape.option (.unsignedWord width)).Value)
   | .optionNone => current
   | .optionSome value => .optionSome value
 
-private theorem bit_value (value : CShape.Value .bit) : value = .bit value.toBool := by
+private lemma bit_value (value : CShape.Value .bit) : value = .bit value.toBool := by
   cases value
   rfl
 
-private theorem packed_update (oldFlag : CShape.Value .bit) (oldWord : CShape.Word width)
+private lemma packed_update (oldFlag : CShape.Value .bit) (oldWord : CShape.Word width)
     (current : (CShape.option (.unsignedWord width)).Value) :
     CShape.packOption (.product
       (.bit (oldFlag.toBool || (CShape.unpackOption current).first.toBool))
@@ -145,7 +147,7 @@ private theorem packed_update (oldFlag : CShape.Value .bit) (oldWord : CShape.Wo
   | bit flag => cases flag <;> cases current <;> rfl
 
 /-- Actual unpack and first-success selection realize the original chronological optional update. -/
-theorem into_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma into_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (separated : Separation refs) (store : Store ctx) :
     selectedValue refs.selection (step (model := model) input refs store).1 =
@@ -188,10 +190,11 @@ def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat
     (.classicalOperation (BitWord.selectedCoordinate (execution := model)
       (.nominalEncoding (.unpackOption width))) :: Direct.copyTrace (model := model) width)
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The actual optional-candidate path meets the independent native decoding/copy allowance. -/
-theorem into_pool_le (input : CInputRef ctx (.option (.unsignedWord width)))
+lemma into_pool_le (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (path : (into (model := model) input refs).Path) :
     (into (model := model) input refs).resourcePool path ≤ eventEnvelope model width := by
   change ResourcePool.ofList
@@ -202,14 +205,14 @@ theorem into_pool_le (input : CInputRef ctx (.option (.unsignedWord width)))
   exact add_le_add le_rfl (Direct.into_pool_le (eligible refs) (candidate refs) refs.selection _)
 
 /-- Decoding precedes at most the two dependent writes of the existing selector. -/
-theorem into_depth_le (input : CInputRef ctx (.option (.unsignedWord width)))
+lemma into_depth_le (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (path : (into (model := model) input refs).Path) :
     (into (model := model) input refs).depth (fun _ => 1) path ≤ 3 :=
   Nat.add_le_add (Nat.le_refl 1)
     (Direct.into_depth_le (eligible refs) (candidate refs) refs.selection path.2)
 
 /-- The complete actual path retains exactly the already present resident context. -/
-theorem into_resident_le (input : CInputRef ctx (.option (.unsignedWord width)))
+lemma into_resident_le (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (path : (into (model := model) input refs).Path) :
     (into (model := model) input refs).peakResidentSpace path ≤ ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq (BitWord.instruction (execution := model) (unpackOp input
@@ -220,7 +223,7 @@ theorem into_resident_le (input : CInputRef ctx (.option (.unsignedWord width)))
     (Direct.into_resident_le (eligible refs) (candidate refs) refs.selection path.2)
 
 /-- The same path charges the actual scratch and selector cells through their existing roles. -/
-theorem into_auxiliary_le (input : CInputRef ctx (.option (.unsignedWord width)))
+lemma into_auxiliary_le (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (path : (into (model := model) input refs).Path) :
     (into (model := model) input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq (BitWord.instruction (execution := model) (unpackOp input
@@ -231,17 +234,19 @@ theorem into_auxiliary_le (input : CInputRef ctx (.option (.unsignedWord width))
     (Direct.into_auxiliary_le (eligible refs) (candidate refs) refs.selection path.2)
 
 /-- Actual unpack and selection jointly restore every borrowed value and external correlation. -/
-theorem into_borrowedRestored (input : CInputRef ctx (.option (.unsignedWord width)))
+lemma into_borrowedRestored (input : CInputRef ctx (.option (.unsignedWord width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) input refs).BorrowedRestored Reference state
-      ((into (model := model) input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq (BitWord.instruction (execution := model) (unpackOp input refs))
+      ((into (model := model) input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) (BitWord.instruction (execution := model) (unpackOp input refs))
     (Direct.into (model := model) (eligible refs) (candidate refs) refs.selection) state
-    (Circuit.borrowedRestored_classical
+    (Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (unpackOp input refs)) state)
     (Direct.into_borrowedRestored (eligible refs) (candidate refs) refs.selection Reference
-      ((BitWord.instruction (execution := model) (unpackOp input refs)).execute Reference
+      ((BitWord.instruction (execution := model) (unpackOp input refs)).execute
+        environment Reference
         state))
 
 end

@@ -30,7 +30,7 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem preparedPosition_eq (n : Nat) (index : Fin (n + 1)) :
+private lemma preparedPosition_eq (n : Nat) (index : Fin (n + 1)) :
     positionsOfEqualWires (runtimeLayout n) (preparedContext n).quantumLayout
       (runtime_wires n) index = preparedWire n index := by
   apply (preparedContext n).quantumLayout.identityInjective
@@ -39,7 +39,7 @@ private theorem preparedPosition_eq (n : Nat) (index : Fin (n + 1)) :
       (runtime_wires n) index).trans (preparedWire_preserved n index).symm)
 
 /-- The native embedding uses exactly the basis supplied by real zero preparation. -/
-theorem preparedLayoutEquiv_equalWires (n : Nat) :
+lemma preparedLayoutEquiv_equalWires (n : Nat) :
     basisOfEqualWires (runtimeLayout n) (preparedContext n).quantumLayout
       (runtime_wires n) = preparedLayoutEquiv n := by
   apply Equiv.ext
@@ -53,18 +53,18 @@ theorem preparedLayoutEquiv_equalWires (n : Nat) :
   exact (preparedLayoutEquiv_value n basis index).symm
 
 /-- The exact native matrix on the prepared context in the original binary labels. -/
-theorem program_matrix {n : Nat} (function : WalshHadamard.Oracle n) :
-    (program function).matrix =
+lemma program_matrix (n : Nat) (environment : (XorOracle.model n).Interpretation) :
+    ((program n).matrix environment) =
       UnitaryOperator.reindex (preparedBasisEquiv n).symm
-        (Native.zeroInputProgram function).binaryMatrix := by
+        ((Native.zeroInputProgram n).binaryMatrix environment) := by
   rw [program, unitaryOfEqualWires_matrix (runtimeLayout n)
-    (preparedContext n).quantumLayout (runtime_wires n) (Native.zeroInputProgram function),
+    (preparedContext n).quantumLayout (runtime_wires n) environment (Native.zeroInputProgram n),
     preparedLayoutEquiv_equalWires]
   apply Subtype.ext
   ext row column
-  change (Native.zeroInputProgram function).matrix
+  change ((Native.zeroInputProgram n).matrix environment)
     ((preparedLayoutEquiv n).symm row) ((preparedLayoutEquiv n).symm column) =
-      (Native.zeroInputProgram function).matrix
+      ((Native.zeroInputProgram n).matrix environment)
         ((layout n).binaryIndexEquiv.symm ((preparedBasisEquiv n) row))
         ((layout n).binaryIndexEquiv.symm ((preparedBasisEquiv n) column))
   simp only [preparedBasisEquiv, Equiv.trans_apply, Equiv.symm_apply_apply]

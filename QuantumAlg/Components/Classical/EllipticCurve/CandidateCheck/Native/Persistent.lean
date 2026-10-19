@@ -54,12 +54,12 @@ def persistentCtx (ctx : RuntimeCtx kind) (width scalarWidth : Nat) : RuntimeCtx
   retainedCtx (persistentBaseCtx ctx scalarWidth) width
 
 /-- Persistent classical cells leave the complete quantum carrier unchanged. -/
-theorem persistentCtx_register (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma persistentCtx_register (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (persistentCtx ctx width scalarWidth).register = ctx.register := by
   rfl
 
 /-- The seven classical cells do not change which physical wires are borrowed. -/
-theorem persistentCtx_borrowedQuantumWires (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma persistentCtx_borrowedQuantumWires (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (persistentCtx ctx width scalarWidth).borrowedQuantumWires =
       ctx.borrowedQuantumWires := by
   rfl
@@ -203,12 +203,12 @@ def persistentKeys (ctx : RuntimeCtx kind) (width scalarWidth : Nat) : List Stor
     (persistentAccepted ctx width scalarWidth).key]
 
 /-- Canonical retention puts exactly these seven keys before the original context keys. -/
-theorem persistentCtx_keys (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma persistentCtx_keys (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (persistentCtx ctx width scalarWidth).keys =
       persistentKeys ctx width scalarWidth ++ ctx.keys := rfl
 
 /-- All seven actual persistent destinations have pairwise distinct keys. -/
-theorem persistentKeys_distinct (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma persistentKeys_distinct (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (persistentKeys ctx width scalarWidth).Nodup := by
   have allKeys : (persistentCtx ctx width scalarWidth).keys.Nodup :=
     (persistentCtx ctx width scalarWidth).keysNodup

@@ -33,11 +33,11 @@ noncomputable section
 private def phaseWeight (angle : Real) (bit : Fin 2) : Complex :=
   if bit = 0 then 1 else Complex.exp ((angle : Complex) * Complex.I)
 
-private theorem cnot_twice (basis : layout.Basis) :
+private lemma cnot_twice (basis : layout.Basis) :
     AlgorithmGate.cnotPermutation (AlgorithmGate.cnotPermutation basis) = basis := by
   simp [AlgorithmGate.cnotPermutation]
 
-private theorem conjugate_diagonal (register : Register)
+private lemma conjugate_diagonal (register : Register)
     (permutation : Equiv.Perm register.Index) (involution : Function.Involutive permutation)
     (weight : register.Index → Complex) :
     ((UnitaryOperator.ofPerm (R := register) permutation).val * Matrix.diagonal weight) *
@@ -53,7 +53,7 @@ private theorem conjugate_diagonal (register : Register)
     simp [Ne.symm different]
   · simp
 
-private theorem target_diagonal (angle : Real) :
+private lemma target_diagonal (angle : Real) :
     (operator angle : HilbertOperator layout.register) =
       Matrix.diagonal (fun basis => qftControlledPhaseFactor (n := 2) 0 1 angle
         (QuantumSignature.qubitsIndexEquiv 2 basis)) := by
@@ -62,7 +62,7 @@ private theorem target_diagonal (angle : Real) :
     (QuantumSignature.qubitsIndexEquiv 2 row) (QuantumSignature.qubitsIndexEquiv 2 column) = _
   simp only [Matrix.diagonal_apply, Equiv.apply_eq_iff_eq]
 
-private theorem phase_product (angle : Real) (basis : layout.Basis) :
+private lemma phase_product (angle : Real) (basis : layout.Basis) :
     phaseWeight (-(angle / 2)) ((AlgorithmGate.cnotPermutation basis) (1 : Fin 2)) *
       (phaseWeight (angle / 2) (basis (1 : Fin 2)) * phaseWeight (angle / 2) (basis (0 : Fin 2))) =
         qftControlledPhaseFactor (n := 2) 0 1 angle
@@ -97,8 +97,9 @@ private theorem phase_product (angle : Real) (basis : layout.Basis) :
   rw [coordinates]
   exact pair (basis (0 : Fin 2)) (basis (1 : Fin 2))
 
-private theorem word_diagonal (oracles : OracleModel) (angle : Real) :
-    ((circuit oracles angle).matrix : HilbertOperator layout.register) =
+private lemma word_diagonal (oracles : OracleModel) (angle : Real) (environment :
+  oracles.Interpretation) :
+    (((circuit oracles angle).matrix environment) : HilbertOperator layout.register) =
       Matrix.diagonal (fun basis =>
         phaseWeight (-(angle / 2)) ((AlgorithmGate.cnotPermutation basis) (1 : Fin 2)) *
           (phaseWeight (angle / 2) (basis (1 : Fin 2)) * phaseWeight (angle / 2) (basis (0 : Fin
@@ -113,15 +114,17 @@ private theorem word_diagonal (oracles : OracleModel) (angle : Real) :
   rfl
 
 /-- The complete five-gate native word realizes the original target with exact phase. -/
-public theorem controlledPhase_circuit_matrix (oracles : OracleModel) (angle : Real) :
-    (circuit oracles angle).matrix = operator angle := by
+public lemma controlledPhase_circuit_matrix (oracles : OracleModel) (angle : Real) (environment
+  : oracles.Interpretation) :
+    ((circuit oracles angle).matrix environment) = operator angle := by
   apply Subtype.ext
   rw [word_diagonal, target_diagonal]
   exact congrArg Matrix.diagonal (funext (phase_product angle))
 
 /-- The exact realization carries the actual default-model expansion and its own resource trace. -/
 public def realization (oracles : OracleModel) (angle : Real) :
-    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout (operator angle) where
+    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout (fun _ => operator angle)
+      where
   circuit := circuit oracles angle
   matrix_eq := controlledPhase_circuit_matrix oracles angle
 

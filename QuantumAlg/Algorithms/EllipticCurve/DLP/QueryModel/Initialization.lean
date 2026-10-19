@@ -35,14 +35,14 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 attribute [local implicit_reducible] problem Layout.pointEncoding Layout.pointWidth
 
-private theorem zero_tensor (leftWidth rightWidth : Nat) :
+private lemma zero_tensor (leftWidth rightWidth : Nat) :
     (NormalizedVector.ket (R := Qubits (leftWidth + rightWidth)) 0) =
       (NormalizedVector.ket (R := Qubits leftWidth) 0).tensor
         (NormalizedVector.ket (R := Qubits rightWidth) 0) := by
   rw [NormalizedVector.tensor_ket]
   congr 1
 
-private theorem identity_encoding (E : PrimeFieldShortWeierstrass p) :
+private lemma identity_encoding (E : PrimeFieldShortWeierstrass p) :
     (Layout.pointEncoding E).encode (1 : GroupPoint E) =
       prodEquiv (m := 1) (n := 2 * Layout.fieldWidth E) (1, 0) := by
   apply Fin.ext
@@ -61,23 +61,24 @@ private theorem identity_encoding (E : PrimeFieldShortWeierstrass p) :
     two_mul]
 
 /-- One native X sets the point's infinity tag and fixes its two coordinates. -/
-public def pointInitializer (I : ECDLPInstance E) (A : Access I) :
-    UnitaryCircuit AlgorithmGate.model (model I A)
+public def pointInitializer (I : ECDLPInstance E) :
+    UnitaryCircuit AlgorithmGate.model (model I)
       (QuantumSignature.qubits (Layout.pointWidth E)).canonicalPlacement.layout :=
   Gate.singleQubitAt
     (QuantumSignature.qubits (1 + 2 * Layout.fieldWidth E)).canonicalPlacement.layout
-    (model I A) Gate.XOp (0 : Fin (1 + 2 * Layout.fieldWidth E)) rfl
+    (model I) Gate.XOp (0 : Fin (1 + 2 * Layout.fieldWidth E)) rfl
 
 /-- Set only the existing point tag, retaining both full exponent registers. -/
-public def initializer (I : ECDLPInstance E) (A : Access I) :
-    UnitaryCircuit AlgorithmGate.model (model I A) (layout I) :=
+public def initializer (I : ECDLPInstance E) :
+    UnitaryCircuit AlgorithmGate.model (model I) (layout I) :=
   UnitaryCircuit.onBinarySuffix
     (FiniteCyclicDLP.orderWidth (problem I) + FiniteCyclicDLP.orderWidth (problem I))
-    (pointInitializer I A)
+    (pointInitializer I)
 
 /-- The actual initializer produces the original encoded group identity from zero. -/
-public theorem initializer_apply_zero (I : ECDLPInstance E) (A : Access I) :
-    (initializer I A).binaryMatrix.apply
+public lemma initializer_apply_zero (I : ECDLPInstance E)
+    (environment : (model I).Interpretation) :
+    ((initializer I).binaryMatrix environment).apply
         (NormalizedVector.ket (R := Qubits (Layout.totalQubits I)) 0) = inputState I := by
   rw [initializer, UnitaryCircuit.unitaryCircuit_onBinarySuffix_binaryMatrix,
     zero_tensor, UnitaryOperator.tensor_apply_tensor, UnitaryOperator.one_apply,

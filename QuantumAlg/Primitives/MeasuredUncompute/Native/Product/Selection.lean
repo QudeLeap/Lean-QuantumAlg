@@ -25,10 +25,12 @@ namespace QuantumAlg.MeasuredUncompute.NativeProductCorrection
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Multiplication EncodedBit.Word
 
 /-- The same three actual quantum words remain present throughout correction. -/
-theorem program_physical (width : Nat) (_modulus : Fin (2 ^ width + 1))
+lemma program_physical (width : Nat) (_modulus : Fin (2 ^ width + 1))
     (_mask : Fin width → Bool) :
     (QubitLayout.canonical (VariableGidney.encoding width).width).systemIdx =
       List.range (3 * width) := by
@@ -45,7 +47,7 @@ def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .emp
       VariableGidney.nativeBudget width)
 
 /-- The selected correction pays only for its actual Z gates within the independent allowance. -/
-theorem program_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma program_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (mask : Fin width → Bool) :
     (program width modulus mask).eventCost ≤ nativeBudget width := by
   have phase : (PhaseCorrection.program (QubitLayout.canonical _) .empty
@@ -85,7 +87,7 @@ theorem program_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (add_le_add phase (VariableGidney.variableGidney_native_budget width modulus))
 
 /-- The actual serial duration includes the dependency through both product executions. -/
-theorem program_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma program_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (mask : Fin width → Bool) :
     (program width modulus mask).evaluatedEventDepth (fun _ => 1) ≤
       2 * VariableGidney.eventBound width + width := by
@@ -105,7 +107,7 @@ def framedProgram (width extraWidth : Nat) (modulus : Fin (2 ^ width + 1))
   UnitaryCircuit.onBinaryPrefix extraWidth (program width modulus mask)
 
 /-- The untouched history stays in the live physical frame and is never released by correction. -/
-theorem framedProgram_physical (width extraWidth : Nat) (_modulus : Fin (2 ^ width + 1))
+lemma framedProgram_physical (width extraWidth : Nat) (_modulus : Fin (2 ^ width + 1))
     (_mask : Fin width → Bool) :
     (QubitLayout.canonical ((VariableGidney.encoding width).width + extraWidth)).systemIdx =
       List.range (3 * width + extraWidth) := by
@@ -115,7 +117,7 @@ theorem framedProgram_physical (width extraWidth : Nat) (_modulus : Fin (2 ^ wid
   rw [QubitLayout.canonical_systemIdx, count]
 
 /-- Keeping the surrounding history retains exactly the product correction's native events. -/
-theorem framedProgram_cost (width extraWidth : Nat) (modulus : Fin (2 ^ width + 1))
+lemma framedProgram_cost (width extraWidth : Nat) (modulus : Fin (2 ^ width + 1))
     (mask : Fin width → Bool) :
     (framedProgram width extraWidth modulus mask).eventCost =
       (program width modulus mask).eventCost := by
@@ -123,7 +125,7 @@ theorem framedProgram_cost (width extraWidth : Nat) (modulus : Fin (2 ^ width + 
     (program width modulus mask)
 
 /-- The untouched frame contributes no duration to the executed native correction. -/
-theorem framedProgram_depth (width extraWidth : Nat) (modulus : Fin (2 ^ width + 1))
+lemma framedProgram_depth (width extraWidth : Nat) (modulus : Fin (2 ^ width + 1))
     (mask : Fin width → Bool) :
     (framedProgram width extraWidth modulus mask).evaluatedEventDepth (fun _ => 1) =
       (program width modulus mask).evaluatedEventDepth (fun _ => 1) := by
@@ -154,21 +156,21 @@ def code (width : Nat) (modulus : Fin (2 ^ width + 1))
   .branch result (fun value => .unitary (member width modulus sameWires value))
 
 /-- The full actual store and external reference select precisely their stored correction. -/
-theorem code_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma code_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
     (sameWires : (QubitLayout.canonical
       ((VariableGidney.encoding width).width + extraWidth)).toQuantum.wires =
         ctx.quantumLayout.wires)
     (result : CInputRef ctx (.bits width))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((code width modulus sameWires result).execute Reference state).quantumMarginal =
+    ((code width modulus sameWires result).execute environment Reference state).quantumMarginal =
       (state.applyUnitary fun entry => UnitaryOperator.prodTensor
-        (member width modulus sameWires (entry.1.read result)).matrix
+        ((member width modulus sameWires (entry.1.read result)).matrix environment.quantum)
         (1 : UnitaryOperator Reference)).quantumMarginal :=
-  Circuit.selectedUnitary_quantumMarginal result (member width modulus sameWires) state
+  Circuit.selectedUnitary_quantumMarginal result (member width modulus sameWires) environment state
 
 /-- Each selected execution meets the independent two-product and Z allowance. -/
-theorem code_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma code_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (sameWires : (QubitLayout.canonical
       ((VariableGidney.encoding width).width + extraWidth)).toQuantum.wires =
         ctx.quantumLayout.wires)
@@ -181,7 +183,7 @@ theorem code_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
   exact program_budget width modulus (ClassicalCorrection.mask path.1)
 
 /-- The actual stored selection retains both arithmetic passes in its serial depth bound. -/
-theorem code_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma code_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (sameWires : (QubitLayout.canonical
       ((VariableGidney.encoding width).width + extraWidth)).toQuantum.wires =
         ctx.quantumLayout.wires)

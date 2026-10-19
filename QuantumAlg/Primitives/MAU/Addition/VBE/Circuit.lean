@@ -37,6 +37,8 @@ namespace VBECircuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The canonical adder is one bit wider than the source/modulus words so its
 target word retains the ordinary-sum overflow bit. -/
 abbrev AdderWidth (n : Nat) : Nat :=
@@ -115,7 +117,7 @@ abbrev rawEncoding (n : Nat) : BinaryLabelEncoding (RawRegisters n) :=
 abbrev encoding (n : Nat) : BinaryLabelEncoding (Registers n) :=
   (rawEncoding n).relabel (registersEquiv n)
 
-@[simp] private theorem event_insertMiddleGateSpec
+@[simp] private lemma event_insertMiddleGateSpec
     {Left Middle Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     (middle : BinaryLabelEncoding Middle)
@@ -221,52 +223,52 @@ def targetWord (n : Nat) :
 def parkedSourceWord (n : Nat) : EncodedBit.Word (encoding n) n where
   bit := parkedSourceBit n
 
-@[simp] theorem activeSourceBit_get (n : Nat) (bit : Fin (AdderWidth n))
+@[simp] lemma activeSourceBit_get (n : Nat) (bit : Fin (AdderWidth n))
     (x : Registers n) :
     (activeSourceBit n bit).get x =
       (PlainAdder.Schedule.PowerOfTwo.wordBit (AdderWidth n) bit).get
         x.activeSource :=
   rfl
 
-@[simp] theorem targetBit_get (n : Nat) (bit : Fin (AdderWidth n))
+@[simp] lemma targetBit_get (n : Nat) (bit : Fin (AdderWidth n))
     (x : Registers n) :
     (targetBit n bit).get x =
       (PlainAdder.Schedule.PowerOfTwo.wordBit (AdderWidth n) bit).get
         x.target :=
   rfl
 
-@[simp] theorem activeSourceLowBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma activeSourceLowBit_get (n : Nat) (bit : Fin n)
     (x : Registers n) :
     (activeSourceLowBit n bit).get x =
       x.activeSource.val.testBit bit.val := by
   simp [activeSourceLowBit]
 
-@[simp] theorem activeSourceHighBit_get (n : Nat) (x : Registers n) :
+@[simp] lemma activeSourceHighBit_get (n : Nat) (x : Registers n) :
     (activeSourceHighBit n).get x = x.activeSource.val.testBit n := by
   simp [activeSourceHighBit]
 
-@[simp] theorem parkedSourceBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma parkedSourceBit_get (n : Nat) (bit : Fin n)
     (x : Registers n) :
     (parkedSourceBit n bit).get x =
       (PlainAdder.Schedule.PowerOfTwo.wordBit n bit).get x.parkedSource :=
   rfl
 
-@[simp] theorem carryBit_get (n : Nat) (x : Registers n) :
+@[simp] lemma carryBit_get (n : Nat) (x : Registers n) :
     (carryBit n).get x = x.carry :=
   rfl
 
-@[simp] theorem reductionFlagBit_get (n : Nat) (x : Registers n) :
+@[simp] lemma reductionFlagBit_get (n : Nat) (x : Registers n) :
     (reductionFlagBit n).get x = x.reductionFlag :=
   rfl
 
-@[simp] theorem carryWorkBit_get (n : Nat)
+@[simp] lemma carryWorkBit_get (n : Nat)
     (bit : Fin (AdderWidth n - 1)) (x : Registers n) :
     (carryWorkBit n bit).get x =
       (BinaryLabelEncoding.finIdentityBit
         (AdderWidth n - 1) bit).get x.carryWork :=
   rfl
 
-theorem encoding_width (n : Nat) :
+lemma encoding_width (n : Nat) :
     (encoding n).width = 4 * n + 4 := by
   simp [encoding, rawEncoding, dataParkedWorkEncoding,
     dataAndParkedEncoding,
@@ -274,33 +276,33 @@ theorem encoding_width (n : Nat) :
     PlainAdder.Schedule.PowerOfTwo.carryWorkEncoding, AdderWidth]
   omega
 
-@[simp] theorem activeSourceBit_wire_val (n : Nat)
+@[simp] lemma activeSourceBit_wire_val (n : Nat)
     (bit : Fin (AdderWidth n)) :
     (activeSourceBit n bit).wire.val = n - bit.val := by
   change AdderWidth n - 1 - bit.val = n - bit.val
   simp [AdderWidth]
 
-@[simp] theorem activeSourceLowBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma activeSourceLowBit_wire_val (n : Nat) (bit : Fin n) :
     (activeSourceLowBit n bit).wire.val = n - bit.val := by
   simp [activeSourceLowBit]
 
-@[simp] theorem activeSourceHighBit_wire_val (n : Nat) :
+@[simp] lemma activeSourceHighBit_wire_val (n : Nat) :
     (activeSourceHighBit n).wire.val = 0 := by
   simp [activeSourceHighBit, AdderWidth]
 
-@[simp] theorem targetBit_wire_val (n : Nat)
+@[simp] lemma targetBit_wire_val (n : Nat)
     (bit : Fin (AdderWidth n)) :
     (targetBit n bit).wire.val = (n + 1) + (n - bit.val) := by
   change AdderWidth n + (AdderWidth n - 1 - bit.val) = _
   simp [AdderWidth]
 
-@[simp] theorem carryBit_wire_val (n : Nat) :
+@[simp] lemma carryBit_wire_val (n : Nat) :
     (carryBit n).wire.val = 2 * n + 2 := by
   change AdderWidth n + AdderWidth n = _
   simp [AdderWidth]
   omega
 
-@[simp] theorem parkedSourceBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma parkedSourceBit_wire_val (n : Nat) (bit : Fin n) :
     (parkedSourceBit n bit).wire.val =
       2 * n + 3 + (n - 1 - bit.val) := by
   change
@@ -309,7 +311,7 @@ theorem encoding_width (n : Nat) :
   simp [AdderWidth]
   omega
 
-@[simp] theorem carryWorkBit_wire_val (n : Nat)
+@[simp] lemma carryWorkBit_wire_val (n : Nat)
     (bit : Fin (AdderWidth n - 1)) :
     (carryWorkBit n bit).wire.val = 3 * n + 3 + bit.val := by
   change (dataAndParkedEncoding n).width + bit.val = _
@@ -317,7 +319,7 @@ theorem encoding_width (n : Nat) :
     PlainAdder.Schedule.PowerOfTwo.wordEncoding, AdderWidth]
   omega
 
-@[simp] theorem reductionFlagBit_wire_val (n : Nat) :
+@[simp] lemma reductionFlagBit_wire_val (n : Nat) :
     (reductionFlagBit n).wire.val = 4 * n + 3 := by
   change (dataParkedWorkEncoding n).width = _
   simp [dataParkedWorkEncoding, dataAndParkedEncoding,
@@ -377,7 +379,7 @@ def activeAdderGates (n : Nat) :
   (activeAdderCarrierGates n).map
     (EncodedBit.GateSpec.relabel (registersEquiv n))
 
-private theorem activeAdderCoreGates_step (n : Nat)
+private lemma activeAdderCoreGates_step (n : Nat)
     (x : PlainAdder.Data (AdderWidth n) ×
       PlainAdder.Schedule.PowerOfTwo.CarryWork (AdderWidth n)) :
     EncodedBit.GateSpec.stepList (activeAdderCoreGates n) x =
@@ -385,7 +387,7 @@ private theorem activeAdderCoreGates_step (n : Nat)
         (AdderWidth n) x := by
   rfl
 
-private theorem activeAdderCarrierGates_step (n : Nat)
+private lemma activeAdderCarrierGates_step (n : Nat)
     (x : RawRegisters n) :
     EncodedBit.GateSpec.stepList (activeAdderCarrierGates n) x =
       activeAdderCarrierStep n x := by
@@ -405,10 +407,10 @@ def activeAdderCoreProgram (n : Nat) :
   PlainAdder.Schedule.PowerOfTwo.carryWorkCleanCarrySumProgram (AdderWidth n)
 
 /-- Direct realization of the cleanup-aware plain-adder core. -/
-theorem activeAdderCore_realizes (n : Nat) :
+lemma activeAdderCore_realizes (n : Nat) :
     UnitaryCircuit.Realizes
       (PlainAdder.Schedule.PowerOfTwo.dataWithCarryWorkEncoding (AdderWidth n))
-      (activeAdderCoreProgram n)
+      (activeAdderCoreProgram n) environment
       (PlainAdder.Schedule.PowerOfTwo.carryWorkCleanCarrySumStep
         (AdderWidth n)) :=
   PlainAdder.Schedule.PowerOfTwo.carryWorkCleanCarrySum_realizes (AdderWidth n)
@@ -421,10 +423,10 @@ def activeAdderCarrierProgram (n : Nat) :
     (activeAdderCarrierGates n)
 
 /-- Direct realization of the forward adder on the packed carrier. -/
-theorem activeAdderCarrier_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (rawEncoding n) (activeAdderCarrierProgram n)
+lemma activeAdderCarrier_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (rawEncoding n) (activeAdderCarrierProgram n) environment
       (activeAdderCarrierStep n) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (activeAdderCarrierGates n)
     (activeAdderCarrierGates_step n)
 
@@ -436,7 +438,7 @@ def activeAdderStep (n : Nat) : Registers n → Registers n :=
 
 /-- The lifted gate list has exactly the established full-register adder
 semantics. -/
-theorem activeAdderStep_eq_gateList (n : Nat) (x : Registers n) :
+lemma activeAdderStep_eq_gateList (n : Nat) (x : Registers n) :
     EncodedBit.GateSpec.stepList (activeAdderGates n) x =
       activeAdderStep n x := by
   unfold activeAdderGates activeAdderStep
@@ -451,15 +453,15 @@ def activeAdderProgram (n : Nat) :
     (activeAdderGates n)
 
 /-- Direct realization of the lifted forward plain adder. -/
-theorem activeAdder_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (activeAdderProgram n)
+lemma activeAdder_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (activeAdderProgram n) environment
       (activeAdderStep n) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (activeAdderGates n)
     (activeAdderStep_eq_gateList n)
 
 /-- Clean forward endpoint of the lifted canonical plain adder. -/
-theorem activeAdderStep_cleanEndpoint (n : Nat) (x : Registers n)
+lemma activeAdderStep_cleanEndpoint (n : Nat) (x : Registers n)
     (hcarry : x.carry = false)
     (hwork : x.carryWork =
       PlainAdder.Schedule.PowerOfTwo.cleanCarryWork (AdderWidth n)) :
@@ -514,11 +516,11 @@ def adderInverseCoreProgram (n : Nat) :
       (AdderWidth n)).reverse
 
 /-- Direct realization of the reversed canonical plain-adder gate list. -/
-theorem adderInverseCore_realizes (n : Nat) :
+lemma adderInverseCore_realizes (n : Nat) :
     UnitaryCircuit.Realizes
       (PlainAdder.Schedule.PowerOfTwo.dataWithCarryWorkEncoding (AdderWidth n))
-      (adderInverseCoreProgram n) (adderInverseCoreStep n) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      (adderInverseCoreProgram n) environment (adderInverseCoreStep n) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (PlainAdder.Schedule.PowerOfTwo.carryWorkCleanCarrySumGates
       (AdderWidth n)).reverse
 
@@ -570,14 +572,14 @@ def activeAdderInverseGates (n : Nat) :
   (activeAdderInverseCarrierGates n).map
     (EncodedBit.GateSpec.relabel (registersEquiv n))
 
-private theorem activeAdderInverseCoreGates_step (n : Nat)
+private lemma activeAdderInverseCoreGates_step (n : Nat)
     (x : PlainAdder.Data (AdderWidth n) ×
       PlainAdder.Schedule.PowerOfTwo.CarryWork (AdderWidth n)) :
     EncodedBit.GateSpec.stepList (activeAdderInverseCoreGates n) x =
       adderInverseCoreStep n x := by
   rfl
 
-private theorem activeAdderInverseCarrierGates_step (n : Nat)
+private lemma activeAdderInverseCarrierGates_step (n : Nat)
     (x : RawRegisters n) :
     EncodedBit.GateSpec.stepList (activeAdderInverseCarrierGates n) x =
       activeAdderInverseCarrierStep n x := by
@@ -596,10 +598,10 @@ def activeAdderInverseCarrierProgram (n : Nat) :
     (activeAdderInverseCarrierGates n)
 
 /-- Direct realization of the inverse adder on the packed carrier. -/
-theorem activeAdderInverseCarrier_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (rawEncoding n) (activeAdderInverseCarrierProgram n)
+lemma activeAdderInverseCarrier_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (rawEncoding n) (activeAdderInverseCarrierProgram n) environment
       (activeAdderInverseCarrierStep n) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (activeAdderInverseCarrierGates n)
     (activeAdderInverseCarrierGates_step n)
 
@@ -611,7 +613,7 @@ def activeAdderInverseStep (n : Nat) : Registers n → Registers n :=
 
 /-- The lifted reverse gate list has exactly the established full-register
 inverse-adder semantics. -/
-theorem activeAdderInverseStep_eq_gateList (n : Nat) (x : Registers n) :
+lemma activeAdderInverseStep_eq_gateList (n : Nat) (x : Registers n) :
     EncodedBit.GateSpec.stepList (activeAdderInverseGates n) x =
       activeAdderInverseStep n x := by
   unfold activeAdderInverseGates activeAdderInverseStep
@@ -626,14 +628,14 @@ def activeAdderInverseProgram (n : Nat) :
     (activeAdderInverseGates n)
 
 /-- Direct realization of the lifted reverse plain adder. -/
-theorem activeAdderInverse_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (activeAdderInverseProgram n)
+lemma activeAdderInverse_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (activeAdderInverseProgram n) environment
       (activeAdderInverseStep n) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (activeAdderInverseGates n)
     (activeAdderInverseStep_eq_gateList n)
 
-theorem adderInverseCoreStep_cleanEndpoint (n : Nat)
+lemma adderInverseCoreStep_cleanEndpoint (n : Nat)
     (x : PlainAdder.Data (AdderWidth n))
     (hcarry : x.carry = false) :
     adderInverseCoreStep n
@@ -664,7 +666,7 @@ theorem adderInverseCoreStep_cleanEndpoint (n : Nat)
   simpa [pre] using hinverse
 
 /-- Clean reverse endpoint of the lifted canonical plain adder. -/
-theorem activeAdderInverseStep_cleanEndpoint (n : Nat) (x : Registers n)
+lemma activeAdderInverseStep_cleanEndpoint (n : Nat) (x : Registers n)
     (hcarry : x.carry = false)
     (hwork : x.carryWork =
       PlainAdder.Schedule.PowerOfTwo.cleanCarryWork (AdderWidth n)) :
@@ -692,7 +694,7 @@ theorem activeAdderInverseStep_cleanEndpoint (n : Nat) (x : Registers n)
 
 /-! ### Source/modulus word swap -/
 
-theorem activeSourceLow_parked_diagonal_ne (n : Nat) :
+lemma activeSourceLow_parked_diagonal_ne (n : Nat) :
     ∀ i,
       ((activeSourceLowWord n).bit i).wire ≠
         ((parkedSourceWord n).bit i).wire := by
@@ -701,7 +703,7 @@ theorem activeSourceLow_parked_diagonal_ne (n : Nat) :
   simp [activeSourceLowWord, activeSourceLowBit, parkedSourceWord] at hv
   omega
 
-theorem activeSourceLow_pairwise_ne (n : Nat) :
+lemma activeSourceLow_pairwise_ne (n : Nat) :
     ∀ i j, i ≠ j →
       ((activeSourceLowWord n).bit i).wire ≠
         ((activeSourceLowWord n).bit j).wire := by
@@ -712,7 +714,7 @@ theorem activeSourceLow_pairwise_ne (n : Nat) :
   apply Fin.ext
   omega
 
-theorem parkedSource_pairwise_ne (n : Nat) :
+lemma parkedSource_pairwise_ne (n : Nat) :
     ∀ i j, i ≠ j →
       ((parkedSourceWord n).bit i).wire ≠
         ((parkedSourceWord n).bit j).wire := by
@@ -723,7 +725,7 @@ theorem parkedSource_pairwise_ne (n : Nat) :
   apply Fin.ext
   omega
 
-theorem activeSourceLow_parked_cross_ne (n : Nat) :
+lemma activeSourceLow_parked_cross_ne (n : Nat) :
     ∀ i j,
       ((activeSourceLowWord n).bit i).wire ≠
         ((parkedSourceWord n).bit j).wire := by
@@ -732,7 +734,7 @@ theorem activeSourceLow_parked_cross_ne (n : Nat) :
   simp [activeSourceLowWord, activeSourceLowBit, parkedSourceWord] at hv
   omega
 
-theorem activeSourceLow_target_ne (n : Nat) (i : Fin n)
+lemma activeSourceLow_target_ne (n : Nat) (i : Fin n)
     (j : Fin (AdderWidth n)) :
     (activeSourceLowBit n i).wire ≠ (targetBit n j).wire := by
   intro h
@@ -742,7 +744,7 @@ theorem activeSourceLow_target_ne (n : Nat) (i : Fin n)
   have hj : j.val < n + 1 := by simpa [AdderWidth] using j.isLt
   omega
 
-theorem parkedSource_target_ne (n : Nat) (i : Fin n)
+lemma parkedSource_target_ne (n : Nat) (i : Fin n)
     (j : Fin (AdderWidth n)) :
     (parkedSourceBit n i).wire ≠ (targetBit n j).wire := by
   intro h
@@ -752,7 +754,7 @@ theorem parkedSource_target_ne (n : Nat) (i : Fin n)
   have hj : j.val < n + 1 := by simpa [AdderWidth] using j.isLt
   omega
 
-theorem activeSourceLow_carry_ne (n : Nat) (i : Fin n) :
+lemma activeSourceLow_carry_ne (n : Nat) (i : Fin n) :
     (activeSourceLowBit n i).wire ≠ (carryBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -760,7 +762,7 @@ theorem activeSourceLow_carry_ne (n : Nat) (i : Fin n) :
   have hi := i.isLt
   omega
 
-theorem parkedSource_carry_ne (n : Nat) (i : Fin n) :
+lemma parkedSource_carry_ne (n : Nat) (i : Fin n) :
     (parkedSourceBit n i).wire ≠ (carryBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -768,7 +770,7 @@ theorem parkedSource_carry_ne (n : Nat) (i : Fin n) :
   have hi := i.isLt
   omega
 
-theorem activeSourceLow_carryWork_ne (n : Nat) (i : Fin n)
+lemma activeSourceLow_carryWork_ne (n : Nat) (i : Fin n)
     (j : Fin (AdderWidth n - 1)) :
     (activeSourceLowBit n i).wire ≠ (carryWorkBit n j).wire := by
   intro h
@@ -777,7 +779,7 @@ theorem activeSourceLow_carryWork_ne (n : Nat) (i : Fin n)
   have hi := i.isLt
   omega
 
-theorem parkedSource_carryWork_ne (n : Nat) (i : Fin n)
+lemma parkedSource_carryWork_ne (n : Nat) (i : Fin n)
     (j : Fin (AdderWidth n - 1)) :
     (parkedSourceBit n i).wire ≠ (carryWorkBit n j).wire := by
   intro h
@@ -786,7 +788,7 @@ theorem parkedSource_carryWork_ne (n : Nat) (i : Fin n)
   have hi := i.isLt
   omega
 
-theorem activeSourceLow_reductionFlag_ne (n : Nat) (i : Fin n) :
+lemma activeSourceLow_reductionFlag_ne (n : Nat) (i : Fin n) :
     (activeSourceLowBit n i).wire ≠ (reductionFlagBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -794,7 +796,7 @@ theorem activeSourceLow_reductionFlag_ne (n : Nat) (i : Fin n) :
   have hi := i.isLt
   omega
 
-theorem parkedSource_reductionFlag_ne (n : Nat) (i : Fin n) :
+lemma parkedSource_reductionFlag_ne (n : Nat) (i : Fin n) :
     (parkedSourceBit n i).wire ≠ (reductionFlagBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -802,7 +804,7 @@ theorem parkedSource_reductionFlag_ne (n : Nat) (i : Fin n) :
   have hi := i.isLt
   omega
 
-theorem activeSourceLow_activeSourceHigh_ne (n : Nat) (i : Fin n) :
+lemma activeSourceLow_activeSourceHigh_ne (n : Nat) (i : Fin n) :
     (activeSourceLowBit n i).wire ≠ (activeSourceHighBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -810,7 +812,7 @@ theorem activeSourceLow_activeSourceHigh_ne (n : Nat) (i : Fin n) :
   have hi := i.isLt
   omega
 
-theorem parkedSource_activeSourceHigh_ne (n : Nat) (i : Fin n) :
+lemma parkedSource_activeSourceHigh_ne (n : Nat) (i : Fin n) :
     (parkedSourceBit n i).wire ≠ (activeSourceHighBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -832,14 +834,14 @@ def sourceSwapStep (n : Nat) : Registers n → Registers n :=
     (activeSourceLowWord n) (parkedSourceWord n)
     (activeSourceLow_parked_diagonal_ne n)
 
-theorem sourceSwap_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (sourceSwapProgram n)
+lemma sourceSwap_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (sourceSwapProgram n) environment
       (sourceSwapStep n) :=
-  EncodedBit.Word.swap_realizes (QubitLayout.canonical _) .empty
+  EncodedBit.Word.swap_realizes (environment := environment) (QubitLayout.canonical _) .empty
     (activeSourceLowWord n) (parkedSourceWord n)
     (activeSourceLow_parked_diagonal_ne n)
 
-theorem sourceSwapStep_get_activeSourceLow (n : Nat) (bit : Fin n)
+lemma sourceSwapStep_get_activeSourceLow (n : Nat) (bit : Fin n)
     (x : Registers n) :
     (activeSourceLowBit n bit).get (sourceSwapStep n x) =
       (parkedSourceBit n bit).get x := by
@@ -853,7 +855,7 @@ theorem sourceSwapStep_get_activeSourceLow (n : Nat) (bit : Fin n)
   simpa [sourceSwapStep, activeSourceLowWord, parkedSourceWord] using
     congrFun h bit
 
-theorem sourceSwapStep_get_parkedSource (n : Nat) (bit : Fin n)
+lemma sourceSwapStep_get_parkedSource (n : Nat) (bit : Fin n)
     (x : Registers n) :
     (parkedSourceBit n bit).get (sourceSwapStep n x) =
       (activeSourceLowBit n bit).get x := by
@@ -867,7 +869,7 @@ theorem sourceSwapStep_get_parkedSource (n : Nat) (bit : Fin n)
   simpa [sourceSwapStep, activeSourceLowWord, parkedSourceWord] using
     congrFun h bit
 
-theorem sourceSwapStep_get_activeSourceHigh (n : Nat) (x : Registers n) :
+lemma sourceSwapStep_get_activeSourceHigh (n : Nat) (x : Registers n) :
     (activeSourceHighBit n).get (sourceSwapStep n x) =
       (activeSourceHighBit n).get x := by
   simpa [sourceSwapStep] using
@@ -877,7 +879,7 @@ theorem sourceSwapStep_get_activeSourceHigh (n : Nat) (x : Registers n) :
       (activeSourceLow_activeSourceHigh_ne n)
       (parkedSource_activeSourceHigh_ne n) x
 
-theorem sourceSwapStep_get_target (n : Nat) (bit : Fin (AdderWidth n))
+lemma sourceSwapStep_get_target (n : Nat) (bit : Fin (AdderWidth n))
     (x : Registers n) :
     (targetBit n bit).get (sourceSwapStep n x) =
       (targetBit n bit).get x := by
@@ -888,7 +890,7 @@ theorem sourceSwapStep_get_target (n : Nat) (bit : Fin (AdderWidth n))
       (fun i => activeSourceLow_target_ne n i bit)
       (fun i => parkedSource_target_ne n i bit) x
 
-theorem sourceSwapStep_get_carry (n : Nat) (x : Registers n) :
+lemma sourceSwapStep_get_carry (n : Nat) (x : Registers n) :
     (carryBit n).get (sourceSwapStep n x) = (carryBit n).get x := by
   simpa [sourceSwapStep] using
     EncodedBit.Word.swapStep_get_observed_of_swap_ne
@@ -896,7 +898,7 @@ theorem sourceSwapStep_get_carry (n : Nat) (x : Registers n) :
       (activeSourceLow_parked_diagonal_ne n) (carryBit n)
       (activeSourceLow_carry_ne n) (parkedSource_carry_ne n) x
 
-theorem sourceSwapStep_get_carryWork (n : Nat)
+lemma sourceSwapStep_get_carryWork (n : Nat)
     (bit : Fin (AdderWidth n - 1)) (x : Registers n) :
     (carryWorkBit n bit).get (sourceSwapStep n x) =
       (carryWorkBit n bit).get x := by
@@ -907,7 +909,7 @@ theorem sourceSwapStep_get_carryWork (n : Nat)
       (fun i => activeSourceLow_carryWork_ne n i bit)
       (fun i => parkedSource_carryWork_ne n i bit) x
 
-theorem sourceSwapStep_get_reductionFlag (n : Nat) (x : Registers n) :
+lemma sourceSwapStep_get_reductionFlag (n : Nat) (x : Registers n) :
     (reductionFlagBit n).get (sourceSwapStep n x) =
       (reductionFlagBit n).get x := by
   simpa [sourceSwapStep] using
@@ -923,7 +925,7 @@ def widenWord (n : Nat) (x : PlainAdder.Word n) :
     PlainAdder.Word (AdderWidth n) :=
   (x.val : PlainAdder.Word (AdderWidth n))
 
-@[simp] theorem widenWord_val (n : Nat) (x : PlainAdder.Word n) :
+@[simp] lemma widenWord_val (n : Nat) (x : PlainAdder.Word n) :
     (widenWord n x).val = x.val := by
   unfold widenWord
   apply ZMod.val_natCast_of_lt
@@ -945,7 +947,7 @@ def sourceSwapCleanState (n : Nat) (active parked : PlainAdder.Word n)
 
 /-- On canonical clean VBE states, the concrete three-CNOT word network
 exchanges active and parked source values and preserves every other field. -/
-theorem sourceSwapStep_cleanEndpoint (n : Nat)
+lemma sourceSwapStep_cleanEndpoint (n : Nat)
     (active parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     sourceSwapStep n (sourceSwapCleanState n active parked target flag) =
@@ -1010,7 +1012,7 @@ theorem sourceSwapStep_cleanEndpoint (n : Nat)
     hparked, hwork, hflag]
 
 /-- Forward-adder action specialized to the canonical clean VBE layout. -/
-theorem activeAdderStep_sourceSwapCleanState (n : Nat)
+lemma activeAdderStep_sourceSwapCleanState (n : Nat)
     (active parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     activeAdderStep n (sourceSwapCleanState n active parked target flag) =
@@ -1022,7 +1024,7 @@ theorem activeAdderStep_sourceSwapCleanState (n : Nat)
   · rfl
 
 /-- Reverse-adder action specialized to the canonical clean VBE layout. -/
-theorem activeAdderInverseStep_sourceSwapCleanState (n : Nat)
+lemma activeAdderInverseStep_sourceSwapCleanState (n : Nat)
     (active parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     activeAdderInverseStep n
@@ -1040,14 +1042,14 @@ theorem activeAdderInverseStep_sourceSwapCleanState (n : Nat)
 def targetOverflowBit (n : Nat) : EncodedBit (encoding n) :=
   targetBit n (Fin.last n)
 
-theorem targetOverflow_reductionFlag_ne (n : Nat) :
+lemma targetOverflow_reductionFlag_ne (n : Nat) :
     (targetOverflowBit n).wire ≠ (reductionFlagBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
   simp [targetOverflowBit, AdderWidth] at hv
   omega
 
-theorem activeSource_pairwise_ne (n : Nat) :
+lemma activeSource_pairwise_ne (n : Nat) :
     ∀ i j, i ≠ j →
       ((activeSourceWord n).bit i).wire ≠
         ((activeSourceWord n).bit j).wire := by
@@ -1064,7 +1066,7 @@ theorem activeSource_pairwise_ne (n : Nat) :
     simpa [AdderWidth] using j.isLt
   omega
 
-theorem reductionFlag_activeSource_ne (n : Nat) :
+lemma reductionFlag_activeSource_ne (n : Nat) :
     ∀ i,
       (reductionFlagBit n).wire ≠ ((activeSourceWord n).bit i).wire := by
   intro i h
@@ -1072,7 +1074,7 @@ theorem reductionFlag_activeSource_ne (n : Nat) :
   simp [activeSourceWord] at hv
   omega
 
-theorem activeSource_target_ne (n : Nat) (i j : Fin (AdderWidth n)) :
+lemma activeSource_target_ne (n : Nat) (i j : Fin (AdderWidth n)) :
     ((activeSourceWord n).bit i).wire ≠ (targetBit n j).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -1082,7 +1084,7 @@ theorem activeSource_target_ne (n : Nat) (i j : Fin (AdderWidth n)) :
   have hj : j.val < n + 1 := by simpa [AdderWidth] using j.isLt
   omega
 
-theorem activeSource_carry_ne (n : Nat) (i : Fin (AdderWidth n)) :
+lemma activeSource_carry_ne (n : Nat) (i : Fin (AdderWidth n)) :
     ((activeSourceWord n).bit i).wire ≠ (carryBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -1091,7 +1093,7 @@ theorem activeSource_carry_ne (n : Nat) (i : Fin (AdderWidth n)) :
   have hi : i.val < n + 1 := by simpa [AdderWidth] using i.isLt
   omega
 
-theorem activeSource_parked_ne (n : Nat) (i : Fin (AdderWidth n))
+lemma activeSource_parked_ne (n : Nat) (i : Fin (AdderWidth n))
     (j : Fin n) :
     ((activeSourceWord n).bit i).wire ≠ (parkedSourceBit n j).wire := by
   intro h
@@ -1102,7 +1104,7 @@ theorem activeSource_parked_ne (n : Nat) (i : Fin (AdderWidth n))
   have hj := j.isLt
   omega
 
-theorem activeSource_carryWork_ne (n : Nat) (i : Fin (AdderWidth n))
+lemma activeSource_carryWork_ne (n : Nat) (i : Fin (AdderWidth n))
     (j : Fin (AdderWidth n - 1)) :
     ((activeSourceWord n).bit i).wire ≠ (carryWorkBit n j).wire := by
   intro h
@@ -1131,25 +1133,25 @@ def copyReductionFlagProgram (n : Nat) :
 def copyReductionFlagStep (n : Nat) : Registers n → Registers n :=
   EncodedBit.GateSpec.stepList (copyReductionFlagGates n)
 
-theorem copyReductionFlag_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (copyReductionFlagProgram n)
+lemma copyReductionFlag_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (copyReductionFlagProgram n) environment
       (copyReductionFlagStep n) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (copyReductionFlagGates n)
 
-@[simp] theorem reductionFlagBit_flip (n : Nat) (x : Registers n) :
+@[simp] lemma reductionFlagBit_flip (n : Nat) (x : Registers n) :
     (reductionFlagBit n).flip x =
       { x with reductionFlag := !x.reductionFlag } := by
   rcases x with ⟨activeSource, target, carry, parkedSource, carryWork,
     reductionFlag⟩
   rfl
 
-@[simp] theorem targetOverflowBit_get (n : Nat) (x : Registers n) :
+@[simp] lemma targetOverflowBit_get (n : Nat) (x : Registers n) :
     (targetOverflowBit n).get x = x.target.val.testBit n := by
   simp [targetOverflowBit, AdderWidth]
 
 /-- Exact record action of the X/CNOT overflow-copy pair. -/
-theorem copyReductionFlagStep_eq (n : Nat) (x : Registers n) :
+lemma copyReductionFlagStep_eq (n : Nat) (x : Registers n) :
     copyReductionFlagStep n x =
       { x with reductionFlag :=
           (!x.reductionFlag) ^^ x.target.val.testBit n } := by
@@ -1161,7 +1163,7 @@ theorem copyReductionFlagStep_eq (n : Nat) (x : Registers n) :
       EncodedBit.GateSpec.stepList, EncodedBit.GateSpec.step,
       EncodedBit.cnotStep, htarget]
 
-theorem copyReductionFlagStep_sourceSwapCleanState (n : Nat)
+lemma copyReductionFlagStep_sourceSwapCleanState (n : Nat)
     (active parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     copyReductionFlagStep n
@@ -1186,15 +1188,15 @@ def cleanupReductionFlagStep (n : Nat) : Registers n → Registers n :=
     (.cnot (targetOverflowBit n) (reductionFlagBit n)
       (targetOverflow_reductionFlag_ne n))
 
-theorem cleanupReductionFlag_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (cleanupReductionFlagProgram n)
+lemma cleanupReductionFlag_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (cleanupReductionFlagProgram n) environment
       (cleanupReductionFlagStep n) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (.cnot (targetOverflowBit n) (reductionFlagBit n)
       (targetOverflow_reductionFlag_ne n))
 
 /-- Exact record action of the final overflow-cleanup CNOT. -/
-theorem cleanupReductionFlagStep_eq (n : Nat) (x : Registers n) :
+lemma cleanupReductionFlagStep_eq (n : Nat) (x : Registers n) :
     cleanupReductionFlagStep n x =
       { x with reductionFlag :=
           x.reductionFlag ^^ x.target.val.testBit n } := by
@@ -1205,7 +1207,7 @@ theorem cleanupReductionFlagStep_eq (n : Nat) (x : Registers n) :
     simp [cleanupReductionFlagStep, EncodedBit.GateSpec.step,
       EncodedBit.cnotStep, htarget]
 
-theorem cleanupReductionFlagStep_sourceSwapCleanState (n : Nat)
+lemma cleanupReductionFlagStep_sourceSwapCleanState (n : Nat)
     (active parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     cleanupReductionFlagStep n
@@ -1234,14 +1236,15 @@ def clearActiveModulusStep (n N : Nat) : Registers n → Registers n :=
     (reductionFlagBit n) (activeSourceWord n) (modulusWordLabel n N)
     (reductionFlag_activeSource_ne n)
 
-theorem clearActiveModulus_realizes (n N : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (clearActiveModulusProgram n N)
+lemma clearActiveModulus_realizes (n N : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (clearActiveModulusProgram n N) environment
       (clearActiveModulusStep n N) :=
-  EncodedBit.Word.controlledXorConstant_realizes (QubitLayout.canonical _) .empty
+  EncodedBit.Word.controlledXorConstant_realizes
+    (environment := environment) (QubitLayout.canonical _) .empty
     (reductionFlagBit n) (activeSourceWord n) (modulusWordLabel n N)
     (reductionFlag_activeSource_ne n)
 
-theorem modulusWordLabel_testBit (n N : Nat) (bit : Fin (AdderWidth n)) :
+lemma modulusWordLabel_testBit (n N : Nat) (bit : Fin (AdderWidth n)) :
     (modulusWordLabel n N).val.testBit bit.val =
       (widenWord n (N : PlainAdder.Word n)).val.testBit bit.val := by
   unfold modulusWordLabel
@@ -1251,7 +1254,7 @@ theorem modulusWordLabel_testBit (n N : Nat) (bit : Fin (AdderWidth n)) :
 
 /-- On a canonical clean state whose active source holds `N`, the controlled
 constant load clears that word exactly when the reduction flag is true. -/
-theorem clearActiveModulusStep_cleanEndpoint (n N : Nat)
+lemma clearActiveModulusStep_cleanEndpoint (n N : Nat)
     (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     clearActiveModulusStep n N
@@ -1350,17 +1353,18 @@ def restoreActiveModulusStep (n N : Nat) : Registers n → Registers n :=
     (reductionFlagBit n) (activeSourceWord n) (modulusWordLabel n N)
     (reductionFlag_activeSource_ne n)
 
-theorem restoreActiveModulus_realizes (n N : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (restoreActiveModulusProgram n N)
+lemma restoreActiveModulus_realizes (n N : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (restoreActiveModulusProgram n N) environment
       (restoreActiveModulusStep n N) :=
   EncodedBit.Word.controlledXorConstantUnload_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (reductionFlagBit n) (activeSourceWord n) (modulusWordLabel n N)
     (reductionFlag_activeSource_ne n)
 
 /-- The reverse constant-xor stage restores the active modulus exactly after
 the matching clear stage, including the branch where the flag is false. -/
-theorem restoreActiveModulusStep_cleanEndpoint (n N : Nat)
+lemma restoreActiveModulusStep_cleanEndpoint (n N : Nat)
     (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     restoreActiveModulusStep n N
@@ -1454,9 +1458,9 @@ def modularAddSteps (n N : Nat) : List (Registers n → Registers n) :=
     cleanupReductionFlagStep n,
     activeAdderStep n ]
 
-theorem modularAddStages_realize (n N : Nat) :
+lemma modularAddStages_realize (n N : Nat) :
     List.Forall₂
-      (fun program step => UnitaryCircuit.Realizes (encoding n) program step)
+      (fun program step => UnitaryCircuit.Realizes (encoding n) program environment step)
       (modularAddPrograms n N) (modularAddSteps n N) := by
   unfold modularAddPrograms modularAddSteps
   exact .cons (activeAdder_realizes n) <|
@@ -1477,7 +1481,7 @@ def modularAddStep (n N : Nat) : Registers n → Registers n :=
 
 /-- The flattened primitive list agrees pointwise with the established
 eleven-stage modular-add semantics. -/
-theorem modularAddStep_eq_gateList (n N : Nat) (x : Registers n) :
+lemma modularAddStep_eq_gateList (n N : Nat) (x : Registers n) :
     EncodedBit.GateSpec.stepList (modularAddGates n N) x =
       modularAddStep n N x := by
   simp only [modularAddGates, EncodedBit.GateSpec.stepList_append]
@@ -1515,48 +1519,48 @@ def modularAddProgram (n N : Nat) :
 
 
 
-private theorem activeAdderGates_length_eq_carrier (n : Nat) :
+private lemma activeAdderGates_length_eq_carrier (n : Nat) :
     (activeAdderGates n).length =
       (activeAdderCarrierGates n).length := by
   simp only [activeAdderGates, List.length_map]
 
-private theorem activeAdderCarrierGates_length_eq_inserted (n : Nat) :
+private lemma activeAdderCarrierGates_length_eq_inserted (n : Nat) :
     (activeAdderCarrierGates n).length =
       (activeAdderInsertedGates n).length := by
   simp only [activeAdderCarrierGates, List.length_map]
 
-private theorem activeAdderInsertedGates_length_eq_core (n : Nat) :
+private lemma activeAdderInsertedGates_length_eq_core (n : Nat) :
     (activeAdderInsertedGates n).length =
       (activeAdderCoreGates n).length := by
   simp only [activeAdderInsertedGates, List.length_map]
 
-private theorem activeAdderCoreGates_length_eq_schedule (n : Nat) :
+private lemma activeAdderCoreGates_length_eq_schedule (n : Nat) :
     (activeAdderCoreGates n).length =
       (PlainAdder.Schedule.PowerOfTwo.carryWorkCleanCarrySumGates
         (AdderWidth n)).length := by
   rfl
 
-private theorem activeAdderInverseGates_length_eq_carrier (n : Nat) :
+private lemma activeAdderInverseGates_length_eq_carrier (n : Nat) :
     (activeAdderInverseGates n).length =
       (activeAdderInverseCarrierGates n).length := by
   simp only [activeAdderInverseGates, List.length_map]
 
-private theorem activeAdderInverseCarrierGates_length_eq_inserted (n : Nat) :
+private lemma activeAdderInverseCarrierGates_length_eq_inserted (n : Nat) :
     (activeAdderInverseCarrierGates n).length =
       (activeAdderInverseInsertedGates n).length := by
   simp only [activeAdderInverseCarrierGates, List.length_map]
 
-private theorem activeAdderInverseInsertedGates_length_eq_core (n : Nat) :
+private lemma activeAdderInverseInsertedGates_length_eq_core (n : Nat) :
     (activeAdderInverseInsertedGates n).length =
       (activeAdderInverseCoreGates n).length := by
   simp only [activeAdderInverseInsertedGates, List.length_map]
 
-private theorem activeAdderInverseCoreGates_length_eq_core_reverse (n : Nat) :
+private lemma activeAdderInverseCoreGates_length_eq_core_reverse (n : Nat) :
     (activeAdderInverseCoreGates n).length =
       (activeAdderCoreGates n).reverse.length := by
   rfl
 
-private theorem activeAdderCoreGates_reverse_length_eq_schedule (n : Nat) :
+private lemma activeAdderCoreGates_reverse_length_eq_schedule (n : Nat) :
     (activeAdderCoreGates n).reverse.length =
       (PlainAdder.Schedule.PowerOfTwo.carryWorkCleanCarrySumGates
         (AdderWidth n)).reverse.length := by
@@ -1566,7 +1570,7 @@ private theorem activeAdderCoreGates_reverse_length_eq_schedule (n : Nat) :
 
 /-- The flattened eleven-stage schedule has a linear leaf bound derived
 directly from its gate lists. -/
-theorem modularAddGates_length_le (n N : Nat) :
+lemma modularAddGates_length_le (n N : Nat) :
     (modularAddGates n N).length ≤ 48 * n + 45 := by
   have hadd : (activeAdderGates n).length ≤ 8 * (n + 1) := by
     rw [activeAdderGates_length_eq_carrier,
@@ -1604,27 +1608,27 @@ theorem modularAddGates_length_le (n N : Nat) :
   simp only [modularAddGates, List.length_append]
   omega
 
-private theorem activeAdderGates_events_eq_core (n : Nat) :
+private lemma activeAdderGates_events_eq_core (n : Nat) :
     (activeAdderGates n).map (EncodedBit.GateSpec.event .empty) =
       (activeAdderCoreGates n).map (EncodedBit.GateSpec.event .empty) := by
   simp [activeAdderGates, activeAdderCarrierGates,
     activeAdderInsertedGates, List.map_map]
 
-private theorem activeAdderInverseGates_events_eq_core (n : Nat) :
+private lemma activeAdderInverseGates_events_eq_core (n : Nat) :
     (activeAdderInverseGates n).map (EncodedBit.GateSpec.event .empty) =
       (activeAdderCoreGates n).reverse.map (EncodedBit.GateSpec.event .empty) := by
   simp [activeAdderInverseGates, activeAdderInverseCarrierGates,
     activeAdderInverseInsertedGates, activeAdderInverseCoreGates,
     List.map_map]
 
-private theorem activeAdderCoreGates_events_eq_schedule (n : Nat) :
+private lemma activeAdderCoreGates_events_eq_schedule (n : Nat) :
     (activeAdderCoreGates n).map (EncodedBit.GateSpec.event .empty) =
       (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates
         (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n))).map
           (EncodedBit.GateSpec.event .empty) := by
   rfl
 
-theorem activeAdderGates_toffoliMultiplicity_sum (n : Nat) :
+lemma activeAdderGates_toffoliMultiplicity_sum (n : Nat) :
     ((activeAdderGates n).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
   have h := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
@@ -1637,7 +1641,7 @@ theorem activeAdderGates_toffoliMultiplicity_sum (n : Nat) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_toffoliMultiplicity_sum
       (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n)))
 
-theorem activeAdderGates_cnotMultiplicity_sum (n : Nat) :
+lemma activeAdderGates_cnotMultiplicity_sum (n : Nat) :
     ((activeAdderGates n).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (n + 1) := by
   have h := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
@@ -1650,7 +1654,7 @@ theorem activeAdderGates_cnotMultiplicity_sum (n : Nat) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum
       (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n)))
 
-theorem activeAdderGates_xMultiplicity_sum (n : Nat) :
+lemma activeAdderGates_xMultiplicity_sum (n : Nat) :
     ((activeAdderGates n).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   have h := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
@@ -1663,7 +1667,7 @@ theorem activeAdderGates_xMultiplicity_sum (n : Nat) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum
       (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n)))
 
-theorem activeAdderInverseGates_toffoliMultiplicity_sum (n : Nat) :
+lemma activeAdderInverseGates_toffoliMultiplicity_sum (n : Nat) :
     ((activeAdderInverseGates n).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
   have h := EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq
@@ -1676,7 +1680,7 @@ theorem activeAdderInverseGates_toffoliMultiplicity_sum (n : Nat) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_toffoliMultiplicity_sum
       (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n)))
 
-theorem activeAdderInverseGates_cnotMultiplicity_sum (n : Nat) :
+lemma activeAdderInverseGates_cnotMultiplicity_sum (n : Nat) :
     ((activeAdderInverseGates n).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (n + 1) := by
   have h := EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq
@@ -1689,7 +1693,7 @@ theorem activeAdderInverseGates_cnotMultiplicity_sum (n : Nat) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum
       (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n)))
 
-theorem activeAdderInverseGates_xMultiplicity_sum (n : Nat) :
+lemma activeAdderInverseGates_xMultiplicity_sum (n : Nat) :
     ((activeAdderInverseGates n).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   have h := EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq
@@ -1702,7 +1706,7 @@ theorem activeAdderInverseGates_xMultiplicity_sum (n : Nat) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum
       (PlainAdder.Schedule.PowerOfTwo.carryWorkLayout (AdderWidth n)))
 
-private theorem sourceSwapGates_cnotMultiplicity_sum (n : Nat) :
+private lemma sourceSwapGates_cnotMultiplicity_sum (n : Nat) :
     ((sourceSwapGates n).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 3 * n := by
   rw [← EncodedBit.GateSpec.programList_cnot_count_eq_sum]
@@ -1713,7 +1717,7 @@ private theorem sourceSwapGates_cnotMultiplicity_sum (n : Nat) :
       (activeSourceLowWord n) (parkedSourceWord n)
       (activeSourceLow_parked_diagonal_ne n))
 
-private theorem primitiveMultiplicity_sums_eq_length
+private lemma primitiveMultiplicity_sums_eq_length
     {Data : Type} {dataEncoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec dataEncoding)) :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum +
@@ -1728,7 +1732,7 @@ private theorem primitiveMultiplicity_sums_eq_length
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum] at h
   exact h
 
-private theorem sourceSwapGates_toffoliMultiplicity_sum (n : Nat) :
+private lemma sourceSwapGates_toffoliMultiplicity_sum (n : Nat) :
     ((sourceSwapGates n).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   have htotal := primitiveMultiplicity_sums_eq_length (sourceSwapGates n)
@@ -1739,7 +1743,7 @@ private theorem sourceSwapGates_toffoliMultiplicity_sum (n : Nat) :
       (activeSourceLow_parked_diagonal_ne n)
   omega
 
-private theorem sourceSwapGates_xMultiplicity_sum (n : Nat) :
+private lemma sourceSwapGates_xMultiplicity_sum (n : Nat) :
     ((sourceSwapGates n).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   have htotal := primitiveMultiplicity_sums_eq_length (sourceSwapGates n)
@@ -1750,7 +1754,7 @@ private theorem sourceSwapGates_xMultiplicity_sum (n : Nat) :
       (activeSourceLow_parked_diagonal_ne n)
   omega
 
-private theorem clearActiveModulusGates_cnotMultiplicity_sum_eq_length
+private lemma clearActiveModulusGates_cnotMultiplicity_sum_eq_length
     (n N : Nat) :
     ((clearActiveModulusGates n N).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -1763,7 +1767,7 @@ private theorem clearActiveModulusGates_cnotMultiplicity_sum_eq_length
   | nil => rfl
   | cons bit rest ih => simp [ih, Nat.add_comm]
 
-private theorem clearActiveModulusGates_toffoliMultiplicity_sum
+private lemma clearActiveModulusGates_toffoliMultiplicity_sum
     (n N : Nat) :
     ((clearActiveModulusGates n N).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
@@ -1772,7 +1776,7 @@ private theorem clearActiveModulusGates_toffoliMultiplicity_sum
   have hc := clearActiveModulusGates_cnotMultiplicity_sum_eq_length n N
   omega
 
-private theorem clearActiveModulusGates_xMultiplicity_sum
+private lemma clearActiveModulusGates_xMultiplicity_sum
     (n N : Nat) :
     ((clearActiveModulusGates n N).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
@@ -1783,7 +1787,7 @@ private theorem clearActiveModulusGates_xMultiplicity_sum
 
 /-- Five clean-carry adders contribute the complete Toffoli coordinate of the
 eleven-stage modular-add schedule. -/
-theorem modularAddGates_toffoliMultiplicity_sum (n N : Nat) :
+lemma modularAddGates_toffoliMultiplicity_sum (n N : Nat) :
     ((modularAddGates n N).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 30 * n := by
   simp [modularAddGates, activeAdderGates_toffoliMultiplicity_sum,
@@ -1797,7 +1801,7 @@ theorem modularAddGates_toffoliMultiplicity_sum (n N : Nat) :
 /-- Bit-pattern-independent CNOT bound for the eleven-stage modular-add
 schedule.  The two controlled modulus loads are bounded by their full word
 width; every other summand is exact. -/
-theorem modularAddGates_cnotMultiplicity_sum_le (n N : Nat) :
+lemma modularAddGates_cnotMultiplicity_sum_le (n N : Nat) :
     ((modularAddGates n N).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤ 18 * n + 14 := by
   have hclear : (clearActiveModulusGates n N).length ≤ n + 1 :=
@@ -1825,7 +1829,7 @@ theorem modularAddGates_cnotMultiplicity_sum_le (n N : Nat) :
   omega
 
 /-- The overflow-decision copy is the sole X coordinate in one modular add. -/
-theorem modularAddGates_xMultiplicity_sum (n N : Nat) :
+lemma modularAddGates_xMultiplicity_sum (n N : Nat) :
     ((modularAddGates n N).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 := by
   simp [modularAddGates, activeAdderGates_xMultiplicity_sum,
@@ -1837,7 +1841,7 @@ theorem modularAddGates_xMultiplicity_sum (n N : Nat) :
 
 /-- Exact Toffoli count of the production modular-add circuit, projected from
 the same primitive list used by its semantics. -/
-theorem modularAddProgram_toffoli_count_eq (n N : Nat) :
+lemma modularAddProgram_toffoli_count_eq (n N : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
         (modularAddProgram n N).eventCost = 30 * n := by
@@ -1846,7 +1850,7 @@ theorem modularAddProgram_toffoli_count_eq (n N : Nat) :
   exact modularAddGates_toffoliMultiplicity_sum n N
 
 /-- Bit-pattern-independent CNOT bound of the production modular-add circuit. -/
-theorem modularAddProgram_cnot_count_le (n N : Nat) :
+lemma modularAddProgram_cnot_count_le (n N : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (modularAddProgram n N).eventCost ≤ 18 * n + 14 := by
@@ -1855,7 +1859,7 @@ theorem modularAddProgram_cnot_count_le (n N : Nat) :
   exact modularAddGates_cnotMultiplicity_sum_le n N
 
 /-- Exact X count of the production modular-add circuit. -/
-theorem modularAddProgram_x_count_eq (n N : Nat) :
+lemma modularAddProgram_x_count_eq (n N : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (modularAddProgram n N).eventCost = 1 := by
@@ -1882,18 +1886,18 @@ theorem modularAddProgram_x_count_eq (n N : Nat) :
 
 
 
-theorem modularAdd_realizes (n N : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (modularAddProgram n N)
+lemma modularAdd_realizes (n N : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (modularAddProgram n N) environment
       (modularAddStep n N) := by
   unfold modularAddProgram
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (modularAddGates n N)
     (modularAddStep_eq_gateList n N)
 
 /-- On clean inputs with canonical representatives, the exact VBE program
 adds the active source into the target modulo `N`, restores the parked modulus,
 and cleans every carry and comparison bit. -/
-theorem modularAddStep_cleanEndpoint (n N : Nat)
+lemma modularAddStep_cleanEndpoint (n N : Nat)
     (a b : PlainAdder.Word n)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (ha : a.val < N) (hb : b.val < N) :
@@ -2027,7 +2031,7 @@ theorem modularAddStep_cleanEndpoint (n N : Nat)
 conditional reduction of an arbitrary target below `2 * N`.  The comparison
 flag is intentionally retained: a caller may copy the reduced target and then
 run the exact inverse program, which restores the complete input state. -/
-theorem modularAddStep_zeroSource_reduceOnceEndpoint (n N : Nat)
+lemma modularAddStep_zeroSource_reduceOnceEndpoint (n N : Nat)
     (raw : PlainAdder.Word (AdderWidth n))
     (hNpos : 0 < N) (hN : N < 2 ^ n) (hraw : raw.val < 2 * N) :
     modularAddStep n N
@@ -2217,7 +2221,7 @@ def modularAddEventGateCount (n N : Nat)
     (modularAddCircuit n N).eventCost
 
 /-- Linearizing modular-add event depth recovers its exact strict event pool. -/
-theorem modularAddCircuit_resourcesFromEventDepth_eq_eventCost (n N : Nat) :
+lemma modularAddCircuit_resourcesFromEventDepth_eq_eventCost (n N : Nat) :
     (modularAddCircuit n N).resourcesFromEventDepth =
       (modularAddCircuit n N).eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost (modularAddCircuit n N)
@@ -2232,11 +2236,11 @@ theorem modularAddCircuit_resourcesFromEventDepth_eq_eventCost (n N : Nat) :
 
 /-- Normalized-ket correctness for the actual circuit whose resources are
 projected above. -/
-theorem modularAddCircuit_applyNormalized_clean_ket (n N : Nat)
+lemma modularAddCircuit_applyNormalized_clean_ket (n N : Nat)
     (a b : PlainAdder.Word n)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (ha : a.val < N) (hb : b.val < N) :
-    (modularAddCircuit n N).applyNormalized
+    (modularAddCircuit n N).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
             ((encoding n).encode
@@ -2249,7 +2253,7 @@ theorem modularAddCircuit_applyNormalized_clean_ket (n N : Nat)
               ((a.val + b.val) % N : PlainAdder.Word (AdderWidth n)) false))) := by
   simpa only [modularAddCircuit,
     modularAddStep_cleanEndpoint n N a b hNpos hN ha hb] using
-    (modularAdd_realizes n N).apply_encoded_ket
+    (modularAdd_realizes (environment := environment) n N).apply_encoded_ket
       (sourceSwapCleanState n a (N : PlainAdder.Word n)
         (widenWord n b) false)
 
@@ -2303,7 +2307,7 @@ def controlledEncoding (n : Nat) :
     BinaryLabelEncoding (ControlledRegisters n) :=
   (rawControlledEncoding n).relabel (controlledRegistersEquiv n)
 
-@[simp] theorem controlledEncoding_width (n : Nat) :
+@[simp] lemma controlledEncoding_width (n : Nat) :
     (controlledEncoding n).width = 4 * n + 6 := by
   simp [controlledEncoding, rawControlledEncoding, controlPairEncoding,
     AdderWidth, PlainAdder.Schedule.PowerOfTwo.wordEncoding]
@@ -2339,46 +2343,46 @@ def controlledActiveSourceWord (n : Nat) :
     EncodedBit.Word (controlledEncoding n) (AdderWidth n) where
   bit := controlledActiveSourceBit n
 
-@[simp] theorem controlABit_get (n : Nat) (x : ControlledRegisters n) :
+@[simp] lemma controlABit_get (n : Nat) (x : ControlledRegisters n) :
     (controlABit n).get x = x.externalControl :=
   rfl
 
-@[simp] theorem controlBBit_get (n : Nat) (x : ControlledRegisters n) :
+@[simp] lemma controlBBit_get (n : Nat) (x : ControlledRegisters n) :
     (controlBBit n).get x = x.multiplierBit :=
   rfl
 
-@[simp] theorem liftControlledRegisterBit_get (n : Nat)
+@[simp] lemma liftControlledRegisterBit_get (n : Nat)
     (bit : EncodedBit (encoding n)) (x : ControlledRegisters n) :
     (liftControlledRegisterBit n bit).get x = bit.get x.arithmetic :=
   rfl
 
-@[simp] theorem controlledActiveSourceBit_get (n : Nat)
+@[simp] lemma controlledActiveSourceBit_get (n : Nat)
     (bit : Fin (AdderWidth n)) (x : ControlledRegisters n) :
     (controlledActiveSourceBit n bit).get x =
       x.arithmetic.activeSource.val.testBit bit.val := by
   simp [controlledActiveSourceBit]
 
-@[simp] theorem controlABit_wire_val (n : Nat) :
+@[simp] lemma controlABit_wire_val (n : Nat) :
     (controlABit n).wire.val = 0 :=
   rfl
 
-@[simp] theorem controlBBit_wire_val (n : Nat) :
+@[simp] lemma controlBBit_wire_val (n : Nat) :
     (controlBBit n).wire.val = 1 :=
   rfl
 
-@[simp] theorem liftControlledRegisterBit_wire_val (n : Nat)
+@[simp] lemma liftControlledRegisterBit_wire_val (n : Nat)
     (bit : EncodedBit (encoding n)) :
     (liftControlledRegisterBit n bit).wire.val = 2 + bit.wire.val := by
   change controlPairEncoding.width + bit.wire.val = 2 + bit.wire.val
   rfl
 
-theorem controlA_controlB_ne (n : Nat) :
+lemma controlA_controlB_ne (n : Nat) :
     (controlABit n).wire ≠ (controlBBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
   simp at hv
 
-theorem controlA_activeSource_ne (n : Nat) :
+lemma controlA_activeSource_ne (n : Nat) :
     ∀ bit,
       (controlABit n).wire ≠ ((controlledActiveSourceWord n).bit bit).wire := by
   intro bit h
@@ -2386,7 +2390,7 @@ theorem controlA_activeSource_ne (n : Nat) :
   simp [controlledActiveSourceWord, controlledActiveSourceBit] at hv
   omega
 
-theorem controlB_activeSource_ne (n : Nat) :
+lemma controlB_activeSource_ne (n : Nat) :
     ∀ bit,
       (controlBBit n).wire ≠ ((controlledActiveSourceWord n).bit bit).wire := by
   intro bit h
@@ -2394,7 +2398,7 @@ theorem controlB_activeSource_ne (n : Nat) :
   simp [controlledActiveSourceWord, controlledActiveSourceBit] at hv
   omega
 
-theorem controlledActiveSource_pairwise_ne (n : Nat) :
+lemma controlledActiveSource_pairwise_ne (n : Nat) :
     ∀ i j, i ≠ j →
       ((controlledActiveSourceWord n).bit i).wire ≠
         ((controlledActiveSourceWord n).bit j).wire := by
@@ -2412,7 +2416,7 @@ def controlledConstantLabel (n : Nat) (a : PlainAdder.Word n) :
     Fin (2 ^ AdderWidth n) :=
   PlainAdder.Schedule.PowerOfTwo.wordLabelEquiv (AdderWidth n) (widenWord n a)
 
-theorem controlledConstantLabel_testBit (n : Nat) (a : PlainAdder.Word n)
+lemma controlledConstantLabel_testBit (n : Nat) (a : PlainAdder.Word n)
     (bit : Fin (AdderWidth n)) :
     (controlledConstantLabel n a).val.testBit bit.val =
       (widenWord n a).val.testBit bit.val := by
@@ -2439,10 +2443,11 @@ def controlledLoadStep (n : Nat) (a : PlainAdder.Word n) :
     (controlledConstantLabel n a) (controlA_controlB_ne n)
     (controlA_activeSource_ne n) (controlB_activeSource_ne n)
 
-theorem controlledLoad_realizes (n : Nat) (a : PlainAdder.Word n) :
-    UnitaryCircuit.Realizes (controlledEncoding n) (controlledLoadProgram n a)
+lemma controlledLoad_realizes (n : Nat) (a : PlainAdder.Word n) :
+    UnitaryCircuit.Realizes (controlledEncoding n) (controlledLoadProgram n a) environment
       (controlledLoadStep n a) :=
   EncodedBit.Word.doubleControlledXorConstant_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (controlABit n) (controlBBit n) (controlledActiveSourceWord n)
     (controlledConstantLabel n a) (controlA_controlB_ne n)
@@ -2466,10 +2471,11 @@ def controlledUnloadStep (n : Nat) (a : PlainAdder.Word n) :
     (controlledConstantLabel n a) (controlA_controlB_ne n)
     (controlA_activeSource_ne n) (controlB_activeSource_ne n)
 
-theorem controlledUnload_realizes (n : Nat) (a : PlainAdder.Word n) :
+lemma controlledUnload_realizes (n : Nat) (a : PlainAdder.Word n) :
     UnitaryCircuit.Realizes (controlledEncoding n)
-      (controlledUnloadProgram n a) (controlledUnloadStep n a) :=
+      (controlledUnloadProgram n a) environment (controlledUnloadStep n a) :=
   EncodedBit.Word.doubleControlledXorConstantUnload_realizes
+    (environment := environment)
     (QubitLayout.canonical _) .empty
     (controlABit n) (controlBBit n) (controlledActiveSourceWord n)
     (controlledConstantLabel n a) (controlA_controlB_ne n)
@@ -2488,7 +2494,7 @@ def controlledArithmeticGates (n N : Nat) :
     (EncodedBit.GateSpec.relabel (controlledRegistersEquiv n))
 
 /-- The lifted gate list updates only the arithmetic field. -/
-theorem controlledArithmeticGates_step (n N : Nat)
+lemma controlledArithmeticGates_step (n N : Nat)
     (x : ControlledRegisters n) :
     EncodedBit.GateSpec.stepList (controlledArithmeticGates n N) x =
       controlledArithmeticStep n N x := by
@@ -2508,10 +2514,10 @@ def controlledArithmeticProgram (n N : Nat) :
     (controlledArithmeticGates n N)
 
 /-- Direct realization of the modular adder lifted past both controls. -/
-theorem controlledArithmetic_realizes (n N : Nat) :
-    UnitaryCircuit.Realizes (controlledEncoding n) (controlledArithmeticProgram n N)
+lemma controlledArithmetic_realizes (n N : Nat) :
+    UnitaryCircuit.Realizes (controlledEncoding n) (controlledArithmeticProgram n N) environment
       (controlledArithmeticStep n N) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty (controlledArithmeticGates n N)
     (controlledArithmeticGates_step n N)
 
@@ -2531,10 +2537,10 @@ def controlledAddSteps (n N : Nat) (a : PlainAdder.Word n) :
     controlledArithmeticStep n N,
     controlledUnloadStep n a ]
 
-theorem controlledAddStages_realize (n N : Nat) (a : PlainAdder.Word n) :
+lemma controlledAddStages_realize (n N : Nat) (a : PlainAdder.Word n) :
     List.Forall₂
       (fun program step =>
-        UnitaryCircuit.Realizes (controlledEncoding n) program step)
+        UnitaryCircuit.Realizes (controlledEncoding n) program environment step)
       (controlledAddPrograms n N a) (controlledAddSteps n N a) := by
   unfold controlledAddPrograms controlledAddSteps
   exact .cons (controlledLoad_realizes n a) <|
@@ -2554,10 +2560,11 @@ def controlledAddProgram (n N : Nat) (a : PlainAdder.Word n) :
     (UnitaryCircuit.identity AlgorithmGate.model .empty
       (QubitLayout.canonical (controlledEncoding n).width).toQuantum)
 
-theorem controlledAdd_realizes (n N : Nat) (a : PlainAdder.Word n) :
+lemma controlledAdd_realizes (n N : Nat) (a : PlainAdder.Word n) :
     UnitaryCircuit.Realizes (controlledEncoding n)
-      (controlledAddProgram n N a) (controlledAddStep n N a) :=
-  UnitaryCircuit.Realizes.appendList (controlledEncoding n) (QubitLayout.canonical _)
+      (controlledAddProgram n N a) environment (controlledAddStep n N a) :=
+  UnitaryCircuit.Realizes.appendList (environment := environment) (controlledEncoding n)
+    (QubitLayout.canonical _)
     (controlledAddPrograms n N a) (controlledAddSteps n N a)
     (controlledAddStages_realize n N a)
 
@@ -2572,7 +2579,7 @@ def controlledCleanState (n : Nat) (externalControl multiplierBit : Bool)
 
 /-- Lifting past the two controls preserves every arithmetic wire
 separation. -/
-theorem controlledActiveSource_liftRegister_ne (n : Nat)
+lemma controlledActiveSource_liftRegister_ne (n : Nat)
     (observed : EncodedBit (encoding n))
     (hne : ∀ bit,
       ((activeSourceWord n).bit bit).wire ≠ observed.wire) :
@@ -2588,7 +2595,7 @@ theorem controlledActiveSource_liftRegister_ne (n : Nat)
 
 /-- Loading into an initially zero active source produces exactly the selected
 constant and preserves both controls and every other arithmetic field. -/
-theorem controlledLoadStep_cleanEndpoint (n : Nat) (a : PlainAdder.Word n)
+lemma controlledLoadStep_cleanEndpoint (n : Nat) (a : PlainAdder.Word n)
     (externalControl multiplierBit : Bool) (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     controlledLoadStep n a
@@ -2749,7 +2756,7 @@ theorem controlledLoadStep_cleanEndpoint (n : Nat) (a : PlainAdder.Word n)
 
 /-- Reverse-list unloading removes precisely the source created by the matching
 double-controlled load. -/
-theorem controlledUnloadStep_cleanEndpoint (n : Nat) (a : PlainAdder.Word n)
+lemma controlledUnloadStep_cleanEndpoint (n : Nat) (a : PlainAdder.Word n)
     (externalControl multiplierBit : Bool) (parked : PlainAdder.Word n)
     (target : PlainAdder.Word (AdderWidth n)) (flag : Bool) :
     controlledUnloadStep n a
@@ -2773,7 +2780,7 @@ theorem controlledUnloadStep_cleanEndpoint (n : Nat) (a : PlainAdder.Word n)
 /-- Clean endpoint of the source-backed controlled modular add.  The selected
 constant contributes exactly when both controls are true; the active source,
 carry work, and reduction flag are zero/clean again at the endpoint. -/
-theorem controlledAddStep_cleanEndpoint (n N : Nat)
+lemma controlledAddStep_cleanEndpoint (n N : Nat)
     (a b : PlainAdder.Word n) (externalControl multiplierBit : Bool)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (ha : a.val < N) (hb : b.val < N) :
@@ -2869,7 +2876,7 @@ def controlledAddEventGateCount (n N : Nat) (a : PlainAdder.Word n)
     (controlledAddCircuit n N a).eventCost
 
 /-- Linearizing controlled-add event depth recovers its exact event pool. -/
-theorem controlledAddCircuit_resourcesFromEventDepth_eq_eventCost
+lemma controlledAddCircuit_resourcesFromEventDepth_eq_eventCost
     (n N : Nat) (a : PlainAdder.Word n) :
     (controlledAddCircuit n N a).resourcesFromEventDepth =
       (controlledAddCircuit n N a).eventCost :=
@@ -2883,11 +2890,11 @@ theorem controlledAddCircuit_resourcesFromEventDepth_eq_eventCost
 
 
 
-theorem controlledAddCircuit_applyNormalized_clean_ket (n N : Nat)
+lemma controlledAddCircuit_applyNormalized_clean_ket (n N : Nat)
     (a b : PlainAdder.Word n) (externalControl multiplierBit : Bool)
     (hNpos : 0 < N) (hN : N < 2 ^ n)
     (ha : a.val < N) (hb : b.val < N) :
-    (controlledAddCircuit n N a).applyNormalized
+    (controlledAddCircuit n N a).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (controlledEncoding n).width).basisEquiv.symm
             ((controlledEncoding n).encode
@@ -2903,7 +2910,7 @@ theorem controlledAddCircuit_applyNormalized_clean_ket (n N : Nat)
   simpa only [controlledAddCircuit,
     controlledAddStep_cleanEndpoint n N a b externalControl multiplierBit
       hNpos hN ha hb] using
-    (controlledAdd_realizes n N a).apply_encoded_ket
+    (controlledAdd_realizes (environment := environment) n N a).apply_encoded_ket
       (controlledCleanState n externalControl multiplierBit 0
         (N : PlainAdder.Word n) (widenWord n b) false)
 

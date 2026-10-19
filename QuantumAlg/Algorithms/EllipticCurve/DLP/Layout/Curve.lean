@@ -36,7 +36,7 @@ def fieldWidth (_E : PrimeFieldShortWeierstrass p) : Nat :=
   Nat.clog 2 p
 
 /-- The prime modulus fits its canonical coordinate width. -/
-theorem field_modulus_le_capacity (E : PrimeFieldShortWeierstrass p) :
+lemma field_modulus_le_capacity (E : PrimeFieldShortWeierstrass p) :
     p ≤ ClassicalAlgorithms.modulus (fieldWidth E) := by
   simpa [fieldWidth, ClassicalAlgorithms.modulus] using
     (Nat.le_pow_clog (by norm_num : 1 < 2) p)
@@ -52,7 +52,7 @@ def fieldSpec (E : PrimeFieldShortWeierstrass p) :
 
 /-- Every certified short-Weierstrass curve in the ECDLP model supplies the
 Mathlib ellipticity witness needed by the complete point representation. -/
-theorem curveIsElliptic (E : PrimeFieldShortWeierstrass p) :
+lemma curveIsElliptic (E : PrimeFieldShortWeierstrass p) :
     E.toWeierstrassCurve.toAffine.IsElliptic where
   isUnit := by
     let _ : Fact p.Prime := ⟨E.prime⟩

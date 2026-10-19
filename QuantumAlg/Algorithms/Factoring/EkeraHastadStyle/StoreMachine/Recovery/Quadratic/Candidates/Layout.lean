@@ -81,14 +81,14 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   second : refs.second.toCStorageRef.key ∉ other.storageKeys
 
 /-- Truncating the discriminant cannot make its square root exceed the original center. -/
-theorem root_le_center (center modulus : Nat) : Nat.sqrt (center ^ 2 - modulus) ≤ center := by
+lemma root_le_center (center modulus : Nat) : Nat.sqrt (center ^ 2 - modulus) ≤ center := by
   calc
     Nat.sqrt (center ^ 2 - modulus) ≤ Nat.sqrt (center ^ 2) :=
       Nat.sqrt_le_sqrt (Nat.sub_le _ _)
     _ = center := Nat.sqrt_eq' _
 
 /-- The extra candidate bit holds the sum using only the original short-input word bound. -/
-theorem candidate_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+lemma candidate_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
     (refs : Refs ctx shortWidth) (store : Store ctx) :
     (store.read refs.quadraticPrefix.shortLog).toNat + 1 +
         Nat.sqrt (((store.read refs.quadraticPrefix.shortLog).toNat + 1) ^ 2 -

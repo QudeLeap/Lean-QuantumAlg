@@ -35,7 +35,7 @@ variable {n : Nat}
 /-- **Phase kickback**: on a `|−⟩` target the XOR oracle acts as the phase
 oracle `|x⟩ ↦ (−1)^{f(x)} |x⟩`; the sign `(−1)^{f(x)}` is written
 `if f x then -1 else 1`. -/
-public theorem PhaseKickback.xor_action (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
+public lemma PhaseKickback.xor_action (f : Fin (2 ^ n) → Bool) (x : Fin (2 ^ n)) :
     (xorOracleOp f).applyVec
         (((ket x : NormalizedVector (Qubits n)).tensor ketMinus :
           NormalizedVector (Qubits (n + 1))) : HilbertVector (Qubits (n + 1)))

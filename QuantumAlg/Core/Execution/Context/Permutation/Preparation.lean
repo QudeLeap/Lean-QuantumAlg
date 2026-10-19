@@ -27,7 +27,7 @@ noncomputable section
 open ContextUnion
 
 /-- Exact new-bank wire records and complete entry permutation determine preparation coordinates. -/
-theorem preparation_basis_union {ctx bank : RuntimeCtx .quantum} {count : Nat}
+lemma preparation_basis_union {ctx bank : RuntimeCtx .quantum} {count : Nat}
     (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (bankWires : layout.wires = bank.quantumLayout.wires)

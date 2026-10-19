@@ -30,6 +30,8 @@ open Nat.FixedWidth
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : VariableModularMul.Parameters]
 
 local instance modulusNeZero : NeZero params.modulus.val :=
@@ -127,7 +129,7 @@ def blankRegisters : RawRegisters :=
       ({ multiplier := 0, multiplicand := 0, accumulator := 0 } :
         VariableModularMul.Data))
 
-@[simp] theorem numeratorPort_read_blankRegisters :
+@[simp] lemma numeratorPort_read_blankRegisters :
   numeratorPort.read blankRegisters = 0 := by
   apply Fin.ext
   simp [numeratorPort, BlockBank.WordPort.prodRight,
@@ -168,7 +170,7 @@ def cleanRegisters (x : MAU.Division.Data params.modulus.val) : RawRegisters :=
 /-- Loading the two Kaliski input copies and the product numerator into the
 input-independent division seed produces exactly the canonical clean division
 state. -/
-theorem loadBlankRegisters_eq_cleanRegisters
+lemma loadBlankRegisters_eq_cleanRegisters
     (denominator : (ZMod params.modulus.val)ˣ)
     (numerator : ZMod params.modulus.val) :
     numeratorPort.set
@@ -240,7 +242,7 @@ def quotientWord : EncodedBit.Word rawEncoding params.width where
     BinaryLabelEncoding.prodRightBit ModularInversion.rawEncoding
       VariableModularMul.encoding (VariableModularMul.accumulatorBit bit)
 
-@[simp] theorem quotientWord_get (bit : Fin params.width)
+@[simp] lemma quotientWord_get (bit : Fin params.width)
     (state : RawRegisters) :
     (quotientWord.bit bit).get state =
       state.2.accumulator.val.testBit bit.val := by
@@ -250,7 +252,7 @@ def quotientWord : EncodedBit.Word rawEncoding params.width where
   exact VariableModularMul.rawAccumulatorBit_get bit
     (VariableModularMul.registersEquiv state.2)
 
-theorem quotientWord_pairwise_ne (left right : Fin params.width)
+lemma quotientWord_pairwise_ne (left right : Fin params.width)
     (hne : left ≠ right) :
     (quotientWord.bit left).wire ≠ (quotientWord.bit right).wire := by
   apply EncodedBit.GateSpec.prodRightWire_ne ModularInversion.rawEncoding
@@ -297,7 +299,7 @@ def quotientPort : BlockBank.WordPort rawEncoding params.width where
 
 /-- The routed inverse word and product multiplicand occupy disjoint product
 slices. -/
-theorem inverseSource_productTarget_ne :
+lemma inverseSource_productTarget_ne :
     ∀ bit, (inverseSourceWord.bit bit).wire ≠
       (productTargetWord.bit bit).wire := by
   intro bit
@@ -354,7 +356,7 @@ def setProductMultiplicand (frame : LoadFrame)
           arithmetic := frame.2.arithmetic }
       work := frame.2.work })
 
-theorem setProductMultiplicand_decompose (state : RawRegisters) :
+lemma setProductMultiplicand_decompose (state : RawRegisters) :
     setProductMultiplicand (loadFrame state)
       (readProductMultiplicand state) = state := by
   rcases state with ⟨left, right⟩
@@ -362,7 +364,7 @@ theorem setProductMultiplicand_decompose (state : RawRegisters) :
   rcases inPlace with ⟨multiplicand, arithmetic⟩
   simp [setProductMultiplicand, loadFrame, readProductMultiplicand]
 
-theorem productTargetWord_get (bit : Fin params.width)
+lemma productTargetWord_get (bit : Fin params.width)
     (state : RawRegisters) :
     (productTargetWord.bit bit).get state =
       (readProductMultiplicand state).val.testBit bit.val := by
@@ -370,7 +372,7 @@ theorem productTargetWord_get (bit : Fin params.width)
     (VariableModularMul.inPlaceMultiplicandBit bit).get state.2 = _
   exact VariableModularMul.inPlaceMultiplicandBit_get bit state.2
 
-theorem productTargetWord_pairwise_ne :
+lemma productTargetWord_pairwise_ne :
     ∀ left right, left ≠ right →
       (productTargetWord.bit left).wire ≠
         (productTargetWord.bit right).wire := by
@@ -378,7 +380,7 @@ theorem productTargetWord_pairwise_ne :
   exact EncodedBit.GateSpec.prodRightWire_ne ModularInversion.rawEncoding
     (VariableModularMul.inPlaceMultiplicandBit_pairwise_ne left right hne)
 
-theorem productTarget_inverseSource_cross_ne :
+lemma productTarget_inverseSource_cross_ne :
     ∀ sourceBit targetBit,
       (productTargetWord.bit targetBit).wire ≠
         (inverseSourceWord.bit sourceBit).wire := by
@@ -388,11 +390,11 @@ theorem productTarget_inverseSource_cross_ne :
     (VariableModularMul.inPlaceMultiplicandBit targetBit)
     (inverseTargetLowBit sourceBit)
 
-theorem loadFrame_flip (bit : Fin params.width) (state : RawRegisters) :
+lemma loadFrame_flip (bit : Fin params.width) (state : RawRegisters) :
     loadFrame ((productTargetWord.bit bit).flip state) = loadFrame state := by
   rfl
 
-@[simp] theorem inverseSourceWord_get_inverseReady
+@[simp] lemma inverseSourceWord_get_inverseReady
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val) (bit : Fin params.width) :
     (inverseSourceWord.bit bit).get (inverseReadyRegisters x accumulator) =
@@ -417,7 +419,7 @@ theorem loadFrame_flip (bit : Fin params.width) (state : RawRegisters) :
 
 /-- Loading the inverse into a clean product multiplicand establishes the
 canonical product-ready state. -/
-theorem loadStep_inverseReady (x : MAU.Division.Data params.modulus.val)
+lemma loadStep_inverseReady (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val) :
     loadStep (inverseReadyRegisters x accumulator) =
       productReadyRegisters x accumulator := by
@@ -440,18 +442,18 @@ theorem loadStep_inverseReady (x : MAU.Division.Data params.modulus.val)
 
 /-- Casting a canonical field representative into an `f`-bit product word
 does not change its natural value. -/
-theorem residueCast_val
+lemma residueCast_val
     (value : ZMod params.modulus.val) :
     ((value.val : VariableModularMul.Word)).val = value.val := by
   exact ZMod.val_natCast_of_lt
     ((ZMod.val_lt value).trans VariableModularMul.modulus_lt_capacity)
 
-@[simp] theorem fieldCast_val (value : ZMod params.modulus.val) :
+@[simp] lemma fieldCast_val (value : ZMod params.modulus.val) :
     (value.cast : VariableModularMul.Word).val = value.val := by
   exact ZMod.val_cast_eq_val_of_lt
     ((ZMod.val_lt value).trans VariableModularMul.modulus_lt_capacity)
 
-private theorem cleanRegisters_injective : Function.Injective cleanRegisters := by
+private lemma cleanRegisters_injective : Function.Injective cleanRegisters := by
   intro left right h
   rcases left with ⟨leftDenominator, leftNumerator, leftTarget, leftFlag⟩
   rcases right with ⟨rightDenominator, rightNumerator, rightTarget, rightFlag⟩
@@ -495,7 +497,7 @@ def physicalWidthFor (f : Nat) : Nat :=
   24 * f + 19 + 3 * ModularInversion.counterWidthFor f
 
 /-- Exact width of the composed inversion and product carrier. -/
-theorem encoding_width_exact : encoding.width = physicalWidthFor params.width := by
+lemma encoding_width_exact : encoding.width = physicalWidthFor params.width := by
   change ModularInversion.rawEncoding.width +
       VariableModularMul.encoding.width = _
   have hinversion : ModularInversion.rawEncoding.width =
@@ -533,14 +535,14 @@ def gates : List (EncodedBit.GateSpec rawEncoding) :=
 
 /-- Lifting the inversion schedule over the untouched product carrier changes
 only wire addresses. -/
-theorem inverseProgramGates_length :
+lemma inverseProgramGates_length :
     inverseProgramGates.length = ModularInversion.gates.length := by
   unfold inverseProgramGates
   exact EncodedBit.GateSpec.length_prodLeft VariableModularMul.encoding _
 
 /-- The lifted inversion schedule preserves its ordered primitive-event
 trace. -/
-theorem inverseProgramGates_map_event :
+lemma inverseProgramGates_map_event :
     inverseProgramGates.map (EncodedBit.GateSpec.event .empty) =
       ModularInversion.gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold inverseProgramGates
@@ -548,13 +550,13 @@ theorem inverseProgramGates_map_event :
 
 /-- Relabeling and lifting the multiplication schedule change only wire
 addresses. -/
-theorem productProgramGates_length :
+lemma productProgramGates_length :
     productProgramGates.length = VariableModularMulSchedule.gates.length := by
   unfold productProgramGates
   simp only [List.length_map]
 
 /-- The lifted product schedule preserves its ordered primitive-event trace. -/
-theorem productProgramGates_map_event :
+lemma productProgramGates_map_event :
     productProgramGates.map (EncodedBit.GateSpec.event .empty) =
       VariableModularMulSchedule.gates.map (EncodedBit.GateSpec.event .empty) := by
   unfold productProgramGates
@@ -564,18 +566,18 @@ theorem productProgramGates_map_event :
         VariableModularMul.registersEquiv _)
 
 /-- The low-word inverse router has one primitive gate per field bit. -/
-theorem loadGates_length : loadGates.length = params.width := by
+lemma loadGates_length : loadGates.length = params.width := by
   exact EncodedBit.Word.xorIntoGates_length
     inverseSourceWord productTargetWord inverseSource_productTarget_ne
 
 /-- The low-word inverse router contains exactly one CNOT per field bit. -/
-theorem loadGates_cnotMultiplicity_sum :
+lemma loadGates_cnotMultiplicity_sum :
     (loadGates.map EncodedBit.GateSpec.cnotMultiplicity).sum = params.width := by
   exact EncodedBit.Word.xorIntoGates_cnotMultiplicity_sum
     inverseSourceWord productTargetWord inverseSource_productTarget_ne
 
 /-- The low-word inverse router contains no X gates. -/
-theorem loadGates_xMultiplicity_sum :
+lemma loadGates_xMultiplicity_sum :
     (loadGates.map EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   apply List.sum_eq_zero
   intro count hcount
@@ -585,14 +587,14 @@ theorem loadGates_xMultiplicity_sum :
   rfl
 
 /-- The low-word inverse router contains no Toffoli gates. -/
-theorem loadGates_toffoliMultiplicity_sum :
+lemma loadGates_toffoliMultiplicity_sum :
     (loadGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   exact EncodedBit.Word.xorIntoGates_toffoliMultiplicity_sum
     inverseSourceWord productTargetWord inverseSource_productTarget_ne
 
 /-- Exact primitive-event length decomposition of the complete division
 schedule. -/
-theorem gates_length :
+lemma gates_length :
     gates.length =
       2 * ModularInversion.gates.length + 2 * params.width +
         VariableModularMulSchedule.gates.length := by
@@ -655,7 +657,7 @@ def unitDepthBound : Nat :=
   unitDepthBoundFor params.width
 
 /-- The literal division schedule obeys its named width-only bound. -/
-theorem gates_length_le : gates.length ≤ gateLengthBound := by
+lemma gates_length_le : gates.length ≤ gateLengthBound := by
   have hinverse : ModularInversion.gates.length ≤
       ModularInversion.gateLengthBoundFor params.width := by
     simpa only [ModularInversion.gateLengthBound] using
@@ -670,7 +672,7 @@ theorem gates_length_le : gates.length ≤ gateLengthBound := by
 
 /-- Exact X decomposition of the complete division schedule, projected from
 the literal gate list. -/
-theorem gates_xMultiplicity_sum :
+lemma gates_xMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum =
       2 * (ModularInversion.gates.map
         EncodedBit.GateSpec.xMultiplicity).sum +
@@ -687,7 +689,7 @@ theorem gates_xMultiplicity_sum :
 
 /-- The complete literal division schedule obeys its named width-only
 X-coordinate bound. -/
-theorem gates_xMultiplicity_sum_le :
+lemma gates_xMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum ≤ xBound := by
   rw [gates_xMultiplicity_sum]
   have hinverse :
@@ -706,7 +708,7 @@ theorem gates_xMultiplicity_sum_le :
 
 /-- Exact CNOT decomposition of the complete division schedule, projected
 from the literal gate list. -/
-theorem gates_cnotMultiplicity_sum :
+lemma gates_cnotMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       2 * (ModularInversion.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum +
@@ -724,7 +726,7 @@ theorem gates_cnotMultiplicity_sum :
 
 /-- The complete literal division schedule obeys its named width-only
 CNOT-coordinate bound. -/
-theorem gates_cnotMultiplicity_sum_le :
+lemma gates_cnotMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤ cnotBound := by
   rw [gates_cnotMultiplicity_sum]
   have hinverse :
@@ -743,7 +745,7 @@ theorem gates_cnotMultiplicity_sum_le :
 
 /-- Exact Toffoli decomposition of the complete division schedule, projected
 from the literal gate list. -/
-theorem gates_toffoliMultiplicity_sum :
+lemma gates_toffoliMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       2 * (ModularInversion.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum +
@@ -760,7 +762,7 @@ theorem gates_toffoliMultiplicity_sum :
 
 /-- The complete literal division schedule obeys its named width-only
 Toffoli-coordinate bound. -/
-theorem gates_toffoliMultiplicity_sum_le :
+lemma gates_toffoliMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       toffoliBound := by
   rw [gates_toffoliMultiplicity_sum]
@@ -784,7 +786,7 @@ def circuit : UnitaryCircuit AlgorithmGate.model .empty
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
 
 /-- The literal public division circuit obeys its closed unit-depth bound. -/
-theorem circuit_unitDepth_le :
+lemma circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
   change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     gates).evaluatedEventDepth
@@ -793,7 +795,7 @@ theorem circuit_unitDepth_le :
   exact gates_length_le
 
 /-- The lifted inversion list has exactly the named raw-carrier action. -/
-theorem inverseProgramGates_stepList (state : RawRegisters) :
+lemma inverseProgramGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList inverseProgramGates state =
       (ModularInversion.rawStep state.1, state.2) := by
   simp only [inverseProgramGates, rawEncoding,
@@ -802,7 +804,7 @@ theorem inverseProgramGates_stepList (state : RawRegisters) :
 
 /-- The lifted and relabeled product list has exactly the named schedule
 action on the product carrier. -/
-theorem productProgramGates_stepList (state : RawRegisters) :
+lemma productProgramGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList productProgramGates state =
       (state.1, VariableModularMulSchedule.step state.2) := by
   simp only [productProgramGates, rawEncoding,
@@ -813,7 +815,7 @@ theorem productProgramGates_stepList (state : RawRegisters) :
   simp only [Equiv.symm_apply_apply]
 
 /-- The lifted inversion gate fold establishes the inverse-ready state. -/
-theorem inverseProgramGates_clean
+lemma inverseProgramGates_clean
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val) :
     EncodedBit.GateSpec.stepList inverseProgramGates
@@ -831,7 +833,7 @@ theorem inverseProgramGates_clean
   · rfl
 
 /-- The lifted product gate fold adds the selected quotient to the accumulator. -/
-theorem productProgramGates_productReady
+lemma productProgramGates_productReady
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val) :
     EncodedBit.GateSpec.stepList productProgramGates
@@ -857,7 +859,7 @@ theorem productProgramGates_productReady
 
 /-- The complete literal division schedule maps every clean public carrier to
 the corresponding clean quotient-updated carrier. -/
-theorem gates_cleanEndpoint
+lemma gates_cleanEndpoint
     (x : MAU.Division.Data params.modulus.val) :
     EncodedBit.GateSpec.stepList gates (cleanRegisters x) =
       cleanRegisters x.addQuotientIntoTarget := by
@@ -909,15 +911,16 @@ theorem gates_cleanEndpoint
 
 /-- The composed actual circuit realizes public unit-denominator modular
 division. -/
-theorem realizes : UnitaryCircuit.Realizes encoding circuit
+lemma realizes : UnitaryCircuit.Realizes encoding circuit environment
     (MAU.Division.Data.addQuotientIntoTarget) where
   apply_encoded_ket := by
     intro x
     have hrealizes :=
-      (EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates).apply_encoded_ket
+      (EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _)
+        .empty gates).apply_encoded_ket
         (cleanRegisters x)
     rw [gates_cleanEndpoint] at hrealizes
-    change circuit.applyNormalized
+    change circuit.applyNormalized environment
         (NormalizedVector.ket ((QubitLayout.canonical rawEncoding.width).basisEquiv.symm
           (rawEncoding.encode (cleanRegisters x)))) =
       NormalizedVector.ket ((QubitLayout.canonical rawEncoding.width).basisEquiv.symm
@@ -928,7 +931,7 @@ theorem realizes : UnitaryCircuit.Realizes encoding circuit
 def witness : MAU.Division.StructuredCircuitWitness params.modulus.val where
   encoding := encoding
   circuit := circuit
-  realizes := realizes
+  realizes := fun environment => realizes (environment := environment)
 
 end
 

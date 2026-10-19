@@ -21,7 +21,8 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Independent chronological native instructions preparing the original center and square. -/
@@ -43,7 +44,7 @@ def discriminantEnvelope (shortWidth : Nat) : ResourcePool model :=
     NatSub.eventEnvelope (discriminantWidth shortWidth)
 
 /-- The three selected preparation instructions have their original chronological trace. -/
-theorem prepareInto_events (refs : Refs ctx shortWidth) (path : (prepareInto refs).Path) :
+lemma prepareInto_events (refs : Refs ctx shortWidth) (path : (prepareInto refs).Path) :
     (prepareInto refs).eventTrace path = prepareTrace shortWidth := by
   change (BitWord.instruction (execution := model) (resizeOp refs)).eventTrace path.1 ++
     ((BitWord.instruction (execution := model) (incrementOp refs)).eventTrace path.2.1 ++
@@ -53,7 +54,7 @@ theorem prepareInto_events (refs : Refs ctx shortWidth) (path : (prepareInto ref
   rfl
 
 /-- Every actual prefix path emits exactly its five independently specified native events. -/
-theorem discriminantInto_events (refs : Refs ctx shortWidth)
+lemma discriminantInto_events (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).eventTrace path =
       discriminantTrace shortWidth path.2.2.1.toBool := by
@@ -63,14 +64,14 @@ theorem discriminantInto_events (refs : Refs ctx shortWidth)
   rfl
 
 /-- Native multiplicities are extracted from the same five-operation execution path. -/
-theorem discriminantInto_resourcePool (refs : Refs ctx shortWidth)
+lemma discriminantInto_resourcePool (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).resourcePool path =
       ResourcePool.ofList (discriminantTrace shortWidth path.2.2.1.toBool) :=
   congrArg ResourcePool.ofList (discriminantInto_events refs path)
 
 /-- The actual native coordinates meet the original independent comparison-branch envelope. -/
-theorem discriminantInto_pool_le (refs : Refs ctx shortWidth)
+lemma discriminantInto_pool_le (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).resourcePool path ≤ discriminantEnvelope shortWidth := by
   change ResourcePool.ofList ((prepareInto refs).eventTrace path.1 ++
@@ -79,7 +80,7 @@ theorem discriminantInto_pool_le (refs : Refs ctx shortWidth)
   exact add_le_add le_rfl (NatSub.into_pool_le refs.subtract path.2)
 
 /-- Widening, increment, full square, comparison and the selected subtraction write all execute. -/
-theorem discriminantInto_eventCount (refs : Refs ctx shortWidth)
+lemma discriminantInto_eventCount (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     ((discriminantInto refs).eventTrace path).length = 5 := by
   rw [discriminantInto_events]
@@ -87,14 +88,14 @@ theorem discriminantInto_eventCount (refs : Refs ctx shortWidth)
   rfl
 
 /-- The five original native instructions retain their sequential dependency depth. -/
-theorem discriminantInto_depth (refs : Refs ctx shortWidth)
+lemma discriminantInto_depth (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).depth (fun _ => 1) path = 5 := by
   change 3 + (NatSub.into refs.subtract).depth (fun _ => 1) path.2 = _
   rw [NatSub.into_depth]
 
 /-- Each native prefix operation keeps the complete original runtime context live. -/
-theorem discriminantInto_visited (refs : Refs ctx shortWidth)
+lemma discriminantInto_visited (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).visitedContexts path = List.replicate 5 ctx := by
   change [ctx, ctx, ctx] ++ (NatSub.into refs.subtract).visitedContexts path.2 = _
@@ -102,7 +103,7 @@ theorem discriminantInto_visited (refs : Refs ctx shortWidth)
   rfl
 
 /-- All supplied classical and quantum storage remains included in resident accounting. -/
-theorem discriminantInto_resident_le (refs : Refs ctx shortWidth)
+lemma discriminantInto_resident_le (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -111,7 +112,7 @@ theorem discriminantInto_resident_le (refs : Refs ctx shortWidth)
   rw [(List.mem_replicate.mp present).2]
 
 /-- Every original auxiliary role remains live through the discriminant computation. -/
-theorem discriminantInto_auxiliary_le (refs : Refs ctx shortWidth)
+lemma discriminantInto_auxiliary_le (refs : Refs ctx shortWidth)
     (path : (discriminantInto refs).Path) :
     (discriminantInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -120,19 +121,19 @@ theorem discriminantInto_auxiliary_le (refs : Refs ctx shortWidth)
   rw [(List.mem_replicate.mp present).2]
 
 /-- All five actual native operations restore borrowed systems jointly with external references. -/
-theorem discriminantInto_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
+lemma discriminantInto_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (discriminantInto refs).BorrowedRestored Reference state
-      ((discriminantInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
-  · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_classical
+      ((discriminantInto refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · apply Circuit.borrowedRestored_seq (environment := environment)
+    · exact Circuit.borrowedRestored_classical (environment := environment)
         (BitWord.selectedApplication (execution := model) (resizeOp refs)) _
-    · exact Circuit.borrowedRestored_seq _ _ _
-        (Circuit.borrowedRestored_classical
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
+        (Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (incrementOp refs)) _)
-        (Circuit.borrowedRestored_classical
+        (Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (squareOp refs)) _)
   · exact NatSub.into_borrowedRestored refs.subtract Reference _
 
@@ -145,7 +146,7 @@ def nativeTrace (shortWidth : Nat) (underflow : Bool) : List (Resource.Event mod
   discriminantTrace shortWidth underflow ++ NatSqrt.driverTrace (discriminantWidth shortWidth)
 
 /-- The actual complete path emits the specified prefix and finite-square-root instructions. -/
-theorem into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).eventTrace path = nativeTrace shortWidth path.1.2.2.1.toBool := by
   change (discriminantInto refs).eventTrace path.1 ++
     (NatSqrt.into refs.sqrt).eventTrace path.2 = _
@@ -153,13 +154,13 @@ theorem into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
   rfl
 
 /-- Complete native multiplicities are counted from the same actual execution path. -/
-theorem into_resourcePool (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resourcePool (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path =
       ResourcePool.ofList (nativeTrace shortWidth path.1.2.2.1.toBool) :=
   congrArg ResourcePool.ofList (into_events refs path)
 
 /-- Actual native coordinates meet the independent original prefix and square-root allowance. -/
-theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path ≤ eventEnvelope shortWidth := by
   change ResourcePool.ofList ((discriminantInto refs).eventTrace path.1 ++
     (NatSqrt.into refs.sqrt).eventTrace path.2) ≤ _
@@ -168,7 +169,7 @@ theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (NatSqrt.into_pool_le refs.sqrt path.2)
 
 /-- The actual count charges all prefix, initialization, refinement and caller-output writes. -/
-theorem into_eventCount (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_eventCount (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     ((into refs).eventTrace path).length = 7 * discriminantWidth shortWidth + 9 := by
   change ((discriminantInto refs).eventTrace path.1 ++
     (NatSqrt.into refs.sqrt).eventTrace path.2).length = _
@@ -177,7 +178,7 @@ theorem into_eventCount (refs : Refs ctx shortWidth) (path : (into refs).Path) :
   omega
 
 /-- All original prefix and square-root operations retain their sequential dependency depth. -/
-theorem into_depth (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_depth (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path = 7 * discriminantWidth shortWidth + 9 := by
   change (discriminantInto refs).depth (fun _ => 1) path.1 +
     (NatSqrt.into refs.sqrt).depth (fun _ => 1) path.2 = _
@@ -186,7 +187,7 @@ theorem into_depth (refs : Refs ctx shortWidth) (path : (into refs).Path) :
   omega
 
 /-- The complete circuit keeps every original caller cell and quantum system live. -/
-theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
+lemma into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (discriminantInto refs).visitedContexts path.1 ++
@@ -197,25 +198,26 @@ theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
   · exact NatSqrt.into_visited refs.sqrt path.2 visited sqrtPresent
 
 /-- Resident peak includes all supplied classical cells and quantum dimensions throughout. -/
-theorem into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Auxiliary peak retains the original workspace roles during the complete computation. -/
-theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Complete prefix execution restores borrowed storage jointly with every external reference. -/
-theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+    (into refs).BorrowedRestored
+      Reference state ((into refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact discriminantInto_borrowedRestored refs Reference state
   · exact NatSqrt.into_borrowedRestored refs.sqrt Reference _
 

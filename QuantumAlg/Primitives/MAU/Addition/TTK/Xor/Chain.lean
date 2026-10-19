@@ -29,14 +29,14 @@ private def chainSource {n : Nat} (i : Fin (n - 2)) : Fin n :=
 private def chainTarget {n : Nat} (i : Fin (n - 2)) : Fin n :=
   ⟨i.val + 2, by omega⟩
 
-private theorem chainSource_ne_target {n : Nat} (i : Fin (n - 2)) :
+private lemma chainSource_ne_target {n : Nat} (i : Fin (n - 2)) :
     chainSource i ≠ chainTarget i := by
   intro h
   have hval := congrArg Fin.val h
   change i.val + 1 = i.val + 2 at hval
   omega
 
-private theorem previousBit_chainTarget {n : Nat} (i : Fin (n - 2)) :
+private lemma previousBit_chainTarget {n : Nat} (i : Fin (n - 2)) :
     previousBit (chainTarget i) = chainSource i := by
   apply Fin.ext
   change i.val + 2 - 1 = i.val + 1
@@ -54,7 +54,7 @@ private def chainInvariant (n : Nat) (original rightState : Registers n)
     else (leftBit n i).get original) ∧
   (∀ i : Fin n, (rightBit n i).get s = (rightBit n i).get rightState)
 
-private theorem chainInvariant_descending_step (n : Nat)
+private lemma chainInvariant_descending_step (n : Nat)
     (original rightState s : Registers n) (k : Fin (n - 2))
     (hs : chainInvariant n original rightState (k.val + 1) s) :
     chainInvariant n original rightState k.val ((chainGate k).step s) := by
@@ -91,7 +91,7 @@ private theorem chainInvariant_descending_step (n : Nat)
     rw [ttkCnotLL_right n (chainSource k) (chainTarget k) i (chainSource_ne_target k)]
     exact hs.2 i
 
-private theorem chainInvariant_ascending_step (n : Nat)
+private lemma chainInvariant_ascending_step (n : Nat)
     (original rightState s : Registers n) (k : Fin (n - 2))
     (hs : chainInvariant n original rightState k.val s) :
     chainInvariant n original rightState (k.val + 1) ((chainGate k).step s) := by
@@ -130,7 +130,7 @@ private theorem chainInvariant_ascending_step (n : Nat)
     exact hs.2 i
 
 /-- Stage two writes adjacent addend XORs above bit one and preserves the target. -/
-theorem ttkDescendingXor (n : Nat) (s : Registers n) :
+lemma ttkDescendingXor (n : Nat) (s : Registers n) :
     (∀ i : Fin n, (leftBit n i).get (stepList (descendingXorGates n) s) =
       if 2 ≤ i.val then
         ((leftBit n i).get s ^^ (leftBit n (previousBit i)).get s)
@@ -151,7 +151,7 @@ theorem ttkDescendingXor (n : Nat) (s : Registers n) :
 
 /-- Stage five restores any addend with the adjacent-XOR pattern left by stage four.
 The right operand is arbitrary and all of its bits are preserved. -/
-theorem ttkAscendingXor (n : Nat) (original s : Registers n)
+lemma ttkAscendingXor (n : Nat) (original s : Registers n)
     (hleft : ∀ i : Fin n, (leftBit n i).get s =
       if 2 ≤ i.val then
         ((leftBit n i).get original ^^ (leftBit n (previousBit i)).get original)

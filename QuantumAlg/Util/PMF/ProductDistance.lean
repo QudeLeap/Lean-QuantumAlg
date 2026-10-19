@@ -208,7 +208,7 @@ lemma two_mul_sqrt_half {x : ℝ} (hx : 0 ≤ x) : 2 * Real.sqrt (x / 2) = Real.
     rw [abs_of_nonneg (mul_nonneg (by norm_num) (Real.sqrt_nonneg _))]
 
 /-- Consequence of the preceding finite-distribution estimates. -/
-theorem sampleCount_lower_bound {irreps : Type*} [Fintype irreps]
+lemma sampleCount_lower_bound {irreps : Type*} [Fintype irreps]
     (n : ℕ) (hn : 1 < n)
     (P_triv P_pi : irreps → ℝ)
     (hP_triv_nn : ∀ x, 0 ≤ P_triv x)

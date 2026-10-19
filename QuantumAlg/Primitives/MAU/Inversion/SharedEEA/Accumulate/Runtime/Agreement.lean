@@ -23,10 +23,12 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.AccumulateAgreement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution AccumulateRuntime
 
 /-- The actual word result equals the independent modular data permutation on canonical targets. -/
-theorem accumulateAgreement_output (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateAgreement_output (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (targetBounded : (inputBasisEquiv modulus.size old).2.1.val < modulus) :
     outputOld modulus modulusPositive old =
@@ -43,10 +45,10 @@ theorem accumulateAgreement_output (modulus : Nat) (modulusPositive : 0 < modulu
     · exact fields.2.2.symm
 
 /-- The entire prepared ket agrees with the independent full target at every positive modulus. -/
-theorem accumulateAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (allowed : AccumulateSpecification.admissible modulus (inputBasisEquiv modulus.size old)) :
-    (program modulus).applyNormalized
+    (program modulus).applyNormalized environment
         (NormalizedVector.ket (R := (after modulus.size).register)
           (PayloadPreparation.assembly modulus.size (modulus.size + 1)
             ((InputPreparation.preparation modulus).value, old))) =
@@ -55,7 +57,8 @@ theorem accumulateAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < 
           (PayloadPreparation.assembly modulus.size (modulus.size + 1)
             ((InputPreparation.preparation modulus).value, old))) := by
   by_cases nontrivial : 1 < modulus
-  · have actual := accumulateRuntime_prepared_ket modulus nontrivial old allowed
+  · have actual := accumulateRuntime_prepared_ket
+      (environment := environment) modulus nontrivial old allowed
     have same := accumulateAgreement_output modulus modulusPositive old allowed.2.2
     have output := congrArg
       (fun value => NormalizedVector.ket (R := (after modulus.size).register)
@@ -70,23 +73,24 @@ theorem accumulateAgreement_prepared_ket (modulus : Nat) (modulusPositive : 0 < 
     exact accumulateRuntime_trivial_ket 1 (by omega) _
 
 /-- Exact prepared-column agreement keeps every output row and hence every reference coherence. -/
-theorem accumulateAgreement_prepared_column (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateAgreement_prepared_column (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (allowed : AccumulateSpecification.admissible modulus (inputBasisEquiv modulus.size old))
     (row : (after modulus.size).register.Index) :
-    (program modulus).matrix row
+    ((program modulus).matrix environment) row
         (PayloadPreparation.assembly modulus.size (modulus.size + 1)
           ((InputPreparation.preparation modulus).value, old)) =
       (AccumulateTarget.operator modulus modulusPositive) row
         (PayloadPreparation.assembly modulus.size (modulus.size + 1)
           ((InputPreparation.preparation modulus).value, old)) := by
   have values := congrArg (fun vector : NormalizedVector (after modulus.size).register =>
-    vector.vec row) (accumulateAgreement_prepared_ket modulus modulusPositive old allowed)
+    vector.vec row) (accumulateAgreement_prepared_ket
+      (environment := environment) modulus modulusPositive old allowed)
   let basis : (after modulus.size).register.Index :=
     PayloadPreparation.assembly modulus.size (modulus.size + 1)
       ((InputPreparation.preparation modulus).value, old)
   change HilbertOperator.applyVec
-      ((program modulus).matrix : HilbertOperator (after modulus.size).register)
+      (((program modulus).matrix environment) : HilbertOperator (after modulus.size).register)
       (NormalizedVector.ket basis) row =
     HilbertOperator.applyVec
       ((AccumulateTarget.operator modulus modulusPositive) :

@@ -30,13 +30,15 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The selected actual branch preserves every complete quantum-reference block. -/
-theorem selectedRecoveryChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma selectedRecoveryChoice_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width)) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (selectedRecoveryChoice (model := model) input modulus payload value).execute Reference state =
+    (selectedRecoveryChoice (model := model) input modulus payload value).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := selectedRecoveryChoiceStep (model := model) input modulus payload value
             entry.1
@@ -45,25 +47,26 @@ theorem selectedRecoveryChoice_execute {model : ExecutionModel} [BitWord.Selecte
   | bit value =>
       cases value
       · simp only [selectedRecoveryChoice, selectedRecoveryChoiceStep, CShape.Value.toBool]
-        refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+        refine (Circuit.execute_id_mapClassical environment Reference state).trans ?_
         exact ExecutionState.executionState_mapClassical_congr _ rfl
       · exact (withRecovery_execute input modulus payload Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- The actual branch and final materialization compose with their true store and path. -/
-theorem selectedRecoveryBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma selectedRecoveryBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
     (output : CWriteRef ctx (OutputShape width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (selectedRecoveryBody (model := model) input modulus success payload output).execute
-        Reference state =
+        environment Reference state =
       state.mapClassical (fun entry =>
         let result := selectedRecoveryBodyStep (model := model) input modulus success payload
             output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (.branch success (selectedRecoveryChoice (model := model) input modulus payload))
     (BitWord.instruction (execution := model) (selectedRecoveryPackOp success payload output))
     (fun before =>
@@ -75,7 +78,7 @@ theorem selectedRecoveryBody_execute {model : ExecutionModel} [BitWord.Selected 
         (selectedRecoveryPackOp success payload output) before.1
       ((packed.1, before.2), packed.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
-    refine (Circuit.execute_branch_mapClassical success _
+    refine (Circuit.execute_branch_mapClassical (environment := environment) success _
       (fun value before =>
         let result := selectedRecoveryChoiceStep (model := model) input modulus payload value
             before.1
@@ -85,13 +88,15 @@ theorem selectedRecoveryBody_execute {model : ExecutionModel} [BitWord.Selected 
         (ExecutionState.executionState_mapClassical_congr _ rfl)
     · exact ExecutionState.executionState_mapClassical_congr _ rfl
   · intro reference history _ initial
-    exact (BitWord.bitWord_instruction_execute (execution := model)
+    exact (BitWord.bitWord_instruction_execute (environment := environment)
+      (execution := model)
       (selectedRecoveryPackOp success payload output) initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual chosen branch changes at most its payload cell. -/
-theorem selectedRecoveryChoice_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma selectedRecoveryChoice_read_other {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -107,7 +112,8 @@ theorem selectedRecoveryChoice_read_other {model : ExecutionModel} [BitWord.Sele
       · exact withRecovery_read_other input modulus payload other separate store
 
 /-- The unplaced suffix preserves all structural reads outside payload and optional-result keys. -/
-theorem selectedRecoveryBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma selectedRecoveryBody_read_other {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
@@ -124,7 +130,8 @@ theorem selectedRecoveryBody_read_other {model : ExecutionModel} [BitWord.Select
   exact selectedRecoveryChoice_read_other input modulus payload _ other payloadFree store
 
 /-- Actual optional packing returns none or the genuine computed payload according to status. -/
-theorem selectedRecoveryBody_result {model : ExecutionModel} [BitWord.Selected model]
+lemma selectedRecoveryBody_result {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
@@ -155,22 +162,24 @@ theorem selectedRecoveryBody_result {model : ExecutionModel} [BitWord.Selected m
           selectedRecoveryChoiceStep]
         exact congrArg CShape.Value.optionSome (withRecovery_value input modulus payload store)
 
-private theorem selectionPayload_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma selectionPayload_free {shape : CShape} (input : CInputRef ctx shape) :
     (selectionPayloadCell ctx width).key ∉ (underSelection input width).storageKeys := by
   rw [underSelection, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
 /-- Actual payload allocation, branch, pack and release preserve full quantum-reference data. -/
-theorem withSelectedRecovery_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma withSelectedRecovery_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (withSelectedRecovery (model := model) input modulus success output).execute Reference state =
+    (withSelectedRecovery (model := model) input modulus success output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := withSelectedRecoveryStep (model := model) input modulus success output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (FiniteCyclicDLP.OutputShape width) ctx.canonicalFreshKey_fresh
     (selectedRecoveryPlaced (model := model) input modulus success output)
     (fun before =>
@@ -187,7 +196,8 @@ theorem withSelectedRecovery_execute {model : ExecutionModel} [BitWord.Selected 
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The result uses original status and words, with no caller scratch or output promise. -/
-theorem withSelectedRecovery_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withSelectedRecovery_value {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx) :
@@ -221,7 +231,8 @@ theorem withSelectedRecovery_value {model : ExecutionModel} [BitWord.Selected mo
   rw [leftRead, rightRead, inverseRead]
 
 /-- Only the original optional-result cell may change after the payload is released. -/
-theorem withSelectedRecovery_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma withSelectedRecovery_read_other {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) {shape : CShape} (other : CInputRef ctx shape)

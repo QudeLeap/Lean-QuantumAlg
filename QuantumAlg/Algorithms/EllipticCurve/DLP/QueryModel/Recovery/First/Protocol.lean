@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.Specification
+
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.First
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Failure
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.First
@@ -50,36 +52,32 @@ both complete dimension-indexed peaks and weighted serial depth.
 **Source.** [PZ03, ecc.tex:448-462,525-640]; [Sho95, source.tex:1704-1740];
 [SV24, Uniform.tex:622-664,775-805,996-1024]; [RNSL17, ECDLP.tex:483-510,649-709].
 -/
-public def firstRoundProblem (I : ECDLPInstance E) (A : Access I)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (nontrivial : 2 ≤ (problem I).order)
-    (duration : Resource.Event (Sampling.executionModel I A) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (Sampling.executionModel I A) (Sampling.pre I) (context I)
-      (.product .bit (.unsignedWord (scalarWidth I))) where
-  valid := inputDomain I
-  initialization := fun _ => True
-  accepts := fun _ result => roundAccepts I result
-  successLB := ⟨ENNReal.ofReal (Sampling.Reuse.successFloor I),
-    ENNReal.ofReal_le_one.mpr (successFloor_le_one I)⟩
-  states := [firstRoundStateRequirement I]
-  resources :=
-    { events := firstRoundEventBudget I A expansion nontrivial
-      resident := roundResidentBudget I
-      auxiliary := roundAuxiliaryBudget I }
-  depth :=
-    { duration := duration
-      limit := ResourcePool.weightedCount duration (firstRoundEventBudget I A expansion nontrivial)
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
-
-/-- The actual initialized first round observes only its existing two result cells. -/
-public def firstRoundAlgorithm (I : ECDLPInstance E) (A : Access I)
+public def firstRoundProblem (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) :
-    Algorithm (Sampling.executionModel I A) (Sampling.pre I) (context I)
+    Problem (Sampling.executionModel I) (Sampling.pre I) (context I)
+      (.product .bit (.unsignedWord (scalarWidth I))) where
+  Witness := FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I)
+  valid := fun environment _ state => Sampling.Admissible I environment ∧ inputDomain I state
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ result => roundAccepts I result
+  successLB := fun _ _ => ⟨ENNReal.ofReal (Sampling.Reuse.successFloor I),
+    ENNReal.ofReal_le_one.mpr (successFloor_le_one I)⟩
+  states := fun _ _ => [firstRoundStateRequirement I]
+  resources :=
+    { events := firstRoundEventBudget I expansion nontrivial
+      resident := roundResidentBudget I
+      auxiliary := roundAuxiliaryBudget I }
+  quantumTimeLimit := ResourcePool.weightedCount Resource.Event.quantumDuration
+    (firstRoundEventBudget I expansion nontrivial)
+
+/-- The actual initialized first round observes only its existing two result cells. -/
+public def firstRoundAlgorithm (I : ECDLPInstance E)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
+    (nontrivial : 2 ≤ (problem I).order) :
+    Algorithm (Sampling.executionModel I) (Sampling.pre I) (context I)
       (.product .bit (.unsignedWord (scalarWidth I))) :=
-  ⟨{ code := firstRound I A expansion nontrivial
+  ⟨{ code := firstRound I expansion nontrivial
      output := Output.all (context I) (roundResultRead I) }⟩
 
 end

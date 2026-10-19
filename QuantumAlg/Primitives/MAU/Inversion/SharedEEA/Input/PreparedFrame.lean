@@ -35,7 +35,7 @@ open Execution InputPreparation InputAssembly
 def frameEquiv (width : Nat) : (after width).register.Index ≃ Registers width :=
   (InputAssembly.basisEquiv width).trans (PreparedFrame.registerLabelEquiv width).symm
 
-private theorem encode_frameEquiv (width : Nat) (basis : (after width).register.Index) :
+private lemma encode_frameEquiv (width : Nat) (basis : (after width).register.Index) :
     (encoding width).encode (frameEquiv width basis) = InputAssembly.basisEquiv width basis :=
   (PreparedFrame.registerLabelEquiv width).apply_symm_apply _
 
@@ -45,12 +45,12 @@ def preparedFrame (modulus : Nat) (old : (before modulus.size).register.Index) :
   frameEquiv modulus.size
     (InputAssembly.assembly modulus.size ((preparation modulus).value, old))
 
-private theorem wireIndex_val {width : Nat} (wire : Fin width) :
+private lemma wireIndex_val {width : Nat} (wire : Fin width) :
     (WireAddress.bitIndex wire).val = wire.rev.val := by
   dsimp only [WireAddress.bitIndex, Fin.rev]
   omega
 
-private theorem prepared_get_auxiliary (modulus : Nat)
+private lemma prepared_get_auxiliary (modulus : Nat)
     (old : (before modulus.size).register.Index) (bit : EncodedBit (encoding modulus.size))
     (outside : bit.wire.val < prefixWidth modulus.size ∨
       prefixWidth modulus.size + modulus.size ≤ bit.wire.val) :
@@ -81,7 +81,7 @@ private theorem prepared_get_auxiliary (modulus : Nat)
   rw [position] at actual
   exact actual.trans (congrArg (fixedBit modulus) (congrArg Fin.val position))
 
-private theorem prepared_get_input (modulus : Nat)
+private lemma prepared_get_input (modulus : Nat)
     (old : (before modulus.size).register.Index) (bit : EncodedBit (encoding modulus.size))
     (index : Fin modulus.size) (position : bit.wire = inputPosition modulus.size index) :
     bit.get (preparedFrame modulus old) =
@@ -93,7 +93,7 @@ private theorem prepared_get_input (modulus : Nat)
   rw [encode_frameEquiv, position]
   exact basisEquiv_input modulus.size (preparation modulus).value old index
 
-private theorem registers_ext {width : Nat} {left right : Registers width}
+private lemma registers_ext {width : Nat} {left right : Registers width}
     (first : left.firstWord = right.firstWord) (second : left.secondWord = right.secondWord)
     (coefficient : left.coefficientLength = right.coefficientLength)
     (quotient : left.quotientLength = right.quotientLength)
@@ -112,7 +112,7 @@ private theorem registers_ext {width : Nat} {left right : Registers width}
   rfl
 
 /-- All actual prepared fields equal the source initial frame on the original input label. -/
-theorem preparedFrame_eq_initial (modulus : Nat) (old : (before modulus.size).register.Index) :
+lemma preparedFrame_eq_initial (modulus : Nat) (old : (before modulus.size).register.Index) :
     preparedFrame modulus old =
       InitialFrame.initial modulus (inputBasisEquiv modulus.size old) := by
   apply registers_ext
@@ -225,7 +225,7 @@ theorem preparedFrame_eq_initial (modulus : Nat) (old : (before modulus.size).re
         (InitialBitValues.control_fixed modulus (inputBasisEquiv modulus.size old))
 
 /-- The exact actual prepared binary label is the source initial label on the original input. -/
-theorem basisEquiv_prepared_initial (modulus : Nat)
+lemma basisEquiv_prepared_initial (modulus : Nat)
     (old : (before modulus.size).register.Index) :
     InputAssembly.basisEquiv modulus.size
         (InputAssembly.assembly modulus.size ((preparation modulus).value, old)) =

@@ -39,12 +39,12 @@ variable {N : ℕ}
 /-- The real constant `1/√2`, as a complex scalar (the off-diagonal normalization). -/
 noncomputable def rt2inv : ℂ := ((Real.sqrt 2)⁻¹ : ℝ)
 
-theorem rt2inv_mul_self : rt2inv * rt2inv = 1 / 2 := by
+lemma rt2inv_mul_self : rt2inv * rt2inv = 1 / 2 := by
   rw [rt2inv, ← Complex.ofReal_mul]
   rw [← mul_inv, Real.mul_self_sqrt (by norm_num)]
   norm_num
 
-theorem rt2inv_conj : star rt2inv = rt2inv := by
+lemma rt2inv_conj : star rt2inv = rt2inv := by
   rw [rt2inv]; exact Complex.conj_ofReal _
 
 /-- The **Hermitized matrix units**: a complete Hermitian basis of `gl(N, ℂ)`, indexed
@@ -55,7 +55,7 @@ noncomputable def hermUnit (p : Fin N × Fin N) : Matrix (Fin N) (Fin N) ℂ :=
   else rt2inv • (Complex.I • (single p.1 p.2 1 - single p.2 p.1 1))
 
 /-- Every Hermitized matrix unit is Hermitian. -/
-theorem hermUnit_isHermitian (p : Fin N × Fin N) : (hermUnit p)ᴴ = hermUnit p := by
+lemma hermUnit_isHermitian (p : Fin N × Fin N) : (hermUnit p)ᴴ = hermUnit p := by
   unfold hermUnit
   split_ifs with h1 h2
   · simp [conjTranspose_single]
@@ -66,21 +66,21 @@ theorem hermUnit_isHermitian (p : Fin N × Fin N) : (hermUnit p)ᴴ = hermUnit p
       hI, smul_sub, neg_smul, smul_neg]
     abel
 
-theorem hermUnit_diag (i : Fin N) : hermUnit ((i, i) : Fin N × Fin N) = single i i 1 := by
+lemma hermUnit_diag (i : Fin N) : hermUnit ((i, i) : Fin N × Fin N) = single i i 1 := by
   simp [hermUnit]
 
-theorem hermUnit_lt {i j : Fin N} (h : i < j) :
+lemma hermUnit_lt {i j : Fin N} (h : i < j) :
     hermUnit ((i, j) : Fin N × Fin N) = rt2inv • (single i j 1 + single j i 1) := by
   simp [hermUnit, h.ne, h]
 
-theorem hermUnit_gt {i j : Fin N} (h : j < i) :
+lemma hermUnit_gt {i j : Fin N} (h : j < i) :
     hermUnit ((i, j) : Fin N × Fin N)
       = rt2inv • (Complex.I • (single i j 1 - single j i 1)) := by
   simp [hermUnit, h.ne', not_lt.mpr h.le]
 
-theorem rt2inv_sq : rt2inv ^ 2 = 1 / 2 := by rw [sq, rt2inv_mul_self]
+lemma rt2inv_sq : rt2inv ^ 2 = 1 / 2 := by rw [sq, rt2inv_mul_self]
 
-theorem star_I_eq : star Complex.I = -Complex.I := by rw [← starRingEnd_apply]; exact Complex.conj_I
+lemma star_I_eq : star Complex.I = -Complex.I := by rw [← starRingEnd_apply]; exact Complex.conj_I
 
 /-- Shared finisher for the orthonormality Gram-matrix computation: expand the
 Hilbert–Schmidt inner product, then resolve the index `if`s (impossible ones by `omega`)
@@ -96,7 +96,7 @@ local macro "hsFinish" : tactic =>
            (try (rw [rt2inv_sq, Complex.I_sq]; norm_num)))))
 
 /-- The Hermitized matrix units form a Hilbert–Schmidt orthonormal family. -/
-theorem hermUnit_orthonormal (p q : Fin N × Fin N) :
+lemma hermUnit_orthonormal (p q : Fin N × Fin N) :
     hsInner (hermUnit p) (hermUnit q) = if p = q then 1 else 0 := by
   obtain ⟨i, j⟩ := p
   obtain ⟨k, l⟩ := q
@@ -116,7 +116,7 @@ theorem hermUnit_orthonormal (p q : Fin N × Fin N) :
     · rw [hermUnit_gt hij, hermUnit_gt hkl]; hsFinish
 
 /-- The Hermitized matrix units are linearly independent. -/
-theorem hermUnit_linearIndependent :
+lemma hermUnit_linearIndependent :
     LinearIndependent ℂ (hermUnit : Fin N × Fin N → Matrix (Fin N) (Fin N) ℂ) := by
   rw [Fintype.linearIndependent_iff]
   intro c hc p
@@ -130,7 +130,7 @@ theorem hermUnit_linearIndependent :
   simpa [hsInner] using h1.symm
 
 /-- The Hermitized matrix units span all of `gl(N, ℂ)`. -/
-theorem hermUnit_span_top :
+lemma hermUnit_span_top :
     Submodule.span ℂ (Set.range (hermUnit : Fin N × Fin N → Matrix (Fin N) (Fin N) ℂ)) = ⊤ := by
   apply hermUnit_linearIndependent.span_eq_top_of_card_eq_finrank'
   rw [Fintype.card_prod, Fintype.card_fin, Module.finrank_matrix, Fintype.card_fin,

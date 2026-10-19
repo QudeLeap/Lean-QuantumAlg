@@ -24,17 +24,17 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original scratch allocator returns the exact packed caller write on the same full state. -/
-theorem xgcdNativePackRawOutputs_actualRecord (outputs : RawOutputs ctx width)
+lemma xgcdNativePackRawOutputs_actualRecord (outputs : RawOutputs ctx width)
     (result : CWriteRef ctx (XGCDOutputShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (packRawOutputs
       (model := model) outputs result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (packRawOutputs (model := model) outputs result).execute Reference state =
+        (packRawOutputs (model := model) outputs result).execute environment Reference state =
           state.mapClassical (fun entry =>
             let actual := record (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
@@ -47,7 +47,7 @@ theorem xgcdNativePackRawOutputs_actualRecord (outputs : RawOutputs ctx width)
       (packedRawValue (before.read (GCD.cellRead outputs.gcd))
         (before.read (GCD.cellRead outputs.leftCoefficient))
         (before.read (GCD.cellRead outputs.rightCoefficient)))
-  apply withCells_actualRecord_post ctx (packingShapes width)
+  apply withCells_actualRecord_post (environment := environment) ctx (packingShapes width)
     (fun cells _ transport _ => packingBody (model := model) (outputs.transport transport)
       cells.head.ref
       cells.tail.head.ref cells.tail.tail.head.ref (transport.liftWrite result)) Post

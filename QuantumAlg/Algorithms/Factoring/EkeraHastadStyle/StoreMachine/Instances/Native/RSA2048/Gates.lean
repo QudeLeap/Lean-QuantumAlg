@@ -38,7 +38,7 @@ def gateCountBound : AlgorithmGate.Coordinate → Nat
   | .singleQubit => 485_267_571_158_230_673
 
 /-- The round decimals are kernel-checked evaluations of the three independent width formulas. -/
-theorem roundGateWidthBound_eq (coordinate : AlgorithmGate.Coordinate) :
+lemma roundGateWidthBound_eq (coordinate : AlgorithmGate.Coordinate) :
     RuntimeRound.gateWidthBound 1_025 513 2_048 coordinate = roundGateCountBound coordinate := by
   cases coordinate <;>
     norm_num [RuntimeRound.gateWidthBound, RuntimeRound.memberGateBound,
@@ -54,7 +54,7 @@ theorem roundGateWidthBound_eq (coordinate : AlgorithmGate.Coordinate) :
 attribute [local irreducible] RuntimeRound.gateWidthBound
 
 /-- Every original exact-width key has the same independently evaluated gate-coordinate ceilings. -/
-theorem model_gateCountBound_eq {N : Nat} (model : FixedWidthModel N)
+lemma model_gateCountBound_eq {N : Nat} (model : FixedWidthModel N)
     (coordinate : AlgorithmGate.Coordinate) :
     NativeFiniteRetry.gateCountBound N rounds coordinate = gateCountBound coordinate := by
   unfold NativeFiniteRetry.gateCountBound
@@ -70,7 +70,7 @@ attribute [local irreducible] NativeFiniteRetry.run NativeFiniteRetry.code Nativ
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every actual complete path obeys all three coordinate bounds, including reset corrections. -/
-theorem run_gateCount_le (model : FixedWidthModel N) (input : Canonical.Input N)
+lemma run_gateCount_le (model : FixedWidthModel N) (input : Canonical.Input N)
     (path : (NativeFiniteRetry.run base noQuantum input rounds).code.Path)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)

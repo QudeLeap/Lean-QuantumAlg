@@ -39,11 +39,11 @@ abbrev PatternMatches (layout : OneDirtyLayout (encoding := encoding) controls)
 def patternMaskIndices (expected : Fin controls → Bool) : List (Fin controls) :=
   (List.ofFn fun index : Fin controls => index).filter fun index => !expected index
 
-private theorem patternMaskIndices_nodup (expected : Fin controls → Bool) :
+private lemma patternMaskIndices_nodup (expected : Fin controls → Bool) :
     (patternMaskIndices expected).Nodup :=
   (List.nodup_ofFn_ofInjective (fun _ _ same => same)).filter _
 
-private theorem patternMaskIndices_member (expected : Fin controls → Bool)
+private lemma patternMaskIndices_member (expected : Fin controls → Bool)
     (index : Fin controls) :
     decide (index ∈ patternMaskIndices expected) = !expected index := by
   have allIndices : index ∈ (List.ofFn fun index : Fin controls => index) :=
@@ -57,13 +57,13 @@ variable (layout : OneDirtyLayout (encoding := encoding) controls)
 def patternMaskGates (expected : Fin controls → Bool) : List (GateSpec encoding) :=
   (patternMaskIndices expected).map fun index => .x (layout.source.bit index)
 
-private theorem patternMask_step (expected : Fin controls → Bool) (state : Data) :
+private lemma patternMask_step (expected : Fin controls → Bool) (state : Data) :
     GateSpec.stepList (layout.patternMaskGates expected) state =
       xorConstantIndicesStep layout.source (patternMaskIndices expected) state := by
   rw [patternMaskGates, GateSpec.stepList_eq_foldl, List.foldl_map]
   rfl
 
-private theorem patternMask_get (expected : Fin controls → Bool) (state : Data)
+private lemma patternMask_get (expected : Fin controls → Bool) (state : Data)
     (index : Fin controls) :
     (layout.source.bit index).get (GateSpec.stepList (layout.patternMaskGates expected) state) =
       ((layout.source.bit index).get state ^^ !expected index) := by
@@ -72,7 +72,7 @@ private theorem patternMask_get (expected : Fin controls → Bool) (state : Data
     (fun other different same => different (layout.source_injective same)),
     patternMaskIndices_member]
 
-private theorem masked_all_iff (expected : Fin controls → Bool) (state : Data) :
+private lemma masked_all_iff (expected : Fin controls → Bool) (state : Data) :
     (∀ index, (layout.source.bit index).get
       (GateSpec.stepList (layout.patternMaskGates expected) state) = true) ↔
         layout.PatternMatches expected state := by
@@ -81,7 +81,7 @@ private theorem masked_all_iff (expected : Fin controls → Bool) (state : Data)
   rw [patternMask_get]
   cases (layout.source.bit index).get state <;> cases expected index <;> decide
 
-private theorem patternMask_disjoint_output (expected : Fin controls → Bool)
+private lemma patternMask_disjoint_output (expected : Fin controls → Bool)
     (gate : GateSpec encoding) (present : gate ∈ layout.patternMaskGates expected) :
     GateSpec.bitDisjoint layout.output gate := by
   obtain ⟨index, _, rfl⟩ := List.mem_map.mp present
@@ -92,7 +92,7 @@ def patternGates (expected : Fin controls → Bool) : List (GateSpec encoding) :
   layout.patternMaskGates expected ++ layout.gates ++ (layout.patternMaskGates expected).reverse
 
 /-- Exact complete pattern-selection action with all original source and arbitrary work restored. -/
-theorem patternGates_step (expected : Fin controls → Bool) (state : Data) :
+lemma patternGates_step (expected : Fin controls → Bool) (state : Data) :
     GateSpec.stepList (layout.patternGates expected) state =
       if layout.PatternMatches expected state then layout.output.flip state else state := by
   rw [patternGates, GateSpec.stepList_append, GateSpec.stepList_append, gates_step]
@@ -104,7 +104,7 @@ theorem patternGates_step (expected : Fin controls → Bool) (state : Data) :
   · exact GateSpec.stepList_reverse_stepList (layout.patternMaskGates expected) state
 
 /-- Flipping the actual output cannot change any of the actual pattern-source values. -/
-theorem patternMatches_flip_output (expected : Fin controls → Bool) (state : Data) :
+lemma patternMatches_flip_output (expected : Fin controls → Bool) (state : Data) :
     layout.PatternMatches expected (layout.output.flip state) ↔
       layout.PatternMatches expected state := by
   apply forall_congr'
@@ -113,7 +113,7 @@ theorem patternMatches_flip_output (expected : Fin controls → Bool) (state : D
     (layout.source_output_ne index).symm]
 
 /-- The literal reverse list has the same full-state predicate flip action. -/
-theorem patternGates_reverse_step (expected : Fin controls → Bool) (state : Data) :
+lemma patternGates_reverse_step (expected : Fin controls → Bool) (state : Data) :
     GateSpec.stepList (layout.patternGates expected).reverse state =
       if layout.PatternMatches expected state then layout.output.flip state else state := by
   let toggled := if layout.PatternMatches expected state then layout.output.flip state else state
@@ -131,7 +131,7 @@ theorem patternGates_reverse_step (expected : Fin controls → Bool) (state : Da
     _ = toggled := GateSpec.stepList_reverse_stepList (layout.patternGates expected) toggled
 
 /-- The existing borrowed bit keeps its actual value for every initial pattern and work value. -/
-theorem patternGates_work_restored (expected : Fin controls → Bool) (state : Data) :
+lemma patternGates_work_restored (expected : Fin controls → Bool) (state : Data) :
     layout.work.get (GateSpec.stepList (layout.patternGates expected) state) =
       layout.work.get state := by
   rw [patternGates_step]
@@ -140,16 +140,18 @@ theorem patternGates_work_restored (expected : Fin controls → Bool) (state : D
   · rfl
 
 /-- The actual list realizes the complete predicate flip without discarded relative phase. -/
-theorem patternGates_realizes (physical : QubitLayout encoding.width)
-    (oracles : OracleModel) (expected : Fin controls → Bool) :
+lemma patternGates_realizes (physical : QubitLayout encoding.width)
+    (oracles : OracleModel) (expected : Fin controls → Bool)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
-      (GateSpec.programList physical oracles (layout.patternGates expected))
+      (GateSpec.programList physical oracles (layout.patternGates expected)) environment
       (fun state => if layout.PatternMatches expected state
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep physical oracles _ (layout.patternGates_step expected)
+  GateSpec.realizesList_congrStep
+    (environment := environment) physical oracles _ (layout.patternGates_step expected)
 
 /-- Exact actual elementary length, including both source masks. -/
-theorem patternGates_length (expected : Fin controls → Bool) :
+lemma patternGates_length (expected : Fin controls → Bool) :
     (layout.patternGates expected).length =
       2 * (patternMaskIndices expected).length + layout.gates.length := by
   simp only [patternGates, List.length_append, List.length_reverse,
@@ -157,14 +159,14 @@ theorem patternGates_length (expected : Fin controls → Bool) :
   omega
 
 /-- Each actual source bit contributes at most one gate to a mask. -/
-theorem patternMaskIndices_length_le (expected : Fin controls → Bool) :
+lemma patternMaskIndices_length_le (expected : Fin controls → Bool) :
     (patternMaskIndices expected).length ≤ controls := by
   simpa only [patternMaskIndices, List.length_ofFn] using
     (List.length_filter_le (l := List.ofFn fun index : Fin controls => index)
       (p := fun index => !expected index))
 
 /-- Linear actual elementary length holds uniformly, including an empty pattern. -/
-theorem patternGates_length_le (expected : Fin controls → Bool) :
+lemma patternGates_length_le (expected : Fin controls → Bool) :
     (layout.patternGates expected).length ≤ 10 * controls + 1 := by
   rw [patternGates_length]
   have masks := patternMaskIndices_length_le expected

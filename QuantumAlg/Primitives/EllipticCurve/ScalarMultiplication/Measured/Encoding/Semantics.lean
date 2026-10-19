@@ -23,10 +23,12 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MeasuredUncompute BinaryLabelEncoding
 open MAU.Inversion.SharedEEA
 
-private theorem shared_width (width : Nat) :
+private lemma shared_width (width : Nat) :
     (MAU.Inversion.SharedEEA.encoding width).width = coordinateStart width .y := by
   rw [MAU.Inversion.SharedEEA.encoding_width]
   simp only [coordinateStart, ProductPlacement.tailWidth]
@@ -38,7 +40,7 @@ private def liftedSharedBit (width : Nat)
   prodLeftBit (MAU.Inversion.SharedEEA.encoding width) (finIdentity width) bit
 
 /-- Every actual prepared bit outside the selected coordinate is independent of its value. -/
-private theorem prepared_bit_outside (modulus : Nat)
+private lemma prepared_bit_outside (modulus : Nat)
     (coordinate : MeasuredPointAddition.Coordinate) (x y next : Fin (2 ^ modulus.size))
     (bit : EncodedBit (ProductPlacement.frameEncoding modulus.size))
     (separate : ∀ selected : Fin modulus.size,
@@ -92,7 +94,7 @@ private theorem prepared_bit_outside (modulus : Nat)
     | y => exact False.elim (separate index same)
 
 /-- Replacing one original coordinate preserves the complete grouped retained frame bit for bit. -/
-theorem grouping_prepared_retained (modulus : Nat)
+lemma grouping_prepared_retained (modulus : Nat)
     (coordinate : MeasuredPointAddition.Coordinate) (x y next : Fin (2 ^ modulus.size)) :
     ((placement modulus.size coordinate).grouping
       (preparedUpdate modulus coordinate x y next)).2 =
@@ -128,7 +130,7 @@ theorem grouping_prepared_retained (modulus : Nat)
   exact actual
 
 /-- Complete actual grouping of the updated prepared frame restores A and every retained field. -/
-theorem grouping_prepared_update (modulus : Nat)
+lemma grouping_prepared_update (modulus : Nat)
     (coordinate : MeasuredPointAddition.Coordinate) (x y next : Fin (2 ^ modulus.size)) :
     (placement modulus.size coordinate).grouping (preparedUpdate modulus coordinate x y next) =
       ((next, 0),
@@ -144,7 +146,7 @@ private def selectedInput {width : Nat} (coordinate : MeasuredPointAddition.Coor
   match coordinate with | .x => x | .y => y
 
 /-- Canonical unit multiplication reconstructs the complete prepared original frame. -/
-theorem nativeAction_prepared (modulus : Nat) (positive : 0 < modulus)
+lemma nativeAction_prepared (modulus : Nat) (positive : 0 < modulus)
     (coefficient : (ZMod modulus)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
     (x y : Fin (2 ^ modulus.size))
     (valid : (selectedInput coordinate x y).val < modulus) :
@@ -169,12 +171,12 @@ theorem nativeAction_prepared (modulus : Nat) (positive : 0 < modulus)
   · rfl
 
 /-- The placed program converts a canonical coordinate and restores all preparation. -/
-theorem nativeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
+lemma nativeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
     (coefficient : (ZMod modulus)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
     (x y : Fin (2 ^ modulus.size))
     (valid : (selectedInput coordinate x y).val < modulus) :
     (nativeProgram modulus.size (InPlaceTarget.modulusWord modulus) coefficient
-      coordinate).applyNormalized
+      coordinate).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (ProductPlacement.frameEncoding modulus.size).width).basisEquiv.symm
@@ -185,13 +187,13 @@ theorem nativeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
             (preparedUpdate modulus coordinate x y
               (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive
                 coefficient (selectedInput coordinate x y))))) := by
-  have actual := (nativeProgram_realizes modulus.size
+  have actual := (nativeProgram_realizes (environment := environment) modulus.size
     (InPlaceTarget.modulusWord modulus) coefficient coordinate).apply_encoded_ket
       (preparedFrame modulus x y)
   rw [nativeAction_prepared modulus positive coefficient coordinate x y valid] at actual
   exact actual
 
-private theorem preparedFrame_runtime (modulus : Nat) (x y : Fin (2 ^ modulus.size)) :
+private lemma preparedFrame_runtime (modulus : Nat) (x y : Fin (2 ^ modulus.size)) :
     (NumeratorMeasurement.frameBasis modulus.size).symm
       ((ProductPlacement.frameEncoding modulus.size).encode (preparedFrame modulus x y)) =
         InPlaceTarget.preparedBasis modulus x y := by
@@ -207,7 +209,7 @@ def preparedRuntimeUpdate (modulus : Nat) (coordinate : MeasuredPointAddition.Co
   | .x => InPlaceTarget.preparedBasis modulus next y
   | .y => InPlaceTarget.preparedBasis modulus x next
 
-private theorem preparedUpdate_runtime (modulus : Nat)
+private lemma preparedUpdate_runtime (modulus : Nat)
     (coordinate : MeasuredPointAddition.Coordinate) (x y next : Fin (2 ^ modulus.size)) :
     (NumeratorMeasurement.frameBasis modulus.size).symm
       ((ProductPlacement.frameEncoding modulus.size).encode
@@ -216,23 +218,25 @@ private theorem preparedUpdate_runtime (modulus : Nat)
   cases coordinate <;> exact preparedFrame_runtime _ _ _
 
 /-- The actual runtime unitary restores the original prepared auxiliary and finite-cell context. -/
-theorem runtimeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
+lemma runtimeProgram_prepared (modulus : Nat) (positive : 0 < modulus)
     (coefficient : (ZMod modulus)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
     (x y : Fin (2 ^ modulus.size))
     (valid : (selectedInput coordinate x y).val < modulus) :
     (runtimeProgram modulus.size (InPlaceTarget.modulusWord modulus) coefficient
-      coordinate).applyNormalized (NormalizedVector.ket (InPlaceTarget.preparedBasis modulus x y)) =
+      coordinate).applyNormalized
+        environment (NormalizedVector.ket (InPlaceTarget.preparedBasis modulus x y)) =
       NormalizedVector.ket (preparedRuntimeUpdate modulus coordinate x y
         (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
           (selectedInput coordinate x y))) := by
-  have actual := runtimeProgram_apply_ket modulus.size
+  have actual := runtimeProgram_apply_ket (environment := environment) modulus.size
     (InPlaceTarget.modulusWord modulus) coefficient coordinate
     ((ProductPlacement.frameEncoding modulus.size).encode (preparedFrame modulus x y))
     ((ProductPlacement.frameEncoding modulus.size).encode
       (preparedUpdate modulus coordinate x y
         (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient
           (selectedInput coordinate x y))))
-    (nativeProgram_prepared modulus positive coefficient coordinate x y valid)
+    (nativeProgram_prepared
+      (environment := environment) modulus positive coefficient coordinate x y valid)
   rw [preparedFrame_runtime modulus x y,
     preparedUpdate_runtime modulus coordinate x y
       (Nat.FixedWidth.unitProductWord (InPlaceTarget.modulusWord modulus) positive coefficient

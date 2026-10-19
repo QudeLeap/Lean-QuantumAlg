@@ -27,7 +27,7 @@ open ClassicalRoutines
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width resultWidth : Nat}
 
-private theorem candidate_store_projection
+private lemma candidate_store_projection
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
@@ -42,7 +42,7 @@ private theorem candidate_store_projection
 
 set_option maxHeartbeats 800000 in -- Transport an actual store projection through five scopes.
 /-- The checker release exposes the same surviving original reads of the actual checked body. -/
-theorem nativeQuadratic_candidateBodyStep_read
+lemma nativeQuadratic_candidateBodyStep_read
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) {shape : CShape}
@@ -69,7 +69,7 @@ theorem nativeQuadratic_candidateBodyStep_read
 
 set_option maxHeartbeats 800000 in -- Transport both real latch references across thirteen cells.
 /-- The same actual returned store has the original first-factor acceptance and payload. -/
-theorem nativeQuadratic_program_latches
+lemma nativeQuadratic_program_latches
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
@@ -116,7 +116,7 @@ theorem nativeQuadratic_program_latches
 
 /-- An actual persistent-selector allocation satisfies the complete source contract without
 caller initialization, aliasing, quantum-absence or candidate-capacity premises. -/
-theorem nativeQuadratic_allocated_program_latches
+lemma nativeQuadratic_allocated_program_latches
     (input : CInputRef (SelectionLayout.context ctx resultWidth) (.unsignedWord width))
     (modulus : CInputRef (SelectionLayout.context ctx resultWidth)
       (.unsignedWord (RSA.quadraticWordWidth width)))

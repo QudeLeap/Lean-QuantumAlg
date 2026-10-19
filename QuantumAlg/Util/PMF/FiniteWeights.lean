@@ -26,7 +26,7 @@ noncomputable section
 variable {A B : Type} [Fintype A] [Fintype B]
 
 /-- A finite deterministic pushforward transports each complex weight to its original value. -/
-theorem sum_map_toReal_mul (distribution : PMF A) (map : A → B) (weight : B → ℂ) :
+lemma sum_map_toReal_mul (distribution : PMF A) (map : A → B) (weight : B → ℂ) :
     (∑ value : B, ((distribution.map map value).toReal : ℂ) * weight value) =
       ∑ original : A, ((distribution original).toReal : ℂ) * weight (map original) := by
   classical
@@ -45,7 +45,7 @@ theorem sum_map_toReal_mul (distribution : PMF A) (map : A → B) (weight : B �
   simp only [Finset.sum_ite_eq', Finset.mem_univ, if_true]
 
 /-- Finite conditional sampling sums the original and conditional weights without approximation. -/
-theorem sum_bind_toReal_mul (distribution : PMF A) (conditional : A → PMF B)
+lemma sum_bind_toReal_mul (distribution : PMF A) (conditional : A → PMF B)
     (weight : B → ℂ) :
     (∑ value : B, ((distribution.bind conditional value).toReal : ℂ) * weight value) =
       ∑ original : A, ((distribution original).toReal : ℂ) *
@@ -63,7 +63,7 @@ theorem sum_bind_toReal_mul (distribution : PMF A) (conditional : A → PMF B)
   simp only [Finset.mul_sum, mul_assoc]
 
 /-- The exact finite characteristic weight is the original PMF's point probability. -/
-theorem sum_toReal_indicator (distribution : PMF A) [DecidableEq A] (selected : A) :
+lemma sum_toReal_indicator (distribution : PMF A) [DecidableEq A] (selected : A) :
     (∑ value : A, ((distribution value).toReal : ℂ) *
       (if value = selected then 1 else 0)) = ((distribution selected).toReal : ℂ) := by
   simp only [mul_ite, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true]

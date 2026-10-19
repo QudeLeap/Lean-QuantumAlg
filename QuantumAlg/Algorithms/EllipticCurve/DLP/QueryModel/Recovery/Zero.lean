@@ -31,32 +31,36 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 attribute [local instance] Classical.decEq Classical.propDecidable
 
-private theorem allocatedEmpty_none_weight {model : ExecutionModel} [BitWord.Selected model]
+private lemma allocatedEmpty_none_weight {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {origin ctx : RuntimeCtx model.kind} (setup : Circuit model origin ctx)
     (width scalar : Nat) {Reference : Register} {History : Type} [Fintype History]
     (initial : State origin Reference (model.HiddenState × History)) :
     ((setup.seq
       (((retainPersistent (model := model) ctx width scalar).seq
         (Circuit.id (persistentCtx ctx width scalar))).seq
-          (packBatchResult (model := model) ctx width scalar))).execute
-      Reference initial).effectWeight
+          (packBatchResult (model := model) ctx width scalar))).execute environment Reference
+            initial).effectWeight
       (fun record => if record.1.read (batchResultRead ctx width scalar) = .optionNone then
         Effect.one ((batchResultCtx ctx width scalar).register.prod Reference)
       else Effect.zero ((batchResultCtx ctx width scalar).register.prod Reference)) =
         initial.mass := by
   let allocate := retainPersistent (model := model) ctx width scalar
-  let empty := Circuit.id (model := model) (persistentCtx ctx width scalar)
+  let empty := Circuit.id (model := model) (allowAllocation := true)
+    (persistentCtx ctx width scalar)
   let pack := packBatchResult (model := model) ctx width scalar
-  have completed := Circuit.storedWeight_four_stage setup allocate empty pack initial
+  have completed := Circuit.storedWeight_four_stage setup allocate empty pack environment initial
     (fun store => if store.read (batchResultRead ctx width scalar) = .optionNone then
       Effect.one ((batchResultCtx ctx width scalar).register.prod Reference)
     else Effect.zero ((batchResultCtx ctx width scalar).register.prod Reference))
-  have packed := packBatchResult_none_weight (model := model) width scalar
-    (((setup.seq allocate).seq empty).execute Reference initial)
+  have packed := packBatchResult_none_weight (environment := environment) (model := model) width
+    scalar
+    (((setup.seq allocate).seq empty).execute environment Reference initial)
   have erased : persistentFailureWeight (model := model) (ctx := ctx) (width := width)
-      (scalarWidth := scalar) (((setup.seq allocate).seq empty).execute Reference initial) =
+      (scalarWidth := scalar) (((setup.seq allocate).seq empty).execute environment Reference
+        initial) =
     persistentFailureWeight (model := model) (ctx := ctx) (width := width) (scalarWidth := scalar)
-      ((setup.seq allocate).execute Reference initial) := by
+      ((setup.seq allocate).execute environment Reference initial) := by
     unfold persistentFailureWeight
     rw [Circuit.execute_seq, State.effectWeight_mapHistory]
     rw [Circuit.execute_id_mapClassical, ExecutionState.effectWeight_mapClassical_decision]
@@ -66,14 +70,16 @@ private theorem allocatedEmpty_none_weight {model : ExecutionModel} [BitWord.Sel
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Zero requested rounds still allocate and pack the real absent result with probability one. -/
-public theorem ecdlpRecovery_zero_run_none_probability (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_zero_run_none_probability (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference) :
-    (run I A expansion nontrivial 0).outputDistribution original .optionNone = 1 := by
+    (run I expansion nontrivial 0).outputDistribution (Sampling.sourceEnvironment I A) original
+      .optionNone = 1 := by
   let initial := original.state.mapClassical (fun value => (value.1, (value.2, value.1)))
-  have complete := allocatedEmpty_none_weight (Sampling.Reuse.initialCode I A)
+  have complete := allocatedEmpty_none_weight (environment := Sampling.sourceEnvironment I A)
+    (Sampling.Reuse.initialCode I)
     (fieldWidth E) (scalarWidth I) initial
   rw [ExecutionState.mapClassical_mass, original.normalized] at complete
   rw [AlgorithmRun.outputDistribution_apply_eq_effectWeight]

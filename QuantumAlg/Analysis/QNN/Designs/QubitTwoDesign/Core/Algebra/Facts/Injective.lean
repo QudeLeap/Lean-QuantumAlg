@@ -27,7 +27,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Kernel comparison of all `48` numerator codes needs this local budget.
 /-- The `48` integer numerators are pairwise distinct. -/
-theorem octNumerator_injective : Function.Injective octNumerator := by decide
+lemma octNumerator_injective : Function.Injective octNumerator := by decide
 
 end QuantumAlg.QubitTwoDesign
 

@@ -27,7 +27,7 @@ open ClassicalRoutines
 
 variable {width : Nat}
 
-private theorem choice_toNat (accepted firstValid secondValid : Bool)
+private lemma choice_toNat (accepted firstValid secondValid : Bool)
     (old first second : CShape.Value (.unsignedWord width)) :
     (if accepted then old else
       if firstValid then first else if secondValid then second else old).toNat =
@@ -35,7 +35,7 @@ private theorem choice_toNat (accepted firstValid secondValid : Bool)
         if firstValid then first.toNat else if secondValid then second.toNat else old.toNat := by
   cases accepted <;> cases firstValid <;> cases secondValid <;> rfl
 
-private theorem choice_replace
+private lemma choice_replace
     {accepted firstValid secondValid sourceFirstValid sourceSecondValid : Bool}
     {old first second sourceFirst sourceSecond : Nat}
     (acceptedEq : accepted = false)
@@ -56,7 +56,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 set_option maxHeartbeats 800000 in -- Normalize reads through the thirteen actual lexical cells.
 /-- Actual entry, native arithmetic, both complete checks and selection give the source result. -/
-theorem nativeQuadratic_local_pair_values (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_local_pair_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
     let source := RSA.quadraticFactorCandidates (store.read modulus).toNat (store.read input).toNat
     let firstValid := decide (1 < source.1 ∧ source.1 < (store.read modulus).toNat ∧

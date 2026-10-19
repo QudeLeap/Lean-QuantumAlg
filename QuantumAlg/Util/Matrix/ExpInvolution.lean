@@ -50,7 +50,7 @@ variable {A : Type*} [NormedRing A] [NormedAlgebra ℂ A] [CompleteSpace A]
 
 omit [NormedAlgebra ℂ A] [CompleteSpace A] in
 /-- For an idempotent `P` (`P * P = P`), every positive power collapses: `P ^ (n + 1) = P`. -/
-private theorem idem_pow_succ {P : A} (hP : IsIdempotentElem P) (n : ℕ) : P ^ (n + 1) = P := by
+private lemma idem_pow_succ {P : A} (hP : IsIdempotentElem P) (n : ℕ) : P ^ (n + 1) = P := by
   induction n with
   | zero => exact pow_one P
   | succ k ih => rw [pow_succ, ih, hP.eq]
@@ -62,7 +62,7 @@ the `ℚ`-algebra section and needs `[NormedAlgebra ℚ A]`, which is not availa
 `[NormedAlgebra ℂ A]` hypotheses alone; we instead invoke the field-generic
 `NormedSpace.exp_add_of_commute_of_mem_ball` over `ℂ`, where the disk of convergence is all of `A`
 (`NormedSpace.expSeries_radius_eq_top`). -/
-theorem exp_add_of_commute_ℂ {x y : A} (h : Commute x y) :
+lemma exp_add_of_commute_ℂ {x y : A} (h : Commute x y) :
     NormedSpace.exp (x + y) = NormedSpace.exp x * NormedSpace.exp y := by
   have hradius : (NormedSpace.expSeries ℂ A).radius = ⊤ := NormedSpace.expSeries_radius_eq_top ℂ A
   exact NormedSpace.exp_add_of_commute_of_mem_ball h
@@ -71,7 +71,7 @@ theorem exp_add_of_commute_ℂ {x y : A} (h : Commute x y) :
 /-- **Exponential of a scalar multiple of an idempotent.**
 In a complex Banach algebra, if `P * P = P` then
 `exp (c • P) = 1 + (Complex.exp c - 1) • P`. -/
-theorem exp_smul_isIdempotentElem (c : ℂ) {P : A} (hP : IsIdempotentElem P) :
+lemma exp_smul_isIdempotentElem (c : ℂ) {P : A} (hP : IsIdempotentElem P) :
     NormedSpace.exp (c • P) = 1 + (Complex.exp c - 1) • P := by
   -- Expand the operator exponential as a tsum, with the field `ℂ`.
   rw [NormedSpace.exp_eq_tsum ℂ]
@@ -111,7 +111,7 @@ theorem exp_smul_isIdempotentElem (c : ℂ) {P : A} (hP : IsIdempotentElem P) :
 /-- **Exponential of a scalar multiple of an involution.**
 In a complex Banach algebra, if `H * H = 1` then
 `exp (z • H) = Complex.cosh z • 1 + Complex.sinh z • H`. -/
-theorem exp_smul_of_mul_self_eq_one (z : ℂ) {H : A} (hH : H * H = 1) :
+lemma exp_smul_of_mul_self_eq_one (z : ℂ) {H : A} (hH : H * H = 1) :
     NormedSpace.exp (z • H) = Complex.cosh z • (1 : A) + Complex.sinh z • H := by
   -- The two complementary spectral projectors of the involution `H`.
   set P : A := (2⁻¹ : ℂ) • (1 + H) with hPdef

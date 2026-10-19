@@ -40,7 +40,7 @@ def mutableCells : List LatticeSecondPairMachine.TransitionCell :=
   refreshCells ++ divisionCells ++ LatticeSecondPairMachine.reductionCells
 
 /-- Actual dot refresh preserves all reads outside its two written words. -/
-theorem refresh_frame (refs : Refs ctx width) (store : Store ctx)
+lemma refresh_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticeSecondPairMachine.FrameAvoids refs.machine refreshCells other) :
     (LatticeDotRefresh.refreshStore refs.machine.basis.third refs.machine.basis.first
@@ -49,7 +49,7 @@ theorem refresh_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .g31 (by decide)) (avoids .refreshG21Product (by decide))
 
 /-- Actual final-direction division preserves reads outside its original six mutable cells. -/
-theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma division_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticeSecondPairMachine.FrameAvoids refs.machine divisionCells other) :
@@ -63,7 +63,7 @@ theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
   exact avoids cell cellMember
 
 /-- Actual final row subtraction preserves reads outside the original four mutable words. -/
-theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
+lemma reduction_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticeSecondPairMachine.FrameAvoids refs.machine
       LatticeSecondPairMachine.reductionCells other) :
@@ -75,7 +75,7 @@ theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .b32 (by decide)) (avoids .b33 (by decide))
 
 /-- Complete actual final reduction preserves every read outside the union of its written cells. -/
-theorem postReductionInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma postReductionInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : LatticeSecondPairMachine.FrameAvoids refs.machine mutableCells other) :
@@ -96,7 +96,7 @@ theorem postReductionInto_callerFrame {model : ExecutionModel} [BitWord.Selected
     refresh_frame refs _ other refresh]
 
 /-- The final reduction retains the original first norm word exactly. -/
-theorem postReductionInto_g11 {model : ExecutionModel} [BitWord.Selected model]
+lemma postReductionInto_g11 {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (postReductionStep (model := model) refs store).1.read

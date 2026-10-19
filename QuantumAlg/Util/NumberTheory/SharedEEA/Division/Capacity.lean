@@ -36,7 +36,7 @@ separate refinements of these arithmetic and encoding laws.
 namespace QuantumAlg.NumberTheory.SharedEEA.DivisionCapacity
 
 /-- The actual first-word triple and its separator fit at every genuine division position. -/
-theorem work1_capacity (state : IterationState) (modulus count : Nat)
+lemma work1_capacity (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
@@ -98,7 +98,7 @@ def remainderWidth (state : IterationState) (modulus count : Nat) : Nat :=
     (state.coefficient.size + 1 + (DivisionProgress.current state count).written)
 
 /-- These actual source regions occupy the complete first shared word. -/
-theorem work1_width (state : IterationState) (modulus count : Nat)
+lemma work1_width (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
@@ -110,7 +110,7 @@ theorem work1_width (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual subtraction result fits the region remaining after the live source boundaries. -/
-theorem remainder_fits (state : IterationState) (modulus count : Nat)
+lemma remainder_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
@@ -136,7 +136,7 @@ def work1Payload (state : IterationState) (modulus count : Nat)
     (remainder_fits state modulus count valid conserved active within)
 
 /-- Literal packing and decoding recover the actual three natural-number coordinates exactly. -/
-theorem work1_decode (state : IterationState) (modulus count : Nat)
+lemma work1_decode (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
@@ -149,12 +149,12 @@ theorem work1_decode (state : IterationState) (modulus count : Nat)
     and_self]
 
 /-- The initial source quotient field has exactly zero physical bits. -/
-theorem initial_quotient_width (state : IterationState) :
+lemma initial_quotient_width (state : IterationState) :
     (DivisionProgress.current state 0).written = 0 :=
   DivisionProgress.current_written state 0
 
 /-- The unchanged previous coefficient fits beside its divisor throughout phase two. -/
-theorem previous_coefficient_fits (state : IterationState) (modulus : Nat)
+lemma previous_coefficient_fits (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.previousCoefficient < 2 ^ CoefficientCapacity.work2CoefficientWidth state modulus := by
   apply Nat.size_le.mp
@@ -172,14 +172,14 @@ def work2Payload (state : IterationState) (modulus : Nat)
   remainderBits := BitVec.ofNatLT state.divisor (Nat.lt_size_self _)
 
 /-- The second word also occupies exactly the source's fixed shared-word width. -/
-theorem work2_width (state : IterationState) (modulus : Nat)
+lemma work2_width (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     CoefficientCapacity.work2CoefficientWidth state modulus + state.divisor.size =
       modulus.size + 3 :=
   CoefficientCapacity.work2_width state modulus valid conserved
 
 /-- Decoding at the actual remaining shift recovers the previous coefficient and divisor. -/
-theorem rotated_work2_decode (state : IterationState) (modulus count : Nat)
+lemma rotated_work2_decode (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     let shift := (Alignment.align state.remainder state.divisor).places - count
     let payload := work2Payload state modulus valid conserved
@@ -191,7 +191,7 @@ theorem rotated_work2_decode (state : IterationState) (modulus count : Nat)
     BitVec.toNat_ofNatLT, and_self]
 
 /-- The literal source right rotation advances the actual remaining-shift encoding by one step. -/
-theorem rotated_work2_step (state : IterationState) (modulus count : Nat)
+lemma rotated_work2_step (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     (WordRotation.packRotatedWork2
@@ -206,7 +206,7 @@ theorem rotated_work2_step (state : IterationState) (modulus count : Nat)
   exact WordRotation.packRotatedWork2_unshift _ _
 
 /-- Every original input has enough space at every actual second-phase position after folding. -/
-theorem folded_capacity (modulus input : Nat)
+lemma folded_capacity (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     let state := IterationState.initial modulus (foldInput modulus input).2
     ∀ count, count ≤ (Alignment.align state.remainder state.divisor).places →

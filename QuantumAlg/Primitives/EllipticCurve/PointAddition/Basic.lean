@@ -50,7 +50,7 @@ def doubleDivisionData {E : PrimeFieldShortWeierstrass p}
 
 /-- The modular-division primitive computes the generic affine-addition slope
 when it is loaded with the source numerator and unit denominator. -/
-theorem genericAddSlope_eq_quotientResidue
+lemma genericAddSlope_eq_quotientResidue
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hx : GenericAddDomain P Q) :
     MAU.Division.quotientResidue (genericAddDenominatorUnit P Q hx)

@@ -30,6 +30,8 @@ namespace ModularOperations
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open MAU.Inversion
 open MAU.Inversion.MK
@@ -37,7 +39,7 @@ open MAU.Inversion.MK.Circuit
 
 /-- A literal constant xor updates one structural word port to the word
 specified by its output bits. -/
-private theorem xorConstantStep_eq_set_of_testBit
+private lemma xorConstantStep_eq_set_of_testBit
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (port : Arithmetic.BlockBank.WordPort encoding width)
     (constant : Fin (2 ^ width)) (state : Data)
@@ -116,7 +118,7 @@ def constantXBoundary
 
 /-- The reversible constant-x prefix reaches the certified target-update
 boundary without losing a live `t0`. -/
-theorem constantXPrefixGates_stepList
+lemma constantXPrefixGates_stepList
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 constant : Word fieldTail.succ) :
     EncodedBit.GateSpec.stepList
@@ -280,7 +282,7 @@ def addConstantXStep
   EncodedBit.GateSpec.stepList
     (addConstantXGates fieldTail counterWidth p hp constant)
 
-theorem subtractConstantXStep_cleanEndpoint
+lemma subtractConstantXStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 constant : Word fieldTail.succ)
@@ -356,7 +358,7 @@ theorem subtractConstantXStep_cleanEndpoint
   rw [hboundary]
   exact EncodedBit.GateSpec.stepList_reverse_stepList prep output
 
-theorem addConstantXStep_cleanEndpoint
+lemma addConstantXStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 constant : Word fieldTail.succ)
@@ -432,25 +434,25 @@ theorem addConstantXStep_cleanEndpoint
   rw [hboundary]
   exact EncodedBit.GateSpec.stepList_reverse_stepList prep output
 
-theorem subtractConstantX_realizes
+lemma subtractConstantX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (subtractConstantXGates fieldTail counterWidth p hp constant))
+        (subtractConstantXGates fieldTail counterWidth p hp constant)) environment
       (subtractConstantXStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
-theorem addConstantX_realizes
+lemma addConstantX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (addConstantXGates fieldTail counterWidth p hp constant))
+        (addConstantXGates fieldTail counterWidth p hp constant)) environment
       (addConstantXStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-! ## Variable updates between mutable x and t0 -/
 
@@ -478,7 +480,7 @@ def t0FromXBoundary
         (CompactCorrection.widenFixedWord fieldTail.succ 0) ⟨p, hp⟩ false
         t0) }
 
-theorem t0FromXPrefixGates_stepList
+lemma t0FromXPrefixGates_stepList
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ) :
     EncodedBit.GateSpec.stepList
@@ -579,7 +581,7 @@ def subtractXFromT0Step
   EncodedBit.GateSpec.stepList
     (subtractXFromT0Gates fieldTail counterWidth p hp)
 
-theorem subtractXFromT0Step_cleanEndpoint
+lemma subtractXFromT0Step_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ)
@@ -673,7 +675,7 @@ def xFromT0Boundary
         (CompactCorrection.widenFixedWord fieldTail.succ 0) ⟨p, hp⟩ false
         mutableX) }
 
-theorem xFromT0PrefixGates_stepList
+lemma xFromT0PrefixGates_stepList
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ) :
     EncodedBit.GateSpec.stepList
@@ -805,7 +807,7 @@ def addT0ToXStep
   EncodedBit.GateSpec.stepList
     (addT0ToXGates fieldTail counterWidth p hp)
 
-theorem subtractT0FromXStep_cleanEndpoint
+lemma subtractT0FromXStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ)
@@ -873,7 +875,7 @@ theorem subtractT0FromXStep_cleanEndpoint
   rw [hboundary]
   exact EncodedBit.GateSpec.stepList_reverse_stepList prep output
 
-theorem addT0ToXStep_cleanEndpoint
+lemma addT0ToXStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX t0 : Word fieldTail.succ)
@@ -953,7 +955,7 @@ def swapXYGates (fieldWidth counterWidth : Nat) :
 
 /-- The three-swap route exchanges exactly the two mutable coordinates and
 returns `t0` to zero. -/
-theorem swapXYGates_cleanEndpoint
+lemma swapXYGates_cleanEndpoint
     (fieldWidth counterWidth p : Nat) (hp : p < 2 ^ fieldWidth)
     (control : Bool) (mutableY «λ» mutableX : Word fieldWidth) :
     EncodedBit.GateSpec.stepList (swapXYGates fieldWidth counterWidth)
@@ -1004,7 +1006,7 @@ def addConstantYStep
   EncodedBit.GateSpec.stepList
     (addConstantYGates fieldTail counterWidth p hp constant)
 
-theorem subtractConstantYStep_cleanEndpoint
+lemma subtractConstantYStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX constant : Word fieldTail.succ)
@@ -1050,7 +1052,7 @@ theorem subtractConstantYStep_cleanEndpoint
     simpa [swap, output, result] using houtput.symm]
   exact EncodedBit.GateSpec.stepList_reverse_stepList swap output
 
-theorem addConstantYStep_cleanEndpoint
+lemma addConstantYStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX constant : Word fieldTail.succ)
@@ -1114,7 +1116,7 @@ def negateXStep
       Layout.Registers fieldTail.succ counterWidth :=
   EncodedBit.GateSpec.stepList (negateXGates fieldTail counterWidth p hp)
 
-theorem negateXStep_cleanEndpoint
+lemma negateXStep_cleanEndpoint
     (fieldTail counterWidth p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (control : Bool) (mutableY «λ» mutableX : Word fieldTail.succ)
@@ -1166,61 +1168,61 @@ theorem negateXStep_cleanEndpoint
   rw [RegisterRouting.swapXT0Gates_stepList]
   rfl
 
-theorem subtractXFromT0_realizes
+lemma subtractXFromT0_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (subtractXFromT0Gates fieldTail counterWidth p hp))
+        (subtractXFromT0Gates fieldTail counterWidth p hp)) environment
       (subtractXFromT0Step fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
-theorem subtractT0FromX_realizes
+lemma subtractT0FromX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (subtractT0FromXGates fieldTail counterWidth p hp))
+        (subtractT0FromXGates fieldTail counterWidth p hp)) environment
       (subtractT0FromXStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
-theorem addT0ToX_realizes
+lemma addT0ToX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (addT0ToXGates fieldTail counterWidth p hp))
+        (addT0ToXGates fieldTail counterWidth p hp)) environment
       (addT0ToXStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
-theorem subtractConstantY_realizes
+lemma subtractConstantY_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (subtractConstantYGates fieldTail counterWidth p hp constant))
+        (subtractConstantYGates fieldTail counterWidth p hp constant)) environment
       (subtractConstantYStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
-theorem addConstantY_realizes
+lemma addConstantY_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (addConstantYGates fieldTail counterWidth p hp constant))
+        (addConstantYGates fieldTail counterWidth p hp constant)) environment
       (addConstantYStep fieldTail counterWidth p hp constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
-theorem negateX_realizes
+lemma negateX_realizes
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ counterWidth)
       (EncodedBit.GateSpec.programList
         (QubitLayout.canonical _) .empty
-        (negateXGates fieldTail counterWidth p hp))
+        (negateXGates fieldTail counterWidth p hp)) environment
       (negateXStep fieldTail counterWidth p hp) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 end
 end ModularOperations

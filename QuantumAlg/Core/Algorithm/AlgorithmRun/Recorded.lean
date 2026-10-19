@@ -20,6 +20,8 @@ recording boundary do not change the complete classical-quantum state.
 
 namespace QuantumAlg.AlgorithmRun
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 open Execution
@@ -29,21 +31,22 @@ local instance {A : Type} : DecidableEq A := Classical.decEq A
 attribute [local irreducible] storeFintype ExecutionState.mapClassical
 
 /-- Actual execution retains the same full caller store with either empty-service encoding. -/
-theorem emptyService_recorded_execute {gates : GateModel} {oracles : OracleModel}
+lemma emptyService_recorded_execute {gates : GateModel} {oracles : OracleModel}
     {pre post : RuntimeCtx .quantum} {shape : CShape}
     [inputDecision : DecidableEq (Store pre × Unit)]
     [recordDecision : DecidableEq (Store pre × Store pre)]
-    (run : AlgorithmRun (.quantum gates oracles .empty .empty) pre post shape)
+    (run : AlgorithmRun (.quantum gates oracles .empty .empty) pre post shape allowAllocation)
+    (environment : (ExecutionModel.quantum gates oracles .empty .empty).Environment)
     (Reference : Register)
     (original : ExecutionState (Store pre) (Register.prod pre.register Reference)) :
-    run.execute Reference (original.mapClassical (fun stored => (stored, ()))) =
-      run.code.execute Reference
+    run.execute environment Reference (original.mapClassical (fun stored => (stored, ()))) =
+      run.code.execute environment Reference
         (State.mapHistory (ctx := pre)
           (original.mapClassical (fun stored => (stored, stored)))
           (fun history => ((), history))) := by
   unfold AlgorithmRun.execute State.mapHistory
   apply congrArg (fun initial : State pre Reference (Unit × Store pre) =>
-    run.code.execute Reference initial)
+    run.code.execute environment Reference initial)
   simp only [ExecutionState.executionState_mapClassical_comp_instances
     (result := Classical.decEq _), Function.comp_def]
 

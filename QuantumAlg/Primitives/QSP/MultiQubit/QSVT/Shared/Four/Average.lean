@@ -24,7 +24,7 @@ def binaryAverage {width : Nat} (A B : UnitaryOperator (Qubits width)) :
     UnitaryOperator (Qubits (1 + width)) :=
   phaseHadamardWrapperOperator (phaseControlledDirectSumOperator A B)
 
-private theorem binaryAverage_block {width : Nat} (A B : UnitaryOperator (Qubits width)) :
+private lemma binaryAverage_block {width : Nat} (A B : UnitaryOperator (Qubits width)) :
     ancillaBlock 0 0 (binaryAverage A B : HilbertOperator (Qubits (1 + width))) =
       (1 / 2 : ℂ) • (A : HilbertOperator (Qubits width)) +
         (1 / 2 : ℂ) • (B : HilbertOperator (Qubits width)) := by
@@ -32,15 +32,15 @@ private theorem binaryAverage_block {width : Nat} (A B : UnitaryOperator (Qubits
     (phaseControlledDirectSumOperator A B)) = _
   rw [projectedBlock_phaseHadamardWrapper, phasePlusBlock_phaseControlledDirectSum]
 
-private theorem ancillaBlock_add {width : Nat} (a b : Fin 2)
+private lemma ancillaBlock_add {width : Nat} (a b : Fin 2)
     (A B : HilbertOperator (Qubits (1 + width))) :
     ancillaBlock a b (A + B) = ancillaBlock a b A + ancillaBlock a b B := rfl
 
-private theorem ancillaBlock_smul {width : Nat} (a b : Fin 2) (scalar : ℂ)
+private lemma ancillaBlock_smul {width : Nat} (a b : Fin 2) (scalar : ℂ)
     (A : HilbertOperator (Qubits (1 + width))) :
     ancillaBlock a b (scalar • A) = scalar • ancillaBlock a b A := rfl
 
-private theorem hadamard_block {width : Nat} (A : UnitaryOperator (Qubits (1 + width))) :
+private lemma hadamard_block {width : Nat} (A : UnitaryOperator (Qubits (1 + width))) :
     ancillaBlock 0 0 (phaseHadamardWrapperOperator A :
       HilbertOperator (Qubits (1 + width))) = phasePlusBlock A :=
   projectedBlock_phaseHadamardWrapper A
@@ -53,7 +53,7 @@ def threeAverage {width : Nat} (A B C D : UnitaryOperator (Qubits (1 + width))) 
     (binaryAverage (phaseHadamardWrapperOperator C) (phaseHadamardWrapperOperator D))
 
 /-- The exact zero block of all three ancillas is one quarter of the four original plus blocks. -/
-theorem threeAverage_zero_block {width : Nat}
+lemma threeAverage_zero_block {width : Nat}
     (A B C D : UnitaryOperator (Qubits (1 + width))) :
     ancillaBlock 0 0 (ancillaBlock 0 0 (ancillaBlock 0 0
       (threeAverage A B C D : HilbertOperator (Qubits (1 + (1 + (1 + width))))))) =

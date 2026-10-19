@@ -27,6 +27,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -45,7 +48,7 @@ private def fullTarget (Reference : Register) (input : Execution.Input base Refe
     Finset.univ Reference
     (BasisReference.target (restoredSeed base noQuantum N) input.state.referenceMarginal)
 
-private theorem fullTarget_normalized (Reference : Register)
+private lemma fullTarget_normalized (Reference : Register)
     (input : Execution.Input base Reference) :
     (fullTarget base noQuantum N Reference input).IsNormalized :=
   (DensityOperator.observeSelectionWithReference_mass
@@ -61,14 +64,14 @@ def requirement : StateRequirement base (context base noQuantum N) :=
       (fullTarget_normalized base noQuantum N Reference input)
 
 /-- The real sixteen-round run satisfies the independent complete state requirement. -/
-theorem nativeBatch_requirement_holds (specification : Input N)
+lemma nativeBatch_requirement_holds (specification : Input N)
     {Reference : Register}
     (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
     (requirement base noQuantum N).Holds input.caller
-      ((run base noQuantum N).finalState Reference input.state) := by
+      ((run base noQuantum N).finalState environment Reference input.state) := by
   intro selected
   let actual :=
-    (((run base noQuantum N).finalState Reference input.state).mapClassical
+    (((run base noQuantum N).finalState environment Reference input.state).mapClassical
       (run base noQuantum N).output.eval).block selected
   have sameReference : input.state.referenceMarginal = input.caller.state.referenceMarginal := by
     unfold ExecutionState.referenceMarginal

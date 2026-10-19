@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
+private lemma word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -38,7 +38,7 @@ private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
 omit [BitWord.Selected model] in
-private theorem word_vector_ne {size count : Nat} {shape : CShape}
+private lemma word_vector_ne {size count : Nat} {shape : CShape}
     (word : CWriteRef ctx (.unsignedWord size))
     (vector : CWriteRef ctx (.fixedVector count shape)) :
     word.key ≠ vector.key := by
@@ -48,7 +48,7 @@ private theorem word_vector_ne {size count : Nat} {shape : CShape}
   cases impossible
 
 omit [BitWord.Selected model] in
-private theorem or_read (output mask : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+private lemma or_read (output mask : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((store.applyOp (pivotOrOp output mask)).read (.storage output.toCStorageRef)).toNat =
       (store.read (.storage output.toCStorageRef)).toNat |||
         (store.read (.storage mask.toCStorageRef)).toNat := by
@@ -59,7 +59,7 @@ private theorem or_read (output mask : CWriteRef ctx (.unsignedWord width)) (sto
     (store.read (.storage output.toCStorageRef)).toNat_lt
     (store.read (.storage mask.toCStorageRef)).toNat_lt)
 
-private theorem loaded_mask (index : Fin width) (mask : CWriteRef ctx (.unsignedWord width))
+private lemma loaded_mask (index : Fin width) (mask : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (Word.PowerOfTwo.step (width - 1 - index.val) mask store).1.read
       (.storage mask.toCStorageRef) =
@@ -76,7 +76,7 @@ private theorem loaded_mask (index : Fin width) (mask : CWriteRef ctx (.unsigned
   rw [ClassicalAlgorithms.GF2.wordOfLogicalBits_singleton_val]
   exact Nat.mod_eq_of_lt (Nat.pow_lt_pow_right (by decide : 1 < 2) (Fin.rev index).isLt)
 
-private theorem rowBody_used (used : CWriteRef ctx (.unsignedWord rowCount))
+private lemma rowBody_used (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (store : Store ctx) (separate : mask.key ≠ used.key) :
@@ -96,7 +96,7 @@ private theorem rowBody_used (used : CWriteRef ctx (.unsignedWord rowCount))
     (fun current => decide (current = pivot))).val = _
   rw [ClassicalAlgorithms.GF2.wordOfLogicalBits_singleton_val]
 
-private theorem rowBody_rows (used : CWriteRef ctx (.unsignedWord rowCount))
+private lemma rowBody_rows (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (store : Store ctx) (separate : mask.key ≠ used.key) :
@@ -125,7 +125,7 @@ private theorem rowBody_rows (used : CWriteRef ctx (.unsignedWord rowCount))
     ((loaded.applyOp (pivotOrOp used mask)).read (.storage mask.toCStorageRef)) = _
   rw [rowsValue, maskValue, loaded_mask]
 
-private theorem columnBody_columns (output mask : CWriteRef ctx (.unsignedWord width))
+private lemma columnBody_columns (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (store : Store ctx) (separate : mask.key ≠ output.key) :
     ((pivotColumnBodyStep output mask column store).1.read (.storage output.toCStorageRef)).toNat =
       (store.read (.storage output.toCStorageRef)).toNat ||| 2 ^ (Fin.rev column).val := by
@@ -139,7 +139,7 @@ private theorem columnBody_columns (output mask : CWriteRef ctx (.unsignedWord w
   rw [ClassicalAlgorithms.GF2.wordOfLogicalBits_singleton_val]
 
 omit [BitWord.Selected model] in
-private theorem mask_ne {shape : CShape} (output : CWriteRef ctx shape) (maskWidth : Nat) :
+private lemma mask_ne {shape : CShape} (output : CWriteRef ctx shape) (maskWidth : Nat) :
     (pivotMaskCell ctx maskWidth).key ≠ output.key := by
   intro same
   apply ctx.canonicalFreshKey_fresh
@@ -149,7 +149,7 @@ private theorem mask_ne {shape : CShape} (output : CWriteRef ctx shape) (maskWid
     (by simp [CInputRef.storageKeys])
 
 /-- The real lexical row mask marks exactly the original logical pivot row as used. -/
-theorem gf2MaterializePivotRow_used (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_used (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     ((materializePivotRowStep used rows pivot column store).1.read
@@ -172,7 +172,7 @@ theorem gf2MaterializePivotRow_used (used : CWriteRef ctx (.unsignedWord rowCoun
       ctx.canonicalFreshKey_fresh (.storage used.toCStorageRef))
 
 /-- The original row record is the actual vector update by the MSB-first one-hot word. -/
-theorem gf2MaterializePivotRow_rows (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_rows (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (materializePivotRowStep used rows pivot column store).1.read (.storage rows.toCStorageRef) =
@@ -197,7 +197,7 @@ theorem gf2MaterializePivotRow_rows (used : CWriteRef ctx (.unsignedWord rowCoun
       ctx.canonicalFreshKey_fresh (.storage rows.toCStorageRef))
 
 /-- The real lexical column mask marks exactly the selected original logical column. -/
-theorem gf2MaterializePivotColumn_columns (output : CWriteRef ctx (.unsignedWord width))
+lemma gf2MaterializePivotColumn_columns (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (store : Store ctx) :
     ((materializePivotColumnStep output column store).1.read
       (.storage output.toCStorageRef)).toNat =

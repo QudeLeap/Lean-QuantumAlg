@@ -25,7 +25,7 @@ namespace QuantumAlg.MAU.Addition.HRS
 noncomputable section
 
 /-- The selected high-constant-bit count cannot exceed the number of positions. -/
-theorem hrsHighConstantCount_le (constant count : Nat) :
+lemma hrsHighConstantCount_le (constant count : Nat) :
     highConstantCount constant count ≤ count := by
   induction count with
   | zero => simp [highConstantCount]
@@ -36,13 +36,13 @@ theorem hrsHighConstantCount_le (constant count : Nat) :
       omega
 
 /-- The literal controlled incrementer has at most 28 events per target bit. -/
-theorem hrsControlledBorrowedIncrement_event_count_le (width : Nat) :
+lemma hrsControlledBorrowedIncrement_event_count_le (width : Nat) :
     (controlledBorrowedIncrementProgram width).eventCost.card ≤ 28 * width := by
   rw [hrsControlledBorrowedIncrement_event_count]
   omega
 
 /-- All-width upper bound derived from the actual carry list's selected-bit formula. -/
-theorem hrsCarry_event_count_le (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsCarry_event_count_le (width : Nat) (constant : Fin (2 ^ width)) :
     (carryProgram width constant).eventCost.card ≤ 10 * width := by
   have hbit : (constant.val.testBit 0).toNat ≤ 1 := by
     cases constant.val.testBit 0 <;> decide
@@ -61,7 +61,7 @@ theorem hrsCarry_event_count_le (width : Nat) (constant : Fin (2 ^ width)) :
       split_ifs <;> omega
 
 /-- X gates occur only in the two actual carry components. -/
-theorem hrsRecursiveBridge_x_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+lemma hrsRecursiveBridge_x_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (recursiveBridgeProgram width constant).eventCost =
       2 * ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
@@ -71,7 +71,7 @@ theorem hrsRecursiveBridge_x_count (width : Nat) (constant : Fin (2 ^ lowWidth w
   simp
 
 /-- Two increments and two high-word complements supply six CNOTs per high bit. -/
-theorem hrsRecursiveBridge_cnot_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+lemma hrsRecursiveBridge_cnot_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (recursiveBridgeProgram width constant).eventCost =
       6 * highWidth width + 2 * ResourcePool.count
@@ -82,7 +82,7 @@ theorem hrsRecursiveBridge_cnot_count (width : Nat) (constant : Fin (2 ^ lowWidt
   omega
 
 /-- Every Toffoli is inherited from the lowered increment or the actual carry. -/
-theorem hrsRecursiveBridge_toffoli_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
+lemma hrsRecursiveBridge_toffoli_count (width : Nat) (constant : Fin (2 ^ lowWidth width)) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (recursiveBridgeProgram width constant).eventCost =
       2 * (2 * highWidth width + 20 * (highWidth width - 1) +
@@ -93,7 +93,7 @@ theorem hrsRecursiveBridge_toffoli_count (width : Nat) (constant : Fin (2 ^ lowW
   simp
 
 /-- Balanced widths sharpen the actual linear bridge bound to 39 events per input bit. -/
-theorem hrsRecursiveBridge_event_count_le (width : Nat)
+lemma hrsRecursiveBridge_event_count_le (width : Nat)
     (constant : Fin (2 ^ lowWidth width)) :
     (recursiveBridgeProgram width constant).eventCost.card ≤ 39 * width := by
   rw [hrsRecursiveBridge_event_count]
@@ -104,7 +104,7 @@ theorem hrsRecursiveBridge_event_count_le (width : Nat)
   omega
 
 /-- This actual bridge is serial; its unit depth equals its event count. -/
-theorem hrsRecursiveBridge_depth_eq_events (width : Nat)
+lemma hrsRecursiveBridge_depth_eq_events (width : Nat)
     (constant : Fin (2 ^ lowWidth width)) :
     (recursiveBridgeProgram width constant).evaluatedEventDepth (fun _ => 1) =
       (recursiveBridgeProgram width constant).eventCost.card := by

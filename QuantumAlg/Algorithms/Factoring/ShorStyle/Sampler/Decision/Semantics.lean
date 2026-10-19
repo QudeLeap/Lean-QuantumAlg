@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 private def acceptanceChoiceStep (shared : Proposal.SharedRefs ctx width)
@@ -41,14 +41,14 @@ private def acceptanceChoiceStep (shared : Proposal.SharedRefs ctx width)
       (clearWordOp scratch.candidate) store
   | .bit true => acceptedStep (model := model) shared scratch gcdResult store
 
-private theorem acceptanceChoice_execute (shared : Proposal.SharedRefs ctx width)
+private lemma acceptanceChoice_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then acceptedBody (model := model) shared scratch gcdResult
       else BitWord.instruction (execution := model) (clearWordOp scratch.candidate)).execute
-        Reference state =
+        environment Reference state =
         state.mapClassical (fun entry =>
           let result := acceptanceChoiceStep (model := model) shared scratch gcdResult value entry.1
           (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -56,7 +56,7 @@ private theorem acceptanceChoice_execute (shared : Proposal.SharedRefs ctx width
   | bit bit =>
       cases bit
       · simp only [CShape.Value.toBool, acceptanceChoiceStep]
-        refine (BitWord.bitWord_instruction_execute
+        refine (BitWord.bitWord_instruction_execute (environment := environment)
           (clearWordOp scratch.candidate) (Reference := Reference) state).trans ?_
         exact ExecutionState.executionState_mapClassical_congr _ rfl
       · simp only [CShape.Value.toBool, acceptanceChoiceStep]
@@ -73,15 +73,15 @@ def acceptanceStep (shared : Proposal.SharedRefs ctx width)
   (selected.1, ⟨value, selected.2⟩)
 
 /-- Actual stored acceptance controls the full selected matrix-preserving execution. -/
-theorem decisionAcceptance_execute (shared : Proposal.SharedRefs ctx width)
+lemma decisionAcceptance_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (chooseAccepted (model := model) shared scratch gcdResult).execute Reference state =
+    (chooseAccepted (model := model) shared scratch gcdResult).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := acceptanceStep (model := model) shared scratch gcdResult entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_branch_mapClassical
+  refine (Circuit.execute_branch_mapClassical (environment := environment)
     (FirstAccepted.cellRead shared.selector.accepted) _
     (fun value before =>
       let result := acceptanceChoiceStep (model := model) shared scratch gcdResult value before.1
@@ -92,7 +92,7 @@ theorem decisionAcceptance_execute (shared : Proposal.SharedRefs ctx width)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Forgetting the real branch path exposes exactly the store selected by the acceptance bit. -/
-theorem decisionAcceptance_store (shared : Proposal.SharedRefs ctx width)
+lemma decisionAcceptance_store (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     (acceptanceStep (model := model) shared scratch gcdResult store).1 =
@@ -116,18 +116,18 @@ private def packedTailStep (shared : Proposal.SharedRefs ctx width)
     (packOp shared scratch output) selected.1
   (packed.1, (selected.2, packed.2))
 
-private theorem packedTail_execute (shared : Proposal.SharedRefs ctx width)
+private lemma packedTail_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (chooseAccepted (model := model) shared scratch gcdResult)
       (BitWord.instruction (execution := model) (packOp shared scratch output))).execute
-        Reference state =
+        environment Reference state =
         state.mapClassical (fun entry =>
           let result := packedTailStep (model := model) shared scratch gcdResult output entry.1
           (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (chooseAccepted (model := model) shared scratch gcdResult)
     (BitWord.instruction (execution := model) (packOp shared scratch output))
     (fun entry =>
@@ -139,7 +139,8 @@ private theorem packedTail_execute (shared : Proposal.SharedRefs ctx width)
       ((result.1, entry.2), result.2))
     (decisionAcceptance_execute shared scratch gcdResult)
     (fun reference {_} _ initial =>
-      (BitWord.bitWord_instruction_execute (packOp shared scratch output)
+      (BitWord.bitWord_instruction_execute (environment := environment)
+        (packOp shared scratch output)
         (Reference := reference) initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl))
     Reference state).trans ?_
@@ -155,16 +156,17 @@ def step (shared : Proposal.SharedRefs ctx width) (scratch : Proposal.ScratchRef
   (final.1, (initialized.2, final.2))
 
 /-- The complete decision preserves every reference correlation under its exact store map. -/
-theorem decision_execute (shared : Proposal.SharedRefs ctx width)
+lemma decision_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (circuit (model := model) shared scratch gcdResult output).execute Reference state =
+    (circuit (model := model) shared scratch gcdResult output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (model := model) shared scratch gcdResult output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (initializeBody (model := model) shared scratch) _
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
+    (initializeBody (model := model) shared scratch) _
     (fun entry =>
       let result := initializationStep (model := model) shared scratch entry.1
       ((result.1, entry.2), result.2))

@@ -28,7 +28,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Widening the actual candidate preserves its full natural value, including at width zero. -/
-theorem decisionExtend_value (scratch : Proposal.ScratchRefs ctx width) (store : Store ctx) :
+lemma decisionExtend_value (scratch : Proposal.ScratchRefs ctx width) (store : Store ctx) :
     ((store.applyOp (Proposal.extendOp scratch)).read
       (FirstAccepted.cellRead scratch.extended)).toNat =
         (store.read (FirstAccepted.cellRead scratch.candidate)).toNat := by
@@ -55,7 +55,7 @@ def reducedStore (shared : Proposal.SharedRefs ctx width)
     (store.applyOp (Proposal.extendOp scratch))).1
 
 /-- The actually executed GCD stores the exact natural GCD of the original candidate and modulus. -/
-theorem decisionReduction_value (shared : Proposal.SharedRefs ctx width)
+lemma decisionReduction_value (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (extendedGcd : scratch.extended.key ≠ gcdResult.key)
@@ -94,7 +94,7 @@ theorem decisionReduction_value (shared : Proposal.SharedRefs ctx width)
       (congrArg CShape.Value.toNat modulusRead)))
 
 /-- The reduction preserves every complete read outside its two actual written cells. -/
-theorem decisionReduction_read_other (shared : Proposal.SharedRefs ctx width)
+lemma decisionReduction_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     {shape : CShape} (other : CInputRef ctx shape)

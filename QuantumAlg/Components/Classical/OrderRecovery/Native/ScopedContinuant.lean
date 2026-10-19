@@ -58,11 +58,13 @@ def scopedContinuantStep (quotient previous older : CInputRef ctx (.unsignedWord
   (Store.popWorkspace key (.unsignedWord width) fresh final.1, final.2)
 
 /-- The lexical program has this exact action on every complete quantum-reference block. -/
-theorem nativeScopedContinuant_execute
+lemma nativeScopedContinuant_execute
     (quotient previous older : CInputRef ctx (.unsignedWord width))
-    (candidate : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (candidate : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (scopedContinuant (model := model) quotient previous older candidate).execute Reference state =
+    (scopedContinuant (model := model) quotient previous older candidate).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((scopedContinuantStep (model := model) quotient previous older candidate entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -75,7 +77,8 @@ theorem nativeScopedContinuant_execute
   let older' := older.underWorkspace key (.unsignedWord width) fresh
   let candidate' := candidate.underWorkspace key (.unsignedWord width) fresh
   let product := CWriteRef.workspaceHead ctx key (.unsignedWord width) fresh
-  refine (Circuit.execute_workspace_mapClassical key (.unsignedWord width) fresh
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) key (.unsignedWord width) fresh
     (continuantBody (model := model) quotient' previous' older' product candidate')
     (fun entry =>
       let next := continuantStep (model := model) quotient' previous' older' product candidate'
@@ -87,13 +90,13 @@ theorem nativeScopedContinuant_execute
       exact ExecutionState.executionState_mapClassical_congr _ rfl) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem liftedWrite_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma liftedWrite_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape workspaceShape : CShape} (output : CWriteRef ctx shape)
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     (output.underWorkspace key workspaceShape fresh).key = output.key := rfl
 
 /-- The output realizes the recurrence on the original reads, without a temporary alias premise. -/
-theorem nativeScopedContinuant_result
+lemma nativeScopedContinuant_result
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((scopedContinuantStep (model := model) quotient previous older candidate store).1).read
@@ -119,7 +122,7 @@ theorem nativeScopedContinuant_result
     Store.read_pushWorkspace_underWorkspace] using actual
 
 /-- Only the declared candidate cell can change among all pre-existing structural reads. -/
-theorem nativeScopedContinuant_read_other
+lemma nativeScopedContinuant_read_other
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -137,7 +140,7 @@ theorem nativeScopedContinuant_read_other
   · simpa only [CInputRef.storageKeys_underWorkspace, liftedWrite_key] using separate
 
 /-- Allocation and exact release introduce no extra arithmetic event. -/
-theorem nativeScopedContinuant_eventTrace
+lemma nativeScopedContinuant_eventTrace
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (path : (scopedContinuant (model := model) quotient previous older candidate).Path) :
@@ -146,7 +149,7 @@ theorem nativeScopedContinuant_eventTrace
   apply nativeContinuant_eventTrace
 
 /-- The multiplication and dependent addition retain their exact sequential depth. -/
-theorem nativeScopedContinuant_unitDepth
+lemma nativeScopedContinuant_unitDepth
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (path : (scopedContinuant (model := model) quotient previous older candidate).Path) :

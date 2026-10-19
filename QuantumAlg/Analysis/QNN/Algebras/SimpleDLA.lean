@@ -47,7 +47,7 @@ attribute [local instance 100] LieRing.ofAssociativeRing
 /-! ### Pauli commutation relations -/
 
 /-- `[X, Y] = 2i Z`. -/
-theorem lie_pauliX_pauliY : ⁅pauliX, pauliY⁆ = (2 * Complex.I) • pauliZ := by
+lemma lie_pauliX_pauliY : ⁅pauliX, pauliY⁆ = (2 * Complex.I) • pauliZ := by
   rw [Ring.lie_def, pauliX, pauliY, pauliZ]
   ext i j
   fin_cases i <;> fin_cases j <;>
@@ -56,7 +56,7 @@ theorem lie_pauliX_pauliY : ⁅pauliX, pauliY⁆ = (2 * Complex.I) • pauliZ :=
     ring_nf
 
 /-- `[Y, Z] = 2i X`. -/
-theorem lie_pauliY_pauliZ : ⁅pauliY, pauliZ⁆ = (2 * Complex.I) • pauliX := by
+lemma lie_pauliY_pauliZ : ⁅pauliY, pauliZ⁆ = (2 * Complex.I) • pauliX := by
   rw [Ring.lie_def, pauliX, pauliY, pauliZ]
   ext i j
   fin_cases i <;> fin_cases j <;>
@@ -65,7 +65,7 @@ theorem lie_pauliY_pauliZ : ⁅pauliY, pauliZ⁆ = (2 * Complex.I) • pauliX :=
     ring_nf
 
 /-- `[Z, X] = 2i Y`. -/
-theorem lie_pauliZ_pauliX : ⁅pauliZ, pauliX⁆ = (2 * Complex.I) • pauliY := by
+lemma lie_pauliZ_pauliX : ⁅pauliZ, pauliX⁆ = (2 * Complex.I) • pauliY := by
   rw [Ring.lie_def, pauliX, pauliY, pauliZ]
   ext i j
   fin_cases i <;> fin_cases j <;>
@@ -79,14 +79,14 @@ theorem lie_pauliZ_pauliX : ⁅pauliZ, pauliX⁆ = (2 * Complex.I) • pauliY :=
 
 /-! ### The Pauli matrices are Hermitian -/
 
-theorem pauliX_isHermitian : pauliXᴴ = pauliX := by
+lemma pauliX_isHermitian : pauliXᴴ = pauliX := by
   rw [pauliX]; ext i j; fin_cases i <;> fin_cases j <;> simp [Matrix.conjTranspose_apply]
 
-theorem pauliY_isHermitian : pauliYᴴ = pauliY := by
+lemma pauliY_isHermitian : pauliYᴴ = pauliY := by
   rw [pauliY]; ext i j; fin_cases i <;> fin_cases j <;>
     simp [Matrix.conjTranspose_apply, Complex.conj_I]
 
-theorem pauliZ_isHermitian : pauliZᴴ = pauliZ := by
+lemma pauliZ_isHermitian : pauliZᴴ = pauliZ := by
   rw [pauliZ]; ext i j; fin_cases i <;> fin_cases j <;> simp [Matrix.conjTranspose_apply]
 
 /-! ### `su(2)`: the complex span of `{X, Y, Z}` is the DLA, and a Lie subalgebra -/
@@ -98,15 +98,15 @@ def su2Set : Set (Matrix (Fin 2) (Fin 2) ℂ) := {pauliX, pauliY, pauliZ}
 public def su2Gens : Set (Matrix (Fin 2) (Fin 2) ℂ) :=
   {Complex.I • pauliX, Complex.I • pauliY, Complex.I • pauliZ}
 
-theorem pauliX_mem_su2Set : pauliX ∈ su2Set := by
+lemma pauliX_mem_su2Set : pauliX ∈ su2Set := by
   simp [su2Set]
-theorem pauliY_mem_su2Set : pauliY ∈ su2Set := by
+lemma pauliY_mem_su2Set : pauliY ∈ su2Set := by
   simp [su2Set]
-theorem pauliZ_mem_su2Set : pauliZ ∈ su2Set := by
+lemma pauliZ_mem_su2Set : pauliZ ∈ su2Set := by
   simp [su2Set]
 
 /-- The bracket of two `su(2)` generators lands in `span ℂ {X, Y, Z}`: closure of the span. -/
-theorem su2_lie_mem_span ⦃x y : Matrix (Fin 2) (Fin 2) ℂ⦄
+lemma su2_lie_mem_span ⦃x y : Matrix (Fin 2) (Fin 2) ℂ⦄
     (hx : x ∈ Submodule.span ℂ su2Set) (hy : y ∈ Submodule.span ℂ su2Set) :
     ⁅x, y⁆ ∈ Submodule.span ℂ su2Set := by
   induction hx using Submodule.span_induction with
@@ -139,7 +139,7 @@ def su2Lie : LieSubalgebra ℂ (Matrix (Fin 2) (Fin 2) ℂ) where
   toSubmodule := Submodule.span ℂ su2Set
   lie_mem' := fun hx hy => su2_lie_mem_span hx hy
 
-theorem su2Gens_subset_su2Lie : su2Gens ⊆ (su2Lie : Set (Matrix (Fin 2) (Fin 2) ℂ)) := by
+lemma su2Gens_subset_su2Lie : su2Gens ⊆ (su2Lie : Set (Matrix (Fin 2) (Fin 2) ℂ)) := by
   intro a ha
   simp only [su2Gens, Set.mem_insert_iff, Set.mem_singleton_iff] at ha
   have hmem : ∀ P ∈ su2Set, Complex.I • P ∈ su2Lie := by
@@ -152,7 +152,7 @@ theorem su2Gens_subset_su2Lie : su2Gens ⊆ (su2Lie : Set (Matrix (Fin 2) (Fin 2
   · exact hmem _ pauliZ_mem_su2Set
 
 /-- The dynamical Lie algebra of `{iX, iY, iZ}` is, as a submodule, `span ℂ {X, Y, Z}`. -/
-theorem su2_dla_toSubmodule :
+lemma su2_dla_toSubmodule :
     (dynamicalLieAlgebra su2Gens).toSubmodule = Submodule.span ℂ su2Set := by
   apply le_antisymm
   · -- DLA ⊆ span{X,Y,Z}: minimality against the Lie subalgebra `su2Lie`
@@ -179,7 +179,7 @@ theorem su2_dla_toSubmodule :
 noncomputable def su2B : Fin 3 → Matrix (Fin 2) (Fin 2) ℂ :=
   ![rt2inv • pauliX, rt2inv • pauliY, rt2inv • pauliZ]
 
-theorem su2_range_span : Submodule.span ℂ (Set.range su2B) = Submodule.span ℂ su2Set := by
+lemma su2_range_span : Submodule.span ℂ (Set.range su2B) = Submodule.span ℂ su2Set := by
   have hrt : rt2inv ≠ 0 := by
     intro h; have h2 := rt2inv_mul_self; rw [h, mul_zero] at h2; norm_num at h2
   have key : ∀ P : Matrix (Fin 2) (Fin 2) ℂ, rt2inv⁻¹ • (rt2inv • P) = P := fun P => by
@@ -206,7 +206,7 @@ theorem su2_range_span : Submodule.span ℂ (Set.range su2B) = Submodule.span �
 
 /-- The Hermitian orthonormality of the normalized Pauli basis (`Tr[Pᴴ Q] = 2 δ`,
 so `⟪P/√2, Q/√2⟫ = δ`). -/
-theorem su2B_ortho (i j : Fin 3) : hsInner (su2B i) (su2B j) = if i = j then 1 else 0 := by
+lemma su2B_ortho (i j : Fin 3) : hsInner (su2B i) (su2B j) = if i = j then 1 else 0 := by
   have key : ∀ P Q : Matrix (Fin 2) (Fin 2) ℂ,
       hsInner (rt2inv • P) (rt2inv • Q) = (1 / 2 : ℂ) * hsInner P Q := fun P Q => by
     rw [hsInner_smul_left, hsInner_smul_right, ← mul_assoc, starRingEnd_apply, rt2inv_conj,
@@ -241,7 +241,7 @@ theorem su2B_ortho (i j : Fin 3) : hsInner (su2B i) (su2B j) = if i = j then 1 e
   · change hsInner (rt2inv • pauliZ) (rt2inv • pauliZ) = 1
     rw [fin2 _ _ pauliZ_isHermitian]; norm_num [pauliZ, Matrix.mul_fin_two, Matrix.trace_fin_two]
 
-theorem su2B_isHermitian (i : Fin 3) : (su2B i)ᴴ = su2B i := by
+lemma su2B_isHermitian (i : Fin 3) : (su2B i)ᴴ = su2B i := by
   fin_cases i
   · change (rt2inv • pauliX)ᴴ = rt2inv • pauliX
     rw [Matrix.conjTranspose_smul, rt2inv_conj, pauliX_isHermitian]
@@ -263,27 +263,27 @@ public noncomputable def su2HermBasis : DLAHermBasis su2Gens where
 
 /-! ### `su(2)` structure constants (for the Schur one-dimensionality H2) -/
 
-theorem rt2inv_ne_zero : rt2inv ≠ 0 := fun h => by
+lemma rt2inv_ne_zero : rt2inv ≠ 0 := fun h => by
   have h2 := rt2inv_mul_self; rw [h, mul_zero] at h2; norm_num at h2
 
 /-- The cyclic structure constant of the normalized `su(2)` basis:
 `⁅Bₖ, Bᵢ⁆ = (i / √2) • Bₗ` for the positive cyclic `(k, i, l)`. We carry the scalar
 `f = Complex.I * rt2inv⁻¹` opaque (only `f ≠ 0` matters downstream). -/
-theorem su2B_lie_01 : ⁅su2B 0, su2B 1⁆ = (Complex.I * rt2inv⁻¹) • su2B 2 := by
+lemma su2B_lie_01 : ⁅su2B 0, su2B 1⁆ = (Complex.I * rt2inv⁻¹) • su2B 2 := by
   change ⁅rt2inv • pauliX, rt2inv • pauliY⁆ = (Complex.I * rt2inv⁻¹) • (rt2inv • pauliZ)
   rw [smul_lie, lie_smul, lie_pauliX_pauliY, smul_smul, smul_smul, smul_smul]
   congr 1
   rw [rt2inv_mul_self, mul_assoc Complex.I, inv_mul_cancel₀ rt2inv_ne_zero, mul_one]
   ring
 
-theorem su2B_lie_12 : ⁅su2B 1, su2B 2⁆ = (Complex.I * rt2inv⁻¹) • su2B 0 := by
+lemma su2B_lie_12 : ⁅su2B 1, su2B 2⁆ = (Complex.I * rt2inv⁻¹) • su2B 0 := by
   change ⁅rt2inv • pauliY, rt2inv • pauliZ⁆ = (Complex.I * rt2inv⁻¹) • (rt2inv • pauliX)
   rw [smul_lie, lie_smul, lie_pauliY_pauliZ, smul_smul, smul_smul, smul_smul]
   congr 1
   rw [rt2inv_mul_self, mul_assoc Complex.I, inv_mul_cancel₀ rt2inv_ne_zero, mul_one]
   ring
 
-theorem su2B_lie_20 : ⁅su2B 2, su2B 0⁆ = (Complex.I * rt2inv⁻¹) • su2B 1 := by
+lemma su2B_lie_20 : ⁅su2B 2, su2B 0⁆ = (Complex.I * rt2inv⁻¹) • su2B 1 := by
   change ⁅rt2inv • pauliZ, rt2inv • pauliX⁆ = (Complex.I * rt2inv⁻¹) • (rt2inv • pauliY)
   rw [smul_lie, lie_smul, lie_pauliZ_pauliX, smul_smul, smul_smul, smul_smul]
   congr 1
@@ -291,22 +291,22 @@ theorem su2B_lie_20 : ⁅su2B 2, su2B 0⁆ = (Complex.I * rt2inv⁻¹) • su2B 
   ring
 
 /-- Anti-cyclic brackets, by skew-symmetry. -/
-theorem su2B_lie_10 : ⁅su2B 1, su2B 0⁆ = (-(Complex.I * rt2inv⁻¹)) • su2B 2 := by
+lemma su2B_lie_10 : ⁅su2B 1, su2B 0⁆ = (-(Complex.I * rt2inv⁻¹)) • su2B 2 := by
   rw [neg_smul, ← su2B_lie_01]; exact (lie_skew (su2B 1) (su2B 0)).symm
 
-theorem su2B_lie_21 : ⁅su2B 2, su2B 1⁆ = (-(Complex.I * rt2inv⁻¹)) • su2B 0 := by
+lemma su2B_lie_21 : ⁅su2B 2, su2B 1⁆ = (-(Complex.I * rt2inv⁻¹)) • su2B 0 := by
   rw [neg_smul, ← su2B_lie_12]; exact (lie_skew (su2B 2) (su2B 1)).symm
 
-theorem su2B_lie_02 : ⁅su2B 0, su2B 2⁆ = (-(Complex.I * rt2inv⁻¹)) • su2B 1 := by
+lemma su2B_lie_02 : ⁅su2B 0, su2B 2⁆ = (-(Complex.I * rt2inv⁻¹)) • su2B 1 := by
   rw [neg_smul, ← su2B_lie_20]; exact (lie_skew (su2B 0) (su2B 2)).symm
 
 /-- The opaque `su(2)` structure constant is nonzero. -/
-theorem su2_f_ne_zero : (Complex.I * rt2inv⁻¹) ≠ 0 :=
+lemma su2_f_ne_zero : (Complex.I * rt2inv⁻¹) ≠ 0 :=
   mul_ne_zero Complex.I_ne_zero (inv_ne_zero rt2inv_ne_zero)
 
-theorem su2HermBasis_B (i : Fin 3) : su2HermBasis.B i = su2B i := rfl
+lemma su2HermBasis_B (i : Fin 3) : su2HermBasis.B i = su2B i := rfl
 
-theorem su2HermBasis_dim_eq : su2HermBasis.dim = 3 := rfl
+lemma su2HermBasis_dim_eq : su2HermBasis.dim = 3 := rfl
 
 /-- **The Schur one-dimensionality `(g⊗g)^g = span{C}` for `su(2)` (discharge of H2).** Every
 `g`-invariant element of `g ⊗ g` is a scalar multiple of the quadratic Casimir. Proved concretely:
@@ -416,7 +416,7 @@ dynamical Lie algebras with `dim gₙ = (2ⁿ⁺¹)² − 1 = 4ⁿ⁺¹ − 1` (
 so the dimension is positive at every `n`), bounded `g`-purity numerator, and the Haar second-moment
 bundle, the loss has an exponential barren plateau. The dimension `4ⁿ⁺¹ − 1` grows faster than `2ⁿ`,
 so this is a genuine consequence of the proved variance formula [RBS+23, Arxiv_Final.tex:691]. -/
-theorem main_barren_plateau {sz : ℕ → ℕ}
+lemma main_barren_plateau {sz : ℕ → ℕ}
     {gens : (n : ℕ) → Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)}
     {ρ O : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     {b : (n : ℕ) → DLAHermBasis (gens n)}
@@ -447,7 +447,7 @@ end SimpleSU
 
 /-! ### Non-vacuity: the `su(2)` witness -/
 
-theorem su2HermBasis_dim_pos : 0 < su2HermBasis.dim := by
+lemma su2HermBasis_dim_pos : 0 < su2HermBasis.dim := by
   change (0 : ℕ) < 3
   norm_num
 
@@ -466,14 +466,14 @@ noncomputable def su2SM :
 genuinely satisfies the simple-dimension reduction: its loss variance is `P_g(ρ)·P_g(O)/3`.
 With `ρ = O = X/√2`
 (a normalized basis element, `P_g = 1`) this evaluates to `1/3`. -/
-theorem su2_variance_eq :
+lemma su2_variance_eq :
     (su2SM.variance : ℂ)
       = su2HermBasis.gPurity (su2HermBasis.B su2i0)
           * su2HermBasis.gPurity (su2HermBasis.B su2i0) / ((2 * 2 - 1 : ℕ) : ℂ) :=
   SimpleSU.main su2SM (su2HermBasis.herm su2i0) (su2HermBasis.herm su2i0)
     (d := 2) rfl su2HermBasis_dim_pos
 
-theorem su2_variance_eq_third : (su2SM.variance : ℂ) = 1 / 3 := by
+lemma su2_variance_eq_third : (su2SM.variance : ℂ) = 1 / 3 := by
   rw [su2_variance_eq, su2HermBasis.gPurity_basis_elem su2i0]; norm_num
 
 end QuantumAlg

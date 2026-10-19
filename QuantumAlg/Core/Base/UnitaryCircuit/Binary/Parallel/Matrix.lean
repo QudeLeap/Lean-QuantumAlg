@@ -29,22 +29,28 @@ namespace QuantumAlg.UnitaryCircuit
 noncomputable section
 
 /-- The actual parallel construction realizes the exact tensor of its words. -/
-public theorem parallelBinary_binaryMatrix {gates : GateModel} {oracles : OracleModel}
+public lemma parallelBinary_binaryMatrix {gates : GateModel} {oracles : OracleModel}
     {leftWidth rightWidth : Nat}
     (left : UnitaryCircuit gates oracles
       (QuantumSignature.qubits leftWidth).canonicalPlacement.layout)
     (right : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits rightWidth).canonicalPlacement.layout) :
-    (parallelBinary left right).binaryMatrix = left.binaryMatrix.tensor right.binaryMatrix := by
-  have same : (parallelBinary left right).matrix =
-      ((onBinaryPrefix rightWidth left).seq (onBinarySuffix leftWidth right)).matrix := rfl
+      (QuantumSignature.qubits rightWidth).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((parallelBinary left right).binaryMatrix environment) = (left.binaryMatrix
+      environment).tensor (right.binaryMatrix environment) := by
+  have same : ((parallelBinary left right).matrix environment) =
+      (((onBinaryPrefix rightWidth left).seq (onBinarySuffix leftWidth right)).matrix environment)
+        := rfl
   rw [binaryMatrix, same]
-  change ((onBinaryPrefix rightWidth left).seq (onBinarySuffix leftWidth right)).binaryMatrix = _
+  change (((onBinaryPrefix rightWidth left).seq (onBinarySuffix leftWidth right)).binaryMatrix
+    environment) = _
   rw [unitaryCircuit_binaryMatrix_seq, unitaryCircuit_onBinaryPrefix_binaryMatrix,
     unitaryCircuit_onBinarySuffix_binaryMatrix]
   apply Subtype.ext
-  change HilbertOperator.tensor 1 (right.binaryMatrix : HilbertOperator (Qubits rightWidth)) *
-      HilbertOperator.tensor (left.binaryMatrix : HilbertOperator (Qubits leftWidth)) 1 = _
+  change HilbertOperator.tensor 1 ((right.binaryMatrix environment) : HilbertOperator (Qubits
+    rightWidth)) *
+      HilbertOperator.tensor ((left.binaryMatrix environment) : HilbertOperator (Qubits
+        leftWidth)) 1 = _
   rw [HilbertOperator.tensor_mul_tensor, one_mul, mul_one]
   rfl
 

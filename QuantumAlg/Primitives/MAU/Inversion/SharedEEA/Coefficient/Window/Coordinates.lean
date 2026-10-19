@@ -35,13 +35,13 @@ def operandSlots (length index : Nat) : Nat :=
   if index < 2 * length then 2 * length - 1 - index else index
 
 /-- The complete slot rearrangement has an explicit inverse, including zero-width operands. -/
-theorem operandSlots_twice (length index : Nat) :
+lemma operandSlots_twice (length index : Nat) :
     operandSlots length (operandSlots length index) = index := by
   unfold operandSlots
   split_ifs <;> omega
 
 /-- No two original native slots are merged by the operand orientation. -/
-theorem operandSlots_injective (length : Nat) : Function.Injective (operandSlots length) := by
+lemma operandSlots_injective (length : Nat) : Function.Injective (operandSlots length) := by
   intro left right same
   calc
     left = operandSlots length (operandSlots length left) := (operandSlots_twice length left).symm
@@ -49,7 +49,7 @@ theorem operandSlots_injective (length : Nat) : Function.Injective (operandSlots
     _ = right := operandSlots_twice length right
 
 /-- The oriented slot is still in the same actual complete grouped frame. -/
-theorem operandSlots_within {width : Nat} (window : Window width)
+lemma operandSlots_within {width : Nat} (window : Window width)
     (index : Fin (groupedEncoding window).width) :
     operandSlots window.length index.val < (groupedEncoding window).width := by
   have bound := index.isLt
@@ -64,7 +64,7 @@ def physicalIndex {width : Nat} (window : Window width) (index : Nat) : Nat :=
   ArithmeticWindowFullCoordinates.physicalIndex window (operandSlots window.length index)
 
 /-- The actual coefficient placement is injective on the entire real grouped carrier. -/
-theorem physicalIndex_injective {width : Nat} (window : Window width) :
+lemma physicalIndex_injective {width : Nat} (window : Window width) :
     Function.Injective
       (fun index : Fin (groupedEncoding window).width => physicalIndex window index.val) := by
   intro left right same
@@ -80,7 +80,7 @@ theorem physicalIndex_injective {width : Nat} (window : Window width) :
   exact operandSlots_injective window.length values
 
 /-- Every coefficient gate and arbitrary-work control wire remains in the original frame. -/
-theorem physicalIndex_within {width : Nat} (window : Window width)
+lemma physicalIndex_within {width : Nat} (window : Window width)
     (index : Fin (groupedEncoding window).width) :
     physicalIndex window index.val < (encoding width).width :=
   ArithmeticWindowFullCoordinates.physicalIndex_within window
@@ -99,12 +99,12 @@ def wireEquiv {width : Nat} (window : Window width) :
     Fin (groupedEncoding window).width ≃ Fin (encoding width).width :=
   (operandWireEquiv window).trans (ArithmeticWindowFullCoordinates.wireEquiv window)
 
-theorem wireEquiv_val {width : Nat} (window : Window width)
+lemma wireEquiv_val {width : Nat} (window : Window width)
     (index : Fin (groupedEncoding window).width) :
     (wireEquiv window index).val = physicalIndex window index.val := rfl
 
 /-- TTK source bit `i` is physically the original Work1 coefficient bit `above + i`. -/
-theorem physicalIndex_source {width : Nat} (window : Window width) (index : Fin window.length) :
+lemma physicalIndex_source {width : Nat} (window : Window width) (index : Fin window.length) :
     physicalIndex window (window.length - 1 - index.val) = window.above + index.val := by
   have within := index.isLt
   have complete := window.complete
@@ -113,7 +113,7 @@ theorem physicalIndex_source {width : Nat} (window : Window width) (index : Fin 
   split_ifs <;> omega
 
 /-- TTK target bit `i` is physically the original Work2 coefficient bit `above + i`. -/
-theorem physicalIndex_target {width : Nat} (window : Window width) (index : Fin window.length) :
+lemma physicalIndex_target {width : Nat} (window : Window width) (index : Fin window.length) :
     physicalIndex window (window.length + (window.length - 1 - index.val)) =
       width + 3 + window.above + index.val := by
   have within := index.isLt
@@ -123,7 +123,7 @@ theorem physicalIndex_target {width : Nat} (window : Window width) (index : Fin 
   split_ifs <;> omega
 
 /-- Sign remains the real original Sign wire, outside the reflected operand interval. -/
-theorem physicalIndex_sign {width : Nat} (window : Window width) :
+lemma physicalIndex_sign {width : Nat} (window : Window width) :
     physicalIndex window (2 * window.length) = (signBit width).wire.val := by
   rw [signBit_wire]
   unfold physicalIndex operandSlots ArithmeticWindowFullCoordinates.physicalIndex
@@ -131,7 +131,7 @@ theorem physicalIndex_sign {width : Nat} (window : Window width) :
   split_ifs <;> omega
 
 /-- Existing Ctrl is fixed by orientation and maps to the already proved original Ctrl wire. -/
-theorem physicalIndex_control {width : Nat} (window : Window width) :
+lemma physicalIndex_control {width : Nat} (window : Window width) :
     physicalIndex window (ArithmeticWindowEncoding.controlBit window).wire.val =
       (SharedEEA.controlBit width).wire.val := by
   have afterOperands : 2 * window.length ≤
@@ -142,7 +142,7 @@ theorem physicalIndex_control {width : Nat} (window : Window width) :
   exact ArithmeticWindowFullCoordinates.physicalIndex_control window
 
 /-- The arbitrary Iter wire is fixed by orientation and retains its true original address. -/
-theorem physicalIndex_work {width : Nat} (window : Window width) :
+lemma physicalIndex_work {width : Nat} (window : Window width) :
     physicalIndex window (workBit window).wire.val = (iterationBit width).wire.val := by
   have afterOperands : 2 * window.length ≤ (workBit window).wire.val := by
     rw [ArithmeticWindowFullCoordinates.work_wire]

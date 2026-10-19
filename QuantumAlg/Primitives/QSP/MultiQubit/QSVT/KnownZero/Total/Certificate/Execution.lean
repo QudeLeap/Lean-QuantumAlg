@@ -21,25 +21,26 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total
 noncomputable section
 
 /-- Source assumptions select one actual Hermitian polynomial circuit with its complete budget. -/
-theorem exists_total_real_native_execution {m n L : Nat} {P : Polynomial ℝ}
+lemma exists_total_real_native_execution {m n L : Nat} {P : Polynomial ℝ}
     (U : UnitaryOperator (Qubits (m + n)))
     (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
     (hermitian : A.IsHermitian)
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L P)
     (positiveDegree : 0 < L) :
-    ∃ word : UnitaryCircuit AlgorithmGate.model (UnitarySource.model U false true false)
+    ∃ word : UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) false true false)
         (ProjectorPhase.layout (m + n)),
       ExactBlockEncoding (1 + m) n
-        (reassociatePhaseAncillaOperator (m := m) (n := n) word.binaryMatrix)
+        (reassociatePhaseAncillaOperator (m := m) (n := n) (word.binaryMatrix
+          (UnitarySource.interpretation U false true false)))
         (polynomialOperator (realPolynomialToComplex P) A) ∧
-      word.eventCost = budget U false L +
+      word.eventCost = budget (m := m) (n := n) false L +
         2 • ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (UnitarySource.model U false true false))
+          (model := .quantum AlgorithmGate.model (UnitarySource.model (m + n) false true false))
           (.gate .singleQubit) ∧
       word.evaluatedEventDepth (fun _ => 1) ≤ (40 * m + 4) * L + 2 := by
   obtain ⟨phases, length, correct, events, _⟩ :=
     exists_total_real_word U false source positiveDegree
-  refine ⟨zeroBlockCircuit U false phases, ?_, ?_, ?_⟩
+  refine ⟨zeroBlockCircuit (m := m) (n := n) false phases, ?_, ?_, ?_⟩
   · exact totalZeroBlockCircuit_correct U false phases encoding hermitian
       (ReflectionQSPPhaseSynthesis.hasParity_realPolynomialToComplex source.parity) correct
   · rw [totalZeroBlockCircuit_events, events]

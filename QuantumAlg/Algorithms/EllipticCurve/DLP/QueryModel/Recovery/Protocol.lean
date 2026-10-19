@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.Specification
+
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.State
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Failure
 public import QuantumAlg.Core.Base.Accounting.Weighted
@@ -54,40 +56,38 @@ original target, or the actual absent result. Every result fiber has the
 prescribed full owned zero bank and restored borrowed observations.
 **Resource budget.** One actual bank preparation, all real sampling/reset,
 checked recovery and feedback rounds, one paid option pack, and both full
-resident and auxiliary inventories. Whole-run depth retains the same events.
+resident and auxiliary inventories. Whole-run quantum time is bounded by the quantum-weighted
+  event allowance.
 **Success.** The original finite geometric selected-family floor, including
 zero rounds; the original public failure budget determines calibrated repeats.
 **Source.** [PZ03, ecc.tex:448-462,525-640]; [Sho95, source.tex:1704-1740];
 [SV24, Uniform.tex:622-664,775-805,996-1024]; [RNSL17, ECDLP.tex:483-510,649-709].
 -/
-public def wholeProblem (I : ECDLPInstance E) (A : Access I)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (duration : Resource.Event (Sampling.executionModel I A) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (Sampling.executionModel I A) (Sampling.pre I) (post I)
-      (.option (.unsignedWord (scalarWidth I))) where
-  valid := inputDomain I
-  initialization := fun _ => True
-  accepts := fun _ result => wholeAccepts I result
-  successLB := ⟨1 - ENNReal.ofReal ((1 - Sampling.Reuse.successFloor I) ^ count), tsub_le_self⟩
-  states := [wholeStateRequirement I]
-  resources :=
-    { events := eventBudget I A expansion nontrivial count
-      resident := tailResidentBudget I
-      auxiliary := tailAuxiliaryBudget I }
-  depth :=
-    { duration := duration
-      limit := ResourcePool.weightedCount duration (eventBudget I A expansion nontrivial count)
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
-
-/-- Execute the same original allocation, actual checked rounds and sole terminal pack. -/
-public def wholeAlgorithm (I : ECDLPInstance E) (A : Access I)
+public def wholeProblem (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    Algorithm (Sampling.executionModel I A) (Sampling.pre I) (post I)
-      (.option (.unsignedWord (scalarWidth I))) := ⟨run I A expansion nontrivial count⟩
+    Problem (Sampling.executionModel I) (Sampling.pre I) (post I)
+      (.option (.unsignedWord (scalarWidth I))) where
+  Witness := FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I)
+  valid := fun environment _ state => Sampling.Admissible I environment ∧ inputDomain I state
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ result => wholeAccepts I result
+  successLB := fun _ _ => ⟨1 - ENNReal.ofReal ((1 - Sampling.Reuse.successFloor I) ^ count),
+    tsub_le_self⟩
+  states := fun _ _ => [wholeStateRequirement I]
+  resources :=
+    { events := eventBudget I expansion nontrivial count
+      resident := tailResidentBudget I
+      auxiliary := tailAuxiliaryBudget I }
+  quantumTimeLimit := ResourcePool.weightedCount Resource.Event.quantumDuration
+    (eventBudget I expansion nontrivial count)
+
+/-- Execute the same original allocation, actual checked rounds and sole terminal pack. -/
+public def wholeAlgorithm (I : ECDLPInstance E)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
+    (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
+    Algorithm (Sampling.executionModel I) (Sampling.pre I) (post I)
+      (.option (.unsignedWord (scalarWidth I))) := ⟨run I expansion nontrivial count⟩
 
 end
 

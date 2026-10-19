@@ -20,20 +20,21 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.DeclaredSource.Runtime
 noncomputable section
 
 /-- The actual placed member retains the original complete source matrix. -/
-theorem member_binaryMatrix_entry {ctx : RuntimeCtx .quantum} (N : Nat)
-    (sameWires : ctx.quantumWires = (layout N).wires) (input : Input N)
+lemma member_binaryMatrix_entry {ctx : RuntimeCtx .quantum} (N : Nat)
+    (sameWires : ctx.quantumWires = (layout N).wires)
+    (interpretation : (DeclaredSource.model (modulusBits N) (phaseBits N)).Interpretation)
     (parameter : (ParameterShape (modulusBits N)).Value)
     (row column : ctx.register.Index) :
-    (member N sameWires input parameter).matrix row column =
-      (DeclaredSource.circuit (sourceBounds input) (phaseBits N)
-        (selectedBase parameter)).binaryMatrix
+    (member N sameWires parameter).matrix interpretation row column =
+      (DeclaredSource.circuit (modulusBits N) (phaseBits N)
+        (selectedBase parameter)).binaryMatrix interpretation
           (basisEquiv N sameWires row) (basisEquiv N sameWires column) := by
   rw [member_matrix, UnitaryCircuit.binaryMatrix_eq_reindex]
   simp only [UnitaryOperator.coe_reindex, Matrix.reindex_apply]
   exact congrArg₂
     (fun left right =>
-      (DeclaredSource.circuit (sourceBounds input) (phaseBits N)
-        (selectedBase parameter)).matrix left right)
+      (DeclaredSource.circuit (modulusBits N) (phaseBits N)
+        (selectedBase parameter)).matrix interpretation left right)
     (by
       exact (Equiv.symm_apply_apply
         (QuantumSignature.qubitsIndexEquiv (phaseBits N + modulusBits N)) _).symm)

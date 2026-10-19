@@ -93,7 +93,7 @@ def foldRefs {kind : ProblemKind}
     (LatticeBatchRecoveryWorkspace.parameterAt topTransport parameter)
 
 /-- Top-cell distinctness survives allocation of the reusable pair package. -/
-theorem topAt_distinct {kind : ProblemKind}
+lemma topAt_distinct {kind : ProblemKind}
     {topCtx inner : RuntimeCtx kind} {N : Nat}
     (pairTransport : Transport topCtx inner)
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
@@ -102,7 +102,7 @@ theorem topAt_distinct {kind : ProblemKind}
   workspaceCells_transportCells_distinct pairTransport top topDistinct
 
 /-- Caller separation of the top package survives the deeper allocation. -/
-theorem topAt_separated {kind : ProblemKind}
+lemma topAt_separated {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -114,7 +114,7 @@ theorem topAt_separated {kind : ProblemKind}
     pairTransport top topSeparated
 
 /-- Physical pair certificates supply the shared initializer contract. -/
-theorem initializationSeparation {kind : ProblemKind}
+lemma initializationSeparation {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -134,7 +134,7 @@ theorem initializationSeparation {kind : ProblemKind}
     certificates.coreQuadratic.shared parameter
 
 /-- The physical top and pair packages supply all 120 fold certificates. -/
-theorem foldSeparation {kind : ProblemKind}
+lemma foldSeparation {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -157,7 +157,7 @@ theorem foldSeparation {kind : ProblemKind}
       terminals parameter)
 
 /-- The transported top package supplies the early-factor seed contract. -/
-theorem seedSeparation {kind : ProblemKind}
+lemma seedSeparation {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -176,7 +176,7 @@ theorem seedSeparation {kind : ProblemKind}
       (topAt_separated topTransport pairTransport top topSeparated) parameter)
 
 /-- Every root-scope input frames the transported early-factor seed. -/
-private theorem seedCallerFrame_of_rootInput {kind : ProblemKind}
+private lemma seedCallerFrame_of_rootInput {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -216,7 +216,7 @@ private theorem seedCallerFrame_of_rootInput {kind : ProblemKind}
       avoids (LatticeBatchRecoveryWorkspaceLayout.takeIndex N)
 
 /-- A fresh inner workspace cell avoids every transported top cell. -/
-private theorem innerCell_avoids_top {kind : ProblemKind}
+private lemma innerCell_avoids_top {kind : ProblemKind}
     {topCtx inner : RuntimeCtx kind} {N : Nat} {shapes : List CShape}
     (pairTransport : Transport topCtx inner)
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
@@ -231,7 +231,7 @@ private theorem innerCell_avoids_top {kind : ProblemKind}
     (crossSeparated_of_nested pairTransport top cells cellsSeparated).keysNe topIndex cellIndex
 
 /-- Every fresh inner workspace cell frames the early-factor seed. -/
-private theorem seedCallerFrame_of_innerCell {kind : ProblemKind}
+private lemma seedCallerFrame_of_innerCell {kind : ProblemKind}
     {topCtx inner : RuntimeCtx kind} {N : Nat} {shapes : List CShape}
     (pairTransport : Transport topCtx inner)
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N)
@@ -266,7 +266,7 @@ private theorem seedCallerFrame_of_innerCell {kind : ProblemKind}
       avoids (LatticeBatchRecoveryWorkspaceLayout.takeIndex N)
 
 /-- Transporting the top package transports its persistent selector. -/
-theorem factorSelection_topAt {kind : ProblemKind}
+lemma factorSelection_topAt {kind : ProblemKind}
     {topCtx inner : RuntimeCtx kind} {N : Nat}
     (pairTransport : Transport topCtx inner)
     (top : LatticeBatchRecoveryWorkspaceLayout.TopCells topCtx N) :
@@ -311,7 +311,7 @@ def tailRefs {kind : ProblemKind}
     (LatticeBatchRecoveryWorkspace.parameterAt topTransport parameter)
 
 /-- The seed preserves every persistent entry fact used by every pair. -/
-private theorem seedInitialFrames {kind : ProblemKind}
+private lemma seedInitialFrames {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -382,7 +382,7 @@ private theorem seedInitialFrames {kind : ProblemKind}
     exact quadraticFrame .zero
 
 /-- The seed preserves every structural bit of every terminal cell. -/
-private theorem seedTerminalFrames {kind : ProblemKind}
+private lemma seedTerminalFrames {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)
@@ -413,7 +413,7 @@ private theorem seedTerminalFrames {kind : ProblemKind}
     take := terminalFrame.take }
 
 /-- The complete physical allocation supplies the seeded-tail separation. -/
-theorem tailSeparation {kind : ProblemKind}
+lemma tailSeparation {kind : ProblemKind}
     {root topCtx inner : RuntimeCtx kind} {N : Nat}
     (topTransport : Transport root topCtx)
     (pairTransport : Transport topCtx inner)

@@ -45,7 +45,7 @@ local macro "pauliMemFinish" : tactic =>
 
 set_option maxHeartbeats 8000000 in
 -- Exhaustive Pauli-Z conjugation over the eight axis codes needs this local budget.
-theorem axis (negative : Bool) (coordinate : Fin 4) :
+lemma axis (negative : Bool) (coordinate : Fin 4) :
     qubitClifford (.axis negative coordinate) * pauliZ *
         (qubitClifford (.axis negative coordinate))ᴴ ∈ signedRawPauliSet := by
   fin_cases coordinate <;> cases negative <;> pauliMemFinish

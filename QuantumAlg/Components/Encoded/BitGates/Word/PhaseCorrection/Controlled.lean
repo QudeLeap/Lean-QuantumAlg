@@ -28,6 +28,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 variable (control : EncodedBit encoding) (word : EncodedBit.Word encoding width)
   (different : ∀ index, control.wire ≠ (word.bit index).wire)
 
@@ -40,8 +41,8 @@ def positiveSequence : List (Fin width) →
         (positiveSequence rest)
 
 /-- Both control sectors retain every input coordinate and the exact selected sign. -/
-theorem controlledPhaseCorrection_positive_ket (indices : List (Fin width)) (state : Data) :
-    (positiveSequence physical oracles control word different indices).applyVec
+lemma controlledPhaseCorrection_positive_ket (indices : List (Fin width)) (state : Data) :
+    ((positiveSequence physical oracles control word different indices).applyVec environment)
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       (if control.get state then sign word state indices else 1) •
@@ -58,7 +59,7 @@ theorem controlledPhaseCorrection_positive_ket (indices : List (Fin width)) (sta
         simp [value, sign]
 
 include different in
-private theorem sign_control_flip (indices : List (Fin width)) (state : Data) :
+private lemma sign_control_flip (indices : List (Fin width)) (state : Data) :
     sign word (control.flip state) indices = sign word state indices := by
   induction indices with
   | nil => rfl
@@ -66,14 +67,14 @@ private theorem sign_control_flip (indices : List (Fin width)) (state : Data) :
       rw [sign, get_flip_of_wire_ne control (word.bit index) (different index), ih]
       rfl
 
-private theorem controlX_ket (state : Data) :
-    ((GateSpec.x control).program physical oracles).applyVec
+private lemma controlX_ket (state : Data) :
+    (((GateSpec.x control).program physical oracles).applyVec environment)
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       (NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm (encoding.encode (control.flip state)))).vec :=
   congrArg NormalizedVector.vec
-    ((GateSpec.realizes physical oracles (.x control)).apply_encoded_ket state)
+    ((GateSpec.realizes physical oracles (.x control) environment).apply_encoded_ket state)
 
 /-- Select a coherent sector using the supplied control and, for zero, two actual X gates. -/
 def sequence (active : Bool) (indices : List (Fin width)) :
@@ -84,9 +85,9 @@ def sequence (active : Bool) (indices : List (Fin width)) :
         ((GateSpec.x control).program physical oracles)
 
 /-- The full original label returns with precisely the phase of the selected control sector. -/
-theorem controlledPhaseCorrection_sequence_ket (active : Bool)
+lemma controlledPhaseCorrection_sequence_ket (active : Bool)
     (indices : List (Fin width)) (state : Data) :
-    (sequence physical oracles control word different active indices).applyVec
+    ((sequence physical oracles control word different active indices).applyVec environment)
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       (if control.get state = active then sign word state indices else 1) •
@@ -104,9 +105,9 @@ theorem controlledPhaseCorrection_sequence_ket (active : Bool)
       cases control.get state <;> rfl
 
 /-- The same phase cancels exactly, including coherences between the two control sectors. -/
-theorem controlledPhaseCorrection_cancel_ket (active : Bool)
+lemma controlledPhaseCorrection_cancel_ket (active : Bool)
     (indices : List (Fin width)) (state : Data) :
-    (sequence physical oracles control word different active indices).applyVec
+    ((sequence physical oracles control word different active indices).applyVec environment)
         ((if control.get state = active then sign word state indices else 1) •
           (NormalizedVector.ket (R := physical.toQuantum.register)
             (physical.basisEquiv.symm (encoding.encode state))).vec) =
@@ -118,21 +119,22 @@ theorem controlledPhaseCorrection_cancel_ket (active : Bool)
   · simp only [mul_one, one_smul]
 
 /-- Every complete reference column retains the selected phase and all original coordinates. -/
-theorem controlledPhaseCorrection_reference_entry (active : Bool)
+lemma controlledPhaseCorrection_reference_entry (active : Bool)
     (indices : List (Fin width)) (state : Data) {Reference : Register}
     (row : physical.toQuantum.register.Index) (left right : Reference.Index) :
     UnitaryOperator.prodTensor
-        (sequence physical oracles control word different active indices).matrix
+        ((sequence physical oracles control word different active indices).matrix environment)
         (1 : UnitaryOperator Reference) (row, left)
         (physical.basisEquiv.symm (encoding.encode state), right) =
       if row = physical.basisEquiv.symm (encoding.encode state) ∧ left = right then
         (if control.get state = active then sign word state indices else 1) else 0 := by
   have column := congrArg
     (fun vector : HilbertVector physical.toQuantum.register => vector row)
-    (controlledPhaseCorrection_sequence_ket physical oracles control word different
+    (controlledPhaseCorrection_sequence_ket (environment := environment)
+      physical oracles control word different
       active indices state)
   have matrixColumn := (HilbertOperator.applyVec_ket
-    ((sequence physical oracles control word different active indices).matrix :
+    (((sequence physical oracles control word different active indices).matrix environment) :
       HilbertOperator physical.toQuantum.register)
     (physical.basisEquiv.symm (encoding.encode state)) row).symm.trans column
   rw [UnitaryOperator.prodTensor_apply, matrixColumn]
@@ -144,7 +146,7 @@ theorem controlledPhaseCorrection_reference_entry (active : Bool)
     by_cases reference : left = right <;> simp [selected, reference]
 
 /-- The positive word's ordered trace records each literal H, CNOT, H occurrence. -/
-theorem controlledPhaseCorrection_positive_trace (indices : List (Fin width)) :
+lemma controlledPhaseCorrection_positive_trace (indices : List (Fin width)) :
     (positiveSequence physical oracles control word different indices).eventTrace =
       indices.flatMap (fun _ => [.gate .singleQubit, .gate .cnot, .gate .singleQubit]) := by
   induction indices with
@@ -155,7 +157,7 @@ theorem controlledPhaseCorrection_positive_trace (indices : List (Fin width)) :
       rfl
 
 /-- The zero-control trace also retains the two actual control flips in execution order. -/
-theorem controlledPhaseCorrection_sequence_trace (active : Bool) (indices : List (Fin width)) :
+lemma controlledPhaseCorrection_sequence_trace (active : Bool) (indices : List (Fin width)) :
     (sequence physical oracles control word different active indices).eventTrace =
       if active then
         indices.flatMap (fun _ => [.gate .singleQubit, .gate .cnot, .gate .singleQubit])
@@ -168,7 +170,7 @@ theorem controlledPhaseCorrection_sequence_trace (active : Bool) (indices : List
   all_goals rfl
 
 /-- Native multiplicities charge two Hadamards and one CNOT per selected position. -/
-theorem controlledPhaseCorrection_positive_cost (indices : List (Fin width)) :
+lemma controlledPhaseCorrection_positive_cost (indices : List (Fin width)) :
     (positiveSequence physical oracles control word different indices).eventCost =
       indices.length •
         (2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -183,7 +185,7 @@ theorem controlledPhaseCorrection_positive_cost (indices : List (Fin width)) :
       exact add_comm _ _
 
 /-- The complete resource pool counts all selected gates and both negative-control X gates. -/
-theorem controlledPhaseCorrection_sequence_cost (active : Bool) (indices : List (Fin width)) :
+lemma controlledPhaseCorrection_sequence_cost (active : Bool) (indices : List (Fin width)) :
     (sequence physical oracles control word different active indices).eventCost =
       indices.length •
         (2 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -204,7 +206,7 @@ theorem controlledPhaseCorrection_sequence_cost (active : Bool) (indices : List 
   abel
 
 /-- Serial depth is exactly three native durations per selected correction. -/
-theorem controlledPhaseCorrection_positive_depth (indices : List (Fin width)) :
+lemma controlledPhaseCorrection_positive_depth (indices : List (Fin width)) :
     (positiveSequence physical oracles control word different indices).evaluatedEventDepth
       (fun _ => 1) = 3 * indices.length := by
   induction indices with
@@ -215,7 +217,7 @@ theorem controlledPhaseCorrection_positive_depth (indices : List (Fin width)) :
       omega
 
 /-- Both control flips remain in the complete serial depth of the zero-control word. -/
-theorem controlledPhaseCorrection_sequence_depth (active : Bool) (indices : List (Fin width)) :
+lemma controlledPhaseCorrection_sequence_depth (active : Bool) (indices : List (Fin width)) :
     (sequence physical oracles control word different active indices).evaluatedEventDepth
       (fun _ => 1) = 3 * indices.length + (if active then 0 else 2) := by
   cases active <;>
@@ -230,7 +232,7 @@ def program (active : Bool) (outcome : Fin width → Bool) :
   sequence physical oracles control word different active (selected outcome)
 
 /-- The same selected width bounds the actual phase word without changing any endpoint budget. -/
-theorem controlledPhaseCorrection_program_depth_bound (active : Bool)
+lemma controlledPhaseCorrection_program_depth_bound (active : Bool)
     (outcome : Fin width → Bool) :
     (program physical oracles control word different active outcome).evaluatedEventDepth
       (fun _ => 1) ≤ 3 * width + (if active then 0 else 2) := by

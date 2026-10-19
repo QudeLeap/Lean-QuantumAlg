@@ -76,7 +76,8 @@ def withWidenedXgcd {model : ExecutionModel} [BitWord.Selected model]
       (outputs.transport (widenedXgcdTransport ctx width)))
 
 /-- The actual body produces the raw final state and changes only its scratch and raw outputs. -/
-theorem widenedXgcdBody_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma widenedXgcdBody_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (widened : CWriteRef ctx (.unsignedWord (width + 1)))
@@ -87,7 +88,7 @@ theorem widenedXgcdBody_actualRecord {model : ExecutionModel} [BitWord.Selected 
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
         (widenedXgcdBody (model := model) denominator modulus widened outputs).execute
-          Reference state =
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -111,9 +112,10 @@ theorem widenedXgcdBody_actualRecord {model : ExecutionModel} [BitWord.Selected 
     ((result.1, before.2), result.2)
   refine ⟨Circuit.sequenceRecord first second firstRecord rawRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord first second firstRecord rawRecord (by
+    exact Circuit.execute_sequenceRecord
+      (environment := environment) first second firstRecord rawRecord (by
       intro reference history historyFinite state
-      refine (BitWord.bitWord_instruction_execute (execution := model)
+      refine (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
         (widenedDenominatorOp denominator widened) state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl) rawEquation reference state
   · intro before
@@ -138,7 +140,8 @@ theorem widenedXgcdBody_actualRecord {model : ExecutionModel} [BitWord.Selected 
       exact actual
 
 /-- Fresh widening leaves no scratch premise on the caller's original operands or state. -/
-theorem withWidenedXgcd_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma withWidenedXgcd_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1)) (distinct : outputs.Distinct) :
@@ -146,7 +149,8 @@ theorem withWidenedXgcd_actualRecord {model : ExecutionModel} [BitWord.Selected 
         (withWidenedXgcd (model := model) denominator modulus outputs).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withWidenedXgcd (model := model) denominator modulus outputs).execute Reference state =
+        (withWidenedXgcd (model := model) denominator modulus outputs).execute
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -176,7 +180,8 @@ theorem withWidenedXgcd_actualRecord {model : ExecutionModel} [BitWord.Selected 
   refine ⟨Circuit.workspaceRecord ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh body bodyRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_workspaceRecord _ _ _ body bodyRecord bodyEquation reference state
+    exact Circuit.execute_workspaceRecord environment _ _ _ body bodyRecord
+      bodyEquation reference state
   · intro before
     let entered := before.1.pushWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
       ctx.canonicalFreshKey_fresh

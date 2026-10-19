@@ -31,7 +31,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 include sameWires in
-private theorem layoutWires :
+private lemma layoutWires :
     (runtimeLayout m ell width).wires = ctx.quantumLayout.wires :=
   (ctx.quantumLayout_wires.trans sameWires).symm
 
@@ -41,7 +41,7 @@ def wireEquiv : Fin (totalQubits (registerParameters m ell width)) ≃ Fin ctx.s
     (layoutWires m ell width sameWires)
 
 /-- The correspondence preserves actual physical identity and dimension together. -/
-theorem shortDLP_runtimeWire_preserved
+lemma shortDLP_runtimeWire_preserved
     (index : Fin (totalQubits (registerParameters m ell width))) :
     ctx.quantumLayout.wire (wireEquiv m ell width sameWires index) =
       (runtimeLayout m ell width).wire index :=
@@ -50,7 +50,7 @@ theorem shortDLP_runtimeWire_preserved
 
 include sameWires in
 /-- All reset dimensions follow the proved layout correspondence. -/
-theorem shortDLP_runtimePlacement_qubits (wire : Fin ctx.systemCount) :
+lemma shortDLP_runtimePlacement_qubits (wire : Fin ctx.systemCount) :
     (ctx.quantumLayout.wire wire).dimension = 2 := by
   obtain ⟨source, rfl⟩ := (wireEquiv m ell width sameWires).surjective wire
   exact (congrArg QuantumWire.dimension
@@ -66,7 +66,7 @@ def basisEquiv : ctx.register.Index ≃
 
 include sameWires in
 /-- Every incoming physical identity is exactly one of the actual source bank identities. -/
-theorem shortDLP_runtimePlacement_physicalIdx :
+lemma shortDLP_runtimePlacement_physicalIdx :
     ctx.physicalIdx = List.range (totalQubits (registerParameters m ell width)) := by
   change ctx.quantumWires.map QuantumWire.identity = _
   rw [sameWires]
@@ -88,14 +88,14 @@ def reloadProgram (N : Nat) :
     (CompiledMAU.reloadProgram m ell width N)
 
 /-- Full-bank placement preserves every actual native and oracle event. -/
-theorem shortDLP_runtimeMember_eventTrace (N : Nat) (generator target : (ZMod N)ˣ)
+lemma shortDLP_runtimeMember_eventTrace (N : Nat) (generator target : (ZMod N)ˣ)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (memberProgram m ell width sameWires N generator target).eventTrace operations services =
       (compiledCircuit m ell width N generator target).eventTrace operations services :=
   Execution.unitaryOfEqualWires_trace _ _ _ _ operations services
 
 /-- The same-bank reload retains its literal X event word, including the empty word. -/
-theorem shortDLP_runtimeReload_eventTrace (N : Nat)
+lemma shortDLP_runtimeReload_eventTrace (N : Nat)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (reloadProgram m ell width sameWires N).eventTrace operations services =
       (CompiledMAU.reloadProgram m ell width N).eventTrace operations services :=

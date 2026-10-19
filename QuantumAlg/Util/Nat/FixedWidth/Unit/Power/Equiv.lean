@@ -33,7 +33,7 @@ def unitPowerStageEquiv {exponentWidth width : Nat} (modulus : Fin (2 ^ width + 
     if exponent.val.testBit bit.val then unitMultiplicationPairEquiv modulus (stageUnit base bit)
     else Equiv.refl _
 
-theorem unitPowerStageEquiv_apply {exponentWidth width : Nat}
+lemma unitPowerStageEquiv_apply {exponentWidth width : Nat}
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth)
     (state : Fin (2 ^ exponentWidth) × (Fin (2 ^ width) × Fin (2 ^ width))) :
     unitPowerStageEquiv modulus base bit state =

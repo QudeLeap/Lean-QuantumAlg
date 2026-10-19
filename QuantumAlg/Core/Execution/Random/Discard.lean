@@ -23,7 +23,7 @@ namespace QuantumAlg.Execution
 noncomputable section
 
 /-- Summing the independent finite choice restores exactly the original execution state. -/
-theorem uniformChoice_map_fst {C : Type} [Fintype C] [DecidableEq C] {R : Register}
+lemma uniformChoice_map_fst {C : Type} [Fintype C] [DecidableEq C] {R : Register}
     (state : ExecutionState C R) (count : ℕ+) :
     (uniformChoice state count).mapClassical Prod.fst = state := by
   have coefficient : (∑ _outcome : Fin count, (count : ℝ)⁻¹) = (1 : ℝ) := by
@@ -43,7 +43,7 @@ theorem uniformChoice_map_fst {C : Type} [Fintype C] [DecidableEq C] {R : Regist
     exact False.elim (absent (Finset.mem_univ result))
 
 /-- Any observation that ignores the independent sample retains its exact prior state. -/
-theorem uniformChoice_map_ignore {C D : Type} [Fintype C] [Fintype D]
+lemma uniformChoice_map_ignore {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register}
     (state : ExecutionState C R) (count : ℕ+) (update : C → D) :
     (uniformChoice state count).mapClassical (fun entry => update entry.1) =

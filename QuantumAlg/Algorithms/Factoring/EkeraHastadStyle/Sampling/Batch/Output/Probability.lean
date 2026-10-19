@@ -22,23 +22,26 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual normalized output probabilities equal the original same-source sixteen-round law. -/
-theorem nativeBatch_output_toPMF (base : RuntimeCtx .quantum)
+lemma nativeBatch_output_toPMF (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) {N : Nat} (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (normalized : state.IsNormalized) :
-    ((((code base noQuantum N).execute Reference state).toPMF
-      (((code base noQuantum N).execute_mass Reference state).trans normalized)).map
+    ((((code base noQuantum N).execute environment Reference state).toPMF
+      (((code base noQuantum N).execute_mass environment Reference state).trans normalized)).map
         (fun record => (run base noQuantum N).output.eval record.1)) =
       sourceDistribution input :=
   ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((code base noQuantum N).execute Reference state) normalized
-    (((code base noQuantum N).execute_mass Reference state).trans normalized)
+    ((code base noQuantum N).execute environment Reference state) normalized
+    (((code base noQuantum N).execute_mass environment Reference state).trans normalized)
     (fun record => (run base noQuantum N).output.eval record.1) (sourceDistribution input)
     (nativeBatch_output_indicator_reference base noQuantum input state)
 

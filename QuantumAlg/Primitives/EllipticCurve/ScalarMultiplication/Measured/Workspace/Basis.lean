@@ -25,7 +25,7 @@ noncomputable section
 open Execution MeasuredUncompute
 
 /-- Each prescribed indexed entry contributes exactly one actual system. -/
-theorem indexedContext_systemCount (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
+lemma indexedContext_systemCount (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     (indexedContext width indices distinct).systemCount = indices.length := by
   change ((indices.map (indexedEntry width)).flatMap RuntimeEntry.quantumWires).length = _
   rw [indexed_wires, List.length_map]
@@ -36,7 +36,7 @@ def indexedPositions (width : Nat) (indices : List Nat) (distinct : indices.Nodu
   finCongr (indexedContext_systemCount width indices distinct).symm
 
 /-- Every corresponding actual wire has its prescribed physical identity and dimension two. -/
-theorem indexedPositions_wire (width : Nat) (indices : List Nat) (distinct : indices.Nodup)
+lemma indexedPositions_wire (width : Nat) (indices : List Nat) (distinct : indices.Nodup)
     (index : Fin indices.length) :
     (indexedContext width indices distinct).quantumLayout.wire
       (indexedPositions width indices distinct index) =
@@ -50,7 +50,7 @@ theorem indexedPositions_wire (width : Nat) (indices : List Nat) (distinct : ind
     RuntimeEntry.quantumWires)[index.val]'bound = _
   simp only [indexed_wires, List.getElem_map]
 
-private theorem indexed_dimension (width : Nat) (indices : List Nat) (distinct : indices.Nodup)
+private lemma indexed_dimension (width : Nat) (indices : List Nat) (distinct : indices.Nodup)
     (index : Fin indices.length) :
     ((indexedContext width indices distinct).quantumLayout.wire
       (indexedPositions width indices distinct index)).dimension = 2 :=
@@ -63,7 +63,7 @@ def indexedBasis (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     finCongr (congrArg PNat.val (indexed_dimension width indices distinct index)).symm).symm
 
 /-- Reading an indexed value returns exactly the finite value on that owned physical system. -/
-theorem indexedBasis_value (width : Nat) (indices : List Nat) (distinct : indices.Nodup)
+lemma indexedBasis_value (width : Nat) (indices : List Nat) (distinct : indices.Nodup)
     (value : (indexedContext width indices distinct).register.Index) (index : Fin indices.length) :
     (indexedBasis width indices distinct value index).val =
       (value (indexedPositions width indices distinct index)).val := by
@@ -98,7 +98,7 @@ def rangePosition (width count : Nat) (index : Fin count) :
     ((finCongr List.length_range).symm index)
 
 /-- Exponent index i is exactly the dimension-two system at physical identity frameWidth+i. -/
-theorem rangePosition_wire (width count : Nat) (index : Fin count) :
+lemma rangePosition_wire (width count : Nat) (index : Fin count) :
     (indexedContext width (List.range count) List.nodup_range).quantumLayout.wire
       (rangePosition width count index) =
         QuantumWire.mk (InPlaceControlled.frameWidth width + index.val) 2 := by
@@ -108,7 +108,7 @@ theorem rangePosition_wire (width count : Nat) (index : Fin count) :
   exact actual
 
 /-- The indexed exponent read is exactly the value on that original physical system. -/
-theorem rangeBasis_value (width count : Nat)
+lemma rangeBasis_value (width count : Nat)
     (value : (indexedContext width (List.range count) List.nodup_range).register.Index)
     (index : Fin count) :
     (rangeBasis width count value index).val = (value (rangePosition width count index)).val :=

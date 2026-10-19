@@ -41,7 +41,7 @@ public def modExpOracleTarget {N x t m : Nat} (A : ModExpOracleAccess N x t m)
       (lt_of_lt_of_le (Nat.mod_lt _ A.modulus_pos) A.register_fits)⟩
 
 @[simp]
-theorem modExpOracleTarget_val {N x t m : Nat} (A : ModExpOracleAccess N x t m)
+lemma modExpOracleTarget_val {N x t m : Nat} (A : ModExpOracleAccess N x t m)
     (a : Fin (2 ^ t)) (y : Fin (2 ^ m)) :
     (modExpOracleTarget A a y).val = Nat.xor y.val (x ^ a.val % N) :=
   rfl
@@ -57,13 +57,13 @@ public def modExpOraclePerm {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
     ext <;> simp [modExpOracleTarget, Nat.xor_xor_cancel_right]
 
 @[simp]
-theorem modExpOraclePerm_apply {N x t m : Nat} (A : ModExpOracleAccess N x t m)
+lemma modExpOraclePerm_apply {N x t m : Nat} (A : ModExpOracleAccess N x t m)
     (p : Fin (2 ^ t) × Fin (2 ^ m)) :
     modExpOraclePerm A p = (p.1, modExpOracleTarget A p.1 p.2) :=
   rfl
 
 @[simp]
-theorem modExpOraclePerm_symm {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
+lemma modExpOraclePerm_symm {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
     (modExpOraclePerm A).symm = modExpOraclePerm A :=
   rfl
 
@@ -73,7 +73,7 @@ public def modExpOracle {N x t m : Nat} (A : ModExpOracleAccess N x t m) :
   UnitaryOperator.ofPerm (prodEquiv.permCongr (modExpOraclePerm A))
 
 /-- Basis action of the modular-exponentiation oracle. -/
-theorem modExpOracle_apply_ket {N x t m : Nat} (A : ModExpOracleAccess N x t m)
+lemma modExpOracle_apply_ket {N x t m : Nat} (A : ModExpOracleAccess N x t m)
     (a : Fin (2 ^ t)) (y : Fin (2 ^ m)) :
     (modExpOracle A).apply (ket (prodEquiv (a, y))) =
       ket (prodEquiv (a, modExpOracleTarget A a y)) := by

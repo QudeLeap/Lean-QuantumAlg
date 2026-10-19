@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {N : Nat}
+variable {model : ExecutionModel}
+  {environment : model.Environment} {ctx : RuntimeCtx model.kind} {N : Nat}
 
 private def part6 (tail : Circuit model (context ctx N) (context ctx N)) : Circuit model
   (positiveContext ctx N) (positiveContext ctx N) :=
@@ -42,19 +43,20 @@ private def update6 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace (positiveContext ctx N).canonicalFreshKey (.unsignedWord (modulusBits N))
     (positiveContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation6 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation6 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (positiveContext ctx N) Reference (model.HiddenState × History)) :
-    (part6 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part6 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update6 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (positiveContext ctx N).canonicalFreshKey (.unsignedWord
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (positiveContext ctx N).canonicalFreshKey (.unsignedWord
     (modulusBits N)) (positiveContext ctx N).canonicalFreshKey_fresh
     tail (fun entry =>
       let actual := record entry.1
@@ -75,19 +77,20 @@ private def update5 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace (activeContext ctx N).canonicalFreshKey .bit (activeContext ctx
     N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation5 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation5 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (activeContext ctx N) Reference (model.HiddenState × History)) :
-    (part5 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part5 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update5 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (activeContext ctx N).canonicalFreshKey .bit
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (activeContext ctx N).canonicalFreshKey .bit
     (activeContext ctx N).canonicalFreshKey_fresh
     (part6 tail) (fun entry =>
       let actual := (update6 tail record) entry.1
@@ -114,19 +117,20 @@ private def update4 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace (zeroContext ctx N).canonicalFreshKey .bit (zeroContext ctx
     N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation4 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation4 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (zeroContext ctx N) Reference (model.HiddenState × History)) :
-    (part4 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part4 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update4 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (zeroContext ctx N).canonicalFreshKey .bit (zeroContext
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (zeroContext ctx N).canonicalFreshKey .bit (zeroContext
     ctx N).canonicalFreshKey_fresh
     (part5 tail) (fun entry =>
       let actual := (update5 tail record) entry.1
@@ -154,19 +158,20 @@ private def update3 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace (expandedContext ctx N).canonicalFreshKey (.unsignedWord (phaseBits N + 1))
     (expandedContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation3 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation3 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (expandedContext ctx N) Reference (model.HiddenState × History)) :
-    (part3 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part3 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update3 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (expandedContext ctx N).canonicalFreshKey (.unsignedWord
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (expandedContext ctx N).canonicalFreshKey (.unsignedWord
     (phaseBits N + 1)) (expandedContext ctx N).canonicalFreshKey_fresh
     (part4 tail) (fun entry =>
       let actual := (update4 tail record) entry.1
@@ -193,19 +198,20 @@ private def update2 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace (orderContext ctx N).canonicalFreshKey (.product .bit (.unsignedWord
     (phaseBits N + 1))) (orderContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation2 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation2 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (orderContext ctx N) Reference (model.HiddenState × History)) :
-    (part2 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part2 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update2 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (orderContext ctx N).canonicalFreshKey (.product .bit
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (orderContext ctx N).canonicalFreshKey (.product .bit
     (.unsignedWord (phaseBits N + 1))) (orderContext ctx N).canonicalFreshKey_fresh
     (part3 tail) (fun entry =>
       let actual := (update3 tail record) entry.1
@@ -232,19 +238,20 @@ private def update1 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace (baseContext ctx N).canonicalFreshKey (.option (.unsignedWord (phaseBits N +
     1))) (baseContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation1 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation1 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (baseContext ctx N) Reference (model.HiddenState × History)) :
-    (part1 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part1 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update1 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (baseContext ctx N).canonicalFreshKey (.option
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (baseContext ctx N).canonicalFreshKey (.option
     (.unsignedWord (phaseBits N + 1))) (baseContext ctx N).canonicalFreshKey_fresh
     (part2 tail) (fun entry =>
       let actual := (update2 tail record) entry.1
@@ -270,19 +277,20 @@ private def update0 (tail : Circuit model (context ctx N) (context ctx N)) (reco
   (Store.popWorkspace ctx.canonicalFreshKey (.canonicalResidue (modulusBits N))
     ctx.canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation0 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
+private lemma equation0 (tail : Circuit model (context ctx N) (context ctx N)) (record : Store
   (context ctx N) → Store (context ctx N) × tail.Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx N) Reference (model.HiddenState × History)),
-      tail.execute Reference state = state.mapClassical (fun entry =>
+      tail.execute environment Reference state = state.mapClassical (fun entry =>
         let actual := record entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (part0 tail).execute Reference state = state.mapClassical (fun entry =>
+    (part0 tail).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := update0 tail record entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord ctx.canonicalFreshKey (.canonicalResidue (modulusBits N))
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) ctx.canonicalFreshKey (.canonicalResidue (modulusBits N))
     ctx.canonicalFreshKey_fresh
     (part1 tail) (fun entry =>
       let actual := (update1 tail record) entry.1
@@ -301,13 +309,13 @@ variable [BitWord.Selected model]
 set_option maxHeartbeats 1000000 in
 -- Retain the endpoint allowance for converting the full seven-cell path and store record.
 /-- The full actual factor scope executes entry, the tail and release on arbitrary CQ states. -/
-theorem code_execute (source : Input N)
+lemma code_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) source parameter phase output).execute Reference state =
+    (code (model := model) source parameter phase output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := step (model := model) source parameter phase output entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by

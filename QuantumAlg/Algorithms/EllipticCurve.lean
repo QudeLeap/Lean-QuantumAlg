@@ -6,6 +6,10 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.EllipticCurve.P256.Resources
+
+public import QuantumAlg.Algorithms.EllipticCurve.Resources.Results
+
 public import QuantumAlg.Init
 public import QuantumAlg.Algorithms.EllipticCurve.DLP
 public import QuantumAlg.Algorithms.EllipticCurve.P256

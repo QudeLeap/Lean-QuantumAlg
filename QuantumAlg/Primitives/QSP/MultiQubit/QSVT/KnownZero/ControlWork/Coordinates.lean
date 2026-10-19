@@ -18,7 +18,7 @@ and the untouched signal suffix. Its decoded value is retained exactly.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.ControlWork
 noncomputable section
 
-private theorem lastControl_decoded (k n : Nat) (phase : Fin 2)
+private lemma lastControl_decoded (k n : Nat) (phase : Fin 2)
     (controls : Fin (2 ^ k)) (last : Fin 2) (signal : Fin (2 ^ n)) :
     (QuantumSignature.qubitsIndexEquiv (1 + (k + (1 + n)))).symm
       (prodEquiv (phase, prodEquiv (controls, prodEquiv (last, signal))))
@@ -36,7 +36,7 @@ private theorem lastControl_decoded (k n : Nat) (phase : Fin 2)
   exact outer.trans (middle.trans (inner.trans single))
 
 /-- Decoding observes precisely the first controls and the final original control. -/
-theorem controlWork_phaseWeight_decoded (k n : Nat) (angle : ℝ) (phase : Fin 2)
+lemma controlWork_phaseWeight_decoded (k n : Nat) (angle : ℝ) (phase : Fin 2)
     (controls : Fin (2 ^ k)) (last : Fin 2) (signal : Fin (2 ^ n)) :
     phaseWeight k n angle
       ((QuantumSignature.qubitsIndexEquiv (1 + (k + (1 + n)))).symm
@@ -47,7 +47,7 @@ theorem controlWork_phaseWeight_decoded (k n : Nat) (angle : ℝ) (phase : Fin 2
   rw [controlLabel_decoded, lastControl_decoded, phase_decoded]
 
 /-- Zero of the combined original control label means both original segments are zero. -/
-theorem controlWork_zero_control_label (k : Nat) (controls : Fin (2 ^ k)) (last : Fin 2) :
+lemma controlWork_zero_control_label (k : Nat) (controls : Fin (2 ^ k)) (last : Fin 2) :
     prodEquiv (m := k) (n := 1) (controls, last) = 0 ↔ controls = 0 ∧ last = 0 := by
   simp only [Fin.ext_iff]
   change last.val + 2 * controls.val = 0 ↔ controls.val = 0 ∧ last.val = 0

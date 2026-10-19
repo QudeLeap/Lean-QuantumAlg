@@ -25,11 +25,13 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 open Nat.BinaryArithmetic
 
 /-- The first three operand sweeps store the canonical carries in the addend. -/
-theorem ttkCarryBoundary (n : Nat) (original : Registers n) :
+lemma ttkCarryBoundary (n : Nat) (original : Registers n) :
     (∀ i : Fin n, (leftBit n i).get
       (stepList (carryGates n)
         (stepList (descendingXorGates n) (stepList (preXorGates n) original))) =
@@ -52,7 +54,7 @@ theorem ttkCarryBoundary (n : Nat) (original : Registers n) :
     simp only [ttkRightBit_get, ttkLeftBit_get]
 
 /-- The final three sweeps restore the addend and produce the low sum exactly. -/
-theorem ttkFinishCarry (n : Nat) (original s : Registers n)
+lemma ttkFinishCarry (n : Nat) (original s : Registers n)
     (hleft : ∀ i : Fin n, (leftBit n i).get s =
       (original.1.val.testBit i.val ^^
         natAddCarry original.1.val original.2.val i.val))
@@ -94,7 +96,7 @@ theorem ttkFinishCarry (n : Nat) (original s : Registers n)
     simpa only [ttkRightBit_get, lowOutput, hmod] using hr i
 
 /-- The literal six-stage gate list implements low-word addition for all widths. -/
-theorem ttkLowRipple_step (n : Nat) (original : Registers n) :
+lemma ttkLowRipple_step (n : Nat) (original : Registers n) :
     stepList (lowRippleGates n) original = lowOutput original := by
   have h := ttkCarryBoundary n original
   simpa only [lowRippleGates, stepList_append] using
@@ -103,10 +105,10 @@ theorem ttkLowRipple_step (n : Nat) (original : Registers n) :
         (stepList (descendingXorGates n) (stepList (preXorGates n) original))) h.1 h.2
 
 /-- The compiled no-workspace circuit realizes the independent low-word sum. -/
-theorem ttkLowRipple_realizes_addition (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (lowRippleProgram n) lowOutput :=
+lemma ttkLowRipple_realizes_addition (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (lowRippleProgram n) environment lowOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (lowRippleGates n) (ttkLowRipple_step n)
+    (lowRippleGates n) (ttkLowRipple_step n) environment
 
 end
 

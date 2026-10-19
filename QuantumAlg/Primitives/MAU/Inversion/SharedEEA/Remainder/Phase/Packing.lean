@@ -33,7 +33,7 @@ noncomputable section
 open ArithmeticWindowRegisters RemainderPhaseFrame
 open NumberTheory.SharedEEA
 
-private theorem exchange_prefix (width : Nat) (selected : Fin (width + 3))
+private lemma exchange_prefix (width : Nat) (selected : Fin (width + 3))
     (state : Registers width) :
     (SelectionSwap.exchange width selected state).firstWord.extractLsb'
         (width + 3 - 1 - selected.val + 1) selected.val =
@@ -54,7 +54,7 @@ private theorem exchange_prefix (width : Nat) (selected : Fin (width + 3))
   simp only [BitVec.getMsbD_extractLsb', within, sourceWithin, decide_true, Bool.true_and, physical]
   exact RemainderExchange.exchange_other width selected ⟨bit, observedWithin⟩ different state
 
-private theorem native_prefix (width : Nat) (state : Registers width)
+private lemma native_prefix (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
@@ -68,7 +68,7 @@ private theorem native_prefix (width : Nat) (state : Registers width)
   exact exchange_prefix width
     ⟨state.coefficientLength.toNat + state.quotientLength.toNat + 1, within⟩ state
 
-private theorem pack_prefix {coefficientWidth quotientWidth remainderWidth : Nat}
+private lemma pack_prefix {coefficientWidth quotientWidth remainderWidth : Nat}
     (payload : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth) :
     (WordPacking.packWork1 payload).extractLsb' remainderWidth
         ((coefficientWidth + 1) + quotientWidth) =
@@ -83,7 +83,7 @@ private theorem pack_prefix {coefficientWidth quotientWidth remainderWidth : Nat
   rw [BitVec.extractLsb'_append_eq_left, BitVec.extractLsb'_cast] at read
   exact read.symm
 
-private theorem original_prefix_toNat (state : IterationState) (modulus count : Nat)
+private lemma original_prefix_toNat (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -115,7 +115,7 @@ private theorem original_prefix_toNat (state : IterationState) (modulus count : 
     (DivisionCapacity.remainderWidth state modulus count) length).toNat) aboveEq
   exact firstWidth.symm.trans (secondWidth.trans read)
 
-private theorem full_word_toNat {width above below : Nat} (word : BitVec width)
+private lemma full_word_toNat {width above below : Nat} (word : BitVec width)
     (complete : above + below = width) :
     word.toNat = (word.extractLsb' below above).toNat * 2 ^ below +
       (word.setWidth below).toNat := by
@@ -131,7 +131,7 @@ private theorem full_word_toNat {width above below : Nat} (word : BitVec width)
       (congrArg BitVec.toNat low).symm)
 
 /-- Complete actual Work1 is the retained source prefix followed by the proved output word. -/
-theorem native_instructionWord (state : IterationState) (modulus count : Nat)
+lemma native_instructionWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -200,7 +200,7 @@ theorem native_instructionWord (state : IterationState) (modulus count : Nat)
       rw [BitVec.toNat_cast, DivisionPackedStep.append_toNat]
 
 /-- Actual native arithmetic and quotient exchange produce the next complete packed Work1 state. -/
-theorem native_firstWord (state : IterationState) (modulus count : Nat)
+lemma native_firstWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

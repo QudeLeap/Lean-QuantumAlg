@@ -31,7 +31,7 @@ def exponentState (P : KnownOrderProblem G) :
   rangeUniformState P.order (orderWidth P) P.order_pos
     (order_le_fourierModulus P)
 
-@[simp] theorem exponentState_apply (P : KnownOrderProblem G)
+@[simp] lemma exponentState_apply (P : KnownOrderProblem G)
     (index : Fin (2 ^ orderWidth P)) :
     exponentState P index =
       if index.val < P.order then invSqrtOrder P.order else 0 :=
@@ -46,7 +46,7 @@ def exponentState (P : KnownOrderProblem G) :
     NormalizedVector (Qubits (orderWidth P)) :=
   QuantumAlg.FiniteCyclicDLP.Canonical.BornBridge.exponentState P
 
-@[simp] theorem exponentState_apply (P : KnownOrderProblem G)
+@[simp] lemma exponentState_apply (P : KnownOrderProblem G)
     (index : Fin (2 ^ orderWidth P)) :
     exponentState P index =
       if index.val < P.order then invSqrtOrder P.order else 0 :=

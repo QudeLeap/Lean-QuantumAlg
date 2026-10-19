@@ -14,23 +14,27 @@ import all QuantumAlg.Core.Base.Depth.WeightedCost
 
 namespace QuantumAlg
 
+variable {allowAllocation : Bool}
+
 /-- A supported path inherits any nonnegative weighted event ceiling proved
 for the independent problem's event budget. -/
-public theorem weightedCount_le_of_solves
+public lemma weightedCount_le_of_solves
     {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {outputShape : CShape}
-    (algorithm : Algorithm model pre post outputShape)
+    (algorithm : Algorithm model pre post outputShape allowAllocation)
     (problem : Problem model pre post outputShape)
     (weight : Resource.Event model → Nat) (limit : Nat)
     (solves : algorithm.Solves problem)
     (budget : ResourcePool.weightedCount weight problem.resources.events ≤ limit)
+    (environment : model.Environment) (witness : problem.Witness)
     (Reference : Register)
     (input : Execution.OracleInput model.classicalOracles pre Reference)
-    (valid : problem.valid input.caller.localState)
-    (initialized : problem.initialization input.localState)
+    (valid : problem.valid environment witness input.caller.localState)
+    (initialized : problem.initialization environment witness input.localState)
     (path : algorithm.run.code.Path)
-    (supported : algorithm.run.Supports Reference input.state path) :
+    (supported : algorithm.run.Supports environment Reference input.state path) :
     ResourcePool.weightedCount weight (algorithm.run.code.resourcePool path) ≤ limit := by
   exact (ResourcePool.weightedCount_mono weight
-    (solves.events Reference input valid initialized path supported)).trans budget
+    (solves.events environment witness Reference input valid initialized path
+      supported)).trans budget
 
 end QuantumAlg

@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx mod
   {N : Nat}
 
 /-- Actual modular half-power precedes the complete scoped GCD-selection dependency chain. -/
-theorem reduce_unitDepth_le (source : Input N) (cells : Cells ctx N)
+lemma reduce_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (reduce (model := model) source cells output).Path) :
     (reduce (model := model) source cells output).depth (fun _ => 1) path ≤ reduceDepth N := by
@@ -39,11 +39,11 @@ theorem reduce_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (NativeHalfFactorScope.code_unitDepth_le (halfRead cells) output path.2)
 
 /-- All five actual runtime predicates contribute one real serial native operation each. -/
-theorem guardOrder_unitDepth (cells : Cells ctx N) (path : (guardOrder (model := model)
+lemma guardOrder_unitDepth (cells : Cells ctx N) (path : (guardOrder (model := model)
     cells).Path) :
     (guardOrder (model := model) cells).depth (fun _ => 1) path = 5 := rfl
 
-private theorem checkedBranch_unitDepth_le (source : Input N) (cells : Cells ctx N)
+private lemma checkedBranch_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Circuit.branch (activeRead cells)
       (fun value => if value.toBool then reduce (model := model) source cells output
@@ -61,7 +61,7 @@ private theorem checkedBranch_unitDepth_le (source : Input N) (cells : Cells ctx
       · exact (reduce_unitDepth_le source cells output path).trans (Nat.le_max_right _ _)
 
 /-- The real guard precedes either actual reduction or actual none packaging. -/
-theorem checkedOrder_unitDepth_le (source : Input N) (cells : Cells ctx N)
+lemma checkedOrder_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (checkedOrder (model := model) source cells output).Path) :
     (checkedOrder (model := model) source cells output).depth (fun _ => 1) path ≤ 5 + max 1
@@ -70,7 +70,7 @@ theorem checkedOrder_unitDepth_le (source : Input N) (cells : Cells ctx N)
     (checkedBranch_unitDepth_le source cells output path.2)
 
 /-- Stored early-factor priority uses the maximum of the two genuine continuation depths. -/
-theorem dispatch_unitDepth_le (source : Input N)
+lemma dispatch_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (dispatch (model := model) source parameter cells output).Path) :
@@ -84,7 +84,7 @@ theorem dispatch_unitDepth_le (source : Input N)
       · exact Nat.le_max_left _ _
 
 /-- The complete real recovery includes both nominal conversions and all serial native work. -/
-theorem recovered_unitDepth_le (source : Input N)
+lemma recovered_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -97,7 +97,7 @@ theorem recovered_unitDepth_le (source : Input N)
       (Nat.add_le_add_left (dispatch_unitDepth_le source parameter cells output path.2.2.2) 1)) 1
 
 /-- The original even-modulus exception still executes the full literal factor-two load. -/
-theorem evenModulus_unitDepth_le (cells : Cells ctx N)
+lemma evenModulus_unitDepth_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (evenModulus (model := model) cells output).Path) :
     (evenModulus (model := model) cells output).depth (fun _ => 1) path ≤ evenDepth N := by
@@ -111,7 +111,7 @@ theorem evenModulus_unitDepth_le (cells : Cells ctx N)
   omega
 
 /-- Every actual complete tail path fits the independently specified native unit-depth bound. -/
-theorem code_unitDepth_le (source : Input N)
+lemma code_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

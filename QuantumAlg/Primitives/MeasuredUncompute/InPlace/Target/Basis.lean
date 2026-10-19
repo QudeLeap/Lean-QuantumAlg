@@ -31,7 +31,7 @@ open Execution MAU.Inversion.SharedEEA InversePreparation
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Tensoring the independent target with identity preserves each complete reference label. -/
-theorem reference_ket (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma reference_ket (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (value : Fin (2 ^ modulus.size) × Fin (2 ^ modulus.size))
     {Reference : Register} (reference : Reference.Index) :
@@ -91,7 +91,7 @@ def preparedBasis (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
   frameEquiv modulus.size ((InPlacePreparation.preparation modulus).value, (value, numerator))
 
 /-- Actual basis coordinates identify precisely the full fixed source frame and the old Y word. -/
-theorem preparedBasis_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
+lemma preparedBasis_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     NumeratorMeasurement.frameBasis modulus.size (preparedBasis modulus value numerator) =
       (OutputCopy.encoding modulus.size).encode
         (InitialPortProgram.inputFrame modulus value, numerator) := by
@@ -110,7 +110,7 @@ theorem preparedBasis_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.
   exact (congrArg (InverseAssembly.basisEquiv modulus.size) retained).trans assembled
 
 /-- The fixed preparation label equals the original complete frame at its real runtime wires. -/
-theorem preparedBasis_eq_native (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
+lemma preparedBasis_eq_native (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     preparedBasis modulus value numerator =
       (NumeratorMeasurement.frameBasis modulus.size).symm
         ((OutputCopy.encoding modulus.size).encode
@@ -120,7 +120,7 @@ theorem preparedBasis_eq_native (modulus : Nat) (value numerator : Fin (2 ^ modu
     ((NumeratorMeasurement.frameBasis modulus.size).apply_symm_apply _).symm
 
 /-- The independent target preserves the full fixed auxiliary state and X beside arbitrary Ref. -/
-theorem prepared_operator_ket (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma prepared_operator_ket (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size)) {Reference : Register}
     (reference : Reference.Index) :
     (jointOperator operation modulus prime Reference).applyVec
@@ -142,7 +142,7 @@ theorem prepared_operator_ket (operation : Operation) (modulus : Nat) (prime : N
   exact actual.trans labels
 
 /-- In original-frame coordinates, the target has exactly the independent canonical output word. -/
-theorem initialFrame_operator_ket (operation : Operation) (modulus : Nat)
+lemma initialFrame_operator_ket (operation : Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (value numerator : Fin (2 ^ modulus.size))
     {Reference : Register} (reference : Reference.Index) :
     (jointOperator operation modulus prime Reference).applyVec

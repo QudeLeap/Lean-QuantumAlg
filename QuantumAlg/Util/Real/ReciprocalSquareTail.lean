@@ -25,7 +25,7 @@ namespace QuantumAlg
 noncomputable section
 
 /-- Thin real specialization of Mathlib's finite reciprocal-square tail. -/
-theorem reciprocalSquareNatFiniteTail_le (k n : Nat) (hk : 0 < k)
+lemma reciprocalSquareNatFiniteTail_le (k n : Nat) (hk : 0 < k)
     (hkn : k <= n) :
     (∑ i ∈ Finset.Ioc k n, 1 / (i : Real) ^ 2) <= 1 / (k : Real) := by
   have htail :=
@@ -39,7 +39,7 @@ theorem reciprocalSquareNatFiniteTail_le (k n : Nat) (hk : 0 < k)
       sub_le_self _ (inv_nonneg.mpr (Nat.cast_nonneg n))
     _ = 1 / (k : Real) := by simp only [one_div]
 
-private theorem reciprocalSquare_succ_le_telescope (x : Real) (hx : 0 < x) :
+private lemma reciprocalSquare_succ_le_telescope (x : Real) (hx : 0 < x) :
     1 / (x + 1) ^ 2 <= 1 / x - 1 / (x + 1) := by
   have hx1 : 0 < x + 1 := by linarith
   have hsub : 1 / x - 1 / (x + 1) = 1 / (x * (x + 1)) := by
@@ -51,7 +51,7 @@ private theorem reciprocalSquare_succ_le_telescope (x : Real) (hx : 0 < x) :
 
 /-- A finite reciprocal-square progression with positive real first term is at
 most its first term plus the corresponding infinite telescoping envelope. -/
-theorem reciprocalSquareShiftedFiniteTail_le (a : Real) (n : Nat)
+lemma reciprocalSquareShiftedFiniteTail_le (a : Real) (n : Nat)
     (ha : 0 < a) :
     (∑ k ∈ Finset.range n, 1 / (a + (k : Real)) ^ 2) <=
       1 / a ^ 2 + 1 / a := by
@@ -91,7 +91,7 @@ theorem reciprocalSquareShiftedFiniteTail_le (a : Real) (n : Nat)
           simpa [add_comm] using add_le_add_left
             (sub_le_self (1 / a) hnonneg) (1 / a ^ 2)
 
-private theorem reciprocalSquareShiftedSubset_le
+private lemma reciprocalSquareShiftedSubset_le
     (s : Finset Nat) (a ρ : Real) (hrho : 0 < ρ)
     (hfar : ∀ k ∈ s, ρ <= a + (k : Real)) :
     (∑ k ∈ s, 1 / (a + (k : Real)) ^ 2) <=
@@ -138,7 +138,7 @@ private theorem reciprocalSquareShiftedSubset_le
 /-- Two-sided finite integer reciprocal-square tail.  The first point on each
 side contributes the endpoint term and the remaining points are bounded by
 `reciprocalSquareShiftedFiniteTail_le`. -/
-theorem integerReciprocalSquareTail_le (s : Finset Int) (x ρ : Real)
+lemma integerReciprocalSquareTail_le (s : Finset Int) (x ρ : Real)
     (hrho : 0 < ρ)
     (hfar : ∀ z ∈ s, ρ <= |x - (z : Real)|) :
     (∑ z ∈ s, 1 / |x - (z : Real)| ^ 2) <=

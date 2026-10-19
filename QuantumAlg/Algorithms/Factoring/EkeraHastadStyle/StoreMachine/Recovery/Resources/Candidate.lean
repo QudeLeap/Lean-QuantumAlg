@@ -35,7 +35,7 @@ def candidateSlotCardBound (modulusWidth coordinateWidth : Nat) : Nat :=
 def candidateScanCardBound (modulusWidth coordinateWidth : Nat) : Nat :=
   1 + candidateScanWork * candidateSlotCardBound modulusWidth coordinateWidth
 
-private theorem prefixTrace_length {model : ExecutionModel} [BitWord.Selected model]
+private lemma prefixTrace_length {model : ExecutionModel} [BitWord.Selected model]
     (width : Nat)
     (offset : NumberTheory.IntegerPoint3) :
     (LatticeCandidateDistancePrefix.prefixTrace (model := model) width offset).length =
@@ -47,7 +47,7 @@ private theorem prefixTrace_length {model : ExecutionModel} [BitWord.Selected mo
     LatticeSquaredDistanceMachine.distanceTrace, LatticeOffsetMaterializer.operationCount]
   omega
 
-private theorem exponentEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
+private lemma exponentEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (width : Nat) :
     (LatticeCandidateSlotMachine.exponentEnvelope model width).card ≤ 19 := by
   have bound := poolMax_card_le_add
@@ -58,7 +58,7 @@ private theorem exponentEnvelope_card_le {model : ExecutionModel} [BitWord.Selec
     NumberTheory.SignedWord.magnitudeTrace, ResourcePool.ofList] using bound
 
 /-- Every original bounded coefficient offset has the independent complete native slot ceiling. -/
-theorem candidateSlotEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
+lemma candidateSlotEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (modulusWidth coordinateWidth : Nat) (offset : NumberTheory.IntegerPoint3)
     (offsetBound : offset.1.natAbs + offset.2.1.natAbs + offset.2.2.natAbs ≤ 110) :
     (LatticeCandidateSlotMachine.candidateSlotEventEnvelope model coordinateWidth modulusWidth
@@ -81,7 +81,7 @@ theorem candidateSlotEventEnvelope_card_le {model : ExecutionModel} [BitWord.Sel
   unfold LatticeOffsetMaterializer.operationCount
   omega
 
-private theorem offset_natAbs_sum_le (offset : NumberTheory.IntegerPoint3)
+private lemma offset_natAbs_sum_le (offset : NumberTheory.IntegerPoint3)
     (member : offset ∈ LatticeCandidateScan.offsets.toList) :
     offset.1.natAbs + offset.2.1.natAbs + offset.2.2.natAbs ≤ 110 := by
   rw [LatticeCandidateScan.offsets, NumberTheory.toList_coefficientOffsetVector3,
@@ -98,7 +98,7 @@ private theorem offset_natAbs_sum_le (offset : NumberTheory.IntegerPoint3)
   have third := abs_le offset.2.2 34 member.2.2.2.2.1 member.2.2.2.2.2
   omega
 
-private theorem offsetsEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
+private lemma offsetsEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (modulusWidth coordinateWidth : Nat) (items : List NumberTheory.IntegerPoint3)
     (bounded : ∀ offset ∈ items,
       offset.1.natAbs + offset.2.1.natAbs + offset.2.2.natAbs ≤ 110) :
@@ -115,7 +115,7 @@ private theorem offsetsEventEnvelope_card_le {model : ExecutionModel} [BitWord.S
     simpa only [List.length_cons, Nat.succ_mul, Nat.add_comm] using Nat.add_le_add first later
 
 /-- The complete scan envelope obeys the polynomial without expanding its 404,685 slots. -/
-theorem scanEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
+lemma scanEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (modulusWidth coordinateWidth : Nat) :
     (LatticeCandidateScan.scanEventEnvelope model coordinateWidth modulusWidth).card ≤
       candidateScanWork * candidateSlotCardBound modulusWidth coordinateWidth := by
@@ -127,7 +127,7 @@ theorem scanEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected mod
   simpa only [LatticeCandidateScan.scanEventEnvelope, count] using bound
 
 /-- Latch initialization and the complete independent scan envelope satisfy the closed ceiling. -/
-theorem initializedScanEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
+lemma initializedScanEventEnvelope_card_le {model : ExecutionModel} [BitWord.Selected model]
     (N m ell : Nat) :
     (LatticeCandidateScanInitialized.initializedScanEventEnvelope model N m ell).card ≤
       candidateScanCardBound (modulusBits N) (RSA.ShortLogWidths.coordinateWidth N m ell) := by
@@ -139,7 +139,7 @@ theorem initializedScanEventEnvelope_card_le {model : ExecutionModel} [BitWord.S
     Multiset.card_replicate] using Nat.add_le_add_left bound 1
 
 /-- Actual complete scan paths satisfy the independent polynomial in native event count. -/
-theorem initializedScan_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+lemma initializedScan_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {N m ell : Nat} (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx

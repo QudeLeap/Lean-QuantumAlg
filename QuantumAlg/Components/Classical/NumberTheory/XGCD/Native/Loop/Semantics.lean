@@ -29,7 +29,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual selected transitions follow every allowed prefix of the original mathematical run. -/
-theorem xgcdNativeLoop_state {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeLoop_state {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (guardedActive
@@ -85,7 +85,8 @@ theorem xgcdNativeLoop_state {model : ExecutionModel} [BitWord.Selected model]
   exact invariant count le_rfl
 
 /-- The actual loop record discharges all intermediate ranges from the original input and fuel. -/
-theorem xgcdNativeLoop_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeLoop_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
@@ -94,7 +95,8 @@ theorem xgcdNativeLoop_actualRecord {model : ExecutionModel} [BitWord.Selected m
       count (guardedActive (model := model) cells zero)).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (Circuit.iterate count (guardedActive (model := model) cells zero)).execute Reference
+        (Circuit.iterate count (guardedActive (model := model) cells zero)).execute
+          environment Reference
           state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)

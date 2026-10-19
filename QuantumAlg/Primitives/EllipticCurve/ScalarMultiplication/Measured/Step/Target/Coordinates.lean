@@ -25,7 +25,7 @@ noncomputable section
 
 open Execution MeasuredUncompute
 
-private theorem pointTarget_fields {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma pointTarget_fields {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (value : (MeasuredPointAddition.context p.size).register.Index) :
     MeasuredPointAddition.targetPermutation E Q value =
       MeasuredPointAddition.label p.size (pointControl p.size value) (pointSelector p.size value)
@@ -45,19 +45,19 @@ private theorem pointTarget_fields {p : Nat} (E : PrimeFieldShortWeierstrass p) 
   rw [original] at actual
   exact actual
 
-private theorem pointTarget_control {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma pointTarget_control {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (value : (MeasuredPointAddition.context p.size).register.Index) :
     pointControl p.size (MeasuredPointAddition.targetPermutation E Q value) =
       pointControl p.size value := by
   rw [pointTarget_fields, pointControl_label]
 
-private theorem pointTarget_selector {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma pointTarget_selector {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (value : (MeasuredPointAddition.context p.size).register.Index) :
     pointSelector p.size (MeasuredPointAddition.targetPermutation E Q value) =
       pointSelector p.size value := by
   rw [pointTarget_fields, pointSelector_label]
 
-private theorem pointTarget_shared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma pointTarget_shared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (value : (MeasuredPointAddition.context p.size).register.Index) :
     pointSharedBasis p.size (MeasuredPointAddition.targetPermutation E Q value) =
       InPlaceTarget.frameEquiv p.size
@@ -68,7 +68,7 @@ private theorem pointTarget_shared {p : Nat} (E : PrimeFieldShortWeierstrass p) 
   rw [pointTarget_fields, pointSharedBasis_label]
 
 /-- The selected original exponent retains its exact finite value after the target point step. -/
-theorem stepPermutation_control {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepPermutation_control {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     indexedValue p.size count (stepPermutation E Q active value) active.castSucc =
@@ -78,7 +78,7 @@ theorem stepPermutation_control {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fa
   simpa only [pointBasis_control, pointTarget_control] using observed
 
 /-- The common selector retains its exact finite value after the target point step. -/
-theorem stepPermutation_selector {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepPermutation_selector {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     indexedValue p.size count (stepPermutation E Q active value) (Fin.last count) =
@@ -88,7 +88,7 @@ theorem stepPermutation_selector {p : Nat} (E : PrimeFieldShortWeierstrass p) [F
   simpa only [pointBasis_selector, pointTarget_selector] using observed
 
 /-- Every auxiliary value is retained while the selected translation acts on the shared words. -/
-theorem stepPermutation_shared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepPermutation_shared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     sharedBasis p.size count (stepPermutation E Q active value) =
@@ -103,7 +103,7 @@ theorem stepPermutation_shared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fac
   simpa only [pointBasis_shared, pointTarget_shared, pointBasis_control] using observed
 
 /-- Prepared arithmetic work remains prepared around the exact updated pair of words. -/
-theorem stepPermutation_prepared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepPermutation_prepared {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) (x y : Fin (2 ^ p.size))
     (prepared : sharedBasis p.size count value = InPlaceTarget.preparedBasis p x y) :

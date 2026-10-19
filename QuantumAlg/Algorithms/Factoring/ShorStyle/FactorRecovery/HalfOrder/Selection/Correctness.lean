@@ -49,7 +49,7 @@ structure Separation (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
   upperLower : cells.upper.key ≠ cells.lower.key
   payloadLower : cells.payload.key ≠ cells.lower.key
 
-private theorem lower_check_free
+private lemma lower_check_free
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (separate : Separation halfPower cells) :
     cells.lower.key ∉
@@ -62,7 +62,7 @@ private theorem lower_check_free
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem choose_read (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma choose_read (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store ctx) :
     (chooseStep (model := model) halfPower cells output store).1.read (.storage
@@ -75,7 +75,7 @@ private theorem choose_read (halfPower : CInputRef ctx (.unsignedWord (modulusBi
   cases store.read (.storage cells.lower.toCStorageRef) with
   | bit value => cases value <;> rfl
 
-private theorem right_result (source : Input N)
+private lemma right_result (source : Input N)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : Separation halfPower cells)
@@ -108,7 +108,7 @@ private theorem right_result (source : Input N)
   · simp [lower, encodeOutput]
 
 /-- The physical left-priority circuit returns exactly the original pure half-power selector. -/
-theorem result (source : Input N)
+lemma result (source : Input N)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : Separation halfPower cells)

@@ -26,11 +26,11 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- Every actual run preserves its borrowed classical interface and complete external reference. -/
-theorem code_borrowedRestored {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
+lemma code_borrowedRestored (n : Nat) (k : Nat) (actual : (model n).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    (code marked k).BorrowedRestored Reference state ((code marked k).execute Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (code marked k) rfl Reference state
+    (code n k).BorrowedRestored Reference state ((code n k).execute actual Reference state) :=
+  Circuit.borrowedRestored_of_noBorrowedQuantum (code n k) actual rfl Reference state
 
 end
 

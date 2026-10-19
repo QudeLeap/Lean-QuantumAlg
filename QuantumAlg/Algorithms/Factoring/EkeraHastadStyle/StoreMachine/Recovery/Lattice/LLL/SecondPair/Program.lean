@@ -27,7 +27,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual fourteen-operation squared-area refresh with its fixed native path. -/
@@ -91,25 +92,26 @@ def secondPairStep (refs : Refs ctx width) (store : Store ctx) :
   (selected.1, (reduced.2, selected.2))
 
 /-- The fourteen actual area writes preserve histories and complete quantum-reference blocks. -/
-theorem area_execute (left right : LatticeState.PointRefs ctx width)
+lemma area_execute (left right : LatticeState.PointRefs ctx width)
     (refs : LatticeAreaRefresh.Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (LatticeAreaRefresh.refreshInto (model := model) left right refs).execute Reference state =
+    (LatticeAreaRefresh.refreshInto (model := model) left right refs).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         let actual := areaStep (model := model) left right refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   LatticeAreaRefresh.refreshInto_execute left right refs Reference state
 
 /-- Both actual reduction interpreters compose without losing any state correlations. -/
-theorem sizeReductionInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma sizeReductionInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (sizeReductionInto (model := model) refs).execute Reference state =
+    (sizeReductionInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := sizeReductionStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeSecondPairMachine.secondPairPrefixInto (model := model) refs.machine)
     (LatticeSecondPairPostReduction.postReductionInto (model := model) refs.post)
     (fun before =>
@@ -128,14 +130,14 @@ theorem sizeReductionInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual final-area refresh feeds the complete actual branch interpreter. -/
-theorem area13BranchInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma area13BranchInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (area13BranchInto (model := model) refs).execute Reference state =
+    (area13BranchInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := area13BranchStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeAreaRefresh.refreshInto (model := model)
       refs.machine.basis.first refs.machine.basis.third refs.area13)
     (LatticeSecondLovaszBranch.branchInto (model := model) refs.branch)
@@ -155,14 +157,14 @@ theorem area13BranchInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both actual area refreshes feed the actual selected row exchange in the complete state. -/
-theorem areaBranchInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma areaBranchInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (areaBranchInto (model := model) refs).execute Reference state =
+    (areaBranchInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := areaBranchStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeAreaRefresh.refreshInto (model := model)
       refs.machine.basis.first refs.machine.basis.second refs.area12)
     (area13BranchInto (model := model) refs)
@@ -179,14 +181,14 @@ theorem areaBranchInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual second-pair execution follows its refreshed operands and actual decisions. -/
-theorem secondPairInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma secondPairInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondPairInto (model := model) refs).execute Reference state =
+    (secondPairInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondPairStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (sizeReductionInto (model := model) refs) (areaBranchInto (model := model) refs)
     (fun before =>
       let actual := sizeReductionStep (model := model) refs before.1

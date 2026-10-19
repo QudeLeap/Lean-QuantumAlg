@@ -22,7 +22,7 @@ namespace QuantumAlg.ClassicalRoutines.TerminalDecode
 open ClassicalAlgorithms.TerminalDecode
 
 /-- One actual append always shifts, independently of its stored bit value. -/
-theorem terminalDecode_bitRef_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_bitRef_shiftCount {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -40,7 +40,7 @@ theorem terminalDecode_bitRef_shiftCount {model : ExecutionModel} [BitWord.Selec
     simp [bitTrace, shiftEvent, incrementEvent, BitWord.selectedCoordinate, distinct]
 
 /-- The actual ordered fold contains exactly one shift for each original source reference. -/
-theorem terminalDecode_fold_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_shiftCount {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) :
@@ -67,7 +67,7 @@ theorem terminalDecode_fold_shiftCount {model : ExecutionModel} [BitWord.Selecte
       simp only [List.length_cons, Nat.add_comm]
 
 /-- Both actual bit orders visit exactly the declared source width. -/
-theorem terminalDecode_intoFromBitRefs_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_intoFromBitRefs_shiftCount {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width))
@@ -79,7 +79,7 @@ theorem terminalDecode_intoFromBitRefs_shiftCount {model : ExecutionModel} [BitW
       (List.ofFn (fun index => inputs (sourceIndex order index))) path
 
 /-- Retaining the output adds no arithmetic event to the exact-width shift count. -/
-theorem terminalDecode_routine_shiftCount {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_routine_shiftCount {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (routine (model := model) ctx width order input key fresh).Path) :

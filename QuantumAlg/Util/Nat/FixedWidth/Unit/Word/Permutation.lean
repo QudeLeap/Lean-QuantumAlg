@@ -44,7 +44,7 @@ def unitProductWordPerm {width : Nat} (modulus : Fin (2 ^ width + 1))
     · rw [if_neg valid, if_neg valid]
 
 /-- Canonical labels follow exactly the independent modular product. -/
-theorem unitProductWordPerm_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWordPerm_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) (valid : input.val < modulus.val) :
     unitProductWordPerm modulus positive coefficient input =
@@ -52,14 +52,14 @@ theorem unitProductWordPerm_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
   if_pos valid
 
 /-- The complete binary padding region is fixed, without discarding any finite label. -/
-theorem unitProductWordPerm_padding {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWordPerm_padding {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) (padding : ¬input.val < modulus.val) :
     unitProductWordPerm modulus positive coefficient input = input :=
   if_neg padding
 
 /-- The actual inverse equivalence is multiplication by the inverse unit on the same domain. -/
-theorem unitProductWordPerm_symm {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWordPerm_symm {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ) :
     (unitProductWordPerm modulus positive coefficient).symm =
       unitProductWordPerm modulus positive coefficient⁻¹ := by
@@ -68,7 +68,7 @@ theorem unitProductWordPerm_symm {width : Nat} (modulus : Fin (2 ^ width + 1))
   rfl
 
 /-- The identity unit fixes all labels, including modulus one and width zero. -/
-theorem unitProductWordPerm_one {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWordPerm_one {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) :
     unitProductWordPerm modulus positive 1 = Equiv.refl (Fin (2 ^ width)) := by
   apply Equiv.ext

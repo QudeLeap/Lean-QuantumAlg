@@ -30,7 +30,7 @@ def eliminationEvent (rowCount width : Nat) : Resource.Event model :=
   .classicalOperation (BitWord.selectedCoordinate (execution := model)
     (.vector .rowXor rowCount width))
 
-private theorem target_selectedTrace
+private lemma target_selectedTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateTarget matrix pivot target column).Path) :
@@ -67,7 +67,7 @@ private theorem target_selectedTrace
               rfl
 
 /-- One actual target emits at most the original single row-XOR event. -/
-theorem gf2EliminateTarget_pool_le
+lemma gf2EliminateTarget_pool_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width)
     (path : (eliminateTarget matrix pivot target column).Path) :
@@ -81,7 +81,7 @@ theorem gf2EliminateTarget_pool_le
   · exact le_rfl
 
 /-- The same target's actual dependency depth is bounded by its one possible instruction. -/
-theorem gf2EliminateTarget_depth_le
+lemma gf2EliminateTarget_depth_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateTarget matrix pivot target column).Path) :
@@ -94,7 +94,7 @@ theorem gf2EliminateTarget_depth_le
   · exact le_rfl
 
 /-- Actual serial depth is exactly the sum of the target's emitted event durations. -/
-theorem gf2EliminateTarget_duration_eventTrace
+lemma gf2EliminateTarget_duration_eventTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateTarget matrix pivot target column).Path) :
@@ -106,7 +106,7 @@ theorem gf2EliminateTarget_duration_eventTrace
     List.map_nil, List.sum_nil, List.map_cons, List.sum_cons, Nat.add_zero]
 
 /-- No target branch allocates or removes any resident entry. -/
-theorem gf2EliminateTarget_resident
+lemma gf2EliminateTarget_resident
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width)
     (path : (eliminateTarget matrix pivot target column).Path) :
@@ -117,7 +117,7 @@ theorem gf2EliminateTarget_resident
   exact SpacePool.max_zero _
 
 /-- Every original auxiliary entry remains live, with no additional target scratch. -/
-theorem gf2EliminateTarget_auxiliary
+lemma gf2EliminateTarget_auxiliary
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width)
     (path : (eliminateTarget matrix pivot target column).Path) :
@@ -128,7 +128,7 @@ theorem gf2EliminateTarget_auxiliary
   exact SpacePool.max_zero _
 
 /-- The real increasing target pass has at most one row-XOR allowance per original row. -/
-theorem gf2EliminateWithPivot_pool_le
+lemma gf2EliminateWithPivot_pool_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (eliminateWithPivot matrix pivot column).Path) :
@@ -139,7 +139,7 @@ theorem gf2EliminateWithPivot_pool_le
     (fun target => gf2EliminateTarget_pool_le matrix pivot target column) path
 
 /-- The full original target order adds the possible dependency duration of every row. -/
-theorem gf2EliminateWithPivot_depth_le
+lemma gf2EliminateWithPivot_depth_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateWithPivot matrix pivot column).Path) :
@@ -154,7 +154,7 @@ theorem gf2EliminateWithPivot_depth_le
       (fun target => gf2EliminateTarget_depth_le matrix pivot target column duration) path
 
 /-- The same complete path keeps exact serial event-duration accounting. -/
-theorem gf2EliminateWithPivot_duration_eventTrace
+lemma gf2EliminateWithPivot_duration_eventTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (eliminateWithPivot matrix pivot column).Path) :
@@ -164,7 +164,7 @@ theorem gf2EliminateWithPivot_duration_eventTrace
     (fun target => gf2EliminateTarget_duration_eventTrace matrix pivot target column duration) path
 
 /-- The total number of actually emitted native events is at most the number of original rows. -/
-theorem gf2EliminateWithPivot_eventCount_le
+lemma gf2EliminateWithPivot_eventCount_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (eliminateWithPivot matrix pivot column).Path) :
@@ -181,7 +181,7 @@ theorem gf2EliminateWithPivot_eventCount_le
   exact bound.trans_eq (Nat.mul_one rowCount)
 
 /-- The full pass has precisely its original resident storage, independent of target count. -/
-theorem gf2EliminateWithPivot_resident
+lemma gf2EliminateWithPivot_resident
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (eliminateWithPivot matrix pivot column).Path) :
@@ -192,7 +192,7 @@ theorem gf2EliminateWithPivot_resident
     (Circuit.input_residentSpace_le_peak _ path)
 
 /-- No target iteration increases the exact original auxiliary peak. -/
-theorem gf2EliminateWithPivot_auxiliary
+lemma gf2EliminateWithPivot_auxiliary
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (eliminateWithPivot matrix pivot column).Path) :

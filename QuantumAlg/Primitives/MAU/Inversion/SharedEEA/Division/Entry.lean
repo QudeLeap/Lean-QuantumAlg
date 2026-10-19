@@ -31,13 +31,13 @@ noncomputable section
 
 open RemainderPhaseFrame NumberTheory.SharedEEA
 
-private theorem cast_rotateRight {left right : Nat} (equal : left = right)
+private lemma cast_rotateRight {left right : Nat} (equal : left = right)
     (word : BitVec left) (shift : Nat) :
     (word.cast equal).rotateRight shift = (word.rotateRight shift).cast equal := by
   cases equal
   rfl
 
-private theorem original_shift_fits (state : IterationState) (modulus count : Nat)
+private lemma original_shift_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     (Alignment.align state.remainder state.divisor).places - count < 2 ^ modulus.size.size :=
   ((Nat.sub_le (Alignment.align state.remainder state.divisor).places count).trans
@@ -59,7 +59,7 @@ def entryFrame (state : IterationState) (modulus count : Nat)
       (original_shift_fits state modulus count valid conserved) }
 
 /-- The real increment and two decrements compose exactly, including intermediate finite wrap. -/
-theorem native_descending (width : Nat) (state : Registers width)
+lemma native_descending (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true) (positive : 0 < state.shift.toNat) :
     GuardedShift.step false state =
@@ -70,7 +70,7 @@ theorem native_descending (width : Nat) (state : Registers width)
   rw [GuardedShift.descending_ascending_eq_low state positive,
     WordRotation.rotateRight_rotateLeft]
 
-private theorem word_after (state : IterationState) (modulus count : Nat)
+private lemma word_after (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -89,7 +89,7 @@ private theorem word_after (state : IterationState) (modulus count : Nat)
   rw [cast_rotateRight, countEq, WordRotation.packRotatedWork2_unshift]
   rfl
 
-private theorem shift_after (state : IterationState) (modulus count : Nat)
+private lemma shift_after (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -112,7 +112,7 @@ private theorem shift_after (state : IterationState) (modulus count : Nat)
   rw [Nat.mod_eq_of_lt oneFits, ← countEq, Nat.mod_eq_of_lt within]
 
 /-- The executed pre-shift reaches the exact complete arithmetic frame of the division proof. -/
-theorem native_frame (state : IterationState) (modulus count : Nat)
+lemma native_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -130,7 +130,7 @@ theorem native_frame (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- One entire certified native microstep advances the complete reachable division frame. -/
-theorem microstep_frame (state : IterationState) (modulus count : Nat)
+lemma microstep_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

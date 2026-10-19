@@ -29,7 +29,7 @@ variable {R S : Register}
 
 /-- Reindexing both axes of a square matrix by one equivalence preserves
 unitarity. -/
-private theorem reindex_matrix_mem_unitaryGroup {ι κ : Type*}
+private lemma reindex_matrix_mem_unitaryGroup {ι κ : Type*}
     [Fintype ι] [DecidableEq ι] [Fintype κ] [DecidableEq κ]
     (e : ι ≃ κ) (M : Matrix ι ι ℂ)
     (hM : M ∈ Matrix.unitaryGroup ι ℂ) :
@@ -38,7 +38,7 @@ private theorem reindex_matrix_mem_unitaryGroup {ι κ : Type*}
   rw [Matrix.reindex_apply, Matrix.conjTranspose_submatrix, Matrix.submatrix_mul_equiv,
     hM, Matrix.submatrix_one_equiv]
 
-private theorem reindex_mem_unitaryGroup (e : R.Index ≃ S.Index)
+private lemma reindex_mem_unitaryGroup (e : R.Index ≃ S.Index)
     (U : UnitaryOperator R) :
     Matrix.reindex e e (U : HilbertOperator R) ∈
       Matrix.unitaryGroup S.Index ℂ := by
@@ -50,7 +50,7 @@ public def reindex (e : R.Index ≃ S.Index) (U : UnitaryOperator R) : UnitaryOp
     (reindex_mem_unitaryGroup e U)
 
 @[simp]
-theorem coe_reindex (e : R.Index ≃ S.Index) (U : UnitaryOperator R) :
+lemma coe_reindex (e : R.Index ≃ S.Index) (U : UnitaryOperator R) :
     ((reindex e U : UnitaryOperator S) : HilbertOperator S) =
       Matrix.reindex e e (U : HilbertOperator R) := rfl
 
@@ -64,7 +64,7 @@ private def controlledMatrix (control : Register) (activationValue : control.Ind
     (Equiv.prodComm R.Index control.Index)
     (Matrix.blockDiagonal (controlledBlock activationValue U))
 
-private theorem controlledMatrix_apply (control : Register) (activationValue : control.Index)
+private lemma controlledMatrix_apply (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index) :
     controlledMatrix control activationValue U i j =
       if i.1 = j.1 then
@@ -81,7 +81,7 @@ private theorem controlledMatrix_apply (control : Register) (activationValue : c
     · simp [hcontrol, hactive, controlledBlock, Matrix.one_apply]
   · simp [hcontrol]
 
-private theorem controlledMatrix_mem_unitaryGroup (control : Register)
+private lemma controlledMatrix_mem_unitaryGroup (control : Register)
     (activationValue : control.Index) (U : UnitaryOperator R) :
     controlledMatrix control activationValue U ∈
       Matrix.unitaryGroup (Register.prod control R).Index ℂ := by
@@ -109,7 +109,7 @@ public def controlled (control : Register) (activationValue : control.Index)
     (controlledMatrix_mem_unitaryGroup control activationValue U)
 
 @[simp]
-public theorem controlled_apply (control : Register) (activationValue : control.Index)
+public lemma controlled_apply (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index) :
     controlled control activationValue U i j =
       if i.1 = j.1 then
@@ -119,14 +119,14 @@ public theorem controlled_apply (control : Register) (activationValue : control.
   change controlledMatrix control activationValue U i j = _
   exact controlledMatrix_apply control activationValue U i j
 
-public theorem controlled_active (control : Register) (activationValue : control.Index)
+public lemma controlled_active (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index)
     (hcontrol : i.1 = j.1) (hactive : i.1 = activationValue) :
     controlled control activationValue U i j = U i.2 j.2 := by
   have hjactive : j.1 = activationValue := hcontrol.symm.trans hactive
   simp [controlled_apply, hcontrol, hjactive]
 
-public theorem controlled_inactive (control : Register) (activationValue : control.Index)
+public lemma controlled_inactive (control : Register) (activationValue : control.Index)
     (U : UnitaryOperator R) (i j : (Register.prod control R).Index)
     (hcontrol : i.1 = j.1) (hinactive : i.1 ≠ activationValue) :
     controlled control activationValue U i j =

@@ -28,7 +28,7 @@ def positions : Fin ctx.systemCount ≃ Fin (ctx.relabel keys physical).systemCo
   finCongr (ctx.relabel_systemCount keys physical).symm
 
 /-- Corresponding systems have exactly the prescribed identity and original dimension. -/
-theorem positions_wire (index : Fin ctx.systemCount) :
+lemma positions_wire (index : Fin ctx.systemCount) :
     (ctx.relabel keys physical).quantumLayout.wire (positions ctx keys physical index) =
       QuantumWire.relabel physical (ctx.quantumLayout.wire index) := by
   have mappedBound : index.val < (ctx.relabel keys physical).quantumWires.length := by
@@ -39,7 +39,7 @@ theorem positions_wire (index : Fin ctx.systemCount) :
   simp only [RuntimeCtx.relabel_quantumWires, List.getElem_map]
 
 /-- No physical placement changes a system's native finite dimension. -/
-theorem positions_dimension (index : Fin ctx.systemCount) :
+lemma positions_dimension (index : Fin ctx.systemCount) :
     ((ctx.relabel keys physical).quantumLayout.wire
       (positions ctx keys physical index)).dimension =
         (ctx.quantumLayout.wire index).dimension := by
@@ -52,7 +52,7 @@ def basis : ctx.register.Index ≃ (ctx.relabel keys physical).register.Index :=
     finCongr (congrArg PNat.val (positions_dimension ctx keys physical index).symm)
 
 /-- The exact finite value at every mapped physical system is unchanged. -/
-theorem basis_value (value : ctx.register.Index) (index : Fin ctx.systemCount) :
+lemma basis_value (value : ctx.register.Index) (index : Fin ctx.systemCount) :
     (basis ctx keys physical value (positions ctx keys physical index)).val =
       (value index).val := by
   exact congrArg

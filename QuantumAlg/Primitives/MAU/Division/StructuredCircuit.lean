@@ -35,14 +35,16 @@ namespace MAU.Division
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Raw-vector companion of a normalized actual-circuit realization.  Kept
 private so the public witness surface remains normalization-preserving. -/
-private theorem applyVec_encoded_ket_of_realizes {Data : Type}
+private lemma applyVec_encoded_ket_of_realizes {Data : Type}
     {encoding : BinaryLabelEncoding Data}
     {program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical encoding.width).toQuantum} {step : Data -> Data}
-    (h : UnitaryCircuit.Realizes encoding program step) (x : Data) :
-    UnitaryCircuit.applyVec program
+    (h : UnitaryCircuit.Realizes encoding program environment step) (x : Data) :
+    UnitaryCircuit.applyVec program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical encoding.width).basisEquiv.symm
             (encoding.encode x)) : HilbertVector
@@ -52,7 +54,7 @@ private theorem applyVec_encoded_ket_of_realizes {Data : Type}
           (encoding.encode (step x))) : HilbertVector
             (QubitLayout.canonical encoding.width).toQuantum.register) := by
   change
-    (program.applyNormalized
+    (program.applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical encoding.width).basisEquiv.symm
           (encoding.encode x)))).vec =
@@ -105,26 +107,26 @@ def subProductFromQuotientScratch {N : Nat}
   quotientScratch := s.quotientScratch - s.numerator * s.inverseScratch
   flag := s.flag
 
-@[simp] theorem addInverseToScratch_subInverseFromScratch {N : Nat}
+@[simp] lemma addInverseToScratch_subInverseFromScratch {N : Nat}
     (s : PipelineState N) :
     addInverseToScratch (subInverseFromScratch s) = s := by
   cases s
   simp [addInverseToScratch, subInverseFromScratch, sub_eq_add_neg, add_assoc]
 
-@[simp] theorem subInverseFromScratch_addInverseToScratch {N : Nat}
+@[simp] lemma subInverseFromScratch_addInverseToScratch {N : Nat}
     (s : PipelineState N) :
     subInverseFromScratch (addInverseToScratch s) = s := by
   cases s
   simp [addInverseToScratch, subInverseFromScratch, sub_eq_add_neg, add_assoc]
 
-@[simp] theorem addProductToQuotientScratch_subProductFromQuotientScratch
+@[simp] lemma addProductToQuotientScratch_subProductFromQuotientScratch
     {N : Nat} (s : PipelineState N) :
     addProductToQuotientScratch (subProductFromQuotientScratch s) = s := by
   cases s
   simp [addProductToQuotientScratch, subProductFromQuotientScratch,
     sub_eq_add_neg, add_assoc]
 
-@[simp] theorem subProductFromQuotientScratch_addProductToQuotientScratch
+@[simp] lemma subProductFromQuotientScratch_addProductToQuotientScratch
     {N : Nat} (s : PipelineState N) :
     subProductFromQuotientScratch (addProductToQuotientScratch s) = s := by
   cases s
@@ -143,7 +145,7 @@ def reversiblePipelineStep {N : Nat} (s : PipelineState N) : PipelineState N :=
 
 /-- The reversible staged update agrees with the public clean division action
 on clean scratch input. -/
-theorem reversiblePipelineStep_initial {N : Nat}
+lemma reversiblePipelineStep_initial {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     reversiblePipelineStep (initial u v z) =
       { denominator := u
@@ -167,7 +169,7 @@ def tupleAddQuotientToTarget {N : Nat} : FieldTuple N -> FieldTuple N
   | (denominator, (numerator, fields)) =>
       (denominator, (numerator, MAU.Addition.TargetAddWithAux.step fields))
 
-@[simp] theorem tupleAddQuotientToTarget_toPipeline {N : Nat}
+@[simp] lemma tupleAddQuotientToTarget_toPipeline {N : Nat}
     (s : PipelineState N) :
     (tupleEquiv N).symm (tupleAddQuotientToTarget (tupleEquiv N s)) =
       addQuotientToTarget s := by
@@ -182,7 +184,8 @@ structure TupleTargetAddWitness {N n : Nat}
     E).width)).toQuantum
   /-- Correctness of the target-add program on tuple labels. -/
   realizes :
-    UnitaryCircuit.Realizes (fieldTupleEncoding E) program
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes (fieldTupleEncoding E) program environment
       tupleAddQuotientToTarget
 
 namespace TupleTargetAddWitness
@@ -191,9 +194,9 @@ variable {N n : Nat} {E : BinaryResidueEncoding N n}
 
 /-- The relabeled target-add program realizes `PipelineState.addQuotientToTarget`
 on the pipeline-state field encoding. -/
-theorem pipeline_realizes (w : TupleTargetAddWitness E) :
-    UnitaryCircuit.Realizes (fieldEncoding E) w.program addQuotientToTarget :=
-  (w.realizes.relabel (tupleEquiv N)).congrStep
+lemma pipeline_realizes (w : TupleTargetAddWitness E) :
+    UnitaryCircuit.Realizes (fieldEncoding E) w.program environment addQuotientToTarget :=
+  ((w.realizes (environment := environment)).relabel (tupleEquiv N)).congrStep
     tupleAddQuotientToTarget_toPipeline
 
 /-- Embed a modular-add target-update witness into the division field-tuple
@@ -204,10 +207,10 @@ def ofModularAddition (w : MAU.Addition.TargetAddWithAux.Witness E) :
     (BinaryLabelEncoding.ofUnitResidueEncoding E).width
     (UnitaryCircuit.onBinarySuffix
       (BinaryLabelEncoding.ofResidueEncoding E).width w.program)
-  realizes := UnitaryCircuit.Realizes.onBinarySuffix
+  realizes := fun environment => UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding E)
     (UnitaryCircuit.Realizes.onBinarySuffix
-      (left := BinaryLabelEncoding.ofResidueEncoding E) w.realizes)
+      (left := BinaryLabelEncoding.ofResidueEncoding E) (w.realizes (environment := environment)))
 
 end TupleTargetAddWitness
 
@@ -288,8 +291,8 @@ def tupleWithWorkProgram (n : Nat) :
       (MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanWorkWitness n).program)
 
 /-- The lifted actual circuit realizes tuple-level target-add with work. -/
-theorem tupleWithWork_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (tupleWithWorkEncoding n) (tupleWithWorkProgram n)
+lemma tupleWithWork_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (tupleWithWorkEncoding n) (tupleWithWorkProgram n) environment
       (tupleAddQuotientToTargetWithWork n) := by
   have h := UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding
@@ -297,7 +300,8 @@ theorem tupleWithWork_realizes (n : Nat) :
     (UnitaryCircuit.Realizes.onBinarySuffix
       (left := BinaryLabelEncoding.ofResidueEncoding
         (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n))
-      (MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanWorkWitness n).realizes)
+      ((MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanWorkWitness n).realizes (environment :=
+        environment)))
   exact (h.relabel (fieldTupleWithWorkEquiv n)).congrStep (by
     intro x
     rcases x with ⟨⟨denominator, rest⟩, work⟩
@@ -306,7 +310,7 @@ theorem tupleWithWork_realizes (n : Nat) :
 
 /-- Clean tuple endpoint: on a clean flag and clean carry work, the work-aware
 bridge agrees with the old tuple target-add action and restores work. -/
-theorem tupleAddQuotientToTargetWithWork_cleanEndpoint
+lemma tupleAddQuotientToTargetWithWork_cleanEndpoint
     (n : Nat) (x : FieldTuple (2 ^ n)) (hflag : x.2.2.2.2.2 = false) :
     tupleAddQuotientToTargetWithWork n (x, cleanWork n) =
       (tupleAddQuotientToTarget x, cleanWork n) := by
@@ -359,8 +363,8 @@ def pipelineWithWorkProgram (n : Nat) :
   tupleWithWorkProgram n
 
 /-- The actual pipeline circuit realizes the work-aware target-add step. -/
-theorem pipelineWithWork_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (pipelineWithWorkEncoding n) (pipelineWithWorkProgram n)
+lemma pipelineWithWork_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (pipelineWithWorkEncoding n) (pipelineWithWorkProgram n) environment
       (addQuotientToTargetWithWork n) :=
   ((tupleWithWork_realizes n).relabel (pipelineWithWorkEquiv n)).congrStep (by
     intro x
@@ -375,7 +379,7 @@ def productResidueBit (n : Nat) (bit : Fin n) :
       (MAU.Addition.TargetAddWithAux.PowerOfTwo.residueEncoding n)) :=
   PlainAdder.Schedule.PowerOfTwo.wordBit n bit
 
-@[simp] theorem productResidueBit_get_testBit
+@[simp] lemma productResidueBit_get_testBit
     (n : Nat) (bit : Fin n) (x : ZMod (2 ^ n)) :
     (productResidueBit n bit).get x = x.val.testBit bit.val := by
   change (PlainAdder.Schedule.PowerOfTwo.wordBit n bit).get x =
@@ -582,31 +586,31 @@ def productCarryWorkWord (n : Nat) :
     EncodedBit.Word (pipelineWithWorkEncoding n) (n - 1) where
   bit := productCarryWorkBit n
 
-@[simp] theorem productNumeratorBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma productNumeratorBit_wire_val (n : Nat) (bit : Fin n) :
     ((productNumeratorBit n bit).wire).val =
       n + (n - 1 - bit.val) := by
   rfl
 
-@[simp] theorem productTargetBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma productTargetBit_wire_val (n : Nat) (bit : Fin n) :
     ((productTargetBit n bit).wire).val =
       n + (n + (n - 1 - bit.val)) := by
   rfl
 
-@[simp] theorem productInverseScratchBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma productInverseScratchBit_wire_val (n : Nat) (bit : Fin n) :
     ((productInverseScratchBit n bit).wire).val =
       n + (n + (n + (n - 1 - bit.val))) := by
   rfl
 
-@[simp] theorem productQuotientScratchBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma productQuotientScratchBit_wire_val (n : Nat) (bit : Fin n) :
     ((productQuotientScratchBit n bit).wire).val =
       n + (n + (n + (n + (n - 1 - bit.val)))) := by
   rfl
 
-@[simp] theorem productFlagBit_wire_val (n : Nat) :
+@[simp] lemma productFlagBit_wire_val (n : Nat) :
     ((productFlagBit n).wire).val = n + (n + (n + (n + n))) := by
   rfl
 
-@[simp] theorem productCarryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
+@[simp] lemma productCarryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
     ((productCarryWorkBit n bit).wire).val =
       n + (n + (n + (n + (n + 1 + bit.val)))) := by
   change n + (n +
@@ -618,7 +622,7 @@ def productCarryWorkWord (n : Nat) :
 
 /-- The numerator and inverse-scratch fields occupy disjoint wire slices in
 the quotient-product layout. -/
-theorem productInverseScratchBit_ne_numerator
+lemma productInverseScratchBit_ne_numerator
     (n : Nat) (control source : Fin n) :
     ((productInverseScratchWord n).bit control).wire ≠
       ((productNumeratorWord n).bit source).wire := by
@@ -630,7 +634,7 @@ theorem productInverseScratchBit_ne_numerator
   omega
 
 /-- Inverse-scratch wires are disjoint from quotient-scratch wires. -/
-theorem productInverseScratchBit_ne_quotientScratch
+lemma productInverseScratchBit_ne_quotientScratch
     (n : Nat) (inverseBit quotientBit : Fin n) :
     ((productInverseScratchWord n).bit inverseBit).wire ≠
       ((productQuotientScratchWord n).bit quotientBit).wire := by
@@ -642,7 +646,7 @@ theorem productInverseScratchBit_ne_quotientScratch
   omega
 
 /-- Numerator wires are disjoint from quotient-scratch wires. -/
-theorem productNumeratorBit_ne_quotientScratch
+lemma productNumeratorBit_ne_quotientScratch
     (n : Nat) (numeratorBit quotientBit : Fin n) :
     ((productNumeratorWord n).bit numeratorBit).wire ≠
       ((productQuotientScratchWord n).bit quotientBit).wire := by
@@ -654,7 +658,7 @@ theorem productNumeratorBit_ne_quotientScratch
   omega
 
 /-- Inverse-scratch wires are disjoint from carry-work wires. -/
-theorem productInverseScratchBit_ne_carryWork
+lemma productInverseScratchBit_ne_carryWork
     (n : Nat) (inverseBit : Fin n) (carryBit : Fin (n - 1)) :
     ((productInverseScratchWord n).bit inverseBit).wire ≠
       ((productCarryWorkWord n).bit carryBit).wire := by
@@ -666,7 +670,7 @@ theorem productInverseScratchBit_ne_carryWork
   omega
 
 /-- Numerator wires are disjoint from carry-work wires. -/
-theorem productNumeratorBit_ne_carryWork
+lemma productNumeratorBit_ne_carryWork
     (n : Nat) (numeratorBit : Fin n) (carryBit : Fin (n - 1)) :
     ((productNumeratorWord n).bit numeratorBit).wire ≠
       ((productCarryWorkWord n).bit carryBit).wire := by
@@ -678,7 +682,7 @@ theorem productNumeratorBit_ne_carryWork
   omega
 
 /-- Distinct quotient-scratch bit positions occupy distinct wires. -/
-theorem productQuotientScratchBit_ne
+lemma productQuotientScratchBit_ne
     (n : Nat) {i j : Fin n} (hij : i ≠ j) :
     ((productQuotientScratchWord n).bit i).wire ≠
       ((productQuotientScratchWord n).bit j).wire := by
@@ -690,7 +694,7 @@ theorem productQuotientScratchBit_ne
   omega
 
 /-- Quotient-scratch wires are disjoint from the cleanup flag. -/
-theorem productQuotientScratchBit_ne_flag (n : Nat) (i : Fin n) :
+lemma productQuotientScratchBit_ne_flag (n : Nat) (i : Fin n) :
     ((productQuotientScratchWord n).bit i).wire ≠ (productFlagBit n).wire := by
   intro h
   have hv := congrArg Fin.val h
@@ -699,7 +703,7 @@ theorem productQuotientScratchBit_ne_flag (n : Nat) (i : Fin n) :
   omega
 
 /-- Quotient-scratch wires are disjoint from carry-work wires. -/
-theorem productQuotientScratchBit_ne_carryWork
+lemma productQuotientScratchBit_ne_carryWork
     (n : Nat) (i : Fin n) (j : Fin (n - 1)) :
     ((productQuotientScratchWord n).bit i).wire ≠
       ((productCarryWorkWord n).bit j).wire := by
@@ -711,7 +715,7 @@ theorem productQuotientScratchBit_ne_carryWork
   omega
 
 /-- Quotient-scratch wires are disjoint from target wires. -/
-theorem productQuotientScratchBit_ne_target
+lemma productQuotientScratchBit_ne_target
     (n : Nat) (quotientBit targetBit : Fin n) :
     ((productQuotientScratchWord n).bit quotientBit).wire ≠
       ((productTargetWord n).bit targetBit).wire := by
@@ -723,7 +727,7 @@ theorem productQuotientScratchBit_ne_target
   omega
 
 /-- The cleanup flag is disjoint from carry-work wires. -/
-theorem productFlagBit_ne_carryWork
+lemma productFlagBit_ne_carryWork
     (n : Nat) (j : Fin (n - 1)) :
     (productFlagBit n).wire ≠ ((productCarryWorkWord n).bit j).wire := by
   intro h
@@ -733,7 +737,7 @@ theorem productFlagBit_ne_carryWork
   omega
 
 /-- Carry-work wires are disjoint from target wires. -/
-theorem productCarryWorkBit_ne_target
+lemma productCarryWorkBit_ne_target
     (n : Nat) (carryBit : Fin (n - 1)) (targetBit : Fin n) :
     ((productCarryWorkWord n).bit carryBit).wire ≠
       ((productTargetWord n).bit targetBit).wire := by
@@ -745,7 +749,7 @@ theorem productCarryWorkBit_ne_target
   omega
 
 /-- Distinct carry-work bit positions occupy distinct wires. -/
-theorem productCarryWorkBit_ne
+lemma productCarryWorkBit_ne
     (n : Nat) {i j : Fin (n - 1)} (hij : i ≠ j) :
     ((productCarryWorkWord n).bit i).wire ≠
       ((productCarryWorkWord n).bit j).wire := by
@@ -782,7 +786,7 @@ abbrev ProductRowWork (n : Nat) : Type :=
 
 /-- A power-of-two residue is the sum of the powers of two selected by the
 canonical natural representative's bit indices. -/
-theorem zmod_twoPow_eq_sum_bitIndices (n : Nat) (a : ProductRowWork n) :
+lemma zmod_twoPow_eq_sum_bitIndices (n : Nat) (a : ProductRowWork n) :
     a =
       ∑ i ∈ a.val.bitIndices.toFinset,
         ((2 ^ i : Nat) : ProductRowWork n) := by
@@ -801,14 +805,14 @@ theorem zmod_twoPow_eq_sum_bitIndices (n : Nat) (a : ProductRowWork n) :
         (f := fun i => 2 ^ i)
 
 /-- A power `2^k` with `n <= k` vanishes in `ZMod (2^n)`. -/
-theorem zmod_twoPow_natCast_twoPow_eq_zero_of_le
+lemma zmod_twoPow_natCast_twoPow_eq_zero_of_le
     (n k : Nat) (h : n ≤ k) :
     ((2 ^ k : Nat) : ProductRowWork n) = 0 := by
   rw [ZMod.natCast_eq_zero_iff]
   exact pow_dvd_pow 2 h
 
 /-- Casting a natural number into `ZMod (2^n)` preserves all low `n` bits. -/
-theorem zmod_twoPow_natCast_val_testBit
+lemma zmod_twoPow_natCast_val_testBit
     (n m : Nat) (bit : Fin n) :
     (((m : Nat) : ProductRowWork n).val.testBit bit.val) =
       m.testBit bit.val := by
@@ -817,7 +821,7 @@ theorem zmod_twoPow_natCast_val_testBit
   simp [bit.isLt]
 
 /-- Low-bit readout for a shifted natural number cast into `ZMod (2^n)`. -/
-theorem zmod_twoPow_natCast_shifted_val_testBit
+lemma zmod_twoPow_natCast_shifted_val_testBit
     (n m offset : Nat) (target : Fin n) :
     (((m * 2 ^ offset : Nat) : ProductRowWork n).val.testBit target.val) =
       (decide (target.val ≥ offset) && m.testBit (target.val - offset)) := by
@@ -827,7 +831,7 @@ theorem zmod_twoPow_natCast_shifted_val_testBit
 
 /-- Multiplication in a power-of-two residue ring expands into the double sum
 over the two canonical bit-index sets. -/
-theorem zmod_twoPow_mul_eq_sum_bitIndices
+lemma zmod_twoPow_mul_eq_sum_bitIndices
     (n : Nat) (a b : ProductRowWork n) :
     a * b =
       ∑ i ∈ a.val.bitIndices.toFinset,
@@ -863,7 +867,7 @@ theorem zmod_twoPow_mul_eq_sum_bitIndices
 
 /-- The same multiplication expansion with the terms outside the low `n`
 output bits written as explicit zeros. -/
-theorem zmod_twoPow_mul_eq_sum_low_bitIndices
+lemma zmod_twoPow_mul_eq_sum_low_bitIndices
     (n : Nat) (a b : ProductRowWork n) :
     a * b =
       ∑ i ∈ a.val.bitIndices.toFinset,
@@ -882,7 +886,7 @@ theorem zmod_twoPow_mul_eq_sum_low_bitIndices
   · have hle : n ≤ i + j := Nat.le_of_not_gt h
     simp [h, zmod_twoPow_natCast_twoPow_eq_zero_of_le n (i + j) hle]
 
-private theorem productRowWork_bitIndex_lt
+private lemma productRowWork_bitIndex_lt
     {n i : Nat} (a : ProductRowWork n)
     (hi : i ∈ a.val.bitIndices) : i < n := by
   by_contra hlt
@@ -894,7 +898,7 @@ private theorem productRowWork_bitIndex_lt
 
 /-- Multiplication by a residue equals the sum of shifted copies selected by
 that residue's low-bit set. -/
-theorem zmod_twoPow_mul_eq_sum_shifted_bitIndices
+lemma zmod_twoPow_mul_eq_sum_shifted_bitIndices
     (n : Nat) (a b : ProductRowWork n) :
     a * b =
       ∑ j ∈ b.val.bitIndices.toFinset,
@@ -919,7 +923,7 @@ theorem zmod_twoPow_mul_eq_sum_shifted_bitIndices
 
 /-- A full `Fin n` sum of shifted copies selected by low bits is the same sum
 over the canonical bit-index set. -/
-theorem zmod_twoPow_shiftedBitSum_eq_sum_bitIndices
+lemma zmod_twoPow_shiftedBitSum_eq_sum_bitIndices
     (n : Nat) (a b : ProductRowWork n) :
     (∑ offset : Fin n,
         if b.val.testBit offset.val then
@@ -954,7 +958,7 @@ theorem zmod_twoPow_shiftedBitSum_eq_sum_bitIndices
 
 /-- A full `Fin n` sum of shifted copies selected by low bits is multiplication
 in `ZMod (2^n)`. -/
-theorem zmod_twoPow_shiftedBitSum_eq_mul
+lemma zmod_twoPow_shiftedBitSum_eq_mul
     (n : Nat) (a b : ProductRowWork n) :
     (∑ offset : Fin n,
         if b.val.testBit offset.val then
@@ -987,12 +991,12 @@ def productRowWord (n : Nat) :
     EncodedBit.Word (productRowEncoding n) n where
   bit := productRowBit n
 
-@[simp] theorem productRowBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma productRowBit_wire_val (n : Nat) (bit : Fin n) :
     ((productRowBit n bit).wire).val = n - 1 - bit.val := by
   rfl
 
 /-- Distinct product-row bit positions occupy distinct wires. -/
-theorem productRowBit_ne
+lemma productRowBit_ne
     (n : Nat) {i j : Fin n} (hij : i ≠ j) :
     ((productRowWord n).bit i).wire ≠
       ((productRowWord n).bit j).wire := by
@@ -1111,7 +1115,7 @@ def productRowWorkspaceQuotientScratchWord (n : Nat) :
     EncodedBit.Word (pipelineWithProductRowWorkEncoding n) n :=
   productWorkspaceQuotientScratchWord n (productRowEncoding n)
 
-@[simp] theorem productRowWorkspaceNumeratorBit_get_testBit
+@[simp] lemma productRowWorkspaceNumeratorBit_get_testBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit bit).get x =
       x.1.1.numerator.val.testBit bit.val := by
@@ -1129,7 +1133,7 @@ def productRowWorkspaceQuotientScratchWord (n : Nat) :
     num.val.testBit bit.val
   exact productResidueBit_get_testBit n bit num
 
-@[simp] theorem productRowWorkspaceInverseScratchBit_get_testBit
+@[simp] lemma productRowWorkspaceInverseScratchBit_get_testBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit bit).get x =
       x.1.1.inverseScratch.val.testBit bit.val := by
@@ -1148,7 +1152,7 @@ def productRowWorkspaceQuotientScratchWord (n : Nat) :
   exact MAU.Addition.TargetAddWithAux.PowerOfTwo.withCarryWorkAuxBit_get_fst
     n bit ((tgt, (inv, (qs, flg))), work)
 
-@[simp] theorem productRowWorkspaceTargetBit_get_testBit
+@[simp] lemma productRowWorkspaceTargetBit_get_testBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit bit).get x =
       x.1.1.target.val.testBit bit.val := by
@@ -1167,7 +1171,7 @@ def productRowWorkspaceQuotientScratchWord (n : Nat) :
   exact MAU.Addition.TargetAddWithAux.PowerOfTwo.withCarryWorkTargetBit_get_fst
     n bit ((tgt, (inv, (qs, flg))), work)
 
-@[simp] theorem productRowWorkspaceQuotientScratchBit_get_testBit
+@[simp] lemma productRowWorkspaceQuotientScratchBit_get_testBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceQuotientScratchWord n).bit bit).get x =
       x.1.1.quotientScratch.val.testBit bit.val := by
@@ -1186,7 +1190,7 @@ def productRowWorkspaceQuotientScratchWord (n : Nat) :
   exact MAU.Addition.TargetAddWithAux.PowerOfTwo.withCarryWorkScratchBit_get_fst
     n bit ((tgt, (inv, (qs, flg))), work)
 
-@[simp] theorem productRowWorkspaceQuotientScratchBit_flip_denominator
+@[simp] lemma productRowWorkspaceQuotientScratchBit_flip_denominator
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     (((productRowWorkspaceQuotientScratchWord n).bit bit).flip x).1.1.denominator =
       x.1.1.denominator := by
@@ -1200,7 +1204,7 @@ def productRowWorkspaceCarryWorkWord (n : Nat) :
     EncodedBit.Word (pipelineWithProductRowWorkEncoding n) (n - 1) :=
   productWorkspaceCarryWorkWord n (productRowEncoding n)
 
-@[simp] theorem productRowWorkspaceCarryWorkBit_get_snd
+@[simp] lemma productRowWorkspaceCarryWorkBit_get_snd
     (n : Nat) (bit : Fin (n - 1)) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceCarryWorkWord n).bit bit).get x =
       (BinaryLabelEncoding.finIdentityBit (n - 1) bit).get x.1.2 := by
@@ -1209,7 +1213,7 @@ def productRowWorkspaceCarryWorkWord (n : Nat) :
   rcases s with ⟨den, num, tgt, inv, qs, flg⟩
   rfl
 
-theorem productRowWorkspaceCarryWorkBit_get_clean
+lemma productRowWorkspaceCarryWorkBit_get_clean
     (n : Nat) (bit : Fin (n - 1))
     (s : PipelineState (2 ^ n)) (row : ProductRowWork n) :
     ((productRowWorkspaceCarryWorkWord n).bit bit).get
@@ -1221,7 +1225,7 @@ theorem productRowWorkspaceCarryWorkBit_get_clean
 
 /-- A product-row pipeline has clean target-add carry work when all carry-work
 bits read `false` in the concrete product-row layout. -/
-theorem productRowWorkspaceCarryWork_eq_clean_of_get_false
+lemma productRowWorkspaceCarryWork_eq_clean_of_get_false
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hwork :
       ∀ k : Fin (n - 1),
@@ -1233,7 +1237,7 @@ theorem productRowWorkspaceCarryWork_eq_clean_of_get_false
     MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanWorkWitness,
     MAU.Addition.TargetAddWithAux.PowerOfTwo.cleanCarryWork] using hwork bit
 
-@[simp] theorem productRowWorkspaceCarryWorkBit_flip_denominator
+@[simp] lemma productRowWorkspaceCarryWorkBit_flip_denominator
     (n : Nat) (bit : Fin (n - 1)) (x : PipelineWithProductRowWork n) :
     (((productRowWorkspaceCarryWorkWord n).bit bit).flip x).1.1.denominator =
       x.1.1.denominator := by
@@ -1247,7 +1251,7 @@ def productRowWorkspaceFlagBit (n : Nat) :
     EncodedBit (pipelineWithProductRowWorkEncoding n) :=
   productWorkspaceFlagBit n (productRowEncoding n)
 
-@[simp] theorem productRowWorkspaceFlagBit_get_flag
+@[simp] lemma productRowWorkspaceFlagBit_get_flag
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get x = x.1.1.flag := by
   rcases x with ⟨pipeline, row⟩
@@ -1270,7 +1274,7 @@ def productRowWorkspaceRowWord (n : Nat) :
     EncodedBit.Word (pipelineWithProductRowWorkEncoding n) n :=
   productWorkspaceWord n (productRowEncoding n) (productRowWord n)
 
-@[simp] theorem productRowWorkspaceRowBit_get_testBit
+@[simp] lemma productRowWorkspaceRowBit_get_testBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceRowWord n).bit bit).get x =
       x.2.val.testBit bit.val := by
@@ -1278,7 +1282,7 @@ def productRowWorkspaceRowWord (n : Nat) :
   change (productRowBit n bit).get row = row.val.testBit bit.val
   exact productResidueBit_get_testBit n bit row
 
-@[simp] theorem productRowWorkspaceRowBit_flip_denominator
+@[simp] lemma productRowWorkspaceRowBit_flip_denominator
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     (((productRowWorkspaceRowWord n).bit bit).flip x).1.1.denominator =
       x.1.1.denominator := by
@@ -1296,7 +1300,7 @@ def shiftedRowIndex {n : Nat} (offset bit : Fin n) : Fin n :=
     Nat.mod_lt _ (Nat.lt_of_le_of_lt (Nat.zero_le offset.val) offset.isLt)⟩
 
 /-- Cyclic row shifts are injective on bit positions. -/
-theorem shiftedRowIndex_injective {n : Nat} (offset : Fin n) :
+lemma shiftedRowIndex_injective {n : Nat} (offset : Fin n) :
     Function.Injective (shiftedRowIndex offset) := by
   intro i j h
   apply Fin.ext
@@ -1313,13 +1317,13 @@ theorem shiftedRowIndex_injective {n : Nat} (offset : Fin n) :
   simpa [Nat.ModEq, hi, hj] using hcancel
 
 /-- Distinct bit positions remain distinct after a cyclic row shift. -/
-theorem shiftedRowIndex_ne {n : Nat} (offset : Fin n) {i j : Fin n}
+lemma shiftedRowIndex_ne {n : Nat} (offset : Fin n) {i j : Fin n}
     (hij : i ≠ j) :
     shiftedRowIndex offset i ≠ shiftedRowIndex offset j :=
   fun h => hij (shiftedRowIndex_injective offset h)
 
 /-- Cyclic row shifts cover every bit position. -/
-theorem shiftedRowIndex_surjective {n : Nat} (offset : Fin n) :
+lemma shiftedRowIndex_surjective {n : Nat} (offset : Fin n) :
     Function.Surjective (shiftedRowIndex offset) :=
   (Finite.injective_iff_surjective).mp (shiftedRowIndex_injective offset)
 
@@ -1335,7 +1339,7 @@ def truncatedShiftedRowSources (n : Nat) (offset : Fin n) : List (Fin n) :=
     (fun bit => bit.val + offset.val < n)
 
 /-- The valid non-wrapping shifted sources have no duplicates. -/
-theorem truncatedShiftedRowSources_nodup
+lemma truncatedShiftedRowSources_nodup
     (n : Nat) (offset : Fin n) :
     (truncatedShiftedRowSources n offset).Nodup := by
   unfold truncatedShiftedRowSources
@@ -1343,14 +1347,14 @@ theorem truncatedShiftedRowSources_nodup
 
 /-- Membership in the non-wrapping shifted-source list is exactly the
 low-output-bit overflow check. -/
-theorem mem_truncatedShiftedRowSources
+lemma mem_truncatedShiftedRowSources
     (n : Nat) (offset bit : Fin n) :
     bit ∈ truncatedShiftedRowSources n offset ↔
       bit.val + offset.val < n := by
   simp [truncatedShiftedRowSources]
 
 /-- Non-wrapping shifted target indices are injective on valid source bits. -/
-theorem truncatedShiftedRowIndex_injective {n : Nat} (offset : Fin n)
+lemma truncatedShiftedRowIndex_injective {n : Nat} (offset : Fin n)
     {i j : Fin n} (hi : i.val + offset.val < n)
     (hj : j.val + offset.val < n)
     (hij : truncatedShiftedRowIndex offset i hi =
@@ -1379,13 +1383,13 @@ def productRowWorkspaceTruncatedShiftedRowWord (n : Nat) (offset : Fin n) :
     else
       (productRowWorkspaceRowWord n).bit i
 
-@[simp] theorem productRowWorkspaceShiftedRowBit_flip_denominator
+@[simp] lemma productRowWorkspaceShiftedRowBit_flip_denominator
     (n : Nat) (offset bit : Fin n) (x : PipelineWithProductRowWork n) :
     (((productRowWorkspaceShiftedRowWord n offset).bit bit).flip x).1.1.denominator =
       x.1.1.denominator := by
   simp [productRowWorkspaceShiftedRowWord]
 
-@[simp] theorem productRowWorkspaceTruncatedShiftedRowBit_flip_denominator
+@[simp] lemma productRowWorkspaceTruncatedShiftedRowBit_flip_denominator
     (n : Nat) (offset bit : Fin n) (x : PipelineWithProductRowWork n) :
     (((productRowWorkspaceTruncatedShiftedRowWord n offset).bit bit).flip
         x).1.1.denominator =
@@ -1395,7 +1399,7 @@ def productRowWorkspaceTruncatedShiftedRowWord (n : Nat) (offset : Fin n) :
 
 /-- Pipeline-register wires are disjoint from trailing product-work wires in
 the product-workspace encoding. -/
-theorem productWorkspacePipelineBit_ne_productBit
+lemma productWorkspacePipelineBit_ne_productBit
     (n : Nat) {ProductWork : Type}
     (productEncoding : BinaryLabelEncoding ProductWork)
     (pipelineBit : EncodedBit (pipelineWithWorkEncoding n))
@@ -1413,7 +1417,7 @@ theorem productWorkspacePipelineBit_ne_productBit
 
 /-- Lifting two pipeline-register bits over product workspace preserves wire
 separation. -/
-theorem productWorkspacePipelineBit_ne_of_ne
+lemma productWorkspacePipelineBit_ne_of_ne
     (n : Nat) {ProductWork : Type}
     (productEncoding : BinaryLabelEncoding ProductWork)
     (left right : EncodedBit (pipelineWithWorkEncoding n))
@@ -1429,7 +1433,7 @@ theorem productWorkspacePipelineBit_ne_of_ne
 
 /-- Lifting two product-work bits into the full product workspace preserves
 wire separation. -/
-theorem productWorkspaceBit_ne_of_ne
+lemma productWorkspaceBit_ne_of_ne
     (n : Nat) {ProductWork : Type}
     (productEncoding : BinaryLabelEncoding ProductWork)
     (left right : EncodedBit productEncoding)
@@ -1449,7 +1453,7 @@ theorem productWorkspaceBit_ne_of_ne
 
 /-- Inverse-scratch controls are disjoint from numerator sources in the
 one-row product-workspace layout. -/
-theorem productRowWorkspaceInverseScratch_ne_numerator
+lemma productRowWorkspaceInverseScratch_ne_numerator
     (n : Nat) (offset i : Fin n) :
     ((productRowWorkspaceInverseScratchWord n).bit offset).wire ≠
       ((productRowWorkspaceNumeratorWord n).bit i).wire := by
@@ -1468,7 +1472,7 @@ theorem productRowWorkspaceInverseScratch_ne_numerator
   exact productInverseScratchBit_ne_numerator n offset i (Fin.ext hv)
 
 /-- Inverse-scratch controls are disjoint from shifted product-row targets. -/
-theorem productRowWorkspaceInverseScratch_ne_shiftedRow
+lemma productRowWorkspaceInverseScratch_ne_shiftedRow
     (n : Nat) (offset i : Fin n) :
     ((productRowWorkspaceInverseScratchWord n).bit offset).wire ≠
       ((productRowWorkspaceShiftedRowWord n offset).bit i).wire := by
@@ -1483,7 +1487,7 @@ theorem productRowWorkspaceInverseScratch_ne_shiftedRow
       ((productRowWord n).bit (shiftedRowIndex offset i))
 
 /-- Inverse-scratch controls are disjoint from any product-row target bit. -/
-theorem productRowWorkspaceInverseScratch_ne_rowBit
+lemma productRowWorkspaceInverseScratch_ne_rowBit
     (n : Nat) (offset target : Fin n) :
     ((productRowWorkspaceInverseScratchWord n).bit offset).wire ≠
       ((productRowWorkspaceRowWord n).bit target).wire := by
@@ -1498,7 +1502,7 @@ theorem productRowWorkspaceInverseScratch_ne_rowBit
       ((productRowWord n).bit target)
 
 /-- Numerator source wires are disjoint from shifted product-row targets. -/
-theorem productRowWorkspaceNumerator_ne_shiftedRow
+lemma productRowWorkspaceNumerator_ne_shiftedRow
     (n : Nat) (offset i : Fin n) :
     ((productRowWorkspaceNumeratorWord n).bit i).wire ≠
       ((productRowWorkspaceShiftedRowWord n offset).bit i).wire := by
@@ -1513,7 +1517,7 @@ theorem productRowWorkspaceNumerator_ne_shiftedRow
       ((productRowWord n).bit (shiftedRowIndex offset i))
 
 /-- Numerator source wires are disjoint from all shifted product-row targets. -/
-theorem productRowWorkspaceNumerator_ne_shiftedRow_of_bits
+lemma productRowWorkspaceNumerator_ne_shiftedRow_of_bits
     (n : Nat) (offset sourceBit targetBit : Fin n) :
     ((productRowWorkspaceNumeratorWord n).bit sourceBit).wire ≠
       ((productRowWorkspaceShiftedRowWord n offset).bit targetBit).wire := by
@@ -1528,7 +1532,7 @@ theorem productRowWorkspaceNumerator_ne_shiftedRow_of_bits
       ((productRowWord n).bit (shiftedRowIndex offset targetBit))
 
 /-- Numerator source wires are disjoint from any product-row target bit. -/
-theorem productRowWorkspaceNumerator_ne_rowBit
+lemma productRowWorkspaceNumerator_ne_rowBit
     (n : Nat) (sourceBit targetBit : Fin n) :
     ((productRowWorkspaceNumeratorWord n).bit sourceBit).wire ≠
       ((productRowWorkspaceRowWord n).bit targetBit).wire := by
@@ -1544,7 +1548,7 @@ theorem productRowWorkspaceNumerator_ne_rowBit
 
 /-- Inverse-scratch controls are disjoint from every truncated shifted target
 used by the filtered product-row load. -/
-theorem productRowWorkspaceInverseScratch_ne_truncatedShiftedRow
+lemma productRowWorkspaceInverseScratch_ne_truncatedShiftedRow
     (n : Nat) (offset bit : Fin n) :
     ((productRowWorkspaceInverseScratchWord n).bit offset).wire ≠
       ((productRowWorkspaceTruncatedShiftedRowWord n offset).bit bit).wire := by
@@ -1558,7 +1562,7 @@ theorem productRowWorkspaceInverseScratch_ne_truncatedShiftedRow
 
 /-- Numerator sources are disjoint from every truncated shifted target used by
 the filtered product-row load. -/
-theorem productRowWorkspaceNumerator_ne_truncatedShiftedRow
+lemma productRowWorkspaceNumerator_ne_truncatedShiftedRow
     (n : Nat) (sourceBit offset targetBit : Fin n) :
     ((productRowWorkspaceNumeratorWord n).bit sourceBit).wire ≠
       ((productRowWorkspaceTruncatedShiftedRowWord n offset).bit targetBit).wire := by
@@ -1572,7 +1576,7 @@ theorem productRowWorkspaceNumerator_ne_truncatedShiftedRow
 
 /-- Truncated shifted targets are wire-disjoint for distinct selected source
 bits. -/
-theorem productRowWorkspaceTruncatedShiftedRow_ne_of_mem_ne
+lemma productRowWorkspaceTruncatedShiftedRow_ne_of_mem_ne
     (n : Nat) (offset : Fin n) {i j : Fin n}
     (hi : i ∈ truncatedShiftedRowSources n offset)
     (hj : j ∈ truncatedShiftedRowSources n offset)
@@ -1603,7 +1607,7 @@ theorem productRowWorkspaceTruncatedShiftedRow_ne_of_mem_ne
       (productRowBit_ne n hidx)
 
 /-- Distinct shifted product-row targets occupy distinct wires. -/
-theorem productRowWorkspaceShiftedRow_ne_of_ne
+lemma productRowWorkspaceShiftedRow_ne_of_ne
     (n : Nat) (offset : Fin n) {i j : Fin n} (hij : i ≠ j) :
     ((productRowWorkspaceShiftedRowWord n offset).bit i).wire ≠
       ((productRowWorkspaceShiftedRowWord n offset).bit j).wire := by
@@ -1670,16 +1674,16 @@ def productRowTruncatedShiftedLoadStep (n : Nat) (offset : Fin n) :
 
 /-- The non-wrapping shifted product-row load realizes its folded Toffoli
 semantics on the same filtered gate object. -/
-theorem productRowTruncatedShiftedLoad_realizes
+lemma productRowTruncatedShiftedLoad_realizes
     (n : Nat) (offset : Fin n) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowTruncatedShiftedLoadProgram n offset)
+      (productRowTruncatedShiftedLoadProgram n offset) environment
       (productRowTruncatedShiftedLoadStep n offset) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (productRowTruncatedShiftedLoadGates n offset)
 
 /-- A non-wrapping shifted product-row load preserves the denominator. -/
-theorem productRowTruncatedShiftedLoadStep_get_denominator
+lemma productRowTruncatedShiftedLoadStep_get_denominator
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedShiftedLoadStep n offset x).1.1.denominator =
       x.1.1.denominator := by
@@ -1698,7 +1702,7 @@ theorem productRowTruncatedShiftedLoadStep_get_denominator
 
 /-- The filtered gate-list step is the indexed controlled-xor fold over exactly
 the non-overflowing source indices. -/
-theorem productRowTruncatedShiftedLoadStep_eq_indicesStep
+lemma productRowTruncatedShiftedLoadStep_eq_indicesStep
     (n : Nat) (offset : Fin n) :
     productRowTruncatedShiftedLoadStep n offset =
       EncodedBit.Word.controlledXorIntoIndicesStep
@@ -1725,7 +1729,7 @@ theorem productRowTruncatedShiftedLoadStep_eq_indicesStep
 
 /-- A non-wrapping shifted product-row load preserves any observed readout
 disjoint from all product-row target bits. -/
-theorem productRowTruncatedShiftedLoadStep_get_observed_of_row_ne
+lemma productRowTruncatedShiftedLoadStep_get_observed_of_row_ne
     (n : Nat) (offset : Fin n)
     (observed : EncodedBit (pipelineWithProductRowWorkEncoding n))
     (hne :
@@ -1751,7 +1755,7 @@ theorem productRowTruncatedShiftedLoadStep_get_observed_of_row_ne
 
 /-- A non-wrapping shifted product-row load toggles exactly the selected
 low-output target bit by the corresponding controlled numerator bit. -/
-theorem productRowTruncatedShiftedLoadStep_get_truncatedRowBit
+lemma productRowTruncatedShiftedLoadStep_get_truncatedRowBit
     (n : Nat) (offset bit : Fin n)
     (h : bit.val + offset.val < n)
     (x : PipelineWithProductRowWork n) :
@@ -1793,7 +1797,7 @@ theorem productRowTruncatedShiftedLoadStep_get_truncatedRowBit
 
 /-- A non-wrapping shifted product-row load preserves row bits that are not
 selected as low-output targets by the filtered source list. -/
-theorem productRowTruncatedShiftedLoadStep_get_rowBit_of_target_ne
+lemma productRowTruncatedShiftedLoadStep_get_rowBit_of_target_ne
     (n : Nat) (offset target : Fin n)
     (hne :
       ∀ bit : Fin n, ∀ h : bit.val + offset.val < n,
@@ -1839,7 +1843,7 @@ def productRowTruncatedCleanLoadedRow
 
 /-- If the product row is already clean, the filtered load produces the clean
 loaded-row value. -/
-theorem productRowTruncatedShiftedLoadStep_get_row_clean
+lemma productRowTruncatedShiftedLoadStep_get_row_clean
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     (productRowTruncatedShiftedLoadStep n offset x).2 =
@@ -1854,7 +1858,7 @@ theorem productRowTruncatedShiftedLoadStep_get_row_clean
 
 /-- Bit formula for the non-wrapping clean loaded-row value at a selected
 low-output target bit. -/
-theorem productRowTruncatedCleanLoadedRow_get_truncatedBit
+lemma productRowTruncatedCleanLoadedRow_get_truncatedBit
     (n : Nat) (offset bit : Fin n)
     (h : bit.val + offset.val < n)
     (x : PipelineWithProductRowWork n) :
@@ -1889,7 +1893,7 @@ theorem productRowTruncatedCleanLoadedRow_get_truncatedBit
   simp
 
 /-- Non-target bits of a non-wrapping clean loaded row remain zero. -/
-theorem productRowTruncatedCleanLoadedRow_get_rowBit_of_target_ne
+lemma productRowTruncatedCleanLoadedRow_get_rowBit_of_target_ne
     (n : Nat) (offset target : Fin n)
     (hne :
       ∀ bit : Fin n, ∀ h : bit.val + offset.val < n,
@@ -1907,7 +1911,7 @@ theorem productRowTruncatedCleanLoadedRow_get_rowBit_of_target_ne
 
 /-- If the controlling inverse-scratch bit is false, the non-wrapping clean
 loaded row is zero. -/
-theorem productRowTruncatedCleanLoadedRow_eq_zero_of_inverseScratch_false
+lemma productRowTruncatedCleanLoadedRow_eq_zero_of_inverseScratch_false
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hcontrol :
       ((productRowWorkspaceInverseScratchWord n).bit offset).get x = false) :
@@ -1934,7 +1938,7 @@ theorem productRowTruncatedCleanLoadedRow_eq_zero_of_inverseScratch_false
 /-- If the controlling inverse-scratch bit is true, the non-wrapping clean
 loaded row is the numerator shifted left by that offset, viewed in the low
 `n` output bits. -/
-theorem productRowTruncatedCleanLoadedRow_eq_shiftedNumerator_of_inverseScratch_true
+lemma productRowTruncatedCleanLoadedRow_eq_shiftedNumerator_of_inverseScratch_true
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hcontrol :
       ((productRowWorkspaceInverseScratchWord n).bit offset).get x = true) :
@@ -1979,7 +1983,7 @@ theorem productRowTruncatedCleanLoadedRow_eq_shiftedNumerator_of_inverseScratch_
 
 /-- Closed form for one non-wrapping clean loaded row, controlled by the
 corresponding inverse-scratch bit. -/
-theorem productRowTruncatedCleanLoadedRow_eq_if_shiftedNumerator
+lemma productRowTruncatedCleanLoadedRow_eq_if_shiftedNumerator
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     productRowTruncatedCleanLoadedRow n offset x =
       if x.1.1.inverseScratch.val.testBit offset.val then
@@ -2004,7 +2008,7 @@ theorem productRowTruncatedCleanLoadedRow_eq_if_shiftedNumerator
 
 /-- A non-wrapping shifted product-row load writes only the trailing row
 workspace; every pipeline-register readout is preserved. -/
-theorem productRowTruncatedShiftedLoadStep_get_pipelineBit
+lemma productRowTruncatedShiftedLoadStep_get_pipelineBit
     (n : Nat) (offset : Fin n)
     (bit : EncodedBit (pipelineWithWorkEncoding n))
     (x : PipelineWithProductRowWork n) :
@@ -2027,7 +2031,7 @@ theorem productRowTruncatedShiftedLoadStep_get_pipelineBit
 
 /-- A non-wrapping shifted product-row load preserves the quotient-scratch
 word. -/
-theorem productRowTruncatedShiftedLoadStep_get_quotientScratch
+lemma productRowTruncatedShiftedLoadStep_get_quotientScratch
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedShiftedLoadStep n offset x).1.1.quotientScratch =
       x.1.1.quotientScratch := by
@@ -2048,7 +2052,7 @@ theorem productRowTruncatedShiftedLoadStep_get_quotientScratch
 
 /-- A non-wrapping shifted product-row load preserves an inverse-scratch
 readout. -/
-theorem productRowTruncatedShiftedLoadStep_get_inverseScratchBit
+lemma productRowTruncatedShiftedLoadStep_get_inverseScratchBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit i).get
         (productRowTruncatedShiftedLoadStep n offset x) =
@@ -2059,7 +2063,7 @@ theorem productRowTruncatedShiftedLoadStep_get_inverseScratchBit
       ((productInverseScratchWord n).bit i) x
 
 /-- A non-wrapping shifted product-row load preserves a numerator readout. -/
-theorem productRowTruncatedShiftedLoadStep_get_numeratorBit
+lemma productRowTruncatedShiftedLoadStep_get_numeratorBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit i).get
         (productRowTruncatedShiftedLoadStep n offset x) =
@@ -2070,7 +2074,7 @@ theorem productRowTruncatedShiftedLoadStep_get_numeratorBit
       ((productNumeratorWord n).bit i) x
 
 /-- A non-wrapping shifted product-row load preserves a target readout. -/
-theorem productRowTruncatedShiftedLoadStep_get_targetBit
+lemma productRowTruncatedShiftedLoadStep_get_targetBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit i).get
         (productRowTruncatedShiftedLoadStep n offset x) =
@@ -2081,7 +2085,7 @@ theorem productRowTruncatedShiftedLoadStep_get_targetBit
       ((productTargetWord n).bit i) x
 
 /-- A non-wrapping shifted product-row load preserves the cleanup flag. -/
-theorem productRowTruncatedShiftedLoadStep_get_flagBit
+lemma productRowTruncatedShiftedLoadStep_get_flagBit
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowTruncatedShiftedLoadStep n offset x) =
@@ -2092,7 +2096,7 @@ theorem productRowTruncatedShiftedLoadStep_get_flagBit
 
 /-- A non-wrapping shifted product-row load preserves each temporary carry-work
 bit. -/
-theorem productRowTruncatedShiftedLoadStep_get_carryWorkBit
+lemma productRowTruncatedShiftedLoadStep_get_carryWorkBit
     (n : Nat) (offset : Fin n) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceCarryWorkWord n).bit j).get
@@ -2125,16 +2129,16 @@ def productRowTruncatedShiftedUnloadStep (n : Nat) (offset : Fin n) :
     (productRowTruncatedShiftedUnloadGates n offset)
 
 /-- The filtered unload realizes the reverse filtered gate object. -/
-theorem productRowTruncatedShiftedUnload_realizes
+lemma productRowTruncatedShiftedUnload_realizes
     (n : Nat) (offset : Fin n) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowTruncatedShiftedUnloadProgram n offset)
+      (productRowTruncatedShiftedUnloadProgram n offset) environment
       (productRowTruncatedShiftedUnloadStep n offset) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (productRowTruncatedShiftedUnloadGates n offset)
 
 /-- A non-wrapping shifted product-row unload preserves the denominator. -/
-theorem productRowTruncatedShiftedUnloadStep_get_denominator
+lemma productRowTruncatedShiftedUnloadStep_get_denominator
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedShiftedUnloadStep n offset x).1.1.denominator =
       x.1.1.denominator := by
@@ -2156,7 +2160,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_denominator
 
 /-- The reverse filtered unload step is the indexed controlled-xor fold over
 the reversed non-overflowing source list. -/
-theorem productRowTruncatedShiftedUnloadStep_eq_indicesStep
+lemma productRowTruncatedShiftedUnloadStep_eq_indicesStep
     (n : Nat) (offset : Fin n) :
     productRowTruncatedShiftedUnloadStep n offset =
       EncodedBit.Word.controlledXorIntoIndicesStep
@@ -2185,7 +2189,7 @@ theorem productRowTruncatedShiftedUnloadStep_eq_indicesStep
 
 /-- A non-wrapping shifted product-row unload preserves any observed readout
 disjoint from all product-row target bits. -/
-theorem productRowTruncatedShiftedUnloadStep_get_observed_of_row_ne
+lemma productRowTruncatedShiftedUnloadStep_get_observed_of_row_ne
     (n : Nat) (offset : Fin n)
     (observed : EncodedBit (pipelineWithProductRowWorkEncoding n))
     (hne :
@@ -2211,7 +2215,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_observed_of_row_ne
 
 /-- A non-wrapping shifted product-row unload writes only the trailing row
 workspace; every pipeline-register readout is preserved. -/
-theorem productRowTruncatedShiftedUnloadStep_get_pipelineBit
+lemma productRowTruncatedShiftedUnloadStep_get_pipelineBit
     (n : Nat) (offset : Fin n)
     (bit : EncodedBit (pipelineWithWorkEncoding n))
     (x : PipelineWithProductRowWork n) :
@@ -2234,7 +2238,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_pipelineBit
 
 /-- A non-wrapping shifted product-row unload preserves the quotient-scratch
 word. -/
-theorem productRowTruncatedShiftedUnloadStep_get_quotientScratch
+lemma productRowTruncatedShiftedUnloadStep_get_quotientScratch
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedShiftedUnloadStep n offset x).1.1.quotientScratch =
       x.1.1.quotientScratch := by
@@ -2255,7 +2259,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_quotientScratch
 
 /-- A non-wrapping shifted product-row unload preserves an inverse-scratch
 readout. -/
-theorem productRowTruncatedShiftedUnloadStep_get_inverseScratchBit
+lemma productRowTruncatedShiftedUnloadStep_get_inverseScratchBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit i).get
         (productRowTruncatedShiftedUnloadStep n offset x) =
@@ -2266,7 +2270,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_inverseScratchBit
       ((productInverseScratchWord n).bit i) x
 
 /-- A non-wrapping shifted product-row unload preserves a numerator readout. -/
-theorem productRowTruncatedShiftedUnloadStep_get_numeratorBit
+lemma productRowTruncatedShiftedUnloadStep_get_numeratorBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit i).get
         (productRowTruncatedShiftedUnloadStep n offset x) =
@@ -2277,7 +2281,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_numeratorBit
       ((productNumeratorWord n).bit i) x
 
 /-- A non-wrapping shifted product-row unload preserves a target readout. -/
-theorem productRowTruncatedShiftedUnloadStep_get_targetBit
+lemma productRowTruncatedShiftedUnloadStep_get_targetBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit i).get
         (productRowTruncatedShiftedUnloadStep n offset x) =
@@ -2288,7 +2292,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_targetBit
       ((productTargetWord n).bit i) x
 
 /-- A non-wrapping shifted product-row unload preserves the cleanup flag. -/
-theorem productRowTruncatedShiftedUnloadStep_get_flagBit
+lemma productRowTruncatedShiftedUnloadStep_get_flagBit
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowTruncatedShiftedUnloadStep n offset x) =
@@ -2299,7 +2303,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_flagBit
 
 /-- A non-wrapping shifted product-row unload preserves each temporary
 carry-work bit. -/
-theorem productRowTruncatedShiftedUnloadStep_get_carryWorkBit
+lemma productRowTruncatedShiftedUnloadStep_get_carryWorkBit
     (n : Nat) (offset : Fin n) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceCarryWorkWord n).bit j).get
@@ -2312,7 +2316,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_carryWorkBit
 
 /-- A non-wrapping shifted product-row unload toggles exactly the selected
 low-output target bit by the corresponding controlled numerator bit. -/
-theorem productRowTruncatedShiftedUnloadStep_get_truncatedRowBit
+lemma productRowTruncatedShiftedUnloadStep_get_truncatedRowBit
     (n : Nat) (offset bit : Fin n)
     (h : bit.val + offset.val < n)
     (x : PipelineWithProductRowWork n) :
@@ -2359,7 +2363,7 @@ theorem productRowTruncatedShiftedUnloadStep_get_truncatedRowBit
 
 /-- A non-wrapping shifted product-row unload preserves row bits that are not
 selected as low-output targets by the filtered source list. -/
-theorem productRowTruncatedShiftedUnloadStep_get_rowBit_of_target_ne
+lemma productRowTruncatedShiftedUnloadStep_get_rowBit_of_target_ne
     (n : Nat) (offset target : Fin n)
     (hne :
       ∀ bit : Fin n, ∀ h : bit.val + offset.val < n,
@@ -2464,7 +2468,7 @@ def controlledShiftedRowLoadStep (n : Nat) (offset : Fin n)
 
 /-- The controlled shifted row-load program realizes the folded Toffoli
 semantics on the same encoded gate object. -/
-theorem controlledShiftedRowLoad_realizes (n : Nat) (offset : Fin n)
+lemma controlledShiftedRowLoad_realizes (n : Nat) (offset : Fin n)
     (hcontrolSource :
       ∀ i,
         ((productRowWorkspaceInverseScratchWord n).bit offset).wire ≠
@@ -2479,10 +2483,10 @@ theorem controlledShiftedRowLoad_realizes (n : Nat) (offset : Fin n)
           ((productRowWorkspaceShiftedRowWord n offset).bit i).wire) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
       (controlledShiftedRowLoadProgram n offset
-        hcontrolSource hcontrolTarget hsourceTarget)
+        hcontrolSource hcontrolTarget hsourceTarget) environment
       (controlledShiftedRowLoadStep n offset
         hcontrolSource hcontrolTarget hsourceTarget) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (controlledShiftedRowLoadGates n offset
       hcontrolSource hcontrolTarget hsourceTarget)
 
@@ -2514,7 +2518,7 @@ def productRowControlledShiftedLoadStep (n : Nat) (offset : Fin n) :
 
 /-- A shifted product-row load writes only the trailing row workspace; every
 pipeline-register readout is preserved. -/
-theorem productRowControlledShiftedLoadStep_get_pipelineBit
+lemma productRowControlledShiftedLoadStep_get_pipelineBit
     (n : Nat) (offset : Fin n)
     (bit : EncodedBit (pipelineWithWorkEncoding n))
     (x : PipelineWithProductRowWork n) :
@@ -2543,7 +2547,7 @@ theorem productRowControlledShiftedLoadStep_get_pipelineBit
       x
 
 /-- A shifted product-row load preserves the quotient-scratch word. -/
-theorem productRowControlledShiftedLoadStep_get_quotientScratch
+lemma productRowControlledShiftedLoadStep_get_quotientScratch
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowControlledShiftedLoadStep n offset x).1.1.quotientScratch =
       x.1.1.quotientScratch := by
@@ -2563,7 +2567,7 @@ theorem productRowControlledShiftedLoadStep_get_quotientScratch
   exact productRowWorkspaceQuotientScratchBit_get_testBit n bit x
 
 /-- A shifted product-row load preserves the cleanup flag. -/
-theorem productRowControlledShiftedLoadStep_get_flagBit
+lemma productRowControlledShiftedLoadStep_get_flagBit
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowControlledShiftedLoadStep n offset x) =
@@ -2573,7 +2577,7 @@ theorem productRowControlledShiftedLoadStep_get_flagBit
       (productFlagBit n) x
 
 /-- A shifted product-row load preserves each temporary carry-work bit. -/
-theorem productRowControlledShiftedLoadStep_get_carryWorkBit
+lemma productRowControlledShiftedLoadStep_get_carryWorkBit
     (n : Nat) (offset : Fin n) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceCarryWorkWord n).bit j).get
@@ -2586,7 +2590,7 @@ theorem productRowControlledShiftedLoadStep_get_carryWorkBit
 
 /-- A shifted product-row load toggles each shifted row target by the
 corresponding controlled numerator bit. -/
-theorem productRowControlledShiftedLoadStep_get_shiftedRowBit
+lemma productRowControlledShiftedLoadStep_get_shiftedRowBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceShiftedRowWord n offset).bit i).get
         (productRowControlledShiftedLoadStep n offset x) =
@@ -2611,7 +2615,7 @@ theorem productRowControlledShiftedLoadStep_get_shiftedRowBit
       x
 
 /-- Loading from a clean row writes exactly the selected shifted numerator bit. -/
-theorem productRowControlledShiftedLoadStep_get_shiftedRowBit_clean
+lemma productRowControlledShiftedLoadStep_get_shiftedRowBit_clean
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     ((productRowWorkspaceShiftedRowWord n offset).bit i).get
@@ -2627,7 +2631,7 @@ theorem productRowControlledShiftedLoadStep_get_shiftedRowBit_clean
   simp
 
 /-- Clean-load row bits, read at the shifted physical row index. -/
-theorem productRowControlledShiftedLoadStep_get_row_shiftedBit_clean
+lemma productRowControlledShiftedLoadStep_get_row_shiftedBit_clean
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     (productRowControlledShiftedLoadStep n offset x).2.val.testBit
@@ -2652,7 +2656,7 @@ def productRowCleanLoadedRow
 
 /-- If the product row is already clean, the concrete load produces the clean
 loaded-row value. -/
-theorem productRowControlledShiftedLoadStep_get_row_clean
+lemma productRowControlledShiftedLoadStep_get_row_clean
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     (productRowControlledShiftedLoadStep n offset x).2 =
@@ -2666,7 +2670,7 @@ theorem productRowControlledShiftedLoadStep_get_row_clean
   rfl
 
 /-- Bit formula for the clean loaded-row value at its shifted row index. -/
-theorem productRowCleanLoadedRow_get_shiftedBit
+lemma productRowCleanLoadedRow_get_shiftedBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowCleanLoadedRow n offset x).val.testBit
         (shiftedRowIndex offset i).val =
@@ -2692,9 +2696,9 @@ theorem productRowCleanLoadedRow_get_shiftedBit
 
 /-- The concrete shifted product-row load realizes its folded Toffoli
 semantics on the same gate object. -/
-theorem productRowControlledShiftedLoad_realizes (n : Nat) (offset : Fin n) :
+lemma productRowControlledShiftedLoad_realizes (n : Nat) (offset : Fin n) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowControlledShiftedLoadProgram n offset)
+      (productRowControlledShiftedLoadProgram n offset) environment
       (productRowControlledShiftedLoadStep n offset) :=
   controlledShiftedRowLoad_realizes n offset
     (productRowWorkspaceInverseScratch_ne_numerator n offset)
@@ -2841,7 +2845,7 @@ def productRowAddStep (n : Nat) :
 /-- Gate-list quotient-scratch bit formula for adding the loaded product row.
 The carry term remains the concrete carry selected by the same folded
 carry-work schedule; the clean-carry arithmetic invariant is proved separately. -/
-theorem productRowAddStep_get_quotientScratchBit
+lemma productRowAddStep_get_quotientScratchBit
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceQuotientScratchWord n).bit i).get
         (productRowAddStep n x) =
@@ -2860,7 +2864,7 @@ theorem productRowAddStep_get_quotientScratchBit
 
 /-- Forward carry-work recurrence for the product-row adder layout on clean
 flag/work inputs. -/
-theorem productRowAddCarryStage_get_workCarry_natAddCarry
+lemma productRowAddCarryStage_get_workCarry_natAddCarry
     (n : Nat) (j : Fin (n - 1)) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -2930,7 +2934,7 @@ theorem productRowAddCarryStage_get_workCarry_natAddCarry
 
 /-- Carry selected before each quotient-scratch sum bit in the product-row
 adder layout. -/
-theorem productRowAddCarryBeforeSum_get_natAddCarry
+lemma productRowAddCarryBeforeSum_get_natAddCarry
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -2976,7 +2980,7 @@ theorem productRowAddCarryBeforeSum_get_natAddCarry
 
 /-- Clean flag/work endpoint for the quotient-scratch bits of one product-row
 adder call. -/
-theorem productRowAddStep_get_quotientScratch_add_row_testBit
+lemma productRowAddStep_get_quotientScratch_add_row_testBit
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -2994,7 +2998,7 @@ theorem productRowAddStep_get_quotientScratch_add_row_testBit
 
 /-- Clean flag/work endpoint for one product-row adder call: it adds the
 loaded row into quotient scratch. -/
-theorem productRowAddStep_get_quotientScratch_add_row
+lemma productRowAddStep_get_quotientScratch_add_row
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -3009,7 +3013,7 @@ theorem productRowAddStep_get_quotientScratch_add_row
 
 /-- The product-row adder preserves any observed readout disjoint from the
 quotient-scratch targets and the temporary carry-work targets. -/
-theorem productRowAddStep_get_observed_of_quotient_carry_ne
+lemma productRowAddStep_get_observed_of_quotient_carry_ne
     (n : Nat) (observed : EncodedBit (pipelineWithProductRowWorkEncoding n))
     (hright :
       ∀ i : Fin n,
@@ -3028,7 +3032,7 @@ theorem productRowAddStep_get_observed_of_quotient_carry_ne
 
 /-- The product-row adder restores clean temporary carry work when started
 with clean carry work. -/
-theorem productRowAddStep_get_carryWork_clean
+lemma productRowAddStep_get_carryWork_clean
     (n : Nat) (j : Fin (n - 1)) (x : PipelineWithProductRowWork n)
     (hwork :
       ∀ k : Fin (n - 1),
@@ -3044,7 +3048,7 @@ theorem productRowAddStep_get_carryWork_clean
     productRowAddCarryWorkLayout] using h
 
 /-- Adding the loaded product row preserves the cleanup flag. -/
-theorem productRowAddStep_get_flagBit
+lemma productRowAddStep_get_flagBit
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get (productRowAddStep n x) =
       (productRowWorkspaceFlagBit n).get x := by
@@ -3074,7 +3078,7 @@ theorem productRowAddStep_get_flagBit
       x
 
 /-- Adding the loaded row into quotient scratch preserves a target readout. -/
-theorem productRowAddStep_get_targetBit
+lemma productRowAddStep_get_targetBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit bit).get (productRowAddStep n x) =
       ((productRowWorkspaceTargetWord n).bit bit).get x := by
@@ -3106,7 +3110,7 @@ theorem productRowAddStep_get_targetBit
       x
 
 /-- Adding the loaded row into quotient scratch preserves the target field. -/
-theorem productRowAddStep_get_target
+lemma productRowAddStep_get_target
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowAddStep n x).1.1.target = x.1.1.target := by
   apply PlainAdder.Schedule.PowerOfTwo.word_eq_of_testBit_eq
@@ -3117,7 +3121,7 @@ theorem productRowAddStep_get_target
   exact productRowWorkspaceTargetBit_get_testBit n bit x
 
 /-- Adding the loaded row into quotient scratch preserves the denominator. -/
-theorem productRowAddCarryOutGatesAt_get_denominator
+lemma productRowAddCarryOutGatesAt_get_denominator
     (n : Nat) (j : Fin (n - 1)) (x : PipelineWithProductRowWork n) :
     (EncodedBit.GateSpec.stepList
         (PlainAdder.Schedule.CarryWorkLayout.carryOutGatesAt
@@ -3139,7 +3143,7 @@ theorem productRowAddCarryOutGatesAt_get_denominator
         simp [EncodedBit.GateSpec.targetFlipPreserves])
     x
 
-theorem productRowAddCarryStageIndexStep_get_denominator
+lemma productRowAddCarryStageIndexStep_get_denominator
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (PlainAdder.Schedule.CarryWorkLayout.carryStageIndexStep
         (productRowAddCarryWorkLayout n) x).1.1.denominator =
@@ -3163,7 +3167,7 @@ theorem productRowAddCarryStageIndexStep_get_denominator
       rw [ih]
       exact productRowAddCarryOutGatesAt_get_denominator n j x
 
-theorem productRowAddSumGatesAt_get_denominator
+lemma productRowAddSumGatesAt_get_denominator
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n) :
     (EncodedBit.GateSpec.stepList
         (PlainAdder.Schedule.CarryWorkLayout.sumGatesAt
@@ -3184,7 +3188,7 @@ theorem productRowAddSumGatesAt_get_denominator
         simp [EncodedBit.GateSpec.targetFlipPreserves])
     x
 
-theorem productRowAddCarryOutCleanupGatesAt_get_denominator
+lemma productRowAddCarryOutCleanupGatesAt_get_denominator
     (n : Nat) (j : Fin (n - 1)) (x : PipelineWithProductRowWork n) :
     (EncodedBit.GateSpec.stepList
         (PlainAdder.Schedule.CarryWorkLayout.carryOutCleanupGatesAt
@@ -3206,7 +3210,7 @@ theorem productRowAddCarryOutCleanupGatesAt_get_denominator
         simp [EncodedBit.GateSpec.targetFlipPreserves])
     x
 
-theorem productRowAddCleanupSumGatesAt_get_denominator
+lemma productRowAddCleanupSumGatesAt_get_denominator
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n) :
     (EncodedBit.GateSpec.stepList
         (PlainAdder.Schedule.CarryWorkLayout.cleanupSumGatesAt
@@ -3220,7 +3224,7 @@ theorem productRowAddCleanupSumGatesAt_get_denominator
     rw [productRowAddCarryOutCleanupGatesAt_get_denominator]
     exact productRowAddSumGatesAt_get_denominator n i x
 
-theorem productRowAddCleanupSumStageIndexStep_get_denominator
+lemma productRowAddCleanupSumStageIndexStep_get_denominator
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (PlainAdder.Schedule.CarryWorkLayout.cleanupSumStageIndexStep
         (productRowAddCarryWorkLayout n) x).1.1.denominator =
@@ -3244,7 +3248,7 @@ theorem productRowAddCleanupSumStageIndexStep_get_denominator
       rw [ih]
       exact productRowAddCleanupSumGatesAt_get_denominator n i x
 
-theorem productRowAddStep_get_denominator
+lemma productRowAddStep_get_denominator
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowAddStep n x).1.1.denominator = x.1.1.denominator := by
   unfold productRowAddStep PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep
@@ -3254,7 +3258,7 @@ theorem productRowAddStep_get_denominator
 
 /-- Adding the loaded row into quotient scratch preserves the shifted-row
 readout used by the subsequent unload. -/
-theorem productRowAddStep_get_shiftedRowBit
+lemma productRowAddStep_get_shiftedRowBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceShiftedRowWord n offset).bit i).get
         (productRowAddStep n x) =
@@ -3286,7 +3290,7 @@ theorem productRowAddStep_get_shiftedRowBit
 
 /-- Adding the loaded row into quotient scratch preserves every product-row
 bit. -/
-theorem productRowAddStep_get_rowBit
+lemma productRowAddStep_get_rowBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceRowWord n).bit bit).get (productRowAddStep n x) =
       ((productRowWorkspaceRowWord n).bit bit).get x := by
@@ -3316,7 +3320,7 @@ theorem productRowAddStep_get_rowBit
       x
 
 /-- Adding the product row preserves an inverse-scratch readout. -/
-theorem productRowAddStep_get_inverseScratchBit
+lemma productRowAddStep_get_inverseScratchBit
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit i).get
         (productRowAddStep n x) =
@@ -3349,7 +3353,7 @@ theorem productRowAddStep_get_inverseScratchBit
       x
 
 /-- Adding the product row preserves a numerator readout. -/
-theorem productRowAddStep_get_numeratorBit
+lemma productRowAddStep_get_numeratorBit
     (n : Nat) (i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit i).get
         (productRowAddStep n x) =
@@ -3383,9 +3387,9 @@ theorem productRowAddStep_get_numeratorBit
 
 /-- The product-row adder program realizes its folded carry/sum/cleanup
 semantics. -/
-theorem productRowAdd_realizes (n : Nat) :
+lemma productRowAdd_realizes (n : Nat) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowAddProgram n) (productRowAddStep n) :=
+      (productRowAddProgram n) environment (productRowAddStep n) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes
     (productRowAddCarryWorkLayout n)
 
@@ -3412,7 +3416,7 @@ def productRowControlledShiftedUnloadStep (n : Nat) (offset : Fin n) :
 
 /-- A shifted product-row unload toggles each shifted row target by the
 corresponding controlled numerator bit. -/
-theorem productRowControlledShiftedUnloadStep_get_shiftedRowBit
+lemma productRowControlledShiftedUnloadStep_get_shiftedRowBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceShiftedRowWord n offset).bit i).get
         (productRowControlledShiftedUnloadStep n offset x) =
@@ -3440,7 +3444,7 @@ theorem productRowControlledShiftedUnloadStep_get_shiftedRowBit
 
 /-- A shifted product-row unload preserves any observed readout disjoint from
 the shifted row targets. -/
-theorem productRowControlledShiftedUnloadStep_get_observed_of_shiftedRow_ne
+lemma productRowControlledShiftedUnloadStep_get_observed_of_shiftedRow_ne
     (n : Nat) (offset : Fin n)
     (observed : EncodedBit (pipelineWithProductRowWorkEncoding n))
     (hne :
@@ -3465,7 +3469,7 @@ theorem productRowControlledShiftedUnloadStep_get_observed_of_shiftedRow_ne
 
 /-- A shifted product-row unload writes only the trailing row workspace; every
 pipeline-register readout is preserved. -/
-theorem productRowControlledShiftedUnloadStep_get_pipelineBit
+lemma productRowControlledShiftedUnloadStep_get_pipelineBit
     (n : Nat) (offset : Fin n)
     (bit : EncodedBit (pipelineWithWorkEncoding n))
     (x : PipelineWithProductRowWork n) :
@@ -3488,7 +3492,7 @@ theorem productRowControlledShiftedUnloadStep_get_pipelineBit
       x
 
 /-- A shifted product-row unload preserves the quotient-scratch word. -/
-theorem productRowControlledShiftedUnloadStep_get_quotientScratch
+lemma productRowControlledShiftedUnloadStep_get_quotientScratch
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowControlledShiftedUnloadStep n offset x).1.1.quotientScratch =
       x.1.1.quotientScratch := by
@@ -3508,7 +3512,7 @@ theorem productRowControlledShiftedUnloadStep_get_quotientScratch
   exact productRowWorkspaceQuotientScratchBit_get_testBit n bit x
 
 /-- A shifted product-row unload preserves the cleanup flag. -/
-theorem productRowControlledShiftedUnloadStep_get_flagBit
+lemma productRowControlledShiftedUnloadStep_get_flagBit
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowControlledShiftedUnloadStep n offset x) =
@@ -3518,7 +3522,7 @@ theorem productRowControlledShiftedUnloadStep_get_flagBit
       (productFlagBit n) x
 
 /-- A shifted product-row unload preserves each temporary carry-work bit. -/
-theorem productRowControlledShiftedUnloadStep_get_carryWorkBit
+lemma productRowControlledShiftedUnloadStep_get_carryWorkBit
     (n : Nat) (offset : Fin n) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceCarryWorkWord n).bit j).get
@@ -3530,12 +3534,12 @@ theorem productRowControlledShiftedUnloadStep_get_carryWorkBit
       ((productCarryWorkWord n).bit j) x
 
 /-- The unload program realizes its folded reverse-Toffoli semantics. -/
-theorem productRowControlledShiftedUnload_realizes
+lemma productRowControlledShiftedUnload_realizes
     (n : Nat) (offset : Fin n) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowControlledShiftedUnloadProgram n offset)
+      (productRowControlledShiftedUnloadProgram n offset) environment
       (productRowControlledShiftedUnloadStep n offset) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (productRowControlledShiftedUnloadGates n offset)
 
 /-! #### One-offset non-wrapping product-row add slice -/
@@ -3562,14 +3566,14 @@ def productRowTruncatedOffsetAddProgram (n : Nat) (offset : Fin n) :
 load/add/unload semantics, tying correctness and resource accounting to the
 same filtered gate object [PZ03, ecc.tex:622-640; VBE95,
 9511018.tex:333-350,591-618]. -/
-theorem productRowTruncatedOffsetAdd_realizes (n : Nat) (offset : Fin n) :
+lemma productRowTruncatedOffsetAdd_realizes (n : Nat) (offset : Fin n) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowTruncatedOffsetAddProgram n offset)
+      (productRowTruncatedOffsetAddProgram n offset) environment
       (productRowTruncatedOffsetAddStep n offset) := by
   have htail :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
         (UnitaryCircuit.seq (productRowAddProgram n)
-          (productRowTruncatedShiftedUnloadProgram n offset))
+          (productRowTruncatedShiftedUnloadProgram n offset)) environment
         (fun x : PipelineWithProductRowWork n =>
           productRowTruncatedShiftedUnloadStep n offset
             (productRowAddStep n x)) :=
@@ -3580,7 +3584,7 @@ theorem productRowTruncatedOffsetAdd_realizes (n : Nat) (offset : Fin n) :
       (productRowTruncatedShiftedUnload_realizes n offset)
   have hfull :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-        (productRowTruncatedOffsetAddProgram n offset)
+        (productRowTruncatedOffsetAddProgram n offset) environment
         (productRowTruncatedOffsetAddStep n offset) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := productRowTruncatedShiftedLoadStep n offset)
@@ -3594,7 +3598,7 @@ theorem productRowTruncatedOffsetAdd_realizes (n : Nat) (offset : Fin n) :
 
 /-- One non-wrapping load/add/unload row slice preserves an inverse-scratch
 readout. -/
-theorem productRowTruncatedOffsetAddStep_get_inverseScratchBit
+lemma productRowTruncatedOffsetAddStep_get_inverseScratchBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit i).get
         (productRowTruncatedOffsetAddStep n offset x) =
@@ -3605,7 +3609,7 @@ theorem productRowTruncatedOffsetAddStep_get_inverseScratchBit
   rw [productRowTruncatedShiftedLoadStep_get_inverseScratchBit]
 
 /-- One non-wrapping load/add/unload row slice preserves a numerator readout. -/
-theorem productRowTruncatedOffsetAddStep_get_numeratorBit
+lemma productRowTruncatedOffsetAddStep_get_numeratorBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit i).get
         (productRowTruncatedOffsetAddStep n offset x) =
@@ -3616,7 +3620,7 @@ theorem productRowTruncatedOffsetAddStep_get_numeratorBit
   rw [productRowTruncatedShiftedLoadStep_get_numeratorBit]
 
 /-- One non-wrapping load/add/unload row slice preserves a target readout. -/
-theorem productRowTruncatedOffsetAddStep_get_targetBit
+lemma productRowTruncatedOffsetAddStep_get_targetBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit i).get
         (productRowTruncatedOffsetAddStep n offset x) =
@@ -3627,7 +3631,7 @@ theorem productRowTruncatedOffsetAddStep_get_targetBit
   rw [productRowTruncatedShiftedLoadStep_get_targetBit]
 
 /-- One non-wrapping load/add/unload row slice preserves the target field. -/
-theorem productRowTruncatedOffsetAddStep_get_target
+lemma productRowTruncatedOffsetAddStep_get_target
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedOffsetAddStep n offset x).1.1.target =
       x.1.1.target := by
@@ -3639,7 +3643,7 @@ theorem productRowTruncatedOffsetAddStep_get_target
   exact productRowWorkspaceTargetBit_get_testBit n bit x
 
 /-- One non-wrapping load/add/unload row slice preserves the denominator. -/
-theorem productRowTruncatedOffsetAddStep_get_denominator
+lemma productRowTruncatedOffsetAddStep_get_denominator
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedOffsetAddStep n offset x).1.1.denominator =
       x.1.1.denominator := by
@@ -3649,7 +3653,7 @@ theorem productRowTruncatedOffsetAddStep_get_denominator
   rw [productRowTruncatedShiftedLoadStep_get_denominator]
 
 /-- One non-wrapping row slice preserves every future clean loaded-row value. -/
-theorem productRowTruncatedCleanLoadedRow_eq_after_offset
+lemma productRowTruncatedCleanLoadedRow_eq_after_offset
     (n : Nat) (future offset : Fin n) (x : PipelineWithProductRowWork n) :
     productRowTruncatedCleanLoadedRow n future
         (productRowTruncatedOffsetAddStep n offset x) =
@@ -3676,7 +3680,7 @@ theorem productRowTruncatedCleanLoadedRow_eq_after_offset
       n future target hne]
 
 /-- One non-wrapping load/add/unload row slice preserves the cleanup flag. -/
-theorem productRowTruncatedOffsetAddStep_get_flagBit
+lemma productRowTruncatedOffsetAddStep_get_flagBit
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowTruncatedOffsetAddStep n offset x) =
@@ -3688,7 +3692,7 @@ theorem productRowTruncatedOffsetAddStep_get_flagBit
 
 /-- One non-wrapping load/add/unload row slice restores clean temporary carry
 work when started from clean carry work. -/
-theorem productRowTruncatedOffsetAddStep_get_carryWork_clean
+lemma productRowTruncatedOffsetAddStep_get_carryWork_clean
     (n : Nat) (offset : Fin n) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n)
     (hwork :
@@ -3705,7 +3709,7 @@ theorem productRowTruncatedOffsetAddStep_get_carryWork_clean
   exact hwork k
 
 /-- One non-wrapping load/add/unload row slice restores a clean product row. -/
-theorem productRowTruncatedOffsetAddStep_get_row_clean
+lemma productRowTruncatedOffsetAddStep_get_row_clean
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     (productRowTruncatedOffsetAddStep n offset x).2 = 0 := by
@@ -3752,7 +3756,7 @@ theorem productRowTruncatedOffsetAddStep_get_row_clean
 
 /-- Clean flag/work endpoint for one non-wrapping row slice: the quotient
 scratch receives the row loaded by the filtered shifted-copy stage. -/
-theorem productRowTruncatedOffsetAddStep_get_quotientScratch_add_loadedRow
+lemma productRowTruncatedOffsetAddStep_get_quotientScratch_add_loadedRow
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -3790,7 +3794,7 @@ def productRowOffsetAddStep (n : Nat) (offset : Fin n) :
         (productRowControlledShiftedLoadStep n offset x))
 
 /-- One load/add/unload row slice restores the shifted row bit. -/
-theorem productRowOffsetAddStep_get_shiftedRowBit
+lemma productRowOffsetAddStep_get_shiftedRowBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceShiftedRowWord n offset).bit i).get
         (productRowOffsetAddStep n offset x) =
@@ -3825,7 +3829,7 @@ theorem productRowOffsetAddStep_get_shiftedRowBit
     simp
 
 /-- One load/add/unload row slice preserves every product-row bit. -/
-theorem productRowOffsetAddStep_get_rowBit
+lemma productRowOffsetAddStep_get_rowBit
     (n : Nat) (offset bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceRowWord n).bit bit).get
         (productRowOffsetAddStep n offset x) =
@@ -3836,7 +3840,7 @@ theorem productRowOffsetAddStep_get_rowBit
     productRowOffsetAddStep_get_shiftedRowBit n offset shiftedBit x
 
 /-- One load/add/unload row slice preserves the product-row workspace value. -/
-theorem productRowOffsetAddStep_get_row
+lemma productRowOffsetAddStep_get_row
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowOffsetAddStep n offset x).2 = x.2 := by
   apply PlainAdder.Schedule.PowerOfTwo.word_eq_of_testBit_eq
@@ -3847,7 +3851,7 @@ theorem productRowOffsetAddStep_get_row
   exact productRowWorkspaceRowBit_get_testBit n bit x
 
 /-- One load/add/unload row slice preserves an inverse-scratch readout. -/
-theorem productRowOffsetAddStep_get_inverseScratchBit
+lemma productRowOffsetAddStep_get_inverseScratchBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit i).get
         (productRowOffsetAddStep n offset x) =
@@ -3878,7 +3882,7 @@ theorem productRowOffsetAddStep_get_inverseScratchBit
   rw [productRowControlledShiftedLoadStep_get_pipelineBit]
 
 /-- One load/add/unload row slice preserves a numerator readout. -/
-theorem productRowOffsetAddStep_get_numeratorBit
+lemma productRowOffsetAddStep_get_numeratorBit
     (n : Nat) (offset i : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit i).get
         (productRowOffsetAddStep n offset x) =
@@ -3909,7 +3913,7 @@ theorem productRowOffsetAddStep_get_numeratorBit
   rw [productRowControlledShiftedLoadStep_get_pipelineBit]
 
 /-- One row slice preserves every future clean loaded-row value. -/
-theorem productRowCleanLoadedRow_eq_after_offset
+lemma productRowCleanLoadedRow_eq_after_offset
     (n : Nat) (future offset : Fin n) (x : PipelineWithProductRowWork n) :
     productRowCleanLoadedRow n future (productRowOffsetAddStep n offset x) =
       productRowCleanLoadedRow n future x := by
@@ -3923,7 +3927,7 @@ theorem productRowCleanLoadedRow_eq_after_offset
   rw [productRowOffsetAddStep_get_numeratorBit]
 
 /-- One load/add/unload row slice preserves the cleanup flag. -/
-theorem productRowOffsetAddStep_get_flagBit
+lemma productRowOffsetAddStep_get_flagBit
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowOffsetAddStep n offset x) =
@@ -3935,7 +3939,7 @@ theorem productRowOffsetAddStep_get_flagBit
 
 /-- One load/add/unload row slice restores clean temporary carry work when
 started from clean carry work. -/
-theorem productRowOffsetAddStep_get_carryWork_clean
+lemma productRowOffsetAddStep_get_carryWork_clean
     (n : Nat) (offset : Fin n) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n)
     (hwork :
@@ -3953,7 +3957,7 @@ theorem productRowOffsetAddStep_get_carryWork_clean
 
 /-- Clean flag/work endpoint for one load/add/unload row slice: the quotient
 scratch receives the row loaded by the shifted copy stage. -/
-theorem productRowOffsetAddStep_get_quotientScratch_add_loadedRow
+lemma productRowOffsetAddStep_get_quotientScratch_add_loadedRow
     (n : Nat) (offset : Fin n) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -3990,14 +3994,14 @@ def productRowOffsetAddProgram (n : Nat) (offset : Fin n) :
 
 /-- The one-offset row-slice program realizes its folded load/add/unload
 semantics, tying correctness and resource accounting to the same gate object. -/
-theorem productRowOffsetAdd_realizes (n : Nat) (offset : Fin n) :
+lemma productRowOffsetAdd_realizes (n : Nat) (offset : Fin n) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowOffsetAddProgram n offset)
+      (productRowOffsetAddProgram n offset) environment
       (productRowOffsetAddStep n offset) := by
   have htail :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
         (UnitaryCircuit.seq (productRowAddProgram n)
-          (productRowControlledShiftedUnloadProgram n offset))
+          (productRowControlledShiftedUnloadProgram n offset)) environment
         (fun x : PipelineWithProductRowWork n =>
           productRowControlledShiftedUnloadStep n offset
             (productRowAddStep n x)) :=
@@ -4008,7 +4012,7 @@ theorem productRowOffsetAdd_realizes (n : Nat) (offset : Fin n) :
       (productRowControlledShiftedUnload_realizes n offset)
   have hfull :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-        (productRowOffsetAddProgram n offset)
+        (productRowOffsetAddProgram n offset) environment
         (productRowOffsetAddStep n offset) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := productRowControlledShiftedLoadStep n offset)
@@ -4068,7 +4072,7 @@ def productRowTruncatedOffsetsCleanLoadedSum (n : Nat) :
 
 /-- Closed form for a folded list of non-wrapping clean loaded rows as a sum
 of controlled shifted numerators. -/
-theorem productRowTruncatedOffsetsCleanLoadedSum_eq_shiftedNumeratorListSum
+lemma productRowTruncatedOffsetsCleanLoadedSum_eq_shiftedNumeratorListSum
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n) :
     productRowTruncatedOffsetsCleanLoadedSum n offsets x =
       (offsets.map fun offset =>
@@ -4086,7 +4090,7 @@ theorem productRowTruncatedOffsetsCleanLoadedSum_eq_shiftedNumeratorListSum
 
 /-- A non-wrapping row slice preserves the clean-loaded-row sum for any future
 offset list. -/
-theorem productRowTruncatedOffsetsCleanLoadedSum_eq_after_offset
+lemma productRowTruncatedOffsetsCleanLoadedSum_eq_after_offset
     (n : Nat) (offsets : List (Fin n)) (offset : Fin n)
     (x : PipelineWithProductRowWork n) :
     productRowTruncatedOffsetsCleanLoadedSum n offsets
@@ -4102,7 +4106,7 @@ theorem productRowTruncatedOffsetsCleanLoadedSum_eq_after_offset
 
 /-- Starting from a clean product row, the recursive non-wrapping loaded-row
 sum is the clean loaded-row sum read from the initial source pipeline. -/
-theorem productRowTruncatedOffsetsLoadedSum_eq_cleanLoadedSum
+lemma productRowTruncatedOffsetsLoadedSum_eq_cleanLoadedSum
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     productRowTruncatedOffsetsLoadedSum n offsets x =
@@ -4127,7 +4131,7 @@ theorem productRowTruncatedOffsetsLoadedSum_eq_cleanLoadedSum
 
 /-- Folding any non-wrapping row-slice list preserves inverse-scratch
 readouts. -/
-theorem productRowTruncatedOffsetsStep_get_inverseScratchBit
+lemma productRowTruncatedOffsetsStep_get_inverseScratchBit
     (n : Nat) (offsets : List (Fin n)) (bit : Fin n)
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit bit).get
@@ -4144,7 +4148,7 @@ theorem productRowTruncatedOffsetsStep_get_inverseScratchBit
             n offset bit x)
 
 /-- Folding any non-wrapping row-slice list preserves numerator readouts. -/
-theorem productRowTruncatedOffsetsStep_get_numeratorBit
+lemma productRowTruncatedOffsetsStep_get_numeratorBit
     (n : Nat) (offsets : List (Fin n)) (bit : Fin n)
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit bit).get
@@ -4160,7 +4164,7 @@ theorem productRowTruncatedOffsetsStep_get_numeratorBit
           (productRowTruncatedOffsetAddStep_get_numeratorBit n offset bit x)
 
 /-- Folding any non-wrapping row-slice list preserves target readouts. -/
-theorem productRowTruncatedOffsetsStep_get_targetBit
+lemma productRowTruncatedOffsetsStep_get_targetBit
     (n : Nat) (offsets : List (Fin n)) (bit : Fin n)
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit bit).get
@@ -4176,7 +4180,7 @@ theorem productRowTruncatedOffsetsStep_get_targetBit
           (productRowTruncatedOffsetAddStep_get_targetBit n offset bit x)
 
 /-- Folding any non-wrapping row-slice list preserves the target field. -/
-theorem productRowTruncatedOffsetsStep_get_target
+lemma productRowTruncatedOffsetsStep_get_target
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedOffsetsStep n offsets x).1.1.target =
       x.1.1.target := by
@@ -4188,7 +4192,7 @@ theorem productRowTruncatedOffsetsStep_get_target
   exact productRowWorkspaceTargetBit_get_testBit n bit x
 
 /-- Folding any non-wrapping row-slice list preserves the denominator. -/
-theorem productRowTruncatedOffsetsStep_get_denominator
+lemma productRowTruncatedOffsetsStep_get_denominator
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n) :
     (productRowTruncatedOffsetsStep n offsets x).1.1.denominator =
       x.1.1.denominator := by
@@ -4202,7 +4206,7 @@ theorem productRowTruncatedOffsetsStep_get_denominator
           (productRowTruncatedOffsetAddStep_get_denominator n offset x)
 
 /-- Folding any non-wrapping row-slice list preserves the cleanup flag. -/
-theorem productRowTruncatedOffsetsStep_get_flagBit
+lemma productRowTruncatedOffsetsStep_get_flagBit
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowTruncatedOffsetsStep n offsets x) =
@@ -4218,7 +4222,7 @@ theorem productRowTruncatedOffsetsStep_get_flagBit
 
 /-- Folding any non-wrapping row-slice list restores clean temporary carry work
 when started from clean carry work. -/
-theorem productRowTruncatedOffsetsStep_get_carryWork_clean
+lemma productRowTruncatedOffsetsStep_get_carryWork_clean
     (n : Nat) (offsets : List (Fin n)) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n)
     (hwork :
@@ -4238,7 +4242,7 @@ theorem productRowTruncatedOffsetsStep_get_carryWork_clean
         n offset k x hwork
 
 /-- Folding non-wrapping row slices restores a clean product row. -/
-theorem productRowTruncatedOffsetsStep_get_row_clean
+lemma productRowTruncatedOffsetsStep_get_row_clean
     (n : Nat) (offsets : List (Fin n))
     (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
@@ -4253,7 +4257,7 @@ theorem productRowTruncatedOffsetsStep_get_row_clean
 
 /-- Folding non-wrapping row slices adds their concrete filtered loaded-row sum
 into quotient scratch. -/
-theorem productRowTruncatedOffsetsStep_get_quotientScratch_add_loadedSum
+lemma productRowTruncatedOffsetsStep_get_quotientScratch_add_loadedSum
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -4288,16 +4292,16 @@ theorem productRowTruncatedOffsetsStep_get_quotientScratch_add_loadedSum
 
 /-- The non-wrapping folded offset-list program realizes its folded row-slice
 semantics on the same filtered gate objects used by each slice. -/
-theorem productRowTruncatedOffsets_realizes
+lemma productRowTruncatedOffsets_realizes
     (n : Nat) (offsets : List (Fin n)) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowTruncatedOffsetsProgram n offsets)
+      (productRowTruncatedOffsetsProgram n offsets) environment
       (productRowTruncatedOffsetsStep n offsets) := by
   induction offsets with
   | nil =>
       simpa [productRowTruncatedOffsetsProgram,
         productRowTruncatedOffsetsStep] using
-        UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+        UnitaryCircuit.Realizes.identityAt (environment := environment) AlgorithmGate.model .empty
           (pipelineWithProductRowWorkEncoding n) (QubitLayout.canonical _)
   | cons offset rest ih =>
       simpa [productRowTruncatedOffsetsProgram,
@@ -4323,7 +4327,7 @@ def productRowsTruncatedStep (n : Nat) :
 
 /-- The full non-wrapping product-row program preserves inverse-scratch
 readouts. -/
-theorem productRowsTruncatedStep_get_inverseScratchBit
+lemma productRowsTruncatedStep_get_inverseScratchBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit bit).get
         (productRowsTruncatedStep n x) =
@@ -4332,7 +4336,7 @@ theorem productRowsTruncatedStep_get_inverseScratchBit
     n (productRowOffsets n) bit x
 
 /-- The full non-wrapping product-row program preserves inverse scratch. -/
-theorem productRowsTruncatedStep_get_inverseScratch
+lemma productRowsTruncatedStep_get_inverseScratch
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowsTruncatedStep n x).1.1.inverseScratch =
       x.1.1.inverseScratch := by
@@ -4344,7 +4348,7 @@ theorem productRowsTruncatedStep_get_inverseScratch
   exact productRowWorkspaceInverseScratchBit_get_testBit n bit x
 
 /-- The full non-wrapping product-row program preserves numerator readouts. -/
-theorem productRowsTruncatedStep_get_numeratorBit
+lemma productRowsTruncatedStep_get_numeratorBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit bit).get
         (productRowsTruncatedStep n x) =
@@ -4353,7 +4357,7 @@ theorem productRowsTruncatedStep_get_numeratorBit
     n (productRowOffsets n) bit x
 
 /-- The full non-wrapping product-row program preserves the numerator. -/
-theorem productRowsTruncatedStep_get_numerator
+lemma productRowsTruncatedStep_get_numerator
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowsTruncatedStep n x).1.1.numerator = x.1.1.numerator := by
   apply PlainAdder.Schedule.PowerOfTwo.word_eq_of_testBit_eq
@@ -4364,7 +4368,7 @@ theorem productRowsTruncatedStep_get_numerator
   exact productRowWorkspaceNumeratorBit_get_testBit n bit x
 
 /-- The full non-wrapping product-row program preserves target readouts. -/
-theorem productRowsTruncatedStep_get_targetBit
+lemma productRowsTruncatedStep_get_targetBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceTargetWord n).bit bit).get
         (productRowsTruncatedStep n x) =
@@ -4373,33 +4377,33 @@ theorem productRowsTruncatedStep_get_targetBit
     n (productRowOffsets n) bit x
 
 /-- The full non-wrapping product-row program preserves the target field. -/
-theorem productRowsTruncatedStep_get_target
+lemma productRowsTruncatedStep_get_target
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowsTruncatedStep n x).1.1.target = x.1.1.target :=
   productRowTruncatedOffsetsStep_get_target n (productRowOffsets n) x
 
 /-- The full non-wrapping product-row program preserves the denominator. -/
-theorem productRowsTruncatedStep_get_denominator
+lemma productRowsTruncatedStep_get_denominator
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowsTruncatedStep n x).1.1.denominator = x.1.1.denominator :=
   productRowTruncatedOffsetsStep_get_denominator n (productRowOffsets n) x
 
 /-- The full non-wrapping product-row program preserves the cleanup flag. -/
-theorem productRowsTruncatedStep_get_flagBit
+lemma productRowsTruncatedStep_get_flagBit
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get (productRowsTruncatedStep n x) =
       (productRowWorkspaceFlagBit n).get x := by
   exact productRowTruncatedOffsetsStep_get_flagBit n (productRowOffsets n) x
 
 /-- The full non-wrapping product-row program preserves the cleanup flag field. -/
-theorem productRowsTruncatedStep_get_flag
+lemma productRowsTruncatedStep_get_flag
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowsTruncatedStep n x).1.1.flag = x.1.1.flag := by
   simpa using productRowsTruncatedStep_get_flagBit n x
 
 /-- The full non-wrapping product-row program restores clean temporary carry
 work when started from clean carry work. -/
-theorem productRowsTruncatedStep_get_carryWork_clean
+lemma productRowsTruncatedStep_get_carryWork_clean
     (n : Nat) (j : Fin (n - 1)) (x : PipelineWithProductRowWork n)
     (hwork :
       ∀ k : Fin (n - 1),
@@ -4411,7 +4415,7 @@ theorem productRowsTruncatedStep_get_carryWork_clean
     n (productRowOffsets n) j x hwork
 
 /-- The full non-wrapping product-row program restores a clean product row. -/
-theorem productRowsTruncatedStep_get_row_clean
+lemma productRowsTruncatedStep_get_row_clean
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     (productRowsTruncatedStep n x).2 = 0 := by
@@ -4420,7 +4424,7 @@ theorem productRowsTruncatedStep_get_row_clean
 
 /-- The full non-wrapping product-row program adds its concrete filtered
 loaded-row sum into quotient scratch. -/
-theorem productRowsTruncatedStep_get_quotientScratch_add_loadedSum
+lemma productRowsTruncatedStep_get_quotientScratch_add_loadedSum
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -4434,7 +4438,7 @@ theorem productRowsTruncatedStep_get_quotientScratch_add_loadedSum
 
 /-- The full non-wrapping product-row program, from a clean row, adds the
 clean loaded-row sum into quotient scratch. -/
-theorem productRowsTruncatedStep_get_quotientScratch_add_cleanLoadedSum
+lemma productRowsTruncatedStep_get_quotientScratch_add_cleanLoadedSum
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -4451,7 +4455,7 @@ theorem productRowsTruncatedStep_get_quotientScratch_add_cleanLoadedSum
 
 /-- Closed form for the full non-wrapping clean loaded-row sum over all
 inverse-scratch offsets. -/
-theorem productRowsTruncatedCleanLoadedSum_eq_shiftedNumeratorFinSum
+lemma productRowsTruncatedCleanLoadedSum_eq_shiftedNumeratorFinSum
     (n : Nat) (x : PipelineWithProductRowWork n) :
     productRowTruncatedOffsetsCleanLoadedSum n (productRowOffsets n) x =
       ∑ offset : Fin n,
@@ -4465,7 +4469,7 @@ theorem productRowsTruncatedCleanLoadedSum_eq_shiftedNumeratorFinSum
 
 /-- The full non-wrapping clean loaded-row sum is the low `n`-bit product of
 the numerator and inverse scratch. -/
-theorem productRowTruncatedOffsetsCleanLoadedSum_eq_mul
+lemma productRowTruncatedOffsetsCleanLoadedSum_eq_mul
     (n : Nat) (x : PipelineWithProductRowWork n) :
     productRowTruncatedOffsetsCleanLoadedSum n (productRowOffsets n) x =
       x.1.1.numerator * x.1.1.inverseScratch := by
@@ -4475,7 +4479,7 @@ theorem productRowTruncatedOffsetsCleanLoadedSum_eq_mul
 
 /-- From a clean row, the concrete loaded-row sum is the low `n`-bit product of
 the numerator and inverse scratch. -/
-theorem productRowTruncatedOffsetsLoadedSum_eq_mul
+lemma productRowTruncatedOffsetsLoadedSum_eq_mul
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     productRowTruncatedOffsetsLoadedSum n (productRowOffsets n) x =
@@ -4486,7 +4490,7 @@ theorem productRowTruncatedOffsetsLoadedSum_eq_mul
 
 /-- The full non-wrapping product-row program, from clean work, adds the actual
 low `n`-bit numerator/inverse-scratch product into quotient scratch. -/
-theorem productRowsTruncatedStep_get_quotientScratch_add_product
+lemma productRowsTruncatedStep_get_quotientScratch_add_product
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -4505,7 +4509,7 @@ are the local facts needed by the product-workspace wrapper: the same gate
 object realizes the quotient-scratch product update while preserving the
 pipeline source/target fields it should not touch and cleaning temporary row
 and carry work [PZ03, ecc.tex:622-640; VBE95, 9511018.tex:333-350,591-618]. -/
-theorem productRowsTruncatedStep_cleanEndpoint
+lemma productRowsTruncatedStep_cleanEndpoint
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -4538,7 +4542,7 @@ theorem productRowsTruncatedStep_cleanEndpoint
   · exact productRowsTruncatedStep_get_row_clean n x hrow
 
 /-- State-level clean endpoint for the full non-wrapping product-row program. -/
-theorem productRowsTruncatedStep_cleanEndpoint_eq
+lemma productRowsTruncatedStep_cleanEndpoint_eq
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -4595,9 +4599,9 @@ theorem productRowsTruncatedStep_cleanEndpoint_eq
 
 /-- The full non-wrapping product-row program realizes its folded semantics on
 the same filtered base-gate object used for resource accounting. -/
-theorem productRowsTruncated_realizes (n : Nat) :
+lemma productRowsTruncated_realizes (n : Nat) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowsTruncatedProgram n) (productRowsTruncatedStep n) :=
+      (productRowsTruncatedProgram n) environment (productRowsTruncatedStep n) :=
   productRowTruncatedOffsets_realizes n (productRowOffsets n)
 
 /-- Fold a list of product-row offsets into one base-gate program. -/
@@ -4638,7 +4642,7 @@ def productRowOffsetsCleanLoadedSum (n : Nat) :
           productRowOffsetsCleanLoadedSum n rest x
 
 /-- A row slice preserves the clean-loaded-row sum for any future offset list. -/
-theorem productRowOffsetsCleanLoadedSum_eq_after_offset
+lemma productRowOffsetsCleanLoadedSum_eq_after_offset
     (n : Nat) (offsets : List (Fin n)) (offset : Fin n)
     (x : PipelineWithProductRowWork n) :
     productRowOffsetsCleanLoadedSum n offsets
@@ -4653,7 +4657,7 @@ theorem productRowOffsetsCleanLoadedSum_eq_after_offset
 
 /-- Starting from a clean product row, the recursive loaded-row sum is the clean
 loaded-row sum read from the initial source pipeline. -/
-theorem productRowOffsetsLoadedSum_eq_cleanLoadedSum
+lemma productRowOffsetsLoadedSum_eq_cleanLoadedSum
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0) :
     productRowOffsetsLoadedSum n offsets x =
@@ -4677,7 +4681,7 @@ theorem productRowOffsetsLoadedSum_eq_cleanLoadedSum
       rw [productRowOffsetsCleanLoadedSum_eq_after_offset n rest offset x]
 
 /-- Folding any list of row slices preserves every product-row bit. -/
-theorem productRowOffsetsStep_get_rowBit
+lemma productRowOffsetsStep_get_rowBit
     (n : Nat) (offsets : List (Fin n)) (bit : Fin n)
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceRowWord n).bit bit).get
@@ -4693,7 +4697,7 @@ theorem productRowOffsetsStep_get_rowBit
           (productRowOffsetAddStep_get_rowBit n offset bit x)
 
 /-- Folding any list of row slices preserves the product-row workspace value. -/
-theorem productRowOffsetsStep_get_row
+lemma productRowOffsetsStep_get_row
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n) :
     (productRowOffsetsStep n offsets x).2 = x.2 := by
   apply PlainAdder.Schedule.PowerOfTwo.word_eq_of_testBit_eq
@@ -4704,7 +4708,7 @@ theorem productRowOffsetsStep_get_row
   exact productRowWorkspaceRowBit_get_testBit n bit x
 
 /-- Folding any list of row slices preserves inverse-scratch readouts. -/
-theorem productRowOffsetsStep_get_inverseScratchBit
+lemma productRowOffsetsStep_get_inverseScratchBit
     (n : Nat) (offsets : List (Fin n)) (bit : Fin n)
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit bit).get
@@ -4720,7 +4724,7 @@ theorem productRowOffsetsStep_get_inverseScratchBit
           (productRowOffsetAddStep_get_inverseScratchBit n offset bit x)
 
 /-- Folding any list of row slices preserves numerator readouts. -/
-theorem productRowOffsetsStep_get_numeratorBit
+lemma productRowOffsetsStep_get_numeratorBit
     (n : Nat) (offsets : List (Fin n)) (bit : Fin n)
     (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit bit).get
@@ -4736,7 +4740,7 @@ theorem productRowOffsetsStep_get_numeratorBit
           (productRowOffsetAddStep_get_numeratorBit n offset bit x)
 
 /-- Folding any list of row slices preserves the cleanup flag. -/
-theorem productRowOffsetsStep_get_flagBit
+lemma productRowOffsetsStep_get_flagBit
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get
         (productRowOffsetsStep n offsets x) =
@@ -4752,7 +4756,7 @@ theorem productRowOffsetsStep_get_flagBit
 
 /-- Folding any list of row slices restores clean temporary carry work when
 started from clean carry work. -/
-theorem productRowOffsetsStep_get_carryWork_clean
+lemma productRowOffsetsStep_get_carryWork_clean
     (n : Nat) (offsets : List (Fin n)) (j : Fin (n - 1))
     (x : PipelineWithProductRowWork n)
     (hwork :
@@ -4771,7 +4775,7 @@ theorem productRowOffsetsStep_get_carryWork_clean
       exact productRowOffsetAddStep_get_carryWork_clean n offset k x hwork
 
 /-- Folding row slices adds the concrete loaded rows into quotient scratch. -/
-theorem productRowOffsetsStep_get_quotientScratch_add_loadedSum
+lemma productRowOffsetsStep_get_quotientScratch_add_loadedSum
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -4802,7 +4806,7 @@ theorem productRowOffsetsStep_get_quotientScratch_add_loadedSum
 
 /-- Folding row slices from a clean row adds the clean loaded-row sum into
 quotient scratch. -/
-theorem productRowOffsetsStep_get_quotientScratch_add_cleanLoadedSum
+lemma productRowOffsetsStep_get_quotientScratch_add_cleanLoadedSum
     (n : Nat) (offsets : List (Fin n)) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -4817,14 +4821,14 @@ theorem productRowOffsetsStep_get_quotientScratch_add_cleanLoadedSum
   rw [productRowOffsetsLoadedSum_eq_cleanLoadedSum n offsets x hrow]
 
 /-- The folded offset-list program realizes its folded row-slice semantics. -/
-theorem productRowOffsets_realizes (n : Nat) (offsets : List (Fin n)) :
+lemma productRowOffsets_realizes (n : Nat) (offsets : List (Fin n)) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowOffsetsProgram n offsets)
+      (productRowOffsetsProgram n offsets) environment
       (productRowOffsetsStep n offsets) := by
   induction offsets with
   | nil =>
       simpa [productRowOffsetsProgram, productRowOffsetsStep] using
-        UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+        UnitaryCircuit.Realizes.identityAt (environment := environment) AlgorithmGate.model .empty
           (pipelineWithProductRowWorkEncoding n) (QubitLayout.canonical _)
   | cons offset rest ih =>
       simpa [productRowOffsetsProgram, productRowOffsetsStep] using
@@ -4848,20 +4852,20 @@ def productRowsStep (n : Nat) :
   productRowOffsetsStep n (productRowOffsets n)
 
 /-- The full folded product-row program preserves every product-row bit. -/
-theorem productRowsStep_get_rowBit
+lemma productRowsStep_get_rowBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceRowWord n).bit bit).get (productRowsStep n x) =
       ((productRowWorkspaceRowWord n).bit bit).get x := by
   exact productRowOffsetsStep_get_rowBit n (productRowOffsets n) bit x
 
 /-- The full folded product-row program preserves the product-row workspace. -/
-theorem productRowsStep_get_row
+lemma productRowsStep_get_row
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowsStep n x).2 = x.2 := by
   exact productRowOffsetsStep_get_row n (productRowOffsets n) x
 
 /-- The full folded product-row program preserves inverse-scratch readouts. -/
-theorem productRowsStep_get_inverseScratchBit
+lemma productRowsStep_get_inverseScratchBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceInverseScratchWord n).bit bit).get
         (productRowsStep n x) =
@@ -4869,7 +4873,7 @@ theorem productRowsStep_get_inverseScratchBit
   exact productRowOffsetsStep_get_inverseScratchBit n (productRowOffsets n) bit x
 
 /-- The full folded product-row program preserves numerator readouts. -/
-theorem productRowsStep_get_numeratorBit
+lemma productRowsStep_get_numeratorBit
     (n : Nat) (bit : Fin n) (x : PipelineWithProductRowWork n) :
     ((productRowWorkspaceNumeratorWord n).bit bit).get
         (productRowsStep n x) =
@@ -4877,7 +4881,7 @@ theorem productRowsStep_get_numeratorBit
   exact productRowOffsetsStep_get_numeratorBit n (productRowOffsets n) bit x
 
 /-- The full folded product-row program preserves the cleanup flag. -/
-theorem productRowsStep_get_flagBit
+lemma productRowsStep_get_flagBit
     (n : Nat) (x : PipelineWithProductRowWork n) :
     (productRowWorkspaceFlagBit n).get (productRowsStep n x) =
       (productRowWorkspaceFlagBit n).get x := by
@@ -4885,7 +4889,7 @@ theorem productRowsStep_get_flagBit
 
 /-- The full folded product-row program restores clean temporary carry work
 when started from clean carry work. -/
-theorem productRowsStep_get_carryWork_clean
+lemma productRowsStep_get_carryWork_clean
     (n : Nat) (j : Fin (n - 1)) (x : PipelineWithProductRowWork n)
     (hwork :
       ∀ k : Fin (n - 1),
@@ -4897,7 +4901,7 @@ theorem productRowsStep_get_carryWork_clean
 
 /-- The full folded product-row program adds its concrete loaded-row sum into
 quotient scratch. -/
-theorem productRowsStep_get_quotientScratch_add_loadedSum
+lemma productRowsStep_get_quotientScratch_add_loadedSum
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
     (hwork :
@@ -4911,7 +4915,7 @@ theorem productRowsStep_get_quotientScratch_add_loadedSum
 
 /-- The full folded product-row program, from a clean row, adds the clean
 loaded-row sum into quotient scratch. -/
-theorem productRowsStep_get_quotientScratch_add_cleanLoadedSum
+lemma productRowsStep_get_quotientScratch_add_cleanLoadedSum
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -4926,9 +4930,9 @@ theorem productRowsStep_get_quotientScratch_add_cleanLoadedSum
 
 /-- The full shifted-row product program realizes its folded semantics on the
 same base-gate object used for resource accounting. -/
-theorem productRows_realizes (n : Nat) :
+lemma productRows_realizes (n : Nat) :
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      (productRowsProgram n) (productRowsStep n) :=
+      (productRowsProgram n) environment (productRowsStep n) :=
   productRowOffsets_realizes n (productRowOffsets n)
 
 /-- Lift the quotient-target-add leg over an explicit product-compute
@@ -4947,10 +4951,10 @@ def pipelineWithProductWorkTargetAddProgram (n : Nat)
   UnitaryCircuit.onBinaryPrefix productEncoding.width (pipelineWithWorkProgram n)
 
 /-- The lifted actual circuit realizes target-add while preserving product work. -/
-theorem pipelineWithProductWorkTargetAdd_realizes (n : Nat)
+lemma pipelineWithProductWorkTargetAdd_realizes (n : Nat)
     {ProductWork : Type} (productEncoding : BinaryLabelEncoding ProductWork) :
     UnitaryCircuit.Realizes (pipelineWithProductWorkEncoding n productEncoding)
-      (pipelineWithProductWorkTargetAddProgram n productEncoding)
+      (pipelineWithProductWorkTargetAddProgram n productEncoding) environment
       (addQuotientToTargetWithProductWork n) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := productEncoding)
     (pipelineWithWork_realizes n)
@@ -4991,8 +4995,9 @@ structure DecomposedProductWithWorkspaceWitness (n : Nat)
       ((pipelineWithProductWorkEncoding n productEncoding).width)).toQuantum
   /-- Correctness of the product-compute program on full workspace labels. -/
   productRealizes :
+    ∀ (environment : OracleModel.empty.Interpretation),
     UnitaryCircuit.Realizes (pipelineWithProductWorkEncoding n productEncoding)
-      productProgram productStep
+      productProgram environment productStep
   /-- The supplied unproduct semantic action is a right inverse of product. -/
   product_rightInverse : ∀ x, productStep (unproductStep x) = x
 
@@ -5019,24 +5024,27 @@ def program {n : Nat} {ProductWork : Type}
 
 /-- The decomposed product-workspace program realizes the selected
 product/add/unproduct semantic update. -/
-theorem realizes {n : Nat} {ProductWork : Type}
+lemma realizes {n : Nat} {ProductWork : Type}
     {productEncoding : BinaryLabelEncoding ProductWork}
     (w : DecomposedProductWithWorkspaceWitness n productEncoding) :
     UnitaryCircuit.Realizes (pipelineWithProductWorkEncoding n productEncoding)
-      w.program w.step := by
+      w.program environment w.step := by
   have htarget :
       UnitaryCircuit.Realizes
         (pipelineWithProductWorkEncoding n productEncoding)
-        (pipelineWithProductWorkTargetAddProgram n productEncoding)
+        (pipelineWithProductWorkTargetAddProgram n productEncoding) environment
         (addQuotientToTargetWithProductWork n) :=
     pipelineWithProductWorkTargetAdd_realizes n productEncoding
   have hunproduct :
       UnitaryCircuit.Realizes
         (pipelineWithProductWorkEncoding n productEncoding)
-        (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.unproductStep :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.productRealizes
+        (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
+          w.unproductStep :=
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.productRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       w.product_rightInverse
   have htail :
@@ -5044,7 +5052,7 @@ theorem realizes {n : Nat} {ProductWork : Type}
         (pipelineWithProductWorkEncoding n productEncoding)
         (UnitaryCircuit.seq
           (pipelineWithProductWorkTargetAddProgram n productEncoding)
-          (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : PipelineWithProductWork n ProductWork =>
           w.unproductStep (addQuotientToTargetWithProductWork n x)) :=
     UnitaryCircuit.Realizes.seq
@@ -5054,20 +5062,20 @@ theorem realizes {n : Nat} {ProductWork : Type}
   have hfull :
       UnitaryCircuit.Realizes
         (pipelineWithProductWorkEncoding n productEncoding)
-        w.program w.step :=
+        w.program environment w.step :=
     UnitaryCircuit.Realizes.seq
       (firstStep := w.productStep)
       (secondStep := fun x : PipelineWithProductWork n ProductWork =>
         w.unproductStep (addQuotientToTargetWithProductWork n x))
-      w.productRealizes htail
+      (w.productRealizes (environment := environment)) htail
   simpa [program, step, reversibleProductStepWithWorkspace] using hfull
 
 /-- Encoded-basis correctness for product-workspace labels. -/
-theorem apply_ket {n : Nat} {ProductWork : Type}
+lemma apply_ket {n : Nat} {ProductWork : Type}
     {productEncoding : BinaryLabelEncoding ProductWork}
     (w : DecomposedProductWithWorkspaceWitness n productEncoding)
     (x : PipelineWithProductWork n ProductWork) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (pipelineWithProductWorkEncoding n productEncoding).width).basisEquiv.symm
@@ -5080,13 +5088,13 @@ theorem apply_ket {n : Nat} {ProductWork : Type}
           ((pipelineWithProductWorkEncoding n productEncoding).encode (w.step x))) :
         HilbertVector (QubitLayout.canonical
           (pipelineWithProductWorkEncoding n productEncoding).width).toQuantum.register) := by
-  exact applyVec_encoded_ket_of_realizes w.realizes x
+  exact applyVec_encoded_ket_of_realizes (w.realizes (environment := environment)) x
 
 
 
 /-- Linearizing this exact product-workspace circuit's strict event depth
 recovers its event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n : Nat} {ProductWork : Type}
+lemma resourcesFromEventDepth_eq_eventCost {n : Nat} {ProductWork : Type}
     {productEncoding : BinaryLabelEncoding ProductWork}
     (w : DecomposedProductWithWorkspaceWitness n productEncoding) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
@@ -5103,14 +5111,15 @@ noncomputable def productRowsUnstep (n : Nat) :
 
 /-- The folded shifted-row product semantics is surjective because the same
 base-gate program that realizes it is reversible on encoded labels. -/
-theorem productRowsStep_surjective (n : Nat) :
+lemma productRowsStep_surjective (n : Nat) :
     Function.Surjective (productRowsStep n) :=
   Finite.surjective_of_injective
-    (UnitaryCircuit.Realizes.injective (productRows_realizes n))
+    (UnitaryCircuit.Realizes.injective (productRows_realizes (environment :=
+      OracleModel.emptyInterpretation) n))
 
 /-- The selected semantic inverse is a right inverse for the folded shifted-row
 product semantics. -/
-theorem productRows_rightInverse (n : Nat) :
+lemma productRows_rightInverse (n : Nat) :
     ∀ x, productRowsStep n (productRowsUnstep n x) = x :=
   Function.rightInverse_invFun (productRowsStep_surjective n)
 
@@ -5122,23 +5131,25 @@ noncomputable def productRowsTruncatedUnstep (n : Nat) :
 /-- The folded non-wrapping product-row semantics is surjective because the
 same filtered base-gate program that realizes it is reversible on encoded
 labels. -/
-theorem productRowsTruncatedStep_surjective (n : Nat) :
+lemma productRowsTruncatedStep_surjective (n : Nat) :
     Function.Surjective (productRowsTruncatedStep n) :=
   Finite.surjective_of_injective
-    (UnitaryCircuit.Realizes.injective (productRowsTruncated_realizes n))
+    (UnitaryCircuit.Realizes.injective (productRowsTruncated_realizes
+      (environment := OracleModel.emptyInterpretation) n))
 
 /-- The selected semantic inverse is a right inverse for the folded
 non-wrapping product-row semantics. -/
-theorem productRowsTruncated_rightInverse (n : Nat) :
+lemma productRowsTruncated_rightInverse (n : Nat) :
     ∀ x, productRowsTruncatedStep n (productRowsTruncatedUnstep n x) = x :=
   Function.rightInverse_invFun (productRowsTruncatedStep_surjective n)
 
 /-- The selected semantic inverse for the folded non-wrapping product-row
 program is also a left inverse on product-step outputs. -/
-theorem productRowsTruncated_leftInverse_on_range (n : Nat) :
+lemma productRowsTruncated_leftInverse_on_range (n : Nat) :
     ∀ x, productRowsTruncatedUnstep n (productRowsTruncatedStep n x) = x := by
   intro x
-  apply UnitaryCircuit.Realizes.injective (productRowsTruncated_realizes n)
+  apply UnitaryCircuit.Realizes.injective (productRowsTruncated_realizes
+      (environment := OracleModel.emptyInterpretation) n)
   rw [productRowsTruncated_rightInverse n]
 
 /-- Product-workspace witness obtained from the concrete folded shifted-row
@@ -5151,14 +5162,15 @@ noncomputable def productRowsDecomposedWitness (n : Nat) :
   productStep := productRowsTruncatedStep n
   unproductStep := productRowsTruncatedUnstep n
   productProgram := productRowsTruncatedProgram n
-  productRealizes := productRowsTruncated_realizes n
+  productRealizes := fun environment =>
+    productRowsTruncated_realizes (environment := environment) n
   product_rightInverse := productRowsTruncated_rightInverse n
 
 /-- Clean endpoint facts exposed through the concrete product-workspace witness.
 This is the review handle for the product-workspace compute leg: the witness's
 own `productProgram` realizes the product step whose clean endpoint is
 summarized here [PZ03, ecc.tex:622-640; VBE95, 9511018.tex:333-350,591-618]. -/
-theorem productRowsDecomposedWitness_product_cleanEndpoint
+lemma productRowsDecomposedWitness_product_cleanEndpoint
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -5189,7 +5201,7 @@ theorem productRowsDecomposedWitness_product_cleanEndpoint
 witness.  This is the quotient-product compute leg as an equality of the same
 labels used by the gate program [PZ03, ecc.tex:622-640; VBE95,
 9511018.tex:333-350,591-618]. -/
-theorem productRowsDecomposedWitness_product_cleanEndpoint_eq
+lemma productRowsDecomposedWitness_product_cleanEndpoint_eq
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -5202,7 +5214,7 @@ theorem productRowsDecomposedWitness_product_cleanEndpoint_eq
     productRowsTruncatedStep_cleanEndpoint_eq n x hrow hflag hwork
 
 /-- Clean pipeline endpoint for the work-aware target-add leg. -/
-theorem addQuotientToTargetWithWork_cleanEndpoint
+lemma addQuotientToTargetWithWork_cleanEndpoint
     (n : Nat) (s : PipelineState (2 ^ n)) (hflag : s.flag = false) :
     addQuotientToTargetWithWork n (s, cleanWork n) =
       (addQuotientToTarget s, cleanWork n) := by
@@ -5224,7 +5236,7 @@ theorem addQuotientToTargetWithWork_cleanEndpoint
 
 /-- Clean endpoint for the target-add leg lifted over the concrete product-row
 workspace [PZ03, ecc.tex:622-640; VBE95, 9511018.tex:237-264,591-618]. -/
-theorem addQuotientToTargetWithProductRowWork_cleanEndpoint
+lemma addQuotientToTargetWithProductRowWork_cleanEndpoint
     (n : Nat) (s : PipelineState (2 ^ n)) (hflag : s.flag = false) :
     addQuotientToTargetWithProductWork n
         ((s, cleanWork n), (0 : ProductRowWork n)) =
@@ -5237,7 +5249,7 @@ segment.  The same product-row gate program computes the quotient product,
 the lifted target-add consumes it, and the inverse product-row program restores
 the product row and carry workspace [PZ03, ecc.tex:622-640; VBE95,
 9511018.tex:333-350,591-618]. -/
-theorem productRowsDecomposedWitness_cleanEndpoint_eq
+lemma productRowsDecomposedWitness_cleanEndpoint_eq
     (n : Nat) (x : PipelineWithProductRowWork n)
     (hrow : x.2 = 0)
     (hflag : (productRowWorkspaceFlagBit n).get x = false)
@@ -5312,13 +5324,13 @@ def subProductFromQuotientScratchWithWork (n : Nat) :
     PipelineWithWork n -> PipelineWithWork n
   | (s, work) => (subProductFromQuotientScratch s, work)
 
-@[simp] theorem addInverseToScratchWithWork_subInverseFromScratchWithWork
+@[simp] lemma addInverseToScratchWithWork_subInverseFromScratchWithWork
     (n : Nat) (x : PipelineWithWork n) :
     addInverseToScratchWithWork n (subInverseFromScratchWithWork n x) = x := by
   rcases x with ⟨s, work⟩
   simp [addInverseToScratchWithWork, subInverseFromScratchWithWork]
 
-@[simp] theorem addProductToQuotientScratchWithWork_subProductFromQuotientScratchWithWork
+@[simp] lemma addProductToQuotientScratchWithWork_subProductFromQuotientScratchWithWork
     (n : Nat) (x : PipelineWithWork n) :
     addProductToQuotientScratchWithWork n
       (subProductFromQuotientScratchWithWork n x) = x := by
@@ -5341,7 +5353,7 @@ def reversiblePipelineStepWithWork (n : Nat) :
 
 /-- The work-aware decomposed pipeline agrees with the clean public division
 action when scratch, flag, and carry work start clean. -/
-theorem reversiblePipelineStepWithWork_initial
+lemma reversiblePipelineStepWithWork_initial
     (n : Nat) (u : (ZMod (2 ^ n))ˣ) (v z : ZMod (2 ^ n)) :
     reversiblePipelineStepWithWork n (initial u v z, cleanWork n) =
       (({ denominator := u
@@ -5388,7 +5400,7 @@ def subInverseFromScratchWithProductRowWork (n : Nat) :
     PipelineWithProductRowWork n -> PipelineWithProductRowWork n
   | (pipeline, row) => (subInverseFromScratchWithWork n pipeline, row)
 
-@[simp] theorem addInverseToScratchWithProductRowWork_subInverse
+@[simp] lemma addInverseToScratchWithProductRowWork_subInverse
     (n : Nat) (x : PipelineWithProductRowWork n) :
     addInverseToScratchWithProductRowWork n
       (subInverseFromScratchWithProductRowWork n x) = x := by
@@ -5408,7 +5420,7 @@ def reversiblePipelineStepWithProductRowWork (n : Nat) :
 
 /-- The product-row-aware decomposed pipeline agrees with the clean public
 division action when scratch, flag, carry work, and product row start clean. -/
-theorem reversiblePipelineStepWithProductRowWork_initial
+lemma reversiblePipelineStepWithProductRowWork_initial
     (n : Nat) (u : (ZMod (2 ^ n))ˣ) (v z : ZMod (2 ^ n)) :
     reversiblePipelineStepWithProductRowWork n
         ((initial u v z, cleanWork n), (0 : ProductRowWork n)) =
@@ -5456,8 +5468,9 @@ structure DecomposedPipelineWithProductRowWitness (n : Nat) where
       ((pipelineWithProductRowWorkEncoding n).width)).toQuantum
   /-- Correctness of inverse computation on product-row-aware labels. -/
   inverseRealizes :
+    ∀ (environment : OracleModel.empty.Interpretation),
     UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-      inverseProgram (addInverseToScratchWithProductRowWork n)
+      inverseProgram environment (addInverseToScratchWithProductRowWork n)
 
 namespace DecomposedPipelineWithProductRowWitness
 
@@ -5472,28 +5485,30 @@ def program {n : Nat} (w : DecomposedPipelineWithProductRowWitness n) :
 
 /-- The product-row-aware decomposed program realizes the reversible division
 pipeline selected above. -/
-theorem realizes {n : Nat} (w : DecomposedPipelineWithProductRowWitness n) :
-    UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n) w.program
+lemma realizes {n : Nat} (w : DecomposedPipelineWithProductRowWitness n) :
+    UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n) w.program environment
       (reversiblePipelineStepWithProductRowWork n) := by
   have hproduct :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-        (productRowsDecomposedWitness n).program
+        (productRowsDecomposedWitness n).program environment
         (productRowsDecomposedWitness n).step := by
     simpa [PipelineWithProductRowWork, pipelineWithProductRowWorkEncoding] using
-      (productRowsDecomposedWitness n).realizes
+      ((productRowsDecomposedWitness n).realizes (environment := environment))
   have huninverse :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
-        (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+        (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
         (subInverseFromScratchWithProductRowWork n) :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.inverseRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.inverseRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       (addInverseToScratchWithProductRowWork_subInverse n)
   have htail :
       UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n)
         (UnitaryCircuit.seq (productRowsDecomposedWitness n).program
-          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : PipelineWithProductRowWork n =>
           subInverseFromScratchWithProductRowWork n
             ((productRowsDecomposedWitness n).step x)) :=
@@ -5502,21 +5517,21 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithProductRowWitness n) :
       (secondStep := subInverseFromScratchWithProductRowWork n)
       hproduct huninverse
   have hfull :
-      UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n) w.program
+      UnitaryCircuit.Realizes (pipelineWithProductRowWorkEncoding n) w.program environment
         (reversiblePipelineStepWithProductRowWork n) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := addInverseToScratchWithProductRowWork n)
       (secondStep := fun x : PipelineWithProductRowWork n =>
         subInverseFromScratchWithProductRowWork n
           ((productRowsDecomposedWitness n).step x))
-      w.inverseRealizes htail
+      (w.inverseRealizes (environment := environment)) htail
   simpa [program, reversiblePipelineStepWithProductRowWork] using hfull
 
 /-- Encoded-basis correctness for all product-row-aware division labels. -/
-theorem apply_ket {n : Nat}
+lemma apply_ket {n : Nat}
     (w : DecomposedPipelineWithProductRowWitness n)
     (x : PipelineWithProductRowWork n) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (pipelineWithProductRowWorkEncoding n).width).basisEquiv.symm
@@ -5530,14 +5545,14 @@ theorem apply_ket {n : Nat}
             (reversiblePipelineStepWithProductRowWork n x))) :
         HilbertVector (QubitLayout.canonical
           (pipelineWithProductRowWorkEncoding n).width).toQuantum.register) := by
-  exact applyVec_encoded_ket_of_realizes w.realizes x
+  exact applyVec_encoded_ket_of_realizes (w.realizes (environment := environment)) x
 
 /-- Clean encoded-basis action for the product-row-aware decomposed division
 wrapper. -/
-theorem apply_clean_ket {n : Nat}
+lemma apply_clean_ket {n : Nat}
     (w : DecomposedPipelineWithProductRowWitness n)
     (u : (ZMod (2 ^ n))ˣ) (v z : ZMod (2 ^ n)) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (pipelineWithProductRowWorkEncoding n).width).basisEquiv.symm
@@ -5553,14 +5568,14 @@ theorem apply_clean_ket {n : Nat}
         HilbertVector (QubitLayout.canonical
           (pipelineWithProductRowWorkEncoding n).width).toQuantum.register) := by
   simpa [reversiblePipelineStepWithProductRowWork_initial] using
-    applyVec_encoded_ket_of_realizes w.realizes
+    applyVec_encoded_ket_of_realizes (w.realizes (environment := environment))
       ((initial u v z, cleanWork n), (0 : ProductRowWork n))
 
 
 
 /-- Linearizing this exact product-row circuit's strict event depth recovers
 its event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n : Nat}
+lemma resourcesFromEventDepth_eq_eventCost {n : Nat}
     (w : DecomposedPipelineWithProductRowWitness n) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
@@ -5582,12 +5597,14 @@ structure DecomposedPipelineWithTargetAddWitness (n : Nat) where
       n).width)).toQuantum
   /-- Correctness of inverse computation on pipeline/work labels. -/
   inverseRealizes :
+    ∀ (environment : OracleModel.empty.Interpretation),
     UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-      inverseProgram (addInverseToScratchWithWork n)
+      inverseProgram environment (addInverseToScratchWithWork n)
   /-- Correctness of quotient-product computation on pipeline/work labels. -/
   productRealizes :
+    ∀ (environment : OracleModel.empty.Interpretation),
     UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-      productProgram (addProductToQuotientScratchWithWork n)
+      productProgram environment (addProductToQuotientScratchWithWork n)
 
 namespace DecomposedPipelineWithTargetAddWitness
 
@@ -5604,31 +5621,35 @@ def program {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
 
 /-- The decomposed work-aware program realizes the reversible division pipeline
 with explicit carry work. -/
-theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
-    UnitaryCircuit.Realizes (pipelineWithWorkEncoding n) w.program
+lemma realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
+    UnitaryCircuit.Realizes (pipelineWithWorkEncoding n) w.program environment
       (reversiblePipelineStepWithWork n) := by
   have hunproduct :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-        (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+        (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
         (subProductFromQuotientScratchWithWork n) :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.productRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.productRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       (addProductToQuotientScratchWithWork_subProductFromQuotientScratchWithWork n)
   have huninverse :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
-        (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+        (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
         (subInverseFromScratchWithWork n) :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.inverseRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.inverseRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       (addInverseToScratchWithWork_subInverseFromScratchWithWork n)
   have hcleanup :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
         (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : PipelineWithWork n =>
           subInverseFromScratchWithWork n
             (subProductFromQuotientScratchWithWork n x)) :=
@@ -5640,7 +5661,7 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
       UnitaryCircuit.Realizes (pipelineWithWorkEncoding n)
         (UnitaryCircuit.seq (pipelineWithWorkProgram n)
           (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-            (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))))
+            (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))) environment
         (fun x : PipelineWithWork n =>
           subInverseFromScratchWithWork n
             (subProductFromQuotientScratchWithWork n
@@ -5656,7 +5677,7 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
         (UnitaryCircuit.seq w.productProgram
           (UnitaryCircuit.seq (pipelineWithWorkProgram n)
             (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-              (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
+              (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))))) environment
         (fun x : PipelineWithWork n =>
           subInverseFromScratchWithWork n
             (subProductFromQuotientScratchWithWork n
@@ -5668,9 +5689,9 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
         subInverseFromScratchWithWork n
           (subProductFromQuotientScratchWithWork n
             (addQuotientToTargetWithWork n x)))
-      w.productRealizes htargetTail
+      (w.productRealizes (environment := environment)) htargetTail
   have hfull :
-      UnitaryCircuit.Realizes (pipelineWithWorkEncoding n) w.program
+      UnitaryCircuit.Realizes (pipelineWithWorkEncoding n) w.program environment
         (reversiblePipelineStepWithWork n) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := addInverseToScratchWithWork n)
@@ -5679,13 +5700,13 @@ theorem realizes {n : Nat} (w : DecomposedPipelineWithTargetAddWitness n) :
           (subProductFromQuotientScratchWithWork n
             (addQuotientToTargetWithWork n
               (addProductToQuotientScratchWithWork n x))))
-      w.inverseRealizes hproductTail
+      (w.inverseRealizes (environment := environment)) hproductTail
   simpa [program, reversiblePipelineStepWithWork] using hfull
 
 /-- Encoded-basis correctness for all work-aware division pipeline labels. -/
-theorem apply_ket {n : Nat}
+lemma apply_ket {n : Nat}
     (w : DecomposedPipelineWithTargetAddWitness n) (x : PipelineWithWork n) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (pipelineWithWorkEncoding n).width).basisEquiv.symm
@@ -5699,13 +5720,13 @@ theorem apply_ket {n : Nat}
             (reversiblePipelineStepWithWork n x))) :
         HilbertVector (QubitLayout.canonical
           (pipelineWithWorkEncoding n).width).toQuantum.register) := by
-  exact applyVec_encoded_ket_of_realizes w.realizes x
+  exact applyVec_encoded_ket_of_realizes (w.realizes (environment := environment)) x
 
 /-- Clean encoded-basis action for the work-aware decomposed division wrapper. -/
-theorem apply_clean_ket {n : Nat}
+lemma apply_clean_ket {n : Nat}
     (w : DecomposedPipelineWithTargetAddWitness n)
     (u : (ZMod (2 ^ n))ˣ) (v z : ZMod (2 ^ n)) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (pipelineWithWorkEncoding n).width).basisEquiv.symm
@@ -5727,14 +5748,14 @@ theorem apply_clean_ket {n : Nat}
         HilbertVector (QubitLayout.canonical
           (pipelineWithWorkEncoding n).width).toQuantum.register) := by
   simpa [reversiblePipelineStepWithWork_initial] using
-    applyVec_encoded_ket_of_realizes w.realizes
+    applyVec_encoded_ket_of_realizes (w.realizes (environment := environment))
       (initial u v z, cleanWork n)
 
 
 
 /-- Linearizing this exact work-aware circuit's strict event depth recovers
 its event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n : Nat}
+lemma resourcesFromEventDepth_eq_eventCost {n : Nat}
     (w : DecomposedPipelineWithTargetAddWitness n) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
@@ -5759,10 +5780,10 @@ def tupleWitness :
 
 /-- The concrete `ZMod 4` target-add-with-aux program realizes the pipeline
 target update after relabeling through the division field tuple. -/
-theorem realizes :
+lemma realizes :
     UnitaryCircuit.Realizes
       (fieldEncoding MAU.Addition.TargetAddWithAux.Mod4.residueEncoding)
-      tupleWitness.program addQuotientToTarget :=
+      tupleWitness.program environment addQuotientToTarget :=
   tupleWitness.pipeline_realizes
 
 end Mod4TargetAdd
@@ -5790,15 +5811,18 @@ structure DecomposedPipelineWitness (N : Nat) where
     (encoding.width)).toQuantum
   /-- Correctness of the inverse-computation program on encoded labels. -/
   inverseRealizes :
-    UnitaryCircuit.Realizes encoding inverseProgram
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding inverseProgram environment
       PipelineState.addInverseToScratch
   /-- Correctness of the quotient-product program on encoded labels. -/
   productRealizes :
-    UnitaryCircuit.Realizes encoding productProgram
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding productProgram environment
       PipelineState.addProductToQuotientScratch
   /-- Correctness of the target-add program on encoded labels. -/
   targetAddRealizes :
-    UnitaryCircuit.Realizes encoding targetAddProgram
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding targetAddProgram environment
       PipelineState.addQuotientToTarget
 
 namespace DecomposedPipelineWitness
@@ -5812,13 +5836,16 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
       UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
         ((PipelineState.fieldEncoding E).width)).toQuantum)
     (inverseRealizes :
-      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) inverseProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) inverseProgram environment
         PipelineState.addInverseToScratch)
     (productRealizes :
-      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) productProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) productProgram environment
         PipelineState.addProductToQuotientScratch)
     (targetAddRealizes :
-      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) targetAddProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) targetAddProgram environment
         PipelineState.addQuotientToTarget) :
     DecomposedPipelineWitness N where
   encoding := PipelineState.fieldEncoding E
@@ -5829,19 +5856,22 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
   productRealizes := productRealizes
   targetAddRealizes := targetAddRealizes
 
-@[simp] theorem ofFieldEncoding_encoding {N n : Nat}
+@[simp] lemma ofFieldEncoding_encoding {N n : Nat}
     (E : BinaryResidueEncoding N n)
     (inverseProgram productProgram targetAddProgram :
       UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
         ((PipelineState.fieldEncoding E).width)).toQuantum)
     (inverseRealizes :
-      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) inverseProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) inverseProgram environment
         PipelineState.addInverseToScratch)
     (productRealizes :
-      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) productProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) productProgram environment
         PipelineState.addProductToQuotientScratch)
     (targetAddRealizes :
-      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) targetAddProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (PipelineState.fieldEncoding E) targetAddProgram environment
         PipelineState.addQuotientToTarget) :
     (ofFieldEncoding E inverseProgram productProgram targetAddProgram
       inverseRealizes productRealizes targetAddRealizes).encoding =
@@ -5860,31 +5890,35 @@ def program (w : DecomposedPipelineWitness N) :
           (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
 
 /-- The decomposed program realizes the reversible division pipeline. -/
-theorem realizes (w : DecomposedPipelineWitness N) :
-    UnitaryCircuit.Realizes w.encoding w.program
+lemma realizes (w : DecomposedPipelineWitness N) :
+    UnitaryCircuit.Realizes w.encoding w.program environment
       (decomposedPipelineStep (N := N)) := by
   have hunproduct :
       UnitaryCircuit.Realizes w.encoding (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints
-        .empty))
+        .empty)) environment
         PipelineState.subProductFromQuotientScratch :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.productRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.productRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       PipelineState.addProductToQuotientScratch_subProductFromQuotientScratch
   have huninverse :
       UnitaryCircuit.Realizes w.encoding (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints
-        .empty))
+        .empty)) environment
         PipelineState.subInverseFromScratch :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.inverseRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.inverseRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       PipelineState.addInverseToScratch_subInverseFromScratch
   have hcleanup :
       UnitaryCircuit.Realizes w.encoding
         (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : PipelineState N =>
           PipelineState.subInverseFromScratch
             (PipelineState.subProductFromQuotientScratch x)) :=
@@ -5896,7 +5930,7 @@ theorem realizes (w : DecomposedPipelineWitness N) :
       UnitaryCircuit.Realizes w.encoding
         (UnitaryCircuit.seq w.targetAddProgram
           (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-            (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))))
+            (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))) environment
         (fun x : PipelineState N =>
           PipelineState.subInverseFromScratch
             (PipelineState.subProductFromQuotientScratch
@@ -5906,13 +5940,13 @@ theorem realizes (w : DecomposedPipelineWitness N) :
       (secondStep := fun x : PipelineState N =>
         PipelineState.subInverseFromScratch
           (PipelineState.subProductFromQuotientScratch x))
-      w.targetAddRealizes hcleanup
+      (w.targetAddRealizes (environment := environment)) hcleanup
   have hproductTail :
       UnitaryCircuit.Realizes w.encoding
         (UnitaryCircuit.seq w.productProgram
           (UnitaryCircuit.seq w.targetAddProgram
             (UnitaryCircuit.seq (w.productProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-              (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))))
+              (w.inverseProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))))) environment
         (fun x : PipelineState N =>
           PipelineState.subInverseFromScratch
             (PipelineState.subProductFromQuotientScratch
@@ -5924,9 +5958,9 @@ theorem realizes (w : DecomposedPipelineWitness N) :
         PipelineState.subInverseFromScratch
           (PipelineState.subProductFromQuotientScratch
             (PipelineState.addQuotientToTarget x)))
-      w.productRealizes htargetTail
+      (w.productRealizes (environment := environment)) htargetTail
   have hfull :
-      UnitaryCircuit.Realizes w.encoding w.program
+      UnitaryCircuit.Realizes w.encoding w.program environment
         (decomposedPipelineStep (N := N)) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := PipelineState.addInverseToScratch)
@@ -5935,13 +5969,13 @@ theorem realizes (w : DecomposedPipelineWitness N) :
           (PipelineState.subProductFromQuotientScratch
             (PipelineState.addQuotientToTarget
               (PipelineState.addProductToQuotientScratch x))))
-      w.inverseRealizes hproductTail
+      (w.inverseRealizes (environment := environment)) hproductTail
   simpa [program, decomposedPipelineStep, PipelineState.reversiblePipelineStep]
     using hfull
 
 /-- Encoded-basis correctness for all staged modular-division labels. -/
-theorem apply_ket (w : DecomposedPipelineWitness N) (x : PipelineState N) :
-    UnitaryCircuit.applyVec w.program
+lemma apply_ket (w : DecomposedPipelineWitness N) (x : PipelineState N) :
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x)) : HilbertVector
@@ -5951,13 +5985,13 @@ theorem apply_ket (w : DecomposedPipelineWitness N) (x : PipelineState N) :
           (w.encoding.encode (PipelineState.reversiblePipelineStep x))) :
         HilbertVector
           (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
-  applyVec_encoded_ket_of_realizes w.realizes x
+  applyVec_encoded_ket_of_realizes (w.realizes (environment := environment)) x
 
 /-- Clean staged action:
 `|enc(u,v,z,0,0,0)> -> |enc(u,v,z+v*u^{-1},0,0,0)>`. -/
-theorem apply_clean_ket (w : DecomposedPipelineWitness N)
+lemma apply_clean_ket (w : DecomposedPipelineWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode (PipelineState.initial u v z))) :
@@ -5979,21 +6013,21 @@ theorem apply_clean_ket (w : DecomposedPipelineWitness N)
 
 /-- Intrinsically normalized correctness for every staged label of the exact
 inverse / product / target-add / inverse-product / inverse-inverse circuit. -/
-theorem applyNormalized_ket (w : DecomposedPipelineWitness N)
+lemma applyNormalized_ket (w : DecomposedPipelineWitness N)
     (x : PipelineState N) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x))) =
       NormalizedVector.ket
         ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode (PipelineState.reversiblePipelineStep x))) :=
-  w.realizes.apply_encoded_ket x
+  (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Normalized clean staged action of the exact decomposed division circuit. -/
-theorem applyNormalized_clean_ket (w : DecomposedPipelineWitness N)
+lemma applyNormalized_clean_ket (w : DecomposedPipelineWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode (PipelineState.initial u v z)))) =
@@ -6054,7 +6088,7 @@ def eventGateCount (w : DecomposedPipelineWitness N)
 
 
 /-- Linearizing decomposed event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
+lemma resourcesFromEventDepth_eq_eventCost
     (w : DecomposedPipelineWitness N) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
@@ -6074,15 +6108,16 @@ structure StructuredCircuitWitness (N : Nat) where
   circuit : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
     (encoding.width)).toQuantum
   /-- Direct encoded-basis realization of the public division update. -/
-  realizes : UnitaryCircuit.Realizes encoding circuit (encodedStep (N := N))
+  realizes : ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding circuit environment (encodedStep (N := N))
 
 namespace StructuredCircuitWitness
 
 variable {N : Nat}
 
 /-- Encoded-basis correctness for all modular-division data labels. -/
-theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
-    UnitaryCircuit.applyVec w.circuit
+lemma apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
+    UnitaryCircuit.applyVec w.circuit environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x)) : HilbertVector
@@ -6092,13 +6127,14 @@ theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
           (w.encoding.encode x.addQuotientIntoTarget)) : HilbertVector
             (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
   by
-    simpa [encodedStep] using applyVec_encoded_ket_of_realizes w.realizes x
+    simpa [encodedStep] using applyVec_encoded_ket_of_realizes (w.realizes (environment :=
+      environment)) x
 
 /-- Clean public-form encoded-basis action:
 `|enc(u,v,z,0)> -> |enc(u,v,z+v*u^{-1},0)>`. -/
-theorem apply_clean_ket (w : StructuredCircuitWitness N)
+lemma apply_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
-    UnitaryCircuit.applyVec w.circuit
+    UnitaryCircuit.applyVec w.circuit environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
@@ -6122,8 +6158,8 @@ theorem apply_clean_ket (w : StructuredCircuitWitness N)
       ({ denominator := u, numerator := v, target := z, flag := false } : Data N)
 
 /-- Intrinsically normalized encoded-basis correctness. -/
-theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
-    w.circuit.applyNormalized
+lemma applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x))) =
@@ -6131,12 +6167,12 @@ theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
         ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode x.addQuotientIntoTarget)) := by
   simpa [encodedStep] using
-    w.realizes.apply_encoded_ket x
+    (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Normalized clean public-form action of the exact accounted circuit. -/
-theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
+lemma applyNormalized_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (v z : ZMod N) :
-    w.circuit.applyNormalized
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
@@ -6200,7 +6236,7 @@ def eventGateCount (w : StructuredCircuitWitness N)
 
 
 /-- Linearizing structured event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
+lemma resourcesFromEventDepth_eq_eventCost
     (w : StructuredCircuitWitness N) :
     w.circuit.resourcesFromEventDepth = w.circuit.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.circuit

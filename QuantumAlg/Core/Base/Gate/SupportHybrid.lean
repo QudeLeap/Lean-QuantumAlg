@@ -28,7 +28,7 @@ namespace HilbertVector
 
 /-- Every finite-dimensional state is the sum of its computational-basis
 amplitudes times the corresponding basis kets. -/
-theorem sum_amplitude_smul_ket {R : Register} (state : HilbertVector R) :
+lemma sum_amplitude_smul_ket {R : Register} (state : HilbertVector R) :
     (∑ index : R.Index,
       state index • (NormalizedVector.ket index : HilbertVector R)) = state := by
   apply WithLp.ofLp_injective
@@ -37,7 +37,7 @@ theorem sum_amplitude_smul_ket {R : Register} (state : HilbertVector R) :
 
 /-- Distinct computational-basis labels give the usual Pythagorean norm for a
 finite linear combination of basis kets. -/
-theorem norm_sum_smul_ket_eq_sqrt_sum_norm_sq
+lemma norm_sum_smul_ket_eq_sqrt_sum_norm_sq
     {R : Register} {Branch : Type*}
     (indices : Finset Branch) (source : Branch → R.Index)
     (sourceInjective : Function.Injective source)
@@ -93,7 +93,7 @@ namespace UnitaryOperator
 /-- If two unitaries agree on every computational-basis label in `good`,
 their outputs on an arbitrary state differ by at most twice the norm of the
 state's component supported on the complementary `bad` labels. -/
-theorem applyVec_sub_norm_le_two_mul_badPart_norm
+lemma applyVec_sub_norm_le_two_mul_badPart_norm
     {R : Register} (actual ideal : UnitaryOperator R)
     (good bad : Finset R.Index)
     (partition : good ∪ bad = Finset.univ)
@@ -169,7 +169,7 @@ theorem applyVec_sub_norm_le_two_mul_badPart_norm
 /-- Support-indexed form of the hybrid estimate.  The supplied branch family
 need only expand the particular state under comparison; the two operators may
 act arbitrarily on every basis label outside that family. -/
-theorem applyVec_sub_norm_le_two_mul_badBranchPart_norm
+lemma applyVec_sub_norm_le_two_mul_badBranchPart_norm
     {R : Register} {Branch : Type*} [DecidableEq Branch]
     (actual ideal : UnitaryOperator R)
     (branches good bad : Finset Branch)

@@ -100,7 +100,8 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   reset : LatticePairRecoveryReset.CallerFrameAvoids refs other
   recovery : LatticePairFactorRecovery.CallerFrameAvoids refs other
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Always execute the complete paid reset and the complete next pair recovery. -/
@@ -117,25 +118,25 @@ noncomputable def step (input : Input N)
     (LatticePairFactorRecovery.step input refs) store
 
 /-- The complete final store is the actual pair result on the reset store. -/
-theorem step_store (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma step_store (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (store : Store ctx) :
     (step input refs store).1 = (LatticePairFactorRecovery.step input refs
       (LatticePairRecoveryReset.step refs store).1).1 :=
   Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The chronological reset-and-recovery record executes on all histories and references. -/
-theorem into_execute (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_execute (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into input refs).execute Reference state = state.mapClassical (fun entry =>
+    (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_sequenceStoreRecord _ _ _ _
+  exact Circuit.execute_sequenceStoreRecord (environment := environment) _ _ _ _
     (LatticePairRecoveryReset.into_execute refs)
     (LatticePairFactorRecovery.into_execute input refs) Reference state
 
 /-- All original structural reads outside both footprints survive on every numerical input. -/
-theorem into_callerFrame (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_callerFrame (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other := by
@@ -143,7 +144,7 @@ theorem into_callerFrame (input : Input N) (refs : LatticePairFactorRecovery.Ref
   exact (LatticePairFactorRecovery.into_callerFrame input refs _ other avoids.recovery).trans
     (LatticePairRecoveryReset.into_callerFrame refs store other avoids.reset)
 
-private theorem quadraticInitial_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
+private lemma quadraticInitial_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
     (store : Store ctx) (frames : ResetFrames refs)
     (initial : QuadraticRecoveryGuarded.InitialConditions N store refs.quadratic) :
     QuadraticRecoveryGuarded.InitialConditions N (LatticePairRecoveryReset.step refs store).1
@@ -162,7 +163,7 @@ private theorem quadraticInitial_afterReset (refs : LatticePairFactorRecovery.Re
   exact initial.pair
 
 /-- The actual reset supplies all needed LLL initialization, with no caller premise. -/
-theorem factorInitial_afterReset (input : Input N) (generator : (ZMod N)ˣ)
+lemma factorInitial_afterReset (input : Input N) (generator : (ZMod N)ˣ)
     (refs : LatticePairFactorRecovery.Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     LatticePairFactorRecovery.InitialConditions input generator
@@ -180,7 +181,7 @@ theorem factorInitial_afterReset (input : Input N) (generator : (ZMod N)ˣ)
     quadraticInitial_afterReset refs store separation.resetFrames initial.quadratic⟩
 
 /-- The original pair measurement values survive all thirteen actual reset writes. -/
-theorem sourceSamples_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma sourceSamples_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
     (frames : ResetFrames refs) (store : Store ctx) :
     LatticePairNearestPlaneSavedTarget.sourceSamples refs.pair.pair
         (LatticePairRecoveryReset.step refs store).1 =
@@ -209,7 +210,7 @@ theorem sourceSamples_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
   rw [firstBits, secondBits]
 
 /-- Reset retains the optional factor from every preceding pair. -/
-theorem factorOption_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma factorOption_afterReset (refs : LatticePairFactorRecovery.Refs ctx N)
     (frames : ResetFrames refs) (store : Store ctx) :
     QuadraticCandidateSelect.selectedOption
         (QuadraticRecoveryGuarded.factorSelection refs.quadratic)
@@ -235,7 +236,7 @@ structure Relation (generator : (ZMod N)ˣ) (refs : LatticePairFactorRecovery.Re
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Actual reset and complete pair recovery realize the original retained-factor update. -/
-theorem into_correct (input : Input N) (generator : (ZMod N)ˣ)
+lemma into_correct (input : Input N) (generator : (ZMod N)ˣ)
     (refs : LatticePairFactorRecovery.Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     Relation generator refs store (step input refs store).1 := by
@@ -257,7 +258,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
 def depthBound (N : Nat) : Nat := 13 + LatticePairFactorRecovery.depthBound N
 
 omit [BitWord.Selected model] in
-private theorem sequence_pool_le (first second : Circuit model ctx ctx)
+private lemma sequence_pool_le (first second : Circuit model ctx ctx)
     (firstBound secondBound : ResourcePool model) (path : (Circuit.seq first second).Path)
     (firstLe : first.resourcePool path.1 ≤ firstBound)
     (secondLe : second.resourcePool path.2 ≤ secondBound) :
@@ -267,13 +268,13 @@ private theorem sequence_pool_le (first second : Circuit model ctx ctx)
   exact add_le_add firstLe secondLe
 
 /-- The actual reset and complete pair execution contribute to the same native resource ledger. -/
-theorem into_pool_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_pool_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (path : (into input refs).Path) : (into input refs).resourcePool path ≤ eventEnvelope N :=
   sequence_pool_le _ _ _ _ path (LatticePairRecoveryReset.into_pool_le refs path.1)
     (LatticePairFactorRecovery.into_pool_le input refs path.2)
 
 /-- Every actual pair still incurs its reset and full sequential recovery depth. -/
-theorem into_depth_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_depth_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (path : (into input refs).Path) : (into input refs).depth (fun _ => 1) path ≤ depthBound N := by
   change (LatticePairRecoveryReset.into refs).depth (fun _ => 1) path.1 +
     (LatticePairFactorRecovery.into input refs).depth (fun _ => 1) path.2 ≤ _
@@ -281,7 +282,7 @@ theorem into_depth_le (input : Input N) (refs : LatticePairFactorRecovery.Refs c
   exact Nat.add_le_add_left (LatticePairFactorRecovery.into_depth_le input refs path.2) 13
 
 /-- Resident accounting includes the existing context and the real reusable native-power scope. -/
-theorem into_resident_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_resident_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (path : (into input refs).Path) : (into input refs).peakResidentSpace path ≤
       ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq (LatticePairRecoveryReset.into refs)
@@ -290,7 +291,7 @@ theorem into_resident_le (input : Input N) (refs : LatticePairFactorRecovery.Ref
     (le_add_of_nonneg_right zero_le)) (LatticePairFactorRecovery.into_resident_le input refs path.2)
 
 /-- Auxiliary accounting includes the same actual native-power allocation and existing roles. -/
-theorem into_auxiliary_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_auxiliary_le (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (path : (into input refs).Path) : (into input refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq (LatticePairRecoveryReset.into refs)
@@ -300,12 +301,13 @@ theorem into_auxiliary_le (input : Input N) (refs : LatticePairFactorRecovery.Re
     (LatticePairFactorRecovery.into_auxiliary_le input refs path.2)
 
 /-- Reset and full pair recovery restore borrowed systems jointly with arbitrary references. -/
-theorem into_borrowedRestored (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
+lemma into_borrowedRestored (input : Input N) (refs : LatticePairFactorRecovery.Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
-      ((into input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (LatticePairRecoveryReset.into_borrowedRestored refs
+      ((into input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (LatticePairRecoveryReset.into_borrowedRestored refs
     Reference state) (LatticePairFactorRecovery.into_borrowedRestored input refs Reference _)
 
 end

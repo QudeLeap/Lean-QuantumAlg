@@ -18,7 +18,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Kernel reduction checks all 48 possible right factors in this fixed-sign shard.
 /-- The fixed-sign `10` edge-pair 5 numerator stays closed under right multiplication. -/
-theorem signs10 :
+lemma signs10 :
     ∀ b, ∃ c,
       octNumerator (.edge (5 : Fin 6) true false) * octNumerator b =
         octNumerator c + octNumerator c := by decide

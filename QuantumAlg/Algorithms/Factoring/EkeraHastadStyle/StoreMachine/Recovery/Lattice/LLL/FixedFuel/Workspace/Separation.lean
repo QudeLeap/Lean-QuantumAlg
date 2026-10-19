@@ -21,7 +21,7 @@ open Execution
 noncomputable section
 
 /-- Each named Gram word is the corresponding unified driver key. -/
-theorem metricCellKey_eq_driverKey {kind : ProblemKind}
+lemma metricCellKey_eq_driverKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N)
@@ -33,7 +33,7 @@ theorem metricCellKey_eq_driverKey {kind : ProblemKind}
 
 /-- The physical state and reusable scratch packages satisfy the complete
 fixed-fuel driver separation contract. -/
-theorem driverSeparation {kind : ProblemKind}
+lemma driverSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}

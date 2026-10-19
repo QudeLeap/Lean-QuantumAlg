@@ -26,12 +26,15 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem sum_by_readout {Basis Outcome : Type} [Fintype Basis] [Fintype Outcome]
+private lemma sum_by_readout {Basis Outcome : Type} [Fintype Basis] [Fintype Outcome]
     (decision : DecidableEq Outcome) (readout : Basis → Outcome)
     (value : Basis → ℂ) (weight : Outcome → ℂ) :
     (∑ basis : Basis, weight (readout basis) * value basis) =
@@ -47,7 +50,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Joint finite weights follow the source outcome probabilities on the same input state. -/
-theorem shortDLP_runtimeRound_weighted_outcome_reference
+lemma shortDLP_runtimeRound_weighted_outcome_reference
     {parameterShape previousShape : CShape}
     (parameter : CInputRef ctx parameterShape) (previous : CInputRef ctx previousShape)
     (N : Nat) (generator target : parameterShape.Value → (ZMod N)ˣ)
@@ -64,7 +67,7 @@ theorem shortDLP_runtimeRound_weighted_outcome_reference
       (CShape.bits (resultBits m ell width)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code m ell width sameWires parameter N generator target cells result).execute
+      ((code m ell width sameWires parameter N generator target cells result).execute environment
         Reference state)
       (fun entry _ => weight (entry.1.read (.product parameter previous))
         (entry.1.read (.storage result.toCStorageRef))) leftRef rightRef =
@@ -87,11 +90,13 @@ theorem shortDLP_runtimeRound_weighted_outcome_reference
     weight ((packedBasisStore m ell width sameWires cells result store basis).read oldRead)
       ((packedBasisStore m ell width sameWires cells result store basis).read
         (.storage result.toCStorageRef))
-  have measured := shortDLP_runtimeRound_referenceFiberSum m ell width sameWires parameter N
+  have measured := shortDLP_runtimeRound_referenceFiberSum (environment := environment)
+    m ell width sameWires parameter N
     generator target cells result state
     (fun store => weight (store.read oldRead) (store.read (.storage result.toCStorageRef)))
     leftRef rightRef
-  have selected := shortDLP_runtimeSelected_source_fiber m ell width sameWires parameter N
+  have selected := shortDLP_runtimeSelected_source_fiber (environment := environment)
+    m ell width sameWires parameter N
     generator target state seeded packedWeight leftRef rightRef
   have before := shortDLP_runtimeSeedBlocks_weighted_reference m ell width sameWires N
     state seeded inputWeight leftRef rightRef

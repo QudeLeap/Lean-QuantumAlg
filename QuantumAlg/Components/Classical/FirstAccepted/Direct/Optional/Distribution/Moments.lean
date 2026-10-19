@@ -31,14 +31,14 @@ def moment {width : Nat}
     ((PMF.independentReplicateVector distribution count samples).toReal : ℂ) *
       weight (samples.toList.foldl Optional.retainValue previous)
 
-private theorem moment_zero {width : Nat}
+private lemma moment_zero {width : Nat}
     (distribution : PMF (CShape.option (.unsignedWord width)).Value)
     (previous : (CShape.option (.unsignedWord width)).Value)
     (weight : (CShape.option (.unsignedWord width)).Value → ℂ) :
     moment distribution 0 previous weight = weight previous := by
   simp [moment, PMF.independentReplicateVector, apply_ite]
 
-theorem moment_succ {width : Nat}
+lemma moment_succ {width : Nat}
     (distribution : PMF (CShape.option (.unsignedWord width)).Value)
     (count : Nat) (previous : (CShape.option (.unsignedWord width)).Value)
     (weight : (CShape.option (.unsignedWord width)).Value → ℂ) :
@@ -52,7 +52,7 @@ theorem moment_succ {width : Nat}
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The finite fold from the empty selector is the pure first-success law. -/
-theorem moment_selected {width : Nat}
+lemma moment_selected {width : Nat}
     (distribution : PMF (CShape.option (.unsignedWord width)).Value) (count : Nat)
     (weight : (CShape.option (.unsignedWord width)).Value → ℂ) :
     moment distribution count .optionNone weight =

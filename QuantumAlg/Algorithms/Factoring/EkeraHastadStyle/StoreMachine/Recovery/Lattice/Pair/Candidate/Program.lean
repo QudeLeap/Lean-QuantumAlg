@@ -21,7 +21,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 -- Keep dependent paths folded; generic record laws supply their observations.
@@ -42,7 +43,7 @@ def sharedStep (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (LatticeCandidateModularSetup.setupStep input refs.setup) store
 
 /-- Project the actual resulting store without expanding the program's finite path. -/
-theorem sharedStep_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma sharedStep_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (sharedStep input refs store).1 =
       (LatticeCandidateModularSetup.setupStep input refs.setup
         (LatticeCandidateConstants.loadStep (shortLogBits N) refs.constants store).1).1 :=
@@ -53,15 +54,15 @@ theorem sharedStep_store (input : Input N) (refs : Refs ctx N) (store : Store ct
     (LatticeCandidateModularSetup.setupStep input refs.setup) store
 
 /-- The existing sequence executes the exact record on the complete incoming state. -/
-theorem sharedInto_execute (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_execute (input : Input N) (refs : Refs ctx N)
     (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (sharedInto input refs).execute Reference state =
+    (sharedInto input refs).execute environment Reference state =
       state.mapClassical (fun entry =>
       let actual := sharedStep input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_sequenceStoreRecord
+  exact Circuit.execute_sequenceStoreRecord (environment := environment)
     (LatticeCandidateConstants.loadInto (shortLogBits N) refs.constants)
     (LatticeCandidateModularSetup.setupInto input refs.setup)
     (LatticeCandidateConstants.loadStep (shortLogBits N) refs.constants)
@@ -84,7 +85,7 @@ def prefixStep (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (sharedStep input refs) store
 
 /-- Project the actual resulting store without expanding the program's finite path. -/
-theorem prefixStep_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma prefixStep_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (prefixStep input refs store).1 =
       (sharedStep input refs
         (LatticePairNearestPlaneSavedTarget.savedTargetStep refs.pair store).1).1 :=
@@ -95,15 +96,15 @@ theorem prefixStep_store (input : Input N) (refs : Refs ctx N) (store : Store ct
     (sharedStep input refs) store
 
 /-- The existing sequence executes the exact record on the complete incoming state. -/
-theorem pairCandidatePrefix_execute (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_execute (input : Input N) (refs : Refs ctx N)
     (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pairCandidatePrefix input refs).execute Reference state =
+    (pairCandidatePrefix input refs).execute environment Reference state =
       state.mapClassical (fun entry =>
       let actual := prefixStep input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_sequenceStoreRecord
+  exact Circuit.execute_sequenceStoreRecord (environment := environment)
     (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs.pair)
     (sharedInto input refs)
     (LatticePairNearestPlaneSavedTarget.savedTargetStep refs.pair)
@@ -127,7 +128,7 @@ noncomputable def recoveryStep (input : Input N) (refs : Refs ctx N) (store : St
     (LatticeCandidateScanInitialized.initializedStep input refs.scan) store
 
 /-- Project the actual resulting store without expanding the program's finite path. -/
-theorem recoveryStep_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma recoveryStep_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (recoveryStep input refs store).1 =
       (LatticeCandidateScanInitialized.initializedStep input refs.scan
         (prefixStep input refs store).1).1 :=
@@ -138,15 +139,15 @@ theorem recoveryStep_store (input : Input N) (refs : Refs ctx N) (store : Store 
     (LatticeCandidateScanInitialized.initializedStep input refs.scan) store
 
 /-- The existing sequence executes the exact record on the complete incoming state. -/
-theorem pairCandidateRecoveryInto_execute (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_execute (input : Input N) (refs : Refs ctx N)
     (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pairCandidateRecoveryInto input refs).execute Reference state =
+    (pairCandidateRecoveryInto input refs).execute environment Reference state =
       state.mapClassical (fun entry =>
       let actual := recoveryStep input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_sequenceStoreRecord
+  exact Circuit.execute_sequenceStoreRecord (environment := environment)
     (pairCandidatePrefix input refs)
     (LatticeCandidateScanInitialized.initializedScanInto input refs.scan)
     (prefixStep input refs)

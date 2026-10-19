@@ -44,15 +44,15 @@ variable {R : Register}
 
 instance : Coe (Hamiltonian R) (HilbertOperator R) := ⟨Subtype.val⟩
 
-theorem coe_mk (H : HilbertOperator R) (hH : H.IsHermitian) :
+lemma coe_mk (H : HilbertOperator R) (hH : H.IsHermitian) :
     (((⟨H, hH⟩ : Hamiltonian R) : HilbertOperator R)) = H :=
   rfl
 
-theorem isHermitian (H : Hamiltonian R) : (H : HilbertOperator R).IsHermitian :=
+lemma isHermitian (H : Hamiltonian R) : (H : HilbertOperator R).IsHermitian :=
   H.2
 
 @[ext]
-theorem ext {H₁ H₂ : Hamiltonian R} (h : (H₁ : HilbertOperator R) = H₂) : H₁ = H₂ :=
+lemma ext {H₁ H₂ : Hamiltonian R} (h : (H₁ : HilbertOperator R) = H₂) : H₁ = H₂ :=
   Subtype.ext h
 
 /-! ## Hermitian-closed operations -/
@@ -62,7 +62,7 @@ def add (H₁ H₂ : Hamiltonian R) : Hamiltonian R :=
   ⟨(H₁ : HilbertOperator R) + (H₂ : HilbertOperator R), H₁.2.add H₂.2⟩
 
 @[simp]
-theorem coe_add (H₁ H₂ : Hamiltonian R) :
+lemma coe_add (H₁ H₂ : Hamiltonian R) :
     ((add H₁ H₂ : Hamiltonian R) : HilbertOperator R)
       = (H₁ : HilbertOperator R) + (H₂ : HilbertOperator R) :=
   rfl
@@ -76,39 +76,39 @@ instance : Neg (Hamiltonian R) := ⟨fun H => ⟨-(H : HilbertOperator R), H.2.n
 instance : Sub (Hamiltonian R) :=
   ⟨fun H₁ H₂ => ⟨(H₁ : HilbertOperator R) - (H₂ : HilbertOperator R), H₁.2.sub H₂.2⟩⟩
 
-theorem isSelfAdjoint_ofReal (c : ℝ) : IsSelfAdjoint (c : ℂ) := by
+lemma isSelfAdjoint_ofReal (c : ℝ) : IsSelfAdjoint (c : ℂ) := by
   rw [isSelfAdjoint_iff, Complex.star_def, Complex.conj_ofReal]
 
 instance : SMul ℝ (Hamiltonian R) :=
   ⟨fun c H => ⟨(c : ℂ) • (H : HilbertOperator R), H.2.smul (isSelfAdjoint_ofReal c)⟩⟩
 
 @[simp]
-theorem coe_zero : ((0 : Hamiltonian R) : HilbertOperator R) = 0 :=
+lemma coe_zero : ((0 : Hamiltonian R) : HilbertOperator R) = 0 :=
   rfl
 
 @[simp]
-theorem coe_hAdd (H₁ H₂ : Hamiltonian R) :
+lemma coe_hAdd (H₁ H₂ : Hamiltonian R) :
     ((H₁ + H₂ : Hamiltonian R) : HilbertOperator R)
       = (H₁ : HilbertOperator R) + (H₂ : HilbertOperator R) :=
   rfl
 
 @[simp]
-theorem coe_neg (H : Hamiltonian R) :
+lemma coe_neg (H : Hamiltonian R) :
     ((-H : Hamiltonian R) : HilbertOperator R) = -(H : HilbertOperator R) :=
   rfl
 
 @[simp]
-theorem coe_sub (H₁ H₂ : Hamiltonian R) :
+lemma coe_sub (H₁ H₂ : Hamiltonian R) :
     ((H₁ - H₂ : Hamiltonian R) : HilbertOperator R)
       = (H₁ : HilbertOperator R) - (H₂ : HilbertOperator R) :=
   rfl
 
 @[simp]
-theorem coe_smul (c : ℝ) (H : Hamiltonian R) :
+lemma coe_smul (c : ℝ) (H : Hamiltonian R) :
     ((c • H : Hamiltonian R) : HilbertOperator R) = (c : ℂ) • (H : HilbertOperator R) :=
   rfl
 
-theorem isHermitian_sum_coe {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) :
+lemma isHermitian_sum_coe {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) :
     (∑ i, (family i : HilbertOperator R)).IsHermitian :=
   Finset.sum_induction _ (fun A : HilbertOperator R => A.IsHermitian)
     (fun _ _ hA hB => hA.add hB) Matrix.isHermitian_zero (fun i _ => (family i).2)
@@ -118,7 +118,7 @@ def sum {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) : Hamiltonian R
   ⟨∑ i, (family i : HilbertOperator R), isHermitian_sum_coe family⟩
 
 @[simp]
-theorem coe_sum {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) :
+lemma coe_sum {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) :
     ((sum family : Hamiltonian R) : HilbertOperator R) = ∑ i, (family i : HilbertOperator R) :=
   rfl
 
@@ -127,13 +127,13 @@ def opNorm (H : Hamiltonian R) : ℝ :=
   HilbertOperator.opNorm (H : HilbertOperator R)
 
 @[simp]
-theorem opNorm_eq (H : Hamiltonian R) : H.opNorm = HilbertOperator.opNorm (H : HilbertOperator R) :=
+lemma opNorm_eq (H : Hamiltonian R) : H.opNorm = HilbertOperator.opNorm (H : HilbertOperator R) :=
   rfl
 
-theorem opNorm_nonneg (H : Hamiltonian R) : 0 ≤ H.opNorm :=
+lemma opNorm_nonneg (H : Hamiltonian R) : 0 ≤ H.opNorm :=
   HilbertOperator.opNorm_nonneg _
 
-theorem opNorm_sum_le {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) :
+lemma opNorm_sum_le {ι : Type} [Fintype ι] (family : ι → Hamiltonian R) :
     (sum family).opNorm ≤ ∑ i, (family i).opNorm :=
   HilbertOperator.opNorm_sum_le _
 
@@ -151,14 +151,14 @@ def eigenvectorBasis (H : Hamiltonian R) : OrthonormalBasis R.Index ℂ (Hilbert
 def IsEigenvector (H : Hamiltonian R) (E : ℝ) (ψ : HilbertVector R) : Prop :=
   (H : HilbertOperator R).mulVec ψ.ofLp = (E : ℂ) • ψ.ofLp
 
-theorem isEigenvector_eigenvectorBasis (H : Hamiltonian R) (i : R.Index) :
+lemma isEigenvector_eigenvectorBasis (H : Hamiltonian R) (i : R.Index) :
     H.IsEigenvector (H.eigenvalues i) (H.eigenvectorBasis i) := by
   unfold IsEigenvector eigenvalues eigenvectorBasis
   rw [H.2.mulVec_eigenvectorBasis i]
   ext j
   simp [Complex.real_smul]
 
-theorem norm_eigenvectorBasis (H : Hamiltonian R) (i : R.Index) :
+lemma norm_eigenvectorBasis (H : Hamiltonian R) (i : R.Index) :
     ‖H.eigenvectorBasis i‖ = 1 :=
   H.eigenvectorBasis.orthonormal.1 i
 
@@ -166,11 +166,11 @@ theorem norm_eigenvectorBasis (H : Hamiltonian R) (i : R.Index) :
 def groundEnergy [Nonempty R.Index] (H : Hamiltonian R) : ℝ :=
   Finset.univ.inf' Finset.univ_nonempty H.eigenvalues
 
-theorem groundEnergy_le_eigenvalue [Nonempty R.Index] (H : Hamiltonian R) (i : R.Index) :
+lemma groundEnergy_le_eigenvalue [Nonempty R.Index] (H : Hamiltonian R) (i : R.Index) :
     H.groundEnergy ≤ H.eigenvalues i :=
   Finset.inf'_le _ (Finset.mem_univ i)
 
-theorem exists_eigenvalue_eq_groundEnergy [Nonempty R.Index] (H : Hamiltonian R) :
+lemma exists_eigenvalue_eq_groundEnergy [Nonempty R.Index] (H : Hamiltonian R) :
     ∃ i, H.eigenvalues i = H.groundEnergy := by
   obtain ⟨i, _, hi⟩ := Finset.exists_mem_eq_inf' Finset.univ_nonempty H.eigenvalues
   exact ⟨i, hi.symm⟩
@@ -179,7 +179,7 @@ theorem exists_eigenvalue_eq_groundEnergy [Nonempty R.Index] (H : Hamiltonian R)
 def IsGroundState [Nonempty R.Index] (H : Hamiltonian R) (ψ : HilbertVector R) : Prop :=
   ‖ψ‖ = 1 ∧ H.IsEigenvector H.groundEnergy ψ
 
-theorem exists_groundState [Nonempty R.Index] (H : Hamiltonian R) :
+lemma exists_groundState [Nonempty R.Index] (H : Hamiltonian R) :
     ∃ ψ : HilbertVector R, H.IsGroundState ψ := by
   obtain ⟨i, hi⟩ := H.exists_eigenvalue_eq_groundEnergy
   refine ⟨H.eigenvectorBasis i, H.norm_eigenvectorBasis i, ?_⟩
@@ -198,7 +198,7 @@ def spectralGap [Nonempty R.Index] (H : Hamiltonian R) : ℝ :=
     H.excitedIndices.inf' h H.eigenvalues - H.groundEnergy
   else 0
 
-theorem spectralGap_nonneg [Nonempty R.Index] (H : Hamiltonian R) : 0 ≤ H.spectralGap := by
+lemma spectralGap_nonneg [Nonempty R.Index] (H : Hamiltonian R) : 0 ≤ H.spectralGap := by
   unfold spectralGap
   split_ifs with h
   · obtain ⟨i, hi, hmin⟩ := Finset.exists_mem_eq_inf' h H.eigenvalues
@@ -206,7 +206,7 @@ theorem spectralGap_nonneg [Nonempty R.Index] (H : Hamiltonian R) : 0 ≤ H.spec
     exact H.groundEnergy_le_eigenvalue i
   · exact le_rfl
 
-theorem spectralGap_pos [Nonempty R.Index] (H : Hamiltonian R)
+lemma spectralGap_pos [Nonempty R.Index] (H : Hamiltonian R)
     (h : H.excitedIndices.Nonempty) : 0 < H.spectralGap := by
   unfold spectralGap
   rw [dif_pos h]
@@ -215,7 +215,7 @@ theorem spectralGap_pos [Nonempty R.Index] (H : Hamiltonian R)
   exact (Finset.mem_filter.mp hi).2
 
 /-- Every excited eigenvalue is at least one gap above the ground energy. -/
-theorem groundEnergy_add_spectralGap_le [Nonempty R.Index] (H : Hamiltonian R) (i : R.Index)
+lemma groundEnergy_add_spectralGap_le [Nonempty R.Index] (H : Hamiltonian R) (i : R.Index)
     (hi : H.groundEnergy < H.eigenvalues i) :
     H.groundEnergy + H.spectralGap ≤ H.eigenvalues i := by
   have hmem : i ∈ H.excitedIndices := Finset.mem_filter.mpr ⟨Finset.mem_univ i, hi⟩

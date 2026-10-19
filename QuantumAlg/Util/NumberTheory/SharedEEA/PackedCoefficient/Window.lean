@@ -40,7 +40,7 @@ def word (state : IterationState) (modulus count : Nat)
     (CoefficientCapacity.work2Payload state modulus count valid conserved active)
 
 /-- Reachable source capacity puts the entire arithmetic window in the actual physical word. -/
-theorem window_fits (state : IterationState) (modulus count : Nat)
+lemma window_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     CoefficientWindow.width state ≤
@@ -50,7 +50,7 @@ theorem window_fits (state : IterationState) (modulus count : Nat)
   omega
 
 /-- Extracting the rotated bits recovers exactly the specified arithmetic input word. -/
-theorem read_eq (state : IterationState) (modulus count : Nat)
+lemma read_eq (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     PhysicalWindow.read (CoefficientWindow.width state)
@@ -86,7 +86,7 @@ def signedWindow (state : IterationState) (modulus count : Nat)
     (CoefficientPhase.lowBit (CoefficientWindow.current state count).remaining)
 
 /-- The actual extracted-window instruction is exactly the previously proved signed microstep. -/
-theorem signedWindow_eq (state : IterationState) (modulus count : Nat)
+lemma signedWindow_eq (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     signedWindow state modulus count valid conserved active =
@@ -96,7 +96,7 @@ theorem signedWindow_eq (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The actual signed computation clears Sign on the read physical region. -/
-theorem signedWindow_sign (state : IterationState) (modulus count : Nat)
+lemma signedWindow_sign (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     (signedWindow state modulus count valid conserved active).msb = false := by
@@ -114,7 +114,7 @@ def updatedWord (state : IterationState) (modulus count : Nat)
     (window_fits state modulus count valid conserved active within)
 
 /-- Reading back the written physical region gives exactly the true signed-instruction result. -/
-theorem updated_read (state : IterationState) (modulus count : Nat)
+lemma updated_read (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     PhysicalWindow.read (CoefficientWindow.width state)
@@ -126,7 +126,7 @@ theorem updated_read (state : IterationState) (modulus count : Nat)
     signedWindow_eq state modulus count valid conserved active within]
 
 /-- Every physical bit outside the selected arithmetic window is retained without modification. -/
-theorem updated_outside (state : IterationState) (modulus count : Nat)
+lemma updated_outside (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size)
     (index : Nat) (outside : CoefficientWindow.width state ≤ index)
@@ -137,7 +137,7 @@ theorem updated_outside (state : IterationState) (modulus count : Nat)
   PhysicalWindow.replace_outside _ _ _ index outside inWord
 
 /-- The updated physical window and retained fractional part give the exact next coefficient. -/
-theorem updated_reassembled (state : IterationState) (modulus count : Nat)
+lemma updated_reassembled (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     (PhysicalWindow.read (CoefficientWindow.width state)
@@ -149,7 +149,7 @@ theorem updated_reassembled (state : IterationState) (modulus count : Nat)
   exact CoefficientWindow.reassembled_next state count valid
 
 /-- Restoring the originally extracted window recovers the entire original packed work word. -/
-theorem replace_original (state : IterationState) (modulus count : Nat)
+lemma replace_original (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     PhysicalWindow.replace (word state modulus count valid conserved active)
@@ -160,7 +160,7 @@ theorem replace_original (state : IterationState) (modulus count : Nat)
   exact PhysicalWindow.replace_read _ _
 
 /-- The actual prime-input path retains its nonzero wrapped fraction through the physical update. -/
-theorem nonzero_fraction_physical_step :
+lemma nonzero_fraction_physical_step :
     let initial := IterationState.initial 17 (foldInput 17 5).2
     let state := IterationState.step initial
     let valid := IterationState.step_admissible initial

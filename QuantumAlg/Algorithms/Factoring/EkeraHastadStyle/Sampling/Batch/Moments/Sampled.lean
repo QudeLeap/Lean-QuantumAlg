@@ -25,6 +25,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open ShortDLP.CompiledMAU
 open Execution
 
@@ -45,20 +48,20 @@ private def conditionalMoment {N : Nat} {previousShape : CShape}
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- Complete round observations refer to the same actual sampler state before bank preparation. -/
-theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
+lemma nativeBatch_sampled_weighted_reference {previousShape : CShape}
     (previous : CInputRef (sampledContext base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (ParameterShape N).Value → previousShape.Value →
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base noQuantum N).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base noQuantum N).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (finalParameter base noQuantum N))
           (entry.1.read (finalInput base noQuantum N previous))
           (entry.1.read (finalResults base noQuantum N)).get) leftRef rightRef =
       ExecutionState.referenceFiberSum
         ((ShorStyle.Canonical.Sampler.Retained.circuit
-          (model := RuntimeRound.model) base N).execute Reference state)
+          (model := RuntimeRound.model) base N).execute environment Reference state)
         (fun entry _ => conditionalMoment weight
           (entry.1.read (.storage
             (ShorStyle.Canonical.Sampler.Retained.parameterRef base N).toCStorageRef))
@@ -67,7 +70,8 @@ theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
     .storage (ShorStyle.Canonical.Sampler.Retained.parameterRef base N).toCStorageRef
   let jointWeight := fun value : (CShape.product (ParameterShape N) previousShape).Value =>
     conditionalMoment weight value.first value.second
-  have initializeLaw := nativeBatch_initialize_reference_input base noQuantum N
+  have initializeLaw := nativeBatch_initialize_reference_input (environment := environment)
+    base noQuantum N
     (.product parameterInput previous) state jointWeight leftRef rightRef
   have jointRead (store : Store (readyContext base noQuantum N)) :
       store.read (readyInput base noQuantum N (.product parameterInput previous)) =
@@ -81,7 +85,8 @@ theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
         (RuntimeRound.model.HiddenState ×
           (History × (initializeBank base noQuantum N).Path))) →
         (readyContext base noQuantum N).register.Index → ℂ =>
-      ExecutionState.referenceFiberSum ((initializeBank base noQuantum N).execute Reference state)
+      ExecutionState.referenceFiberSum ((initializeBank base noQuantum N).execute
+        environment Reference state)
         observe leftRef rightRef)
     (show (fun entry _ => conditionalMoment weight
         (entry.1.read (parameter base noQuantum N))
@@ -94,13 +99,13 @@ theorem nativeBatch_sampled_weighted_reference {previousShape : CShape}
     leftRef rightRef).trans (aligned.trans initializeLaw)
 
 /-- The actual batch's complete joint reference weight has one uniform source and sixteen draws. -/
-theorem nativeBatch_source_weighted_reference (input : Input N)
+lemma nativeBatch_source_weighted_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value →
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base noQuantum N).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base noQuantum N).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (finalParameter base noQuantum N))
           (entry.1.read (finalSample base noQuantum N))
           (entry.1.read (finalResults base noQuantum N)).get) leftRef rightRef =

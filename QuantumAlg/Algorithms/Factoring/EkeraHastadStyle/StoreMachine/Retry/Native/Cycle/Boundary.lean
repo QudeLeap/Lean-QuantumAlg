@@ -24,11 +24,14 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeCycles
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem repetition_measured {shape : CShape} (m ell width N : Nat)
+private lemma repetition_measured {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -55,7 +58,7 @@ private theorem repetition_measured {shape : CShape} (m ell width N : Nat)
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every first source batch path includes a real bank measurement. -/
-theorem firstSource_measured (N : Nat)
+lemma firstSource_measured (N : Nat)
     (path : (NativeBatch.code base noQuantum N).Path) :
     ∃ dimension : ℕ+, Resource.Event.measurement (model := RuntimeRound.model) dimension ∈
       (NativeBatch.code base noQuantum N).eventTrace path := by
@@ -73,7 +76,7 @@ theorem firstSource_measured (N : Nat)
   exact ⟨dimension, List.mem_append.mpr (Or.inr present)⟩
 
 /-- Classical recovery does not remove any actual source measurement from the batch trace. -/
-theorem firstBatch_measured (specification : Input N)
+lemma firstBatch_measured (specification : Input N)
     (path : (NativeBatchRecovery.code base noQuantum specification).Path) :
     ∃ dimension : ℕ+, Resource.Event.measurement (model := RuntimeRound.model) dimension ∈
       (NativeBatchRecovery.code base noQuantum specification).eventTrace path := by
@@ -84,8 +87,8 @@ theorem firstBatch_measured (specification : Input N)
 attribute [local irreducible] NativeBatchRecovery.code
 
 /-- The first recovered batch is physically restartable for every caller state and path. -/
-theorem firstBatch_restartCleanup (specification : Input N) :
-    Circuit.RestartCleanup (model := RuntimeRound.model) (pre := base)
+lemma firstBatch_restartCleanup (specification : Input N) :
+    Circuit.RestartCleanup (environment := environment) (model := RuntimeRound.model) (pre := base)
       (post := NativeBatchRecovery.context base noQuantum N)
       (NativeBatchRecovery.code base noQuantum specification) where
   measured := firstBatch_measured base noQuantum specification
@@ -95,7 +98,7 @@ theorem firstBatch_restartCleanup (specification : Input N) :
       have included := base.borrowedQuantumWires_sublist
       rw [noQuantum] at included
       exact List.sublist_nil.mp included
-    exact Circuit.borrowedRestored_of_noBorrowedQuantum
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum (environment := environment)
       (model := RuntimeRound.model) (pre := base)
       (post := NativeBatchRecovery.context base noQuantum N)
       (NativeBatchRecovery.code base noQuantum specification)

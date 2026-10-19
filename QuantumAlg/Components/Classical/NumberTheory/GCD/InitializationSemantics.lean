@@ -54,13 +54,15 @@ def initializationStep {model : ExecutionModel} [BitWord.Selected model]
   (negated.1, (copiedLeft.2, (copiedRight.2, (tested.2, negated.2))))
 
 /-- Initialization preserves complete quantum-reference blocks and records its four real steps. -/
-theorem gcdInitialization_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdInitialization_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (initializationBody (model := model) input first second zero active).execute Reference state =
+    (initializationBody (model := model) input first second zero active).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := initializationStep (model := model) input first second zero active entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -69,7 +71,7 @@ theorem gcdInitialization_execute {model : ExecutionModel} [BitWord.Selected mod
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- No initialization operation changes a structural read outside the three written cells. -/
-theorem gcdInitialization_read_other (input : CInputRef ctx (operandShape width))
+lemma gcdInitialization_read_other (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     {observed : CShape} (other : CInputRef ctx observed)
@@ -85,7 +87,7 @@ theorem gcdInitialization_read_other (input : CInputRef ctx (operandShape width)
       (.wordUnary .copy width ctx (.first input) first) other firstFree]
 
 /-- The initialized machine words are the exact original operands, and the loop bit is correct. -/
-theorem gcdInitialization_store_values (input : CInputRef ctx (operandShape width))
+lemma gcdInitialization_store_values (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (firstSecond : first.key ≠ second.key)
@@ -139,7 +141,7 @@ theorem gcdInitialization_store_values (input : CInputRef ctx (operandShape widt
     simp
 
 /-- The internally initialized state is exactly the pure GCD input state. -/
-theorem gcdInitialization_initialState (input : CInputRef ctx (operandShape width))
+lemma gcdInitialization_initialState (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (firstSecond : first.key ≠ second.key)

@@ -48,7 +48,7 @@ open HilbertOperator
 
 noncomputable section
 
-theorem hasDerivAt_timeEvolutionOp {R : Register} (H : HilbertOperator R) (t : ℝ) :
+lemma hasDerivAt_timeEvolutionOp {R : Register} (H : HilbertOperator R) (t : ℝ) :
     HasDerivAt (fun u : ℝ => timeEvolutionOp H u)
       (timeEvolutionOp H t * ((-Complex.I) • H)) t := by
   let A : HilbertOperator R := (-Complex.I) • H
@@ -70,7 +70,7 @@ theorem hasDerivAt_timeEvolutionOp {R : Register} (H : HilbertOperator R) (t : �
       ring_nf
     rw [timeEvolutionOp, harg]
 
-theorem hasDerivAt_timeEvolutionOp' {R : Register} (H : HilbertOperator R) (t : ℝ) :
+lemma hasDerivAt_timeEvolutionOp' {R : Register} (H : HilbertOperator R) (t : ℝ) :
     HasDerivAt (fun u : ℝ => timeEvolutionOp H u)
       (((-Complex.I) • H) * timeEvolutionOp H t) t := by
   let A : HilbertOperator R := (-Complex.I) • H
@@ -92,18 +92,18 @@ theorem hasDerivAt_timeEvolutionOp' {R : Register} (H : HilbertOperator R) (t : 
       ring_nf
     rw [timeEvolutionOp, harg]
 
-theorem opNorm_timeEvolutionOp {R : Register} [Nonempty R.Index]
+lemma opNorm_timeEvolutionOp {R : Register} [Nonempty R.Index]
     {H : HilbertOperator R} (hH : H.IsHermitian) (t : ℝ) :
     opNorm (timeEvolutionOp H t) = 1 :=
   opNorm_of_mem_unitaryGroup (timeEvolutionOp_mem_unitaryGroup hH t)
 
-theorem opNorm_timeEvolutionOp_mul {R : Register}
+lemma opNorm_timeEvolutionOp_mul {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) (t : ℝ)
     (A : HilbertOperator R) :
     opNorm (timeEvolutionOp H t * A) = opNorm A :=
   opNorm_unitaryGroup_mul A (timeEvolutionOp_mem_unitaryGroup hH t)
 
-theorem opNorm_mul_timeEvolutionOp {R : Register}
+lemma opNorm_mul_timeEvolutionOp {R : Register}
     {H : HilbertOperator R} (hH : H.IsHermitian) (t : ℝ)
     (A : HilbertOperator R) :
     opNorm (A * timeEvolutionOp H t) = opNorm A :=
@@ -125,7 +125,7 @@ def hamiltonianSum {R : Register} {L : ℕ} (terms : HamiltonianFamily R L) :
         exact (terms a).2.add ih⟩
 
 @[simp]
-theorem coe_hamiltonianSum {R : Register} {L : ℕ}
+lemma coe_hamiltonianSum {R : Register} {L : ℕ}
     (terms : HamiltonianFamily R L) :
     ((hamiltonianSum terms : Hamiltonian R) : HilbertOperator R) =
       ∑ j : Fin L, (terms j : HilbertOperator R) := rfl
@@ -140,7 +140,7 @@ def finiteFirstOrderTrotterStep {R : Register} {L : ℕ}
   (List.ofFn fun j : Fin L => timeEvolution (terms j) dt).prod
 
 @[simp]
-theorem coe_finiteFirstOrderTrotterStep {R : Register} {L : ℕ}
+lemma coe_finiteFirstOrderTrotterStep {R : Register} {L : ℕ}
     (terms : HamiltonianFamily R L) (dt : ℝ) :
     ((finiteFirstOrderTrotterStep terms dt : UnitaryOperator R) : HilbertOperator R) =
       (List.ofFn fun j : Fin L => timeEvolutionOp (terms j : HilbertOperator R) dt).prod := by
@@ -152,7 +152,7 @@ def finiteFirstOrderTrotterProduct {R : Register} {L : ℕ}
   (finiteFirstOrderTrotterStep terms (t / (r : ℝ))) ^ r
 
 @[simp]
-theorem coe_finiteFirstOrderTrotterProduct {R : Register} {L : ℕ}
+lemma coe_finiteFirstOrderTrotterProduct {R : Register} {L : ℕ}
     (terms : HamiltonianFamily R L) (t : ℝ) (r : ℕ) :
     ((finiteFirstOrderTrotterProduct terms t r : UnitaryOperator R) : HilbertOperator R) =
       ((finiteFirstOrderTrotterStep terms (t / (r : ℝ)) : UnitaryOperator R) :
@@ -161,7 +161,7 @@ theorem coe_finiteFirstOrderTrotterProduct {R : Register} {L : ℕ}
 
 /-- Exact one-step finite-family first-order product formula for pairwise
 commuting Hamiltonian terms. -/
-theorem timeEvolution_eq_finiteTrotterStep_of_pairwise_commute
+lemma timeEvolution_eq_finiteTrotterStep_of_pairwise_commute
     {R : Register} {L : ℕ} (terms : HamiltonianFamily R L)
     (hcomm : PairwiseCommute terms) (t : ℝ) :
     timeEvolution (hamiltonianSum terms) t = finiteFirstOrderTrotterStep terms t := by
@@ -204,7 +204,7 @@ def firstOrderTrotterStepOp {R : Register} (H₁ H₂ : HilbertOperator R) (dt :
   timeEvolutionOp H₁ dt * timeEvolutionOp H₂ dt
 
 /-- A two-term first-order Trotter step is unitary when both summands are Hamiltonians. -/
-theorem firstOrderTrotterStepOp_mem_unitaryGroup {R : Register}
+lemma firstOrderTrotterStepOp_mem_unitaryGroup {R : Register}
     (H₁ H₂ : Hamiltonian R) (dt : ℝ) :
     firstOrderTrotterStepOp
         (H₁ : HilbertOperator R) (H₂ : HilbertOperator R) dt
@@ -224,7 +224,7 @@ def firstOrderTrotterErrorOp {R : Register} (H₁ H₂ : HilbertOperator R)
   timeEvolutionOp (H₁ + H₂) t - firstOrderTrotterProductOp H₁ H₂ t r
 
 /-- Exact one-step product formula for commuting Hamiltonian operators. -/
-theorem timeEvolutionOp_add_eq_firstOrderTrotterStepOp_of_commute {R : Register}
+lemma timeEvolutionOp_add_eq_firstOrderTrotterStepOp_of_commute {R : Register}
     {H₁ H₂ : HilbertOperator R} (hcomm : Commute H₁ H₂) (t : ℝ) :
     timeEvolutionOp (H₁ + H₂) t = firstOrderTrotterStepOp H₁ H₂ t := by
   rw [timeEvolutionOp, firstOrderTrotterStepOp, timeEvolutionOp, timeEvolutionOp, smul_add]
@@ -234,7 +234,7 @@ theorem timeEvolutionOp_add_eq_firstOrderTrotterStepOp_of_commute {R : Register}
 /-- Repeating exact evolution for `t / r` exactly recovers evolution for `t`.
 This is an algebraic matrix-exponential identity and does not require
 Hermitianity. -/
-theorem timeEvolutionOp_pow_div {R : Register} (H : HilbertOperator R) {r : ℕ}
+lemma timeEvolutionOp_pow_div {R : Register} (H : HilbertOperator R) {r : ℕ}
     (hr : r ≠ 0) (t : ℝ) :
     (timeEvolutionOp H (t / (r : ℝ))) ^ r = timeEvolutionOp H t := by
   rw [timeEvolutionOp, timeEvolutionOp]
@@ -263,7 +263,7 @@ namespace TrotterProductFormula
 /-- Exact repeated first-order Trotter product formula for commuting Hamiltonian
 summands.  This is the zero-error boundary of the product-formula method; the
 noncommuting approximation bound is intentionally not claimed here. -/
-theorem commuting_exact {R : Register} (H₁ H₂ : Hamiltonian R)
+lemma commuting_exact {R : Register} (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     {r : ℕ} (hr : r ≠ 0) (t : ℝ) :
     timeEvolutionOp ((H₁ : HilbertOperator R) + (H₂ : HilbertOperator R)) t
@@ -276,7 +276,7 @@ theorem commuting_exact {R : Register} (H₁ H₂ : Hamiltonian R)
 
 /-- The explicit Trotter error operator vanishes for commuting Hamiltonian
 summands and nonzero step count. -/
-theorem error_eq_zero_of_commute {R : Register} (H₁ H₂ : Hamiltonian R)
+lemma error_eq_zero_of_commute {R : Register} (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     {r : ℕ} (hr : r ≠ 0) (t : ℝ) :
     firstOrderTrotterErrorOp
@@ -292,14 +292,14 @@ def commutatorBoundRhs {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) : �
   (t ^ 2 / 2) *
     opNorm (⁅(H₁ : HilbertOperator R), (H₂ : HilbertOperator R)⁆)
 
-theorem commutatorBoundRhs_nonneg {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
+lemma commutatorBoundRhs_nonneg {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     0 ≤ commutatorBoundRhs H₁ H₂ t := by
   unfold commutatorBoundRhs
   exact mul_nonneg (div_nonneg (sq_nonneg t) (by norm_num))
     (opNorm_nonneg (⁅(H₁ : HilbertOperator R), (H₂ : HilbertOperator R)⁆))
 
 @[simp]
-theorem commutatorBoundRhs_eq_zero_of_commute {R : Register}
+lemma commutatorBoundRhs_eq_zero_of_commute {R : Register}
     (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t : ℝ) :
@@ -326,7 +326,7 @@ def oneStepErrorOp {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     - firstOrderTrotterStepOp
         (H₁ : HilbertOperator R) (H₂ : HilbertOperator R) t
 
-theorem statement_iff_oneStepErrorOp {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
+lemma statement_iff_oneStepErrorOp {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     Statement H₁ H₂ t ↔
       0 ≤ t →
         opNorm (oneStepErrorOp H₁ H₂ t)
@@ -341,26 +341,26 @@ private def interpolationOp {R : Register} (H₁ H₂ : Hamiltonian R) (t s : �
         (H₁ : HilbertOperator R) (H₂ : HilbertOperator R) s
 
 @[simp]
-private theorem interpolationOp_zero {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
+private lemma interpolationOp_zero {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     interpolationOp H₁ H₂ t 0
       = timeEvolutionOp ((H₁ : HilbertOperator R) + (H₂ : HilbertOperator R)) t := by
   simp [interpolationOp, firstOrderTrotterStepOp, timeEvolutionOp]
 
 @[simp]
-private theorem interpolationOp_self {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
+private lemma interpolationOp_self {R : Register} (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     interpolationOp H₁ H₂ t t
       = firstOrderTrotterStepOp
           (H₁ : HilbertOperator R) (H₂ : HilbertOperator R) t := by
   simp [interpolationOp, timeEvolutionOp]
 
 /-- The one-step error is the difference between the interpolation endpoints. -/
-private theorem oneStepErrorOp_eq_interpolation_endpoints {R : Register}
+private lemma oneStepErrorOp_eq_interpolation_endpoints {R : Register}
     (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     oneStepErrorOp H₁ H₂ t = interpolationOp H₁ H₂ t 0 - interpolationOp H₁ H₂ t t := by
   simp [oneStepErrorOp]
 
 /-- Norm form of the interpolation endpoint identity. -/
-private theorem opNorm_oneStepErrorOp_eq_interpolation_endpoints {R : Register}
+private lemma opNorm_oneStepErrorOp_eq_interpolation_endpoints {R : Register}
     (H₁ H₂ : Hamiltonian R) (t : ℝ) :
     opNorm (oneStepErrorOp H₁ H₂ t)
       = opNorm (interpolationOp H₁ H₂ t 0 - interpolationOp H₁ H₂ t t) := by
@@ -368,7 +368,7 @@ private theorem opNorm_oneStepErrorOp_eq_interpolation_endpoints {R : Register}
 
 /-- An analytic endpoint estimate for the interpolation implies the target
 one-step Trotter bound. -/
-private theorem statement_of_interpolation_endpoints_bound {R : Register}
+private lemma statement_of_interpolation_endpoints_bound {R : Register}
     (H₁ H₂ : Hamiltonian R) (t : ℝ)
     (hbound :
       opNorm (interpolationOp H₁ H₂ t 0 - interpolationOp H₁ H₂ t t)
@@ -391,7 +391,7 @@ private structure DuhamelEndpointEstimate {R : Register} (H₁ H₂ : Hamiltonia
       ≤ commutatorBoundRhs H₁ H₂ t
 
 /-- The Duhamel/FTC endpoint estimate implies the one-step commutator error bound. -/
-private theorem bound_of_duhamelEndpointEstimate {R : Register}
+private lemma bound_of_duhamelEndpointEstimate {R : Register}
     (H₁ H₂ : Hamiltonian R) (t : ℝ)
     (hduhamel : DuhamelEndpointEstimate H₁ H₂ t) :
     Statement H₁ H₂ t :=
@@ -422,7 +422,7 @@ def commutatorKernel {R : Register} (H₁ H₂ : Hamiltonian R) (t s : ℝ) :
         (H₁ : HilbertOperator R) (H₂ : HilbertOperator R) s
 
 /-- The unitary factors in the commutator kernel do not change the operator norm. -/
-theorem opNorm_commutatorKernel {R : Register}
+lemma opNorm_commutatorKernel {R : Register}
     (H₁ H₂ : Hamiltonian R) (t s : ℝ) :
     opNorm (commutatorKernel H₁ H₂ t s)
       = opNorm (⁅(H₁ : HilbertOperator R), (H₂ : HilbertOperator R)⁆) := by
@@ -438,14 +438,14 @@ theorem opNorm_commutatorKernel {R : Register}
     (firstOrderTrotterStepOp_mem_unitaryGroup H₁ H₂ s)]
 
 /-- The commutator kernel is uniformly bounded by the commutator norm. -/
-theorem opNorm_commutatorKernel_le {R : Register}
+lemma opNorm_commutatorKernel_le {R : Register}
     (H₁ H₂ : Hamiltonian R) (t s : ℝ) :
     opNorm (commutatorKernel H₁ H₂ t s)
       ≤ opNorm (⁅(H₁ : HilbertOperator R), (H₂ : HilbertOperator R)⁆) := by
   rw [opNorm_commutatorKernel H₁ H₂ t s]
 
 /-- The commutator kernel vanishes on the commuting boundary. -/
-theorem commutatorKernel_eq_zero_of_commute {R : Register}
+lemma commutatorKernel_eq_zero_of_commute {R : Register}
     (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t s : ℝ) :
@@ -453,7 +453,7 @@ theorem commutatorKernel_eq_zero_of_commute {R : Register}
   simp [commutatorKernel, hcomm.lie_eq]
 
 @[simp]
-theorem opNorm_commutatorKernel_eq_zero_of_commute {R : Register}
+lemma opNorm_commutatorKernel_eq_zero_of_commute {R : Register}
     (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t s : ℝ) :
@@ -462,7 +462,7 @@ theorem opNorm_commutatorKernel_eq_zero_of_commute {R : Register}
 
 /-- One-step exactness on the commuting boundary.  The noncommuting
 commutator-norm estimate is proved below. -/
-theorem commuting_boundary_eq {R : Register} (H₁ H₂ : Hamiltonian R)
+lemma commuting_boundary_eq {R : Register} (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t : ℝ) :
     timeEvolutionOp ((H₁ : HilbertOperator R) + (H₂ : HilbertOperator R)) t
@@ -471,7 +471,7 @@ theorem commuting_boundary_eq {R : Register} (H₁ H₂ : Hamiltonian R)
   timeEvolutionOp_add_eq_firstOrderTrotterStepOp_of_commute hcomm t
 
 /-- On the commuting boundary, the interpolation endpoints coincide. -/
-private theorem interpolation_endpoints_sub_eq_zero_of_commute {R : Register}
+private lemma interpolation_endpoints_sub_eq_zero_of_commute {R : Register}
     (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t : ℝ) :
@@ -479,7 +479,7 @@ private theorem interpolation_endpoints_sub_eq_zero_of_commute {R : Register}
   rw [interpolationOp_zero, interpolationOp_self, commuting_boundary_eq H₁ H₂ hcomm t,
     sub_self]
 
-private theorem opNorm_interpolation_endpoints_eq_zero_of_commute {R : Register}
+private lemma opNorm_interpolation_endpoints_eq_zero_of_commute {R : Register}
     (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t : ℝ) :
@@ -487,7 +487,7 @@ private theorem opNorm_interpolation_endpoints_eq_zero_of_commute {R : Register}
   rw [interpolation_endpoints_sub_eq_zero_of_commute H₁ H₂ hcomm t, opNorm_zero]
 
 /-- The Duhamel endpoint estimate is witnessed on the commuting boundary. -/
-private theorem duhamelEndpointEstimate_of_commute {R : Register}
+private lemma duhamelEndpointEstimate_of_commute {R : Register}
     (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t : ℝ) :
@@ -497,7 +497,7 @@ private theorem duhamelEndpointEstimate_of_commute {R : Register}
   exact commutatorBoundRhs_nonneg H₁ H₂ t
 
 /-- The commutator-norm error bound is trivial on the commuting boundary. -/
-theorem commuting_boundary_operatorNorm {R : Register} (H₁ H₂ : Hamiltonian R)
+lemma commuting_boundary_operatorNorm {R : Register} (H₁ H₂ : Hamiltonian R)
     (hcomm : Commute (H₁ : HilbertOperator R) (H₂ : HilbertOperator R))
     (t : ℝ) : Statement H₁ H₂ t := by
   unfold Statement
@@ -889,7 +889,7 @@ private lemma norm_interpolationDerivativeOp_le {R : Register}
 bounded by `(t²/2)·‖[H₁, H₂]‖`.
 
 The proof combines FTC, unitary cancellation, and the integral of `s` over `[0,t]`. -/
-private theorem duhamelEndpointEstimate_proof {R : Register}
+private lemma duhamelEndpointEstimate_proof {R : Register}
     (H₁ H₂ : Hamiltonian R) (t : ℝ) (ht : 0 ≤ t) :
     DuhamelEndpointEstimate H₁ H₂ t := by
   -- Step 1: FTC — F(0) - F(t) = ∫₀ᵗ F'(s) ds
@@ -1030,7 +1030,7 @@ private lemma norm_pow_sub_pow_le_unitary {R : Register}
         _ = ((k : ℕ).succ : ℝ) * opNorm (U - V) := by push_cast; ring
     exact h_arith
 
-theorem repeated_error_bound {R : Register}
+lemma repeated_error_bound {R : Register}
     (H₁ H₂ : Hamiltonian R) (t : ℝ) (ht : 0 ≤ t) (r : ℕ) (hr : r ≠ 0) :
     opNorm
         (timeEvolutionOp ((H₁ : HilbertOperator R) + (H₂ : HilbertOperator R)) t

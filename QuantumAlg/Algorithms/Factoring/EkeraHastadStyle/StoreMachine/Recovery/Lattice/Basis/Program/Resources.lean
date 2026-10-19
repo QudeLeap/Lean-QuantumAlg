@@ -27,7 +27,8 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent complete native formula for both initialized lower-row powers. -/
@@ -39,14 +40,14 @@ def basisTrace (N m ell width : Nat) : List (Resource.Event model) :=
   firstRowTrace N width ++ powerRowsTrace m ell width
 
 /-- Every actual lower-row path emits both complete independent native power formulas. -/
-theorem powerRowsInto_events (m ell : Nat) (output : RawOutputRefs ctx width)
+lemma powerRowsInto_events (m ell : Nat) (output : RawOutputRefs ctx width)
     (path : (powerRowsInto m ell output).Path) :
     (powerRowsInto m ell output).eventTrace path = powerRowsTrace m ell width :=
   congrArg₂ List.append (Word.PowerOfTwo.into_events (ell + m) output.b21 path.1)
     (Word.PowerOfTwo.into_events (ell + m) output.b32 path.2)
 
 /-- Every actual source-basis path emits the complete independent ordered native formula. -/
-theorem loadBasisInto_events (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_events (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) :
     (loadBasisInto (m := m) (ell := ell) pair output).eventTrace path = basisTrace N m ell width :=
@@ -58,7 +59,7 @@ def basisEventEnvelope (N m ell width : Nat) : ResourcePool model :=
   ResourcePool.ofList (basisTrace N m ell width)
 
 /-- Actual source-basis multiplicities equal the complete independent native envelope. -/
-theorem loadBasisInto_resourcePool (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_resourcePool (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) :
     (loadBasisInto (m := m) (ell := ell) pair output).resourcePool path =
@@ -66,7 +67,7 @@ theorem loadBasisInto_resourcePool (m ell : Nat) (pair : BatchMachine.PairRefs c
   congrArg ResourcePool.ofList (loadBasisInto_events m ell pair output path)
 
 /-- Both actual lower-row power loaders cost exactly twice the exponent plus four instructions. -/
-theorem powerRowsInto_eventCount (m ell : Nat) (output : RawOutputRefs ctx width)
+lemma powerRowsInto_eventCount (m ell : Nat) (output : RawOutputRefs ctx width)
     (path : (powerRowsInto m ell output).Path) :
     ((powerRowsInto m ell output).eventTrace path).length = 2 * (ell + m) + 4 := by
   change ((Word.PowerOfTwo.into (ell + m) output.b21).eventTrace path.1 ++
@@ -77,7 +78,7 @@ theorem powerRowsInto_eventCount (m ell : Nat) (output : RawOutputRefs ctx width
   omega
 
 /-- Actual source-basis loading costs exactly twice the exponent plus eight native instructions. -/
-theorem loadBasisInto_eventCount (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_eventCount (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) :
     ((loadBasisInto (m := m) (ell := ell) pair output).eventTrace path).length =
@@ -88,7 +89,7 @@ theorem loadBasisInto_eventCount (m ell : Nat) (pair : BatchMachine.PairRefs ctx
   omega
 
 /-- Both actual initialized lower-row powers have exactly their full serial instruction depth. -/
-theorem powerRowsInto_depth (m ell : Nat) (output : RawOutputRefs ctx width)
+lemma powerRowsInto_depth (m ell : Nat) (output : RawOutputRefs ctx width)
     (path : (powerRowsInto m ell output).Path) :
     (powerRowsInto m ell output).depth (fun _ => 1) path = 2 * (ell + m) + 4 := by
   change (Word.PowerOfTwo.into (ell + m) output.b21).depth (fun _ => 1) path.1 +
@@ -98,7 +99,7 @@ theorem powerRowsInto_depth (m ell : Nat) (output : RawOutputRefs ctx width)
   omega
 
 /-- Actual source-basis dependencies have exactly the complete ordered native instruction depth. -/
-theorem loadBasisInto_depth (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_depth (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) :
     (loadBasisInto (m := m) (ell := ell) pair output).depth (fun _ => 1) path =
@@ -109,28 +110,28 @@ theorem loadBasisInto_depth (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
   omega
 
 /-- Both actual lower-row powers restore all borrowed storage jointly with external references. -/
-theorem powerRowsInto_borrowedRestored (m ell : Nat) (output : RawOutputRefs ctx width)
+lemma powerRowsInto_borrowedRestored (m ell : Nat) (output : RawOutputRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (powerRowsInto m ell output).BorrowedRestored Reference state
-      ((powerRowsInto m ell output).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((powerRowsInto m ell output).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (Word.PowerOfTwo.into_borrowedRestored (ell + m) output.b21 Reference _)
     (Word.PowerOfTwo.into_borrowedRestored (ell + m) output.b32 Reference _)
 
 /-- Complete actual source-basis loading restores every borrowed-reference correlation jointly. -/
-theorem loadBasisInto_borrowedRestored (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_borrowedRestored (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (loadBasisInto (m := m) (ell := ell) pair output).BorrowedRestored Reference state
-      ((loadBasisInto (m := m) (ell := ell) pair output).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((loadBasisInto (m := m) (ell := ell) pair output).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (loadFirstBasisRowInto_borrowedRestored pair output Reference _)
     (powerRowsInto_borrowedRestored m ell output Reference _)
 
 /-- Both actual lower-row powers keep every original context entry live. -/
-theorem powerRowsInto_visited (m ell : Nat) (output : RawOutputRefs ctx width)
+lemma powerRowsInto_visited (m ell : Nat) (output : RawOutputRefs ctx width)
     (path : (powerRowsInto m ell output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (powerRowsInto m ell output).visitedContexts path) : visited = ctx := by
   change visited ∈ _ ++ _ at present
@@ -139,7 +140,7 @@ theorem powerRowsInto_visited (m ell : Nat) (output : RawOutputRefs ctx width)
     (Word.PowerOfTwo.into_visited (ell + m) output.b32 path.2 visited)
 
 /-- Every actual source-basis instruction uses only the complete original context. -/
-theorem loadBasisInto_visited (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_visited (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path)
     (visited : RuntimeCtx model.kind)
@@ -151,7 +152,7 @@ theorem loadBasisInto_visited (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (powerRowsInto_visited m ell output path.2 visited)
 
 /-- Every original resident entry remains counted during the complete actual source-basis load. -/
-theorem loadBasisInto_resident_le (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_resident_le (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) :
     (loadBasisInto (m := m) (ell := ell) pair output).peakResidentSpace path ≤
@@ -161,7 +162,7 @@ theorem loadBasisInto_resident_le (m ell : Nat) (pair : BatchMachine.PairRefs ct
   rw [loadBasisInto_visited m ell pair output path visited present]
 
 /-- Every original auxiliary role remains counted during the complete actual source-basis load. -/
-theorem loadBasisInto_auxiliary_le (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
+lemma loadBasisInto_auxiliary_le (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width)
     (path : (loadBasisInto (m := m) (ell := ell) pair output).Path) :
     (loadBasisInto (m := m) (ell := ell) pair output).peakAuxiliarySpace path ≤

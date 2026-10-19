@@ -27,6 +27,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 open BinaryLabelEncoding
 
@@ -52,20 +54,20 @@ def carryWorkBit (width : Nat) (bit : Fin (width - 2 + 1)) :
 def carryOutputBit (width : Nat) : EncodedBit (carryEncoding width) :=
   carryWorkBit width ⟨width - 2, by omega⟩
 
-theorem hrsCarryInputBit_get (width : Nat) (bit : Fin width) (state : CarryRegisters width) :
+lemma hrsCarryInputBit_get (width : Nat) (bit : Fin width) (state : CarryRegisters width) :
     (carryInputBit width bit).get state = state.1.val.testBit bit.val := by
   change state.1.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-theorem hrsCarryWorkBit_get (width : Nat) (bit : Fin (width - 2 + 1))
+lemma hrsCarryWorkBit_get (width : Nat) (bit : Fin (width - 2 + 1))
     (state : CarryRegisters width) :
     (carryWorkBit width bit).get state = state.2.val.testBit bit.val := by
   change state.2.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem input_ne_input (width : Nat) (i j : Fin width) (hne : i ≠ j) :
+private lemma input_ne_input (width : Nat) (i j : Fin width) (hne : i ≠ j) :
     (carryInputBit width i).wire ≠ (carryInputBit width j).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -74,7 +76,7 @@ private theorem input_ne_input (width : Nat) (i j : Fin width) (hne : i ≠ j) :
   apply Fin.ext
   omega
 
-private theorem work_ne_work (width : Nat) (i j : Fin (width - 2 + 1)) (hne : i ≠ j) :
+private lemma work_ne_work (width : Nat) (i j : Fin (width - 2 + 1)) (hne : i ≠ j) :
     (carryWorkBit width i).wire ≠ (carryWorkBit width j).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -84,7 +86,7 @@ private theorem work_ne_work (width : Nat) (i j : Fin (width - 2 + 1)) (hne : i 
   apply Fin.ext
   omega
 
-private theorem input_ne_work (width : Nat) (i : Fin width) (j : Fin (width - 2 + 1)) :
+private lemma input_ne_work (width : Nat) (i : Fin width) (j : Fin (width - 2 + 1)) :
     (carryInputBit width i).wire ≠ (carryWorkBit width j).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -128,7 +130,7 @@ def carryLowerPrefix (width : Nat) (constant : Fin (2 ^ width)) :
   | 0, _ => []
   | index + 1, _ => carryPrefix width constant index (by omega)
 
-private theorem prefix_disjoint (width : Nat) (constant : Fin (2 ^ width))
+private lemma prefix_disjoint (width : Nat) (constant : Fin (2 ^ width))
     (index : Nat) (h : index + 2 ≤ width) (observed : EncodedBit (carryEncoding width))
     (hinput : ∀ bit : Fin width, bit.val ≤ index + 1 →
       (carryInputBit width bit).wire ≠ observed.wire)
@@ -164,7 +166,7 @@ private theorem prefix_disjoint (width : Nat) (constant : Fin (2 ^ width))
             bitDisjoint, hc, hin, hprevious, hout, hlowerAll]
       exact List.forall_iff_forall_mem.mp hall gate hgate
 
-private theorem prefix_disjoint_higher_input (width : Nat) (constant : Fin (2 ^ width))
+private lemma prefix_disjoint_higher_input (width : Nat) (constant : Fin (2 ^ width))
     (index : Nat) (h : index + 2 ≤ width) (bit : Fin width) (hlt : index + 1 < bit.val) :
     ∀ gate, gate ∈ carryPrefix width constant index h →
       bitDisjoint (carryInputBit width bit) gate := by
@@ -177,7 +179,7 @@ private theorem prefix_disjoint_higher_input (width : Nat) (constant : Fin (2 ^ 
   · intro other _
     exact (input_ne_work width bit other).symm
 
-private theorem prefix_disjoint_higher_work (width : Nat) (constant : Fin (2 ^ width))
+private lemma prefix_disjoint_higher_work (width : Nat) (constant : Fin (2 ^ width))
     (index : Nat) (h : index + 2 ≤ width) (bit : Fin (width - 2 + 1))
     (hlt : index < bit.val) :
     ∀ gate, gate ∈ carryPrefix width constant index h →
@@ -191,7 +193,7 @@ private theorem prefix_disjoint_higher_work (width : Nat) (constant : Fin (2 ^ w
     have := congrArg Fin.val heq
     omega
 
-private theorem lower_disjoint_output (width : Nat) (constant : Fin (2 ^ width))
+private lemma lower_disjoint_output (width : Nat) (constant : Fin (2 ^ width))
     (index : Nat) (h : index + 2 ≤ width) :
     ∀ gate, gate ∈ carryLowerPrefix width constant index h →
       bitDisjoint (carryPrefixWork width index h) gate := by
@@ -201,12 +203,12 @@ private theorem lower_disjoint_output (width : Nat) (constant : Fin (2 ^ width))
       exact prefix_disjoint_higher_work width constant index (by omega)
         ⟨index + 1, by omega⟩ (by change index < index + 1; omega)
 
-private theorem carry_false (a b : Bool) : Bool.carry a b false = (a && b) := by
+private lemma carry_false (a b : Bool) : Bool.carry a b false = (a && b) := by
   cases a <;> cases b <;> rfl
 
 /-- Each optimized prefix adds one carry-controlled output flip to its lower
 prefix. Its selected readout records the carry as a toggle, never as a clean bit. -/
-theorem hrsCarryPrefix_action (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsCarryPrefix_action (width : Nat) (constant : Fin (2 ^ width))
     (index : Nat) (h : index + 2 ≤ width) (state : CarryRegisters width) :
     (stepList (carryPrefix width constant index h) state =
       if Nat.BinaryArithmetic.natAddCarry state.1.val constant.val (index + 2) then
@@ -287,7 +289,7 @@ def carryProgram (width : Nat) (constant : Fin (2 ^ width)) :
 
 /-- All input and borrowed components are restored, with only the carry output
 toggled. The statement includes the empty input and the one-bit input. -/
-theorem hrsCarry_step (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsCarry_step (width : Nat) (constant : Fin (2 ^ width))
     (state : CarryRegisters width) :
     stepList (carryGates width constant) state = carryOutput width constant state := by
   have hcarry := Nat.BinaryArithmetic.natAddCarry_eq_decide_two_pow_le
@@ -316,14 +318,14 @@ theorem hrsCarry_step (width : Nat) (constant : Fin (2 ^ width))
       rfl
 
 /-- Exact amplitudes preserve arbitrary joint borrowed-state coherence. -/
-theorem hrsCarry_realizes (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit.Realizes (carryEncoding width) (carryProgram width constant)
+lemma hrsCarry_realizes (width : Nat) (constant : Fin (2 ^ width)) :
+    UnitaryCircuit.Realizes (carryEncoding width) (carryProgram width constant) environment
       (carryOutput width constant) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (carryGates width constant) (hrsCarry_step width constant)
+    (carryGates width constant) (hrsCarry_step width constant) environment
 
 /-- The entire input word is restored, without any basis-value restriction. -/
-theorem hrsCarry_restores_input (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsCarry_restores_input (width : Nat) (constant : Fin (2 ^ width))
     (state : CarryRegisters width) :
     (stepList (carryGates width constant) state).1 = state.1 := by
   rw [hrsCarry_step]
@@ -331,7 +333,7 @@ theorem hrsCarry_restores_input (width : Nat) (constant : Fin (2 ^ width))
   split <;> rfl
 
 /-- Every internal borrowed bit is restored, independently of the output value. -/
-theorem hrsCarry_restores_borrowed (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsCarry_restores_borrowed (width : Nat) (constant : Fin (2 ^ width))
     (bit : Fin (width - 2)) (state : CarryRegisters width) :
     (stepList (carryGates width constant) state).2.val.testBit bit.val =
       state.2.val.testBit bit.val := by
@@ -353,7 +355,7 @@ theorem hrsCarry_restores_borrowed (width : Nat) (constant : Fin (2 ^ width))
   simpa only [observed, hrsCarryWorkBit_get] using hrestored
 
 /-- The selected output is an xor-output, including when initially dirty. -/
-theorem hrsCarry_output_get (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsCarry_output_get (width : Nat) (constant : Fin (2 ^ width))
     (state : CarryRegisters width) :
     (carryOutputBit width).get (stepList (carryGates width constant) state) =
       ((carryOutputBit width).get state ^^ decide (2 ^ width ≤ state.1.val + constant.val)) := by
@@ -363,7 +365,7 @@ theorem hrsCarry_output_get (width : Nat) (constant : Fin (2 ^ width))
     simp [EncodedBit.get_flip_self]
 
 /-- The actual interface is exactly the input, internal borrowed bits, and output. -/
-theorem hrsCarry_interface (width : Nat) :
+lemma hrsCarry_interface (width : Nat) :
     (carryEncoding width).width = width + (width - 2) + 1 ∧
       (QubitLayout.canonical (carryEncoding width).width).systemIdx =
         List.range (width + (width - 2) + 1) := by
@@ -376,7 +378,7 @@ theorem hrsCarry_interface (width : Nat) :
     exact QubitLayout.canonical_systemIdx (width + (width - 2) + 1)
 
 /-- For at least two input bits the concrete interface occupies `2w - 1` wires. -/
-theorem hrsCarry_width_of_two_le (width : Nat) (h : 2 ≤ width) :
+lemma hrsCarry_width_of_two_le (width : Nat) (h : 2 ≤ width) :
     (carryEncoding width).width = 2 * width - 1 := by
   change width + (width - 2 + 1) = 2 * width - 1
   omega

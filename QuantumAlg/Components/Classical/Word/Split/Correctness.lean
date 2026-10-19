@@ -30,13 +30,13 @@ section Descriptor
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width highWidth lowWidth : Nat}
 
 /-- A native shift preserves every read outside its actual working word. -/
-theorem shift_frame (work : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
+lemma shift_frame (work : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : work.key ∉ other.storageKeys) :
     (store.applyOp (shiftOp work)).read other = store.read other :=
   Store.read_applyOp_of_not_mem_storageKeys store (shiftOp work) other avoids
 
 /-- One actual native right shift is exact division by two, even at word width zero. -/
-theorem shift_read (work : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+lemma shift_read (work : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((store.applyOp (shiftOp work)).read (.storage work.toCStorageRef)).toNat =
       (store.read (.storage work.toCStorageRef)).toNat / 2 := by
   simp only [Store.applyOp, shiftOp, ClassicalOp.outputRef, Store.read_write_same,
@@ -49,7 +49,7 @@ theorem shift_read (work : CWriteRef ctx (.unsignedWord width)) (store : Store c
     exact Nat.mod_eq_of_lt (lt_of_le_of_lt (Nat.div_le_self word.val 2) word.isLt)
 
 /-- Any finite sequence of native shifts retains the full nonworking caller frame. -/
-theorem shiftInto_callerFrame (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_callerFrame (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : work.key ∉ other.storageKeys) :
     (shiftStore count work store).read other = store.read other := by
@@ -59,7 +59,7 @@ theorem shiftInto_callerFrame (count : Nat) (work : CWriteRef ctx (.unsignedWord
   | succ count ih => rw [Function.iterate_succ_apply, ih, shift_frame work store other avoids]
 
 /-- The actual repeated shifts divide the original working word by precisely two to the count. -/
-theorem shiftInto_read (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_read (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     ((shiftStore count work store).read (.storage work.toCStorageRef)).toNat =
       (store.read (.storage work.toCStorageRef)).toNat / 2 ^ count := by
@@ -71,7 +71,7 @@ theorem shiftInto_read (count : Nat) (work : CWriteRef ctx (.unsignedWord width)
     rw [Function.iterate_succ_apply, ih, shift_read, Nat.div_div_eq_div_mul, pow_succ]
     rw [Nat.mul_comm 2]
 
-private theorem resize_read {sourceWidth targetWidth : Nat}
+private lemma resize_read {sourceWidth targetWidth : Nat}
     (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord targetWidth)) (store : Store ctx) :
     ((store.applyOp (.wordResize sourceWidth targetWidth ctx input output)).read
@@ -81,18 +81,18 @@ private theorem resize_read {sourceWidth targetWidth : Nat}
     ClassicalOp.eval_wordResize_toNat]
 
 /-- Actual low-width extraction reads the original work word modulo its low-width capacity. -/
-theorem low_read (refs : Refs ctx highWidth lowWidth) (store : Store ctx) :
+lemma low_read (refs : Refs ctx highWidth lowWidth) (store : Store ctx) :
     ((store.applyOp (lowOp refs)).read (.storage refs.low.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat % CShape.wordModulus lowWidth :=
   resize_read _ _ store
 
 /-- Actual high-width extraction reads the shifted work word modulo its high-width capacity. -/
-theorem high_read (refs : Refs ctx highWidth lowWidth) (store : Store ctx) :
+lemma high_read (refs : Refs ctx highWidth lowWidth) (store : Store ctx) :
     ((store.applyOp (highOp refs)).read (.storage refs.high.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat % CShape.wordModulus highWidth :=
   resize_read _ _ store
 
-private theorem low_work (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
+private lemma low_work (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
     (store.applyOp (lowOp refs)).read (.storage refs.work.toCStorageRef) =
       store.read (.storage refs.work.toCStorageRef) :=
@@ -106,7 +106,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {highWidth lowWidth : Nat}
 
 /-- The actual destructive working word ends at the exact original high quotient. -/
-theorem splitInto_work (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
+lemma splitInto_work (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
     ((splitStep (model := model) refs store).1.read (.storage refs.work.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat / 2 ^ lowWidth := by
@@ -118,7 +118,7 @@ theorem splitInto_work (refs : Refs ctx highWidth lowWidth) (separation : Separa
     shiftInto_read, low_work refs separation store]
 
 /-- The actual low output retains the original remainder through all later writes. -/
-theorem splitInto_low (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
+lemma splitInto_low (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
     ((splitStep (model := model) refs store).1.read (.storage refs.low.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat % 2 ^ lowWidth := by
@@ -133,7 +133,7 @@ theorem splitInto_low (refs : Refs ctx highWidth lowWidth) (separation : Separat
   rfl
 
 /-- The original combined-width capacity makes the actual high output the exact quotient. -/
-theorem splitInto_high (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
+lemma splitInto_high (refs : Refs ctx highWidth lowWidth) (separation : Separation refs)
     (store : Store ctx) :
     ((splitStep (model := model) refs store).1.read (.storage refs.high.toCStorageRef)).toNat =
       (store.read (.storage refs.work.toCStorageRef)).toNat / 2 ^ lowWidth := by
@@ -147,7 +147,7 @@ theorem splitInto_high (refs : Refs ctx highWidth lowWidth) (separation : Separa
   rw [high_read, shiftInto_read, low_work refs separation store, Nat.mod_eq_of_lt quotientFits]
 
 /-- Every actual read outside the three supplied write cells is retained exactly. -/
-theorem splitInto_callerFrame (refs : Refs ctx highWidth lowWidth) (store : Store ctx)
+lemma splitInto_callerFrame (refs : Refs ctx highWidth lowWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (work : refs.work.key ∉ other.storageKeys) (high : refs.high.key ∉ other.storageKeys)
     (low : refs.low.key ∉ other.storageKeys) :

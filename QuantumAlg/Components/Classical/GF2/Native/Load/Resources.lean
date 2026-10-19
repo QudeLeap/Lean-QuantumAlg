@@ -43,7 +43,7 @@ def rowEnvelope (rowCount width : Nat) : ResourcePool model :=
       ResourcePool.singleton (rowWriteEvent (model := model) rowCount width))
 
 /-- The ordered clear, decoder and write retain their original event coordinates. -/
-theorem gf2RowBody_pool_le (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+lemma gf2RowBody_pool_le (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (path : (rowBody input row matrix loader).Path) :
     (rowBody input row matrix loader).resourcePool path ≤
@@ -74,7 +74,7 @@ def rowDepthLimit (rowCount width : Nat) (duration : Resource.Event model → Na
       duration (rowWriteEvent (model := model) rowCount width))
 
 /-- Arbitrary durations respect the original three-stage dependency order. -/
-theorem gf2RowBody_depth_le (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+lemma gf2RowBody_depth_le (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (rowBody input row matrix loader).Path) :
@@ -92,7 +92,7 @@ theorem gf2RowBody_depth_le (input : CInputRef ctx (.bits width)) (row : Fin row
     (TerminalDecode.terminalDecode_intoFromBitRefs_depth_le .bigEndian
       (fun index => .bitsGet input index) loader duration path.2.1) _) _
 
-private theorem decoder_bit_duration (input : CInputRef ctx .bit)
+private lemma decoder_bit_duration (input : CInputRef ctx .bit)
     (loader : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (TerminalDecode.bitRefRoutine input loader).Path) :
     (TerminalDecode.bitRefRoutine input loader).depth duration path =
@@ -127,7 +127,7 @@ private theorem decoder_bit_duration (input : CInputRef ctx .bit)
             TerminalDecode.incrementEvent (model := model) width].map duration).sum
         simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
-private theorem decoder_duration (loader : CWriteRef ctx (.unsignedWord width))
+private lemma decoder_duration (loader : CWriteRef ctx (.unsignedWord width))
     (inputs : List (CInputRef ctx .bit)) (duration : Resource.Event model → Nat)
     (path : (TerminalDecode.foldBitRefs loader inputs).Path) :
     (TerminalDecode.foldBitRefs loader inputs).depth duration path =
@@ -142,7 +142,7 @@ private theorem decoder_duration (loader : CWriteRef ctx (.unsignedWord width))
       rw [List.map_append, List.sum_append, decoder_bit_duration, ih]
 
 /-- The same row path has serial depth equal to the sum of its actually emitted durations. -/
-theorem gf2RowBody_duration_eventTrace (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+lemma gf2RowBody_duration_eventTrace (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (rowBody input row matrix loader).Path) :
@@ -175,7 +175,7 @@ theorem gf2RowBody_duration_eventTrace (input : CInputRef ctx (.bits width)) (ro
     (value + duration (rowWriteEvent (model := model) rowCount width)))
     (decoder_duration loader (List.ofFn (fun index => .bitsGet input index)) duration path.2.1)
 
-private theorem rowBody_resident (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+private lemma rowBody_resident (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (path : (rowBody input row matrix loader).Path) :
     (rowBody input row matrix loader).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -190,7 +190,7 @@ private theorem rowBody_resident (input : CInputRef ctx (.bits width)) (row : Fi
     (TerminalDecode.terminalDecode_intoFromBitRefs_resident_le .bigEndian
       (fun index => .bitsGet input index) loader path.2.1) le_rfl)
 
-private theorem rowBody_auxiliary (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+private lemma rowBody_auxiliary (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (path : (rowBody input row matrix loader).Path) :
     (rowBody input row matrix loader).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
@@ -206,7 +206,7 @@ private theorem rowBody_auxiliary (input : CInputRef ctx (.bits width)) (row : F
       (fun index => .bitsGet input index) loader path.2.1) le_rfl)
 
 /-- Lexical entry and release add no events to the actual row sequence. -/
-theorem gf2LoadRow_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (path : (loadRow input matrix row).Path) :
     (loadRow input matrix row).resourcePool path ≤
@@ -214,7 +214,7 @@ theorem gf2LoadRow_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits 
   gf2RowBody_pool_le _ row _ _ path
 
 /-- One real row scope has the unchanged original duration allowance. -/
-theorem gf2LoadRow_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (duration : Resource.Event model → Nat) (path : (loadRow input matrix row).Path) :
     (loadRow input matrix row).depth duration path ≤
@@ -222,7 +222,7 @@ theorem gf2LoadRow_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits
   gf2RowBody_depth_le _ row _ _ duration path
 
 /-- Scope operations preserve the same actual serial-duration equation. -/
-theorem gf2LoadRow_duration_eventTrace
+lemma gf2LoadRow_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (duration : Resource.Event model → Nat) (path : (loadRow input matrix row).Path) :
@@ -231,7 +231,7 @@ theorem gf2LoadRow_duration_eventTrace
   gf2RowBody_duration_eventTrace _ row _ _ duration path
 
 /-- The only additional resident storage is the one actual scoped decoding word. -/
-theorem gf2LoadRow_resident_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_resident_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (path : (loadRow input matrix row).Path) :
     (loadRow input matrix row).peakResidentSpace path ≤
@@ -241,7 +241,7 @@ theorem gf2LoadRow_resident_le (input : CInputRef ctx (.fixedVector rowCount (.b
   exact SpacePool.max_le (fun _axis => Nat.le_add_left _ _) (rowBody_resident _ row _ _ path)
 
 /-- The actual temporary word is the sole additional auxiliary allocation. -/
-theorem gf2LoadRow_auxiliary_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_auxiliary_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (path : (loadRow input matrix row).Path) :
     (loadRow input matrix row).peakAuxiliarySpace path ≤
@@ -251,7 +251,7 @@ theorem gf2LoadRow_auxiliary_le (input : CInputRef ctx (.fixedVector rowCount (.
   exact SpacePool.max_le (fun _axis => Nat.le_add_left _ _) (rowBody_auxiliary _ row _ _ path)
 
 /-- The original ordered matrix load adds the actual per-row native allowances. -/
-theorem gf2LoadMatrix_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (path : (loadMatrix input matrix).Path) :
     (loadMatrix input matrix).resourcePool path ≤
@@ -259,7 +259,7 @@ theorem gf2LoadMatrix_pool_le (input : CInputRef ctx (.fixedVector rowCount (.bi
   Circuit.forRange_pool_le rowCount _ _ (gf2LoadRow_pool_le input matrix) path
 
 /-- Full duration is bounded by the sum of the original per-row dependencies. -/
-theorem gf2LoadMatrix_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_depth_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (duration : Resource.Event model → Nat) (path : (loadMatrix input matrix).Path) :
     (loadMatrix input matrix).depth duration path ≤
@@ -271,7 +271,7 @@ theorem gf2LoadMatrix_depth_le (input : CInputRef ctx (.fixedVector rowCount (.b
       (fun row => gf2LoadRow_depth_le input matrix row duration) path
 
 /-- Every actual complete path is serial, with no replayed event ledger. -/
-theorem gf2LoadMatrix_duration_eventTrace
+lemma gf2LoadMatrix_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (duration : Resource.Event model → Nat) (path : (loadMatrix input matrix).Path) :
@@ -281,7 +281,7 @@ theorem gf2LoadMatrix_duration_eventTrace
     (fun row => gf2LoadRow_duration_eventTrace input matrix row duration) path
 
 /-- At most two real decoder instructions per bit, plus the original clear and vector write. -/
-theorem gf2LoadMatrix_eventCount_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_eventCount_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (path : (loadMatrix input matrix).Path) :
     ((loadMatrix input matrix).eventTrace path).length ≤ rowCount * (2 + 2 * width) := by
@@ -303,7 +303,7 @@ theorem gf2LoadMatrix_eventCount_le (input : CInputRef ctx (.fixedVector rowCoun
   exact bounded.trans_eq (congrArg (rowCount * ·) arithmetic)
 
 /-- Row-local work is reused; its resident peak is independent of the number of rows. -/
-theorem gf2LoadMatrix_resident_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_resident_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (path : (loadMatrix input matrix).Path) :
     (loadMatrix input matrix).peakResidentSpace path ≤
@@ -312,7 +312,7 @@ theorem gf2LoadMatrix_resident_le (input : CInputRef ctx (.fixedVector rowCount 
     (gf2LoadRow_resident_le input matrix) path
 
 /-- Releasing each decoder before the next row avoids multiplying its auxiliary storage. -/
-theorem gf2LoadMatrix_auxiliary_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_auxiliary_le (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (path : (loadMatrix input matrix).Path) :
     (loadMatrix input matrix).peakAuxiliarySpace path ≤

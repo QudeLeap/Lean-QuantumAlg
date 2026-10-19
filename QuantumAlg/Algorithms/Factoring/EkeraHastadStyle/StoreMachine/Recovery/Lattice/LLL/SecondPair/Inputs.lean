@@ -99,12 +99,13 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Distinct mutable names have distinct actual writable identities. -/
-theorem Separation.mutable_ne {inputs : Inputs ctx width} {refs : Refs ctx width}
+lemma Separation.mutable_ne {inputs : Inputs ctx width} {refs : Refs ctx width}
     (separation : Separation inputs refs) (left right : MutableCell) (different : left ≠ right) :
     mutableKey refs left ≠ mutableKey refs right :=
   fun equal => different (separation.mutableInjective equal)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Reuse the output for the first product in the shared actual arithmetic component. -/
@@ -119,7 +120,8 @@ def productDifferenceStore (a b c d : CInputRef ctx (.unsignedWord width))
     (output product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) : Store ctx :=
   ProductDifference.computedStore a b c d output output product store
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The two original Gram expressions, each using exactly three native operations. -/
@@ -139,7 +141,8 @@ def secondReductionInputsStore (inputs : Inputs ctx width) (refs : Refs ctx widt
     (productDifferenceStore inputs.g11 inputs.g32 inputs.g31 inputs.g21
       refs.nu32 refs.product store)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The two actual three-operation records on their chronological stores. -/
@@ -153,15 +156,15 @@ def secondReductionInputsStep (inputs : Inputs ctx width) (refs : Refs ctx width
   (second.1, (first.2, second.2))
 
 /-- Complete actual execution preserves history and full quantum-reference correlations. -/
-theorem secondReductionInputsInto_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_execute (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondReductionInputsInto (model := model) inputs refs).execute Reference state =
+    (secondReductionInputsInto (model := model) inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondReductionInputsStep (model := model) inputs refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   unfold secondReductionInputsInto productDifferenceInto secondReductionInputsStep
-  refine (Circuit.execute_seq_mapClassical _ _
+  refine (Circuit.execute_seq_mapClassical (environment := environment) _ _
     (fun before =>
       let actual := ProductDifference.computationStep (model := model)
         inputs.g11 inputs.g32 inputs.g31 inputs.g21 refs.nu32 refs.nu32 refs.product before.1
@@ -179,7 +182,7 @@ theorem secondReductionInputsInto_execute (inputs : Inputs ctx width) (refs : Re
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Reads outside the two actual product-difference writes are preserved exactly. -/
-theorem productDifference_callerFrame (a b c d : CInputRef ctx (.unsignedWord width))
+lemma productDifference_callerFrame (a b c d : CInputRef ctx (.unsignedWord width))
     (output product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoidsOutput : output.key ∉ other.storageKeys)
@@ -189,7 +192,7 @@ theorem productDifference_callerFrame (a b c d : CInputRef ctx (.unsignedWord wi
     avoidsOutput avoidsOutput avoidsProduct
 
 /-- All actual caller reads outside the two output words and shared scratch survive both stages. -/
-theorem secondReductionInputsInto_callerFrame (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_callerFrame (inputs : Inputs ctx width) (refs : Refs ctx width)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (numerator : refs.nu32.key ∉ other.storageKeys) (denominator : refs.d32.key ∉ other.storageKeys)
     (product : refs.product.key ∉ other.storageKeys) :

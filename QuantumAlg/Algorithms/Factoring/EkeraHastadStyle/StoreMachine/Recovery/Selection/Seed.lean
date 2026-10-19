@@ -36,7 +36,7 @@ abbrev Width (N : Nat) : Nat :=
   QuadraticCandidateCheck.CandidateWidth (LatticePairCandidateRecovery.Width N)
 
 /-- The modulus-sized early-factor payload fits the pair selector width. -/
-theorem modulusBits_le_width (N : Nat) : modulusBits N ≤ Width N := by
+lemma modulusBits_le_width (N : Nat) : modulusBits N ≤ Width N := by
   have modulusBitsLeSize : modulusBits N ≤ Nat.size N :=
     Nat.clog_le_of_le_pow (Nat.le_of_lt (Nat.lt_size_self N))
   have sizeLeInput : Nat.size N ≤
@@ -56,7 +56,8 @@ structure Refs {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) where
   wideCandidate : CWriteRef ctx (.unsignedWord (Width N))
   selection : FirstAccepted.Refs ctx (Width N)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The selector reads the original tag and the actual widened payload. -/
@@ -108,19 +109,20 @@ def step (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N) (sto
   (selected.1, (resized.2, selected.2))
 
 /-- Full actual execution preserves the incoming history and external-reference record. -/
-theorem into_execute (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_execute (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into parameter refs).execute Reference state = state.mapClassical (fun entry =>
+    (into parameter refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step parameter refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord _ _ _ _
-    (fun _reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+  Circuit.execute_sequenceStoreRecord (environment := environment) _ _ _ _
+    (fun _reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (FirstAccepted.firstAccepted_execute (selectionInputs parameter refs) refs.selection)
     Reference state
 
 /-- Every structurally disjoint caller read survives both actual writes and selector branches. -/
-theorem into_callerFrame (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_callerFrame (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : CallerFrameAvoids refs other) :
     (step parameter refs store).1.read other = store.read other :=
@@ -140,7 +142,7 @@ structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Actual widening and selection realize the parameter's retain-first update without truncation. -/
-theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (separation : Separation parameter refs) (store : Store ctx)
     (stored : store.read parameter = parameterValue input sample) :
@@ -193,7 +195,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
     FirstAccepted.nativeEnvelope model (Width N)
 
 /-- Every actual path satisfies the independent sum of the resize and selector budgets. -/
-theorem into_pool_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_pool_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (path : (into parameter refs).Path) :
     (into parameter refs).resourcePool path ≤ eventEnvelope N := by
   change ResourcePool.ofList
@@ -203,7 +205,7 @@ theorem into_pool_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs
   exact add_le_add (le_refl _) (FirstAccepted.firstAccepted_pool_le _ _ path.2)
 
 /-- At most five unit-duration native dependencies occur on every actual path. -/
-theorem into_depth_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_depth_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (path : (into parameter refs).Path) :
     (into parameter refs).depth (fun _ => 1) path ≤ 5 := by
   change 1 + (FirstAccepted.circuit (selectionInputs parameter refs) refs.selection).depth
@@ -212,7 +214,7 @@ theorem into_depth_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Ref
   split <;> omega
 
 /-- Every actual visited scope is the complete incoming context. -/
-theorem into_visited (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_visited (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (path : (into parameter refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (into parameter refs).visitedContexts path) : visited = ctx := by
   change visited ∈ [ctx] ++
@@ -223,7 +225,7 @@ theorem into_visited (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs
   · exact FirstAccepted.firstAccepted_visited _ _ _ _ selected
 
 /-- The same actual run retains all incoming resident storage. -/
-theorem into_resident_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_resident_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (path : (into parameter refs).Path) :
     (into parameter refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -231,7 +233,7 @@ theorem into_resident_le (parameter : CInputRef ctx (ParameterShape N)) (refs : 
   rw [into_visited parameter refs path visited present]
 
 /-- The same actual run includes all existing auxiliary workspace roles. -/
-theorem into_auxiliary_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_auxiliary_le (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (path : (into parameter refs).Path) :
     (into parameter refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -239,13 +241,13 @@ theorem into_auxiliary_le (parameter : CInputRef ctx (ParameterShape N)) (refs :
   rw [into_visited parameter refs path visited present]
 
 /-- Widening and selection restore the full borrowed interface jointly with any reference. -/
-theorem into_borrowedRestored (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
+lemma into_borrowedRestored (parameter : CInputRef ctx (ParameterShape N)) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into parameter refs).BorrowedRestored Reference state
-      ((into parameter refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical
+      ((into parameter refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
+    (Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (resizeOp parameter refs)) state)
     (FirstAccepted.firstAccepted_borrowedRestored _ _ _ _)
 

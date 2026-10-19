@@ -34,7 +34,7 @@ variable {R S : Register}
 private def leftTensor (operator : HilbertOperator R) : HilbertOperator (Register.prod R S) :=
   operator ⊗ₖ (1 : HilbertOperator S)
 
-private theorem leftTensor_conjTranspose (operator : HilbertOperator R) :
+private lemma leftTensor_conjTranspose (operator : HilbertOperator R) :
     (leftTensor (S := S) operator).conjTranspose =
       leftTensor (S := S) operator.conjTranspose := by
   change (operator ⊗ₖ (1 : HilbertOperator S)).conjTranspose =
@@ -42,7 +42,7 @@ private theorem leftTensor_conjTranspose (operator : HilbertOperator R) :
   rw [Matrix.conjTranspose_kronecker, Matrix.conjTranspose_one]
 
 /-- The pure-state matrix is an actual rank-one projector on any finite register. -/
-theorem ofPure_matrix_idempotent (state : NormalizedVector R) :
+lemma ofPure_matrix_idempotent (state : NormalizedVector R) :
     (ofPure state).matrix * (ofPure state).matrix = (ofPure state).matrix := by
   have normalized : (∑ index : R.Index, state index * star (state index)) = 1 :=
     trace_pureMatrix state
@@ -56,7 +56,7 @@ theorem ofPure_matrix_idempotent (state : NormalizedVector R) :
       exact Finset.sum_congr rfl fun _ _ => by ring
     _ = state row * star (state column) := by rw [normalized, mul_one]
 
-private theorem mul_leftTensor_entry (state : DensityOperator (Register.prod R S))
+private lemma mul_leftTensor_entry (state : DensityOperator (Register.prod R S))
     (operator : HilbertOperator R) (row column : R.Index) (rightRow rightColumn : S.Index) :
     (state.matrix * leftTensor (S := S) operator)
         (row, rightRow) (column, rightColumn) =
@@ -68,7 +68,7 @@ private theorem mul_leftTensor_entry (state : DensityOperator (Register.prod R S
   rw [Fintype.sum_prod_type]
   simp [Matrix.one_apply, mul_ite]
 
-private theorem leftTensor_mul_entry (state : DensityOperator (Register.prod R S))
+private lemma leftTensor_mul_entry (state : DensityOperator (Register.prod R S))
     (operator : HilbertOperator R) (row column : R.Index) (rightRow rightColumn : S.Index) :
     (leftTensor (S := S) operator * state.matrix)
         (row, rightRow) (column, rightColumn) =
@@ -81,7 +81,7 @@ private theorem leftTensor_mul_entry (state : DensityOperator (Register.prod R S
   rw [Fintype.sum_prod_type]
   simp [Matrix.one_apply, mul_ite, ite_mul]
 
-private theorem trace_mul_leftTensor (state : DensityOperator (Register.prod R S))
+private lemma trace_mul_leftTensor (state : DensityOperator (Register.prod R S))
     (operator : HilbertOperator R) :
     (state.matrix * leftTensor (S := S) operator).trace =
       (state.marginalLeft.matrix * operator).trace := by
@@ -107,7 +107,7 @@ private theorem trace_mul_leftTensor (state : DensityOperator (Register.prod R S
 
 /-- A pure left marginal forces exact right support of the entire joint matrix.
 The equation retains every right-system matrix coordinate. -/
-theorem mul_pureMarginal_projector (state : DensityOperator (Register.prod R S))
+lemma mul_pureMarginal_projector (state : DensityOperator (Register.prod R S))
     (pure : NormalizedVector R) (promised : state.marginalLeft = ofPure pure) :
     state.matrix * leftTensor (S := S) (ofPure pure).matrix = state.matrix := by
   let projector := (ofPure pure).matrix
@@ -156,7 +156,7 @@ theorem mul_pureMarginal_projector (state : DensityOperator (Register.prod R S))
   exact (sub_eq_zero.mp annihilates).symm
 
 /-- Hermitian symmetry yields the corresponding left support, with no lost coherences. -/
-theorem pureMarginal_projector_mul (state : DensityOperator (Register.prod R S))
+lemma pureMarginal_projector_mul (state : DensityOperator (Register.prod R S))
     (pure : NormalizedVector R) (promised : state.marginalLeft = ofPure pure) :
     leftTensor (S := S) (ofPure pure).matrix * state.matrix = state.matrix := by
   have adjoint := congrArg Matrix.conjTranspose (mul_pureMarginal_projector state pure promised)
@@ -164,7 +164,7 @@ theorem pureMarginal_projector_mul (state : DensityOperator (Register.prod R S))
     (ofPure pure).positive.isHermitian.eq,
     state.positive.isHermitian.eq] using adjoint
 
-private theorem pureMarginal_row (state : DensityOperator (Register.prod R S))
+private lemma pureMarginal_row (state : DensityOperator (Register.prod R S))
     (pure : NormalizedVector R) (promised : state.marginalLeft = ofPure pure)
     (row column : R.Index) (rightRow rightColumn : S.Index) :
     state.matrix (row, rightRow) (column, rightColumn) =
@@ -176,7 +176,7 @@ private theorem pureMarginal_row (state : DensityOperator (Register.prod R S))
   exact entry.trans (leftTensor_mul_entry state (ofPure pure).matrix
     row column rightRow rightColumn)
 
-private theorem pureMarginal_column (state : DensityOperator (Register.prod R S))
+private lemma pureMarginal_column (state : DensityOperator (Register.prod R S))
     (pure : NormalizedVector R) (promised : state.marginalLeft = ofPure pure)
     (row column : R.Index) (rightRow rightColumn : S.Index) :
     state.matrix (row, rightRow) (column, rightColumn) =
@@ -193,7 +193,7 @@ private def jointCoefficient (state : DensityOperator (Register.prod R S))
   ∑ row : R.Index, ∑ column : R.Index,
     star (pure row) * state.matrix (row, rightRow) (column, rightColumn) * pure column
 
-private theorem pureMarginal_coefficient_entry (state : DensityOperator (Register.prod R S))
+private lemma pureMarginal_coefficient_entry (state : DensityOperator (Register.prod R S))
     (pure : NormalizedVector R) (promised : state.marginalLeft = ofPure pure)
     (row column : R.Index) (rightRow rightColumn : S.Index) :
     state.matrix (row, rightRow) (column, rightColumn) =
@@ -220,7 +220,7 @@ private theorem pureMarginal_coefficient_entry (state : DensityOperator (Registe
 /-- A promised pure left marginal forces the full joint matrix to factor with
 its actual right marginal. Every off-diagonal right entry is retained; no
 product-state or external-reference assumption is supplied by the caller. -/
-public theorem pureMarginal_entry (state : DensityOperator (Register.prod R S))
+public lemma pureMarginal_entry (state : DensityOperator (Register.prod R S))
     (pure : NormalizedVector R) (promised : state.marginalLeft = ofPure pure)
     (row column : R.Index) (rightRow rightColumn : S.Index) :
     state.matrix (row, rightRow) (column, rightColumn) =

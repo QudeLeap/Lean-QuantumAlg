@@ -29,6 +29,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.OutputCorrection
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 private def ordinaryStep (modulus : Nat) (state : Registers modulus.size) :
     Registers modulus.size :=
   (FoldRegisters.grouping modulus.size).symm
@@ -41,8 +43,8 @@ private def ordinaryProgram (modulus : Nat) :
   FoldComparisonPlacement.placeFocus modulus.size
     (FoldComparisonFocus.place (modulus.size + 3) (OutputCorrectionFocus.program modulus))
 
-private theorem ordinary_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (ordinaryProgram modulus)
+private lemma ordinary_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (ordinaryProgram modulus) environment
       (ordinaryStep modulus) :=
   (FoldComparisonPlacement.placeFocus_realizes modulus.size
     (FoldComparisonFocus.place_realizes (modulus.size + 3)
@@ -68,8 +70,8 @@ def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   (OutputOrientation.placement modulus.size).place (ordinaryProgram modulus)
 
 /-- Complete exact amplitude action with arbitrary original spectator and helper values. -/
-theorem program_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) (step modulus) :=
+lemma program_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) environment (step modulus) :=
   ((OutputOrientation.placement modulus.size).place_realizes
     (ordinary_realizes modulus)).congrStep (by
       intro state
@@ -77,7 +79,7 @@ theorem program_realizes (modulus : Nat) :
         OutputOrientation.placement_grouping_eq])
 
 /-- Read the resulting Work2 coefficient in its physical little-endian orientation. -/
-theorem step_word (modulus : Nat) (state : Registers modulus.size) :
+lemma step_word (modulus : Nat) (state : Registers modulus.size) :
     (step modulus state).secondWord.reverse =
       BitVec.ofFin ((OutputCorrectionFocus.step modulus
         (state.flags.iteration,
@@ -89,7 +91,7 @@ theorem step_word (modulus : Nat) (state : Registers modulus.size) :
   exact BitVec.reverse_reverse_eq
 
 /-- No complementary part of the forward history changes during the actual correction. -/
-theorem step_retained (modulus : Nat) (state : Registers modulus.size) :
+lemma step_retained (modulus : Nat) (state : Registers modulus.size) :
     (step modulus state).firstWord = state.firstWord ∧
       (step modulus state).coefficientLength = state.coefficientLength ∧
       (step modulus state).quotientLength = state.quotientLength ∧
@@ -100,7 +102,7 @@ theorem step_retained (modulus : Nat) (state : Registers modulus.size) :
   exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- Reached coefficient values receive exactly the retained-parity natural correction. -/
-theorem step_value (modulus : Nat) (state : Registers modulus.size)
+lemma step_value (modulus : Nat) (state : Registers modulus.size)
     (bounded : state.secondWord.reverse.toNat ≤ modulus) :
     (step modulus state).secondWord.reverse.toNat =
       if state.flags.iteration then state.secondWord.reverse.toNat
@@ -110,14 +112,14 @@ theorem step_value (modulus : Nat) (state : Registers modulus.size)
     (BitVec.equivFin state.secondWord.reverse) bounded
 
 /-- Every elementary event survives both actual coordinate placements. -/
-theorem program_eventTrace (modulus : Nat) :
+lemma program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace = (OutputCorrectionFocus.program modulus).eventTrace :=
   ((OutputOrientation.placement modulus.size).place_eventTrace _).trans
     ((FoldComparisonPlacement.placeFocus_eventTrace modulus.size _).trans
       (FoldComparisonFocus.place_eventTrace (modulus.size + 3) _))
 
 /-- The actual resource pool is the focused native pool, including its two real flag gates. -/
-theorem program_eventCost (modulus : Nat) :
+lemma program_eventCost (modulus : Nat) :
     (program modulus).eventCost = (OutputCorrectionFocus.program modulus).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
     ← UnitaryCircuit.ofList_eventTrace_eq_eventCost, program_eventTrace]

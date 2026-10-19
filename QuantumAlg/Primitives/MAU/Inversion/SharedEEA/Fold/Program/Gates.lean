@@ -16,6 +16,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.FoldProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec Addition.Gidney FoldSourceProgram
 
 private def sourceGates (modulus : Nat) :
@@ -23,14 +25,14 @@ private def sourceGates (modulus : Nat) :
   comparisonGates (wordWidth modulus) (comparisonPivot modulus) ++
     [.x (flagBit (wordWidth modulus))] ++ biFlipGates (wordWidth modulus) (reflectionPivot modulus)
 
-private theorem sourceGates_step (modulus : Nat)
+private lemma sourceGates_step (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     stepList (sourceGates modulus) state = FoldSourceProgram.step modulus state := by
   rw [sourceGates, stepList_append, stepList_append, gidneyComparisonGates_step,
     gidneyBiFlipGates_step]
   exact component_steps modulus state
 
-private theorem sourceGates_trace (modulus : Nat) :
+private lemma sourceGates_trace (modulus : Nat) :
     (sourceGates modulus).map (event .empty) = (FoldSourceProgram.program modulus).eventTrace := by
   simp only [sourceGates, List.map_append, gidneyComparisonGates_trace,
     FoldSourceProgram.program, UnitaryCircuit.seq_eventTrace, biFlipProgram, programList_eventTrace]
@@ -41,7 +43,7 @@ def gates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
   FoldComparisonPlacement.placeGates modulus.size (sourceGates modulus)
 
 /-- All input labels retain every spectator and dirty helper under the exact native fold. -/
-theorem foldProgram_gates_step (modulus : Nat) (state : Registers modulus.size) :
+lemma foldProgram_gates_step (modulus : Nat) (state : Registers modulus.size) :
     stepList (gates modulus) state = step modulus state := by
   erw [gates, FoldComparisonPlacement.foldComparison_placeGates_step, sourceGates_step]
   rfl
@@ -52,18 +54,20 @@ def nativeProgram (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   programList (QubitLayout.canonical _) .empty (gates modulus)
 
 /-- The literal emitted word preserves all original amplitudes, phases and arbitrary helpers. -/
-theorem foldProgram_nativeProgram_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (nativeProgram modulus) (step modulus) :=
+lemma foldProgram_nativeProgram_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (nativeProgram modulus) environment (step
+      modulus) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty _ (foldProgram_gates_step modulus)
+    environment
 
 /-- Complete physical placement preserves every actual original fold instruction in order. -/
-theorem foldProgram_gates_trace (modulus : Nat) :
+lemma foldProgram_gates_trace (modulus : Nat) :
     (gates modulus).map (event .empty) = (program modulus).eventTrace := by
   erw [gates, FoldComparisonPlacement.foldComparison_placeGates_trace,
     sourceGates_trace, program_eventTrace]
 
 /-- The actual emitted program retains the original ordered native trace. -/
-theorem foldProgram_nativeProgram_trace (modulus : Nat) :
+lemma foldProgram_nativeProgram_trace (modulus : Nat) :
     (nativeProgram modulus).eventTrace = (program modulus).eventTrace := by
   rw [nativeProgram, programList_eventTrace, foldProgram_gates_trace]
 

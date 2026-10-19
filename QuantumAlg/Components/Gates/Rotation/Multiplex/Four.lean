@@ -38,7 +38,7 @@ def circuit (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) :
   ((average.seq (outerCnot oracles)).seq difference).seq (outerCnot oracles)
 
 /-- Four actual rotations and six actual CNOTs retain their complete execution order. -/
-theorem fourRotation_eventTrace (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) :
+lemma fourRotation_eventTrace (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) :
     (circuit oracles a00 a01 a10 a11).eventTrace =
       [.gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot, .gate .cnot,
         .gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot, .gate .cnot] := by
@@ -46,7 +46,7 @@ theorem fourRotation_eventTrace (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) 
   rfl
 
 /-- All ten native occurrences lie on the same target dependency chain. -/
-theorem fourRotation_depth (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) :
+lemma fourRotation_depth (oracles : OracleModel) (a00 a01 a10 a11 : ℝ) :
     (circuit oracles a00 a01 a10 a11).evaluatedEventDepth (fun _ => 1) = 10 := by
   simp only [circuit, UnitaryCircuit.evaluatedEventDepth_seq, Multiplex.circuitAt_depth]
   rfl

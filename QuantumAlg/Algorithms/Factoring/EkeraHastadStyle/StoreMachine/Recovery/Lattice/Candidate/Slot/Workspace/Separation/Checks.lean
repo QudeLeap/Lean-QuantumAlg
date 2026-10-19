@@ -22,7 +22,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
 
 /-- A named mutable input avoids every differently named physical destination. -/
-theorem mutableInput_avoids
+lemma mutableInput_avoids
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) {shape : CShape} (source : CWriteRef ctx shape)
     (saved written : MutableCell) (sourceKey : source.key = mutableKey refs saved)
@@ -34,7 +34,7 @@ theorem mutableInput_avoids
   exact Ne.symm (separation.mutableKey_ne different)
 
 /-- The actual near-target reads and writes satisfy the common physical separation contract. -/
-theorem nearTargetSeparation
+lemma nearTargetSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) : LatticeNearTargetScale.Separation refs.nearTarget := by
   refine ⟨?_, ?_⟩
@@ -53,7 +53,7 @@ theorem nearTargetSeparation
     exact MutableCell.nearTarget.inj (separation.mutableKeyInjective equal)
 
 /-- Actual sign extraction and exponent classification need no obsolete work-word separation. -/
-theorem exponentSeparation
+lemma exponentSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) : LatticeCandidateExponent.Separation refs.exponent := by
   refine ⟨?_, ?_⟩
@@ -77,7 +77,7 @@ theorem exponentSeparation
     exact MutableCell.exponent.inj (separation.mutableKeyInjective equal)
 
 /-- Actual shared powering and equality require only their four real caller-frame conditions. -/
-theorem powerSeparation
+lemma powerSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) : LatticeCandidatePowerMachine.Separation refs.power :=
   ⟨separation.externalAvoids .modulus .power,
@@ -91,11 +91,11 @@ private def selectorCell : LatticeCandidateSelector.MutableCell → MutableCell
   | .accepted => .selection .accepted
   | .selected => .selection .selected
 
-private theorem selectorCell_injective : Function.Injective selectorCell := by
+private lemma selectorCell_injective : Function.Injective selectorCell := by
   intro left right equal
   cases left <;> cases right <;> simp_all [selectorCell]
 
-private theorem selectorKey
+private lemma selectorKey
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (cell : LatticeCandidateSelector.MutableCell) :
     LatticeCandidateSelector.mutableKey refs.selector cell =
@@ -103,7 +103,7 @@ private theorem selectorKey
   cases cell <;> rfl
 
 /-- All actual conjunction and direct-selection destinations are distinct from their live inputs. -/
-theorem selectorSeparation
+lemma selectorSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) : LatticeCandidateSelector.Separation refs.selector := by
   refine ⟨?_, ?_, ?_, ?_, ?_⟩

@@ -27,7 +27,7 @@ noncomputable section
 def exponentiationPrimitiveWidthBound (bits width : Nat) : Nat :=
   3 * MAU.Exponentiation.Gidney.eventBound bits width
 
-private theorem exponentiationBudget_card (bits width : Nat) :
+private lemma exponentiationBudget_card (bits width : Nat) :
     (MAU.Exponentiation.Gidney.nativeBudget bits width).card =
       exponentiationPrimitiveWidthBound bits width := by
   have alphabet : EncodedBit.GateSpec.primitiveAlphabet.card = 3 := rfl
@@ -45,7 +45,7 @@ def exponentiationEventEnvelope (bits width N : Nat) :
 def exponentiationPrimitiveBound (bits width N : Nat) : Nat :=
   if 0 < N ∧ N ≤ 2 ^ width then exponentiationPrimitiveWidthBound bits width else 0
 
-@[simp] theorem exponentiationEventEnvelope_card (bits width N : Nat) :
+@[simp] lemma exponentiationEventEnvelope_card (bits width N : Nat) :
     (exponentiationEventEnvelope bits width N).card =
       exponentiationPrimitiveBound bits width N := by
   unfold exponentiationEventEnvelope exponentiationPrimitiveBound
@@ -53,7 +53,7 @@ def exponentiationPrimitiveBound (bits width N : Nat) : Nat :=
   · exact exponentiationBudget_card bits width
   · rfl
 
-theorem exponentiationPrimitiveBound_le_widthBound (bits width N : Nat) :
+lemma exponentiationPrimitiveBound_le_widthBound (bits width N : Nat) :
     exponentiationPrimitiveBound bits width N ≤ exponentiationPrimitiveWidthBound bits width := by
   unfold exponentiationPrimitiveBound
   split
@@ -61,7 +61,7 @@ theorem exponentiationPrimitiveBound_le_widthBound (bits width N : Nat) :
   · exact Nat.zero_le _
 
 /-- Every actual controlled native coordinate obeys the independent family envelope. -/
-theorem exponentiationProgram_eventCost_le (bits width N : Nat) (unit : (ZMod N)ˣ) :
+lemma exponentiationProgram_eventCost_le (bits width N : Nat) (unit : (ZMod N)ˣ) :
     (exponentiationProgram bits width N unit).eventCost ≤
       exponentiationEventEnvelope bits width N := by
   unfold exponentiationEventEnvelope
@@ -79,14 +79,14 @@ theorem exponentiationProgram_eventCost_le (bits width N : Nat) (unit : (ZMod N)
     exact le_refl (0 : ResourcePool (.quantum AlgorithmGate.model .empty))
 
 /-- The actual event count is also bounded by the independent pool's closed cardinality. -/
-theorem exponentiationProgram_eventCost_card_le (bits width N : Nat) (unit : (ZMod N)ˣ) :
+lemma exponentiationProgram_eventCost_card_le (bits width N : Nat) (unit : (ZMod N)ˣ) :
     (exponentiationProgram bits width N unit).eventCost.card ≤
       exponentiationPrimitiveBound bits width N :=
   (Multiset.card_le_card (exponentiationProgram_eventCost_le bits width N unit)).trans_eq
     (exponentiationEventEnvelope_card bits width N)
 
 /-- Tighter total-event bound, before summing the separate native coordinate caps. -/
-theorem exponentiationProgram_actual_event_bound (bits width N : Nat) (unit : (ZMod N)ˣ) :
+lemma exponentiationProgram_actual_event_bound (bits width N : Nat) (unit : (ZMod N)ˣ) :
     (exponentiationProgram bits width N unit).eventCost.card ≤
       MAU.Exponentiation.Gidney.eventBound bits width := by
   by_cases positive : 0 < N

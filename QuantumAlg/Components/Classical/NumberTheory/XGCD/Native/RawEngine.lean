@@ -95,7 +95,7 @@ def rawOutputEvents (model : ExecutionModel) [BitWord.Selected model] (width : N
       (.wordUnary .copy (PureXGCD.executionCoefficientWidth width)))]
 
 /-- The actual output instruction sequence has exactly the original three native events. -/
-theorem xgcdNativeCopyRawOutputs_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeCopyRawOutputs_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (path : (copyRawOutputs (model := model) cells outputs).Path) :
     (copyRawOutputs (model := model) cells outputs).eventTrace path =

@@ -26,7 +26,7 @@ noncomputable section
 
 variable {sourceGates targetGates : GateModel} {sourceOracles targetOracles : OracleModel}
 
-private theorem reverseWords_macroCount (name : String)
+private lemma reverseWords_macroCount (name : String)
     {count : Nat} {layout : QuantumLayout count}
     (words : List (UnitaryCircuit targetGates targetOracles layout)) :
     (reverseWords words).macroCount name = (words.map fun word => word.macroCount name).sum := by
@@ -37,7 +37,7 @@ private theorem reverseWords_macroCount (name : String)
       rw [macroCount_seq, ih, List.map_cons, List.sum_cons]
       exact add_comm _ _
 
-private theorem inverseSequence_macroCount (name : String)
+private lemma inverseSequence_macroCount (name : String)
     (implementations : AdjointRealizations sourceGates sourceOracles targetGates targetOracles)
     (leafEmpty : ∀ {count : Nat} {layout : QuantumLayout count}
       (leaf : UnitaryLeaf sourceGates sourceOracles layout),
@@ -80,7 +80,7 @@ private theorem inverseSequence_macroCount (name : String)
       split <;> omega
 
 /-- Macro-free inverse replacements preserve every occurrence already in the source word. -/
-public theorem dagger_macroCount (name : String)
+public lemma dagger_macroCount (name : String)
     {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit sourceGates sourceOracles layout)
     (implementations : AdjointRealizations sourceGates sourceOracles targetGates targetOracles)

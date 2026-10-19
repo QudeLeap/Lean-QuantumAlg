@@ -59,7 +59,7 @@ def run (input : Input N) (count : Nat) :
     (.read (.fixedVector (resultRefs base noQuantum N count)))
 
 /-- All original and newly retained entries occur in the actual final output manifest. -/
-theorem output_listing (input : Input N) (count : Nat) :
+lemma output_listing (input : Input N) (count : Nat) :
     (run base noQuantum input count).output.listing =
       (context base noQuantum N count).keys := rfl
 

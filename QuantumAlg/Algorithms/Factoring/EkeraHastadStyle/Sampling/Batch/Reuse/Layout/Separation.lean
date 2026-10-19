@@ -24,7 +24,7 @@ noncomputable section
 
 open Execution
 
-private theorem oldKey_ne_fresh {ctx : RuntimeCtx .quantum} {shape : CShape}
+private lemma oldKey_ne_fresh {ctx : RuntimeCtx .quantum} {shape : CShape}
     (input : CWriteRef ctx shape) : input.key ≠ ctx.canonicalFreshKey := by
   intro same
   apply ctx.canonicalFreshKey_fresh
@@ -35,16 +35,16 @@ variable (base : RuntimeCtx .quantum) (N : Nat)
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
 /-- Real source allocation preserves the identities of all original measurement cells. -/
-theorem nativeBatchReuse_cells_key (index : Fin (measurementBits N)) :
+lemma nativeBatchReuse_cells_key (index : Fin (measurementBits N)) :
     (cells base N originalCells index).key = (originalCells index).key := rfl
 
 /-- Distinct original measurement identities remain distinct after actual source allocation. -/
-theorem nativeBatchReuse_cells_distinct
+lemma nativeBatchReuse_cells_distinct
     (distinct : Function.Injective (fun index => (originalCells index).key)) :
     Function.Injective (fun index => (cells base N originalCells index).key) := distinct
 
 /-- No original measurement cell aliases the genuinely fresh retained source sample. -/
-theorem nativeBatchReuse_cells_sample_separate (index : Fin (measurementBits N)) :
+lemma nativeBatchReuse_cells_sample_separate (index : Fin (measurementBits N)) :
     (cells base N originalCells index).key ∉
       (CInputRef.storage
         (ShorStyle.Canonical.Sampler.Retained.sampleRef base N).toCStorageRef).storageKeys := by
@@ -52,7 +52,7 @@ theorem nativeBatchReuse_cells_sample_separate (index : Fin (measurementBits N))
   exact fun present => oldKey_ne_fresh (originalCells index) (List.mem_singleton.mp present)
 
 /-- No reused measurement write can change the fresh complete dispatch parameter. -/
-theorem nativeBatchReuse_cells_parameter_separate (index : Fin (measurementBits N)) :
+lemma nativeBatchReuse_cells_parameter_separate (index : Fin (measurementBits N)) :
     (cells base N originalCells index).key ∉ (parameter base N).storageKeys := by
   let prior := (originalCells index).underRetained base.canonicalFreshKey
     (.bits (residueSamplingBits N)) base.canonicalFreshKey_fresh
@@ -61,7 +61,7 @@ theorem nativeBatchReuse_cells_parameter_separate (index : Fin (measurementBits 
   exact fun present => oldKey_ne_fresh prior (List.mem_singleton.mp present)
 
 /-- An earlier operand avoids the same measurement identities after the two source allocations. -/
-theorem nativeBatchReuse_cells_previous_separate {shape : CShape} (previous : CInputRef base shape)
+lemma nativeBatchReuse_cells_previous_separate {shape : CShape} (previous : CInputRef base shape)
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     (index : Fin (measurementBits N)) :
     (cells base N originalCells index).key ∉
@@ -80,7 +80,7 @@ theorem nativeBatchReuse_cells_previous_separate {shape : CShape} (previous : CI
     (outer.trans inner)).mpr (separate index)
 
 /-- Parameter, source sample and the protected earlier operand can be observed jointly. -/
-theorem nativeBatchReuse_cells_joint_separate {shape : CShape} (previous : CInputRef base shape)
+lemma nativeBatchReuse_cells_joint_separate {shape : CShape} (previous : CInputRef base shape)
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
     (index : Fin (measurementBits N)) :
     (cells base N originalCells index).key ∉

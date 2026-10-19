@@ -23,6 +23,8 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute MeasuredPointAddition Allocation
 open GenericPointAddition.InPlace
 
@@ -38,7 +40,7 @@ def montgomeryInput {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
       (Semantics.montgomeryWord fieldTail p (Fact.out : Nat.Prime p).pos fits y))
 
 /-- The supplied Montgomery input is exactly the radix-scaled ordinary field-word input. -/
-theorem montgomeryInput_fieldWords {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
+lemma montgomeryInput_fieldWords {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ)
     (exponent : (exponents p.size count).register.Index) (x y : ZMod p) :
     montgomeryInput fieldTail count sameWidth fits exponent x y =
@@ -50,18 +52,18 @@ theorem montgomeryInput_fieldWords {p : Nat} [Fact p.Prime] (fieldTail count : N
     montgomeryWord_fieldWord fieldTail sameWidth fits y]
 
 /-- Actual inverse-radix conversion recovers both ordinary coordinates and all initialization. -/
-theorem pairOperator_fromMontgomery {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
+lemma pairOperator_fromMontgomery {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     (exponent : (exponents p.size count).register.Index) (x y : ZMod p)
     {Reference : Register} (reference : Reference.Index) :
-    (pairOperator p.size count (InPlaceTarget.modulusWord p)
+    (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
       (Semantics.radixUnit p fieldTail.succ odd)⁻¹ Reference).applyVec
         (NormalizedVector.ket (initializedReadyBasis p count
           (montgomeryInput fieldTail count sameWidth fits exponent x y), reference)).vec =
       (NormalizedVector.ket (initializedReadyBasis p count
         (inputLabel p.size count exponent (fieldWord x) (fieldWord y)), reference)).vec := by
   rw [montgomeryInput_fieldWords fieldTail count sameWidth fits exponent x y]
-  have actual := pairOperator_initialized_fieldWords count
+  have actual := pairOperator_initialized_fieldWords (environment := environment) count
     (Semantics.radixUnit p fieldTail.succ odd)⁻¹ exponent
     ((2 : ZMod p) ^ fieldTail.succ * x) ((2 : ZMod p) ^ fieldTail.succ * y) reference
   have recovered (value : ZMod p) :
@@ -73,17 +75,18 @@ theorem pairOperator_fromMontgomery {p : Nat} [Fact p.Prime] (fieldTail count : 
   exact actual
 
 /-- Actual radix pair conversion restores the identical original Montgomery input representation. -/
-theorem pairOperator_toMontgomery {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
+lemma pairOperator_toMontgomery {p : Nat} [Fact p.Prime] (fieldTail count : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     (exponent : (exponents p.size count).register.Index) (x y : ZMod p)
     {Reference : Register} (reference : Reference.Index) :
-    (pairOperator p.size count (InPlaceTarget.modulusWord p)
+    (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
       (Semantics.radixUnit p fieldTail.succ odd) Reference).applyVec
         (NormalizedVector.ket (initializedReadyBasis p count
           (inputLabel p.size count exponent (fieldWord x) (fieldWord y)), reference)).vec =
       (NormalizedVector.ket (initializedReadyBasis p count
         (montgomeryInput fieldTail count sameWidth fits exponent x y), reference)).vec := by
-  have actual := pairOperator_initializedReadyBasis p count (Fact.out : Nat.Prime p).pos
+  have actual := pairOperator_initializedReadyBasis (environment := environment) p count (Fact.out
+    : Nat.Prime p).pos
     (Semantics.radixUnit p fieldTail.succ odd) exponent (fieldWord x) (fieldWord y)
     (ZMod.val_lt x) (ZMod.val_lt y) reference
   rw [unitProductWord_toMontgomery fieldTail sameWidth fits odd x,

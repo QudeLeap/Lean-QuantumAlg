@@ -34,14 +34,14 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {root topCtx inner : RuntimeCtx model.kind} {N : Nat}
 
 omit [BitWord.Selected model] in
-private theorem initialization_parameter_eq (refs : Refs root topCtx inner N) :
+private lemma initialization_parameter_eq (refs : Refs root topCtx inner N) :
     (initializationRefs refs).setup.parameter =
       LatticeBatchRecoveryWorkspaceViews.parameterAt refs.topTransport refs.pairTransport
         refs.parameter :=
   ClassicalWorkspace.Transport.liftInput_compose refs.topTransport refs.pairTransport refs.parameter
 
 omit [BitWord.Selected model] in
-private theorem pairSetup_eq (refs : Refs root topCtx inner N)
+private lemma pairSetup_eq (refs : Refs root topCtx inner N)
     (index : Fin LatticePairRecoveryFold.PairCount) :
     ((endpointRefs refs).tail.fold.pair index).pair.setup = (initializationRefs refs).setup := by
   change LatticeCandidateSharedWorkspaceLayout.setupRefs refs.cells.pair.core.shared
@@ -51,7 +51,7 @@ private theorem pairSetup_eq (refs : Refs root topCtx inner N)
   unfold LatticeCandidateSharedWorkspaceLayout.setupRefs
   rw [ClassicalWorkspace.Transport.liftInput_compose]
 
-private theorem preparedSamples_afterInitialization (input : Input N)
+private lemma preparedSamples_afterInitialization (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs root topCtx inner N)
     (separation : Separation refs) (store : Store inner) :
     LatticePairRecoveryBatch.preparedSamples (preparedResidue sample)
@@ -79,7 +79,7 @@ private theorem preparedSamples_afterInitialization (input : Input N)
       store _ bitFrame)
 
 /-- Shared initialization and the complete endpoint realize the original shaped batch value. -/
-theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (refs : Refs root topCtx inner N) (separation : Separation refs) (store : Store inner)
     (initial : InitialConditions input sample refs store) :
     Relation sample refs store (step (model := model) input refs store).1 := by

@@ -40,35 +40,44 @@ public def runtimeSourceState (I : ECDLPInstance E) (A : Access I) :
     NormalizedVector (context I).register := Sampling.runtimeSourceState I A
 
 /-- Actual reset establishes pure zero even on an impossible incoming observation. -/
-public theorem ecdlpReuse_reset_pure (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_reset_pure {allowAllocation : Bool} (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History)) :
+    (state : State (context I) Reference ((executionModel I).HiddenState × History)) :
     (StatePromise.pure (NormalizedVector.ket (R := (context I).register)
       (context I).quantumLayout.zeroLabel)).Holds
-        ((reset I A).execute Reference state).quantumMarginal.marginalLeft :=
-  ZReset.Bank.zResetBank_localDensity_pure (ecdlpReuse_qubits I) (scratch I) BitWord.model state
+        ((reset (allowAllocation := allowAllocation) I).execute (sourceEnvironment I A) Reference
+            state).quantumMarginal.marginalLeft :=
+  ZReset.Bank.zResetBank_localDensity_pure (environment := ⟨interpretation I A,
+    ClassicalOracleModel.emptyInterpretation⟩)
+    (allowAllocation := allowAllocation) (services := .empty)
+      (ecdlpReuse_qubits I) (scratch I)
+    BitWord.model state
 
-private theorem nativeProgram_apply_zero (I : ECDLPInstance E) (A : Access I)
+private lemma nativeProgram_apply_zero (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (nativeProgram I A expansion).matrix.apply
+    ((nativeProgram I expansion).matrix (interpretation I A)).apply
       (NormalizedVector.ket (R := (context I).register) (context I).quantumLayout.zeroLabel) =
         runtimeSourceState I A := by
-  change (Sampling.nativeProgram I A expansion).matrix.apply
+  change ((Sampling.nativeProgram I expansion).matrix (interpretation I A)).apply
     (NormalizedVector.ket (R := (Sampling.post I).register)
       (Sampling.post I).quantumLayout.zeroLabel) = Sampling.runtimeSourceState I A
   exact Sampling.nativeProgram_apply_zero I A expansion
 
 /-- The real reset and original word yield the source density at the incoming mass. -/
-public theorem ecdlpReuse_beforeReadout_matrix (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_beforeReadout_matrix {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History)) :
-    (((reset I A).seq (Circuit.unitary (nativeProgram I A expansion))).execute
-      Reference state).quantumMarginal.marginalLeft.matrix =
+    (state : State (context I) Reference ((executionModel I).HiddenState × History)) :
+    (((reset (allowAllocation := allowAllocation) I).seq (Circuit.unitary
+        (allowAllocation := allowAllocation) (nativeProgram I expansion))).execute
+          (sourceEnvironment I A) Reference state).quantumMarginal.marginalLeft.matrix =
         state.mass • (DensityOperator.ofPure (runtimeSourceState I A)).matrix := by
-  have zero := ecdlpReuse_reset_pure I A state
+  have zero := ecdlpReuse_reset_pure (allowAllocation := allowAllocation) I A state
   change _ = _ • _ at zero
-  have mass : ((reset I A).execute Reference state).quantumMarginal.marginalLeft.mass =
+  have mass : ((reset (allowAllocation := allowAllocation) I).execute (sourceEnvironment I A)
+    Reference
+      state).quantumMarginal.marginalLeft.mass =
       state.mass := by
     rw [DensityOperator.marginalLeft_mass, ExecutionState.quantumMarginal_mass,
       Circuit.execute_mass]
@@ -76,22 +85,25 @@ public theorem ecdlpReuse_beforeReadout_matrix (I : ECDLPInstance E) (A : Access
   rw [Circuit.execute_seq, State.mapHistory_quantumMarginal, Circuit.unitary_localDensity,
     DensityOperator.applyUnitary_matrix, zero, Matrix.mul_smul, Matrix.smul_mul]
   change state.mass •
-    (DensityOperator.applyUnitary (nativeProgram I A expansion).matrix
+    (DensityOperator.applyUnitary ((nativeProgram I expansion).matrix (interpretation I A))
       (DensityOperator.ofPure (NormalizedVector.ket (R := (context I).register)
         (context I).quantumLayout.zeroLabel))).matrix = _
   rw [← DensityOperator.ofPure_apply, nativeProgram_apply_zero]
 
 /-- The terminal physical reset returns the same full bank to pure zero after every round. -/
-public theorem ecdlpReuse_code_pure (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_pure {allowAllocation : Bool} (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History)) :
+    (state : State (context I) Reference ((executionModel I).HiddenState × History)) :
     (StatePromise.pure (NormalizedVector.ket (R := (context I).register)
       (context I).quantumLayout.zeroLabel)).Holds
-        ((code I A expansion).execute Reference state).quantumMarginal.marginalLeft := by
-  rw [code, Circuit.execute_seq, State.mapHistory_quantumMarginal, Circuit.execute_seq,
+        ((code (allowAllocation := allowAllocation) I expansion).execute (sourceEnvironment I A)
+          Reference
+            state).quantumMarginal.marginalLeft := by
+  rw [code, Circuit.execute_seq,
+      State.mapHistory_quantumMarginal, Circuit.execute_seq,
     State.mapHistory_quantumMarginal, Circuit.execute_seq, State.mapHistory_quantumMarginal]
-  exact ecdlpReuse_reset_pure I A _
+  exact ecdlpReuse_reset_pure (allowAllocation := allowAllocation) I A _
 
 end
 

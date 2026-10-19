@@ -31,11 +31,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual checked output words feed the original optional recovery on the same store. -/
-theorem checkedSelectionBody_actualRecord (spec : ModulusSpec width)
+lemma checkedSelectionBody_actualRecord (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -53,7 +53,7 @@ theorem checkedSelectionBody_actualRecord (spec : ModulusSpec width)
         (state : State ctx Reference (model.HiddenState × History)),
         (checkedSelectionBody (model := model) spec left negatedRight modulus success inverse
           result).execute
-          Reference state = state.mapClassical (fun entry =>
+          environment Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
@@ -80,7 +80,8 @@ theorem checkedSelectionBody_actualRecord (spec : ModulusSpec width)
     ((selected.1, before.2), selected.2)
   refine ⟨Circuit.sequenceRecord first second checkedRecord selectedRecord, ?_, ?_⟩
   · intro reference history _ state
-    exact Circuit.execute_sequenceRecord first second checkedRecord selectedRecord
+    exact Circuit.execute_sequenceRecord
+      (environment := environment) first second checkedRecord selectedRecord
       checkedEquation (by
         intro reference history _ initial
         exact (withSelectedRecovery_execute (model := model)
@@ -118,13 +119,14 @@ theorem checkedSelectionBody_actualRecord (spec : ModulusSpec width)
       ((congrArg CShape.Value.toNat rightRead).trans rightValue) actual.1 actual.2.1)
 
 /-- Real checked output allocation removes all scratch and input-separation caller premises. -/
-theorem withCheckedSelection_actualRecord (spec : ModulusSpec width)
+lemma withCheckedSelection_actualRecord (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (result : CWriteRef ctx (OutputShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (withCheckedSelection (model := model) spec refs result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCheckedSelection (model := model) spec refs result).execute Reference state =
+        (withCheckedSelection (model := model) spec refs result).execute
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -148,7 +150,7 @@ theorem withCheckedSelection_actualRecord (spec : ModulusSpec width)
         (negateRight spec (normalize spec original)).val →
       after.read (scaleRead result) = encodedRawOutput spec (RawRecovery.outputOf spec original)
   unfold withCheckedSelection
-  apply withCells_actualRecord_initialized_restricted_post _ _ _ Post
+  apply withCells_actualRecord_initialized_restricted_post (environment := environment) _ _ _ Post
   intro inner cells _distinct transport separated
   have free : ∀ {shape : CShape} (input : CInputRef ctx shape),
       (checkedSuccessCell cells).key ∉ (transport.liftInput input).storageKeys ∧

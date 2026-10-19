@@ -24,10 +24,10 @@ open Execution
 noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
 
 /-- A preallocated batch cell is the same structural read under the bank. -/
-theorem underBank_read {shape : CShape}
+lemma underBank_read {shape : CShape}
     (ref : CWriteRef (storageContext base N) shape) :
     Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N
       (.storage ref.toCStorageRef) =
@@ -49,7 +49,7 @@ theorem underBank_read {shape : CShape}
   rfl
 
 /-- Every pre-bank structural read avoids each physical measurement destination. -/
-theorem lifted_measured_separate {shape : CShape}
+lemma lifted_measured_separate {shape : CShape}
     (observed : CInputRef (storageContext base N) shape)
     (index : Fin (measurementBits N)) :
     (Native.cells (storageContext base N) (storage_empty base noQuantum N) N index).key ∉
@@ -71,7 +71,7 @@ theorem lifted_measured_separate {shape : CShape}
         (measurementBits N) index)
 
 /-- Every pre-bank structural read avoids the working packed-result cell. -/
-theorem lifted_working_separate {shape : CShape}
+lemma lifted_working_separate {shape : CShape}
     (observed : CInputRef (storageContext base N) shape) :
     (Native.resultRef (storageContext base N) (storage_empty base noQuantum N) N).key ∉
       (Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N
@@ -79,7 +79,7 @@ theorem lifted_working_separate {shape : CShape}
   CInputRef.fresh_not_mem_storageKeys_underRetained _ _ _ _
 
 /-- The actual retained parameter agrees with the operand used by the query. -/
-theorem parameter_read :
+lemma parameter_read :
     Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N
       (parameter base N) =
         .storage (parameterRef base noQuantum N).toCStorageRef :=
@@ -88,7 +88,7 @@ theorem parameter_read :
       (ShorStyle.Canonical.Sampler.Retained.parameterRef base N))
 
 /-- An earlier sample slot avoids each actual exponent measurement cell. -/
-theorem terminal_measured_separate (written : Fin (measurementBits N))
+lemma terminal_measured_separate (written : Fin (measurementBits N))
     (index : Fin 16) :
     (Native.cells (storageContext base N) (storage_empty base noQuantum N) N written).key ∉
       (CInputRef.storage (terminalRef base noQuantum N index).toCStorageRef).storageKeys := by
@@ -102,7 +102,7 @@ theorem terminal_measured_separate (written : Fin (measurementBits N))
         (Native.Batch.Slots.terminalRef (sourceContext base N) N index).toCStorageRef) written)
 
 /-- An earlier sample slot avoids the paid working result cell. -/
-theorem terminal_working_separate (index : Fin 16) :
+lemma terminal_working_separate (index : Fin 16) :
     (Native.resultRef (storageContext base N) (storage_empty base noQuantum N) N).key ∉
       (CInputRef.storage (terminalRef base noQuantum N index).toCStorageRef).storageKeys := by
   have equal := underBank_read base noQuantum N
@@ -115,7 +115,7 @@ theorem terminal_working_separate (index : Fin 16) :
         (Native.Batch.Slots.terminalRef (sourceContext base N) N index).toCStorageRef))
 
 /-- The retained complete parameter avoids each exponent measurement cell. -/
-theorem parameter_measured_separate (index : Fin (measurementBits N)) :
+lemma parameter_measured_separate (index : Fin (measurementBits N)) :
     (Native.cells (storageContext base N) (storage_empty base noQuantum N) N index).key ∉
       (CInputRef.storage (parameterRef base noQuantum N).toCStorageRef).storageKeys := by
   have equal := parameter_read base noQuantum N
@@ -125,7 +125,7 @@ theorem parameter_measured_separate (index : Fin (measurementBits N)) :
     (lifted_measured_separate base noQuantum N (parameter base N) index)
 
 /-- The retained complete parameter avoids the paid working result cell. -/
-theorem parameter_working_separate :
+lemma parameter_working_separate :
     (Native.resultRef (storageContext base N) (storage_empty base noQuantum N) N).key ∉
       (CInputRef.storage (parameterRef base noQuantum N).toCStorageRef).storageKeys := by
   have equal := parameter_read base noQuantum N
@@ -135,7 +135,7 @@ theorem parameter_working_separate :
     (lifted_working_separate base noQuantum N (parameter base N))
 
 /-- The retained random source avoids each exponent measurement cell. -/
-theorem source_measured_separate (index : Fin (measurementBits N)) :
+lemma source_measured_separate (index : Fin (measurementBits N)) :
     (Native.cells (storageContext base N) (storage_empty base noQuantum N) N index).key ∉
       (CInputRef.storage (sourceRef base noQuantum N).toCStorageRef).storageKeys := by
   have equal := underBank_read base noQuantum N
@@ -149,7 +149,7 @@ theorem source_measured_separate (index : Fin (measurementBits N)) :
         (ShorStyle.Canonical.Sampler.Retained.sampleRef base N)).toCStorageRef) index)
 
 /-- The retained random source avoids the paid working result cell. -/
-theorem source_working_separate :
+lemma source_working_separate :
     (Native.resultRef (storageContext base N) (storage_empty base noQuantum N) N).key ∉
       (CInputRef.storage (sourceRef base noQuantum N).toCStorageRef).storageKeys := by
   have equal := underBank_read base noQuantum N

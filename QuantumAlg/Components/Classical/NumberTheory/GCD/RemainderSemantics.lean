@@ -27,39 +27,39 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem op_preserves_cell {input output observed : CShape}
+private lemma op_preserves_cell {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
     (store.applyOp op).read (cellRead other) = store.read (cellRead other) :=
   Store.read_write_other store op.outputRef other.toCStorageRef _ different
 
-private theorem division_read (first second : CWriteRef ctx (.unsignedWord width))
+private lemma division_read (first second : CWriteRef ctx (.unsignedWord width))
     (scratch : CWriteRef ctx (operandShape width)) (store : Store ctx) :
     (store.applyOp (divisionOp first second scratch)).read (cellRead scratch) =
       CShape.divRem width width (.product
         (store.read (cellRead second)) (store.read (cellRead first))) :=
   Store.read_applyOp_output store (divisionOp first second scratch)
 
-private theorem rotate_read (first second : CWriteRef ctx (.unsignedWord width))
+private lemma rotate_read (first second : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (store.applyOp (rotateSecondOp first second)).read (cellRead second) =
       store.read (cellRead first) :=
   Store.read_applyOp_output store (rotateSecondOp first second)
 
-private theorem remainder_read (first : CWriteRef ctx (.unsignedWord width))
+private lemma remainder_read (first : CWriteRef ctx (.unsignedWord width))
     (scratch : CWriteRef ctx (operandShape width)) (store : Store ctx) :
     (store.applyOp (takeRemainderOp first scratch)).read (cellRead first) =
       (store.read (cellRead scratch)).second :=
   Store.read_applyOp_output store (takeRemainderOp first scratch)
 
-private theorem test_read (first : CWriteRef ctx (.unsignedWord width))
+private lemma test_read (first : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (store : Store ctx) :
     ((store.applyOp (testActiveOp first zero active)).read (cellRead active)).toBool =
       decide ((store.read (cellRead first)).toNat = (store.read zero).toNat) :=
   congrArg CShape.Value.toBool (Store.read_applyOp_output store (testActiveOp first zero active))
 
-private theorem negate_read (active : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma negate_read (active : CWriteRef ctx .bit) (store : Store ctx) :
     ((store.applyOp (negateActiveOp active)).read (cellRead active)).toBool =
       !(store.read (cellRead active)).toBool := by
   have actual := congrArg CShape.Value.toBool
@@ -72,7 +72,7 @@ private theorem negate_read (active : CWriteRef ctx .bit) (store : Store ctx) :
       exact actual
 
 /-- Every structural read outside the four written cells is preserved exactly. -/
-theorem gcdRemainder_read_other (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdRemainder_read_other (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (scratch : CWriteRef ctx (operandShape width)) {observed : CShape}
     (other : CInputRef ctx observed)
@@ -88,7 +88,7 @@ theorem gcdRemainder_read_other (first second : CWriteRef ctx (.unsignedWord wid
     Store.read_applyOp_of_not_mem_storageKeys _ (divisionOp first second scratch) other scratchFree]
 
 /-- The actual cells contain the exact remainder, old divisor and refreshed comparison bit. -/
-theorem gcdRemainder_store_values (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdRemainder_store_values (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (scratch : CWriteRef ctx (operandShape width))
     (firstSecond : first.key ≠ second.key) (scratchFirst : scratch.key ≠ first.key)

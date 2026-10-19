@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler
 /-- The terminal pack is extensional in its three visible components.  This
 small bridge keeps the body proof focused on the actual scan and GCD values,
 rather than repeatedly unpacking the retained parameter representation. -/
-theorem sampler_parameterValue_eq_of_components {N : Nat} (input : Input N)
+lemma sampler_parameterValue_eq_of_components {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (unitWord : CShape.Value (.unsignedWord (modulusBits N)))
     (tag : CShape.Value .bit)
@@ -62,7 +62,7 @@ theorem sampler_parameterValue_eq_of_components {N : Nat} (input : Input N)
                                   rfl
 
 /-- The rejected scan branch packs the designated unit and no early factor. -/
-theorem sampler_parameterValue_of_none {N : Nat} (input : Input N)
+lemma sampler_parameterValue_of_none {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (prepared : RSA.prepareResidueFromBits N (modulusBits N)
       residueProposalCount sample = RSA.prepareResidue N none) :
@@ -91,7 +91,7 @@ theorem sampler_parameterValue_of_none {N : Nat} (input : Input N)
 
 /-- A selected coprime residue packs that residue as the circuit unit and no
 early factor. -/
-theorem sampler_parameterValue_of_coprime {N candidate : Nat}
+lemma sampler_parameterValue_of_coprime {N candidate : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (prepared : RSA.prepareResidueFromBits N (modulusBits N)
       residueProposalCount sample = RSA.prepareResidue N (some candidate))
@@ -124,7 +124,7 @@ theorem sampler_parameterValue_of_coprime {N candidate : Nat}
 
 /-- A selected nonunit residue leaves the seeded unit in place and packs the
 actual Euclidean GCD in the early-factor payload. -/
-theorem sampler_parameterValue_of_not_coprime {N candidate : Nat}
+lemma sampler_parameterValue_of_not_coprime {N candidate : Nat}
     (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (prepared : RSA.prepareResidueFromBits N (modulusBits N)
       residueProposalCount sample = RSA.prepareResidue N (some candidate))

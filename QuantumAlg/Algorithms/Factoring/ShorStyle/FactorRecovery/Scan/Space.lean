@@ -32,7 +32,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem selection_resident_le (cells : Cells ctx N)
+private lemma selection_resident_le (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (selection (model := model) cells result).Path) :
     (selection (model := model) cells result).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -46,7 +46,7 @@ private theorem selection_resident_le (cells : Cells ctx N)
     (FirstAccepted.firstAccepted_resident_le (selectorInputs cells) (selectorRefs cells) path.2)
 
 /-- The actual recovery scope includes its full simultaneous resident workspace in each visit. -/
-theorem visit_resident_le (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
+lemma visit_resident_le (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (visit (model := model) source inputs cells result).Path) :
     (visit (model := model) source inputs cells result).peakResidentSpace path ≤
@@ -61,7 +61,7 @@ theorem visit_resident_le (source : Input N) (inputs : Inputs ctx N) (cells : Ce
     ((selection_resident_le cells result path.2).trans (fun _ => Nat.le_add_right _ _))
 
 /-- Successive actual visits release their work and share one complete resident peak allowance. -/
-theorem scan_resident_le (source : Input N) (cells : Cells ctx N)
+lemma scan_resident_le (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (inputs : List (Inputs ctx N)) : ∀ path : (scan (model := model) source cells result
       inputs).Path,
@@ -82,7 +82,7 @@ theorem scan_resident_le (source : Input N) (cells : Cells ctx N)
       exact SpacePool.max_le (visit_resident_le source input cells result path.1) (ih path.2)
 
 /-- Initial clearing and final real packing do not add a new resident cell to the complete scan. -/
-theorem code_resident_le (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
+lemma code_resident_le (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) source inputs cells result).Path) :
     (code (model := model) source inputs cells result).peakResidentSpace path ≤
@@ -102,7 +102,7 @@ theorem code_resident_le (source : Input N) (inputs : List (Inputs ctx N)) (cell
       (BitWord.selectedApplication (execution := model) (packOp cells result)) path.2.2).le.trans
         (fun _ => Nat.le_add_right _ _))
 
-private theorem selection_auxiliary_le (cells : Cells ctx N)
+private lemma selection_auxiliary_le (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (selection (model := model) cells result).Path) :
     (selection (model := model) cells result).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
@@ -116,7 +116,7 @@ private theorem selection_auxiliary_le (cells : Cells ctx N)
     (FirstAccepted.firstAccepted_auxiliary_le (selectorInputs cells) (selectorRefs cells) path.2)
 
 /-- The actual recovery scope includes its full simultaneous auxiliary workspace in each visit. -/
-theorem visit_auxiliary_le (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
+lemma visit_auxiliary_le (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (visit (model := model) source inputs cells result).Path) :
     (visit (model := model) source inputs cells result).peakAuxiliarySpace path ≤
@@ -131,7 +131,7 @@ theorem visit_auxiliary_le (source : Input N) (inputs : Inputs ctx N) (cells : C
     ((selection_auxiliary_le cells result path.2).trans (fun _ => Nat.le_add_right _ _))
 
 /-- Successive actual visits release their work and share one complete auxiliary peak allowance. -/
-theorem scan_auxiliary_le (source : Input N) (cells : Cells ctx N)
+lemma scan_auxiliary_le (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (inputs : List (Inputs ctx N)) : ∀ path : (scan (model := model) source cells result
       inputs).Path,
@@ -152,7 +152,7 @@ theorem scan_auxiliary_le (source : Input N) (cells : Cells ctx N)
       exact SpacePool.max_le (visit_auxiliary_le source input cells result path.1) (ih path.2)
 
 /-- Initial clearing and final real packing do not add a new auxiliary cell to the complete scan. -/
-theorem code_auxiliary_le (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
+lemma code_auxiliary_le (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) source inputs cells result).Path) :
     (code (model := model) source inputs cells result).peakAuxiliarySpace path ≤
@@ -180,7 +180,7 @@ def spaceBound (kind : ProblemKind) (N : Nat) : SpacePool kind :=
     OrderRecovery.Native.extraClassicalBits (modulusBits N) (phaseBits N)))
 
 /-- The original twice-modulus phase width yields this complete explicit scratch capacity. -/
-theorem spaceBound_eq (kind : ProblemKind) (N : Nat) :
+lemma spaceBound_eq (kind : ProblemKind) (N : Nat) :
     spaceBound kind N = SpacePool.ofShape (.bits (38 * modulusBits N + 25)) := by
   have width : 4 * modulusBits N + 3 * phaseBits N + 10 +
       OrderRecovery.Native.extraClassicalBits (modulusBits N) (phaseBits N) =
@@ -189,7 +189,7 @@ theorem spaceBound_eq (kind : ProblemKind) (N : Nat) :
     omega
   exact congrArg (fun count => SpacePool.ofShape (kind := kind) (.bits count)) width
 
-private theorem code_visited (source : Input N) (inputs : List (Inputs ctx N))
+private lemma code_visited (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) source inputs result).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (code (model := model) source inputs result).visitedContexts path) :
@@ -208,7 +208,7 @@ section Capacity
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
+private lemma prefix_resident_capacity (visited : RuntimeCtx kind)
     (present : visited ∈
       [ctx, candidateContext ctx N, acceptedContext ctx N, selectedContext ctx N]) :
     visited.residentSpace ≤ ctx.residentSpace + spaceBound kind N := by
@@ -221,7 +221,7 @@ private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
     all_goals omega
   exact capacities visited present
 
-private theorem full_resident_capacity :
+private lemma full_resident_capacity :
     (context ctx N).residentSpace + FactorRecovery.NativeFactorScope.spaceBound kind N ≤
       ctx.residentSpace + spaceBound kind N := by
   intro axis
@@ -233,7 +233,7 @@ private theorem full_resident_capacity :
 end Capacity
 
 /-- The scoped scan counts all persistent latches and nested resident arithmetic work together. -/
-theorem code_resident_le (source : Input N) (inputs : List (Inputs ctx N))
+lemma code_resident_le (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) source inputs result).Path) :
     (code (model := model) source inputs result).peakResidentSpace path ≤ ctx.residentSpace +
@@ -251,7 +251,7 @@ section Capacity
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
+private lemma prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     (present : visited ∈
       [ctx, candidateContext ctx N, acceptedContext ctx N, selectedContext ctx N]) :
     visited.auxiliarySpace ≤ ctx.auxiliarySpace + spaceBound kind N := by
@@ -264,7 +264,7 @@ private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     all_goals omega
   exact capacities visited present
 
-private theorem full_auxiliary_capacity :
+private lemma full_auxiliary_capacity :
     (context ctx N).auxiliarySpace + FactorRecovery.NativeFactorScope.spaceBound kind N ≤
       ctx.auxiliarySpace + spaceBound kind N := by
   intro axis
@@ -276,7 +276,7 @@ private theorem full_auxiliary_capacity :
 end Capacity
 
 /-- The scoped scan counts all persistent latches and nested auxiliary arithmetic work together. -/
-theorem code_auxiliary_le (source : Input N) (inputs : List (Inputs ctx N))
+lemma code_auxiliary_le (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) source inputs result).Path) :
     (code (model := model) source inputs result).peakAuxiliarySpace path ≤

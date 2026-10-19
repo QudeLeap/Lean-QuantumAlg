@@ -32,17 +32,19 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceDivisionBasis
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement ProductPlacement
 open InPlaceArithmetic NumeratorFrameBasis
 
 /-- Every actual stored branch maps the full initial frame to the quotient with exact amplitude. -/
-theorem operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (reference : Reference.Index) :
-    (InPlaceDivisionConjugation.operator modulus prime Reference stored).applyVec
+    (InPlaceDivisionConjugation.operator environment modulus prime Reference stored).applyVec
       (ket modulus.size (InitialPortProgram.inputFrame modulus value, numerator) reference).vec =
       WalshHadamard.invSqrtCard modulus.size •
         (ket modulus.size (InitialPortProgram.inputFrame modulus value,
@@ -51,10 +53,11 @@ theorem operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
   let multiplied := NativeProductFrame.step modulus.size (modulusWord modulus)
     (completed, numerator)
   let recovered := InPlaceRecompute.recovered modulus value numerator positive bounded
-  have forward := native_normalized modulus.size (NativeEEAFrame.forward modulus prime)
+  have forward := native_normalized (environment := environment) modulus.size
+    (NativeEEAFrame.forward modulus prime)
     (InitialPortProgram.inputFrame modulus value, numerator) (completed, numerator)
     (NativeEEAFrame.forward_initial modulus prime value numerator positive bounded) reference
-  have product := native_normalized modulus.size
+  have product := native_normalized (environment := environment) modulus.size
     (NativeProductFrame.program modulus.size (modulusWord modulus))
     (completed, numerator) multiplied
     ((NativeProductFrame.nativeProductFrame_realizes modulus.size
@@ -64,16 +67,19 @@ theorem operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
       (completed, numerator)
     rw [ProductReadout.numerator_eq, ProductReadout.numerator_eq] at actual
     exact actual
-  have measured : (NumeratorResetConjugation.operator modulus.size Reference stored).applyVec
+  have measured : (NumeratorResetConjugation.operator environment modulus.size Reference
+    stored).applyVec
       (ket modulus.size multiplied reference).vec =
       (WalshHadamard.invSqrtCard modulus.size *
         WalshHadamard.walshSign (NumeratorReset.outcome (stored.read (input modulus.size)))
           numerator) • (ket modulus.size (multiplied.1, 0) reference).vec := by
-    have actual := NumeratorBranchAction.operator_ket modulus.size stored
+    have actual := NumeratorBranchAction.operator_ket (environment := environment) modulus.size
+      stored
       (basis modulus.size multiplied) reference
     rw [NumeratorFrameBasis.word, NumeratorFrameBasis.replace, numeratorKept] at actual
     exact actual
-  have backward := native_normalized modulus.size (NativeEEAFrame.backward modulus prime)
+  have backward := native_normalized (environment := environment) modulus.size
+    (NativeEEAFrame.backward modulus prime)
     (multiplied.1, 0) recovered
     (backward_reset_ket modulus prime value numerator positive bounded) reference
   have mask : QubitReadouts.mask (stored.read (input modulus.size)) =
@@ -82,8 +88,8 @@ theorem operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
     funext index
     exact (NumeratorReset.outcome_bit (stored.read (input modulus.size)) index).symm
   have correctionNative :
-      (NumeratorCorrection.member modulus.size (modulusWord modulus)
-        (stored.read (input modulus.size))).applyVec
+      ((NumeratorCorrection.member modulus.size (modulusWord modulus)
+        (stored.read (input modulus.size))).applyVec environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode recovered))).vec =
@@ -92,18 +98,19 @@ theorem operator_ket (modulus : Nat) (prime : Nat.Prime modulus)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode recovered))).vec := by
-    change (ReusedProduct.correction modulus.size (modulusWord modulus)
-      (QubitReadouts.mask (stored.read (input modulus.size)))).applyVec _ = _
+    change ((ReusedProduct.correction modulus.size (modulusWord modulus)
+      (QubitReadouts.mask (stored.read (input modulus.size)))).applyVec environment) _ = _
     rw [mask]
     exact InPlaceRecompute.correction_ket modulus prime value numerator
       (NumeratorReset.outcome (stored.read (input modulus.size)))
       positive bounded numeratorBound
-  have correction := native_action modulus.size
+  have correction := native_action (environment := environment) modulus.size
     (NumeratorCorrection.member modulus.size (modulusWord modulus)
       (stored.read (input modulus.size))) recovered recovered
     (WalshHadamard.walshSign (NumeratorReset.outcome (stored.read (input modulus.size))) numerator)
     correctionNative reference
-  have swap := native_normalized modulus.size (FrameSwap.program modulus.size) recovered
+  have swap := native_normalized (environment := environment) modulus.size (FrameSwap.program
+    modulus.size) recovered
     (InitialPortProgram.inputFrame modulus value,
       InPlaceRecompute.saved modulus value numerator positive bounded)
     (FrameSwapReadout.program_reused_ket modulus.size

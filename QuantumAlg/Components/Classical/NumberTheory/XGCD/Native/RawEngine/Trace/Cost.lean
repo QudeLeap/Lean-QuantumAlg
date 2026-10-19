@@ -27,10 +27,10 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem guarded_duration_trace (cells : Cells ctx (stateShapes width))
+private lemma guarded_duration_trace (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (guardedActive (model := model) cells zero).Path) :
     (guardedActive (model := model) cells zero).depth duration path =
@@ -44,7 +44,7 @@ private theorem guarded_duration_trace (cells : Cells ctx (stateShapes width))
           (congrArg (fun events => (events.map duration).sum)
             (xgcdNativeScopedActive_eventTrace cells zero path)).symm
 
-private theorem loop_duration_trace (cells : Cells ctx (stateShapes width))
+private lemma loop_duration_trace (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat)
     (duration : Resource.Event model → Nat)
     (path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path) :
@@ -60,7 +60,7 @@ private theorem loop_duration_trace (cells : Cells ctx (stateShapes width))
   exact Finset.sum_congr rfl
     (fun index _ => guarded_duration_trace cells zero duration (path index))
 
-private theorem scheduled_duration_trace (cells : Cells ctx (stateShapes width))
+private lemma scheduled_duration_trace (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (duration : Resource.Event model → Nat)
@@ -81,7 +81,7 @@ private theorem scheduled_duration_trace (cells : Cells ctx (stateShapes width))
   rw [initialization_duration, loop_duration_trace, copyRawOutputs_duration]
   simp only [List.map_append, List.sum_append]
 
-private theorem with_state_duration_trace
+private lemma with_state_duration_trace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (duration : Resource.Event model → Nat) (path : (withRawState (model := model) input zero
@@ -97,7 +97,7 @@ private theorem with_state_duration_trace
     (fun cells _ _ _ selected => scheduled_duration_trace cells _ _ _ duration selected) path
 
 omit [BitWord.Selected model] in
-private theorem lexical_duration_trace {inner : RuntimeCtx model.kind}
+private lemma lexical_duration_trace {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
     (duration : Resource.Event model → Nat)
@@ -109,7 +109,7 @@ private theorem lexical_duration_trace {inner : RuntimeCtx model.kind}
   same path
 
 /-- The actual raw instruction dependency graph is serial along every selected path. -/
-theorem xgcdNativeRawEngine_duration_eventTrace
+lemma xgcdNativeRawEngine_duration_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (duration : Resource.Event model → Nat)
     (path : (rawEngine (model := model) input outputs).Path) :
@@ -128,7 +128,7 @@ theorem xgcdNativeRawEngine_duration_eventTrace
         ctx.canonicalFreshKey_fresh)) outputs.underZero duration) path
 
 omit [BitWord.Selected model] in
-private theorem repeated_duration {State : Type} (states : List State)
+private lemma repeated_duration {State : Type} (states : List State)
     (events : List (Resource.Event model)) (duration : Resource.Event model → Nat) :
     (((states.flatMap (fun _ => events)).map duration).sum) =
       states.length * (events.map duration).sum := by
@@ -140,7 +140,7 @@ private theorem repeated_duration {State : Type} (states : List State)
       omega
 
 /-- Original active-step count determines the exact duration sum of the raw event list. -/
-theorem xgcdNativeRawEvents_duration (input : PureXGCD.Input width)
+lemma xgcdNativeRawEvents_duration (input : PureXGCD.Input width)
     (duration : Resource.Event model → Nat) :
     ((rawEvents model input).map duration).sum =
       ((initializationEvents model width).map duration).sum +
@@ -152,7 +152,7 @@ theorem xgcdNativeRawEvents_duration (input : PureXGCD.Input width)
   rfl
 
 /-- Unit durations count six setup operations, fourteen per genuine step and three raw copies. -/
-theorem xgcdNativeRawEvents_unit_duration (model : ExecutionModel) [BitWord.Selected model]
+lemma xgcdNativeRawEvents_unit_duration (model : ExecutionModel) [BitWord.Selected model]
   (input : PureXGCD.Input width) :
     ((rawEvents model input).map (fun _ => 1)).sum =
       14 * ClassicalAlgorithms.NumberTheory.XGCD.traceStepCount input + 9 := by
@@ -162,7 +162,7 @@ theorem xgcdNativeRawEvents_unit_duration (model : ExecutionModel) [BitWord.Sele
   omega
 
 /-- The exact active-count duration satisfies the unchanged original width-derived ceiling. -/
-theorem xgcdNativeRawEvents_unit_duration_le (model : ExecutionModel) [BitWord.Selected model]
+lemma xgcdNativeRawEvents_unit_duration_le (model : ExecutionModel) [BitWord.Selected model]
     (input : PureXGCD.Input width) :
     ((rawEvents model input).map (fun _ => 1)).sum ≤ 28 * width + 23 := by
   rw [xgcdNativeRawEvents_unit_duration]
@@ -171,7 +171,7 @@ theorem xgcdNativeRawEvents_unit_duration_le (model : ExecutionModel) [BitWord.S
   omega
 
 omit [BitWord.Selected model] in
-private theorem repeated_pool {State : Type} (states : List State)
+private lemma repeated_pool {State : Type} (states : List State)
     (events : List (Resource.Event model)) :
     ResourcePool.ofList (states.flatMap (fun _ => events)) =
       ResourcePool.scale states.length (ResourcePool.ofList events) := by
@@ -182,7 +182,7 @@ private theorem repeated_pool {State : Type} (states : List State)
         List.length_cons, ResourcePool.scale_succ]
 
 /-- Each native resource coordinate uses exactly the original number of actual active updates. -/
-theorem xgcdNativeRawEvents_resourcePool (input : PureXGCD.Input width) :
+lemma xgcdNativeRawEvents_resourcePool (input : PureXGCD.Input width) :
     ResourcePool.ofList (rawEvents model input) =
       ResourcePool.ofList (initializationEvents model width) +
         (ResourcePool.scale (ClassicalAlgorithms.NumberTheory.XGCD.traceStepCount input)
@@ -193,14 +193,15 @@ theorem xgcdNativeRawEvents_resourcePool (input : PureXGCD.Input width) :
   rfl
 
 /-- The same actual full record has the exact original active-count duration at any native costs. -/
-theorem xgcdNativeRawEngine_record_duration
+lemma xgcdNativeRawEngine_record_duration
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
       := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+      (rawEngine (model := model) input outputs).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
@@ -216,14 +217,15 @@ theorem xgcdNativeRawEngine_record_duration
     xgcdNativeRawEvents_duration]
 
 /-- Actual unit-duration depth counts only the original active steps from the actual input. -/
-theorem xgcdNativeRawEngine_record_unitDepth
+lemma xgcdNativeRawEngine_record_unitDepth
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
       := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+      (rawEngine (model := model) input outputs).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×
@@ -236,14 +238,15 @@ theorem xgcdNativeRawEngine_record_unitDepth
     xgcdNativeRawEvents_unit_duration]
 
 /-- The actual full record has the exact active-count resource pool at every native coordinate. -/
-theorem xgcdNativeRawEngine_record_active_resourcePool
+lemma xgcdNativeRawEngine_record_active_resourcePool
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
       := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+      (rawEngine (model := model) input outputs).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×

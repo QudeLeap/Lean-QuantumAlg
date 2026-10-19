@@ -27,6 +27,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Execute the original retained recovery and list every live final resource. -/
@@ -37,22 +38,23 @@ def run (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
   output := Output.all (retainedCtx ctx width key fresh) (.read (retainedRead ctx width key fresh))
 
 /-- The actual recovery result does not hide any caller entry or surviving quantum wire. -/
-theorem gf2Run_output_listing (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2Run_output_listing (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     (run input key fresh).output.listing = (retainedCtx ctx width key fresh).keys := rfl
 
 /-- Forgetting only path histories leaves the actual retained write and all old correlations. -/
-theorem gf2Run_finalState (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2Run_finalState (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
     (state : ExecutionState (Store ctx × model.HiddenState)
       (Register.prod ctx.register Reference)) :
-    (run input key fresh).finalState Reference state =
+    (run input key fresh).finalState environment Reference state =
       state.mapClassical (fun before =>
         (before.1.pushRetained key (.option (.unsignedWord width)) fresh).write
           (CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh)
           (gf2RecoveryValue (before.1.read input))) := by
-  obtain ⟨record, executed, correct⟩ := gf2Retained_actualRecord_correct input key fresh
-  change ((retainedCircuit input key fresh).execute Reference
+  obtain ⟨record, executed, correct⟩ := gf2Retained_actualRecord_correct
+    (environment := environment) input key fresh
+  change ((retainedCircuit input key fresh).execute environment Reference
     (state.mapClassical (fun before => (before.1, (before.2, before.1))))).mapClassical Prod.fst = _
   rw [executed]
   erw [ExecutionState.executionState_mapClassical_comp,
@@ -62,25 +64,25 @@ theorem gf2Run_finalState (input : CInputRef ctx (.fixedVector rowCount (.bits w
   exact correct before
 
 /-- Reading the actual result groups the complete input state by its original recovery value. -/
-theorem gf2Run_readoutState (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2Run_readoutState (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
     (state : ExecutionState (Store ctx × model.HiddenState)
       (Register.prod ctx.register Reference)) :
-    ((run input key fresh).execute Reference state).mapClassical
+    ((run input key fresh).execute environment Reference state).mapClassical
       (run input key fresh).result =
       state.mapClassical (fun before => gf2RecoveryValue (before.1.read input)) := by
-  change ((run input key fresh).execute Reference state).mapClassical
+  change ((run input key fresh).execute environment Reference state).mapClassical
     (fun entry => (run input key fresh).output.eval entry.1) = _
   rw [← AlgorithmRun.finalState_readout, gf2Run_finalState]
   erw [ExecutionState.executionState_mapClassical_comp]
   congr 1
 
 /-- The actual output PMF is the original recovery applied to the input's own block weights. -/
-theorem gf2Run_outputDistribution
+lemma gf2Run_outputDistribution
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) {Reference : Register}
     (original : Execution.OracleInput model.classicalOracles ctx Reference) :
-    (run input key fresh).outputDistribution original =
+    (run input key fresh).outputDistribution environment original =
       (original.state.toPMF original.normalized).map
         (fun before => gf2RecoveryValue (before.1.read input)) := by
   apply PMF.ext
@@ -88,10 +90,10 @@ theorem gf2Run_outputDistribution
   have actual := congrArg (fun probability : PMF (CShape.Value (.option (.unsignedWord width))) =>
       probability value)
     (ExecutionState.toPMF_mapClassical
-      ((run input key fresh).execute Reference original.state)
-      ((run input key fresh).execute_normalized original) (run input key fresh).result)
-  change (((run input key fresh).execute Reference original.state).toPMF
-    ((run input key fresh).execute_normalized original)).map
+      ((run input key fresh).execute environment Reference original.state)
+      ((run input key fresh).execute_normalized environment original) (run input key fresh).result)
+  change (((run input key fresh).execute environment Reference original.state).toPMF
+    ((run input key fresh).execute_normalized environment original)).map
       (run input key fresh).result value = _
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply, gf2Run_readoutState]

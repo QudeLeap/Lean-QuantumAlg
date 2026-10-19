@@ -36,7 +36,7 @@ def intoScratchSpace (model : ExecutionModel)
         (SpacePool.ofShape .bit + SpacePool.ofShape (.unsignedWord width)))
 
 omit [BitWord.Selected model] in
-private theorem when_resident (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+private lemma when_resident (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (budget : SpacePool model.kind) (entry : ctx.residentSpace ≤ budget)
     (bound : ∀ path, body.peakResidentSpace path ≤ budget)
     (path : (whenSuccessful success body).Path) :
@@ -49,7 +49,7 @@ private theorem when_resident (success : CWriteRef ctx .bit) (body : Circuit mod
       · exact bound path
 
 omit [BitWord.Selected model] in
-private theorem serial_resident (first second : Circuit model ctx ctx)
+private lemma serial_resident (first second : Circuit model ctx ctx)
     (budget : SpacePool model.kind)
     (left : ∀ path, first.peakResidentSpace path ≤ budget)
     (right : ∀ path, second.peakResidentSpace path ≤ budget)
@@ -58,7 +58,7 @@ private theorem serial_resident (first second : Circuit model ctx ctx)
     (SpacePool.max_le (left path.1) (right path.2))
 
 omit [BitWord.Selected model] in
-private theorem when_auxiliary (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+private lemma when_auxiliary (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (budget : SpacePool model.kind) (entry : ctx.auxiliarySpace ≤ budget)
     (bound : ∀ path, body.peakAuxiliarySpace path ≤ budget)
     (path : (whenSuccessful success body).Path) :
@@ -71,7 +71,7 @@ private theorem when_auxiliary (success : CWriteRef ctx .bit) (body : Circuit mo
       · exact bound path
 
 omit [BitWord.Selected model] in
-private theorem serial_auxiliary (first second : Circuit model ctx ctx)
+private lemma serial_auxiliary (first second : Circuit model ctx ctx)
     (budget : SpacePool model.kind)
     (left : ∀ path, first.peakAuxiliarySpace path ≤ budget)
     (right : ∀ path, second.peakAuxiliarySpace path ≤ budget)
@@ -87,7 +87,7 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
   (success : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
 
 /-- Sequential scopes share space while retaining the full resident context. -/
-theorem gf2Into_resident_le
+lemma gf2Into_resident_le
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).peakResidentSpace path ≤
       intoScratchSpace model rowCount width + ctx.residentSpace := by
@@ -169,7 +169,7 @@ theorem gf2Into_resident_le
                 entry)))))))) path
 
 /-- Sequential scopes share space while retaining the full auxiliary context. -/
-theorem gf2Into_auxiliary_le
+lemma gf2Into_auxiliary_le
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).peakAuxiliarySpace path ≤
       intoScratchSpace model rowCount width + ctx.auxiliarySpace := by

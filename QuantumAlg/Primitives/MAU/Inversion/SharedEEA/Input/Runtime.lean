@@ -24,6 +24,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InputRuntime
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution InputPreparation
 
 /-- Native preprocessing placed at its exact live physical identities. -/
@@ -39,13 +44,14 @@ def outputBasis (modulus : Nat) (old : (before modulus.size).register.Index) :
       (InitialFrame.result modulus (inputBasisEquiv modulus.size old)))
 
 /-- Actual preparation followed by the placed native word has the exact source-result action. -/
-theorem program_prepared_input (modulus : Nat)
+lemma program_prepared_input (modulus : Nat)
     (old : (before modulus.size).register.Index) :
-    (program modulus).applyNormalized
+    (program modulus).applyNormalized environment
         (NormalizedVector.ket
           (InputAssembly.assembly modulus.size ((preparation modulus).value, old))) =
       NormalizedVector.ket (outputBasis modulus old) := by
-  have actual := InitialFrame.program_initial modulus (inputBasisEquiv modulus.size old)
+  have actual := InitialFrame.program_initial
+    (environment := environment) modulus (inputBasisEquiv modulus.size old)
   apply InputRuntimePlacement.program_apply_ket modulus.size
     (InitialFrame.program modulus) _ _ actual
   · rw [InputRuntimePlacement.selectedBasis_eq_basisEquiv]
@@ -65,17 +71,17 @@ def code (modulus : Nat) :
     Circuit (.quantum AlgorithmGate.model .empty) (before modulus.size) (after modulus.size) :=
   (InputPreparation.circuit modulus).seq (body modulus)
 
-theorem program_eventTrace (modulus : Nat) :
+lemma program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace = (InitialFrame.program modulus).eventTrace :=
   InputRuntimePlacement.program_eventTrace modulus.size (InitialFrame.program modulus)
 
 /-- The physical runtime placement retains every actual native event multiplicity. -/
-theorem program_eventCost (modulus : Nat) :
+lemma program_eventCost (modulus : Nat) :
     (program modulus).eventCost = (InitialFrame.program modulus).eventCost :=
   InputRuntimePlacement.program_eventCost modulus.size (InitialFrame.program modulus)
 
 /-- The trace charges zero allocation, fixed-seed X gates, fold and length writing. -/
-theorem code_eventTrace (modulus : Nat) (path : (code modulus).Path) :
+lemma code_eventTrace (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).eventTrace path =
       (ZeroPreparation.eventTrace AlgorithmGate.model .empty
         (auxiliaryLayout modulus.size) ++ (loadProgram modulus).eventTrace) ++
@@ -89,46 +95,51 @@ theorem code_eventTrace (modulus : Nat) (path : (code modulus).Path) :
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- Every classical/hidden-state block evolves under the same joint operator. -/
-theorem body_block_matrix (modulus : Nat)
+lemma body_block_matrix (modulus : Nat)
     (state : State (after modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (store : Store (after modulus.size))
     (hidden : ClassicalOracleModel.empty.HiddenState) (history : H) :
-    (((body modulus).execute Reference state).block
+    (((body modulus).execute runtimeEnvironment Reference state).block
       (store, (hidden, (history, ())))).matrix =
-      let operator := UnitaryOperator.prodTensor (program modulus).matrix
+      let operator := UnitaryOperator.prodTensor ((program modulus).matrix
+        runtimeEnvironment.quantum)
         (1 : UnitaryOperator Reference)
       (operator : HilbertOperator ((after modulus.size).register.prod Reference)) *
         (state.block (store, (hidden, history))).matrix *
           (operator : HilbertOperator
             ((after modulus.size).register.prod Reference)).conjTranspose :=
-  Circuit.execute_unitary_block_matrix state (program modulus) store hidden history
+  Circuit.execute_unitary_block_matrix runtimeEnvironment state (program modulus) store hidden
+    history
 
 /-- The full input/reference density includes both actual execution stages. -/
-theorem code_quantumMarginal (modulus : Nat)
+lemma code_quantumMarginal (modulus : Nat)
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((code modulus).execute Reference state).quantumMarginal =
+    ((code modulus).execute runtimeEnvironment Reference state).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (program modulus).matrix
+        (UnitaryOperator.prodTensor ((program modulus).matrix runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
-        (((InputPreparation.circuit modulus).execute Reference state).quantumMarginal) := by
+        (((InputPreparation.circuit modulus).execute runtimeEnvironment
+          Reference state).quantumMarginal) := by
   rw [code, Circuit.execute_seq, State.mapHistory_quantumMarginal, body,
     Circuit.unitary_jointDensity]
 
 /-- Both execution stages preserve the complete external-reference matrix. -/
-theorem code_reference_entry (modulus : Nat)
+lemma code_reference_entry (modulus : Nat)
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (left right : Reference.Index) :
     (∑ basis : (after modulus.size).register.Index,
-      ((code modulus).execute Reference state).quantumMarginal.matrix
+      ((code modulus).execute runtimeEnvironment Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (before modulus.size).register.Index,
         state.quantumMarginal.matrix (basis, left) (basis, right) := by
   rw [code_quantumMarginal]
-  exact (DensityOperator.localUnitary_reference_entry (program modulus).matrix
-    (((InputPreparation.circuit modulus).execute Reference state).quantumMarginal)
+  exact (DensityOperator.localUnitary_reference_entry ((program modulus).matrix
+    runtimeEnvironment.quantum)
+    (((InputPreparation.circuit modulus).execute runtimeEnvironment
+      Reference state).quantumMarginal)
       left right).trans (InputPreparation.execute_reference_entry modulus state left right)
 
 end

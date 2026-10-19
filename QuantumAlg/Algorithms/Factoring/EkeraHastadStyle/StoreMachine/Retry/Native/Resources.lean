@@ -42,7 +42,7 @@ def eventEnvelope (N count : Nat) : ResourcePool RuntimeRound.model :=
 def depthBound (N count : Nat) : Nat :=
   NativeBatchRecovery.depthBound N + suffixDepthBound N count
 
-private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
+private lemma sequence_pool {pre middle post : RuntimeCtx .quantum}
     (first : Circuit RuntimeRound.model pre middle)
     (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
@@ -53,7 +53,7 @@ private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
 variable {N : Nat}
 
 /-- Every actual continuation path obeys the independent number-of-batches event formula. -/
-theorem suffixCode_pool_le (input : Input N) (start : RuntimeCtx .quantum)
+lemma suffixCode_pool_le (input : Input N) (start : RuntimeCtx .quantum)
     (wires : start.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
     (originalCells : Fin (measurementBits N) → CWriteRef start (.finite 2))
@@ -77,7 +77,7 @@ theorem suffixCode_pool_le (input : Input N) (start : RuntimeCtx .quantum)
       simpa only [suffixEventEnvelope, succ_nsmul, add_comm] using combined
 
 /-- The same actual continuation path obeys the independent serial depth formula. -/
-theorem suffixCode_depth_le (input : Input N) (start : RuntimeCtx .quantum)
+lemma suffixCode_depth_le (input : Input N) (start : RuntimeCtx .quantum)
     (wires : start.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
     (originalCells : Fin (measurementBits N) → CWriteRef start (.finite 2))
@@ -106,7 +106,7 @@ theorem suffixCode_depth_le (input : Input N) (start : RuntimeCtx .quantum)
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- One first-batch execution and its actual repeated suffix meet every native coordinate. -/
-theorem code_pool_le (input : Input N) (count : Nat)
+lemma code_pool_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).resourcePool path ≤ eventEnvelope N count :=
   (sequence_pool (NativeBatchRecovery.code base noQuantum input)
@@ -117,13 +117,13 @@ theorem code_pool_le (input : Input N) (count : Nat)
         (firstWires base noQuantum N) (firstCells base noQuantum N) count path.2))
 
 /-- The independent native ledger also bounds the number of operations on this same path. -/
-theorem code_eventCount_le (input : Input N) (count : Nat)
+lemma code_eventCount_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     ((code base noQuantum input count).eventTrace path).length ≤ (eventEnvelope N count).card :=
   Multiset.card_le_card (code_pool_le base noQuantum input count path)
 
 /-- The full serial dependency includes the first batch followed by every later batch. -/
-theorem code_depth_le (input : Input N) (count : Nat)
+lemma code_depth_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).depth (fun _ => 1) path ≤ depthBound N count :=
   Nat.add_le_add (NativeBatchRecovery.code_depth_le base noQuantum input path.1)

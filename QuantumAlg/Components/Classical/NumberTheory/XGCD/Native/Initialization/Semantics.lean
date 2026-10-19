@@ -27,7 +27,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem preserve_index (cells : Cells ctx (stateShapes width))
+private lemma preserve_index (cells : Cells ctx (stateShapes width))
     (distinct : cells.Distinct) {input output : CShape}
     (op : ClassicalOp input output ctx ctx) (written observed : Fin 7)
     (outputKey : op.outputRef.key = stateKey cells written) (different : written ≠ observed)
@@ -38,7 +38,7 @@ private theorem preserve_index (cells : Cells ctx (stateShapes width))
   intro same
   exact different (xgcdNativeState_key_injective cells distinct (outputKey.symm.trans same))
 
-private theorem preserve_cell (cells : Cells ctx (stateShapes width))
+private lemma preserve_cell (cells : Cells ctx (stateShapes width))
     (distinct : cells.Distinct) {input output observedShape : CShape}
     (op : ClassicalOp input output ctx ctx) (written observed : Fin 7)
     (cell : CWriteRef ctx observedShape)
@@ -51,7 +51,7 @@ private theorem preserve_cell (cells : Cells ctx (stateShapes width))
   exact different (xgcdNativeState_key_injective cells distinct
     (outputKey.symm.trans (same.trans observedKey)))
 
-private theorem preserve_caller {outer : RuntimeCtx kind}
+private lemma preserve_caller {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (written : Fin 7)
@@ -64,7 +64,7 @@ private theorem preserve_caller {outer : RuntimeCtx kind}
   exact xgcdNativeState_input_separated cells transport separated other written
 
 /-- Every transported caller read survives all six actual initialization writes. -/
-theorem xgcdNativeInitialization_read_caller {outer : RuntimeCtx kind}
+lemma xgcdNativeInitialization_read_caller {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
@@ -81,7 +81,7 @@ theorem xgcdNativeInitialization_read_caller {outer : RuntimeCtx kind}
     preserve_caller cells transport separated (copySecondOp cells input) 1 rfl,
     preserve_caller cells transport separated (copyFirstOp cells input) 0 rfl]
 
-private theorem preserve_unwritten (cells : Cells ctx (stateShapes width))
+private lemma preserve_unwritten (cells : Cells ctx (stateShapes width))
     (distinct : cells.Distinct)
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (observed : Fin 7)
@@ -102,7 +102,7 @@ private theorem preserve_unwritten (cells : Cells ctx (stateShapes width))
     preserve_index cells distinct (copyFirstOp cells input) 0 observed rfl firstFree]
 
 /-- Actual fresh state cells attain the original operands, coefficient basis, and activity. -/
-theorem xgcdNativeInitialization_store_values {outer : RuntimeCtx kind}
+lemma xgcdNativeInitialization_store_values {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))

@@ -28,13 +28,16 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRepetition
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
 /-- Arbitrarily many actual rounds retain the same seed in each complete final store block. -/
-theorem shortDLP_runtimeRepetition_seedBlocks {shape : CShape} (m ell width N : Nat)
+lemma shortDLP_runtimeRepetition_seedBlocks {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ) :
     ∀ (count : Nat) (ctx : RuntimeCtx .quantum)
       (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -46,6 +49,7 @@ theorem shortDLP_runtimeRepetition_seedBlocks {shape : CShape} (m ell width N : 
         RuntimeRound.HasSeedBlocks m ell width
           (shortDLP_runtimeRepetition_wires m ell width ctx sameWires count) N
           ((code m ell width N generator target ctx sameWires parameter cells count).execute
+            environment
             Reference state) := by
   intro count
   induction count with
@@ -68,13 +72,15 @@ theorem shortDLP_runtimeRepetition_seedBlocks {shape : CShape} (m ell width N : 
       let round := RuntimeRound.code m ell width nextWires nextParameter N generator target
         nextCells (RuntimeResults.head m ell width ctx)
       let tail := code m ell width N generator target next nextWires nextParameter nextCells count
-      let retained := retention.execute Reference state
-      let rounded := round.execute Reference retained
-      have roundSeed := RuntimeRound.shortDLP_runtimeRound_seedBlocks m ell width nextWires
+      let retained := retention.execute environment Reference state
+      let rounded := round.execute environment Reference retained
+      have roundSeed := RuntimeRound.shortDLP_runtimeRound_seedBlocks (environment := environment)
+        m ell width nextWires
         nextParameter N generator target nextCells (RuntimeResults.head m ell width ctx) retained
       have tailSeed := induction next nextWires nextParameter nextCells rounded roundSeed
-      have bodySeed := BasisSeeded.seq round tail _ retained tailSeed
-      exact BasisSeeded.seq retention (.seq round tail) _ state bodySeed
+      have bodySeed := BasisSeeded.seq (environment := environment) round tail _ retained tailSeed
+      exact BasisSeeded.seq (environment := environment)
+        retention (.seq round tail) _ state bodySeed
 
 end
 

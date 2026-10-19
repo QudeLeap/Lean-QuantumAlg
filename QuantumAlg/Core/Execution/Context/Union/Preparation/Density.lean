@@ -22,13 +22,13 @@ namespace QuantumAlg.Execution.ContextUnion
 
 noncomputable section
 
-private theorem mapped_marginal {C D : Type} [Fintype C] [Fintype D]
+private lemma mapped_marginal {C D : Type} [Fintype C] [Fintype D]
     {R : Register} {decision : DecidableEq D} (state : ExecutionState C R) (f : C → D) :
     (@ExecutionState.mapClassical C D _ _ R decision state f).quantumMarginal =
       state.quantumMarginal :=
   @ExecutionState.mapClassical_quantumMarginal C D _ _ R decision state f
 
-private theorem reindexed_marginal {C : Type} [Fintype C] {R S : Register}
+private lemma reindexed_marginal {C : Type} [Fintype C] {R S : Register}
     (state : ExecutionState C R) (basis : R.Index ≃ S.Index) :
     (state.reindex basis).quantumMarginal = state.quantumMarginal.reindex basis := by
   apply DensityOperator.ext
@@ -36,7 +36,7 @@ private theorem reindexed_marginal {C : Type} [Fintype C] {R S : Register}
   simp only [ExecutionState.quantumMarginal, Matrix.sum_apply,
     ExecutionState.reindex_block_entry, DensityOperator.reindex_entry]
 
-private theorem reindex_cancel {R S : Register} (basis : R.Index ≃ S.Index)
+private lemma reindex_cancel {R S : Register} (basis : R.Index ≃ S.Index)
     (left right : DensityOperator R) (same : left.reindex basis = right.reindex basis) :
     left = right := by
   apply DensityOperator.ext
@@ -46,7 +46,7 @@ private theorem reindex_cancel {R S : Register} (basis : R.Index ≃ S.Index)
   simpa only [DensityOperator.reindex_entry, Equiv.symm_apply_apply] using entry
 
 /-- Splitting preserves the entire joint density under its complete reference basis equivalence. -/
-theorem contextUnion_splitServiceState_quantumMarginal (ctx frame : RuntimeCtx .quantum)
+lemma contextUnion_splitServiceState_quantumMarginal (ctx frame : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint ctx frame) {Reference : Register}
     {Hidden History : Type} [Fintype Hidden] [Fintype History]
     (state : State (ctx.disjointUnion frame separate) Reference (Hidden × History)) :
@@ -61,9 +61,10 @@ variable {ctx frame : RuntimeCtx .quantum} {count : Nat}
   (separate : RuntimeCtx.StorageDisjoint (ctx.addOwnedLayout key layout fresh disjoint) frame)
   {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+  (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
 
 /-- A proved local zero-and-gate loading equation holds beside every complete resident frame. -/
-theorem prepareFramed_execute_preparedDensity
+lemma prepareFramed_execute_preparedDensity
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
     (preparation : BasisPreparation layout)
@@ -75,7 +76,7 @@ theorem prepareFramed_execute_preparedDensity
       (((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) ctx key layout fresh disjoint).seq
           (Circuit.unitary (operations := operations) (classicalOracles := services) load)).execute
-            (Register.prod frame.register Reference)
+            environment (Register.prod frame.register Reference)
             (splitServiceState ctx frame
               (preparation_original_disjoint key layout fresh disjoint separate)
               state)).quantumMarginal =
@@ -86,7 +87,7 @@ theorem prepareFramed_execute_preparedDensity
             state).quantumMarginal) :
     ((prepareFramed key layout fresh disjoint separate
       (operations := operations) (services := services) load).execute
-        Reference state).quantumMarginal =
+        environment Reference state).quantumMarginal =
       preparedDensity key layout
         (preparation_fresh_union key layout fresh disjoint separate)
         (preparation_wires_union key layout fresh disjoint separate)
@@ -102,17 +103,17 @@ theorem prepareFramed_execute_preparedDensity
     (((Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) ctx key layout fresh disjoint).seq
         (Circuit.unitary (operations := operations) (classicalOracles := services) load)).execute
-          localReference localInput)
+          environment localReference localInput)
   let actualOutput : State (post.disjointUnion frame separate) Reference
       (services.HiddenState × (History × (Unit × Unit))) :=
     (prepareFramed key layout fresh disjoint separate
-      (operations := operations) (services := services) load).execute Reference state
+      (operations := operations) (services := services) load).execute environment Reference state
   let reassociate : (services.HiddenState × ((Store frame × History) × (Unit × Unit))) →
       (services.HiddenState × (Store frame × (History × (Unit × Unit)))) :=
     fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))
   have framed : splitServiceState post frame separate actualOutput =
       localOutput.mapHistory reassociate :=
-    prepareFramed_execute key layout fresh disjoint separate load state
+    prepareFramed_execute key layout fresh disjoint separate load environment state
   have natural : (splitServiceState post frame separate actualOutput).quantumMarginal =
       localOutput.quantumMarginal :=
     (congrArg (fun input : State post localReference
@@ -139,14 +140,14 @@ theorem prepareFramed_execute_preparedDensity
       preparation.normalized Reference state.quantumMarginal) same
 
 /-- A fixed local loading equation lifts to every framed quantum-reference density. -/
-theorem preparedDensity_frameUnitary_transport
+lemma preparedDensity_frameUnitary_transport
     (load : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
     (source target : BasisPreparation layout)
     (loaded : ∀ {R : Register}
       (density : DensityOperator (Register.prod ctx.register R)),
       DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor load.matrix (1 : UnitaryOperator R))
+          (UnitaryOperator.prodTensor (load.matrix environment.quantum) (1 : UnitaryOperator R))
           (preparedDensity key layout fresh disjoint source.normalized R density) =
         preparedDensity key layout fresh disjoint target.normalized R density)
     (Reference : Register)
@@ -156,8 +157,8 @@ theorem preparedDensity_frameUnitary_transport
       Reference)) :
     DensityOperator.applyUnitary
         (UnitaryOperator.prodTensor
-          (frameUnitary (ctx.addOwnedLayout key layout fresh disjoint) frame separate
-            load).matrix (1 : UnitaryOperator Reference))
+          ((frameUnitary (ctx.addOwnedLayout key layout fresh disjoint) frame separate
+            load).matrix environment.quantum) (1 : UnitaryOperator Reference))
         (preparedDensity key layout
           (preparation_fresh_union key layout fresh disjoint separate)
           (preparation_wires_union key layout fresh disjoint separate)
@@ -171,14 +172,14 @@ theorem preparedDensity_frameUnitary_transport
   apply reindex_cancel basis
   calc
     _ = DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor load.matrix
+        (UnitaryOperator.prodTensor (load.matrix environment.quantum)
           (1 : UnitaryOperator (Register.prod frame.register Reference)))
         ((preparedDensity key layout
           (preparation_fresh_union key layout fresh disjoint separate)
           (preparation_wires_union key layout fresh disjoint separate)
           source.normalized Reference density).reindex basis) :=
       density_naturality (ctx.addOwnedLayout key layout fresh disjoint)
-        frame separate load _
+        frame separate load environment _
     _ = preparedDensity key layout fresh disjoint target.normalized
         (Register.prod frame.register Reference)
         (density.reindex (referenceBasis ctx frame

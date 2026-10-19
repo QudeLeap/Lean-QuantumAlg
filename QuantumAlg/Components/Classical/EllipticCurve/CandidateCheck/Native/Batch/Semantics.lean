@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- One actual six-stage record uses the same seven allocated destinations. -/
@@ -38,7 +38,7 @@ noncomputable def persistentAttemptRecord (curve : CurveSpec width)
     Store (persistentCtx ctx width scalarWidth) × model.HiddenState →
       (Store (persistentCtx ctx width scalarWidth) × model.HiddenState) ×
         (persistentAttempt curve modulus sample base target).Path :=
-  Classical.choose (attemptInto_actualRecord curve modulus
+  Classical.choose (attemptInto_actualRecord (environment := environment) curve modulus
     (persistentInput width scalarWidth sample)
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
@@ -52,7 +52,7 @@ def persistentAttemptState (curve : CurveSpec width) (modulus : ModulusSpec scal
     (base target : CInputRef ctx (PointShape width))
     (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState) :
     Store (persistentCtx ctx width scalarWidth) × model.HiddenState :=
-  (persistentAttemptRecord curve modulus sample base target before).1
+  (persistentAttemptRecord (environment := environment) curve modulus sample base target before).1
 
 /-- The caller store is the store projection of the actual six-stage state update. -/
 def persistentAttemptStore (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -60,7 +60,7 @@ def persistentAttemptStore (curve : CurveSpec width) (modulus : ModulusSpec scal
     (base target : CInputRef ctx (PointShape width))
     (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState) :
     Store (persistentCtx ctx width scalarWidth) :=
-  (persistentAttemptState curve modulus sample base target before).1
+  (persistentAttemptState (environment := environment) curve modulus sample base target before).1
 
 /-- Actual sample and service-state updates fold in increasing finite-index order. -/
 def repeatedAttemptsState (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -68,7 +68,8 @@ def repeatedAttemptsState (curve : CurveSpec width) (modulus : ModulusSpec scala
     (base target : CInputRef ctx (PointShape width))
     (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState) :
     Store (persistentCtx ctx width scalarWidth) × model.HiddenState :=
-  (List.ofFn (fun index => persistentAttemptState curve modulus (samples index) base target)).foldl
+  (List.ofFn (fun index => persistentAttemptState (environment := environment) curve modulus
+    (samples index) base target)).foldl
     (fun current update => update current) before
 
 /-- The final caller store is the projection of that same actual chronological fold. -/
@@ -77,10 +78,10 @@ def repeatedAttemptsStore (curve : CurveSpec width) (modulus : ModulusSpec scala
     (base target : CInputRef ctx (PointShape width))
     (before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState) :
     Store (persistentCtx ctx width scalarWidth) :=
-  (repeatedAttemptsState curve modulus samples base target before).1
+  (repeatedAttemptsState (environment := environment) curve modulus samples base target before).1
 
 /-- Every loop iteration uses the real previous store and preserves the complete reference. -/
-theorem repeatedAttempts_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma repeatedAttempts_actualRecord (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
     ∃ record : Store (persistentCtx ctx width scalarWidth) × model.HiddenState →
@@ -89,14 +90,16 @@ theorem repeatedAttempts_actualRecord (curve : CurveSpec width) (modulus : Modul
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State (persistentCtx ctx width scalarWidth) Reference
           (model.HiddenState × History)),
-        (repeatedAttempts curve modulus samples base target).execute Reference state =
+        (repeatedAttempts curve modulus samples base target).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store (persistentCtx ctx width scalarWidth) × model.HiddenState,
         (record before).1.1 =
-        repeatedAttemptsStore curve modulus samples base target before := by
-  have each := fun index : Fin count => attemptInto_actualRecord curve modulus
+        repeatedAttemptsStore (environment := environment) curve modulus samples base target
+          before := by
+  have each := fun index : Fin count => attemptInto_actualRecord (environment := environment)
+    curve modulus
     (persistentInput width scalarWidth (samples index))
     (persistentInput width scalarWidth base) (persistentInput width scalarWidth target)
     (persistentInverseSuccess ctx width scalarWidth) (persistentCandidate ctx width scalarWidth)
@@ -104,18 +107,19 @@ theorem repeatedAttempts_actualRecord (curve : CurveSpec width) (modulus : Modul
     (persistentTargetAccepted ctx width scalarWidth) (persistentAccepted ctx width scalarWidth)
     (persistentSelected ctx width scalarWidth)
   let records := fun index : Fin count =>
-    persistentAttemptRecord curve modulus (samples index) base target
+    persistentAttemptRecord (environment := environment) curve modulus (samples index) base target
   have equations : ∀ index (Reference : Register) {History : Type} [Fintype History]
       (state : State (persistentCtx ctx width scalarWidth) Reference
         (model.HiddenState × History)),
-      (persistentAttempt curve modulus (samples index) base target).execute Reference state =
+      (persistentAttempt curve modulus (samples index) base target).execute environment
+        Reference state =
         state.mapClassical (fun entry =>
           let result := records index (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
     intro index Reference History _ state
     exact (Classical.choose_spec (each index)).1 Reference state
   refine ⟨Circuit.forRangeRecord count _ records,
-    Circuit.execute_forRangeRecord count _ records equations, ?_⟩
+    Circuit.execute_forRangeRecord (environment := environment) count _ records equations, ?_⟩
   intro before
   exact Circuit.forRangeRecord_store count
     (fun index => persistentAttempt curve modulus (samples index) base target) records before

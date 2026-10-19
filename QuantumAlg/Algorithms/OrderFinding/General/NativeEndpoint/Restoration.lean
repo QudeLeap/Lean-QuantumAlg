@@ -24,22 +24,22 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem noBorrowedQuantum (width : Nat) :
+private lemma noBorrowedQuantum (width : Nat) :
     (pre width).borrowedQuantumWires = [] := by
   have subset := (pre width).borrowedQuantumWires_sublist
   rw [pre_quantumWires width] at subset
   exact List.sublist_nil.mp subset
 
 /-- The complete run preserves every borrowed classical-reference correlation. -/
-theorem code_borrowedRestored {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width)
+lemma code_borrowedRestored {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat)
+    (environment : (Sampling.Native.model t width).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (pre width) Reference
-      ((Sampling.Native.Framed.model access).HiddenState × History)) :
-    (code hinput access).BorrowedRestored Reference state
-      ((code hinput access).execute Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (code hinput access)
+      ((Sampling.Native.Framed.model t width).HiddenState × History)) :
+    (code spec t).BorrowedRestored Reference state
+      ((code spec t).execute environment Reference state) :=
+  Circuit.borrowedRestored_of_noBorrowedQuantum (code spec t) environment
     (noBorrowedQuantum width) Reference state
 
 end

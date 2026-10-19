@@ -27,7 +27,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem affineScratch_keys (cells : Cells ctx (affineShapes width)) :
+private lemma affineScratch_keys (cells : Cells ctx (affineShapes width)) :
     (affineScratch cells).keys = cells.keys.reverse := by
   cases cells with
   | cons tag rest =>
@@ -50,7 +50,7 @@ private theorem affineScratch_keys (cells : Cells ctx (affineShapes width)) :
                     cases rest
                     rfl
 
-private theorem affineScratch_separation {outer : RuntimeCtx kind}
+private lemma affineScratch_separation {outer : RuntimeCtx kind}
     (leftX rightX leftY numerator denominator : CInputRef outer (.unsignedWord width))
     (cells : Cells ctx (affineShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -81,12 +81,12 @@ private theorem affineScratch_separation {outer : RuntimeCtx kind}
     exact Cells.workspaceCells_transportSeparated_avoids_of_mem cells transport separated
       (List.mem_reverse.mp member) denominator
 
-private theorem affineScratch_tag_initialized (cells : Cells ctx (affineShapes width))
+private lemma affineScratch_tag_initialized (cells : Cells ctx (affineShapes width))
     (store : Store ctx) (initialized : cells.Initialized store) :
     store.read (classifierRead (affineScratch cells).tag) = .bit false :=
   Cells.workspaceCells_cellAt_initialized cells store initialized ⟨0, by change 0 < 9; decide⟩
 
-private theorem affineArithmeticStore_readsAs {outer : RuntimeCtx kind}
+private lemma affineArithmeticStore_readsAs {outer : RuntimeCtx kind}
     (cells : Cells ctx (affineShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (source : Store outer) (before : Store ctx)
     (reads : transport.ReadsAs source before) (values : AffineValues width) :
@@ -106,25 +106,27 @@ def affineOutputValue (spec : ModulusSpec width)
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Real allocation and release leave exactly one caller write, with no workspace premise. -/
-theorem affineInto_completeRecord (spec : ModulusSpec width)
+lemma affineInto_completeRecord (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (affineInto (model := model) spec leftX rightX leftY numerator denominator output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (affineInto (model := model) spec leftX rightX leftY numerator denominator output).execute
+        (affineInto (model := model) spec leftX rightX leftY numerator denominator
+          output).execute environment
           Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, (record before).1.1 = before.1.write output
         (affineOutputValue spec (before.1.read leftX) (before.1.read rightX)
           (before.1.read leftY) (before.1.read numerator) (before.1.read denominator)) := by
-  apply withCells_actualRecord_initialized_post ctx (affineShapes width)
+  apply withCells_actualRecord_initialized_post (environment := environment) ctx (affineShapes
+    width)
     (fun cells _ transport _ => affineBody (model := model) spec (transport.liftInput leftX)
       (transport.liftInput rightX) (transport.liftInput leftY) (transport.liftInput numerator)
       (transport.liftInput denominator) (affineScratch cells) (transport.liftWrite output))
@@ -132,7 +134,8 @@ theorem affineInto_completeRecord (spec : ModulusSpec width)
       (affineOutputValue spec (source.read leftX) (source.read rightX) (source.read leftY)
         (source.read numerator) (source.read denominator)))
   intro inner cells distinct transport separated
-  refine ⟨affineBodyStep spec (transport.liftInput leftX) (transport.liftInput rightX)
+  refine ⟨affineBodyStep (environment := environment) spec (transport.liftInput leftX)
+    (transport.liftInput rightX)
     (transport.liftInput leftY) (transport.liftInput numerator) (transport.liftInput denominator)
     (affineScratch cells) (transport.liftWrite output), affineBody_execute _ _ _ _ _ _ _ _, ?_⟩
   intro source before reads initialized
@@ -153,42 +156,49 @@ def affineIntoStep (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width)) :
     Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (affineInto (model := model) spec leftX rightX leftY numerator denominator output).Path :=
-  Classical.choose (affineInto_completeRecord spec leftX rightX leftY numerator denominator output)
+  Classical.choose (affineInto_completeRecord (environment := environment) spec leftX rightX
+    leftY numerator denominator output)
 
 /-- Complete quantum-reference blocks and history follow the same actual selected tail record. -/
-theorem affineInto_execute (spec : ModulusSpec width)
+lemma affineInto_execute (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (affineInto (model := model) spec leftX rightX leftY numerator denominator output).execute
+      environment
       Reference state =
       state.mapClassical (fun entry =>
-        let result := affineIntoStep spec leftX rightX leftY numerator denominator output
+        let result := affineIntoStep (environment := environment) spec leftX rightX leftY
+          numerator denominator output
           (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  (Classical.choose_spec (affineInto_completeRecord spec leftX rightX leftY numerator denominator
+  (Classical.choose_spec (affineInto_completeRecord (environment := environment) spec leftX
+    rightX leftY numerator denominator
     output)).1 Reference state
 
 /-- Every raw input gives exactly the original finite nominal point in the sole caller write. -/
-theorem affineIntoStep_store (spec : ModulusSpec width)
+lemma affineIntoStep_store (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
     (hidden : model.HiddenState) :
-    (affineIntoStep spec leftX rightX leftY numerator denominator output
+    (affineIntoStep (environment := environment) spec leftX rightX leftY numerator denominator
+      output
       (store, hidden)).1.1 =
       store.write output (affineOutputValue spec (store.read leftX) (store.read rightX)
         (store.read leftY) (store.read numerator) (store.read denominator)) :=
-  (Classical.choose_spec (affineInto_completeRecord spec leftX rightX leftY numerator denominator
+  (Classical.choose_spec (affineInto_completeRecord (environment := environment) spec leftX
+    rightX leftY numerator denominator
     output)).2 (store, hidden)
 
 /-- Every structural read outside the caller result remains bitwise unchanged. -/
-theorem affineInto_preserves_read (spec : ModulusSpec width)
+lemma affineInto_preserves_read (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (separate : output.key ∉ input.storageKeys)
     (hidden : model.HiddenState) :
-    (affineIntoStep spec leftX rightX leftY numerator denominator output
+    (affineIntoStep (environment := environment) spec leftX rightX leftY numerator denominator
+      output
       (store, hidden)).1.1.read input = store.read input := by
   rw [affineIntoStep_store spec leftX rightX leftY numerator denominator output store hidden]
   exact Store.read_write_of_not_mem_storageKeys store output _ input separate

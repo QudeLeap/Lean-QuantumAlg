@@ -23,7 +23,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Execute the complete check and then the canonical selector on its actual stored result. -/
@@ -38,10 +39,10 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
   (selected.1, (checked.2, selected.2))
 
 /-- One checked selection executes its complete record on every history and external reference. -/
-theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, QuadraticCandidateCheck.into_execute,

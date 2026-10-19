@@ -45,11 +45,11 @@ def sourceRead (ctx : RuntimeCtx .quantum) (N : Nat)
   ⟨sampleRead (store.read (Iteration.sampleInput ctx N)),
     phaseRead (store.read (Iteration.phaseInput ctx N))⟩
 
-private theorem sampleRead_stored {width : Nat} (sample : Fin (2 ^ width)) :
+private lemma sampleRead_stored {width : Nat} (sample : Fin (2 ^ width)) :
     sampleRead (.bits (Sampler.PackedSample.storedBits sample)) = sample :=
   ClassicalAlgorithms.OrderRecovery.fullRegisterIndex_terminalMeasurement width sample
 
-private theorem original_pair_weight {N : Nat} (input : Input N)
+private lemma original_pair_weight {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) (outcome : Fin (phaseBits N) → Bool) :
     (∑ chosen : Fin (2 ^ residueSamplingBits N),
       (((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ : ℂ) *
@@ -72,7 +72,7 @@ private theorem original_pair_weight {N : Nat} (input : Input N)
   · simp only [SourceOutcome.mk.injEq, matching, false_and, if_false,
       zero_mul, Finset.sum_const_zero]
 
-private theorem sourceRead_indicator (ctx : RuntimeCtx .quantum) (N : Nat)
+private lemma sourceRead_indicator (ctx : RuntimeCtx .quantum) (N : Nat)
     (store : Store (Iteration.context ctx N))
     (sample : Fin (2 ^ residueSamplingBits N)) (phase : Fin (phaseBits N) → Bool) :
     (if sourceRead ctx N store = (⟨sample, phase⟩ : SourceOutcome N) then (1 : ℂ) else 0) =
@@ -90,13 +90,13 @@ private theorem sourceRead_indicator (ctx : RuntimeCtx .quantum) (N : Nat)
         simp [selectedSample, selectedPhase]
 
 /-- The complete actual program has the original joint point weights. -/
-theorem sampling_source_reference (base : RuntimeCtx .quantum)
+lemma sampling_source_reference (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (outcome : SourceOutcome N) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Sampling.code base noQuantum N input).execute Reference state)
+      ((Sampling.code base noQuantum N).execute (environment input) Reference state)
       (fun entry _ => if sourceRead (bankContext base noQuantum N) N entry.1 = outcome
         then 1 else 0) leftRef rightRef =
       ExecutionState.referenceFiberSum state
@@ -116,24 +116,26 @@ theorem sampling_source_reference (base : RuntimeCtx .quantum)
     rw [coefficient] at actual
     refine Eq.trans ?_ actual
     apply congrArg (fun observe => ExecutionState.referenceFiberSum
-      ((Sampling.code base noQuantum N input).execute Reference state)
+      ((Sampling.code base noQuantum N).execute (environment input) Reference state)
       observe leftRef rightRef)
     funext entry basis
     exact sourceRead_indicator (bankContext base noQuantum N) N entry.1 sample phase
 
 /-- The actual trace-derived source output PMF equals the original joint distribution. -/
-theorem sampling_source_toPMF (base : RuntimeCtx .quantum)
+lemma sampling_source_toPMF (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (normalized : state.IsNormalized) :
-    (((Sampling.code base noQuantum N input).execute Reference state).toPMF
-      (((Sampling.code base noQuantum N input).execute_mass Reference state).trans normalized)).map
+    (((Sampling.code base noQuantum N).execute (environment input) Reference state).toPMF
+      (((Sampling.code base noQuantum N).execute_mass
+        (environment input) Reference state).trans normalized)).map
         (fun entry => sourceRead (bankContext base noQuantum N) N entry.1) =
           sourceOutcomePMF input := by
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((Sampling.code base noQuantum N input).execute Reference state) normalized
-    (((Sampling.code base noQuantum N input).execute_mass Reference state).trans normalized)
+    ((Sampling.code base noQuantum N).execute (environment input) Reference state) normalized
+    (((Sampling.code base noQuantum N).execute_mass
+      (environment input) Reference state).trans normalized)
   intro outcome leftRef rightRef
   exact sampling_source_reference base noQuantum N input state outcome leftRef rightRef
 

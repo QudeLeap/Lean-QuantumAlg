@@ -25,7 +25,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual resize retains every bit of the original short logarithm. -/
-theorem nativeQuadratic_widen_read (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_widen_read (input : CInputRef ctx (.unsignedWord width))
     (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (widenOp input refs)).read (.storage refs.center.toCStorageRef)).toNat =
       (store.read input).toNat := by
@@ -37,7 +37,7 @@ theorem nativeQuadratic_widen_read (input : CInputRef ctx (.unsignedWord width))
     (Nat.pow_le_pow_right (by decide) (by unfold RSA.quadraticWordWidth; omega)))
 
 /-- The actual increment gives the exact source center when its established word bound holds. -/
-theorem nativeQuadratic_center_read_of_fits (refs : Refs ctx width) (store : Store ctx)
+lemma nativeQuadratic_center_read_of_fits (refs : Refs ctx width) (store : Store ctx)
     (fits : (store.read (.storage refs.center.toCStorageRef)).toNat + 1 <
       2 ^ RSA.quadraticWordWidth width) :
     ((store.applyOp (centerOp refs)).read (.storage refs.center.toCStorageRef)).toNat =
@@ -48,7 +48,7 @@ theorem nativeQuadratic_center_read_of_fits (refs : Refs ctx width) (store : Sto
   exact Nat.mod_eq_of_lt fits
 
 /-- The actual word multiplication retains the complete center square at the proved capacity. -/
-theorem nativeQuadratic_square_read_of_fits (refs : Refs ctx width) (store : Store ctx)
+lemma nativeQuadratic_square_read_of_fits (refs : Refs ctx width) (store : Store ctx)
     (fits : (store.read (.storage refs.center.toCStorageRef)).toNat ^ 2 <
       2 ^ RSA.quadraticWordWidth width) :
     ((store.applyOp (squareOp refs)).read (.storage refs.root.toCStorageRef)).toNat =
@@ -63,7 +63,7 @@ theorem nativeQuadratic_square_read_of_fits (refs : Refs ctx width) (store : Sto
   exact Nat.mod_eq_of_lt fits
 
 /-- The actual final addition materializes the exact upper candidate at the proved capacity. -/
-theorem nativeQuadratic_second_read_of_fits (refs : Refs ctx width) (store : Store ctx)
+lemma nativeQuadratic_second_read_of_fits (refs : Refs ctx width) (store : Store ctx)
     (fits : (store.read (.storage refs.center.toCStorageRef)).toNat +
       (store.read (.storage refs.root.toCStorageRef)).toNat < 2 ^ RSA.quadraticWordWidth width) :
     ((store.applyOp (secondOp refs)).read (.storage refs.second.toCStorageRef)).toNat =

@@ -26,7 +26,7 @@ noncomputable section
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem loaded_field (modulusWidth phaseBits : Nat)
+private lemma loaded_field (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx)
     (index : Fin recoveryFields.length) (notNumerator : (2 : Fin recoveryFields.length) ≠ index)
     (notDenominator : (3 : Fin recoveryFields.length) ≠ index) :
@@ -43,7 +43,7 @@ private theorem loaded_field (modulusWidth phaseBits : Nat)
   exact nativeRecovery_enter_field modulusWidth (phaseBits + 1) recoveryFields index store
 
 /-- Initialization writes exactly the original measured full-register numerator. -/
-theorem nativeRecovery_initialized_numerator (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialized_numerator (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
     ((initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read
@@ -64,7 +64,7 @@ theorem nativeRecovery_initialized_numerator (modulusWidth phaseBits : Nat)
   exact nativeRecovery_decoded_numerator (model := model) modulusWidth phaseBits sample store
 
 /-- The widened denominator contains the complete dyadic cardinality at every phase width. -/
-theorem nativeRecovery_initialized_denominator (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialized_denominator (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
     ((initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read
@@ -85,7 +85,7 @@ theorem nativeRecovery_initialized_denominator (modulusWidth phaseBits : Nat)
     _).trans (Nat.mod_eq_of_lt fits)
 
 /-- The actual older-continuant increment writes the canonical encoding of one. -/
-theorem nativeRecovery_initialized_older (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialized_older (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
     (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read
@@ -121,7 +121,7 @@ theorem nativeRecovery_initialized_older (modulusWidth phaseBits : Nat)
   simp only [CShape.wordOfNat_val, Nat.zero_mod, Nat.zero_add]
 
 /-- The actual modular-one increment writes one modulo its declared word capacity. -/
-theorem nativeRecovery_initialized_one (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialized_one (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
     (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read
@@ -158,7 +158,7 @@ theorem nativeRecovery_initialized_one (modulusWidth phaseBits : Nat)
   simp only [CShape.wordOfNat_val, Nat.zero_mod, Nat.zero_add]
 
 /-- Negating the real false accepted latch actually activates the first visit. -/
-theorem nativeRecovery_initialized_active (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialized_active (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
     (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
       (enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store)).1.read

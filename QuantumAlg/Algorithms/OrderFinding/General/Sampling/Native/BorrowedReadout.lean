@@ -44,7 +44,7 @@ private def measuredBase (t width : Nat) : (count : Nat) →
       (MeasurementCells.context (resultFrame t width) 2 count).canonicalFreshKey (.finite 2)
       (MeasurementCells.context (resultFrame t width) 2 count).canonicalFreshKey_fresh
 
-private theorem measuredBase_input (t width count : Nat) :
+private lemma measuredBase_input (t width count : Nat) :
     MeasurementCells.liftInput 2 (resultBase t width) count =
       .storage (measuredBase t width count) := by
   induction count with
@@ -53,14 +53,14 @@ private theorem measuredBase_input (t width count : Nat) :
       rw [MeasurementCells.liftInput, ih]
       rfl
 
-private theorem measuredBorrowedShape (t width count : Nat) :
+private lemma measuredBorrowedShape (t width count : Nat) :
     (MeasurementCells.context (resultFrame t width) 2 count).borrowedClassicalShape =
       .product (.canonicalResidue width) .unit := by
   induction count with
   | zero => rfl
   | succ count ih => exact ih
 
-private theorem measuredBorrowedRead (t width count : Nat)
+private lemma measuredBorrowedRead (t width count : Nat)
     (store : Store (MeasurementCells.context (resultFrame t width) 2 count)) :
     Equiv.cast (congrArg CShape.Value (measuredBorrowedShape t width count))
         store.readBorrowedClassical =
@@ -74,20 +74,20 @@ private theorem measuredBorrowedRead (t width count : Nat)
       exact ih earlier
 
 /-- The initial complete borrowed observation reads precisely the original base. -/
-theorem input_borrowedRead (width : Nat) (store : Store (pre width)) :
+lemma input_borrowedRead (width : Nat) (store : Store (pre width)) :
     store.readBorrowedClassical = .product (store.read (baseSourceRef width)) .unit := rfl
 
 /-- The same original base is the sole value in the transported final borrowed observation. -/
-theorem sampling_borrowedRead {N x t width : Nat} (A : ModExpOracleAccess N x t width)
+lemma sampling_borrowedRead (t width : Nat)
     (store : Store (post t width)) :
-    (code A).borrowedClassicalValueTransport store.readBorrowedClassical =
+    (code t width).borrowedClassicalValueTransport store.readBorrowedClassical =
       .product (store.read (baseRef t width)) .unit :=
   measuredBorrowedRead t width t store
 
 /-- Equality of the actual borrowed interface entails equality of the actual original-base read. -/
-theorem base_read_of_borrowed_eq {N x t width : Nat} (A : ModExpOracleAccess N x t width)
+lemma base_read_of_borrowed_eq (t width : Nat)
     (final : Store (post t width)) (initial : Store (pre width))
-    (same : (code A).borrowedClassicalValueTransport final.readBorrowedClassical =
+    (same : (code t width).borrowedClassicalValueTransport final.readBorrowedClassical =
       initial.readBorrowedClassical) :
     final.read (baseRef t width) = initial.read (baseSourceRef width) := by
   rw [sampling_borrowedRead, input_borrowedRead] at same

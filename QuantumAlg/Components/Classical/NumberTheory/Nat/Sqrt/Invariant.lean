@@ -40,7 +40,7 @@ structure RemainingState {kind : ProblemKind} {ctx : RuntimeCtx kind}
       CShape.wordModulus (workWidth inputWidth)
 
 /-- A nonempty search state supplies the exact one-round precondition. -/
-theorem remainingState_roundInitial {kind : ProblemKind}
+lemma remainingState_roundInitial {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {inputWidth remaining : Nat}
     (refs : Refs ctx inputWidth) (observation : Store ctx)
     (state : RemainingState (remaining + 1) refs observation) :
@@ -68,7 +68,7 @@ theorem remainingState_roundInitial {kind : ProblemKind}
   simpa only [Nat.add_assoc] using upper
 
 /-- One exact refinement advances the remaining-round invariant. -/
-theorem remainingState_after_round {kind : ProblemKind}
+lemma remainingState_after_round {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {inputWidth remaining : Nat}
     (refs : Refs ctx inputWidth) (before after : Store ctx)
     (state : RemainingState (remaining + 1) refs before)
@@ -131,7 +131,7 @@ theorem remainingState_after_round {kind : ProblemKind}
   exact ⟨halfAfter, lowerAfter, upperAfter, boundedAfter⟩
 
 /-- The final search interval characterizes the natural square root. -/
-theorem remainingState_zero_root_eq_sqrt {kind : ProblemKind}
+lemma remainingState_zero_root_eq_sqrt {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {inputWidth : Nat} (refs : Refs ctx inputWidth)
     (observation : Store ctx)
     (state : RemainingState 0 refs observation) :

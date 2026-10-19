@@ -25,7 +25,7 @@ open Modular.Reduce.Native
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {sourceWidth width : Nat}
 
 /-- Exact original MSB-first modulus loading followed by the two native reduction events. -/
@@ -36,7 +36,7 @@ def loadedReductionTrace (model : ExecutionModel) [BitWord.Selected model]
       reductionEvents model sourceWidth width
 
 /-- Actual modulus allocation and release retain precisely the original native event trace. -/
-theorem fieldReduceIntoWord_eventTrace (spec : ModulusSpec width)
+lemma fieldReduceIntoWord_eventTrace (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (reduceIntoWord (model := model) spec numerator output).Path) :
@@ -50,7 +50,7 @@ theorem fieldReduceIntoWord_eventTrace (spec : ModulusSpec width)
       (reductionRead (loadedModulusCell ctx width)) (writeUnderLoadedReduction output width) path.2)
 
 /-- Counts are derived from the same original actual modulus and reduction events. -/
-theorem reduceIntoWord_resourcePool (spec : ModulusSpec width)
+lemma reduceIntoWord_resourcePool (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (reduceIntoWord (model := model) spec numerator output).Path) :
@@ -59,7 +59,7 @@ theorem reduceIntoWord_resourcePool (spec : ModulusSpec width)
   congrArg ResourcePool.ofList (fieldReduceIntoWord_eventTrace spec numerator output path)
 
 /-- Arbitrary durations retain the exact original serial dependency depth. -/
-theorem reduceIntoWord_durationDepth (spec : ModulusSpec width)
+lemma reduceIntoWord_durationDepth (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (reduceIntoWord (model := model) spec numerator output).Path) :
@@ -77,7 +77,7 @@ theorem reduceIntoWord_durationDepth (spec : ModulusSpec width)
   rfl
 
 /-- Both actual scratch scopes contribute to the exact resident peak. -/
-theorem reduceIntoWord_resident (spec : ModulusSpec width)
+lemma reduceIntoWord_resident (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (reduceIntoWord (model := model) spec numerator output).Path) :
@@ -105,7 +105,7 @@ theorem reduceIntoWord_resident (spec : ModulusSpec width)
   ac_rfl
 
 /-- Both actual scratch scopes have their real auxiliary roles and the same exact peak. -/
-theorem reduceIntoWord_auxiliary (spec : ModulusSpec width)
+lemma reduceIntoWord_auxiliary (spec : ModulusSpec width)
     (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (reduceIntoWord (model := model) spec numerator output).Path) :

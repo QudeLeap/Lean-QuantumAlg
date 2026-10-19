@@ -30,15 +30,16 @@ variable {N : Nat}
   WithLp.toLp 2 fun address =>
     if address.val < N then OrderPreparation.invSqrtOrder N else 0
 
-@[simp] public theorem rangeVector_apply (expansion : OrderExpansion N)
+@[simp] public lemma rangeVector_apply (expansion : OrderExpansion N)
     (address : Fin (2 ^ width expansion)) :
     rangeVector expansion address =
       if address.val < N then OrderPreparation.invSqrtOrder N else 0 := by
   rfl
 
-private theorem lowHadamards_applyVec_zero (oracles : OracleModel)
+private lemma lowHadamards_applyVec_zero (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (expansion : OrderExpansion N) :
-    (lowHadamards oracles expansion).applyBinaryVec
+    ((lowHadamards oracles expansion).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits (width expansion)) 0 :
           HilbertVector (Qubits (width expansion))) =
       UnitaryCircuit.castQubitWidthVec (Nat.sub_add_cancel (by
@@ -88,12 +89,12 @@ private theorem lowHadamards_applyVec_zero (oracles : OracleModel)
     rw [tensorZero, UnitaryCircuit.castQubitWidthVec_ket]
     congr 2
   have zeroAction :
-      (Gate.HadamardLayer.circuit oracles expansion.first).binaryMatrix.applyVec
+      ((Gate.HadamardLayer.circuit oracles expansion.first).binaryMatrix environment).applyVec
           (NormalizedVector.ket (R := Qubits expansion.first) 0 :
             HilbertVector (Qubits expansion.first)) =
         (WalshHadamard.uniformState expansion.first :
           HilbertVector (Qubits expansion.first)) := by
-    change (WalshHadamard.Native.binaryOperator oracles expansion.first).applyVec _ = _
+    change (WalshHadamard.Native.binaryOperator oracles expansion.first environment).applyVec _ = _
     rw [WalshHadamard.Native.native_binary_matrix]
     have normalized := congrArg
       (fun state : NormalizedVector (Qubits expansion.first) =>
@@ -101,12 +102,12 @@ private theorem lowHadamards_applyVec_zero (oracles : OracleModel)
       (WalshHadamard.hadamardLayerOperator_apply_zero (n := expansion.first))
     simpa only [UnitaryOperator.apply_coe] using normalized
   rw [zeroSplit]
-  change (lowHadamards oracles expansion).binaryMatrix.applyVec _ = _
+  change ((lowHadamards oracles expansion).binaryMatrix environment).applyVec _ = _
   unfold lowHadamards
   rw [UnitaryCircuit.castQubitWidth_binaryMatrix_applyVec,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_applyVec_tensor, zeroAction]
 
-private theorem lowTarget_eq_rangeVector_of_count_eq_one
+private lemma lowTarget_eq_rangeVector_of_count_eq_one
     (expansion : OrderExpansion N) (single : expansion.count = 1) :
     UnitaryCircuit.castQubitWidthVec (Nat.sub_add_cancel (by
       exact Nat.le_of_lt (ell_lt_width expansion
@@ -190,16 +191,17 @@ private theorem lowTarget_eq_rangeVector_of_count_eq_one
 
 /-- The intrinsic native circuit prepares every one-set-bit order exactly,
 including `N = 1`. -/
-public theorem circuit_applyVec_zero_of_count_eq_one (oracles : OracleModel)
+public lemma circuit_applyVec_zero_of_count_eq_one (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (expansion : OrderExpansion N) (single : expansion.count = 1) :
-    (circuit oracles expansion).applyBinaryVec
+    ((circuit oracles expansion).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits (width expansion)) 0 :
           HilbertVector (Qubits (width expansion))) =
       rangeVector expansion := by
   have gapsZero : expansion.gaps = 0 := by
     simp [OrderExpansion.gaps, single]
   have initialIdentity :
-      (initialX oracles expansion).applyBinaryVec
+      ((initialX oracles expansion).applyBinaryVec environment)
           (NormalizedVector.ket (R := Qubits (width expansion)) 0 :
             HilbertVector (Qubits (width expansion))) =
         (NormalizedVector.ket (R := Qubits (width expansion)) 0 :
@@ -228,7 +230,7 @@ public theorem circuit_applyVec_zero_of_count_eq_one (oracles : OracleModel)
 
 /-- The positive-gap range vector is the same pointwise intrinsic target as
 the equivalent ordinary expansion. -/
-private theorem positiveGap_rangeVector_eq
+private lemma positiveGap_rangeVector_eq
     (b : OrderExpansion.PositiveGapExpansion N) :
     b.rangeVector = rangeVector b.asOrderExpansion := by
   apply WithLp.ofLp_injective
@@ -238,9 +240,10 @@ private theorem positiveGap_rangeVector_eq
 
 /-- The complete intrinsic word prepares the exact uniform range for every
 positive order expansion. -/
-public theorem circuit_applyVec_zero (oracles : OracleModel)
+public lemma circuit_applyVec_zero (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (expansion : OrderExpansion N) (positive : 0 < N) :
-    (circuit oracles expansion).applyBinaryVec
+    ((circuit oracles expansion).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits (width expansion)) 0 :
           HilbertVector (Qubits (width expansion))) =
       rangeVector expansion := by

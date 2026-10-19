@@ -23,7 +23,7 @@ namespace QuantumAlg.QuantumFourierTransform.Native
 
 noncomputable section
 
-private theorem forwardPool (n : Nat) :
+private lemma forwardPool (n : Nat) :
     (circuit .empty n).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
         (.gate AlgorithmGate.Coordinate.singleQubit) (n + 3 * n.choose 2) +
@@ -36,7 +36,7 @@ private theorem forwardPool (n : Nat) :
   simp [ResourcePool.singleton, Multiset.count_replicate, eq_comm]
 
 /-- Exact literal event counts of the actual generic adjoint of the native QFT word. -/
-public theorem qftNative_inverseCircuit_event_count (oracles : OracleModel)
+public lemma qftNative_inverseCircuit_event_count (oracles : OracleModel)
     (event : Resource.Event (.quantum AlgorithmGate.model oracles)) (n : Nat) :
     ResourcePool.count event (inverseCircuit oracles n).eventCost =
       (n + 3 * n.choose 2) * (if .gate .singleQubit = event then 1 else 0) +

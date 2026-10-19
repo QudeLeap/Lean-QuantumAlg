@@ -25,7 +25,7 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original three arithmetic events before the modulus is loaded. -/
@@ -48,7 +48,7 @@ def additionReductionSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :
   SpacePool.ofShape (.unsignedWord (width + 1)) +
     SpacePool.ofShape (Modular.Reduce.Native.divisionShape (width + 1) width)
 
-private theorem additionPrefix_eventTrace (left right : CInputRef ctx (.unsignedWord width))
+private lemma additionPrefix_eventTrace (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width)
     (path : (Circuit.forRange 3 (additionStage (model := model) left right scratch)).Path) :
     (Circuit.forRange 3 (additionStage (model := model) left right scratch)).eventTrace path =
@@ -67,7 +67,7 @@ private theorem additionPrefix_eventTrace (left right : CInputRef ctx (.unsigned
     BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem additionPrefix_depth (left right : CInputRef ctx (.unsignedWord width))
+private lemma additionPrefix_depth (left right : CInputRef ctx (.unsignedWord width))
     (scratch : AddScratch ctx width) (duration : Resource.Event model → Nat)
     (path : (Circuit.forRange 3 (additionStage (model := model) left right scratch)).Path) :
     (Circuit.forRange 3 (additionStage (model := model) left right scratch)).depth duration path =
@@ -86,7 +86,7 @@ private theorem additionPrefix_depth (left right : CInputRef ctx (.unsignedWord 
     BitWord.bitWord_instruction_depth]
   rfl
 
-private theorem additionBody_eventTrace (spec : ModulusSpec width)
+private lemma additionBody_eventTrace (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (additionBody (model := model) spec left right scratch output).Path) :
@@ -97,7 +97,7 @@ private theorem additionBody_eventTrace (spec : ModulusSpec width)
       output path.2)
 
 /-- Real allocation and release preserve the complete original native field-addition trace. -/
-theorem fieldAddIntoWord_eventTrace (spec : ModulusSpec width)
+lemma fieldAddIntoWord_eventTrace (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (addIntoWord (model := model) spec left right output).Path) :
@@ -111,7 +111,7 @@ theorem fieldAddIntoWord_eventTrace (spec : ModulusSpec width)
     (fun cells _ transport _ selected => additionBody_eventTrace _ _ _ _ _ selected) path
 
 /-- Native counts are projected from the same actual original execution trace. -/
-theorem addIntoWord_resourcePool (spec : ModulusSpec width)
+lemma addIntoWord_resourcePool (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (addIntoWord (model := model) spec left right output).Path) :
@@ -119,7 +119,7 @@ theorem addIntoWord_resourcePool (spec : ModulusSpec width)
       ResourcePool.ofList (additionTrace model spec) :=
   congrArg ResourcePool.ofList (fieldAddIntoWord_eventTrace spec left right output path)
 
-private theorem additionBody_depth (spec : ModulusSpec width)
+private lemma additionBody_depth (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (additionBody (model := model) spec left right scratch output).Path) :
@@ -132,7 +132,7 @@ private theorem additionBody_depth (spec : ModulusSpec width)
   rfl
 
 /-- Every original native duration contributes in its actual serial order. -/
-theorem addIntoWord_durationDepth (spec : ModulusSpec width)
+lemma addIntoWord_durationDepth (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
@@ -147,7 +147,7 @@ theorem addIntoWord_durationDepth (spec : ModulusSpec width)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => additionBody_depth _ _ _ _ _ duration selected) path
 
-private theorem additionBody_resident (spec : ModulusSpec width)
+private lemma additionBody_resident (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (additionBody (model := model) spec left right scratch output).Path) :
@@ -160,7 +160,7 @@ private theorem additionBody_resident (spec : ModulusSpec width)
     fin_cases index <;> exact (Circuit.peakResidentSpace_classical _ selected).le
   · exact (reduceIntoWord_resident _ _ _ path.2).le
 
-private theorem additionBody_auxiliary (spec : ModulusSpec width)
+private lemma additionBody_auxiliary (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : AddScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (additionBody (model := model) spec left right scratch output).Path) :
@@ -174,7 +174,7 @@ private theorem additionBody_auxiliary (spec : ModulusSpec width)
   · exact (reduceIntoWord_auxiliary _ _ _ path.2).le
 
 /-- All original arithmetic and reduction cells bound the actual resident peak. -/
-theorem addIntoWord_resident (spec : ModulusSpec width)
+lemma addIntoWord_resident (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (addIntoWord (model := model) spec left right output).Path) :
@@ -189,7 +189,7 @@ theorem addIntoWord_resident (spec : ModulusSpec width)
     (fun cells _ transport _ selected => additionBody_resident _ _ _ _ _ selected) path
 
 /-- Every original scratch cell retains its actual auxiliary ownership role. -/
-theorem addIntoWord_auxiliary (spec : ModulusSpec width)
+lemma addIntoWord_auxiliary (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (addIntoWord (model := model) spec left right output).Path) :
@@ -205,7 +205,7 @@ theorem addIntoWord_auxiliary (spec : ModulusSpec width)
 
 omit [BitWord.Selected model] in
 /-- The original two snapshots, sum/carry, modulus and division pair require this capacity. -/
-theorem additionScratch_classicalBits :
+lemma additionScratch_classicalBits :
     (((additionShapes width).map (SpacePool.ofShape (kind := model.kind))).sum +
       additionReductionSpace model.kind width) .classicalBits = 6 * width + 7 := by
   simp [additionShapes, additionReductionSpace, Modular.Reduce.Native.divisionShape,

@@ -26,7 +26,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Local block support supplies the full physical seed on every external reference extension. -/
-theorem of_block_marginal_support {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma of_block_marginal_support {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History)
     (support : ∀ (entry : Store ctx × History) (basis : ctx.register.Index), basis ≠ seed →
@@ -52,7 +52,7 @@ theorem of_block_marginal_support {kind : ProblemKind} {ctx : RuntimeCtx kind}
       absent, Matrix.zero_apply, ite_self, Finset.sum_const_zero]
 
 /-- The genuine seeded state supplies the same local support in every complete original block. -/
-theorem block_marginal_support {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma block_marginal_support {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History) (seeded : Holds seed state)
     (entry : Store ctx × History) (basis : ctx.register.Index) (outside : basis ≠ seed) :
@@ -61,7 +61,7 @@ theorem block_marginal_support {kind : ProblemKind} {ctx : RuntimeCtx kind}
   simp only [block_diagonal_zero seed state seeded entry basis outside, Finset.sum_const_zero]
 
 /-- A local joint initialization predicate covers every actual oracle input reference extension. -/
-theorem oracleInput_of_local_support {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma oracleInput_of_local_support {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     {Reference : Register} (seed : ctx.register.Index)
     (input : OracleInput model.classicalOracles ctx Reference)
     (support : ∀ (entry : Store ctx × model.HiddenState) (basis : ctx.register.Index),

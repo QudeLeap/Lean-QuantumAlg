@@ -32,7 +32,7 @@ def selectedFactor (original : FirstAccepted.Refs ctx resultWidth) (store : Stor
   if (store.read (FirstAccepted.cellRead original.accepted)).toBool then
     some (store.read (FirstAccepted.cellRead original.selected)).toNat else none
 
-private theorem observed_order (accepted firstValid secondValid : Bool) (first second : Nat)
+private lemma observed_order (accepted firstValid secondValid : Bool) (first second : Nat)
     (old : CShape.Value (.unsignedWord resultWidth)) :
     (if accepted || (firstValid || secondValid) then
       some ((if accepted then old else if firstValid then CShape.wordOfNat resultWidth first
@@ -47,7 +47,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The same complete native execution returns the first original factor with actual conversion. -/
-theorem nativeQuadratic_program_source
+lemma nativeQuadratic_program_source
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
@@ -78,7 +78,7 @@ theorem nativeQuadratic_program_source
 
 /-- The original modulus-capacity fact removes exactly the real word conversion, with no new
 initialization or candidate-capacity condition. -/
-theorem nativeQuadratic_program_source_exact
+lemma nativeQuadratic_program_source_exact
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
@@ -94,7 +94,7 @@ theorem nativeQuadratic_program_source_exact
         (store.read modulus).toNat (store.read input).toNat resultWidth capacity))
 
 /-- Actual allocation supplies the persistent selector's positions for the source result. -/
-theorem nativeQuadratic_allocated_program_source
+lemma nativeQuadratic_allocated_program_source
     (input : CInputRef (SelectionLayout.context ctx resultWidth) (.unsignedWord width))
     (modulus : CInputRef (SelectionLayout.context ctx resultWidth)
       (.unsignedWord (RSA.quadraticWordWidth width)))

@@ -44,7 +44,7 @@ def evolvedState {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) : NormalizedVector (Qubits (1 + width)) :=
   (hadamardTest unitary).apply (sourceInput input)
 
-private theorem preparation_basis_value
+private lemma preparation_basis_value
     (basis : (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout.register.Index) :
     (OwnedQubitPrefix.zeroPreparation 1).normalized basis =
       NormalizedVector.ket0 ((OwnedQubitPrefix.prefixLayout 1).binaryIndexEquiv basis) := by
@@ -58,7 +58,7 @@ private theorem preparation_basis_value
   rw [NormalizedVector.ket0, NormalizedVector.ket_apply, NormalizedVector.ket_apply]
   simp only [Equiv.eq_symm_apply]
 
-private theorem source_input_entry {width : Nat} (input : NormalizedVector (Qubits width))
+private lemma source_input_entry {width : Nat} (input : NormalizedVector (Qubits width))
     (newRow newColumn : (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout.register.Index)
     (oldRow oldColumn : (pre width).register.Index) :
     ((DensityOperator.ofPure (sourceInput input)).reindex
@@ -82,13 +82,13 @@ private theorem source_input_entry {width : Nat} (input : NormalizedVector (Qubi
   ring
 
 /-- Actual preparation gives the source's zero-control/input tensor in the physical frame. -/
-theorem preparation_localDensity {width : Nat}
+lemma preparation_localDensity {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) (input : NormalizedVector (Qubits width))
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise input state.quantumMarginal.marginalLeft) :
     ((OwnedQubitPrefix.prepareCode AlgorithmGate.model
-      (UnitarySource.model unitary true) 1 width).execute Reference
+      (UnitarySource.model width true) 1 width).execute (environment unitary) Reference
         state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (sourceInput input)).reindex
         (S := (prepared width).register) (OwnedQubitPrefix.basisEquiv 1 width).symm := by
@@ -101,7 +101,7 @@ theorem preparation_localDensity {width : Nat}
   calc
     _ = ∑ reference : Reference.Index,
         ((OwnedQubitPrefix.prepareCode AlgorithmGate.model
-          (UnitarySource.model unitary true) 1 width).execute Reference
+          (UnitarySource.model width true) 1 width).execute (environment unitary) Reference
             state).quantumMarginal.matrix
           (OwnedQubitPrefix.assembly 1 width (newRow, oldRow), reference)
           (OwnedQubitPrefix.assembly 1 width (newColumn, oldColumn), reference) :=
@@ -113,8 +113,8 @@ theorem preparation_localDensity {width : Nat}
       apply Finset.sum_congr rfl
       intro reference _
       exact Circuit.prepareZero_joined_entry (gates := AlgorithmGate.model)
-        (oracles := UnitarySource.model unitary true) (operations := .empty)
-        (classicalOracles := .empty) state ⟨0⟩
+        (oracles := UnitarySource.model width true) (operations := .empty)
+        (classicalOracles := .empty) (environment unitary) state ⟨0⟩
         (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout
         (OwnedQubitPrefix.prefix_fresh 1 width) (OwnedQubitPrefix.prefix_disjoint 1 width)
         newRow newColumn (oldRow, reference) (oldColumn, reference)
@@ -132,9 +132,10 @@ theorem preparation_localDensity {width : Nat}
         star ((OwnedQubitPrefix.zeroPreparation 1).normalized newColumn)) * value)
       (promised oldRow oldColumn)
 
-private theorem nativeProgram_input {width : Nat} (unitary : UnitaryOperator (Qubits width))
+private lemma nativeProgram_input {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) :
-    DensityOperator.applyUnitary (nativeProgram unitary).matrix
+    DensityOperator.applyUnitary
+      ((nativeProgram width).matrix (UnitarySource.interpretation unitary true))
       ((DensityOperator.ofPure (sourceInput input)).reindex
         (S := (prepared width).register) (OwnedQubitPrefix.basisEquiv 1 width).symm) =
       (DensityOperator.ofPure (evolvedState unitary input)).reindex
@@ -143,30 +144,31 @@ private theorem nativeProgram_input {width : Nat} (unitary : UnitaryOperator (Qu
     ← DensityOperator.ofPure_apply]
   rfl
 
-private theorem retain_localDensity {width : Nat}
+private lemma retain_localDensity {width : Nat}
     (unitary : UnitaryOperator (Qubits width))
     {Reference : Register}
     {H : Type} [Fintype H]
     (state : State (prepared width) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((Circuit.retain (model := model unitary) (prepared width)
-      ⟨2⟩ (.finite 2) (resultFresh width)).execute
+    ((Circuit.retain (model := model width) (prepared width)
+      ⟨2⟩ (.finite 2) (resultFresh width)).execute (environment unitary)
       Reference state).quantumMarginal.marginalLeft = state.quantumMarginal.marginalLeft := by
   simp only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal]
 
 /-- The actual state before its Z write is exactly the source Hadamard-test pure state locally. -/
-theorem beforeMeasurement_localDensity {width : Nat}
+lemma beforeMeasurement_localDensity {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) (input : NormalizedVector (Qubits width))
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise input state.quantumMarginal.marginalLeft) :
-    ((beforeMeasurement unitary).execute Reference state).quantumMarginal.marginalLeft =
+    ((beforeMeasurement width).execute (environment unitary)
+      Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (evolvedState unitary input)).reindex
         (S := (post width).register) (outputBasisEquiv width).symm := by
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal, retain_localDensity unitary,
     Circuit.unitary_localDensity,
-    preparation_localDensity unitary input state promised, nativeProgram_input]
-  rfl
+    preparation_localDensity unitary input state promised]
+  exact nativeProgram_input unitary input
 
 end
 

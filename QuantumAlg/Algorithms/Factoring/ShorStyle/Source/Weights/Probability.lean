@@ -38,7 +38,7 @@ local instance {N : Nat} : Fintype (SourceOutcome N) :=
   Fintype.ofEquiv (Fin (2 ^ residueSamplingBits N) × TerminalZMeasure.Outcome (phaseBits N))
     (outcomeEquiv N)
 
-private theorem one_eq {N : Nat} (source : Input N) (weight : SourceOutcome N → ℂ) :
+private lemma one_eq {N : Nat} (source : Input N) (weight : SourceOutcome N → ℂ) :
     one source weight =
       ∑ outcome : SourceOutcome N,
         ((sourceOutcomePMF source outcome).toReal : ℂ) * weight outcome := by
@@ -65,7 +65,7 @@ private theorem one_eq {N : Nat} (source : Input N) (weight : SourceOutcome N �
   intro outcome _
   exact mul_comm _ _
 
-private theorem batch_eq {N : Nat} (source : Input N) (count : Nat)
+private lemma batch_eq {N : Nat} (source : Input N) (count : Nat)
     (weight : (Fin count → SourceOutcome N) → ℂ) :
     batch source count weight =
       ∑ outcomes : List.Vector (SourceOutcome N) count,
@@ -107,7 +107,7 @@ private theorem batch_eq {N : Nat} (source : Input N) (count : Nat)
         (fun index => (List.Vector.get_cons_succ first rest index).symm) index
 
 /-- Characteristic source weights give the exact point mass of the original repeated-source map. -/
-theorem batch_indicator {N : Nat} (source : Input N) (count : Nat)
+lemma batch_indicator {N : Nat} (source : Input N) (count : Nat)
     {Result : Type} [DecidableEq Result]
     (read : (Fin count → SourceOutcome N) → Result) (selected : Result) :
     batch source count (fun outcomes => if read outcomes = selected then 1 else 0) =

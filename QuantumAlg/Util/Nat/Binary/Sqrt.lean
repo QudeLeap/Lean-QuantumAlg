@@ -38,7 +38,7 @@ structure Interval (input remaining root : Nat) : Prop where
   upper : input < (root + 2 ^ remaining) * (root + 2 ^ remaining)
 
 /-- The literal too-large test chooses the same candidate as the non-strict square test. -/
-theorem refine_eq_tooLarge (input half root : Nat) :
+lemma refine_eq_tooLarge (input half root : Nat) :
     refine input half root =
       if input < (root + half) * (root + half) then root else root + half := by
   unfold refine
@@ -47,7 +47,7 @@ theorem refine_eq_tooLarge (input half root : Nat) :
   · rw [if_neg smaller, if_pos (Nat.le_of_not_gt smaller)]
 
 /-- One literal refinement halves the exact remaining square-root interval. -/
-theorem refine_interval {input remaining root : Nat}
+lemma refine_interval {input remaining root : Nat}
     (interval : Interval input (remaining + 1) root) :
     Interval input remaining (refine input (2 ^ remaining) root) := by
   have doubled : 2 ^ (remaining + 1) = 2 ^ remaining + 2 ^ remaining := by
@@ -64,7 +64,7 @@ theorem refine_interval {input remaining root : Nat}
     exact ⟨interval.lower, Nat.lt_of_not_ge accepted⟩
 
 /-- Every tested midpoint fits the declared word whenever the old interval endpoint fits. -/
-theorem midpoint_lt_capacity {remaining root capacity : Nat}
+lemma midpoint_lt_capacity {remaining root capacity : Nat}
     (bounded : root + 2 ^ (remaining + 1) ≤ capacity) :
     root + 2 ^ remaining < capacity := by
   have positive : 0 < 2 ^ remaining := Nat.two_pow_pos remaining
@@ -74,7 +74,7 @@ theorem midpoint_lt_capacity {remaining root capacity : Nat}
   omega
 
 /-- The accepted or rejected refinement keeps the smaller interval inside the same capacity. -/
-theorem refine_capacity {input remaining root capacity : Nat}
+lemma refine_capacity {input remaining root capacity : Nat}
     (bounded : root + 2 ^ (remaining + 1) ≤ capacity) :
     refine input (2 ^ remaining) root + 2 ^ remaining ≤ capacity := by
   have positive := Nat.two_pow_pos remaining
@@ -85,13 +85,13 @@ theorem refine_capacity {input remaining root capacity : Nat}
   split <;> omega
 
 /-- No remaining bit leaves a unit interval, which characterizes the exact natural square root. -/
-theorem Interval.finished {input root : Nat} (interval : Interval input 0 root) :
+lemma Interval.finished {input root : Nat} (interval : Interval input 0 root) :
     root = Nat.sqrt input := by
   apply Nat.eq_sqrt.mpr
   exact ⟨interval.lower, by simpa only [Nat.pow_zero] using interval.upper⟩
 
 /-- The complete descending refinement returns the exact square root of its original interval. -/
-theorem run_eq_sqrt {input remaining root : Nat} (interval : Interval input remaining root) :
+lemma run_eq_sqrt {input remaining root : Nat} (interval : Interval input remaining root) :
     run input remaining root = Nat.sqrt input := by
   induction remaining generalizing root with
   | zero => exact interval.finished
@@ -99,13 +99,13 @@ theorem run_eq_sqrt {input remaining root : Nat} (interval : Interval input rema
       exact inductionHypothesis (refine_interval interval)
 
 /-- The zero estimate covers every value of the declared input word, including width zero. -/
-theorem initial_interval {input width : Nat} (bounded : input < 2 ^ width) :
+lemma initial_interval {input width : Nat} (bounded : input < 2 ^ width) :
     Interval input width 0 := by
   refine ⟨Nat.zero_le _, ?_⟩
   simpa only [Nat.zero_add] using Nat.lt_of_lt_of_le bounded (Nat.le_mul_self (2 ^ width))
 
 /-- A fixed number of actual refinement steps suffices for every input word of that width. -/
-theorem run_zero_eq_sqrt {input width : Nat} (bounded : input < 2 ^ width) :
+lemma run_zero_eq_sqrt {input width : Nat} (bounded : input < 2 ^ width) :
     run input width 0 = Nat.sqrt input :=
   run_eq_sqrt (initial_interval bounded)
 

@@ -46,7 +46,7 @@ private def preparedTarget (m width : Nat) (modulus : Fin (2 ^ width + 1))
         (workPreparation m width).normalized Reference
           input.state.quantumMarginal))
 
-private theorem preparedTarget_normalized (m width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma preparedTarget_normalized (m width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (base : (ZMod modulus.val)ˣ) (Reference : Register)
     (input : Execution.Input (context (m + width)) Reference) :
     (preparedTarget m width modulus positive base Reference input).IsNormalized := by
@@ -77,15 +77,17 @@ def preparedRequirement (m width : Nat) (modulus : Fin (2 ^ width + 1))
       (preparedTarget_normalized m width modulus positive base Reference input)
 
 /-- Actual work preparation and native exponentiation meet the complete independent state target. -/
-theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (base : (ZMod modulus.val)ˣ) {shape : CShape}
-    (output : Output (preparedContext m width) shape) {Reference : Register}
+    (output : Output (preparedContext m width) shape)
+    {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+    {Reference : Register}
     (input : Execution.OracleInput .empty (context (m + width)) Reference) :
     (preparedRequirement m width modulus positive base).Holds input.caller
       (({ code := arithmeticNativeCode m width modulus positive base, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty)
           (context (m + width)) (preparedContext m width) shape).finalState
-          Reference input.state) := by
+          environment Reference input.state) := by
   intro value
   cases value with
   | unit =>
@@ -98,9 +100,11 @@ theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (
         ({ code := arithmeticNativeCode m width modulus positive base, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty)
           (context (m + width)) (preparedContext m width) shape).finalState
-          Reference input.state
+          environment Reference input.state
       have actualWithService : result.quantumMarginal = DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor (arithmeticNativeUnitary m width modulus positive base).matrix
+          (UnitaryOperator.prodTensor
+            ((arithmeticNativeUnitary m width modulus positive base).matrix
+              environment.quantum)
             (1 : UnitaryOperator Reference))
           (Execution.preparedDensity workKey (workLayout m width)
             (gidneyExponentWork_fresh m width) (gidneyExponentWork_disjoint m width)
@@ -108,16 +112,19 @@ theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (
         Execution.preparedUnitary_finalState_quantumMarginal (ctx := context (m + width))
           workKey (workLayout m width) (gidneyExponentWork_fresh m width)
           (gidneyExponentWork_disjoint m width)
-          (arithmeticNativeUnitary m width modulus positive base) output Reference input.state
+          (arithmeticNativeUnitary m width modulus positive base)
+            environment output Reference input.state
       have actual : result.quantumMarginal = DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor (arithmeticNativeUnitary m width modulus positive base).matrix
+          (UnitaryOperator.prodTensor
+            ((arithmeticNativeUnitary m width modulus positive base).matrix
+              environment.quantum)
             (1 : UnitaryOperator Reference)) initial :=
         actualWithService.trans (congrArg
           (fun density : DensityOperator
               (Register.prod (preparedContext m width).register Reference) =>
             DensityOperator.applyUnitary
               (UnitaryOperator.prodTensor
-                (arithmeticNativeUnitary m width modulus positive base).matrix
+                ((arithmeticNativeUnitary m width modulus positive base).matrix environment.quantum)
                 (1 : UnitaryOperator Reference)) density)
           (congrArg
             (fun density : DensityOperator
@@ -130,7 +137,8 @@ theorem gidneyExponentPreparedRequirement_holds (m width : Nat) (modulus : Fin (
         (congrArg (fun operator : UnitaryOperator (preparedContext m width).register =>
           DensityOperator.applyUnitary
             (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)) initial)
-          (arithmeticNativeUnitary_semantics m width modulus positive base))
+          (arithmeticNativeUnitary_semantics m width modulus positive base
+            (environment := environment.quantum)))
       have observed := congrArg
         (fun density :
             DensityOperator (Register.prod (preparedContext m width).register Reference) =>

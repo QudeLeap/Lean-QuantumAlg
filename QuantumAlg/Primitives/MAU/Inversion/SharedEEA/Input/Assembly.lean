@@ -62,7 +62,7 @@ def joinCells (width : Nat) (auxiliary : Fin (auxiliaryWidth width) → Fin 2)
       omega⟩
 
 /-- The exact split reads each new coordinate at its actual original source address. -/
-theorem joinCells_auxiliary (width : Nat) (auxiliary : Fin (auxiliaryWidth width) → Fin 2)
+lemma joinCells_auxiliary (width : Nat) (auxiliary : Fin (auxiliaryWidth width) → Fin 2)
     (input : Fin width → Fin 2) (index : Fin (auxiliaryWidth width)) :
     joinCells width auxiliary input (auxiliaryPosition width index) = auxiliary index := by
   by_cases beforeInput : index.val < prefixWidth width
@@ -73,7 +73,7 @@ theorem joinCells_auxiliary (width : Nat) (auxiliary : Fin (auxiliaryWidth width
       afterPrefix, afterInput]
 
 /-- Every originally supplied input coordinate is preserved exactly by the reassembly. -/
-theorem joinCells_input (width : Nat) (auxiliary : Fin (auxiliaryWidth width) → Fin 2)
+lemma joinCells_input (width : Nat) (auxiliary : Fin (auxiliaryWidth width) → Fin 2)
     (input : Fin width → Fin 2) (index : Fin width) :
     joinCells width auxiliary input (inputPosition width index) = input index := by
   have beforeInput : ¬prefixWidth width + index.val < prefixWidth width := by omega
@@ -82,7 +82,7 @@ theorem joinCells_input (width : Nat) (auxiliary : Fin (auxiliaryWidth width) �
     omega
   simp [joinCells, inputPosition, beforeInput, inInput]
 
-private theorem joinCells_split (width : Nat) (cells : Fin (encoding width).width → Fin 2) :
+private lemma joinCells_split (width : Nat) (cells : Fin (encoding width).width → Fin 2) :
     joinCells width (fun index => cells (auxiliaryPosition width index))
       (fun index => cells (inputPosition width index)) = cells := by
   funext wire
@@ -140,7 +140,7 @@ def basisEquiv (width : Nat) :
       ((cellsEquiv width).trans (BinaryBasis.bigEndianEquiv (encoding width).width)))
 
 /-- The exact binary label retains the three original physical segments in source order. -/
-theorem basisEquiv_assembly (width : Nat)
+lemma basisEquiv_assembly (width : Nat)
     (fresh : (auxiliaryLayout width).register.Index) (old : (before width).register.Index) :
     basisEquiv width (assembly width (fresh, old)) =
       BinaryBasis.bigEndianEquiv (encoding width).width
@@ -154,7 +154,7 @@ theorem basisEquiv_assembly (width : Nat)
   exact congrArg encodePair ((assembly width).symm_apply_apply (fresh, old))
 
 /-- Every auxiliary binary bit reads its actual prepared physical wire value without alteration. -/
-theorem basisEquiv_auxiliary (width : Nat)
+lemma basisEquiv_auxiliary (width : Nat)
     (fresh : (auxiliaryLayout width).register.Index) (old : (before width).register.Index)
     (index : Fin (auxiliaryWidth width)) :
     (basisEquiv width (assembly width (fresh, old))).val.testBit
@@ -164,7 +164,7 @@ theorem basisEquiv_auxiliary (width : Nat)
     (joinCells_auxiliary width (fun position => fresh position) (inputCells width old) index)
 
 /-- Every original input bit retains the supplied unknown value at its actual source address. -/
-theorem basisEquiv_input (width : Nat)
+lemma basisEquiv_input (width : Nat)
     (fresh : (auxiliaryLayout width).register.Index) (old : (before width).register.Index)
     (index : Fin width) :
     (basisEquiv width (assembly width (fresh, old))).val.testBit
@@ -180,7 +180,7 @@ theorem basisEquiv_input (width : Nat)
       rw [BinaryBasis.bigEndianEquiv_symm_value, Equiv.apply_symm_apply]
 
 /-- Actual preparation supplies the fixed source value on each new physical identity. -/
-theorem basisEquiv_prepared_auxiliary (modulus : Nat)
+lemma basisEquiv_prepared_auxiliary (modulus : Nat)
     (old : (before modulus.size).register.Index) (index : Fin (auxiliaryWidth modulus.size)) :
     (basisEquiv modulus.size (assembly modulus.size ((preparation modulus).value, old))).val.testBit
       (auxiliaryPosition modulus.size index).rev.val =

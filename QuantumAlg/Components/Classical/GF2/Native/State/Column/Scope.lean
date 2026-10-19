@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem lifted_fields (cells : Cells ctx (stateShapes rowCount width))
+private lemma lifted_fields (cells : Cells ctx (stateShapes rowCount width))
     (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys) :
     ((cells.underWorkspace key extra fresh).tail.tail.tail.tail.tail.head.ref =
       cells.tail.tail.tail.tail.tail.head.ref.underWorkspace key extra fresh) ∧
@@ -55,7 +55,7 @@ private theorem lifted_fields (cells : Cells ctx (stateShapes rowCount width))
                 exact ⟨rfl, rfl, rfl, rfl⟩
 
 omit [BitWord.Selected model] in
-private theorem push_read (store : Store ctx) (key : StorageKey) (extra : CShape)
+private lemma push_read (store : Store ctx) (key : StorageKey) (extra : CShape)
     (fresh : key ∉ ctx.keys) {shape : CShape} (output : CWriteRef ctx shape) :
     (store.pushWorkspace key extra fresh).read
       (.storage (output.underWorkspace key extra fresh).toCStorageRef) =
@@ -63,7 +63,7 @@ private theorem push_read (store : Store ctx) (key : StorageKey) (extra : CShape
   Store.read_pushWorkspace_underWorkspace store key extra fresh (.storage output.toCStorageRef)
 
 omit [BitWord.Selected model] in
-private theorem pop_read (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys)
+private lemma pop_read (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key extra fresh)) {shape : CShape}
     (output : CWriteRef ctx shape) :
     (Store.popWorkspace key extra fresh store).read (.storage output.toCStorageRef) =
@@ -71,7 +71,7 @@ private theorem pop_read (key : StorageKey) (extra : CShape) (fresh : key ∉ ct
   Store.read_popWorkspace_underWorkspace key extra fresh store (.storage output.toCStorageRef)
 
 omit [BitWord.Selected model] in
-private theorem push_values (cells : Cells ctx (stateShapes rowCount width))
+private lemma push_values (cells : Cells ctx (stateShapes rowCount width))
     (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)
     (represented : columnStateValues cells store state) :
@@ -81,7 +81,7 @@ private theorem push_values (cells : Cells ctx (stateShapes rowCount width))
   simpa only [columnStateValues, matrix, used, rows, columns, push_read] using represented
 
 omit [BitWord.Selected model] in
-private theorem pop_values (cells : Cells ctx (stateShapes rowCount width))
+private lemma pop_values (cells : Cells ctx (stateShapes rowCount width))
     (key : StorageKey) (extra : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key extra fresh))
     (state : ClassicalAlgorithms.GF2.State rowCount width)
@@ -91,7 +91,7 @@ private theorem pop_values (cells : Cells ctx (stateShapes rowCount width))
   simpa only [columnStateValues, matrix, used, rows, columns, pop_read] using represented
 
 /-- The complete actual column circuit realizes the original pure step through both bit scopes. -/
-theorem gf2ReduceColumn_cellState
+lemma gf2ReduceColumn_cellState
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (column : Fin width) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)

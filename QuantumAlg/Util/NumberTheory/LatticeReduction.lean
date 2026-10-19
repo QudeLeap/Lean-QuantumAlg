@@ -78,7 +78,7 @@ def integerPointSquaredNorm (point : IntegerPoint3) : Nat :=
   point.1.natAbs ^ 2 + point.2.1.natAbs ^ 2 + point.2.2.natAbs ^ 2
 
 /-- The integer dot product with itself is the cast of the squared norm. -/
-theorem integerPointDot_self (point : IntegerPoint3) :
+lemma integerPointDot_self (point : IntegerPoint3) :
     integerPointDot point point = (integerPointSquaredNorm point : Int) := by
   rcases point with ⟨first, second, third⟩
   simp [integerPointDot, integerPointSquaredNorm]
@@ -96,7 +96,7 @@ def integerPointAreaSquared (left right : IntegerPoint3) : Nat :=
 
 /-- Three-dimensional Lagrange identity for the exact integer arithmetic used
 by Gram–Schmidt reduction. -/
-theorem integerPointAreaSquared_eq_gram (left right : IntegerPoint3) :
+lemma integerPointAreaSquared_eq_gram (left right : IntegerPoint3) :
     (integerPointAreaSquared left right : Int) =
       (integerPointSquaredNorm left : Int) *
           (integerPointSquaredNorm right : Int) -
@@ -108,7 +108,7 @@ theorem integerPointAreaSquared_eq_gram (left right : IntegerPoint3) :
   ring
 
 /-- Exchanging the two vectors does not change their squared area. -/
-theorem integerPointAreaSquared_comm (left right : IntegerPoint3) :
+lemma integerPointAreaSquared_comm (left right : IntegerPoint3) :
     integerPointAreaSquared left right =
       integerPointAreaSquared right left := by
   have hcross : integerPointCross right left =
@@ -123,7 +123,7 @@ theorem integerPointAreaSquared_comm (left right : IntegerPoint3) :
 
 /-- Subtracting a multiple of the left vector from the right vector preserves
 their oriented cross product. -/
-theorem integerPointCross_sub_smul_self (left right : IntegerPoint3)
+lemma integerPointCross_sub_smul_self (left right : IntegerPoint3)
     (coefficient : Int) :
     integerPointCross left (right.sub (left.smul coefficient)) =
       integerPointCross left right := by
@@ -138,7 +138,7 @@ def IntegerBasis3.determinant (basis : IntegerBasis3) : Int :=
   integerPointDot basis.first (integerPointCross basis.second basis.third)
 
 /-- Cyclic form of the three-dimensional determinant. -/
-theorem IntegerBasis3.determinant_eq_third_dot_cross
+lemma IntegerBasis3.determinant_eq_third_dot_cross
     (basis : IntegerBasis3) :
     basis.determinant =
       integerPointDot basis.third
@@ -172,7 +172,7 @@ def IntegerBasis3.linearCombination (basis : IntegerBasis3)
 
 /-- Uniform row-norm and coefficient-coordinate bounds control every
 coordinate of the corresponding three-dimensional linear combination. -/
-theorem IntegerBasis3.linearCombination_coordinates_le
+lemma IntegerBasis3.linearCombination_coordinates_le
     (basis : IntegerBasis3) (coefficients : IntegerPoint3)
     (basisBound coefficientBound : Nat)
     (hbasis : basis.SquaredNormsLe basisBound)
@@ -257,19 +257,19 @@ def IntegerBasis3.SameLattice (left right : IntegerBasis3) : Prop :=
       ∃ coefficients, right.linearCombination coefficients = point
 
 /-- Lattice equality is reflexive. -/
-theorem IntegerBasis3.SameLattice.refl (basis : IntegerBasis3) :
+lemma IntegerBasis3.SameLattice.refl (basis : IntegerBasis3) :
     basis.SameLattice basis := by
   intro point
   rfl
 
 /-- Lattice equality is symmetric. -/
-theorem IntegerBasis3.SameLattice.symm {left right : IntegerBasis3}
+lemma IntegerBasis3.SameLattice.symm {left right : IntegerBasis3}
     (h : left.SameLattice right) : right.SameLattice left := by
   intro point
   exact (h point).symm
 
 /-- Lattice equality is transitive. -/
-theorem IntegerBasis3.SameLattice.trans {left middle right : IntegerBasis3}
+lemma IntegerBasis3.SameLattice.trans {left middle right : IntegerBasis3}
     (hleft : left.SameLattice middle)
     (hright : middle.SameLattice right) : left.SameLattice right := by
   intro point
@@ -308,7 +308,7 @@ def IntegerBasis3.swapSecondThird (basis : IntegerBasis3) : IntegerBasis3 where
   second := basis.third
   third := basis.second
 
-private theorem integerPoint3_ext {left right : IntegerPoint3}
+private lemma integerPoint3_ext {left right : IntegerPoint3}
     (hfirst : left.1 = right.1)
     (hsecond : left.2.1 = right.2.1)
     (hthird : left.2.2 = right.2.2) : left = right := by
@@ -316,7 +316,7 @@ private theorem integerPoint3_ext {left right : IntegerPoint3}
   exact Prod.ext hsecond hthird
 
 /-- Second-row size reduction preserves the represented lattice. -/
-theorem IntegerBasis3.sameLattice_reduceSecond
+lemma IntegerBasis3.sameLattice_reduceSecond
     (basis : IntegerBasis3) (coefficient : Int) :
     basis.SameLattice (basis.reduceSecond coefficient) := by
   intro point
@@ -335,7 +335,7 @@ theorem IntegerBasis3.sameLattice_reduceSecond
         IntegerPoint3.add, IntegerPoint3.sub, IntegerPoint3.smul] <;> ring
 
 /-- Third-by-second size reduction preserves the represented lattice. -/
-theorem IntegerBasis3.sameLattice_reduceThirdBySecond
+lemma IntegerBasis3.sameLattice_reduceThirdBySecond
     (basis : IntegerBasis3) (coefficient : Int) :
     basis.SameLattice (basis.reduceThirdBySecond coefficient) := by
   intro point
@@ -358,7 +358,7 @@ theorem IntegerBasis3.sameLattice_reduceThirdBySecond
         IntegerPoint3.sub, IntegerPoint3.smul] <;> ring
 
 /-- Third-by-first size reduction preserves the represented lattice. -/
-theorem IntegerBasis3.sameLattice_reduceThirdByFirst
+lemma IntegerBasis3.sameLattice_reduceThirdByFirst
     (basis : IntegerBasis3) (coefficient : Int) :
     basis.SameLattice (basis.reduceThirdByFirst coefficient) := by
   intro point
@@ -379,7 +379,7 @@ theorem IntegerBasis3.sameLattice_reduceThirdByFirst
         IntegerPoint3.sub, IntegerPoint3.smul] <;> ring
 
 /-- Swapping the first two rows preserves the represented lattice. -/
-theorem IntegerBasis3.sameLattice_swapFirstSecond
+lemma IntegerBasis3.sameLattice_swapFirstSecond
     (basis : IntegerBasis3) :
     basis.SameLattice basis.swapFirstSecond := by
   intro point
@@ -391,7 +391,7 @@ theorem IntegerBasis3.sameLattice_swapFirstSecond
         IntegerPoint3.smul] <;> ring
 
 /-- Swapping the last two rows preserves the represented lattice. -/
-theorem IntegerBasis3.sameLattice_swapSecondThird
+lemma IntegerBasis3.sameLattice_swapSecondThird
     (basis : IntegerBasis3) :
     basis.SameLattice basis.swapSecondThird := by
   intro point
@@ -404,7 +404,7 @@ theorem IntegerBasis3.sameLattice_swapSecondThird
         IntegerPoint3.smul] <;> ring
 
 @[simp]
-theorem IntegerBasis3.determinant_reduceSecond
+lemma IntegerBasis3.determinant_reduceSecond
     (basis : IntegerBasis3) (coefficient : Int) :
     (basis.reduceSecond coefficient).determinant = basis.determinant := by
   simp only [IntegerBasis3.determinant, IntegerBasis3.reduceSecond,
@@ -413,7 +413,7 @@ theorem IntegerBasis3.determinant_reduceSecond
   ring
 
 @[simp]
-theorem IntegerBasis3.determinant_reduceThirdBySecond
+lemma IntegerBasis3.determinant_reduceThirdBySecond
     (basis : IntegerBasis3) (coefficient : Int) :
     (basis.reduceThirdBySecond coefficient).determinant =
       basis.determinant := by
@@ -423,7 +423,7 @@ theorem IntegerBasis3.determinant_reduceThirdBySecond
   ring
 
 @[simp]
-theorem IntegerBasis3.determinant_reduceThirdByFirst
+lemma IntegerBasis3.determinant_reduceThirdByFirst
     (basis : IntegerBasis3) (coefficient : Int) :
     (basis.reduceThirdByFirst coefficient).determinant =
       basis.determinant := by
@@ -433,7 +433,7 @@ theorem IntegerBasis3.determinant_reduceThirdByFirst
   ring
 
 @[simp]
-theorem IntegerBasis3.determinant_swapFirstSecond
+lemma IntegerBasis3.determinant_swapFirstSecond
     (basis : IntegerBasis3) :
     basis.swapFirstSecond.determinant = -basis.determinant := by
   simp only [IntegerBasis3.determinant, IntegerBasis3.swapFirstSecond,
@@ -441,7 +441,7 @@ theorem IntegerBasis3.determinant_swapFirstSecond
   ring
 
 @[simp]
-theorem IntegerBasis3.determinant_swapSecondThird
+lemma IntegerBasis3.determinant_swapSecondThird
     (basis : IntegerBasis3) :
     basis.swapSecondThird.determinant = -basis.determinant := by
   simp only [IntegerBasis3.determinant, IntegerBasis3.swapSecondThird,
@@ -449,30 +449,30 @@ theorem IntegerBasis3.determinant_swapSecondThird
   ring
 
 /-- Every elementary size-reduction row operation preserves full rank. -/
-theorem IntegerBasis3.FullRank.reduceSecond {basis : IntegerBasis3}
+lemma IntegerBasis3.FullRank.reduceSecond {basis : IntegerBasis3}
     (hfull : basis.FullRank) (coefficient : Int) :
     (basis.reduceSecond coefficient).FullRank := by
   simpa [IntegerBasis3.FullRank] using hfull
 
 /-- Third-by-second size reduction preserves full rank. -/
-theorem IntegerBasis3.FullRank.reduceThirdBySecond {basis : IntegerBasis3}
+lemma IntegerBasis3.FullRank.reduceThirdBySecond {basis : IntegerBasis3}
     (hfull : basis.FullRank) (coefficient : Int) :
     (basis.reduceThirdBySecond coefficient).FullRank := by
   simpa [IntegerBasis3.FullRank] using hfull
 
 /-- Third-by-first size reduction preserves full rank. -/
-theorem IntegerBasis3.FullRank.reduceThirdByFirst {basis : IntegerBasis3}
+lemma IntegerBasis3.FullRank.reduceThirdByFirst {basis : IntegerBasis3}
     (hfull : basis.FullRank) (coefficient : Int) :
     (basis.reduceThirdByFirst coefficient).FullRank := by
   simpa [IntegerBasis3.FullRank] using hfull
 
 /-- Swapping the first two rows preserves full rank. -/
-theorem IntegerBasis3.FullRank.swapFirstSecond {basis : IntegerBasis3}
+lemma IntegerBasis3.FullRank.swapFirstSecond {basis : IntegerBasis3}
     (hfull : basis.FullRank) : basis.swapFirstSecond.FullRank := by
   simpa [IntegerBasis3.FullRank] using neg_ne_zero.mpr hfull
 
 /-- Swapping the last two rows preserves full rank. -/
-theorem IntegerBasis3.FullRank.swapSecondThird {basis : IntegerBasis3}
+lemma IntegerBasis3.FullRank.swapSecondThird {basis : IntegerBasis3}
     (hfull : basis.FullRank) : basis.swapSecondThird.FullRank := by
   simpa [IntegerBasis3.FullRank] using neg_ne_zero.mpr hfull
 
@@ -484,7 +484,7 @@ def nearestIntegerCoefficient (numerator denominator : Int) : Int :=
 division after doubling and adding the denominator.  This form is executable
 using ordinary fixed-width addition and unsigned quotient/remainder once the
 signed numerator has been normalized. -/
-theorem nearestIntegerCoefficient_eq_ediv
+lemma nearestIntegerCoefficient_eq_ediv
     (numerator : Int) (denominator : Nat) (positive : 0 < denominator) :
     nearestIntegerCoefficient numerator (denominator : Int) =
       (2 * numerator + denominator) / (2 * denominator : Int) := by
@@ -503,7 +503,7 @@ theorem nearestIntegerCoefficient_eq_ediv
 
 /-- The nonnegative branch of nearest-integer division is ordinary unsigned
 Euclidean division after doubling both operands. -/
-theorem nearestIntegerCoefficient_ofNat
+lemma nearestIntegerCoefficient_ofNat
     (numerator denominator : Nat) (positive : 0 < denominator) :
     nearestIntegerCoefficient (numerator : Int) (denominator : Int) =
       (((2 * numerator + denominator) / (2 * denominator) : Nat) : Int) := by
@@ -512,7 +512,7 @@ theorem nearestIntegerCoefficient_ofNat
 
 /-- The negative branch of nearest-integer division uses the unsigned
 magnitude numerator with the Euclidean predecessor correction. -/
-theorem nearestIntegerCoefficient_neg_ofNat
+lemma nearestIntegerCoefficient_neg_ofNat
     (magnitude denominator : Nat) (magnitudePositive : 0 < magnitude)
     (denominatorPositive : 0 < denominator) :
     nearestIntegerCoefficient (-(magnitude : Int)) (denominator : Int) =
@@ -660,7 +660,7 @@ def IntegerBasis3.thirdFirstGramSchmidtCoefficient
 
 /-- Subtracting an integer multiple from the second row translates the first
 Gram–Schmidt coefficient by precisely that integer. -/
-theorem IntegerBasis3.firstGramSchmidtCoefficient_reduceSecond
+lemma IntegerBasis3.firstGramSchmidtCoefficient_reduceSecond
     (basis : IntegerBasis3) (coefficient : Int)
     (hnorm : integerPointSquaredNorm basis.first ≠ 0) :
     (basis.reduceSecond coefficient).firstGramSchmidtCoefficient =
@@ -682,7 +682,7 @@ theorem IntegerBasis3.firstGramSchmidtCoefficient_reduceSecond
 
 /-- First-pair size reduction places its Gram–Schmidt coefficient in the
 nearest-integer half interval. -/
-theorem IntegerBasis3.firstGramSchmidtCoefficient_sizeReduceFirstPair
+lemma IntegerBasis3.firstGramSchmidtCoefficient_sizeReduceFirstPair
     (basis : IntegerBasis3)
     (hnorm : integerPointSquaredNorm basis.first ≠ 0) :
     |basis.sizeReduceFirstPair.1.firstGramSchmidtCoefficient| ≤
@@ -695,7 +695,7 @@ theorem IntegerBasis3.firstGramSchmidtCoefficient_sizeReduceFirstPair
 
 /-- Reducing the third row by the second translates the second orthogonalized
 Gram–Schmidt numerator by the corresponding denominator multiple. -/
-theorem IntegerBasis3.secondReductionNumerator_reduceThirdBySecond
+lemma IntegerBasis3.secondReductionNumerator_reduceThirdBySecond
     (basis : IntegerBasis3) (coefficient : Int) :
     (basis.reduceThirdBySecond coefficient).secondReductionNumerator =
       basis.secondReductionNumerator -
@@ -715,7 +715,7 @@ theorem IntegerBasis3.secondReductionNumerator_reduceThirdBySecond
 
 /-- Reducing the third row by the first leaves its coefficient along the
 second orthogonalized direction unchanged. -/
-theorem IntegerBasis3.secondReductionNumerator_reduceThirdByFirst
+lemma IntegerBasis3.secondReductionNumerator_reduceThirdByFirst
     (basis : IntegerBasis3) (coefficient : Int) :
     (basis.reduceThirdByFirst coefficient).secondReductionNumerator =
       basis.secondReductionNumerator := by
@@ -728,7 +728,7 @@ theorem IntegerBasis3.secondReductionNumerator_reduceThirdByFirst
 
 /-- Reducing the third row by the second translates the corresponding
 Gram–Schmidt coefficient by precisely that integer. -/
-theorem IntegerBasis3.secondGramSchmidtCoefficient_reduceThirdBySecond
+lemma IntegerBasis3.secondGramSchmidtCoefficient_reduceThirdBySecond
     (basis : IntegerBasis3) (coefficient : Int)
     (harea : basis.secondReductionDenominator ≠ 0) :
     IntegerBasis3.secondGramSchmidtCoefficient
@@ -748,7 +748,7 @@ theorem IntegerBasis3.secondGramSchmidtCoefficient_reduceThirdBySecond
 
 /-- Reducing the third row by the first preserves the second orthogonalized
 Gram–Schmidt coefficient. -/
-theorem IntegerBasis3.secondGramSchmidtCoefficient_reduceThirdByFirst
+lemma IntegerBasis3.secondGramSchmidtCoefficient_reduceThirdByFirst
     (basis : IntegerBasis3) (coefficient : Int) :
     IntegerBasis3.secondGramSchmidtCoefficient
         (basis.reduceThirdByFirst coefficient) =
@@ -759,7 +759,7 @@ theorem IntegerBasis3.secondGramSchmidtCoefficient_reduceThirdByFirst
 
 /-- Reducing the third row by the first translates the direct first-row
 coefficient by precisely that integer. -/
-theorem IntegerBasis3.thirdFirstGramSchmidtCoefficient_reduceThirdByFirst
+lemma IntegerBasis3.thirdFirstGramSchmidtCoefficient_reduceThirdByFirst
     (basis : IntegerBasis3) (coefficient : Int)
     (hnorm : integerPointSquaredNorm basis.first ≠ 0) :
     IntegerBasis3.thirdFirstGramSchmidtCoefficient
@@ -782,7 +782,7 @@ theorem IntegerBasis3.thirdFirstGramSchmidtCoefficient_reduceThirdByFirst
 
 /-- Second-pair size reduction places the second orthogonalized coefficient in
 the nearest-integer half interval. -/
-theorem IntegerBasis3.secondGramSchmidtCoefficient_sizeReduceSecondPair
+lemma IntegerBasis3.secondGramSchmidtCoefficient_sizeReduceSecondPair
     (basis : IntegerBasis3)
     (harea : basis.secondReductionDenominator ≠ 0) :
     |basis.sizeReduceSecondPair.1.secondGramSchmidtCoefficient| ≤
@@ -803,7 +803,7 @@ theorem IntegerBasis3.secondGramSchmidtCoefficient_sizeReduceSecondPair
 
 /-- Second-pair size reduction also places the direct first-row coefficient in
 the nearest-integer half interval. -/
-theorem IntegerBasis3.thirdFirstGramSchmidtCoefficient_sizeReduceSecondPair
+lemma IntegerBasis3.thirdFirstGramSchmidtCoefficient_sizeReduceSecondPair
     (basis : IntegerBasis3)
     (hnorm : integerPointSquaredNorm basis.first ≠ 0) :
     |basis.sizeReduceSecondPair.1.thirdFirstGramSchmidtCoefficient| ≤
@@ -824,7 +824,7 @@ theorem IntegerBasis3.thirdFirstGramSchmidtCoefficient_sizeReduceSecondPair
 
 /-- Second-pair size reduction leaves the first Gram–Schmidt coefficient
 unchanged. -/
-theorem IntegerBasis3.firstGramSchmidtCoefficient_sizeReduceSecondPair
+lemma IntegerBasis3.firstGramSchmidtCoefficient_sizeReduceSecondPair
     (basis : IntegerBasis3) :
     basis.sizeReduceSecondPair.1.firstGramSchmidtCoefficient =
       basis.firstGramSchmidtCoefficient := rfl
@@ -884,13 +884,13 @@ def LatticeReductionStep3.apply
   | .pad => basis
 
 /-- Determinant magnitude is invariant under every trace step. -/
-theorem LatticeReductionStep3.determinant_natAbs_apply
+lemma LatticeReductionStep3.determinant_natAbs_apply
     (step : LatticeReductionStep3) (basis : IntegerBasis3) :
     (step.apply basis).determinant.natAbs = basis.determinant.natAbs := by
   cases step <;> simp [LatticeReductionStep3.apply]
 
 /-- Every elementary trace step preserves the represented lattice. -/
-theorem LatticeReductionStep3.sameLattice_apply
+lemma LatticeReductionStep3.sameLattice_apply
     (step : LatticeReductionStep3) (basis : IntegerBasis3) :
     basis.SameLattice (step.apply basis) := by
   cases step with
@@ -913,7 +913,7 @@ def replayLatticeReduction3 (steps : List LatticeReductionStep3)
   steps.foldl (fun current step => step.apply current) basis
 
 /-- Replaying any elementary trace preserves the represented lattice. -/
-theorem replayLatticeReduction3_sameLattice
+lemma replayLatticeReduction3_sameLattice
     (steps : List LatticeReductionStep3) (basis : IntegerBasis3) :
     basis.SameLattice (replayLatticeReduction3 steps basis) := by
   induction steps generalizing basis with
@@ -940,7 +940,7 @@ structure LatticeReductionTrace3 where
   output_eq : replayLatticeReduction3 steps input = output
 
 /-- Every replayable trace spans the same integer lattice at both ends. -/
-theorem LatticeReductionTrace3.spans (trace : LatticeReductionTrace3) :
+lemma LatticeReductionTrace3.spans (trace : LatticeReductionTrace3) :
     trace.input.SameLattice trace.output := by
   rw [← trace.output_eq]
   exact replayLatticeReduction3_sameLattice trace.steps trace.input
@@ -989,7 +989,7 @@ private def IntegerPoint3.CoordinatesLe
   point.1.natAbs ≤ bound ∧ point.2.1.natAbs ≤ bound ∧
     point.2.2.natAbs ≤ bound
 
-private theorem integerPointSquaredNorm_eq_zero_iff_internal
+private lemma integerPointSquaredNorm_eq_zero_iff_internal
     (point : IntegerPoint3) :
     integerPointSquaredNorm point = 0 ↔ point = (0, 0, 0) := by
   rcases point with ⟨first, second, third⟩
@@ -1012,7 +1012,7 @@ private def ArithmeticEvent.OperandsLe
   | .natShiftLeft value amount =>
       amount ≤ bound ∧ value <<< amount ≤ bound
 
-private theorem ArithmeticEvent.operandWidth_le_size_of_operandsLe
+private lemma ArithmeticEvent.operandWidth_le_size_of_operandsLe
     {event : ArithmeticEvent} {bound : Nat}
     (h : event.OperandsLe bound) :
     event.operandWidth ≤ Nat.size bound := by
@@ -1024,7 +1024,7 @@ private theorem ArithmeticEvent.operandWidth_le_size_of_operandsLe
     | exact max_le (Nat.size_le_size h.1) (Nat.size_le_size h.2)
     | exact Nat.size_le_size h
 
-private theorem ArithmeticEvent.OperandsLe.mono
+private lemma ArithmeticEvent.OperandsLe.mono
     {event : ArithmeticEvent} {left right : Nat}
     (h : event.OperandsLe left) (hle : left ≤ right) :
     event.OperandsLe right := by
@@ -1035,21 +1035,21 @@ private theorem ArithmeticEvent.OperandsLe.mono
     | exact ⟨h.1.trans hle, h.2.trans hle⟩
     | exact h.trans hle
 
-private theorem arithmeticEventListMaxOperandWidth_le_size_of_operandsLe
+private lemma arithmeticEventListMaxOperandWidth_le_size_of_operandsLe
     {events : List ArithmeticEvent} {bound : Nat}
     (h : ∀ event ∈ events, event.OperandsLe bound) :
     arithmeticEventListMaxOperandWidth events ≤ Nat.size bound :=
   arithmeticEventListMaxOperandWidth_le fun event hevent =>
     ArithmeticEvent.operandWidth_le_size_of_operandsLe (h event hevent)
 
-private theorem arithmeticEventsOperandsLe_mono
+private lemma arithmeticEventsOperandsLe_mono
     {events : List ArithmeticEvent} {left right : Nat}
     (h : ∀ event ∈ events, event.OperandsLe left) (hle : left ≤ right) :
     ∀ event ∈ events, event.OperandsLe right := by
   intro event hevent
   exact (h event hevent).mono hle
 
-private theorem arithmeticEventsOperandsLe_append
+private lemma arithmeticEventsOperandsLe_append
     {left right : List ArithmeticEvent} {bound : Nat}
     (hleft : ∀ event ∈ left, event.OperandsLe bound)
     (hright : ∀ event ∈ right, event.OperandsLe bound) :
@@ -1058,7 +1058,7 @@ private theorem arithmeticEventsOperandsLe_append
   rw [List.mem_append] at hevent
   exact hevent.elim (hleft event) (hright event)
 
-private theorem IntegerPoint3.coordinatesLe_of_squaredNorm_le
+private lemma IntegerPoint3.coordinatesLe_of_squaredNorm_le
     (point : IntegerPoint3) {bound : Nat}
     (h : integerPointSquaredNorm point ≤ bound) :
     point.CoordinatesLe bound := by
@@ -1078,13 +1078,13 @@ private theorem IntegerPoint3.coordinatesLe_of_squaredNorm_le
     (Nat.le_self_pow (by decide) _).trans (hsecondSquare.trans h),
     (Nat.le_self_pow (by decide) _).trans (hthirdSquare.trans h)⟩
 
-private theorem IntegerPoint3.CoordinatesLe.mono
+private lemma IntegerPoint3.CoordinatesLe.mono
     {point : IntegerPoint3} {left right : Nat}
     (h : point.CoordinatesLe left) (hle : left ≤ right) :
     point.CoordinatesLe right :=
   ⟨h.1.trans hle, h.2.1.trans hle, h.2.2.trans hle⟩
 
-private theorem integerPointDot_natAbs_le_of_coordinatesLe
+private lemma integerPointDot_natAbs_le_of_coordinatesLe
     {left right : IntegerPoint3} {leftBound rightBound : Nat}
     (hleft : left.CoordinatesLe leftBound)
     (hright : right.CoordinatesLe rightBound) :
@@ -1115,7 +1115,7 @@ private theorem integerPointDot_natAbs_le_of_coordinatesLe
       Nat.add_le_add (Nat.add_le_add hfirst hsecond) hthird
     _ = 3 * leftBound * rightBound := by ring
 
-private theorem integerPointSquaredNorm_le_of_coordinatesLe
+private lemma integerPointSquaredNorm_le_of_coordinatesLe
     {point : IntegerPoint3} {bound : Nat}
     (h : point.CoordinatesLe bound) :
     integerPointSquaredNorm point ≤ 3 * bound ^ 2 := by
@@ -1130,7 +1130,7 @@ private theorem integerPointSquaredNorm_le_of_coordinatesLe
         Nat.add_le_add (Nat.add_le_add hfirst hsecond) hthird
     _ = 3 * bound ^ 2 := by ring
 
-private theorem integerPointCross_coordinatesLe
+private lemma integerPointCross_coordinatesLe
     {left right : IntegerPoint3} {leftBound rightBound : Nat}
     (hleft : left.CoordinatesLe leftBound)
     (hright : right.CoordinatesLe rightBound) :
@@ -1152,7 +1152,7 @@ private theorem integerPointCross_coordinatesLe
     component hleft.2.2 hright.1 hleft.1 hright.2.2,
     component hleft.1 hright.2.1 hleft.2.1 hright.1⟩
 
-private theorem reducePoint_coordinatesLe
+private lemma reducePoint_coordinatesLe
     {point direction : IntegerPoint3} {pointBound directionBound : Nat}
     (coefficient : Int) (hpoint : point.CoordinatesLe pointBound)
     (hdirection : direction.CoordinatesLe directionBound) :
@@ -1175,7 +1175,7 @@ private theorem reducePoint_coordinatesLe
     component hpoint.2.1 hdirection.2.1,
     component hpoint.2.2 hdirection.2.2⟩
 
-private theorem integerPointAreaSquared_le_of_coordinatesLe
+private lemma integerPointAreaSquared_le_of_coordinatesLe
     {left right : IntegerPoint3} {bound : Nat}
     (hleft : left.CoordinatesLe bound)
     (hright : right.CoordinatesLe bound) :
@@ -1193,7 +1193,7 @@ set_option maxHeartbeats 800000 in
 /-- Nearest-integer division by a nonzero integral denominator has magnitude
 at most twice that of its numerator.  The larger heartbeat allowance is local
 to this cast-heavy rational/integer comparison. -/
-theorem nearestIntegerCoefficient_natAbs_le_two_mul
+lemma nearestIntegerCoefficient_natAbs_le_two_mul
     (numerator denominator : Int) (hdenominator : denominator ≠ 0) :
     (nearestIntegerCoefficient numerator denominator).natAbs ≤
       2 * numerator.natAbs := by
@@ -1276,19 +1276,19 @@ private def roundedDivExecution (numerator denominator : Int) :
     events := [.roundedDiv numerator denominator] }
 
 @[simp]
-private theorem intSubExecution_value (left right : Int) :
+private lemma intSubExecution_value (left right : Int) :
     (intSubExecution left right).value = left - right := rfl
 
 @[simp]
-private theorem intMulExecution_value (left right : Int) :
+private lemma intMulExecution_value (left right : Int) :
     (intMulExecution left right).value = left * right := rfl
 
 @[simp]
-private theorem natMulExecution_value (left right : Nat) :
+private lemma natMulExecution_value (left right : Nat) :
     (natMulExecution left right).value = left * right := rfl
 
 @[simp]
-private theorem roundedDivExecution_value (numerator denominator : Int) :
+private lemma roundedDivExecution_value (numerator denominator : Int) :
     (roundedDivExecution numerator denominator).value =
       nearestIntegerCoefficient numerator denominator := rfl
 
@@ -1357,14 +1357,14 @@ private def reducePointExecution (point direction : IntegerPoint3)
       thirdScale.events ++ third.events }
 
 @[simp]
-private theorem integerPointDotExecution_value
+private lemma integerPointDotExecution_value
     (left right : IntegerPoint3) :
     (integerPointDotExecution left right).value =
       integerPointDot left right := by
   rfl
 
 @[simp]
-private theorem integerPointSquaredNormExecution_value
+private lemma integerPointSquaredNormExecution_value
     (point : IntegerPoint3) :
     (integerPointSquaredNormExecution point).value =
       integerPointSquaredNorm point := by
@@ -1372,57 +1372,57 @@ private theorem integerPointSquaredNormExecution_value
     natAddExecution, natMulExecution, pow_two]
 
 @[simp]
-private theorem integerPointCrossExecution_value
+private lemma integerPointCrossExecution_value
     (left right : IntegerPoint3) :
     (integerPointCrossExecution left right).value =
       integerPointCross left right := by
   rfl
 
 @[simp]
-private theorem integerPointAreaSquaredExecution_value
+private lemma integerPointAreaSquaredExecution_value
     (left right : IntegerPoint3) :
     (integerPointAreaSquaredExecution left right).value =
       integerPointAreaSquared left right := by
   simp [integerPointAreaSquaredExecution, integerPointAreaSquared]
 
 @[simp]
-private theorem reducePointExecution_value
+private lemma reducePointExecution_value
     (point direction : IntegerPoint3) (coefficient : Int) :
     (reducePointExecution point direction coefficient).value =
       point.sub (direction.smul coefficient) := by
   rfl
 
 @[simp]
-private theorem integerPointDotExecution_events_length
+private lemma integerPointDotExecution_events_length
     (left right : IntegerPoint3) :
     (integerPointDotExecution left right).events.length = 5 := by
   simp [integerPointDotExecution, intAddExecution, intMulExecution]
 
 @[simp]
-private theorem integerPointSquaredNormExecution_events_length
+private lemma integerPointSquaredNormExecution_events_length
     (point : IntegerPoint3) :
     (integerPointSquaredNormExecution point).events.length = 5 := by
   simp [integerPointSquaredNormExecution, natAddExecution, natMulExecution]
 
 @[simp]
-private theorem integerPointCrossExecution_events_length
+private lemma integerPointCrossExecution_events_length
     (left right : IntegerPoint3) :
     (integerPointCrossExecution left right).events.length = 9 := by
   simp [integerPointCrossExecution, intSubExecution, intMulExecution]
 
 @[simp]
-private theorem integerPointAreaSquaredExecution_events_length
+private lemma integerPointAreaSquaredExecution_events_length
     (left right : IntegerPoint3) :
     (integerPointAreaSquaredExecution left right).events.length = 14 := by
   simp [integerPointAreaSquaredExecution]
 
 @[simp]
-private theorem reducePointExecution_events_length
+private lemma reducePointExecution_events_length
     (point direction : IntegerPoint3) (coefficient : Int) :
     (reducePointExecution point direction coefficient).events.length = 6 := by
   simp [reducePointExecution, intSubExecution, intMulExecution]
 
-private theorem intMulExecution_events_operandsLe
+private lemma intMulExecution_events_operandsLe
     {left right : Int} {bound : Nat}
     (hleft : left.natAbs ≤ bound) (hright : right.natAbs ≤ bound) :
     ∀ event ∈ (intMulExecution left right).events,
@@ -1432,7 +1432,7 @@ private theorem intMulExecution_events_operandsLe
   subst event
   exact ⟨hleft, hright⟩
 
-private theorem intSubExecution_events_operandsLe
+private lemma intSubExecution_events_operandsLe
     {left right : Int} {bound : Nat}
     (hleft : left.natAbs ≤ bound) (hright : right.natAbs ≤ bound) :
     ∀ event ∈ (intSubExecution left right).events,
@@ -1442,7 +1442,7 @@ private theorem intSubExecution_events_operandsLe
   subst event
   exact ⟨hleft, hright⟩
 
-private theorem natMulExecution_events_operandsLe
+private lemma natMulExecution_events_operandsLe
     {left right bound : Nat} (hleft : left ≤ bound)
     (hright : right ≤ bound) :
     ∀ event ∈ (natMulExecution left right).events,
@@ -1452,7 +1452,7 @@ private theorem natMulExecution_events_operandsLe
   subst event
   exact ⟨hleft, hright⟩
 
-private theorem natLeExecution_events_operandsLe
+private lemma natLeExecution_events_operandsLe
     {left right bound : Nat} (hleft : left ≤ bound)
     (hright : right ≤ bound) :
     ∀ event ∈ (natLeExecution left right).events,
@@ -1462,7 +1462,7 @@ private theorem natLeExecution_events_operandsLe
   subst event
   exact ⟨hleft, hright⟩
 
-private theorem roundedDivExecution_events_operandsLe
+private lemma roundedDivExecution_events_operandsLe
     {left right : Int} {bound : Nat}
     (hleft : left.natAbs ≤ bound) (hright : right.natAbs ≤ bound) :
     ∀ event ∈ (roundedDivExecution left right).events,
@@ -1472,7 +1472,7 @@ private theorem roundedDivExecution_events_operandsLe
   subst event
   exact ⟨hleft, hright⟩
 
-private theorem integerPointDotExecution_events_operandsLe
+private lemma integerPointDotExecution_events_operandsLe
     {left right : IntegerPoint3} {leftBound rightBound : Nat}
     (hleft : left.CoordinatesLe leftBound)
     (hright : right.CoordinatesLe rightBound) :
@@ -1526,7 +1526,7 @@ private theorem integerPointDotExecution_events_operandsLe
       hright.2.2.trans hrightBound⟩
   · exact ⟨hfirstTwo, hthirdProduct.trans hproduct⟩
 
-private theorem integerPointSquaredNormExecution_events_operandsLe
+private lemma integerPointSquaredNormExecution_events_operandsLe
     {point : IntegerPoint3} {bound : Nat}
     (hpoint : point.CoordinatesLe bound) :
     ∀ event ∈ (integerPointSquaredNormExecution point).events,
@@ -1572,7 +1572,7 @@ private theorem integerPointSquaredNormExecution_events_operandsLe
   · exact ⟨hpoint.2.2.trans hbound, hpoint.2.2.trans hbound⟩
   · exact ⟨hfirstTwo, hthirdSquare.trans hproduct⟩
 
-private theorem integerPointCrossExecution_events_operandsLe
+private lemma integerPointCrossExecution_events_operandsLe
     {left right : IntegerPoint3} {bound : Nat}
     (hleft : left.CoordinatesLe bound)
     (hright : right.CoordinatesLe bound) :
@@ -1609,7 +1609,7 @@ private theorem integerPointCrossExecution_events_operandsLe
   · exact ⟨hproduct hleft.1 hright.2.1,
       hproduct hleft.2.1 hright.1⟩
 
-private theorem integerPointAreaSquaredExecution_events_operandsLe
+private lemma integerPointAreaSquaredExecution_events_operandsLe
     {left right : IntegerPoint3} {bound : Nat}
     (hleft : left.CoordinatesLe bound)
     (hright : right.CoordinatesLe bound) :
@@ -1650,7 +1650,7 @@ private theorem integerPointAreaSquaredExecution_events_operandsLe
   · exact (integerPointSquaredNormExecution_events_operandsLe
       hcrossCoordinates event hnorm).mono hnormMagnitude
 
-private theorem reducePointExecution_events_operandsLe
+private lemma reducePointExecution_events_operandsLe
     {point direction : IntegerPoint3}
     {pointBound directionBound coefficientBound : Nat}
     (coefficient : Int) (hpoint : point.CoordinatesLe pointBound)
@@ -1726,14 +1726,14 @@ private def firstPairExecution3 (basis : IntegerBasis3) :
       twiceSecond.events ++ passes.events }
 
 @[simp]
-private theorem firstPairExecution3_coefficient (basis : IntegerBasis3) :
+private lemma firstPairExecution3_coefficient (basis : IntegerBasis3) :
     (firstPairExecution3 basis).coefficient =
       basis.firstReductionCoefficient := by
   simp [firstPairExecution3, IntegerBasis3.firstReductionCoefficient,
     roundedDivExecution]
 
 @[simp]
-private theorem firstPairExecution3_reduced (basis : IntegerBasis3) :
+private lemma firstPairExecution3_reduced (basis : IntegerBasis3) :
     (firstPairExecution3 basis).reduced =
       basis.sizeReduceFirstPair.1 := by
   simp [firstPairExecution3, IntegerBasis3.sizeReduceFirstPair,
@@ -1741,7 +1741,7 @@ private theorem firstPairExecution3_reduced (basis : IntegerBasis3) :
     roundedDivExecution]
 
 @[simp]
-private theorem firstPairExecution3_passes (basis : IntegerBasis3) :
+private lemma firstPairExecution3_passes (basis : IntegerBasis3) :
     (firstPairExecution3 basis).passes =
       basis.sizeReduceFirstPair.1.firstLovasz := by
   simp [firstPairExecution3, IntegerBasis3.sizeReduceFirstPair,
@@ -1751,13 +1751,13 @@ private theorem firstPairExecution3_passes (basis : IntegerBasis3) :
   rfl
 
 @[simp]
-private theorem firstPairExecution3_arithmetic_length
+private lemma firstPairExecution3_arithmetic_length
     (basis : IntegerBasis3) :
     (firstPairExecution3 basis).arithmetic.length = 29 := by
   simp [firstPairExecution3, roundedDivExecution, natMulExecution,
     natLeExecution]
 
-private theorem firstPairExecution3_arithmetic_operandsLe
+private lemma firstPairExecution3_arithmetic_operandsLe
     (basis : IntegerBasis3) (bound : Nat) (hfull : basis.FullRank)
     (hcurrent : basis.SquaredNormsLe bound)
     (hreduced : basis.sizeReduceFirstPair.1.SquaredNormsLe bound) :
@@ -1950,7 +1950,7 @@ private def secondPairExecution3 (basis : IntegerBasis3) :
       twiceSecondArea.events ++ passes.events }
 
 @[simp]
-private theorem secondPairExecution3_secondCoefficient
+private lemma secondPairExecution3_secondCoefficient
     (basis : IntegerBasis3) :
     (secondPairExecution3 basis).secondCoefficient =
       basis.sizeReduceSecondPair.2.1 := by
@@ -1960,7 +1960,7 @@ private theorem secondPairExecution3_secondCoefficient
     intMulExecution, intSubExecution]
 
 @[simp]
-private theorem secondPairExecution3_firstCoefficient
+private lemma secondPairExecution3_firstCoefficient
     (basis : IntegerBasis3) :
     (secondPairExecution3 basis).firstCoefficient =
       basis.sizeReduceSecondPair.2.2 := by
@@ -1970,7 +1970,7 @@ private theorem secondPairExecution3_firstCoefficient
     intMulExecution, intSubExecution, IntegerBasis3.reduceThirdBySecond]
 
 @[simp]
-private theorem secondPairExecution3_reduced (basis : IntegerBasis3) :
+private lemma secondPairExecution3_reduced (basis : IntegerBasis3) :
     (secondPairExecution3 basis).reduced =
       basis.sizeReduceSecondPair.1 := by
   simp [secondPairExecution3, IntegerBasis3.sizeReduceSecondPair,
@@ -1980,7 +1980,7 @@ private theorem secondPairExecution3_reduced (basis : IntegerBasis3) :
     IntegerBasis3.reduceThirdByFirst]
 
 @[simp]
-private theorem secondPairExecution3_passes (basis : IntegerBasis3) :
+private lemma secondPairExecution3_passes (basis : IntegerBasis3) :
     (secondPairExecution3 basis).passes =
       basis.sizeReduceSecondPair.1.secondLovasz := by
   simp [secondPairExecution3, IntegerBasis3.sizeReduceSecondPair,
@@ -1992,13 +1992,13 @@ private theorem secondPairExecution3_passes (basis : IntegerBasis3) :
   rfl
 
 @[simp]
-private theorem secondPairExecution3_arithmetic_length
+private lemma secondPairExecution3_arithmetic_length
     (basis : IntegerBasis3) :
     (secondPairExecution3 basis).arithmetic.length = 91 := by
   simp [secondPairExecution3, roundedDivExecution, intMulExecution,
     intSubExecution, natMulExecution, natLeExecution]
 
-private theorem secondPairNumeratorSum_le (bound : Nat) :
+private lemma secondPairNumeratorSum_le (bound : Nat) :
     3 * bound ^ 3 + 9 * bound ^ 4 ≤ 12 * (bound + 1) ^ 4 := by
   have hbase : 1 ≤ bound + 1 := by omega
   have hthree : bound ^ 3 ≤ (bound + 1) ^ 4 :=
@@ -2013,7 +2013,7 @@ private theorem secondPairNumeratorSum_le (bound : Nat) :
         (Nat.mul_le_mul_left 9 hfour)
     _ = 12 * (bound + 1) ^ 4 := by ring
 
-private theorem secondPairReduceSecondMagnitude_le (bound : Nat) :
+private lemma secondPairReduceSecondMagnitude_le (bound : Nat) :
     (bound + 1) + (24 * (bound + 1) ^ 4 + 1) * (bound + 1) ≤
       256 * (bound + 1) ^ 8 := by
   have hbase : 1 ≤ bound + 1 := by omega
@@ -2040,7 +2040,7 @@ private theorem secondPairReduceSecondMagnitude_le (bound : Nat) :
     _ ≤ 256 * (bound + 1) ^ 8 :=
       Nat.mul_le_mul (by norm_num) hpowFiveEight
 
-private theorem secondPairReduceFirstMagnitude_le (bound : Nat) :
+private lemma secondPairReduceFirstMagnitude_le (bound : Nat) :
     (25 * (bound + 1) ^ 5 + 1) +
         (150 * (bound + 1) ^ 6 + 1) * (bound + 1) ≤
       256 * (bound + 1) ^ 8 := by
@@ -2080,7 +2080,7 @@ private theorem secondPairReduceFirstMagnitude_le (bound : Nat) :
       (Nat.mul_le_mul_left 177 hpowSevenEight).trans
         (Nat.mul_le_mul_right ((bound + 1) ^ 8) (by norm_num))
 
-private theorem secondPairExecution3_arithmetic_operandsLe
+private lemma secondPairExecution3_arithmetic_operandsLe
     (basis : IntegerBasis3) (bound : Nat) (hfull : basis.FullRank)
     (hcurrent : basis.SquaredNormsLe bound)
     (hreduced : basis.sizeReduceSecondPair.1.SquaredNormsLe bound) :
@@ -2437,7 +2437,7 @@ private theorem secondPairExecution3_arithmetic_operandsLe
 
 /-- The scalar inputs and comparisons of both literal LLL pair reductions fit
 the common magnitude used by the sealed arithmetic audit. -/
-theorem lllPairScalarBounds_of_reduced
+lemma lllPairScalarBounds_of_reduced
     (basis : IntegerBasis3) (bound : Nat) (hfull : basis.FullRank)
     (hcurrent : basis.SquaredNormsLe bound)
     (hfirst : basis.sizeReduceFirstPair.1.SquaredNormsLe bound)
@@ -2714,7 +2714,7 @@ def lllStepExecution3 (state : LLLState3) : LLLStepExecution3 :=
 /-- If the current basis and both exact size-reduction results stay inside one
 squared-norm envelope, every arithmetic operand evaluated by this same sealed
 LLL step has at most the bit width of `256 * (bound + 1)^8`. -/
-theorem lllStepExecution3_maxOperandWidth_le_of_reduced
+lemma lllStepExecution3_maxOperandWidth_le_of_reduced
     (state : LLLState3) (bound : Nat)
     (hfull : state.basis.FullRank)
     (hcurrent : state.basis.SquaredNormsLe bound)
@@ -2760,13 +2760,13 @@ def lllPotential3 (basis : IntegerBasis3) : Nat :=
     integerPointAreaSquared basis.first basis.second
 
 @[simp]
-theorem integerPointSquaredNorm_eq_zero_iff (point : IntegerPoint3) :
+lemma integerPointSquaredNorm_eq_zero_iff (point : IntegerPoint3) :
     integerPointSquaredNorm point = 0 ↔ point = (0, 0, 0) := by
   rcases point with ⟨first, second, third⟩
   simp [integerPointSquaredNorm, Prod.ext_iff, and_assoc]
 
 /-- A full-rank basis has strictly positive LLL potential. -/
-theorem lllPotential3_pos_of_fullRank {basis : IntegerBasis3}
+lemma lllPotential3_pos_of_fullRank {basis : IntegerBasis3}
     (hfull : basis.FullRank) : 0 < lllPotential3 basis := by
   rw [Nat.pos_iff_ne_zero]
   intro hzero
@@ -2782,14 +2782,14 @@ theorem lllPotential3_pos_of_fullRank {basis : IntegerBasis3}
     simp [integerPointDot, hcross]
 
 /-- Full rank makes the first Gram–Schmidt denominator nonzero. -/
-theorem IntegerBasis3.FullRank.firstSquaredNorm_ne_zero
+lemma IntegerBasis3.FullRank.firstSquaredNorm_ne_zero
     {basis : IntegerBasis3} (hfull : basis.FullRank) :
     integerPointSquaredNorm basis.first ≠ 0 := by
   have hpositive := lllPotential3_pos_of_fullRank hfull
   exact Nat.ne_of_gt (Nat.pos_of_mul_pos_right hpositive)
 
 /-- Full rank makes the second Gram–Schmidt denominator nonzero. -/
-theorem IntegerBasis3.FullRank.secondReductionDenominator_ne_zero
+lemma IntegerBasis3.FullRank.secondReductionDenominator_ne_zero
     {basis : IntegerBasis3} (hfull : basis.FullRank) :
     basis.secondReductionDenominator ≠ 0 := by
   have hpositive := lllPotential3_pos_of_fullRank hfull
@@ -2799,7 +2799,7 @@ theorem IntegerBasis3.FullRank.secondReductionDenominator_ne_zero
   exact_mod_cast Nat.ne_of_gt harea
 
 /-- First-pair size reduction leaves the LLL potential unchanged. -/
-theorem lllPotential3_reduceSecond (basis : IntegerBasis3)
+lemma lllPotential3_reduceSecond (basis : IntegerBasis3)
     (coefficient : Int) :
     lllPotential3 (basis.reduceSecond coefficient) = lllPotential3 basis := by
   simp only [lllPotential3, IntegerBasis3.reduceSecond]
@@ -2810,39 +2810,39 @@ theorem lllPotential3_reduceSecond (basis : IntegerBasis3)
     rw [integerPointCross_sub_smul_self]]
 
 /-- Operations on the third row leave the LLL potential unchanged. -/
-theorem lllPotential3_reduceThirdBySecond (basis : IntegerBasis3)
+lemma lllPotential3_reduceThirdBySecond (basis : IntegerBasis3)
     (coefficient : Int) :
     lllPotential3 (basis.reduceThirdBySecond coefficient) =
       lllPotential3 basis := rfl
 
 /-- Operations on the third row leave the LLL potential unchanged. -/
-theorem lllPotential3_reduceThirdByFirst (basis : IntegerBasis3)
+lemma lllPotential3_reduceThirdByFirst (basis : IntegerBasis3)
     (coefficient : Int) :
     lllPotential3 (basis.reduceThirdByFirst coefficient) =
       lllPotential3 basis := rfl
 
 /-- The first-pair size-reduction stage preserves full rank. -/
-theorem IntegerBasis3.FullRank.sizeReduceFirstPair
+lemma IntegerBasis3.FullRank.sizeReduceFirstPair
     {basis : IntegerBasis3} (hfull : basis.FullRank) :
     basis.sizeReduceFirstPair.1.FullRank := by
   simpa [IntegerBasis3.sizeReduceFirstPair] using
     hfull.reduceSecond basis.firstReductionCoefficient
 
 /-- The second-pair size-reduction stage preserves full rank. -/
-theorem IntegerBasis3.FullRank.sizeReduceSecondPair
+lemma IntegerBasis3.FullRank.sizeReduceSecondPair
     {basis : IntegerBasis3} (hfull : basis.FullRank) :
     basis.sizeReduceSecondPair.1.FullRank := by
   simp only [IntegerBasis3.sizeReduceSecondPair]
   exact (hfull.reduceThirdBySecond _).reduceThirdByFirst _
 
 /-- The first-pair size-reduction stage preserves the LLL potential. -/
-theorem lllPotential3_sizeReduceFirstPair (basis : IntegerBasis3) :
+lemma lllPotential3_sizeReduceFirstPair (basis : IntegerBasis3) :
     lllPotential3 basis.sizeReduceFirstPair.1 = lllPotential3 basis := by
   simpa [IntegerBasis3.sizeReduceFirstPair] using
     lllPotential3_reduceSecond basis basis.firstReductionCoefficient
 
 /-- The second-pair size-reduction stage preserves the LLL potential. -/
-theorem lllPotential3_sizeReduceSecondPair (basis : IntegerBasis3) :
+lemma lllPotential3_sizeReduceSecondPair (basis : IntegerBasis3) :
     lllPotential3 basis.sizeReduceSecondPair.1 = lllPotential3 basis := by
   simp only [IntegerBasis3.sizeReduceSecondPair]
   rw [lllPotential3_reduceThirdByFirst,
@@ -2850,7 +2850,7 @@ theorem lllPotential3_sizeReduceSecondPair (basis : IntegerBasis3) :
 
 /-- Swapping the first pair replaces the first norm factor by the former
 second norm while preserving the area factor. -/
-theorem lllPotential3_swapFirstSecond (basis : IntegerBasis3) :
+lemma lllPotential3_swapFirstSecond (basis : IntegerBasis3) :
     lllPotential3 basis.swapFirstSecond =
       integerPointSquaredNorm basis.second *
         integerPointAreaSquared basis.first basis.second := by
@@ -2859,14 +2859,14 @@ theorem lllPotential3_swapFirstSecond (basis : IntegerBasis3) :
 
 /-- Swapping the second pair replaces the area factor by the former
 first/third area. -/
-theorem lllPotential3_swapSecondThird (basis : IntegerBasis3) :
+lemma lllPotential3_swapSecondThird (basis : IntegerBasis3) :
     lllPotential3 basis.swapSecondThird =
       integerPointSquaredNorm basis.first *
         integerPointAreaSquared basis.first basis.third := rfl
 
 /-- A failed first Lovász test halves the integer LLL potential after the
 corresponding swap. -/
-theorem twice_lllPotential3_swapFirstSecond_lt (basis : IntegerBasis3)
+lemma twice_lllPotential3_swapFirstSecond_lt (basis : IntegerBasis3)
     (hfull : basis.FullRank) (hfail : basis.firstLovasz = false) :
     2 * lllPotential3 basis.swapFirstSecond < lllPotential3 basis := by
   have harea : 0 < integerPointAreaSquared basis.first basis.second := by
@@ -2883,7 +2883,7 @@ theorem twice_lllPotential3_swapFirstSecond_lt (basis : IntegerBasis3)
 
 /-- A failed second Lovász test halves the integer LLL potential after the
 corresponding swap. -/
-theorem twice_lllPotential3_swapSecondThird_lt (basis : IntegerBasis3)
+lemma twice_lllPotential3_swapSecondThird_lt (basis : IntegerBasis3)
     (hfull : basis.FullRank) (hfail : basis.secondLovasz = false) :
     2 * lllPotential3 basis.swapSecondThird < lllPotential3 basis := by
   have hnorm : 0 < integerPointSquaredNorm basis.first := by
@@ -2900,7 +2900,7 @@ theorem twice_lllPotential3_swapSecondThird_lt (basis : IntegerBasis3)
 
 /-- Halving a positive natural-number potential strictly decreases its binary
 logarithm. -/
-theorem Nat.log2_lt_of_twice_lt {next current : Nat} (hnext : 0 < next)
+lemma Nat.log2_lt_of_twice_lt {next current : Nat} (hnext : 0 < next)
     (hhalf : 2 * next < current) : Nat.log2 next < Nat.log2 current := by
   rw [Nat.log2_eq_log_two, Nat.log2_eq_log_two]
   have hmono := Nat.log_mono_right (b := 2) (Nat.le_of_lt hhalf)
@@ -2968,7 +2968,7 @@ def lllStep3 (state : LLLState3) : LLLState3 :=
 
 /-- The audited execution implements the compact mathematical state-machine
 specification exactly. -/
-private theorem lllStep3_eq_specification (state : LLLState3) :
+private lemma lllStep3_eq_specification (state : LLLState3) :
     lllStep3 state = lllStep3Specification state := by
   cases hphase : state.phase with
   | first =>
@@ -2990,7 +2990,7 @@ private theorem lllStep3_eq_specification (state : LLLState3) :
         LLLStepExecution3.toState]
 
 /-- The basis and phase selected by one first-pair iteration. -/
-theorem lllStep3_first_basis_phase (state : LLLState3)
+lemma lllStep3_first_basis_phase (state : LLLState3)
     (hphase : state.phase = .first) :
     ((lllStep3 state).basis =
       if state.basis.sizeReduceFirstPair.1.firstLovasz then
@@ -3003,7 +3003,7 @@ theorem lllStep3_first_basis_phase (state : LLLState3)
   split <;> exact ⟨rfl, rfl⟩
 
 /-- The basis and phase selected by one second-pair iteration. -/
-theorem lllStep3_second_basis_phase (state : LLLState3)
+lemma lllStep3_second_basis_phase (state : LLLState3)
     (hphase : state.phase = .second) :
     ((lllStep3 state).basis =
       if state.basis.sizeReduceSecondPair.1.secondLovasz then
@@ -3016,7 +3016,7 @@ theorem lllStep3_second_basis_phase (state : LLLState3)
   split <;> exact ⟨rfl, rfl⟩
 
 /-- A terminal iteration keeps its basis and terminal phase. -/
-theorem lllStep3_done_basis_phase (state : LLLState3)
+lemma lllStep3_done_basis_phase (state : LLLState3)
     (hphase : state.phase = .done) :
     (lllStep3 state).basis = state.basis ∧ (lllStep3 state).phase = .done := by
   rw [lllStep3_eq_specification]
@@ -3025,7 +3025,7 @@ theorem lllStep3_done_basis_phase (state : LLLState3)
 
 /-- A first-phase iteration evaluates exactly the 29 arithmetic events of its
 size reduction and Lovász comparison, independently of the branch result. -/
-theorem lllStepExecution3_arithmetic_length_first (state : LLLState3)
+lemma lllStepExecution3_arithmetic_length_first (state : LLLState3)
     (hphase : state.phase = .first) :
     (lllStepExecution3 state).arithmetic.length = 29 := by
   simp [lllStepExecution3, hphase]
@@ -3033,21 +3033,21 @@ theorem lllStepExecution3_arithmetic_length_first (state : LLLState3)
 
 /-- A second-phase iteration evaluates exactly the 91 arithmetic events of its
 two reductions and Lovász comparison, independently of the branch result. -/
-theorem lllStepExecution3_arithmetic_length_second (state : LLLState3)
+lemma lllStepExecution3_arithmetic_length_second (state : LLLState3)
     (hphase : state.phase = .second) :
     (lllStepExecution3 state).arithmetic.length = 91 := by
   simp [lllStepExecution3, hphase]
   split <;> simp
 
 /-- A terminal padded iteration performs no integer arithmetic. -/
-theorem lllStepExecution3_arithmetic_done (state : LLLState3)
+lemma lllStepExecution3_arithmetic_done (state : LLLState3)
     (hdone : state.phase = .done) :
     (lllStepExecution3 state).arithmetic = [] := by
   simp [lllStepExecution3, hdone]
 
 /-- Every reducer iteration emits at most the 91 arithmetic events of the
 second-pair branch. -/
-theorem lllStepExecution3_arithmetic_length_le (state : LLLState3) :
+lemma lllStepExecution3_arithmetic_length_le (state : LLLState3) :
     (lllStepExecution3 state).arithmetic.length ≤ 91 := by
   cases hphase : state.phase with
   | first =>
@@ -3058,7 +3058,7 @@ theorem lllStepExecution3_arithmetic_length_le (state : LLLState3) :
   | done => rw [lllStepExecution3_arithmetic_done state hphase]; decide
 
 /-- One reducer iteration preserves full rank. -/
-theorem lllStep3_fullRank (state : LLLState3)
+lemma lllStep3_fullRank (state : LLLState3)
     (hfull : state.basis.FullRank) : (lllStep3 state).basis.FullRank := by
   cases hphase : state.phase with
   | first =>
@@ -3076,7 +3076,7 @@ theorem lllStep3_fullRank (state : LLLState3)
         using hfull
 
 /-- One reducer iteration never increases the global LLL potential. -/
-theorem lllStep3_potential_le (state : LLLState3)
+lemma lllStep3_potential_le (state : LLLState3)
     (hfull : state.basis.FullRank) :
     lllPotential3 (lllStep3 state).basis ≤
       lllPotential3 state.basis := by
@@ -3113,7 +3113,7 @@ theorem lllStep3_potential_le (state : LLLState3)
       simp [lllStep3_eq_specification, lllStep3Specification, hphase]
 
 /-- One reducer iteration preserves determinant magnitude. -/
-theorem lllStep3_determinant_natAbs (state : LLLState3) :
+lemma lllStep3_determinant_natAbs (state : LLLState3) :
     (lllStep3 state).basis.determinant.natAbs =
       state.basis.determinant.natAbs := by
   cases hphase : state.phase with
@@ -3128,7 +3128,7 @@ theorem lllStep3_determinant_natAbs (state : LLLState3) :
 
 /-- If the current basis and both possible size-reduced bases obey the same
 squared-norm envelope, then every branch of one reducer iteration obeys it. -/
-theorem lllStep3_squaredNormsLe_of_reduced
+lemma lllStep3_squaredNormsLe_of_reduced
     (state : LLLState3) (bound : Nat)
     (hcurrent : state.basis.SquaredNormsLe bound)
     (hfirst : state.basis.sizeReduceFirstPair.1.SquaredNormsLe bound)
@@ -3150,7 +3150,7 @@ theorem lllStep3_squaredNormsLe_of_reduced
         using hcurrent
 
 /-- One reducer iteration preserves the phase-indexed reduction certificate. -/
-theorem lllStep3_reductionInvariant (state : LLLState3)
+lemma lllStep3_reductionInvariant (state : LLLState3)
     (hfull : state.basis.FullRank)
     (hinvariant : state.ReductionInvariant) :
     (lllStep3 state).ReductionInvariant := by
@@ -3201,7 +3201,7 @@ theorem lllStep3_reductionInvariant (state : LLLState3)
 
 /-- If one reducer iteration has not terminated, its logarithmic phase measure
 strictly decreases. -/
-theorem lllStep3_measure_lt (state : LLLState3)
+lemma lllStep3_measure_lt (state : LLLState3)
     (hfull : state.basis.FullRank)
     (hnext : (lllStep3 state).phase ≠ .done) :
     lllStateMeasure3 (lllStep3 state) < lllStateMeasure3 state := by
@@ -3253,7 +3253,7 @@ def lllRun3 : Nat → LLLState3 → LLLState3
   | fuel + 1, state => lllRun3 fuel (lllStep3 state)
 
 /-- One extra reducer step commutes with any fixed-fuel reducer run. -/
-theorem lllRun3_step_comm (fuel : Nat) (state : LLLState3) :
+lemma lllRun3_step_comm (fuel : Nat) (state : LLLState3) :
     lllRun3 fuel (lllStep3 state) = lllStep3 (lllRun3 fuel state) := by
   induction fuel generalizing state with
   | zero => rfl
@@ -3261,7 +3261,7 @@ theorem lllRun3_step_comm (fuel : Nat) (state : LLLState3) :
       simpa only [lllRun3] using ih (lllStep3 state)
 
 /-- A successor-fuel run performs its final mathematical step after the shorter run. -/
-theorem lllRun3_succ_last (fuel : Nat) (state : LLLState3) :
+lemma lllRun3_succ_last (fuel : Nat) (state : LLLState3) :
     lllRun3 (fuel + 1) state = lllStep3 (lllRun3 fuel state) := by
   rw [lllRun3]
   exact lllRun3_step_comm fuel state
@@ -3288,7 +3288,7 @@ def lllRunExecution3 : Nat → LLLState3 → LLLRunExecution3
 
 /-- Forgetting the arithmetic ledger yields exactly the established reducer
 state recursion. -/
-theorem lllRunExecution3_state (fuel : Nat) (state : LLLState3) :
+lemma lllRunExecution3_state (fuel : Nat) (state : LLLState3) :
     (lllRunExecution3 fuel state).state = lllRun3 fuel state := by
   induction fuel generalizing state with
   | zero => rfl
@@ -3299,7 +3299,7 @@ theorem lllRunExecution3_state (fuel : Nat) (state : LLLState3) :
 
 /-- Once the reducer is terminal, any remaining padded iterations contribute
 no arithmetic events. -/
-theorem lllRunExecution3_arithmetic_done (fuel : Nat) (state : LLLState3)
+lemma lllRunExecution3_arithmetic_done (fuel : Nat) (state : LLLState3)
     (hdone : state.phase = .done) :
     (lllRunExecution3 fuel state).arithmetic = [] := by
   induction fuel generalizing state with
@@ -3313,7 +3313,7 @@ theorem lllRunExecution3_arithmetic_done (fuel : Nat) (state : LLLState3)
 
 /-- A fixed-fuel run emits at most 91 actual arithmetic events per machine
 iteration; padded terminal iterations emit none. -/
-theorem lllRunExecution3_arithmetic_length_le (fuel : Nat)
+lemma lllRunExecution3_arithmetic_length_le (fuel : Nat)
     (state : LLLState3) :
     (lllRunExecution3 fuel state).arithmetic.length ≤ 91 * fuel := by
   induction fuel generalizing state with
@@ -3327,7 +3327,7 @@ theorem lllRunExecution3_arithmetic_length_le (fuel : Nat)
 end SealedLLLRunExecution
 
 /-- The terminal phase is stable under every number of padded iterations. -/
-theorem lllRun3_phase_done (fuel : Nat) (state : LLLState3)
+lemma lllRun3_phase_done (fuel : Nat) (state : LLLState3)
     (hdone : state.phase = .done) :
     (lllRun3 fuel state).phase = .done := by
   induction fuel generalizing state with
@@ -3338,7 +3338,7 @@ theorem lllRun3_phase_done (fuel : Nat) (state : LLLState3)
       simp [lllStep3_eq_specification, lllStep3Specification, hdone]
 
 /-- Full rank is invariant under a fixed-fuel reducer run. -/
-theorem lllRun3_fullRank (fuel : Nat) (state : LLLState3)
+lemma lllRun3_fullRank (fuel : Nat) (state : LLLState3)
     (hfull : state.basis.FullRank) :
     (lllRun3 fuel state).basis.FullRank := by
   induction fuel generalizing state with
@@ -3349,7 +3349,7 @@ theorem lllRun3_fullRank (fuel : Nat) (state : LLLState3)
 
 /-- The phase-indexed reduction certificate is invariant under a fixed-fuel
 run. -/
-theorem lllRun3_reductionInvariant (fuel : Nat) (state : LLLState3)
+lemma lllRun3_reductionInvariant (fuel : Nat) (state : LLLState3)
     (hfull : state.basis.FullRank)
     (hinvariant : state.ReductionInvariant) :
     (lllRun3 fuel state).ReductionInvariant := by
@@ -3362,7 +3362,7 @@ theorem lllRun3_reductionInvariant (fuel : Nat) (state : LLLState3)
 
 /-- Any fuel strictly larger than the initial state measure is sufficient to
 reach the terminal phase. -/
-theorem lllRun3_done_of_measure_lt (fuel : Nat) (state : LLLState3)
+lemma lllRun3_done_of_measure_lt (fuel : Nat) (state : LLLState3)
     (hfull : state.basis.FullRank)
     (hfuel : lllStateMeasure3 state < fuel) :
     (lllRun3 fuel state).phase = .done := by
@@ -3381,7 +3381,7 @@ def lllFuel3 (basis : IntegerBasis3) : Nat :=
   2 * (Nat.log2 (lllPotential3 basis + 1) + 1) + 2
 
 /-- The public logarithmic budget dominates the initial machine measure. -/
-theorem lllStateMeasure3_initial_lt_fuel (basis : IntegerBasis3) :
+lemma lllStateMeasure3_initial_lt_fuel (basis : IntegerBasis3) :
     lllStateMeasure3
         { basis := basis, phase := .first, steps := [] } <
       lllFuel3 basis := by
@@ -3393,7 +3393,7 @@ theorem lllStateMeasure3_initial_lt_fuel (basis : IntegerBasis3) :
   omega
 
 /-- Every full-rank input reaches the terminal phase within the public fuel. -/
-theorem lllRun3_initial_phase_done (basis : IntegerBasis3)
+lemma lllRun3_initial_phase_done (basis : IntegerBasis3)
     (hfull : basis.FullRank) :
     (lllRun3 (lllFuel3 basis)
       { basis := basis, phase := .first, steps := [] }).phase = .done :=
@@ -3401,7 +3401,7 @@ theorem lllRun3_initial_phase_done (basis : IntegerBasis3)
     (lllStateMeasure3_initial_lt_fuel basis)
 
 /-- One machine iteration appends exactly three elementary trace steps. -/
-theorem lllStep3_steps_length (state : LLLState3) :
+lemma lllStep3_steps_length (state : LLLState3) :
     (lllStep3 state).steps.length = state.steps.length + 3 := by
   cases hphase : state.phase with
   | first =>
@@ -3416,7 +3416,7 @@ theorem lllStep3_steps_length (state : LLLState3) :
       simp [lllStep3_eq_specification, lllStep3Specification, hphase]
 
 /-- A reducer run appends exactly three steps per padded iteration. -/
-theorem lllRun3_steps_length (fuel : Nat) (state : LLLState3) :
+lemma lllRun3_steps_length (fuel : Nat) (state : LLLState3) :
     (lllRun3 fuel state).steps.length = state.steps.length + 3 * fuel := by
   induction fuel generalizing state with
   | zero => simp [lllRun3]
@@ -3426,7 +3426,7 @@ theorem lllRun3_steps_length (fuel : Nat) (state : LLLState3) :
       omega
 
 /-- Replaying the three steps appended by one iteration produces its basis. -/
-theorem replayLatticeReduction3_append
+lemma replayLatticeReduction3_append
     (initialSteps finalSteps : List LatticeReductionStep3)
     (basis : IntegerBasis3) :
     replayLatticeReduction3 (initialSteps ++ finalSteps) basis =
@@ -3436,7 +3436,7 @@ theorem replayLatticeReduction3_append
 
 /-- Extending a valid replay prefix by one machine iteration yields its new
 current basis. -/
-theorem lllStep3_replay (initial : IntegerBasis3) (state : LLLState3)
+lemma lllStep3_replay (initial : IntegerBasis3) (state : LLLState3)
     (hstate : replayLatticeReduction3 state.steps initial = state.basis) :
     replayLatticeReduction3 (lllStep3 state).steps initial =
       (lllStep3 state).basis := by
@@ -3458,7 +3458,7 @@ theorem lllStep3_replay (initial : IntegerBasis3) (state : LLLState3)
 
 /-- The prefix replay invariant is preserved by every number of machine
 iterations. -/
-theorem lllRun3_replay_from (initial : IntegerBasis3) (fuel : Nat)
+lemma lllRun3_replay_from (initial : IntegerBasis3) (fuel : Nat)
     (state : LLLState3)
     (hstate : replayLatticeReduction3 state.steps initial = state.basis) :
     replayLatticeReduction3 (lllRun3 fuel state).steps initial =
@@ -3471,7 +3471,7 @@ theorem lllRun3_replay_from (initial : IntegerBasis3) (fuel : Nat)
 
 /-- Replaying all steps generated from the initial basis yields the final
 basis of the fixed-fuel run. -/
-theorem lllRun3_replay (basis : IntegerBasis3) (fuel : Nat) :
+lemma lllRun3_replay (basis : IntegerBasis3) (fuel : Nat) :
     replayLatticeReduction3
         (lllRun3 fuel { basis := basis, phase := .first, steps := [] }).steps
         basis =
@@ -3533,7 +3533,7 @@ end SealedReducerBuilders
 
 /-- A public-fuel reduction trace contains exactly three padded elementary
 steps for every machine iteration. -/
-theorem lllReduce3WithFuel_steps_length (fuel : Nat)
+lemma lllReduce3WithFuel_steps_length (fuel : Nat)
     (basis : IntegerBasis3) :
     (lllReduce3WithFuel fuel basis).steps.length = 3 * fuel := by
   change
@@ -3545,7 +3545,7 @@ theorem lllReduce3WithFuel_steps_length (fuel : Nat)
 
 /-- The public-fuel trace output is the basis reached by the exact state
 machine after that many padded iterations. -/
-theorem lllReduce3WithFuel_output_eq_finalBasis (fuel : Nat)
+lemma lllReduce3WithFuel_output_eq_finalBasis (fuel : Nat)
     (basis : IntegerBasis3) :
     (lllReduce3WithFuel fuel basis).output =
       (lllRun3 fuel
@@ -3556,12 +3556,12 @@ theorem lllReduce3WithFuel_output_eq_finalBasis (fuel : Nat)
   rw [lllRunExecution3_state]
 
 /-- A public-fuel reduction preserves the represented integer lattice. -/
-theorem lllReduce3WithFuel_spans (fuel : Nat) (basis : IntegerBasis3) :
+lemma lllReduce3WithFuel_spans (fuel : Nat) (basis : IntegerBasis3) :
     basis.SameLattice (lllReduce3WithFuel fuel basis).output :=
   (lllReduce3WithFuel fuel basis).spans
 
 /-- A public-fuel reduction preserves full rank. -/
-theorem lllReduce3WithFuel_fullRank (fuel : Nat) (basis : IntegerBasis3)
+lemma lllReduce3WithFuel_fullRank (fuel : Nat) (basis : IntegerBasis3)
     (hfull : basis.FullRank) :
     (lllReduce3WithFuel fuel basis).output.FullRank := by
   rw [lllReduce3WithFuel_output_eq_finalBasis]
@@ -3570,7 +3570,7 @@ theorem lllReduce3WithFuel_fullRank (fuel : Nat) (basis : IntegerBasis3)
 
 /-- Any public fuel larger than the initial logarithmic state measure yields a
 complete size-reduced and Lovász-reduced basis. -/
-theorem lllReduce3WithFuel_isReduced (fuel : Nat) (basis : IntegerBasis3)
+lemma lllReduce3WithFuel_isReduced (fuel : Nat) (basis : IntegerBasis3)
     (hfull : basis.FullRank)
     (hfuel : lllStateMeasure3
         { basis := basis, phase := .first, steps := [] } < fuel) :
@@ -3589,7 +3589,7 @@ theorem lllReduce3WithFuel_isReduced (fuel : Nat) (basis : IntegerBasis3)
   simpa [LLLState3.ReductionInvariant, hdone] using hinvariant
 
 /-- The sealed execution output is the basis reached by the state machine. -/
-theorem lllReduce3_output_eq_finalBasis (basis : IntegerBasis3) :
+lemma lllReduce3_output_eq_finalBasis (basis : IntegerBasis3) :
     (lllReduce3 basis).output =
       (lllRun3 (lllFuel3 basis)
         { basis := basis, phase := .first, steps := [] }).basis := by
@@ -3600,7 +3600,7 @@ theorem lllReduce3_output_eq_finalBasis (basis : IntegerBasis3) :
 
 /-- The executable reducer preserves full rank as well as the represented
 lattice. -/
-theorem lllReduce3_fullRank (basis : IntegerBasis3)
+lemma lllReduce3_fullRank (basis : IntegerBasis3)
     (hfull : basis.FullRank) : (lllReduce3 basis).output.FullRank := by
   rw [lllReduce3_output_eq_finalBasis]
   exact lllRun3_fullRank (lllFuel3 basis)
@@ -3608,7 +3608,7 @@ theorem lllReduce3_fullRank (basis : IntegerBasis3)
 
 /-- Every full-rank input is transformed into an exact size-reduced,
 Lovász-reduced basis. -/
-theorem lllReduce3_isReduced (basis : IntegerBasis3)
+lemma lllReduce3_isReduced (basis : IntegerBasis3)
     (hfull : basis.FullRank) : (lllReduce3 basis).output.IsReduced := by
   rw [lllReduce3_output_eq_finalBasis]
   let initial : LLLState3 :=
@@ -3624,12 +3624,12 @@ theorem lllReduce3_isReduced (basis : IntegerBasis3)
   simpa [LLLState3.ReductionInvariant, hdone] using hinvariant
 
 /-- The executable reducer preserves the input integer lattice. -/
-theorem lllReduce3_spans (basis : IntegerBasis3) :
+lemma lllReduce3_spans (basis : IntegerBasis3) :
     basis.SameLattice (lllReduce3 basis).output :=
   (lllReduce3 basis).spans
 
 /-- The padded trace length is exactly the public work bound. -/
-theorem lllReduce3_stepCount_le (basis : IntegerBasis3) :
+lemma lllReduce3_stepCount_le (basis : IntegerBasis3) :
     (lllReduce3 basis).steps.length ≤ 3 * lllFuel3 basis := by
   change
     (lllRunExecution3 (lllFuel3 basis)
@@ -3641,14 +3641,14 @@ theorem lllReduce3_stepCount_le (basis : IntegerBasis3) :
 /-! ### Exact nearest-plane coordinates -/
 
 /-- Symmetry of the exact integer dot product. -/
-theorem integerPointDot_comm (left right : IntegerPoint3) :
+lemma integerPointDot_comm (left right : IntegerPoint3) :
     integerPointDot left right = integerPointDot right left := by
   simp [integerPointDot]
   ring
 
 /-- Dotting a basis combination with a fixed point is integer-linear in its
 three coefficients. -/
-theorem IntegerBasis3.integerPointDot_linearCombination
+lemma IntegerBasis3.integerPointDot_linearCombination
     (basis : IntegerBasis3) (coefficients point : IntegerPoint3) :
     integerPointDot (basis.linearCombination coefficients) point =
       coefficients.1 * integerPointDot basis.first point +
@@ -3752,7 +3752,7 @@ private def IntegerBasis3.clearedNearestPlaneFirstCoefficient
       third * integerPointDot basis.third basis.first)
     (integerPointSquaredNorm basis.first)
 
-private theorem IntegerBasis3.clearedNearestPlaneThirdCoefficient_eq
+private lemma IntegerBasis3.clearedNearestPlaneThirdCoefficient_eq
     (basis : IntegerBasis3) (target : IntegerPoint3) :
     basis.clearedNearestPlaneThirdCoefficient target =
       basis.nearestPlaneThirdCoefficient target := by
@@ -3761,7 +3761,7 @@ private theorem IntegerBasis3.clearedNearestPlaneThirdCoefficient_eq
     IntegerBasis3.thirdOrthogonalCoordinate nearestIntegerCoefficient
   rw [← basis.determinant_eq_third_dot_cross]
 
-private theorem IntegerBasis3.clearedNearestPlaneSecondCoefficient_eq
+private lemma IntegerBasis3.clearedNearestPlaneSecondCoefficient_eq
     (basis : IntegerBasis3) (target : IntegerPoint3) :
     basis.clearedNearestPlaneSecondCoefficient target
         (basis.clearedNearestPlaneThirdCoefficient target) =
@@ -3777,7 +3777,7 @@ private theorem IntegerBasis3.clearedNearestPlaneSecondCoefficient_eq
   push_cast
   ring
 
-private theorem IntegerBasis3.clearedNearestPlaneFirstCoefficient_eq
+private lemma IntegerBasis3.clearedNearestPlaneFirstCoefficient_eq
     (basis : IntegerBasis3) (target : IntegerPoint3) :
     basis.clearedNearestPlaneFirstCoefficient target
         (basis.clearedNearestPlaneSecondCoefficient target
@@ -3857,7 +3857,7 @@ private def nearestPlaneExecution3 (basis : IntegerBasis3)
       scaledSecondFirst.events ++ scaledThirdFirst.events ++
       afterSecond.events ++ firstNumerator.events ++ firstCoefficient.events }
 
-private theorem nearestPlaneExecution3_value (basis : IntegerBasis3)
+private lemma nearestPlaneExecution3_value (basis : IntegerBasis3)
     (target : IntegerPoint3) :
     (nearestPlaneExecution3 basis target).value =
       basis.nearestPlaneCoefficientCenter target := by
@@ -3883,7 +3883,7 @@ def nearestPlaneArithmeticEnvelope3
     (basisBound targetBound : Nat) : Nat :=
   4096 * (targetBound + 1) * (basisBound + 1) ^ 8
 
-private theorem nearestPlaneMonomial_le (basisBound targetBound : Nat)
+private lemma nearestPlaneMonomial_le (basisBound targetBound : Nat)
     {coefficient exponent : Nat}
     (hcoefficient : coefficient ≤ 4096) (hexponent : exponent ≤ 8) :
     coefficient * (targetBound + 1) * (basisBound + 1) ^ exponent ≤
@@ -3892,7 +3892,7 @@ private theorem nearestPlaneMonomial_le (basisBound targetBound : Nat)
     (Nat.mul_le_mul hcoefficient (Nat.le_refl (targetBound + 1)))
     (pow_le_pow_right' (by omega) hexponent)
 
-private theorem nearestPlaneBasisMonomial_le (basisBound targetBound : Nat)
+private lemma nearestPlaneBasisMonomial_le (basisBound targetBound : Nat)
     {coefficient exponent : Nat}
     (hcoefficient : coefficient ≤ 4096) (hexponent : exponent ≤ 8) :
     coefficient * (basisBound + 1) ^ exponent ≤
@@ -3908,7 +3908,7 @@ private theorem nearestPlaneBasisMonomial_le (basisBound targetBound : Nat)
 set_option maxHeartbeats 1200000 in
 -- The 25 execution segments share many nonlinear envelope facts; keep the
 -- larger allowance local to this one composition proof.
-private theorem nearestPlaneExecution3_bounds
+private lemma nearestPlaneExecution3_bounds
     (basis : IntegerBasis3) (target : IntegerPoint3)
     (basisBound targetBound : Nat)
     (hfull : basis.FullRank)
@@ -4605,7 +4605,7 @@ structure NearestPlaneDivisionOperandWidthsLe
 
 /-- A common magnitude envelope yields the corresponding binary-width
 envelope for all nearest-plane division operands. -/
-theorem NearestPlaneDivisionOperandsLe.toWidths
+lemma NearestPlaneDivisionOperandsLe.toWidths
     {basis : IntegerBasis3} {target : IntegerPoint3} {bound width : Nat}
     (hoperands : NearestPlaneDivisionOperandsLe basis target bound)
     (hwidth : Nat.size bound ≤ width) :
@@ -4620,7 +4620,7 @@ theorem NearestPlaneDivisionOperandsLe.toWidths
 
 /-- The audited nearest-plane execution bounds every operand passed to its
 three literal rounded divisions by the common arithmetic envelope. -/
-theorem nearestPlaneDivisionOperandsLe_of_bounds
+lemma nearestPlaneDivisionOperandsLe_of_bounds
     (basis : IntegerBasis3) (target : IntegerPoint3)
     (basisBound targetBound : Nat)
     (hfull : basis.FullRank)
@@ -4733,7 +4733,7 @@ def nearestPlaneTrace3 (basis : IntegerBasis3) (target : IntegerPoint3) :
   .mk final.value final.events
 
 /-- The sealed center is the mathematical nearest-plane center. -/
-theorem nearestPlaneTrace3_center (basis : IntegerBasis3)
+lemma nearestPlaneTrace3_center (basis : IntegerBasis3)
     (target : IntegerPoint3) :
     (nearestPlaneTrace3 basis target).center =
       basis.nearestPlaneCoefficientCenter target :=
@@ -4752,7 +4752,7 @@ def NearestPlaneTrace3.maxOperandWidth {basis : IntegerBasis3}
 /-- The shared three-coordinate execution emits exactly 69 primitive
 arithmetic events. -/
 @[simp]
-theorem nearestPlaneTrace3_arithmetic_length (basis : IntegerBasis3)
+lemma nearestPlaneTrace3_arithmetic_length (basis : IntegerBasis3)
     (target : IntegerPoint3) :
     (nearestPlaneTrace3 basis target).arithmetic.length = 69 := by
   simp [nearestPlaneTrace3, nearestPlaneExecution3,
@@ -4760,7 +4760,7 @@ theorem nearestPlaneTrace3_arithmetic_length (basis : IntegerBasis3)
 
 /-- Every actual operand in the sealed nearest-plane execution has binary
 width controlled by the input norm envelopes. -/
-theorem nearestPlaneTrace3_maxOperandWidth_le
+lemma nearestPlaneTrace3_maxOperandWidth_le
     (basis : IntegerBasis3) (target : IntegerPoint3)
     (basisBound targetBound : Nat)
     (hfull : basis.FullRank)
@@ -4777,7 +4777,7 @@ theorem nearestPlaneTrace3_maxOperandWidth_le
 
 /-- The three center coefficients emitted by the same nearest-plane execution
 are bounded by its input-derived arithmetic envelope. -/
-theorem nearestPlaneTrace3_center_coordinates_le
+lemma nearestPlaneTrace3_center_coordinates_le
     (basis : IntegerBasis3) (target : IntegerPoint3)
     (basisBound targetBound : Nat)
     (hfull : basis.FullRank)
@@ -4800,7 +4800,7 @@ theorem nearestPlaneTrace3_center_coordinates_le
 
 /-- The exact 69-event nearest-plane trace has a quadratic schoolbook charge
 at the input-derived operand width. -/
-theorem nearestPlaneTrace3_schoolbookCharge_le
+lemma nearestPlaneTrace3_schoolbookCharge_le
     (basis : IntegerBasis3) (target : IntegerPoint3)
     (basisBound targetBound : Nat)
     (hfull : basis.FullRank)
@@ -4833,7 +4833,7 @@ theorem nearestPlaneTrace3_schoolbookCharge_le
 
 /-- The third orthogonal coordinate of a basis combination is its third
 integer coefficient. -/
-theorem IntegerBasis3.thirdOrthogonalCoordinate_linearCombination
+lemma IntegerBasis3.thirdOrthogonalCoordinate_linearCombination
     (basis : IntegerBasis3) (coefficients : IntegerPoint3)
     (hdet : basis.determinant ≠ 0) :
     basis.thirdOrthogonalCoordinate
@@ -4858,7 +4858,7 @@ theorem IntegerBasis3.thirdOrthogonalCoordinate_linearCombination
 
 /-- The second orthogonal coordinate of a basis combination is the second
 integer coefficient plus the third coefficient times `μ₃₂`. -/
-theorem IntegerBasis3.secondOrthogonalCoordinate_linearCombination
+lemma IntegerBasis3.secondOrthogonalCoordinate_linearCombination
     (basis : IntegerBasis3) (coefficients : IntegerPoint3)
     (harea : integerPointAreaSquared basis.first basis.second ≠ 0) :
     basis.secondOrthogonalCoordinate
@@ -4896,7 +4896,7 @@ theorem IntegerBasis3.secondOrthogonalCoordinate_linearCombination
 
 /-- The first orthogonal coordinate of a basis combination records the first
 coefficient and the two first-direction Gram–Schmidt couplings. -/
-theorem IntegerBasis3.firstOrthogonalCoordinate_linearCombination
+lemma IntegerBasis3.firstOrthogonalCoordinate_linearCombination
     (basis : IntegerBasis3) (coefficients : IntegerPoint3)
     (hnorm : integerPointSquaredNorm basis.first ≠ 0) :
     basis.firstOrthogonalCoordinate
@@ -4915,7 +4915,7 @@ theorem IntegerBasis3.firstOrthogonalCoordinate_linearCombination
   field_simp
 
 /-- Exact integer Cauchy–Schwarz inequality in dimension three. -/
-theorem integerPointDot_sq_le (left right : IntegerPoint3) :
+lemma integerPointDot_sq_le (left right : IntegerPoint3) :
     integerPointDot left right ^ 2 ≤
       (integerPointSquaredNorm left : Int) *
         (integerPointSquaredNorm right : Int) := by
@@ -4932,7 +4932,7 @@ def IntegerBasis3.secondOrthogonalVectorNumerator
 
 /-- Dotting against the cleared second direction gives the numerator used by
 the exact second orthogonal coordinate. -/
-theorem IntegerBasis3.integerPointDot_secondOrthogonalVectorNumerator
+lemma IntegerBasis3.integerPointDot_secondOrthogonalVectorNumerator
     (basis : IntegerBasis3) (point : IntegerPoint3) :
     integerPointDot point basis.secondOrthogonalVectorNumerator =
       (integerPointSquaredNorm basis.first : Int) *
@@ -4949,7 +4949,7 @@ theorem IntegerBasis3.integerPointDot_secondOrthogonalVectorNumerator
   ring
 
 /-- Squared norm of the cleared second orthogonal direction. -/
-theorem IntegerBasis3.secondOrthogonalVectorNumerator_squaredNorm
+lemma IntegerBasis3.secondOrthogonalVectorNumerator_squaredNorm
     (basis : IntegerBasis3) :
     (integerPointSquaredNorm basis.secondOrthogonalVectorNumerator : Int) =
       (integerPointSquaredNorm basis.first : Int) *
@@ -4994,7 +4994,7 @@ def IntegerBasis3.thirdOrthogonalSquaredNorm
 
 /-- Integer point subtraction computes the same squared norm as the public
 squared-distance function. -/
-theorem integerPointSquaredNorm_sub (left right : IntegerPoint3) :
+lemma integerPointSquaredNorm_sub (left right : IntegerPoint3) :
     integerPointSquaredNorm (left.sub right) =
       squaredDistance left.toVector right.toVector := by
   rcases left with ⟨l₁, l₂, l₃⟩
@@ -5003,7 +5003,7 @@ theorem integerPointSquaredNorm_sub (left right : IntegerPoint3) :
     squaredDistance_point3]
 
 /-- First orthogonal coordinates respect point subtraction. -/
-theorem IntegerBasis3.firstOrthogonalCoordinate_sub
+lemma IntegerBasis3.firstOrthogonalCoordinate_sub
     (basis : IntegerBasis3) (left right : IntegerPoint3) :
     basis.firstOrthogonalCoordinate left -
         basis.firstOrthogonalCoordinate right =
@@ -5017,7 +5017,7 @@ theorem IntegerBasis3.firstOrthogonalCoordinate_sub
   ring
 
 /-- Second orthogonal coordinates respect point subtraction. -/
-theorem IntegerBasis3.secondOrthogonalCoordinate_sub
+lemma IntegerBasis3.secondOrthogonalCoordinate_sub
     (basis : IntegerBasis3) (left right : IntegerPoint3) :
     basis.secondOrthogonalCoordinate left -
         basis.secondOrthogonalCoordinate right =
@@ -5033,7 +5033,7 @@ theorem IntegerBasis3.secondOrthogonalCoordinate_sub
   ring
 
 /-- Third orthogonal coordinates respect point subtraction. -/
-theorem IntegerBasis3.thirdOrthogonalCoordinate_sub
+lemma IntegerBasis3.thirdOrthogonalCoordinate_sub
     (basis : IntegerBasis3) (left right : IntegerPoint3) :
     basis.thirdOrthogonalCoordinate left -
         basis.thirdOrthogonalCoordinate right =
@@ -5051,7 +5051,7 @@ theorem IntegerBasis3.thirdOrthogonalCoordinate_sub
 
 /-- Squared error in the first orthogonal coordinate, weighted by the first
 Gram–Schmidt squared length, is bounded by the full squared distance. -/
-theorem IntegerBasis3.firstOrthogonalProjection_sq_le_distance
+lemma IntegerBasis3.firstOrthogonalProjection_sq_le_distance
     (basis : IntegerBasis3) (hfull : basis.FullRank)
     (left right : IntegerPoint3) :
     (basis.firstOrthogonalCoordinate left -
@@ -5087,7 +5087,7 @@ theorem IntegerBasis3.firstOrthogonalProjection_sq_le_distance
 
 /-- Squared error in the second orthogonal coordinate, weighted by the second
 Gram–Schmidt squared length, is bounded by the full squared distance. -/
-theorem IntegerBasis3.secondOrthogonalProjection_sq_le_distance
+lemma IntegerBasis3.secondOrthogonalProjection_sq_le_distance
     (basis : IntegerBasis3) (hfull : basis.FullRank)
     (left right : IntegerPoint3) :
     (basis.secondOrthogonalCoordinate left -
@@ -5152,7 +5152,7 @@ theorem IntegerBasis3.secondOrthogonalProjection_sq_le_distance
 
 /-- Squared error in the third orthogonal coordinate, weighted by the third
 Gram–Schmidt squared length, is bounded by the full squared distance. -/
-theorem IntegerBasis3.thirdOrthogonalProjection_sq_le_distance
+lemma IntegerBasis3.thirdOrthogonalProjection_sq_le_distance
     (basis : IntegerBasis3) (hfull : basis.FullRank)
     (left right : IntegerPoint3) :
     (basis.thirdOrthogonalCoordinate left -
@@ -5201,7 +5201,7 @@ theorem IntegerBasis3.thirdOrthogonalProjection_sq_le_distance
 /-- Cleared three-dimensional Gram determinant identity.  It decomposes the
 first/third squared area into the second-direction projection and the third
 orthogonal determinant contribution. -/
-theorem IntegerBasis3.gramDeterminantIdentity (basis : IntegerBasis3) :
+lemma IntegerBasis3.gramDeterminantIdentity (basis : IntegerBasis3) :
     (integerPointAreaSquared basis.first basis.second : Int) *
         (integerPointAreaSquared basis.first basis.third : Int) =
       basis.secondReductionNumerator ^ 2 +
@@ -5218,7 +5218,7 @@ theorem IntegerBasis3.gramDeterminantIdentity (basis : IntegerBasis3) :
 
 /-- The first Lovász test and first size-reduction bound force the second
 Gram–Schmidt squared length to be at least one quarter of the first. -/
-theorem IntegerBasis3.IsReduced.secondOrthogonalSquaredNorm_lower
+lemma IntegerBasis3.IsReduced.secondOrthogonalSquaredNorm_lower
     {basis : IntegerBasis3} (hreduced : basis.IsReduced)
     (hfull : basis.FullRank) :
     basis.firstOrthogonalSquaredNorm / 4 ≤
@@ -5268,7 +5268,7 @@ theorem IntegerBasis3.IsReduced.secondOrthogonalSquaredNorm_lower
 
 /-- The second Lovász test and second size-reduction bound force the third
 Gram–Schmidt squared length to be at least one quarter of the second. -/
-theorem IntegerBasis3.IsReduced.thirdOrthogonalSquaredNorm_lower
+lemma IntegerBasis3.IsReduced.thirdOrthogonalSquaredNorm_lower
     {basis : IntegerBasis3} (hreduced : basis.IsReduced)
     (hfull : basis.FullRank) :
     basis.secondOrthogonalSquaredNorm / 4 ≤
@@ -5352,7 +5352,7 @@ theorem IntegerBasis3.IsReduced.thirdOrthogonalSquaredNorm_lower
 
 /-- Consequently, the third Gram–Schmidt direction is at least one sixteenth
 of the first squared length. -/
-theorem IntegerBasis3.IsReduced.thirdOrthogonalSquaredNorm_lower_first
+lemma IntegerBasis3.IsReduced.thirdOrthogonalSquaredNorm_lower_first
     {basis : IntegerBasis3} (hreduced : basis.IsReduced)
     (hfull : basis.FullRank) :
     basis.firstOrthogonalSquaredNorm / 16 ≤
@@ -5363,7 +5363,7 @@ theorem IntegerBasis3.IsReduced.thirdOrthogonalSquaredNorm_lower_first
 
 /-- An integral value whose rational absolute value is below the successor of
 `bound` has natural absolute value at most `bound`. -/
-private theorem intNatAbs_le_of_ratAbs_lt_succ
+private lemma intNatAbs_le_of_ratAbs_lt_succ
     (value : Int) (bound : Nat)
     (hvalue : |(value : Rat)| < bound + 1) :
     value.natAbs ≤ bound := by
@@ -5376,7 +5376,7 @@ private theorem intNatAbs_le_of_ratAbs_lt_succ
 
 /-- A point whose third orthogonal projection is within `34` of the target
 has third integer coefficient within `35` of the nearest-plane center. -/
-theorem IntegerBasis3.nearestPlaneThirdOffset_abs_lt
+lemma IntegerBasis3.nearestPlaneThirdOffset_abs_lt
     (basis : IntegerBasis3) (hfull : basis.FullRank)
     (target : IntegerPoint3) (coefficients : IntegerPoint3)
     (hprojection :
@@ -5412,7 +5412,7 @@ theorem IntegerBasis3.nearestPlaneThirdOffset_abs_lt
 /-- Under exact size reduction, a point whose second and third orthogonal
 projections lie in the corrected source bounds has second integer coefficient
 within `35` of the nearest-plane center. -/
-theorem IntegerBasis3.nearestPlaneSecondOffset_abs_lt
+lemma IntegerBasis3.nearestPlaneSecondOffset_abs_lt
     (basis : IntegerBasis3) (hfull : basis.FullRank)
     (hreduced : basis.IsReduced) (target : IntegerPoint3)
     (coefficients : IntegerPoint3)
@@ -5511,7 +5511,7 @@ theorem IntegerBasis3.nearestPlaneSecondOffset_abs_lt
 
 /-- Under exact size reduction, corrected source projection errors put the
 first integer coefficient within `43` of the nearest-plane center. -/
-theorem IntegerBasis3.nearestPlaneFirstOffset_abs_lt
+lemma IntegerBasis3.nearestPlaneFirstOffset_abs_lt
     (basis : IntegerBasis3) (hfull : basis.FullRank)
     (hreduced : basis.IsReduced) (target : IntegerPoint3)
     (coefficients : IntegerPoint3)
@@ -5698,12 +5698,12 @@ def centeredIntegerList (radius : Nat) : List Int :=
     (index.val : Int) - (radius : Int)
 
 @[simp]
-theorem length_centeredIntegerList (radius : Nat) :
+lemma length_centeredIntegerList (radius : Nat) :
     (centeredIntegerList radius).length = 2 * radius + 1 := by
   simp [centeredIntegerList]
 
 /-- The canonical centered interval contains no duplicate offsets. -/
-theorem nodup_centeredIntegerList (radius : Nat) :
+lemma nodup_centeredIntegerList (radius : Nat) :
     (centeredIntegerList radius).Nodup := by
   rw [centeredIntegerList, List.nodup_ofFn]
   intro first second heq
@@ -5714,7 +5714,7 @@ theorem nodup_centeredIntegerList (radius : Nat) :
   exact_mod_cast hcast
 
 @[simp]
-theorem mem_centeredIntegerList {radius : Nat} {offset : Int} :
+lemma mem_centeredIntegerList {radius : Nat} {offset : Int} :
     offset ∈ centeredIntegerList radius ↔
       -(radius : Int) ≤ offset ∧ offset ≤ (radius : Int) := by
   rw [centeredIntegerList, List.mem_ofFn]
@@ -5738,13 +5738,13 @@ def centeredIntegerInterval (radius : Nat) : Finset Int :=
   Finset.Icc (-(radius : Int)) (radius : Int)
 
 @[simp]
-theorem mem_centeredIntegerInterval {radius : Nat} {offset : Int} :
+lemma mem_centeredIntegerInterval {radius : Nat} {offset : Int} :
     offset ∈ centeredIntegerInterval radius ↔
       -(radius : Int) ≤ offset ∧ offset ≤ (radius : Int) := by
   simp [centeredIntegerInterval]
 
 /-- Exact work count of a centered integer interval. -/
-theorem card_centeredIntegerInterval (radius : Nat) :
+lemma card_centeredIntegerInterval (radius : Nat) :
     (centeredIntegerInterval radius).card = 2 * radius + 1 := by
   rw [centeredIntegerInterval, Int.card_Icc]
   norm_num
@@ -5766,7 +5766,7 @@ def coefficientOffsetBox3 (bounds : CoefficientBounds3) :
       centeredIntegerInterval bounds.2.2
 
 @[simp]
-theorem mem_coefficientOffsetBox3
+lemma mem_coefficientOffsetBox3
     {bounds : CoefficientBounds3} {offset : IntegerPoint3} :
     offset ∈ coefficientOffsetBox3 bounds ↔
       -(bounds.1 : Int) ≤ offset.1 ∧
@@ -5779,7 +5779,7 @@ theorem mem_coefficientOffsetBox3
 
 /-- Direct coefficient-error bounds imply membership in the fixed executable
 nearest-plane offset box. -/
-theorem IntegerBasis3.coefficientOffset_mem_nearestPlaneBox_of_abs_lt
+lemma IntegerBasis3.coefficientOffset_mem_nearestPlaneBox_of_abs_lt
     (basis : IntegerBasis3) (target coefficients : IntegerPoint3)
     (hfirst :
       |((coefficients.1 -
@@ -5848,7 +5848,7 @@ def coefficientOffsetList3 (bounds : CoefficientBounds3) :
       (entry.1.1, entry.1.2, entry.2)
 
 @[simp]
-theorem mem_coefficientOffsetList3
+lemma mem_coefficientOffsetList3
     {bounds : CoefficientBounds3} {offset : IntegerPoint3} :
     offset ∈ coefficientOffsetList3 bounds ↔
       offset ∈ coefficientOffsetBox3 bounds := by
@@ -5856,7 +5856,7 @@ theorem mem_coefficientOffsetList3
   simp [coefficientOffsetList3, mem_coefficientOffsetBox3, and_assoc]
 
 /-- Every coefficient tuple occurs exactly once in the canonical scan. -/
-theorem nodup_coefficientOffsetList3 (bounds : CoefficientBounds3) :
+lemma nodup_coefficientOffsetList3 (bounds : CoefficientBounds3) :
     (coefficientOffsetList3 bounds).Nodup := by
   have hfirst := nodup_centeredIntegerList bounds.1
   have hsecond := nodup_centeredIntegerList bounds.2.1
@@ -5872,7 +5872,7 @@ theorem nodup_coefficientOffsetList3 (bounds : CoefficientBounds3) :
 
 /-- The canonical list has one unique scan slot for every coefficient tuple
 and the exact cardinality of the three-dimensional box. -/
-theorem length_coefficientOffsetList3 (bounds : CoefficientBounds3) :
+lemma length_coefficientOffsetList3 (bounds : CoefficientBounds3) :
   (coefficientOffsetList3 bounds).length =
       coefficientOffsetBoxWork3 bounds := by
   simp [coefficientOffsetList3, coefficientOffsetBoxWork3, List.product,
@@ -5896,7 +5896,7 @@ def mapCoefficientOffsetVector3 {α : Type} (bounds : CoefficientBounds3)
 /-- Forgetting the mapped vector's length index recovers the canonical list
 map definitionally. -/
 @[simp]
-theorem toList_mapCoefficientOffsetVector3 (bounds : CoefficientBounds3)
+lemma toList_mapCoefficientOffsetVector3 (bounds : CoefficientBounds3)
     {α : Type} (f : IntegerPoint3 → α) :
     (mapCoefficientOffsetVector3 bounds f).toList =
       (coefficientOffsetList3 bounds).map f :=
@@ -5904,13 +5904,13 @@ theorem toList_mapCoefficientOffsetVector3 (bounds : CoefficientBounds3)
 
 /-- Forgetting the length index recovers the canonical offset list. -/
 @[simp]
-theorem toList_coefficientOffsetVector3 (bounds : CoefficientBounds3) :
+lemma toList_coefficientOffsetVector3 (bounds : CoefficientBounds3) :
     (coefficientOffsetVector3 bounds).toList = coefficientOffsetList3 bounds :=
   rfl
 
 /-- Exact number of coefficient tuples inspected by the fixed
 three-dimensional nearest-plane window. -/
-theorem nearestPlaneCoefficientBounds3_work :
+lemma nearestPlaneCoefficientBounds3_work :
     coefficientOffsetBoxWork3 nearestPlaneCoefficientBounds3 = 85 * 69 ^ 2 := by
   norm_num [coefficientOffsetBoxWork3, nearestPlaneCoefficientBounds3]
 
@@ -5928,7 +5928,7 @@ def enumerateNearbyPoints3 (basis : IntegerBasis3)
 
 /-- Exact extensional contract of the executable coefficient-space nearby
 point enumeration. -/
-theorem mem_enumerateNearbyPoints3
+lemma mem_enumerateNearbyPoints3
     {basis : IntegerBasis3} {target point : IntegerPoint3}
     {radiusSquared : Nat} {coefficientCenter : IntegerPoint3}
     {bounds : CoefficientBounds3} :
@@ -5944,7 +5944,7 @@ theorem mem_enumerateNearbyPoints3
 
 /-- The enumeration work is bounded by the exact size of its independent
 coefficient-offset box. -/
-theorem enumerateNearbyPoints3_work_le
+lemma enumerateNearbyPoints3_work_le
     (basis : IntegerBasis3) (target : IntegerPoint3)
     (radiusSquared : Nat) (coefficientCenter : IntegerPoint3)
     (bounds : CoefficientBounds3) :

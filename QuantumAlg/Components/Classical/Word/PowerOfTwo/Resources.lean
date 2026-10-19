@@ -23,7 +23,7 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent ordered formula for the requested native one-bit left shifts. -/
@@ -40,7 +40,7 @@ def powerTrace (width count : Nat) : List (Resource.Event model) :=
     shiftTrace (model := model) width count
 
 /-- Every actual repeated-shift path emits the exact independent native formula. -/
-theorem shiftInto_events (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_events (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count output).Path) :
     (shiftInto (model := model) count output).eventTrace path =
       shiftTrace (model := model) width count := by
@@ -51,7 +51,7 @@ theorem shiftInto_events (count : Nat) (output : CWriteRef ctx (.unsignedWord wi
   simp [shiftTrace, shiftOp, ClassicalOp.label]
 
 /-- Every actual constant-loading path emits its complete independent native formula. -/
-theorem into_events (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_events (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) :
     (into (model := model) count output).eventTrace path =
       powerTrace (model := model) width count := by
@@ -63,14 +63,14 @@ theorem into_events (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
   rfl
 
 /-- Actual constant-loading multiplicities equal the complete independent native formula. -/
-theorem into_resourcePool (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_resourcePool (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) :
     (into (model := model) count output).resourcePool path =
       ResourcePool.ofList (powerTrace (model := model) width count) :=
   congrArg ResourcePool.ofList (into_events count output path)
 
 /-- The actual loader uses exactly one operation per shift plus both initialization operations. -/
-theorem into_eventCount (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_eventCount (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) :
     ((into (model := model) count output).eventTrace path).length = count + 2 := by
   rw [into_events]
@@ -79,14 +79,14 @@ theorem into_eventCount (count : Nat) (output : CWriteRef ctx (.unsignedWord wid
   omega
 
 /-- Actual native left shifts have exactly the requested serial unit-duration depth. -/
-theorem shiftInto_depth (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_depth (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count output).Path) :
     (shiftInto (model := model) count output).depth (fun _ => 1) path = count := by
   change 0 + (∑ _index : Fin count, 1) = count
   simp
 
 /-- Initialization precedes all actual native shifts in the exact dependency depth. -/
-theorem into_depth (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_depth (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) :
     (into (model := model) count output).depth (fun _ => 1) path = count + 2 := by
   change (1 + 1) + (shiftInto (model := model) count output).depth (fun _ => 1) path.2 = _
@@ -94,7 +94,7 @@ theorem into_depth (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
   omega
 
 /-- Every actual repeated-shift path retains the complete supplied live context. -/
-theorem shiftInto_visited (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_visited (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (shiftInto (model := model) count output).visitedContexts path) :
     visited = ctx := by
@@ -103,7 +103,7 @@ theorem shiftInto_visited (count : Nat) (output : CWriteRef ctx (.unsignedWord w
   exact actual.elim id And.right
 
 /-- Initialization and every native shift use only the complete original context. -/
-theorem into_visited (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_visited (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (into (model := model) count output).visitedContexts path) :
     visited = ctx := by
@@ -113,33 +113,33 @@ theorem into_visited (count : Nat) (output : CWriteRef ctx (.unsignedWord width)
   exact present.elim id (shiftInto_visited count output path.2 visited)
 
 /-- Every actual native shift restores borrowed storage jointly with all external references. -/
-theorem shiftInto_borrowedRestored (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_borrowedRestored (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (shiftInto (model := model) count output).BorrowedRestored Reference state
-      ((shiftInto (model := model) count output).execute Reference state) :=
-  Circuit.borrowedRestored_iterate
+      ((shiftInto (model := model) count output).execute environment Reference state) :=
+  Circuit.borrowedRestored_iterate environment
     (BitWord.instruction (execution := model) (shiftOp output)) Reference
-    (Circuit.borrowedRestored_classical (model := model)
+    (Circuit.borrowedRestored_classical (environment := environment) (model := model)
       (BitWord.selectedApplication (execution := model) (shiftOp output))) count state
 
 /-- The complete actual constant loader restores all borrowed-reference correlations jointly. -/
-theorem into_borrowedRestored (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_borrowedRestored (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) count output).BorrowedRestored Reference state
-      ((into (model := model) count output).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((into (model := model) count output).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
     (seedInto (model := model) output) (shiftInto (model := model) count output)
-  · exact Circuit.borrowedRestored_seq
+  · exact Circuit.borrowedRestored_seq (environment := environment)
       (BitWord.instruction (execution := model) (clearOp output))
       (BitWord.instruction (execution := model) (incrementOp output)) state
-      (Circuit.borrowedRestored_classical (model := model) _ _)
-      (Circuit.borrowedRestored_classical (model := model) _ _)
+      (Circuit.borrowedRestored_classical (environment := environment) (model := model) _ _)
+      (Circuit.borrowedRestored_classical (environment := environment) (model := model) _ _)
   · exact shiftInto_borrowedRestored count output Reference _
 
 /-- All original resident entries remain counted throughout the actual constant loader. -/
-theorem into_resident_le (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_resident_le (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) :
     (into (model := model) count output).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -147,7 +147,7 @@ theorem into_resident_le (count : Nat) (output : CWriteRef ctx (.unsignedWord wi
   rw [into_visited count output path visited present]
 
 /-- All original auxiliary roles remain counted throughout the actual constant loader. -/
-theorem into_auxiliary_le (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_auxiliary_le (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count output).Path) :
     (into (model := model) count output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

@@ -29,6 +29,8 @@ namespace QuantumAlg.MeasuredUncompute.ClassicalCorrection
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 open EncodedBit.Word
 
@@ -58,20 +60,20 @@ def code (word : EncodedBit.Word encoding width)
   .branch result (fun value => .unitary (member word sameWires value))
 
 /-- Each original store block chooses its stored correction, with the full reference. -/
-theorem measuredCorrection_actual_reference (word : EncodedBit.Word encoding width)
+lemma measuredCorrection_actual_reference (word : EncodedBit.Word encoding width)
     (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
       ctx.quantumLayout.wires)
     (result : CInputRef ctx (.bits width))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((code word sameWires result).execute Reference state).quantumMarginal =
+    ((code word sameWires result).execute environment Reference state).quantumMarginal =
       (state.applyUnitary (fun entry => UnitaryOperator.prodTensor
-        (member word sameWires (entry.1.read result)).matrix
+        ((member word sameWires (entry.1.read result)).matrix environment.quantum)
         (1 : UnitaryOperator Reference))).quantumMarginal :=
-  Circuit.selectedUnitary_quantumMarginal result (member word sameWires) state
+  Circuit.selectedUnitary_quantumMarginal result (member word sameWires) environment state
 
 /-- The actual selected trace contains only the executed native Pauli-Z occurrences. -/
-theorem measuredCorrection_actual_trace (word : EncodedBit.Word encoding width)
+lemma measuredCorrection_actual_trace (word : EncodedBit.Word encoding width)
     (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
       ctx.quantumLayout.wires)
     (result : CInputRef ctx (.bits width)) (path : (code word sameWires result).Path) :
@@ -83,7 +85,7 @@ theorem measuredCorrection_actual_trace (word : EncodedBit.Word encoding width)
     PhaseCorrection.phaseCorrection_sequence_trace]
 
 /-- The same actual path's unit depth equals its selected correction count. -/
-theorem measuredCorrection_actual_depth (word : EncodedBit.Word encoding width)
+lemma measuredCorrection_actual_depth (word : EncodedBit.Word encoding width)
     (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
       ctx.quantumLayout.wires)
     (result : CInputRef ctx (.bits width)) (path : (code word sameWires result).Path) :
@@ -97,7 +99,7 @@ theorem measuredCorrection_actual_depth (word : EncodedBit.Word encoding width)
     PhaseCorrection.phaseCorrection_sequence_depth]
 
 /-- Correction executes within the same complete context, with no allocation or release. -/
-theorem measuredCorrection_actual_context (word : EncodedBit.Word encoding width)
+lemma measuredCorrection_actual_context (word : EncodedBit.Word encoding width)
     (sameWires : (QubitLayout.canonical encoding.width).toQuantum.wires =
       ctx.quantumLayout.wires)
     (result : CInputRef ctx (.bits width)) (path : (code word sameWires result).Path) :

@@ -18,10 +18,13 @@ same path's measured peak, including empty loops and lexical workspaces.
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
 
 /-- Every actual path visits its complete original live context. -/
-theorem input_mem_visitedContexts (code : Circuit model pre post) (path : code.Path) :
+lemma input_mem_visitedContexts (code : Circuit model pre post allowAllocation) (path : code.Path)
+    :
     pre ∈ code.visitedContexts path := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ | retain | prepareZero =>
@@ -31,10 +34,11 @@ theorem input_mem_visitedContexts (code : Circuit model pre post) (path : code.P
   | branch input body bodyIH =>
       exact bodyIH path.1 path.2
   | iterate => exact List.mem_cons_self
-  | workspace => exact List.mem_cons_self
+  | workspace | embed | parallelClassical | parallelQuantum => exact List.mem_cons_self
 
 /-- Every actual path visits its complete final live context. -/
-theorem output_mem_visitedContexts (code : Circuit model pre post) (path : code.Path) :
+lemma output_mem_visitedContexts (code : Circuit model pre post allowAllocation) (path :
+    code.Path) :
     post ∈ code.visitedContexts path := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ =>
@@ -45,25 +49,29 @@ theorem output_mem_visitedContexts (code : Circuit model pre post) (path : code.
   | branch input body bodyIH =>
       exact bodyIH path.1 path.2
   | iterate => exact List.mem_cons_self
-  | workspace => exact List.mem_cons_self
+  | workspace | embed | parallelClassical | parallelQuantum => exact List.mem_cons_self
 
 /-- The real supplied input storage is bounded by the same actual resident peak. -/
-theorem input_residentSpace_le_peak (code : Circuit model pre post) (path : code.Path) :
+lemma input_residentSpace_le_peak (code : Circuit model pre post allowAllocation) (path :
+    code.Path) :
     pre.residentSpace ≤ code.peakResidentSpace path :=
   code.residentSpace_le_peak_of_visited path pre (code.input_mem_visitedContexts path)
 
 /-- The real supplied input roles are bounded by the same actual auxiliary peak. -/
-theorem input_auxiliarySpace_le_peak (code : Circuit model pre post) (path : code.Path) :
+lemma input_auxiliarySpace_le_peak (code : Circuit model pre post allowAllocation) (path :
+    code.Path) :
     pre.auxiliarySpace ≤ code.peakAuxiliarySpace path :=
   code.auxiliarySpace_le_peak_of_visited path pre (code.input_mem_visitedContexts path)
 
 /-- The real retained output storage contributes to the same actual resident peak. -/
-theorem output_residentSpace_le_peak (code : Circuit model pre post) (path : code.Path) :
+lemma output_residentSpace_le_peak (code : Circuit model pre post allowAllocation) (path :
+    code.Path) :
     post.residentSpace ≤ code.peakResidentSpace path :=
   code.residentSpace_le_peak_of_visited path post (code.output_mem_visitedContexts path)
 
 /-- The real retained output roles contribute to the same actual auxiliary peak. -/
-theorem output_auxiliarySpace_le_peak (code : Circuit model pre post) (path : code.Path) :
+lemma output_auxiliarySpace_le_peak (code : Circuit model pre post allowAllocation) (path :
+    code.Path) :
     post.auxiliarySpace ≤ code.peakAuxiliarySpace path :=
   code.auxiliarySpace_le_peak_of_visited path post (code.output_mem_visitedContexts path)
 

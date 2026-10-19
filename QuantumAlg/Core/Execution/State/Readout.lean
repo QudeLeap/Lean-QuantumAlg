@@ -29,7 +29,7 @@ noncomputable section
 namespace ExecutionState
 
 /-- Reindexing classical labels preserves the entire external-reference marginal. -/
-theorem mapClassical_referenceMarginal {C D : Type} [Fintype C] [Fintype D] [DecidableEq D]
+lemma mapClassical_referenceMarginal {C D : Type} [Fintype C] [Fintype D] [DecidableEq D]
     {R Reference : Register} (state : ExecutionState C (Register.prod R Reference))
     (read : C → D) : (state.mapClassical read).referenceMarginal = state.referenceMarginal :=
   congrArg (fun density : DensityOperator (Register.prod R Reference) =>
@@ -42,7 +42,7 @@ end ExecutionState
 namespace Execution.BasisSeeded
 
 /-- A fixed physical seed and the full weighted reference law determine every output block. -/
-theorem readout_entry_of_reference {kind : ProblemKind}
+lemma readout_entry_of_reference {kind : ProblemKind}
     {source ctx : RuntimeCtx kind} {Reference : Register}
     {SourceHistory History Outcome : Type}
     [Fintype SourceHistory] [Fintype History] [Fintype Outcome] [DecidableEq Outcome]
@@ -81,13 +81,15 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- An exact basis-reference entry law gives the full actual stored-output mixed promise. -/
-theorem basisReference_readout_of_entries {model : ExecutionModel}
+lemma basisReference_readout_of_entries {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (program : AlgorithmRun model pre post shape) {Reference : Register}
+    (program : AlgorithmRun model pre post shape) (environment : model.Environment)
+    {Reference : Register}
     (original : OracleInput model.classicalOracles pre Reference)
     (seed : post.register.Index) (value : shape.Value) (probability : ℝ)
     (entries : ∀ left right leftRef rightRef,
-      (((program.execute Reference original.state).mapClassical program.result).block value).matrix
+      (((program.execute environment Reference original.state).mapClassical
+        program.result).block value).matrix
           (left, leftRef) (right, rightRef) =
         if left = seed ∧ right = seed then
           (probability : ℂ) * original.state.referenceMarginal.matrix leftRef rightRef else 0) :
@@ -97,7 +99,8 @@ theorem basisReference_readout_of_entries {model : ExecutionModel}
         original.caller.state.referenceMarginal
         ((ExecutionState.referenceMarginal_mass original.caller.state).trans
           original.caller.normalized))).Holds
-      (((program.finalState Reference original.state).mapClassical program.output.eval).block
+      (((program.finalState environment Reference original.state).mapClassical
+        program.output.eval).block
         value) := by
   have sameReference : original.caller.state.referenceMarginal =
       original.state.referenceMarginal := by
@@ -107,21 +110,23 @@ theorem basisReference_readout_of_entries {model : ExecutionModel}
     original.caller.state.referenceMarginal
     ((ExecutionState.referenceMarginal_mass original.caller.state).trans
       original.caller.normalized)
-    (((program.execute Reference original.state).mapClassical program.result).block value)
+    (((program.execute environment Reference original.state).mapClassical
+      program.result).block value)
     probability (by simpa only [sameReference] using entries)
   have readout := congrArg (fun final => final.block value)
-    (finalState_readout program Reference original.state)
+    (finalState_readout program environment Reference original.state)
   exact readout.symm ▸ actual
 
 /-- A history-polymorphic circuit entry law transports to its complete actual run readout. -/
-theorem basisReference_readout_of_executionEntries {model : ExecutionModel}
+lemma basisReference_readout_of_executionEntries {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (program : AlgorithmRun model pre post shape) (seed : post.register.Index)
+    (program : AlgorithmRun model pre post shape) (environment : model.Environment)
+    (seed : post.register.Index)
     (distribution : PMF shape.Value)
     (entries : ∀ {Reference : Register} {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History)),
       state.IsNormalized → ∀ value left right leftRef rightRef,
-      (((program.code.execute Reference state).mapClassical
+      (((program.code.execute environment Reference state).mapClassical
           (fun entry => program.output.eval entry.1)).block value).matrix
           (left, leftRef) (right, rightRef) =
         if left = seed ∧ right = seed then
@@ -135,13 +140,15 @@ theorem basisReference_readout_of_executionEntries {model : ExecutionModel}
         original.caller.state.referenceMarginal
         ((ExecutionState.referenceMarginal_mass original.caller.state).trans
           original.caller.normalized))).Holds
-      (((program.finalState Reference original.state).mapClassical program.output.eval).block
+      (((program.finalState environment Reference original.state).mapClassical
+        program.output.eval).block
         value) := by
   let entered : State pre Reference (model.HiddenState × Store pre) :=
     original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
   have normalized := original.state.mapClassical_normalized original.normalized
     (fun entry => (entry.1, (entry.2, entry.1)))
-  apply basisReference_readout_of_entries program original seed value (distribution value).toReal
+  apply basisReference_readout_of_entries program environment original seed value
+    (distribution value).toReal
   intro left right leftRef rightRef
   have actual := entries entered normalized value left right leftRef rightRef
   exact actual.trans (congrArg (fun reference : DensityOperator Reference =>

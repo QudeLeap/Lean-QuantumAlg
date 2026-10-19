@@ -25,7 +25,7 @@ open Execution
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem read_cell {source destination observed : CShape}
+private lemma read_cell {source destination observed : CShape}
     (store : Store ctx) (op : ClassicalOp source destination ctx ctx)
     (cell : CWriteRef ctx observed) (different : op.outputRef.key ≠ cell.key) :
     (store.applyOp op).read (.storage cell.toCStorageRef) =
@@ -36,7 +36,7 @@ private theorem read_cell {source destination observed : CShape}
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The actual final root is exactly the source refinement whenever its midpoint fits. -/
-theorem nativeSqrt_round_root
+lemma nativeSqrt_round_root
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (store : Store ctx)
     (midpointFits : (store.read (.storage refs.root.toCStorageRef)).toNat +
@@ -98,7 +98,7 @@ theorem nativeSqrt_round_root
   simp only [decide_eq_true_eq]
 
 /-- The same actual selected branch preserves and then halves the original increment. -/
-theorem nativeSqrt_round_half
+lemma nativeSqrt_round_half
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (store : Store ctx) :
     ((roundStep (model := model) input refs store).1.read (.storage
@@ -126,7 +126,7 @@ theorem nativeSqrt_round_half
       (halfSelected.trans halfCompared))
 
 /-- Every actual round preserves the complete widened original input. -/
-theorem nativeSqrt_round_input
+lemma nativeSqrt_round_input
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (store : Store ctx) :
     (roundStep (model := model) input refs store).1.read input = store.read input :=

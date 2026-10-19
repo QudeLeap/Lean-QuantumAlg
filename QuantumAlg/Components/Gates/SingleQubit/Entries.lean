@@ -27,11 +27,11 @@ namespace QuantumAlg.Gate
 noncomputable section
 
 /-- Every native one-qubit entry retains the exact selected operator and full complement. -/
-public theorem singleQubitAt_matrix_entry {count : Nat} (ambient : QuantumLayout count)
+public lemma singleQubitAt_matrix_entry {count : Nat} (ambient : QuantumLayout count)
     (oracles : OracleModel) (operator : UnitaryOperator (Qubits 1))
     (target : Fin count) (qubit : (ambient.wire target).dimension = 2)
-    (row column : ambient.Basis) :
-    (singleQubitAt ambient oracles operator target qubit).matrix row column =
+    (row column : ambient.Basis) (environment : oracles.Interpretation) :
+    ((singleQubitAt ambient oracles operator target qubit).matrix environment) row column =
       operator
         (Fin.cast (congrArg (fun size : ℕ+ => (size : Nat)) qubit) (row target))
         (Fin.cast (congrArg (fun size : ℕ+ => (size : Nat)) qubit) (column target)) *

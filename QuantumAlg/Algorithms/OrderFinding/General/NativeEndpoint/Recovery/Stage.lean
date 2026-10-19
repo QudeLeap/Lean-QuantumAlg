@@ -29,19 +29,20 @@ open QuantumAlg.Execution
 open ClassicalRoutines.OrderRecovery.Native
 
 /-- The actual retained recovery stage maps each complete weighted block. -/
-theorem recoveryStage_execute {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) (Reference : Register)
+lemma recoveryStage_execute {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat)
+    (environment : (Sampling.Native.model t width).Environment) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (SourceNativeSampling.post t width) Reference
-      ((Sampling.Native.Framed.model access).HiddenState × History)) :
-    (recoveryStage hinput access).execute Reference state =
+      ((Sampling.Native.Framed.model t width).HiddenState × History)) :
+    (recoveryStage spec t).execute environment Reference state =
       state.mapClassical (fun entry =>
-        ((recoveryStep hinput access entry.1).1,
-          (entry.2.1, (entry.2.2, (recoveryStep hinput access entry.1).2)))) := by
+        ((recoveryStep spec t entry.1).1,
+          (entry.2.1, (entry.2.2, (recoveryStep spec t entry.1).2)))) := by
   simp only [recoveryStage, Circuit.execute_seq, recoveryCode]
-  rw [nativeRecovery_into_execute (model := Sampling.Native.Framed.model access)
-    (recoverySpec hinput access) (baseInput t width)
+  rw [nativeRecovery_into_execute (model := Sampling.Native.Framed.model t width)
+    (environment := environment)
+    (⟨spec⟩ : ClassicalAlgorithms.OrderRecovery.Spec width t) (baseInput t width)
     (sampleInput t width) (resultRef t width)]
   simp only [Circuit.execute_retain, State.mapHistory,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]

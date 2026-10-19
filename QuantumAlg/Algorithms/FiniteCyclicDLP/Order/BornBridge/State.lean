@@ -45,13 +45,13 @@ group value. -/
     (OrderOracle.layout P).Basis :=
   (OrderOracle.basisEquiv P).symm ((left, right), tail)
 
-@[simp] public theorem basisEquiv_fullBasis (P : KnownOrderProblem G)
+@[simp] public lemma basisEquiv_fullBasis (P : KnownOrderProblem G)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     OrderOracle.basisEquiv P (fullBasis P left right tail) = ((left, right), tail) :=
   (OrderOracle.basisEquiv P).apply_symm_apply ((left, right), tail)
 
 /-- Fixed zero preparation is exactly the logical `(0,0,1_G)` basis state. -/
-public theorem fullBasis_zero (P : KnownOrderProblem G) :
+public lemma fullBasis_zero (P : KnownOrderProblem G) :
     fullBasis P 0 0 1 = (OrderOracle.layout P).zeroLabel := by
   apply (OrderOracle.basisEquiv P).injective
   rw [basisEquiv_fullBasis, OrderOracle.basisEquiv_zero]
@@ -67,35 +67,36 @@ public def inputVec (P : KnownOrderProblem G) :
 public def preparedVec (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     HilbertVector (OrderOracle.layout P).register :=
-  (OrderCircuit.preparations P expansion).matrix.applyVec (inputVec P)
+  ((OrderCircuit.preparations P expansion).matrix (OrderOracle.interpretation P)).applyVec (inputVec
+    P)
 
 /-- State after the sole declared `U_x` query. -/
 public def postOracleVec (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     HilbertVector (OrderOracle.layout P).register :=
-  (OrderOracle.circuit AlgorithmGate.model P).matrix.applyVec
+  ((OrderOracle.circuit AlgorithmGate.model P).matrix (OrderOracle.interpretation P)).applyVec
     (preparedVec P expansion)
 
 /-- Normalized terminal state of the exact preparation-query-inverse-QFT word. -/
 public def evolvedState (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     NormalizedVector (OrderOracle.layout P).register :=
-  (OrderCircuit.circuit P expansion).applyNormalized
+  ((OrderCircuit.circuit P expansion).applyNormalized (OrderOracle.interpretation P))
     (NormalizedVector.ket (OrderOracle.layout P).zeroLabel)
 
 /-- The circuit's sequential structure exposes the same stored queried vector
 to the two generated inverse-QFT words. -/
-public theorem circuit_applyVec_zero (P : KnownOrderProblem G)
+public lemma circuit_applyVec_zero (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
-    (OrderCircuit.circuit P expansion).applyVec (inputVec P) =
-      (OrderCircuit.inverseQFTs P).applyVec
+    ((OrderCircuit.circuit P expansion).applyVec (OrderOracle.interpretation P)) (inputVec P) =
+      ((OrderCircuit.inverseQFTs P).applyVec (OrderOracle.interpretation P))
         (postOracleVec P expansion) := by
   rw [OrderCircuit.circuit, UnitaryCircuit.applyVec_seq,
     UnitaryCircuit.applyVec_seq]
   rfl
 
 /-- Pointwise action of the sole query in semantic group coordinates. -/
-public theorem oracle_applyVec_fullBasis (P : KnownOrderProblem G)
+public lemma oracle_applyVec_fullBasis (P : KnownOrderProblem G)
     (state : HilbertVector (OrderOracle.layout P).register)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     (OrderOracle.operator P).applyVec state (fullBasis P left right tail) =
@@ -111,7 +112,7 @@ public theorem oracle_applyVec_fullBasis (P : KnownOrderProblem G)
   rw [labelSame]
 
 /-- The stored post-query vector has the exact source-level pullback formula. -/
-public theorem postOracleVec_apply (P : KnownOrderProblem G)
+public lemma postOracleVec_apply (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     postOracleVec P expansion (fullBasis P left right tail) =
@@ -152,7 +153,7 @@ private def secondPhysicalRangeVec (P : KnownOrderProblem G) :
   secondPhysicalBinaryVec P (OrderPreparation.state P)
 
 omit [Fintype G] in
-@[simp] private theorem physicalRangeVec_apply (P : KnownOrderProblem G)
+@[simp] private lemma physicalRangeVec_apply (P : KnownOrderProblem G)
     (basis : (OrderPreparation.layout P).Basis) :
     physicalRangeVec P basis =
       OrderPreparation.state P
@@ -160,25 +161,28 @@ omit [Fintype G] in
   rfl
 
 omit [Fintype G] in
-@[simp] private theorem secondPhysicalRangeVec_apply (P : KnownOrderProblem G)
+@[simp] private lemma secondPhysicalRangeVec_apply (P : KnownOrderProblem G)
     (basis : (OrderCircuit.secondLayout P).Basis) :
     secondPhysicalRangeVec P basis =
       OrderPreparation.state P
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) basis) :=
   rfl
 
-private theorem native_apply_zero (P : KnownOrderProblem G)
+private lemma native_apply_zero (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
-    (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).matrix.applyVec
+    ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).matrix
+      (OrderOracle.interpretation P)).applyVec
         (physicalZeroVec P) = physicalRangeVec P := by
   have transported := UnitaryOperator.reindex_applyVec
     (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P)).symm
-    (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).binaryMatrix
+    ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).binaryMatrix
+      (OrderOracle.interpretation P))
     (NormalizedVector.ket (R := Qubits (OrderPreparation.width P)) 0 :
       HilbertVector (Qubits (OrderPreparation.width P)))
   rw [UnitaryCircuit.binaryMatrix_eq_reindex,
     UnitaryOperator.unitaryOperator_reindex_cancel] at transported
   have binaryAction := OrderPreparation.Native.circuit_applyVec_zero
+    (environment := OrderOracle.interpretation P)
     (OrderOracle.model P) P expansion
   exact (by
     simpa only [physicalZeroVec, physicalRangeVec, physicalBinaryVec,
@@ -189,10 +193,11 @@ private theorem native_apply_zero (P : KnownOrderProblem G)
           binaryAction))
 
 
-private theorem inverseQFT_apply_physicalBinaryVec (P : KnownOrderProblem G)
+private lemma inverseQFT_apply_physicalBinaryVec (P : KnownOrderProblem G)
     (state : HilbertVector (Qubits (OrderPreparation.width P))) :
-    (QuantumFourierTransform.Native.inverseCircuit
-        (OrderOracle.model P) (OrderPreparation.width P)).matrix.applyVec
+    ((QuantumFourierTransform.Native.inverseCircuit
+        (OrderOracle.model P) (OrderPreparation.width P)).matrix (OrderOracle.interpretation
+          P)).applyVec
         (physicalBinaryVec P state) =
       physicalBinaryVec P
         ((star (QFTOperator (OrderPreparation.width P))).applyVec state) := by
@@ -203,10 +208,11 @@ private theorem inverseQFT_apply_physicalBinaryVec (P : KnownOrderProblem G)
       (star (QFTOperator (OrderPreparation.width P))) state)
 
 
-private theorem inverseQFT_matrix_entry (P : KnownOrderProblem G)
+private lemma inverseQFT_matrix_entry (P : KnownOrderProblem G)
     (output input : (OrderPreparation.layout P).Basis) :
-    (QuantumFourierTransform.Native.inverseCircuit
-        (OrderOracle.model P) (OrderPreparation.width P)).matrix output input =
+    ((QuantumFourierTransform.Native.inverseCircuit
+        (OrderOracle.model P) (OrderPreparation.width P)).matrix (OrderOracle.interpretation P))
+          output input =
       (star (QFTOperator (OrderPreparation.width P)))
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) output)
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) input) := by
@@ -216,16 +222,16 @@ private theorem inverseQFT_matrix_entry (P : KnownOrderProblem G)
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) output)
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) input))
     (QuantumFourierTransform.Native.qftNative_inverseCircuit_binaryMatrix
-      (OrderOracle.model P) (OrderPreparation.width P))
+      (OrderOracle.model P) (OrderPreparation.width P) (OrderOracle.interpretation P))
   unfold QuantumFourierTransform.Native.onBinaryLabels at entry
   simpa only [UnitaryOperator.coe_reindex, Matrix.reindex_apply,
     Matrix.submatrix_apply, Equiv.symm_apply_apply] using entry
 
-private theorem inverseQFT_relabel_matrix_entry (P : KnownOrderProblem G)
+private lemma inverseQFT_relabel_matrix_entry (P : KnownOrderProblem G)
     (output input : (OrderCircuit.secondLayout P).Basis) :
-    ((QuantumFourierTransform.Native.inverseCircuit
+    (((QuantumFourierTransform.Native.inverseCircuit
         (OrderOracle.model P) (OrderPreparation.width P)).relabel
-          (OrderCircuit.secondShift P)).matrix output input =
+          (OrderCircuit.secondShift P)).matrix (OrderOracle.interpretation P)) output input =
       (star (QFTOperator (OrderPreparation.width P)))
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) output)
         (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P) input) := by
@@ -233,21 +239,21 @@ private theorem inverseQFT_relabel_matrix_entry (P : KnownOrderProblem G)
   exact inverseQFT_matrix_entry P output input
 
 
-private theorem pairCircuit_matrix_entry (P : KnownOrderProblem G)
+private lemma pairCircuit_matrix_entry (P : KnownOrderProblem G)
     (left : UnitaryCircuit AlgorithmGate.model (OrderOracle.model P)
       (OrderPreparation.layout P))
     (right : UnitaryCircuit AlgorithmGate.model (OrderOracle.model P)
       (OrderCircuit.secondLayout P))
     (row column : (OrderOracle.exponentLayout P).Basis) :
-    (OrderCircuit.pairCircuit P left right).matrix row column =
-      left.matrix
+    ((OrderCircuit.pairCircuit P left right).matrix (OrderOracle.interpretation P)) row column =
+      (left.matrix (OrderOracle.interpretation P))
           (QuantumLayout.appendBasisEquiv (OrderPreparation.layout P)
             (OrderCircuit.secondLayout P) (OrderCircuit.exponentLayouts_disjoint P)
             ((OrderCircuit.pairLayout_eq_exponentLayout P).symm ▸ row)).1
           (QuantumLayout.appendBasisEquiv (OrderPreparation.layout P)
             (OrderCircuit.secondLayout P) (OrderCircuit.exponentLayouts_disjoint P)
             ((OrderCircuit.pairLayout_eq_exponentLayout P).symm ▸ column)).1 *
-        right.matrix
+        (right.matrix (OrderOracle.interpretation P))
           (QuantumLayout.appendBasisEquiv (OrderPreparation.layout P)
             (OrderCircuit.secondLayout P) (OrderCircuit.exponentLayouts_disjoint P)
             ((OrderCircuit.pairLayout_eq_exponentLayout P).symm ▸ row)).2
@@ -259,7 +265,7 @@ private theorem pairCircuit_matrix_entry (P : KnownOrderProblem G)
 
 
 omit [Fintype G] in
-private theorem exponentBasisEquiv_split (P : KnownOrderProblem G)
+private lemma exponentBasisEquiv_split (P : KnownOrderProblem G)
     (basis : (OrderOracle.exponentLayout P).Basis) :
     OrderOracle.exponentBasisEquiv P basis =
       (QuantumSignature.qubitsIndexEquiv (OrderPreparation.width P)
@@ -343,14 +349,14 @@ private theorem exponentBasisEquiv_split (P : KnownOrderProblem G)
   rw [packed, Equiv.symm_apply_apply]
 
 
-private theorem pairInverseQFT_matrix_entry (P : KnownOrderProblem G)
+private lemma pairInverseQFT_matrix_entry (P : KnownOrderProblem G)
     (row column : (OrderOracle.exponentLayout P).Basis) :
-    (OrderCircuit.pairCircuit P
+    ((OrderCircuit.pairCircuit P
       (QuantumFourierTransform.Native.inverseCircuit
         (OrderOracle.model P) (OrderPreparation.width P))
       ((QuantumFourierTransform.Native.inverseCircuit
         (OrderOracle.model P) (OrderPreparation.width P)).relabel
-          (OrderCircuit.secondShift P))).matrix row column =
+          (OrderCircuit.secondShift P))).matrix (OrderOracle.interpretation P)) row column =
       (star (QFTOperator (OrderPreparation.width P)))
           (OrderOracle.exponentBasisEquiv P row).1
           (OrderOracle.exponentBasisEquiv P column).1 *
@@ -364,11 +370,11 @@ private theorem pairInverseQFT_matrix_entry (P : KnownOrderProblem G)
   rw [rowSemantic, columnSemantic]
 
 
-public theorem inverseQFTs_matrix_fullBasis (P : KnownOrderProblem G)
+public lemma inverseQFTs_matrix_fullBasis (P : KnownOrderProblem G)
     (outputLeft outputRight inputLeft inputRight :
       Fin (2 ^ OrderPreparation.width P))
     (outputTail inputTail : G) :
-    (OrderCircuit.inverseQFTs P).matrix
+    ((OrderCircuit.inverseQFTs P).matrix (OrderOracle.interpretation P))
         (fullBasis P outputLeft outputRight outputTail)
         (fullBasis P inputLeft inputRight inputTail) =
       @ite ℂ (outputTail = inputTail) (Classical.propDecidable _)
@@ -515,38 +521,40 @@ private def pairRangeVec (P : KnownOrderProblem G) :
     UnitaryCircuit.appendVector (OrderCircuit.exponentLayouts_disjoint P)
       (physicalRangeVec P) (secondPhysicalRangeVec P)
 
-private theorem pairCircuit_apply_zero (P : KnownOrderProblem G)
+private lemma pairCircuit_apply_zero (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
-    (OrderCircuit.pairCircuit P
+    ((OrderCircuit.pairCircuit P
       (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion)
       ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
-        (OrderCircuit.secondShift P))).matrix.applyVec (pairZeroVec P) =
+        (OrderCircuit.secondShift P))).matrix (OrderOracle.interpretation P)).applyVec (pairZeroVec
+          P) =
       pairRangeVec P := by
   unfold OrderCircuit.pairCircuit pairZeroVec pairRangeVec
   change
-    (UnitaryCircuit.castLayout (OrderCircuit.pairLayout_eq_exponentLayout P)
+    ((UnitaryCircuit.castLayout (OrderCircuit.pairLayout_eq_exponentLayout P)
       (UnitaryCircuit.tensor
         (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion)
         ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
           (OrderCircuit.secondShift P))
-        (OrderCircuit.exponentLayouts_disjoint P))).applyVec
+        (OrderCircuit.exponentLayouts_disjoint P))).applyVec (OrderOracle.interpretation P))
       (OrderCircuit.pairLayout_eq_exponentLayout P ▸
         UnitaryCircuit.appendVector (OrderCircuit.exponentLayouts_disjoint P)
           (physicalZeroVec P) (secondPhysicalZeroVec P)) = _
   let same := OrderCircuit.pairLayout_eq_exponentLayout P
   have tensorAction :
-      (UnitaryCircuit.tensor
+      ((UnitaryCircuit.tensor
         (OrderPreparation.Native.circuit (OrderOracle.model P) P expansion)
         ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
           (OrderCircuit.secondShift P))
-        (OrderCircuit.exponentLayouts_disjoint P)).matrix.applyVec
+        (OrderCircuit.exponentLayouts_disjoint P)).matrix (OrderOracle.interpretation P)).applyVec
           (UnitaryCircuit.appendVector (OrderCircuit.exponentLayouts_disjoint P)
             (physicalZeroVec P) (secondPhysicalZeroVec P)) =
         UnitaryCircuit.appendVector (OrderCircuit.exponentLayouts_disjoint P)
           (physicalRangeVec P) (secondPhysicalRangeVec P) := by
     have rightAction :
-        ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
-          (OrderCircuit.secondShift P)).matrix.applyVec (secondPhysicalZeroVec P) =
+        (((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
+          (OrderCircuit.secondShift P)).matrix (OrderOracle.interpretation P)).applyVec
+            (secondPhysicalZeroVec P) =
         secondPhysicalRangeVec P := by
       have zeroCoordinates : secondPhysicalZeroVec P =
           HilbertVector.reindex
@@ -560,8 +568,8 @@ private theorem pairCircuit_apply_zero (P : KnownOrderProblem G)
         rfl
       rw [zeroCoordinates, rangeCoordinates]
       change
-        ((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
-            (OrderCircuit.secondShift P)).applyVec
+        (((OrderPreparation.Native.circuit (OrderOracle.model P) P expansion).relabel
+            (OrderCircuit.secondShift P)).applyVec (OrderOracle.interpretation P))
           (HilbertVector.reindex
             (QuantumLayout.relabelBasis (OrderPreparation.layout P)
               (OrderCircuit.secondShift P)) (physicalZeroVec P)) =
@@ -595,20 +603,21 @@ private def fullPreparedTarget (P : KnownOrderProblem G) :
   UnitaryCircuit.appendVector (OrderOracle.exponent_workspace_disjoint P)
     (pairRangeVec P) (workspaceZeroVec P)
 
-private theorem preparations_apply_tensor_zero (P : KnownOrderProblem G)
+private lemma preparations_apply_tensor_zero (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
-    (OrderCircuit.preparations P expansion).matrix.applyVec (fullInputTensor P) =
+    ((OrderCircuit.preparations P expansion).matrix (OrderOracle.interpretation P)).applyVec
+      (fullInputTensor P) =
       fullPreparedTarget P := by
   unfold OrderCircuit.preparations OrderCircuit.withWorkspace
   unfold fullInputTensor fullPreparedTarget
   rw [UnitaryCircuit.tensor_native_applyVec_appendVector,
     pairCircuit_apply_zero]
   congr 1
-  exact UnitaryCircuit.applyVec_identity (workspaceZeroVec P)
+  exact UnitaryCircuit.applyVec_identity (workspaceZeroVec P) (OrderOracle.interpretation P)
 
 
 omit [Fintype G] in
-private theorem physicalZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
+private lemma physicalZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
     physicalZeroVec P =
       (NormalizedVector.ket (R := (OrderPreparation.layout P).register)
         (OrderPreparation.layout P).zeroLabel :
@@ -627,7 +636,7 @@ private theorem physicalZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
   exact (BinaryBasis.bigEndianEquiv_zero _).symm
 
 omit [Fintype G] in
-private theorem secondPhysicalZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
+private lemma secondPhysicalZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
     secondPhysicalZeroVec P =
       (NormalizedVector.ket (R := (OrderCircuit.secondLayout P).register)
         (OrderCircuit.secondLayout P).zeroLabel :
@@ -639,7 +648,7 @@ private theorem secondPhysicalZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
   exact physicalZeroVec_eq_ket_zero P
 
 omit [Fintype G] in
-private theorem pairZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
+private lemma pairZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
     pairZeroVec P =
       (NormalizedVector.ket (R := (OrderOracle.exponentLayout P).register)
         (OrderOracle.exponentLayout P).zeroLabel :
@@ -649,7 +658,7 @@ private theorem pairZeroVec_eq_ket_zero (P : KnownOrderProblem G) :
     UnitaryCircuit.appendVector_ket, UnitaryCircuit.castLayout_ket,
     QuantumLayout.appendJoinBasis_zero, UnitaryCircuit.castLayout_zeroLabel]
 
-private theorem fullInputTensor_eq_inputVec (P : KnownOrderProblem G) :
+private lemma fullInputTensor_eq_inputVec (P : KnownOrderProblem G) :
     fullInputTensor P = inputVec P := by
   unfold fullInputTensor workspaceZeroVec inputVec
   rw [pairZeroVec_eq_ket_zero, UnitaryCircuit.appendVector_ket]
@@ -657,9 +666,10 @@ private theorem fullInputTensor_eq_inputVec (P : KnownOrderProblem G) :
   unfold OrderOracle.layout
   rfl
 
-private theorem preparations_apply_input (P : KnownOrderProblem G)
+private lemma preparations_apply_input (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
-    (OrderCircuit.preparations P expansion).matrix.applyVec (inputVec P) =
+    ((OrderCircuit.preparations P expansion).matrix (OrderOracle.interpretation P)).applyVec
+      (inputVec P) =
       fullPreparedTarget P := by
   rw [← fullInputTensor_eq_inputVec]
   exact preparations_apply_tensor_zero P expansion
@@ -669,7 +679,7 @@ private theorem preparations_apply_input (P : KnownOrderProblem G)
 
 
 omit [Fintype G] in
-private theorem pairRangeVec_apply (P : KnownOrderProblem G)
+private lemma pairRangeVec_apply (P : KnownOrderProblem G)
     (basis : (OrderOracle.exponentLayout P).Basis) :
     pairRangeVec P basis =
       OrderPreparation.state P (OrderOracle.exponentBasisEquiv P basis).1 *
@@ -682,7 +692,7 @@ private theorem pairRangeVec_apply (P : KnownOrderProblem G)
   rw [semantic]
 
 
-private theorem fullPreparedTarget_apply (P : KnownOrderProblem G)
+private lemma fullPreparedTarget_apply (P : KnownOrderProblem G)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     fullPreparedTarget P (fullBasis P left right tail) =
       @ite ℂ (tail = 1) (Classical.propDecidable _)
@@ -743,7 +753,7 @@ private theorem fullPreparedTarget_apply (P : KnownOrderProblem G)
     rw [if_neg physicalNotIdentity, mul_zero]
 
 
-public theorem preparedVec_apply (P : KnownOrderProblem G)
+public lemma preparedVec_apply (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     preparedVec P expansion (fullBasis P left right tail) =
@@ -765,7 +775,7 @@ public theorem preparedVec_apply (P : KnownOrderProblem G)
         simp [tailIdentity, rightInRange, leftInRange]
 
 
-public theorem postOracleVec_support (P : KnownOrderProblem G)
+public lemma postOracleVec_support (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     postOracleVec P expansion (fullBasis P left right tail) =
@@ -798,7 +808,7 @@ public def circuitAmplitude (P : KnownOrderProblem G)
         ω (OrderPreparation.width P) ^ (sourceRight.val * right.val)) *
       postOracleVec P expansion (fullBasis P sourceLeft sourceRight tail)
 
-public theorem circuit_amplitude (P : KnownOrderProblem G)
+public lemma circuit_amplitude (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (left right : Fin (2 ^ OrderPreparation.width P)) (tail : G) :
     evolvedState P expansion (fullBasis P left right tail) =
@@ -806,16 +816,17 @@ public theorem circuit_amplitude (P : KnownOrderProblem G)
   unfold evolvedState
   unfold UnitaryCircuit.applyNormalized
   rw [UnitaryOperator.apply_coe]
-  change (OrderCircuit.circuit P expansion).applyVec (inputVec P)
+  change ((OrderCircuit.circuit P expansion).applyVec (OrderOracle.interpretation P)) (inputVec P)
       (fullBasis P left right tail) = _
   rw [circuit_applyVec_zero]
   change HilbertOperator.applyVec
-      ((OrderCircuit.inverseQFTs P).matrix :
+      (((OrderCircuit.inverseQFTs P).matrix (OrderOracle.interpretation P)) :
         HilbertOperator (OrderOracle.layout P).register)
       (postOracleVec P expansion) (fullBasis P left right tail) = _
   rw [HilbertOperator.applyVec_apply]
   change (∑ sourceBasis : (OrderOracle.layout P).Basis,
-      (OrderCircuit.inverseQFTs P).matrix (fullBasis P left right tail) sourceBasis *
+      ((OrderCircuit.inverseQFTs P).matrix (OrderOracle.interpretation P)) (fullBasis P left right
+        tail) sourceBasis *
         postOracleVec P expansion sourceBasis) = _
   rw [← Equiv.sum_comp (OrderOracle.basisEquiv P).symm,
     Fintype.sum_prod_type]
@@ -823,7 +834,7 @@ public theorem circuit_amplitude (P : KnownOrderProblem G)
   change (∑ sourceLeft : Fin (2 ^ OrderPreparation.width P),
       ∑ sourceRight : Fin (2 ^ OrderPreparation.width P),
       ∑ sourceTail : G,
-        (OrderCircuit.inverseQFTs P).matrix
+        ((OrderCircuit.inverseQFTs P).matrix (OrderOracle.interpretation P))
             (fullBasis P left right tail)
             (fullBasis P sourceLeft sourceRight sourceTail) *
           postOracleVec P expansion

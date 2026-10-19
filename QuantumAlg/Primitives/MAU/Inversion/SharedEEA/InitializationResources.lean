@@ -38,7 +38,7 @@ def bound (width : Nat) : Nat :=
   Addition.Gidney.comparisonEventBound (width + 3) + 1 +
     Addition.Gidney.biFlipEventBound (width + 3) + lengthBound width
 
-private theorem prefix_length (width count : Nat) (within : count ≤ width)
+private lemma prefix_length (width count : Nat) (within : count ≤ width)
     (output : Fin width.size) :
     (InitialLengthPredicate.gates width output count within).length ≤ 6 * count + 1 := by
   cases count with
@@ -54,7 +54,7 @@ private theorem prefix_length (width count : Nat) (within : count ≤ width)
       rw [InitialLengthPredicate.gates, Word.ZeroTestLayout.borrowedZeroGates_length]
       split_ifs <;> omega
 
-private theorem firstOne_length (width : Nat) (index : Fin width) (output : Fin width.size) :
+private lemma firstOne_length (width : Nat) (index : Fin width) (output : Fin width.size) :
     (InitialLengthPredicate.firstOneGates width index output).length ≤ 12 * width + 2 := by
   have first := prefix_length width index.val index.isLt.le output
   have second := prefix_length width (index.val + 1) index.isLt output
@@ -62,7 +62,7 @@ private theorem firstOne_length (width : Nat) (index : Fin width) (output : Fin 
   rw [InitialLengthPredicate.firstOneGates, List.length_append]
   omega
 
-private theorem bits_length (width : Nat) (index : Fin width) (bits : List (Fin width.size)) :
+private lemma bits_length (width : Nat) (index : Fin width) (bits : List (Fin width.size)) :
     (bits.flatMap fun bit => InitialLengthPredicate.firstOneGates width index bit.rev).length ≤
       bits.length * (12 * width + 2) := by
   induction bits with
@@ -72,13 +72,13 @@ private theorem bits_length (width : Nat) (index : Fin width) (bits : List (Fin 
     have current := firstOne_length width index bit.rev
     omega
 
-private theorem position_length (width : Nat) (index : Fin width) :
+private lemma position_length (width : Nat) (index : Fin width) :
     (InitialLengthWrite.positionGates width index).length ≤ width.size * (12 * width + 2) :=
   (bits_length width index _).trans
     (Nat.mul_le_mul_right (12 * width + 2)
       (Word.constantOneIndices_length_le (InitialLengthWrite.positionConstant width index)))
 
-private theorem positions_length (width : Nat) (indices : List (Fin width)) :
+private lemma positions_length (width : Nat) (indices : List (Fin width)) :
     (indices.flatMap (InitialLengthWrite.positionGates width)).length ≤
       indices.length * (width.size * (12 * width + 2)) := by
   induction indices with
@@ -89,13 +89,13 @@ private theorem positions_length (width : Nat) (indices : List (Fin width)) :
     omega
 
 /-- Every emitted native leading-bit predicate and output-bit toggle is counted. -/
-theorem length_gates_le (width : Nat) :
+lemma length_gates_le (width : Nat) :
     (InitialLengthWrite.gates width).length ≤ lengthBound width := by
   have actual := positions_length width (List.ofFn fun index : Fin width => index)
   simpa only [List.length_ofFn, InitialLengthWrite.gates, lengthBound] using actual
 
 /-- The actual fold retains the complete comparison and reflected-word event ledgers. -/
-theorem fold_trace_le (modulus : Nat) :
+lemma fold_trace_le (modulus : Nat) :
     (FoldSourceProgram.program modulus).eventTrace.length ≤
       Addition.Gidney.comparisonEventBound (modulus.size + 3) + 1 +
         Addition.Gidney.biFlipEventBound (modulus.size + 3) := by
@@ -111,7 +111,7 @@ theorem fold_trace_le (modulus : Nat) :
   omega
 
 /-- Independent resource envelope for the same actual initial fold and current-length write. -/
-theorem program_trace_le (modulus : Nat) :
+lemma program_trace_le (modulus : Nat) :
     (InitialFrame.program modulus).eventTrace.length ≤ bound modulus.size := by
   have fold := fold_trace_le modulus
   have write := length_gates_le modulus.size
@@ -120,7 +120,7 @@ theorem program_trace_le (modulus : Nat) :
   omega
 
 /-- Strict unit depth and literal event pool both meet the independent initialization bound. -/
-theorem program_resources (modulus : Nat) :
+lemma program_resources (modulus : Nat) :
     (InitialFrame.program modulus).eventCost.card ≤ bound modulus.size ∧
       (InitialFrame.program modulus).evaluatedEventDepth (fun _ => 1) ≤ bound modulus.size := by
   have count := (ShiftResources.trace_count (InitialFrame.program modulus)).symm.le.trans

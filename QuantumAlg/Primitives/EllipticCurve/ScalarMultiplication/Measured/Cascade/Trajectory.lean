@@ -37,7 +37,7 @@ def basisTrajectory {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         basisTrajectory E points remaining (stepPermutation E (points active) active value)
 
 /-- The full independent step density follows its exact complete-basis permutation. -/
-theorem stepTarget_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepTarget_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count) (Reference : Register)
     (density : DensityOperator (Register.prod (readyContext p.size count).register Reference)) :
     DensityOperator.applyUnitary (stepTarget E Q active Reference) density =
@@ -48,7 +48,7 @@ theorem stepTarget_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.
     (fun input => stepTarget_apply_ket E Q active input.1 input.2)
 
 /-- Original mathematical basis trajectories establish every intermediate full-density domain. -/
-theorem cascadeSupport_of_basisTrajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma cascadeSupport_of_basisTrajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (Reference : Register)
     (density : DensityOperator (Register.prod (readyContext p.size count).register Reference))

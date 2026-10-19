@@ -26,6 +26,8 @@ namespace QuantumAlg.Execution.ContextUnion
 
 noncomputable section
 
+variable {allowAllocation : Bool}
+
 open scoped BigOperators
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -35,30 +37,34 @@ variable {gates : GateModel} {oracles : OracleModel}
   (left right : RuntimeCtx .quantum)
   (separate : RuntimeCtx.StorageDisjoint left right)
   (program : UnitaryCircuit gates oracles left.quantumLayout)
+  (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
 
 /-- The actual framed operator is the original unitary beside the full reassociated reference. -/
-theorem contextUnion_unitary_referenceBasis (Reference : Register) :
+lemma contextUnion_unitary_referenceBasis (Reference : Register) :
     UnitaryOperator.reindex (referenceBasis left right separate Reference)
-      (UnitaryOperator.prodTensor (frameUnitary left right separate program).matrix
+      (UnitaryOperator.prodTensor
+        ((frameUnitary left right separate program).matrix environment.quantum)
         (1 : UnitaryOperator Reference)) =
-      UnitaryOperator.prodTensor program.matrix
+      UnitaryOperator.prodTensor (program.matrix environment.quantum)
         (1 : UnitaryOperator (Register.prod right.register Reference)) := by
   apply Subtype.ext
   funext row column
   obtain ⟨leftRow, rightRow, refRow⟩ := row
   obtain ⟨leftColumn, rightColumn, refColumn⟩ := column
   change (UnitaryOperator.prodTensor
-    (frameUnitary left right separate program).matrix (1 : UnitaryOperator Reference))
+    ((frameUnitary left right separate program).matrix environment.quantum)
+      (1 : UnitaryOperator Reference))
       ((unionBasisEquiv left right separate).symm (leftRow, rightRow), refRow)
       ((unionBasisEquiv left right separate).symm (leftColumn, rightColumn), refColumn) =
-    (UnitaryOperator.prodTensor program.matrix
+    (UnitaryOperator.prodTensor (program.matrix environment.quantum)
       (1 : UnitaryOperator (Register.prod right.register Reference)))
         (leftRow, (rightRow, refRow)) (leftColumn, (rightColumn, refColumn))
   rw [contextUnion_frameUnitary_reference_entry, Equiv.apply_symm_apply,
     Equiv.apply_symm_apply, UnitaryOperator.prodTensor_apply]
-  change (program.matrix leftRow leftColumn * (if rightRow = rightColumn then 1 else 0)) *
+  change ((program.matrix environment.quantum) leftRow leftColumn *
+    (if rightRow = rightColumn then 1 else 0)) *
       (if refRow = refColumn then 1 else 0) =
-    program.matrix leftRow leftColumn *
+    (program.matrix environment.quantum) leftRow leftColumn *
       (if ((rightRow, refRow) : (Register.prod right.register Reference).Index) =
         (rightColumn, refColumn) then 1 else 0)
   have same : ((rightRow, refRow) : (Register.prod right.register Reference).Index) =
@@ -73,28 +79,30 @@ theorem contextUnion_unitary_referenceBasis (Reference : Register) :
     by_cases refSame : refRow = refColumn <;> simp [rightSame, refSame]
 
 /-- Reindexing a complete framed density commutes with the resident unitary. -/
-theorem density_naturality {Reference : Register}
+lemma density_naturality {Reference : Register}
     (density : DensityOperator
       (Register.prod (left.disjointUnion right separate).register Reference)) :
     (DensityOperator.applyUnitary
-      (UnitaryOperator.prodTensor (frameUnitary left right separate program).matrix
+      (UnitaryOperator.prodTensor
+        ((frameUnitary left right separate program).matrix environment.quantum)
         (1 : UnitaryOperator Reference)) density).reindex
           (referenceBasis left right separate Reference) =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor program.matrix
+        (UnitaryOperator.prodTensor (program.matrix environment.quantum)
           (1 : UnitaryOperator (Register.prod right.register Reference)))
         (density.reindex (referenceBasis left right separate Reference)) :=
   (DensityOperator.applyUnitary_reindex
-    (UnitaryOperator.prodTensor (frameUnitary left right separate program).matrix
+    (UnitaryOperator.prodTensor
+      ((frameUnitary left right separate program).matrix environment.quantum)
       (1 : UnitaryOperator Reference)) density
     (referenceBasis left right separate Reference)).trans
       (congrArg (fun operator => DensityOperator.applyUnitary operator
         (density.reindex (referenceBasis left right separate Reference)))
-        (contextUnion_unitary_referenceBasis left right separate program Reference))
+        (contextUnion_unitary_referenceBasis left right separate program environment Reference))
 
 variable {Reference : Register} {History : Type} [Fintype History]
 
-private theorem split_block
+private lemma split_block
     (state : State (left.disjointUnion right separate) Reference History)
     (first : Store left) (second : Store right) (history : History) :
     (splitState left right separate state).block (first, (second, history)) =
@@ -105,7 +113,7 @@ private theorem split_block
   exact contextUnion_splitState_entry left right separate state
     (first, (second, history)) row column
 
-private theorem historyEquiv_block {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma historyEquiv_block {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {H K : Type} [Fintype H] [Fintype K] (state : State ctx Reference H)
     (histories : H ≃ K) (store : Store ctx) (history : K) :
     (state.mapHistory histories).block (store, history) =
@@ -134,32 +142,41 @@ private def executedHistory (Hidden History : Type) :
   right_inv _ := rfl
 
 /-- Actual unitary execution retains the complete resident frame and persistent service. -/
-theorem contextUnion_splitState_unitary
+lemma contextUnion_splitState_unitary
     (state : State (left.disjointUnion right separate) Reference (services.HiddenState × History)) :
     splitState left right separate
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        (frameUnitary left right separate program)).execute Reference state) =
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        program).execute (Register.prod right.register Reference)
+      ((Circuit.unitary
+          (allowAllocation := allowAllocation)
+          (operations := operations) (classicalOracles := services)
+        (frameUnitary left right separate program)).execute environment Reference state) =
+      ((Circuit.unitary
+          (allowAllocation := allowAllocation)
+          (operations := operations) (classicalOracles := services)
+        program).execute environment (Register.prod right.register Reference)
           (splitServiceState left right separate state)).mapHistory
             (executedHistory right services.HiddenState History) := by
   apply ExecutionState.ext
   rintro ⟨first, second, hidden, history, path⟩
   cases path
-  rw [split_block, Circuit.execute_unitary_block, density_naturality]
+  rw [split_block, Circuit.execute_unitary_block
+      (allowAllocation := allowAllocation), density_naturality]
   rw [historyEquiv_block]
-  erw [Circuit.execute_unitary_block]
+  erw [Circuit.execute_unitary_block (allowAllocation := allowAllocation)]
   rw [splitServiceState, historyEquiv_block]
   erw [split_block]
 
 /-- The service remains first when complete frame coordinates are used for execution. -/
-theorem contextUnion_splitServiceState_unitary
+lemma contextUnion_splitServiceState_unitary
     (state : State (left.disjointUnion right separate) Reference (services.HiddenState × History)) :
     splitServiceState left right separate
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        (frameUnitary left right separate program)).execute Reference state) =
-      ((Circuit.unitary (operations := operations) (classicalOracles := services)
-        program).execute (Register.prod right.register Reference)
+      ((Circuit.unitary
+          (allowAllocation := allowAllocation)
+          (operations := operations) (classicalOracles := services)
+        (frameUnitary left right separate program)).execute environment Reference state) =
+      ((Circuit.unitary
+          (allowAllocation := allowAllocation)
+          (operations := operations) (classicalOracles := services)
+        program).execute environment (Register.prod right.register Reference)
           (splitServiceState left right separate state)).mapHistory
             (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) := by
   change (splitState left right separate _).mapHistory

@@ -29,7 +29,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual allocation and release retain exactly the original fourteen events. -/
-theorem xgcdNativeScopedActive_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (scopedActive (model := model) cells zero).Path) :
@@ -44,7 +44,7 @@ theorem xgcdNativeScopedActive_eventTrace {model : ExecutionModel} [BitWord.Sele
       xgcdNativeActiveBody_eventTrace _ _ _ selected) path
 
 /-- Native multiplicities belong to this same actual allocated instruction sequence. -/
-theorem xgcdNativeScopedActive_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (scopedActive (model := model) cells zero).Path) :
@@ -52,7 +52,7 @@ theorem xgcdNativeScopedActive_resourcePool {model : ExecutionModel} [BitWord.Se
       ResourcePool.ofList (activeEvents model width) :=
   congrArg ResourcePool.ofList (xgcdNativeScopedActive_eventTrace cells zero path)
 
-private theorem activeBody_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+private lemma activeBody_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
@@ -67,7 +67,7 @@ private theorem activeBody_durationDepth {model : ExecutionModel} [BitWord.Selec
   rfl
 
 /-- Arbitrary native durations retain the original complete serial dependency chain. -/
-theorem xgcdNativeScopedActive_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (scopedActive (model := model) cells zero).Path) :
@@ -83,7 +83,7 @@ theorem xgcdNativeScopedActive_durationDepth {model : ExecutionModel} [BitWord.S
     (fun scratch _ transport _ selected => activeBody_durationDepth _ _ _ duration selected) path
 
 /-- The actual four scratch scopes retain the original fourteen unit-duration instructions. -/
-theorem xgcdNativeScopedActive_unitDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_unitDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (scopedActive (model := model) cells zero).Path) :
@@ -91,7 +91,7 @@ theorem xgcdNativeScopedActive_unitDepth {model : ExecutionModel} [BitWord.Selec
   rw [xgcdNativeScopedActive_durationDepth]
   rfl
 
-private theorem activeBody_visited {model : ExecutionModel} [BitWord.Selected model]
+private lemma activeBody_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -104,7 +104,7 @@ private theorem activeBody_visited {model : ExecutionModel} [BitWord.Selected mo
         ([ctx] ++ ([ctx] ++ ([ctx] ++ [ctx])))))) at present
   simpa only [List.mem_append, List.mem_singleton, or_self] using present
 
-private theorem activeBody_resident {model : ExecutionModel} [BitWord.Selected model]
+private lemma activeBody_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -115,7 +115,7 @@ private theorem activeBody_resident {model : ExecutionModel} [BitWord.Selected m
   intro visited present
   rw [activeBody_visited cells scratch zero path visited present]
 
-private theorem activeBody_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+private lemma activeBody_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -127,7 +127,7 @@ private theorem activeBody_auxiliary {model : ExecutionModel} [BitWord.Selected 
   rw [activeBody_visited cells scratch zero path visited present]
 
 /-- Every original resident cell and every actual scratch shape is included in the peak. -/
-theorem xgcdNativeScopedActive_resident {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (scopedActive (model := model) cells zero).Path) :
@@ -144,7 +144,7 @@ theorem xgcdNativeScopedActive_resident {model : ExecutionModel} [BitWord.Select
         (transportCells transport cells) scratch (transport.liftInput zero) selected) path
 
 /-- The same four lexical shapes are charged beside all existing auxiliary roles. -/
-theorem xgcdNativeScopedActive_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (scopedActive (model := model) cells zero).Path) :
@@ -161,7 +161,7 @@ theorem xgcdNativeScopedActive_auxiliary {model : ExecutionModel} [BitWord.Selec
         (transportCells transport cells) scratch (transport.liftInput zero) selected) path
 
 /-- Reusing the product and updated cells charges three execution-width words only once. -/
-theorem xgcdNativeActiveScratch_classicalBits :
+lemma xgcdNativeActiveScratch_classicalBits :
     (((activeScratchShapes width).map (SpacePool.ofShape (kind := kind))).sum) .classicalBits =
       2 * width + 3 * PureXGCD.executionCoefficientWidth width := by
   simp [activeScratchShapes, SpacePool.ofShape, CShape.bitWidth]

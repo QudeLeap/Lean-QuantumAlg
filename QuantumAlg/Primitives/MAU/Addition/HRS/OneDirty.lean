@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Actual recursive constant adder on the original word and one dirty bit. -/
 def oneDirtyProgram (width : Nat) (constant : Fin (2 ^ width)) :
     UnitaryCircuit AlgorithmGate.model .empty
@@ -41,8 +43,8 @@ decreasing_by
     | exact (hrsSplit_decreases width htwo).2
 
 /-- Every actual recursive gate sequence implements the independent finite addition contract. -/
-theorem hrsOneDirty_realizes (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit.Realizes (oneDirtyEncoding width) (oneDirtyProgram width constant)
+lemma hrsOneDirty_realizes (width : Nat) (constant : Fin (2 ^ width)) :
+    UnitaryCircuit.Realizes (oneDirtyEncoding width) (oneDirtyProgram width constant) environment
       (oneDirtyOutput constant) := by
   induction width using Nat.strong_induction_on with
   | h width ih =>
@@ -56,7 +58,7 @@ theorem hrsOneDirty_realizes (width : Nat) (constant : Fin (2 ^ width)) :
           (ih (highWidth width) hdecrease.2 ((splitWord width) constant).2)
 
 /-- The external carrier has exactly `width + 1` canonically addressed qubits. -/
-theorem hrsOneDirty_interface (width : Nat) (_constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_interface (width : Nat) (_constant : Fin (2 ^ width)) :
     (oneDirtyEncoding width).width = width + 1 ∧
       (QubitLayout.canonical (oneDirtyEncoding width).width).systemIdx =
         List.range (width + 1) := by
@@ -65,8 +67,8 @@ theorem hrsOneDirty_interface (width : Nat) (_constant : Fin (2 ^ width)) :
   · exact QubitLayout.canonical_systemIdx (width + 1)
 
 /-- Literal computational-basis action, with the dirty value restored and no relative phase. -/
-theorem hrsOneDirty_apply (width : Nat) (constant input : Fin (2 ^ width)) (dirty : Bool) :
-    (oneDirtyProgram width constant).applyNormalized
+lemma hrsOneDirty_apply (width : Nat) (constant input : Fin (2 ^ width)) (dirty : Bool) :
+    (oneDirtyProgram width constant).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv.symm
             ((oneDirtyEncoding width).encode (input, dirty)))) =
@@ -76,12 +78,12 @@ theorem hrsOneDirty_apply (width : Nat) (constant input : Fin (2 ^ width)) (dirt
   (hrsOneDirty_realizes width constant).apply_encoded_ket (input, dirty)
 
 /-- The same exact endpoint extends across an arbitrary encoded reference system. -/
-theorem hrsOneDirty_realizes_with_reference {Reference : Type}
+lemma hrsOneDirty_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat) (constant : Fin (2 ^ width)) :
     UnitaryCircuit.Realizes
       (layout := QubitLayout.canonical ((oneDirtyEncoding width).width + reference.width))
       (BinaryLabelEncoding.prod (oneDirtyEncoding width) reference)
-      (UnitaryCircuit.onBinaryPrefix reference.width (oneDirtyProgram width constant))
+      (UnitaryCircuit.onBinaryPrefix reference.width (oneDirtyProgram width constant)) environment
       (fun state => (oneDirtyOutput constant state.1, state.2)) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
     (hrsOneDirty_realizes width constant)

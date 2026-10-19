@@ -46,12 +46,12 @@ attribute [local instance 100] LieRing.ofAssociativeRing
 noncomputable def pauli1 (a : Fin 4) : Matrix (Fin 2) (Fin 2) ℂ :=
   if a = 0 then 1 else if a = 1 then pauliX else if a = 2 then pauliY else pauliZ
 
-theorem pauli1_isHermitian (a : Fin 4) : (pauli1 a)ᴴ = pauli1 a := by
+lemma pauli1_isHermitian (a : Fin 4) : (pauli1 a)ᴴ = pauli1 a := by
   fin_cases a <;>
     simp [pauli1, conjTranspose_one, pauliX_isHermitian, pauliY_isHermitian, pauliZ_isHermitian]
 
 /-- Single-qubit Pauli orthogonality: `Tr[σ_a σ_b] = 2 δ_{ab}`. -/
-theorem pauli1_trace_mul (a b : Fin 4) :
+lemma pauli1_trace_mul (a b : Fin 4) :
     (pauli1 a * pauli1 b).trace = if a = b then 2 else 0 := by
   fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ, Matrix.trace_fin_two, Complex.I_mul_I] <;> norm_num
@@ -64,7 +64,7 @@ noncomputable def pauliStr {n : ℕ} (s : Fin n → Fin 4) :
     Matrix (Fin n → Fin 2) (Fin n → Fin 2) ℂ :=
   Matrix.of fun i j => ∏ k, pauli1 (s k) (i k) (j k)
 
-theorem pauliStr_isHermitian {n : ℕ} (s : Fin n → Fin 4) : (pauliStr s)ᴴ = pauliStr s := by
+lemma pauliStr_isHermitian {n : ℕ} (s : Fin n → Fin 4) : (pauliStr s)ᴴ = pauliStr s := by
   ext i j
   simp only [Matrix.conjTranspose_apply, pauliStr, Matrix.of_apply]
   rw [← starRingEnd_apply, map_prod]
@@ -75,7 +75,7 @@ theorem pauliStr_isHermitian {n : ℕ} (s : Fin n → Fin 4) : (pauliStr s)ᴴ =
 
 /-- **Pauli-string trace factorises over qubits**:
 `Tr[P_s P_t] = ∏ₖ Tr[σ_{sₖ} σ_{tₖ}]`. -/
-theorem pauliStr_trace_mul {n : ℕ} (s t : Fin n → Fin 4) :
+lemma pauliStr_trace_mul {n : ℕ} (s t : Fin n → Fin 4) :
     (pauliStr s * pauliStr t).trace = ∏ k, (pauli1 (s k) * pauli1 (t k)).trace := by
   have hLHS : (pauliStr s * pauliStr t).trace
       = ∑ c : Fin n → Fin 2 × Fin 2,
@@ -106,7 +106,7 @@ theorem pauliStr_trace_mul {n : ℕ} (s t : Fin n → Fin 4) :
     · intro c _; rfl
   rw [hLHS, hRHS]
 
-theorem pauliStr_hsInner {n : ℕ} (s t : Fin n → Fin 4) :
+lemma pauliStr_hsInner {n : ℕ} (s t : Fin n → Fin 4) :
     hsInner (pauliStr s) (pauliStr t) = if s = t then (2 ^ n : ℂ) else 0 := by
   rw [hsInner, pauliStr_isHermitian, pauliStr_trace_mul]
   have hterm : ∀ k, (pauli1 (s k) * pauli1 (t k)).trace = if s k = t k then (2 : ℂ) else 0 :=
@@ -120,14 +120,14 @@ theorem pauliStr_hsInner {n : ℕ} (s t : Fin n → Fin 4) :
 
 /-! ### Tracelessness of non-identity Pauli strings -/
 
-theorem pauli1_zero : pauli1 0 = 1 := by rw [pauli1]; simp
+lemma pauli1_zero : pauli1 0 = 1 := by rw [pauli1]; simp
 
 /-- A non-identity single-qubit Pauli is traceless. -/
-theorem pauli1_trace_zero {a : Fin 4} (h : a ≠ 0) : (pauli1 a).trace = 0 := by
+lemma pauli1_trace_zero {a : Fin 4} (h : a ≠ 0) : (pauli1 a).trace = 0 := by
   fin_cases a <;> simp_all [pauli1, pauliX, pauliY, pauliZ, Matrix.trace_fin_two]
 
 /-- The all-identity Pauli string is the identity matrix. -/
-theorem pauliStr_zero {n : ℕ} : pauliStr (0 : Fin n → Fin 4) = 1 := by
+lemma pauliStr_zero {n : ℕ} : pauliStr (0 : Fin n → Fin 4) = 1 := by
   ext i j
   simp only [pauliStr, Matrix.of_apply, Pi.zero_apply, pauli1_zero]
   rw [Matrix.one_apply]
@@ -139,7 +139,7 @@ theorem pauliStr_zero {n : ℕ} : pauliStr (0 : Fin n → Fin 4) = 1 := by
 
 /-- A non-identity Pauli string is traceless: `Tr[P_s] = ∏ₖ Tr[σ_{sₖ}] = 0` whenever some
 qubit carries a non-identity factor. -/
-theorem pauliStr_trace_eq_zero {n : ℕ} {s : Fin n → Fin 4} (h : s ≠ 0) :
+lemma pauliStr_trace_eq_zero {n : ℕ} {s : Fin n → Fin 4} (h : s ≠ 0) :
     (pauliStr s).trace = 0 := by
   have hrw : (pauliStr s).trace = (pauliStr s * pauliStr (0 : Fin n → Fin 4)).trace := by
     rw [pauliStr_zero, Matrix.mul_one]
@@ -157,20 +157,20 @@ noncomputable def pauliMat {n : ℕ} (s : Fin n → Fin 4) : Matrix (Fin (2 ^ n)
   (pauliStr s).submatrix finFunctionFinEquiv.symm finFunctionFinEquiv.symm
 
 /-- Relabelling by a bijection preserves the trace. -/
-theorem trace_submatrix_ffe {n : ℕ} (M : Matrix (Fin n → Fin 2) (Fin n → Fin 2) ℂ) :
+lemma trace_submatrix_ffe {n : ℕ} (M : Matrix (Fin n → Fin 2) (Fin n → Fin 2) ℂ) :
     (M.submatrix finFunctionFinEquiv.symm finFunctionFinEquiv.symm).trace = M.trace := by
   simp only [Matrix.trace, Matrix.diag_apply, Matrix.submatrix_apply]
   exact Equiv.sum_comp finFunctionFinEquiv.symm (fun j => M j j)
 
-theorem pauliMat_isHermitian {n : ℕ} (s : Fin n → Fin 4) : (pauliMat s)ᴴ = pauliMat s := by
+lemma pauliMat_isHermitian {n : ℕ} (s : Fin n → Fin 4) : (pauliMat s)ᴴ = pauliMat s := by
   rw [pauliMat, Matrix.conjTranspose_submatrix, pauliStr_isHermitian]
 
-theorem pauliMat_hsInner {n : ℕ} (s t : Fin n → Fin 4) :
+lemma pauliMat_hsInner {n : ℕ} (s t : Fin n → Fin 4) :
     hsInner (pauliMat s) (pauliMat t) = if s = t then (2 ^ n : ℂ) else 0 := by
   rw [hsInner, pauliMat, pauliMat, Matrix.conjTranspose_submatrix, Matrix.submatrix_mul_equiv,
     trace_submatrix_ffe, ← hsInner, pauliStr_hsInner]
 
-theorem pauliMat_trace_eq_zero {n : ℕ} {s : Fin n → Fin 4} (h : s ≠ 0) :
+lemma pauliMat_trace_eq_zero {n : ℕ} {s : Fin n → Fin 4} (h : s ≠ 0) :
     (pauliMat s).trace = 0 := by
   rw [pauliMat, trace_submatrix_ffe, pauliStr_trace_eq_zero h]
 
@@ -179,17 +179,17 @@ theorem pauliMat_trace_eq_zero {n : ℕ} {s : Fin n → Fin 4} (h : s ≠ 0) :
 /-- Normalization constant `(√(2ⁿ))⁻¹`, so that `rtNinv n • P_s` has unit Hilbert–Schmidt norm. -/
 noncomputable def rtNinv (n : ℕ) : ℂ := ((Real.sqrt (2 ^ n))⁻¹ : ℝ)
 
-theorem rtNinv_conj (n : ℕ) : star (rtNinv n) = rtNinv n := by
+lemma rtNinv_conj (n : ℕ) : star (rtNinv n) = rtNinv n := by
   rw [rtNinv, ← starRingEnd_apply]; exact Complex.conj_ofReal _
 
-theorem rtNinv_mul_self (n : ℕ) : rtNinv n * rtNinv n = 1 / (2 ^ n : ℂ) := by
+lemma rtNinv_mul_self (n : ℕ) : rtNinv n * rtNinv n = 1 / (2 ^ n : ℂ) := by
   rw [rtNinv, ← Complex.ofReal_mul, ← mul_inv, Real.mul_self_sqrt (by positivity),
     Complex.ofReal_inv]
   push_cast
   ring
 
 /-- The normalization scalar `1/√(2ⁿ)` is nonzero. -/
-theorem rtNinv_ne_zero (n : ℕ) : rtNinv n ≠ 0 := fun h => by
+lemma rtNinv_ne_zero (n : ℕ) : rtNinv n ≠ 0 := fun h => by
   have hm := rtNinv_mul_self n
   rw [h, mul_zero] at hm
   exact one_div_ne_zero (pow_ne_zero n two_ne_zero) hm.symm
@@ -198,7 +198,7 @@ theorem rtNinv_ne_zero (n : ℕ) : rtNinv n ≠ 0 := fun h => by
 public def suGens (n : ℕ) : Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) :=
   {A | ∃ s : Fin n → Fin 4, s ≠ 0 ∧ A = Complex.I • pauliMat s}
 
-theorem card_nz (n : ℕ) :
+lemma card_nz (n : ℕ) :
     Fintype.card {s : Fin n → Fin 4 // s ≠ 0} = 2 ^ n * 2 ^ n - 1 := by
   simp only [ne_eq]
   rw [Fintype.card_subtype_compl (p := fun s : Fin n → Fin 4 => s = 0),
@@ -216,10 +216,10 @@ noncomputable def suB (n : ℕ) (i : Fin (2 ^ n * 2 ^ n - 1)) :
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   rtNinv n • pauliMat (nzEquiv n i).1
 
-theorem suB_isHermitian (n : ℕ) (i : Fin (2 ^ n * 2 ^ n - 1)) : (suB n i)ᴴ = suB n i := by
+lemma suB_isHermitian (n : ℕ) (i : Fin (2 ^ n * 2 ^ n - 1)) : (suB n i)ᴴ = suB n i := by
   rw [suB, conjTranspose_smul, rtNinv_conj, pauliMat_isHermitian]
 
-theorem suB_ortho (n : ℕ) (i j : Fin (2 ^ n * 2 ^ n - 1)) :
+lemma suB_ortho (n : ℕ) (i j : Fin (2 ^ n * 2 ^ n - 1)) :
     hsInner (suB n i) (suB n j) = if i = j then 1 else 0 := by
   rw [suB, suB, hsInner_smul_left, hsInner_smul_right, starRingEnd_apply, rtNinv_conj, ← mul_assoc,
     rtNinv_mul_self, pauliMat_hsInner]
@@ -229,7 +229,7 @@ theorem suB_ortho (n : ℕ) (i j : Fin (2 ^ n * 2 ^ n - 1)) :
       inv_mul_cancel₀ (pow_ne_zero n (by norm_num : (2 : ℂ) ≠ 0))]
   · rw [if_neg h, if_neg (fun he => h ((nzEquiv n).injective (Subtype.ext he))), mul_zero]
 
-theorem suB_linearIndependent (n : ℕ) : LinearIndependent ℂ (suB n) := by
+lemma suB_linearIndependent (n : ℕ) : LinearIndependent ℂ (suB n) := by
   rw [Fintype.linearIndependent_iff]
   intro c hc i
   have h1 : hsInner (suB n i) (∑ j, c j • suB n j) = c i := by
@@ -241,7 +241,7 @@ theorem suB_linearIndependent (n : ℕ) : LinearIndependent ℂ (suB n) := by
   rw [hc] at h1
   simpa [hsInner] using h1.symm
 
-theorem suB_span_finrank (n : ℕ) :
+lemma suB_span_finrank (n : ℕ) :
     Module.finrank ℂ (Submodule.span ℂ (Set.range (suB n))) = 2 ^ n * 2 ^ n - 1 := by
   rw [finrank_span_eq_card (suB_linearIndependent n), Fintype.card_fin]
 
@@ -253,7 +253,7 @@ noncomputable def tracelessLie (m : ℕ) : LieSubalgebra ℂ (Matrix (Fin m) (Fi
         rw [LinearMap.mem_ker, Matrix.traceLinearMap_apply, Ring.lie_def, Matrix.trace_sub,
           Matrix.trace_mul_comm, sub_self] }
 
-theorem traceLinearMap_ker_finrank {m : ℕ} (hm : 0 < m) :
+lemma traceLinearMap_ker_finrank {m : ℕ} (hm : 0 < m) :
     Module.finrank ℂ (LinearMap.ker (Matrix.traceLinearMap (Fin m) ℂ ℂ)) = m * m - 1 := by
   have hsurj : Function.Surjective (Matrix.traceLinearMap (Fin m) ℂ ℂ) := by
     intro c
@@ -320,7 +320,7 @@ barren plateau are witnessed **concretely** on the qubit family — the seminal 
 [MBS+18, maintext.tex:148].
 We index by `n + 1` qubits so the dimension `2ⁿ⁺¹·2ⁿ⁺¹ − 1` is positive at every `n`. -/
 
-theorem suHermBasis_dim_pos (n : ℕ) : 0 < (suHermBasis (n + 1)).dim := by
+lemma suHermBasis_dim_pos (n : ℕ) : 0 < (suHermBasis (n + 1)).dim := by
   change 0 < 2 ^ (n + 1) * 2 ^ (n + 1) - 1
   have h2 : 2 ≤ 2 ^ (n + 1) := by
     calc (2 : ℕ) = 2 ^ 1 := (pow_one 2).symm
@@ -348,7 +348,7 @@ public noncomputable def suSM (n : ℕ)
 the Schur hypothesis, the loss variance equals `P_g(ρ)·P_g(O) / (2ⁿ⁺¹·2ⁿ⁺¹ − 1)` — the
 `SimpleSU.main` reduction on a concrete `g ≃ su(d)` with `d = 2ⁿ⁺¹`
 [RBS+23, Arxiv_Final.tex:682]. -/
-theorem suN_variance_eq (n : ℕ)
+lemma suN_variance_eq (n : ℕ)
     (hSchur : gTensorGInvariant (suHermBasis (n + 1))
       = Submodule.span ℂ {(suHermBasis (n + 1)).casimir}) :
     ((suSM n hSchur).variance : ℂ)
@@ -360,7 +360,7 @@ theorem suN_variance_eq (n : ℕ)
 
 /-- With `ρ = O` a normalized basis element (`P_g = 1`), the variance is exactly
 `1 / (2ⁿ⁺¹·2ⁿ⁺¹ − 1)`, vanishing exponentially in the qubit count. -/
-theorem suN_variance_value (n : ℕ)
+lemma suN_variance_value (n : ℕ)
     (hSchur : gTensorGInvariant (suHermBasis (n + 1))
       = Submodule.span ℂ {(suHermBasis (n + 1)).casimir}) :
     ((suSM n hSchur).variance : ℂ) = 1 / ((2 ^ (n + 1) * 2 ^ (n + 1) - 1 : ℕ) : ℂ) := by
@@ -371,7 +371,7 @@ theorem suN_variance_value (n : ℕ)
 numerator and exponential DLA dimension imply a barren plateau. This theorem consumes the H1/H2
 second-moment bundle as data; it does not manufacture a circuit ensemble or use the diagonal
 consistency witness. -/
-theorem suN_hasBarrenPlateau
+lemma suN_hasBarrenPlateau
     {ρ O : (n : ℕ) → Matrix (Fin (2 ^ (n + 1))) (Fin (2 ^ (n + 1))) ℂ}
     (M : (n : ℕ) → RagoneSecondMoment (suHermBasis (n + 1)) (ρ n) (O n))
     (hρ : ∀ n, (ρ n)ᴴ = ρ n) (hO : ∀ n, (O n)ᴴ = O n)
@@ -384,7 +384,7 @@ theorem suN_hasBarrenPlateau
 /-- Schur-parameterized consistency witness for `su(2ⁿ)`. This is the diagonal witness sequence:
 once a caller supplies the Schur identity (H2), the variance decays exponentially, but the second
 moment itself is `RagoneSecondMoment.consistencyWitness`, not a finite-group Clifford twirl. -/
-theorem suN_hasBarrenPlateau_ofSchur
+lemma suN_hasBarrenPlateau_ofSchur
     (hSchur : ∀ n, gTensorGInvariant (suHermBasis (n + 1))
       = Submodule.span ℂ {(suHermBasis (n + 1)).casimir}) :
     HasBarrenPlateau (fun n => (suSM n (hSchur n)).variance) := by

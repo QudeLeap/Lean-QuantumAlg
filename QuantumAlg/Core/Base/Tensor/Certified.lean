@@ -41,7 +41,7 @@ public def tensor (ψ : NormalizedVector (Qubits m)) (φ : NormalizedVector (Qub
       rw [HilbertVector.norm_tensor, ψ.norm_eq_one, φ.norm_eq_one, one_mul])
 
 @[simp]
-theorem coe_tensor (ψ : NormalizedVector (Qubits m))
+lemma coe_tensor (ψ : NormalizedVector (Qubits m))
     (φ : NormalizedVector (Qubits n)) :
     ((ψ.tensor φ : NormalizedVector (Qubits (m + n))) :
       HilbertVector (Qubits (m + n))) =
@@ -49,18 +49,18 @@ theorem coe_tensor (ψ : NormalizedVector (Qubits m))
         (φ : HilbertVector (Qubits n)) := rfl
 
 @[simp]
-theorem tensor_apply (ψ : NormalizedVector (Qubits m))
+lemma tensor_apply (ψ : NormalizedVector (Qubits m))
     (φ : NormalizedVector (Qubits n)) (i : Fin (2 ^ (m + n))) :
     ψ.tensor φ i = ψ (prodEquiv.symm i).1 * φ (prodEquiv.symm i).2 :=
   rfl
 
-theorem tensor_apply_prod (ψ : NormalizedVector (Qubits m))
+lemma tensor_apply_prod (ψ : NormalizedVector (Qubits m))
     (φ : NormalizedVector (Qubits n)) (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
     ψ.tensor φ (prodEquiv (x, y)) = ψ x * φ y := by
   rw [tensor_apply, Equiv.symm_apply_apply]
 
 /-- Computational-basis kets tensor to the corresponding product basis ket. -/
-theorem tensor_ket (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
+lemma tensor_ket (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
     (ket x).tensor (ket y) = ket (prodEquiv (x, y)) := by
   apply NormalizedVector.ext
   intro i
@@ -78,7 +78,7 @@ theorem tensor_ket (x : Fin (2 ^ m)) (y : Fin (2 ^ n)) :
     · rw [if_neg h1, zero_mul]
     · rw [if_neg h2, mul_zero]
 
-theorem norm_tensor (ψ : NormalizedVector (Qubits m))
+lemma norm_tensor (ψ : NormalizedVector (Qubits m))
     (φ : NormalizedVector (Qubits n)) :
     ‖ψ.tensor φ‖ = ‖ψ‖ * ‖φ‖ := by
   change
@@ -87,7 +87,7 @@ theorem norm_tensor (ψ : NormalizedVector (Qubits m))
       ‖(ψ : HilbertVector (Qubits m))‖ * ‖(φ : HilbertVector (Qubits n))‖
   rw [HilbertVector.norm_tensor]
 
-theorem inner_tensor_tensor (ψ ψ' : NormalizedVector (Qubits m))
+lemma inner_tensor_tensor (ψ ψ' : NormalizedVector (Qubits m))
     (φ φ' : NormalizedVector (Qubits n)) :
     inner ℂ (ψ.tensor φ) (ψ'.tensor φ') =
       inner ℂ ψ ψ' * inner ℂ φ φ' := by
@@ -114,7 +114,7 @@ noncomputable section
     HilbertVector (Register.prod R S) :=
   WithLp.toLp 2 fun index => left index.1 * right index.2
 
-@[simp] public theorem prodTensor_apply {R S : Register}
+@[simp] public lemma prodTensor_apply {R S : Register}
     (left : HilbertVector R) (right : HilbertVector S)
     (index : (Register.prod R S).Index) :
     prodTensor left right index = left index.1 * right index.2 :=
@@ -122,7 +122,7 @@ noncomputable section
 
 /-- The norm of an arbitrary finite-register product vector is the product of
 the subsystem norms. -/
-public theorem norm_prodTensor {R S : Register}
+public lemma norm_prodTensor {R S : Register}
     (left : HilbertVector R) (right : HilbertVector S) :
     ‖prodTensor left right‖ = ‖left‖ * ‖right‖ := by
   rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq, EuclideanSpace.norm_eq,
@@ -140,7 +140,7 @@ public theorem norm_prodTensor {R S : Register}
   rw [norm_mul, mul_pow]
 
 /-- Computational-basis vectors form the corresponding product-register basis vector. -/
-@[simp] public theorem prodTensor_ket {R S : Register}
+@[simp] public lemma prodTensor_ket {R S : Register}
     (left : R.Index) (right : S.Index) :
     prodTensor
         (NormalizedVector.ket (R := R) left : HilbertVector R)
@@ -175,7 +175,7 @@ noncomputable section
   ofVector (HilbertVector.prodTensor left.vec right.vec) (by
     rw [HilbertVector.norm_prodTensor, left.norm_eq_one, right.norm_eq_one, one_mul])
 
-@[simp] public theorem prodTensor_apply {R S : Register}
+@[simp] public lemma prodTensor_apply {R S : Register}
     (left : NormalizedVector R) (right : NormalizedVector S)
     (index : (Register.prod R S).Index) :
     prodTensor left right index = left index.1 * right index.2 :=
@@ -204,7 +204,7 @@ public def prodTensor {R S : Register} (U : UnitaryOperator R) (V : UnitaryOpera
       Matrix.submatrix_one_equiv])
 
 @[simp]
-theorem coe_prodTensor {R S : Register} (U : UnitaryOperator R)
+lemma coe_prodTensor {R S : Register} (U : UnitaryOperator R)
     (V : UnitaryOperator S) :
     ((prodTensor U V : UnitaryOperator (Register.prod R S)) :
       HilbertOperator (Register.prod R S)) =
@@ -212,7 +212,7 @@ theorem coe_prodTensor {R S : Register} (U : UnitaryOperator R)
         ((U : HilbertOperator R) ⊗ₖ (V : HilbertOperator S)) := rfl
 
 @[simp]
-theorem prodTensor_apply {R S : Register} (U : UnitaryOperator R)
+lemma prodTensor_apply {R S : Register} (U : UnitaryOperator R)
     (V : UnitaryOperator S) (i j : (Register.prod R S).Index) :
     prodTensor U V i j = U i.1 j.1 * V i.2 j.2 := by
   change
@@ -222,14 +222,14 @@ theorem prodTensor_apply {R S : Register} (U : UnitaryOperator R)
   rfl
 
 /-- Every product-register entry is the product of the two actual subsystem entries. -/
-public theorem unitaryOperator_prodTensor_apply {R S : Register} (U : UnitaryOperator R)
+public lemma unitaryOperator_prodTensor_apply {R S : Register} (U : UnitaryOperator R)
     (V : UnitaryOperator S) (i j : (Register.prod R S).Index) :
     prodTensor U V i j = U i.1 j.1 * V i.2 j.2 :=
   prodTensor_apply U V i j
 
 /-- Product operators act factorwise on raw vectors over arbitrary finite
 registers. -/
-public theorem prodTensor_applyVec_prodTensor {R S : Register}
+public lemma prodTensor_applyVec_prodTensor {R S : Register}
     (U : UnitaryOperator R) (V : UnitaryOperator S)
     (left : HilbertVector R) (right : HilbertVector S) :
     (prodTensor U V).applyVec (HilbertVector.prodTensor left right) =
@@ -266,7 +266,7 @@ public def tensor (U : UnitaryOperator (Qubits m)) (V : UnitaryOperator (Qubits 
         Matrix.one_kronecker_one, Matrix.submatrix_one_equiv])
 
 @[simp]
-theorem coe_tensor (U : UnitaryOperator (Qubits m))
+lemma coe_tensor (U : UnitaryOperator (Qubits m))
     (V : UnitaryOperator (Qubits n)) :
     ((U.tensor V : UnitaryOperator (Qubits (m + n))) :
       HilbertOperator (Qubits (m + n))) =
@@ -274,13 +274,13 @@ theorem coe_tensor (U : UnitaryOperator (Qubits m))
         (V : HilbertOperator (Qubits n)) := rfl
 
 @[simp]
-theorem tensor_apply (U : UnitaryOperator (Qubits m))
+lemma tensor_apply (U : UnitaryOperator (Qubits m))
     (V : UnitaryOperator (Qubits n)) (i j : Fin (2 ^ (m + n))) :
     U.tensor V i j =
       U (prodEquiv.symm i).1 (prodEquiv.symm j).1 *
         V (prodEquiv.symm i).2 (prodEquiv.symm j).2 := rfl
 
-theorem tensor_applyVec_tensor (U : UnitaryOperator (Qubits m))
+lemma tensor_applyVec_tensor (U : UnitaryOperator (Qubits m))
     (V : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits m))
     (φ : HilbertVector (Qubits n)) :
     (U.tensor V).applyVec (HilbertVector.tensor ψ φ) =
@@ -288,7 +288,7 @@ theorem tensor_applyVec_tensor (U : UnitaryOperator (Qubits m))
   HilbertOperator.tensor_applyVec_tensor (U : HilbertOperator (Qubits m))
     (V : HilbertOperator (Qubits n)) ψ φ
 
-theorem tensor_apply_tensor (U : UnitaryOperator (Qubits m))
+lemma tensor_apply_tensor (U : UnitaryOperator (Qubits m))
     (V : UnitaryOperator (Qubits n)) (ψ : NormalizedVector (Qubits m))
     (φ : NormalizedVector (Qubits n)) :
     (U.tensor V).apply (ψ.tensor φ) =

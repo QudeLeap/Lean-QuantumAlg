@@ -42,7 +42,7 @@ def preparedLocalBasisEquiv (ctx : RuntimeCtx .quantum) (key : StorageKey)
       (ctx.addOwnedLayoutBasisEquiv key layout fresh disjoint)
 
 /-- The full preparation correspondence uses the local wire assembly and reference identity. -/
-theorem prepareContextBasisEquiv_pair (key : StorageKey)
+lemma prepareContextBasisEquiv_pair (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (newBasis : layout.register.Index) (oldBasis : ctx.register.Index)
@@ -55,7 +55,7 @@ theorem prepareContextBasisEquiv_pair (key : StorageKey)
 variable {C : Type} [Fintype C]
 
 /-- Summing the actual classical blocks retains the full pure-state tensor matrix. -/
-theorem prepareContext_quantumMarginal_joined_entry
+lemma prepareContext_quantumMarginal_joined_entry
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -75,7 +75,7 @@ theorem prepareContext_quantumMarginal_joined_entry
   simp only [Matrix.sum_apply, prepareContext_joined_entry, Finset.mul_sum]
 
 /-- Tracing only the new physical systems preserves the entire old context-reference operator. -/
-theorem prepareContext_quantumMarginal_old_entry
+lemma prepareContext_quantumMarginal_old_entry
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -93,7 +93,7 @@ theorem prepareContext_quantumMarginal_old_entry
   rw [← Finset.sum_mul, normalized, one_mul]
 
 /-- Preparation preserves the full reference matrix after tracing all actual local wires. -/
-theorem prepareContext_reference_entry
+lemma prepareContext_reference_entry
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -129,7 +129,7 @@ namespace State
 variable {H : Type} [Fintype H]
 
 /-- The actual typed store extension and path record preserve the prepared quantum marginal. -/
-theorem prepare_quantumMarginal (state : State ctx Reference H)
+lemma prepare_quantumMarginal (state : State ctx Reference H)
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout) :
@@ -154,19 +154,22 @@ variable {gates : GateModel} {oracles : OracleModel}
   {systemCount : Nat} {ctx : RuntimeCtx .quantum} {Reference : Register}
   {H : Type} [Fintype H]
 
+variable
+  (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+
 /-- The single interpreter's zero-preparation case is the actual context-bound state update. -/
-theorem execute_prepareZero (state : State ctx Reference (classicalOracles.HiddenState × H))
+lemma execute_prepareZero (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       ctx key layout fresh disjoint).execute
-      Reference state =
+      environment Reference state =
       (state.prepare key layout fresh disjoint (BasisPreparation.zero layout)).mapHistory
         (fun record => (record.1.1, (record.1.2, record.2))) := rfl
 
 /-- Every actual preparation output entry contains the complete old joint coherence. -/
-theorem prepareZero_joined_entry (state : State ctx Reference (classicalOracles.HiddenState × H))
+lemma prepareZero_joined_entry (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (newRow newColumn : layout.register.Index)
@@ -174,7 +177,7 @@ theorem prepareZero_joined_entry (state : State ctx Reference (classicalOracles.
     ((Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       ctx key layout fresh disjoint).execute
-      Reference state).quantumMarginal.matrix
+      environment Reference state).quantumMarginal.matrix
         (prepareContextBasisEquiv ctx Reference key layout fresh disjoint (newRow, oldRow))
         (prepareContextBasisEquiv ctx Reference key layout fresh disjoint (newColumn, oldColumn)) =
       ((BasisPreparation.zero layout).normalized.vec newRow *
@@ -187,7 +190,7 @@ theorem prepareZero_joined_entry (state : State ctx Reference (classicalOracles.
     (BasisPreparation.zero layout).normalized newRow newColumn oldRow oldColumn
 
 /-- Actual preparation preserves every reference entry, including off-diagonal coherences. -/
-theorem prepareZero_reference_entry (state : State ctx Reference (classicalOracles.HiddenState × H))
+lemma prepareZero_reference_entry (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (refLeft refRight : Reference.Index) :
@@ -195,7 +198,7 @@ theorem prepareZero_reference_entry (state : State ctx Reference (classicalOracl
       ((Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
         ctx key layout fresh disjoint).execute
-        Reference state).quantumMarginal.matrix (basis, refLeft) (basis, refRight)) =
+        environment Reference state).quantumMarginal.matrix (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
   rw [execute_prepareZero]

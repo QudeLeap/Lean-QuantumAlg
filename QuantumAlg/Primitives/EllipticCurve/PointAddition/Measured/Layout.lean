@@ -89,14 +89,14 @@ def selectorContext (width : Nat) : RuntimeCtx .quantum :=
     (by exact List.not_mem_nil)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-theorem selectorContext_physical (width : Nat) :
+lemma selectorContext_physical (width : Nat) :
     (selectorContext width).physicalIdx = [selectorWire width] := by
   change ((selectorLayout width).wires ++ []).map QuantumWire.identity = _
   simp only [List.append_nil, QuantumLayout.wires, List.map_ofFn]
   change List.ofFn (fun _ : Fin 1 => selectorWire width) = _
   simp
 
-theorem selector_disjoint (width : Nat) :
+lemma selector_disjoint (width : Nat) :
     RuntimeCtx.StorageDisjoint (InPlaceControlled.context width) (selectorContext width) := by
   constructor
   · apply (RuntimeCtx.keysDisjoint_iff_listDisjoint _ _).mpr
@@ -125,12 +125,12 @@ theorem selector_disjoint (width : Nat) :
   (InPlaceControlled.context width).disjointUnion (selectorContext width)
     (selector_disjoint width)
 
-theorem context_physical (width : Nat) :
+lemma context_physical (width : Nat) :
     (context width).physicalIdx =
       (InPlaceControlled.context width).physicalIdx ++ [selectorWire width] := by
   rw [context, RuntimeCtx.physicalIdx_disjointUnion, selectorContext_physical]
 
-private theorem selector_wires (width : Nat) :
+private lemma selector_wires (width : Nat) :
     (selectorLayout width).wires = (selectorContext width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (selectorLayout width).wires = (selectorLayout width).wires ++ []
@@ -165,7 +165,7 @@ def label (width : Nat) (control selector : Fin 2)
     (selector_disjoint width)).symm
       (InPlaceControlled.label width control original, (selectorBasis width).symm selector)
 
-theorem basis_label (width : Nat) (control selector : Fin 2)
+lemma basis_label (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index) :
     basis width (label width control selector original) =
       prodEquiv (prodEquiv (NumeratorMeasurement.frameBasis width original, control),
@@ -198,7 +198,7 @@ def resultInput (width : Nat) : CInputRef (context width) (.fixedVector width (.
   inputLeft (selector_disjoint width) (InPlaceControlled.resultInput width)
 
 /-- Every native physical position is an already resident owned qubit. -/
-theorem native_contained (width : Nat) :
+lemma native_contained (width : Nat) :
     List.range (encoding width).width ⊆ (context width).physicalIdx := by
   intro wire present
   have bound := List.mem_range.mp present
@@ -214,14 +214,14 @@ theorem native_contained (width : Nat) :
 /-- Canonical physical coordinates cover the original frame, C, and N. -/
 abbrev nativeLayout (width : Nat) := QubitLayout.canonical (encoding width).width
 
-private theorem native_identities_contained (width : Nat) :
+private lemma native_identities_contained (width : Nat) :
     (nativeLayout width).toQuantum.identities ⊆ (context width).quantumLayout.identities := by
   rw [RuntimeCtx.runtimeCtx_quantumLayout_identities]
   change (nativeLayout width).systemIdx ⊆ _
   rw [QubitLayout.canonical_systemIdx]
   exact native_contained width
 
-private theorem context_identities_contained (width : Nat) :
+private lemma context_identities_contained (width : Nat) :
     (context width).quantumLayout.identities ⊆ (nativeLayout width).toQuantum.identities := by
   rw [RuntimeCtx.runtimeCtx_quantumLayout_identities]
   change (context width).physicalIdx ⊆ (nativeLayout width).systemIdx
@@ -253,18 +253,18 @@ def nativePosition (width : Nat) :
     (native_identities_contained width)
 
 /-- Complete placement covers every original quantum coordinate, including arbitrary history. -/
-theorem nativePosition_surjective (width : Nat) : Function.Surjective (nativePosition width) :=
+lemma nativePosition_surjective (width : Nat) : Function.Surjective (nativePosition width) :=
   QuantumLayout.positionOfIdentity_surjective (nativeLayout width).toQuantum
     (context width).quantumLayout (native_identities_contained width)
     (context_identities_contained width)
 
 /-- Every native wire keeps its original physical identity. -/
-theorem nativePosition_identity (width : Nat) (index : Fin (encoding width).width) :
+lemma nativePosition_identity (width : Nat) (index : Fin (encoding width).width) :
     ((context width).quantumLayout.wire (nativePosition width index)).identity = index.val :=
   QuantumLayout.positionOfIdentity_identity (nativeLayout width).toQuantum
     (context width).quantumLayout (native_identities_contained width) index
 
-private theorem context_dimension (width : Nat) (index : Fin (context width).systemCount) :
+private lemma context_dimension (width : Nat) (index : Fin (context width).systemCount) :
     ((context width).quantumLayout.wire index).dimension = 2 := by
   obtain ⟨position, rfl⟩ :=
     (unionPositionEquiv (InPlaceControlled.context width) (selectorContext width)
@@ -290,7 +290,7 @@ private theorem context_dimension (width : Nat) (index : Fin (context width).sys
       rfl
 
 /-- The physical embedding retains the certified dimension of every resident qubit. -/
-theorem nativePosition_dimensions (width : Nat) (index : Fin (encoding width).width) :
+lemma nativePosition_dimensions (width : Nat) (index : Fin (encoding width).width) :
     ((nativeLayout width).toQuantum.wire index).dimension =
       ((context width).quantumLayout.wire (nativePosition width index)).dimension := by
   rw [context_dimension]
@@ -302,7 +302,7 @@ def nativeBasis (width : Nat) (state : (context width).register.Index) :
   UnitaryCircuit.basisAt (nativeLayout width).toQuantum (context width).quantumLayout
     (nativePosition width) (nativePosition_dimensions width) state
 
-private theorem nativePosition_left (width : Nat)
+private lemma nativePosition_left (width : Nat)
     (index : Fin (NativeFrameControl.encoding width).width) :
     nativePosition width (Fin.castAdd 1 index) =
       leftPosition (InPlaceControlled.context width) (selectorContext width)
@@ -314,7 +314,7 @@ private theorem nativePosition_left (width : Nat)
     ((congrArg QuantumWire.identity joined).trans
       (InPlaceControlled.nativePosition_identity width index)).symm
 
-private theorem nativeBasis_label_left (width : Nat) (control selector : Fin 2)
+private lemma nativeBasis_label_left (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index)
     (index : Fin (NativeFrameControl.encoding width).width) :
     (nativeBasis width (label width control selector original) (Fin.castAdd 1 index)).val =
@@ -331,7 +331,7 @@ private theorem nativeBasis_label_left (width : Nat) (control selector : Fin 2)
   rw [nativePosition_left]
   exact split.trans originalBasis
 
-private theorem nativePosition_right (width : Nat) (index : Fin 1) :
+private lemma nativePosition_right (width : Nat) (index : Fin 1) :
     nativePosition width (Fin.natAdd (NativeFrameControl.encoding width).width index) =
       rightPosition (InPlaceControlled.context width) (selectorContext width)
         (selector_disjoint width)
@@ -351,7 +351,7 @@ private theorem nativePosition_right (width : Nat) (index : Fin 1) :
       ((congrArg QuantumWire.identity joined).trans
         (congrArg QuantumWire.identity retained)).symm
 
-private theorem nativeBasis_label_right (width : Nat) (control selector : Fin 2)
+private lemma nativeBasis_label_right (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index) (index : Fin 1) :
     (nativeBasis width (label width control selector original)
       (Fin.natAdd (NativeFrameControl.encoding width).width index)).val =
@@ -371,7 +371,7 @@ private theorem nativeBasis_label_right (width : Nat) (control selector : Fin 2)
   exact split.trans retained
 
 /-- All runtime labels read exactly the original frame followed by C and N. -/
-theorem pointNativeBasis_label (width : Nat) (control selector : Fin 2)
+lemma pointNativeBasis_label (width : Nat) (control selector : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index) :
     nativeBasis width (label width control selector original) =
       (nativeLayout width).basisEquiv.symm
@@ -396,7 +396,7 @@ theorem pointNativeBasis_label (width : Nat) (control selector : Fin 2)
     exact nativeBasis_label_right width control selector original last
 
 /-- Complete physical placement and the original binary grouping agree for every runtime state. -/
-theorem pointNativeBasis_eq_basis (width : Nat) (state : (context width).register.Index) :
+lemma pointNativeBasis_eq_basis (width : Nat) (state : (context width).register.Index) :
     nativeBasis width state = (nativeLayout width).basisEquiv.symm (basis width state) := by
   obtain ⟨⟨frameControl, selector⟩, same⟩ :=
     (prodEquiv (m := (NativeFrameControl.encoding width).width) (n := 1)).surjective

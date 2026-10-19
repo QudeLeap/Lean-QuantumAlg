@@ -39,7 +39,7 @@ structure FrameFree (cells : Cells ctx N)
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem checkedPack_read_other (cells : Cells ctx N)
+private lemma checkedPack_read_other (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (checkedPackStep (model := model) cells output store).1.read other = store.read other :=
@@ -47,7 +47,7 @@ private theorem checkedPack_read_other (cells : Cells ctx N)
     (FactorRange.storeStep (checkRefs cells) store)).trans
       (FactorRange.read_other (checkRefs cells) other free.lower free.upper store)
 
-private theorem right_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma right_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (rightStep (model := model) halfPower cells output store).1.read other = store.read other :=
@@ -56,7 +56,7 @@ private theorem right_read_other (halfPower : CInputRef ctx (.unsignedWord (modu
       (NativeHalfGCD.read_other (model := model) true halfPower cells.candidate other
           free.candidate store)
 
-private theorem chooseArm_read_other
+private lemma chooseArm_read_other
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other)
@@ -69,7 +69,7 @@ private theorem chooseArm_read_other
     · exact right_read_other (model := model) halfPower cells output other free store
     · exact pack_read_other (model := model) cells output other free.payload free.output store
 
-private theorem choose_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma choose_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (chooseStep (model := model) halfPower cells output store).1.read other = store.read other :=
@@ -77,7 +77,7 @@ private theorem choose_read_other (halfPower : CInputRef ctx (.unsignedWord (mod
     (store.read (.storage cells.lower.toCStorageRef)) store
 
 /-- Either actually selected GCD path preserves every read outside its real write cells. -/
-theorem read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (cells : Cells ctx N) (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (step (model := model) halfPower cells output store).1.read other = store.read other :=

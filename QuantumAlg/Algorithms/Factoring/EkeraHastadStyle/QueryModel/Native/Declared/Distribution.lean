@@ -30,23 +30,24 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The actual packed result PMF traces the conditional source Born law
 against the original correlated caller, service and reference state. -/
-theorem outputDistribution (parameter : CInputRef base (ParameterShape N))
+lemma outputDistribution (parameter : CInputRef base (ParameterShape N))
     {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference)
+    (original : Execution.OracleInput (model N).classicalOracles base Reference)
     (outcome : Fin (measurementBits N) → Bool) :
-    (run base noQuantum N input parameter).outputDistribution original (.bits outcome) =
+    (run base noQuantum N parameter).outputDistribution (sourceEnvironment input) original
+      (.bits outcome) =
       ENNReal.ofReal (∑ reference : Reference.Index,
         ExecutionState.referenceFiberSum original.state
           (fun entry _ => sourceWeight N input (entry.1.read parameter) outcome)
           reference reference).re := by
-  let actual := run base noQuantum N input parameter
+  let actual := run base noQuantum N parameter
   let read := fun record : actual.Record => actual.result record
   have mapped := congrArg
     (fun probability : PMF (CShape.Value (.bits (measurementBits N))) =>
       probability (.bits outcome))
     (ExecutionState.toPMF_mapClassical
-      (actual.execute Reference original.state)
-      (actual.execute_normalized original) read).symm
+      (actual.execute (sourceEnvironment input) Reference original.state)
+      (actual.execute_normalized (sourceEnvironment input) original) read).symm
   refine mapped.trans ?_
   rw [ExecutionState.toPMF_apply,
     ExecutionState.mapClassical_block_mass_referenceFiberSum]

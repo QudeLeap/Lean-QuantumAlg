@@ -27,7 +27,7 @@ last rejecting threshold and the smallest original positive input.
 namespace QuantumAlg.NumberTheory.SharedEEA.AlignmentWindow
 
 /-- The actual alignment's highest comparison retains one bit beyond the division threshold. -/
-theorem complete_capacity (state : IterationState) (modulus : Nat)
+lemma complete_capacity (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     state.coefficient.size + 1 + state.divisor.size + state.quotient.size ≤ modulus.size + 3 := by
@@ -51,7 +51,7 @@ def length (state : IterationState) (modulus shift : Nat) : Nat :=
   modulus.size + 3 - (state.coefficient.size + 1) - shift
 
 /-- All actual first-phase positions fit the original work word without caller-supplied geometry. -/
-theorem window_fits (state : IterationState) (modulus shift : Nat)
+lemma window_fits (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     state.coefficient.size + 1 + shift ≤ modulus.size + 3 := by
@@ -59,7 +59,7 @@ theorem window_fits (state : IterationState) (modulus shift : Nat)
   omega
 
 /-- The complete divisor fits the actual window even at the final rejecting comparison. -/
-theorem divisor_fits (state : IterationState) (modulus shift : Nat)
+lemma divisor_fits (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     state.divisor.size ≤ length state modulus shift := by
@@ -68,7 +68,7 @@ theorem divisor_fits (state : IterationState) (modulus shift : Nat)
   omega
 
 /-- The real rotated second-word region reads exactly the complete divisor, with no truncation. -/
-theorem source_toNat (state : IterationState) (modulus shift : Nat)
+lemma source_toNat (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     ((WordRotation.packRotatedWork2 shift

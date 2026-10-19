@@ -27,7 +27,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem dispatch_read (source : Input N)
+private lemma dispatch_read (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (dispatchStep (model := model) source parameter cells output store).1.read (.storage
@@ -47,7 +47,7 @@ private theorem dispatch_read (source : Input N)
   | bit value => cases value <;> rfl
 
 /-- The real priority branch agrees exactly with the original residue-facing source selector. -/
-theorem dispatch_result (source : Input N)
+lemma dispatch_result (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (ordinary : ¬ (2 < N ∧ Even N)) (separate : GuardSeparation cells)

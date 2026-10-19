@@ -37,7 +37,8 @@ def secondOp (pair : BatchMachine.PairRefs ctx N) (output : RawOutputRefs ctx wi
     ClassicalOp (.unsignedWord (BatchMachine.JWidth N)) (.unsignedWord width) ctx ctx :=
   .wordResize (BatchMachine.JWidth N) width ctx (writeInput pair.second.j) output.b12
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual second source read precedes initialization of the original third coordinate. -/
@@ -76,14 +77,15 @@ abbrev powerStep (count : Nat) (output : CWriteRef ctx (.unsignedWord width)) (s
   Word.PowerOfTwo.step (model := model) count output store
 
 /-- The actual second resize and constant initialization retain every incoming state block. -/
-theorem firstRowTailInto_execute (pair : BatchMachine.PairRefs ctx N)
+lemma firstRowTailInto_execute (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstRowTailInto pair output).execute Reference state = state.mapClassical (fun entry =>
+    (firstRowTailInto pair output).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := firstRowTailStep pair output entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (secondOp pair output))
     (Word.PowerOfTwo.into (model := model) 0 output.b13)
     (fun before =>
@@ -92,20 +94,22 @@ theorem firstRowTailInto_execute (pair : BatchMachine.PairRefs ctx N)
     (fun before =>
       let actual := Word.PowerOfTwo.step (model := model) 0 output.b13 before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (fun reference _history _ current => Word.PowerOfTwo.into_execute 0 output.b13
       reference current) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual first-row loading preserves every original quantum-reference correlation. -/
-theorem loadFirstBasisRowInto_execute (pair : BatchMachine.PairRefs ctx N)
+lemma loadFirstBasisRowInto_execute (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loadFirstBasisRowInto pair output).execute Reference state = state.mapClassical (fun entry =>
+    (loadFirstBasisRowInto pair output).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := firstRowStep pair output entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (firstOp pair output))
     (firstRowTailInto pair output)
     (fun before =>
@@ -114,7 +118,8 @@ theorem loadFirstBasisRowInto_execute (pair : BatchMachine.PairRefs ctx N)
     (fun before =>
       let actual := firstRowTailStep pair output before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (fun reference _history _ current => firstRowTailInto_execute pair output reference current)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl

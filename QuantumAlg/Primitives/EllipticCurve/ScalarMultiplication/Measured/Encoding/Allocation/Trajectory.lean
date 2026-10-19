@@ -29,6 +29,8 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute MeasuredPointAddition Allocation
 
 /-- Original unit-scaled affine words follow the existing ordinary mathematical trajectory. -/
@@ -50,19 +52,21 @@ private def convertedReadyTrajectory {p : Nat} (E : PrimeFieldShortWeierstrass p
     prepared = initializedReadyBasis p count original
 
 /-- Original affine support establishes every domain after actual inverse coordinate conversion. -/
-theorem convertedInitializedSupport_of_input_trajectory {p : Nat}
+lemma convertedInitializedSupport_of_input_trajectory {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] {count : Nat}
     (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (Reference : Register)
     (input : DensityOperator (Register.prod (before p.size count).register Reference))
     (support : ∀ original, ¬convertedInputTrajectory E points order coefficient original.1 →
       input.matrix original original = 0) :
-    convertedInitializedSupport E points order coefficient Reference input := by
+    convertedInitializedSupport (environment := environment) E points order coefficient Reference
+      input := by
   apply cascadeSupport_of_basisTrajectory
   refine MeasuredPointAddition.applyUnitary_support_of_kets
     ((initializedDensity p count Reference input).reindex
       (ContextPermutation.referenceBasis (body_entries p.size count) Reference).symm)
-    (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
+    (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+      coefficient⁻¹ Reference)
     (fun value => convertedReadyTrajectory E points order coefficient value.1)
     (fun value => basisTrajectory E points order value.1) ?_ ?_
   · intro value outside
@@ -80,12 +84,13 @@ theorem convertedInitializedSupport_of_input_trajectory {p : Nat}
     refine ⟨(initializedReadyBasis p count
       (inputLabel p.size count exponent (fieldWord initial.x) (fieldWord initial.y)), reference),
       trajectory, ?_⟩
-    have actual := pairOperator_initialized_fieldWords count coefficient⁻¹ exponent
+    have actual := pairOperator_initialized_fieldWords (environment := environment) count
+      coefficient⁻¹ exponent
       ((coefficient : ZMod p) * initial.x) ((coefficient : ZMod p) * initial.y) reference
     exact actual.trans (by rw [Units.inv_mul_cancel_left, Units.inv_mul_cancel_left])
 
 /-- The actual converted circuit has the complete target on original scaled affine trajectories. -/
-theorem convertedCircuit_density_of_input_trajectory {p : Nat}
+lemma convertedCircuit_density_of_input_trajectory {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] {count : Nat}
     (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) {Reference : Register} {H : Type} [Fintype H]
@@ -94,8 +99,10 @@ theorem convertedCircuit_density_of_input_trajectory {p : Nat}
     (support : ∀ input : (Register.prod (before p.size count).register Reference).Index,
       ¬convertedInputTrajectory E points order coefficient input.1 →
         original.quantumMarginal.matrix input input = 0) :
-    ((convertedCircuit E points order coefficient).execute Reference original).quantumMarginal =
-      convertedResultDensity E points order coefficient Reference original.quantumMarginal :=
+    ((convertedCircuit E points order coefficient).execute environment
+      Reference original).quantumMarginal =
+      convertedResultDensity (environment := environment) E points order coefficient Reference
+        original.quantumMarginal :=
   convertedCircuit_density E points order coefficient original
     (convertedInitializedSupport_of_input_trajectory E points order coefficient Reference
       original.quantumMarginal support)

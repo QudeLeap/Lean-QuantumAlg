@@ -27,7 +27,7 @@ namespace QuantumAlg.QuantumPhaseEstimation.Native
 
 noncomputable section
 
-private theorem apply_mul {R : Register} (first second : UnitaryOperator R)
+private lemma apply_mul {R : Register} (first second : UnitaryOperator R)
     (state : NormalizedVector R) :
     (first * second).apply state = first.apply (second.apply state) := by
   apply NormalizedVector.ext
@@ -35,7 +35,7 @@ private theorem apply_mul {R : Register} (first second : UnitaryOperator R)
   exact congrArg (fun vector : HilbertVector R => vector index)
     (UnitaryOperator.mul_applyVec first second state)
 
-private theorem apply_identity {R : Register} (state : NormalizedVector R) :
+private lemma apply_identity {R : Register} (state : NormalizedVector R) :
     (1 : UnitaryOperator R).apply state = state := by
   apply NormalizedVector.ext
   intro index
@@ -43,9 +43,10 @@ private theorem apply_identity {R : Register} (state : NormalizedVector R) :
     (UnitaryOperator.one_applyVec (state : HilbertVector R))
 
 /-- The same executed word produces the original phase readout and preserves the eigenstate. -/
-theorem qpeNative_circuit_apply_eigenstate {systemWidth : Nat}
+lemma qpeNative_circuit_apply_eigenstate {systemWidth : Nat}
     (input : QPEEigenstateInput systemWidth) (phaseWidth : Nat) :
-    (circuit phaseWidth input.unitary).binaryMatrix.apply
+    ((circuit phaseWidth systemWidth).binaryMatrix (UnitarySource.interpretation
+      input.unitary true)).apply
       ((NormalizedVector.ket (R := Qubits phaseWidth) 0).tensor input.eigenstate) =
         ((invQFT phaseWidth).apply (phaseState phaseWidth input.phase)).tensor
           input.eigenstate := by

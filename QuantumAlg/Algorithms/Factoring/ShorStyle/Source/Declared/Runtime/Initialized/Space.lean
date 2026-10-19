@@ -32,7 +32,7 @@ def additionalSpace {kind : ProblemKind} (N : Nat) : SpacePool kind :=
         (SpacePool.ofShape (.unsignedWord (modulusBits N)) + SpacePool.ofShape .bit)))
 
 /-- The true surviving resident frame contains every actual persistent head. -/
-theorem context_resident {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :
+lemma context_resident {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).residentSpace = ctx.residentSpace + additionalSpace N := by
   unfold context selectedContext acceptedContext candidateContext resultContext
   simp only [RuntimeCtx.residentSpace_addRetained]
@@ -40,7 +40,7 @@ theorem context_resident {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) 
   ac_rfl
 
 /-- Allocation and the real latch clear fit the complete persistent resident frame. -/
-theorem initialization_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma initialization_resident_le {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (initialization (model := model) ctx N).Path) :
     (initialization (model := model) ctx N).peakResidentSpace path ≤
@@ -65,7 +65,7 @@ theorem initialization_resident_le {model : ExecutionModel} [BitWord.Selected mo
         (NativeFactorScan.clearAcceptedOp (cells ctx N))) clearPath).le
 
 /-- The true surviving auxiliary frame contains every actual persistent head. -/
-theorem context_auxiliary {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :
+lemma context_auxiliary {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).auxiliarySpace = ctx.auxiliarySpace + additionalSpace N := by
   unfold context selectedContext acceptedContext candidateContext resultContext
   simp only [RuntimeCtx.auxiliarySpace_addRetained]
@@ -73,7 +73,7 @@ theorem context_auxiliary {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat)
   ac_rfl
 
 /-- Allocation and the real latch clear fit the complete persistent auxiliary frame. -/
-theorem initialization_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma initialization_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (N : Nat)
     (path : (initialization (model := model) ctx N).Path) :
     (initialization (model := model) ctx N).peakAuxiliarySpace path ≤
@@ -113,7 +113,7 @@ def firstAdditionalSpace (N : Nat) : SpacePool .quantum :=
     completionAdditionalSpace N
 
 /-- The actual prepared bank's resident frame agrees with the independent allocation shapes. -/
-theorem bank_resident (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+lemma bank_resident (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (N : Nat) : (bank base noQuantum N).residentSpace =
       base.residentSpace + (Persistent.additionalSpace N +
         SpacePool.ofQuantumLayout (layout N)) := by
@@ -122,24 +122,24 @@ theorem bank_resident (base : RuntimeCtx .quantum) (noQuantum : base.quantumWire
   ac_rfl
 
 /-- Actual initialization's resident peak is at most its complete prepared frame. -/
-theorem ready_resident_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-    (N : Nat) (input : Input N) (path : (ready base noQuantum N input).Path) :
-    (ready base noQuantum N input).peakResidentSpace path ≤
+lemma ready_resident_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+    (N : Nat) (path : (ready base noQuantum N).Path) :
+    (ready base noQuantum N).peakResidentSpace path ≤
       (bank base noQuantum N).residentSpace := by
   rcases path with ⟨persistentPath, preparationPath⟩
-  change (Circuit.seq (Persistent.initialization (model := executionModel input) base N)
-    (Sampling.prepare (Persistent.context base N) (noQuantumStorage base noQuantum N) N input)
+  change (Circuit.seq (Persistent.initialization (model := executionModel N) base N)
+    (Sampling.prepare (Persistent.context base N) (noQuantumStorage base noQuantum N) N)
     ).peakResidentSpace ⟨persistentPath, preparationPath⟩ ≤ _
   rw [Circuit.peakResidentSpace_seq]
   apply SpacePool.max_le
-  · exact (Persistent.initialization_resident_le (model := executionModel input) base N
+  · exact (Persistent.initialization_resident_le (model := executionModel N) base N
       persistentPath).trans (by
       unfold bank bankContext
       rw [RuntimeCtx.residentSpace_addOwnedLayout]
       exact fun axis => Nat.le_add_left _ _)
   · exact (Circuit.prepare_peakResidentSpace
       (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (Persistent.context base N) (Persistent.context base N).canonicalFreshKey (layout N)
       (Persistent.context base N).canonicalFreshKey_fresh
@@ -147,12 +147,12 @@ theorem ready_resident_le (base : RuntimeCtx .quantum) (noQuantum : base.quantum
       preparationPath).le
 
 /-- Every real first-cycle path pays its complete resident peak including initialization. -/
-theorem code_resident_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+lemma code_resident_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (N : Nat) (input : Input N) (path : (code base noQuantum N input).Path) :
     (code base noQuantum N input).peakResidentSpace path ≤
       base.residentSpace + firstAdditionalSpace N := by
   rcases path with ⟨readyPath, roundPath⟩
-  change (Circuit.seq (ready base noQuantum N input)
+  change (Circuit.seq (ready base noQuantum N)
     (Completion.code (bank base noQuantum N) N input (bank_wires base noQuantum N)
       (cells base noQuantum N) (result base noQuantum N))).peakResidentSpace
         ⟨readyPath, roundPath⟩ ≤ _
@@ -163,14 +163,14 @@ theorem code_resident_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumW
     unfold firstAdditionalSpace
     ac_rfl
   apply SpacePool.max_le
-  · exact ((ready_resident_le base noQuantum N input readyPath).trans
+  · exact ((ready_resident_le base noQuantum N readyPath).trans
       (fun axis => Nat.le_add_right _ _)).trans_eq frame
   · exact (Completion.code_resident_le (bank base noQuantum N) N input
       (bank_wires base noQuantum N) (cells base noQuantum N) (result base noQuantum N)
       roundPath).trans_eq frame
 
 /-- The actual prepared bank's auxiliary frame agrees with the independent allocation shapes. -/
-theorem bank_auxiliary (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+lemma bank_auxiliary (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (N : Nat) : (bank base noQuantum N).auxiliarySpace =
       base.auxiliarySpace + (Persistent.additionalSpace N +
         SpacePool.ofQuantumLayout (layout N)) := by
@@ -179,24 +179,24 @@ theorem bank_auxiliary (base : RuntimeCtx .quantum) (noQuantum : base.quantumWir
   ac_rfl
 
 /-- Actual initialization's auxiliary peak is at most its complete prepared frame. -/
-theorem ready_auxiliary_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-    (N : Nat) (input : Input N) (path : (ready base noQuantum N input).Path) :
-    (ready base noQuantum N input).peakAuxiliarySpace path ≤
+lemma ready_auxiliary_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+    (N : Nat) (path : (ready base noQuantum N).Path) :
+    (ready base noQuantum N).peakAuxiliarySpace path ≤
       (bank base noQuantum N).auxiliarySpace := by
   rcases path with ⟨persistentPath, preparationPath⟩
-  change (Circuit.seq (Persistent.initialization (model := executionModel input) base N)
-    (Sampling.prepare (Persistent.context base N) (noQuantumStorage base noQuantum N) N input)
+  change (Circuit.seq (Persistent.initialization (model := executionModel N) base N)
+    (Sampling.prepare (Persistent.context base N) (noQuantumStorage base noQuantum N) N)
     ).peakAuxiliarySpace ⟨persistentPath, preparationPath⟩ ≤ _
   rw [Circuit.peakAuxiliarySpace_seq]
   apply SpacePool.max_le
-  · exact (Persistent.initialization_auxiliary_le (model := executionModel input) base N
+  · exact (Persistent.initialization_auxiliary_le (model := executionModel N) base N
       persistentPath).trans (by
       unfold bank bankContext
       rw [RuntimeCtx.auxiliarySpace_addOwnedLayout]
       exact fun axis => Nat.le_add_left _ _)
   · exact (Circuit.prepare_peakAuxiliarySpace
       (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (Persistent.context base N) (Persistent.context base N).canonicalFreshKey (layout N)
       (Persistent.context base N).canonicalFreshKey_fresh
@@ -204,12 +204,12 @@ theorem ready_auxiliary_le (base : RuntimeCtx .quantum) (noQuantum : base.quantu
       preparationPath).le
 
 /-- Every real first-cycle path pays its complete auxiliary peak including initialization. -/
-theorem code_auxiliary_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+lemma code_auxiliary_le (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (N : Nat) (input : Input N) (path : (code base noQuantum N input).Path) :
     (code base noQuantum N input).peakAuxiliarySpace path ≤
       base.auxiliarySpace + firstAdditionalSpace N := by
   rcases path with ⟨readyPath, roundPath⟩
-  change (Circuit.seq (ready base noQuantum N input)
+  change (Circuit.seq (ready base noQuantum N)
     (Completion.code (bank base noQuantum N) N input (bank_wires base noQuantum N)
       (cells base noQuantum N) (result base noQuantum N))).peakAuxiliarySpace
         ⟨readyPath, roundPath⟩ ≤ _
@@ -220,7 +220,7 @@ theorem code_auxiliary_le (base : RuntimeCtx .quantum) (noQuantum : base.quantum
     unfold firstAdditionalSpace
     ac_rfl
   apply SpacePool.max_le
-  · exact ((ready_auxiliary_le base noQuantum N input readyPath).trans
+  · exact ((ready_auxiliary_le base noQuantum N readyPath).trans
       (fun axis => Nat.le_add_right _ _)).trans_eq frame
   · exact (Completion.code_auxiliary_le (bank base noQuantum N) N input
       (bank_wires base noQuantum N) (cells base noQuantum N) (result base noQuantum N)

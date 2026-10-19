@@ -51,20 +51,23 @@ public def circuit (oracles : OracleModel) {width : Nat} :
   | .swap left right distinct => Gate.Swap.qubitCircuit left right distinct oracles
 
 /-- The native implementation has exactly the original addressed mathematical target. -/
-public theorem qftPrimitive_circuit_matrix (oracles : OracleModel) {width : Nat}
-    (primitive : QFTPrimitive width) :
-    (primitive.circuit oracles).matrix =
+public lemma qftPrimitive_circuit_matrix (oracles : OracleModel) {width : Nat}
+    (primitive : QFTPrimitive width)
+    (environment : oracles.Interpretation) :
+    ((primitive.circuit oracles).matrix environment) =
       UnitaryOperator.reindex
         (QuantumSignature.qubitsIndexEquiv width).symm primitive.operator := by
   cases primitive with
   | controlledPhase control target angle distinct =>
-      exact Gate.ControlledPhase.controlledPhase_qubitCircuit_matrix oracles
+      exact Gate.ControlledPhase.controlledPhase_qubitCircuit_matrix (environment := environment)
+        oracles
         control target distinct angle
   | swap left right distinct =>
-      exact Gate.Swap.swap_qubitCircuit_matrix left right distinct oracles
+      exact Gate.Swap.swap_qubitCircuit_matrix (environment := environment) left right distinct
+        oracles
 
 /-- Counts are read from complete native event sequences, without an atomic phase or SWAP event. -/
-public theorem qftPrimitive_circuit_events (oracles : OracleModel) {width : Nat}
+public lemma qftPrimitive_circuit_events (oracles : OracleModel) {width : Nat}
     (primitive : QFTPrimitive width) :
     (primitive.circuit oracles).eventTrace = match primitive with
       | .controlledPhase _ _ _ _ =>

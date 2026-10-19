@@ -55,7 +55,7 @@ def OutputRepresents {width : Nat}
   decodeOutput encoded = semantic
 
 /-- The two unsigned encodings agree on their actual natural projection. -/
-theorem terminalDecode_decodeOutput_val {width : Nat}
+lemma terminalDecode_decodeOutput_val {width : Nat}
     (encoded : CShape.Value (OutputShape width)) :
     (decodeOutput encoded).val = encoded.toNat := by
   cases encoded
@@ -74,7 +74,7 @@ def sourceIndex {width : Nat} (order : BitOrder) (index : Fin width) : Fin width
   | .littleEndian => index.rev
 
 /-- Address selection agrees exactly with the pure accumulator order. -/
-theorem terminalDecode_sourceIndex_accumulatorBits {width : Nat}
+lemma terminalDecode_sourceIndex_accumulatorBits {width : Nat}
     (order : BitOrder) (bits : Fin width → Bool) (index : Fin width) :
     bits (sourceIndex order index) = accumulatorBits order bits index := by
   cases order <;> rfl

@@ -21,7 +21,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Program
 open Execution
 
 /-- The actual program's final store is the declared release of its actual inner store. -/
-theorem samplerProgram_store_projection {model : ExecutionModel} [BitWord.Selected model]
+lemma samplerProgram_store_projection {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (N : Nat) (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx) :

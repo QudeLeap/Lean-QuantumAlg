@@ -29,7 +29,7 @@ noncomputable section
 variable {kind : ProblemKind}
 
 /-- The parameter's later allocation gives it a different actual key from the sample. -/
-theorem samplerRetained_parameter_key_ne_sample (ctx : RuntimeCtx kind) (N : Nat) :
+lemma samplerRetained_parameter_key_ne_sample (ctx : RuntimeCtx kind) (N : Nat) :
     (parameterRef ctx N).key ≠ (sampleRef ctx N).key := by
   intro same
   apply (sampleContext ctx N).canonicalFreshKey_fresh
@@ -50,7 +50,7 @@ def outcomeStep (ctx : RuntimeCtx model.kind) (N : Nat) (store : Store (context 
     prepared.2))
 
 /-- The real source sample remains readable after the full scoped parameter computation. -/
-theorem samplerRetained_outcome_sample (store : Store (context ctx N))
+lemma samplerRetained_outcome_sample (store : Store (context ctx N))
     (value : Fin (2 ^ residueSamplingBits N)) :
     (outcomeStep (model := model) ctx N store value).1.read
       (FirstAccepted.cellRead (sampleRef ctx N)) =
@@ -66,7 +66,7 @@ theorem samplerRetained_outcome_sample (store : Store (context ctx N))
       (Store.read_write_same store (sampleRef ctx N) _)
 
 /-- Every actually sampled outcome yields exactly the source's complete unit/factor parameter. -/
-theorem samplerRetained_outcome_parameter (input : Input N) (store : Store (context ctx N))
+lemma samplerRetained_outcome_parameter (input : Input N) (store : Store (context ctx N))
     (value : Fin (2 ^ residueSamplingBits N)) :
     (outcomeStep (model := model) ctx N store value).1.read
       (FirstAccepted.cellRead (parameterRef ctx N)) =

@@ -42,15 +42,15 @@ def numerator (width : Nat) : EncodedBit.Word (frameEncoding width) width :=
   ⟨fun index => BinaryLabelEncoding.prodRightBit (SharedEEA.encoding width)
     (BinaryLabelEncoding.finIdentity width) (BinaryLabelEncoding.finIdentityBit width index)⟩
 
-theorem accumulator_wire (width : Nat) (index : Fin width) :
+lemma accumulator_wire (width : Nat) (index : Fin width) :
     ((accumulator width).bit index).wire.val = index.val := rfl
 
-theorem input_wire (width : Nat) (index : Fin width) :
+lemma input_wire (width : Nat) (index : Fin width) :
     ((input width).bit index).wire.val = width + 6 + index.val := by
   change width + 3 + (3 + index.val) = _
   omega
 
-theorem numerator_wire (width : Nat) (index : Fin width) :
+lemma numerator_wire (width : Nat) (index : Fin width) :
     ((numerator width).bit index).wire.val =
       2 * width + 6 + tailWidth width + index.val := by
   change (SharedEEA.encoding width).width + index.val = _
@@ -58,15 +58,15 @@ theorem numerator_wire (width : Nat) (index : Fin width) :
   unfold tailWidth
   omega
 
-theorem accumulator_read (width : Nat) (index : Fin width) (state : Frame width) :
+lemma accumulator_read (width : Nat) (index : Fin width) (state : Frame width) :
     ((accumulator width).bit index).get state = state.1.firstWord.getMsbD index.val :=
   SharedEEA.firstWordBit_get width _ state.1
 
-theorem input_read (width : Nat) (index : Fin width) (state : Frame width) :
+lemma input_read (width : Nat) (index : Fin width) (state : Frame width) :
     ((input width).bit index).get state = state.1.secondWord.getMsbD (3 + index.val) :=
   SharedEEA.secondWordBit_get width _ state.1
 
-theorem numerator_read (width : Nat) (index : Fin width) (state : Frame width) :
+lemma numerator_read (width : Nat) (index : Fin width) (state : Frame width) :
     ((numerator width).bit index).get state = state.2.val.testBit index.rev.val := by
   change state.2.val.testBit (width - 1 - index.val) = _
   apply congrArg (fun bit => state.2.val.testBit bit)
@@ -74,7 +74,7 @@ theorem numerator_read (width : Nat) (index : Fin width) (state : Frame width) :
   omega
 
 /-- Every wire inside A has a unique actual identity. -/
-theorem accumulator_distinct (width : Nat) (left right : Fin width) (different : left ≠ right) :
+lemma accumulator_distinct (width : Nat) (left right : Fin width) (different : left ≠ right) :
     ((accumulator width).bit left).wire ≠ ((accumulator width).bit right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -82,7 +82,7 @@ theorem accumulator_distinct (width : Nat) (left right : Fin width) (different :
   exact different (Fin.ext values)
 
 /-- Every wire inside Y has a unique actual identity. -/
-theorem numerator_distinct (width : Nat) (left right : Fin width) (different : left ≠ right) :
+lemma numerator_distinct (width : Nat) (left right : Fin width) (different : left ≠ right) :
     ((numerator width).bit left).wire ≠ ((numerator width).bit right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -90,7 +90,7 @@ theorem numerator_distinct (width : Nat) (left right : Fin width) (different : l
   exact different (Fin.ext (by omega))
 
 /-- No measured-word wire aliases any large-workspace wire. -/
-theorem accumulator_numerator_ne (width : Nat) (left right : Fin width) :
+lemma accumulator_numerator_ne (width : Nat) (left right : Fin width) :
     ((accumulator width).bit left).wire ≠ ((numerator width).bit right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -99,7 +99,7 @@ theorem accumulator_numerator_ne (width : Nat) (left right : Fin width) :
   omega
 
 /-- The divisor/input word is separate from both large-word reuse ports. -/
-theorem input_separate (width : Nat) (index other : Fin width) :
+lemma input_separate (width : Nat) (index other : Fin width) :
     ((input width).bit index).wire ≠ ((accumulator width).bit other).wire ∧
       ((input width).bit index).wire ≠ ((numerator width).bit other).wire := by
   have inputBound := index.isLt

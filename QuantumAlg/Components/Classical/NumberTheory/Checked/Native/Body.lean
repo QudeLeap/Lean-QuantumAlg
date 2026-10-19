@@ -29,7 +29,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original loaded-modulus, widened-XGCD and checked signed-reduction sequence. -/
@@ -45,7 +45,7 @@ def checkedInverseBody (spec : ModulusSpec width)
         (decisionRead outputs.rightCoefficient) (decisionRead modulus) success inverse))
 
 /-- The actual complete body produces the original unit test and canonical inverse coefficient. -/
-theorem checkedInverseBody_actualRecord (spec : ModulusSpec width)
+lemma checkedInverseBody_actualRecord (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CWriteRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
@@ -66,7 +66,7 @@ theorem checkedInverseBody_actualRecord (spec : ModulusSpec width)
         (state : State ctx Reference (model.HiddenState × History)),
         (checkedInverseBody (model := model) spec denominator modulus outputs
           success inverse).execute
-          Reference state = state.mapClassical (fun entry =>
+          environment Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
@@ -105,13 +105,15 @@ theorem checkedInverseBody_actualRecord (spec : ModulusSpec width)
   let suffixRecord := Circuit.sequenceRecord raw selected rawRecord selectedRecord
   refine ⟨Circuit.sequenceRecord loader (Circuit.seq raw selected) loadRecord suffixRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord loader (Circuit.seq raw selected) loadRecord suffixRecord
+    exact Circuit.execute_sequenceRecord
+      (environment := environment) loader (Circuit.seq raw selected) loadRecord suffixRecord
       (by
         intro reference history historyFinite initial
         exact (ConstantWord.constantWord_fold_execute (model := model) modulus _
           reference initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)) (by
         intro reference history historyFinite state
-        exact Circuit.execute_sequenceRecord raw selected rawRecord selectedRecord
+        exact Circuit.execute_sequenceRecord
+          (environment := environment) raw selected rawRecord selectedRecord
           rawEquation selectedEquation reference state) reference state
   · intro before
     let loaded := (loadRecord before).1.1

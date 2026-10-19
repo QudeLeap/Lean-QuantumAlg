@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Exact packing of arbitrary borrowed bits below the dirty carry output. -/
 def carryWorkEquiv (width : Nat) :
     (Fin (2 ^ (width - 2)) × Bool) ≃ Fin (2 ^ (width - 2 + 1)) :=
@@ -31,7 +33,7 @@ def carryWorkEquiv (width : Nat) :
         (finCongr (congrArg (fun n : Nat => 2 ^ n) (Nat.add_comm 1 (width - 2))))))
 
 /-- Low packed bits are precisely the internal borrowed word. -/
-theorem hrsCarryWorkEquiv_borrowed (width : Nat)
+lemma hrsCarryWorkEquiv_borrowed (width : Nat)
     (borrowed : Fin (2 ^ (width - 2))) (dirty : Bool) (bit : Fin (width - 2)) :
     (carryWorkEquiv width (borrowed, dirty)).val.testBit bit.val =
       borrowed.val.testBit bit.val := by
@@ -40,7 +42,7 @@ theorem hrsCarryWorkEquiv_borrowed (width : Nat)
   exact prodEquiv_testBit_right _ _ bit
 
 /-- The packed highest bit is precisely the arbitrary dirty output. -/
-theorem hrsCarryWorkEquiv_dirty (width : Nat)
+lemma hrsCarryWorkEquiv_dirty (width : Nat)
     (borrowed : Fin (2 ^ (width - 2))) (dirty : Bool) :
     (carryWorkEquiv width (borrowed, dirty)).val.testBit (width - 2) = dirty := by
   change (prodEquiv (m := 1) (n := width - 2)
@@ -49,7 +51,7 @@ theorem hrsCarryWorkEquiv_dirty (width : Nat)
     (finTwoEquiv.symm dirty) borrowed (0 : Fin 1)).trans (by cases dirty <;> rfl)
 
 /-- The actual carry list preserves the borrowed field and xor-toggles only its output. -/
-theorem hrsCarry_packed_step (width : Nat) (constant input : Fin (2 ^ width))
+lemma hrsCarry_packed_step (width : Nat) (constant input : Fin (2 ^ width))
     (borrowed : Fin (2 ^ (width - 2))) (dirty : Bool) :
     EncodedBit.GateSpec.stepList (carryGates width constant)
         (input, carryWorkEquiv width (borrowed, dirty)) =
@@ -81,9 +83,9 @@ theorem hrsCarry_packed_step (width : Nat) (constant input : Fin (2 ^ width))
       exact h.trans (hrsCarryWorkEquiv_dirty width borrowed _).symm
 
 /-- The already compiled carry program has the same exact packed endpoint. -/
-theorem hrsCarry_packed_apply (width : Nat) (constant input : Fin (2 ^ width))
+lemma hrsCarry_packed_apply (width : Nat) (constant input : Fin (2 ^ width))
     (borrowed : Fin (2 ^ (width - 2))) (dirty : Bool) :
-    (carryProgram width constant).applyNormalized
+    (carryProgram width constant).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (carryEncoding width).width).basisEquiv.symm
             ((carryEncoding width).encode

@@ -28,11 +28,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual checked store supplies the three copied values and their original interpretation. -/
-theorem checkedExposureBody_actualRecord (spec : ModulusSpec width)
+lemma checkedExposureBody_actualRecord (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -51,7 +51,8 @@ theorem checkedExposureBody_actualRecord (spec : ModulusSpec width)
         (state : State ctx Reference (model.HiddenState × History)),
         (checkedExposureBody (model := model) spec left negatedRight modulus success inverse
           inverseSuccess
-          candidate reconstruction).execute Reference state = state.mapClassical (fun entry =>
+          candidate reconstruction).execute
+            environment Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, ∃ checked : Store ctx,
@@ -78,7 +79,8 @@ theorem checkedExposureBody_actualRecord (spec : ModulusSpec width)
   let second := withSelectedExposure (model := model) recoveryInput modulus (scaleRead success)
     inverseSuccess candidate reconstruction
   refine ⟨Circuit.sequenceRecord first second checkedRecord selectedRecord,
-    Circuit.execute_sequenceRecord first second checkedRecord selectedRecord
+    Circuit.execute_sequenceRecord
+      (environment := environment) first second checkedRecord selectedRecord
       checkedEquation selectedEquation, ?_⟩
   intro before
   let checked := (checkedRecord before).1.1
@@ -103,7 +105,7 @@ theorem checkedExposureBody_actualRecord (spec : ModulusSpec width)
     ((congrArg CShape.Value.toNat rightRead).trans rightValue) actual.1 actual.2.1
 
 /-- Real checked-output allocation leaves exactly the original three chronological caller writes. -/
-theorem withCheckedExposure_actualRecord (spec : ModulusSpec width)
+lemma withCheckedExposure_actualRecord (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) :
@@ -114,7 +116,7 @@ theorem withCheckedExposure_actualRecord (spec : ModulusSpec width)
         (state : State ctx Reference (model.HiddenState × History)),
         (withCheckedExposure (model := model) spec refs inverseSuccess candidate
           reconstruction).execute
-          Reference state = state.mapClassical (fun entry =>
+          environment Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
@@ -141,7 +143,7 @@ theorem withCheckedExposure_actualRecord (spec : ModulusSpec width)
       after = exposureWrite inverseSuccess candidate reconstruction before
         (RawRecovery.outputCells spec original)
   unfold withCheckedExposure
-  apply withCells_actualRecord_initialized_restricted_post _ _ _ Post
+  apply withCells_actualRecord_initialized_restricted_post (environment := environment) _ _ _ Post
   intro inner cells _distinct transport separated
   have free : ∀ {shape : CShape} (input : CInputRef ctx shape),
       (checkedSuccessCell cells).key ∉ (transport.liftInput input).storageKeys ∧

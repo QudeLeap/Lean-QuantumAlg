@@ -50,7 +50,7 @@ def pointPosition (width : Nat) {count : Nat} (active : Fin count)
         (storageMap width active) (physicalMap width active) index))
 
 /-- Actual common-context placement has exactly the original mapped physical identity and shape. -/
-theorem pointPosition_wire (width : Nat) {count : Nat} (active : Fin count)
+lemma pointPosition_wire (width : Nat) {count : Nat} (active : Fin count)
     (index : Fin (MeasuredPointAddition.context width).systemCount) :
     (readyContext width count).quantumLayout.wire (pointPosition width active index) =
       QuantumWire.relabel (physicalMap width active)
@@ -59,7 +59,7 @@ theorem pointPosition_wire (width : Nat) {count : Nat} (active : Fin count)
     ContextRelabeling.positions_wire]
 
 /-- Point-coordinate extraction reads the exact value on each actual step physical system. -/
-theorem pointBasis_value (width : Nat) {count : Nat} (active : Fin count)
+lemma pointBasis_value (width : Nat) {count : Nat} (active : Fin count)
     (value : (readyContext width count).register.Index)
     (index : Fin (MeasuredPointAddition.context width).systemCount) :
     ((pointBasis width active value).1 index).val =
@@ -94,7 +94,7 @@ theorem pointBasis_value (width : Nat) {count : Nat} (active : Fin count)
   exact originalValue.symm.trans (framedValue.symm.trans readyValue.symm)
 
 /-- The step's domain is precisely the original point domain on its extracted physical values. -/
-theorem stepAdmissible_pointBasis {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma stepAdmissible_pointBasis {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     stepAdmissible E Q active value ↔

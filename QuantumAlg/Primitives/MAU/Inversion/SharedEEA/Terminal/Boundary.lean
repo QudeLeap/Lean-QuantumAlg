@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.TerminalBoundary
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NativePredicate
 
 /-- The actual controlled body preserves the source order of swap, lengths, and Iter. -/
@@ -51,7 +53,7 @@ def gates (width : Nat) (enough : 2 ≤ width.size) : List (GateSpec (encoding w
     (BoundaryPredicate.gates width enough).reverse
 
 /-- Complete native action, with no omitted last toggle or assumption on incoming Ctrl. -/
-theorem gates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
+lemma gates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
     GateSpec.stepList (gates width enough) state = step state := by
   rw [gates, GateSpec.stepList_append, GateSpec.stepList_append, GateSpec.stepList_append,
     GateSpec.stepList_append, BoundaryPredicate.gates_step, WorkWordExchange.gates_step,
@@ -71,10 +73,10 @@ def sourceParity {width : Nat} (state : Registers width) : Registers width :=
 def sourceBody {width : Nat} (state : Registers width) : Registers width :=
   sourceParity (LengthRefresh.step (sourceSwap state))
 
-private theorem sourceBody_control {width : Nat} (state : Registers width) :
+private lemma sourceBody_control {width : Nat} (state : Registers width) :
     (sourceBody state).control = state.control := rfl
 
-private theorem body_false {width : Nat} (state : Registers width)
+private lemma body_false {width : Nat} (state : Registers width)
     (clean : state.control = false) : body state = state := by
   unfold body
   have unselected : ¬state.control = true := by
@@ -88,7 +90,7 @@ private theorem body_false {width : Nat} (state : Registers width)
   rw [if_neg unselected]
   simp only [BoundaryExchange.parityStep, if_neg unselected]
 
-private theorem body_true {width : Nat} (state : Registers width)
+private lemma body_true {width : Nat} (state : Registers width)
     (selected : state.control = true) : body state = sourceBody state := by
   unfold body
   have exchange : WorkWordExchange.step state = sourceSwap state := by
@@ -103,11 +105,11 @@ private theorem body_true {width : Nat} (state : Registers width)
   rw [if_pos selected]
   rfl
 
-private theorem sourceBody_xorControl {width : Nat} (value : Bool) (state : Registers width) :
+private lemma sourceBody_xorControl {width : Nat} (value : Bool) (state : Registers width) :
     sourceBody (xorControl value state) = xorControl value (sourceBody state) := rfl
 
 /-- An unselected internally clean branch retains every actual source and history value. -/
-theorem step_unselected {width : Nat} (state : Registers width)
+lemma step_unselected {width : Nat} (state : Registers width)
     (clean : state.control = false) (unselected : BoundaryPredicate.condition state = false) :
     step state = state := by
   have unchanged : xorControl false state = state := by
@@ -116,7 +118,7 @@ theorem step_unselected {width : Nat} (state : Registers width)
   rw [unselected, unchanged, body_false state clean, unselected, unchanged]
 
 /-- The selected branch has its exact final toggle, before any reachable-state cleanup proof. -/
-theorem step_selected {width : Nat} (state : Registers width)
+lemma step_selected {width : Nat} (state : Registers width)
     (clean : state.control = false) (selected : BoundaryPredicate.condition state = true) :
     step state = xorControl (BoundaryPredicate.condition (sourceBody state))
       (xorControl true (sourceBody state)) := by
@@ -128,14 +130,14 @@ theorem step_selected {width : Nat} (state : Registers width)
     BoundaryPredicate.condition_xorControl]
 
 /-- On an actual reached boundary, preservation of selection discharges the final Ctrl cleanup. -/
-theorem step_selected_clean {width : Nat} (state : Registers width)
+lemma step_selected_clean {width : Nat} (state : Registers width)
     (clean : state.control = false) (selected : BoundaryPredicate.condition state = true)
     (after : BoundaryPredicate.condition (sourceBody state) = true) :
     step state = sourceBody state := by
   rw [step_selected state clean selected, after, xorControl_twice]
 
 /-- The whole native boundary restores its internally prepared Ctrl on that selected trajectory. -/
-theorem gates_control_selected (width : Nat) (enough : 2 ≤ width.size)
+lemma gates_control_selected (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) (clean : state.control = false)
     (selected : BoundaryPredicate.condition state = true)
     (after : BoundaryPredicate.condition (sourceBody state) = true) :
@@ -143,7 +145,7 @@ theorem gates_control_selected (width : Nat) (enough : 2 ≤ width.size)
   rw [gates_step, step_selected_clean state clean selected after, sourceBody_control, clean]
 
 /-- Literal inverse execution restores both complete words, all finite counts, and all history. -/
-theorem reverse_after_forward (width : Nat) (enough : 2 ≤ width.size)
+lemma reverse_after_forward (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width enough).reverse (GateSpec.stepList (gates width enough) state) =
       state :=
@@ -156,19 +158,19 @@ def program (width : Nat) (enough : 2 ≤ width.size) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- The exact full-input action preserves every relative amplitude and arbitrary correlation. -/
-theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit.Realizes (encoding width) (program width enough) step :=
+lemma program_realizes (width : Nat) (enough : 2 ≤ width.size) :
+    UnitaryCircuit.Realizes (encoding width) (program width enough) environment step :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width enough) (gates_step width enough)
+    (gates width enough) (gates_step width enough) environment
 
 /-- Every predicate, swap, refresh, parity, and inverse-predicate event is present. -/
-theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace =
       (gates width enough).map (GateSpec.event .empty) := by
   rw [program, GateSpec.programList_eventTrace]
 
 /-- Exact unit-duration depth includes the full emitted list on all control branches. -/
-theorem program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) = (gates width enough).length :=
   GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 

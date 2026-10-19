@@ -31,6 +31,8 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition :=
   Classical.propDecidable proposition
@@ -39,58 +41,77 @@ local instance (proposition : Prop) : Decidable proposition :=
 Its surviving entries are the original joint marginal of all other systems
 and the arbitrary reference. Classical input blocks and all observed outcomes
 are summed exactly once. -/
-public theorem zReset_execute_entry {gates : GateModel} {oracles : OracleModel}
+public lemma zReset_execute_entry {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H))
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × H))
     (left right : ctx.quantumLayout.Basis) (leftRef rightRef : Reference.Index) :
-    ((circuit wire output realizations).execute Reference state).quantumMarginal.matrix
+    ((circuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference
+      state).quantumMarginal.matrix
       (left, leftRef) (right, rightRef) =
       if left wire = ctx.quantumLayout.zeroLabel wire ∧
           right wire = ctx.quantumLayout.zeroLabel wire then
-        ∑ entry : Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState × H),
+        ∑ entry : Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+          H),
           ∑ outcome : Fin (ctx.quantumLayout.wire wire).dimension,
           (state.block entry).matrix (Function.update left wire outcome, leftRef)
             (Function.update right wire outcome, rightRef)
       else 0 :=
-  QuditShift.resetCircuit_quantum_entry wire output realizations state
+  QuditShift.resetCircuit_quantum_entry (allowAllocation := allowAllocation) wire output
+      realizations state
     left right leftRef rightRef
 
 /-- No nonzero selected-system row survives in the actual final quantum state,
 including entries correlated with any external reference. -/
-public theorem zReset_execute_selected_zero {gates : GateModel} {oracles : OracleModel}
+public lemma zReset_execute_selected_zero {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum}
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H))
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × H))
     (left right : ctx.quantumLayout.Basis) (leftRef rightRef : Reference.Index)
     (nonzero : left wire ≠ ctx.quantumLayout.zeroLabel wire) :
-    ((circuit wire output realizations).execute Reference state).quantumMarginal.matrix
+    ((circuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference
+      state).quantumMarginal.matrix
       (left, leftRef) (right, rightRef) = 0 := by
-  rw [zReset_execute_entry]
+  rw [zReset_execute_entry (allowAllocation := allowAllocation)]
   simp only [nonzero, false_and, if_false]
 
 /-- Each complete store, service-state and path block has zero support away
 from the reset basis label, before any classical outcomes are summed. -/
-public theorem zReset_execute_block_selected_zero {gates : GateModel} {oracles : OracleModel}
+public lemma zReset_execute_block_selected_zero {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H))
-    (result : Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
-      (H × (circuit wire output realizations).Path)))
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × H))
+    (result : Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+      (H × (circuit (allowAllocation := allowAllocation) (services := services) wire output
+          realizations).Path)))
     (left right : ctx.quantumLayout.Basis) (leftRef rightRef : Reference.Index)
     (nonzero : left wire ≠ ctx.quantumLayout.zeroLabel wire) :
-    (((circuit wire output realizations).execute Reference state).block result).matrix
+    (((circuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference state).block
+      result).matrix
       (left, leftRef) (right, rightRef) = 0 := by
-  change (((QuditShift.resetCircuit wire output realizations).execute Reference state).block
+  change (((QuditShift.resetCircuit (allowAllocation := allowAllocation) (services := services) wire
+      output realizations).execute environment Reference state).block
     result).matrix (left, leftRef) (right, rightRef) = 0
-  rw [QuditShift.resetCircuit_block_entry]
+  rw [QuditShift.resetCircuit_block_entry (allowAllocation := allowAllocation)]
   change left wire ≠ 0 at nonzero
   simp [nonzero]
 

@@ -46,7 +46,7 @@ def earlyFactorOption {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     some (store.read (earlyFactorPayload parameter)).toNat else none
 
 /-- A retained actual parameter carries exactly the sampler's optional early factor. -/
-theorem earlyFactorOption_of_parameter {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma earlyFactorOption_of_parameter {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (parameter : CInputRef ctx (ParameterShape N)) (store : Store ctx)
@@ -85,7 +85,8 @@ def earlyFactorInputs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   eligible := earlyFactorTag parameter
   candidate := earlyFactorPayload parameter
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual circuit uses the same four persistent and scratch references. -/
@@ -100,17 +101,17 @@ def earlyFactorStep (parameter : CInputRef ctx (ParameterShape N))
   FirstAccepted.step (earlyFactorInputs parameter) refs store
 
 /-- Execution preserves incoming history and the complete external-reference record. -/
-theorem earlyFactorSelector_execute (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSelector_execute (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (earlyFactorSelector parameter refs).execute Reference state =
+    (earlyFactorSelector parameter refs).execute environment Reference state =
       state.mapClassical (fun entry => ((earlyFactorStep parameter refs entry.1).1,
         (entry.2.1, (entry.2.2, (earlyFactorStep parameter refs entry.1).2)))) :=
   FirstAccepted.firstAccepted_execute _ _ _ _
 
 /-- The actual output is the chronological retain-first update of the optional factor. -/
-theorem earlyFactorSelector_selected (input : Input N)
+lemma earlyFactorSelector_selected (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N))
@@ -136,7 +137,7 @@ theorem earlyFactorSelector_selected (input : Input N)
   exact update
 
 /-- Arbitrary caller reads outside all four actual writes remain unchanged. -/
-theorem earlyFactorSelector_callerFrame (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSelector_callerFrame (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (available : refs.available.key ∉ other.storageKeys)
@@ -147,7 +148,7 @@ theorem earlyFactorSelector_callerFrame (parameter : CInputRef ctx (ParameterSha
   FirstAccepted.firstAccepted_read_other _ _ _ available take accepted selected store
 
 /-- Every actual native path obeys the independent four-operation selector allowance. -/
-theorem earlyFactorSelector_pool_le (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSelector_pool_le (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N))
     (path : (earlyFactorSelector parameter refs).Path) :
     (earlyFactorSelector parameter refs).resourcePool path ≤
@@ -155,26 +156,26 @@ theorem earlyFactorSelector_pool_le (parameter : CInputRef ctx (ParameterShape N
   FirstAccepted.firstAccepted_pool_le _ _ path
 
 /-- Resident storage retains the full actual caller context on every path. -/
-theorem earlyFactorSelector_resident_le (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSelector_resident_le (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N))
     (path : (earlyFactorSelector parameter refs).Path) :
     (earlyFactorSelector parameter refs).peakResidentSpace path ≤ ctx.residentSpace :=
   FirstAccepted.firstAccepted_resident_le _ _ path
 
 /-- Auxiliary storage includes the existing caller workspace roles on every path. -/
-theorem earlyFactorSelector_auxiliary_le (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSelector_auxiliary_le (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N))
     (path : (earlyFactorSelector parameter refs).Path) :
     (earlyFactorSelector parameter refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=
   FirstAccepted.firstAccepted_auxiliary_le _ _ path
 
 /-- Borrowed storage is restored jointly with an arbitrary external quantum reference. -/
-theorem earlyFactorSelector_borrowedRestored (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSelector_borrowedRestored (parameter : CInputRef ctx (ParameterShape N))
     (refs : FirstAccepted.Refs ctx (modulusBits N)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (earlyFactorSelector parameter refs).BorrowedRestored Reference state
-      ((earlyFactorSelector parameter refs).execute Reference state) :=
+      ((earlyFactorSelector parameter refs).execute environment Reference state) :=
   FirstAccepted.firstAccepted_borrowedRestored _ _ _ _
 
 end

@@ -30,6 +30,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.LengthPredicate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit LengthCoordinates LengthRead
 
 /-- A static candidate matches the actual retained boundary and actual read value's size. -/
@@ -44,7 +46,7 @@ private instance selectedDecidable {width : Nat} (field : Field) (key : BitVec w
   unfold Selected
   infer_instance
 
-private theorem source_key_get (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma source_key_get (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output index : Fin width.size) (state : Registers width) :
     ((layout width field key firstWord output).source.bit
       (Word.OneDirtyLayout.keyIndex index)).get state =
@@ -53,7 +55,7 @@ private theorem source_key_get (width : Nat) (field : Field) (key : BitVec width
   rw [sourceBit, dif_pos index.isLt]
   exact boundaryBit_get width field index state
 
-private theorem source_payload_get (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma source_payload_get (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output : Fin width.size) (index : Fin (region width field key))
     (state : Registers width) :
     ((layout width field key firstWord output).source.bit
@@ -71,7 +73,7 @@ private theorem source_payload_get (width : Nat) (field : Field) (key : BitVec w
     _ = _ := payloadBit_testBit width field key firstWord index state
 
 /-- The actual full source predicate is exactly the actual boundary and arithmetic size test. -/
-theorem leading_iff (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma leading_iff (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     (layout width field key firstWord output).PrefixLeading position
@@ -98,7 +100,7 @@ def gates (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : B
     (fun index => key.getMsbD index.val)
 
 /-- The emitted native list has this exact complete-register action for arbitrary incoming data. -/
-theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width field key firstWord position output) state =
@@ -111,7 +113,7 @@ theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firs
   simp only [leading_iff]
 
 /-- Native target writes preserve the exact condition read by all subsequent copies. -/
-theorem selected_output_flip (width : Nat) (field : Field) (key : BitVec width.size)
+lemma selected_output_flip (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     Selected field key firstWord position ((outputBit width field output).flip state) ↔
@@ -119,19 +121,19 @@ theorem selected_output_flip (width : Nat) (field : Field) (key : BitVec width.s
   simp only [Selected, boundaryValue_output_flip, payloadValue_output_flip]
 
 /-- The actual program realizes the complete state update, retaining relative amplitudes. -/
-theorem gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty
-        (gates width field key firstWord position output))
+        (gates width field key firstWord position output)) environment
       (fun state => if Selected field key firstWord position state
         then (outputBit width field output).flip state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
     (gates width field key firstWord position output)
-    (gates_step width field key firstWord position output)
+    (gates_step width field key firstWord position output) environment
 
 /-- The original arbitrary Iter work value is restored, whether or not this candidate matches. -/
-theorem gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     (iterationBit width).get
@@ -140,7 +142,7 @@ theorem gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) 
   (layout width field key firstWord output).leadingOneGates_work position _ state
 
 /-- Actual count includes all key masks, prefix masks, and arbitrary-work cleanup gates. -/
-theorem gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     (gates width field key firstWord position output).length ≤
       10 * (width.size + (position.val + 1)) + 1 :=

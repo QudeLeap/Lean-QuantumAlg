@@ -80,7 +80,7 @@ public def indexEquiv {signature : QuantumSignature} (placement : Placement sign
     rfl
 
 /-- Placement preserves the represented value of each gate argument. -/
-@[simp] public theorem indexEquiv_apply_val {signature : QuantumSignature}
+@[simp] public lemma indexEquiv_apply_val {signature : QuantumSignature}
     (placement : Placement signature) (basis : placement.layout.register.Index)
     (index : Fin signature.systemCount) :
     (placement.indexEquiv basis index).val = (basis index).val := rfl
@@ -113,7 +113,7 @@ public def signature {systemCount : Nat} (layout : QuantumLayout systemCount) :
   dimension := fun index => (layout.wire index).dimension
 
 /-- Forgetting identities does not change computational-basis coordinates. -/
-public theorem signature_register {systemCount : Nat} (layout : QuantumLayout systemCount) :
+public lemma signature_register {systemCount : Nat} (layout : QuantumLayout systemCount) :
     layout.signature.register = layout.register := rfl
 
 /-- Every layout is a legal placement of its own physical signature. -/

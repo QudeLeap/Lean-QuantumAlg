@@ -28,11 +28,11 @@ variable (layout : ZeroTestLayout (encoding := encoding) tail)
 def sourceConjunction (state : Data) (count : Nat) : Bool :=
   ((List.ofFn fun index : Fin (tail + 2) => (layout.source.bit index).get state).take count).all id
 
-private theorem sourceConjunction_zero (state : Data) :
+private lemma sourceConjunction_zero (state : Data) :
     sourceConjunction layout state 0 = true := by
   simp [sourceConjunction]
 
-private theorem sourceConjunction_succ (state : Data) (index : Fin (tail + 2)) :
+private lemma sourceConjunction_succ (state : Data) (index : Fin (tail + 2)) :
     sourceConjunction layout state (index.val + 1) =
       (sourceConjunction layout state index.val && (layout.source.bit index).get state) := by
   let bits := List.ofFn fun position : Fin (tail + 2) => (layout.source.bit position).get state
@@ -47,20 +47,20 @@ private theorem sourceConjunction_succ (state : Data) (index : Fin (tail + 2)) :
   rfl
 
 /-- The complete source conjunction tests every actual source coordinate. -/
-theorem sourceConjunction_eq_true_iff (state : Data) :
+lemma sourceConjunction_eq_true_iff (state : Data) :
     sourceConjunction layout state (tail + 2) = true ↔
       ∀ index, (layout.source.bit index).get state = true := by
   unfold sourceConjunction
   rw [List.take_of_length_le (by rw [List.length_ofFn])]
   simp only [List.all_eq_true, List.mem_ofFn, id_eq, forall_exists_index, forall_apply_eq_imp_iff]
 
-private theorem xor_common_incoming (incoming left right control : Bool) :
+private lemma xor_common_incoming (incoming left right control : Bool) :
     ((incoming ^^ (left && control)) ^^ (incoming ^^ (right && control))) =
       ((left ^^ right) && control) := by
   cases incoming <;> cases left <;> cases right <;> cases control <;> rfl
 
 /-- The first physical Toffoli changes the full-chain result by precisely the source prefix. -/
-theorem dirtyChain_firstGate_difference (positive : 0 < tail) (index : Fin tail)
+lemma dirtyChain_firstGate_difference (positive : 0 < tail) (index : Fin tail)
     (state : Data) :
     ((layout.work.bit index).get
         (andStageIndexStep layout ((andGateAt layout ⟨0, positive⟩).step state)) ^^
@@ -109,7 +109,7 @@ theorem dirtyChain_firstGate_difference (positive : 0 < tail) (index : Fin tail)
   exact result index.val index rfl
 
 /-- The two actual final Toffoli controls differ by exactly the complete source conjunction. -/
-theorem dirtyFinal_firstGate_difference (positive : 0 < tail) (state : Data) :
+lemma dirtyFinal_firstGate_difference (positive : 0 < tail) (state : Data) :
     (finalControl layout
         (andStageIndexStep layout ((andGateAt layout ⟨0, positive⟩).step state)) ^^
       finalControl layout (andStageIndexStep layout state)) =

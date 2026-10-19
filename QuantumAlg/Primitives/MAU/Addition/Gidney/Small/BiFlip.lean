@@ -48,13 +48,13 @@ def biFlipGates : (width : Nat) → width ≤ 2 → Fin (2 ^ width + 1) →
   | width + 3, impossible, _ => False.elim (by omega)
 
 /-- Every base-width input has the exact bi-flip value. -/
-theorem biFlipGates_step (width : Nat) (small : width ≤ 2)
+lemma biFlipGates_step (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) (input : Fin (2 ^ width)) :
     stepList (biFlipGates width small pivot) input = biFlipWordOutput pivot input := by
   interval_cases width <;> fin_cases pivot <;> fin_cases input <;> rfl
 
 /-- The explicit finite base lists contain at most two instructions. -/
-theorem biFlipGates_length (width : Nat) (small : width ≤ 2)
+lemma biFlipGates_length (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) : (biFlipGates width small pivot).length ≤ 2 := by
   interval_cases width <;> fin_cases pivot <;> dsimp only [biFlipGates] <;> decide
 

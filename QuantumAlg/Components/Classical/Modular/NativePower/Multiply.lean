@@ -77,7 +77,7 @@ def multiplyValue (left right : CShape.Word width) (modulus : CShape.Word (width
       (.product (CShape.mulFull width width (.product left right)) modulus)).second
 
 /-- Separated product storage yields exactly the original factors and modulus in the result. -/
-theorem nativePowerMultiply_result
+lemma nativePowerMultiply_result
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
@@ -107,7 +107,7 @@ theorem nativePowerMultiply_result
   rfl
 
 /-- The actual body changes no structural read outside its three written cells. -/
-theorem nativePowerMultiply_read_other
+lemma nativePowerMultiply_read_other
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
@@ -155,15 +155,16 @@ def multiplyStep (left right : CInputRef ctx (.unsignedWord width))
   (third.1, (first.2, (second.2, third.2)))
 
 /-- The actual multiplication preserves shared service state and every reference correlation. -/
-theorem nativePowerMultiply_execute
+lemma nativePowerMultiply_execute
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
     (division : CWriteRef ctx (divisionShape width))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (output : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (multiplyBody (model := model) left right modulus product division output).execute
+    (multiplyBody (model := model) left right modulus product division output).execute environment
       Reference state = state.mapClassical (fun entry =>
         let result := multiplyStep (model := model) left right modulus product division
           output entry.1
@@ -182,7 +183,7 @@ def multiplyEvents (model : ExecutionModel) [BitWord.Selected model]
       (.wordResize (width + 1) width))]
 
 /-- Exactly these three dependent operations occur in the real trace. -/
-theorem nativePowerMultiply_eventTrace
+lemma nativePowerMultiply_eventTrace
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + width)))
@@ -201,7 +202,7 @@ theorem nativePowerMultiply_eventTrace
   rfl
 
 /-- Full-product, division and remainder materialization take three actual sequential steps. -/
-theorem nativePowerMultiply_unitDepth
+lemma nativePowerMultiply_unitDepth
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + width)))

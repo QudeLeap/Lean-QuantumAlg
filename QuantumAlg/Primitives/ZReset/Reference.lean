@@ -44,39 +44,52 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual reset execution preserves every external reference matrix entry,
 including off-diagonal correlations, after tracing out the live local systems. -/
-public theorem zReset_reference_entry {gates : GateModel} {oracles : OracleModel}
+public lemma zReset_reference_entry {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H))
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × H))
     (refLeft refRight : Reference.Index) :
     (∑ basis : ctx.register.Index,
-      ((circuit wire output realizations).execute Reference state).quantumMarginal.matrix
+      ((circuit (allowAllocation := allowAllocation) (services := services) wire output
+          realizations).execute environment Reference
+        state).quantumMarginal.matrix
         (basis, refLeft) (basis, refRight)) =
       ∑ basis : ctx.register.Index,
         state.quantumMarginal.matrix (basis, refLeft) (basis, refRight) := by
-  rw [circuit, QuditShift.resetCircuit_execute, ExecutionState.mapClassical_quantumMarginal]
+  rw [circuit, QuditShift.resetCircuit_execute
+      (allowAllocation := allowAllocation), ExecutionState.mapClassical_quantumMarginal]
   refine (ExecutionState.applyLocalUnitary_reference_entry
     (R := ctx.register) (Reference := Reference) _ _ refLeft refRight).trans ?_
   exact ExecutionState.measureZ_reference_entry ctx.quantumLayout wire state refLeft refRight
 
 /-- In a context with no borrowed cells or wires, the reset circuit restores
 the actual joint borrowed observation, which includes the full reference. -/
-theorem zReset_borrowedRestored_noBorrowed {gates : GateModel} {oracles : OracleModel}
+lemma zReset_borrowedRestored_noBorrowed {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum}
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = []) (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × H)) :
-    (circuit wire output realizations).BorrowedRestored Reference state
-      ((circuit wire output realizations).execute Reference state) := by
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × H)) :
+    (circuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).BorrowedRestored Reference state
+      ((circuit (allowAllocation := allowAllocation) (services := services) wire output
+          realizations).execute environment Reference state) := by
   rw [Circuit.BorrowedRestored, Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
   intro value
@@ -86,7 +99,8 @@ theorem zReset_borrowedRestored_noBorrowed {gates : GateModel} {oracles : Oracle
   rcases column with ⟨right, refRight⟩
   rw [Execution.observeBorrowed_empty_entry noClassical noQuantum,
     Execution.observeBorrowed_empty_entry noClassical noQuantum]
-  exact zReset_reference_entry wire output realizations state refLeft refRight
+  exact zReset_reference_entry (allowAllocation := allowAllocation) wire output realizations state
+      refLeft refRight
 
 end
 

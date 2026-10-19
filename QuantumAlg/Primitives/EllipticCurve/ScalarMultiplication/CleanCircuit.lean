@@ -39,6 +39,8 @@ variable {p : Nat}
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 namespace Witness
 
 variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
@@ -46,8 +48,8 @@ variable {schedule : Schedule E} {cert : CertifiedScalarAction E schedule}
 
 /-- The lifted forward trace circuit realizes the schedule-wide
 controlled-ECADD equivalence. -/
-theorem traceForward_realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram
+lemma traceForward_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram environment
       (traceStep E schedule cert) :=
   w.traceLifted_realizes.congrStep (by
     intro x
@@ -69,11 +71,13 @@ def traceBackwardCircuit (w : Witness E schedule cert) :
   w.traceLiftedProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The adjoint trace circuit realizes the semantic inverse. -/
-theorem traceBackward_realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.traceBackwardCircuit
+lemma traceBackward_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.traceBackwardCircuit environment
       (traceBackwardStep schedule cert) := by
   apply UnitaryCircuit.Realizes.dagger_of_rightInverse w.traceForward_realizes
   · rw [traceBackwardCircuit, UnitaryCircuit.dagger_matrix]
+    rw [Subsingleton.elim
+      ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
     exact Unitary.star_eq_inv _
   · intro x
     rcases x with ⟨endpointRun, trace⟩
@@ -94,14 +98,15 @@ def cleanCircuit (w : Witness E schedule cert) :
   UnitaryCircuit.seq w.program w.traceBackwardCircuit
 
 /-- The actual clean circuit realizes the compute--copy--uncompute action. -/
-theorem clean_realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.cleanCircuit (cleanStep schedule cert) := by
-  have h := UnitaryCircuit.Realizes.seq w.realizes w.traceBackward_realizes
+lemma clean_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.cleanCircuit environment (cleanStep schedule cert) := by
+  have h := UnitaryCircuit.Realizes.seq (w.realizes (environment := environment))
+    w.traceBackward_realizes
   exact h.congrStep (by intro x; rfl)
 
 /-- Compute--copy--uncompute restores the complete trace label for every
 input, while retaining the certified target-coordinate update. -/
-@[simp] theorem cleanStep_restores_trace
+@[simp] lemma cleanStep_restores_trace
     (endpointRun : EndpointRunState E schedule cert)
     (trace : TraceData E schedule) :
     (cleanStep schedule cert (endpointRun, trace)).2 = trace := by
@@ -109,7 +114,7 @@ input, while retaining the certified target-coordinate update. -/
 
 /-- When the supplied certified run computes the endpoint's advertised scalar
 action, the clean circuit retains exactly that public target update. -/
-theorem cleanStep_apply_of_output
+lemma cleanStep_apply_of_output
     (endpointRun : EndpointRunState E schedule cert)
     (trace : TraceData E schedule)
     (houtput : endpointRun.run.outputPoint = endpointRun.data.outputPoint) :
@@ -122,11 +127,11 @@ theorem cleanStep_apply_of_output
 
 /-- Encoded-basis correctness and trace restoration for the exact circuit used
 by every resource projection. -/
-theorem cleanCircuit_apply_ket (w : Witness E schedule cert)
+lemma cleanCircuit_apply_ket (w : Witness E schedule cert)
     (endpointRun : EndpointRunState E schedule cert)
     (trace : TraceData E schedule)
     (houtput : endpointRun.run.outputPoint = endpointRun.data.outputPoint) :
-    w.cleanCircuit.applyNormalized
+    w.cleanCircuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode (endpointRun, trace)))) =
@@ -134,7 +139,8 @@ theorem cleanCircuit_apply_ket (w : Witness E schedule cert)
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode
           ({ endpointRun with data := endpointRun.data.addIntoTarget }, trace))) := by
-  have happly := w.clean_realizes.apply_encoded_ket (endpointRun, trace)
+  have happly := (w.clean_realizes (environment := environment)).apply_encoded_ket
+    (endpointRun, trace)
   rw [cleanStep_apply_of_output endpointRun trace houtput] at happly
   exact happly
 
@@ -168,7 +174,7 @@ def cleanEventGateCount (w : Witness E schedule cert)
 
 /-- Linearizing clean-circuit strict event depth recovers the exact event
 pool. -/
-theorem cleanResourcesFromEventDepth_eq_eventCost
+lemma cleanResourcesFromEventDepth_eq_eventCost
     (w : Witness E schedule cert) :
     w.cleanCircuit.resourcesFromEventDepth = w.cleanCircuit.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.cleanCircuit
@@ -186,7 +192,7 @@ def cleanUndoStep
             targetY := x.1.data.targetY - x.1.run.outputPoint.y } },
       x.2)
 
-@[simp] theorem cleanStep_cleanUndoStep
+@[simp] lemma cleanStep_cleanUndoStep
     (x : State E schedule cert) :
     cleanStep schedule cert (cleanUndoStep schedule cert x) = x := by
   rcases x with ⟨endpointRun, trace⟩
@@ -196,7 +202,7 @@ def cleanUndoStep
       simp [cleanStep, cleanUndoStep, fullStep, targetStep, traceStep,
         traceBackwardStep]
 
-@[simp] theorem cleanUndoStep_cleanStep
+@[simp] lemma cleanUndoStep_cleanStep
     (x : State E schedule cert) :
     cleanUndoStep schedule cert (cleanStep schedule cert x) = x := by
   rcases x with ⟨endpointRun, trace⟩
@@ -214,11 +220,13 @@ def cleanInverseCircuit (w : Witness E schedule cert) :
   w.cleanCircuit.dagger (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The adjoint clean circuit realizes the semantic undo action. -/
-theorem cleanInverse_realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.cleanInverseCircuit
+lemma cleanInverse_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.cleanInverseCircuit environment
       (cleanUndoStep schedule cert) := by
   apply UnitaryCircuit.Realizes.dagger_of_rightInverse w.clean_realizes
   · rw [cleanInverseCircuit, UnitaryCircuit.dagger_matrix]
+    rw [Subsingleton.elim
+      ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
     exact Unitary.star_eq_inv _
   · exact cleanStep_cleanUndoStep
 
@@ -264,13 +272,13 @@ structure TwoScalarCompiler
           (BinaryLabelEncoding.prod left.encoding right.encoding)
           workspaceEncoding).width).toQuantum
   /-- Basis correctness of the combine circuit on the exact common encoding. -/
-  combineRealizes :
+  combineRealizes : ∀ environment : OracleModel.empty.Interpretation,
     UnitaryCircuit.Realizes
       (BinaryLabelEncoding.prod
         (BinaryLabelEncoding.prod
           left.encoding right.encoding)
         workspaceEncoding)
-      combineProgram
+      combineProgram environment
       (fun x => (x.1, workspaceUpdate x.1.1 x.1.2 x.2))
 
 namespace TwoScalarCompiler
@@ -307,13 +315,13 @@ def leftComputeProgram (compiler : Compiler) :
       compiler.left.cleanCircuit)
 
 /-- The lifted first scalar circuit realizes its workspace update. -/
-theorem leftCompute_realizes (compiler : Compiler) :
-    UnitaryCircuit.Realizes compiler.encoding compiler.leftComputeProgram
+lemma leftCompute_realizes (compiler : Compiler) :
+    UnitaryCircuit.Realizes compiler.encoding compiler.leftComputeProgram environment
       (fun x => ((Witness.cleanStep leftSchedule leftCert x.1.1, x.1.2),
         x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.onBinaryPrefix
+  have hpair := UnitaryCircuit.Realizes.onBinaryPrefix (environment := environment)
     (right := compiler.right.encoding) compiler.left.clean_realizes
-  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix (environment := environment)
     (right := compiler.workspaceEncoding) hpair
   simpa [encoding, leftComputeProgram, UnitaryCircuit.prodLeft] using hfull
 
@@ -326,13 +334,13 @@ def rightComputeProgram (compiler : Compiler) :
       compiler.right.cleanCircuit)
 
 /-- The lifted second scalar circuit realizes its workspace update. -/
-theorem rightCompute_realizes (compiler : Compiler) :
-    UnitaryCircuit.Realizes compiler.encoding compiler.rightComputeProgram
+lemma rightCompute_realizes (compiler : Compiler) :
+    UnitaryCircuit.Realizes compiler.encoding compiler.rightComputeProgram environment
       (fun x => ((x.1.1,
         Witness.cleanStep rightSchedule rightCert x.1.2), x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.onBinarySuffix
+  have hpair := UnitaryCircuit.Realizes.onBinarySuffix (environment := environment)
     (left := compiler.left.encoding) compiler.right.clean_realizes
-  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix (environment := environment)
     (right := compiler.workspaceEncoding) hpair
   simpa [encoding, rightComputeProgram, UnitaryCircuit.prodLeft,
     UnitaryCircuit.prodRight, UnitaryCircuit.onCanonicalBinarySuffix] using hfull
@@ -346,13 +354,13 @@ def rightUndoProgram (compiler : Compiler) :
       compiler.right.cleanInverseCircuit)
 
 /-- The lifted inverse second circuit realizes its undo update. -/
-theorem rightUndo_realizes (compiler : Compiler) :
-    UnitaryCircuit.Realizes compiler.encoding compiler.rightUndoProgram
+lemma rightUndo_realizes (compiler : Compiler) :
+    UnitaryCircuit.Realizes compiler.encoding compiler.rightUndoProgram environment
       (fun x => ((x.1.1,
         Witness.cleanUndoStep rightSchedule rightCert x.1.2), x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.onBinarySuffix
+  have hpair := UnitaryCircuit.Realizes.onBinarySuffix (environment := environment)
     (left := compiler.left.encoding) compiler.right.cleanInverse_realizes
-  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix (environment := environment)
     (right := compiler.workspaceEncoding) hpair
   simpa [encoding, rightUndoProgram, UnitaryCircuit.prodLeft,
     UnitaryCircuit.prodRight, UnitaryCircuit.onCanonicalBinarySuffix] using hfull
@@ -366,13 +374,13 @@ def leftUndoProgram (compiler : Compiler) :
       compiler.left.cleanInverseCircuit)
 
 /-- The lifted inverse first circuit realizes its undo update. -/
-theorem leftUndo_realizes (compiler : Compiler) :
-    UnitaryCircuit.Realizes compiler.encoding compiler.leftUndoProgram
+lemma leftUndo_realizes (compiler : Compiler) :
+    UnitaryCircuit.Realizes compiler.encoding compiler.leftUndoProgram environment
       (fun x => ((Witness.cleanUndoStep leftSchedule leftCert x.1.1,
         x.1.2), x.2)) := by
-  have hpair := UnitaryCircuit.Realizes.onBinaryPrefix
+  have hpair := UnitaryCircuit.Realizes.onBinaryPrefix (environment := environment)
     (right := compiler.right.encoding) compiler.left.cleanInverse_realizes
-  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix
+  have hfull := UnitaryCircuit.Realizes.onBinaryPrefix (environment := environment)
     (right := compiler.workspaceEncoding) hpair
   simpa [encoding, leftUndoProgram, UnitaryCircuit.prodLeft] using hfull
 
@@ -400,16 +408,16 @@ def twoScalarFullStep (compiler : Compiler) : CompilerState → CompilerState :=
 
 /-- Each program realizes the corresponding semantic step on the common
 encoding. -/
-theorem twoScalarPrograms_realize (compiler : Compiler) :
+lemma twoScalarPrograms_realize (compiler : Compiler) :
     List.Forall₂
-      (fun program step => UnitaryCircuit.Realizes compiler.encoding program step)
+      (fun program step => UnitaryCircuit.Realizes compiler.encoding program environment step)
       compiler.twoScalarPrograms compiler.twoScalarSteps := by
   constructor
   · exact compiler.leftCompute_realizes
   · constructor
     · exact compiler.rightCompute_realizes
     · constructor
-      · exact compiler.combineRealizes
+      · exact compiler.combineRealizes environment
       · constructor
         · exact compiler.rightUndo_realizes
         · constructor
@@ -452,17 +460,17 @@ def twoScalarEventGateCount (compiler : Compiler)
     (.gate label) compiler.twoScalarCircuit.eventCost
 
 /-- The actual five-stage circuit realizes its folded semantic action. -/
-theorem twoScalar_realizes (compiler : Compiler) :
-    UnitaryCircuit.Realizes compiler.encoding compiler.twoScalarCircuit
+lemma twoScalar_realizes (compiler : Compiler) :
+    UnitaryCircuit.Realizes compiler.encoding compiler.twoScalarCircuit environment
       compiler.twoScalarFullStep := by
-  exact UnitaryCircuit.Realizes.appendList compiler.encoding
+  exact UnitaryCircuit.Realizes.appendList (environment := environment) compiler.encoding
     (QubitLayout.canonical _)
     compiler.twoScalarPrograms compiler.twoScalarSteps
     compiler.twoScalarPrograms_realize
 
 /-- Both scalar source workspaces, including every trace register, are restored
 at the full compiler boundary. -/
-theorem twoScalarFullStep_restores_sources
+lemma twoScalarFullStep_restores_sources
     (compiler : Compiler) (x : CompilerState) :
     (compiler.twoScalarFullStep x).1 = x.1 := by
   rcases x with ⟨⟨leftState, rightState⟩, workspace⟩
@@ -472,7 +480,7 @@ theorem twoScalarFullStep_restores_sources
 
 /-- Linearizing the two-scalar circuit's strict event depth recovers its exact
 event pool. -/
-theorem twoScalarResourcesFromEventDepth_eq_eventCost
+lemma twoScalarResourcesFromEventDepth_eq_eventCost
     (compiler : Compiler) :
     compiler.twoScalarCircuit.resourcesFromEventDepth =
       compiler.twoScalarCircuit.eventCost :=

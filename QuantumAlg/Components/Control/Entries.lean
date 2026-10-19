@@ -25,7 +25,7 @@ namespace QuantumAlg.UnitaryOperator
 noncomputable section
 
 /-- A leading qubit control selects the source operator or the full target identity. -/
-public theorem controlledQubits_pair_entry {width : Nat}
+public lemma controlledQubits_pair_entry {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) (rowControl columnControl : Fin 2)
     (rowSource columnSource : Fin (2 ^ width)) :
     controlledQubits unitary (prodEquiv (rowControl, rowSource))

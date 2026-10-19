@@ -47,7 +47,7 @@ local macro "pauliMemFinish" : tactic =>
 
 set_option maxHeartbeats 8000000 in
 -- Exhaustive Pauli-Z conjugation over the twenty-four edge codes needs this local budget.
-theorem edge (pair : Fin 6) (negativeLeft negativeRight : Bool) :
+lemma edge (pair : Fin 6) (negativeLeft negativeRight : Bool) :
     qubitClifford (.edge pair negativeLeft negativeRight) * pauliZ *
         (qubitClifford (.edge pair negativeLeft negativeRight))ᴴ ∈ signedRawPauliSet := by
   fin_cases pair <;> cases negativeLeft <;> cases negativeRight <;> pauliMemFinish

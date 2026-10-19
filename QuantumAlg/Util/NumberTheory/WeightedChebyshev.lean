@@ -51,7 +51,7 @@ private lemma Ioc_zero_eq_Icc_one (n : ℕ) : Ioc 0 n = Icc 1 n := by
 noncomputable def T (x : ℝ) : ℝ :=
   ∑ n ∈ Finset.Icc 1 ⌊x⌋₊, log n
 
-theorem T.le (x : ℝ) (hx : 1 ≤ x) : T x ≤ x * log x - x + 1 + log x := by
+lemma T.le (x : ℝ) (hx : 1 ≤ x) : T x ≤ x * log x - x + 1 + log x := by
   rw [T, ← Ico_insert_right <| Nat.one_le_iff_ne_zero.mpr (Nat.floor_pos.mpr hx).ne',
     sum_insert right_notMem_Ico]
   have : MonotoneOn log (Set.Icc (1 : ℕ) ⌊x⌋₊) :=
@@ -83,7 +83,7 @@ theorem T.le (x : ℝ) (hx : 1 ≤ x) : T x ≤ x * log x - x + 1 + log x := by
     exact h2 (Set.mem_Ici.mpr h1) (Set.mem_Ici.mpr hx) <| Nat.floor_le (by grind)
   linarith [log_le_log (by positivity) <| Nat.floor_le (by linarith)]
 
-theorem T.ge (x : ℝ) (hx : 1 ≤ x) : T x ≥ x * log x - x + 1 - log x := by
+lemma T.ge (x : ℝ) (hx : 1 ≤ x) : T x ≥ x * log x - x + 1 - log x := by
   have hone_le_floor : 1 ≤ ⌊x⌋₊ := Nat.one_le_iff_ne_zero.mpr (Nat.floor_pos.mpr hx).ne'
   simp only [T, ← Ico_insert_right hone_le_floor, sum_insert right_notMem_Ico]
   have mono_log : MonotoneOn log (Set.Icc (1 : ℕ) ⌊x⌋₊) := fun a ha _ _ hab ↦
@@ -113,7 +113,7 @@ theorem T.ge (x : ℝ) (hx : 1 ≤ x) : T x ≥ x * log x - x + 1 - log x := by
       _ = ⌊x⌋₊ * log ⌊x⌋₊ - ⌊x⌋₊ + 1 := by grind [integral_log]
   linarith
 
-theorem T.eq_sum_Lambda (x : ℝ) : T x = ∑ n ∈ Icc 1 ⌊x⌋₊, Λ n * ⌊x / n⌋₊ := by
+lemma T.eq_sum_Lambda (x : ℝ) : T x = ∑ n ∈ Icc 1 ⌊x⌋₊, Λ n * ⌊x / n⌋₊ := by
   unfold T
   simp_rw [← log_apply, ← vonMangoldt_mul_zeta]
   rw [← Ioc_zero_eq_Icc_one, sum_Ioc_mul_zeta_eq_sum]
@@ -122,7 +122,7 @@ theorem T.eq_sum_Lambda (x : ℝ) : T x = ∑ n ∈ Icc 1 ⌊x⌋₊, Λ n * ⌊
 /-- Floor-sum transform associated with a finitely supported real weight. -/
 noncomputable def E (ν : ℕ →₀ ℝ) (x : ℝ) : ℝ := ν.sum (fun m w ↦ w * ⌊ x / m ⌋₊)
 
-theorem T.weighted_eq_sum (ν : ℕ →₀ ℝ) (x : ℝ) :
+lemma T.weighted_eq_sum (ν : ℕ →₀ ℝ) (x : ℝ) :
     ν.sum (fun m w ↦ w * T (x / m)) =
       ∑ n ∈ Icc 1 ⌊x⌋₊, Λ n * E ν (x / n) := by
   simp_rw [T.eq_sum_Lambda, E, Finsupp.mul_sum]
@@ -190,10 +190,10 @@ private lemma floor_div_bounds {y : ℝ} (hy : 0 ≤ y) {k : ℕ} (hk : 1 ≤ k)
     have : (⌊y⌋₊ : ℝ) < (k : ℝ) * (⌊y / k⌋₊ + 1) := (Nat.floor_le hy).trans_lt hy_lt
     exact_mod_cast this
 
-theorem nu_sum_div_eq_zero : ν.sum (fun n w ↦ w / n) = 0 := by
+lemma nu_sum_div_eq_zero : ν.sum (fun n w ↦ w / n) = 0 := by
   norm_num [ν, add_div, sum_add_index', sub_div, sum_sub_index]
 
-theorem E_nu_eq_one (x : ℝ) (hx : x ∈ Set.Ico 1 6) : E ν x = 1 := by
+lemma E_nu_eq_one (x : ℝ) (hx : x ∈ Set.Ico 1 6) : E ν x = 1 := by
   obtain ⟨h1, h6⟩ := hx
   have hx0 : (0 : ℝ) ≤ x := by linarith
   simp only [E_nu_expand, Nat.floor_eq_zero.mpr (by linarith : x / 30 < 1)]
@@ -206,7 +206,7 @@ theorem E_nu_eq_one (x : ℝ) (hx : x ∈ Set.Ico 1 6) : E ν x = 1 := by
   rw [show ⌊x⌋₊ = ⌊x / 2⌋₊ + ⌊x / 3⌋₊ + ⌊x / 5⌋₊ + 1 by omega]
   grind
 
-theorem E_nu_period (x : ℝ) (hx : x ≥ 0) : E ν (x + 30) = E ν x := by
+lemma E_nu_period (x : ℝ) (hx : x ≥ 0) : E ν (x + 30) = E ν x := by
   have h (k : ℝ) : (x + 30) / k = x / k + (30 / k) := by ring
   simp_rw [E_nu_expand, h 2, h 3, h 5, h 30]
   norm_num
@@ -214,7 +214,7 @@ theorem E_nu_period (x : ℝ) (hx : x ≥ 0) : E ν (x + 30) = E ν x := by
   rw [Nat.floor_add_one (by positivity)]
   grind
 
-theorem E_nu_bound (x : ℝ) (hx : x ≥ 0) : 0 ≤ E ν x ∧ E ν x ≤ 1 := by
+lemma E_nu_bound (x : ℝ) (hx : x ≥ 0) : 0 ≤ E ν x ∧ E ν x ≤ 1 := by
   have : ∀ y, 0 ≤ y → y < 30 → 0 ≤ E ν y ∧ E ν y ≤ 1 := fun y hy0 hy30 ↦ by
     simp only [E_nu_expand,
       Nat.floor_eq_zero.mpr (by linarith : y / 30 < 1), Nat.cast_zero, add_zero]
@@ -242,7 +242,7 @@ theorem E_nu_bound (x : ℝ) (hx : x ≥ 0) : 0 ≤ E ν x ∧ E ν x ≤ 1 := b
 /-- Weighted logarithmic sum obtained by applying `ν` to scaled copies of `T`. -/
 noncomputable def U (x : ℝ) : ℝ := ν.sum (fun m w ↦ w * T (x/m))
 
-theorem psi_ge_weighted (x : ℝ) (hx : x > 0) : ψ x ≥ U x := by
+lemma psi_ge_weighted (x : ℝ) (hx : x > 0) : ψ x ≥ U x := by
   unfold U Chebyshev.psi
   rw [T.weighted_eq_sum, ← Ioc_zero_eq_Icc_one]
   apply Finset.sum_le_sum
@@ -251,7 +251,7 @@ theorem psi_ge_weighted (x : ℝ) (hx : x > 0) : ψ x ≥ U x := by
   simpa only [mul_one] using
     mul_le_mul_of_nonneg_left hE.2 (vonMangoldt_nonneg : 0 ≤ Λ i)
 
-theorem psi_diff_le_weighted (x : ℝ) (hx : x > 0) : ψ x - ψ (x / 6) ≤ U x := by
+lemma psi_diff_le_weighted (x : ℝ) (hx : x > 0) : ψ x - ψ (x / 6) ≤ U x := by
   unfold U Chebyshev.psi
   rw [T.weighted_eq_sum, ← Ioc_zero_eq_Icc_one]
   have subset : Ioc 0 ⌊x / 6⌋₊ ⊆ Ioc 0 ⌊x⌋₊ := by
@@ -279,7 +279,7 @@ lemma a_simpl : a = (7/15) * Real.log 2 + (3/10) * Real.log 3 + (1/6) * Real.log
   norm_num [Finset.sum, ν]
   grind [show (30 : ℝ) = 2 * 3 * 5 by ring, log_mul, log_mul]
 
-theorem a_bound : a ∈ Set.Icc 0.92129 0.92130 := by
+lemma a_bound : a ∈ Set.Icc 0.92129 0.92130 := by
   norm_num [a_simpl]
   constructor <;> nlinarith [Real.log_two_gt_d9, Real.log_two_lt_d9,
     Real.log_three_gt_d9, Real.log_three_lt_d9,
@@ -325,7 +325,7 @@ private lemma abs_finsupp_sum_le (A : Type*) (ν : A →₀ ℝ) (g : A → ℝ 
   simp_rw [Finsupp.sum.eq_1]
   exact abs_sum_le_sum_abs (fun i ↦ g i (ν i)) ν.support
 
-theorem U_bound (x : ℝ) (hx : 30 ≤ x) : |U x - a * x| ≤ 5 * log x - 5 := by
+lemma U_bound (x : ℝ) (hx : 30 ≤ x) : |U x - a * x| ≤ 5 * log x - 5 := by
   have hxpos : 0 < x := lt_of_lt_of_le (by norm_num) hx
   rw [U_bound.lemma_3, U_bound.lemma_4 x hxpos]
   ring_nf
@@ -387,17 +387,17 @@ theorem U_bound (x : ℝ) (hx : 30 ≤ x) : |U x - a * x| ≤ 5 * log x - 5 := b
       hlog30]
   grw [hgeq6]; rw [habs]; linarith
 
-theorem psi_lower (x : ℝ) (hx : 30 ≤ x) : ψ x ≥ a * x - 5 * log x + 5 := by
+lemma psi_lower (x : ℝ) (hx : 30 ≤ x) : ψ x ≥ a * x - 5 * log x + 5 := by
   have h2 := abs_sub_le_iff.mp (U_bound x hx)
   linarith [psi_ge_weighted x (by linarith), h2.1]
 
-theorem psi_diff_upper (x : ℝ) (hx : 30 ≤ x) : ψ x - ψ (x / 6) ≤ a * x + 5 * log x - 5 := by
+lemma psi_diff_upper (x : ℝ) (hx : 30 ≤ x) : ψ x - ψ (x / 6) ≤ a * x + 5 * log x - 5 := by
   have h2 := abs_sub_le_iff.mp (U_bound x hx)
   linarith [psi_diff_le_weighted x (by linarith), h2.2]
 
 /-- Five iterations of the weighted difference estimate give a fully explicit
 upper bound without a finite prime table or trusted numerical evaluator. -/
-theorem psi_upper_five (x : ℝ) (hx : 38880 ≤ x) :
+lemma psi_upper_five (x : ℝ) (hx : 38880 ≤ x) :
     ψ x ≤ (1107 / 1000 : ℝ) * x + 25 * log x := by
   have hxpos : 0 < x := by linarith
   have h0 := psi_diff_upper x (by linarith)
@@ -436,7 +436,7 @@ theorem psi_upper_five (x : ℝ) (hx : 38880 ≤ x) :
 
 /-- At a point where logarithmic and square-root errors are small, the top
 quarter carries a fixed positive amount of Chebyshev-theta mass. -/
-theorem theta_top_quarter_mass (x : ℝ) (hx : 0 < x)
+lemma theta_top_quarter_mass (x : ℝ) (hx : 0 < x)
     (hquarter : 38880 ≤ 3 * x / 4)
     (hsqrt : √x ≤ x / 100) (hlog : log x ≤ √x / 100) :
     x / 16 ≤ Chebyshev.theta x - Chebyshev.theta (3 * x / 4) := by

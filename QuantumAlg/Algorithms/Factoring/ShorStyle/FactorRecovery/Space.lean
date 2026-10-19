@@ -31,7 +31,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem guardOrder_visited (cells : Cells ctx N) (path : (guardOrder (model := model)
+private lemma guardOrder_visited (cells : Cells ctx N) (path : (guardOrder (model := model)
     cells).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (guardOrder (model := model)
         cells).visitedContexts path) :
@@ -39,7 +39,7 @@ private theorem guardOrder_visited (cells : Cells ctx N) (path : (guardOrder (mo
   change visited ∈ [ctx, ctx, ctx, ctx, ctx] at present
   simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using present
 
-private theorem guardOrder_resident_le (cells : Cells ctx N) (path : (guardOrder (model := model)
+private lemma guardOrder_resident_le (cells : Cells ctx N) (path : (guardOrder (model := model)
     cells).Path) :
     (guardOrder (model := model) cells).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -47,7 +47,7 @@ private theorem guardOrder_resident_le (cells : Cells ctx N) (path : (guardOrder
   exact (guardOrder_visited cells path visited present) ▸ le_rfl
 
 /-- Sequential power and GCD work fit the same complete resident scratch allowance. -/
-theorem reduce_resident_le (source : Input N) (cells : Cells ctx N)
+lemma reduce_resident_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (reduce (model := model) source cells output).Path) :
     (reduce (model := model) source cells output).peakResidentSpace path ≤
@@ -63,7 +63,7 @@ theorem reduce_resident_le (source : Input N) (cells : Cells ctx N)
   · exact (NativeHalfFactorScope.code_resident_le (halfRead cells) output path.2).trans
       (fun axis => Nat.add_le_add_left (halfFactor_space_le model.kind N axis) _)
 
-private theorem checkedBranch_resident_le (source : Input N) (cells : Cells ctx N)
+private lemma checkedBranch_resident_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Circuit.branch (activeRead cells)
       (fun value => if value.toBool then reduce (model := model) source cells output
@@ -83,7 +83,7 @@ private theorem checkedBranch_resident_le (source : Input N) (cells : Cells ctx 
       · exact reduce_resident_le source cells output path
 
 /-- The real guard and selected reduction share the existing resident context. -/
-theorem checkedOrder_resident_le (source : Input N) (cells : Cells ctx N)
+lemma checkedOrder_resident_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (checkedOrder (model := model) source cells output).Path) :
     (checkedOrder (model := model) source cells output).peakResidentSpace path ≤
@@ -98,7 +98,7 @@ theorem checkedOrder_resident_le (source : Input N) (cells : Cells ctx N)
   · exact checkedBranch_resident_le source cells output path.2
 
 /-- Both real stored early-factor branches preserve the same resident capacity bound. -/
-theorem dispatch_resident_le (source : Input N)
+lemma dispatch_resident_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (dispatch (model := model) source parameter cells output).Path) :
@@ -114,7 +114,7 @@ theorem dispatch_resident_le (source : Input N)
           (fun _ => Nat.le_add_right _ _)
 
 /-- Every actual order-recovery cell remains included in the full resident peak. -/
-theorem recovered_resident_le (source : Input N)
+lemma recovered_resident_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -153,7 +153,7 @@ theorem recovered_resident_le (source : Input N)
       · exact dispatch_resident_le source parameter cells output path.2.2.2
 
 /-- The even exception writes its literal factor entirely within the existing resident space. -/
-theorem evenModulus_resident_le (cells : Cells ctx N)
+lemma evenModulus_resident_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (evenModulus (model := model) cells output).Path) :
     (evenModulus (model := model) cells output).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -183,7 +183,7 @@ theorem evenModulus_resident_le (cells : Cells ctx N)
             (packOutputOp cells output)) path.2.2.2).le
 
 /-- Every actual complete tail path satisfies its independently specified resident space bound. -/
-theorem code_resident_le (source : Input N)
+lemma code_resident_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -206,7 +206,7 @@ theorem code_resident_le (source : Input N)
       exact recovered_resident_le source parameter phase cells output
   exact allPaths path
 
-private theorem guardOrder_auxiliary_le (cells : Cells ctx N) (path : (guardOrder (model := model)
+private lemma guardOrder_auxiliary_le (cells : Cells ctx N) (path : (guardOrder (model := model)
     cells).Path) :
     (guardOrder (model := model) cells).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -214,7 +214,7 @@ private theorem guardOrder_auxiliary_le (cells : Cells ctx N) (path : (guardOrde
   exact (guardOrder_visited cells path visited present) ▸ le_rfl
 
 /-- Sequential power and GCD work fit the same complete auxiliary scratch allowance. -/
-theorem reduce_auxiliary_le (source : Input N) (cells : Cells ctx N)
+lemma reduce_auxiliary_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (reduce (model := model) source cells output).Path) :
     (reduce (model := model) source cells output).peakAuxiliarySpace path ≤
@@ -230,7 +230,7 @@ theorem reduce_auxiliary_le (source : Input N) (cells : Cells ctx N)
   · exact (NativeHalfFactorScope.code_auxiliary_le (halfRead cells) output path.2).trans
       (fun axis => Nat.add_le_add_left (halfFactor_space_le model.kind N axis) _)
 
-private theorem checkedBranch_auxiliary_le (source : Input N) (cells : Cells ctx N)
+private lemma checkedBranch_auxiliary_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Circuit.branch (activeRead cells)
       (fun value => if value.toBool then reduce (model := model) source cells output
@@ -250,7 +250,7 @@ private theorem checkedBranch_auxiliary_le (source : Input N) (cells : Cells ctx
       · exact reduce_auxiliary_le source cells output path
 
 /-- The real guard and selected reduction share the existing auxiliary context. -/
-theorem checkedOrder_auxiliary_le (source : Input N) (cells : Cells ctx N)
+lemma checkedOrder_auxiliary_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (checkedOrder (model := model) source cells output).Path) :
     (checkedOrder (model := model) source cells output).peakAuxiliarySpace path ≤
@@ -265,7 +265,7 @@ theorem checkedOrder_auxiliary_le (source : Input N) (cells : Cells ctx N)
   · exact checkedBranch_auxiliary_le source cells output path.2
 
 /-- Both real stored early-factor branches preserve the same auxiliary capacity bound. -/
-theorem dispatch_auxiliary_le (source : Input N)
+lemma dispatch_auxiliary_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (dispatch (model := model) source parameter cells output).Path) :
@@ -281,7 +281,7 @@ theorem dispatch_auxiliary_le (source : Input N)
           (fun _ => Nat.le_add_right _ _)
 
 /-- Every actual order-recovery cell remains included in the full auxiliary peak. -/
-theorem recovered_auxiliary_le (source : Input N)
+lemma recovered_auxiliary_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -320,7 +320,7 @@ theorem recovered_auxiliary_le (source : Input N)
       · exact dispatch_auxiliary_le source parameter cells output path.2.2.2
 
 /-- The even exception writes its literal factor entirely within the existing auxiliary space. -/
-theorem evenModulus_auxiliary_le (cells : Cells ctx N)
+lemma evenModulus_auxiliary_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (evenModulus (model := model) cells output).Path) :
     (evenModulus (model := model) cells output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
@@ -350,7 +350,7 @@ theorem evenModulus_auxiliary_le (cells : Cells ctx N)
             (packOutputOp cells output)) path.2.2.2).le
 
 /-- Every actual complete tail path satisfies the independent auxiliary space bound. -/
-theorem code_auxiliary_le (source : Input N)
+lemma code_auxiliary_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

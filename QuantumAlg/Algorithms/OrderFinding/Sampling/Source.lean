@@ -27,7 +27,7 @@ def sourceLayout (t n : Nat) : QubitLayout (t + n) where
   physical_idx := Fin.val
   physical_idx_injective := Fin.val_injective
 
-theorem sourceLayout_systemIdx (t n : Nat) :
+lemma sourceLayout_systemIdx (t n : Nat) :
     (sourceLayout t n).systemIdx = List.range (t + n) := by
   simp [sourceLayout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 

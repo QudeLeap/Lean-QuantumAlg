@@ -8,3 +8,4 @@ module
 
 public import QuantumAlg.Algorithms.Grover.Construction
 public import QuantumAlg.Algorithms.Grover.Endpoint
+public import QuantumAlg.Algorithms.Grover.Endpoint.Results

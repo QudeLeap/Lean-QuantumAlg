@@ -87,7 +87,7 @@ def targetRefs {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
   thirdRole := roles.t3
 
 /-- The two structural readers for one writable raw cell are definitionally equal. -/
-private theorem coordinateInput_eq_loadingWriteInput {kind : ProblemKind}
+private lemma coordinateInput_eq_loadingWriteInput {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (output : CWriteRef ctx (LatticeState.RawSignedWordShape width)) :
     LatticeState.coordinateInput output = LatticeLoading.writeInput output := rfl
@@ -122,7 +122,7 @@ def TargetRawRepresents {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Na
       RawSignedRepresents (store.read (LatticeLoading.writeInput output.t3)) target.2.2
 
 /-- Convert three raw cells into the reducer's three-coordinate raw relation. -/
-theorem pointRawRepresents_of_raw {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma pointRawRepresents_of_raw {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} (store : Store ctx)
     (refs : LatticeState.PointRefs ctx width) (point : NumberTheory.IntegerPoint3)
     (firstRep : RawSignedRepresents
@@ -135,7 +135,7 @@ theorem pointRawRepresents_of_raw {kind : ProblemKind} {ctx : RuntimeCtx kind}
   ⟨firstRep, secondRep, thirdRep⟩
 
 /-- The nine basis-cell representations are exactly the three point relations. -/
-theorem basisRawRepresents_iff_pointRawRepresents {kind : ProblemKind}
+lemma basisRawRepresents_iff_pointRawRepresents {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} (store : Store ctx)
     (output : LatticeLoading.RawOutputRefs ctx width) (roles : WorkspaceRoles output)
     (basis : NumberTheory.IntegerBasis3) :
@@ -178,7 +178,7 @@ theorem basisRawRepresents_iff_pointRawRepresents {kind : ProblemKind}
     · simpa only [basisRefs, coordinateInput_eq_loadingWriteInput] using b33
 
 /-- The original nine raw cells are exactly the actual basis relation consumed by Gram and LLL. -/
-theorem basisRawRepresents_iff_metricBasis {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma basisRawRepresents_iff_metricBasis {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} (store : Store ctx) (output : LatticeLoading.RawOutputRefs ctx width)
     (roles : WorkspaceRoles output) (basis : NumberTheory.IntegerBasis3) :
     BasisRawRepresents store output basis ↔
@@ -196,7 +196,7 @@ theorem basisRawRepresents_iff_metricBasis {kind : ProblemKind} {ctx : RuntimeCt
     exact ⟨represents .first, represents .second, represents .third⟩
 
 /-- The three target-cell representations are exactly one point relation. -/
-theorem targetRawRepresents_iff_pointRawRepresents {kind : ProblemKind}
+lemma targetRawRepresents_iff_pointRawRepresents {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} (store : Store ctx)
     (output : LatticeLoading.RawOutputRefs ctx width) (roles : WorkspaceRoles output)
     (target : NumberTheory.IntegerPoint3) :
@@ -229,7 +229,7 @@ def BasisDecodeRange (width : Nat) (basis : NumberTheory.IntegerBasis3) : Prop :
       PointDecodeRange width basis.third
 
 /-- Raw signed representation decodes to its integer under the existing signed range. -/
-theorem decodeRawCoordinate_eq_of_rawSignedRepresents {width : Nat}
+lemma decodeRawCoordinate_eq_of_rawSignedRepresents {width : Nat}
     (encoded : CShape.Word width) (value : Int) (widthPositive : 0 < width)
     (represents : RawSignedRepresents encoded value)
     (range : ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable width value) :
@@ -238,7 +238,7 @@ theorem decodeRawCoordinate_eq_of_rawSignedRepresents {width : Nat}
   exact rawSignedRepresents_decode_eq encoded value widthPositive represents range
 
 /-- One raw reducer point decodes to its represented integer point. -/
-theorem pointValue_eq_of_pointRawRepresents {kind : ProblemKind}
+lemma pointValue_eq_of_pointRawRepresents {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} (store : Store ctx)
     (refs : LatticeState.PointRefs ctx width) (point : NumberTheory.IntegerPoint3)
     (widthPositive : 0 < width)
@@ -261,7 +261,7 @@ theorem pointValue_eq_of_pointRawRepresents {kind : ProblemKind}
         thirdRange
 
 /-- The nine raw cells decode to the displayed ordered integer basis. -/
-theorem basisValue_eq_of_rawSignedRepresents {kind : ProblemKind}
+lemma basisValue_eq_of_rawSignedRepresents {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} (store : Store ctx)
     (output : LatticeLoading.RawOutputRefs ctx width) (roles : WorkspaceRoles output)
     (basis : NumberTheory.IntegerBasis3) (widthPositive : 0 < width)
@@ -283,7 +283,7 @@ theorem basisValue_eq_of_rawSignedRepresents {kind : ProblemKind}
   rw [firstValue, secondValue, thirdValue]
 
 /-- The three raw target cells decode to the displayed integer target. -/
-theorem targetValue_eq_of_rawSignedRepresents {kind : ProblemKind}
+lemma targetValue_eq_of_rawSignedRepresents {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} (store : Store ctx)
     (output : LatticeLoading.RawOutputRefs ctx width) (roles : WorkspaceRoles output)
     (target : NumberTheory.IntegerPoint3) (widthPositive : 0 < width)
@@ -297,7 +297,7 @@ theorem targetValue_eq_of_rawSignedRepresents {kind : ProblemKind}
   · exact range
 
 /-- The raw basis and target cells decode jointly to the displayed pair of values. -/
-theorem basisTargetValue_eq_of_rawSignedRepresents {kind : ProblemKind}
+lemma basisTargetValue_eq_of_rawSignedRepresents {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} (store : Store ctx)
     (output : LatticeLoading.RawOutputRefs ctx width) (roles : WorkspaceRoles output)
     (basis : NumberTheory.IntegerBasis3) (target : NumberTheory.IntegerPoint3)

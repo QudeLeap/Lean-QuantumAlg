@@ -37,13 +37,13 @@ def decodeOperands {width : Nat} (input : (operandShape width).Value) :
   left := decodeWord input.first
   right := decodeWord input.second
 
-@[simp] theorem gcdOperands_decode_encode {width : Nat}
+@[simp] lemma gcdOperands_decode_encode {width : Nat}
     (input : ClassicalAlgorithms.NumberTheory.GCD.Input width) :
     decodeOperands (encodeOperands input) = input := by
   cases input
   rfl
 
-@[simp] theorem gcdOperands_encode_decode {width : Nat}
+@[simp] lemma gcdOperands_encode_decode {width : Nat}
     (input : (operandShape width).Value) :
     encodeOperands (decodeOperands input) = input := by
   cases input with
@@ -59,7 +59,7 @@ def decodeEuclidState {width : Nat} (first second : CShape.Word width) :
   second := second.toNat
 
 /-- The native remainder has no extra wrap, including for a zero divisor. -/
-theorem gcdOperands_divRem_remainder {width : Nat}
+lemma gcdOperands_divRem_remainder {width : Nat}
     (first second : CShape.Word width) :
     (CShape.divRem width width (.product second first)).second.toNat =
       second.toNat % first.toNat := by
@@ -67,7 +67,7 @@ theorem gcdOperands_divRem_remainder {width : Nat}
   exact Nat.mod_eq_of_lt ((Nat.mod_le _ _).trans_lt second.toNat_lt)
 
 /-- Native division followed by rotation is exactly the original total Euclidean step. -/
-theorem gcdOperands_divRem_step {width : Nat}
+lemma gcdOperands_divRem_step {width : Nat}
     (first second : CShape.Word width) :
     decodeEuclidState (CShape.divRem width width (.product second first)).second first =
       ClassicalAlgorithms.NumberTheory.Euclid.step

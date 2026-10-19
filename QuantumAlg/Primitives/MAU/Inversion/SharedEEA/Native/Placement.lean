@@ -28,13 +28,13 @@ open ControlPreparation
 private def positionValue (width index : Nat) : Nat :=
   if index < bodyWidth width then index + 1 else 0
 
-private theorem before_count (width : Nat) :
+private lemma before_count (width : Nat) :
     (before width).systemCount = bodyWidth width := by
   have wires := congrArg List.length (Execution.OwnedQubits.canonical_wires (bodyWidth width))
   simpa only [QuantumLayout.wires_length, RuntimeCtx.quantumLayout_wires,
     RuntimeCtx.systemCount, before] using wires.symm
 
-theorem after_count (width : Nat) :
+lemma after_count (width : Nat) :
     (after width).systemCount = 1 + bodyWidth width := by
   have wires := congrArg List.length
     (RuntimeCtx.runtimeCtx_quantumWires_addOwnedLayout (before width)
@@ -62,7 +62,7 @@ def position (width : Nat) :
     unfold positionValue at values
     split_ifs at values <;> omega
 
-theorem position_dimensions (width : Nat) (index : Fin (encoding width).width) :
+lemma position_dimensions (width : Nat) (index : Fin (encoding width).width) :
     ((QubitLayout.canonical (encoding width).width).toQuantum.wire index).dimension =
       ((after width).quantumLayout.wire (position width index)).dimension := by
   have qubit_wires {count : Nat} (layout : QubitLayout count)
@@ -99,11 +99,11 @@ def program (width : Nat) (enough : 2 ≤ width.size) :
     (after width).quantumLayout (position width) (position_dimensions width)
     (NativeControl.program width enough)
 
-theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace = (NativeControl.program width enough).eventTrace :=
   UnitaryCircuit.placeAt_eventTrace _ _ _ _ _
 
-theorem program_eventCost (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventCost (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventCost = (NativeControl.program width enough).eventCost :=
   UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 

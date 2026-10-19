@@ -134,7 +134,7 @@ def recoveryValue (modulus shortLog : Nat) : Option Nat :=
     (checkedCandidateOption (center + root) modulus)
 
 /-- The closed machine value is the public RSA short-log recovery value. -/
-theorem recoveryValue_eq_recoverFactorFromShortLog (modulus shortLog : Nat) :
+lemma recoveryValue_eq_recoverFactorFromShortLog (modulus shortLog : Nat) :
     recoveryValue modulus shortLog =
       RSA.recoverFactorFromShortLog modulus shortLog := by
   rw [RSA.recoverFactorFromShortLog_eq]
@@ -167,7 +167,8 @@ structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Na
   callerFrame : ∀ {shape : CShape} (other : CInputRef ctx shape),
     CallerFrameAvoids refs other → after.read other = before.read other
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Generate both candidates, then check and select them in their original order. -/
@@ -181,27 +182,28 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
     (QuadraticCandidates.step refs.candidates) (QuadraticCandidatePairSelect.step refs.pair) store
 
 /-- The full interpreter equation holds for every history and external quantum reference. -/
-theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord (QuadraticCandidates.into refs.candidates)
+  Circuit.execute_sequenceStoreRecord
+    (environment := environment) (QuadraticCandidates.into refs.candidates)
     (QuadraticCandidatePairSelect.into refs.pair)
     (QuadraticCandidates.step refs.candidates) (QuadraticCandidatePairSelect.step refs.pair)
     (QuadraticCandidates.into_execute refs.candidates)
     (QuadraticCandidatePairSelect.into_execute refs.pair) Reference state
 
 /-- Every disjoint caller read survives both actual computation stages. -/
-theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other :=
   (QuadraticCandidatePairSelect.into_callerFrame refs.pair _ other avoids.pair).trans
     (QuadraticCandidates.into_callerFrame refs.candidates store other avoids.candidates)
 
 /-- Actual candidate construction followed by the checked selector realizes quadratic recovery. -/
-theorem into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
+lemma into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     Relation refs store (step refs store).1 := by
   let middle := (QuadraticCandidates.step refs.candidates store).1
@@ -252,13 +254,13 @@ def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
     QuadraticCandidatePairSelect.eventEnvelope shortWidth
 
 /-- The same actual path emits candidate instructions followed by both checked selections. -/
-theorem into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).eventTrace path =
       (QuadraticCandidates.into refs.candidates).eventTrace path.1 ++
         (QuadraticCandidatePairSelect.into refs.pair).eventTrace path.2 := rfl
 
 /-- Every native coordinate is bounded by the independent sum of the two component allowances. -/
-theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path ≤ eventEnvelope shortWidth := by
   change ResourcePool.ofList ((QuadraticCandidates.into refs.candidates).eventTrace path.1 ++
     (QuadraticCandidatePairSelect.into refs.pair).eventTrace path.2) ≤ _
@@ -267,7 +269,7 @@ theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (QuadraticCandidatePairSelect.into_pool_le refs.pair path.2)
 
 /-- Original sequential dependencies include both complete checked selections. -/
-theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path ≤
       7 * QuadraticPrefix.discriminantWidth shortWidth + 34 := by
   change (QuadraticCandidates.into refs.candidates).depth (fun _ => 1) path.1 +
@@ -277,7 +279,7 @@ theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
   omega
 
 /-- Candidate construction and checked selection keep every supplied runtime entry live. -/
-theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
+lemma into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (QuadraticCandidates.into refs.candidates).visitedContexts path.1 ++
@@ -287,31 +289,32 @@ theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
   · exact QuadraticCandidatePairSelect.into_visited refs.pair path.2 visited pair
 
 /-- Resident space includes the complete supplied caller and scratch context. -/
-theorem into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Auxiliary space preserves all supplied workspace roles throughout the same execution. -/
-theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Actual quadratic recovery restores borrowed storage jointly with arbitrary references. -/
-theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+    (into refs).BorrowedRestored
+      Reference state ((into refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact QuadraticCandidates.into_borrowedRestored refs.candidates Reference state
   · exact QuadraticCandidatePairSelect.into_borrowedRestored refs.pair Reference _
 
 /-- The machine retains an earlier factor and otherwise adopts the public RSA
 recovery value for the current short logarithm. -/
-theorem relation_retains_recoverFactorFromShortLog {kind : ProblemKind}
+lemma relation_retains_recoverFactorFromShortLog {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shortWidth : Nat} (refs : Refs ctx shortWidth)
     (before after : Store ctx)
     (holds : Relation refs before after)
@@ -355,7 +358,7 @@ theorem relation_retains_recoverFactorFromShortLog {kind : ProblemKind}
       rw [recoveryValue_eq_recoverFactorFromShortLog]
 
 /-- An initially empty latch returns exactly the public RSA recovery value. -/
-theorem relation_recoversFactorFromShortLog {kind : ProblemKind}
+lemma relation_recoversFactorFromShortLog {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shortWidth : Nat} (refs : Refs ctx shortWidth)
     (before after : Store ctx)
     (holds : Relation refs before after)

@@ -34,7 +34,7 @@ def fullPositionEquiv : Fin count ⊕ Fin ctx.systemCount ≃
   finSumFinEquiv.trans (ctx.addOwnedLayoutPositionEquiv key layout fresh disjoint)
 
 /-- A fresh position keeps its complete wire record. -/
-theorem fullPositionEquiv_new_wire (index : Fin count) :
+lemma fullPositionEquiv_new_wire (index : Fin count) :
     (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.wire
       (fullPositionEquiv ctx key layout fresh disjoint (.inl index)) = layout.wire index := by
   rw [fullPositionEquiv, Equiv.trans_apply, finSumFinEquiv_apply_left,
@@ -42,7 +42,7 @@ theorem fullPositionEquiv_new_wire (index : Fin count) :
   simp only [QuantumLayout.append, Fin.append_left]
 
 /-- An old position keeps its complete wire record. -/
-theorem fullPositionEquiv_old_wire (index : Fin ctx.systemCount) :
+lemma fullPositionEquiv_old_wire (index : Fin ctx.systemCount) :
     (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.wire
       (fullPositionEquiv ctx key layout fresh disjoint (.inr index)) =
         ctx.quantumLayout.wire index := by
@@ -51,14 +51,14 @@ theorem fullPositionEquiv_old_wire (index : Fin ctx.systemCount) :
   simp only [QuantumLayout.append, Fin.append_right]
 
 /-- Every newly prepared position lies outside the original borrowed selection. -/
-theorem fullPositionEquiv_new_complement (index : Fin count) :
+lemma fullPositionEquiv_new_complement (index : Fin count) :
     fullPositionEquiv ctx key layout fresh disjoint (.inl index) ∈
       (ctx.addOwnedLayout key layout fresh disjoint).borrowedSelectionᶜ := by
   rw [Finset.mem_compl, RuntimeCtx.mem_borrowedSelection, fullPositionEquiv_new_wire]
   exact ctx.ownedLayout_wire_not_borrowed key layout fresh disjoint index
 
 /-- Preparation leaves the borrowed status of every original physical position unchanged. -/
-theorem fullPositionEquiv_old_borrowed (index : Fin ctx.systemCount) :
+lemma fullPositionEquiv_old_borrowed (index : Fin ctx.systemCount) :
     fullPositionEquiv ctx key layout fresh disjoint (.inr index) ∈
       (ctx.addOwnedLayout key layout fresh disjoint).borrowedSelection ↔
         index ∈ ctx.borrowedSelection := by
@@ -75,7 +75,7 @@ private def complementPositionMap :
       rw [Finset.mem_compl, fullPositionEquiv_old_borrowed]
       exact Finset.mem_compl.mp index.property⟩
 
-private theorem complementPositionMap_injective :
+private lemma complementPositionMap_injective :
     Function.Injective (complementPositionMap ctx key layout fresh disjoint) := by
   intro left right same
   have positions :
@@ -93,7 +93,7 @@ private theorem complementPositionMap_injective :
     | inl right => cases original
     | inr right => exact congrArg Sum.inr (Subtype.ext (Sum.inr.inj original))
 
-private theorem complementPositionMap_surjective :
+private lemma complementPositionMap_surjective :
     Function.Surjective (complementPositionMap ctx key layout fresh disjoint) := by
   intro position
   obtain ⟨original, same⟩ :=
@@ -117,7 +117,7 @@ def complementPositionEquiv :
       complementPositionMap_surjective ctx key layout fresh disjoint⟩
 
 /-- Corresponding complementary positions preserve their exact local dimension. -/
-theorem complementPositionEquiv_dimension
+lemma complementPositionEquiv_dimension
     (index : Fin count ⊕ QuantumLayout.SelectedPosition ctx.borrowedSelectionᶜ) :
     ((ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.wire
       (complementPositionEquiv ctx key layout fresh disjoint index).val).dimension =

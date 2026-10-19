@@ -25,49 +25,44 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The phase Hadamards and expanded inverse QFT use this many one-qubit gates. -/
-public theorem singleQubitCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    ResourcePool.count (model := Sampling.Native.Framed.model access)
-      (.gate .singleQubit) ((code access).resourcePool path) =
+public lemma singleQubitCount (t width : Nat) (path : (code t width).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model t width)
+      (.gate .singleQubit) ((code t width).resourcePool path) =
       2 * t + 3 * t.choose 2 := by
   rw [events]
   simp [Sampling.Native.eventBudget, Sampling.Native.unitaryBudget,
     ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- Controlled phases and expanded SWAPs use this many physical CNOT gates. -/
-public theorem cnotCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    ResourcePool.count (model := Sampling.Native.Framed.model access)
-      (.gate .cnot) ((code access).resourcePool path) =
+public lemma cnotCount (t width : Nat) (path : (code t width).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model t width)
+      (.gate .cnot) ((code t width).resourcePool path) =
       2 * t.choose 2 + 3 * (t / 2) := by
   rw [events]
   simp [Sampling.Native.eventBudget, Sampling.Native.unitaryBudget,
     ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- No native Toffoli is present outside the sealed modular-exponentiation call. -/
-public theorem toffoliCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    ResourcePool.count (model := Sampling.Native.Framed.model access)
-      (.gate .toffoli) ((code access).resourcePool path) = 0 := by
+public lemma toffoliCount (t width : Nat) (path : (code t width).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model t width)
+      (.gate .toffoli) ((code t width).resourcePool path) = 0 := by
   rw [events]
   simp [Sampling.Native.eventBudget, Sampling.Native.unitaryBudget,
     ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- Every phase qubit has one actual Z write to a retained result cell. -/
-public theorem measurementCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    ResourcePool.count (model := Sampling.Native.Framed.model access)
-      (.measurement (2 : ℕ+)) ((code access).resourcePool path) = t := by
+public lemma measurementCount (t width : Nat) (path : (code t width).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model t width)
+      (.measurement (2 : ℕ+)) ((code t width).resourcePool path) = t := by
   rw [events]
   simp [Sampling.Native.eventBudget, Sampling.Native.unitaryBudget,
     ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- One selected finite-word operation packs the stored phase bits. -/
-public theorem packCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    ResourcePool.count (model := Sampling.Native.Framed.model access)
+public lemma packCount (t width : Nat) (path : (code t width).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model t width)
       (.classicalOperation (.nominalEncoding (.packFiniteBits t)))
-      ((code access).resourcePool path) = 1 := by
+      ((code t width).resourcePool path) = 1 := by
   rw [events]
   simp [Sampling.Native.eventBudget, Sampling.Native.unitaryBudget,
     ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]

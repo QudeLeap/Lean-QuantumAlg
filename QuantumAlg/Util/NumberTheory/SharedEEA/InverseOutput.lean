@@ -21,7 +21,7 @@ pure arithmetic encoding and does not stand for a circuit operation.
 namespace QuantumAlg.NumberTheory.SharedEEA.InverseOutput
 
 /-- The original mathematical signed coefficient fits the input word's full binary capacity. -/
-theorem value_fits (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma value_fits (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     SignedInvariant.output modulus (TerminalPadding.finalState modulus input)
       (SignedTrajectory.finalIteration modulus input) < 2 ^ modulus.size := by
   have coefficient := (Capacity.iteration_fields_le _ modulus
@@ -40,7 +40,7 @@ def word (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus
     (SignedTrajectory.finalIteration modulus input), value_fits modulus input positive bounded⟩
 
 /-- The encoded mathematical word is an inverse on the coprime positive-residue domain. -/
-theorem word_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma word_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (input : ZMod modulus) * ((word modulus input positive bounded).val : ZMod modulus) = 1 :=
   SignedTrajectory.final_product modulus input coprime positive bounded

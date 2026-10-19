@@ -21,7 +21,7 @@ not insert a runtime cast, allocation, read instruction or replacement store.
 
 namespace QuantumAlg.Execution.ContextUnion
 
-private theorem readBorrowedCells_join_of_empty {kind : ProblemKind}
+private lemma readBorrowedCells_join_of_empty {kind : ProblemKind}
     (left right : List (RuntimeEntry kind))
     (first : Cells left) (second : Cells right)
     (empty : left.flatMap RuntimeEntry.borrowedClassicalCells = []) :
@@ -43,13 +43,13 @@ private theorem readBorrowedCells_join_of_empty {kind : ProblemKind}
 variable {kind : ProblemKind} {left right : RuntimeCtx kind}
 
 /-- Joining a context without borrowed cells retains exactly the actual right observation. -/
-theorem readBorrowedClassical_join_right (separate : RuntimeCtx.StorageDisjoint left right)
+lemma readBorrowedClassical_join_right (separate : RuntimeCtx.StorageDisjoint left right)
     (empty : left.borrowedClassicalCells = []) (first : Store left) (second : Store right) :
     HEq (join separate first second).readBorrowedClassical second.readBorrowedClassical :=
   readBorrowedCells_join_of_empty left.entries right.entries first.cells second.cells empty
 
 /-- Splitting the real store exposes its entire borrowed observation in the right frame. -/
-theorem readBorrowedClassical_split_right (separate : RuntimeCtx.StorageDisjoint left right)
+lemma readBorrowedClassical_split_right (separate : RuntimeCtx.StorageDisjoint left right)
     (empty : left.borrowedClassicalCells = [])
     (store : Store (left.disjointUnion right separate)) :
     HEq store.readBorrowedClassical (split separate store).2.readBorrowedClassical := by

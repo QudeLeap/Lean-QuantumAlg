@@ -43,7 +43,7 @@ local macro "pauliMemFinish" : tactic =>
 
 set_option maxHeartbeats 8000000 in
 -- Exhaustive Pauli-Z conjugation over the sixteen half-coordinate codes needs this local budget.
-theorem half (negative : Fin 4 → Bool) :
+lemma half (negative : Fin 4 → Bool) :
     qubitClifford (.half negative) * pauliZ * (qubitClifford (.half negative))ᴴ ∈
       signedRawPauliSet := by
   by_cases h0 : negative 0 <;> by_cases h1 : negative 1 <;>

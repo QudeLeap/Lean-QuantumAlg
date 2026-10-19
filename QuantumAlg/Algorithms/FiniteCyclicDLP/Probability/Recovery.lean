@@ -49,7 +49,7 @@ definition does not claim that a classical routine has recovered the secret. -/
   ∃ unit : (ZMod P.order)ˣ, outcome = selectedRawOutcome P input unit
 
 /-- The selected raw outcome uniquely determines its unit parameter. -/
-public theorem selectedRawOutcome_injective (P : KnownOrderProblem G)
+public lemma selectedRawOutcome_injective (P : KnownOrderProblem G)
     (input : SecretInput P) : Function.Injective (selectedRawOutcome P input) := by
   intro left right h
   have hpacked := BornBridge.measurementOutcome_injective P h
@@ -77,7 +77,7 @@ consumed by the fixed-width recovery routine. -/
 
 /-- The raw decoder sees the packed selected Fourier pair, with the left
 register in the high half and the right register in the low half. -/
-theorem decodedTerminal_selectedRawInput (P : KnownOrderProblem G)
+lemma decodedTerminal_selectedRawInput (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ) :
     ClassicalRoutines.FiniteCyclicDLP.RawRecovery.decodedTerminal
         (selectedRawInput P input unit) =
@@ -90,7 +90,7 @@ theorem decodedTerminal_selectedRawInput (P : KnownOrderProblem G)
   exact congrArg Fin.val
     (BornBridge.fullRegisterIndex_measurementOutcome P _)
 
-theorem leftRaw_selectedRawInput (P : KnownOrderProblem G)
+lemma leftRaw_selectedRawInput (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ) :
     ClassicalRoutines.FiniteCyclicDLP.RawRecovery.leftRaw
         (selectedRawInput P input unit) =
@@ -102,7 +102,7 @@ theorem leftRaw_selectedRawInput (P : KnownOrderProblem G)
       (selectedIndex P (unit : ZMod P.order),
         selectedIndex P (-input.secret * (unit : ZMod P.order))))).symm
 
-theorem rightRaw_selectedRawInput (P : KnownOrderProblem G)
+lemma rightRaw_selectedRawInput (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ) :
     ClassicalRoutines.FiniteCyclicDLP.RawRecovery.rightRaw
         (selectedRawInput P input unit) =
@@ -116,7 +116,7 @@ theorem rightRaw_selectedRawInput (P : KnownOrderProblem G)
 
 /-- Integer rescaling of the selected left raw frequency returns the canonical
 representative of the selected unit. -/
-theorem normalize_selectedRawInput_left_val (P : KnownOrderProblem G)
+lemma normalize_selectedRawInput_left_val (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
     (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.normalize spec
@@ -137,7 +137,7 @@ theorem normalize_selectedRawInput_left_val (P : KnownOrderProblem G)
 
 /-- Integer rescaling of the selected right raw frequency returns the
 canonical representative of the negated hidden-line frequency. -/
-theorem normalize_selectedRawInput_right_val (P : KnownOrderProblem G)
+lemma normalize_selectedRawInput_right_val (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
     (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.normalize spec
@@ -160,7 +160,7 @@ theorem normalize_selectedRawInput_right_val (P : KnownOrderProblem G)
 
 /-- The normalized selected unit remains a checked-inverse input that is
 coprime to the represented group order. -/
-theorem normalize_selectedRawInput_left_coprime (P : KnownOrderProblem G)
+lemma normalize_selectedRawInput_left_coprime (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
     Nat.Coprime
@@ -172,7 +172,7 @@ theorem normalize_selectedRawInput_left_coprime (P : KnownOrderProblem G)
 
 /-- Checked inversion therefore selects its canonical inverse payload rather
 than the failure branch. -/
-theorem checkedInverse_selectedRawInput (P : KnownOrderProblem G)
+lemma checkedInverse_selectedRawInput (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
     ClassicalAlgorithms.NumberTheory.TryInv.eval spec
@@ -187,7 +187,7 @@ theorem checkedInverse_selectedRawInput (P : KnownOrderProblem G)
 
 /-- Modular negation of the normalized right frequency is exactly the
 canonical representative of `secret * unit`. -/
-theorem negateRight_selectedRawInput_val (P : KnownOrderProblem G)
+lemma negateRight_selectedRawInput_val (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
     (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.negateRight spec
@@ -222,7 +222,7 @@ theorem negateRight_selectedRawInput_val (P : KnownOrderProblem G)
 
 /-- The fixed-width helper fed by the successful checked inverse returns the
 advertised secret as its canonical candidate. -/
-theorem helperOutput_selectedRawInput_candidate_val
+lemma helperOutput_selectedRawInput_candidate_val
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
@@ -302,7 +302,7 @@ theorem helperOutput_selectedRawInput_candidate_val
 
 /-- The independent reconstruction check accepts the recovered selected
 candidate. -/
-theorem helperOutput_selectedRawInput_verified
+lemma helperOutput_selectedRawInput_verified
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
@@ -347,7 +347,7 @@ theorem helperOutput_selectedRawInput_verified
 
 /-- On a selected raw terminal outcome, the pure raw-recovery model takes its
 successful checked-inverse branch. -/
-theorem outputOf_selectedRawInput
+lemma outputOf_selectedRawInput
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :
@@ -369,7 +369,7 @@ theorem outputOf_selectedRawInput
 /-- Complete pure semantic bridge used by endpoint integration: the selected
 raw outcome yields `some` candidate, that candidate is the advertised secret,
 and the reconstruction flag is true. -/
-public theorem outputOf_selectedRawInput_recovers
+public lemma outputOf_selectedRawInput_recovers
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ)
     (spec : ModulusSpec (orderWidth P)) (hspec : spec.modulus = P.order) :

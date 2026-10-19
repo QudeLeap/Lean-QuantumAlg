@@ -37,7 +37,7 @@ public def unitPowerCopyOutput {exponentWidth width : Nat}
   (state.1, ⟨state.2.val ^^^ state.1.2.1.val,
     Nat.xor_lt_two_pow state.2.isLt state.1.2.1.isLt⟩)
 
-theorem unitPowerCopyOutput_involutive (exponentWidth width : Nat) :
+lemma unitPowerCopyOutput_involutive (exponentWidth width : Nat) :
     Function.Involutive
       (unitPowerCopyOutput (exponentWidth := exponentWidth) (width := width)) := by
   intro state
@@ -80,14 +80,14 @@ def unitPowerOracleEquiv (exponentWidth width : Nat) (modulus : Fin (2 ^ width +
     (unitPowerCopyEquiv exponentWidth width) |>.trans
       (unitPowerForwardEquiv exponentWidth width modulus base).symm
 
-theorem unitPowerOracleEquiv_apply (exponentWidth width : Nat)
+lemma unitPowerOracleEquiv_apply (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
     (state : (Fin (2 ^ exponentWidth) × (Fin (2 ^ width) × Fin (2 ^ width))) × Fin (2 ^ width)) :
     unitPowerOracleEquiv exponentWidth width modulus base state =
       unitPowerOracleOutput modulus base state := rfl
 
 /-- Uncomputation returns all three compute fields, even for arbitrary initial work words. -/
-theorem unitPowerOracleOutput_compute {exponentWidth width : Nat}
+lemma unitPowerOracleOutput_compute {exponentWidth width : Nat}
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
     (state : (Fin (2 ^ exponentWidth) × (Fin (2 ^ width) × Fin (2 ^ width))) × Fin (2 ^ width)) :
     (unitPowerOracleOutput modulus base state).1 = state.1 := by
@@ -95,7 +95,7 @@ theorem unitPowerOracleOutput_compute {exponentWidth width : Nat}
     (unitPowerBitsEquiv modulus base (List.ofFn fun bit : Fin exponentWidth => bit) state.1) = _
   exact Equiv.symm_apply_apply _ _
 
-private theorem selected_unit_word {exponentWidth width : Nat}
+private lemma selected_unit_word {exponentWidth width : Nat}
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base seed : (ZMod modulus.val)ˣ) (bit : Fin exponentWidth)
     (exponent : Fin (2 ^ exponentWidth)) :
@@ -110,7 +110,7 @@ private theorem selected_unit_word {exponentWidth width : Nat}
         (unitResidueWord_valid modulus positive seed), unitProductWord_unitResidueWord]
 
 /-- Pure selected-power arithmetic returns the zero auxiliary at each static stage boundary. -/
-theorem unitPowerBitsEquiv_unit_word {exponentWidth width : Nat}
+lemma unitPowerBitsEquiv_unit_word {exponentWidth width : Nat}
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (bits : List (Fin exponentWidth))
     (exponent : Fin (2 ^ exponentWidth)) (seed : (ZMod modulus.val)ˣ) :
@@ -134,7 +134,7 @@ theorem unitPowerBitsEquiv_unit_word {exponentWidth width : Nat}
         (exponent, unitResidueWord modulus positive unit, (0 : Fin (2 ^ width)))) sameUnit
 
 /-- Canonical initialization computes the modular power without a parity restriction. -/
-theorem unitPowerForwardEquiv_clean (exponentWidth width : Nat)
+lemma unitPowerForwardEquiv_clean (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth))
     (target : Fin (2 ^ width)) :
@@ -148,7 +148,7 @@ theorem unitPowerForwardEquiv_clean (exponentWidth width : Nat)
   · rfl
 
 /-- The arbitrary target receives the modular power and both prepared words return exactly. -/
-theorem unitPowerOracleOutput_clean (exponentWidth width : Nat)
+lemma unitPowerOracleOutput_clean (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth))
     (target : Fin (2 ^ width)) :

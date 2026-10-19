@@ -32,7 +32,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA
 
-private theorem remaining_fits (state : IterationState) (modulus count : Nat)
+private lemma remaining_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.quotient.size - count < 2 ^ modulus.size.size :=
   ((Nat.sub_le state.quotient.size count).trans
@@ -60,7 +60,7 @@ def position (state : IterationState) (modulus count : Nat)
     omega⟩
 
 /-- This is exactly the natural sum read by the live native selector, without finite truncation. -/
-theorem position_val (state : IterationState) (modulus count : Nat)
+lemma position_val (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     let physical := frame state modulus count valid conserved active beforeEnd iteration
@@ -68,7 +68,7 @@ theorem position_val (state : IterationState) (modulus count : Nat)
       physical.coefficientLength.toNat + physical.quotientLength.toNat := rfl
 
 /-- The physical lower region is the whole old remainder before its leading bit expands. -/
-theorem position_lowWidth (state : IterationState) (modulus count : Nat)
+lemma position_lowWidth (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     modulus.size + 3 - 1 - (position state modulus count valid conserved).val =
       CoefficientCapacity.work1RemainderWidth state modulus count := by
@@ -77,7 +77,7 @@ theorem position_lowWidth (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The retained prefix consists of the coefficient, separator, and next shorter quotient suffix. -/
-theorem position_prefixWidth (state : IterationState) (modulus count : Nat)
+lemma position_prefixWidth (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     (position state modulus count valid conserved).val =
@@ -86,7 +86,7 @@ theorem position_prefixWidth (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual complete prefix is exactly the next logical quotient prefix at its actual width. -/
-theorem firstWord_prefix (state : IterationState) (modulus count : Nat)
+lemma firstWord_prefix (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     ((frame state modulus count valid conserved active beforeEnd iteration).firstWord.extractLsb'
@@ -102,7 +102,7 @@ theorem firstWord_prefix (state : IterationState) (modulus count : Nat)
   exact CoefficientPackedStep.original_prefix state modulus count valid conserved beforeEnd
 
 /-- Reading below the real consumed quotient bit retains every original remainder bit. -/
-theorem firstWord_low (state : IterationState) (modulus count : Nat)
+lemma firstWord_low (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     ((frame state modulus count valid conserved active beforeEnd iteration).firstWord.setWidth
@@ -116,7 +116,7 @@ theorem firstWord_low (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The actual selected wire is the next low quotient digit consumed by coefficient arithmetic. -/
-theorem firstWord_digit (state : IterationState) (modulus count : Nat)
+lemma firstWord_digit (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved active beforeEnd iteration).firstWord.getMsbD
@@ -132,7 +132,7 @@ theorem firstWord_digit (state : IterationState) (modulus count : Nat)
   exact CoefficientPackedStep.original_digit state modulus count valid conserved beforeEnd
 
 /-- Actual finite decrement equals the next live quotient length, with internal no-wrap evidence. -/
-theorem quotientLength_subtract (state : IterationState) (modulus count : Nat)
+lemma quotientLength_subtract (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved active beforeEnd iteration).quotientLength - 1 =

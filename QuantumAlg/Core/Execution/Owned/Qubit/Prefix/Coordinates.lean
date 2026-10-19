@@ -26,7 +26,7 @@ namespace QuantumAlg.Execution.OwnedQubitPrefix
 
 noncomputable section
 
-private theorem finiteBit_value (value : Fin 2) :
+private lemma finiteBit_value (value : Fin 2) :
     finTwoEquiv value = decide (value.val = 1) := by
   fin_cases value <;> rfl
 
@@ -42,7 +42,7 @@ def canonicalBasisEquiv (freshWidth width : Nat) :
     (post freshWidth width).quantumLayout (post_canonical_wires freshWidth width)).symm.trans
       (QuantumSignature.qubitsIndexEquiv (freshWidth + width))
 
-private theorem canonicalBasisEquiv_bit (freshWidth width : Nat)
+private lemma canonicalBasisEquiv_bit (freshWidth width : Nat)
     (basis : (post freshWidth width).register.Index) (index : Fin (freshWidth + width)) :
     (canonicalBasisEquiv freshWidth width basis).val.testBit index.rev.val =
       decide ((basis (positionEquiv freshWidth width index)).val = 1) := by
@@ -62,7 +62,7 @@ private def originalPosition (freshWidth width : Nat) (index : Fin width) :
   Execution.positionsOfEqualWires (inputLayout freshWidth width).toQuantumLayout
     (pre freshWidth width).quantumLayout (input_wires freshWidth width) index
 
-private theorem original_bit (freshWidth width : Nat)
+private lemma original_bit (freshWidth width : Nat)
     (basis : (pre freshWidth width).register.Index) (index : Fin width) :
     (inputBasisEquiv freshWidth width basis).val.testBit index.rev.val =
       decide ((basis (originalPosition freshWidth width index)).val = 1) := by
@@ -77,7 +77,7 @@ private theorem original_bit (freshWidth width : Nat)
     ((finiteBit_value (original index)).trans
       (congrArg (fun value => decide (value = 1)) values.symm))
 
-private theorem assembly_owned_value (freshWidth width : Nat)
+private lemma assembly_owned_value (freshWidth width : Nat)
     (newBasis : (prefixLayout freshWidth).toQuantumLayout.register.Index)
     (oldBasis : (pre freshWidth width).register.Index) (index : Fin freshWidth) :
     (assembly freshWidth width (newBasis, oldBasis)
@@ -96,7 +96,7 @@ private theorem assembly_owned_value (freshWidth width : Nat)
     (Fin.castAdd (pre freshWidth width).systemCount index)).trans
       (QuantumLayout.appendJoinBasis_left_value _ _ _ newBasis oldBasis index)
 
-private theorem assembly_original_value (freshWidth width : Nat)
+private lemma assembly_original_value (freshWidth width : Nat)
     (newBasis : (prefixLayout freshWidth).toQuantumLayout.register.Index)
     (oldBasis : (pre freshWidth width).register.Index) (index : Fin width) :
     (assembly freshWidth width (newBasis, oldBasis)
@@ -118,7 +118,7 @@ private theorem assembly_original_value (freshWidth width : Nat)
         (originalPosition freshWidth width index))
 
 /-- The actual preparation tensor map agrees with the complete binary frame encoding. -/
-theorem canonicalBasisEquiv_assembly (freshWidth width : Nat)
+lemma canonicalBasisEquiv_assembly (freshWidth width : Nat)
     (newBasis : (prefixLayout freshWidth).toQuantumLayout.register.Index)
     (oldBasis : (pre freshWidth width).register.Index) :
     canonicalBasisEquiv freshWidth width (assembly freshWidth width (newBasis, oldBasis)) =
@@ -143,7 +143,7 @@ theorem canonicalBasisEquiv_assembly (freshWidth width : Nat)
       prodEquiv_testBit_right, original_bit]
 
 /-- The actual preparation frame and canonical physical-wire frame encode identical values. -/
-theorem canonicalBasisEquiv_eq_basisEquiv (freshWidth width : Nat) :
+lemma canonicalBasisEquiv_eq_basisEquiv (freshWidth width : Nat) :
     canonicalBasisEquiv freshWidth width = basisEquiv freshWidth width := by
   apply Equiv.ext
   intro basis

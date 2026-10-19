@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Algorithms.BernsteinVazirani.Construction
 public import QuantumAlg.Algorithms.BernsteinVazirani.Endpoint
+public import QuantumAlg.Algorithms.BernsteinVazirani.Endpoint.Results
 
 /-!
 # Bernstein-Vazirani

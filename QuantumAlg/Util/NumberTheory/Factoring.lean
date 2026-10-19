@@ -39,7 +39,7 @@ open Finset
 
 /-- Factoring-reduction gcd step. If `N ∣ a * b` while `N` divides neither `a`
 nor `b`, then `gcd(a, N)` is a nontrivial factor of `N`. -/
-theorem main_factor_reduction {N a b : ℕ} (hN : 1 < N)
+lemma main_factor_reduction {N a b : ℕ} (hN : 1 < N)
     (hdvd : N ∣ a * b) (ha : ¬ N ∣ a) (hb : ¬ N ∣ b) :
     1 < Nat.gcd a N ∧ Nat.gcd a N < N := by
   have hN0 : 0 < N := Nat.lt_of_lt_of_le Nat.zero_lt_one (Nat.le_of_lt hN)
@@ -69,7 +69,7 @@ structure GcdBridgeInput (N y : ℕ) : Prop where
 
 /-- If a doubled exponent returns `x` to one modulo `N`, then the half-exponent
 residue squares to one modulo `N`. -/
-theorem half_order_square_modEq_one_of_double {N x k : ℕ}
+lemma half_order_square_modEq_one_of_double {N x k : ℕ}
     (hpow : x ^ (2 * k) ≡ 1 [MOD N]) :
     (x ^ k) * (x ^ k) ≡ 1 [MOD N] := by
   have hpow' : x ^ (k + k) ≡ 1 [MOD N] := by
@@ -77,7 +77,7 @@ theorem half_order_square_modEq_one_of_double {N x k : ℕ}
   simpa [pow_add] using hpow'
 
 /-- Evenness lets the half-order residue be read as `x^(r/2)`. -/
-theorem half_order_square_modEq_one {N x r : ℕ}
+lemma half_order_square_modEq_one {N x r : ℕ}
     (heven : Even r) (hpow : x ^ r ≡ 1 [MOD N]) :
     (x ^ (r / 2)) * (x ^ (r / 2)) ≡ 1 [MOD N] := by
   rcases heven with ⟨k, rfl⟩
@@ -104,7 +104,7 @@ namespace HalfOrderGcdInput
 /-- A Shor half-order gcd route has a positive recovered order. If `r = 0`,
 the left nonzero side condition would require `0` to be nonzero modulo `N`
 [Sho95, source.tex:1124-1148]. -/
-theorem order_pos {N x r : ℕ} (h : HalfOrderGcdInput N x r) : 0 < r := by
+lemma order_pos {N x r : ℕ} (h : HalfOrderGcdInput N x r) : 0 < r := by
   by_contra hnot
   have hr : r = 0 := Nat.eq_zero_of_not_pos hnot
   have hzero : (x ^ (r / 2) - 1) = 0 := by
@@ -116,7 +116,7 @@ end HalfOrderGcdInput
 /-- If the half-order residue squares to one modulo `N`, then the product
 `(y-1)(y+1)` vanishes modulo `N`. The positivity hypothesis avoids the
 truncation edge of natural-number subtraction. -/
-theorem product_zero_mod_of_square_modEq_one {N y : ℕ}
+lemma product_zero_mod_of_square_modEq_one {N y : ℕ}
     (hypos : 0 < y) (hsquare : y * y ≡ 1 [MOD N]) :
     (y - 1) * (y + 1) ≡ 0 [MOD N] := by
   rw [Nat.modEq_iff_dvd]
@@ -128,7 +128,7 @@ theorem product_zero_mod_of_square_modEq_one {N y : ℕ}
   ring
 
 /-- Package the usual Shor square-one side conditions as a `GcdBridgeInput`. -/
-theorem gcdBridgeInput_of_square_modEq_one {N y : ℕ}
+lemma gcdBridgeInput_of_square_modEq_one {N y : ℕ}
     (hN : 1 < N) (hypos : 0 < y) (hsquare : y * y ≡ 1 [MOD N])
     (hleft : ¬ (y - 1) ≡ 0 [MOD N])
     (hright : ¬ (y + 1) ≡ 0 [MOD N]) :
@@ -140,7 +140,7 @@ theorem gcdBridgeInput_of_square_modEq_one {N y : ℕ}
 
 /-- Package even-order Shor side conditions as a `GcdBridgeInput` for the
 half-order residue. -/
-theorem gcdBridgeInput_of_half_order {N x r : ℕ}
+lemma gcdBridgeInput_of_half_order {N x r : ℕ}
     (h : HalfOrderGcdInput N x r) :
     GcdBridgeInput N (x ^ (r / 2)) where
   modulus_gt_one := h.modulus_gt_one
@@ -153,7 +153,7 @@ theorem gcdBridgeInput_of_half_order {N x r : ℕ}
 
 /-- Bridge from Shor's modular side conditions to the reusable gcd factoring
 core. Both gcd expressions are nontrivial factors under the same hypotheses. -/
-theorem gcd_bridge {N y : ℕ} (h : GcdBridgeInput N y) :
+lemma gcd_bridge {N y : ℕ} (h : GcdBridgeInput N y) :
     (1 < Nat.gcd (y - 1) N ∧ Nat.gcd (y - 1) N < N) ∧
       (1 < Nat.gcd (y + 1) N ∧ Nat.gcd (y + 1) N < N) := by
   have hprod : N ∣ (y - 1) * (y + 1) :=
@@ -169,7 +169,7 @@ theorem gcd_bridge {N y : ℕ} (h : GcdBridgeInput N y) :
 
 /-- Direct bridge from Shor's square-one side conditions to nontrivial gcd
 factors. -/
-private theorem gcd_bridge_of_square_modEq_one {N y : ℕ}
+private lemma gcd_bridge_of_square_modEq_one {N y : ℕ}
     (hN : 1 < N) (hypos : 0 < y) (hsquare : y * y ≡ 1 [MOD N])
     (hleft : ¬ (y - 1) ≡ 0 [MOD N])
     (hright : ¬ (y + 1) ≡ 0 [MOD N]) :
@@ -179,7 +179,7 @@ private theorem gcd_bridge_of_square_modEq_one {N y : ℕ}
 
 /-- Direct bridge from even-order Shor side conditions to nontrivial gcd
 factors for the half-order residue. -/
-theorem gcd_bridge_of_half_order {N x r : ℕ}
+lemma gcd_bridge_of_half_order {N x r : ℕ}
     (h : HalfOrderGcdInput N x r) :
     (1 < Nat.gcd (x ^ (r / 2) - 1) N ∧ Nat.gcd (x ^ (r / 2) - 1) N < N) ∧
       (1 < Nat.gcd (x ^ (r / 2) + 1) N ∧ Nat.gcd (x ^ (r / 2) + 1) N < N) :=
@@ -260,7 +260,7 @@ namespace HalfSumQuadraticRoot
 
 /-- For prime factors at least two, the predecessor of their sum is strictly
 smaller than their product.  This rules out the two trivial quadratic roots. -/
-theorem factor_sum_pred_lt_product {N : ℕ}
+lemma factor_sum_pred_lt_product {N : ℕ}
     (model : SemiprimeFactorModel N) :
     model.leftFactor + model.rightFactor - 1 <
       model.leftFactor * model.rightFactor := by
@@ -304,7 +304,7 @@ theorem factor_sum_pred_lt_product {N : ℕ}
   exact lt_of_lt_of_le hpred_lt_sum hsum_le_product
 
 /-- The recovered quadratic root divides the RSA modulus. -/
-theorem candidate_dvd_modulus {N halfSum candidate : ℕ}
+lemma candidate_dvd_modulus {N halfSum candidate : ℕ}
     {model : SemiprimeFactorModel N}
     (root : HalfSumQuadraticRoot model halfSum candidate) :
     candidate ∣ N :=
@@ -312,7 +312,7 @@ theorem candidate_dvd_modulus {N halfSum candidate : ℕ}
 
 /-- The recovered quadratic root is positive because it divides a nonzero RSA
 modulus through a product whose value is exactly that modulus. -/
-theorem candidate_pos {N halfSum candidate : ℕ}
+lemma candidate_pos {N halfSum candidate : ℕ}
     {model : SemiprimeFactorModel N}
     (root : HalfSumQuadraticRoot model halfSum candidate) :
     0 < candidate := by
@@ -327,7 +327,7 @@ theorem candidate_pos {N halfSum candidate : ℕ}
   omega
 
 /-- The recovered quadratic root cannot be the trivial root one. -/
-theorem candidate_ne_one {N halfSum candidate : ℕ}
+lemma candidate_ne_one {N halfSum candidate : ℕ}
     {model : SemiprimeFactorModel N}
     (root : HalfSumQuadraticRoot model halfSum candidate)
     (half_sum_relation :
@@ -349,7 +349,7 @@ theorem candidate_ne_one {N halfSum candidate : ℕ}
   exact (lt_irrefl _) hlt
 
 /-- The recovered quadratic root cannot equal the whole modulus. -/
-theorem candidate_ne_modulus {N halfSum candidate : ℕ}
+lemma candidate_ne_modulus {N halfSum candidate : ℕ}
     {model : SemiprimeFactorModel N}
     (root : HalfSumQuadraticRoot model halfSum candidate)
     (half_sum_relation :
@@ -375,7 +375,7 @@ theorem candidate_ne_modulus {N halfSum candidate : ℕ}
   exact (lt_irrefl _) hlt
 
 /-- The recovered quadratic root is nontrivial. -/
-theorem candidate_gt_one {N halfSum candidate : ℕ}
+lemma candidate_gt_one {N halfSum candidate : ℕ}
     {model : SemiprimeFactorModel N}
     (root : HalfSumQuadraticRoot model halfSum candidate)
     (half_sum_relation :
@@ -386,7 +386,7 @@ theorem candidate_gt_one {N halfSum candidate : ℕ}
     (Ne.symm (root.candidate_ne_one half_sum_relation))
 
 /-- The recovered quadratic root is a proper divisor candidate. -/
-theorem candidate_lt_modulus {N halfSum candidate : ℕ}
+lemma candidate_lt_modulus {N halfSum candidate : ℕ}
     {model : SemiprimeFactorModel N}
     (root : HalfSumQuadraticRoot model halfSum candidate)
     (half_sum_relation :
@@ -406,22 +406,22 @@ end HalfSumQuadraticRoot
 namespace SemiprimeFactorModel
 
 /-- The left prime factor divides the public semiprime modulus. -/
-theorem leftFactor_dvd_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma leftFactor_dvd_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
     model.leftFactor ∣ N := by
   exact ⟨model.rightFactor, model.product_eq⟩
 
 /-- The right prime factor divides the public semiprime modulus. -/
-theorem rightFactor_dvd_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma rightFactor_dvd_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
     model.rightFactor ∣ N := by
   exact ⟨model.leftFactor, by simpa [Nat.mul_comm] using model.product_eq⟩
 
 /-- The declared prime factors are coprime. -/
-theorem leftRight_coprime {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma leftRight_coprime {N : ℕ} (model : SemiprimeFactorModel N) :
     Nat.Coprime model.leftFactor model.rightFactor :=
   (Nat.coprime_primes model.left_prime model.right_prime).mpr model.distinct
 
 /-- A semiprime model has nontrivial public modulus. -/
-theorem modulus_gt_one {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma modulus_gt_one {N : ℕ} (model : SemiprimeFactorModel N) :
     1 < N := by
   have hmul : 2 * 2 ≤ model.leftFactor * model.rightFactor :=
     Nat.mul_le_mul model.left_prime.two_le model.right_prime.two_le
@@ -430,7 +430,7 @@ theorem modulus_gt_one {N : ℕ} (model : SemiprimeFactorModel N) :
 
 /-- The left declared prime factor is a proper divisor of the public semiprime
 modulus. -/
-theorem leftFactor_lt_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma leftFactor_lt_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
     model.leftFactor < N := by
   calc
     model.leftFactor < model.leftFactor * model.rightFactor := by
@@ -442,7 +442,7 @@ theorem leftFactor_lt_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
 
 /-- The right declared prime factor is a proper divisor of the public semiprime
 modulus. -/
-theorem rightFactor_lt_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma rightFactor_lt_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
     model.rightFactor < N := by
   calc
     model.rightFactor < model.rightFactor * model.leftFactor := by
@@ -454,13 +454,13 @@ theorem rightFactor_lt_modulus {N : ℕ} (model : SemiprimeFactorModel N) :
     _ = N := model.product_eq.symm
 
 /-- A distinct-prime semiprime is strictly larger than two. -/
-theorem modulus_gt_two {N : ℕ} (model : SemiprimeFactorModel N) :
+lemma modulus_gt_two {N : ℕ} (model : SemiprimeFactorModel N) :
     2 < N :=
   lt_of_le_of_lt model.left_prime.two_le model.leftFactor_lt_modulus
 
 /-- A declared prime factor that is not two is an odd-prime factor in the
 numeric form required by Shor's good-base analysis. -/
-theorem leftFactor_gt_two_of_ne_two {N : ℕ}
+lemma leftFactor_gt_two_of_ne_two {N : ℕ}
     (model : SemiprimeFactorModel N)
     (hleft_ne_two : model.leftFactor ≠ 2) :
     2 < model.leftFactor := by
@@ -469,7 +469,7 @@ theorem leftFactor_gt_two_of_ne_two {N : ℕ}
 
 /-- A declared prime factor that is not two is an odd-prime factor in the
 numeric form required by Shor's good-base analysis. -/
-theorem rightFactor_gt_two_of_ne_two {N : ℕ}
+lemma rightFactor_gt_two_of_ne_two {N : ℕ}
     (model : SemiprimeFactorModel N)
     (hright_ne_two : model.rightFactor ≠ 2) :
     2 < model.rightFactor := by
@@ -478,7 +478,7 @@ theorem rightFactor_gt_two_of_ne_two {N : ℕ}
 
 /-- If the public semiprime modulus is odd, both declared prime factors are
 strictly larger than two. -/
-theorem factors_gt_two_of_not_even {N : ℕ}
+lemma factors_gt_two_of_not_even {N : ℕ}
     (model : SemiprimeFactorModel N) (hodd : ¬ Even N) :
     2 < model.leftFactor ∧ 2 < model.rightFactor := by
   constructor
@@ -494,7 +494,7 @@ theorem factors_gt_two_of_not_even {N : ℕ}
     simpa [hright] using model.rightFactor_dvd_modulus
 
 /-- An odd product of two distinct primes is at least `3 * 5 = 15`. -/
-theorem modulus_ge_fifteen_of_not_even {N : ℕ}
+lemma modulus_ge_fifteen_of_not_even {N : ℕ}
     (model : SemiprimeFactorModel N) (hodd : ¬ Even N) :
     15 ≤ N := by
   obtain ⟨hleft, hright⟩ := model.factors_gt_two_of_not_even hodd
@@ -532,7 +532,7 @@ def twoAdicOrderValuation (r : ℕ) : ℕ :=
 
 /-- The two-adic order valuation of an LCM is the maximum of the two component
 valuations. -/
-theorem twoAdicOrderValuation_lcm {a b : ℕ}
+lemma twoAdicOrderValuation_lcm {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0) :
     twoAdicOrderValuation (Nat.lcm a b) =
       max (twoAdicOrderValuation a) (twoAdicOrderValuation b) := by
@@ -540,7 +540,7 @@ theorem twoAdicOrderValuation_lcm {a b : ℕ}
 
 /-- A nonzero natural number has positive two-adic order valuation exactly when
 it is even. -/
-theorem twoAdicOrderValuation_pos_iff_even {r : ℕ}
+lemma twoAdicOrderValuation_pos_iff_even {r : ℕ}
     (hr : r ≠ 0) :
     0 < twoAdicOrderValuation r ↔ Even r := by
   rw [even_iff_two_dvd, twoAdicOrderValuation, ← Nat.succ_le_iff,
@@ -548,7 +548,7 @@ theorem twoAdicOrderValuation_pos_iff_even {r : ℕ}
 
 /-- If the right component order has strictly larger two-adic valuation, the
 LCM of the two component orders is even. -/
-theorem even_lcm_of_left_twoAdic_lt_right {a b : ℕ}
+lemma even_lcm_of_left_twoAdic_lt_right {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0)
     (hlt : twoAdicOrderValuation a < twoAdicOrderValuation b) :
     Even (Nat.lcm a b) := by
@@ -560,7 +560,7 @@ theorem even_lcm_of_left_twoAdic_lt_right {a b : ℕ}
 /-- If the component orders have unequal two-adic valuations, their LCM is
 even. This is the order-level halving precondition used by Shor's good-base
 criterion [Sho95, source.tex:1150-1155]. -/
-theorem even_lcm_of_twoAdic_ne {a b : ℕ}
+lemma even_lcm_of_twoAdic_ne {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0)
     (hne : twoAdicOrderValuation a ≠ twoAdicOrderValuation b) :
     Even (Nat.lcm a b) := by
@@ -571,7 +571,7 @@ theorem even_lcm_of_twoAdic_ne {a b : ℕ}
 
 /-- Halving equality for the LCM when the component orders have unequal
 two-adic valuations. -/
-private theorem two_mul_lcm_div_two_of_twoAdic_ne {a b : ℕ}
+private lemma two_mul_lcm_div_two_of_twoAdic_ne {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0)
     (hne : twoAdicOrderValuation a ≠ twoAdicOrderValuation b) :
     2 * (Nat.lcm a b / 2) = Nat.lcm a b := by
@@ -580,7 +580,7 @@ private theorem two_mul_lcm_div_two_of_twoAdic_ne {a b : ℕ}
 
 /-- When the right component order has larger two-adic valuation, half of the
 LCM is still positive. -/
-theorem lcm_div_two_pos_of_left_twoAdic_lt_right {a b : ℕ}
+lemma lcm_div_two_pos_of_left_twoAdic_lt_right {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0)
     (hlt : twoAdicOrderValuation a < twoAdicOrderValuation b) :
     0 < Nat.lcm a b / 2 := by
@@ -604,7 +604,7 @@ theorem lcm_div_two_pos_of_left_twoAdic_lt_right {a b : ℕ}
 
 /-- If the right component order has larger two-adic valuation, the left
 component order divides half of the LCM. -/
-theorem left_dvd_lcm_div_two_of_left_twoAdic_lt_right {a b : ℕ}
+lemma left_dvd_lcm_div_two_of_left_twoAdic_lt_right {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0)
     (hlt : twoAdicOrderValuation a < twoAdicOrderValuation b) :
     a ∣ Nat.lcm a b / 2 := by
@@ -655,7 +655,7 @@ theorem left_dvd_lcm_div_two_of_left_twoAdic_lt_right {a b : ℕ}
 
 /-- If the right component order has larger two-adic valuation, it does not
 divide half of the LCM. -/
-theorem right_not_dvd_lcm_div_two_of_left_twoAdic_lt_right {a b : ℕ}
+lemma right_not_dvd_lcm_div_two_of_left_twoAdic_lt_right {a b : ℕ}
     (ha : a ≠ 0) (hb : b ≠ 0)
     (hlt : twoAdicOrderValuation a < twoAdicOrderValuation b) :
     ¬ b ∣ Nat.lcm a b / 2 := by
@@ -687,7 +687,7 @@ theorem right_not_dvd_lcm_div_two_of_left_twoAdic_lt_right {a b : ℕ}
 of `n`, then `a` divides `n / 2`. This is the arithmetic core behind the
 half-kernel partition in Shor's cyclic good-base count [Sho95,
 source.tex:1155-1169]. -/
-theorem dvd_div_two_of_twoAdic_lt {a n : ℕ}
+lemma dvd_div_two_of_twoAdic_lt {a n : ℕ}
     (ha : a ≠ 0) (hn : n ≠ 0) (hdvd : a ∣ n)
     (hlt : twoAdicOrderValuation a < twoAdicOrderValuation n) :
     a ∣ n / 2 := by
@@ -739,7 +739,7 @@ theorem dvd_div_two_of_twoAdic_lt {a n : ℕ}
 
 /-- Two-adic order valuation is monotone along divisibility of nonzero natural
 numbers. -/
-theorem twoAdicOrderValuation_le_of_dvd {a n : ℕ}
+lemma twoAdicOrderValuation_le_of_dvd {a n : ℕ}
     (ha : a ≠ 0) (hn : n ≠ 0) (hdvd : a ∣ n) :
     twoAdicOrderValuation a ≤ twoAdicOrderValuation n := by
   simpa [twoAdicOrderValuation] using
@@ -749,7 +749,7 @@ theorem twoAdicOrderValuation_le_of_dvd {a n : ℕ}
 `{x | x^(|G|/2)=1}` has exactly half the group cardinality. This is the
 counting partition used in Shor's good-base probability lower bound [Sho95,
 source.tex:1155-1169]. -/
-theorem card_pow_card_div_two_eq_one_eq_half
+lemma card_pow_card_div_two_eq_one_eq_half
     {G : Type*} [Group G] [DecidableEq G] [Fintype G] [IsCyclic G]
     (hEven : Even (Fintype.card G)) :
     #{x : G | x ^ (Fintype.card G / 2) = 1} = Fintype.card G / 2 := by
@@ -807,7 +807,7 @@ theorem card_pow_card_div_two_eq_one_eq_half
 order has cardinality at most half the group. Shor uses this fiber bound to show
 that the equal-valuation bad event has probability at most one half [Sho95,
 source.tex:1155-1169]. -/
-theorem card_twoAdicOrderValuation_fiber_le_half
+lemma card_twoAdicOrderValuation_fiber_le_half
     {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     (hEven : Even (Fintype.card G)) (k : ℕ) :
     2 * #{x : G | twoAdicOrderValuation (orderOf x) = k} ≤ Fintype.card G := by
@@ -912,7 +912,7 @@ noncomputable def valuationEqualPairCount (G H : Type*) [Group G] [Group H]
 /-- If the left component is cyclic of even cardinality, then pairs with equal
 two-adic order valuations occupy at most half of the product sample space
 [Sho95, source.tex:1155-1169]. -/
-theorem valuationEqualPairCount_le_half_left
+lemma valuationEqualPairCount_le_half_left
     {G H : Type*} [Group G] [Group H]
     [Fintype G] [Fintype H]
     [IsCyclic G] (hEvenG : Even (Fintype.card G)) :
@@ -956,7 +956,7 @@ theorem valuationEqualPairCount_le_half_left
 component pair whose component orders have different two-adic valuations. This
 is the existence counterpart of the bad-event half-count in Shor's semiprime
 random-base analysis [Sho95, source.tex:1155-1169]. -/
-theorem exists_valuation_ne_of_left_even
+lemma exists_valuation_ne_of_left_even
     {G H : Type*} [Group G] [Group H]
     [Fintype G] [Finite H]
     [IsCyclic G] (hEvenG : Even (Fintype.card G)) :
@@ -1006,7 +1006,7 @@ def ofUnit {N : ℕ} {model : SemiprimeFactorModel N}
     (u : (ZMod N)ˣ) : RandomBaseUnitSample model where
   unit := u
 
-@[simp] theorem ofUnit_unit {N : ℕ} {model : SemiprimeFactorModel N}
+@[simp] lemma ofUnit_unit {N : ℕ} {model : SemiprimeFactorModel N}
     (u : (ZMod N)ˣ) : (ofUnit (model := model) u).unit = u :=
   rfl
 
@@ -1017,7 +1017,7 @@ def baseResidue {N : ℕ} {model : SemiprimeFactorModel N}
   (sample.unit : ZMod N).val
 
 /-- The canonical base representative denotes the sampled unit modulo `N`. -/
-theorem baseResidue_natCast {N : ℕ} {model : SemiprimeFactorModel N}
+lemma baseResidue_natCast {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     ((sample.baseResidue : ℕ) : ZMod N) = (sample.unit : ZMod N) := by
   have _ : NeZero N :=
@@ -1025,7 +1025,7 @@ theorem baseResidue_natCast {N : ℕ} {model : SemiprimeFactorModel N}
   exact ZMod.natCast_zmod_val (sample.unit : ZMod N)
 
 /-- The sampled unit's canonical base representative is positive. -/
-theorem baseResidue_pos {N : ℕ} {model : SemiprimeFactorModel N}
+lemma baseResidue_pos {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     0 < sample.baseResidue := by
   have _ : Fact (1 < N) := ⟨model.modulus_gt_one⟩
@@ -1033,7 +1033,7 @@ theorem baseResidue_pos {N : ℕ} {model : SemiprimeFactorModel N}
 
 /-- If the sampled unit returns to one, so does its canonical natural-number
 representative modulo `N`. -/
-theorem baseResidue_pow_modEq_one_of_unit_pow_eq_one
+lemma baseResidue_pow_modEq_one_of_unit_pow_eq_one
     {N r : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hpow : sample.unit ^ r = 1) :
@@ -1062,13 +1062,13 @@ def rightComponent {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) : (ZMod model.rightFactor)ˣ :=
   ZMod.unitsMap model.rightFactor_dvd_modulus sample.unit
 
-@[simp] theorem leftComponent_val {N : ℕ} {model : SemiprimeFactorModel N}
+@[simp] lemma leftComponent_val {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     (sample.leftComponent : ZMod model.leftFactor) =
       ((sample.unit : ZMod N).cast : ZMod model.leftFactor) :=
   rfl
 
-@[simp] theorem rightComponent_val {N : ℕ} {model : SemiprimeFactorModel N}
+@[simp] lemma rightComponent_val {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     (sample.rightComponent : ZMod model.rightFactor) =
       ((sample.unit : ZMod N).cast : ZMod model.rightFactor) :=
@@ -1083,12 +1083,12 @@ def componentPair {N : ℕ} {model : SemiprimeFactorModel N}
     (ZMod model.leftFactor)ˣ × (ZMod model.rightFactor)ˣ :=
   (sample.leftComponent, sample.rightComponent)
 
-@[simp] theorem componentPair_fst {N : ℕ} {model : SemiprimeFactorModel N}
+@[simp] lemma componentPair_fst {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     sample.componentPair.1 = sample.leftComponent :=
   rfl
 
-@[simp] theorem componentPair_snd {N : ℕ} {model : SemiprimeFactorModel N}
+@[simp] lemma componentPair_snd {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     sample.componentPair.2 = sample.rightComponent :=
   rfl
@@ -1122,14 +1122,14 @@ def GoodEvent {N : ℕ} {model : SemiprimeFactorModel N}
     twoAdicOrderValuation (orderOf sample.crtComponentPair.2)
 
 /-- The left component order divides the global public-unit order. -/
-theorem leftComponent_order_dvd_global {N : ℕ}
+lemma leftComponent_order_dvd_global {N : ℕ}
     {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     orderOf sample.leftComponent ∣ orderOf sample.unit :=
   orderOf_map_dvd (ZMod.unitsMap model.leftFactor_dvd_modulus) sample.unit
 
 /-- The right component order divides the global public-unit order. -/
-theorem rightComponent_order_dvd_global {N : ℕ}
+lemma rightComponent_order_dvd_global {N : ℕ}
     {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     orderOf sample.rightComponent ∣ orderOf sample.unit :=
@@ -1137,7 +1137,7 @@ theorem rightComponent_order_dvd_global {N : ℕ}
 
 /-- The LCM of the structural component orders divides the global public-unit
 order. -/
-private theorem componentOrder_lcm_dvd_global {N : ℕ}
+private lemma componentOrder_lcm_dvd_global {N : ℕ}
     {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     Nat.lcm (orderOf sample.leftComponent) (orderOf sample.rightComponent) ∣
@@ -1148,7 +1148,7 @@ private theorem componentOrder_lcm_dvd_global {N : ℕ}
 /-- Under the CRT unit equivalence, the order of a public semiprime unit is the
 LCM of the two prime-factor component orders, matching the component-order step
 in Shor's good-base sketch [Sho95, source.tex:1147-1156]. -/
-theorem orderOf_eq_lcm_crtComponentPair {N : ℕ}
+lemma orderOf_eq_lcm_crtComponentPair {N : ℕ}
     {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model) :
     orderOf sample.unit =
@@ -1167,7 +1167,7 @@ theorem orderOf_eq_lcm_crtComponentPair {N : ℕ}
 
 /-- In the asymmetric two-adic case, the smaller-valuation CRT component
 becomes the identity after the global half-order exponent. -/
-theorem left_crtComponent_pow_lcm_div_two_eq_one_of_leftTwoAdic_lt_right
+lemma left_crtComponent_pow_lcm_div_two_eq_one_of_leftTwoAdic_lt_right
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hlt :
@@ -1185,7 +1185,7 @@ theorem left_crtComponent_pow_lcm_div_two_eq_one_of_leftTwoAdic_lt_right
 
 /-- In the asymmetric two-adic case, the larger-valuation CRT component is not
 the identity after the global half-order exponent. -/
-theorem right_crtComponent_pow_lcm_div_two_ne_one_of_leftTwoAdic_lt_right
+lemma right_crtComponent_pow_lcm_div_two_ne_one_of_leftTwoAdic_lt_right
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hlt :
@@ -1204,7 +1204,7 @@ theorem right_crtComponent_pow_lcm_div_two_ne_one_of_leftTwoAdic_lt_right
 
 /-- The CRT half-order product is not the identity when the right component
 has larger two-adic valuation. -/
-theorem crtComponentPair_pow_lcm_div_two_ne_one_of_leftTwoAdic_lt_right
+lemma crtComponentPair_pow_lcm_div_two_ne_one_of_leftTwoAdic_lt_right
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hlt :
@@ -1225,7 +1225,7 @@ theorem crtComponentPair_pow_lcm_div_two_ne_one_of_leftTwoAdic_lt_right
 /-- The CRT half-order product is not the global negative-one branch when the
 right component has larger two-adic valuation and the left factor has odd
 characteristic. -/
-theorem crtComponentPair_pow_lcm_div_two_ne_neg_one_of_leftTwoAdic_lt_right
+lemma crtComponentPair_pow_lcm_div_two_ne_neg_one_of_leftTwoAdic_lt_right
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hleftOdd : 2 < model.leftFactor)
@@ -1256,7 +1256,7 @@ theorem crtComponentPair_pow_lcm_div_two_ne_neg_one_of_leftTwoAdic_lt_right
 
 /-- Symmetric identity component theorem for the case where the left component
 has larger two-adic valuation. -/
-theorem right_crtComponent_pow_lcm_div_two_eq_one_of_rightTwoAdic_lt_left
+lemma right_crtComponent_pow_lcm_div_two_eq_one_of_rightTwoAdic_lt_left
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hlt :
@@ -1276,7 +1276,7 @@ theorem right_crtComponent_pow_lcm_div_two_eq_one_of_rightTwoAdic_lt_left
 
 /-- Symmetric non-identity component theorem for the case where the left
 component has larger two-adic valuation. -/
-theorem left_crtComponent_pow_lcm_div_two_ne_one_of_rightTwoAdic_lt_left
+lemma left_crtComponent_pow_lcm_div_two_ne_one_of_rightTwoAdic_lt_left
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hlt :
@@ -1297,7 +1297,7 @@ theorem left_crtComponent_pow_lcm_div_two_ne_one_of_rightTwoAdic_lt_left
 
 /-- The CRT half-order product is not the identity when the left component has
 larger two-adic valuation. -/
-theorem crtComponentPair_pow_lcm_div_two_ne_one_of_rightTwoAdic_lt_left
+lemma crtComponentPair_pow_lcm_div_two_ne_one_of_rightTwoAdic_lt_left
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hlt :
@@ -1318,7 +1318,7 @@ theorem crtComponentPair_pow_lcm_div_two_ne_one_of_rightTwoAdic_lt_left
 /-- The CRT half-order product is not the global negative-one branch when the
 left component has larger two-adic valuation and the right factor has odd
 characteristic. -/
-theorem crtComponentPair_pow_lcm_div_two_ne_neg_one_of_rightTwoAdic_lt_left
+lemma crtComponentPair_pow_lcm_div_two_ne_neg_one_of_rightTwoAdic_lt_left
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hrightOdd : 2 < model.rightFactor)
@@ -1349,7 +1349,7 @@ theorem crtComponentPair_pow_lcm_div_two_ne_neg_one_of_rightTwoAdic_lt_left
 
 /-- Unequal component two-adic order valuations force the CRT half-order product
 away from the identity. -/
-theorem crtComponentPair_pow_lcm_div_two_ne_one_of_twoAdic_ne
+lemma crtComponentPair_pow_lcm_div_two_ne_one_of_twoAdic_ne
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hne :
@@ -1364,7 +1364,7 @@ theorem crtComponentPair_pow_lcm_div_two_ne_one_of_twoAdic_ne
 
 /-- Unequal component two-adic order valuations force the CRT half-order product
 away from the negative-one branch, under explicit odd-prime-factor hypotheses. -/
-theorem crtComponentPair_pow_lcm_div_two_ne_neg_one_of_twoAdic_ne
+lemma crtComponentPair_pow_lcm_div_two_ne_neg_one_of_twoAdic_ne
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hleftOdd : 2 < model.leftFactor)
@@ -1383,7 +1383,7 @@ theorem crtComponentPair_pow_lcm_div_two_ne_neg_one_of_twoAdic_ne
 
 /-- Unequal component two-adic order valuations force the global half-order
 power away from the identity. -/
-theorem unit_pow_halfOrder_ne_one_of_twoAdic_ne
+lemma unit_pow_halfOrder_ne_one_of_twoAdic_ne
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hne :
@@ -1406,7 +1406,7 @@ theorem unit_pow_halfOrder_ne_one_of_twoAdic_ne
 /-- Unequal component two-adic order valuations force the global half-order
 power away from the negative-one branch, under explicit odd-prime-factor
 hypotheses. -/
-theorem unit_pow_halfOrder_ne_neg_one_of_twoAdic_ne
+lemma unit_pow_halfOrder_ne_neg_one_of_twoAdic_ne
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hleftOdd : 2 < model.leftFactor)
@@ -1439,7 +1439,7 @@ theorem unit_pow_halfOrder_ne_neg_one_of_twoAdic_ne
 two-adic valuations of the two CRT component orders make the global order even,
 and the global half-order power is neither `1` nor `-1` [Sho95,
 source.tex:1150-1155]. -/
-theorem halfOrderPow_ne_one_and_negOne_of_twoAdic_ne
+lemma halfOrderPow_ne_one_and_negOne_of_twoAdic_ne
     {N : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (hleftOdd : 2 < model.leftFactor)
@@ -1464,7 +1464,7 @@ theorem halfOrderPow_ne_one_and_negOne_of_twoAdic_ne
 
 /-- A non-identity half-order unit power gives the left nonzero modular
 side-condition for the canonical natural-number representative. -/
-theorem left_nonzero_mod_of_unit_halfOrder_ne_one
+lemma left_nonzero_mod_of_unit_halfOrder_ne_one
     {N k : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (h : sample.unit ^ k ≠ 1) :
@@ -1493,7 +1493,7 @@ theorem left_nonzero_mod_of_unit_halfOrder_ne_one
 
 /-- A non-negative-one half-order unit power gives the right nonzero modular
 side-condition for the canonical natural-number representative. -/
-theorem right_nonzero_mod_of_unit_halfOrder_ne_neg_one
+lemma right_nonzero_mod_of_unit_halfOrder_ne_neg_one
     {N k : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (h : sample.unit ^ k ≠ -1) :
@@ -1522,7 +1522,7 @@ CRT component orders satisfy the good-base two-adic criterion [Sho95,
 source.tex:1150-1155]. The recovered order `r` is kept explicit so the bridge
 matches the order-finding handoff instead of silently replacing it by an
 internal definition. -/
-theorem halfOrderGcdInput_of_goodBase
+lemma halfOrderGcdInput_of_goodBase
     {N r : ℕ} {model : SemiprimeFactorModel N}
     (sample : RandomBaseUnitSample model)
     (horder : orderOf sample.unit = r)
@@ -1555,7 +1555,7 @@ theorem halfOrderGcdInput_of_goodBase
 odd left prime factor. This connects the counting theorem to a concrete sample
 whose CRT component orders have unequal two-adic valuations [Sho95,
 source.tex:1155-1169]. -/
-theorem exists_crtComponentPair_twoAdic_ne
+lemma exists_crtComponentPair_twoAdic_ne
     {N : ℕ} (model : SemiprimeFactorModel N)
     (hleftOdd : 2 < model.leftFactor) :
     ∃ sample : RandomBaseUnitSample model,
@@ -1586,7 +1586,7 @@ good-base sample. The selected sample and route are produced inside the proof
 from public semiprime oddness assumptions; endpoint theorems should consume a
 higher-level bridge instead of taking these witnesses as public inputs [Sho95,
 source.tex:1132-1169; source.tex:1155-1169]. -/
-theorem exists_halfOrderGcdInput_of_publicGoodEvent
+lemma exists_halfOrderGcdInput_of_publicGoodEvent
     {N : ℕ} (model : SemiprimeFactorModel N)
     (hleftOdd : 2 < model.leftFactor)
     (hrightOdd : 2 < model.rightFactor) :
@@ -1604,7 +1604,7 @@ namespace SemiprimeFactorModel
 /-- The Euler totient of the left odd prime factor is even. This supplies the
 cyclic half-fiber counting hypothesis used in Shor's semiprime random-base
 analysis [Sho95, source.tex:1155-1169]. -/
-theorem leftFactor_totient_even {N : ℕ} (model : SemiprimeFactorModel N)
+lemma leftFactor_totient_even {N : ℕ} (model : SemiprimeFactorModel N)
     (hleftOdd : 2 < model.leftFactor) :
     Even (Nat.totient model.leftFactor) := by
   have hne_two : model.leftFactor ≠ 2 := by omega
@@ -1641,7 +1641,7 @@ noncomputable def goodEventUnits {N : ℕ} (model : SemiprimeFactorModel N) :
 /-- The finite carrier of Shor good-base samples has cardinality equal to the
 CRT good-base count used by the lower-bound package [Sho95,
 source.tex:1155-1169]. -/
-theorem card_goodEventUnits_eq_crtGoodBaseCount {N : ℕ}
+lemma card_goodEventUnits_eq_crtGoodBaseCount {N : ℕ}
     (model : SemiprimeFactorModel N) :
     #model.goodEventUnits = model.crtGoodBaseCount := by
   classical
@@ -1723,7 +1723,7 @@ theorem card_goodEventUnits_eq_crtGoodBaseCount {N : ℕ}
 
 /-- The equal two-adic valuation bad event has count at most one half of the
 public semiprime unit sample space [Sho95, source.tex:1155-1169]. -/
-theorem crtBadBaseCount_atMostHalf {N : ℕ}
+lemma crtBadBaseCount_atMostHalf {N : ℕ}
     (model : SemiprimeFactorModel N)
     (hleftOdd : 2 < model.leftFactor) :
     2 * model.crtBadBaseCount ≤ Nat.totient N := by
@@ -1755,7 +1755,7 @@ theorem crtBadBaseCount_atMostHalf {N : ℕ}
 /-- Equivalently, the unequal two-adic valuation good-base event has count at
 least one half of the public semiprime unit sample space [Sho95,
 source.tex:1155-1169]. -/
-theorem crtGoodBaseCount_atLeastHalf {N : ℕ}
+lemma crtGoodBaseCount_atLeastHalf {N : ℕ}
     (model : SemiprimeFactorModel N)
     (hleftOdd : 2 < model.leftFactor) :
     Nat.totient N ≤ 2 * model.crtGoodBaseCount := by
@@ -1813,7 +1813,7 @@ namespace RandomBaseGoodEventLowerBound
 /-- The counted good-base event is nonempty. This turns the public one-half
 lower-bound fields into an existence fact over the actual good-event carrier
 [Sho95, source.tex:1155-1169]. -/
-theorem goodEventCount_pos {N : ℕ} {model : SemiprimeFactorModel N}
+lemma goodEventCount_pos {N : ℕ} {model : SemiprimeFactorModel N}
     (good : RandomBaseGoodEventLowerBound model) :
     0 < good.goodEventCount := by
   by_contra hnot
@@ -1825,7 +1825,7 @@ theorem goodEventCount_pos {N : ℕ} {model : SemiprimeFactorModel N}
   exact (Nat.lt_irrefl 0 hzero_lt)
 
 /-- Existence of an actual random-base sample in the counted good event. -/
-theorem exists_goodEventSample {N : ℕ}
+lemma exists_goodEventSample {N : ℕ}
     {model : SemiprimeFactorModel N}
     (good : RandomBaseGoodEventLowerBound model) :
     ∃ sample : RandomBaseUnitSample model, RandomBaseUnitSample.GoodEvent sample := by
@@ -1843,7 +1843,7 @@ theorem exists_goodEventSample {N : ℕ}
 good-base event. The selected sample remains internal to this proof artifact
 and is not an endpoint-facing assumption [Sho95, source.tex:1132-1169;
 source.tex:1155-1169]. -/
-theorem exists_halfOrderGcdInput {N : ℕ}
+lemma exists_halfOrderGcdInput {N : ℕ}
     {model : SemiprimeFactorModel N}
     (good : RandomBaseGoodEventLowerBound model) :
     ∃ sample : RandomBaseUnitSample model,
@@ -1884,7 +1884,7 @@ def ofNontrivialDivisor {N d : ℕ} (model : SemiprimeFactorModel N)
     model.nontrivial_factor_eq_declared hdvd hgt hlt
 
 /-- The returned divisor is one of the two declared semiprime factors. -/
-theorem output_mem_declared_factors {N : ℕ}
+lemma output_mem_declared_factors {N : ℕ}
     {model : SemiprimeFactorModel N}
     (cert : FactorReturnCertificate model) :
     cert.output = model.leftFactor ∨ cert.output = model.rightFactor :=
@@ -1966,7 +1966,7 @@ structure ProbabilisticFactorReturnCertificate {N : ℕ}
 namespace ProbabilisticFactorReturnCertificate
 
 /-- The stored output is one of the declared semiprime factors. -/
-theorem output_mem_declared_factors {N : ℕ}
+lemma output_mem_declared_factors {N : ℕ}
     {model : SemiprimeFactorModel N}
     (cert : ProbabilisticFactorReturnCertificate model) :
     cert.output.output = model.leftFactor ∨
@@ -1974,7 +1974,7 @@ theorem output_mem_declared_factors {N : ℕ}
   cert.output.output_mem_declared_factors
 
 /-- The stored rational success lower bound is at least two thirds. -/
-theorem successAtLeastTwoThirds {N : ℕ}
+lemma successAtLeastTwoThirds {N : ℕ}
     {model : SemiprimeFactorModel N}
     (cert : ProbabilisticFactorReturnCertificate model) :
     2 * cert.successDenominator ≤ 3 * cert.successNumerator :=

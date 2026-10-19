@@ -31,7 +31,7 @@ public def binaryMiddleIndex (leftWidth middleWidth index : Nat) : Nat :=
   if index < leftWidth then index else index + middleWidth
 
 /-- Inserting one address interval never identifies two original systems. -/
-public theorem binaryMiddleIndex_injective (leftWidth middleWidth : Nat) :
+public lemma binaryMiddleIndex_injective (leftWidth middleWidth : Nat) :
     Function.Injective (binaryMiddleIndex leftWidth middleWidth) := by
   intro left right same
   by_cases leftBefore : left < leftWidth <;>
@@ -58,7 +58,7 @@ public def binaryMiddlePosition (leftWidth middleWidth rightWidth : Nat) :
       (congrArg Fin.val same)
 
 /-- Original left positions retain their canonical position. -/
-public theorem binaryMiddlePosition_left
+public lemma binaryMiddlePosition_left
     {leftWidth middleWidth rightWidth : Nat} (index : Fin leftWidth) :
     binaryMiddlePosition leftWidth middleWidth rightWidth
         (Fin.castAdd rightWidth index) =
@@ -68,7 +68,7 @@ public theorem binaryMiddlePosition_left
   simp [binaryMiddleIndex, index.isLt]
 
 /-- Original right positions move behind the complete middle field. -/
-public theorem binaryMiddlePosition_right
+public lemma binaryMiddlePosition_right
     {leftWidth middleWidth rightWidth : Nat} (index : Fin rightWidth) :
     binaryMiddlePosition leftWidth middleWidth rightWidth
         (Fin.natAdd leftWidth index) =
@@ -105,7 +105,7 @@ public def onBinaryMiddle {gates : GateModel} {oracles : OracleModel}
     (body.relabel (binaryMiddleShift leftWidth middleWidth))
 
 /-- Middle placement retains the complete ordered native event trace. -/
-public theorem unitaryCircuit_onBinaryMiddle_eventTrace
+public lemma unitaryCircuit_onBinaryMiddle_eventTrace
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (middleWidth : Nat)
     (body : UnitaryCircuit gates oracles
@@ -117,7 +117,7 @@ public theorem unitaryCircuit_onBinaryMiddle_eventTrace
   exact relabel_eventTrace body (binaryMiddleShift leftWidth middleWidth)
 
 /-- Middle placement preserves every native event and query multiplicity. -/
-public theorem unitaryCircuit_onBinaryMiddle_eventCost
+public lemma unitaryCircuit_onBinaryMiddle_eventCost
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (middleWidth : Nat)
     (body : UnitaryCircuit gates oracles
@@ -127,7 +127,7 @@ public theorem unitaryCircuit_onBinaryMiddle_eventCost
     ofList_eventTrace_eq_eventCost]
 
 /-- Middle placement preserves the complete native dependency expression. -/
-public theorem unitaryCircuit_onBinaryMiddle_eventDepth
+public lemma unitaryCircuit_onBinaryMiddle_eventDepth
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (middleWidth : Nat)
     (body : UnitaryCircuit gates oracles
@@ -139,7 +139,7 @@ public theorem unitaryCircuit_onBinaryMiddle_eventDepth
   exact relabel_eventDepth body (binaryMiddleShift leftWidth middleWidth)
 
 /-- Middle placement preserves depth under every event-duration assignment. -/
-public theorem unitaryCircuit_onBinaryMiddle_evaluatedEventDepth
+public lemma unitaryCircuit_onBinaryMiddle_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (middleWidth : Nat) (duration : Resource.Event (.quantum gates oracles) → Nat)
     (body : UnitaryCircuit gates oracles
@@ -150,7 +150,7 @@ public theorem unitaryCircuit_onBinaryMiddle_evaluatedEventDepth
   rw [unitaryCircuit_onBinaryMiddle_eventDepth]
 
 /-- Middle placement preserves the deepest chain of each selected event. -/
-public theorem unitaryCircuit_onBinaryMiddle_eventQueryDepth
+public lemma unitaryCircuit_onBinaryMiddle_eventQueryDepth
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (middleWidth : Nat) (focus : Resource.Event (.quantum gates oracles))
     (body : UnitaryCircuit gates oracles
@@ -161,7 +161,7 @@ public theorem unitaryCircuit_onBinaryMiddle_eventQueryDepth
   rw [unitaryCircuit_onBinaryMiddle_eventDepth]
 
 /-- Middle placement preserves the linearized dependency resource pool. -/
-public theorem unitaryCircuit_onBinaryMiddle_resourcesFromEventDepth
+public lemma unitaryCircuit_onBinaryMiddle_resourcesFromEventDepth
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (middleWidth : Nat)
     (body : UnitaryCircuit gates oracles

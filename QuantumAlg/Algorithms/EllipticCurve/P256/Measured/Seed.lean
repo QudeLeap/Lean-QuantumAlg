@@ -33,7 +33,7 @@ public def fixedSeed (I : DomainParameters.PublicKeyInstance) :
     (Cascade.addend I))
 
 /-- The selected point lies in the original public subgroup and is nonidentity. -/
-theorem fixedSeed_original_subgroup (I : DomainParameters.PublicKeyInstance) :
+lemma fixedSeed_original_subgroup (I : DomainParameters.PublicKeyInstance) :
     (fixedSeed I).toGroupPoint ∈
         Subgroup.zpowers (ECDLP.Canonical.problem (Cascade.ecdlpInstance I)).generator ∧
       (fixedSeed I).toGroupPoint ≠ 1 := by
@@ -43,7 +43,7 @@ theorem fixedSeed_original_subgroup (I : DomainParameters.PublicKeyInstance) :
   exact ⟨selected.1, selected.2.1⟩
 
 /-- The original prepared exceptional mass has the original two-exceptions-per-step bound. -/
-theorem fixedSeed_exceptionalMass_le (I : DomainParameters.PublicKeyInstance) :
+lemma fixedSeed_exceptionalMass_le (I : DomainParameters.PublicKeyInstance) :
     ECDLP.Measured.preparedExceptionalMass
         (ECDLP.Canonical.problem (Cascade.ecdlpInstance I)) (Cascade.addend I) (fixedSeed I) ≤
       (2 * (2 * orderWidth (ECDLP.Canonical.problem (Cascade.ecdlpInstance I))) : Nat) /
@@ -53,7 +53,7 @@ theorem fixedSeed_exceptionalMass_le (I : DomainParameters.PublicKeyInstance) :
     (Cascade.addend I))).2.2
 
 /-- The original physical affine schedule denotes the exact paired big-endian public powers. -/
-theorem addend_original_encoding (I : DomainParameters.PublicKeyInstance) :
+lemma addend_original_encoding (I : DomainParameters.PublicKeyInstance) :
     (fun index => (Cascade.addend I index).toGroupPoint) =
       ExceptionalOffsetAveraging.pairedBigEndianAddend (Cascade.exponentWidth I)
         (ECDLP.Canonical.problem (Cascade.ecdlpInstance I)).generator

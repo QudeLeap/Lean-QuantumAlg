@@ -48,7 +48,7 @@ def TauGoodPair (params : RegisterParameters) (secret τ : Nat)
 
 /-- The source-facing centered-distance predicate is exactly the absolute
 centered Fourier-frequency window used by the analytic tail bound. -/
-theorem tauGoodPair_iff_centeredPhaseFrequency
+lemma tauGoodPair_iff_centeredPhaseFrequency
     (params : RegisterParameters) (secret τ : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     TauGoodPair params secret τ (j, k) ↔
@@ -75,7 +75,7 @@ def tauBadFrequencySet (params : RegisterParameters) (secret τ : Nat)
 
 /-- A bad second-register outcome lies strictly beyond distance `2^tau` from
 the real center of the scaled integer frequency lattice. -/
-theorem tauBadK_distance_gt
+lemma tauBadK_distance_gt
     (params : RegisterParameters) (secret τ : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hk : k ∈ tauBadKSet params secret τ j) :
@@ -108,7 +108,7 @@ theorem tauBadK_distance_gt
 
 /-- The bad scaled-frequency lattice has a two-sided reciprocal-square tail
 bounded solely by the accepted centered window. -/
-theorem tauBadFrequency_reciprocalSquareSum_le
+lemma tauBadFrequency_reciprocalSquareSum_le
     (params : RegisterParameters) (secret τ : Nat)
     (j : Fin (2 ^ firstBits params)) :
     (∑ k ∈ tauBadKSet params secret τ j,
@@ -155,7 +155,7 @@ def pairSourceWeight {params : RegisterParameters} (secret : Nat)
         (oracleExponentAtIndex params secret index) j k‖ ^ 2
 
 /-- Every source Eq. (3) pair weight is nonnegative. -/
-theorem pairSourceWeight_nonneg {params : RegisterParameters} (secret : Nat)
+lemma pairSourceWeight_nonneg {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell)) :
     0 ≤ pairSourceWeight secret j k := by
   unfold pairSourceWeight
@@ -165,7 +165,7 @@ theorem pairSourceWeight_nonneg {params : RegisterParameters} (secret : Nat)
 uniform.  This is derived from the inverse-QFT Parseval identity on every
 integer-exponent fiber and the exact partition of all exponent inputs; no
 uniformity assumption is attached to the probability model. -/
-theorem sum_pairSourceWeight_fixedFirst_eq
+lemma sum_pairSourceWeight_fixedFirst_eq
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) :
     (∑ k : Fin (2 ^ params.ell), pairSourceWeight secret j k) =
@@ -259,7 +259,7 @@ least `2^(-m-ℓ-2)`.  This is derived from the actual contiguous Fourier
 fibers: the quarter-circle estimate supplies one half of each squared fiber
 cardinality, while Cauchy–Schwarz supplies the global fiber-square mass
 [EH17, source.tex:645-745]. -/
-theorem narrowGoodPairSourceWeight_ge
+lemma narrowGoodPairSourceWeight_ge
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hm : 2 ≤ params.m) (hsecret : secret < 2 ^ params.m)
@@ -355,7 +355,7 @@ theorem narrowGoodPairSourceWeight_ge
 
 /-- Every selected core atom has the source's uniform pointwise Fourier
 minorization floor. -/
-theorem exactNarrowGoodCore_pairSourceWeight_ge
+lemma exactNarrowGoodCore_pairSourceWeight_ge
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m)
@@ -378,7 +378,7 @@ def narrowGoodSourceWeight {params : RegisterParameters} (secret : Nat) : Real :
 narrow good-pair event.  This is the exact product of at least
 `2^(m+ℓ-1)` good pairs and the per-pair floor `2^(-m-ℓ-2)`
 [EH17, source.tex:540-745]. -/
-theorem narrowGoodSourceWeight_ge_oneEighth
+lemma narrowGoodSourceWeight_ge_oneEighth
     {params : RegisterParameters} (secret : Nat)
     (hm : 2 ≤ params.m) (hsecretPos : 0 < secret)
     (hsecretLt : secret < 2 ^ params.m) :
@@ -425,7 +425,7 @@ theorem narrowGoodSourceWeight_ge_oneEighth
 measured pair is the common `2⁻²⁽ᵐ⁺²ˡ⁾` normalization times the sum of squared
 contiguous Fourier fibers over the complete canonical exponent interval.
 Nothing in this formula is supplied as detached probability metadata. -/
-theorem pairBornProbability_eq_sourceFormula
+lemma pairBornProbability_eq_sourceFormula
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -452,7 +452,7 @@ theorem pairBornProbability_eq_sourceFormula
 
 /-- The actual pair probability is the nonnegative-real embedding of the same
 source Eq. (3) weight. -/
-theorem pairBornProbability_eq_ofReal_pairSourceWeight
+lemma pairBornProbability_eq_ofReal_pairSourceWeight
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -472,7 +472,7 @@ theorem pairBornProbability_eq_ofReal_pairSourceWeight
 the `ENNReal` image of `sum_pairSourceWeight_fixedFirst_eq`, hence is derived
 from the circuit amplitudes and inverse-QFT unitarity rather than imposed on a
 detached measurement model. -/
-theorem sum_pairBornProbability_fixedFirst_eq
+lemma sum_pairBornProbability_fixedFirst_eq
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -491,7 +491,7 @@ theorem sum_pairBornProbability_fixedFirst_eq
 
 /-- Eq. (3) together with the contiguous-fiber estimate bounds one pair by
 the number of integer exponent fibers times one reciprocal-frequency term. -/
-theorem pairSourceWeight_le_fiberSpan_mul
+lemma pairSourceWeight_le_fiberSpan_mul
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hfrequency : centeredPhaseFrequency secret j k ≠ 0) :
@@ -523,7 +523,7 @@ theorem pairSourceWeight_le_fiberSpan_mul
 
 /-- Under the short-logarithm range hypothesis, one measured pair has the
 explicit inverse-square centered-frequency envelope. -/
-theorem pairSourceWeight_le_centeredFrequency
+lemma pairSourceWeight_le_centeredFrequency
     {params : RegisterParameters} (secret : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hsecret : secret < 2 ^ params.m)
@@ -575,7 +575,7 @@ theorem pairSourceWeight_le_centeredFrequency
 
 /-- After scaling the centered frequency by the `2^m` lattice spacing, one
 bad pair has a universal reciprocal-square envelope. -/
-theorem pairSourceWeight_le_scaledDistance
+lemma pairSourceWeight_le_scaledDistance
     {params : RegisterParameters} (secret τ : Nat)
     (j : Fin (2 ^ firstBits params)) (k : Fin (2 ^ params.ell))
     (hsecret : secret < 2 ^ params.m)
@@ -631,7 +631,7 @@ theorem pairSourceWeight_le_scaledDistance
 
 /-- For one fixed first-register result, the total source weight of all bad
 second-register results is controlled by the two-sided integer tail. -/
-theorem tauBadPairSourceWeight_fixedFirst_le
+lemma tauBadPairSourceWeight_fixedFirst_le
     {params : RegisterParameters} (secret τ : Nat)
     (j : Fin (2 ^ firstBits params))
     (hsecret : secret < 2 ^ params.m) :
@@ -669,7 +669,7 @@ def tauBadSourceWeight {params : RegisterParameters} (secret τ : Nat) : Real :=
 /-- Summing the fixed-first-register tail over the complete first register
 cancels the Fourier normalization and leaves the universal failure envelope
 `2^-tau + 2^-2tau`. -/
-theorem tauBadSourceWeight_le
+lemma tauBadSourceWeight_le
     {params : RegisterParameters} (secret τ : Nat)
     (hsecret : secret < 2 ^ params.m) :
     tauBadSourceWeight (params := params) secret τ ≤
@@ -696,7 +696,7 @@ theorem tauBadSourceWeight_le
 
 /-- The actual terminal PMF at the canonical encoding of `(j,k)` is exactly
 the same circuit's workspace-marginal probability. -/
-theorem shortDLPBornOutcomeProbability_eq_pairBornProbability
+lemma shortDLPBornOutcomeProbability_eq_pairBornProbability
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
@@ -718,7 +718,7 @@ def firstRegisterBornPMF {N : Nat} {params : RegisterParameters}
 /-- The first-register marginal of the actual short-DLP circuit is exactly
 uniform.  The proof reindexes terminal bit strings by the measured register
 pair and then uses inverse-QFT Parseval on every fixed first-register value. -/
-theorem firstRegisterBornPMF_eq_uniform
+lemma firstRegisterBornPMF_eq_uniform
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -766,7 +766,7 @@ def narrowGoodBornMass {N : Nat} {params : RegisterParameters}
 /-- Reindex the actual terminal narrow-good event by the canonical measured
 pair.  This identifies the PMF event with the same finite set used by the
 source Eq. (3) count. -/
-theorem narrowGoodBornMass_eq_pairSum
+lemma narrowGoodBornMass_eq_pairSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat) :
@@ -790,7 +790,7 @@ theorem narrowGoodBornMass_eq_pairSum
 
 /-- The actual narrow-good Born mass is the nonnegative-real embedding of the
 source Eq. (3) narrow-good weight; no detached probability model is used. -/
-theorem narrowGoodBornMass_eq_ofReal_sourceWeight
+lemma narrowGoodBornMass_eq_ofReal_sourceWeight
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -811,7 +811,7 @@ theorem narrowGoodBornMass_eq_ofReal_sourceWeight
 /-- One execution of the actual production short-DLP circuit lands in the
 narrow Ekerå–Håstad good-pair event with probability at least `1/8`
 [EH17, source.tex:540-745]. -/
-theorem narrowGoodBornMass_ge_oneEighth
+lemma narrowGoodBornMass_ge_oneEighth
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -846,7 +846,7 @@ def tauBadBornMass {N : Nat} {params : RegisterParameters}
 /-- Reindex the actual terminal event mass by the canonical `(j,k)` basis.
 This is the source-facing finite sum used by the Fourier-tail argument
 [E23, arxiv-v5.tex:233-266,382-393]. -/
-theorem tauGoodBornMass_eq_pairSum
+lemma tauGoodBornMass_eq_pairSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret τ : Nat) :
@@ -878,7 +878,7 @@ theorem tauGoodBornMass_eq_pairSum
 
 /-- Reindex the actual bad-event mass as the nested sum over the bad
 second-register outcomes for every first-register outcome. -/
-theorem tauBadBornMass_eq_pairSum
+lemma tauBadBornMass_eq_pairSum
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret τ : Nat) :
@@ -906,7 +906,7 @@ theorem tauBadBornMass_eq_pairSum
 
 /-- The actual bad-event probability is exactly the nonnegative-real embedding
 of the source Eq. (3) bad weight. -/
-theorem tauBadBornMass_eq_ofReal_sourceWeight
+lemma tauBadBornMass_eq_ofReal_sourceWeight
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret τ : Nat)
@@ -936,7 +936,7 @@ theorem tauBadBornMass_eq_ofReal_sourceWeight
 
 /-- The actual terminal failure probability obeys the universal centered-tail
 envelope derived from the same circuit's Eq. (3) amplitudes. -/
-theorem tauBadBornMass_le
+lemma tauBadBornMass_le
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret τ : Nat)
@@ -953,7 +953,7 @@ theorem tauBadBornMass_le
 
 /-- The good and bad centered-window events are exact complements in the
 actual terminal PMF. -/
-theorem tauGoodBornMass_eq_one_sub_tauBadBornMass
+lemma tauGoodBornMass_eq_one_sub_tauBadBornMass
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret τ : Nat) :
@@ -966,7 +966,7 @@ theorem tauGoodBornMass_eq_one_sub_tauBadBornMass
 
 /-- At the production choice `tau = 4`, the actual centered-window failure
 mass is at most `17/256`. -/
-theorem tauFourBadBornMass_le_seventeen_over_twoFiftySix
+lemma tauFourBadBornMass_le_seventeen_over_twoFiftySix
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -981,7 +981,7 @@ theorem tauFourBadBornMass_le_seventeen_over_twoFiftySix
 
 /-- The actual production circuit has centered `tau = 4` good mass at least
 `239/256`, with no detached measurement model or assumed probability floor. -/
-theorem tauFourGoodBornMass_ge_twoThirtyNine_over_twoFiftySix
+lemma tauFourGoodBornMass_ge_twoThirtyNine_over_twoFiftySix
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)
@@ -1011,7 +1011,7 @@ theorem tauFourGoodBornMass_ge_twoThirtyNine_over_twoFiftySix
 centered-window analysis [E23, arxiv-v5.tex:334-337,382-393].  The narrow
 good-pair event used by the two-sample lattice-recovery analysis above has a
 different window [EH17, source.tex:525-532]. -/
-theorem tauFourGoodBornMass_ge_oneEighth
+lemma tauFourGoodBornMass_ge_oneEighth
     {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) (secret : Nat)

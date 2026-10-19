@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Select a real implementation by width, without padding either input word. -/
 def stageProgram : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → Fin (modulus.val + 1) →
@@ -33,9 +35,10 @@ def stageProgram : (width : Nat) → (selected : Fin width) →
   | extra + 3, selected, modulus, constant => placedStageProgram extra selected modulus constant
 
 /-- Uniform exact action of the actual all-width stage implementation. -/
-theorem gidneyStage_realizes : (width : Nat) → (selected : Fin width) →
+lemma gidneyStage_realizes : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
     UnitaryCircuit.Realizes (encoding width) (stageProgram width selected modulus constant)
+      environment
       (selectedOutput selected modulus constant)
   | 0, selected, _, _ => Fin.elim0 selected
   | 1, selected, modulus, constant =>
@@ -46,7 +49,7 @@ theorem gidneyStage_realizes : (width : Nat) → (selected : Fin width) →
       gidneyPlacedStage_realizes extra selected modulus constant
 
 /-- Every stage inhabits the complete original two-word interface. -/
-theorem gidneyStage_interface (width : Nat) :
+lemma gidneyStage_interface (width : Nat) :
     (encoding width).width = 2 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) :=
   gidneySmallStage_interface width
@@ -55,7 +58,7 @@ theorem gidneyStage_interface (width : Nat) :
 def stageEventBound (width : Nat) : Nat :=
   if width ≤ 2 then 9 else 4 * Addition.Gidney.modularOffsetEventBound width
 
-theorem gidneyStage_event_count_bound : (width : Nat) → (selected : Fin width) →
+lemma gidneyStage_event_count_bound : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
     (stageProgram width selected modulus constant).eventCost.card ≤ stageEventBound width
   | 0, selected, _, _ => Fin.elim0 selected

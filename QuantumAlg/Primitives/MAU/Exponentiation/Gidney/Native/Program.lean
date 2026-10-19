@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- Load the canonical identity power on the internally prepared first work word. -/
@@ -32,12 +34,12 @@ def identityLoadProgram (exponentWidth width : Nat)
     (identityLoadGates exponentWidth width modulus positive)
 
 /-- The literal loader realizes the independently defined all-label XOR. -/
-theorem identityLoadProgram_realizes (exponentWidth width : Nat)
+lemma identityLoadProgram_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     UnitaryCircuit.Realizes (nativeEncoding exponentWidth width)
-      (identityLoadProgram exponentWidth width modulus positive)
+      (identityLoadProgram exponentWidth width modulus positive) environment
       (fun state => xorPower state (unitResidueWord modulus positive 1)) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (nativeQubitLayout exponentWidth width) .empty
     (identityLoadGates exponentWidth width modulus positive)
     (identityLoadGates_step exponentWidth width modulus positive)
@@ -49,7 +51,7 @@ def identityUnloadProgram (exponentWidth width : Nat)
   EncodedBit.GateSpec.programList (nativeQubitLayout exponentWidth width) .empty
     (identityLoadGates exponentWidth width modulus positive).reverse
 
-private theorem xorPower_twice {exponentWidth width : Nat}
+private lemma xorPower_twice {exponentWidth width : Nat}
     (value : Fin (2 ^ width)) (state : NativeRegisters exponentWidth width) :
     xorPower (xorPower state value) value = state := by
   apply Prod.ext
@@ -61,12 +63,12 @@ private theorem xorPower_twice {exponentWidth width : Nat}
   · rfl
 
 /-- Reverse physical X gates implement the same independent XOR permutation. -/
-theorem identityUnloadProgram_realizes (exponentWidth width : Nat)
+lemma identityUnloadProgram_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     UnitaryCircuit.Realizes (nativeEncoding exponentWidth width)
-      (identityUnloadProgram exponentWidth width modulus positive)
+      (identityUnloadProgram exponentWidth width modulus positive) environment
       (fun state => xorPower state (unitResidueWord modulus positive 1)) := by
-  apply EncodedBit.GateSpec.realizesList_congrStep
+  apply EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (nativeQubitLayout exponentWidth width) .empty
     (identityLoadGates exponentWidth width modulus positive).reverse
   intro state
@@ -86,7 +88,7 @@ def arithmeticNativeSourceProgram (exponentWidth width : Nat)
     ((placedArithmeticOracle exponentWidth width modulus base).seq
       (identityUnloadProgram exponentWidth width modulus positive))
 
-theorem identityLoadProgram_eventCount (exponentWidth width : Nat)
+lemma identityLoadProgram_eventCount (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (identityLoadProgram exponentWidth width modulus positive).eventCost.card ≤ width := by
   simp only [identityLoadProgram, nativeSourceLayout,
@@ -94,7 +96,7 @@ theorem identityLoadProgram_eventCount (exponentWidth width : Nat)
     identityLoadGates, EncodedBit.Word.xorConstantGates_length]
   exact EncodedBit.Word.constantOneIndices_length_le _
 
-theorem identityUnloadProgram_eventCount (exponentWidth width : Nat)
+lemma identityUnloadProgram_eventCount (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (identityUnloadProgram exponentWidth width modulus positive).eventCost.card ≤ width := by
   simp only [identityUnloadProgram, nativeSourceLayout,
@@ -106,7 +108,7 @@ theorem identityUnloadProgram_eventCount (exponentWidth width : Nat)
 
 /-- The actual candidate's total native events obey the independent arithmetic
 envelope, including both literal identity-word X lists. -/
-theorem arithmeticNativeSourceProgram_eventCount (exponentWidth width : Nat)
+lemma arithmeticNativeSourceProgram_eventCount (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     (arithmeticNativeSourceProgram exponentWidth width modulus positive base).eventCost.card ≤
@@ -121,7 +123,7 @@ theorem arithmeticNativeSourceProgram_eventCount (exponentWidth width : Nat)
 
 /-- The plan's prescribed complete native gate envelope: two controlled
 multiplier traversals, result copy, and identity-word load/unload. -/
-theorem arithmeticNativeSourceProgram_gateBound (exponentWidth width : Nat)
+lemma arithmeticNativeSourceProgram_gateBound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     (arithmeticNativeSourceProgram exponentWidth width modulus positive base).eventCost.card ≤
@@ -144,18 +146,19 @@ def arithmeticNativeUnitary (exponentWidth width : Nat)
     (nativeSourceLayout_wires exponentWidth width)
     (arithmeticNativeSourceProgram exponentWidth width modulus positive base)
 
-theorem arithmeticNativeUnitary_matrix (exponentWidth width : Nat)
+lemma arithmeticNativeUnitary_matrix (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
-    (arithmeticNativeUnitary exponentWidth width modulus positive base).matrix =
+    ((arithmeticNativeUnitary exponentWidth width modulus positive base).matrix environment) =
       UnitaryOperator.reindex (nativePlacementBasisEquiv exponentWidth width)
-        (arithmeticNativeSourceProgram exponentWidth width modulus positive base).matrix :=
+        ((arithmeticNativeSourceProgram exponentWidth width modulus positive base).matrix
+        environment) :=
   Execution.unitaryOfEqualWires_matrix (nativeSourceLayout exponentWidth width)
     (preparedContext exponentWidth width).quantumLayout
-    (nativeSourceLayout_wires exponentWidth width)
+    (nativeSourceLayout_wires exponentWidth width) environment
     (arithmeticNativeSourceProgram exponentWidth width modulus positive base)
 
-theorem arithmeticNativeUnitary_eventCost (exponentWidth width : Nat)
+lemma arithmeticNativeUnitary_eventCost (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     (arithmeticNativeUnitary exponentWidth width modulus positive base).eventCost =

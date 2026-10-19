@@ -22,13 +22,13 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.Checked.SignedReduction
 open ClassicalAlgorithms ClassicalAlgorithms.NumberTheory ClassicalAlgorithms.Modular
 
 /-- Boolean decoding commutes with the closed bit-negation opcode. -/
-theorem bitNotEval_toBool (input : CShape.Value .bit) :
+lemma bitNotEval_toBool (input : CShape.Value .bit) :
     (Resource.BitOpcode.not.eval input).toBool = !input.toBool := by
   cases input
   rfl
 
 /-- Complementing a zero word produces the largest word of the same width. -/
-theorem wordComplement_zero_toNat {width : Nat} (input : CShape.Word width)
+lemma wordComplement_zero_toNat {width : Nat} (input : CShape.Word width)
     (inputZero : input.toNat = 0) :
     (CShape.wordComplement width input).toNat =
       CShape.wordModulus width - 1 := by
@@ -40,7 +40,7 @@ theorem wordComplement_zero_toNat {width : Nat} (input : CShape.Word width)
 
 /-- Shifting the largest positive-width word right produces the word just
 below the sign threshold. -/
-theorem wordShiftRight_fullMinusOne_toNat {width : Nat}
+lemma wordShiftRight_fullMinusOne_toNat {width : Nat}
     (widthPositive : 0 < width) (input : CShape.Word width)
     (inputValue : input.toNat = CShape.wordModulus width - 1) :
     (CShape.wordShiftRight width input).toNat =
@@ -64,7 +64,7 @@ theorem wordShiftRight_fullMinusOne_toNat {width : Nat}
 
 /-- Incrementing the word immediately below the sign threshold produces the
 threshold exactly, without fixed-width wraparound. -/
-theorem wordIncrement_belowThreshold_toNat {width : Nat}
+lemma wordIncrement_belowThreshold_toNat {width : Nat}
     (widthPositive : 0 < width) (input : CShape.Word width)
     (inputValue : input.toNat = 2 ^ (width - 1) - 1) :
     (Resource.WordUnaryOpcode.eval .increment width input).toNat =
@@ -86,7 +86,7 @@ theorem wordIncrement_belowThreshold_toNat {width : Nat}
 
 /-- Fixed-width complement followed by increment realizes unsigned
 two's-complement magnitude for every nonzero input. -/
-theorem complementIncrement_toNat {width : Nat} (input : CShape.Word width)
+lemma complementIncrement_toNat {width : Nat} (input : CShape.Word width)
     (inputPositive : 0 < input.toNat) :
     (Resource.WordUnaryOpcode.eval .increment width
       (Resource.WordUnaryOpcode.eval .complement width input)).toNat =
@@ -111,7 +111,7 @@ theorem complementIncrement_toNat {width : Nat} (input : CShape.Word width)
   rw [numeratorEq, Nat.mod_eq_of_lt resultRange]
 
 /-- A raw word classified as negative is necessarily nonzero. -/
-theorem rawIsNegative_true_toNat_pos {width : Nat}
+lemma rawIsNegative_true_toNat_pos {width : Nat}
     (raw : CShape.Word (signedWidth width))
     (negative : rawIsNegative raw = true) :
     0 < raw.toNat := by

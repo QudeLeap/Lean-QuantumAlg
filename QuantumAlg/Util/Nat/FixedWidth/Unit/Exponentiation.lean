@@ -40,7 +40,7 @@ def scheduledUnit {m N : Nat} (u : (ZMod N)ˣ) (exponent : Nat)
 
 /-- Product over the first `m` selected powers is `u` raised to the low-`m`
 binary prefix of the exponent. -/
-theorem selectedUnit_product_eq_pow_selectedLowWeight
+lemma selectedUnit_product_eq_pow_selectedLowWeight
     {N : Nat} (m : Nat) (u : (ZMod N)ˣ) (exponent : Nat) :
     (∏ bit : Fin m, selectedUnit u exponent bit) =
       u ^ QuantumAlg.Nat.FixedWidth.ModularAccumulate.selectedLowWeight exponent m := by
@@ -62,7 +62,7 @@ theorem selectedUnit_product_eq_pow_selectedLowWeight
           QuantumAlg.Nat.FixedWidth.ModularAccumulate.selectedBitWeight]
 
 /-- Scheduling every exponent wire selects exactly `u^exponent`. -/
-theorem scheduledUnit_all_eq_pow {m N : Nat}
+lemma scheduledUnit_all_eq_pow {m N : Nat}
     (u : (ZMod N)ˣ) (exponent : Fin (2 ^ m)) :
     scheduledUnit u exponent.val (List.ofFn fun bit : Fin m => bit) =
       u ^ exponent.val := by

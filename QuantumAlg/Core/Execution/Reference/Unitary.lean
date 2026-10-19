@@ -26,7 +26,7 @@ namespace QuantumAlg.DensityOperator
 noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-theorem localUnitary_block {R Reference : Register} (U : UnitaryOperator R)
+lemma localUnitary_block {R Reference : Register} (U : UnitaryOperator R)
     (state : DensityOperator (Register.prod R Reference))
     (left right : R.Index) (refLeft refRight : Reference.Index) :
     (applyUnitary (UnitaryOperator.prodTensor U (1 : UnitaryOperator Reference)) state).matrix
@@ -44,7 +44,7 @@ theorem localUnitary_block {R Reference : Register} (U : UnitaryOperator R)
 
 
 /-- Local unitary execution preserves every matrix entry of the untouched reference marginal. -/
-theorem localUnitary_reference_entry {R Reference : Register} (U : UnitaryOperator R)
+lemma localUnitary_reference_entry {R Reference : Register} (U : UnitaryOperator R)
     (state : DensityOperator (Register.prod R Reference))
     (refLeft refRight : Reference.Index) :
     (∑ i : R.Index,
@@ -65,7 +65,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A stored-value-dependent local unitary also preserves every untouched reference entry. -/
-theorem applyLocalUnitary_reference_entry {C : Type} [Fintype C] {R Reference : Register}
+lemma applyLocalUnitary_reference_entry {C : Type} [Fintype C] {R Reference : Register}
     (state : ExecutionState C (Register.prod R Reference)) (program : C → UnitaryOperator R)
     (refLeft refRight : Reference.Index) :
     (∑ i : R.Index,
@@ -102,20 +102,25 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The actual circuit interpreter leaves every external reference matrix entry unchanged. -/
-theorem unitary_reference_entry {gates : GateModel} {oracles : OracleModel}
+lemma unitary_reference_entry {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    (environment :
+      (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+    {allowAllocation : Bool}
     {ctx : RuntimeCtx .quantum} {Reference : Register}
     {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : Execution.State ctx Reference (classicalOracles.HiddenState × H))
     (refLeft refRight : Reference.Index) :
     (∑ i : ctx.register.Index,
       ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
-        program).execute Reference state).quantumMarginal.matrix
+        (allowAllocation := allowAllocation)
+        program).execute environment Reference state).quantumMarginal.matrix
         (i, refLeft) (i, refRight)) =
       ∑ i : ctx.register.Index, state.quantumMarginal.matrix (i, refLeft) (i, refRight) := by
   rw [execute_unitary]
   simp only [ExecutionState.mapClassical_quantumMarginal]
-  exact ExecutionState.applyLocalUnitary_reference_entry state (fun _ => program.matrix)
+  exact ExecutionState.applyLocalUnitary_reference_entry state
+    (fun _ => program.matrix environment.quantum)
     refLeft refRight
 
 end

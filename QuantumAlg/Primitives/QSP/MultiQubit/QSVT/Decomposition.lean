@@ -30,12 +30,11 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT
 noncomputable section
 
 /-- Independent source and native event budget of the length-L projected implementation. -/
-public def projectedEventBudget {N : Nat} (U : UnitaryOperator (Qubits N))
-    (left right : OrthogonalProjector N) (L : Nat) :
-    ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model U left right)) :=
+public def projectedEventBudget (N L : Nat) :
+    ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model N)) :=
   let pool : Resource.Event
-      (.quantum AlgorithmGate.model (ProjectedSignal.model U left right)) →
-      ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model U left right)) :=
+      (.quantum AlgorithmGate.model (ProjectedSignal.model N)) →
+      ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model N)) :=
     ResourcePool.singleton
   ((L + 1) / 2) • pool (.oracle (.source .ordinary)) +
     (L / 2) • pool (.oracle (.source .inverse)) +
@@ -46,10 +45,9 @@ public def projectedEventBudget {N : Nat} (U : UnitaryOperator (Qubits N))
 namespace ProjectedEventProfile
 
 /-- Exact same-circuit event equality in the declared projected-signal model. -/
-public def HasExactCounts {N : Nat} (U : UnitaryOperator (Qubits N))
-    (left right : OrthogonalProjector N) (L : Nat)
-    (events : ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model U left right))) :
-    Prop := events = projectedEventBudget U left right L
+public def HasExactCounts (N L : Nat)
+    (events : ResourcePool (.quantum AlgorithmGate.model (ProjectedSignal.model N))) :
+    Prop := events = projectedEventBudget N L
 
 end ProjectedEventProfile
 
@@ -57,13 +55,13 @@ end ProjectedEventProfile
 public structure RealProjectedQSVTRealization {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (L : Nat) (target : HilbertOperator (Qubits N)) where
   /-- Actual default-native circuit under the explicit projected-source access contract. -/
-  circuit : UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right)
+  circuit : UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model N)
     (ProjectorPhase.layout N)
   /-- Exact source polynomial block of this very circuit. -/
   block_eq : projectedPhasePlusBlock (projectedOutputProjector left right L) right
-    circuit.binaryMatrix = target
+    (circuit.binaryMatrix (ProjectedSignal.interpretation U left right)) = target
   /-- The independent query and rotation budget is met exactly. -/
-  resources_exact : ProjectedEventProfile.HasExactCounts U left right L circuit.eventCost
+  resources_exact : ProjectedEventProfile.HasExactCounts N L circuit.eventCost
   /-- The full sequential word retains source, projector and rotation dependencies. -/
   depth_exact : circuit.evaluatedEventDepth (fun _ => 1) = 4 * L
 
@@ -77,7 +75,7 @@ public def liveSpace {N : Nat} {U : UnitaryOperator (Qubits N)}
   SpacePool.ofQuantumLayout (ProjectorPhase.layout N)
 
 /-- One phase ancilla and the original N signal systems remain resident. -/
-@[simp] public theorem liveSpace_logicalQubits {N : Nat}
+@[simp] public lemma liveSpace_logicalQubits {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     {L : Nat} {target : HilbertOperator (Qubits N)}
     (realization : RealProjectedQSVTRealization U left right L target) :
@@ -96,26 +94,33 @@ noncomputable def realProjectedQSVTOfMatchingParity {N L : Nat} {PRe : Polynomia
     RealProjectedQSVTRealization U left right L
       (singularValuePolynomial right L (realPolynomialToComplex PRe)
         (projectedUnitaryBlock left right U)) := by
-  let existsWord := Native.exists_native_real_word U left right false source positive
-  let phases := Classical.choose existsWord
-  have certified := Classical.choose_spec existsWord
-  exact
-    { circuit := Native.circuit U left right false phases
-      block_eq := certified.2.1
-      resources_exact := certified.2.2.1
-      depth_exact := certified.2.2.2 }
+  let certificate :=
+    ReflectionQSPPhaseSynthesis.chooseRealBoundedPhaseCertificateOfSourceHypotheses source
+  let phases := projectedPhasesFromQSPCertificate
+    certificate.certificate.φ₀ certificate.certificate.φs
+  have length : phases.length = L := by
+    exact (projectedPhasesFromQSPCertificate_length _ _).trans certificate.certificate.length_eq
+  refine
+    { circuit := Native.circuit (width := N) false phases
+      block_eq := Native.circuit_of_real_certificate U left right false certificate positive
+      resources_exact := ?_
+      depth_exact := ?_ }
+  · change _ = projectedEventBudget N L
+    rw [Native.circuit_events, length]
+    rfl
+  · rw [Native.circuit_depth, length]
 
 namespace Decomposition.Projected
 
 /-- Original projected source theorem, with exact counts from the actual native circuit. -/
-theorem sourceMain {N L : Nat} {PRe : Polynomial ℝ}
+lemma sourceMain {N L : Nat} {PRe : Polynomial ℝ}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (positive : 0 < L) :
     ∃ realization : RealProjectedQSVTRealization U left right L
         (singularValuePolynomial right L (realPolynomialToComplex PRe)
           (projectedUnitaryBlock left right U)),
-      ProjectedEventProfile.HasExactCounts U left right L realization.circuit.eventCost := by
+      ProjectedEventProfile.HasExactCounts N L realization.circuit.eventCost := by
   let realization := realProjectedQSVTOfMatchingParity U left right source positive
   exact ⟨realization, realization.resources_exact⟩
 

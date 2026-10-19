@@ -48,36 +48,33 @@ def phaseReadout (queries : OracleModel) (t n : Nat) :
     ((qpeReadoutCircuit queries t).onBinaryPrefix (helperWidth t n + n))
 
 /-- One full actual source iterate with separately granted query forms. -/
-def step {n t : Nat} (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n))
-    (stage : Fin t) : UnitaryCircuit AlgorithmGate.model (oracles U good)
+def step (n : Nat) {t : Nat}
+    (stage : Fin t) : UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits t n)).canonicalPlacement.layout :=
-  (((controlledGoodReflection U good stage).seq (inversePreparation t U good)).seq
-    (reflection (oracles U good) n stage)).seq (preparation t U good)
+  (((controlledGoodReflection n stage).seq (inversePreparation n t)).seq
+    (reflection (oracles n) n stage)).seq (preparation n t)
 
 /-- A stage executes exactly the original binary-power multiplicity. -/
-def powerStage {n t : Nat} (U : UnitaryOperator (Qubits n))
-    (good : NormalizedVector (Qubits n)) (stage : Fin t) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+def powerStage (n : Nat) {t : Nat} (stage : Fin t) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits t n)).canonicalPlacement.layout :=
-  .iterate (2 ^ stage.val) (step U good stage)
+  .iterate (2 ^ stage.val) (step n stage)
 
 /-- The original finite t-stage ladder has no stage when t is zero. -/
-def ladder {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
-    (good : NormalizedVector (Qubits n)) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+def ladder (n : Nat) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits t n)).canonicalPlacement.layout :=
   UnitaryCircuit.indexedProduct "amplitude-estimation-source-ladder" t
-    (UnitaryCircuit.identity AlgorithmGate.model (oracles U good)
+    (UnitaryCircuit.identity AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits t n)).canonicalPlacement.layout)
-    (powerStage U good)
+    (powerStage n)
 
 /-- Source preparation, phase Hadamards, actual controlled ladder and inverse Fourier readout. -/
-def program {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
-    (good : NormalizedVector (Qubits n)) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+def program (n : Nat) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits t n)).canonicalPlacement.layout :=
-  (preparation t U good).seq ((phaseHadamards (oracles U good) t n).seq
-    ((ladder t U good).seq (phaseReadout (oracles U good) t n)))
+  (preparation n t).seq ((phaseHadamards (oracles n) t n).seq
+    ((ladder n t).seq (phaseReadout (oracles n) t n)))
 
 end
 

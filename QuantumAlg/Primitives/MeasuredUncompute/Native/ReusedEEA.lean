@@ -26,6 +26,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeReusedEEA
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement MAU.Inversion.SharedEEA EncodedBit GateSpec
 
 /-- Reverse every actually placed backward instruction on the same complete physical frame. -/
@@ -34,7 +36,7 @@ def forwardGates (modulus : Nat) (prime : Nat.Prime modulus) :
   (NativeEEAFrame.backwardGates modulus prime).reverse
 
 /-- The reversed reused word consists of the original forward gates at the same actual placement. -/
-theorem nativeReusedEEA_forwardGates_placed (modulus : Nat) (prime : Nat.Prime modulus) :
+lemma nativeReusedEEA_forwardGates_placed (modulus : Nat) (prime : Nat.Prime modulus) :
     forwardGates modulus prime = (NativeEEAFrame.forwardGates modulus prime).map
       (WorkspaceReuse.placement modulus.size).placeGate := by
   rw [forwardGates, NativeEEAFrame.backwardGates, ← List.map_reverse, List.reverse_reverse]
@@ -45,7 +47,7 @@ def step (modulus : Nat) : Frame modulus.size → Frame modulus.size :=
     (fun state => (InPlaceForward.step modulus state.1, state.2))
 
 /-- Every original dirty state and saved target follows the same complete placed forward action. -/
-theorem nativeReusedEEA_forwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeReusedEEA_forwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
     (state : Frame modulus.size) :
     stepList (forwardGates modulus prime) state = step modulus state := by
   rw [nativeReusedEEA_forwardGates_placed, FullPlacement.placeGates_step]
@@ -67,27 +69,28 @@ def forward (modulus : Nat) (prime : Nat.Prime modulus) :
 attribute [local irreducible] forwardGates
 
 /-- The reused emitted list preserves exact phases on every complete input label. -/
-theorem nativeReusedEEA_forward_realizes (modulus : Nat) (prime : Nat.Prime modulus) :
-    UnitaryCircuit.Realizes (frameEncoding modulus.size) (forward modulus prime) (step modulus) :=
+lemma nativeReusedEEA_forward_realizes (modulus : Nat) (prime : Nat.Prime modulus) :
+    UnitaryCircuit.Realizes (frameEncoding modulus.size) (forward modulus prime) environment (step
+      modulus) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (nativeReusedEEA_forwardGates_step modulus prime)
+    (nativeReusedEEA_forwardGates_step modulus prime) environment
 
-private theorem forwardBody_realizes (modulus : Nat) (prime : Nat.Prime modulus) :
-    UnitaryCircuit.Realizes (frameEncoding modulus.size) (forwardBody modulus prime)
+private lemma forwardBody_realizes (modulus : Nat) (prime : Nat.Prime modulus) :
+    UnitaryCircuit.Realizes (frameEncoding modulus.size) (forwardBody modulus prime) environment
       (step modulus) :=
   (NativeEEAFrame.reverse_realizes (NativeEEAFrame.backwardGates modulus prime)
     (NativeEEAFrame.backward modulus prime)
-    (realizesList (QubitLayout.canonical _) .empty _)).congrStep (fun state => by
+    (realizesList (QubitLayout.canonical _) .empty _ environment)).congrStep (fun state => by
       simpa only [forwardGates] using nativeReusedEEA_forwardGates_step modulus prime state)
 
 /-- The emitted reused forward equals the original full adjoint on every encoded basis label. -/
-theorem nativeReusedEEA_forward_basis (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeReusedEEA_forward_basis (modulus : Nat) (prime : Nat.Prime modulus)
     (state : Frame modulus.size) :
-    (forward modulus prime).applyNormalized
+    ((forward modulus prime).applyNormalized environment)
       (NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
         ((frameEncoding modulus.size).encode state))) =
-    (forwardBody modulus prime).applyNormalized
+    ((forwardBody modulus prime).applyNormalized environment)
       (NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
         ((frameEncoding modulus.size).encode state))) :=
@@ -95,7 +98,7 @@ theorem nativeReusedEEA_forward_basis (modulus : Nat) (prime : Nat.Prime modulus
     ((forwardBody_realizes modulus prime).apply_encoded_ket state).symm
 
 /-- The whole arbitrary dirty frame is restored after a matching backward/forward pair. -/
-theorem nativeReusedEEA_forward_backward_restores (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeReusedEEA_forward_backward_restores (modulus : Nat) (prime : Nat.Prime modulus)
     (state : Frame modulus.size) :
     stepList (forwardGates modulus prime)
       (stepList (NativeEEAFrame.backwardGates modulus prime) state) = state := by
@@ -103,7 +106,7 @@ theorem nativeReusedEEA_forward_backward_restores (modulus : Nat) (prime : Nat.P
   exact stepList_reverse_stepList _ _
 
 /-- The arbitrary saved target is unchanged in the original coordinates of the reused frame. -/
-theorem nativeReusedEEA_forward_saved (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeReusedEEA_forward_saved (modulus : Nat) (prime : Nat.Prime modulus)
     (state : Frame modulus.size) :
     ((WorkspaceReuse.placement modulus.size).grouping
       (stepList (forwardGates modulus prime) state)).2 =
@@ -112,10 +115,10 @@ theorem nativeReusedEEA_forward_saved (modulus : Nat) (prime : Nat.Prime modulus
   simp only [step, FullPlacement.step, Equiv.apply_symm_apply]
 
 /-- The actual reused forward inverts X and retains every saved A bit, including saved zero. -/
-theorem forward_initial (modulus : Nat) (prime : Nat.Prime modulus)
+lemma forward_initial (modulus : Nat) (prime : Nat.Prime modulus)
     (input saved : Fin (2 ^ modulus.size))
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (forward modulus prime).applyNormalized
+    ((forward modulus prime).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode
@@ -127,25 +130,29 @@ theorem forward_initial (modulus : Nat) (prime : Nat.Prime modulus)
             ((WorkspaceReuse.placement modulus.size).grouping.symm
               (InPlaceForward.result modulus input.val positive bounded, saved)))) := by
   rw [nativeReusedEEA_forward_basis]
-  have backward := NativeEEAFrame.backward_result modulus prime input saved positive bounded
+  have backward := NativeEEAFrame.backward_result (environment := environment) modulus prime input
+    saved positive bounded
   let inverse := forwardBody modulus prime
-  have inverse_eq : inverse.matrix = (NativeEEAFrame.backward modulus prime).matrix⁻¹ := by
-    change ((NativeEEAFrame.backward modulus prime).dagger
-      (AlgorithmGate.oracleFreeAdjoints .empty)).matrix = _
+  have inverse_eq : (inverse.matrix environment) = ((NativeEEAFrame.backward modulus prime).matrix
+    environment)⁻¹ := by
+    change (((NativeEEAFrame.backward modulus prime).dagger
+      (AlgorithmGate.oracleFreeAdjoints .empty)).matrix environment) = _
     rw [UnitaryCircuit.dagger_matrix]
+    rw [Subsingleton.elim
+      ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
     exact Unitary.star_eq_inv _
-  exact (congrArg inverse.applyNormalized backward).symm.trans
+  exact (congrArg (inverse.applyNormalized environment) backward).symm.trans
     (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
       (NativeEEAFrame.backward modulus prime) inverse inverse_eq _)
 
 /-- The reused forward acts on exactly the same existing full frame. -/
-theorem forward_physical (modulus : Nat) (_prime : Nat.Prime modulus) :
+lemma forward_physical (modulus : Nat) (_prime : Nat.Prime modulus) :
     (QubitLayout.canonical (frameEncoding modulus.size).width).systemIdx =
       List.range (frameEncoding modulus.size).width :=
   QubitLayout.canonical_systemIdx _
 
 /-- Reversing the complete reused backward trace restores every original forward event. -/
-theorem forward_trace (modulus : Nat) (prime : Nat.Prime modulus) :
+lemma forward_trace (modulus : Nat) (prime : Nat.Prime modulus) :
     (forward modulus prime).eventTrace =
       ((NativeEEAFrame.backward modulus prime).dagger
         (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace := by
@@ -153,7 +160,7 @@ theorem forward_trace (modulus : Nat) (prime : Nat.Prime modulus) :
     AlgorithmGate.oracleFreeAdjoints_eventTrace, NativeEEAFrame.backward, programList_eventTrace]
 
 /-- Both opposite reused passes carry the identical full native multiplicity ledger. -/
-theorem forward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
+lemma forward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
     (forward modulus prime).eventCost =
       (NativeEEAFrame.backward modulus prime).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, forward_trace,

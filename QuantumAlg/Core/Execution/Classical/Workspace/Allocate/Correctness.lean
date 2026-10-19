@@ -17,7 +17,8 @@ namespace QuantumAlg.Execution.ClassicalWorkspace
 noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 /-- Lift an actual body record and caller-store postcondition through lexical allocation. -/
-theorem withCellsFrom_actualRecord_post {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
+lemma withCellsFrom_actualRecord_post {model : ExecutionModel}
+    (environment : model.Environment) {outer ctx : RuntimeCtx model.kind}
     (transport : Transport outer ctx) (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
@@ -30,7 +31,7 @@ theorem withCellsFrom_actualRecord_post {model : ExecutionModel} {outer ctx : Ru
         (Store inner × model.HiddenState) × (body cells distinct innerTransport separated).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct innerTransport separated).execute Reference state =
+          (body cells distinct innerTransport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -42,7 +43,7 @@ theorem withCellsFrom_actualRecord_post {model : ExecutionModel} {outer ctx : Ru
       (Store ctx × model.HiddenState) × (withCellsFrom transport shapes body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCellsFrom transport shapes body).execute Reference state =
+        (withCellsFrom transport shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -55,7 +56,7 @@ theorem withCellsFrom_actualRecord_post {model : ExecutionModel} {outer ctx : Ru
       (Store inner × model.HiddenState) × code.Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State inner Reference (model.HiddenState × History)),
-        code.execute Reference state = state.mapClassical (fun entry =>
+        code.execute environment Reference state = state.mapClassical (fun entry =>
           let result := step (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ (source : Store outer) (before : Store inner × model.HiddenState),
@@ -65,7 +66,7 @@ theorem withCellsFrom_actualRecord_post {model : ExecutionModel} {outer ctx : Ru
   · intro inner innerTransport key shape fresh code available
     obtain ⟨step, equation, correct⟩ := available
     refine ⟨Circuit.workspaceRecord key shape fresh code step,
-      Circuit.execute_workspaceRecord key shape fresh code step equation, ?_⟩
+      Circuit.execute_workspaceRecord environment key shape fresh code step equation, ?_⟩
     intro source before reads
     obtain ⟨target, post, returned⟩ :=
       correct source (before.1.pushWorkspace key shape fresh, before.2)
@@ -74,7 +75,8 @@ theorem withCellsFrom_actualRecord_post {model : ExecutionModel} {outer ctx : Ru
       innerTransport.workspaceTransport_readsAs_popWorkspace key shape fresh returned⟩
   · exact bodyContract
 /-- Direct allocation returns the actual caller store satisfying the two-store postcondition. -/
-theorem withCells_actualRecord_post {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+lemma withCells_actualRecord_post {model : ExecutionModel}
+    (environment : model.Environment) (ctx : RuntimeCtx model.kind)
     (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (transport : Transport ctx inner) → cells.TransportSeparated transport →
@@ -87,7 +89,7 @@ theorem withCells_actualRecord_post {model : ExecutionModel} (ctx : RuntimeCtx m
         (Store inner × model.HiddenState) × (body cells distinct transport separated).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct transport separated).execute Reference state =
+          (body cells distinct transport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -98,13 +100,13 @@ theorem withCells_actualRecord_post {model : ExecutionModel} (ctx : RuntimeCtx m
       (Store ctx × model.HiddenState) × (withCells ctx shapes body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCells ctx shapes body).execute Reference state =
+        (withCells ctx shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, Post before.1 (step before).1.1 := by
   obtain ⟨step, equation, correct⟩ :=
-    withCellsFrom_actualRecord_post (Transport.id ctx) shapes body Post bodyContract
+    withCellsFrom_actualRecord_post environment (Transport.id ctx) shapes body Post bodyContract
   refine ⟨step, equation, ?_⟩
   intro before
   obtain ⟨target, post, returned⟩ := correct before.1 before
@@ -115,7 +117,8 @@ theorem withCells_actualRecord_post {model : ExecutionModel} (ctx : RuntimeCtx m
 
 /-- Lift a deterministic caller-store record and postcondition through lexical allocation while
 preserving the selected execution model's service state. -/
-theorem withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
+lemma withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
+    (environment : model.Environment)
     {outer ctx : RuntimeCtx model.kind} (transport : Transport outer ctx) (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
@@ -127,7 +130,7 @@ theorem withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
       ∃ step : Store inner → Store inner × (body cells distinct innerTransport separated).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct innerTransport separated).execute Reference state =
+          (body cells distinct innerTransport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step entry.1
               (result.1, (entry.2.1, (entry.2.2, result.2))))) ∧
@@ -138,7 +141,7 @@ theorem withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
     ∃ step : Store ctx → Store ctx × (withCellsFrom transport shapes body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCellsFrom transport shapes body).execute Reference state =
+        (withCellsFrom transport shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step entry.1
             (result.1, (entry.2.1, (entry.2.2, result.2))))) ∧
@@ -150,7 +153,7 @@ theorem withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
     (fun {inner} currentTransport code => ∃ step : Store inner → Store inner × code.Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State inner Reference (model.HiddenState × History)),
-        code.execute Reference state = state.mapClassical (fun entry =>
+        code.execute environment Reference state = state.mapClassical (fun entry =>
           let result := step entry.1
           (result.1, (entry.2.1, (entry.2.2, result.2))))) ∧
       ∀ (source : Store outer) (before : Store inner),
@@ -160,7 +163,7 @@ theorem withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
   · intro inner innerTransport key shape fresh code available
     obtain ⟨step, equation, correct⟩ := available
     refine ⟨Circuit.workspaceStoreRecord key shape fresh code step,
-      Circuit.execute_workspaceStoreRecord key shape fresh code step equation, ?_⟩
+      Circuit.execute_workspaceStoreRecord environment key shape fresh code step equation, ?_⟩
     intro source before reads
     obtain ⟨target, post, returned⟩ :=
       correct source (before.pushWorkspace key shape fresh)
@@ -170,7 +173,8 @@ theorem withCellsFrom_actualStoreRecord_post {model : ExecutionModel}
   · exact bodyContract
 
 /-- Direct heterogeneous allocation preserves a deterministic store record and postcondition. -/
-theorem withCells_actualStoreRecord_post {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+lemma withCells_actualStoreRecord_post {model : ExecutionModel}
+    (environment : model.Environment) (ctx : RuntimeCtx model.kind)
     (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (transport : Transport ctx inner) → cells.TransportSeparated transport →
@@ -182,7 +186,7 @@ theorem withCells_actualStoreRecord_post {model : ExecutionModel} (ctx : Runtime
       ∃ step : Store inner → Store inner × (body cells distinct transport separated).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct transport separated).execute Reference state =
+          (body cells distinct transport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step entry.1
               (result.1, (entry.2.1, (entry.2.2, result.2))))) ∧
@@ -191,13 +195,14 @@ theorem withCells_actualStoreRecord_post {model : ExecutionModel} (ctx : Runtime
     ∃ step : Store ctx → Store ctx × (withCells ctx shapes body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCells ctx shapes body).execute Reference state =
+        (withCells ctx shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step entry.1
             (result.1, (entry.2.1, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx, Post before (step before).1 := by
   obtain ⟨step, equation, correct⟩ :=
-    withCellsFrom_actualStoreRecord_post (Transport.id ctx) shapes body Post bodyContract
+    withCellsFrom_actualStoreRecord_post environment (Transport.id ctx)
+      shapes body Post bodyContract
   refine ⟨step, equation, ?_⟩
   intro before
   obtain ⟨target, post, returned⟩ := correct before before

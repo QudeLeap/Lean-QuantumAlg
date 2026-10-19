@@ -42,7 +42,7 @@ def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Na
   model :=
   ResourcePool.ofList (decisionEvents model) + ResourcePool.ofList (copyEvents model width)
 
-private theorem decision_trace (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma decision_trace (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (decisionBody (model := model) inputs refs).Path) :
     (decisionBody (model := model) inputs refs).eventTrace path = decisionEvents model := by
   change (BitWord.instruction (execution := model) (availableOp refs)).eventTrace path.1 ++
@@ -50,7 +50,7 @@ private theorem decision_trace (inputs : Inputs ctx width) (refs : Refs ctx widt
   simp only [BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem copy_trace (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma copy_trace (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (copyBody (model := model) inputs refs).Path) :
     (copyBody (model := model) inputs refs).eventTrace path = copyEvents model width := by
   change (BitWord.instruction (execution := model) (selectedCopyOp inputs refs)).eventTrace path.1
@@ -59,7 +59,7 @@ private theorem copy_trace (inputs : Inputs ctx width) (refs : Refs ctx width)
   simp only [BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem decision_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma decision_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
     (duration : Resource.Event model → Nat)
     (path : (decisionBody (model := model) inputs refs).Path) :
     (decisionBody (model := model) inputs refs).depth duration path =
@@ -71,7 +71,7 @@ private theorem decision_depth (inputs : Inputs ctx width) (refs : Refs ctx widt
   simp only [BitWord.bitWord_instruction_depth]
   rfl
 
-private theorem copy_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma copy_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
     (duration : Resource.Event model → Nat)
     (path : (copyBody (model := model) inputs refs).Path) :
     (copyBody (model := model) inputs refs).depth duration path =
@@ -86,7 +86,7 @@ private theorem copy_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
   rfl
 
 /-- The actual trace contains copies exactly on its recorded true branch. -/
-theorem firstAccepted_eventTrace (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_eventTrace (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (circuit (model := model) inputs refs).Path) :
     (circuit (model := model) inputs refs).eventTrace path =
       decisionEvents model ++ (if path.2.1.toBool then copyEvents model width else []) := by
@@ -104,7 +104,7 @@ theorem firstAccepted_eventTrace (inputs : Inputs ctx width) (refs : Refs ctx wi
         rfl
 
 /-- Every actual event coordinate is bounded by the independent four-operation allowance. -/
-theorem firstAccepted_pool_le (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_pool_le (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (circuit (model := model) inputs refs).Path) :
     (circuit (model := model) inputs refs).resourcePool path ≤ nativeEnvelope model width := by
   rw [Circuit.resourcePool, firstAccepted_eventTrace, ResourcePool.ofList_append]
@@ -115,12 +115,12 @@ theorem firstAccepted_pool_le (inputs : Inputs ctx width) (refs : Refs ctx width
   · exact zero_le
 
 /-- The independent native allowance contains exactly four operations at every word width. -/
-theorem firstAccepted_nativeEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (width
+lemma firstAccepted_nativeEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (width
   : Nat) :
     (nativeEnvelope model width).card = 4 := rfl
 
 /-- Native durations follow the actual two decision instructions and optional two copies. -/
-theorem firstAccepted_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
     (duration : Resource.Event model → Nat) (path : (circuit (model := model) inputs refs).Path) :
     (circuit (model := model) inputs refs).depth duration path =
       duration (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))) +
@@ -145,7 +145,7 @@ theorem firstAccepted_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
         rfl
 
 /-- Unit native durations give depth two or four according to the real branch path. -/
-theorem firstAccepted_unit_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_unit_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (circuit (model := model) inputs refs).Path) :
     (circuit (model := model) inputs refs).depth (fun _ => 1) path =
       if path.2.1.toBool then 4 else 2 := by
@@ -153,7 +153,7 @@ theorem firstAccepted_unit_depth (inputs : Inputs ctx width) (refs : Refs ctx wi
   split <;> rfl
 
 /-- Every visited live context is the selector's existing context. -/
-theorem firstAccepted_visited (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_visited (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (circuit (model := model) inputs refs).Path) :
     ∀ visited ∈ (circuit (model := model) inputs refs).visitedContexts path, visited = ctx := by
   rcases path with ⟨decision, ⟨value, selected⟩⟩
@@ -166,7 +166,7 @@ theorem firstAccepted_visited (inputs : Inputs ctx width) (refs : Refs ctx width
         simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using present
 
 /-- The resident peak requires no storage beyond the real existing context. -/
-theorem firstAccepted_resident_le (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_resident_le (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (circuit (model := model) inputs refs).Path) :
     (circuit (model := model) inputs refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -174,7 +174,7 @@ theorem firstAccepted_resident_le (inputs : Inputs ctx width) (refs : Refs ctx w
   exact (firstAccepted_visited inputs refs path visited present) ▸ le_rfl
 
 /-- The same executed path requires no additional auxiliary cell. -/
-theorem firstAccepted_auxiliary_le (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_auxiliary_le (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (circuit (model := model) inputs refs).Path) :
     (circuit (model := model) inputs refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

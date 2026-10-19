@@ -44,7 +44,7 @@ def physicalIndex {width : Nat} (window : Window width) (index : Nat) : Nat :=
     ArithmeticWindowCoordinates.physicalIndex window index
   else complementPhysicalIndex window (index - (2 * window.length + 1))
 
-private theorem grouped_width {width : Nat} (window : Window width) :
+private lemma grouped_width {width : Nat} (window : Window width) :
     (groupedEncoding window).width = 2 * window.length + 1 +
       (2 * (window.above + window.below) + 4 * width.size + 4) := by
   rw [groupedEncoding_width, encoding_width]
@@ -52,12 +52,12 @@ private theorem grouped_width {width : Nat} (window : Window width) :
   omega
 
 /-- Every already checked TTK source, target and Sign address is retained by the full map. -/
-theorem physicalIndex_focus {width : Nat} (window : Window width)
+lemma physicalIndex_focus {width : Nat} (window : Window width)
     (index : Fin (2 * window.length + 1)) :
     physicalIndex window index.val = ArithmeticWindowCoordinates.physicalIndex window index.val :=
   if_pos index.isLt
 
-private theorem complement_injective {width : Nat} (window : Window width) :
+private lemma complement_injective {width : Nat} (window : Window width) :
     Function.Injective
       (fun index : Fin (2 * (window.above + window.below) + 4 * width.size + 4) =>
         complementPhysicalIndex window index.val) := by
@@ -71,7 +71,7 @@ private theorem complement_injective {width : Nat} (window : Window width) :
   unfold complementPhysicalIndex at same
   split_ifs at same <;> omega
 
-private theorem focus_ne_complement {width : Nat} (window : Window width)
+private lemma focus_ne_complement {width : Nat} (window : Window width)
     (focus : Fin (2 * window.length + 1))
     (rest : Fin (2 * (window.above + window.below) + 4 * width.size + 4)) :
     ArithmeticWindowCoordinates.physicalIndex window focus.val ≠
@@ -84,7 +84,7 @@ private theorem focus_ne_complement {width : Nat} (window : Window width)
   split_ifs at same <;> omega
 
 /-- The complete actual grouping does not alias any two physical source wires. -/
-theorem physicalIndex_injective {width : Nat} (window : Window width) :
+lemma physicalIndex_injective {width : Nat} (window : Window width) :
     Function.Injective
       (fun index : Fin (groupedEncoding window).width => physicalIndex window index.val) := by
   intro left right same
@@ -121,7 +121,7 @@ theorem physicalIndex_injective {width : Nat} (window : Window width) :
       omega
 
 /-- All actual body and borrowed-control gates stay inside the original full frame. -/
-theorem physicalIndex_within {width : Nat} (window : Window width)
+lemma physicalIndex_within {width : Nat} (window : Window width)
     (index : Fin (groupedEncoding window).width) :
     physicalIndex window index.val < (encoding width).width := by
   rw [encoding_width]
@@ -136,13 +136,13 @@ def wireMap {width : Nat} (window : Window width) :
     Fin (groupedEncoding window).width → Fin (encoding width).width :=
   fun index => ⟨physicalIndex window index.val, physicalIndex_within window index⟩
 
-theorem wireMap_injective {width : Nat} (window : Window width) :
+lemma wireMap_injective {width : Nat} (window : Window width) :
     Function.Injective (wireMap window) := by
   intro left right same
   exact physicalIndex_injective window (congrArg Fin.val same)
 
 /-- Equal complete-frame widths make the verified injective address map onto. -/
-theorem wireMap_surjective {width : Nat} (window : Window width) :
+lemma wireMap_surjective {width : Nat} (window : Window width) :
     Function.Surjective (wireMap window) := by
   let sameWidth := groupedEncoding_width window
   let endomap := fun index : Fin (groupedEncoding window).width =>
@@ -162,7 +162,7 @@ def wireEquiv {width : Nat} (window : Window width) :
   Equiv.ofBijective (wireMap window)
     ⟨wireMap_injective window, wireMap_surjective window⟩
 
-private theorem control_wire {width : Nat} (window : Window width) :
+private lemma control_wire {width : Nat} (window : Window width) :
     (ArithmeticWindowEncoding.controlBit window).wire.val = 2 * window.length + 1 +
       (2 * (window.above + window.below) + 4 * width.size + 3) := by
   change (window.length + window.length + 1) +
@@ -170,7 +170,7 @@ private theorem control_wire {width : Nat} (window : Window width) :
       ((width.size + width.size) + ((width.size + width.size) + ((1 + 1) + (1 + 0)))))) = _
   omega
 
-private theorem work_wire {width : Nat} (window : Window width) :
+private lemma work_wire {width : Nat} (window : Window width) :
     (workBit window).wire.val = 2 * window.length + 1 +
       (2 * (window.above + window.below) + 4 * width.size + 2) := by
   change (window.length + window.length + 1) +
@@ -179,7 +179,7 @@ private theorem work_wire {width : Nat} (window : Window width) :
   omega
 
 /-- The grouped Ctrl lens maps to the actual original source Ctrl wire. -/
-theorem physicalIndex_control {width : Nat} (window : Window width) :
+lemma physicalIndex_control {width : Nat} (window : Window width) :
     physicalIndex window (ArithmeticWindowEncoding.controlBit window).wire.val =
       (SharedEEA.controlBit width).wire.val := by
   rw [control_wire, SharedEEA.controlBit_wire]
@@ -187,14 +187,14 @@ theorem physicalIndex_control {width : Nat} (window : Window width) :
   split_ifs <;> omega
 
 /-- The arbitrary work lens maps to the original retained Iter wire. -/
-theorem physicalIndex_work {width : Nat} (window : Window width) :
+lemma physicalIndex_work {width : Nat} (window : Window width) :
     physicalIndex window (workBit window).wire.val = (iterationBit width).wire.val := by
   rw [work_wire, iterationBit_wire]
   unfold physicalIndex ArithmeticWindowCoordinates.physicalIndex complementPhysicalIndex
   split_ifs <;> omega
 
 /-- The two existing control-work coordinates are physically distinct on every window. -/
-theorem control_work_ne {width : Nat} (window : Window width) :
+lemma control_work_ne {width : Nat} (window : Window width) :
     (ArithmeticWindowEncoding.controlBit window).wire ≠ (workBit window).wire := by
   intro same
   have values := congrArg Fin.val same

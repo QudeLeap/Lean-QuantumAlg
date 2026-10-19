@@ -34,7 +34,7 @@ def packedOffsetGates (width : Nat) (constant : Fin (2 ^ (1 + width))) :
   (HRS.oneDirtyGates (1 + width) constant).map (packedPlacement width).placeGate
 
 /-- Packing preserves the exact extended-word arithmetic action. -/
-theorem gidneyPackedOffsetGates_step (width : Nat) (constant : Fin (2 ^ (1 + width)))
+lemma gidneyPackedOffsetGates_step (width : Nat) (constant : Fin (2 ^ (1 + width)))
     (state : Registers width) :
     stepList (packedOffsetGates width constant) state = packedOffsetOutput constant state := by
   rw [packedOffsetGates, FullPlacement.placeGates_step]
@@ -43,7 +43,7 @@ theorem gidneyPackedOffsetGates_step (width : Nat) (constant : Fin (2 ^ (1 + wid
   rfl
 
 /-- Packed instructions retain the original HRS ledger. -/
-theorem gidneyPackedOffsetGates_eventCost (width : Nat) (constant : Fin (2 ^ (1 + width))) :
+lemma gidneyPackedOffsetGates_eventCost (width : Nat) (constant : Fin (2 ^ (1 + width))) :
     ResourcePool.ofList ((packedOffsetGates width constant).map (event .empty)) =
       (HRS.oneDirtyProgram (1 + width) constant).eventCost := by
   simp only [packedOffsetGates, List.map_map, Function.comp_def, FullPlacement.placeGate_event]
@@ -55,7 +55,7 @@ def lowOffsetGates (width : Nat) (constant : Fin (2 ^ width)) :
   (HRS.oneDirtyGates width constant).map (GateSpec.prodRight bool)
 
 /-- The leading flag is untouched by low-word restoration. -/
-theorem gidneyLowOffsetGates_step (width : Nat) (constant : Fin (2 ^ width))
+lemma gidneyLowOffsetGates_step (width : Nat) (constant : Fin (2 ^ width))
     (state : Registers width) :
     stepList (lowOffsetGates width constant) state = lowOffsetOutput constant state := by
   exact (stepList_prodRight bool (HRS.oneDirtyGates width constant) state).trans
@@ -63,7 +63,7 @@ theorem gidneyLowOffsetGates_step (width : Nat) (constant : Fin (2 ^ width))
       (HRS.hrsOneDirtyGates_step width constant state.2))
 
 /-- The low-word instructions retain the original HRS ledger. -/
-theorem gidneyLowOffsetGates_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
+lemma gidneyLowOffsetGates_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
     ResourcePool.ofList ((lowOffsetGates width constant).map (event .empty)) =
       (HRS.oneDirtyProgram width constant).eventCost := by
   exact (congrArg ResourcePool.ofList
@@ -76,7 +76,7 @@ def positiveComparisonGates (width pivot : Nat) : List (GateSpec (encoding width
     lowOffsetGates width (pivotWord width pivot)) ++ [.x (flagBit width)]
 
 /-- The literal positive-pivot construction xor-toggles the flag and restores both other fields. -/
-theorem gidneyPositiveComparisonGates_step (width pivot : Nat)
+lemma gidneyPositiveComparisonGates_step (width pivot : Nat)
     (positive : 0 < pivot) (fitted : pivot ≤ 2 ^ width) (state : Registers width) :
     stepList (positiveComparisonGates width pivot) state = comparisonOutput pivot state := by
   simp only [positiveComparisonGates, stepList_append,
@@ -89,7 +89,7 @@ def comparisonGates (width : Nat) (pivot : Fin (2 ^ width + 1)) :
   if pivot.val = 0 then [] else positiveComparisonGates width pivot.val
 
 /-- The explicit comparison list has the exact all-input comparison action. -/
-theorem gidneyComparisonGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
+lemma gidneyComparisonGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
     (state : Registers width) :
     stepList (comparisonGates width pivot) state = comparisonOutput pivot.val state := by
   by_cases zero : pivot.val = 0
@@ -100,7 +100,7 @@ theorem gidneyComparisonGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
       (by have := pivot.isLt; omega) state
 
 /-- Every native multiplicity matches the already derived comparison resource formula. -/
-theorem gidneyComparisonGates_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparisonGates_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     ResourcePool.ofList ((comparisonGates width pivot).map (event .empty)) =
       (comparisonProgram width pivot).eventCost := by
   rw [comparisonGates, gidneyComparison_eventCost]
@@ -111,7 +111,7 @@ theorem gidneyComparisonGates_eventCost (width : Nat) (pivot : Fin (2 ^ width + 
     rfl
 
 /-- The exposed comparison list satisfies the independent HRS-based bound. -/
-theorem gidneyComparisonGates_length_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparisonGates_length_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonGates width pivot).length ≤ comparisonEventBound width := by
   have same := congrArg Multiset.card (gidneyComparisonGates_eventCost width pivot)
   simp only [ResourcePool.ofList, Multiset.coe_card, List.length_map] at same

@@ -20,7 +20,7 @@ namespace QuantumAlg.QubitTwoDesign.PauliNormalizer
 open Matrix
 open scoped ComplexOrder Kronecker Quaternion QuadraticAlgebra
 
-theorem conjPauliYMem (g : BinaryOctahedral) :
+lemma conjPauliYMem (g : BinaryOctahedral) :
     qubitClifford g * pauliY * (qubitClifford g)ᴴ ∈ signedRawPauliSet := by
   cases g with
   | axis negative coordinate => exact Y.axis negative coordinate

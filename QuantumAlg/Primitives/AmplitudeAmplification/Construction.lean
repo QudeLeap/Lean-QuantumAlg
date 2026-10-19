@@ -43,7 +43,7 @@ public def intrinsicSourceStepOperator {n : Nat}
         OrthogonalProjector.rankOneReflectionOp M.bad))
 
 /-- Applying a unitary after its adjoint returns the original vector. -/
-theorem unitary_applyVec_dagger_applyVec {n : Nat}
+lemma unitary_applyVec_dagger_applyVec {n : Nat}
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     U.applyVec (U.dagger.applyVec ψ) = ψ := by
   change HilbertOperator.applyVec (U : HilbertOperator (Qubits n))
@@ -60,7 +60,7 @@ theorem unitary_applyVec_dagger_applyVec {n : Nat}
 
 /-- Conjugating the all-zero rank-one reflection by `A` reflects through the
 actually prepared state `A|0^n>`. -/
-theorem intrinsicPreparedReflection_applyVec {n : Nat}
+lemma intrinsicPreparedReflection_applyVec {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n)
     (φ : HilbertVector (Qubits n)) :
     M.preparation.applyVec
@@ -94,7 +94,7 @@ theorem intrinsicPreparedReflection_applyVec {n : Nat}
 
 /-- The source bad-state reflection fixes the bad component and negates the
 orthogonal good component. -/
-theorem intrinsicBadReflection_apply_stateAt {n : Nat}
+lemma intrinsicBadReflection_apply_stateAt {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (OrthogonalProjector.rankOneReflectionOp M.bad).applyVec (M.stateAt α) =
       ((-(Real.sin α) : ℂ) • (M.good : HilbertVector (Qubits n))) +
@@ -111,7 +111,7 @@ theorem intrinsicBadReflection_apply_stateAt {n : Nat}
 
 /-- The good-state phase reflection `I - 2|psi_1><psi_1|` has the same
 good/bad-plane action as reflection through the bad state. -/
-theorem intrinsicGoodPhaseReflection_apply_stateAt {n : Nat}
+lemma intrinsicGoodPhaseReflection_apply_stateAt {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (OrthogonalProjector.rankOnePhaseReflectionOp M.good).applyVec
         (M.stateAt α) =
@@ -130,7 +130,7 @@ theorem intrinsicGoodPhaseReflection_apply_stateAt {n : Nat}
 /-- On the complex span of the good/bad plane, phasing the good line and
 reflecting through the bad line are the same transformation. No full-space
 operator equality is claimed [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicPlaneReflections_apply_plane_eq {n : Nat}
+lemma intrinsicPlaneReflections_apply_plane_eq {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (a b : ℂ) :
     (OrthogonalProjector.rankOnePhaseReflectionOp M.good).applyVec
         (a • (M.good : HilbertVector (Qubits n)) +
@@ -156,7 +156,7 @@ theorem intrinsicPlaneReflections_apply_plane_eq {n : Nat}
 
 /-- The trigonometric `stateAt` bridge is a corollary of the general
 complex-linear good/bad-plane bridge. -/
-private theorem intrinsicPlaneReflections_apply_stateAt_eq_coe {n : Nat}
+private lemma intrinsicPlaneReflections_apply_stateAt_eq_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (OrthogonalProjector.rankOnePhaseReflectionOp M.good).applyVec
         (M.stateAt α) =
@@ -168,7 +168,7 @@ private theorem intrinsicPlaneReflections_apply_stateAt_eq_coe {n : Nat}
 
 /-- On a normalized plane state, the two reflection conventions agree as
 normalized transformations. -/
-theorem intrinsicPlaneReflections_apply_stateAt_eq {n : Nat}
+lemma intrinsicPlaneReflections_apply_stateAt_eq {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (OrthogonalProjector.rankOnePhaseReflectionOp M.good).apply
         (M.stateAt α) =
@@ -191,7 +191,7 @@ def intrinsicGoodSourceStepOperator {n : Nat}
 
 /-- The constructed source iterate advances every good/bad-plane angle by
 `2 theta`; no caller-supplied rotation or eigen-equation is used. -/
-private theorem intrinsicSourceStepOperator_apply_stateAt_coe {n : Nat}
+private lemma intrinsicSourceStepOperator_apply_stateAt_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (intrinsicSourceStepOperator M).applyVec (M.stateAt α) =
       M.stateAt (α + 2 * M.θ) := by
@@ -293,7 +293,7 @@ private theorem intrinsicSourceStepOperator_apply_stateAt_coe {n : Nat}
 
 /-- The constructed source iterate maps normalized plane states to normalized
 plane states. -/
-theorem intrinsicSourceStepOperator_apply_stateAt {n : Nat}
+lemma intrinsicSourceStepOperator_apply_stateAt {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (intrinsicSourceStepOperator M).apply (M.stateAt α) =
       M.stateAt (α + 2 * M.θ) := by
@@ -305,7 +305,7 @@ theorem intrinsicSourceStepOperator_apply_stateAt {n : Nat}
 /-- The exact source step sends the good axis to
 `cos(2 theta) good - sin(2 theta) bad`
 [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicSourceStepOperator_apply_good {n : Nat}
+lemma intrinsicSourceStepOperator_apply_good {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicSourceStepOperator M).applyVec
         (M.good : HilbertVector (Qubits n)) =
@@ -320,7 +320,7 @@ theorem intrinsicSourceStepOperator_apply_good {n : Nat}
 /-- The exact source step sends the bad axis to
 `sin(2 theta) good + cos(2 theta) bad`
 [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicSourceStepOperator_apply_bad {n : Nat}
+lemma intrinsicSourceStepOperator_apply_bad {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicSourceStepOperator M).applyVec
         (M.bad : HilbertVector (Qubits n)) =
@@ -333,7 +333,7 @@ theorem intrinsicSourceStepOperator_apply_bad {n : Nat}
 
 /-- `(good + i bad) / sqrt 2` is the positive-phase eigenstate of the exact
 source reflection product [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicSourceStepOperator_apply_eigenPlus {n : Nat}
+lemma intrinsicSourceStepOperator_apply_eigenPlus {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicSourceStepOperator M).applyVec
         (M.eigenPlus : HilbertVector (Qubits n)) =
@@ -352,7 +352,7 @@ theorem intrinsicSourceStepOperator_apply_eigenPlus {n : Nat}
 
 /-- `(good - i bad) / sqrt 2` is the negative-phase eigenstate of the exact
 source reflection product [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicSourceStepOperator_apply_eigenMinus {n : Nat}
+lemma intrinsicSourceStepOperator_apply_eigenMinus {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicSourceStepOperator M).applyVec
         (M.eigenMinus : HilbertVector (Qubits n)) =
@@ -372,7 +372,7 @@ theorem intrinsicSourceStepOperator_apply_eigenMinus {n : Nat}
 
 /-- The amplitude-estimation convention advances the same good/bad-plane
 angle as the source bad-reflection convention. -/
-private theorem intrinsicGoodSourceStepOperator_apply_stateAt_coe {n : Nat}
+private lemma intrinsicGoodSourceStepOperator_apply_stateAt_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (intrinsicGoodSourceStepOperator M).applyVec (M.stateAt α) =
       M.stateAt (α + 2 * M.θ) := by
@@ -384,7 +384,7 @@ private theorem intrinsicGoodSourceStepOperator_apply_stateAt_coe {n : Nat}
 
 /-- The amplitude-estimation reflection convention also preserves normalized
 plane states in its public contract. -/
-theorem intrinsicGoodSourceStepOperator_apply_stateAt {n : Nat}
+lemma intrinsicGoodSourceStepOperator_apply_stateAt {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (intrinsicGoodSourceStepOperator M).apply (M.stateAt α) =
       M.stateAt (α + 2 * M.θ) := by
@@ -395,7 +395,7 @@ theorem intrinsicGoodSourceStepOperator_apply_stateAt {n : Nat}
 
 /-- The amplitude-estimation step sends the good axis to
 `cos(2 theta) good - sin(2 theta) bad`. -/
-theorem intrinsicGoodSourceStepOperator_apply_good {n : Nat}
+lemma intrinsicGoodSourceStepOperator_apply_good {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicGoodSourceStepOperator M).applyVec
         (M.good : HilbertVector (Qubits n)) =
@@ -409,7 +409,7 @@ theorem intrinsicGoodSourceStepOperator_apply_good {n : Nat}
 
 /-- The amplitude-estimation step sends the bad axis to
 `sin(2 theta) good + cos(2 theta) bad`. -/
-theorem intrinsicGoodSourceStepOperator_apply_bad {n : Nat}
+lemma intrinsicGoodSourceStepOperator_apply_bad {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicGoodSourceStepOperator M).applyVec
         (M.bad : HilbertVector (Qubits n)) =
@@ -422,7 +422,7 @@ theorem intrinsicGoodSourceStepOperator_apply_bad {n : Nat}
 
 /-- `(good + i bad) / sqrt 2` is the positive-phase eigenstate of the
 amplitude-estimation reflection product [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicGoodSourceStepOperator_apply_eigenPlus {n : Nat}
+lemma intrinsicGoodSourceStepOperator_apply_eigenPlus {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicGoodSourceStepOperator M).applyVec
         (M.eigenPlus : HilbertVector (Qubits n)) =
@@ -442,7 +442,7 @@ theorem intrinsicGoodSourceStepOperator_apply_eigenPlus {n : Nat}
 
 /-- `(good - i bad) / sqrt 2` is the negative-phase eigenstate of the
 amplitude-estimation reflection product [Lin22, appqpe.tex:200-219]. -/
-theorem intrinsicGoodSourceStepOperator_apply_eigenMinus {n : Nat}
+lemma intrinsicGoodSourceStepOperator_apply_eigenMinus {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     (intrinsicGoodSourceStepOperator M).applyVec
         (M.eigenMinus : HilbertVector (Qubits n)) =
@@ -462,7 +462,7 @@ theorem intrinsicGoodSourceStepOperator_apply_eigenMinus {n : Nat}
   ring
 
 /-- One constructed source step advances the closed form from `k` to `k+1`. -/
-private theorem intrinsicSourceStepOperator_apply_amplifiedState_coe {n : Nat}
+private lemma intrinsicSourceStepOperator_apply_amplifiedState_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     (intrinsicSourceStepOperator M).applyVec (M.amplifiedState k) =
       M.amplifiedState (k + 1) := by
@@ -472,10 +472,10 @@ private theorem intrinsicSourceStepOperator_apply_amplifiedState_coe {n : Nat}
   congr 1
   unfold amplitudeAmplificationAngle
   push_cast
-  ring
+  ring_nf
 
 /-- One source step maps the normalized closed form at `k` to that at `k+1`. -/
-theorem intrinsicSourceStepOperator_apply_amplifiedState {n : Nat}
+lemma intrinsicSourceStepOperator_apply_amplifiedState {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     (intrinsicSourceStepOperator M).apply (M.amplifiedState k) =
       M.amplifiedState (k + 1) := by
@@ -486,7 +486,7 @@ theorem intrinsicSourceStepOperator_apply_amplifiedState {n : Nat}
 
 /-- Iterating the constructed source operator gives the general `n`-qubit
 closed form. -/
-private theorem intrinsicSourceStepOperator_pow_apply_coe {n : Nat}
+private lemma intrinsicSourceStepOperator_pow_apply_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     HilbertOperator.applyVec
         ((intrinsicSourceStepOperator M : HilbertOperator (Qubits n)) ^ k)
@@ -498,7 +498,7 @@ private theorem intrinsicSourceStepOperator_pow_apply_coe {n : Nat}
       exact intrinsicSourceStepOperator_apply_amplifiedState_coe M k
 
 /-- Iterating the source operator preserves normalization in its public type. -/
-theorem intrinsicSourceStepOperator_pow_apply {n : Nat}
+lemma intrinsicSourceStepOperator_pow_apply {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     ((intrinsicSourceStepOperator M) ^ k).apply (M.amplifiedState 0) =
       M.amplifiedState k := by
@@ -508,7 +508,7 @@ theorem intrinsicSourceStepOperator_pow_apply {n : Nat}
     (intrinsicSourceStepOperator_pow_apply_coe M k)
 
 /-- One good-reflection source step advances the closed form from `k` to `k+1`. -/
-private theorem intrinsicGoodSourceStepOperator_apply_amplifiedState_coe {n : Nat}
+private lemma intrinsicGoodSourceStepOperator_apply_amplifiedState_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     (intrinsicGoodSourceStepOperator M).applyVec (M.amplifiedState k) =
       M.amplifiedState (k + 1) := by
@@ -518,10 +518,10 @@ private theorem intrinsicGoodSourceStepOperator_apply_amplifiedState_coe {n : Na
   congr 1
   unfold amplitudeAmplificationAngle
   push_cast
-  ring
+  ring_nf
 
 /-- One source step maps the normalized closed form at `k` to that at `k+1`. -/
-theorem intrinsicGoodSourceStepOperator_apply_amplifiedState {n : Nat}
+lemma intrinsicGoodSourceStepOperator_apply_amplifiedState {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     (intrinsicGoodSourceStepOperator M).apply (M.amplifiedState k) =
       M.amplifiedState (k + 1) := by
@@ -532,7 +532,7 @@ theorem intrinsicGoodSourceStepOperator_apply_amplifiedState {n : Nat}
 
 /-- Iterating the good-reflection source operator gives the general `n`-qubit
 closed form. -/
-private theorem intrinsicGoodSourceStepOperator_pow_apply_coe {n : Nat}
+private lemma intrinsicGoodSourceStepOperator_pow_apply_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     HilbertOperator.applyVec
         ((intrinsicGoodSourceStepOperator M : HilbertOperator (Qubits n)) ^ k)
@@ -544,7 +544,7 @@ private theorem intrinsicGoodSourceStepOperator_pow_apply_coe {n : Nat}
       exact intrinsicGoodSourceStepOperator_apply_amplifiedState_coe M k
 
 /-- Iterating the source operator preserves normalization in its public type. -/
-theorem intrinsicGoodSourceStepOperator_pow_apply {n : Nat}
+lemma intrinsicGoodSourceStepOperator_pow_apply {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     ((intrinsicGoodSourceStepOperator M) ^ k).apply (M.amplifiedState 0) =
       M.amplifiedState k := by
@@ -554,7 +554,7 @@ theorem intrinsicGoodSourceStepOperator_pow_apply {n : Nat}
     (intrinsicGoodSourceStepOperator_pow_apply_coe M k)
 
 /-- The source's exact all-k rotation, independent of any execution representation. -/
-public theorem source_rotation {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
+public lemma source_rotation {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
     (k : Nat) :
     ((intrinsicSourceStepOperator M) ^ k).apply
       (M.preparation.apply (NormalizedVector.ket (R := Qubits n) 0)) =

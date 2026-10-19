@@ -28,14 +28,14 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
 /-- The first actual batch and selector produce exactly one recovered factor. -/
-theorem first_factor_reference
+lemma first_factor_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((first base noQuantum N input).execute Reference state)
+      ((first base noQuantum N input).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (Optional.selectedValue (selectionRefs base noQuantum N).selection entry.1))
       left right =

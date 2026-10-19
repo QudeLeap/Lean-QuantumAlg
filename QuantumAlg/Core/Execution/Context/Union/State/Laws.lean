@@ -33,14 +33,14 @@ variable {kind : ProblemKind} (left right : RuntimeCtx kind)
   {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
 
 /-- Exact frame coordinates preserve the total mass of an arbitrary input state. -/
-theorem contextUnion_splitState_mass
+lemma contextUnion_splitState_mass
     (state : State (left.disjointUnion right separate) Reference H) :
     (splitState left right separate state).mass = state.mass :=
   (ExecutionState.reindex_mass _ (referenceBasis left right separate Reference)).trans
     (ExecutionState.mapClassical_mass state (recordEquiv left right separate H))
 
 /-- A history map leaves the complete right-store label unchanged. -/
-theorem contextUnion_splitState_mapHistory
+lemma contextUnion_splitState_mapHistory
     (state : State (left.disjointUnion right separate) Reference H) (update : H → K) :
     splitState left right separate (state.mapHistory update) =
       (splitState left right separate state).mapHistory
@@ -67,7 +67,7 @@ theorem contextUnion_splitState_mapHistory
     congr! 2
 
 /-- The identity instruction records Unit while retaining the separate right store. -/
-theorem contextUnion_splitState_skip
+lemma contextUnion_splitState_skip
     (state : State (left.disjointUnion right separate) Reference H) :
     splitState left right separate state.skip =
       (splitState left right separate state).skip.mapHistory
@@ -79,7 +79,7 @@ theorem contextUnion_splitState_skip
         (fun record => (record.1.1, (record.1.2, record.2)))).symm
 
 /-- The actual lifted read selects the same left fiber, retaining every right-store value. -/
-theorem contextUnion_splitState_selectClassical
+lemma contextUnion_splitState_selectClassical
     (state : State (left.disjointUnion right separate) Reference H)
     {shape : CShape} (input : CInputRef left shape) (selected : shape.Value) :
     splitState left right separate
@@ -106,7 +106,7 @@ theorem contextUnion_splitState_selectClassical
   · simp only [active, if_false]
 
 /-- Admissible sums preserve every right-store fiber and every complete matrix entry. -/
-theorem contextUnion_splitState_finiteSum {I : Type} [Fintype I]
+lemma contextUnion_splitState_finiteSum {I : Type} [Fintype I]
     (states : I → State (left.disjointUnion right separate) Reference H)
     (total : ∑ index, (states index).mass ≤ 1) :
     splitState left right separate (ExecutionState.finiteSum states total) =
@@ -124,13 +124,13 @@ theorem contextUnion_splitState_finiteSum {I : Type} [Fintype I]
 variable {Hidden : Type} [Fintype Hidden]
 
 /-- Separating a resident frame preserves total mass and the persistent service. -/
-theorem contextUnion_splitServiceState_mass
+lemma contextUnion_splitServiceState_mass
     (state : State (left.disjointUnion right separate) Reference (Hidden × H)) :
     (splitServiceState left right separate state).mass = state.mass := by
   rw [splitServiceState, State.mapHistory_mass, contextUnion_splitState_mass]
 
 /-- Updating ordinary history leaves the service and complete resident store in place. -/
-theorem contextUnion_splitServiceState_mapHistory
+lemma contextUnion_splitServiceState_mapHistory
     (state : State (left.disjointUnion right separate) Reference (Hidden × H)) (update : H → K) :
     splitServiceState left right separate
         (state.mapHistory (fun record => (record.1, update record.2))) =
@@ -142,7 +142,7 @@ theorem contextUnion_splitServiceState_mapHistory
   rfl
 
 /-- A stored-value branch selects the same fiber with the service label retained. -/
-theorem contextUnion_splitServiceState_selectClassical
+lemma contextUnion_splitServiceState_selectClassical
     (state : State (left.disjointUnion right separate) Reference (Hidden × H))
     {shape : CShape} (input : CInputRef left shape) (selected : shape.Value) :
     splitServiceState left right separate
@@ -153,7 +153,7 @@ theorem contextUnion_splitServiceState_selectClassical
   rw [contextUnion_splitState_selectClassical, State.mapHistory_selectClassical]
 
 /-- Finite branch sums preserve every service and resident-store correlation. -/
-theorem contextUnion_splitServiceState_finiteSum {I : Type} [Fintype I]
+lemma contextUnion_splitServiceState_finiteSum {I : Type} [Fintype I]
     (states : I → State (left.disjointUnion right separate) Reference (Hidden × H))
     (total : ∑ index, (states index).mass ≤ 1) :
     splitServiceState left right separate (ExecutionState.finiteSum states total) =

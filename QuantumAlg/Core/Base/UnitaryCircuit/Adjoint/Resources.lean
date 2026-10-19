@@ -26,7 +26,7 @@ noncomputable section
 
 variable {sourceGates targetGates : GateModel} {sourceOracles targetOracles : OracleModel}
 
-private theorem reverseWords_eventCost {count : Nat} {layout : QuantumLayout count}
+private lemma reverseWords_eventCost {count : Nat} {layout : QuantumLayout count}
     (words : List (UnitaryCircuit targetGates targetOracles layout)) :
     (reverseWords words).eventCost = (words.map fun word => word.eventCost).sum := by
   induction words with
@@ -36,7 +36,7 @@ private theorem reverseWords_eventCost {count : Nat} {layout : QuantumLayout cou
       rw [seq_eventCost, ih, List.map_cons, List.sum_cons]
       exact add_comm _ _
 
-private theorem inverseSequence_eventCost
+private lemma inverseSequence_eventCost
     (implementations : AdjointRealizations sourceGates sourceOracles targetGates targetOracles)
     (transform : ResourcePool (.quantum sourceGates sourceOracles) →+
       ResourcePool (.quantum targetGates targetOracles))
@@ -77,7 +77,7 @@ private theorem inverseSequence_eventCost
   | macroCall name body ih => exact ih
 
 /-- A proved resource map for every actual inverse replacement holds for the generated circuit. -/
-public theorem dagger_eventCost
+public lemma dagger_eventCost
     {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit sourceGates sourceOracles layout)
     (implementations : AdjointRealizations sourceGates sourceOracles targetGates targetOracles)

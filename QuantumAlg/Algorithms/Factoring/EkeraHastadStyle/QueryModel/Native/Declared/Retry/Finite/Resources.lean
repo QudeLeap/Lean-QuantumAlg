@@ -29,15 +29,15 @@ noncomputable section
 variable {N : Nat}
 
 /-- Zero emits no native event; positive counts pay for every actual declared retry stage. -/
-def eventBudget (input : Input N) : Nat → ResourcePool (model input)
+def eventBudget (N : Nat) : Nat → ResourcePool (model N)
   | 0 => 0
-  | laterCount + 1 => Retry.eventBudget input laterCount
+  | laterCount + 1 => Retry.eventBudget N laterCount
 
 /-- Every positive branch retains its original dependency allowance for arbitrary durations. -/
-def durationBudget (input : Input N)
-    (duration : Resource.Event (model input) → Nat) : Nat → Nat
+def durationBudget (N : Nat)
+    (duration : Resource.Event (model N) → Nat) : Nat → Nat
   | 0 => 0
-  | laterCount + 1 => Retry.durationBudget input laterCount duration
+  | laterCount + 1 => Retry.durationBudget N laterCount duration
 
 /-- The independent zero allowance is one optional word; positive counts share fixed storage. -/
 def additionalSpace (N : Nat) : Nat → SpacePool .quantum

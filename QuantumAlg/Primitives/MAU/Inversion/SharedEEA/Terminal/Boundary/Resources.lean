@@ -40,7 +40,7 @@ def boundaryBound (width : Nat) : Nat :=
     ControlledLengthResources.refreshBound width + 1
 
 /-- Both new all-zero patterns satisfy their actual negative-mask and dirty-conjunction bounds. -/
-theorem predicate_length_le (width : Nat) (enough : 2 ≤ width.size) :
+lemma predicate_length_le (width : Nat) (enough : 2 ≤ width.size) :
     (BoundaryPredicate.gates width enough).length ≤ predicateBound width := by
   have low := BoundaryPredicate.regionGates_length_le width false
   have high := BoundaryPredicate.regionGates_length_le width true
@@ -52,14 +52,14 @@ theorem predicate_length_le (width : Nat) (enough : 2 ≤ width.size) :
   unfold predicateBound
   omega
 
-private theorem word_length (width : Nat) :
+private lemma word_length (width : Nat) :
     (WorkWordExchange.gates width).length = 3 * (width + 3) := by
   have actual := congrArg List.length (WorkWordExchange.program_eventTrace width)
   simpa only [WorkWordExchange.program, GateSpec.programList_eventTrace,
     List.length_map, List.length_replicate] using actual
 
 /-- Literal length includes both exact predicate passes and the actual controlled body. -/
-theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
+lemma gates_length (width : Nat) (enough : 2 ≤ width.size) :
     (TerminalBoundary.gates width enough).length =
       2 * (BoundaryPredicate.gates width enough).length + 3 * (width + 3) +
         (ControlledLengthRefresh.gates width).length + 1 := by
@@ -68,7 +68,7 @@ theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
   omega
 
 /-- The actual boundary list satisfies its independent finite envelope. -/
-theorem gates_length_le (width : Nat) (enough : 2 ≤ width.size) :
+lemma gates_length_le (width : Nat) (enough : 2 ≤ width.size) :
     (TerminalBoundary.gates width enough).length ≤ boundaryBound width := by
   rw [gates_length]
   have predicate := predicate_length_le width enough
@@ -77,20 +77,20 @@ theorem gates_length_le (width : Nat) (enough : 2 ≤ width.size) :
   omega
 
 /-- Actual event-pool cardinality uses the same complete emitted list. -/
-theorem eventCount_le (width : Nat) (enough : 2 ≤ width.size) :
+lemma eventCount_le (width : Nat) (enough : 2 ≤ width.size) :
     (TerminalBoundary.program width enough).eventCost.card ≤ boundaryBound width := by
   rw [TerminalBoundary.program, GateSpec.programList_eventCost_card]
   exact gates_length_le width enough
 
 /-- Strict unit depth has no control-off discount or omitted predicate-cleanup events. -/
-theorem unitDepth_le (width : Nat) (enough : 2 ≤ width.size) :
+lemma unitDepth_le (width : Nat) (enough : 2 ≤ width.size) :
     (TerminalBoundary.program width enough).evaluatedEventDepth (fun _ => 1) ≤
       boundaryBound width := by
   rw [TerminalBoundary.program_unitDepth]
   exact gates_length_le width enough
 
 /-- The actual reverse also executes the entire boundary list in the opposite order. -/
-theorem reverse_length (width : Nat) (enough : 2 ≤ width.size) :
+lemma reverse_length (width : Nat) (enough : 2 ≤ width.size) :
     (TerminalBoundary.gates width enough).reverse.length =
       (TerminalBoundary.gates width enough).length :=
   List.length_reverse

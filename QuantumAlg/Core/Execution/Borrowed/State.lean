@@ -49,7 +49,7 @@ def observeBorrowed (Reference : Register)
       exact classical.total_le_one }
 
 /-- Every borrowed classical label selects precisely the contributing actual store blocks. -/
-theorem observeBorrowed_block (Reference : Register)
+lemma observeBorrowed_block (Reference : Register)
     (state : ExecutionState (Store ctx × H) (Register.prod ctx.register Reference))
     (value : ctx.borrowedClassicalShape.Value) :
     (observeBorrowed Reference state).block value =
@@ -57,7 +57,7 @@ theorem observeBorrowed_block (Reference : Register)
         ((state.mapClassical fun label => label.1.readBorrowedClassical).block value) := rfl
 
 /-- The joint CQ observation retains the complete execution probability mass. -/
-theorem observeBorrowed_mass (Reference : Register)
+lemma observeBorrowed_mass (Reference : Register)
     (state : ExecutionState (Store ctx × H) (Register.prod ctx.register Reference)) :
     (observeBorrowed Reference state).mass = state.mass := by
   calc
@@ -68,7 +68,7 @@ theorem observeBorrowed_mass (Reference : Register)
     _ = state.mass := state.mapClassical_mass _
 
 /-- One matrix entry sums only complement wires and source stores with the actual borrowed value. -/
-theorem observeBorrowed_entry (Reference : Register)
+lemma observeBorrowed_entry (Reference : Register)
     (state : ExecutionState (Store ctx × H) (Register.prod ctx.register Reference))
     (value : ctx.borrowedClassicalShape.Value)
     (row column : ctx.borrowedQuantumLayout.Basis) (refRow refColumn : Reference.Index) :
@@ -103,7 +103,7 @@ def transportBorrowed {sourceShape targetShape : CShape}
   exact state
 
 /-- Equality transport retains every block and therefore its full probability mass. -/
-theorem transportBorrowed_mass {sourceShape targetShape : CShape}
+lemma transportBorrowed_mass {sourceShape targetShape : CShape}
     {sourceRegister targetRegister : Register} (Reference : Register)
     (sameShape : sourceShape = targetShape) (sameRegister : sourceRegister = targetRegister)
     (state : ExecutionState sourceShape.Value (Register.prod sourceRegister Reference)) :
@@ -113,7 +113,7 @@ theorem transportBorrowed_mass {sourceShape targetShape : CShape}
   rfl
 
 /-- Equality transport is exactly the existing basis-and-classical relabeling. -/
-theorem transportBorrowed_eq_reindex {sourceShape targetShape : CShape}
+lemma transportBorrowed_eq_reindex {sourceShape targetShape : CShape}
     {sourceRegister targetRegister : Register} (Reference : Register)
     (sameShape : sourceShape = targetShape) (sameRegister : sourceRegister = targetRegister)
     (state : ExecutionState sourceShape.Value (Register.prod sourceRegister Reference)) :
@@ -128,7 +128,7 @@ theorem transportBorrowed_eq_reindex {sourceShape targetShape : CShape}
   rw [ExecutionState.reindex_refl, ExecutionState.mapClassical_id]
 
 /-- Successive transports follow the equalities of the same ordered interfaces. -/
-theorem transportBorrowed_trans {firstShape middleShape lastShape : CShape}
+lemma transportBorrowed_trans {firstShape middleShape lastShape : CShape}
     {firstRegister middleRegister lastRegister : Register} (Reference : Register)
     (firstShapeEq : firstShape = middleShape) (secondShapeEq : middleShape = lastShape)
     (firstRegisterEq : firstRegister = middleRegister)
@@ -146,8 +146,8 @@ theorem transportBorrowed_trans {firstShape middleShape lastShape : CShape}
 
 /-- Put the final joint observation on exactly the input borrowed classical and quantum carriers. -/
 def observeBorrowedAfter {model : ExecutionModel}
-    {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post)
+    {pre post : RuntimeCtx model.kind} {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation)
     (Reference : Register)
     (state : ExecutionState (Store post × H) (Register.prod post.register Reference)) :
     ExecutionState pre.borrowedClassicalShape.Value
@@ -156,9 +156,9 @@ def observeBorrowedAfter {model : ExecutionModel}
     code.borrowedRegister_preserved (observeBorrowed Reference state)
 
 /-- Exact borrowed-coordinate transport preserves the full joint probability mass. -/
-theorem observeBorrowedAfter_mass {model : ExecutionModel}
-    {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post)
+lemma observeBorrowedAfter_mass {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation)
     (Reference : Register)
     (state : ExecutionState (Store post × H) (Register.prod post.register Reference)) :
     (observeBorrowedAfter code Reference state).mass = state.mass := by
@@ -171,7 +171,8 @@ namespace Circuit
 /-- All borrowed classical-quantum-reference correlations are restored by the actual execution.
 The final state is compared with the initial one as a single joint CQ object. -/
 public def BorrowedRestored {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
+    {allowAllocation : Bool} (code : Circuit model pre post allowAllocation) (Reference : Register)
+    {H K : Type} [Fintype H] [Fintype K]
     (initial : ExecutionState (Execution.Store pre × H) (Register.prod pre.register Reference))
     (final : ExecutionState (Execution.Store post × K) (Register.prod post.register Reference)) :
     Prop :=

@@ -25,6 +25,8 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute MeasuredPointAddition Allocation
 
 /-- The actual indexed register contains the original exponents followed by the zero selector. -/
@@ -35,7 +37,7 @@ def initializedIndexed (modulus count : Nat)
     (fun index => Fin.lastCases 0 (rangeBasis modulus.size count exponent) index)
 
 /-- The complete initialization equals prepared arithmetic beside the exact indexed input. -/
-theorem initializedReadyBasis_preparedLabel (modulus count : Nat)
+lemma initializedReadyBasis_preparedLabel (modulus count : Nat)
     (exponent : (exponents modulus.size count).register.Index)
     (x y : Fin (2 ^ modulus.size)) :
     initializedReadyBasis modulus count (inputLabel modulus.size count exponent x y) =
@@ -69,12 +71,12 @@ theorem initializedReadyBasis_preparedLabel (modulus count : Nat)
     · rw [initializedReadyBasis_exponent, Fin.lastCases_castSucc]
 
 /-- Actual pair conversion restores the complete initialized basis around its two updated words. -/
-theorem pairOperator_initializedReadyBasis (modulus count : Nat) (positive : 0 < modulus)
+lemma pairOperator_initializedReadyBasis (modulus count : Nat) (positive : 0 < modulus)
     (coefficient : (ZMod modulus)ˣ)
     (exponent : (exponents modulus.size count).register.Index)
     (x y : Fin (2 ^ modulus.size)) (xValid : x.val < modulus) (yValid : y.val < modulus)
     {Reference : Register} (reference : Reference.Index) :
-    (pairOperator modulus.size count
+    (pairOperator (environment := environment) modulus.size count
       (InPlaceTarget.modulusWord modulus) coefficient Reference).applyVec
       (NormalizedVector.ket (initializedReadyBasis modulus count
         (inputLabel modulus.size count exponent x y), reference)).vec =
@@ -90,16 +92,18 @@ theorem pairOperator_initializedReadyBasis (modulus count : Nat) (positive : 0 <
     (initializedIndexed modulus count exponent) reference
 
 /-- Canonical field coordinates undergo exact unit scaling on the actually initialized register. -/
-theorem pairOperator_initialized_fieldWords {p : Nat} [Fact p.Prime] (count : Nat)
+lemma pairOperator_initialized_fieldWords {p : Nat} [Fact p.Prime] (count : Nat)
     (coefficient : (ZMod p)ˣ) (exponent : (exponents p.size count).register.Index)
     (x y : ZMod p) {Reference : Register} (reference : Reference.Index) :
-    (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient Reference).applyVec
+    (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+      coefficient Reference).applyVec
       (NormalizedVector.ket (initializedReadyBasis p count
         (inputLabel p.size count exponent (fieldWord x) (fieldWord y)), reference)).vec =
       (NormalizedVector.ket (initializedReadyBasis p count
         (inputLabel p.size count exponent (fieldWord ((coefficient : ZMod p) * x))
           (fieldWord ((coefficient : ZMod p) * y))), reference)).vec := by
-  have actual := pairOperator_initializedReadyBasis p count (Fact.out : Nat.Prime p).pos
+  have actual := pairOperator_initializedReadyBasis (environment := environment) p count (Fact.out
+    : Nat.Prime p).pos
     coefficient exponent (fieldWord x) (fieldWord y) (ZMod.val_lt x) (ZMod.val_lt y) reference
   rw [unitProductWord_fieldWord, unitProductWord_fieldWord] at actual
   exact actual

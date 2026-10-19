@@ -22,7 +22,7 @@ signal work. It therefore retains all superpositions and external correlations.
 namespace QuantumAlg.ZeroProjector.SourceWork
 noncomputable section
 
-private theorem controlledNot_entry {m n : Nat} (rowPhase phase : Fin 2)
+private lemma controlledNot_entry {m n : Nat} (rowPhase phase : Fin 2)
     (rowAncilla ancilla : Fin (2 ^ m)) (rowSignal signal : Fin (2 ^ n)) :
     OrthogonalProjector.controlledNotOp (OrthogonalProjector.zeroAncilla m n)
       (triple rowPhase rowAncilla rowSignal) (triple phase ancilla signal) =
@@ -42,21 +42,22 @@ private theorem controlledNot_entry {m n : Nat} (rowPhase phase : Fin 2)
       Gate.XOp, UnitaryOperator.ofPerm, Matrix.one_apply,
       zero, sameAncilla, sameSignal, flipZero, flipOne]
 
-private theorem program_entry (m n : Nat) (positive : 0 < n)
+private lemma program_entry (m n : Nat) (positive : 0 < n)
     (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel)
     (rowPhase phase : Fin 2) (rowAncilla ancilla : Fin (2 ^ m))
-    (rowSignal signal : Fin (2 ^ n)) :
-    UnitaryOperator.reindex physical.basisEquiv (program m n positive physical oracles).matrix
+    (rowSignal signal : Fin (2 ^ n)) (environment : oracles.Interpretation) :
+    UnitaryOperator.reindex physical.basisEquiv ((program m n positive physical oracles).matrix
+      environment)
       (triple rowPhase rowAncilla rowSignal) (triple phase ancilla signal) =
       if triple rowPhase rowAncilla rowSignal =
         (if ancilla = 0 then triple (WireAddress.flipBit (0 : Fin 1) phase) ancilla signal
           else triple phase ancilla signal) then 1 else 0 := by
-  have action := program_apply_triple m n positive physical oracles phase ancilla signal
+  have action := program_apply_triple m n positive physical oracles phase ancilla signal environment
   have entry := congrArg (fun state : NormalizedVector physical.toQuantum.register =>
     (state : HilbertVector physical.toQuantum.register)
       (physical.basisEquiv.symm (triple rowPhase rowAncilla rowSignal))) action
   change HilbertOperator.applyVec
-    ((program m n positive physical oracles).matrix : HilbertOperator _)
+    (((program m n positive physical oracles).matrix environment) : HilbertOperator _)
       (NormalizedVector.ket (physical.basisEquiv.symm (triple phase ancilla signal)))
       (physical.basisEquiv.symm (triple rowPhase rowAncilla rowSignal)) = _ at entry
   rw [HilbertOperator.applyVec_ket] at entry
@@ -65,9 +66,11 @@ private theorem program_entry (m n : Nat) (positive : 0 < n)
     Matrix.submatrix_apply] using entry
 
 /-- All native leaves realize the original projector-controlled NOT on the full interface. -/
-theorem program_matrix (m n : Nat) (positive : 0 < n)
-    (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel) :
-    UnitaryOperator.reindex physical.basisEquiv (program m n positive physical oracles).matrix =
+lemma program_matrix (m n : Nat) (positive : 0 < n)
+    (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel)
+      (environment : oracles.Interpretation) :
+    UnitaryOperator.reindex physical.basisEquiv ((program m n positive physical oracles).matrix
+      environment) =
       OrthogonalProjector.controlledNotOp (OrthogonalProjector.zeroAncilla m n) := by
   apply Subtype.ext
   ext row column
@@ -76,7 +79,7 @@ theorem program_matrix (m n : Nat) (positive : 0 < n)
   obtain ⟨⟨phase, rest⟩, rfl⟩ := prodEquiv.surjective column
   obtain ⟨⟨ancilla, signal⟩, rfl⟩ := prodEquiv.surjective rest
   exact (program_entry m n positive physical oracles rowPhase phase
-    rowAncilla ancilla rowSignal signal).trans
+    rowAncilla ancilla rowSignal signal environment).trans
     (controlledNot_entry rowPhase phase rowAncilla ancilla rowSignal signal).symm
 
 end

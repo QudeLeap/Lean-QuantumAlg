@@ -26,7 +26,7 @@ open Execution
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem clearBody_resident
+private lemma clearBody_resident
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (path : (pivotRowsClearBody rows zero).Path) :
     (pivotRowsClearBody rows zero).peakResidentSpace path ≤ ctx.residentSpace :=
@@ -38,7 +38,7 @@ private theorem clearBody_resident
           (pivotRowWriteOp rows zero column)) current).le) path
 
 /-- Original pivot-row initialization adds one real row word to all existing resident storage. -/
-theorem gf2ClearPivotRows_resident_le
+lemma gf2ClearPivotRows_resident_le
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (path : (clearPivotRows rows).Path) :
     (clearPivotRows rows).peakResidentSpace path ≤
@@ -48,7 +48,7 @@ theorem gf2ClearPivotRows_resident_le
   exact SpacePool.max_le (fun _axis => Nat.le_add_left _ _) (clearBody_resident _ _ path)
 
 /-- The initialization word and column workspaces are reused throughout the matrix. -/
-theorem gf2ReduceMatrix_resident_le
+lemma gf2ReduceMatrix_resident_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -84,7 +84,7 @@ theorem gf2ReduceMatrix_resident_le
   omega
 
 /-- The original loader word is released before the complete reduction workspace is opened. -/
-theorem gf2LoadAndReduce_resident_le
+lemma gf2LoadAndReduce_resident_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
@@ -105,7 +105,7 @@ theorem gf2LoadAndReduce_resident_le
         (SpacePool.ofShape .bit axis + (SpacePool.ofShape .bit axis + ctx.residentSpace axis))
   omega
 
-private theorem clearBody_auxiliary
+private lemma clearBody_auxiliary
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (path : (pivotRowsClearBody rows zero).Path) :
     (pivotRowsClearBody rows zero).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=
@@ -117,7 +117,7 @@ private theorem clearBody_auxiliary
           (pivotRowWriteOp rows zero column)) current).le) path
 
 /-- Original pivot-row initialization adds one real row word to all existing auxiliary storage. -/
-theorem gf2ClearPivotRows_auxiliary_le
+lemma gf2ClearPivotRows_auxiliary_le
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (path : (clearPivotRows rows).Path) :
     (clearPivotRows rows).peakAuxiliarySpace path ≤
@@ -127,7 +127,7 @@ theorem gf2ClearPivotRows_auxiliary_le
   exact SpacePool.max_le (fun _axis => Nat.le_add_left _ _) (clearBody_auxiliary _ _ path)
 
 /-- The initialization word and column workspaces are reused throughout the matrix. -/
-theorem gf2ReduceMatrix_auxiliary_le
+lemma gf2ReduceMatrix_auxiliary_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -163,7 +163,7 @@ theorem gf2ReduceMatrix_auxiliary_le
   omega
 
 /-- The original loader word is released before the complete reduction workspace is opened. -/
-theorem gf2LoadAndReduce_auxiliary_le
+lemma gf2LoadAndReduce_auxiliary_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))

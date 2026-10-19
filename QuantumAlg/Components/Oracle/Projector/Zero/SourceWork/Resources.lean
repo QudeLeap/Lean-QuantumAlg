@@ -35,7 +35,7 @@ def budget (oracles : OracleModel) (m : Nat) :
     (if m = 0 then single else if m = 1 then cnot else OneDirtyLayout.gateCount m • toffoli)
 
 /-- The actual native circuit has exactly the independent coordinate budget. -/
-theorem program_events (m n : Nat) (positive : 0 < n)
+lemma program_events (m n : Nat) (positive : 0 < n)
     (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel) :
     (program m n positive physical oracles).eventCost = budget oracles m := by
   refine (GateSpec.programList_eventCost physical oracles

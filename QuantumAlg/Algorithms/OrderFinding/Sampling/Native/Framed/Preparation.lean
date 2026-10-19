@@ -25,14 +25,14 @@ namespace QuantumAlg.OrderFinding.Sampling.Native.Framed
 noncomputable section
 
 /-- A caller with no quantum wires has no old quantum systems. -/
-theorem input_systemCount (ctx : RuntimeCtx .quantum)
+lemma input_systemCount (ctx : RuntimeCtx .quantum)
     (noQuantum : ctx.quantumWires = []) : ctx.systemCount = 0 := by
   change ctx.quantumWires.length = 0
   rw [noQuantum]
   rfl
 
 /-- Physical all-zero labels have binary integer value zero. -/
-theorem sourceZero_label (t width : Nat) :
+lemma sourceZero_label (t width : Nat) :
     (QuantumSignature.qubitsIndexEquiv (t + width))
       (Sampling.Native.runtimeLayout t width).zeroLabel = 0 := by
   change BinaryBasis.bigEndianEquiv (t + width)
@@ -40,7 +40,7 @@ theorem sourceZero_label (t width : Nat) :
   exact BinaryBasis.bigEndianEquiv_zero (t + width)
 
 /-- The actual prepare-zero vector is the source Born model's complete zero input. -/
-theorem preparedZero_vector (t width : Nat) :
+lemma preparedZero_vector (t width : Nat) :
     NormalizedVector.reindex (QuantumSignature.qubitsIndexEquiv (t + width))
       (BasisPreparation.zero (Sampling.Native.runtimeLayout t width)).normalized =
       OrderFinding.Native.zeroInput t width := by

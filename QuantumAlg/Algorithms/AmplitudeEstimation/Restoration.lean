@@ -25,11 +25,11 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- Every actual run preserves the complete borrowed interface and external reference jointly. -/
-theorem code_borrowedRestored {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
+lemma code_borrowedRestored (n t : Nat) (environment : (model n).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    (code E t).BorrowedRestored Reference state ((code E t).execute Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (code E t) rfl Reference state
+    (code n t).BorrowedRestored Reference state ((code n t).execute environment Reference state) :=
+  Circuit.borrowedRestored_of_noBorrowedQuantum (code n t) environment rfl Reference state
 
 end
 

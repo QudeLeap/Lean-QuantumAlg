@@ -31,41 +31,41 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-def preparationCode {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Circuit (model P) (pre t n) (preparedContext t n) :=
+def preparationCode (n : Nat) (t : Nat) :
+    Circuit (model n) (pre t n) (preparedContext t n) :=
   .prepareZero (pre t n) ⟨0⟩ (phaseRuntimeLayout t) (preparationFresh t n)
     (preparationDisjoint t n)
 
-def allocationCode {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Circuit (model P) (preparedContext t n) (post t n) :=
-  .seq (.retain (model := model P) (preparedContext t n) ⟨2⟩ (.bits t) (resultFresh t n))
-    (MeasurementCells.allocate (model := model P) (resultContext t n) 2 t)
+def allocationCode (n : Nat) (t : Nat) :
+    Circuit (model n) (preparedContext t n) (post t n) :=
+  .seq (.retain (model := model n) (preparedContext t n) ⟨2⟩ (.bits t) (resultFresh t n))
+    (MeasurementCells.allocate (model := model n) (resultContext t n) 2 t)
 
-def beforeMeasurement {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Circuit (model P) (pre t n) (post t n) :=
-  .seq (preparationCode P t)
-    (.seq (.unitary (nativeProgram P t)) (allocationCode P t))
+def beforeMeasurement (n : Nat) (t : Nat) :
+    Circuit (model n) (pre t n) (post t n) :=
+  .seq (preparationCode n t)
+    (.seq (.unitary (nativeProgram n t)) (allocationCode n t))
 
-def readoutCode {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Circuit (model P) (post t n) (post t n) :=
+def readoutCode (n : Nat) (t : Nat) :
+    Circuit (model n) (post t n) (post t n) :=
   .seq (Circuit.measurementSequence (readouts t n)) (.classical (BitWord.application (packing t n)))
 
 /-- One native code value at every width. Width zero still executes the classical packing. -/
-def code {n : Nat} (P : QPEEigenstateInput n) (t : Nat) : Circuit (model P) (pre t n) (post t n) :=
-  .seq (beforeMeasurement P t) (readoutCode P t)
+def code (n : Nat) (t : Nat) : Circuit (model n) (pre t n) (post t n) :=
+  .seq (beforeMeasurement n t) (readoutCode n t)
 
 /-- The explicit complete manifest reads the actual packed phase bits. -/
-def run {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    AlgorithmRun (model P) (pre t n) (post t n) (.bits t) where
-  code := code P t
+def run (n : Nat) (t : Nat) :
+    AlgorithmRun (model n) (pre t n) (post t n) (.bits t) where
+  code := code n t
   output := Output.all (post t n) (.read (.storage (resultRef t n).toCStorageRef))
 
-theorem run_result {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (record : (run P t).Record) :
-    (run P t).result record = record.1.read (.storage (resultRef t n).toCStorageRef) := rfl
+lemma run_result (n : Nat) (t : Nat)
+    (record : (run n t).Record) :
+    (run n t).result record = record.1.read (.storage (resultRef t n).toCStorageRef) := rfl
 
-theorem run_output_listing {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    (run P t).output.listing = (post t n).keys := rfl
+lemma run_output_listing (n : Nat) (t : Nat) :
+    (run n t).output.listing = (post t n).keys := rfl
 
 end
 

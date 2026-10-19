@@ -20,7 +20,9 @@ apply equally to quantum and classical circuits, including empty sequences.
 
 namespace QuantumAlg.Circuit
 
-private theorem peak_le_of_contexts {kind : ProblemKind}
+variable {allowAllocation : Bool}
+
+private lemma peak_le_of_contexts {kind : ProblemKind}
     (projection : RuntimeCtx kind → SpacePool kind) (contexts : List (RuntimeCtx kind))
     (budget : SpacePool kind) (bounded : ∀ ctx ∈ contexts, projection ctx ≤ budget) :
     peak projection contexts ≤ budget := by
@@ -31,22 +33,24 @@ private theorem peak_le_of_contexts {kind : ProblemKind}
         (ih (fun ctx member => bounded ctx (.tail head member)))
 
 /-- A resident budget bounds the peak if it bounds every actually visited live context. -/
-theorem peakResidentSpace_le_of_visited {model : ExecutionModel}
+lemma peakResidentSpace_le_of_visited {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (path : code.Path) (budget : SpacePool model.kind)
+    (code : Circuit model pre post allowAllocation) (path : code.Path) (budget : SpacePool
+        model.kind)
     (bounded : ∀ ctx ∈ code.visitedContexts path, ctx.residentSpace ≤ budget) :
     code.peakResidentSpace path ≤ budget :=
   peak_le_of_contexts RuntimeCtx.residentSpace _ budget bounded
 
 /-- Auxiliary roles are bounded on the same complete list of visited contexts. -/
-theorem peakAuxiliarySpace_le_of_visited {model : ExecutionModel}
+lemma peakAuxiliarySpace_le_of_visited {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (path : code.Path) (budget : SpacePool model.kind)
+    (code : Circuit model pre post allowAllocation) (path : code.Path) (budget : SpacePool
+        model.kind)
     (bounded : ∀ ctx ∈ code.visitedContexts path, ctx.auxiliarySpace ≤ budget) :
     code.peakAuxiliarySpace path ≤ budget :=
   peak_le_of_contexts RuntimeCtx.auxiliarySpace _ budget bounded
 
-private theorem peak_append {kind : ProblemKind}
+private lemma peak_append {kind : ProblemKind}
     (projection : RuntimeCtx kind → SpacePool kind) (left right : List (RuntimeCtx kind)) :
     peak projection (left ++ right) =
       SpacePool.max (peak projection left) (peak projection right) := by
@@ -61,18 +65,20 @@ private theorem peak_append {kind : ProblemKind}
       exact (SpacePool.max_assoc _ _ _).symm
 
 /-- Sequential resident peak is exactly the maximum of the two actual execution peaks. -/
-theorem peakResidentSpace_seq {model : ExecutionModel}
+lemma peakResidentSpace_seq {model : ExecutionModel}
     {pre middle post : RuntimeCtx model.kind}
-    (first : Circuit model pre middle) (second : Circuit model middle post)
+    (first : Circuit model pre middle allowAllocation) (second : Circuit model middle post
+        allowAllocation)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).peakResidentSpace path =
       SpacePool.max (first.peakResidentSpace path.1) (second.peakResidentSpace path.2) :=
   peak_append RuntimeCtx.residentSpace _ _
 
 /-- Sequential auxiliary peak is exactly the maximum for the same two path segments. -/
-theorem peakAuxiliarySpace_seq {model : ExecutionModel}
+lemma peakAuxiliarySpace_seq {model : ExecutionModel}
     {pre middle post : RuntimeCtx model.kind}
-    (first : Circuit model pre middle) (second : Circuit model middle post)
+    (first : Circuit model pre middle allowAllocation) (second : Circuit model middle post
+        allowAllocation)
     (path : (Circuit.seq first second).Path) :
     (Circuit.seq first second).peakAuxiliarySpace path =
       SpacePool.max (first.peakAuxiliarySpace path.1) (second.peakAuxiliarySpace path.2) :=

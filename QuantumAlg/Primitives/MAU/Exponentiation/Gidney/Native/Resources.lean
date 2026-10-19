@@ -45,7 +45,7 @@ def arithmeticPreparedNativeDepth (exponentWidth width : Nat) : Nat :=
   (if width + width = 0 then 0 else 1) +
     (8 * exponentWidth * Multiplication.Gidney.eventBound width + 3 * width)
 
-private theorem identityLoad_native_bound (exponentWidth width : Nat)
+private lemma identityLoad_native_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (identityLoadProgram exponentWidth width modulus positive).eventCost ≤
       identityNativeBudget width := by
@@ -54,7 +54,7 @@ private theorem identityLoad_native_bound (exponentWidth width : Nat)
     exact programList_native_support _ _ focus present
   · exact identityLoadProgram_eventCount exponentWidth width modulus positive
 
-private theorem identityUnload_native_bound (exponentWidth width : Nat)
+private lemma identityUnload_native_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (identityUnloadProgram exponentWidth width modulus positive).eventCost ≤
       identityNativeBudget width := by
@@ -64,7 +64,7 @@ private theorem identityUnload_native_bound (exponentWidth width : Nat)
   · exact identityUnloadProgram_eventCount exponentWidth width modulus positive
 
 /-- The arithmetic source circuit obeys the parameter-only independent pool. -/
-theorem arithmeticNativeSourceProgram_native_bound (exponentWidth width : Nat)
+lemma arithmeticNativeSourceProgram_native_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     (arithmeticNativeSourceProgram exponentWidth width modulus positive base).eventCost ≤
@@ -76,12 +76,12 @@ theorem arithmeticNativeSourceProgram_native_bound (exponentWidth width : Nat)
     (add_le_add (gidneyExponentOracle_native_bound exponentWidth width modulus base)
       (identityUnload_native_bound exponentWidth width modulus positive))
 
-private theorem primitiveAlphabet_gate_count (coordinate : AlgorithmGate.Coordinate) :
+private lemma primitiveAlphabet_gate_count (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate coordinate) primitiveAlphabet = 1 := by
   cases coordinate <;> simp only [primitiveAlphabet, ResourcePool.count_ofList] <;> decide
 
-private theorem copyNativeBudget_gate_count_le (width : Nat)
+private lemma copyNativeBudget_gate_count_le (width : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate coordinate) (copyNativeBudget width) ≤ width := by
@@ -93,7 +93,7 @@ private theorem copyNativeBudget_gate_count_le (width : Nat)
 
 /-- Each of the three independent arithmetic gate coordinates has the
 prescribed parameter-only cap, with preparation accounted separately. -/
-theorem arithmeticNativeGateBudget_coordinate (exponentWidth width : Nat)
+lemma arithmeticNativeGateBudget_coordinate (exponentWidth width : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate coordinate)
@@ -109,7 +109,7 @@ theorem arithmeticNativeGateBudget_coordinate (exponentWidth width : Nat)
 
 /-- Actual preparation plus actual arithmetic native events obeys the
 independent all-coordinate budget. -/
-theorem arithmeticNativeCode_native_bound (exponentWidth width : Nat)
+lemma arithmeticNativeCode_native_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ)
     (path : (arithmeticNativeCode exponentWidth width modulus positive base).Path) :
@@ -133,7 +133,7 @@ theorem arithmeticNativeCode_native_bound (exponentWidth width : Nat)
 
 /-- Each actual native gate coordinate of the complete prepared arithmetic
 execution obeys the same parameter-only envelope. -/
-theorem arithmeticNativeCode_gate_count_le (exponentWidth width : Nat)
+lemma arithmeticNativeCode_gate_count_le (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (coordinate : AlgorithmGate.Coordinate)
     (path : (arithmeticNativeCode exponentWidth width modulus positive base).Path) :
@@ -158,7 +158,7 @@ theorem arithmeticNativeCode_gate_count_le (exponentWidth width : Nat)
   exact bounded.trans (budget.le.trans
     (arithmeticNativeGateBudget_coordinate exponentWidth width coordinate))
 
-private theorem identityLoad_depth_eq_events (exponentWidth width : Nat)
+private lemma identityLoad_depth_eq_events (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (identityLoadProgram exponentWidth width modulus positive).evaluatedEventDepth (fun _ => 1) =
       (identityLoadProgram exponentWidth width modulus positive).eventCost.card := by
@@ -170,7 +170,7 @@ private theorem identityLoad_depth_eq_events (exponentWidth width : Nat)
         (nativeQubitLayout exponentWidth width) .empty
         (identityLoadGates exponentWidth width modulus positive)).symm
 
-private theorem identityUnload_depth_eq_events (exponentWidth width : Nat)
+private lemma identityUnload_depth_eq_events (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val) :
     (identityUnloadProgram exponentWidth width modulus positive).evaluatedEventDepth (fun _ => 1) =
       (identityUnloadProgram exponentWidth width modulus positive).eventCost.card := by
@@ -184,7 +184,7 @@ private theorem identityUnload_depth_eq_events (exponentWidth width : Nat)
 
 /-- The complete arithmetic source schedule takes one unit-duration step per
 emitted elementary event. -/
-theorem arithmeticNativeSourceProgram_depth_eq_events (exponentWidth width : Nat)
+lemma arithmeticNativeSourceProgram_depth_eq_events (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     (arithmeticNativeSourceProgram exponentWidth width modulus positive base).evaluatedEventDepth
@@ -199,7 +199,7 @@ theorem arithmeticNativeSourceProgram_depth_eq_events (exponentWidth width : Nat
 
 /-- The actual runtime placement has the same unit-duration schedule and
 native event count as the complete source arithmetic circuit. -/
-theorem arithmeticNativeUnitary_depth_eq_events (exponentWidth width : Nat)
+lemma arithmeticNativeUnitary_depth_eq_events (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) :
     (arithmeticNativeUnitary exponentWidth width modulus positive base).evaluatedEventDepth
@@ -216,7 +216,7 @@ theorem arithmeticNativeUnitary_depth_eq_events (exponentWidth width : Nat)
 
 /-- The complete arithmetic candidate meets the independent serial-depth
 envelope, including the actual zero-preparation layer. -/
-theorem arithmeticNativeCode_depth_bound (exponentWidth width : Nat)
+lemma arithmeticNativeCode_depth_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ)
     (path : (arithmeticNativeCode exponentWidth width modulus positive base).Path) :
@@ -233,7 +233,7 @@ theorem arithmeticNativeCode_depth_bound (exponentWidth width : Nat)
   exact Nat.add_le_add_left
     (arithmeticNativeSourceProgram_gateBound exponentWidth width modulus positive base) _
 
-private theorem work_space (exponentWidth width : Nat) :
+private lemma work_space (exponentWidth width : Nat) :
     SpacePool.ofQuantumLayout (workLayout exponentWidth width) = space (width + width) := by
   funext axis
   cases axis with
@@ -241,7 +241,7 @@ private theorem work_space (exponentWidth width : Nat) :
   | quantumSystems dimension =>
       exact (workQubitLayout exponentWidth width).toQuantumLayout_dimensionCount dimension
 
-private theorem complete_space (exponentWidth width : Nat) :
+private lemma complete_space (exponentWidth width : Nat) :
     space (width + width) + space (exponentWidth + width) =
       space (exponentWidth + 3 * width) := by
   funext axis
@@ -253,7 +253,7 @@ private theorem complete_space (exponentWidth width : Nat) :
           if (2 : ℕ+) = dimension then exponentWidth + 3 * width else 0
       split_ifs <;> omega
 
-private theorem input_space_le (exponentWidth width : Nat) :
+private lemma input_space_le (exponentWidth width : Nat) :
     space (exponentWidth + width) ≤ space (exponentWidth + 3 * width) := by
   intro axis
   cases axis with
@@ -263,12 +263,12 @@ private theorem input_space_le (exponentWidth width : Nat) :
         if (2 : ℕ+) = dimension then exponentWidth + 3 * width else 0
       split_ifs <;> omega
 
-theorem gidneyExponentPreparedContext_resident (exponentWidth width : Nat) :
+lemma gidneyExponentPreparedContext_resident (exponentWidth width : Nat) :
     (preparedContext exponentWidth width).residentSpace = space (exponentWidth + 3 * width) := by
   rw [preparedContext, RuntimeCtx.residentSpace_addOwnedLayout, work_space,
     suppliedQubits_resident, complete_space]
 
-theorem gidneyExponentPreparedContext_auxiliary (exponentWidth width : Nat) :
+lemma gidneyExponentPreparedContext_auxiliary (exponentWidth width : Nat) :
     (preparedContext exponentWidth width).auxiliarySpace = space (2 * width) := by
   rw [preparedContext, RuntimeCtx.auxiliarySpace_addOwnedLayout, work_space,
     suppliedQubits_auxiliary]
@@ -282,7 +282,7 @@ theorem gidneyExponentPreparedContext_auxiliary (exponentWidth width : Nat) :
 
 /-- The arithmetic candidate occupies exactly the declared complete carrier
 after preparing its two work words. -/
-theorem arithmeticNativeCode_resident_bound (exponentWidth width : Nat)
+lemma arithmeticNativeCode_resident_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ)
     (path : (arithmeticNativeCode exponentWidth width modulus positive base).Path) :
@@ -298,7 +298,7 @@ theorem arithmeticNativeCode_resident_bound (exponentWidth width : Nat)
 
 /-- Only the two prepared work words are auxiliary to the caller's exponent
 and arbitrary XOR target in the arithmetic candidate. -/
-theorem arithmeticNativeCode_auxiliary_bound (exponentWidth width : Nat)
+lemma arithmeticNativeCode_auxiliary_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ)
     (path : (arithmeticNativeCode exponentWidth width modulus positive base).Path) :

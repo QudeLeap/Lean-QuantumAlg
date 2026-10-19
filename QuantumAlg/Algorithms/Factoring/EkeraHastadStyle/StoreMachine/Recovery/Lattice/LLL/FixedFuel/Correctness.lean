@@ -26,7 +26,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem bit_value (actual : CShape.Value .bit) (expected : Bool)
+private lemma bit_value (actual : CShape.Value .bit) (expected : Bool)
     (equal : actual.toBool = expected) : actual = .bit expected := by
   cases actual with
   | bit value => exact congrArg CShape.Value.bit equal
@@ -35,7 +35,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual terminal and phase reads select exactly one original mathematical LLL step. -/
-theorem stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
     StoreInvariant refs input (step (model := model) refs store).1
@@ -80,7 +80,7 @@ theorem stepInto_correct (refs : Refs ctx width) (separation : Separation refs)
       exact invariant.gram
 
 /-- Every finite actual execution realizes the original mathematical fixed-fuel run invariant. -/
-theorem fixedFuelInto_correct (fuel : Nat) (refs : Refs ctx width) (separation : Separation refs)
+lemma fixedFuelInto_correct (fuel : Nat) (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
     StoreInvariant refs input (fixedFuelStep (model := model) fuel refs store).1

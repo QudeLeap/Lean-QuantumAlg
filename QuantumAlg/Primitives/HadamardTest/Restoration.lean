@@ -50,31 +50,30 @@ private instance post_borrowedSubsingleton (width : Nat) :
   infer_instance
 
 /-- Actual preparation, supplied unitary access, and result allocation restore every reference. -/
-theorem beforeMeasurement_borrowedRestored {width : Nat}
-    (unitary : UnitaryOperator (Qubits width))
+lemma beforeMeasurement_borrowedRestored (width : Nat) (actual : (model width).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    (beforeMeasurement unitary).BorrowedRestored Reference state
-      ((beforeMeasurement unitary).execute Reference state) :=
-  Circuit.borrowedRestored_seq (model := model unitary) _ _ state
-    (Circuit.borrowedRestored_prepareZero state ⟨0⟩
+    (beforeMeasurement width).BorrowedRestored Reference state
+      ((beforeMeasurement width).execute actual Reference state) :=
+  Circuit.borrowedRestored_seq (model := model width) actual _ _ state
+    (Circuit.borrowedRestored_prepareZero actual state ⟨0⟩
       (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout
       (OwnedQubitPrefix.prefix_fresh 1 width) (OwnedQubitPrefix.prefix_disjoint 1 width))
-    (Circuit.borrowedRestored_seq (model := model unitary) _ _ _
-      (Circuit.borrowedRestored_unitary_noBorrowedQuantum
+    (Circuit.borrowedRestored_seq (model := model width) actual _ _ _
+      (Circuit.borrowedRestored_unitary_noBorrowedQuantum actual
         (OwnedQubitPrefix.post_noBorrowedQuantum 1 width)
-        (nativeProgram unitary) _)
-      (Circuit.borrowedRestored_retain (model := model unitary)
+        (nativeProgram width) _)
+      (Circuit.borrowedRestored_retain (model := model width) actual
         ⟨2⟩ (.finite 2) (resultFresh width) _))
 
 /-- Complete borrowed restoration follows the real execution, independently of its input promise. -/
-theorem code_borrowedRestored {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma code_borrowedRestored (width : Nat) (actual : (model width).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    (code unitary).BorrowedRestored Reference state ((code unitary).execute Reference state) :=
-  Circuit.borrowedRestored_seq (model := model unitary) _ _ state
-    (beforeMeasurement_borrowedRestored unitary state)
-    (Circuit.borrowedRestored_measurementSequence_noBorrowedQuantum
+    (code width).BorrowedRestored Reference state ((code width).execute actual Reference state) :=
+  Circuit.borrowedRestored_seq (model := model width) actual _ _ state
+    (beforeMeasurement_borrowedRestored width actual state)
+    (Circuit.borrowedRestored_measurementSequence_noBorrowedQuantum actual
       (post_noBorrowedQuantum width) [readout width] _)
 
 end

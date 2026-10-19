@@ -71,10 +71,10 @@ def affineActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
-private theorem affineStage_pool_le (spec : ModulusSpec width)
+private lemma affineStage_pool_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (index : Fin 9)
@@ -90,7 +90,7 @@ private theorem affineStage_pool_le (spec : ModulusSpec width)
     | exact (subIntoWord_resourcePool _ _ _ _ path).le
     | exact (congrArg ResourcePool.ofList (repackRawInto_eventTrace _ _ path)).le
 
-private theorem affineBody_pool_le (spec : ModulusSpec width)
+private lemma affineBody_pool_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
@@ -101,7 +101,7 @@ private theorem affineBody_pool_le (spec : ModulusSpec width)
     (affineStageEnvelope model spec)
     (affineStage_pool_le spec leftX rightX leftY numerator denominator scratch output) path
 
-private theorem affineStage_depth_le (spec : ModulusSpec width)
+private lemma affineStage_depth_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -118,7 +118,7 @@ private theorem affineStage_depth_le (spec : ModulusSpec width)
     | exact (subIntoWord_durationDepth _ _ _ _ duration path).le
     | exact (repackRawInto_depth _ _ duration path).le
 
-private theorem affineBody_depth_le (spec : ModulusSpec width)
+private lemma affineBody_depth_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -131,7 +131,7 @@ private theorem affineBody_depth_le (spec : ModulusSpec width)
     (affineStage_depth_le spec leftX rightX leftY numerator denominator scratch output
       duration) path
 
-private theorem affineStage_duration_eventTrace (spec : ModulusSpec width)
+private lemma affineStage_duration_eventTrace (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -154,7 +154,7 @@ private theorem affineStage_duration_eventTrace (spec : ModulusSpec width)
           (fieldSubIntoWord_eventTrace _ _ _ _ path).symm)
     | exact (Nat.add_zero _).symm
 
-private theorem affineBody_duration_eventTrace (spec : ModulusSpec width)
+private lemma affineBody_duration_eventTrace (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -168,7 +168,7 @@ private theorem affineBody_duration_eventTrace (spec : ModulusSpec width)
       duration) path
 
 /-- The actual nine-call native ledger satisfies the original distinct-stage allowance. -/
-theorem affineInto_pool_le (spec : ModulusSpec width)
+lemma affineInto_pool_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
@@ -183,7 +183,7 @@ theorem affineInto_pool_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected => affineBody_pool_le _ _ _ _ _ _ _ _ selected) path
 
 /-- Every actual path satisfies the original serial duration allowance. -/
-theorem affineInto_depth_le (spec : ModulusSpec width)
+lemma affineInto_depth_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -199,7 +199,7 @@ theorem affineInto_depth_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected => affineBody_depth_le _ _ _ _ _ _ _ _ duration selected) path
 
 /-- Actual selected durations equal the same complete original native event trace. -/
-theorem affineInto_duration_eventTrace (spec : ModulusSpec width)
+lemma affineInto_duration_eventTrace (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -217,7 +217,7 @@ theorem affineInto_duration_eventTrace (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       affineBody_duration_eventTrace _ _ _ _ _ _ _ _ duration selected) path
 
-private theorem affineBody_resident_le (spec : ModulusSpec width)
+private lemma affineBody_resident_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
@@ -240,7 +240,7 @@ private theorem affineBody_resident_le (spec : ModulusSpec width)
     | exact (repackRawInto_resident _ _ selected).le.trans le_add_self
 
 /-- All original persistent tail cells coexist with the largest active arithmetic scope. -/
-theorem affineInto_resident_le (spec : ModulusSpec width)
+lemma affineInto_resident_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :
@@ -255,7 +255,7 @@ theorem affineInto_resident_le (spec : ModulusSpec width)
     (affineActiveSpace model.kind width)
     (fun cells _ transport _ selected => affineBody_resident_le _ _ _ _ _ _ _ _ selected) path
 
-private theorem affineBody_auxiliary_le (spec : ModulusSpec width)
+private lemma affineBody_auxiliary_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (affineBody spec leftX rightX leftY numerator denominator scratch output).Path) :
@@ -278,7 +278,7 @@ private theorem affineBody_auxiliary_le (spec : ModulusSpec width)
     | exact (repackRawInto_auxiliary _ _ selected).le.trans le_add_self
 
 /-- All original persistent tail cells coexist with the largest active arithmetic scope. -/
-theorem affineInto_auxiliary_le (spec : ModulusSpec width)
+lemma affineInto_auxiliary_le (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (path : (affineInto spec leftX rightX leftY numerator denominator output).Path) :

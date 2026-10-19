@@ -39,9 +39,9 @@ open QuantumAlg.Execution
   Sampling.Native.Framed.post (pre width) (pre_quantumWires width) t width
 
 /-- Execute the framed source sample on the original borrowed-base context. -/
-public def code {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.Framed.model access) (pre width) (post t width) :=
-  Sampling.Native.Framed.code (pre width) (pre_quantumWires width) access
+public def code (t width : Nat) :
+    Circuit (Sampling.Native.Framed.model t width) (pre width) (post t width) :=
+  Sampling.Native.Framed.code (pre width) (pre_quantumWires width) t width
 
 /-- The actual packed phase word retained by the source sample. -/
 public def sampleRef (t width : Nat) : CInputRef (post t width) (.bits t) :=
@@ -49,76 +49,71 @@ public def sampleRef (t width : Nat) : CInputRef (post t width) (.bits t) :=
     (pre_quantumWires width) t width).toCStorageRef
 
 /-- Return the stored phase word while listing all live output cells. -/
-@[expose] public def run {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    AlgorithmRun (Sampling.Native.Framed.model access)
+@[expose] public def run (t width : Nat) :
+    AlgorithmRun (Sampling.Native.Framed.model t width)
       (pre width) (post t width) (.bits t) :=
-  Sampling.Native.Framed.run (pre width) (pre_quantumWires width) access
+  Sampling.Native.Framed.run (pre width) (pre_quantumWires width) t width
 
 /-- The result is read from the same packed output cell as the code writes. -/
-public theorem run_result {N x t width : Nat} (access : ModExpOracleAccess N x t width)
-    (record : (run access).Record) :
-    (run access).result record = record.1.read (sampleRef t width) :=
-  Sampling.Native.Framed.run_result (pre width) (pre_quantumWires width) access record
+public lemma run_result (t width : Nat)
+    (record : (run t width).Record) :
+    (run t width).result record = record.1.read (sampleRef t width) :=
+  Sampling.Native.Framed.run_result (pre width) (pre_quantumWires width) t width record
 
 /-- The complete output manifest includes the original borrowed base. -/
-public theorem run_output_listing {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    (run access).output.listing = (post t width).keys := rfl
+public lemma run_output_listing (t width : Nat) :
+    (run t width).output.listing = (post t width).keys := rfl
 
 /-- The original caller-owned classical cell retains its identity and storage role. -/
-theorem borrowedCells {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
+lemma borrowedCells (t width : Nat) :
     (post t width).borrowedClassicalCells =
       (pre width).borrowedClassicalCells :=
-  (code access).borrowedClassicalCells_preserved
+  (code t width).borrowedClassicalCells_preserved
 
 /-- The actual sampler preserves all correlations of the borrowed base and reference. -/
-public theorem borrowedRestored {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
+public lemma borrowedRestored (t width : Nat)
+    (environment : (Sampling.Native.Framed.model t width).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (pre width) Reference
-      ((Sampling.Native.Framed.model access).HiddenState × History)) :
-    (code access).BorrowedRestored Reference state
-      ((code access).execute Reference state) :=
+      ((Sampling.Native.Framed.model t width).HiddenState × History)) :
+    (code t width).BorrowedRestored Reference state
+      ((code t width).execute environment Reference state) :=
   Sampling.Native.Framed.code_borrowedRestored (pre width)
-    (pre_quantumWires width) access state
+    (pre_quantumWires width) t width environment state
 
 /-- Exact events of the actual sample use the independent native source budget. -/
-public theorem events {N x t width : Nat} (access : ModExpOracleAccess N x t width)
-    (path : (code access).Path) :
-    (code access).resourcePool path = Sampling.Native.eventBudget access :=
-  Sampling.Native.Framed.code_events (pre width) (pre_quantumWires width) access path
+public lemma events (t width : Nat)
+    (path : (code t width).Path) :
+    (code t width).resourcePool path = Sampling.Native.eventBudget t width :=
+  Sampling.Native.Framed.code_events (pre width) (pre_quantumWires width) t width path
 
 /-- One actual source query occurs on every sample path. -/
-public theorem modExpCount {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    ResourcePool.count (model := Sampling.Native.Framed.model access)
+public lemma modExpCount (t width : Nat) (path : (code t width).Path) :
+    ResourcePool.count (model := Sampling.Native.Framed.model t width)
       (.oracle UnitarySource.Coordinate.ordinary)
-      ((code access).resourcePool path) = 1 :=
+      ((code t width).resourcePool path) = 1 :=
   Sampling.Native.Framed.code_modExpCount (pre width)
-    (pre_quantumWires width) access path
+    (pre_quantumWires width) t width path
 
 /-- Complete source-sample unit-event depth includes every Z write and packing. -/
-public theorem depth {N x t width : Nat} (access : ModExpOracleAccess N x t width)
-    (path : (code access).Path) :
-    (code access).depth (fun _ => 1) path = Sampling.Native.depthBudget t width :=
-  Sampling.Native.Framed.code_depth (pre width) (pre_quantumWires width) access path
+public lemma depth (t width : Nat)
+    (path : (code t width).Path) :
+    (code t width).depth (fun _ => 1) path = Sampling.Native.depthBudget t width :=
+  Sampling.Native.Framed.code_depth (pre width) (pre_quantumWires width) t width path
 
 /-- Resident input capacity and fresh sample capacity stay separately visible. -/
-public theorem residentSpace {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    (code access).peakResidentSpace path ≤
+public lemma residentSpace (t width : Nat) (path : (code t width).Path) :
+    (code t width).peakResidentSpace path ≤
       Sampling.Native.spaceBudget t width + (pre width).residentSpace :=
   Sampling.Native.Framed.code_residentSpace (pre width)
-    (pre_quantumWires width) access path
+    (pre_quantumWires width) t width path
 
 /-- Auxiliary capacity charges fresh storage while retaining the borrowed input. -/
-public theorem auxiliarySpace {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    (code access).peakAuxiliarySpace path ≤
+public lemma auxiliarySpace (t width : Nat) (path : (code t width).Path) :
+    (code t width).peakAuxiliarySpace path ≤
       Sampling.Native.spaceBudget t width + (pre width).auxiliarySpace :=
   Sampling.Native.Framed.code_auxiliarySpace (pre width)
-    (pre_quantumWires width) access path
+    (pre_quantumWires width) t width path
 
 end
 

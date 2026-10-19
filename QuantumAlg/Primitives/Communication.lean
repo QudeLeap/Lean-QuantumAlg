@@ -41,7 +41,7 @@ public def HasExactCounts (profile : CommunicationProfile)
     profile.bellPairs = bellPairs
 
 @[simp]
-public theorem hasExactCounts_mk (classicalBits transmittedQubits bellPairs : Nat) :
+public lemma hasExactCounts_mk (classicalBits transmittedQubits bellPairs : Nat) :
     HasExactCounts
       { classicalBits := classicalBits, transmittedQubits := transmittedQubits,
         bellPairs := bellPairs }

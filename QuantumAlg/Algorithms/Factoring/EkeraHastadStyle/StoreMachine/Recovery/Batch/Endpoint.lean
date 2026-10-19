@@ -68,7 +68,8 @@ def batchOutputValue {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
       (LatticePairRecoveryBatch.preparedSamples
         (preparedResidue sample) refs.tail.terminals before))
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Run the seeded pair fold and then materialize its optional result. -/
@@ -85,24 +86,24 @@ noncomputable def step (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     (LatticeBatchRecoveryOutput.step refs.output) store
 
 /-- Recovery and packing are composed through their actual intermediate store. -/
-theorem step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma step_store (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     (step input refs store).1 = (LatticeBatchRecoveryOutput.step refs.output
       (LatticeBatchRecoveryTail.step input refs.tail store).1).1 :=
   Circuit.sequenceStoreRecord_store _ _ _ _ store
 
 /-- The complete shaped endpoint execution retains the actual path and every reference. -/
-theorem into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_execute (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into input refs).execute Reference state = state.mapClassical (fun entry =>
+    (into input refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord _ _ _ _
+  Circuit.execute_sequenceStoreRecord (environment := environment) _ _ _ _
     (LatticeBatchRecoveryTail.into_execute input refs.tail)
     (LatticeBatchRecoveryOutput.into_execute refs.output) Reference state
 
 /-- Every caller read outside the complete endpoint footprint survives unconditionally. -/
-theorem into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma into_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step input refs store).1.read other = store.read other := by
   rw [step_store]
@@ -118,7 +119,7 @@ structure Relation (sample : Fin (2 ^ residueSamplingBits N)) (refs : Refs ctx N
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- The actual recovery-and-packing sequence emits the original shaped fixed-batch value. -/
-theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : LatticeBatchRecoveryTail.InitialConditions input sample store refs.tail) :
     Relation sample refs store (step input refs store).1 := by
@@ -138,7 +139,7 @@ def eventEnvelope (N : Nat) : ResourcePool model :=
 def depthBound (N : Nat) : Nat := LatticeBatchRecoveryTail.depthBound N + 2
 
 omit [BitWord.Selected model] in
-private theorem sequence_pool_le (first second : Circuit model ctx ctx)
+private lemma sequence_pool_le (first second : Circuit model ctx ctx)
     (firstBound secondBound : ResourcePool model)
     (firstLe : ∀ path, first.resourcePool path ≤ firstBound)
     (secondLe : ∀ path, second.resourcePool path ≤ secondBound)
@@ -149,7 +150,7 @@ private theorem sequence_pool_le (first second : Circuit model ctx ctx)
   exact add_le_add (firstLe path.1) (secondLe path.2)
 
 /-- Every actual native coordinate meets the independent complete endpoint allowance. -/
-theorem into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).resourcePool path ≤ eventEnvelope N := by
   unfold into at path ⊢
   unfold eventEnvelope
@@ -159,13 +160,13 @@ theorem into_pool_le (input : Input N) (refs : Refs ctx N) (path : (into input r
       (LatticeBatchRecoveryOutput.into_pool_le refs.output) path
 
 /-- The actual complete endpoint meets its independent sequential dependency-depth bound. -/
-theorem into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_depth_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).depth (fun _ => 1) path ≤ depthBound N :=
   Nat.add_le_add (LatticeBatchRecoveryTail.into_depth_le input refs.tail path.1)
     (LatticeBatchRecoveryOutput.into_depth_le refs.output path.2)
 
 /-- The endpoint resident peak includes the same actual native-power scope as recovery. -/
-theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakResidentSpace path ≤
       ctx.residentSpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakResidentSpace_seq (LatticeBatchRecoveryTail.into input refs.tail)
@@ -175,7 +176,7 @@ theorem into_resident_le (input : Input N) (refs : Refs ctx N) (path : (into inp
       (le_add_of_nonneg_right zero_le))
 
 /-- Auxiliary accounting includes the actual reusable recovery scope and existing context roles. -/
-theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
+lemma into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into input refs).Path) :
     (into input refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace + Modular.NativePower.powerSpace model.kind (modulusBits N) := by
   refine (Circuit.peakAuxiliarySpace_seq (LatticeBatchRecoveryTail.into input refs.tail)
@@ -185,12 +186,12 @@ theorem into_auxiliary_le (input : Input N) (refs : Refs ctx N) (path : (into in
       (le_add_of_nonneg_right zero_le))
 
 /-- Recovery and packing jointly restore borrowed systems with arbitrary external references. -/
-theorem into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
+lemma into_borrowedRestored (input : Input N) (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into input refs).BorrowedRestored Reference state
-      ((into input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((into input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeBatchRecoveryTail.into_borrowedRestored input refs.tail Reference state)
     (LatticeBatchRecoveryOutput.into_borrowedRestored refs.output Reference _)
 

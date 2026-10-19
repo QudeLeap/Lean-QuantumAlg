@@ -6,8 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Sample.Probability
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Sample.Separation
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Sample.Probability
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Sample.Separation
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Selected.Law
 
 /-!
@@ -42,7 +44,7 @@ private def conditionalProduct (count : Nat)
     (parameter : (ParameterShape N).Value) : ℂ :=
   ∏ index : Fin count, Declared.sourceWeight N input parameter (outcomes index)
 
-private theorem conditionalProduct_step (count : Nat)
+private lemma conditionalProduct_step (count : Nat)
     (outcomes : Fin (count + 1) → Fin (measurementBits N) → Bool)
     (parameter : (ParameterShape N).Value) (weight : ℂ) :
     (weight * conditionalProduct N input count
@@ -53,7 +55,28 @@ private theorem conditionalProduct_step (count : Nat)
   rw [Fin.prod_univ_succ]
   ring
 
-private theorem reference_congr {Reference : Register} {History : Type} [Fintype History]
+private lemma conditionalProduct_read_step {shape : CShape}
+    (observed : CInputRef (context base noQuantum N) shape)
+    (weight : (ParameterShape N).Value → shape.Value → ℂ) (count : Nat)
+    (outcomes : Fin (count + 1) → Fin (measurementBits N) → Bool)
+    (store : Store (context base noQuantum N)) :
+    (weight (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
+      (store.read observed) * conditionalProduct N input count
+        (fun index => outcomes index.succ)
+        (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))) *
+      Declared.sourceWeight N input
+        (store.read (Native.liftInput (storageContext base N)
+          (storage_empty base noQuantum N) N (parameter base N))) (outcomes 0) =
+      weight (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
+        (store.read observed) * conditionalProduct N input (count + 1) outcomes
+          (store.read (.storage (parameterRef base noQuantum N).toCStorageRef)) := by
+  rw [parameter_read base noQuantum N]
+  exact conditionalProduct_step N input count outcomes
+    (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
+    (weight (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
+      (store.read observed))
+
+private lemma reference_congr {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference History)
     (first second : Store (context base noQuantum N) → ℂ)
     (equal : ∀ store, first store = second store) (leftRef rightRef : Reference.Index) :
@@ -63,7 +86,7 @@ private theorem reference_congr {Reference : Register} {History : Type} [Fintype
     ExecutionState.referenceFiberSum state (fun entry _ => observe entry.1) leftRef rightRef)
       (funext equal)
 
-private theorem range_reference :
+private lemma range_reference :
     ∀ (count : Nat) (indices : Fin count → Fin 16) (_distinct : Function.Injective indices)
       {shape : CShape} (observed : CInputRef (context base noQuantum N) shape)
       (_measuredSeparate : ∀ position,
@@ -76,13 +99,14 @@ private theorem range_reference :
         (terminalRef base noQuantum N (indices index)).key ∉ observed.storageKeys)
       {Reference : Register} {History : Type} [Fintype History]
       (state : State (context base noQuantum N) Reference
-        ((model input).HiddenState × History))
+        ((model N).HiddenState × History))
       (weight : (ParameterShape N).Value → shape.Value → ℂ)
       (outcomes : Fin count → Fin (measurementBits N) → Bool)
       (leftRef rightRef : Reference.Index),
       ExecutionState.referenceFiberSum
         ((Circuit.forRange count (fun index =>
-          reusedSample base noQuantum N input (indices index))).execute Reference state)
+          reusedSample base noQuantum N (indices index))).execute (sourceEnvironment input)
+            Reference state)
         (fun entry _ => weight
           (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
           (entry.1.read observed) *
@@ -97,11 +121,12 @@ private theorem range_reference :
   | zero =>
       intro indices _distinct shape observed _measuredSeparate _workingSeparate
         _slotSeparate Reference History _ state weight outcomes leftRef rightRef
-      have executed := Circuit.execute_id_mapClassical
-        (model := model input) Reference state
+      have executed := Circuit.execute_id_mapClassical (environment := (sourceEnvironment
+        input)) (allowAllocation := true)
+        (model := model N) Reference state
       have mapped := congrArg
         (fun output : State (context base noQuantum N) Reference
-          ((model input).HiddenState × (History × Unit)) =>
+          ((model N).HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum output
             (fun entry _ => weight
               (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
@@ -119,10 +144,10 @@ private theorem range_reference :
       let joint : CInputRef (context base noQuantum N)
           (.product shape (.bits (measurementBits N))) :=
         .product observed (.storage head.toCStorageRef)
-      let first := reusedSample base noQuantum N input (indices 0)
+      let first := reusedSample base noQuantum N (indices 0)
       let rest := Circuit.forRange count fun index =>
-        reusedSample base noQuantum N input (indices index.succ)
-      let advanced := first.execute Reference state
+        reusedSample base noQuantum N (indices index.succ)
+      let advanced := first.execute (sourceEnvironment input) Reference state
       let headIndicator := fun value : (CShape.bits (measurementBits N)).Value =>
         if value = CShape.Value.bits (outcomes 0) then (1 : ℂ) else 0
       let tailWeight := fun parameter : (ParameterShape N).Value =>
@@ -159,7 +184,8 @@ private theorem range_reference :
         weight (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
           (store.read observed) *
           terminalIndicator base noQuantum N (count + 1) indices outcomes store
-      have aligned := reference_congr base noQuantum N (rest.execute Reference advanced)
+      have aligned := reference_congr base noQuantum N (rest.execute (sourceEnvironment input)
+        Reference advanced)
         finalWeight (fun store => tailWeight
           (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
           (store.read joint) * terminalIndicator base noQuantum N count
@@ -210,7 +236,7 @@ private theorem range_reference :
           (weight (store.read parameterRead) (store.read observed) *
             conditionalProduct N input count _ (store.read parameterRead)) *
               headIndicator (store.read (.storage head.toCStorageRef))
-        ring) leftRef rightRef
+        exact mul_right_comm _ _ _) leftRef rightRef
       have combined := reference_congr base noQuantum N state
         (fun store => firstWeight (store.read (.product parameterRead observed)) *
           Declared.sourceWeight N input
@@ -219,20 +245,16 @@ private theorem range_reference :
         (fun store => weight (store.read parameterRead) (store.read observed) *
           conditionalProduct N input (count + 1) outcomes
             (store.read parameterRead)) (fun store => by
-        have readEqual := congrArg store.read
-          (parameter_read base noQuantum N)
-        change (weight (store.read parameterRead) (store.read observed) *
-          conditionalProduct N input count _ (store.read parameterRead)) * _ = _
-        rw [readEqual]
-        exact conditionalProduct_step N input count outcomes (store.read parameterRead)
-          (weight (store.read parameterRead) (store.read observed))) leftRef rightRef
-      exact (Circuit.referenceFiberSum_execute_seq first rest state finalWeight
+        exact conditionalProduct_read_step base noQuantum N input observed weight
+          count outcomes store) leftRef rightRef
+      exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+        first rest state finalWeight
         leftRef rightRef).trans (aligned.trans (tailLaw.trans
           (reordered.trans (firstLaw.trans combined))))
 
 /-- Sixteen paid same-bank stages retain any separated old read jointly with
 their physical outcomes and their one actual retained parameter. -/
-theorem reusedTerminals_frame_reference
+lemma reusedTerminals_frame_reference
     {shape : CShape} (observed : CInputRef (context base noQuantum N) shape)
     (measuredSeparate : ∀ position,
       (Native.cells (storageContext base N) (storage_empty base noQuantum N) N position).key ∉
@@ -243,12 +265,13 @@ theorem reusedTerminals_frame_reference
     (slotsSeparate : ∀ index, (terminalRef base noQuantum N index).key ∉ observed.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : (ParameterShape N).Value → shape.Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Circuit.forRange 16 (reusedSample base noQuantum N input)).execute Reference state)
+      ((Circuit.forRange 16 (reusedSample base noQuantum N)).execute (sourceEnvironment input)
+        Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read observed) *
@@ -265,15 +288,16 @@ theorem reusedTerminals_frame_reference
       measuredSeparate workingSeparate slotsSeparate state weight outcomes leftRef rightRef)
 
 /-- The original source read is a specialization of the paid reuse frame law. -/
-theorem reusedTerminals_reference
+lemma reusedTerminals_reference
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Circuit.forRange 16 (reusedSample base noQuantum N input)).execute Reference state)
+      ((Circuit.forRange 16 (reusedSample base noQuantum N)).execute (sourceEnvironment input)
+        Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *
@@ -296,7 +320,7 @@ theorem reusedTerminals_reference
 
 /-- The first prepared member and fifteen paid successors retain any
 protected structural read jointly with all sixteen physical outcomes. -/
-theorem firstTerminals_frame_reference
+lemma firstTerminals_frame_reference
     {shape : CShape} (observed : CInputRef (context base noQuantum N) shape)
     (measuredSeparate : ∀ position,
       (Native.cells (storageContext base N) (storage_empty base noQuantum N) N position).key ∉
@@ -306,13 +330,13 @@ theorem firstTerminals_frame_reference
         observed.storageKeys)
     (slotSeparate : ∀ index, (terminalRef base noQuantum N index).key ∉ observed.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum N) Reference ((model input).HiddenState × History))
+    (state : State (context base noQuantum N) Reference ((model N).HiddenState × History))
     (seeded : BasisSeeded.Holds (context base noQuantum N).quantumLayout.zeroLabel state)
     (weight : (ParameterShape N).Value → shape.Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((firstBatch base noQuantum N input).execute Reference state)
+      ((firstBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read observed) *
@@ -331,11 +355,11 @@ theorem firstTerminals_frame_reference
   let joint : CInputRef (context base noQuantum N)
       (.product shape (.bits (measurementBits N))) :=
     .product observed (.storage head.toCStorageRef)
-  let first := (Declared.body (storageContext base N) (storage_empty base noQuantum N) N input
-    (parameter base N)).seq (copy base noQuantum N input (indices 0))
+  let first := (Declared.body (storageContext base N) (storage_empty base noQuantum N) N
+    (parameter base N)).seq (copy base noQuantum N (indices 0))
   let rest := Circuit.forRange count fun index =>
-    reusedSample base noQuantum N input (indices index.succ)
-  let advanced := first.execute Reference state
+    reusedSample base noQuantum N (indices index.succ)
+  let advanced := first.execute (sourceEnvironment input) Reference state
   let headIndicator := fun value : (CShape.bits (measurementBits N)).Value =>
     if value = CShape.Value.bits (outcomes 0) then (1 : ℂ) else 0
   let tailWeight := fun parameter : (ParameterShape N).Value =>
@@ -373,7 +397,8 @@ theorem firstTerminals_frame_reference
     weight (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
       (store.read observed) *
       terminalIndicator base noQuantum N (count + 1) indices outcomes store
-  have aligned := reference_congr base noQuantum N (rest.execute Reference advanced)
+  have aligned := reference_congr base noQuantum N (rest.execute (sourceEnvironment input)
+    Reference advanced)
     finalWeight (fun store => tailWeight
       (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
       (store.read joint) * terminalIndicator base noQuantum N count
@@ -446,20 +471,21 @@ theorem firstTerminals_frame_reference
     rw [readEqual]
     exact conditionalProduct_step N input count outcomes (store.read parameterRead)
       (weight (store.read parameterRead) (store.read observed))) leftRef rightRef
-  exact (Circuit.referenceFiberSum_execute_seq first rest state finalWeight
+  exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input)) first
+    rest state finalWeight
     leftRef rightRef).trans (aligned.trans (tailLaw.trans
       (reordered.trans (firstLaw.trans (firstFiber.trans combined)))))
 
 /-- The original source read is a specialization of the protected-read law. -/
-theorem firstTerminals_reference
+lemma firstTerminals_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context base noQuantum N) Reference ((model input).HiddenState × History))
+    (state : State (context base noQuantum N) Reference ((model N).HiddenState × History))
     (seeded : BasisSeeded.Holds (context base noQuantum N).quantumLayout.zeroLabel state)
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((firstBatch base noQuantum N input).execute Reference state)
+      ((firstBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *

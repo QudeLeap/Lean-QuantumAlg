@@ -46,7 +46,7 @@ def nativeEnvelope (width : Nat) : ResourcePool model :=
             (NativeSub.nativeEnvelope (model := model) work +
               ResourcePool.singleton (nativeEvent (model := model) (.wordBinary .add work)))))))
 
-private theorem candidates_events (input : CInputRef ctx (.unsignedWord width))
+private lemma candidates_events (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (path : (candidates (model := model) input modulus refs).Path) :
     (candidates (model := model) input modulus refs).eventTrace path =
@@ -70,7 +70,7 @@ private theorem candidates_events (input : CInputRef ctx (.unsignedWord width))
   rfl
 
 /-- Every actual candidate path fits the allowance in each complete native coordinate. -/
-theorem nativeQuadratic_candidates_pool_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_pool_le (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (path : (candidates (model := model) input modulus refs).Path) :
     (candidates (model := model) input modulus refs).resourcePool path ≤ nativeEnvelope (model :=
@@ -91,14 +91,14 @@ theorem nativeQuadratic_candidates_pool_le (input : CInputRef ctx (.unsignedWord
             (.storage refs.root.toCStorageRef) refs.first path.2.2.2.2.2.1) le_rfl)))))
 
 /-- The complete independent coordinate allowance includes both labels of each subtraction. -/
-theorem nativeQuadratic_nativeEnvelope_card (width : Nat) :
+lemma nativeQuadratic_nativeEnvelope_card (width : Nat) :
     (nativeEnvelope (model := model) width).card = 7 * RSA.quadraticWordWidth width + 12 := by
   simp [nativeEnvelope, NativeSub.nativeSub_nativeEnvelope_card,
     NativeSqrt.nativeSqrt_nativeEnvelope_card, ResourcePool.singleton]
   omega
 
 /-- Actual event totals count only the selected label of each real subtraction branch. -/
-theorem nativeQuadratic_candidates_eventCount_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_eventCount_le (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (path : (candidates (model := model) input modulus refs).Path) :
     ((candidates (model := model) input modulus refs).resourcePool path).card ≤
@@ -127,7 +127,7 @@ theorem nativeQuadratic_candidates_eventCount_le (input : CInputRef ctx (.unsign
   omega
 
 /-- Unit-duration depth includes every actual sequential dependency in the candidate calculation. -/
-theorem nativeQuadratic_candidates_unitDepth_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_unitDepth_le (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (path : (candidates (model := model) input modulus refs).Path) :
     (candidates (model := model) input modulus refs).depth (fun _ => 1) path ≤

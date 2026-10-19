@@ -30,7 +30,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.CoefficientPackedStep
 open CoefficientCapacity
 
 /-- Consuming one actual quotient bit enlarges the literal remainder region by exactly one bit. -/
-theorem remainder_width_succ (state : IterationState) (modulus count : Nat)
+lemma remainder_width_succ (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     work1RemainderWidth state modulus (count + 1) =
@@ -46,7 +46,7 @@ def retainedPrefix (state : IterationState) (modulus count : Nat)
   let next := work1Payload state modulus (count + 1) valid conserved
   (next.coefficientBits.reverse ++ (0 : BitVec 1)) ++ next.quotientBits
 
-private theorem half_prefix_nat (head quotient oldWidth nextWidth : Nat)
+private lemma half_prefix_nat (head quotient oldWidth nextWidth : Nat)
     (widthEq : oldWidth = nextWidth + 1) :
     (head * 2 ^ oldWidth + quotient) / 2 = head * 2 ^ nextWidth + quotient / 2 := by
   rw [widthEq, Nat.pow_succ]
@@ -54,7 +54,7 @@ private theorem half_prefix_nat (head quotient oldWidth nextWidth : Nat)
     quotient + (head * 2 ^ nextWidth) * 2 by ring,
     Nat.add_mul_div_right _ _ (by decide : 0 < 2), Nat.add_comm]
 
-private theorem resegment_nat (head quotient remainder quotientWidth oldWidth nextWidth : Nat)
+private lemma resegment_nat (head quotient remainder quotientWidth oldWidth nextWidth : Nat)
     (widthEq : nextWidth = oldWidth + 1) :
     (head * 2 ^ quotientWidth + quotient) * 2 ^ (oldWidth + 1) + remainder =
       head * 2 ^ (quotientWidth + nextWidth) + (quotient * 2 ^ nextWidth + remainder) := by
@@ -62,7 +62,7 @@ private theorem resegment_nat (head quotient remainder quotientWidth oldWidth ne
   simp only [Nat.pow_add, Nat.pow_one]
   ring
 
-private theorem fullPrefix_half (state : IterationState) (modulus count : Nat)
+private lemma fullPrefix_half (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     let old := work1Payload state modulus count valid conserved
@@ -85,7 +85,7 @@ private theorem fullPrefix_half (state : IterationState) (modulus count : Nat)
     (state.quotient.size - count) (state.quotient.size - (count + 1)) nextWidth
 
 /-- Reading above the consumed bit returns exactly the actual next quotient prefix. -/
-theorem original_prefix (state : IterationState) (modulus count : Nat)
+lemma original_prefix (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     ((WordPacking.packWork1 (work1Payload state modulus count valid conserved)).extractLsb'
@@ -112,7 +112,7 @@ theorem original_prefix (state : IterationState) (modulus count : Nat)
   exact Nat.mod_eq_of_lt kept.isLt
 
 /-- The complete lower remainder is retained before and after the quotient boundary changes. -/
-theorem original_low (state : IterationState) (modulus count : Nat)
+lemma original_low (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     (WordPacking.packWork1 (work1Payload state modulus count valid conserved)).setWidth
       (work1RemainderWidth state modulus count) =
@@ -128,7 +128,7 @@ theorem original_low (state : IterationState) (modulus count : Nat)
   exact lower
 
 /-- The physical bit immediately above that remainder is precisely the next actual quotient bit. -/
-theorem original_digit (state : IterationState) (modulus count : Nat)
+lemma original_digit (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     (WordPacking.packWork1 (work1Payload state modulus count valid conserved)).getLsbD
@@ -142,7 +142,7 @@ theorem original_digit (state : IterationState) (modulus count : Nat)
   exact Nat.testBit_zero _
 
 /-- The retained prefix and zero followed by the old remainder occupy the complete original word. -/
-theorem assembly_width (state : IterationState) (modulus count : Nat)
+lemma assembly_width (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     ((state.coefficient.size + 1) + (state.quotient.size - (count + 1))) +
@@ -160,7 +160,7 @@ def clearedWord (state : IterationState) (modulus count : Nat)
       (assembly_width state modulus count valid conserved beforeEnd)
 
 /-- The actual cleared-bit layout is exactly the next full Work1 payload with its moved boundary. -/
-theorem clearedWord_eq_next (state : IterationState) (modulus count : Nat)
+lemma clearedWord_eq_next (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     clearedWord state modulus count valid conserved beforeEnd =

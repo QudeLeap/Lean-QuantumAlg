@@ -48,7 +48,7 @@ def pairRefs {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   savedTarget := LatticePairStateWorkspaceViews.savedTargetRefs state
 
 /-- The three nearest-plane quotient outputs are workspace-owned. -/
-theorem nearestOutputRoles {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma nearestOutputRoles {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceViews.Layout.Cells ctx N)
     (targetScratch : LatticeWideTargetWorkspaceViews.Scratch.Cells ctx N)
     (lllScratch : LatticeFixedFuelScratchWorkspaceViews.Scratch.Cells ctx N)

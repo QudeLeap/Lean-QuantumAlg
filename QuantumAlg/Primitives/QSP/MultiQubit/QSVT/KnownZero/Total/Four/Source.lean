@@ -21,30 +21,47 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total.Four
 open SharedFour
 noncomputable section
 
-private theorem exists_positive_branch {m n L : Nat} {P : Polynomial ℝ}
-    (U : UnitaryOperator (Qubits (m + n)))
-    (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
-    (hermitian : A.IsHermitian)
+private lemma exists_positive_branch {L : Nat} {P : Polynomial ℝ}
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L P) (degree : 0 < L) :
     ∃ phases : List ℝ, phases.length = L ∧
+      ∀ (m n : Nat) (U : UnitaryOperator (Qubits (m + n)))
+        (A : HilbertOperator (Qubits n)), ExactBlockEncoding m n U A → A.IsHermitian →
       projectedBlock m n (phasePlusBlock (initializedBranch U phases 1)) =
         polynomialOperator (realPolynomialToComplex P) A := by
-  obtain ⟨phases, length, correct, _, _⟩ :=
-    Total.exists_total_real_word U true source degree
+  let certificate :=
+    ReflectionQSPPhaseSynthesis.chooseRealBoundedPhaseCertificateOfSourceHypotheses source
+  let phases := projectedPhasesFromQSPCertificate
+    certificate.certificate.φ₀ certificate.certificate.φs
+  have length : phases.length = L :=
+    (projectedPhasesFromQSPCertificate_length _ _).trans certificate.certificate.length_eq
+  refine ⟨phases, length, ?_⟩
+  intro m n U A encoding hermitian
+  have correct := Native.circuit_of_real_certificate U
+    (OrthogonalProjector.zeroAncilla m n) (OrthogonalProjector.zeroAncilla m n)
+    true certificate degree
+  have expanded : projectedPhasePlusBlock (OrthogonalProjector.zeroAncilla m n)
+      (OrthogonalProjector.zeroAncilla m n)
+      ((Total.circuit (m := m) (n := n) true phases).binaryMatrix
+        (UnitarySource.interpretation U true true false)) =
+        singularValuePolynomial (OrthogonalProjector.zeroAncilla m n) L
+          (realPolynomialToComplex P)
+          (projectedUnitaryBlock (OrthogonalProjector.zeroAncilla m n)
+            (OrthogonalProjector.zeroAncilla m n) U) := by
+    rw [Total.totalCircuit_matrix]
+    simpa only [projectedOutputProjector, ite_self] using correct
   have encoded := Total.totalZeroBlockCircuit_correct U true phases encoding hermitian
-    (ReflectionQSPPhaseSynthesis.hasParity_realPolynomialToComplex source.parity) correct
+    (ReflectionQSPPhaseSynthesis.hasParity_realPolynomialToComplex source.parity) expanded
   have block := encoded.projected_block_eq
   rw [Total.totalZeroBlockCircuit_matrix, projectedBlock_reassociatedPhaseHadamardWrapper] at block
-  exact ⟨phases, length, by simpa only [totalInitializedBranch_one] using block⟩
+  simpa only [totalInitializedBranch_one] using block
 
-/-- Every matching-parity source polynomial has a native branch, including the constant boundary. -/
-theorem exists_total_initialized_polynomial_branch {m n L : Nat} {P : Polynomial ℝ}
-    (U : UnitaryOperator (Qubits (m + n)))
-    (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
-    (hermitian : A.IsHermitian)
+/-- Polynomial-only branch data work for every encoding, including the constant boundary. -/
+lemma exists_total_initialized_polynomial_branch {L : Nat} {P : Polynomial ℝ}
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L P) :
     ∃ phases : List ℝ, ∃ constant : ℝ, phases.length = L ∧
       (0 < L → constant = 1) ∧
+      ∀ (m n : Nat) (U : UnitaryOperator (Qubits (m + n)))
+        (A : HilbertOperator (Qubits n)), ExactBlockEncoding m n U A → A.IsHermitian →
       projectedBlock m n (phasePlusBlock (initializedBranch U phases constant)) =
         polynomialOperator (realPolynomialToComplex P) A := by
   by_cases zero : L = 0
@@ -55,16 +72,17 @@ theorem exists_total_initialized_polynomial_branch {m n L : Nat} {P : Polynomial
     have bound : |P.coeff 0| ≤ 1 := by
       rw [Polynomial.coeff_zero_eq_eval_zero]
       exact source.bounded 0 (by constructor <;> norm_num)
+    refine ⟨[], P.coeff 0, rfl, by omega, ?_⟩
+    intro m n U A _encoding _hermitian
     have polynomial : polynomialOperator (realPolynomialToComplex P) A =
         (P.coeff 0 : ℂ) • (1 : HilbertOperator (Qubits n)) := by
       rw [constantPolynomial]
       simp [realPolynomialToComplex, polynomialOperator_C]
-    refine ⟨[], P.coeff 0, rfl, by omega, ?_⟩
     rw [totalInitializedBranch_constant_block U _ (abs_le.mp bound).1 (abs_le.mp bound).2]
     exact polynomial.symm
   · have degree : 0 < L := Nat.pos_of_ne_zero zero
     obtain ⟨phases, length, correct⟩ :=
-      exists_positive_branch U A encoding hermitian source degree
+      exists_positive_branch source degree
     exact ⟨phases, 1, length, fun _ => rfl, correct⟩
 
 end

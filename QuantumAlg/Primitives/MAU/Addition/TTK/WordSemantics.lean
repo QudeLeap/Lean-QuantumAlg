@@ -28,11 +28,11 @@ def outputWord {n : Nat} (state : OverflowRegisters n) : BitVec (n + 1) :=
   BitVec.cons state.2 (BitVec.ofFin state.1.2)
 
 /-- Exact natural value of the complete existing output word, including arbitrary high bit. -/
-theorem outputWord_toNat {n : Nat} (state : OverflowRegisters n) :
+lemma outputWord_toNat {n : Nat} (state : OverflowRegisters n) :
     (outputWord state).toNat = state.2.toNat * 2 ^ n + state.1.2.val := by
   simp only [outputWord, BitVec.toNat_cons', Nat.shiftLeft_eq, BitVec.toNat_ofFin]
 
-private theorem packed_add_nat (base total : Nat) (bounded : total < 2 * base) (sign : Bool) :
+private lemma packed_add_nat (base total : Nat) (bounded : total < 2 * base) (sign : Bool) :
     (sign ^^ decide (base ≤ total)).toNat * base + total % base =
       (sign.toNat * base + total) % (2 * base) := by
   by_cases carry : base ≤ total
@@ -62,7 +62,7 @@ private theorem packed_add_nat (base total : Nat) (bounded : total < 2 * base) (
           Nat.mod_eq_of_lt below, Nat.mod_eq_of_lt (by omega : base + total < 2 * base)]
 
 /-- The complete arbitrary-sign output of actual TTK addition is ordinary finite-word addition. -/
-theorem ttkOverflowOutput_word {n : Nat} (state : OverflowRegisters n) :
+lemma ttkOverflowOutput_word {n : Nat} (state : OverflowRegisters n) :
     outputWord (overflowOutput state) =
       outputWord state + (BitVec.ofFin state.1.1).setWidth (n + 1) := by
   apply BitVec.eq_of_toNat_eq
@@ -82,7 +82,7 @@ theorem ttkOverflowOutput_word {n : Nat} (state : OverflowRegisters n) :
     _ = _ := by congr 1 <;> omega
 
 /-- The complete arbitrary-sign output of inverse TTK addition is finite-word subtraction. -/
-theorem ttkOverflowSubtractionOutput_word {n : Nat} (state : OverflowRegisters n) :
+lemma ttkOverflowSubtractionOutput_word {n : Nat} (state : OverflowRegisters n) :
     outputWord (overflowSubtractionOutput state) =
       outputWord state - (BitVec.ofFin state.1.1).setWidth (n + 1) := by
   have reconstructed :
@@ -99,14 +99,14 @@ theorem ttkOverflowSubtractionOutput_word {n : Nat} (state : OverflowRegisters n
       (BitVec.ofFin state.1.1).setWidth (n + 1)) reconstructed
 
 /-- The same complete-word equation holds for the actual implemented overflow gate list. -/
-theorem ttkOverflow_step_word (n : Nat) (state : OverflowRegisters n) :
+lemma ttkOverflow_step_word (n : Nat) (state : OverflowRegisters n) :
     outputWord (EncodedBit.GateSpec.stepList (overflowGates n) state) =
       outputWord state + (BitVec.ofFin state.1.1).setWidth (n + 1) := by
   rw [ttkOverflow_step]
   exact ttkOverflowOutput_word state
 
 /-- The actual inverse elementary gate list gives the complete-word subtraction equation. -/
-theorem ttkOverflowSubtraction_step_word (n : Nat) (state : OverflowRegisters n) :
+lemma ttkOverflowSubtraction_step_word (n : Nat) (state : OverflowRegisters n) :
     outputWord (EncodedBit.GateSpec.stepList (overflowSubtractionGates n) state) =
       outputWord state - (BitVec.ofFin state.1.1).setWidth (n + 1) := by
   rw [ttkOverflowSubtraction_step]

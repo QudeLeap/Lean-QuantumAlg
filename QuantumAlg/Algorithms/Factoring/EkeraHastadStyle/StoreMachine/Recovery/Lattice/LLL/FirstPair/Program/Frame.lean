@@ -54,7 +54,7 @@ def mutableCells : List TransitionCell :=
   divisionCells ++ reductionCells ++ refreshCells ++ comparisonCells ++ swapCells
 
 /-- The original distinct identities give each named basis read its phase-local frame. -/
-theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma basis_avoids (refs : Refs ctx width) (separation : Separation refs)
     (cell : LatticeMetricMachine.BasisCell) (cells : List TransitionCell)
     (absent : basisTransitionCell cell ∉ cells) :
     FrameAvoids refs cells (LatticeMetricMachine.basisCellInput refs.basis cell) := by
@@ -66,7 +66,7 @@ theorem basis_avoids (refs : Refs ctx width) (separation : Separation refs)
       CInputRef.storageKeys, List.mem_singleton, basisTransitionCell, cellKey] using keyNe
 
 /-- The same original separation gives each retained Gram cell its phase-local frame. -/
-theorem metric_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma metric_avoids (refs : Refs ctx width) (separation : Separation refs)
     (cell : LatticeMetricMachine.MetricCell) (cells : List TransitionCell)
     (absent : metricTransitionCell cell ∉ cells) :
     FrameAvoids refs cells
@@ -85,7 +85,7 @@ def rowCells : LatticeMetricMachine.Row → List LatticeMetricMachine.BasisCell
   | .third => [.thirdFirst, .thirdSecond, .thirdThird]
 
 /-- A phase's actual read frame preserves every represented row outside its writes. -/
-theorem row_raw_of_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma row_raw_of_frame (refs : Refs ctx width) (separation : Separation refs)
     {before after : Store ctx} (row : LatticeMetricMachine.Row)
     (value : NumberTheory.IntegerPoint3) (cells : List TransitionCell)
     (rep : LatticeArithmetic.PointRawRepresents before
@@ -149,7 +149,7 @@ theorem row_raw_of_frame (refs : Refs ctx width) (separation : Separation refs)
       exact rep.2.2
 
 /-- The actual six-cell division footprint is the original transition footprint. -/
-theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma division_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs divisionCells other) :
@@ -163,7 +163,7 @@ theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
   exact avoids cell cellMember
 
 /-- Row subtraction preserves all actual reads outside its four written words. -/
-theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
+lemma reduction_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs reductionCells other) :
     (LatticeArithmetic.pointStore (writeInput refs.division.output)
@@ -174,7 +174,7 @@ theorem reduction_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .b22 (by decide)) (avoids .b23 (by decide))
 
 /-- Norm refresh preserves all actual reads outside the norm and its product word. -/
-theorem refresh_frame (refs : Refs ctx width) (store : Store ctx)
+lemma refresh_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs refreshCells other) :
     (LatticeNormRefresh.refreshStore refs.basis.second refs.refresh store).read other =
@@ -185,7 +185,7 @@ theorem refresh_frame (refs : Refs ctx width) (store : Store ctx)
   · exact avoids .refreshProduct (by decide)
 
 /-- The actual comparison preserves all reads except its product word and decision bit. -/
-theorem comparison_frame (refs : Refs ctx width) (store : Store ctx)
+lemma comparison_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs comparisonCells other) :
     (LatticeLovasz.firstLovaszStore refs.metric refs.lovasz store).read other =
@@ -194,7 +194,7 @@ theorem comparison_frame (refs : Refs ctx width) (store : Store ctx)
     (avoids .metricProduct (by decide)) (avoids .passes (by decide))
 
 /-- The actual row exchange preserves all reads outside its six row words and scratch. -/
-theorem swap_frame (refs : Refs ctx width) (store : Store ctx)
+lemma swap_frame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
     (LatticeSwap.pointSwapStore refs.basis.first refs.basis.second refs.swapScratch store).read
@@ -210,7 +210,7 @@ theorem swap_frame (refs : Refs ctx width) (store : Store ctx)
   · exact avoids .b23 (by decide)
   · exact avoids .swapScratch (by decide)
 
-private theorem selectArm_frame {model : ExecutionModel} [BitWord.Selected model]
+private lemma selectArm_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (flag : CShape.Value .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
@@ -222,7 +222,7 @@ private theorem selectArm_frame {model : ExecutionModel} [BitWord.Selected model
     · rfl
 
 /-- The selected actual arm preserves the full caller frame on both possible outcomes. -/
-theorem select_frame {model : ExecutionModel} [BitWord.Selected model]
+lemma select_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs swapCells other) :
@@ -230,7 +230,7 @@ theorem select_frame {model : ExecutionModel} [BitWord.Selected model]
   selectArm_frame refs (store.read (writeInput refs.lovasz.passes)) store other avoids
 
 /-- Complete first-pair execution preserves every read outside the union of its actual writes. -/
-theorem firstPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : FrameAvoids refs mutableCells other) :

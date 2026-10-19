@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- Genuine initialization and the actual finite scan produce the source selection. -/
-theorem nativeRecovery_scan_selection
+lemma nativeRecovery_scan_selection
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx)

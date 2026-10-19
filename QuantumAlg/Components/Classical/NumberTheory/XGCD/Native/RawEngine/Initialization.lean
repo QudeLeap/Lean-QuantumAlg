@@ -28,7 +28,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual fresh initialization establishes both the zero sentinel and current activity. -/
-theorem xgcdNativeInitialization_ready {outer : RuntimeCtx kind}
+lemma xgcdNativeInitialization_ready {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))
@@ -45,7 +45,8 @@ theorem xgcdNativeInitialization_ready {outer : RuntimeCtx kind}
       input zero store initialized zeroValue
 
 /-- One actual loop record follows initialization and preserves every transported caller read. -/
-theorem xgcdNativeInitializedLoop_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitializedLoop_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
@@ -58,7 +59,7 @@ theorem xgcdNativeInitializedLoop_actualRecord {model : ExecutionModel} [BitWord
         (state : State ctx Reference (model.HiddenState × History)),
         (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
           (guardedActive (model := model) cells (transport.liftInput zero))).execute
-            Reference state =
+            environment Reference state =
             state.mapClassical (fun entry =>
               let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -117,7 +118,7 @@ def initializedLoopRecord {model : ExecutionModel} [BitWord.Selected model]
       ((result.1, before.2), result.2)) record
 
 /-- The initialized loop record returns precisely the actual loop's post-initialization store. -/
-theorem xgcdNativeInitializedLoop_record_store {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitializedLoop_record_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -128,7 +129,8 @@ theorem xgcdNativeInitializedLoop_record_store {model : ExecutionModel} [BitWord
       (record (initializationStore cells input zero store.1, store.2)).1 := rfl
 
 /-- The existing sequential interpreter retains every quantum-reference block and both paths. -/
-theorem xgcdNativeInitializedLoop_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeInitializedLoop_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -138,7 +140,7 @@ theorem xgcdNativeInitializedLoop_execute {model : ExecutionModel} [BitWord.Sele
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive (model := model) cells zero)).execute Reference state =
+        (guardedActive (model := model) cells zero)).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))))
@@ -146,12 +148,13 @@ theorem xgcdNativeInitializedLoop_execute {model : ExecutionModel} [BitWord.Sele
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (initializationBody (model := model) cells input zero)
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive (model := model) cells zero))).execute Reference state =
+        (guardedActive (model := model) cells zero))).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := initializedLoopRecord (model := model) cells input zero record
           (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  exact Circuit.execute_sequenceRecord (initializationBody (model := model) cells input zero)
+  exact Circuit.execute_sequenceRecord
+    (environment := environment) (initializationBody (model := model) cells input zero)
     (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
       (guardedActive (model := model) cells zero))
     (fun before =>

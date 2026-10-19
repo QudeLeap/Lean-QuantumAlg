@@ -28,7 +28,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
 
 /-- The actual retention and option-pack return their complete Store and instruction path. -/
@@ -70,10 +70,10 @@ section
 attribute [local irreducible] persistentCtx
 
 /-- Actual result retention and packing preserve every complete reference block and history. -/
-theorem packBatchResult_execute (Reference : Register) {History : Type} [Fintype History]
+lemma packBatchResult_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State (persistentCtx ctx width scalarWidth) Reference
       (model.HiddenState × History)) :
-    (packBatchResult ctx width scalarWidth).execute Reference state =
+    (packBatchResult ctx width scalarWidth).execute environment Reference state =
       packBatchResultState ctx width scalarWidth Reference state := by
   unfold packBatchResult
   erw [Circuit.execute_seq]
@@ -108,7 +108,7 @@ def packBatchResultExpected {D History : Type}
     observe ((packBatchResultStep ctx width scalarWidth entry.1).1, entry.2.2))
 
 /-- The packed store and old history give the same observation. -/
-theorem packBatchResult_observe {D History : Type}
+lemma packBatchResult_observe {D History : Type}
     [Fintype D] [Fintype History]
     (observe : Store (batchResultCtx ctx width scalarWidth) × History → D)
     (Reference : Register)
@@ -148,7 +148,7 @@ def packBatchResultExpectedAfter {D H Prefix : Type}
     (observe (packBatchResultStep ctx width scalarWidth entry.1).1, entry.2.2.1))
 
 /-- Final packing and path reassociation leave the original history observable. -/
-theorem packBatchResult_observeAfter {D H Prefix : Type}
+lemma packBatchResult_observeAfter {D H Prefix : Type}
     [Fintype D] [Fintype H] [Fintype Prefix]
     (observe : Store (batchResultCtx ctx width scalarWidth) → D)
     (Reference : Register)
@@ -167,18 +167,18 @@ theorem packBatchResult_observeAfter {D H Prefix : Type}
 end
 
 /-- Packing after any preceding circuit reads its actual returned persistent store. -/
-theorem packBatchResult_after {pre : RuntimeCtx model.kind}
+lemma packBatchResult_after {pre : RuntimeCtx model.kind}
     (first : Circuit model pre (persistentCtx ctx width scalarWidth))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State pre Reference (model.HiddenState × History)) :
-    (first.seq (packBatchResult ctx width scalarWidth)).execute Reference state =
+    (first.seq (packBatchResult ctx width scalarWidth)).execute environment Reference state =
       (packBatchResultState ctx width scalarWidth Reference
-        (first.execute Reference state)).mapHistory
+        (first.execute environment Reference state)).mapHistory
           (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))) := by
   rw [Circuit.execute_seq, packBatchResult_execute]
 
 /-- The actual final output encodes exactly the incoming persistent first-success latches. -/
-theorem packBatchResultStep_output (before : Store (persistentCtx ctx width scalarWidth)) :
+lemma packBatchResultStep_output (before : Store (persistentCtx ctx width scalarWidth)) :
     (packBatchResultStep ctx width scalarWidth before).1.read
       (batchResultRead ctx width scalarWidth) =
         CShape.packOption (.product
@@ -200,7 +200,7 @@ theorem packBatchResultStep_output (before : Store (persistentCtx ctx width scal
   simpa only [entered, Store.read_pushRetained_underRetained] using actual
 
 /-- Every earlier structural input and retained latch survives the new output write unchanged. -/
-theorem packBatchResultStep_read_other (before : Store (persistentCtx ctx width scalarWidth))
+lemma packBatchResultStep_read_other (before : Store (persistentCtx ctx width scalarWidth))
     {shape : CShape} (input : CInputRef (persistentCtx ctx width scalarWidth) shape) :
     (packBatchResultStep ctx width scalarWidth before).1.read
       (input.underRetained (persistentCtx ctx width scalarWidth).canonicalFreshKey
@@ -218,7 +218,7 @@ theorem packBatchResultStep_read_other (before : Store (persistentCtx ctx width 
         inner.canonicalFreshKey_fresh input)
 
 /-- The final retained result emits exactly the original paid option-pack instruction. -/
-theorem packBatchResult_eventTrace (path : (packBatchResult ctx width scalarWidth).Path) :
+lemma packBatchResult_eventTrace (path : (packBatchResult ctx width scalarWidth).Path) :
     (packBatchResult ctx width scalarWidth).eventTrace path =
       [.classicalOperation (BitWord.selectedCoordinate (execution := model)
         (.nominalEncoding (.packOption scalarWidth)))] := by
@@ -227,18 +227,18 @@ theorem packBatchResult_eventTrace (path : (packBatchResult ctx width scalarWidt
   exact BitWord.bitWord_instruction_eventTrace _ path.2
 
 /-- The exact native pool is the singleton event of that same actual final instruction. -/
-theorem packBatchResult_resourcePool (path : (packBatchResult ctx width scalarWidth).Path) :
+lemma packBatchResult_resourcePool (path : (packBatchResult ctx width scalarWidth).Path) :
     (packBatchResult ctx width scalarWidth).resourcePool path =
       ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
         (.nominalEncoding (.packOption scalarWidth)))] :=
   congrArg ResourcePool.ofList (packBatchResult_eventTrace ctx width scalarWidth path)
 
 /-- Exactly one real native instruction executes even for a zero-width selected word. -/
-theorem packBatchResult_eventCount (path : (packBatchResult ctx width scalarWidth).Path) :
+lemma packBatchResult_eventCount (path : (packBatchResult ctx width scalarWidth).Path) :
     ((packBatchResult ctx width scalarWidth).eventTrace path).length = 1 := rfl
 
 /-- The actual final dependency duration is exactly the original pack-operation duration. -/
-theorem packBatchResult_depth (duration : Resource.Event model → Nat)
+lemma packBatchResult_depth (duration : Resource.Event model → Nat)
     (path : (packBatchResult ctx width scalarWidth).Path) :
     (packBatchResult ctx width scalarWidth).depth duration path =
       duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -251,7 +251,7 @@ theorem packBatchResult_depth (duration : Resource.Event model → Nat)
         (Nat.zero_add _)
 
 /-- Resident peak adds the actual final optional word beside all seven persistent destinations. -/
-theorem packBatchResult_resident (path : (packBatchResult ctx width scalarWidth).Path) :
+lemma packBatchResult_resident (path : (packBatchResult ctx width scalarWidth).Path) :
     (packBatchResult ctx width scalarWidth).peakResidentSpace path =
       SpacePool.ofShape (.option (.unsignedWord scalarWidth)) +
         (persistentCtx ctx width scalarWidth).residentSpace := by
@@ -263,7 +263,7 @@ theorem packBatchResult_resident (path : (packBatchResult ctx width scalarWidth)
       (RuntimeCtx.residentSpace_addRetained _ _ _ _)
 
 /-- Auxiliary peak includes the same real output allocation and the complete prior workspace. -/
-theorem packBatchResult_auxiliary (path : (packBatchResult ctx width scalarWidth).Path) :
+lemma packBatchResult_auxiliary (path : (packBatchResult ctx width scalarWidth).Path) :
     (packBatchResult ctx width scalarWidth).peakAuxiliarySpace path =
       SpacePool.ofShape (.option (.unsignedWord scalarWidth)) +
         (persistentCtx ctx width scalarWidth).auxiliarySpace := by

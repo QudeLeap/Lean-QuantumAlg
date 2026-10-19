@@ -29,9 +29,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.GuardedLengthWrite
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit LengthCoordinates GuardedLengthRead
 
-private theorem constant_guard (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
+private lemma constant_guard (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
     (state : Registers width) :
     Guard (Word.xorConstantStep (LengthWrite.target width field) constant state) ↔ Guard state := by
   rw [LengthField.constant_step_eq]
@@ -44,7 +46,7 @@ def positionGates (width : Nat) (field : Field) (key : BitVec width.size) (first
     (GuardedLengthPredicate.gates width field key firstWord position)
 
 /-- The complete actual replacement of a constant write is its retained-guard conditional action. -/
-theorem position_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma position_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (state : Registers width) :
     GateSpec.stepList (positionGates width field key firstWord position) state =
       if Guard state
@@ -56,7 +58,7 @@ theorem position_step_if (width : Nat) (field : Field) (key : BitVec width.size)
     (GuardedLengthPredicate.gates_step_if width field key firstWord position)
     (GuardedLengthPredicate.original_guard width field key firstWord position) _ state
 
-private theorem original_position_guard (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma original_position_guard (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (state : Registers width) :
     Guard (GateSpec.stepList (LengthWrite.positionGates width field key firstWord position) state) ↔
       Guard state := by
@@ -72,7 +74,7 @@ def keyGates (width : Nat) (field : Field) (key : BitVec width.size) (firstWord 
     (positionGates width field key firstWord)
 
 /-- Refinement of actual complete lists retains the original finite length-write semantics. -/
-theorem key_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma key_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (state : Registers width) :
     GateSpec.stepList (keyGates width field key firstWord) state =
       if Guard state then GateSpec.stepList (LengthWrite.gates width field key firstWord) state
@@ -83,7 +85,7 @@ theorem key_step_if (width : Nat) (field : Field) (key : BitVec width.size) (fir
     (position_step_if width field key firstWord)
     (original_position_guard width field key firstWord) _ state
 
-private theorem original_key_guard (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma original_key_guard (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (state : Registers width) :
     Guard (GateSpec.stepList (LengthWrite.gates width field key firstWord) state) ↔
       Guard state := by
@@ -97,7 +99,7 @@ def gates (width : Nat) (field : Field) (firstWord : Bool) : List (GateSpec (enc
   (LengthSchedule.keys width).flatMap fun key => keyGates width field key firstWord
 
 /-- The complete enlarged-source schedule equals the original native schedule under its guard. -/
-theorem gates_step_if (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
+lemma gates_step_if (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
     GateSpec.stepList (gates width field firstWord) state =
       if Guard state then GateSpec.stepList (LengthSchedule.gates width field firstWord) state
       else state :=
@@ -108,25 +110,26 @@ theorem gates_step_if (width : Nat) (field : Field) (firstWord : Bool) (state : 
     (fun key => original_key_guard width field key firstWord) _ state
 
 /-- The independent previously proved full finite register update describes the actual result. -/
-theorem gates_step (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
+lemma gates_step (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
     GateSpec.stepList (gates width field firstWord) state =
       if Guard state then LengthSchedule.step width field firstWord state else state := by
   rw [gates_step_if, LengthSchedule.gates_step]
 
 /-- Each original dynamic-boundary schedule retains the exact actual two-field guard. -/
-theorem original_guard (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
+lemma original_guard (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
     Guard (GateSpec.stepList (LengthSchedule.gates width field firstWord) state) ↔ Guard state := by
   rw [LengthSchedule.gates_step]
   cases field <;> rfl
 
 /-- The actual program compiled from the enlarged-source lists retains complete basis amplitudes. -/
-theorem gates_realizes (width : Nat) (field : Field) (firstWord : Bool) :
+lemma gates_realizes (width : Nat) (field : Field) (firstWord : Bool) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty (gates width field firstWord))
+        environment
       (fun state => if Guard state
         then LengthSchedule.step width field firstWord state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    _ (gates_step width field firstWord)
+    _ (gates_step width field firstWord) environment
 
 end
 

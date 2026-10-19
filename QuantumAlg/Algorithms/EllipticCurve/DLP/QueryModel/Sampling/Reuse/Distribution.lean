@@ -47,14 +47,14 @@ public def basisOutcome (I : ECDLPInstance E) :
     (context I).register.Index → Fin (sampleWidth I) → Bool :=
   fun basis index => decide ((basis (exponentPosition I index)).val = 1)
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
   exact (congrArg Complex.re (Complex.mul_conj (state basis))).trans
     (Complex.normSq_eq_norm_sq (state basis))
 
-private theorem scratch_separate (I : ECDLPInstance E) :
+private lemma scratch_separate (I : ECDLPInstance E) :
     (scratch I).key ∉ (sampleInput I).storageKeys := by
   change (Sampling.post I).canonicalFreshKey ∉
     ((Sampling.sampleInput I).underRetained (Sampling.post I).canonicalFreshKey (.finite 2)
@@ -63,7 +63,7 @@ private theorem scratch_separate (I : ECDLPInstance E) :
     (Sampling.post I).canonicalFreshKey (.finite 2)
     (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.post I))
 
-private theorem readouts_nodup (I : ECDLPInstance E) :
+private lemma readouts_nodup (I : ECDLPInstance E) :
     ((readouts I).map fun item => item.output.key).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -72,18 +72,21 @@ private theorem readouts_nodup (I : ECDLPInstance E) :
   change (Sampling.cell I left).key = (Sampling.cell I right).key at same
   exact MeasurementCells.reference_key_injective (Sampling.bankContext I) 2 (sampleWidth I) same
 
-private theorem measured_cell (I : ECDLPInstance E) (A : Access I)
+private lemma measured_cell {allowAllocation : Bool} (I : ECDLPInstance E)
     (stored : Store (context I)) (basis : (context I).register.Index)
     (index : Fin (sampleWidth I)) :
-    ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := model I A)
+    ((Circuit.writeMeasurementPath (allowAllocation := allowAllocation)
+      (gates := AlgorithmGate.model) (oracles := model I)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts I) stored
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := model I A)
+      (Circuit.measurementBasisPath (allowAllocation := allowAllocation)
+        (gates := AlgorithmGate.model) (oracles := model I)
         (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
         (readouts I) basis)).read (.storage (cell I index).toCStorageRef)).toFin.val =
       (basis (exponentPosition I index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model)
-    (oracles := model I A) (operations := BitWord.model) (services := ClassicalOracleModel.empty)
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := allowAllocation)
+    (gates := AlgorithmGate.model)
+    (oracles := model I) (operations := BitWord.model) (services := ClassicalOracleModel.empty)
     (readouts I) (readouts_nodup I) (readout I index)
     (List.mem_ofFn.mpr ⟨index, rfl⟩) stored basis
   have numeric := congrArg (fun value => value.toFin.val) actual
@@ -91,40 +94,50 @@ private theorem measured_cell (I : ECDLPInstance E) (A : Access I)
   rw [QubitReadouts.outputAt_read] at numeric
   exact numeric
 
-private theorem observed_after_measurement (I : ECDLPInstance E) (A : Access I)
+private lemma observed_after_measurement {allowAllocation : Bool}
+    (I : ECDLPInstance E)
     (stored : Store (context I)) (basis : (context I).register.Index) :
-    observedOutcome I ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
-      (oracles := model I A) (operations := BitWord.model)
+    observedOutcome I ((Circuit.writeMeasurementPath (allowAllocation := allowAllocation)
+      (gates := AlgorithmGate.model)
+      (oracles := model I) (operations := BitWord.model)
       (classicalOracles := ClassicalOracleModel.empty) (readouts I) stored
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := model I A)
+        (Circuit.measurementBasisPath (allowAllocation := allowAllocation)
+          (gates := AlgorithmGate.model) (oracles := model I)
           (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
           (readouts I) basis)).read (sampleInput I)) = basisOutcome I basis := by
   funext index
   have actual := congrArg (fun value : Nat => decide (value = 1))
-    (measured_cell I A stored basis index)
+    (measured_cell (allowAllocation := allowAllocation) I stored basis index)
   exact actual
 
 /-- The final actual reset retains every real exponent outcome fiber unchanged. -/
-public theorem ecdlpReuse_reset_outcome_mass (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_reset_outcome_mass {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (context I) Reference ((executionModel I).HiddenState × History))
     (outcome : Fin (sampleWidth I) → Bool) :
-    ((((reset I A).execute Reference state).mapClassical
+    ((((reset (allowAllocation := allowAllocation) I).execute (sourceEnvironment I A) Reference
+      state).mapClassical
       (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass =
       ((state.mapClassical
         (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass := by
   dsimp only [reset]
-  exact ZReset.Bank.zResetBank_decoded_read_mass (ctx := context I) (oracles := model I A)
+  exact ZReset.Bank.zResetBank_decoded_read_mass (environment := ⟨interpretation I A,
+    ClassicalOracleModel.emptyInterpretation⟩)
+    (allowAllocation := allowAllocation) (services :=
+      .empty) (ctx := context I) (oracles
+    := model I)
     (ecdlpReuse_qubits I) (scratch I) BitWord.model (sampleInput I) (scratch_separate I)
     (observedOutcome I) outcome state
 
-private theorem readout_mass (I : ECDLPInstance E) (A : Access I)
+private lemma readout_mass {allowAllocation : Bool} (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (context I) Reference ((executionModel I).HiddenState × History))
     (outcome : Fin (sampleWidth I) → Bool) :
-    ((((Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := model I A)
+    ((((Circuit.measurementSequence (allowAllocation := allowAllocation)
+      (gates := AlgorithmGate.model) (oracles := model I)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
-      (readouts I)).execute Reference state).mapClassical
+      (readouts I)).execute (sourceEnvironment I A) Reference state).mapClassical
         (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass =
       (∑ basis : (context I).register.Index,
         if basisOutcome I basis = outcome then
@@ -132,7 +145,7 @@ private theorem readout_mass (I : ECDLPInstance E) (A : Access I)
   rw [ExecutionState.mapClassical_block_mass_diagonalSum]
   apply congrArg Complex.re
   rw [Circuit.measurementSequence_diagonalSum]
-  simp only [observed_after_measurement]
+  simp only [observed_after_measurement (allowAllocation := allowAllocation)]
   refine (ExecutionState.diagonalSum_localMarginal state (fun basis =>
     if basisOutcome I basis = outcome then 1 else 0)).trans ?_
   apply Finset.sum_congr rfl
@@ -140,17 +153,21 @@ private theorem readout_mass (I : ECDLPInstance E) (A : Access I)
   split <;> simp only [one_mul, zero_mul]
 
 /-- The same full round returns the source Born fibers at the real incoming mass. -/
-public theorem ecdlpReuse_code_outcome_mass (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_outcome_mass {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (context I) Reference ((executionModel I).HiddenState × History))
     (outcome : Fin (sampleWidth I) → Bool) :
-    ((((code I A expansion).execute Reference state).mapClassical
+    ((((code (allowAllocation := allowAllocation) I expansion).execute (sourceEnvironment I A)
+      Reference
+        state).mapClassical
       (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass =
       state.mass * ∑ basis : (context I).register.Index,
         if basisOutcome I basis = outcome then
           ‖runtimeSourceState I A basis‖ ^ 2 else 0 := by
-  have density := ecdlpReuse_beforeReadout_matrix I A expansion state
+  have density := ecdlpReuse_beforeReadout_matrix (allowAllocation := allowAllocation) I A expansion
+      state
   rw [Circuit.execute_seq, State.mapHistory_quantumMarginal] at density
   rw [code, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
@@ -161,7 +178,8 @@ public theorem ecdlpReuse_code_outcome_mass (I : ECDLPInstance E) (A : Access I)
   rw [Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
-  rw [ecdlpReuse_reset_outcome_mass, readout_mass, density, Complex.re_sum, Finset.mul_sum]
+  rw [ecdlpReuse_reset_outcome_mass (allowAllocation := allowAllocation), readout_mass
+      (allowAllocation := allowAllocation), density, Complex.re_sum, Finset.mul_sum]
   apply Finset.sum_congr rfl
   intro basis _
   by_cases selected : basisOutcome I basis = outcome
@@ -170,27 +188,30 @@ public theorem ecdlpReuse_code_outcome_mass (I : ECDLPInstance E) (A : Access I)
   · simp only [selected, if_false, Complex.zero_re, mul_zero]
 
 /-- The actual full round returns the source probabilities after both physical resets. -/
-public theorem ecdlpReuse_run_outputProbability (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_run_outputProbability (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register}
-    (input : OracleInput (executionModel I A).classicalOracles (context I) Reference)
+    (input : OracleInput (executionModel I).classicalOracles (context I) Reference)
     (outcome : Fin (sampleWidth I) → Bool) :
-    ((run I A expansion).outputDistribution input).map (observedOutcome I) outcome =
+    ((run I expansion).outputDistribution (sourceEnvironment I A) input).map (observedOutcome I)
+      outcome =
       ENNReal.ofReal (∑ basis : (context I).register.Index,
         if basisOutcome I basis = outcome then ‖runtimeSourceState I A basis‖ ^ 2 else 0) := by
   have actual := congrArg (fun distribution : PMF (Fin (sampleWidth I) → Bool) =>
     distribution outcome)
-    (ExecutionState.toPMF_mapClassical ((run I A expansion).execute Reference input.state)
-      ((run I A expansion).execute_normalized input)
-      (fun record => observedOutcome I ((run I A expansion).result record)))
+    (ExecutionState.toPMF_mapClassical ((run I expansion).execute (sourceEnvironment I A)
+      Reference input.state)
+      ((run I expansion).execute_normalized (sourceEnvironment I A) input)
+      (fun record => observedOutcome I ((run I expansion).result record)))
   rw [AlgorithmRun.outputDistribution, PMF.map_comp]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    ((((code I A expansion).execute Reference
+    ((((code I expansion).execute (sourceEnvironment I A) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).mapClassical
         (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass = _
-  rw [ecdlpReuse_code_outcome_mass, ExecutionState.mapClassical_mass, input.normalized, one_mul]
+  rw [ecdlpReuse_code_outcome_mass (allowAllocation := true), ExecutionState.mapClassical_mass,
+      input.normalized, one_mul]
 
 end
 

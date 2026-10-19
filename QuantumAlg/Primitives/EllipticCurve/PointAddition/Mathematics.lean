@@ -60,7 +60,7 @@ def genericAddNumerator {E : PrimeFieldShortWeierstrass p}
   P.y - Q.y
 
 /-- Generic affine-addition assumptions make the slope denominator nonzero. -/
-theorem genericAddDenominator_ne_zero {E : PrimeFieldShortWeierstrass p}
+lemma genericAddDenominator_ne_zero {E : PrimeFieldShortWeierstrass p}
     {P Q : AffinePoint E} (h : GenericAddDomain P Q) :
     genericAddDenominator P Q ≠ 0 := by
   intro hzero
@@ -73,7 +73,7 @@ def genericAddDenominatorUnit {E : PrimeFieldShortWeierstrass p}
     (ZMod p)ˣ :=
   Units.mk0 (genericAddDenominator P Q) (genericAddDenominator_ne_zero h)
 
-@[simp] theorem genericAddDenominatorUnit_val {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma genericAddDenominatorUnit_val {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (P Q : AffinePoint E) (h : GenericAddDomain P Q) :
     ((genericAddDenominatorUnit P Q h : (ZMod p)ˣ) : ZMod p) =
       genericAddDenominator P Q :=
@@ -86,7 +86,7 @@ def doubleDenominator {E : PrimeFieldShortWeierstrass p}
   (2 : ZMod p) * P.y
 
 /-- Generic affine-doubling assumptions make the tangent denominator nonzero. -/
-theorem doubleDenominator_ne_zero {E : PrimeFieldShortWeierstrass p}
+lemma doubleDenominator_ne_zero {E : PrimeFieldShortWeierstrass p}
     {P : AffinePoint E} (h : GenericDoubleDomain P) :
     doubleDenominator P ≠ 0 :=
   h
@@ -98,7 +98,7 @@ def doubleDenominatorUnit {E : PrimeFieldShortWeierstrass p}
     (ZMod p)ˣ :=
   Units.mk0 (doubleDenominator P) (doubleDenominator_ne_zero h)
 
-@[simp] theorem doubleDenominatorUnit_val {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma doubleDenominatorUnit_val {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (P : AffinePoint E) (h : GenericDoubleDomain P) :
     ((doubleDenominatorUnit P h : (ZMod p)ˣ) : ZMod p) =
       doubleDenominator P :=
@@ -133,7 +133,7 @@ def genericAddY (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   genericAddYFromSlope E P Q (genericAddSlope E P Q)
 
 /-- The local generic-addition slope agrees with Mathlib's affine slope. -/
-theorem genericAddSlope_eq_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma genericAddSlope_eq_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (_hx : P.x ≠ Q.x) :
     genericAddSlope E P Q =
       E.toWeierstrassCurve.toAffine.slope P.x Q.x P.y Q.y := by
@@ -141,7 +141,7 @@ theorem genericAddSlope_eq_mathlib (E : PrimeFieldShortWeierstrass p)
 
 /-- The generic-addition slope expands to the source secant quotient
 `(y₁ - y₂)/(x₁ - x₂)` in the nonexceptional affine branch. -/
-theorem genericAddSlope_eq_secant_quotient
+lemma genericAddSlope_eq_secant_quotient
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hx : GenericAddDomain P Q) :
     genericAddSlope E P Q = genericAddNumerator P Q / genericAddDenominator P Q := by
@@ -150,7 +150,7 @@ theorem genericAddSlope_eq_secant_quotient
 
 
 /-- The local generic-addition `x` coordinate agrees with Mathlib's formula. -/
-theorem genericAddX_eq_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma genericAddX_eq_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (_hx : P.x ≠ Q.x) :
     genericAddX E P Q =
       E.toWeierstrassCurve.toAffine.addX P.x Q.x
@@ -158,7 +158,7 @@ theorem genericAddX_eq_mathlib (E : PrimeFieldShortWeierstrass p)
   rfl
 
 /-- The local generic-addition `y` coordinate agrees with Mathlib's formula. -/
-theorem genericAddY_eq_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma genericAddY_eq_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (_hx : P.x ≠ Q.x) :
     genericAddY E P Q =
       E.toWeierstrassCurve.toAffine.addY P.x Q.x P.y
@@ -166,7 +166,7 @@ theorem genericAddY_eq_mathlib (E : PrimeFieldShortWeierstrass p)
   rfl
 
 /-- The generic affine-addition output is a nonsingular point. -/
-theorem genericAdd_nonsingular (E : PrimeFieldShortWeierstrass p)
+lemma genericAdd_nonsingular (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (hx : P.x ≠ Q.x) :
     E.toWeierstrassCurve.toAffine.Nonsingular
       (genericAddX E P Q) (genericAddY E P Q) := by
@@ -177,7 +177,7 @@ theorem genericAdd_nonsingular (E : PrimeFieldShortWeierstrass p)
       P.nonsingular Q.nonsingular (fun hxy => hx hxy.1)
 
 /-- The generic affine-addition formula agrees with Mathlib's group law. -/
-theorem genericAdd_group_law_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma genericAdd_group_law_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (hx : P.x ≠ Q.x) :
     P.toMathlib + Q.toMathlib =
       WeierstrassCurve.Affine.Point.some
@@ -197,12 +197,12 @@ def genericAddPoint (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   y := genericAddY E P Q
   nonsingular := genericAdd_nonsingular E P Q h
 
-@[simp] theorem genericAddPoint_x (E : PrimeFieldShortWeierstrass p)
+@[simp] lemma genericAddPoint_x (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (h : GenericAddDomain P Q) :
     (genericAddPoint E P Q h).x = genericAddX E P Q :=
   rfl
 
-@[simp] theorem genericAddPoint_y (E : PrimeFieldShortWeierstrass p)
+@[simp] lemma genericAddPoint_y (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P Q : AffinePoint E) (h : GenericAddDomain P Q) :
     (genericAddPoint E P Q h).y = genericAddY E P Q :=
   rfl
@@ -219,29 +219,29 @@ public def negate {E : PrimeFieldShortWeierstrass p}
       (W' := E.toWeierstrassCurve.toAffine) P.x P.y).mpr P.nonsingular
 
 /-- Affine negation preserves the finite `x` coordinate. -/
-@[simp] theorem negate_x {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma negate_x {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) : (negate P).x = P.x :=
   rfl
 
 /-- Affine negation replaces the finite `y` coordinate by Mathlib's negated ordinate. -/
-@[simp] theorem negate_y {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma negate_y {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) :
     (negate P).y = E.toWeierstrassCurve.toAffine.negY P.x P.y :=
   rfl
 
 /-- The finite affine inverse remains nonsingular. -/
-theorem negate_nonsingular {E : PrimeFieldShortWeierstrass p}
+lemma negate_nonsingular {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) :
     E.toWeierstrassCurve.toAffine.Nonsingular (negate P).x (negate P).y :=
   (negate P).nonsingular
 
 /-- The finite affine inverse agrees with the Mathlib group inverse. -/
-@[simp] theorem negate_toMathlib {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma negate_toMathlib {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) : (negate P).toMathlib = -P.toMathlib :=
   rfl
 
 /-- Applying finite affine negation twice restores the original point. -/
-@[simp] theorem negate_negate {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma negate_negate {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) : negate (negate P) = P := by
   apply ext_coordinates
   · rfl
@@ -249,7 +249,7 @@ theorem negate_nonsingular {E : PrimeFieldShortWeierstrass p}
       (W' := E.toWeierstrassCurve.toAffine) P.x P.y
 
 /-- Generic-addition domain checks are unchanged when only the addend is negated. -/
-@[simp] theorem genericAddDomain_negate_iff {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma genericAddDomain_negate_iff {E : PrimeFieldShortWeierstrass p}
     (P Q : AffinePoint E) :
     GenericAddDomain P (negate Q) ↔ GenericAddDomain P Q :=
   Iff.rfl
@@ -258,7 +258,7 @@ end AffinePoint
 
 /-- Distinctness from a fixed affine point and its inverse is exactly the
 published nonexceptional boundary needed by the generic secant circuit. -/
-theorem genericAddDomain_of_ne_of_ne_negate
+lemma genericAddDomain_of_ne_of_ne_negate
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (P Q : AffinePoint E) (hPQ : P ≠ Q)
     (hPnegQ : P ≠ AffinePoint.negate Q) :
@@ -296,7 +296,7 @@ def doubleY (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   E.toWeierstrassCurve.toAffine.addY P.x P.x P.y (doubleSlope E P)
 
 /-- The short-form condition `2y ≠ 0` excludes the vertical tangent case. -/
-theorem ne_negY_of_two_mul_ne_zero (E : PrimeFieldShortWeierstrass p)
+lemma ne_negY_of_two_mul_ne_zero (E : PrimeFieldShortWeierstrass p)
     (P : AffinePoint E) (h2y : (2 : ZMod p) * P.y ≠ 0) :
     P.y ≠ E.toWeierstrassCurve.toAffine.negY P.x P.y := by
   intro hy
@@ -312,14 +312,14 @@ theorem ne_negY_of_two_mul_ne_zero (E : PrimeFieldShortWeierstrass p)
     _ = 0 := by simp
 
 /-- The local doubling slope agrees with Mathlib's tangent slope. -/
-theorem doubleSlope_eq_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma doubleSlope_eq_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (_h2y : (2 : ZMod p) * P.y ≠ 0) :
     doubleSlope E P =
       E.toWeierstrassCurve.toAffine.slope P.x P.x P.y P.y := by
   rfl
 
 /-- The doubling slope expands to the usual short-Weierstrass formula. -/
-theorem doubleSlope_eq_short_formula (E : PrimeFieldShortWeierstrass p)
+lemma doubleSlope_eq_short_formula (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (h2y : (2 : ZMod p) * P.y ≠ 0) :
     doubleSlope E P = doubleLambda E P := by
   have hy := ne_negY_of_two_mul_ne_zero E P h2y
@@ -331,7 +331,7 @@ theorem doubleSlope_eq_short_formula (E : PrimeFieldShortWeierstrass p)
   ring
 
 /-- The local doubling `x` coordinate agrees with Mathlib's formula. -/
-theorem doubleX_eq_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma doubleX_eq_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (_h2y : (2 : ZMod p) * P.y ≠ 0) :
     doubleX E P =
       E.toWeierstrassCurve.toAffine.addX P.x P.x
@@ -339,7 +339,7 @@ theorem doubleX_eq_mathlib (E : PrimeFieldShortWeierstrass p)
   rfl
 
 /-- The doubled `x` coordinate expands to `λ^2 - 2*x`. -/
-theorem doubleX_eq_short_formula (E : PrimeFieldShortWeierstrass p)
+lemma doubleX_eq_short_formula (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (h2y : (2 : ZMod p) * P.y ≠ 0) :
     doubleX E P = doubleLambda E P ^ 2 - (2 : ZMod p) * P.x := by
   rw [doubleX, doubleSlope_eq_short_formula E P h2y]
@@ -347,7 +347,7 @@ theorem doubleX_eq_short_formula (E : PrimeFieldShortWeierstrass p)
   ring
 
 /-- The local doubling `y` coordinate agrees with Mathlib's formula. -/
-theorem doubleY_eq_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma doubleY_eq_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (_h2y : (2 : ZMod p) * P.y ≠ 0) :
     doubleY E P =
       E.toWeierstrassCurve.toAffine.addY P.x P.x P.y
@@ -356,7 +356,7 @@ theorem doubleY_eq_mathlib (E : PrimeFieldShortWeierstrass p)
 
 /-- The doubled `y` coordinate expands to `λ*(x - x₃) - y`, where
 `x₃ = λ^2 - 2*x`. -/
-theorem doubleY_eq_short_formula (E : PrimeFieldShortWeierstrass p)
+lemma doubleY_eq_short_formula (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (h2y : (2 : ZMod p) * P.y ≠ 0) :
     doubleY E P =
       doubleLambda E P *
@@ -368,7 +368,7 @@ theorem doubleY_eq_short_formula (E : PrimeFieldShortWeierstrass p)
   ring
 
 /-- The nonexceptional doubling output is a nonsingular point. -/
-theorem double_nonsingular (E : PrimeFieldShortWeierstrass p)
+lemma double_nonsingular (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (h2y : (2 : ZMod p) * P.y ≠ 0) :
     E.toWeierstrassCurve.toAffine.Nonsingular
       (doubleX E P) (doubleY E P) := by
@@ -379,7 +379,7 @@ theorem double_nonsingular (E : PrimeFieldShortWeierstrass p)
       P.nonsingular P.nonsingular (fun hxy => hy hxy.2)
 
 /-- The nonexceptional affine-doubling formula agrees with Mathlib's group law. -/
-theorem double_group_law_mathlib (E : PrimeFieldShortWeierstrass p)
+lemma double_group_law_mathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (P : AffinePoint E) (h2y : (2 : ZMod p) * P.y ≠ 0) :
     P.toMathlib + P.toMathlib =
       WeierstrassCurve.Affine.Point.some

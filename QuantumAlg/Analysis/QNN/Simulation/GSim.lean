@@ -36,13 +36,14 @@ quantum data `Tr[ρ B_j]` (`gsim_loss_reconstruction`). Pairing this with the
 variance law `RagoneSecondMoment.variance_eq_gPurity` — whose analytic content
 enters through the **named Haar/twirl/Schur hypothesis bundle**
     `RagoneSecondMoment` (`RagoneInterface`), discharged unconditionally for
-    `su(2)` by the concrete Clifford doubled-twirl bundle `QubitTwoDesign.main` — yields the
+    `su(2)` by the concrete Clifford doubled-twirl bundle
+    `QubitTwoDesign.pauliSecondMoment` — yields the
 g-sim variance–reconstruction capstone (`gsim_variance_and_reconstruction`):
 one hypothesis bundle forces the loss variance to `P_g(ρ)·P_g(O)/dim g` AND
 makes the loss classically reconstructible from a `dim g`-sized data vector.
 The reconstruction half is proved from algebra alone; the variance half is
 conditional on the bundle. `su2_variance_and_reconstruction_unconditional`
-instantiates the capstone at `QubitTwoDesign.main`, where nothing is deferred.
+instantiates the capstone at `QubitTwoDesign.pauliSecondMoment`, where nothing is deferred.
 
 The statements are algebraic: gates enter as `NormedSpace.exp A` with `A ∈ g`
 (for the physical unitary `U = exp(-iθH)` take `A = (-θ) • (Complex.I • H)`,
@@ -92,11 +93,11 @@ bound for entries of powers. -/
 private noncomputable def entryBound (A : Matrix (Fin N) (Fin N) ℂ) : ℝ :=
   ∑ a, ∑ b, ‖A a b‖
 
-private theorem entryBound_nonneg (A : Matrix (Fin N) (Fin N) ℂ) :
+private lemma entryBound_nonneg (A : Matrix (Fin N) (Fin N) ℂ) :
     0 ≤ entryBound A :=
   Finset.sum_nonneg fun _ _ => Finset.sum_nonneg fun _ _ => norm_nonneg _
 
-private theorem norm_entry_le_entryBound (A : Matrix (Fin N) (Fin N) ℂ)
+private lemma norm_entry_le_entryBound (A : Matrix (Fin N) (Fin N) ℂ)
     (i j : Fin N) : ‖A i j‖ ≤ entryBound A := by
   calc ‖A i j‖ ≤ ∑ b, ‖A i b‖ :=
         Finset.single_le_sum (fun b _ => norm_nonneg (A i b)) (Finset.mem_univ j)
@@ -105,12 +106,12 @@ private theorem norm_entry_le_entryBound (A : Matrix (Fin N) (Fin N) ℂ)
           (fun a _ => Finset.sum_nonneg fun b _ => norm_nonneg (A a b))
           (Finset.mem_univ i)
 
-private theorem norm_col_sum_le_entryBound (A : Matrix (Fin N) (Fin N) ℂ)
+private lemma norm_col_sum_le_entryBound (A : Matrix (Fin N) (Fin N) ℂ)
     (j : Fin N) : ∑ m, ‖A m j‖ ≤ entryBound A := by
   refine Finset.sum_le_sum fun m _ => ?_
   exact Finset.single_le_sum (fun b _ => norm_nonneg (A m b)) (Finset.mem_univ j)
 
-private theorem norm_pow_entry_le (A : Matrix (Fin N) (Fin N) ℂ) (n : ℕ)
+private lemma norm_pow_entry_le (A : Matrix (Fin N) (Fin N) ℂ) (n : ℕ)
     (i j : Fin N) : ‖(A ^ n) i j‖ ≤ entryBound A ^ n := by
   induction n generalizing i j with
   | zero =>
@@ -133,7 +134,7 @@ private theorem norm_pow_entry_le (A : Matrix (Fin N) (Fin N) ℂ) (n : ℕ)
 /-- The matrix exponential series has its sum at `NormedSpace.exp`, in the
 ambient (entrywise/pi) topology: entrywise the series is dominated by
 `entryBound^n / n!`, and the topological `exp_eq_tsum` identifies the limit. -/
-private theorem hasSum_expSeries (A : Matrix (Fin N) (Fin N) ℂ) :
+private lemma hasSum_expSeries (A : Matrix (Fin N) (Fin N) ℂ) :
     HasSum (fun n => (n.factorial : ℂ)⁻¹ • A ^ n) (NormedSpace.exp A) := by
   have hsummable : Summable fun n => (n.factorial : ℂ)⁻¹ • A ^ n := by
     refine Pi.summable.mpr fun i => Pi.summable.mpr fun j => ?_
@@ -148,7 +149,7 @@ private theorem hasSum_expSeries (A : Matrix (Fin N) (Fin N) ℂ) :
   rw [hexp]
   exact hsummable.hasSum
 
-private theorem hasSum_expTermL (X : Matrix (Fin N) (Fin N) ℂ) :
+private lemma hasSum_expTermL (X : Matrix (Fin N) (Fin N) ℂ) :
     HasSum (expTermL A X) (NormedSpace.exp A * X) := by
   have h2 := (hasSum_expSeries A).map (AddMonoidHom.mulRight X)
     (continuous_mul_const X)
@@ -156,11 +157,11 @@ private theorem hasSum_expTermL (X : Matrix (Fin N) (Fin N) ℂ) :
     smul_mul_assoc] at h2
   exact h2
 
-private theorem hasSum_expTermR :
+private lemma hasSum_expTermR :
     HasSum (expTermR A) (NormedSpace.exp (-A)) :=
   hasSum_expSeries (-A)
 
-private theorem summable_norm_expTermL_entry (X : Matrix (Fin N) (Fin N) ℂ)
+private lemma summable_norm_expTermL_entry (X : Matrix (Fin N) (Fin N) ℂ)
     (i m : Fin N) : Summable fun k => ‖expTermL A X k i m‖ := by
   refine Summable.of_nonneg_of_le (fun _ => norm_nonneg _) (fun k => ?_)
     ((Real.summable_pow_div_factorial (entryBound A)).mul_right (entryBound X))
@@ -179,7 +180,7 @@ private theorem summable_norm_expTermL_entry (X : Matrix (Fin N) (Fin N) ℂ)
         mul_le_mul_of_nonneg_left (norm_col_sum_le_entryBound X m)
           (pow_nonneg (entryBound_nonneg A) k)
 
-private theorem summable_norm_expTermR_entry (m j : Fin N) :
+private lemma summable_norm_expTermR_entry (m j : Fin N) :
     Summable fun l => ‖expTermR A l m j‖ := by
   refine Summable.of_nonneg_of_le (fun _ => norm_nonneg _) (fun l => ?_)
     (Real.summable_pow_div_factorial (entryBound (-A)))
@@ -189,7 +190,7 @@ private theorem summable_norm_expTermR_entry (m j : Fin N) :
     (inv_nonneg.mpr (Nat.cast_nonneg _))
 
 /-- Weighted step for the left factor: `(k+1) · L_{k+1} = A · L_k`. -/
-private theorem expTermL_succ_smul (X : Matrix (Fin N) (Fin N) ℂ) (k : ℕ) :
+private lemma expTermL_succ_smul (X : Matrix (Fin N) (Fin N) ℂ) (k : ℕ) :
     ((k : ℂ) + 1) • expTermL A X (k + 1) = A * expTermL A X k := by
   rw [expTermL, expTermL, mul_smul_comm, smul_smul, pow_succ', Matrix.mul_assoc]
   congr 1
@@ -198,7 +199,7 @@ private theorem expTermL_succ_smul (X : Matrix (Fin N) (Fin N) ℂ) (k : ℕ) :
     mul_inv_cancel₀ (Nat.cast_add_one_ne_zero k), one_mul]
 
 /-- Weighted step for the right factor: `(l+1) · R_{l+1} = R_l · (-A)`. -/
-private theorem expTermR_succ_smul (l : ℕ) :
+private lemma expTermR_succ_smul (l : ℕ) :
     ((l : ℂ) + 1) • expTermR A (l + 1) = expTermR A l * -A := by
   rw [expTermR, expTermR, smul_mul_assoc, smul_smul, pow_succ]
   congr 1
@@ -208,7 +209,7 @@ private theorem expTermR_succ_smul (l : ℕ) :
 
 /-- The Cauchy sums satisfy the normalized Hadamard recursion
 `(n+1) · C_{n+1} = [A, C_n]`, by the reciprocal-factorial Pascal identity. -/
-private theorem cauchyTerm_succ_smul (X : Matrix (Fin N) (Fin N) ℂ) (n : ℕ) :
+private lemma cauchyTerm_succ_smul (X : Matrix (Fin N) (Fin N) ℂ) (n : ℕ) :
     ((n : ℂ) + 1) • cauchyTerm A X (n + 1)
       = A * cauchyTerm A X n - cauchyTerm A X n * A := by
   have hsplit : ((n : ℂ) + 1) • cauchyTerm A X (n + 1)
@@ -243,7 +244,7 @@ private theorem cauchyTerm_succ_smul (X : Matrix (Fin N) (Fin N) ℂ) (n : ℕ) 
   rw [hsplit, h1, h2, sub_eq_add_neg]
 
 /-- The Cauchy antidiagonal sums are exactly the normalized Hadamard terms. -/
-private theorem cauchyTerm_eq_hadamardSeq (X : Matrix (Fin N) (Fin N) ℂ) (n : ℕ) :
+private lemma cauchyTerm_eq_hadamardSeq (X : Matrix (Fin N) (Fin N) ℂ) (n : ℕ) :
     cauchyTerm A X n = hadamardSeq A X n := by
   induction n with
   | zero =>
@@ -261,7 +262,7 @@ private theorem cauchyTerm_eq_hadamardSeq (X : Matrix (Fin N) (Fin N) ℂ) (n : 
 /-- The sandwiched exponential is the sum of the Cauchy antidiagonal series:
 entrywise, each `(i,j)` entry is a finite sum over the middle index of scalar
 Cauchy products of absolutely convergent complex series. -/
-private theorem hasSum_cauchyTerm (X : Matrix (Fin N) (Fin N) ℂ) :
+private lemma hasSum_cauchyTerm (X : Matrix (Fin N) (Fin N) ℂ) :
     HasSum (cauchyTerm A X) (NormedSpace.exp A * X * NormedSpace.exp (-A)) := by
   refine Pi.hasSum.mpr fun i => Pi.hasSum.mpr fun j => ?_
   have hm : ∀ m : Fin N,
@@ -299,7 +300,7 @@ private theorem hasSum_cauchyTerm (X : Matrix (Fin N) (Fin N) ℂ) :
   exact h
 
 /-- Each normalized Hadamard term stays in the dynamical Lie algebra. -/
-private theorem hadamardSeq_mem {A : Matrix (Fin N) (Fin N) ℂ}
+private lemma hadamardSeq_mem {A : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     {X : Matrix (Fin N) (Fin N) ℂ}
     (hX : X ∈ (dynamicalLieAlgebra gens).toSubmodule) :
@@ -322,7 +323,7 @@ exponential is the sum of the Hadamard series `Σ n!⁻¹ ad_A^n O` (Cauchy prod
 of the two exponential series, regrouped by the reciprocal-factorial Pascal
 identity), each series term stays in `g` by bracket closure, and the
 finite-dimensional submodule is closed, so the limit stays as well. -/
-theorem exp_conj_mem_dla {A O : Matrix (Fin N) (Fin N) ℂ}
+lemma exp_conj_mem_dla {A O : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     (hO : O ∈ (dynamicalLieAlgebra gens).toSubmodule) :
     NormedSpace.exp A * O * NormedSpace.exp (-A)
@@ -337,7 +338,7 @@ theorem exp_conj_mem_dla {A O : Matrix (Fin N) (Fin N) ℂ}
 /-! ## The g-sim transfer matrix and coordinate update -/
 
 /-- Every Hermitian basis element lies in the dynamical Lie algebra. -/
-theorem DLAHermBasis.basis_mem_dla (b : DLAHermBasis gens) (j : Fin b.dim) :
+lemma DLAHermBasis.basis_mem_dla (b : DLAHermBasis gens) (j : Fin b.dim) :
     b.B j ∈ (dynamicalLieAlgebra gens).toSubmodule :=
   b.span_eq ▸ Submodule.subset_span (Set.mem_range_self j)
 
@@ -358,7 +359,7 @@ public noncomputable def gsimCoords (b : DLAHermBasis gens)
 /-- **Coordinate update law.** For `A, O ∈ g` the conjugated observable is the
 basis expansion whose coefficient vector is `gsimAd b A` applied to the
 coefficient vector of `O`. -/
-theorem gsim_conj_coords (b : DLAHermBasis gens)
+lemma gsim_conj_coords (b : DLAHermBasis gens)
     {A O : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     (hO : O ∈ (dynamicalLieAlgebra gens).toSubmodule) :
@@ -414,14 +415,14 @@ private noncomputable def adIterate (A : Matrix (Fin N) (Fin N) ℂ) :
   | n + 1, X => ⁅A, adIterate A n X⁆
 
 /-- `ad A = ⁅A, ·⁆` distributes over a finite `ℂ`-linear combination. -/
-private theorem lie_sum_smul (A : Matrix (Fin N) (Fin N) ℂ) {m : ℕ}
+private lemma lie_sum_smul (A : Matrix (Fin N) (Fin N) ℂ) {m : ℕ}
     (c : Fin m → ℂ) (v : Fin m → Matrix (Fin N) (Fin N) ℂ) :
     ⁅A, ∑ k, c k • v k⁆ = ∑ k, c k • ⁅A, v k⁆ := by
   simp only [Ring.lie_def, Finset.mul_sum, Finset.sum_mul, ← Finset.sum_sub_distrib,
     mul_smul_comm, smul_mul_assoc, smul_sub]
 
 /-- The nested adjoint action keeps `X ∈ g` inside `g` (bracket closure). -/
-private theorem adIterate_mem {A : Matrix (Fin N) (Fin N) ℂ}
+private lemma adIterate_mem {A : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     {X : Matrix (Fin N) (Fin N) ℂ}
     (hX : X ∈ (dynamicalLieAlgebra gens).toSubmodule) :
@@ -430,7 +431,7 @@ private theorem adIterate_mem {A : Matrix (Fin N) (Fin N) ℂ}
   | n + 1 => (dynamicalLieAlgebra gens).lie_mem hA (adIterate_mem hA hX n)
 
 /-- The normalized Hadamard term is the nested adjoint action scaled by `1/n!`. -/
-private theorem hadamardSeq_eq_adIterate (A X : Matrix (Fin N) (Fin N) ℂ) :
+private lemma hadamardSeq_eq_adIterate (A X : Matrix (Fin N) (Fin N) ℂ) :
     ∀ n, hadamardSeq A X n = (n.factorial : ℂ)⁻¹ • adIterate A n X
   | 0 => by simp [hadamardSeq, adIterate]
   | n + 1 => by
@@ -443,7 +444,7 @@ private theorem hadamardSeq_eq_adIterate (A X : Matrix (Fin N) (Fin N) ℂ) :
 /-- Matrix powers of `adMatrix` track the nested adjoint action: the `(i,j)` entry
 of `(adMatrix b A)ⁿ` is `⟪Bᵢ, ad_A^n Bⱼ⟫`. The `g`-invariance of `ad A` (bracket
 closure) lets each power act inside the orthonormal basis. -/
-private theorem adMatrix_pow_apply (b : DLAHermBasis gens)
+private lemma adMatrix_pow_apply (b : DLAHermBasis gens)
     {A : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule) (j : Fin b.dim) :
     ∀ (n : ℕ) (i : Fin b.dim),
@@ -480,7 +481,7 @@ finite-dimensional `Ad(e^A) = e^{ad A}` restricted to `g`. The `g`-invariance of
 the adjoint action carries the whole proof — `e^A Bⱼ e^{-A}` is the sum of the
 Hadamard series `Σ n!⁻¹ ad_A^n Bⱼ`, each term stays in `g`, and its `Bᵢ`-coordinate
 is exactly the `(i,j)` entry of `(adMatrix b A)ⁿ`. -/
-theorem gsimAd_eq_exp_adMatrix (b : DLAHermBasis gens)
+lemma gsimAd_eq_exp_adMatrix (b : DLAHermBasis gens)
     {A : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule) :
     gsimAd b A = NormedSpace.exp (b.adMatrix A) := by
@@ -519,7 +520,7 @@ finite classical contraction of the transfer data `gsimAd b (-A)` and the
 observable coordinates — classical, `dim g`-sized — with the quantum data
 vector `Tr[ρ Bⱼ]`, `j = 1..dim g`. Nothing about `ρ` beyond those `dim g`
 traces enters the loss. -/
-theorem gsim_loss_reconstruction (b : DLAHermBasis gens)
+lemma gsim_loss_reconstruction (b : DLAHermBasis gens)
     {A O : Matrix (Fin N) (Fin N) ℂ} (ρ : Matrix (Fin N) (Fin N) ℂ)
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     (hO : O ∈ (dynamicalLieAlgebra gens).toSubmodule) :
@@ -542,7 +543,7 @@ noncomputable def gsimHeisenbergStep (A X : Matrix (Fin N) (Fin N) ℂ) :
   NormedSpace.exp (-A) * X * NormedSpace.exp A
 
 /-- One Heisenberg step keeps the observable in `g`. -/
-theorem gsimHeisenbergStep_mem {A O : Matrix (Fin N) (Fin N) ℂ}
+lemma gsimHeisenbergStep_mem {A O : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     (hO : O ∈ (dynamicalLieAlgebra gens).toSubmodule) :
     gsimHeisenbergStep A O ∈ (dynamicalLieAlgebra gens).toSubmodule := by
@@ -552,7 +553,7 @@ theorem gsimHeisenbergStep_mem {A O : Matrix (Fin N) (Fin N) ℂ}
 
 /-- One Heisenberg step updates DLA coordinates by the transfer matrix
 `gsimAd b (-A)`. -/
-theorem gsimHeisenbergStep_coords (b : DLAHermBasis gens)
+lemma gsimHeisenbergStep_coords (b : DLAHermBasis gens)
     {A O : Matrix (Fin N) (Fin N) ℂ}
     (hA : A ∈ (dynamicalLieAlgebra gens).toSubmodule)
     (hO : O ∈ (dynamicalLieAlgebra gens).toSubmodule) :
@@ -584,10 +585,10 @@ public noncomputable def gsimEvolved (Gs : List (Matrix (Fin N) (Fin N) ℂ))
     (O : Matrix (Fin N) (Fin N) ℂ) : Matrix (Fin N) (Fin N) ℂ :=
   Gs.foldl (fun X A => gsimHeisenbergStep A X) O
 
-@[simp] theorem gsimEvolved_nil (O : Matrix (Fin N) (Fin N) ℂ) :
+@[simp] lemma gsimEvolved_nil (O : Matrix (Fin N) (Fin N) ℂ) :
     gsimEvolved ([] : List (Matrix (Fin N) (Fin N) ℂ)) O = O := rfl
 
-@[simp] theorem gsimEvolved_cons (A : Matrix (Fin N) (Fin N) ℂ)
+@[simp] lemma gsimEvolved_cons (A : Matrix (Fin N) (Fin N) ℂ)
     (Gs : List (Matrix (Fin N) (Fin N) ℂ)) (O : Matrix (Fin N) (Fin N) ℂ) :
     gsimEvolved (A :: Gs) O = gsimEvolved Gs (gsimHeisenbergStep A O) := rfl
 
@@ -606,7 +607,7 @@ public theorem gsimEvolved_mem {Gs : List (Matrix (Fin N) (Fin N) ℂ)}
 
 /-- Folding transfer matrices over a gate list composes an existing transfer
 matrix on the right. -/
-private theorem gsimTransfer_foldl_mul (b : DLAHermBasis gens)
+private lemma gsimTransfer_foldl_mul (b : DLAHermBasis gens)
     (Gs : List (Matrix (Fin N) (Fin N) ℂ))
     (P : Matrix (Fin b.dim) (Fin b.dim) ℂ) :
     Gs.foldl (fun Q A => gsimAd b (-A) * Q) P =
@@ -620,7 +621,7 @@ private theorem gsimTransfer_foldl_mul (b : DLAHermBasis gens)
 
 /-- The transfer product for `A :: Gs` first applies the head gate's transfer
 matrix, then the tail product. -/
-private theorem gsimTransfer_cons (b : DLAHermBasis gens)
+private lemma gsimTransfer_cons (b : DLAHermBasis gens)
     (A : Matrix (Fin N) (Fin N) ℂ) (Gs : List (Matrix (Fin N) (Fin N) ℂ)) :
     (A :: Gs).foldl (fun P B => gsimAd b (-B) * P) 1 =
       Gs.foldl (fun P B => gsimAd b (-B) * P) 1 * gsimAd b (-A) := by
@@ -656,7 +657,7 @@ public theorem gsimEvolved_coords (b : DLAHermBasis gens)
       rw [← gsimTransfer_cons b A Gs]
 
 /-- Cycling the head gate of the circuit onto the observable under the trace. -/
-private theorem trace_conj_step (P Q ρ O A : Matrix (Fin N) (Fin N) ℂ) :
+private lemma trace_conj_step (P Q ρ O A : Matrix (Fin N) (Fin N) ℂ) :
     (NormedSpace.exp A * P * ρ * (Q * NormedSpace.exp (-A)) * O).trace
       = (P * ρ * Q * gsimHeisenbergStep A O).trace := by
   simp only [gsimHeisenbergStep, Matrix.mul_assoc]
@@ -697,7 +698,7 @@ public theorem gsim_loss_reconstruction_ansatz (b : DLAHermBasis gens)
 /-- **Non-vacuity.** The g-sim reconstruction is exercised on the concrete
 `su(2)` DLA: for the gate generator `I • (X/√2) ∈ su(2)` and observable
 `X/√2`, the loss reconstructs from the `3` quantum data `Tr[ρ Bⱼ]`. -/
-theorem gsim_su2_witness (ρ : Matrix (Fin 2) (Fin 2) ℂ) :
+lemma gsim_su2_witness (ρ : Matrix (Fin 2) (Fin 2) ℂ) :
     (NormedSpace.exp (Complex.I • su2HermBasis.B su2i0) * ρ
         * NormedSpace.exp (-(Complex.I • su2HermBasis.B su2i0))
         * su2HermBasis.B su2i0).trace
@@ -713,7 +714,7 @@ fixed dynamical Lie algebra `g`, one hypothesis bundle — a Hermitian orthonorm
 DLA basis `b`, Hermitian `ρ`, `O`, the second-moment data `M` (the **named
 Haar/twirl/Schur hypothesis bundle** of `RagoneInterface`; the variance
 conclusion is conditional on it, and it is discharged unconditionally for `su(2)`
-by `QubitTwoDesign.main` — see `su2_variance_and_reconstruction_unconditional`),
+by `QubitTwoDesign.pauliSecondMoment` — see `su2_variance_and_reconstruction_unconditional`),
 and gate generators drawn from `g` — yields the **conjunction** of two
 independent conclusions:
 
@@ -743,14 +744,14 @@ public theorem gsim_variance_and_reconstruction (b : DLAHermBasis gens)
 
 /-- **The capstone, unconditionally discharged on `su(2)`.** Instantiating
 `gsim_variance_and_reconstruction` at the concrete Clifford doubled-twirl
-second moment `QubitTwoDesign.main` — the finite twirl input is discharged by
+second moment `QubitTwoDesign.pauliSecondMoment` — the finite twirl input is discharged by
 the doubled-commutant-completeness surrogate, and H2 by Schur, so nothing is
 deferred — gives a concrete end-to-end witness: the `su(2)` loss variance is `P_g(ρ)·P_g(O)/3`
-(numerically `1/3` by `QubitTwoDesign.main_variance_eq_third`), and
+(numerically `1/3` by `QubitTwoDesign.pauliSecondMoment_variance_eq_third`), and
 simultaneously the loss of every `su(2)`-generated gate list reconstructs from
 the `3` quantum data `Tr[ρ Bⱼ]`. -/
-theorem su2_variance_and_reconstruction_unconditional :
-    ((QubitTwoDesign.main.variance : ℂ)
+lemma su2_variance_and_reconstruction_unconditional :
+    ((QubitTwoDesign.pauliSecondMoment.variance : ℂ)
         = su2HermBasis.gPurity (su2HermBasis.B su2i0)
             * su2HermBasis.gPurity (su2HermBasis.B su2i0)
             / (su2HermBasis.dim : ℂ))
@@ -762,7 +763,7 @@ theorem su2_variance_and_reconstruction_unconditional :
           = ∑ j, hsInner (su2HermBasis.B j)
                 (gsimEvolved Gs (su2HermBasis.B su2i0))
               * (su2HermBasis.B su2i0 * su2HermBasis.B j).trace :=
-  gsim_variance_and_reconstruction su2HermBasis QubitTwoDesign.main
+  gsim_variance_and_reconstruction su2HermBasis QubitTwoDesign.pauliSecondMoment
     (su2HermBasis.herm su2i0) (su2HermBasis.herm su2i0)
     su2HermBasis_dim_pos (su2HermBasis.basis_mem_dla su2i0)
 
@@ -775,7 +776,7 @@ nothing is deferred: the doubled-commutant-completeness surrogate and Schur
 hypotheses are proved in the bundle. The variance side is therefore `P_g(ρ) P_g(O) / 3`,
 numerically `1/108` by
 `QubitTwoDesign.su2NondegenerateSecondMoment_variance_eq`. -/
-theorem su2_variance_and_reconstruction_nondegenerate :
+lemma su2_variance_and_reconstruction_nondegenerate :
     ((QubitTwoDesign.su2NondegenerateSecondMoment.variance : ℂ)
         = su2HermBasis.gPurity ((1 / 2 : ℂ) • su2HermBasis.B su2i0)
             * su2HermBasis.gPurity ((1 / 3 : ℂ) • su2HermBasis.B su2i0)
@@ -817,7 +818,7 @@ As with `gsim_variance_and_reconstruction`, this is a conjunction at fixed `g`:
 `b` and `R` are logically independent — the reconstruction half uses only the
 union basis `b`, the variance half only the bundle `R`. It is the single-`g` form
 that an `n`-indexed family result routes through. -/
-theorem gsim_variance_and_reconstruction_reductive (b : DLAHermBasis gens)
+lemma gsim_variance_and_reconstruction_reductive (b : DLAHermBasis gens)
     {ρ O : Matrix (Fin N) (Fin N) ℂ} (R : RagoneReductive ρ O)
     (hρ : ρᴴ = ρ) (hO : Oᴴ = O) (hdim : ∀ j, 0 < (R.basis j).dim)
     (hOg : O ∈ (dynamicalLieAlgebra gens).toSubmodule) :

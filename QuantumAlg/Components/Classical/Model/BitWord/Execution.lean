@@ -52,10 +52,11 @@ public def instructionStep (op : ClassicalOp input output ctx ctx) (store : Stor
     (op.eval (store.read op.inputRef)))
 
 /-- The selected leaf executes its fixed value semantics without changing the shared service. -/
-public theorem bitWord_instruction_execute (op : ClassicalOp input output ctx ctx)
+public lemma bitWord_instruction_execute (op : ClassicalOp input output ctx ctx)
+    (environment : execution.Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (execution.HiddenState × History)) :
-    (instruction (execution := execution) op).execute Reference state =
+    (instruction (execution := execution) op).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := instructionStep (execution := execution) op entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -64,7 +65,7 @@ public theorem bitWord_instruction_execute (op : ClassicalOp input output ctx ct
       have same := Selected.operations_eq (execution := .classical operations services)
       change operations = model at same
       cases same
-      exact (Circuit.execute_classical_mapClassical (model := .classical model services)
+      exact (Circuit.execute_classical_mapClassical (model := .classical model services) environment
         (application op) op.eval
         (bitWord_application_evaluate op) Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
@@ -73,12 +74,12 @@ public theorem bitWord_instruction_execute (op : ClassicalOp input output ctx ct
       change operations = model at same
       cases same
       exact (Circuit.execute_classical_mapClassical
-        (model := .quantum gates oracles model services) (application op) op.eval
+        (model := .quantum gates oracles model services) environment (application op) op.eval
         (bitWord_application_evaluate op) Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- Every selected leaf emits its one width-indexed native event. -/
-public theorem bitWord_instruction_eventTrace (op : ClassicalOp input output ctx ctx)
+public lemma bitWord_instruction_eventTrace (op : ClassicalOp input output ctx ctx)
     (path : (instruction (execution := execution) op).Path) :
     (instruction (execution := execution) op).eventTrace path =
       [.classicalOperation (selectedCoordinate (execution := execution) op.label)] := by
@@ -100,7 +101,7 @@ public theorem bitWord_instruction_eventTrace (op : ClassicalOp input output ctx
         (bitWord_application_coordinate op)
 
 /-- The actual native duration is charged once in the dependency expression. -/
-public theorem bitWord_instruction_depth (op : ClassicalOp input output ctx ctx)
+public lemma bitWord_instruction_depth (op : ClassicalOp input output ctx ctx)
     (duration : Resource.Event execution → Nat)
     (path : (instruction (execution := execution) op).Path) :
     (instruction (execution := execution) op).depth duration path =

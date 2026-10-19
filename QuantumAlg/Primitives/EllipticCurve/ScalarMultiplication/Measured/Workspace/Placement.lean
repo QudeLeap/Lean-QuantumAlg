@@ -26,14 +26,14 @@ noncomputable section
 
 open MeasuredUncompute Execution
 
-private theorem layout_eq {count : Nat} (first second : QuantumLayout count)
+private lemma layout_eq {count : Nat} (first second : QuantumLayout count)
     (same : first.wire = second.wire) : first = second := by
   cases first
   cases second
   cases same
   rfl
 
-private theorem mapped_control_layout (width : Nat) {count : Nat} (active : Fin count) :
+private lemma mapped_control_layout (width : Nat) {count : Nat} (active : Fin count) :
     (InPlaceControlled.controlLayout width).relabel (physicalMap width active) =
       indexedLayout width active.val := by
   apply layout_eq
@@ -42,7 +42,7 @@ private theorem mapped_control_layout (width : Nat) {count : Nat} (active : Fin 
     QuantumWire.mk (InPlaceControlled.frameWidth width + active.val) 2
   exact congrArg (fun identity => QuantumWire.mk identity 2) (physicalMap_control width active)
 
-private theorem mapped_selector_layout (width : Nat) {count : Nat} (active : Fin count) :
+private lemma mapped_selector_layout (width : Nat) {count : Nat} (active : Fin count) :
     (MeasuredPointAddition.selectorLayout width).relabel (physicalMap width active) =
       indexedLayout width count := by
   apply layout_eq
@@ -51,16 +51,16 @@ private theorem mapped_selector_layout (width : Nat) {count : Nat} (active : Fin
     QuantumWire.mk (InPlaceControlled.frameWidth width + count) 2
   exact congrArg (fun identity => QuantumWire.mk identity 2) (physicalMap_selector width active)
 
-private theorem mapped_control_key (width : Nat) {count : Nat} (active : Fin count) :
+private lemma mapped_control_key (width : Nat) {count : Nat} (active : Fin count) :
     storageMap width active (InPlaceControlled.controlKey width) = indexedKey width active.val :=
   congrArg StorageKey.mk (storageMap_control width active)
 
-private theorem mapped_selector_key (width : Nat) {count : Nat} (active : Fin count) :
+private lemma mapped_selector_key (width : Nat) {count : Nat} (active : Fin count) :
     storageMap width active (MeasuredPointAddition.selectorKey width) = indexedKey width count :=
   congrArg StorageKey.mk (storageMap_selector width active)
 
 /-- Every indexed body retains the common arithmetic entries and its two prescribed controls. -/
-theorem placed_entries (width : Nat) {count : Nat} (active : Fin count) :
+lemma placed_entries (width : Nat) {count : Nat} (active : Fin count) :
     (MeasuredPointAddition.Placement.context width (storageMap width active)
       (physicalMap width active)).entries =
         (NumeratorMeasurement.context width).entries ++
@@ -86,7 +86,7 @@ theorem placed_entries (width : Nat) {count : Nat} (active : Fin count) :
   indexedContext width ((List.range count).erase active.val) (List.nodup_range.erase _)
 
 /-- Every ambient index is an original exponent index distinct from the selected control. -/
-theorem ambient_index {count : Nat} (active : Fin count) (index : Nat)
+lemma ambient_index {count : Nat} (active : Fin count) (index : Nat)
     (present : index ∈ (List.range count).erase active.val) :
     index < count ∧ index ≠ active.val := by
   constructor
@@ -95,7 +95,7 @@ theorem ambient_index {count : Nat} (active : Fin count) (index : Nat)
     subst index
     exact List.nodup_range.not_mem_erase present
 
-private theorem combined_entries_perm (width : Nat) {count : Nat} (active : Fin count) :
+private lemma combined_entries_perm (width : Nat) {count : Nat} (active : Fin count) :
     ((MeasuredPointAddition.Placement.context width (storageMap width active)
       (physicalMap width active)).entries ++ (ambientContext width active).entries).Perm
         (readyContext width count).entries := by
@@ -117,7 +117,7 @@ private theorem combined_entries_perm (width : Nat) {count : Nat} (active : Fin 
       indices.map (indexedEntry width))
 
 /-- Every remaining exponent is disjoint from the entire placed point body and its selector. -/
-theorem ambient_disjoint (width : Nat) {count : Nat} (active : Fin count) :
+lemma ambient_disjoint (width : Nat) {count : Nat} (active : Fin count) :
     RuntimeCtx.StorageDisjoint
       (MeasuredPointAddition.Placement.context width (storageMap width active)
         (physicalMap width active)) (ambientContext width active) := by
@@ -135,7 +135,7 @@ theorem ambient_disjoint (width : Nat) {count : Nat} (active : Fin count) :
     exact (List.nodup_append'.mp distinct).2.2
 
 /-- The actual placed body and resident frame contain precisely the common complete entries. -/
-theorem framed_entries (width : Nat) {count : Nat} (active : Fin count) :
+lemma framed_entries (width : Nat) {count : Nat} (active : Fin count) :
     ((MeasuredPointAddition.Placement.context width (storageMap width active)
       (physicalMap width active)).disjointUnion (ambientContext width active)
         (ambient_disjoint width active)).entries.Perm (readyContext width count).entries :=

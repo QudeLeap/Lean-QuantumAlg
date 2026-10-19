@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 /-- Stage one: xor every non-low addend bit into its target bit. -/
@@ -96,10 +98,10 @@ def lowRippleProgram (n : Nat) :
 
 /-- Direct compilation realizes the literal low-word gate fold. The separate
 word-level proof must identify this fold with `lowOutput`. -/
-theorem ttkLowRipple_realizes_fold (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (lowRippleProgram n)
+lemma ttkLowRipple_realizes_fold (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (lowRippleProgram n) environment
       (stepList (lowRippleGates n)) :=
-  realizesList (QubitLayout.canonical _) .empty _
+  realizesList (QubitLayout.canonical _) .empty _ environment
 
 /-- The top CNOT in stage two targets the explicit overflow output. -/
 def overflowPreGate (n : Nat) : EncodedBit.GateSpec (overflowEncoding (n + 1)) :=
@@ -138,10 +140,10 @@ def overflowProgram (n : Nat) :
   programList (QubitLayout.canonical _) .empty (overflowGates n)
 
 /-- Direct compilation realizes the literal overflow gate fold. -/
-theorem ttkOverflow_realizes_fold (n : Nat) :
-    UnitaryCircuit.Realizes (overflowEncoding n) (overflowProgram n)
+lemma ttkOverflow_realizes_fold (n : Nat) :
+    UnitaryCircuit.Realizes (overflowEncoding n) (overflowProgram n) environment
       (stepList (overflowGates n)) :=
-  realizesList (QubitLayout.canonical _) .empty _
+  realizesList (QubitLayout.canonical _) .empty _ environment
 
 end
 

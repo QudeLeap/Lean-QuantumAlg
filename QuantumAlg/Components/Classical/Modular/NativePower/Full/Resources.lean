@@ -56,7 +56,7 @@ def depthBound (width exponentWidth : Nat) (duration : Resource.Event model → 
       (.wordUnary .copy width)))
 
 /-- Every actual body path fits the independent complete native-coordinate allowance. -/
-theorem nativePower_body_pool_le (spec : ModulusSpec width)
+lemma nativePower_body_pool_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -88,7 +88,7 @@ theorem nativePower_body_pool_le (spec : ModulusSpec width)
           (accumulatorCell ctx width) path.2.2.2.1) le_rfl)))
 
 /-- All lexical allocation and release paths obey that same actual complete event allowance. -/
-theorem nativePower_into_pool_le (spec : ModulusSpec width)
+lemma nativePower_into_pool_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -98,7 +98,7 @@ theorem nativePower_into_pool_le (spec : ModulusSpec width)
   nativePower_body_pool_le spec base exponent output path
 
 /-- The actual body preserves every dependency charged by the complete duration budget. -/
-theorem nativePower_body_depth_le (spec : ModulusSpec width)
+lemma nativePower_body_depth_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
@@ -133,7 +133,7 @@ theorem nativePower_body_depth_le (spec : ModulusSpec width)
   omega
 
 /-- The complete three-scope execution satisfies the independent duration bound. -/
-theorem nativePower_into_depth_le (spec : ModulusSpec width)
+lemma nativePower_into_depth_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
@@ -143,7 +143,7 @@ theorem nativePower_into_depth_le (spec : ModulusSpec width)
   nativePower_body_depth_le spec base exponent output duration path
 
 /-- Actual unit depth includes every setup operation and at most six steps per exponent bit. -/
-theorem nativePower_into_unitDepth_le (spec : ModulusSpec width)
+lemma nativePower_into_unitDepth_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))

@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native instruction formula for the eleven recorded sign decisions. -/
@@ -39,7 +40,7 @@ def phaseTrace (width : Nat) (denominatorNegative numeratorNegative : Bool)
         LatticeNearestPlaneFirst.phaseTrace width firstMagnitude firstCorrection firstRestore)
 
 /-- The chronological actual path has exactly the independent native instruction trace. -/
-theorem threeInto_events (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_events (refs : Refs ctx width) (path : (threeInto refs).Path) :
     (threeInto refs).eventTrace path =
       let thirdSuffix := path.1.2
       let thirdDivision := thirdSuffix.2.2.1
@@ -57,7 +58,7 @@ theorem threeInto_events (refs : Refs ctx width) (path : (threeInto refs).Path) 
   rfl
 
 /-- Native multiplicities are counted from the same independently specified instructions. -/
-theorem threeInto_resourcePool (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_resourcePool (refs : Refs ctx width) (path : (threeInto refs).Path) :
     (threeInto refs).resourcePool path =
       let thirdSuffix := path.1.2
       let thirdDivision := thirdSuffix.2.2.1
@@ -73,7 +74,7 @@ theorem threeInto_resourcePool (refs : Refs ctx width) (path : (threeInto refs).
   rw [threeInto_events]
 
 /-- At most 128 native instructions execute across all three actual coordinate reductions. -/
-theorem threeInto_eventCount_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_eventCount_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
     ((threeInto refs).eventTrace path).length ≤ 128 := by
   have third := LatticeNearestPlaneThird.thirdInto_eventCount_le (thirdRefs refs) path.1
   have second := LatticeNearestPlaneSecond.secondInto_eventCount_le (secondRefs refs) path.2.1
@@ -83,7 +84,7 @@ theorem threeInto_eventCount_le (refs : Refs ctx width) (path : (threeInto refs)
   omega
 
 /-- Serial depth includes the dependence of each reduction on its predecessor's actual residual. -/
-theorem threeInto_depth_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_depth_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
     (threeInto refs).depth (fun _ => 1) path ≤ 128 := by
   have third := LatticeNearestPlaneThird.thirdInto_depth_le (thirdRefs refs) path.1
   have second := LatticeNearestPlaneSecond.secondInto_depth_le (secondRefs refs) path.2.1
@@ -94,19 +95,19 @@ theorem threeInto_depth_le (refs : Refs ctx width) (path : (threeInto refs).Path
   omega
 
 /-- Complete execution restores borrowed state jointly with every external quantum reference. -/
-theorem threeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma threeInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (threeInto refs).BorrowedRestored Reference state
-      ((threeInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((threeInto refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact LatticeNearestPlaneThird.thirdInto_borrowedRestored _ Reference state
-  · exact Circuit.borrowedRestored_seq _ _ _
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (LatticeNearestPlaneSecond.secondInto_borrowedRestored _ Reference _)
       (LatticeNearestPlaneFirst.firstInto_borrowedRestored _ Reference _)
 
 /-- All three actual reductions use exactly the supplied context without hidden allocation. -/
-theorem threeInto_visited (refs : Refs ctx width) (path : (threeInto refs).Path)
+lemma threeInto_visited (refs : Refs ctx width) (path : (threeInto refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (threeInto refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (_ ++ (_ ++ _)) at present
@@ -117,14 +118,14 @@ theorem threeInto_visited (refs : Refs ctx width) (path : (threeInto refs).Path)
   · exact LatticeNearestPlaneFirst.firstInto_visited (firstRefs refs) path.2.2 visited first
 
 /-- Resident space includes every supplied quantum dimension and actual classical cell. -/
-theorem threeInto_resident_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_resident_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
     (threeInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [threeInto_visited refs path visited present]
 
 /-- Auxiliary space retains all original roles throughout the actual three-stage execution. -/
-theorem threeInto_auxiliary_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
+lemma threeInto_auxiliary_le (refs : Refs ctx width) (path : (threeInto refs).Path) :
     (threeInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

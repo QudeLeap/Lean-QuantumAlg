@@ -26,7 +26,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Exhaustive multiplication over pairs of numerator codes needs this local budget.
 /-- Multiplicative closure of the numerators: `(2a)(2b) = (2·ab) + (2·ab)`. -/
-theorem octNumerator_closed :
+lemma octNumerator_closed :
     ∀ a b, ∃ c, octNumerator a * octNumerator b = octNumerator c + octNumerator c := by
   intro a b
   cases a with

@@ -59,29 +59,29 @@ public def localState (input : OracleInput oracles ctx Reference) :
     simp_rw [DensityOperator.marginalLeft_mass]
     exact input.state.total_le_one
 
-private theorem oracleInput_localState_block_proof
+private lemma oracleInput_localState_block_proof
     (input : OracleInput oracles ctx Reference) (value : Store ctx × oracles.HiddenState) :
     input.localState.block value = DensityOperator.marginalLeft (input.state.block value) := rfl
 
 /-- Each local initialization block preserves its actual hidden-state label. -/
-@[simp] public theorem oracleInput_localState_block
+@[simp] public lemma oracleInput_localState_block
     (input : OracleInput oracles ctx Reference) (value : Store ctx × oracles.HiddenState) :
     input.localState.block value = DensityOperator.marginalLeft (input.state.block value) :=
   oracleInput_localState_block_proof input value
 
 /-- Forgetting the external reference preserves complete initialization mass. -/
-public theorem oracleInput_localState_mass (input : OracleInput oracles ctx Reference) :
+public lemma oracleInput_localState_mass (input : OracleInput oracles ctx Reference) :
     input.localState.mass = input.state.mass := by
   simp only [ExecutionState.mass, oracleInput_localState_block,
     DensityOperator.marginalLeft_mass]
 
 /-- The local joint state supplied to the initialization contract is normalized. -/
-public theorem oracleInput_localState_normalized (input : OracleInput oracles ctx Reference) :
+public lemma oracleInput_localState_normalized (input : OracleInput oracles ctx Reference) :
     input.localState.IsNormalized :=
   (oracleInput_localState_mass input).trans input.normalized
 
 /-- Observing caller input does not alter any joint quantum/reference marginal entry. -/
-public theorem oracleInput_caller_quantumMarginal (input : OracleInput oracles ctx Reference) :
+public lemma oracleInput_caller_quantumMarginal (input : OracleInput oracles ctx Reference) :
     input.caller.state.quantumMarginal = input.state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal _ _
 
@@ -96,7 +96,7 @@ public def ofKernel (input : Input ctx Reference) (initial : Store ctx → PMF o
   normalized := (kernelChoice_mass input.state initial).trans input.normalized
 
 /-- Kernel initialization retains the full input block with its actual declared weight. -/
-public theorem oracleInput_ofKernel_block_matrix (input : Input ctx Reference)
+public lemma oracleInput_ofKernel_block_matrix (input : Input ctx Reference)
     (initial : Store ctx → PMF oracles.HiddenState) (store : Store ctx)
     (hidden : oracles.HiddenState) :
     (((ofKernel input initial).state).block (store, hidden)).matrix =

@@ -55,17 +55,19 @@ def numeratorSignStep {model : ExecutionModel} [BitWord.Selected model]
   let selected := numeratorSignArmStep refs (store.read (writeInput refs.division.negative)) store
   (selected.1, ⟨store.read (writeInput refs.division.negative), selected.2⟩)
 
-private theorem numeratorSignChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma numeratorSignChoice_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (numeratorSignChoice refs flag).execute Reference state = state.mapClassical (fun entry =>
+    (numeratorSignChoice refs flag).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := numeratorSignArmStep refs flag entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
     cases flag
-    · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+    · refine (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl
     · simp only [numeratorSignChoice, numeratorSignArmStep, magnitudeArm, magnitudeArmStep,
         Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
@@ -73,14 +75,16 @@ private theorem numeratorSignChoice_execute {model : ExecutionModel} [BitWord.Se
       exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete actual branch preserves histories and quantum-reference blocks. -/
-theorem numeratorSignInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (numeratorSignInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (numeratorSignInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := numeratorSignStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (writeInput refs.division.negative)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (writeInput refs.division.negative)
     (numeratorSignChoice refs)
     (fun flag before =>
       let actual := numeratorSignArmStep refs flag before.1
@@ -91,7 +95,7 @@ theorem numeratorSignInto_execute {model : ExecutionModel} [BitWord.Selected mod
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual numerator correction changes only the existing numerator cell. -/
-theorem numeratorSignInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.numerator.key ∉ other.storageKeys) :
@@ -107,14 +111,14 @@ theorem numeratorSignInto_callerFrame {model : ExecutionModel} [BitWord.Selected
       rw [Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids,
         Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoids]
 
-private theorem unary_read (opcode : Resource.WordUnaryOpcode) (store : Store ctx)
+private lemma unary_read (opcode : Resource.WordUnaryOpcode) (store : Store ctx)
     (input : CInputRef ctx (.unsignedWord width)) (output : CWriteRef ctx (.unsignedWord width)) :
     (store.applyOp (.wordUnary opcode width ctx input output)).read (writeInput output) =
       opcode.eval width (store.read input) :=
   Store.read_applyOp_output store (.wordUnary opcode width ctx input output)
 
 /-- The actual flag chooses the corresponding original integer numerator sign. -/
-theorem numeratorSignInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) (value : Int)
     (rep : RawSignedRepresents (store.read (writeInput refs.numerator)) value) :
     RawSignedRepresents ((numeratorSignStep refs store).1.read (writeInput refs.numerator))
@@ -133,7 +137,7 @@ theorem numeratorSignInto_correct {model : ExecutionModel} [BitWord.Selected mod
       exact rawSignedWordRepresents_negate _ value rep
 
 /-- The recorded actual flag determines the independent two-instruction or empty native trace. -/
-theorem numeratorSignInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (refs : Refs ctx width) (path : (numeratorSignInto refs).Path) :
     (numeratorSignInto refs).eventTrace path =
@@ -154,7 +158,7 @@ theorem numeratorSignInto_events {model : ExecutionModel} [BitWord.Selected mode
       rfl
 
 /-- At most two actual native operations correct the numerator sign. -/
-theorem numeratorSignInto_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (numeratorSignInto refs).Path) :
     ((numeratorSignInto refs).eventTrace path).length ≤ 2 := by
@@ -162,7 +166,7 @@ theorem numeratorSignInto_eventCount_le {model : ExecutionModel} [BitWord.Select
   split <;> simp only [List.length_cons, List.length_nil] <;> decide
 
 /-- The actual selected correction has unit-duration depth at most two. -/
-theorem numeratorSignInto_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (refs : Refs ctx width) (path : (numeratorSignInto refs).Path) :
     (numeratorSignInto refs).depth (fun _ => 1) path ≤ 2 := by
@@ -176,23 +180,26 @@ theorem numeratorSignInto_depth_le {model : ExecutionModel} [BitWord.Selected mo
       exact le_rfl
 
 /-- Both the identity and the two native writes jointly restore all borrowed correlations. -/
-theorem numeratorSignInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (numeratorSignInto refs).BorrowedRestored Reference state
-      ((numeratorSignInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch _ _ Reference _ state
+      ((numeratorSignInto refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_branch (environment := environment) _ _ Reference _ state
   intro flag history _ current
   cases flag with
   | bit flag =>
     cases flag
-    · exact Circuit.borrowedRestored_id current
-    · exact Circuit.borrowedRestored_seq _ _ current
-        (Circuit.borrowedRestored_classical _ _) (Circuit.borrowedRestored_classical _ _)
+    · exact Circuit.borrowedRestored_id (environment := environment) current
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ current
+        (Circuit.borrowedRestored_classical
+          (environment := environment) _ _) (Circuit.borrowedRestored_classical (environment :=
+          environment) _ _)
 
 /-- Every actual correction instruction, including the idle arm, retains the caller context. -/
-theorem numeratorSignInto_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorSignInto_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (refs : Refs ctx width) (path : (numeratorSignInto refs).Path) :
     (numeratorSignInto refs).visitedContexts path =

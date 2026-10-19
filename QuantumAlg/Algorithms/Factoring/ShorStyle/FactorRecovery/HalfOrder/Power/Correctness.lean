@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The real destination contains the original modular power of the actual stored half order. -/
-theorem result_toNat (source : Input N)
+lemma result_toNat (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N))) (store : Store ctx)

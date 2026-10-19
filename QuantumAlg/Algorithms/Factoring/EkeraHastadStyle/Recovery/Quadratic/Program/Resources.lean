@@ -46,7 +46,7 @@ def programNativeEnvelope (width resultWidth : Nat) : ResourcePool model :=
       NarrowSelection.nativeEnvelope (model := model) (RSA.quadraticWordWidth width) resultWidth)
 
 /-- All actual scopes retain exactly the chronological traces of the four executed blocks. -/
-theorem nativeQuadratic_program_eventTrace (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_eventTrace (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (path : (program (model := model) input modulus original).Path) :
@@ -78,14 +78,14 @@ theorem nativeQuadratic_program_eventTrace (input : CInputRef ctx (.unsignedWord
   rfl
 
 omit [BitWord.Selected model] in
-private theorem pool_groups (first second third fourth : List (Resource.Event model)) :
+private lemma pool_groups (first second third fourth : List (Resource.Event model)) :
     ResourcePool.ofList ((first ++ second) ++ (third ++ fourth)) =
       (ResourcePool.ofList first + ResourcePool.ofList second) +
         (ResourcePool.ofList third + ResourcePool.ofList fourth) := by
   rw [ResourcePool.ofList_append, ResourcePool.ofList_append, ResourcePool.ofList_append]
 
 /-- The actual program ledger is precisely the sum of its four actual block ledgers. -/
-theorem nativeQuadratic_program_resourcePool (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_resourcePool (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (path : (program (model := model) input modulus original).Path) :
@@ -104,7 +104,7 @@ theorem nativeQuadratic_program_resourcePool (input : CInputRef ctx (.unsignedWo
     (pool_groups _ _ _ _)
 
 /-- Every actual event coordinate is dominated by the independent complete-program allowance. -/
-theorem nativeQuadratic_program_pool_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_pool_le (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (path : (program (model := model) input modulus original).Path) :
@@ -123,7 +123,7 @@ theorem nativeQuadratic_program_pool_le (input : CInputRef ctx (.unsignedWord wi
         (LocalLayout.persistentRefs original width) path.2.2))
 
 /-- The independent pool includes both subtraction labels and every possible copy instruction. -/
-theorem nativeQuadratic_program_nativeEnvelope_card
+lemma nativeQuadratic_program_nativeEnvelope_card
     (width resultWidth : Nat) :
     (programNativeEnvelope (model := model) width resultWidth).card =
       7 * RSA.quadraticWordWidth width + 39 := by
@@ -134,16 +134,16 @@ theorem nativeQuadratic_program_nativeEnvelope_card
   rw [oneCount]
 
 omit [BitWord.Selected model] in
-private theorem count_groups (first second third fourth : ResourcePool model) :
+private lemma count_groups (first second third fourth : ResourcePool model) :
     ((first + second) + (third + fourth)).card =
       (first.card + second.card) + (third.card + fourth.card) := by
   simp only [Multiset.card_add]
 
-private theorem narrow_total_le (taken : Bool) : (if taken then 5 else 3) ≤ 5 := by
+private lemma narrow_total_le (taken : Bool) : (if taken then 5 else 3) ≤ 5 := by
   cases taken <;> decide
 
 /-- The actual event total counts only the subtraction and selector arms actually executed. -/
-theorem nativeQuadratic_program_eventCount_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_eventCount_le (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (path : (program (model := model) input modulus original).Path) :
@@ -166,7 +166,7 @@ theorem nativeQuadratic_program_eventCount_le (input : CInputRef ctx (.unsignedW
   omega
 
 /-- Unit-duration depth follows the identical actual serial block order through every scope. -/
-theorem nativeQuadratic_program_unitDepth_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_unitDepth_le (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)
     (path : (program (model := model) input modulus original).Path) :

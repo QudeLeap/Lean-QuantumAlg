@@ -29,11 +29,11 @@ namespace QuantumAlg.QubitLayout
   QuantumLayout.uniform width 2 layout.physical_idx layout.physical_idx_injective
 
 /-- Converting the layout neither renames nor adds a physical system. -/
-theorem toQuantumLayout_identities {width : Nat} (layout : QubitLayout width) :
+lemma toQuantumLayout_identities {width : Nat} (layout : QubitLayout width) :
     layout.toQuantumLayout.identities = layout.systemIdx := rfl
 
 /-- Converted qubits contribute only to the dimension-two system count. -/
-theorem toQuantumLayout_dimensionCount {width : Nat} (layout : QubitLayout width)
+lemma toQuantumLayout_dimensionCount {width : Nat} (layout : QubitLayout width)
     (dimension : ℕ+) :
     layout.toQuantumLayout.dimensionCount dimension =
       if (2 : ℕ+) = dimension then width else 0 :=
@@ -46,7 +46,7 @@ def binaryIndexEquiv {width : Nat} (layout : QubitLayout width) :
   BinaryBasis.bigEndianEquiv width
 
 /-- Index transport preserves the value of each selected logical wire. -/
-theorem binaryIndexEquiv_bit {width : Nat} (layout : QubitLayout width)
+lemma binaryIndexEquiv_bit {width : Nat} (layout : QubitLayout width)
     (basis : layout.toQuantumLayout.register.Index) (index : Fin width) :
     (layout.binaryIndexEquiv basis).val.testBit index.rev.val = finTwoEquiv (basis index) :=
   BinaryBasis.bigEndianEquiv_bit width basis index

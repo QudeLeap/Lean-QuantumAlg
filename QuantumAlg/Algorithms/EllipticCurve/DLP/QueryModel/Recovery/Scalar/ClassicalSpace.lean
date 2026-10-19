@@ -44,9 +44,9 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 attribute [local irreducible] ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth
 
-private theorem finite_two_width : Nat.clog 2 2 = 1 := by decide
+private lemma finite_two_width : Nat.clog 2 2 = 1 := by decide
 
-private theorem original_resident (I : ECDLPInstance E) :
+private lemma original_resident (I : ECDLPInstance E) :
     (Sampling.pre I).residentSpace =
       2 • SpacePool.ofShape (.ellipticCurvePoint (fieldWidth E)) := by
   simp only [Sampling.pre, Runtime.Context.pre, Runtime.Context.baseInputCtx,
@@ -55,13 +55,13 @@ private theorem original_resident (I : ECDLPInstance E) :
     (SpacePool.ofShape (.ellipticCurvePoint (fieldWidth E)) + 0) = _
   simp only [add_zero, two_nsmul]
 
-private theorem original_auxiliary (I : ECDLPInstance E) :
+private lemma original_auxiliary (I : ECDLPInstance E) :
     (Sampling.pre I).auxiliarySpace = 0 := by
   simp only [Sampling.pre, Runtime.Context.pre, Runtime.Context.baseInputCtx,
     RuntimeCtx.auxiliarySpace_addBorrowedInput, RuntimeCtx.auxiliarySpace_empty]
 
 /-- Both actual live classical allowances include every retained result and borrowed point. -/
-theorem whole_memory_classical_coordinates (I : ECDLPInstance E) :
+lemma whole_memory_classical_coordinates (I : ECDLPInstance E) :
     SpacePool.count .classicalBits (tailResidentBudget I) =
         max (25 * scalarWidth I + 9 * signedWidth (scalarWidth I) + 16)
           (27 * fieldWidth E + 9 * signedWidth (fieldWidth E) + 15) +
@@ -79,12 +79,12 @@ theorem whole_memory_classical_coordinates (I : ECDLPInstance E) :
   omega
 
 /-- The original coefficient implementation has a width-only bound without operand enumeration. -/
-theorem original_signed_width_scalar (width : Nat) :
+lemma original_signed_width_scalar (width : Nat) :
     signedWidth width ≤ (width + 1) * (2 * (width + 1) + 1) + 3 :=
   ClassicalAlgorithms.NumberTheory.XGCD.executionCoefficientWidth_le_quadratic (width + 1)
 
 /-- Parameter-only ceilings bound both original classical storage inventories. -/
-public theorem whole_memory_classical_scalar (I : ECDLPInstance E) :
+public lemma whole_memory_classical_scalar (I : ECDLPInstance E) :
     SpacePool.count .classicalBits (tailResidentBudget I) ≤
         Scalar.residentBits (fieldWidth E) (scalarWidth I) ∧
       SpacePool.count .classicalBits (tailAuxiliaryBudget I) ≤

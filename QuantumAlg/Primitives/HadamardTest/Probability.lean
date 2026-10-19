@@ -34,11 +34,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open Execution
 
 /-- The retained result has the Born fiber of the physical control that was actually measured. -/
-theorem readoutCode_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma readoutCode_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (post width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (output : CShape.Value (.finite 2)) :
-    ((((readoutCode unitary).execute Reference state).mapClassical
+    ((((readoutCode width).execute (environment unitary) Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef width).toCStorageRef))).block output).mass =
       (∑ basis : (post width).register.Index,
         if CShape.Value.finite (cardinality := 2)
@@ -47,7 +47,7 @@ theorem readoutCode_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits 
   rw [ExecutionState.mapClassical_block_mass_diagonalSum]
   apply congrArg Complex.re
   rw [readoutCode, Circuit.measurementSequence_diagonalSum]
-  simp only [measured_value unitary]
+  simp only [measured_value width]
   calc
     _ = ∑ basis : (post width).register.Index,
         (if CShape.Value.finite (cardinality := 2)
@@ -62,7 +62,7 @@ theorem readoutCode_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits 
       intro basis _
       split <;> simp only [one_mul, zero_mul]
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
@@ -70,12 +70,12 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (Complex.normSq_eq_norm_sq (state basis))
 
 /-- The complete native code yields precisely the original source state's outcome fibers. -/
-theorem code_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma code_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise input state.quantumMarginal.marginalLeft)
     (output : CShape.Value (.finite 2)) :
-    ((((code unitary).execute Reference state).mapClassical
+    ((((code width).execute (environment unitary) Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef width).toCStorageRef))).block output).mass =
       ∑ basis : Fin (2 ^ (1 + width)),
         if CShape.Value.finite (cardinality := 2)
@@ -85,13 +85,14 @@ theorem code_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
     _ = (∑ basis : (post width).register.Index,
         if CShape.Value.finite (cardinality := 2)
           ((prodEquiv (m := 1) (n := width)).symm (outputBasisEquiv width basis)).1 = output then
-          ((beforeMeasurement unitary).execute Reference state).quantumMarginal.marginalLeft.matrix
+          ((beforeMeasurement width).execute (environment unitary)
+            Reference state).quantumMarginal.marginalLeft.matrix
             basis basis else 0).re := by
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
           readoutCode_block_mass unitary
-            ((beforeMeasurement unitary).execute Reference state) output
+            ((beforeMeasurement width).execute (environment unitary) Reference state) output
     _ = (∑ basis : Fin (2 ^ (1 + width)),
         if CShape.Value.finite (cardinality := 2)
           ((prodEquiv (m := 1) (n := width)).symm basis).1 = output then
@@ -114,11 +115,11 @@ theorem code_block_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
       · simp only [accepted, if_false, Complex.zero_re]
 
 /-- The real stored zero outcome has exactly the registered real-overlap probability. -/
-theorem code_zero_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma code_zero_mass {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise input state.quantumMarginal.marginalLeft) :
-    ((((code unitary).execute Reference state).mapClassical
+    ((((code width).execute (environment unitary) Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef width).toCStorageRef))).block
         (.finite 0)).mass = probabilityZero unitary input := by
   rw [code_block_mass unitary input state promised]

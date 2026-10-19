@@ -22,7 +22,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
+variable {model : ExecutionModel}
+  {environment : model.Environment} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual point subtraction precedes a self-dot refresh that overwrites the old accumulator. -/
 def squaredDistanceInto [BitWord.Selected model] (refs : Refs ctx width) :
@@ -41,11 +42,12 @@ def distanceStep [BitWord.Selected model] (refs : Refs ctx width) (store : Store
   (squared.1, (difference.2, squared.2))
 
 /-- All eight actual instructions preserve the complete incoming history and reference blocks. -/
-theorem squaredDistanceInto_execute [BitWord.Selected model]
+lemma squaredDistanceInto_execute [BitWord.Selected model]
     (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (squaredDistanceInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (squaredDistanceInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := distanceStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [squaredDistanceInto, Circuit.execute_seq,
@@ -55,7 +57,7 @@ theorem squaredDistanceInto_execute [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual distance circuit retains every read outside its five original output cells. -/
-theorem squaredDistanceInto_callerFrame [BitWord.Selected model]
+lemma squaredDistanceInto_callerFrame [BitWord.Selected model]
     (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (distanceStep refs store).1 := by
   intro shape other first second third squared product
@@ -79,7 +81,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
   callerFrame : CallerFrame refs before after
 
 /-- Explicit native initialization computes squared distance from arbitrary original scratch. -/
-theorem squaredDistanceInto_correct [BitWord.Selected model]
+lemma squaredDistanceInto_correct [BitWord.Selected model]
     (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (pointValue targetValue : NumberTheory.IntegerPoint3)
     (initial : InitialConditions store refs pointValue targetValue) :

@@ -25,7 +25,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
 /-- Actual writable inputs avoid every differently named destination. -/
-theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
     (sourceKey : source.key = mutableKey refs saved) (different : saved ≠ written) :
     mutableKey refs written ∉ (writeInput source).storageKeys := by
@@ -36,7 +36,7 @@ theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
   exact different (separation.mutableInjective equal.symm)
 
 /-- Actual copying and all three shifts change only their supplied destination. -/
-theorem copyScaleInto_callerFrame (input : CInputRef ctx (.unsignedWord width))
+lemma copyScaleInto_callerFrame (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : output.key ∉ other.storageKeys) :
     (copyScaleStep (model := model) input output store).1.read other = store.read other := by
@@ -58,7 +58,7 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
     (∀ cell, mutableKey refs cell ∉ other.storageKeys) → after.read other = before.read other
 
 /-- The eleven actual instructions preserve every read outside their original write footprint. -/
-theorem scaleInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
+lemma scaleInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (scaleStep (model := model) refs store).1 := by
   intro shape other avoids
   change ((preparedStore refs store).applyOp (compareOp refs)).read other = _
@@ -70,7 +70,7 @@ theorem scaleInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     copyScaleInto_callerFrame _ _ _ other (avoids .scaledDistance)]
 
 /-- The completed scaled distance survives all subsequent range arithmetic. -/
-theorem preparedStore_distance_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma preparedStore_distance_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (preparedStore (model := model) refs store).read (writeInput refs.scaledDistance) =
       (copyScaleStep (model := model) refs.distance refs.scaledDistance store).1.read

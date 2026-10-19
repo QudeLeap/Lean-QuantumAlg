@@ -35,7 +35,7 @@ def inputLabel (width count : Nat) (exponent : (exponents width count).register.
       exponent)
 
 /-- Every original input basis admits precisely the supplied word and exponent coordinates. -/
-theorem inputLabel_surjective (width count : Nat)
+lemma inputLabel_surjective (width count : Nat)
     (original : (before width count).register.Index) :
     ∃ (exponent : (exponents width count).register.Index) (x y : Fin (2 ^ width)),
       original = inputLabel width count exponent x y := by
@@ -79,7 +79,7 @@ def initializedAssembly (modulus count : Nat) :
     (cellsAssembly modulus.size count))).trans (selectorAssembly modulus.size count)
 
 /-- The actual fixed preparation retains both original words and the complete exponent register. -/
-theorem auxiliaryAssembly_input (modulus count : Nat)
+lemma auxiliaryAssembly_input (modulus count : Nat)
     (exponent : (exponents modulus.size count).register.Index) (x y : Fin (2 ^ modulus.size)) :
     auxiliaryAssembly modulus count ((InPlacePreparation.preparation modulus).value,
       inputLabel modulus.size count exponent x y) =
@@ -94,7 +94,7 @@ theorem auxiliaryAssembly_input (modulus count : Nat)
     (auxiliary_disjoint modulus.size count) _ _ _
 
 /-- Actual result retains preserve all original arithmetic and exponent basis values together. -/
-theorem cellsAssembly_input (width count : Nat)
+lemma cellsAssembly_input (width count : Nat)
     (exponent : (exponents width count).register.Index)
     (original : (InversePreparation.after width).register.Index) :
     cellsAssembly width count
@@ -107,7 +107,7 @@ theorem cellsAssembly_input (width count : Nat)
     (exponents width count) 2 width (complete_disjoint width count) original exponent
 
 /-- Both words and all exponent values survive in the prepared A=0 arithmetic frame. -/
-theorem auxiliary_cells_input (modulus count : Nat)
+lemma auxiliary_cells_input (modulus count : Nat)
     (exponent : (exponents modulus.size count).register.Index) (x y : Fin (2 ^ modulus.size)) :
     cellsAssembly modulus.size count
       (auxiliaryAssembly modulus count ((InPlacePreparation.preparation modulus).value,

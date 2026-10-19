@@ -38,7 +38,7 @@ def preparedWire (n : Nat) (index : Fin (n + 1)) : Fin (preparedContext n).syste
   pre.addOwnedLayoutPositionEquiv ⟨1⟩ (runtimeLayout n)
     preparationFresh (preparationDisjoint n) (Fin.castAdd pre.systemCount index)
 
-theorem preparedWire_preserved (n : Nat) (index : Fin (n + 1)) :
+lemma preparedWire_preserved (n : Nat) (index : Fin (n + 1)) :
     (preparedContext n).quantumLayout.wire (preparedWire n index) =
       (runtimeLayout n).wire index := by
   exact (pre.addOwnedLayout_wire_preserved ⟨1⟩ (runtimeLayout n)
@@ -46,7 +46,7 @@ theorem preparedWire_preserved (n : Nat) (index : Fin (n + 1)) :
       (Fin.append_left _ _ index)
 
 /-- The preparation assembly retains the value of every corresponding physical wire. -/
-theorem preparedLayoutEquiv_value (n : Nat) (basis : (runtimeLayout n).register.Index)
+lemma preparedLayoutEquiv_value (n : Nat) (basis : (runtimeLayout n).register.Index)
     (index : Fin (n + 1)) :
     (preparedLayoutEquiv n basis (preparedWire n index)).val = (basis index).val := by
   change (pre.addOwnedLayoutBasisEquiv ⟨1⟩ (runtimeLayout n)
@@ -59,7 +59,7 @@ theorem preparedLayoutEquiv_value (n : Nat) (basis : (runtimeLayout n).register.
     preparationFresh (preparationDisjoint n) _ (Fin.castAdd pre.systemCount index)).trans
       (QuantumLayout.appendJoinBasis_left_value _ _ _ basis _ index)
 
-theorem resultFresh (n : Nat) : (⟨2⟩ : StorageKey) ∉ (preparedContext n).keys := by
+lemma resultFresh (n : Nat) : (⟨2⟩ : StorageKey) ∉ (preparedContext n).keys := by
   change (⟨2⟩ : StorageKey) ∉ [⟨1⟩, ⟨0⟩]
   decide
 
@@ -81,7 +81,7 @@ def resultRef (n : Nat) : CWriteRef (post n) (.bits n) :=
 def queryWire (n : Nat) (index : Fin n) : Fin (post n).systemCount :=
   MeasurementCells.wireEquiv (resultContext n) 2 n (preparedWire n index.castSucc)
 
-theorem queryWire_dimension (n : Nat) (index : Fin n) :
+lemma queryWire_dimension (n : Nat) (index : Fin n) :
     ((post n).quantumLayout.wire (queryWire n index)).dimension = 2 := by
   rw [queryWire, MeasurementCells.wireEquiv_preserved]
   change ((preparedContext n).quantumLayout.wire
@@ -108,10 +108,10 @@ def packing (n : Nat) :
 def outputBasisEquiv (n : Nat) : (post n).register.Index ≃ (Qubits (n + 1)).Index :=
   (MeasurementCells.basisEquiv (resultContext n) 2 n).symm.trans (preparedBasisEquiv n)
 
-theorem readouts_length (n : Nat) : (readouts n).length = n := by
+lemma readouts_length (n : Nat) : (readouts n).length = n := by
   exact List.length_ofFn
 
-theorem readouts_qubits (n : Nat) :
+lemma readouts_qubits (n : Nat) :
     ∀ item ∈ readouts n, ((post n).quantumLayout.wire item.wire).dimension = 2 := by
   intro item present
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present

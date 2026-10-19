@@ -35,7 +35,7 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 
 attribute [local implicit_reducible] problem
 
-private theorem scalar_target_iff (I : ECDLPInstance E) (scalar : Nat) :
+private lemma scalar_target_iff (I : ECDLPInstance E) (scalar : Nat) :
     scalar • I.basePoint.toMathlib = I.targetPoint.toMathlib ↔
       (problem I).generator ^ scalar = (problem I).target := by
   change scalar • (problem I).generator.toMathlib = (problem I).target.toMathlib ↔ _
@@ -48,7 +48,7 @@ private theorem scalar_target_iff (I : ECDLPInstance E) (scalar : Nat) :
     exact congrArg GroupPoint.toMathlib equality
 
 /-- The point equation uniquely determines the original canonical secret within its order. -/
-theorem bounded_scalar_target_iff (I : ECDLPInstance E) (input : SecretInput (problem I))
+lemma bounded_scalar_target_iff (I : ECDLPInstance E) (input : SecretInput (problem I))
     (scalar : Nat) (bounded : scalar < I.subgroupOrder) :
     scalar • I.basePoint.toMathlib = I.targetPoint.toMathlib ↔ scalar = input.secret.val := by
   rw [scalar_target_iff]
@@ -66,7 +66,7 @@ theorem bounded_scalar_target_iff (I : ECDLPInstance E) (input : SecretInput (pr
     exact input.target_eq_generator_pow
 
 /-- The original selected raw outcome passes the actual flags and full public point equation. -/
-theorem selectedOutcome_accepted (I : ECDLPInstance E) (nontrivial : 2 ≤ (problem I).order)
+lemma selectedOutcome_accepted (I : ECDLPInstance E) (nontrivial : 2 ≤ (problem I).order)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ)
     (sample : CShape.Value (.fixedVector (scalarWidth I + scalarWidth I) (.finite 2)))
     (selected : Sampling.observedOutcome I sample = selectedRawOutcome (problem I) input unit) :
@@ -92,7 +92,7 @@ theorem selectedOutcome_accepted (I : ECDLPInstance E) (nontrivial : 2 ≤ (prob
   exact ⟨(scalar_target_iff I input.secret.val).mpr input.target_eq_generator_pow, rfl, rfl⟩
 
 /-- Every accepted raw sample has exactly the canonical original secret and both true flags. -/
-theorem sampleAccepted_iff_secret (I : ECDLPInstance E)
+lemma sampleAccepted_iff_secret (I : ECDLPInstance E)
     (nontrivial : 2 ≤ (problem I).order) (input : SecretInput (problem I))
     (sample : CShape.Value (.fixedVector (scalarWidth I + scalarWidth I) (.finite 2))) :
     SampleAccepted (curve E) (modulus I nontrivial)

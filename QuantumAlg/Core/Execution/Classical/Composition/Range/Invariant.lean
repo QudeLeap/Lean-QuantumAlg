@@ -26,7 +26,7 @@ noncomputable section
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
 
 /-- Each indexed transition advances its invariant on the actual store and service state. -/
-theorem forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × (body index).Path)
     (Invariant : Nat → Store ctx × model.HiddenState → Prop)
@@ -43,7 +43,7 @@ theorem forRangeRecord_invariant (count : Nat) (body : Fin count → Circuit mod
         (records 0 store).1 (advance 0 store initial)
 
 /-- Store-only chronological records retain invariants without exposing service state. -/
-theorem forRangeStoreRecord_invariant (count : Nat)
+lemma forRangeStoreRecord_invariant (count : Nat)
     (body : Fin count → Circuit model ctx ctx)
     (records : ∀ index, Store ctx → Store ctx × (body index).Path)
     (Invariant : Nat → Store ctx → Prop)

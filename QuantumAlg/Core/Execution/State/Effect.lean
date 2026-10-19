@@ -27,7 +27,7 @@ noncomputable section
 variable {C D : Type} [Fintype C] [Fintype D] {R : Register}
 
 /-- Observation pullback is independent of the decision procedure used by the real write. -/
-theorem effectWeight_mapClassical_decision (decision : DecidableEq D)
+lemma effectWeight_mapClassical_decision (decision : DecidableEq D)
     (state : ExecutionState C R) (update : C → D) (effects : D → Effect R) :
     (@mapClassical C D _ _ R decision state update).effectWeight effects =
       state.effectWeight (fun value => effects (update value)) := by
@@ -35,7 +35,7 @@ theorem effectWeight_mapClassical_decision (decision : DecidableEq D)
   exact effectWeight_mapClassical state update effects
 
 /-- Each actual classical block pulls its observable through its selected unitary. -/
-theorem effectWeight_applyUnitary (state : ExecutionState C R)
+lemma effectWeight_applyUnitary (state : ExecutionState C R)
     (operator : C → UnitaryOperator R) (effects : C → Effect R) :
     (state.applyUnitary operator).effectWeight effects =
       state.effectWeight (fun value =>
@@ -43,7 +43,7 @@ theorem effectWeight_applyUnitary (state : ExecutionState C R)
   simp only [effectWeight, applyUnitary_block, Effect.weight_pullbackUnitary]
 
 /-- Actual uniform classical sampling pulls back outcome-dependent effects by its real average. -/
-theorem effectWeight_uniformChoice (state : ExecutionState C R) (count : ℕ+)
+lemma effectWeight_uniformChoice (state : ExecutionState C R) (count : ℕ+)
     (effects : C × Fin count → Effect R) :
     (Execution.uniformChoice state count).effectWeight effects =
       state.effectWeight (fun original =>
@@ -54,7 +54,7 @@ theorem effectWeight_uniformChoice (state : ExecutionState C R) (count : ℕ+)
     Matrix.mul_smul, Matrix.trace_smul, Complex.smul_re, smul_eq_mul, Finset.mul_sum]
 
 /-- Observing an actual finite sum adds the observations of its probability-bearing parts. -/
-theorem effectWeight_finiteSum {Index : Type} [Fintype Index]
+lemma effectWeight_finiteSum {Index : Type} [Fintype Index]
     (parts : Index → ExecutionState C R) (total : ∑ index, (parts index).mass ≤ 1)
     (effects : C → Effect R) :
     (finiteSum parts total).effectWeight effects =
@@ -64,7 +64,7 @@ theorem effectWeight_finiteSum {Index : Type} [Fintype Index]
   rw [Finset.sum_comm]
 
 /-- A selected classical part contributes exactly the blocks in its actual read fiber. -/
-theorem effectWeight_selectClassical {Value : Type} [DecidableEq Value]
+lemma effectWeight_selectClassical {Value : Type} [DecidableEq Value]
     (state : ExecutionState C R) (read : C → Value) (value : Value)
     (effects : C → Effect R) :
     (state.selectClassical read value).effectWeight effects =

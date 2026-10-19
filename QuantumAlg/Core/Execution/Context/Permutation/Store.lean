@@ -31,7 +31,7 @@ def store (original : Store source) : Store target :=
     original.read (.storage ⟨key, role, slotOfMem (same.mem_iff.mpr present)⟩)
 
 /-- The target's storage read is precisely the original read at the same live entry. -/
-theorem store_read_storage (original : Store source) {shape : CShape}
+lemma store_read_storage (original : Store source) {shape : CShape}
     (ref : CStorageRef source shape) :
     (store same original).read (.storage (storage same ref)) = original.read (.storage ref) := by
   rw [store, Store.read_ofValues]
@@ -39,7 +39,7 @@ theorem store_read_storage (original : Store source) {shape : CShape}
   exact CStorageRef.storageRef_eq_of_key _ _ rfl
 
 /-- Every compound input read keeps its actual finite value. -/
-theorem store_read_input (original : Store source) {shape : CShape}
+lemma store_read_input (original : Store source) {shape : CShape}
     (ref : CInputRef source shape) :
     (store same original).read (input same ref) = original.read ref := by
   induction ref with
@@ -55,7 +55,7 @@ theorem store_read_input (original : Store source) {shape : CShape}
   | wordBitGet ref index ih => exact congrArg (fun value => value.wordBitGet index) ih
 
 /-- Reversing the entry permutation recovers every cell of the original store. -/
-theorem store_inverse (original : Store source) :
+lemma store_inverse (original : Store source) :
     store same.symm (store same original) = original := by
   apply Store.store_eq_of_storage_reads
   intro shape ref
@@ -69,7 +69,7 @@ def storeEquiv : Store source ≃ Store target where
   right_inv := store_inverse same.symm
 
 /-- The same actual write commutes with the change of entry coordinates. -/
-theorem store_write (original : Store source) {shape : CShape}
+lemma store_write (original : Store source) {shape : CShape}
     (output : CWriteRef source shape) (value : CShape.Value shape) :
     store same (original.write output value) =
       (store same original).write (writable same output) value := by

@@ -22,7 +22,7 @@ def signedRawPauliSet : Set (Matrix (Fin 2) (Fin 2) ℂ) :=
   {P | P = pauliX ∨ P = -pauliX ∨ P = pauliY ∨ P = -pauliY ∨
     P = pauliZ ∨ P = -pauliZ}
 
-theorem signedRawPauliSet_neg_mem {P : Matrix (Fin 2) (Fin 2) ℂ}
+lemma signedRawPauliSet_neg_mem {P : Matrix (Fin 2) (Fin 2) ℂ}
     (hP : P ∈ signedRawPauliSet) : -P ∈ signedRawPauliSet := by
   change P = pauliX ∨ P = -pauliX ∨ P = pauliY ∨ P = -pauliY ∨
     P = pauliZ ∨ P = -pauliZ at hP
@@ -31,7 +31,7 @@ theorem signedRawPauliSet_neg_mem {P : Matrix (Fin 2) (Fin 2) ℂ}
 
 namespace PauliNormalizer
 
-theorem complex_sqrt_two_sq : ((Real.sqrt 2 : ℂ) ^ 2) = 2 := by
+lemma complex_sqrt_two_sq : ((Real.sqrt 2 : ℂ) ^ 2) = 2 := by
   rw [← Complex.ofReal_pow, Real.sq_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
   norm_num
 

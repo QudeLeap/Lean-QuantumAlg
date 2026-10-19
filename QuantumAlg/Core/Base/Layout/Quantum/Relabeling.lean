@@ -28,7 +28,7 @@ namespace QuantumWire
   dimension := wire.dimension
 
 /-- Injective physical placement retains complete wire-record distinguishability. -/
-public theorem relabel_injective (physical : Nat ↪ Nat) :
+public lemma relabel_injective (physical : Nat ↪ Nat) :
     Function.Injective (relabel physical) := by
   intro left right same
   have identities := physical.injective (congrArg QuantumWire.identity same)
@@ -54,23 +54,23 @@ variable {count : Nat}
   identityInjective := fun _ _ equal => layout.identityInjective (physical.injective equal)
 
 /-- The ordered wire list uses exactly the same physical map as its per-position definition. -/
-public theorem relabel_wires (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+public lemma relabel_wires (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     (layout.relabel physical).wires = layout.wires.map (QuantumWire.relabel physical) := by
   simp only [wires, List.map_ofFn]
   rfl
 
 /-- The complete physical identity list is precisely the injective image of the original list. -/
-public theorem relabel_identities (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+public lemma relabel_identities (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     (layout.relabel physical).identities = layout.identities.map physical := by
   simp only [identities, List.map_ofFn]
   rfl
 
 /-- Placement preserves every positive native dimension in its original logical order. -/
-public theorem relabel_dimensions (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
+public lemma relabel_dimensions (layout : QuantumLayout count) (physical : Nat ↪ Nat) :
     (layout.relabel physical).dimensions = layout.dimensions := rfl
 
 /-- Every dimension-indexed resident quantum count remains unchanged by placement. -/
-public theorem relabel_dimensionCount (layout : QuantumLayout count) (physical : Nat ↪ Nat)
+public lemma relabel_dimensionCount (layout : QuantumLayout count) (physical : Nat ↪ Nat)
     (dimension : ℕ+) :
     (layout.relabel physical).dimensionCount dimension = layout.dimensionCount dimension := rfl
 
@@ -79,7 +79,7 @@ public theorem relabel_dimensionCount (layout : QuantumLayout count) (physical :
     layout.register.Index ≃ (layout.relabel physical).register.Index := Equiv.refl _
 
 /-- The finite value at each mapped physical system is unchanged, including nonbinary systems. -/
-public theorem relabelBasis_value (layout : QuantumLayout count) (physical : Nat ↪ Nat)
+public lemma relabelBasis_value (layout : QuantumLayout count) (physical : Nat ↪ Nat)
     (value : layout.register.Index) (index : Fin count) :
     (relabelBasis layout physical value index).val = (value index).val := rfl
 

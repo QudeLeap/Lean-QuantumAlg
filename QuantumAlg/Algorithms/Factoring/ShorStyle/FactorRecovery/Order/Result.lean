@@ -29,7 +29,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem recovered_store (source : Input N)
+private lemma recovered_store (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
@@ -40,7 +40,7 @@ private theorem recovered_store (source : Input N)
     BitWord.instructionStep]
 
 /-- The actual stored-base prefix and selected factor branch return the original source result. -/
-theorem recovered_result (source : Input N)
+lemma recovered_result (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)

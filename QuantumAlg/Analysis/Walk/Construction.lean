@@ -48,11 +48,11 @@ private def walkStateFormula (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x :
   WithLp.toLp 2 (fun y => (Real.sqrt (P.mat x y) : ℂ))
 
 @[simp]
-private theorem walkStateFormula_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n)))
+private lemma walkStateFormula_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n)))
     (x y : Fin (2 ^ n)) :
     walkStateFormula P x y = (Real.sqrt (P.mat x y) : ℂ) := (rfl)
 
-private theorem walkStateFormula_norm_sq (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin
+private lemma walkStateFormula_norm_sq (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin
   (2 ^ n)) :
     ‖walkStateFormula P x‖ ^ 2 = (1 : ℝ) := by
   calc
@@ -65,7 +65,7 @@ private theorem walkStateFormula_norm_sq (P : Matrix.SymmetricStochastic (Fin (2
       (P.nonneg x _)]
     _ = 1 := P.rowSum_one x
 
-private theorem walkStateFormula_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^
+private lemma walkStateFormula_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^
   n)) :
     ‖walkStateFormula P x‖ = 1 := by
   have h_sq : ‖walkStateFormula P x‖ ^ 2 = (1 : ℝ) := walkStateFormula_norm_sq P x
@@ -78,10 +78,10 @@ public def walkState (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 
   NormalizedVector.ofVector (walkStateFormula P x) (walkStateFormula_norm P x)
 
 @[simp]
-public theorem walkState_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x y : Fin (2 ^ n)) :
+public lemma walkState_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x y : Fin (2 ^ n)) :
     walkState P x y = (Real.sqrt (P.mat x y) : ℂ) := walkStateFormula_apply P x y
 
-public theorem walkState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) :
+public lemma walkState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) :
     ‖(walkState P x : HilbertVector (Qubits n))‖ = 1 := (walkState P x).norm_eq_one
 
 /-! ### Step 2: Isometries `VA`, `VB` -/
@@ -107,7 +107,7 @@ public def VB (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : Matrix (Fin (2 ^ 
     else 0
 
 @[simp]
-public theorem VA_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (edge : Fin (2 ^ (n + n)))
+public lemma VA_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (edge : Fin (2 ^ (n + n)))
   (x :
   Fin (2 ^ n)) :
     VA P edge x =
@@ -117,7 +117,7 @@ public theorem VA_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (edge : F
   (rfl)
 
 @[simp]
-public theorem VB_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (edge : Fin (2 ^ (n + n)))
+public lemma VB_apply (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (edge : Fin (2 ^ (n + n)))
   (y :
   Fin (2 ^ n)) :
     VB P edge y =
@@ -147,7 +147,7 @@ private lemma VA_term (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x x' a b :
 
 /-- `VA†·VA = I`. The isometry property: inner product of column vectors
 gives `δ_{x,x'}` because `⟨x|x'⟩ = δ` in the first register and `‖|p_x⟩‖ = 1`. -/
-public theorem VA_conjTranspose_mul_VA (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
+public lemma VA_conjTranspose_mul_VA (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
     (VA P).conjTranspose * (VA P) = (1 : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) := by
   ext x x'
   simp only [Matrix.mul_apply, Matrix.conjTranspose_apply, Matrix.one_apply]
@@ -182,7 +182,7 @@ private lemma VB_term (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (y y' a b :
   · simp [hby]
 /-- `VB†·VB = I`. Symmetric to VA, with the orthogonal register in the second slot.
 Using `colSum_one` (which follows from symmetry + rowSum_one) for the column sum. -/
-public theorem VB_conjTranspose_mul_VB (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
+public lemma VB_conjTranspose_mul_VB (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
     (VB P).conjTranspose * (VB P) = (1 : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) := by
   ext y y'
   simp only [Matrix.mul_apply, Matrix.conjTranspose_apply, Matrix.one_apply]
@@ -209,12 +209,12 @@ public def PA (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : HilbertOperator (
 public def PB (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : HilbertOperator (Qubits (n + n)) :=
   VB P * (VB P).conjTranspose
 
-public theorem PA_conjTranspose (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : (PA
+public lemma PA_conjTranspose (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : (PA
   P).conjTranspose =
   PA P := by
   simp [PA, Matrix.conjTranspose_mul]
 
-public theorem PA_idempotent (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : PA P * PA P = PA P
+public lemma PA_idempotent (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : PA P * PA P = PA P
   := by
   calc
     PA P * PA P = VA P * (((VA P).conjTranspose * (VA P)) * (VA P).conjTranspose) := by
@@ -223,12 +223,12 @@ public theorem PA_idempotent (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : PA
       rw [VA_conjTranspose_mul_VA P]
     _ = PA P := by simp [PA]
 
-public theorem PB_conjTranspose (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : (PB
+public lemma PB_conjTranspose (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : (PB
   P).conjTranspose =
   PB P := by
   simp [PB, Matrix.conjTranspose_mul]
 
-public theorem PB_idempotent (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : PB P * PB P = PB P
+public lemma PB_idempotent (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) : PB P * PB P = PB P
   := by
   calc
     PB P * PB P = VB P * (((VB P).conjTranspose * (VB P)) * (VB P).conjTranspose) := by
@@ -271,7 +271,7 @@ public def edgeBasis (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 
   NormalizedVector.tensor (NormalizedVector.ket x) (walkState P x)
 
 @[simp]
-theorem edgeBasis_coe (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) :
+lemma edgeBasis_coe (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) :
     (edgeBasis P x : HilbertVector (Qubits (n + n))) =
       HilbertVector.tensor (NormalizedVector.ket (R := Qubits n) x : HilbertVector (Qubits n))
         (walkState P x : HilbertVector (Qubits n)) := (rfl)
@@ -282,13 +282,13 @@ public lemma inner_ket_ket (x y : Fin (2 ^ n)) :
         if x = y then (1 : ℂ) else 0 := by
   simp [NormalizedVector.ket_apply, PiLp.inner_apply]
 /-- `‖|x⟩|p_x⟩‖ = 1`. -/
-public theorem edgeBasis_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) :
+public lemma edgeBasis_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) :
     ‖(edgeBasis P x : HilbertVector (Qubits (n + n)))‖ = 1 := by
   rw [edgeBasis_coe, HilbertVector.norm_tensor, NormalizedVector.norm_ket, walkState_norm, one_mul]
 
 /-- `⟨edgeBasis x | edgeBasis y⟩ = 0` for `x ≠ y`.
 Orthogonality from the first-register ket `⟨x|y⟩ = 0`. -/
-public theorem inner_edgeBasis_eq_zero_of_ne (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) {x y :
+public lemma inner_edgeBasis_eq_zero_of_ne (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) {x y :
   Fin (2
   ^ n)} (hne : x ≠ y) :
     inner ℂ ((edgeBasis P x : HilbertVector (Qubits (n + n)))) ((edgeBasis P y : HilbertVector
@@ -300,7 +300,7 @@ public theorem inner_edgeBasis_eq_zero_of_ne (P : Matrix.SymmetricStochastic (Fi
   rw [zero_mul]
 
 /-- `⟨edgeBasis x | edgeBasis x⟩ = 1`. -/
-public theorem inner_edgeBasis_self_eq_one (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin
+public lemma inner_edgeBasis_self_eq_one (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin
   (2 ^
   n)) :
     inner ℂ ((edgeBasis P x : HilbertVector (Qubits (n + n)))) ((edgeBasis P x : HilbertVector
@@ -317,7 +317,7 @@ private def uniformEdgeStateFormula (P : Matrix.SymmetricStochastic (Fin (2 ^ n)
   ((Real.sqrt ((2 : ℝ) ^ n))⁻¹ : ℂ) • (∑ x : Fin (2 ^ n), (edgeBasis P x : HilbertVector (Qubits
     (n + n))))
 
-private theorem edgeBasis_sum_norm_sq
+private lemma edgeBasis_sum_norm_sq
     (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (S : Finset (Fin (2 ^ n))) :
     ‖∑ x ∈ S, (edgeBasis P x : HilbertVector (Qubits (n + n)))‖ ^ 2 = (S.card : ℝ) := by
   have hinner :
@@ -349,7 +349,7 @@ private theorem edgeBasis_sum_norm_sq
     simp
   rwa [inner_self_eq_norm_sq] at hre
 
-private theorem edgeBasis_sum_norm
+private lemma edgeBasis_sum_norm
     (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (S : Finset (Fin (2 ^ n))) :
     ‖∑ x ∈ S, (edgeBasis P x : HilbertVector (Qubits (n + n)))‖ = Real.sqrt (S.card : ℝ) := by
   have h_sq := edgeBasis_sum_norm_sq P S
@@ -363,7 +363,7 @@ private theorem edgeBasis_sum_norm
   rw [Real.sqrt_sq (Real.sqrt_nonneg _)] at h_sqrt
   exact h_sqrt
 
-private theorem edgeBasis_univ_sum_inner
+private lemma edgeBasis_univ_sum_inner
     (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (S : Finset (Fin (2 ^ n))) :
     inner ℂ (∑ x : Fin (2 ^ n), (edgeBasis P x : HilbertVector (Qubits (n + n)))) (∑ y ∈ S,
       (edgeBasis P y : HilbertVector (Qubits (n + n)))) =
@@ -387,7 +387,7 @@ private theorem edgeBasis_univ_sum_inner
         exact False.elim (hy' (Finset.mem_univ y))
     _ = (S.card : ℂ) := by simp
 
-private theorem inv_sqrt_mul_inv_sqrt_mul_eq_sqrt_div
+private lemma inv_sqrt_mul_inv_sqrt_mul_eq_sqrt_div
     {a b : ℝ} (ha : 0 < a) (hb : 0 < b) :
     (Real.sqrt b)⁻¹ * ((Real.sqrt a)⁻¹ * b) = Real.sqrt b / Real.sqrt a := by
   have hsqrta_ne : Real.sqrt a ≠ 0 := ne_of_gt (Real.sqrt_pos.mpr ha)
@@ -409,7 +409,7 @@ private theorem inv_sqrt_mul_inv_sqrt_mul_eq_sqrt_div
       rw [div_eq_mul_inv, mul_comm]
 
 /-- `‖|U⟩‖ = 1`. Orthonormal basis → sum norm = √N → 1/√N·sum norm = 1. -/
-private theorem uniformEdgeStateFormula_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
+private lemma uniformEdgeStateFormula_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
   ‖uniformEdgeStateFormula P‖ = 1 := by
   rw [uniformEdgeStateFormula, norm_smul]
   have h_sum_norm :
@@ -429,12 +429,12 @@ public def uniformEdgeState (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
   NormalizedVector.ofVector (uniformEdgeStateFormula P) (uniformEdgeStateFormula_norm P)
 
 @[simp]
-public theorem uniformEdgeState_coe (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
+public lemma uniformEdgeState_coe (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
     (uniformEdgeState P : HilbertVector (Qubits (n + n))) =
       ((Real.sqrt ((2 : ℝ) ^ n))⁻¹ : ℂ) •
         (∑ x : Fin (2 ^ n), (edgeBasis P x : HilbertVector (Qubits (n + n)))) := (rfl)
 
-public theorem uniformEdgeState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
+public lemma uniformEdgeState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
     ‖(uniformEdgeState P : HilbertVector (Qubits (n + n)))‖ = 1 :=
   (uniformEdgeState P).norm_eq_one
 
@@ -462,7 +462,7 @@ public def idealRefUOp (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
   OrthogonalProjector.reflectionOp (OrthogonalProjector.rankOne (uniformEdgeState P))
 
 @[simp]
-public theorem idealRefUOp_coe (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
+public lemma idealRefUOp_coe (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) :
     (idealRefUOp P : HilbertOperator (Qubits (n + n))) =
       (2 : ℂ) • outerProductOp (uniformEdgeState P : HilbertVector (Qubits (n + n))) - 1 := (rfl)
 
@@ -474,7 +474,7 @@ public def markedProjectorOp (M : Finset (Fin (2 ^ n))) :
 
 /-- `‖|G⟩‖ = 1`: normalized sum over `|M|` orthogonal `edgeBasis` vectors.
 Same proof pattern as `uniformEdgeState_norm`, restricted to the subset `M`. -/
-public theorem goodState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^
+public lemma goodState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^
   n)))
   (hM_nonempty :
 M.Nonempty) :
@@ -489,7 +489,7 @@ M.Nonempty) :
     (ne_of_gt (Real.sqrt_pos.mpr (by exact_mod_cast Finset.card_pos.mpr hM_nonempty)))
 
 /-- `‖|B⟩‖ = 1`: normalized sum over `N-|M|` orthogonal `edgeBasis` vectors. -/
-public theorem badState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^
+public lemma badState_norm (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^
   n)))
   (hM_proper : M ≠
 Finset.univ) :
@@ -535,7 +535,7 @@ Finset.univ) :
 
 /-- `⟨G|B⟩ = 0` — good/bad states are orthogonal because the index sets `M` and `univ\M` are
 disjoint. -/
-public theorem goodState_inner_badState_eq_zero (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M :
+public lemma goodState_inner_badState_eq_zero (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M :
   Finset (Fin (2 ^ n))) :
     inner ℂ (goodState P M) (badState P M) = 0 := by
   set S := (Finset.univ : Finset (Fin (2 ^ n))) \ M with hS
@@ -571,7 +571,7 @@ public theorem goodState_inner_badState_eq_zero (P : Matrix.SymmetricStochastic 
 /-- `⟨U|G⟩ = √(|M|/2ⁿ)`. Inner product of uniform and good edge states.
 Each `e_x` is orthogonal/normalized, so `⟨Σ_univ e_x | Σ_M e_y⟩ = |M|`.
 Requires `M` nonempty for the `|G⟩` normalization. -/
-public theorem uniformEdgeState_inner_goodState (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M :
+public lemma uniformEdgeState_inner_goodState (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M :
   Finset (Fin (2 ^ n)))
     (hM_nonempty : M.Nonempty) :
     inner ℂ ((uniformEdgeState P : HilbertVector (Qubits (n + n)))) (goodState P M) =
@@ -586,7 +586,7 @@ public theorem uniformEdgeState_inner_goodState (P : Matrix.SymmetricStochastic 
   exact_mod_cast inv_sqrt_mul_inv_sqrt_mul_eq_sqrt_div hN_pos hM_pos
 
 /-- `⟨U|B⟩ = √((2ⁿ-|M|)/2ⁿ)`. Symmetric to uniform-inner-good. -/
-public theorem uniformEdgeState_inner_badState (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M :
+public lemma uniformEdgeState_inner_badState (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M :
   Finset
   (Fin (2 ^ n)))
     (hM_proper : M ≠ Finset.univ) :
@@ -640,7 +640,7 @@ public theorem uniformEdgeState_inner_badState (P : Matrix.SymmetricStochastic (
   exact_mod_cast inv_sqrt_mul_inv_sqrt_mul_eq_sqrt_div hN_pos hdiff_pos
 
 /-- `markedProjectorOp` is self-adjoint: sum of self-adjoint terms. -/
-public theorem markedProjectorOp_conjTranspose (M : Finset (Fin (2 ^ n))) :
+public lemma markedProjectorOp_conjTranspose (M : Finset (Fin (2 ^ n))) :
     (markedProjectorOp M).conjTranspose = markedProjectorOp M := by
   rw [markedProjectorOp]
   rw [Matrix.conjTranspose_sum]
@@ -658,7 +658,7 @@ private lemma basisOp_mul_basisOp_of_ne
     simp [OrthogonalProjector.basisOp, hr, hc, hxy.symm]
 
 /-- `markedProjectorOp` is idempotent. -/
-public theorem markedProjectorOp_idempotent (M : Finset (Fin (2 ^ n))) :
+public lemma markedProjectorOp_idempotent (M : Finset (Fin (2 ^ n))) :
     markedProjectorOp M * markedProjectorOp M = markedProjectorOp M := by
   rw [markedProjectorOp]
   calc
@@ -697,7 +697,7 @@ public def refBglobalOp (M : Finset (Fin (2 ^ n))) :
       abel }
 
 @[simp]
-public theorem refBglobalOp_coe (M : Finset (Fin (2 ^ n))) :
+public lemma refBglobalOp_coe (M : Finset (Fin (2 ^ n))) :
     (refBglobalOp M : HilbertOperator (Qubits (n + n))) =
       1 - (2 : ℂ) • markedProjectorOp M := by
   change (2 : ℂ) • (1 - markedProjectorOp M) - 1 = _

@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- Record only the actual reduction or absent-option arm of the stored guard. -/
@@ -58,27 +59,27 @@ def checkedStep (source : Input N) (cells : Cells ctx N)
   let selected := guardChoiceStep (model := model) source cells output guarded.1
   (selected.1, (guarded.2, selected.2))
 
-private theorem guard_path_execute (cells : Cells ctx N)
+private lemma guard_path_execute (cells : Cells ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (guardOrder (model := model) cells).execute Reference state =
+    (guardOrder (model := model) cells).execute environment Reference state =
       state.mapClassical (fun entry => ((guardStep (model := model) cells entry.1).1,
         (entry.2.1, (entry.2.2, (guardStep (model := model) cells entry.1).2)))) := by
   exact guard_execute cells Reference state
 
-private theorem guardChoice_execute (source : Input N) (cells : Cells ctx N)
+private lemma guardChoice_execute (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.branch (activeRead cells)
       (fun value => if value.toBool then reduce (model := model) source cells output
         else BitWord.instruction (execution := model) (packOutputOp cells output))).execute
-            Reference state =
+          environment Reference state =
       state.mapClassical (fun entry => ((guardChoiceStep (model := model) source cells output
           entry.1).1,
         (entry.2.1, (entry.2.2, (guardChoiceStep (model := model) source cells output
             entry.1).2)))) := by
-  refine (Circuit.execute_branch_mapClassical (activeRead cells)
+  refine (Circuit.execute_branch_mapClassical (environment := environment) (activeRead cells)
     (fun value => if value.toBool then reduce (model := model) source cells output
       else BitWord.instruction (execution := model) (packOutputOp cells output))
     (fun value entry =>
@@ -88,16 +89,17 @@ private theorem guardChoice_execute (source : Input N) (cells : Cells ctx N)
     cases value with
     | bit value =>
       cases value
-      · exact BitWord.bitWord_instruction_execute (packOutputOp cells output) initial
+      · exact BitWord.bitWord_instruction_execute
+          (environment := environment) (packOutputOp cells output) initial
       · exact reduce_execute source cells output reference initial
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual guard and reduction branch preserve every full quantum-reference block. -/
-theorem checked_execute (source : Input N) (cells : Cells ctx N)
+lemma checked_execute (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (checkedOrder (model := model) source cells output).execute Reference state =
+    (checkedOrder (model := model) source cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((checkedStep (model := model) source cells output
           entry.1).1,
         (entry.2.1, (entry.2.2, (checkedStep (model := model) source cells output entry.1).2))))
@@ -128,17 +130,18 @@ def dispatchStep (source : Input N) (parameter : CInputRef ctx (ParameterShape (
   (selected.1, ⟨value, selected.2⟩)
 
 /-- The real sampler flag selects the original priority branch on full CQ blocks. -/
-theorem dispatch_execute (source : Input N)
+lemma dispatch_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (dispatch (model := model) source parameter cells output).execute Reference state =
+    (dispatch (model := model) source parameter cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((dispatchStep (model := model) source parameter cells
           output entry.1).1,
         (entry.2.1, (entry.2.2, (dispatchStep (model := model) source parameter cells output
             entry.1).2)))) := by
-  refine (Circuit.execute_branch_mapClassical (.first (.second parameter))
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (.first (.second parameter))
     (fun value => if value.toBool then
       BitWord.instruction (execution := model) (packEarlyOp parameter output)
       else checkedOrder (model := model) source cells output)
@@ -150,7 +153,8 @@ theorem dispatch_execute (source : Input N)
     | bit value =>
       cases value
       · exact checked_execute source cells output reference initial
-      · exact BitWord.bitWord_instruction_execute (packEarlyOp parameter output) initial
+      · exact BitWord.bitWord_instruction_execute
+          (environment := environment) (packEarlyOp parameter output) initial
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end

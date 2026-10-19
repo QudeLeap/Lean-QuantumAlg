@@ -27,10 +27,11 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Actual retention returns the original recovery and the same complete interpreter record. -/
-theorem gf2Retained_actualRecord_correct
+lemma gf2Retained_actualRecord_correct
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     ∃ record : Store ctx × model.HiddenState →
@@ -38,7 +39,7 @@ theorem gf2Retained_actualRecord_correct
           (retainedCircuit input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (retainedCircuit (model := model) input key fresh).execute Reference state =
+        (retainedCircuit (model := model) input key fresh).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -50,14 +51,15 @@ theorem gf2Retained_actualRecord_correct
   let lifted := input.underRetained key (.option (.unsignedWord width)) fresh
   let output := CWriteRef.retainedHead ctx key (.option (.unsignedWord width)) fresh
   obtain ⟨bodyRecord, bodyEquation, bodyCorrect⟩ :=
-    gf2WithState_actualRecord_correct lifted output
+    gf2WithState_actualRecord_correct (environment := environment) lifted output
   let record (before : Store ctx × model.HiddenState) :=
     let final := bodyRecord
       (before.1.pushRetained key (.option (.unsignedWord width)) fresh, before.2)
     (final.1, ((), final.2))
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
-    refine (Circuit.execute_retain_seq_mapClassical (model := model) ctx key
+    refine (Circuit.execute_retain_seq_mapClassical
+      (environment := environment) (model := model) ctx key
       (.option (.unsignedWord width)) fresh
       (withState lifted output) bodyRecord bodyEquation reference state).trans ?_
     congr 1

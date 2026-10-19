@@ -23,14 +23,14 @@ namespace QuantumAlg.NumberTheory.SharedEEA.WordRotationRight
 
 variable {width : Nat}
 
-private theorem left_injective (width count : Nat) :
+private lemma left_injective (width count : Nat) :
     Function.Injective (fun word : BitVec width => word.rotateLeft count) :=
   (show Function.LeftInverse (fun word : BitVec width => word.rotateRight count)
     (fun word => word.rotateLeft count) from
       fun word => WordRotation.rotateRight_rotateLeft word count).injective
 
 /-- The opposite composition also restores the complete finite word. -/
-theorem rotateLeft_rotateRight (word : BitVec width) (count : Nat) :
+lemma rotateLeft_rotateRight (word : BitVec width) (count : Nat) :
     (word.rotateRight count).rotateLeft count = word := by
   let toFin : BitVec width → Fin (2 ^ width) := fun value => ⟨value.toNat, value.isLt⟩
   let : Finite (BitVec width) := Finite.of_injective toFin (by
@@ -41,7 +41,7 @@ theorem rotateLeft_rotateRight (word : BitVec width) (count : Nat) :
   rw [WordRotation.rotateRight_rotateLeft]
 
 /-- Successive actual right rotations add their full retained displacements. -/
-theorem rotateRight_comp (word : BitVec width) (first second : Nat) :
+lemma rotateRight_comp (word : BitVec width) (first second : Nat) :
     (word.rotateRight first).rotateRight second = word.rotateRight (first + second) := by
   apply left_injective width (first + second)
   change ((word.rotateRight first).rotateRight second).rotateLeft (first + second) =
@@ -50,7 +50,7 @@ theorem rotateRight_comp (word : BitVec width) (first second : Nat) :
   rw [rotateLeft_rotateRight, rotateLeft_rotateRight, rotateLeft_rotateRight]
 
 /-- A zero inverse displacement preserves every bit, including an empty word. -/
-theorem rotateRight_zero (word : BitVec width) : word.rotateRight 0 = word := by
+lemma rotateRight_zero (word : BitVec width) : word.rotateRight 0 = word := by
   simpa only [TerminalTail.rotateLeft_zero] using WordRotation.rotateRight_rotateLeft word 0
 
 end QuantumAlg.NumberTheory.SharedEEA.WordRotationRight

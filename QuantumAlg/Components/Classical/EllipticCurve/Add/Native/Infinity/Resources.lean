@@ -23,7 +23,7 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original tag-not and nominal-point packing event sequence. -/
@@ -33,7 +33,7 @@ def infinityTrace (model : ExecutionModel) [BitWord.Selected model]
     .classicalOperation (BitWord.selectedCoordinate (execution := model)
       (.nominalEncoding (.packEllipticCurvePoint width)))]
 
-private theorem infinityBody_eventTrace (falseBit : CInputRef ctx .bit)
+private lemma infinityBody_eventTrace (falseBit : CInputRef ctx .bit)
     (tag : CWriteRef ctx .bit) (zero : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (path : (infinityBody (model := model) falseBit tag zero output).Path) :
@@ -47,7 +47,7 @@ private theorem infinityBody_eventTrace (falseBit : CInputRef ctx .bit)
   rfl
 
 /-- Actual internal allocation and release add no event beyond the original two instructions. -/
-theorem infinityInto_eventTrace (output : CWriteRef ctx (PointShape width))
+lemma infinityInto_eventTrace (output : CWriteRef ctx (PointShape width))
     (path : (infinityInto (model := model) output).Path) :
     (infinityInto (model := model) output).eventTrace path = infinityTrace model width := by
   exact withCellsFrom_property (Transport.id ctx) (infinityShapes width)
@@ -58,13 +58,13 @@ theorem infinityInto_eventTrace (output : CWriteRef ctx (PointShape width))
     (fun cells _ transport _ selected => infinityBody_eventTrace _ _ _ _ selected) path
 
 /-- The same executed trace gives the exact original native event multiplicities. -/
-theorem infinityInto_resourcePool (output : CWriteRef ctx (PointShape width))
+lemma infinityInto_resourcePool (output : CWriteRef ctx (PointShape width))
     (path : (infinityInto (model := model) output).Path) :
     (infinityInto (model := model) output).resourcePool path =
       ResourcePool.ofList (infinityTrace model width) :=
   congrArg ResourcePool.ofList (infinityInto_eventTrace output path)
 
-private theorem infinityBody_depth (falseBit : CInputRef ctx .bit)
+private lemma infinityBody_depth (falseBit : CInputRef ctx .bit)
     (tag : CWriteRef ctx .bit) (zero : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (duration : Resource.Event model → Nat)
     (path : (infinityBody (model := model) falseBit tag zero output).Path) :
@@ -78,7 +78,7 @@ private theorem infinityBody_depth (falseBit : CInputRef ctx .bit)
   rfl
 
 /-- The actual dependency depth retains both original instruction durations. -/
-theorem infinityInto_depth (output : CWriteRef ctx (PointShape width))
+lemma infinityInto_depth (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
     (path : (infinityInto (model := model) output).Path) :
     (infinityInto (model := model) output).depth duration path =
@@ -92,13 +92,13 @@ theorem infinityInto_depth (output : CWriteRef ctx (PointShape width))
     (fun cells _ transport _ selected => infinityBody_depth _ _ _ _ duration selected) path
 
 /-- Unit native durations give the original two-step infinity initialization. -/
-theorem infinityInto_unitDepth (output : CWriteRef ctx (PointShape width))
+lemma infinityInto_unitDepth (output : CWriteRef ctx (PointShape width))
     (path : (infinityInto (model := model) output).Path) :
     (infinityInto (model := model) output).depth (fun _ => 1) path = 2 := by
   rw [infinityInto_depth]
   rfl
 
-private theorem infinityBody_resident (falseBit : CInputRef ctx .bit)
+private lemma infinityBody_resident (falseBit : CInputRef ctx .bit)
     (tag : CWriteRef ctx .bit) (zero : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (path : (infinityBody (model := model) falseBit tag zero output).Path) :
@@ -107,7 +107,7 @@ private theorem infinityBody_resident (falseBit : CInputRef ctx .bit)
   change SpacePool.max ctx.residentSpace (SpacePool.max ctx.residentSpace 0) ≤ _
   simp only [SpacePool.max_zero, SpacePool.max_self, le_refl]
 
-private theorem infinityBody_auxiliary (falseBit : CInputRef ctx .bit)
+private lemma infinityBody_auxiliary (falseBit : CInputRef ctx .bit)
     (tag : CWriteRef ctx .bit) (zero : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (path : (infinityBody (model := model) falseBit tag zero output).Path) :
@@ -117,7 +117,7 @@ private theorem infinityBody_auxiliary (falseBit : CInputRef ctx .bit)
   simp only [SpacePool.max_zero, SpacePool.max_self, le_refl]
 
 /-- The original false, tag and zero cells bound the full actual resident peak. -/
-theorem infinityInto_resident (output : CWriteRef ctx (PointShape width))
+lemma infinityInto_resident (output : CWriteRef ctx (PointShape width))
     (path : (infinityInto (model := model) output).Path) :
     (infinityInto (model := model) output).peakResidentSpace path ≤
       ((infinityShapes width).map SpacePool.ofShape).sum + ctx.residentSpace := by
@@ -130,7 +130,7 @@ theorem infinityInto_resident (output : CWriteRef ctx (PointShape width))
         simpa only [zero_add] using infinityBody_resident _ _ _ _ selected) path
 
 /-- The same three internally allocated cells carry their actual auxiliary roles. -/
-theorem infinityInto_auxiliary (output : CWriteRef ctx (PointShape width))
+lemma infinityInto_auxiliary (output : CWriteRef ctx (PointShape width))
     (path : (infinityInto (model := model) output).Path) :
     (infinityInto (model := model) output).peakAuxiliarySpace path ≤
       ((infinityShapes width).map SpacePool.ofShape).sum + ctx.auxiliarySpace := by
@@ -144,7 +144,7 @@ theorem infinityInto_auxiliary (output : CWriteRef ctx (PointShape width))
 
 omit [BitWord.Selected model] in
 /-- A full zero-coordinate word and two real bits have the original scratch capacity. -/
-theorem infinityShapes_classicalBits :
+lemma infinityShapes_classicalBits :
     (((infinityShapes width).map (SpacePool.ofShape (kind := model.kind))).sum) .classicalBits =
       width + 2 := by
   simp [infinityShapes, SpacePool.ofShape, CShape.bitWidth]

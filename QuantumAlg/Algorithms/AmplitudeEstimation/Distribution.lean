@@ -33,22 +33,23 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- The actual complete run has the original mathematical query-readout distribution. -/
-theorem outputDistribution_eq {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
+lemma outputDistribution_eq {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
     (empty : Elementary.helperWidth t n = 0)
-    {Reference : Register} (input : OracleInput (model E).classicalOracles pre Reference) :
-    (run E t).outputDistribution input =
+    {Reference : Register} (input : OracleInput (model n).classicalOracles pre Reference) :
+    (run n t).outputDistribution (sourceEnvironment E) input =
       (outcomeDistribution E t).map CShape.Value.bits := by
   apply PMF.ext
   intro output
   have actual := congrArg (fun distribution : PMF (CShape.Value (.bits t)) =>
       distribution output)
-    (ExecutionState.toPMF_mapClassical ((run E t).execute Reference input.state)
-      ((run E t).execute_normalized input) (run E t).result)
+    (ExecutionState.toPMF_mapClassical ((run n t).execute (sourceEnvironment E) Reference
+      input.state)
+      ((run n t).execute_normalized (sourceEnvironment E) input) (run n t).result)
   simp only [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code E t).execute Reference
+    (((code n t).execute (sourceEnvironment E) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef t n).toCStorageRef))
       |>.block output).mass) = _
@@ -67,7 +68,7 @@ theorem outputDistribution_eq {n : Nat} (E : GeneralAmplitudeEstimationInput n) 
   · rw [if_neg matching, if_neg (Ne.symm matching)]
     exact ENNReal.ofReal_zero
 
-private theorem accepts_iff_encoded {n t : Nat} (E : GeneralAmplitudeEstimationInput n)
+private lemma accepts_iff_encoded {n t : Nat} (E : GeneralAmplitudeEstimationInput n)
     (eps : Real) (initial : Store pre) (result : CShape.Value (.bits t)) :
     accepts E eps initial result ↔
       result ∈ CShape.Value.bits '' {outcome | SuccessfulOutcome E eps outcome} := by
@@ -82,25 +83,28 @@ private theorem accepts_iff_encoded {n t : Nat} (E : GeneralAmplitudeEstimationI
         exact accepted
 
 /-- The independent additive-error event holds on the actual initial-store/result distribution. -/
-theorem actual_success {n : Nat} (E : GeneralAmplitudeEstimationInput n) (eps η : Real)
+lemma actual_success {n : Nat} (E : GeneralAmplitudeEstimationInput n) (eps η : Real)
     (positiveWidth : 0 < selectedPhaseQubits eps η)
     (positivePrecision : 0 < eps) (precisionAtMostOne : eps ≤ 1)
     (positiveFailure : 0 < η) (failureAtMostOne : η ≤ 1)
-    {Reference : Register} (input : OracleInput (model E).classicalOracles pre Reference) :
+    {Reference : Register} (input : OracleInput (model n).classicalOracles pre Reference) :
     ENNReal.ofReal (1 - η) ≤
-      ((run E (selectedPhaseQubits eps η)).relationalDistribution input).toOuterMeasure
+      ((run n (selectedPhaseQubits eps η)).relationalDistribution (sourceEnvironment E)
+        input).toOuterMeasure
         {pair | accepts E eps pair.1 pair.2} := by
   have projection :
-      ((run E (selectedPhaseQubits eps η)).relationalDistribution input).toOuterMeasure
+      ((run n (selectedPhaseQubits eps η)).relationalDistribution (sourceEnvironment E)
+        input).toOuterMeasure
         {pair | accepts E eps pair.1 pair.2} =
-      ((run E (selectedPhaseQubits eps η)).outputDistribution input).toOuterMeasure
+      ((run n (selectedPhaseQubits eps η)).outputDistribution (sourceEnvironment E)
+        input).toOuterMeasure
         (CShape.Value.bits '' {outcome | SuccessfulOutcome E eps outcome}) := by
     simp only [AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
       PMF.toOuterMeasure_map_apply]
     congr 1
     ext record
     exact accepts_iff_encoded E eps record.2.2.1
-      ((run E (selectedPhaseQubits eps η)).result record)
+      ((run n (selectedPhaseQubits eps η)).result record)
   have empty := Elementary.selected_helperWidth_eq_zero n positivePrecision precisionAtMostOne
     positiveFailure failureAtMostOne
   rw [projection, outputDistribution_eq E (selectedPhaseQubits eps η) empty input,

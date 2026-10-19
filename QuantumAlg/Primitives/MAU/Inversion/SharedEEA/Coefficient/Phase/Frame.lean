@@ -36,23 +36,23 @@ noncomputable section
 
 open NumberTheory.SharedEEA
 
-private theorem size_fits_counter {value modulus : Nat} (bounded : value ≤ modulus) :
+private lemma size_fits_counter {value modulus : Nat} (bounded : value ≤ modulus) :
     value.size < 2 ^ modulus.size.size :=
   (Nat.size_le_size bounded).trans_lt (Nat.lt_size_self modulus.size)
 
-private theorem quotient_size_le (state : IterationState) (modulus : Nat)
+private lemma quotient_size_le (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.quotient.size ≤ modulus.size :=
   Nat.size_le_size ((Nat.div_le_self state.remainder state.divisor).trans
     (Capacity.iteration_fields_le state modulus valid conserved).1)
 
-private theorem remaining_length_fits (state : IterationState) (modulus count : Nat)
+private lemma remaining_length_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.quotient.size - (count + 1) < 2 ^ modulus.size.size :=
   ((Nat.sub_le state.quotient.size (count + 1)).trans
     (quotient_size_le state modulus valid conserved)).trans_lt (Nat.lt_size_self modulus.size)
 
-private theorem shift_fits (state : IterationState) (modulus count : Nat)
+private lemma shift_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) :
     count < 2 ^ modulus.size.size :=
@@ -81,14 +81,14 @@ def frame (state : IterationState) (modulus count : Nat)
   control := false
 
 /-- The real coefficient length is the actual coefficient bit length, without modular truncation. -/
-theorem frame_coefficientLength (state : IterationState) (modulus count : Nat)
+lemma frame_coefficientLength (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved active beforeEnd iteration).coefficientLength.toNat =
       state.coefficient.size := rfl
 
 /-- The native remaining-quotient field is the actual bit length after this consumed digit. -/
-theorem frame_quotientLength (state : IterationState) (modulus count : Nat)
+lemma frame_quotientLength (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved active beforeEnd iteration).quotientLength.toNat =
@@ -97,14 +97,14 @@ theorem frame_quotientLength (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The retained low shift is the actual circular-rotation count, not a guessed quotient scale. -/
-theorem frame_shift (state : IterationState) (modulus count : Nat)
+lemma frame_shift (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved active beforeEnd iteration).shift.toNat = count :=
   rfl
 
 /-- Existing reachable coefficient bounds supply the physical arithmetic window internally. -/
-theorem window_fits (state : IterationState) (modulus : Nat)
+lemma window_fits (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     CoefficientWindow.width state ≤ modulus.size + 3 := by
   have bounded := Nat.size_le_size
@@ -119,12 +119,12 @@ def window (state : IterationState) (modulus : Nat)
   CoefficientWindowOrientation.coefficientWindow modulus.size (CoefficientWindow.width state)
     (window_fits state modulus valid conserved)
 
-private theorem read_cast {left right length : Nat} (word : BitVec left) (same : left = right) :
+private lemma read_cast {left right length : Nat} (word : BitVec left) (same : left = right) :
     PhysicalWindow.read length (word.cast same) = PhysicalWindow.read length word := by
   cases same
   rfl
 
-private theorem packWork1_read {coefficient quotient remainder : Nat}
+private lemma packWork1_read {coefficient quotient remainder : Nat}
     (payload : WordPacking.Work1Payload coefficient quotient remainder) :
     PhysicalWindow.read (coefficient + 1) (WordPacking.packWork1 payload) =
       payload.coefficientBits.setWidth (coefficient + 1) := by
@@ -142,7 +142,7 @@ private theorem packWork1_read {coefficient quotient remainder : Nat}
     exact (BitVec.getLsbD_of_ge payload.coefficientBits coefficient (Nat.le_refl _)).symm
 
 /-- The actual physical Work1 read is precisely the existing bounded coefficient operand. -/
-theorem sourceWord_eq (state : IterationState) (modulus count : Nat)
+lemma sourceWord_eq (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     CoefficientWindowLaws.sourceWord (window state modulus valid conserved)
@@ -158,7 +158,7 @@ theorem sourceWord_eq (state : IterationState) (modulus count : Nat)
     (by omega : state.coefficient.size ≤ state.coefficient.size + 1)
 
 /-- The actual rotated Work2 read is the proved integer part, with no divisibility premise. -/
-theorem targetWord_eq (state : IterationState) (modulus count : Nat)
+lemma targetWord_eq (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     CoefficientWindowLaws.targetWord (window state modulus valid conserved)
@@ -171,7 +171,7 @@ theorem targetWord_eq (state : IterationState) (modulus count : Nat)
   exact PackedCoefficientWindow.read_eq state modulus count valid conserved active beforeEnd.le
 
 /-- The existing actual native program computes the proved coefficient instruction on this frame. -/
-theorem native_signed_word (state : IterationState) (modulus count : Nat)
+lemma native_signed_word (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     CoefficientWindowLaws.signedTarget (window state modulus valid conserved)
@@ -194,7 +194,7 @@ theorem native_signed_word (state : IterationState) (modulus count : Nat)
   exact actual
 
 /-- Reachable capacity clears the actual native Sign; no external addition-range premise is used. -/
-theorem native_sign_clear (state : IterationState) (modulus count : Nat)
+lemma native_sign_clear (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (ArithmeticBlocks.coefficientStep modulus.size

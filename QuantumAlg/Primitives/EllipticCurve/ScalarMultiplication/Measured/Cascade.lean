@@ -26,26 +26,22 @@ open Execution
 
 /-- Execute the prescribed indexed point calls in order using one actual shared workspace. -/
 def cascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    {count : Nat} (points : Fin count → AffinePoint E) : List (Fin count) →
+    {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
+    (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (readyContext p.size count) (readyContext p.size count)
+      (readyContext p.size count) (readyContext p.size count) allowAllocation :=
+  match order with
   | [] => .id _
-  | active :: remaining => (step E (points active) active).seq (cascade E points remaining)
-
-/-- The whole cascade remains in the original local instruction fragment. -/
-theorem cascade_isLocal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count)) :
-    (cascade E points order).IsLocal := by
-  induction order with
-  | nil => trivial
-  | cons active remaining ih => exact ⟨step_isLocal E (points active) active, ih⟩
+  | active :: remaining =>
+      (step E (points active) active allowAllocation).seq
+        (cascade E points remaining allowAllocation)
 
 /-- Invoke every indexed exponent exactly once in increasing index order. -/
 def fullCascade {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    {count : Nat} (points : Fin count → AffinePoint E) :
+    {count : Nat} (points : Fin count → AffinePoint E) (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (readyContext p.size count) (readyContext p.size count) :=
-  cascade E points (List.finRange count)
+      (readyContext p.size count) (readyContext p.size count) allowAllocation :=
+  cascade E points (List.finRange count) allowAllocation
 
 end
 

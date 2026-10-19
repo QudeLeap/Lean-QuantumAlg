@@ -56,20 +56,20 @@ def toffoliStep (controlA controlB target : EncodedBit encoding) (x : Data) :
   if controlA.get x && controlB.get x then target.flip x else x
 
 /-- Flipping an encoded bit toggles its own semantic readout. -/
-theorem get_flip_self (bit : EncodedBit encoding) (x : Data) :
+lemma get_flip_self (bit : EncodedBit encoding) (x : Data) :
     bit.get (bit.flip x) = !bit.get x := by
   rw [← bit.get_eq (bit.flip x), bit.encode_flip x]
   rw [WireAddress.bit_flipBit_self, bit.get_eq x]
 
 /-- Flipping one encoded bit preserves the readout of a distinct wire. -/
-theorem get_flip_of_wire_ne (target observed : EncodedBit encoding)
+lemma get_flip_of_wire_ne (target observed : EncodedBit encoding)
     (hne : target.wire ≠ observed.wire) (x : Data) :
     observed.get (target.flip x) = observed.get x := by
   rw [← observed.get_eq (target.flip x), target.encode_flip x]
   rw [WireAddress.bit_flipBit_of_ne hne, observed.get_eq x]
 
 /-- CNOT toggles its target readout exactly when the control readout is true. -/
-theorem cnotStep_get_target (control target : EncodedBit encoding) (x : Data) :
+lemma cnotStep_get_target (control target : EncodedBit encoding) (x : Data) :
     target.get (cnotStep control target x) =
       (target.get x ^^ control.get x) := by
   by_cases hcontrol : control.get x
@@ -80,7 +80,7 @@ theorem cnotStep_get_target (control target : EncodedBit encoding) (x : Data) :
 
 /-- CNOT preserves the readout of any encoded bit whose wire is not the
 target wire. -/
-theorem cnotStep_get_of_target_ne (control target observed : EncodedBit encoding)
+lemma cnotStep_get_of_target_ne (control target observed : EncodedBit encoding)
     (hne : target.wire ≠ observed.wire) (x : Data) :
     observed.get (cnotStep control target x) = observed.get x := by
   unfold cnotStep
@@ -90,7 +90,7 @@ theorem cnotStep_get_of_target_ne (control target observed : EncodedBit encoding
 
 /-- Toffoli toggles its target readout exactly when both control readouts are
 true. -/
-theorem toffoliStep_get_target
+lemma toffoliStep_get_target
     (controlA controlB target : EncodedBit encoding) (x : Data) :
     target.get (toffoliStep controlA controlB target x) =
       (target.get x ^^ (controlA.get x && controlB.get x)) := by
@@ -102,7 +102,7 @@ theorem toffoliStep_get_target
 
 /-- Toffoli preserves the readout of any encoded bit whose wire is not the
 target wire. -/
-theorem toffoliStep_get_of_target_ne
+lemma toffoliStep_get_of_target_ne
     (controlA controlB target observed : EncodedBit encoding)
     (hne : target.wire ≠ observed.wire) (x : Data) :
     observed.get (toffoliStep controlA controlB target x) =
@@ -128,9 +128,9 @@ def relabel {Other : Type} (bit : EncodedBit encoding) (layout : Other ≃ Data)
 variable {layout : QubitLayout encoding.width} {oracles : OracleModel}
 
 /-- One addressed X/NOT gate realizes the semantic flip for an encoded bit. -/
-theorem x_realizes (bit : EncodedBit encoding) :
+lemma x_realizes (bit : EncodedBit encoding) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes (layout := layout) encoding
-      ((QubitPrimitive.x bit.wire).circuit layout oracles) bit.flip where
+      ((QubitPrimitive.x bit.wire).circuit layout oracles) environment bit.flip where
   apply_encoded_ket := by
     intro x
     rw [QubitPrimitive.circuit_applyNormalized_ket]
@@ -139,10 +139,10 @@ theorem x_realizes (bit : EncodedBit encoding) :
     exact (bit.encode_flip x).symm
 
 /-- One addressed CNOT gate realizes semantic controlled flip for encoded bits. -/
-theorem cnot_realizes (control target : EncodedBit encoding)
-    (hct : control.wire ≠ target.wire) :
+lemma cnot_realizes (control target : EncodedBit encoding)
+    (hct : control.wire ≠ target.wire) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes (layout := layout) encoding
-      ((QubitPrimitive.cnot control.wire target.wire hct).circuit layout oracles)
+      ((QubitPrimitive.cnot control.wire target.wire hct).circuit layout oracles) environment
       (cnotStep control target) where
   apply_encoded_ket := by
     intro x
@@ -157,12 +157,12 @@ theorem cnot_realizes (control target : EncodedBit encoding)
 
 /-- One addressed Toffoli gate realizes semantic double-controlled flip for
 encoded bits. -/
-theorem toffoli_realizes (controlA controlB target : EncodedBit encoding)
+lemma toffoli_realizes (controlA controlB target : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire) (ha : controlA.wire ≠ target.wire)
-    (hb : controlB.wire ≠ target.wire) :
+    (hb : controlB.wire ≠ target.wire) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes (layout := layout) encoding
       ((QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
-        hab ha hb).circuit layout oracles)
+        hab ha hb).circuit layout oracles) environment
       (toffoliStep controlA controlB target) where
   apply_encoded_ket := by
     intro x
@@ -177,44 +177,44 @@ theorem toffoli_realizes (controlA controlB target : EncodedBit encoding)
         controlA.get_eq x, controlB.get_eq x, toffoliStep, hcontrols]
 
 /-- Proof that the actual X circuit realizes the encoded semantic flip. -/
-theorem xWitness (bit : EncodedBit encoding) :
+lemma xWitness (bit : EncodedBit encoding) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes (layout := layout) encoding
-      ((QubitPrimitive.x bit.wire).circuit layout oracles) bit.flip :=
-  x_realizes bit
+      ((QubitPrimitive.x bit.wire).circuit layout oracles) environment bit.flip :=
+  x_realizes bit environment
 
 /-- Proof that the actual CNOT circuit realizes semantic controlled flip. -/
-theorem cnotWitness (control target : EncodedBit encoding)
-    (hct : control.wire ≠ target.wire) :
+lemma cnotWitness (control target : EncodedBit encoding)
+    (hct : control.wire ≠ target.wire) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes (layout := layout) encoding
-      ((QubitPrimitive.cnot control.wire target.wire hct).circuit layout oracles)
+      ((QubitPrimitive.cnot control.wire target.wire hct).circuit layout oracles) environment
       (cnotStep control target) :=
-  cnot_realizes control target hct
+  cnot_realizes control target hct environment
 
 /-- Proof that the actual Toffoli circuit realizes semantic double control. -/
-theorem toffoliWitness (controlA controlB target : EncodedBit encoding)
+lemma toffoliWitness (controlA controlB target : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire) (ha : controlA.wire ≠ target.wire)
-    (hb : controlB.wire ≠ target.wire) :
+    (hb : controlB.wire ≠ target.wire) (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes (layout := layout) encoding
       ((QubitPrimitive.toffoli controlA.wire controlB.wire target.wire
-        hab ha hb).circuit layout oracles)
+        hab ha hb).circuit layout oracles) environment
       (toffoliStep controlA controlB target) :=
-  toffoli_realizes controlA controlB target hab ha hb
+  toffoli_realizes controlA controlB target hab ha hb environment
 
 /-- Flipping an encoded bit twice restores the semantic state. -/
-theorem flip_flip (bit : EncodedBit encoding) (x : Data) :
+lemma flip_flip (bit : EncodedBit encoding) (x : Data) :
     bit.flip (bit.flip x) = x := by
   apply encoding.encode_injective
   rw [bit.encode_flip, bit.encode_flip, WireAddress.flipBit_flipBit]
 
 /-- Semantic flips of encoded bits commute. -/
-theorem flip_comm (left right : EncodedBit encoding) (x : Data) :
+lemma flip_comm (left right : EncodedBit encoding) (x : Data) :
     left.flip (right.flip x) = right.flip (left.flip x) := by
   apply encoding.encode_injective
   rw [left.encode_flip, right.encode_flip, right.encode_flip,
     left.encode_flip, WireAddress.flipBit_comm]
 
 /-- A semantic CNOT step is self-inverse. -/
-theorem cnotStep_cnotStep
+lemma cnotStep_cnotStep
     (control target : EncodedBit encoding)
     (hct : control.wire ≠ target.wire) (x : Data) :
     cnotStep control target (cnotStep control target x) = x := by
@@ -229,7 +229,7 @@ theorem cnotStep_cnotStep
     rw [if_neg hcontrol]
 
 /-- A semantic Toffoli step is self-inverse. -/
-theorem toffoliStep_toffoliStep
+lemma toffoliStep_toffoliStep
     (controlA controlB target : EncodedBit encoding)
     (ha : controlA.wire ≠ target.wire)
     (hb : controlB.wire ≠ target.wire) (x : Data) :

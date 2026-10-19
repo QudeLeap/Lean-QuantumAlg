@@ -25,15 +25,18 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
-theorem gidneyAccumulate_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
+variable {environment : OracleModel.empty.Interpretation}
+
+lemma gidneyAccumulate_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
-    (program width modulus coefficient).binaryMatrix =
+    (program width modulus coefficient).binaryMatrix environment =
       wordAccumulateOperator width modulus coefficient := by
   apply Subtype.ext
   ext output input
   obtain ⟨⟨source, target⟩, rfl⟩ := (prodEquiv (m := width) (n := width)).surjective input
   have circuitAction :=
     UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (environment := environment)
       (program width modulus coefficient) ((encoding width).encode (source, target))
         ((encoding width).encode
           (prefixOutput modulus coefficient width (source, target)))
@@ -45,7 +48,7 @@ theorem gidneyAccumulate_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
     (wordAccumulateOperator_ket width modulus coefficient source target)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      ((program width modulus coefficient).binaryMatrix :
+      ((program width modulus coefficient).binaryMatrix environment :
         HilbertOperator (Qubits (encoding width).width))
       ((encoding width).encode (source, target)) output).symm.trans circuit
   have semanticColumn :=

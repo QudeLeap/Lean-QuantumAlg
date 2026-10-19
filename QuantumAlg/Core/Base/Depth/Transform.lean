@@ -43,12 +43,12 @@ public def mapSchedule (serialize : Bool) (relabel : U → V) : DepthExpr U → 
       .indexedProduct label count (mapSchedule serialize relabel start)
         (fun index => mapSchedule serialize relabel (step index))
 
-@[simp] theorem mapSchedule_false_id (expression : DepthExpr U) :
+@[simp] lemma mapSchedule_false_id (expression : DepthExpr U) :
     mapSchedule false (fun unit => unit) expression = expression := by
   induction expression <;> simp [mapSchedule, *]
 
 /-- Successive relabelings compose, and any serialization remains in force. -/
-theorem mapSchedule_comp (first second : Bool) (inner : U → V) (outer : V → W)
+lemma mapSchedule_comp (first second : Bool) (inner : U → V) (outer : V → W)
     (expression : DepthExpr U) :
     mapSchedule second outer (mapSchedule first inner expression) =
       mapSchedule (first || second) (outer ∘ inner) expression := by
@@ -56,7 +56,7 @@ theorem mapSchedule_comp (first second : Bool) (inner : U → V) (outer : V → 
     simp [mapSchedule, Function.comp_def, *]
 
 /-- The same linear total work is evaluated under the relabeled atom weights. -/
-theorem costEval_mapSchedule [AddCommMonoid M] (assign : V → M)
+lemma costEval_mapSchedule [AddCommMonoid M] (assign : V → M)
     (serialize : Bool) (relabel : U → V) (expression : DepthExpr U) :
     costEval assign (mapSchedule serialize relabel expression) =
       costEval (assign ∘ relabel) expression := by
@@ -64,7 +64,7 @@ theorem costEval_mapSchedule [AddCommMonoid M] (assign : V → M)
     simp [mapSchedule, Function.comp_def, *]
 
 /-- Relabeling alone preserves max-plus depth; serialization gives total work. -/
-theorem depthEval_mapSchedule (assign : V → Nat) (serialize : Bool)
+lemma depthEval_mapSchedule (assign : V → Nat) (serialize : Bool)
     (relabel : U → V) (expression : DepthExpr U) :
     depthEval assign (mapSchedule serialize relabel expression) =
       if serialize then costEval (assign ∘ relabel) expression
@@ -73,7 +73,7 @@ theorem depthEval_mapSchedule (assign : V → Nat) (serialize : Bool)
     simp [mapSchedule, Function.comp_def, *]
 
 /-- Injective relabeling retains the exact focus coordinate and its query count. -/
-theorem queryDepthEval_mapSchedule [DecidableEq U] [DecidableEq V]
+lemma queryDepthEval_mapSchedule [DecidableEq U] [DecidableEq V]
     (focus : U) (serialize : Bool) (relabel : U → V)
     (injective : Function.Injective relabel) (expression : DepthExpr U) :
     queryDepthEval (relabel focus) (mapSchedule serialize relabel expression) =
@@ -86,7 +86,7 @@ theorem queryDepthEval_mapSchedule [DecidableEq U] [DecidableEq V]
 
 /-- Any additive interpretation commutes with collecting the expression's atoms.
 This includes mapping its literal multiset ledger, without enumerating atoms. -/
-theorem costEval_mapAddMonoidHom [AddCommMonoid M] [AddCommMonoid N]
+lemma costEval_mapAddMonoidHom [AddCommMonoid M] [AddCommMonoid N]
     (morphism : M →+ N) (assign : U → M) (expression : DepthExpr U) :
     costEval (morphism ∘ assign) expression = morphism (costEval assign expression) := by
   induction expression <;>

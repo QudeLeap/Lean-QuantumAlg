@@ -25,19 +25,19 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth candidateWidth : Nat}
 
-private theorem positive_read (zero candidate : CInputRef ctx (.unsignedWord candidateWidth))
+private lemma positive_read (zero candidate : CInputRef ctx (.unsignedWord candidateWidth))
     (positive : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (candidatePositiveOp zero candidate positive)).read (cellRead positive) =
       .bit (decide ((store.read zero).toNat < (store.read candidate).toNat)) :=
   Store.read_applyOp_output store (candidatePositiveOp zero candidate positive)
 
-private theorem return_read (power one : CInputRef ctx (.unsignedWord modulusWidth))
+private lemma return_read (power one : CInputRef ctx (.unsignedWord modulusWidth))
     (valid : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (candidateReturnOp power one valid)).read (cellRead valid) =
       .bit (decide ((store.read power).toNat = (store.read one).toNat)) :=
   Store.read_applyOp_output store (candidateReturnOp power one valid)
 
-private theorem conjunction_read (positive valid : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma conjunction_read (positive valid : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (candidateValidOp positive valid)).read (cellRead valid) =
       .bit ((store.read (cellRead positive)).toBool && (store.read (cellRead valid)).toBool) := by
   refine (Store.read_applyOp_output store (candidateValidOp positive valid)).trans ?_
@@ -48,7 +48,7 @@ private theorem conjunction_read (positive valid : CWriteRef ctx .bit) (store : 
   rfl
 
 /-- The three real checks conjoin comparisons of the original stored operands. -/
-theorem nativeValidation_checks_result
+lemma nativeValidation_checks_result
     (zero candidate : CInputRef ctx (.unsignedWord candidateWidth))
     (power one : CInputRef ctx (.unsignedWord modulusWidth))
     (positive valid : CWriteRef ctx .bit)
@@ -72,7 +72,7 @@ theorem nativeValidation_checks_result
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual candidate validation computes positivity and modular return of the represented input. -/
-theorem nativeValidation_result (spec : ModulusSpec modulusWidth)
+lemma nativeValidation_result (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord candidateWidth))
     (one : CInputRef ctx (.unsignedWord modulusWidth))
@@ -114,7 +114,7 @@ theorem nativeValidation_result (spec : ModulusSpec modulusWidth)
   rfl
 
 /-- Validation changes no original structural input beyond its power and two comparison cells. -/
-theorem nativeValidation_read_other (spec : ModulusSpec modulusWidth)
+lemma nativeValidation_read_other (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord candidateWidth))
     (one : CInputRef ctx (.unsignedWord modulusWidth))

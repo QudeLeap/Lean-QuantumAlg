@@ -24,6 +24,8 @@ namespace Circuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -34,7 +36,7 @@ open NumberTheory.BinaryGCD
 /-- For an odd modulus, the `r` coefficient produced by the selected active
 branch has parity equal to the redundant auxiliary branch-code bit.  This is
 the source invariant used by the final physical cleanup Toffoli. -/
-theorem sourceApplyBranch_rCoeff_mod_two_eq_auxBit
+lemma sourceApplyBranch_rCoeff_mod_two_eq_auxBit
     (p : Nat) (st : RoundState)
     (hpOdd : p % 2 = 1)
     (hinv : RoundState.BezoutInvariant p st) :
@@ -85,7 +87,7 @@ theorem sourceApplyBranch_rCoeff_mod_two_eq_auxBit
         simp [RoundState.applyBranch, Branch.auxBit]
 
 /-- Bit-level form of `sourceApplyBranch_rCoeff_mod_two_eq_auxBit`. -/
-theorem sourceApplyBranch_rCoeff_testBit_zero_eq_auxBit
+lemma sourceApplyBranch_rCoeff_testBit_zero_eq_auxBit
     (p : Nat) (st : RoundState)
     (hpOdd : p % 2 = 1)
     (hinv : RoundState.BezoutInvariant p st) :
@@ -105,7 +107,7 @@ open MK.Compact
 /-- The Bezout invariant forces the unchanged `r` coefficient to be odd on
 the `uEven` branch.  This is the mathematical input to the compact physical
 cleanup suffix. -/
-theorem source_uEven_rCoeff_testBit_zero
+lemma source_uEven_rCoeff_testBit_zero
     (n counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (x : MK.Compact.Registers n counterWidth)
     (hmodulusOdd : modulus % 2 = 1)
@@ -128,7 +130,7 @@ theorem source_uEven_rCoeff_testBit_zero
     Branch.auxBit] using hparity
 
 /-- The Bezout invariant forces `r+s` to be odd on the `uGreater` branch. -/
-theorem source_uGreater_rCoeff_add_testBit_zero
+lemma source_uGreater_rCoeff_add_testBit_zero
     (n counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (x : MK.Compact.Registers n counterWidth)
     (hmodulusOdd : modulus % 2 = 1)
@@ -158,7 +160,7 @@ theorem source_uGreater_rCoeff_add_testBit_zero
 
 /-- The literal compact even-route gates reach the exact `uEven` residue
 certificate consumed by the three-gate cleanup suffix. -/
-theorem selected_uEven_residueCertificate
+lemma selected_uEven_residueCertificate
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -272,7 +274,7 @@ theorem selected_uEven_residueCertificate
 
 /-- The complete new compact body reaches a clean reusable routing boundary
 on the active `uEven` branch. -/
-theorem activeBranchBody_uEven_routeCleanup_clean
+lemma activeBranchBody_uEven_routeCleanup_clean
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -363,7 +365,7 @@ theorem activeBranchBody_uEven_routeCleanup_clean
 /-- The literal compact even-route gates reach the exact `vEven` residue
 certificate; the zero low `r` bit follows from the established coefficient
 top-bit range certificate and the physical cyclic shift. -/
-theorem selected_vEven_residueCertificate
+lemma selected_vEven_residueCertificate
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -482,7 +484,7 @@ theorem selected_vEven_residueCertificate
 
 /-- The complete new compact body reaches a clean reusable routing boundary
 on the active `vEven` branch. -/
-theorem activeBranchBody_vEven_routeCleanup_clean
+lemma activeBranchBody_vEven_routeCleanup_clean
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -574,7 +576,7 @@ theorem activeBranchBody_vEven_routeCleanup_clean
 
 /-- The complete literal compact odd slice reaches the `uGreater` residue
 certificate, including the coefficient-parity fact needed by cleanup. -/
-theorem selected_uGreater_residueCertificate
+lemma selected_uGreater_residueCertificate
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (historyIndex : Fin (2 * tail.succ))
     (input : MK.Compact.Registers tail.succ counterWidth)
@@ -777,7 +779,7 @@ theorem selected_uGreater_residueCertificate
 certificate.  The physical odd arithmetic leaves `r` unchanged, so the
 subsequent cyclic doubling exposes its certified-zero top bit at the low
 position consumed by cleanup. -/
-theorem selected_vLe_residueCertificate
+lemma selected_vLe_residueCertificate
     (tail counterWidth : Nat)
     (historyIndex : Fin (2 * tail.succ))
     (input : MK.Compact.Registers tail.succ counterWidth)
@@ -959,7 +961,7 @@ theorem selected_vLe_residueCertificate
 /-- Both selected odd codes toggle the same two scratch bits.  Consequently
 their xor is false, so a retained odd-route `path` bit already satisfies the
 route-cleanup certificate independently of the comparison result. -/
-theorem selectedOddDataThenBranchHistoryShift_pathCertificate
+lemma selectedOddDataThenBranchHistoryShift_pathCertificate
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (input : MK.Compact.Registers n counterWidth)
     (hactive : (activeBit n counterWidth).get input = true)
@@ -1051,7 +1053,7 @@ theorem selectedOddDataThenBranchHistoryShift_pathCertificate
   rw [hpathOut, hactiveOut, hscratchAOut, hscratchBOut]
   cases (compareBit n counterWidth).get data <;> rfl
 
-private theorem modeControlledArithmeticCertificate_setCompare
+private lemma modeControlledArithmeticCertificate_setCompare
     (tail counterWidth : Nat)
     (core : MK.Registers tail.succ counterWidth) (compare : Bool)
     (arith : ModeControlledSemanticStepArithmeticCertificate
@@ -1073,7 +1075,7 @@ private theorem modeControlledArithmeticCertificate_setCompare
 
 /-- The complete native body reaches a reusable route boundary on the active
 odd `uGreater` branch. -/
-theorem activeBranchBody_uGreater_routeCleanup_clean
+lemma activeBranchBody_uGreater_routeCleanup_clean
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1224,7 +1226,7 @@ theorem activeBranchBody_uGreater_routeCleanup_clean
 
 /-- The complete native body reaches a reusable route boundary on the active
 odd `vLe` branch. -/
-theorem activeBranchBody_vLe_routeCleanup_clean
+lemma activeBranchBody_vLe_routeCleanup_clean
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -1365,7 +1367,7 @@ theorem activeBranchBody_vLe_routeCleanup_clean
 its clean value.  The odd paths reuse it first for source subtraction and then
 for coefficient addition; the even paths borrow and restore one of its bits
 for branch-code staging. -/
-theorem activeBranchBody_coefficientAdder_cleanEndpoint
+lemma activeBranchBody_coefficientAdder_cleanEndpoint
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -1583,7 +1585,7 @@ theorem activeBranchBody_coefficientAdder_cleanEndpoint
 /-- The complete active body preserves any observation outside its selector
 and residue targets, four arithmetic words, reusable VBE work bank, and the
 single history slot selected for this round. -/
-theorem activeBranchBodyStep_get_of_stable
+lemma activeBranchBodyStep_get_of_stable
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (observed : EncodedBit (encoding tail.succ counterWidth))
@@ -1794,7 +1796,7 @@ theorem activeBranchBodyStep_get_of_stable
 /-- The temporary masked-route control is clean after every complete active
 body.  Even routes never select it; odd routes set it only around the
 `vLe` arithmetic and erase it before branch-history staging. -/
-theorem activeBranchBody_control_cleanEndpoint
+lemma activeBranchBody_control_cleanEndpoint
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -2053,7 +2055,7 @@ theorem activeBranchBody_control_cleanEndpoint
 /-- A compact core observation outside the branch arithmetic and the selected
 history cell is preserved by the complete active body.  Carrier-level
 disjointness from shared routing and VBE work follows from the encoding. -/
-theorem activeBranchBodyStep_get_coreBit_of_stable
+lemma activeBranchBodyStep_get_coreBit_of_stable
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (coreBit : EncodedBit (registerEncoding tail.succ counterWidth))
@@ -2136,7 +2138,7 @@ set_option maxHeartbeats 2000000 in
 -- Bitwise word extensionality instantiates eleven symbolic wire families.
 /-- The active arithmetic body does not mutate the padding counter; only the
 round handoff owns that word. -/
-theorem activeBranchBodyStep_counter
+lemma activeBranchBodyStep_counter
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -2193,7 +2195,7 @@ theorem activeBranchBodyStep_counter
       hfinal
 
 /-- An active body writes only its current route-history cell. -/
-theorem activeBranchBodyStep_get_history_of_ne
+lemma activeBranchBodyStep_get_history_of_ne
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex observedIndex : Fin (2 * tail.succ))
     (hne : historyIndex ≠ observedIndex)
@@ -2245,7 +2247,7 @@ theorem activeBranchBodyStep_get_history_of_ne
 set_option maxHeartbeats 2000000 in
 -- Bitwise word extensionality instantiates eleven symbolic wire families.
 /-- The active body preserves the public copy target bitwise. -/
-theorem activeBranchBodyStep_target
+lemma activeBranchBodyStep_target
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -2331,7 +2333,7 @@ set_option maxHeartbeats 2000000 in
 -- Bitwise word extensionality instantiates eleven symbolic wire families.
 /-- The active body preserves the logarithmic correction word borrowed only
 by later counter correction. -/
-theorem activeBranchBodyStep_correctionCounter
+lemma activeBranchBodyStep_correctionCounter
     (tail counterWidth : Nat) (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : MK.Compact.Registers tail.succ counterWidth)
@@ -2429,7 +2431,7 @@ theorem activeBranchBodyStep_correctionCounter
 /-- Symbolic four-way classification of the complete compact active body.
 The proof splits only on the two low bits and the strict comparison; it does
 not enumerate any fixed-width register value. -/
-theorem activeBranchBody_routeCleanup_clean
+lemma activeBranchBody_routeCleanup_clean
     (tail counterWidth modulus kaliskiSteps paddingSteps : Nat)
     (finalBit tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2498,7 +2500,7 @@ def compactRoundPathResetStep (fieldTail counterWidth : Nat) :
 
 /-- When the handoff latch equals the current active flag, the reset clears
 only that latch. -/
-theorem compactRoundPathResetStep_clean
+lemma compactRoundPathResetStep_clean
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth)
     (hpath : x.shared.path = x.core.active) :
@@ -2534,7 +2536,7 @@ def compactRoundPreparedStep
 
 /-- A nonterminated active input passes through the termination/counter
 handoff unchanged once its temporary path latch has been reset. -/
-theorem compactRoundPreparedStep_eq_self_of_active_nonzero
+lemma compactRoundPreparedStep_eq_self_of_active_nonzero
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ (counterTail + 2))
@@ -2559,7 +2561,7 @@ theorem compactRoundPreparedStep_eq_self_of_active_nonzero
 
 /-- Full record endpoint of the compact round prefix.  The extra reset CNOT
 removes the handoff's temporary route latch and changes no other field. -/
-theorem compactRoundPreparedStep_cleanEndpoint
+lemma compactRoundPreparedStep_cleanEndpoint
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ (counterTail + 2))
@@ -2602,7 +2604,7 @@ def compactRoundGates
 
 /-- One complete compact round is disjoint from every caller-owned target
 bit. -/
-theorem compactRoundGates_bitDisjoint_target
+lemma compactRoundGates_bitDisjoint_target
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -2657,19 +2659,19 @@ def compactRoundProgram
     (compactRoundGates fieldTail counterTail hfit historyIndex)
 
 /-- The compiled compact round realizes its exact native gate-list action. -/
-theorem compactRound_realizes
+lemma compactRound_realizes
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ)) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
-      (compactRoundProgram fieldTail counterTail hfit historyIndex)
+      (compactRoundProgram fieldTail counterTail hfit historyIndex) environment
       (compactRoundStep fieldTail counterTail hfit historyIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compactRoundGates fieldTail counterTail hfit historyIndex)
 
 /-- Expose the physical order of the compact round. -/
-theorem compactRoundStep_eq_stages
+lemma compactRoundStep_eq_stages
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -2690,7 +2692,7 @@ theorem compactRoundStep_eq_stages
 still active and nonterminated.  The handoff is proved to be the identity,
 then the four physical Montgomery--Kaliski branches are discharged by the
 symbolic low-bit/comparison classification above. -/
-theorem compactRound_activeNonzero_routeCleanup_clean
+lemma compactRound_activeNonzero_routeCleanup_clean
     (fieldTail counterTail modulus kaliskiSteps paddingSteps : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -2750,7 +2752,7 @@ theorem compactRound_activeNonzero_routeCleanup_clean
 
 /-- A complete compact physical round implements one source
 Montgomery--Kaliski round while the source is active and nonterminated. -/
-theorem compactRound_activeNonzero_sourceRound
+lemma compactRound_activeNonzero_sourceRound
     (fieldTail counterTail kaliskiSteps paddingSteps : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -2809,7 +2811,7 @@ theorem compactRound_activeNonzero_sourceRound
 /-- A terminating or already inactive source performs only the compact
 handoff update.  The arithmetic body and both cleanup suffixes are proved to
 be exact no-ops on the resulting inactive clean state. -/
-theorem compactRoundStep_eq_cleanHandoff_of_inactive
+lemma compactRoundStep_eq_cleanHandoff_of_inactive
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -2853,7 +2855,7 @@ theorem compactRoundStep_eq_cleanHandoff_of_inactive
 
 /-- A terminating or already inactive compact physical round implements the
 matching source padding round. -/
-theorem compactRound_inactive_sourceRound
+lemma compactRound_inactive_sourceRound
     (fieldTail counterTail kaliskiSteps paddingSteps : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -2883,7 +2885,7 @@ theorem compactRound_inactive_sourceRound
     simp_all [RoundState.fromRegisters, RoundState.round]
 
 /-- Exact X coordinate of one compact fixed round. -/
-theorem compactRoundGates_xMultiplicity_sum
+lemma compactRoundGates_xMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ)) :
@@ -2900,7 +2902,7 @@ theorem compactRoundGates_xMultiplicity_sum
   omega
 
 /-- Exact CNOT coordinate of one compact fixed round. -/
-theorem compactRoundGates_cnotMultiplicity_sum
+lemma compactRoundGates_cnotMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ)) :
@@ -2916,7 +2918,7 @@ theorem compactRoundGates_cnotMultiplicity_sum
   omega
 
 /-- Exact Toffoli coordinate of one compact fixed round. -/
-theorem compactRoundGates_toffoliMultiplicity_sum
+lemma compactRoundGates_toffoliMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ)) :
@@ -2933,7 +2935,7 @@ theorem compactRoundGates_toffoliMultiplicity_sum
   omega
 
 /-- Exact primitive-gate length of one compact fixed round. -/
-theorem compactRoundGates_length
+lemma compactRoundGates_length
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ)) :
@@ -2952,7 +2954,7 @@ def compactFoldRoundIndices (fieldTail : Nat) :
     List (Fin (2 * fieldTail.succ)) :=
   List.ofFn fun roundIndex : Fin (2 * fieldTail.succ) => roundIndex
 
-@[simp] theorem compactFoldRoundIndices_length (fieldTail : Nat) :
+@[simp] lemma compactFoldRoundIndices_length (fieldTail : Nat) :
     (compactFoldRoundIndices fieldTail).length = 2 * fieldTail.succ := by
   simp [compactFoldRoundIndices]
   omega
@@ -2968,7 +2970,7 @@ def compactFoldGates
 
 /-- The flattened fixed-round ledger is disjoint from every caller-owned
 target bit. -/
-theorem compactFoldGates_bitDisjoint_target
+lemma compactFoldGates_bitDisjoint_target
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (targetIndex : Fin fieldTail.succ) :
@@ -3003,17 +3005,17 @@ def compactFoldStep
     (compactFoldGates fieldTail counterTail hfit)
 
 /-- The direct compact fold circuit realizes its literal gate-list action. -/
-theorem compactFold_realizes
+lemma compactFold_realizes
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
-      (compactFoldProgram fieldTail counterTail hfit)
+      (compactFoldProgram fieldTail counterTail hfit) environment
       (compactFoldStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compactFoldGates fieldTail counterTail hfit)
 
-private theorem flatMap_compactRoundGates_xMultiplicity_sum
+private lemma flatMap_compactRoundGates_xMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     forall roundIndices : List (Fin (2 * fieldTail.succ)),
@@ -3032,7 +3034,7 @@ private theorem flatMap_compactRoundGates_xMultiplicity_sum
       rw [Nat.add_mul, Nat.one_mul]
       exact Nat.add_comm _ _
 
-private theorem flatMap_compactRoundGates_cnotMultiplicity_sum
+private lemma flatMap_compactRoundGates_cnotMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     forall roundIndices : List (Fin (2 * fieldTail.succ)),
@@ -3051,7 +3053,7 @@ private theorem flatMap_compactRoundGates_cnotMultiplicity_sum
       rw [Nat.add_mul, Nat.one_mul]
       exact Nat.add_comm _ _
 
-private theorem flatMap_compactRoundGates_toffoliMultiplicity_sum
+private lemma flatMap_compactRoundGates_toffoliMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     forall roundIndices : List (Fin (2 * fieldTail.succ)),
@@ -3071,7 +3073,7 @@ private theorem flatMap_compactRoundGates_toffoliMultiplicity_sum
       rw [Nat.add_mul, Nat.one_mul]
       exact Nat.add_comm _ _
 
-private theorem flatMap_compactRoundGates_length
+private lemma flatMap_compactRoundGates_length
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     forall roundIndices : List (Fin (2 * fieldTail.succ)),
@@ -3088,7 +3090,7 @@ private theorem flatMap_compactRoundGates_length
       exact Nat.add_comm _ _
 
 /-- Exact X coordinate of the complete compact `2n` fold. -/
-theorem compactFoldGates_xMultiplicity_sum
+lemma compactFoldGates_xMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     ((compactFoldGates fieldTail counterTail hfit).map
@@ -3099,7 +3101,7 @@ theorem compactFoldGates_xMultiplicity_sum
       (compactFoldRoundIndices fieldTail)
 
 /-- Exact CNOT coordinate of the complete compact `2n` fold. -/
-theorem compactFoldGates_cnotMultiplicity_sum
+lemma compactFoldGates_cnotMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     ((compactFoldGates fieldTail counterTail hfit).map
@@ -3110,7 +3112,7 @@ theorem compactFoldGates_cnotMultiplicity_sum
       (compactFoldRoundIndices fieldTail)
 
 /-- Exact Toffoli coordinate of the complete compact `2n` fold. -/
-theorem compactFoldGates_toffoliMultiplicity_sum
+lemma compactFoldGates_toffoliMultiplicity_sum
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     ((compactFoldGates fieldTail counterTail hfit).map
@@ -3122,7 +3124,7 @@ theorem compactFoldGates_toffoliMultiplicity_sum
       fieldTail counterTail hfit (compactFoldRoundIndices fieldTail)
 
 /-- Exact primitive-gate length of the complete compact `2n` fold. -/
-theorem compactFoldGates_length
+lemma compactFoldGates_length
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     (compactFoldGates fieldTail counterTail hfit).length =
@@ -3133,7 +3135,7 @@ theorem compactFoldGates_length
       (compactFoldRoundIndices fieldTail)
 
 /-- The compiled fold has the exact X count of its literal ledger. -/
-theorem compactFoldProgram_x_count
+lemma compactFoldProgram_x_count
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
@@ -3146,7 +3148,7 @@ theorem compactFoldProgram_x_count
     compactFoldGates_xMultiplicity_sum]
 
 /-- The compiled fold has the exact CNOT count of its literal ledger. -/
-theorem compactFoldProgram_cnot_count
+lemma compactFoldProgram_cnot_count
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
@@ -3158,7 +3160,7 @@ theorem compactFoldProgram_cnot_count
     compactFoldGates_cnotMultiplicity_sum]
 
 /-- The compiled fold has the exact Toffoli count of its literal ledger. -/
-theorem compactFoldProgram_toffoli_count
+lemma compactFoldProgram_toffoli_count
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
@@ -3170,7 +3172,7 @@ theorem compactFoldProgram_toffoli_count
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum,
     compactFoldGates_toffoliMultiplicity_sum]
 
-private theorem depthEval_compactDepthOfEvents
+private lemma depthEval_compactDepthOfEvents
     (assignment : Resource.Event (.quantum AlgorithmGate.model .empty) -> Nat) :
     forall events : List (Resource.Event (.quantum AlgorithmGate.model .empty)),
       DepthExpr.depthEval assignment
@@ -3183,7 +3185,7 @@ private theorem depthEval_compactDepthOfEvents
         List.map_cons, List.sum_cons,
         depthEval_compactDepthOfEvents assignment rest]
 
-private theorem sum_map_one {Alpha : Type} :
+private lemma sum_map_one {Alpha : Type} :
     forall values : List Alpha, (values.map fun _ => 1).sum = values.length
   | [] => rfl
   | _ :: rest => by
@@ -3193,7 +3195,7 @@ private theorem sum_map_one {Alpha : Type} :
 
 /-- The compact fold's symbolic depth is derived from the same ordered
 primitive event trace used by the resource ledger. -/
-theorem compactFoldProgram_eventDepth
+lemma compactFoldProgram_eventDepth
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     (compactFoldProgram fieldTail counterTail hfit).eventDepth =
@@ -3206,7 +3208,7 @@ theorem compactFoldProgram_eventDepth
 
 /-- With unit cost per native event, the exact compact fold depth equals the
 literal sequential gate-table length. -/
-theorem compactFoldProgram_unitDepth_eq
+lemma compactFoldProgram_unitDepth_eq
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     (compactFoldProgram fieldTail counterTail hfit).evaluatedEventDepth
@@ -3249,18 +3251,18 @@ def compactFoldReverseStep
     (compactFoldReverseGates fieldTail counterTail hfit)
 
 /-- The reverse compact fold is also realized by its literal gate table. -/
-theorem compactFoldReverse_realizes
+lemma compactFoldReverse_realizes
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
-      (compactFoldReverseProgram fieldTail counterTail hfit)
+      (compactFoldReverseProgram fieldTail counterTail hfit) environment
       (compactFoldReverseStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compactFoldReverseGates fieldTail counterTail hfit)
 
 /-- Reversing the full literal fold restores every compact register. -/
-theorem compactFoldReverseStep_after_compactFoldStep
+lemma compactFoldReverseStep_after_compactFoldStep
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ (counterTail + 2)) :
@@ -3281,7 +3283,7 @@ def compactFoldSteps
   List.ofFn fun roundIndex : Fin (2 * fieldTail.succ) =>
     compactRoundStep fieldTail counterTail hfit roundIndex
 
-@[simp] theorem compactFoldSteps_length
+@[simp] lemma compactFoldSteps_length
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     (compactFoldSteps fieldTail counterTail hfit).length =
@@ -3289,7 +3291,7 @@ def compactFoldSteps
   simp [compactFoldSteps]
   omega
 
-theorem compactFoldSteps_get
+lemma compactFoldSteps_get
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (roundIndex : Fin (2 * fieldTail.succ)) :
@@ -3307,7 +3309,7 @@ theorem compactFoldSteps_get
   rw [List.get_ofFn]
   congr 1
 
-private theorem stepList_flatMap_compactRoundGates
+private lemma stepList_flatMap_compactRoundGates
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     forall (roundIndices : List (Fin (2 * fieldTail.succ)))
@@ -3335,7 +3337,7 @@ private theorem stepList_flatMap_compactRoundGates
 
 /-- The flattened primitive fold and its named round schedule have the same
 state action. -/
-theorem compactFoldStep_eq_stepSchedule
+lemma compactFoldStep_eq_stepSchedule
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ (counterTail + 2)) :
@@ -3356,14 +3358,14 @@ def compactFoldPrefix
   UnitaryCircuit.Realizes.stepList
     ((compactFoldSteps fieldTail counterTail hfit).take rounds)
 
-@[simp] theorem compactFoldPrefix_zero
+@[simp] lemma compactFoldPrefix_zero
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ (counterTail + 2)) :
     compactFoldPrefix fieldTail counterTail hfit 0 x = x := by
   rfl
 
-theorem compactFoldPrefix_succ
+lemma compactFoldPrefix_succ
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (roundIndex : Fin (2 * fieldTail.succ))
@@ -3384,7 +3386,7 @@ theorem compactFoldPrefix_succ
       compactFoldSteps_get fieldTail counterTail hfit roundIndex
   rw [hget]
 
-theorem compactFoldPrefix_full
+lemma compactFoldPrefix_full
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ) :
     compactFoldPrefix fieldTail counterTail hfit (2 * fieldTail.succ) =

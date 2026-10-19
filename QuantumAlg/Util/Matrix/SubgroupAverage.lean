@@ -466,7 +466,7 @@ lemma rank_rhoHat_star (σ : G → Matrix V V ℂ) (χ : G → ℂ)
 end
 
 /-- Projector, normalization and conditional rank-functional identities. -/
-theorem subgroupAverage_normalization_and_rankFunctional
+lemma subgroupAverage_normalization_and_rankFunctional
     (H : Subgroup G)
     (σ : G → Matrix V V ℂ)
     (χ : G → ℂ)

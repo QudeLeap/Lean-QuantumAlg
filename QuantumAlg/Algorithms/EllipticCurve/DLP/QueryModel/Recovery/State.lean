@@ -9,8 +9,8 @@ module
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Allocation.State
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Completion
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Packing.State
-import all QuantumAlg.Core.Execution.CycleSchedule.Cleanup.Range
-import all QuantumAlg.Core.Execution.CycleSchedule.Cleanup.Reassociation
+import all QuantumAlg.Core.Execution.Restart.Range
+import all QuantumAlg.Core.Execution.Restart.Reassociation
 import all QuantumAlg.Core.Execution.Classical.Composition
 
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery
@@ -41,67 +41,80 @@ public def wholeZeroSeed (I : ECDLPInstance E) :
   finalPackSeed (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I) (roundZeroSeed I)
 
 /-- The original caller's positive full run has the same physical zero seed after its sole pack. -/
-public theorem ecdlpRecovery_positiveCode_reinitializedAt (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_positiveCode_reinitializedAt (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (further : Nat) :
-    Circuit.ReinitializedAt (code I A expansion nontrivial (further + 1)) (wholeZeroSeed I) := by
-  let retain := retainPersistent (model := Sampling.executionModel I A)
+    Circuit.ReinitializedAt (code I expansion nontrivial (further + 1))
+      (Sampling.sourceEnvironment I A) (wholeZeroSeed I) := by
+  let retain := retainPersistent (model := Sampling.executionModel I)
     (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)
-  let rounds := reusedRounds I A expansion nontrivial (further + 1)
-  let packing := finalPack I A
-  have roundsFixed := Circuit.RestartCleanup.constantRange_reinitializedAt
-    (round I A expansion nontrivial) (roundZeroSeed I)
+  let rounds := reusedRounds I expansion nontrivial (further + 1)
+  let packing := finalPack I
+  have roundsFixed := Circuit.RestartCleanup.constantRange_reinitializedAt (environment :=
+    Sampling.sourceEnvironment I A)
+    (round I expansion nontrivial) (roundZeroSeed I)
     (ecdlpRecovery_round_reinitializedAt I A expansion nontrivial) further
-  have retainedFixed := Circuit.RestartCleanup.afterAt retain rounds (roundZeroSeed I) roundsFixed
-  have packedFixed := packedReinitializedAt (model := Sampling.executionModel I A)
+  have retainedFixed := Circuit.RestartCleanup.afterAt (environment := Sampling.sourceEnvironment
+    I A) retain rounds (roundZeroSeed I) roundsFixed
+  have packedFixed := packedReinitializedAt (environment := Sampling.sourceEnvironment I A)
+    (model := Sampling.executionModel I)
     (Sampling.Reuse.context I) (fieldWidth E)
     (scalarWidth I) (retain.seq rounds) (roundZeroSeed I) retainedFixed
-  exact Circuit.RestartCleanup.afterAt (Sampling.Reuse.initialCode I A)
+  exact Circuit.RestartCleanup.afterAt (environment := Sampling.sourceEnvironment I A)
+    (Sampling.Reuse.initialCode I)
     ((retain.seq rounds).seq packing) (wholeZeroSeed I) packedFixed
 
 
 
-private def zeroCodeAssociation (I : ECDLPInstance E) (A : Access I)
+private def zeroCodeAssociation (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) :
-    Circuit.Reassociation (code I A expansion nontrivial 0)
-      (((allocationCode I A).seq
-        (Circuit.id (model := Sampling.executionModel I A) (context I))).seq (finalPack I A)) := by
-  let initial := Sampling.Reuse.initialCode I A
-  let retain := retainPersistent (model := Sampling.executionModel I A)
+    Circuit.Reassociation (code I expansion nontrivial 0)
+      (((allocationCode I).seq
+        (Circuit.id (model := Sampling.executionModel I) (context I))).seq (finalPack I)) := by
+  let initial := Sampling.Reuse.initialCode I
+  let retain := retainPersistent (model := Sampling.executionModel I)
     (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)
-  let empty := Circuit.id (model := Sampling.executionModel I A) (context I)
-  let pack := finalPack I A
+  let empty := Circuit.id (allowAllocation := true)
+    (model := Sampling.executionModel I) (context I)
+  let pack := finalPack I
   exact (Circuit.Reassociation.seq (.refl initial) (.seqAssoc retain empty pack)).trans
     ((Circuit.Reassociation.seqAssoc initial retain (empty.seq pack)).symm.trans
       (Circuit.Reassociation.seqAssoc (initial.seq retain) empty pack).symm)
 
 /-- The original zero-round computation still allocates and packs, preserving the full zero bank. -/
-public theorem ecdlpRecovery_zeroCode_reinitializedAt (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_zeroCode_reinitializedAt (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) :
-    Circuit.ReinitializedAt (code I A expansion nontrivial 0) (wholeZeroSeed I) := by
-  let empty := Circuit.id (model := Sampling.executionModel I A) (context I)
-  have fixed := Circuit.RestartCleanup.followedByMapAt (allocationCode I A) empty
+    Circuit.ReinitializedAt (code I expansion nontrivial 0) (Sampling.sourceEnvironment I A)
+      (wholeZeroSeed I) := by
+  let empty := Circuit.id (allowAllocation := true)
+    (model := Sampling.executionModel I) (context I)
+  have fixed := Circuit.RestartCleanup.followedByMapAt (environment := Sampling.sourceEnvironment
+    I A) (allocationCode I) empty
     (roundZeroSeed I) (ecdlpRecovery_allocation_reinitializedAt I A) (fun entry => (entry, ()))
     (by
           intro Reference History _ state
-          have identity := Circuit.execute_id_mapClassical
-            (model := Sampling.executionModel I A) (ctx := context I) Reference state
+          have identity := Circuit.execute_id_mapClassical (environment :=
+            Sampling.sourceEnvironment I A) (allowAllocation := true)
+            (model := Sampling.executionModel I) (ctx := context I) Reference state
           refine identity.trans ?_
           exact ExecutionState.executionState_mapClassical_congr_decision state _ _
             (by intro entry; rfl) _ _)
-  have packed := packedReinitializedAt (model := Sampling.executionModel I A)
+  have packed := packedReinitializedAt (environment := Sampling.sourceEnvironment I A)
+    (model := Sampling.executionModel I)
     (Sampling.Reuse.context I) (fieldWidth E)
-    (scalarWidth I) ((allocationCode I A).seq empty) (roundZeroSeed I) fixed
-  exact Circuit.RestartCleanup.reassociatedAt (zeroCodeAssociation I A expansion nontrivial)
+    (scalarWidth I) ((allocationCode I).seq empty) (roundZeroSeed I) fixed
+  exact Circuit.RestartCleanup.reassociatedAt (environment := Sampling.sourceEnvironment I A)
+    (zeroCodeAssociation I expansion nontrivial)
     (wholeZeroSeed I) packed
 
 /-- Every prescribed finite count, including zero, has the actual fixed full owned output seed. -/
-public theorem ecdlpRecovery_code_reinitializedAt (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_code_reinitializedAt (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    Circuit.ReinitializedAt (code I A expansion nontrivial count) (wholeZeroSeed I) := by
+    Circuit.ReinitializedAt (code I expansion nontrivial count) (Sampling.sourceEnvironment I A)
+      (wholeZeroSeed I) := by
   cases count with
   | zero => exact ecdlpRecovery_zeroCode_reinitializedAt I A expansion nontrivial
   | succ further =>

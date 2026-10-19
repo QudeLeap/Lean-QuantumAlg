@@ -25,7 +25,7 @@ def ripple (seed : Bool) : List (Bool × Bool) → Bool
   | (control, incoming) :: rest => ripple (incoming ^^ (control && seed)) rest
 
 /-- The initial xor difference propagates through precisely the read-only controls. -/
-theorem ripple_xor_input (pairs : List (Bool × Bool)) (seed difference : Bool) :
+lemma ripple_xor_input (pairs : List (Bool × Bool)) (seed difference : Bool) :
     ripple (seed ^^ difference) pairs =
       (ripple seed pairs ^^ (difference && pairs.all Prod.fst)) := by
   induction pairs generalizing seed difference with
@@ -44,14 +44,14 @@ theorem ripple_xor_input (pairs : List (Bool × Bool)) (seed difference : Bool) 
       rw [propagated]
 
 /-- The two propagated values differ only by the complete control conjunction. -/
-theorem ripple_xor_ripple (pairs : List (Bool × Bool)) (seed difference : Bool) :
+lemma ripple_xor_ripple (pairs : List (Bool × Bool)) (seed difference : Bool) :
     (ripple (seed ^^ difference) pairs ^^ ripple seed pairs) =
       (difference && pairs.all Prod.fst) := by
   rw [ripple_xor_input]
   cases ripple seed pairs <;> cases difference && pairs.all Prod.fst <;> rfl
 
 /-- Two controlled flips remove all arbitrary chain values and retain the desired conjunction. -/
-theorem paired_target_flips (pairs : List (Bool × Bool))
+lemma paired_target_flips (pairs : List (Bool × Bool))
     (seed difference lastControl target : Bool) :
     ((target ^^ (ripple (seed ^^ difference) pairs && lastControl)) ^^
         (ripple seed pairs && lastControl)) =

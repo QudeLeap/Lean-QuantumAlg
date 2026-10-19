@@ -41,14 +41,14 @@ structure SelectorSeparated (inputs : Operands ctx width) : Prop where
   takeSelected : inputs.selection.take.key ≠ inputs.selection.selected.key
   acceptedSelected : inputs.selection.accepted.key ≠ inputs.selection.selected.key
 
-private theorem lifted_free {shape : CShape} (output : CWriteRef ctx shape)
+private lemma lifted_free {shape : CShape} (output : CWriteRef ctx shape)
     {inputShape : CShape} (input : CInputRef ctx inputShape) (width : Nat)
     (free : output.key ∉ input.storageKeys) :
     (underWrite output width).key ∉ (underRead input width).storageKeys := by
   rw [nativeQuadratic_checkLayout_underWrite_key, nativeQuadratic_checkLayout_underRead_keys]
   exact free
 
-private theorem valid_free {shape : CShape} (output : CWriteRef ctx shape)
+private lemma valid_free {shape : CShape} (output : CWriteRef ctx shape)
     (width : Nat) (valid : CWriteRef (context ctx width) .bit)
     (internal : valid.key ∈ internalKeys ctx width) :
     (underWrite output width).key ∉ (CInputRef.storage valid.toCStorageRef).storageKeys :=
@@ -56,7 +56,7 @@ private theorem valid_free {shape : CShape} (output : CWriteRef ctx shape)
     (List.mem_singleton.mp present)
 
 /-- Fresh checker outputs and actual candidate separation satisfy both ordered selectors. -/
-theorem nativeQuadratic_checked_selection_separated (inputs : Operands ctx width)
+lemma nativeQuadratic_checked_selection_separated (inputs : Operands ctx width)
     (separated : SelectorSeparated inputs) :
     Selection.Separated (Pair.selectedInputs (pairRefs inputs).first)
       (Pair.selectedInputs (pairRefs inputs).second) (pairRefs inputs).selection where

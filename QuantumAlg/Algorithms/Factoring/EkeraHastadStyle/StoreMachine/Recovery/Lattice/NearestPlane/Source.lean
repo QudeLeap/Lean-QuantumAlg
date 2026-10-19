@@ -47,7 +47,7 @@ def traceResidual (m ell : Nat)
     (trace m ell samples).center)
 
 /-- The short-log width envelope discharges the actual three-stage arithmetic contract. -/
-theorem shortLog_threeFits (N m ell : Nat)
+lemma shortLog_threeFits (N m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     LatticeNearestPlaneThree.Fits (RSA.ShortLogWidths.coordinateWidth N m ell)
       (basis m ell samples) (target m ell samples) := by
@@ -55,7 +55,7 @@ theorem shortLog_threeFits (N m ell : Nat)
   exact ⟨fits.third, fits.second, fits.first, fits.firstDenominatorNonzero⟩
 
 /-- The three stored coefficients are the source trace center; the target is its exact residual. -/
-theorem threeInto_shortLog_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma threeInto_shortLog_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (N m ell : Nat) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (refs : LatticeNearestPlaneThree.Refs ctx (RSA.ShortLogWidths.coordinateWidth N m ell))

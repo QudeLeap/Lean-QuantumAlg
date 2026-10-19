@@ -25,7 +25,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- The three actual preparation writes preserve every read outside center and square. -/
-theorem prepareInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma prepareInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (centerAvoids : refs.center.key ∉ other.storageKeys)
     (squareAvoids : refs.centerSquare.key ∉ other.storageKeys) :
@@ -37,7 +37,7 @@ theorem prepareInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     Store.read_applyOp_of_not_mem_storageKeys _ (resizeOp refs) other centerAvoids]
 
 /-- All original caller reads outside the five pre-square-root operations survive. -/
-theorem discriminantInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma discriminantInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : PrefixFrameAvoids refs other) :
     (discriminantStep refs store).1.read other = store.read other :=
   (NatSub.into_callerFrame refs.subtract (prepareStep refs store).1 other
@@ -45,7 +45,7 @@ theorem discriminantInto_callerFrame (refs : Refs ctx shortWidth) (store : Store
       (prepareInto_callerFrame refs store other avoids.center avoids.centerSquare)
 
 /-- Actual widening, increment, full square and subtraction yield the original discriminant. -/
-theorem discriminantStep_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
+lemma discriminantStep_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx) : DiscriminantOutcome refs store (discriminantStep refs store).1 := by
   let afterResize := store.applyOp (resizeOp refs)
   let afterIncrement := afterResize.applyOp (incrementOp refs)
@@ -145,7 +145,7 @@ theorem discriminantStep_correct (refs : Refs ctx shortWidth) (separation : Sepa
   · exact (congrArg CShape.Value.toNat squareAtSubtract).trans squared
 
 /-- Every caller read outside the actual prefix and square-root writes survives execution. -/
-theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (prefixAvoids : PrefixFrameAvoids refs other) (sqrtAvoids : SqrtFrameAvoids refs other) :
     (step refs store).1.read other = store.read other :=
@@ -154,7 +154,7 @@ theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
       (discriminantInto_callerFrame refs store other prefixAvoids)
 
 /-- The actual circuit computes the original center, square, truncated discriminant and root. -/
-theorem step_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
+lemma step_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx) : Outcome refs store (step refs store).1 := by
   have prefixHolds := discriminantStep_correct refs separation store
   have positive : 0 < discriminantWidth shortWidth := by

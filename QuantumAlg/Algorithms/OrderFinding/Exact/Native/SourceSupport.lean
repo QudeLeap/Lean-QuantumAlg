@@ -30,7 +30,7 @@ def ExactOutcome (r t : Nat) (outcome : TerminalZMeasure.Outcome t) : Prop :=
     (ClassicalAlgorithms.TerminalDecode.fullRegisterIndex outcome).val =
       s.val * (2 ^ t / r)
 
-theorem shorSourceJointAmplitude_eq_zero_of_not_dvd_period
+lemma shorSourceJointAmplitude_eq_zero_of_not_dvd_period
     {t r : Nat} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
     (c : Fin (2 ^ t)) (k : Fin r)
     (hnot : ¬ 2 ^ t / r ∣ c.val) :
@@ -101,7 +101,7 @@ theorem shorSourceJointAmplitude_eq_zero_of_not_dvd_period
   rw [geom_sum_eq hbase_ne, hbase_pow]
   simp
 
-theorem orderFindingPublicOutcomeProbability_eq_zero_of_not_dvd_period
+lemma orderFindingPublicOutcomeProbability_eq_zero_of_not_dvd_period
     {t r : Nat} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
     (c : Fin (2 ^ t)) (k : Fin r)
     (hnot : ¬ 2 ^ t / r ∣ c.val) :
@@ -112,7 +112,7 @@ theorem orderFindingPublicOutcomeProbability_eq_zero_of_not_dvd_period
 
 /-- The production circuit has probability one on the exact dyadic support
 whenever the true order divides the phase-register cardinality. -/
-theorem exactMeasurementModel {N x t m r : Nat}
+lemma exactMeasurementModel {N x t m r : Nat}
     (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (hrt : r ∣ 2 ^ t) :
     (sourceOutcomePMF A).toOuterMeasure

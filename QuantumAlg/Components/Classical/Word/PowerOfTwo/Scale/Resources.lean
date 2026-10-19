@@ -22,7 +22,7 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {sourceWidth width : Nat}
 
 /-- Independent native resize and prescribed left-shift formula for actual word scaling. -/
@@ -32,7 +32,7 @@ def scaleTrace (sourceWidth width count : Nat) : List (Resource.Event model) :=
     PowerOfTwo.shiftTrace (model := model) width count
 
 /-- Every actual native scaling path emits the exact independent operation formula. -/
-theorem into_events (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_events (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path) :
     (into (model := model) count input output).eventTrace path =
@@ -43,7 +43,7 @@ theorem into_events (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWi
   rfl
 
 /-- Actual native scaling multiplicities equal the exact independent operation formula. -/
-theorem into_resourcePool (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_resourcePool (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path) :
     (into (model := model) count input output).resourcePool path =
@@ -51,7 +51,7 @@ theorem into_resourcePool (count : Nat) (input : CInputRef ctx (.unsignedWord so
   congrArg ResourcePool.ofList (into_events count input output path)
 
 /-- The actual scale emits one resize plus exactly the requested number of native shifts. -/
-theorem into_eventCount (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_eventCount (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path) :
     ((into (model := model) count input output).eventTrace path).length = count + 1 := by
@@ -61,7 +61,7 @@ theorem into_eventCount (count : Nat) (input : CInputRef ctx (.unsignedWord sour
   omega
 
 /-- The actual source resize precedes every native shift in the exact unit-duration depth. -/
-theorem into_depth (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_depth (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path) :
     (into (model := model) count input output).depth (fun _ => 1) path = count + 1 := by
@@ -70,18 +70,18 @@ theorem into_depth (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWid
   omega
 
 /-- Actual native scaling restores every borrowed entry jointly with its external reference. -/
-theorem into_borrowedRestored (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_borrowedRestored (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) count input output).BorrowedRestored Reference state
-      ((into (model := model) count input output).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical (model := model)
+      ((into (model := model) count input output).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
+    (Circuit.borrowedRestored_classical (environment := environment) (model := model)
       (BitWord.selectedApplication (execution := model) (resizeOp input output)) _)
     (PowerOfTwo.shiftInto_borrowedRestored count output Reference _)
 
 /-- Every actual native scale instruction keeps the complete original context live. -/
-theorem into_visited (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_visited (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path)
     (visited : RuntimeCtx model.kind)
@@ -93,7 +93,7 @@ theorem into_visited (count : Nat) (input : CInputRef ctx (.unsignedWord sourceW
   exact present.elim id (PowerOfTwo.shiftInto_visited count output path.2 visited)
 
 /-- All original resident storage remains counted throughout actual native scaling. -/
-theorem into_resident_le (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_resident_le (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path) :
     (into (model := model) count input output).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -102,7 +102,7 @@ theorem into_resident_le (count : Nat) (input : CInputRef ctx (.unsignedWord sou
   rw [into_visited count input output path visited present]
 
 /-- All original auxiliary roles remain counted throughout actual native scaling. -/
-theorem into_auxiliary_le (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
+lemma into_auxiliary_le (count : Nat) (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (into (model := model) count input output).Path) :
     (into (model := model) count input output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by

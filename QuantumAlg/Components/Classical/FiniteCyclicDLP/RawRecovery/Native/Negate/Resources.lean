@@ -36,7 +36,7 @@ def negateEvents (model : ExecutionModel) [BitWord.Selected model]
       (BitWord.selectedCoordinate (execution := model) (.wordBinary .sub width))]
 
 /-- Actual test and selected arithmetic retain their chronological native coordinates. -/
-theorem negateBody_eventTrace (modulus right zero : CInputRef ctx (.unsignedWord width))
+lemma negateBody_eventTrace (modulus right zero : CInputRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (output : CWriteRef ctx (.unsignedWord width))
     (path : (negateBody (model := model) modulus right zero flag output).Path) :
     (negateBody (model := model) modulus right zero flag output).eventTrace path =
@@ -63,7 +63,7 @@ theorem negateBody_eventTrace (modulus right zero : CInputRef ctx (.unsignedWord
         rfl
 
 /-- The complete actual path emits precisely its two selected native instructions. -/
-theorem withNegate_eventTrace (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_eventTrace (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).eventTrace path =
@@ -73,7 +73,7 @@ theorem withNegate_eventTrace (modulus right : CInputRef ctx (.unsignedWord widt
     (writeUnderNegate output width) path
 
 /-- Actual native multiplicities retain the selected copy-versus-subtraction distinction. -/
-theorem withNegate_resourcePool (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_resourcePool (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).resourcePool path =
@@ -81,7 +81,7 @@ theorem withNegate_resourcePool (modulus right : CInputRef ctx (.unsignedWord wi
   congrArg ResourcePool.ofList (withNegate_eventTrace modulus right output path)
 
 /-- Every actual path contains one test and exactly one selected arithmetic instruction. -/
-theorem withNegate_eventCount (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_eventCount (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     ((withNegate (model := model) modulus right output).eventTrace path).length = 2 := by
@@ -89,7 +89,7 @@ theorem withNegate_eventCount (modulus right : CInputRef ctx (.unsignedWord widt
   rfl
 
 /-- Arbitrary event durations retain the actual dependency from test to selected arithmetic. -/
-theorem withNegate_durationDepth (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_durationDepth (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).depth duration path =
@@ -131,7 +131,7 @@ theorem withNegate_durationDepth (modulus right : CInputRef ctx (.unsignedWord w
         rfl
 
 /-- Unit-duration serial depth is exactly two on either actual branch. -/
-theorem withNegate_depth (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_depth (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).depth (fun _ => 1) path = 2 := by
@@ -139,7 +139,7 @@ theorem withNegate_depth (modulus right : CInputRef ctx (.unsignedWord width))
   simp only [ite_self]
 
 /-- The exact chronological contexts include both live scratch cells before their releases. -/
-theorem withNegate_visitedContexts (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_visitedContexts (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).visitedContexts path =
@@ -153,7 +153,7 @@ theorem withNegate_visitedContexts (modulus right : CInputRef ctx (.unsignedWord
 def negateScratchSpace {kind : ProblemKind} (width : Nat) : SpacePool kind :=
   SpacePool.ofShape .bit + SpacePool.ofShape (.unsignedWord width)
 
-private theorem withNegate_visited (modulus right : CInputRef ctx (.unsignedWord width))
+private lemma withNegate_visited (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path)
     (visited : RuntimeCtx model.kind)
@@ -163,7 +163,7 @@ private theorem withNegate_visited (modulus right : CInputRef ctx (.unsignedWord
   simp only [List.mem_cons, List.not_mem_nil, or_false] at present
   tauto
 
-private theorem withNegate_scoped_mem (modulus right : CInputRef ctx (.unsignedWord width))
+private lemma withNegate_scoped_mem (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     negateCtx ctx width ∈
@@ -172,7 +172,7 @@ private theorem withNegate_scoped_mem (modulus right : CInputRef ctx (.unsignedW
   simp only [List.mem_cons, List.not_mem_nil, or_false, true_or, or_true]
 
 /-- The exact resident peak counts every original live entry and both actual scratch cells. -/
-theorem withNegate_resident (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_resident (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).peakResidentSpace path =
@@ -200,7 +200,7 @@ theorem withNegate_resident (modulus right : CInputRef ctx (.unsignedWord width)
       negateScratchSpace, add_assoc])
 
 /-- The exact auxiliary peak counts the same scratch cells beside all original auxiliary roles. -/
-theorem withNegate_auxiliary (modulus right : CInputRef ctx (.unsignedWord width))
+lemma withNegate_auxiliary (modulus right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (withNegate (model := model) modulus right output).Path) :
     (withNegate (model := model) modulus right output).peakAuxiliarySpace path =

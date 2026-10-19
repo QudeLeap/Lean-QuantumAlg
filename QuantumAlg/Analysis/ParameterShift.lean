@@ -67,7 +67,7 @@ public structure ParamShiftModel where
 
 /-- **Parameter-shift rule.** The exact derivative of a frequency-1 trigonometric
 cost is the symmetric finite difference at shift `π/2`. -/
-theorem ParamShiftModel.parameter_shift (M : ParamShiftModel) (θ : ℝ) :
+lemma ParamShiftModel.parameter_shift (M : ParamShiftModel) (θ : ℝ) :
     deriv M.cost θ = (M.cost (θ + Real.pi / 2) - M.cost (θ - Real.pi / 2)) / 2 := by
   have hcost : M.cost = fun t => M.a + M.b * Real.cos t + M.c * Real.sin t :=
     funext M.trig
@@ -87,14 +87,14 @@ def varCost (ψ : NormalizedVector (Qubits 1))
   observableExpectation ((rotYOp θ).apply ψ) O
 
 /-- `R_Y(θ) |0⟩ = cos(θ/2) |0⟩ + sin(θ/2) |1⟩`. -/
-theorem rotY_apply_ket0 (θ : ℝ) :
+lemma rotY_apply_ket0 (θ : ℝ) :
     (rotYOp θ).applyVec (ket0 : HilbertVector (Qubits 1))
       = (Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
         + (Real.sin (θ / 2) : ℂ) • (ket1 : HilbertVector (Qubits 1)) := by
   exact (rotYOp_applyVec_ket0 θ)
 
 /-- Inner product of two single-qubit states in the computational basis. -/
-theorem inner_ket01_combo (a b c d : ℂ) :
+lemma inner_ket01_combo (a b c d : ℂ) :
     inner ℂ (a • (ket0 : HilbertVector (Qubits 1))
         + b • (ket1 : HilbertVector (Qubits 1)))
       (c • (ket0 : HilbertVector (Qubits 1))
@@ -105,7 +105,7 @@ theorem inner_ket01_combo (a b c d : ℂ) :
     NormalizedVector.ket_apply]
 
 /-- The `R_Y(θ)` ansatz cost with observable `Z` on `|0⟩` equals `cos θ`. -/
-theorem varCost_ket0_Z (θ : ℝ) : varCost ket0 Gate.ZOp θ = Real.cos θ := by
+lemma varCost_ket0_Z (θ : ℝ) : varCost ket0 Gate.ZOp θ = Real.cos θ := by
   have hZ : HilbertOperator.applyVec (Gate.ZOp : HilbertOperator (Qubits 1))
       ((Real.cos (θ / 2) : ℂ) • (ket0 : HilbertVector (Qubits 1))
         + (Real.sin (θ / 2) : ℂ) • (ket1 : HilbertVector (Qubits 1)))
@@ -149,7 +149,7 @@ def rotYZModel : ParamShiftModel where
   trig θ := by rw [varCost_ket0_Z]; ring
 
 /-- **Parameter-shift rule for the `R_Y` / `Z` / `|0⟩` ansatz.** -/
-theorem varCost_ket0_Z_parameter_shift (θ : ℝ) :
+lemma varCost_ket0_Z_parameter_shift (θ : ℝ) :
     deriv (varCost ket0 Gate.ZOp) θ
       = (varCost ket0 Gate.ZOp (θ + Real.pi / 2)
           - varCost ket0 Gate.ZOp (θ - Real.pi / 2)) / 2 :=
@@ -163,18 +163,18 @@ public theorem main (M : ParamShiftModel) (θ : ℝ) :
   M.parameter_shift θ
 
 /-- Public supporting theorem: the quantum-free trigonometric identity. -/
-theorem main_trig_identity (a b c θ : ℝ) :
+lemma main_trig_identity (a b c θ : ℝ) :
     deriv (fun t => a + b * Real.cos t + c * Real.sin t) θ
       = ((a + b * Real.cos (θ + Real.pi / 2) + c * Real.sin (θ + Real.pi / 2))
           - (a + b * Real.cos (θ - Real.pi / 2) + c * Real.sin (θ - Real.pi / 2))) / 2 :=
   trig_parameter_shift a b c θ
 
 /-- Public supporting theorem: the concrete `R_Y` / `Z` / `|0⟩` cost. -/
-theorem main_ry_z_example (θ : ℝ) : varCost ket0 Gate.ZOp θ = Real.cos θ :=
+lemma main_ry_z_example (θ : ℝ) : varCost ket0 Gate.ZOp θ = Real.cos θ :=
   varCost_ket0_Z θ
 
 /-- Public supporting theorem: parameter shift for the concrete `R_Y` / `Z` / `|0⟩` cost. -/
-theorem main_ry_z_parameter_shift (θ : ℝ) :
+lemma main_ry_z_parameter_shift (θ : ℝ) :
     deriv (varCost ket0 Gate.ZOp) θ
       = (varCost ket0 Gate.ZOp (θ + Real.pi / 2)
           - varCost ket0 Gate.ZOp (θ - Real.pi / 2)) / 2 :=

@@ -29,7 +29,7 @@ noncomputable section
 
 open EncodedBit
 
-private theorem powers_sum (count : Nat) :
+private lemma powers_sum (count : Nat) :
     (∑ index ∈ Finset.range count, 2 ^ index) = 2 ^ count - 1 := by
   have successor : (∑ index ∈ Finset.range count, 2 ^ index) + 1 = 2 ^ count := by
     induction count with
@@ -39,7 +39,7 @@ private theorem powers_sum (count : Nat) :
       omega
   omega
 
-private theorem weights_sum (width : Nat) :
+private lemma weights_sum (width : Nat) :
     ((List.finRange (width.size + 2)).map (ClockDecodeWeight.weight width)).sum =
       2 ^ (width.size + 2) - 1 := by
   rw [← Fin.sum_univ_def]
@@ -55,13 +55,13 @@ private theorem weights_sum (width : Nat) :
 /-- Independent closed count for every fixed bit-weighted inverse sweep in the actual decoder. -/
 def count (width : Nat) : Nat := 3 * (width + 2) * (2 ^ (width.size + 2) - 1)
 
-private theorem bit_count (width : Nat) (index : Fin (width.size + 2)) :
+private lemma bit_count (width : Nat) (index : Fin (width.size + 2)) :
     (ClockDecode.bitProgram width index).eventCost.card =
       ClockDecodeWeight.weight width index * (3 * (width + 2)) := by
   rw [ClockDecode.bitProgram, UnitaryCircuit.iterate_eventCost, Multiset.card_nsmul,
     ClockDecodeBit.program, GateSpec.programList_eventCost_card, ClockDecodeBit.gates_length]
 
-private theorem bit_depth (width : Nat) (index : Fin (width.size + 2)) :
+private lemma bit_depth (width : Nat) (index : Fin (width.size + 2)) :
     (ClockDecode.bitProgram width index).evaluatedEventDepth (fun _ => 1) =
       ClockDecodeWeight.weight width index * (3 * (width + 2)) := by
   rw [ClockDecode.bitProgram, UnitaryCircuit.evaluatedEventDepth,
@@ -69,7 +69,7 @@ private theorem bit_depth (width : Nat) (index : Fin (width.size + 2)) :
   change _ * (ClockDecodeBit.program width index).evaluatedEventDepth (fun _ => 1) = _
   rw [ClockDecodeBit.program_unitDepth]
 
-private theorem sequence_count (width : Nat) (indices : List (Fin (width.size + 2))) :
+private lemma sequence_count (width : Nat) (indices : List (Fin (width.size + 2))) :
     (ClockDecode.sequence width indices).eventCost.card =
       (indices.map (ClockDecodeWeight.weight width)).sum * (3 * (width + 2)) := by
   induction indices with
@@ -82,7 +82,7 @@ private theorem sequence_count (width : Nat) (indices : List (Fin (width.size + 
     rw [ClockDecode.sequence, UnitaryCircuit.seq_eventCost, Multiset.card_add,
       bit_count, inductionHypothesis, List.map_cons, List.sum_cons, Nat.add_mul]
 
-private theorem sequence_depth (width : Nat) (indices : List (Fin (width.size + 2))) :
+private lemma sequence_depth (width : Nat) (indices : List (Fin (width.size + 2))) :
     (ClockDecode.sequence width indices).evaluatedEventDepth (fun _ => 1) =
       (indices.map (ClockDecodeWeight.weight width)).sum * (3 * (width + 2)) := by
   induction indices with
@@ -96,12 +96,12 @@ private theorem sequence_depth (width : Nat) (indices : List (Fin (width.size + 
       inductionHypothesis, List.map_cons, List.sum_cons, Nat.add_mul]
 
 /-- Actual native event cardinality includes every fixed repetition for all high and low bits. -/
-theorem program_event_count (width : Nat) :
+lemma program_event_count (width : Nat) :
     (ClockDecode.program width).eventCost.card = count width := by
   rw [ClockDecode.program, sequence_count, weights_sum, count, Nat.mul_comm]
 
 /-- Strict unit depth counts those same serially composed native occurrences exactly. -/
-theorem program_unitDepth (width : Nat) :
+lemma program_unitDepth (width : Nat) :
     (ClockDecode.program width).evaluatedEventDepth (fun _ => 1) = count width := by
   rw [ClockDecode.program, sequence_depth, weights_sum, count, Nat.mul_comm]
 

@@ -102,12 +102,12 @@ def persistentRefs {ctx : RuntimeCtx kind} {resultWidth : Nat}
   take := underWrite original.take width
 
 /-- Structural lifting retains each actual persistent storage identity. -/
-theorem nativeQuadratic_local_underWrite_key {ctx : RuntimeCtx kind} {shape : CShape}
+lemma nativeQuadratic_local_underWrite_key {ctx : RuntimeCtx kind} {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     (underWrite output width).key = output.key := rfl
 
 /-- All thirteen local cells are classical; the same original quantum bank remains in place. -/
-theorem nativeQuadratic_local_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_local_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadratic.LocalLayout

@@ -8,3 +8,4 @@ module
 
 public import QuantumAlg.Primitives.AmplitudeAmplification.Construction
 public import QuantumAlg.Primitives.AmplitudeAmplification.Endpoint
+public import QuantumAlg.Primitives.AmplitudeAmplification.Endpoint.Results

@@ -79,7 +79,7 @@ private def boundedRecoveryExponent (phaseBits candidate : Nat) : Nat :=
   if candidate < 2 ^ (phaseBits + 1) then candidate else 0
 
 /-- The exponent supplied to the binary scan always fits its public width. -/
-private theorem boundedRecoveryExponent_lt (phaseBits candidate : Nat) :
+private lemma boundedRecoveryExponent_lt (phaseBits candidate : Nat) :
     boundedRecoveryExponent phaseBits candidate <
       2 ^ (phaseBits + 1) := by
   unfold boundedRecoveryExponent
@@ -122,7 +122,7 @@ private def retainLeastOption
   | none => state
   | some candidate => retainLeast state candidate
 
-private theorem foldl_retainLeastOption_eq_filterMap
+private lemma foldl_retainLeastOption_eq_filterMap
     (values : List (Option Nat)) (state : LeastAcceptedState) :
     values.foldl retainLeastOption state =
       (values.filterMap id).foldl retainLeast state := by
@@ -135,7 +135,7 @@ private theorem foldl_retainLeastOption_eq_filterMap
           simpa [retainLeastOption] using
             ih (retainLeast state candidate)
 
-@[simp] private theorem retainLeast_best
+@[simp] private lemma retainLeast_best
     (state : LeastAcceptedState) (candidate : Nat) :
     (retainLeast state candidate).best =
       List.argAux (fun left right : Nat => left < right)
@@ -145,7 +145,7 @@ private theorem foldl_retainLeastOption_eq_filterMap
       cases best <;> rfl
 
 /-- Folding the traced state computes exactly Mathlib's finite argmin. -/
-private theorem foldl_retainLeast_best
+private lemma foldl_retainLeast_best
     (values : List Nat) (state : LeastAcceptedState) :
     (values.foldl retainLeast state).best =
       values.foldl
@@ -174,7 +174,7 @@ def leastAcceptedTrace (values : List (Option Nat)) :
   .mk state.best state.arithmeticRev.reverse
 
 /-- The traced selector computes the ordinary finite argmin. -/
-theorem leastAcceptedTrace_output (values : List (Option Nat)) :
+lemma leastAcceptedTrace_output (values : List (Option Nat)) :
     (leastAcceptedTrace values).output =
       List.argmin id (values.filterMap id) := by
   rw [leastAcceptedTrace]
@@ -187,7 +187,7 @@ theorem leastAcceptedTrace_output (values : List (Option Nat)) :
 
 /-- One selector step preserves a common operand-width bound on both its
 retained candidate and the comparisons accumulated so far. -/
-private theorem retainLeast_width_invariant
+private lemma retainLeast_width_invariant
     (state : LeastAcceptedState) (candidate width : Nat)
     (harithmetic :
       arithmeticEventListMaxOperandWidth state.arithmeticRev ≤ width)
@@ -227,7 +227,7 @@ private theorem retainLeast_width_invariant
 
 /-- Folding the selector preserves a pointwise width bound on every visited
 candidate and on every strict comparison emitted by the fold. -/
-private theorem foldl_retainLeast_width_invariant
+private lemma foldl_retainLeast_width_invariant
     (values : List Nat) (state : LeastAcceptedState) (width : Nat)
     (harithmetic :
       arithmeticEventListMaxOperandWidth state.arithmeticRev ≤ width)
@@ -254,7 +254,7 @@ private theorem foldl_retainLeast_width_invariant
           exact hvalues value (by simp [hvalue]))
 
 /-- The selector emits at most one strict comparison per input option. -/
-private theorem foldl_retainLeast_arithmeticRev_length_le
+private lemma foldl_retainLeast_arithmeticRev_length_le
     (values : List Nat) (state : LeastAcceptedState) :
     (values.foldl retainLeast state).arithmeticRev.length ≤
       state.arithmeticRev.length + values.length := by
@@ -277,7 +277,7 @@ private theorem foldl_retainLeast_arithmeticRev_length_le
 
 /-- The sealed selector evaluates no more strict comparisons than there are
 input slots, including rejected slots. -/
-theorem leastAcceptedTrace_arithmetic_length_le
+lemma leastAcceptedTrace_arithmetic_length_le
     (values : List (Option Nat)) :
     (leastAcceptedTrace values).arithmetic.length ≤ values.length := by
   let accepted := values.filterMap id
@@ -300,7 +300,7 @@ theorem leastAcceptedTrace_arithmetic_length_le
 
 /-- When every accepted input fits a common binary width, all comparisons in
 the sealed selector fit the same width. -/
-theorem leastAcceptedTrace_maxOperandWidth_le
+lemma leastAcceptedTrace_maxOperandWidth_le
     (values : List (Option Nat)) (width : Nat)
     (hvalues :
       ∀ value ∈ values.filterMap id, Nat.size value ≤ width) :
@@ -373,7 +373,7 @@ def multiplicativeOrderRecoveryTrace
       (slots.map (MultiplicativeOrderSlotTrace.accepted phaseBits)))
 
 /-- The trace visits exactly the public fixed number of denominator slots. -/
-theorem multiplicativeOrderRecoveryTrace_slots_length
+lemma multiplicativeOrderRecoveryTrace_slots_length
     (modulus base phaseBits : Nat) (numerator : Fin (2 ^ phaseBits)) :
     (multiplicativeOrderRecoveryTrace
       modulus base phaseBits numerator).slots.length =
@@ -384,7 +384,7 @@ theorem multiplicativeOrderRecoveryTrace_slots_length
 /-- Every slot emits base normalization, the exponent guard, seven
 modular-power events per public exponent bit, and three validation
 comparisons. -/
-theorem multiplicativeOrderSlotTrace_arithmetic_length
+lemma multiplicativeOrderSlotTrace_arithmetic_length
     (modulus base phaseBits candidate : Nat) :
     (MultiplicativeOrderSlotTrace.arithmetic phaseBits
       (multiplicativeOrderSlotTrace
@@ -396,7 +396,7 @@ theorem multiplicativeOrderSlotTrace_arithmetic_length
 
 /-- Every operand in an actually executed validation slot is bounded by the
 combined public modulus, base representative, and phase-register envelope. -/
-private theorem multiplicativeOrderSlotTrace_maxOperandWidth_le
+private lemma multiplicativeOrderSlotTrace_maxOperandWidth_le
     (modulus base phaseBits candidate : Nat) (hmodulus : 0 < modulus)
     (hcandidate : candidate ≤ 2 ^ phaseBits) :
     arithmeticEventListMaxOperandWidth
@@ -485,7 +485,7 @@ private theorem multiplicativeOrderSlotTrace_maxOperandWidth_le
 
 /-- A list of denominator slots emits the fixed validation schedule once for
 every visited denominator. -/
-private theorem multiplicativeOrderSlots_arithmetic_length
+private lemma multiplicativeOrderSlots_arithmetic_length
     (modulus base phaseBits : Nat) (candidates : List Nat) :
     ((candidates.map
         (multiplicativeOrderSlotTrace modulus base phaseBits)).flatMap
@@ -501,7 +501,7 @@ private theorem multiplicativeOrderSlots_arithmetic_length
 
 /-- A complete list of actual denominator-validation slots preserves the
 common public max-operand envelope. -/
-private theorem multiplicativeOrderSlots_maxOperandWidth_le
+private lemma multiplicativeOrderSlots_maxOperandWidth_le
     (modulus base phaseBits : Nat) (candidates : List Nat)
     (hmodulus : 0 < modulus)
     (hcandidates :
@@ -525,7 +525,7 @@ private theorem multiplicativeOrderSlots_maxOperandWidth_le
 
 /-- Every value retained by the validation-option projection fits the public
 phase-width schedule. -/
-private theorem acceptedCandidates_size_le
+private lemma acceptedCandidates_size_le
     {modulus phaseBits : Nat}
     (slots : List (MultiplicativeOrderSlotTrace modulus)) :
     ∀ candidate ∈
@@ -550,7 +550,7 @@ private theorem acceptedCandidates_size_le
 
 /-- The final least-candidate selection compares only accepted in-width
 denominators, so its operands fit the public phase width. -/
-theorem multiplicativeOrderRecoveryTrace_selection_maxOperandWidth_le
+lemma multiplicativeOrderRecoveryTrace_selection_maxOperandWidth_le
     (modulus base phaseBits : Nat)
     (numerator : Fin (2 ^ phaseBits)) :
     arithmeticEventListMaxOperandWidth
@@ -573,7 +573,7 @@ theorem multiplicativeOrderRecoveryTrace_selection_maxOperandWidth_le
 
 /-- The complete recovery emits at most a quadratic number of arithmetic
 events in the public phase-register width. -/
-theorem multiplicativeOrderRecoveryTrace_arithmetic_length_le
+lemma multiplicativeOrderRecoveryTrace_arithmetic_length_le
     (modulus base phaseBits : Nat)
     (numerator : Fin (2 ^ phaseBits)) :
     (multiplicativeOrderRecoveryTrace
@@ -643,7 +643,7 @@ theorem multiplicativeOrderRecoveryTrace_arithmetic_length_le
 /-- Every operand evaluated by the complete sealed recovery fits a linear
 binary-width envelope derived from the public modulus, base representative,
 and phase register. -/
-theorem multiplicativeOrderRecoveryTrace_maxOperandWidth_le
+lemma multiplicativeOrderRecoveryTrace_maxOperandWidth_le
     (modulus base phaseBits : Nat)
     (numerator : Fin (2 ^ phaseBits)) (hmodulus : 0 < modulus) :
     arithmeticEventListMaxOperandWidth
@@ -700,7 +700,7 @@ theorem multiplicativeOrderRecoveryTrace_maxOperandWidth_le
 
 /-- A slot accepts exactly a positive in-width denominator whose ordinary
 natural modular power returns one. -/
-theorem multiplicativeOrderSlotTrace_accepts_iff
+lemma multiplicativeOrderSlotTrace_accepts_iff
     (modulus base phaseBits candidate : Nat) :
     (multiplicativeOrderSlotTrace
         modulus base phaseBits candidate).Accepts phaseBits ↔
@@ -749,7 +749,7 @@ theorem multiplicativeOrderSlotTrace_accepts_iff
 
 /-- A returned candidate came from an actually visited denominator slot and
 passed that slot's modular-power execution. -/
-theorem multiplicativeOrderRecoveryTrace_output_some_sound
+lemma multiplicativeOrderRecoveryTrace_output_some_sound
     {modulus base phaseBits candidate : Nat}
     {numerator : Fin (2 ^ phaseBits)}
     (hresult :
@@ -806,7 +806,7 @@ theorem multiplicativeOrderRecoveryTrace_output_some_sound
 /-- If a positive in-width denominator occurs in the actual schedule, returns
 one, and is globally least among positive modular returns, the recovery output
 is exactly that denominator. -/
-theorem multiplicativeOrderRecoveryTrace_output_eq_some
+lemma multiplicativeOrderRecoveryTrace_output_eq_some
     {modulus base phaseBits order : Nat}
     {numerator : Fin (2 ^ phaseBits)}
     (hmember :
@@ -894,7 +894,7 @@ def MultiplicativeOrderRecoveryTrace.schoolbookCharge
 /-- Complete executable order recovery has quartic schoolbook charge in the
 combined public modulus, base-representative, and phase-register bit
 envelope. -/
-theorem multiplicativeOrderRecoveryTrace_schoolbookCharge_quartic
+lemma multiplicativeOrderRecoveryTrace_schoolbookCharge_quartic
     (modulus base phaseBits : Nat)
     (numerator : Fin (2 ^ phaseBits)) (hmodulus : 0 < modulus) :
     (multiplicativeOrderRecoveryTrace
@@ -947,7 +947,7 @@ theorem multiplicativeOrderRecoveryTrace_schoolbookCharge_quartic
 base two modulo fifteen validates denominator twelve.  The hidden true order
 four is intentionally not substituted when it is absent from this observation's
 continued-fraction candidates. -/
-theorem multiplicativeOrderRecoveryTrace_fifteen_two_six_five :
+lemma multiplicativeOrderRecoveryTrace_fifteen_two_six_five :
     (multiplicativeOrderRecoveryTrace 15 2 6
       ⟨5, by norm_num⟩).output = some 12 := by
   unfold multiplicativeOrderRecoveryTrace

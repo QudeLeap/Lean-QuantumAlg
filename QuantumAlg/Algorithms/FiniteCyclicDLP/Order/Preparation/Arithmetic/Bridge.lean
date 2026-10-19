@@ -25,12 +25,12 @@ noncomputable section
 open scoped BigOperators
 
 /-- The derived view retains the canonical number of binary gaps. -/
-@[simp] public theorem positiveGap_gaps {N : Nat} (expansion : OrderExpansion N)
+@[simp] public lemma positiveGap_gaps {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N) :
     (expansion.toPositiveGapExpansion multiple positive).gaps = expansion.gaps := rfl
 
 /-- The derived view retains the lowest set-bit exponent. -/
-public theorem positiveGap_first {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_first {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N) :
     (expansion.toPositiveGapExpansion multiple positive).first = expansion.first := by
   change expansion.ell (expansion.gapEquiv multiple 0) =
@@ -38,7 +38,7 @@ public theorem positiveGap_first {N : Nat} (expansion : OrderExpansion N)
   congr 1
 
 /-- The derived view retains the highest set-bit exponent. -/
-public theorem positiveGap_last {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_last {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N) :
     (expansion.toPositiveGapExpansion multiple positive).last = expansion.last := by
   change expansion.ell
@@ -47,7 +47,7 @@ public theorem positiveGap_last {N : Nat} (expansion : OrderExpansion N)
   congr 1
 
 /-- The intrinsic width of the derived view is the canonical active width. -/
-public theorem positiveGap_width {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_width {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N) :
     (expansion.toPositiveGapExpansion multiple positive).width =
       expansion.last + 1 := by
@@ -55,7 +55,7 @@ public theorem positiveGap_width {N : Nat} (expansion : OrderExpansion N)
   rw [positiveGap_last expansion multiple positive]
 
 /-- The left endpoint of a canonical gap is its gap-oriented predecessor. -/
-public theorem positiveGap_ell_left {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_ell_left {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N)
     (gap : Fin expansion.gaps) :
     (expansion.toPositiveGapExpansion multiple positive).ell gap.castSucc =
@@ -64,7 +64,7 @@ public theorem positiveGap_ell_left {N : Nat} (expansion : OrderExpansion N)
   congr 1
 
 /-- The right endpoint of a canonical gap is its gap-oriented successor. -/
-public theorem positiveGap_ell_right {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_ell_right {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N)
     (gap : Fin expansion.gaps) :
     (expansion.toPositiveGapExpansion multiple positive).ell gap.succ =
@@ -74,7 +74,7 @@ public theorem positiveGap_ell_right {N : Nat} (expansion : OrderExpansion N)
 
 /-- Reindexing the derived positive-gap prefix recovers the prefix mass used
 by the native schedule. -/
-public theorem positiveGap_prefixMass {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_prefixMass {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N)
     (gap : Fin expansion.gaps) :
     (expansion.toPositiveGapExpansion multiple positive).prefixMass gap =
@@ -92,7 +92,7 @@ public theorem positiveGap_prefixMass {N : Nat} (expansion : OrderExpansion N)
 
 /-- The arithmetic source ratio is exactly the ratio used to construct the
 native circuit's rotation angle. -/
-public theorem positiveGap_sourceRatio {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_sourceRatio {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N)
     (gap : Fin expansion.gaps) :
     (expansion.toPositiveGapExpansion multiple positive).sourceRatio gap =
@@ -112,7 +112,7 @@ public theorem positiveGap_sourceRatio {N : Nat} (expansion : OrderExpansion N)
 
 /-- The rotation angle proved by the positive-gap arithmetic is the literal
 angle used by the native preparation stage. -/
-public theorem positiveGap_sourceAngle {N : Nat} (expansion : OrderExpansion N)
+public lemma positiveGap_sourceAngle {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) (positive : 0 < N)
     (gap : Fin expansion.gaps) :
     (expansion.toPositiveGapExpansion multiple positive).sourceAngle gap =

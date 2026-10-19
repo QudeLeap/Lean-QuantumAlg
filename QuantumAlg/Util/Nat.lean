@@ -29,13 +29,13 @@ def ceilDiv (num den : ℕ) : ℕ :=
   (num + den - 1) / den
 
 @[simp]
-theorem ceilDiv_eq (num den : ℕ) :
+lemma ceilDiv_eq (num den : ℕ) :
     ceilDiv num den = (num + den - 1) / den :=
   rfl
 
 /-- Multiplying a ceiling quotient by its positive denominator recovers at
 least the numerator. -/
-theorem le_ceilDiv_mul {num den : ℕ} (hden : 0 < den) :
+lemma le_ceilDiv_mul {num den : ℕ} (hden : 0 < den) :
     num ≤ ceilDiv num den * den := by
   have hmod := Nat.mod_lt (num + den - 1) hden
   have hdecomp := Nat.div_add_mod (num + den - 1) den
@@ -47,7 +47,7 @@ theorem le_ceilDiv_mul {num den : ℕ} (hden : 0 < den) :
 
 /-- The overshoot produced by a natural-number ceiling quotient is strictly
 less than one positive denominator. -/
-theorem ceilDiv_mul_lt_add {num den : ℕ} (hden : 0 < den) :
+lemma ceilDiv_mul_lt_add {num den : ℕ} (hden : 0 < den) :
     ceilDiv num den * den < num + den := by
   have hle := Nat.div_mul_le_self (num + den - 1) den
   rw [ceilDiv]

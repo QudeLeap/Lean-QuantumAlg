@@ -24,6 +24,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuseRecove
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -31,17 +34,17 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 attribute [local irreducible] NativeBatchReuse.context NativeBatchReuse.code body tail step
   RuntimeResults.liftInput RuntimeResults.input
 
-private theorem retained_reference {ctx : RuntimeCtx .quantum}
+private lemma retained_reference {ctx : RuntimeCtx .quantum}
     {key : StorageKey} {shape : CShape} {fresh : key ∉ ctx.keys}
     (program : Circuit RuntimeRound.model ctx (ctx.addRetained key shape fresh))
     (update : Store ctx × RuntimeRound.model.HiddenState →
       (Store (ctx.addRetained key shape fresh) × RuntimeRound.model.HiddenState) × program.Path)
-    (record : Circuit.RetainedRecord program update)
+    (record : Circuit.RetainedRecord program environment update)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (RuntimeRound.model.HiddenState × History))
     (weight : Store (ctx.addRetained key shape fresh) → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum (program.execute Reference state)
+    ExecutionState.referenceFiberSum (program.execute environment Reference state)
         (fun entry _ => weight entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight (update (entry.1, entry.2.1)).1.1) leftRef rightRef := by
@@ -59,14 +62,14 @@ private theorem retained_reference {ctx : RuntimeCtx .quantum}
 variable (base : RuntimeCtx .quantum) {N : Nat}
 
 /-- The actual tail retains any earlier operand jointly with its actual recovered factor. -/
-theorem tail_weighted_reference (input : Input N) {previousShape : CShape}
+lemma tail_weighted_reference (input : Input N) {previousShape : CShape}
     (previous : CInputRef (NativeBatchReuse.context base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (NativeBatchReuse.context base N) Reference
       (RuntimeRound.model.HiddenState × History))
     (weight : previousShape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((tail base input).execute Reference state)
+    ExecutionState.referenceFiberSum ((tail base input).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (liftInput base N previous))
           (entry.1.read (.storage (resultRef base N).toCStorageRef))) leftRef rightRef =
       ExecutionState.referenceFiberSum state
@@ -74,7 +77,8 @@ theorem tail_weighted_reference (input : Input N) {previousShape : CShape}
           ((step base input (entry.1, entry.2.1)).1.1.read
             (.storage (resultRef base N).toCStorageRef)))
         leftRef rightRef := by
-  have transported := retained_reference (tail base input) (step base input)
+  have transported := retained_reference (environment := environment)
+    (tail base input) (step base input)
     (tail_execute base input) state
     (fun store => weight (store.read (liftInput base N previous))
       (store.read (.storage (resultRef base N).toCStorageRef))) leftRef rightRef
@@ -93,7 +97,7 @@ variable (sameWires : base.quantumWires =
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
 /-- Pure recovery of the actual complete source Output uses exactly its sixteen stored terminals. -/
-theorem packedValue_sourceOutput (before : Store (NativeBatchReuse.context base N)) :
+lemma packedValue_sourceOutput (before : Store (NativeBatchReuse.context base N)) :
     NativeBatchRecovery.packedValue
         ((NativeBatchReuse.run base N sameWires originalCells).output.eval before) =
       LatticeFixedBatchRecoveryMachine.batchValue
@@ -110,7 +114,7 @@ theorem packedValue_sourceOutput (before : Store (NativeBatchReuse.context base 
     LatticePairRecoveryBatch.preparedSamples, List.Vector.get_map, List.Vector.get_ofFn]
   congr 1
 
-private theorem sourceOutput_parameter_read (before : Store (NativeBatchReuse.context base N)) :
+private lemma sourceOutput_parameter_read (before : Store (NativeBatchReuse.context base N)) :
     ((NativeBatchReuse.run base N sameWires originalCells).output.eval before).second.first =
       before.read (NativeBatchReuse.finalParameter base N) := by
   unfold NativeBatchReuse.run NativeBatch.resultShape
@@ -118,7 +122,7 @@ private theorem sourceOutput_parameter_read (before : Store (NativeBatchReuse.co
   exact NativeBatchRecovery.read_middle before (NativeBatchReuse.finalSample base N)
     (NativeBatchReuse.finalParameter base N) (NativeBatchReuse.finalResults base N)
 
-private theorem output_on_source_support (input : Input N)
+private lemma output_on_source_support (input : Input N)
     (before : Store (NativeBatchReuse.context base N))
     (hidden : RuntimeRound.model.HiddenState)
     (supported : (NativeBatchReuse.run base N sameWires originalCells).output.eval before ∈

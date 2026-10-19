@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {N m ell : Nat} {model : ExecutionModel} [BitWord.Selected model]
+variable {N m ell : Nat} {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent original initialization instruction plus the complete canonical slot allowance. -/
@@ -34,7 +35,7 @@ def initializedScanDepthBound (N m ell : Nat) : Nat :=
     (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)
 
 /-- Actual latch initialization and selected candidate paths satisfy the full native allowance. -/
-theorem initializedScanInto_pool_le (input : Input N)
+lemma initializedScanInto_pool_le (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :
@@ -48,7 +49,7 @@ theorem initializedScanInto_pool_le (input : Input N)
       (LatticeCandidateModularSetup.modulusSpec input) refs path.2)
 
 /-- The actual initialized scan includes the latch-clear dependency in its original depth bound. -/
-theorem initializedScanInto_depth_le (input : Input N)
+lemma initializedScanInto_depth_le (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :
@@ -59,14 +60,14 @@ theorem initializedScanInto_depth_le (input : Input N)
       (LatticeCandidateModularSetup.modulusSpec input) refs path.2)
 
 /-- Actual initialization and every subsequent scan slot restore arbitrary borrowed correlations. -/
-theorem initializedScanInto_borrowedRestored (input : Input N)
+lemma initializedScanInto_borrowedRestored (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (initializedScanInto input refs).BorrowedRestored Reference state
-      ((initializedScanInto input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((initializedScanInto input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeCandidateSelectorInit.clearAcceptedInto_borrowedRestored
       refs.selector.selection Reference state)
     (LatticeCandidateScan.scanOffsetsInto_borrowedRestored
@@ -74,7 +75,7 @@ theorem initializedScanInto_borrowedRestored (input : Input N)
         Reference _)
 
 /-- Actual initialized scans count all original resident cells and reused power scratch. -/
-theorem initializedScanInto_resident_le (input : Input N)
+lemma initializedScanInto_resident_le (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :
@@ -93,7 +94,7 @@ theorem initializedScanInto_resident_le (input : Input N)
         path.2)
 
 /-- Actual initialized scans count all original auxiliary cells and reused power scratch. -/
-theorem initializedScanInto_auxiliary_le (input : Input N)
+lemma initializedScanInto_auxiliary_le (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))
     (path : (initializedScanInto input refs).Path) :

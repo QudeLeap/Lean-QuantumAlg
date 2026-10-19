@@ -54,12 +54,12 @@ public def eventDepth (gates : GateModel) (oracles : OracleModel) {count : Nat}
     (fun event depth => .tensor (.atom event) depth) .id
 
 /-- Every allocated system contributes exactly one fixed preparation occurrence. -/
-public theorem zeroPreparation_event_count (gates : GateModel) (oracles : OracleModel)
+public lemma zeroPreparation_event_count (gates : GateModel) (oracles : OracleModel)
     {count : Nat} (layout : QuantumLayout count) :
     (eventTrace gates oracles layout).length = count := by simp [eventTrace]
 
 /-- Empty allocation has no event and cannot hide a preparation. -/
-public theorem zeroPreparation_empty_events (gates : GateModel) (oracles : OracleModel)
+public lemma zeroPreparation_empty_events (gates : GateModel) (oracles : OracleModel)
     (layout : QuantumLayout 0) : eventTrace gates oracles layout = [] := by
   simp [eventTrace]
 

@@ -57,7 +57,7 @@ def scanEnvelope (model : ExecutionModel) [BitWord.Selected model] (width count 
   ResourcePool.scale count (slotEnvelope model width)
 
 /-- The actual comparison suffix emits exactly its four named native coordinates. -/
-theorem proposalComparison_eventTrace (shared : SharedRefs ctx width)
+lemma proposalComparison_eventTrace (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (path : (comparisonBody (model := model)
       shared scratch).Path) :
     (comparisonBody (model := model)
@@ -70,7 +70,7 @@ theorem proposalComparison_eventTrace (shared : SharedRefs ctx width)
   rfl
 
 /-- Actual decoding and comparisons fit their independent native-coordinate budget. -/
-theorem proposalPrefix_pool_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalPrefix_pool_le (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (prefixBody (model := model) sample proposal shared scratch).Path) :
     (prefixBody (model := model)
@@ -85,7 +85,7 @@ theorem proposalPrefix_pool_le (sample : CInputRef ctx (.bits (count * width)))
     (PackedSample.proposalRefs sample proposal) scratch.candidate path.1) le_rfl
 
 /-- Every source-addressed slot includes the actual selected branch's native charges. -/
-theorem proposalSlot_pool_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalSlot_pool_le (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (slot (model := model) sample proposal shared scratch).Path) :
     (slot (model := model)
@@ -100,7 +100,7 @@ theorem proposalSlot_pool_le (sample : CInputRef ctx (.bits (count * width)))
       (selectorInputs scratch) shared.selector path.2)
 
 /-- The actual ordered fold consumes at most its list's number of independent slot allowances. -/
-theorem proposalFold_pool_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalFold_pool_le (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) :
     ∀ path : (foldSlots (model := model) sample shared scratch proposals).Path,
@@ -121,7 +121,7 @@ theorem proposalFold_pool_le (sample : CInputRef ctx (.bits (count * width)))
         sample proposal shared scratch path.1) (ih path.2)
 
 /-- The complete finite scan has one allowance per actual ascending proposal index. -/
-theorem proposalScan_pool_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalScan_pool_le (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (scan (model := model) sample shared scratch).Path) :
     (scan (model := model)
@@ -132,7 +132,7 @@ theorem proposalScan_pool_le (sample : CInputRef ctx (.bits (count * width)))
       path
 
 /-- The independent per-slot allowance has exactly two events per bit and eight fixed events. -/
-theorem proposalSlotEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+lemma proposalSlotEnvelope_card (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
     (slotEnvelope model width).card = 2 * width + 8 := by
   simp [slotEnvelope, prefixEnvelope, TerminalDecode.envelope, TerminalDecode.bitEnvelope,
     FirstAccepted.nativeEnvelope, FirstAccepted.decisionEvents, FirstAccepted.copyEvents,
@@ -140,7 +140,7 @@ theorem proposalSlotEnvelope_card (model : ExecutionModel) [BitWord.Selected mod
   omega
 
 /-- The scan's independent total native capacity is the exact sum of its slot allowances. -/
-theorem proposalScanEnvelope_card (model : ExecutionModel) [BitWord.Selected model]
+lemma proposalScanEnvelope_card (model : ExecutionModel) [BitWord.Selected model]
     (width count : Nat) :
     (scanEnvelope model width count).card = count * (2 * width + 8) := by
   simp [scanEnvelope, ResourcePool.scale, proposalSlotEnvelope_card]

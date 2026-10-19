@@ -47,7 +47,7 @@ private def shiftMatrixFormula (d : ℕ) : Matrix (Fin d) (Fin d) ℂ :=
 /-! ## Unitarity and root-of-unity identities -/
 
 /-- `ω_d * ω̅_d = 1` (from the complex exponential identity). -/
-theorem clockRoot_mul_star : clockRoot d * (starRingEnd ℂ) (clockRoot d) = 1 := by
+lemma clockRoot_mul_star : clockRoot d * (starRingEnd ℂ) (clockRoot d) = 1 := by
   unfold clockRoot
   rw [← Complex.exp_conj, ← Complex.exp_add]
   have hz0 : (2 * (Real.pi : ℂ) * Complex.I / (d : ℂ)) +
@@ -60,7 +60,7 @@ theorem clockRoot_mul_star : clockRoot d * (starRingEnd ℂ) (clockRoot d) = 1 :
 
 -- Declaration-scoped exception: entrywise simp leaves the diagonal case for by_cases.
 set_option linter.flexible false in
-private theorem clockMatrix_mem_unitaryGroup :
+private lemma clockMatrix_mem_unitaryGroup :
     clockMatrixFormula d ∈ Matrix.unitaryGroup (Fin d) ℂ := by
   rw [Matrix.mem_unitaryGroup_iff]
   ext i j
@@ -95,7 +95,7 @@ lemma finCycle_one_symm_apply_eq_iff {d : ℕ} [NeZero d] {i j : Fin d} :
     simp [finCycle, Fin.val_add]
     exact h
 
-private theorem shiftMatrix_mem_unitaryGroup :
+private lemma shiftMatrix_mem_unitaryGroup :
     shiftMatrixFormula d ∈ Matrix.unitaryGroup (Fin d) ℂ := by
   by_cases hd0 : d = 0
   · subst hd0
@@ -125,7 +125,7 @@ def clockMatrix (d : ℕ) : Matrix.unitaryGroup (Fin d) ℂ :=
   ⟨Matrix.diagonal (fun j => clockRoot d ^ j.val), by exact clockMatrix_mem_unitaryGroup⟩
 
 /-- Coordinate formula for the certified finite clock operator. -/
-theorem clockMatrix_coe (d : ℕ) :
+lemma clockMatrix_coe (d : ℕ) :
     (clockMatrix d : Matrix (Fin d) (Fin d) ℂ) =
       Matrix.diagonal (fun j => clockRoot d ^ j.val) := rfl
 
@@ -135,7 +135,7 @@ def shiftMatrix (d : ℕ) : Matrix.unitaryGroup (Fin d) ℂ :=
     exact shiftMatrix_mem_unitaryGroup⟩
 
 /-- Coordinate formula for the certified finite cyclic shift. -/
-theorem shiftMatrix_coe (d : ℕ) :
+lemma shiftMatrix_coe (d : ℕ) :
     (shiftMatrix d : Matrix (Fin d) (Fin d) ℂ) =
       Matrix.of (fun i j => if (j.val + 1) % d = i.val then 1 else 0) := rfl
 
@@ -236,7 +236,7 @@ lemma sum_clockRoot_pow (hd : d ≠ 0) (e : ℕ) :
 
 -- Declaration-scoped exception: simp precedes the modular-successor case split.
 set_option linter.flexible false in
-theorem clock_shift_mul_eq_omega_smul :
+lemma clock_shift_mul_eq_omega_smul :
     Z[d] * X[d] =
     (clockRoot d : ℂ) • (X[d] * Z[d]) := by
   by_cases hd0 : d = 0
@@ -694,29 +694,29 @@ lemma matrix_transpose_decompose (U : Matrix (Fin d) (Fin d) ℂ) :
 /-- QFT normalization factor: `1/√d`. -/
 def invSqrtD (d : ℕ) : ℂ := (↑(Real.sqrt (d : ℝ)))⁻¹
 
-theorem invSqrtD_ne_zero (hd : d ≠ 0) : invSqrtD d ≠ 0 :=
+lemma invSqrtD_ne_zero (hd : d ≠ 0) : invSqrtD d ≠ 0 :=
   inv_ne_zero <| Complex.ofReal_ne_zero.mpr <|
     Real.sqrt_ne_zero'.mpr (by exact_mod_cast (Nat.pos_of_ne_zero hd))
 
-theorem invSqrtD_mul_self (d : ℕ) :
+lemma invSqrtD_mul_self (d : ℕ) :
     invSqrtD d * invSqrtD d = (↑(d : ℝ))⁻¹ := by
   rw [invSqrtD, ← mul_inv, ← Complex.ofReal_mul,
     Real.mul_self_sqrt (Nat.cast_nonneg d)]
 
 @[simp]
-theorem star_invSqrtD (d : ℕ) : star (invSqrtD d) = invSqrtD d := by
+lemma star_invSqrtD (d : ℕ) : star (invSqrtD d) = invSqrtD d := by
   rw [invSqrtD, star_inv₀, Complex.star_def, Complex.conj_ofReal]
 
-theorem clockRoot_ne_zero (d : ℕ) : clockRoot d ≠ 0 :=
+lemma clockRoot_ne_zero (d : ℕ) : clockRoot d ≠ 0 :=
   Complex.exp_ne_zero _
 
 /-- `clockRoot d` is a primitive `d`-th root of unity. -/
-theorem clockRoot_isPrimitiveRoot (hd : d ≠ 0) :
+lemma clockRoot_isPrimitiveRoot (hd : d ≠ 0) :
     IsPrimitiveRoot (clockRoot d) d := by
   simpa [clockRoot] using Complex.isPrimitiveRoot_exp d hd
 
 /-- `‖ω_d‖ = 1`. -/
-theorem norm_clockRoot (hd : d ≠ 0) : ‖clockRoot d‖ = 1 := by
+lemma norm_clockRoot (hd : d ≠ 0) : ‖clockRoot d‖ = 1 := by
   have hz : 2 * (Real.pi : ℂ) * Complex.I / (d : ℂ) =
       ((2 * Real.pi / (d : ℝ) : ℝ) : ℂ) * Complex.I := by
     apply Complex.ext
@@ -727,14 +727,14 @@ theorem norm_clockRoot (hd : d ≠ 0) : ‖clockRoot d‖ = 1 := by
   exact Complex.norm_exp_ofReal_mul_I _
 
 @[simp]
-theorem star_clockRoot (hd : d ≠ 0) : star (clockRoot d) = (clockRoot d)⁻¹ := by
+lemma star_clockRoot (hd : d ≠ 0) : star (clockRoot d) = (clockRoot d)⁻¹ := by
   rw [Complex.star_def, ← RCLike.inv_eq_conj (norm_clockRoot hd)]
 
-theorem clockRoot_zpow_eq_one_iff (hd : d ≠ 0) (m : ℤ) :
+lemma clockRoot_zpow_eq_one_iff (hd : d ≠ 0) (m : ℤ) :
     clockRoot d ^ m = 1 ↔ ((d : ℕ) : ℤ) ∣ m :=
   (clockRoot_isPrimitiveRoot hd).zpow_eq_one_iff_dvd m
 
-theorem sum_clockRoot_zpow_eq_zero (hd : d ≠ 0) {r : ℤ}
+lemma sum_clockRoot_zpow_eq_zero (hd : d ≠ 0) {r : ℤ}
     (hr : ¬ ((d : ℕ) : ℤ) ∣ r) :
     ∑ l : Fin d, clockRoot d ^ ((l.val : ℤ) * r) = 0 := by
   have hsum : ∀ l : Fin d,

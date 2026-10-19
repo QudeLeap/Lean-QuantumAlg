@@ -39,13 +39,13 @@ def oracleNativeBudget (exponentWidth width : Nat) :
 def oracleEventBound (exponentWidth width : Nat) : Nat :=
   2 * eventBound exponentWidth width + width
 
-private theorem forward_eventCost (exponentWidth width : Nat)
+private lemma forward_eventCost (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (forwardProgram exponentWidth width modulus base).eventCost =
       (program exponentWidth width modulus base).eventCost :=
   rfl
 
-private theorem forward_depth (exponentWidth width : Nat)
+private lemma forward_depth (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (forwardProgram exponentWidth width modulus base).evaluatedEventDepth (fun _ => 1) =
       (program exponentWidth width modulus base).eventCost.card :=
@@ -53,7 +53,7 @@ private theorem forward_depth (exponentWidth width : Nat)
     (fun _ => 1) (program exponentWidth width modulus base)).trans
       (gidneyExponent_depth_eq_events exponentWidth width modulus base)
 
-private theorem emptyOraclePool (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
+private lemma emptyOraclePool (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
     AlgorithmGate.oracleFreePool .empty pool = pool := by
   change Multiset.map (AlgorithmGate.oracleFreeEvent .empty) pool = pool
   have identical : AlgorithmGate.oracleFreeEvent .empty = id := by
@@ -68,7 +68,7 @@ private theorem emptyOraclePool (pool : ResourcePool (.quantum AlgorithmGate.mod
   rw [identical, Multiset.map_id]
 
 /-- Exact oracle ledger retains every forward, copy, and adjoint event coordinate. -/
-theorem gidneyExponentOracle_eventCost (exponentWidth width : Nat)
+lemma gidneyExponentOracle_eventCost (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (oracleProgram exponentWidth width modulus base).eventCost =
       (program exponentWidth width modulus base).eventCost +
@@ -78,7 +78,7 @@ theorem gidneyExponentOracle_eventCost (exponentWidth width : Nat)
     emptyOraclePool, forward_eventCost, gidneyExponentCopy_eventCost, copyNativeBudget]
 
 /-- Every actual native coordinate obeys its independently specified oracle budget. -/
-theorem gidneyExponentOracle_native_bound (exponentWidth width : Nat)
+lemma gidneyExponentOracle_native_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (oracleProgram exponentWidth width modulus base).eventCost ≤
       oracleNativeBudget exponentWidth width := by
@@ -87,7 +87,7 @@ theorem gidneyExponentOracle_native_bound (exponentWidth width : Nat)
     (add_le_add (le_refl (copyNativeBudget width))
       (gidneyExponent_native_bound exponentWidth width modulus base))
 
-theorem gidneyExponentOracle_event_count_bound (exponentWidth width : Nat)
+lemma gidneyExponentOracle_event_count_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (oracleProgram exponentWidth width modulus base).eventCost.card ≤
       oracleEventBound exponentWidth width := by
@@ -100,7 +100,7 @@ theorem gidneyExponentOracle_event_count_bound (exponentWidth width : Nat)
   omega
 
 /-- The exact forward/copy/adjoint schedule has one unit-duration step per actual native event. -/
-theorem gidneyExponentOracle_depth_eq_events (exponentWidth width : Nat)
+lemma gidneyExponentOracle_depth_eq_events (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (oracleProgram exponentWidth width modulus base).evaluatedEventDepth (fun _ => 1) =
       (oracleProgram exponentWidth width modulus base).eventCost.card := by
@@ -117,7 +117,7 @@ theorem gidneyExponentOracle_depth_eq_events (exponentWidth width : Nat)
     AlgorithmGate.algorithmGate_oracleFreeAdjoints_unit_depth, forward_depth,
     (gidneyExponentCopy_serial_resources exponentWidth width).2]
 
-theorem gidneyExponentOracle_depth_bound (exponentWidth width : Nat)
+lemma gidneyExponentOracle_depth_bound (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     (oracleProgram exponentWidth width modulus base).evaluatedEventDepth (fun _ => 1) ≤
       oracleEventBound exponentWidth width := by
@@ -125,7 +125,7 @@ theorem gidneyExponentOracle_depth_bound (exponentWidth width : Nat)
   exact gidneyExponentOracle_event_count_bound exponentWidth width modulus base
 
 /-- The oracle's declared physical carrier has no quantum storage beyond its four named words. -/
-theorem gidneyExponentOracle_qubit_count (exponentWidth width : Nat) :
+lemma gidneyExponentOracle_qubit_count (exponentWidth width : Nat) :
     (oracleEncoding exponentWidth width).width = exponentWidth + 3 * width ∧
       (QubitLayout.canonical (oracleEncoding exponentWidth width).width).systemIdx.length =
         exponentWidth + 3 * width := by

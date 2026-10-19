@@ -81,42 +81,43 @@ public def post (I : ECDLPInstance E) : RuntimeCtx .quantum :=
   batchResultCtx (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)
 
 /-- Execute the real sampler and checked recovery in each prescribed finite round. -/
-public def tail (I : ECDLPInstance E) (A : Access I)
+public def tail (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    Circuit (Sampling.executionModel I A) (Sampling.Reuse.context I) (post I) :=
-  sampledRecoveryTail (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+    Circuit (Sampling.executionModel I) (Sampling.Reuse.context I) (post I) :=
+  sampledRecoveryTail (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
 
 /-- Allocate the same bank once, then run the actual interleaved finite recovery tail. -/
-public def code (I : ECDLPInstance E) (A : Access I)
+public def code (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    Circuit (Sampling.executionModel I A) (Sampling.pre I) (post I) :=
-  (Sampling.Reuse.initialCode I A).seq (tail I A expansion nontrivial count)
+    Circuit (Sampling.executionModel I) (Sampling.pre I) (post I) :=
+  (Sampling.Reuse.initialCode I).seq (tail I expansion nontrivial count)
 
 /-- The complete output reads the actual packed optional first-success result. -/
-public def run (I : ECDLPInstance E) (A : Access I)
+public def run (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    AlgorithmRun (Sampling.executionModel I A) (Sampling.pre I) (post I)
+    AlgorithmRun (Sampling.executionModel I) (Sampling.pre I) (post I)
       (.option (.unsignedWord (scalarWidth I))) where
-  code := code I A expansion nontrivial count
+  code := code I expansion nontrivial count
   output := Output.all (post I)
     (.read (batchResultRead (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)))
 
 /-- Every finite real run restores both original borrowed point/reference observations. -/
-public theorem ecdlpRecovery_run_restoresBorrowed (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_run_restoresBorrowed (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference) :
-    (run I A expansion nontrivial count).RestoresBorrowed original := by
+    (run I expansion nontrivial count).RestoresBorrowed (Sampling.sourceEnvironment I A) original
+      := by
   apply AlgorithmRun.restoresBorrowed_of_circuit
   intro reference history _ state
-  exact Circuit.borrowedRestored_of_noBorrowedQuantum (code I A expansion nontrivial count)
-    (by rfl) reference state
+  exact Circuit.borrowedRestored_of_noBorrowedQuantum (code I expansion nontrivial count)
+    (Sampling.sourceEnvironment I A) (by rfl) reference state
 
 end
 

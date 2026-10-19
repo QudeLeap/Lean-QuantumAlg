@@ -89,7 +89,7 @@ def code (halfPower : CInputRef ctx (.unsignedWord (modulusBits N))) (cells : Ce
       cells output))
 
 /-- Each actual packaging path contains both representation instructions. -/
-theorem pack_eventTrace (cells : Cells ctx N)
+lemma pack_eventTrace (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (pack (model := model) cells output).Path) :
     (pack (model := model) cells output).eventTrace path =

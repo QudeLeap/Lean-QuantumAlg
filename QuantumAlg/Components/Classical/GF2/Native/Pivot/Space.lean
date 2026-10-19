@@ -29,7 +29,7 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
 
 /-- The five selected stages reuse their real caller context and sequential mask scopes. -/
-theorem gf2SelectPivot_resident_le (row : Fin rowCount) (column : Fin width)
+lemma gf2SelectPivot_resident_le (row : Fin rowCount) (column : Fin width)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).peakResidentSpace path ≤
       pivotMaskSpace (model := model) rowCount width + ctx.residentSpace := by
@@ -55,7 +55,7 @@ theorem gf2SelectPivot_resident_le (row : Fin rowCount) (column : Fin width)
   · exact (gf2EliminateWithPivot_resident matrix row column path.2.2.2.2).le.trans entry
 
 /-- Every actual row decision has the same complete resident allowance. -/
-theorem gf2PivotProbeRow_resident_le (row : Fin rowCount) (column : Fin width)
+lemma gf2PivotProbeRow_resident_le (row : Fin rowCount) (column : Fin width)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).peakResidentSpace path ≤
       pivotMaskSpace (model := model) rowCount width + ctx.residentSpace := by
@@ -80,7 +80,7 @@ theorem gf2PivotProbeRow_resident_le (row : Fin rowCount) (column : Fin width)
   · exact unchanged
 
 /-- The increasing row scan reuses its mask space independently of row count. -/
-theorem gf2ReduceColumnBody_resident_le (column : Fin width)
+lemma gf2ReduceColumnBody_resident_le (column : Fin width)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).peakResidentSpace path ≤
       pivotMaskSpace (model := model) rowCount width + ctx.residentSpace := by
@@ -104,7 +104,7 @@ theorem gf2ReduceColumnBody_resident_le (column : Fin width)
   cases isFound <;> exact (SpacePool.max_zero _).le.trans entry
 
 /-- Both real bit latches and the maximum mask scope include all original resident entries. -/
-theorem gf2ReduceColumn_resident_le (column : Fin width)
+lemma gf2ReduceColumn_resident_le (column : Fin width)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).peakResidentSpace path ≤
       pivotMaskSpace (model := model) rowCount width +
@@ -129,7 +129,7 @@ theorem gf2ReduceColumn_resident_le (column : Fin width)
     omega
 
 /-- The five selected stages reuse their real caller context and sequential mask scopes. -/
-theorem gf2SelectPivot_auxiliary_le (row : Fin rowCount) (column : Fin width)
+lemma gf2SelectPivot_auxiliary_le (row : Fin rowCount) (column : Fin width)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).peakAuxiliarySpace path ≤
       pivotMaskSpace (model := model) rowCount width + ctx.auxiliarySpace := by
@@ -155,7 +155,7 @@ theorem gf2SelectPivot_auxiliary_le (row : Fin rowCount) (column : Fin width)
   · exact (gf2EliminateWithPivot_auxiliary matrix row column path.2.2.2.2).le.trans entry
 
 /-- Every actual row decision has the same complete auxiliary allowance. -/
-theorem gf2PivotProbeRow_auxiliary_le (row : Fin rowCount) (column : Fin width)
+lemma gf2PivotProbeRow_auxiliary_le (row : Fin rowCount) (column : Fin width)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).peakAuxiliarySpace path ≤
       pivotMaskSpace (model := model) rowCount width + ctx.auxiliarySpace := by
@@ -180,7 +180,7 @@ theorem gf2PivotProbeRow_auxiliary_le (row : Fin rowCount) (column : Fin width)
   · exact unchanged
 
 /-- The increasing row scan reuses its mask space independently of row count. -/
-theorem gf2ReduceColumnBody_auxiliary_le (column : Fin width)
+lemma gf2ReduceColumnBody_auxiliary_le (column : Fin width)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).peakAuxiliarySpace path ≤
       pivotMaskSpace (model := model) rowCount width + ctx.auxiliarySpace := by
@@ -204,7 +204,7 @@ theorem gf2ReduceColumnBody_auxiliary_le (column : Fin width)
   cases isFound <;> exact (SpacePool.max_zero _).le.trans entry
 
 /-- Both real bit latches and the maximum mask scope include all original auxiliary entries. -/
-theorem gf2ReduceColumn_auxiliary_le (column : Fin width)
+lemma gf2ReduceColumn_auxiliary_le (column : Fin width)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).peakAuxiliarySpace path ≤
       pivotMaskSpace (model := model) rowCount width +

@@ -33,7 +33,7 @@ def classifyStored (classifier : Classifier ctx width) (store : Store ctx) : Cas
   else .generic
 
 /-- Complete actual predicates select exactly the original case on the input point values. -/
-theorem classifyStored_eq_classifyValues (classifier : Classifier ctx width) (store : Store ctx)
+lemma classifyStored_eq_classifyValues (classifier : Classifier ctx width) (store : Store ctx)
     (left right : CShape.Value (PointShape width)) (ready : classifier.Ready store left right) :
     classifyStored classifier store = classifyValues left right := by
   simp only [classifyStored, read_first, ready.leftRaw, ready.rightRaw,
@@ -63,7 +63,7 @@ def Case.Matches (selected : Case) (left right : CShape.Value (PointShape width)
       left.ellipticCurvePointX ≠ right.ellipticCurvePointX
 
 /-- The total original selector establishes its selected complete branch predicate. -/
-theorem classifyValues_matches (left right : CShape.Value (PointShape width)) :
+lemma classifyValues_matches (left right : CShape.Value (PointShape width)) :
     (classifyValues left right).Matches left right := by
   unfold classifyValues
   split
@@ -77,7 +77,7 @@ theorem classifyValues_matches (left right : CShape.Value (PointShape width)) :
       · simp_all [Case.Matches]
 
 /-- The actual stored branch choice satisfies the original complete predicate. -/
-theorem classifyStored_matches (classifier : Classifier ctx width) (store : Store ctx)
+lemma classifyStored_matches (classifier : Classifier ctx width) (store : Store ctx)
     (left right : CShape.Value (PointShape width)) (ready : classifier.Ready store left right) :
     (classifyStored classifier store).Matches left right := by
   rw [classifyStored_eq_classifyValues classifier store left right ready]

@@ -71,7 +71,7 @@ public noncomputable def deterministic (Token Coordinate : Type)
   coordinate := coordinate
 
 /-- The empty declaration cannot supply a classical native instruction. -/
-public theorem no_empty_classical_native_token (token : empty.Token) : False :=
+public lemma no_empty_classical_native_token (token : empty.Token) : False :=
   nomatch token
 
 end ClassicalOpModel

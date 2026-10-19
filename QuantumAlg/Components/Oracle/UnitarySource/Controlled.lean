@@ -28,17 +28,16 @@ namespace QuantumAlg.UnitarySource
 noncomputable section
 
 /-- Execute the granted controlled query on its complete canonical physical word. -/
-public def controlledProgram (gates : GateModel) {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    UnitaryCircuit gates (model unitary true)
+public def controlledProgram (gates : GateModel) (width : Nat) :
+    UnitaryCircuit gates (model width true)
       (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout :=
-  .query (OracleModel.Application.onPlacement (model unitary true) (.controlled rfl)
+  .query (OracleModel.Application.onPlacement (model width true) (.controlled rfl)
     (QuantumSignature.qubits (1 + width)).canonicalPlacement)
 
 /-- The query's actual physical matrix is exactly the declared controlled source operator. -/
-theorem controlledProgram_matrix (gates : GateModel) {width : Nat}
+lemma controlledProgram_matrix (gates : GateModel) {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram gates unitary).matrix =
+    (controlledProgram gates width).matrix (interpretation unitary true) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
         (UnitaryOperator.controlledQubits unitary) := by
   rw [controlledProgram, UnitaryCircuit.query_matrix,
@@ -47,16 +46,14 @@ theorem controlledProgram_matrix (gates : GateModel) {width : Nat}
   rfl
 
 /-- The complete event pool contains one granted controlled query. -/
-theorem controlledProgram_events (gates : GateModel) {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram gates unitary).eventCost =
-      ResourcePool.singleton (model := .quantum gates (model unitary true))
+lemma controlledProgram_events (gates : GateModel) (width : Nat) :
+    (controlledProgram gates width).eventCost =
+      ResourcePool.singleton (model := .quantum gates (model width true))
         (.oracle Coordinate.controlled) := rfl
 
 /-- The abstract controlled query occupies one dependency step. -/
-theorem controlledProgram_depth (gates : GateModel) {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    (controlledProgram gates unitary).evaluatedEventDepth (fun _ => 1) = 1 := rfl
+lemma controlledProgram_depth (gates : GateModel) (width : Nat) :
+    (controlledProgram gates width).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
 end
 

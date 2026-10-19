@@ -31,24 +31,24 @@ section Generic
 variable {model : ExecutionModel} [BitWord.Selected model]
   (coordinate : model.GateCoordinate)
 
-private theorem constant_gate_zero (width : Nat) :
+private lemma constant_gate_zero (width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (ConstantWord.envelope model width) = 0 := by
   simp [ConstantWord.envelope, ConstantWord.bitEnvelope,
     ConstantWord.shiftEvent, ConstantWord.incrementEvent]
 
-private theorem decode_gate_zero (width : Nat) :
+private lemma decode_gate_zero (width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (TerminalDecode.envelope (model := model) width) = 0 := by
   simp [TerminalDecode.envelope, TerminalDecode.bitEnvelope,
     TerminalDecode.shiftEvent, TerminalDecode.incrementEvent]
 
-private theorem firstAccepted_gate_zero (width : Nat) :
+private lemma firstAccepted_gate_zero (width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (FirstAccepted.nativeEnvelope model width) = 0 := by
   simp [FirstAccepted.nativeEnvelope, FirstAccepted.decisionEvents, FirstAccepted.copyEvents]
 
-private theorem sampler_gate_zero (N : Nat) :
+private lemma sampler_gate_zero (N : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (ShorStyle.Canonical.Sampler.Retained.nativeEnvelope model N) = 0 := by
   simp [ShorStyle.Canonical.Sampler.Retained.nativeEnvelope,
@@ -68,32 +68,32 @@ private theorem sampler_gate_zero (N : Nat) :
     NumberTheory.GCD.remainderEvents, constant_gate_zero, decode_gate_zero,
     firstAccepted_gate_zero]
 
-private theorem power_gate_zero (width exponentWidth : Nat) :
+private lemma power_gate_zero (width exponentWidth : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (Modular.NativePower.eventEnvelope model width exponentWidth) = 0 := by
   simp [Modular.NativePower.eventEnvelope, Modular.NativePower.exponentEnvelope,
     Modular.NativePower.bitEnvelope, Modular.NativePower.multiplyEnvelope, constant_gate_zero]
 
-private theorem setup_gate_zero (width : Nat) :
+private lemma setup_gate_zero (width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeCandidateModularSetup.setupEventEnvelope model width) = 0 := by
   simp [LatticeCandidateModularSetup.setupEventEnvelope,
     LatticeCandidateModularSetup.prepareEnvelope, power_gate_zero, constant_gate_zero]
 
-private theorem decoder_gate_zero (N : Nat) :
+private lemma decoder_gate_zero (N : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (BatchMachine.eventEnvelope (model := model) N) = 0 := by
   simp [BatchMachine.eventEnvelope, BatchMachine.copySplitTrace,
     Word.Split.splitTrace, Word.Split.shiftTrace, decode_gate_zero, List.count_replicate]
 
-private theorem basis_gate_zero (N m ell width : Nat) :
+private lemma basis_gate_zero (N m ell width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeBasis.basisEventEnvelope (model := model) N m ell width) = 0 := by
   simp [LatticeBasis.basisEventEnvelope, LatticeBasis.basisTrace,
     LatticeLoading.firstRowTrace, LatticeBasis.powerRowsTrace,
     Word.PowerOfTwo.powerTrace, Word.PowerOfTwo.shiftTrace, List.count_replicate]
 
-private theorem target_gate_zero (m ell width : Nat) :
+private lemma target_gate_zero (m ell width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeWideTargetMachine.eventEnvelope (model := model) m ell width) = 0 := by
   simp [LatticeWideTargetMachine.eventEnvelope, LatticeWideTargetMachine.preimagesTrace,
@@ -101,7 +101,7 @@ private theorem target_gate_zero (m ell width : Nat) :
     LatticeTargetPoint.eventEnvelope, LatticeTarget.eventEnvelope,
     LatticeTarget.prepareTrace, LatticeTarget.arithmeticTrace, List.count_replicate]
 
-private theorem initialized_gate_zero (fuel width : Nat) :
+private lemma initialized_gate_zero (fuel width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeWideLllMachine.initializedEventEnvelope (model := model) fuel width) = 0 := by
   rw [LatticeWideLllMachine.initializedEventEnvelope_eq]
@@ -109,7 +109,7 @@ private theorem initialized_gate_zero (fuel width : Nat) :
     LatticeFixedFuelMachine.resetFirstTrace, LatticeFixedFuelMachine.fixedFuelEventEnvelope,
     NumberTheory.SignedWord.nativeAlphabet]
 
-private theorem nearest_gate_zero (N : Nat) :
+private lemma nearest_gate_zero (N : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticePairNearestPlaneSavedTarget.eventEnvelope (model := model) N) = 0 := by
   simp [LatticePairNearestPlaneSavedTarget.eventEnvelope,
@@ -118,7 +118,7 @@ private theorem nearest_gate_zero (N : Nat) :
     target_gate_zero, initialized_gate_zero, LatticeRows.pointCopyTrace,
     LatticeNearestPlaneThree.eventEnvelope, NumberTheory.SignedWord.nativeAlphabet]
 
-private theorem slot_gate_zero (coordinateWidth modulusWidth : Nat)
+private lemma slot_gate_zero (coordinateWidth modulusWidth : Nat)
     (offset : NumberTheory.IntegerPoint3) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeCandidateSlotMachine.candidateSlotEventEnvelope model coordinateWidth
@@ -137,7 +137,7 @@ private theorem slot_gate_zero (coordinateWidth modulusWidth : Nat)
     LatticeCandidateSelector.eligibilityTrace, FirstAccepted.Direct.copyTrace,
     List.count_replicate]
 
-private theorem offsets_gate_zero (coordinateWidth modulusWidth : Nat)
+private lemma offsets_gate_zero (coordinateWidth modulusWidth : Nat)
     (offsets : List NumberTheory.IntegerPoint3) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeCandidateScan.offsetsEventEnvelope model coordinateWidth modulusWidth offsets) =
@@ -148,7 +148,7 @@ private theorem offsets_gate_zero (coordinateWidth modulusWidth : Nat)
       rw [LatticeCandidateScan.offsetsEventEnvelope, ResourcePool.count_add,
         slot_gate_zero, ih, Nat.zero_add]
 
-private theorem candidate_gate_zero (N : Nat) :
+private lemma candidate_gate_zero (N : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticePairCandidateRecovery.recoveryEventEnvelope (model := model) N) = 0 := by
   simp [LatticePairCandidateRecovery.recoveryEventEnvelope,
@@ -160,7 +160,7 @@ private theorem candidate_gate_zero (N : Nat) :
     LatticeCandidateSelectorInit.clearAcceptedEventEnvelope,
     LatticeCandidateScan.scanEventEnvelope, offsets_gate_zero, List.count_replicate]
 
-private theorem quadratic_gate_zero (width : Nat) :
+private lemma quadratic_gate_zero (width : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (QuadraticRecoveryGuarded.eventEnvelope (model := model) width) = 0 := by
   simp [QuadraticRecoveryGuarded.eventEnvelope,
@@ -175,7 +175,7 @@ private theorem quadratic_gate_zero (width : Nat) :
     QuadraticCandidateCheck.positiveEventEnvelope, NumberTheory.NatModCheck.eventEnvelope,
     firstAccepted_gate_zero]
 
-private theorem recovery_gate_zero (N : Nat) :
+private lemma recovery_gate_zero (N : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model) N) = 0 := by
   simp [LatticeFixedBatchRecoveryMachine.eventEnvelope,
@@ -190,7 +190,7 @@ private theorem recovery_gate_zero (N : Nat) :
     LatticePairFactorRecovery.eventEnvelope, candidate_gate_zero, quadratic_gate_zero,
     LatticeBatchRecoveryOutput.eventEnvelope, LatticeBatchRecoveryOutput.events]
 
-private theorem optional_gate_zero (width count : Nat) :
+private lemma optional_gate_zero (width count : Nat) :
     ResourcePool.count (model := model) (.gate coordinate)
       (FirstAccepted.Direct.Optional.Allocation.eventEnvelope model width count) = 0 := by
   simp [FirstAccepted.Direct.Optional.Allocation.eventEnvelope,
@@ -199,19 +199,19 @@ private theorem optional_gate_zero (width count : Nat) :
 end Generic
 
 /-- The actual random draw, residue scan and GCD decision have zero native quantum-gate count. -/
-theorem sampler_gate_count_zero (N : Nat) (coordinate : AlgorithmGate.Coordinate) :
+lemma sampler_gate_count_zero (N : Nat) (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)
       (ShorStyle.Canonical.Sampler.Retained.nativeEnvelope RuntimeRound.model N) = 0 :=
   sampler_gate_zero (model := RuntimeRound.model) coordinate N
 
 /-- Every native recovery allowance is classical, including both branch arms and all 120 pairs. -/
-theorem recovery_gate_count_zero (N : Nat) (coordinate : AlgorithmGate.Coordinate) :
+lemma recovery_gate_count_zero (N : Nat) (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)
       (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := RuntimeRound.model) N) = 0 :=
   recovery_gate_zero (model := RuntimeRound.model) coordinate N
 
 /-- Every optional unpack, selected copy and final pack has zero native quantum-gate count. -/
-theorem selection_gate_count_zero (N count : Nat) (coordinate : AlgorithmGate.Coordinate) :
+lemma selection_gate_count_zero (N count : Nat) (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := RuntimeRound.model) (.gate coordinate)
       (NativeRetrySelection.selectionEnvelope N count) = 0 :=
   optional_gate_zero (model := RuntimeRound.model) coordinate (modulusBits N) count

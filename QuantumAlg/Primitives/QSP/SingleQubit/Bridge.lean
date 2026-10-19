@@ -45,7 +45,7 @@ open scoped BigOperators
 
 /-- Chebyshev-Fourier signal bridge: on `[-1,1]`, the reflection signal `O(x)`
 is exactly the `Y` rotation at angle `2 arccos x`. -/
-theorem signalO_eq_rotY_arccos {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+lemma signalO_eq_rotY_arccos {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     signalO x = (rotYOp (2 * Real.arccos x) : HilbertOperator (Qubits 1)) := by
   have hhalf : (2 * Real.arccos x) / 2 = Real.arccos x := by ring
   ext i j
@@ -56,7 +56,7 @@ theorem signalO_eq_rotY_arccos {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
 /-- The Chebyshev `O`-convention product rewritten with the bridge signal.
 This is the operator-level preservation lemma that later polynomial translation
 work can use before comparing the Chebyshev and Fourier normalizations. -/
-theorem qspO_to_fourier_signal_form (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
+lemma qspO_to_fourier_signal_form (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspO φ₀ φs x =
       φs.foldl
@@ -75,7 +75,7 @@ theorem qspO_to_fourier_signal_form (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
 /-- YZZYZ-compatible naming of the same signal rewrite: Chebyshev products
 first enter the Fourier side through the `Y`-rotation signal before the
 polynomial bridge records the remaining phase/parity/normalization choices. -/
-theorem qspO_to_yzzyz_signal_form (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
+lemma qspO_to_yzzyz_signal_form (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspO φ₀ φs x =
       φs.foldl

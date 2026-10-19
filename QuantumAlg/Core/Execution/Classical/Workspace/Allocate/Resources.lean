@@ -35,7 +35,7 @@ variable {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
         Circuit model inner inner)
 
 /-- An independent native budget for every actual body also bounds its lexical allocation. -/
-public theorem withCellsFrom_pool_le (budget : ResourcePool model)
+public lemma withCellsFrom_pool_le (budget : ResourcePool model)
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
@@ -49,7 +49,7 @@ public theorem withCellsFrom_pool_le (budget : ResourcePool model)
   exact bound path
 
 /-- Workspace scopes retain the body's actual dependency depth under arbitrary native durations. -/
-public theorem withCellsFrom_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
+public lemma withCellsFrom_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
@@ -63,27 +63,29 @@ public theorem withCellsFrom_depth_le (duration : Resource.Event model → Nat) 
   exact bound path
 
 /-- Actual allocation and release preserve the body's complete borrowed-reference restoration. -/
-public theorem withCellsFrom_borrowedRestored (Reference : Register)
+public lemma withCellsFrom_borrowedRestored (environment : model.Environment)
+    (Reference : Register)
     (bodyRestores : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
       {History : Type} [Fintype History]
       (state : State inner Reference (model.HiddenState × History)),
       (body cells distinct innerTransport separated).BorrowedRestored Reference state
-        ((body cells distinct innerTransport separated).execute Reference state))
+        ((body cells distinct innerTransport separated).execute environment Reference state))
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (withCellsFrom transport shapes body).BorrowedRestored Reference state
-      ((withCellsFrom transport shapes body).execute Reference state) := by
+      ((withCellsFrom transport shapes body).execute environment Reference state) := by
   have restores : ∀ {Past : Type} [Fintype Past]
       (initial : State ctx Reference (model.HiddenState × Past)),
       (withCellsFrom transport shapes body).BorrowedRestored Reference initial
-        ((withCellsFrom transport shapes body).execute Reference initial) :=
+        ((withCellsFrom transport shapes body).execute environment Reference initial) :=
     withCellsFrom_property transport shapes body
     (fun {inner} _ code => ∀ {History : Type} [Fintype History]
       (state : State inner Reference (model.HiddenState × History)),
-      code.BorrowedRestored Reference state (code.execute Reference state))
+      code.BorrowedRestored Reference state (code.execute environment Reference state))
     (fun _ key shape fresh code available =>
-      Circuit.borrowedRestored_workspace key shape fresh code Reference available)
+      Circuit.borrowedRestored_workspace (environment := environment)
+        key shape fresh code Reference available)
     bodyRestores
   exact restores state
 

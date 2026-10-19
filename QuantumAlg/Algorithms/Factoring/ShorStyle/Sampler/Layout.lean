@@ -261,11 +261,11 @@ def internalKeys (ctx : RuntimeCtx kind) (width : Nat) : List StorageKey :=
     (modulusCell ctx width).key]
 
 /-- The real final context lists exactly these eleven cells before all original entries. -/
-theorem samplerLayout_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).keys = internalKeys ctx width ++ ctx.keys := rfl
 
 /-- Intrinsic global context uniqueness proves that all eleven actual cell keys differ. -/
-theorem samplerLayout_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     (internalKeys ctx width).Nodup := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -273,7 +273,7 @@ theorem samplerLayout_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).1
 
 /-- Every internal cell is distinct from every original caller entry. -/
-theorem samplerLayout_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint (internalKeys ctx width) ctx.keys := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -283,7 +283,7 @@ theorem samplerLayout_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).2.2 key internal key external rfl
 
 /-- The actual classical lexical cells leave the full physical quantum bank unchanged. -/
-theorem samplerLayout_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.Sampler.Layout

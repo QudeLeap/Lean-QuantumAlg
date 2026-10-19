@@ -105,11 +105,11 @@ def internalKeys (ctx : RuntimeCtx kind) (width : Nat) : List StorageKey :=
     (selected ctx width).key, (accepted ctx width).key]
 
 /-- The final real context contains precisely these four new entries and the old entries. -/
-theorem nativeRecovery_selection_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeRecovery_selection_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).keys = internalKeys ctx width ++ ctx.keys := rfl
 
 /-- Actual context uniqueness proves that all four lexical cells differ. -/
-theorem nativeRecovery_selection_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeRecovery_selection_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     (internalKeys ctx width).Nodup := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -117,7 +117,7 @@ theorem nativeRecovery_selection_nodup (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).1
 
 /-- Every actual new cell is outside every original caller entry. -/
-theorem nativeRecovery_selection_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeRecovery_selection_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint (internalKeys ctx width) ctx.keys := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -127,7 +127,7 @@ theorem nativeRecovery_selection_disjoint (ctx : RuntimeCtx kind) (width : Nat) 
   exact (List.nodup_append.mp unique).2.2 key internal key external rfl
 
 /-- Structural lifting does not invent, remove or rename any input storage identity. -/
-theorem nativeRecovery_selection_underRead_keys {ctx : RuntimeCtx kind} {shape : CShape}
+lemma nativeRecovery_selection_underRead_keys {ctx : RuntimeCtx kind} {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (underRead input width).storageKeys = input.storageKeys := by
   let first : CInputRef (acceptedCtx ctx) shape :=
@@ -150,14 +150,14 @@ theorem nativeRecovery_selection_underRead_keys {ctx : RuntimeCtx kind} {shape :
 private def cellKey (ctx : RuntimeCtx kind) (width : Nat) (index : Fin 4) : StorageKey :=
   (internalKeys ctx width).get ⟨index.val, by change index.val < 4; exact index.isLt⟩
 
-private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
+private lemma cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
     (left right : Fin 4) (different : left ≠ right) :
     cellKey ctx width left ≠ cellKey ctx width right := by
   intro same
   have positions := (nativeRecovery_selection_nodup ctx width).injective_get same
   exact different (Fin.ext (congrArg Fin.val positions))
 
-private theorem original_free {ctx : RuntimeCtx kind} {shape : CShape}
+private lemma original_free {ctx : RuntimeCtx kind} {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) (index : Fin 4) :
     cellKey ctx width index ∉ (underRead input width).storageKeys := by
   rw [nativeRecovery_selection_underRead_keys]
@@ -167,7 +167,7 @@ private theorem original_free {ctx : RuntimeCtx kind} {shape : CShape}
     (input.storageKeys_subset_context present)
 
 /-- Actual fresh positions discharge the selector's entire nonaliasing contract internally. -/
-theorem nativeRecovery_selection_early_separated {ctx : RuntimeCtx kind} {N : Nat}
+lemma nativeRecovery_selection_early_separated {ctx : RuntimeCtx kind} {N : Nat}
     (original : Inputs ctx N) :
     FirstAccepted.Separated (earlyInputs (inputs original)) (refs ctx (modulusBits N)) where
   availableEligible := original_free (earlyFlag original) (modulusBits N) 1
@@ -180,7 +180,7 @@ theorem nativeRecovery_selection_early_separated {ctx : RuntimeCtx kind} {N : Na
   acceptedSelected := cellKey_ne ctx (modulusBits N) 3 2 (by decide)
 
 /-- The layout does not prepare, discard or replace any physical quantum system. -/
-theorem nativeRecovery_selection_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeRecovery_selection_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.SelectionLayout

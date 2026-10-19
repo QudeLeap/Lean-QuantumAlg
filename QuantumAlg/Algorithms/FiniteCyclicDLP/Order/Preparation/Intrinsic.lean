@@ -42,13 +42,13 @@ variable {N : Nat}
 @[expose, implicit_reducible] public def width (expansion : OrderExpansion N) : Nat :=
   expansion.last + 1
 
-@[simp] public theorem width_asOrderExpansion
+@[simp] public lemma width_asOrderExpansion
     (expansion : OrderExpansion.PositiveGapExpansion N) :
     width expansion.asOrderExpansion = expansion.width := by
   simp [width, OrderExpansion.PositiveGapExpansion.width]
 
 /-- Every set-bit exponent lies in the intrinsic register. -/
-public theorem ell_lt_width (expansion : OrderExpansion N)
+public lemma ell_lt_width (expansion : OrderExpansion N)
     (index : Fin expansion.count) : expansion.ell index < width expansion := by
   unfold width OrderExpansion.last
   have lastBound : 0 < expansion.count := expansion.count_pos
@@ -73,12 +73,12 @@ public def logicalWire (expansion : OrderExpansion N)
     (bit : Fin (width expansion)) : Fin (width expansion) :=
   WireAddress.littleEndianWire bit
 
-@[simp] public theorem wire_val (expansion : OrderExpansion N)
+@[simp] public lemma wire_val (expansion : OrderExpansion N)
     (index : Fin expansion.count) :
     (wire expansion index).val = width expansion - 1 - expansion.ell index := by
   rfl
 
-@[simp] public theorem logicalWire_val (expansion : OrderExpansion N)
+@[simp] public lemma logicalWire_val (expansion : OrderExpansion N)
     (bit : Fin (width expansion)) :
     (logicalWire expansion bit).val = width expansion - 1 - bit.val := by
   rfl
@@ -95,7 +95,7 @@ public def gapBit (expansion : OrderExpansion N) (gap : Fin expansion.gaps)
     omega⟩
 
 /-- The next source wire is physically earlier than the current source wire. -/
-public theorem rightWire_lt_leftWire (expansion : OrderExpansion N)
+public lemma rightWire_lt_leftWire (expansion : OrderExpansion N)
     (gap : Fin expansion.gaps) :
     (wire expansion (OrderPreparation.rightIndex expansion gap)).val <
       (wire expansion (OrderPreparation.leftIndex expansion gap)).val := by
@@ -105,7 +105,7 @@ public theorem rightWire_lt_leftWire (expansion : OrderExpansion N)
   omega
 
 /-- The next source wire is physically earlier than every bit in its gap. -/
-public theorem rightWire_lt_gapWire (expansion : OrderExpansion N)
+public lemma rightWire_lt_gapWire (expansion : OrderExpansion N)
     (gap : Fin expansion.gaps)
     (offset : Fin (OrderPreparation.gapWidth expansion gap)) :
     (wire expansion (OrderPreparation.rightIndex expansion gap)).val <
@@ -132,9 +132,10 @@ public def singleQubit (oracles : OracleModel)
     (QuantumSignature.qubits 1).canonicalPlacement.layout oracles operator
       (0 : Fin 1) rfl
 
-@[simp] public theorem singleQubit_binaryMatrix (oracles : OracleModel)
+@[simp] public lemma singleQubit_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (operator : UnitaryOperator (Qubits 1)) :
-    (singleQubit oracles operator).binaryMatrix = operator := by
+    ((singleQubit oracles operator).binaryMatrix environment) = operator := by
   exact Gate.singleQubitAt_singleton_binaryMatrix oracles operator
 
 /-- One native Pauli-X instruction at an intrinsic physical wire. -/

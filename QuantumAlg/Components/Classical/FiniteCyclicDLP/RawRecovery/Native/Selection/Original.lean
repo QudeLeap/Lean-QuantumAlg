@@ -38,7 +38,7 @@ def encodedRawOutput (spec : ModulusSpec width) (output : Option (FiniteCyclicDL
   | none => .optionNone
   | some value => .optionSome (encodedRecoveryOutput spec value)
 
-private theorem word_eq_of_toNat (word : CShape.Word width) (value : Nat)
+private lemma word_eq_of_toNat (word : CShape.Word width) (value : Nat)
     (fits : value < 2 ^ width) (same : word.toNat = value) :
     word = CShape.wordOfNat width value := by
   cases word with
@@ -50,7 +50,7 @@ private theorem word_eq_of_toNat (word : CShape.Word width) (value : Nat)
     exact same
 
 /-- Actual full-word multiplication and reconstruction produce the complete original output. -/
-theorem recoveryValue_original (spec : ModulusSpec width) (semantic : FiniteCyclicDLP.Input spec)
+lemma recoveryValue_original (spec : ModulusSpec width) (semantic : FiniteCyclicDLP.Input spec)
     (left right inverse : CShape.Word width) (modulus : CShape.Word (width + 1))
     (modulusValue : modulus.toNat = spec.modulus)
     (leftValue : left.toNat = semantic.leftFrequency.val)
@@ -77,7 +77,7 @@ theorem recoveryValue_original (spec : ModulusSpec width) (semantic : FiniteCycl
   exact congrArg₂ CShape.Value.product candidate (congrArg CShape.Value.bit verified)
 
 /-- Original stored unit decision and original successful inverse give exactly `outputOf`. -/
-theorem selectedRecoveryValue_original (spec : ModulusSpec width)
+lemma selectedRecoveryValue_original (spec : ModulusSpec width)
     (original : CShape.Value (InputShape width)) (success : CShape.Value .bit)
     (left right inverse : CShape.Word width) (modulus : CShape.Word (width + 1))
     (modulusValue : modulus.toNat = spec.modulus)

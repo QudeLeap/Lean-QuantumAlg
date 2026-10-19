@@ -78,11 +78,12 @@ def continuantStep (quotient previous older : CInputRef ctx (.unsignedWord width
   (second.1, (first.2, second.2))
 
 /-- The actual execution updates the same store and retains every complete reference block. -/
-theorem nativeContinuant_execute
+lemma nativeContinuant_execute
     (quotient previous older : CInputRef ctx (.unsignedWord width))
-    (product candidate : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (product candidate : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (continuantBody (model := model) quotient previous older product candidate).execute
+    (continuantBody (model := model) quotient previous older product candidate).execute environment
       Reference state =
       state.mapClassical (fun entry =>
         (continuantStore quotient previous older product candidate entry.1,
@@ -95,7 +96,7 @@ theorem nativeContinuant_execute
   exact Subsingleton.elim _ _
 
 /-- A separated product temporary yields the exact recurrence on the original operand reads. -/
-theorem nativeContinuant_result {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeContinuant_result {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (product candidate : CWriteRef ctx (.unsignedWord width))
     (separate : product.key ∉ older.storageKeys) (store : Store ctx) :
@@ -117,7 +118,7 @@ theorem nativeContinuant_result {kind : ProblemKind} {ctx : RuntimeCtx kind}
   rfl
 
 /-- Every actual read outside the two written cells is preserved by the complete body. -/
-theorem nativeContinuant_read_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeContinuant_read_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (product candidate : CWriteRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -139,7 +140,7 @@ def continuantEvents (model : ExecutionModel) [BitWord.Selected model] (width : 
       (.wordBinary .add width))]
 
 /-- Exactly the actual multiply and add occur on every body path. -/
-theorem nativeContinuant_eventTrace
+lemma nativeContinuant_eventTrace
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (product candidate : CWriteRef ctx (.unsignedWord width))
     (path : (continuantBody (model := model) quotient previous older product candidate).Path) :
@@ -149,7 +150,7 @@ theorem nativeContinuant_eventTrace
   rfl
 
 /-- These two dependent operations have exactly two units of actual depth. -/
-theorem nativeContinuant_unitDepth
+lemma nativeContinuant_unitDepth
     (quotient previous older : CInputRef ctx (.unsignedWord width))
     (product candidate : CWriteRef ctx (.unsignedWord width))
     (path : (continuantBody (model := model) quotient previous older product candidate).Path) :

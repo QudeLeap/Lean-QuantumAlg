@@ -36,7 +36,7 @@ private def emptyContextBasis (ctx : RuntimeCtx .quantum) (empty : ctx.systemCou
   intro wire
   exact False.elim (by have bound := wire.isLt; omega)
 
-private theorem emptyContextBasis_unique (ctx : RuntimeCtx .quantum)
+private lemma emptyContextBasis_unique (ctx : RuntimeCtx .quantum)
     (empty : ctx.systemCount = 0) (left right : ctx.register.Index) : left = right := by
   funext wire
   exact False.elim (by have bound := wire.isLt; omega)
@@ -60,7 +60,7 @@ def preparedEmptyBasisEquiv (ctx : RuntimeCtx .quantum) (key : StorageKey)
           (assembly.symm basis).2)
       exact (congrArg assembly pair).trans (assembly.apply_symm_apply basis) }
 
-private theorem preparedEmptyBasisEquiv_apply (key : StorageKey)
+private lemma preparedEmptyBasisEquiv_apply (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (empty : ctx.systemCount = 0) (basis : layout.register.Index) :
@@ -70,7 +70,7 @@ private theorem preparedEmptyBasisEquiv_apply (key : StorageKey)
 
 variable {C : Type} [Fintype C]
 
-private theorem emptyContext_reference_trace
+private lemma emptyContext_reference_trace
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (empty : ctx.systemCount = 0) (normalized : state.IsNormalized) :
     (∑ reference : Reference.Index, state.quantumMarginal.matrix
@@ -95,7 +95,7 @@ private theorem emptyContext_reference_trace
     _ = 1 := traceOne
 
 /-- The complete normalized input contributes exactly one to every prepared outer-product entry. -/
-theorem prepareContext_empty_local_entry
+lemma prepareContext_empty_local_entry
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -121,7 +121,7 @@ theorem prepareContext_empty_local_entry
   rw [← Finset.mul_sum, emptyContext_reference_trace state empty normalized, mul_one]
 
 /-- The local density is exactly the prescribed pure state on the actual newly allocated wires. -/
-theorem prepareContext_empty_local_density
+lemma prepareContext_empty_local_density
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -157,8 +157,9 @@ variable {systemCount : Nat} {ctx : RuntimeCtx .quantum} {Reference : Register}
 
 /-- Actual zero preparation produces its canonical pure state from every normalized
 classical-reference input whenever the old context has no quantum systems. -/
-theorem prepareZero_empty_local_density {gates : GateModel} {oracles : OracleModel}
+lemma prepareZero_empty_local_density {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    (environment : ExecutionModel.Environment (.quantum gates oracles operations classicalOracles))
     (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -166,7 +167,7 @@ theorem prepareZero_empty_local_density {gates : GateModel} {oracles : OracleMod
     (normalized : state.IsNormalized) :
     ((Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
-      ctx key layout fresh disjoint).execute
+      ctx key layout fresh disjoint).execute environment
       Reference state).quantumMarginal.marginalLeft =
         DensityOperator.reindex
           (S := (ctx.addOwnedLayout key layout fresh disjoint).register)

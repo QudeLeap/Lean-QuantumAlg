@@ -23,11 +23,13 @@ namespace MeasuredPlacement
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem permuted_marginal {source target : RuntimeCtx .quantum}
+private lemma permuted_marginal {source target : RuntimeCtx .quantum}
     (same : source.entries.Perm target.entries) {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference H) :
     (ContextPermutation.state same original).quantumMarginal =
@@ -53,34 +55,35 @@ def stepTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
       (physicalMap p.size active) (ambientContext p.size active)
       (ambient_disjoint p.size active) Reference)
 
-private theorem step_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma step_marginal {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State ((MeasuredPointAddition.Placement.context p.size
       (storageMap p.size active) (physicalMap p.size active)).disjointUnion
         (ambientContext p.size active) (ambient_disjoint p.size active)) Reference
           (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((step E Q active).execute Reference
+    ((step E Q active allowAllocation).execute environment Reference
       (ContextPermutation.state (framed_entries p.size active) original)).quantumMarginal =
-        ((residentBody E Q active).execute Reference original).quantumMarginal.reindex
+        ((residentBody E Q active).execute environment Reference original).quantumMarginal.reindex
           (ContextPermutation.referenceBasis (framed_entries p.size active) Reference) := by
-  have actual := step_execute E Q active original
+  have actual := step_execute (environment := environment) E Q active original allowAllocation
   have marginal := congrArg
     (fun result : State (readyContext p.size count) Reference
-      (ClassicalOracleModel.empty.HiddenState × (H × (step E Q active).Path)) =>
+      (ClassicalOracleModel.empty.HiddenState × (H × (step E Q active allowAllocation).Path)) =>
         result.quantumMarginal) actual
-  exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans
-    (permuted_marginal (framed_entries p.size active) _))
+  exact marginal.trans (permuted_marginal (framed_entries p.size active) _)
 
 /-- The actual indexed step realizes the full point target on exactly its original domain. -/
-theorem step_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma step_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (readyContext p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (support : ∀ input : (Register.prod (readyContext p.size count).register Reference).Index,
-      ¬stepAdmissible E Q active input.1 → original.quantumMarginal.matrix input input = 0) :
-    ((step E Q active).execute Reference original).quantumMarginal =
+      ¬stepAdmissible E Q active input.1 → original.quantumMarginal.matrix input input = 0)
+    (allowAllocation : Bool := true) :
+    ((step E Q active allowAllocation).execute environment Reference original).quantumMarginal =
       DensityOperator.applyUnitary (stepTarget E Q active Reference) original.quantumMarginal := by
   let coordinates := ContextPermutation.referenceBasis (framed_entries p.size active) Reference
   obtain ⟨reversed, roundtrip⟩ :=
@@ -107,12 +110,15 @@ theorem step_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         (ContextPermutation.basis (framed_entries p.size active) input.1))
     rw [Equiv.symm_apply_apply]
     exact outside
-  have actual := step_marginal E Q active reversed
+  have actual := step_marginal (environment := environment)
+    (allowAllocation := allowAllocation) E Q active reversed
   rw [roundtrip] at actual
-  have pointAction := MeasuredPointAddition.Placement.Framing.body_density E Q
+  have pointAction := MeasuredPointAddition.Placement.Framing.body_density
+    (environment := environment) E Q
     (storageMap p.size active) (physicalMap p.size active) (ambientContext p.size active)
-    (ambient_disjoint p.size active) reversed originalSupport
-  change ((residentBody E Q active).execute Reference reversed).quantumMarginal = _ at pointAction
+    (ambient_disjoint p.size active) reversed originalSupport false
+  change ((residentBody E Q active).execute environment
+    Reference reversed).quantumMarginal = _ at pointAction
   rw [pointAction, reversedMarginal, DensityOperator.applyUnitary_reindex,
     DensityOperator.reindex_trans] at actual
   have inverse : coordinates.symm.trans coordinates = Equiv.refl _ :=

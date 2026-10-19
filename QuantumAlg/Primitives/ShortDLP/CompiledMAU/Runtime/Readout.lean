@@ -31,13 +31,13 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
 
 /-- Dimension transport keeps the identity of the actual finite output cell. -/
-theorem shortDLP_runtimeReadout_key (index : Fin (resultBits m ell width)) :
+lemma shortDLP_runtimeReadout_key (index : Fin (resultBits m ell width)) :
     (readout m ell width sameWires cells index).output.key = (cells index).key :=
   FiniteReadout.transported_key
     (shortDLP_runtimeMeasuredWire_dimension m ell width sameWires index) (cells index)
 
 /-- Dimension transport reads precisely the value stored in the original finite cell. -/
-theorem shortDLP_runtimeReadout_read_value (index : Fin (resultBits m ell width))
+lemma shortDLP_runtimeReadout_read_value (index : Fin (resultBits m ell width))
     (store : Store ctx) :
     (store.read (.storage
       (readout m ell width sameWires cells index).output.toCStorageRef)).toFin.val =
@@ -46,7 +46,7 @@ theorem shortDLP_runtimeReadout_read_value (index : Fin (resultBits m ell width)
     (shortDLP_runtimeMeasuredWire_dimension m ell width sameWires index) (cells index) store
 
 /-- Actual pairwise distinct measurement cells give distinct ordered write keys. -/
-theorem shortDLP_runtimeReadouts_keys_nodup
+lemma shortDLP_runtimeReadouts_keys_nodup
     (distinct : Function.Injective (fun index => (cells index).key)) :
     ((readouts m ell width sameWires cells).map (fun item => item.output.key)).Nodup := by
   rw [readouts, List.map_ofFn]
@@ -57,19 +57,22 @@ theorem shortDLP_runtimeReadouts_keys_nodup
     (equal.trans (shortDLP_runtimeReadout_key m ell width sameWires cells right))
 
 /-- Reading the actual measured cell obtains the value of its actual source wire. -/
-theorem shortDLP_runtimeMeasuredCell_value
+lemma shortDLP_runtimeMeasuredCell_value
     (distinct : Function.Injective (fun index => (cells index).key))
     (store : Store ctx) (basis : ctx.register.Index) (index : Fin (resultBits m ell width)) :
-    ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+    ((Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) basis)).read
         (.storage (cells index).toCStorageRef)).toFin.val =
       (basis (measuredWire m ell width sameWires index)).val := by
   have actual :=
-    Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model) (oracles := .empty)
+    Circuit.writeMeasurementBasis_read (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
     (operations := BitWord.model) (services := .empty) (readouts m ell width sameWires cells)
     (shortDLP_runtimeReadouts_keys_nodup m ell width sameWires cells distinct)
     (readout m ell width sameWires cells index) (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
@@ -78,7 +81,7 @@ theorem shortDLP_runtimeMeasuredCell_value
   exact numeric
 
 /-- The exact runtime/source correspondence preserves every finite wire value. -/
-theorem shortDLP_runtimeWire_value (basis : ctx.register.Index)
+lemma shortDLP_runtimeWire_value (basis : ctx.register.Index)
     (index : Fin (totalQubits (registerParameters m ell width))) :
     (basis (RuntimePlacement.wireEquiv m ell width sameWires index)).val =
       ((ShortDLP.layout (registerParameters m ell width)).binaryIndexEquiv.symm
@@ -98,7 +101,7 @@ theorem shortDLP_runtimeWire_value (basis : ctx.register.Index)
       (sourceBasis index).val) inverse).symm
 
 /-- Boolean conversion of a real measured wire is exactly the original source readout bit. -/
-theorem shortDLP_runtimeMeasuredWire_bit (basis : ctx.register.Index)
+lemma shortDLP_runtimeMeasuredWire_bit (basis : ctx.register.Index)
     (index : Fin (resultBits m ell width)) :
     decide ((basis (measuredWire m ell width sameWires index)).val = 1) =
       (ShortDLP.measurement (registerParameters m ell width)).readout
@@ -124,25 +127,29 @@ theorem shortDLP_runtimeMeasuredWire_bit (basis : ctx.register.Index)
       omega
 
 /-- The real pack operation computes exactly the original source outcome from its actual writes. -/
-theorem shortDLP_runtimePacking_measured_value
+lemma shortDLP_runtimePacking_measured_value
     (distinct : Function.Injective (fun index => (cells index).key))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     (store : Store ctx) (basis : ctx.register.Index) :
     (packing m ell width cells result).eval
-      ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      ((Circuit.writeMeasurementPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) store
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (Circuit.measurementBasisPath (allowAllocation := true)
+          (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) basis)).read
           (packing m ell width cells result).inputRef) =
       CShape.Value.bits ((ShortDLP.measurement (registerParameters m ell width)).readout
         (RuntimePlacement.basisEquiv m ell width sameWires basis)) := by
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+    (((Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) basis)).read
         (.storage (cells index).toCStorageRef)).toFin.val = 1)) = _

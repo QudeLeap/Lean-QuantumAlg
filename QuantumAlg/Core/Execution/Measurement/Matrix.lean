@@ -39,7 +39,7 @@ def weightedMatrixEntry {C : Type} [Fintype C] {R : Register}
   ∑ value : C, weight value * (state.block value).matrix left right
 
 /-- Actual classical remapping transports the block weight without changing quantum coordinates. -/
-theorem weightedMatrixEntry_mapClassical {C D : Type} [Fintype C] [Fintype D]
+lemma weightedMatrixEntry_mapClassical {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register} (state : ExecutionState C R) (update : C → D)
     (weight : D → ℂ) (left right : R.Index) :
     weightedMatrixEntry (state.mapClassical update) weight left right =
@@ -52,7 +52,7 @@ theorem weightedMatrixEntry_mapClassical {C D : Type} [Fintype C] [Fintype D]
   simp only [mul_ite, mul_zero, Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- Z measurement preserves exactly the entries with equal measured values on both coordinates. -/
-theorem weightedMatrixEntry_measureZ {C Outcome : Type} [Fintype C] [Fintype Outcome]
+lemma weightedMatrixEntry_measureZ {C Outcome : Type} [Fintype C] [Fintype Outcome]
     [DecidableEq Outcome] {R : Register} (state : ExecutionState C R)
     (readout : R.Index → Outcome)
     (weight : C × Outcome → ℂ) (left right : R.Index) :
@@ -85,6 +85,8 @@ end ExecutionState
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
 
@@ -98,28 +100,35 @@ def measurementLabelsAgree {ctx : RuntimeCtx .quantum} :
       left head.wire = right head.wire ∧ measurementLabelsAgree tail left right
 
 /-- The actual Z sequence retains every unmeasured matrix entry and its actual classical writes. -/
-theorem measurementSequence_weightedMatrixEntry {ctx : RuntimeCtx .quantum}
-    (readouts : List (ZReadout ctx)) {Reference : Register} {History : Type} [Fintype History]
+lemma measurementSequence_weightedMatrixEntry {ctx : RuntimeCtx .quantum}
+    (readouts : List (ZReadout ctx))
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+    {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
     (weight : Store ctx × (classicalOracles.HiddenState ×
-      (History × (measurementSequence (gates := gates) (oracles := oracles)
+      (History × (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles
+        := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts).Path)) → ℂ)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     ExecutionState.weightedMatrixEntry
-        ((measurementSequence (gates := gates) (oracles := oracles)
+        ((measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+          oracles)
           (operations := operations) (classicalOracles := classicalOracles) readouts).execute
-          Reference state) weight
+          environment Reference state) weight
         (left, leftRef) (right, rightRef) =
       if measurementLabelsAgree readouts left right then
         ExecutionState.weightedMatrixEntry state
           (fun value => weight
-            (writeMeasurementPath (gates := gates) (oracles := oracles)
+            (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+              oracles)
               (operations := operations) (classicalOracles := classicalOracles) readouts value.1
-              (measurementBasisPath (gates := gates) (oracles := oracles)
+              (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+                := oracles)
                 (operations := operations) (classicalOracles := classicalOracles)
                 readouts left),
               (value.2.1, (value.2.2,
-                measurementBasisPath (gates := gates) (oracles := oracles)
+                measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+                  := oracles)
                   (operations := operations) (classicalOracles := classicalOracles)
                   readouts left)))) (left, leftRef) (right, rightRef)
       else 0 := by
@@ -133,9 +142,10 @@ theorem measurementSequence_weightedMatrixEntry {ctx : RuntimeCtx .quantum}
   | cons head tail inductionHypothesis =>
       change ExecutionState.weightedMatrixEntry
         ((Circuit.seq (.measureZ head.wire head.output)
-          (measurementSequence (gates := gates) (oracles := oracles)
+          (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
             (operations := operations) (classicalOracles := classicalOracles) tail)).execute
-            Reference state) weight _ _ = _
+            environment Reference state) weight _ _ = _
       rw [execute_seq]
       simp only [State.mapHistory, ExecutionState.weightedMatrixEntry_mapClassical]
       rw [inductionHypothesis]

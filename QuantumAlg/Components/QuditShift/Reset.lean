@@ -35,7 +35,7 @@ private instance resetDimensionNeZero (dimension : ℕ+) : NeZero (dimension : �
   ⟨Nat.ne_of_gt dimension.property⟩
 
 /-- Entrywise effect of the concrete shift on the complete stored quantum state. -/
-theorem operator_density_entry (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma operator_density_entry (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (amount : Fin (layout.wire wire).dimension) (ρ : DensityOperator layout.register)
     (left right : layout.Basis) :
     (DensityOperator.applyUnitary (operator layout wire amount) ρ).matrix left right =
@@ -54,7 +54,7 @@ def resetBranch (layout : QuantumLayout systemCount) (wire : Fin systemCount)
 
 /-- Each actual branch has zero on the measured wire and preserves the full
 conditional matrix block of every other wire, with no separability assumption. -/
-theorem resetBranch_entry (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma resetBranch_entry (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (outcome : Fin (layout.wire wire).dimension) (ρ : DensityOperator layout.register)
     (left right : layout.Basis) :
     (resetBranch layout wire outcome ρ).matrix left right =
@@ -70,7 +70,7 @@ theorem resetBranch_entry (layout : QuantumLayout systemCount) (wire : Fin syste
   by_cases hl : left wire = 0 <;> by_cases hr : right wire = 0 <;> simp [hl, hr]
 
 /-- The correction leaves the probability of the actual Z result unchanged. -/
-theorem resetBranch_mass (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma resetBranch_mass (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (outcome : Fin (layout.wire wire).dimension) (ρ : DensityOperator layout.register) :
     (resetBranch layout wire outcome ρ).mass =
       (ZMeasurement.branch (R := layout.register)
@@ -79,7 +79,7 @@ theorem resetBranch_mass (layout : QuantumLayout systemCount) (wire : Fin system
 
 /-- Summing all recorded outcomes gives zero on the selected wire and the
 original joint marginal of all other systems, including their coherences. -/
-theorem resetSum_entry (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma resetSum_entry (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (ρ : DensityOperator layout.register) (left right : layout.Basis) :
     (∑ outcome, (resetBranch layout wire outcome ρ).matrix) left right =
       if left wire = 0 ∧ right wire = 0 then
@@ -94,7 +94,7 @@ theorem resetSum_entry (layout : QuantumLayout systemCount) (wire : Fin systemCo
       by_cases h : left wire = 0 ∧ right wire = 0 <;> simp [h]
 
 /-- The complete measurement-and-correction sequence preserves total mass. -/
-theorem resetSum_mass (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma resetSum_mass (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (ρ : DensityOperator layout.register) :
     ∑ outcome, (resetBranch layout wire outcome ρ).mass = ρ.mass := by
   simp only [resetBranch_mass]

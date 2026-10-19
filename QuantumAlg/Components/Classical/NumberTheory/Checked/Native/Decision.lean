@@ -111,12 +111,13 @@ def withUnitDecisionStep {model : ExecutionModel} [BitWord.Selected model]
     ctx.canonicalFreshKey_fresh result.1, result.2)
 
 /-- The two real instructions preserve every complete quantum-reference block and old history. -/
-theorem unitDecisionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma unitDecisionBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (one : CWriteRef ctx (.unsignedWord (width + 1))) (success : CWriteRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (unitDecisionBody (model := model) gcd one success).execute Reference state =
+    (unitDecisionBody (model := model) gcd one success).execute environment Reference state =
         state.mapClassical (fun entry =>
       let result := unitDecisionBodyStep (model := model) gcd one success entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -125,15 +126,17 @@ theorem unitDecisionBody_execute {model : ExecutionModel} [BitWord.Selected mode
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual allocation, decision and release retain the full reference-correlated execution state. -/
-theorem withUnitDecision_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (withUnitDecision (model := model) gcd success).execute Reference state =
+    (withUnitDecision (model := model) gcd success).execute environment Reference state =
         state.mapClassical (fun entry =>
       let result := withUnitDecisionStep (model := model) gcd success entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord (width + 1))
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh (unitDecisionPlaced (model := model) gcd success)
     (fun before =>
       let result := unitDecisionBodyStep (model := model) (underUnitDecision gcd width)
@@ -146,7 +149,7 @@ theorem withUnitDecision_execute {model : ExecutionModel} [BitWord.Selected mode
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Fresh initialization makes the stored decision exactly equality of the original gcd to one. -/
-theorem withUnitDecision_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (store : Store ctx) :
     (withUnitDecisionStep (model := model) gcd success store).1.read (decisionRead success) =
@@ -188,7 +191,7 @@ theorem withUnitDecision_value {model : ExecutionModel} [BitWord.Selected model]
   rw [result, oldGcd, oneValue]
 
 /-- Both real writes preserve every structural caller read outside the status output. -/
-theorem withUnitDecision_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) {shape : CShape} (other : CInputRef ctx shape)
     (separate : success.key ∉ other.storageKeys) (store : Store ctx) :
@@ -213,7 +216,7 @@ theorem withUnitDecision_read_other {model : ExecutionModel} [BitWord.Selected m
   exact Store.read_pushWorkspace_underWorkspace _ _ _ _ other
 
 /-- The exact original increment-then-equality trace at the widened operand width. -/
-theorem withUnitDecision_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
     (withUnitDecision (model := model) gcd success).eventTrace path =
@@ -231,7 +234,7 @@ theorem withUnitDecision_eventTrace {model : ExecutionModel} [BitWord.Selected m
   rfl
 
 /-- Actual native durations preserve both chronological dependencies. -/
-theorem withUnitDecision_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (duration : Resource.Event model → Nat)
     (path : (withUnitDecision (model := model) gcd success).Path) :
@@ -249,14 +252,14 @@ theorem withUnitDecision_durationDepth {model : ExecutionModel} [BitWord.Selecte
   rfl
 
 /-- Exactly two original native instructions execute. -/
-theorem withUnitDecision_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
     (withUnitDecision (model := model) gcd success).depth (fun _ => 1) path = 2 := rfl
 
 
 /-- Exactly the original two event multiplicities, with no hidden coefficient computation. -/
-theorem withUnitDecision_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
     (withUnitDecision (model := model) gcd success).resourcePool path = ResourcePool.ofList
@@ -267,7 +270,7 @@ theorem withUnitDecision_resourcePool {model : ExecutionModel} [BitWord.Selected
   congrArg ResourcePool.ofList (withUnitDecision_eventTrace gcd success path)
 
 /-- Exact resident peak includes the actual widened one word and all original context entries. -/
-theorem withUnitDecision_resident {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
     (withUnitDecision (model := model) gcd success).peakResidentSpace path =
@@ -283,7 +286,7 @@ theorem withUnitDecision_resident {model : ExecutionModel} [BitWord.Selected mod
   exact SpacePool.max_eq_right le_add_self
 
 /-- Exact auxiliary peak includes the actual widened one word and all original context entries. -/
-theorem withUnitDecision_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+lemma withUnitDecision_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (path : (withUnitDecision (model := model) gcd success).Path) :
     (withUnitDecision (model := model) gcd success).peakAuxiliarySpace path =

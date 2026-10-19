@@ -32,7 +32,7 @@ variable {width : Nat} (model : ExecutionModel) [BitWord.Selected model]
   (spec : ModulusSpec width)
 
 /-- The actual total coefficient allowance has the original linear event ceiling. -/
-theorem coefficientEnvelope_card_le :
+lemma coefficientEnvelope_card_le :
     (coefficientEnvelope model spec).card ≤ 30 * width + 70 := by
   have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
   have raw := rawEnvelope_card model (width + 1)
@@ -43,7 +43,7 @@ theorem coefficientEnvelope_card_le :
   omega
 
 /-- One actual loaded reduction pays for its loader, division and remainder resize. -/
-theorem loadedReductionTrace_length_le (sourceWidth : Nat) :
+lemma loadedReductionTrace_length_le (sourceWidth : Nat) :
     (loadedReductionTrace model sourceWidth spec).length ≤ 2 * width + 4 := by
   have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
   simp only [loadedReductionTrace, reductionEvents, List.length_append,
@@ -51,14 +51,14 @@ theorem loadedReductionTrace_length_le (sourceWidth : Nat) :
   omega
 
 /-- Full multiplication precedes its actual loaded reduction. -/
-theorem multiplicationTrace_length_le :
+lemma multiplicationTrace_length_le :
     (multiplicationTrace model spec).length ≤ 2 * width + 5 := by
   have reduced := loadedReductionTrace_length_le model spec (width + width)
   change (loadedReductionTrace model (width + width) spec).length + 1 ≤ _
   omega
 
 /-- Both original widenings and flagged addition precede the actual loaded reduction. -/
-theorem additionTrace_length_le :
+lemma additionTrace_length_le :
     (additionTrace model spec).length ≤ 2 * width + 7 := by
   have reduced := loadedReductionTrace_length_le model spec (width + 1)
   simp only [additionTrace, additionPrefixTrace, List.length_append,
@@ -66,7 +66,7 @@ theorem additionTrace_length_le :
   omega
 
 /-- The original subtraction trace retains both real modulus loaders. -/
-theorem subtractionTrace_length_le :
+lemma subtractionTrace_length_le :
     (subtractionTrace model spec).length ≤ 4 * width + 10 := by
   have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
   have reduced := loadedReductionTrace_length_le model spec (width + 1)

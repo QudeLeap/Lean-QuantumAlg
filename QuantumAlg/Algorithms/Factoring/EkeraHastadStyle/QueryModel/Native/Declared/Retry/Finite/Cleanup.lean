@@ -14,13 +14,14 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.De
 import all QuantumAlg.Core.Execution.Basis.Seeded.Allocation
 import all QuantumAlg.Core.Execution.Basis.Seeded.Record
 import all QuantumAlg.Core.Execution.Pure.Point
+import all QuantumAlg.Primitives.ZReset.Bank.Parallel.Resources
 
 /-!
 # Physical bank reset and completed reused EH batches
 
 The reset measures each original bank wire and applies the selected
-correction, using one scoped classical scratch cell and no extra quantum
-system. It preserves retained results. The reused completed batch performs
+correction, using one parent-owned classical scratch bit per bank wire and
+no extra quantum system. It preserves retained results. The reused completed batch performs
 recovery, optional selection and a paid result pack before this real reset;
 its joint-state law retains the complete external reference.
 -/
@@ -36,32 +37,33 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
+variable {environment : (model N).Environment}
 
 /-- The final real reset acts on all and only the original declared bank. -/
-def reset : Circuit (model input) (Retry.context base noQuantum N)
+def reset : Circuit (model N) (Retry.context base noQuantum N)
     (Retry.context base noQuantum N) :=
   Declared.resetBank (Batch.storageContext (Retry.callerContext base N) N)
     (Batch.storage_empty (Retry.callerContext base N) (Retry.caller_empty base noQuantum N) N)
-    N input
+    N
 
 /-- A further complete batch pays its own selector pack and terminal reset.
 This is a real same-bank segment for the multi-batch schedule. -/
-def nextCompletedCode : Circuit (model input) (Retry.context base noQuantum N)
+def nextCompletedCode : Circuit (model N) (Retry.context base noQuantum N)
     (Retry.context base noQuantum N) :=
   ((Retry.next base noQuantum N input).seq
-    (Retry.pack base noQuantum N input)).seq (reset base noQuantum N input)
+    (Retry.pack base noQuantum N)).seq (reset base noQuantum N)
 
 /-- Terminal cleanup establishes physical zero in every complete store-reference block. -/
-theorem reset_seeded {Reference : Register} {History : Type} [Fintype History]
+lemma reset_seeded {Reference : Register} {History : Type} [Fintype History]
     (state : State (Retry.context base noQuantum N) Reference
-      ((model input).HiddenState × History)) :
+      ((model N).HiddenState × History)) :
     BasisSeeded.Holds (Retry.context base noQuantum N).quantumLayout.zeroLabel
-      ((reset base noQuantum N input).execute Reference state) :=
+      ((reset base noQuantum N).execute environment Reference state) :=
   Declared.reset_seeded (Batch.storageContext (Retry.callerContext base N) N)
     (Batch.storage_empty (Retry.callerContext base N) (Retry.caller_empty base noQuantum N) N)
-    N input state
+    N state
 
-theorem seeded_recordSeed {ctx : RuntimeCtx .quantum}
+lemma seeded_recordSeed {ctx : RuntimeCtx .quantum}
     {Reference : Register} {History : Type} [Fintype History]
     (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : BasisSeeded.Holds seed state) (label : Store ctx × History)
@@ -88,27 +90,27 @@ theorem seeded_recordSeed {ctx : RuntimeCtx .quantum}
 /-- The actual scoped bank reset fixes each complete output record, including
 its hidden service state, history and path, at the original all-zero bank seed.
 The reference block retains its own probability mass even when that mass is zero. -/
-theorem reset_recordSeed {Reference : Register} {History : Type} [Fintype History]
+lemma reset_recordSeed {Reference : Register} {History : Type} [Fintype History]
     (state : State (Retry.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (label : Store (Retry.context base noQuantum N) ×
-      ((model input).HiddenState × (History × (reset base noQuantum N input).Path)))
+      ((model N).HiddenState × (History × (reset base noQuantum N).Path)))
     (selection : Finset (Fin (Retry.context base noQuantum N).systemCount)) :
     (StatePromise.pure (NormalizedVector.ket
       ((Retry.context base noQuantum N).quantumLayout.restrictSelectedBasis selection
         (Retry.context base noQuantum N).quantumLayout.zeroLabel))).Holds
       (DensityOperator.observeSelection
         (Retry.context base noQuantum N).quantumLayout selection Reference
-        (((reset base noQuantum N input).execute Reference state).block label)) := by
-  exact seeded_recordSeed _ _ (reset_seeded base noQuantum N input state)
+        (((reset base noQuantum N).execute environment Reference state).block label)) := by
+  exact seeded_recordSeed _ _ (reset_seeded base noQuantum N state)
     label selection
 
 /-- The real terminal bank reset measures at least one physical qubit for
 every modulus, including exceptional inputs. -/
-theorem reset_measured (path : (reset base noQuantum N input).Path) :
+lemma reset_measured (path : (reset base noQuantum N).Path) :
     ∃ dimension : ℕ+,
-      Resource.Event.measurement (model := model input) dimension ∈
-        (reset base noQuantum N input).eventTrace path := by
+      Resource.Event.measurement (model := model N) dimension ∈
+        (reset base noQuantum N).eventTrace path := by
   let storage := Batch.storageContext (Retry.callerContext base N) N
   let empty := Batch.storage_empty (Retry.callerContext base N)
     (Retry.caller_empty base noQuantum N) N
@@ -121,55 +123,55 @@ theorem reset_measured (path : (reset base noQuantum N input).Path) :
     rw [sizeEq]
     dsimp [ShortDLP.totalQubits, ShortDLP.firstBits, Native.parameters, shortLogBits]
     omega
-  exact ZReset.BankScope.zResetBankScope_measured
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
-    (Native.nativeOracle_context_qubits N sameWires) BitWord.model positive path
+  exact ⟨2, ZReset.BankParallel.code_measured (services := .empty)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N)) (operations := BitWord.model)
+    (Native.nativeOracle_context_qubits N sameWires) positive path⟩
 
 /-- Cleanup preserves each actual store-weighted reference matrix, including off-diagonal terms. -/
-theorem reset_reference {Reference : Register} {History : Type} [Fintype History]
+lemma reset_reference {Reference : Register} {History : Type} [Fintype History]
     (state : State (Retry.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : Store (Retry.context base noQuantum N) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((reset base noQuantum N input).execute Reference state)
+      ((reset base noQuantum N).execute environment Reference state)
       (fun entry _ => weight entry.1) left right =
     ExecutionState.referenceFiberSum state (fun entry _ => weight entry.1) left right :=
   Declared.reset_reference (Batch.storageContext (Retry.callerContext base N) N)
     (Batch.storage_empty (Retry.callerContext base N) (Retry.caller_empty base noQuantum N) N)
-    N input state weight left right
+    N state weight left right
 
 /-- The extra paid pack leaves the persistent selector cells unchanged in
 every weighted reference matrix entry. -/
-theorem pack_selected_reference {Reference : Register} {History : Type}
+lemma pack_selected_reference {Reference : Register} {History : Type}
     [Fintype History]
     (state : State (Retry.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Retry.pack base noQuantum N input).execute Reference state)
+      ((Retry.pack base noQuantum N).execute environment Reference state)
       (fun entry _ => weight (Optional.selectedValue
         (Retry.selectionRefs base noQuantum N).selection entry.1)) left right =
     ExecutionState.referenceFiberSum state
       (fun entry _ => weight (Optional.selectedValue
         (Retry.selectionRefs base noQuantum N).selection entry.1)) left right := by
   let update := fun entry : Store (Retry.context base noQuantum N) ×
-      ((model input).HiddenState × History) =>
-    ((Retry.packStep base noQuantum N input entry.1).1,
-      (entry.2.1, (entry.2.2, (Retry.packStep base noQuantum N input entry.1).2)))
+      ((model N).HiddenState × History) =>
+    ((Retry.packStep base noQuantum N entry.1).1,
+      (entry.2.1, (entry.2.2, (Retry.packStep base noQuantum N entry.1).2)))
   let observe := fun store : Store (Retry.context base noQuantum N) =>
     weight (Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection store)
   have executed := congrArg
     (fun output : State (Retry.context base noQuantum N) Reference
-        ((model input).HiddenState × (History × (Retry.pack base noQuantum N input).Path)) =>
+        ((model N).HiddenState × (History × (Retry.pack base noQuantum N).Path)) =>
       ExecutionState.referenceFiberSum output (fun entry _ => observe entry.1) left right)
-    (Retry.pack_execute base noQuantum N input Reference state)
+    (Retry.pack_execute (environment := environment) base noQuantum N Reference state)
   refine executed.trans ((ExecutionState.referenceFiberSum_mapClassical state update
     (fun entry _ => observe entry.1) left right).trans ?_)
   apply congrArg
     (fun observed : (Store (Retry.context base noQuantum N) ×
-        ((model input).HiddenState × History)) →
+        ((model N).HiddenState × History)) →
           (Retry.context base noQuantum N).register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observed left right)
   funext entry basis
@@ -178,7 +180,7 @@ theorem pack_selected_reference {Reference : Register} {History : Type}
     rw [← Retry.caller_selectionInput base noQuantum N]
     exact Batch.caller_factor_separated (Retry.callerContext base N)
       (Retry.caller_empty base noQuantum N) N (Retry.originalSelectionInput base N)
-  have frame := Retry.pack_frame base noQuantum N input entry.1
+  have frame := Retry.pack_frame base noQuantum N entry.1
     (Retry.selectionInput base noQuantum N) separate
   simpa only [observe, Retry.selectedValue_selectionInput] using
     congrArg (fun selected => weight (CShape.packOption selected)) frame
@@ -187,15 +189,15 @@ theorem pack_selected_reference {Reference : Register} {History : Type}
 factor with the original source law. The equality retains every reference
 matrix entry and every incoming store and service-history branch, including
 zero-weight branches. -/
-theorem nextCompleted_reference {Reference : Register} {History : Type}
+lemma nextCompleted_reference {Reference : Register} {History : Type}
     [Fintype History]
     (state : State (Retry.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextCompletedCode base noQuantum N input).execute Reference state)
+      ((nextCompletedCode base noQuantum N input).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)))
       left right =
@@ -210,47 +212,48 @@ theorem nextCompleted_reference {Reference : Register} {History : Type}
     fun store => weight
       (store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef))
   let preceding := (Retry.next base noQuantum N input).seq
-    (Retry.pack base noQuantum N input)
+    (Retry.pack base noQuantum N)
   calc
     _ = ExecutionState.referenceFiberSum
-        ((Cleanup.reset base noQuantum N input).execute Reference
-          (preceding.execute Reference state))
+        ((Cleanup.reset base noQuantum N).execute (sourceEnvironment input) Reference
+          (preceding.execute (sourceEnvironment input) Reference state))
         (fun entry _ => observed entry.1) left right :=
       Circuit.referenceFiberSum_execute_seq preceding
-        (Cleanup.reset base noQuantum N input) state observed left right
+        (Cleanup.reset base noQuantum N) (sourceEnvironment input) state observed left right
     _ = ExecutionState.referenceFiberSum
-        (preceding.execute Reference state)
+        (preceding.execute (sourceEnvironment input) Reference state)
         (fun entry _ => observed entry.1) left right :=
-      reset_reference base noQuantum N input
-        (preceding.execute Reference state) observed left right
+      reset_reference (environment := (sourceEnvironment input)) base noQuantum N
+        (preceding.execute (sourceEnvironment input) Reference state) observed left right
     _ = ExecutionState.referenceFiberSum
-        ((Retry.pack base noQuantum N input).execute Reference
-          ((Retry.next base noQuantum N input).execute Reference state))
+        ((Retry.pack base noQuantum N).execute (sourceEnvironment input) Reference
+          ((Retry.next base noQuantum N input).execute (sourceEnvironment input) Reference state))
         (fun entry _ => observed entry.1) left right :=
       Circuit.referenceFiberSum_execute_seq (Retry.next base noQuantum N input)
-        (Retry.pack base noQuantum N input) state observed left right
+        (Retry.pack base noQuantum N) (sourceEnvironment input) state observed left right
     _ = ExecutionState.referenceFiberSum
-        ((Retry.next base noQuantum N input).execute Reference state)
+        ((Retry.next base noQuantum N input).execute (sourceEnvironment input) Reference state)
         (fun entry _ => weight (Optional.selectedValue
           (Retry.selectionRefs base noQuantum N).selection entry.1))
         left right :=
-      Retry.pack_reference base noQuantum N input
-        ((Retry.next base noQuantum N input).execute Reference state) weight left right
+      Retry.pack_reference base noQuantum N
+        ((Retry.next base noQuantum N input).execute (sourceEnvironment input) Reference state)
+          weight left right
     _ = _ := Retry.next_selected_reference base noQuantum N input state normalized
       weight left right
 
 /-- The completed later batch leaves the persistent first-success selector
 with the same weighted transition law. Its added pack and physical reset do
 not erase the value needed by a subsequent actual batch. -/
-theorem nextCompleted_selected_reference {Reference : Register} {History : Type}
+lemma nextCompleted_selected_reference {Reference : Register} {History : Type}
     [Fintype History]
     (state : State (Retry.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextCompletedCode base noQuantum N input).execute Reference state)
+      ((nextCompletedCode base noQuantum N input).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight (Optional.selectedValue
         (Retry.selectionRefs base noQuantum N).selection entry.1)) left right =
     ExecutionState.referenceFiberSum state
@@ -264,30 +267,31 @@ theorem nextCompleted_selected_reference {Reference : Register} {History : Type}
     fun store => weight (Optional.selectedValue
       (Retry.selectionRefs base noQuantum N).selection store)
   let preceding := (Retry.next base noQuantum N input).seq
-    (Retry.pack base noQuantum N input)
+    (Retry.pack base noQuantum N)
   calc
     _ = ExecutionState.referenceFiberSum
-        ((Cleanup.reset base noQuantum N input).execute Reference
-          (preceding.execute Reference state))
+        ((Cleanup.reset base noQuantum N).execute (sourceEnvironment input) Reference
+          (preceding.execute (sourceEnvironment input) Reference state))
         (fun entry _ => observed entry.1) left right :=
       Circuit.referenceFiberSum_execute_seq preceding
-        (Cleanup.reset base noQuantum N input) state observed left right
+        (Cleanup.reset base noQuantum N) (sourceEnvironment input) state observed left right
     _ = ExecutionState.referenceFiberSum
-        (preceding.execute Reference state)
+        (preceding.execute (sourceEnvironment input) Reference state)
         (fun entry _ => observed entry.1) left right :=
-      reset_reference base noQuantum N input
-        (preceding.execute Reference state) observed left right
+      reset_reference (environment := (sourceEnvironment input)) base noQuantum N
+        (preceding.execute (sourceEnvironment input) Reference state) observed left right
     _ = ExecutionState.referenceFiberSum
-        ((Retry.pack base noQuantum N input).execute Reference
-          ((Retry.next base noQuantum N input).execute Reference state))
+        ((Retry.pack base noQuantum N).execute (sourceEnvironment input) Reference
+          ((Retry.next base noQuantum N input).execute (sourceEnvironment input) Reference state))
         (fun entry _ => observed entry.1) left right :=
       Circuit.referenceFiberSum_execute_seq (Retry.next base noQuantum N input)
-        (Retry.pack base noQuantum N input) state observed left right
+        (Retry.pack base noQuantum N) (sourceEnvironment input) state observed left right
     _ = ExecutionState.referenceFiberSum
-        ((Retry.next base noQuantum N input).execute Reference state)
+        ((Retry.next base noQuantum N input).execute (sourceEnvironment input) Reference state)
         (fun entry _ => observed entry.1) left right :=
-      pack_selected_reference base noQuantum N input
-        ((Retry.next base noQuantum N input).execute Reference state) weight left right
+      pack_selected_reference (environment := (sourceEnvironment input)) base noQuantum N
+        ((Retry.next base noQuantum N input).execute (sourceEnvironment input) Reference state)
+          weight left right
     _ = _ := Retry.next_selected_reference base noQuantum N input state normalized
       weight left right
 

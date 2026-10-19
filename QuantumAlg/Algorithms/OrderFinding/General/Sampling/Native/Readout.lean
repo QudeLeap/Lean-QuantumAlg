@@ -48,21 +48,21 @@ public def baseRef (t width : Nat) :
       (prepared t width).canonicalFreshKey_fresh) t
 
 /-- The new source-register wires are disjoint from the classical-only input. -/
-public theorem sourcePreparationDisjoint (t width : Nat) :
+public lemma sourcePreparationDisjoint (t width : Nat) :
     List.Disjoint (Sampling.Native.runtimeLayout t width).identities
       (pre width).physicalIdx := by
   rw [RuntimeCtx.physicalIdx, pre_quantumWires width]
   exact List.disjoint_nil_right _
 
 /-- Fresh quantum preparation keeps the original stored residue unchanged. -/
-theorem preparedBase_read (t width : Nat) (store : Store (pre width)) :
+lemma preparedBase_read (t width : Nat) (store : Store (pre width)) :
     (store.pushOwnedLayout (pre width).canonicalFreshKey
       (Sampling.Native.runtimeLayout t width)
       (pre width).canonicalFreshKey_fresh (sourcePreparationDisjoint t width)).read
         (.storage (preparedBase t width)) = store.read (baseSourceRef width) := rfl
 
 /-- Output allocation preserves the same canonical residue in the same cell. -/
-theorem baseRef_read_allocated (t width : Nat)
+lemma baseRef_read_allocated (t width : Nat)
     (store : Store (prepared t width)) :
     (MeasurementCells.pushStore 2 t
       (store.pushRetained (prepared t width).canonicalFreshKey (.bits t)

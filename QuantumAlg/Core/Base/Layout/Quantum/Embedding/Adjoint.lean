@@ -22,7 +22,7 @@ namespace QuantumAlg.QuantumLayout.Embedding
 noncomputable section
 
 /-- Extending by identity commutes with taking the exact adjoint operator. -/
-public theorem embedding_liftOperator_star {small large : Nat}
+public lemma embedding_liftOperator_star {small large : Nat}
     {source : QuantumLayout small} {target : QuantumLayout large}
     (embedding : Embedding source target) (operator : UnitaryOperator source.register) :
     embedding.liftOperator (star operator) = star (embedding.liftOperator operator) := by

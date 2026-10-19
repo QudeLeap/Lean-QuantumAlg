@@ -98,16 +98,17 @@ def measuredDecodeStep {model : ExecutionModel} [BitWord.Selected model]
     result.2)
 
 /-- Literal packing and decoding preserve the complete service/reference record. -/
-theorem measuredDecodeBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma measuredDecodeBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (decodeCtx ctx count) Reference (model.HiddenState × History)) :
-    (measuredDecodeBody (model := model) input decoded).execute Reference state =
+    (measuredDecodeBody (model := model) input decoded).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := measuredDecodeBodyStep (model := model) input decoded entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (measuredPackOp input))
     (TerminalDecode.into (model := model) .bigEndian
       (packedInput ctx count) (writeUnderDecode decoded count))
@@ -119,7 +120,8 @@ theorem measuredDecodeBody_execute {model : ExecutionModel} [BitWord.Selected mo
         (List.ofFn (fun index => CInputRef.bitsGet (packedInput ctx count) index)) before.1
       ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
-    exact (BitWord.bitWord_instruction_execute (execution := model) (measuredPackOp input)
+    exact (BitWord.bitWord_instruction_execute (environment := environment)
+      (execution := model) (measuredPackOp input)
       initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ initial
     exact (TerminalDecode.terminalDecode_fold_execute (model := model)
@@ -128,15 +130,17 @@ theorem measuredDecodeBody_execute {model : ExecutionModel} [BitWord.Selected mo
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Releasing the packed cell retains the actual native path and full service state. -/
-theorem measuredDecodeInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma measuredDecodeInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (measuredDecodeInto (model := model) input decoded).execute Reference state =
+    (measuredDecodeInto (model := model) input decoded).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := measuredDecodeStep (model := model) input decoded entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.bits count)
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.bits count)
     ctx.canonicalFreshKey_fresh (measuredDecodeBody (model := model) input decoded)
     (fun before =>
       let result := measuredDecodeBodyStep (model := model) input decoded before.1
@@ -151,14 +155,15 @@ def measuredDecodeInput (value : CShape.Value (.fixedVector count (.finite 2))) 
     ClassicalAlgorithms.TerminalDecode.Input count :=
   ⟨.bigEndian, fun index => decide ((value.get index).toFin.val = 1)⟩
 
-private theorem decoded_key_ne_fresh (decoded : CWriteRef ctx (.unsignedWord count)) :
+private lemma decoded_key_ne_fresh (decoded : CWriteRef ctx (.unsignedWord count)) :
     decoded.key ≠ ctx.canonicalFreshKey := by
   intro same
   apply ctx.canonicalFreshKey_fresh
   rw [← same]
   exact List.mem_map_of_mem decoded.toCStorageRef.present
 
-private theorem measuredDecodeBody_read_output {model : ExecutionModel} [BitWord.Selected model]
+private lemma measuredDecodeBody_read_output {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store (decodeCtx ctx count)) :
@@ -186,7 +191,8 @@ private theorem measuredDecodeBody_read_output {model : ExecutionModel} [BitWord
     (ClassicalAlgorithms.TerminalDecode.eval value).val) source)
 
 /-- The actual decoded word equals the original big-endian value, for every initial store. -/
-theorem measuredDecodeInto_read_output {model : ExecutionModel} [BitWord.Selected model]
+lemma measuredDecodeInto_read_output {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store ctx) :
     ((measuredDecodeStep (model := model) input decoded store).1.read
@@ -206,7 +212,8 @@ theorem measuredDecodeInto_read_output {model : ExecutionModel} [BitWord.Selecte
       (ClassicalAlgorithms.TerminalDecode.eval (measuredDecodeInput value)).val) source))
 
 /-- All original structural reads outside the decoded output remain unchanged. -/
-theorem measuredDecodeInto_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma measuredDecodeInto_read_other {model : ExecutionModel}
+    [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (.fixedVector count (.finite 2)))
     (decoded : CWriteRef ctx (.unsignedWord count)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : decoded.key ∉ other.storageKeys) :

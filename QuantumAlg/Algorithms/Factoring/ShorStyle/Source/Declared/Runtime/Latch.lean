@@ -35,7 +35,7 @@ def latchInput (ctx : RuntimeCtx .quantum) (N : Nat) (cells : NativeFactorScan.C
 private def sourceDecode (N : Nat) (value : (sourceTupleShape N).Value) : SourceOutcome N :=
   ⟨sampleRead value.first, phaseRead value.second.second⟩
 
-private theorem sourceDecode_sourceValue {N : Nat} (input : Input N) (outcome : SourceOutcome N) :
+private lemma sourceDecode_sourceValue {N : Nat} (input : Input N) (outcome : SourceOutcome N) :
     sourceDecode N (sourceValue input outcome) = outcome := by
   cases outcome with
   | mk sample phase =>
@@ -43,7 +43,7 @@ private theorem sourceDecode_sourceValue {N : Nat} (input : Input N) (outcome : 
         sampleRead_stored, phaseRead]
 
 /-- An original actual cell read lifts to precisely the completion's genuine destination. -/
-theorem completion_liftWrite_input {shape : CShape} (ctx : RuntimeCtx .quantum) (N : Nat)
+lemma completion_liftWrite_input {shape : CShape} (ctx : RuntimeCtx .quantum) (N : Nat)
     (cell : CWriteRef ctx shape) :
     iterationInput ctx N (.storage cell.toCStorageRef) =
       .storage (Completion.liftWrite ctx N cell).toCStorageRef := by
@@ -57,7 +57,7 @@ theorem completion_liftWrite_input {shape : CShape} (ctx : RuntimeCtx .quantum) 
     .storage (MeasurementCells.liftWrite 2 packed (phaseBits N)).toCStorageRef
   exact MeasurementCells.liftInput_storage 2 packed (phaseBits N)
 
-private theorem iterationInput_product {first second : CShape} (ctx : RuntimeCtx .quantum)
+private lemma iterationInput_product {first second : CShape} (ctx : RuntimeCtx .quantum)
     (N : Nat) (left : CInputRef ctx first) (right : CInputRef ctx second) :
     iterationInput ctx N (.product left right) =
       .product (iterationInput ctx N left) (iterationInput ctx N right) := by
@@ -67,7 +67,7 @@ private theorem iterationInput_product {first second : CShape} (ctx : RuntimeCtx
       (Sampler.Retained.liftInput (N := N) right) from rfl,
     observation_liftInput_product]
 
-private theorem lifted_latch (ctx : RuntimeCtx .quantum) (N : Nat)
+private lemma lifted_latch (ctx : RuntimeCtx .quantum) (N : Nat)
     (cells : NativeFactorScan.Cells ctx N) (store : Store (Iteration.context ctx N)) :
     CShape.packOption (store.read (iterationInput ctx N (latchInput ctx N cells))) =
       NativeFactorScan.latchValue (Completion.cells ctx N cells) store := by
@@ -76,26 +76,28 @@ private theorem lifted_latch (ctx : RuntimeCtx .quantum) (N : Nat)
   rfl
 
 /-- Full actual complete-round weights follow the original source and first-present feedback. -/
-theorem completion_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma completion_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated cells result)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized)
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Completion.code ctx N input sameWires cells result).execute Reference state)
+      ((Completion.code ctx N input sameWires cells result).execute
+        (environment input) Reference state)
       (fun entry _ => weight (NativeFactorScan.latchValue (Completion.cells ctx N cells) entry.1))
       left right =
     ExecutionState.referenceFiberSum state
       (fun entry _ => SourceWeights.one input (fun outcome => weight
         (NativeFactorScan.firstPresent (NativeFactorScan.latchValue cells entry.1)
           (NativeFactorScan.sourceResult input outcome)))) left right := by
-  let sampled := (Iteration.code ctx N input sameWires).execute Reference state
-  have actual := Completion.code_reference ctx N input sameWires cells result state
+  let sampled := (Iteration.code ctx N sameWires).execute (environment input) Reference state
+  have actual := Completion.code_reference
+    (environment := environment input) ctx N input sameWires cells result state
     (fun store => weight (NativeFactorScan.latchValue (Completion.cells ctx N cells) store))
       left right
   have consistent :
@@ -109,7 +111,8 @@ theorem completion_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input 
     apply ExecutionState.referenceFiberSum_congr_on_positive sampled
     intro record positive basis
     have supported := (ExecutionState.mem_support_toPMF_iff sampled
-      (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans normalized)
+      (((Iteration.code ctx N sameWires).execute_mass
+        (environment input) Reference state).trans normalized)
         record).mpr positive
     obtain ⟨outcome, encoded, feedback⟩ := iteration_supported_feedback ctx N input sameWires
       cells result (Completion.separated ctx N cells result separated) state seeded normalized

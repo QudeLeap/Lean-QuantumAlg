@@ -25,9 +25,11 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
-private theorem bits_equiv_apply (exponentWidth width : Nat)
+private lemma bits_equiv_apply (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ)
     (bits : List (Fin exponentWidth)) (state : Registers exponentWidth width) :
     unitPowerBitsEquiv modulus base bits state = outputForBits modulus base bits state := by
@@ -46,10 +48,10 @@ def forwardProgram (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
       (QubitLayout.canonical (oracleEncoding exponentWidth width).width).toQuantum :=
   UnitaryCircuit.onBinaryPrefix width (program exponentWidth width modulus base)
 
-private theorem forward_realizes (exponentWidth width : Nat)
+private lemma forward_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
-      (forwardProgram exponentWidth width modulus base)
+      (forwardProgram exponentWidth width modulus base) environment
       (unitPowerForwardEquiv exponentWidth width modulus base) := by
   apply (UnitaryCircuit.Realizes.onBinaryPrefix
     (right := BinaryLabelEncoding.finIdentity width)
@@ -76,30 +78,34 @@ def oracleProgram (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
   oracleBody exponentWidth width modulus base
 
 /-- Exact total action is defined independently of the actual circuit and its adjoint. -/
-theorem gidneyExponentOracle_realizes (exponentWidth width : Nat)
+lemma gidneyExponentOracle_realizes (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (base : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
-      (oracleProgram exponentWidth width modulus base) (unitPowerOracleOutput modulus base) := by
-  have forward := forward_realizes exponentWidth width modulus base
+      (oracleProgram exponentWidth width modulus base)
+      environment (unitPowerOracleOutput modulus base) := by
+  have forward := forward_realizes (environment := environment) exponentWidth width modulus base
   have inverse : UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
       ((forwardProgram exponentWidth width modulus base).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty))
+        (AlgorithmGate.oracleFreeAdjoints .empty)) environment
       (unitPowerForwardEquiv exponentWidth width modulus base).symm :=
     forward.dagger_of_rightInverse
       (by
         rw [UnitaryCircuit.dagger_matrix]
-        exact Unitary.star_eq_inv _)
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
+        exact Unitary.star_eq_inv ((forwardProgram exponentWidth width modulus base).matrix
+          environment))
       (Equiv.apply_symm_apply (unitPowerForwardEquiv exponentWidth width modulus base))
   apply (forward.seq ((gidneyExponentCopy_realizes exponentWidth width).seq inverse)).congrStep
   intro state
   rfl
 
 /-- The arbitrary target receives the power by XOR and both work words are returned exactly. -/
-theorem gidneyExponentOracle_clean (exponentWidth width : Nat)
+lemma gidneyExponentOracle_clean (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (base : (ZMod modulus.val)ˣ) (exponent : Fin (2 ^ exponentWidth))
     (target : Fin (2 ^ width)) :
-    (oracleProgram exponentWidth width modulus base).applyNormalized
+    (oracleProgram exponentWidth width modulus base).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (oracleEncoding exponentWidth width).width).basisEquiv.symm
             ((oracleEncoding exponentWidth width).encode

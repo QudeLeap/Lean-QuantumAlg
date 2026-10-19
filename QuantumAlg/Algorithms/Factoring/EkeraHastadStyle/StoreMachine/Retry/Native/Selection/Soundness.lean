@@ -22,10 +22,13 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetrySelection
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU ClassicalRoutines.FirstAccepted.Direct
 
 /-- Every supported typed batch word decodes to its original checked nontrivial factor. -/
-theorem batch_outputValue_some_sound {N : Nat} (specification : Input N)
+lemma batch_outputValue_some_sound {N : Nat} (specification : Input N)
     (word : CShape.Word (modulusBits N))
     (supported : CShape.Value.optionSome word ∈
       ((sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue).support) :
@@ -47,23 +50,23 @@ theorem batch_outputValue_some_sound {N : Nat} (specification : Input N)
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every populated actual selected output word represents a checked nontrivial divisor. -/
-theorem run_some_sound (specification : Input N) (count : Nat)
+lemma run_some_sound (specification : Input N) (count : Nat)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (word : CShape.Word (modulusBits N))
     (supported : CShape.Value.optionSome word ∈
-      ((run base noQuantum specification count).outputDistribution input).support) :
+      ((run base noQuantum specification count).outputDistribution environment input).support) :
     word.toNat ∣ N ∧ 1 < word.toNat ∧ word.toNat < N := by
   rw [run_selectedDistribution] at supported
   exact batch_outputValue_some_sound specification word
     (Optional.Distribution.selectedDistribution_some_support _ (count + 1) word supported)
 
 /-- Natural observation of any supported populated actual result is the same nontrivial divisor. -/
-theorem run_decoded_some_sound (specification : Input N) (count : Nat)
+lemma run_decoded_some_sound (specification : Input N) (count : Nat)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) (factor : Nat)
     (supported : some factor ∈
-      (((run base noQuantum specification count).outputDistribution input).map
+      (((run base noQuantum specification count).outputDistribution environment input).map
         decodeFactor).support) :
     factor ∣ N ∧ 1 < factor ∧ factor < N := by
   rw [PMF.mem_support_map_iff] at supported

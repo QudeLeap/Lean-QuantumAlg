@@ -29,12 +29,12 @@ private def fourierFormula (d : ℕ) : Matrix (Fin d) (Fin d) ℂ :=
   Matrix.of fun j k => invSqrtD d * clockRoot d ^ (j.val * k.val)
 
 @[simp]
-private theorem fourierFormula_entry (d : ℕ) (j k : Fin d) :
+private lemma fourierFormula_entry (d : ℕ) (j k : Fin d) :
     fourierFormula d j k = invSqrtD d * clockRoot d ^ (j.val * k.val) := by
   simp [fourierFormula]
 
 /-- The `d`-dimensional quantum Fourier transform is unitary. -/
-private theorem fourierFormula_mem_unitaryGroup (hd : d ≠ 0) :
+private lemma fourierFormula_mem_unitaryGroup (hd : d ≠ 0) :
     fourierFormula d ∈ Matrix.unitaryGroup (Fin d) ℂ := by
   rw [Matrix.mem_unitaryGroup_iff']
   ext j k
@@ -85,7 +85,7 @@ def quditFT (d : ℕ) : Matrix.unitaryGroup (Fin d) ℂ :=
     · exact fourierFormula_mem_unitaryGroup hd⟩
 
 /-- Entry formula for the certified finite Fourier transform. -/
-@[simp] theorem quditFT_entry (d : ℕ) (j k : Fin d) :
+@[simp] lemma quditFT_entry (d : ℕ) (j k : Fin d) :
     (quditFT d : Matrix (Fin d) (Fin d) ℂ) j k =
       invSqrtD d * clockRoot d ^ (j.val * k.val) := by
   rfl

@@ -24,6 +24,8 @@ namespace MeasuredPlacement
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -50,13 +52,15 @@ def cascadeSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         (DensityOperator.applyUnitary (stepTarget E (points active) active Reference) density)
 
 /-- The actual cascade realizes its complete independent point product on the prescribed domain. -/
-theorem cascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma cascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (readyContext p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
-    (support : cascadeSupport E points Reference order original.quantumMarginal) :
-    ((cascade E points order).execute Reference original).quantumMarginal =
+    (support : cascadeSupport E points Reference order original.quantumMarginal)
+    (allowAllocation : Bool := true) :
+    ((cascade E points order allowAllocation).execute environment
+      Reference original).quantumMarginal =
       DensityOperator.applyUnitary (cascadeTarget E points Reference order)
         original.quantumMarginal := by
   induction order generalizing H with
@@ -64,21 +68,27 @@ theorem cascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Pri
       have executed := congrArg
         (fun state : State (readyContext p.size count) Reference
           (ClassicalOracleModel.empty.HiddenState × (H × Unit)) => state.quantumMarginal)
-        (Circuit.execute_id (model := .quantum AlgorithmGate.model .empty) original)
+        (Circuit.execute_id (environment := environment) (allowAllocation := allowAllocation)
+          (model := .quantum AlgorithmGate.model .empty) original)
       have unchanged := executed.trans
         (ExecutionState.mapClassical_quantumMarginal original _)
       calc
-        ((cascade E points []).execute Reference original).quantumMarginal =
-            ((Circuit.id (model := .quantum AlgorithmGate.model .empty)
-              (readyContext p.size count)).execute Reference original).quantumMarginal := rfl
+        ((cascade E points [] allowAllocation).execute environment
+          Reference original).quantumMarginal =
+            ((Circuit.id (allowAllocation := allowAllocation)
+              (model := .quantum AlgorithmGate.model .empty) (readyContext p.size count)).execute
+                environment
+                Reference original).quantumMarginal := rfl
         _ = original.quantumMarginal := unchanged
         _ = DensityOperator.applyUnitary (cascadeTarget E points Reference [])
             original.quantumMarginal :=
           (DensityOperator.applyUnitary_one original.quantumMarginal).symm
   | cons active remaining ih =>
-      have first := step_density E (points active) active original support.1
+      have first := step_density (environment := environment)
+        E (points active) active original support.1 allowAllocation
       have remainingSupport : cascadeSupport E points Reference remaining
-          (((step E (points active) active).execute Reference original).quantumMarginal) := by
+          (((step E (points active) active allowAllocation).execute environment
+            Reference original).quantumMarginal) := by
         rw [first]
         exact support.2
       rw [cascade, Circuit.execute_seq, State.mapHistory_quantumMarginal,

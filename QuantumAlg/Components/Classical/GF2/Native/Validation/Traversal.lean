@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem candidate_free (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma candidate_free (candidate : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) :
     success.key ∉ (CInputRef.storage candidate.toCStorageRef).storageKeys := by
   simp only [CInputRef.storageKeys, List.mem_singleton]
@@ -38,7 +38,7 @@ private theorem candidate_free (candidate : CWriteRef ctx (.unsignedWord width))
     candidate.toCStorageRef same
   cases impossible
 
-private theorem sample_read
+private lemma sample_read
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -51,7 +51,7 @@ private theorem sample_read
     · rfl
     · exact gf2ValidationRow_read_other input candidate success row store other separate
 
-private theorem sample_success
+private lemma sample_success
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (store : Store ctx) :
@@ -71,7 +71,7 @@ private theorem sample_success
     · simpa only [validationRowChoiceStep, original, CShape.Value.toBool, Bool.true_and] using
         gf2ValidationRow_success input candidate success row store
 
-private theorem rows_read
+private lemma rows_read
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (count : Nat) (indices : Fin count → Fin rowCount) (store : Store ctx)
@@ -88,7 +88,7 @@ private theorem rows_read
       exact (ih (fun index => indices index.succ) _).trans
         (sample_read input candidate success (indices 0) store other separate)
 
-private theorem rows_success
+private lemma rows_success
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (separate : success.key ∉ input.storageKeys)
@@ -120,7 +120,7 @@ private theorem rows_success
       exact Bool.and_assoc _ _ _
 
 omit [BitWord.Selected model] in
-private theorem selected_read (success : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma selected_read (success : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (pivotSelectedOp success)).read (.storage success.toCStorageRef) =
       store.read (.storage success.toCStorageRef) := by
   refine (Store.read_applyOp_output store (pivotSelectedOp success)).trans ?_
@@ -130,7 +130,7 @@ private theorem selected_read (success : CWriteRef ctx .bit) (store : Store ctx)
   | bit value => cases value <;> rfl
 
 /-- The real row branches and final marker preserve every other structural caller read. -/
-theorem gf2ValidationSamples_read_other
+lemma gf2ValidationSamples_read_other
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -142,7 +142,7 @@ theorem gf2ValidationSamples_read_other
   exact rows_read input candidate success rowCount id store other separate
 
 /-- Actual row validation keeps incoming success exactly when all original equations hold. -/
-theorem gf2ValidationSamples_success
+lemma gf2ValidationSamples_success
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (store : Store ctx) (separate : success.key ∉ input.storageKeys) :
@@ -160,7 +160,7 @@ theorem gf2ValidationSamples_success
     rows_success input candidate success separate rowCount id store
 
 /-- The original seven-cell allocator supplies the only caller-source separation internally. -/
-theorem gf2ValidationSamples_cellSuccess {outer : RuntimeCtx model.kind}
+lemma gf2ValidationSamples_cellSuccess {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (store : Store ctx) :

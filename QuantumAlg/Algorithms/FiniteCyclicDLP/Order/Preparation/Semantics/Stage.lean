@@ -26,7 +26,7 @@ noncomputable section
 
 variable {N : Nat}
 
-private theorem oneQubitLabel_eq_one_of_testBit_true (bit : Fin (2 ^ 1))
+private lemma oneQubitLabel_eq_one_of_testBit_true (bit : Fin (2 ^ 1))
     (set : bit.val.testBit 0 = true) : bit = 1 := by
   fin_cases bit <;> simp_all
 
@@ -44,10 +44,11 @@ public def gapHadamardAt (oracles : OracleModel)
 
 /-- The actual gap-H instruction advances the explicit raw partial state by
 one target. -/
-public theorem gapHadamardAt_applyVec_gapHPartial (oracles : OracleModel)
+public lemma gapHadamardAt_applyVec_gapHPartial (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) (processed : Nat)
     (notFinished : processed < b.gapWidth gap) :
-    (b.gapHadamardAt oracles gap ⟨processed, notFinished⟩).applyBinaryVec
+    ((b.gapHadamardAt oracles gap ⟨processed, notFinished⟩).applyBinaryVec environment)
         (b.gapHPartial gap processed (Nat.le_of_lt notFinished)) =
       b.gapHPartial gap (processed + 1) (Nat.succ_le_of_lt notFinished) := by
   rw [b.gapHPartial_eq_hSeparated gap processed notFinished]
@@ -59,12 +60,13 @@ public theorem gapHadamardAt_applyVec_gapHPartial (oracles : OracleModel)
 
 /-- A gap Hadamard is inactive on every residual block accepted before its
 high source control. -/
-public theorem gapHadamardAt_applyVec_residual_eq_self
-    (oracles : OracleModel) (b : PositiveGapExpansion N)
+public lemma gapHadamardAt_applyVec_residual_eq_self
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) (offset : Fin (b.gapWidth gap))
     {accepted : Fin (b.gaps + 1)}
     (acceptedBefore : accepted.val < gap.succ.val) :
-    (b.gapHadamardAt oracles gap offset).applyBinaryVec
+    ((b.gapHadamardAt oracles gap offset).applyBinaryVec environment)
         (b.residualBlock accepted) = b.residualBlock accepted := by
   unfold gapHadamardAt
   apply UnitaryCircuit.unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_support
@@ -109,27 +111,29 @@ public def gapHadamards (oracles : OracleModel)
 
 /-- The complete gap-H sweep is inactive on every previously accepted
 residual block. -/
-public theorem gapHadamards_applyVec_residual_eq_self
-    (oracles : OracleModel) (b : PositiveGapExpansion N)
+public lemma gapHadamards_applyVec_residual_eq_self
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) {accepted : Fin (b.gaps + 1)}
     (acceptedBefore : accepted.val < gap.succ.val) :
-    (b.gapHadamards oracles gap).applyBinaryVec (b.residualBlock accepted) =
+    ((b.gapHadamards oracles gap).applyBinaryVec environment) (b.residualBlock accepted) =
       b.residualBlock accepted := by
   unfold gapHadamards
   apply UnitaryCircuit.applyBinaryVec_indexedProduct_eq_self_of_each
-  · exact UnitaryCircuit.applyBinaryVec_identity _
+  · exact UnitaryCircuit.applyBinaryVec_identity _ environment
   · intro offset
     exact b.gapHadamardAt_applyVec_residual_eq_self
       oracles gap offset acceptedBefore
 
 /-- Every finite leading of the literal gap-H sweep advances the partial-state
 index by its leading length. -/
-public theorem gapHPartial_foldl_applyVec (oracles : OracleModel)
+public lemma gapHPartial_foldl_applyVec (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
     ∀ (count : Nat) (bounded : count ≤ b.gapWidth gap),
       (List.ofFn (fun index : Fin count =>
         b.gapHadamardAt oracles gap (Fin.castLE bounded index))).foldl
-          (fun state circuit => circuit.applyBinaryVec state)
+          (fun state circuit => (circuit.applyBinaryVec environment) state)
           (b.gapHPartial gap 0 (Nat.zero_le _)) =
         b.gapHPartial gap count bounded := by
   intro count
@@ -145,7 +149,7 @@ public theorem gapHPartial_foldl_applyVec (oracles : OracleModel)
           (List.ofFn (fun index : Fin count =>
             b.gapHadamardAt oracles gap
               (Fin.castLE bounded index.castSucc))).foldl
-              (fun state circuit => circuit.applyBinaryVec state)
+              (fun state circuit => (circuit.applyBinaryVec environment) state)
               (b.gapHPartial gap 0 (Nat.zero_le _)) =
             b.gapHPartial gap count previous := by
           simpa using induction previous
@@ -160,9 +164,10 @@ public theorem gapHPartial_foldl_applyVec (oracles : OracleModel)
 
 /-- The complete actual gap-H sweep maps its newly opened zero branch to the
 next aligned residual block. -/
-public theorem gapHadamards_applyVec_active (oracles : OracleModel)
+public lemma gapHadamards_applyVec_active (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
-    (b.gapHadamards oracles gap).applyBinaryVec
+    ((b.gapHadamards oracles gap).applyBinaryVec environment)
         (b.gapHPartial gap 0 (Nat.zero_le _)) =
       b.residualBlock gap.succ := by
   unfold gapHadamards
@@ -170,7 +175,7 @@ public theorem gapHadamards_applyVec_active (oracles : OracleModel)
     UnitaryCircuit.applyBinaryVec_identity]
   calc
     (List.ofFn (b.gapHadamardAt oracles gap)).foldl
-          (fun state circuit => circuit.applyBinaryVec state)
+          (fun state circuit => (circuit.applyBinaryVec environment) state)
           (b.gapHPartial gap 0 (Nat.zero_le _)) =
         b.gapHPartial gap (b.gapWidth gap) (Nat.le_refl _) := by
           simpa using b.gapHPartial_foldl_applyVec oracles gap
@@ -188,9 +193,10 @@ public def initialSourceRotation (oracles : OracleModel)
 
 /-- The actual uncontrolled first source rotation has the same two-branch
 equation as every later controlled source rotation on the active residual. -/
-public theorem initialSourceRotation_applyVec_residual
-    (oracles : OracleModel) (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
-    (b.initialSourceRotation oracles gap).applyBinaryVec
+public lemma initialSourceRotation_applyVec_residual
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
+    ((b.initialSourceRotation oracles gap).applyBinaryVec environment)
         (b.residualBlock gap.castSucc) =
       (-(Real.sin (b.sourceAngle gap / 2)) : ℂ) •
           b.gapHPartial gap 0 (Nat.zero_le _) +
@@ -221,9 +227,10 @@ public def controlledSourceRotation (oracles : OracleModel)
 /-- The actual open-controlled source rotation splits the current residual
 into its new zero branch and retained one branch with exact signed
 coefficients. -/
-public theorem controlledSourceRotation_applyVec_residual
-    (oracles : OracleModel) (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
-    (b.controlledSourceRotation oracles gap).applyBinaryVec
+public lemma controlledSourceRotation_applyVec_residual
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
+    ((b.controlledSourceRotation oracles gap).applyBinaryVec environment)
         (b.residualBlock gap.castSucc) =
       (-(Real.sin (b.sourceAngle gap / 2)) : ℂ) •
           b.gapHPartial gap 0 (Nat.zero_le _) +
@@ -242,11 +249,12 @@ public theorem controlledSourceRotation_applyVec_residual
 
 /-- A later controlled source rotation is inactive on every residual block
 accepted before its trailing source control. -/
-public theorem controlledSourceRotation_applyVec_residual_eq_self
-    (oracles : OracleModel) (b : PositiveGapExpansion N)
+public lemma controlledSourceRotation_applyVec_residual_eq_self
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) {accepted : Fin (b.gaps + 1)}
     (acceptedBefore : accepted.val < gap.castSucc.val) :
-    (b.controlledSourceRotation oracles gap).applyBinaryVec
+    ((b.controlledSourceRotation oracles gap).applyBinaryVec environment)
         (b.residualBlock accepted) = b.residualBlock accepted := by
   unfold controlledSourceRotation
   apply UnitaryCircuit.unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_support
@@ -290,15 +298,16 @@ public def gapStage (oracles : OracleModel) (b : PositiveGapExpansion N)
 
 /-- One actual stage splits the current residual into the next accepted block
 and the retained residual with the exact rotation coefficients. -/
-public theorem gapStage_applyVec_residual (oracles : OracleModel)
+public lemma gapStage_applyVec_residual (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (gap : Fin b.gaps) :
-    (b.gapStage oracles gap).applyBinaryVec (b.residualBlock gap.castSucc) =
+    ((b.gapStage oracles gap).applyBinaryVec environment) (b.residualBlock gap.castSucc) =
       (-(Real.sin (b.sourceAngle gap / 2)) : ℂ) •
           b.residualBlock gap.succ +
         (Real.cos (b.sourceAngle gap / 2) : ℂ) •
           b.residualBlock gap.castSucc := by
   have retained :
-      (b.gapHadamards oracles gap).applyBinaryVec
+      ((b.gapHadamards oracles gap).applyBinaryVec environment)
           (b.residualBlock gap.castSucc) = b.residualBlock gap.castSucc :=
     b.gapHadamards_applyVec_residual_eq_self
       oracles gap (accepted := gap.castSucc) (by simp)
@@ -317,11 +326,12 @@ public theorem gapStage_applyVec_residual (oracles : OracleModel)
 
 /-- Every later literal stage fixes each residual block accepted by an
 earlier stage. -/
-public theorem gapStage_applyVec_residual_eq_self
-    (oracles : OracleModel) (b : PositiveGapExpansion N)
+public lemma gapStage_applyVec_residual_eq_self
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N)
     (gap : Fin b.gaps) {accepted : Fin (b.gaps + 1)}
     (acceptedBefore : accepted.val < gap.castSucc.val) :
-    (b.gapStage oracles gap).applyBinaryVec (b.residualBlock accepted) =
+    ((b.gapStage oracles gap).applyBinaryVec environment) (b.residualBlock accepted) =
       b.residualBlock accepted := by
   unfold gapStage
   split_ifs with first

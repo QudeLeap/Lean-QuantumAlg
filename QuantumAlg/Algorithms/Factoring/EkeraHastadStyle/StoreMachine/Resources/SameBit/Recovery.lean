@@ -29,7 +29,7 @@ namespace PublicResourceBounds
 
 noncomputable section
 
-theorem coordinateWidth_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
+lemma coordinateWidth_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     RSA.ShortLogWidths.coordinateWidth pair.modulus
         (shortLogBits pair.modulus) (tradeoffBits pair.modulus) =
@@ -43,7 +43,7 @@ theorem coordinateWidth_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
   norm_num
   ring
 
-private theorem nearestPlane_sameBit {b : Nat}
+private lemma nearestPlane_sameBit {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     LatticeRecoveryResources.nearestPlaneSavedTargetCardBound
         (shortLogBits pair.modulus) (tradeoffBits pair.modulus) =
@@ -54,7 +54,7 @@ private theorem nearestPlane_sameBit {b : Nat}
     RSA.GeneratorOrder.m RSA.GeneratorOrder.ell
   ring
 
-private theorem quadratic_sameBit {b : Nat}
+private lemma quadratic_sameBit {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     LatticeRecoveryResources.quadraticGuardedCardBound
         (RSA.ShortLogWidths.coordinateWidth pair.modulus

@@ -35,7 +35,7 @@ structure PairScanData {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (RSA.shortLogLatticeTarget (shortLogBits N) (tradeoffBits N) samples)
 
 /-- The saved-target outcome supplies all pair-owned scan inputs. -/
-theorem pairScanData_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma pairScanData_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (refs : Refs ctx N) (before after : Store ctx)
     (outcome : LatticePairNearestPlaneSavedTarget.Outcome refs.pair before after) :
     PairScanData (LatticePairNearestPlaneSavedTarget.sourceSamples refs.pair before)
@@ -63,7 +63,7 @@ theorem pairScanData_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} {N 
       refs.scanOriginalTarget] using saved
 
 /-- Equality of raw point coordinates transports a raw point representation. -/
-private theorem pointRawRepresents_transport {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma pointRawRepresents_transport {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {before after : Store ctx}
     (pointRefs : LatticeState.PointRefs ctx width) (point : NumberTheory.IntegerPoint3)
     (represented : LatticeArithmetic.PointRawRepresents before pointRefs point)
@@ -87,7 +87,7 @@ private theorem pointRawRepresents_transport {kind : ProblemKind} {ctx : Runtime
     exact third
 
 /-- Pair-owned scan data survives any stage framing each named pair source. -/
-theorem pairScanData_transport {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma pairScanData_transport {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (samples : RSA.ShortLogSample (shortLogBits N) (tradeoffBits N) ×
       RSA.ShortLogSample (shortLogBits N) (tradeoffBits N))
     (refs : Refs ctx N) (before after : Store ctx)

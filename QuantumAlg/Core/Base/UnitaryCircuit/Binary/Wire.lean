@@ -46,7 +46,7 @@ public def binaryWireVec {width : Nat} (wire : Fin width)
     (HilbertVector.tensor (HilbertVector.tensor prefixState active) suffix)
 
 /-- One-wire vector assembly is linear in its active qubit. -/
-public theorem binaryWireVec_add_active {width : Nat} (wire : Fin width)
+public lemma binaryWireVec_add_active {width : Nat} (wire : Fin width)
     (prefixState : HilbertVector (Qubits wire.val))
     (first second : HilbertVector (Qubits 1))
     (suffix : HilbertVector (Qubits (width - wire.val - 1))) :
@@ -59,7 +59,7 @@ public theorem binaryWireVec_add_active {width : Nat} (wire : Fin width)
 
 /-- One-wire vector assembly is linear in scalar multiples of its active
 qubit. -/
-public theorem binaryWireVec_smul_active {width : Nat} (wire : Fin width)
+public lemma binaryWireVec_smul_active {width : Nat} (wire : Fin width)
     (prefixState : HilbertVector (Qubits wire.val)) (scalar : ℂ)
     (active : HilbertVector (Qubits 1))
     (suffix : HilbertVector (Qubits (width - wire.val - 1))) :
@@ -71,38 +71,40 @@ public theorem binaryWireVec_smul_active {width : Nat} (wire : Fin width)
 
 /-- Single-wire placement applies the supplied word only to the active qubit
 and fixes both surrounding raw-vector fields. -/
-public theorem unitaryCircuit_onBinaryWire_applyVec
+public lemma unitaryCircuit_onBinaryWire_applyVec
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (wire : Fin width)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits 1).canonicalPlacement.layout)
     (prefixState : HilbertVector (Qubits wire.val))
     (active : HilbertVector (Qubits 1))
-    (suffix : HilbertVector (Qubits (width - wire.val - 1))) :
-    (onBinaryWire wire body).binaryMatrix.applyVec
+    (suffix : HilbertVector (Qubits (width - wire.val - 1))) (environment :
+      oracles.Interpretation) :
+    ((onBinaryWire wire body).binaryMatrix environment).applyVec
         (binaryWireVec wire prefixState active suffix) =
-      binaryWireVec wire prefixState (body.binaryMatrix.applyVec active) suffix := by
+      binaryWireVec wire prefixState ((body.binaryMatrix environment).applyVec active) suffix := by
   unfold onBinaryWire binaryWireVec
   rw [castQubitWidth_binaryMatrix_applyVec,
     unitaryCircuit_onBinaryPrefix_applyVec_tensor,
     unitaryCircuit_onBinarySuffix_applyVec_tensor]
 
 /-- Binary-coordinate spelling of one-wire vector action. -/
-public theorem onBinaryWire_applyBinaryVec
+public lemma onBinaryWire_applyBinaryVec
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (wire : Fin width)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits 1).canonicalPlacement.layout)
     (prefixState : HilbertVector (Qubits wire.val))
     (active : HilbertVector (Qubits 1))
-    (suffix : HilbertVector (Qubits (width - wire.val - 1))) :
-    (onBinaryWire wire body).applyBinaryVec
+    (suffix : HilbertVector (Qubits (width - wire.val - 1))) (environment :
+      oracles.Interpretation) :
+    ((onBinaryWire wire body).applyBinaryVec environment)
         (binaryWireVec wire prefixState active suffix) =
-      binaryWireVec wire prefixState (body.applyBinaryVec active) suffix := by
-  exact unitaryCircuit_onBinaryWire_applyVec wire body prefixState active suffix
+      binaryWireVec wire prefixState ((body.applyBinaryVec environment) active) suffix := by
+  exact unitaryCircuit_onBinaryWire_applyVec wire body prefixState active suffix environment
 
 /-- Single-wire placement preserves the ordered native-event trace. -/
-public theorem unitaryCircuit_onBinaryWire_eventTrace
+public lemma unitaryCircuit_onBinaryWire_eventTrace
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (wire : Fin width)
     (body : UnitaryCircuit gates oracles
@@ -113,7 +115,7 @@ public theorem unitaryCircuit_onBinaryWire_eventTrace
     unitaryCircuit_onBinarySuffix_eventTrace]
 
 /-- Single-wire placement preserves the exact native and oracle event pool. -/
-public theorem unitaryCircuit_onBinaryWire_eventCost
+public lemma unitaryCircuit_onBinaryWire_eventCost
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (wire : Fin width)
     (body : UnitaryCircuit gates oracles
@@ -125,7 +127,7 @@ public theorem unitaryCircuit_onBinaryWire_eventCost
 
 /-- Single-wire placement preserves dependency depth under every duration
 assignment. -/
-public theorem unitaryCircuit_onBinaryWire_evaluatedEventDepth
+public lemma unitaryCircuit_onBinaryWire_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (wire : Fin width)
     (body : UnitaryCircuit gates oracles

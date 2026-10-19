@@ -24,14 +24,14 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem freshDisjoint (ctx : RuntimeCtx .quantum)
+private lemma freshDisjoint (ctx : RuntimeCtx .quantum)
     (noQuantum : ctx.quantumWires = []) (t width : Nat) :
     List.Disjoint (Sampling.Native.runtimeLayout t width).identities ctx.physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, noQuantum]
   exact List.disjoint_nil_right _
 
 /-- The empty-frame preparation and native-word basis maps agree. -/
-theorem preparedEmptyBasis_eq_native (ctx : RuntimeCtx .quantum)
+lemma preparedEmptyBasis_eq_native (ctx : RuntimeCtx .quantum)
     (noQuantum : ctx.quantumWires = []) (t width : Nat) :
     Execution.preparedEmptyBasisEquiv ctx ctx.canonicalFreshKey
       (Sampling.Native.runtimeLayout t width) ctx.canonicalFreshKey_fresh

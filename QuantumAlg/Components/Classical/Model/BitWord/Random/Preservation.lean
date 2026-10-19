@@ -29,18 +29,18 @@ open Execution
 
 noncomputable section
 
-variable {execution : ExecutionModel} [Selected execution]
+variable {execution : ExecutionModel} {environment : execution.Environment} [Selected execution]
   {ctx : RuntimeCtx execution.kind} {width : Nat}
 
 /-- Actual sampling and release restore the full arbitrary borrowed joint interface. -/
-public theorem randomCode_borrowedRestored (output : CWriteRef ctx (.bits width))
+public lemma randomCode_borrowedRestored (output : CWriteRef ctx (.bits width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (execution.HiddenState × History)) :
     (code (execution := execution) output).BorrowedRestored Reference state
-      ((code (execution := execution) output).execute Reference state) := by
+      ((code (execution := execution) output).execute environment Reference state) := by
   apply Circuit.borrowedRestored_workspace
   intro history historyFinite entered
-  exact Circuit.borrowedRestored_classical _ entered
+  exact Circuit.borrowedRestored_classical (environment := environment) _ entered
 
 end
 

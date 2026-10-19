@@ -41,7 +41,7 @@ def stateTarget {Reference : Register} (original : Execution.Input base Referenc
     original.state.referenceMarginal
 
 /-- The original normalized reference gives a normalized full positive-count target. -/
-theorem stateTarget_normalized {Reference : Register}
+lemma stateTarget_normalized {Reference : Register}
     (original : Execution.Input base Reference) :
     (stateTarget base noQuantum N original).IsNormalized :=
   BasisReference.target_normalized (R := (Retry.context base noQuantum N).register)

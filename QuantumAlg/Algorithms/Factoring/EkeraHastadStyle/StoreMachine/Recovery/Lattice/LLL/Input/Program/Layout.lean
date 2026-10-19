@@ -133,22 +133,22 @@ def initialState (refs : Refs ctx N) (store : Store ctx) : NumberTheory.LLLState
   LatticeFixedFuelMachine.initialState (sourceBasis refs store)
 
 /-- Every original source basis is full rank independently of incoming scratch values. -/
-theorem sourceBasis_fullRank (refs : Refs ctx N) (store : Store ctx) :
+lemma sourceBasis_fullRank (refs : Refs ctx N) (store : Store ctx) :
     (sourceBasis refs store).FullRank := RSA.shortLogLatticeBasis_fullRank _ _ _
 
 /-- The mathematical initial state is bounded by its own original source basis. -/
-theorem initialState_bounded (refs : Refs ctx N) (store : Store ctx) :
+lemma initialState_bounded (refs : Refs ctx N) (store : Store ctx) :
     (initialState refs store).BoundedFrom (sourceBasis refs store) :=
   NumberTheory.LLLState3.boundedFrom_initial _ (sourceBasis_fullRank refs store)
 
 /-- The original common width meets the source-dependent LLL capacity requirement. -/
-theorem initialState_capacity (refs : Refs ctx N) (store : Store ctx) :
+lemma initialState_capacity (refs : Refs ctx N) (store : Store ctx) :
     Nat.size (256 * (NumberTheory.lllStateEnvelope3 (sourceBasis refs store) + 1) ^ 8) +
       1 ≤ Width N :=
   LatticeFixedFuelInitializationMachine.sourceBasis_capacity refs.initialization store
 
 /-- The original pure source basis meets every actual first-step scalar range requirement. -/
-theorem initialState_stepFits (refs : Refs ctx N) (store : Store ctx) :
+lemma initialState_stepFits (refs : Refs ctx N) (store : Store ctx) :
     LatticeStepBounds.StepFits (Width N) (sourceBasis refs store) :=
   LatticeStepBounds.shortLog_initial_stepFits N (shortLogBits N)
     (tradeoffBits N) (sourceSamples refs store)

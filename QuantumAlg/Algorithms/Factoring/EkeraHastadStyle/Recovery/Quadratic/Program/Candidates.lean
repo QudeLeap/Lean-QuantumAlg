@@ -29,7 +29,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {width resultWidth : Nat}
 
 /-- Actual candidate initialization and checker scopes return their recorded stores and paths. -/
@@ -45,20 +46,21 @@ def candidateBodyStep (input : CInputRef ctx (.unsignedWord width))
   (checked.1, (initialized.2, checked.2))
 
 /-- The actual initialized and scoped body preserves every complete incoming matrix block. -/
-theorem nativeQuadratic_candidateBody_execute (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidateBody_execute (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (LocalLayout.candidateContext ctx width) Reference
       (model.HiddenState × History)) :
-    (candidateBody input modulus original).execute Reference state =
+    (candidateBody input modulus original).execute environment Reference state =
       state.mapClassical (fun entry => ((candidateBodyStep input modulus original entry.1).1,
         (entry.2.1, (entry.2.2, (candidateBodyStep input modulus original entry.1).2)))) := by
   have checksLaw (reference : Register) {history : Type} [Fintype history]
       (initial : State (LocalLayout.candidateContext ctx width) reference
         (model.HiddenState × history)) :
       (CheckLayout.scopes (LocalLayout.candidateContext ctx width)
-        (RSA.quadraticWordWidth width) (checkedBody modulus original)).execute reference initial =
+        (RSA.quadraticWordWidth width) (checkedBody modulus original)).execute environment
+          reference initial =
       initial.mapClassical (fun entry =>
         let actual := CheckLayout.scopeStep (RSA.quadraticWordWidth width)
           (checkedBody modulus original) (checkedBodyStep modulus original) entry.1

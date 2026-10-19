@@ -29,7 +29,7 @@ noncomputable section
 variable {width : Nat}
 
 /-- The selected generic branch's actual finite output represents the original point sum. -/
-theorem genericOutputValue_represents_add_of_selected (spec : CurveSpec width)
+lemma genericOutputValue_represents_add_of_selected (spec : CurveSpec width)
     (left right : CShape.Value (PointEquality.RawPointShape width))
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus)
     (h₁ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₁ y₁)

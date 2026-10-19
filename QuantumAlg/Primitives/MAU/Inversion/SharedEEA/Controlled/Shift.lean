@@ -33,6 +33,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ControlledShift
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NumberTheory.SharedEEA
 
 private def wordStep {width : Nat} (action : BitVec (width + 3) → BitVec (width + 3))
@@ -48,7 +50,7 @@ private def counterStep {width : Nat}
     { state with firstWord := pair.1, shift := pair.2 }
   else state
 
-private theorem exchanged_word (width : Nat) (action : BitVec (width + 3) → BitVec (width + 3))
+private lemma exchanged_word (width : Nat) (action : BitVec (width + 3) → BitVec (width + 3))
     (state : Registers width) :
     ControlPlacement.placedStep
       (fun state => if state.flags.second then
@@ -58,7 +60,7 @@ private theorem exchanged_word (width : Nat) (action : BitVec (width + 3) → Bi
     ⟨p1, p2, sign, iter⟩, control⟩
   cases control <;> rfl
 
-private theorem exchanged_counter (width : Nat)
+private lemma exchanged_counter (width : Nat)
     (action : BitVec (width + 3) × BitVec width.size →
       BitVec (width + 3) × BitVec width.size) (state : Registers width) :
     ControlPlacement.placedStep
@@ -90,40 +92,42 @@ def incrementProgram (width : Nat) :
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   ControlPlacement.place width (ExtendedClockIncrement.program width)
 
-private theorem leftWord_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (leftWordProgram width)
+private lemma leftWord_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (leftWordProgram width) environment
       (wordStep (fun word => word.rotateLeft 1)) :=
   (ControlPlacement.place_realizes width
     (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
       (Work2PhaseRotation.leftGates width)
-      (Work2PhaseRotation.left_step width))).congrStep (by
+      (Work2PhaseRotation.left_step width) environment)).congrStep (by
         intro state
         exact exchanged_word width (fun word => word.rotateLeft 1) state)
 
-private theorem rightWord_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (rightWordProgram width)
+private lemma rightWord_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (rightWordProgram width) environment
       (wordStep (fun word => word.rotateRight 1)) :=
   (ControlPlacement.place_realizes width
     (GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
       (Work2PhaseRotation.rightGates width)
-      (Work2PhaseRotation.right_step width))).congrStep (by
+      (Work2PhaseRotation.right_step width) environment)).congrStep (by
         intro state
         exact exchanged_word width (fun word => word.rotateRight 1) state)
 
-private theorem increment_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (incrementProgram width)
+private lemma increment_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (incrementProgram width) environment
       (counterStep PaddingClock.increment) :=
   (ControlPlacement.place_realizes width (ExtendedClockIncrement.program_realizes width)).congrStep
     (by
       intro state
       exact exchanged_counter width PaddingClock.increment state)
 
-private theorem decrement_realizes (width : Nat) :
+private lemma decrement_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width)
-      ((incrementProgram width).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+      ((incrementProgram width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
       (counterStep PaddingClock.decrement) := by
   apply UnitaryCircuit.Realizes.dagger_of_rightInverse (increment_realizes width)
-  · rw [UnitaryCircuit.dagger_matrix]
+  · rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]
     exact Unitary.star_eq_inv _
   · intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -168,8 +172,8 @@ def rightStep {width : Nat} (state : Registers width) : Registers width :=
   else state
 
 /-- Exact ordered left-pair action includes the complete clock and restored Work2. -/
-theorem left_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (leftProgram width) leftStep :=
+lemma left_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (leftProgram width) environment leftStep :=
   ((leftWord_realizes width).seq (increment_realizes width)).congrStep (by
     intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -177,8 +181,8 @@ theorem left_realizes (width : Nat) :
     cases control <;> rfl)
 
 /-- Exact full-register realization of the actual ordered right pair. -/
-theorem right_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (rightProgram width) rightStep :=
+lemma right_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (rightProgram width) environment rightStep :=
   ((rightWord_realizes width).seq (decrement_realizes width)).congrStep (by
     intro state
     rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -186,7 +190,7 @@ theorem right_realizes (width : Nat) :
     cases control <;> rfl)
 
 /-- The actual left trace retains both the Toffoli sweep and every native HRS event in order. -/
-theorem left_eventTrace (width : Nat) :
+lemma left_eventTrace (width : Nat) :
     (leftProgram width).eventTrace =
       (Work2PhaseRotation.leftGates width).map (GateSpec.event .empty) ++
         (ExtendedClockIncrement.program width).eventTrace := by
@@ -195,7 +199,7 @@ theorem left_eventTrace (width : Nat) :
     incrementProgram, ControlPlacement.place_eventTrace]
 
 /-- The actual right trace retains the word sweep followed by the native generated inverse. -/
-theorem right_eventTrace (width : Nat) :
+lemma right_eventTrace (width : Nat) :
     (rightProgram width).eventTrace =
       (Work2PhaseRotation.rightGates width).map (GateSpec.event .empty) ++
         ((incrementProgram width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace := by

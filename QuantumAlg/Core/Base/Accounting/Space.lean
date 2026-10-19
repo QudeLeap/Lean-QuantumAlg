@@ -53,91 +53,91 @@ def ofAxes {kind : ProblemKind} (f : SpaceAxis kind → Nat) : SpacePool kind :=
 @[expose] public def max {kind : ProblemKind} (left right : SpacePool kind) : SpacePool kind :=
   fun axis => Nat.max (left axis) (right axis)
 
-@[ext] theorem ext {kind : ProblemKind} {left right : SpacePool kind}
+@[ext] lemma ext {kind : ProblemKind} {left right : SpacePool kind}
     (equal : ∀ axis, left axis = right axis) : left = right :=
   funext equal
 
-@[simp] theorem count_zero {kind : ProblemKind} (axis : SpaceAxis kind) :
+@[simp] lemma count_zero {kind : ProblemKind} (axis : SpaceAxis kind) :
     count axis (0 : SpacePool kind) = 0 := rfl
 
-@[simp] theorem count_add {kind : ProblemKind} (axis : SpaceAxis kind)
+@[simp] lemma count_add {kind : ProblemKind} (axis : SpaceAxis kind)
     (left right : SpacePool kind) :
     count axis (left + right) = count axis left + count axis right := rfl
 
-@[simp] theorem count_ofAxes {kind : ProblemKind} (axis : SpaceAxis kind)
+@[simp] lemma count_ofAxes {kind : ProblemKind} (axis : SpaceAxis kind)
     (f : SpaceAxis kind → Nat) :
     count axis (ofAxes f) = f axis := rfl
 
 /-- Space-pool order is exactly natural-number order at every native axis. -/
-theorem le_iff_count {kind : ProblemKind} {left right : SpacePool kind} :
+lemma le_iff_count {kind : ProblemKind} {left right : SpacePool kind} :
     left ≤ right ↔ ∀ axis, count axis left ≤ count axis right :=
   Iff.rfl
 
-@[simp] theorem ofAxes_le_iff {kind : ProblemKind}
+@[simp] lemma ofAxes_le_iff {kind : ProblemKind}
     (f : SpaceAxis kind → Nat) (pool : SpacePool kind) :
     ofAxes f ≤ pool ↔ ∀ axis, f axis ≤ count axis pool :=
   Iff.rfl
 
-@[simp] theorem le_ofAxes_iff {kind : ProblemKind}
+@[simp] lemma le_ofAxes_iff {kind : ProblemKind}
     (pool : SpacePool kind) (f : SpaceAxis kind → Nat) :
     pool ≤ ofAxes f ↔ ∀ axis, count axis pool ≤ f axis :=
   Iff.rfl
 
-@[simp] theorem count_max {kind : ProblemKind} (axis : SpaceAxis kind)
+@[simp] lemma count_max {kind : ProblemKind} (axis : SpaceAxis kind)
     (left right : SpacePool kind) :
     count axis (max left right) = Nat.max (count axis left) (count axis right) := rfl
 
 /-- Either input is bounded by its pointwise maximum. -/
-theorem le_max_left {kind : ProblemKind} (left right : SpacePool kind) :
+lemma le_max_left {kind : ProblemKind} (left right : SpacePool kind) :
     left ≤ max left right :=
   fun axis => Nat.le_max_left (left axis) (right axis)
 
 /-- Either input is bounded by its pointwise maximum. -/
-theorem le_max_right {kind : ProblemKind} (left right : SpacePool kind) :
+lemma le_max_right {kind : ProblemKind} (left right : SpacePool kind) :
     right ≤ max left right :=
   fun axis => Nat.le_max_right (left axis) (right axis)
 
 /-- Pointwise maximum is the least common upper bound. -/
-theorem max_le {kind : ProblemKind} {left right upper : SpacePool kind}
+lemma max_le {kind : ProblemKind} {left right upper : SpacePool kind}
     (leftBound : left ≤ upper) (rightBound : right ≤ upper) :
     max left right ≤ upper :=
   fun axis => Nat.max_le.mpr ⟨leftBound axis, rightBound axis⟩
 
 /-- A pointwise maximum reduces to its right argument when the left pool is
 already bounded by it. -/
-theorem max_eq_right {kind : ProblemKind} {left right : SpacePool kind}
+lemma max_eq_right {kind : ProblemKind} {left right : SpacePool kind}
     (bound : left ≤ right) : max left right = right := by
   ext axis
   exact Nat.max_eq_right (bound axis)
 
 /-- A pointwise maximum reduces to its left argument when the right pool is
 already bounded by it. -/
-theorem max_eq_left {kind : ProblemKind} {left right : SpacePool kind}
+lemma max_eq_left {kind : ProblemKind} {left right : SpacePool kind}
     (bound : right ≤ left) : max left right = left := by
   ext axis
   exact Nat.max_eq_left (bound axis)
 
-@[simp] theorem max_self {kind : ProblemKind} (pool : SpacePool kind) :
+@[simp] lemma max_self {kind : ProblemKind} (pool : SpacePool kind) :
     max pool pool = pool := by
   ext axis
   simp [max]
 
-theorem max_comm {kind : ProblemKind} (left right : SpacePool kind) :
+lemma max_comm {kind : ProblemKind} (left right : SpacePool kind) :
     max left right = max right left := by
   ext axis
   exact Nat.max_comm (left axis) (right axis)
 
-theorem max_assoc {kind : ProblemKind} (first second third : SpacePool kind) :
+lemma max_assoc {kind : ProblemKind} (first second third : SpacePool kind) :
     max (max first second) third = max first (max second third) := by
   ext axis
   exact Nat.max_assoc (first axis) (second axis) (third axis)
 
-@[simp] theorem max_zero {kind : ProblemKind} (pool : SpacePool kind) :
+@[simp] lemma max_zero {kind : ProblemKind} (pool : SpacePool kind) :
     max pool 0 = pool := by
   ext axis
   simp [max]
 
-@[simp] theorem zero_max {kind : ProblemKind} (pool : SpacePool kind) :
+@[simp] lemma zero_max {kind : ProblemKind} (pool : SpacePool kind) :
     max 0 pool = pool := by
   ext axis
   simp [max]
@@ -149,41 +149,41 @@ public def ofShape {kind : ProblemKind} (shape : CShape) : SpacePool kind :=
     | .classicalBits => shape.bitWidth
     | .quantumSystems _ => 0
 
-@[simp] theorem count_classicalBits_ofShape {kind : ProblemKind} (shape : CShape) :
-    count (.classicalBits : SpaceAxis kind) (ofShape shape) = shape.bitWidth := rfl
+@[simp] public lemma count_classicalBits_ofShape {kind : ProblemKind} (shape : CShape) :
+    count (.classicalBits : SpaceAxis kind) (ofShape shape) = shape.bitWidth := by rfl
 
-@[simp] theorem count_quantumSystems_ofShape (shape : CShape) (dimension : ℕ+) :
-    count (.quantumSystems dimension) (ofShape shape : SpacePool .quantum) = 0 := rfl
+@[simp] public lemma count_quantumSystems_ofShape (shape : CShape) (dimension : ℕ+) :
+    count (.quantumSystems dimension) (ofShape shape : SpacePool .quantum) = 0 := by rfl
 
 /-- Embed classical live capacity without relabeling it as quantum storage. -/
 def liftClassical (pool : SpacePool .classical) : SpacePool .quantum
   | .classicalBits => pool .classicalBits
   | .quantumSystems _ => 0
 
-@[simp] theorem count_classicalBits_liftClassical (pool : SpacePool .classical) :
+@[simp] lemma count_classicalBits_liftClassical (pool : SpacePool .classical) :
     count .classicalBits (liftClassical pool) = count .classicalBits pool := rfl
 
-@[simp] theorem count_quantumSystems_liftClassical (pool : SpacePool .classical)
+@[simp] lemma count_quantumSystems_liftClassical (pool : SpacePool .classical)
     (dimension : ℕ+) :
     count (.quantumSystems dimension) (liftClassical pool) = 0 := rfl
 
-@[simp] theorem liftClassical_zero :
+@[simp] lemma liftClassical_zero :
     liftClassical (0 : SpacePool .classical) = 0 := by
   ext axis
   cases axis <;> simp [liftClassical]
 
-@[simp] theorem liftClassical_add (left right : SpacePool .classical) :
+@[simp] lemma liftClassical_add (left right : SpacePool .classical) :
     liftClassical (left + right) = liftClassical left + liftClassical right := by
   ext axis
   cases axis <;> rfl
 
-@[simp] theorem liftClassical_max (left right : SpacePool .classical) :
+@[simp] lemma liftClassical_max (left right : SpacePool .classical) :
     liftClassical (max left right) = max (liftClassical left) (liftClassical right) := by
   ext axis
   cases axis <;> rfl
 
 /-- Classical lifting reflects the pointwise capacity order exactly. -/
-@[simp] theorem liftClassical_le_liftClassical_iff
+@[simp] lemma liftClassical_le_liftClassical_iff
     {left right : SpacePool .classical} :
     liftClassical left ≤ liftClassical right ↔ left ≤ right := by
   constructor
@@ -202,17 +202,17 @@ public def ofQuantumLayout {systemCount : Nat}
   | .classicalBits => 0
   | .quantumSystems dimension => layout.dimensionCount dimension
 
-@[simp] public theorem count_classicalBits_ofQuantumLayout {systemCount : Nat}
+@[simp] public lemma count_classicalBits_ofQuantumLayout {systemCount : Nat}
     (layout : QuantumLayout systemCount) :
     count .classicalBits (ofQuantumLayout layout) = 0 := rfl
 
-@[simp] public theorem count_quantumSystems_ofQuantumLayout {systemCount : Nat}
+@[simp] public lemma count_quantumSystems_ofQuantumLayout {systemCount : Nat}
     (layout : QuantumLayout systemCount) (dimension : ℕ+) :
     count (.quantumSystems dimension) (ofQuantumLayout layout) =
       layout.dimensionCount dimension := rfl
 
 /-- Combining disjoint physical layouts adds every native space coordinate. -/
-@[simp] public theorem ofQuantumLayout_append {leftCount rightCount : Nat}
+@[simp] public lemma ofQuantumLayout_append {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities) :
     ofQuantumLayout (left.append right disjoint) =
@@ -225,7 +225,7 @@ public def ofQuantumLayout {systemCount : Nat}
       exact QuantumLayout.dimensionCount_append left right disjoint dimension
 
 /-- A uniform layout occupies exactly its own dimension's coordinate. -/
-public theorem count_quantumSystems_ofQuantumLayout_uniform
+public lemma count_quantumSystems_ofQuantumLayout_uniform
     (systemCount : Nat) (dimension query : ℕ+)
     (identity : Fin systemCount → Nat) (distinct : Function.Injective identity) :
     count (.quantumSystems query)
@@ -264,41 +264,41 @@ def toBits (unit : IECUnit) (amount : Nat) : Nat :=
 def decomposeBits (unit : IECUnit) (bits : Nat) : Nat × Nat :=
   (bits / unit.bitsPerUnit, bits % unit.bitsPerUnit)
 
-theorem bitsPerUnit_pos (unit : IECUnit) : 0 < unit.bitsPerUnit := by
+lemma bitsPerUnit_pos (unit : IECUnit) : 0 < unit.bitsPerUnit := by
   cases unit <;> decide
 
 /-- Decomposing a bit count for display loses no proof-level capacity. -/
-theorem decomposeBits_reconstruct (unit : IECUnit) (bits : Nat) :
+lemma decomposeBits_reconstruct (unit : IECUnit) (bits : Nat) :
     (unit.decomposeBits bits).1 * unit.bitsPerUnit +
         (unit.decomposeBits bits).2 = bits := by
   simp only [decomposeBits]
   simpa [Nat.add_comm, Nat.mul_comm] using Nat.mod_add_div bits unit.bitsPerUnit
 
-theorem decomposeBits_remainder_lt (unit : IECUnit) (bits : Nat) :
+lemma decomposeBits_remainder_lt (unit : IECUnit) (bits : Nat) :
     (unit.decomposeBits bits).2 < unit.bitsPerUnit := by
   exact Nat.mod_lt bits unit.bitsPerUnit_pos
 
-@[simp] theorem bitsPerUnit_byte : IECUnit.byte.bitsPerUnit = 8 := rfl
-@[simp] theorem bitsPerUnit_KiB : IECUnit.KiB.bitsPerUnit = 8 * 1024 := rfl
-@[simp] theorem bitsPerUnit_MiB : IECUnit.MiB.bitsPerUnit = 8 * 1024 ^ 2 := rfl
-@[simp] theorem bitsPerUnit_GiB : IECUnit.GiB.bitsPerUnit = 8 * 1024 ^ 3 := rfl
-@[simp] theorem bitsPerUnit_TiB : IECUnit.TiB.bitsPerUnit = 8 * 1024 ^ 4 := rfl
-@[simp] theorem bitsPerUnit_PiB : IECUnit.PiB.bitsPerUnit = 8 * 1024 ^ 5 := rfl
+@[simp] lemma bitsPerUnit_byte : IECUnit.byte.bitsPerUnit = 8 := rfl
+@[simp] lemma bitsPerUnit_KiB : IECUnit.KiB.bitsPerUnit = 8 * 1024 := rfl
+@[simp] lemma bitsPerUnit_MiB : IECUnit.MiB.bitsPerUnit = 8 * 1024 ^ 2 := rfl
+@[simp] lemma bitsPerUnit_GiB : IECUnit.GiB.bitsPerUnit = 8 * 1024 ^ 3 := rfl
+@[simp] lemma bitsPerUnit_TiB : IECUnit.TiB.bitsPerUnit = 8 * 1024 ^ 4 := rfl
+@[simp] lemma bitsPerUnit_PiB : IECUnit.PiB.bitsPerUnit = 8 * 1024 ^ 5 := rfl
 
 /-- One KiB is exactly 1024 bytes. -/
-theorem oneKiB_eq_1024_bytes : IECUnit.KiB.toBits 1 = IECUnit.byte.toBits 1024 := by
+lemma oneKiB_eq_1024_bytes : IECUnit.KiB.toBits 1 = IECUnit.byte.toBits 1024 := by
   decide
 
-theorem oneMiB_eq_1024_KiB : IECUnit.MiB.toBits 1 = IECUnit.KiB.toBits 1024 := by
+lemma oneMiB_eq_1024_KiB : IECUnit.MiB.toBits 1 = IECUnit.KiB.toBits 1024 := by
   decide
 
-theorem oneGiB_eq_1024_MiB : IECUnit.GiB.toBits 1 = IECUnit.MiB.toBits 1024 := by
+lemma oneGiB_eq_1024_MiB : IECUnit.GiB.toBits 1 = IECUnit.MiB.toBits 1024 := by
   decide
 
-theorem oneTiB_eq_1024_GiB : IECUnit.TiB.toBits 1 = IECUnit.GiB.toBits 1024 := by
+lemma oneTiB_eq_1024_GiB : IECUnit.TiB.toBits 1 = IECUnit.GiB.toBits 1024 := by
   decide
 
-theorem onePiB_eq_1024_TiB : IECUnit.PiB.toBits 1 = IECUnit.TiB.toBits 1024 := by
+lemma onePiB_eq_1024_TiB : IECUnit.PiB.toBits 1 = IECUnit.TiB.toBits 1024 := by
   decide
 
 end IECUnit

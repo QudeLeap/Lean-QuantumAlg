@@ -102,7 +102,7 @@ def workspaceBitCount (N m ell : Nat) : Nat :=
   12 * RSA.ShortLogWidths.coordinateWidth N m ell
 
 /-- The closed workspace shape has exactly twelve signed coordinates. -/
-theorem workspaceShape_bitWidth (N m ell : Nat) :
+lemma workspaceShape_bitWidth (N m ell : Nat) :
   CShape.bitWidth (WorkspaceShape N m ell) = workspaceBitCount N m ell := by
   simp only [WorkspaceShape, StateShape, BasisShape, PointShape,
     CShape.bitWidth_product, CShape.bitWidth_fixedVector,
@@ -268,17 +268,17 @@ def BasisRefs.input {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     (Fin.cases refs.second.input (fun _ => refs.third.input)))
 
 /-- The point interpretation is the decoder applied to its actual structural store read. -/
-theorem PointRefs.value_eq_read {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+lemma PointRefs.value_eq_read {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     (refs : PointRefs ctx width) (store : Execution.Store ctx) :
     refs.value store = decodeRawPoint (store.read refs.input) := rfl
 
 /-- The basis interpretation reads exactly the nine stored coordinates. -/
-theorem BasisRefs.value_eq_read {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+lemma BasisRefs.value_eq_read {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     (refs : BasisRefs ctx width) (store : Execution.Store ctx) :
     refs.value store = decodeRawBasis (store.read refs.input) := rfl
 
 /-- An actual write outside a point's three cells preserves its decoded value. -/
-theorem PointRefs.value_write {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma PointRefs.value_write {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {shape : CShape} (refs : PointRefs ctx width)
     (store : Execution.Store ctx) (output : CWriteRef ctx shape) (value : shape.Value)
     (separate : output.key ∉ refs.input.storageKeys) :
@@ -288,7 +288,7 @@ theorem PointRefs.value_write {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (Execution.Store.read_write_of_not_mem_storageKeys store output value refs.input separate)
 
 /-- An actual write outside a basis's nine cells preserves its decoded value. -/
-theorem BasisRefs.value_write {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma BasisRefs.value_write {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {shape : CShape} (refs : BasisRefs ctx width)
     (store : Execution.Store ctx) (output : CWriteRef ctx shape) (value : shape.Value)
     (separate : output.key ∉ refs.input.storageKeys) :

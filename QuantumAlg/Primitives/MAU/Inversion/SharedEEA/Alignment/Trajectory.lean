@@ -41,7 +41,7 @@ def position (state : IterationState) (modulus count : Nat)
   { frame state modulus count valid conserved within false iteration with
     flags := ⟨false, decide (count = state.quotient.size), false, iteration⟩ }
 
-private theorem before_eq_frame (state : IterationState) (modulus count : Nat)
+private lemma before_eq_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     position state modulus count valid conserved beforeEnd.le iteration =
@@ -51,7 +51,7 @@ private theorem before_eq_frame (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The actual native comparison controls the precise first transition into division. -/
-theorem microstep_position (state : IterationState) (modulus count : Nat)
+lemma microstep_position (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     NativeMicrostep.step modulus.size
@@ -63,7 +63,7 @@ theorem microstep_position (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The actual macro boundary supplies shift zero without preparing any quotient-dependent value. -/
-theorem initial_frame (state : IterationState) (modulus : Nat)
+lemma initial_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) (iteration : Bool) :
     MacroBoundary.frame state modulus valid conserved iteration =
       frame state modulus 0 valid conserved (Nat.zero_le _) false iteration := by
@@ -90,7 +90,7 @@ theorem initial_frame (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- Iterating the actual eight-block action from its zero-shift macro input reaches every frame. -/
-theorem iterate_position (state : IterationState) (modulus count : Nat)
+lemma iterate_position (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[count] (MacroBoundary.frame state modulus
@@ -111,7 +111,7 @@ theorem iterate_position (state : IterationState) (modulus count : Nat)
       exact microstep_position state modulus count valid conserved active (by omega) iteration
 
 /-- The last real comparison leaves exactly the complete initial frame of native division. -/
-theorem division_entry (state : IterationState) (modulus : Nat)
+lemma division_entry (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     position state modulus state.quotient.size valid conserved le_rfl iteration =
@@ -144,7 +144,7 @@ theorem division_entry (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- Complete alignment feeds the same native division trajectory on the entire original frame. -/
-theorem finish_frame (state : IterationState) (modulus : Nat)
+lemma finish_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[state.quotient.size]

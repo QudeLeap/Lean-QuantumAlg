@@ -44,7 +44,7 @@ structure Separated (first second : FirstAccepted.Inputs ctx width)
   acceptedCandidate : refs.accepted.key ∉ second.candidate.storageKeys
   selectedCandidate : refs.selected.key ∉ second.candidate.storageKeys
 
-private theorem choice_order {α : Type} (accepted firstValid secondValid : Bool)
+private lemma choice_order {α : Type} (accepted firstValid secondValid : Bool)
     (old first second : α) :
     (if (!(accepted || firstValid)) && secondValid then second
       else if (!accepted) && firstValid then first else old) =
@@ -54,7 +54,8 @@ private theorem choice_order {α : Type} (accepted firstValid secondValid : Bool
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Consume the two already checked candidates using the same actual persistent latches. -/
 def code (first second : FirstAccepted.Inputs ctx width) (refs : FirstAccepted.Refs ctx width) :
@@ -72,10 +73,11 @@ def step (first second : FirstAccepted.Inputs ctx width) (refs : FirstAccepted.R
   (final.1, (initial.2, final.2))
 
 /-- The exact two-step execution retains the original full quantum-reference blocks. -/
-theorem nativeQuadratic_selection_execute (first second : FirstAccepted.Inputs ctx width)
+lemma nativeQuadratic_selection_execute (first second : FirstAccepted.Inputs ctx width)
     (refs : FirstAccepted.Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) first second refs).execute Reference state = state.mapClassical (fun
+    (code (model := model) first second refs).execute environment
+      Reference state = state.mapClassical (fun
       entry =>
       ((step (model := model) first second refs entry.1).1, (entry.2.1, (entry.2.2, (step (model :=
         model) first second refs entry.1).2)))) := by
@@ -85,7 +87,7 @@ theorem nativeQuadratic_selection_execute (first second : FirstAccepted.Inputs c
 
 /-- Actual latches preserve earlier acceptance and otherwise implement the source's left priority.
 -/
-theorem nativeQuadratic_selection_latches (first second : FirstAccepted.Inputs ctx width)
+lemma nativeQuadratic_selection_latches (first second : FirstAccepted.Inputs ctx width)
     (refs : FirstAccepted.Refs ctx width) (separated : Separated first second refs)
     (store : Store ctx) :
     let final := (step (model := model) first second refs store).1
@@ -118,7 +120,7 @@ theorem nativeQuadratic_selection_latches (first second : FirstAccepted.Inputs c
     exact choice_order _ _ _ _ _ _
 
 /-- All other stored reads retain their complete values through both actual selector paths. -/
-theorem nativeQuadratic_selection_read_other (first second : FirstAccepted.Inputs ctx width)
+lemma nativeQuadratic_selection_read_other (first second : FirstAccepted.Inputs ctx width)
     (refs : FirstAccepted.Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (availableFree : refs.available.key ∉ other.storageKeys)
     (takeFree : refs.take.key ∉ other.storageKeys)
@@ -131,12 +133,13 @@ theorem nativeQuadratic_selection_read_other (first second : FirstAccepted.Input
       acceptedFree selectedFree store)
 
 /-- Complete borrowed classical-quantum-reference restoration follows the two actual executions. -/
-theorem nativeQuadratic_selection_borrowedRestored (first second : FirstAccepted.Inputs ctx width)
+lemma nativeQuadratic_selection_borrowedRestored (first second : FirstAccepted.Inputs ctx width)
     (refs : FirstAccepted.Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (code (model := model) first second refs).BorrowedRestored Reference state
-      ((code (model := model) first second refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq (FirstAccepted.circuit (model := model) first refs)
+      ((code (model := model) first second refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) (FirstAccepted.circuit (model := model) first refs)
     (FirstAccepted.circuit (model := model) second refs) state
     (FirstAccepted.firstAccepted_borrowedRestored (model := model) first refs Reference state)
     (FirstAccepted.firstAccepted_borrowedRestored (model := model) second refs Reference _)

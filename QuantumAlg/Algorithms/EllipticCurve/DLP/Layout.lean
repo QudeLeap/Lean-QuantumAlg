@@ -84,7 +84,7 @@ def pointCodeEncoding (E : PrimeFieldShortWeierstrass p) :
 public def pointWidth (E : PrimeFieldShortWeierstrass p) : Nat :=
   1 + 2 * fieldWidth E
 
-@[simp] theorem pointCodeEncoding_width (E : PrimeFieldShortWeierstrass p) :
+@[simp] lemma pointCodeEncoding_width (E : PrimeFieldShortWeierstrass p) :
     (pointCodeEncoding E).width = pointWidth E := by
   simp [pointCodeEncoding, pointWidth]
   omega
@@ -96,7 +96,7 @@ def pointCode (E : PrimeFieldShortWeierstrass p) (point : GroupPoint E) :
   ClassicalAlgorithms.EllipticCurve.encode (curveSpec E) point.toMathlib
 
 /-- The intrinsic point code is injective, including at the group identity. -/
-theorem pointCode_injective (E : PrimeFieldShortWeierstrass p) :
+lemma pointCode_injective (E : PrimeFieldShortWeierstrass p) :
     Function.Injective (pointCode E) := by
   intro left right encoded
   rcases left with ⟨left⟩
@@ -122,7 +122,7 @@ def pointEncoding (E : PrimeFieldShortWeierstrass p) :
     apply (pointCodeEncoding E).encode_injective
     exact Fin.ext (Fin.mk.inj encoded)
 
-@[simp] theorem pointEncoding_width (E : PrimeFieldShortWeierstrass p) :
+@[simp] lemma pointEncoding_width (E : PrimeFieldShortWeierstrass p) :
     (pointEncoding E).width = pointWidth E :=
   rfl
 
@@ -143,12 +143,12 @@ public abbrev totalQubits (I : ECDLPInstance E) : Nat :=
   FiniteCyclicDLP.orderWidth (problem I) +
     FiniteCyclicDLP.orderWidth (problem I) + pointWidth E
 
-@[simp] theorem fullEncoding_width (I : ECDLPInstance E) :
+@[simp] lemma fullEncoding_width (I : ECDLPInstance E) :
     (fullEncoding I).width = totalQubits I := by
   simp [fullEncoding, totalQubits]
 
 /-- The prime-order subgroup embeds into the intrinsic point register. -/
-theorem subgroupOrder_le_point_capacity (I : ECDLPInstance E) :
+lemma subgroupOrder_le_point_capacity (I : ECDLPInstance E) :
     I.subgroupOrder ≤ 2 ^ pointWidth E := by
   let orbit : Fin I.subgroupOrder → Fin (2 ^ pointWidth E) := fun index =>
     (pointEncoding E).encode (I.basePoint.toGroupPoint ^ index.val)
@@ -163,7 +163,7 @@ theorem subgroupOrder_le_point_capacity (I : ECDLPInstance E) :
 
 /-- The oversampled exponent width is at most four bits beyond the intrinsic
 point width. -/
-theorem orderWidth_le_pointWidth_add_four (I : ECDLPInstance E) :
+lemma orderWidth_le_pointWidth_add_four (I : ECDLPInstance E) :
     FiniteCyclicDLP.orderWidth (problem I) ≤ pointWidth E + 4 := by
   apply Nat.clog_le_of_le_pow
   change 12 * I.subgroupOrder ≤ 2 ^ (pointWidth E + 4)
@@ -174,9 +174,8 @@ theorem orderWidth_le_pointWidth_add_four (I : ECDLPInstance E) :
     _ = 2 ^ (pointWidth E + 4) := by
       simp [pow_add, Nat.mul_comm]
 
-/-- Explicit linear-in-field-width logical-qubit ceiling underlying the public
-`O(log p)` claim. -/
-theorem totalQubits_le_three_mul_pointWidth_add_eight
+/-- Explicit logical-qubit ceiling in terms of the encoded point width. -/
+lemma totalQubits_le_three_mul_pointWidth_add_eight
     (I : ECDLPInstance E) :
     totalQubits I ≤ 3 * pointWidth E + 8 := by
   unfold totalQubits
@@ -184,7 +183,7 @@ theorem totalQubits_le_three_mul_pointWidth_add_eight
   omega
 
 /-- Fully expanded coordinate-width form of the same logical-qubit ceiling. -/
-theorem totalQubits_le_eleven_add_six_mul_fieldWidth
+lemma totalQubits_le_eleven_add_six_mul_fieldWidth
     (I : ECDLPInstance E) :
     totalQubits I ≤ 11 + 6 * fieldWidth E := by
   have bound := totalQubits_le_three_mul_pointWidth_add_eight I

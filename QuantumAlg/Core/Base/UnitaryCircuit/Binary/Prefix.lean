@@ -49,7 +49,7 @@ public def onBinaryPrefix {gates : GateModel} {oracles : OracleModel} {prefixWid
   embed (binaryPrefixEmbedding prefixWidth suffixWidth) body
 
 /-- Prefix placement preserves every native event and declared-query multiplicity. -/
-public theorem unitaryCircuit_onBinaryPrefix_eventCost
+public lemma unitaryCircuit_onBinaryPrefix_eventCost
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat} (suffixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits prefixWidth).canonicalPlacement.layout) :
@@ -57,7 +57,7 @@ public theorem unitaryCircuit_onBinaryPrefix_eventCost
   rfl
 
 /-- Prefix placement retains the complete ordered native event trace. -/
-public theorem unitaryCircuit_onBinaryPrefix_eventTrace
+public lemma unitaryCircuit_onBinaryPrefix_eventTrace
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat} (suffixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits prefixWidth).canonicalPlacement.layout) :
@@ -65,7 +65,7 @@ public theorem unitaryCircuit_onBinaryPrefix_eventTrace
   rfl
 
 /-- Prefix placement preserves the complete native dependency expression. -/
-public theorem unitaryCircuit_onBinaryPrefix_eventDepth
+public lemma unitaryCircuit_onBinaryPrefix_eventDepth
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat} (suffixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits prefixWidth).canonicalPlacement.layout) :
@@ -73,7 +73,7 @@ public theorem unitaryCircuit_onBinaryPrefix_eventDepth
   rfl
 
 /-- Prefix placement preserves depth under every event-duration assignment. -/
-public theorem unitaryCircuit_onBinaryPrefix_evaluatedEventDepth
+public lemma unitaryCircuit_onBinaryPrefix_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat}
     (suffixWidth : Nat) (duration : Resource.Event (.quantum gates oracles) → Nat)
     (body : UnitaryCircuit gates oracles
@@ -83,7 +83,7 @@ public theorem unitaryCircuit_onBinaryPrefix_evaluatedEventDepth
   rfl
 
 /-- Prefix placement preserves the deepest chain of each selected event. -/
-public theorem unitaryCircuit_onBinaryPrefix_eventQueryDepth
+public lemma unitaryCircuit_onBinaryPrefix_eventQueryDepth
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat}
     (suffixWidth : Nat) (focus : Resource.Event (.quantum gates oracles))
     (body : UnitaryCircuit gates oracles
@@ -93,7 +93,7 @@ public theorem unitaryCircuit_onBinaryPrefix_eventQueryDepth
   rfl
 
 /-- Prefix placement preserves the linearized dependency resource pool. -/
-public theorem unitaryCircuit_onBinaryPrefix_resourcesFromEventDepth
+public lemma unitaryCircuit_onBinaryPrefix_resourcesFromEventDepth
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat} (suffixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits prefixWidth).canonicalPlacement.layout) :
@@ -102,7 +102,7 @@ public theorem unitaryCircuit_onBinaryPrefix_resourcesFromEventDepth
   rfl
 
 /-- The suffix introduces no dependency step into the original executed word. -/
-public theorem unitaryCircuit_onBinaryPrefix_unit_depth
+public lemma unitaryCircuit_onBinaryPrefix_unit_depth
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat} (suffixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits prefixWidth).canonicalPlacement.layout) :
@@ -112,7 +112,7 @@ public theorem unitaryCircuit_onBinaryPrefix_unit_depth
 
 
 /-- Descriptive source occurrences remain attached to the same placed native word. -/
-public theorem unitaryCircuit_onBinaryPrefix_macroCount
+public lemma unitaryCircuit_onBinaryPrefix_macroCount
     {gates : GateModel} {oracles : OracleModel} {prefixWidth : Nat} (suffixWidth : Nat)
     (name : String)
     (body : UnitaryCircuit gates oracles

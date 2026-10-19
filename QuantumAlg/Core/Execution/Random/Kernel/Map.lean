@@ -24,7 +24,7 @@ namespace QuantumAlg.Execution
 noncomputable section
 
 /-- Applying a kernel after grouping records equals grouping the correspondingly sampled records. -/
-private theorem kernelChoice_mapClassical_proof {C D Outcome : Type}
+private lemma kernelChoice_mapClassical_proof {C D Outcome : Type}
     [Fintype C] [Fintype D] [Fintype Outcome] [DecidableEq D] [DecidableEq (D × Outcome)]
     {R : Register} (state : ExecutionState C R) (update : C → D)
     (transition : D → PMF Outcome) :
@@ -44,7 +44,7 @@ private theorem kernelChoice_mapClassical_proof {C D Outcome : Type}
   · simp [selected]
 
 /-- Grouping and sampling commute for the chosen finite equality-decision implementations. -/
-public theorem kernelChoice_mapClassical {C D Outcome : Type}
+public lemma kernelChoice_mapClassical {C D Outcome : Type}
     [Fintype C] [Fintype D] [Fintype Outcome]
     {beforeMap : DecidableEq D} {afterMap : DecidableEq (D × Outcome)}
     {R : Register} (state : ExecutionState C R) (update : C → D)

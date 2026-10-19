@@ -28,8 +28,29 @@ noncomputable section
 open Execution FiniteCyclicDLP Canonical.Probability
 open ClassicalRoutines.EllipticCurve ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
+private lemma packOption_wordOfNat_iff (width value : Nat)
+    (flag : CShape.Value .bit) (selected : CShape.Value (.unsignedWord width))
+    (sound : flag.toBool = true → selected.toNat = value) :
+    CShape.packOption (.product flag selected) =
+        .optionSome (CShape.wordOfNat width value) ↔ flag.toBool = true := by
+  cases flag with
+  | bit flag =>
+      cases flag
+      · rw [CShape.packOption_false]
+        constructor <;> intro impossible <;> cases impossible
+      · have word : selected = CShape.wordOfNat width value := by
+          cases selected with
+          | unsignedWord selected =>
+              apply congrArg CShape.Value.unsignedWord
+              apply Fin.ext
+              change selected.val = value % 2 ^ width
+              have decoded : selected.val = value := sound rfl
+              rw [← decoded, Nat.mod_eq_of_lt selected.isLt]
+        rw [CShape.packOption_true, word]
+        exact iff_of_true rfl rfl
+
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    {model : ExecutionModel} [BitWord.Selected model]
+    {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {count : Nat}
 
 variable (problem : KnownOrderProblem E.GroupPoint) (nontrivial : 2 ≤ problem.order)
@@ -46,23 +67,27 @@ variable (problem : KnownOrderProblem E.GroupPoint) (nontrivial : 2 ≤ problem.
 include baseRep targetRep
 
 /-- Actual accepted selection is the original secret, with its range derived inside the loop. -/
-theorem repeatedRecovery_selected_secret
-    (accepted : ((repeatedAttemptsStore (Canonical.Layout.curveSpec E)
+lemma repeatedRecovery_selected_secret
+    (accepted : ((repeatedAttemptsStore (environment := environment)
+      (Canonical.Layout.curveSpec E)
       (recoveryModulusSpec problem nontrivial) samples base target
       (persistentInitialStore (Canonical.Layout.fieldWidth E) (orderWidth problem)
         before, hidden)).read
         (.storage (persistentAccepted ctx (Canonical.Layout.fieldWidth E)
           (orderWidth problem)).toCStorageRef)).toBool = true) :
-    ((repeatedAttemptsStore (Canonical.Layout.curveSpec E)
+    ((repeatedAttemptsStore (environment := environment)
+      (Canonical.Layout.curveSpec E)
       (recoveryModulusSpec problem nontrivial) samples base target
       (persistentInitialStore (Canonical.Layout.fieldWidth E) (orderWidth problem)
         before, hidden)).read
         (.storage (persistentSelected ctx (Canonical.Layout.fieldWidth E)
           (orderWidth problem)).toCStorageRef)).toNat = input.secret.val := by
-  have bounded := repeatedAttemptsStore_initial_selected_lt (Canonical.Layout.curveSpec E)
+  have bounded := repeatedAttemptsStore_initial_selected_lt (environment := environment)
+      (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) samples base target before hidden
   apply (bounded_groupScalar_eq_target_iff problem input _ bounded).mp
-  apply repeatedAttemptsStore_preserves_soundness (Canonical.Layout.curveSpec E)
+  apply repeatedAttemptsStore_preserves_soundness (environment := environment)
+      (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) samples base target
     (persistentInitialStore (Canonical.Layout.fieldWidth E) (orderWidth problem) before, hidden)
     problem.generator.toMathlib problem.target.toMathlib
@@ -81,8 +106,9 @@ theorem repeatedRecovery_selected_secret
   · exact accepted
 
 /-- The real final pack returns the secret exactly when an original sample passes checking. -/
-theorem packedRecovery_secret_iff :
-    let after := repeatedAttemptsStore (Canonical.Layout.curveSpec E)
+lemma packedRecovery_secret_iff :
+    let after := repeatedAttemptsStore (environment := environment)
+      (Canonical.Layout.curveSpec E)
       (recoveryModulusSpec problem nontrivial) samples base target
       (persistentInitialStore (Canonical.Layout.fieldWidth E) (orderWidth problem) before, hidden)
     (packBatchResultStep ctx (Canonical.Layout.fieldWidth E) (orderWidth problem) after).1.read
@@ -91,53 +117,21 @@ theorem packedRecovery_secret_iff :
       ∃ index, SampleAccepted (Canonical.Layout.curveSpec E)
         (recoveryModulusSpec problem nontrivial) problem.generator.toMathlib
         problem.target.toMathlib (before.read (samples index)) := by
-  let after := repeatedAttemptsStore (Canonical.Layout.curveSpec E)
+  let after := repeatedAttemptsStore (environment := environment)
+      (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) samples base target
     (persistentInitialStore (Canonical.Layout.fieldWidth E) (orderWidth problem) before, hidden)
-  have eligible := repeatedAttemptsStore_initial_accepts_iff (Canonical.Layout.curveSpec E)
+  have eligible := repeatedAttemptsStore_initial_accepts_iff (environment := environment)
+      (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) samples base target before hidden
     problem.generator.toMathlib problem.target.toMathlib baseRep targetRep
   change (packBatchResultStep ctx (Canonical.Layout.fieldWidth E) (orderWidth problem) after).1.read
     (batchResultRead ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)) = _ ↔ _
   rw [packBatchResultStep_output]
-  cases flagValue : after.read (.storage (persistentAccepted ctx (Canonical.Layout.fieldWidth E)
-    (orderWidth problem)).toCStorageRef) with
-  | bit flag =>
-      cases flag
-      · rw [CShape.packOption_false]
-        constructor
-        · intro impossible
-          cases impossible
-        · intro someEligible
-          have accepted := eligible.mpr someEligible
-          change (after.read (.storage (persistentAccepted ctx (Canonical.Layout.fieldWidth E)
-            (orderWidth problem)).toCStorageRef)).toBool = true at accepted
-          rw [flagValue] at accepted
-          cases accepted
-      · have accepted : (after.read (.storage
-            (persistentAccepted ctx (Canonical.Layout.fieldWidth E)
-              (orderWidth problem)).toCStorageRef)).toBool = true := by rw [flagValue]; rfl
-        have decoded := repeatedRecovery_selected_secret problem nontrivial input samples
-          base target before hidden baseRep targetRep accepted
-        have secretFits : input.secret.val < 2 ^ orderWidth problem :=
-          lt_of_lt_of_le (residueIndex problem input.secret).isLt (order_le_fourierModulus problem)
-        have word : after.read (.storage (persistentSelected ctx (Canonical.Layout.fieldWidth E)
-            (orderWidth problem)).toCStorageRef) =
-            CShape.wordOfNat (orderWidth problem) input.secret.val := by
-          cases selectedValue : after.read (.storage
-            (persistentSelected ctx (Canonical.Layout.fieldWidth E)
-              (orderWidth problem)).toCStorageRef) with
-          | unsignedWord value =>
-              apply congrArg CShape.Value.unsignedWord
-              apply Fin.ext
-              change value.val = input.secret.val % 2 ^ orderWidth problem
-              rw [Nat.mod_eq_of_lt secretFits]
-              change (after.read (.storage (persistentSelected ctx (Canonical.Layout.fieldWidth E)
-                (orderWidth problem)).toCStorageRef)).toNat = input.secret.val at decoded
-              rw [selectedValue] at decoded
-              exact decoded
-        rw [CShape.packOption_true, word]
-        exact iff_of_true rfl (eligible.mp accepted)
+  apply (packOption_wordOfNat_iff (orderWidth problem) input.secret.val _ _ ?_).trans eligible
+  intro accepted
+  exact repeatedRecovery_selected_secret problem nontrivial input samples
+    base target before hidden baseRep targetRep accepted
 
 end
 

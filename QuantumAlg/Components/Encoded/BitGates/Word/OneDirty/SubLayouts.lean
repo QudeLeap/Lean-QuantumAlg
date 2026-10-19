@@ -45,12 +45,12 @@ private def secondWorkIndex (large : 3 ≤ controls)
     (index : Fin (secondWidth controls - 1)) : Fin (firstWidth controls) :=
   ⟨index.val, lt_of_lt_of_le index.isLt (balanced_widths large).2.2.2⟩
 
-private theorem firstWorkIndex_injective (large : 3 ≤ controls) :
+private lemma firstWorkIndex_injective (large : 3 ≤ controls) :
     Function.Injective (firstWorkIndex large) := by
   intro left right same
   exact Fin.ext (congrArg (fun index : Fin (secondWidth controls) => index.val) same)
 
-private theorem secondWorkIndex_injective (large : 3 ≤ controls) :
+private lemma secondWorkIndex_injective (large : 3 ≤ controls) :
     Function.Injective (secondWorkIndex large) := by
   intro left right same
   exact Fin.ext (congrArg (fun index : Fin (firstWidth controls) => index.val) same)
@@ -74,7 +74,7 @@ def firstSubLayout (large : 3 ≤ controls) :
 def secondControl : Fin (secondWidth controls + 1) → EncodedBit encoding :=
   Fin.cases layout.work layout.secondBit
 
-private theorem secondControl_injective :
+private lemma secondControl_injective :
     Function.Injective (fun index => (layout.secondControl index).wire) := by
   intro left right
   refine Fin.cases ?_ (fun left => ?_) left
@@ -89,13 +89,13 @@ private theorem secondControl_injective :
     · intro same
       exact congrArg Fin.succ (layout.secondBit_injective same)
 
-private theorem secondControl_output_ne (index : Fin (secondWidth controls + 1)) :
+private lemma secondControl_output_ne (index : Fin (secondWidth controls + 1)) :
     (layout.secondControl index).wire ≠ layout.output.wire := by
   refine Fin.cases ?_ (fun index => ?_) index
   · exact layout.work_output_ne
   · exact layout.source_output_ne (secondIndex index)
 
-private theorem secondControl_firstBit_ne (index : Fin (secondWidth controls + 1))
+private lemma secondControl_firstBit_ne (index : Fin (secondWidth controls + 1))
     (first : Fin (firstWidth controls)) :
     (layout.secondControl index).wire ≠ (layout.firstBit first).wire := by
   refine Fin.cases ?_ (fun index => ?_) index
@@ -118,7 +118,7 @@ def secondSubLayout (large : 3 ≤ controls) :
   work_output_ne index := layout.source_output_ne (firstIndex (secondWorkIndex large index))
 
 /-- The first sublayout tests exactly the original larger group. -/
-theorem firstSubLayout_source_all (large : 3 ≤ controls) (state : Data) :
+lemma firstSubLayout_source_all (large : 3 ≤ controls) (state : Data) :
     (∀ index, ((layout.firstSubLayout large).source.bit index).get state = true) ↔
       ∀ index, (layout.firstBit index).get state = true := by
   constructor
@@ -131,7 +131,7 @@ theorem firstSubLayout_source_all (large : 3 ≤ controls) (state : Data) :
     exact allBits (firstSourceEquiv large index)
 
 /-- The second sublayout tests the smaller group and the current actual dirty bit. -/
-theorem secondSubLayout_source_all (large : 3 ≤ controls) (state : Data) :
+lemma secondSubLayout_source_all (large : 3 ≤ controls) (state : Data) :
     (∀ index, ((layout.secondSubLayout large).source.bit index).get state = true) ↔
       (∀ index, (layout.secondBit index).get state = true) ∧ layout.work.get state = true := by
   have allControls :

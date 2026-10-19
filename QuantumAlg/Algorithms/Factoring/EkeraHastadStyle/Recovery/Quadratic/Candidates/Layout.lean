@@ -111,11 +111,11 @@ def internalKeys (ctx : RuntimeCtx kind) (width : Nat) : List StorageKey :=
   [(second ctx width).key, (first ctx width).key, (root ctx width).key, (center ctx width).key]
 
 /-- The actual context contains precisely these four fresh words and the old entries. -/
-theorem nativeQuadratic_layout_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_layout_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).keys = internalKeys ctx width ++ ctx.keys := rfl
 
 /-- Actual runtime key uniqueness proves that every candidate word is distinct. -/
-theorem nativeQuadratic_layout_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_layout_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     (internalKeys ctx width).Nodup := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -123,7 +123,7 @@ theorem nativeQuadratic_layout_nodup (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).1
 
 /-- No original source or selector cell overlaps any actual candidate workspace. -/
-theorem nativeQuadratic_layout_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_layout_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint (internalKeys ctx width) ctx.keys := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -133,7 +133,7 @@ theorem nativeQuadratic_layout_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).2.2 key internal key external rfl
 
 /-- All four allocations are classical and retain the caller's exact quantum bank. -/
-theorem nativeQuadratic_layout_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_layout_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 /-- The real four-word scope encloses candidate calculation and both actual divisor checks. -/

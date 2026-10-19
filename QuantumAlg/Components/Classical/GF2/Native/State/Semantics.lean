@@ -28,21 +28,22 @@ open Execution ClassicalWorkspace
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Real lexical allocation and release wrap the same actual full-state recovery record. -/
-theorem gf2WithState_actualRecord
+lemma gf2WithState_actualRecord
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) :
     ∃ record : Store ctx × model.HiddenState →
         (Store ctx × model.HiddenState) × (withState input output).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withState (model := model) input output).execute Reference state =
+        (withState (model := model) input output).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  apply ClassicalWorkspace.withCellsFrom_hasRecord (Transport.id ctx)
+  apply ClassicalWorkspace.withCellsFrom_hasRecord environment (Transport.id ctx)
     (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
   intro inner cells _distinct transport _separated

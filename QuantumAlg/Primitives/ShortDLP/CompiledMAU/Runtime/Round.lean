@@ -10,7 +10,7 @@ public import QuantumAlg.Core.Base.Model
 public import QuantumAlg.Components.GateModel.Algorithm
 public import QuantumAlg.Components.Classical.Model.BitWord
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Placement
-import all QuantumAlg.Primitives.ZReset.Bank.Scope
+import all QuantumAlg.Primitives.ZReset.Bank.Parallel.Program
 import all QuantumAlg.Core.Execution.Measurement.Sequence
 import all QuantumAlg.Core.Algorithm.ClassicalOp.Finite.Bits
 import all QuantumAlg.Components.Classical.Model.BitWord.Execution
@@ -25,7 +25,7 @@ writes their bits to an existing result cell. Scoped reset then measures and
 corrects the same whole bank, and the literal X reload restores its source seed.
 
 The round neither prepares quantum systems nor retains new result cells.
-Only the reset's real one-bit lexical scratch is temporary. Its complete Output
+Only the reset's one classical result cell per physical bank wire is temporary. Its complete Output
 retains the bank, parameter, measurement cells and packed result. Repetition
 must provide distinct parameter/result storage and record each packed outcome
 through actual classical instructions before the next round overwrites it.
@@ -50,7 +50,7 @@ def measuredWire (index : Fin (resultBits m ell width)) : Fin ctx.systemCount :=
     ((ShortDLP.measurement (registerParameters m ell width)).logical_idx index)
 
 /-- Each measured position is the same actual dimension-two source wire. -/
-theorem shortDLP_runtimeMeasuredWire_dimension (index : Fin (resultBits m ell width)) :
+lemma shortDLP_runtimeMeasuredWire_dimension (index : Fin (resultBits m ell width)) :
     (ctx.quantumLayout.wire (measuredWire m ell width sameWires index)).dimension = 2 :=
   RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires _
 
@@ -83,7 +83,7 @@ def selected {shape : CShape} (parameter : CInputRef ctx shape) (N : Nat)
 
 /-- Reset and actual X reload return the same bank to its original source seed. -/
 def resetReload (N : Nat) : Circuit model ctx ctx :=
-  .seq (ZReset.BankScope.code
+  .seq (ZReset.BankParallel.code
     (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) BitWord.model)
     (.unitary (RuntimePlacement.reloadProgram m ell width sameWires N))
 
@@ -107,13 +107,13 @@ def run {shape : CShape} (parameter : CInputRef ctx shape) (N : Nat)
   output := Output.all ctx (.read (.storage result.toCStorageRef))
 
 /-- The constructed Z list has exactly the original source measurement width. -/
-theorem shortDLP_runtimeReadouts_length
+lemma shortDLP_runtimeReadouts_length
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2)) :
     (readouts m ell width sameWires cells).length = resultBits m ell width :=
   List.length_ofFn
 
 /-- Every actual Z instruction uses the dimension-two native coordinate. -/
-theorem shortDLP_runtimeReadouts_qubits
+lemma shortDLP_runtimeReadouts_qubits
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (item : ZReadout ctx) (present : item ∈ readouts m ell width sameWires cells) :
     (ctx.quantumLayout.wire item.wire).dimension = 2 := by
@@ -121,7 +121,7 @@ theorem shortDLP_runtimeReadouts_qubits
   exact shortDLP_runtimeMeasuredWire_dimension m ell width sameWires index
 
 /-- Complete output preserves the same live keys after the real round and scratch scope. -/
-theorem shortDLP_runtimeRound_output_listing {shape : CShape} (parameter : CInputRef ctx shape)
+lemma shortDLP_runtimeRound_output_listing {shape : CShape} (parameter : CInputRef ctx shape)
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width))) :

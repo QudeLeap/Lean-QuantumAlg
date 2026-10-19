@@ -32,7 +32,7 @@ structure OperandsSeparated (inputs : Operands ctx width) : Prop where
   remainderSecond : inputs.remainder.key ∉ inputs.second.storageKeys
 
 /-- The first actual check preserves every lifted old read outside the reused remainder cell. -/
-theorem nativeQuadratic_first_check_read_original (inputs : Operands ctx width)
+lemma nativeQuadratic_first_check_read_original (inputs : Operands ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (remainderFree : inputs.remainder.key ∉ other.storageKeys)
     (store : Store (context ctx width)) :
@@ -51,7 +51,7 @@ theorem nativeQuadratic_first_check_read_original (inputs : Operands ctx width)
       (by simp [internalKeys])) store
 
 /-- The second actual check preserves the same original reads while writing its own result bit. -/
-theorem nativeQuadratic_second_check_read_original (inputs : Operands ctx width)
+lemma nativeQuadratic_second_check_read_original (inputs : Operands ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (remainderFree : inputs.remainder.key ∉ other.storageKeys)
     (store : Store (context ctx width)) :
@@ -70,7 +70,7 @@ theorem nativeQuadratic_second_check_read_original (inputs : Operands ctx width)
       (by simp [internalKeys])) store
 
 /-- Both checks preserve the full value of every original read outside the remainder destination. -/
-theorem nativeQuadratic_checks_read_original (inputs : Operands ctx width)
+lemma nativeQuadratic_checks_read_original (inputs : Operands ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (remainderFree : inputs.remainder.key ∉ other.storageKeys)
     (store : Store (context ctx width)) :
@@ -80,7 +80,7 @@ theorem nativeQuadratic_checks_read_original (inputs : Operands ctx width)
     (Check.storeStep (pairRefs inputs).first store)).trans
     (nativeQuadratic_first_check_read_original inputs other remainderFree store)
 
-private theorem divides_zero (ctx : RuntimeCtx kind) (width : Nat) :
+private lemma divides_zero (ctx : RuntimeCtx kind) (width : Nat) :
     (divides ctx width).key ≠ (zero ctx width).key := by
   have unique := nativeQuadratic_checkLayout_nodup ctx width
   simp only [internalKeys, List.nodup_cons, List.mem_cons, List.not_mem_nil,
@@ -88,7 +88,7 @@ private theorem divides_zero (ctx : RuntimeCtx kind) (width : Nat) :
   exact unique.2.2.1.2
 
 /-- The first complete check retains the real zero operand consumed again by the second check. -/
-theorem nativeQuadratic_first_check_read_zero (inputs : Operands ctx width)
+lemma nativeQuadratic_first_check_read_zero (inputs : Operands ctx width)
     (store : Store (context ctx width)) :
     (Check.storeStep (pairRefs inputs).first store).read
         (.storage (zero ctx width).toCStorageRef) =
@@ -100,7 +100,7 @@ theorem nativeQuadratic_first_check_read_zero (inputs : Operands ctx width)
     (fun present => divides_zero ctx width (List.mem_singleton.mp present)) store
 
 /-- The second complete check preserves the first actual validity bit. -/
-theorem nativeQuadratic_second_check_read_first (inputs : Operands ctx width)
+lemma nativeQuadratic_second_check_read_first (inputs : Operands ctx width)
     (store : Store (context ctx width)) :
     (Check.storeStep (pairRefs inputs).second store).read
         (.storage (firstValid ctx width).toCStorageRef) =
@@ -115,7 +115,7 @@ theorem nativeQuadratic_second_check_read_first (inputs : Operands ctx width)
     (fun present => separate.dividesValid (List.mem_singleton.mp present)) store
 
 /-- Both stored validity bits equal their original strict-range and natural-remainder tests. -/
-theorem nativeQuadratic_checks_values (inputs : Operands ctx width)
+lemma nativeQuadratic_checks_values (inputs : Operands ctx width)
     (separate : OperandsSeparated inputs) (store : Store (context ctx width))
     (oneValue : (store.read (underRead inputs.one width)).toNat = 1)
     (zeroValue : (store.read (.storage (zero ctx width).toCStorageRef)).toNat = 0) :

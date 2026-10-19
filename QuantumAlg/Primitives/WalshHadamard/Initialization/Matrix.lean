@@ -30,7 +30,7 @@ namespace QuantumAlg.WalshHadamard.Native
 
 noncomputable section
 
-private theorem zero_tensor (width : Nat) :
+private lemma zero_tensor (width : Nat) :
     (NormalizedVector.ket (R := Qubits width) 0).tensor
       (NormalizedVector.ket (R := Qubits 1) 0) =
         NormalizedVector.ket (R := Qubits (width + 1)) 0 := by
@@ -38,14 +38,16 @@ private theorem zero_tensor (width : Nat) :
   congr 1
 
 /-- The actual final-wire X implements exactly identity tensor X, with no phase loss. -/
-theorem walshNative_targetFlip_binaryMatrix (oracles : OracleModel) (width : Nat) :
-    (targetFlip oracles width).binaryMatrix =
+lemma walshNative_targetFlip_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((targetFlip oracles width).binaryMatrix environment) =
       (1 : UnitaryOperator (Qubits width)).tensor Gate.XOp := by
-  exact Gate.singleQubitAt_last_binaryMatrix oracles width Gate.XOp
+  exact Gate.singleQubitAt_last_binaryMatrix oracles width Gate.XOp environment
 
 /-- One actual native X prepares the required target from the fixed zero input. -/
-theorem walshNative_targetFlip_apply_zero (oracles : OracleModel) (width : Nat) :
-    (targetFlip oracles width).binaryMatrix.apply
+lemma walshNative_targetFlip_apply_zero (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((targetFlip oracles width).binaryMatrix environment).apply
       (NormalizedVector.ket (R := Qubits (width + 1)) 0) = input width := by
   rw [walshNative_targetFlip_binaryMatrix, ← zero_tensor, UnitaryOperator.tensor_apply_tensor]
   have first : (1 : UnitaryOperator (Qubits width)).apply
@@ -64,17 +66,19 @@ theorem walshNative_targetFlip_apply_zero (oracles : OracleModel) (width : Nat) 
   rfl
 
 /-- The actual word after zero preparation yields the original complete Walsh final state. -/
-theorem walshNative_zeroInputProgram_apply_zero {width : Nat}
+lemma walshNative_zeroInputProgram_apply_zero {width : Nat}
     (function : Fin (2 ^ width) → Bool) :
-    (zeroInputProgram function).binaryMatrix.apply
+    ((zeroInputProgram width).binaryMatrix (XorOracle.interpretation function)).apply
       (NormalizedVector.ket (R := Qubits (width + 1)) 0) = finalJointState function := by
   rw [zeroInputProgram, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq]
   have composed :
-      ((queryPipeline function).binaryMatrix *
-        (targetFlip (XorOracle.model function) width).binaryMatrix).apply
+      (((queryPipeline width).binaryMatrix (XorOracle.interpretation function)) *
+        ((targetFlip (XorOracle.model width) width).binaryMatrix
+          (XorOracle.interpretation function))).apply
           (NormalizedVector.ket (R := Qubits (width + 1)) 0) =
-        (queryPipeline function).binaryMatrix.apply
-          ((targetFlip (XorOracle.model function) width).binaryMatrix.apply
+        ((queryPipeline width).binaryMatrix (XorOracle.interpretation function)).apply
+          (((targetFlip (XorOracle.model width) width).binaryMatrix
+            (XorOracle.interpretation function)).apply
             (NormalizedVector.ket (R := Qubits (width + 1)) 0)) := by
     apply NormalizedVector.ext
     intro index

@@ -26,7 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual sign write followed by the branch that reads that same cell. -/
@@ -46,11 +47,11 @@ def normalizationStep (raw : CInputRef ctx (.unsignedWord width))
   (magnitude.1, (signPath (model := model) raw negative store, magnitude.2))
 
 /-- The full normalization interpreter follows its actual sign result on every input block. -/
-theorem normalizeMagnitude_execute (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_execute (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (normalizeMagnitude (model := model) raw negative work).execute Reference state =
+    (normalizeMagnitude (model := model) raw negative work).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := normalizationStep (model := model) raw negative work entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -60,7 +61,7 @@ theorem normalizeMagnitude_execute (raw : CInputRef ctx (.unsignedWord width))
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual sign-producing prefix discharges the selected arm's sign requirement. -/
-theorem normalizeMagnitude_correct (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_correct (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) (rawAvoidsFlag : negative.key ∉ raw.storageKeys) :
     (((normalizationStep (model := model) raw negative work store).1).read (writeInput
@@ -72,7 +73,7 @@ theorem normalizeMagnitude_correct (raw : CInputRef ctx (.unsignedWord width))
   simpa only [normalizationStep, rawFrame] using selected
 
 /-- The magnitude update keeps the already written sign for the following division stages. -/
-theorem normalizeMagnitude_sign (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_sign (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) (separate : work.key ≠ negative.key) :
     (((normalizationStep (model := model) raw negative work store).1).read (writeInput
@@ -86,7 +87,7 @@ theorem normalizeMagnitude_sign (raw : CInputRef ctx (.unsignedWord width))
   rw [frame, rawWord_classifySign_correct]
 
 /-- Normalization preserves every read outside its two actual output cells. -/
-theorem normalizeMagnitude_callerFrame (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_callerFrame (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoidsFlag : negative.key ∉ other.storageKeys)
@@ -98,35 +99,37 @@ theorem normalizeMagnitude_callerFrame (raw : CInputRef ctx (.unsignedWord width
       (classifySign_callerFrame raw negative store other avoidsFlag)
 
 /-- Every chosen magnitude arm restores the complete borrowed interface. -/
-theorem selectMagnitude_borrowedRestored (raw : CInputRef ctx (.unsignedWord width))
+lemma selectMagnitude_borrowedRestored (raw : CInputRef ctx (.unsignedWord width))
     (negative : CInputRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (selectMagnitude (model := model) raw negative work).BorrowedRestored Reference state
-      ((selectMagnitude (model := model) raw negative work).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch
+      ((selectMagnitude (model := model) raw negative work).execute environment
+        Reference state) := by
+  apply Circuit.borrowedRestored_branch (environment := environment)
   intro value _history _ current
   cases value with
   | bit flag =>
       cases flag
-      · exact Circuit.borrowedRestored_classical _ current
-      · exact Circuit.borrowedRestored_seq _ _ current
-          (Circuit.borrowedRestored_classical _ current)
-          (Circuit.borrowedRestored_classical _ _)
+      · exact Circuit.borrowedRestored_classical (environment := environment) _ current
+      · exact Circuit.borrowedRestored_seq (environment := environment) _ _ current
+          (Circuit.borrowedRestored_classical (environment := environment) _ current)
+          (Circuit.borrowedRestored_classical (environment := environment) _ _)
 
 /-- Sign classification and selected magnitude jointly restore every borrowed correlation. -/
-theorem normalizeMagnitude_borrowedRestored (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_borrowedRestored (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (normalizeMagnitude (model := model) raw negative work).BorrowedRestored Reference state
-      ((normalizeMagnitude (model := model) raw negative work).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((normalizeMagnitude (model := model) raw negative work).execute environment
+        Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (classifySign_borrowedRestored raw negative Reference state)
     (selectMagnitude_borrowedRestored raw (writeInput negative) work Reference _)
 
 /-- Actual normalization records the sign instruction and only its selected magnitude arm. -/
-theorem normalizeMagnitude_events (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_events (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (normalizeMagnitude (model := model) raw negative work).Path) :
     (normalizeMagnitude (model := model) raw negative work).eventTrace path =
@@ -137,7 +140,7 @@ theorem normalizeMagnitude_events (raw : CInputRef ctx (.unsignedWord width))
   rw [classifySign_events, selectMagnitude_events]
 
 /-- The path produced from an actual store records that store's computed sign. -/
-theorem normalizeMagnitude_actualEvents (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_actualEvents (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (normalizeMagnitude (model := model) raw negative work).eventTrace
@@ -150,7 +153,7 @@ theorem normalizeMagnitude_actualEvents (raw : CInputRef ctx (.unsignedWord widt
   rw [rawWord_classifySign_correct]
 
 /-- Unit native durations retain the dependence from sign write to selected arithmetic. -/
-theorem normalizeMagnitude_depth_le (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_depth_le (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (normalizeMagnitude (model := model) raw negative work).Path) :
     (normalizeMagnitude (model := model) raw negative work).depth (fun _ => 1) path ≤ 3 := by
@@ -161,7 +164,7 @@ theorem normalizeMagnitude_depth_le (raw : CInputRef ctx (.unsignedWord width))
       all_goals first | exact (by decide : 2 ≤ 3) | exact (by decide : 3 ≤ 3)
 
 /-- The complete real normalization uses at most three native classical instructions. -/
-theorem normalizeMagnitude_eventCount_le (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_eventCount_le (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (normalizeMagnitude (model := model) raw negative work).Path) :
     ((normalizeMagnitude (model := model) raw negative work).eventTrace path).length ≤ 3 := by
@@ -171,7 +174,7 @@ theorem normalizeMagnitude_eventCount_le (raw : CInputRef ctx (.unsignedWord wid
   split <;> simp only [List.length_cons, List.length_nil] <;> decide
 
 /-- The real control flow visits only the original live context. -/
-theorem normalizeMagnitude_visited (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_visited (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (normalizeMagnitude (model := model) raw negative work).Path) :
     (normalizeMagnitude (model := model) raw negative work).visitedContexts path =
@@ -181,7 +184,7 @@ theorem normalizeMagnitude_visited (raw : CInputRef ctx (.unsignedWord width))
   | bit flag => cases width <;> cases flag <;> rfl
 
 /-- Resident space includes both output cells and every pre-existing quantum dimension. -/
-theorem normalizeMagnitude_resident_le (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_resident_le (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (normalizeMagnitude (model := model) raw negative work).Path) :
     (normalizeMagnitude (model := model) raw negative work).peakResidentSpace path ≤
@@ -193,7 +196,7 @@ theorem normalizeMagnitude_resident_le (raw : CInputRef ctx (.unsignedWord width
   all_goals subst visited; exact le_rfl
 
 /-- Auxiliary space uses exactly the already supplied roles, with no extra temporary cell. -/
-theorem normalizeMagnitude_auxiliary_le (raw : CInputRef ctx (.unsignedWord width))
+lemma normalizeMagnitude_auxiliary_le (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (normalizeMagnitude (model := model) raw negative work).Path) :
     (normalizeMagnitude (model := model) raw negative work).peakAuxiliarySpace path ≤

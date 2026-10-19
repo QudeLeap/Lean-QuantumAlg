@@ -30,7 +30,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA AlignmentPhaseFrame
 
-private theorem word_after (state : IterationState) (modulus count : Nat)
+private lemma word_after (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved beforeEnd.le false iteration).secondWord.rotateLeft
@@ -42,7 +42,7 @@ private theorem word_after (state : IterationState) (modulus count : Nat)
   rw [CoefficientPhaseAction.rotate_cast, WordRotation.packRotatedWork2_shift]
   rfl
 
-private theorem shift_after (state : IterationState) (modulus count : Nat)
+private lemma shift_after (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (frame state modulus count valid conserved beforeEnd.le false iteration).shift + 1 =
@@ -56,7 +56,7 @@ private theorem shift_after (state : IterationState) (modulus count : Nat)
   rw [Nat.mod_eq_of_lt oneFits, Nat.mod_eq_of_lt bounded]
 
 /-- The real left-shift gates advance the entire original frame, with exact finite shift value. -/
-theorem pre_shift_frame (state : IterationState) (modulus count : Nat)
+lemma pre_shift_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     GuardedShift.step false
@@ -72,7 +72,7 @@ theorem pre_shift_frame (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- One complete native microstep records its actual comparison in Phase2 and clears Sign. -/
-theorem microstep_frame (state : IterationState) (modulus count : Nat)
+lemma microstep_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     NativeMicrostep.step modulus.size

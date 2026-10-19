@@ -26,7 +26,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open scoped Classical in
 /-- Point-valued kernels coincide with the complete deterministic record update. -/
-public theorem kernelChoice_pure {C Outcome : Type} [Fintype C] [Fintype Outcome]
+public lemma kernelChoice_pure {C Outcome : Type} [Fintype C] [Fintype Outcome]
     {R : Register} (state : ExecutionState C R) (choice : C → Outcome) :
     kernelChoice state (fun value => PMF.pure (choice value)) =
       state.mapClassical (fun value => (value, choice value)) := by

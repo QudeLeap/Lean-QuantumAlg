@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Primitives.WalshHadamard.Mathematics
 import all QuantumAlg.Core.Execution.Store.MarginalSum
 import all QuantumAlg.Primitives.MeasuredUncompute.Numerator.Stored.Fibers
 
@@ -28,7 +29,7 @@ open Execution NumeratorMeasurement
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The actual store count normalizes precisely the actual native Hadamard squared amplitude. -/
-theorem coefficient_normalized (width : Nat) :
+lemma coefficient_normalized (width : Nat) :
     (Fintype.card (Store (context width)) : ℂ) *
       (WalshHadamard.invSqrtCard width * star (WalshHadamard.invSqrtCard width)) = 1 := by
   rw [NumeratorStoredFibers.store_card, WalshHadamard.star_invSqrtCard,
@@ -36,7 +37,7 @@ theorem coefficient_normalized (width : Nat) :
   exact mul_inv_cancel₀ (by exact_mod_cast (Nat.two_pow_pos width).ne')
 
 /-- Corrected formulas for every actual stored branch imply the complete joint matrix equality. -/
-theorem full_matrix {width : Nat} {Reference : Register} {History : Type} [Fintype History]
+lemma full_matrix {width : Nat} {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference History)
     (target : HilbertOperator (Register.prod (context width).register Reference))
     (blocks : ∀ stored : Store (context width),

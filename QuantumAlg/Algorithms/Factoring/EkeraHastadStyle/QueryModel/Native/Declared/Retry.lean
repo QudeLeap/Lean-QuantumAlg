@@ -6,7 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Recovery
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Recovery
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Retry.Slots
 import all QuantumAlg.Components.Classical.FirstAccepted.Direct.Optional.Allocation
 
@@ -34,7 +35,7 @@ def callerContext : RuntimeCtx .quantum :=
   Native.Retry.Slots.context base (modulusBits N)
 
 include noQuantum in
-private theorem caller_empty : (callerContext base N).quantumWires = [] :=
+private lemma caller_empty : (callerContext base N).quantumWires = [] :=
   (Native.Retry.Slots.nativeOracle_retrySlots_wires base (modulusBits N)).trans noQuantum
 
 /-- All positive retry rounds share this one full bank and storage context. -/
@@ -75,35 +76,35 @@ def factorRef : CWriteRef (context base noQuantum N)
     (caller_empty base noQuantum N) N
 
 /-- Decode each actual candidate before the stored first-success selection. -/
-def select : Circuit (model input) (context base noQuantum N)
+def select : Circuit (model N) (context base noQuantum N)
     (context base noQuantum N) :=
-  Optional.into (model := model input)
+  Optional.into (model := model N)
     (.storage (factorRef base noQuantum N).toCStorageRef)
     (selectionRefs base noQuantum N)
 
 /-- The first complete recovery is followed immediately by real selection. -/
-def first : Circuit (model input) base (context base noQuantum N) :=
-  .seq (Native.Retry.Slots.allocate (model := model input) base (modulusBits N))
+def first : Circuit (model N) base (context base noQuantum N) :=
+  .seq (Native.Retry.Slots.allocate (model := model N) base (modulusBits N))
     (.seq (Batch.Recovery.first (callerContext base N)
       (caller_empty base noQuantum N) N input)
-      (select base noQuantum N input))
+      (select base noQuantum N))
 
 /-- Every later batch redraws, reuses the same bank and selects in place. -/
-def next : Circuit (model input) (context base noQuantum N)
+def next : Circuit (model N) (context base noQuantum N)
     (context base noQuantum N) :=
   .seq (Batch.Recovery.next (callerContext base N)
     (caller_empty base noQuantum N) N input)
-    (select base noQuantum N input)
+    (select base noQuantum N)
 
 /-- Final packing overwrites the consumed candidate cell with the selected value. -/
-def pack : Circuit (model input) (context base noQuantum N)
+def pack : Circuit (model N) (context base noQuantum N)
     (context base noQuantum N) :=
-  BitWord.instruction (execution := model input)
+  BitWord.instruction (execution := model N)
     (Optional.Allocation.packOp (selectionRefs base noQuantum N)
       (factorRef base noQuantum N))
 
 /-- The retry retains precisely the one original-width physical bank. -/
-theorem context_wires :
+lemma context_wires :
     (context base noQuantum N).quantumWires = (Native.layout N).wires :=
   Batch.context_wires (callerContext base N)
     (caller_empty base noQuantum N) N

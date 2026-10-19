@@ -30,14 +30,14 @@ open Execution FiniteCyclicDLP Canonical.Probability
 open ClassicalRoutines.EllipticCurve ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
-    {model : ExecutionModel} [BitWord.Selected model]
+    {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {count : Nat}
 
 attribute [local irreducible] packBatchResultStep recoveryTailStore recoveryBatchStore
 attribute [local irreducible] storeFintype batchResultRead
 attribute [local irreducible] RuntimeCtx.canonicalFreshKey
 
-private theorem recoveryTail_observe_execute
+private lemma recoveryTail_observe_execute
     {D : Type} [Fintype D] {width scalarWidth : Nat}
     (curve : ClassicalAlgorithms.EllipticCurve.CurveSpec width)
     (modulus : ClassicalAlgorithms.Modular.ModulusSpec scalarWidth)
@@ -46,17 +46,20 @@ private theorem recoveryTail_observe_execute
     (observe : Store (batchResultCtx ctx width scalarWidth) → D)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    ((recoveryTail curve modulus samples base target).execute Reference state).mapClassical
+    ((recoveryTail curve modulus samples base target).execute environment Reference
+      state).mapClassical
       (fun entry => (observe entry.1, entry.2.2.1)) =
       state.mapClassical (fun entry =>
-        (observe (recoveryTailStore curve modulus samples base target (entry.1, entry.2.1)),
+        (observe (recoveryTailStore (environment := environment) curve modulus samples base target
+          (entry.1, entry.2.1)),
           entry.2.2)) := by
   rw [recoveryTail_execute]
   change packBatchResultObservedAfter ctx width scalarWidth observe Reference
-    ((recoveryBatch curve modulus samples base target).execute Reference state) = _
+    ((recoveryBatch curve modulus samples base target).execute environment Reference state) = _
   rw [packBatchResult_observeAfter]
   unfold packBatchResultExpectedAfter
-  have actual := recoveryBatch_observe (model := model) curve modulus samples base target
+  have actual := recoveryBatch_observe (environment := environment) (model := model)
+    curve modulus samples base target
     (fun stored => observe (packBatchResultStep (model := model) ctx width scalarWidth stored).1)
     Reference state
   refine actual.trans ?_
@@ -70,7 +73,7 @@ def checkedSecretOutput (problem : KnownOrderProblem E.GroupPoint) (input : Secr
     CShape.Value (.option (.unsignedWord (orderWidth problem))) :=
   .optionSome (CShape.wordOfNat (orderWidth problem) input.secret.val)
 
-private theorem positiveEvent_weight_le {C : Type} [Fintype C] {R : Register}
+private lemma positiveEvent_weight_le {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (before after : C → Prop)
     [DecidablePred before] [DecidablePred after]
     (implies : ∀ entry, 0 < (state.block entry).mass → before entry → after entry) :
@@ -94,7 +97,7 @@ attribute [local irreducible] ExecutionState.effectWeight
 
 omit [Fact p.Prime] in
 /-- The actual checked event is the observation of the complete deterministic tail record. -/
-private theorem recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.GroupPoint)
+private lemma recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.GroupPoint)
     (nontrivial : 2 ≤ problem.order) (input : SecretInput problem)
     (measured : Fin count → CInputRef ctx
       (.fixedVector (2 * orderWidth problem) (.finite 2)))
@@ -102,7 +105,7 @@ private theorem recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.Gr
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     ((recoveryTail (Canonical.Layout.curveSpec E) (recoveryModulusSpec problem nontrivial)
-        (fun index => rawRecoveryInput problem (measured index)) base target).execute
+        (fun index => rawRecoveryInput problem (measured index)) base target).execute environment
           Reference state).effectWeight (fun entry =>
         if entry.1.read (batchResultRead ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)) =
             checkedSecretOutput problem input then
@@ -113,7 +116,8 @@ private theorem recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.Gr
           (batchResultCtx ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)).register
           Reference)) =
       state.effectWeight (fun entry =>
-      if (recoveryTailStore (model := model) (Canonical.Layout.curveSpec E)
+      if (recoveryTailStore (environment := environment) (model := model)
+          (Canonical.Layout.curveSpec E)
           (recoveryModulusSpec problem nontrivial)
           (fun index => rawRecoveryInput problem (measured index)) base target
           (entry.1, entry.2.1)).read
@@ -122,7 +126,8 @@ private theorem recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.Gr
         Effect.one (Register.prod ctx.register Reference)
       else Effect.zero (Register.prod ctx.register Reference)) := by
   let samples := fun index => rawRecoveryInput problem (measured index)
-  let record := recoveryTailStore (model := model) (Canonical.Layout.curveSpec E)
+  let record := recoveryTailStore (environment := environment) (model := model)
+    (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) samples base target
   let resultCtx := batchResultCtx ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)
   let code := recoveryTail (model := model) (Canonical.Layout.curveSpec E)
@@ -136,9 +141,10 @@ private theorem recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.Gr
     else Effect.zero (Register.prod ctx.register Reference)
   have pushed := ExecutionState.effectWeight_mapClassical_decision
     (@instDecidableEqProd Bool History (Classical.decEq Bool) (Classical.decEq History))
-    (code.execute Reference state)
+    (code.execute environment Reference state)
     (fun entry => (read entry.1, entry.2.2.1)) effects
-  have observed := recoveryTail_observe_execute (model := model) (ctx := ctx)
+  have observed := recoveryTail_observe_execute (environment := environment) (model := model)
+    (ctx := ctx)
     (Canonical.Layout.curveSpec E) (recoveryModulusSpec problem nontrivial)
     samples base target read Reference (History := History) state
   have observedEffects := congrArg (fun output => output.effectWeight effects) observed
@@ -171,13 +177,13 @@ private theorem recoveryTail_checked_weight_eq (problem : KnownOrderProblem E.Gr
     by_cases accepted : (record (entry.1, entry.2.1)).read
         (batchResultRead ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)) =
           checkedSecretOutput problem input <;> simp [effects, read, accepted]
-  exact (congrArg (fun effects => (code.execute Reference state).effectWeight effects)
+  exact (congrArg (fun effects => (code.execute environment Reference state).effectWeight effects)
       executedEffects).symm.trans
     ((pushed.symm.trans (observedEffects.trans direct)).trans
       (congrArg (fun effects => state.effectWeight effects) originalEffects))
 
 /-- The original selected event is included in the actual record's checked secret event. -/
-private theorem recoveryTail_selected_record_weight_le (problem : KnownOrderProblem E.GroupPoint)
+private lemma recoveryTail_selected_record_weight_le (problem : KnownOrderProblem E.GroupPoint)
     (nontrivial : 2 ≤ problem.order) (input : SecretInput problem)
     (measured : Fin count → CInputRef ctx
       (.fixedVector (2 * orderWidth problem) (.finite 2)))
@@ -195,7 +201,8 @@ private theorem recoveryTail_selected_record_weight_le (problem : KnownOrderProb
         Effect.one (Register.prod ctx.register Reference)
       else Effect.zero (Register.prod ctx.register Reference)) ≤
       state.effectWeight (fun entry =>
-      if (recoveryTailStore (model := model) (Canonical.Layout.curveSpec E)
+      if (recoveryTailStore (environment := environment) (model := model)
+          (Canonical.Layout.curveSpec E)
           (recoveryModulusSpec problem nontrivial)
           (fun index => rawRecoveryInput problem (measured index)) base target
           (entry.1, entry.2.1)).read
@@ -204,7 +211,8 @@ private theorem recoveryTail_selected_record_weight_le (problem : KnownOrderProb
         Effect.one (Register.prod ctx.register Reference)
       else Effect.zero (Register.prod ctx.register Reference)) := by
   let samples := fun index => rawRecoveryInput problem (measured index)
-  let record := recoveryTailStore (model := model) (Canonical.Layout.curveSpec E)
+  let record := recoveryTailStore (environment := environment) (model := model)
+    (Canonical.Layout.curveSpec E)
     (recoveryModulusSpec problem nontrivial) samples base target
   have fromInput := positiveEvent_weight_le state
     (fun entry => ∃ index, selectedExponentEvent problem input
@@ -217,7 +225,8 @@ private theorem recoveryTail_selected_record_weight_le (problem : KnownOrderProb
       obtain ⟨index, event⟩ := selected
       have eligible := selectedExponentEvent_sampleAccepted problem nontrivial input
         (measured index) entry.1 event
-      change (recoveryTailStore (model := model) (Canonical.Layout.curveSpec E)
+      change (recoveryTailStore (environment := environment) (model := model)
+        (Canonical.Layout.curveSpec E)
         (recoveryModulusSpec problem nontrivial) samples base target
         (entry.1, entry.2.1)).read _ = _
       unfold recoveryTailStore recoveryBatchStore recoveryBatchState
@@ -228,7 +237,7 @@ private theorem recoveryTail_selected_record_weight_le (problem : KnownOrderProb
 attribute [local irreducible] recoveryTail
 
 /-- Any original selected event contributes to the actual complete batch's secret result. -/
-theorem recoveryTail_selected_weight_le (problem : KnownOrderProblem E.GroupPoint)
+lemma recoveryTail_selected_weight_le (problem : KnownOrderProblem E.GroupPoint)
     (nontrivial : 2 ≤ problem.order) (input : SecretInput problem)
     (measured : Fin count → CInputRef ctx
       (.fixedVector (2 * orderWidth problem) (.finite 2)))
@@ -246,7 +255,7 @@ theorem recoveryTail_selected_weight_le (problem : KnownOrderProblem E.GroupPoin
         Effect.one (Register.prod ctx.register Reference)
       else Effect.zero (Register.prod ctx.register Reference)) ≤
       ((recoveryTail (Canonical.Layout.curveSpec E) (recoveryModulusSpec problem nontrivial)
-        (fun index => rawRecoveryInput problem (measured index)) base target).execute
+        (fun index => rawRecoveryInput problem (measured index)) base target).execute environment
           Reference state).effectWeight (fun entry =>
         if entry.1.read (batchResultRead ctx (Canonical.Layout.fieldWidth E) (orderWidth problem)) =
             checkedSecretOutput problem input then

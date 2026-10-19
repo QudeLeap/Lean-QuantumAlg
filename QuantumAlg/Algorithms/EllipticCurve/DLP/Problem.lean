@@ -67,7 +67,7 @@ def secret (I : ECDLPInstance E) : ZMod I.subgroupOrder :=
   Classical.choose I.target_mem_span
 
 /-- The selected scalar satisfies the actual elliptic-curve group equation. -/
-theorem secret_spec (I : ECDLPInstance E) :
+lemma secret_spec (I : ECDLPInstance E) :
     ECDLPInstance.CandidateScalar I (secret I) :=
   Classical.choose_spec I.target_mem_span
 

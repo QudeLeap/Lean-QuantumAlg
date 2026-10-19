@@ -23,7 +23,7 @@ noncomputable section
 private def bothControls : HilbertOperator (Qubits 2) :=
   Matrix.diagonal (fun label => if label = (3 : Fin 4) then 1 else 0)
 
-private theorem phase_tensor :
+private lemma phase_tensor :
     (Matrix.diagonal (fun label => if label = (7 : (Qubits 3).Index) then (-1 : ℂ) else 1) :
       HilbertOperator (Qubits 3)) =
       HilbertOperator.tensor bothControls (Gate.ZOp : HilbertOperator (Qubits 1)) +
@@ -33,7 +33,7 @@ private theorem phase_tensor :
     simp +decide [Qubits, HilbertOperator.tensor, bothControls, Gate.ZOp,
       prodEquiv, finProdFinEquiv, Fin.divNat, Fin.modNat, Fin.ext_iff]
 
-private theorem flip_tensor :
+private lemma flip_tensor :
     ((UnitaryOperator.ofPerm (R := Qubits 3) (Equiv.swap (6 : (Qubits 3).Index) 7)) :
       HilbertOperator (Qubits 3)) =
       HilbertOperator.tensor bothControls (Gate.XOp : HilbertOperator (Qubits 1)) +
@@ -45,14 +45,14 @@ private theorem flip_tensor :
       prodEquiv, finProdFinEquiv, Fin.divNat,
       Fin.modNat, Fin.ext_iff]
 
-private theorem hadamard_square :
+private lemma hadamard_square :
     (Gate.HOp : HilbertOperator (Qubits 1)) * (Gate.HOp : HilbertOperator (Qubits 1)) = 1 := by
   ext row column
   fin_cases row <;> fin_cases column <;>
     norm_num [Gate.HOp, Matrix.mul_apply, Matrix.smul_apply, smul_eq_mul,
       NormalizedVector.invSqrt2_mul_self]
 
-private theorem hadamard_z_hadamard :
+private lemma hadamard_z_hadamard :
     (Gate.HOp : HilbertOperator (Qubits 1)) * (Gate.ZOp : HilbertOperator (Qubits 1)) *
       (Gate.HOp : HilbertOperator (Qubits 1)) = (Gate.XOp : HilbertOperator (Qubits 1)) := by
   have commute : (Gate.HOp : HilbertOperator (Qubits 1)) *
@@ -65,14 +65,15 @@ private theorem hadamard_z_hadamard :
   rw [commute, Matrix.mul_assoc, hadamard_square, Matrix.mul_one]
 
 /-- The complete binary operator is the original Toffoli transposition, with exact phase. -/
-theorem toffoliExpansion_binaryMatrix (oracles : OracleModel) :
-    (circuit oracles).binaryMatrix =
+lemma toffoliExpansion_binaryMatrix (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    ((circuit oracles).binaryMatrix environment) =
       UnitaryOperator.ofPerm (R := Qubits 3) (Equiv.swap (6 : (Qubits 3).Index) 7) := by
   rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, toffoliExpansion_hadamard_binary]
   apply Subtype.ext
   change HilbertOperator.tensor 1 (Gate.HOp : HilbertOperator (Qubits 1)) *
-    (((phaseWord oracles (Real.pi / 4)).binaryMatrix : HilbertOperator (Qubits 3)) *
+    ((((phaseWord oracles (Real.pi / 4)).binaryMatrix environment) : HilbertOperator (Qubits 3)) *
       HilbertOperator.tensor 1 (Gate.HOp : HilbertOperator (Qubits 1))) = _
   rw [toffoliExpansion_phaseWord_binary, ← Matrix.mul_assoc, phase_tensor,
     Matrix.mul_add, Matrix.add_mul]
@@ -82,13 +83,13 @@ theorem toffoliExpansion_binaryMatrix (oracles : OracleModel) :
   exact flip_tensor.symm
 
 /-- The executed native expansion realizes the model-owned Toffoli token itself. -/
-theorem toffoliExpansion_matrix (oracles : OracleModel) :
-    (circuit oracles).matrix = AlgorithmGate.model.operator .toffoli := by
+lemma toffoliExpansion_matrix (oracles : OracleModel) (environment : oracles.Interpretation) :
+    ((circuit oracles).matrix environment) = AlgorithmGate.model.operator .toffoli := by
   calc
-    (circuit oracles).matrix = UnitaryOperator.reindex
-        (QuantumSignature.qubitsIndexEquiv 3).symm (circuit oracles).binaryMatrix :=
+    ((circuit oracles).matrix environment) = UnitaryOperator.reindex
+        (QuantumSignature.qubitsIndexEquiv 3).symm ((circuit oracles).binaryMatrix environment) :=
       (UnitaryOperator.unitaryOperator_reindex_cancel
-        (QuantumSignature.qubitsIndexEquiv 3) (circuit oracles).matrix).symm
+        (QuantumSignature.qubitsIndexEquiv 3) ((circuit oracles).matrix environment)).symm
     _ = UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 3).symm
         (UnitaryOperator.ofPerm (R := Qubits 3)
           (Equiv.swap (6 : (Qubits 3).Index) 7)) := by
@@ -100,7 +101,7 @@ theorem toffoliExpansion_matrix (oracles : OracleModel) :
 /-- Exact realization on the original three physical systems, with the complete native word. -/
 def realization (oracles : OracleModel) :
     UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout
-      (AlgorithmGate.model.operator .toffoli) where
+      (fun _ => AlgorithmGate.model.operator .toffoli) where
   circuit := circuit oracles
   matrix_eq := toffoliExpansion_matrix oracles
 

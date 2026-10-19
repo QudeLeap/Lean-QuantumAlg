@@ -25,7 +25,7 @@ namespace QuantumAlg.AmplitudeEstimation
 noncomputable section
 
 /-- The original legal parameters always provide two actual phase wires. -/
-theorem selectedPhaseQubits_atLeastTwo {eps η : Real}
+lemma selectedPhaseQubits_atLeastTwo {eps η : Real}
     (heps : 0 < eps) (heps_le : eps ≤ 1)
     (heta : 0 < η) (heta_le : η ≤ 1) :
     2 ≤ selectedPhaseQubits eps η := by
@@ -56,7 +56,7 @@ def workWire {t : Nat} (stage : Fin t) (wide : 2 ≤ t) : Fin t :=
   if (controlWire stage).val = 0 then ⟨1, by omega⟩ else ⟨0, by omega⟩
 
 /-- The borrowed wire is distinct from this stage's actual control. -/
-theorem workWire_ne_controlWire {t : Nat} (stage : Fin t) (wide : 2 ≤ t) :
+lemma workWire_ne_controlWire {t : Nat} (stage : Fin t) (wide : 2 ≤ t) :
     workWire stage wide ≠ controlWire stage := by
   intro same
   have value := congrArg Fin.val same
@@ -71,7 +71,7 @@ def fullWorkWire {t n : Nat} (stage : Fin t) (wide : 2 ≤ t) : Fin (t + n) :=
   Fin.castAdd n (workWire stage wide)
 
 /-- The borrowed phase wire cannot coincide with any of the actual source wires. -/
-theorem fullWorkWire_ne_source {t n : Nat} (stage : Fin t) (wide : 2 ≤ t)
+lemma fullWorkWire_ne_source {t n : Nat} (stage : Fin t) (wide : 2 ≤ t)
     (source : Fin n) :
     fullWorkWire stage wide ≠ source.natAdd t := by
   intro same
@@ -81,7 +81,7 @@ theorem fullWorkWire_ne_source {t n : Nat} (stage : Fin t) (wide : 2 ≤ t)
   omega
 
 /-- The same selected wire is already inside the original phase/source register. -/
-theorem fullWorkWire_identity {t n : Nat} (stage : Fin t) (wide : 2 ≤ t) :
+lemma fullWorkWire_identity {t n : Nat} (stage : Fin t) (wide : 2 ≤ t) :
     (fullWorkWire (n := n) stage wide).val = (workWire stage wide).val := rfl
 
 end PhaseWorkspace

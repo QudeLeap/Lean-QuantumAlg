@@ -44,25 +44,25 @@ private def retained {width : Nat} (state : Registers width) : Retained width :=
     ((state.divisorLength, state.shift),
       ((state.flags.first, state.flags.second), (state.flags.iteration, state.control))))
 
-private theorem remainder_retained {width : Nat} (window : Window width)
+private lemma remainder_retained {width : Nat} (window : Window width)
     (operation : Operation) (state : Registers width) :
     retained (ArithmeticWindowProgram.step window operation state) = retained state :=
   congrArg (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
     pair.2.2.2) (ArithmeticWindowProgram.step_grouping window operation state)
 
-private theorem coefficient_retained {width : Nat} (window : Window width)
+private lemma coefficient_retained {width : Nat} (window : Window width)
     (operation : Operation) (state : Registers width) :
     retained (CoefficientWindowProgram.step window operation state) = retained state :=
   congrArg (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
     pair.2.2.2) (CoefficientWindowProgram.step_grouping window operation state)
 
-private theorem focus_sign {length : Nat} (operation : Operation)
+private lemma focus_sign {length : Nat} (operation : Operation)
     (state : Addition.TTK.OverflowRegisters length) (low : readsSign operation = true) :
     (focusStep operation state).2 = state.2 := by
   cases operation <;> simp only [readsSign, Bool.false_eq_true] at low
   all_goals rfl
 
-private theorem remainder_sign {width : Nat} (window : Window width)
+private lemma remainder_sign {width : Nat} (window : Window width)
     (operation : Operation) (state : Registers width) (low : readsSign operation = true) :
     (ArithmeticWindowProgram.step window operation state).flags.sign = state.flags.sign := by
   have same := congrArg
@@ -70,7 +70,7 @@ private theorem remainder_sign {width : Nat} (window : Window width)
     (ArithmeticWindowProgram.step_grouping window operation state)
   exact same.trans (focus_sign operation (grouping window state).1 low)
 
-private theorem coefficient_sign {width : Nat} (window : Window width)
+private lemma coefficient_sign {width : Nat} (window : Window width)
     (operation : Operation) (state : Registers width) (low : readsSign operation = true) :
     (CoefficientWindowProgram.step window operation state).flags.sign = state.flags.sign := by
   have same := congrArg
@@ -79,7 +79,7 @@ private theorem coefficient_sign {width : Nat} (window : Window width)
   exact same.trans
     (focus_sign operation (CoefficientWindowOrientation.grouping window state).1 low)
 
-private theorem readKey_eq_of_retained {width : Nat} (includeSign : Bool)
+private lemma readKey_eq_of_retained {width : Nat} (includeSign : Bool)
     (before after : Registers width) (same : retained after = retained before)
     (signSame : includeSign = true → after.flags.sign = before.flags.sign) :
     readKey width includeSign after = readKey width includeSign before := by
@@ -108,7 +108,7 @@ private theorem readKey_eq_of_retained {width : Nat} (includeSign : Bool)
       split_ifs <;> first | rfl | omega
 
 /-- All actual sources of the appropriate remainder predicate survive the complete native body. -/
-theorem remainder_readKey {width : Nat} (window : Window width) (operation : Operation)
+lemma remainder_readKey {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     readKey width (readsSign operation) (ArithmeticWindowProgram.step window operation state) =
       readKey width (readsSign operation) state :=
@@ -116,7 +116,7 @@ theorem remainder_readKey {width : Nat} (window : Window width) (operation : Ope
     (remainder_retained window operation state) (remainder_sign window operation state)
 
 /-- The little-endian coefficient body retains every source bit used for its own equality. -/
-theorem coefficient_readKey {width : Nat} (window : Window width) (operation : Operation)
+lemma coefficient_readKey {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     readKey width (readsSign operation) (CoefficientWindowProgram.step window operation state) =
       readKey width (readsSign operation) state :=
@@ -124,28 +124,28 @@ theorem coefficient_readKey {width : Nat} (window : Window width) (operation : O
     (coefficient_retained window operation state) (coefficient_sign window operation state)
 
 /-- The actual ungated remainder body retains arbitrary incoming Ctrl. -/
-theorem remainder_control {width : Nat} (window : Window width) (operation : Operation)
+lemma remainder_control {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (ArithmeticWindowProgram.step window operation state).control = state.control :=
   congrArg (fun value : Retained width => value.2.2.2.2)
     (remainder_retained window operation state)
 
 /-- The actual ungated coefficient body retains arbitrary incoming Ctrl. -/
-theorem coefficient_control {width : Nat} (window : Window width) (operation : Operation)
+lemma coefficient_control {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (CoefficientWindowProgram.step window operation state).control = state.control :=
   congrArg (fun value : Retained width => value.2.2.2.2)
     (coefficient_retained window operation state)
 
 /-- The complete remainder action restores arbitrary Iter, not only its zero basis value. -/
-theorem remainder_iteration {width : Nat} (window : Window width) (operation : Operation)
+lemma remainder_iteration {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (ArithmeticWindowProgram.step window operation state).flags.iteration = state.flags.iteration :=
   congrArg (fun value : Retained width => value.2.2.2.1)
     (remainder_retained window operation state)
 
 /-- The coefficient action likewise retains the entire original arbitrary Iter bit. -/
-theorem coefficient_iteration {width : Nat} (window : Window width) (operation : Operation)
+lemma coefficient_iteration {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (CoefficientWindowProgram.step window operation state).flags.iteration =
       state.flags.iteration :=
@@ -153,7 +153,7 @@ theorem coefficient_iteration {width : Nat} (window : Window width) (operation :
     (coefficient_retained window operation state)
 
 /-- Changing only Ctrl commutes with the ungated remainder arithmetic on the complete frame. -/
-theorem remainder_xorControl {width : Nat} (window : Window width) (operation : Operation)
+lemma remainder_xorControl {width : Nat} (window : Window width) (operation : Operation)
     (value : Bool) (state : Registers width) :
     ArithmeticWindowProgram.step window operation (NativePredicate.xorControl value state) =
       NativePredicate.xorControl value (ArithmeticWindowProgram.step window operation state) := by
@@ -161,7 +161,7 @@ theorem remainder_xorControl {width : Nat} (window : Window width) (operation : 
   rfl
 
 /-- The same exact complete-frame commutation holds in the coefficient orientation. -/
-theorem coefficient_xorControl {width : Nat} (window : Window width) (operation : Operation)
+lemma coefficient_xorControl {width : Nat} (window : Window width) (operation : Operation)
     (value : Bool) (state : Registers width) :
     CoefficientWindowProgram.step window operation (NativePredicate.xorControl value state) =
       NativePredicate.xorControl value (CoefficientWindowProgram.step window operation state) := by

@@ -55,12 +55,12 @@ def leave (N : Nat) (store : Store (context ctx N)) : Store ctx :=
     (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh first
 
 /-- Actual scope entry preserves each exact original structural read. -/
-theorem enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
+lemma enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
     (enter N store).read (liftInput input) = store.read input := by
   simp only [enter, liftInput, Store.read_pushWorkspace_underWorkspace]
 
 /-- Actual scope release exposes the same surviving structural read of the true final store. -/
-theorem leave_read {shape : CShape} (input : CInputRef ctx shape)
+lemma leave_read {shape : CShape} (input : CInputRef ctx shape)
     (store : Store (context ctx N)) :
     (leave N store).read input = store.read (liftInput input) := by
   simp only [leave, liftInput, Store.read_popWorkspace_underWorkspace]

@@ -31,6 +31,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Existing Z gates at the selected positions, with the full physical register retained. -/
 def sequence (word : EncodedBit.Word encoding width) :
@@ -45,9 +46,9 @@ def sign (word : EncodedBit.Word encoding width) (state : Data) : List (Fin widt
   | index :: rest => (if (word.bit index).get state then -1 else 1) * sign word state rest
 
 /-- The full encoded input is unchanged, with its exact selected parity sign retained. -/
-theorem phaseCorrection_sequence_ket (word : EncodedBit.Word encoding width)
+lemma phaseCorrection_sequence_ket (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) (state : Data) :
-    (sequence physical oracles word indices).applyVec
+    ((sequence physical oracles word indices).applyVec environment)
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       sign word state indices •
@@ -62,7 +63,7 @@ theorem phaseCorrection_sequence_ket (word : EncodedBit.Word encoding width)
       rfl
 
 /-- Every selected phase squares to one; no global or relative sign is discarded. -/
-theorem phaseCorrection_sign_square (word : EncodedBit.Word encoding width)
+lemma phaseCorrection_sign_square (word : EncodedBit.Word encoding width)
     (state : Data) (indices : List (Fin width)) :
     sign word state indices * sign word state indices = 1 := by
   induction indices with
@@ -71,9 +72,9 @@ theorem phaseCorrection_sign_square (word : EncodedBit.Word encoding width)
       cases value : (word.bit index).get state <;> simp [sign, value, induction]
 
 /-- The actual selected Z sequence cancels the same phase on a recomputed word. -/
-theorem phaseCorrection_cancel_ket (word : EncodedBit.Word encoding width)
+lemma phaseCorrection_cancel_ket (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) (state : Data) :
-    (sequence physical oracles word indices).applyVec
+    ((sequence physical oracles word indices).applyVec environment)
         (sign word state indices •
           (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec) =
@@ -83,7 +84,7 @@ theorem phaseCorrection_cancel_ket (word : EncodedBit.Word encoding width)
     phaseCorrection_sign_square, one_smul]
 
 /-- Every selected Z is charged as one native single-qubit operation. -/
-theorem phaseCorrection_sequence_trace (word : EncodedBit.Word encoding width)
+lemma phaseCorrection_sequence_trace (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) :
     (sequence physical oracles word indices).eventTrace = List.replicate indices.length
       (.gate .singleQubit) := by
@@ -94,7 +95,7 @@ theorem phaseCorrection_sequence_trace (word : EncodedBit.Word encoding width)
       rfl
 
 /-- The same literal sequential program has one unit of depth per selected Z gate. -/
-theorem phaseCorrection_sequence_depth (word : EncodedBit.Word encoding width)
+lemma phaseCorrection_sequence_depth (word : EncodedBit.Word encoding width)
     (indices : List (Fin width)) :
     (sequence physical oracles word indices).evaluatedEventDepth (fun _ => 1) = indices.length := by
   induction indices with
@@ -114,7 +115,7 @@ def program (word : EncodedBit.Word encoding width) (outcome : Fin width → Boo
   sequence physical oracles word (selected outcome)
 
 /-- The selected correction cannot execute more than one Z gate per word position. -/
-theorem phaseCorrection_selected_count_le (outcome : Fin width → Bool) :
+lemma phaseCorrection_selected_count_le (outcome : Fin width → Bool) :
     (selected outcome).length ≤ width := by
   simpa only [selected, List.length_finRange] using
     List.length_filter_le outcome (List.finRange width)

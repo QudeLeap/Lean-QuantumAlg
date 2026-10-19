@@ -28,13 +28,13 @@ def weight (angle : ℝ) (bit : Fin 2) : ℂ :=
   if bit = 0 then Complex.exp ((-(angle / 2) : ℝ) * Complex.I)
     else Complex.exp ((angle / 2 : ℝ) * Complex.I)
 
-private theorem rotation_diagonal (angle : ℝ) :
+private lemma rotation_diagonal (angle : ℝ) :
     (rotZStdOp angle : HilbertOperator (Qubits 1)) = Matrix.diagonal (weight angle) := by
   ext row column
   fin_cases row <;> fin_cases column <;>
     simp [rotZStdOp, rotZOp, weight]
 
-private theorem token_diagonal (angle : ℝ) :
+private lemma token_diagonal (angle : ℝ) :
     ((AlgorithmGate.model.operator (.singleQubit (rotZStdOp angle))).val :
       HilbertOperator (QuantumSignature.qubits 1).register) =
       Matrix.diagonal (fun basis => weight angle (QuantumSignature.qubitsIndexEquiv 1 basis)) := by
@@ -44,8 +44,9 @@ private theorem token_diagonal (angle : ℝ) :
   rw [rotation_diagonal]
   simp only [Matrix.diagonal_apply, Equiv.apply_eq_iff_eq]
 
-private theorem placed_diagonal (oracles : OracleModel) (angle : ℝ) :
-    ((singleQubitAt layout oracles (rotZStdOp angle) 1 rfl).matrix :
+private lemma placed_diagonal (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((singleQubitAt layout oracles (rotZStdOp angle) 1 rfl).matrix environment) :
       HilbertOperator layout.register) = Matrix.diagonal (fun basis => weight angle (basis 1)) := by
   let application := singleQubitApplication layout (rotZStdOp angle) 1 rfl
   have selected (basis : layout.Basis) :
@@ -65,7 +66,7 @@ private theorem placed_diagonal (oracles : OracleModel) (angle : ℝ) :
   funext basis
   rw [selected]
 
-private theorem conjugate_diagonal (register : Register)
+private lemma conjugate_diagonal (register : Register)
     (permutation : Equiv.Perm register.Index) (involution : Function.Involutive permutation)
     (values : register.Index → ℂ) :
     ((UnitaryOperator.ofPerm (R := register) permutation).val * Matrix.diagonal values) *
@@ -81,7 +82,7 @@ private theorem conjugate_diagonal (register : Register)
     simp [Ne.symm different]
   · simp
 
-private theorem weight_product (zeroAngle oneAngle : ℝ) (control target : Fin 2) :
+private lemma weight_product (zeroAngle oneAngle : ℝ) (control target : Fin 2) :
     weight ((zeroAngle - oneAngle) / 2) (control + target) *
       weight ((zeroAngle + oneAngle) / 2) target =
       weight (if control = 0 then zeroAngle else oneAngle) target := by
@@ -89,8 +90,9 @@ private theorem weight_product (zeroAngle oneAngle : ℝ) (control target : Fin 
     simp [weight, ← Complex.exp_add] <;> congr 1 <;> ring
 
 /-- The actual native word has exactly the independently specified coherent branch phases. -/
-theorem circuit_matrix (oracles : OracleModel) (zeroAngle oneAngle : ℝ) :
-    ((circuit oracles zeroAngle oneAngle).matrix : HilbertOperator layout.register) =
+lemma circuit_matrix (oracles : OracleModel) (zeroAngle oneAngle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((circuit oracles zeroAngle oneAngle).matrix environment) : HilbertOperator layout.register) =
       Matrix.diagonal (fun basis =>
         weight (if basis 0 = 0 then zeroAngle else oneAngle) (basis 1)) := by
   simp only [circuit, UnitaryCircuit.seq_matrix, Submonoid.coe_mul,

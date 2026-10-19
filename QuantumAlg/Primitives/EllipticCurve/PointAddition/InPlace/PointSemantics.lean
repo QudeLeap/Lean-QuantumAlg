@@ -31,11 +31,13 @@ namespace PointSemantics
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- The literal schedule's arithmetic certificate follows from its forward
 and reverse affine domains. -/
-theorem cleanCertificate_of_domains
+lemma cleanCertificate_of_domains
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -58,7 +60,7 @@ theorem cleanCertificate_of_domains
 
 /-- The same native program whose resources are counted implements controlled
 affine addition on a clean Montgomery-encoded basis state. -/
-theorem program_applyNormalized_point_ket
+lemma program_applyNormalized_point_ket
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -74,7 +76,7 @@ theorem program_applyNormalized_point_ket
     let point := selectedPoint E control P Q hforward
     (Resources.program fieldTail counterTail p hpPos hp hfit hcapacity hwidth
         (Semantics.montgomeryWord fieldTail p hpPos hp Q.x)
-        (Semantics.montgomeryWord fieldTail p hpPos hp Q.y)).applyNormalized
+        (Semantics.montgomeryWord fieldTail p hpPos hp Q.y)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (Layout.encoding fieldTail.succ (counterTail + 2)).width).basisEquiv.symm
@@ -97,7 +99,8 @@ theorem program_applyNormalized_point_ket
   have certificate := cleanCertificate_of_domains fieldTail counterTail p
     hpPos hp hfit hcapacity hwidth hcounterWidth hpOdd hfull E control P Q
     hforward hreverse
-  have action := Resources.program_applyNormalized_clean_ket fieldTail
+  have action := Resources.program_applyNormalized_clean_ket (environment := environment)
+    fieldTail
     counterTail p hpPos hp hfit hcapacity hwidth hcounterWidth data certificate
   have outputs := Semantics.montgomeryInput_outputs fieldTail counterTail p
     hpPos hp hfit hcapacity hwidth hcounterWidth hpOdd hfull control

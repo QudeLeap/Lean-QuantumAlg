@@ -29,6 +29,8 @@ namespace CleanCircuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Canonical `(n + 1)`-bit word used by the general modular-adder route. -/
 abbrev Word (n : Nat) := Fin (2 ^ (n + 1))
 
@@ -194,7 +196,7 @@ def rightWord (n : Nat) : EncodedBit.Word (encoding n) (n + 1) where
 def borrowWord (n : Nat) : EncodedBit.Word (encoding n) (n + 1) where
   bit := borrowBit n
 
-@[simp] theorem leftBit_get (n : Nat) (bit : Fin (n + 1))
+@[simp] lemma leftBit_get (n : Nat) (bit : Fin (n + 1))
     (x : Carrier n) :
     (leftBit n bit).get x = x.1.left.val.testBit bit.val := by
   simp [leftBit, dataLeftBit, tupleLeftBit, wordValueBit, dataTupleEquiv,
@@ -202,7 +204,7 @@ def borrowWord (n : Nat) : EncodedBit.Word (encoding n) (n + 1) where
     BinaryLabelEncoding.finIdentityBit, BinaryLabelEncoding.ofEquivBit,
     EncodedBit.relabel, WireAddress.bitIndex_littleEndianWire]
 
-@[simp] theorem rightBit_get (n : Nat) (bit : Fin (n + 1))
+@[simp] lemma rightBit_get (n : Nat) (bit : Fin (n + 1))
     (x : Carrier n) :
     (rightBit n bit).get x = x.1.right.val.testBit bit.val := by
   simp [rightBit, dataRightBit, tupleRightBit, wordValueBit, dataTupleEquiv,
@@ -211,20 +213,20 @@ def borrowWord (n : Nat) : EncodedBit.Word (encoding n) (n + 1) where
     BinaryLabelEncoding.ofEquivBit, EncodedBit.relabel,
     WireAddress.bitIndex_littleEndianWire]
 
-@[simp] theorem flagBit_get (n : Nat) (x : Carrier n) :
+@[simp] lemma flagBit_get (n : Nat) (x : Carrier n) :
     (flagBit n).get x = x.1.flag := by
   simp [flagBit, dataFlagBit, tupleFlagBit, dataTupleEquiv,
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
     EncodedBit.relabel, BinaryLabelEncoding.boolBit]
 
-@[simp] theorem initialBorrowBit_get (n : Nat) (x : Carrier n) :
+@[simp] lemma initialBorrowBit_get (n : Nat) (x : Carrier n) :
     (initialBorrowBit n).get x = x.2.initialBorrow := by
   simp [initialBorrowBit, workInitialBorrowBit, tupleInitialBorrowBit,
     workTupleEquiv, BinaryLabelEncoding.prodLeftBit,
     BinaryLabelEncoding.prodRightBit, EncodedBit.relabel,
     BinaryLabelEncoding.boolBit]
 
-@[simp] theorem borrowBit_get (n : Nat) (bit : Fin (n + 1))
+@[simp] lemma borrowBit_get (n : Nat) (bit : Fin (n + 1))
     (x : Carrier n) :
     (borrowBit n bit).get x = x.2.borrow.val.testBit bit.val := by
   simp [borrowBit, workBorrowBit, tupleBorrowBit, wordValueBit,
@@ -233,13 +235,13 @@ def borrowWord (n : Nat) : EncodedBit.Word (encoding n) (n + 1) where
     EncodedBit.relabel, WireAddress.bitIndex_littleEndianWire]
 
 /-- Flipping the output lens changes only the semantic flag. -/
-theorem flagBit_flip (n : Nat) (x : Carrier n) :
+lemma flagBit_flip (n : Nat) (x : Carrier n) :
     (flagBit n).flip x = ({ x.1 with flag := !x.1.flag }, x.2) := by
   simp [flagBit, dataFlagBit, tupleFlagBit, dataTupleEquiv,
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
     EncodedBit.relabel, BinaryLabelEncoding.boolBit]
 
-@[simp] theorem leftBit_wire_val (n : Nat) (i : Fin (n + 1)) :
+@[simp] lemma leftBit_wire_val (n : Nat) (i : Fin (n + 1)) :
     (leftBit n i).wire.val = n - i.val := by
   simp [leftBit, dataLeftBit, tupleLeftBit, wordValueBit,
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodLeftWire,
@@ -247,7 +249,7 @@ theorem flagBit_flip (n : Nat) (x : Carrier n) :
     EncodedBit.relabel, WireAddress.littleEndianWire,
     WireAddress.bitIndex]
 
-@[simp] theorem rightBit_wire_val (n : Nat) (i : Fin (n + 1)) :
+@[simp] lemma rightBit_wire_val (n : Nat) (i : Fin (n + 1)) :
     (rightBit n i).wire.val = (n + 1) + (n - i.val) := by
   simp [rightBit, dataRightBit, tupleRightBit, wordValueBit, wordEncoding,
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
@@ -256,7 +258,7 @@ theorem flagBit_flip (n : Nat) (x : Carrier n) :
     BinaryLabelEncoding.finIdentity_width, EncodedBit.relabel,
     WireAddress.littleEndianWire, WireAddress.bitIndex]
 
-@[simp] theorem flagBit_wire_val (n : Nat) :
+@[simp] lemma flagBit_wire_val (n : Nat) :
     (flagBit n).wire.val = 2 * (n + 1) := by
   simp [flagBit, dataFlagBit, tupleFlagBit, wordEncoding,
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
@@ -264,7 +266,7 @@ theorem flagBit_flip (n : Nat) (x : Carrier n) :
     EncodedBit.relabel]
   omega
 
-@[simp] theorem initialBorrowBit_wire_val (n : Nat) :
+@[simp] lemma initialBorrowBit_wire_val (n : Nat) :
     (initialBorrowBit n).wire.val = 2 * (n + 1) + 1 := by
   simp [initialBorrowBit, workInitialBorrowBit, tupleInitialBorrowBit,
     encoding, dataEncoding, dataTupleEncoding, wordEncoding,
@@ -273,7 +275,7 @@ theorem flagBit_flip (n : Nat) (x : Carrier n) :
     EncodedBit.relabel]
   omega
 
-@[simp] theorem borrowBit_wire_val (n : Nat) (i : Fin (n + 1)) :
+@[simp] lemma borrowBit_wire_val (n : Nat) (i : Fin (n + 1)) :
     (borrowBit n i).wire.val = 2 * (n + 1) + 2 + (n - i.val) := by
   simp [borrowBit, workBorrowBit, tupleBorrowBit, wordValueBit, encoding,
     dataEncoding, dataTupleEncoding, workEncoding, workTupleEncoding,
@@ -283,7 +285,7 @@ theorem flagBit_flip (n : Nat) (x : Carrier n) :
     WireAddress.littleEndianWire, WireAddress.bitIndex]
   omega
 
-theorem left_left_wire_ne (n : Nat) (i j : Fin (n + 1))
+lemma left_left_wire_ne (n : Nat) (i j : Fin (n + 1))
     (h : i ≠ j) : (leftBit n i).wire ≠ (leftBit n j).wire := by
   intro heq
   apply h
@@ -292,7 +294,7 @@ theorem left_left_wire_ne (n : Nat) (i j : Fin (n + 1))
   simp only [leftBit_wire_val] at hv
   omega
 
-theorem right_right_wire_ne (n : Nat) (i j : Fin (n + 1))
+lemma right_right_wire_ne (n : Nat) (i j : Fin (n + 1))
     (h : i ≠ j) : (rightBit n i).wire ≠ (rightBit n j).wire := by
   intro heq
   apply h
@@ -301,7 +303,7 @@ theorem right_right_wire_ne (n : Nat) (i j : Fin (n + 1))
   simp only [rightBit_wire_val] at hv
   omega
 
-theorem borrow_borrow_wire_ne (n : Nat) (i j : Fin (n + 1))
+lemma borrow_borrow_wire_ne (n : Nat) (i j : Fin (n + 1))
     (h : i ≠ j) : (borrowBit n i).wire ≠ (borrowBit n j).wire := by
   intro heq
   apply h
@@ -310,7 +312,7 @@ theorem borrow_borrow_wire_ne (n : Nat) (i j : Fin (n + 1))
   simp only [borrowBit_wire_val] at hv
   omega
 
-theorem left_right_wire_ne (n : Nat) (i j : Fin (n + 1)) :
+lemma left_right_wire_ne (n : Nat) (i j : Fin (n + 1)) :
     (leftBit n i).wire ≠ (rightBit n j).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -318,7 +320,7 @@ theorem left_right_wire_ne (n : Nat) (i j : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem left_initial_wire_ne (n : Nat) (i : Fin (n + 1)) :
+lemma left_initial_wire_ne (n : Nat) (i : Fin (n + 1)) :
     (leftBit n i).wire ≠ (initialBorrowBit n).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -326,7 +328,7 @@ theorem left_initial_wire_ne (n : Nat) (i : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem right_initial_wire_ne (n : Nat) (i : Fin (n + 1)) :
+lemma right_initial_wire_ne (n : Nat) (i : Fin (n + 1)) :
     (rightBit n i).wire ≠ (initialBorrowBit n).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -334,7 +336,7 @@ theorem right_initial_wire_ne (n : Nat) (i : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem left_borrow_wire_ne (n : Nat) (i j : Fin (n + 1)) :
+lemma left_borrow_wire_ne (n : Nat) (i j : Fin (n + 1)) :
     (leftBit n i).wire ≠ (borrowBit n j).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -342,7 +344,7 @@ theorem left_borrow_wire_ne (n : Nat) (i j : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem right_borrow_wire_ne (n : Nat) (i j : Fin (n + 1)) :
+lemma right_borrow_wire_ne (n : Nat) (i j : Fin (n + 1)) :
     (rightBit n i).wire ≠ (borrowBit n j).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -350,14 +352,14 @@ theorem right_borrow_wire_ne (n : Nat) (i j : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem initial_borrow_wire_ne (n : Nat) (j : Fin (n + 1)) :
+lemma initial_borrow_wire_ne (n : Nat) (j : Fin (n + 1)) :
     (initialBorrowBit n).wire ≠ (borrowBit n j).wire := by
   intro heq
   have hv := congrArg Fin.val heq
   simp only [initialBorrowBit_wire_val, borrowBit_wire_val] at hv
   omega
 
-theorem left_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
+lemma left_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
     (leftBit n i).wire ≠ (flagBit n).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -365,7 +367,7 @@ theorem left_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem right_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
+lemma right_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
     (rightBit n i).wire ≠ (flagBit n).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -373,14 +375,14 @@ theorem right_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
   have hi := i.isLt
   omega
 
-theorem initial_flag_wire_ne (n : Nat) :
+lemma initial_flag_wire_ne (n : Nat) :
     (initialBorrowBit n).wire ≠ (flagBit n).wire := by
   intro heq
   have hv := congrArg Fin.val heq
   simp only [initialBorrowBit_wire_val, flagBit_wire_val] at hv
   omega
 
-theorem borrow_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
+lemma borrow_flag_wire_ne (n : Nat) (i : Fin (n + 1)) :
     (borrowBit n i).wire ≠ (flagBit n).wire := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -437,11 +439,11 @@ def compareStep (n : Nat) : Carrier n → Carrier n :=
   EncodedBit.GateSpec.stepList (compareGates n)
 
 /-- The folded comparator gate list realizes its exact semantic action. -/
-theorem compareProgram_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (compareProgram n) (compareStep n) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty (compareGates n)
+lemma compareProgram_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (compareProgram n) environment (compareStep n) :=
+  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty (compareGates n) environment
 
-theorem borrowGates_flag_disjoint (n : Nat) :
+lemma borrowGates_flag_disjoint (n : Nat) :
     ∀ gate, gate ∈ borrowGates n →
       EncodedBit.GateSpec.bitDisjoint (flagBit n) gate := by
   exact BorrowWorkLayout.borrowStage_bitDisjoint (borrowLayout n) (flagBit n)
@@ -449,7 +451,7 @@ theorem borrowGates_flag_disjoint (n : Nat) :
     (borrow_flag_wire_ne n)
 
 /-- On clean work, the forward chain's final work bit is ordinary comparison. -/
-theorem borrowGates_finalBorrow_get (n : Nat) (x : Data n) :
+lemma borrowGates_finalBorrow_get (n : Nat) (x : Data n) :
     (borrowBit n (finalBorrowIndex n)).get
         (EncodedBit.GateSpec.stepList (borrowGates n) (x, cleanWork n)) =
       decide (x.left.val < x.right.val) := by
@@ -478,7 +480,7 @@ theorem borrowGates_finalBorrow_get (n : Nat) (x : Data n) :
     natBorrow_eq_decide_lt_of_lt_two_pow x.left.isLt x.right.isLt
 
 /-- The exact program updates only the flag and restores all borrow work. -/
-theorem compareStep_clean (n : Nat) (x : Data n) :
+lemma compareStep_clean (n : Nat) (x : Data n) :
     compareStep n (x, cleanWork n) = (compareIntoFlag x, cleanWork n) := by
   have hreverseDisjoint :
       ∀ gate, gate ∈ (borrowGates n).reverse →
@@ -556,14 +558,15 @@ def compareCircuit (n : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   compareProgram n
 
 /-- Clean encoded-ket endpoint of the exact comparator circuit. -/
-theorem compareCircuit_applyNormalized_clean_ket (n : Nat) (x : Data n) :
-    (compareCircuit n).applyNormalized
+lemma compareCircuit_applyNormalized_clean_ket (n : Nat) (x : Data n) :
+    (compareCircuit n).applyNormalized environment
         (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
           ((encoding n).encode (x, cleanWork n)))) =
       NormalizedVector.ket
         ((QubitLayout.canonical _).basisEquiv.symm
           ((encoding n).encode (compareIntoFlag x, cleanWork n))) := by
-  have h := (compareProgram_realizes n).apply_encoded_ket (x, cleanWork n)
+  have h := (compareProgram_realizes (environment := environment) n).apply_encoded_ket
+    (x, cleanWork n)
   rw [compareStep_clean] at h
   exact h
 
@@ -591,7 +594,7 @@ def compareEventGateCount (n : Nat) (label : AlgorithmGate.Coordinate) : Nat :=
     (compareCircuit n).eventCost
 
 /-- Linearizing comparator event depth recovers the exact strict event pool. -/
-theorem compareCircuit_resourcesFromEventDepth_eq_eventCost (n : Nat) :
+lemma compareCircuit_resourcesFromEventDepth_eq_eventCost (n : Nat) :
     (compareCircuit n).resourcesFromEventDepth = (compareCircuit n).eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost (compareCircuit n)
 

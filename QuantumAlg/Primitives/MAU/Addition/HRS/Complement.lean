@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 /-- Finite complement, with no sign convention or infinite leading bits. -/
@@ -43,14 +45,14 @@ def complementProgram (n : Nat) :
   programList (QubitLayout.canonical _) .empty (complementGates n)
 
 /-- Complemented representatives sum to one less than the modulus. -/
-theorem hrsComplementWord_sum (n : Nat) (word : Fin (2 ^ n)) :
+lemma hrsComplementWord_sum (n : Nat) (word : Fin (2 ^ n)) :
     word.val + (complementWord word).val + 1 = 2 ^ n := by
   change word.val + (2 ^ n - (word.val + 1)) + 1 = 2 ^ n
   have := word.isLt
   omega
 
 /-- The finite complement restores every word when applied twice. -/
-theorem hrsComplementWord_involutive (n : Nat) (word : Fin (2 ^ n)) :
+lemma hrsComplementWord_involutive (n : Nat) (word : Fin (2 ^ n)) :
     complementWord (complementWord word) = word := by
   apply Fin.ext
   have h := hrsComplementWord_sum n word
@@ -58,7 +60,7 @@ theorem hrsComplementWord_involutive (n : Nat) (word : Fin (2 ^ n)) :
   omega
 
 /-- Every in-range bit is inverted. -/
-theorem hrsComplementWord_testBit (n : Nat) (word : Fin (2 ^ n)) (bit : Fin n) :
+lemma hrsComplementWord_testBit (n : Nat) (word : Fin (2 ^ n)) (bit : Fin n) :
     (complementWord word).val.testBit bit.val = !word.val.testBit bit.val := by
   simp only [complementWord, Nat.testBit_two_pow_sub_succ word.isLt,
     decide_eq_true bit.isLt, Bool.true_and]
@@ -69,11 +71,11 @@ private def borrowedWord (n : Nat) : EncodedBit.Word (TTK.encoding n) n :=
 private def allOnes (n : Nat) : Fin (2 ^ n) :=
   ⟨2 ^ n - 1, by have := Nat.two_pow_pos n; omega⟩
 
-private theorem allOnes_testBit (n : Nat) (bit : Fin n) :
+private lemma allOnes_testBit (n : Nat) (bit : Fin n) :
     (allOnes n).val.testBit bit.val = true := by
   simp [allOnes, bit.isLt]
 
-private theorem complementGates_eq_xorConstant (n : Nat) :
+private lemma complementGates_eq_xorConstant (n : Nat) :
     complementGates n =
       EncodedBit.Word.xorConstantGates (borrowedWord n) (allOnes n) := by
   have hbits : (fun bit : Fin n => (allOnes n).val.testBit bit.val) =
@@ -84,7 +86,7 @@ private theorem complementGates_eq_xorConstant (n : Nat) :
   simp [complementGates, borrowedWord, Function.comp_def]
 
 /-- The actual X list has the finite complement action on all input words. -/
-theorem hrsComplement_step (n : Nat) (state : TTK.Registers n) :
+lemma hrsComplement_step (n : Nat) (state : TTK.Registers n) :
     stepList (complementGates n) state = complementOutput state := by
   rw [complementGates_eq_xorConstant]
   change EncodedBit.Word.xorConstantStep (borrowedWord n) (allOnes n) state = _
@@ -106,13 +108,13 @@ theorem hrsComplement_step (n : Nat) (state : TTK.Registers n) :
     simpa only [TTK.ttkRightBit_get, complementOutput] using h
 
 /-- Exact amplitudes, without a phase allowance or borrowed-word restriction. -/
-theorem hrsComplement_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (TTK.encoding n) (complementProgram n) complementOutput :=
+lemma hrsComplement_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (TTK.encoding n) (complementProgram n) environment complementOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (complementGates n) (hrsComplement_step n)
+    (complementGates n) (hrsComplement_step n) environment
 
 /-- Every native event coordinate follows from the actual list of X gates. -/
-theorem hrsComplement_native_count (n : Nat)
+lemma hrsComplement_native_count (n : Nat)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (complementProgram n).eventCost =
       n * (if (.gate .singleQubit :
@@ -128,7 +130,7 @@ theorem hrsComplement_native_count (n : Nat)
   · simp [complementGates, eventMultiplicity, nativeX, List.sum_ofFn, h]
 
 /-- The serial list contains exactly one gate per borrowed bit. -/
-theorem hrsComplement_serial_resources (n : Nat) :
+lemma hrsComplement_serial_resources (n : Nat) :
     (complementProgram n).eventCost.card = n ∧
       (complementProgram n).evaluatedEventDepth (fun _ => 1) = n := by
   change (programList (QubitLayout.canonical _) .empty

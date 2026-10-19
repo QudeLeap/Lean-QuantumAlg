@@ -32,7 +32,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- A real self-XOR writes the complete zero word, whatever the initial target was. -/
-theorem decision_clearWord_read (output : CWriteRef ctx (.unsignedWord width))
+lemma decision_clearWord_read (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (store.applyOp (clearWordOp output)).read (FirstAccepted.cellRead output) =
       CShape.wordOfNat width 0 := by
@@ -43,7 +43,7 @@ theorem decision_clearWord_read (output : CWriteRef ctx (.unsignedWord width))
   simpa only [Nat.xor_self] using actual
 
 /-- A real Boolean self-XOR overwrites its target with false. -/
-theorem decision_clearBit_read (output : CWriteRef ctx .bit) (store : Store ctx) :
+lemma decision_clearBit_read (output : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (clearBitOp output)).read (FirstAccepted.cellRead output) = .bit false := by
   have actual := Store.read_applyOp_output store (clearBitOp output)
   change (store.applyOp (clearBitOp output)).read (FirstAccepted.cellRead output) =
@@ -63,7 +63,7 @@ def initializationStore (shared : Proposal.SharedRefs ctx width)
         (FirstAccepted.cellRead shared.selector.selected) shared.selector.selected)).applyOp
           (clearBitOp scratch.eligible)
 
-private theorem preserves_cell {input output observed : CShape}
+private lemma preserves_cell {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
     (store.applyOp op).read (FirstAccepted.cellRead other) =
@@ -71,7 +71,7 @@ private theorem preserves_cell {input output observed : CShape}
   Store.read_write_other store op.outputRef other.toCStorageRef _ different
 
 /-- The actual three output cells contain the preserved candidate, wrapping one, and false tag. -/
-theorem decisionInitialization_values (shared : Proposal.SharedRefs ctx width)
+lemma decisionInitialization_values (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (candidateUnit : scratch.candidate.key ≠ shared.selector.selected.key)
     (flagUnit : scratch.eligible.key ≠ shared.selector.selected.key)
@@ -110,7 +110,7 @@ theorem decisionInitialization_values (shared : Proposal.SharedRefs ctx width)
   · exact decision_clearBit_read scratch.eligible _
 
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Exact native outcomes of the four initialization instructions in execution order. -/
@@ -128,17 +128,17 @@ def initializationStep (shared : Proposal.SharedRefs ctx width)
   (tagged.1, (copied.2, (cleared.2, (incremented.2, tagged.2))))
 
 /-- Recording native outcomes leaves the original initialized store unchanged. -/
-theorem decisionInitialization_step_store (shared : Proposal.SharedRefs ctx width)
+lemma decisionInitialization_step_store (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width) (store : Store ctx) :
     (initializationStep (model := model) shared scratch store).1 =
       initializationStore shared scratch store := rfl
 
 /-- Actual initialization preserves every complete quantum-reference block with its real path. -/
-theorem decisionInitialization_execute (shared : Proposal.SharedRefs ctx width)
+lemma decisionInitialization_execute (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (initializeBody (model := model) shared scratch).execute Reference state =
+    (initializeBody (model := model) shared scratch).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := initializationStep (model := model) shared scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by

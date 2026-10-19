@@ -30,14 +30,14 @@ public def NatBigO (f g : ℕ → ℕ) : Prop :=
 
 namespace NatBigO
 
-theorem refl (f : ℕ → ℕ) : NatBigO f f := by
+lemma refl (f : ℕ → ℕ) : NatBigO f f := by
   refine Asymptotics.IsBigO.of_bound 1 ?_
   filter_upwards with n
   simp
 
 /-- Multiplying a natural-number resource function by a fixed constant preserves
 its `NatBigO` class. -/
-theorem const_mul_left (c : ℕ) (f : ℕ → ℕ) :
+lemma const_mul_left (c : ℕ) (f : ℕ → ℕ) :
     NatBigO (fun n : ℕ => c * f n) f := by
   refine Asymptotics.IsBigO.of_bound (c : ℝ) ?_
   filter_upwards with n
@@ -45,7 +45,7 @@ theorem const_mul_left (c : ℕ) (f : ℕ → ℕ) :
 
 /-- An eventual pointwise natural-number bound supplies the corresponding
 real-valued `NatBigO` certificate. -/
-theorem of_eventually_le_const_mul {f g : ℕ → ℕ} (c : ℕ)
+lemma of_eventually_le_const_mul {f g : ℕ → ℕ} (c : ℕ)
     (h : ∀ᶠ n in Filter.atTop, f n ≤ c * g n) : NatBigO f g := by
   refine Asymptotics.IsBigO.of_bound (c : ℝ) ?_
   filter_upwards [h] with n hn

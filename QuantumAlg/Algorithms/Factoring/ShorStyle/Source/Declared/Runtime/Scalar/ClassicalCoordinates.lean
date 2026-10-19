@@ -47,22 +47,22 @@ variable {model : ExecutionModel} [BitWord.Selected model] (event : Resource.Eve
 
 include outside
 
-private theorem constant_zero (width : Nat) :
+private lemma constant_zero (width : Nat) :
     ResourcePool.count event (ConstantWord.envelope model width) = 0 := by
   simp [ConstantWord.envelope, ConstantWord.bitEnvelope, ConstantWord.shiftEvent,
     ConstantWord.incrementEvent, ResourcePool.scale, outside]
 
-private theorem decode_zero (width : Nat) :
+private lemma decode_zero (width : Nat) :
     ResourcePool.count event (TerminalDecode.envelope (model := model) width) = 0 := by
   simp [TerminalDecode.envelope, TerminalDecode.bitEnvelope, TerminalDecode.shiftEvent,
     TerminalDecode.incrementEvent, ResourcePool.scale, outside]
 
-private theorem first_zero (width : Nat) :
+private lemma first_zero (width : Nat) :
     ResourcePool.count event (FirstAccepted.nativeEnvelope model width) = 0 := by
   simp [FirstAccepted.nativeEnvelope, FirstAccepted.decisionEvents, FirstAccepted.copyEvents,
     ResourcePool.ofList, ResourcePool.count, outside]
 
-private theorem gcd_zero (width : Nat) :
+private lemma gcd_zero (width : Nat) :
     ResourcePool.count event (NumberTheory.GCD.nativeEnvelope model width) = 0 := by
   have reverseOutside : ∀ label, event ≠ Resource.Event.classicalOperation label :=
     fun label => Ne.symm (outside label)
@@ -70,14 +70,14 @@ private theorem gcd_zero (width : Nat) :
     NumberTheory.GCD.remainderEvents, ResourcePool.scale, ResourcePool.ofList,
     ResourcePool.singleton, ResourcePool.count]
 
-private theorem proposal_zero (width count : Nat) :
+private lemma proposal_zero (width count : Nat) :
     ResourcePool.count event (Sampler.Proposal.scanEnvelope model width count) = 0 := by
   simp only [Sampler.Proposal.scanEnvelope, ResourcePool.count_scale,
     Sampler.Proposal.slotEnvelope, Sampler.Proposal.prefixEnvelope, ResourcePool.count_add,
     decode_zero event outside, first_zero event outside]
   simp [Sampler.Proposal.comparisonEvents, ResourcePool.ofList, ResourcePool.count, outside]
 
-private theorem decision_zero (width : Nat) :
+private lemma decision_zero (width : Nat) :
     ResourcePool.count event (Sampler.Decision.nativeEnvelope model width) = 0 := by
   have reverseOutside : ∀ label, event ≠ Resource.Event.classicalOperation label :=
     fun label => Ne.symm (outside label)
@@ -88,21 +88,21 @@ private theorem decision_zero (width : Nat) :
     ResourcePool.singleton, ResourcePool.count]
 
 /-- Original random sampling and all residue preparation charge no non-classical coordinate. -/
-theorem sampler_nonclassical_zero (N : Nat) :
+lemma sampler_nonclassical_zero (N : Nat) :
     ResourcePool.count event (Sampler.Retained.nativeEnvelope model N) = 0 := by
   simp only [Sampler.Retained.nativeEnvelope, Sampler.Program.nativeEnvelope,
     ResourcePool.count_add, constant_zero event outside, proposal_zero event outside,
     decision_zero event outside]
   simp [ResourcePool.count_singleton, outside]
 
-private theorem power_zero (width exponentWidth : Nat) :
+private lemma power_zero (width exponentWidth : Nat) :
     ResourcePool.count event (Modular.NativePower.eventEnvelope model width exponentWidth) = 0 := by
   simp only [Modular.NativePower.eventEnvelope, Modular.NativePower.exponentEnvelope,
     Modular.NativePower.bitEnvelope, Modular.NativePower.multiplyEnvelope,
     ResourcePool.count_add, ResourcePool.count_scale, constant_zero event outside]
   simp [ResourcePool.count_singleton, outside]
 
-private theorem order_zero (modulusWidth phaseWidth : Nat) :
+private lemma order_zero (modulusWidth phaseWidth : Nat) :
     ResourcePool.count event (OrderRecovery.Native.eventEnvelope model modulusWidth phaseWidth) =
       0 := by
   have reverseOutside : ∀ label, event ≠ Resource.Event.classicalOperation label :=
@@ -115,24 +115,24 @@ private theorem order_zero (modulusWidth phaseWidth : Nat) :
     OrderRecovery.Native.rejectionEvents, OrderRecovery.Native.acceptanceEvents,
     ResourcePool.ofList, ResourcePool.singleton, ResourcePool.count]
 
-private theorem adjacent_zero (successor : Bool) (width : Nat) :
+private lemma adjacent_zero (successor : Bool) (width : Nat) :
     ResourcePool.count event (FactorRecovery.NativeAdjacentWord.eventEnvelope model successor
       width) = 0 := by
   cases successor <;> simp [FactorRecovery.NativeAdjacentWord.eventEnvelope, outside]
 
-private theorem half_gcd_zero (successor : Bool) (N : Nat) :
+private lemma half_gcd_zero (successor : Bool) (N : Nat) :
     ResourcePool.count event (FactorRecovery.NativeHalfGCD.eventEnvelope model successor N) =
       0 := by
   simp only [FactorRecovery.NativeHalfGCD.eventEnvelope, ResourcePool.count_add,
     adjacent_zero event outside, constant_zero event outside, gcd_zero event outside]
   simp [ResourcePool.count_singleton, outside]
 
-private theorem range_zero (width : Nat) :
+private lemma range_zero (width : Nat) :
     ResourcePool.count event (NumberTheory.FactorRange.eventBudget (model := model) width) = 0 := by
   simp [NumberTheory.FactorRange.eventBudget, NumberTheory.FactorRange.events,
     ResourcePool.ofList, ResourcePool.count, outside]
 
-private theorem half_factor_zero (N : Nat) :
+private lemma half_factor_zero (N : Nat) :
     ResourcePool.count event (FactorRecovery.NativeHalfFactorScope.eventEnvelope model N) = 0 := by
   simp only [FactorRecovery.NativeHalfFactorScope.eventEnvelope,
     FactorRecovery.NativeHalfFactor.eventEnvelope, FactorRecovery.NativeHalfFactor.rightEnvelope,
@@ -141,7 +141,7 @@ private theorem half_factor_zero (N : Nat) :
   simp [FactorRecovery.NativeHalfFactor.packBudget, ResourcePool.ofList, ResourcePool.count,
     outside]
 
-private theorem reduce_zero (N : Nat) :
+private lemma reduce_zero (N : Nat) :
     ResourcePool.count event (FactorRecovery.NativeFactorTail.reduceEnvelope model N) = 0 := by
   simp only [FactorRecovery.NativeFactorTail.reduceEnvelope,
     FactorRecovery.NativeHalfPower.eventEnvelope, ResourcePool.count_add,
@@ -149,7 +149,7 @@ private theorem reduce_zero (N : Nat) :
   simp [ResourcePool.count_singleton, outside]
 
 /-- Every real exceptional or full recovery branch has only classical native event coordinates. -/
-theorem recovery_nonclassical_zero (N : Nat) :
+lemma recovery_nonclassical_zero (N : Nat) :
     ResourcePool.count event (FactorRecovery.NativeFactorTail.eventEnvelope model N) = 0 := by
   have reverseOutside : ∀ label, event ≠ Resource.Event.classicalOperation label :=
     fun label => Ne.symm (outside label)

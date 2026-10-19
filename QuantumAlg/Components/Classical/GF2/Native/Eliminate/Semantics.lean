@@ -28,6 +28,7 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Actual selected instruction and its same-context path. -/
@@ -41,12 +42,13 @@ def eliminationChoiceStep
       BitWord.instructionStep (execution := model)
         (eliminationXorOp matrix pivot target) store
 
-private theorem eliminationChoice_execute
+private lemma eliminationChoice_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (value : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (eliminationChoice (model := model) matrix pivot target value).execute Reference state =
+    (eliminationChoice (model := model) matrix pivot target value).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((eliminationChoiceStep matrix pivot target value entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -54,10 +56,11 @@ private theorem eliminationChoice_execute
   cases value with
   | bit bit =>
       cases bit
-      · refine (Circuit.execute_id_mapClassical (model := model) Reference state).trans ?_
+      · refine (Circuit.execute_id_mapClassical
+        (environment := environment) (model := model) Reference state).trans ?_
         congr 1
         exact Subsingleton.elim _ _
-      · exact BitWord.bitWord_instruction_execute (execution := model)
+      · exact BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
           (eliminationXorOp matrix pivot target) state
 
 private def staticRecord (condition : Prop) (decision : Decidable condition)
@@ -70,7 +73,7 @@ private def staticRecord (condition : Prop) (decision : Decidable condition)
   | .isFalse _ => secondStep store
 
 omit [BitWord.Selected model] in
-private theorem staticRecord_store (condition : Prop) (decision : Decidable condition)
+private lemma staticRecord_store (condition : Prop) (decision : Decidable condition)
     (first second : Circuit model ctx ctx)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path) (store : Store ctx) :
@@ -79,21 +82,24 @@ private theorem staticRecord_store (condition : Prop) (decision : Decidable cond
   cases decision <;> rfl
 
 omit [BitWord.Selected model] in
-private theorem staticRecord_execute (condition : Prop) (decision : Decidable condition)
+private lemma staticRecord_execute (condition : Prop) (decision : Decidable condition)
     (first second : Circuit model ctx ctx)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference (model.HiddenState × History)), first.execute Reference state =
+      (state : State ctx Reference (model.HiddenState × History)), first.execute environment
+        Reference state =
         state.mapClassical (fun entry =>
           ((firstStep entry.1).1, (entry.2.1, (entry.2.2, (firstStep entry.1).2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
-      (state : State ctx Reference (model.HiddenState × History)), second.execute Reference state =
+      (state : State ctx Reference (model.HiddenState × History)), second.execute environment
+        Reference state =
         state.mapClassical (fun entry =>
           ((secondStep entry.1).1, (entry.2.1, (entry.2.2, (secondStep entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (@ite (Circuit model ctx ctx) condition decision first second).execute Reference state =
+    (@ite (Circuit model ctx ctx) condition decision first second).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((staticRecord condition decision first second firstStep secondStep entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -117,12 +123,13 @@ def eliminateTargetStep (matrix : CWriteRef ctx (.fixedVector rowCount (.unsigne
       (actual.1, ⟨value, actual.2⟩)) store
 
 /-- Every complete quantum-reference block follows the original actual target decision. -/
-theorem gf2EliminateTarget_execute
+lemma gf2EliminateTarget_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (eliminateTarget (model := model) matrix pivot target column).execute Reference state =
+    (eliminateTarget (model := model) matrix pivot target column).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((eliminateTargetStep matrix pivot target column entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -137,11 +144,13 @@ theorem gf2EliminateTarget_execute
       let actual := eliminationChoiceStep matrix pivot target value current
       (actual.1, ⟨value, actual.2⟩))
     (fun reference {_} _ current => by
-      refine (Circuit.execute_id_mapClassical (model := model) reference current).trans ?_
+      refine (Circuit.execute_id_mapClassical
+        (environment := environment) (model := model) reference current).trans ?_
       congr 1
       exact Subsingleton.elim _ _)
     (fun reference {_} _ current =>
-      Circuit.execute_branchStoreRecord (model := model) (eliminationBit matrix target column)
+      Circuit.execute_branchStoreRecord
+        (environment := environment) (model := model) (eliminationBit matrix target column)
         (eliminationChoice (model := model) matrix pivot target)
         (eliminationChoiceStep matrix pivot target)
         (eliminationChoice_execute (model := model) matrix pivot target) reference current)
@@ -149,7 +158,7 @@ theorem gf2EliminateTarget_execute
 
 omit [BitWord.Selected model] in
 /-- The actual bit read has exactly the original MSB-first logical column coordinate. -/
-theorem gf2EliminationBit_value
+lemma gf2EliminationBit_value
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (target : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (store.read (eliminationBit matrix target column)).toBool =
@@ -160,7 +169,7 @@ theorem gf2EliminationBit_value
   rfl
 
 /-- The complete store changes only through the original conditionally executed matrix XOR. -/
-theorem gf2EliminateTarget_store
+lemma gf2EliminateTarget_store
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (eliminateTargetStep matrix pivot target column store).1 =
@@ -178,7 +187,7 @@ theorem gf2EliminateTarget_store
     | bit bit => cases bit <;> rfl
 
 /-- Every structural caller read outside the actual matrix key is preserved. -/
-theorem gf2EliminateTarget_read_other
+lemma gf2EliminateTarget_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : matrix.key ∉ other.storageKeys) :
@@ -200,22 +209,22 @@ def eliminateWithPivotStep
     (fun target => eliminateTargetStep matrix pivot target column) store
 
 /-- The full target pass preserves every original Store/Reference/History correlation. -/
-theorem gf2EliminateWithPivot_execute
+lemma gf2EliminateWithPivot_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (eliminateWithPivot (model := model) matrix pivot column).execute Reference state =
+    (eliminateWithPivot (model := model) matrix pivot column).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((eliminateWithPivotStep matrix pivot column entry.1).1,
           (entry.2.1, (entry.2.2,
             (eliminateWithPivotStep matrix pivot column entry.1).2)))) :=
-  Circuit.execute_forRangeStoreRecord (model := model) rowCount _ _
+  Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) rowCount _ _
     (fun target => gf2EliminateTarget_execute (model := model) matrix pivot target column)
     Reference state
 
 /-- Every target uses its actual current matrix in the original chronological fold. -/
-theorem gf2EliminateWithPivot_store
+lemma gf2EliminateWithPivot_store
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (eliminateWithPivotStep matrix pivot column store).1 =
@@ -231,7 +240,7 @@ theorem gf2EliminateWithPivot_store
   exact gf2EliminateTarget_store matrix pivot target column current
 
 /-- The whole actual target pass preserves every original non-matrix structural read. -/
-theorem gf2EliminateWithPivot_read_other
+lemma gf2EliminateWithPivot_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : matrix.key ∉ other.storageKeys) :

@@ -28,7 +28,7 @@ def reassociateThree {m n : Nat}
     UnitaryOperator (Qubits ((1 + (1 + (1 + m))) + n)) :=
   UnitaryOperator.reindex (threeAssocEquiv m n) V
 
-private theorem threeAssoc_zero (m n : Nat) (source : Fin (2 ^ n)) :
+private lemma threeAssoc_zero (m n : Nat) (source : Fin (2 ^ n)) :
     (threeAssocEquiv m n).symm (prodEquiv ((0 : Fin (2 ^ (1 + (1 + (1 + m))))), source)) =
       prodEquiv ((0 : Fin 2), prodEquiv ((0 : Fin 2), prodEquiv ((0 : Fin 2),
         prodEquiv ((0 : Fin (2 ^ m)), source)))) := by
@@ -36,7 +36,7 @@ private theorem threeAssoc_zero (m n : Nat) (source : Fin (2 ^ n)) :
   simp [threeAssocEquiv, prodEquiv, finProdFinEquiv, finCongr]
 
 /-- Standard zero-ancilla projection reads exactly the original three zero prefix coordinates. -/
-theorem reassociateThree_projected_block {m n : Nat}
+lemma reassociateThree_projected_block {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (1 + (1 + (m + n)))))) :
     projectedBlock (1 + (1 + (1 + m))) n (reassociateThree V) =
       projectedBlock m n (ancillaBlock 0 0 (ancillaBlock 0 0 (ancillaBlock 0 0 V))) := by
@@ -48,7 +48,7 @@ theorem reassociateThree_projected_block {m n : Nat}
   rw [threeAssoc_zero, threeAssoc_zero]
 
 /-- The standard source-ancilla block is the average of the four independently specified blocks. -/
-theorem threeAverage_projected_block {m n : Nat}
+lemma threeAverage_projected_block {m n : Nat}
     (A B C D : UnitaryOperator (Qubits (1 + (m + n)))) :
     projectedBlock (1 + (1 + (1 + m))) n (reassociateThree (threeAverage A B C D)) =
       (1 / 4 : ℂ) • projectedBlock m n (phasePlusBlock A) +

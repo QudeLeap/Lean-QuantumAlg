@@ -25,7 +25,7 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
@@ -37,21 +37,22 @@ local instance (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
 
 /-- A pointwise identified candidate effect family supplies the same actual
 failure contraction as the checker's original accepted-candidate event. -/
-theorem sampledAttempt_failure_weight_le_of_effects
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+lemma sampledAttempt_failure_weight_le_of_effects
+    (sampleCode : Circuit model ctx ctx false)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
-    (represents : ∀ entry, 0 < (((underPersistent sampleCode supported width scalarWidth).execute
+    (represents : ∀ entry, 0 < (((sampleUnderPersistent sampleCode width scalarWidth).execute
+      environment
       Reference state).block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth target)) targetPoint)
     (lower : ℝ)
     (effects : Circuit.EffectFamily (persistentCtx ctx width scalarWidth) Reference
       (model.HiddenState ×
-        (H × (underPersistent sampleCode supported width scalarWidth).Path)))
+        (H × (sampleUnderPersistent sampleCode width scalarWidth).Path)))
     (agrees : ∀ entry, effects entry =
       if SampleAccepted curve modulus basePoint targetPoint
           (entry.1.read (persistentInput width scalarWidth sample)) then
@@ -61,14 +62,14 @@ theorem sampledAttempt_failure_weight_le_of_effects
       let rejected := state.selectClassical (fun entry => (entry.1.read
         (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool) false
       rejected.mass * lower ≤
-        ((underPersistent sampleCode supported width scalarWidth).execute
+        ((sampleUnderPersistent sampleCode width scalarWidth).execute environment
           Reference rejected).effectWeight effects) :
     persistentFailureWeight (ctx := ctx) (width := width) (scalarWidth := scalarWidth)
-      ((sampledAttempt sampleCode supported curve modulus sample base target).execute
+      ((sampledAttempt sampleCode curve modulus sample base target).execute environment
         Reference state) ≤ (1 - lower) *
           persistentFailureWeight (ctx := ctx) (width := width) (scalarWidth := scalarWidth)
             state := by
-  apply sampledAttempt_failure_weight_le sampleCode supported curve modulus sample base target
+  apply sampledAttempt_failure_weight_le sampleCode curve modulus sample base target
     basePoint targetPoint state represents lower
   exact bound.trans_eq (by
     congr 1

@@ -27,7 +27,7 @@ restriction or precomputed quotient is used to initialize a phase.
 
 namespace QuantumAlg.NumberTheory.SharedEEA.DivisionThreshold
 
-private theorem run_succ (divisor count : Nat) (state : DivisionPhase.State) :
+private lemma run_succ (divisor count : Nat) (state : DivisionPhase.State) :
     DivisionPhase.run divisor (count + 1) state =
       DivisionPhase.step divisor (DivisionPhase.run divisor count state) := by
   induction count generalizing state with
@@ -36,7 +36,7 @@ private theorem run_succ (divisor count : Nat) (state : DivisionPhase.State) :
     exact inductionHypothesis (DivisionPhase.step divisor state)
 
 /-- The next actual intermediate state is the same source division microstep. -/
-theorem current_step (state : IterationState) (count : Nat) :
+lemma current_step (state : IterationState) (count : Nat) :
     DivisionProgress.current state (count + 1) =
       DivisionPhase.step state.divisor (DivisionProgress.current state count) :=
   run_succ state.divisor count _
@@ -46,7 +46,7 @@ def threshold (state : IterationState) (count : Nat) : Nat :=
   (DivisionProgress.current state count).scale / 2 * state.divisor
 
 /-- The actual right-shifted threshold has the corresponding remaining binary-place value. -/
-theorem threshold_eq (state : IterationState) (count : Nat) (active : 0 < state.divisor)
+lemma threshold_eq (state : IterationState) (count : Nat) (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     threshold state count =
       2 ^ ((Alignment.align state.remainder state.divisor).places - (count + 1)) *
@@ -59,7 +59,7 @@ theorem threshold_eq (state : IterationState) (count : Nat) (active : 0 < state.
   rw [exponent, Nat.pow_succ, Nat.mul_div_left _ (by decide : 0 < 2)]
 
 /-- Every actual subtraction threshold is positive before the division phase ends. -/
-theorem threshold_positive (state : IterationState) (count : Nat)
+lemma threshold_positive (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     0 < threshold state count := by
@@ -67,7 +67,7 @@ theorem threshold_positive (state : IterationState) (count : Nat)
   exact Nat.mul_pos (Nat.two_pow_pos _) active
 
 /-- Undoing the written-position displacement recovers the same actual highest threshold. -/
-theorem threshold_scaled (state : IterationState) (count : Nat)
+lemma threshold_scaled (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     2 ^ count * threshold state count =
@@ -84,7 +84,7 @@ theorem threshold_scaled (state : IterationState) (count : Nat)
       omega
 
 /-- Actual alignment minimality bounds the highest threshold by the original remainder. -/
-theorem highest_threshold_le (state : IterationState)
+lemma highest_threshold_le (state : IterationState)
     (hasPlace : 0 < (Alignment.align state.remainder state.divisor).places) :
     2 ^ ((Alignment.align state.remainder state.divisor).places - 1) * state.divisor ≤
       state.remainder := by
@@ -101,7 +101,7 @@ theorem highest_threshold_le (state : IterationState)
   simpa only [halfScale] using previousBound
 
 /-- The actual highest-place product yields the threshold's full position-dependent bit bound. -/
-theorem threshold_size (state : IterationState) (modulus count : Nat)
+lemma threshold_size (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -124,7 +124,7 @@ theorem threshold_size (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual threshold fits the new remainder region, although the old remainder can be larger. -/
-theorem threshold_fits_next (state : IterationState) (modulus count : Nat)
+lemma threshold_fits_next (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
@@ -136,7 +136,7 @@ theorem threshold_fits_next (state : IterationState) (modulus count : Nat)
   omega
 
 /-- One new quotient position takes exactly one bit from the old remainder region. -/
-theorem remainder_width_succ (state : IterationState) (modulus count : Nat)
+lemma remainder_width_succ (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :

@@ -72,26 +72,27 @@ def transitionInto {model : ExecutionModel} [BitWord.Selected model]
   BitWord.instruction (execution := model) (transitionOp refs transition)
 
 /-- Complete execution updates the actual bit and preserves history and quantum-reference blocks. -/
-theorem transitionInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (transitionInto (model := model) refs transition).execute Reference state =
+    (transitionInto (model := model) refs transition).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := BitWord.instructionStep (execution := model)
           (transitionOp refs transition) entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  BitWord.bitWord_instruction_execute _ state
+  BitWord.bitWord_instruction_execute (environment := environment) _ state
 
 /-- Any caller read outside the selected actual bit write is unchanged. -/
-theorem transitionInto_callerFrame (refs : LatticeState.MachineRefs ctx width)
+lemma transitionInto_callerFrame (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : (writtenRef refs transition).key ∉ other.storageKeys) :
     (store.applyOp (transitionOp refs transition)).read other = store.read other := by
   apply Store.read_applyOp_of_not_mem_storageKeys
   cases transition <;> exact avoids
 
-private theorem toggle_read (store : Store ctx) (output : CWriteRef ctx .bit) (value : Bool)
+private lemma toggle_read (store : Store ctx) (output : CWriteRef ctx .bit) (value : Bool)
     (rep : (store.read (.storage output.toCStorageRef)).toBool = value) :
     ((store.applyOp (.bit .not ctx (.storage output.toCStorageRef) output)).read
       (.storage output.toCStorageRef)).toBool = !value := by
@@ -103,7 +104,7 @@ private theorem toggle_read (store : Store ctx) (output : CWriteRef ctx .bit) (v
     rw [actual] at rep
     exact congrArg Bool.not rep
 
-private theorem clear_read (store : Store ctx) (output : CWriteRef ctx .bit) :
+private lemma clear_read (store : Store ctx) (output : CWriteRef ctx .bit) :
     ((store.applyOp (.bit .xor ctx (.product (.storage output.toCStorageRef)
       (.storage output.toCStorageRef)) output)).read (.storage output.toCStorageRef)).toBool =
       false := by
@@ -116,7 +117,7 @@ private theorem clear_read (store : Store ctx) (output : CWriteRef ctx .bit) :
   | bit bit => exact Bool.xor_self bit
 
 /-- Each actual one-instruction transition realizes the original three-state phase encoding. -/
-theorem transitionInto_correct (refs : LatticeState.MachineRefs ctx width)
+lemma transitionInto_correct (refs : LatticeState.MachineRefs ctx width)
     (separation : refs.Separated) (transition : Transition) (store : Store ctx)
     (phase : refs.PhaseRepresents store (sourcePhase transition)) :
     refs.PhaseRepresents (store.applyOp (transitionOp refs transition))
@@ -153,7 +154,7 @@ def transitionTrace {model : ExecutionModel} [BitWord.Selected model]
     (.bit (transitionOpcode transition)))]
 
 /-- The actual transition emits exactly its independent native Boolean instruction. -/
-theorem transitionInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition)
     (path : (transitionInto (model := model) refs transition).Path) :
@@ -164,7 +165,7 @@ theorem transitionInto_events {model : ExecutionModel} [BitWord.Selected model]
   cases transition <;> rfl
 
 /-- Native multiplicity is counted from that same independently specified operation. -/
-theorem transitionInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition)
     (path : (transitionInto (model := model) refs transition).Path) :
@@ -175,7 +176,7 @@ theorem transitionInto_resourcePool {model : ExecutionModel} [BitWord.Selected m
   rw [transitionInto_events]
 
 /-- Each phase change has exact unit-duration dependency depth one. -/
-theorem transitionInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition)
     (path : (transitionInto (model := model) refs transition).Path) :
@@ -184,23 +185,24 @@ theorem transitionInto_depth {model : ExecutionModel} [BitWord.Selected model]
   rw [BitWord.bitWord_instruction_depth]
 
 /-- The phase write restores all borrowed correlations jointly with external references. -/
-theorem transitionInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (transitionInto (model := model) refs transition).BorrowedRestored Reference state
-      ((transitionInto (model := model) refs transition).execute Reference state) :=
-  Circuit.borrowedRestored_classical _ state
+      ((transitionInto (model := model) refs transition).execute environment Reference state) :=
+  Circuit.borrowedRestored_classical (environment := environment) _ state
 
 /-- A phase change visits only the original complete caller context. -/
-theorem transitionInto_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition)
     (path : (transitionInto (model := model) refs transition).Path) :
     (transitionInto (model := model) refs transition).visitedContexts path = [ctx] := rfl
 
 /-- Every original resident resource remains counted during the phase write. -/
-theorem transitionInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition)
     (path : (transitionInto (model := model) refs transition).Path) :
@@ -213,7 +215,7 @@ theorem transitionInto_resident_le {model : ExecutionModel} [BitWord.Selected mo
   rw [equal]
 
 /-- Auxiliary roles remain unchanged by the phase write. -/
-theorem transitionInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma transitionInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : LatticeState.MachineRefs ctx width)
     (transition : Transition)
     (path : (transitionInto (model := model) refs transition).Path) :

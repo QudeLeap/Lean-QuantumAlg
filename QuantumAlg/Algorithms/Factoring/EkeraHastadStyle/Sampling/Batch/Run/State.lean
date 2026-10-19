@@ -25,17 +25,21 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem run_output_entry {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+private lemma run_output_entry {model : ExecutionModel} {environment : model.Environment}
+    {pre post : RuntimeCtx model.kind}
     {shape : CShape} (program : AlgorithmRun model pre post shape) (seed : post.register.Index)
     (coefficient : shape.Value → ℂ)
     (executeEntry : ∀ {Reference : Register} {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History)) (selected : shape.Value)
       (left right : post.register.Index) (leftRef rightRef : Reference.Index),
-      (((program.code.execute Reference state).mapClassical
+      (((program.code.execute environment Reference state).mapClassical
         (fun entry => program.output.eval entry.1)).block selected).matrix
           (left, leftRef) (right, rightRef) =
         if left = seed ∧ right = seed then
@@ -46,16 +50,16 @@ private theorem run_output_entry {model : ExecutionModel} {pre post : RuntimeCtx
       (Register.prod pre.register Reference))
     (selected : shape.Value) (left right : post.register.Index)
     (leftRef rightRef : Reference.Index) :
-    (((program.finalState Reference initial).mapClassical
+    (((program.finalState environment Reference initial).mapClassical
       program.output.eval).block selected).matrix
         (left, leftRef) (right, rightRef) =
       if left = seed ∧ right = seed then
         coefficient selected * initial.referenceMarginal.matrix leftRef rightRef else 0 := by
   let entered : State pre Reference (model.HiddenState × Store pre) :=
     initial.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
-  have entryEquation : program.execute Reference initial =
-      program.code.execute Reference entered := rfl
-  have runEquation := AlgorithmRun.finalState_readout program Reference initial
+  have entryEquation : program.execute environment Reference initial =
+      program.code.execute environment Reference entered := rfl
+  have runEquation := AlgorithmRun.finalState_readout program environment Reference initial
   have executionEquation := congrArg
     (fun state : ExecutionState program.Record (Register.prod post.register Reference) =>
       state.mapClassical (fun record => program.output.eval record.1)) entryEquation
@@ -76,13 +80,13 @@ private theorem run_output_entry {model : ExecutionModel} {pre post : RuntimeCtx
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The actual run's output block retains the same independent seed and full reference density. -/
-theorem nativeBatch_run_output_joint_entry (specification : Input N)
+lemma nativeBatch_run_output_joint_entry (specification : Input N)
     {Reference : Register}
     (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
     (selected : (resultShape N).Value)
     (left right : (context base noQuantum N).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((run base noQuantum N).finalState Reference input.state).mapClassical
+    ((((run base noQuantum N).finalState environment Reference input.state).mapClassical
       (run base noQuantum N).output.eval).block selected).matrix
         (left, leftRef) (right, rightRef) =
       if left = restoredSeed base noQuantum N ∧ right = restoredSeed base noQuantum N then

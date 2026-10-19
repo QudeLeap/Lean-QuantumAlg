@@ -24,7 +24,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem emptySelectedBasis_unique {count : Nat} (layout : QuantumLayout count)
+private lemma emptySelectedBasis_unique {count : Nat} (layout : QuantumLayout count)
     (selection : Finset (Fin count)) (empty : selection = ∅)
     (left right : layout.SelectedBasis selection) : left = right := by
   funext index
@@ -44,7 +44,7 @@ private def emptyComplementEquiv {count : Nat} (layout : QuantumLayout count)
       (layout.restrictSelectedBasis selection basis)]
     exact layout.joinSelectedBasis_restrict selection basis
 
-private theorem sum_emptyComplement_diagonal {count : Nat} (layout : QuantumLayout count)
+private lemma sum_emptyComplement_diagonal {count : Nat} (layout : QuantumLayout count)
     (selection : Finset (Fin count)) (empty : selection = ∅)
     (left right : layout.SelectedBasis selection) (entry : layout.Basis → layout.Basis → ℂ) :
     (∑ complement : layout.ComplementBasis selection,
@@ -58,7 +58,7 @@ namespace Execution
 
 /-- A uniquely valued borrowed classical interface and no borrowed quantum wires
 still observe the entire external reference marginal. -/
-theorem observeBorrowed_empty_entry_of_subsingleton {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_empty_entry_of_subsingleton {kind : ProblemKind} {ctx : RuntimeCtx kind}
     [Subsingleton ctx.borrowedClassicalShape.Value]
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference H)
@@ -93,7 +93,7 @@ theorem observeBorrowed_empty_entry_of_subsingleton {kind : ProblemKind} {ctx : 
     (fun a b => (state.block label).matrix (a, refLeft) (b, refRight))
 
 /-- With no borrowed values or wires, the joint observation is the full reference marginal. -/
-theorem observeBorrowed_empty_entry {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_empty_entry {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference H)
@@ -112,19 +112,25 @@ end Execution
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 /-- Local unitary execution restores every uniquely valued borrowed classical
 interface together with the external reference when no quantum wire is borrowed. -/
-theorem borrowedRestored_unitary_noBorrowedQuantum {gates : GateModel} {oracles : OracleModel}
+lemma borrowedRestored_unitary_noBorrowedQuantum {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    (environment :
+      (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
     {ctx : RuntimeCtx .quantum}
     [Subsingleton ctx.borrowedClassicalShape.Value]
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
     {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : Execution.State ctx Reference (classicalOracles.HiddenState × H)) :
-    (Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+    (Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := classicalOracles)
       program).BorrowedRestored Reference state
-      ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
-      program).execute Reference state) := by
+      ((Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := classicalOracles)
+      program).execute environment Reference state) := by
   rw [BorrowedRestored, Execution.observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
   intro value
@@ -134,24 +140,30 @@ theorem borrowedRestored_unitary_noBorrowedQuantum {gates : GateModel} {oracles 
   rcases column with ⟨right, refRight⟩
   rw [Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum,
     Execution.observeBorrowed_empty_entry_of_subsingleton noQuantum]
-  exact unitary_reference_entry program state refLeft refRight
+  exact unitary_reference_entry (allowAllocation := allowAllocation)
+    environment program state refLeft refRight
 
 /-- Local unitary execution restores an empty borrowed interface together with its reference. -/
-theorem borrowedRestored_unitary_noBorrowed {gates : GateModel} {oracles : OracleModel}
+lemma borrowedRestored_unitary_noBorrowed {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    (environment :
+      (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
     {ctx : RuntimeCtx .quantum}
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
     {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : Execution.State ctx Reference (classicalOracles.HiddenState × H)) :
-    (Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
+    (Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := classicalOracles)
       program).BorrowedRestored Reference state
-      ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
-      program).execute Reference state) := by
+      ((Circuit.unitary (allowAllocation := allowAllocation)
+      (operations := operations) (classicalOracles := classicalOracles)
+      program).execute environment Reference state) := by
   let : Subsingleton ctx.borrowedClassicalShape.Value := by
     rw [noClassical]
     exact ⟨fun a b => by cases a; cases b; rfl⟩
-  exact borrowedRestored_unitary_noBorrowedQuantum noQuantum program state
+  exact borrowedRestored_unitary_noBorrowedQuantum (allowAllocation := allowAllocation)
+    environment noQuantum program state
 
 end Circuit
 

@@ -25,7 +25,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind}
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} (environment : model.Environment)
 
 /-- The original complete quantum basis is unchanged by each actual classical retain. -/
 def framedBasisEquiv (ctx frame : RuntimeCtx kind) (dimension : ℕ+) :
@@ -51,7 +51,7 @@ def framedJointBasisEquiv (ctx frame : RuntimeCtx kind) (dimension : ℕ+) (coun
   (framedBasisEquiv ctx frame dimension count separate).prodCongr (Equiv.refl Reference.Index)
 
 /-- The complete quantum/reference matrix is preserved by the actual retained allocations. -/
-theorem allocateFramed_quantumMarginal (ctx frame : RuntimeCtx model.kind)
+lemma allocateFramed_quantumMarginal (ctx frame : RuntimeCtx model.kind)
     (dimension : ℕ+) (count : Nat)
     (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     {Reference : Register} {H : Type} [Fintype H]
@@ -59,7 +59,7 @@ theorem allocateFramed_quantumMarginal (ctx frame : RuntimeCtx model.kind)
       (ctx.disjointUnion frame (original_disjoint ctx frame dimension count separate))
       Reference (model.HiddenState × H)) :
     ((allocateFramed (model := model) ctx frame dimension count separate).execute
-      Reference state).quantumMarginal =
+      environment Reference state).quantumMarginal =
       state.quantumMarginal.reindex (framedJointBasisEquiv ctx frame dimension count separate
         Reference) := by
   induction count with
@@ -76,24 +76,25 @@ theorem allocateFramed_quantumMarginal (ctx frame : RuntimeCtx model.kind)
           prefixSeparate)
         (.retain (middle.disjointUnion frame prefixSeparate) middle.canonicalFreshKey
           (.finite dimension) (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
-            middle.canonicalFreshKey_fresh separate))).execute Reference state).quantumMarginal = _
+            middle.canonicalFreshKey_fresh separate))).execute
+          environment Reference state).quantumMarginal = _
       rw [Circuit.execute_seq]
       calc
         _ = ((Circuit.retain (middle.disjointUnion frame prefixSeparate)
             middle.canonicalFreshKey (.finite dimension)
             (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
-              middle.canonicalFreshKey_fresh separate)).execute Reference
+              middle.canonicalFreshKey_fresh separate)).execute environment Reference
                 ((allocateFramed (model := model) ctx frame dimension count
-                  prefixSeparate).execute Reference state)).quantumMarginal :=
+                  prefixSeparate).execute environment Reference state)).quantumMarginal :=
           State.mapHistory_quantumMarginal _ _
         _ = ((allocateFramed (model := model) ctx frame dimension count
-            prefixSeparate).execute Reference state).quantumMarginal := by
+            prefixSeparate).execute environment Reference state).quantumMarginal := by
           rw [Circuit.execute_retain]
           convert ExecutionState.mapClassical_quantumMarginal _ _ using 1
         _ = _ := ih prefixSeparate state
 
 /-- Actual allocation restores the full borrowed classical-quantum-reference observation. -/
-theorem allocateFramed_borrowedRestored (ctx frame : RuntimeCtx model.kind)
+lemma allocateFramed_borrowedRestored (ctx frame : RuntimeCtx model.kind)
     (dimension : ℕ+) (count : Nat)
     (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     {Reference : Register} {H : Type} [Fintype H]
@@ -103,20 +104,22 @@ theorem allocateFramed_borrowedRestored (ctx frame : RuntimeCtx model.kind)
     (allocateFramed (model := model) ctx frame dimension count separate).BorrowedRestored
       Reference state
       ((allocateFramed (model := model) ctx frame dimension count separate).execute
-        Reference state) := by
+        environment Reference state) := by
   induction count with
   | zero =>
-      exact Circuit.borrowedRestored_id state
+      exact Circuit.borrowedRestored_id (environment := environment) state
   | succ count ih =>
       let middle := context ctx dimension count
       let prefixSeparate := retained_disjoint middle.canonicalFreshKey (.finite dimension)
         middle.canonicalFreshKey_fresh separate
-      exact Circuit.borrowedRestored_seq _ _ state (ih prefixSeparate state)
-        (Circuit.borrowedRestored_retain middle.canonicalFreshKey (.finite dimension)
+      exact Circuit.borrowedRestored_seq
+        (environment := environment) _ _ state (ih prefixSeparate state)
+        (Circuit.borrowedRestored_retain
+        (environment := environment) middle.canonicalFreshKey (.finite dimension)
           (retained_fresh_union middle.canonicalFreshKey (.finite dimension)
             middle.canonicalFreshKey_fresh separate)
           ((allocateFramed (model := model) ctx frame dimension count prefixSeparate).execute
-            Reference state))
+            environment Reference state))
 
 end
 

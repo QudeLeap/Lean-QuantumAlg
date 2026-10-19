@@ -26,7 +26,7 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every original selected case executes its corresponding actual complete native arm. -/

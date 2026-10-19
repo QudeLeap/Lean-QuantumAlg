@@ -41,13 +41,13 @@ public structure CurveSpec (width : Nat) where
 namespace CurveSpec
 
 /-- The curve certificate exports the prime-field fact used by `ZMod`. -/
-theorem primeFact {width : Nat} (spec : CurveSpec width) :
+lemma primeFact {width : Nat} (spec : CurveSpec width) :
     Fact spec.field.modulus.Prime :=
   ⟨spec.curve.prime⟩
 
 /-- The stored affine ellipticity witness, exposed under the fixed-width
 specification. -/
-theorem affineIsElliptic {width : Nat} (spec : CurveSpec width) :
+lemma affineIsElliptic {width : Nat} (spec : CurveSpec width) :
     spec.curve.toWeierstrassCurve.toAffine.IsElliptic :=
   spec.elliptic
 
@@ -65,7 +65,7 @@ public instance instAffineIsElliptic {width : Nat} (spec : CurveSpec width) :
 
 /-- Over the stored elliptic curve, the local short-Weierstrass affine equation
 is exactly Mathlib's nonsingularity predicate. -/
-theorem affineEquation_iff_nonsingular {width : Nat} (spec : CurveSpec width)
+lemma affineEquation_iff_nonsingular {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) :
     spec.curve.AffineEquation x y ↔
       spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y := by

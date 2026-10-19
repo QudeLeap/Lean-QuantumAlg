@@ -24,14 +24,14 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The complete exact run restores its empty borrowed input jointly with any reference. -/
-theorem code_borrowedRestored {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
+lemma code_borrowedRestored (t width : Nat)
+    (environment : (Sampling.Native.model t width).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State Sampling.Native.pre Reference
-      ((Sampling.Native.model access).HiddenState × History)) :
-    (code access).BorrowedRestored Reference state
-      ((code access).execute Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (code access) rfl Reference state
+      ((Sampling.Native.model t width).HiddenState × History)) :
+    (code t width).BorrowedRestored Reference state
+      ((code t width).execute environment Reference state) :=
+  Circuit.borrowedRestored_of_noBorrowedQuantum (code t width) environment rfl Reference state
 
 end
 

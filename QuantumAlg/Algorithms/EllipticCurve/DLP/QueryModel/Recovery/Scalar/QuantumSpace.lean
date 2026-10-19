@@ -39,12 +39,12 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem original_auxiliary (I : ECDLPInstance E) :
+private lemma original_auxiliary (I : ECDLPInstance E) :
     (Sampling.pre I).auxiliarySpace = 0 := by
   simp only [Sampling.pre, Runtime.Context.pre, Runtime.Context.baseInputCtx,
     RuntimeCtx.auxiliarySpace_addBorrowedInput, RuntimeCtx.auxiliarySpace_empty]
 
-private theorem layout_dimensions (I : ECDLPInstance E) (dimension : ℕ+) :
+private lemma layout_dimensions (I : ECDLPInstance E) (dimension : ℕ+) :
     SpacePool.count (.quantumSystems dimension) (SpacePool.ofQuantumLayout (layout I)) =
       if 2 = dimension then Layout.totalQubits I else 0 := by
   change (QuantumLayout.uniform (Layout.totalQubits I) 2 Fin.val
@@ -53,7 +53,7 @@ private theorem layout_dimensions (I : ECDLPInstance E) (dimension : ℕ+) :
     Fin.val Fin.val_injective
 
 /-- The complete independent inventories contain only the original physical qubits. -/
-public theorem whole_memory_quantum_coordinates (I : ECDLPInstance E) (dimension : ℕ+) :
+public lemma whole_memory_quantum_coordinates (I : ECDLPInstance E) (dimension : ℕ+) :
     SpacePool.count (.quantumSystems dimension) (tailResidentBudget I) =
         (if 2 = dimension then Layout.totalQubits I else 0) ∧
     SpacePool.count (.quantumSystems dimension) (tailAuxiliaryBudget I) =
@@ -70,15 +70,15 @@ public theorem whole_memory_quantum_coordinates (I : ECDLPInstance E) (dimension
   exact layout_dimensions I dimension
 
 /-- Every owned system emits its actual zero-preparation event once at allocation. -/
-public theorem whole_initialization_budget (I : ECDLPInstance E) (A : Access I) :
-    initializationBudget I A = Layout.totalQubits I •
-      ResourcePool.singleton (model := Sampling.executionModel I A)
+public lemma whole_initialization_budget (I : ECDLPInstance E) :
+    initializationBudget I = Layout.totalQubits I •
+      ResourcePool.singleton (model := Sampling.executionModel I)
         (.preparation (2 : ℕ+)) := by
-  exact ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model (model I A)
+  exact ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model (model I)
     (layout I) 2 (fun _ => rfl) BitWord.model .empty
 
 /-- The real tagged point and two exponent registers have the scalar physical width. -/
-public theorem original_qubits_scalar (I : ECDLPInstance E) :
+public lemma original_qubits_scalar (I : ECDLPInstance E) :
     Layout.totalQubits I = Scalar.qubits (fieldWidth E) (scalarWidth I) := by
   change scalarWidth I + scalarWidth I + (1 + 2 * fieldWidth E) = _
   unfold Scalar.qubits

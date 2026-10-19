@@ -25,7 +25,7 @@ noncomputable section
 def primitiveAlphabet : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   ResourcePool.ofList [.gate .singleQubit, .gate .cnot, .gate .toffoli]
 
-private theorem primitive_event_mem {Data : Type} {encoding : BinaryLabelEncoding Data}
+private lemma primitive_event_mem {Data : Type} {encoding : BinaryLabelEncoding Data}
     (gate : EncodedBit.GateSpec encoding) :
     EncodedBit.GateSpec.event .empty gate ∈ primitiveAlphabet := by
   cases gate <;>
@@ -34,7 +34,7 @@ private theorem primitive_event_mem {Data : Type} {encoding : BinaryLabelEncodin
       QubitPrimitive.nativeToken, AlgorithmGate.model, AlgorithmGate.coordinate]
 
 /-- A literal base-gate list has no event coordinate outside the explicitly declared alphabet. -/
-theorem programList_native_support {Data : Type} {encoding : BinaryLabelEncoding Data}
+lemma programList_native_support {Data : Type} {encoding : BinaryLabelEncoding Data}
     (layout : QubitLayout encoding.width)
     (gates : List (EncodedBit.GateSpec encoding))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
@@ -46,7 +46,7 @@ theorem programList_native_support {Data : Type} {encoding : BinaryLabelEncoding
   exact primitive_event_mem gate
 
 /-- Every coordinate outside the literal primitive alphabet has zero actual multiplicity. -/
-theorem programList_count_zero_of_not_mem_primitiveAlphabet {Data : Type}
+lemma programList_count_zero_of_not_mem_primitiveAlphabet {Data : Type}
     {encoding : BinaryLabelEncoding Data}
     (layout : QubitLayout encoding.width)
     (gates : List (EncodedBit.GateSpec encoding))

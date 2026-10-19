@@ -28,7 +28,7 @@ noncomputable section
 
 /-- Every source-certified recoverable joint event decodes to denominator `r`,
 and the source success lower bound is carried by exactly those events. -/
-theorem sourceJoint_recoverableEventSuccess {t r : Nat}
+lemma sourceJoint_recoverableEventSuccess {t r : Nat}
     (hr : 0 < r) (cert : ShorSourceJointEventMapCertificate t r) :
     (∀ outcome,
       outcome ∈ shorSourceJointRecoverableEvents (t := t) (r := r) cert.eventOf →
@@ -57,7 +57,7 @@ theorem sourceJoint_recoverableEventSuccess {t r : Nat}
 
 open ShorSourceJointEventMapCertificate in
 /-- Concrete rounded-nearest-fraction specialization of the source theorem. -/
-theorem sourceJoint_scaledErrorRecoverableEventSuccess {t r : Nat}
+lemma sourceJoint_scaledErrorRecoverableEventSuccess {t r : Nat}
     (hr : 0 < r) (hq : (r : Real) ^ 2 < (2 : Real) ^ t)
     (hlarge : 12 * r ≤ 2 ^ t) :
     (∀ outcome,
@@ -84,7 +84,7 @@ theorem sourceJoint_scaledErrorRecoverableEventSuccess {t r : Nat}
 open ShorSourceJointEventMapCertificate in
 /-- The source recovery theorem over the public register window
 `N^2 <= 2^t < 2N^2`, including the finite small-modulus residual cases. -/
-theorem sourceJoint_publicRegisterRecoverableEventSuccess
+lemma sourceJoint_publicRegisterRecoverableEventSuccess
     {N x t r : Nat}
     (hinput : OrderFinding.Input N x r)
     (hregister : N ^ 2 ≤ 2 ^ t)
@@ -174,7 +174,7 @@ theorem sourceJoint_publicRegisterRecoverableEventSuccess
 
 /-- Source-level public output-success bound, before embedding into the actual
 implementationAlgorithm Born PMF. -/
-theorem sourceOutputSuccessLowerBound {N x t r : Nat}
+lemma sourceOutputSuccessLowerBound {N x t r : Nat}
     (hinput : OrderFinding.Input N x r)
     (hregister : N ^ 2 ≤ 2 ^ t)
     (hupper : 2 ^ t < 2 * N ^ 2) :
@@ -202,7 +202,7 @@ theorem sourceOutputSuccessLowerBound {N x t r : Nat}
 /-- Source-level output-success bound under the scaled-error and large-register
 hypotheses. Unlike the public-window wrapper, this theorem requires no upper
 bound of the form `2^t < 2*N^2`. -/
-theorem sourceOutputSuccessLowerBound_of_scaledError {N x t r : Nat}
+lemma sourceOutputSuccessLowerBound_of_scaledError {N x t r : Nat}
     (hinput : OrderFinding.Input N x r)
     (hq : (r : Real) ^ 2 < (2 : Real) ^ t)
     (hlarge : 12 * r ≤ 2 ^ t) :

@@ -31,33 +31,37 @@ namespace QuantumAlg.QuantumPhaseEstimation.Native
 noncomputable section
 
 /-- The real phase Hadamards tensor the identity on the whole source register. -/
-theorem qpeNative_initialLayer_binaryMatrix (phaseWidth : Nat) {systemWidth : Nat}
+lemma qpeNative_initialLayer_binaryMatrix (phaseWidth : Nat) {systemWidth : Nat}
     (unitary : UnitaryOperator (Qubits systemWidth)) :
-    (initialLayer phaseWidth unitary).binaryMatrix =
+    ((initialLayer phaseWidth systemWidth).binaryMatrix (UnitarySource.interpretation unitary
+      true)) =
       (WalshHadamard.hadamardLayerOperator phaseWidth).tensor
         (1 : UnitaryOperator (Qubits systemWidth)) := by
   rw [initialLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   exact congrArg (fun operator : UnitaryOperator (Qubits phaseWidth) =>
     operator.tensor (1 : UnitaryOperator (Qubits systemWidth)))
-    (WalshHadamard.Native.native_binary_matrix (UnitarySource.model unitary true) phaseWidth)
+    (WalshHadamard.Native.native_binary_matrix (UnitarySource.model systemWidth true) phaseWidth
+      (UnitarySource.interpretation unitary true))
 
 /-- The real inverse Fourier word tensors the identity on the same source systems. -/
-theorem qpeNative_readoutLayer_binaryMatrix (phaseWidth : Nat) {systemWidth : Nat}
+lemma qpeNative_readoutLayer_binaryMatrix (phaseWidth : Nat) {systemWidth : Nat}
     (unitary : UnitaryOperator (Qubits systemWidth)) :
-    (readoutLayer phaseWidth unitary).binaryMatrix =
+    ((readoutLayer phaseWidth systemWidth).binaryMatrix (UnitarySource.interpretation unitary
+      true)) =
       (invQFT phaseWidth).tensor (1 : UnitaryOperator (Qubits systemWidth)) := by
   rw [readoutLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   apply congrArg (fun operator : UnitaryOperator (Qubits phaseWidth) =>
     operator.tensor (1 : UnitaryOperator (Qubits systemWidth)))
   change QuantumFourierTransform.Native.onBinaryLabels
-    (qpeReadoutCircuit (UnitarySource.model unitary true) phaseWidth) = invQFT phaseWidth
+    (qpeReadoutCircuit (UnitarySource.model systemWidth true) phaseWidth)
+    (UnitarySource.interpretation unitary true) = invQFT phaseWidth
   rw [qpeReadoutCircuit, QuantumFourierTransform.Native.qftNative_inverseCircuit_binaryMatrix,
     qpeReadout_binary_matrix]
 
 /-- The full actual native word has exactly the original three-stage QPE matrix. -/
-theorem qpeNative_circuit_binaryMatrix (phaseWidth : Nat) {systemWidth : Nat}
+lemma qpeNative_circuit_binaryMatrix (phaseWidth : Nat) {systemWidth : Nat}
     (unitary : UnitaryOperator (Qubits systemWidth)) :
-    (circuit phaseWidth unitary).binaryMatrix =
+    ((circuit phaseWidth systemWidth).binaryMatrix (UnitarySource.interpretation unitary true)) =
       (invQFT phaseWidth).tensor (1 : UnitaryOperator (Qubits systemWidth)) *
         (qpeControlledPowerOp phaseWidth unitary *
           (WalshHadamard.hadamardLayerOperator phaseWidth).tensor

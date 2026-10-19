@@ -26,7 +26,7 @@ noncomputable section
 variable {model : GateModel} {count : Nat} {layout : QuantumLayout count}
 
 /-- A placed diagonal token retains its exact phase and the full untouched complement. -/
-public theorem application_operator_diagonal (application : Application model layout)
+public lemma application_operator_diagonal (application : Application model layout)
     (weight : (model.signature application.occurrence.token).Basis → Complex)
     (semantics :
       (model.operator application.occurrence.token :

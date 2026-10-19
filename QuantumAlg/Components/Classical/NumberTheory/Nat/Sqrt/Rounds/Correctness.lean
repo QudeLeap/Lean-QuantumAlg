@@ -24,7 +24,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {inputWidth : Nat}
 
 /-- Every actual round preserves caller reads outside the original round write identities. -/
-theorem roundsStep_callerFrame (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsStep_callerFrame (refs : Refs ctx inputWidth) (remaining : Nat)
     (store : Store ctx) :
     IntegerSqrt.CallerFrame refs.round store (roundsStep (model := model) refs remaining store).1
       := by
@@ -37,7 +37,7 @@ theorem roundsStep_callerFrame (refs : Refs ctx inputWidth) (remaining : Nat)
         (IntegerSqrt.roundInto_callerFrame (wideInput refs) refs.round store other avoids)
 
 /-- The actual loop consumes the original remaining interval, without new arithmetic premises. -/
-theorem roundsStep_correct (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsStep_correct (refs : Refs ctx inputWidth) (remaining : Nat)
     (separation : Separation refs) (store : Store ctx)
     (initial : RemainingState remaining refs store) :
     RemainingState 0 refs (roundsStep (model := model) refs remaining store).1 := by

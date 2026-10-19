@@ -30,7 +30,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem gcdTail_result (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
+private lemma gcdTail_result (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (store : Store (context ctx N)) :
     ((gcdTailStep (model := model) output store).1.read (.storage (liftWrite
       output).toCStorageRef)).toNat =
@@ -60,7 +60,7 @@ private theorem gcdTail_result (output : CWriteRef ctx (.unsignedWord (modulusBi
       cases store.read (.storage (modulusRef ctx N).toCStorageRef) with
       | unsignedWord right => rfl
 
-private theorem loadTail_result (source : Input N)
+private lemma loadTail_result (source : Input N)
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (store : Store (context ctx N)) :
     ((loadTailStep (model := model) output store).1.read (.storage (liftWrite
@@ -86,7 +86,7 @@ private theorem loadTail_result (source : Input N)
     (congrArg₂ Nat.gcd (congrArg CShape.Value.toNat adjacentSame) modulusSame)
 
 /-- The genuine body returns the original GCD of the stored half-power's natural adjacent value. -/
-theorem body_result (source : Input N) (successor : Bool)
+lemma body_result (source : Input N) (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (store : Store (context ctx N)) :
@@ -103,7 +103,7 @@ theorem body_result (source : Input N) (successor : Bool)
         (adjacentRef ctx N) store))
 
 /-- Actual scope exit exposes exactly the original left or right half-power GCD. -/
-theorem result_toNat (source : Input N) (successor : Bool)
+lemma result_toNat (source : Input N) (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1))) (store : Store ctx) :
     ((step (model := model) successor halfPower output store).1.read (.storage

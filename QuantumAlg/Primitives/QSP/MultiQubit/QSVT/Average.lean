@@ -45,7 +45,7 @@ noncomputable def phaseControlledDirectSumOperator {N : Nat}
   UnitaryOperator.controlledQubits (phaseRelativeOperator V0 V1) *
     liftSignalOperator V0
 
-theorem phaseControlledDirectSum_eq_tensor_decomp {N : Nat}
+lemma phaseControlledDirectSum_eq_tensor_decomp {N : Nat}
     (V0 V1 : UnitaryOperator (Qubits N)) :
     (phaseControlledDirectSumOperator V0 V1 : HilbertOperator (Qubits (1 + N))) =
       HilbertOperator.tensor HilbertOperator.proj0 (V0 : HilbertOperator (Qubits N)) +
@@ -87,7 +87,7 @@ theorem phaseControlledDirectSum_eq_tensor_decomp {N : Nat}
 /-- The `|+⟩` block of a controlled direct sum is the arithmetic average of its
 two branches.  This is the elementary controlled-sum calculation used by the
 real-polynomial projected-QSVT corollary [GSLW19, BlockHam.tex:851-887]. -/
-theorem phasePlusBlock_phaseControlledDirectSum {N : Nat}
+lemma phasePlusBlock_phaseControlledDirectSum {N : Nat}
     (V0 V1 : UnitaryOperator (Qubits N)) :
     phasePlusBlock (phaseControlledDirectSumOperator V0 V1) =
       ((1 / 2 : ℂ) • (V0 : HilbertOperator (Qubits N)) +
@@ -120,7 +120,7 @@ noncomputable def averageProjectedBlockOperator {a n : Nat}
 
 /-- The projected block of the metadata-free selector average is the
 arithmetic average of the projected branch blocks. -/
-theorem projectedBlock_averageProjectedBlockOperator {a n : Nat}
+lemma projectedBlock_averageProjectedBlockOperator {a n : Nat}
     (V0 V1 : UnitaryOperator (Qubits (a + n))) :
     projectedBlock (1 + a) n
         (averageProjectedBlockOperator (a := a) (n := n) V0 V1 :
@@ -135,7 +135,7 @@ theorem projectedBlock_averageProjectedBlockOperator {a n : Nat}
   simp [projectedBlock, Matrix.add_apply, Matrix.smul_apply]
 
 /-- Averaging two intrinsic unitary block encodings yields the averaged target. -/
-theorem exactBlockEncoding_averageProjectedBlockOperator {a n : Nat}
+lemma exactBlockEncoding_averageProjectedBlockOperator {a n : Nat}
     {V0 V1 : UnitaryOperator (Qubits (a + n))}
     {A0 A1 : HilbertOperator (Qubits n)}
     (h0 : ExactBlockEncoding a n V0 A0)
@@ -158,7 +158,7 @@ noncomputable def fourWayAverageProjectedBlockOperator {a n : Nat}
     (averageProjectedBlockOperator (a := a) (n := n) V00 V01)
     (averageProjectedBlockOperator (a := a) (n := n) V10 V11)
 
-theorem projectedBlock_fourWayAverageProjectedBlockOperator {a n : Nat}
+lemma projectedBlock_fourWayAverageProjectedBlockOperator {a n : Nat}
     (V00 V01 V10 V11 : UnitaryOperator (Qubits (a + n))) :
     projectedBlock (1 + (1 + a)) n
         (fourWayAverageProjectedBlockOperator (a := a) (n := n) V00 V01 V10 V11 :
@@ -177,7 +177,7 @@ theorem projectedBlock_fourWayAverageProjectedBlockOperator {a n : Nat}
   ring
 
 /-- Averaging four intrinsic unitary block encodings yields their four-way mean. -/
-theorem exactBlockEncoding_fourWayAverageProjectedBlockOperator {a n : Nat}
+lemma exactBlockEncoding_fourWayAverageProjectedBlockOperator {a n : Nat}
     {V00 V01 V10 V11 : UnitaryOperator (Qubits (a + n))}
     {A00 A01 A10 A11 : HilbertOperator (Qubits n)}
     (h00 : ExactBlockEncoding a n V00 A00)
@@ -200,7 +200,7 @@ theorem exactBlockEncoding_fourWayAverageProjectedBlockOperator {a n : Nat}
 
 /-- Global phase scaling of an intrinsic carrier scales its projected block by
 the same phase. -/
-theorem exactBlockEncoding_phaseScaledOperator {a n : Nat}
+lemma exactBlockEncoding_phaseScaledOperator {a n : Nat}
     {V : UnitaryOperator (Qubits (a + n))}
     {A : HilbertOperator (Qubits n)} (ζ : ℂ)
     (hζ : Complex.normSq ζ = 1) (h : ExactBlockEncoding a n V A) :
@@ -212,7 +212,7 @@ theorem exactBlockEncoding_phaseScaledOperator {a n : Nat}
 
 /-- The scalar dilation with retained source ancillas exactly block-encodes
 `c • I` on the system register. -/
-theorem exactBlockEncoding_scalarDilationWithSourceAncillas {m n : Nat}
+lemma exactBlockEncoding_scalarDilationWithSourceAncillas {m n : Nat}
     (c : ℂ) (hc : Complex.normSq c ≤ 1) :
     ExactBlockEncoding (1 + m) n
       (scalarDilationWithSourceAncillas (m := m) (n := n) c hc)
@@ -236,7 +236,7 @@ theorem exactBlockEncoding_scalarDilationWithSourceAncillas {m n : Nat}
 
 /-- Constant polynomial branch, encoded with one dilation ancilla while
 retaining the source ancillas in the carrier. -/
-theorem exactBlockEncoding_constantPolynomialWithSourceAncillas {m n : Nat}
+lemma exactBlockEncoding_constantPolynomialWithSourceAncillas {m n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
     (hdeg : P.natDegree = 0) (hcontract : Complex.normSq (P.coeff 0) ≤ 1) :
     ExactBlockEncoding (1 + m) n
@@ -251,11 +251,11 @@ theorem exactBlockEncoding_constantPolynomialWithSourceAncillas {m n : Nat}
   intro i j
   exact (hscalar.block_entry i j).trans (congrFun (congrFun htarget.symm i) j)
 
-theorem complex_normSq_I : Complex.normSq Complex.I = 1 := by
+lemma complex_normSq_I : Complex.normSq Complex.I = 1 := by
   simp [Complex.normSq]
 
 /-- Intrinsic-unitary four-branch construction for a complex polynomial. -/
-theorem exactBlockEncoding_complexFourPartAverageProjectedBlockOperator {a n : Nat}
+lemma exactBlockEncoding_complexFourPartAverageProjectedBlockOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
     {VReEven VReOdd VImEven VImOdd : UnitaryOperator (Qubits (a + n))}
     (hReEven : ExactBlockEncoding a n VReEven
@@ -306,7 +306,7 @@ theorem exactBlockEncoding_complexFourPartAverageProjectedBlockOperator {a n : N
   exact (hAvg.block_entry i j).trans (congrFun (congrFun htarget i) j)
 
 /-- Intrinsic-unitary version of the real even/odd selector average. -/
-theorem exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockOperator {a n : Nat}
+lemma exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockOperator {a n : Nat}
     (PRe : Polynomial ℝ) (A : HilbertOperator (Qubits n))
     {VEven VOdd : UnitaryOperator (Qubits (a + n))}
     (hEven : ExactBlockEncoding a n VEven
@@ -326,7 +326,7 @@ theorem exactBlockEncoding_realEvenOddDoubleAverageProjectedBlockOperator {a n :
   exact (hAvg.block_entry i j).trans (congrFun (congrFun htarget i) j)
 
 /-- Intrinsic-unitary version of the complex even/odd selector average. -/
-theorem exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockOperator {a n : Nat}
+lemma exactBlockEncoding_complexEvenOddDoubleAverageProjectedBlockOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
     {VEven VOdd : UnitaryOperator (Qubits (a + n))}
     (hEven : ExactBlockEncoding a n VEven

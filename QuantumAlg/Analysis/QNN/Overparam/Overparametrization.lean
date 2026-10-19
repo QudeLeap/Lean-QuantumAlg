@@ -164,7 +164,7 @@ public theorem achievableRank_le_dlaDim (μ : Q.toOverparamData.ι) (M : ℕ) :
 stays overparametrized
 for any `M' ≥ M` — the trainability phase transition is monotone (proved via the
 inherited monotonicity). -/
-theorem isOverparametrized_stays {M M' : ℕ} (h : M ≤ M') (hover : Q.IsOverparametrized M) :
+lemma isOverparametrized_stays {M M' : ℕ} (h : M ≤ M') (hover : Q.IsOverparametrized M) :
     Q.IsOverparametrized M' :=
   Q.toOverparamData.isOverparametrized_stays h hover
 
@@ -189,7 +189,7 @@ public theorem effDimClassical_le_dlaDim_from_assumptions :
   Q.classicalAssumptions.effDimClassical_le_dlaDim
 
 /-- **Theorem 2 (capacity bound).** The effective quantum dimension `D₁` never exceeds `dim g`. -/
-theorem capacity_le_dlaDim (μ : Q.toOverparamData.ι) (M : ℕ) :
+lemma capacity_le_dlaDim (μ : Q.toOverparamData.ι) (M : ℕ) :
     Q.effDimQuantum μ M ≤ dlaDim gens :=
   Q.toOverparamData.achievable_le_dlaDim μ M
 
@@ -206,12 +206,12 @@ public theorem capacity_max_of_overparam {M : ℕ} (hover : Q.IsOverparametrized
 public def hessianRank : ℕ → ℕ := Q.hessianAssumptions.hessianRank
 
 /-- **Theorem 3 Hessian-rank bound by `dim g`**, from the explicit assumption bundle. -/
-theorem hessianRank_le_dlaDim (M : ℕ) :
+lemma hessianRank_le_dlaDim (M : ℕ) :
     Q.hessianRank M ≤ dlaDim gens :=
   Q.hessianAssumptions.hessianRank_le_dlaDim M
 
 /-- **Theorem 3 Hessian-rank combinatorial bound**, from the explicit assumption bundle. -/
-theorem hessianRank_le_comb (M : ℕ) :
+lemma hessianRank_le_comb (M : ℕ) :
     Q.hessianRank M ≤ 2 * N * Q.stateRank - Q.stateRank ^ 2 - Q.stateRank :=
   Q.hessianAssumptions.hessianRank_le_comb M
 
@@ -231,7 +231,7 @@ instance (whose achievable
 rank was identically `0`, making `IsOverparametrized` *false*), this witness is
 genuinely overparametrized,
 so the capacity / Hessian / persistence theorems are not vacuously applicable. -/
-theorem qnnOverparametrization_nonempty :
+lemma qnnOverparametrization_nonempty :
     Nonempty (QNNOverparametrization (Set.univ : Set (Matrix (Fin 1) (Fin 1) ℂ))) :=
   ⟨{ overparamWitness with
      classicalAssumptions :=

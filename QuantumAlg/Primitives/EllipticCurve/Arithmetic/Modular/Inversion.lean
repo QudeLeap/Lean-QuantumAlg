@@ -28,6 +28,8 @@ open Nat.FixedWidth
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : VariableModularMul.Parameters]
 
 local instance modulusNeZero : NeZero params.modulus.val :=
@@ -49,7 +51,7 @@ def counterWidthFor (f : Nat) : Nat :=
 
 omit params in
 /-- The P-256 fixed schedule uses the paper-aligned nine-bit counter. -/
-theorem counterWidthFor_256 : counterWidthFor 256 = 9 := by
+lemma counterWidthFor_256 : counterWidthFor 256 = 9 := by
   norm_num [counterWidthFor]
 
 /-- Tail parameter for the instantiated field. -/
@@ -63,7 +65,7 @@ abbrev counterWidth : Nat := counterWidthFor params.width
 
 /-- The positive declared field width agrees with the lower tail-successor
 carrier. -/
-theorem arithmeticWidth_eq : arithmeticWidth = params.width := by
+lemma arithmeticWidth_eq : arithmeticWidth = params.width := by
   simpa [arithmeticWidth, arithmeticWidthFor, tailWidthFor] using
     Nat.sub_add_cancel params.widthPos
 
@@ -85,7 +87,7 @@ def comparisonIndex : Fin arithmeticWidth :=
 
 /-- A nontrivial modulus fitting the declared word forces at least two field
 bits. -/
-theorem one_lt_width : 1 < params.width := by
+lemma one_lt_width : 1 < params.width := by
   by_contra h
   have hpos := params.widthPos
   have hmod := params.one_lt_modulus
@@ -96,7 +98,7 @@ theorem one_lt_width : 1 < params.width := by
   omega
 
 /-- The logarithmic counter has a nonempty carry-work suffix. -/
-theorem one_lt_counterWidth : 1 < counterWidth := by
+lemma one_lt_counterWidth : 1 < counterWidth := by
   apply (Nat.lt_clog_iff_pow_lt (by norm_num : 1 < (2 : Nat))).2
   norm_num
   have hwidth := one_lt_width
@@ -110,12 +112,12 @@ def workIndex : Fin (counterWidth - 1) :=
 
 /-- The exact `2f` fixed-round budget fits the logarithmic counter capacity.
 Equality is intentional when `2f` is a power of two. -/
-theorem counter_capacity : 2 * arithmeticWidth ≤ 2 ^ counterWidth := by
+lemma counter_capacity : 2 * arithmeticWidth ≤ 2 ^ counterWidth := by
   rw [arithmeticWidth_eq]
   exact Nat.le_pow_clog (by norm_num : 1 < (2 : Nat)) (2 * params.width)
 
 /-- The selected comparison bit is the final arithmetic-word bit. -/
-theorem comparisonIndex_final : comparisonIndex.val + 1 = arithmeticWidth := by
+lemma comparisonIndex_final : comparisonIndex.val + 1 = arithmeticWidth := by
   simp [comparisonIndex, arithmeticWidth, arithmeticWidthFor, tailWidth,
     tailWidthFor]
 
@@ -200,7 +202,7 @@ def setWorkingInput (state : RawRegisters) (value : Word arithmeticWidth) :
   let updatedCorrection := ((updatedFixed, correction.1.2), correction.2)
   (state.1, (updatedCorrection, state.2.2))
 
-@[simp] theorem preservedInputWord_get (bit : Fin arithmeticWidth)
+@[simp] lemma preservedInputWord_get (bit : Fin arithmeticWidth)
     (state : RawRegisters) :
     (preservedInputWord.bit bit).get state =
       (readPreservedInput state).val.testBit bit.val := by
@@ -211,14 +213,14 @@ def setWorkingInput (state : RawRegisters) (value : Word arithmeticWidth) :
   simp [BinaryLabelEncoding.finIdentityBit,
     BinaryLabelEncoding.ofEquivBit]
 
-@[simp] theorem workingInputWord_get (bit : Fin arithmeticWidth)
+@[simp] lemma workingInputWord_get (bit : Fin arithmeticWidth)
     (state : RawRegisters) :
     (workingInputWord.bit bit).get state =
       (readWorkingInput state).val.testBit bit.val := by
   exact MAU.Inversion.MK.coeffAdderVWord_get_testBit
     arithmeticWidth counterWidth bit state.2.1.1.1.1.1.1.1
 
-theorem preservedInputWord_pairwise_ne (left right : Fin arithmeticWidth)
+lemma preservedInputWord_pairwise_ne (left right : Fin arithmeticWidth)
     (hne : left ≠ right) :
     (preservedInputWord.bit left).wire ≠
       (preservedInputWord.bit right).wire := by
@@ -227,7 +229,7 @@ theorem preservedInputWord_pairwise_ne (left right : Fin arithmeticWidth)
   apply hne
   exact WireAddress.bitIndex_injective hwire
 
-theorem workingInputWord_pairwise_ne (left right : Fin arithmeticWidth)
+lemma workingInputWord_pairwise_ne (left right : Fin arithmeticWidth)
     (hne : left ≠ right) :
     (workingInputWord.bit left).wire ≠
       (workingInputWord.bit right).wire := by
@@ -353,7 +355,7 @@ def workingInputLowWord : EncodedBit.Word rawEncoding params.width where
 
 /-- The preserved and working Kaliski input copies occupy disjoint product
 slices. -/
-theorem preservedInput_workingInput_wire_ne (bit : Fin params.width) :
+lemma preservedInput_workingInput_wire_ne (bit : Fin params.width) :
     (preservedInputLowWord.bit bit).wire ≠
       (workingInputLowWord.bit bit).wire :=
   Ne.symm
@@ -393,13 +395,13 @@ def cleanRegisters (x : MAU.Inversion.Data params.modulus.val) : RawRegisters :=
       0 x.target,
     x.flag))
 
-private theorem inputWord_injective : Function.Injective inputWord := by
+private lemma inputWord_injective : Function.Injective inputWord := by
   intro left right h
   apply Units.ext
   apply ZMod.val_injective
   exact congrArg (fun word => word.val) h
 
-private theorem cleanRegisters_injective : Function.Injective cleanRegisters := by
+private lemma cleanRegisters_injective : Function.Injective cleanRegisters := by
   intro left right h
   rcases left with ⟨leftInput, leftTarget, leftFlag⟩
   rcases right with ⟨rightInput, rightTarget, rightFlag⟩
@@ -448,7 +450,7 @@ def physicalWidthFor (f : Nat) : Nat :=
   17 * f + 14 + 3 * counterWidthFor f
 
 /-- Exact qubit width of the padded Kaliski inversion adapter. -/
-theorem encoding_width_exact : encoding.width = physicalWidthFor params.width := by
+lemma encoding_width_exact : encoding.width = physicalWidthFor params.width := by
   have hwidth := one_lt_width
   have hcounter := one_lt_counterWidth
   have htail : params.width - 1 + 1 = params.width :=
@@ -494,7 +496,7 @@ def gates : List (EncodedBit.GateSpec rawEncoding) :=
 /-- The public inversion adapter only lifts the unscaled inversion schedule
 across the clean flag and retained input word, so it preserves the source-list
 length. -/
-theorem gates_length :
+lemma gates_length :
     gates.length =
       (MAU.Inversion.MK.Resource.unscaledInversionGates
         tailWidth counterWidth params.modulus.val comparisonIndex workIndex
@@ -555,14 +557,14 @@ def unitDepthBound : Nat :=
 
 /-- The lifted public inversion schedule obeys its width-only source-ledger
 bound. -/
-theorem gates_length_le : gates.length ≤ gateLengthBound := by
+lemma gates_length_le : gates.length ≤ gateLengthBound := by
   rw [gates_length]
   exact MAU.Inversion.MK.Resource.unscaledInversionGates_length_le
     tailWidth counterWidth params.modulus.val comparisonIndex workIndex
       params.modulusOdd
 
 /-- The literal public inversion schedule obeys its closed X-coordinate bound. -/
-theorem gates_xMultiplicity_sum_le :
+lemma gates_xMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum ≤ xBound := by
   have hcoordinates := EncodedBit.GateSpec.length_eq_multiplicity_sums gates
   have hx :
@@ -574,7 +576,7 @@ theorem gates_xMultiplicity_sum_le :
 
 /-- The public inversion adapter preserves the ordered primitive-event trace
 of the unscaled inversion schedule. -/
-theorem gates_map_event :
+lemma gates_map_event :
     gates.map (EncodedBit.GateSpec.event .empty) =
       (MAU.Inversion.MK.Resource.unscaledInversionGates
         tailWidth counterWidth params.modulus.val comparisonIndex workIndex
@@ -587,7 +589,7 @@ theorem gates_map_event :
 
 /-- The public inversion adapter preserves the exact CNOT coordinate of the
 unscaled inversion schedule. -/
-theorem gates_cnotMultiplicity_sum :
+lemma gates_cnotMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       ((MAU.Inversion.MK.Resource.unscaledInversionGates
         tailWidth counterWidth params.modulus.val comparisonIndex workIndex
@@ -599,7 +601,7 @@ theorem gates_cnotMultiplicity_sum :
 
 /-- The lifted public inversion schedule obeys its source-ledger
 CNOT-coordinate bound. -/
-theorem gates_cnotMultiplicity_sum_le :
+lemma gates_cnotMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤ cnotBound := by
   rw [gates_cnotMultiplicity_sum]
   simpa only [cnotBound, cnotBoundFor] using
@@ -609,7 +611,7 @@ theorem gates_cnotMultiplicity_sum_le :
 
 /-- The public inversion adapter preserves the exact Toffoli coordinate of
 the unscaled inversion schedule. -/
-theorem gates_toffoliMultiplicity_sum :
+lemma gates_toffoliMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((MAU.Inversion.MK.Resource.unscaledInversionGates
         tailWidth counterWidth params.modulus.val comparisonIndex workIndex
@@ -621,7 +623,7 @@ theorem gates_toffoliMultiplicity_sum :
 
 /-- The lifted public inversion schedule obeys its source-ledger
 Toffoli-coordinate bound. -/
-theorem gates_toffoliMultiplicity_sum_le :
+lemma gates_toffoliMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       toffoliBound := by
   rw [gates_toffoliMultiplicity_sum]
@@ -637,7 +639,7 @@ def circuit : UnitaryCircuit AlgorithmGate.model .empty
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
 
 /-- The literal public inversion circuit obeys its closed unit-depth bound. -/
-theorem circuit_unitDepth_le :
+lemma circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
   change (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     gates).evaluatedEventDepth
@@ -655,7 +657,7 @@ def rawStep : RawRegisters → RawRegisters :=
       x.2.2))
 
 /-- The lifted gate schedule has exactly the named raw-carrier action. -/
-theorem gates_stepList (x : RawRegisters) :
+lemma gates_stepList (x : RawRegisters) :
     EncodedBit.GateSpec.stepList gates x = rawStep x := by
   simp only [gates, rawStep, rawEncoding,
     MAU.Inversion.MK.Resource.unscaledInversionStep,
@@ -663,14 +665,14 @@ theorem gates_stepList (x : RawRegisters) :
     EncodedBit.GateSpec.stepList_prodLeft]
 
 /-- The actual lifted circuit realizes its total raw-carrier action. -/
-theorem rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit rawStep := by
+lemma rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit environment rawStep := by
   unfold circuit
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty gates gates_stepList
 
 /-- The static circuit adds the inverse of a unit input into its target and
 restores all work registers. -/
-theorem cleanEndpoint (x : MAU.Inversion.Data params.modulus.val) :
+lemma cleanEndpoint (x : MAU.Inversion.Data params.modulus.val) :
     let base := MAU.Inversion.MK.Resource.unscaledInversionStep
       tailWidth counterWidth params.modulus.val comparisonIndex workIndex
       params.modulusOdd
@@ -714,7 +716,7 @@ theorem cleanEndpoint (x : MAU.Inversion.Data params.modulus.val) :
     hendpoint
 
 /-- The total raw action specializes to the clean public inversion endpoint. -/
-theorem rawStep_cleanEndpoint (x : MAU.Inversion.Data params.modulus.val) :
+lemma rawStep_cleanEndpoint (x : MAU.Inversion.Data params.modulus.val) :
     rawStep (cleanRegisters x) =
       cleanRegisters x.addInverseIntoTarget := by
   let baseStep :=
@@ -730,11 +732,11 @@ theorem rawStep_cleanEndpoint (x : MAU.Inversion.Data params.modulus.val) :
   simp only [cleanRegisters, MAU.Inversion.Data.addInverseIntoTarget]
 
 /-- The actual lifted circuit realizes the public inversion update. -/
-theorem realizes : UnitaryCircuit.Realizes encoding circuit
+lemma realizes : UnitaryCircuit.Realizes encoding circuit environment
     (MAU.Inversion.Data.addInverseIntoTarget) := by
   constructor
   intro x
-  have happly := rawRealizes.apply_encoded_ket (cleanRegisters x)
+  have happly := (rawRealizes (environment := environment)).apply_encoded_ket (cleanRegisters x)
   rw [rawStep_cleanEndpoint] at happly
   exact happly
 
@@ -742,7 +744,7 @@ theorem realizes : UnitaryCircuit.Realizes encoding circuit
 def witness : MAU.Inversion.StructuredCircuitWitness params.modulus.val where
   encoding := encoding
   circuit := circuit
-  realizes := realizes
+  realizes := fun environment => realizes (environment := environment)
 
 end
 

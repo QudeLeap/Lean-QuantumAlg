@@ -57,7 +57,7 @@ def step (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
   let selected := bodyStep (model := model) halfPower output (enter N store)
   (leave N selected.1, selected.2)
 
-private theorem body_store (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma body_store (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (context ctx N)) :
     (bodyStep (model := model) halfPower output store).1 =
@@ -66,7 +66,7 @@ private theorem body_store (halfPower : CInputRef ctx (.unsignedWord (modulusBit
   dsimp only [bodyStep, modulusTailStep, initialized]
 
 /-- The real initialized body has the original source result without an input separation premise. -/
-theorem body_result (source : Input N)
+lemma body_result (source : Input N)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (store : Store (context ctx N)) :
@@ -89,7 +89,7 @@ theorem body_result (source : Input N)
     (initialized_read_original (model := model) halfPower store)
 
 /-- Actual scope exit returns the source factor of the same original stored half-power. -/
-theorem result (source : Input N)
+lemma result (source : Input N)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (step (model := model) halfPower output store).1.read (.storage output.toCStorageRef) =

@@ -31,7 +31,7 @@ noncomputable section
 
 open EncodedBit
 
-private theorem distinct_word {width : Nat} (left right : Fin (width + 3))
+private lemma distinct_word {width : Nat} (left right : Fin (width + 3))
     (different : left ≠ right) :
     (firstWordBit width left).wire ≠ (firstWordBit width right).wire := by
   intro same
@@ -40,7 +40,7 @@ private theorem distinct_word {width : Nat} (left right : Fin (width + 3))
   exact different (Fin.ext values)
 
 /-- Every original Work1 bit except the actual selected quotient position is unchanged. -/
-theorem exchange_other (width : Nat) (selected observed : Fin (width + 3))
+lemma exchange_other (width : Nat) (selected observed : Fin (width + 3))
     (different : selected ≠ observed) (state : Registers width) :
     (SelectionSwap.exchange width selected state).firstWord.getMsbD observed.val =
       state.firstWord.getMsbD observed.val := by
@@ -53,7 +53,7 @@ theorem exchange_other (width : Nat) (selected observed : Fin (width + 3))
         (SelectionSwap.sign_word width observed) (distinct_word selected observed different) state
     _ = _ := firstWordBit_get width observed state
 
-private theorem physical_lsb {width : Nat} (word : BitVec (width + 3)) (bit : Nat)
+private lemma physical_lsb {width : Nat} (word : BitVec (width + 3)) (bit : Nat)
     (within : bit < width + 3) :
     word.getLsbD bit = word.getMsbD (width + 3 - 1 - bit) := by
   have indexWithin : width + 3 - 1 - bit < width + 3 := by omega
@@ -61,7 +61,7 @@ private theorem physical_lsb {width : Nat} (word : BitVec (width + 3)) (bit : Na
   simp only [BitVec.getMsbD_eq_getLsbD, indexWithin, decide_true, Bool.true_and, reverse]
 
 /-- The actual swap leaves all lower remainder bits, including a zero-width region, intact. -/
-theorem exchange_low (width : Nat) (selected : Fin (width + 3)) (state : Registers width) :
+lemma exchange_low (width : Nat) (selected : Fin (width + 3)) (state : Registers width) :
     (SelectionSwap.exchange width selected state).firstWord.setWidth
         (width + 3 - 1 - selected.val) =
       state.firstWord.setWidth (width + 3 - 1 - selected.val) := by
@@ -80,7 +80,7 @@ theorem exchange_low (width : Nat) (selected : Fin (width + 3)) (state : Registe
       (physical_lsb state.firstWord bit fullWithin).symm)
 
 /-- The actual exchanged lower word is incoming Sign followed by the complete retained remainder. -/
-theorem exchange_word (width : Nat) (selected : Fin (width + 3)) (state : Registers width) :
+lemma exchange_word (width : Nat) (selected : Fin (width + 3)) (state : Registers width) :
     (SelectionSwap.exchange width selected state).firstWord.setWidth
         (width + 3 - 1 - selected.val + 1) =
       BitVec.cons state.flags.sign
@@ -91,13 +91,13 @@ theorem exchange_word (width : Nat) (selected : Fin (width + 3)) (state : Regist
   rw [BitVec.setWidth_succ, exchange_low, high]
 
 /-- The old highest remainder bit, not an assumed zero, is returned to the actual Sign field. -/
-theorem exchange_sign (width : Nat) (selected : Fin (width + 3)) (state : Registers width) :
+lemma exchange_sign (width : Nat) (selected : Fin (width + 3)) (state : Registers width) :
     (SelectionSwap.exchange width selected state).flags.sign =
       (state.firstWord.setWidth (width + 3 - 1 - selected.val + 1)).msb := by
   rw [SelectionSwap.exchange_sign, BitVec.msb_setWidth'']
   simp only [BitVec.getMsbD_eq_getLsbD, selected.isLt, decide_true, Bool.true_and]
 
-private theorem selected_source (width : Nat) (state : Registers width)
+private lemma selected_source (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
     SelectionSchedule.sourceStep width state = SelectionSwap.exchange width
@@ -107,7 +107,7 @@ private theorem selected_source (width : Nat) (state : Registers width)
     second, Bool.false_xor, if_true]
 
 /-- The real selector and length increment write incoming Sign at the actual source position. -/
-theorem source_word (width : Nat) (state : Registers width)
+lemma source_word (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
     let nextWidth := width + 3 - 1 -
@@ -121,7 +121,7 @@ theorem source_word (width : Nat) (state : Registers width)
     ⟨state.coefficientLength.toNat + state.quotientLength.toNat + 1, within⟩ state
 
 /-- The actual source-selected Sign output is exactly the previous top remainder bit. -/
-theorem source_sign (width : Nat) (state : Registers width)
+lemma source_sign (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
     let nextWidth := width + 3 - 1 -
@@ -134,7 +134,7 @@ theorem source_sign (width : Nat) (state : Registers width)
   exact exchange_sign width _ state
 
 /-- An internally proved next-remainder capacity clears Sign only after the actual subtraction. -/
-theorem source_sign_clear (width : Nat) (state : Registers width)
+lemma source_sign_clear (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3)
     (nextFits :
@@ -147,7 +147,7 @@ theorem source_sign_clear (width : Nat) (state : Registers width)
   exact decide_eq_false (Nat.not_le.mpr nextFits)
 
 /-- The already emitted complete native Sign/quotient block has the exact finite-word equation. -/
-theorem native_word (width : Nat) (state : Registers width)
+lemma native_word (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :

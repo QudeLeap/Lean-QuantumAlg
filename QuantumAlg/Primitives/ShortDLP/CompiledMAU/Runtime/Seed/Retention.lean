@@ -25,13 +25,16 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Reorganizing actual histories preserves the internal invariant on every complete store. -/
-theorem shortDLP_runtimeSeedBlocks_mapHistory (N : Nat)
+lemma shortDLP_runtimeSeedBlocks_mapHistory (N : Nat)
     {Reference : Register} {History Later : Type} [Fintype History] [Fintype Later]
     (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
     (update : History → Later) :
@@ -39,15 +42,15 @@ theorem shortDLP_runtimeSeedBlocks_mapHistory (N : Nat)
   BasisSeeded.mapHistory _ state seeded update
 
 /-- An actual retained classical cell keeps the same source seed and all old store correlations. -/
-theorem shortDLP_runtimeSeedBlocks_retain (N : Nat)
+lemma shortDLP_runtimeSeedBlocks_retain (N : Nat)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (seeded : HasSeedBlocks m ell width sameWires N state) :
     HasSeedBlocks m ell width
       ((RuntimeCtx.quantumWires_addRetained ctx key shape fresh).trans sameWires) N
-      ((Circuit.retain (model := model) ctx key shape fresh).execute Reference state) :=
-  BasisSeeded.retain (model := model)
+      ((Circuit.retain (model := model) ctx key shape fresh).execute environment Reference state) :=
+  BasisSeeded.retain (environment := environment) (model := model)
     ((RuntimePlacement.basisEquiv m ell width sameWires).symm
       (CompiledMAU.reloadLabel m ell width N)) state seeded key shape fresh
 

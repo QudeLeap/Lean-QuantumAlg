@@ -39,7 +39,7 @@ def targetExponent (N : Nat) : Nat :=
   (N - 1) / 2
 
 /-- The public target exponent never needs more bits than the modulus. -/
-private theorem targetExponent_size_le (N : Nat) :
+private lemma targetExponent_size_le (N : Nat) :
     Nat.size (targetExponent N) ≤ Nat.size N := by
   apply Nat.size_le_size
   unfold targetExponent
@@ -83,7 +83,7 @@ def shortLogLatticeBasis (m ell : Nat)
 
 /-- Determinant of the source basis is the square of its positive register
 modulus. -/
-theorem shortLogLatticeBasis_determinant (m ell : Nat)
+lemma shortLogLatticeBasis_determinant (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogLatticeBasis m ell samples).determinant =
       (shortLogLatticeModulus m ell : Int) ^ 2 := by
@@ -92,7 +92,7 @@ theorem shortLogLatticeBasis_determinant (m ell : Nat)
   ring
 
 /-- The explicit source basis has full rank for every register width. -/
-theorem shortLogLatticeBasis_fullRank (m ell : Nat)
+lemma shortLogLatticeBasis_fullRank (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogLatticeBasis m ell samples).FullRank := by
   unfold NumberTheory.IntegerBasis3.FullRank
@@ -103,7 +103,7 @@ theorem shortLogLatticeBasis_fullRank (m ell : Nat)
 
 /-- The concrete two-sample source basis has squared height bounded by four
 times the square of the public register modulus. -/
-theorem shortLogLatticeBasis_squaredHeight_le (m ell : Nat)
+lemma shortLogLatticeBasis_squaredHeight_le (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogLatticeBasis m ell samples).squaredHeight ≤
       4 * shortLogLatticeModulus m ell ^ 2 := by
@@ -128,7 +128,7 @@ theorem shortLogLatticeBasis_squaredHeight_le (m ell : Nat)
 
 /-- Binary input size of the concrete short-log source basis is linear in the
 two public register widths. -/
-theorem shortLogLatticeBasis_inputBitSize_le (m ell : Nat)
+lemma shortLogLatticeBasis_inputBitSize_le (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogLatticeBasis m ell samples).inputBitSize ≤
       2 * (ell + m) + 3 := by
@@ -156,7 +156,7 @@ theorem shortLogLatticeBasis_inputBitSize_le (m ell : Nat)
 
 /-- Exact LLL potential of the source basis.  Writing it out makes the public
 iteration bound independent of an asymptotic LLL iteration estimate. -/
-theorem shortLogLatticeBasis_potential (m ell : Nat)
+lemma shortLogLatticeBasis_potential (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.lllPotential3 (shortLogLatticeBasis m ell samples) =
       (samples.1.1.val ^ 2 + samples.2.1.val ^ 2 + 1) *
@@ -169,7 +169,7 @@ theorem shortLogLatticeBasis_potential (m ell : Nat)
 
 /-- The source-basis potential is bounded by a power whose exponent is linear
 in the two public register widths. -/
-theorem shortLogLatticeBasis_potential_succ_lt_pow (m ell : Nat)
+lemma shortLogLatticeBasis_potential_succ_lt_pow (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.lllPotential3 (shortLogLatticeBasis m ell samples) + 1 <
       2 ^ (6 * (ell + m) + 4) := by
@@ -241,14 +241,14 @@ def shortLogRecoveryFuel (m ell : Nat) : Nat :=
   12 * (ell + m) + 10
 
 /-- The public padded fuel remains linear in the register widths. -/
-theorem shortLogRecoveryFuel_le (m ell : Nat) :
+lemma shortLogRecoveryFuel_le (m ell : Nat) :
     shortLogRecoveryFuel m ell ≤ 12 * (ell + m + 1) := by
   simp only [shortLogRecoveryFuel]
   omega
 
 /-- The linear public fuel dominates the exact logarithmic state measure of
 every source basis. -/
-theorem shortLogLatticeBasis_initialMeasure_lt_fuel (m ell : Nat)
+lemma shortLogLatticeBasis_initialMeasure_lt_fuel (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.lllStateMeasure3
         { basis := shortLogLatticeBasis m ell samples
@@ -285,14 +285,14 @@ def shortLogRecoveryTrace (m ell : Nat)
     (shortLogLatticeBasis m ell samples)
 
 /-- The short-logarithm recovery trace spans the source lattice. -/
-theorem shortLogRecoveryTrace_spans (m ell : Nat)
+lemma shortLogRecoveryTrace_spans (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogLatticeBasis m ell samples).SameLattice
       (shortLogRecoveryTrace m ell samples).output :=
   NumberTheory.lllReduce3WithFuel_spans _ _
 
 /-- The trace output is a complete exact `δ = 1/2` LLL-reduced basis. -/
-theorem shortLogRecoveryTrace_isReduced (m ell : Nat)
+lemma shortLogRecoveryTrace_isReduced (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogRecoveryTrace m ell samples).output.IsReduced :=
   NumberTheory.lllReduce3WithFuel_isReduced _ _
@@ -300,7 +300,7 @@ theorem shortLogRecoveryTrace_isReduced (m ell : Nat)
     (shortLogLatticeBasis_initialMeasure_lt_fuel m ell samples)
 
 /-- The reduced short-logarithm basis remains full rank. -/
-theorem shortLogRecoveryTrace_fullRank (m ell : Nat)
+lemma shortLogRecoveryTrace_fullRank (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogRecoveryTrace m ell samples).output.FullRank :=
   NumberTheory.lllReduce3WithFuel_fullRank _ _
@@ -308,7 +308,7 @@ theorem shortLogRecoveryTrace_fullRank (m ell : Nat)
 
 /-- Every actual short-log reduction records the same exact number of padded
 replay slots. -/
-theorem shortLogRecoveryTrace_steps_length (m ell : Nat)
+lemma shortLogRecoveryTrace_steps_length (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogRecoveryTrace m ell samples).steps.length =
       3 * shortLogRecoveryFuel m ell :=
@@ -317,7 +317,7 @@ theorem shortLogRecoveryTrace_steps_length (m ell : Nat)
 /-- Exact-arithmetic schoolbook charge of the LLL subtrace is cubic in the
 public short-log register width.  Candidate enumeration and validation are
 separate executable stages and are not included in this bound. -/
-theorem shortLogRecoveryTrace_schoolbookCharge_le (m ell : Nat)
+lemma shortLogRecoveryTrace_schoolbookCharge_le (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogRecoveryTrace m ell samples).schoolbookCharge ≤
       295_276_800 * (ell + m + 1) ^ 3 := by
@@ -355,7 +355,7 @@ theorem shortLogRecoveryTrace_schoolbookCharge_le (m ell : Nat)
 
 /-- Every operand in the sealed padded reduction fits a linear envelope in
 the complete public short-log input width. -/
-private theorem shortLogRecoveryTrace_maxOperandWidth_le
+private lemma shortLogRecoveryTrace_maxOperandWidth_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogRecoveryTrace m ell samples).maxOperandWidth ≤
@@ -407,7 +407,7 @@ def shortLogLatticePoint (m ell : Nat)
 
 /-- The source row-span map is exactly linear combination in the explicit
 integer basis. -/
-theorem shortLogLatticeBasis_linearCombination (m ell : Nat)
+lemma shortLogLatticeBasis_linearCombination (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     (coefficients : ShortLogLatticeCoefficients) :
     (shortLogLatticeBasis m ell samples).linearCombination coefficients =
@@ -455,7 +455,7 @@ def shortLogLatticeTarget (m ell : Nat)
 
 /-- The centered two-coordinate target has squared norm bounded by twice the
 square of the public register modulus. -/
-theorem shortLogLatticeTarget_squaredNorm_le (m ell : Nat)
+lemma shortLogLatticeTarget_squaredNorm_le (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.integerPointSquaredNorm
         (shortLogLatticeTarget m ell samples) ≤
@@ -503,7 +503,7 @@ private def shortLogNearestPlaneOperandMagnitude (m ell : Nat)
 
 /-- The nearest-plane magnitude envelope has linear binary size in the public
 short-log input envelope. -/
-private theorem shortLogNearestPlaneOperandMagnitude_size_succ_le
+private lemma shortLogNearestPlaneOperandMagnitude_size_succ_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     Nat.size (shortLogNearestPlaneOperandMagnitude m ell samples) + 1 ≤
@@ -585,7 +585,7 @@ private theorem shortLogNearestPlaneOperandMagnitude_size_succ_le
 
 /-- The exact nearest-plane stage of short-log recovery has cubic schoolbook
 charge in the public binary input envelope. -/
-theorem shortLogNearestPlaneTrace_schoolbookCharge_le
+lemma shortLogNearestPlaneTrace_schoolbookCharge_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (NumberTheory.nearestPlaneTrace3
@@ -637,7 +637,7 @@ theorem shortLogNearestPlaneTrace_schoolbookCharge_le
 
 /-- Every operand in the sealed nearest-plane stage fits the same linear
 short-log input envelope used by its candidate consumers. -/
-theorem shortLogNearestPlaneTrace_maxOperandWidth_le
+lemma shortLogNearestPlaneTrace_maxOperandWidth_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (NumberTheory.nearestPlaneTrace3
@@ -686,7 +686,7 @@ theorem shortLogNearestPlaneTrace_maxOperandWidth_le
 
 /-- The six rounded-division operands used by the short-log nearest-plane
 stage fit the public linear input-width envelope. -/
-theorem shortLogNearestPlaneDivisionOperandWidthsLe
+lemma shortLogNearestPlaneDivisionOperandWidthsLe
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.NearestPlaneDivisionOperandWidthsLe
@@ -741,7 +741,7 @@ def shortLogLatticePointSub (left right : ShortLogLatticePoint) :
   (left.1 - right.1, left.2.1 - right.2.1, left.2.2 - right.2.2)
 
 /-- The row-span lattice is closed under coordinatewise subtraction. -/
-theorem ShortLogLatticeMember.sub
+lemma ShortLogLatticeMember.sub
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     {left right : ShortLogLatticePoint}
     (hleft : ShortLogLatticeMember m ell samples left)
@@ -775,7 +775,7 @@ def ShortLogNoTinyVector (m ell : Nat)
 
 /-- On the source no-tiny-vector event, the first vector of the reduced basis
 has squared norm at least the square of the source threshold. -/
-theorem shortLogRecoveryTrace_firstSquaredNorm_lower
+lemma shortLogRecoveryTrace_firstSquaredNorm_lower
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hnoTiny : ShortLogNoTinyVector m ell samples) :
     (2 ^ (m - 3)) ^ 2 ≤
@@ -877,7 +877,7 @@ def shortLogTinyMultiplierObstructionPairs (m ell : Nat) :
 
 /-- Membership in the finite obstruction carrier is exactly the existence of
 a short positive shared multiplier. -/
-theorem mem_shortLogTinyMultiplierObstructionPairs_iff
+lemma mem_shortLogTinyMultiplierObstructionPairs_iff
     {m ell : Nat}
     {indices : Fin (2 ^ (ell + m)) × Fin (2 ^ (ell + m))} :
     indices ∈ shortLogTinyMultiplierObstructionPairs m ell ↔
@@ -908,7 +908,7 @@ theorem mem_shortLogTinyMultiplierObstructionPairs_iff
 
 /-- The exact 2-adic window count bounds the bad first-register indices for
 one short positive multiplier. -/
-theorem card_shortLogTinyFirstIndexSet_le
+lemma card_shortLogTinyFirstIndexSet_le
     {m ell multiplier : Nat} (hm : 3 ≤ m)
     (hmultiplierPos : 0 < multiplier)
     (hmultiplierLt : multiplier < 2 ^ (m - 3)) :
@@ -920,7 +920,7 @@ theorem card_shortLogTinyFirstIndexSet_le
 
 /-- One fixed multiplier obstructs at most the square of its one-coordinate
 window count. -/
-theorem card_shortLogTinyPairSetForMultiplier_le
+lemma card_shortLogTinyPairSetForMultiplier_le
     {m ell multiplier : Nat} (hm : 3 ≤ m)
     (hmultiplierPos : 0 < multiplier)
     (hmultiplierLt : multiplier < 2 ^ (m - 3)) :
@@ -937,7 +937,7 @@ theorem card_shortLogTinyPairSetForMultiplier_le
 /-- Union bound for every tiny first-register pair.  This counts the actual
 uniform first-register carrier and makes no conditional-uniformity assumption
 about narrow-good outcomes [EH17, source.tex:737-776]. -/
-theorem card_shortLogTinyMultiplierObstructionPairs_le
+lemma card_shortLogTinyMultiplierObstructionPairs_le
     {m ell : Nat} (hm : 3 ≤ m) :
     (shortLogTinyMultiplierObstructionPairs m ell).card ≤
       2 ^ (m - 3) * (2 ^ (m - 2)) ^ 2 := by
@@ -963,7 +963,7 @@ theorem card_shortLogTinyMultiplierObstructionPairs_le
 the finite obstruction set is at most one 128th of the complete ordered
 first-register pair space.  In particular this covers the canonical
 `ell = ceil(m/2)` choice for `s = 2`. -/
-theorem card_shortLogTinyMultiplierObstructionPairs_mul_128_le_square
+lemma card_shortLogTinyMultiplierObstructionPairs_mul_128_le_square
     {m ell : Nat} (hm : 3 ≤ m) (htradeoff : m ≤ 2 * ell) :
     (shortLogTinyMultiplierObstructionPairs m ell).card * 128 ≤
       (2 ^ (ell + m)) ^ 2 := by
@@ -986,7 +986,7 @@ theorem card_shortLogTinyMultiplierObstructionPairs_mul_128_le_square
 
 /-- Excluding the finite short-multiplier obstruction forces the precise
 no-tiny-vector condition used by the fixed-dimensional lattice search. -/
-theorem shortLogNoTinyVector_of_noTinyMultiplierObstruction
+lemma shortLogNoTinyVector_of_noTinyMultiplierObstruction
     {m ell : Nat} (samples : ShortLogSample m ell × ShortLogSample m ell)
     (hm : 3 ≤ m)
     (hclear : ¬ ShortLogTinyMultiplierObstruction m ell
@@ -1130,7 +1130,7 @@ set_option maxRecDepth 4096 in
 /-- Every source-lattice point in the Ekerå–Håstad search ball has reduced
 coefficients inside the fixed executable nearest-plane box whenever the
 source no-tiny-vector event holds. -/
-theorem shortLogReducedCoefficientOffset_mem
+lemma shortLogReducedCoefficientOffset_mem
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     {point : ShortLogLatticePoint} (hm : 3 ≤ m)
     (hnoTiny : ShortLogNoTinyVector m ell samples)
@@ -1308,7 +1308,7 @@ def shortLogSearchBoxRadius (m : Nat) : Nat :=
 /-- The exact source search ball lies inside the coordinate cube used by the
 packing argument.  This theorem now serves only the cardinality proof; the
 runtime enumerator works in reduced coefficient space. -/
-theorem shortLogNearTarget_mem_searchBox
+lemma shortLogNearTarget_mem_searchBox
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     {point : ShortLogLatticePoint}
     (hnear : ShortLogNearTarget m ell samples point) :
@@ -1389,7 +1389,7 @@ def shortLogPackingCoordinate (center : Int) (m : Nat)
 /-- Every coordinate of the source search cube has a genuine cell index below
 `33`; hence the total `Fin 33` encoding does not identify an out-of-range
 index with an in-range one. -/
-theorem shortLogPackingIndex_lt
+lemma shortLogPackingIndex_lt
     {center coordinate : Int} {m : Nat} (hm : 3 ≤ m)
     (hlower : center - shortLogSearchBoxRadius m ≤ coordinate)
     (hupper : coordinate ≤ center + shortLogSearchBoxRadius m) :
@@ -1416,7 +1416,7 @@ theorem shortLogPackingIndex_lt
 
 /-- Two in-cube coordinates with the same packing address differ by strictly
 less than the source short-vector threshold `2^(m-3)`. -/
-theorem natAbs_sub_lt_of_shortLogPackingCoordinate_eq
+lemma natAbs_sub_lt_of_shortLogPackingCoordinate_eq
     {center left right : Int} {m : Nat} (hm : 3 ≤ m)
     (hleftLower : center - shortLogSearchBoxRadius m ≤ left)
     (hleftUpper : left ≤ center + shortLogSearchBoxRadius m)
@@ -1505,7 +1505,7 @@ section ExecutableShortLogRecovery
 set_option maxRecDepth 3000
 
 /-- Every enumerated point satisfies the exact source near-target predicate. -/
-theorem shortLogNearLatticePoints_near
+lemma shortLogNearLatticePoints_near
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     {point : ShortLogLatticePoint}
     (hpoint : point ∈ shortLogNearLatticePoints m ell samples) :
@@ -1515,7 +1515,7 @@ theorem shortLogNearLatticePoints_near
 
 /-- Every enumerated point belongs to the original source row-span lattice;
 this follows from the certified lattice equality of the LLL trace. -/
-theorem shortLogNearLatticePoints_member
+lemma shortLogNearLatticePoints_member
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     {point : ShortLogLatticePoint}
     (hpoint : point ∈ shortLogNearLatticePoints m ell samples) :
@@ -1541,7 +1541,7 @@ theorem shortLogNearLatticePoints_member
 
 /-- Under the source no-tiny-vector event, every source-lattice point in the
 exact search ball occurs in the executable nearest-plane enumeration. -/
-theorem shortLogNearLatticePoints_complete
+lemma shortLogNearLatticePoints_complete
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     {point : ShortLogLatticePoint} (hm : 3 ≤ m)
     (hnoTiny : ShortLogNoTinyVector m ell samples)
@@ -1593,7 +1593,7 @@ def ShortLogPackingSeparated (m ell : Nat)
 
 /-- A separated packing makes the complete finite lattice search satisfy the
 same constant cap tested by the recovery implementation. -/
-theorem shortLogRecoveryFeasible_of_packingSeparated
+lemma shortLogRecoveryFeasible_of_packingSeparated
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hm : 3 ≤ m)
     (hnoTiny : ShortLogNoTinyVector m ell samples)
@@ -1608,7 +1608,7 @@ theorem shortLogRecoveryFeasible_of_packingSeparated
 
 /-- The source no-short-vector event forces packing separation of every point
 that the executable geometric search can inspect. -/
-theorem shortLogPackingSeparated_of_noTinyVector
+lemma shortLogPackingSeparated_of_noTinyVector
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hm : 3 ≤ m) (hnoTiny : ShortLogNoTinyVector m ell samples) :
     ShortLogPackingSeparated m ell samples := by
@@ -1657,7 +1657,7 @@ theorem shortLogPackingSeparated_of_noTinyVector
 
 /-- Source no-short-vector feasibility theorem consumed by the closed
 recovery implementation. -/
-theorem shortLogRecoveryFeasible_of_noTinyVector
+lemma shortLogRecoveryFeasible_of_noTinyVector
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hm : 3 ≤ m) (hnoTiny : ShortLogNoTinyVector m ell samples) :
     ShortLogRecoveryFeasible m ell samples :=
@@ -1690,7 +1690,7 @@ def shortLogWitnessPoint (m ell secret : Nat)
     secret)
 
 /-- The centered witness is an actual point of the source row-span lattice. -/
-theorem shortLogWitnessPoint_mem (m ell secret : Nat)
+lemma shortLogWitnessPoint_mem (m ell secret : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     ShortLogLatticeMember m ell samples
       (shortLogWitnessPoint m ell secret samples) := by
@@ -1762,7 +1762,7 @@ the corrected `s = 2` search ball.
 The good-pair window is [EH17, source.tex:515-537]; the `s/2^4` radius is the
 correction published in Ekerå and Håstad's PQCrypto 2017 conference version,
 Sections 3.9–3.10. -/
-theorem shortLogWitnessPoint_near_of_good
+lemma shortLogWitnessPoint_near_of_good
     {m ell secret : Nat}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hsecretPos : 0 < secret) (hsecretLt : secret < 2 ^ m)
@@ -1933,7 +1933,7 @@ private def shortLogPointAtOffsetExecution
 
 /-- The audited point execution computes the mathematical basis combination
 at the supplied center and offset. -/
-private theorem shortLogPointAtOffsetExecution_value
+private lemma shortLogPointAtOffsetExecution_value
     (basis : NumberTheory.IntegerBasis3)
     (center offset : NumberTheory.IntegerPoint3) :
     (shortLogPointAtOffsetExecution basis center offset).value =
@@ -1951,7 +1951,7 @@ private def shortLogCandidatePointFromCommon (m ell : Nat)
 
 /-- Every coefficient in the canonical fixed scan satisfies its
 coordinate-specific corrected-radius bound. -/
-private theorem shortLogCoefficientOffset_coordinates_le
+private lemma shortLogCoefficientOffset_coordinates_le
     {offset : NumberTheory.IntegerPoint3}
     (hoffset : offset ∈ NumberTheory.coefficientOffsetList3
       NumberTheory.nearestPlaneCoefficientBounds3) :
@@ -1986,7 +1986,7 @@ private def shortLogCandidatePointMagnitude (m ell : Nat)
 
 /-- The canonical candidate-point magnitude has linear binary size in the
 public short-log input envelope. -/
-private theorem shortLogCandidatePointMagnitude_size_le
+private lemma shortLogCandidatePointMagnitude_size_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     Nat.size (shortLogCandidatePointMagnitude m ell samples) ≤
@@ -2061,7 +2061,7 @@ private theorem shortLogCandidatePointMagnitude_size_le
 
 /-- Every actual point produced by the canonical scan satisfies the shared
 input-derived coordinate envelope. -/
-private theorem shortLogCandidatePointFromCommon_coordinates_le
+private lemma shortLogCandidatePointFromCommon_coordinates_le
     (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
@@ -2132,7 +2132,7 @@ private theorem shortLogCandidatePointFromCommon_coordinates_le
 
 /-- Every candidate exponent extracted from the canonical coefficient scan
 has width linear in the public short-log input envelope. -/
-private theorem shortLogCandidateExponent_size_le
+private lemma shortLogCandidateExponent_size_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
@@ -2166,7 +2166,7 @@ private theorem shortLogCandidateExponent_size_le
 
 /-- Every operand emitted while forming one canonical candidate lattice point
 fits the same point-magnitude bit envelope. -/
-private theorem shortLogPointAtOffsetExecution_maxOperandWidth_le
+private lemma shortLogPointAtOffsetExecution_maxOperandWidth_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
@@ -2389,7 +2389,7 @@ private def shortLogSquaredDistanceExecution
 
 /-- The audited distance execution computes the ordinary squared Euclidean
 distance of the same two integer points. -/
-private theorem shortLogSquaredDistanceExecution_value
+private lemma shortLogSquaredDistanceExecution_value
     (left right : NumberTheory.IntegerPoint3) :
     (shortLogSquaredDistanceExecution left right).value =
       NumberTheory.squaredDistance left.toVector right.toVector := by
@@ -2399,7 +2399,7 @@ private theorem shortLogSquaredDistanceExecution_value
 
 /-- Squared-distance arithmetic has linear operand width in the coordinate
 width supplied by its two input points. -/
-private theorem shortLogSquaredDistanceExecution_maxOperandWidth_le
+private lemma shortLogSquaredDistanceExecution_maxOperandWidth_le
     (left right : NumberTheory.IntegerPoint3) (width : Nat)
     (hleft :
       NumberTheory.integerMagnitudeBits left.1 ≤ width ∧
@@ -2477,7 +2477,7 @@ private theorem shortLogSquaredDistanceExecution_maxOperandWidth_le
 
 /-- The value emitted by squared-distance arithmetic has at most twice the
 coordinate width, up to a fixed carry allowance. -/
-private theorem shortLogSquaredDistanceExecution_value_size_le
+private lemma shortLogSquaredDistanceExecution_value_size_le
     (left right : NumberTheory.IntegerPoint3) (width : Nat)
     (hleft :
       NumberTheory.integerMagnitudeBits left.1 ≤ width ∧
@@ -2621,7 +2621,7 @@ def quadraticFactorCandidates (N shortLog : Nat) : Nat × Nat :=
 
 /-- The candidate projection of the sealed quadratic execution is the usual
 pair formed from the exact integer square root of the discriminant. -/
-theorem quadraticFactorCandidates_eq (N shortLog : Nat) :
+lemma quadraticFactorCandidates_eq (N shortLog : Nat) :
     quadraticFactorCandidates N shortLog =
       (quadraticCenter shortLog - Nat.sqrt (quadraticDiscriminant N shortLog),
         quadraticCenter shortLog + Nat.sqrt (quadraticDiscriminant N shortLog)) := by
@@ -2636,7 +2636,7 @@ def recoverFactorFromShortLog (N shortLog : Nat) : Option Nat :=
 
 /-- The result projection of the sealed quadratic execution performs the two
 range and divisibility checks in the recorded order. -/
-theorem recoverFactorFromShortLog_eq (N shortLog : Nat) :
+lemma recoverFactorFromShortLog_eq (N shortLog : Nat) :
     recoverFactorFromShortLog N shortLog =
       let firstCandidate := quadraticCenter shortLog -
         Nat.sqrt (quadraticDiscriminant N shortLog)
@@ -2779,7 +2779,7 @@ def shortLogCandidateCheckTraceFromCommon {N : Nat} (m ell : Nat)
 
 /-- Both centered target coordinates fit in the public recovery input
 envelope; the third target coordinate is zero. -/
-private theorem shortLogLatticeTarget_coordinate_width_le
+private lemma shortLogLatticeTarget_coordinate_width_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     let target := shortLogLatticeTarget m ell samples
@@ -2823,7 +2823,7 @@ private theorem shortLogLatticeTarget_coordinate_width_le
 
 /-- One canonical candidate slot emits 37 fixed arithmetic events plus seven
 modular-power events for every bit of the actual candidate exponent. -/
-private theorem
+private lemma
     shortLogCandidateCheckTraceFromCommon_selectorArithmeticFrom_length
     {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
@@ -2854,7 +2854,7 @@ private theorem
 /-- Every event in one canonical validation slot has operand width linear in
 the public short-log input envelope.  The deliberately loose coefficient keeps
 the proof independent of concrete RSA key sizes. -/
-private theorem
+private lemma
     shortLogCandidateCheckTraceFromCommon_selectorArithmeticFrom_maxOperandWidth_le
     {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
@@ -3071,7 +3071,7 @@ private theorem
 
 /-- One canonical coefficient slot has cubic schoolbook charge in the public
 input envelope. -/
-private theorem
+private lemma
     shortLogCandidateCheckTraceFromCommon_selectorArithmeticFrom_charge_le
     {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
@@ -3184,7 +3184,7 @@ def shortLogPointAtOffset (m ell : Nat)
 
 /-- The proof-facing point projection is the mathematical combination around
 the ordinary nearest-plane center. -/
-theorem shortLogPointAtOffset_eq (m ell : Nat)
+lemma shortLogPointAtOffset_eq (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3) :
     shortLogPointAtOffset m ell samples offset =
@@ -3199,7 +3199,7 @@ theorem shortLogPointAtOffset_eq (m ell : Nat)
 
 /-- Every coordinate of a point visited by the canonical offset scan has
 binary magnitude bounded by the public short-log input ledger. -/
-theorem shortLogPointAtOffset_coordinate_sizes_le
+lemma shortLogPointAtOffset_coordinate_sizes_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
@@ -3231,7 +3231,7 @@ theorem shortLogPointAtOffset_coordinate_sizes_le
 
 /-- Both natural operands of the exact near-target comparison fit the public
 candidate-slot width ledger. -/
-theorem shortLogNearTarget_operand_sizes_le
+lemma shortLogNearTarget_operand_sizes_le
     (N m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     {offset : NumberTheory.IntegerPoint3}
@@ -3326,7 +3326,7 @@ def shortLogCandidateAtOffset {N : Nat} (m ell : Nat)
 /-- One candidate trace accepts exactly the original mathematical validation
 predicate.  This theorem is the proof-facing bridge; there is no second
 executable checker. -/
-theorem shortLogCandidateAtOffset_eq {N : Nat} (m ell : Nat)
+lemma shortLogCandidateAtOffset_eq {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3) :
@@ -3405,7 +3405,7 @@ def shortLogSelectorTrace {N work : Nat}
 /-- The state projection of the full selector fold is the corresponding fold
 of candidate results.  The proof is parametric in the list and never unfolds
 the concrete corrected-radius offset vector. -/
-private theorem shortLogSelectorFold_selected {N : Nat}
+private lemma shortLogSelectorFold_selected {N : Nat}
     (checks : List (ShortLogCandidateCheckTrace N))
     (state : ShortLogSelectorState) :
     (checks.foldl shortLogSelectorStep state).selected =
@@ -3419,7 +3419,7 @@ private theorem shortLogSelectorFold_selected {N : Nat}
 
 /-- The arithmetic projection of the selector fold is the concatenation of
 every slot's candidate arithmetic and tag check, even after a prior success. -/
-private theorem shortLogSelectorFold_arithmetic {N : Nat}
+private lemma shortLogSelectorFold_arithmetic {N : Nat}
     (checks : List (ShortLogCandidateCheckTrace N))
     (state : ShortLogSelectorState) :
     (checks.foldl shortLogSelectorStep state).arithmetic =
@@ -3433,7 +3433,7 @@ private theorem shortLogSelectorFold_arithmetic {N : Nat}
         List.append_assoc]
 
 /-- The sealed selector's value projection is the complete result fold. -/
-private theorem shortLogSelectorTrace_selected {N work : Nat}
+private lemma shortLogSelectorTrace_selected {N work : Nat}
     (checks : List.Vector (ShortLogCandidateCheckTrace N) work) :
     (shortLogSelectorTrace checks).selected =
       (checks.toList.map (·.result)).foldl
@@ -3446,7 +3446,7 @@ private theorem shortLogSelectorTrace_selected {N work : Nat}
     { selected := none, arithmetic := [] }
 
 /-- The sealed selector records every candidate slot in vector order. -/
-theorem shortLogSelectorTrace_arithmetic {N work : Nat}
+lemma shortLogSelectorTrace_arithmetic {N work : Nat}
     (checks : List.Vector (ShortLogCandidateCheckTrace N) work) :
     (shortLogSelectorTrace checks).arithmetic =
       shortLogSelectorArithmeticFrom none checks.toList := by
@@ -3460,7 +3460,7 @@ theorem shortLogSelectorTrace_arithmetic {N work : Nat}
 /-- A state-dependent selector whose every slot is bounded by the same
 ceiling has total charge at most the number of visited slots times that
 ceiling. -/
-private theorem shortLogSelectorArithmeticFrom_charge_le {N : Nat}
+private lemma shortLogSelectorArithmeticFrom_charge_le {N : Nat}
     (selected : Option Nat)
     (checks : List (ShortLogCandidateCheckTrace N))
     (ceiling : Nat)
@@ -3496,7 +3496,7 @@ private theorem shortLogSelectorArithmeticFrom_charge_le {N : Nat}
 
 /-- A selector whose every visited slot has one operand-width ceiling keeps
 that same ceiling across the complete chronological scan. -/
-private theorem shortLogSelectorArithmeticFrom_maxOperandWidth_le {N : Nat}
+private lemma shortLogSelectorArithmeticFrom_maxOperandWidth_le {N : Nat}
     (selected : Option Nat)
     (checks : List (ShortLogCandidateCheckTrace N))
     (ceiling : Nat)
@@ -3605,7 +3605,7 @@ def shortLogPairSetupTrace {N : Nat} (m ell : Nat)
     rfl rfl rfl rfl rfl
 
 /-- One centered-coordinate setup schedule has linear operand width. -/
-private theorem shortLogTargetCoordinateArithmetic_maxOperandWidth_le
+private lemma shortLogTargetCoordinateArithmetic_maxOperandWidth_le
     (m ell : Nat) (sample : ShortLogSample m ell) :
     NumberTheory.arithmeticEventListMaxOperandWidth
         (shortLogTargetCoordinateArithmetic m ell sample) ≤
@@ -3709,7 +3709,7 @@ private theorem shortLogTargetCoordinateArithmetic_maxOperandWidth_le
 
 /-- The setup schedule stays within a small linear envelope in the complete
 public short-log input width. -/
-private theorem shortLogPairSetupTrace_maxOperandWidth_le
+private lemma shortLogPairSetupTrace_maxOperandWidth_le
     {N : Nat} (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.arithmeticEventListMaxOperandWidth
@@ -3830,7 +3830,7 @@ private theorem shortLogPairSetupTrace_maxOperandWidth_le
 
 /-- The complete setup schedule has a uniform cubic schoolbook envelope in
 the public short-log input bit size. -/
-theorem shortLogPairSetupTrace_schoolbookCharge_le
+lemma shortLogPairSetupTrace_schoolbookCharge_le
     {N : Nat} (m ell : Nat)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     NumberTheory.arithmeticEventListCharge
@@ -4027,7 +4027,7 @@ def ShortLogPairRecoveryTrace.maxOperandWidth {N m ell : Nat}
 
 /-- Pair charge is exactly the sum of the unique setup, reduction,
 nearest-center, target-power, full-selector, and quadratic stages. -/
-theorem ShortLogPairRecoveryTrace.schoolbookCharge_eq {N m ell : Nat}
+lemma ShortLogPairRecoveryTrace.schoolbookCharge_eq {N m ell : Nat}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (trace : ShortLogPairRecoveryTrace (N := N) m ell samples) :
     trace.schoolbookCharge =
@@ -4127,7 +4127,7 @@ def shortLogPairRecoveryTrace {N : Nat} (m ell : Nat)
   shortLogPairRecoveryProgram.run generator samples
 
 /-- Ownership certificate for the public pair trace. -/
-private theorem shortLogPairRecoveryTrace_spec {N : Nat} (m ell : Nat)
+private lemma shortLogPairRecoveryTrace_spec {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     ShortLogPairRecoverySpec m ell generator samples
@@ -4136,7 +4136,7 @@ private theorem shortLogPairRecoveryTrace_spec {N : Nat} (m ell : Nat)
 
 /-- The complete 404,685-slot selector has cubic schoolbook charge in the
 public short-log input envelope. -/
-private theorem shortLogPairRecoveryTrace_selector_charge_le
+private lemma shortLogPairRecoveryTrace_selector_charge_le
     {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
@@ -4211,7 +4211,7 @@ private theorem shortLogPairRecoveryTrace_selector_charge_le
 
 /-- The full fixed-order selector retains the one-slot operand-width envelope:
 the scan grows arithmetic length but never widens an operand. -/
-private theorem shortLogPairRecoveryTrace_selector_maxOperandWidth_le
+private lemma shortLogPairRecoveryTrace_selector_maxOperandWidth_le
     {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
@@ -4279,7 +4279,7 @@ def shortLogCandidateChecks {N : Nat} (m ell : Nat)
 
 /-- The complete trace is definitionally the canonical map of the
 proof-facing offset checker. -/
-theorem shortLogCandidateChecks_eq_map {N : Nat} (m ell : Nat)
+lemma shortLogCandidateChecks_eq_map {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     shortLogCandidateChecks m ell generator samples =
@@ -4310,7 +4310,7 @@ def recoverShortLogFromPair {N : Nat} (m ell : Nat)
 /-- The public short-log result is the selector projection of the unique pair
 execution.  Downstream proofs use this bridge instead of unfolding the full
 fixed-length trace. -/
-theorem recoverShortLogFromPair_eq_selector {N : Nat} (m ell : Nat)
+lemma recoverShortLogFromPair_eq_selector {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     recoverShortLogFromPair m ell generator samples =
@@ -4325,7 +4325,7 @@ def recoverFactorFromShortLogPair {N : Nat} (m ell : Nat)
 
 /-- The public factor result is the quadratic projection of the short logarithm
 selected by the same sealed recovery program. -/
-theorem recoverFactorFromShortLogPair_eq_run {N : Nat} (m ell : Nat)
+lemma recoverFactorFromShortLogPair_eq_run {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     recoverFactorFromShortLogPair m ell generator samples =
@@ -4337,7 +4337,7 @@ theorem recoverFactorFromShortLogPair_eq_run {N : Nat} (m ell : Nat)
 
 /-- The selected result is definitionally the complete fold of the check
 trace stored in the same recovery object. -/
-theorem shortLogPairRecoveryTrace_selected_fold {N : Nat} (m ell : Nat)
+lemma shortLogPairRecoveryTrace_selected_fold {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogPairRecoveryTrace m ell generator samples).selector.selected =
@@ -4349,7 +4349,7 @@ theorem shortLogPairRecoveryTrace_selected_fold {N : Nat} (m ell : Nat)
 
 /-- The candidate list is the successful-value projection of the check trace
 stored in the same recovery object. -/
-theorem shortLogCandidateList_eq_checks_filterMap {N : Nat} (m ell : Nat)
+lemma shortLogCandidateList_eq_checks_filterMap {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     shortLogCandidateList m ell generator samples =
@@ -4361,7 +4361,7 @@ end SealedPairRecoveryTrace
 /-- Folding with `retainFirstShortLogCandidate` agrees with taking the head of
 the validated-candidate list, while its recursion still traverses the complete
 check list. -/
-theorem foldl_retainFirstShortLogCandidate (checks : List (Option Nat))
+lemma foldl_retainFirstShortLogCandidate (checks : List (Option Nat))
     (selected : Option Nat) :
     checks.foldl retainFirstShortLogCandidate selected =
       match selected with
@@ -4375,7 +4375,7 @@ theorem foldl_retainFirstShortLogCandidate (checks : List (Option Nat))
         simp [retainFirstShortLogCandidate]
 
 /-- The selected trace result is exactly the first validated candidate. -/
-theorem shortLogPairRecoveryTrace_selected {N : Nat} (m ell : Nat)
+lemma shortLogPairRecoveryTrace_selected {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogPairRecoveryTrace m ell generator samples).selector.selected =
@@ -4386,7 +4386,7 @@ theorem shortLogPairRecoveryTrace_selected {N : Nat} (m ell : Nat)
 
 /-- The complete validation trace has the exact constant length of the
 three-dimensional coefficient box. -/
-theorem shortLogCandidateChecks_length {N : Nat} (m ell : Nat)
+lemma shortLogCandidateChecks_length {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell) :
     (shortLogCandidateChecks m ell generator samples).length = 85 * 69 ^ 2 := by
@@ -4395,7 +4395,7 @@ theorem shortLogCandidateChecks_length {N : Nat} (m ell : Nat)
     NumberTheory.nearestPlaneCoefficientBounds3_work]
 
 /-- Every offset-generated point belongs to the original source lattice. -/
-theorem shortLogPointAtOffset_member
+lemma shortLogPointAtOffset_member
     {m ell : Nat} {samples : ShortLogSample m ell × ShortLogSample m ell}
     (offset : NumberTheory.IntegerPoint3) :
     ShortLogLatticeMember m ell samples
@@ -4418,7 +4418,7 @@ theorem shortLogPointAtOffset_member
 
 /-- A successful offset check carries exactly the full validated-point
 contract used by the semantic uniqueness theorem. -/
-theorem shortLogCandidateAtOffset_some_validated
+lemma shortLogCandidateAtOffset_some_validated
     {N m ell candidate : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     {offset : NumberTheory.IntegerPoint3}
@@ -4438,7 +4438,7 @@ theorem shortLogCandidateAtOffset_some_validated
 /-- Below the generator order, the public target relation admits at most one
 short logarithm.  This is the uniqueness condition needed to turn the closed
 candidate selector into a semantic recovery theorem. -/
-theorem ShortLogPairCandidate.unique_of_order
+lemma ShortLogPairCandidate.unique_of_order
     {N m ell : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     {first second : Nat} (horder : 2 ^ m ≤ orderOf generator)
@@ -4458,7 +4458,7 @@ theorem ShortLogPairCandidate.unique_of_order
 
 /-- Every validated searched point has the same logarithm as a semantic source
 candidate whenever the advertised short range lies below the generator order. -/
-theorem ShortLogValidatedPoint.toNat_eq_candidate
+lemma ShortLogValidatedPoint.toNat_eq_candidate
     {N m ell secret : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     {point : ShortLogLatticePoint}
@@ -4483,7 +4483,7 @@ theorem ShortLogValidatedPoint.toNat_eq_candidate
 
 /-- A semantic source candidate occurs in the fixed-order executable check
 trace. -/
-theorem shortLogCandidate_mem
+lemma shortLogCandidate_mem
     {N m ell secret : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hfeasible : ShortLogRecoveryFeasible m ell samples)
@@ -4525,7 +4525,7 @@ theorem shortLogCandidate_mem
 
 /-- Every item retained by the executable filter comes from one fully
 validated lattice point in the same fixed scan. -/
-theorem shortLogCandidateList_member_validated
+lemma shortLogCandidateList_member_validated
     {N m ell candidate : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hmember : candidate ∈ shortLogCandidateList m ell generator samples) :
@@ -4546,7 +4546,7 @@ theorem shortLogCandidateList_member_validated
 
 /-- Any value selected by the full canonical scan lies inside the advertised
 short-log range. -/
-theorem shortLogPairRecoveryTrace_selected_lt
+lemma shortLogPairRecoveryTrace_selected_lt
     {N m ell candidate : Nat} (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     (hselected :
@@ -4575,7 +4575,7 @@ theorem shortLogPairRecoveryTrace_selected_lt
 
 /-- Quadratic factor recovery from a range-valid selected short logarithm
 keeps every operand inside a linear public input envelope. -/
-private theorem quadraticFactorRecoveryTrace_maxOperandWidth_le
+private lemma quadraticFactorRecoveryTrace_maxOperandWidth_le
     (N m ell shortLog : Nat) (hshortLog : shortLog < 2 ^ m) :
     NumberTheory.arithmeticEventListMaxOperandWidth
         (quadraticFactorRecoveryTrace N (some shortLog)).arithmetic ≤
@@ -4712,7 +4712,7 @@ private theorem quadraticFactorRecoveryTrace_maxOperandWidth_le
 
 /-- Quadratic factor recovery from any range-valid selected short logarithm
 has cubic schoolbook charge in the same public input envelope. -/
-private theorem quadraticFactorRecoveryTrace_schoolbookCharge_le
+private lemma quadraticFactorRecoveryTrace_schoolbookCharge_le
     (N m ell shortLog : Nat) (hshortLog : shortLog < 2 ^ m) :
     (quadraticFactorRecoveryTrace N (some shortLog)).schoolbookCharge ≤
       2 ^ 20 * shortLogRecoveryInputBits N m ell ^ 3 := by
@@ -4878,7 +4878,7 @@ private theorem quadraticFactorRecoveryTrace_schoolbookCharge_le
 /-- The complete two-sample Ekerå–Håstad recovery, including its fixed
 coefficient scan and factor extraction, has a uniform cubic schoolbook-charge
 bound in the public input bit envelope. -/
-theorem shortLogPairRecoveryTrace_schoolbookCharge_le
+lemma shortLogPairRecoveryTrace_schoolbookCharge_le
     {N : Nat} (m ell : Nat) (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     (hN : 0 < N) :
@@ -4974,7 +4974,7 @@ theorem shortLogPairRecoveryTrace_schoolbookCharge_le
 
 /-- Every arithmetic operand in one sealed two-sample Ekerå–Håstad recovery
 fits the fixed public short-log input envelope. -/
-theorem shortLogPairRecoveryTrace_maxOperandWidth_le
+lemma shortLogPairRecoveryTrace_maxOperandWidth_le
     {N : Nat} (m ell : Nat) (generator : (ZMod N)ˣ)
     (samples : ShortLogSample m ell × ShortLogSample m ell)
     (hN : 0 < N) :
@@ -5082,7 +5082,7 @@ theorem shortLogPairRecoveryTrace_maxOperandWidth_le
 
 /-- A valid short-log candidate is exactly what the closed selector returns
 whenever the target relation is injective throughout the advertised range. -/
-theorem recoverShortLogFromPair_eq_some_of_candidate
+lemma recoverShortLogFromPair_eq_some_of_candidate
     {N m ell secret : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hfeasible : ShortLogRecoveryFeasible m ell samples)
@@ -5117,7 +5117,7 @@ theorem recoverShortLogFromPair_eq_some_of_candidate
 logarithm in every cyclic subgroup generated by a unit.  This is the actual
 reduction used by the short-DLP circuit, not a caller-supplied relation
 [EH17, source.tex:915-925]. -/
-theorem targetUnit_eq_shortLog {p q : Nat}
+lemma targetUnit_eq_shortLog {p q : Nat}
     (hp : p.Prime) (hq : q.Prime) (hpq : p ≠ q)
     (hpOdd : Odd p) (hqOdd : Odd q)
     (generator : (ZMod (p * q))ˣ) :
@@ -5187,7 +5187,7 @@ theorem targetUnit_eq_shortLog {p q : Nat}
 
 /-- For ordered odd factors, the quadratic constructed from the hidden short
 logarithm has the original factors as its two roots. -/
-theorem quadraticFactorCandidates_shortLogSecret_of_le
+lemma quadraticFactorCandidates_shortLogSecret_of_le
     {p q : Nat} (hpOdd : Odd p) (hqOdd : Odd q) (hpq : p ≤ q) :
     quadraticFactorCandidates (p * q) (shortLogSecret p q) = (p, q) := by
   rcases hpOdd with ⟨a, rfl⟩
@@ -5223,7 +5223,7 @@ theorem quadraticFactorCandidates_shortLogSecret_of_le
 
 /-- On ordered distinct odd primes, the closed quadratic selector returns the
 smaller declared factor. -/
-theorem recoverFactorFromShortLog_shortLogSecret_of_le
+lemma recoverFactorFromShortLog_shortLogSecret_of_le
     {p q : Nat} (hp : p.Prime) (hq : q.Prime)
     (hpOdd : Odd p) (hqOdd : Odd q) (hpq : p ≤ q) :
     recoverFactorFromShortLog (p * q) (shortLogSecret p q) = some p := by
@@ -5245,7 +5245,7 @@ theorem recoverFactorFromShortLog_shortLogSecret_of_le
 
 /-- For distinct odd primes in either order, quadratic recovery returns one of
 the two declared factors. -/
-theorem recoverFactorFromShortLog_shortLogSecret
+lemma recoverFactorFromShortLog_shortLogSecret
     {p q : Nat} (hp : p.Prime) (hq : q.Prime)
     (hpOdd : Odd p) (hqOdd : Odd q) :
     recoverFactorFromShortLog (p * q) (shortLogSecret p q) = some p ∨
@@ -5261,7 +5261,7 @@ theorem recoverFactorFromShortLog_shortLogSecret
 
 /-- A valid narrow-good pair at the true short logarithm reaches one of the
 two declared RSA factors through the complete closed recovery composition. -/
-theorem recoverFactorFromShortLogPair_shortLogSecret
+lemma recoverFactorFromShortLogPair_shortLogSecret
     {p q m ell : Nat} {generator : (ZMod (p * q))ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hp : p.Prime) (hq : q.Prime) (hpOdd : Odd p) (hqOdd : Odd q)
@@ -5288,7 +5288,7 @@ theorem recoverFactorFromShortLogPair_shortLogSecret
   exact recoverFactorFromShortLog_shortLogSecret hp hq hpOdd hqOdd
 
 /-- Quadratic recovery never returns a spurious or trivial divisor. -/
-theorem recoverFactorFromShortLog_some_sound {N shortLog factor : Nat}
+lemma recoverFactorFromShortLog_some_sound {N shortLog factor : Nat}
     (hresult : recoverFactorFromShortLog N shortLog = some factor) :
     factor ∣ N ∧ 1 < factor ∧ factor < N := by
   rw [recoverFactorFromShortLog_eq] at hresult
@@ -5309,7 +5309,7 @@ theorem recoverFactorFromShortLog_some_sound {N shortLog factor : Nat}
     next _hsecondInvalid => contradiction
 
 /-- Two-sample recovery never emits a spurious or trivial divisor. -/
-theorem recoverFactorFromShortLogPair_some_sound
+lemma recoverFactorFromShortLogPair_some_sound
     {N m ell factor : Nat} {generator : (ZMod N)ˣ}
     {samples : ShortLogSample m ell × ShortLogSample m ell}
     (hresult : recoverFactorFromShortLogPair m ell generator samples =

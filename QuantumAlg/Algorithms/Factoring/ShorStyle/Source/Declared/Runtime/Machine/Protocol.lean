@@ -54,7 +54,7 @@ private def successBound (budget : FailureBudget) (wellFormed : budget.WellForme
 - Both space budgets include the caller, all five persistent heads, the one
   owned bank, all surviving source cells and simultaneous full native scratch.
 - Whole chronological depth evaluates the entire actual dependency path
-  under independently supplied event durations and the complete closed ledger.
+  under the canonical quantum duration and the complete independent event ledger.
 **Success.**
 - The original declared prime factor is returned with probability at least
   the original rational failure target's success threshold.
@@ -62,37 +62,33 @@ private def successBound (budget : FailureBudget) (wellFormed : budget.WellForme
 - [Sho95, source.tex:1124-1169,1183-1245] for sampling, amplification and recovery.
 - [dW19, qcnotes.tex:2203-2225] for the declared XOR query interpretation.
 -/
-def problem (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N) (budget : FailureBudget)
-    (wellFormed : budget.WellFormed)
-    (duration : Resource.Event (executionModel (Probability.Input.ofSemiprimeModel model)) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (executionModel (Probability.Input.ofSemiprimeModel model)) base
+def problem (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
+    (input : Input N) (budget : FailureBudget)
+    (wellFormed : budget.WellFormed) :
+    Problem (executionModel N) base
       (context base noQuantum N (retryCount N budget))
       (.option (.unsignedWord (modulusBits N))) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ output => Probability.ReturnedDeclaredFactor model output
-  successLB := successBound budget wellFormed
-  states := [stateRequirement base noQuantum N (retryCount N budget)]
+  Witness := NumberTheory.Factoring.SemiprimeFactorModel N
+  valid := fun actual _ _ => actual.quantum =
+    DeclaredSource.interpretation (sourceBounds input) (phaseBits N)
+  initialization := fun _ _ _ => True
+  accepts := fun _ witness _ output => Probability.ReturnedDeclaredFactor witness output
+  successLB := fun _ _ => successBound budget wellFormed
+  states := fun _ _ => [stateRequirement base noQuantum N (retryCount N budget)]
   resources :=
-    { events := eventEnvelope (Probability.Input.ofSemiprimeModel model) (retryCount N budget)
+    { events := eventEnvelope N (retryCount N budget)
       resident := base.residentSpace + additionalSpace N (retryCount N budget)
       auxiliary := base.auxiliarySpace + additionalSpace N (retryCount N budget) }
-  depth :=
-    { duration := duration
-      limit := ResourcePool.weightedCount duration
-        (eventEnvelope (Probability.Input.ofSemiprimeModel model) (retryCount N budget))
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
+  quantumTimeLimit := ResourcePool.weightedCount Resource.Event.quantumDuration
+    (eventEnvelope N (retryCount N budget))
 
 /-- The same actual initialized finite execution returns its sole terminal packed factor. -/
-def algorithm (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N) (budget : FailureBudget) :
-    Algorithm (executionModel (Probability.Input.ofSemiprimeModel model)) base
+def algorithm (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
+    (input : Input N) (budget : FailureBudget) :
+    Algorithm (executionModel N) base
       (context base noQuantum N (retryCount N budget))
       (.option (.unsignedWord (modulusBits N))) where
-  run := run base noQuantum N (Probability.Input.ofSemiprimeModel model) (retryCount N budget)
+  run := run base noQuantum N input (retryCount N budget)
 
 end
 

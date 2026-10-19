@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- Mathematical terminal frame reached by the active prefix of the same native program. -/
@@ -41,26 +43,27 @@ def terminalFrame (modulus input : Nat) (positive : 0 < input) (bounded : input 
     (TerminalPadding.final_balance modulus input)
     (SignedTrajectory.finalIteration modulus input)
 
-private theorem terminal_divisor (modulus input : Nat)
+private lemma terminal_divisor (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (terminalFrame modulus input positive bounded).divisorLength = 0 := by
-  change BitVec.ofNat modulus.size.size (TerminalPadding.finalState modulus input).divisor.size = 0
+  change BitVec.ofNat modulus.size.size (TerminalPadding.finalState modulus
+    input).divisor.size = 0
   rw [TerminalPadding.final_divisor modulus input positive bounded]
   rfl
 
-private theorem terminal_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+private lemma terminal_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     ExtendedClockRegisters.clock (terminalFrame modulus input positive bounded) = 0 :=
   PaddingClock.final_counter_zero modulus input coprime positive bounded
 
-private theorem padding_fits (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+private lemma padding_fits (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     QuotientSchedule.padding modulus input < 2 ^ (2 + modulus.size.size) := by
   simpa only [Nat.add_comm] using
     QuotientSchedule.padding_fits_extended_clock modulus input coprime positive bounded
 
 /-- The fixed native loop includes every terminal microstep and has the complete retained frame. -/
-theorem iterate_initial (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma iterate_initial (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (NativeMicrostep.step modulus.size)^[QuotientSchedule.schedule modulus.size]
       (MacroBoundary.frame (IterationState.initial modulus (foldInput modulus input).2) modulus
@@ -92,10 +95,10 @@ def program (modulus : Nat) (nontrivial : 1 < modulus) :
         (PredicateLayout.modulus_length_width modulus nontrivial)))
 
 /-- Coprime positive residues execute the same fixed circuit with exact normalized amplitudes. -/
-theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
@@ -111,16 +114,18 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     iterate_initial modulus input.val coprime positive bounded]
 
 /-- The complete emitted inverse restores every normalized forward state and all its history. -/
-theorem dagger_after_forward (modulus : Nat) (nontrivial : 1 < modulus)
+lemma dagger_after_forward (modulus : Nat) (nontrivial : 1 < modulus)
     (state : NormalizedVector
       (QubitLayout.canonical (encoding modulus.size).width).toQuantum.register) :
     ((program modulus nontrivial).dagger
-      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
-        ((program modulus nontrivial).applyNormalized state) =
+      (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment
+        ((program modulus nontrivial).applyNormalized environment state) =
       state :=
   UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program modulus nontrivial)
     ((program modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-    (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) state
+    (by rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]; exact Unitary.star_eq_inv _) state
 
 end
 

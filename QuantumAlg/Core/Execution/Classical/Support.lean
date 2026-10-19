@@ -29,7 +29,7 @@ namespace ExecutionState
 variable {C D : Type} [Fintype C] [Fintype D] [DecidableEq D] {R : Register}
 
 /-- Agreement on actual positive-mass inputs determines every complete output block. -/
-theorem mapClassical_eq_of_support (state : ExecutionState C R) (first second : C → D)
+lemma mapClassical_eq_of_support (state : ExecutionState C R) (first second : C → D)
     (agree : ∀ entry, 0 < (state.block entry).mass → first entry = second entry) :
     state.mapClassical first = state.mapClassical second := by
   apply ExecutionState.ext
@@ -45,7 +45,7 @@ theorem mapClassical_eq_of_support (state : ExecutionState C R) (first second : 
     simp only [ite_self]
 
 /-- A common normalized target remains the same after any finite classical grouping. -/
-theorem mapClassical_mixed (state : ExecutionState C R) (read : C → D)
+lemma mapClassical_mixed (state : ExecutionState C R) (read : C → D)
     (target : DensityOperator R) (normalized : target.IsNormalized)
     (holds : ∀ entry, (StatePromise.mixed target normalized).Holds (state.block entry))
     (result : D) :
@@ -69,17 +69,18 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Forgetting path records before reading the output leaves every complete output block intact. -/
-theorem finalState_readout {model : ExecutionModel}
+lemma finalState_readout {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (program : AlgorithmRun model pre post shape) (Reference : Register)
+    (program : AlgorithmRun model pre post shape) (environment : model.Environment)
+    (Reference : Register)
     (state : ExecutionState (Store pre × model.HiddenState)
       (Register.prod pre.register Reference)) :
-    (program.finalState Reference state).mapClassical program.output.eval =
-      (program.execute Reference state).mapClassical
+    (program.finalState environment Reference state).mapClassical program.output.eval =
+      (program.execute environment Reference state).mapClassical
         (fun record => program.output.eval record.1) := by
   unfold AlgorithmRun.finalState
   exact ExecutionState.executionState_mapClassical_comp
-    (program.execute Reference state) Prod.fst program.output.eval
+    (program.execute environment Reference state) Prod.fst program.output.eval
 
 end AlgorithmRun
 

@@ -25,6 +25,8 @@ namespace QuantumAlg.QuditShift
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -35,34 +37,44 @@ private instance semanticsDimensionNeZero (dimension : ℕ+) : NeZero (dimension
   ⟨Nat.ne_of_gt dimension.property⟩
 
 variable {gates : GateModel} {oracles : OracleModel}
+variable {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
 variable {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
   (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
   (realizations : Realizations gates oracles ctx.quantumLayout wire)
 
 /-- The actual record writes and then reads the same measured finite value. -/
-def resetCircuitRecord {History : Type}
+def resetCircuitRecord {allowAllocation : Bool} {History : Type}
     (entry : Store ctx ×
-      ((ExecutionModel.quantum gates oracles).HiddenState × History))
+      ((ExecutionModel.quantum gates oracles .empty services).HiddenState × History))
     (outcome : Fin (ctx.quantumLayout.wire wire).dimension) :
-    Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
-      (History × (resetCircuit wire output realizations).Path)) :=
+    Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+      (History × (resetCircuit (allowAllocation := allowAllocation) (services := services) wire
+          output realizations).Path)) :=
   (entry.1.write output (.finite outcome),
     (entry.2.1, (entry.2.2, (outcome, ⟨.finite outcome, ()⟩))))
 
 /-- The complete interpreter state retains the actual store, history, result and reference. -/
-theorem resetCircuit_execute {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    (resetCircuit wire output realizations).execute Reference state =
+lemma resetCircuit_execute {allowAllocation : Bool} {Reference : Register} {History : Type}
+    [Fintype History]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History)) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference state =
       ((ExecutionState.measureZ state
         (fun basis : (Register.prod ctx.register Reference).Index => basis.1 wire)).applyUnitary
           fun entry =>
         UnitaryOperator.prodTensor (operator ctx.quantumLayout wire (-entry.2))
           (1 : UnitaryOperator Reference)).mapClassical
-            (fun entry => resetCircuitRecord wire output realizations entry.1 entry.2) := by
-  have sequential := Circuit.execute_seq
-    (Circuit.measureZ (gates := gates) (oracles := oracles) wire output)
+            (fun entry =>
+              resetCircuitRecord (allowAllocation := allowAllocation) (services := services)
+                wire output realizations entry.1 entry.2) := by
+  have sequential := Circuit.execute_seq (environment := environment)
+    (allowAllocation := allowAllocation)
+    (Circuit.measureZ (allowAllocation := allowAllocation)
+      (classicalOracles := services) (gates := gates) (oracles := oracles) wire output)
     (Circuit.branch (.storage output.toCStorageRef) (fun value =>
-      Circuit.unitary (realizations (-value.toFin)).circuit)) state
+      Circuit.unitary (allowAllocation := allowAllocation)
+        (realizations (-value.toFin)).circuit)) state
   refine sequential.trans ?_
   simp only [Circuit.execute_measureZ, Circuit.selectedUnitary_execute,
     ExecutionState.applyUnitary_mapClassical,
@@ -70,20 +82,25 @@ theorem resetCircuit_execute {Reference : Register} {History : Type} [Fintype Hi
     UnitaryCircuit.ExactRealization.matrix_eq,
     ExecutionState.executionState_mapClassical_comp, Function.comp_def]
   have readBack :
-      (fun entry : (Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState × History)) ×
+      (fun entry : (Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState
+        × History)) ×
           Fin (ctx.quantumLayout.wire wire).dimension =>
-        (show Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
-            (History × (resetCircuit wire output realizations).Path)) from
+        (show Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+            (History × (resetCircuit (allowAllocation := allowAllocation) (services := services)
+                wire output realizations).Path)) from
           (entry.1.1.write output (.finite entry.2),
             (entry.1.2.1, (entry.1.2.2, (entry.2,
             ⟨(entry.1.1.write output (.finite entry.2)).read
               (.storage output.toCStorageRef), ()⟩)))))) =
-        (fun entry => resetCircuitRecord wire output realizations entry.1 entry.2) := by
+        (fun entry =>
+          resetCircuitRecord (allowAllocation := allowAllocation) (services := services)
+            wire output realizations entry.1 entry.2) := by
     funext entry
     exact congrArg
       (fun value : (CShape.finite (ctx.quantumLayout.wire wire).dimension).Value =>
-        (show Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
-            (History × (resetCircuit wire output realizations).Path)) from
+        (show Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+            (History × (resetCircuit (allowAllocation := allowAllocation) (services := services)
+                wire output realizations).Path)) from
           (entry.1.1.write output (.finite entry.2),
             (entry.1.2.1, (entry.1.2.2, (entry.2, ⟨value, ()⟩))))))
         (Store.read_write_same entry.1.1 output (.finite entry.2))
@@ -97,7 +114,7 @@ theorem resetCircuit_execute {Reference : Register} {History : Type} [Fintype Hi
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem operator_reference_permutation {systemCount : Nat}
+private lemma operator_reference_permutation {systemCount : Nat}
     (layout : QuantumLayout systemCount) (selected : Fin systemCount)
     (amount : Fin (layout.wire selected).dimension) (Reference : Register) :
     UnitaryOperator.prodTensor (operator layout selected amount)
@@ -116,7 +133,7 @@ private theorem operator_reference_permutation {systemCount : Nat}
   split_ifs <;> simp_all
 
 /-- A single actual measured branch resets this wire and retains every reference matrix entry. -/
-theorem resetCircuitBranch_entry {Reference : Register}
+lemma resetCircuitBranch_entry {Reference : Register}
     (outcome : Fin (ctx.quantumLayout.wire wire).dimension)
     (density : DensityOperator (Register.prod ctx.register Reference))
     (left right : ctx.quantumLayout.Basis) (refLeft refRight : Reference.Index) :
@@ -140,49 +157,65 @@ theorem resetCircuitBranch_entry {Reference : Register}
   by_cases hl : left wire = 0 <;> by_cases hr : right wire = 0 <;> simp [hl, hr]
 
 /-- Exact actual output blocks sum all old stores and histories that write that complete record. -/
-theorem resetCircuit_block_entry {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
-    (result : Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
-      (History × (resetCircuit wire output realizations).Path)))
+lemma resetCircuit_block_entry {allowAllocation : Bool} {Reference : Register} {History : Type}
+    [Fintype History]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History))
+    (result : Store ctx × ((ExecutionModel.quantum gates oracles .empty services).HiddenState ×
+      (History × (resetCircuit (allowAllocation := allowAllocation) (services := services) wire
+          output realizations).Path)))
     (left right : ctx.quantumLayout.Basis) (refLeft refRight : Reference.Index) :
-    (((resetCircuit wire output realizations).execute Reference state).block result).matrix
+    (((resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference state).block
+      result).matrix
         (left, refLeft) (right, refRight) =
       ∑ entry : Store ctx ×
-          ((ExecutionModel.quantum gates oracles).HiddenState × History), ∑ outcome,
-        if resetCircuitRecord wire output realizations entry outcome = result then
+          ((ExecutionModel.quantum gates oracles .empty services).HiddenState × History), ∑ outcome,
+        if resetCircuitRecord (allowAllocation := allowAllocation) (services := services) wire
+            output realizations entry outcome =
+          result then
           if left wire = 0 ∧ right wire = 0 then
             (state.block entry).matrix (Function.update left wire outcome, refLeft)
               (Function.update right wire outcome, refRight)
           else 0
         else 0 := by
-  rw [resetCircuit_execute, ExecutionState.mapClassical_block_matrix]
+  rw [resetCircuit_execute (allowAllocation := allowAllocation),
+      ExecutionState.mapClassical_block_matrix]
   simp only [Matrix.sum_apply, ExecutionState.applyUnitary_block]
   rw [Fintype.sum_prod_type]
   apply Finset.sum_congr rfl
   intro entry _
   apply Finset.sum_congr rfl
   intro outcome _
-  by_cases written : resetCircuitRecord wire output realizations entry outcome = result
+  by_cases written : resetCircuitRecord (allowAllocation := allowAllocation) (services := services)
+      wire output realizations entry outcome = result
   · simp only [written, if_true]
     exact resetCircuitBranch_entry wire outcome (state.block entry) left right refLeft refRight
   · simp only [written, if_false]
     rfl
 
 /-- Summing actual output records retains the original joint marginal of all other systems. -/
-theorem resetCircuit_quantum_entry {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
+lemma resetCircuit_quantum_entry {allowAllocation : Bool} {Reference : Register} {History : Type}
+    [Fintype History]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History))
     (left right : ctx.quantumLayout.Basis)
     (refLeft refRight : Reference.Index) :
-    ((resetCircuit wire output realizations).execute Reference state).quantumMarginal.matrix
+    ((resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference
+      state).quantumMarginal.matrix
         (left, refLeft) (right, refRight) =
       if left wire = 0 ∧ right wire = 0 then
         ∑ entry : Store ctx ×
-            ((ExecutionModel.quantum gates oracles).HiddenState × History), ∑ outcome,
+            ((ExecutionModel.quantum gates oracles .empty services).HiddenState × History), ∑
+              outcome,
           (state.block entry).matrix (Function.update left wire outcome, refLeft)
             (Function.update right wire outcome, refRight)
       else 0 := by
-  rw [resetCircuit_execute, ExecutionState.mapClassical_quantumMarginal]
-  change (∑ entry : (Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState × History)) ×
+  rw [resetCircuit_execute (allowAllocation := allowAllocation),
+      ExecutionState.mapClassical_quantumMarginal]
+  change (∑ entry : (Store ctx × ((ExecutionModel.quantum gates oracles .empty
+    services).HiddenState × History)) ×
       Fin (ctx.quantumLayout.wire wire).dimension,
     (DensityOperator.applyUnitary
       (UnitaryOperator.prodTensor (operator ctx.quantumLayout wire (-entry.2))
@@ -194,10 +227,14 @@ theorem resetCircuit_quantum_entry {Reference : Register} {History : Type} [Fint
   by_cases zero : left wire = 0 ∧ right wire = 0 <;> simp [zero]
 
 /-- The actual measured correction preserves the complete execution mass. -/
-theorem resetCircuit_mass {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    ((resetCircuit wire output realizations).execute Reference state).mass = state.mass :=
-  Circuit.execute_mass _ _ _
+lemma resetCircuit_mass {allowAllocation : Bool} {Reference : Register}
+    {History : Type} [Fintype History]
+    (state : State ctx Reference ((ExecutionModel.quantum gates oracles .empty
+      services).HiddenState × History)) :
+    ((resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations).execute environment Reference state).mass =
+      state.mass :=
+  Circuit.execute_mass _ environment _ _
 
 end
 

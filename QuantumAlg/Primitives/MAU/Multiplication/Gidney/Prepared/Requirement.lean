@@ -45,7 +45,7 @@ private def preparedTarget (width : Nat) (modulus : Fin (2 ^ width + 1))
         (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
         (auxiliaryPreparation width).normalized Reference input.state.quantumMarginal))
 
-private theorem preparedTarget_normalized (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma preparedTarget_normalized (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (Reference : Register)
     (input : Execution.Input (context width) Reference) :
     (preparedTarget width modulus coefficient Reference input).IsNormalized := by
@@ -77,15 +77,17 @@ def preparedRequirement (width : Nat) (modulus : Fin (2 ^ width + 1))
 
 /-- Actual zero preparation and native multiplication meet the complete
 independent state target with every external reference. -/
-theorem gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) {shape : CShape}
-    (output : Output (preparedContext width) shape) {Reference : Register}
+    (output : Output (preparedContext width) shape)
+    {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+    {Reference : Register}
     (input : Execution.OracleInput .empty (context width) Reference) :
     (preparedRequirement width modulus coefficient).Holds input.caller
       (({ code := preparedCode width modulus coefficient, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty)
           (context width) (preparedContext width) shape).finalState
-          Reference input.state) := by
+          environment Reference input.state) := by
   intro value
   cases value with
   | unit =>
@@ -98,9 +100,10 @@ theorem gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width 
         ({ code := preparedCode width modulus coefficient, output := output } :
           AlgorithmRun (.quantum AlgorithmGate.model .empty)
             (context width) (preparedContext width) shape).finalState
-            Reference input.state
+            environment Reference input.state
       have actualWithService : result.quantumMarginal = DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor (preparedUnitary width modulus coefficient).matrix
+          (UnitaryOperator.prodTensor
+            ((preparedUnitary width modulus coefficient).matrix environment.quantum)
             (1 : UnitaryOperator Reference))
           (Execution.preparedDensity auxiliaryKey (auxiliaryLayout width)
             (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
@@ -108,15 +111,17 @@ theorem gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width 
         Execution.preparedUnitary_finalState_quantumMarginal (ctx := context width)
           auxiliaryKey (auxiliaryLayout width) (gidneyAuxiliary_fresh width)
           (gidneyAuxiliary_disjoint width)
-          (preparedUnitary width modulus coefficient) output Reference input.state
+          (preparedUnitary width modulus coefficient) environment output Reference input.state
       have actual : result.quantumMarginal = DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor (preparedUnitary width modulus coefficient).matrix
+          (UnitaryOperator.prodTensor
+            ((preparedUnitary width modulus coefficient).matrix environment.quantum)
             (1 : UnitaryOperator Reference)) initial :=
         actualWithService.trans (congrArg
           (fun density : DensityOperator
               (Register.prod (preparedContext width).register Reference) =>
             DensityOperator.applyUnitary
-              (UnitaryOperator.prodTensor (preparedUnitary width modulus coefficient).matrix
+              (UnitaryOperator.prodTensor
+                ((preparedUnitary width modulus coefficient).matrix environment.quantum)
                 (1 : UnitaryOperator Reference)) density)
           (congrArg
             (fun density : DensityOperator
@@ -129,7 +134,8 @@ theorem gidneyPreparedRequirement_holds (width : Nat) (modulus : Fin (2 ^ width 
         (congrArg (fun operator : UnitaryOperator (preparedContext width).register =>
           DensityOperator.applyUnitary
             (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)) initial)
-          (gidneyPreparedUnitary_matrix width modulus coefficient))
+          (gidneyPreparedUnitary_matrix (environment := environment.quantum)
+            width modulus coefficient))
       have observed := congrArg
         (fun density : DensityOperator
             (Register.prod (preparedContext width).register Reference) =>

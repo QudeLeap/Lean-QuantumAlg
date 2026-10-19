@@ -9,7 +9,6 @@ module
 public import QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Endpoint.Resources
 public import QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Endpoint.Success
 public import QuantumAlg.Core.Algorithm.Problem
-public import QuantumAlg.Core.Algorithm.CyclePlan
 
 /-!
 # Independent all-positive-order finite-cyclic DLP specification
@@ -49,14 +48,9 @@ variable {G : Type u} [Group G] [Fintype G]
   resident := residentBudget P
   auxiliary := auxiliaryBudget P
 
-/-- The unit-access dependency convention counts every declared classical or
-quantum oracle query as one abstract step. -/
-@[expose] public def depthBudget (P : KnownOrderProblem G) :
-    DepthBudget (OrderExecution.model P) where
-  duration := fun _ => 1
-  limit := depthLimit P (fun _ => 1)
-  classicalQuery_unit := fun _ => rfl
-  quantumQuery_unit := fun _ => rfl
+/-- The independent whole-run unit-event ceiling also bounds quantum computation time. -/
+@[expose] public def quantumTimeLimit (P : KnownOrderProblem G) : Nat :=
+  depthLimit P (fun _ => 1)
 
 /-- Known-order finite-cyclic discrete logarithm over every positive order.
 
@@ -70,52 +64,56 @@ auxiliary limits retain all physical banks, measurement cells, the output and
 the reused recovery workspace. No bit encoding or memory width is assigned to
 a group element. The exact answer is required with probability at least 2/3.
 -/
-@[expose] public def problem (P : KnownOrderProblem G) (secret : FiniteCyclicDLP.Input P) :
+@[expose] public def problem (P : KnownOrderProblem G) :
     Problem (OrderExecution.model P) OrderExecution.pre (outputContext P)
       (.option (.unsignedWord (OrderPreparation.width P))) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := accepts secret
-  successLB := successLowerBound
-  states := []
+  Witness := FiniteCyclicDLP.Input P
+  valid := fun environment _ _ => environment = OrderExecution.sourceEnvironment P
+  initialization := fun _ _ _ => True
+  accepts := fun _ secret => accepts secret
+  successLB := fun _ _ => successLowerBound
+  states := fun _ _ => []
   resources := resourceBudget P
-  depth := depthBudget P
+  quantumTimeLimit := quantumTimeLimit P
 
-/-- The independent endpoint contract exposes its acceptance relation without
-making the complete specification structure reducible to every consumer. -/
-public theorem problem_accepts (P : KnownOrderProblem G)
+/-- Every source witness and normalized input is admitted by the matching source environment. -/
+public lemma orderEndpoint_problem_source_valid (P : KnownOrderProblem G)
+    (secret : FiniteCyclicDLP.Input P)
+    (state : ExecutionState (Execution.Store OrderExecution.pre) OrderExecution.pre.register) :
+    (problem P).valid (OrderExecution.sourceEnvironment P) secret state := rfl
+
+/-- The endpoint acceptance relation uses the specification witness only. -/
+public lemma problem_accepts (P : KnownOrderProblem G)
+    (environment : (OrderExecution.model P).Environment)
     (secret : FiniteCyclicDLP.Input P) (initial : Execution.Store OrderExecution.pre)
     (output : CShape.Value (.option (.unsignedWord (OrderPreparation.width P)))) :
-    (problem P secret).accepts initial output = accepts secret initial output := rfl
+    (problem P).accepts environment secret initial output = accepts secret initial output := rfl
 
-/-- The endpoint contract uses the fixed source success threshold. -/
-public theorem problem_success_value (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    (problem P secret).successLB.value = ENNReal.ofReal ((2 : Real) / 3) := rfl
+/-- The endpoint uses the fixed source success threshold for every environment and witness. -/
+public lemma problem_success_value (P : KnownOrderProblem G)
+    (environment : (OrderExecution.model P).Environment) (secret : FiniteCyclicDLP.Input P) :
+    ((problem P).successLB environment secret).value = ENNReal.ofReal ((2 : Real) / 3) := rfl
 
 /-- No separate final-state promise is needed beyond success and borrowed restoration. -/
-public theorem problem_states (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) : (problem P secret).states = [] := rfl
+public lemma problem_states (P : KnownOrderProblem G)
+    (environment : (OrderExecution.model P).Environment) (secret : FiniteCyclicDLP.Input P) :
+    (problem P).states environment secret = [] := rfl
 
 /-- The endpoint event limit is the independently stated complete-run budget. -/
-public theorem problem_event_budget (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    (problem P secret).resources.events = eventBudget P := rfl
+public lemma problem_event_budget (P : KnownOrderProblem G) :
+    (problem P).resources.events = eventBudget P := rfl
 
 /-- The endpoint resident-space limit is the independently stated complete-run budget. -/
-public theorem problem_resident_budget (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    (problem P secret).resources.resident = residentBudget P := rfl
+public lemma problem_resident_budget (P : KnownOrderProblem G) :
+    (problem P).resources.resident = residentBudget P := rfl
 
 /-- The endpoint auxiliary-space limit is the independently stated complete-run budget. -/
-public theorem problem_auxiliary_budget (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    (problem P secret).resources.auxiliary = auxiliaryBudget P := rfl
+public lemma problem_auxiliary_budget (P : KnownOrderProblem G) :
+    (problem P).resources.auxiliary = auxiliaryBudget P := rfl
 
 /-- The endpoint dependency contract is the unit-duration complete-run limit. -/
-public theorem problem_depth (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    (problem P secret).depth = depthBudget P := rfl
+public lemma orderEndpoint_problem_quantumTimeLimit (P : KnownOrderProblem G) :
+    (problem P).quantumTimeLimit = quantumTimeLimit P := rfl
 
 /-- Complete sampling protocol for the finite-cyclic discrete logarithm.
 
@@ -130,7 +128,7 @@ and initial hidden group-service state are arbitrary.
 `OrderBatch.eventBudget`. Both live-space allowances are the sample cells plus
 the physical banks: `(sampleCount P * OrderExecution.sampleWidth P)` binary
 cells and `OrderBatch.layout P (sampleCount P)`. Unit depth is bounded by
-`completeCycleDepthLimit P`, including preparation and every measurement.
+`samplingTimeLimit P`, including preparation and every measurement.
 
 **Success.** With probability at least two thirds, the specified checked
 recovery of the retained vector is the advertised logarithm.
@@ -139,17 +137,17 @@ recovery of the retained vector is the advertised logarithm.
 [Sho95, source.tex:1713] and [Sho95, source.tex:2001]. The explicit two-thirds
 threshold is derived from this construction's actual batch Born law and
 checked recovery. The native resource formulas certify this implementation. -/
-@[expose] public def samplingProblem (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
+@[expose] public def samplingProblem (P : KnownOrderProblem G) :
     Problem (OrderExecution.model P) OrderExecution.pre (sampledContext P)
       (.fixedVector (sampleCount P)
         (.fixedVector (OrderExecution.sampleWidth P) (.finite 2))) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ samples => recoveredValue P samples = .optionSome
+  Witness := FiniteCyclicDLP.Input P
+  valid := fun environment _ _ => environment = OrderExecution.sourceEnvironment P
+  initialization := fun _ _ _ => True
+  accepts := fun _ secret _ samples => recoveredValue P samples = .optionSome
     (CShape.wordOfNat (OrderPreparation.width P) secret.secret.val)
-  successLB := successLowerBound
-  states := []
+  successLB := fun _ _ => successLowerBound
+  states := fun _ _ => []
   resources := {
     events := OrderBatch.eventBudget P (sampleCount P) (OrderExecution.canonicalExpansion P)
     resident := (sampleCount P * OrderExecution.sampleWidth P) •
@@ -158,11 +156,7 @@ checked recovery. The native resource formulas certify this implementation. -/
     auxiliary := (sampleCount P * OrderExecution.sampleWidth P) •
       SpacePool.ofShape (.finite 2) + SpacePool.ofQuantumLayout
         (OrderBatch.layout P (sampleCount P)) }
-  depth := {
-    duration := fun _ => 1
-    limit := completeCycleDepthLimit P
-    classicalQuery_unit := fun _ => rfl
-    quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := samplingTimeLimit P
 
 /-- Exact classical recovery protocol for the retained samples.
 
@@ -188,37 +182,18 @@ relation and native resource formulas certify this implementation. -/
 @[expose] public def recoveryProblem (P : KnownOrderProblem G) :
     Problem (OrderExecution.model P) (sampledContext P) (outputContext P)
       (.option (.unsignedWord (OrderPreparation.width P))) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun initial output => output = recoveredValue P
+  Witness := Unit
+  valid := fun environment _ _ => environment = OrderExecution.sourceEnvironment P
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ initial output => output = recoveredValue P
     (initial.read (OrderBatch.samplesInput P (sampleCount P)))
-  successLB := ⟨1, le_rfl⟩
-  states := []
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => []
   resources := {
     events := recoveryEventBudget P
     resident := residentBudget P
     auxiliary := auxiliaryBudget P }
-  depth := {
-    duration := fun _ => 1
-    limit := recoveryDepthLimit P (fun _ => 1)
-    classicalQuery_unit := fun _ => rfl
-    quantumQuery_unit := fun _ => rfl }
-
-/-- The caller requests one complete quantum batch and a classical recovery
-continuation. There is no additional cut within the sampling batch. -/
-@[expose] public def cyclePlan (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    CyclePlan (OrderExecution.model P) OrderExecution.pre (outputContext P)
-      (.option (.unsignedWord (OrderPreparation.width P))) :=
-  .seq (.cycle (samplingProblem P secret)) (.classical (recoveryProblem P))
-
-/-- The final source contract and the caller's independently specified two-section plan. -/
-@[expose] public def cycleProblem (P : KnownOrderProblem G)
-    (secret : FiniteCyclicDLP.Input P) :
-    CycleProblem (OrderExecution.model P) OrderExecution.pre (outputContext P)
-      (.option (.unsignedWord (OrderPreparation.width P))) where
-  outcome := problem P secret
-  plan := cyclePlan P secret
+  quantumTimeLimit := recoveryDepthLimit P (fun _ => 1)
 
 end
 

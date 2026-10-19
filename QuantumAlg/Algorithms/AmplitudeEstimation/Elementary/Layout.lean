@@ -34,16 +34,16 @@ noncomputable section
 /-- Every phase, selected work and original source system is part of the actual register. -/
 @[implicit_reducible, expose] public def totalQubits (t n : Nat) : Nat := phaseWidth t n + n
 
-theorem helperWidth_eq_zero_of_two_le {t n : Nat} (wide : 2 ≤ t) : helperWidth t n = 0 := by
+lemma helperWidth_eq_zero_of_two_le {t n : Nat} (wide : 2 ≤ t) : helperWidth t n = 0 := by
   unfold helperWidth
   rw [if_neg (by omega)]
 
-theorem helperWidth_eq_zero_of_small {t n : Nat} (small : n ≤ 2) : helperWidth t n = 0 := by
+lemma helperWidth_eq_zero_of_small {t n : Nat} (small : n ≤ 2) : helperWidth t n = 0 := by
   unfold helperWidth
   rw [if_neg (by omega)]
 
 /-- The original admitted parameter domain never allocates an additional system. -/
-theorem selected_helperWidth_eq_zero {eps η : Real} (n : Nat)
+lemma selected_helperWidth_eq_zero {eps η : Real} (n : Nat)
     (heps : 0 < eps) (heps_le : eps ≤ 1) (heta : 0 < η) (heta_le : η ≤ 1) :
     helperWidth (selectedPhaseQubits eps η) n = 0 :=
   helperWidth_eq_zero_of_two_le (selectedPhaseQubits_atLeastTwo heps heps_le heta heta_le)
@@ -52,11 +52,11 @@ theorem selected_helperWidth_eq_zero {eps η : Real} (n : Nat)
 def controlWire {t : Nat} (n : Nat) (stage : Fin t) : Fin (phaseWidth t n) :=
   Fin.castAdd (helperWidth t n) (PhaseWorkspace.controlWire stage)
 
-theorem controlWire_val {t : Nat} (n : Nat) (stage : Fin t) :
+lemma controlWire_val {t : Nat} (n : Nat) (stage : Fin t) :
     (controlWire n stage).val = stage.rev.val := rfl
 
 /-- Even the exceptional one-phase total-definition branch has one distinct work position. -/
-theorem phaseWidth_atLeastTwo {t : Nat} (n : Nat) (stage : Fin t) (large : 3 ≤ n) :
+lemma phaseWidth_atLeastTwo {t : Nat} (n : Nat) (stage : Fin t) (large : 3 ≤ n) :
     2 ≤ phaseWidth t n := by
   have positive := stage.isLt
   unfold phaseWidth helperWidth
@@ -68,7 +68,7 @@ def workWire {t : Nat} (n : Nat) (stage : Fin t) (large : 3 ≤ n) : Fin (phaseW
     ⟨1, by have wide := phaseWidth_atLeastTwo n stage large; omega⟩
   else ⟨0, by have wide := phaseWidth_atLeastTwo n stage large; omega⟩
 
-theorem controlWire_ne_workWire {t : Nat} (n : Nat) (stage : Fin t) (large : 3 ≤ n) :
+lemma controlWire_ne_workWire {t : Nat} (n : Nat) (stage : Fin t) (large : 3 ≤ n) :
     controlWire n stage ≠ workWire n stage large := by
   intro same
   have values := congrArg (fun wire : Fin (phaseWidth t n) => wire.val) same
@@ -81,7 +81,7 @@ theorem controlWire_ne_workWire {t : Nat} (n : Nat) (stage : Fin t) (large : 3 �
 def extendedStage {t : Nat} (n : Nat) (stage : Fin t) : Fin (phaseWidth t n) :=
   ⟨stage.val + helperWidth t n, by change _ < t + helperWidth t n; omega⟩
 
-theorem extendedStage_prefix {t : Nat} (n : Nat) (stage : Fin t) :
+lemma extendedStage_prefix {t : Nat} (n : Nat) (stage : Fin t) :
     (extendedStage n stage).rev.val = stage.rev.val := by
   dsimp only [extendedStage, Fin.rev, phaseWidth]
   omega
@@ -98,7 +98,7 @@ def originalAndWorkEquiv (t n : Nat) :
     (Equiv.prodAssoc (Fin (2 ^ t)) (Fin (2 ^ n)) (Fin (2 ^ helperWidth t n))).symm |>.trans
     (Equiv.prodCongr (prodEquiv (m := t) (n := n)) (Equiv.refl _))
 
-theorem originalAndWorkEquiv_apply (t n : Nat) (phase : Fin (2 ^ t))
+lemma originalAndWorkEquiv_apply (t n : Nat) (phase : Fin (2 ^ t))
     (work : Fin (2 ^ helperWidth t n)) (source : Fin (2 ^ n)) :
     originalAndWorkEquiv t n (prodEquiv (prodEquiv (phase, work), source)) =
       (prodEquiv (phase, source), work) := by

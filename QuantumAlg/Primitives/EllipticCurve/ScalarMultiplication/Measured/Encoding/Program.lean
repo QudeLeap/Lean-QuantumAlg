@@ -8,7 +8,8 @@ module
 
 import all
   QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Encoding.Placement
-import all QuantumAlg.Core.Execution.Local.Framing.Resources
+import all QuantumAlg.Core.Execution.Context.Union.Unitary
+import all QuantumAlg.Core.Execution.Circuit.Local
 
 /-!
 # Actual constant-unit conversion in the complete measured scalar workspace
@@ -23,6 +24,8 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ScalarMultiplicati
 namespace MeasuredPlacement.Encoding
 
 noncomputable section
+
+variable {environment : OracleModel.empty.Interpretation}
 
 open MeasuredUncompute Execution
 
@@ -47,10 +50,10 @@ def nativeAction (width : Nat) (modulus : Fin (2 ^ width + 1))
     (Nat.FixedWidth.unitMultiplicationPairEquiv modulus coefficient state.1, state.2))
 
 /-- Every full basis label follows the actual placed multiplier exactly, including history. -/
-theorem nativeProgram_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProgram_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
     UnitaryCircuit.Realizes (ProductPlacement.frameEncoding width)
-      (nativeProgram width modulus coefficient coordinate)
+      (nativeProgram width modulus coefficient coordinate) environment
       (nativeAction width modulus coefficient coordinate) :=
   (placement width coordinate).place_realizes
     (UnitaryCircuit.Realizes.onBinaryPrefix
@@ -66,7 +69,7 @@ private def runtimePosition (width : Nat) :
     (MeasurementCells.wireEquiv
       (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width).toEmbedding
 
-private theorem runtimeDimensions (width : Nat)
+private lemma runtimeDimensions (width : Nat)
     (index : Fin (ProductPlacement.frameEncoding width).width) :
     ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum.wire
       index).dimension =
@@ -81,7 +84,7 @@ private theorem runtimeDimensions (width : Nat)
   rw [MeasurementCells.wireEquiv_preserved]
   exact MAU.Inversion.SharedEEA.InverseRuntimeFrame.position_dimensions width index
 
-private theorem runtimePosition_surjective (width : Nat) :
+private lemma runtimePosition_surjective (width : Nat) :
     Function.Surjective (runtimePosition width) := by
   intro target
   obtain ⟨old, rfl⟩ := (MeasurementCells.wireEquiv
@@ -92,7 +95,7 @@ private theorem runtimePosition_surjective (width : Nat) :
     (MAU.Inversion.SharedEEA.InversePreparation.after width) 2 width) same⟩
 
 /-- The selected physical basis is the original complete encoded frame basis. -/
-private theorem runtimeSelected (width : Nat)
+private lemma runtimeSelected (width : Nat)
     (basis : (NumeratorMeasurement.context width).register.Index) :
     UnitaryCircuit.selectedInput
       (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum
@@ -143,20 +146,20 @@ def runtimeProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
     (nativeProgram width modulus coefficient coordinate)
 
 /-- Transport an exact native basis action to the complete live runtime frame. -/
-theorem runtimeProgram_apply_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma runtimeProgram_apply_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
     (input output : Fin (2 ^ (ProductPlacement.frameEncoding width).width))
-    (actual : (nativeProgram width modulus coefficient coordinate).applyNormalized
+    (actual : (nativeProgram width modulus coefficient coordinate).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
           input)) =
       NormalizedVector.ket
         ((QubitLayout.canonical (ProductPlacement.frameEncoding width).width).basisEquiv.symm
           output)) :
-    (runtimeProgram width modulus coefficient coordinate).applyNormalized
+    (runtimeProgram width modulus coefficient coordinate).applyNormalized environment
       (NormalizedVector.ket ((NumeratorMeasurement.frameBasis width).symm input)) =
     NormalizedVector.ket ((NumeratorMeasurement.frameBasis width).symm output) := by
-  apply UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
+  apply UnitaryCircuit.placeAt_applyNormalized_ket_of_eq (environment := environment)
     (QubitLayout.canonical (ProductPlacement.frameEncoding width).width).toQuantum
     (NumeratorMeasurement.context width).quantumLayout
     (runtimePosition width) (runtimeDimensions width)
@@ -182,41 +185,47 @@ theorem runtimeProgram_apply_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
 
 /-- One actual unitary instruction keeps the original measured arithmetic context intact. -/
 def originalCircuit (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
+    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
+    (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) :=
+      (NumeratorMeasurement.context width) (NumeratorMeasurement.context width) allowAllocation :=
   .unitary (runtimeProgram width modulus coefficient coordinate)
 
 /-- One actual coordinate conversion retains every exponent, selector, history bit
 and result cell. -/
 def coordinateCircuit (width count : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
+    (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate)
+    (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (readyContext width count) (readyContext width count) :=
-  ContextUnion.frameLocal (originalCircuit width modulus coefficient coordinate) (by trivial)
+      (readyContext width count) (readyContext width count) allowAllocation :=
+  .unitary (ContextUnion.frameUnitary (NumeratorMeasurement.context width)
     (indexedContext width (List.range (count + 1)) List.nodup_range)
     (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)
+    (runtimeProgram width modulus coefficient coordinate))
 
 /-- The coordinate conversion allocates and releases no runtime entry. -/
-theorem coordinateCircuit_isLocal (width count : Nat) (modulus : Fin (2 ^ width + 1))
+lemma coordinateCircuit_isLocal {allowAllocation : Bool}
+    (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (coordinate : MeasuredPointAddition.Coordinate) :
-    (coordinateCircuit width count modulus coefficient coordinate).IsLocal :=
-  ContextUnion.frameLocal_isLocal _ _ _ _
+    (coordinateCircuit width count modulus coefficient coordinate allowAllocation).IsLocal := by
+  trivial
 
 /-- Conversion of both original coordinates performs two real multiplier invocations
 on one A word. -/
 def pairCircuit (width count : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) :
+    (coefficient : (ZMod modulus.val)ˣ) (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (readyContext width count) (readyContext width count) :=
-  (coordinateCircuit width count modulus coefficient .x).seq
-    (coordinateCircuit width count modulus coefficient .y)
+      (readyContext width count) (readyContext width count) allowAllocation :=
+  (coordinateCircuit width count modulus coefficient .x allowAllocation).seq
+    (coordinateCircuit width count modulus coefficient .y allowAllocation)
 
 /-- Both coordinate invocations retain exactly the same full context. -/
-theorem pairCircuit_isLocal (width count : Nat) (modulus : Fin (2 ^ width + 1))
+lemma pairCircuit_isLocal {allowAllocation : Bool}
+    (width count : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
-    (pairCircuit width count modulus coefficient).IsLocal :=
-  ⟨coordinateCircuit_isLocal _ _ _ _ _, coordinateCircuit_isLocal _ _ _ _ _⟩
+    (pairCircuit width count modulus coefficient allowAllocation).IsLocal :=
+  ⟨coordinateCircuit_isLocal (allowAllocation := allowAllocation) _ _ _ _ _,
+    coordinateCircuit_isLocal (allowAllocation := allowAllocation) _ _ _ _ _⟩
 
 end
 

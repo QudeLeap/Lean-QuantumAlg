@@ -25,12 +25,13 @@ open Execution.ClassicalWorkspace
 
 noncomputable section
 
-variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
+variable {model : ExecutionModel}
+  {environment : model.Environment} (ctx : RuntimeCtx model.kind) (N : Nat)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner)
 
 /-- Allocation retains the independent native coordinate bound of its actual body. -/
-theorem withWorkspaces_pool_le (budget : ResourcePool model)
+lemma withWorkspaces_pool_le (budget : ResourcePool model)
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
@@ -43,7 +44,7 @@ theorem withWorkspaces_pool_le (budget : ResourcePool model)
   exact bound path
 
 /-- Every actual dependency depth meets the same independent body bound. -/
-theorem withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
+lemma withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
@@ -56,26 +57,27 @@ theorem withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budge
   exact bound path
 
 /-- The six actual scopes preserve complete borrowed-reference restoration of every body. -/
-theorem withWorkspaces_borrowedRestored (Reference : Register)
+lemma withWorkspaces_borrowedRestored (Reference : Register)
     (bodyRestores : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       {History : Type} [Fintype History]
       (state : State inner Reference (model.HiddenState × History)),
       (body cells transport certificates).BorrowedRestored Reference state
-        ((body cells transport certificates).execute Reference state))
+        ((body cells transport certificates).execute environment Reference state))
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (withWorkspaces ctx N body).BorrowedRestored Reference state
-      ((withWorkspaces ctx N body).execute Reference state) := by
+      ((withWorkspaces ctx N body).execute environment Reference state) := by
   have restores : ∀ {Past : Type} [Fintype Past]
       (initial : State ctx Reference (model.HiddenState × Past)),
       (withWorkspaces ctx N body).BorrowedRestored Reference initial
-        ((withWorkspaces ctx N body).execute Reference initial) :=
+        ((withWorkspaces ctx N body).execute environment Reference initial) :=
     withWorkspaces_property ctx N body
       (fun {inner} code => ∀ {Past : Type} [Fintype Past]
         (initial : State inner Reference (model.HiddenState × Past)),
-        code.BorrowedRestored Reference initial (code.execute Reference initial))
+        code.BorrowedRestored Reference initial (code.execute environment Reference initial))
       (fun _ key shape fresh code available =>
-        Circuit.borrowedRestored_workspace key shape fresh code Reference available)
+        Circuit.borrowedRestored_workspace
+          (environment := environment) key shape fresh code Reference available)
       bodyRestores
   exact restores state
 

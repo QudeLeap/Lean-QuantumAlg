@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- All actual order, power, GCD and output events survive placement under the real scope. -/
-theorem code_pool_le (source : Input N)
+lemma code_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -38,7 +38,7 @@ theorem code_pool_le (source : Input N)
     (cells ctx N) (liftWrite output) path
 
 /-- Every actual serial dependency remains counted beneath the same real lexical allocations. -/
-theorem code_unitDepth_le (source : Input N)
+lemma code_unitDepth_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

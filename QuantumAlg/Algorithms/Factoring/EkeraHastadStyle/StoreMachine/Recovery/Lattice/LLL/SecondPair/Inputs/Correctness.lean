@@ -31,7 +31,7 @@ def InputsRepresents (inputs : Inputs ctx width) (store : Store ctx)
     (values : InputCell → Int) : Prop :=
   ∀ cell, RawSignedRepresents (store.read (inputRef inputs cell)) (values cell)
 
-private theorem difference_correct (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma difference_correct (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separation : Separation inputs refs) (store : Store ctx)
     (a b c d : InputCell) (target : MutableCell) (different : .product ≠ target)
     (values : InputCell → Int) (rep : InputsRepresents inputs store values) :
@@ -44,7 +44,7 @@ private theorem difference_correct (inputs : Inputs ctx width) (refs : Refs ctx 
     (separation.mutable_ne .product target different)
     _ _ _ _ (rep a) (rep b) (rep c) (rep d)
 
-private theorem difference_preserves_inputs (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma difference_preserves_inputs (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separation : Separation inputs refs) (store : Store ctx)
     (a b c d : InputCell) (target : MutableCell)
     (values : InputCell → Int) (rep : InputsRepresents inputs store values) :
@@ -58,7 +58,7 @@ private theorem difference_preserves_inputs (inputs : Inputs ctx width) (refs : 
   exact rep cell
 
 /-- The actual two outputs represent the original cleared second-direction Gram expressions. -/
-theorem secondReductionInputsInto_correct (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_correct (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separation : Separation inputs refs) (store : Store ctx) (values : InputCell → Int)
     (rep : InputsRepresents inputs store values) :
     RawSignedRepresents ((secondReductionInputsStore inputs refs store).read (writeInput refs.nu32))
@@ -82,7 +82,7 @@ theorem secondReductionInputsInto_correct (inputs : Inputs ctx width) (refs : Re
     simpa only [List.mem_singleton] using separation.mutable_ne .product .nu32 (by decide)
 
 /-- Every original Gram word remains exactly unchanged after both actual product differences. -/
-theorem secondReductionInputsInto_preserves_inputs
+lemma secondReductionInputsInto_preserves_inputs
     (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separation : Separation inputs refs) (store : Store ctx) (cell : InputCell) :
     (secondReductionInputsStore inputs refs store).read (inputRef inputs cell) =

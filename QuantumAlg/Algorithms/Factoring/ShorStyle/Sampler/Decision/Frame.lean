@@ -29,7 +29,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem result_read_other (shared : Proposal.SharedRefs ctx width)
+private lemma result_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -52,7 +52,7 @@ private theorem result_read_other (shared : Proposal.SharedRefs ctx width)
           (.wordResize (width + 1) width ctx (FirstAccepted.cellRead gcdResult)
             scratch.candidate) other candidateFree)
 
-private theorem accepted_read_other (shared : Proposal.SharedRefs ctx width)
+private lemma accepted_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -75,7 +75,7 @@ private theorem accepted_read_other (shared : Proposal.SharedRefs ctx width)
           shared scratch gcdResult other extendedFree gcdFree store))
 
 /-- The complete native decision preserves all reads outside its actual written cells. -/
-theorem decision_read_other (shared : Proposal.SharedRefs ctx width)
+lemma decision_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) {shape : CShape}

@@ -39,7 +39,7 @@ def productBit (leftBits : Fin left.width → EncodedBit left)
         omega⟩)
 
 /-- The combined lens family covers precisely the original physical coordinates. -/
-theorem productBit_wire (leftBits : Fin left.width → EncodedBit left)
+lemma productBit_wire (leftBits : Fin left.width → EncodedBit left)
     (rightBits : Fin right.width → EncodedBit right)
     (leftWire : ∀ position, (leftBits position).wire = position)
     (rightWire : ∀ position, (rightBits position).wire = position)
@@ -53,7 +53,7 @@ theorem productBit_wire (leftBits : Fin left.width → EncodedBit left)
     simp only [BinaryLabelEncoding.prodRightBit, BinaryLabelEncoding.prodRightWire, rightWire]
     omega
 
-private theorem rightList_disjoint (control : EncodedBit left) (gates : List (GateSpec right)) :
+private lemma rightList_disjoint (control : EncodedBit left) (gates : List (GateSpec right)) :
     ∀ gate, gate ∈ gates.map (prodRight left) →
       bitDisjoint (BinaryLabelEncoding.prodLeftBit left right control) gate := by
   intro gate present
@@ -73,7 +73,7 @@ def controlRightList (leftBits : Fin left.width → EncodedBit left)
     (gates.map (prodRight left)) (rightList_disjoint control gates)
 
 /-- Both control branches preserve every left-field value and every source-word correlation. -/
-theorem controlRightList_step (leftBits : Fin left.width → EncodedBit left)
+lemma controlRightList_step (leftBits : Fin left.width → EncodedBit left)
     (rightBits : Fin right.width → EncodedBit right)
     (leftWire : ∀ position, (leftBits position).wire = position)
     (rightWire : ∀ position, (rightBits position).wire = position)
@@ -86,22 +86,23 @@ theorem controlRightList_step (leftBits : Fin left.width → EncodedBit left)
   cases control.get state.1 <;> rfl
 
 /-- The default-model program has the exact coherent conditional action, including phase. -/
-theorem controlRightList_realizes (leftBits : Fin left.width → EncodedBit left)
+lemma controlRightList_realizes (leftBits : Fin left.width → EncodedBit left)
     (rightBits : Fin right.width → EncodedBit right)
     (leftWire : ∀ position, (leftBits position).wire = position)
     (rightWire : ∀ position, (rightBits position).wire = position)
     (capacity : 5 ≤ left.width + right.width) (control : EncodedBit left)
     (layout : QubitLayout (left.width + right.width)) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (gates : List (GateSpec right)) :
     UnitaryCircuit.Realizes (layout := layout) (BinaryLabelEncoding.prod left right)
       (programList layout oracles
-        (controlRightList leftBits rightBits leftWire rightWire capacity control gates))
+        (controlRightList leftBits rightBits leftWire rightWire capacity control gates)) environment
       (fun state => (state.1, if control.get state.1 then stepList gates state.2 else state.2)) :=
   realizesList_congrStep layout oracles _
-    (controlRightList_step leftBits rightBits leftWire rightWire capacity control gates)
+    (controlRightList_step leftBits rightBits leftWire rightWire capacity control gates) environment
 
 /-- The actual controlled arithmetic list uses at most four instructions per source gate. -/
-theorem controlRightList_length_bound (leftBits : Fin left.width → EncodedBit left)
+lemma controlRightList_length_bound (leftBits : Fin left.width → EncodedBit left)
     (rightBits : Fin right.width → EncodedBit right)
     (leftWire : ∀ position, (leftBits position).wire = position)
     (rightWire : ∀ position, (rightBits position).wire = position)
@@ -114,6 +115,30 @@ theorem controlRightList_length_bound (leftBits : Fin left.width → EncodedBit 
     (BinaryLabelEncoding.prodLeftBit left right control)
     (gates.map (prodRight left)) (rightList_disjoint control gates)
   simpa only [controlRightList, List.length_map] using bound
+
+/-- Coherent selection converts X to CNOT and expands each Toffoli into four Toffolis. -/
+lemma controlRightList_native_counts (leftBits : Fin left.width → EncodedBit left)
+    (rightBits : Fin right.width → EncodedBit right)
+    (leftWire : ∀ position, (leftBits position).wire = position)
+    (rightWire : ∀ position, (rightBits position).wire = position)
+    (capacity : 5 ≤ left.width + right.width) (control : EncodedBit left)
+    (gates : List (GateSpec right)) :
+    ((controlRightList leftBits rightBits leftWire rightWire capacity control gates).map
+        xMultiplicity).sum = 0 ∧
+      ((controlRightList leftBits rightBits leftWire rightWire capacity control gates).map
+        cnotMultiplicity).sum = (gates.map xMultiplicity).sum ∧
+      ((controlRightList leftBits rightBits leftWire rightWire capacity control gates).map
+        toffoliMultiplicity).sum =
+        (gates.map cnotMultiplicity).sum + 4 * (gates.map toffoliMultiplicity).sum := by
+  have counts := controlWithin_native_counts (productBit leftBits rightBits)
+    (productBit_wire leftBits rightBits leftWire rightWire) capacity
+    (BinaryLabelEncoding.prodLeftBit left right control)
+    (gates.map (prodRight left)) (rightList_disjoint control gates)
+  have same := map_event_prodRight (oracles := .empty) left gates
+  simpa only [controlRightList,
+    sum_xMultiplicity_eq_of_events_eq .empty same,
+    sum_cnotMultiplicity_eq_of_events_eq .empty same,
+    sum_toffoliMultiplicity_eq_of_events_eq .empty same] using counts
 
 end
 

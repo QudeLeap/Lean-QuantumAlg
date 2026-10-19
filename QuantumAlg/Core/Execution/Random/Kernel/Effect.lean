@@ -31,7 +31,7 @@ def kernelEffect {Outcome : Type} [Fintype Outcome] {R : Register}
     (fun _ => ENNReal.toReal_nonneg) (finite_probability_sum distribution) effects
 
 /-- The backward observable has exactly the actual finite probability weights. -/
-theorem kernelEffect_weight {Outcome : Type} [Fintype Outcome] {R : Register}
+lemma kernelEffect_weight {Outcome : Type} [Fintype Outcome] {R : Register}
     (distribution : PMF Outcome) (effects : Outcome → Effect R) (state : DensityOperator R) :
     (kernelEffect distribution effects).weight state =
       ∑ outcome, (distribution outcome).toReal * (effects outcome).weight state :=
@@ -46,7 +46,7 @@ namespace QuantumAlg.ExecutionState
 noncomputable section
 
 /-- Observing the actual stochastic output equals its record-dependent probability pullback. -/
-theorem effectWeight_kernelChoice {C Outcome : Type}
+lemma effectWeight_kernelChoice {C Outcome : Type}
     [Fintype C] [Fintype Outcome] {R : Register} (state : ExecutionState C R)
     (transition : C → PMF Outcome) (effects : C × Outcome → Effect R) :
     (Execution.kernelChoice state transition).effectWeight effects =

@@ -41,6 +41,8 @@ open QuantumAlg.ModularMultiplication
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The modular-multiplication circuit reuses the complete uniform MAC layout. -/
 abbrev Registers (n : Nat) :=
   MAU.Multiplication.Accumulate.VBECircuit.Registers n
@@ -50,7 +52,7 @@ abbrev encoding (n : Nat) : BinaryLabelEncoding (Registers n) :=
   MAU.Multiplication.Accumulate.VBECircuit.encoding n
 
 /-- Width of the shared modular-multiplication layout. -/
-theorem encoding_width (n : Nat) :
+lemma encoding_width (n : Nat) :
     (encoding n).width = 5 * n + 4 :=
   MAU.Multiplication.Accumulate.VBECircuit.encoding_width n
 
@@ -67,7 +69,7 @@ def accumulatorBit (n : Nat) (bit : Fin n) : EncodedBit (encoding n) :=
 def accumulatorWord (n : Nat) : EncodedBit.Word (encoding n) n where
   bit := accumulatorBit n
 
-@[simp] theorem accumulatorBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma accumulatorBit_get (n : Nat) (bit : Fin n)
     (x : Registers n) :
     (accumulatorBit n bit).get x =
       x.arithmetic.target.val.testBit bit.val := by
@@ -75,7 +77,7 @@ def accumulatorWord (n : Nat) : EncodedBit.Word (encoding n) n where
 
 /-- Lifting two distinct arithmetic-workspace wires past the multiplier word
 preserves their separation. -/
-theorem liftArithmeticBit_ne (n : Nat)
+lemma liftArithmeticBit_ne (n : Nat)
     (left right : EncodedBit (MAU.Addition.VBECircuit.encoding n))
     (hne : left.wire ≠ right.wire) :
     (MAU.Multiplication.Accumulate.VBECircuit.liftArithmeticBit n left).wire ≠
@@ -90,7 +92,7 @@ theorem liftArithmeticBit_ne (n : Nat)
   omega
 
 /-- Every multiplier wire is disjoint from every lifted arithmetic wire. -/
-theorem multiplicand_liftArithmetic_ne (n : Nat) (multiplierBit : Fin n)
+lemma multiplicand_liftArithmetic_ne (n : Nat) (multiplierBit : Fin n)
     (observed : EncodedBit (MAU.Addition.VBECircuit.encoding n)) :
     (MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit n multiplierBit).wire ≠
       (MAU.Multiplication.Accumulate.VBECircuit.liftArithmeticBit n observed).wire := by
@@ -107,7 +109,7 @@ theorem multiplicand_liftArithmetic_ne (n : Nat) (multiplierBit : Fin n)
     BinaryLabelEncoding.prodRightWire] at hv
   omega
 
-theorem multiplicand_pairwise_ne (n : Nat) :
+lemma multiplicand_pairwise_ne (n : Nat) :
     ∀ i j, i ≠ j →
       ((multiplicandWord n).bit i).wire ≠
         ((multiplicandWord n).bit j).wire := by
@@ -126,7 +128,7 @@ theorem multiplicand_pairwise_ne (n : Nat) :
   apply hij
   simpa using congrArg WireAddress.bitIndex hw
 
-theorem accumulator_pairwise_ne (n : Nat) :
+lemma accumulator_pairwise_ne (n : Nat) :
     ∀ i j, i ≠ j →
       ((accumulatorWord n).bit i).wire ≠
         ((accumulatorWord n).bit j).wire := by
@@ -142,7 +144,7 @@ theorem accumulator_pairwise_ne (n : Nat) :
   apply Fin.ext
   omega
 
-theorem multiplicand_accumulator_cross_ne (n : Nat) :
+lemma multiplicand_accumulator_cross_ne (n : Nat) :
     ∀ i j,
       ((multiplicandWord n).bit i).wire ≠
         ((accumulatorWord n).bit j).wire := by
@@ -151,7 +153,7 @@ theorem multiplicand_accumulator_cross_ne (n : Nat) :
     (MAU.Addition.VBECircuit.targetBit n
       ⟨j.val, by simp [MAU.Addition.VBECircuit.AdderWidth]⟩)
 
-theorem multiplicand_accumulator_diagonal_ne (n : Nat) :
+lemma multiplicand_accumulator_diagonal_ne (n : Nat) :
     ∀ i,
       ((multiplicandWord n).bit i).wire ≠
         ((accumulatorWord n).bit i).wire :=
@@ -172,9 +174,9 @@ def swapStep (n : Nat) : Registers n → Registers n :=
     (multiplicandWord n) (accumulatorWord n)
     (multiplicand_accumulator_diagonal_ne n)
 
-theorem swap_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (encoding n) (swapProgram n) (swapStep n) :=
-  EncodedBit.Word.swap_realizes
+lemma swap_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (encoding n) (swapProgram n) environment (swapStep n) :=
+  EncodedBit.Word.swap_realizes (environment := environment)
     (QubitLayout.canonical _) .empty
     (multiplicandWord n) (accumulatorWord n)
     (multiplicand_accumulator_diagonal_ne n)
@@ -185,7 +187,7 @@ theorem swap_realizes (n : Nat) :
 
 
 
-theorem swapStep_get_multiplicand (n : Nat) (bit : Fin n)
+lemma swapStep_get_multiplicand (n : Nat) (bit : Fin n)
     (x : Registers n) :
     ((multiplicandWord n).bit bit).get (swapStep n x) =
       ((accumulatorWord n).bit bit).get x := by
@@ -198,7 +200,7 @@ theorem swapStep_get_multiplicand (n : Nat) (bit : Fin n)
       (multiplicand_accumulator_cross_ne n) x
   simpa [swapStep] using congrFun h bit
 
-theorem swapStep_get_accumulator (n : Nat) (bit : Fin n)
+lemma swapStep_get_accumulator (n : Nat) (bit : Fin n)
     (x : Registers n) :
     ((accumulatorWord n).bit bit).get (swapStep n x) =
       ((multiplicandWord n).bit bit).get x := by
@@ -213,7 +215,7 @@ theorem swapStep_get_accumulator (n : Nat) (bit : Fin n)
 
 /-- The physical word swap preserves any arithmetic-workspace bit outside the
 low target word. -/
-theorem swapStep_get_arithmeticBit_of_target_ne (n : Nat)
+lemma swapStep_get_arithmeticBit_of_target_ne (n : Nat)
     (observed : EncodedBit (MAU.Addition.VBECircuit.encoding n))
     (htarget : ∀ i : Fin n,
       (MAU.Addition.VBECircuit.targetBit n
@@ -234,7 +236,7 @@ theorem swapStep_get_arithmeticBit_of_target_ne (n : Nat)
           observed (htarget i)) x
   simpa [swapStep] using h
 
-theorem accumulator_targetHigh_ne (n : Nat) (bit : Fin n) :
+lemma accumulator_targetHigh_ne (n : Nat) (bit : Fin n) :
     (MAU.Addition.VBECircuit.targetBit n
       ⟨bit.val, by simp [MAU.Addition.VBECircuit.AdderWidth]⟩).wire ≠
       (MAU.Addition.VBECircuit.targetBit n (Fin.last n)).wire := by
@@ -245,7 +247,7 @@ theorem accumulator_targetHigh_ne (n : Nat) (bit : Fin n) :
   simp [MAU.Addition.VBECircuit.AdderWidth] at hv
   omega
 
-theorem accumulator_carry_ne (n : Nat) (bit : Fin n) :
+lemma accumulator_carry_ne (n : Nat) (bit : Fin n) :
     (MAU.Addition.VBECircuit.targetBit n
       ⟨bit.val, by simp [MAU.Addition.VBECircuit.AdderWidth]⟩).wire ≠
       (MAU.Addition.VBECircuit.carryBit n).wire := by
@@ -256,7 +258,7 @@ theorem accumulator_carry_ne (n : Nat) (bit : Fin n) :
   have hbit := bit.isLt
   omega
 
-theorem accumulator_carryWork_ne (n : Nat) (bit : Fin n)
+lemma accumulator_carryWork_ne (n : Nat) (bit : Fin n)
     (workBit : Fin (MAU.Addition.VBECircuit.AdderWidth n - 1)) :
     (MAU.Addition.VBECircuit.targetBit n
       ⟨bit.val, by simp [MAU.Addition.VBECircuit.AdderWidth]⟩).wire ≠
@@ -268,7 +270,7 @@ theorem accumulator_carryWork_ne (n : Nat) (bit : Fin n)
   have hbit := bit.isLt
   omega
 
-theorem accumulator_reductionFlag_ne (n : Nat) (bit : Fin n) :
+lemma accumulator_reductionFlag_ne (n : Nat) (bit : Fin n) :
     (MAU.Addition.VBECircuit.targetBit n
       ⟨bit.val, by simp [MAU.Addition.VBECircuit.AdderWidth]⟩).wire ≠
       (MAU.Addition.VBECircuit.reductionFlagBit n).wire := by
@@ -281,7 +283,7 @@ theorem accumulator_reductionFlag_ne (n : Nat) (bit : Fin n) :
 
 /-- Exact fieldwise endpoint of the physical word swap on the shared VBE
 workspace. The target high bit and all work fields remain clean. -/
-theorem swapStep_workspaceState (n : Nat)
+lemma swapStep_workspaceState (n : Nat)
     (left right active parked : PlainAdder.Word n) (flag : Bool) :
     swapStep n
         (MAU.Multiplication.Accumulate.VBECircuit.workspaceState n
@@ -413,7 +415,7 @@ theorem swapStep_workspaceState (n : Nat)
 
 /-- The actual word swap agrees with the high-level MAC-register swap on the
 complete physical clean embedding. -/
-theorem swapStep_cleanEmbedding (n N : Nat)
+lemma swapStep_cleanEmbedding (n N : Nat)
     (x : MAU.Multiplication.Accumulate.Data N)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
     swapStep n
@@ -482,10 +484,10 @@ def multiplicationSteps (n N : Nat) (u : (ZMod N)ˣ) :
     MAU.Multiplication.Accumulate.VBECircuit.macInverseStep n N
       (unitWord n (u⁻¹))]
 
-theorem multiplicationStages_realize (n N : Nat) (u : (ZMod N)ˣ) :
+lemma multiplicationStages_realize (n N : Nat) (u : (ZMod N)ˣ) :
     List.Forall₂
       (fun program step =>
-        UnitaryCircuit.Realizes (encoding n) program step)
+        UnitaryCircuit.Realizes (encoding n) program environment step)
       (multiplicationPrograms n N u)
       (multiplicationSteps n N u) := by
   unfold multiplicationPrograms multiplicationSteps
@@ -507,7 +509,7 @@ def multiplicationProgram (n N : Nat) (u : (ZMod N)ˣ) :
 /-! ### Strict-event size bound -/
 
 /-- The forward-MAC/swap/inverse-MAC gate list has a quadratic bound. -/
-theorem multiplicationGates_length_le (n N : Nat) (u : (ZMod N)ˣ) :
+lemma multiplicationGates_length_le (n N : Nat) (u : (ZMod N)ˣ) :
     (multiplicationGates n N u).length ≤
       108 * n ^ 2 + 105 * n := by
   have hforward :=
@@ -526,7 +528,7 @@ theorem multiplicationGates_length_le (n N : Nat) (u : (ZMod N)ˣ) :
 
 /-- The actual multiplication circuit has the same quadratic strict-event
 bound as its source gate list. -/
-theorem multiplicationProgram_eventCount_le (n N : Nat)
+lemma multiplicationProgram_eventCount_le (n N : Nat)
     (u : (ZMod N)ˣ) :
     (multiplicationProgram n N u).eventCost.card ≤
       108 * n ^ 2 + 105 * n := by
@@ -534,7 +536,7 @@ theorem multiplicationProgram_eventCount_le (n N : Nat)
     EncodedBit.GateSpec.programList_eventCost_card]
   exact multiplicationGates_length_le n N u
 
-private theorem multiplicationSwapGates_cnotMultiplicity_sum (n : Nat) :
+private lemma multiplicationSwapGates_cnotMultiplicity_sum (n : Nat) :
     ((EncodedBit.Word.swapGates
         (multiplicandWord n) (accumulatorWord n)
         (multiplicand_accumulator_diagonal_ne n)).map
@@ -547,7 +549,7 @@ private theorem multiplicationSwapGates_cnotMultiplicity_sum (n : Nat) :
       (multiplicandWord n) (accumulatorWord n)
       (multiplicand_accumulator_diagonal_ne n))
 
-private theorem multiplicationSwapGates_toffoliMultiplicity_sum (n : Nat) :
+private lemma multiplicationSwapGates_toffoliMultiplicity_sum (n : Nat) :
     ((EncodedBit.Word.swapGates
         (multiplicandWord n) (accumulatorWord n)
         (multiplicand_accumulator_diagonal_ne n)).map
@@ -569,7 +571,7 @@ private theorem multiplicationSwapGates_toffoliMultiplicity_sum (n : Nat) :
   dsimp only [gates] at htotal hlen ⊢
   omega
 
-private theorem multiplicationSwapGates_xMultiplicity_sum (n : Nat) :
+private lemma multiplicationSwapGates_xMultiplicity_sum (n : Nat) :
     ((EncodedBit.Word.swapGates
         (multiplicandWord n) (accumulatorWord n)
         (multiplicand_accumulator_diagonal_ne n)).map
@@ -593,7 +595,7 @@ private theorem multiplicationSwapGates_xMultiplicity_sum (n : Nat) :
 
 /-- Exact Toffoli coordinate of the forward-MAC/swap/inverse-MAC source
 schedule. -/
-theorem multiplicationGates_toffoliMultiplicity_sum
+lemma multiplicationGates_toffoliMultiplicity_sum
     (n N : Nat) (u : (ZMod N)ˣ) :
     ((multiplicationGates n N u).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 60 * n ^ 2 := by
@@ -604,7 +606,7 @@ theorem multiplicationGates_toffoliMultiplicity_sum
   ring
 
 /-- Bit-pattern-independent CNOT bound of the source multiplication schedule. -/
-theorem multiplicationGates_cnotMultiplicity_sum_le
+lemma multiplicationGates_cnotMultiplicity_sum_le
     (n N : Nat) (u : (ZMod N)ˣ) :
     ((multiplicationGates n N u).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -622,7 +624,7 @@ theorem multiplicationGates_cnotMultiplicity_sum_le
   nlinarith
 
 /-- Exact X coordinate of the source multiplication schedule. -/
-theorem multiplicationGates_xMultiplicity_sum
+lemma multiplicationGates_xMultiplicity_sum
     (n N : Nat) (u : (ZMod N)ˣ) :
     ((multiplicationGates n N u).map
         EncodedBit.GateSpec.xMultiplicity).sum = 2 * n := by
@@ -634,7 +636,7 @@ theorem multiplicationGates_xMultiplicity_sum
 
 /-- Toffoli-only `ResourcePool.count` projection of the same multiplication
 program used by semantics. -/
-theorem multiplicationProgram_toffoli_count_eq
+lemma multiplicationProgram_toffoli_count_eq
     (n N : Nat) (u : (ZMod N)ˣ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
@@ -657,7 +659,7 @@ theorem multiplicationProgram_toffoli_count_eq
 
 /-- The strict event schedule of the actual MAC/swap/inverse-MAC program is
 independent of the compiled unit. -/
-theorem multiplicationGates_events_eq (n N : Nat)
+lemma multiplicationGates_events_eq (n N : Nat)
     (left right : (ZMod N)ˣ) :
     (multiplicationGates n N left).map (EncodedBit.GateSpec.event .empty) =
       (multiplicationGates n N right).map (EncodedBit.GateSpec.event .empty) := by
@@ -675,7 +677,7 @@ theorem multiplicationGates_events_eq (n N : Nat)
 
 /-- The actual VBE multiplication circuit has a strict event pool independent
 of the compiled unit, directly from its equal strict event schedule. -/
-theorem multiplicationProgram_eventCost_eq (n N : Nat)
+lemma multiplicationProgram_eventCost_eq (n N : Nat)
     (left right : (ZMod N)ˣ) :
     (multiplicationProgram n N left).eventCost =
       (multiplicationProgram n N right).eventCost := by
@@ -686,7 +688,7 @@ theorem multiplicationProgram_eventCost_eq (n N : Nat)
 /-- The actual VBE multiplication circuit has a strict event critical path
 independent of the compiled unit, directly from its equal strict event
 schedule. -/
-theorem multiplicationProgram_eventDepth_eq (n N : Nat)
+lemma multiplicationProgram_eventDepth_eq (n N : Nat)
     (left right : (ZMod N)ˣ) :
     (multiplicationProgram n N left).eventDepth =
       (multiplicationProgram n N right).eventDepth := by
@@ -701,21 +703,21 @@ def multiplicationStep (n N : Nat) (u : (ZMod N)ˣ) :
 
 /-- The multiplication semantic action is definitionally the fold of the
 complete primitive gate list used to construct its actual program. -/
-theorem multiplicationStep_eq_gateList (n N : Nat) (u : (ZMod N)ˣ)
+lemma multiplicationStep_eq_gateList (n N : Nat) (u : (ZMod N)ˣ)
     (x : Registers n) :
     EncodedBit.GateSpec.stepList (multiplicationGates n N u) x =
       multiplicationStep n N u x :=
   rfl
 
-theorem multiplication_realizes (n N : Nat) (u : (ZMod N)ˣ) :
+lemma multiplication_realizes (n N : Nat) (u : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (encoding n)
-      (multiplicationProgram n N u) (multiplicationStep n N u) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      (multiplicationProgram n N u) environment (multiplicationStep n N u) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (multiplicationGates n N u)
 
 /-- Clean physical endpoint stated for the folded semantic action of the one
 composed circuit. -/
-theorem multiplicationStep_cleanEndpoint (n N : Nat)
+lemma multiplicationStep_cleanEndpoint (n N : Nat)
     (u : (ZMod N)ˣ) (x : ZMod N)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
     multiplicationStep n N u
@@ -749,10 +751,10 @@ theorem multiplicationStep_cleanEndpoint (n N : Nat)
 
 /-- The actual composed program maps an encoded clean input to the fully clean
 modular-multiplication output. -/
-theorem multiplicationProgram_applyNormalized_cleanEndpoint (n N : Nat)
+lemma multiplicationProgram_applyNormalized_cleanEndpoint (n N : Nat)
     (u : (ZMod N)ˣ) (x : ZMod N)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
-    (multiplicationProgram n N u).applyNormalized
+    (multiplicationProgram n N u).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
             ((encoding n).encode
@@ -764,13 +766,13 @@ theorem multiplicationProgram_applyNormalized_cleanEndpoint (n N : Nat)
             (MAU.Multiplication.Accumulate.VBECircuit.cleanEmbedding n N
               (MAU.Multiplication.cleanOutput u x)))) := by
   simpa only [multiplicationStep_cleanEndpoint n N u x hNpos hN] using
-    (multiplication_realizes n N u).apply_encoded_ket
+    (multiplication_realizes (environment := environment) n N u).apply_encoded_ket
       (MAU.Multiplication.Accumulate.VBECircuit.cleanEmbedding n N
         (MAU.Multiplication.cleanInput x))
 
 /-- The physical endpoint decodes to the established semantic
 MAC/swap/uncompute construction. -/
-theorem multiplicationStep_macSwapUncompute (n N : Nat)
+lemma multiplicationStep_macSwapUncompute (n N : Nat)
     (u : (ZMod N)ˣ) (x : ZMod N)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
     multiplicationStep n N u
@@ -784,7 +786,7 @@ theorem multiplicationStep_macSwapUncompute (n N : Nat)
 
 /-- The same endpoint realizes the public residue action
 `x ↦ multiplyByUnit u x` with all ancillas restored. -/
-theorem multiplicationStep_multiplyByUnit (n N : Nat)
+lemma multiplicationStep_multiplyByUnit (n N : Nat)
     (u : (ZMod N)ˣ) (x : ZMod N)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
     multiplicationStep n N u
@@ -837,7 +839,7 @@ def multiplicationEventGateCount (n N : Nat) (u : (ZMod N)ˣ)
     (multiplicationCircuit n N u).eventCost
 
 /-- Linearizing multiplication event depth recovers its exact event pool. -/
-theorem multiplicationCircuit_resourcesFromEventDepth_eq_eventCost
+lemma multiplicationCircuit_resourcesFromEventDepth_eq_eventCost
     (n N : Nat) (u : (ZMod N)ˣ) :
     (multiplicationCircuit n N u).resourcesFromEventDepth =
       (multiplicationCircuit n N u).eventCost :=
@@ -860,7 +862,7 @@ while the fixed encoding makes the result depend only on `n`. -/
 def multiplicationQubitCount (n _N : Nat) (_u : (ZMod _N)ˣ) : Nat :=
   (encoding n).width
 
-@[simp] theorem multiplicationQubitCount_eq (n N : Nat) (u : (ZMod N)ˣ) :
+@[simp] lemma multiplicationQubitCount_eq (n N : Nat) (u : (ZMod N)ˣ) :
     multiplicationQubitCount n N u = 5 * n + 4 := by
   unfold multiplicationQubitCount
   exact encoding_width n
@@ -869,10 +871,10 @@ def multiplicationQubitCount (n _N : Nat) (_u : (ZMod _N)ˣ) : Nat :=
 
 /-- Normalized clean-basis endpoint for the same concrete circuit whose strict
 event projections are defined above. -/
-theorem multiplicationCircuit_applyNormalized_clean_ket
+lemma multiplicationCircuit_applyNormalized_clean_ket
     (n N : Nat) (u : (ZMod N)ˣ) (x : ZMod N)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
-    (multiplicationCircuit n N u).applyNormalized
+    (multiplicationCircuit n N u).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
             ((encoding n).encode
@@ -909,14 +911,14 @@ def residueEncoding (n N : Nat) (hNpos : 0 < N) (hN : N < 2 ^ n) :
 
 /-- The exact physical program realizes multiplication on all canonically
 embedded residue inputs. -/
-theorem residue_realizes (n N : Nat) (u : (ZMod N)ˣ)
+lemma residue_realizes (n N : Nat) (u : (ZMod N)ˣ)
     (hNpos : 0 < N) (hN : N < 2 ^ n) :
     UnitaryCircuit.Realizes (residueEncoding n N hNpos hN)
-      (multiplicationProgram n N u) (multiplyByUnit u) where
+      (multiplicationProgram n N u) environment (multiplyByUnit u) where
   apply_encoded_ket := by
     intro x
     change
-      (multiplicationProgram n N u).applyNormalized
+      (multiplicationProgram n N u).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (encoding n).width).basisEquiv.symm
               ((encoding n).encode
@@ -953,7 +955,7 @@ def gateRealization {N n : Nat} (D : ModularMultiplicationDomain N n)
     simpa [ModularMultiplicationDomain.unitResidue] using hresidue
   program := multiplicationProgram n N u
   applyNormalized_clean := by
-    intro x
+    intro environment x
     simpa [MAU.Multiplication.cleanInput,
       MAU.Multiplication.cleanOutput, multiplyByUnit,
       ModularMultiplicationDomain.unitResidue,

@@ -48,16 +48,16 @@ variable {n : Type*} [Fintype n] {M : ℕ}
 /-- The **expectation value** `⟨ψ|A|ψ⟩` of an operator `A` in the (unit) state `ψ`. -/
 def expval (ψ : n → ℂ) (A : Matrix n n ℂ) : ℂ := star ψ ⬝ᵥ A *ᵥ ψ
 
-theorem expval_def (ψ : n → ℂ) (A : Matrix n n ℂ) : expval ψ A = star ψ ⬝ᵥ A *ᵥ ψ := rfl
+lemma expval_def (ψ : n → ℂ) (A : Matrix n n ℂ) : expval ψ A = star ψ ⬝ᵥ A *ᵥ ψ := rfl
 
 /-- **Adjoint relation:** `⟨ψ|Aᴴ|ψ⟩ = conj ⟨ψ|A|ψ⟩`. -/
-theorem expval_conjTranspose (ψ : n → ℂ) (A : Matrix n n ℂ) :
+lemma expval_conjTranspose (ψ : n → ℂ) (A : Matrix n n ℂ) :
     expval ψ Aᴴ = starRingEnd ℂ (expval ψ A) := by
   simp only [expval_def, starRingEnd_apply]
   rw [mulVec_conjTranspose, dotProduct_star, star_star, ← dotProduct_mulVec]
 
 /-- For a Hermitian operator, the expectation value is its own conjugate (i.e. real). -/
-theorem expval_conj_self_of_isHermitian {ψ : n → ℂ} {A : Matrix n n ℂ} (hA : Aᴴ = A) :
+lemma expval_conj_self_of_isHermitian {ψ : n → ℂ} {A : Matrix n n ℂ} (hA : Aᴴ = A) :
     starRingEnd ℂ (expval ψ A) = expval ψ A := by
   rw [← expval_conjTranspose, hA]
 
@@ -66,7 +66,7 @@ def qCov (ψ : n → ℂ) (A B : Matrix n n ℂ) : ℝ :=
   (expval ψ (A * B)).re - (expval ψ A).re * (expval ψ B).re
 
 /-- The covariance is symmetric on Hermitian operators: `Cov_ψ(A,B) = Cov_ψ(B,A)`. -/
-theorem qCov_comm {ψ : n → ℂ} {A B : Matrix n n ℂ} (hA : Aᴴ = A) (hB : Bᴴ = B) :
+lemma qCov_comm {ψ : n → ℂ} {A B : Matrix n n ℂ} (hA : Aᴴ = A) (hB : Bᴴ = B) :
     qCov ψ A B = qCov ψ B A := by
   have h : (expval ψ (A * B)).re = (expval ψ (B * A)).re := by
     have hBA : B * A = (A * B)ᴴ := by rw [conjTranspose_mul, hA, hB]
@@ -78,11 +78,11 @@ theorem qCov_comm {ψ : n → ℂ} {A B : Matrix n n ℂ} (hA : Aᴴ = A) (hB : 
 public def qfim (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ) : Matrix (Fin M) (Fin M) ℝ :=
   Matrix.of fun a b => 4 * qCov ψ (h a) (h b)
 
-theorem qfim_apply (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ) (a b : Fin M) :
+lemma qfim_apply (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ) (a b : Fin M) :
     qfim ψ h a b = 4 * qCov ψ (h a) (h b) := rfl
 
 /-- **Symmetry of the QFIM** (for Hermitian generators). -/
-theorem qfim_isSymm {ψ : n → ℂ} {h : Fin M → Matrix n n ℂ} (hh : ∀ a, (h a)ᴴ = h a) :
+lemma qfim_isSymm {ψ : n → ℂ} {h : Fin M → Matrix n n ℂ} (hh : ∀ a, (h a)ᴴ = h a) :
     (qfim ψ h).IsSymm := by
   change (qfim ψ h)ᵀ = qfim ψ h
   ext a b
@@ -94,7 +94,7 @@ def centered (ψ : n → ℂ) (A : Matrix n n ℂ) : n → ℂ := A *ᵥ ψ - (e
 
 /-- **The covariance is the inner product of centered states.** For Hermitian `A` and a unit state,
 `⟪(A−⟨A⟩)ψ, (B−⟨B⟩)ψ⟫ = ⟨AB⟩ − ⟨A⟩⟨B⟩`. -/
-theorem centered_inner {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1) {A B : Matrix n n ℂ} (hA : Aᴴ = A) :
+lemma centered_inner {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1) {A B : Matrix n n ℂ} (hA : Aᴴ = A) :
     star (centered ψ A) ⬝ᵥ centered ψ B = expval ψ (A * B) - expval ψ A * expval ψ B := by
   have e1 : star (A *ᵥ ψ) ⬝ᵥ (B *ᵥ ψ) = expval ψ (A * B) := by
     rw [expval_def, star_mulVec, ← dotProduct_mulVec, mulVec_mulVec, hA]
@@ -106,7 +106,7 @@ theorem centered_inner {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1) {A B : Mat
   ring
 
 /-- **The covariance equals the real part of the centered-state inner product.** -/
-theorem qCov_eq_inner_re {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1) {A B : Matrix n n ℂ} (hA : Aᴴ = A) :
+lemma qCov_eq_inner_re {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1) {A B : Matrix n n ℂ} (hA : Aᴴ = A) :
     qCov ψ A B = (star (centered ψ A) ⬝ᵥ centered ψ B).re := by
   have hAim : (expval ψ A).im = 0 :=
     Complex.conj_eq_iff_im.mp (expval_conj_self_of_isHermitian hA)
@@ -114,7 +114,7 @@ theorem qCov_eq_inner_re {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1) {A B : M
   rw [centered_inner hψ hA, Complex.sub_re, Complex.mul_re, hAim, zero_mul, sub_zero]
 
 /-- `0 ≤ Re⟪w, w⟫` for any vector `w`. -/
-private theorem re_dotProduct_star_self_nonneg (w : n → ℂ) : 0 ≤ (star w ⬝ᵥ w).re := by
+private lemma re_dotProduct_star_self_nonneg (w : n → ℂ) : 0 ≤ (star w ⬝ᵥ w).re := by
   rw [dotProduct, Complex.re_sum]
   refine Finset.sum_nonneg fun i _ => ?_
   rw [Pi.star_apply, Complex.star_def, mul_comm, Complex.mul_conj, Complex.ofReal_re]
@@ -169,42 +169,42 @@ public theorem qfim_posSemidef {ψ : n → ℂ} (hψ : star ψ ⬝ᵥ ψ = 1)
 To avoid the (uncached) real-module structure on `Matrix n n ℂ`, real coefficients are carried as
 `(c : ℝ)` cast to `ℂ` and the scalar action is the ambient `ℂ`-`smul`. -/
 
-theorem expval_add (ψ : n → ℂ) (A B : Matrix n n ℂ) :
+lemma expval_add (ψ : n → ℂ) (A B : Matrix n n ℂ) :
     expval ψ (A + B) = expval ψ A + expval ψ B := by
   rw [expval, expval, expval, add_mulVec, dotProduct_add]
 
-theorem expval_smul (ψ : n → ℂ) (d : ℂ) (A : Matrix n n ℂ) :
+lemma expval_smul (ψ : n → ℂ) (d : ℂ) (A : Matrix n n ℂ) :
     expval ψ (d • A) = d • expval ψ A := by
   rw [expval, expval, smul_mulVec, dotProduct_smul]
 
-theorem expval_zero (ψ : n → ℂ) : expval ψ 0 = 0 := by
+lemma expval_zero (ψ : n → ℂ) : expval ψ 0 = 0 := by
   rw [expval, zero_mulVec, dotProduct_zero]
 
-theorem qCov_zero_left (ψ : n → ℂ) (B : Matrix n n ℂ) : qCov ψ 0 B = 0 := by
+lemma qCov_zero_left (ψ : n → ℂ) (B : Matrix n n ℂ) : qCov ψ 0 B = 0 := by
   simp only [qCov, zero_mul, expval_zero, Complex.zero_re, zero_mul, sub_zero]
 
-theorem qCov_zero_right (ψ : n → ℂ) (A : Matrix n n ℂ) : qCov ψ A 0 = 0 := by
+lemma qCov_zero_right (ψ : n → ℂ) (A : Matrix n n ℂ) : qCov ψ A 0 = 0 := by
   simp only [qCov, mul_zero, expval_zero, Complex.zero_re, mul_zero, sub_zero]
 
-theorem qCov_add_left (ψ : n → ℂ) (A A' B : Matrix n n ℂ) :
+lemma qCov_add_left (ψ : n → ℂ) (A A' B : Matrix n n ℂ) :
     qCov ψ (A + A') B = qCov ψ A B + qCov ψ A' B := by
   simp only [qCov, add_mul, expval_add, Complex.add_re]; ring
 
-theorem qCov_add_right (ψ : n → ℂ) (A B B' : Matrix n n ℂ) :
+lemma qCov_add_right (ψ : n → ℂ) (A B B' : Matrix n n ℂ) :
     qCov ψ A (B + B') = qCov ψ A B + qCov ψ A B' := by
   simp only [qCov, mul_add, expval_add, Complex.add_re]; ring
 
-theorem qCov_ofReal_smul_left (ψ : n → ℂ) (c : ℝ) (A B : Matrix n n ℂ) :
+lemma qCov_ofReal_smul_left (ψ : n → ℂ) (c : ℝ) (A B : Matrix n n ℂ) :
     qCov ψ ((c : ℂ) • A) B = c * qCov ψ A B := by
   simp only [qCov, smul_mul_assoc, expval_smul, smul_eq_mul, Complex.mul_re, Complex.ofReal_re,
     Complex.ofReal_im, zero_mul, sub_zero]; ring
 
-theorem qCov_ofReal_smul_right (ψ : n → ℂ) (c : ℝ) (A B : Matrix n n ℂ) :
+lemma qCov_ofReal_smul_right (ψ : n → ℂ) (c : ℝ) (A B : Matrix n n ℂ) :
     qCov ψ A ((c : ℂ) • B) = c * qCov ψ A B := by
   simp only [qCov, mul_smul_comm, expval_smul, smul_eq_mul, Complex.mul_re, Complex.ofReal_re,
     Complex.ofReal_im, zero_mul, sub_zero]; ring
 
-theorem qCov_sum_ofReal_smul_left (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
+lemma qCov_sum_ofReal_smul_left (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
     (c : ι → ℝ) (g : ι → Matrix n n ℂ) (B : Matrix n n ℂ) :
     qCov ψ (∑ j ∈ s, (c j : ℂ) • g j) B = ∑ j ∈ s, c j * qCov ψ (g j) B := by
   classical
@@ -213,7 +213,7 @@ theorem qCov_sum_ofReal_smul_left (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
   | insert _ _ hns ih =>
     rw [Finset.sum_insert hns, Finset.sum_insert hns, qCov_add_left, qCov_ofReal_smul_left, ih]
 
-theorem qCov_sum_ofReal_smul_right (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
+lemma qCov_sum_ofReal_smul_right (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
     (c : ι → ℝ) (g : ι → Matrix n n ℂ) (A : Matrix n n ℂ) :
     qCov ψ A (∑ j ∈ s, (c j : ℂ) • g j) = ∑ j ∈ s, c j * qCov ψ A (g j) := by
   classical
@@ -225,7 +225,7 @@ theorem qCov_sum_ofReal_smul_right (ψ : n → ℂ) {ι : Type*} (s : Finset ι)
 /-- **Reparameterization covariance** (a QFIM basic property). Under a real-linear
 reparameterization of
 the generators `hᵢ' = ∑ₐ Jᵢₐ hₐ`, the QFIM transforms covariantly: `F' = J · F · Jᵀ`. -/
-theorem qfim_reparam {M' : ℕ} (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ)
+lemma qfim_reparam {M' : ℕ} (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ)
     (J : Matrix (Fin M') (Fin M) ℝ) :
     qfim ψ (fun i => ∑ a, (J i a : ℂ) • h a) = J * qfim ψ h * Jᵀ := by
   ext i i'
@@ -245,7 +245,7 @@ theorem qfim_reparam {M' : ℕ} (ψ : n → ℂ) (h : Fin M → Matrix n n ℂ)
 /-- **Gram-factorization rank bound.** If every generator `hₐ` is a *real* linear combination of a
 family `g` of `d` operators, then `rank(F) ≤ d`. (For the DLA case `g` is the Hermitian basis,
 `d = dim g`.) Via reparameterization covariance `F = R · (qfim ψ g) · Rᵀ`. -/
-theorem qfim_rank_le_of_real_combo {d : ℕ} (ψ : n → ℂ) {h : Fin M → Matrix n n ℂ}
+lemma qfim_rank_le_of_real_combo {d : ℕ} (ψ : n → ℂ) {h : Fin M → Matrix n n ℂ}
     (g : Fin d → Matrix n n ℂ) (hcombo : ∀ a, ∃ r : Fin d → ℝ, h a = ∑ j, (r j : ℂ) • g j) :
     (qfim ψ h).rank ≤ d := by
   choose r hr using hcombo

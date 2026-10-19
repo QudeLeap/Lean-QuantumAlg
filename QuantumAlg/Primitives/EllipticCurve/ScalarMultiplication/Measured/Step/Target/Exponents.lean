@@ -26,7 +26,7 @@ noncomputable section
 
 open Execution MeasuredUncompute
 
-private theorem unselected_ambientPosition (width : Nat) {count : Nat} (active : Fin count)
+private lemma unselected_ambientPosition (width : Nat) {count : Nat} (active : Fin count)
     (index : Fin (count + 1)) (before : index.val < count) (different : index.val ≠ active.val) :
     ∃ position : Fin (ambientContext width active).systemCount,
       ambientPosition width active position = indexedPosition width count index := by
@@ -49,7 +49,7 @@ private theorem unselected_ambientPosition (width : Nat) {count : Nat} (active :
     rangePosition_wire]
 
 /-- Every exponent and the shared selector retain their exact finite values after a point step. -/
-theorem stepPermutation_indexedValue {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepPermutation_indexedValue {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) (index : Fin (count + 1)) :
     indexedValue p.size count (stepPermutation E Q active value) index =

@@ -30,15 +30,17 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticWindowControl
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit ArithmeticWindowRegisters ArithmeticWindowEncoding
 open ArithmeticWindowProgram
 
-private theorem liftGate_eq_prodLeft {width : Nat} (window : Window width)
+private lemma liftGate_eq_prodLeft {width : Nat} (window : Window width)
     (gate : GateSpec (Addition.TTK.overflowEncoding window.length)) :
     liftGate window gate = GateSpec.prodLeft (complementEncoding window) gate := by
   cases gate <;> rfl
 
-private theorem liftGate_disjoint_right {width : Nat} (window : Window width)
+private lemma liftGate_disjoint_right {width : Nat} (window : Window width)
     (observed : EncodedBit (complementEncoding window))
     (gate : GateSpec (Addition.TTK.overflowEncoding window.length)) :
     GateSpec.bitDisjoint (BinaryLabelEncoding.prodRightBit _ _ observed)
@@ -47,7 +49,7 @@ private theorem liftGate_disjoint_right {width : Nat} (window : Window width)
   exact GateSpec.bitDisjoint_prodLeft_rightBit _ _ observed gate
 
 /-- Every actual arithmetic gate is disjoint from the original Ctrl wire. -/
-theorem gates_control_disjoint {width : Nat} (window : Window width) (operation : Operation)
+lemma gates_control_disjoint {width : Nat} (window : Window width) (operation : Operation)
     (gate : GateSpec (groupedEncoding window))
     (present : gate ∈ ArithmeticWindowProgram.gates window operation) :
     GateSpec.bitDisjoint (ArithmeticWindowEncoding.controlBit window) gate := by
@@ -55,7 +57,7 @@ theorem gates_control_disjoint {width : Nat} (window : Window width) (operation 
   exact liftGate_disjoint_right window _ original
 
 /-- Every original arithmetic gate is disjoint from the arbitrary retained Iter wire. -/
-theorem gates_work_disjoint {width : Nat} (window : Window width) (operation : Operation)
+lemma gates_work_disjoint {width : Nat} (window : Window width) (operation : Operation)
     (gate : GateSpec (groupedEncoding window))
     (present : gate ∈ ArithmeticWindowProgram.gates window operation) :
     GateSpec.bitDisjoint (workBit window) gate := by
@@ -71,7 +73,7 @@ def gates {width : Nat} (window : Window width) (operation : Operation) :
     (ArithmeticWindowFullCoordinates.control_work_ne window)
 
 /-- The complete selected action retains every complementary field, including arbitrary Iter. -/
-theorem gates_step {width : Nat} (window : Window width) (operation : Operation)
+lemma gates_step {width : Nat} (window : Window width) (operation : Operation)
     (state : Addition.TTK.OverflowRegisters window.length × Complement window) :
     GateSpec.stepList (gates window operation) state =
       if (ArithmeticWindowEncoding.controlBit window).get state then
@@ -93,20 +95,20 @@ def step {width : Nat} (window : Window width) (operation : Operation)
       (focusStep operation pair.1, pair.2) else pair) state
 
 /-- The actual whole-frame quantum program has the exact conditional basis amplitudes. -/
-theorem program_realizes {width : Nat} (window : Window width) (operation : Operation) :
-    UnitaryCircuit.Realizes (encoding width) (program window operation)
+lemma program_realizes {width : Nat} (window : Window width) (operation : Operation) :
+    UnitaryCircuit.Realizes (encoding width) (program window operation) environment
       (step window operation) := by
   have body : UnitaryCircuit.Realizes (groupedEncoding window)
-      (GateSpec.programList (QubitLayout.canonical _) .empty (gates window operation))
+      (GateSpec.programList (QubitLayout.canonical _) .empty (gates window operation)) environment
       (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
         if (ArithmeticWindowEncoding.controlBit window).get pair then
           (focusStep operation pair.1, pair.2) else pair) :=
     GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-      (gates window operation) (gates_step window operation)
+      (gates window operation) (gates_step window operation) environment
   exact ArithmeticWindowPlacement.place_realizes window body
 
 /-- The original Ctrl selects the exact ungated arithmetic; its false branch is identity. -/
-theorem step_eq_if {width : Nat} (window : Window width) (operation : Operation)
+lemma step_eq_if {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     step window operation state =
       if state.control then ArithmeticWindowProgram.step window operation state else state := by
@@ -119,7 +121,7 @@ theorem step_eq_if {width : Nat} (window : Window width) (operation : Operation)
     exact (grouping window).symm_apply_apply state
 
 /-- Every bit outside the operand and Sign focus is restored, with no work-value premise. -/
-theorem step_complement {width : Nat} (window : Window width) (operation : Operation)
+lemma step_complement {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (grouping window (step window operation state)).2 = (grouping window state).2 := by
   rw [step_eq_if]
@@ -128,7 +130,7 @@ theorem step_complement {width : Nat} (window : Window width) (operation : Opera
   · rfl
 
 /-- The entire Work2 operand window is retained as well as its already retained outside fields. -/
-theorem step_source {width : Nat} (window : Window width) (operation : Operation)
+lemma step_source {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (grouping window (step window operation state)).1.1.1 =
       (grouping window state).1.1.1 := by
@@ -138,13 +140,13 @@ theorem step_source {width : Nat} (window : Window width) (operation : Operation
   · rfl
 
 /-- The trace contains exactly the actual controlled elementary gates in their execution order. -/
-theorem program_eventTrace {width : Nat} (window : Window width) (operation : Operation) :
+lemma program_eventTrace {width : Nat} (window : Window width) (operation : Operation) :
     (program window operation).eventTrace =
       (gates window operation).map (GateSpec.event .empty) := by
   rw [program, ArithmeticWindowPlacement.place_eventTrace, GateSpec.programList_eventTrace]
 
 /-- Exact unit depth is the real one-or-four-gate expansion of each original primitive. -/
-theorem program_unitDepth {width : Nat} (window : Window width) (operation : Operation) :
+lemma program_unitDepth {width : Nat} (window : Window width) (operation : Operation) :
     (program window operation).evaluatedEventDepth (fun _ => 1) =
       ((ArithmeticWindowProgram.gates window operation).map GateSpec.dirtyControlCount).sum := by
   rw [program, ArithmeticWindowPlacement.place_evaluatedEventDepth,

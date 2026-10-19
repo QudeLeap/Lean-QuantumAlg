@@ -24,7 +24,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
 
 /-- An original structural read has exactly the same support under all recovery fields. -/
-theorem nativeRecovery_underFields_keys (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_underFields_keys (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (input : CInputRef ctx shape) :
     (underRecoveryFields modulusWidth candidateWidth fields input).storageKeys =
       input.storageKeys := by
@@ -38,7 +38,7 @@ theorem nativeRecovery_underFields_keys (modulusWidth candidateWidth : Nat)
       rw [ih, CInputRef.storageKeys_underWorkspace]
 
 /-- Lifting an actual destination never changes its real key. -/
-theorem nativeRecovery_writeUnderFields_key (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_writeUnderFields_key (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (output : CWriteRef ctx shape) :
     (writeUnderRecoveryFields modulusWidth candidateWidth fields output).key = output.key := by
   induction fields generalizing ctx with
@@ -48,7 +48,7 @@ theorem nativeRecovery_writeUnderFields_key (modulusWidth candidateWidth : Nat)
         (recoveryFieldShape modulusWidth candidateWidth field) ctx.canonicalFreshKey_fresh)
 
 /-- Reading a lifted destination is the actual lift of its original storage read. -/
-theorem nativeRecovery_read_writeUnderFields (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_read_writeUnderFields (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (output : CWriteRef ctx shape) :
     cellRead (writeUnderRecoveryFields modulusWidth candidateWidth fields output) =
       underRecoveryFields modulusWidth candidateWidth fields (cellRead output) := by
@@ -59,7 +59,7 @@ theorem nativeRecovery_read_writeUnderFields (modulusWidth candidateWidth : Nat)
         (recoveryFieldShape modulusWidth candidateWidth field) ctx.canonicalFreshKey_fresh)
 
 /-- Allocating the real field list preserves every original structural read. -/
-theorem nativeRecovery_enter_read (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_enter_read (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (store : Store ctx) (input : CInputRef ctx shape) :
     (enterRecoveryFields modulusWidth candidateWidth fields store).read
       (underRecoveryFields modulusWidth candidateWidth fields input) = store.read input := by
@@ -77,7 +77,7 @@ theorem nativeRecovery_enter_read (modulusWidth candidateWidth : Nat)
       rw [ih, Store.read_pushWorkspace_underWorkspace]
 
 /-- Releasing the real field list exposes the same original structural reads. -/
-theorem nativeRecovery_leave_read (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_leave_read (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField)
     (store : Store (fieldsContext ctx modulusWidth candidateWidth fields))
     (input : CInputRef ctx shape) :
@@ -93,7 +93,7 @@ theorem nativeRecovery_leave_read (modulusWidth candidateWidth : Nat)
       rfl
 
 /-- Every actual field reads the canonical initial encoding of its genuine fresh head. -/
-theorem nativeRecovery_enter_field (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_enter_field (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) (index : Fin fields.length) (store : Store ctx) :
     (enterRecoveryFields modulusWidth candidateWidth fields store).read
         (cellRead (recoveryFieldCell ctx modulusWidth candidateWidth fields index)) =
@@ -117,7 +117,7 @@ theorem nativeRecovery_enter_field (modulusWidth candidateWidth : Nat)
           (recoveryFieldShape modulusWidth candidateWidth field) ctx.canonicalFreshKey_fresh)
 
 /-- No recovery field allocation adds or removes a quantum physical wire. -/
-theorem nativeRecovery_fields_quantumWires (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_fields_quantumWires (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField) :
     (fieldsContext ctx modulusWidth candidateWidth fields).quantumWires = ctx.quantumWires := by
   induction fields generalizing ctx with

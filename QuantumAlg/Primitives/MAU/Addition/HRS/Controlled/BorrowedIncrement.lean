@@ -27,6 +27,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 /-- Lower one controlled operand Toffoli using an idle existing operand wire. -/
@@ -61,7 +63,7 @@ def controlledBorrowedGate (n : Nat) : EncodedBit.GateSpec (TTK.encoding n) →
 
 /-- Every lowered gate preserves the control and conditionally executes the
 original gate, with the temporary dirty wire fully restored. -/
-theorem hrsControlledBorrowedGate_step (n : Nat) (gate : EncodedBit.GateSpec (TTK.encoding n))
+lemma hrsControlledBorrowedGate_step (n : Nat) (gate : EncodedBit.GateSpec (TTK.encoding n))
     (state : TTK.OverflowRegisters n) :
     stepList (controlledBorrowedGate n gate) state =
       if state.2 then (gate.step state.1, state.2) else state := by
@@ -108,7 +110,7 @@ def controlledBorrowedList (n : Nat) (gates : List (EncodedBit.GateSpec (TTK.enc
   (gates.map (controlledBorrowedGate n)).flatten
 
 /-- The lowered list has the exact conditional action of the original list. -/
-theorem hrsControlledBorrowedList_step (n : Nat)
+lemma hrsControlledBorrowedList_step (n : Nat)
     (gates : List (EncodedBit.GateSpec (TTK.encoding n))) (state : TTK.OverflowRegisters n) :
     stepList (controlledBorrowedList n gates) state =
       if state.2 then (stepList gates state.1, state.2) else state := by
@@ -141,22 +143,23 @@ def controlledBorrowedIncrementProgram (n : Nat) :
   programList (QubitLayout.canonical _) .empty (controlledBorrowedIncrementGates n)
 
 /-- Exact all-width controlled increment, with arbitrary borrowed and control values. -/
-theorem hrsControlledBorrowedIncrement_step (n : Nat) (state : TTK.OverflowRegisters n) :
+lemma hrsControlledBorrowedIncrement_step (n : Nat) (state : TTK.OverflowRegisters n) :
     stepList (controlledBorrowedIncrementGates n) state =
       controlledBorrowedIncrementOutput state := by
   rw [controlledBorrowedIncrementGates, hrsControlledBorrowedList_step, hrsBorrowedIncrement_step]
   rfl
 
 /-- Exact amplitudes retain joint coherence without an initialization promise. -/
-theorem hrsControlledBorrowedIncrement_realizes (n : Nat) :
+lemma hrsControlledBorrowedIncrement_realizes (n : Nat) :
     UnitaryCircuit.Realizes (TTK.overflowEncoding n) (controlledBorrowedIncrementProgram n)
+      environment
       controlledBorrowedIncrementOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
     (controlledBorrowedIncrementGates n)
-    (hrsControlledBorrowedIncrement_step n)
+    (hrsControlledBorrowedIncrement_step n) environment
 
 /-- The entire borrowed word and the control bit are restored. -/
-theorem hrsControlledBorrowedIncrement_restores (n : Nat) (state : TTK.OverflowRegisters n) :
+lemma hrsControlledBorrowedIncrement_restores (n : Nat) (state : TTK.OverflowRegisters n) :
     (stepList (controlledBorrowedIncrementGates n) state).1.1 = state.1.1 ∧
       (stepList (controlledBorrowedIncrementGates n) state).2 = state.2 := by
   rw [hrsControlledBorrowedIncrement_step]
@@ -164,7 +167,7 @@ theorem hrsControlledBorrowedIncrement_restores (n : Nat) (state : TTK.OverflowR
   cases h : state.2 <;> simp [h, borrowedIncrementOutput]
 
 /-- The implementation uses `n` borrowed bits, `n` target bits, and its control only. -/
-theorem hrsControlledBorrowedIncrement_interface (n : Nat) :
+lemma hrsControlledBorrowedIncrement_interface (n : Nat) :
     (TTK.overflowEncoding n).width = 2 * n + 1 ∧
       (QubitLayout.canonical (TTK.overflowEncoding n).width).systemIdx =
         List.range (2 * n + 1) := by

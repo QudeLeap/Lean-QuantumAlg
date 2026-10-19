@@ -31,7 +31,7 @@ open QuantumAlg.Execution
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
 /-- The actual phase wire has the corresponding source-basis value. -/
-theorem phaseWire_value (t width : Nat)
+lemma phaseWire_value (t width : Nat)
     (basis : (post ctx noQuantum t width).register.Index) (index : Fin t) :
     (basis (phaseWire ctx noQuantum t width index)).val =
       ((OrderFinding.Native.sourceLayout t width).binaryIndexEquiv.symm
@@ -67,12 +67,12 @@ theorem phaseWire_value (t width : Nat)
   rw [binaryBasis, Equiv.symm_apply_apply]
   exact cells.trans prepared
 
-private theorem finiteBit_encoding (value : Fin 2) :
+private lemma finiteBit_encoding (value : Fin 2) :
     decide (value.val = 1) = finTwoEquiv value := by
   fin_cases value <;> rfl
 
 /-- The physical Z readout has the source Born model's binary bit order. -/
-theorem phaseWire_bit (t width : Nat)
+lemma phaseWire_bit (t width : Nat)
     (basis : (post ctx noQuantum t width).register.Index) (index : Fin t) :
     decide ((basis (phaseWire ctx noQuantum t width index)).val = 1) =
       (OrderFinding.Native.measurement t width).readout

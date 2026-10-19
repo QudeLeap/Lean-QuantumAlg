@@ -32,20 +32,20 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
+private lemma avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 omit [BitWord.Selected model] in
-private theorem shapes_ne {left right : CShape} (output : CWriteRef ctx left)
+private lemma shapes_ne {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (different : left ≠ right) : output.key ≠ other.key := by
   intro same
   exact different (CStorageRef.storageRef_shape_eq_of_key output.toCStorageRef
     other.toCStorageRef same)
 
 omit [BitWord.Selected model] in
-private theorem marker_read (found sink : CWriteRef ctx .bit) (store : Store ctx)
+private lemma marker_read (found sink : CWriteRef ctx .bit) (store : Store ctx)
     {shape : CShape} (other : CWriteRef ctx shape) (nonbit : .bit ≠ shape) :
     ((store.applyOp (pivotSelectedOp sink)).applyOp (pivotFoundOp found)).read
       (.storage other.toCStorageRef) = store.read (.storage other.toCStorageRef) := by
@@ -54,7 +54,7 @@ private theorem marker_read (found sink : CWriteRef ctx .bit) (store : Store ctx
     Store.read_applyOp_of_not_mem_storageKeys _ (pivotSelectedOp sink) _
       (avoids sink other (shapes_ne sink other nonbit))]
 
-private theorem selected_fields
+private lemma selected_fields
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -123,7 +123,7 @@ The `distinct` witness is the original allocator's continuation argument, not
 an input-domain promise. The two bit markers may be any legitimate same-context
 references; their nominal shapes prevent aliases with these four fields.
 -/
-theorem gf2SelectPivot_cellValues
+lemma gf2SelectPivot_cellValues
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (found sink : CWriteRef ctx .bit) (pivot : Fin rowCount) (column : Fin width)
     (store : Store ctx) (samples : ClassicalAlgorithms.GF2.Samples rowCount width)

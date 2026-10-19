@@ -30,10 +30,12 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem mapped_filter_marginal {C D : Type} [Fintype C] [Fintype D]
+private lemma mapped_filter_marginal {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register} (state : ExecutionState C R) (update : C → D)
     (predicate : D → Prop) :
     ((state.mapClassical update).filterClassical predicate).quantumMarginal =
@@ -41,7 +43,7 @@ private theorem mapped_filter_marginal {C D : Type} [Fintype C] [Fintype D]
   (congrArg ExecutionState.quantumMarginal (filter_map state update predicate)).trans
     (ExecutionState.mapClassical_quantumMarginal _ update)
 
-private theorem pop_filtered_marginal {ctx : RuntimeCtx .quantum}
+private lemma pop_filtered_marginal {ctx : RuntimeCtx .quantum}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (workContext ctx) Reference History) (original : Store ctx) :
     (ExecutionState.filterClassical
@@ -58,7 +60,7 @@ private theorem pop_filtered_marginal {ctx : RuntimeCtx .quantum}
     (fun entry => (Store.popWorkspace ctx.canonicalFreshKey (.finite 2)
       ctx.canonicalFreshKey_fresh entry.1, entry.2)) (fun entry => entry.1 = original))
 
-private theorem push_filtered_marginal {ctx : RuntimeCtx .quantum}
+private lemma push_filtered_marginal {ctx : RuntimeCtx .quantum}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference History) (original : Store ctx) :
     (ExecutionState.filterClassical
@@ -82,15 +84,18 @@ private theorem push_filtered_marginal {ctx : RuntimeCtx .quantum}
       ctx.canonicalFreshKey_fresh entry.1 = original))
 
 /-- Scoped reset produces zero while preserving each complete incoming store-reference block. -/
-theorem zResetBankScope_complete_store_entry {ctx : RuntimeCtx .quantum}
+lemma zResetBankScope_complete_store_entry {ctx : RuntimeCtx .quantum}
     {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum AlgorithmGate.model oracles .empty services).Environment}
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState × History))
+      ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState × History))
     (original : Store ctx)
     (left right : ctx.quantumLayout.Basis) (leftRef rightRef : Reference.Index) :
-    (((code (oracles := oracles) qubits).execute Reference state).filterClassical
+    (((code (services := services) (oracles := oracles) qubits).execute
+      ⟨environment.quantum, environment.classical⟩ Reference
+      state).filterClassical
       (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       if left = ctx.quantumLayout.zeroLabel ∧ right = ctx.quantumLayout.zeroLabel then
@@ -99,28 +104,31 @@ theorem zResetBankScope_complete_store_entry {ctx : RuntimeCtx .quantum}
             (basis, leftRef) (basis, rightRef)
       else 0 := by
   let allocated : State (workContext ctx) Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState × History) :=
+      ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState × History)
+        :=
     state.pushWorkspace ctx.canonicalFreshKey (.finite 2) ctx.canonicalFreshKey_fresh
-  let body := Bank.code (oracles := oracles) (zResetBankScope_work_qubits qubits)
+  let body := Bank.code (services := services) (oracles := oracles) (zResetBankScope_work_qubits
+    qubits)
     (scratch ctx)
   have actual := congrArg
     (fun result : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState ×
-        (History × (code (oracles := oracles) qubits).Path)) =>
+      ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState ×
+        (History × (code (services := services) (oracles := oracles) qubits).Path)) =>
       (result.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef))
-    (Circuit.execute_workspace ctx.canonicalFreshKey (.finite 2)
+    (Circuit.execute_workspace environment ctx.canonicalFreshKey (.finite 2)
       ctx.canonicalFreshKey_fresh body Reference state)
   have popped := congrArg
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
       density.matrix (left, leftRef) (right, rightRef))
-    (pop_filtered_marginal Reference (body.execute Reference allocated) original)
+    (pop_filtered_marginal Reference (body.execute
+      ⟨environment.quantum, environment.classical⟩ Reference allocated) original)
   have filtered := congrArg
     (fun result : State (workContext ctx) Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState ×
+      ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState ×
         (History × body.Path)) =>
       result.quantumMarginal.matrix (left, leftRef) (right, rightRef))
-    (zResetBankScope_body_filter_parent (oracles := oracles)
+    (zResetBankScope_body_filter_parent (environment := environment) (oracles := oracles)
       qubits original Reference allocated)
   refine actual.trans (popped.trans (filtered.trans
     ((Bank.zResetBank_complete_entry (oracles := oracles)
@@ -140,16 +148,20 @@ theorem zResetBankScope_complete_store_entry {ctx : RuntimeCtx .quantum}
   · rfl
 
 /-- The complete store-reference reset equation holds under any classical operation grant. -/
-theorem zResetBankScope_complete_store_entry_operationModel {ctx : RuntimeCtx .quantum}
+lemma zResetBankScope_complete_store_entry_operationModel {ctx : RuntimeCtx .quantum}
     {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum AlgorithmGate.model oracles .empty services).Environment}
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
     (operations : ClassicalOpModel)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles operations).HiddenState × History))
+      ((ExecutionModel.quantum AlgorithmGate.model oracles operations services).HiddenState ×
+        History))
     (original : Store ctx)
     (left right : ctx.quantumLayout.Basis) (leftRef rightRef : Reference.Index) :
-    (((code (oracles := oracles) qubits operations).execute Reference state).filterClassical
+    (((code (services := services) (oracles := oracles) qubits operations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference
+      state).filterClassical
       (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       if left = ctx.quantumLayout.zeroLabel ∧ right = ctx.quantumLayout.zeroLabel then
@@ -159,13 +171,19 @@ theorem zResetBankScope_complete_store_entry_operationModel {ctx : RuntimeCtx .q
       else 0 := by
   have erased := congrArg
     (fun output : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles).HiddenState × History) =>
+      ((ExecutionModel.quantum AlgorithmGate.model oracles .empty services).HiddenState × History)
+        =>
         (output.filterClassical (fun entry => entry.1 = original)).quantumMarginal)
-    (code_execute_operationModel (oracles := oracles) qubits operations state)
+    (code_execute_operationModel
+      (environment := environment) (oracles := oracles) qubits operations state)
   have sameBlocks :
-      (((code (oracles := oracles) qubits operations).execute Reference state).filterClassical
+      (((code (services := services) (oracles := oracles) qubits operations).execute
+        ⟨environment.quantum, environment.classical⟩ Reference
+        state).filterClassical
         (fun entry => entry.1 = original)).quantumMarginal =
-      (((code (oracles := oracles) qubits).execute Reference state).filterClassical
+      (((code (services := services) (oracles := oracles) qubits).execute
+        ⟨environment.quantum, environment.classical⟩ Reference
+        state).filterClassical
         (fun entry => entry.1 = original)).quantumMarginal := by
     simpa only [State.mapHistory, mapped_filter_marginal] using erased
   exact (congrArg

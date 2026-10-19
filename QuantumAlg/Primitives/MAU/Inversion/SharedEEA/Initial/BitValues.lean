@@ -32,7 +32,7 @@ noncomputable section
 open InputPreparation
 
 /-- Every actual Work1 bit has exactly the source's fixed initial value. -/
-theorem firstWord_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma firstWord_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin (modulus.size + 3)) :
     fixedBit modulus (firstWordBit modulus.size index).wire.val =
       (firstWordBit modulus.size index).get (InitialFrame.initial modulus input) := by
@@ -42,7 +42,7 @@ theorem firstWord_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
   rw [fixedBit, if_pos index.isLt]
 
 /-- The actual coefficient-length field is initialized to the finite binary label one. -/
-theorem coefficientLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma coefficientLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin modulus.size.size) :
     fixedBit modulus (coefficientLengthBit modulus.size index).wire.val =
       (coefficientLengthBit modulus.size index).get (InitialFrame.initial modulus input) := by
@@ -56,13 +56,13 @@ theorem coefficientLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (BitVec.ofNat modulus.size.size 1).getMsbD index.val
   rw [fixedBit, if_neg afterWord, if_pos within, Nat.add_sub_cancel_left]
 
-private theorem fixedBit_tail_zero (modulus wire : Nat)
+private lemma fixedBit_tail_zero (modulus wire : Nat)
     (afterCoefficient : 2 * (modulus.size + 3) + modulus.size.size ≤ wire) :
     fixedBit modulus wire = false := by
   rw [fixedBit, if_neg (by omega), if_neg (by omega)]
 
 /-- Every actual quotient-length bit is among the prepared fixed zeros. -/
-theorem quotientLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma quotientLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin modulus.size.size) :
     fixedBit modulus (quotientLengthBit modulus.size index).wire.val =
       (quotientLengthBit modulus.size index).get (InitialFrame.initial modulus input) := by
@@ -70,7 +70,7 @@ theorem quotientLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
   simp [InitialFrame.initial]
 
 /-- The real divisor-length input is zero before the native writer computes from current Work2. -/
-theorem divisorLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma divisorLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin modulus.size.size) :
     fixedBit modulus (divisorLengthBit modulus.size index).wire.val =
       (divisorLengthBit modulus.size index).get (InitialFrame.initial modulus input) := by
@@ -78,7 +78,7 @@ theorem divisorLength_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
   simp [InitialFrame.initial]
 
 /-- The complete original low shift starts at actual finite zero. -/
-theorem shift_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma shift_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin modulus.size.size) :
     fixedBit modulus (shiftBit modulus.size index).wire.val =
       (shiftBit modulus.size index).get (InitialFrame.initial modulus input) := by
@@ -86,42 +86,42 @@ theorem shift_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
   simp [InitialFrame.initial]
 
 /-- The first phase bit is an actual prepared zero. -/
-theorem phase1_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma phase1_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     fixedBit modulus (phase1Bit modulus.size).wire.val =
       (phase1Bit modulus.size).get (InitialFrame.initial modulus input) := by
   rw [phase1Bit_wire, phase1Bit_get, fixedBit_tail_zero modulus _ (by omega)]
   rfl
 
 /-- The second phase bit is an actual prepared zero. -/
-theorem phase2_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma phase2_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     fixedBit modulus (phase2Bit modulus.size).wire.val =
       (phase2Bit modulus.size).get (InitialFrame.initial modulus input) := by
   rw [phase2Bit_wire, phase2Bit_get, fixedBit_tail_zero modulus _ (by omega)]
   rfl
 
 /-- Sign is initialized internally, with no sign-value promise imposed on the caller. -/
-theorem sign_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma sign_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     fixedBit modulus (signBit modulus.size).wire.val =
       (signBit modulus.size).get (InitialFrame.initial modulus input) := by
   rw [signBit_wire, signBit_get, fixedBit_tail_zero modulus _ (by omega)]
   rfl
 
 /-- Iter zero is prepared before the actual reversible fold writes its retained history. -/
-theorem iteration_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma iteration_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     fixedBit modulus (iterationBit modulus.size).wire.val =
       (iterationBit modulus.size).get (InitialFrame.initial modulus input) := by
   rw [iterationBit_wire, iterationBit_get, fixedBit_tail_zero modulus _ (by omega)]
   rfl
 
 /-- The fifth source control is an actually prepared zero, rather than hidden clean workspace. -/
-theorem control_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma control_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     fixedBit modulus (controlBit modulus.size).wire.val =
       (controlBit modulus.size).get (InitialFrame.initial modulus input) := by
   rw [controlBit_wire, controlBit_get, fixedBit_tail_zero modulus _ (by omega)]
   rfl
 
 /-- Each of the three real Work2 padding positions is a prepared zero above the original input. -/
-theorem secondWord_padding_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma secondWord_padding_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin (modulus.size + 3)) (padding : index.val < 3) :
     fixedBit modulus (secondWordBit modulus.size index).wire.val =
       (secondWordBit modulus.size index).get (InitialFrame.initial modulus input) := by
@@ -140,7 +140,7 @@ theorem secondWord_padding_fixed (modulus : Nat) (input : Fin (2 ^ modulus.size)
   exact (Nat.testBit_eq_false_of_lt fits).symm
 
 /-- Every remaining Work2 bit retains the original input's unknown binary value. -/
-theorem secondWord_input (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma secondWord_input (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin modulus.size) :
     (secondWordBit modulus.size ⟨3 + index.val, by have bound := index.isLt; omega⟩).get
         (InitialFrame.initial modulus input) = input.val.testBit index.rev.val := by

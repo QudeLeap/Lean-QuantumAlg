@@ -19,7 +19,8 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -41,10 +42,11 @@ def powerSelectionStep (spec : ModulusSpec modulusWidth)
 
 /-- The actual original target-power check and first-success selection retain every incoming
 quantum-reference block. -/
-theorem powerSelectionInto_execute (spec : ModulusSpec modulusWidth)
+lemma powerSelectionInto_execute (spec : ModulusSpec modulusWidth)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (powerSelectionInto spec refs).execute Reference state = state.mapClassical (fun entry =>
+    (powerSelectionInto spec refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := powerSelectionStep spec refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [powerSelectionInto, Circuit.execute_seq,
@@ -69,10 +71,11 @@ def exponentChecksStep (spec : ModulusSpec modulusWidth)
 
 /-- The actual original exponent classification followed by power and selection retain every
 incoming quantum-reference block. -/
-theorem exponentChecksInto_execute (spec : ModulusSpec modulusWidth)
+lemma exponentChecksInto_execute (spec : ModulusSpec modulusWidth)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (exponentChecksInto spec refs).execute Reference state = state.mapClassical (fun entry =>
+    (exponentChecksInto spec refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := exponentChecksStep spec refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [exponentChecksInto, Circuit.execute_seq,
@@ -96,10 +99,11 @@ def rangeChecksStep (spec : ModulusSpec modulusWidth)
 
 /-- The actual original distance range check and remaining candidate checks retain every
 incoming quantum-reference block. -/
-theorem rangeChecksInto_execute (spec : ModulusSpec modulusWidth)
+lemma rangeChecksInto_execute (spec : ModulusSpec modulusWidth)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (rangeChecksInto spec refs).execute Reference state = state.mapClassical (fun entry =>
+    (rangeChecksInto spec refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := rangeChecksStep spec refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [rangeChecksInto, Circuit.execute_seq,
@@ -126,11 +130,12 @@ def candidateSlotStep (spec : ModulusSpec modulusWidth)
 
 /-- The actual original offset, candidate distance and complete candidate checks retain every
 incoming quantum-reference block. -/
-theorem candidateSlotInto_execute (spec : ModulusSpec modulusWidth)
+lemma candidateSlotInto_execute (spec : ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx coordinateWidth modulusWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (candidateSlotInto spec offset refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidateSlotInto spec offset refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := candidateSlotStep spec offset refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [candidateSlotInto, Circuit.execute_seq,

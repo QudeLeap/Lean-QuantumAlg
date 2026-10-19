@@ -31,7 +31,7 @@ open ClassicalRoutines
 
 noncomputable section
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
@@ -59,7 +59,7 @@ def physicalCell : LatticePairRecoveryReset.Cell → PhysicalCell
   | .targetThird => .state .targetThird
   | .denominatorMagnitude => .nearest .g11
 
-private theorem physicalCell_injective : Function.Injective physicalCell := by
+private lemma physicalCell_injective : Function.Injective physicalCell := by
   intro left right equal
   cases left <;> cases right <;> simp [physicalCell] at equal ⊢
 
@@ -77,7 +77,7 @@ def physicalKey {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
       (LatticeNearestPlaneScratchWorkspaceLayout.cellRef
         cells.pair.nearest cell).toCStorageRef.key
 
-private theorem physicalKey_injective {kind : ProblemKind}
+private lemma physicalKey_injective {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairFactorWorkspaceSeparation.Cells ctx N}
@@ -135,7 +135,7 @@ private theorem physicalKey_injective {kind : ProblemKind}
             cells.pair.nearest certificates.pair.nearestDistinct equal
 
 /-- Reset-key projection agrees with the tagged physical package map. -/
-theorem resetCellKey_eq {kind : ProblemKind}
+lemma resetCellKey_eq {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -151,7 +151,7 @@ theorem resetCellKey_eq {kind : ProblemKind}
   cases cell <;> rfl
 
 /-- Physical distinctness supplies the thirteen-word reset separation. -/
-theorem resetSeparation {kind : ProblemKind}
+lemma resetSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairFactorWorkspaceSeparation.Cells ctx N}
@@ -172,7 +172,7 @@ theorem resetSeparation {kind : ProblemKind}
     parameter] using equal
 
 /-- Avoiding the three physical reset packages supplies its caller frame. -/
-theorem resetCallerFrame_of_physical {kind : ProblemKind}
+lemma resetCallerFrame_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -195,7 +195,7 @@ theorem resetCallerFrame_of_physical {kind : ProblemKind}
   cases cell <;> first | exact avoidsState _ | exact avoidsTarget _ |
     exact avoidsNearest _
 
-private theorem resetFrame_outerInput {kind : ProblemKind}
+private lemma resetFrame_outerInput {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -228,7 +228,7 @@ private theorem resetFrame_outerInput {kind : ProblemKind}
         certificates.pair.nearestSeparated other
           (LatticeNearestPlaneScratchWorkspaceLayout.cellIndex N cell))
 
-private theorem resetFrame_quadraticCell {kind : ProblemKind}
+private lemma resetFrame_quadraticCell {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -263,7 +263,7 @@ private theorem resetFrame_quadraticCell {kind : ProblemKind}
       (QuadraticScratchLayout.cellIndex N source)).symm
 
 /-- Complete reset-frame contract for one physical reusable pair. -/
-theorem resetFrames {kind : ProblemKind}
+lemma resetFrames {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairFactorWorkspaceSeparation.Cells ctx N}
@@ -354,7 +354,7 @@ theorem resetFrames {kind : ProblemKind}
           selection .selected)
 
 /-- Physical avoidance supplies the complete reusable-pair caller frame. -/
-theorem callerFrame_of_physical {kind : ProblemKind}
+lemma callerFrame_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -396,7 +396,7 @@ theorem callerFrame_of_physical {kind : ProblemKind}
           avoidsNearest avoidsQuadratic avoidsFactor
 
 /-- Physical packages supply the complete reusable-pair separation contract. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairFactorWorkspaceSeparation.Cells ctx N}

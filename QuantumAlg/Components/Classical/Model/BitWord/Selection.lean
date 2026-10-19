@@ -51,7 +51,7 @@ public def selectedCoordinate (label : Resource.ClassicalOpLabel) : execution.Cl
     (Selected.operations_eq (execution := execution)).symm) label
 
 /-- A selected instruction retains its actual declared output shape. -/
-public theorem selectedApplication_output (op : ClassicalOp input output ctx ctx) :
+public lemma selectedApplication_output (op : ClassicalOp input output ctx ctx) :
     execution.classicalOperations.outputShape
       (selectedApplication (execution := execution) op).token = output := by
   cases execution with

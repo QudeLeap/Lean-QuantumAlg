@@ -38,7 +38,7 @@ def RawSignedRepresents {signedWidth : Nat}
   Int.ModEq (CShape.wordModulus signedWidth : Int)
     (encoded.toNat : Int) value
 
-private theorem ofInt_rawSignedRepresents (signedWidth : Nat) (value : Int) :
+private lemma ofInt_rawSignedRepresents (signedWidth : Nat) (value : Int) :
     RawSignedRepresents
       (encodeWord (BoundedSigned.ofInt signedWidth value).encode) value := by
   unfold RawSignedRepresents Int.ModEq
@@ -52,7 +52,7 @@ private theorem ofInt_rawSignedRepresents (signedWidth : Nat) (value : Int) :
   exact Int.emod_emod value (2 ^ signedWidth : Int)
 
 /-- A modulo-represented integer in the signed interval decodes exactly. -/
-theorem rawSignedRepresents_decode_eq {signedWidth : Nat}
+lemma rawSignedRepresents_decode_eq {signedWidth : Nat}
     (encoded : CShape.Word signedWidth) (value : Int)
     (widthPositive : 0 < signedWidth)
     (represents : RawSignedRepresents encoded value)
@@ -90,7 +90,7 @@ theorem rawSignedRepresents_decode_eq {signedWidth : Nat}
       exact BoundedSigned.toInt_ofInt_eq_self
         widthPositive range.1 range.2
 
-private theorem rawSignedRepresents_wordResize
+private lemma rawSignedRepresents_wordResize
     {sourceWidth signedWidth : Nat} (input : CShape.Word sourceWidth) :
     RawSignedRepresents (CShape.wordResize signedWidth input)
       (input.toNat : Int) := by
@@ -108,7 +108,7 @@ private theorem rawSignedRepresents_wordResize
 
 /-- Narrowing a raw signed word to any no-wider target produces exactly the
 target-width two's-complement encoding of the same represented integer. -/
-private theorem wordResize_eq_ofInt_of_rawSignedRepresents
+private lemma wordResize_eq_ofInt_of_rawSignedRepresents
     {sourceWidth targetWidth : Nat} (widthLe : targetWidth ≤ sourceWidth)
     (input : CShape.Word sourceWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
@@ -151,7 +151,7 @@ private theorem wordResize_eq_ofInt_of_rawSignedRepresents
         (Nat.mod_lt bits.val (CShape.wordModulus_pos targetWidth))
         (BoundedSigned.ofInt targetWidth value).encode.isLt
 
-private theorem rawSignedRepresents_increment {signedWidth : Nat}
+private lemma rawSignedRepresents_increment {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents
@@ -176,7 +176,7 @@ private theorem rawSignedRepresents_increment {signedWidth : Nat}
       simpa only [Nat.cast_add, Nat.cast_one] using
         integerCongruence.trans valueCongruence
 
-private theorem rawSignedRepresents_mulLow {signedWidth : Nat}
+private lemma rawSignedRepresents_mulLow {signedWidth : Nat}
     (left right : CShape.Word signedWidth) (leftValue rightValue : Int)
     (leftRepresents : RawSignedRepresents left leftValue)
     (rightRepresents : RawSignedRepresents right rightValue) :
@@ -214,7 +214,7 @@ private theorem rawSignedRepresents_mulLow {signedWidth : Nat}
           simpa only [Nat.cast_mul] using
             integerCongruence.trans productCongruence
 
-private theorem rawSignedRepresents_sub {signedWidth : Nat}
+private lemma rawSignedRepresents_sub {signedWidth : Nat}
     (left right : CShape.Word signedWidth) (leftValue rightValue : Int)
     (leftRepresents : RawSignedRepresents left leftValue)
     (rightRepresents : RawSignedRepresents right rightValue) :

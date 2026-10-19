@@ -49,33 +49,33 @@ public def Holds : StatePromise R → DensityOperator R → Prop
       state.matrix = (state.mass : ℝ) • target.matrix
 
 /-- A dirty promise imposes no state equality. -/
-@[simp] theorem holds_dirty (state : DensityOperator R) :
+@[simp] lemma holds_dirty (state : DensityOperator R) :
     (StatePromise.dirty : StatePromise R).Holds state := True.intro
 
 /-- The pure promise retains the original block probability. -/
-theorem holds_pure_iff (target : NormalizedVector R) (state : DensityOperator R) :
+lemma holds_pure_iff (target : NormalizedVector R) (state : DensityOperator R) :
     (StatePromise.pure target).Holds state ↔
       state.matrix = (state.mass : ℝ) • (DensityOperator.ofPure target).matrix := Iff.rfl
 
 /-- The mixed promise retains the original block probability. -/
-theorem holds_mixed_iff (target : DensityOperator R) (normalized : target.IsNormalized)
+lemma holds_mixed_iff (target : DensityOperator R) (normalized : target.IsNormalized)
     (state : DensityOperator R) :
     (StatePromise.mixed target normalized).Holds state ↔
       state.matrix = (state.mass : ℝ) • target.matrix := Iff.rfl
 
 /-- An impossible block satisfies every stated promise without normalization or division. -/
-@[simp] theorem holds_zero (promise : StatePromise R) :
+@[simp] lemma holds_zero (promise : StatePromise R) :
     promise.Holds (DensityOperator.zero R) := by
   cases promise <;> simp [Holds]
 
 /-- Zero probability forces the actual density block to be zero, so every promise holds. -/
-theorem holds_of_mass_eq_zero (promise : StatePromise R) (state : DensityOperator R)
+lemma holds_of_mass_eq_zero (promise : StatePromise R) (state : DensityOperator R)
     (zeroMass : state.mass = 0) : promise.Holds state := by
   rw [state.eq_zero_of_mass_eq_zero zeroMass]
   exact holds_zero promise
 
 /-- A proved state promise can be forgotten while keeping the very same density block. -/
-theorem forget_to_dirty (promise : StatePromise R) (state : DensityOperator R)
+lemma forget_to_dirty (promise : StatePromise R) (state : DensityOperator R)
     (_holds : promise.Holds state) : (StatePromise.dirty : StatePromise R).Holds state :=
   holds_dirty state
 

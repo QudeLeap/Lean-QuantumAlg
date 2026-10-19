@@ -39,7 +39,7 @@ variable {clockWidth : Nat}
 def decrementPair (shift : BitVec clockWidth) : BitVec clockWidth := (shift + 1) - 2
 
 /-- The ordered pair decrements a positive natural count even if its intermediate value wraps. -/
-theorem decrementPair_ofNat (count : Nat) (positive : 0 < count) :
+lemma decrementPair_ofNat (count : Nat) (positive : 0 < count) :
     decrementPair (BitVec.ofNat clockWidth count) = BitVec.ofNat clockWidth (count - 1) := by
   change (BitVec.ofNat clockWidth count + BitVec.ofNat clockWidth 1) -
     BitVec.ofNat clockWidth 2 = BitVec.ofNat clockWidth (count - 1)
@@ -48,25 +48,25 @@ theorem decrementPair_ofNat (count : Nat) (positive : 0 < count) :
   omega
 
 /-- Reverse the actual subtraction first, then reverse the actual preceding increment. -/
-theorem rewind_decrementPair (shift : BitVec clockWidth) :
+lemma rewind_decrementPair (shift : BitVec clockWidth) :
     (decrementPair shift + 2) - 1 = shift := by
   unfold decrementPair
   rw [BitVec.sub_add_cancel, BitVec.add_sub_cancel]
 
 /-- Projection of the true intermediate increment agrees at every finite count. -/
-theorem increment_narrow (width count : Nat) :
+lemma increment_narrow (width count : Nat) :
     (BitVec.ofNat (width + 2) count + 1).setWidth width = BitVec.ofNat width count + 1 := by
   rw [TerminalTail.increment_ofNat, TerminalTail.increment_ofNat]
   exact BitVec.setWidth_ofNat_of_le (by omega) _
 
 /-- The complete descending assignment has the same original finite-register projection. -/
-theorem decrementPair_narrow (width count : Nat) (positive : 0 < count) :
+lemma decrementPair_narrow (width count : Nat) (positive : 0 < count) :
     (decrementPair (BitVec.ofNat (width + 2) count)).setWidth width =
       decrementPair (BitVec.ofNat width count) := by
   rw [decrementPair_ofNat count positive, decrementPair_ofNat count positive]
   exact BitVec.setWidth_ofNat_of_le (by omega) _
 
-private theorem encoded_zero_iff (count : Nat) (within : count < 2 ^ clockWidth) :
+private lemma encoded_zero_iff (count : Nat) (within : count < 2 ^ clockWidth) :
     BitVec.ofNat clockWidth count = 0 ↔ count = 0 := by
   constructor
   · intro zero
@@ -79,19 +79,19 @@ private theorem encoded_zero_iff (count : Nat) (within : count < 2 ^ clockWidth)
     rw [zero, Nat.zero_mod]
 
 /-- Every active count fitting the original input width fits the original counter exactly. -/
-theorem original_value (width count : Nat) (within : count ≤ width) :
+lemma original_value (width count : Nat) (within : count ≤ width) :
     (BitVec.ofNat width.size count).toNat = count :=
   Nat.mod_eq_of_lt (within.trans_lt (Nat.lt_size_self width))
 
 /-- The same active count fits the extended counter exactly. -/
-theorem extended_value (width count : Nat) (within : count ≤ width) :
+lemma extended_value (width count : Nat) (within : count ≤ width) :
     (BitVec.ofNat (width.size + 2) count).toNat = count := by
   have below := within.trans_lt (Nat.lt_size_self width)
   exact Nat.mod_eq_of_lt
     (below.trans_le (Nat.pow_le_pow_right Nat.zero_lt_two (by omega)))
 
 /-- At valid active boundaries, every added high position is actually zero. -/
-theorem boundary_high_zero (width count index : Nat) (within : count ≤ width)
+lemma boundary_high_zero (width count index : Nat) (within : count ≤ width)
     (high : width.size ≤ index) :
     (BitVec.ofNat (width.size + 2) count).getLsbD index = false := by
   change (BitVec.ofNat (width.size + 2) count).toNat.testBit index = false
@@ -100,7 +100,7 @@ theorem boundary_high_zero (width count index : Nat) (within : count ≤ width)
     (Nat.pow_le_pow_right Nat.zero_lt_two high))
 
 /-- The actual full-register zero predicates agree at every active control boundary. -/
-theorem boundary_zero_iff (width count : Nat) (within : count ≤ width) :
+lemma boundary_zero_iff (width count : Nat) (within : count ≤ width) :
     BitVec.ofNat (width.size + 2) count = 0 ↔ BitVec.ofNat width.size count = 0 := by
   have below := within.trans_lt (Nat.lt_size_self width)
   have extendedBelow := below.trans_le (Nat.pow_le_pow_right Nat.zero_lt_two
@@ -108,7 +108,7 @@ theorem boundary_zero_iff (width count : Nat) (within : count ≤ width) :
   exact (encoded_zero_iff count extendedBelow).trans (encoded_zero_iff count below).symm
 
 /-- The real intermediate original value is modular; the extended value is the full increment. -/
-theorem increment_values (width count : Nat) (within : count ≤ width) :
+lemma increment_values (width count : Nat) (within : count ≤ width) :
     (BitVec.ofNat width.size count + 1).toNat = (count + 1) % 2 ^ width.size ∧
       (BitVec.ofNat (width.size + 2) count + 1).toNat = count + 1 := by
   rw [TerminalTail.increment_ofNat, TerminalTail.increment_ofNat]
@@ -119,7 +119,7 @@ theorem increment_values (width count : Nat) (within : count ≤ width) :
   exact Nat.mod_eq_of_lt (by omega)
 
 /-- An ascending phase tests its actual increment only within the original active count bound. -/
-theorem increment_boundary (width count : Nat) (within : count < width) :
+lemma increment_boundary (width count : Nat) (within : count < width) :
     (BitVec.ofNat width.size count + 1).toNat = count + 1 ∧
       (BitVec.ofNat (width.size + 2) count + 1).toNat = count + 1 := by
   rw [TerminalTail.increment_ofNat, TerminalTail.increment_ofNat]
@@ -127,7 +127,7 @@ theorem increment_boundary (width count : Nat) (within : count < width) :
     extended_value width (count + 1) (by omega)⟩
 
 /-- Both actual descending assignments reach the same exact count at their control boundary. -/
-theorem decrementPair_values (width count : Nat) (positive : 0 < count)
+lemma decrementPair_values (width count : Nat) (positive : 0 < count)
     (within : count ≤ width) :
     (decrementPair (BitVec.ofNat width.size count)).toNat = count - 1 ∧
       (decrementPair (BitVec.ofNat (width.size + 2) count)).toNat = count - 1 := by
@@ -136,28 +136,28 @@ theorem decrementPair_values (width count : Nat) (positive : 0 < count)
     extended_value width (count - 1) (by omega)⟩
 
 /-- Temporary increment carries have vanished from every high bit before descending control. -/
-theorem decrementPair_high_zero (width count index : Nat) (positive : 0 < count)
+lemma decrementPair_high_zero (width count index : Nat) (positive : 0 < count)
     (within : count ≤ width) (high : width.size ≤ index) :
     (decrementPair (BitVec.ofNat (width.size + 2) count)).getLsbD index = false := by
   rw [decrementPair_ofNat count positive]
   exact boundary_high_zero width (count - 1) index (by omega) high
 
 /-- The real post-decrement zero test selects exactly the last descending shift. -/
-theorem decrementPair_zero_iff (count : Nat) (positive : 0 < count)
+lemma decrementPair_zero_iff (count : Nat) (positive : 0 < count)
     (within : count < 2 ^ clockWidth) :
     decrementPair (BitVec.ofNat clockWidth count) = 0 ↔ count = 1 := by
   rw [decrementPair_ofNat count positive, encoded_zero_iff (count - 1) (by omega)]
   omega
 
 /-- Actual first-phase alignment stays within the conserved modulus width on reachable states. -/
-theorem alignment_places_bound (state : IterationState) (modulus : Nat)
+lemma alignment_places_bound (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     (Alignment.align state.remainder state.divisor).places ≤ modulus.size :=
   (Alignment.align_places_le state.remainder state.divisor).trans
     (Nat.size_le_size (Capacity.iteration_fields_le state modulus valid conserved).1)
 
 /-- Reachable alignment and its phase prefixes establish exact counters without a caller bound. -/
-theorem alignment_counter_values (state : IterationState) (modulus count : Nat)
+lemma alignment_counter_values (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
     (BitVec.ofNat modulus.size.size count).toNat = count ∧
@@ -166,7 +166,7 @@ theorem alignment_counter_values (state : IterationState) (modulus count : Nat)
   exact ⟨original_value modulus.size count bound, extended_value modulus.size count bound⟩
 
 /-- A genuine possible intermediate carry is retained, then removed by the actual subtraction. -/
-theorem intermediate_wrap_boundary :
+lemma intermediate_wrap_boundary :
     (BitVec.ofNat 2 3 + 1).toNat = 0 ∧
       (BitVec.ofNat 4 3 + 1).toNat = 4 ∧
       (decrementPair (BitVec.ofNat 2 3)).toNat = 2 ∧

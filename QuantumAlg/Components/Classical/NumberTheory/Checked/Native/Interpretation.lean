@@ -22,7 +22,7 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.Checked.Native
 
 open ClassicalAlgorithms.Modular
 
-private theorem checkedInput_word_eq {width : Nat} (left right : CShape.Word width)
+private lemma checkedInput_word_eq {width : Nat} (left right : CShape.Word width)
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -31,7 +31,7 @@ private theorem checkedInput_word_eq {width : Nat} (left right : CShape.Word wid
           exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
 /-- The actual two operand words are exactly the original modulus-left XGCD input. -/
-theorem widenedXgcdInput_eq_xgcdInput {width : Nat} (spec : ModulusSpec width)
+lemma widenedXgcdInput_eq_xgcdInput {width : Nat} (spec : ModulusSpec width)
     (modulus : CShape.Word (width + 1)) (raw : CShape.Word width)
     (denominator : Residue spec) (modulusValue : modulus.toNat = spec.modulus)
     (represented : raw.toNat = denominator.val) :

@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.OracleModel
 noncomputable section
 
 /-- The original oracle and wider compiled encoding have the same exponent-pair marginal. -/
-theorem pairBornProbability_eq_compiled {N : Nat} (input : Input N)
+lemma pairBornProbability_eq_compiled {N : Nat} (input : Input N)
     (g x : (ZMod N)ˣ)
     (pair : Fin (2 ^ ShortDLP.firstBits (Native.parameters N)) ×
       Fin (2 ^ (Native.parameters N).ell)) :

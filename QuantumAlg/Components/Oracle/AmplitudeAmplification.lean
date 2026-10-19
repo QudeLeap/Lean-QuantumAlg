@@ -43,10 +43,9 @@ public inductive Query (allowInverse allowControlledGood : Bool) where
   | goodReflection
   | controlledGoodReflection (granted : allowControlledGood = true)
 
-/-- The Problem selects this fixed source and its explicit inverse/control access forms. -/
+/-- Fixed source dimensions and explicit inverse/control access forms. -/
 @[expose, implicit_reducible]
-public def model {width : Nat} (preparation : UnitaryOperator (Qubits width))
-    (good : NormalizedVector (Qubits width))
+public def model (width : Nat)
     (allowInverse allowControlledGood : Bool) : OracleModel where
   Query := Query allowInverse allowControlledGood
   Coordinate := Coordinate
@@ -54,6 +53,17 @@ public def model {width : Nat} (preparation : UnitaryOperator (Qubits width))
   signature query := match query with
     | .preparation | .inversePreparation _ | .goodReflection => QuantumSignature.qubits width
     | .controlledGoodReflection _ => QuantumSignature.qubits (1 + width)
+  coordinate query := match query with
+    | .preparation => .preparation
+    | .inversePreparation _ => .inversePreparation
+    | .goodReflection => .goodReflection
+    | .controlledGoodReflection _ => .controlledGoodReflection
+
+/-- One semantic source interprets every independently granted access form. -/
+@[expose] public def interpretation {width : Nat}
+    (preparation : UnitaryOperator (Qubits width)) (good : NormalizedVector (Qubits width))
+    (allowInverse allowControlledGood : Bool) :
+    (model width allowInverse allowControlledGood).Interpretation where
   operator query := match query with
     | .preparation =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width).symm preparation
@@ -65,14 +75,9 @@ public def model {width : Nat} (preparation : UnitaryOperator (Qubits width))
     | .controlledGoodReflection _ =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
           (UnitaryOperator.controlledQubits (OrthogonalProjector.rankOnePhaseReflectionOp good))
-  coordinate query := match query with
-    | .preparation => .preparation
-    | .inversePreparation _ => .inversePreparation
-    | .goodReflection => .goodReflection
-    | .controlledGoodReflection _ => .controlledGoodReflection
 
 /-- Without either grant, only ordinary preparation and good reflection can be called. -/
-public theorem amplitudeSource_ungranted_queries (query : Query false false) :
+public lemma amplitudeSource_ungranted_queries (query : Query false false) :
     query = .preparation ∨ query = .goodReflection := by
   cases query with
   | preparation => exact Or.inl rfl
@@ -81,20 +86,18 @@ public theorem amplitudeSource_ungranted_queries (query : Query false false) :
   | controlledGoodReflection granted => cases granted
 
 /-- Ordinary preparation and its explicitly granted inverse remain separate query counts. -/
-public theorem amplitudeSource_inverse_coordinate_distinct {width : Nat}
-    (preparation : UnitaryOperator (Qubits width)) (good : NormalizedVector (Qubits width))
+public lemma amplitudeSource_inverse_coordinate_distinct (width : Nat)
     (controlled : Bool) :
-    (model preparation good true controlled).coordinate .preparation ≠
-      (model preparation good true controlled).coordinate (.inversePreparation rfl) := by
+    (model width true controlled).coordinate .preparation ≠
+      (model width true controlled).coordinate (.inversePreparation rfl) := by
   change Coordinate.preparation ≠ Coordinate.inversePreparation
   decide
 
 /-- Granting coherent reflection does not merge it with the ordinary reflection coordinate. -/
-public theorem amplitudeSource_controlled_coordinate_distinct {width : Nat}
-    (preparation : UnitaryOperator (Qubits width)) (good : NormalizedVector (Qubits width))
+public lemma amplitudeSource_controlled_coordinate_distinct (width : Nat)
     (inverse : Bool) :
-    (model preparation good inverse true).coordinate .goodReflection ≠
-      (model preparation good inverse true).coordinate (.controlledGoodReflection rfl) := by
+    (model width inverse true).coordinate .goodReflection ≠
+      (model width inverse true).coordinate (.controlledGoodReflection rfl) := by
   change Coordinate.goodReflection ≠ Coordinate.controlledGoodReflection
   decide
 

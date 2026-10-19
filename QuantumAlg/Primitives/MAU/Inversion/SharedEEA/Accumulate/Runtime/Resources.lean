@@ -46,14 +46,14 @@ def events (modulus : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) 
 def depthBound (inputWidth : Nat) : Nat :=
   1 + InputPreparation.auxiliaryWidth inputWidth + Accumulate.eventBound inputWidth
 
-private theorem prepared_width (inputWidth : Nat) :
+private lemma prepared_width (inputWidth : Nat) :
     (PayloadPreparation.frameEncoding inputWidth (inputWidth + 1)).width = width inputWidth := by
   change (encoding inputWidth).width + (inputWidth + 1) = _
   rw [encoding_width]
   unfold width
   omega
 
-private theorem extended_pool (modulus : Nat) (nontrivial : 1 < modulus) :
+private lemma extended_pool (modulus : Nat) (nontrivial : 1 < modulus) :
     (extendedProgram modulus nontrivial).eventCost =
       (Accumulate.program modulus nontrivial).eventCost :=
   (UnitaryCircuit.castCanonicalQubitWidth_eventCost
@@ -61,7 +61,7 @@ private theorem extended_pool (modulus : Nat) (nontrivial : 1 < modulus) :
     (UnitaryCircuit.onBinaryPrefix 1 (Accumulate.program modulus nontrivial))).trans
       (UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost _ _)
 
-private theorem load_pool (modulus : Nat) :
+private lemma load_pool (modulus : Nat) :
     (PayloadPreparation.loadProgram modulus (modulus.size + 1)).eventCost =
       seedEvents modulus := by
   have placed := Execution.PreparationLoaded.program_eventCost
@@ -75,7 +75,7 @@ private theorem load_pool (modulus : Nat) :
     (InputPreparation.auxiliaryQubitLayout modulus.size) .empty
     (InputPreparation.loadConstant modulus))
 
-private theorem native_pool (modulus : Nat) :
+private lemma native_pool (modulus : Nat) :
     (nativeProgram modulus).eventCost ≤ Accumulate.nativeBudget modulus.size := by
   by_cases nontrivial : 1 < modulus
   · have selected : nativeProgram modulus = extendedProgram modulus nontrivial :=
@@ -86,7 +86,7 @@ private theorem native_pool (modulus : Nat) :
   · simp only [nativeProgram, dif_neg nontrivial, UnitaryCircuit.identity_eventCost]
     exact zero_le
 
-private theorem native_count (modulus : Nat) :
+private lemma native_count (modulus : Nat) :
     (nativeProgram modulus).eventCost.card ≤ Accumulate.eventBound modulus.size := by
   by_cases nontrivial : 1 < modulus
   · have selected : nativeProgram modulus = extendedProgram modulus nontrivial :=
@@ -99,13 +99,13 @@ private theorem native_count (modulus : Nat) :
       UnitaryCircuit.identity_eventCost, Multiset.card_zero]
     exact Nat.zero_le _
 
-private theorem add_bound {left right : ResourcePool (.quantum AlgorithmGate.model .empty)}
+private lemma add_bound {left right : ResourcePool (.quantum AlgorithmGate.model .empty)}
     (head : ResourcePool (.quantum AlgorithmGate.model .empty))
     (bounded : left ≤ right) : head + left ≤ head + right :=
   add_le_add_right bounded head
 
 /-- The same actual code meets the independent native-coordinate budget on every path. -/
-theorem accumulateResources_events (modulus : Nat) (path : (code modulus).Path) :
+lemma accumulateResources_events (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).resourcePool path ≤ events modulus := by
   have actual : (code modulus).resourcePool path =
       ZeroPreparation.eventCost AlgorithmGate.model .empty
@@ -127,7 +127,7 @@ theorem accumulateResources_events (modulus : Nat) (path : (code modulus).Path) 
     (native_pool modulus)
 
 /-- The resident peak includes every actually supplied and prepared quantum system. -/
-theorem accumulateResources_resident (modulus : Nat) (path : (code modulus).Path) :
+lemma accumulateResources_resident (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).peakResidentSpace path ≤ space modulus.size := by
   have actual := PayloadRuntime.payloadRuntime_code_resident modulus (modulus.size + 1)
     (nativeProgram modulus) path
@@ -135,7 +135,7 @@ theorem accumulateResources_resident (modulus : Nat) (path : (code modulus).Path
   exact actual
 
 /-- The owned auxiliary peak comes from the same actual visited contexts. -/
-theorem accumulateResources_auxiliary (modulus : Nat) (path : (code modulus).Path) :
+lemma accumulateResources_auxiliary (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).peakAuxiliarySpace path ≤ space modulus.size := by
   have actual := PayloadRuntime.payloadRuntime_code_auxiliary modulus (modulus.size + 1)
     (nativeProgram modulus) path
@@ -143,7 +143,7 @@ theorem accumulateResources_auxiliary (modulus : Nat) (path : (code modulus).Pat
   exact actual
 
 /-- Actual sequential depth charges preparation before the same complete selected native program. -/
-theorem accumulateResources_depth (modulus : Nat) (path : (code modulus).Path) :
+lemma accumulateResources_depth (modulus : Nat) (path : (code modulus).Path) :
     (code modulus).depth (fun _ => 1) path ≤ depthBound modulus.size := by
   have actual : (code modulus).depth (fun _ => 1) path =
       DepthExpr.depthEval (fun _ => 1)

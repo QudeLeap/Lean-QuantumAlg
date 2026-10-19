@@ -52,14 +52,15 @@ def exposureCopyStore (success : CInputRef ctx .bit)
       (.bit .copy ctx verified reconstruction)
 
 /-- Complete actual three-copy execution preserves all quantum-reference blocks and history. -/
-theorem exposureCopyBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma exposureCopyBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (success : CInputRef ctx .bit)
     (recoveredCandidate : CInputRef ctx (.unsignedWord width)) (verified : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (exposureCopyBody (model := model) success recoveredCandidate verified inverseSuccess candidate
-      reconstruction).execute Reference state = state.mapClassical (fun entry =>
+      reconstruction).execute environment Reference state = state.mapClassical (fun entry =>
         let result := exposureCopyStep (model := model) success recoveredCandidate verified
           inverseSuccess candidate reconstruction entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -68,7 +69,7 @@ theorem exposureCopyBody_execute {model : ExecutionModel} [BitWord.Selected mode
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Source protection gives the exact three writes even when caller destinations alias. -/
-theorem exposureCopyStore_write (success : CInputRef ctx .bit)
+lemma exposureCopyStore_write (success : CInputRef ctx .bit)
     (recoveredCandidate : CInputRef ctx (.unsignedWord width)) (verified : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (before : Store ctx)
@@ -91,7 +92,7 @@ theorem exposureCopyStore_write (success : CInputRef ctx .bit)
   rfl
 
 /-- All structural reads outside the three actual copy destinations remain unchanged. -/
-theorem exposureCopyStore_read_other (success : CInputRef ctx .bit)
+lemma exposureCopyStore_read_other (success : CInputRef ctx .bit)
     (recoveredCandidate : CInputRef ctx (.unsignedWord width)) (verified : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (before : Store ctx)
@@ -110,7 +111,7 @@ theorem exposureCopyStore_read_other (success : CInputRef ctx .bit)
     other successFree
 
 /-- Exact chronological exposure writes preserve every other original caller read. -/
-theorem exposureWrite_read_other (inverseSuccess : CWriteRef ctx .bit)
+lemma exposureWrite_read_other (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width)) (reconstruction : CWriteRef ctx .bit)
     (before : Store ctx)
     (value : CShape.Value (.product .bit (FiniteCyclicDLP.OutputShape width)))
@@ -126,7 +127,7 @@ theorem exposureWrite_read_other (inverseSuccess : CWriteRef ctx .bit)
     Store.read_write_of_not_mem_storageKeys _ _ _ other successFree]
 
 /-- Actual structural transport carries all three writes and their overwrite order exactly. -/
-theorem exposureWrite_readsAs {outer : RuntimeCtx kind}
+lemma exposureWrite_readsAs {outer : RuntimeCtx kind}
     (transport : ClassicalWorkspace.Transport outer ctx)
     (inverseSuccess : CWriteRef outer .bit) (candidate : CWriteRef outer (.unsignedWord width))
     (reconstruction : CWriteRef outer .bit) (source : Store outer) (before : Store ctx)

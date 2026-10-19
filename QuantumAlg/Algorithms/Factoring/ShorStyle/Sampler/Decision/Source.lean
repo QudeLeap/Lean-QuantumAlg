@@ -31,7 +31,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The native decision writes the source's complete parameter for the actual scan choice. -/
-theorem samplerDecision_source (input : Input N)
+lemma samplerDecision_source (input : Input N)
     (value : Fin (2 ^ residueSamplingBits N))
     (output : CWriteRef (Layout.context ctx (modulusBits N)) (ParameterShape (modulusBits N)))
     (store : Store (Layout.context ctx (modulusBits N)))

@@ -64,7 +64,7 @@ controlled `U` leaves the target unchanged and kicks the eigenvalue back
 onto the `|1⟩` component of the control [CEMM98, cemm6.tex:142]:
 
 `c-U ((a|0⟩ + b|1⟩) ⊗ |u⟩) = (a|0⟩ + e^{iθ} b|1⟩) ⊗ |u⟩`. -/
-public theorem GeneralizedPhaseKickback.eigenvalue_action (U : UnitaryOperator (Qubits n))
+public lemma GeneralizedPhaseKickback.eigenvalue_action (U : UnitaryOperator (Qubits n))
     (u : NormalizedVector (Qubits n)) (θ : ℝ)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp (θ * Complex.I) • (u : HilbertVector (Qubits n))) (a b : ℂ) :

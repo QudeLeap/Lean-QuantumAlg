@@ -28,6 +28,9 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -36,23 +39,26 @@ local instance (proposition : Prop) : Decidable proposition := Classical.propDec
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
-private theorem source_column (N : Nat) (generator target : (ZMod N)ˣ)
+private lemma source_column (N : Nat) (generator target : (ZMod N)ˣ)
     (row : ctx.register.Index) :
-    (RuntimePlacement.memberProgram m ell width sameWires N generator target).matrix row
+    ((RuntimePlacement.memberProgram m ell width sameWires N generator target).matrix
+      environment.quantum) row
         ((RuntimePlacement.basisEquiv m ell width sameWires).symm
           (CompiledMAU.reloadLabel m ell width N)) =
       (CompiledMAU.evolvedState m ell width N generator target).normalized
         (RuntimePlacement.basisEquiv m ell width sameWires row) :=
   (HilbertOperator.applyVec_ket
-    ((RuntimePlacement.memberProgram m ell width sameWires N generator target).matrix :
+    (((RuntimePlacement.memberProgram m ell width sameWires N generator target).matrix
+      environment.quantum) :
       HilbertOperator ctx.register)
     ((RuntimePlacement.basisEquiv m ell width sameWires).symm
       (CompiledMAU.reloadLabel m ell width N)) row).symm.trans
-    (RuntimePlacement.shortDLP_runtimeMember_seed_amplitude m ell width sameWires N
+    (RuntimePlacement.shortDLP_runtimeMember_seed_amplitude (environment := environment.quantum) m
+      ell width sameWires N
       generator target row)
 
 /-- Actual stored parameters determine source amplitudes without losing any reference entry. -/
-theorem shortDLP_runtimeSelected_seed_store_entry {shape : CShape}
+lemma shortDLP_runtimeSelected_seed_store_entry {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
@@ -60,7 +66,8 @@ theorem shortDLP_runtimeSelected_seed_store_entry {shape : CShape}
     (original : Store ctx) (left right : ctx.register.Index)
     (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((selected m ell width sameWires parameter N generator target).execute Reference state)
+      ((selected m ell width sameWires parameter N generator target).execute
+        environment Reference state)
       (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       (CompiledMAU.evolvedState m ell width N
@@ -82,11 +89,13 @@ theorem shortDLP_runtimeSelected_seed_store_entry {shape : CShape}
   have selection := congrArg
     (fun matrix : HilbertOperator (Register.prod ctx.register Reference) =>
       matrix (left, leftRef) (right, rightRef))
-    (shortDLP_runtimeSelected_store_unitary m ell width sameWires parameter N generator target
+    (shortDLP_runtimeSelected_store_unitary (environment := environment)
+      m ell width sameWires parameter N generator target
       state original)
   refine selection.trans ((local_basis_block
-    (RuntimePlacement.memberProgram m ell width sameWires N
+    ((RuntimePlacement.memberProgram m ell width sameWires N
       (generator (original.read parameter)) (target (original.read parameter))).matrix
+        environment.quantum)
     (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal
     seed left right leftRef rightRef coefficient
     (fun row column => seeded original row column leftRef rightRef)).trans ?_)

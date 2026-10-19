@@ -23,7 +23,7 @@ noncomputable section
 variable {R Reference : Register}
 
 /-- The original ket-times-reference input has the compressed reference's exact event weight. -/
-theorem basisSliceEffect_weight_of_pure (effect : Effect (R.prod Reference)) (label : R.Index)
+lemma basisSliceEffect_weight_of_pure (effect : Effect (R.prod Reference)) (label : R.Index)
     (reference : NormalizedVector Reference) (input : NormalizedVector (R.prod Reference))
     (represented : ∀ left : R.Index, ∀ right : Reference.Index,
       input (left, right) = NormalizedVector.ket (R := R) label left * reference right) :

@@ -38,7 +38,7 @@ variable {N : ℕ} {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
 /-- **Ad-invariance of the HS form on the basis (convention lemma).** For the Hermitian
 HS-orthonormal basis `Bⱼ`, `⟪Bₗ, ⁅Bᵢ, Bₖ⁆⟫ = − ⟪Bₖ, ⁅Bᵢ, Bₗ⁆⟫`. Proved by pure trace cyclicity —
 no conjugation, since all basis vectors are Hermitian. -/
-theorem hsInner_bracket_antisymm (b : DLAHermBasis gens) (i k l : Fin b.dim) :
+lemma hsInner_bracket_antisymm (b : DLAHermBasis gens) (i k l : Fin b.dim) :
     hsInner (b.B l) ⁅b.B i, b.B k⁆ = - hsInner (b.B k) ⁅b.B i, b.B l⁆ := by
   simp only [hsInner, Ring.lie_def, b.herm, Matrix.mul_sub, Matrix.trace_sub, ← Matrix.mul_assoc]
   have eA : (b.B l * b.B i * b.B k).trace = (b.B k * b.B l * b.B i).trace :=
@@ -49,7 +49,7 @@ theorem hsInner_bracket_antisymm (b : DLAHermBasis gens) (i k l : Fin b.dim) :
 
 /-- **`gProj` fixes the algebra.** The HS projection `gProj = ∑ⱼ ⟪Bⱼ,·⟫ • Bⱼ` is the identity on
 `g`, since `{Bⱼ}` is an orthonormal basis of `g`. -/
-theorem gProj_eq_self_of_mem (b : DLAHermBasis gens) {v : Matrix (Fin N) (Fin N) ℂ}
+lemma gProj_eq_self_of_mem (b : DLAHermBasis gens) {v : Matrix (Fin N) (Fin N) ℂ}
     (hv : v ∈ (dynamicalLieAlgebra gens).toSubmodule) : b.gProj v = v := by
   rw [← b.span_eq] at hv
   obtain ⟨c, rfl⟩ := (Submodule.mem_span_range_iff_exists_fun ℂ).mp hv
@@ -60,25 +60,25 @@ theorem gProj_eq_self_of_mem (b : DLAHermBasis gens) {v : Matrix (Fin N) (Fin N)
   simp only [key]
 
 /-- `⊗ₖ` distributes over negation on the left. -/
-theorem neg_kron (A B : Matrix (Fin N) (Fin N) ℂ) : (-A) ⊗ₖ B = -(A ⊗ₖ B) := by
+lemma neg_kron (A B : Matrix (Fin N) (Fin N) ℂ) : (-A) ⊗ₖ B = -(A ⊗ₖ B) := by
   rw [← neg_one_smul ℂ A, Matrix.smul_kronecker, neg_one_smul]
 
 /-- `⊗ₖ` distributes over negation on the right. -/
-theorem kron_neg (A B : Matrix (Fin N) (Fin N) ℂ) : A ⊗ₖ (-B) = -(A ⊗ₖ B) := by
+lemma kron_neg (A B : Matrix (Fin N) (Fin N) ℂ) : A ⊗ₖ (-B) = -(A ⊗ₖ B) := by
   rw [← neg_one_smul ℂ B, Matrix.kronecker_smul, neg_one_smul]
 
 /-- `⊗ₖ` distributes over subtraction on the left. -/
-theorem sub_kron (A₁ A₂ B : Matrix (Fin N) (Fin N) ℂ) :
+lemma sub_kron (A₁ A₂ B : Matrix (Fin N) (Fin N) ℂ) :
     (A₁ - A₂) ⊗ₖ B = A₁ ⊗ₖ B - A₂ ⊗ₖ B := by
   rw [sub_eq_add_neg, Matrix.add_kronecker, neg_kron, ← sub_eq_add_neg]
 
 /-- `⊗ₖ` distributes over subtraction on the right. -/
-theorem kron_sub (A B₁ B₂ : Matrix (Fin N) (Fin N) ℂ) :
+lemma kron_sub (A B₁ B₂ : Matrix (Fin N) (Fin N) ℂ) :
     A ⊗ₖ (B₁ - B₂) = A ⊗ₖ B₁ - A ⊗ₖ B₂ := by
   rw [sub_eq_add_neg, Matrix.kronecker_add, kron_neg, ← sub_eq_add_neg]
 
 /-- `⊗ₖ` distributes over a finite sum on the left. -/
-theorem sum_kron_left {ι : Type*} (s : Finset ι)
+lemma sum_kron_left {ι : Type*} (s : Finset ι)
     (f : ι → Matrix (Fin N) (Fin N) ℂ) (B : Matrix (Fin N) (Fin N) ℂ) :
     (∑ i ∈ s, f i) ⊗ₖ B = ∑ i ∈ s, f i ⊗ₖ B := by
   induction s using Finset.cons_induction with
@@ -86,7 +86,7 @@ theorem sum_kron_left {ι : Type*} (s : Finset ι)
   | cons a s ha ih => rw [Finset.sum_cons, Finset.sum_cons, Matrix.add_kronecker, ih]
 
 /-- `⊗ₖ` distributes over a finite sum on the right. -/
-theorem kron_sum_right {ι : Type*} (B : Matrix (Fin N) (Fin N) ℂ)
+lemma kron_sum_right {ι : Type*} (B : Matrix (Fin N) (Fin N) ℂ)
     (s : Finset ι) (f : ι → Matrix (Fin N) (Fin N) ℂ) :
     B ⊗ₖ (∑ i ∈ s, f i) = ∑ i ∈ s, B ⊗ₖ f i := by
   induction s using Finset.cons_induction with
@@ -159,7 +159,7 @@ public theorem casimir_mem_adCommutantGG (b : DLAHermBasis gens) :
 `g`-invariant (`casimir_mem_adCommutantGG`) and inside the `g ⊗ g` carrier (`casimir_mem_gTensorG`),
 hence in their intersection `gTensorGInvariant`. This is the structural inhabitant the
 de-circularized variance law's `mem_invariant` hypothesis is discharged against. -/
-theorem casimir_mem_gTensorGInvariant (b : DLAHermBasis gens) :
+lemma casimir_mem_gTensorGInvariant (b : DLAHermBasis gens) :
     b.casimir ∈ gTensorGInvariant b := by
   rw [gTensorGInvariant]
   exact Submodule.mem_inf.mpr ⟨casimir_mem_adCommutantGG b, casimir_mem_gTensorG b⟩

@@ -20,7 +20,7 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-private theorem coordinateInputAvoidsPhysical {kind : ProblemKind}
+private lemma coordinateInputAvoidsPhysical {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {targetShape : CShape}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -40,7 +40,7 @@ private theorem coordinateInputAvoidsPhysical {kind : ProblemKind}
   intro equal
   exact different (physicalKey_injective certificates equal)
 
-private theorem writeInputAvoidsPhysical {kind : ProblemKind}
+private lemma writeInputAvoidsPhysical {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {sourceShape targetShape : CShape}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -89,7 +89,7 @@ private def thirdWritePhysicalCell : ThirdWriteCell → PhysicalCell
   | .targetSecond => .inl .targetSecond
   | .targetThird => .inl .targetThird
 
-private theorem thirdFrameAvoidsOf {kind : ProblemKind}
+private lemma thirdFrameAvoidsOf {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N)
@@ -126,7 +126,7 @@ private theorem thirdFrameAvoidsOf {kind : ProblemKind}
   · exact avoids .targetSecond
   · exact avoids .targetThird
 
-private theorem thirdFrameAvoidsCoordinate {kind : ProblemKind}
+private lemma thirdFrameAvoidsCoordinate {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -148,7 +148,7 @@ private theorem thirdFrameAvoidsCoordinate {kind : ProblemKind}
   intro equal
   exact different target (physicalKey_injective certificates equal)
 
-private theorem coordinateInputAvoidsPhysicalKey {kind : ProblemKind}
+private lemma coordinateInputAvoidsPhysicalKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -165,7 +165,7 @@ private theorem coordinateInputAvoidsPhysicalKey {kind : ProblemKind}
   intro equal
   exact different (physicalKey_injective certificates equal)
 
-private theorem writeInputAvoidsPhysicalKey {kind : ProblemKind}
+private lemma writeInputAvoidsPhysicalKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -216,7 +216,7 @@ private def secondWritePhysicalCell : SecondWriteCell → PhysicalCell
   | .targetSecond => .inl .targetSecond
   | .targetThird => .inl .targetThird
 
-private theorem secondFrameAvoidsOf {kind : ProblemKind}
+private lemma secondFrameAvoidsOf {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N)
@@ -256,7 +256,7 @@ private theorem secondFrameAvoidsOf {kind : ProblemKind}
   · exact avoids .targetSecond
   · exact avoids .targetThird
 
-private theorem secondFrameAvoidsCoordinate {kind : ProblemKind}
+private lemma secondFrameAvoidsCoordinate {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -276,7 +276,7 @@ private theorem secondFrameAvoidsCoordinate {kind : ProblemKind}
   exact coordinateInputAvoidsPhysicalKey certificates source sourceCell
     (secondWritePhysicalCell target) sourceKey (different target)
 
-private theorem secondFrameAvoidsWrite {kind : ProblemKind}
+private lemma secondFrameAvoidsWrite {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -318,7 +318,7 @@ private def firstWritePhysicalCell : FirstWriteCell → PhysicalCell
   | .targetSecond => .inl .targetSecond
   | .targetThird => .inl .targetThird
 
-private theorem firstFrameAvoidsOf {kind : ProblemKind}
+private lemma firstFrameAvoidsOf {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N)
@@ -351,7 +351,7 @@ private theorem firstFrameAvoidsOf {kind : ProblemKind}
   · exact avoids .divisionQuotientRemainder
   · exact avoids .divisionOutput
 
-private theorem firstFrameAvoidsWrite {kind : ProblemKind}
+private lemma firstFrameAvoidsWrite {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -371,7 +371,7 @@ private theorem firstFrameAvoidsWrite {kind : ProblemKind}
 
 /-- Any persistent state coordinate other than the three mutable target
 coordinates is framed by the complete nearest-plane routine. -/
-theorem frameAvoidsStateCoordinate {kind : ProblemKind}
+lemma frameAvoidsStateCoordinate {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -406,7 +406,7 @@ theorem frameAvoidsStateCoordinate {kind : ProblemKind}
 
 /-- Avoiding every persistent state and nearest scratch cell is sufficient for
 the complete nearest-plane caller-frame contract. -/
-theorem frameAvoids_of_physical {kind : ProblemKind}
+lemma frameAvoids_of_physical {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}

@@ -29,17 +29,19 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
-theorem completed_stateRequirement_holds (input : Input N) (laterCount : Nat)
+lemma completed_stateRequirement_holds (input : Input N) (laterCount : Nat)
     {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference) :
+    (original : Execution.OracleInput (model N).classicalOracles base Reference) :
     (stateRequirement base noQuantum N (laterCount + 1)).Holds original.caller
-      ((completedRun base noQuantum N input laterCount).finalState Reference original.state) := by
+      ((completedRun base noQuantum N input laterCount).finalState (sourceEnvironment input)
+        Reference original.state) := by
   intro value
   have canonical :
       (StatePromise.mixed (stateTarget base noQuantum N original.caller)
         (stateTarget_normalized base noQuantum N original.caller)).Holds
         ((ExecutionState.mapClassical
-          ((completedRun base noQuantum N input laterCount).finalState Reference original.state)
+          ((completedRun base noQuantum N input laterCount).finalState (sourceEnvironment input)
+            Reference original.state)
           (completedRun base noQuantum N input laterCount).output.eval).block value) := by
     simpa only [stateTarget, RuntimeCtx.register] using
       (completed_statePromise base noQuantum N input laterCount original value)

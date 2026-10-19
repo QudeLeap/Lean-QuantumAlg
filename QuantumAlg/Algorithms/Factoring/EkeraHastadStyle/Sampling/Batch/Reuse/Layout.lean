@@ -49,7 +49,7 @@ def parameter : CInputRef (sampledContext base N) (ParameterShape N) :=
   .storage (ShorStyle.Canonical.Sampler.Retained.parameterRef base N).toCStorageRef
 
 /-- The complete sampled context has exactly the earlier bank's ordered physical wires. -/
-theorem nativeBatchReuse_sampled_wires
+lemma nativeBatchReuse_sampled_wires
     (sameWires : base.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires) :
     (sampledContext base N).quantumWires =
@@ -87,7 +87,7 @@ def finalResults :
     (sampledContext base N) 16
 
 /-- Repetition introduces no quantum systems and leaves the original wire identities intact. -/
-theorem nativeBatchReuse_context_wires
+lemma nativeBatchReuse_context_wires
     (sameWires : base.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires) :
     (context base N).quantumWires =

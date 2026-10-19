@@ -35,7 +35,7 @@ public noncomputable def liftOperator (embedding : Embedding source target)
       (1 : UnitaryOperator (target.complementRegister embedding.selection)))
 
 /-- Every ambient entry retains the complete complementary-basis equality condition. -/
-public theorem liftOperator_entry (embedding : Embedding source target)
+public lemma liftOperator_entry (embedding : Embedding source target)
     (operator : UnitaryOperator source.register) (row column : target.Basis) :
     embedding.liftOperator operator row column =
       operator (embedding.splitBasis row).1 (embedding.splitBasis column).1 *
@@ -57,7 +57,7 @@ public noncomputable def mergeVector (embedding : Embedding source target)
       complement (embedding.splitBasis basis).2
 
 /-- Pointwise form of assembling a vector through an embedding. -/
-@[simp] public theorem mergeVector_apply (embedding : Embedding source target)
+@[simp] public lemma mergeVector_apply (embedding : Embedding source target)
     (selected : HilbertVector source.register)
     (complement : HilbertVector (target.complementRegister embedding.selection))
     (basis : target.Basis) :
@@ -68,7 +68,7 @@ public noncomputable def mergeVector (embedding : Embedding source target)
 
 /-- A lifted operator acts only on the embedded vector and leaves an
 arbitrary complementary vector unchanged. -/
-public theorem liftOperator_applyVec_mergeVector
+public lemma liftOperator_applyVec_mergeVector
     (embedding : Embedding source target)
     (operator : UnitaryOperator source.register)
     (selected : HilbertVector source.register)
@@ -93,7 +93,7 @@ public theorem liftOperator_applyVec_mergeVector
   rfl
 
 /-- A placement covering every target position has no complementary quantum subsystem. -/
-public theorem liftOperator_entry_of_surjective (embedding : Embedding source target)
+public lemma liftOperator_entry_of_surjective (embedding : Embedding source target)
     (onto : Function.Surjective embedding.position)
     (operator : UnitaryOperator source.register) (row column : target.Basis) :
     embedding.liftOperator operator row column =
@@ -107,7 +107,7 @@ public theorem liftOperator_entry_of_surjective (embedding : Embedding source ta
   rw [if_pos same, mul_one]
 
 /-- Extending identity on an embedded subsystem is identity on every ambient wire. -/
-public theorem embedding_liftOperator_one (embedding : Embedding source target) :
+public lemma embedding_liftOperator_one (embedding : Embedding source target) :
     embedding.liftOperator (1 : UnitaryOperator source.register) = 1 := by
   apply Subtype.ext
   funext row column

@@ -26,10 +26,11 @@ namespace QuantumAlg.QuantumPhaseEstimation.Native
 
 noncomputable section
 
-private theorem stageMatrixFold (gates : GateModel) (phaseWidth : Nat)
+private lemma stageMatrixFold (gates : GateModel) (phaseWidth : Nat)
     {systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth))
     (stages : List (Fin phaseWidth)) (initial : Fin (2 ^ phaseWidth) → Nat) :
-    (stages.map (fun stage => (powerStage gates unitary stage).binaryMatrix)).foldl
+    (stages.map (fun stage => ((powerStage gates systemWidth stage).binaryMatrix
+      (UnitarySource.interpretation unitary true)))).foldl
         (fun accumulated next => next * accumulated)
         (qpeExponentOp phaseWidth unitary initial) =
       qpeExponentOp phaseWidth unitary (stageExponentFold stages initial) := by
@@ -41,9 +42,10 @@ private theorem stageMatrixFold (gates : GateModel) (phaseWidth : Nat)
       exact ih (fun phase => stageExponent stage phase + initial phase)
 
 /-- The actual ladder has the original full block-diagonal source-power matrix. -/
-theorem qpeNative_queryLadder_binaryMatrix (gates : GateModel) (phaseWidth : Nat)
+lemma qpeNative_queryLadder_binaryMatrix (gates : GateModel) (phaseWidth : Nat)
     {systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth)) :
-    (queryLadder gates phaseWidth unitary).binaryMatrix =
+    ((queryLadder gates phaseWidth systemWidth).binaryMatrix (UnitarySource.interpretation
+      unitary true)) =
       qpeControlledPowerOp phaseWidth unitary := by
   rw [queryLadder, UnitaryCircuit.unitaryCircuit_binaryMatrix_indexedProduct,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_identity]
@@ -51,11 +53,14 @@ theorem qpeNative_queryLadder_binaryMatrix (gates : GateModel) (phaseWidth : Nat
       qpeExponentOp phaseWidth unitary (fun _ => 0) from
         (qpeExponentOp_zero phaseWidth unitary).symm]
   rw [show List.ofFn (fun stage : Fin phaseWidth =>
-      (powerStage gates unitary stage).binaryMatrix) =
+      ((powerStage gates systemWidth stage).binaryMatrix (UnitarySource.interpretation
+        unitary true))) =
         (List.ofFn fun stage : Fin phaseWidth => stage).map
-          (fun stage => (powerStage gates unitary stage).binaryMatrix) by
+          (fun stage => ((powerStage gates systemWidth stage).binaryMatrix
+            (UnitarySource.interpretation unitary true))) by
     exact List.ofFn_comp' (fun stage : Fin phaseWidth => stage)
-      (fun stage => (powerStage gates unitary stage).binaryMatrix)]
+      (fun stage => ((powerStage gates systemWidth stage).binaryMatrix
+        (UnitarySource.interpretation unitary true)))]
   rw [stageMatrixFold]
   change qpeExponentOp phaseWidth unitary
       (stageExponentFold (List.ofFn fun stage : Fin phaseWidth => stage)

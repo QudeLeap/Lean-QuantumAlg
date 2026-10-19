@@ -22,18 +22,19 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual path composes both verified component traces in chronological order. -/
-theorem pairToNearestPlaneInto_events (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_events (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) :
     (pairToNearestPlaneInto refs).eventTrace path =
       (LatticeWideLllMachine.pairToLllInto refs.wide).eventTrace path.1 ++
         (LatticeNearestPlaneThree.threeInto (nearestRefs refs)).eventTrace path.2 := rfl
 
 /-- The actual complete native multiplicity is the sum of the two actual component pools. -/
-theorem pairToNearestPlaneInto_resourcePool (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_resourcePool (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) :
     (pairToNearestPlaneInto refs).resourcePool path =
       (LatticeWideLllMachine.pairToLllInto refs.wide).resourcePool path.1 +
@@ -44,7 +45,7 @@ theorem pairToNearestPlaneInto_resourcePool (refs : Refs ctx N)
 def operationBound (N : Nat) : Nat := LatticeWideLllMachine.operationBound N + 128
 
 /-- Every actual source-to-nearest-plane path obeys the independent full native operation bound. -/
-theorem pairToNearestPlaneInto_eventCount_le (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_eventCount_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) :
     ((pairToNearestPlaneInto refs).eventTrace path).length ≤ operationBound N := by
   change List.length (_ ++ _) ≤ _
@@ -53,24 +54,24 @@ theorem pairToNearestPlaneInto_eventCount_le (refs : Refs ctx N)
     (LatticeNearestPlaneThree.threeInto_eventCount_le (nearestRefs refs) path.2)
 
 /-- Actual unit-duration depth includes the dependence of nearest plane on original LLL output. -/
-theorem pairToNearestPlaneInto_depth_le (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_depth_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) :
     (pairToNearestPlaneInto refs).depth (fun _ => 1) path ≤ operationBound N :=
   Nat.add_le_add (LatticeWideLllMachine.pairToLllInto_depth_le refs.wide path.1)
     (LatticeNearestPlaneThree.threeInto_depth_le (nearestRefs refs) path.2)
 
 /-- The complete actual original-sample run restores every borrowed-reference joint state. -/
-theorem pairToNearestPlaneInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma pairToNearestPlaneInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (pairToNearestPlaneInto refs).BorrowedRestored Reference state
-      ((pairToNearestPlaneInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((pairToNearestPlaneInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeWideLllMachine.pairToLllInto_borrowedRestored refs.wide Reference state)
     (LatticeNearestPlaneThree.threeInto_borrowedRestored (nearestRefs refs) Reference _)
 
 /-- Every actual original-sample instruction retains the complete originally supplied context. -/
-theorem pairToNearestPlaneInto_visited (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_visited (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (pairToNearestPlaneInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ (_ ++ _) at present
@@ -79,7 +80,7 @@ theorem pairToNearestPlaneInto_visited (refs : Refs ctx N)
     (LatticeNearestPlaneThree.threeInto_visited (nearestRefs refs) path.2 visited)
 
 /-- Actual original-sample resident accounting retains every originally supplied runtime entry. -/
-theorem pairToNearestPlaneInto_resident_le (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_resident_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) :
     (pairToNearestPlaneInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -87,7 +88,7 @@ theorem pairToNearestPlaneInto_resident_le (refs : Refs ctx N)
   rw [pairToNearestPlaneInto_visited refs path visited present]
 
 /-- Actual original-sample auxiliary accounting retains every original runtime workspace role. -/
-theorem pairToNearestPlaneInto_auxiliary_le (refs : Refs ctx N)
+lemma pairToNearestPlaneInto_auxiliary_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneInto refs).Path) :
     (pairToNearestPlaneInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

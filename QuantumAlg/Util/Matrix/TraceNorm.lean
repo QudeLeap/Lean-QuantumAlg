@@ -54,35 +54,35 @@ def singularValues [Fintype n] [DecidableEq n] (A : Matrix n n R) : n → ℝ :=
   fun i => Real.sqrt ((isHermitian_conjTranspose_mul_self A).eigenvalues i)
 
 /-- Singular values are nonnegative. -/
-theorem singularValues_nonneg [Fintype n] [DecidableEq n]
+lemma singularValues_nonneg [Fintype n] [DecidableEq n]
     (A : Matrix n n R) (i : n) :
     0 ≤ singularValues A i :=
   Real.sqrt_nonneg _
 
 @[simp]
-theorem traceNorm_zero [Fintype m] [Fintype n] [DecidableEq n] :
+lemma traceNorm_zero [Fintype m] [Fintype n] [DecidableEq n] :
     traceNorm (0 : Matrix m n R) = 0 := by
   simp [traceNorm]
 
 /-- The trace norm is unchanged by negation. -/
 @[simp]
-theorem traceNorm_neg [Fintype m] [Fintype n] [DecidableEq n] (A : Matrix m n R) :
+lemma traceNorm_neg [Fintype m] [Fintype n] [DecidableEq n] (A : Matrix m n R) :
     traceNorm (-A) = traceNorm A := by
   simp [traceNorm]
 
-theorem traceNorm_eq_neg_self [Fintype m] [Fintype n] [DecidableEq n] (A : Matrix m n R) :
+lemma traceNorm_eq_neg_self [Fintype m] [Fintype n] [DecidableEq n] (A : Matrix m n R) :
     traceNorm (-A) = traceNorm A :=
   traceNorm_neg A
 
 /-- The trace norm is nonnegative. -/
-theorem traceNorm_nonneg [Fintype m] [Fintype n] [DecidableEq n] (A : Matrix m n R) :
+lemma traceNorm_nonneg [Fintype m] [Fintype n] [DecidableEq n] (A : Matrix m n R) :
     0 ≤ A.traceNorm := by
   unfold traceNorm
   exact And.left <| RCLike.nonneg_iff.1
     (Matrix.nonneg_iff_posSemidef.mp (CFC.sqrt_nonneg (Aᴴ * A))).trace_nonneg
 
 /-- The trace norm vanishes exactly on the zero matrix. -/
-theorem traceNorm_zero_iff [Fintype m] [Fintype n] [DecidableEq n]
+lemma traceNorm_zero_iff [Fintype m] [Fintype n] [DecidableEq n]
     (A : Matrix m n R) :
     A.traceNorm = 0 ↔ A = 0 := by
   constructor
@@ -109,7 +109,7 @@ theorem traceNorm_zero_iff [Fintype m] [Fintype n] [DecidableEq n]
     simp
 
 /-- The trace norm is homogeneous under scalar multiplication. -/
-theorem traceNorm_smul [Fintype m] [Fintype n] [DecidableEq n]
+lemma traceNorm_smul [Fintype m] [Fintype n] [DecidableEq n]
     (A : Matrix m n R) (c : R) :
     traceNorm (c • A) = ‖c‖ * traceNorm A := by
   have h :
@@ -150,13 +150,13 @@ theorem traceNorm_smul [Fintype m] [Fintype n] [DecidableEq n]
           (by exact_mod_cast norm_nonneg c))
 
 /-- Square unitary matrices are isometries. -/
-theorem isometry_of_mem_unitaryGroup [Fintype n] [DecidableEq n] {U : Matrix n n R}
+lemma isometry_of_mem_unitaryGroup [Fintype n] [DecidableEq n] {U : Matrix n n R}
     (hU : U ∈ unitaryGroup n R) : Isometry U := by
   simpa [Isometry, star_eq_conjTranspose] using
     (Matrix.mem_unitaryGroup_iff'.mp hU)
 
 /-- The trace norm is invariant under left multiplication by an isometry. -/
-theorem traceNorm_isometry_left [Fintype m] [Fintype n] [Fintype k] [DecidableEq m]
+lemma traceNorm_isometry_left [Fintype m] [Fintype n] [Fintype k] [DecidableEq m]
     [DecidableEq n] {A : Matrix n m R} {U : Matrix k n R}
     (hU : Isometry U) : traceNorm (U * A) = traceNorm A := by
   have harg : (U * A)ᴴ * (U * A) = Aᴴ * A := by
@@ -169,7 +169,7 @@ theorem traceNorm_isometry_left [Fintype m] [Fintype n] [Fintype k] [DecidableEq
   rw [harg]
 
 /-- The trace norm is invariant under left multiplication by a square unitary. -/
-theorem traceNorm_unitary_left [Fintype m] [Fintype n] [DecidableEq m] [DecidableEq n]
+lemma traceNorm_unitary_left [Fintype m] [Fintype n] [DecidableEq m] [DecidableEq n]
     {A : Matrix n m R} {U : Matrix n n R}
     (hU : U ∈ unitaryGroup n R) : traceNorm (U * A) = traceNorm A :=
   traceNorm_isometry_left (isometry_of_mem_unitaryGroup hU)
@@ -192,7 +192,7 @@ lemma cfc_sqrt_isometry_conj [Fintype m] [Fintype n] [DecidableEq n]
   rw [← Matrix.mul_assoc, Matrix.mul_assoc U, CFC.sqrt_mul_sqrt_self A hA]
 
 /-- The trace norm is invariant under right multiplication by an isometry adjoint. -/
-theorem traceNorm_isometry_right [Fintype m] [Fintype n] [Fintype k] [DecidableEq m]
+lemma traceNorm_isometry_right [Fintype m] [Fintype n] [Fintype k] [DecidableEq m]
     [DecidableEq k] {A : Matrix n m R} {U : Matrix k m R}
     (hU : Isometry U) : traceNorm (A * Uᴴ) = traceNorm A := by
   classical
@@ -213,21 +213,21 @@ theorem traceNorm_isometry_right [Fintype m] [Fintype n] [Fintype k] [DecidableE
       simp [show Uᴴ * U = 1 from hU]
 
 /-- The trace norm is invariant under left and right isometries. -/
-theorem traceNorm_isometry_conj [Fintype m] [Fintype n] [DecidableEq m] [DecidableEq n]
+lemma traceNorm_isometry_conj [Fintype m] [Fintype n] [DecidableEq m] [DecidableEq n]
     {A : Matrix n n R} {U V : Matrix m n R}
     (hU : Isometry U) (hV : Isometry V) :
     traceNorm (U * A * Vᴴ) = traceNorm A := by
   rw [traceNorm_isometry_right hV, traceNorm_isometry_left hU]
 
 /-- Square unitary conjugation preserves the trace norm. -/
-theorem traceNorm_unitary_conj [Fintype n] [DecidableEq n]
+lemma traceNorm_unitary_conj [Fintype n] [DecidableEq n]
     {A : Matrix n n R} {U : Matrix.unitaryGroup n R} :
     traceNorm (U.val * A * U.valᴴ) = traceNorm A := by
   have hU : Isometry U.val := isometry_of_mem_unitaryGroup U.2
   exact traceNorm_isometry_conj hU hU
 
 /-- For Hermitian matrices, the trace norm is the sum of absolute eigenvalues. -/
-theorem traceNorm_Hermitian_eq_sum_abs_eigenvalues [Fintype n] [DecidableEq n]
+lemma traceNorm_Hermitian_eq_sum_abs_eigenvalues [Fintype n] [DecidableEq n]
     {A : Matrix n n R} (hA : A.IsHermitian) :
     A.traceNorm = ∑ i, |hA.eigenvalues i| := by
   obtain ⟨U, D, hD, hA_eq, h_eig⟩ :
@@ -271,7 +271,7 @@ theorem traceNorm_Hermitian_eq_sum_abs_eigenvalues [Fintype n] [DecidableEq n]
   simp
 
 /-- A positive semidefinite matrix has trace norm equal to the real part of its trace. -/
-theorem PosSemidef.traceNorm_eq_re_trace [Fintype n] [DecidableEq n]
+lemma PosSemidef.traceNorm_eq_re_trace [Fintype n] [DecidableEq n]
     {A : Matrix n n R} (hA : A.PosSemidef) :
     A.traceNorm = RCLike.re A.trace := by
   rw [traceNorm_Hermitian_eq_sum_abs_eigenvalues hA.1]
@@ -287,7 +287,7 @@ theorem PosSemidef.traceNorm_eq_re_trace [Fintype n] [DecidableEq n]
 
 /-- A unitary multiplier cannot make the real part of the trace of a positive
 semidefinite matrix larger than its trace. -/
-theorem PosSemidef.re_trace_unitary_mul_le_trace [Fintype n] [DecidableEq n]
+lemma PosSemidef.re_trace_unitary_mul_le_trace [Fintype n] [DecidableEq n]
     {P : Matrix n n R} (hP : P.PosSemidef) (U : Matrix.unitaryGroup n R) :
     RCLike.re (((U : Matrix n n R) * P).trace) ≤ RCLike.re P.trace := by
   let V : Matrix.unitaryGroup n R := hP.1.eigenvectorUnitary
@@ -335,7 +335,7 @@ theorem PosSemidef.re_trace_unitary_mul_le_trace [Fintype n] [DecidableEq n]
 
 open scoped Classical in
 /-- The square root `sqrt(Aᴴ * A)` and `A` have the same kernel as linear maps. -/
-theorem ker_mulVecLin_cfc_sqrt_conjTranspose_mul_self [Fintype n]
+lemma ker_mulVecLin_cfc_sqrt_conjTranspose_mul_self [Fintype n]
     (A : Matrix n n R) :
     LinearMap.ker (CFC.sqrt (Aᴴ * A)).mulVecLin =
       LinearMap.ker A.mulVecLin := by
@@ -368,7 +368,7 @@ noncomputable def polarRangeLinearEquiv [Fintype n] [DecidableEq n] (A : Matrix 
       A.mulVecLin.quotKerEquivRange
 
 @[simp]
-theorem polarRangeLinearEquiv_apply_image [Fintype n] [DecidableEq n]
+lemma polarRangeLinearEquiv_apply_image [Fintype n] [DecidableEq n]
     (A : Matrix n n R) (x : n → R) :
     ((polarRangeLinearEquiv A)
       ⟨(CFC.sqrt (Aᴴ * A)).mulVec x, ⟨x, rfl⟩⟩ : n → R) = A.mulVec x := by
@@ -389,7 +389,7 @@ theorem polarRangeLinearEquiv_apply_image [Fintype n] [DecidableEq n]
 open scoped Classical in
 /-- The positive square root `sqrt(Aᴴ * A)` preserves the vector quadratic form
 needed for the polar-decomposition partial isometry on its range. -/
-theorem dotProduct_mulVec_cfc_sqrt_conjTranspose_mul_self [Fintype n]
+lemma dotProduct_mulVec_cfc_sqrt_conjTranspose_mul_self [Fintype n]
     (A : Matrix n n R) (x : n → R) :
     star ((CFC.sqrt (Aᴴ * A)).mulVec x) ⬝ᵥ ((CFC.sqrt (Aᴴ * A)).mulVec x) =
       star (A.mulVec x) ⬝ᵥ A.mulVec x := by
@@ -408,7 +408,7 @@ theorem dotProduct_mulVec_cfc_sqrt_conjTranspose_mul_self [Fintype n]
 open scoped Classical in
 /-- The positive square root `sqrt(Aᴴ * A)` and `A` have the same pointwise
 L2 action norm on Euclidean space. -/
-theorem norm_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
+lemma norm_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
     (A : Matrix n n R) (x : EuclideanSpace R n) :
     ‖(Matrix.toEuclideanCLM (n := n) (𝕜 := R)) (CFC.sqrt (Aᴴ * A)) x‖ =
       ‖(Matrix.toEuclideanCLM (n := n) (𝕜 := R)) A x‖ := by
@@ -422,7 +422,7 @@ theorem norm_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
 open scoped Classical in
 /-- The Euclidean-space operators induced by `sqrt(Aᴴ * A)` and `A` have the
 same kernel. -/
-theorem ker_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
+lemma ker_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
     (A : Matrix n n R) :
     LinearMap.ker
         ((Matrix.toEuclideanCLM (n := n) (𝕜 := R)) (CFC.sqrt (Aᴴ * A))).toLinearMap =
@@ -459,7 +459,7 @@ noncomputable def polarEuclideanRangeLinearEquiv [Fintype n] (A : Matrix n n R) 
 
 open scoped Classical in
 @[simp]
-theorem polarEuclideanRangeLinearEquiv_apply_image [Fintype n]
+lemma polarEuclideanRangeLinearEquiv_apply_image [Fintype n]
     (A : Matrix n n R) (x : EuclideanSpace R n) :
     ((polarEuclideanRangeLinearEquiv A)
       ⟨(Matrix.toEuclideanCLM (n := n) (𝕜 := R)) (CFC.sqrt (Aᴴ * A)) x, ⟨x, rfl⟩⟩ :
@@ -495,7 +495,7 @@ noncomputable def polarEuclideanRangeLinearIsometryEquiv [Fintype n]
 open scoped Classical in
 /-- The source and target ranges of the polar range isometry have equal
 finite dimension. -/
-theorem finrank_range_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
+lemma finrank_range_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
     (A : Matrix n n R) :
     Module.finrank R
         (LinearMap.range
@@ -508,7 +508,7 @@ open scoped Classical in
 /-- The orthogonal complements of the two polar ranges have equal finite
 dimension, so the polar range isometry can be extended by any isometry between
 the complements. -/
-theorem finrank_orthogonal_range_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
+lemma finrank_orthogonal_range_toEuclideanCLM_cfc_sqrt_conjTranspose_mul_self [Fintype n]
     (A : Matrix n n R) :
     Module.finrank R
         (LinearMap.range
@@ -590,7 +590,7 @@ noncomputable def polarEuclideanFullLinearIsometryEquiv [Fintype n]
 
 open scoped Classical in
 @[simp]
-theorem polarEuclideanFullLinearIsometryEquiv_apply_range [Fintype n]
+lemma polarEuclideanFullLinearIsometryEquiv_apply_range [Fintype n]
     (A : Matrix n n R) (x : EuclideanSpace R n) :
     polarEuclideanFullLinearIsometryEquiv A
         ((Matrix.toEuclideanCLM (n := n) (𝕜 := R)) (CFC.sqrt (Aᴴ * A)) x) =
@@ -626,7 +626,7 @@ noncomputable def polarUnitary [Fintype n] [DecidableEq n] (A : Matrix n n R) :
 
 open scoped Classical in
 @[simp]
-theorem toEuclideanCLM_polarUnitary [Fintype n] [DecidableEq n] (A : Matrix n n R) :
+lemma toEuclideanCLM_polarUnitary [Fintype n] [DecidableEq n] (A : Matrix n n R) :
     (Matrix.toEuclideanCLM (n := n) (𝕜 := R)) (polarUnitary A : Matrix n n R) =
       (polarEuclideanFullLinearIsometryEquiv A : EuclideanSpace R n →L[R] EuclideanSpace R n) := by
   ext x
@@ -635,7 +635,7 @@ theorem toEuclideanCLM_polarUnitary [Fintype n] [DecidableEq n] (A : Matrix n n 
 open scoped Classical in
 /-- Matrix-level polar decomposition produced by the finite-dimensional range
 isometry: `A = U * sqrt(Aᴴ * A)`. -/
-theorem polarUnitary_mul_cfc_sqrt_conjTranspose_mul_self [Fintype n] [DecidableEq n]
+lemma polarUnitary_mul_cfc_sqrt_conjTranspose_mul_self [Fintype n] [DecidableEq n]
     (A : Matrix n n R) :
     (polarUnitary A : Matrix n n R) * CFC.sqrt (Aᴴ * A) = A := by
   apply (Matrix.toEuclideanCLM (n := n) (𝕜 := R)).injective
@@ -651,7 +651,7 @@ theorem polarUnitary_mul_cfc_sqrt_conjTranspose_mul_self [Fintype n] [DecidableE
 
 open scoped Classical in
 /-- Rearranged polar decomposition: the positive factor is `Uᴴ * A`. -/
-theorem cfc_sqrt_conjTranspose_mul_self_eq_polarUnitary_conjTranspose_mul
+lemma cfc_sqrt_conjTranspose_mul_self_eq_polarUnitary_conjTranspose_mul
     [Fintype n] [DecidableEq n]
     (A : Matrix n n R) :
     CFC.sqrt (Aᴴ * A) = (polarUnitary A : Matrix n n R)ᴴ * A := by
@@ -674,7 +674,7 @@ theorem cfc_sqrt_conjTranspose_mul_self_eq_polarUnitary_conjTranspose_mul
 open scoped Classical in
 /-- The polar unitary attains the trace-norm pairing. This is the forward
 bridge needed for the usual trace-duality proof of the triangle inequality. -/
-theorem traceNorm_eq_re_trace_polarUnitary [Fintype n] [DecidableEq n]
+lemma traceNorm_eq_re_trace_polarUnitary [Fintype n] [DecidableEq n]
     (A : Matrix n n R) :
     traceNorm A =
       RCLike.re (((polarUnitary A : Matrix n n R)ᴴ * A).trace) := by
@@ -682,7 +682,7 @@ theorem traceNorm_eq_re_trace_polarUnitary [Fintype n] [DecidableEq n]
 
 open scoped Classical in
 /-- The trace-norm polar pairing dominates every unitary trace pairing. -/
-theorem re_trace_unitary_conjTranspose_mul_le_traceNorm [Fintype n] [DecidableEq n]
+lemma re_trace_unitary_conjTranspose_mul_le_traceNorm [Fintype n] [DecidableEq n]
     (A : Matrix n n R) (U : Matrix.unitaryGroup n R) :
     RCLike.re (((U : Matrix n n R)ᴴ * A).trace) ≤ traceNorm A := by
   let P : Matrix n n R := CFC.sqrt (Aᴴ * A)
@@ -708,7 +708,7 @@ theorem re_trace_unitary_conjTranspose_mul_le_traceNorm [Fintype n] [DecidableEq
 
 open scoped Classical in
 /-- The trace norm satisfies the triangle inequality on square matrices. -/
-theorem traceNorm_add_le [Fintype n] [DecidableEq n] (A B : Matrix n n R) :
+lemma traceNorm_add_le [Fintype n] [DecidableEq n] (A B : Matrix n n R) :
     traceNorm (A + B) ≤ traceNorm A + traceNorm B := by
   let U : Matrix.unitaryGroup n R := polarUnitary (A + B)
   calc
@@ -724,12 +724,12 @@ theorem traceNorm_add_le [Fintype n] [DecidableEq n] (A B : Matrix n n R) :
         (re_trace_unitary_conjTranspose_mul_le_traceNorm B U)
 
 /-- The trace norm satisfies the subtraction triangle inequality. -/
-theorem traceNorm_sub_le [Fintype n] [DecidableEq n] (A B : Matrix n n R) :
+lemma traceNorm_sub_le [Fintype n] [DecidableEq n] (A B : Matrix n n R) :
     traceNorm (A - B) ≤ traceNorm A + traceNorm B := by
   simpa [sub_eq_add_neg] using traceNorm_add_le A (-B)
 
 /-- Finite sums satisfy the trace-norm triangle inequality. -/
-theorem traceNorm_finset_sum_le [Fintype n] [DecidableEq n]
+lemma traceNorm_finset_sum_le [Fintype n] [DecidableEq n]
     {ι : Type*} (s : Finset ι) (f : ι → Matrix n n R) :
     traceNorm (∑ i ∈ s, f i) ≤ ∑ i ∈ s, traceNorm (f i) := by
   classical
@@ -742,7 +742,7 @@ theorem traceNorm_finset_sum_le [Fintype n] [DecidableEq n]
         (add_le_add le_rfl ih)
 
 /-- Sums over a finite type satisfy the trace-norm triangle inequality. -/
-theorem traceNorm_sum_le [Fintype n] [DecidableEq n]
+lemma traceNorm_sum_le [Fintype n] [DecidableEq n]
     {ι : Type*} [Fintype ι] (f : ι → Matrix n n R) :
     traceNorm (∑ i, f i) ≤ ∑ i, traceNorm (f i) := by
   classical
@@ -773,7 +773,7 @@ instance : Coe (TraceNormedMatrix n) (Matrix n n ℂ) where
   coe A := A.val
 
 @[ext]
-theorem ext {A B : TraceNormedMatrix n} (h : (A : Matrix n n ℂ) = B) : A = B := by
+lemma ext {A B : TraceNormedMatrix n} (h : (A : Matrix n n ℂ) = B) : A = B := by
   cases A
   cases B
   simp at h
@@ -790,7 +790,7 @@ def linearEquiv (n : Type*) : TraceNormedMatrix n ≃ₗ[ℂ] Matrix n n ℂ :=
   (equiv n).linearEquiv ℂ
 
 @[simp]
-theorem val_add (A B : TraceNormedMatrix n) :
+lemma val_add (A B : TraceNormedMatrix n) :
     ((A + B : TraceNormedMatrix n) : Matrix n n ℂ) = A + B :=
   by
     change (equiv n) (A + B) = (equiv n) A + (equiv n) B
@@ -798,7 +798,7 @@ theorem val_add (A B : TraceNormedMatrix n) :
     simp [equiv]
 
 @[simp]
-theorem val_smul (c : ℂ) (A : TraceNormedMatrix n) :
+lemma val_smul (c : ℂ) (A : TraceNormedMatrix n) :
     ((c • A : TraceNormedMatrix n) : Matrix n n ℂ) = c • (A : Matrix n n ℂ) :=
   by
     change (equiv n) (c • A) = c • (equiv n) A
@@ -806,14 +806,14 @@ theorem val_smul (c : ℂ) (A : TraceNormedMatrix n) :
     simp [equiv]
 
 @[simp]
-theorem val_zero : ((0 : TraceNormedMatrix n) : Matrix n n ℂ) = 0 :=
+lemma val_zero : ((0 : TraceNormedMatrix n) : Matrix n n ℂ) = 0 :=
   by
     change (equiv n) (0 : TraceNormedMatrix n) = 0
     rw [Equiv.zero_def]
     simp [equiv]
 
 @[simp]
-theorem val_neg (A : TraceNormedMatrix n) :
+lemma val_neg (A : TraceNormedMatrix n) :
     ((-A : TraceNormedMatrix n) : Matrix n n ℂ) = -(A : Matrix n n ℂ) :=
   by
     change (equiv n) (-A) = -(equiv n) A
@@ -821,14 +821,14 @@ theorem val_neg (A : TraceNormedMatrix n) :
     simp [equiv]
 
 @[simp]
-theorem val_sub (A B : TraceNormedMatrix n) :
+lemma val_sub (A B : TraceNormedMatrix n) :
     ((A - B : TraceNormedMatrix n) : Matrix n n ℂ) =
       (A : Matrix n n ℂ) - (B : Matrix n n ℂ) :=
   by
     simp [sub_eq_add_neg]
 
 @[simp]
-theorem val_sum {ι : Type*} (s : Finset ι) (f : ι → TraceNormedMatrix n) :
+lemma val_sum {ι : Type*} (s : Finset ι) (f : ι → TraceNormedMatrix n) :
     ((∑ i ∈ s, f i : TraceNormedMatrix n) : Matrix n n ℂ) =
       ∑ i ∈ s, (f i : Matrix n n ℂ) := by
   classical
@@ -838,7 +838,7 @@ theorem val_sum {ι : Type*} (s : Finset ι) (f : ι → TraceNormedMatrix n) :
   | insert a s ha ih =>
       simp [ha, ih]
 
-theorem val_univ_sum {ι : Type*} [Fintype ι] (f : ι → TraceNormedMatrix n) :
+lemma val_univ_sum {ι : Type*} [Fintype ι] (f : ι → TraceNormedMatrix n) :
     ((∑ i, f i : TraceNormedMatrix n) : Matrix n n ℂ) =
       ∑ i, (f i : Matrix n n ℂ) := by
   classical
@@ -848,12 +848,12 @@ noncomputable instance [Fintype n] [DecidableEq n] : Norm (TraceNormedMatrix n) 
   norm A := Matrix.traceNorm (A : Matrix n n ℂ)
 
 @[simp]
-theorem norm_def [Fintype n] [DecidableEq n] (A : TraceNormedMatrix n) :
+lemma norm_def [Fintype n] [DecidableEq n] (A : TraceNormedMatrix n) :
     ‖A‖ = Matrix.traceNorm (A : Matrix n n ℂ) :=
   rfl
 
 /-- The trace norm supplies a normed-space core on square complex matrices. -/
-theorem normedSpaceCore [Fintype n] [DecidableEq n] :
+lemma normedSpaceCore [Fintype n] [DecidableEq n] :
     NormedSpace.Core ℂ (TraceNormedMatrix n) where
   norm_nonneg A := by
     simpa using Matrix.traceNorm_nonneg (A := (A : Matrix n n ℂ))

@@ -35,7 +35,7 @@ private def reindexStarAlgEquiv (equivalence : R.Index ≃ S.Index) :
     map_smul' := fun _ _ => rfl }
 
 /-- Relabeling both matrix axes preserves the L2 operator norm exactly. -/
-public theorem opNorm_reindex (equivalence : R.Index ≃ S.Index) (operator : HilbertOperator R) :
+public lemma opNorm_reindex (equivalence : R.Index ≃ S.Index) (operator : HilbertOperator R) :
     opNorm (R := S) (operator.submatrix equivalence.symm equivalence.symm) =
       opNorm operator := by
   unfold opNorm
@@ -44,7 +44,7 @@ public theorem opNorm_reindex (equivalence : R.Index ≃ S.Index) (operator : Hi
     (reindexStarAlgEquiv equivalence).injective operator
 
 /-- The error between exact-phase unitary targets is unchanged by a common basis transport. -/
-public theorem opNorm_reindex_sub (equivalence : R.Index ≃ S.Index)
+public lemma opNorm_reindex_sub (equivalence : R.Index ≃ S.Index)
     (first second : UnitaryOperator R) :
     opNorm ((UnitaryOperator.reindex equivalence first : HilbertOperator S) -
       (UnitaryOperator.reindex equivalence second : HilbertOperator S)) =

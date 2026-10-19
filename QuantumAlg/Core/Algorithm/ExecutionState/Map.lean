@@ -21,7 +21,7 @@ namespace QuantumAlg.ExecutionState
 noncomputable section
 
 /-- Pointwise equal classical maps give the same state under any equality decisions. -/
-public theorem executionState_mapClassical_congr_decision
+public lemma executionState_mapClassical_congr_decision
     {C D : Type} [Fintype C] [Fintype D] {R : Register}
     (state : ExecutionState C R) (left right : C → D)
     (same : ∀ entry, left entry = right entry) (firstDecision secondDecision : DecidableEq D) :

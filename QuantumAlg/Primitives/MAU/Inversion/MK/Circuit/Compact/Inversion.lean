@@ -27,6 +27,8 @@ namespace CompactInversion
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open MK.Compact
 open Nat.FixedWidth
@@ -56,7 +58,7 @@ def terminalOneClearStep (fieldTail counterWidth : Nat) :
     (terminalOneClearGates fieldTail counterWidth)
 
 /-- Clearing terminal `u = 1` changes no other compact-carrier field. -/
-theorem terminalOneClearStep_state
+lemma terminalOneClearStep_state
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth)
     (hu : x.core.u = 1) :
@@ -82,12 +84,12 @@ theorem terminalOneClearStep_state
     MK.Compact.registerTupleEquiv, hword]
 
 /-- The terminal-`u` clearing circuit realizes its literal native gate. -/
-theorem terminalOneClear_realizes (fieldTail counterWidth : Nat) :
+lemma terminalOneClear_realizes (fieldTail counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ counterWidth)
-      (terminalOneClearProgram fieldTail counterWidth)
+      (terminalOneClearProgram fieldTail counterWidth) environment
       (terminalOneClearStep fieldTail counterWidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (environment := environment)
     (QubitLayout.canonical _) .empty
     (terminalOneClearGates fieldTail counterWidth)
 
@@ -100,7 +102,7 @@ def terminalOneRestoreStep (fieldTail counterWidth : Nat) :
 
 /-- Restoring immediately after clearing terminal `u = 1` returns the whole
 compact carrier, including its public target. -/
-theorem terminalOneRestoreStep_after_terminalOneClearStep
+lemma terminalOneRestoreStep_after_terminalOneClearStep
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     terminalOneRestoreStep fieldTail counterWidth
@@ -110,7 +112,7 @@ theorem terminalOneRestoreStep_after_terminalOneClearStep
 
 /-- Normalize the spelling of the physical counter-width fit used by the
 correction loop. -/
-theorem correctionWidthFit (fieldTail counterTail : Nat)
+lemma correctionWidthFit (fieldTail counterTail : Nat)
     (hwidth : counterTail + 2 <= fieldTail.succ) :
     (counterTail + 1) + 1 <= fieldTail.succ := by
   omega
@@ -121,7 +123,7 @@ set_option maxHeartbeats 800000 in
 /-- Clearing terminal `u = 1` converts the full compact fold endpoint into
 the canonical correction boundary without changing its sole history word,
 padding counter, raw coefficient, or public target. -/
-theorem terminalOneClearStep_compactFold_eq_correctionBoundaryState
+lemma terminalOneClearStep_compactFold_eq_correctionBoundaryState
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -255,7 +257,7 @@ def compactInversionStep
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- The complete ledger executes its five named phases in physical order. -/
-theorem compactInversionStep_eq_stages
+lemma compactInversionStep_eq_stages
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -280,7 +282,7 @@ set_option maxHeartbeats 1200000 in
 caller-owned target.  The update is the sign-adjusted runtime-count correction
 of the physical fixed-round coefficient; the input, sole history word, padding
 counter, and all shared work are restored exactly. -/
-theorem compactInversionStep_cleanEndpoint
+lemma compactInversionStep_cleanEndpoint
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -386,7 +388,7 @@ set_option maxHeartbeats 800000 in
 is exactly the source trace's corrected Kaliski residue.  The full-width
 hypothesis is what guarantees that all selected doublings fit in the physical
 `n`-slot correction schedule. -/
-theorem compactFold_correctedResidue_eq_trace
+lemma compactFold_correctedResidue_eq_trace
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -454,7 +456,7 @@ restores the complete compact workspace and adds the Montgomery--Kaliski
 residue `2^(2n) * input⁻¹` to the caller-owned target.  In particular, when
 the input itself is encoded as `x * 2^n`, this is `x⁻¹ * 2^n`, exactly the
 Montgomery inversion convention used by RNSL17. -/
-theorem compactInversionStep_cleanMontgomeryUnitEndpoint
+lemma compactInversionStep_cleanMontgomeryUnitEndpoint
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -568,16 +570,16 @@ theorem compactInversionStep_cleanMontgomeryUnitEndpoint
 
 /-- The complete compact inversion circuit realizes its literal gate-list
 action, so all resource claims are tied to the same native primitive ledger. -/
-theorem compactInversion_realizes
+lemma compactInversion_realizes
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 2))
-      (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth)
+      (compactInversionProgram fieldTail counterTail p hfit hcapacity hwidth) environment
       (compactInversionStep fieldTail counterTail p hfit hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList
+  EncodedBit.GateSpec.realizesList (environment := environment)
     (QubitLayout.canonical _) .empty
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
 
@@ -586,7 +588,7 @@ theorem compactInversion_realizes
 /-- Exact X/CNOT/Toffoli/length ledger of complete compact inversion.  The
 only public-constant terms are Hamming weights of gate labels that occur in
 the literal source list. -/
-theorem compactInversionGates_resource
+lemma compactInversionGates_resource
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -642,7 +644,7 @@ theorem compactInversionGates_resource
 
 /-- The event pool cardinality is exactly the length of the same literal gate
 ledger used by the semantics theorem. -/
-theorem compactInversionProgram_eventCost_card
+lemma compactInversionProgram_eventCost_card
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -654,7 +656,7 @@ theorem compactInversionProgram_eventCost_card
     (compactInversionGates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- Exact X count of the directly compiled complete inversion. -/
-theorem compactInversionProgram_x_count
+lemma compactInversionProgram_x_count
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -672,7 +674,7 @@ theorem compactInversionProgram_x_count
       hwidth).1]
 
 /-- Exact CNOT count of the directly compiled complete inversion. -/
-theorem compactInversionProgram_cnot_count
+lemma compactInversionProgram_cnot_count
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -688,7 +690,7 @@ theorem compactInversionProgram_cnot_count
       hwidth).2.1]
 
 /-- Exact Toffoli count of the directly compiled complete inversion. -/
-theorem compactInversionProgram_toffoli_count
+lemma compactInversionProgram_toffoli_count
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -706,7 +708,7 @@ theorem compactInversionProgram_toffoli_count
       hwidth).2.2.1]
 
 /-- Public-constant-independent Toffoli bound for complete compact inversion. -/
-theorem compactInversionGates_toffoliMultiplicity_sum_le
+lemma compactInversionGates_toffoliMultiplicity_sum_le
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -728,7 +730,7 @@ theorem compactInversionGates_toffoliMultiplicity_sum_le
 
 /-- Public-constant-independent primitive length bound for complete compact
 inversion. -/
-theorem compactInversionGates_length_le
+lemma compactInversionGates_length_le
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -747,7 +749,7 @@ theorem compactInversionGates_length_le
 
 /-- The compiled Toffoli count obeys the bound derived from its literal gate
 list. -/
-theorem compactInversionProgram_toffoli_count_le
+lemma compactInversionProgram_toffoli_count_le
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -764,7 +766,7 @@ theorem compactInversionProgram_toffoli_count_le
     counterTail p hfit hcapacity hwidth
 
 /-- The symbolic depth is built from the same ordered primitive event trace. -/
-theorem compactInversionProgram_eventDepth
+lemma compactInversionProgram_eventDepth
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -779,7 +781,7 @@ theorem compactInversionProgram_eventDepth
 
 /-- Under unit duration per native event, the strict sequential depth is
 bounded by the native list-length derivation above. -/
-theorem compactInversionProgram_unitDepth_le
+lemma compactInversionProgram_unitDepth_le
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -796,7 +798,7 @@ theorem compactInversionProgram_unitDepth_le
 
 /-- The carrier used by the P-256 specialization has exactly 2074 qubits:
 `n = 256` and the fixed-round counter width is nine. -/
-theorem compactInversionCarrier_256_width :
+lemma compactInversionCarrier_256_width :
     (MK.Compact.encoding 256 9).width = 2074 := by
   rw [MK.Compact.encoding_width_exact 256 9 (by omega)]
 

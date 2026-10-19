@@ -26,7 +26,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace ExecutionState
 
 /-- A classically selected local unitary preserves every weighted reference entry. -/
-theorem referenceFiberSum_applyLocalUnitary {C : Type} [Fintype C] {R Reference : Register}
+lemma referenceFiberSum_applyLocalUnitary {C : Type} [Fintype C] {R Reference : Register}
     (state : ExecutionState C (Register.prod R Reference)) (program : C → UnitaryOperator R)
     (weight : C → ℂ) (left right : Reference.Index) :
     referenceFiberSum (state.applyUnitary (fun value =>
@@ -49,20 +49,24 @@ namespace Circuit
 open Execution
 
 /-- The actual unitary instruction preserves each complete store-weighted reference entry. -/
-theorem unitary_weighted_reference {gates : GateModel} {oracles : OracleModel}
+lemma unitary_weighted_reference {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
     {ctx : RuntimeCtx .quantum} (program : UnitaryCircuit gates oracles ctx.quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
     (weight : Store ctx → ℂ)
     (left right : Reference.Index) :
-    ExecutionState.referenceFiberSum ((Circuit.unitary (operations := operations)
-        (classicalOracles := classicalOracles) program).execute Reference state)
+    ExecutionState.referenceFiberSum
+      ((Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+        (classicalOracles := classicalOracles) program).execute environment Reference state)
         (fun entry _ => weight entry.1) left right =
       ExecutionState.referenceFiberSum state (fun entry _ => weight entry.1) left right := by
   rw [execute_unitary]
   simp only [ExecutionState.referenceFiberSum_mapClassical]
-  exact ExecutionState.referenceFiberSum_applyLocalUnitary state (fun _ => program.matrix)
+  exact ExecutionState.referenceFiberSum_applyLocalUnitary state
+    (fun _ => program.matrix environment.quantum)
     (fun entry => weight entry.1) left right
 
 end Circuit

@@ -89,7 +89,7 @@ def activeBit (fieldWidth counterWidth : Nat) :
   Layout.liftArithmeticBit fieldWidth counterWidth
     (MK.Compact.activeBit fieldWidth counterWidth)
 
-@[simp] theorem uWord_get (fieldWidth counterWidth : Nat)
+@[simp] lemma uWord_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Layout.Registers fieldWidth counterWidth) :
     ((uWord fieldWidth counterWidth).bit bit).get registers =
       registers.arithmetic.core.u.val.testBit bit.val := by
@@ -98,7 +98,7 @@ def activeBit (fieldWidth counterWidth : Nat) :
   exact MK.Compact.uValueWord_get fieldWidth counterWidth bit
     registers.arithmetic
 
-@[simp] theorem sCoefficientWord_get (fieldWidth counterWidth : Nat)
+@[simp] lemma sCoefficientWord_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Layout.Registers fieldWidth counterWidth) :
     ((sCoefficientWord fieldWidth counterWidth).bit bit).get registers =
       registers.arithmetic.core.sCoeff.val.testBit bit.val := by
@@ -108,7 +108,7 @@ def activeBit (fieldWidth counterWidth : Nat) :
   exact MK.RegisterBits.sCoeffValueBit_get fieldWidth counterWidth
     (Fin.castSucc bit) registers.arithmetic.core
 
-@[simp] theorem rCoefficientWord_get (fieldWidth counterWidth : Nat)
+@[simp] lemma rCoefficientWord_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Layout.Registers fieldWidth counterWidth) :
     ((rCoefficientWord fieldWidth counterWidth).bit bit).get registers =
       registers.arithmetic.core.rCoeff.val.testBit bit.val := by
@@ -118,7 +118,7 @@ def activeBit (fieldWidth counterWidth : Nat) :
   exact MK.RegisterBits.rCoeffValueBit_get fieldWidth counterWidth
     (Fin.castSucc bit) registers.arithmetic.core
 
-@[simp] theorem historyValueBit_get (fieldWidth counterWidth : Nat)
+@[simp] lemma historyValueBit_get (fieldWidth counterWidth : Nat)
     (bit : Fin (2 * fieldWidth))
     (registers : Layout.Registers fieldWidth counterWidth) :
     (historyValueBit fieldWidth counterWidth bit).get registers =
@@ -129,19 +129,19 @@ def activeBit (fieldWidth counterWidth : Nat) :
   rw [MK.RegisterBits.historyBit_get]
   simp
 
-@[simp] theorem historyLowWord_get (fieldWidth counterWidth : Nat)
+@[simp] lemma historyLowWord_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Layout.Registers fieldWidth counterWidth) :
     ((historyLowWord fieldWidth counterWidth).bit bit).get registers =
       registers.arithmetic.core.history.val.testBit bit.val := by
   simp [historyLowWord]
 
-@[simp] theorem historyHighWord_get (fieldWidth counterWidth : Nat)
+@[simp] lemma historyHighWord_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Layout.Registers fieldWidth counterWidth) :
     ((historyHighWord fieldWidth counterWidth).bit bit).get registers =
       registers.arithmetic.core.history.val.testBit (fieldWidth + bit.val) := by
   simp [historyHighWord]
 
-@[simp] theorem activeBit_get (fieldWidth counterWidth : Nat)
+@[simp] lemma activeBit_get (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth) :
     (activeBit fieldWidth counterWidth).get registers =
       registers.arithmetic.core.active := by
@@ -149,7 +149,7 @@ def activeBit (fieldWidth counterWidth : Nat) :
     registers.arithmetic = _
   exact MK.Compact.activeBit_get fieldWidth counterWidth registers.arithmetic
 
-@[simp] theorem activeBit_flip (fieldWidth counterWidth : Nat)
+@[simp] lemma activeBit_flip (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth) :
     (activeBit fieldWidth counterWidth).flip registers =
       { registers with arithmetic :=
@@ -339,12 +339,12 @@ private def coefficientLowValue (fieldWidth : Nat)
     Nat.FixedWidth.Word fieldWidth :=
   CompactCorrection.truncateFixedWord fieldWidth coefficient
 
-@[simp] theorem coefficientLowValue_zero (fieldWidth : Nat) :
+@[simp] lemma coefficientLowValue_zero (fieldWidth : Nat) :
     coefficientLowValue fieldWidth 0 = 0 := by
   apply Fin.ext
   simp [coefficientLowValue, CompactCorrection.truncateFixedWord]
 
-@[simp] theorem coefficientLowValue_one (fieldWidth : Nat) :
+@[simp] lemma coefficientLowValue_one (fieldWidth : Nat) :
     coefficientLowValue fieldWidth 1 = 1 := by
   apply Fin.ext
   simp [coefficientLowValue, CompactCorrection.truncateFixedWord]
@@ -357,12 +357,12 @@ private def coefficientTopValue (fieldWidth : Nat)
     rw [Nat.div_lt_iff_lt_mul (Nat.two_pow_pos fieldWidth)]
     simpa [pow_succ, Nat.mul_comm] using coefficient.isLt⟩
 
-@[simp] theorem coefficientTopValue_zero (fieldWidth : Nat) :
+@[simp] lemma coefficientTopValue_zero (fieldWidth : Nat) :
     coefficientTopValue fieldWidth 0 = 0 := by
   apply Fin.ext
   simp [coefficientTopValue]
 
-@[simp] theorem coefficientTopValue_one_succ (fieldTail : Nat) :
+@[simp] lemma coefficientTopValue_one_succ (fieldTail : Nat) :
     coefficientTopValue fieldTail.succ 1 = 0 := by
   apply Fin.ext
   simp [coefficientTopValue]
@@ -386,7 +386,7 @@ private def coefficientJoin (fieldWidth : Nat)
         Nat.mul_le_mul_left _ (Nat.succ_le_of_lt top.isLt)
     simpa [pow_succ] using hbound⟩
 
-private theorem coefficientLowValue_join (fieldWidth : Nat)
+private lemma coefficientLowValue_join (fieldWidth : Nat)
     (low : Nat.FixedWidth.Word fieldWidth)
     (top : Nat.FixedWidth.Word 1) :
     coefficientLowValue fieldWidth (coefficientJoin fieldWidth low top) =
@@ -395,7 +395,7 @@ private theorem coefficientLowValue_join (fieldWidth : Nat)
   change (low.val + 2 ^ fieldWidth * top.val) % 2 ^ fieldWidth = low.val
   rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt low.isLt]
 
-private theorem coefficientTopValue_join (fieldWidth : Nat)
+private lemma coefficientTopValue_join (fieldWidth : Nat)
     (low : Nat.FixedWidth.Word fieldWidth)
     (top : Nat.FixedWidth.Word 1) :
     coefficientTopValue fieldWidth (coefficientJoin fieldWidth low top) =
@@ -409,14 +409,14 @@ private theorem coefficientTopValue_join (fieldWidth : Nat)
     _ = 0 + top.val := by rw [Nat.div_eq_of_lt low.isLt]
     _ = top.val := Nat.zero_add _
 
-@[simp] theorem coefficientJoin_zero_top (fieldWidth : Nat)
+@[simp] lemma coefficientJoin_zero_top (fieldWidth : Nat)
     (low : Nat.FixedWidth.Word fieldWidth) :
     coefficientJoin fieldWidth low 0 =
       CompactCorrection.widenFixedWord fieldWidth low := by
   apply Fin.ext
   simp [coefficientJoin, CompactCorrection.widenFixedWord]
 
-private theorem coefficientJoin_split (fieldWidth : Nat)
+private lemma coefficientJoin_split (fieldWidth : Nat)
     (coefficient : Nat.FixedWidth.Word (fieldWidth + 1)) :
     coefficientJoin fieldWidth (coefficientLowValue fieldWidth coefficient)
       (coefficientTopValue fieldWidth coefficient) = coefficient := by
@@ -436,7 +436,7 @@ private def setSCoefficientLow (fieldWidth counterWidth : Nat)
               registers.arithmetic.core.sCoeff) } } }
 
 /-- Flipping a routed low `s` bit changes only that coefficient field. -/
-private theorem sCoefficientWord_flip (fieldWidth counterWidth : Nat)
+private lemma sCoefficientWord_flip (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth)
     (registers : Layout.Registers fieldWidth counterWidth) :
     ((sCoefficientWord fieldWidth counterWidth).bit bit).flip registers =
@@ -463,7 +463,7 @@ private theorem sCoefficientWord_flip (fieldWidth counterWidth : Nat)
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
     EncodedBit.relabel]
 
-private theorem coefficientTopValue_flipSLow
+private lemma coefficientTopValue_flipSLow
     (fieldWidth counterWidth : Nat) (bit : Fin fieldWidth)
     (registers : Layout.Registers fieldWidth counterWidth) :
     coefficientTopValue fieldWidth
@@ -544,7 +544,7 @@ def sCoefficientPort (fieldWidth counterWidth : Nat) :
     unfold setSCoefficientLow
     rw [htop]
 
-@[simp] theorem sCoefficientPort_set (fieldWidth counterWidth : Nat)
+@[simp] lemma sCoefficientPort_set (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth)
     (value : Nat.FixedWidth.Word fieldWidth) :
     (sCoefficientPort fieldWidth counterWidth).set registers value =
@@ -569,7 +569,7 @@ private def setRCoefficientLow (fieldWidth counterWidth : Nat)
               registers.arithmetic.core.rCoeff) } } }
 
 /-- Flipping a routed low `r` bit changes only that coefficient field. -/
-private theorem rCoefficientWord_flip (fieldWidth counterWidth : Nat)
+private lemma rCoefficientWord_flip (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth)
     (registers : Layout.Registers fieldWidth counterWidth) :
     ((rCoefficientWord fieldWidth counterWidth).bit bit).flip registers =
@@ -595,7 +595,7 @@ private theorem rCoefficientWord_flip (fieldWidth counterWidth : Nat)
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
     EncodedBit.relabel]
 
-private theorem coefficientTopValue_flipRLow
+private lemma coefficientTopValue_flipRLow
     (fieldWidth counterWidth : Nat) (bit : Fin fieldWidth)
     (registers : Layout.Registers fieldWidth counterWidth) :
     coefficientTopValue fieldWidth
@@ -677,7 +677,7 @@ def rCoefficientPort (fieldWidth counterWidth : Nat) :
     unfold setRCoefficientLow
     rw [htop]
 
-@[simp] theorem rCoefficientPort_set (fieldWidth counterWidth : Nat)
+@[simp] lemma rCoefficientPort_set (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth)
     (value : Nat.FixedWidth.Word fieldWidth) :
     (rCoefficientPort fieldWidth counterWidth).set registers value =
@@ -691,7 +691,7 @@ def rCoefficientPort (fieldWidth counterWidth : Nat) :
 
 /-! ## Physical separation -/
 
-theorem historyValueBit_wire_ne (fieldWidth counterWidth : Nat)
+lemma historyValueBit_wire_ne (fieldWidth counterWidth : Nat)
     {left right : Fin (2 * fieldWidth)} (hne : left ≠ right) :
     (historyValueBit fieldWidth counterWidth left).wire ≠
       (historyValueBit fieldWidth counterWidth right).wire := by
@@ -700,7 +700,7 @@ theorem historyValueBit_wire_ne (fieldWidth counterWidth : Nat)
   exact MK.RegisterBits.history_history_wire_ne fieldWidth counterWidth
     (littleEndianWire_ne hne)
 
-theorem historyLowWord_pairwise_ne (fieldWidth counterWidth : Nat) :
+lemma historyLowWord_pairwise_ne (fieldWidth counterWidth : Nat) :
     ∀ left right, left ≠ right →
       ((historyLowWord fieldWidth counterWidth).bit left).wire ≠
         ((historyLowWord fieldWidth counterWidth).bit right).wire := by
@@ -711,7 +711,7 @@ theorem historyLowWord_pairwise_ne (fieldWidth counterWidth : Nat) :
   apply Fin.ext
   exact congrArg (fun index : Fin (2 * fieldWidth) => index.val) heq
 
-theorem historyHighWord_pairwise_ne (fieldWidth counterWidth : Nat) :
+lemma historyHighWord_pairwise_ne (fieldWidth counterWidth : Nat) :
     ∀ left right, left ≠ right →
       ((historyHighWord fieldWidth counterWidth).bit left).wire ≠
         ((historyHighWord fieldWidth counterWidth).bit right).wire := by
@@ -724,7 +724,7 @@ theorem historyHighWord_pairwise_ne (fieldWidth counterWidth : Nat) :
     congrArg (fun index : Fin (2 * fieldWidth) => index.val) heq
   exact Nat.add_left_cancel hval
 
-theorem historyLow_high_ne (fieldWidth counterWidth : Nat) :
+lemma historyLow_high_ne (fieldWidth counterWidth : Nat) :
     ∀ low high,
       ((historyLowWord fieldWidth counterWidth).bit low).wire ≠
         ((historyHighWord fieldWidth counterWidth).bit high).wire := by
@@ -744,7 +744,7 @@ private def historyLowValue (fieldWidth : Nat)
   ⟨history.val % 2 ^ fieldWidth,
     Nat.mod_lt _ (Nat.two_pow_pos fieldWidth)⟩
 
-@[simp] theorem historyLowValue_zero (fieldWidth : Nat) :
+@[simp] lemma historyLowValue_zero (fieldWidth : Nat) :
     historyLowValue fieldWidth 0 = 0 := by
   apply Fin.ext
   simp [historyLowValue]
@@ -760,7 +760,7 @@ private def historyHighValue (fieldWidth : Nat)
       _ = 2 ^ fieldWidth * 2 ^ fieldWidth := by
         rw [two_mul, pow_add]⟩
 
-@[simp] theorem historyHighValue_zero (fieldWidth : Nat) :
+@[simp] lemma historyHighValue_zero (fieldWidth : Nat) :
     historyHighValue fieldWidth 0 = 0 := by
   apply Fin.ext
   simp [historyHighValue]
@@ -780,14 +780,14 @@ private def historyJoin (fieldWidth : Nat)
       _ ≤ 2 ^ fieldWidth * 2 ^ fieldWidth :=
         Nat.mul_le_mul_left _ (Nat.succ_le_of_lt high.isLt)⟩
 
-private theorem historyLowValue_join (fieldWidth : Nat)
+private lemma historyLowValue_join (fieldWidth : Nat)
     (low high : Nat.FixedWidth.Word fieldWidth) :
     historyLowValue fieldWidth (historyJoin fieldWidth low high) = low := by
   apply Fin.ext
   change (low.val + 2 ^ fieldWidth * high.val) % 2 ^ fieldWidth = low.val
   rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt low.isLt]
 
-private theorem historyHighValue_join (fieldWidth : Nat)
+private lemma historyHighValue_join (fieldWidth : Nat)
     (low high : Nat.FixedWidth.Word fieldWidth) :
     historyHighValue fieldWidth (historyJoin fieldWidth low high) = high := by
   apply Fin.ext
@@ -801,7 +801,7 @@ private theorem historyHighValue_join (fieldWidth : Nat)
 
 /-- Replacing the low history half discards its previous low value while
 retaining the same high half. -/
-@[simp] theorem historyJoin_overwriteLow (fieldWidth : Nat)
+@[simp] lemma historyJoin_overwriteLow (fieldWidth : Nat)
     (previous next high : Nat.FixedWidth.Word fieldWidth) :
     historyJoin fieldWidth next
         (historyHighValue fieldWidth
@@ -809,7 +809,7 @@ retaining the same high half. -/
       historyJoin fieldWidth next high := by
   rw [historyHighValue_join]
 
-private theorem historyJoin_split (fieldWidth : Nat)
+private lemma historyJoin_split (fieldWidth : Nat)
     (history : Nat.FixedWidth.Word (2 * fieldWidth)) :
     historyJoin fieldWidth (historyLowValue fieldWidth history)
       (historyHighValue fieldWidth history) = history := by
@@ -840,7 +840,7 @@ private def setHistoryHigh (fieldWidth counterWidth : Nat)
 
 /-- Flipping a routed history bit changes only the corresponding compact
 history carrier field. -/
-private theorem historyValueBit_flip (fieldWidth counterWidth : Nat)
+private lemma historyValueBit_flip (fieldWidth counterWidth : Nat)
     (bit : Fin (2 * fieldWidth))
     (registers : Layout.Registers fieldWidth counterWidth) :
     (historyValueBit fieldWidth counterWidth bit).flip registers =
@@ -865,7 +865,7 @@ private theorem historyValueBit_flip (fieldWidth counterWidth : Nat)
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
     EncodedBit.relabel]
 
-private theorem historyHighValue_flipLow (fieldWidth counterWidth : Nat)
+private lemma historyHighValue_flipLow (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth)
     (registers : Layout.Registers fieldWidth counterWidth) :
     historyHighValue fieldWidth
@@ -880,7 +880,7 @@ private theorem historyHighValue_flipLow (fieldWidth counterWidth : Nat)
       ((historyHighWord fieldWidth counterWidth).bit high)
       (historyLow_high_ne fieldWidth counterWidth bit high) registers
 
-private theorem historyLowValue_flipHigh (fieldWidth counterWidth : Nat)
+private lemma historyLowValue_flipHigh (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth)
     (registers : Layout.Registers fieldWidth counterWidth) :
     historyLowValue fieldWidth
@@ -938,7 +938,7 @@ def historyLowPort (fieldWidth counterWidth : Nat) :
     unfold setHistoryLow
     simp [hhigh]
 
-@[simp] theorem historyLowPort_set (fieldWidth counterWidth : Nat)
+@[simp] lemma historyLowPort_set (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth)
     (value : Nat.FixedWidth.Word fieldWidth) :
     (historyLowPort fieldWidth counterWidth).set registers value =
@@ -995,7 +995,7 @@ def historyHighPort (fieldWidth counterWidth : Nat) :
     unfold setHistoryHigh
     simp [hlow]
 
-@[simp] theorem historyHighPort_set (fieldWidth counterWidth : Nat)
+@[simp] lemma historyHighPort_set (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth)
     (value : Nat.FixedWidth.Word fieldWidth) :
     (historyHighPort fieldWidth counterWidth).set registers value =
@@ -1007,7 +1007,7 @@ def historyHighPort (fieldWidth counterWidth : Nat) :
               value } } } :=
   rfl
 
-theorem historyLowPort_read_historyHighPort_set
+lemma historyLowPort_read_historyHighPort_set
     (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth)
     (value : Nat.FixedWidth.Word fieldWidth) :
@@ -1017,7 +1017,7 @@ theorem historyLowPort_read_historyHighPort_set
   exact historyLowValue_join fieldWidth
     ((historyLowPort fieldWidth counterWidth).read registers) value
 
-theorem historyHighPort_read_historyLowPort_set
+lemma historyHighPort_read_historyLowPort_set
     (fieldWidth counterWidth : Nat)
     (registers : Layout.Registers fieldWidth counterWidth)
     (value : Nat.FixedWidth.Word fieldWidth) :
@@ -1030,7 +1030,7 @@ theorem historyHighPort_read_historyLowPort_set
     historyHighValue fieldWidth registers.arithmetic.core.history
   exact historyHighValue_join fieldWidth value _
 
-theorem rCoefficientWord_pairwise_ne (fieldWidth counterWidth : Nat) :
+lemma rCoefficientWord_pairwise_ne (fieldWidth counterWidth : Nat) :
     ∀ left right, left ≠ right →
       ((rCoefficientWord fieldWidth counterWidth).bit left).wire ≠
         ((rCoefficientWord fieldWidth counterWidth).bit right).wire := by
@@ -1045,7 +1045,7 @@ theorem rCoefficientWord_pairwise_ne (fieldWidth counterWidth : Nat) :
           (littleEndianWire_ne
             (fun heq => hne ((Fin.castSucc_injective _) heq))))
 
-theorem mutableX_rCoefficient_ne (fieldWidth counterWidth : Nat) :
+lemma mutableX_rCoefficient_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.mutableXWord fieldWidth counterWidth).bit source).wire ≠
         ((rCoefficientWord fieldWidth counterWidth).bit target).wire := by
@@ -1060,7 +1060,7 @@ theorem mutableX_rCoefficient_ne (fieldWidth counterWidth : Nat) :
           (WireAddress.littleEndianWire source)
           (WireAddress.littleEndianWire (Fin.castSucc target)))
 
-theorem t0_rCoefficient_ne (fieldWidth counterWidth : Nat) :
+lemma t0_rCoefficient_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.t0Word fieldWidth counterWidth).bit source).wire ≠
         ((rCoefficientWord fieldWidth counterWidth).bit target).wire := by
@@ -1075,13 +1075,13 @@ theorem t0_rCoefficient_ne (fieldWidth counterWidth : Nat) :
           (MK.RegisterBits.rCoeffValueBit fieldWidth counterWidth
             (Fin.castSucc target)) source)
 
-theorem mutableX_t0_ne (fieldWidth counterWidth : Nat) :
+lemma mutableX_t0_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.mutableXWord fieldWidth counterWidth).bit source).wire ≠
         ((Layout.t0Word fieldWidth counterWidth).bit target).wire := by
   exact Layout.mutableXWord_wire_ne_t0Word fieldWidth counterWidth
 
-theorem history_rCoefficient_ne (fieldWidth counterWidth : Nat) :
+lemma history_rCoefficient_ne (fieldWidth counterWidth : Nat) :
     ∀ historyBit coefficientBit,
       (historyValueBit fieldWidth counterWidth historyBit).wire ≠
         ((rCoefficientWord fieldWidth counterWidth).bit coefficientBit).wire := by
@@ -1095,7 +1095,7 @@ theorem history_rCoefficient_ne (fieldWidth counterWidth : Nat) :
           (WireAddress.littleEndianWire (Fin.castSucc coefficientBit))
           (WireAddress.littleEndianWire historyBit)))
 
-theorem t0_history_ne (fieldWidth counterWidth : Nat) :
+lemma t0_history_ne (fieldWidth counterWidth : Nat) :
     ∀ targetBit historyBit,
       ((Layout.t0Word fieldWidth counterWidth).bit targetBit).wire ≠
         (historyValueBit fieldWidth counterWidth historyBit).wire := by
@@ -1108,7 +1108,7 @@ theorem t0_history_ne (fieldWidth counterWidth : Nat) :
           (MK.RegisterBits.historyBit fieldWidth counterWidth
             (WireAddress.littleEndianWire historyBit)) targetBit)
 
-theorem mutableX_history_ne (fieldWidth counterWidth : Nat) :
+lemma mutableX_history_ne (fieldWidth counterWidth : Nat) :
     ∀ source historyBit,
       ((Layout.mutableXWord fieldWidth counterWidth).bit source).wire ≠
         (historyValueBit fieldWidth counterWidth historyBit).wire := by
@@ -1121,7 +1121,7 @@ theorem mutableX_history_ne (fieldWidth counterWidth : Nat) :
           (WireAddress.littleEndianWire source)
           (WireAddress.littleEndianWire historyBit))
 
-theorem mutableY_rCoefficient_ne (fieldWidth counterWidth : Nat) :
+lemma mutableY_rCoefficient_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.mutableYWord fieldWidth counterWidth).bit source).wire ≠
         ((rCoefficientWord fieldWidth counterWidth).bit target).wire := by
@@ -1129,7 +1129,7 @@ theorem mutableY_rCoefficient_ne (fieldWidth counterWidth : Nat) :
   exact Layout.mutableYBit_wire_ne_liftArithmeticBit fieldWidth counterWidth
     source _
 
-theorem lambda_rCoefficient_ne (fieldWidth counterWidth : Nat) :
+lemma lambda_rCoefficient_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.lambdaWord fieldWidth counterWidth).bit source).wire ≠
         ((rCoefficientWord fieldWidth counterWidth).bit target).wire := by
@@ -1137,7 +1137,7 @@ theorem lambda_rCoefficient_ne (fieldWidth counterWidth : Nat) :
   exact Layout.lambdaBit_wire_ne_liftArithmeticBit fieldWidth counterWidth
     source _
 
-theorem mutableY_t0_ne (fieldWidth counterWidth : Nat) :
+lemma mutableY_t0_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.mutableYWord fieldWidth counterWidth).bit source).wire ≠
         ((Layout.t0Word fieldWidth counterWidth).bit target).wire := by
@@ -1145,7 +1145,7 @@ theorem mutableY_t0_ne (fieldWidth counterWidth : Nat) :
   exact Layout.mutableYBit_wire_ne_liftArithmeticBit fieldWidth counterWidth
     source _
 
-theorem lambda_t0_ne (fieldWidth counterWidth : Nat) :
+lemma lambda_t0_ne (fieldWidth counterWidth : Nat) :
     ∀ source target,
       ((Layout.lambdaWord fieldWidth counterWidth).bit source).wire ≠
         ((Layout.t0Word fieldWidth counterWidth).bit target).wire := by
@@ -1174,7 +1174,7 @@ def swapGates (fieldWidth counterWidth : Nat)
   EncodedBit.Word.swapGates left right hleftRight
 
 /-- A named routing ledger installs a source port in a clean target port. -/
-theorem copyGates_stepList_eq_set_of_clean
+lemma copyGates_stepList_eq_set_of_clean
     (fieldWidth counterWidth : Nat)
     (source target : Arithmetic.BlockBank.WordPort
       (Layout.encoding fieldWidth counterWidth) fieldWidth)
@@ -1196,7 +1196,7 @@ theorem copyGates_stepList_eq_set_of_clean
 
 /-- A named routing ledger clears its target when both ports contain the same
 word. -/
-theorem copyGates_stepList_eq_set_zero_of_equal
+lemma copyGates_stepList_eq_set_zero_of_equal
     (fieldWidth counterWidth : Nat)
     (source target : Arithmetic.BlockBank.WordPort
       (Layout.encoding fieldWidth counterWidth) fieldWidth)
@@ -1214,7 +1214,7 @@ theorem copyGates_stepList_eq_set_zero_of_equal
   exact Arithmetic.BlockBank.WordPort.directCopyStep_eq_set_zero_of_equal
     source target hsourceTarget hcross state hequal
 
-@[simp] theorem copyGates_length (fieldWidth counterWidth : Nat)
+@[simp] lemma copyGates_length (fieldWidth counterWidth : Nat)
     (source target : EncodedBit.Word
       (Layout.encoding fieldWidth counterWidth) fieldWidth)
     (hsourceTarget : ∀ bit,
@@ -1223,7 +1223,7 @@ theorem copyGates_stepList_eq_set_zero_of_equal
       fieldWidth := by
   exact EncodedBit.Word.xorIntoGates_length source target hsourceTarget
 
-@[simp] theorem swapGates_length (fieldWidth counterWidth : Nat)
+@[simp] lemma swapGates_length (fieldWidth counterWidth : Nat)
     (left right : EncodedBit.Word
       (Layout.encoding fieldWidth counterWidth) fieldWidth)
     (hleftRight : ∀ bit,
@@ -1355,7 +1355,7 @@ def swapYT0Gates (fieldWidth counterWidth : Nat) :
 
 /-- The named routing swap exchanges exactly the two persistent point words
 and leaves the control plus compact arithmetic carrier unchanged. -/
-theorem swapYLambdaGates_stepList (fieldWidth counterWidth : Nat)
+lemma swapYLambdaGates_stepList (fieldWidth counterWidth : Nat)
     (state : Layout.Registers fieldWidth counterWidth) :
     EncodedBit.GateSpec.stepList
         (swapYLambdaGates fieldWidth counterWidth) state =
@@ -1414,7 +1414,7 @@ theorem swapYLambdaGates_stepList (fieldWidth counterWidth : Nat)
   rfl
 
 /-- The named compact-word swap exchanges exactly mutable `x1` and `t0`. -/
-theorem swapXT0Gates_stepList (fieldWidth counterWidth : Nat)
+lemma swapXT0Gates_stepList (fieldWidth counterWidth : Nat)
     (state : Layout.Registers fieldWidth counterWidth) :
     EncodedBit.GateSpec.stepList
         (swapXT0Gates fieldWidth counterWidth) state =
@@ -1480,7 +1480,7 @@ theorem swapXT0Gates_stepList (fieldWidth counterWidth : Nat)
   rfl
 
 /-- The named external-word swap exchanges exactly mutable `y1` and `t0`. -/
-theorem swapYT0Gates_stepList (fieldWidth counterWidth : Nat)
+lemma swapYT0Gates_stepList (fieldWidth counterWidth : Nat)
     (state : Layout.Registers fieldWidth counterWidth) :
     EncodedBit.GateSpec.stepList
         (swapYT0Gates fieldWidth counterWidth) state =
@@ -1534,74 +1534,74 @@ theorem swapYT0Gates_stepList (fieldWidth counterWidth : Nat)
   cases hframe
   rfl
 
-@[simp] theorem saveT0LowGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma saveT0LowGates_length (fieldWidth counterWidth : Nat) :
     (saveT0LowGates fieldWidth counterWidth).length = fieldWidth := by
   unfold saveT0LowGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem saveXHighGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma saveXHighGates_length (fieldWidth counterWidth : Nat) :
     (saveXHighGates fieldWidth counterWidth).length = fieldWidth := by
   unfold saveXHighGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem historyLowToT0Gates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma historyLowToT0Gates_length (fieldWidth counterWidth : Nat) :
     (historyLowToT0Gates fieldWidth counterWidth).length = fieldWidth := by
   unfold historyLowToT0Gates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem historyHighToXGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma historyHighToXGates_length (fieldWidth counterWidth : Nat) :
     (historyHighToXGates fieldWidth counterWidth).length = fieldWidth := by
   unfold historyHighToXGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem historyLowToCoefficientGates_length
+@[simp] lemma historyLowToCoefficientGates_length
     (fieldWidth counterWidth : Nat) :
     (historyLowToCoefficientGates fieldWidth counterWidth).length =
       fieldWidth := by
   unfold historyLowToCoefficientGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem xToCoefficientGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma xToCoefficientGates_length (fieldWidth counterWidth : Nat) :
     (xToCoefficientGates fieldWidth counterWidth).length = fieldWidth := by
   unfold xToCoefficientGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem coefficientToXGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma coefficientToXGates_length (fieldWidth counterWidth : Nat) :
     (coefficientToXGates fieldWidth counterWidth).length = fieldWidth := by
   unfold coefficientToXGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem yToCoefficientGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma yToCoefficientGates_length (fieldWidth counterWidth : Nat) :
     (yToCoefficientGates fieldWidth counterWidth).length = fieldWidth := by
   unfold yToCoefficientGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem t0ToCoefficientGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma t0ToCoefficientGates_length (fieldWidth counterWidth : Nat) :
     (t0ToCoefficientGates fieldWidth counterWidth).length = fieldWidth := by
   unfold t0ToCoefficientGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem t0ToYGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma t0ToYGates_length (fieldWidth counterWidth : Nat) :
     (t0ToYGates fieldWidth counterWidth).length = fieldWidth := by
   unfold t0ToYGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem t0ToLambdaGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma t0ToLambdaGates_length (fieldWidth counterWidth : Nat) :
     (t0ToLambdaGates fieldWidth counterWidth).length = fieldWidth := by
   unfold t0ToLambdaGates
   exact copyGates_length _ _ _ _ _
 
-@[simp] theorem swapYLambdaGates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma swapYLambdaGates_length (fieldWidth counterWidth : Nat) :
     (swapYLambdaGates fieldWidth counterWidth).length = 3 * fieldWidth := by
   unfold swapYLambdaGates
   exact swapGates_length _ _ _ _ _
 
-@[simp] theorem swapXT0Gates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma swapXT0Gates_length (fieldWidth counterWidth : Nat) :
     (swapXT0Gates fieldWidth counterWidth).length = 3 * fieldWidth := by
   unfold swapXT0Gates
   exact swapGates_length _ _ _ _ _
 
-@[simp] theorem swapYT0Gates_length (fieldWidth counterWidth : Nat) :
+@[simp] lemma swapYT0Gates_length (fieldWidth counterWidth : Nat) :
     (swapYT0Gates fieldWidth counterWidth).length = 3 * fieldWidth := by
   unfold swapYT0Gates
   exact swapGates_length _ _ _ _ _

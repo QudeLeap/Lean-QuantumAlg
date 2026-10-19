@@ -22,7 +22,7 @@ noncomputable section
 
 /-- Second-prefix global key separation supplies the `mu32` rounded-division
 subcontract. -/
-theorem secondDivision32Separation {kind : ProblemKind}
+lemma secondDivision32Separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -124,7 +124,7 @@ theorem secondDivision32Separation {kind : ProblemKind}
 
 /-- Second-prefix global key separation supplies the `mu31` rounded-division
 subcontract. -/
-theorem secondDivision31Separation {kind : ProblemKind}
+lemma secondDivision31Separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -224,7 +224,7 @@ theorem secondDivision31Separation {kind : ProblemKind}
   · exact divisionKeyNe .wideDenominator .output (by decide)
   · exact divisionKeyNe .division .output (by decide)
 
-private theorem secondBasisInputAvoids {kind : ProblemKind}
+private lemma secondBasisInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeSecondPairMachine.Refs ctx width)
     (phase : LatticeSecondPairMachine.PhaseSeparation refs)
@@ -241,7 +241,7 @@ private theorem secondBasisInputAvoids {kind : ProblemKind}
         ne_comm, LatticeSecondPairMachine.basisTransitionCell,
       LatticeSecondPairMachine.cellKey] using keyNe
 
-private theorem secondWriteInputAvoids {kind : ProblemKind}
+private lemma secondWriteInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} {shape : CShape}
     (refs : LatticeSecondPairMachine.Refs ctx width)
     (phase : LatticeSecondPairMachine.PhaseSeparation refs)
@@ -271,7 +271,7 @@ private def secondBasisWriteRef {kind : ProblemKind}
   | .thirdSecond => basis.third.second
   | .thirdThird => basis.third.third
 
-private theorem secondBasisWriteKey {kind : ProblemKind}
+private lemma secondBasisWriteKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeSecondPairMachine.Refs ctx width)
     (cell : LatticeMetricMachine.BasisCell) :
@@ -282,7 +282,7 @@ private theorem secondBasisWriteKey {kind : ProblemKind}
 
 /-- The physical state and scratch packages separate the refreshed `g21`
 dot-product phase. -/
-theorem secondRefreshG21Separation {kind : ProblemKind}
+lemma secondRefreshG21Separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -329,7 +329,7 @@ theorem secondRefreshG21Separation {kind : ProblemKind}
 
 /-- The physical state and scratch packages separate the refreshed `g32`
 dot-product phase. -/
-theorem secondRefreshG32Separation {kind : ProblemKind}
+lemma secondRefreshG32Separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -389,7 +389,7 @@ private def secondReductionMutableCell :
   | .d32 => .d32
   | .product => .reductionInputsProduct
 
-private theorem secondReductionMutableCell_injective :
+private lemma secondReductionMutableCell_injective :
     Function.Injective secondReductionMutableCell := by
   intro left right equal
   cases left <;> cases right <;>
@@ -397,7 +397,7 @@ private theorem secondReductionMutableCell_injective :
 
 /-- The five live Gram reads and three second-reduction words satisfy their
 local source/write separation contract. -/
-theorem secondReductionInputsSeparation {kind : ProblemKind}
+lemma secondReductionInputsSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -434,7 +434,7 @@ theorem secondReductionInputsSeparation {kind : ProblemKind}
 
 /-- Second-prefix global key separation supplies the `b3 - mu32*b2`
 point-reduction subcontract. -/
-theorem secondPrefixReductionSeparation {kind : ProblemKind}
+lemma secondPrefixReductionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -519,7 +519,7 @@ theorem secondPrefixReductionSeparation {kind : ProblemKind}
 
 /-- The physical state and reusable scratch packages satisfy the complete
 second-prefix separation contract. -/
-theorem secondPrefixSeparation {kind : ProblemKind}
+lemma secondPrefixSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -538,7 +538,7 @@ theorem secondPrefixSeparation {kind : ProblemKind}
 
 /-- The post-reduction view reuses the physical `g31` accumulator and the
 first refresh product without aliasing either source point. -/
-theorem secondPostRefreshSeparation {kind : ProblemKind}
+lemma secondPostRefreshSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -586,7 +586,7 @@ theorem secondPostRefreshSeparation {kind : ProblemKind}
 
 /-- Post-phase global key separation supplies the `b3 - mu31*b1`
 point-reduction subcontract. -/
-theorem secondPostReductionSeparation {kind : ProblemKind}
+lemma secondPostReductionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -673,7 +673,7 @@ theorem secondPostReductionSeparation {kind : ProblemKind}
 
 /-- The reused post-reduction view satisfies its complete local separation
 contract. -/
-theorem secondPostSeparation {kind : ProblemKind}
+lemma secondPostSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -687,7 +687,7 @@ theorem secondPostSeparation {kind : ProblemKind}
     division := secondDivision31Separation certificates
     reduction := secondPostReductionSeparation certificates }
 
-private theorem secondFullWriteInputAvoids {kind : ProblemKind}
+private lemma secondFullWriteInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} {sourceShape targetShape : CShape}
     (refs : LatticeSecondPairFullMachine.Refs ctx width)
     (keyInjective : Function.Injective
@@ -705,7 +705,7 @@ private theorem secondFullWriteInputAvoids {kind : ProblemKind}
   intro equal
   exact different (keyInjective equal)
 
-private theorem secondFullCoordinateInputAvoids {kind : ProblemKind}
+private lemma secondFullCoordinateInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeSecondPairFullMachine.Refs ctx width)
     (keyInjective : Function.Injective
@@ -740,14 +740,14 @@ private def area12MutableCell : LatticeCross.MutableCell →
   | .productLeft => .area12ProductLeft
   | .productRight => .area12ProductRight
 
-private theorem area12MutableCell_injective :
+private lemma area12MutableCell_injective :
     Function.Injective area12MutableCell := by
   intro left right equal
   cases left <;> cases right <;> simp [area12MutableCell] at equal ⊢
 
 /-- Complete full-machine key separation supplies the first--second squared
 area refresh. -/
-theorem secondArea12Separation {kind : ProblemKind}
+lemma secondArea12Separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -838,14 +838,14 @@ private def area13MutableCell : LatticeCross.MutableCell →
   | .productLeft => .area13ProductLeft
   | .productRight => .area13ProductRight
 
-private theorem area13MutableCell_injective :
+private lemma area13MutableCell_injective :
     Function.Injective area13MutableCell := by
   intro left right equal
   cases left <;> cases right <;> simp [area13MutableCell] at equal ⊢
 
 /-- Complete full-machine key separation supplies the first--third squared
 area refresh. -/
-theorem secondArea13Separation {kind : ProblemKind}
+lemma secondArea13Separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -934,14 +934,14 @@ private def secondBranchFullCell : LatticeSecondLovaszBranch.BranchCell →
   | .passes => .lovaszPasses
   | .swapScratch => .swapScratch
 
-private theorem secondBranchFullCell_injective :
+private lemma secondBranchFullCell_injective :
     Function.Injective secondBranchFullCell := by
   intro left right equal
   cases left <;> cases right <;> simp [secondBranchFullCell] at equal ⊢
 
 /-- Complete full-machine key separation supplies the final second-Lovasz
 branch subcontract. -/
-theorem secondBranchSeparation {kind : ProblemKind}
+lemma secondBranchSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -980,7 +980,7 @@ theorem secondBranchSeparation {kind : ProblemKind}
 
 /-- The physical state and reusable scratch packages satisfy the complete
 second-pair separation contract. -/
-theorem secondSeparation {kind : ProblemKind}
+lemma secondSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}

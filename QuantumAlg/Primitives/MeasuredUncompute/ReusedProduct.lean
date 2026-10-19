@@ -26,6 +26,8 @@ namespace QuantumAlg.MeasuredUncompute.ReusedProduct
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement MAU.Multiplication EncodedBit.Word
 
 /-- Execute the same actual product with A as its second input and reset Y as its target. -/
@@ -39,8 +41,8 @@ def computeStep (width : Nat) (modulus : Fin (2 ^ width + 1)) : Frame width → 
   (WorkspaceReuse.placement width).step (NativeProductFrame.step width modulus)
 
 /-- Exact full-label action of the actual X/A/Y product. -/
-theorem reusedProduct_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (frameEncoding width) (compute width modulus)
+lemma reusedProduct_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+    UnitaryCircuit.Realizes (frameEncoding width) (compute width modulus) environment
       (computeStep width modulus) :=
   (WorkspaceReuse.placement width).place_realizes
     (NativeProductFrame.nativeProductFrame_realizes width modulus)
@@ -49,7 +51,7 @@ theorem reusedProduct_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
 def measuredWord (width : Nat) : EncodedBit.Word (frameEncoding width) width :=
   ⟨fun index => (FramePorts.numerator width).bit index.rev⟩
 
-theorem measuredWord_read (width : Nat) (index : Fin width) (state : Frame width) :
+lemma measuredWord_read (width : Nat) (index : Fin width) (state : Frame width) :
     ((measuredWord width).bit index).get state = state.2.val.testBit index.val := by
   rw [measuredWord, FramePorts.numerator_read, Fin.rev_rev]
 
@@ -61,9 +63,9 @@ def correction (width : Nat) (modulus : Fin (2 ^ width + 1)) (mask : Fin width �
     (measuredWord width) mask
 
 /-- The complete original label is restored with precisely the recomputed Y character. -/
-theorem correction_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma correction_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : Frame width) :
-    (correction width modulus (fun index => outcome.val.testBit index.val)).applyVec
+    ((correction width modulus (fun index => outcome.val.testBit index.val)).applyVec environment)
       (NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
           ((frameEncoding width).encode state))).vec =
@@ -81,12 +83,12 @@ theorem correction_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
       (fun index => measuredWord_read width index _))
 
 /-- Every reference column receives the same exact phase while all local history is restored. -/
-theorem correction_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma correction_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
     (outcome : Fin (2 ^ width)) (state : Frame width) {Reference : Register}
     (row : (QubitLayout.canonical (frameEncoding width).width).toQuantum.register.Index)
     (left right : Reference.Index) :
     UnitaryOperator.prodTensor
-      (correction width modulus (fun index => outcome.val.testBit index.val)).matrix
+      ((correction width modulus (fun index => outcome.val.testBit index.val)).matrix environment)
       (1 : UnitaryOperator Reference)
       (row, left)
       ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
@@ -100,20 +102,20 @@ theorem correction_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
     (fun index => measuredWord_read width index _)]
 
 /-- Reusing the physical ports keeps every original product event in its original order. -/
-theorem compute_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma compute_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (compute width modulus).eventTrace = (VariableGidney.program width modulus).eventTrace := by
   rw [compute, EncodedBit.FullPlacement.place_eventTrace,
     NativeProductFrame.nativeProductFrame_trace]
 
 /-- The actual reused product meets the original independent native coordinate budget. -/
-theorem compute_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma compute_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (compute width modulus).eventCost ≤ VariableGidney.nativeBudget width := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, compute_trace,
     UnitaryCircuit.ofList_eventTrace_eq_eventCost]
   exact VariableGidney.variableGidney_native_budget width modulus
 
 /-- Both actual product passes and the selected Z gates fit the independently stated allowance. -/
-theorem correction_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma correction_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (mask : Fin width → Bool) :
     (correction width modulus mask).eventCost ≤ NativeProductCorrection.nativeBudget width := by
   have phase : (PhaseCorrection.program (QubitLayout.canonical _) .empty

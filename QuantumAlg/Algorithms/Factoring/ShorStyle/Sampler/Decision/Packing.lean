@@ -27,7 +27,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The rejected arm executes one payload clear while preserving the full unit and tag values. -/
-theorem decisionRejected_fields (shared : Proposal.SharedRefs ctx width)
+lemma decisionRejected_fields (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (candidateUnit : scratch.candidate.key ≠ shared.selector.selected.key)
     (candidateFlag : scratch.candidate.key ≠ scratch.eligible.key) (store : Store ctx) :
@@ -52,7 +52,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Complete output read of the actual initialization, acceptance branch and final pack. -/
-theorem decision_read (shared : Proposal.SharedRefs ctx width)
+lemma decision_read (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :

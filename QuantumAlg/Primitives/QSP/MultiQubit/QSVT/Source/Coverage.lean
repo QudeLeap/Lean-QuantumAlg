@@ -36,7 +36,7 @@ namespace SourceUnitSingularBlock
 /-- Unit singular block, even output side: a nonempty phase certificate drives
 the source alternating phase sequence by the scalar `P(1)` on the right vector
 [GSLW19, BlockHam.tex:655-671,768-849]. -/
-theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
+lemma sourceAlternating_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
@@ -58,7 +58,7 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
 /-- Unit singular block, odd output side: a nonempty phase certificate drives
 the source alternating phase sequence by the scalar `P(1)` on the left vector
 [GSLW19, BlockHam.tex:655-671,768-849]. -/
-theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
+lemma sourceAlternating_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
@@ -80,7 +80,7 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
 /-- Unit singular block, even output side after the source projected block:
 projecting preserves the right-vector component [GSLW19, BlockHam.tex:655-671,
 768-849]. -/
-theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
+lemma sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
@@ -109,7 +109,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
 /-- Unit singular block, odd output side after the source projected block:
 projecting preserves the left-vector component [GSLW19, BlockHam.tex:655-671,
 768-849]. -/
-theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
+lemma sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
@@ -138,7 +138,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
 /-- Unit singular block, even output side for the negated projected phase list:
 the scalar is `(conjP P)(1)`, matching the second half of the source real
 averaging construction [GSLW19, BlockHam.tex:851-887]. -/
-theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
+lemma sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
@@ -177,7 +177,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
 
 /-- Unit singular block, odd output side for the negated projected phase list
 [GSLW19, BlockHam.tex:851-887]. -/
-theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
+lemma sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
@@ -221,7 +221,7 @@ namespace SourceTwoDimensionalSingularBlock
 /-- Nontrivial singular block, even output side: the projected-QSVT phase list
 drives the right singular vector with scalar `P(σ)` on the right-vector
 component [GSLW19, BlockHam.tex:655-735,768-849]. -/
-theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
+lemma sourceAlternating_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
@@ -256,7 +256,7 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_even
 /-- Nontrivial singular block, odd output side: the projected-QSVT phase list
 drives the right singular vector with scalar `P(σ)` on the left-vector
 component [GSLW19, BlockHam.tex:655-735,768-849]. -/
-theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
+lemma sourceAlternating_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
@@ -291,7 +291,7 @@ theorem sourceAlternating_projectedPhases_applyVec_rightVec_odd
 /-- Nontrivial singular block, even output side after the source projected block:
 the perpendicular component is removed by the output projector, leaving the
 desired scalar `P(σ)` action [GSLW19, BlockHam.tex:655-735,768-849]. -/
-theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
+lemma sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
@@ -324,7 +324,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
 /-- Nontrivial singular block, odd output side after the source projected block:
 the perpendicular component is removed by the output projector, leaving the
 desired scalar `P(σ)` action [GSLW19, BlockHam.tex:655-735,768-849]. -/
-theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
+lemma sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
@@ -357,7 +357,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
 /-- Nontrivial singular block, even output side for the negated projected phase
 list.  The perpendicular component is again removed by the output projector,
 leaving `(conjP P)(σ)` [GSLW19, BlockHam.tex:851-887]. -/
-theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
+lemma sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
@@ -409,7 +409,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
 
 /-- Nontrivial singular block, odd output side for the negated projected phase
 list [GSLW19, BlockHam.tex:851-887]. -/
-theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
+lemma sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
@@ -465,7 +465,7 @@ namespace SourceRightKernelSingularBlock
 
 /-- Right-kernel block, even output side after projection: the scalar is the
 source QSP value `P(0)` [GSLW19, BlockHam.tex:599-611,655-716,768-849]. -/
-theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
+lemma sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
@@ -509,7 +509,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_even
 /-- Right-kernel block, odd output side after projection: the local vector lies
 in the left complement, so the output projector removes it [GSLW19,
 BlockHam.tex:599-611,655-716,768-849]. -/
-theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
+lemma sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
@@ -544,7 +544,7 @@ theorem sourceProjectedBlock_projectedPhases_applyVec_rightVec_odd
 
 /-- Right-kernel block, even output side for the negated projected phase list:
 the scalar is `(conjP P)(0)` [GSLW19, BlockHam.tex:851-887]. -/
-theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
+lemma sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
@@ -593,7 +593,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_even
 /-- Right-kernel block, odd output side for the negated projected phase list:
 the local vector lies in the left complement, so the output projector removes
 it [GSLW19, BlockHam.tex:851-887]. -/
-theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
+lemma sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
     {N d : Nat} {P Q : Polynomial Complex}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
@@ -631,7 +631,7 @@ theorem sourceProjectedBlock_negProjectedPhases_applyVec_rightVec_odd
       left block.left_perp_support]
   simp
 
-theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U) block.rightVec = 0 := by
@@ -642,7 +642,7 @@ theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (
   exact OrthogonalProjector.projector_applyVec_eq_zero_of_complement_applyVec_eq_self
     left block.left_perp_support
 
-theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) :
     HilbertOperator.applyVec
@@ -653,7 +653,7 @@ theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [HilbertOperator.mul_applyVec, block.projectedUnitaryBlock_applyVec_rightVec]
   simp [HilbertOperator.applyVec]
 
-theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
@@ -675,7 +675,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
     simpa using heven
   rw [heven0]
 
-theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (_hP : HasParity P L) :
@@ -723,7 +723,7 @@ structure SourceSingularInvariantBlockAssembly {N d : Nat} {P Q : Polynomial ℂ
 feeds the source-level QSVT target directly.  The remaining hard work is to
 construct the assembly from the blockwise scalar-QSP proof, not from standard
 matrix entries [GSLW19, BlockHam.tex:655-736,768-849]. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_invariantBlockAssembly {N d : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_of_invariantBlockAssembly {N d : Nat}
     {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate :
@@ -807,7 +807,7 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfBasisSpanFamily {N d : Nat}
 /-- Convert a source invariant-vector spanning family into the global projected
 QSVT block equality.  The remaining source work is to build this family from
 `lemma:singInvDec`'s unit, nontrivial, kernel, and complement sectors. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_spanningFamily {N d : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_of_spanningFamily {N d : Nat}
     {P : Polynomial ℂ} (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (phases : List ℝ)
     (family : SourceProjectedQSVTSpanningFamily (d := d) U left right P phases) :
@@ -816,7 +816,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_spanningFamily {N d : Nat}
   exact family.ext family.action_eq
 
 /-- Basis-span source families prove the global projected-QSVT block equality. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_basisSpanFamily {N d : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_of_basisSpanFamily {N d : Nat}
     {P : Polynomial ℂ} (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (phases : List ℝ)
     (family : SourceProjectedQSVTBasisSpanFamily (d := d) U left right P phases) :
@@ -932,7 +932,7 @@ def ofDecompositionVector {N : Nat} {U : UnitaryOperator (Qubits N)}
       SourceSingularInvariantLocalVector.complement (decomposition.complementBlock i)
 
 @[simp]
-theorem vec_ofDecompositionVector {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma vec_ofDecompositionVector {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     {decomposition : SourceSingularInvariantDecomposition U left right}
     (tag : SourceSingularInvariantVector decomposition) :
@@ -943,7 +943,7 @@ theorem vec_ofDecompositionVector {N : Nat} {U : UnitaryOperator (Qubits N)}
 /-- Local source-sector action equality for every invariant vector in
 `lemma:singInvDec`, after the W-to-R phase conversion has produced the projected
 phase list [GSLW19, BlockHam.tex:655-736,768-849]. -/
-theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
+lemma action_eq {N d : Nat} {P Q : Polynomial ℂ}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -1168,7 +1168,7 @@ theorem action_eq {N d : Nat} {P Q : Polynomial ℂ}
 /-- Local source-sector action equality for the negated projected phase list.
 This is the source-level half of the `U_{-Φ}` branch used in
 `cor:matchingParity` [GSLW19, BlockHam.tex:851-887]. -/
-theorem action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
+lemma action_eq_negProjectedPhases {N d : Nat} {P Q : Polynomial ℂ}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (hP : HasParity P d)
@@ -1507,7 +1507,7 @@ noncomputable def sourceProjectedQSVTSpanningFamilyOfLocalOrthonormalBasisCovera
 
 /-- An orthonormal source local-sector basis proves the source-level projected
 QSVT block equality. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_localOrthonormalBasisCoverage
+lemma sourceProjectedQSVTBlockCorrectness_of_localOrthonormalBasisCoverage
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -1524,7 +1524,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_localOrthonormalBasisCoverage
 /-- A source orthonormal direct-sum decomposition proves the source-level
 projected QSVT block equality.  This is the compact handoff target for
 `lemma:singInvDec` [GSLW19, BlockHam.tex:615-736,768-849]. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_orthonormalDecomposition
+lemma sourceProjectedQSVTBlockCorrectness_of_orthonormalDecomposition
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -1566,7 +1566,7 @@ noncomputable def
 
 /-- Negated-phase source block equality for a completed orthonormal source
 direct-sum decomposition [GSLW19, BlockHam.tex:615-736,851-887]. -/
-theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_orthonormalDecomposition
+lemma sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_orthonormalDecomposition
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -1600,7 +1600,7 @@ noncomputable def sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis
 
 /-- The nonzero-sector local vector is definitionally the corresponding Gram
 eigenbasis vector. -/
-theorem sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis_vec
+lemma sourceSingularInvariantLocalVectorOfNonzeroGramEigenbasis_vec
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1686,7 +1686,7 @@ noncomputable def sourceRightKernelLocalVectorOfZeroGramEigenbasis
 
 /-- The zero-eigenvalue right-kernel local vector is the right-projector
 component of the Gram eigenbasis vector. -/
-theorem sourceRightKernelLocalVectorOfZeroGramEigenbasis_vec
+lemma sourceRightKernelLocalVectorOfZeroGramEigenbasis_vec
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1748,7 +1748,7 @@ noncomputable def sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis
 
 /-- The zero output-side Gram local vector reconstructs the `U†`-preimage of
 the left-projector component, including the vanishing projection case. -/
-theorem sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis_vec
+lemma sourceLeftKernelLocalVectorOfZeroLeftGramEigenbasis_vec
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1813,7 +1813,7 @@ noncomputable def sourceComplementLocalVectorOfRightComplementProjectedZero
 
 /-- The fully complementary local vector is definitionally the supplied
 right-complement vector. -/
-theorem sourceComplementLocalVectorOfRightComplementProjectedZero_vec
+lemma sourceComplementLocalVectorOfRightComplementProjectedZero_vec
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (rightPerp : HilbertVector (Qubits N))
     (hright_perp :
@@ -1993,7 +1993,7 @@ noncomputable def sourceProjectedQSVTBasisSpanFamilyOfLocalCoverage
 
 /-- Local-block basis-span coverage proves the source-level projected-QSVT block
 equality. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_localBasisSpanCoverage
+lemma sourceProjectedQSVTBlockCorrectness_of_localBasisSpanCoverage
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2030,7 +2030,7 @@ noncomputable def sourceProjectedQSVTBasisSpanFamilyNegProjectedPhasesOfLocalCov
 
 /-- Local-block basis-span coverage proves the negated-phase source-level
 projected-QSVT block equality. -/
-theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_localBasisSpanCoverage
+lemma sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_localBasisSpanCoverage
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2050,7 +2050,7 @@ theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_localBasisSpan
 zero eigenvalues.  This packages the nonzero part of `lemma:singInvDec`; the
 general theorem adds the zero-sector right-kernel, left-kernel, and fully
 complementary blocks [GSLW19, BlockHam.tex:583-613,655-736,768-849]. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_noZeroGramEigenvalues
+lemma sourceProjectedQSVTBlockCorrectness_of_noZeroGramEigenvalues
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2069,7 +2069,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_noZeroGramEigenvalues
 
 /-- Source projected-QSVT reduced to the final zero-complement decomposition
 piece of `lemma:singInvDec`. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_zeroComplementSplit
+lemma sourceProjectedQSVTBlockCorrectness_of_zeroComplementSplit
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2171,7 +2171,7 @@ structure SourceSingularInvariantBasisSpanCoverage {N : Nat} (U : UnitaryOperato
 
 namespace SourceSingularInvariantBasisSpanCoverage
 
-private theorem applyVec_eq_on_combination {N : Nat} {U : UnitaryOperator (Qubits N)}
+private lemma applyVec_eq_on_combination {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     {decomposition : SourceSingularInvariantDecomposition U left right}
     {A B : HilbertOperator (Qubits N)}
@@ -2348,7 +2348,7 @@ source-level projected-QSVT block equality.  The remaining source obligation is
 to construct `SourceSingularInvariantCoverage` from the spectral direct-sum
 decomposition of `lemma:singInvDec` [GSLW19, BlockHam.tex:583-613,655-736,
 768-849]. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_coverage {N d : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_of_coverage {N d : Nat}
     {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2364,7 +2364,7 @@ theorem sourceProjectedQSVTBlockCorrectness_of_coverage {N d : Nat}
 
 /-- Basis-level sector classification is enough to prove the source-level
 projected-QSVT block equality. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_basisCoverage {N d : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_of_basisCoverage {N d : Nat}
     {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2381,7 +2381,7 @@ projected-QSVT block equality.  This is the interface used by the source
 direct-sum proof because zero-singular-value Gram basis vectors split into
 projector and complementary pieces [GSLW19, BlockHam.tex:583-613,655-736,
 768-849]. -/
-theorem sourceProjectedQSVTBlockCorrectness_of_basisSpanCoverage {N d : Nat}
+lemma sourceProjectedQSVTBlockCorrectness_of_basisSpanCoverage {N d : Nat}
     {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2423,7 +2423,7 @@ noncomputable def sourceProjectedQSVTSpanningFamilyNegProjectedPhasesOfCoverage
 
 /-- Coverage-level negated-phase source block equality for the
 coefficient-conjugate polynomial [GSLW19, BlockHam.tex:655-736,851-887]. -/
-theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_coverage
+lemma sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_coverage
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
@@ -2441,7 +2441,7 @@ theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_coverage
 
 /-- Span-level sector classification is also enough for the negated-phase
 branch used in the real-polynomial averaging proof. -/
-theorem sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_basisSpanCoverage
+lemma sourceProjectedQSVTBlockCorrectness_negProjectedPhases_of_basisSpanCoverage
     {N d : Nat} {P Q : Polynomial ℂ} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N)
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)

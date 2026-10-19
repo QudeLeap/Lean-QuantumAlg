@@ -11,19 +11,25 @@
 
 Lean-QuantumAlg is a Lean 4 library for formally verified quantum algorithms.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/architecture-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset=".github/architecture-light.svg">
+    <img alt="Lean-QuantumAlg architecture: Util, Core, Components, Analysis, Primitives, and Algorithms." src=".github/architecture-light.svg" width="864">
+  </picture>
+</p>
+
 ## What's Lean-QuantumAlg?
 
-Lean-QuantumAlg provides reusable definitions, primitives, and theorem
-statements for quantum algorithms in Lean. It is built on mathlib,
-with public theorem endpoints organized so readers and agents can import the
-modules they need.
+Lean-QuantumAlg is a Lean 4 framework built on mathlib for AI agents to verify
+quantum algorithms. It derives probabilities, final states and resource use
+from one execution in an explicit model.
 
 ### Aims
 
-- Provide a modest, reusable Lean library for quantum-algorithm formalization.
-- Keep algorithm statements tied to source references and stable import paths.
-- Follow mathlib conventions closely enough to support later upstream
-  review and reuse.
+- Bind correctness, borrowed-state restoration and resource bounds to one execution.
+- Make specifications and execution models explicit for human review.
+- Provide reusable, source-backed components following mathlib conventions.
 
 ### Cite this repository
 
@@ -64,8 +70,12 @@ your `lakefile.toml`:
 [[require]]
 name = "QuantumAlg"
 git = "https://github.com/QudeLeap/Lean-QuantumAlg.git"
-rev = "main"
+rev = "3.4.0"
 ```
+
+Starting with 3.4.0, Linux x86_64 releases include a precompiled library cache.
+For a fresh dependency build, Lake fetches the matching cache automatically
+and falls back to building from source if it is unavailable.
 
 Use Lean `v4.33.1`. Then import either the aggregate module or a focused module:
 
@@ -76,33 +86,18 @@ import QuantumAlg.Algorithms.QPE
 import QuantumAlg.Primitives.QFT
 ```
 
-The library currently includes:
-
-- `QuantumAlg.Core`: quantum states, gates, tensor products, measurement, and
-  execution-derived resource and space accounting.
-- `QuantumAlg.Components`: named gates, kets, oracle and control
-  components.
-- `QuantumAlg.Analysis`: quantum information and quantum learning theory,
-  including QFIM, unitary designs, parameter-shift rules, and QNN theory.
-- `QuantumAlg.Primitives`: reusable quantum-algorithm primitives such as phase
-  kickback, QSP, LCU, swap test, and amplitude amplification.
-- Circuit theorem endpoints: fixed-circuit statements such as Bell-state
-  preparation, GHZ-state preparation, and QFT.
-- `QuantumAlg.Algorithms`: end-to-end algorithm/protocol statements including
-  Deutsch-Jozsa, Bernstein-Vazirani, Grover, QPE, order finding, amplitude
-  estimation, teleportation, superdense coding, and Simon.
-
-Resource statements are derived from the same execution as the result and
-include its event accounting and live-space use.
-
-For a quick build check:
+In a checkout of a release tag on Linux x86_64, fetch the Mathlib and library caches:
 
 ```bash
 lake exe cache get
-lake build
+lake build :release
 ```
 
-For theorem discovery, start from `QuantumAlg.lean` or the module names above.
+For a source build, including on other platforms, use `lake build` in place of
+`lake build :release`.
+
+For theorem discovery, browse the [public theorem catalog](https://qudeleap.github.io/Lean-QuantumAlg/)
+or start from [`QuantumAlg.lean`](QuantumAlg.lean).
 Lean docstrings cite the source references using keys resolved by
 `REFERENCES.json`.
 
@@ -115,20 +110,19 @@ expressivity, and trainability with Lie-algebraic simulation.
 transformation substrate, followed by parameter-shift rules, quantum kernels,
 and QFIM-based capacity bounds. Verified highlights include:
 
-- [`QuantumAlg.ParameterShiftRule.main`](QuantumAlg/Analysis/ParameterShift.lean),
-  an exact parameter-shift identity for frequency-one variational costs.
+- [Generalized parameter-shift rule](https://qudeleap.github.io/Lean-QuantumAlg/theorems/generalized-parameter-shift-rule/)
+  gives exact first and second derivatives for variational costs with equidistant
+  integer frequencies; Lean:
+  [`QuantumAlg.GeneralizedParamShift.quantumMain`](QuantumAlg/Analysis/GeneralizedParameterShift/Quantum.lean).
 - [`QuantumAlg.QuantumKernel.main`](QuantumAlg/Primitives/QKernel/Fidelity.lean),
   proving that every finite fidelity-kernel Gram matrix is positive semidefinite.
 - [`QuantumAlg.qfim_rank_le_dlaDim`](QuantumAlg/Analysis/QNN/Overparam/QuantumFisherRank.lean)
   and [`QuantumAlg.QFIMOverparam.main`](QuantumAlg/Analysis/QNN/Overparam/OverparamQFIM.lean),
   giving a dynamical-Lie-algebra rank bound and a non-vacuous `su(2)` QFIM onset.
 
-**Trainability.** The main results connect Lie-algebraic variance laws, explicit
-no-barren-plateau families, and exact loss reconstruction:
+**Trainability.** The main results connect explicit no-barren-plateau families,
+Lie-algebraic simulation, and exact loss reconstruction:
 
-- [Barren-plateau gradient variance](https://qudeleap.github.io/Lean-QuantumAlg/theorems/barren-plateau-variance/)
-  derives the reductive Ragone sum from explicit second-moment and Schur inputs;
-  Lean: [`QuantumAlg.RagoneReductive.totalVariance_eq`](QuantumAlg/Analysis/QNN/Interface/RagoneInterface.lean).
 - [Locality forbids the barren plateau](https://qudeleap.github.io/Lean-QuantumAlg/theorems/locality-no-barren-plateau/)
   gives a genuine product-Clifford local family with constant variance;
   Lean: [`QuantumAlg.localObs_not_hasBarrenPlateau`](QuantumAlg/Analysis/QNN/Algebras/SingleQubitDLA.lean).
@@ -139,7 +133,7 @@ no-barren-plateau families, and exact loss reconstruction:
   reconstructs the loss exactly from `dim(g)` quantum data;
   Lean: [`QuantumAlg.gsim_loss_reconstruction_ansatz`](QuantumAlg/Analysis/QNN/Simulation/GSim.lean).
 
-Start from the two focused public navigation modules:
+Start from the focused public navigation modules:
 
 ```lean
 import QuantumAlg.Analysis.QNN.Expressivity
@@ -151,12 +145,12 @@ Bibliographic sources are indexed in [`REFERENCES.json`](REFERENCES.json).
 
 ## Cryptanalysis
 
-Lean-QuantumAlg formalizes source-backed endpoints for quantum cryptanalysis
-while keeping algorithmic correctness, conditional classical reductions, and
-logical-resource accounting explicit. The current results cover integer
-factoring and finite-cyclic discrete logarithms, together with formula-based
-estimates for RSA-2048 and P-256; each theorem states the certificates and
-hypotheses that connect a quantum routine to its cryptographic target.
+Lean-QuantumAlg formalizes quantum algorithms for integer factoring and
+finite-cyclic discrete logarithms, including RSA-2048 and P-256. Each algorithm endpoint
+states an independent problem and proves that an algorithm solves it under
+an explicit execution model. Correctness, borrowed-state restoration and
+logical-resource bounds refer to the same execution, with the input conditions
+and success guarantees stated in the theorem's specification.
 
 Verified highlights include:
 
@@ -165,24 +159,24 @@ Verified highlights include:
   connect QPE output to classical order recovery, while the
   [modular-multiplication eigenstructure](https://qudeleap.github.io/Lean-QuantumAlg/theorems/modular-multiplication-eigenstructure/)
   fixes the spectral convention used by the circuit endpoint; Lean:
-  [`QuantumAlg.OrderFinding.ShorSourceJoint.main`](QuantumAlg/Algorithms/OrderFinding/General.lean),
-  [`QuantumAlg.OrderFinding.main`](QuantumAlg/Algorithms/OrderFinding/Exact.lean), and
+  [`QuantumAlg.OrderFinding.ShorSourceJoint.SourceNativeEndpoint.Canonical.main`](QuantumAlg/Algorithms/OrderFinding/General/NativeEndpoint/Canonical.lean),
+  [`QuantumAlg.OrderFinding.Exact.NativeEndpoint.Canonical.main`](QuantumAlg/Algorithms/OrderFinding/Exact/Native/Canonical.lean), and
   [`QuantumAlg.OrderFinding.ResidueRegisterEigenstructure.main`](QuantumAlg/Algorithms/OrderFinding/Eigenstructure.lean).
 - [Shor-style factoring](https://qudeleap.github.io/Lean-QuantumAlg/theorems/rsa-factorization-shor/)
   and [Ekera-Hastad-style factoring](https://qudeleap.github.io/Lean-QuantumAlg/theorems/rsa-factorization-ekera-hastad/)
-  package distinct source-shaped correctness and resource certificates; Lean:
-  [`QuantumAlg.Factoring.ShorStyle.main`](QuantumAlg/Algorithms/Factoring/ShorStyle.lean)
+  provide complete solvers with their respective success and resource guarantees; Lean:
+  [`QuantumAlg.Factoring.ShorStyle.RealTarget.main`](QuantumAlg/Algorithms/Factoring/ShorStyle/Real.lean)
   and [`QuantumAlg.Factoring.EkeraHastadStyle.main`](QuantumAlg/Algorithms/Factoring/EkeraHastadStyle.lean).
 - [RSA-2048 logical-resource estimate](https://qudeleap.github.io/Lean-QuantumAlg/theorems/rsa-2048-logical-resource-estimate/)
-  evaluates the formalized factoring formula envelope; Lean:
-  [`QuantumAlg.Factoring.RSA2048.main`](QuantumAlg/Algorithms/Factoring/RSA2048/Endpoint.lean).
+  bounds the native gates, space and quantum time of a complete factoring algorithm;
+  Lean: [`QuantumAlg.Factoring.RSA2048.main`](QuantumAlg/Algorithms/Factoring/RSA2048.lean).
 - [Finite-cyclic discrete logarithms](https://qudeleap.github.io/Lean-QuantumAlg/theorems/finite-cyclic-discrete-logarithms/)
-  expose recovery correctness with exact natural-number resource counters;
-  Lean: [`QuantumAlg.FiniteCyclicDLP.main`](QuantumAlg/Algorithms/FiniteCyclicDLP.lean).
+  combine quantum sampling and classical recovery with explicit success and resource bounds;
+  Lean: [`QuantumAlg.FiniteCyclicDLP.BinaryEndpoint.main`](QuantumAlg/Algorithms/FiniteCyclicDLP/Binary/Endpoint.lean).
 - [P-256 logical-resource estimate](https://qudeleap.github.io/Lean-QuantumAlg/theorems/p256-logical-resource-estimate/)
-  records the domain-specific logical-resource baseline for elliptic-curve
-  discrete logarithms; Lean:
-  [`QuantumAlg.EllipticCurve.P256LogicalResources.main`](QuantumAlg/Algorithms/EllipticCurve/P256/Resources.lean).
+  bounds a complete elliptic-curve discrete-logarithm algorithm, including repeated
+  sampling and classical recovery; Lean:
+  [`QuantumAlg.EllipticCurve.P256LogicalResources.main`](QuantumAlg/Algorithms/EllipticCurve/P256.lean).
 
 Start from the focused public navigation modules:
 
@@ -200,4 +194,4 @@ should build without `sorry`, `admit`, or new axioms.
 
 ## License
 
-Lean-QuantumAlg is released under the Apache License 2.0. See `LICENSE`.
+Lean-QuantumAlg is released under the Apache License 2.0. See [LICENSE](LICENSE).

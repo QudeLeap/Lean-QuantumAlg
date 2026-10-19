@@ -24,7 +24,7 @@ noncomputable section
 
 variable {R : Register} {Index : Type} [Fintype Index]
 
-private theorem weighted_positive (probability : Index → ℝ)
+private lemma weighted_positive (probability : Index → ℝ)
     (nonnegative : ∀ index, 0 ≤ probability index) (effects : Index → Effect R) :
     (∑ index, probability index • (effects index).matrix).PosSemidef := by
   classical
@@ -34,7 +34,7 @@ private theorem weighted_positive (probability : Index → ℝ)
     rw [Finset.sum_insert absent]
     exact ((effects index).positive.smul (nonnegative index)).add induction
 
-private theorem weighted_contractive (probability : Index → ℝ)
+private lemma weighted_contractive (probability : Index → ℝ)
     (nonnegative : ∀ index, 0 ≤ probability index) (total : ∑ index, probability index = 1)
     (effects : Index → Effect R) (vector : HilbertVector R) :
     ‖(∑ index, probability index • (effects index).matrix).applyVec vector‖ ≤ ‖vector‖ := by
@@ -65,14 +65,14 @@ def weightedAverage (probability : Index → ℝ)
   contractive := weighted_contractive probability nonnegative total effects
 
 /-- The weighted observable uses exactly the supplied finite probabilities and matrices. -/
-theorem weightedAverage_matrix (probability : Index → ℝ)
+lemma weightedAverage_matrix (probability : Index → ℝ)
     (nonnegative : ∀ index, 0 ≤ probability index) (total : ∑ index, probability index = 1)
     (effects : Index → Effect R) :
     (weightedAverage probability nonnegative total effects).matrix =
       ∑ index, probability index • (effects index).matrix := rfl
 
 /-- Trace observation commutes with the normalized finite combination. -/
-theorem weightedAverage_weight (probability : Index → ℝ)
+lemma weightedAverage_weight (probability : Index → ℝ)
     (nonnegative : ∀ index, 0 ≤ probability index) (total : ∑ index, probability index = 1)
     (effects : Index → Effect R) (state : DensityOperator R) :
     (weightedAverage probability nonnegative total effects).weight state =

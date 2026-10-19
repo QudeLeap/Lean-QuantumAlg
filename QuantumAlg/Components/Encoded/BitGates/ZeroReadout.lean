@@ -21,7 +21,7 @@ empty word; the proof reuses finite-word bit extensionality.
 namespace QuantumAlg.BinaryLabelEncoding
 
 /-- All actual readouts of a raw binary word vanish exactly at basis label zero. -/
-theorem finIdentity_all_zero_iff (width : Nat) (label : Fin (2 ^ width)) :
+lemma finIdentity_all_zero_iff (width : Nat) (label : Fin (2 ^ width)) :
     (∀ wire, (finIdentityBit width wire).get label = false) ↔ label = 0 := by
   constructor
   · intro allZero

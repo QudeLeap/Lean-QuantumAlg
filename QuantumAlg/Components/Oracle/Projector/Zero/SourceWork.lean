@@ -77,15 +77,16 @@ def program (m n : Nat) (positive : 0 < n)
   GateSpec.programList physical oracles ((layout m n positive).patternGates fun _ => false)
 
 /-- The entire encoded label changes only by the declared zero-controlled phase-wire flip. -/
-theorem program_realizes (m n : Nat) (positive : 0 < n)
-    (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel) :
-    UnitaryCircuit.Realizes (encoding m n) (program m n positive physical oracles)
+lemma program_realizes (m n : Nat) (positive : 0 < n)
+    (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel)
+      (environment : oracles.Interpretation) :
+    UnitaryCircuit.Realizes (encoding m n) (program m n positive physical oracles) environment
       (fun state => if ∀ index, (sourceBit m n index).get state = false
         then (outputBit m n).flip state else state) :=
-  (layout m n positive).patternGates_realizes physical oracles (fun _ => false)
+  (layout m n positive).patternGates_realizes physical oracles (fun _ => false) environment
 
 /-- Both zero masks and the borrowed conjunction contribute to the actual sequential depth. -/
-theorem program_depth (m n : Nat) (positive : 0 < n)
+lemma program_depth (m n : Nat) (positive : 0 < n)
     (physical : QubitLayout (1 + (m + n))) (oracles : OracleModel) :
     (program m n positive physical oracles).evaluatedEventDepth (fun _ => 1) =
       2 * m + OneDirtyLayout.gateCount m :=

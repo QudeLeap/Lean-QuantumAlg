@@ -52,7 +52,7 @@ public def hadamardTest (U : UnitaryOperator (Qubits n)) :
     (UnitaryOperator.controlledQubits U * hadamardTestHadamardOp n)
 
 
-private theorem tensor_H_one_applyVec_ket0
+private lemma tensor_H_one_applyVec_ket0
     (ψ : HilbertVector (Qubits n)) :
     (hadamardTestHadamardOp n).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) ψ)
@@ -72,14 +72,14 @@ private theorem tensor_H_one_applyVec_ket0
       (v : HilbertVector (Qubits 1))) hadamardOperator_apply_ket0
   rw [hH, HilbertOperator.one_applyVec]
 
-private theorem ketPlus_tensor (ψ : HilbertVector (Qubits n)) :
+private lemma ketPlus_tensor (ψ : HilbertVector (Qubits n)) :
     HilbertVector.tensor (ketPlus : HilbertVector (Qubits 1)) ψ
       = invSqrt2 •
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) ψ
           + HilbertVector.tensor (ket1 : HilbertVector (Qubits 1)) ψ) := by
   rw [ketPlus_coe, HilbertVector.smul_tensor, HilbertVector.add_tensor]
 
-private theorem controlled_applyVec_ketPlus_tensor
+private lemma controlled_applyVec_ketPlus_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (UnitaryOperator.controlledQubits U).applyVec
         (HilbertVector.tensor (ketPlus : HilbertVector (Qubits 1)) ψ)
@@ -90,7 +90,7 @@ private theorem controlled_applyVec_ketPlus_tensor
     UnitaryOperator.controlledQubits_applyVec_ket0_tensor,
     UnitaryOperator.controlledQubits_applyVec_ket1_tensor]
 
-private theorem tensor_H_one_finish
+private lemma tensor_H_one_finish
     (U : UnitaryOperator (Qubits n)) (ψ : NormalizedVector (Qubits n)) :
     (hadamardTestHadamardOp n).applyVec
         (invSqrt2 •
@@ -146,7 +146,7 @@ private theorem tensor_H_one_finish
   ring
 
 /-- Raw-vector proof of the Hadamard-test pre-measurement state. -/
-private theorem hadamardTest_applyVec_ket0_tensor
+private lemma hadamardTest_applyVec_ket0_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : NormalizedVector (Qubits n)) :
     (hadamardTest U).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) (ψ : HilbertVector (Qubits n)))
@@ -161,7 +161,7 @@ private theorem hadamardTest_applyVec_ket0_tensor
     tensor_H_one_finish]
 
 /-- The pre-measurement state of the Hadamard test. -/
-theorem hadamardTest_apply_ket0_tensor (U : UnitaryOperator (Qubits n))
+lemma hadamardTest_apply_ket0_tensor (U : UnitaryOperator (Qubits n))
     (ψ : NormalizedVector (Qubits n)) :
     (hadamardTest U).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) (ψ : HilbertVector (Qubits n)))
@@ -174,7 +174,7 @@ theorem hadamardTest_apply_ket0_tensor (U : UnitaryOperator (Qubits n))
   exact hadamardTest_applyVec_ket0_tensor U ψ
 
 /-- Hadamard test, outcome 0, in operator form. -/
-theorem hadamardTest_probQubit0_zero {U : UnitaryOperator (Qubits n)}
+lemma hadamardTest_probQubit0_zero {U : UnitaryOperator (Qubits n)}
     (ψ : NormalizedVector (Qubits n)) :
     NormalizedVector.probQubit0
         ((hadamardTest U).apply (ket0.tensor ψ)) 0
@@ -196,7 +196,7 @@ theorem hadamardTest_probQubit0_zero {U : UnitaryOperator (Qubits n)}
   ring
 
 /-- **Hadamard test, outcome 1**. -/
-theorem hadamardTest_probQubit0_one {U : UnitaryOperator (Qubits n)}
+lemma hadamardTest_probQubit0_one {U : UnitaryOperator (Qubits n)}
     (ψ : NormalizedVector (Qubits n)) :
     NormalizedVector.probQubit0
         ((hadamardTest U).apply (ket0.tensor ψ)) 1

@@ -22,11 +22,12 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual path composes the verified source, copy and nearest-plane traces in order. -/
-theorem pairToNearestPlaneSavedTargetInto_events (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_events (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     (pairToNearestPlaneSavedTargetInto refs).eventTrace path =
       (LatticeWideLllMachine.pairToLllInto refs.pairNearest.wide).eventTrace path.1 ++
@@ -38,7 +39,7 @@ theorem pairToNearestPlaneSavedTargetInto_events (refs : Refs ctx N)
         path.2.1) rfl)
 
 /-- Actual native multiplicities retain the source run, three target copies and nearest plane. -/
-theorem pairToNearestPlaneSavedTargetInto_resourcePool (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_resourcePool (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     (pairToNearestPlaneSavedTargetInto refs).resourcePool path =
       (LatticeWideLllMachine.pairToLllInto refs.pairNearest.wide).resourcePool path.1 +
@@ -53,7 +54,7 @@ theorem pairToNearestPlaneSavedTargetInto_resourcePool (refs : Refs ctx N)
 def operationBound (N : Nat) : Nat := LatticeWideLllMachine.operationBound N + 131
 
 /-- The complete actual saved-target path obeys the independent full native operation budget. -/
-theorem pairToNearestPlaneSavedTargetInto_eventCount_le (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_eventCount_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     ((pairToNearestPlaneSavedTargetInto refs).eventTrace path).length ≤ operationBound N := by
   have wide := LatticeWideLllMachine.pairToLllInto_eventCount_le refs.pairNearest.wide path.1
@@ -66,7 +67,7 @@ theorem pairToNearestPlaneSavedTargetInto_eventCount_le (refs : Refs ctx N)
   omega
 
 /-- Complete unit-duration depth charges saved-target copying before nearest-plane computation. -/
-theorem pairToNearestPlaneSavedTargetInto_depth_le (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_depth_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     (pairToNearestPlaneSavedTargetInto refs).depth (fun _ => 1) path ≤ operationBound N := by
   have wide := LatticeWideLllMachine.pairToLllInto_depth_le refs.pairNearest.wide path.1
@@ -77,30 +78,30 @@ theorem pairToNearestPlaneSavedTargetInto_depth_le (refs : Refs ctx N)
   omega
 
 /-- Actual copying and nearest plane preserve every original borrowed-reference correlation. -/
-theorem copyNearestInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma copyNearestInto_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (copyNearestInto refs).BorrowedRestored Reference state
-      ((copyNearestInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((copyNearestInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeRows.pointCopy_borrowedRestored refs.pairNearest.wide.target.target.point
       refs.savedTarget
       Reference state)
     (LatticeNearestPlaneThree.threeInto_borrowedRestored (nearestRefs refs) Reference _)
 
 /-- The complete actual saved-target run restores every borrowed-reference joint state. -/
-theorem pairToNearestPlaneSavedTargetInto_borrowedRestored (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_borrowedRestored (refs : Refs ctx N)
     (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (pairToNearestPlaneSavedTargetInto refs).BorrowedRestored Reference state
-      ((pairToNearestPlaneSavedTargetInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((pairToNearestPlaneSavedTargetInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeWideLllMachine.pairToLllInto_borrowedRestored refs.pairNearest.wide Reference state)
     (copyNearestInto_borrowedRestored refs Reference _)
 
 /-- Every actual copy and nearest-plane instruction retains the complete original context. -/
-theorem copyNearestInto_visited (refs : Refs ctx N) (path : (copyNearestInto refs).Path)
+lemma copyNearestInto_visited (refs : Refs ctx N) (path : (copyNearestInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (copyNearestInto refs).visitedContexts path) :
     visited = ctx := by
@@ -114,7 +115,7 @@ theorem copyNearestInto_visited (refs : Refs ctx N) (path : (copyNearestInto ref
     (LatticeNearestPlaneThree.threeInto_visited (nearestRefs refs) path.2 visited)
 
 /-- Every actual source, copy and nearest-plane instruction retains all original context entries. -/
-theorem pairToNearestPlaneSavedTargetInto_visited (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_visited (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (pairToNearestPlaneSavedTargetInto refs).visitedContexts path) :
     visited = ctx := by
@@ -124,7 +125,7 @@ theorem pairToNearestPlaneSavedTargetInto_visited (refs : Refs ctx N)
     (copyNearestInto_visited refs path.2 visited)
 
 /-- Resident accounting retains all original cells, including the independent saved target. -/
-theorem pairToNearestPlaneSavedTargetInto_resident_le (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_resident_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     (pairToNearestPlaneSavedTargetInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -132,7 +133,7 @@ theorem pairToNearestPlaneSavedTargetInto_resident_le (refs : Refs ctx N)
   rw [pairToNearestPlaneSavedTargetInto_visited refs path visited present]
 
 /-- Auxiliary accounting retains all original roles, including every saved-target workspace word. -/
-theorem pairToNearestPlaneSavedTargetInto_auxiliary_le (refs : Refs ctx N)
+lemma pairToNearestPlaneSavedTargetInto_auxiliary_le (refs : Refs ctx N)
     (path : (pairToNearestPlaneSavedTargetInto refs).Path) :
     (pairToNearestPlaneSavedTargetInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

@@ -35,7 +35,7 @@ open Polynomial
 
 namespace Complement.Interval
 
-private theorem multiset_count_le_countP_of {α : Type*} [DecidableEq α]
+private lemma multiset_count_le_countP_of {α : Type*} [DecidableEq α]
     (s : Multiset α) {a : α} {p : α → Prop} [DecidablePred p] (ha : p a) :
     s.count a ≤ s.countP p := by
   rw [Multiset.count_eq_card_filter_eq, Multiset.countP_eq_card_filter]
@@ -44,7 +44,7 @@ private theorem multiset_count_le_countP_of {α : Type*} [DecidableEq α]
       rw [← hx]
       exact ha))
 
-private theorem multiset_countP_or_eq_add {α : Type*} {p q : α → Prop}
+private lemma multiset_countP_or_eq_add {α : Type*} {p q : α → Prop}
     (s : Multiset α)
     (hdisj : ∀ x, p x → q x → False) :
     @Multiset.countP α (fun x => p x ∨ q x)
@@ -62,7 +62,7 @@ private theorem multiset_countP_or_eq_add {α : Type*} {p q : α → Prop}
       · simp [hp, hq, ih, Nat.add_assoc]
       · simp [hp, hq, ih]
 
-private theorem multiset_countP_or4_eq_add {α : Type*}
+private lemma multiset_countP_or4_eq_add {α : Type*}
     {p q r t : α → Prop}
     (s : Multiset α)
     (hpq : ∀ x, p x → q x → False)
@@ -113,7 +113,7 @@ private theorem multiset_countP_or4_eq_add {α : Type*}
               @Multiset.countP α t (fun x => Classical.propDecidable (t x)) s := by
       omega
 
-private theorem multiset_countP_or5_eq_add {α : Type*}
+private lemma multiset_countP_or5_eq_add {α : Type*}
     {p q r t u : α → Prop}
     (s : Multiset α)
     (hpq : ∀ x, p x → q x → False)
@@ -162,7 +162,7 @@ private theorem multiset_countP_or5_eq_add {α : Type*}
                 @Multiset.countP α u (fun x => Classical.propDecidable (u x)) s := by
       omega
 
-private theorem multiset_countP_congr_iff {α : Type*} {p q : α → Prop}
+private lemma multiset_countP_congr_iff {α : Type*} {p q : α → Prop}
     (s : Multiset α)
     (h : ∀ x, p x ↔ q x) :
     @Multiset.countP α p (fun x => Classical.propDecidable (p x)) s =
@@ -177,7 +177,7 @@ private theorem multiset_countP_congr_iff {α : Type*} {p q : α → Prop}
       (fun x => Classical.propDecidable (q x)) s (fun x _hx => h x)
   exact congrArg Multiset.card hfilter
 
-private theorem list_prod_flatMap_replicate {α M : Type*} [CommMonoid M]
+private lemma list_prod_flatMap_replicate {α M : Type*} [CommMonoid M]
     (roots : List α) (count : α → ℕ) (factor : α → M) :
     ((roots.flatMap fun z => List.replicate (count z) (factor z)).prod) =
       (roots.map fun z => (factor z) ^ count z).prod := by
@@ -187,7 +187,7 @@ private theorem list_prod_flatMap_replicate {α M : Type*} [CommMonoid M]
   | cons z zs ih =>
       simp [List.prod_append, ih]
 
-private theorem list_prod_map_flatMap {α β M : Type*} [CommMonoid M]
+private lemma list_prod_map_flatMap {α β M : Type*} [CommMonoid M]
     (items : α → List β) (factor : β → M) :
     ∀ roots : List α,
       (List.map factor (roots.flatMap items)).prod =
@@ -196,7 +196,7 @@ private theorem list_prod_map_flatMap {α β M : Type*} [CommMonoid M]
   | z :: zs => by
       simp [List.prod_append, list_prod_map_flatMap items factor zs]
 
-private theorem list_prod_flatMap_two {α M : Type*} [CommMonoid M]
+private lemma list_prod_flatMap_two {α M : Type*} [CommMonoid M]
     (roots : List α) (f g : α → M) :
     (roots.flatMap fun z => [f z, g z]).prod =
       (roots.map fun z => f z * g z).prod := by
@@ -212,7 +212,7 @@ private theorem list_prod_flatMap_two {α M : Type*} [CommMonoid M]
         _ = ((z :: zs).map fun z => f z * g z).prod := by
           simp
 
-private theorem list_prod_flatMap_four_pair {α M : Type*} [CommMonoid M]
+private lemma list_prod_flatMap_four_pair {α M : Type*} [CommMonoid M]
     (roots : List α) (f g : α → M) :
     (roots.flatMap fun z => [f z, g z, f z, g z]).prod =
       (roots.map fun z => (f z * g z) ^ 2).prod := by
@@ -230,7 +230,7 @@ private theorem list_prod_flatMap_four_pair {α M : Type*} [CommMonoid M]
         _ = ((z :: zs).map fun z => (f z * g z) ^ 2).prod := by
           simp
 
-private theorem exists_Ioo_not_root_of_ne_zero {P : ℝ[X]} (hP : P ≠ 0)
+private lemma exists_Ioo_not_root_of_ne_zero {P : ℝ[X]} (hP : P ≠ 0)
     {a b : ℝ} (hab : a < b) :
     ∃ x : ℝ, x ∈ Set.Ioo a b ∧ P.eval x ≠ 0 := by
   classical
@@ -249,7 +249,7 @@ private theorem exists_Ioo_not_root_of_ne_zero {P : ℝ[X]} (hP : P ≠ 0)
     rw [Finset.mem_coe, Multiset.mem_toFinset]
     exact hmem_roots)
 
-private theorem list_count_flatMap_replicate_self {α : Type*}
+private lemma list_count_flatMap_replicate_self {α : Type*}
     [BEq α] [LawfulBEq α] (roots : List α) (count : α → ℕ) (target : α)
     (hnodup : roots.Nodup) :
     (roots.flatMap fun z => List.replicate (count z) z).count target =
@@ -271,7 +271,7 @@ private theorem list_count_flatMap_replicate_self {α : Type*}
           exact htarget (List.eq_of_mem_replicate hw)
         simp [List.mem_cons, htarget, hrep, ih hzs_nodup]
 
-private theorem list_count_flatMap_replicate_key_of_mem
+private lemma list_count_flatMap_replicate_key_of_mem
     {α β : Type*} [BEq β] [LawfulBEq β]
     (roots : List α) (key : α → β) (count : α → ℕ) {target : α}
     (hnodup : (roots.map key).Nodup) (htarget : target ∈ roots) :
@@ -306,7 +306,7 @@ private theorem list_count_flatMap_replicate_key_of_mem
         have htail := ih htail_nodup htarget_tail
         simp [hhead_zero, htail]
 
-private theorem list_count_flatMap_real_four_orbit
+private lemma list_count_flatMap_real_four_orbit
     (params : List ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < s) (htarget : 0 < target) :
     (params.flatMap fun s : ℝ =>
@@ -361,7 +361,7 @@ private theorem list_count_flatMap_real_four_orbit
         have hne : s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_real_four_orbit_neg
+private lemma list_count_flatMap_real_four_orbit_neg
     (params : List ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < s) (htarget : 0 < target) :
     (params.flatMap fun s : ℝ =>
@@ -421,7 +421,7 @@ private theorem list_count_flatMap_real_four_orbit_neg
         have hne : s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_real_two_orbit
+private lemma list_count_flatMap_real_two_orbit
     (params : List ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < s) (htarget : 0 < target) :
     (params.flatMap fun s : ℝ => [(s : ℂ), -(s : ℂ)]).count
@@ -470,7 +470,7 @@ private theorem list_count_flatMap_real_two_orbit
         have hne : s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_real_two_orbit_neg
+private lemma list_count_flatMap_real_two_orbit_neg
     (params : List ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < s) (htarget : 0 < target) :
     (params.flatMap fun s : ℝ => [(s : ℂ), -(s : ℂ)]).count
@@ -524,7 +524,7 @@ private theorem list_count_flatMap_real_two_orbit_neg
         have hne : s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_key_real_two_orbit
+private lemma list_count_flatMap_key_real_two_orbit
     {α : Type*} (params : List α) (value : α → ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < value s) (htarget : 0 < target) :
     (params.flatMap fun s : α => [(value s : ℂ), -(value s : ℂ)]).count
@@ -573,7 +573,7 @@ private theorem list_count_flatMap_key_real_two_orbit
         have hne : value s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_key_real_two_orbit_neg
+private lemma list_count_flatMap_key_real_two_orbit_neg
     {α : Type*} (params : List α) (value : α → ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < value s) (htarget : 0 < target) :
     (params.flatMap fun s : α => [(value s : ℂ), -(value s : ℂ)]).count
@@ -627,7 +627,7 @@ private theorem list_count_flatMap_key_real_two_orbit_neg
         have hne : value s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_imaginary_two_orbit
+private lemma list_count_flatMap_imaginary_two_orbit
     (params : List ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < s) (htarget : 0 < target) :
     (params.flatMap fun s : ℝ =>
@@ -688,7 +688,7 @@ private theorem list_count_flatMap_imaginary_two_orbit
         have hne : s ≠ target := fun h => htarget_s h.symm
         simp [hne]
 
-private theorem list_count_flatMap_imaginary_two_orbit_neg
+private lemma list_count_flatMap_imaginary_two_orbit_neg
     (params : List ℝ) (target : ℝ)
     (hpos : ∀ s ∈ params, 0 < s) (htarget : 0 < target) :
     (params.flatMap fun s : ℝ =>
@@ -754,7 +754,7 @@ private theorem list_count_flatMap_imaginary_two_orbit_neg
 /-- Even real polynomials evaluate symmetrically after the real-to-complex
 coefficient lift.  This is the algebraic root-closure entry point used in
 [GSLW19, BlockHam.tex:442]. -/
-theorem realPolynomialToComplex_eval_neg_of_hasRealParity_even {A : ℝ[X]}
+lemma realPolynomialToComplex_eval_neg_of_hasRealParity_even {A : ℝ[X]}
     (hA : HasRealParity A 0) (z : ℂ) :
     (realPolynomialToComplex A).eval (-z) =
       (realPolynomialToComplex A).eval z := by
@@ -769,7 +769,7 @@ theorem realPolynomialToComplex_eval_neg_of_hasRealParity_even {A : ℝ[X]}
 /-- Even real polynomials are invariant under the variable substitution
 `X ↦ -X` after coefficient extension to `ℂ`.  This is the multiplicity-level
 version of the root symmetry in [GSLW19, BlockHam.tex:442]. -/
-theorem realPolynomialToComplex_comp_neg_X_of_hasRealParity_even {A : ℝ[X]}
+lemma realPolynomialToComplex_comp_neg_X_of_hasRealParity_even {A : ℝ[X]}
     (hA : HasRealParity A 0) :
     (realPolynomialToComplex A).comp (-X) = realPolynomialToComplex A := by
   ext n
@@ -782,7 +782,7 @@ theorem realPolynomialToComplex_comp_neg_X_of_hasRealParity_even {A : ℝ[X]}
 
 /-- Complex roots of an even real polynomial are closed under negation, matching
 the source root symmetry in [GSLW19, BlockHam.tex:442]. -/
-theorem isRoot_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
+lemma isRoot_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
     {z : ℂ} (hz : (realPolynomialToComplex A).IsRoot z) :
     (realPolynomialToComplex A).IsRoot (-z) := by
   rw [Polynomial.IsRoot.def] at hz ⊢
@@ -791,7 +791,7 @@ theorem isRoot_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
 /-- Multiset-root version of negation closure for even real polynomials.  This
 is the roots-layer form needed by the product proof in [GSLW19,
 BlockHam.tex:442-456]. -/
-theorem mem_roots_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
+lemma mem_roots_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
     {z : ℂ} (hz : z ∈ (realPolynomialToComplex A).roots) :
     -z ∈ (realPolynomialToComplex A).roots := by
   exact (Polynomial.mem_roots (Polynomial.ne_zero_of_mem_roots hz)).mpr
@@ -800,7 +800,7 @@ theorem mem_roots_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0
 /-- Root multiplicities of an even real polynomial are invariant under
 `z ↦ -z`, matching the paired root accounting in [GSLW19,
 BlockHam.tex:442-456]. -/
-theorem rootMultiplicity_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
+lemma rootMultiplicity_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealParity A 0)
     (z : ℂ) :
     (realPolynomialToComplex A).rootMultiplicity (-z) =
       (realPolynomialToComplex A).rootMultiplicity z := by
@@ -817,7 +817,7 @@ theorem rootMultiplicity_neg_of_hasRealParity_even {A : ℝ[X]} (hA : HasRealPar
 
 /-- Real-coefficient polynomials commute with complex conjugation under
 evaluation. -/
-theorem realPolynomialToComplex_eval_conj (A : ℝ[X]) (z : ℂ) :
+lemma realPolynomialToComplex_eval_conj (A : ℝ[X]) (z : ℂ) :
     (realPolynomialToComplex A).eval (starRingEnd ℂ z) =
       starRingEnd ℂ ((realPolynomialToComplex A).eval z) := by
   conv_lhs => rw [← conjP_realPolynomialToComplex A]
@@ -826,7 +826,7 @@ theorem realPolynomialToComplex_eval_conj (A : ℝ[X]) (z : ℂ) :
 
 /-- Complex roots of a real polynomial are closed under conjugation, matching
 the source root symmetry in [GSLW19, BlockHam.tex:442]. -/
-theorem isRoot_conj_of_realPolynomialToComplex {A : ℝ[X]} {z : ℂ}
+lemma isRoot_conj_of_realPolynomialToComplex {A : ℝ[X]} {z : ℂ}
     (hz : (realPolynomialToComplex A).IsRoot z) :
     (realPolynomialToComplex A).IsRoot (starRingEnd ℂ z) := by
   rw [Polynomial.IsRoot.def] at hz ⊢
@@ -836,7 +836,7 @@ theorem isRoot_conj_of_realPolynomialToComplex {A : ℝ[X]} {z : ℂ}
 /-- Multiset-root version of conjugation closure for real polynomials.  This
 is the roots-layer form needed by the product proof in [GSLW19,
 BlockHam.tex:442-456]. -/
-theorem mem_roots_conj_of_realPolynomialToComplex {A : ℝ[X]} {z : ℂ}
+lemma mem_roots_conj_of_realPolynomialToComplex {A : ℝ[X]} {z : ℂ}
     (hz : z ∈ (realPolynomialToComplex A).roots) :
     starRingEnd ℂ z ∈ (realPolynomialToComplex A).roots := by
   exact (Polynomial.mem_roots (Polynomial.ne_zero_of_mem_roots hz)).mpr
@@ -845,7 +845,7 @@ theorem mem_roots_conj_of_realPolynomialToComplex {A : ℝ[X]} {z : ℂ}
 /-- Root multiplicities of a real polynomial are invariant under complex
 conjugation, matching the conjugate-root accounting in [GSLW19,
 BlockHam.tex:442-456]. -/
-theorem rootMultiplicity_conj_of_realPolynomialToComplex (A : ℝ[X]) (z : ℂ) :
+lemma rootMultiplicity_conj_of_realPolynomialToComplex (A : ℝ[X]) (z : ℂ) :
     (realPolynomialToComplex A).rootMultiplicity (starRingEnd ℂ z) =
       (realPolynomialToComplex A).rootMultiplicity z := by
   let P : ℂ[X] := realPolynomialToComplex A
@@ -860,7 +860,7 @@ theorem rootMultiplicity_conj_of_realPolynomialToComplex (A : ℝ[X]) (z : ℂ) 
 /-- Extract one point on each side of an interior point from a neighborhood
 eventuality.  This elementary real-analysis lemma is used below to turn odd
 root multiplicity into a sign change on the interval. -/
-theorem exists_left_right_of_eventually_nhds {s : ℝ} {p : ℝ → Prop}
+lemma exists_left_right_of_eventually_nhds {s : ℝ} {p : ℝ → Prop}
     (hp : ∀ᶠ x in nhds s, p x) (hl : -1 < s) (hr : s < 1) :
     ∃ x y, x ∈ Set.Icc (-1 : ℝ) 1 ∧ y ∈ Set.Icc (-1 : ℝ) 1 ∧
       x < s ∧ s < y ∧ p x ∧ p y := by
@@ -897,7 +897,7 @@ theorem exists_left_right_of_eventually_nhds {s : ℝ} {p : ℝ → Prop}
 /-- Interior real roots of an interval-nonnegative real polynomial have even
 multiplicity.  This is the sign-change step behind the source root
 classification in [GSLW19, BlockHam.tex:442-456]. -/
-theorem rootMultiplicity_even_of_nonnegativeOnUnitInterval {P : ℝ[X]} {s : ℝ}
+lemma rootMultiplicity_even_of_nonnegativeOnUnitInterval {P : ℝ[X]} {s : ℝ}
     (hP0 : P ≠ 0) (hs : s ∈ Set.Ioo (-1 : ℝ) 1)
     (hnonneg : NonnegativeOnUnitInterval P) :
     Even (P.rootMultiplicity s) := by
@@ -959,7 +959,7 @@ theorem rootMultiplicity_even_of_nonnegativeOnUnitInterval {P : ℝ[X]} {s : ℝ
 
 /-- The zero-root multiplicity of an even real polynomial is even.  This
 accounts for the `S_0` root class in [GSLW19, BlockHam.tex:442-452]. -/
-theorem rootMultiplicity_zero_even_of_hasRealParity_even {P : ℝ[X]}
+lemma rootMultiplicity_zero_even_of_hasRealParity_even {P : ℝ[X]}
     (hP : HasRealParity P 0) :
     Even (P.rootMultiplicity 0) := by
   by_cases hzero : P = 0
@@ -979,7 +979,7 @@ abbrev SourceRootClassFacts (A : ℝ[X]) :=
 
 /-- Source hypotheses imply the root-class facts used in the Gilyén product
 construction [GSLW19, BlockHam.tex:442-456]. -/
-theorem SourceHypotheses.rootClassFacts {A : ℝ[X]} {k : ℕ}
+lemma SourceHypotheses.rootClassFacts {A : ℝ[X]} {k : ℕ}
     (hA : SourceHypotheses A k) : SourceRootClassFacts A where
   zero_multiplicity_even := rootMultiplicity_zero_even_of_hasRealParity_even hA.even
   interior_multiplicity_even := by
@@ -996,14 +996,14 @@ theorem SourceHypotheses.rootClassFacts {A : ℝ[X]} {k : ℕ}
 namespace SourceRootClassFacts
 
 /-- Zero-root evenness transported to the complexified polynomial. -/
-theorem complex_zero_multiplicity_even {A : ℝ[X]} (facts : SourceRootClassFacts A) :
+lemma complex_zero_multiplicity_even {A : ℝ[X]} (facts : SourceRootClassFacts A) :
     Even ((realPolynomialToComplex A).rootMultiplicity (0 : ℂ)) := by
   change Even ((realPolynomialToComplex A).rootMultiplicity ((0 : ℝ) : ℂ))
   rw [facts.complex_ofReal_multiplicity 0]
   exact facts.zero_multiplicity_even
 
 /-- Interior real-root evenness transported to the complexified polynomial. -/
-theorem complex_ofReal_interior_multiplicity_even {A : ℝ[X]}
+lemma complex_ofReal_interior_multiplicity_even {A : ℝ[X]}
     (facts : SourceRootClassFacts A) {s : ℝ} (hs : s ∈ Set.Ioo (-1 : ℝ) 1) :
     Even ((realPolynomialToComplex A).rootMultiplicity (s : ℂ)) := by
   rw [facts.complex_ofReal_multiplicity s]
@@ -1014,7 +1014,7 @@ end SourceRootClassFacts
 /-- Complex root product factorization of a real polynomial after coefficient
 extension.  This is the Mathlib splitting bridge used before grouping the
 source root classes in [GSLW19, BlockHam.tex:450-456]. -/
-theorem realPolynomialToComplex_eq_leadingCoeff_mul_roots (A : ℝ[X]) :
+lemma realPolynomialToComplex_eq_leadingCoeff_mul_roots (A : ℝ[X]) :
     realPolynomialToComplex A =
       Polynomial.C (realPolynomialToComplex A).leadingCoeff *
         ((realPolynomialToComplex A).roots.map fun z => X - C z).prod := by
@@ -1037,7 +1037,7 @@ noncomputable def SourceHypotheses.rootProductData {A : ℝ[X]} {k : ℕ}
 /-- Root-product form indexed by distinct roots and their multiplicities.  This
 is the product expression that the source root-class proof groups into zero,
 real, imaginary, and complex quartet factors [GSLW19, BlockHam.tex:450-456]. -/
-theorem SourceRootProductData.product_eq_toFinset_roots {A : ℝ[X]}
+lemma SourceRootProductData.product_eq_toFinset_roots {A : ℝ[X]}
     (data : SourceRootProductData A)
     (hroots : data.roots = (realPolynomialToComplex A).roots) :
     realPolynomialToComplex A =
@@ -1064,7 +1064,7 @@ theorem SourceRootProductData.product_eq_toFinset_roots {A : ℝ[X]}
 
 /-- The distinct-root product form for the canonical root-product data extracted
 from `SourceHypotheses` [GSLW19, BlockHam.tex:450-456]. -/
-theorem SourceHypotheses.rootProductData_product_eq_toFinset_roots
+lemma SourceHypotheses.rootProductData_product_eq_toFinset_roots
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     realPolynomialToComplex A =
       Polynomial.C (realPolynomialToComplex A).leadingCoeff *
@@ -1076,7 +1076,7 @@ theorem SourceHypotheses.rootProductData_product_eq_toFinset_roots
 /-- In the canonical source root multiset, multiplicity in the multiset is
 exactly polynomial root multiplicity.  This is the counting bridge used in the
 source root-class degree argument [GSLW19, BlockHam.tex:469-479]. -/
-theorem SourceHypotheses.rootProductData_count_eq_rootMultiplicity
+lemma SourceHypotheses.rootProductData_count_eq_rootMultiplicity
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) (z : ℂ) :
     (hA.rootProductData).roots.count z =
       (realPolynomialToComplex A).rootMultiplicity z := by
@@ -1085,7 +1085,7 @@ theorem SourceHypotheses.rootProductData_count_eq_rootMultiplicity
 
 /-- The canonical source root multiset has cardinality at most `2k`, because
 `deg(A) <= 2k` in [GSLW19, BlockHam.tex:436-438]. -/
-theorem SourceHypotheses.rootProductData_roots_card_le_two_mul
+lemma SourceHypotheses.rootProductData_roots_card_le_two_mul
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).roots.card ≤ 2 * k := by
   have hdeg : (realPolynomialToComplex A).natDegree ≤ 2 * k := by
@@ -1099,7 +1099,7 @@ def complexRootOrbit (z : ℂ) : List ℂ :=
   [z, -z, starRingEnd ℂ z, -(starRingEnd ℂ z)]
 
 /-- The quartet orbit is symmetric. -/
-theorem mem_complexRootOrbit_symm {z w : ℂ}
+lemma mem_complexRootOrbit_symm {z w : ℂ}
     (hw : w ∈ complexRootOrbit z) :
     z ∈ complexRootOrbit w := by
   simp only [complexRootOrbit, List.mem_cons] at hw ⊢
@@ -1111,7 +1111,7 @@ theorem mem_complexRootOrbit_symm {z w : ℂ}
     · simp
     · cases hfalse
 
-private theorem complex_pair_eq_of_eq {a b c d : ℝ}
+private lemma complex_pair_eq_of_eq {a b c d : ℝ}
     (h : (a : ℂ) + Complex.I * (b : ℂ) =
       (c : ℂ) + Complex.I * (d : ℂ)) :
     (a, b) = (c, d) := by
@@ -1121,7 +1121,7 @@ private theorem complex_pair_eq_of_eq {a b c d : ℝ}
     simpa using congrArg Complex.im h
   exact Prod.ext hre him
 
-private theorem complex_firstQuadrant_ne_neg {a b c d : ℝ}
+private lemma complex_firstQuadrant_ne_neg {a b c d : ℝ}
     (ha : 0 < a) (hc : 0 < c) :
     (a : ℂ) + Complex.I * (b : ℂ) ≠
       -((c : ℂ) + Complex.I * (d : ℂ)) := by
@@ -1130,7 +1130,7 @@ private theorem complex_firstQuadrant_ne_neg {a b c d : ℝ}
   simp at hre
   linarith
 
-private theorem complex_firstQuadrant_ne_conj {a b c d : ℝ}
+private lemma complex_firstQuadrant_ne_conj {a b c d : ℝ}
     (hb : 0 < b) (hd : 0 < d) :
     (a : ℂ) + Complex.I * (b : ℂ) ≠
       starRingEnd ℂ ((c : ℂ) + Complex.I * (d : ℂ)) := by
@@ -1139,7 +1139,7 @@ private theorem complex_firstQuadrant_ne_conj {a b c d : ℝ}
   simp [Complex.conj_I, Complex.conj_ofReal] at him
   linarith
 
-private theorem complex_firstQuadrant_ne_neg_conj {a b c d : ℝ}
+private lemma complex_firstQuadrant_ne_neg_conj {a b c d : ℝ}
     (ha : 0 < a) (hc : 0 < c) :
     (a : ℂ) + Complex.I * (b : ℂ) ≠
       -(starRingEnd ℂ ((c : ℂ) + Complex.I * (d : ℂ))) := by
@@ -1148,7 +1148,7 @@ private theorem complex_firstQuadrant_ne_neg_conj {a b c d : ℝ}
   simp [Complex.conj_I, Complex.conj_ofReal] at hre
   linarith
 
-private theorem list_count_flatMap_complex_orbit
+private lemma list_count_flatMap_complex_orbit
     (params : List (ℝ × ℝ)) (a b : ℝ)
     (hpos : ∀ z ∈ params, 0 < z.1 ∧ 0 < z.2)
     (ha : 0 < a) (hb : 0 < b) :
@@ -1243,7 +1243,7 @@ private theorem list_count_flatMap_complex_orbit
         have hne : z ≠ (a, b) := fun h => htarget_z h.symm
         simp [hne]
 
-private theorem list_count_flatMap_complex_orbit_neg
+private lemma list_count_flatMap_complex_orbit_neg
     (params : List (ℝ × ℝ)) (a b : ℝ)
     (hpos : ∀ z ∈ params, 0 < z.1 ∧ 0 < z.2)
     (ha : 0 < a) (hb : 0 < b) :
@@ -1336,7 +1336,7 @@ private theorem list_count_flatMap_complex_orbit_neg
         have hne : z ≠ (a, b) := fun h => htarget_z h.symm
         simp [hne]
 
-private theorem list_count_flatMap_complex_orbit_conj
+private lemma list_count_flatMap_complex_orbit_conj
     (params : List (ℝ × ℝ)) (a b : ℝ)
     (hpos : ∀ z ∈ params, 0 < z.1 ∧ 0 < z.2)
     (ha : 0 < a) (hb : 0 < b) :
@@ -1445,7 +1445,7 @@ private theorem list_count_flatMap_complex_orbit_conj
         have hne : z ≠ (a, b) := fun h => htarget_z h.symm
         simp [hne]
 
-private theorem list_count_flatMap_complex_orbit_neg_conj
+private lemma list_count_flatMap_complex_orbit_neg_conj
     (params : List (ℝ × ℝ)) (a b : ℝ)
     (hpos : ∀ z ∈ params, 0 < z.1 ∧ 0 < z.2)
     (ha : 0 < a) (hb : 0 < b) :
@@ -1559,7 +1559,7 @@ private theorem list_count_flatMap_complex_orbit_neg_conj
 
 /-- Evenness and real coefficients make the source root set closed under the
 quartet orbit used in [GSLW19, BlockHam.tex:450-456]. -/
-theorem mem_roots_of_mem_complexRootOrbit {A : ℝ[X]} (hA : HasRealParity A 0)
+lemma mem_roots_of_mem_complexRootOrbit {A : ℝ[X]} (hA : HasRealParity A 0)
     {z w : ℂ} (hz : z ∈ (realPolynomialToComplex A).roots)
     (hw : w ∈ complexRootOrbit z) :
     w ∈ (realPolynomialToComplex A).roots := by
@@ -1575,7 +1575,7 @@ theorem mem_roots_of_mem_complexRootOrbit {A : ℝ[X]} (hA : HasRealParity A 0)
 
 /-- Multiplicities are constant on the quartet orbit used by the source root
 classification [GSLW19, BlockHam.tex:450-456]. -/
-theorem rootMultiplicity_eq_of_mem_complexRootOrbit {A : ℝ[X]}
+lemma rootMultiplicity_eq_of_mem_complexRootOrbit {A : ℝ[X]}
     (hA : HasRealParity A 0) {z w : ℂ} (hw : w ∈ complexRootOrbit z) :
     (realPolynomialToComplex A).rootMultiplicity w =
       (realPolynomialToComplex A).rootMultiplicity z := by
@@ -1595,7 +1595,7 @@ theorem rootMultiplicity_eq_of_mem_complexRootOrbit {A : ℝ[X]}
 
 /-- The canonical source root-product data is closed under the quartet orbit
 used by the source root-class grouping [GSLW19, BlockHam.tex:450-456]. -/
-theorem SourceHypotheses.mem_rootProductData_roots_of_mem_complexRootOrbit
+lemma SourceHypotheses.mem_rootProductData_roots_of_mem_complexRootOrbit
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k)
     {z w : ℂ} (hz : z ∈ (hA.rootProductData).roots)
     (hw : w ∈ complexRootOrbit z) :
@@ -1604,7 +1604,7 @@ theorem SourceHypotheses.mem_rootProductData_roots_of_mem_complexRootOrbit
 
 /-- In the canonical source root-product data, multiplicities are constant on
 the quartet orbit [GSLW19, BlockHam.tex:450-456]. -/
-theorem SourceHypotheses.rootProductData_rootMultiplicity_eq_of_mem_complexRootOrbit
+lemma SourceHypotheses.rootProductData_rootMultiplicity_eq_of_mem_complexRootOrbit
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z w : ℂ}
     (hw : w ∈ complexRootOrbit z) :
     (realPolynomialToComplex A).rootMultiplicity w =
@@ -1614,7 +1614,7 @@ theorem SourceHypotheses.rootProductData_rootMultiplicity_eq_of_mem_complexRootO
 /-- In the canonical source root multiset, actual multiset counts are constant
 on the quartet orbit.  This is the multiset-count form of the source root
 symmetry used in [GSLW19, BlockHam.tex:450-456,469-479]. -/
-theorem SourceHypotheses.rootProductData_count_eq_of_mem_complexRootOrbit
+lemma SourceHypotheses.rootProductData_count_eq_of_mem_complexRootOrbit
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z w : ℂ}
     (hw : w ∈ complexRootOrbit z) :
     (hA.rootProductData).roots.count w =
@@ -1625,7 +1625,7 @@ theorem SourceHypotheses.rootProductData_count_eq_of_mem_complexRootOrbit
 
 /-- The canonical root multiset is invariant under sign change, because the
 source polynomial is even [GSLW19, BlockHam.tex:442-456]. -/
-theorem SourceHypotheses.rootProductData_roots_map_neg
+lemma SourceHypotheses.rootProductData_roots_map_neg
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).roots.map (fun z : ℂ => -z) =
       (hA.rootProductData).roots := by
@@ -1647,7 +1647,7 @@ theorem SourceHypotheses.rootProductData_roots_map_neg
 
 /-- The canonical root multiset is invariant under complex conjugation, because
 the source polynomial has real coefficients [GSLW19, BlockHam.tex:442-456]. -/
-theorem SourceHypotheses.rootProductData_roots_map_conj
+lemma SourceHypotheses.rootProductData_roots_map_conj
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).roots.map (fun z : ℂ => starRingEnd ℂ z) =
       (hA.rootProductData).roots := by
@@ -1667,7 +1667,7 @@ theorem SourceHypotheses.rootProductData_roots_map_conj
 
 /-- The canonical root multiset is invariant under the composition
 `z ↦ -conj z`, the fourth member of the source complex quartet. -/
-theorem SourceHypotheses.rootProductData_roots_map_neg_conj
+lemma SourceHypotheses.rootProductData_roots_map_neg_conj
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).roots.map (fun z : ℂ => -(starRingEnd ℂ z)) =
       (hA.rootProductData).roots := by
@@ -1752,7 +1752,7 @@ def IsSourceRootClassMember (z : ℂ) : Prop :=
 /-- The five source root classes cover every complex number.  The source uses
 this partition on the complex root multiset before selecting representatives
 [GSLW19, BlockHam.tex:442-448]. -/
-theorem sourceRootClassMember_exhaustive (z : ℂ) :
+lemma sourceRootClassMember_exhaustive (z : ℂ) :
     IsSourceRootClassMember z := by
   classical
   by_cases hz0 : z = 0
@@ -1771,7 +1771,7 @@ theorem sourceRootClassMember_exhaustive (z : ℂ) :
 
 /-- Counting negative interior representatives is the same as counting
 positive interior representatives. -/
-theorem SourceHypotheses.countP_neg_positiveInterior_eq_countP
+lemma SourceHypotheses.countP_neg_positiveInterior_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ (fun z => IsPositiveInteriorRealRootRepresentative (-z))
         (fun z => Classical.propDecidable
@@ -1797,7 +1797,7 @@ theorem SourceHypotheses.countP_neg_positiveInterior_eq_countP
 
 /-- A signed interior real root is either the positive representative or the
 negative of one [GSLW19, BlockHam.tex:445]. -/
-theorem isInteriorRealRootClass_iff_positive_or_negative {z : ℂ} :
+lemma isInteriorRealRootClass_iff_positive_or_negative {z : ℂ} :
     IsInteriorRealRootClass z ↔
       IsPositiveInteriorRealRootRepresentative z ∨
         IsPositiveInteriorRealRootRepresentative (-z) := by
@@ -1837,7 +1837,7 @@ theorem isInteriorRealRootClass_iff_positive_or_negative {z : ℂ} :
 interior representatives.  This is the multiplicity accounting behind the
 source's paired factors for roots in `(-1,1)` [GSLW19,
 BlockHam.tex:445,452-454]. -/
-theorem SourceHypotheses.countP_interiorRealRootClass_eq_two_mul_countP_positiveInterior
+lemma SourceHypotheses.countP_interiorRealRootClass_eq_two_mul_countP_positiveInterior
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ IsInteriorRealRootClass
         (fun z => Classical.propDecidable (IsInteriorRealRootClass z))
@@ -1880,7 +1880,7 @@ theorem SourceHypotheses.countP_interiorRealRootClass_eq_two_mul_countP_positive
 
 /-- Counting negative outside-real representatives is the same as counting
 positive outside-real representatives. -/
-theorem SourceHypotheses.countP_neg_positiveOutside_eq_countP
+lemma SourceHypotheses.countP_neg_positiveOutside_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ (fun z => IsPositiveOutsideRealRootRepresentative (-z))
         (fun z => Classical.propDecidable
@@ -1906,7 +1906,7 @@ theorem SourceHypotheses.countP_neg_positiveOutside_eq_countP
 
 /-- A signed outside real root is either the positive representative or the
 negative of one [GSLW19, BlockHam.tex:446,453-460]. -/
-theorem isOutsideRealRootClass_iff_positive_or_negative {z : ℂ} :
+lemma isOutsideRealRootClass_iff_positive_or_negative {z : ℂ} :
     IsOutsideRealRootClass z ↔
       IsPositiveOutsideRealRootRepresentative z ∨
         IsPositiveOutsideRealRootRepresentative (-z) := by
@@ -1938,7 +1938,7 @@ theorem isOutsideRealRootClass_iff_positive_or_negative {z : ℂ} :
 
 /-- Counting all signed outside real roots is twice the count of positive
 outside representatives [GSLW19, BlockHam.tex:446,453-460]. -/
-theorem SourceHypotheses.countP_outsideRealRootClass_eq_two_mul_countP_positiveOutside
+lemma SourceHypotheses.countP_outsideRealRootClass_eq_two_mul_countP_positiveOutside
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ IsOutsideRealRootClass
         (fun z => Classical.propDecidable (IsOutsideRealRootClass z))
@@ -1981,7 +1981,7 @@ theorem SourceHypotheses.countP_outsideRealRootClass_eq_two_mul_countP_positiveO
 
 /-- Counting negative pure-imaginary representatives is the same as counting
 positive pure-imaginary representatives. -/
-theorem SourceHypotheses.countP_neg_positiveImaginary_eq_countP
+lemma SourceHypotheses.countP_neg_positiveImaginary_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ (fun z => IsPositiveImaginaryRootRepresentative (-z))
         (fun z => Classical.propDecidable
@@ -2007,7 +2007,7 @@ theorem SourceHypotheses.countP_neg_positiveImaginary_eq_countP
 
 /-- A signed pure-imaginary root is either the positive representative or the
 negative of one [GSLW19, BlockHam.tex:447,455,461]. -/
-theorem isImaginaryRootClass_iff_positive_or_negative {z : ℂ} :
+lemma isImaginaryRootClass_iff_positive_or_negative {z : ℂ} :
     IsImaginaryRootClass z ↔
       IsPositiveImaginaryRootRepresentative z ∨
         IsPositiveImaginaryRootRepresentative (-z) := by
@@ -2033,7 +2033,7 @@ theorem isImaginaryRootClass_iff_positive_or_negative {z : ℂ} :
 
 /-- Counting all signed pure-imaginary roots is twice the count of positive
 imaginary representatives [GSLW19, BlockHam.tex:447,455,461]. -/
-theorem SourceHypotheses.countP_imaginaryRootClass_eq_two_mul_countP_positiveImaginary
+lemma SourceHypotheses.countP_imaginaryRootClass_eq_two_mul_countP_positiveImaginary
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ IsImaginaryRootClass
         (fun z => Classical.propDecidable (IsImaginaryRootClass z))
@@ -2076,7 +2076,7 @@ theorem SourceHypotheses.countP_imaginaryRootClass_eq_two_mul_countP_positiveIma
 
 /-- Counting the negative member of each first-quadrant quartet is the same as
 counting the first-quadrant representative. -/
-theorem SourceHypotheses.countP_neg_firstQuadrant_eq_countP
+lemma SourceHypotheses.countP_neg_firstQuadrant_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ (fun z => IsFirstQuadrantComplexRootRepresentative (-z))
         (fun z => Classical.propDecidable
@@ -2102,7 +2102,7 @@ theorem SourceHypotheses.countP_neg_firstQuadrant_eq_countP
 
 /-- Counting the conjugate member of each first-quadrant quartet is the same
 as counting the first-quadrant representative. -/
-theorem SourceHypotheses.countP_conj_firstQuadrant_eq_countP
+lemma SourceHypotheses.countP_conj_firstQuadrant_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ (fun z => IsFirstQuadrantComplexRootRepresentative (starRingEnd ℂ z))
         (fun z => Classical.propDecidable
@@ -2130,7 +2130,7 @@ theorem SourceHypotheses.countP_conj_firstQuadrant_eq_countP
 
 /-- Counting the negative-conjugate member of each first-quadrant quartet is
 the same as counting the first-quadrant representative. -/
-theorem SourceHypotheses.countP_neg_conj_firstQuadrant_eq_countP
+lemma SourceHypotheses.countP_neg_conj_firstQuadrant_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ (fun z =>
         IsFirstQuadrantComplexRootRepresentative (-(starRingEnd ℂ z)))
@@ -2161,7 +2161,7 @@ theorem SourceHypotheses.countP_neg_conj_firstQuadrant_eq_countP
 /-- A genuine complex root class is represented by exactly one of the four
 transforms `z`, `-z`, `z^*`, `-z^*` in the first quadrant [GSLW19,
 BlockHam.tex:448,455-456,462-466]. -/
-theorem isComplexQuartetRootClass_iff_quadrant_or_transforms {z : ℂ} :
+lemma isComplexQuartetRootClass_iff_quadrant_or_transforms {z : ℂ} :
     IsComplexQuartetRootClass z ↔
       IsFirstQuadrantComplexRootRepresentative z ∨
         IsFirstQuadrantComplexRootRepresentative (-z) ∨
@@ -2201,7 +2201,7 @@ theorem isComplexQuartetRootClass_iff_quadrant_or_transforms {z : ℂ} :
 
 /-- Counting the full complex quartet root class is four times the count of
 first-quadrant representatives [GSLW19, BlockHam.tex:448,455-456,462-466]. -/
-theorem SourceHypotheses.countP_complexQuartetRootClass_eq_four_mul_countP_firstQuadrant
+lemma SourceHypotheses.countP_complexQuartetRootClass_eq_four_mul_countP_firstQuadrant
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     @Multiset.countP ℂ IsComplexQuartetRootClass
         (fun z => Classical.propDecidable (IsComplexQuartetRootClass z))
@@ -2278,14 +2278,14 @@ theorem SourceHypotheses.countP_complexQuartetRootClass_eq_four_mul_countP_first
 
 /-- Zero is disjoint from positive interior real representatives
 [GSLW19, BlockHam.tex:444-445]. -/
-theorem not_zero_and_positiveInterior {z : ℂ} :
+lemma not_zero_and_positiveInterior {z : ℂ} :
     ¬(z = 0 ∧ IsPositiveInteriorRealRootRepresentative z) := by
   rintro ⟨rfl, hpos⟩
   exact (lt_irrefl (0 : ℝ)) hpos.2.1
 
 /-- Zero is disjoint from outside positive real representatives
 [GSLW19, BlockHam.tex:444,446]. -/
-theorem not_zero_and_positiveOutside {z : ℂ} :
+lemma not_zero_and_positiveOutside {z : ℂ} :
     ¬(z = 0 ∧ IsPositiveOutsideRealRootRepresentative z) := by
   rintro ⟨rfl, houtside⟩
   have hbad : (1 : ℝ) ≤ 0 := by
@@ -2294,21 +2294,21 @@ theorem not_zero_and_positiveOutside {z : ℂ} :
 
 /-- Zero is disjoint from positive imaginary representatives
 [GSLW19, BlockHam.tex:444,447]. -/
-theorem not_zero_and_positiveImaginary {z : ℂ} :
+lemma not_zero_and_positiveImaginary {z : ℂ} :
     ¬(z = 0 ∧ IsPositiveImaginaryRootRepresentative z) := by
   rintro ⟨rfl, himag⟩
   exact (lt_irrefl (0 : ℝ)) himag.2
 
 /-- Zero is disjoint from first-quadrant representatives
 [GSLW19, BlockHam.tex:444,448]. -/
-theorem not_zero_and_firstQuadrant {z : ℂ} :
+lemma not_zero_and_firstQuadrant {z : ℂ} :
     ¬(z = 0 ∧ IsFirstQuadrantComplexRootRepresentative z) := by
   rintro ⟨rfl, hquad⟩
   exact (lt_irrefl (0 : ℝ)) hquad.1
 
 /-- Interior positive real representatives and outside positive real
 representatives are disjoint root classes [GSLW19, BlockHam.tex:445-446]. -/
-theorem not_positiveInterior_and_positiveOutside {z : ℂ} :
+lemma not_positiveInterior_and_positiveOutside {z : ℂ} :
     ¬(IsPositiveInteriorRealRootRepresentative z ∧
       IsPositiveOutsideRealRootRepresentative z) := by
   rintro ⟨hinterior, houtside⟩
@@ -2316,7 +2316,7 @@ theorem not_positiveInterior_and_positiveOutside {z : ℂ} :
 
 /-- Positive real representatives are disjoint from positive imaginary
 representatives [GSLW19, BlockHam.tex:445-447]. -/
-theorem not_positiveInterior_and_positiveImaginary {z : ℂ} :
+lemma not_positiveInterior_and_positiveImaginary {z : ℂ} :
     ¬(IsPositiveInteriorRealRootRepresentative z ∧
       IsPositiveImaginaryRootRepresentative z) := by
   rintro ⟨hreal, himag⟩
@@ -2324,7 +2324,7 @@ theorem not_positiveInterior_and_positiveImaginary {z : ℂ} :
 
 /-- Outside positive real representatives are disjoint from positive imaginary
 representatives [GSLW19, BlockHam.tex:446-447]. -/
-theorem not_positiveOutside_and_positiveImaginary {z : ℂ} :
+lemma not_positiveOutside_and_positiveImaginary {z : ℂ} :
     ¬(IsPositiveOutsideRealRootRepresentative z ∧
       IsPositiveImaginaryRootRepresentative z) := by
   rintro ⟨hreal, himag⟩
@@ -2332,7 +2332,7 @@ theorem not_positiveOutside_and_positiveImaginary {z : ℂ} :
 
 /-- Real-root representatives are disjoint from first-quadrant representatives
 [GSLW19, BlockHam.tex:445-448]. -/
-theorem not_positiveInterior_and_firstQuadrant {z : ℂ} :
+lemma not_positiveInterior_and_firstQuadrant {z : ℂ} :
     ¬(IsPositiveInteriorRealRootRepresentative z ∧
       IsFirstQuadrantComplexRootRepresentative z) := by
   rintro ⟨hreal, hquad⟩
@@ -2340,7 +2340,7 @@ theorem not_positiveInterior_and_firstQuadrant {z : ℂ} :
 
 /-- Outside real-root representatives are disjoint from first-quadrant
 representatives [GSLW19, BlockHam.tex:446-448]. -/
-theorem not_positiveOutside_and_firstQuadrant {z : ℂ} :
+lemma not_positiveOutside_and_firstQuadrant {z : ℂ} :
     ¬(IsPositiveOutsideRealRootRepresentative z ∧
       IsFirstQuadrantComplexRootRepresentative z) := by
   rintro ⟨hreal, hquad⟩
@@ -2348,13 +2348,13 @@ theorem not_positiveOutside_and_firstQuadrant {z : ℂ} :
 
 /-- Positive imaginary representatives are disjoint from first-quadrant
 representatives [GSLW19, BlockHam.tex:447-448]. -/
-theorem not_positiveImaginary_and_firstQuadrant {z : ℂ} :
+lemma not_positiveImaginary_and_firstQuadrant {z : ℂ} :
     ¬(IsPositiveImaginaryRootRepresentative z ∧
       IsFirstQuadrantComplexRootRepresentative z) := by
   rintro ⟨himag, hquad⟩
   linarith [himag.1, hquad.1]
 
-private theorem list_count_positiveInterior_re_filter
+private lemma list_count_positiveInterior_re_filter
     [DecidablePred IsPositiveInteriorRealRootRepresentative]
     (l : List ℂ) {s : ℝ} (hs : 0 < s ∧ s < 1) :
     List.count s ((l.filter IsPositiveInteriorRealRootRepresentative).map
@@ -2383,7 +2383,7 @@ private theorem list_count_positiveInterior_re_filter
           exact ⟨by simp, hs⟩
         simp [hp, hz, ih]
 
-private theorem list_count_positiveOutside_re_filter
+private lemma list_count_positiveOutside_re_filter
     [DecidablePred IsPositiveOutsideRealRootRepresentative]
     (l : List ℂ) {s : ℝ} (hs : 1 ≤ s) :
     List.count s ((l.filter IsPositiveOutsideRealRootRepresentative).map
@@ -2412,7 +2412,7 @@ private theorem list_count_positiveOutside_re_filter
           exact ⟨by simp, hs⟩
         simp [hp, hz, ih]
 
-private theorem list_count_positiveImaginary_im_filter
+private lemma list_count_positiveImaginary_im_filter
     [DecidablePred IsPositiveImaginaryRootRepresentative]
     (l : List ℂ) {r : ℝ} (hr : 0 < r) :
     List.count r ((l.filter IsPositiveImaginaryRootRepresentative).map
@@ -2444,7 +2444,7 @@ private theorem list_count_positiveImaginary_im_filter
           · simpa using hr
         simp [hp, hz, ih]
 
-private theorem list_count_firstQuadrant_reim_filter
+private lemma list_count_firstQuadrant_reim_filter
     [DecidablePred IsFirstQuadrantComplexRootRepresentative]
     (l : List ℂ) {z : ℝ × ℝ} (hzpos : 0 < z.1 ∧ 0 < z.2) :
     List.count z ((l.filter IsFirstQuadrantComplexRootRepresentative).map
@@ -2476,7 +2476,7 @@ private theorem list_count_firstQuadrant_reim_filter
 /-- Every complex number has a representative in its source quartet orbit.  This
 is the elementary geometry behind the representative choice in [GSLW19,
 BlockHam.tex:450-456]. -/
-theorem exists_sourceRootClassRepresentative_mem_orbit (z : ℂ) :
+lemma exists_sourceRootClassRepresentative_mem_orbit (z : ℂ) :
     ∃ w ∈ complexRootOrbit z, IsSourceRootClassRepresentative w := by
   by_cases hz0 : z = 0
   · refine ⟨0, ?_, Or.inl rfl⟩
@@ -2547,7 +2547,7 @@ theorem exists_sourceRootClassRepresentative_mem_orbit (z : ℂ) :
 /-- Every root in the canonical source root-product data has a representative,
 still in that root multiset, of one of the source classes [GSLW19,
 BlockHam.tex:450-456]. -/
-theorem SourceHypotheses.exists_sourceRepresentative_mem_rootProductData
+lemma SourceHypotheses.exists_sourceRepresentative_mem_rootProductData
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k)
     {z : ℂ} (hz : z ∈ (hA.rootProductData).roots) :
     ∃ w, w ∈ (hA.rootProductData).roots ∧
@@ -2599,7 +2599,7 @@ noncomputable def firstQuadrantComplexRootRepresentatives {A : ℝ[X]}
   exact data.roots.toList.dedup.filter IsFirstQuadrantComplexRootRepresentative
 
 /-- The positive-interior representative list has no duplicate parameters. -/
-theorem nodup_positiveInteriorRealRootValues {A : ℝ[X]}
+lemma nodup_positiveInteriorRealRootValues {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.positiveInteriorRealRootValues.Nodup := by
   classical
@@ -2609,7 +2609,7 @@ theorem nodup_positiveInteriorRealRootValues {A : ℝ[X]}
 
 /-- The positive outside-real representative list has no duplicate
 parameters. -/
-theorem nodup_positiveOutsideRealRootValues {A : ℝ[X]}
+lemma nodup_positiveOutsideRealRootValues {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.positiveOutsideRealRootValues.Nodup := by
   classical
@@ -2618,7 +2618,7 @@ theorem nodup_positiveOutsideRealRootValues {A : ℝ[X]}
       IsPositiveOutsideRealRootRepresentative).map fun z => z.re))
 
 /-- The positive-imaginary representative list has no duplicate radii. -/
-theorem nodup_positiveImaginaryRootValues {A : ℝ[X]}
+lemma nodup_positiveImaginaryRootValues {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.positiveImaginaryRootValues.Nodup := by
   classical
@@ -2628,7 +2628,7 @@ theorem nodup_positiveImaginaryRootValues {A : ℝ[X]}
 
 /-- The first-quadrant complex representative list has no duplicate
 parameters. -/
-theorem nodup_firstQuadrantComplexRootValues {A : ℝ[X]}
+lemma nodup_firstQuadrantComplexRootValues {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.firstQuadrantComplexRootValues.Nodup := by
   classical
@@ -2637,7 +2637,7 @@ theorem nodup_firstQuadrantComplexRootValues {A : ℝ[X]}
       IsFirstQuadrantComplexRootRepresentative).map fun z => (z.re, z.im)))
 
 /-- The complex first-quadrant representative list has no duplicate roots. -/
-theorem nodup_firstQuadrantComplexRootRepresentatives {A : ℝ[X]}
+lemma nodup_firstQuadrantComplexRootRepresentatives {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.firstQuadrantComplexRootRepresentatives.Nodup := by
   classical
@@ -2647,7 +2647,7 @@ theorem nodup_firstQuadrantComplexRootRepresentatives {A : ℝ[X]}
 
 /-- Membership in the positive-interior representative list recovers the
 source interval condition. -/
-theorem mem_positiveInteriorRealRootValues {A : ℝ[X]} {data : SourceRootProductData A}
+lemma mem_positiveInteriorRealRootValues {A : ℝ[X]} {data : SourceRootProductData A}
     {s : ℝ} (hs : s ∈ data.positiveInteriorRealRootValues) :
     0 < s ∧ s < 1 := by
   classical
@@ -2659,7 +2659,7 @@ theorem mem_positiveInteriorRealRootValues {A : ℝ[X]} {data : SourceRootProduc
 
 /-- A positive-interior representative from the root multiset is selected by
 the source representative list [GSLW19, BlockHam.tex:450-456]. -/
-theorem mem_positiveInteriorRealRootValues_of_root_mem
+lemma mem_positiveInteriorRealRootValues_of_root_mem
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℂ}
     (hz : z ∈ data.roots) (hrep : IsPositiveInteriorRealRootRepresentative z) :
     z.re ∈ data.positiveInteriorRealRootValues := by
@@ -2672,7 +2672,7 @@ theorem mem_positiveInteriorRealRootValues_of_root_mem
 
 /-- Membership in the positive-outside representative list recovers the
 `1 <= s` condition used by the real-root source factor. -/
-theorem mem_positiveOutsideRealRootValues {A : ℝ[X]} {data : SourceRootProductData A}
+lemma mem_positiveOutsideRealRootValues {A : ℝ[X]} {data : SourceRootProductData A}
     {s : ℝ} (hs : s ∈ data.positiveOutsideRealRootValues) :
     1 ≤ s := by
   classical
@@ -2684,7 +2684,7 @@ theorem mem_positiveOutsideRealRootValues {A : ℝ[X]} {data : SourceRootProduct
 
 /-- A positive outside-real representative from the root multiset is selected
 by the source representative list [GSLW19, BlockHam.tex:450-456]. -/
-theorem mem_positiveOutsideRealRootValues_of_root_mem
+lemma mem_positiveOutsideRealRootValues_of_root_mem
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℂ}
     (hz : z ∈ data.roots) (hrep : IsPositiveOutsideRealRootRepresentative z) :
     z.re ∈ data.positiveOutsideRealRootValues := by
@@ -2697,7 +2697,7 @@ theorem mem_positiveOutsideRealRootValues_of_root_mem
 
 /-- Membership in the positive-imaginary representative list recovers the
 positive radius condition. -/
-theorem mem_positiveImaginaryRootValues {A : ℝ[X]} {data : SourceRootProductData A}
+lemma mem_positiveImaginaryRootValues {A : ℝ[X]} {data : SourceRootProductData A}
     {r : ℝ} (hr : r ∈ data.positiveImaginaryRootValues) :
     0 < r := by
   classical
@@ -2709,7 +2709,7 @@ theorem mem_positiveImaginaryRootValues {A : ℝ[X]} {data : SourceRootProductDa
 
 /-- A positive imaginary representative from the root multiset is selected by
 the source representative list [GSLW19, BlockHam.tex:450-456]. -/
-theorem mem_positiveImaginaryRootValues_of_root_mem
+lemma mem_positiveImaginaryRootValues_of_root_mem
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℂ}
     (hz : z ∈ data.roots) (hrep : IsPositiveImaginaryRootRepresentative z) :
     z.im ∈ data.positiveImaginaryRootValues := by
@@ -2722,7 +2722,7 @@ theorem mem_positiveImaginaryRootValues_of_root_mem
 
 /-- Membership in the first-quadrant representative list recovers the positive
 real and imaginary parts used by the complex quartet factor. -/
-theorem mem_firstQuadrantComplexRootValues {A : ℝ[X]} {data : SourceRootProductData A}
+lemma mem_firstQuadrantComplexRootValues {A : ℝ[X]} {data : SourceRootProductData A}
     {z : ℝ × ℝ} (hz : z ∈ data.firstQuadrantComplexRootValues) :
     0 < z.1 ∧ 0 < z.2 := by
   classical
@@ -2734,7 +2734,7 @@ theorem mem_firstQuadrantComplexRootValues {A : ℝ[X]} {data : SourceRootProduc
 
 /-- A first-quadrant representative from the root multiset is selected by the
 source representative list [GSLW19, BlockHam.tex:450-456]. -/
-theorem mem_firstQuadrantComplexRootValues_of_root_mem
+lemma mem_firstQuadrantComplexRootValues_of_root_mem
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℂ}
     (hz : z ∈ data.roots) (hrep : IsFirstQuadrantComplexRootRepresentative z) :
     (z.re, z.im) ∈ data.firstQuadrantComplexRootValues := by
@@ -2747,7 +2747,7 @@ theorem mem_firstQuadrantComplexRootValues_of_root_mem
 
 /-- Membership in the complex first-quadrant representative list recovers the
 root predicate and the original root-multiset membership. -/
-theorem mem_firstQuadrantComplexRootRepresentatives
+lemma mem_firstQuadrantComplexRootRepresentatives
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℂ}
     (hz : z ∈ data.firstQuadrantComplexRootRepresentatives) :
     IsFirstQuadrantComplexRootRepresentative z ∧ z ∈ data.roots := by
@@ -2758,7 +2758,7 @@ theorem mem_firstQuadrantComplexRootRepresentatives
     Multiset.mem_toList.mp (List.mem_dedup.mp hfilter.1)⟩
 
 /-- A positive-interior real representative is a root in the source multiset. -/
-theorem root_mem_of_mem_positiveInteriorRealRootValues
+lemma root_mem_of_mem_positiveInteriorRealRootValues
     {A : ℝ[X]} {data : SourceRootProductData A} {s : ℝ}
     (hs : s ∈ data.positiveInteriorRealRootValues) :
     (s : ℂ) ∈ data.roots := by
@@ -2776,7 +2776,7 @@ theorem root_mem_of_mem_positiveInteriorRealRootValues
   exact Multiset.mem_toList.mp hmem
 
 /-- A positive outside-real representative is a root in the source multiset. -/
-theorem root_mem_of_mem_positiveOutsideRealRootValues
+lemma root_mem_of_mem_positiveOutsideRealRootValues
     {A : ℝ[X]} {data : SourceRootProductData A} {s : ℝ}
     (hs : s ∈ data.positiveOutsideRealRootValues) :
     (s : ℂ) ∈ data.roots := by
@@ -2794,7 +2794,7 @@ theorem root_mem_of_mem_positiveOutsideRealRootValues
   exact Multiset.mem_toList.mp hmem
 
 /-- A positive imaginary representative is a root in the source multiset. -/
-theorem root_mem_of_mem_positiveImaginaryRootValues
+lemma root_mem_of_mem_positiveImaginaryRootValues
     {A : ℝ[X]} {data : SourceRootProductData A} {r : ℝ}
     (hr : r ∈ data.positiveImaginaryRootValues) :
     Complex.I * (r : ℂ) ∈ data.roots := by
@@ -2812,7 +2812,7 @@ theorem root_mem_of_mem_positiveImaginaryRootValues
   exact Multiset.mem_toList.mp hmem
 
 /-- A first-quadrant complex representative is a root in the source multiset. -/
-theorem root_mem_of_mem_firstQuadrantComplexRootValues
+lemma root_mem_of_mem_firstQuadrantComplexRootValues
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℝ × ℝ}
     (hz : z ∈ data.firstQuadrantComplexRootValues) :
     ((z.1 : ℂ) + Complex.I * (z.2 : ℂ)) ∈ data.roots := by
@@ -2860,7 +2860,7 @@ noncomputable def complexRootParameters {A : ℝ[X]}
       z) (z.re, z.im)
 
 /-- Length of the multiplicity-expanded interior real-root parameter list. -/
-theorem length_interiorRealRootPairParameters {A : ℝ[X]}
+lemma length_interiorRealRootPairParameters {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.interiorRealRootPairParameters.length =
       (data.positiveInteriorRealRootValues.map fun s : ℝ =>
@@ -2868,7 +2868,7 @@ theorem length_interiorRealRootPairParameters {A : ℝ[X]}
   simp [interiorRealRootPairParameters, List.length_flatMap]
 
 /-- Length of the multiplicity-expanded outside real-root parameter list. -/
-theorem length_outsideRealRootParameters {A : ℝ[X]}
+lemma length_outsideRealRootParameters {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.outsideRealRootParameters.length =
       (data.positiveOutsideRealRootValues.map fun s : ℝ =>
@@ -2876,7 +2876,7 @@ theorem length_outsideRealRootParameters {A : ℝ[X]}
   simp [outsideRealRootParameters, List.length_flatMap]
 
 /-- Length of the multiplicity-expanded imaginary-root parameter list. -/
-theorem length_imaginaryRootParameters {A : ℝ[X]}
+lemma length_imaginaryRootParameters {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.imaginaryRootParameters.length =
       (data.positiveImaginaryRootValues.map fun r : ℝ =>
@@ -2885,7 +2885,7 @@ theorem length_imaginaryRootParameters {A : ℝ[X]}
 
 /-- Length of the multiplicity-expanded first-quadrant complex-root parameter
 list. -/
-theorem length_complexRootParameters {A : ℝ[X]}
+lemma length_complexRootParameters {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.complexRootParameters.length =
       (data.firstQuadrantComplexRootRepresentatives.map fun z : ℂ =>
@@ -2894,7 +2894,7 @@ theorem length_complexRootParameters {A : ℝ[X]}
 
 /-- Summing the canonical multiplicities over selected positive interior
 representatives gives the positive-interior root-class count. -/
-theorem sum_count_positiveInteriorRealRootValues_eq_countP {A : ℝ[X]}
+lemma sum_count_positiveInteriorRealRootValues_eq_countP {A : ℝ[X]}
     (data : SourceRootProductData A) :
     (data.positiveInteriorRealRootValues.map fun s : ℝ =>
         data.roots.count (s : ℂ)).sum =
@@ -2941,7 +2941,7 @@ theorem sum_count_positiveInteriorRealRootValues_eq_countP {A : ℝ[X]}
 
 /-- Summing the canonical multiplicities over selected outside-real
 representatives gives the outside-real root-class count. -/
-theorem sum_count_positiveOutsideRealRootValues_eq_countP {A : ℝ[X]}
+lemma sum_count_positiveOutsideRealRootValues_eq_countP {A : ℝ[X]}
     (data : SourceRootProductData A) :
     (data.positiveOutsideRealRootValues.map fun s : ℝ =>
         data.roots.count (s : ℂ)).sum =
@@ -2988,7 +2988,7 @@ theorem sum_count_positiveOutsideRealRootValues_eq_countP {A : ℝ[X]}
 
 /-- Summing the canonical multiplicities over selected positive-imaginary
 representatives gives the positive-imaginary root-class count. -/
-theorem sum_count_positiveImaginaryRootValues_eq_countP {A : ℝ[X]}
+lemma sum_count_positiveImaginaryRootValues_eq_countP {A : ℝ[X]}
     (data : SourceRootProductData A) :
     (data.positiveImaginaryRootValues.map fun r : ℝ =>
         data.roots.count (Complex.I * (r : ℂ))).sum =
@@ -3039,7 +3039,7 @@ theorem sum_count_positiveImaginaryRootValues_eq_countP {A : ℝ[X]}
 
 /-- Summing canonical multiplicities over the complex first-quadrant
 representatives gives the first-quadrant root-class count. -/
-theorem sum_count_firstQuadrantComplexRootRepresentatives_eq_countP {A : ℝ[X]}
+lemma sum_count_firstQuadrantComplexRootRepresentatives_eq_countP {A : ℝ[X]}
     (data : SourceRootProductData A) :
     (data.firstQuadrantComplexRootRepresentatives.map fun z : ℂ =>
         data.roots.count z).sum =
@@ -3088,7 +3088,7 @@ theorem sum_count_firstQuadrantComplexRootRepresentatives_eq_countP {A : ℝ[X]}
 
 /-- Parameters repeated for interior real-root factors still satisfy the
 interior condition and come from the source root multiset. -/
-theorem mem_interiorRealRootPairParameters
+lemma mem_interiorRealRootPairParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {s : ℝ}
     (hs : s ∈ data.interiorRealRootPairParameters) :
     (0 < s ∧ s < 1) ∧ (s : ℂ) ∈ data.roots := by
@@ -3102,7 +3102,7 @@ theorem mem_interiorRealRootPairParameters
 
 /-- Parameters repeated for outside real-root factors still satisfy the outside
 condition and come from the source root multiset. -/
-theorem mem_outsideRealRootParameters
+lemma mem_outsideRealRootParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {s : ℝ}
     (hs : s ∈ data.outsideRealRootParameters) :
     1 ≤ s ∧ (s : ℂ) ∈ data.roots := by
@@ -3116,7 +3116,7 @@ theorem mem_outsideRealRootParameters
 
 /-- Parameters repeated for imaginary-root factors still have positive radius
 and come from the source root multiset. -/
-theorem mem_imaginaryRootParameters
+lemma mem_imaginaryRootParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {r : ℝ}
     (hr : r ∈ data.imaginaryRootParameters) :
     0 < r ∧ Complex.I * (r : ℂ) ∈ data.roots := by
@@ -3130,7 +3130,7 @@ theorem mem_imaginaryRootParameters
 
 /-- Parameters repeated for complex quartet factors still have positive real
 and imaginary parts and come from the source root multiset. -/
-theorem mem_complexRootParameters
+lemma mem_complexRootParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℝ × ℝ}
     (hz : z ∈ data.complexRootParameters) :
     (0 < z.1 ∧ 0 < z.2) ∧
@@ -3148,7 +3148,7 @@ theorem mem_complexRootParameters
 /-- The multiplicity-expanded interior parameter list contains each selected
 positive representative exactly half of its canonical multiplicity
 [GSLW19, BlockHam.tex:445,452-454,469-479]. -/
-theorem count_interiorRealRootPairParameters
+lemma count_interiorRealRootPairParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {s : ℝ}
     (hs : s ∈ data.positiveInteriorRealRootValues) :
     data.interiorRealRootPairParameters.count s =
@@ -3162,7 +3162,7 @@ theorem count_interiorRealRootPairParameters
 /-- The multiplicity-expanded outside-real parameter list contains each
 selected positive outside root exactly its canonical multiplicity
 [GSLW19, BlockHam.tex:446,453-460,469-479]. -/
-theorem count_outsideRealRootParameters
+lemma count_outsideRealRootParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {s : ℝ}
     (hs : s ∈ data.positiveOutsideRealRootValues) :
     data.outsideRealRootParameters.count s =
@@ -3176,7 +3176,7 @@ theorem count_outsideRealRootParameters
 /-- The multiplicity-expanded imaginary parameter list contains each selected
 positive imaginary radius exactly its canonical multiplicity
 [GSLW19, BlockHam.tex:447,455,461,469-479]. -/
-theorem count_imaginaryRootParameters
+lemma count_imaginaryRootParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {r : ℝ}
     (hr : r ∈ data.positiveImaginaryRootValues) :
     data.imaginaryRootParameters.count r =
@@ -3190,7 +3190,7 @@ theorem count_imaginaryRootParameters
 /-- The multiplicity-expanded complex-quartet parameter list contains each
 selected first-quadrant representative exactly its canonical multiplicity
 [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem count_complexRootParameters
+lemma count_complexRootParameters
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℂ}
     (hz : z ∈ data.firstQuadrantComplexRootRepresentatives) :
     data.complexRootParameters.count (z.re, z.im) =
@@ -3212,7 +3212,7 @@ theorem count_complexRootParameters
     (fun z : ℂ => (realPolynomialToComplex A).rootMultiplicity z)
     hkey_nodup hz
 
-theorem count_complexRootParameters_of_mem
+lemma count_complexRootParameters_of_mem
     {A : ℝ[X]} {data : SourceRootProductData A} {z : ℝ × ℝ}
     (hz : z ∈ data.complexRootParameters) :
     data.complexRootParameters.count z =
@@ -3233,7 +3233,7 @@ end SourceRootProductData
 /-- Every canonical source root has an orbit representative selected by one
 of the source representative lists, except for the zero class which is tracked
 by `zeroRootPairs` [GSLW19, BlockHam.tex:450-456]. -/
-theorem SourceHypotheses.exists_selected_sourceRepresentative
+lemma SourceHypotheses.exists_selected_sourceRepresentative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k)
     {z : ℂ} (hz : z ∈ (hA.rootProductData).roots) :
     ∃ w, w ∈ (hA.rootProductData).roots ∧ w ∈ complexRootOrbit z ∧
@@ -3262,7 +3262,7 @@ theorem SourceHypotheses.exists_selected_sourceRepresentative
 
 /-- A selected positive-interior representative contributes to the
 positive-interior root-class filter. -/
-theorem SourceHypotheses.count_le_countP_positiveInterior_of_mem
+lemma SourceHypotheses.count_le_countP_positiveInterior_of_mem
     {A : ℝ[X]} {k : ℕ} [DecidablePred IsPositiveInteriorRealRootRepresentative]
     (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ (hA.rootProductData).positiveInteriorRealRootValues) :
@@ -3277,7 +3277,7 @@ theorem SourceHypotheses.count_le_countP_positiveInterior_of_mem
 
 /-- A selected positive outside-real representative contributes to the
 outside-real root-class filter. -/
-theorem SourceHypotheses.count_le_countP_positiveOutside_of_mem
+lemma SourceHypotheses.count_le_countP_positiveOutside_of_mem
     {A : ℝ[X]} {k : ℕ} [DecidablePred IsPositiveOutsideRealRootRepresentative]
     (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ (hA.rootProductData).positiveOutsideRealRootValues) :
@@ -3292,7 +3292,7 @@ theorem SourceHypotheses.count_le_countP_positiveOutside_of_mem
 
 /-- A selected positive-imaginary representative contributes to the
 positive-imaginary root-class filter. -/
-theorem SourceHypotheses.count_le_countP_positiveImaginary_of_mem
+lemma SourceHypotheses.count_le_countP_positiveImaginary_of_mem
     {A : ℝ[X]} {k : ℕ} [DecidablePred IsPositiveImaginaryRootRepresentative]
     (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ (hA.rootProductData).positiveImaginaryRootValues) :
@@ -3309,7 +3309,7 @@ theorem SourceHypotheses.count_le_countP_positiveImaginary_of_mem
 
 /-- A selected first-quadrant representative contributes to the complex
 first-quadrant root-class filter. -/
-theorem SourceHypotheses.count_le_countP_firstQuadrant_of_mem
+lemma SourceHypotheses.count_le_countP_firstQuadrant_of_mem
     {A : ℝ[X]} {k : ℕ} [DecidablePred IsFirstQuadrantComplexRootRepresentative]
     (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ (hA.rootProductData).firstQuadrantComplexRootValues) :
@@ -3326,7 +3326,7 @@ theorem SourceHypotheses.count_le_countP_firstQuadrant_of_mem
 /-- If an interior positive real representative is selected from canonical
 source roots, then its negative partner is also a source root.  This packages
 one of the paired roots used in [GSLW19, BlockHam.tex:445,452-454]. -/
-theorem SourceHypotheses.neg_mem_rootProductData_of_mem_positiveInterior
+lemma SourceHypotheses.neg_mem_rootProductData_of_mem_positiveInterior
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ (hA.rootProductData).positiveInteriorRealRootValues) :
     -(s : ℂ) ∈ (hA.rootProductData).roots := by
@@ -3337,7 +3337,7 @@ theorem SourceHypotheses.neg_mem_rootProductData_of_mem_positiveInterior
 
 /-- Positive interior representatives and their negative partners have equal
 canonical-root counts [GSLW19, BlockHam.tex:445,452-454,469-479]. -/
-theorem SourceHypotheses.count_neg_eq_of_mem_positiveInterior
+lemma SourceHypotheses.count_neg_eq_of_mem_positiveInterior
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (_hs : s ∈ (hA.rootProductData).positiveInteriorRealRootValues) :
     (hA.rootProductData).roots.count (-(s : ℂ)) =
@@ -3347,7 +3347,7 @@ theorem SourceHypotheses.count_neg_eq_of_mem_positiveInterior
 
 /-- Positive outside-real representatives and their negative partners have
 equal canonical-root counts [GSLW19, BlockHam.tex:453-460,469-479]. -/
-theorem SourceHypotheses.count_neg_eq_of_mem_positiveOutside
+lemma SourceHypotheses.count_neg_eq_of_mem_positiveOutside
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (_hs : s ∈ (hA.rootProductData).positiveOutsideRealRootValues) :
     (hA.rootProductData).roots.count (-(s : ℂ)) =
@@ -3358,7 +3358,7 @@ theorem SourceHypotheses.count_neg_eq_of_mem_positiveOutside
 /-- If a positive imaginary representative is selected from canonical source
 roots, then the negative imaginary partner is also a source root
 [GSLW19, BlockHam.tex:455,461]. -/
-theorem SourceHypotheses.neg_imag_mem_rootProductData_of_mem_positiveImaginary
+lemma SourceHypotheses.neg_imag_mem_rootProductData_of_mem_positiveImaginary
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ (hA.rootProductData).positiveImaginaryRootValues) :
     -(Complex.I * (r : ℂ)) ∈ (hA.rootProductData).roots := by
@@ -3369,7 +3369,7 @@ theorem SourceHypotheses.neg_imag_mem_rootProductData_of_mem_positiveImaginary
 
 /-- Positive imaginary representatives and their negative partners have equal
 canonical-root counts [GSLW19, BlockHam.tex:455,461,469-479]. -/
-theorem SourceHypotheses.count_neg_imag_eq_of_mem_positiveImaginary
+lemma SourceHypotheses.count_neg_imag_eq_of_mem_positiveImaginary
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (_hr : r ∈ (hA.rootProductData).positiveImaginaryRootValues) :
     (hA.rootProductData).roots.count (-(Complex.I * (r : ℂ))) =
@@ -3381,7 +3381,7 @@ theorem SourceHypotheses.count_neg_imag_eq_of_mem_positiveImaginary
 /-- A first-quadrant representative selected from canonical source roots brings
 all three companion roots in the quartet [GSLW19, BlockHam.tex:455-456,
 462-466]. -/
-theorem SourceHypotheses.complex_quartet_mem_rootProductData_of_mem_firstQuadrant
+lemma SourceHypotheses.complex_quartet_mem_rootProductData_of_mem_firstQuadrant
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ (hA.rootProductData).firstQuadrantComplexRootValues) :
     let w : ℂ := (z.1 : ℂ) + Complex.I * (z.2 : ℂ);
@@ -3403,7 +3403,7 @@ theorem SourceHypotheses.complex_quartet_mem_rootProductData_of_mem_firstQuadran
 
 /-- The four members of a selected complex quartet have equal canonical-root
 counts [GSLW19, BlockHam.tex:455-456,462-466,469-479]. -/
-theorem SourceHypotheses.complex_quartet_count_eq_of_mem_firstQuadrant
+lemma SourceHypotheses.complex_quartet_count_eq_of_mem_firstQuadrant
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (_hz : z ∈ (hA.rootProductData).firstQuadrantComplexRootValues) :
     let w : ℂ := (z.1 : ℂ) + Complex.I * (z.2 : ℂ)
@@ -3425,7 +3425,7 @@ theorem SourceHypotheses.complex_quartet_count_eq_of_mem_firstQuadrant
 
 /-- Expanded interior real-root parameters still bring their negative partners
 in the canonical root multiset [GSLW19, BlockHam.tex:445,452-454]. -/
-theorem SourceHypotheses.neg_mem_rootProductData_of_mem_interiorRealRootPairParameters
+lemma SourceHypotheses.neg_mem_rootProductData_of_mem_interiorRealRootPairParameters
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ (hA.rootProductData).interiorRealRootPairParameters) :
     -(s : ℂ) ∈ (hA.rootProductData).roots := by
@@ -3437,7 +3437,7 @@ theorem SourceHypotheses.neg_mem_rootProductData_of_mem_interiorRealRootPairPara
 
 /-- Expanded imaginary-root parameters still bring their negative imaginary
 partners in the canonical root multiset [GSLW19, BlockHam.tex:455,461]. -/
-theorem SourceHypotheses.neg_imag_mem_rootProductData_of_mem_imaginaryRootParameters
+lemma SourceHypotheses.neg_imag_mem_rootProductData_of_mem_imaginaryRootParameters
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ (hA.rootProductData).imaginaryRootParameters) :
     -(Complex.I * (r : ℂ)) ∈ (hA.rootProductData).roots := by
@@ -3449,7 +3449,7 @@ theorem SourceHypotheses.neg_imag_mem_rootProductData_of_mem_imaginaryRootParame
 
 /-- Expanded complex-root parameters still bring all quartet companions in the
 canonical root multiset [GSLW19, BlockHam.tex:455-456,462-466]. -/
-theorem SourceHypotheses.complex_quartet_mem_rootProductData_of_mem_complexRootParameters
+lemma SourceHypotheses.complex_quartet_mem_rootProductData_of_mem_complexRootParameters
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ (hA.rootProductData).complexRootParameters) :
     let w : ℂ := (z.1 : ℂ) + Complex.I * (z.2 : ℂ);
@@ -3470,17 +3470,17 @@ theorem SourceHypotheses.complex_quartet_mem_rootProductData_of_mem_complexRootP
       (by simp [complexRootOrbit])
 
 /-- Real-polynomial parity only depends on the parity index modulo `2`. -/
-theorem HasRealParity.congr {P : ℝ[X]} {p q : ℕ} (hP : HasRealParity P p)
+lemma HasRealParity.congr {P : ℝ[X]} {p q : ℕ} (hP : HasRealParity P p)
     (hpq : p % 2 = q % 2) : HasRealParity P q := by
   intro k hk
   rw [hP k hk, hpq]
 
-theorem two_mul_half_of_even {n : ℕ} (h : Even n) : 2 * (n / 2) = n := by
+lemma two_mul_half_of_even {n : ℕ} (h : Even n) : 2 * (n / 2) = n := by
   rcases h with ⟨m, rfl⟩
   have hdouble : m + m = 2 * m := by omega
   rw [hdouble, Nat.mul_div_right m (by norm_num : 0 < 2)]
 
-private theorem two_mul_sum_map_half_eq_sum_of_even (l : List ℕ)
+private lemma two_mul_sum_map_half_eq_sum_of_even (l : List ℕ)
     (h : ∀ n ∈ l, Even n) :
     2 * (l.map fun n => n / 2).sum = l.sum := by
   induction l with
@@ -3497,7 +3497,7 @@ private theorem two_mul_sum_map_half_eq_sum_of_even (l : List ℕ)
 /-- Expanded interior real-root pair parameters multiply to the corresponding
 two-point linear-factor products with full root multiplicity
 [GSLW19, BlockHam.tex:445,452-454,469-474]. -/
-theorem SourceRootProductData.interiorRealRootPair_linearFactorProduct
+lemma SourceRootProductData.interiorRealRootPair_linearFactorProduct
     {A : ℝ[X]} (data : SourceRootProductData A) :
     (data.interiorRealRootPairParameters.map fun s : ℝ =>
         (((X : ℂ[X]) - Polynomial.C (s : ℂ)) *
@@ -3535,7 +3535,7 @@ theorem SourceRootProductData.interiorRealRootPair_linearFactorProduct
 /-- Expanded pure-imaginary parameters multiply to the corresponding two-point
 linear-factor products with full root multiplicity [GSLW19,
 BlockHam.tex:447,455,461]. -/
-theorem SourceRootProductData.imaginaryRoot_linearFactorProduct
+lemma SourceRootProductData.imaginaryRoot_linearFactorProduct
     {A : ℝ[X]} (data : SourceRootProductData A) :
     (data.imaginaryRootParameters.map fun r : ℝ =>
         ((X : ℂ[X]) - Polynomial.C (Complex.I * (r : ℂ))) *
@@ -3559,7 +3559,7 @@ theorem SourceRootProductData.imaginaryRoot_linearFactorProduct
 /-- Expanded non-real quartet parameters multiply to the corresponding quartet
 linear-factor products with full root multiplicity [GSLW19,
 BlockHam.tex:448,455-456,462-466]. -/
-theorem SourceRootProductData.complexRoot_linearFactorProduct
+lemma SourceRootProductData.complexRoot_linearFactorProduct
     {A : ℝ[X]} (data : SourceRootProductData A) :
     (data.complexRootParameters.map fun z : ℝ × ℝ =>
         ((complexRootOrbit ((z.1 : ℂ) + Complex.I * (z.2 : ℂ))).map
@@ -3590,7 +3590,7 @@ noncomputable def complexRealRootMultiplicity {A : ℝ[X]} (_facts : SourceRootC
 
 /-- Even-polynomial symmetry identifies the multiplicities of `s` and `-s`
 after complexification. -/
-theorem complexRealRootMultiplicity_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
+lemma complexRealRootMultiplicity_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
     (s : ℝ) :
     facts.complexRealRootMultiplicity (-s) = facts.complexRealRootMultiplicity s := by
   unfold complexRealRootMultiplicity
@@ -3604,7 +3604,7 @@ noncomputable def zeroRootPairCount {A : ℝ[X]} (_facts : SourceRootClassFacts 
   (realPolynomialToComplex A).rootMultiplicity (0 : ℂ) / 2
 
 /-- The paired zero-root count accounts for all zero-root multiplicity. -/
-theorem two_mul_zeroRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A) :
+lemma two_mul_zeroRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A) :
     2 * facts.zeroRootPairCount =
       (realPolynomialToComplex A).rootMultiplicity (0 : ℂ) :=
   two_mul_half_of_even facts.complex_zero_multiplicity_even
@@ -3617,7 +3617,7 @@ noncomputable def interiorRealRootPairCount {A : ℝ[X]} (_facts : SourceRootCla
   (realPolynomialToComplex A).rootMultiplicity (s : ℂ) / 2
 
 /-- Interior real-root pair counts are invariant under `s ↦ -s`. -/
-theorem interiorRealRootPairCount_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
+lemma interiorRealRootPairCount_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
     (s : ℝ) :
     facts.interiorRealRootPairCount (-s) = facts.interiorRealRootPairCount s := by
   unfold interiorRealRootPairCount
@@ -3627,7 +3627,7 @@ theorem interiorRealRootPairCount_neg {A : ℝ[X]} (facts : SourceRootClassFacts
 
 /-- The paired interior-root count accounts for all multiplicity of a real
 root inside `(-1,1)`. -/
-theorem two_mul_interiorRealRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A)
+lemma two_mul_interiorRealRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A)
     {s : ℝ} (hs : s ∈ Set.Ioo (-1 : ℝ) 1) :
     2 * facts.interiorRealRootPairCount s =
       (realPolynomialToComplex A).rootMultiplicity (s : ℂ) :=
@@ -3637,7 +3637,7 @@ end SourceRootClassFacts
 
 /-- Positive-interior representative multiplicities sum to the corresponding
 root-class count in the canonical source multiset. -/
-theorem SourceHypotheses.sum_rootMultiplicity_positiveInterior_eq_countP
+lemma SourceHypotheses.sum_rootMultiplicity_positiveInterior_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     ((hA.rootProductData).positiveInteriorRealRootValues.map fun s : ℝ =>
         (realPolynomialToComplex A).rootMultiplicity (s : ℂ)).sum =
@@ -3658,7 +3658,7 @@ theorem SourceHypotheses.sum_rootMultiplicity_positiveInterior_eq_countP
 
 /-- Outside-real representative multiplicities sum to the corresponding
 root-class count in the canonical source multiset. -/
-theorem SourceHypotheses.sum_rootMultiplicity_positiveOutside_eq_countP
+lemma SourceHypotheses.sum_rootMultiplicity_positiveOutside_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     ((hA.rootProductData).positiveOutsideRealRootValues.map fun s : ℝ =>
         (realPolynomialToComplex A).rootMultiplicity (s : ℂ)).sum =
@@ -3679,7 +3679,7 @@ theorem SourceHypotheses.sum_rootMultiplicity_positiveOutside_eq_countP
 
 /-- Positive-imaginary representative multiplicities sum to the corresponding
 root-class count in the canonical source multiset. -/
-theorem SourceHypotheses.sum_rootMultiplicity_positiveImaginary_eq_countP
+lemma SourceHypotheses.sum_rootMultiplicity_positiveImaginary_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     ((hA.rootProductData).positiveImaginaryRootValues.map fun r : ℝ =>
         (realPolynomialToComplex A).rootMultiplicity (Complex.I * (r : ℂ))).sum =
@@ -3700,7 +3700,7 @@ theorem SourceHypotheses.sum_rootMultiplicity_positiveImaginary_eq_countP
 
 /-- First-quadrant representative multiplicities sum to the corresponding
 root-class count in the canonical source multiset. -/
-theorem SourceHypotheses.sum_rootMultiplicity_firstQuadrant_eq_countP
+lemma SourceHypotheses.sum_rootMultiplicity_firstQuadrant_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     ((hA.rootProductData).firstQuadrantComplexRootRepresentatives.map fun z : ℂ =>
         (realPolynomialToComplex A).rootMultiplicity z).sum =
@@ -3721,7 +3721,7 @@ theorem SourceHypotheses.sum_rootMultiplicity_firstQuadrant_eq_countP
 
 /-- Interior real-root pair expansion uses exactly the positive-interior
 root-class multiplicity, because those multiplicities are even. -/
-theorem SourceHypotheses.two_mul_sum_half_positiveInterior_eq_countP
+lemma SourceHypotheses.two_mul_sum_half_positiveInterior_eq_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     2 * ((hA.rootProductData).positiveInteriorRealRootValues.map fun s : ℝ =>
         (realPolynomialToComplex A).rootMultiplicity (s : ℂ) / 2).sum =
@@ -3759,11 +3759,11 @@ theorem SourceHypotheses.two_mul_sum_half_positiveInterior_eq_countP
           (IsPositiveInteriorRealRootRepresentative z)) (hA.rootProductData).roots :=
       hA.sum_rootMultiplicity_positiveInterior_eq_countP
 
-theorem hasRealParity_zero (p : ℕ) : HasRealParity 0 p := by
+lemma hasRealParity_zero (p : ℕ) : HasRealParity 0 p := by
   intro k hk
   simp at hk
 
-theorem hasRealParity_C (c : ℝ) {p : ℕ} (hp : p % 2 = 0) :
+lemma hasRealParity_C (c : ℝ) {p : ℕ} (hp : p % 2 = 0) :
     HasRealParity (Polynomial.C c) p := by
   intro k hk
   rw [Polynomial.coeff_C] at hk
@@ -3771,11 +3771,11 @@ theorem hasRealParity_C (c : ℝ) {p : ℕ} (hp : p % 2 = 0) :
   · simp [hp]
   · simp [Nat.pos_iff_ne_zero.mp hpos] at hk
 
-theorem hasRealParity_one {p : ℕ} (hp : p % 2 = 0) :
+lemma hasRealParity_one {p : ℕ} (hp : p % 2 = 0) :
     HasRealParity (1 : ℝ[X]) p := by
   simpa using hasRealParity_C (1 : ℝ) hp
 
-theorem HasRealParity.add {P Q : ℝ[X]} {p : ℕ} (hP : HasRealParity P p)
+lemma HasRealParity.add {P Q : ℝ[X]} {p : ℕ} (hP : HasRealParity P p)
     (hQ : HasRealParity Q p) : HasRealParity (P + Q) p := by
   intro k hk
   rw [Polynomial.coeff_add] at hk
@@ -3783,18 +3783,18 @@ theorem HasRealParity.add {P Q : ℝ[X]} {p : ℕ} (hP : HasRealParity P p)
   · exact hQ k (by simpa [h] using hk)
   · exact hP k h
 
-theorem HasRealParity.neg {P : ℝ[X]} {p : ℕ} (hP : HasRealParity P p) :
+lemma HasRealParity.neg {P : ℝ[X]} {p : ℕ} (hP : HasRealParity P p) :
     HasRealParity (-P) p := by
   intro k hk
   rw [Polynomial.coeff_neg, neg_ne_zero] at hk
   exact hP k hk
 
-theorem HasRealParity.sub {P Q : ℝ[X]} {p : ℕ} (hP : HasRealParity P p)
+lemma HasRealParity.sub {P Q : ℝ[X]} {p : ℕ} (hP : HasRealParity P p)
     (hQ : HasRealParity Q p) : HasRealParity (P - Q) p := by
   rw [sub_eq_add_neg]
   exact hP.add hQ.neg
 
-theorem HasRealParity.mul {P Q : ℝ[X]} {p q : ℕ} (hP : HasRealParity P p)
+lemma HasRealParity.mul {P Q : ℝ[X]} {p q : ℕ} (hP : HasRealParity P p)
     (hQ : HasRealParity Q q) : HasRealParity (P * Q) (p + q) := by
   intro k hk
   rw [Polynomial.coeff_mul] at hk
@@ -3815,19 +3815,19 @@ theorem HasRealParity.mul {P Q : ℝ[X]} {p q : ℕ} (hP : HasRealParity P p)
   exact hk (Finset.sum_eq_zero hterms)
 
 /-- Multiplying by a real constant does not change parity. -/
-theorem HasRealParity.C_mul {P : ℝ[X]} {p : ℕ} (c : ℝ)
+lemma HasRealParity.C_mul {P : ℝ[X]} {p : ℕ} (c : ℝ)
     (hP : HasRealParity P p) : HasRealParity (Polynomial.C c * P) p := by
   have hC : HasRealParity (Polynomial.C c) 0 := hasRealParity_C c (by rfl)
   exact (hC.mul hP).congr (by omega)
 
-theorem HasRealParity.square_even {P : ℝ[X]} {p : ℕ} (hP : HasRealParity P p) :
+lemma HasRealParity.square_even {P : ℝ[X]} {p : ℕ} (hP : HasRealParity P p) :
     HasRealParity (P ^ 2) 0 := by
   have hmul : HasRealParity (P * P) (p + p) := hP.mul hP
   rw [pow_two]
   exact hmul.congr (by omega)
 
 /-- The monomial `X^n` has parity `n`. -/
-theorem hasRealParity_X_pow (n : ℕ) :
+lemma hasRealParity_X_pow (n : ℕ) :
     HasRealParity ((X : ℝ[X]) ^ n) n := by
   intro k hk
   rw [Polynomial.coeff_X_pow] at hk
@@ -3836,13 +3836,13 @@ theorem hasRealParity_X_pow (n : ℕ) :
   · simp [hkn] at hk
 
 /-- The source factor `1 - X^2` is even. -/
-theorem hasRealParity_one_sub_X_sq :
+lemma hasRealParity_one_sub_X_sq :
     HasRealParity ((1 : ℝ[X]) - X ^ 2) 0 := by
   exact (hasRealParity_one (by rfl)).sub
     ((hasRealParity_X_pow 2).congr (by omega))
 
 /-- The factor `1 - X^2` has degree at most two. -/
-theorem one_sub_X_sq_natDegree_le_two :
+lemma one_sub_X_sq_natDegree_le_two :
     (((1 : ℝ[X]) - X ^ 2).natDegree ≤ 2) := by
   have hone : (1 : ℝ[X]).natDegree ≤ 2 := by
     rw [Polynomial.natDegree_one]
@@ -3928,12 +3928,12 @@ noncomputable def one : Certificate (1 : ℝ[X]) where
   eq_decomposition := by simp
 
 /-- If a certificate is present, its stored equality can be used directly. -/
-theorem eq_of_certificate {A : ℝ[X]} (h : Certificate A) :
+lemma eq_of_certificate {A : ℝ[X]} (h : Certificate A) :
     A = h.B ^ 2 + (1 - X ^ 2) * h.C ^ 2 :=
   h.eq_decomposition
 
 /-- Any interval-square certificate proves nonnegativity on `[-1,1]`. -/
-theorem nonnegativeOnUnitInterval_of_certificate {A : ℝ[X]} (h : Certificate A) :
+lemma nonnegativeOnUnitInterval_of_certificate {A : ℝ[X]} (h : Certificate A) :
     NonnegativeOnUnitInterval A := by
   intro x hx
   rw [h.eq_decomposition]
@@ -3947,13 +3947,13 @@ theorem nonnegativeOnUnitInterval_of_certificate {A : ℝ[X]} (h : Certificate A
 namespace DegreeParityCertificate
 
 /-- A degree/parity certificate in particular proves interval nonnegativity. -/
-theorem nonnegativeOnUnitInterval {A : ℝ[X]} {k : ℕ}
+lemma nonnegativeOnUnitInterval {A : ℝ[X]} {k : ℕ}
     (h : DegreeParityCertificate A k) : NonnegativeOnUnitInterval A :=
   nonnegativeOnUnitInterval_of_certificate h.toCertificate
 
 /-- The product-friendly `degree_C <= k` field and opposite parity recover the
 source-style strict degree bound except in the zero boundary case. -/
-theorem degree_C_source_bound {A : ℝ[X]} {k : ℕ}
+lemma degree_C_source_bound {A : ℝ[X]} {k : ℕ}
     (h : DegreeParityCertificate A k) : h.C = 0 ∨ h.C.natDegree + 1 ≤ k := by
   by_cases hzero : h.C = 0
   · exact Or.inl hzero
@@ -3972,7 +3972,7 @@ end DegreeParityCertificate
 
 /-- A real polynomial bounded by one on `[-1,1]` makes `1 - P^2`
 nonnegative on that interval. -/
-theorem one_sub_sq_nonnegative_of_bounded {P : ℝ[X]}
+lemma one_sub_sq_nonnegative_of_bounded {P : ℝ[X]}
     (hP : BoundedByOneOnUnitInterval P) :
     NonnegativeOnUnitInterval (1 - P ^ 2) := by
   intro x hx
@@ -3990,7 +3990,7 @@ For a real root class with representative `s`, the factor `s^2 - x^2`
 is written as a sum of a square term and `(1 - x^2)` times another square
 coefficient.  This is the polynomial identity behind the first displayed
 factor `R_(s)(x) R_(s)^*(x)`. -/
-theorem realRootFactor_rearrangement (s x : ℝ) :
+lemma realRootFactor_rearrangement (s x : ℝ) :
     s ^ 2 - x ^ 2 = (s ^ 2 - 1) * x ^ 2 + s ^ 2 * (1 - x ^ 2) := by
   ring
 
@@ -4000,14 +4000,14 @@ BlockHam.tex:461].
 The source writes this as `x^2 + |s|^2`; here `r` denotes the nonnegative
 real number `|s|`, but the algebraic identity itself does not need the
 nonnegativity hypothesis. -/
-theorem imaginaryRootFactor_rearrangement (r x : ℝ) :
+lemma imaginaryRootFactor_rearrangement (r x : ℝ) :
     x ^ 2 + r ^ 2 = (r ^ 2 + 1) * x ^ 2 + r ^ 2 * (1 - x ^ 2) := by
   ring
 
 /-- The complex linear factors for the real root pair `±s` multiply to the
 complexification of `x^2-s^2`, matching the real-root grouping step of
 [GSLW19, BlockHam.tex:450-456]. -/
-theorem complexLinearFactors_realPair (s : ℝ) :
+lemma complexLinearFactors_realPair (s : ℝ) :
     (X - Polynomial.C (s : ℂ)) *
         (X - Polynomial.C ((-s : ℝ) : ℂ)) =
       realPolynomialToComplex ((X : ℝ[X]) ^ 2 - Polynomial.C (s ^ 2)) := by
@@ -4018,7 +4018,7 @@ theorem complexLinearFactors_realPair (s : ℝ) :
 
 /-- The paired interior-real-root source factor corresponds to two copies of
 the real pair of complex linear factors [GSLW19, BlockHam.tex:445,469-474]. -/
-theorem complexLinearFactors_interiorRealPair (s : ℝ) :
+lemma complexLinearFactors_interiorRealPair (s : ℝ) :
     ((X - Polynomial.C (s : ℂ)) *
         (X - Polynomial.C ((-s : ℝ) : ℂ))) ^ 2 =
       realPolynomialToComplex
@@ -4027,7 +4027,7 @@ theorem complexLinearFactors_interiorRealPair (s : ℝ) :
 
 /-- The outside-real-root source factor `s^2-x^2` differs from the complex
 linear pair product by the expected sign [GSLW19, BlockHam.tex:459-460]. -/
-theorem realPolynomialToComplex_outsideRealFactor (s : ℝ) :
+lemma realPolynomialToComplex_outsideRealFactor (s : ℝ) :
     realPolynomialToComplex (Polynomial.C (s ^ 2) - (X : ℝ[X]) ^ 2) =
       -((X - Polynomial.C (s : ℂ)) *
         (X - Polynomial.C ((-s : ℝ) : ℂ))) := by
@@ -4037,7 +4037,7 @@ theorem realPolynomialToComplex_outsideRealFactor (s : ℝ) :
 /-- The complex linear factors for the imaginary root pair `±ir` multiply to
 the complexification of `x^2+r^2`, matching the source imaginary-root factor
 [GSLW19, BlockHam.tex:461]. -/
-theorem complexLinearFactors_imaginaryPair (r : ℝ) :
+lemma complexLinearFactors_imaginaryPair (r : ℝ) :
     (X - Polynomial.C (Complex.I * (r : ℂ))) *
         (X - Polynomial.C (-(Complex.I * (r : ℂ)))) =
       realPolynomialToComplex ((X : ℝ[X]) ^ 2 + Polynomial.C (r ^ 2)) := by
@@ -4060,7 +4060,7 @@ theorem complexLinearFactors_imaginaryPair (r : ℝ) :
 /-- The complex linear factors for a non-real quartet
 `a+ib, -(a+ib), a-ib, -(a-ib)` multiply to the source quartic factor
 [GSLW19, BlockHam.tex:462-466]. -/
-theorem complexLinearFactors_complexQuartet (a b : ℝ) :
+lemma complexLinearFactors_complexQuartet (a b : ℝ) :
     ((X - Polynomial.C ((a : ℂ) + Complex.I * (b : ℂ))) *
         (X - Polynomial.C (-((a : ℂ) + Complex.I * (b : ℂ))))) *
       ((X - Polynomial.C ((a : ℂ) - Complex.I * (b : ℂ))) *
@@ -4077,7 +4077,7 @@ theorem complexLinearFactors_complexQuartet (a b : ℝ) :
 
 /-- The quartet orbit product notation matches the source's non-real root
 quartic factor [GSLW19, BlockHam.tex:450-456,462-466]. -/
-theorem complexRootOrbit_linearFactorProduct (a b : ℝ) :
+lemma complexRootOrbit_linearFactorProduct (a b : ℝ) :
     ((complexRootOrbit ((a : ℂ) + Complex.I * (b : ℂ))).map
         (fun z => (X : ℂ[X]) - Polynomial.C z)).prod =
       realPolynomialToComplex
@@ -4092,7 +4092,7 @@ theorem complexRootOrbit_linearFactorProduct (a b : ℝ) :
 
 /-- Complexification of the product of paired interior-real source factors.
 This is the list-level form of [GSLW19, BlockHam.tex:452-454]. -/
-theorem realPolynomialToComplex_product_interiorRealRootPair :
+lemma realPolynomialToComplex_product_interiorRealRootPair :
     ∀ roots : List ℝ,
       realPolynomialToComplex
           ((roots.map fun s => (((X : ℝ[X]) ^ 2 - Polynomial.C (s ^ 2)) ^ 2)).prod) =
@@ -4112,7 +4112,7 @@ theorem realPolynomialToComplex_product_interiorRealRootPair :
 
 /-- Complexification of the outside-real source factors, including the sign
 change between `(x-s)(x+s)` and `s^2-x^2` [GSLW19, BlockHam.tex:453-460]. -/
-theorem realPolynomialToComplex_product_outsideRealRoot :
+lemma realPolynomialToComplex_product_outsideRealRoot :
     ∀ roots : List ℝ,
       realPolynomialToComplex
           ((roots.map fun s => Polynomial.C (s ^ 2) - (X : ℝ[X]) ^ 2).prod) =
@@ -4132,7 +4132,7 @@ theorem realPolynomialToComplex_product_outsideRealRoot :
 
 /-- Complexification of the source pure-imaginary factors
 [GSLW19, BlockHam.tex:455,461]. -/
-theorem realPolynomialToComplex_product_imaginaryRoot :
+lemma realPolynomialToComplex_product_imaginaryRoot :
     ∀ roots : List ℝ,
       realPolynomialToComplex
           ((roots.map fun r => (X : ℝ[X]) ^ 2 + Polynomial.C (r ^ 2)).prod) =
@@ -4152,7 +4152,7 @@ theorem realPolynomialToComplex_product_imaginaryRoot :
 
 /-- Complexification of the source non-real-quartet factors
 [GSLW19, BlockHam.tex:455-456,462-466]. -/
-theorem realPolynomialToComplex_product_complexRoot :
+lemma realPolynomialToComplex_product_complexRoot :
     ∀ roots : List (ℝ × ℝ),
       realPolynomialToComplex
           ((roots.map fun z =>
@@ -4219,7 +4219,7 @@ def IsComplexRootParameter (a b c : ℝ) : Prop :=
 
 /-- The parameter specified in [GSLW19, BlockHam.tex:464-466] satisfies the
 coefficient equation needed by the quartic factorization. -/
-theorem complexRootParameter_isComplexRootParameter (a b : ℝ) :
+lemma complexRootParameter_isComplexRootParameter (a b : ℝ) :
     IsComplexRootParameter a b (complexRootParameter a b) := by
   have hrad_nonneg : 0 ≤ complexRootRadicand a b := by
     unfold complexRootRadicand
@@ -4238,7 +4238,7 @@ theorem complexRootParameter_isComplexRootParameter (a b : ℝ) :
 BlockHam.tex:462-466], stated with the coefficient relation on `c` exposed.
 
 The next theorem instantiates `c` with the source's square-root expression. -/
-theorem complexRootFactor_rearrangement_of_parameter {a b c x : ℝ}
+lemma complexRootFactor_rearrangement_of_parameter {a b c x : ℝ}
     (hc : IsComplexRootParameter a b c) :
     x ^ 4 + 2 * x ^ 2 * (b ^ 2 - a ^ 2) + (a ^ 2 + b ^ 2) ^ 2 =
       (c * x ^ 2 - (a ^ 2 + b ^ 2)) ^ 2 + (c ^ 2 - 1) * x ^ 2 * (1 - x ^ 2) := by
@@ -4247,7 +4247,7 @@ theorem complexRootFactor_rearrangement_of_parameter {a b c x : ℝ}
 
 /-- The complex-root quartic factor rearrangement using the explicit
 parameter from [GSLW19, BlockHam.tex:462-466]. -/
-theorem complexRootFactor_rearrangement (a b : ℝ) :
+lemma complexRootFactor_rearrangement (a b : ℝ) :
     ∀ x : ℝ,
       x ^ 4 + 2 * x ^ 2 * (b ^ 2 - a ^ 2) + (a ^ 2 + b ^ 2) ^ 2 =
         ((complexRootParameter a b) * x ^ 2 - (a ^ 2 + b ^ 2)) ^ 2 +
@@ -4258,7 +4258,7 @@ theorem complexRootFactor_rearrangement (a b : ℝ) :
 
 /-- The explicit complex-root parameter from [GSLW19, BlockHam.tex:464-466]
 has `1 <= c^2`, so the coefficient `sqrt(c^2-1)` is real. -/
-theorem complexRootParameter_sq_ge_one (a b : ℝ) :
+lemma complexRootParameter_sq_ge_one (a b : ℝ) :
     1 ≤ (complexRootParameter a b) ^ 2 := by
   have hrad_ge : (a ^ 2 - 1) ^ 2 ≤ complexRootRadicand a b := by
     unfold complexRootRadicand
@@ -4319,7 +4319,7 @@ noncomputable def intervalComplexForm (B C : ℝ[X]) (x : ℝ) : ℂ :=
 
 /-- Product closure for the source forms `B + i sqrt(1-x^2) C`
 [GSLW19, BlockHam.tex:475-476]. -/
-theorem intervalComplexForm_mul (B₁ C₁ B₂ C₂ : ℝ[X]) {x : ℝ}
+lemma intervalComplexForm_mul (B₁ C₁ B₂ C₂ : ℝ[X]) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     intervalComplexForm B₁ C₁ x * intervalComplexForm B₂ C₂ x =
       intervalComplexForm
@@ -4351,7 +4351,7 @@ BlockHam.tex:475-476]. -/
 noncomputable def mulFormRight (B₁ C₁ B₂ C₂ : ℝ[X]) : ℝ[X] :=
   B₁ * C₂ + C₁ * B₂
 
-theorem intervalComplexForm_mul' (B₁ C₁ B₂ C₂ : ℝ[X]) {x : ℝ}
+lemma intervalComplexForm_mul' (B₁ C₁ B₂ C₂ : ℝ[X]) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     intervalComplexForm B₁ C₁ x * intervalComplexForm B₂ C₂ x =
       intervalComplexForm (mulFormLeft B₁ C₁ B₂ C₂)
@@ -4519,7 +4519,7 @@ structure OutsideRealRoot where
   value : ℝ
   outside : 1 ≤ value ^ 2
 
-theorem sq_ge_one_of_not_mem_Ioo (s : ℝ) (hs : s ∉ Set.Ioo (-1 : ℝ) 1) :
+lemma sq_ge_one_of_not_mem_Ioo (s : ℝ) (hs : s ∉ Set.Ioo (-1 : ℝ) 1) :
     1 ≤ s ^ 2 := by
   by_cases hleft : s ≤ -1
   · nlinarith
@@ -4542,7 +4542,7 @@ end OutsideRealRoot
 
 /-- Outside-real wrapper for the proof-carrying representatives used by the
 source factorization [GSLW19, BlockHam.tex:453-460]. -/
-theorem realPolynomialToComplex_product_outsideRealRoots :
+lemma realPolynomialToComplex_product_outsideRealRoots :
     ∀ roots : List OutsideRealRoot,
       realPolynomialToComplex
           ((roots.map fun s => Polynomial.C (s.value ^ 2) - (X : ℝ[X]) ^ 2).prod) =
@@ -4562,7 +4562,7 @@ theorem realPolynomialToComplex_product_outsideRealRoots :
 
 /-- The source's outside-real factors contribute one sign per representative
 when translated to complex linear factors [GSLW19, BlockHam.tex:453-460]. -/
-theorem outsideRealRoots_negativeLinearFactorProduct
+lemma outsideRealRoots_negativeLinearFactorProduct
     (roots : List OutsideRealRoot) :
     (roots.map fun s : OutsideRealRoot =>
         -(((X : ℂ[X]) - Polynomial.C (s.value : ℂ)) *
@@ -4579,7 +4579,7 @@ theorem outsideRealRoots_negativeLinearFactorProduct
 /-- Complexification of the full source product notation from
 [GSLW19, BlockHam.tex:452-456].  This is the algebraic bridge used before the
 root product is grouped into zero, real, imaginary, and quartet factors. -/
-theorem realPolynomialToComplex_sourceProductNotation
+lemma realPolynomialToComplex_sourceProductNotation
     (constant : ℝ) (zeroRootPairs : ℕ) (interiorRoots : List ℝ)
     (outsideRoots : List OutsideRealRoot) (imaginaryRoots : List ℝ)
     (complexRoots : List (ℝ × ℝ)) :
@@ -4637,7 +4637,7 @@ noncomputable def outsideRealRoots {A : ℝ[X]}
 
 /-- A proof-carrying outside-real representative is still a canonical complex
 root. -/
-theorem root_mem_of_mem_outsideRealRoots
+lemma root_mem_of_mem_outsideRealRoots
     {A : ℝ[X]} {data : SourceRootProductData A} {s : OutsideRealRoot}
     (hs : s ∈ data.outsideRealRoots) :
     (s.value : ℂ) ∈ data.roots := by
@@ -4656,7 +4656,7 @@ theorem root_mem_of_mem_outsideRealRoots
 /-- A proof-carrying outside-real representative keeps the positive
 orientation of the selected source representative [GSLW19,
 BlockHam.tex:453-460]. -/
-theorem value_pos_of_mem_outsideRealRoots
+lemma value_pos_of_mem_outsideRealRoots
     {A : ℝ[X]} {data : SourceRootProductData A} {s : OutsideRealRoot}
     (hs : s ∈ data.outsideRealRoots) : 0 < s.value := by
   classical
@@ -4675,14 +4675,14 @@ theorem value_pos_of_mem_outsideRealRoots
 
 /-- The proof-carrying outside-real-root list has the same length as the raw
 multiplicity-expanded outside-real parameter list. -/
-theorem length_outsideRealRoots {A : ℝ[X]} (data : SourceRootProductData A) :
+lemma length_outsideRealRoots {A : ℝ[X]} (data : SourceRootProductData A) :
     data.outsideRealRoots.length = data.outsideRealRootParameters.length := by
   simp [outsideRealRoots, outsideRealRootParameters, List.length_flatMap]
 
 /-- Forgetting the proof component from the proof-carrying outside-real list
 recovers the raw multiplicity-expanded outside-real parameters [GSLW19,
 BlockHam.tex:446,453-460]. -/
-theorem map_value_outsideRealRoots {A : ℝ[X]} (data : SourceRootProductData A) :
+lemma map_value_outsideRealRoots {A : ℝ[X]} (data : SourceRootProductData A) :
     (data.outsideRealRoots.map fun s : OutsideRealRoot => s.value) =
       data.outsideRealRootParameters := by
   simp [outsideRealRoots, outsideRealRootParameters, List.map_flatMap]
@@ -4690,7 +4690,7 @@ theorem map_value_outsideRealRoots {A : ℝ[X]} (data : SourceRootProductData A)
 /-- Expanded outside-real representatives multiply to the corresponding
 two-point linear-factor products with full root multiplicity [GSLW19,
 BlockHam.tex:446,453-460]. -/
-theorem outsideRealRoot_linearFactorProduct
+lemma outsideRealRoot_linearFactorProduct
     {A : ℝ[X]} (data : SourceRootProductData A) :
     (data.outsideRealRoots.map fun s : OutsideRealRoot =>
         ((X : ℂ[X]) - Polynomial.C (s.value : ℂ)) *
@@ -4712,7 +4712,7 @@ noncomputable def sourceConstant {A : ℝ[X]} (data : SourceRootProductData A) :
 
 /-- Multiplying the source constant by the outside-real sign recovers the
 canonical leading coefficient after coefficient extension. -/
-theorem sourceConstant_mul_outsideSign {A : ℝ[X]} (data : SourceRootProductData A) :
+lemma sourceConstant_mul_outsideSign {A : ℝ[X]} (data : SourceRootProductData A) :
     Polynomial.C ((data.sourceConstant : ℝ) : ℂ) *
         ((-1 : ℂ[X]) ^ data.outsideRealRoots.length) =
       Polynomial.C (realPolynomialToComplex A).leadingCoeff := by
@@ -4748,14 +4748,14 @@ noncomputable def zeroRootPairs {A : ℝ[X]} (data : SourceRootProductData A) : 
 /-- The extracted zero-root pair count accounts for the full zero-root
 multiplicity in the complexified source polynomial [GSLW19,
 BlockHam.tex:442-452]. -/
-theorem two_mul_zeroRootPairs {A : ℝ[X]} (data : SourceRootProductData A) :
+lemma two_mul_zeroRootPairs {A : ℝ[X]} (data : SourceRootProductData A) :
     2 * data.zeroRootPairs =
       (realPolynomialToComplex A).rootMultiplicity (0 : ℂ) := by
   exact data.facts.two_mul_zeroRootPairCount
 
 /-- The zero-root class contributes the source factor `x^(2k)`, where `k` is
 half of the zero-root multiplicity [GSLW19, BlockHam.tex:442-452]. -/
-theorem zeroRootLinearFactorProduct {A : ℝ[X]} (data : SourceRootProductData A) :
+lemma zeroRootLinearFactorProduct {A : ℝ[X]} (data : SourceRootProductData A) :
     (((X : ℂ[X]) - Polynomial.C (0 : ℂ)) ^
         (realPolynomialToComplex A).rootMultiplicity (0 : ℂ)) =
       (X : ℂ[X]) ^ (2 * data.zeroRootPairs) := by
@@ -4766,7 +4766,7 @@ theorem zeroRootLinearFactorProduct {A : ℝ[X]} (data : SourceRootProductData A
 linear-factor product indexed by the selected source representatives
 [GSLW19, BlockHam.tex:452-480].  The final root-product proof identifies this
 grouped product with the canonical complex root product. -/
-theorem realPolynomialToComplex_sourceProductNotation_grouped
+lemma realPolynomialToComplex_sourceProductNotation_grouped
     {A : ℝ[X]} (data : SourceRootProductData A) (constant : ℝ) :
     realPolynomialToComplex
         (Polynomial.C constant *
@@ -4810,7 +4810,7 @@ theorem realPolynomialToComplex_sourceProductNotation_grouped
 /-- The grouped source product with the sign-corrected source constant has the
 same leading scalar as the canonical complex root product [GSLW19,
 BlockHam.tex:453-480]. -/
-theorem realPolynomialToComplex_sourceProductNotation_grouped_sourceConstant
+lemma realPolynomialToComplex_sourceProductNotation_grouped_sourceConstant
     {A : ℝ[X]} (data : SourceRootProductData A) :
     realPolynomialToComplex
         (Polynomial.C data.sourceConstant *
@@ -4897,7 +4897,7 @@ noncomputable def groupedRootList {A : ℝ[X]} (data : SourceRootProductData A) 
 
 /-- Linear-factor product over `groupedRootList`, rewritten in the source
 representative notation [GSLW19, BlockHam.tex:452-480]. -/
-theorem groupedRootList_linearFactorProduct
+lemma groupedRootList_linearFactorProduct
     {A : ℝ[X]} (data : SourceRootProductData A) :
     (data.groupedRootList.map (fun z : ℂ => (X : ℂ[X]) - Polynomial.C z)).prod =
       (X : ℂ[X]) ^ (2 * data.zeroRootPairs) *
@@ -4997,7 +4997,7 @@ theorem groupedRootList_linearFactorProduct
 /-- The zero-root class contributes no more than the canonical root multiset
 cardinality.  This is the first summand of the source count
 `2*rootClassDegree <= |S|` [GSLW19, BlockHam.tex:442-452,476-479]. -/
-theorem SourceHypotheses.two_mul_zeroRootPairs_le_roots_card
+lemma SourceHypotheses.two_mul_zeroRootPairs_le_roots_card
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     2 * (hA.rootProductData).zeroRootPairs ≤ (hA.rootProductData).roots.card := by
   calc
@@ -5020,7 +5020,7 @@ noncomputable def rootClassDegree {A : ℝ[X]} (data : SourceRootProductData A) 
 /-- Expanded multiplicity-sum form of `rootClassDegree`.  This is the
 bookkeeping bridge from the source root classes to the degree bound in
 [GSLW19, BlockHam.tex:469-480]. -/
-theorem rootClassDegree_eq_multiplicity_sums {A : ℝ[X]}
+lemma rootClassDegree_eq_multiplicity_sums {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.rootClassDegree =
       data.zeroRootPairs +
@@ -5043,7 +5043,7 @@ end SourceRootProductData
 /-- Once the source root classes have been counted inside the canonical root
 multiset, the degree bound `rootClassDegree <= k` follows from
 `|S| <= 2k` [GSLW19, BlockHam.tex:476-479]. -/
-theorem SourceHypotheses.rootClassDegree_le_of_two_mul_le_roots_card
+lemma SourceHypotheses.rootClassDegree_le_of_two_mul_le_roots_card
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k)
     (hcount :
       2 * (hA.rootProductData).rootClassDegree ≤ (hA.rootProductData).roots.card) :
@@ -5054,7 +5054,7 @@ theorem SourceHypotheses.rootClassDegree_le_of_two_mul_le_roots_card
 /-- The selected root-class degree is exactly half of the weighted source
 root-class count: zero roots count once, real and imaginary two-point orbits
 count twice, and first-quadrant quartets count four times. -/
-theorem SourceHypotheses.two_mul_rootClassDegree_eq_weighted_countP
+lemma SourceHypotheses.two_mul_rootClassDegree_eq_weighted_countP
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     2 * (hA.rootProductData).rootClassDegree =
       (hA.rootProductData).roots.count (0 : ℂ) +
@@ -5129,7 +5129,7 @@ theorem SourceHypotheses.two_mul_rootClassDegree_eq_weighted_countP
 /-- The source root classes form a disjoint partition of the complex root
 multiset, so their weighted count is the multiset cardinality [GSLW19,
 BlockHam.tex:442-456,476-479]. -/
-theorem SourceHypotheses.weighted_sourceRootClass_count_eq_roots_card
+lemma SourceHypotheses.weighted_sourceRootClass_count_eq_roots_card
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).roots.count (0 : ℂ) +
         2 * @Multiset.countP ℂ IsPositiveInteriorRealRootRepresentative
@@ -5233,7 +5233,7 @@ theorem SourceHypotheses.weighted_sourceRootClass_count_eq_roots_card
 
 /-- The selected source root-class degree consumes at most the available complex
 roots [GSLW19, BlockHam.tex:476-479]. -/
-theorem SourceHypotheses.two_mul_rootClassDegree_le_roots_card
+lemma SourceHypotheses.two_mul_rootClassDegree_le_roots_card
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     2 * (hA.rootProductData).rootClassDegree ≤ (hA.rootProductData).roots.card := by
   calc
@@ -5259,7 +5259,7 @@ theorem SourceHypotheses.two_mul_rootClassDegree_le_roots_card
 /-- Exact root-count form of the selected source root classes.  The degree-bound
 wrapper above uses only the `<=` direction, but product grouping also needs the
 equality [GSLW19, BlockHam.tex:476-479]. -/
-theorem SourceHypotheses.two_mul_rootClassDegree_eq_roots_card
+lemma SourceHypotheses.two_mul_rootClassDegree_eq_roots_card
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     2 * (hA.rootProductData).rootClassDegree = (hA.rootProductData).roots.card := by
   calc
@@ -5283,7 +5283,7 @@ theorem SourceHypotheses.two_mul_rootClassDegree_eq_roots_card
 
 /-- The grouped root list has the same cardinality as the canonical root
 multiset [GSLW19, BlockHam.tex:476-479]. -/
-theorem SourceHypotheses.groupedRootList_length_eq_roots_card
+lemma SourceHypotheses.groupedRootList_length_eq_roots_card
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).groupedRootList.length =
       (hA.rootProductData).roots.card := by
@@ -5294,7 +5294,7 @@ theorem SourceHypotheses.groupedRootList_length_eq_roots_card
 
 /-- The grouped source root list has exactly the canonical multiplicity at the
 zero-root class [GSLW19, BlockHam.tex:442-452]. -/
-theorem SourceHypotheses.groupedRootList_count_zero
+lemma SourceHypotheses.groupedRootList_count_zero
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).groupedRootList.count (0 : ℂ) =
       (hA.rootProductData).roots.count (0 : ℂ) := by
@@ -5380,7 +5380,7 @@ theorem SourceHypotheses.groupedRootList_count_zero
 
 /-- Equivalent zero-root count phrased in the source product parameter
 `zeroRootPairs` [GSLW19, BlockHam.tex:442-452]. -/
-theorem SourceHypotheses.groupedRootList_count_zero_eq_two_mul_zeroRootPairs
+lemma SourceHypotheses.groupedRootList_count_zero_eq_two_mul_zeroRootPairs
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData).groupedRootList.count (0 : ℂ) =
       2 * (hA.rootProductData).zeroRootPairs := by
@@ -5390,7 +5390,7 @@ theorem SourceHypotheses.groupedRootList_count_zero_eq_two_mul_zeroRootPairs
 
 /-- The grouped interior-real block has the same cardinality as the canonical
 interior-real root class [GSLW19, BlockHam.tex:445,452-454,469-479]. -/
-theorem SourceHypotheses.interiorGroupedBlock_length_eq_countP_interior
+lemma SourceHypotheses.interiorGroupedBlock_length_eq_countP_interior
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData.interiorRealRootPairParameters.flatMap (fun s : ℝ =>
       [(s : ℂ), -(s : ℂ), (s : ℂ), -(s : ℂ)])).length =
@@ -5432,7 +5432,7 @@ theorem SourceHypotheses.interiorGroupedBlock_length_eq_countP_interior
 /-- For a selected positive interior real root, the grouped source block has
 exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:445,452-454,469-479]. -/
-theorem SourceHypotheses.interiorGroupedBlock_count_positive
+lemma SourceHypotheses.interiorGroupedBlock_count_positive
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveInteriorRealRootValues) :
     (hA.rootProductData.interiorRealRootPairParameters.flatMap (fun t : ℝ =>
@@ -5470,7 +5470,7 @@ theorem SourceHypotheses.interiorGroupedBlock_count_positive
 /-- For the negative partner of a selected interior real root, the grouped
 source block has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:445,452-454,469-479]. -/
-theorem SourceHypotheses.interiorGroupedBlock_count_negative
+lemma SourceHypotheses.interiorGroupedBlock_count_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveInteriorRealRootValues) :
     (hA.rootProductData.interiorRealRootPairParameters.flatMap (fun t : ℝ =>
@@ -5510,7 +5510,7 @@ theorem SourceHypotheses.interiorGroupedBlock_count_negative
 /-- For a selected positive interior real root, the whole grouped source root
 list has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:445,452-454,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_interior_positive
+lemma SourceHypotheses.groupedRootList_count_interior_positive
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveInteriorRealRootValues) :
     (hA.rootProductData).groupedRootList.count (s : ℂ) =
@@ -5578,7 +5578,7 @@ theorem SourceHypotheses.groupedRootList_count_interior_positive
 /-- For the negative partner of a selected interior real root, the whole
 grouped source root list has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:445,452-454,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_interior_negative
+lemma SourceHypotheses.groupedRootList_count_interior_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveInteriorRealRootValues) :
     (hA.rootProductData).groupedRootList.count (-(s : ℂ)) =
@@ -5647,7 +5647,7 @@ theorem SourceHypotheses.groupedRootList_count_interior_negative
 
 /-- The grouped outside-real block has the same cardinality as the canonical
 outside-real root class [GSLW19, BlockHam.tex:446,453-460,469-479]. -/
-theorem SourceHypotheses.outsideGroupedBlock_length_eq_countP_outside
+lemma SourceHypotheses.outsideGroupedBlock_length_eq_countP_outside
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData.outsideRealRoots.flatMap (fun s : OutsideRealRoot =>
       [(s.value : ℂ), -(s.value : ℂ)])).length =
@@ -5687,7 +5687,7 @@ theorem SourceHypotheses.outsideGroupedBlock_length_eq_countP_outside
 /-- For a selected positive outside-real root, the grouped source block has
 exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:446,453-460,469-479]. -/
-theorem SourceHypotheses.outsideGroupedBlock_count_positive
+lemma SourceHypotheses.outsideGroupedBlock_count_positive
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveOutsideRealRootValues) :
     (hA.rootProductData.outsideRealRoots.flatMap (fun t : OutsideRealRoot =>
@@ -5727,7 +5727,7 @@ theorem SourceHypotheses.outsideGroupedBlock_count_positive
 /-- For the negative partner of a selected outside-real root, the grouped
 source block has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:446,453-460,469-479]. -/
-theorem SourceHypotheses.outsideGroupedBlock_count_negative
+lemma SourceHypotheses.outsideGroupedBlock_count_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveOutsideRealRootValues) :
     (hA.rootProductData.outsideRealRoots.flatMap (fun t : OutsideRealRoot =>
@@ -5769,7 +5769,7 @@ theorem SourceHypotheses.outsideGroupedBlock_count_negative
 /-- For a selected positive outside/end-point real root, the whole grouped
 source root list has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:446,453-460,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_outside_positive
+lemma SourceHypotheses.groupedRootList_count_outside_positive
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveOutsideRealRootValues) :
     (hA.rootProductData).groupedRootList.count (s : ℂ) =
@@ -5846,7 +5846,7 @@ theorem SourceHypotheses.groupedRootList_count_outside_positive
 /-- For the negative partner of a selected outside/end-point real root, the
 whole grouped source root list has exactly the canonical root multiplicity
 [GSLW19, BlockHam.tex:446,453-460,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_outside_negative
+lemma SourceHypotheses.groupedRootList_count_outside_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {s : ℝ}
     (hs : s ∈ hA.rootProductData.positiveOutsideRealRootValues) :
     (hA.rootProductData).groupedRootList.count (-(s : ℂ)) =
@@ -5925,7 +5925,7 @@ theorem SourceHypotheses.groupedRootList_count_outside_negative
 
 /-- The grouped pure-imaginary block has the same cardinality as the canonical
 pure-imaginary root class [GSLW19, BlockHam.tex:447,455,461,469-479]. -/
-theorem SourceHypotheses.imaginaryGroupedBlock_length_eq_countP_imaginary
+lemma SourceHypotheses.imaginaryGroupedBlock_length_eq_countP_imaginary
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData.imaginaryRootParameters.flatMap (fun r : ℝ =>
       [Complex.I * (r : ℂ), -(Complex.I * (r : ℂ))])).length =
@@ -5966,7 +5966,7 @@ theorem SourceHypotheses.imaginaryGroupedBlock_length_eq_countP_imaginary
 /-- For a selected positive imaginary root, the grouped source block has
 exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:447,455,461,469-479]. -/
-theorem SourceHypotheses.imaginaryGroupedBlock_count_positive
+lemma SourceHypotheses.imaginaryGroupedBlock_count_positive
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ hA.rootProductData.positiveImaginaryRootValues) :
     (hA.rootProductData.imaginaryRootParameters.flatMap (fun t : ℝ =>
@@ -6004,7 +6004,7 @@ theorem SourceHypotheses.imaginaryGroupedBlock_count_positive
 /-- For the negative partner of a selected positive imaginary root, the
 grouped source block has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:447,455,461,469-479]. -/
-theorem SourceHypotheses.imaginaryGroupedBlock_count_negative
+lemma SourceHypotheses.imaginaryGroupedBlock_count_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ hA.rootProductData.positiveImaginaryRootValues) :
     (hA.rootProductData.imaginaryRootParameters.flatMap (fun t : ℝ =>
@@ -6046,7 +6046,7 @@ theorem SourceHypotheses.imaginaryGroupedBlock_count_negative
 /-- For a selected positive imaginary root, the whole grouped source root list
 has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:447,455,461,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_imaginary_positive
+lemma SourceHypotheses.groupedRootList_count_imaginary_positive
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ hA.rootProductData.positiveImaginaryRootValues) :
     (hA.rootProductData).groupedRootList.count (Complex.I * (r : ℂ)) =
@@ -6113,7 +6113,7 @@ theorem SourceHypotheses.groupedRootList_count_imaginary_positive
 /-- For the negative partner of a selected positive imaginary root, the whole
 grouped source root list has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:447,455,461,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_imaginary_negative
+lemma SourceHypotheses.groupedRootList_count_imaginary_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {r : ℝ}
     (hr : r ∈ hA.rootProductData.positiveImaginaryRootValues) :
     (hA.rootProductData).groupedRootList.count (-(Complex.I * (r : ℂ))) =
@@ -6180,7 +6180,7 @@ theorem SourceHypotheses.groupedRootList_count_imaginary_negative
 
 /-- The grouped non-real quartet block has the same cardinality as the canonical
 complex-quartet root class [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.complexGroupedBlock_length_eq_countP_complex
+lemma SourceHypotheses.complexGroupedBlock_length_eq_countP_complex
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     (hA.rootProductData.complexRootParameters.flatMap (fun z : ℝ × ℝ =>
       complexRootOrbit ((z.1 : ℂ) + Complex.I * (z.2 : ℂ)))).length =
@@ -6221,7 +6221,7 @@ theorem SourceHypotheses.complexGroupedBlock_length_eq_countP_complex
 /-- For a selected first-quadrant non-real root, the grouped source block has
 exactly the canonical root multiplicity at the representative root [GSLW19,
 BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.complexGroupedBlock_count_primary
+lemma SourceHypotheses.complexGroupedBlock_count_primary
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData.complexRootParameters.flatMap (fun t : ℝ × ℝ =>
@@ -6260,7 +6260,7 @@ theorem SourceHypotheses.complexGroupedBlock_count_primary
 /-- For the negative partner of a selected first-quadrant non-real root, the
 grouped source block has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.complexGroupedBlock_count_negative
+lemma SourceHypotheses.complexGroupedBlock_count_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData.complexRootParameters.flatMap (fun t : ℝ × ℝ =>
@@ -6300,7 +6300,7 @@ theorem SourceHypotheses.complexGroupedBlock_count_negative
 /-- For the conjugate partner of a selected first-quadrant non-real root, the
 grouped source block has exactly the canonical root multiplicity [GSLW19,
 BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.complexGroupedBlock_count_conj
+lemma SourceHypotheses.complexGroupedBlock_count_conj
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData.complexRootParameters.flatMap (fun t : ℝ × ℝ =>
@@ -6341,7 +6341,7 @@ theorem SourceHypotheses.complexGroupedBlock_count_conj
 /-- For the negative conjugate partner of a selected first-quadrant non-real
 root, the grouped source block has exactly the canonical root multiplicity
 [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.complexGroupedBlock_count_neg_conj
+lemma SourceHypotheses.complexGroupedBlock_count_neg_conj
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData.complexRootParameters.flatMap (fun t : ℝ × ℝ =>
@@ -6388,7 +6388,7 @@ theorem SourceHypotheses.complexGroupedBlock_count_neg_conj
 /-- For a selected first-quadrant non-real root, the whole grouped source root
 list has exactly the canonical root multiplicity at the representative root
 [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_complex_primary
+lemma SourceHypotheses.groupedRootList_count_complex_primary
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData).groupedRootList.count
@@ -6453,7 +6453,7 @@ theorem SourceHypotheses.groupedRootList_count_complex_primary
 /-- For the negative partner of a selected first-quadrant non-real root, the
 whole grouped source root list has exactly the canonical root multiplicity
 [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_complex_negative
+lemma SourceHypotheses.groupedRootList_count_complex_negative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData).groupedRootList.count
@@ -6520,7 +6520,7 @@ theorem SourceHypotheses.groupedRootList_count_complex_negative
 /-- For the conjugate partner of a selected first-quadrant non-real root, the
 whole grouped source root list has exactly the canonical root multiplicity
 [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_complex_conj
+lemma SourceHypotheses.groupedRootList_count_complex_conj
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData).groupedRootList.count
@@ -6591,7 +6591,7 @@ theorem SourceHypotheses.groupedRootList_count_complex_conj
 /-- For the negative conjugate partner of a selected first-quadrant non-real
 root, the whole grouped source root list has exactly the canonical root
 multiplicity [GSLW19, BlockHam.tex:448,455-456,462-466,469-479]. -/
-theorem SourceHypotheses.groupedRootList_count_complex_neg_conj
+lemma SourceHypotheses.groupedRootList_count_complex_neg_conj
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℝ × ℝ}
     (hz : z ∈ hA.rootProductData.complexRootParameters) :
     (hA.rootProductData).groupedRootList.count
@@ -6662,7 +6662,7 @@ theorem SourceHypotheses.groupedRootList_count_complex_neg_conj
 
 /-- The zero-root block of the grouped source list uses no more multiplicity
 than the canonical root multiset [GSLW19, BlockHam.tex:442-452]. -/
-theorem SourceHypotheses.zeroRootGroupedList_le_roots
+lemma SourceHypotheses.zeroRootGroupedList_le_roots
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     ((List.replicate (2 * (hA.rootProductData).zeroRootPairs) (0 : ℂ)) :
       Multiset ℂ) ≤ (hA.rootProductData).roots := by
@@ -6679,7 +6679,7 @@ theorem SourceHypotheses.zeroRootGroupedList_le_roots
 /-- Every entry of the grouped source root list is a canonical complex root.
 This is the element-level half of the source root-class partition
 [GSLW19, BlockHam.tex:450-456]. -/
-theorem SourceHypotheses.mem_roots_of_mem_groupedRootList
+lemma SourceHypotheses.mem_roots_of_mem_groupedRootList
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) {z : ℂ}
     (hz : z ∈ (hA.rootProductData).groupedRootList) :
     z ∈ (hA.rootProductData).roots := by
@@ -6742,7 +6742,7 @@ theorem SourceHypotheses.mem_roots_of_mem_groupedRootList
 at every complex number.  This is the count-ext form of the source root-class
 partition before turning the grouped product into the displayed product
 [GSLW19, BlockHam.tex:450-480]. -/
-theorem SourceHypotheses.groupedRootList_count_eq_roots
+lemma SourceHypotheses.groupedRootList_count_eq_roots
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) (z : ℂ) :
     (hA.rootProductData).groupedRootList.count z =
       (hA.rootProductData).roots.count z := by
@@ -6894,7 +6894,7 @@ theorem SourceHypotheses.groupedRootList_count_eq_roots
 /-- Multiset form of `groupedRootList_count_eq_roots`, identifying the source
 grouped root list with the canonical root multiset [GSLW19,
 BlockHam.tex:450-480]. -/
-theorem SourceHypotheses.groupedRootList_multiset_eq_roots
+lemma SourceHypotheses.groupedRootList_multiset_eq_roots
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     ((hA.rootProductData).groupedRootList : Multiset ℂ) =
       (hA.rootProductData).roots := by
@@ -6903,7 +6903,7 @@ theorem SourceHypotheses.groupedRootList_multiset_eq_roots
 
 /-- Canonical complex root factorization regrouped into the source displayed
 product [GSLW19, BlockHam.tex:450-480]. -/
-theorem SourceHypotheses.realPolynomialToComplex_eq_sourceProduct
+lemma SourceHypotheses.realPolynomialToComplex_eq_sourceProduct
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     realPolynomialToComplex A =
       Polynomial.C ((hA.rootProductData.sourceConstant : ℝ) : ℂ) *
@@ -7180,7 +7180,7 @@ noncomputable def productPoly : List DegreeParityFactorCertificate → ℝ[X]
 
 /-- Product polynomials multiply over list append. -/
 @[simp]
-theorem productPoly_append :
+lemma productPoly_append :
     ∀ factors more : List DegreeParityFactorCertificate,
       productPoly (factors ++ more) = productPoly factors * productPoly more
   | [], more => by simp [productPoly]
@@ -7194,7 +7194,7 @@ def productDegree : List DegreeParityFactorCertificate → ℕ
 
 /-- Padding factors contribute no polynomial content. -/
 @[simp]
-theorem productPoly_replicate_unitParityPadding :
+lemma productPoly_replicate_unitParityPadding :
     ∀ k : ℕ, productPoly (List.replicate k unitParityPadding) = 1
   | 0 => by simp [productPoly]
   | k + 1 => by
@@ -7205,7 +7205,7 @@ theorem productPoly_replicate_unitParityPadding :
 
 /-- Paired zero-root factors contribute `x^(2k)` to the source root product. -/
 @[simp]
-theorem productPoly_replicate_zeroRootPair :
+lemma productPoly_replicate_zeroRootPair :
     ∀ k : ℕ, productPoly (List.replicate k zeroRootPair) = (X : ℝ[X]) ^ (2 * k)
   | 0 => by simp [productPoly]
   | k + 1 => by
@@ -7220,7 +7220,7 @@ theorem productPoly_replicate_zeroRootPair :
 /-- Product notation for paired interior real roots, matching the
 `S_(0,1)` factor in [GSLW19, BlockHam.tex:452-454,469-474]. -/
 @[simp]
-theorem productPoly_map_interiorRealRootPair :
+lemma productPoly_map_interiorRealRootPair :
     ∀ roots : List ℝ,
       productPoly (roots.map interiorRealRootPair) =
         (roots.map fun s => ((X : ℝ[X]) ^ 2 - Polynomial.C (s ^ 2)) ^ 2).prod
@@ -7231,7 +7231,7 @@ theorem productPoly_map_interiorRealRootPair :
 /-- Product notation for outside real roots, matching the
 `S_[1,∞)` factor in [GSLW19, BlockHam.tex:454,459-460]. -/
 @[simp]
-theorem productPoly_map_realRoot :
+lemma productPoly_map_realRoot :
     ∀ roots : List OutsideRealRoot,
       productPoly (roots.map (fun s => realRoot s.value s.outside)) =
         (roots.map fun s => Polynomial.C (s.value ^ 2) - (X : ℝ[X]) ^ 2).prod
@@ -7247,7 +7247,7 @@ theorem productPoly_map_realRoot :
 /-- Product notation for imaginary-root representatives, matching the `S_I`
 factor in [GSLW19, BlockHam.tex:455,461]. -/
 @[simp]
-theorem productPoly_map_imaginaryRoot :
+lemma productPoly_map_imaginaryRoot :
     ∀ roots : List ℝ,
       productPoly (roots.map imaginaryRoot) =
         (roots.map fun r => (X : ℝ[X]) ^ 2 + Polynomial.C (r ^ 2)).prod
@@ -7258,7 +7258,7 @@ theorem productPoly_map_imaginaryRoot :
 /-- Product notation for non-real quartets, matching the `S_C` factor in
 [GSLW19, BlockHam.tex:456,462-466]. -/
 @[simp]
-theorem productPoly_map_complexRoot :
+lemma productPoly_map_complexRoot :
     ∀ roots : List (ℝ × ℝ),
       productPoly (roots.map (fun z => complexRoot z.1 z.2)) =
         (roots.map fun z =>
@@ -7279,7 +7279,7 @@ theorem productPoly_map_complexRoot :
 
 /-- Padding factors contribute exactly one degree/parity step each. -/
 @[simp]
-theorem productDegree_replicate_unitParityPadding :
+lemma productDegree_replicate_unitParityPadding :
     ∀ k : ℕ, productDegree (List.replicate k unitParityPadding) = k
   | 0 => by simp [productDegree]
   | k + 1 => by
@@ -7290,7 +7290,7 @@ theorem productDegree_replicate_unitParityPadding :
       omega
 
 @[simp]
-theorem productDegree_replicate_zeroRootPair :
+lemma productDegree_replicate_zeroRootPair :
     ∀ k : ℕ, productDegree (List.replicate k zeroRootPair) = k
   | 0 => by simp [productDegree]
   | k + 1 => by
@@ -7301,7 +7301,7 @@ theorem productDegree_replicate_zeroRootPair :
       omega
 
 @[simp]
-theorem productDegree_append :
+lemma productDegree_append :
     ∀ factors more : List DegreeParityFactorCertificate,
       productDegree (factors ++ more) = productDegree factors + productDegree more
   | [], more => by simp [productDegree]
@@ -7310,7 +7310,7 @@ theorem productDegree_append :
       omega
 
 @[simp]
-theorem productDegree_map_interiorRealRootPair :
+lemma productDegree_map_interiorRealRootPair :
     ∀ roots : List ℝ,
       productDegree (roots.map interiorRealRootPair) = 2 * roots.length
   | [] => by simp [productDegree]
@@ -7319,7 +7319,7 @@ theorem productDegree_map_interiorRealRootPair :
       omega
 
 @[simp]
-theorem productDegree_map_realRoot :
+lemma productDegree_map_realRoot :
     ∀ roots : List OutsideRealRoot,
       productDegree (roots.map (fun s => realRoot s.value s.outside)) = roots.length
   | [] => by simp [productDegree]
@@ -7330,7 +7330,7 @@ theorem productDegree_map_realRoot :
       omega
 
 @[simp]
-theorem productDegree_map_imaginaryRoot :
+lemma productDegree_map_imaginaryRoot :
     ∀ roots : List ℝ,
       productDegree (roots.map imaginaryRoot) = roots.length
   | [] => by simp [productDegree]
@@ -7339,7 +7339,7 @@ theorem productDegree_map_imaginaryRoot :
       omega
 
 @[simp]
-theorem productDegree_map_complexRoot :
+lemma productDegree_map_complexRoot :
     ∀ roots : List (ℝ × ℝ),
       productDegree (roots.map (fun z => complexRoot z.1 z.2)) = 2 * roots.length
   | [] => by simp [productDegree]
@@ -7414,7 +7414,7 @@ noncomputable def sourceRootClassFactorList
 /-- Degree accounting for the source root-class factor list.  This is the Lean
 counterpart of the `|S|/2` degree count used in [GSLW19,
 BlockHam.tex:469-479]. -/
-theorem productDegree_sourceRootClassFactorList
+lemma productDegree_sourceRootClassFactorList
     (constant : ℝ) (constant_nonnegative : 0 ≤ constant)
     (zeroRootPairs paddingFactors : ℕ) (interiorRootPairs : List ℝ)
     (outsideRealRoots : List OutsideRealRoot) (imaginaryRoots : List ℝ)
@@ -7438,7 +7438,7 @@ theorem productDegree_sourceRootClassFactorList
 /-- Polynomial content of the source root-class factor list after removing the
 unit padding factors.  This is the product bookkeeping behind [GSLW19,
 BlockHam.tex:450-456,469-479]. -/
-theorem productPoly_sourceRootClassFactorList
+lemma productPoly_sourceRootClassFactorList
     (constant : ℝ) (constant_nonnegative : 0 ≤ constant)
     (zeroRootPairs paddingFactors : ℕ) (interiorRootPairs : List ℝ)
     (outsideRealRoots : List OutsideRealRoot) (imaginaryRoots : List ℝ)
@@ -7487,14 +7487,14 @@ noncomputable def sourceProductTailCertificate {A : ℝ[X]}
       data.imaginaryRootParameters data.complexRootParameters)).toCertificate
 
 /-- The source-product tail is nonnegative on the source interval. -/
-theorem sourceProductTail_nonnegativeOnUnitInterval {A : ℝ[X]}
+lemma sourceProductTail_nonnegativeOnUnitInterval {A : ℝ[X]}
     (data : SourceRootProductData A) :
     NonnegativeOnUnitInterval data.sourceProductTail :=
   nonnegativeOnUnitInterval_of_certificate data.sourceProductTailCertificate
 
 /-- Expanding `sourceProductTail` removes the scalar coefficient and padding
 unit factors. -/
-theorem sourceProductTail_eq_sourceNotation {A : ℝ[X]}
+lemma sourceProductTail_eq_sourceNotation {A : ℝ[X]}
     (data : SourceRootProductData A) :
     data.sourceProductTail =
       (X : ℝ[X]) ^ (2 * data.zeroRootPairs) *
@@ -7517,7 +7517,7 @@ end SourceRootProductData
 
 /-- The source displayed product factors as the sign-corrected scalar
 `sourceConstant` times the certified non-scalar tail. -/
-theorem SourceHypotheses.sourceProduct_eq_sourceConstant_mul_tail
+lemma SourceHypotheses.sourceProduct_eq_sourceConstant_mul_tail
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     A =
       Polynomial.C hA.rootProductData.sourceConstant *
@@ -7556,7 +7556,7 @@ the root-class product construction: choose an interior point avoiding the
 finite root set of the certified tail, so the tail is strictly positive and
 the interval nonnegativity of `A` forces the scalar to be nonnegative
 [GSLW19, BlockHam.tex:475-480]. -/
-theorem SourceHypotheses.sourceConstant_nonnegative
+lemma SourceHypotheses.sourceConstant_nonnegative
     {A : ℝ[X]} {k : ℕ} (hA : SourceHypotheses A k) :
     0 ≤ hA.rootProductData.sourceConstant := by
   classical
@@ -7673,7 +7673,7 @@ noncomputable def ofExpanded {A : ℝ[X]} {k : ℕ}
 
 /-- Expanded polynomial product corresponding to the source root classes
 [GSLW19, BlockHam.tex:450-456]. -/
-theorem product_eq_expanded {A : ℝ[X]} {k : ℕ}
+lemma product_eq_expanded {A : ℝ[X]} {k : ℕ}
     (h : SourceRootClassFactorization A k) :
     A =
       Polynomial.C h.constant *
@@ -7710,7 +7710,7 @@ theorem product_eq_expanded {A : ℝ[X]} {k : ℕ}
 
 /-- Source-notation expansion of the root-class product, matching the displayed
 formula for `A(x)` in [GSLW19, BlockHam.tex:452-456]. -/
-theorem product_eq_sourceNotation {A : ℝ[X]} {k : ℕ}
+lemma product_eq_sourceNotation {A : ℝ[X]} {k : ℕ}
     (h : SourceRootClassFactorization A k) :
     A =
       Polynomial.C h.constant *
@@ -7728,7 +7728,7 @@ theorem product_eq_sourceNotation {A : ℝ[X]} {k : ℕ}
 
 /-- Degree accounting extracted from the source root-class factorization
 [GSLW19, BlockHam.tex:469-479]. -/
-theorem degree_count {A : ℝ[X]} {k : ℕ}
+lemma degree_count {A : ℝ[X]} {k : ℕ}
     (h : SourceRootClassFactorization A k) :
     h.zeroRootPairs + h.paddingFactors + 2 * h.interiorRootPairs.length +
         h.outsideRealRoots.length + h.imaginaryRoots.length +
@@ -8143,7 +8143,7 @@ noncomputable def SourceHypotheses.factorizationOfSourceProduct
 
 /-- The source form multiplied by its conjugate gives the real interval-square
 decomposition [GSLW19, BlockHam.tex:475-480]. -/
-theorem intervalComplexForm_mul_conj (B C : ℝ[X]) {x : ℝ}
+lemma intervalComplexForm_mul_conj (B C : ℝ[X]) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     intervalComplexForm B C x * starRingEnd ℂ (intervalComplexForm B C x) =
       (((B.eval x) ^ 2 + (1 - x ^ 2) * (C.eval x) ^ 2 : ℝ) : ℂ) := by
@@ -8165,7 +8165,7 @@ theorem intervalComplexForm_mul_conj (B C : ℝ[X]) {x : ℝ}
 
 /-- Evaluating an interval-square certificate gives the source's
 `W(x) W(x)^* = A(x)` identity [GSLW19, BlockHam.tex:475-480]. -/
-theorem intervalComplexForm_mul_conj_eq_of_certificate {A : ℝ[X]}
+lemma intervalComplexForm_mul_conj_eq_of_certificate {A : ℝ[X]}
     (h : Certificate A) {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     intervalComplexForm h.B h.C x *
         starRingEnd ℂ (intervalComplexForm h.B h.C x) =
@@ -8191,7 +8191,7 @@ namespace Complement.Interval.Witness
 /-- If `1 - P^2` has an interval-square certificate, then the real component
 `P(x)` and the source form `B(x)+i sqrt(1-x^2) C(x)` satisfy the pointwise
 unitarity normalization from [GSLW19, BlockHam.tex:475-480]. -/
-theorem real_norm_plus_intervalComplexForm_norm_eq_one {P : ℝ[X]}
+lemma real_norm_plus_intervalComplexForm_norm_eq_one {P : ℝ[X]}
     (h : Complement.Interval.Certificate (1 - P ^ 2))
     {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (((P.eval x) ^ 2 : ℝ) : ℂ) +
@@ -8209,7 +8209,7 @@ end Complement.Interval.Witness
 namespace Complement.Interval
 
 /-- Compatibility name for the staged interval witness theorem. -/
-theorem real_norm_plus_intervalComplexForm_norm_eq_one {P : ℝ[X]}
+lemma real_norm_plus_intervalComplexForm_norm_eq_one {P : ℝ[X]}
     (h : Certificate (1 - P ^ 2)) {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (((P.eval x) ^ 2 : ℝ) : ℂ) +
         intervalComplexForm h.B h.C x *

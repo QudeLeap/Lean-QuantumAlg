@@ -24,21 +24,21 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem noBorrowedQuantum (ctx : RuntimeCtx .quantum)
+private lemma noBorrowedQuantum (ctx : RuntimeCtx .quantum)
     (noQuantum : ctx.quantumWires = []) : ctx.borrowedQuantumWires = [] := by
   have subset := ctx.borrowedQuantumWires_sublist
   rw [noQuantum] at subset
   exact List.sublist_nil.mp subset
 
 /-- Every actual source-sample execution preserves the full borrowed joint state. -/
-public theorem code_borrowedRestored (ctx : RuntimeCtx .quantum)
-    (noQuantum : ctx.quantumWires = []) {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) {Reference : Register}
+public lemma code_borrowedRestored (ctx : RuntimeCtx .quantum)
+    (noQuantum : ctx.quantumWires = []) (t width : Nat)
+    (environment : (model t width).Environment) {Reference : Register}
     {History : Type} [Fintype History]
-    (state : State ctx Reference ((model access).HiddenState × History)) :
-    (code ctx noQuantum access).BorrowedRestored Reference state
-      ((code ctx noQuantum access).execute Reference state) :=
-  Circuit.borrowedRestored_of_noBorrowedQuantum (code ctx noQuantum access)
+    (state : State ctx Reference ((model t width).HiddenState × History)) :
+    (code ctx noQuantum t width).BorrowedRestored Reference state
+      ((code ctx noQuantum t width).execute environment Reference state) :=
+  Circuit.borrowedRestored_of_noBorrowedQuantum (code ctx noQuantum t width) environment
     (noBorrowedQuantum ctx noQuantum) Reference state
 
 end

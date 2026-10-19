@@ -28,15 +28,16 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual retained source sampling preserves the seed on every complete store-reference block. -/
-theorem samplerRetained_seeded {model : ExecutionModel} [BitWord.Selected model]
+lemma samplerRetained_seeded {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {N : Nat} (input : Input N)
     (seed : ctx.register.Index)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (seeded : BasisSeeded.Holds seed state) :
     BasisSeeded.Holds (ctx := context ctx N) seed
-      ((circuit (model := model) ctx N).execute Reference state) := by
-  let sampled := (circuit (model := model) ctx N).execute Reference state
+      ((circuit (model := model) ctx N).execute environment Reference state) := by
+  let sampled := (circuit (model := model) ctx N).execute environment Reference state
   change BasisSeeded.Holds (ctx := context ctx N) seed sampled
   intro finalStore left right leftRef rightRef
   by_cases supported : left = seed ∧ right = seed
@@ -54,7 +55,8 @@ theorem samplerRetained_seeded {model : ExecutionModel} [BitWord.Selected model]
           (uniformChoice state count)
           (fun entry =>
             (resultStore input entry.1.1 entry.2, histories entry)) := by
-      refine (samplerRetained_execute ctx input Reference state).trans ?_
+      refine (samplerRetained_execute (environment := environment)
+        ctx input Reference state).trans ?_
       exact mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
     have executed := congrArg
       (fun output : State (context ctx N) Reference

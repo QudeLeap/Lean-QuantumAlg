@@ -28,11 +28,13 @@ namespace QuantumAlg.MeasuredUncompute.MultiplicationRecompute
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement ProductReadout MAU.Inversion.SharedEEA
 open InPlaceArithmetic MultiplicationArithmetic
 
 /-- Actual recomputation retains every other word, padding bit and EEA history bit. -/
-theorem compute_frame (modulus : Nat) (prime : Nat.Prime modulus)
+lemma compute_frame (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
@@ -51,11 +53,11 @@ theorem compute_frame (modulus : Nat) (prime : Nat.Prime modulus)
       (history_pair modulus.size state.1 state.2 numerator)
 
 /-- The full recomputation equation is realized by the literal existing product gate program. -/
-theorem compute_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma compute_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
-    (ReusedProduct.compute modulus.size (modulusWord modulus)).applyNormalized
+    ((ReusedProduct.compute modulus.size (modulusWord modulus)).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode
@@ -64,18 +66,18 @@ theorem compute_ket (modulus : Nat) (prime : Nat.Prime modulus)
         ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
           ((frameEncoding modulus.size).encode
             ((inverseFrame modulus value numerator positive bounded).1, numerator))) := by
-  have actual := (ReusedProduct.reusedProduct_realizes modulus.size
+  have actual := (ReusedProduct.reusedProduct_realizes (environment := environment) modulus.size
     (modulusWord modulus)).apply_encoded_ket (inverseFrame modulus value numerator positive bounded)
   rw [compute_frame modulus prime value numerator positive bounded numeratorBound] at actual
   exact actual
 
 /-- The actual selected recompute/Z/uncompute attaches exactly the original Y Walsh character. -/
-theorem correction_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma correction_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator outcome : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
-    (ReusedProduct.correction modulus.size (modulusWord modulus)
-      (fun index => outcome.val.testBit index.val)).applyVec
+    ((ReusedProduct.correction modulus.size (modulusWord modulus)
+      (fun index => outcome.val.testBit index.val)).applyVec environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode
@@ -85,18 +87,19 @@ theorem correction_ket (modulus : Nat) (prime : Nat.Prime modulus)
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode
               (inverseFrame modulus value numerator positive bounded)))).vec := by
-  have actual := ReusedProduct.correction_ket modulus.size (modulusWord modulus) outcome
+  have actual := ReusedProduct.correction_ket (environment := environment) modulus.size (modulusWord
+    modulus) outcome
     (inverseFrame modulus value numerator positive bounded)
   rw [recomputed_numerator modulus prime value numerator positive bounded numeratorBound] at actual
   exact actual
 
 /-- The actual correction cancels the measured phase while retaining the complete inverse frame. -/
-theorem correction_cancels (modulus : Nat) (prime : Nat.Prime modulus)
+lemma correction_cancels (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator outcome : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
-    (ReusedProduct.correction modulus.size (modulusWord modulus)
-      (fun index => outcome.val.testBit index.val)).applyVec
+    ((ReusedProduct.correction modulus.size (modulusWord modulus)
+      (fun index => outcome.val.testBit index.val)).applyVec environment)
         (WalshHadamard.walshSign outcome numerator •
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
@@ -111,10 +114,10 @@ theorem correction_cancels (modulus : Nat) (prime : Nat.Prime modulus)
     smul_smul, WalshHadamard.walshSign_mul_self, one_smul]
 
 /-- The actual same reused adjoint restores the full seed while preserving the saved product. -/
-theorem backward_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma backward_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
-    (NativeEEAFrame.backward modulus prime).applyNormalized
+    ((NativeEEAFrame.backward modulus prime).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode
@@ -126,13 +129,14 @@ theorem backward_ket (modulus : Nat) (prime : Nat.Prime modulus)
     positive bounded
 
 /-- Actual correction, same EEA backward and literal swap return X*Y in Y and restore all Γ. -/
-theorem correction_backward_swap (modulus : Nat) (prime : Nat.Prime modulus)
+lemma correction_backward_swap (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator outcome : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
-    ((ReusedProduct.correction modulus.size (modulusWord modulus)
+    (((ReusedProduct.correction modulus.size (modulusWord modulus)
       (fun index => outcome.val.testBit index.val)).seq
         ((NativeEEAFrame.backward modulus prime).seq (FrameSwap.program modulus.size))).applyVec
+          environment)
         (WalshHadamard.walshSign outcome numerator •
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
@@ -147,15 +151,15 @@ theorem correction_backward_swap (modulus : Nat) (prime : Nat.Prime modulus)
     correction_cancels modulus prime value numerator outcome positive bounded numeratorBound,
     UnitaryCircuit.applyVec_seq]
   have backward := congrArg NormalizedVector.vec
-    (backward_ket modulus prime value numerator positive bounded)
-  change (NativeEEAFrame.backward modulus prime).applyVec
+    (backward_ket (environment := environment) modulus prime value numerator positive bounded)
+  change ((NativeEEAFrame.backward modulus prime).applyVec environment)
     (NormalizedVector.ket
       ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
         ((frameEncoding modulus.size).encode
           (inverseFrame modulus value numerator positive bounded)))).vec = _ at backward
   rw [backward]
   have swap := congrArg NormalizedVector.vec
-    (FrameSwapReadout.program_reused_ket modulus.size
+    (FrameSwapReadout.program_reused_ket (environment := environment) modulus.size
       (InitialPortProgram.inputFrame modulus value, saved modulus value numerator))
   exact swap
 

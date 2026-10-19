@@ -576,7 +576,7 @@ def qudPlusState (d : ℕ) : Matrix (Fin d × (Fin d × Fin d)) (Fin d) ℂ :=
   Matrix.of fun a s => (invSqrtD d * invSqrtD d) * (if a.2.2 = s then 1 else 0)
 
 @[simp]
-theorem qudPlusState_apply (d : ℕ) (a : Fin d × (Fin d × Fin d)) (s : Fin d) :
+lemma qudPlusState_apply (d : ℕ) (a : Fin d × (Fin d × Fin d)) (s : Fin d) :
     qudPlusState d a s = (invSqrtD d * invSqrtD d) * (if a.2.2 = s then 1 else 0) := by
   rfl
 
@@ -1028,7 +1028,7 @@ def decoderOperator (U : Matrix.unitaryGroup (Fin d) ℂ) :
       (U : Matrix (Fin d) (Fin d) ℂ) U.property⟩
 
 /-- The certified decoder has the declared block-diagonal formula. -/
-@[simp] theorem decoderOperator_coe (U : Matrix.unitaryGroup (Fin d) ℂ) :
+@[simp] lemma decoderOperator_coe (U : Matrix.unitaryGroup (Fin d) ℂ) :
     (decoderOperator U : Matrix (Fin d × (Fin d × Fin d)) (Fin d × (Fin d × Fin d)) ℂ) =
       quraDecoder U := rfl
 

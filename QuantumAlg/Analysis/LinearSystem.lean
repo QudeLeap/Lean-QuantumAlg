@@ -74,7 +74,7 @@ public noncomputable def hamiltonianSimulationUnitaryOperator (t : ℝ) : Unitar
   timeEvolution sys.hamiltonian (-t)
 
 @[simp]
-public theorem coe_hamiltonianSimulationUnitaryOperator (t : ℝ) :
+public lemma coe_hamiltonianSimulationUnitaryOperator (t : ℝ) :
     ((sys.hamiltonianSimulationUnitaryOperator t : UnitaryOperator R) : HilbertOperator R)
       = timeEvolutionOp sys.A (-t) :=
   (rfl)
@@ -125,7 +125,7 @@ public noncomputable def inverseSolutionVec (D : LinearSystem.SpectralData sys) 
   ∑ j, (D.coeff j / (D.eigenvalue j : ℂ)) • D.eigenvector j
 
 /-- The inverse-solution vector is nonzero by the spectral-data hypothesis. -/
-public theorem inverseSolutionVec_ne_zero (D : LinearSystem.SpectralData sys) :
+public lemma inverseSolutionVec_ne_zero (D : LinearSystem.SpectralData sys) :
     D.inverseSolutionVec ≠ 0 := by
   simpa [inverseSolutionVec] using D.inverse_nonzero
 
@@ -138,7 +138,7 @@ public lemma eigenvalue_ne_zero (D : LinearSystem.SpectralData sys) (j : D.ι) :
   exact abs_pos.mp hpos
 
 /-- The controlled-rotation amplitude `C / eigenvalue_j` is bounded by `1/2`. -/
-public theorem inversionCoefficient_abs_le_half (D : LinearSystem.SpectralData sys) (j : D.ι) :
+public lemma inversionCoefficient_abs_le_half (D : LinearSystem.SpectralData sys) (j : D.ι) :
     |inversionConstant sys.κ / D.eigenvalue j| ≤ 1 / 2 := by
   unfold inversionConstant
   have hkappa_nonneg : 0 ≤ sys.κ := le_of_lt sys.hκ_pos
@@ -162,7 +162,7 @@ public theorem inversionCoefficient_abs_le_half (D : LinearSystem.SpectralData s
     _ ≤ 1 / 2 := htarget
 
 /-- Applying `A` to the unnormalized inverse-solution vector recovers `b`. -/
-public theorem applyVec_inverseSolutionVec (D : LinearSystem.SpectralData sys) :
+public lemma applyVec_inverseSolutionVec (D : LinearSystem.SpectralData sys) :
     WithLp.toLp 2 (sys.A.mulVec D.inverseSolutionVec.ofLp) = (sys.b : HilbertVector R) := by
   change HilbertOperator.applyVec sys.A (D.inverseSolutionVec) = (sys.b : HilbertVector R)
   rw [D.input_expansion]
@@ -184,12 +184,12 @@ public noncomputable def normalizedSolutionState (D : LinearSystem.SpectralData 
   NormalizedVector.ofNeZero D.inverseSolutionVec D.inverseSolutionVec_ne_zero
 
 /-- Coercing the normalized target gives the explicit inverse-norm scaling. -/
-public theorem normalizedSolutionState_coe (D : LinearSystem.SpectralData sys) :
+public lemma normalizedSolutionState_coe (D : LinearSystem.SpectralData sys) :
     (D.normalizedSolutionState : HilbertVector R) =
       ((‖D.inverseSolutionVec‖ : ℂ)⁻¹) • D.inverseSolutionVec := (rfl)
 
 /-- The normalized solution satisfies the rescaled linear system. -/
-public theorem applyVec_normalizedSolutionState (D : LinearSystem.SpectralData sys) :
+public lemma applyVec_normalizedSolutionState (D : LinearSystem.SpectralData sys) :
     WithLp.toLp 2 (sys.A.mulVec D.normalizedSolutionState.vec.ofLp) =
       ((‖D.inverseSolutionVec‖ : ℂ)⁻¹) • (sys.b : HilbertVector R) := by
   change HilbertOperator.applyVec sys.A (D.normalizedSolutionState : HilbertVector R) =
@@ -206,7 +206,7 @@ public noncomputable def postSelectionGoodComponent (D : LinearSystem.SpectralDa
     D.eigenvector j
 
 /-- The spectral good-component expression equals the inverse solution scaled by `C`. -/
-public theorem postSelectionGoodComponent_eq_scaled_inverse (D : LinearSystem.SpectralData sys) :
+public lemma postSelectionGoodComponent_eq_scaled_inverse (D : LinearSystem.SpectralData sys) :
     D.postSelectionGoodComponent =
       (inversionConstant sys.κ : ℂ) • D.inverseSolutionVec := by
   unfold postSelectionGoodComponent inverseSolutionVec
@@ -217,7 +217,7 @@ public theorem postSelectionGoodComponent_eq_scaled_inverse (D : LinearSystem.Sp
   ring_nf
 
 /-- The post-selected good component is nonzero. -/
-public theorem postSelectionGoodComponent_ne_zero (D : LinearSystem.SpectralData sys) :
+public lemma postSelectionGoodComponent_ne_zero (D : LinearSystem.SpectralData sys) :
     D.postSelectionGoodComponent ≠ 0 := by
   rw [postSelectionGoodComponent_eq_scaled_inverse]
   apply smul_ne_zero
@@ -229,7 +229,7 @@ public theorem postSelectionGoodComponent_ne_zero (D : LinearSystem.SpectralData
   · exact D.inverseSolutionVec_ne_zero
 
 /-- Applying `A` to the good component gives the input state scaled by `C`. -/
-public theorem applyVec_postSelectionGoodComponent (D : LinearSystem.SpectralData sys) :
+public lemma applyVec_postSelectionGoodComponent (D : LinearSystem.SpectralData sys) :
     WithLp.toLp 2 (sys.A.mulVec D.postSelectionGoodComponent.ofLp) =
       (inversionConstant sys.κ : ℂ) • (sys.b : HilbertVector R) := by
   change HilbertOperator.applyVec sys.A D.postSelectionGoodComponent =
@@ -240,7 +240,7 @@ public theorem applyVec_postSelectionGoodComponent (D : LinearSystem.SpectralDat
     D.applyVec_inverseSolutionVec
 
 /-- The post-selected good component points in the normalized solution direction. -/
-public theorem postSelectionGoodComponent_eq_scaled_normalized (D : LinearSystem.SpectralData sys) :
+public lemma postSelectionGoodComponent_eq_scaled_normalized (D : LinearSystem.SpectralData sys) :
     D.postSelectionGoodComponent =
       ((inversionConstant sys.κ : ℂ) * (‖D.inverseSolutionVec‖ : ℂ)) •
         (D.normalizedSolutionState : HilbertVector R) := by
@@ -260,7 +260,7 @@ public noncomputable def postSelectionGoodState (D : LinearSystem.SpectralData s
   NormalizedVector.ofNeZero D.postSelectionGoodComponent D.postSelectionGoodComponent_ne_zero
 
 /-- Normalizing the positive scalar multiple yields the same solution direction. -/
-public theorem postSelectionGoodState_eq_normalizedSolutionState (D : LinearSystem.SpectralData
+public lemma postSelectionGoodState_eq_normalizedSolutionState (D : LinearSystem.SpectralData
   sys) :
     D.postSelectionGoodState = D.normalizedSolutionState := by
   apply NormalizedVector.ext
@@ -294,7 +294,7 @@ public theorem postSelectionGoodState_eq_normalizedSolutionState (D : LinearSyst
   exact congrArg (fun v : HilbertVector R => v i) hvec
 
 /-- A supplied finite eigenpair expansion determines a normalized inverse solution. -/
-public theorem spectral_solution (D : LinearSystem.SpectralData sys) :
+public lemma spectral_solution (D : LinearSystem.SpectralData sys) :
     WithLp.toLp 2 (sys.A.mulVec D.inverseSolutionVec.ofLp) = (sys.b : HilbertVector R) ∧
       D.postSelectionGoodState = D.normalizedSolutionState ∧
       (∀ j, |inversionConstant sys.κ / D.eigenvalue j| ≤ 1 / 2) :=

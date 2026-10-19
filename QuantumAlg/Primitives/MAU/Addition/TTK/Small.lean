@@ -25,6 +25,8 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 open EncodedBit.GateSpec
 
@@ -40,11 +42,11 @@ def overflowProgram : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical 1).toQuantum :=
   programList (encoding := bool) (QubitLayout.canonical 1) .empty []
 
-theorem ttkZeroLow_realizes : UnitaryCircuit.Realizes (finIdentity 0) lowProgram id :=
-  realizesList (encoding := finIdentity 0) (QubitLayout.canonical 0) .empty []
+lemma ttkZeroLow_realizes : UnitaryCircuit.Realizes (finIdentity 0) lowProgram environment id :=
+  realizesList (encoding := finIdentity 0) (QubitLayout.canonical 0) .empty [] environment
 
-theorem ttkZeroOverflow_realizes : UnitaryCircuit.Realizes bool overflowProgram id :=
-  realizesList (encoding := bool) (QubitLayout.canonical 1) .empty []
+lemma ttkZeroOverflow_realizes : UnitaryCircuit.Realizes bool overflowProgram environment id :=
+  realizesList (encoding := bool) (QubitLayout.canonical 1) .empty [] environment
 
 end Zero
 
@@ -65,17 +67,17 @@ def lowProgram : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical 2).toQuantum :=
   programList (QubitLayout.canonical 2) .empty lowGates
 
-theorem ttkOneLow_step (a b : Bool) :
+lemma ttkOneLow_step (a b : Bool) :
     stepList lowGates (a, b) = (a, b ^^ a) := by
   cases a <;> cases b <;> rfl
 
-theorem ttkOneLow_realizes :
-    UnitaryCircuit.Realizes lowEncoding lowProgram (fun s => (s.1, s.2 ^^ s.1)) :=
+lemma ttkOneLow_realizes :
+    UnitaryCircuit.Realizes lowEncoding lowProgram environment (fun s => (s.1, s.2 ^^ s.1)) :=
   realizesList_congrStep (encoding := lowEncoding) (QubitLayout.canonical 2) .empty lowGates
-    (fun s => ttkOneLow_step s.1 s.2)
+    (fun s => ttkOneLow_step s.1 s.2) environment
 
 /-- The low output and carry satisfy ordinary one-bit integer addition. -/
-theorem ttkOne_arithmetic (a b : Bool) :
+lemma ttkOne_arithmetic (a b : Bool) :
     (b ^^ a).toNat + 2 * (a && b).toNat = a.toNat + b.toNat := by
   cases a <;> cases b <;> rfl
 
@@ -100,16 +102,16 @@ def overflowProgram : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical 3).toQuantum :=
   programList (QubitLayout.canonical 3) .empty overflowGates
 
-theorem ttkOneOverflow_step (a b z : Bool) :
+lemma ttkOneOverflow_step (a b z : Bool) :
     stepList overflowGates ((a, b), z) = ((a, b ^^ a), z ^^ (a && b)) := by
   cases a <;> cases b <;> cases z <;> rfl
 
-theorem ttkOneOverflow_realizes :
-    UnitaryCircuit.Realizes overflowEncoding overflowProgram
+lemma ttkOneOverflow_realizes :
+    UnitaryCircuit.Realizes overflowEncoding overflowProgram environment
       (fun s => ((s.1.1, s.1.2 ^^ s.1.1), s.2 ^^ (s.1.1 && s.1.2))) :=
   realizesList_congrStep (encoding := overflowEncoding)
     (QubitLayout.canonical 3) .empty overflowGates
-    (fun s => ttkOneOverflow_step s.1.1 s.1.2 s.2)
+    (fun s => ttkOneOverflow_step s.1.1 s.1.2 s.2) environment
 
 end One
 
@@ -145,19 +147,19 @@ def lowProgram : UnitaryCircuit AlgorithmGate.model .empty
 def sumBits (a b : Bool × Bool) : Bool × Bool :=
   (b.1 ^^ a.1, (b.2 ^^ (a.1 && b.1)) ^^ a.2)
 
-theorem ttkTwoLow_step (a b : Bool × Bool) :
+lemma ttkTwoLow_step (a b : Bool × Bool) :
     stepList lowGates (a, b) = (a, sumBits a b) := by
   rcases a with ⟨a0, a1⟩
   rcases b with ⟨b0, b1⟩
   cases a0 <;> cases a1 <;> cases b0 <;> cases b1 <;> rfl
 
-theorem ttkTwoLow_realizes :
-    UnitaryCircuit.Realizes lowEncoding lowProgram (fun s => (s.1, sumBits s.1 s.2)) :=
+lemma ttkTwoLow_realizes :
+    UnitaryCircuit.Realizes lowEncoding lowProgram environment (fun s => (s.1, sumBits s.1 s.2)) :=
   realizesList_congrStep (encoding := lowEncoding) (QubitLayout.canonical 4) .empty lowGates
-    (fun s => ttkTwoLow_step s.1 s.2)
+    (fun s => ttkTwoLow_step s.1 s.2) environment
 
 /-- The two-bit output agrees with integer addition modulo four. -/
-theorem ttkTwoLow_arithmetic (a b : Bool × Bool) :
+lemma ttkTwoLow_arithmetic (a b : Bool × Bool) :
     (sumBits a b).1.toNat + 2 * (sumBits a b).2.toNat =
       (a.1.toNat + 2 * a.2.toNat + (b.1.toNat + 2 * b.2.toNat)) % 4 := by
   rcases a with ⟨a0, a1⟩
@@ -188,23 +190,23 @@ def overflowProgram : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical 5).toQuantum :=
   programList (QubitLayout.canonical 5) .empty overflowGates
 
-theorem ttkTwoOverflow_step (a b : Bool × Bool) (out : Bool) :
+lemma ttkTwoOverflow_step (a b : Bool × Bool) (out : Bool) :
     stepList overflowGates ((a, b), out) =
       ((a, sumBits a b), out ^^ Bool.carry a.2 b.2 (a.1 && b.1)) := by
   rcases a with ⟨a0, a1⟩
   rcases b with ⟨b0, b1⟩
   cases a0 <;> cases a1 <;> cases b0 <;> cases b1 <;> cases out <;> rfl
 
-theorem ttkTwoOverflow_realizes :
-    UnitaryCircuit.Realizes overflowEncoding overflowProgram
+lemma ttkTwoOverflow_realizes :
+    UnitaryCircuit.Realizes overflowEncoding overflowProgram environment
       (fun s => ((s.1.1, sumBits s.1.1 s.1.2),
         s.2 ^^ Bool.carry s.1.1.2 s.1.2.2 (s.1.1.1 && s.1.2.1))) :=
   realizesList_congrStep (encoding := overflowEncoding)
     (QubitLayout.canonical 5) .empty overflowGates
-    (fun s => ttkTwoOverflow_step s.1.1 s.1.2 s.2)
+    (fun s => ttkTwoOverflow_step s.1.1 s.1.2 s.2) environment
 
 /-- The overflow bit completes exact integer addition of two two-bit words. -/
-theorem ttkTwoOverflow_arithmetic (a b : Bool × Bool) :
+lemma ttkTwoOverflow_arithmetic (a b : Bool × Bool) :
     (sumBits a b).1.toNat + 2 * (sumBits a b).2.toNat +
         4 * (Bool.carry a.2 b.2 (a.1 && b.1)).toNat =
       a.1.toNat + 2 * a.2.toNat + (b.1.toNat + 2 * b.2.toNat) := by

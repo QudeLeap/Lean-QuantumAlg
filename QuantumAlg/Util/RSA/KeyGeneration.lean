@@ -56,7 +56,7 @@ abbrev AcceptedExactBitPrimePair (b : Nat) :=
 /-- An odd positive-width integer in the exact binary interval has binary
 ceiling logarithm equal to that width.  Oddness excludes equality with the
 even lower power of two. -/
-theorem HasExactBitLength.clog_two_eq_of_odd {b n : Nat}
+lemma HasExactBitLength.clog_two_eq_of_odd {b n : Nat}
     (hb : 2 ≤ b) (hbits : HasExactBitLength b n) (hodd : Odd n) :
     Nat.clog 2 n = b := by
   apply le_antisymm
@@ -92,7 +92,7 @@ def topQuarterPrimes (b : Nat) : Finset Nat :=
 
 /-- The elementary lower bound used for top-quarter primes is already at
 least two throughout the effective range. -/
-theorem two_le_topQuarterPrimeCountLowerBound {b : Nat} (hb : 512 ≤ b) :
+lemma two_le_topQuarterPrimeCountLowerBound {b : Nat} (hb : 512 ≤ b) :
     2 ≤ NumberTheory.topQuarterPrimeCountLowerBound b := by
   have hlinearAll : ∀ n : Nat, 512 ≤ n → 32 * n ≤ 2 ^ n := by
     intro n hn
@@ -113,7 +113,7 @@ theorem two_le_topQuarterPrimeCountLowerBound {b : Nat} (hb : 512 ≤ b) :
 
 /-- The explicit prime-interval theorem, expressed directly as a cardinality
 lower bound for the canonical top-quarter carrier. -/
-theorem topQuarterPrimeCountLowerBound_le_card {b : Nat} (hb : 512 ≤ b) :
+lemma topQuarterPrimeCountLowerBound_le_card {b : Nat} (hb : 512 ≤ b) :
     NumberTheory.topQuarterPrimeCountLowerBound b ≤
       (topQuarterPrimes b).card := by
   rw [topQuarterPrimes, Finset.card_sdiff_of_subset]
@@ -129,7 +129,7 @@ theorem topQuarterPrimeCountLowerBound_le_card {b : Nat} (hb : 512 ≤ b) :
 
 /-- The floor in the prime-count lower bound loses at most a factor two once
 the quotient is at least two. -/
-theorem power_le_twice_denominator_mul_topQuarterLowerBound
+lemma power_le_twice_denominator_mul_topQuarterLowerBound
     {b : Nat} (hb : 512 ≤ b) :
     2 ^ b ≤ 2 * (16 * b) *
       NumberTheory.topQuarterPrimeCountLowerBound b := by
@@ -142,7 +142,7 @@ theorem power_le_twice_denominator_mul_topQuarterLowerBound
 
 /-- The explicit Chebyshev estimate supplies at least two top-quarter primes
 at every effective width used by the Ekerå–Håstad analysis. -/
-theorem one_lt_card_topQuarterPrimes {b : Nat} (hb : 512 ≤ b) :
+lemma one_lt_card_topQuarterPrimes {b : Nat} (hb : 512 ≤ b) :
     1 < (topQuarterPrimes b).card := by
   have hlower := topQuarterPrimeCountLowerBound_le_card hb
   have htwo := two_le_topQuarterPrimeCountLowerBound hb
@@ -150,7 +150,7 @@ theorem one_lt_card_topQuarterPrimes {b : Nat} (hb : 512 ≤ b) :
 
 /-- Same-bit RSA key generation is internally inhabited at every effective
 width; no caller-supplied nonemptiness witness is mathematically necessary. -/
-theorem rsaKeyPairBits_nonempty {b : Nat} (hb : 512 ≤ b) :
+lemma rsaKeyPairBits_nonempty {b : Nat} (hb : 512 ≤ b) :
     Nonempty (RSAKeyPairBits b) := by
   classical
   obtain ⟨p, hp, q, hq, hpq⟩ :=
@@ -217,39 +217,39 @@ public def RSAKeyPairBits.modulus {b : Nat} (pair : RSAKeyPairBits b) : Nat :=
   pair.p * pair.q
 
 @[simp]
-theorem RSAKeyPairBits.p_prime {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.p_prime {b : Nat} (pair : RSAKeyPairBits b) :
     pair.p.Prime :=
   pair.property.1
 
 @[simp]
-theorem RSAKeyPairBits.q_prime {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.q_prime {b : Nat} (pair : RSAKeyPairBits b) :
     pair.q.Prime :=
   pair.property.2.1
 
 @[simp]
-theorem RSAKeyPairBits.p_ne_q {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.p_ne_q {b : Nat} (pair : RSAKeyPairBits b) :
     pair.p ≠ pair.q :=
   pair.property.2.2.1
 
 @[simp]
-theorem RSAKeyPairBits.p_odd {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.p_odd {b : Nat} (pair : RSAKeyPairBits b) :
     Odd pair.p :=
   pair.property.2.2.2.1
 
 @[simp]
-theorem RSAKeyPairBits.q_odd {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.q_odd {b : Nat} (pair : RSAKeyPairBits b) :
     Odd pair.q :=
   pair.property.2.2.2.2.1
 
-theorem RSAKeyPairBits.p_bits {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.p_bits {b : Nat} (pair : RSAKeyPairBits b) :
     HasExactBitLength b pair.p :=
   pair.property.2.2.2.2.2.1
 
-theorem RSAKeyPairBits.q_bits {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.q_bits {b : Nat} (pair : RSAKeyPairBits b) :
     HasExactBitLength b pair.q :=
   pair.property.2.2.2.2.2.2.1
 
-theorem RSAKeyPairBits.modulus_bits {b : Nat} (pair : RSAKeyPairBits b) :
+lemma RSAKeyPairBits.modulus_bits {b : Nat} (pair : RSAKeyPairBits b) :
     HasExactBitLength (2 * b) pair.modulus :=
   pair.property.2.2.2.2.2.2.2
 
@@ -280,7 +280,7 @@ def acceptedExactBitPrimePairEquiv (b : Nat) :
 
 /-- Any inhabited accepted-key carrier supplies an exact-width prime for each
 independent draw. -/
-theorem exactBitPrime_nonempty_of_keyPair {b : Nat}
+lemma exactBitPrime_nonempty_of_keyPair {b : Nat}
     (h : Nonempty (RSAKeyPairBits b)) :
     Nonempty (ExactBitPrime b) := by
   obtain ⟨pair⟩ := h
@@ -288,7 +288,7 @@ theorem exactBitPrime_nonempty_of_keyPair {b : Nat}
 
 /-- Any inhabited accepted-key carrier supplies an accepted pair in the
 independent product carrier. -/
-theorem acceptedExactBitPrimePair_nonempty_of_keyPair {b : Nat}
+lemma acceptedExactBitPrimePair_nonempty_of_keyPair {b : Nat}
     (h : Nonempty (RSAKeyPairBits b)) :
     Nonempty (AcceptedExactBitPrimePair b) :=
   Nonempty.map (acceptedExactBitPrimePairEquiv b).symm h
@@ -367,7 +367,7 @@ noncomputable def topQuarterPairEmbedding {b : Nat} (hb : 512 ≤ b) :
 
 /-- The accepted same-bit key carrier contains every ordered distinct pair of
 top-quarter primes. -/
-theorem topQuarterOrderedPairCount_le_card {b : Nat} (hb : 512 ≤ b) :
+lemma topQuarterOrderedPairCount_le_card {b : Nat} (hb : 512 ≤ b) :
     (topQuarterPrimes b).card * ((topQuarterPrimes b).card - 1) ≤
       Fintype.card (RSAKeyPairBits b) := by
   classical
@@ -382,7 +382,7 @@ theorem topQuarterOrderedPairCount_le_card {b : Nat} (hb : 512 ≤ b) :
 
 /-- An odd exact-`b`-bit integer lies strictly above the even lower endpoint,
 so its predecessor retains the full `2^(b-1)` lower bound. -/
-theorem HasExactBitLength.two_pow_le_sub_one_of_odd
+lemma HasExactBitLength.two_pow_le_sub_one_of_odd
     {b n : Nat} (hb : 2 ≤ b) (hbits : HasExactBitLength b n)
     (hodd : Odd n) :
     2 ^ (b - 1) ≤ n - 1 := by
@@ -395,12 +395,12 @@ theorem HasExactBitLength.two_pow_le_sub_one_of_odd
   have hlower := hbits.1
   omega
 
-theorem RSAKeyPairBits.p_sub_one_lower {b : Nat}
+lemma RSAKeyPairBits.p_sub_one_lower {b : Nat}
     (pair : RSAKeyPairBits b) (hb : 2 ≤ b) :
     2 ^ (b - 1) ≤ pair.p - 1 :=
   HasExactBitLength.two_pow_le_sub_one_of_odd hb pair.p_bits pair.p_odd
 
-theorem RSAKeyPairBits.q_sub_one_lower {b : Nat}
+lemma RSAKeyPairBits.q_sub_one_lower {b : Nat}
     (pair : RSAKeyPairBits b) (hb : 2 ≤ b) :
     2 ^ (b - 1) ≤ pair.q - 1 :=
   HasExactBitLength.two_pow_le_sub_one_of_odd hb pair.q_bits pair.q_odd
@@ -442,7 +442,7 @@ noncomputable def independentPrimePairConditioning
   exact (independentExactBitPrimePairs b h).filter
     {pair | AcceptsRSAKeyPair pair} hwitness
 
-private theorem filter_uniformOfFintype_apply_of_mem
+private lemma filter_uniformOfFintype_apply_of_mem
     {α : Type*} [Fintype α] [Nonempty α]
     (s : Set α) [Fintype s] (_hs : Nonempty s)
     (hwitness : ∃ a ∈ s, a ∈ (PMF.uniformOfFintype α).support)
@@ -475,7 +475,7 @@ private theorem filter_uniformOfFintype_apply_of_mem
 /-- Filtering the independent product law is exactly the pushforward of the
 uniform accepted carrier.  This is the finite rejection-sampling equivalence,
 not merely an informal description of `RSAKeyGenBits`. -/
-theorem independentPrimePairConditioning_eq_conditionedAccepted_map
+lemma independentPrimePairConditioning_eq_conditionedAccepted_map
     (b : Nat) (h : Nonempty (RSAKeyPairBits b)) :
     independentPrimePairConditioning b h =
       (conditionedAcceptedPrimePairs b h).map Subtype.val := by
@@ -534,7 +534,7 @@ public noncomputable def RSAKeyGenBits (b : Nat) (h : Nonempty (RSAKeyPairBits b
 
 /-- Transporting the rejection-conditioned accepted carrier through its
 canonical equivalence gives exactly the uniform RSA key generator. -/
-theorem conditionedAcceptedPrimePairs_map_eq_RSAKeyGenBits
+lemma conditionedAcceptedPrimePairs_map_eq_RSAKeyGenBits
     (b : Nat) (h : Nonempty (RSAKeyPairBits b)) :
     (conditionedAcceptedPrimePairs b h).map
         (acceptedExactBitPrimePairEquiv b) =

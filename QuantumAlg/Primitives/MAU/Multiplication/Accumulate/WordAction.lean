@@ -40,7 +40,7 @@ public def wordAccumulateOperator (width : Nat) (modulus : Fin (2 ^ width + 1))
   UnitaryOperator.ofPerm (accumulationLabelEquiv width modulus coefficient).symm
 
 /-- The independent permutation has the exact arithmetic basis action, with unit phase. -/
-public theorem wordAccumulateOperator_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+public lemma wordAccumulateOperator_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (source target : Fin (2 ^ width)) :
     (wordAccumulateOperator width modulus coefficient).apply
         (NormalizedVector.ket (prodEquiv (m := width) (n := width) (source, target))) =

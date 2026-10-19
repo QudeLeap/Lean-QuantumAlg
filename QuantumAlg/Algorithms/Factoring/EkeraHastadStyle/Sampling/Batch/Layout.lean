@@ -42,7 +42,7 @@ def sampledContext : RuntimeCtx .quantum :=
 
 include noQuantum in
 /-- The actual sampler preserves the empty quantum boundary used for the first allocation. -/
-theorem nativeBatch_sampled_noQuantum : (sampledContext base N).quantumWires = [] :=
+lemma nativeBatch_sampled_noQuantum : (sampledContext base N).quantumWires = [] :=
   (ShorStyle.Canonical.Sampler.Retained.samplerNative_quantumWires base N).trans noQuantum
 
 /-- The single actual owned bank is added after sampling, with the source widths unchanged. -/
@@ -79,7 +79,7 @@ def cells : Fin (measurementBits N) → CWriteRef (readyContext base noQuantum N
   MeasurementCells.reference (bankContext base noQuantum N) 2 (measurementBits N)
 
 /-- The ready context contains exactly the single source bank's actual ordered wire records. -/
-theorem nativeBatch_ready_wires :
+lemma nativeBatch_ready_wires :
     (readyContext base noQuantum N).quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires :=
   (MeasurementCells.context_quantumWires (bankContext base noQuantum N) 2
@@ -117,7 +117,7 @@ def finalResults :
     (readyContext base noQuantum N) 16
 
 /-- The real final context has exactly the same bank; result recording introduces no systems. -/
-theorem nativeBatch_context_wires :
+lemma nativeBatch_context_wires :
     (context base noQuantum N).quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires :=
   (RuntimeResults.shortDLP_runtimeResults_wires

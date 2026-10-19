@@ -32,9 +32,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativePredicate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit PredicateLayout
 
-private theorem word_zero_iff {width : Nat} (word : BitVec width) :
+private lemma word_zero_iff {width : Nat} (word : BitVec width) :
     (∀ index : Fin width, word.getMsbD index.val = false) ↔ word = 0 := by
   constructor
   · intro zeros
@@ -45,7 +47,7 @@ private theorem word_zero_iff {width : Nat} (word : BitVec width) :
     rw [zero]
     exact BitVec.getMsbD_zero
 
-theorem single_source_zero_iff (width : Nat) (field : LengthField) (enough : 2 ≤ width.size)
+lemma single_source_zero_iff (width : Nat) (field : LengthField) (enough : 2 ≤ width.size)
     (state : Registers width) :
     (∀ index, ((single width field enough).source.bit index).get state = false) ↔
       lengthValue field state = 0 := by
@@ -59,7 +61,7 @@ theorem single_source_zero_iff (width : Nat) (field : LengthField) (enough : 2 �
     rw [single_source_get]
     exact zeros ⟨index.val, by have within := index.isLt; omega⟩
 
-theorem pair_source_zero_iff (width : Nat) (first second : LengthField)
+lemma pair_source_zero_iff (width : Nat) (first second : LengthField)
     (different : first ≠ second) (enough : 2 ≤ width.size) (state : Registers width) :
     (∀ index, ((pair width first second different enough).source.bit index).get state = false) ↔
       lengthValue first state = 0 ∧ lengthValue second state = 0 := by
@@ -84,7 +86,7 @@ theorem pair_source_zero_iff (width : Nat) (first second : LengthField)
     · rw [if_neg initial]
       exact secondZero ⟨index.val - width.size, by have within := index.isLt; omega⟩
 
-theorem clock_source_zero_iff (width : Nat) (state : Registers width) :
+lemma clock_source_zero_iff (width : Nat) (state : Registers width) :
     (∀ index, ((extendedClock width).source.bit index).get state = false) ↔
       NumberTheory.SharedEEA.PaddingClock.high state.firstWord = 0 ∧ state.shift = 0 := by
   rw [← word_zero_iff, ← word_zero_iff]
@@ -112,17 +114,17 @@ theorem clock_source_zero_iff (width : Nat) (state : Registers width) :
 def xorControl {width : Nat} (value : Bool) (state : Registers width) : Registers width :=
   { state with control := state.control ^^ value }
 
-private theorem xorControl_false {width : Nat} (state : Registers width) :
+private lemma xorControl_false {width : Nat} (state : Registers width) :
     xorControl false state = state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift, flags, control⟩
   cases control <;> rfl
 
-private theorem xorControl_true {width : Nat} (state : Registers width) :
+private lemma xorControl_true {width : Nat} (state : Registers width) :
     xorControl true state = (controlBit width).flip state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift, flags, control⟩
   cases control <;> rfl
 
-private theorem conditional_flip_xor {width : Nat} (predicate : Prop) [Decidable predicate]
+private lemma conditional_flip_xor {width : Nat} (predicate : Prop) [Decidable predicate]
     (state : Registers width) :
     (if predicate then (controlBit width).flip state else state) =
       xorControl (decide predicate) state := by
@@ -131,7 +133,7 @@ private theorem conditional_flip_xor {width : Nat} (predicate : Prop) [Decidable
   · rw [if_neg selected, decide_eq_false selected, xorControl_false]
 
 /-- Every field except Ctrl is unchanged; in particular the entire borrowed Work2 is restored. -/
-theorem xorControl_retained {width : Nat} (value : Bool) (state : Registers width) :
+lemma xorControl_retained {width : Nat} (value : Bool) (state : Registers width) :
     (xorControl value state).firstWord = state.firstWord ∧
       (xorControl value state).secondWord = state.secondWord ∧
       (xorControl value state).coefficientLength = state.coefficientLength ∧
@@ -142,7 +144,7 @@ theorem xorControl_retained {width : Nat} (value : Bool) (state : Registers widt
   exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- Every input bit of Ctrl is retained reversibly by xor, rather than overwritten. -/
-theorem xorControl_twice {width : Nat} (value : Bool) (state : Registers width) :
+lemma xorControl_twice {width : Nat} (value : Bool) (state : Registers width) :
     xorControl value (xorControl value state) = state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift, flags, control⟩
   cases value <;> cases control <;> rfl
@@ -152,7 +154,7 @@ def singleGates (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) 
     List (GateSpec (encoding width)) :=
   Word.ZeroTestLayout.borrowedZeroGates (single width field enough)
 
-theorem singleGates_step (width : Nat) (field : LengthField) (enough : 2 ≤ width.size)
+lemma singleGates_step (width : Nat) (field : LengthField) (enough : 2 ≤ width.size)
     (state : Registers width) :
     GateSpec.stepList (singleGates width field enough) state =
       xorControl (decide (lengthValue field state = 0)) state := by
@@ -166,7 +168,7 @@ def pairGates (width : Nat) (first second : LengthField) (different : first ≠ 
     (enough : 2 ≤ width.size) : List (GateSpec (encoding width)) :=
   Word.ZeroTestLayout.borrowedZeroGates (pair width first second different enough)
 
-theorem pairGates_step (width : Nat) (first second : LengthField) (different : first ≠ second)
+lemma pairGates_step (width : Nat) (first second : LengthField) (different : first ≠ second)
     (enough : 2 ≤ width.size) (state : Registers width) :
     GateSpec.stepList (pairGates width first second different enough) state =
       xorControl (decide (lengthValue first state = 0 ∧ lengthValue second state = 0)) state := by
@@ -180,7 +182,7 @@ theorem pairGates_step (width : Nat) (first second : LengthField) (different : f
 def clockGates (width : Nat) : List (GateSpec (encoding width)) :=
   Word.ZeroTestLayout.borrowedZeroGates (extendedClock width)
 
-theorem clockGates_step (width : Nat) (state : Registers width) :
+lemma clockGates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (clockGates width) state =
       xorControl (decide (NumberTheory.SharedEEA.PaddingClock.high state.firstWord = 0 ∧
         state.shift = 0)) state := by
@@ -195,12 +197,12 @@ def singleProgram (width : Nat) (field : LengthField) (enough : 2 ≤ width.size
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   GateSpec.programList (QubitLayout.canonical _) .empty (singleGates width field enough)
 
-theorem singleProgram_realizes (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
+lemma singleProgram_realizes (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
-      (encoding width) (singleProgram width field enough)
+      (encoding width) (singleProgram width field enough) environment
       (fun state => xorControl (decide (lengthValue field state = 0)) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (singleGates_step width field enough)
+    (singleGates_step width field enough) environment
 
 def pairProgram (width : Nat) (first second : LengthField) (different : first ≠ second)
     (enough : 2 ≤ width.size) :
@@ -209,59 +211,59 @@ def pairProgram (width : Nat) (first second : LengthField) (different : first �
   GateSpec.programList (QubitLayout.canonical _) .empty
     (pairGates width first second different enough)
 
-theorem pairProgram_realizes (width : Nat) (first second : LengthField)
+lemma pairProgram_realizes (width : Nat) (first second : LengthField)
     (different : first ≠ second) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
-      (encoding width) (pairProgram width first second different enough)
+      (encoding width) (pairProgram width first second different enough) environment
       (fun state => xorControl (decide
         (lengthValue first state = 0 ∧ lengthValue second state = 0)) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (pairGates_step width first second different enough)
+    (pairGates_step width first second different enough) environment
 
 def clockProgram (width : Nat) :
     UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   GateSpec.programList (QubitLayout.canonical _) .empty (clockGates width)
 
-theorem clockProgram_realizes (width : Nat) :
+lemma clockProgram_realizes (width : Nat) :
     UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
-      (encoding width) (clockProgram width)
+      (encoding width) (clockProgram width) environment
       (fun state => xorControl (decide
         (NumberTheory.SharedEEA.PaddingClock.high state.firstWord = 0 ∧ state.shift = 0)) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (clockGates_step width)
+    (clockGates_step width) environment
 
 /-- Closed elementary gate count for a tested word with `tail + 2` source bits. -/
 def gateCount (tail : Nat) : Nat := 2 * (tail + 2) + if tail = 0 then 1 else 4 * tail
 
-theorem singleGates_length (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
+lemma singleGates_length (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
     (singleGates width field enough).length = gateCount (width.size - 2) :=
   Word.ZeroTestLayout.borrowedZeroGates_length (single width field enough)
 
-theorem pairGates_length (width : Nat) (first second : LengthField)
+lemma pairGates_length (width : Nat) (first second : LengthField)
     (different : first ≠ second) (enough : 2 ≤ width.size) :
     (pairGates width first second different enough).length = gateCount (2 * width.size - 2) :=
   Word.ZeroTestLayout.borrowedZeroGates_length (pair width first second different enough)
 
-theorem clockGates_length (width : Nat) : (clockGates width).length = gateCount width.size :=
+lemma clockGates_length (width : Nat) : (clockGates width).length = gateCount width.size :=
   Word.ZeroTestLayout.borrowedZeroGates_length (extendedClock width)
 
-theorem singleProgram_eventCost_card (width : Nat) (field : LengthField)
+lemma singleProgram_eventCost_card (width : Nat) (field : LengthField)
     (enough : 2 ≤ width.size) :
     (singleProgram width field enough).eventCost.card = gateCount (width.size - 2) := by
   rw [singleProgram, GateSpec.programList_eventCost_card, singleGates_length]
 
-theorem pairProgram_eventCost_card (width : Nat) (first second : LengthField)
+lemma pairProgram_eventCost_card (width : Nat) (first second : LengthField)
     (different : first ≠ second) (enough : 2 ≤ width.size) :
     (pairProgram width first second different enough).eventCost.card =
       gateCount (2 * width.size - 2) := by
   rw [pairProgram, GateSpec.programList_eventCost_card, pairGates_length]
 
-theorem clockProgram_eventCost_card (width : Nat) :
+lemma clockProgram_eventCost_card (width : Nat) :
     (clockProgram width).eventCost.card = gateCount width.size := by
   rw [clockProgram, GateSpec.programList_eventCost_card, clockGates_length]
 
-theorem clockProgram_unitDepth (width : Nat) :
+lemma clockProgram_unitDepth (width : Nat) :
     (clockProgram width).evaluatedEventDepth (fun _ => 1) = gateCount width.size := by
   rw [clockProgram, GateSpec.programList_evaluatedEventDepth_unit, clockGates_length]
 

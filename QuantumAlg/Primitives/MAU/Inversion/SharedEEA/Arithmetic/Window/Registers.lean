@@ -74,7 +74,7 @@ def wordEquiv {width : Nat} (window : Window width) :
       (Equiv.prodCongr (Equiv.refl _) (splitEquiv window.length window.below)))
 
 /-- The arithmetic input is the actual physical slice, not a recomputed value. -/
-theorem wordEquiv_window {width : Nat} (window : Window width) (word : BitVec (width + 3)) :
+lemma wordEquiv_window {width : Nat} (window : Window width) (word : BitVec (width + 3)) :
     (wordEquiv window word).2.1 = word.extractLsb' window.below window.length := by
   change (((word.cast window.complete.symm).extractLsb' 0
     (window.length + window.below)).extractLsb' window.below window.length) = _
@@ -82,13 +82,13 @@ theorem wordEquiv_window {width : Nat} (window : Window width) (word : BitVec (w
   exact BitVec.extractLsb'_extractLsb'_of_le (by omega)
 
 /-- The complete physical prefix is retained independently of the arithmetic input. -/
-theorem wordEquiv_above {width : Nat} (window : Window width) (word : BitVec (width + 3)) :
+lemma wordEquiv_above {width : Nat} (window : Window width) (word : BitVec (width + 3)) :
     (wordEquiv window word).1 = word.extractLsb' (window.length + window.below) window.above := by
   change (word.cast window.complete.symm).extractLsb' _ _ = _
   exact BitVec.extractLsb'_cast
 
 /-- The complete suffix includes any wrapped coefficient fraction and is retained exactly. -/
-theorem wordEquiv_below {width : Nat} (window : Window width) (word : BitVec (width + 3)) :
+lemma wordEquiv_below {width : Nat} (window : Window width) (word : BitVec (width + 3)) :
     (wordEquiv window word).2.2 = word.extractLsb' 0 window.below := by
   change (((word.cast window.complete.symm).extractLsb' 0
     (window.length + window.below)).extractLsb' 0 window.below) = _
@@ -104,7 +104,7 @@ def windowIndex {width : Nat} (window : Window width) (index : Fin window.length
     omega⟩
 
 /-- Each arithmetic bit reads the same actual original work-word position. -/
-theorem wordEquiv_window_bit {width : Nat} (window : Window width)
+lemma wordEquiv_window_bit {width : Nat} (window : Window width)
     (word : BitVec (width + 3)) (index : Fin window.length) :
     (wordEquiv window word).2.1.getLsbD index.val =
       word.getMsbD (windowIndex window index).val := by
@@ -125,11 +125,11 @@ abbrev Complement {width : Nat} (window : Window width) :=
       ((BitVec width.size × BitVec width.size) ×
         ((BitVec width.size × BitVec width.size) × ((Bool × Bool) × (Bool × Bool)))))
 
-private theorem fin_roundtrip_word {length : Nat} (word : BitVec length) :
+private lemma fin_roundtrip_word {length : Nat} (word : BitVec length) :
     BitVec.equivFin.symm (BitVec.equivFin word) = word :=
   BitVec.equivFin.toEquiv.symm_apply_apply word
 
-private theorem word_roundtrip_fin {length : Nat} (value : Fin (2 ^ length)) :
+private lemma word_roundtrip_fin {length : Nat} (value : Fin (2 ^ length)) :
     BitVec.equivFin (BitVec.equivFin.symm value) = value :=
   BitVec.equivFin.toEquiv.apply_symm_apply value
 
@@ -167,21 +167,21 @@ def grouping {width : Nat} (window : Window width) :
     simp only [Equiv.apply_symm_apply, word_roundtrip_fin]
 
 /-- The first TTK operand reads exactly the selected original Work2 slice. -/
-theorem grouping_source {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_source {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).1.1.1.val =
       (state.secondWord.extractLsb' window.below window.length).toNat := by
   change (wordEquiv window state.secondWord).2.1.toNat = _
   rw [wordEquiv_window]
 
 /-- The second TTK operand is exactly the selected original Work1 slice. -/
-theorem grouping_target {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_target {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).1.1.2.val =
       (state.firstWord.extractLsb' window.below window.length).toNat := by
   change (wordEquiv window state.firstWord).2.1.toNat = _
   rw [wordEquiv_window]
 
 /-- The explicit TTK overflow bit is the actual original Sign field. -/
-theorem grouping_sign {width : Nat} (window : Window width) (state : Registers width) :
+lemma grouping_sign {width : Nat} (window : Window width) (state : Registers width) :
     (grouping window state).1.2 = state.flags.sign := rfl
 
 /-- Source operand lenses use the actual selected Work2 wires. -/
@@ -193,7 +193,7 @@ def targetBit {width : Nat} (window : Window width) (index : Fin window.length) 
     EncodedBit (encoding width) := firstWordBit width (windowIndex window index)
 
 /-- The TTK source bit and the complete-frame lens agree at their exact physical coordinate. -/
-theorem grouping_source_bit {width : Nat} (window : Window width) (index : Fin window.length)
+lemma grouping_source_bit {width : Nat} (window : Window width) (index : Fin window.length)
     (state : Registers width) :
     (Addition.TTK.withOverflowBit (Addition.TTK.leftBit window.length index)).get
         (grouping window state).1 = (sourceBit window index).get state := by
@@ -204,7 +204,7 @@ theorem grouping_source_bit {width : Nat} (window : Window width) (index : Fin w
     (secondWordBit_get width (windowIndex window index) state).symm
 
 /-- The TTK target bit and the complete-frame lens agree at their exact physical coordinate. -/
-theorem grouping_target_bit {width : Nat} (window : Window width) (index : Fin window.length)
+lemma grouping_target_bit {width : Nat} (window : Window width) (index : Fin window.length)
     (state : Registers width) :
     (Addition.TTK.withOverflowBit (Addition.TTK.rightBit window.length index)).get
         (grouping window state).1 = (targetBit window index).get state := by

@@ -29,7 +29,7 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 noncomputable section
 
 /-- The two real selection arms share four copies and retain their other three coordinates. -/
-theorem selectionEnvelope_eq_list (model : ExecutionModel) [BitWord.Selected model]
+lemma selectionEnvelope_eq_list (model : ExecutionModel) [BitWord.Selected model]
     (width : Nat) :
     selectionEnvelope model width = ResourcePool.ofList
       [.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -100,7 +100,7 @@ theorem selectionEnvelope_eq_list (model : ExecutionModel) [BitWord.Selected mod
         copied, compared, latched, stopped]
 
 /-- The coordinatewise selection allowance contains seven classical operations. -/
-theorem selectionEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+lemma selectionEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
     (width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (selectionEnvelope model width) = 7 := by
@@ -108,7 +108,7 @@ theorem selectionEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selec
   simp [Resource.Event.classicalOperationWeight]
 
 /-- The existing modular-power allowance has this exact total classical weight. -/
-private theorem powerEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+private lemma powerEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
     (modulusWidth width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (Modular.NativePower.eventEnvelope model modulusWidth width) =
@@ -120,7 +120,7 @@ private theorem powerEnvelope_classicalCount (model : ExecutionModel) [BitWord.S
   omega
 
 /-- Each visit allowance includes all actual candidate, power, validation and selection work. -/
-theorem visitEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+lemma visitEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
     (modulusWidth width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (visitEnvelope model modulusWidth width) = 2 * modulusWidth + 18 + 6 * width := by
@@ -129,7 +129,7 @@ theorem visitEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected 
   omega
 
 /-- The padded decoder, denominator loader and three initialization writes are all counted. -/
-theorem initializationEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+lemma initializationEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
     (modulusWidth width : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (initializationEnvelope model modulusWidth width) = 4 * width + 3 := by
@@ -140,7 +140,7 @@ theorem initializationEnvelope_classicalCount (model : ExecutionModel) [BitWord.
   omega
 
 /-- Exact classical weight of the fixed independent recovery budget, including option packing. -/
-theorem eventEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
+lemma eventEnvelope_classicalCount (model : ExecutionModel) [BitWord.Selected model]
     (modulusWidth phaseBits : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (eventEnvelope model modulusWidth phaseBits) =

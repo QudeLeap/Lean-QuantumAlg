@@ -52,7 +52,7 @@ def nativeEnvelope (width : Nat) : ResourcePool model :=
           model) (.wordUnary .copy width)))))
 
 /-- Actual conditional selection charges precisely zero or one native word copy. -/
-theorem nativeSqrt_select_pool_le (refs : RoundRefs ctx width) (path : (select (model := model)
+lemma nativeSqrt_select_pool_le (refs : RoundRefs ctx width) (path : (select (model := model)
   refs).Path) :
     (select (model := model) refs).resourcePool path ≤
       ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -69,7 +69,7 @@ theorem nativeSqrt_select_pool_le (refs : RoundRefs ctx width) (path : (select (
       · exact zero_le
 
 /-- Every actual round fits the five real operation coordinates at their declared widths. -/
-theorem nativeSqrt_round_pool_le
+lemma nativeSqrt_round_pool_le
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (path : (round (model := model) input refs).Path) :
     (round (model := model) input refs).resourcePool path ≤ roundEnvelope (model := model) width :=
@@ -91,7 +91,7 @@ theorem nativeSqrt_round_pool_le
     (add_le_add (nativeSqrt_select_pool_le refs path.2.2.2.1) le_rfl)
 
 /-- The real finite iteration spends at most one round allowance at each actual index. -/
-theorem nativeSqrt_iteration_pool_le
+lemma nativeSqrt_iteration_pool_le
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (count : Nat) :
     ∀ path : (Circuit.iterate count (round (model := model) input refs)).Path,
@@ -108,7 +108,7 @@ theorem nativeSqrt_iteration_pool_le
         (inductionHypothesis (fun index => path index.succ))
 
 /-- The actual initialized body includes both its initial widening and its final caller copy. -/
-theorem nativeSqrt_body_pool_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_body_pool_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (body (model := model) input
       output).Path) :
     (body (model := model) input output).resourcePool path ≤ nativeEnvelope (model := model) width
@@ -135,7 +135,7 @@ theorem nativeSqrt_body_pool_le (input : CInputRef ctx (.unsignedWord width))
       (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width) width path.2.2.1) le_rfl))
 
 /-- Every lexical scope is accounted for by its actual body; it emits no hidden arithmetic. -/
-theorem nativeSqrt_into_pool_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_pool_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path) :
     (into (model := model) input output).resourcePool path ≤ nativeEnvelope (model := model) width
@@ -143,7 +143,7 @@ theorem nativeSqrt_into_pool_le (input : CInputRef ctx (.unsignedWord width))
   nativeSqrt_body_pool_le input output path
 
 /-- The independent envelope has the explicit linear total-event allowance at every width. -/
-theorem nativeSqrt_nativeEnvelope_card (width : Nat) :
+lemma nativeSqrt_nativeEnvelope_card (width : Nat) :
     (nativeEnvelope (model := model) width).card = 7 * width + 2 := by
   simp [nativeEnvelope, roundEnvelope, roundPrefixEvents,
     ConstantWord.envelope, ConstantWord.bitEnvelope,
@@ -151,7 +151,7 @@ theorem nativeSqrt_nativeEnvelope_card (width : Nat) :
   omega
 
 /-- Actual paths, including width zero, obey the total-event bound of the native ledger. -/
-theorem nativeSqrt_into_eventCount_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_eventCount_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path) :
     ((into (model := model) input output).resourcePool path).card ≤ 7 * width + 2 :=

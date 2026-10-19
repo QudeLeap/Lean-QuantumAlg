@@ -52,14 +52,15 @@ variable {count : Nat} {layout : QuantumLayout count}
 /-- Apply the actual circuit selected by one family parameter. -/
 def applyNormalized {Parameter : Type}
     (family : UnitaryCircuitFamily Parameter gates oracles layout) (parameter : Parameter)
-    (state : NormalizedVector layout.register) : NormalizedVector layout.register :=
-  (family.member parameter).applyNormalized state
+    (environment : oracles.Interpretation) (state : NormalizedVector layout.register) :
+      NormalizedVector layout.register :=
+  (family.member parameter).applyNormalized environment state
 
-@[simp] theorem applyNormalized_eq {Parameter : Type}
+@[simp] lemma applyNormalized_eq {Parameter : Type}
     (family : UnitaryCircuitFamily Parameter gates oracles layout) (parameter : Parameter)
-    (state : NormalizedVector layout.register) :
-    family.applyNormalized parameter state =
-      (family.member parameter).applyNormalized state :=
+    (environment : oracles.Interpretation) (state : NormalizedVector layout.register) :
+    family.applyNormalized parameter environment state =
+      (family.member parameter).applyNormalized environment state :=
   rfl
 
 namespace HeterogeneousResourceFixture

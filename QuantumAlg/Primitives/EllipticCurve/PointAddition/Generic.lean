@@ -36,7 +36,7 @@ abbrev Input (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E) :=
   {P : AffinePoint E // GenericAddDomain P Q}
 
 /-- The input subtype exposes the reusable generic-addition predicate. -/
-theorem input_generic {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E}
+lemma input_generic {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E}
     (P : Input E Q) :
     GenericAddDomain P.1 Q :=
   P.2
@@ -48,14 +48,14 @@ def encodeInput {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E} {n : ℕ}
   P.1.encode encoding
 
 /-- Encoded generic-addition inputs are valid finite-point encodings. -/
-theorem encodeInput_isValid {E : PrimeFieldShortWeierstrass p}
+lemma encodeInput_isValid {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) (P : Input E Q) :
     encoding.IsValidFiniteEncoding (encodeInput encoding P) :=
   P.1.encode_isValid encoding
 
 /-- Decoding an encoded generic-addition input recovers its affine coordinates. -/
-theorem encodeInput_decodes {E : PrimeFieldShortWeierstrass p}
+lemma encodeInput_decodes {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) (P : Input E Q) :
     encoding.decodeFiniteCoordinates (encodeInput encoding P) = (P.1.x, P.1.y) :=
@@ -63,7 +63,7 @@ theorem encodeInput_decodes {E : PrimeFieldShortWeierstrass p}
 
 /-- Equality of encoded generic-addition inputs gives equality of their affine
 coordinates. -/
-theorem encodeInput_ext {E : PrimeFieldShortWeierstrass p}
+lemma encodeInput_ext {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) {P R : Input E Q}
     (h : encodeInput encoding P = encodeInput encoding R) :
@@ -93,7 +93,7 @@ structure EncodedEndpointEvidence (E : PrimeFieldShortWeierstrass p)
 
 /-- Encoded generic ECADD endpoint evidence follows from the finite coordinate
 encoding and the generic affine group law [PZ03, ecc.tex:525-640]. -/
-theorem encodedEndpointEvidence (E : PrimeFieldShortWeierstrass p)
+lemma encodedEndpointEvidence (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) {n : ℕ}
     (encoding : PointEncoding E n) (P : Input E Q) :
     EncodedEndpointEvidence E Q encoding P := by
@@ -149,7 +149,7 @@ def encodedInput {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E} {n : ℕ
   encodeInput encoding x.input
 
 /-- Register-label inputs decode to valid finite affine encodings. -/
-theorem encodedInput_isValid {E : PrimeFieldShortWeierstrass p}
+lemma encodedInput_isValid {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) (x : Data E Q) :
     encoding.IsValidFiniteEncoding (x.encodedInput encoding) :=
@@ -157,7 +157,7 @@ theorem encodedInput_isValid {E : PrimeFieldShortWeierstrass p}
 
 /-- Equality of encoded register-label inputs gives equality of the underlying
 affine coordinates at the circuit boundary. -/
-theorem encodedInput_ext {E : PrimeFieldShortWeierstrass p}
+lemma encodedInput_ext {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) {x y : Data E Q}
     (h : x.encodedInput encoding = y.encodedInput encoding) :
@@ -230,13 +230,13 @@ def computeCoordinates {E : PrimeFieldShortWeierstrass p}
   resultY := genericAddYFromSlope E s.input.1 Q s.slopeScratch
   flag := s.flag
 
-@[simp] theorem computeCoordinates_after_computeSlope_resultX
+@[simp] lemma computeCoordinates_after_computeSlope_resultX
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
     (s : StageState E Q) :
     (computeCoordinates (computeSlope s)).resultX = genericAddX E s.input.1 Q :=
   rfl
 
-@[simp] theorem computeCoordinates_after_computeSlope_resultY
+@[simp] lemma computeCoordinates_after_computeSlope_resultY
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffinePoint E}
     (s : StageState E Q) :
     (computeCoordinates (computeSlope s)).resultY = genericAddY E s.input.1 Q :=
@@ -290,44 +290,44 @@ def toData {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E}
   targetY := s.targetY
   flag := s.flag
 
-@[simp] theorem run_targetX {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma run_targetX {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).targetX = targetX + genericAddX E P.1 Q :=
   rfl
 
-@[simp] theorem run_targetY {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma run_targetY {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).targetY = targetY + genericAddY E P.1 Q :=
   rfl
 
-@[simp] theorem run_slopeScratch {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma run_slopeScratch {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).slopeScratch = 0 :=
   rfl
 
-@[simp] theorem run_resultX {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma run_resultX {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).resultX = 0 :=
   rfl
 
-@[simp] theorem run_resultY {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma run_resultY {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).resultY = 0 :=
   rfl
 
-@[simp] theorem run_flag {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma run_flag {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).flag = false :=
   rfl
 
 /-- The generic ECADD stage pipeline reaches the public endpoint data shape. -/
-theorem run_toData_eq_endpoint {E : PrimeFieldShortWeierstrass p}
+lemma run_toData_eq_endpoint {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (run P targetX targetY).toData =
@@ -353,7 +353,7 @@ def addIntoTarget {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffineP
   flag := x.flag
 
 /-- The generic ECADD stage pipeline agrees with the endpoint data update. -/
-theorem StageState.run_toData_eq_addIntoTarget {E : PrimeFieldShortWeierstrass p}
+lemma StageState.run_toData_eq_addIntoTarget {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (targetX targetY : ZMod p) :
     (StageState.run P targetX targetY).toData =
@@ -385,7 +385,7 @@ def addEquiv (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint 
     cases x
     simp [addIntoTarget, subFromTarget]
 
-@[simp] theorem addEquiv_apply {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma addEquiv_apply {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} (x : Data E Q) :
     addEquiv E Q x = x.addIntoTarget :=
   rfl
@@ -395,13 +395,13 @@ def withWorkEquiv (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     [Fact p.Prime] (Work : Type) : Equiv.Perm (Data E Q × Work) :=
   Equiv.prodCongr (addEquiv E Q) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma withWorkEquiv_apply {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} {Work : Type} (x : Data E Q) (w : Work) :
     withWorkEquiv E Q Work (x, w) = (x.addIntoTarget, w) :=
   rfl
 
 /-- The point-addition map leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {E : PrimeFieldShortWeierstrass p}
+lemma withWorkEquiv_preserves_work {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} {Work : Type} :
     WorkRegister.Preserves (Data := Data E Q) (Work := Work)
       (withWorkEquiv E Q Work) := by
@@ -432,7 +432,7 @@ noncomputable def addOp (E : PrimeFieldShortWeierstrass p) [NeZero p]
   UnitaryOperator.ofPerm (Data.addEquiv E Q).symm
 
 /-- Basis action of the generic point-addition operator. -/
-theorem addOp_apply_ket (E : PrimeFieldShortWeierstrass p) [NeZero p]
+lemma addOp_apply_ket (E : PrimeFieldShortWeierstrass p) [NeZero p]
     [Fact p.Prime] (Q : AffinePoint E) (x : Data E Q) :
     (addOp E Q).apply (NormalizedVector.ket (R := register E Q) x) =
       NormalizedVector.ket (R := register E Q) x.addIntoTarget := by

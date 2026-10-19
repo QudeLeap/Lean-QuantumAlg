@@ -36,7 +36,7 @@ def guardBit (width : Nat) (index : Fin (2 * width.size)) : EncodedBit (encoding
   else shiftBit width ⟨index.val - width.size, by have within := index.isLt; omega⟩
 
 /-- Literal original physical addresses of both actual retained guard fields. -/
-theorem guardBit_wire (width : Nat) (index : Fin (2 * width.size)) :
+lemma guardBit_wire (width : Nat) (index : Fin (2 * width.size)) :
     (guardBit width index).wire.val =
       if index.val < width.size then 2 * (width + 3) + width.size + index.val
       else 2 * (width + 3) + 3 * width.size + (index.val - width.size) := by
@@ -45,19 +45,19 @@ theorem guardBit_wire (width : Nat) (index : Fin (2 * width.size)) :
   · rw [quotientLengthBit_wire]
   · rw [shiftBit_wire]
 
-theorem guardBit_after_words (width : Nat) (index : Fin (2 * width.size)) :
+lemma guardBit_after_words (width : Nat) (index : Fin (2 * width.size)) :
     2 * (width + 3) ≤ (guardBit width index).wire.val := by
   rw [guardBit_wire]
   split <;> omega
 
-theorem guardBit_before_flags (width : Nat) (index : Fin (2 * width.size)) :
+lemma guardBit_before_flags (width : Nat) (index : Fin (2 * width.size)) :
     (guardBit width index).wire.val < 2 * (width + 3) + 4 * width.size := by
   have within := index.isLt
   rw [guardBit_wire]
   split <;> omega
 
 /-- The two real guard fields contain no repeated source coordinate. -/
-theorem guardBit_injective (width : Nat) :
+lemma guardBit_injective (width : Nat) :
     Function.Injective (fun index => (guardBit width index).wire) := by
   intro left right same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -67,7 +67,7 @@ theorem guardBit_injective (width : Nat) :
   apply Fin.ext
   split_ifs at values <;> omega
 
-private theorem guard_boundary_ne (width : Nat) (field : Field) (guard : Fin (2 * width.size))
+private lemma guard_boundary_ne (width : Nat) (field : Field) (guard : Fin (2 * width.size))
     (boundary : Fin width.size) :
     (guardBit width guard).wire ≠ (boundaryBit width field boundary).wire := by
   intro same
@@ -78,7 +78,7 @@ private theorem guard_boundary_ne (width : Nat) (field : Field) (guard : Fin (2 
   cases field <;> simp only [reduceCtorEq, if_true, if_false] at values <;>
     split_ifs at values <;> omega
 
-private theorem guard_payload_ne (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma guard_payload_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (guard : Fin (2 * width.size)) (payload : Fin (region width field key)) :
     (guardBit width guard).wire ≠ (payloadBit width field key firstWord payload).wire := by
   intro same
@@ -88,7 +88,7 @@ private theorem guard_payload_ne (width : Nat) (field : Field) (key : BitVec wid
   omega
 
 /-- Guard sources are disjoint from the complete retained-boundary and payload source list. -/
-theorem guard_source_ne (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma guard_source_ne (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (guard : Fin (2 * width.size)) (source : Fin (width.size + region width field key)) :
     (guardBit width guard).wire ≠
       (LengthCoordinates.sourceBit width field key firstWord source).wire := by
@@ -98,7 +98,7 @@ theorem guard_source_ne (width : Nat) (field : Field) (key : BitVec width.size) 
   · exact guard_payload_ne width field key firstWord guard _
 
 /-- A real guard bit is never the real length output, irrespective of the selected refresh. -/
-theorem guard_output_ne (width : Nat) (field : Field) (guard : Fin (2 * width.size))
+lemma guard_output_ne (width : Nat) (field : Field) (guard : Fin (2 * width.size))
     (output : Fin width.size) :
     (guardBit width guard).wire ≠ (outputBit width field output).wire := by
   intro same
@@ -110,7 +110,7 @@ theorem guard_output_ne (width : Nat) (field : Field) (guard : Fin (2 * width.si
     divisorLengthBit_wire] at values <;> split_ifs at values <;> omega
 
 /-- Guard values are physical length bits, so they never overlap the original Iter work bit. -/
-theorem guard_work_ne (width : Nat) (guard : Fin (2 * width.size)) :
+lemma guard_work_ne (width : Nat) (guard : Fin (2 * width.size)) :
     (guardBit width guard).wire ≠ (iterationBit width).wire := by
   intro same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -132,7 +132,7 @@ def sourceBit (width : Nat) (field : Field) (key : BitVec width.size) (firstWord
       omega⟩
 
 /-- Every actual source is unique across both guards and the complete original writer. -/
-theorem sourceBit_injective (width : Nat) (field : Field) (key : BitVec width.size)
+lemma sourceBit_injective (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) :
     Function.Injective (fun index => (sourceBit width field key firstWord index).wire) := by
   intro left right same
@@ -153,7 +153,7 @@ theorem sourceBit_injective (width : Nat) (field : Field) (key : BitVec width.si
       omega
 
 /-- The actual output lies outside the enlarged actual source prefix and physical payload. -/
-theorem source_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
+lemma source_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output : Fin width.size)
     (index : Fin (prefixWidth width + region width field key)) :
     (sourceBit width field key firstWord index).wire ≠ (outputBit width field output).wire := by
@@ -163,7 +163,7 @@ theorem source_output_ne (width : Nat) (field : Field) (key : BitVec width.size)
   · exact LengthCoordinates.source_output_ne width field key firstWord output _
 
 /-- The enlarged actual source list still borrows only the original arbitrary Iter bit. -/
-theorem source_work_ne (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma source_work_ne (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (index : Fin (prefixWidth width + region width field key)) :
     (sourceBit width field key firstWord index).wire ≠ (iterationBit width).wire := by
   unfold sourceBit

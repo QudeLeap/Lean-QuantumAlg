@@ -43,14 +43,14 @@ noncomputable def QPP.ancillaBlock (a b : Fin (2 ^ 1))
 
 /-- For one ancilla qubit, the block-encoding `projectedBlock` is the
 `|0⟩,|0⟩` ancilla block. -/
-theorem QPP.projectedBlock_one_eq_ancillaBlock
+lemma QPP.projectedBlock_one_eq_ancillaBlock
     (V : HilbertOperator (Qubits (1 + n))) :
     projectedBlock 1 n V =
       QPP.ancillaBlock (n := n) 0 0 V := rfl
 
 /-- Applying the one-ancilla projected block is the same as applying the full
 gate to `|0> ⊗ ψ` and reading the `|0>` ancilla slice. -/
-theorem QPP.projectedBlock_one_applyVec
+lemma QPP.projectedBlock_one_applyVec
     (V : HilbertOperator (Qubits (1 + n))) (ψ : HilbertVector (Qubits n)) :
     HilbertOperator.applyVec
         (projectedBlock 1 n V) ψ =
@@ -66,7 +66,7 @@ theorem QPP.projectedBlock_one_applyVec
   simp
 
 /-- Ancilla blocks multiply as ordinary `2 × 2` block matrices. -/
-theorem QPP.ancillaBlock_mul (a c : Fin (2 ^ 1))
+lemma QPP.ancillaBlock_mul (a c : Fin (2 ^ 1))
     (V W : HilbertOperator (Qubits (1 + n))) :
     QPP.ancillaBlock a c (V * W) =
       ∑ b : Fin (2 ^ 1),
@@ -82,7 +82,7 @@ theorem QPP.ancillaBlock_mul (a c : Fin (2 ^ 1))
   simp [Fintype.sum_prod_type]
 
 /-- Ancilla block of a one-qubit operator tensored with the system identity. -/
-theorem QPP.ancillaBlock_tensor_left (A : HilbertOperator (Qubits 1))
+lemma QPP.ancillaBlock_tensor_left (A : HilbertOperator (Qubits 1))
     (a b : Fin (2 ^ 1)) :
     QPP.ancillaBlock (n := n) a b
         (HilbertOperator.tensor A
@@ -99,7 +99,7 @@ theorem QPP.ancillaBlock_tensor_left (A : HilbertOperator (Qubits 1))
     simp [Matrix.one_apply, Matrix.smul_apply, hij]
 
 /-- Ancilla blocks of the controlled-`U` gate. -/
-theorem QPP.ancillaBlock_controlled (U : UnitaryOperator (Qubits n))
+lemma QPP.ancillaBlock_controlled (U : UnitaryOperator (Qubits n))
     (a b : Fin (2 ^ 1)) :
     QPP.ancillaBlock a b
         (UnitaryOperator.controlledQubits U : HilbertOperator (Qubits (1 + n))) =
@@ -115,7 +115,7 @@ theorem QPP.ancillaBlock_controlled (U : UnitaryOperator (Qubits n))
         Matrix.one_apply, hij]
 
 /-- Ancilla blocks of the zero-branch controlled-`U` gate. -/
-theorem QPP.ancillaBlock_controlledOnZero (U : UnitaryOperator (Qubits n))
+lemma QPP.ancillaBlock_controlledOnZero (U : UnitaryOperator (Qubits n))
     (a b : Fin (2 ^ 1)) :
     QPP.ancillaBlock a b
         (UnitaryOperator.controlledQubitsOnZero U :
@@ -133,24 +133,24 @@ theorem QPP.ancillaBlock_controlledOnZero (U : UnitaryOperator (Qubits n))
 
 /-- Ancilla blocks of the initial one-qubit processing gate in Wang's
 alternating QPP word. -/
-theorem QPP.ancillaBlock_qppAlternatingInitialGate
+lemma QPP.ancillaBlock_qppAlternatingInitialGate
     (U : UnitaryOperator (Qubits n)) (a b : Fin (2 ^ 1)) (φ θ₀ φ₀ : ℝ) :
     QPP.ancillaBlock (n := n) a b
-        ((qppAlternatingInitialGate U φ θ₀ φ₀).binaryMatrix :
+        (((qppAlternatingInitialGate n φ θ₀ φ₀).binaryMatrix (QPPOracle.interpretation U)) :
           HilbertOperator (Qubits (1 + n))) =
-      ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix :
+      (((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix OracleModel.emptyInterpretation) :
         HilbertOperator (Qubits 1)) a b •
         (1 : HilbertOperator (Qubits n)) := by
   rw [qppAlternatingInitialGate_operator]
   simpa using
     (QPP.ancillaBlock_tensor_left (n := n)
-      (A := (qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix) a b)
+      (A := ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix OracleModel.emptyInterpretation)) a b)
 
 /-- Ancilla-block recurrence for one source-aligned alternating QPP step.  It
 keeps the controlled branch and the one-qubit processing block visible, which
 is the form needed for the operator-valued Laurent recurrence
 [WZYW23, arxiv_v3.tex:601-609,2446-2465]. -/
-theorem QPP.ancillaBlock_qppAlternatingStepGate
+lemma QPP.ancillaBlock_qppAlternatingStepGate
     (U : UnitaryOperator (Qubits n)) (j : ℕ) (p : ℝ × ℝ)
     (a b : Fin (2 ^ 1)) :
     QPP.ancillaBlock a b
@@ -203,7 +203,7 @@ noncomputable def QPP.operatorLaurentPolynomial (L : ℕ)
     else
       (U : HilbertOperator (Qubits n)) ^ (k.val - L)
 
-@[simp] theorem QPP.operatorLaurentPolynomial_zero
+@[simp] lemma QPP.operatorLaurentPolynomial_zero
     (U : UnitaryOperator (Qubits n)) (A : Polynomial ℂ) :
     QPP.operatorLaurentPolynomial 0 U A =
       A.coeff 0 • (1 : HilbertOperator (Qubits n)) := by
@@ -211,7 +211,7 @@ noncomputable def QPP.operatorLaurentPolynomial (L : ℕ)
   ext i j
   simp [QPP.operatorLaurentPolynomial]
 
-theorem QPP.operatorLaurentPolynomial_add
+lemma QPP.operatorLaurentPolynomial_add
     (L : ℕ) (U : UnitaryOperator (Qubits n)) (A B : Polynomial ℂ) :
     QPP.operatorLaurentPolynomial L U (A + B) =
       QPP.operatorLaurentPolynomial L U A +
@@ -223,7 +223,7 @@ theorem QPP.operatorLaurentPolynomial_add
   intro k _
   by_cases hk : k.val ≤ L <;> simp [hk, add_smul]
 
-theorem QPP.operatorLaurentPolynomial_C_mul
+lemma QPP.operatorLaurentPolynomial_C_mul
     (L : ℕ) (U : UnitaryOperator (Qubits n)) (c : ℂ) (A : Polynomial ℂ) :
     QPP.operatorLaurentPolynomial L U (Polynomial.C c * A) =
       c • QPP.operatorLaurentPolynomial L U A := by
@@ -234,7 +234,7 @@ theorem QPP.operatorLaurentPolynomial_C_mul
   intro k _
   by_cases hk : k.val ≤ L <;> simp [hk, smul_smul]
 
-theorem QPP.operatorLaurentPolynomial_sub
+lemma QPP.operatorLaurentPolynomial_sub
     (L : ℕ) (U : UnitaryOperator (Qubits n)) (A B : Polynomial ℂ) :
     QPP.operatorLaurentPolynomial L U (A - B) =
       QPP.operatorLaurentPolynomial L U A -
@@ -249,7 +249,7 @@ theorem QPP.operatorLaurentPolynomial_sub
 /-- Multiplying the Laurent coefficient polynomial by `X` shifts the center
 from `L` to `L+1`.  The extra highest coefficient vanishes under the supplied
 degree bound, so the represented operator is unchanged. -/
-theorem QPP.operatorLaurentPolynomial_X_mul
+lemma QPP.operatorLaurentPolynomial_X_mul
     (L : ℕ) (U : UnitaryOperator (Qubits n)) (A : Polynomial ℂ)
     (hA : A.natDegree ≤ 2 * L) :
     QPP.operatorLaurentPolynomial (L + 1) U (Polynomial.X * A) =
@@ -299,7 +299,7 @@ public noncomputable def QPP.laurentCoeffPolynomial (L : ℕ)
 
 /-- The coefficient-family Laurent representative has degree at most its
 budget `2L`. -/
-theorem QPP.laurentCoeffPolynomial_natDegree_le (L : ℕ)
+lemma QPP.laurentCoeffPolynomial_natDegree_le (L : ℕ)
     (coeff : Fin (2 * L + 1) → ℂ) :
     (QPP.laurentCoeffPolynomial L coeff).natDegree ≤ 2 * L := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
@@ -311,7 +311,7 @@ theorem QPP.laurentCoeffPolynomial_natDegree_le (L : ℕ)
     Polynomial.coeff_X_pow, hne]
 
 /-- Exponential shift for negative Laurent powers in the `lEval` encoding. -/
-private theorem QPP.laurent_exp_shift_le (L k : ℕ) (θ : ℝ) (hk : k ≤ L) :
+private lemma QPP.laurent_exp_shift_le (L k : ℕ) (θ : ℝ) (hk : k ≤ L) :
     Complex.exp (-(((L * θ : ℝ) : ℂ) * Complex.I)) *
         Complex.exp (((k * θ : ℝ) : ℂ) * Complex.I) =
       Complex.exp (-((θ : ℂ) * Complex.I)) ^ (L - k) := by
@@ -324,7 +324,7 @@ private theorem QPP.laurent_exp_shift_le (L k : ℕ) (θ : ℝ) (hk : k ≤ L) :
   ring
 
 /-- Exponential shift for positive Laurent powers in the `lEval` encoding. -/
-private theorem QPP.laurent_exp_shift_gt (L k : ℕ) (θ : ℝ) (hk : ¬ k ≤ L) :
+private lemma QPP.laurent_exp_shift_gt (L k : ℕ) (θ : ℝ) (hk : ¬ k ≤ L) :
     Complex.exp (-(((L * θ : ℝ) : ℂ) * Complex.I)) *
         Complex.exp (((k * θ : ℝ) : ℂ) * Complex.I) =
       Complex.exp ((θ : ℂ) * Complex.I) ^ (k - L) := by
@@ -338,7 +338,7 @@ private theorem QPP.laurent_exp_shift_gt (L k : ℕ) (θ : ℝ) (hk : ¬ k ≤ L
   ring
 
 /-- Coefficient expansion of the Laurent polynomial value used by QPP. -/
-theorem QPP.lEval_laurentCoeffPolynomial
+lemma QPP.lEval_laurentCoeffPolynomial
     (L : ℕ) (coeff : Fin (2 * L + 1) → ℂ) (θ : ℝ) :
     lEval (2 * L) (QPP.laurentCoeffPolynomial L coeff) θ =
       ∑ k : Fin (2 * L + 1), coeff k *
@@ -385,7 +385,7 @@ theorem QPP.lEval_laurentCoeffPolynomial
 
 /-- On the source eigenbasis of `U`, the Laurent operator evaluates to the
 scalar Laurent value at the corresponding eigenphase. -/
-theorem QPP.unitaryLaurentPolynomial_apply_phaseBasis
+lemma QPP.unitaryLaurentPolynomial_apply_phaseBasis
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (decomp : QPP.PhaseDecomposition U) (j : Fin (2 ^ n)) :
@@ -441,7 +441,7 @@ theorem QPP.unitaryLaurentPolynomial_apply_phaseBasis
 
 /-- The public coefficient-family Laurent operator is the polynomial-operator
 evaluation of `laurentCoeffPolynomial`. -/
-theorem QPP.operatorLaurentPolynomial_laurentCoeffPolynomial
+lemma QPP.operatorLaurentPolynomial_laurentCoeffPolynomial
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ) :
     QPP.operatorLaurentPolynomial L U
@@ -463,10 +463,11 @@ theorem QPP.operatorLaurentPolynomial_laurentCoeffPolynomial
 /-- Base case of the QPP projected-block recurrence: before any alternating
 controlled-`U`/`U†` query, the top-left ancilla block is exactly the initial
 constant Laurent polynomial evaluated at `U`. -/
-theorem QPP.projectedBlock_qppAlternatingControlledCircuit_nil
+lemma QPP.projectedBlock_qppAlternatingControlledCircuit_nil
     (U : UnitaryOperator (Qubits n)) (φ θ₀ φ₀ : ℝ) :
     projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ []).binaryMatrix :
+        (((qppAlternatingControlledCircuit n φ θ₀ φ₀ []).binaryMatrix (QPPOracle.interpretation
+          U)) :
           HilbertOperator (Qubits (1 + n))) =
       QPP.operatorLaurentPolynomial 0 U
         (qspYZZYZGeneratedPair φ θ₀ φ₀ []).1 := by
@@ -475,12 +476,12 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_nil
     QPP.ancillaBlock_qppAlternatingInitialGate,
     QPP.operatorLaurentPolynomial_zero]
   have hinitial :
-      ((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix :
+      (((qspYZZYZInitialCircuit φ θ₀ φ₀).binaryMatrix OracleModel.emptyInterpretation) :
         HilbertOperator (Qubits 1)) =
         (rotZStdOp φ : HilbertOperator (Qubits 1)) *
           ((rotYOp θ₀ : HilbertOperator (Qubits 1)) *
             (rotZStdOp φ₀ : HilbertOperator (Qubits 1))) :=
-    qspYZZYZInitialCircuit_matrix φ θ₀ φ₀
+    qspYZZYZInitialCircuit_matrix φ θ₀ φ₀ OracleModel.emptyInterpretation
   have hentry :
       ((
         (rotZStdOp φ : HilbertOperator (Qubits 1)) *
@@ -555,7 +556,8 @@ structure QPP.QppEvolutionCertificate (L : ℕ)
   length_eq : ps.length = 2 * L
   block_eq :
     projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
+        (((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+          U)) :
           HilbertOperator (Qubits (1 + n))) =
       unitaryLaurentPolynomial L U coeff
 
@@ -573,7 +575,8 @@ noncomputable def QPP.qppEvolutionCertificateOfOperatorLaurent
         QPP.laurentCoeffPolynomial L coeff)
     (hblock :
       projectedBlock 1 n
-          ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
+          (((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+            U)) :
             HilbertOperator (Qubits (1 + n))) =
         QPP.operatorLaurentPolynomial L U
           (qspYZZYZGeneratedPair φ θ₀ φ₀ ps).1) :
@@ -649,7 +652,7 @@ noncomputable def QPP.TrigonometricPolynomialBound.toBoundedLaurentPolynomial
 
 /-- Laurent-complement existence extracted from the bounded Laurent polynomial
 source package [WZYW23, arxiv_v3.tex:2262-2274]. -/
-theorem QPP.laurentComplement_exists (L : ℕ)
+lemma QPP.laurentComplement_exists (L : ℕ)
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.BoundedLaurentPolynomial L coeff) :
     Nonempty (QPP.LaurentComplementCertificate L coeff) :=
@@ -657,7 +660,7 @@ theorem QPP.laurentComplement_exists (L : ℕ)
 
 /-- Trigonometric-QSP projection phases obtained from the Laurent complement
 [WZYW23, arxiv_v3.tex:2333-2340]. -/
-theorem QPP.trigonometricQSPProjection_exists (L : ℕ)
+lemma QPP.trigonometricQSPProjection_exists (L : ℕ)
     (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.BoundedLaurentPolynomial L coeff) :
     ∃ φ θ₀ φ₀ : ℝ, ∃ ps : List (ℝ × ℝ),
@@ -673,7 +676,7 @@ theorem QPP.trigonometricQSPProjection_exists (L : ℕ)
 /-- The bounded Laurent source package supplies a concrete phase schedule whose
 recurrence-generated YZZYZ pair has the target Laurent polynomial as its first
 component.  The second component is the complement from Wang's appendix. -/
-theorem QPP.generatedPair_from_boundedLaurent
+lemma QPP.generatedPair_from_boundedLaurent
     (L : ℕ) (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.BoundedLaurentPolynomial L coeff) :
     ∃ φ θ₀ φ₀ : ℝ, ∃ ps : List (ℝ × ℝ),
@@ -692,7 +695,7 @@ theorem QPP.generatedPair_from_boundedLaurent
 /-- On every eigenbasis vector, the projected block of the alternating QPP word
 with a phase schedule realizing the target Laurent pair acts by the target
 Laurent value. -/
-theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
+lemma QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (decomp : QPP.PhaseDecomposition U)
@@ -705,7 +708,8 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
     (j : Fin (2 ^ n)) :
     HilbertOperator.applyVec
         (projectedBlock 1 n
-          ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
+          (((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+            U)) :
             HilbertOperator (Qubits (1 + n))))
         (decomp.basis j) =
       lEval (2 * L) (QPP.laurentCoeffPolynomial L coeff) (decomp.phase j) •
@@ -737,7 +741,8 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
               (QPP.laurentCoeffPolynomial L coeff) B (decomp.phase j)
   ext i
   change ((projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
+        (((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+          U)) :
           HilbertOperator (Qubits (1 + n)))).applyVec
         (decomp.basis j)).ofLp i =
     (lEval (2 * L) (QPP.laurentCoeffPolynomial L coeff)
@@ -745,7 +750,8 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
   have hproj :=
     QPP.projectedBlock_one_applyVec
       (n := n)
-      (V := (qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix)
+      (V := ((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+        U)))
       (ψ := decomp.basis j)
   have hcoord := congrArg
     (fun v : HilbertVector (Qubits (1 + n)) => v (prodEquiv ((0 : Fin (2 ^ 1)), i)))
@@ -753,7 +759,8 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
   rw [hproj]
   calc
     (HilbertOperator.applyVec
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
+        (((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+          U)) :
           HilbertOperator (Qubits (1 + n)))
         (ket0.vec.tensor (decomp.basis j))).ofLp (prodEquiv (0, i)) =
       ((qspYZZYZ φ θ₀ φ₀ ps (decomp.phase j)).applyVec
@@ -766,7 +773,7 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_apply_phaseBasis
 
 /-- The projected block of the source QPP word is the target Laurent polynomial
 operator whenever the same phase schedule realizes the target Laurent pair. -/
-theorem QPP.projectedBlock_qppAlternatingControlledCircuit_eq_unitaryLaurentPolynomial
+lemma QPP.projectedBlock_qppAlternatingControlledCircuit_eq_unitaryLaurentPolynomial
     (L : ℕ) (U : UnitaryOperator (Qubits n))
     (coeff : Fin (2 * L + 1) → ℂ)
     (decomp : QPP.PhaseDecomposition U)
@@ -777,7 +784,8 @@ theorem QPP.projectedBlock_qppAlternatingControlledCircuit_eq_unitaryLaurentPoly
       qspYZZYZ φ θ₀ φ₀ ps x =
         qspMatYZ (2 * L) (QPP.laurentCoeffPolynomial L coeff) B x) :
     projectedBlock 1 n
-        ((qppAlternatingControlledCircuit U φ θ₀ φ₀ ps).binaryMatrix :
+        (((qppAlternatingControlledCircuit n φ θ₀ φ₀ ps).binaryMatrix (QPPOracle.interpretation
+          U)) :
           HilbertOperator (Qubits (1 + n))) =
       unitaryLaurentPolynomial L U coeff := by
   apply HilbertOperator.ext_of_applyVec_eq_on_orthonormalBasis decomp.basis
@@ -808,7 +816,7 @@ structure QPP.GeneratedPairCertificate (L : ℕ)
 
 /-- The bounded Laurent package noncomputably determines a type-level generated
 phase schedule certificate. -/
-theorem QPP.generatedPairCertificate_nonempty
+lemma QPP.generatedPairCertificate_nonempty
     (L : ℕ) (coeff : Fin (2 * L + 1) → ℂ)
     (h : QPP.BoundedLaurentPolynomial L coeff) :
     Nonempty (QPP.GeneratedPairCertificate L coeff h.complement.complement) := by

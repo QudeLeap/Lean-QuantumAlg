@@ -50,7 +50,7 @@ def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (5 * width + 1))
 
 /-- The lexical reduction emits exactly its three actual operation coordinates. -/
-theorem nativePower_scopedMultiply_pool
+lemma nativePower_scopedMultiply_pool
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -69,7 +69,7 @@ theorem nativePower_scopedMultiply_pool
     multiplyEnvelope, add_assoc]
 
 /-- Selected paths retain the mandatory square and at most one real base multiplication. -/
-theorem nativePower_bit_pool_le (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_bit_pool_le (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     (path : (bitCircuit (model := model) base modulus output bit).Path) :
@@ -100,7 +100,7 @@ theorem nativePower_bit_pool_le (base : CInputRef ctx (.unsignedWord width))
         exact le_rfl
 
 /-- All actual branches of the finite fold fit the explicit per-slot coordinate allowance. -/
-theorem nativePower_fold_pool_le (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_pool_le (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit)) :
     ∀ path : (foldBits (model := model) base modulus output bits).Path,
@@ -118,7 +118,7 @@ theorem nativePower_fold_pool_le (base : CInputRef ctx (.unsignedWord width))
       exact add_le_add (nativePower_bit_pool_le base modulus output bit path.1) (ih path.2)
 
 /-- Each source-addressed exponent uses its declared width in the independent budget. -/
-theorem nativePower_exponent_pool_le {exponentWidth : Nat}
+lemma nativePower_exponent_pool_le {exponentWidth : Nat}
     (base : CInputRef ctx (.unsignedWord width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -131,7 +131,7 @@ theorem nativePower_exponent_pool_le {exponentWidth : Nat}
       (List.ofFn (fun index : Fin exponentWidth => CInputRef.wordBitGet exponent index)) path
 
 /-- The two actual scopes visit only the parent, product and division contexts. -/
-theorem nativePower_scopedMultiply_visited
+lemma nativePower_scopedMultiply_visited
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -146,7 +146,7 @@ theorem nativePower_scopedMultiply_visited
   tauto
 
 /-- Either selected bit path reuses the same two scratch cells. -/
-theorem nativePower_bit_visited (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_bit_visited (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     (path : (bitCircuit (model := model) base modulus output bit).Path) (visited : RuntimeCtx
@@ -170,7 +170,7 @@ theorem nativePower_bit_visited (base : CInputRef ctx (.unsignedWord width))
         · exact nativePower_scopedMultiply_visited _ _ _ _ selectedPath visited selected
 
 /-- No iteration retains a prior iteration's scratch cells. -/
-theorem nativePower_fold_visited (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_visited (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit)) :
     ∀ (path : (foldBits (model := model) base modulus output bits).Path) (visited : RuntimeCtx
@@ -190,7 +190,7 @@ theorem nativePower_fold_visited (base : CInputRef ctx (.unsignedWord width))
       · exact nativePower_bit_visited base modulus output bit path.1 visited first
       · exact ih path.2 visited later
 
-private theorem resident_of_multiply_context {kind : ProblemKind}
+private lemma resident_of_multiply_context {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (width : Nat) (visited : RuntimeCtx kind)
     (member : visited ∈ [ctx, productCtx ctx width, divisionCtx ctx width]) :
     visited.residentSpace ≤ ctx.residentSpace + additionalSpace kind width := by
@@ -201,7 +201,7 @@ private theorem resident_of_multiply_context {kind : ProblemKind}
     cases axis <;> simp [additionalSpace, productCtx, divisionCtx, divisionShape,
       SpacePool.ofShape] <;> omega
 
-private theorem auxiliary_of_multiply_context {kind : ProblemKind}
+private lemma auxiliary_of_multiply_context {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (width : Nat) (visited : RuntimeCtx kind)
     (member : visited ∈ [ctx, productCtx ctx width, divisionCtx ctx width]) :
     visited.auxiliarySpace ≤ ctx.auxiliarySpace + additionalSpace kind width := by
@@ -213,7 +213,7 @@ private theorem auxiliary_of_multiply_context {kind : ProblemKind}
       SpacePool.ofShape] <;> omega
 
 /-- Peak resident capacity includes both actual scratch cells and every parent entry. -/
-theorem nativePower_fold_resident_le (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_resident_le (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
     (path : (foldBits (model := model) base modulus output bits).Path) :
@@ -225,7 +225,7 @@ theorem nativePower_fold_resident_le (base : CInputRef ctx (.unsignedWord width)
     (nativePower_fold_visited base modulus output bits path visited present)
 
 /-- All actual extra cells are auxiliary; the original storage roles stay unchanged. -/
-theorem nativePower_fold_auxiliary_le (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_auxiliary_le (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
     (path : (foldBits (model := model) base modulus output bits).Path) :

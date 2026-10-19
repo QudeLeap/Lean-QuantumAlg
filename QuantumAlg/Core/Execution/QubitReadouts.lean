@@ -27,6 +27,8 @@ namespace QuantumAlg.Execution.QubitReadouts
 
 noncomputable section
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
   {ctx : RuntimeCtx .quantum} {width : Nat}
@@ -37,13 +39,13 @@ physical system is a qubit. -/
     (cell : CWriteRef ctx (.finite 2)) : CWriteRef ctx (.finite dimension) :=
   equal.symm ▸ cell
 
-private theorem outputAt_key (dimension : ℕ+) (equal : dimension = 2)
+private lemma outputAt_key (dimension : ℕ+) (equal : dimension = 2)
     (cell : CWriteRef ctx (.finite 2)) : (outputAt dimension equal cell).key = cell.key := by
   cases equal
   rfl
 
 /-- Transporting a qubit destination does not change the stored finite value. -/
-public theorem outputAt_read (dimension : ℕ+) (equal : dimension = 2)
+public lemma outputAt_read (dimension : ℕ+) (equal : dimension = 2)
     (cell : CWriteRef ctx (.finite 2)) (store : Store ctx) :
     (store.read (.storage (outputAt dimension equal cell).toCStorageRef)).toFin.val =
       (store.read (.storage cell.toCStorageRef)).toFin.val := by
@@ -71,13 +73,13 @@ def input (cells : Fin width → CWriteRef ctx (.finite 2)) :
 def mask (value : CShape.Value (.fixedVector width (.finite 2))) (index : Fin width) : Bool :=
   decide ((value.get index).toFin.val = 1)
 
-@[simp] public theorem readout_key (wire : Fin ctx.systemCount)
+@[simp] public lemma readout_key (wire : Fin ctx.systemCount)
     (qubit : (ctx.quantumLayout.wire wire).dimension = 2)
     (cell : CWriteRef ctx (.finite 2)) : (readout wire qubit cell).output.key = cell.key :=
   outputAt_key _ qubit cell
 
 /-- Distinct real cells give the exact no-overwrite condition used by sequential Z writes. -/
-theorem readouts_distinct (wires : Fin width → Fin ctx.systemCount)
+lemma readouts_distinct (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key) :
@@ -90,19 +92,22 @@ theorem readouts_distinct (wires : Fin width → Fin ctx.systemCount)
     (same.trans (readout_key (wires right) (qubits right) (cells right)))
 
 /-- Each stored result is exactly the value of its named physical measured wire. -/
-theorem written_value (wires : Fin width → Fin ctx.systemCount)
+lemma written_value (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key)
     (store : Store ctx) (basis : ctx.register.Index) (index : Fin width) :
-    ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    ((Circuit.writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+        := oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells) basis)).read
         (.storage (cells index).toCStorageRef)).toFin.val = (basis (wires index)).val := by
-  have stored := Circuit.writeMeasurementBasis_read (gates := gates) (oracles := oracles)
+  have stored := Circuit.writeMeasurementBasis_read (allowAllocation := allowAllocation) (gates :=
+    gates) (oracles := oracles)
       (operations := operations) (services := services) (readouts wires qubits cells)
     (readouts_distinct wires qubits cells distinct)
     (readout (wires index) (qubits index) (cells index)) (List.mem_ofFn.mpr ⟨index, rfl⟩)
@@ -111,36 +116,41 @@ theorem written_value (wires : Fin width → Fin ctx.systemCount)
   exact (outputAt_read _ (qubits index) (cells index) _).symm.trans values
 
 /-- Direct branch selection reads the actual result, including the finite zero case. -/
-theorem written_mask (wires : Fin width → Fin ctx.systemCount)
+lemma written_mask (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key)
     (store : Store ctx) (basis : ctx.register.Index) (index : Fin width) :
-    mask ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    mask ((Circuit.writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates)
+      (oracles := oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+        := oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells) basis)).read
         (input cells)) index = decide ((basis (wires index)).val = 1) := by
   exact congrArg (fun value : Nat => decide (value = 1))
-    (written_value (gates := gates) (oracles := oracles)
+    (written_value (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (services := services)
       wires qubits cells distinct store basis index)
 
 /-- The actual measurement pool counts each requested Z operation once. -/
-theorem measurement_resources (wires : Fin width → Fin ctx.systemCount)
+lemma measurement_resources (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
-    (path : (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+    (path : (Circuit.measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+      (oracles := oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells)).Path) :
-    (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+    (Circuit.measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells)).resourcePool path =
       width • ResourcePool.singleton
         (Circuit.zEvent (gates := gates) (oracles := oracles) 2 operations services) := by
-  have measured := Circuit.measurementSequence_qubit_resourcePool
+  have measured := Circuit.measurementSequence_qubit_resourcePool (allowAllocation :=
+    allowAllocation)
     (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells)

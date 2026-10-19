@@ -24,7 +24,8 @@ open ClassicalRoutines.NumberTheory
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Original independent positive-candidate native coordinate allowance. -/
@@ -68,7 +69,7 @@ def nativeTrace (shortWidth : Nat) (selected : Bool) : List (Resource.Event mode
       [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .xor))]
 
 /-- The actual positive suffix has exactly the original five-instruction trace. -/
-theorem positiveInto_events (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_events (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     (positiveInto refs).eventTrace path = positiveTrace shortWidth := by
   change (BitWord.instruction (execution := model) (widenOp refs)).eventTrace path.1 ++
     ((BitWord.instruction (execution := model) (belowOp refs)).eventTrace path.2.1 ++
@@ -80,7 +81,7 @@ theorem positiveInto_events (refs : Refs ctx shortWidth) (path : (positiveInto r
   rfl
 
 /-- The actual positive suffix meets the original independent envelope with equality. -/
-theorem positiveInto_resourcePool (refs : Refs ctx shortWidth)
+lemma positiveInto_resourcePool (refs : Refs ctx shortWidth)
     (path : (positiveInto refs).Path) :
     (positiveInto refs).resourcePool path = positiveEventEnvelope shortWidth := by
   change ResourcePool.ofList ((positiveInto refs).eventTrace path) = _
@@ -89,24 +90,24 @@ theorem positiveInto_resourcePool (refs : Refs ctx shortWidth)
     ResourcePool.ofList_cons, ResourcePool.ofList_nil, add_zero, add_assoc]
 
 /-- Every actual positive suffix respects the independent native coordinate bound. -/
-theorem positiveInto_pool_le (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_pool_le (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     (positiveInto refs).resourcePool path ≤ positiveEventEnvelope shortWidth :=
   le_of_eq (positiveInto_resourcePool refs path)
 
 /-- Every positive suffix performs exactly five actual native operations. -/
-theorem positiveInto_eventCount (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_eventCount (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     ((positiveInto refs).eventTrace path).length = 5 := rfl
 
 /-- Five dependent native operations give the positive suffix exact unit-duration depth five. -/
-theorem positiveInto_depth (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_depth (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     (positiveInto refs).depth (fun _ => 1) path = 5 := rfl
 
 /-- The positive suffix visits only the original complete context at its five instructions. -/
-theorem positiveInto_visited (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_visited (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     (positiveInto refs).visitedContexts path = List.replicate 5 ctx := rfl
 
 /-- Positive-suffix resident accounting includes all original caller storage. -/
-theorem positiveInto_resident_le (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_resident_le (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     (positiveInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
@@ -114,7 +115,7 @@ theorem positiveInto_resident_le (refs : Refs ctx shortWidth) (path : (positiveI
   rw [(List.mem_replicate.mp present).2]
 
 /-- Positive-suffix auxiliary accounting preserves all supplied workspace roles. -/
-theorem positiveInto_auxiliary_le (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
+lemma positiveInto_auxiliary_le (refs : Refs ctx shortWidth) (path : (positiveInto refs).Path) :
     (positiveInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
@@ -122,24 +123,24 @@ theorem positiveInto_auxiliary_le (refs : Refs ctx shortWidth) (path : (positive
   rw [(List.mem_replicate.mp present).2]
 
 /-- The positive suffix restores the full borrowed-reference joint state. -/
-theorem positiveInto_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
+lemma positiveInto_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (positiveInto refs).BorrowedRestored Reference state
-      ((positiveInto refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical
+      ((positiveInto refs).execute environment Reference state) := by
+  refine Circuit.borrowedRestored_seq (environment := environment) _ _ state
+    (Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (widenOp refs)) state) ?_
-  refine Circuit.borrowedRestored_seq _ _ _
-    (Circuit.borrowedRestored_classical
+  refine Circuit.borrowedRestored_seq (environment := environment) _ _ _
+    (Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (belowOp refs)) _) ?_
-  exact Circuit.borrowedRestored_seq _ _ _
+  exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
     (NatModCheck.into_borrowedRestored refs.modulusCheck Reference _)
-    (Circuit.borrowedRestored_classical
+    (Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (combineOp refs)) _)
 
 /-- The total trace contains its real decision and only the selected branch's native events. -/
-theorem into_events (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_events (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).eventTrace path = nativeTrace shortWidth path.2.1.toBool := by
   rcases path with ⟨decision, flag, selected⟩
   cases flag with
@@ -161,12 +162,12 @@ theorem into_events (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) 
           rfl
 
 /-- Actual total-check multiplicities are those of the same selected chronological formula. -/
-theorem into_resourcePool (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resourcePool (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path = ResourcePool.ofList (nativeTrace shortWidth path.2.1.toBool) :=
   congrArg ResourcePool.ofList (into_events refs path)
 
 /-- Every total-check path satisfies the original independent maximum-branch envelope. -/
-theorem into_pool_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_pool_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path ≤ eventEnvelope shortWidth := by
   rw [into_resourcePool]
   cases selected : path.2.1.toBool
@@ -182,27 +183,27 @@ theorem into_pool_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path)
     exact add_le_add le_rfl (ResourcePool.le_max_left _ _)
 
 /-- The total checker performs six native operations when selected and two when rejected. -/
-theorem into_eventCount (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_eventCount (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     ((into refs).eventTrace path).length = if path.2.1.toBool then 6 else 2 := by
   rcases path with ⟨decision, flag, selected⟩
   cases flag with
   | bit flag => cases flag <;> rfl
 
 /-- Actual total depth includes the decision before all operations in its selected branch. -/
-theorem into_depth (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_depth (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path = if path.2.1.toBool then 6 else 2 := by
   rcases path with ⟨decision, flag, selected⟩
   cases flag with
   | bit flag => cases flag <;> rfl
 
 /-- Independent total-check unit-duration dependency depth bound. -/
-theorem into_depth_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_depth_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path ≤ 6 := by
   rw [into_depth]
   split <;> omega
 
 /-- Every selected total-check instruction keeps the complete caller context live. -/
-theorem into_visited (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_visited (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).visitedContexts path =
       List.replicate (if path.2.1.toBool then 6 else 2) ctx := by
   rcases path with ⟨decision, flag, selected⟩
@@ -210,7 +211,7 @@ theorem into_visited (refs : TotalRefs ctx shortWidth) (path : (into refs).Path)
   | bit flag => cases flag <;> rfl
 
 /-- Every actual total-check path retains all original resident storage. -/
-theorem into_resident_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resident_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
@@ -218,7 +219,7 @@ theorem into_resident_le (refs : TotalRefs ctx shortWidth) (path : (into refs).P
   rw [(List.mem_replicate.mp present).2]
 
 /-- Every actual total-check path retains all original auxiliary storage. -/
-theorem into_auxiliary_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
+lemma into_auxiliary_le (refs : TotalRefs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
@@ -226,20 +227,22 @@ theorem into_auxiliary_le (refs : TotalRefs ctx shortWidth) (path : (into refs).
   rw [(List.mem_replicate.mp present).2]
 
 /-- Decision and actual selected body restore the complete borrowed-reference joint state. -/
-theorem into_borrowedRestored (refs : TotalRefs ctx shortWidth) (Reference : Register)
+lemma into_borrowedRestored (refs : TotalRefs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical
+    (into refs).BorrowedRestored
+      Reference state ((into refs).execute environment Reference state) := by
+  refine Circuit.borrowedRestored_seq (environment := environment) _ _ state
+    (Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (decisionOp refs)) state) ?_
-  apply Circuit.borrowedRestored_branch (writeInput refs.greaterThanOne) (arm refs) Reference
+  apply Circuit.borrowedRestored_branch
+    (environment := environment) (writeInput refs.greaterThanOne) (arm refs) Reference
   intro flag history _ current
   cases flag with
   | bit flag =>
       cases flag with
       | false =>
-          exact Circuit.borrowedRestored_classical
+          exact Circuit.borrowedRestored_classical (environment := environment)
             (BitWord.selectedApplication (execution := model) (rejectOp refs)) current
       | true => exact positiveInto_borrowedRestored refs.positiveCheck Reference current
 

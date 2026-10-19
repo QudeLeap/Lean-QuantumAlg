@@ -41,6 +41,8 @@ variable {p : Nat}
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Schedule order used by the scalar-multiplication trace circuit. -/
 def stepIndices {E : PrimeFieldShortWeierstrass p} (schedule : Schedule E) :
     List (Fin schedule.length) :=
@@ -59,7 +61,7 @@ def sequentialStep (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     TraceData E schedule -> TraceData E schedule :=
   UnitaryCircuit.Realizes.stepList (stepUpdates E schedule)
 
-private theorem stepList_eq_foldl
+private lemma stepList_eq_foldl
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (l : List (Fin schedule.length))
     (x : TraceData E schedule) :
@@ -73,7 +75,7 @@ private theorem stepList_eq_foldl
       simpa [UnitaryCircuit.Realizes.stepList, List.foldl_cons] using
         ih (TraceData.controlledEquivAt E schedule i x)
 
-private theorem traceDataFold_apply_of_nodup
+private lemma traceDataFold_apply_of_nodup
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E)
     (l : List (Fin schedule.length)) (hnodup : l.Nodup)
@@ -100,7 +102,7 @@ private theorem traceDataFold_apply_of_nodup
 
 /-- The folded same-Circuit trace step agrees extensionally with the existing
 schedule-wide controlled-ECADD trace endpoint. -/
-theorem sequentialStep_apply
+lemma sequentialStep_apply
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (x : TraceData E schedule) :
     sequentialStep E schedule x = TraceData.controlledEquiv E schedule x := by
@@ -141,9 +143,9 @@ structure StepLift (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         (QubitLayout.canonical encoding.width).toQuantum
   /-- The lifted lower-level program updates exactly the selected trace
   component. -/
-  realizes :
+  realizes : ∀ environment : OracleModel.empty.Interpretation,
     UnitaryCircuit.Realizes encoding
-      (liftProgram controlledWitness.program)
+      (liftProgram controlledWitness.program) environment
       (TraceData.controlledEquivAt E schedule i)
 
 namespace StepLift
@@ -166,20 +168,20 @@ def program (w : StepLift E schedule encoding i) :
 
 /-- The lifted scalar trace program is definitionally derived from the
 lower-level controlled-ECADD program. -/
-theorem program_eq_lifted (w : StepLift E schedule encoding i) :
+lemma program_eq_lifted (w : StepLift E schedule encoding i) :
     w.program = w.liftProgram w.sourceProgram :=
   rfl
 
 /-- Encoded-basis action of the lifted selected trace component. -/
-theorem apply_ket (w : StepLift E schedule encoding i)
+lemma apply_ket (w : StepLift E schedule encoding i)
     (x : TraceData E schedule) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical encoding.width).basisEquiv.symm (encoding.encode x))) =
       (NormalizedVector.ket
           ((QubitLayout.canonical encoding.width).basisEquiv.symm
         (encoding.encode (TraceData.controlledEquivAt E schedule i x)))) :=
-  w.realizes.apply_encoded_ket x
+  (w.realizes (environment := environment)).apply_encoded_ket x
 
 end StepLift
 
@@ -214,9 +216,9 @@ def program (w : ScheduleCompositionWitness E schedule) :
       (QubitLayout.canonical w.encoding.width).toQuantum)
 
 /-- The lifted step programs realize the schedule-ordered trace updates. -/
-theorem stepRealizes (w : ScheduleCompositionWitness E schedule) :
+lemma stepRealizes (w : ScheduleCompositionWitness E schedule) :
     List.Forall₂
-      (fun program step => UnitaryCircuit.Realizes w.encoding program step)
+      (fun program step => UnitaryCircuit.Realizes w.encoding program environment step)
       w.stepPrograms (stepUpdates E schedule) := by
   dsimp [stepPrograms, stepUpdates, stepIndices]
   induction List.ofFn (fun i : Fin schedule.length => i) with
@@ -225,40 +227,40 @@ theorem stepRealizes (w : ScheduleCompositionWitness E schedule) :
   | cons i rest ih =>
       constructor
       · simpa [StepLift.program, StepLift.sourceProgram] using
-          (w.stepLift i).realizes
+          ((w.stepLift i).realizes environment)
       · exact ih
 
 /-- The folded actual circuit realizes the sequential scalar trace schedule. -/
-theorem sequential_realizes (w : ScheduleCompositionWitness E schedule) :
-    UnitaryCircuit.Realizes w.encoding w.program (sequentialStep E schedule) := by
+lemma sequential_realizes (w : ScheduleCompositionWitness E schedule) :
+    UnitaryCircuit.Realizes w.encoding w.program environment (sequentialStep E schedule) := by
   dsimp [program, stepPrograms, sequentialStep]
-  exact UnitaryCircuit.Realizes.appendList w.encoding
+  exact UnitaryCircuit.Realizes.appendList (environment := environment) w.encoding
     (QubitLayout.canonical _)
     w.stepPrograms (stepUpdates E schedule) w.stepRealizes
 
 /-- The folded actual circuit realizes the schedule-wide controlled-ECADD
 trace endpoint. -/
-theorem realizes (w : ScheduleCompositionWitness E schedule) :
-    UnitaryCircuit.Realizes w.encoding w.program
+lemma realizes (w : ScheduleCompositionWitness E schedule) :
+    UnitaryCircuit.Realizes w.encoding w.program environment
       (TraceData.controlledEquiv E schedule) :=
   w.sequential_realizes.congrStep (sequentialStep_apply E schedule)
 
 /-- Encoded-basis correctness for the composed scalar trace circuit. -/
-theorem apply_ket (w : ScheduleCompositionWitness E schedule)
+lemma apply_ket (w : ScheduleCompositionWitness E schedule)
     (x : TraceData E schedule) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode x))) =
       (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode (TraceData.controlledEquiv E schedule x)))) :=
-  w.realizes.apply_encoded_ket x
+  (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Certified-run form of the composed trace action: every schedule component
 is advanced by its controlled-ECADD endpoint. -/
-theorem apply_certified_run (w : ScheduleCompositionWitness E schedule)
+lemma apply_certified_run (w : ScheduleCompositionWitness E schedule)
     (run : Run E schedule) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode run.controlledTraceData))) =
@@ -284,6 +286,8 @@ namespace CertifiedEndpoint
 variable {p : Nat}
 
 noncomputable section
+
+variable {environment : OracleModel.empty.Interpretation}
 
 namespace ComposedEndpoint
 
@@ -346,7 +350,7 @@ def fullSequentialStep (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 /-- Clean composed endpoint execution: a trace initialized from the certified
 run is advanced by the schedule circuit, and the endpoint targets receive the
 run output. -/
-theorem fullStep_clean
+lemma fullStep_clean
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E) (cert : CertifiedScalarAction E schedule)
     (s : EndpointRunState E schedule cert)
@@ -380,10 +384,10 @@ structure Witness (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding).width).toQuantum
   /-- Correctness of the final target-write program under the composed
   endpoint encoding. -/
-  targetRealizes :
+  targetRealizes : ∀ environment : OracleModel.empty.Interpretation,
     UnitaryCircuit.Realizes
       (BinaryLabelEncoding.prod endpointRunEncoding traceWitness.encoding)
-      targetProgram (targetStep E schedule cert)
+      targetProgram environment (targetStep E schedule cert)
 
 namespace Witness
 
@@ -402,10 +406,10 @@ def traceLiftedProgram (w : Witness E schedule cert) :
   UnitaryCircuit.prodRight (m := w.endpointRunEncoding.width) w.traceWitness.program
 
 /-- The lifted trace circuit realizes the sequential schedule update. -/
-theorem traceLifted_realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram
+lemma traceLifted_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram environment
       (traceSequentialStep E schedule cert) := by
-  have h := UnitaryCircuit.Realizes.onBinarySuffix
+  have h := UnitaryCircuit.Realizes.onBinarySuffix (environment := environment)
     (left := w.endpointRunEncoding) (right := w.traceWitness.encoding)
     w.traceWitness.sequential_realizes
   have hstep := h.congrStep (second := traceSequentialStep E schedule cert) (by
@@ -421,19 +425,19 @@ def program (w : Witness E schedule cert) :
 
 /-- The composed circuit realizes the endpoint before rewriting the trace fold
 to the schedule-wide trace endpoint. -/
-theorem sequential_realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.program
+lemma sequential_realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.program environment
       (fullSequentialStep E schedule cert) := by
     have htrace :
-        UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram
+        UnitaryCircuit.Realizes w.encoding w.traceLiftedProgram environment
           (traceSequentialStep E schedule cert) := by
       exact w.traceLifted_realizes
     have htarget :
-        UnitaryCircuit.Realizes w.encoding w.targetProgram
+        UnitaryCircuit.Realizes w.encoding w.targetProgram environment
           (targetStep E schedule cert) := by
-      simpa [encoding] using w.targetRealizes
+      simpa [encoding] using w.targetRealizes environment
     have hfull :
-        UnitaryCircuit.Realizes w.encoding w.program
+        UnitaryCircuit.Realizes w.encoding w.program environment
           (fun x : State E schedule cert =>
             targetStep E schedule cert
               (traceSequentialStep E schedule cert x)) := by
@@ -442,15 +446,15 @@ theorem sequential_realizes (w : Witness E schedule cert) :
           (firstStep := traceSequentialStep E schedule cert)
           (secondStep := targetStep E schedule cert) htrace htarget
     change
-      UnitaryCircuit.Realizes w.encoding w.program
+      UnitaryCircuit.Realizes w.encoding w.program environment
         (fun x : State E schedule cert =>
           targetStep E schedule cert
             (traceSequentialStep E schedule cert x))
     exact hfull
 
 /-- The composed actual circuit realizes the certified scalar endpoint. -/
-theorem realizes (w : Witness E schedule cert) :
-    UnitaryCircuit.Realizes w.encoding w.program (fullStep E schedule cert) :=
+lemma realizes (w : Witness E schedule cert) :
+    UnitaryCircuit.Realizes w.encoding w.program environment (fullStep E schedule cert) :=
   w.sequential_realizes.congrStep (by
     intro x
     change
@@ -462,22 +466,22 @@ theorem realizes (w : Witness E schedule cert) :
         rw [TraceCircuitWitness.sequentialStep_apply])
 
 /-- Encoded-basis correctness for the composed scalar endpoint. -/
-theorem apply_ket (w : Witness E schedule cert)
+lemma apply_ket (w : Witness E schedule cert)
     (x : State E schedule cert) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode x))) =
       (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode (fullStep E schedule cert x)))) :=
-  w.realizes.apply_encoded_ket x
+  (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Clean encoded-basis correctness for a composed endpoint state whose run
 output agrees with the public certified scalar output. -/
-theorem apply_clean_ket (w : Witness E schedule cert)
+lemma apply_clean_ket (w : Witness E schedule cert)
     (s : EndpointRunState E schedule cert)
     (houtput : s.run.outputPoint = s.data.outputPoint) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode (s, s.run.controlledTraceData)))) =
@@ -491,7 +495,7 @@ theorem apply_clean_ket (w : Witness E schedule cert)
 
 /-- Clean encoded-basis correctness for a generic-domain input, using the
 certified schedule run supplied by the scalar-action certificate. -/
-theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
+lemma apply_clean_ket_with_certified_run (w : Witness E schedule cert)
     (input :
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
@@ -500,7 +504,7 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
         (∀ i : Fin schedule.length,
           run.controls i = bitControl schedule input.1.1 i) ∧
         run.outputPoint = cert.output input.1.1 input.1.2 ∧
-        w.program.applyNormalized
+        w.program.applyNormalized environment
           (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
@@ -529,7 +533,8 @@ theorem apply_clean_ket_with_certified_run (w : Witness E schedule cert)
     simpa [endpointRun, initialData, Data.outputPoint, Data.scalar,
       Data.startPoint] using houtput
   have happly :=
-    apply_clean_ket (E := E) (schedule := schedule) (cert := cert) w
+    apply_clean_ket (environment := environment) (E := E) (schedule := schedule)
+      (cert := cert) w
       endpointRun hendpoint
   refine ⟨run, hstart, hcontrols, houtput, ?_⟩
   simpa [endpointRun, initialData, Data.addIntoTarget, Data.outputPoint,
@@ -556,7 +561,8 @@ structure StructuredCircuitWitness (E : PrimeFieldShortWeierstrass p)
   circuit : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical encoding.width).toQuantum
   /-- Direct realization of the certified scalar endpoint. -/
-  realizes : UnitaryCircuit.Realizes encoding circuit
+  realizes : ∀ environment : OracleModel.empty.Interpretation,
+    UnitaryCircuit.Realizes encoding circuit environment
     (encodedStep (E := E) (schedule := schedule) (cert := cert))
 
 namespace StructuredCircuitWitness
@@ -565,23 +571,23 @@ variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 variable {schedule : Schedule E} {cert : CertifiedScalarAction E schedule}
 
 /-- Encoded-basis correctness for all certified scalar endpoint labels. -/
-theorem apply_ket (w : StructuredCircuitWitness E schedule cert)
+lemma apply_ket (w : StructuredCircuitWitness E schedule cert)
     (x : Data E schedule cert) :
-    w.circuit.applyNormalized
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm (w.encoding.encode x))) =
       (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
         (w.encoding.encode x.addIntoTarget))) :=
   by
-    simpa [encodedStep] using w.realizes.apply_encoded_ket x
+    simpa [encodedStep] using (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Clean public-form encoded-basis action for certified scalar multiplication. -/
-theorem apply_clean_ket (w : StructuredCircuitWitness E schedule cert)
+lemma apply_clean_ket (w : StructuredCircuitWitness E schedule cert)
     (input :
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
-    w.circuit.applyNormalized
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode
@@ -601,7 +607,7 @@ theorem apply_clean_ket (w : StructuredCircuitWitness E schedule cert)
         Data E schedule cert)
 
 /-- The certified scalar action supplies the schedule run represented by a clean input. -/
-theorem clean_input_has_run
+lemma clean_input_has_run
     (input :
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
@@ -613,12 +619,12 @@ theorem clean_input_has_run
   cert.exists_run input.1.1 input.1.2 input.2
 
 /-- Clean encoded-basis action together with the certified schedule run. -/
-theorem apply_clean_ket_with_run
+lemma apply_clean_ket_with_run
     (w : StructuredCircuitWitness E schedule cert)
     (input :
       {sp : Fin (2 ^ schedule.length) × AffinePoint E //
         cert.genericDomain sp.1 sp.2}) :
-    w.circuit.applyNormalized
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode

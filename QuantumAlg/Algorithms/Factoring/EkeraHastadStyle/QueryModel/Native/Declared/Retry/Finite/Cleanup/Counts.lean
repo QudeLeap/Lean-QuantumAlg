@@ -37,13 +37,13 @@ open Execution ClassicalRoutines.FirstAccepted.Direct
 noncomputable section
 
 /-- The independent pool observation includes both real packs per sample and each selector. -/
-def classicalOperationBound {N : Nat} (input : Input N) : Nat → Nat
+def classicalOperationBound (N : Nat) : Nat → Nat
   | 0 => 0
   | count + 1 => (count + 1) *
       (ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-          (Batch.sourceEventBudget input) +
+          (Batch.sourceEventBudget N) +
         ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-          (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model input) N) + 35) + 1
+          (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model N) N) + 35) + 1
 
 /-- The closed width ceiling includes the sixteen additional persistent sample packs per batch. -/
 def scalarClassicalOperationBound (N : Nat) : Nat → Nat
@@ -54,7 +54,7 @@ def scalarClassicalOperationBound (N : Nat) : Nat → Nat
           (modulusBits N) (shortLogBits N) (tradeoffBits N)
           (RSA.ShortLogWidths.coordinateWidth N (shortLogBits N) (tradeoffBits N))) + 1
 
-private theorem word_classicalWeight {gates : GateModel} {oracles : OracleModel}
+private lemma word_classicalWeight {gates : GateModel} {oracles : OracleModel}
     {width : Nat} {layout : QuantumLayout width}
     (word : UnitaryCircuit gates oracles layout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
@@ -73,30 +73,30 @@ private theorem word_classicalWeight {gates : GateModel} {oracles : OracleModel}
       exact False.elim (Nat.not_lt_zero _ positive)
   | _ => rfl
 
-private theorem member_classicalWeight {N : Nat} (input : Input N) :
-    ResourcePool.weightedCount Resource.Event.classicalOperationWeight (memberEventBudget input) =
+private lemma member_classicalWeight (N : Nat) :
+    ResourcePool.weightedCount Resource.Event.classicalOperationWeight (memberEventBudget N) =
       1 := by
   simp [memberEventBudget, word_classicalWeight, Resource.Event.classicalOperationWeight]
 
-private theorem reset_classicalWeight {N : Nat} (input : Input N) :
+private lemma reset_classicalWeight (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (resetEventBudget input) = 0 := by
+      (resetEventBudget N) = 0 := by
   simp [resetEventBudget, ZReset.Bank.envelope, ZReset.eventEnvelope,
     Resource.Event.classicalOperationWeight]
 
-private theorem selection_classicalWeight {N : Nat} (input : Input N) :
+private lemma selection_classicalWeight (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (Retry.selectionEventBudget input) = 3 := by
+      (Retry.selectionEventBudget N) = 3 := by
   simp [Retry.selectionEventBudget, Optional.eventEnvelope,
     ClassicalRoutines.FirstAccepted.Direct.copyTrace, Resource.Event.classicalOperationWeight]
 
-private theorem first_classicalWeight {N : Nat} (input : Input N) :
+private lemma first_classicalWeight (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (Retry.firstEventBudget input) =
+        (Retry.firstEventBudget N) =
       ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (Batch.sourceEventBudget input) +
+        (Batch.sourceEventBudget N) +
       ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model input) N) + 35 := by
+        (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model N) N) + 35 := by
   simp only [Retry.firstEventBudget, Batch.Recovery.firstEventBudget, Batch.firstEventBudget,
     Batch.setupEventBudget, Batch.reusedSampleEventBudget, reuseEventBudget,
     ResourcePool.weightedCount_add, ResourcePool.weightedCount_nsmul,
@@ -105,13 +105,13 @@ private theorem first_classicalWeight {N : Nat} (input : Input N) :
   simp only [Resource.Event.classicalOperationWeight]
   omega
 
-private theorem next_classicalWeight {N : Nat} (input : Input N) :
+private lemma next_classicalWeight (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (Retry.nextEventBudget input) =
+        (Retry.nextEventBudget N) =
       ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (Batch.sourceEventBudget input) +
+        (Batch.sourceEventBudget N) +
       ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model input) N) + 35 := by
+        (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model N) N) + 35 := by
   simp only [Retry.nextEventBudget, Batch.Recovery.nextEventBudget, Batch.nextEventBudget,
     Batch.reusedSampleEventBudget, reuseEventBudget,
     ResourcePool.weightedCount_add, ResourcePool.weightedCount_nsmul,
@@ -121,9 +121,9 @@ private theorem next_classicalWeight {N : Nat} (input : Input N) :
   omega
 
 /-- The actual independent allowance has exactly the stated literal-classical observation. -/
-theorem declaredCleanup_eventBudget_classicalWeight {N : Nat} (input : Input N) (count : Nat) :
-    ResourcePool.weightedCount Resource.Event.classicalOperationWeight (eventBudget input count) =
-      classicalOperationBound input count := by
+lemma declaredCleanup_eventBudget_classicalWeight (N : Nat) (count : Nat) :
+    ResourcePool.weightedCount Resource.Event.classicalOperationWeight (eventBudget N count) =
+      classicalOperationBound N count := by
   cases count with
   | zero => rfl
   | succ count =>
@@ -134,32 +134,31 @@ theorem declaredCleanup_eventBudget_classicalWeight {N : Nat} (input : Input N) 
         classicalOperationBound]
       ring
 
-private theorem sampler_classicalWeight_le {N : Nat} (input : Input N) :
+private lemma sampler_classicalWeight_le (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (Batch.sourceEventBudget input) ≤ 44 * modulusBits N + 163 := by
+      (Batch.sourceEventBudget N) ≤ 44 * modulusBits N + 163 := by
   have weighted := Multiset.sum_map_le_sum_map Resource.Event.classicalOperationWeight
-    (fun _ : Resource.Event (model input) => 1)
-    (s := ShorStyle.Canonical.Sampler.Retained.nativeEnvelope (model input) N)
+    (fun _ : Resource.Event (model N) => 1)
+    (s := ShorStyle.Canonical.Sampler.Retained.nativeEnvelope (model N) N)
     (fun event _ => by cases event <;> simp [Resource.Event.classicalOperationWeight])
   simpa only [Batch.sourceEventBudget, ResourcePool.weightedCount, Multiset.map_const',
     Multiset.sum_replicate, Nat.nsmul_eq_mul, Nat.mul_one,
     ShorStyle.Canonical.Sampler.Retained.samplerRetainedEnvelope_card, modulusBits] using weighted
 
 /-- The literal-classical pool formula is bounded by the complete independent width ceiling. -/
-theorem declaredCleanup_classicalOperationBound_le_scalar {N : Nat}
-    (input : Input N) (count : Nat) :
-    classicalOperationBound input count ≤ scalarClassicalOperationBound N count := by
+lemma declaredCleanup_classicalOperationBound_le_scalar (N : Nat) (count : Nat) :
+    classicalOperationBound N count ≤ scalarClassicalOperationBound N count := by
   cases count with
   | zero => exact le_rfl
   | succ count =>
-      have sampler := sampler_classicalWeight_le input
+      have sampler := sampler_classicalWeight_le N
       have recovery := LatticeFixedBatchRecoveryMachine.eventEnvelope_classicalWeight_le
-        (model := model input) N
+        (model := model N) N
       unfold LatticePairCandidateRecovery.Width LatticeWideLllMachine.Width at recovery
       have batch : ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-            (Batch.sourceEventBudget input) +
+            (Batch.sourceEventBudget N) +
           ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-            (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model input) N) + 35 ≤
+            (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model N) N) + 35 ≤
           44 * modulusBits N + 198 + LatticeFixedBatchRecoveryMachine.eventCountBound
             (modulusBits N) (shortLogBits N) (tradeoffBits N)
             (RSA.ShortLogWidths.coordinateWidth N (shortLogBits N) (tradeoffBits N)) := by omega

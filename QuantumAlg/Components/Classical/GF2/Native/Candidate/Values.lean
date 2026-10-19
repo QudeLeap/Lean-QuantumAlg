@@ -29,20 +29,20 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
+private lemma avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 omit [BitWord.Selected model] in
-private theorem bit_word_ne (flag : CWriteRef ctx .bit)
+private lemma bit_word_ne (flag : CWriteRef ctx .bit)
     (word : CWriteRef ctx (.unsignedWord width)) : flag.key ≠ word.key := by
   intro same
   have impossible := CStorageRef.storageRef_shape_eq_of_key flag.toCStorageRef
     word.toCStorageRef same
   cases impossible
 
-private theorem coefficient_other (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma coefficient_other (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : candidate.key ∉ other.storageKeys) :
@@ -54,7 +54,7 @@ private theorem coefficient_other (candidate : CWriteRef ctx (.unsignedWord widt
       · exact gf2MaterializePivotColumn_read_other candidate column store other separate
       · rfl
 
-private theorem rowBody_other
+private lemma rowBody_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width) (store : Store ctx)
@@ -71,7 +71,7 @@ private theorem rowBody_other
     Store.read_applyOp_of_not_mem_storageKeys _ (candidateMaskOp matrix free work row) _ workFree]
 
 omit [BitWord.Selected model] in
-private theorem mask_read
+private lemma mask_read
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free work : CWriteRef ctx (.unsignedWord width)) (row : Fin rowCount) (store : Store ctx) :
     (store.applyOp (candidateMaskOp matrix free work row)).read (.storage work.toCStorageRef) =
@@ -80,14 +80,14 @@ private theorem mask_read
   exact Store.read_applyOp_output store (candidateMaskOp matrix free work row)
 
 omit [BitWord.Selected model] in
-private theorem equality_read (left right : CWriteRef ctx (.unsignedWord width))
+private lemma equality_read (left right : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (decisionEqualityOp left right flag)).read (.storage flag.toCStorageRef) =
       .bit (decide ((store.read (.storage left.toCStorageRef)).toNat =
         (store.read (.storage right.toCStorageRef)).toNat)) := by
   exact Store.read_applyOp_output store (decisionEqualityOp left right flag)
 
-private theorem rowBody_candidate
+private lemma rowBody_candidate
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width) (store : Store ctx)
@@ -128,7 +128,7 @@ private theorem rowBody_candidate
         value.toNat ||| 2 ^ (Fin.rev column).val) candidateSame)
 
 omit [BitWord.Selected model] in
-private theorem mask_fresh {shape : CShape} (other : CInputRef ctx shape) :
+private lemma mask_fresh {shape : CShape} (other : CInputRef ctx shape) :
     (pivotMaskCell ctx width).key ∉
       (other.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
         ctx.canonicalFreshKey_fresh).storageKeys := by
@@ -136,7 +136,7 @@ private theorem mask_fresh {shape : CShape} (other : CInputRef ctx shape) :
   exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
 
 omit [BitWord.Selected model] in
-private theorem flag_fresh {shape : CShape} (other : CInputRef ctx shape) :
+private lemma flag_fresh {shape : CShape} (other : CInputRef ctx shape) :
     (pivotLatch ctx).key ∉
       (other.underWorkspace ctx.canonicalFreshKey .bit
         ctx.canonicalFreshKey_fresh).storageKeys := by
@@ -144,7 +144,7 @@ private theorem flag_fresh {shape : CShape} (other : CInputRef ctx shape) :
   exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
 
 /-- Both real row scopes preserve every caller read outside the actual candidate destination. -/
-theorem gf2CandidateRowSelected_read_other
+lemma gf2CandidateRowSelected_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) (store : Store ctx)
@@ -169,7 +169,7 @@ theorem gf2CandidateRowSelected_read_other
   · rw [Store.read_pushWorkspace_underWorkspace, Store.read_pushWorkspace_underWorkspace]
 
 omit [BitWord.Selected model] in
-private theorem work_ne {shape : CShape} (output : CWriteRef ctx shape) :
+private lemma work_ne {shape : CShape} (output : CWriteRef ctx shape) :
     (decisionWork ctx width).key ≠ (decisionWrite width output).key := by
   intro same
   apply ctx.canonicalFreshKey_fresh
@@ -179,7 +179,7 @@ private theorem work_ne {shape : CShape} (output : CWriteRef ctx shape) :
     (by simp [CInputRef.storageKeys])
 
 omit [BitWord.Selected model] in
-private theorem both_read {shape : CShape} (output : CWriteRef ctx shape) (store : Store ctx) :
+private lemma both_read {shape : CShape} (output : CWriteRef ctx shape) (store : Store ctx) :
     ((store.pushWorkspace ctx.canonicalFreshKey (.unsignedWord width)
       ctx.canonicalFreshKey_fresh).pushWorkspace (pivotMaskContext ctx width).canonicalFreshKey
         .bit (pivotMaskContext ctx width).canonicalFreshKey_fresh).read
@@ -191,7 +191,7 @@ private theorem both_read {shape : CShape} (output : CWriteRef ctx shape) (store
   exact Store.read_pushWorkspace_underWorkspace store _ _ _ (.storage output.toCStorageRef)
 
 /-- The actual contribution tests the real current words, with all internal freshness discharged. -/
-theorem gf2CandidateRowSelected_candidate
+lemma gf2CandidateRowSelected_candidate
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) (store : Store ctx) :

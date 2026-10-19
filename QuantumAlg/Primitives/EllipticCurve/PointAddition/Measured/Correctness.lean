@@ -6,12 +6,13 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Context.Embedding.Framing
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Domain
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Runtime
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Correctness
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.InPlace.Mathematics
 import all QuantumAlg.Util.Nat.FixedWidth.Modular.Word.Equiv
-import all QuantumAlg.Core.Execution.Local.Framing.State
+import all QuantumAlg.Core.Execution.Context.Embedding.Sequence
 import Mathlib.Data.Nat.Size
 import Mathlib.Data.Nat.Log
 
@@ -29,13 +30,15 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ContextUnion MeasuredUncompute
 open scoped BigOperators
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The original prime characteristic above three gives the measured canonical word width. -/
-theorem canonical_width {p : Nat} (prime : Nat.Prime p) (characteristic : 3 < p) :
+lemma canonical_width {p : Nat} (prime : Nat.Prime p) (characteristic : 3 < p) :
     p.size = Nat.clog 2 p := by
   have bound := Nat.le_pow_clog (by decide : 1 < 2) p
   have different : p ≠ 2 ^ Nat.clog 2 p := by
@@ -48,45 +51,55 @@ theorem canonical_width {p : Nat} (prime : Nat.Prime p) (characteristic : 3 < p)
   · exact Nat.size_le.mpr (by omega)
   · exact Nat.clog_le_of_le_pow (Nat.le_of_lt (Nat.lt_size_self p))
 
-private theorem nativeList_step {width : Nat}
+private lemma nativeList_step {width : Nat}
     (gates : List (EncodedBit.GateSpec (encoding width))) (action : Raw width → Raw width)
     (realized : UnitaryCircuit.Realizes (encoding width)
-      (EncodedBit.GateSpec.programList (nativeLayout width) .empty gates) action)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty gates) environment.quantum
+        action)
     (state : Raw width) : EncodedBit.GateSpec.stepList gates state = action state := by
-  have literal := EncodedBit.GateSpec.realizesList (nativeLayout width) .empty gates
+  have literal := EncodedBit.GateSpec.realizesList (environment := environment.quantum)
+    (nativeLayout width) .empty gates
   have actual := literal.apply_encoded_ket state
   exact (encoding width).encode_injective ((nativeLayout width).basisEquiv.symm.injective
     (NormalizedVector.ket_injective (actual.symm.trans (realized.apply_encoded_ket state))))
 
-private theorem nativeList_append_realizes {width : Nat}
+private lemma nativeList_append_realizes {width : Nat}
     (first second : List (EncodedBit.GateSpec (encoding width)))
     (firstStep secondStep : Raw width → Raw width)
     (left : UnitaryCircuit.Realizes (encoding width)
-      (EncodedBit.GateSpec.programList (nativeLayout width) .empty first) firstStep)
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty first) environment.quantum
+        firstStep)
     (right : UnitaryCircuit.Realizes (encoding width)
-      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second) secondStep) :
+      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second) environment.quantum
+        secondStep) :
     UnitaryCircuit.Realizes (encoding width)
       (EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second))
+        environment.quantum
       (secondStep ∘ firstStep) := by
-  apply EncodedBit.GateSpec.realizesList_congrStep
+  apply EncodedBit.GateSpec.realizesList_congrStep (environment := environment.quantum)
   intro state
   rw [EncodedBit.GateSpec.stepList_append,
     nativeList_step first firstStep left, nativeList_step second secondStep right]
   rfl
 
-private theorem nativeRealizes_ket {width : Nat}
+private lemma nativeRealizes_ket {width : Nat}
     (program : NativeCircuit width) (action : Raw width → Raw width)
-    (realized : UnitaryCircuit.Realizes (encoding width) program action) (state : Raw width) :
-    program.binaryMatrix.apply (NormalizedVector.ket ((encoding width).encode state)) =
+    (realized : UnitaryCircuit.Realizes (encoding width) program environment.quantum action)
+      (state : Raw width) :
+    (program.binaryMatrix environment.quantum).apply (NormalizedVector.ket ((encoding
+      width).encode state)) =
       NormalizedVector.ket ((encoding width).encode (action state)) :=
   UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     program _ _ (realized.apply_encoded_ket state)
 
-private theorem nativeList_matrix_append {width : Nat}
+private lemma nativeList_matrix_append {width : Nat}
     (first second : List (EncodedBit.GateSpec (encoding width))) :
-    (EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second)).matrix =
-      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second).matrix *
-        (EncodedBit.GateSpec.programList (nativeLayout width) .empty first).matrix := by
+    ((EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second)).matrix
+      environment.quantum) =
+      ((EncodedBit.GateSpec.programList (nativeLayout width) .empty second).matrix
+        environment.quantum) *
+        ((EncodedBit.GateSpec.programList (nativeLayout width) .empty first).matrix
+          environment.quantum) := by
   induction first with
   | nil => simp only [List.nil_append, EncodedBit.GateSpec.programList,
       UnitaryCircuit.identity_matrix, mul_one]
@@ -94,16 +107,19 @@ private theorem nativeList_matrix_append {width : Nat}
       simp only [List.cons_append, EncodedBit.GateSpec.programList, UnitaryCircuit.seq_matrix]
       rw [ih, mul_assoc]
 
-private theorem nativeList_binary_append {width : Nat}
+private lemma nativeList_binary_append {width : Nat}
     (first second : List (EncodedBit.GateSpec (encoding width))) :
-    (EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second)).binaryMatrix =
-      (EncodedBit.GateSpec.programList (nativeLayout width) .empty second).binaryMatrix *
-        (EncodedBit.GateSpec.programList (nativeLayout width) .empty first).binaryMatrix := by
+    ((EncodedBit.GateSpec.programList (nativeLayout width) .empty (first ++ second)).binaryMatrix
+      environment.quantum) =
+      ((EncodedBit.GateSpec.programList (nativeLayout width) .empty second).binaryMatrix
+        environment.quantum) *
+        ((EncodedBit.GateSpec.programList (nativeLayout width) .empty first).binaryMatrix
+          environment.quantum) := by
   unfold UnitaryCircuit.binaryMatrix
   erw [nativeList_matrix_append, UnitaryOperator.unitaryOperator_reindex_mul]
   rfl
 
-private theorem binary_apply_mul {R : Register} (first second : UnitaryOperator R)
+private lemma binary_apply_mul {R : Register} (first second : UnitaryOperator R)
     (state : NormalizedVector R) :
     (second * first).apply state = second.apply (first.apply state) := by
   apply NormalizedVector.ext
@@ -111,26 +127,26 @@ private theorem binary_apply_mul {R : Register} (first second : UnitaryOperator 
   exact congrArg (fun vector => vector row) (UnitaryOperator.mul_applyVec second first state.vec)
 
 /-- The actual controlled list retains the complete source step and every borrowed coordinate. -/
-private theorem placedArithmetic_realizes (width : Nat) (control : OffsetControl)
+private lemma placedArithmetic_realizes (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate)
     (source : List (EncodedBit.GateSpec (MAU.Addition.Gidney.encoding width)))
     (step : MAU.Addition.Gidney.Registers width → MAU.Addition.Gidney.Registers width)
     (runs : ∀ state, EncodedBit.GateSpec.stepList source state = step state) :
     UnitaryCircuit.Realizes (encoding width)
-      (placedArithmetic width control coordinate source)
+      (placedArithmetic width control coordinate source) environment.quantum
       ((offsetPlacement width control coordinate).step
         (fun state => (state.1, if state.1 = activeValue control then
           (step state.2.1, state.2.2) else state.2))) :=
   pointPlacedArithmetic_realizes width control coordinate source step runs
 
-private theorem frame_count (width : Nat) :
+private lemma frame_count (width : Nat) :
     InPlaceControlled.frameWidth width = 3 * width + 4 * width.size + 11 := by
   change (ProductPlacement.frameEncoding width).width = _
   rw [ProductPlacement.frame_width]
   unfold ProductWires.width ProductPlacement.tailWidth
   omega
 
-private theorem arithmetic_address (width : Nat) (control : OffsetControl)
+private lemma arithmetic_address (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (index : Fin (offsetEncoding width control).width) :
     (arithmeticWires width control coordinate index).val =
       wordAddress width (coordinateStart width coordinate)
@@ -148,13 +164,13 @@ private def sourceWordPosition (width : Nat) (control : OffsetControl) (index : 
     cases control <;> simp only [controlWidth] <;> omega⟩
 
 /-- A positive source position advances to its preceding physical prefix position. -/
-private theorem prefix_positive (count index : Nat) (positive : 0 < index)
+private lemma prefix_positive (count index : Nat) (positive : 0 < index)
     (within : index < count) :
     prefixAddress count index = index - 1 := by
   rw [prefixAddress, if_pos within, if_neg (Nat.ne_of_gt positive)]
 
 /-- Every placed Gidney word bit has precisely the original selected X or Y wire address. -/
-private theorem arithmetic_word_address (width : Nat) (control : OffsetControl)
+private lemma arithmetic_word_address (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (index : Fin width) :
     (arithmeticWires width control coordinate (sourceWordPosition width control index)).val =
       coordinateStart width coordinate + index.val := by
@@ -199,7 +215,7 @@ private def sourceWordBit (width : Nat) (control : OffsetControl) (index : Fin w
       (BinaryLabelEncoding.finIdentity (retainedWidth width control))
       (MAU.Addition.Gidney.wordBit width index.rev))
 
-private theorem source_word_wire (width : Nat) (control : OffsetControl) (index : Fin width) :
+private lemma source_word_wire (width : Nat) (control : OffsetControl) (index : Fin width) :
     (sourceWordBit width control index).wire = sourceWordPosition width control index := by
   apply Fin.ext
   change controlWidth control + (1 + (width - 1 - index.rev.val)) =
@@ -208,14 +224,14 @@ private theorem source_word_wire (width : Nat) (control : OffsetControl) (index 
   have bound := index.isLt
   omega
 
-private theorem coordinate_wire (width : Nat) (coordinate : Coordinate) (index : Fin width) :
+private lemma coordinate_wire (width : Nat) (coordinate : Coordinate) (index : Fin width) :
     ((coordinateWord width coordinate).bit index).wire.val =
       coordinateStart width coordinate + index.val := by
   cases coordinate
   · exact FramePorts.input_wire width index
   · exact FramePorts.numerator_wire width index
 
-private theorem coordinate_read (width : Nat) (coordinate : Coordinate) (index : Fin width)
+private lemma coordinate_read (width : Nat) (coordinate : Coordinate) (index : Fin width)
     (state : Raw width) :
     ((coordinateWord width coordinate).bit index).get state =
       (coordinateValue width coordinate state).val.testBit index.rev.val := by
@@ -223,7 +239,7 @@ private theorem coordinate_read (width : Nat) (coordinate : Coordinate) (index :
   · exact (ProductReadout.readWord_bit (FramePorts.input width) state.1.1 index).symm
   · exact (ProductReadout.readWord_bit (FramePorts.numerator width) state.1.1 index).symm
 
-private theorem wirePlacement_read {Source Target : Type}
+private lemma wirePlacement_read {Source Target : Type}
     (source : BinaryLabelEncoding Source) (target : BinaryLabelEncoding Target)
     (sourceTotal : Function.Surjective source.encode)
     (targetTotal : Function.Surjective target.encode)
@@ -245,7 +261,7 @@ private theorem wirePlacement_read {Source Target : Type}
   exact bits.symm
 
 /-- The actual arithmetic grouping reads the original full target word on every complete frame. -/
-private theorem grouping_coordinate (width : Nat) (control : OffsetControl)
+private lemma grouping_coordinate (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (state : Raw width) :
     ((offsetPlacement width control coordinate).grouping state).2.1.2.1 =
       coordinateValue width coordinate state := by
@@ -263,24 +279,24 @@ private theorem grouping_coordinate (width : Nat) (control : OffsetControl)
   rw [MAU.Addition.Gidney.gidneyWordBit_get, coordinate_read] at actual
   exact actual
 
-private theorem prefix_zero (count : Nat) (positive : 0 < count) :
+private lemma prefix_zero (count : Nat) (positive : 0 < count) :
     prefixAddress count 0 = count - 1 := by
   rw [prefixAddress, if_pos positive, if_pos rfl]
 
-private theorem prefix_outside (count index : Nat) (outside : count ≤ index) :
+private lemma prefix_outside (count index : Nat) (outside : count ≤ index) :
     prefixAddress count index = index := if_neg (Nat.not_lt.mpr outside)
 
-private theorem word_outside (width start index : Nat) (afterPrefix : width ≤ index)
+private lemma word_outside (width start index : Nat) (afterPrefix : width ≤ index)
     (afterWord : start + width ≤ index) : wordAddress width start index = index := by
   rw [wordAddress, if_neg (Nat.not_lt.mpr afterPrefix), if_neg (by omega)]
 
-private theorem coordinate_end (width : Nat) (coordinate : Coordinate) :
+private lemma coordinate_end (width : Nat) (coordinate : Coordinate) :
     coordinateStart width coordinate + width ≤ InPlaceControlled.frameWidth width := by
   rw [frame_count]
   cases coordinate <;> simp only [coordinateStart, ProductPlacement.tailWidth] <;> omega
 
 /-- The source's first leading control is exactly the real supplied control address. -/
-private theorem arithmetic_control_address (width : Nat) (control : OffsetControl)
+private lemma arithmetic_control_address (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (index : Fin (offsetEncoding width control).width)
     (zero : index.val = 0) :
     (arithmeticWires width control coordinate index).val = InPlaceControlled.controlWire width := by
@@ -310,7 +326,7 @@ private theorem arithmetic_control_address (width : Nat) (control : OffsetContro
     rfl
 
 /-- The second leading control in the exceptional offset is exactly the owned selector address. -/
-private theorem arithmetic_selector_address (width : Nat) (coordinate : Coordinate)
+private lemma arithmetic_selector_address (width : Nat) (coordinate : Coordinate)
     (index : Fin (offsetEncoding width .exceptional).width) (one : index.val = 1) :
     (arithmeticWires width .exceptional coordinate index).val = selectorWire width := by
   rw [arithmetic_address]
@@ -338,7 +354,7 @@ private def sourceControlBit (width : Nat) (control : OffsetControl)
       (BinaryLabelEncoding.finIdentity (retainedWidth width control)))
     (BinaryLabelEncoding.finIdentityBit (controlWidth control) index)
 
-private theorem grouping_suppliedControl (width : Nat) (coordinate : Coordinate)
+private lemma grouping_suppliedControl (width : Nat) (coordinate : Coordinate)
     (state : Raw width) :
     ((offsetPlacement width .supplied coordinate).grouping state).1 =
       BinaryLabelEncoding.bool.encode state.1.2 := by
@@ -360,7 +376,7 @@ private theorem grouping_suppliedControl (width : Nat) (coordinate : Coordinate)
   rw [actual]
   cases state.1.2 <;> rfl
 
-private theorem grouping_exceptionalControl (width : Nat) (coordinate : Coordinate)
+private lemma grouping_exceptionalControl (width : Nat) (coordinate : Coordinate)
     (state : Raw width) :
     ((offsetPlacement width .exceptional coordinate).grouping state).1 =
       (if state.1.2 then if state.2 then 3 else 2 else if state.2 then 1 else 0) := by
@@ -402,16 +418,17 @@ private def offsetStep (modulus : Nat) (control : OffsetControl) (coordinate : C
         constant grouped.2.1, grouped.2.2) else grouped.2)) state
 
 /-- Each actual offset has complete normalized basis semantics with both borrowed bits restored. -/
-private theorem offset_realizes (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
+private lemma offset_realizes (modulus : Nat) (control : OffsetControl) (coordinate : Coordinate)
     (constant : Fin (modulus + 1)) :
     UnitaryCircuit.Realizes (encoding modulus.size) (offset modulus control coordinate constant)
+      environment.quantum
       (offsetStep modulus control coordinate constant) :=
   placedArithmetic_realizes modulus.size control coordinate _ _
     (MAU.Addition.Gidney.gidneyModularOffsetGates_step modulus.size
       (InPlaceArithmetic.modulusWord modulus) constant)
 
 /-- The native offset leaves the complete source grouping outside its selected word intact. -/
-private theorem offsetStep_grouping (modulus : Nat) (control : OffsetControl)
+private lemma offsetStep_grouping (modulus : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (constant : Fin (modulus + 1)) (state : Raw modulus.size) :
     (offsetPlacement modulus.size control coordinate).grouping
       (offsetStep modulus control coordinate constant state) =
@@ -422,7 +439,7 @@ private theorem offsetStep_grouping (modulus : Nat) (control : OffsetControl)
   (offsetPlacement modulus.size control coordinate).grouping.apply_symm_apply _
 
 /-- Inactive control makes the actual offset the identity on every complete raw frame. -/
-private theorem offsetStep_inactive (modulus : Nat) (coordinate : Coordinate)
+private lemma offsetStep_inactive (modulus : Nat) (coordinate : Coordinate)
     (constant : Fin (modulus + 1)) (state : Raw modulus.size) (inactive : state.1.2 = false) :
     offsetStep modulus .supplied coordinate constant state = state := by
   apply (offsetPlacement modulus.size .supplied coordinate).grouping.injective
@@ -438,7 +455,7 @@ private theorem offsetStep_inactive (modulus : Nat) (coordinate : Coordinate)
   rw [if_neg absent]
 
 /-- The supplied quantum control is preserved by the whole actual controlled offset. -/
-private theorem offsetStep_control (modulus : Nat) (coordinate : Coordinate)
+private lemma offsetStep_control (modulus : Nat) (coordinate : Coordinate)
     (constant : Fin (modulus + 1)) (state : Raw modulus.size) :
     (offsetStep modulus .supplied coordinate constant state).1.2 = state.1.2 := by
   apply BinaryLabelEncoding.bool.encode_injective
@@ -449,7 +466,7 @@ private theorem offsetStep_control (modulus : Nat) (coordinate : Coordinate)
   exact actual
 
 /-- The exact selected output word is the independent finite modular addition, including padding. -/
-private theorem offsetStep_word (modulus : Nat) (coordinate : Coordinate)
+private lemma offsetStep_word (modulus : Nat) (coordinate : Coordinate)
     (constant : Fin (modulus + 1)) (state : Raw modulus.size) :
     coordinateValue modulus.size coordinate
       (offsetStep modulus .supplied coordinate constant state) =
@@ -473,7 +490,7 @@ private theorem offsetStep_word (modulus : Nat) (coordinate : Coordinate)
     rw [offsetStep_inactive modulus coordinate constant state inactive, inactive]
     rfl
 
-private theorem offsetEncoding_outside_word (width : Nat) (control : OffsetControl)
+private lemma offsetEncoding_outside_word (width : Nat) (control : OffsetControl)
     (state : Fin (2 ^ controlWidth control) ×
       (MAU.Addition.Gidney.Registers width × Fin (2 ^ retainedWidth width control)))
     (word : Fin (2 ^ width)) (index : Fin (offsetEncoding width control).width)
@@ -537,7 +554,7 @@ private theorem offsetEncoding_outside_word (width : Nat) (control : OffsetContr
         · rfl
 
 /-- Updating only the grouped arithmetic word preserves every other physical bit. -/
-private theorem grouping_word_preserves_bit (width : Nat) (control : OffsetControl)
+private lemma grouping_word_preserves_bit (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (state next : Raw width) (word : Fin (2 ^ width))
     (grouping : (offsetPlacement width control coordinate).grouping next =
       let grouped := (offsetPlacement width control coordinate).grouping state
@@ -581,7 +598,7 @@ private theorem grouping_word_preserves_bit (width : Nat) (control : OffsetContr
     ((offsetPlacement width control coordinate).grouping state) word index outside
 
 /-- Every actual physical bit outside the selected word survives the whole native offset. -/
-private theorem offsetStep_preserves_bit (modulus : Nat) (control : OffsetControl)
+private lemma offsetStep_preserves_bit (modulus : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (constant : Fin (modulus + 1)) (state : Raw modulus.size)
     (bit : EncodedBit (encoding modulus.size))
     (separate : ∀ selected : Fin modulus.size,
@@ -640,7 +657,7 @@ private def sharedBit (width : Nat)
       (BinaryLabelEncoding.prodLeftBit (MAU.Inversion.SharedEEA.encoding width)
         (BinaryLabelEncoding.finIdentity width) bit))
 
-private theorem inputFrame_bit_outside (modulus : Nat) (value : Fin (2 ^ modulus.size))
+private lemma inputFrame_bit_outside (modulus : Nat) (value : Fin (2 ^ modulus.size))
     (bit : EncodedBit (MAU.Inversion.SharedEEA.encoding modulus.size))
     (outside : bit.wire.val < modulus.size + 6 ∨
       2 * modulus.size + 6 ≤ bit.wire.val) :
@@ -659,7 +676,7 @@ private def preparedRaw (modulus : Nat) (control selector : Bool)
     (x y : Fin (2 ^ modulus.size)) : Raw modulus.size :=
   (((MAU.Inversion.SharedEEA.InitialPortProgram.inputFrame modulus x, y), control), selector)
 
-private theorem preparedRaw_coordinate (modulus : Nat) (control selector : Bool)
+private lemma preparedRaw_coordinate (modulus : Nat) (control selector : Bool)
     (x y : Fin (2 ^ modulus.size)) (coordinate : Coordinate) :
     coordinateValue modulus.size coordinate (preparedRaw modulus control selector x y) =
       match coordinate with | .x => x | .y => y := by
@@ -667,7 +684,7 @@ private theorem preparedRaw_coordinate (modulus : Nat) (control selector : Bool)
   · exact InPlaceArithmetic.initial_input modulus x y
   · exact ProductReadout.numerator_eq modulus.size _
 
-private theorem preparedRaw_label (modulus : Nat) (control selector : Bool)
+private lemma preparedRaw_label (modulus : Nat) (control selector : Bool)
     (x y : Fin (2 ^ modulus.size)) :
     (basis modulus.size).symm ((encoding modulus.size).encode
       (preparedRaw modulus control selector x y)) =
@@ -682,7 +699,7 @@ private theorem preparedRaw_label (modulus : Nat) (control selector : Bool)
   rw [InPlaceTarget.preparedBasis_frame] at actual
   exact actual.symm
 
-private theorem control_outside_coordinate (width : Nat) (coordinate : Coordinate)
+private lemma control_outside_coordinate (width : Nat) (coordinate : Coordinate)
     (selected : Fin width) :
     (controlBit width).wire ≠ ((coordinateWord width coordinate).bit selected).wire := by
   intro same
@@ -693,7 +710,7 @@ private theorem control_outside_coordinate (width : Nat) (coordinate : Coordinat
   have bound := selected.isLt
   omega
 
-private theorem selector_outside_coordinate (width : Nat) (coordinate : Coordinate)
+private lemma selector_outside_coordinate (width : Nat) (coordinate : Coordinate)
     (selected : Fin width) :
     (selectorBit width).wire ≠ ((coordinateWord width coordinate).bit selected).wire := by
   intro same
@@ -705,19 +722,19 @@ private theorem selector_outside_coordinate (width : Nat) (coordinate : Coordina
   omega
 
 /-- The selector is retained by every actual one- or two-control modular offset. -/
-private theorem offsetStep_selector (modulus : Nat) (control : OffsetControl)
+private lemma offsetStep_selector (modulus : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (constant : Fin (modulus + 1)) (state : Raw modulus.size) :
     (offsetStep modulus control coordinate constant state).2 = state.2 :=
   offsetStep_preserves_bit modulus control coordinate constant state (selectorBit modulus.size)
     (selector_outside_coordinate modulus.size coordinate)
 
-private theorem bit_get_of_wire_eq {Data : Type} {encoded : BinaryLabelEncoding Data}
+private lemma bit_get_of_wire_eq {Data : Type} {encoded : BinaryLabelEncoding Data}
     (left right : EncodedBit encoded) (same : left.wire = right.wire) (state : Data) :
     left.get state = right.get state := by
   rw [ProductReadout.bit_read, ProductReadout.bit_read, same]
 
 /-- A physical X-only word update reconstructs the complete prepared frame. -/
-private theorem prepared_x_of_words (modulus : Nat) (selector : Bool)
+private lemma prepared_x_of_words (modulus : Nat) (selector : Bool)
     (x y word : Fin (2 ^ modulus.size)) (next : Raw modulus.size)
     (actualWord : coordinateValue modulus.size .x next = word)
     (preserved : ∀ bit : EncodedBit (encoding modulus.size),
@@ -793,7 +810,7 @@ private theorem prepared_x_of_words (modulus : Nat) (selector : Bool)
   · exact preserved (selectorBit modulus.size) (selector_outside_coordinate modulus.size .x)
 
 /-- An active X offset restores the complete arithmetic preparation and both controls. -/
-private theorem offsetStep_prepared_x (modulus : Nat) (constant : Fin (modulus + 1))
+private lemma offsetStep_prepared_x (modulus : Nat) (constant : Fin (modulus + 1))
     (selector : Bool) (x y : Fin (2 ^ modulus.size)) :
     offsetStep modulus .supplied .x constant (preparedRaw modulus true selector x y) =
       preparedRaw modulus true selector
@@ -805,7 +822,7 @@ private theorem offsetStep_prepared_x (modulus : Nat) (constant : Fin (modulus +
     exact actual
   · exact offsetStep_preserves_bit modulus .supplied .x constant _
 
-private theorem offsetStep_word_active (modulus : Nat) (control : OffsetControl)
+private lemma offsetStep_word_active (modulus : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (constant : Fin (modulus + 1)) (state : Raw modulus.size)
     (activated : ((offsetPlacement modulus.size control coordinate).grouping state).1 =
       activeValue control) :
@@ -824,7 +841,7 @@ private theorem offsetStep_word_active (modulus : Nat) (control : OffsetControl)
   exact actual
 
 /-- Active Y translation preserves every original history bit and both full quantum controls. -/
-private theorem offsetStep_y_active (modulus : Nat) (control : OffsetControl)
+private lemma offsetStep_y_active (modulus : Nat) (control : OffsetControl)
     (constant : Fin (modulus + 1)) (state : Raw modulus.size)
     (activated : ((offsetPlacement modulus.size control .y).grouping state).1 =
       activeValue control) :
@@ -864,7 +881,7 @@ private theorem offsetStep_y_active (modulus : Nat) (control : OffsetControl)
         (control_outside_coordinate modulus.size .y)
   · exact offsetStep_selector modulus control .y constant state
 
-private theorem offsetStep_prepared_y (modulus : Nat) (constant : Fin (modulus + 1))
+private lemma offsetStep_prepared_y (modulus : Nat) (constant : Fin (modulus + 1))
     (selector : Bool) (x y : Fin (2 ^ modulus.size)) :
     offsetStep modulus .supplied .y constant (preparedRaw modulus true selector x y) =
       preparedRaw modulus true selector x
@@ -873,7 +890,7 @@ private theorem offsetStep_prepared_y (modulus : Nat) (constant : Fin (modulus +
   rw [grouping_suppliedControl]
   rfl
 
-private theorem offsetStep_exceptional_prepared (modulus : Nat) (constant : Fin (modulus + 1))
+private lemma offsetStep_exceptional_prepared (modulus : Nat) (constant : Fin (modulus + 1))
     (x y : Fin (2 ^ modulus.size)) :
     offsetStep modulus .exceptional .y constant (preparedRaw modulus true false x y) =
       preparedRaw modulus true false x
@@ -882,7 +899,7 @@ private theorem offsetStep_exceptional_prepared (modulus : Nat) (constant : Fin 
   rw [grouping_exceptionalControl]
   rfl
 
-private theorem offsetStep_exceptional_inactive (modulus : Nat) (coordinate : Coordinate)
+private lemma offsetStep_exceptional_inactive (modulus : Nat) (coordinate : Coordinate)
     (constant : Fin (modulus + 1)) (state : Raw modulus.size)
     (inactive : state.1.2 = false ∨ state.2 = true) :
     offsetStep modulus .exceptional coordinate constant state = state := by
@@ -905,13 +922,14 @@ private def reflectStep (modulus : Nat) (state : Raw modulus.size) : Raw modulus
       (MAU.Addition.Gidney.pivotOutput (InPlaceArithmetic.modulusWord modulus) grouped.2.1,
         grouped.2.2) else grouped.2)) state
 
-private theorem reflect_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (reflect modulus) (reflectStep modulus) :=
+private lemma reflect_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (reflect modulus) environment.quantum
+      (reflectStep modulus) :=
   placedArithmetic_realizes modulus.size .supplied .x _ _
     (MAU.Addition.Gidney.gidneyPivotGates_step modulus.size
       (InPlaceArithmetic.modulusWord modulus))
 
-private theorem reflectStep_grouping_active (modulus : Nat) (state : Raw modulus.size)
+private lemma reflectStep_grouping_active (modulus : Nat) (state : Raw modulus.size)
     (active : state.1.2 = true) :
     (offsetPlacement modulus.size .supplied .x).grouping (reflectStep modulus state) =
       let grouped := (offsetPlacement modulus.size .supplied .x).grouping state
@@ -930,7 +948,7 @@ private theorem reflectStep_grouping_active (modulus : Nat) (state : Raw modulus
     ((offsetPlacement modulus.size .supplied .x).grouping state).2.1.2.1, _)), _)) = _
   rw [grouping_coordinate]
 
-private theorem reflectStep_inactive (modulus : Nat) (state : Raw modulus.size)
+private lemma reflectStep_inactive (modulus : Nat) (state : Raw modulus.size)
     (inactive : state.1.2 = false) : reflectStep modulus state = state := by
   have control : ((offsetPlacement modulus.size .supplied .x).grouping state).1 ≠ 1 := by
     rw [grouping_suppliedControl, inactive]
@@ -941,7 +959,7 @@ private theorem reflectStep_inactive (modulus : Nat) (state : Raw modulus.size)
   exact (offsetPlacement modulus.size .supplied .x).grouping.symm_apply_apply state
 
 /-- The real pivot reflection restores every prepared work bit on its active X word. -/
-private theorem reflectStep_prepared (modulus : Nat) (selector : Bool)
+private lemma reflectStep_prepared (modulus : Nat) (selector : Bool)
     (x y : Fin (2 ^ modulus.size)) :
     reflectStep modulus (preparedRaw modulus true selector x y) =
       preparedRaw modulus true selector
@@ -961,7 +979,7 @@ private def squareWires (width : Nat) :
     ((controlWires width .supplied).trans
       ((coordinateWires width .x).trans (coordinateWires width .y)))
 
-private theorem square_address (width : Nat) (index : Fin (squareEncoding width).width) :
+private lemma square_address (width : Nat) (index : Fin (squareEncoding width).width) :
     (squareWires width index).val = wordAddress width (coordinateStart width .y)
       (wordAddress width (coordinateStart width .x)
         (prefixAddress (InPlaceControlled.frameWidth width + 1) index.val)) := rfl
@@ -974,7 +992,7 @@ private def squareFrameBit (width : Nat)
     (BinaryLabelEncoding.prodLeftBit (ProductPlacement.frameEncoding width)
       BinaryLabelEncoding.bool bit)
 
-private theorem square_read (width : Nat) (state : Raw width)
+private lemma square_read (width : Nat) (state : Raw width)
     (source : EncodedBit (squareEncoding width)) (observed : EncodedBit (encoding width))
     (same : squareWires width source.wire = observed.wire) :
     source.get ((squarePlacement width).grouping state) = observed.get state :=
@@ -1000,7 +1018,7 @@ private def squareTargetWord (width : Nat) : SquarePort → EncodedBit.Word (enc
   | .accumulator => frameWord width (FramePorts.input width)
 
 /-- The real square placement routes source X/Y/A to caller Y/A/X, with no physical swap charge. -/
-private theorem square_word_wires (width : Nat) (port : SquarePort) (index : Fin width) :
+private lemma square_word_wires (width : Nat) (port : SquarePort) (index : Fin width) :
     squareWires width (squareFrameBit width ((squareSourceWord width port).bit index)).wire =
       ((squareTargetWord width port).bit index).wire := by
   apply Fin.ext
@@ -1036,7 +1054,7 @@ private theorem square_word_wires (width : Nat) (port : SquarePort) (index : Fin
     unfold prefixAddress wordAddress
     split_ifs <;> omega
 
-private theorem square_grouping_input (width : Nat) (state : Raw width) :
+private lemma square_grouping_input (width : Nat) (state : Raw width) :
     ProductReadout.input width ((squarePlacement width).grouping state).2.1 =
       ProductReadout.numerator width state.1.1 := by
   apply ProductReadout.word_ext
@@ -1049,7 +1067,7 @@ private theorem square_grouping_input (width : Nat) (state : Raw width) :
     ((squarePlacement width).grouping state).2.1 index).trans
       (actual.trans (ProductReadout.readWord_bit (FramePorts.numerator width) state.1.1 index).symm)
 
-private theorem square_grouping_numerator (width : Nat) (state : Raw width) :
+private lemma square_grouping_numerator (width : Nat) (state : Raw width) :
     ProductReadout.numerator width ((squarePlacement width).grouping state).2.1 =
       ProductReadout.accumulator width state.1.1 := by
   apply ProductReadout.word_ext
@@ -1063,7 +1081,7 @@ private theorem square_grouping_numerator (width : Nat) (state : Raw width) :
       (actual.trans
         (ProductReadout.readWord_bit (FramePorts.accumulator width) state.1.1 index).symm)
 
-private theorem square_grouping_accumulator (width : Nat) (state : Raw width) :
+private lemma square_grouping_accumulator (width : Nat) (state : Raw width) :
     ProductReadout.accumulator width ((squarePlacement width).grouping state).2.1 =
       ProductReadout.input width state.1.1 := by
   apply ProductReadout.word_ext
@@ -1084,7 +1102,7 @@ private def frameBit (width : Nat)
     (BinaryLabelEncoding.prodLeftBit (ProductPlacement.frameEncoding width)
       BinaryLabelEncoding.bool bit)
 
-private theorem square_history_wire (width : Nat)
+private lemma square_history_wire (width : Nat)
     (index : Fin (ProductPlacement.historyWidth width)) :
     squareWires width
       (squareFrameBit width (completeBit (ProductPlacement.frameEncoding width)
@@ -1108,7 +1126,7 @@ private theorem square_history_wire (width : Nat)
   unfold prefixAddress wordAddress
   split_ifs <;> omega
 
-private theorem square_grouping_history (width : Nat) (state : Raw width) :
+private lemma square_grouping_history (width : Nat) (state : Raw width) :
     ProductReadout.history width ((squarePlacement width).grouping state).2.1 =
       ProductReadout.history width state.1.1 := by
   apply ProductReadout.word_ext
@@ -1129,7 +1147,7 @@ private def squareControlBit (width : Nat) : EncodedBit (squareEncoding width) :
     (BinaryLabelEncoding.prod (ProductPlacement.frameEncoding width) BinaryLabelEncoding.bool)
     (BinaryLabelEncoding.finIdentityBit 1 0)
 
-private theorem square_control_wire (width : Nat) :
+private lemma square_control_wire (width : Nat) :
     squareWires width (squareControlBit width).wire = (controlBit width).wire := by
   apply Fin.ext
   rw [square_address]
@@ -1142,7 +1160,7 @@ private theorem square_control_wire (width : Nat) :
   unfold prefixAddress wordAddress
   split_ifs <;> omega
 
-private theorem square_grouping_control (width : Nat) (state : Raw width) :
+private lemma square_grouping_control (width : Nat) (state : Raw width) :
     ((squarePlacement width).grouping state).1 = BinaryLabelEncoding.bool.encode state.1.2 := by
   have actual := square_read width state (squareControlBit width) (controlBit width)
     (square_control_wire width)
@@ -1161,7 +1179,7 @@ private def squareSelectorBit (width : Nat) : EncodedBit (squareEncoding width) 
     (BinaryLabelEncoding.prodRightBit (ProductPlacement.frameEncoding width)
       BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit)
 
-private theorem square_selector_wire (width : Nat) :
+private lemma square_selector_wire (width : Nat) :
     squareWires width (squareSelectorBit width).wire = (selectorBit width).wire := by
   apply Fin.ext
   rw [square_address]
@@ -1174,16 +1192,18 @@ private theorem square_selector_wire (width : Nat) :
   unfold prefixAddress wordAddress
   split_ifs <;> omega
 
-private theorem square_grouping_selector (width : Nat) (state : Raw width) :
+private lemma square_grouping_selector (width : Nat) (state : Raw width) :
     ((squarePlacement width).grouping state).2.2 = state.2 :=
   square_read width state (squareSelectorBit width) (selectorBit width) (square_selector_wire width)
 
 private def squareCopyStep (width : Nat) (state : Raw width) : Raw width :=
   ((InPlaceControlled.copyStep width state.1.1, state.1.2), state.2)
 
-private theorem squareCopy_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (squareCopy width) (squareCopyStep width) := by
-  apply (EncodedBit.Word.xorInto_realizes (nativeLayout width) .empty
+private lemma squareCopy_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (squareCopy width) environment.quantum
+      (squareCopyStep width) := by
+  apply (EncodedBit.Word.xorInto_realizes
+    (environment := environment.quantum) (nativeLayout width) .empty
     (frameWord width (FramePorts.numerator width))
     (frameWord width (FramePorts.accumulator width)) (copy_separate width)).congrStep
   intro state
@@ -1205,7 +1225,7 @@ private theorem squareCopy_realizes (width : Nat) :
       (fun index => (FramePorts.accumulator_numerator_ne width index index).symm)) state.1
   exact first.trans (congrArg (fun frame => (frame, state.2)) second)
 
-private theorem copy_accumulator_bit (width : Nat) (state : ProductPlacement.Frame width)
+private lemma copy_accumulator_bit (width : Nat) (state : ProductPlacement.Frame width)
     (index : Fin width) :
     (ProductReadout.accumulator width (InPlaceControlled.copyStep width state)).val.testBit
         index.rev.val =
@@ -1216,7 +1236,7 @@ private theorem copy_accumulator_bit (width : Nat) (state : ProductPlacement.Fra
     (fun other different => FramePorts.accumulator_distinct width other index different)
     (fun other => FramePorts.accumulator_numerator_ne width other index)]
 
-private theorem copyStep_involutive (width : Nat) (state : ProductPlacement.Frame width) :
+private lemma copyStep_involutive (width : Nat) (state : ProductPlacement.Frame width) :
     InPlaceControlled.copyStep width (InPlaceControlled.copyStep width state) = state := by
   apply ProductPortLaws.frame_ext
   · rw [InPlaceControlled.copy_input, InPlaceControlled.copy_input]
@@ -1228,7 +1248,7 @@ private theorem copyStep_involutive (width : Nat) (state : ProductPlacement.Fram
   · rw [InPlaceControlled.copy_history, InPlaceControlled.copy_history]
 
 /-- The two actual copies restore A on every frame when the middle action is off. -/
-private theorem squareCopyStep_involutive (width : Nat) (state : Raw width) :
+private lemma squareCopyStep_involutive (width : Nat) (state : Raw width) :
     squareCopyStep width (squareCopyStep width state) = state := by
   change ((InPlaceControlled.copyStep width (InPlaceControlled.copyStep width state.1.1),
     state.1.2), state.2) = state
@@ -1241,7 +1261,7 @@ private def productPermutation (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     ((Equiv.prodCongr (Nat.FixedWidth.variableTripleEquiv modulus) (Equiv.refl _)).trans
       (ProductPlacement.placement width).grouping.symm)
 
-private theorem productPermutation_apply (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma productPermutation_apply (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : ProductPlacement.Frame width) :
     productPermutation width modulus state = NativeProductFrame.step width modulus state := by
   simp only [productPermutation, Equiv.trans_apply, Equiv.prodCongr_apply, Prod.map,
@@ -1249,7 +1269,7 @@ private theorem productPermutation_apply (width : Nat) (modulus : Fin (2 ^ width
   rfl
 
 /-- Reversing the actual product list inverts the complete finite frame permutation. -/
-private theorem product_inverse_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma product_inverse_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : ProductPlacement.Frame width) :
     EncodedBit.GateSpec.stepList (NativeProductFrame.gates width modulus).reverse state =
       (productPermutation width modulus).symm state := by
@@ -1269,10 +1289,10 @@ private def squareStep (modulus : Nat) : Raw modulus.size → Raw modulus.size :
         grouped.2.2) else grouped.2)
 
 /-- The literal cyclic product placement executes the complete inverse arithmetic under real C. -/
-private theorem squareSubtract_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (squareSubtract modulus)
+private lemma squareSubtract_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (squareSubtract modulus) environment.quantum
       (squareStep modulus) := by
-  apply EncodedBit.GateSpec.realizesList_congrStep
+  apply EncodedBit.GateSpec.realizesList_congrStep (environment := environment.quantum)
   intro state
   rw [squareSubtractGates, EncodedBit.FullPlacement.placeGates_step]
   unfold EncodedBit.FullPlacement.step squareStep
@@ -1280,7 +1300,7 @@ private theorem squareSubtract_realizes (modulus : Nat) :
   rw [pointPrefixControlGates_step]
   simp only [EncodedBit.GateSpec.stepList_prodLeft, product_inverse_step, activeValue]
 
-private theorem squareStep_inactive (modulus : Nat) (state : Raw modulus.size)
+private lemma squareStep_inactive (modulus : Nat) (state : Raw modulus.size)
     (inactive : state.1.2 = false) : squareStep modulus state = state := by
   apply (squarePlacement modulus.size).grouping.injective
   change (squarePlacement modulus.size).grouping
@@ -1295,8 +1315,8 @@ private theorem squareStep_inactive (modulus : Nat) (state : Raw modulus.size)
   dsimp only []
   rw [if_neg absent]
 
-private theorem subtractSquare_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (subtractSquare modulus)
+private lemma subtractSquare_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (subtractSquare modulus) environment.quantum
       (squareCopyStep modulus.size ∘ squareStep modulus ∘ squareCopyStep modulus.size) :=
   nativeList_append_realizes _ _ _ _
     (nativeList_append_realizes _ _ _ _
@@ -1304,17 +1324,18 @@ private theorem subtractSquare_realizes (modulus : Nat) :
     (squareCopy_realizes modulus.size)
 
 /-- Inactive square subtraction fixes every binary label, including arbitrary entangled work. -/
-private theorem subtractSquare_inactive (modulus : Nat) (state : Raw modulus.size)
+private lemma subtractSquare_inactive (modulus : Nat) (state : Raw modulus.size)
     (inactive : state.1.2 = false) :
-    (subtractSquare modulus).binaryMatrix.apply
+    ((subtractSquare modulus).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding modulus.size).encode state)) =
         NormalizedVector.ket ((encoding modulus.size).encode state) := by
-  have actual := nativeRealizes_ket _ _ (subtractSquare_realizes modulus) state
+  have actual := nativeRealizes_ket (environment := environment) _ _
+    (subtractSquare_realizes modulus) state
   have copied : (squareCopyStep modulus.size state).1.2 = false := inactive
   simpa only [Function.comp_apply, squareStep_inactive modulus _ copied,
     squareCopyStep_involutive] using actual
 
-private theorem prepared_history_independent (modulus : Nat)
+private lemma prepared_history_independent (modulus : Nat)
     (leftX leftY rightX rightY : Fin (2 ^ modulus.size)) :
     ProductReadout.history modulus.size
       (MAU.Inversion.SharedEEA.InitialPortProgram.inputFrame modulus leftX, leftY) =
@@ -1349,7 +1370,7 @@ private theorem prepared_history_independent (modulus : Nat)
   simpa only [ProductReadout.history, BinaryBasis.bigEndianEquiv_bit, Equiv.apply_symm_apply,
     ProductPlacement.frameEncoding] using actual
 
-private theorem copied_square_reads (modulus : Nat) (selector : Bool)
+private lemma copied_square_reads (modulus : Nat) (selector : Bool)
     (x y : Fin (2 ^ modulus.size)) :
     let frame := ((squarePlacement modulus.size).grouping
       (squareCopyStep modulus.size (preparedRaw modulus true selector x y))).2.1
@@ -1372,7 +1393,7 @@ private theorem copied_square_reads (modulus : Nat) (selector : Bool)
         (MAU.Inversion.SharedEEA.InitialPortProgram.inputFrame modulus x, y)) = x
       rw [InPlaceControlled.copy_input, InPlaceArithmetic.initial_input]
 
-private theorem copied_square_history (modulus : Nat) (selector : Bool)
+private lemma copied_square_history (modulus : Nat) (selector : Bool)
     (leftX leftY rightX rightY : Fin (2 ^ modulus.size)) :
     ProductReadout.history modulus.size ((squarePlacement modulus.size).grouping
       (squareCopyStep modulus.size (preparedRaw modulus true selector leftX leftY))).2.1 =
@@ -1386,7 +1407,7 @@ private theorem copied_square_history (modulus : Nat) (selector : Bool)
   rw [InPlaceControlled.copy_history, InPlaceControlled.copy_history]
   exact prepared_history_independent modulus leftX leftY rightX rightY
 
-private theorem product_inverse_of_read_values (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma product_inverse_of_read_values (width : Nat) (modulus : Fin (2 ^ width + 1))
     (before after : ProductPlacement.Frame width) (x y difference : Fin (2 ^ width))
     (beforeReads : ProductReadout.input width before = y ∧
       ProductReadout.numerator width before = y ∧ ProductReadout.accumulator width before = x)
@@ -1410,7 +1431,7 @@ private theorem product_inverse_of_read_values (width : Nat) (modulus : Fin (2 ^
   · exact history
 
 /-- The actual inverse product restores the exact copied frame prescribed by modular subtraction. -/
-private theorem squareStep_copied_prepared (modulus : Nat) (selector : Bool)
+private lemma squareStep_copied_prepared (modulus : Nat) (selector : Bool)
     (x y difference : Fin (2 ^ modulus.size)) (valid : difference.val < modulus)
     (arithmetic : (difference.val + y.val * y.val) % modulus = x.val) :
     squareStep modulus (squareCopyStep modulus.size (preparedRaw modulus true selector x y)) =
@@ -1441,20 +1462,21 @@ private theorem squareStep_copied_prepared (modulus : Nat) (selector : Bool)
       rfl
 
 /-- Real copies and the real product adjoint subtract the square and restore all prepared work. -/
-private theorem subtractSquare_prepared (modulus : Nat) (selector : Bool)
+private lemma subtractSquare_prepared (modulus : Nat) (selector : Bool)
     (x y difference : Fin (2 ^ modulus.size)) (valid : difference.val < modulus)
     (arithmetic : (difference.val + y.val * y.val) % modulus = x.val) :
-    (subtractSquare modulus).binaryMatrix.apply
+    ((subtractSquare modulus).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding modulus.size).encode
         (preparedRaw modulus true selector x y))) =
       NormalizedVector.ket ((encoding modulus.size).encode
         (preparedRaw modulus true selector difference y)) := by
-  have actual := nativeRealizes_ket _ _ (subtractSquare_realizes modulus)
+  have actual := nativeRealizes_ket (environment := environment) _ _
+    (subtractSquare_realizes modulus)
     (preparedRaw modulus true selector x y)
   simpa only [Function.comp_apply, squareStep_copied_prepared modulus selector x y difference
     valid arithmetic, squareCopyStep_involutive] using actual
 
-private theorem flipBit_bigEndian {width : Nat} (target index : Fin width)
+private lemma flipBit_bigEndian {width : Nat} (target index : Fin width)
     (value : Fin (2 ^ width)) :
     (WireAddress.flipBit target value).val.testBit index.rev.val =
       (value.val.testBit index.rev.val ^^ decide (target = index)) := by
@@ -1464,7 +1486,7 @@ private theorem flipBit_bigEndian {width : Nat} (target index : Fin width)
     omega
   simpa only [reverse] using WireAddress.bit_flipBit target index value
 
-private theorem wireBasis_flip {Source Target : Type}
+private lemma wireBasis_flip {Source Target : Type}
     (source : BinaryLabelEncoding Source) (target : BinaryLabelEncoding Target)
     (wires : Fin source.width ≃ Fin target.width)
     (selected : Fin source.width) (value : Fin (2 ^ source.width)) :
@@ -1479,7 +1501,7 @@ private theorem wireBasis_flip {Source Target : Type}
   simp only [Equiv.apply_eq_iff_eq]
 
 /-- The same physical wire placement transports a literal native bit flip on every full label. -/
-private theorem wirePlacement_flip {Source Target : Type}
+private lemma wirePlacement_flip {Source Target : Type}
     (source : BinaryLabelEncoding Source) (target : BinaryLabelEncoding Target)
     (sourceTotal : Function.Surjective source.encode)
     (targetTotal : Function.Surjective target.encode)
@@ -1524,7 +1546,7 @@ private def comparisonFlagBit (width : Nat) : EncodedBit (offsetEncoding width .
       (BinaryLabelEncoding.finIdentity (retainedWidth width .supplied))
       (MAU.Addition.Gidney.flagBit width))
 
-private theorem comparison_flag_wire (width : Nat) :
+private lemma comparison_flag_wire (width : Nat) :
     comparisonWires width (comparisonFlagBit width).wire = (selectorBit width).wire := by
   have original : arithmeticWires width .supplied .x (comparisonFlagBit width).wire =
       (⟨width, by rw [total_width]; omega⟩ : Fin (encoding width).width) := by
@@ -1541,7 +1563,7 @@ private theorem comparison_flag_wire (width : Nat) :
   change Equiv.swap _ _ (arithmeticWires width .supplied .x (comparisonFlagBit width).wire) = _
   rw [original, Equiv.swap_apply_left]
 
-private theorem comparison_control_wire (width : Nat) :
+private lemma comparison_control_wire (width : Nat) :
     comparisonWires width (sourceControlBit width .supplied 0).wire = (controlBit width).wire := by
   have original : arithmeticWires width .supplied .x (sourceControlBit width .supplied 0).wire =
       (controlBit width).wire := by
@@ -1558,7 +1580,7 @@ private theorem comparison_control_wire (width : Nat) :
     omega
   · exact controls_separate width
 
-private theorem comparison_word_wire (width : Nat) (index : Fin width) :
+private lemma comparison_word_wire (width : Nat) (index : Fin width) :
     comparisonWires width (sourceWordBit width .supplied index).wire =
       ((coordinateWord width .x).bit index).wire := by
   have original : arithmeticWires width .supplied .x (sourceWordBit width .supplied index).wire =
@@ -1576,7 +1598,7 @@ private theorem comparison_word_wire (width : Nat) (index : Fin width) :
     omega
   · exact (selector_outside_coordinate width .x index).symm
 
-private theorem comparison_read (width : Nat) (state : Raw width)
+private lemma comparison_read (width : Nat) (state : Raw width)
     (source : EncodedBit (offsetEncoding width .supplied))
     (observed : EncodedBit (encoding width))
     (same : comparisonWires width source.wire = observed.wire) :
@@ -1585,7 +1607,7 @@ private theorem comparison_read (width : Nat) (state : Raw width)
     (offset_total width .supplied) (raw_total width) (comparisonWires width)
       source observed same state
 
-private theorem comparison_grouping_control (width : Nat) (state : Raw width) :
+private lemma comparison_grouping_control (width : Nat) (state : Raw width) :
     ((comparisonPlacement width).grouping state).1 = BinaryLabelEncoding.bool.encode state.1.2 := by
   have actual := comparison_read width state (sourceControlBit width .supplied 0)
     (controlBit width) (comparison_control_wire width)
@@ -1598,7 +1620,7 @@ private theorem comparison_grouping_control (width : Nat) (state : Raw width) :
   rw [actual]
   cases state.1.2 <;> rfl
 
-private theorem comparison_grouping_word (width : Nat) (state : Raw width) :
+private lemma comparison_grouping_word (width : Nat) (state : Raw width) :
     ((comparisonPlacement width).grouping state).2.1.2.1 =
       ProductReadout.input width state.1.1 := by
   apply ProductReadout.word_ext
@@ -1610,12 +1632,12 @@ private theorem comparison_grouping_word (width : Nat) (state : Raw width) :
   rw [MAU.Addition.Gidney.gidneyWordBit_get, coordinate_read] at actual
   exact actual
 
-private theorem comparison_grouping_flag (width : Nat) (state : Raw width) :
+private lemma comparison_grouping_flag (width : Nat) (state : Raw width) :
     ((comparisonPlacement width).grouping state).2.1.1 = state.2 :=
   comparison_read width state (comparisonFlagBit width) (selectorBit width)
     (comparison_flag_wire width)
 
-private theorem comparison_flip (width : Nat) (state : Raw width) :
+private lemma comparison_flip (width : Nat) (state : Raw width) :
     (comparisonPlacement width).grouping.symm
       ((comparisonFlagBit width).flip ((comparisonPlacement width).grouping state)) =
       (selectorBit width).flip state :=
@@ -1633,7 +1655,7 @@ private def compareZeroStep (width : Nat) (state : Raw width) : Raw width :=
   if state.1.2 && decide ((ProductReadout.input width state.1.1).val = 0) then
     (selectorBit width).flip state else state
 
-private theorem comparisonAction_active (width : Nat) (state : Raw width)
+private lemma comparisonAction_active (width : Nat) (state : Raw width)
     (active : state.1.2 = true) :
     comparisonAction width ((comparisonPlacement width).grouping state) =
       if (ProductReadout.input width state.1.1).val = 0 then
@@ -1659,7 +1681,7 @@ private theorem comparisonAction_active (width : Nat) (state : Raw width)
     rfl
   · simp only [zero, if_false, decide_false, Bool.xor_false]
 
-private theorem comparisonAction_inactive (width : Nat) (state : Raw width)
+private lemma comparisonAction_inactive (width : Nat) (state : Raw width)
     (inactive : state.1.2 = false) :
     comparisonAction width ((comparisonPlacement width).grouping state) =
       (comparisonPlacement width).grouping state := by
@@ -1671,9 +1693,10 @@ private theorem comparisonAction_inactive (width : Nat) (state : Raw width)
   rfl
 
 /-- The actual comparison toggles precisely N on C=true and X=0, retaining every other bit. -/
-private theorem compareZero_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (compareZero width) (compareZeroStep width) := by
-  apply EncodedBit.GateSpec.realizesList_congrStep
+private lemma compareZero_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (compareZero width) environment.quantum
+      (compareZeroStep width) := by
+  apply EncodedBit.GateSpec.realizesList_congrStep (environment := environment.quantum)
   intro state
   rw [compareZeroGates, EncodedBit.FullPlacement.placeGates_step]
   unfold EncodedBit.FullPlacement.step
@@ -1699,9 +1722,11 @@ private def selectNormalStep (width : Nat) (state : Raw width) : Raw width :=
   (state.1, state.2 ^^ (state.1.2 && decide ((ProductReadout.input width state.1.1).val ≠ 0)))
 
 /-- The actual selector circuit changes only N by C and the nonzero test on X. -/
-private theorem selectNormal_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (selectNormal width) (selectNormalStep width) := by
-  have first := EncodedBit.GateSpec.realizesList (nativeLayout width) .empty
+private lemma selectNormal_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (selectNormal width) environment.quantum
+      (selectNormalStep width) := by
+  have first := EncodedBit.GateSpec.realizesList (environment := environment.quantum)
+    (nativeLayout width) .empty
     [.cnot (controlBit width) (selectorBit width) (controls_separate width)]
   apply (nativeList_append_realizes _ _ _ _ first (compareZero_realizes width)).congrStep
   rintro ⟨⟨frame, control⟩, selector⟩
@@ -1713,23 +1738,23 @@ private theorem selectNormal_realizes (width : Nat) :
       BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
       BinaryLabelEncoding.boolBit, zero]
 
-private theorem selectNormalStep_involutive (width : Nat) :
+private lemma selectNormalStep_involutive (width : Nat) :
     Function.Involutive (selectNormalStep width) := by
   intro state
   dsimp only [selectNormalStep]
   rw [Bool.xor_assoc, Bool.xor_self, Bool.xor_false]
 
 /-- Uncomputing the real selector restores exactly the original bit and full frame. -/
-private theorem selectNormal_dagger_realizes (width : Nat) :
+private lemma selectNormal_dagger_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width)
       (EncodedBit.GateSpec.programList (nativeLayout width) .empty
-        (selectNormalGates width).reverse)
+        (selectNormalGates width).reverse) environment.quantum
       (selectNormalStep width) := by
-  apply EncodedBit.GateSpec.realizesList_congrStep
+  apply EncodedBit.GateSpec.realizesList_congrStep (environment := environment.quantum)
   intro state
   have forward : EncodedBit.GateSpec.stepList (selectNormalGates width)
       (selectNormalStep width state) = state :=
-    (nativeList_step _ _ (selectNormal_realizes width) _).trans
+    (nativeList_step (environment := environment) _ _ (selectNormal_realizes width) _).trans
       (selectNormalStep_involutive width state)
   have backward := congrArg (EncodedBit.GateSpec.stepList (selectNormalGates width).reverse) forward
   rw [EncodedBit.GateSpec.stepList_reverse_stepList] at backward
@@ -1739,20 +1764,22 @@ private def exchangeControlsStep (width : Nat) (state : Raw width) : Raw width :
   ((state.1.1, state.2), state.1.2)
 
 /-- The three native CNOTs exchange the two actual controls and preserve every other bit. -/
-private theorem exchangeControls_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (exchangeControls width)
+private lemma exchangeControls_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (exchangeControls width) environment.quantum
       (exchangeControlsStep width) := by
-  apply (EncodedBit.swap_realizes (nativeLayout width) .empty (controlBit width) (selectorBit width)
+  apply (EncodedBit.swap_realizes
+    (environment := environment.quantum) (nativeLayout width) .empty
+    (controlBit width) (selectorBit width)
     (controls_separate width)).congrStep
   rintro ⟨⟨frame, control⟩, selector⟩
   cases control <;> cases selector <;>
     rfl
 
-private theorem selectNormalStep_inactive (width : Nat) (state : Raw width)
+private lemma selectNormalStep_inactive (width : Nat) (state : Raw width)
     (inactive : state.1.2 = false) : selectNormalStep width state = state := by
   simp only [selectNormalStep, inactive, Bool.false_and, Bool.xor_false]
 
-private theorem exchangeControlsStep_both_false (width : Nat) (state : Raw width)
+private lemma exchangeControlsStep_both_false (width : Nat) (state : Raw width)
     (inactive : state.1.2 = false) (clean : state.2 = false) :
     exchangeControlsStep width state = state := by
   change ((state.1.1, state.2), state.1.2) = state
@@ -1763,21 +1790,21 @@ private theorem exchangeControlsStep_both_false (width : Nat) (state : Raw width
   · exact inactive.trans clean.symm
 
 /-- Every native middle-stage gate fixes the complete inactive input frame. -/
-private theorem beforeMultiplication_inactive {p : Nat}
+private lemma beforeMultiplication_inactive {p : Nat}
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) (state : Raw p.size)
     (inactive : state.1.2 = false) (clean : state.2 = false) :
-    (beforeMultiplication Q).binaryMatrix.apply
+    ((beforeMultiplication Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  have realized := nativeList_append_realizes _ _ _ _
+  have realized := nativeList_append_realizes (environment := environment) _ _ _ _
     (nativeList_append_realizes _ _ _ _
       (nativeList_append_realizes _ _ _ _
         (offset_realizes p .supplied .x (constantWord (3 * Q.x)))
         (subtractSquare_realizes p))
       (selectNormal_realizes p.size))
     (exchangeControls_realizes p.size)
-  have actual := nativeRealizes_ket _ _ realized state
+  have actual := nativeRealizes_ket (environment := environment) _ _ realized state
   have copied : (squareCopyStep p.size state).1.2 = false := inactive
   simpa only [beforeMultiplication, beforeMultiplicationGates, Function.comp_apply,
     offsetStep_inactive p .x _ state inactive,
@@ -1793,9 +1820,9 @@ private def afterMultiplicationStep {p : Nat} (E : PrimeFieldShortWeierstrass p)
         offsetStep p .exceptional .y (constantWord (-exceptionalSlope E Q)) ∘
           exchangeControlsStep p.size
 
-private theorem afterMultiplication_realizes {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma afterMultiplication_realizes {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) :
-    UnitaryCircuit.Realizes (encoding p.size) (afterMultiplication E Q)
+    UnitaryCircuit.Realizes (encoding p.size) (afterMultiplication E Q) environment.quantum
       (afterMultiplicationStep E Q) :=
   nativeList_append_realizes _ _ _ _
     (nativeList_append_realizes _ _ _ _
@@ -1810,14 +1837,14 @@ private theorem afterMultiplication_realizes {p : Nat} (E : PrimeFieldShortWeier
     (offset_realizes p .supplied .y (constantWord (-Q.y)))
 
 /-- The real exceptional cleanup and all final offsets fix the complete inactive frame. -/
-private theorem afterMultiplication_inactive {p : Nat}
+private lemma afterMultiplication_inactive {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (state : Raw p.size)
     (inactive : state.1.2 = false) (clean : state.2 = false) :
-    (afterMultiplication E Q).binaryMatrix.apply
+    ((afterMultiplication E Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  have realized := nativeList_append_realizes _ _ _ _
+  have realized := nativeList_append_realizes (environment := environment) _ _ _ _
     (nativeList_append_realizes _ _ _ _
       (nativeList_append_realizes _ _ _ _
         (nativeList_append_realizes _ _ _ _
@@ -1828,7 +1855,7 @@ private theorem afterMultiplication_inactive {p : Nat}
         (reflect_realizes p))
       (offset_realizes p .supplied .x (constantWord (Q.x + 1))))
     (offset_realizes p .supplied .y (constantWord (-Q.y)))
-  have actual := nativeRealizes_ket _ _ realized state
+  have actual := nativeRealizes_ket (environment := environment) _ _ realized state
   simpa only [afterMultiplication, afterMultiplicationGates, Function.comp_apply,
     exchangeControlsStep_both_false p.size state inactive clean,
     offsetStep_exceptional_inactive p .y _ state (Or.inl inactive),
@@ -1837,27 +1864,27 @@ private theorem afterMultiplication_inactive {p : Nat}
     using actual
 
 /-- False C accepts every binary original X/Y word with the prescribed preparation. -/
-private theorem beforeMultiplication_prepared_inactive {p : Nat}
+private lemma beforeMultiplication_prepared_inactive {p : Nat}
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) (x y : Fin (2 ^ p.size)) :
-    (beforeMultiplication Q).binaryMatrix.apply
+    ((beforeMultiplication Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y))) =
       NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y)) :=
   beforeMultiplication_inactive Q (preparedRaw p false false x y) rfl rfl
 
 /-- Native final cleanup preserves all inactive binary words and returns the full fixed frame. -/
-private theorem afterMultiplication_prepared_inactive {p : Nat}
+private lemma afterMultiplication_prepared_inactive {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (x y : Fin (2 ^ p.size)) :
-    (afterMultiplication E Q).binaryMatrix.apply
+    ((afterMultiplication E Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y))) =
       NormalizedVector.ket ((encoding p.size).encode (preparedRaw p false false x y)) :=
   afterMultiplication_inactive E Q (preparedRaw p false false x y) rfl rfl
 
 /-- The first native stage is a composition of complete real offset basis actions. -/
-private theorem beforeDivision_realizes {p : Nat} {E : PrimeFieldShortWeierstrass p}
+private lemma beforeDivision_realizes {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) :
-    UnitaryCircuit.Realizes (encoding p.size) (beforeDivision Q)
+    UnitaryCircuit.Realizes (encoding p.size) (beforeDivision Q) environment.quantum
       ((offsetStep p .supplied .y (constantWord (-Q.y))) ∘
         (offsetStep p .supplied .x (constantWord (-Q.x)))) :=
   nativeList_append_realizes _ _ _ _
@@ -1865,9 +1892,9 @@ private theorem beforeDivision_realizes {p : Nat} {E : PrimeFieldShortWeierstras
     (offset_realizes p .supplied .y (constantWord (-Q.y)))
 
 /-- Real coordinate subtraction retains the complete prepared frame on the active input sector. -/
-private theorem beforeDivision_prepared {p : Nat} {E : PrimeFieldShortWeierstrass p}
+private lemma beforeDivision_prepared {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (selector : Bool) (x y : Fin (2 ^ p.size)) :
-    (beforeDivision Q).binaryMatrix.apply
+    ((beforeDivision Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p true selector x y))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true selector
@@ -1875,38 +1902,43 @@ private theorem beforeDivision_prepared {p : Nat} {E : PrimeFieldShortWeierstras
             (constantWord (p := p) (-Q.x)) x)
           (Nat.FixedWidth.modularWordOutput (InPlaceArithmetic.modulusWord p)
             (constantWord (p := p) (-Q.y)) y))) := by
-  have actual := nativeRealizes_ket _ _ (beforeDivision_realizes Q)
+  have actual := nativeRealizes_ket (environment := environment) _ _
+    (beforeDivision_realizes Q)
     (preparedRaw p true selector x y)
   simpa only [Function.comp_apply, offsetStep_prepared_x, offsetStep_prepared_y] using actual
 
 /-- The complete first stage fixes arbitrary data and arbitrary history on the inactive sector. -/
-private theorem beforeDivision_inactive {p : Nat} {E : PrimeFieldShortWeierstrass p}
+private lemma beforeDivision_inactive {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (state : Raw p.size) (inactive : state.1.2 = false) :
-    (beforeDivision Q).binaryMatrix.apply (NormalizedVector.ket ((encoding p.size).encode state)) =
+    ((beforeDivision Q).binaryMatrix environment.quantum).apply (NormalizedVector.ket ((encoding
+      p.size).encode state)) =
       NormalizedVector.ket ((encoding p.size).encode state) := by
-  have actual := nativeRealizes_ket _ _ (beforeDivision_realizes Q) state
+  have actual := nativeRealizes_ket (environment := environment) _ _
+    (beforeDivision_realizes Q) state
   simpa only [beforeMultiplication, beforeMultiplicationGates, Function.comp_apply,
     offsetStep_inactive p .x _ state inactive,
     offsetStep_inactive p .y _ state inactive] using actual
 
 /-- Actual runtime coordinates retain the exact normalized action of every native frame program. -/
-private theorem runtimeProgram_ket (width : Nat)
+private lemma runtimeProgram_ket (width : Nat)
     (program : NativeCircuit width)
     (input output : Raw width)
-    (actual : program.binaryMatrix.apply (NormalizedVector.ket ((encoding width).encode input)) =
+    (actual : (program.binaryMatrix environment.quantum).apply (NormalizedVector.ket ((encoding
+      width).encode input)) =
       NormalizedVector.ket ((encoding width).encode output)) :
-    (runtimeProgram width program).applyNormalized
+    (runtimeProgram width program).applyNormalized environment.quantum
       (NormalizedVector.ket ((basis width).symm ((encoding width).encode input))) =
       NormalizedVector.ket ((basis width).symm ((encoding width).encode output)) := by
   apply NormalizedVector.ext
   intro row
   have column := congrArg (fun vector : NormalizedVector (Qubits (encoding width).width) =>
     vector (basis width row)) actual
-  change program.binaryMatrix.applyVec (NormalizedVector.ket ((encoding width).encode input)).vec
+  change (program.binaryMatrix environment.quantum).applyVec (NormalizedVector.ket ((encoding
+    width).encode input)).vec
     (basis width row) = _ at column
   rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
     NormalizedVector.ket_apply] at column
-  change (runtimeProgram width program).applyVec
+  change (runtimeProgram width program).applyVec environment.quantum
     (NormalizedVector.ket ((basis width).symm ((encoding width).encode input))).vec row = _
   rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
     runtimeProgram_binary_matrix, Equiv.apply_symm_apply, column, NormalizedVector.ket_apply]
@@ -1923,16 +1955,22 @@ private theorem runtimeProgram_ket (width : Nat)
 private def nativeJoint (width : Nat) (Reference : Register)
     (program : NativeCircuit width) :
     UnitaryOperator (Register.prod (context width).register Reference) :=
-  UnitaryOperator.prodTensor (runtimeProgram width program).matrix (1 : UnitaryOperator Reference)
+  UnitaryOperator.prodTensor ((runtimeProgram width program).matrix environment.quantum) (1 :
+    UnitaryOperator Reference)
 
-private theorem nativeCode_density (width : Nat) (program : NativeCircuit width)
+private lemma nativeCode_density (width : Nat) (program : NativeCircuit width)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((nativeCode width program).execute Reference state).quantumMarginal =
-      DensityOperator.applyUnitary (nativeJoint width Reference program) state.quantumMarginal :=
-  Circuit.unitary_jointDensity (runtimeProgram width program) state
+    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History))
+    (allowAllocation : Bool := true) :
+    ((nativeCode width program allowAllocation).execute environment Reference
+      state).quantumMarginal =
+      DensityOperator.applyUnitary (nativeJoint (environment := environment) width Reference
+        program) state.quantumMarginal :=
+  Circuit.unitary_jointDensity (environment := environment)
+    (allowAllocation := allowAllocation) (runtimeProgram width program)
+    state
 
-private theorem reindex_marginal {Classical : Type} [Fintype Classical] {R S : Register}
+private lemma reindex_marginal {Classical : Type} [Fintype Classical] {R S : Register}
     (state : ExecutionState Classical R) (coordinates : R.Index ≃ S.Index) :
     (state.reindex coordinates).quantumMarginal = state.quantumMarginal.reindex coordinates := by
   apply DensityOperator.ext
@@ -1942,7 +1980,7 @@ private theorem reindex_marginal {Classical : Type} [Fintype Classical] {R S : R
     (∑ value, (state.block value).matrix) (coordinates.symm row) (coordinates.symm column)
   simp only [Matrix.sum_apply, Matrix.submatrix_apply]
 
-private theorem split_marginal (width : Nat) {Reference : Register} {History : Type}
+private lemma split_marginal (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference History) :
     (splitState (InPlaceControlled.context width) (selectorContext width) (selector_disjoint width)
       state).quantumMarginal = state.quantumMarginal.reindex
@@ -1950,7 +1988,7 @@ private theorem split_marginal (width : Nat) {Reference : Register} {History : T
           (selector_disjoint width) Reference) := by
   rw [splitState, reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
 
-private theorem splitService_marginal (width : Nat) {Reference : Register}
+private lemma splitService_marginal (width : Nat) {Reference : Register}
     {Hidden History : Type} [Fintype Hidden] [Fintype History]
     (state : State (context width) Reference (Hidden × History)) :
     (splitServiceState (InPlaceControlled.context width) (selectorContext width)
@@ -1971,7 +2009,7 @@ private def arithmeticTarget (operation : InPlaceTarget.Operation) (modulus : Na
       (Register.prod (selectorContext modulus.size).register Reference))
 
 /-- The actual framed measured call preserves all mixed control/selector/reference coherences. -/
-private theorem arithmetic_density (operation : InPlaceTarget.Operation) (modulus : Nat)
+private lemma arithmetic_density (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
@@ -1979,55 +2017,118 @@ private theorem arithmetic_density (operation : InPlaceTarget.Operation) (modulu
       ¬InPlaceControlled.admissible modulus
         ((unionBasisEquiv (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
           (selector_disjoint modulus.size) original.1).1) →
-        state.quantumMarginal.matrix original original = 0) :
-    ((arithmetic operation modulus prime).execute Reference state).quantumMarginal =
+        state.quantumMarginal.matrix original original = 0)
+    (allowAllocation : Bool := true) :
+    ((arithmetic operation modulus prime allowAllocation).execute environment Reference
+      state).quantumMarginal =
       DensityOperator.applyUnitary (arithmeticTarget operation modulus prime Reference)
         state.quantumMarginal := by
-  let coordinates := referenceBasis (InPlaceControlled.context modulus.size)
-    (selectorContext modulus.size) (selector_disjoint modulus.size) Reference
+  classical
+  let placement := ContextEmbedding.alongUnion (InPlaceControlled.context modulus.size)
+    (selectorContext modulus.size) (selector_disjoint modulus.size)
+  let coordinates := placement.referenceBasis Reference
+  let localState := (placement.split state).mapHistory
+    (fun record => (record.2.1, (record.1, record.2.2)))
+  have coordinatesSame : coordinates =
+      referenceBasis (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
+        (selector_disjoint modulus.size) Reference :=
+    ContextEmbedding.alongUnion_referenceBasis _ _ _ Reference
+  have splitMarginal {K : Type} [Fintype K]
+      (initial : State (context modulus.size) Reference K) :
+      (placement.split initial).quantumMarginal = initial.quantumMarginal.reindex coordinates := by
+    rw [ContextEmbedding.split, reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
+  have localMarginal : localState.quantumMarginal =
+      state.quantumMarginal.reindex coordinates := by
+    exact (State.mapHistory_quantumMarginal _ _).trans (splitMarginal state)
   have localSupport : ∀ original :
       (Register.prod (InPlaceControlled.context modulus.size).register
         (Register.prod (selectorContext modulus.size).register Reference)).Index,
       ¬InPlaceControlled.admissible modulus original.1 →
-        (splitServiceState (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
-          (selector_disjoint modulus.size) state).quantumMarginal.matrix original original = 0 := by
+        localState.quantumMarginal.matrix original original = 0 := by
     intro original absent
-    rw [splitService_marginal, DensityOperator.reindex_entry]
+    have entry : localState.quantumMarginal.matrix original original =
+        state.quantumMarginal.matrix (coordinates.symm original) (coordinates.symm original) :=
+      (congrArg (fun density : DensityOperator
+        (Register.prod (InPlaceControlled.context modulus.size).register
+          (Register.prod (selectorContext modulus.size).register Reference)) =>
+          density.matrix original original) localMarginal).trans
+        (DensityOperator.reindex_entry state.quantumMarginal coordinates original original)
+    apply entry.trans
     apply support
     have projection :
         (unionBasisEquiv (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
           (selector_disjoint modulus.size) (coordinates.symm original).1).1 = original.1 := by
+      rw [coordinatesSame]
       change ((unionBasisEquiv _ _ (selector_disjoint modulus.size))
         ((unionBasisEquiv _ _ (selector_disjoint modulus.size)).symm
           (original.1, original.2.1))).1 = original.1
       rw [Equiv.apply_symm_apply]
     intro present
     exact absent (projection ▸ present)
-  have natural := frameLocal_execute (InPlaceControlled.body operation modulus prime)
-    (InPlaceControlled.body_isLocal operation modulus prime) (selectorContext modulus.size)
-    (selector_disjoint modulus.size) Reference state
+  have originalRun := InPlaceControlled.body_density (environment := environment) operation
+    modulus prime localState
+    localSupport (allowAllocation := false)
+  have natural := Circuit.split_execute_embed_history (environment := environment)
+    (allowAllocation := allowAllocation)
+    placement (InPlaceControlled.body operation modulus prime (allowAllocation := false))
+    Reference state
   have averaged := congrArg (fun output => output.quantumMarginal) natural
-  rw [State.mapHistory_quantumMarginal] at averaged
-  have originalRun := InPlaceControlled.body_density operation modulus prime
-    (splitServiceState (InPlaceControlled.context modulus.size) (selectorContext modulus.size)
-      (selector_disjoint modulus.size) state) localSupport
-  rw [splitService_marginal, originalRun, splitService_marginal] at averaged
-  change (((arithmetic operation modulus prime).execute Reference state).quantumMarginal).reindex
-    coordinates = DensityOperator.applyUnitary
-      (InPlaceControlled.target operation modulus prime
-        (Register.prod (selectorContext modulus.size).register Reference))
-      (state.quantumMarginal.reindex coordinates) at averaged
+  simp only [State.mapHistory_quantumMarginal] at averaged
+  change (placement.split
+      ((arithmetic operation modulus prime allowAllocation).execute environment Reference
+        state)).quantumMarginal =
+    ((InPlaceControlled.body operation modulus prime (allowAllocation := false)).execute environment
+      (placement.frame.register.prod Reference) localState).quantumMarginal at averaged
+  rw [splitMarginal, originalRun, localMarginal] at averaged
   have restored := congrArg
     (fun density : DensityOperator
         (Register.prod (InPlaceControlled.context modulus.size).register
           (Register.prod (selectorContext modulus.size).register Reference)) =>
       density.reindex (S := Register.prod (context modulus.size).register Reference)
         coordinates.symm) averaged
-  simpa only [DensityOperator.applyUnitary_reindex, DensityOperator.reindex_trans,
-    Equiv.self_trans_symm, DensityOperator.reindex_refl, arithmeticTarget, coordinates]
-    using restored
+  have cancel (density : DensityOperator
+      (Register.prod (context modulus.size).register Reference)) :
+      (density.reindex (S := Register.prod (InPlaceControlled.context modulus.size).register
+        (Register.prod (selectorContext modulus.size).register Reference)) coordinates).reindex
+          (S := Register.prod (context modulus.size).register Reference) coordinates.symm =
+            density := by
+    calc
+      _ = density.reindex (S := Register.prod (context modulus.size).register Reference)
+          (coordinates.trans coordinates.symm) :=
+        DensityOperator.reindex_trans density coordinates coordinates.symm
+      _ = density := by rw [Equiv.self_trans_symm, DensityOperator.reindex_refl]
+  have transported := DensityOperator.applyUnitary_reindex
+    (S := Register.prod (context modulus.size).register Reference)
+    (InPlaceControlled.target operation modulus prime
+      (Register.prod (selectorContext modulus.size).register Reference))
+    (state.quantumMarginal.reindex
+      (S := Register.prod (InPlaceControlled.context modulus.size).register
+        (Register.prod (selectorContext modulus.size).register Reference)) coordinates)
+      coordinates.symm
+  have restoredCanonical :=
+    (cancel ((arithmetic operation modulus prime allowAllocation).execute environment Reference
+      state).quantumMarginal).symm.trans
+      (restored.trans (transported.trans
+        (congrArg (DensityOperator.applyUnitary
+          (UnitaryOperator.reindex
+            (S := Register.prod (context modulus.size).register Reference) coordinates.symm
+            (InPlaceControlled.target operation modulus prime
+              (Register.prod (selectorContext modulus.size).register Reference))))
+          (cancel state.quantumMarginal))))
+  have targetSame :
+      UnitaryOperator.reindex
+        (S := Register.prod (context modulus.size).register Reference) coordinates.symm
+        (InPlaceControlled.target operation modulus prime
+          (Register.prod (selectorContext modulus.size).register Reference)) =
+        arithmeticTarget operation modulus prime Reference := by
+    rw [coordinatesSame]
+    rfl
+  exact restoredCanonical.trans
+    (congrArg (fun operator : UnitaryOperator
+      (Register.prod (context modulus.size).register Reference) =>
+        DensityOperator.applyUnitary operator state.quantumMarginal) targetSame)
 
-private theorem operator_reindex_ket {R S : Register}
+private lemma operator_reindex_ket {R S : Register}
     (coordinates : R.Index ≃ S.Index) (operator : UnitaryOperator R)
     (input output : R.Index)
     (action : operator.applyVec (NormalizedVector.ket input).vec =
@@ -2054,7 +2155,7 @@ private theorem operator_reindex_ket {R S : Register}
       rw [equal, Equiv.symm_apply_apply]
   simp only [same]
 
-private theorem operator_controlled_ket {R : Register} (Control : Register)
+private lemma operator_controlled_ket {R : Register} (Control : Register)
     (activation : Control.Index) (operator : UnitaryOperator R)
     (control : Control.Index) (input output : R.Index)
     (action : operator.applyVec (NormalizedVector.ket input).vec =
@@ -2089,7 +2190,7 @@ private theorem operator_controlled_ket {R : Register} (Control : Register)
   · rw [if_neg sameControl, NormalizedVector.ket_apply]
     exact (if_neg (fun equal => sameControl (congrArg Prod.fst equal))).symm
 
-private theorem controlledTarget_prepared_ket
+private lemma controlledTarget_prepared_ket
     (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (control : Fin 2) (value numerator : Fin (2 ^ modulus.size))
     {Reference : Register} (reference : Reference.Index) :
@@ -2136,7 +2237,7 @@ private theorem controlledTarget_prepared_ket
   · simpa only [if_pos selected, restored] using transported
   · simpa only [if_neg selected, restored] using transported
 
-private theorem arithmeticTarget_prepared_ket
+private lemma arithmeticTarget_prepared_ket
     (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (control selector : Fin 2) (value numerator : Fin (2 ^ modulus.size))
     {Reference : Register} (reference : Reference.Index) :
@@ -2167,7 +2268,7 @@ private theorem arithmeticTarget_prepared_ket
   simpa only [restored] using transported
 
 /- This matrix form deliberately needs no output map or injectivity claim. -/
-private theorem applyUnitary_support_of_columns {R : Register}
+private lemma applyUnitary_support_of_columns {R : Register}
     (state : DensityOperator R) (operator : UnitaryOperator R)
     (inputAllowed outputAllowed : R.Index → Prop)
     (support : ∀ input, ¬inputAllowed input → state.matrix input input = 0)
@@ -2192,7 +2293,7 @@ private theorem applyUnitary_support_of_columns {R : Register}
   rw [vanished, zero_mul]
 
 /- The call sites supply one actual normalized output label for each original input. -/
-private theorem applyUnitary_support_of_kets {R : Register}
+private lemma applyUnitary_support_of_kets {R : Register}
     (state : DensityOperator R) (operator : UnitaryOperator R)
     (inputAllowed outputAllowed : R.Index → Prop)
     (support : ∀ input, ¬inputAllowed input → state.matrix input input = 0)
@@ -2214,7 +2315,7 @@ private theorem applyUnitary_support_of_kets {R : Register}
   exact absent (equal.symm ▸ allowed)
 
 /- Arbitrary external references are retained without a tensor-state assumption. -/
-private theorem operator_prodTensor_identity_ket {R Reference : Register}
+private lemma operator_prodTensor_identity_ket {R Reference : Register}
     (operator : UnitaryOperator R) (input output : R.Index) (reference : Reference.Index)
     (action : operator.applyVec (NormalizedVector.ket input).vec =
       (NormalizedVector.ket output).vec) :
@@ -2281,10 +2382,10 @@ def translationWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 private def fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) : Fin (2 ^ p.size) :=
   ⟨value.val, (ZMod.val_lt value).trans (Nat.lt_size_self p)⟩
 
-private theorem fieldWord_cast {p : Nat} [Fact p.Prime] (value : ZMod p) :
+private lemma fieldWord_cast {p : Nat} [Fact p.Prime] (value : ZMod p) :
     ((fieldWord value).val : ZMod p) = value := ZMod.natCast_zmod_val value
 
-private theorem wordTranslation_fieldWord {p : Nat} [Fact p.Prime] (constant value : ZMod p) :
+private lemma wordTranslation_fieldWord {p : Nat} [Fact p.Prime] (constant value : ZMod p) :
     wordTranslation constant (fieldWord value) = fieldWord (value + constant) := by
   apply Fin.ext
   rw [wordTranslation, Nat.FixedWidth.modularWordEquiv_apply]
@@ -2292,20 +2393,20 @@ private theorem wordTranslation_fieldWord {p : Nat} [Fact p.Prime] (constant val
     ⟨constant.val, (ZMod.val_lt constant).trans (Nat.lt_succ_self p)⟩
     (fieldWord value) (ZMod.val_lt value)).trans (ZMod.val_add value constant).symm
 
-private theorem coordinateTranslation_fieldWords {p : Nat} [Fact p.Prime]
+private lemma coordinateTranslation_fieldWords {p : Nat} [Fact p.Prime]
     (dx dy x y : ZMod p) :
     coordinateTranslation dx dy (fieldWord x, fieldWord y) =
       (fieldWord (x + dx), fieldWord (y + dy)) :=
   Prod.ext (wordTranslation_fieldWord dx x) (wordTranslation_fieldWord dy y)
 
-private theorem squareTranslation_fieldWords {p : Nat} [Fact p.Prime] (x y : ZMod p) :
+private lemma squareTranslation_fieldWords {p : Nat} [Fact p.Prime] (x y : ZMod p) :
     squareTranslation (fieldWord x, fieldWord y) =
       (fieldWord (x - y ^ 2), fieldWord y) := by
   change (wordTranslation (-(((fieldWord y).val : ZMod p) ^ 2)) (fieldWord x), fieldWord y) = _
   rw [fieldWord_cast, wordTranslation_fieldWord]
   simp only [sub_eq_add_neg]
 
-private theorem division_fieldWords {p : Nat} [Fact p.Prime] (x y : ZMod p) (nonzero : x ≠ 0) :
+private lemma division_fieldWords {p : Nat} [Fact p.Prime] (x y : ZMod p) (nonzero : x ≠ 0) :
     InPlaceTarget.words .division p Fact.out (fieldWord x, fieldWord y) =
       (fieldWord x, fieldWord (y / x)) := by
   apply Prod.ext
@@ -2320,7 +2421,7 @@ private theorem division_fieldWords {p : Nat} [Fact p.Prime] (x y : ZMod p) (non
       _ = (x⁻¹ * y).val := (ZMod.val_mul _ _).symm
       _ = (y / x).val := by rw [div_eq_mul_inv, mul_comm]
 
-private theorem multiplication_fieldWords {p : Nat} [Fact p.Prime]
+private lemma multiplication_fieldWords {p : Nat} [Fact p.Prime]
     (x y : ZMod p) (nonzero : x ≠ 0) :
     InPlaceTarget.words .multiplication p Fact.out (fieldWord x, fieldWord y) =
       (fieldWord x, fieldWord (x * y)) := by
@@ -2330,7 +2431,7 @@ private theorem multiplication_fieldWords {p : Nat} [Fact p.Prime]
     exact (InPlaceTarget.multiplication_value p Fact.out (fieldWord x) (fieldWord y)
       (ZMod.val_pos.mpr nonzero) (ZMod.val_lt x) (ZMod.val_lt y)).trans (ZMod.val_mul x y).symm
 
-private theorem secondProduct_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma secondProduct_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (x y : ZMod p) :
     secondProduct E Q (fieldWord x, fieldWord y) =
       (fieldWord x, fieldWord (if x = 0 then y - exceptionalSlope E Q else x * y)) := by
@@ -2347,7 +2448,7 @@ private theorem secondProduct_fieldWords {p : Nat} (E : PrimeFieldShortWeierstra
     rw [if_neg nonzero, if_neg zero]
     exact multiplication_fieldWords x y zero
 
-private theorem pivot_fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) :
+private lemma pivot_fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) :
     Nat.FixedWidth.pivotWordEquiv (InPlaceTarget.modulusWord p) (fieldWord value) =
       fieldWord (-value - 1) := by
   have bounded := ZMod.val_lt value
@@ -2364,16 +2465,16 @@ private theorem pivot_fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) :
 
 private def controlLabel (control : Bool) : Fin 2 := BinaryLabelEncoding.bool.encode control
 
-private theorem nativeJoint_prepared_ket {p : Nat}
+private lemma nativeJoint_prepared_ket {p : Nat}
     (program : NativeCircuit p.size)
     (control selector nextControl nextSelector : Bool)
     (x y nextX nextY : Fin (2 ^ p.size))
     {Reference : Register} (reference : Reference.Index)
-    (actual : program.binaryMatrix.apply
+    (actual : (program.binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode (preparedRaw p control selector x y))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p nextControl nextSelector nextX nextY))) :
-    (nativeJoint p.size Reference program).applyVec
+    (nativeJoint (environment := environment) p.size Reference program).applyVec
       (NormalizedVector.ket (label p.size (controlLabel control)
         (controlLabel selector) (InPlaceTarget.preparedBasis p x y),
           reference)).vec =
@@ -2385,18 +2486,18 @@ private theorem nativeJoint_prepared_ket {p : Nat}
   apply operator_prodTensor_identity_ket
   exact congrArg NormalizedVector.vec runtime
 
-private theorem modularOutput_fieldWord {p : Nat} [Fact p.Prime] (constant value : ZMod p) :
+private lemma modularOutput_fieldWord {p : Nat} [Fact p.Prime] (constant value : ZMod p) :
     Nat.FixedWidth.modularWordOutput (InPlaceArithmetic.modulusWord p)
       (constantWord (p := p) constant) (fieldWord value) = fieldWord (value + constant) := by
   have actual := wordTranslation_fieldWord constant value
   rw [wordTranslation, Nat.FixedWidth.modularWordEquiv_apply] at actual
   exact actual
 
-private theorem pivotOutput_fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) :
+private lemma pivotOutput_fieldWord {p : Nat} [Fact p.Prime] (value : ZMod p) :
     Nat.FixedWidth.pivotWordOutput (InPlaceArithmetic.modulusWord p) (fieldWord value) =
       fieldWord (-value - 1) := pivot_fieldWord value
 
-private theorem square_subtraction_residue {p : Nat} [Fact p.Prime] (x y : ZMod p) :
+private lemma square_subtraction_residue {p : Nat} [Fact p.Prime] (x y : ZMod p) :
     ((fieldWord (x - y ^ 2)).val + (fieldWord y).val * (fieldWord y).val) % p =
       (fieldWord x).val := by
   have value : x - y ^ 2 + y * y = x := by ring
@@ -2406,7 +2507,7 @@ private theorem square_subtraction_residue {p : Nat} [Fact p.Prime] (x y : ZMod 
   rw [← Nat.add_mod_mod]
   exact actual
 
-private theorem selectNormalStep_prepared (modulus : Nat) (control selector : Bool)
+private lemma selectNormalStep_prepared (modulus : Nat) (control selector : Bool)
     (x y : Fin (2 ^ modulus.size)) :
     selectNormalStep modulus.size (preparedRaw modulus control selector x y) =
       preparedRaw modulus control (selector ^^ (control && decide (x.val ≠ 0))) x y := by
@@ -2419,7 +2520,7 @@ private theorem selectNormalStep_prepared (modulus : Nat) (control selector : Bo
   rw [input]
   rfl
 
-private theorem selectNormalStep_fieldWords {p : Nat} [Fact p.Prime]
+private lemma selectNormalStep_fieldWords {p : Nat} [Fact p.Prime]
     (control selector : Bool) (x y : ZMod p) :
     selectNormalStep p.size (preparedRaw p control selector (fieldWord x) (fieldWord y)) =
       preparedRaw p control (selector ^^ (control && decide (x ≠ 0)))
@@ -2430,28 +2531,29 @@ private theorem selectNormalStep_fieldWords {p : Nat} [Fact p.Prime]
     simp only [ZMod.val_ne_zero]
   rw [same]
 
-private theorem exchangeControlsStep_prepared (modulus : Nat) (control selector : Bool)
+private lemma exchangeControlsStep_prepared (modulus : Nat) (control selector : Bool)
     (x y : Fin (2 ^ modulus.size)) :
     exchangeControlsStep modulus.size (preparedRaw modulus control selector x y) =
       preparedRaw modulus selector control x y := rfl
 
-private theorem beforeDivision_fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p}
+private lemma beforeDivision_fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) :
-    (beforeDivision Q).binaryMatrix.apply
+    ((beforeDivision Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true false (fieldWord x) (fieldWord y)))) =
       NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true false (fieldWord (x - Q.x)) (fieldWord (y - Q.y)))) := by
-  have actual := beforeDivision_prepared Q false (fieldWord x) (fieldWord y)
+  have actual := beforeDivision_prepared (environment := environment)
+    Q false (fieldWord x) (fieldWord y)
   simpa only [modularOutput_fieldWord, sub_eq_add_neg] using actual
 
 -- Keep instruction lists opaque while rewriting their already proved all-label actions.
 attribute [local irreducible] offsetGates subtractSquareGates selectNormalGates
   exchangeControlGates reflectGates
 
-private theorem beforeMultiplication_fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p}
+private lemma beforeMultiplication_fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) :
-    (beforeMultiplication Q).binaryMatrix.apply
+    ((beforeMultiplication Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p true false (fieldWord x) (fieldWord y)))) =
       NormalizedVector.ket ((encoding p.size).encode
@@ -2459,18 +2561,22 @@ private theorem beforeMultiplication_fieldWords {p : Nat} {E : PrimeFieldShortWe
           (fieldWord (x + 3 * Q.x - y ^ 2)) (fieldWord y))) := by
   simp only [beforeMultiplication, beforeMultiplicationGates,
     nativeList_binary_append, binary_apply_mul]
-  erw [nativeRealizes_ket _ _ (offset_realizes p .supplied .x (constantWord (3 * Q.x))),
-    offsetStep_prepared_x, modularOutput_fieldWord,
-    subtractSquare_prepared p false (fieldWord (x + 3 * Q.x)) (fieldWord y)
-      (fieldWord (x + 3 * Q.x - y ^ 2)) (ZMod.val_lt _)
-      (square_subtraction_residue (x + 3 * Q.x) y),
-    nativeRealizes_ket _ _ (selectNormal_realizes p.size), selectNormalStep_fieldWords,
-    nativeRealizes_ket _ _ (exchangeControls_realizes p.size), exchangeControlsStep_prepared]
+  erw [nativeRealizes_ket (environment := environment) _ _
+    (offset_realizes p .supplied .x (constantWord (3 * Q.x)))]
+  rw [offsetStep_prepared_x, modularOutput_fieldWord]
+  erw [subtractSquare_prepared (environment := environment) p false
+    (fieldWord (x + 3 * Q.x)) (fieldWord y)
+    (fieldWord (x + 3 * Q.x - y ^ 2)) (ZMod.val_lt _)
+    (square_subtraction_residue (x + 3 * Q.x) y)]
+  erw [nativeRealizes_ket (environment := environment) _ _ (selectNormal_realizes p.size)]
+  rw [selectNormalStep_fieldWords]
+  erw [nativeRealizes_ket (environment := environment) _ _ (exchangeControls_realizes p.size)]
+  rw [exchangeControlsStep_prepared]
   simp only [Bool.true_and, Bool.false_xor]
 
-private theorem afterMultiplication_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma afterMultiplication_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) :
-    (afterMultiplication E Q).binaryMatrix.apply
+    ((afterMultiplication E Q).binaryMatrix environment.quantum).apply
       (NormalizedVector.ket ((encoding p.size).encode
         (preparedRaw p (decide (x ≠ 0)) true (fieldWord x) (fieldWord y)))) =
       NormalizedVector.ket ((encoding p.size).encode
@@ -2504,7 +2610,7 @@ private theorem afterMultiplication_fieldWords {p : Nat} (E : PrimeFieldShortWei
     simp only [sub_eq_add_neg, Bool.true_and, Bool.xor_self]
 
 /-- Independent finite-word arithmetic agrees with the field formula on its original domain. -/
-private theorem translationWords_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma translationWords_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p) (nonzero : firstDifference x Q.x ≠ 0) :
     translationWords E Q (fieldWord x, fieldWord y) =
       (fieldWord (fieldOutput E Q true x y).1, fieldWord (fieldOutput E Q true x y).2) := by
@@ -2576,7 +2682,7 @@ private def targetPermutation {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact
     (Q : AffinePoint E) : Equiv.Perm (context p.size).register.Index :=
   (targetCoordinates p.size).trans ((targetFields E Q).trans (targetCoordinates p.size).symm)
 
-private theorem targetCoordinates_label (width : Nat) (control selector : Fin 2)
+private lemma targetCoordinates_label (width : Nat) (control selector : Fin 2)
     (fresh : OriginalAuxiliary width) (words : Fin (2 ^ width) × Fin (2 ^ width)) :
     targetCoordinates width
       (label width control selector (InPlaceTarget.frameEquiv width (fresh, words))) =
@@ -2585,7 +2691,7 @@ private theorem targetCoordinates_label (width : Nat) (control selector : Fin 2)
     Equiv.prodCongr_apply, Prod.map, Equiv.apply_symm_apply, Equiv.symm_apply_apply]
 
 /-- The independent complete permutation retains every auxiliary value and both controls. -/
-private theorem targetPermutation_label {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma targetPermutation_label {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (control selector : Fin 2) (fresh : OriginalAuxiliary p.size)
     (words : Fin (2 ^ p.size) × Fin (2 ^ p.size)) :
     targetPermutation E Q (label p.size control selector (InPlaceTarget.frameEquiv p.size
@@ -2611,7 +2717,7 @@ def target {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   UnitaryOperator.prodTensor (UnitaryOperator.ofPerm (targetPermutation E Q).symm)
     (1 : UnitaryOperator Reference)
 
-private theorem operator_three_kets {R : Register} {first second third : UnitaryOperator R}
+private lemma operator_three_kets {R : Register} {first second third : UnitaryOperator R}
     {input one two output : R.Index}
     (firstAction : first.applyVec (NormalizedVector.ket input).vec =
       (NormalizedVector.ket one).vec)
@@ -2624,7 +2730,7 @@ private theorem operator_three_kets {R : Register} {first second third : Unitary
   rw [UnitaryOperator.mul_applyVec, UnitaryOperator.mul_applyVec,
     firstAction, secondAction, thirdAction]
 
-private theorem operator_five_kets {R : Register}
+private lemma operator_five_kets {R : Register}
     {first second third fourth fifth : UnitaryOperator R}
     {input one two three four output : R.Index}
     (firstAction : first.applyVec (NormalizedVector.ket input).vec =
@@ -2645,14 +2751,14 @@ private theorem operator_five_kets {R : Register}
 private def executionOperator {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (Reference : Register) :
     UnitaryOperator (Register.prod (context p.size).register Reference) :=
-  nativeJoint p.size Reference (afterMultiplication E Q) *
+  nativeJoint (environment := environment) p.size Reference (afterMultiplication E Q) *
     arithmeticTarget .multiplication p Fact.out Reference *
-    nativeJoint p.size Reference (beforeMultiplication Q) *
+    nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
     arithmeticTarget .division p Fact.out Reference *
-    nativeJoint p.size Reference (beforeDivision Q)
+    nativeJoint (environment := environment) p.size Reference (beforeDivision Q)
 
 /-- The independent target retains the full prepared auxiliary frame and both actual controls. -/
-theorem target_prepared_ket {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma target_prepared_ket {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (control selector : Fin 2) (x y : Fin (2 ^ p.size))
     {Reference : Register} (reference : Reference.Index) :
     (target E Q Reference).applyVec
@@ -2671,7 +2777,7 @@ theorem target_prepared_ket {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p
       (label p.size control selector (InPlaceTarget.preparedBasis p x y)))).vec at actual
   simpa only [InPlaceTarget.preparedBasis, targetPermutation_label] using actual
 
-private theorem arithmeticTarget_division_fieldWords {p : Nat} [Fact p.Prime]
+private lemma arithmeticTarget_division_fieldWords {p : Nat} [Fact p.Prime]
     (x y : ZMod p) (nonzero : x ≠ 0) (selector : Fin 2)
     {Reference : Register} (reference : Reference.Index) :
     (arithmeticTarget .division p Fact.out Reference).applyVec
@@ -2687,7 +2793,7 @@ private theorem arithmeticTarget_division_fieldWords {p : Nat} [Fact p.Prime]
   rw [if_pos rfl, quotient] at actual
   exact actual
 
-private theorem arithmeticTarget_multiplication_fieldWords {p : Nat} [Fact p.Prime]
+private lemma arithmeticTarget_multiplication_fieldWords {p : Nat} [Fact p.Prime]
     (x y : ZMod p) {Reference : Register} (reference : Reference.Index) :
     (arithmeticTarget .multiplication p Fact.out Reference).applyVec
       (NormalizedVector.ket (label p.size (controlLabel (decide (x ≠ 0))) 1
@@ -2718,11 +2824,11 @@ private theorem arithmeticTarget_multiplication_fieldWords {p : Nat} [Fact p.Pri
     exact actual
 
 /-- The actual operator restores prepared work and yields the independent affine formula. -/
-private theorem executionOperator_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma executionOperator_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) (x y : ZMod p)
     (nonzero : firstDifference x Q.x ≠ 0)
     {Reference : Register} (reference : Reference.Index) :
-    (executionOperator E Q Reference).applyVec
+    (executionOperator (environment := environment) E Q Reference).applyVec
       (NormalizedVector.ket (label p.size 1 0
         (InPlaceTarget.preparedBasis p (fieldWord x) (fieldWord y)), reference)).vec =
       (NormalizedVector.ket (label p.size 1 0
@@ -2733,14 +2839,17 @@ private theorem executionOperator_fieldWords {p : Nat} (E : PrimeFieldShortWeier
   let quotient := b / a
   let difference := a + 3 * Q.x - quotient ^ 2
   let ordinate := if difference = 0 then quotient else difference * quotient
-  have first := nativeJoint_prepared_ket (beforeDivision Q) true false true false
+  have first := nativeJoint_prepared_ket (environment := environment)
+    (beforeDivision Q) true false true false
     (fieldWord x) (fieldWord y) (fieldWord a) (fieldWord b) reference
     (beforeDivision_fieldWords Q x y)
-  have middle := nativeJoint_prepared_ket (beforeMultiplication Q) true false
+  have middle := nativeJoint_prepared_ket (environment := environment)
+    (beforeMultiplication Q) true false
     (decide (difference ≠ 0)) true (fieldWord a) (fieldWord quotient)
     (fieldWord difference) (fieldWord quotient) reference
     (beforeMultiplication_fieldWords Q a quotient)
-  have last := nativeJoint_prepared_ket (afterMultiplication E Q) (decide (difference ≠ 0)) true
+  have last := nativeJoint_prepared_ket (environment := environment)
+    (afterMultiplication E Q) (decide (difference ≠ 0)) true
     true false (fieldWord difference) (fieldWord ordinate) (fieldWord (Q.x - difference))
     (fieldWord ((if difference = 0 then ordinate - exceptionalSlope E Q else ordinate) - Q.y))
     reference (afterMultiplication_fieldWords E Q difference ordinate)
@@ -2757,40 +2866,44 @@ private theorem executionOperator_fieldWords {p : Nat} (E : PrimeFieldShortWeier
   exact actual
 
 /-- False C retains all binary words, including padding labels, through all five actual stages. -/
-private theorem executionOperator_inactive {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma executionOperator_inactive {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) (x y : Fin (2 ^ p.size))
     {Reference : Register} (reference : Reference.Index) :
-    (executionOperator E Q Reference).applyVec
+    (executionOperator (environment := environment) E Q Reference).applyVec
       (NormalizedVector.ket (label p.size 0 0 (InPlaceTarget.preparedBasis p x y), reference)).vec =
       (NormalizedVector.ket (label p.size 0 0
         (InPlaceTarget.preparedBasis p x y), reference)).vec := by
-  have first := nativeJoint_prepared_ket (beforeDivision Q) false false false false x y x y
+  have first := nativeJoint_prepared_ket (environment := environment) (beforeDivision Q)
+    false false false false x y x y
     reference (beforeDivision_inactive Q _ rfl)
-  have middle := nativeJoint_prepared_ket (beforeMultiplication Q) false false false false x y x y
+  have middle := nativeJoint_prepared_ket (environment := environment) (beforeMultiplication Q)
+    false false false false x y x y
     reference (beforeMultiplication_prepared_inactive Q x y)
-  have last := nativeJoint_prepared_ket (afterMultiplication E Q) false false false false x y x y
+  have last := nativeJoint_prepared_ket (environment := environment) (afterMultiplication E Q)
+    false false false false x y x y
     reference (afterMultiplication_prepared_inactive E Q x y)
   have division := arithmeticTarget_prepared_ket .division p Fact.out 0 0 x y reference
   have multiplication := arithmeticTarget_prepared_ket .multiplication p Fact.out 0 0 x y reference
   simp only [if_neg Fin.zero_ne_one] at division multiplication
   exact operator_five_kets first division middle multiplication last
 
-private theorem executionOperator_target_columns {p : Nat}
+private lemma executionOperator_target_columns {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E)
     {Reference : Register}
     (input : (Register.prod (context p.size).register Reference).Index)
     (allowed : admissible E Q input.1) (row) :
-    executionOperator E Q Reference row input = target E Q Reference row input := by
+    executionOperator (environment := environment)
+      E Q Reference row input = target E Q Reference row input := by
   rcases input with ⟨original, reference⟩
   obtain ⟨control, x, y, rfl, active⟩ := allowed
-  have kernels : (executionOperator E Q Reference).applyVec
+  have kernels : (executionOperator (environment := environment) E Q Reference).applyVec
       (NormalizedVector.ket (label p.size control 0
         (InPlaceTarget.preparedBasis p x y), reference)).vec =
       (target E Q Reference).applyVec
         (NormalizedVector.ket (label p.size control 0
           (InPlaceTarget.preparedBasis p x y), reference)).vec := by
     fin_cases control
-    · have actual := executionOperator_inactive E Q x y reference
+    · have actual := executionOperator_inactive (environment := environment) E Q x y reference
       have ideal := target_prepared_ket E Q 0 0 x y reference
       rw [if_neg Fin.zero_ne_one] at ideal
       exact actual.trans ideal.symm
@@ -2800,19 +2913,21 @@ private theorem executionOperator_target_columns {p : Nat}
       subst x y
       have nonzero : firstDifference P.x Q.x ≠ 0 :=
         sub_ne_zero.mpr (genericAddDomain_of_ne_of_ne_negate E P Q different inverseDifferent)
-      have actual := executionOperator_fieldWords E Q P.x P.y nonzero reference
+      have actual := executionOperator_fieldWords (environment := environment)
+        E Q P.x P.y nonzero reference
       have ideal := target_prepared_ket E Q 1 0 (fieldWord P.x) (fieldWord P.y) reference
       rw [if_pos rfl, translationWords_fieldWords E Q P.x P.y nonzero] at ideal
       exact actual.trans ideal.symm
   have column := congrArg (fun vector :
     HilbertVector (Register.prod (context p.size).register Reference) => vector row) kernels
-  change HilbertOperator.applyVec (executionOperator E Q Reference : HilbertOperator _)
+  change HilbertOperator.applyVec (executionOperator (environment := environment)
+    E Q Reference : HilbertOperator _)
     (NormalizedVector.ket _).vec row =
     HilbertOperator.applyVec (target E Q Reference : HilbertOperator _)
       (NormalizedVector.ket _).vec row at column
   simpa only [HilbertOperator.applyVec_ket] using column
 
-private theorem arithmetic_admissible_label (modulus : Nat)
+private lemma arithmetic_admissible_label (modulus : Nat)
     (control selector : Fin 2) (value numerator : Fin (2 ^ modulus.size))
     (domain : control = 1 →
       0 < value.val ∧ value.val < modulus ∧ numerator.val < modulus) :
@@ -2832,7 +2947,7 @@ private theorem arithmetic_admissible_label (modulus : Nat)
   rw [Equiv.apply_symm_apply]
   exact ⟨control, value, numerator, rfl, domain⟩
 
-private theorem first_arithmetic_reachable {p : Nat}
+private lemma first_arithmetic_reachable {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E)
     {Reference : Register}
     (input : (Register.prod (context p.size).register Reference).Index)
@@ -2841,7 +2956,7 @@ private theorem first_arithmetic_reachable {p : Nat}
       InPlaceControlled.admissible p
         ((unionBasisEquiv (InPlaceControlled.context p.size) (selectorContext p.size)
           (selector_disjoint p.size) output.1).1) ∧
-      (nativeJoint p.size Reference (beforeDivision Q)).applyVec
+      (nativeJoint (environment := environment) p.size Reference (beforeDivision Q)).applyVec
         (NormalizedVector.ket input).vec = (NormalizedVector.ket output).vec := by
   rcases input with ⟨original, reference⟩
   obtain ⟨control, x, y, rfl, domain⟩ := allowed
@@ -2868,7 +2983,7 @@ private theorem first_arithmetic_reachable {p : Nat}
         (fieldWord (P.x - Q.x)) (fieldWord (P.y - Q.y)) reference
         (beforeDivision_fieldWords Q P.x P.y)
 
-private theorem second_arithmetic_reachable {p : Nat}
+private lemma second_arithmetic_reachable {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E)
     {Reference : Register}
     (input : (Register.prod (context p.size).register Reference).Index)
@@ -2877,9 +2992,9 @@ private theorem second_arithmetic_reachable {p : Nat}
       InPlaceControlled.admissible p
         ((unionBasisEquiv (InPlaceControlled.context p.size) (selectorContext p.size)
           (selector_disjoint p.size) output.1).1) ∧
-      (nativeJoint p.size Reference (beforeMultiplication Q) *
+      (nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
         arithmeticTarget .division p Fact.out Reference *
-        nativeJoint p.size Reference (beforeDivision Q)).applyVec
+        nativeJoint (environment := environment) p.size Reference (beforeDivision Q)).applyVec
         (NormalizedVector.ket input).vec = (NormalizedVector.ket output).vec := by
   rcases input with ⟨original, reference⟩
   obtain ⟨control, x, y, rfl, domain⟩ := allowed
@@ -2887,12 +3002,14 @@ private theorem second_arithmetic_reachable {p : Nat}
   · refine ⟨(label p.size 0 0 (InPlaceTarget.preparedBasis p x y), reference), ?_, ?_⟩
     · exact arithmetic_admissible_label p 0 0 x y
         (fun active => (Fin.zero_ne_one active).elim)
-    · have first := nativeJoint_prepared_ket (p := p) (beforeDivision Q)
+    · have first := nativeJoint_prepared_ket (environment := environment)
+        (p := p) (beforeDivision Q)
         false false false false x y x y reference
         (beforeDivision_inactive Q (preparedRaw p false false x y) rfl)
       have divided := arithmeticTarget_prepared_ket .division p Fact.out 0 0 x y reference
       rw [if_neg (show (0 : Fin 2) ≠ 1 from Fin.zero_ne_one)] at divided
-      have middle := nativeJoint_prepared_ket (p := p) (beforeMultiplication Q)
+      have middle := nativeJoint_prepared_ket (environment := environment)
+        (p := p) (beforeMultiplication Q)
         false false false false x y x y reference
         (beforeMultiplication_prepared_inactive Q x y)
       exact operator_three_kets first divided middle
@@ -2916,7 +3033,8 @@ private theorem second_arithmetic_reachable {p : Nat}
         BinaryLabelEncoding.bool.encode_injective active
       have valid : difference ≠ 0 := of_decide_eq_true selected
       exact ⟨ZMod.val_pos.mpr valid, ZMod.val_lt _, ZMod.val_lt _⟩
-    · have first := nativeJoint_prepared_ket (p := p) (beforeDivision Q)
+    · have first := nativeJoint_prepared_ket (environment := environment)
+        (p := p) (beforeDivision Q)
         true false true false (fieldWord P.x) (fieldWord P.y)
         (fieldWord a) (fieldWord b) reference (beforeDivision_fieldWords Q P.x P.y)
       have quotient : InPlaceTarget.resultWord .division p Fact.out
@@ -2925,54 +3043,62 @@ private theorem second_arithmetic_reachable {p : Nat}
       have divided := arithmeticTarget_prepared_ket .division p Fact.out 1 0
         (fieldWord a) (fieldWord b) reference
       rw [if_pos rfl, quotient] at divided
-      have middle := nativeJoint_prepared_ket (p := p) (beforeMultiplication Q)
+      have middle := nativeJoint_prepared_ket (environment := environment)
+        (p := p) (beforeMultiplication Q)
         true false (decide (difference ≠ 0)) true
         (fieldWord a) (fieldWord slopeValue) (fieldWord difference) (fieldWord slopeValue)
         reference (beforeMultiplication_fieldWords Q a slopeValue)
       exact operator_three_kets first divided middle
 
-private theorem execute_pair_marginal {ctx : RuntimeCtx .quantum}
-    (first second : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx)
+private lemma execute_pair_marginal {allowAllocation : Bool} {ctx : RuntimeCtx .quantum}
+    (first second : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx allowAllocation)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((first.seq second).execute Reference state).quantumMarginal =
-      (second.execute Reference (first.execute Reference state)).quantumMarginal := by
+    ((first.seq second).execute environment Reference state).quantumMarginal =
+      (second.execute environment Reference (first.execute environment Reference
+        state)).quantumMarginal := by
   rw [Circuit.execute_seq, State.mapHistory_quantumMarginal]
 
-private theorem execute_five_marginal {ctx : RuntimeCtx .quantum}
-    (first second third fourth fifth : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx)
+private lemma execute_five_marginal {allowAllocation : Bool} {ctx : RuntimeCtx .quantum}
+    (first second third fourth fifth : Circuit (.quantum AlgorithmGate.model .empty) ctx ctx
+      allowAllocation)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((first.seq (second.seq (third.seq (fourth.seq fifth)))).execute
+    ((first.seq (second.seq (third.seq (fourth.seq fifth)))).execute environment
       Reference state).quantumMarginal =
-      (fifth.execute Reference
-        (fourth.execute Reference
-          (third.execute Reference
-            (second.execute Reference (first.execute Reference state))))).quantumMarginal := by
+      (fifth.execute environment Reference
+        (fourth.execute environment Reference
+          (third.execute environment Reference
+            (second.execute environment Reference (first.execute environment Reference
+              state))))).quantumMarginal := by
   calc
-    ((first.seq (second.seq (third.seq (fourth.seq fifth)))).execute
+    ((first.seq (second.seq (third.seq (fourth.seq fifth)))).execute environment
         Reference state).quantumMarginal =
-        ((second.seq (third.seq (fourth.seq fifth))).execute Reference
-          (first.execute Reference state)).quantumMarginal :=
+        ((second.seq (third.seq (fourth.seq fifth))).execute environment Reference
+          (first.execute environment Reference state)).quantumMarginal :=
       execute_pair_marginal first (second.seq (third.seq (fourth.seq fifth))) state
-    _ = ((third.seq (fourth.seq fifth)).execute Reference
-        (second.execute Reference (first.execute Reference state))).quantumMarginal :=
+    _ = ((third.seq (fourth.seq fifth)).execute environment Reference
+        (second.execute environment Reference (first.execute environment Reference
+          state))).quantumMarginal :=
       execute_pair_marginal second (third.seq (fourth.seq fifth))
-        (first.execute Reference state)
-    _ = ((fourth.seq fifth).execute Reference
-        (third.execute Reference
-          (second.execute Reference (first.execute Reference state)))).quantumMarginal :=
+        (first.execute environment Reference state)
+    _ = ((fourth.seq fifth).execute environment Reference
+        (third.execute environment Reference
+          (second.execute environment Reference (first.execute environment Reference
+            state)))).quantumMarginal :=
       execute_pair_marginal third (fourth.seq fifth)
-        (second.execute Reference (first.execute Reference state))
-    _ = (fifth.execute Reference
-        (fourth.execute Reference
-          (third.execute Reference
-            (second.execute Reference (first.execute Reference state))))).quantumMarginal :=
+        (second.execute environment Reference (first.execute environment Reference state))
+    _ = (fifth.execute environment Reference
+        (fourth.execute environment Reference
+          (third.execute environment Reference
+            (second.execute environment Reference (first.execute environment Reference
+              state))))).quantumMarginal :=
       execute_pair_marginal fourth fifth
-        (third.execute Reference (second.execute Reference (first.execute Reference state)))
+        (third.execute environment Reference (second.execute environment Reference (first.execute
+          environment Reference state)))
 
 
-private theorem body_density_of_columns {p : Nat}
+private lemma body_density_of_columns {p : Nat}
     (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context p.size) Reference
@@ -2985,7 +3111,7 @@ private theorem body_density_of_columns {p : Nat}
         InPlaceControlled.admissible p
           ((unionBasisEquiv (InPlaceControlled.context p.size) (selectorContext p.size)
             (selector_disjoint p.size) output.1).1) ∧
-        (nativeJoint p.size Reference (beforeDivision Q)).applyVec
+        (nativeJoint (environment := environment) p.size Reference (beforeDivision Q)).applyVec
           (NormalizedVector.ket input).vec = (NormalizedVector.ket output).vec)
     (secondReachable : ∀ input : (Register.prod (context p.size).register Reference).Index,
       admissible E Q input.1 →
@@ -2993,55 +3119,65 @@ private theorem body_density_of_columns {p : Nat}
         InPlaceControlled.admissible p
           ((unionBasisEquiv (InPlaceControlled.context p.size) (selectorContext p.size)
             (selector_disjoint p.size) output.1).1) ∧
-        (nativeJoint p.size Reference (beforeMultiplication Q) *
+        (nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
           arithmeticTarget .division p Fact.out Reference *
-          nativeJoint p.size Reference (beforeDivision Q)).applyVec
+          nativeJoint (environment := environment) p.size Reference (beforeDivision Q)).applyVec
           (NormalizedVector.ket input).vec = (NormalizedVector.ket output).vec)
     (columns : ∀ input : (Register.prod (context p.size).register Reference).Index,
       admissible E Q input.1 → ∀ row,
-        (nativeJoint p.size Reference (afterMultiplication E Q) *
+        (nativeJoint (environment := environment) p.size Reference (afterMultiplication E Q) *
           arithmeticTarget .multiplication p Fact.out Reference *
-          nativeJoint p.size Reference (beforeMultiplication Q) *
+          nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
           arithmeticTarget .division p Fact.out Reference *
-          nativeJoint p.size Reference (beforeDivision Q) :
+          nativeJoint (environment := environment) p.size Reference (beforeDivision Q) :
             UnitaryOperator (Register.prod (context p.size).register Reference)) row input =
-          target E Q Reference row input) :
-    ((body E Q).execute Reference state).quantumMarginal =
+          target E Q Reference row input)
+    (allowAllocation : Bool := true) :
+    ((body E Q allowAllocation).execute environment Reference state).quantumMarginal =
       DensityOperator.applyUnitary (target E Q Reference) state.quantumMarginal := by
-  let firstCode := nativeCode p.size (beforeDivision Q)
-  let middleCode := nativeCode p.size (beforeMultiplication Q)
-  let lastCode := nativeCode p.size (afterMultiplication E Q)
-  let firstState := firstCode.execute Reference state
-  let secondState := (arithmetic .division p Fact.out).execute Reference firstState
-  let thirdState := middleCode.execute Reference secondState
-  let fourthState := (arithmetic .multiplication p Fact.out).execute Reference thirdState
+  let firstCode := nativeCode p.size (beforeDivision Q) allowAllocation
+  let middleCode := nativeCode p.size (beforeMultiplication Q) allowAllocation
+  let lastCode := nativeCode p.size (afterMultiplication E Q) allowAllocation
+  let firstState := firstCode.execute environment Reference state
+  let secondState := (arithmetic .division p Fact.out allowAllocation).execute environment
+    Reference firstState
+  let thirdState := middleCode.execute environment Reference secondState
+  let fourthState := (arithmetic .multiplication p Fact.out allowAllocation).execute environment
+    Reference
+    thirdState
   let arithmeticAllowed := fun input :
       (Register.prod (context p.size).register Reference).Index =>
     InPlaceControlled.admissible p
       ((unionBasisEquiv (InPlaceControlled.context p.size) (selectorContext p.size)
         (selector_disjoint p.size) input.1).1)
   have firstDensity : firstState.quantumMarginal =
-      DensityOperator.applyUnitary (nativeJoint p.size Reference (beforeDivision Q))
+      DensityOperator.applyUnitary (nativeJoint (environment := environment) p.size Reference
+        (beforeDivision Q))
         state.quantumMarginal :=
-    nativeCode_density p.size (beforeDivision Q) state
+    nativeCode_density (allowAllocation := allowAllocation) p.size (beforeDivision Q) state
   have firstSupport : ∀ input, ¬arithmeticAllowed input →
       firstState.quantumMarginal.matrix input input = 0 := by
     rw [firstDensity]
     exact applyUnitary_support_of_kets state.quantumMarginal
-      (nativeJoint p.size Reference (beforeDivision Q))
+      (nativeJoint (environment := environment) p.size Reference (beforeDivision Q))
       (fun input => admissible E Q input.1) arithmeticAllowed support firstReachable
-  have secondDensity := arithmetic_density .division p Fact.out firstState firstSupport
-  have thirdDensity := nativeCode_density p.size (beforeMultiplication Q)
+  have secondDensity := arithmetic_density (environment := environment)
+    (allowAllocation := allowAllocation) .division p
+    Fact.out firstState firstSupport
+  have thirdDensity := nativeCode_density (environment := environment)
+    (allowAllocation := allowAllocation) p.size
+    (beforeMultiplication Q)
     secondState
   have thirdCombined : thirdState.quantumMarginal =
       DensityOperator.applyUnitary
-        (nativeJoint p.size Reference (beforeMultiplication Q) *
+        (nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
           arithmeticTarget .division p Fact.out Reference *
-          nativeJoint p.size Reference (beforeDivision Q)) state.quantumMarginal := by
+          nativeJoint (environment := environment) p.size Reference (beforeDivision Q))
+            state.quantumMarginal := by
     rw [DensityOperator.applyUnitary_mul, DensityOperator.applyUnitary_mul]
     exact thirdDensity.trans
       (congrArg (DensityOperator.applyUnitary
-        (nativeJoint p.size Reference (beforeMultiplication Q)))
+        (nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q)))
           (secondDensity.trans
             (congrArg (DensityOperator.applyUnitary
               (arithmeticTarget .division p Fact.out Reference)) firstDensity)))
@@ -3049,31 +3185,38 @@ private theorem body_density_of_columns {p : Nat}
       thirdState.quantumMarginal.matrix input input = 0 := by
     rw [thirdCombined]
     exact applyUnitary_support_of_kets state.quantumMarginal
-      (nativeJoint p.size Reference (beforeMultiplication Q) *
+      (nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
         arithmeticTarget .division p Fact.out Reference *
-        nativeJoint p.size Reference (beforeDivision Q))
+        nativeJoint (environment := environment) p.size Reference (beforeDivision Q))
       (fun input => admissible E Q input.1) arithmeticAllowed support secondReachable
-  have fourthDensity := arithmetic_density .multiplication p Fact.out thirdState secondSupport
-  have fifthDensity := nativeCode_density p.size (afterMultiplication E Q)
+  have fourthDensity := arithmetic_density (environment := environment)
+    (allowAllocation := allowAllocation) .multiplication p
+    Fact.out thirdState secondSupport
+  have fifthDensity := nativeCode_density (environment := environment)
+    (allowAllocation := allowAllocation) p.size
+    (afterMultiplication E Q)
     fourthState
-  have complete : ((body E Q).execute Reference state).quantumMarginal =
+  have complete : ((body E Q allowAllocation).execute environment Reference state).quantumMarginal =
       DensityOperator.applyUnitary
-        (nativeJoint p.size Reference (afterMultiplication E Q) *
+        (nativeJoint (environment := environment) p.size Reference (afterMultiplication E Q) *
           arithmeticTarget .multiplication p Fact.out Reference *
-          nativeJoint p.size Reference (beforeMultiplication Q) *
+          nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q) *
           arithmeticTarget .division p Fact.out Reference *
-          nativeJoint p.size Reference (beforeDivision Q)) state.quantumMarginal := by
-    have sequence : ((body E Q).execute Reference state).quantumMarginal =
-        (lastCode.execute Reference fourthState).quantumMarginal :=
-      execute_five_marginal firstCode (arithmetic .division p Fact.out)
-        middleCode (arithmetic .multiplication p Fact.out) lastCode state
+          nativeJoint (environment := environment) p.size Reference (beforeDivision Q))
+            state.quantumMarginal := by
+    have sequence : ((body E Q allowAllocation).execute environment Reference
+      state).quantumMarginal =
+        (lastCode.execute environment Reference fourthState).quantumMarginal :=
+      execute_five_marginal (allowAllocation := allowAllocation) firstCode (arithmetic .division p
+        Fact.out allowAllocation)
+        middleCode (arithmetic .multiplication p Fact.out allowAllocation) lastCode state
     have actual := sequence.trans (fifthDensity.trans
       (congrArg (DensityOperator.applyUnitary
-        (nativeJoint p.size Reference (afterMultiplication E Q)))
+        (nativeJoint (environment := environment) p.size Reference (afterMultiplication E Q)))
         (fourthDensity.trans (congrArg (DensityOperator.applyUnitary
           (arithmeticTarget .multiplication p Fact.out Reference))
           (thirdDensity.trans (congrArg (DensityOperator.applyUnitary
-            (nativeJoint p.size Reference (beforeMultiplication Q)))
+            (nativeJoint (environment := environment) p.size Reference (beforeMultiplication Q)))
             (secondDensity.trans (congrArg (DensityOperator.applyUnitary
               (arithmeticTarget .division p Fact.out Reference)) firstDensity))))))))
     simpa only [DensityOperator.applyUnitary_mul] using actual
@@ -3083,33 +3226,37 @@ private theorem body_density_of_columns {p : Nat}
     (fun input => admissible E Q input.1) _ _ support columns
 
 /-- The complete actual body preserves arbitrary reference entanglement and control coherence. -/
-theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ input : (Register.prod (context p.size).register Reference).Index,
-      ¬admissible E Q input.1 → state.quantumMarginal.matrix input input = 0) :
-    ((body E Q).execute Reference state).quantumMarginal =
+      ¬admissible E Q input.1 → state.quantumMarginal.matrix input input = 0)
+    (allowAllocation : Bool := true) :
+    ((body E Q allowAllocation).execute environment Reference state).quantumMarginal =
       DensityOperator.applyUnitary (target E Q Reference) state.quantumMarginal :=
-  body_density_of_columns E Q state support (first_arithmetic_reachable E Q)
-    (second_arithmetic_reachable E Q) (executionOperator_target_columns E Q)
+  body_density_of_columns (environment := environment)
+    (allowAllocation := allowAllocation) E Q state support
+    (first_arithmetic_reachable E Q)
+    (second_arithmetic_reachable E Q) (executionOperator_target_columns (environment := environment)
+      E Q)
 
 variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
 
 /-- The original active point exclusions imply the first denominator is nonzero. -/
-theorem firstDifference_ne_zero (P Q : AffinePoint E)
+lemma firstDifference_ne_zero (P Q : AffinePoint E)
     (allowed : affineAllowed true P Q) : firstDifference P.x Q.x ≠ 0 := by
   obtain ⟨different, inverseDifferent⟩ := allowed rfl
   exact sub_ne_zero.mpr (genericAddDomain_of_ne_of_ne_negate E P Q different inverseDifferent)
 
 /-- The actual first quotient is the independent affine secant slope. -/
-theorem slope_eq_generic (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
+lemma slope_eq_generic (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
     slope P.x P.y Q.x Q.y = genericAddSlope E P Q := by
   rw [genericAddSlope_eq_secant_quotient E P Q domain]
   rfl
 
 /-- The second multiplier is zero exactly when the result shares the fixed x coordinate. -/
-theorem secondDifference_eq (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
+lemma secondDifference_eq (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
     secondDifference P.x P.y Q.x Q.y = Q.x - genericAddX E P Q := by
   have known := GenericPointAddition.InPlace.PointSemantics.secondDenominator_true_eq E P Q domain
   rw [GenericPointAddition.InPlace.Semantics.secondDenominator, if_pos rfl,
@@ -3118,11 +3265,11 @@ theorem secondDifference_eq (P Q : AffinePoint E) (domain : GenericAddDomain P Q
   rw [secondDifference, slope_eq_generic E P Q domain, firstDifference]
   linear_combination known
 
-private theorem result_group (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
+private lemma result_group (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
     P.toMathlib + Q.toMathlib = (genericAddPoint E P Q domain).toMathlib :=
   genericAdd_group_law_mathlib E P Q domain
 
-private theorem result_eq_negate (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
+private lemma result_eq_negate (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
     (sameX : (genericAddPoint E P Q domain).x = Q.x) :
     genericAddPoint E P Q domain = AffinePoint.negate Q := by
   rcases (WeierstrassCurve.Affine.Point.X_eq_iff
@@ -3145,14 +3292,14 @@ private theorem result_eq_negate (P Q : AffinePoint E) (domain : GenericAddDomai
     have coordinates := WeierstrassCurve.Affine.Point.some.inj samePoint
     exact AffinePoint.ext_coordinates _ _ coordinates.1 coordinates.2
 
-private theorem negate_self_of_two_mul_y_zero (R : AffinePoint E)
+private lemma negate_self_of_two_mul_y_zero (R : AffinePoint E)
     (zero : (2 : ZMod p) * R.y = 0) : AffinePoint.negate R = R := by
   apply AffinePoint.ext_coordinates
   · rfl
   · have same : -R.y = R.y := by linear_combination -zero
     simpa [toWeierstrassCurve, WeierstrassCurve.Affine.negY] using same
 
-private theorem exceptional_double_domain (P Q : AffinePoint E)
+private lemma exceptional_double_domain (P Q : AffinePoint E)
     (domain : GenericAddDomain P Q)
     (sameX : (genericAddPoint E P Q domain).x = Q.x) :
     GenericDoubleDomain (AffinePoint.negate Q) := by
@@ -3169,7 +3316,7 @@ private theorem exceptional_double_domain (P Q : AffinePoint E)
     simpa only [zero_add] using (result_group E P Q domain).trans resultSame
   exact (WeierstrassCurve.Affine.Point.some_ne_zero P.nonsingular) pointZero
 
-private theorem exceptional_coordinates (P Q : AffinePoint E)
+private lemma exceptional_coordinates (P Q : AffinePoint E)
     (domain : GenericAddDomain P Q)
     (sameX : (genericAddPoint E P Q domain).x = Q.x) :
     doubleX E (AffinePoint.negate Q) = P.x ∧ doubleY E (AffinePoint.negate Q) = P.y := by
@@ -3192,7 +3339,7 @@ private theorem exceptional_coordinates (P Q : AffinePoint E)
   exact ⟨coordinates.1, coordinates.2⟩
 
 /-- A reachable zero second multiplier makes the slope the same total classical constant. -/
-theorem exceptional_slope (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
+lemma exceptional_slope (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
     (zero : secondDifference P.x P.y Q.x Q.y = 0) :
     slope P.x P.y Q.x Q.y = exceptionalSlope E Q := by
   have sameX : (genericAddPoint E P Q domain).x = Q.x := by
@@ -3203,17 +3350,17 @@ theorem exceptional_slope (P Q : AffinePoint E) (domain : GenericAddDomain P Q)
   rfl
 
 /-- The normal selector supplies the multiplier domain internally, including coherent control. -/
-theorem normalControl_true (control : Bool) (difference : ZMod p)
+lemma normalControl_true (control : Bool) (difference : ZMod p)
     (active : normalControl control difference = true) :
     control = true ∧ difference ≠ 0 := by
   simpa [normalControl] using active
 
 /-- Every inactive binary-field input is preserved without a denominator premise. -/
-theorem fieldOutput_false (Q : AffinePoint E) (x y : ZMod p) :
+lemma fieldOutput_false (Q : AffinePoint E) (x y : ZMod p) :
     fieldOutput E Q false x y = (x, y) := rfl
 
 /-- Both active branches give the original generic affine point without a reverse-domain premise. -/
-theorem fieldOutput_true (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
+lemma fieldOutput_true (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
     fieldOutput E Q true P.x P.y = (genericAddX E P Q, genericAddY E P Q) := by
   have outputY := GenericPointAddition.InPlace.PointSemantics.selectedOutputY_true E P Q domain
   rw [GenericPointAddition.InPlace.Semantics.selectedOutputY, if_pos rfl,
@@ -3238,7 +3385,7 @@ theorem fieldOutput_true (P Q : AffinePoint E) (domain : GenericAddDomain P Q) :
   exact Prod.ext xResult yResult
 
 /-- The original active affine exclusions give P+Q with every prepared work bit restored. -/
-theorem target_affine_prepared (P Q : AffinePoint E)
+lemma target_affine_prepared (P Q : AffinePoint E)
     (different : P ≠ Q) (inverseDifferent : P ≠ AffinePoint.negate Q)
     {Reference : Register} (reference : Reference.Index) :
     (target E Q Reference).applyVec
@@ -3255,7 +3402,7 @@ theorem target_affine_prepared (P Q : AffinePoint E)
   exact actual
 
 /-- False C fixes arbitrary binary X/Y and all prescribed preparation, including padding labels. -/
-theorem target_inactive_prepared (Q : AffinePoint E) (x y : Fin (2 ^ p.size))
+lemma target_inactive_prepared (Q : AffinePoint E) (x y : Fin (2 ^ p.size))
     {Reference : Register} (reference : Reference.Index) :
     (target E Q Reference).applyVec
       (NormalizedVector.ket (label p.size 0 0 (InPlaceTarget.preparedBasis p x y), reference)).vec =

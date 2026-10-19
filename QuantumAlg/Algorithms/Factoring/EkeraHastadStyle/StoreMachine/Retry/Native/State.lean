@@ -23,6 +23,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetryChain
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -38,14 +41,14 @@ def restoredSeed : (context base noQuantum N count).register.Index :=
     (ShortDLP.CompiledMAU.reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)
 
 /-- Every actual vector block is its original probability times the full seed-reference target. -/
-theorem output_joint_entry (specification : Input N)
+lemma output_joint_entry (specification : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (selected : (CShape.fixedVector (count + 1)
       (LatticeBatchRecoveryOutput.OutputShape N)).Value)
     (left right : (context base noQuantum N count).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((code base noQuantum specification count).execute Reference state).mapClassical
+    ((((code base noQuantum specification count).execute environment Reference state).mapClassical
       (fun entry => (run base noQuantum specification count).output.eval entry.1)).block
         selected).matrix (left, leftRef) (right, rightRef) =
       if left = restoredSeed base noQuantum N count ∧
@@ -56,11 +59,12 @@ theorem output_joint_entry (specification : Input N)
             selected).toReal : ℂ) * state.referenceMarginal.matrix leftRef rightRef
       else 0 := by
   have observed := BasisSeeded.readout_entry (restoredSeed base noQuantum N count)
-    ((code base noQuantum specification count).execute Reference state)
+    ((code base noQuantum specification count).execute environment Reference state)
     (code_seedBlocks base noQuantum specification count state)
     (fun store => (run base noQuantum specification count).output.eval store) selected
     left right leftRef rightRef
-  have actual := code_weighted_reference base noQuantum specification count state
+  have actual := code_weighted_reference (environment := environment)
+    base noQuantum specification count state
     (fun value => if value = selected then 1 else 0) leftRef rightRef
   have scalar := actual.trans (by
     simp only [mul_ite, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true]
@@ -70,7 +74,7 @@ theorem output_joint_entry (specification : Input N)
       then coefficient else 0) scalar)
 
 /-- The complete mixed seed-reference promise includes unsupported observed factor vectors. -/
-theorem output_statePromise (specification : Input N)
+lemma output_statePromise (specification : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (normalized : state.IsNormalized)
@@ -81,7 +85,7 @@ theorem output_statePromise (specification : Input N)
       (BasisReference.target_normalized (restoredSeed base noQuantum N count)
         state.referenceMarginal
         ((ExecutionState.referenceMarginal_mass state).trans normalized))).Holds
-      ((((code base noQuantum specification count).execute Reference state).mapClassical
+      ((((code base noQuantum specification count).execute environment Reference state).mapClassical
         (fun entry => (run base noQuantum specification count).output.eval entry.1)).block
           selected) :=
   BasisReference.promise_of_entries (restoredSeed base noQuantum N count) state.referenceMarginal

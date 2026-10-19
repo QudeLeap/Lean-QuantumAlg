@@ -28,13 +28,13 @@ noncomputable section
 local instance (count : ℕ+) : Nonempty (Fin count) := ⟨⟨0, count.pos⟩⟩
 
 /-- Exact trace weight of one actual finite random choice. -/
-theorem uniformChoice_block_mass {C : Type} [Fintype C] {R : Register}
+lemma uniformChoice_block_mass {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (count : ℕ+) (entry : C) (outcome : Fin count) :
     ((uniformChoice state count).block (entry, outcome)).mass =
       (count : ℝ)⁻¹ * (state.block entry).mass :=
   divideMass_mass (state.block entry) count
 
-private theorem uniform_pair_apply {C : Type} [Finite C] (distribution : PMF C)
+private lemma uniform_pair_apply {C : Type} [Finite C] (distribution : PMF C)
     (count : ℕ+) (entry : C) (outcome : Fin count) :
     (distribution.bind (fun original => (PMF.uniformOfFintype (Fin count)).map
       (fun sample => (original, sample)))) (entry, outcome) =
@@ -50,7 +50,7 @@ private theorem uniform_pair_apply {C : Type} [Finite C] (distribution : PMF C)
   · simp
 
 /-- The actual independent uniform operation preserves normalized execution mass. -/
-theorem uniformChoice_normalized {C : Type} [Fintype C] {R : Register}
+lemma uniformChoice_normalized {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (normalized : state.IsNormalized) (count : ℕ+) :
     (uniformChoice state count).IsNormalized := by
   change (uniformChoice state count).mass = 1
@@ -58,7 +58,7 @@ theorem uniformChoice_normalized {C : Type} [Fintype C] {R : Register}
   exact (uniformChoice_mass state count).trans normalized
 
 /-- The actual independent finite random instruction has the unchanged uniform PMF law. -/
-theorem uniformChoice_toPMF {C : Type} [Fintype C] {R : Register}
+lemma uniformChoice_toPMF {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (normalized : state.IsNormalized) (count : ℕ+) :
     (uniformChoice state count).toPMF (uniformChoice_normalized state normalized count) =
       (state.toPMF normalized).bind (fun original =>

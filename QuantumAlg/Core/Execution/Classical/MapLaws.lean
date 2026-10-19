@@ -31,7 +31,7 @@ variable {C D O I : Type} [Fintype C] [Fintype D] [Fintype O] [Fintype I]
   {R : Register}
 
 /-- Relabeling prior classical records commutes with the existing full Z poststate. -/
-theorem mapClassical_measureZ [DecidableEq D] [DecidableEq O] [DecidableEq (D × O)]
+lemma mapClassical_measureZ [DecidableEq D] [DecidableEq O] [DecidableEq (D × O)]
     (state : ExecutionState C R) (update : C → D)
     (readout : R.Index → O) :
     (state.mapClassical update).measureZ readout =
@@ -55,7 +55,7 @@ theorem mapClassical_measureZ [DecidableEq D] [DecidableEq O] [DecidableEq (D ×
 
 omit [Fintype O] in
 /-- A selection after a classical map selects exactly its original source fibers. -/
-theorem mapClassical_selectClassical [DecidableEq D] [DecidableEq O]
+lemma mapClassical_selectClassical [DecidableEq D] [DecidableEq O]
     (state : ExecutionState C R) (update : C → D)
     (readout : D → O) (selected : O) :
     (state.mapClassical update).selectClassical readout selected =
@@ -75,7 +75,7 @@ theorem mapClassical_selectClassical [DecidableEq D] [DecidableEq O]
   by_cases matching : update value = result <;> simp [matching]
 
 /-- Classical fiber sums commute with the actual admissible finite sum of states. -/
-theorem mapClassical_finiteSum [DecidableEq D] (states : I → ExecutionState C R)
+lemma mapClassical_finiteSum [DecidableEq D] (states : I → ExecutionState C R)
     (total : ∑ index, (states index).mass ≤ 1) (update : C → D) :
     (finiteSum states total).mapClassical update =
       finiteSum (fun index => (states index).mapClassical update)

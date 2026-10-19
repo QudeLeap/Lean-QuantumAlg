@@ -16,7 +16,7 @@ import all QuantumAlg.Core.Algorithm.ExecutionState
 /-!
 # Actual state updates for declared classical operations and queries
 
-Each step reads its placed operands, samples the declaration-owned transition
+Each step reads its placed operands, samples the interpreted transition
 and writes the actual result. Quantum blocks retain their full context and
 external reference, weighted by the actual transition probability.
 
@@ -44,20 +44,20 @@ public def nativeStep {model : ClassicalOpModel}
       (entry.1.1.write application.output entry.2, (entry.1.2, entry.2))
 
 /-- A declared native operation preserves the complete input probability mass. -/
-public theorem nativeStep_mass {model : ClassicalOpModel}
+public lemma nativeStep_mass {model : ClassicalOpModel}
     (application : model.Application ctx) (state : State ctx Reference History) :
     (nativeStep application state).mass = state.mass :=
   (ExecutionState.mapClassical_mass _ _).trans (kernelChoice_mass _ _)
 
 /-- Native sampling and classical storage updates preserve the full quantum marginal. -/
-public theorem nativeStep_quantumMarginal {model : ClassicalOpModel}
+public lemma nativeStep_quantumMarginal {model : ClassicalOpModel}
     (application : model.Application ctx) (state : State ctx Reference History) :
     (nativeStep application state).quantumMarginal = state.quantumMarginal :=
   (ExecutionState.mapClassical_quantumMarginal _ _).trans (kernelChoice_quantumMarginal _ _)
 
 open scoped Classical in
 /-- Every output block sums precisely the weighted inputs that write that actual record. -/
-public theorem nativeStep_block_matrix {model : ClassicalOpModel}
+public lemma nativeStep_block_matrix {model : ClassicalOpModel}
     (application : model.Application ctx) (state : State ctx Reference History)
     (result : Store ctx × (History × (model.outputShape application.token).Value)) :
     ((nativeStep application state).block result).matrix =
@@ -76,42 +76,47 @@ public theorem nativeStep_block_matrix {model : ClassicalOpModel}
 
 /-- Sample the joint next-state/result transition using the current persistent state. -/
 public def queryStep {model : ClassicalOracleModel}
+    (environment : model.Interpretation)
     (application : model.Application ctx)
     (state : State ctx Reference (model.HiddenState × History)) :
     State ctx Reference
       (model.HiddenState × (History × (model.outputShape application.query).Value)) :=
   (kernelChoice state fun entry =>
-    model.transition application.query entry.2.1 (entry.1.read application.input)).mapClassical
+    model.transition environment application.query entry.2.1
+      (entry.1.read application.input)).mapClassical
       fun entry => (entry.1.1.write application.output entry.2.2,
         (entry.2.1, (entry.1.2.2, entry.2.2)))
 
 /-- Stateful query execution retains the total probability of all correlated inputs. -/
-public theorem queryStep_mass {model : ClassicalOracleModel}
+public lemma queryStep_mass {model : ClassicalOracleModel}
+    (environment : model.Interpretation)
     (application : model.Application ctx)
     (state : State ctx Reference (model.HiddenState × History)) :
-    (queryStep application state).mass = state.mass :=
+    (queryStep environment application state).mass = state.mass :=
   (ExecutionState.mapClassical_mass _ _).trans (kernelChoice_mass _ _)
 
 /-- A classical query preserves every quantum and reference marginal entry. -/
-public theorem queryStep_quantumMarginal {model : ClassicalOracleModel}
+public lemma queryStep_quantumMarginal {model : ClassicalOracleModel}
+    (environment : model.Interpretation)
     (application : model.Application ctx)
     (state : State ctx Reference (model.HiddenState × History)) :
-    (queryStep application state).quantumMarginal = state.quantumMarginal :=
+    (queryStep environment application state).quantumMarginal = state.quantumMarginal :=
   (ExecutionState.mapClassical_quantumMarginal _ _).trans (kernelChoice_quantumMarginal _ _)
 
 open scoped Classical in
 /-- Query blocks retain actual input, old state, next state and visible-result correlations. -/
-public theorem queryStep_block_matrix {model : ClassicalOracleModel}
+public lemma queryStep_block_matrix {model : ClassicalOracleModel}
+    (environment : model.Interpretation)
     (application : model.Application ctx)
     (state : State ctx Reference (model.HiddenState × History))
     (result : Store ctx ×
       (model.HiddenState × (History × (model.outputShape application.query).Value))) :
-    ((queryStep application state).block result).matrix =
+    ((queryStep environment application state).block result).matrix =
       ∑ entry : Store ctx × (model.HiddenState × History),
         ∑ outcome : model.HiddenState × (model.outputShape application.query).Value,
           if (entry.1.write application.output outcome.2,
               (outcome.1, (entry.2.2, outcome.2))) = result then
-            (model.transition application.query entry.2.1
+            (model.transition environment application.query entry.2.1
               (entry.1.read application.input) outcome).toReal • (state.block entry).matrix
           else 0 := by
   change (∑ entry : (Store ctx × (model.HiddenState × History)) ×
@@ -119,7 +124,7 @@ public theorem queryStep_block_matrix {model : ClassicalOracleModel}
     if (entry.1.1.write application.output entry.2.2,
         (entry.2.1, (entry.1.2.2, entry.2.2))) = result then
       ((kernelChoice state fun value =>
-        model.transition application.query value.2.1
+        model.transition environment application.query value.2.1
           (value.1.read application.input)).block entry).matrix
     else 0) = _
   rw [Fintype.sum_prod_type]

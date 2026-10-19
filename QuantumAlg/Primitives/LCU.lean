@@ -8,3 +8,4 @@ module
 
 public import QuantumAlg.Primitives.LCU.Basic
 public import QuantumAlg.Primitives.LCU.Endpoint
+public import QuantumAlg.Primitives.LCU.Endpoint.Results

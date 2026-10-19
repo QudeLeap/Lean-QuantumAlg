@@ -26,37 +26,44 @@ variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
 
 /-- One shared query leaves both selector and phase ancilla untouched. -/
 def signal (inverse : Bool) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U allowControlled true false)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) allowControlled true false)
       (layout m n) :=
-  UnitaryCircuit.onBinarySuffix 1 (KnownZero.signal U allowControlled inverse)
+  UnitaryCircuit.onBinarySuffix 1 (KnownZero.signal (m := m) (n := n) allowControlled inverse)
 
 /-- Both selector branches contain the same single physical source query. -/
-theorem signal_matrix (inverse : Bool) :
-    ((signal U allowControlled inverse).binaryMatrix :
+lemma signal_matrix (inverse : Bool) :
+    (((signal (m := m) (n := n) allowControlled inverse).binaryMatrix
+      (UnitarySource.interpretation U allowControlled true false)) :
       HilbertOperator (Qubits (1 + (1 + (m + n))))) =
-      Native.branchMatrix (KnownZero.signal U allowControlled inverse).binaryMatrix
-        (KnownZero.signal U allowControlled inverse).binaryMatrix := by
+      Native.branchMatrix ((KnownZero.signal (m := m) (n := n) allowControlled
+        inverse).binaryMatrix (UnitarySource.interpretation U allowControlled true false))
+        ((KnownZero.signal (m := m) (n := n) allowControlled inverse).binaryMatrix
+          (UnitarySource.interpretation U allowControlled true false)) := by
   rw [signal, UnitaryCircuit.unitaryCircuit_onBinarySuffix_binaryMatrix,
     Native.branchMatrix_same]
   rfl
 
 /-- Equal-length branch phases share one alternating sequence of source accesses. -/
 def circuit : List (ℝ × ℝ) →
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U allowControlled true false)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) allowControlled true false)
       (layout m n)
   | [] => .identity _ _ _
   | angles :: phases =>
       ((circuit phases).seq
-        (signal U allowControlled (decide ((phases.length + 1) % 2 = 0)))).seq
-        (phase m n positive (UnitarySource.model U allowControlled true false) angles.1 angles.2)
+        (signal (m := m) (n := n) allowControlled (decide ((phases.length + 1) % 2 = 0)))).seq
+        (phase m n positive (UnitarySource.model (m + n) allowControlled true false) angles.1
+          angles.2)
 
 /-- The actual shared word equals the direct sum of both independently specified branch words. -/
-theorem circuit_matrix (phases : List (ℝ × ℝ)) :
-    ((circuit U positive allowControlled phases).binaryMatrix :
+lemma circuit_matrix (phases : List (ℝ × ℝ)) :
+    (((circuit (m := m) (n := n) positive allowControlled phases).binaryMatrix
+      (UnitarySource.interpretation U allowControlled true false)) :
       HilbertOperator (Qubits (1 + (1 + (m + n))))) =
       Native.branchMatrix
-        (KnownZero.circuit U positive allowControlled (phases.map Prod.fst)).binaryMatrix
-        (KnownZero.circuit U positive allowControlled (phases.map Prod.snd)).binaryMatrix := by
+        ((KnownZero.circuit (m := m) (n := n) positive allowControlled (phases.map
+          Prod.fst)).binaryMatrix (UnitarySource.interpretation U allowControlled true false))
+        ((KnownZero.circuit (m := m) (n := n) positive allowControlled (phases.map
+          Prod.snd)).binaryMatrix (UnitarySource.interpretation U allowControlled true false)) := by
   induction phases with
   | nil =>
       simp only [circuit, List.map_nil, KnownZero.circuit,
@@ -72,13 +79,13 @@ theorem circuit_matrix (phases : List (ℝ × ℝ)) :
         UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, List.length_map, Submonoid.coe_mul]
 
 /-- One shared source occurrence contributes one abstract dependency step. -/
-theorem signal_depth (inverse : Bool) :
-    (signal U allowControlled inverse).evaluatedEventDepth (fun _ => 1) = 1 := by
+lemma signal_depth (inverse : Bool) :
+    (signal (m := m) (n := n) allowControlled inverse).evaluatedEventDepth (fun _ => 1) = 1 := by
   rw [signal, UnitaryCircuit.unitaryCircuit_onBinarySuffix_unit_depth, KnownZero.signal_depth]
 
 /-- Exact depth counts one source query, two native flips and four selector gates per slot. -/
-theorem circuit_depth (phases : List (ℝ × ℝ)) :
-    (circuit U positive allowControlled phases).evaluatedEventDepth (fun _ => 1) =
+lemma circuit_depth (phases : List (ℝ × ℝ)) :
+    (circuit (m := m) (n := n) positive allowControlled phases).evaluatedEventDepth (fun _ => 1) =
       (2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 5) * phases.length := by
   induction phases with
   | nil => change 0 = _; simp

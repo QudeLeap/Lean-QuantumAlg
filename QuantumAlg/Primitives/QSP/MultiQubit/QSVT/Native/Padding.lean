@@ -23,13 +23,13 @@ queries or native gates of an executed padded word
 namespace QuantumAlg.QSP.MultiQubit.QSVT.Native
 noncomputable section
 
-private theorem zero_phase {width : Nat} (P : OrthogonalProjector width) :
+private lemma zero_phase {width : Nat} (P : OrthogonalProjector width) :
     projectorPhaseOp 0 P = 1 := by
   apply Subtype.ext
   simp [projectorPhaseOp, projectorPhaseMatrix, OrthogonalProjector.complement]
 
 /-- Two zero source phases preserve the full operator on every state and reference. -/
-theorem sourceWord_two_zero {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma sourceWord_two_zero {width : Nat} (U : UnitaryOperator (Qubits width))
     (left right : OrthogonalProjector width) (phases : List ℝ) :
     sourceWord U left right (0 :: 0 :: phases) = sourceWord U left right phases := by
   by_cases even : phases.length % 2 = 0
@@ -46,14 +46,14 @@ def padPairs : Nat → List ℝ → List ℝ
   | count + 1, phases => 0 :: 0 :: padPairs count phases
 
 /-- Padding length is explicit and remains visible to all native resource formulas. -/
-theorem padPairs_length (count : Nat) (phases : List ℝ) :
+lemma padPairs_length (count : Nat) (phases : List ℝ) :
     (padPairs count phases).length = 2 * count + phases.length := by
   induction count with
   | zero => simp [padPairs]
   | succ count ih => simp [padPairs, ih]; omega
 
 /-- Paired padding preserves the independent source operator exactly. -/
-theorem sourceWord_padPairs {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma sourceWord_padPairs {width : Nat} (U : UnitaryOperator (Qubits width))
     (left right : OrthogonalProjector width) (count : Nat) (phases : List ℝ) :
     sourceWord U left right (padPairs count phases) = sourceWord U left right phases := by
   induction count with

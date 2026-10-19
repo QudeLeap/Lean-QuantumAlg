@@ -24,7 +24,7 @@ noncomputable section
 variable {R : Register}
 
 /-- The exact trace weight on a coherent subnormalized vector is its quadratic weight. -/
-theorem weight_ofSubnormalizedVector (effect : Effect R) (vector : HilbertVector R)
+lemma weight_ofSubnormalizedVector (effect : Effect R) (vector : HilbertVector R)
     (bounded : ‖vector‖ ≤ 1) :
     effect.weight (DensityOperator.ofSubnormalizedVector vector bounded) =
       HilbertOperator.quadraticWeight effect.matrix vector := by
@@ -40,7 +40,7 @@ theorem weight_ofSubnormalizedVector (effect : Effect R) (vector : HilbertVector
   ring
 
 /-- Coherent good-density agreement preserves the four-times-omitted-norm event bound. -/
-theorem weight_le_add_four_mul_omitted_norm (actual ideal : Effect R)
+lemma weight_le_add_four_mul_omitted_norm (actual ideal : Effect R)
     (input : NormalizedVector R) (good : HilbertVector R) (bounded : ‖good‖ ≤ 1)
     (agrees : actual.weight (DensityOperator.ofSubnormalizedVector good bounded) =
       ideal.weight (DensityOperator.ofSubnormalizedVector good bounded)) :

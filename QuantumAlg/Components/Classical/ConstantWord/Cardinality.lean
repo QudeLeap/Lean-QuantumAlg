@@ -20,7 +20,7 @@ namespace QuantumAlg.ClassicalRoutines.ConstantWord
 variable (model : ExecutionModel) [BitWord.Selected model] (width : Nat)
 
 /-- The actual bit loader emits at most two instructions per supplied bit. -/
-theorem loaderTrace_length_le (bits : List Bool) :
+lemma loaderTrace_length_le (bits : List Bool) :
     (loaderTrace model width bits).length ≤ 2 * bits.length := by
   induction bits with
   | nil => rfl
@@ -30,7 +30,7 @@ theorem loaderTrace_length_le (bits : List Bool) :
       if_true] at * <;> omega
 
 /-- The existing public constant representation supplies exactly the declared number of bits. -/
-theorem constantLoader_length_le (value : Nat) :
+lemma constantLoader_length_le (value : Nat) :
     (loaderTrace model width (List.ofFn (constantBits width value))).length ≤ 2 * width := by
   simpa only [List.length_ofFn] using
     loaderTrace_length_le model width (List.ofFn (constantBits width value))

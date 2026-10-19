@@ -38,7 +38,7 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem classical_weight_le_card {model : ExecutionModel} (pool : ResourcePool model) :
+private lemma classical_weight_le_card {model : ExecutionModel} (pool : ResourcePool model) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight pool ≤ pool.card := by
   have bounded := Multiset.sum_map_le_sum_map Resource.Event.classicalOperationWeight
     (fun _ : Resource.Event model => 1) (s := pool)
@@ -47,41 +47,41 @@ private theorem classical_weight_le_card {model : ExecutionModel} (pool : Resour
     Nat.nsmul_eq_mul, Nat.mul_one] using bounded
 
 /-- Both physical resets and the actual initialized word share one parameter-only event ceiling. -/
-public theorem reused_sampling_events_scalar (I : ECDLPInstance E) (A : Access I)
+public lemma reused_sampling_events_scalar (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (Sampling.Reuse.eventBudget I A expansion).card ≤
+    (Sampling.Reuse.eventBudget I expansion).card ≤
       Scalar.roundSingleQubit (fieldWidth E) (scalarWidth I) +
         Scalar.roundCnot (scalarWidth I) + 1 +
           Scalar.roundMeasurements (fieldWidth E) (scalarWidth I) := by
-  have bound := Multiset.card_le_card (reused_sampling_scalar_pool_le I A expansion)
+  have bound := Multiset.card_le_card (reused_sampling_scalar_pool_le I expansion)
   rw [original_qubits_scalar] at bound
   simpa only [Multiset.card_add, ResourcePool.singleton, Multiset.card_replicate,
     Scalar.roundSingleQubit, Scalar.roundCnot, Scalar.roundMeasurements] using bound
 
 /-- One complete actual checked round is bounded before any fixed-instance substitution. -/
-public theorem checked_round_events_scalar (I : ECDLPInstance E) (A : Access I)
+public lemma checked_round_events_scalar (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) :
-    (roundEventBudget I A expansion nontrivial).card ≤
+    (roundEventBudget I expansion nontrivial).card ≤
       Scalar.roundEvents (fieldWidth E) (scalarWidth I) := by
   rw [roundEventBudget, Multiset.card_add]
   unfold Scalar.roundEvents Scalar.recoveryEvents
-  exact Nat.add_le_add (reused_sampling_events_scalar I A expansion)
-    (attemptEnvelope_card_le (Sampling.executionModel I A) (curve E) (modulus I nontrivial))
+  exact Nat.add_le_add (reused_sampling_events_scalar I expansion)
+    (attemptEnvelope_card_le (Sampling.executionModel I) (curve E) (modulus I nontrivial))
 
 /-- Every prepared system contributes one event to the actual initialization ledger. -/
-public theorem whole_initialization_card_scalar (I : ECDLPInstance E) (A : Access I) :
-    (initializationBudget I A).card = Scalar.qubits (fieldWidth E) (scalarWidth I) := by
+public lemma whole_initialization_card_scalar (I : ECDLPInstance E) :
+    (initializationBudget I).card = Scalar.qubits (fieldWidth E) (scalarWidth I) := by
   rw [whole_initialization_budget, Multiset.card_nsmul, ResourcePool.singleton,
     Multiset.card_replicate, Nat.mul_one, original_qubits_scalar]
 
 /-- The complete independent ledger has a scalar ceiling linear in the actual count. -/
-public theorem whole_budget_events_scalar (I : ECDLPInstance E) (A : Access I)
+public lemma whole_budget_events_scalar (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    (eventBudget I A expansion nontrivial count).card ≤
+    (eventBudget I expansion nontrivial count).card ≤
       Scalar.wholeRunEvents (fieldWidth E) (scalarWidth I) count := by
-  have checked := checked_round_events_scalar I A expansion nontrivial
+  have checked := checked_round_events_scalar I expansion nontrivial
   rw [roundEventBudget, Multiset.card_add] at checked
   simp only [eventBudget, tailEventBudget, sampledRecoveryEnvelope, sampledAttemptsEnvelope,
     ResourcePool.scale, Multiset.card_add, Multiset.card_nsmul,
@@ -91,33 +91,33 @@ public theorem whole_budget_events_scalar (I : ECDLPInstance E) (A : Access I)
   exact Nat.add_le_add_right (Nat.add_le_add_left (Nat.mul_le_mul_left count checked) _) 1
 
 /-- All native gates are bounded by the generic width ceiling of each original real round. -/
-public theorem whole_budget_gate_scalar (I : ECDLPInstance E) (A : Access I)
+public lemma whole_budget_gate_scalar (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
-    ResourcePool.count (model := Sampling.executionModel I A) (.gate coordinate)
-        (eventBudget I A expansion nontrivial count) ≤
+    ResourcePool.count (model := Sampling.executionModel I) (.gate coordinate)
+        (eventBudget I expansion nontrivial count) ≤
       count * (match coordinate with
         | .singleQubit => Scalar.roundSingleQubit (fieldWidth E) (scalarWidth I)
         | .cnot => Scalar.roundCnot (scalarWidth I)
         | .toffoli => 0) := by
-  rw [whole_budget_nonclassical_count I A expansion nontrivial count (.gate coordinate)
+  rw [whole_budget_nonclassical_count I expansion nontrivial count (.gate coordinate)
     (by intro label; simp), whole_initialization_budget]
   simp only [ResourcePool.count_nsmul, ResourcePool.count_singleton, reduceCtorEq,
     ↓reduceIte, mul_zero, zero_add]
   have per := (ResourcePool.le_iff_count.mp
-    (reused_sampling_scalar_pool_le I A expansion)) (.gate coordinate)
+    (reused_sampling_scalar_pool_le I expansion)) (.gate coordinate)
   rw [original_qubits_scalar] at per
   cases coordinate <;>
     simpa [ResourcePool.count_add, ResourcePool.count_singleton,
       Scalar.roundSingleQubit, Scalar.roundCnot] using Nat.mul_le_mul_left count per
 
 /-- Quantum initialization has zero classical weight; every actual attempt and final pack count. -/
-public theorem whole_budget_classical_scalar (I : ECDLPInstance E) (A : Access I)
+public lemma whole_budget_classical_scalar (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (eventBudget I A expansion nontrivial count) ≤
+        (eventBudget I expansion nontrivial count) ≤
       count * Scalar.recoveryEvents (fieldWidth E) (scalarWidth I) + 1 := by
   rw [whole_budget_classical_count, whole_initialization_budget]
   simp only [ResourcePool.weightedCount_nsmul, ResourcePool.weightedCount_singleton,
@@ -125,7 +125,7 @@ public theorem whole_budget_classical_scalar (I : ECDLPInstance E) (A : Access I
   unfold Scalar.recoveryEvents
   exact Nat.add_le_add_right (Nat.mul_le_mul_left count
     ((classical_weight_le_card _).trans
-      (attemptEnvelope_card_le (Sampling.executionModel I A) (curve E) (modulus I nontrivial)))) 1
+      (attemptEnvelope_card_le (Sampling.executionModel I) (curve E) (modulus I nontrivial)))) 1
 
 end
 

@@ -40,16 +40,16 @@ def semiprimeModel : NumberTheory.Factoring.SemiprimeFactorModel modulus := by
 
 /-- The proof-only nontrivial-modulus input assembled from the semiprime model.
 It is not a caller-supplied algorithm input. -/
-theorem canonicalInput : ShorStyle.Canonical.Input modulus :=
+lemma canonicalInput : ShorStyle.Canonical.Input modulus :=
   ShorStyle.Canonical.Probability.Input.ofSemiprimeModel semiprimeModel
 
 /-- The canonical modulus register has four bits at `N = 15`. -/
-@[simp] theorem modulusBits_eq_four :
+@[simp] lemma modulusBits_eq_four :
     ShorStyle.Canonical.modulusBits modulus = 4 := by
   norm_num [ShorStyle.Canonical.modulusBits, modulus]
 
 /-- The canonical phase register has eight bits at `N = 15`. -/
-@[simp] theorem phaseBits_eq_eight :
+@[simp] lemma phaseBits_eq_eight :
     ShorStyle.Canonical.phaseBits modulus = 8 := by
   norm_num [ShorStyle.Canonical.phaseBits,
     ShorStyle.Canonical.modulusBits, modulus]
@@ -59,12 +59,12 @@ def publishedFailureBudget : FailureBudget where
   failureNumerator := 1
   failureDenominator := 100
 
-theorem publishedFailureBudget_wellFormed :
+lemma publishedFailureBudget_wellFormed :
     publishedFailureBudget.WellFormed := by
   constructor <;> norm_num [publishedFailureBudget]
 
 /-- Exact rational form of the fixed public success threshold. -/
-theorem publishedThreshold_eq_ninetyNineHundredths :
+lemma publishedThreshold_eq_ninetyNineHundredths :
     FailureBudget.successThreshold publishedFailureBudget =
       ENNReal.ofReal ((99 : Real) / 100) := by
   unfold FailureBudget.successThreshold FailureBudget.value
@@ -74,20 +74,20 @@ theorem publishedThreshold_eq_ninetyNineHundredths :
 
 /-- The typed closed Shor endpoint solves the semiprime factoring problem for
 any well-formed public failure budget. -/
-theorem mainForBudget (budget : FailureBudget)
+lemma mainForBudget (budget : FailureBudget)
     (hbudget : FailureBudget.WellFormed budget) :
-    ∃ candidate : Algorithm (ShorStyle.executionModel semiprimeModel) ShorStyle.pre
-        (ShorStyle.post semiprimeModel budget) (ShorStyle.OutputShape modulus),
-      Algorithm.Solves candidate (ShorStyle.problem semiprimeModel budget hbudget) :=
-  ⟨ShorStyle.algorithm semiprimeModel budget,
-    ShorStyle.algorithm_solves semiprimeModel budget hbudget⟩
+    ∃ candidate : Algorithm (ShorStyle.executionModel modulus) ShorStyle.pre
+        (ShorStyle.post modulus budget) (ShorStyle.OutputShape modulus),
+      Algorithm.Solves candidate (ShorStyle.problem modulus canonicalInput budget hbudget) :=
+  ⟨ShorStyle.algorithm modulus canonicalInput budget,
+    ShorStyle.algorithm_solves modulus canonicalInput budget hbudget⟩
 
 /-- The complete factor-15 specialization at the fixed one-percent failure budget. -/
 theorem main :
-    ∃ candidate : Algorithm (ShorStyle.executionModel semiprimeModel) ShorStyle.pre
-        (ShorStyle.post semiprimeModel publishedFailureBudget) (ShorStyle.OutputShape modulus),
+    ∃ candidate : Algorithm (ShorStyle.executionModel modulus) ShorStyle.pre
+        (ShorStyle.post modulus publishedFailureBudget) (ShorStyle.OutputShape modulus),
       Algorithm.Solves candidate
-        (ShorStyle.problem semiprimeModel publishedFailureBudget
+        (ShorStyle.problem modulus canonicalInput publishedFailureBudget
           publishedFailureBudget_wellFormed) :=
   mainForBudget publishedFailureBudget publishedFailureBudget_wellFormed
 

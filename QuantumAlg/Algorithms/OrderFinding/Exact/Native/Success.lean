@@ -23,13 +23,13 @@ namespace QuantumAlg.OrderFinding.Exact.NativeEndpoint
 noncomputable section
 
 /-- Every valid native exact-dyadic instance returns an exact-grid word. -/
-theorem successProbability_eq_one {N x t width r : Nat}
+lemma successProbability_eq_one {N x t width r : Nat}
     (access : ModExpOracleAccess N x t width)
     (hinput : OrderFinding.Input N x r) (dyadic : r ∣ 2 ^ t)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.model access).classicalOracles Sampling.Native.pre Reference) :
-    ((run access).outputDistribution input).toOuterMeasure
+      (Sampling.Native.model t width).classicalOracles Sampling.Native.pre Reference) :
+    ((run t width).outputDistribution (Sampling.Native.environment access) input).toOuterMeasure
       {output | SuccessfulOutcome r output} = 1 := by
   rw [outputDistribution_eq_source, PMF.toOuterMeasure_map_apply]
   have grid :

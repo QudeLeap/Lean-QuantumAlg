@@ -50,7 +50,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The complete actual pair-candidate path satisfies its independent public-width count bound. -/
-theorem pairCandidate_eventCount_le (input : Input N)
+lemma pairCandidate_eventCount_le (input : Input N)
     (refs : LatticePairCandidateRecovery.Refs ctx N)
     (path : (LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs).Path) :
     ((LatticePairCandidateRecovery.pairCandidateRecoveryInto input refs).eventTrace path).length ≤
@@ -74,7 +74,7 @@ theorem pairCandidate_eventCount_le (input : Input N)
     (Nat.add_le_add constants.le setup)) scan).trans (by omega)
 
 /-- Actual quadratic checking follows the complete actual candidate recovery in the same path. -/
-theorem pairFactor_eventCount_le (input : Input N)
+lemma pairFactor_eventCount_le (input : Input N)
     (refs : LatticePairFactorRecovery.Refs ctx N)
     (path : (LatticePairFactorRecovery.into input refs).Path) :
     ((LatticePairFactorRecovery.into input refs).eventTrace path).length ≤
@@ -87,7 +87,7 @@ theorem pairFactor_eventCount_le (input : Input N)
     (quadraticGuarded_eventCount_le refs.quadratic path.2)
 
 /-- Every reusable path pays the thirteen classical reset writes and then the full pair recovery. -/
-theorem reusablePair_eventCount_le (input : Input N)
+lemma reusablePair_eventCount_le (input : Input N)
     (refs : LatticePairFactorRecovery.Refs ctx N)
     (path : (LatticePairReusableRecovery.into input refs).Path) :
     ((LatticePairReusableRecovery.into input refs).eventTrace path).length ≤
@@ -99,7 +99,7 @@ theorem reusablePair_eventCount_le (input : Input N)
     (pairFactor_eventCount_le input refs path.2)
 
 /-- All 120 actual pair invocations satisfy the original fixed finite-batch polynomial. -/
-theorem pairFold_eventCount_le (input : Input N) (refs : LatticePairRecoveryFold.Refs ctx N)
+lemma pairFold_eventCount_le (input : Input N) (refs : LatticePairRecoveryFold.Refs ctx N)
     (path : (LatticePairRecoveryFold.into input refs).Path) :
     ((LatticePairRecoveryFold.into input refs).eventTrace path).length ≤
       120 * reusablePairCardBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
@@ -114,7 +114,7 @@ theorem pairFold_eventCount_le (input : Input N) (refs : LatticePairRecoveryFold
   simpa only [LatticePairRecoveryFold.into, count] using folded
 
 /-- Actual early-factor widening and first-accepted selection pay at most five operations. -/
-theorem earlyFactorSeed_eventCount_le (parameter : CInputRef ctx (ParameterShape N))
+lemma earlyFactorSeed_eventCount_le (parameter : CInputRef ctx (ParameterShape N))
     (refs : LatticeEarlyFactorSeed.Refs ctx N)
     (path : (LatticeEarlyFactorSeed.into parameter refs).Path) :
     ((LatticeEarlyFactorSeed.into parameter refs).eventTrace path).length ≤ 5 := by
@@ -124,7 +124,7 @@ theorem earlyFactorSeed_eventCount_le (parameter : CInputRef ctx (ParameterShape
   exact bound
 
 /-- Shared initialization includes real target powering and all four quadratic constant writes. -/
-theorem sharedInitialization_eventCount_le (input : Input N)
+lemma sharedInitialization_eventCount_le (input : Input N)
     (refs : LatticeSharedQuadraticInitialization.Refs ctx N)
     (path : (LatticeSharedQuadraticInitialization.into input refs).Path) :
     ((LatticeSharedQuadraticInitialization.into input refs).eventTrace path).length ≤
@@ -134,7 +134,7 @@ theorem sharedInitialization_eventCount_le (input : Input N)
   exact Nat.add_le_add (modularSetup_eventCount_le input refs.setup path.1) (Nat.le_refl 4)
 
 /-- The actual seeded tail executes all 120 pair invocations after the initial factor offer. -/
-theorem batchTail_eventCount_le (input : Input N) (refs : LatticeBatchRecoveryTail.Refs ctx N)
+lemma batchTail_eventCount_le (input : Input N) (refs : LatticeBatchRecoveryTail.Refs ctx N)
     (path : (LatticeBatchRecoveryTail.into input refs).Path) :
     ((LatticeBatchRecoveryTail.into input refs).eventTrace path).length ≤
       5 + 120 * reusablePairCardBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
@@ -145,7 +145,7 @@ theorem batchTail_eventCount_le (input : Input N) (refs : LatticeBatchRecoveryTa
     (pairFold_eventCount_le input refs.fold path.2)
 
 /-- Actual output packing is charged after the complete seeded batch. -/
-theorem batchEndpoint_eventCount_le (input : Input N)
+lemma batchEndpoint_eventCount_le (input : Input N)
     (refs : LatticeBatchRecoveryEndpoint.Refs ctx N)
     (path : (LatticeBatchRecoveryEndpoint.into input refs).Path) :
     ((LatticeBatchRecoveryEndpoint.into input refs).eventTrace path).length ≤
@@ -157,7 +157,7 @@ theorem batchEndpoint_eventCount_le (input : Input N)
     (LatticeBatchRecoveryOutput.into_eventCount refs.output path.2).le
 
 /-- The same actual deepest body meets the independent full fixed-batch polynomial. -/
-theorem batchBody_eventCount_le {root topCtx : RuntimeCtx model.kind} (input : Input N)
+lemma batchBody_eventCount_le {root topCtx : RuntimeCtx model.kind} (input : Input N)
     (refs : LatticeBatchRecoveryWorkspaceBody.Refs root topCtx ctx N)
     (path : (LatticeBatchRecoveryWorkspaceBody.into input refs).Path) :
     ((LatticeBatchRecoveryWorkspaceBody.into input refs).eventTrace path).length ≤

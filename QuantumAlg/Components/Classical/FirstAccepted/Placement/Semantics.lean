@@ -38,7 +38,7 @@ def selectionWrite (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (before.write selected (before.read inputs.candidate)).write accepted (.bit true)
   else before
 
-private theorem scratch_free {inner : RuntimeCtx kind} (cells : Cells inner [.bit, .bit])
+private lemma scratch_free {inner : RuntimeCtx kind} (cells : Cells inner [.bit, .bit])
     (transport : Transport ctx inner) (separated : cells.TransportSeparated transport)
     {shape : CShape} (input : CInputRef ctx shape) :
     cells.tail.head.ref.key ∉ (transport.liftInput input).storageKeys ∧
@@ -50,7 +50,7 @@ private theorem scratch_free {inner : RuntimeCtx kind} (cells : Cells inner [.bi
       cases rest
       exact ⟨separated.2.1 input, separated.1 input⟩
 
-private theorem copyStore_write (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma copyStore_write (inputs : Inputs ctx width) (refs : Refs ctx width)
     (selectedTake : refs.selected.key ≠ refs.take.key) (before : Store ctx) :
     copyStore inputs refs before =
       (before.write refs.selected (before.read inputs.candidate)).write refs.accepted
@@ -62,26 +62,28 @@ private theorem copyStore_write (inputs : Inputs ctx width) (refs : Refs ctx wid
   exact congrArg (fun value =>
     (before.write refs.selected (before.read inputs.candidate)).write refs.accepted value) unchanged
 
-private theorem bit_value (value : CShape.Value .bit) : .bit value.toBool = value := by
+private lemma bit_value (value : CShape.Value .bit) : .bit value.toBool = value := by
   cases value
   rfl
 
 /-- Actual two-bit allocation leaves exactly the original conditional pair of caller writes. -/
-theorem withSelection_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma withSelection_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (withSelection
       (model := model) inputs accepted selected).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withSelection (model := model) inputs accepted selected).execute Reference state =
+        (withSelection (model := model) inputs accepted selected).execute
+          environment Reference state =
           state.mapClassical (fun entry =>
             let actual := record (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
         (record before).1.1 = selectionWrite inputs accepted selected before.1 := by
   unfold withSelection
-  apply withCells_actualRecord_initialized_post ctx [.bit, .bit]
+  apply withCells_actualRecord_initialized_post (environment := environment) ctx [.bit, .bit]
     (fun cells _ transport _ =>
       circuit (model := model) (placedInputs inputs transport) (placedRefs cells transport accepted
         selected))
@@ -149,7 +151,7 @@ theorem withSelection_actualRecord {model : ExecutionModel} [BitWord.Selected mo
     exact decisionReads other
 
 /-- Original first acceptance gives the OR latch and preserves the first selected word. -/
-theorem selectionWrite_latches (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma selectionWrite_latches (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (different : accepted.key ≠ selected.key) (before : Store ctx) :
     ((selectionWrite inputs accepted selected before).read (cellRead accepted)).toBool =
@@ -169,7 +171,7 @@ theorem selectionWrite_latches (inputs : Inputs ctx width) (accepted : CWriteRef
     exact ⟨latch_when_skipped _ _ taken, (if_neg taken).symm⟩
 
 /-- Every actual caller read outside both persistent outputs is retained. -/
-theorem selectionWrite_read_other (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma selectionWrite_read_other (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width)) (before : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (acceptedFree : accepted.key ∉ other.storageKeys)

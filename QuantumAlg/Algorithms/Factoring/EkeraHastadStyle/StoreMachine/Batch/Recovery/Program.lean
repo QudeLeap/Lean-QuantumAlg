@@ -23,6 +23,9 @@ open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Keep the already constructed source bank abstract while checking retained-state equality.
@@ -47,11 +50,11 @@ private def bodyStep (input : Input N)
       (resultRef base noQuantum N) before.1
   ((actual.1, before.2), actual.2)
 
-private theorem body_execute (input : Input N) (Reference : Register)
+private lemma body_execute (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
       (RuntimeRound.model.HiddenState × History)) :
-    (body base noQuantum input).execute Reference state =
+    (body base noQuantum input).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := bodyStep base noQuantum input (entry.1, entry.2.1)
         (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) := by
@@ -95,10 +98,12 @@ def run (input : Input N) :
     (.read (.storage (resultRef base noQuantum N).toCStorageRef))
 
 /-- Actual allocation and recovery preserve complete quantum-reference blocks on every history. -/
-theorem tail_execute (input : Input N) :
-    Circuit.RetainedRecord (tail base noQuantum input) (step base noQuantum input) := by
+lemma tail_execute (input : Input N) :
+    Circuit.RetainedRecord (environment := environment)
+      (tail base noQuantum input) (step base noQuantum input) := by
   intro Reference History historyFinite state
-  have equation := Circuit.execute_retain_seq_mapClassical (model := RuntimeRound.model)
+  have equation := Circuit.execute_retain_seq_mapClassical (environment := environment)
+    (model := RuntimeRound.model)
     (NativeBatch.context base noQuantum N)
     (resultKey base noQuantum N) (LatticeBatchRecoveryOutput.OutputShape N)
     (NativeBatch.context base noQuantum N).canonicalFreshKey_fresh (body base noQuantum input)
@@ -109,14 +114,15 @@ theorem tail_execute (input : Input N) :
   exact Subsingleton.elim _ _
 
 /-- The complete run maps the original source execution, retaining its original path and bank. -/
-theorem code_execute (input : Input N) :
-    Circuit.RetainedTailRecord (NativeBatch.code base noQuantum N)
+lemma code_execute (input : Input N) :
+    Circuit.RetainedTailRecord (environment := environment) (NativeBatch.code base noQuantum N)
       (tail base noQuantum input) (step base noQuantum input) :=
-  Circuit.RetainedRecord.after (NativeBatch.code base noQuantum N) (tail base noQuantum input)
+  Circuit.RetainedRecord.after (environment := environment)
+    (NativeBatch.code base noQuantum N) (tail base noQuantum input)
     (step base noQuantum input) (tail_execute base noQuantum input)
 
 /-- The complete output includes the same source bank, all source cells and the retained factor. -/
-theorem output_listing (input : Input N) :
+lemma output_listing (input : Input N) :
     (run base noQuantum input).output.listing = (context base noQuantum N).keys := rfl
 
 end

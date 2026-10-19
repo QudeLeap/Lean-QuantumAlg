@@ -37,7 +37,7 @@ local instance (proposition : Prop) : Decidable proposition := Classical.propDec
 namespace ExecutionState
 
 /-- Selecting classical blocks is exactly the corresponding indicator-weighted full entry. -/
-theorem filterClassical_matrix_weighted {C : Type} [Fintype C] {R : Register}
+lemma filterClassical_matrix_weighted {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (predicate : C → Prop) [DecidablePred predicate]
     (left right : R.Index) :
     (state.filterClassical predicate).quantumMarginal.matrix left right =
@@ -51,28 +51,35 @@ end ExecutionState
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
 
 open Execution
 
 /-- Each final store has the full quantum block selected by its actual ordered Z writes. -/
-theorem measurementSequence_store_matrix_entry {ctx : RuntimeCtx .quantum}
-    (readouts : List (ZReadout ctx)) {Reference : Register} {History : Type} [Fintype History]
+lemma measurementSequence_store_matrix_entry {ctx : RuntimeCtx .quantum}
+    (readouts : List (ZReadout ctx))
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+    {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
     (stored : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
-    (ExecutionState.filterClassical ((measurementSequence (gates := gates) (oracles := oracles)
+    (ExecutionState.filterClassical ((measurementSequence (allowAllocation := allowAllocation)
+      (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).execute
-      Reference state)
+      environment Reference state)
       (fun entry => entry.1 = stored)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       if measurementLabelsAgree readouts left right then
         ExecutionState.weightedMatrixEntry state (fun original =>
-          if writeMeasurementPath (gates := gates) (oracles := oracles)
+          if writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
             (operations := operations) (classicalOracles := classicalOracles)
             readouts original.1
-            (measurementBasisPath (gates := gates) (oracles := oracles)
+            (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+              oracles)
               (operations := operations) (classicalOracles := classicalOracles)
               readouts left) =
             stored then 1 else 0) (left, leftRef) (right, rightRef)
@@ -81,62 +88,71 @@ theorem measurementSequence_store_matrix_entry {ctx : RuntimeCtx .quantum}
     measurementSequence_weightedMatrixEntry]
 
 /-- Actual stored results select the later gates on every full local-reference matrix entry. -/
-theorem measuredSelectedUnitary_store_entry {ctx : RuntimeCtx .quantum} {shape : CShape}
+lemma measuredSelectedUnitary_store_entry {ctx : RuntimeCtx .quantum} {shape : CShape}
     (readouts : List (ZReadout ctx)) (input : CInputRef ctx shape)
     (program : shape.Value → UnitaryCircuit gates oracles ctx.quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
     (stored : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((Circuit.seq (measurementSequence (gates := gates) (oracles := oracles)
+      ((Circuit.seq (measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+        (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts)
-        (.branch input (fun value => .unitary
+        (.branch (allowAllocation := allowAllocation) input (fun value => .unitary
           (operations := operations) (classicalOracles := classicalOracles)
           (program value)))).execute
-          Reference state) (fun entry => entry.1 = stored)).quantumMarginal.matrix
+          environment Reference state) (fun entry => entry.1 = stored)).quantumMarginal.matrix
             (left, leftRef) (right, rightRef) =
       ∑ column : ctx.register.Index, (∑ row : ctx.register.Index,
-        (program (stored.read input)).matrix left row *
+        ((program (stored.read input)).matrix environment.quantum) left row *
           (if measurementLabelsAgree readouts row column then
             ExecutionState.weightedMatrixEntry state (fun original =>
-              if writeMeasurementPath (gates := gates) (oracles := oracles)
+              if writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+                := oracles)
                 (operations := operations) (classicalOracles := classicalOracles)
                 readouts original.1
-                (measurementBasisPath (gates := gates) (oracles := oracles)
+                (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+                  := oracles)
                   (operations := operations) (classicalOracles := classicalOracles)
                   readouts row) =
                 stored then 1 else 0) (row, leftRef) (column, rightRef)
-          else 0)) * star ((program (stored.read input)).matrix right column) := by
+          else 0)) *
+            star (((program (stored.read input)).matrix environment.quantum) right column) := by
   have composed := congrArg
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
       density.matrix (left, leftRef) (right, rightRef))
-    (seq_store_marginal (measurementSequence (gates := gates) (oracles := oracles)
+    (seq_store_marginal (measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+      (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts)
-      (.branch input (fun value => .unitary
+      (.branch (allowAllocation := allowAllocation) input (fun value => .unitary
         (operations := operations) (classicalOracles := classicalOracles)
-        (program value))) state stored)
+        (program value))) environment state stored)
   have selected := congrArg
     (fun matrix : HilbertOperator (Register.prod ctx.register Reference) =>
       matrix (left, leftRef) (right, rightRef))
-    (selectedUnitary_store_matrix (operations := operations)
-      (classicalOracles := classicalOracles) input program
-      ((measurementSequence (gates := gates) (oracles := oracles)
+    (selectedUnitary_store_matrix (allowAllocation := allowAllocation) (operations := operations)
+      (classicalOracles := classicalOracles) input program environment
+      ((measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts).execute
-        Reference state) stored)
+        environment Reference state) stored)
   refine composed.trans (selected.trans ?_)
   rw [DensityOperator.localUnitary_block]
   simp only [Matrix.mul_apply, Matrix.submatrix_apply, Matrix.conjTranspose_apply]
   apply Finset.sum_congr rfl
   intro column _
   apply congrArg (fun entry =>
-    entry * star ((program (stored.read input)).matrix right column))
+    entry * star (((program (stored.read input)).matrix environment.quantum) right column))
   apply Finset.sum_congr rfl
   intro row _
-  apply congrArg (fun entry => (program (stored.read input)).matrix left row * entry)
-  exact measurementSequence_store_matrix_entry (gates := gates) (oracles := oracles)
+  apply congrArg (fun entry =>
+    ((program (stored.read input)).matrix environment.quantum) left row * entry)
+  exact measurementSequence_store_matrix_entry (allowAllocation := allowAllocation) (gates := gates)
+    (oracles := oracles)
     (operations := operations) (classicalOracles := classicalOracles)
-    readouts state stored row column leftRef rightRef
+    readouts environment state stored row column leftRef rightRef
 
 end Circuit
 

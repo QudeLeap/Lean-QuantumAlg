@@ -7,9 +7,12 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Real
+public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Real.Results
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Complex
+public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Complex.Results
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Queries
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Projected
+public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Projected.Results
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Endpoint.Projected.Queries
 public import QuantumAlg.Primitives.QSP.MultiQubit.QSVT.Execution.Asymptotics
 public import QuantumAlg.Core.Algorithm.Unitary.Owned.Binary.Space

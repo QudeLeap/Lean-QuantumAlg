@@ -22,13 +22,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ControlledShift
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec NumberTheory.SharedEEA
 
 private def placeGates (width : Nat) (instructions : List (GateSpec (encoding width))) :
     List (GateSpec (encoding width)) :=
   instructions.map (ControlPlacement.placement width).placeGate
 
-private theorem placed_step (width : Nat) (instructions : List (GateSpec (encoding width)))
+private lemma placed_step (width : Nat) (instructions : List (GateSpec (encoding width)))
     (state : Registers width) :
     stepList (placeGates width instructions) state =
       ControlPlacement.placedStep (stepList instructions) state := by
@@ -37,7 +39,7 @@ private theorem placed_step (width : Nat) (instructions : List (GateSpec (encodi
     ControlPlacement.fieldEquiv, Equiv.coe_fn_mk, Equiv.coe_fn_symm_mk,
     ControlPlacement.placedStep]
 
-private theorem placed_trace (width : Nat) (instructions : List (GateSpec (encoding width))) :
+private lemma placed_trace (width : Nat) (instructions : List (GateSpec (encoding width))) :
     (placeGates width instructions).map (event .empty) = instructions.map (event .empty) := by
   simp only [placeGates, List.map_map, Function.comp_def,
     EncodedBit.FullPlacement.placeGate_event]
@@ -46,14 +48,14 @@ private theorem placed_trace (width : Nat) (instructions : List (GateSpec (encod
 def incrementGates (width : Nat) : List (GateSpec (encoding width)) :=
   placeGates width (ExtendedClockIncrement.gates width)
 
-private theorem incrementGates_step (width : Nat) (state : Registers width) :
+private lemma incrementGates_step (width : Nat) (state : Registers width) :
     stepList (incrementGates width) state = counterStep PaddingClock.increment state := by
   rw [incrementGates, placed_step]
   unfold ControlPlacement.placedStep
   rw [ExtendedClockIncrement.extendedClockIncrement_gates_step]
   exact exchanged_counter width PaddingClock.increment state
 
-private theorem decrementGates_step (width : Nat) (state : Registers width) :
+private lemma decrementGates_step (width : Nat) (state : Registers width) :
     stepList (incrementGates width).reverse state = counterStep PaddingClock.decrement state := by
   have inverse : counterStep PaddingClock.increment (counterStep PaddingClock.decrement state) =
       state := by
@@ -81,7 +83,7 @@ def rightGates (width : Nat) : List (GateSpec (encoding width)) :=
   placeGates width (Work2PhaseRotation.rightGates width) ++ (incrementGates width).reverse
 
 /-- The actual left word preserves the exact full state action and arbitrary work restoration. -/
-theorem controlledShift_leftGates_step (width : Nat) (state : Registers width) :
+lemma controlledShift_leftGates_step (width : Nat) (state : Registers width) :
     stepList (leftGates width) state = leftStep state := by
   rw [leftGates, stepList_append, placed_step, incrementGates_step]
   have word : ControlPlacement.placedStep
@@ -96,7 +98,7 @@ theorem controlledShift_leftGates_step (width : Nat) (state : Registers width) :
   cases control <;> rfl
 
 /-- Literal reverse HRS instructions realize decrement on every finite-clock value. -/
-theorem controlledShift_rightGates_step (width : Nat) (state : Registers width) :
+lemma controlledShift_rightGates_step (width : Nat) (state : Registers width) :
     stepList (rightGates width) state = rightStep state := by
   rw [rightGates, stepList_append, placed_step, decrementGates_step]
   have word : ControlPlacement.placedStep
@@ -111,32 +113,32 @@ theorem controlledShift_rightGates_step (width : Nat) (state : Registers width) 
   cases control <;> rfl
 
 /-- Exact amplitude realization of the placed native left shift at any supplied layout. -/
-theorem controlledShift_leftGates_realizes (width : Nat)
+lemma controlledShift_leftGates_realizes (width : Nat)
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (programList layout .empty (leftGates width)) leftStep :=
-  realizesList_congrStep layout .empty _ (controlledShift_leftGates_step width)
+      (programList layout .empty (leftGates width)) environment leftStep :=
+  realizesList_congrStep layout .empty _ (controlledShift_leftGates_step width) environment
 
 /-- Exact amplitude realization of the placed native right shift, with no work premise. -/
-theorem controlledShift_rightGates_realizes (width : Nat)
+lemma controlledShift_rightGates_realizes (width : Nat)
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width)
-      (programList layout .empty (rightGates width)) rightStep :=
-  realizesList_congrStep layout .empty _ (controlledShift_rightGates_step width)
+      (programList layout .empty (rightGates width)) environment rightStep :=
+  realizesList_congrStep layout .empty _ (controlledShift_rightGates_step width) environment
 
-private theorem incrementGates_trace (width : Nat) :
+private lemma incrementGates_trace (width : Nat) :
     (incrementGates width).map (event .empty) = (incrementProgram width).eventTrace := by
   rw [incrementGates, placed_trace, ExtendedClockIncrement.extendedClockIncrement_gates_trace,
     incrementProgram, ControlPlacement.place_eventTrace]
 
 /-- Every left-shift instruction retains its original ordered native event. -/
-theorem controlledShift_leftGates_trace (width : Nat) :
+lemma controlledShift_leftGates_trace (width : Nat) :
     (leftGates width).map (event .empty) = (leftProgram width).eventTrace := by
   rw [leftGates, List.map_append, placed_trace, incrementGates_trace, left_eventTrace,
     incrementProgram, ControlPlacement.place_eventTrace]
 
 /-- The right-shift trace contains the exact reversed native increment trace. -/
-theorem controlledShift_rightGates_trace (width : Nat) :
+lemma controlledShift_rightGates_trace (width : Nat) :
     (rightGates width).map (event .empty) = (rightProgram width).eventTrace := by
   rw [rightGates, List.map_append, placed_trace, List.map_reverse, incrementGates_trace,
     right_eventTrace, AlgorithmGate.oracleFreeAdjoints_eventTrace]

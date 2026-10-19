@@ -43,24 +43,24 @@ private def spaceFormula (n k : Nat) : SpacePool .quantum
   | .classicalBits => 2 * n
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then totalQubits n k else 0
 
-private theorem pre_residentSpace : pre.residentSpace = 0 := by
+private lemma pre_residentSpace : pre.residentSpace = 0 := by
   ext axis
   cases axis <;> rfl
 
-private theorem pre_auxiliarySpace : pre.auxiliarySpace = 0 := rfl
+private lemma pre_auxiliarySpace : pre.auxiliarySpace = 0 := rfl
 
-private theorem prepared_residentSpace (n : Nat) :
+private lemma prepared_residentSpace (n : Nat) :
     (preparedContext n).residentSpace = SpacePool.ofQuantumLayout (runtimeLayout n) := by
   rw [preparedContext, RuntimeCtx.residentSpace_addOwnedLayout, pre_residentSpace, add_zero]
 
-private theorem prepared_auxiliarySpace (n : Nat) :
+private lemma prepared_auxiliarySpace (n : Nat) :
     (preparedContext n).auxiliarySpace = SpacePool.ofQuantumLayout (runtimeLayout n) := by
   rw [preparedContext, RuntimeCtx.auxiliarySpace_addOwnedLayout, pre_auxiliarySpace, add_zero]
 
-private theorem finiteTwo_bits : CShape.bitWidth (.finite 2) = 1 := by decide
+private lemma finiteTwo_bits : CShape.bitWidth (.finite 2) = 1 := by decide
 
 /-- The complete final resident frame has exactly the independently stated native capacities. -/
-theorem post_residentSpace (n k : Nat) : (post n k).residentSpace = spaceFormula n k := by
+lemma post_residentSpace (n k : Nat) : (post n k).residentSpace = spaceFormula n k := by
   rw [post, MeasurementCells.context_residentSpace, resultContext,
     RuntimeCtx.residentSpace_addRetained, prepared_residentSpace]
   ext axis
@@ -75,7 +75,7 @@ theorem post_residentSpace (n k : Nat) : (post n k).residentSpace = spaceFormula
       exact (layout (totalQubits n k)).toQuantumLayout_dimensionCount dimension
 
 /-- All newly created entries have owned or retained roles and count toward auxiliary capacity. -/
-theorem post_auxiliarySpace (n k : Nat) : (post n k).auxiliarySpace = spaceFormula n k := by
+lemma post_auxiliarySpace (n k : Nat) : (post n k).auxiliarySpace = spaceFormula n k := by
   rw [post, MeasurementCells.context_auxiliarySpace, resultContext,
     RuntimeCtx.auxiliarySpace_addRetained, prepared_auxiliarySpace]
   ext axis
@@ -89,12 +89,12 @@ theorem post_auxiliarySpace (n k : Nat) : (post n k).auxiliarySpace = spaceFormu
       rw [smul_zero, zero_add, zero_add]
       exact (layout (totalQubits n k)).toQuantumLayout_dimensionCount dimension
 
-private theorem pre_spaces (n k : Nat) :
+private lemma pre_spaces (n k : Nat) :
     pre.residentSpace ≤ spaceFormula n k ∧ pre.auxiliarySpace ≤ spaceFormula n k := by
   rw [pre_residentSpace, pre_auxiliarySpace]
   exact ⟨fun _ => Nat.zero_le _, fun _ => Nat.zero_le _⟩
 
-private theorem prepared_spaces (n k : Nat) :
+private lemma prepared_spaces (n k : Nat) :
     (preparedContext (totalQubits n k)).residentSpace ≤ spaceFormula n k ∧
       (preparedContext (totalQubits n k)).auxiliarySpace ≤ spaceFormula n k := by
   rw [prepared_residentSpace, prepared_auxiliarySpace]
@@ -108,7 +108,7 @@ private theorem prepared_spaces (n k : Nat) :
           ((layout (totalQubits n k)).toQuantumLayout_dimensionCount dimension)
   exact ⟨bounded, bounded⟩
 
-private theorem allocated_spaces (n k used : Nat) (bounded : used ≤ n) :
+private lemma allocated_spaces (n k used : Nat) (bounded : used ≤ n) :
     (MeasurementCells.context (resultContext n k) 2 used).residentSpace ≤ spaceFormula n k ∧
       (MeasurementCells.context (resultContext n k) 2 used).auxiliarySpace ≤ spaceFormula n k := by
   constructor
@@ -117,21 +117,21 @@ private theorem allocated_spaces (n k used : Nat) (bounded : used ≤ n) :
   · exact (MeasurementCells.context_auxiliarySpace_mono (resultContext n k) 2 bounded).trans_eq
       (post_auxiliarySpace n k)
 
-private theorem visited_spaces {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) (frame : RuntimeCtx .quantum)
-    (present : frame ∈ (code marked k).visitedContexts path) :
+private lemma visited_spaces (n : Nat) (k : Nat)
+    (path : (code n k).Path) (frame : RuntimeCtx .quantum)
+    (present : frame ∈ (code n k).visitedContexts path) :
     frame.residentSpace ≤ spaceFormula n k ∧ frame.auxiliarySpace ≤ spaceFormula n k := by
   change frame ∈
     ([pre, preparedContext (totalQubits n k)] ++
       ([preparedContext (totalQubits n k)] ++
         ([preparedContext (totalQubits n k), resultContext n k] ++
         (show List (RuntimeCtx .quantum) from
-          (MeasurementCells.allocate (model := model marked)
+          (MeasurementCells.allocate (model := model n)
             (resultContext n k) 2 n).visitedContexts
             path.1.2.2.2)))) ++
       ((show List (RuntimeCtx .quantum) from
         (Circuit.measurementSequence (gates := AlgorithmGate.model)
-          (oracles := Elementary.oracles marked) (operations := BitWord.model)
+          (oracles := Elementary.oracles n) (operations := BitWord.model)
           (classicalOracles := .empty) (readouts n k)).visitedContexts path.2.1) ++
         [post n k]) at present
   simp only [List.mem_append, List.mem_cons, List.not_mem_nil,
@@ -148,7 +148,7 @@ private theorem visited_spaces {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Na
     exact prepared_spaces n k
   · subst frame
     exact allocated_spaces n k 0 (Nat.zero_le n)
-  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts (model := model marked)
+  · obtain ⟨used, bounded, rfl⟩ := MeasurementCells.allocate_visitedContexts (model := model n)
       (resultContext n k) 2 n path.1.2.2.2 frame allocated
     exact allocated_spaces n k used bounded
   · rw [Circuit.measurementSequence_visitedContexts] at measured
@@ -159,18 +159,18 @@ private theorem visited_spaces {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Na
     exact allocated_spaces n k n le_rfl
 
 /-- Every actual path respects the independent complete resident-space budget. -/
-theorem code_residentSpace {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    (code marked k).peakResidentSpace path ≤ spaceFormula n k :=
-  Circuit.peakResidentSpace_le_of_visited (code marked k) path (spaceFormula n k)
-    (fun frame present => (visited_spaces marked k path frame present).1)
+lemma code_residentSpace (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    (code n k).peakResidentSpace path ≤ spaceFormula n k :=
+  Circuit.peakResidentSpace_le_of_visited (code n k) path (spaceFormula n k)
+    (fun frame present => (visited_spaces n k path frame present).1)
 
 /-- Every actual path respects the independent auxiliary-role budget without releasing storage. -/
-theorem code_auxiliarySpace {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    (code marked k).peakAuxiliarySpace path ≤ spaceFormula n k :=
-  Circuit.peakAuxiliarySpace_le_of_visited (code marked k) path (spaceFormula n k)
-    (fun frame present => (visited_spaces marked k path frame present).2)
+lemma code_auxiliarySpace (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    (code n k).peakAuxiliarySpace path ≤ spaceFormula n k :=
+  Circuit.peakAuxiliarySpace_le_of_visited (code n k) path (spaceFormula n k)
+    (fun frame present => (visited_spaces n k path frame present).2)
 
 end
 

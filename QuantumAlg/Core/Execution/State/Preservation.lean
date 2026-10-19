@@ -33,7 +33,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Summing independent uniform classical choices preserves the entire quantum
 matrix, rather than only its trace or its computational-basis probabilities. -/
-theorem uniformChoice_quantumMarginal {C : Type} [Fintype C] {R : Register}
+lemma uniformChoice_quantumMarginal {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (count : ℕ+) :
     (uniformChoice state count).quantumMarginal = state.quantumMarginal := by
   have coefficient : (∑ _outcome : Fin count, (count : ℝ)⁻¹) = (1 : ℝ) := by
@@ -55,43 +55,43 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
   {H K : Type} [Fintype H] [Fintype K]
 
 /-- Reorganizing or merging histories preserves the complete quantum-reference state. -/
-theorem mapHistory_quantumMarginal (state : State ctx Reference H) (f : H → K) :
+lemma mapHistory_quantumMarginal (state : State ctx Reference H) (f : H → K) :
     (state.mapHistory f).quantumMarginal = state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal state _
 
 /-- Recording a deterministic path leaves the entire quantum-reference marginal unchanged. -/
-theorem skip_quantumMarginal (state : State ctx Reference H) :
+lemma skip_quantumMarginal (state : State ctx Reference H) :
     (skip state).quantumMarginal = state.quantumMarginal :=
   mapHistory_quantumMarginal state _
 
 /-- Actual classical reads and writes preserve the joint quantum-reference marginal,
 including when several previous storage values produce the same written value. -/
-theorem classicalStep_quantumMarginal (state : State ctx Reference H)
+lemma classicalStep_quantumMarginal (state : State ctx Reference H)
     {input output : CShape} (op : ClassicalOp input output ctx ctx) :
     (classicalStep state op).quantumMarginal = state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal state _
 
 /-- Retaining a new classical cell changes no part of the quantum-reference marginal. -/
-theorem retain_quantumMarginal (state : State ctx Reference H)
+lemma retain_quantumMarginal (state : State ctx Reference H)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (retain state key shape fresh).quantumMarginal = state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal state _
 
 /-- Entering classical workspace preserves the entire quantum-reference state. -/
-theorem pushWorkspace_quantumMarginal (state : State ctx Reference H)
+lemma pushWorkspace_quantumMarginal (state : State ctx Reference H)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (pushWorkspace state key shape fresh).quantumMarginal = state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal state _
 
 /-- Exiting classical workspace sums all its possible stored values while preserving
 the complete quantum-reference marginal, without assuming the cell was unmodified. -/
-theorem popWorkspace_quantumMarginal (key : StorageKey) (shape : CShape)
+lemma popWorkspace_quantumMarginal (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) (state : State (ctx.addWorkspace key shape fresh) Reference H) :
     (popWorkspace key shape fresh state).quantumMarginal = state.quantumMarginal :=
   ExecutionState.mapClassical_quantumMarginal state _
 
 /-- Generating, storing, and recording uniform bits preserves the joint quantum-reference state. -/
-theorem randomBits_quantumMarginal (state : State ctx Reference H) (width : Nat)
+lemma randomBits_quantumMarginal (state : State ctx Reference H) (width : Nat)
     (output : CWriteRef ctx (.bits width)) :
     (randomBits state width output).quantumMarginal = state.quantumMarginal := by
   exact (ExecutionState.mapClassical_quantumMarginal _ _).trans

@@ -28,16 +28,16 @@ namespace QuantumAlg.QubitPrimitive
 
 noncomputable section
 
-private theorem binary_increment (value : Bool) :
+private lemma binary_increment (value : Bool) :
     finTwoEquiv (finTwoEquiv.symm value + 1) = !value := by
   cases value <;> rfl
 
-private theorem bitIndex_value {n : Nat} (wire : Fin n) :
+private lemma bitIndex_value {n : Nat} (wire : Fin n) :
     (WireAddress.bitIndex wire).val = wire.rev.val := by
   change n - 1 - wire.val = n - (wire.val + 1)
   omega
 
-private theorem decode_flip {n : Nat} (target : Fin n) (label : Fin (2 ^ n)) :
+private lemma decode_flip {n : Nat} (target : Fin n) (label : Fin (2 ^ n)) :
     (BinaryBasis.bigEndianEquiv n).symm (WireAddress.flipBit target label) =
       Function.update ((BinaryBasis.bigEndianEquiv n).symm label) target
         ((BinaryBasis.bigEndianEquiv n).symm label target + 1) := by
@@ -53,12 +53,12 @@ private theorem decode_flip {n : Nat} (target : Fin n) (label : Fin (2 ^ n)) :
       Equiv.apply_symm_apply, ← bitIndex_value observed]
     exact WireAddress.bit_flipBit_of_ne (Ne.symm same) label
 
-private theorem decoded_bit {n : Nat} (label : Fin (2 ^ n)) (wire : Fin n) :
+private lemma decoded_bit {n : Nat} (label : Fin (2 ^ n)) (wire : Fin n) :
     label.val.testBit (WireAddress.bitIndex wire).val =
       finTwoEquiv ((BinaryBasis.bigEndianEquiv n).symm label wire) := by
   rw [BinaryBasis.bigEndianEquiv_symm_value, Equiv.apply_symm_apply, bitIndex_value]
 
-private theorem basisAction_decoded {n : Nat} (primitive : QubitPrimitive n)
+private lemma basisAction_decoded {n : Nat} (primitive : QubitPrimitive n)
     (label : Fin (2 ^ n)) :
     basisAction primitive ((BinaryBasis.bigEndianEquiv n).symm label) =
       (BinaryBasis.bigEndianEquiv n).symm (primitive.applyLabel label) := by
@@ -85,7 +85,7 @@ private theorem basisAction_decoded {n : Nat} (primitive : QubitPrimitive n)
         simp [finTwoEquiv, decode_flip, add_comm]
 
 /-- Actual native execution realizes the original addressed word operator with exact phase. -/
-public theorem nativeApplication_operator {n : Nat} (layout : QubitLayout n)
+public lemma nativeApplication_operator {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) :
     (nativeApplication layout primitive).operator =
       UnitaryOperator.reindex layout.basisEquiv.symm primitive.operator := by
@@ -110,7 +110,7 @@ public theorem nativeApplication_operator {n : Nat} (layout : QubitLayout n)
 
 
 /-- Applying the actual placed gate to a binary ket gives the original addressed output word. -/
-theorem nativeApplication_apply_ket {n : Nat} (layout : QubitLayout n)
+lemma nativeApplication_apply_ket {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) (label : Fin (2 ^ n)) :
     (nativeApplication layout primitive).operator.apply
       (NormalizedVector.ket (layout.basisEquiv.symm label)) =

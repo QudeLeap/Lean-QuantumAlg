@@ -28,10 +28,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open Execution FiniteCyclicDLP Canonical.Probability
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
-    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+    {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model] {ctx :
+      RuntimeCtx model.kind}
 
 /-- The original selected-event mass is retained in the actual recovered-secret output event. -/
-theorem rawRecoveryIntoResult_selected_eventWeight_le
+lemma rawRecoveryIntoResult_selected_eventWeight_le
     (problem : KnownOrderProblem E.GroupPoint) (nontrivial : 2 ≤ problem.order)
     (input : SecretInput problem)
     (measured : CInputRef ctx (.fixedVector (2 * orderWidth problem) (.finite 2)))
@@ -44,14 +45,15 @@ theorem rawRecoveryIntoResult_selected_eventWeight_le
           (QubitReadouts.mask (entry.1.read measured)) = true then
         Effect.one (Register.prod ctx.register Reference)
       else Effect.zero (Register.prod ctx.register Reference)) ≤
-      ((rawRecoveryIntoResult problem nontrivial measured result).execute
-        Reference state).effectWeight
+      ((rawRecoveryIntoResult problem nontrivial measured result).execute environment Reference
+        state).effectWeight
         (fun entry => if entry.1.read (.storage result.toCStorageRef) =
             .optionSome (.product (CShape.wordOfNat (orderWidth problem) input.secret.val)
               (.bit true)) then Effect.one (Register.prod ctx.register Reference)
           else Effect.zero (Register.prod ctx.register Reference)) := by
   obtain ⟨record, equation, correct⟩ :=
-    rawRecoveryIntoResult_selected_actualRecord problem nontrivial input measured result
+    rawRecoveryIntoResult_selected_actualRecord (environment := environment)
+      problem nontrivial input measured result
   rw [equation Reference state, ExecutionState.effectWeight_mapClassical_decision]
   unfold ExecutionState.effectWeight
   apply Finset.sum_le_sum

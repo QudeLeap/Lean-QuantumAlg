@@ -19,14 +19,14 @@ section
 
 namespace QuantumAlg.QubitTwoDesign
 
-private theorem groupSqrtTwoRat_add_self_injective {a b : SqrtTwoRat}
+private lemma groupSqrtTwoRat_add_self_injective {a b : SqrtTwoRat}
     (h : a + a = b + b) : a = b := by
   apply sqrtTwoEval_injective
   have h' := congrArg sqrtTwoEval h
   rw [map_add, map_add] at h'
   linarith
 
-private theorem groupExact_add_self_injective {x y : ExactQuaternion}
+private lemma groupExact_add_self_injective {x y : ExactQuaternion}
     (h : x + x = y + y) : x = y := by
   apply QuaternionAlgebra.ext <;> apply groupSqrtTwoRat_add_self_injective
   · exact congrArg QuaternionAlgebra.re h
@@ -43,7 +43,7 @@ noncomputable instance instInvBinaryOctahedral : Inv BinaryOctahedral where
   inv a := Classical.choose (binaryOctahedralQuaternion_star_closed a)
 
 /-- The exact quaternion realization respects multiplication. -/
-theorem binaryOctahedralQuaternion_mul (a b : BinaryOctahedral) :
+lemma binaryOctahedralQuaternion_mul (a b : BinaryOctahedral) :
     binaryOctahedralQuaternion (a * b) =
       binaryOctahedralQuaternion a * binaryOctahedralQuaternion b :=
   by
@@ -52,13 +52,13 @@ theorem binaryOctahedralQuaternion_mul (a b : BinaryOctahedral) :
     exact Classical.choose_spec (binaryOctahedralQuaternion_closed a b)
 
 @[simp]
-theorem binaryOctahedralQuaternion_one : binaryOctahedralQuaternion 1 = 1 := by
+lemma binaryOctahedralQuaternion_one : binaryOctahedralQuaternion 1 = 1 := by
   change signed false 1 • quaternionBasis 0 = 1
   rw [show signed false (1 : SqrtTwoRat) = 1 by rfl, one_smul]
   rfl
 
 @[simp]
-theorem binaryOctahedralQuaternion_inv (a : BinaryOctahedral) :
+lemma binaryOctahedralQuaternion_inv (a : BinaryOctahedral) :
     binaryOctahedralQuaternion a⁻¹ = star (binaryOctahedralQuaternion a) :=
   by
     change binaryOctahedralQuaternion

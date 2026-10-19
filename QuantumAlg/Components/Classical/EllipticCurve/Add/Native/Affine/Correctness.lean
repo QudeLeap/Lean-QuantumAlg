@@ -31,7 +31,7 @@ noncomputable section
 variable {width : Nat}
 
 /-- The two final actual words are canonical on the original coordinate domains. -/
-theorem affineValues_output_canonical (spec : ModulusSpec width)
+lemma affineValues_output_canonical (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CShape.Word width)
     (rightXCanonical : rightX.toNat < spec.modulus)
     (leftYCanonical : leftY.toNat < spec.modulus) :
@@ -41,7 +41,7 @@ theorem affineValues_output_canonical (spec : ModulusSpec width)
     subtractionWord_canonical spec _ leftY leftYCanonical⟩
 
 /-- The actual coefficient and all subsequent words give the original three field formulas. -/
-theorem affineValues_field_coordinates (spec : ModulusSpec width)
+lemma affineValues_field_coordinates (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CShape.Word width)
     (x₁ x₂ y₁ ν δ : ZMod spec.modulus)
     (leftXValue : leftX.toNat = x₁.val) (rightXValue : rightX.toNat = x₂.val)
@@ -106,7 +106,7 @@ theorem affineValues_field_coordinates (spec : ModulusSpec width)
   change ((subtractionWord spec values.yProduct leftY).toNat : ZMod spec.modulus) = _
   rw [subtractionWord_cast spec _ _ leftYCanonical, product, leftYCast]
 
-private theorem canonical_word_eq_coordinate (spec : CurveSpec width)
+private lemma canonical_word_eq_coordinate (spec : CurveSpec width)
     (word : CShape.Word width) (coordinate : ZMod spec.field.modulus)
     (canonical : word.toNat < spec.field.modulus)
     (represented : (word.toNat : ZMod spec.field.modulus) = coordinate) :
@@ -123,7 +123,7 @@ private theorem canonical_word_eq_coordinate (spec : CurveSpec width)
     exact value
 
 /-- Actual canonical packed coordinates represent exactly the supplied nonsingular finite point. -/
-theorem AffineValues.point_represents (spec : CurveSpec width) (values : AffineValues width)
+lemma AffineValues.point_represents (spec : CurveSpec width) (values : AffineValues width)
     (x y : ZMod spec.field.modulus)
     (nonsingular : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y)
     (xCanonical : values.xOutput.toNat < spec.field.modulus)

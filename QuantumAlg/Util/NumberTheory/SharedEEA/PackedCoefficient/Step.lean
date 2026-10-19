@@ -28,7 +28,7 @@ finite-word identities; no phase flag, history register, or cost is erased.
 namespace QuantumAlg.NumberTheory.SharedEEA.PackedCoefficientStep
 
 /-- The updated arithmetic window is the next coefficient divided by the actual old scale. -/
-theorem next_window (state : IterationState) (count : Nat) (valid : state.Admissible) :
+lemma next_window (state : IterationState) (count : Nat) (valid : state.Admissible) :
     (CoefficientWindow.current state (count + 1)).value / 2 ^ count =
       ((CoefficientWindow.instruction state count valid).2.setWidth
         (CoefficientWindow.width state)).toNat := by
@@ -47,7 +47,7 @@ theorem next_window (state : IterationState) (count : Nat) (valid : state.Admiss
         Nat.zero_add]
 
 /-- The physical update preserves the complete low fraction, including nonzero fractions. -/
-theorem fraction_preserved (state : IterationState) (count : Nat)
+lemma fraction_preserved (state : IterationState) (count : Nat)
     (valid : state.Admissible) :
     (CoefficientWindow.current state (count + 1)).value % 2 ^ count =
       (CoefficientWindow.current state count).value % 2 ^ count := by
@@ -62,7 +62,7 @@ theorem fraction_preserved (state : IterationState) (count : Nat)
     _ = _ := by rw [Nat.mul_add_mod_self_right, Nat.mod_mod]
 
 /-- Both actual coefficients have zero bits above the complete aligned arithmetic window. -/
-theorem values_below_window (state : IterationState) (count : Nat)
+lemma values_below_window (state : IterationState) (count : Nat)
     (valid : state.Admissible) :
     (CoefficientWindow.current state count).value <
         2 ^ (count + CoefficientWindow.width state) ∧
@@ -85,7 +85,7 @@ theorem values_below_window (state : IterationState) (count : Nat)
   · simpa only [Nat.pow_add, Nat.mul_comm] using newValue
 
 /-- Every coefficient bit outside the actual aligned window is unchanged by the microstep. -/
-theorem coefficient_outside (state : IterationState) (count : Nat)
+lemma coefficient_outside (state : IterationState) (count : Nat)
     (valid : state.Admissible) (index : Nat)
     (outside : index < count ∨ count + CoefficientWindow.width state ≤ index) :
     (CoefficientWindow.current state (count + 1)).value.testBit index =
@@ -100,7 +100,7 @@ theorem coefficient_outside (state : IterationState) (count : Nat)
       _ = false := Nat.testBit_lt_two_pow (bounds.2.trans_le powerBound)
       _ = _ := (Nat.testBit_lt_two_pow (bounds.1.trans_le powerBound)).symm
 
-private theorem rotated_outside (count windowWidth coefficientWidth remainderWidth index : Nat)
+private lemma rotated_outside (count windowWidth coefficientWidth remainderWidth index : Nat)
     (fits : count + windowWidth ≤ coefficientWidth)
     (outside : windowWidth ≤ index) (within : index < coefficientWidth + remainderWidth) :
     (count + index) % (coefficientWidth + remainderWidth) < count ∨
@@ -126,7 +126,7 @@ private theorem rotated_outside (count windowWidth coefficientWidth remainderWid
     omega
 
 /-- Repacking the next payload at the old shift preserves every outside physical bit. -/
-theorem repacked_outside (state : IterationState) (modulus count : Nat)
+lemma repacked_outside (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size)
     (index : Nat) (outside : CoefficientWindow.width state ≤ index)
@@ -156,7 +156,7 @@ theorem repacked_outside (state : IterationState) (modulus count : Nat)
       outside inWord)
 
 /-- The next payload at the old rotation exposes exactly the window actually written. -/
-theorem repacked_read (state : IterationState) (modulus count : Nat)
+lemma repacked_read (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     PhysicalWindow.read (CoefficientWindow.width state)
@@ -177,7 +177,7 @@ theorem repacked_read (state : IterationState) (modulus count : Nat)
     (CoefficientWindow.width state)).isLt
 
 /-- Actual physical window replacement equals the entire next payload at the old rotation. -/
-theorem updated_eq_repacked (state : IterationState) (modulus count : Nat)
+lemma updated_eq_repacked (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     PackedCoefficientWindow.updatedWord state modulus count valid conserved active within =
@@ -211,7 +211,7 @@ theorem updated_eq_repacked (state : IterationState) (modulus count : Nat)
           within index outside inWord).symm
 
 /-- The actual signed replacement followed by the source's one-position shift is the next word. -/
-theorem step_eq_next_word (state : IterationState) (modulus count : Nat)
+lemma step_eq_next_word (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     (PackedCoefficientWindow.updatedWord state modulus count
@@ -221,7 +221,7 @@ theorem step_eq_next_word (state : IterationState) (modulus count : Nat)
   exact WordRotation.packRotatedWork2_shift count _
 
 /-- Undoing that last actual shift recovers the complete updated word before rotation. -/
-theorem unshift_next_word (state : IterationState) (modulus count : Nat)
+lemma unshift_next_word (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) :
     (PackedCoefficientWindow.word state modulus (count + 1) valid conserved active).rotateRight 1 =

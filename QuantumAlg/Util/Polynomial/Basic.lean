@@ -44,58 +44,58 @@ public noncomputable def realPolynomialToComplex (P : ℝ[X]) : ℂ[X] :=
   P.map (algebraMap ℝ ℂ)
 
 @[simp]
-theorem realPolynomialToComplex_zero : realPolynomialToComplex 0 = 0 :=
+lemma realPolynomialToComplex_zero : realPolynomialToComplex 0 = 0 :=
   Polynomial.map_zero _
 
 @[simp]
-theorem realPolynomialToComplex_one : realPolynomialToComplex 1 = 1 :=
+lemma realPolynomialToComplex_one : realPolynomialToComplex 1 = 1 :=
   Polynomial.map_one _
 
 @[simp]
-theorem realPolynomialToComplex_X : realPolynomialToComplex X = X :=
+lemma realPolynomialToComplex_X : realPolynomialToComplex X = X :=
   Polynomial.map_X _
 
 @[simp]
-theorem realPolynomialToComplex_C (c : ℝ) :
+lemma realPolynomialToComplex_C (c : ℝ) :
     realPolynomialToComplex (C c) = C (c : ℂ) :=
   Polynomial.map_C _
 
 @[simp]
-theorem realPolynomialToComplex_neg (P : ℝ[X]) :
+lemma realPolynomialToComplex_neg (P : ℝ[X]) :
     realPolynomialToComplex (-P) = -realPolynomialToComplex P :=
   Polynomial.map_neg _
 
 @[simp]
-theorem realPolynomialToComplex_add (P Q : ℝ[X]) :
+lemma realPolynomialToComplex_add (P Q : ℝ[X]) :
     realPolynomialToComplex (P + Q) =
       realPolynomialToComplex P + realPolynomialToComplex Q :=
   Polynomial.map_add _
 
 @[simp]
-theorem realPolynomialToComplex_sub (P Q : ℝ[X]) :
+lemma realPolynomialToComplex_sub (P Q : ℝ[X]) :
     realPolynomialToComplex (P - Q) =
       realPolynomialToComplex P - realPolynomialToComplex Q :=
   Polynomial.map_sub _
 
 @[simp]
-theorem realPolynomialToComplex_mul (P Q : ℝ[X]) :
+lemma realPolynomialToComplex_mul (P Q : ℝ[X]) :
     realPolynomialToComplex (P * Q) =
       realPolynomialToComplex P * realPolynomialToComplex Q :=
   Polynomial.map_mul _
 
 @[simp]
-theorem realPolynomialToComplex_pow (P : ℝ[X]) (n : ℕ) :
+lemma realPolynomialToComplex_pow (P : ℝ[X]) (n : ℕ) :
     realPolynomialToComplex (P ^ n) = realPolynomialToComplex P ^ n :=
   Polynomial.map_pow _ _
 
-theorem realPolynomialToComplex_eval_ofReal (P : ℝ[X]) (x : ℝ) :
+lemma realPolynomialToComplex_eval_ofReal (P : ℝ[X]) (x : ℝ) :
     (realPolynomialToComplex P).eval (x : ℂ) =
       ((Polynomial.eval x P : ℝ) : ℂ) := by
   simpa [realPolynomialToComplex] using
     (Polynomial.eval_map_apply (f := (algebraMap ℝ ℂ)) (p := P) x)
 
 /-- The real-to-complex coefficient embedding is injective on polynomials. -/
-theorem realPolynomialToComplex_injective :
+lemma realPolynomialToComplex_injective :
     Function.Injective realPolynomialToComplex := by
   intro P Q h
   ext n
@@ -104,7 +104,7 @@ theorem realPolynomialToComplex_injective :
     simpa [realPolynomialToComplex] using hcoeff
   exact Complex.ofReal_injective hcoeff'
 
-theorem realPolynomialToComplex_coeff_eq_zero_of_natDegree_lt {P : ℝ[X]} {m : ℕ}
+lemma realPolynomialToComplex_coeff_eq_zero_of_natDegree_lt {P : ℝ[X]} {m : ℕ}
     (h : P.natDegree < m) : (realPolynomialToComplex P).coeff m = 0 := by
   rw [realPolynomialToComplex, Polynomial.coeff_map]
   simp [Polynomial.coeff_eq_zero_of_natDegree_lt h]
@@ -120,20 +120,20 @@ noncomputable def complexPolynomialImagPart (P : ℂ[X]) : ℝ[X] :=
     P.toFinsupp.coeff.mapRange Complex.im (by simp))
 
 @[simp]
-theorem complexPolynomialRealPart_coeff (P : ℂ[X]) (n : ℕ) :
+lemma complexPolynomialRealPart_coeff (P : ℂ[X]) (n : ℕ) :
     (complexPolynomialRealPart P).coeff n = (P.coeff n).re := by
   rw [complexPolynomialRealPart, Polynomial.coeff_ofFinsupp]
   simp [Polynomial.toFinsupp_apply]
 
 @[simp]
-theorem complexPolynomialImagPart_coeff (P : ℂ[X]) (n : ℕ) :
+lemma complexPolynomialImagPart_coeff (P : ℂ[X]) (n : ℕ) :
     (complexPolynomialImagPart P).coeff n = (P.coeff n).im := by
   rw [complexPolynomialImagPart, Polynomial.coeff_ofFinsupp]
   simp [Polynomial.toFinsupp_apply]
 
 /-- A complex polynomial is reconstructed from its coefficientwise real and
 imaginary parts. -/
-theorem complexPolynomial_recompose (P : ℂ[X]) :
+lemma complexPolynomial_recompose (P : ℂ[X]) :
     realPolynomialToComplex (complexPolynomialRealPart P) +
         Polynomial.C Complex.I * realPolynomialToComplex (complexPolynomialImagPart P) = P := by
   ext n
@@ -142,7 +142,7 @@ theorem complexPolynomial_recompose (P : ℂ[X]) :
   simpa [mul_comm] using Complex.re_add_im (P.coeff n)
 
 /-- Taking the coefficientwise real part does not increase degree. -/
-theorem complexPolynomialRealPart_natDegree_le (P : ℂ[X]) :
+lemma complexPolynomialRealPart_natDegree_le (P : ℂ[X]) :
     (complexPolynomialRealPart P).natDegree ≤ P.natDegree := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
   intro n hn
@@ -150,7 +150,7 @@ theorem complexPolynomialRealPart_natDegree_le (P : ℂ[X]) :
   simp [Polynomial.coeff_eq_zero_of_natDegree_lt hn]
 
 /-- Taking the coefficientwise imaginary part does not increase degree. -/
-theorem complexPolynomialImagPart_natDegree_le (P : ℂ[X]) :
+lemma complexPolynomialImagPart_natDegree_le (P : ℂ[X]) :
     (complexPolynomialImagPart P).natDegree ≤ P.natDegree := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
   intro n hn
@@ -158,7 +158,7 @@ theorem complexPolynomialImagPart_natDegree_le (P : ℂ[X]) :
   simp [Polynomial.coeff_eq_zero_of_natDegree_lt hn]
 
 /-- Evaluation of the coefficientwise real part at a real point. -/
-theorem complexPolynomialRealPart_eval_ofReal (P : ℂ[X]) (x : ℝ) :
+lemma complexPolynomialRealPart_eval_ofReal (P : ℂ[X]) (x : ℝ) :
     (complexPolynomialRealPart P).eval x = (P.eval (x : ℂ)).re := by
   rw [Polynomial.eval_eq_sum_range'
     (Nat.lt_succ_of_le (complexPolynomialRealPart_natDegree_le P) : _),
@@ -169,7 +169,7 @@ theorem complexPolynomialRealPart_eval_ofReal (P : ℂ[X]) (x : ℝ) :
   simp [complexPolynomialRealPart_coeff, ← Complex.ofReal_pow]
 
 /-- Evaluation of the coefficientwise imaginary part at a real point. -/
-theorem complexPolynomialImagPart_eval_ofReal (P : ℂ[X]) (x : ℝ) :
+lemma complexPolynomialImagPart_eval_ofReal (P : ℂ[X]) (x : ℝ) :
     (complexPolynomialImagPart P).eval x = (P.eval (x : ℂ)).im := by
   rw [Polynomial.eval_eq_sum_range'
     (Nat.lt_succ_of_le (complexPolynomialImagPart_natDegree_le P) : _),
@@ -190,13 +190,13 @@ noncomputable def realPolynomialOddPart (P : ℝ[X]) : ℝ[X] :=
     P.toFinsupp.coeff.filter fun n => n % 2 = 1)
 
 @[simp]
-theorem realPolynomialEvenPart_coeff (P : ℝ[X]) (n : ℕ) :
+lemma realPolynomialEvenPart_coeff (P : ℝ[X]) (n : ℕ) :
     (realPolynomialEvenPart P).coeff n = if n % 2 = 0 then P.coeff n else 0 := by
   rw [realPolynomialEvenPart, Polynomial.coeff_ofFinsupp]
   by_cases h : n % 2 = 0 <;> simp [h, Polynomial.toFinsupp_apply]
 
 @[simp]
-theorem realPolynomialOddPart_coeff (P : ℝ[X]) (n : ℕ) :
+lemma realPolynomialOddPart_coeff (P : ℝ[X]) (n : ℕ) :
     (realPolynomialOddPart P).coeff n = if n % 2 = 1 then P.coeff n else 0 := by
   rw [realPolynomialOddPart, Polynomial.coeff_ofFinsupp]
   by_cases h : n % 2 = 1 <;> simp [h, Polynomial.toFinsupp_apply]
@@ -216,7 +216,7 @@ noncomputable def complexPolynomialOddPart (P : ℂ[X]) : ℂ[X] :=
       realPolynomialToComplex (realPolynomialOddPart (complexPolynomialImagPart P))
 
 @[simp]
-theorem complexPolynomialEvenPart_coeff (P : ℂ[X]) (n : ℕ) :
+lemma complexPolynomialEvenPart_coeff (P : ℂ[X]) (n : ℕ) :
     (complexPolynomialEvenPart P).coeff n = if n % 2 = 0 then P.coeff n else 0 := by
   rw [complexPolynomialEvenPart, Polynomial.coeff_add, Polynomial.coeff_C_mul]
   by_cases h : n % 2 = 0
@@ -226,7 +226,7 @@ theorem complexPolynomialEvenPart_coeff (P : ℂ[X]) (n : ℕ) :
     simp [hodd, realPolynomialToComplex, Polynomial.coeff_map]
 
 @[simp]
-theorem complexPolynomialOddPart_coeff (P : ℂ[X]) (n : ℕ) :
+lemma complexPolynomialOddPart_coeff (P : ℂ[X]) (n : ℕ) :
     (complexPolynomialOddPart P).coeff n = if n % 2 = 1 then P.coeff n else 0 := by
   rw [complexPolynomialOddPart, Polynomial.coeff_add, Polynomial.coeff_C_mul]
   by_cases h : n % 2 = 1
@@ -236,7 +236,7 @@ theorem complexPolynomialOddPart_coeff (P : ℂ[X]) (n : ℕ) :
     simp [heven, realPolynomialToComplex, Polynomial.coeff_map]
 
 /-- Real polynomials split into their even and odd coefficient parts. -/
-theorem realPolynomial_evenPart_add_oddPart (P : ℝ[X]) :
+lemma realPolynomial_evenPart_add_oddPart (P : ℝ[X]) :
     realPolynomialEvenPart P + realPolynomialOddPart P = P := by
   ext n
   by_cases heven : n % 2 = 0
@@ -246,7 +246,7 @@ theorem realPolynomial_evenPart_add_oddPart (P : ℝ[X]) :
     simp [hodd]
 
 /-- Complex polynomials split into their even and odd coefficient parts. -/
-theorem complexPolynomial_evenPart_add_oddPart (P : ℂ[X]) :
+lemma complexPolynomial_evenPart_add_oddPart (P : ℂ[X]) :
     complexPolynomialEvenPart P + complexPolynomialOddPart P = P := by
   ext n
   rw [Polynomial.coeff_add]
@@ -256,7 +256,7 @@ theorem complexPolynomial_evenPart_add_oddPart (P : ℂ[X]) :
     simp [hodd]
 
 /-- Taking the even coefficient part does not increase degree. -/
-theorem realPolynomialEvenPart_natDegree_le (P : ℝ[X]) :
+lemma realPolynomialEvenPart_natDegree_le (P : ℝ[X]) :
     (realPolynomialEvenPart P).natDegree ≤ P.natDegree := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
   intro n hn
@@ -266,7 +266,7 @@ theorem realPolynomialEvenPart_natDegree_le (P : ℝ[X]) :
   · simp [h]
 
 /-- Taking the odd coefficient part does not increase degree. -/
-theorem realPolynomialOddPart_natDegree_le (P : ℝ[X]) :
+lemma realPolynomialOddPart_natDegree_le (P : ℝ[X]) :
     (realPolynomialOddPart P).natDegree ≤ P.natDegree := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
   intro n hn
@@ -277,7 +277,7 @@ theorem realPolynomialOddPart_natDegree_le (P : ℝ[X]) :
 
 /-- Taking the even coefficient part of a complex polynomial does not increase
 degree. -/
-theorem complexPolynomialEvenPart_natDegree_le (P : ℂ[X]) :
+lemma complexPolynomialEvenPart_natDegree_le (P : ℂ[X]) :
     (complexPolynomialEvenPart P).natDegree ≤ P.natDegree := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
   intro n hn
@@ -288,7 +288,7 @@ theorem complexPolynomialEvenPart_natDegree_le (P : ℂ[X]) :
 
 /-- Taking the odd coefficient part of a complex polynomial does not increase
 degree. -/
-theorem complexPolynomialOddPart_natDegree_le (P : ℂ[X]) :
+lemma complexPolynomialOddPart_natDegree_le (P : ℂ[X]) :
     (complexPolynomialOddPart P).natDegree ≤ P.natDegree := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
   intro n hn
@@ -299,7 +299,7 @@ theorem complexPolynomialOddPart_natDegree_le (P : ℂ[X]) :
 
 /-- If a complex polynomial has degree at most an odd `L`, then its even
 coefficient part has degree at most `L - 1`. -/
-theorem complexPolynomialEvenPart_natDegree_le_pred_of_odd_bound (P : ℂ[X])
+lemma complexPolynomialEvenPart_natDegree_le_pred_of_odd_bound (P : ℂ[X])
     {L : ℕ} (hdegree : P.natDegree ≤ L) (hL : L % 2 = 1) :
     (complexPolynomialEvenPart P).natDegree ≤ L - 1 := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
@@ -315,7 +315,7 @@ theorem complexPolynomialEvenPart_natDegree_le_pred_of_odd_bound (P : ℂ[X])
 
 /-- If a complex polynomial has degree at most an even `L`, then its odd
 coefficient part has degree at most `L - 1`. -/
-theorem complexPolynomialOddPart_natDegree_le_pred_of_even_bound (P : ℂ[X])
+lemma complexPolynomialOddPart_natDegree_le_pred_of_even_bound (P : ℂ[X])
     {L : ℕ} (hdegree : P.natDegree ≤ L) (hL : L % 2 = 0) :
     (complexPolynomialOddPart P).natDegree ≤ L - 1 := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
@@ -330,7 +330,7 @@ theorem complexPolynomialOddPart_natDegree_le_pred_of_even_bound (P : ℂ[X])
   · simp [hpar]
 
 /-- A degree-zero complex polynomial has no odd coefficient part. -/
-theorem complexPolynomialOddPart_eq_zero_of_natDegree_eq_zero (P : ℂ[X])
+lemma complexPolynomialOddPart_eq_zero_of_natDegree_eq_zero (P : ℂ[X])
     (hdeg : P.natDegree = 0) :
     complexPolynomialOddPart P = 0 := by
   ext n
@@ -343,7 +343,7 @@ theorem complexPolynomialOddPart_eq_zero_of_natDegree_eq_zero (P : ℂ[X])
   · simp [hn]
 
 /-- A degree-zero real polynomial has no odd coefficient part. -/
-theorem realPolynomialOddPart_eq_zero_of_natDegree_eq_zero (P : ℝ[X])
+lemma realPolynomialOddPart_eq_zero_of_natDegree_eq_zero (P : ℝ[X])
     (hdeg : P.natDegree = 0) :
     realPolynomialOddPart P = 0 := by
   ext n
@@ -357,7 +357,7 @@ theorem realPolynomialOddPart_eq_zero_of_natDegree_eq_zero (P : ℝ[X])
 
 /-- If a polynomial has degree at most an odd `L`, then its even coefficient
 part has degree at most `L - 1`. -/
-theorem realPolynomialEvenPart_natDegree_le_pred_of_odd_bound (P : ℝ[X]) {L : ℕ}
+lemma realPolynomialEvenPart_natDegree_le_pred_of_odd_bound (P : ℝ[X]) {L : ℕ}
     (hdegree : P.natDegree ≤ L) (hL : L % 2 = 1) :
     (realPolynomialEvenPart P).natDegree ≤ L - 1 := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
@@ -373,7 +373,7 @@ theorem realPolynomialEvenPart_natDegree_le_pred_of_odd_bound (P : ℝ[X]) {L : 
 
 /-- If a polynomial has degree at most an even `L`, then its odd coefficient
 part has degree at most `L - 1`. -/
-theorem realPolynomialOddPart_natDegree_le_pred_of_even_bound (P : ℝ[X]) {L : ℕ}
+lemma realPolynomialOddPart_natDegree_le_pred_of_even_bound (P : ℝ[X]) {L : ℕ}
     (hdegree : P.natDegree ≤ L) (hL : L % 2 = 0) :
     (realPolynomialOddPart P).natDegree ≤ L - 1 := by
   rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
@@ -388,7 +388,7 @@ theorem realPolynomialOddPart_natDegree_le_pred_of_even_bound (P : ℝ[X]) {L : 
   · simp [hpar]
 
 /-- The even coefficient part is the average of `P(X)` and `P(-X)`. -/
-theorem realPolynomialEvenPart_eq_half_add_comp_neg_X (P : ℝ[X]) :
+lemma realPolynomialEvenPart_eq_half_add_comp_neg_X (P : ℝ[X]) :
     realPolynomialEvenPart P =
       Polynomial.C ((2 : ℝ)⁻¹) * (P + P.comp (-Polynomial.X)) := by
   ext n
@@ -407,7 +407,7 @@ theorem realPolynomialEvenPart_eq_half_add_comp_neg_X (P : ℝ[X]) :
     simp [h, hpow]
 
 /-- The odd coefficient part is half of `P(X) - P(-X)`. -/
-theorem realPolynomialOddPart_eq_half_sub_comp_neg_X (P : ℝ[X]) :
+lemma realPolynomialOddPart_eq_half_sub_comp_neg_X (P : ℝ[X]) :
     realPolynomialOddPart P =
       Polynomial.C ((2 : ℝ)⁻¹) * (P - P.comp (-Polynomial.X)) := by
   ext n
@@ -428,21 +428,21 @@ theorem realPolynomialOddPart_eq_half_sub_comp_neg_X (P : ℝ[X]) :
     simp [h, hEven.neg_one_pow]
 
 /-- Evaluation of the even coefficient part. -/
-theorem realPolynomialEvenPart_eval (P : ℝ[X]) (x : ℝ) :
+lemma realPolynomialEvenPart_eval (P : ℝ[X]) (x : ℝ) :
     (realPolynomialEvenPart P).eval x = (P.eval x + P.eval (-x)) / 2 := by
   rw [realPolynomialEvenPart_eq_half_add_comp_neg_X]
   simp [Polynomial.eval_mul, Polynomial.eval_add, Polynomial.eval_comp]
   ring
 
 /-- Evaluation of the odd coefficient part. -/
-theorem realPolynomialOddPart_eval (P : ℝ[X]) (x : ℝ) :
+lemma realPolynomialOddPart_eval (P : ℝ[X]) (x : ℝ) :
     (realPolynomialOddPart P).eval x = (P.eval x - P.eval (-x)) / 2 := by
   rw [realPolynomialOddPart_eq_half_sub_comp_neg_X]
   simp [Polynomial.eval_mul, Polynomial.eval_sub, Polynomial.eval_comp]
   ring
 
 /-- The complex even coefficient part is half of `P(X) + P(-X)`. -/
-theorem complexPolynomialEvenPart_eq_half_add_comp_neg_X (P : ℂ[X]) :
+lemma complexPolynomialEvenPart_eq_half_add_comp_neg_X (P : ℂ[X]) :
     complexPolynomialEvenPart P =
       Polynomial.C ((2 : ℂ)⁻¹) * (P + P.comp (-Polynomial.X)) := by
   ext n
@@ -461,7 +461,7 @@ theorem complexPolynomialEvenPart_eq_half_add_comp_neg_X (P : ℂ[X]) :
     simp [h, hpow]
 
 /-- The complex odd coefficient part is half of `P(X) - P(-X)`. -/
-theorem complexPolynomialOddPart_eq_half_sub_comp_neg_X (P : ℂ[X]) :
+lemma complexPolynomialOddPart_eq_half_sub_comp_neg_X (P : ℂ[X]) :
     complexPolynomialOddPart P =
       Polynomial.C ((2 : ℂ)⁻¹) * (P - P.comp (-Polynomial.X)) := by
   ext n
@@ -482,14 +482,14 @@ theorem complexPolynomialOddPart_eq_half_sub_comp_neg_X (P : ℂ[X]) :
     simp [h, hEven.neg_one_pow]
 
 /-- Evaluation of the complex even coefficient part. -/
-theorem complexPolynomialEvenPart_eval (P : ℂ[X]) (z : ℂ) :
+lemma complexPolynomialEvenPart_eval (P : ℂ[X]) (z : ℂ) :
     (complexPolynomialEvenPart P).eval z = (P.eval z + P.eval (-z)) / 2 := by
   rw [complexPolynomialEvenPart_eq_half_add_comp_neg_X]
   simp [Polynomial.eval_mul, Polynomial.eval_add, Polynomial.eval_comp]
   ring
 
 /-- Evaluation of the complex odd coefficient part. -/
-theorem complexPolynomialOddPart_eval (P : ℂ[X]) (z : ℂ) :
+lemma complexPolynomialOddPart_eval (P : ℂ[X]) (z : ℂ) :
     (complexPolynomialOddPart P).eval z = (P.eval z - P.eval (-z)) / 2 := by
   rw [complexPolynomialOddPart_eq_half_sub_comp_neg_X]
   simp [Polynomial.eval_mul, Polynomial.eval_sub, Polynomial.eval_comp]
@@ -497,7 +497,7 @@ theorem complexPolynomialOddPart_eval (P : ℂ[X]) (z : ℂ) :
 
 /-- If a complex polynomial is bounded by `normSq <= 1` on `[-1,1]`, so is its
 even coefficient part. -/
-theorem complexPolynomialEvenPart_normSq_le_of_normSq_le (P : ℂ[X])
+lemma complexPolynomialEvenPart_normSq_le_of_normSq_le (P : ℂ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
       Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
@@ -531,7 +531,7 @@ theorem complexPolynomialEvenPart_normSq_le_of_normSq_le (P : ℂ[X])
 
 /-- If a complex polynomial is bounded by `normSq <= 1` on `[-1,1]`, so is its
 odd coefficient part. -/
-theorem complexPolynomialOddPart_normSq_le_of_normSq_le (P : ℂ[X])
+lemma complexPolynomialOddPart_normSq_le_of_normSq_le (P : ℂ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
       Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
@@ -565,7 +565,7 @@ theorem complexPolynomialOddPart_normSq_le_of_normSq_le (P : ℂ[X])
 
 /-- If a real polynomial is bounded by one on `[-1,1]`, so is its even
 coefficient part. -/
-theorem realPolynomialEvenPart_boundedByOne_of_boundedByOne (P : ℝ[X])
+lemma realPolynomialEvenPart_boundedByOne_of_boundedByOne (P : ℝ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |(realPolynomialEvenPart P).eval x| ≤ 1 := by
   intro x hx
@@ -585,7 +585,7 @@ theorem realPolynomialEvenPart_boundedByOne_of_boundedByOne (P : ℝ[X])
 
 /-- If a real polynomial is bounded by one on `[-1,1]`, so is its odd
 coefficient part. -/
-theorem realPolynomialOddPart_boundedByOne_of_boundedByOne (P : ℝ[X])
+lemma realPolynomialOddPart_boundedByOne_of_boundedByOne (P : ℝ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |(realPolynomialOddPart P).eval x| ≤ 1 := by
   intro x hx
@@ -605,7 +605,7 @@ theorem realPolynomialOddPart_boundedByOne_of_boundedByOne (P : ℝ[X])
 
 /-- A complex polynomial bounded by `normSq <= 1` has coefficientwise real part
 bounded by one on the real unit interval. -/
-theorem complexPolynomialRealPart_boundedByOne_of_normSq_le (P : ℂ[X])
+lemma complexPolynomialRealPart_boundedByOne_of_normSq_le (P : ℂ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |(complexPolynomialRealPart P).eval x| ≤ 1 := by
   intro x hx
@@ -618,7 +618,7 @@ theorem complexPolynomialRealPart_boundedByOne_of_normSq_le (P : ℂ[X])
 
 /-- A complex polynomial bounded by `normSq <= 1` has coefficientwise imaginary
 part bounded by one on the real unit interval. -/
-theorem complexPolynomialImagPart_boundedByOne_of_normSq_le (P : ℂ[X])
+lemma complexPolynomialImagPart_boundedByOne_of_normSq_le (P : ℂ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |(complexPolynomialImagPart P).eval x| ≤ 1 := by
   intro x hx
@@ -633,7 +633,7 @@ theorem complexPolynomialImagPart_boundedByOne_of_normSq_le (P : ℂ[X])
 bounded by `1/2` on the real unit interval.  This is the elementary bound used
 by the complex-polynomial note after `thm:arbParity`
 [GSLW19, BlockHam.tex:1952]. -/
-theorem complexPolynomialRealPart_quarter_boundedByHalf_of_normSq_le (P : ℂ[X])
+lemma complexPolynomialRealPart_quarter_boundedByHalf_of_normSq_le (P : ℂ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
       |(complexPolynomialRealPart (Polynomial.C (((4 : ℝ)⁻¹ : ℂ)) * P)).eval x|
@@ -663,7 +663,7 @@ theorem complexPolynomialRealPart_quarter_boundedByHalf_of_normSq_le (P : ℂ[X]
 bounded by `1/2` on the real unit interval.  This is the elementary bound used
 by the complex-polynomial note after `thm:arbParity`
 [GSLW19, BlockHam.tex:1952]. -/
-theorem complexPolynomialImagPart_quarter_boundedByHalf_of_normSq_le (P : ℂ[X])
+lemma complexPolynomialImagPart_quarter_boundedByHalf_of_normSq_le (P : ℂ[X])
     (hP : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
       |(complexPolynomialImagPart (Polynomial.C (((4 : ℝ)⁻¹ : ℂ)) * P)).eval x|
@@ -691,7 +691,7 @@ theorem complexPolynomialImagPart_quarter_boundedByHalf_of_normSq_le (P : ℂ[X]
 
 /-- Complex polynomials split into real/imaginary and even/odd coefficient
 parts. -/
-theorem complexPolynomial_fourPart_recompose (P : ℂ[X]) :
+lemma complexPolynomial_fourPart_recompose (P : ℂ[X]) :
     realPolynomialToComplex (realPolynomialEvenPart (complexPolynomialRealPart P)) +
         realPolynomialToComplex (realPolynomialOddPart (complexPolynomialRealPart P)) +
         (Polynomial.C Complex.I *
@@ -718,14 +718,14 @@ theorem complexPolynomial_fourPart_recompose (P : ℂ[X]) :
     _ = P := complexPolynomial_recompose P
 
 @[simp]
-theorem realPolynomialToComplex_degree (P : ℝ[X]) :
+lemma realPolynomialToComplex_degree (P : ℝ[X]) :
     (realPolynomialToComplex P).degree = P.degree := by
   simpa [realPolynomialToComplex] using
     (Polynomial.degree_map_eq_of_injective
       (f := (algebraMap ℝ ℂ)) Complex.ofReal_injective P)
 
 @[simp]
-theorem realPolynomialToComplex_natDegree (P : ℝ[X]) :
+lemma realPolynomialToComplex_natDegree (P : ℝ[X]) :
     (realPolynomialToComplex P).natDegree = P.natDegree := by
   simpa [realPolynomialToComplex] using
     (Polynomial.natDegree_map_eq_of_injective
@@ -733,7 +733,7 @@ theorem realPolynomialToComplex_natDegree (P : ℝ[X]) :
 
 /-- Complexifying a real polynomial does not change the multiplicity of a real
 root. -/
-theorem realPolynomialToComplex_rootMultiplicity_ofReal (P : ℝ[X]) (x : ℝ) :
+lemma realPolynomialToComplex_rootMultiplicity_ofReal (P : ℝ[X]) (x : ℝ) :
     P.rootMultiplicity x =
       (realPolynomialToComplex P).rootMultiplicity (x : ℂ) := by
   simpa [realPolynomialToComplex] using
@@ -747,55 +747,55 @@ the QSP literature (for real `x`, `(conjP P).eval x = conj (P.eval x)`). -/
 public noncomputable def conjP (P : ℂ[X]) : ℂ[X] := P.map (starRingEnd ℂ)
 
 @[simp]
-theorem conjP_coeff (P : ℂ[X]) (k : ℕ) :
+lemma conjP_coeff (P : ℂ[X]) (k : ℕ) :
     (conjP P).coeff k = starRingEnd ℂ (P.coeff k) :=
   Polynomial.coeff_map _ _
 
-@[simp] theorem conjP_zero : conjP 0 = 0 := Polynomial.map_zero _
+@[simp] lemma conjP_zero : conjP 0 = 0 := Polynomial.map_zero _
 
-@[simp] theorem conjP_one : conjP 1 = 1 := Polynomial.map_one _
+@[simp] lemma conjP_one : conjP 1 = 1 := Polynomial.map_one _
 
-@[simp] theorem conjP_X : conjP X = X := Polynomial.map_X _
+@[simp] lemma conjP_X : conjP X = X := Polynomial.map_X _
 
 @[simp]
-theorem conjP_C (c : ℂ) : conjP (C c) = C (starRingEnd ℂ c) :=
+lemma conjP_C (c : ℂ) : conjP (C c) = C (starRingEnd ℂ c) :=
   Polynomial.map_C _
 
-theorem conjP_add (P Q : ℂ[X]) : conjP (P + Q) = conjP P + conjP Q :=
+lemma conjP_add (P Q : ℂ[X]) : conjP (P + Q) = conjP P + conjP Q :=
   Polynomial.map_add _
 
-theorem conjP_sub (P Q : ℂ[X]) : conjP (P - Q) = conjP P - conjP Q :=
+lemma conjP_sub (P Q : ℂ[X]) : conjP (P - Q) = conjP P - conjP Q :=
   Polynomial.map_sub _
 
-theorem conjP_mul (P Q : ℂ[X]) : conjP (P * Q) = conjP P * conjP Q :=
+lemma conjP_mul (P Q : ℂ[X]) : conjP (P * Q) = conjP P * conjP Q :=
   Polynomial.map_mul _
 
-theorem conjP_pow (P : ℂ[X]) (n : ℕ) : conjP (P ^ n) = conjP P ^ n :=
+lemma conjP_pow (P : ℂ[X]) (n : ℕ) : conjP (P ^ n) = conjP P ^ n :=
   Polynomial.map_pow _ _
 
 @[simp]
-theorem conjP_conjP (P : ℂ[X]) : conjP (conjP P) = P := by
+lemma conjP_conjP (P : ℂ[X]) : conjP (conjP P) = P := by
   ext k
   simp
 
 @[simp]
-theorem conjP_realPolynomialToComplex (P : ℝ[X]) :
+lemma conjP_realPolynomialToComplex (P : ℝ[X]) :
     conjP (realPolynomialToComplex P) = realPolynomialToComplex P := by
   ext k
   simp [conjP_coeff, realPolynomialToComplex, Complex.conj_ofReal]
 
-theorem realPolynomialToComplex_mul_conjP (P : ℝ[X]) :
+lemma realPolynomialToComplex_mul_conjP (P : ℝ[X]) :
     realPolynomialToComplex P * conjP (realPolynomialToComplex P) =
       realPolynomialToComplex (P ^ 2) := by
   simp [pow_two]
 
-theorem conjP_realPolynomialToComplex_mul (P : ℝ[X]) :
+lemma conjP_realPolynomialToComplex_mul (P : ℝ[X]) :
     conjP (realPolynomialToComplex P) * realPolynomialToComplex P =
       realPolynomialToComplex (P ^ 2) := by
   simp [pow_two]
 
 /-- Evaluating the coefficient-conjugate at a real point conjugates the value. -/
-theorem conjP_eval_ofReal (P : ℂ[X]) (x : ℝ) :
+lemma conjP_eval_ofReal (P : ℂ[X]) (x : ℝ) :
     (conjP P).eval (x : ℂ) = starRingEnd ℂ (P.eval (x : ℂ)) := by
   have h : ((x : ℂ)) = starRingEnd ℂ (x : ℂ) := (Complex.conj_ofReal x).symm
   rw [conjP, Polynomial.eval_map]
@@ -804,7 +804,7 @@ theorem conjP_eval_ofReal (P : ℂ[X]) (x : ℝ) :
 
 /-- Evaluating the coefficient-conjugate at the conjugate point conjugates the
 original value. -/
-theorem conjP_eval_conj (P : ℂ[X]) (z : ℂ) :
+lemma conjP_eval_conj (P : ℂ[X]) (z : ℂ) :
     (conjP P).eval (starRingEnd ℂ z) = starRingEnd ℂ (P.eval z) := by
   rw [conjP, Polynomial.eval_map, Polynomial.eval₂_hom]
 
@@ -818,20 +818,20 @@ congruent to `p` modulo `2` ("`P` has parity `p mod 2`" in
 public def HasParity (P : ℂ[X]) (p : ℕ) : Prop :=
   ∀ k, P.coeff k ≠ 0 → k % 2 = p % 2
 
-theorem HasParity.coeff_eq_zero {P : ℂ[X]} {p : ℕ} (h : HasParity P p) {k : ℕ}
+lemma HasParity.coeff_eq_zero {P : ℂ[X]} {p : ℕ} (h : HasParity P p) {k : ℕ}
     (hk : k % 2 ≠ p % 2) : P.coeff k = 0 :=
   by_contra fun hne => hk (h k hne)
 
-theorem hasParity_zero (p : ℕ) : HasParity 0 p := fun k hk => by simp at hk
+lemma hasParity_zero (p : ℕ) : HasParity 0 p := fun k hk => by simp at hk
 
-theorem hasParity_C (c : ℂ) {p : ℕ} (hp : p % 2 = 0) : HasParity (C c) p := by
+lemma hasParity_C (c : ℂ) {p : ℕ} (hp : p % 2 = 0) : HasParity (C c) p := by
   intro k hk
   rw [Polynomial.coeff_C] at hk
   rcases Nat.eq_zero_or_pos k with rfl | hpos
   · simp [hp]
   · simp [Nat.pos_iff_ne_zero.mp hpos] at hk
 
-theorem HasParity.add {P Q : ℂ[X]} {p : ℕ} (hP : HasParity P p)
+lemma HasParity.add {P Q : ℂ[X]} {p : ℕ} (hP : HasParity P p)
     (hQ : HasParity Q p) : HasParity (P + Q) p := by
   intro k hk
   rw [Polynomial.coeff_add] at hk
@@ -839,36 +839,36 @@ theorem HasParity.add {P Q : ℂ[X]} {p : ℕ} (hP : HasParity P p)
   · exact hQ k (by simpa [h] using hk)
   · exact hP k h
 
-theorem HasParity.neg {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
+lemma HasParity.neg {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
     HasParity (-P) p := by
   intro k hk
   rw [Polynomial.coeff_neg, neg_ne_zero] at hk
   exact hP k hk
 
-theorem HasParity.sub {P Q : ℂ[X]} {p : ℕ} (hP : HasParity P p)
+lemma HasParity.sub {P Q : ℂ[X]} {p : ℕ} (hP : HasParity P p)
     (hQ : HasParity Q p) : HasParity (P - Q) p := by
   rw [sub_eq_add_neg]
   exact hP.add hQ.neg
 
-theorem HasParity.C_mul {P : ℂ[X]} {p : ℕ} (c : ℂ) (hP : HasParity P p) :
+lemma HasParity.C_mul {P : ℂ[X]} {p : ℕ} (c : ℂ) (hP : HasParity P p) :
     HasParity (C c * P) p := by
   intro k hk
   rw [Polynomial.coeff_C_mul] at hk
   exact hP k (right_ne_zero_of_mul hk)
 
-theorem HasParity.conjP {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
+lemma HasParity.conjP {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
     HasParity (conjP P) p := by
   intro k hk
   rw [conjP_coeff] at hk
   exact hP k fun h => hk (by simp [h])
 
 /-- Parity only depends on `p` modulo `2`. -/
-theorem HasParity.congr {P : ℂ[X]} {p q : ℕ} (hP : HasParity P p)
+lemma HasParity.congr {P : ℂ[X]} {p q : ℕ} (hP : HasParity P p)
     (hpq : p % 2 = q % 2) : HasParity P q := by
   intro k hk
   rw [hP k hk, hpq]
 
-theorem realPolynomialEvenPart_hasParity (P : ℝ[X]) :
+lemma realPolynomialEvenPart_hasParity (P : ℝ[X]) :
     HasParity (realPolynomialToComplex (realPolynomialEvenPart P)) 0 := by
   intro n hn
   rw [realPolynomialToComplex, Polynomial.coeff_map] at hn
@@ -877,7 +877,7 @@ theorem realPolynomialEvenPart_hasParity (P : ℝ[X]) :
     simp [hpar]
   simp [hzero] at hn
 
-theorem realPolynomialOddPart_hasParity (P : ℝ[X]) :
+lemma realPolynomialOddPart_hasParity (P : ℝ[X]) :
     HasParity (realPolynomialToComplex (realPolynomialOddPart P)) 1 := by
   intro n hn
   rw [realPolynomialToComplex, Polynomial.coeff_map] at hn
@@ -886,7 +886,7 @@ theorem realPolynomialOddPart_hasParity (P : ℝ[X]) :
     simp [hpar]
   simp [hzero] at hn
 
-theorem complexPolynomialEvenPart_hasParity (P : ℂ[X]) :
+lemma complexPolynomialEvenPart_hasParity (P : ℂ[X]) :
     HasParity (complexPolynomialEvenPart P) 0 := by
   intro n hn
   rw [complexPolynomialEvenPart_coeff] at hn
@@ -894,7 +894,7 @@ theorem complexPolynomialEvenPart_hasParity (P : ℂ[X]) :
   · simp [h]
   · simp [h] at hn
 
-theorem complexPolynomialOddPart_hasParity (P : ℂ[X]) :
+lemma complexPolynomialOddPart_hasParity (P : ℂ[X]) :
     HasParity (complexPolynomialOddPart P) 1 := by
   intro n hn
   rw [complexPolynomialOddPart_coeff] at hn
@@ -903,14 +903,14 @@ theorem complexPolynomialOddPart_hasParity (P : ℂ[X]) :
   · simp [h] at hn
 
 /-- Total coefficient formula for `X * P`. -/
-theorem coeff_X_mul' (P : ℂ[X]) (n : ℕ) :
+lemma coeff_X_mul' (P : ℂ[X]) (n : ℕ) :
     (X * P).coeff n = if n = 0 then 0 else P.coeff (n - 1) := by
   cases n with
   | zero => simp [Polynomial.mul_coeff_zero]
   | succ m => simp [Polynomial.coeff_X_mul]
 
 /-- Total coefficient formula for `X^2 * P`. -/
-theorem coeff_X_sq_mul (P : ℂ[X]) (n : ℕ) :
+lemma coeff_X_sq_mul (P : ℂ[X]) (n : ℕ) :
     (X ^ 2 * P).coeff n = if n < 2 then 0 else P.coeff (n - 2) := by
   have h : (X ^ 2 * P : ℂ[X]) = X * (X * P) := by ring
   rw [h, coeff_X_mul' (X * P) n]
@@ -923,7 +923,7 @@ theorem coeff_X_sq_mul (P : ℂ[X]) (n : ℕ) :
       have h2 : l + 2 - 2 = l + 1 - 1 := by omega
       simp [h1, h2]
 
-theorem HasParity.X_mul {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
+lemma HasParity.X_mul {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
     HasParity (X * P) (p + 1) := by
   intro k hk
   rw [coeff_X_mul'] at hk
@@ -933,7 +933,7 @@ theorem HasParity.X_mul {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
     have := hP _ hk
     omega
 
-theorem HasParity.one_sub_X_sq_mul {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
+lemma HasParity.one_sub_X_sq_mul {P : ℂ[X]} {p : ℕ} (hP : HasParity P p) :
     HasParity ((1 - X ^ 2) * P) p := by
   have h : ((1 - X ^ 2) * P : ℂ[X]) = P - X ^ 2 * P := by ring
   rw [h]
@@ -959,13 +959,13 @@ noncomputable def evenSquareQuotient (P : ℂ[X]) : ℂ[X] :=
   P.sum fun n a => if n % 2 = 0 then C a * X ^ (n / 2) else 0
 
 @[simp]
-theorem evenSquareQuotient_one : evenSquareQuotient (1 : ℂ[X]) = 1 := by
+lemma evenSquareQuotient_one : evenSquareQuotient (1 : ℂ[X]) = 1 := by
   have hsupp : (1 : ℂ[X]).support = {0} := by
     simpa using (Polynomial.support_C (R := ℂ) (a := (1 : ℂ)) one_ne_zero)
   rw [evenSquareQuotient, Polynomial.sum_def, hsupp]
   simp
 
-theorem evenSquareQuotient_add (P Q : ℂ[X]) :
+lemma evenSquareQuotient_add (P Q : ℂ[X]) :
     evenSquareQuotient (P + Q) = evenSquareQuotient P + evenSquareQuotient Q := by
   rw [evenSquareQuotient, evenSquareQuotient, evenSquareQuotient,
     Polynomial.sum_add_index]
@@ -974,7 +974,7 @@ theorem evenSquareQuotient_add (P Q : ℂ[X]) :
   · intro i a b
     by_cases h : i % 2 = 0 <;> simp [h, Polynomial.C_add, add_mul]
 
-theorem evenSquareQuotient_smul (c : ℂ) (P : ℂ[X]) :
+lemma evenSquareQuotient_smul (c : ℂ) (P : ℂ[X]) :
     evenSquareQuotient (c • P) = c • evenSquareQuotient P := by
   rw [evenSquareQuotient, evenSquareQuotient, Polynomial.sum_smul_index]
   · simp [Polynomial.smul_sum, Polynomial.smul_eq_C_mul, mul_assoc]
@@ -989,12 +989,12 @@ noncomputable def oddSquareQuotient (P : ℂ[X]) : ℂ[X] :=
   P.sum fun n a => if n % 2 = 1 then C a * X ^ ((n - 1) / 2) else 0
 
 @[simp]
-theorem oddSquareQuotient_X : oddSquareQuotient (X : ℂ[X]) = 1 := by
+lemma oddSquareQuotient_X : oddSquareQuotient (X : ℂ[X]) = 1 := by
   rw [oddSquareQuotient, Polynomial.sum_X_index]
   · norm_num
   · simp
 
-theorem oddSquareQuotient_add (P Q : ℂ[X]) :
+lemma oddSquareQuotient_add (P Q : ℂ[X]) :
     oddSquareQuotient (P + Q) = oddSquareQuotient P + oddSquareQuotient Q := by
   rw [oddSquareQuotient, oddSquareQuotient, oddSquareQuotient,
     Polynomial.sum_add_index]
@@ -1003,7 +1003,7 @@ theorem oddSquareQuotient_add (P Q : ℂ[X]) :
   · intro i a b
     by_cases h : i % 2 = 1 <;> simp [h, Polynomial.C_add, add_mul]
 
-theorem oddSquareQuotient_smul (c : ℂ) (P : ℂ[X]) :
+lemma oddSquareQuotient_smul (c : ℂ) (P : ℂ[X]) :
     oddSquareQuotient (c • P) = c • oddSquareQuotient P := by
   rw [oddSquareQuotient, oddSquareQuotient, Polynomial.sum_smul_index]
   · simp [Polynomial.smul_sum, Polynomial.smul_eq_C_mul, mul_assoc]
@@ -1014,7 +1014,7 @@ theorem oddSquareQuotient_smul (c : ℂ) (P : ℂ[X]) :
 polynomial.  This is the coefficient-level calculation behind the even branch
 of `P^{(SV)}` in the QSVT singular-value transform [GSLW19,
 BlockHam.tex:747-764]. -/
-theorem evenSquareQuotient_eval_sq_of_hasParity {P : Polynomial Complex}
+lemma evenSquareQuotient_eval_sq_of_hasParity {P : Polynomial Complex}
     {parity : Nat} (hpar : parity % 2 = 0) (hP : HasParity P parity)
     (x : Complex) :
     (evenSquareQuotient P).eval (x ^ 2) = P.eval x := by
@@ -1044,7 +1044,7 @@ theorem evenSquareQuotient_eval_sq_of_hasParity {P : Polynomial Complex}
 polynomial after the leading factor `X`.  This is the coefficient-level
 calculation behind the odd branch of `P^{(SV)}` [GSLW19,
 BlockHam.tex:747-764]. -/
-theorem oddSquareQuotient_eval_sq_of_hasParity {P : Polynomial Complex}
+lemma oddSquareQuotient_eval_sq_of_hasParity {P : Polynomial Complex}
     {parity : Nat} (hpar : parity % 2 = 1) (hP : HasParity P parity)
     (x : Complex) :
     x * (oddSquareQuotient P).eval (x ^ 2) = P.eval x := by
@@ -1084,7 +1084,7 @@ theorem oddSquareQuotient_eval_sq_of_hasParity {P : Polynomial Complex}
 an even-parity polynomial is obtained by substituting `X^2` into its quotient.
 This is the algebraic form used by Hermitian QSVT specialization
 [GSLW19, BlockHam.tex:747-764]. -/
-theorem evenSquareQuotient_comp_X_sq_of_hasParity {P : Polynomial Complex}
+lemma evenSquareQuotient_comp_X_sq_of_hasParity {P : Polynomial Complex}
     {parity : Nat} (hpar : parity % 2 = 0) (hP : HasParity P parity) :
     (evenSquareQuotient P).comp (Polynomial.X ^ 2) = P := by
   apply Polynomial.funext
@@ -1096,7 +1096,7 @@ theorem evenSquareQuotient_comp_X_sq_of_hasParity {P : Polynomial Complex}
 an odd-parity polynomial is `X` times a polynomial in `X^2`.
 This is the algebraic form used by Hermitian QSVT specialization
 [GSLW19, BlockHam.tex:747-764]. -/
-theorem oddSquareQuotient_comp_X_sq_of_hasParity {P : Polynomial Complex}
+lemma oddSquareQuotient_comp_X_sq_of_hasParity {P : Polynomial Complex}
     {parity : Nat} (hpar : parity % 2 = 1) (hP : HasParity P parity) :
     Polynomial.X * (oddSquareQuotient P).comp (Polynomial.X ^ 2) = P := by
   apply Polynomial.funext
@@ -1109,7 +1109,7 @@ theorem oddSquareQuotient_comp_X_sq_of_hasParity {P : Polynomial Complex}
 
 /-- Product coefficient at the sum of two coefficient bounds: only the
 top-times-top term survives. -/
-theorem coeff_mul_at_bound_add {P Q : ℂ[X]} {a b n : ℕ} (hn : n = a + b)
+lemma coeff_mul_at_bound_add {P Q : ℂ[X]} {a b n : ℕ} (hn : n = a + b)
     (hP : ∀ m, a < m → P.coeff m = 0) (hQ : ∀ m, b < m → Q.coeff m = 0) :
     (P * Q).coeff n = P.coeff a * Q.coeff b := by
   subst hn
@@ -1126,7 +1126,7 @@ theorem coeff_mul_at_bound_add {P Q : ℂ[X]} {a b n : ℕ} (hn : n = a + b)
     rw [hQ c.2 h2, mul_zero]
 
 /-- Product coefficient above the sum of two coefficient bounds vanishes. -/
-theorem coeff_mul_eq_zero_of_bound_add {P Q : ℂ[X]} {a b n : ℕ}
+lemma coeff_mul_eq_zero_of_bound_add {P Q : ℂ[X]} {a b n : ℕ}
     (hn : a + b < n)
     (hP : ∀ m, a < m → P.coeff m = 0) (hQ : ∀ m, b < m → Q.coeff m = 0) :
     (P * Q).coeff n = 0 := by
@@ -1139,27 +1139,27 @@ theorem coeff_mul_eq_zero_of_bound_add {P Q : ℂ[X]} {a b n : ℕ}
 
 /-! ### Reflection of coefficients -/
 
-theorem coeff_reflect_of_le {F : ℂ[X]} {N m : ℕ} (hm : m ≤ N) :
+lemma coeff_reflect_of_le {F : ℂ[X]} {N m : ℕ} (hm : m ≤ N) :
     (F.reflect N).coeff m = F.coeff (N - m) := by
   rw [Polynomial.coeff_reflect, Polynomial.revAt_le hm]
 
-theorem coeff_reflect_eq_zero {F : ℂ[X]} {N m : ℕ} (hF : F.natDegree ≤ N)
+lemma coeff_reflect_eq_zero {F : ℂ[X]} {N m : ℕ} (hF : F.natDegree ≤ N)
     (hm : N < m) : (F.reflect N).coeff m = 0 := by
   rw [Polynomial.coeff_reflect, Polynomial.revAt_eq_self_of_lt hm]
   exact Polynomial.coeff_eq_zero_of_natDegree_lt (lt_of_le_of_lt hF hm)
 
-theorem reflect_sub (F G : ℂ[X]) (N : ℕ) :
+lemma reflect_sub (F G : ℂ[X]) (N : ℕ) :
     (F - G).reflect N = F.reflect N - G.reflect N := by
   ext k
   simp [Polynomial.coeff_reflect]
 
-theorem reflect_add' (F G : ℂ[X]) (N : ℕ) :
+lemma reflect_add' (F G : ℂ[X]) (N : ℕ) :
     (F + G).reflect N = F.reflect N + G.reflect N := by
   ext k
   simp [Polynomial.coeff_reflect]
 
 /-- `reflect (L+1) F = X · reflect L F` for `natDegree F ≤ L`. -/
-theorem reflect_succ {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) :
+lemma reflect_succ {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) :
     F.reflect (L + 1) = X * F.reflect L := by
   ext k
   rw [Polynomial.coeff_reflect, coeff_X_mul']
@@ -1178,7 +1178,7 @@ theorem reflect_succ {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) :
         Polynomial.coeff_eq_zero_of_natDegree_lt (by omega)]
 
 /-- Increasing a reflection budget only adds leading powers of `X`. -/
-theorem reflect_add_budget {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) (d : ℕ) :
+lemma reflect_add_budget {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) (d : ℕ) :
     F.reflect (L + d) = X ^ d * F.reflect L := by
   induction d with
   | zero =>
@@ -1190,14 +1190,14 @@ theorem reflect_add_budget {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) (d : 
       simp [pow_succ, mul_assoc, mul_comm]
 
 /-- `reflect (L+1) (X·F) = reflect L F` for `natDegree F ≤ L`. -/
-theorem reflect_X_mul {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) :
+lemma reflect_X_mul {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) :
     (X * F).reflect (L + 1) = F.reflect L := by
   rw [show L + 1 = 1 + L by omega]
   rw [Polynomial.reflect_mul (X : ℂ[X]) F (by simp) hF]
   rw [Polynomial.reflect_one_X, one_mul]
 
 /-- Evaluation of a reflection: `(reflect L F)(z) = z^L · F(z⁻¹)`. -/
-theorem eval_reflect {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) {z : ℂ}
+lemma eval_reflect {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) {z : ℂ}
     (hz : z ≠ 0) : (F.reflect L).eval z = z ^ L * F.eval z⁻¹ := by
   have h1 : (F.reflect L).natDegree ≤ L :=
     Polynomial.natDegree_le_iff_degree_le.mpr <|
@@ -1213,7 +1213,7 @@ theorem eval_reflect {F : ℂ[X]} {L : ℕ} (hF : F.natDegree ≤ L) {z : ℂ}
     inv_pow]
   field_simp
 
-theorem reflect_zero_C (r : ℂ) : (C r).reflect 0 = C r := by
+lemma reflect_zero_C (r : ℂ) : (C r).reflect 0 = C r := by
   ext k
   rcases Nat.eq_zero_or_pos k with rfl | hk
   · rw [Polynomial.coeff_reflect, Polynomial.revAt_le (le_refl 0)]
@@ -1223,7 +1223,7 @@ theorem reflect_zero_C (r : ℂ) : (C r).reflect 0 = C r := by
 
 /-- Two polynomials agreeing on the unit circle are equal (the circle is an
 infinite evaluation set). -/
-theorem eq_of_circle_eval_eq {F G : ℂ[X]}
+lemma eq_of_circle_eval_eq {F G : ℂ[X]}
     (h : ∀ x : ℝ, F.eval (Complex.exp ((x : ℂ) * Complex.I))
       = G.eval (Complex.exp ((x : ℂ) * Complex.I))) : F = G := by
   refine Polynomial.eq_of_infinite_eval_eq F G ?_

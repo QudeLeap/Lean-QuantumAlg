@@ -30,7 +30,7 @@ namespace QuantumAlg.Gate.ControlledRegisterSwap
 
 noncomputable section
 
-private theorem decoded_eq_iff (width : Nat) (firstControl secondControl : Fin 2)
+private lemma decoded_eq_iff (width : Nat) (firstControl secondControl : Fin 2)
     (firstLeft firstRight secondLeft secondRight : Fin (2 ^ width)) :
     decoded width firstControl firstLeft firstRight =
         decoded width secondControl secondLeft secondRight ↔
@@ -44,7 +44,7 @@ private theorem decoded_eq_iff (width : Nat) (firstControl secondControl : Fin 2
   · rintro ⟨rfl, rfl, rfl⟩
     rfl
 
-private theorem target_entry (width : Nat) (firstControl secondControl : Fin 2)
+private lemma target_entry (width : Nat) (firstControl secondControl : Fin 2)
     (firstLeft firstRight secondLeft secondRight : Fin (2 ^ width)) :
     UnitaryOperator.controlledQubits (swapRegistersOp width)
         (prodEquiv (firstControl, prodEquiv (firstLeft, firstRight)))
@@ -65,8 +65,9 @@ private theorem target_entry (width : Nat) (firstControl secondControl : Fin 2)
     Equiv.apply_eq_iff_eq, Prod.mk.injEq]
 
 /-- Actual native circuit matrix equals the original controlled register SWAP on every input. -/
-public theorem controlledRegisterSwap_binaryMatrix (oracles : OracleModel) (width : Nat) :
-    (circuit oracles width).binaryMatrix =
+public lemma controlledRegisterSwap_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((circuit oracles width).binaryMatrix environment) =
       UnitaryOperator.controlledQubits (swapRegistersOp width) := by
   classical
   apply Subtype.ext
@@ -79,7 +80,7 @@ public theorem controlledRegisterSwap_binaryMatrix (oracles : OracleModel) (widt
     (prodEquiv (m := 1) (n := width + width)).surjective column
   obtain ⟨⟨secondLeft, secondRight⟩, rfl⟩ :=
     (prodEquiv (m := width) (n := width)).surjective secondWords
-  change (circuit oracles width).matrix
+  change ((circuit oracles width).matrix environment)
     (decoded width firstControl firstLeft firstRight)
     (decoded width secondControl secondLeft secondRight) = _
   rw [circuit, UnitaryCircuit.macroCall_matrix, sequence_matrix]

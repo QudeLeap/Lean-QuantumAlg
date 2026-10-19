@@ -28,7 +28,7 @@ private def binaryWeight (width : Nat) (a00 a01 a10 a11 : ℝ)
   weight (if outer = 0 then (if inner = 0 then a00 else a01)
     else (if inner = 0 then a10 else a11)) phase
 
-private theorem binaryWeight_coordinates (width : Nat) (a00 a01 a10 a11 : ℝ)
+private lemma binaryWeight_coordinates (width : Nat) (a00 a01 a10 a11 : ℝ)
     (outer inner phase : Fin 2) (source : Fin (2 ^ width)) :
     binaryWeight width a00 a01 a10 a11
       (prodEquiv (outer, prodEquiv (inner, prodEquiv (phase, source)))) =
@@ -46,8 +46,8 @@ private theorem binaryWeight_coordinates (width : Nat) (a00 a01 a10 a11 : ℝ)
       else (if b = 0 then a10 else a11)) first second) third
 
 /-- Four independently specified rotations are the exact branches of the actual native word. -/
-theorem fourRotation_prefix_binaryMatrix (oracles : OracleModel) (width : Nat)
-    (a00 a01 a10 a11 : ℝ) :
+lemma fourRotation_prefix_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (a00 a01 a10 a11 : ℝ) (environment : oracles.Interpretation) :
     let branch := fun zero one : ℝ =>
       HilbertOperator.tensor HilbertOperator.proj0
         (HilbertOperator.tensor (rotZStdOp zero : HilbertOperator (Qubits 1))
@@ -55,13 +55,13 @@ theorem fourRotation_prefix_binaryMatrix (oracles : OracleModel) (width : Nat)
       HilbertOperator.tensor HilbertOperator.proj1
         (HilbertOperator.tensor (rotZStdOp one : HilbertOperator (Qubits 1))
           (1 : HilbertOperator (Qubits width)))
-    ((onPrefix oracles width a00 a01 a10 a11).binaryMatrix :
+    (((onPrefix oracles width a00 a01 a10 a11).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (1 + (1 + width))))) =
       HilbertOperator.tensor HilbertOperator.proj0 (branch a00 a01) +
         HilbertOperator.tensor HilbertOperator.proj1 (branch a10 a11) := by
   dsimp only
   have diagonal :
-      ((onPrefix oracles width a00 a01 a10 a11).binaryMatrix :
+      (((onPrefix oracles width a00 a01 a10 a11).binaryMatrix environment) :
         HilbertOperator (Qubits (1 + (1 + (1 + width))))) =
         Matrix.diagonal (binaryWeight width a00 a01 a10 a11) := by
     rw [UnitaryCircuit.binaryMatrix, UnitaryOperator.coe_reindex, fourRotation_prefix_matrix]

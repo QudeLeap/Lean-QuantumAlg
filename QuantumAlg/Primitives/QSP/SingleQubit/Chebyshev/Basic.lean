@@ -89,7 +89,7 @@ def signalO (x : ℝ) : HilbertOperator (Qubits 1) :=
   !![(x : ℂ), -(Real.sqrt (1 - x ^ 2) : ℂ);
      (Real.sqrt (1 - x ^ 2) : ℂ), (x : ℂ)]
 
-theorem signalO_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+lemma signalO_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     signalO x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   have hs := sq_sqrt_one_sub_sq hx
   rw [Matrix.mem_unitaryGroup_iff]
@@ -115,7 +115,7 @@ public def qspO (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator (Qubi
   φs.foldl (fun U φ => U * (signalO x * rotZOp φ)) (rotZOp φ₀ : HilbertOperator (Qubits 1))
 
 /-- A product of certified operators has the same ordered matrix product. -/
-private theorem operatorAlgebraicFold_coe {R : Register} {α : Type}
+private lemma operatorAlgebraicFold_coe {R : Register} {α : Type}
     (schedule : List α) (start : UnitaryOperator R) (step : α → UnitaryOperator R) :
     ((schedule.foldl (fun accumulated item => accumulated * step item) start :
       UnitaryOperator R) : HilbertOperator R) =
@@ -133,20 +133,20 @@ def qspOUnitary (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
   φs.foldl (fun accumulated φ => accumulated * (qspSignalOOp x hx * rotZOp φ)) (rotZOp φ₀)
 
 @[simp]
-theorem qspOUnitary_coe (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
+lemma qspOUnitary_coe (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (qspOUnitary φ₀ φs x hx : HilbertOperator (Qubits 1)) = qspO φ₀ φs x := by
   rw [qspOUnitary, operatorAlgebraicFold_coe]
   rfl
 
 @[simp]
-theorem qspO_nil (φ₀ : ℝ) (x : ℝ) : qspO φ₀ [] x = rotZOp φ₀ := rfl
+lemma qspO_nil (φ₀ : ℝ) (x : ℝ) : qspO φ₀ [] x = rotZOp φ₀ := rfl
 
-theorem qspO_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
+lemma qspO_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
     qspO φ₀ (φs ++ [φ]) x = qspO φ₀ φs x * (signalO x * rotZOp φ) := by
   simp [qspO, List.foldl_append]
 
-theorem qspO_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
+lemma qspO_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspO φ₀ φs x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   rw [← qspOUnitary_coe φ₀ φs x hx]
@@ -162,7 +162,7 @@ public def qspMat (P Q : ℂ[X]) (x : ℝ) : HilbertOperator (Qubits 1) :=
      starRingEnd ℂ (P.eval (x : ℂ))]
 
 /-- `rotZOp φ₀` is the `d = 0` instance of the QSP form. -/
-private theorem rotZ_eq_qspMat (c : ℂ) (φ₀ : ℝ) (x : ℝ)
+private lemma rotZ_eq_qspMat (c : ℂ) (φ₀ : ℝ) (x : ℝ)
     (hc : Complex.exp (φ₀ * Complex.I) = c) :
     (rotZOp φ₀ : HilbertOperator (Qubits 1)) = qspMat (C c) 0 x := by
   ext i j
@@ -172,7 +172,7 @@ private theorem rotZ_eq_qspMat (c : ℂ) (φ₀ : ℝ) (x : ℝ)
 /-- One-step recurrence [Lin22, hermfunc.tex:1148]: appending a signal-phase
 pair `O(x)·e^{iφZ}` maps the form `(P, Q)` to the form
 `(e^{iφ}(X·P - (1-X²)·Q), e^{-iφ}(P + X·Q))`. -/
-private theorem qspMat_step (P Q : ℂ[X]) (φ : ℝ) {x : ℝ}
+private lemma qspMat_step (P Q : ℂ[X]) (φ : ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspMat P Q x * (signalO x * rotZOp φ) =
       qspMat (C (Complex.exp (φ * Complex.I)) * (X * P - (1 - X ^ 2) * Q))
@@ -208,17 +208,17 @@ public structure IsQSPPair (d : ℕ) (P Q : ℂ[X]) : Prop where
   parQ : HasParity Q (d + 1)
   norm : P * conjP P + (1 - X ^ 2) * (Q * conjP Q) = 1
 
-theorem IsQSPPair.coeff_P_eq_zero {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q)
+lemma IsQSPPair.coeff_P_eq_zero {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q)
     {m : ℕ} (hm : d < m) : P.coeff m = 0 := by
   refine (Polynomial.degree_le_iff_coeff_zero P d).mp h.degP m ?_
   exact_mod_cast hm
 
-theorem IsQSPPair.coeff_Q_eq_zero {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q)
+lemma IsQSPPair.coeff_Q_eq_zero {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q)
     {m : ℕ} (hm : d ≤ m) : Q.coeff m = 0 :=
   (Polynomial.degree_lt_iff_coeff_zero Q d).mp h.degQ m (by exact_mod_cast hm)
 
 /-- Build the degree conditions from coefficient bounds. -/
-theorem isQSPPair_of_coeff {d : ℕ} {P Q : ℂ[X]}
+lemma isQSPPair_of_coeff {d : ℕ} {P Q : ℂ[X]}
     (hP : ∀ m, d < m → P.coeff m = 0) (hQ : ∀ m, d ≤ m → Q.coeff m = 0)
     (parP : HasParity P d) (parQ : HasParity Q (d + 1))
     (norm : P * conjP P + (1 - X ^ 2) * (Q * conjP Q) = 1) :
@@ -231,7 +231,7 @@ theorem isQSPPair_of_coeff {d : ℕ} {P Q : ℂ[X]}
 
 /-- The normalization identity is preserved by the one-step recurrence: a pure
 ring identity once the unit-modulus factor `v·w = v·v* = 1` cancels. -/
-private theorem qsp_norm_step (P Q : ℂ[X]) (v w : ℂ) (hv : starRingEnd ℂ v = w)
+private lemma qsp_norm_step (P Q : ℂ[X]) (v w : ℂ) (hv : starRingEnd ℂ v = w)
     (hvw : v * w = 1)
     (hnorm : P * conjP P + (1 - X ^ 2) * (Q * conjP Q) = 1) :
     (C v * (X * P - (1 - X ^ 2) * Q)) *
@@ -245,7 +245,7 @@ private theorem qsp_norm_step (P Q : ℂ[X]) (v w : ℂ) (hv : starRingEnd ℂ v
   linear_combination (C v * C w : ℂ[X]) * hnorm + hCvw
 
 /-- One-step closure of the QSP pair conditions, matching `qspMat_step`. -/
-private theorem IsQSPPair.step {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q) (φ : ℝ) :
+private lemma IsQSPPair.step {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q) (φ : ℝ) :
     IsQSPPair (d + 1)
       (C (Complex.exp (φ * Complex.I)) * (X * P - (1 - X ^ 2) * Q))
       (C (Complex.exp (-(φ * Complex.I))) * (P + X * Q)) := by
@@ -271,7 +271,7 @@ private theorem IsQSPPair.step {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair d P Q) (�
 /-- Soundness of QSP [Lin22, hermfunc.tex:1139]: every QSP product
 `U_Φ(x)` takes the form `qspMat P Q x` on `[-1,1]` for a pair `(P, Q)`
 satisfying the degree, parity, and normalization conditions. -/
-theorem qspO_forward (φ₀ : ℝ) (φs : List ℝ) :
+lemma qspO_forward (φ₀ : ℝ) (φs : List ℝ) :
     ∃ P Q : ℂ[X], IsQSPPair φs.length P Q ∧
       ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspO φ₀ φs x = qspMat P Q x := by
   induction φs using List.reverseRecOn with
@@ -302,7 +302,7 @@ down and the sequence is padded with the no-op pair
 
 /-- Leading-coefficient relation from the normalization identity
 [Lin22, hermfunc.tex:1219]: `|p_{d+1}|² = |q_d|²` (as `p·p* = q·q*`). -/
-private theorem IsQSPPair.leading_coeff_rel {d : ℕ} {P Q : ℂ[X]}
+private lemma IsQSPPair.leading_coeff_rel {d : ℕ} {P Q : ℂ[X]}
     (h : IsQSPPair (d + 1) P Q) :
     P.coeff (d + 1) * starRingEnd ℂ (P.coeff (d + 1))
       = Q.coeff d * starRingEnd ℂ (Q.coeff d) := by
@@ -344,7 +344,7 @@ private def unstepQ (v w : ℂ) (P Q : ℂ[X]) : ℂ[X] :=
 
 /-- The inverse recurrence inverts `qspMat_step`: applying the step to
 `(unstepP, unstepQ)` recovers `P`. -/
-private theorem unstep_recover_P (P Q : ℂ[X]) {v w : ℂ} (hvw : v * w = 1) :
+private lemma unstep_recover_P (P Q : ℂ[X]) {v w : ℂ} (hvw : v * w = 1) :
     C v * (X * unstepP v w P Q - (1 - X ^ 2) * unstepQ v w P Q) = P := by
   have hCvw : (C v * C w : ℂ[X]) = 1 := by rw [← C_mul, hvw, map_one]
   simp only [unstepP, unstepQ]
@@ -352,14 +352,14 @@ private theorem unstep_recover_P (P Q : ℂ[X]) {v w : ℂ} (hvw : v * w = 1) :
 
 /-- The inverse recurrence inverts `qspMat_step`: applying the step to
 `(unstepP, unstepQ)` recovers `Q`. -/
-private theorem unstep_recover_Q (P Q : ℂ[X]) {v w : ℂ} (hvw : v * w = 1) :
+private lemma unstep_recover_Q (P Q : ℂ[X]) {v w : ℂ} (hvw : v * w = 1) :
     C w * (unstepP v w P Q + X * unstepQ v w P Q) = Q := by
   have hCvw : (C v * C w : ℂ[X]) = 1 := by rw [← C_mul, hvw, map_one]
   simp only [unstepP, unstepQ]
   linear_combination (Q : ℂ[X]) * hCvw
 
 /-- The normalization identity is preserved by the inverse recurrence. -/
-private theorem qsp_norm_unstep (P Q : ℂ[X]) (v w : ℂ) (hv : starRingEnd ℂ v = w)
+private lemma qsp_norm_unstep (P Q : ℂ[X]) (v w : ℂ) (hv : starRingEnd ℂ v = w)
     (hvw : v * w = 1)
     (hnorm : P * conjP P + (1 - X ^ 2) * (Q * conjP Q) = 1) :
     unstepP v w P Q * conjP (unstepP v w P Q)
@@ -373,7 +373,7 @@ private theorem qsp_norm_unstep (P Q : ℂ[X]) (v w : ℂ) (hv : starRingEnd ℂ
 /-- Degree reduction [Lin22, hermfunc.tex:1226]: if `e^{2iφ} q_d = p_{d+1}`,
 the inverse recurrence drops an `IsQSPPair (d+1)` pair to an
 `IsQSPPair d` pair. -/
-private theorem isQSPPair_unstep {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair (d + 1) P Q)
+private lemma isQSPPair_unstep {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair (d + 1) P Q)
     {v w : ℂ} (hv : starRingEnd ℂ v = w) (hvw : v * w = 1)
     (hpq : v ^ 2 * Q.coeff d = P.coeff (d + 1)) :
     IsQSPPair d (unstepP v w P Q) (unstepQ v w P Q) := by
@@ -435,7 +435,7 @@ private theorem isQSPPair_unstep {d : ℕ} {P Q : ℂ[X]} (h : IsQSPPair (d + 1)
 
 /-! ### Padding with a no-op pair -/
 
-private theorem signalO_zmat_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+private lemma signalO_zmat_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (signalO x * !![(1 : ℂ), 0; 0, -1]) * (signalO x * !![(1 : ℂ), 0; 0, -1])
       = 1 := by
   have hs := sq_sqrt_one_sub_sq hx
@@ -450,14 +450,14 @@ private theorem signalO_zmat_sq {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
   · simp [signalO, Matrix.mul_apply]
     linear_combination hs
 
-private theorem rotZ_pi_div_two :
+private lemma rotZ_pi_div_two :
     (rotZOp (Real.pi / 2) : HilbertOperator (Qubits 1)) =
       Complex.I • !![(1 : ℂ), 0; 0, -1] := by
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [rotZOp, exp_neg_pi_div_two_mul_I]
 
-private theorem rotZ_neg_pi_div_two :
+private lemma rotZ_neg_pi_div_two :
     (rotZOp (-(Real.pi / 2)) : HilbertOperator (Qubits 1)) =
       (-Complex.I) • !![(1 : ℂ), 0; 0, -1] := by
   ext i j
@@ -466,7 +466,7 @@ private theorem rotZ_neg_pi_div_two :
 
 /-- The signal-phase pairs at `φ = ±π/2` cancel:
 `O(x)e^{i(π/2)Z} · O(x)e^{-i(π/2)Z} = 1`. -/
-private theorem signalO_rotZ_pair {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+private lemma signalO_rotZ_pair {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (signalO x * rotZOp (Real.pi / 2)) * (signalO x * rotZOp (-(Real.pi / 2)))
       = 1 := by
   rw [rotZ_pi_div_two, rotZ_neg_pi_div_two, Matrix.mul_smul, Matrix.mul_smul,
@@ -475,7 +475,7 @@ private theorem signalO_rotZ_pair {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
 
 /-- Padding a QSP sequence with the no-op pair `(π/2, -π/2)` preserves the
 product. -/
-private theorem qspO_pad (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
+private lemma qspO_pad (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspO φ₀ (Real.pi / 2 :: -(Real.pi / 2) :: φs) x = qspO φ₀ φs x := by
   unfold qspO
@@ -488,7 +488,7 @@ private theorem qspO_pad (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
 /-- Completeness of QSP [Lin22, hermfunc.tex:1212]: every pair satisfying the
 degree, parity, and normalization conditions is realized by a QSP sequence
 with exactly `d` signal operators. -/
-theorem qspO_converse (d : ℕ) (P Q : ℂ[X]) (h : IsQSPPair d P Q) :
+lemma qspO_converse (d : ℕ) (P Q : ℂ[X]) (h : IsQSPPair d P Q) :
     ∃ (φ₀ : ℝ) (φs : List ℝ), φs.length = d ∧
       ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspO φ₀ φs x = qspMat P Q x := by
   induction d using Nat.strong_induction_on generalizing P Q with
@@ -580,7 +580,7 @@ theorem qspO_converse (d : ℕ) (P Q : ℂ[X]) (h : IsQSPPair d P Q) :
 
 /-- Two QSP forms agreeing on `[-1,1]` have equal polynomial pairs
 (`[-1,1]` is infinite and `√(1-x²) ≠ 0` on the interior). -/
-private theorem qspMat_inj {P Q P' Q' : ℂ[X]}
+private lemma qspMat_inj {P Q P' Q' : ℂ[X]}
     (hmat : ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspMat P Q x = qspMat P' Q' x) :
     P = P' ∧ Q = Q' := by
   constructor
@@ -611,7 +611,7 @@ private theorem qspMat_inj {P Q P' Q' : ℂ[X]}
 /-- The polynomial normalization identity is equivalent to the pointwise
 normalization `|P(x)|² + (1-x²)|Q(x)|² = 1` on `[-1,1]`
 [Lin22, hermfunc.tex:1134]. -/
-theorem qsp_normalization_iff (P Q : ℂ[X]) :
+lemma qsp_normalization_iff (P Q : ℂ[X]) :
     P * conjP P + (1 - X ^ 2) * (Q * conjP Q) = 1 ↔
       ∀ x ∈ Set.Icc (-1 : ℝ) 1,
         P.eval (x : ℂ) * starRingEnd ℂ (P.eval (x : ℂ))
@@ -636,7 +636,7 @@ a pair `(P, Q)` satisfies the degree, parity, and normalization conditions
 `IsQSPPair d` **iff** some phase factors `(φ₀, φs)` with `d` signal operators
 realize the matrix form
 `[[P(x), -Q(x)√(1-x²)], [Q*(x)√(1-x²), P*(x)]]` on `[-1,1]`. -/
-public theorem ReflectionBasedQuantumSignalProcessing.characterization (d : ℕ) (P Q : ℂ[X]) :
+public lemma ReflectionBasedQuantumSignalProcessing.characterization (d : ℕ) (P Q : ℂ[X]) :
     IsQSPPair d P Q ↔
       ∃ (φ₀ : ℝ) (φs : List ℝ), φs.length = d ∧
         ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspO φ₀ φs x = qspMat P Q x := by
@@ -672,25 +672,25 @@ def qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) : HilbertOperator (Qubits 1) :
   φs.foldl (fun U φ => U * (signalW x * rotZOp φ)) (rotZOp φ₀ : HilbertOperator (Qubits 1))
 
 @[simp]
-theorem qspW_nil (φ₀ : ℝ) (x : ℝ) : qspW φ₀ [] x = rotZOp φ₀ := rfl
+lemma qspW_nil (φ₀ : ℝ) (x : ℝ) : qspW φ₀ [] x = rotZOp φ₀ := rfl
 
-theorem qspW_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
+lemma qspW_concat (φ₀ : ℝ) (φs : List ℝ) (φ : ℝ) (x : ℝ) :
     qspW φ₀ (φs ++ [φ]) x = qspW φ₀ φs x * (signalW x * rotZOp φ) := by
   simp [qspW, List.foldl_append]
 
-private theorem rotZ_comm_op (a b : ℝ) :
+private lemma rotZ_comm_op (a b : ℝ) :
     (rotZOp a : HilbertOperator (Qubits 1)) * (rotZOp b : HilbertOperator (Qubits 1)) =
       (rotZOp b : HilbertOperator (Qubits 1)) * (rotZOp a : HilbertOperator (Qubits 1)) := by
   ext row column
   fin_cases row <;> fin_cases column <;> simp [rotZOp, Matrix.mul_apply, mul_comm]
 
-private theorem rotZ_neg_mul_rotZ_op (φ : ℝ) :
+private lemma rotZ_neg_mul_rotZ_op (φ : ℝ) :
     (rotZOp (-φ) : HilbertOperator (Qubits 1)) * (rotZOp φ : HilbertOperator (Qubits 1)) = 1 := by
   ext row column
   fin_cases row <;> fin_cases column <;>
     simp [rotZOp, Matrix.mul_apply, exp_I_mul_exp_neg_I, exp_neg_I_mul_exp_I]
 
-private theorem rotZ_mul_rotZ_neg_op (φ : ℝ) :
+private lemma rotZ_mul_rotZ_neg_op (φ : ℝ) :
     (rotZOp φ : HilbertOperator (Qubits 1)) * (rotZOp (-φ) : HilbertOperator (Qubits 1)) = 1 := by
   rw [rotZ_comm_op]
   exact rotZ_neg_mul_rotZ_op φ
@@ -705,7 +705,7 @@ def qspMatW (P Q : ℂ[X]) (x : ℝ) : HilbertOperator (Qubits 1) :=
 
 /-- The fixed conjugation relating the two signal operators,
 `e^{i(π/4)Z} · W(x) = O(x) · e^{i(π/4)Z}` [Lin22, hermfunc.tex:1279]. -/
-private theorem rotZ_mul_signalW (x : ℝ) :
+private lemma rotZ_mul_signalW (x : ℝ) :
     (rotZOp (Real.pi / 4) : HilbertOperator (Qubits 1)) * signalW x =
       signalO x * rotZOp (Real.pi / 4) := by
   ext i j
@@ -721,7 +721,7 @@ private theorem rotZ_mul_signalW (x : ℝ) :
     ring
 
 /-- The conjugation transports the Wx target form to the reflection form. -/
-private theorem rotZ_mul_qspMatW (P Q : ℂ[X]) (x : ℝ) :
+private lemma rotZ_mul_qspMatW (P Q : ℂ[X]) (x : ℝ) :
     (rotZOp (Real.pi / 4) : HilbertOperator (Qubits 1)) * qspMatW P Q x =
       qspMat P Q x * rotZOp (Real.pi / 4) := by
   ext i j
@@ -739,7 +739,7 @@ private theorem rotZ_mul_qspMatW (P Q : ℂ[X]) (x : ℝ) :
 
 /-- The conjugation intertwines the full QSP sequences:
 `e^{i(π/4)Z} · U^W_Φ(x) = U^O_Φ(x) · e^{i(π/4)Z}`. -/
-private theorem rotZ_mul_qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) :
+private lemma rotZ_mul_qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) :
     (rotZOp (Real.pi / 4) : HilbertOperator (Qubits 1)) * qspW φ₀ φs x =
       qspO φ₀ φs x * rotZOp (Real.pi / 4) := by
   induction φs using List.reverseRecOn with
@@ -756,7 +756,7 @@ private theorem rotZ_mul_qspW (φ₀ : ℝ) (φs : List ℝ) (x : ℝ) :
           (rotZOp (Real.pi / 4) : HilbertOperator (Qubits 1)),
         ← mul_assoc]
 
-theorem signalW_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
+lemma signalW_mem_unitaryGroup {x : ℝ} (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     signalW x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   have h : signalW x = (rotZOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) *
       (signalO x * rotZOp (Real.pi / 4)) := by
@@ -776,13 +776,13 @@ def qspWUnitary (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
   φs.foldl (fun accumulated φ => accumulated * (qspSignalWOp x hx * rotZOp φ)) (rotZOp φ₀)
 
 @[simp]
-theorem qspWUnitary_coe (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
+lemma qspWUnitary_coe (φ₀ : ℝ) (φs : List ℝ) (x : ℝ)
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (qspWUnitary φ₀ φs x hx : HilbertOperator (Qubits 1)) = qspW φ₀ φs x := by
   rw [qspWUnitary, operatorAlgebraicFold_coe]
   rfl
 
-theorem qspW_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
+lemma qspW_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspW φ₀ φs x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   rw [← qspWUnitary_coe φ₀ φs x hx]
@@ -790,7 +790,7 @@ theorem qspW_mem_unitaryGroup (φ₀ : ℝ) (φs : List ℝ) {x : ℝ}
 
 /-- Pointwise, the Wx form holds iff the reflection form holds (conjugation
 by the unit `e^{i(π/4)Z}`). -/
-theorem qspW_form_iff (φ₀ : ℝ) (φs : List ℝ) (P Q : ℂ[X]) (x : ℝ) :
+lemma qspW_form_iff (φ₀ : ℝ) (φs : List ℝ) (P Q : ℂ[X]) (x : ℝ) :
     qspW φ₀ φs x = qspMatW P Q x ↔ qspO φ₀ φs x = qspMat P Q x := by
   constructor
   · intro h
@@ -817,7 +817,7 @@ theorem qspW_form_iff (φ₀ : ℝ) (φs : List ℝ) (P Q : ℂ[X]) (x : ℝ) :
 satisfies `IsQSPPair d` **iff** some phase factors `(φ₀, φs)` with `d` signal
 operators realize the matrix form
 `[[P(x), iQ(x)√(1-x²)], [iQ*(x)√(1-x²), P*(x)]]` on `[-1,1]`. -/
-theorem ReflectionBasedQuantumSignalProcessing.main_wx (d : ℕ) (P Q : ℂ[X]) :
+lemma ReflectionBasedQuantumSignalProcessing.main_wx (d : ℕ) (P Q : ℂ[X]) :
     IsQSPPair d P Q ↔
       ∃ (φ₀ : ℝ) (φs : List ℝ), φs.length = d ∧
         ∀ x ∈ Set.Icc (-1 : ℝ) 1, qspW φ₀ φs x = qspMatW P Q x := by

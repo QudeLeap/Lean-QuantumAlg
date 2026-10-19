@@ -8,7 +8,7 @@ module
 
 import QuantumAlg.Init
 import all QuantumAlg.Core.Base.UnitaryCircuit.Space
-import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Endpoint
+import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Endpoint.Construction
 
 /-!
 # Resource corollary for a controlled-ECADD cascade
@@ -49,13 +49,13 @@ def ecaddCascadeProgram (E : PrimeFieldShortWeierstrass params.modulus.val)
 
 /-- The common carrier has the exact width of one ECADD block; sequentially
 reusing it for `2 * t` blocks does not multiply the logical-qubit count. -/
-theorem ecaddCascadeProgram_width_exact :
+lemma ecaddCascadeProgram_width_exact :
     GenericPointAddition.ExceptionalCleanup.Layout.rawEncoding.width =
       ControlledPointAddition.logicalQubitCount params.width := by
   exact ControlledPointAddition.program_width_exact
 
 omit params in
-private theorem resourcePool_count_finset_sum
+private lemma resourcePool_count_finset_sum
     {kind : ExecutionModel} {Index : Type} [Fintype Index]
     (focus : Resource.Event kind) (pool : Index -> ResourcePool kind) :
     ResourcePool.count focus (∑ index, pool index) =
@@ -73,7 +73,7 @@ private theorem resourcePool_count_finset_sum
 
 /-- The Toffoli count of the actual cascade is at most one width-only ECADD
 bound for each of its `2 * t` stored blocks. -/
-theorem ecaddCascadeProgram_toffoli_count_le
+lemma ecaddCascadeProgram_toffoli_count_le
     (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (t : Nat)
     (addend : Fin (2 * t) -> AffinePoint E) :
@@ -97,7 +97,7 @@ theorem ecaddCascadeProgram_toffoli_count_le
 
 /-- The sequential unit-gate depth of the actual cascade is at most one
 width-only ECADD depth bound for each of its `2 * t` stored blocks. -/
-theorem ecaddCascadeProgram_unitDepth_le
+lemma ecaddCascadeProgram_unitDepth_le
     (E : PrimeFieldShortWeierstrass params.modulus.val)
     [Fact params.modulus.val.Prime] (t : Nat)
     (addend : Fin (2 * t) -> AffinePoint E) :

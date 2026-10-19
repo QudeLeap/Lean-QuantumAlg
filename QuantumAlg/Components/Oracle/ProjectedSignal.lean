@@ -38,43 +38,46 @@ public inductive Query (allowControlled : Bool) where
   | leftNot
   | rightNot
 
-/-- The Problem fixes its source and both projectors before constructing any query. -/
+/-- Fixed source width and separate source/projector grants, independent of their interpretation. -/
 @[expose, implicit_reducible]
-public def model {width : Nat} (U : UnitaryOperator (Qubits width))
-    (left right : OrthogonalProjector width) (allowControlled : Bool := false) : OracleModel where
+public def model (width : Nat) (allowControlled : Bool := false) : OracleModel where
   Query := Query allowControlled
   Coordinate := Coordinate
   coordinateDecidableEq := inferInstance
   signature query := match query with
-    | .source query => (UnitarySource.model U allowControlled true).signature query
+    | .source query => (UnitarySource.model width allowControlled true).signature query
     | .leftNot | .rightNot => QuantumSignature.qubits (1 + width)
+  coordinate query := match query with
+    | .source query => .source ((UnitarySource.model width allowControlled true).coordinate query)
+    | .leftNot => .leftNot
+    | .rightNot => .rightNot
+
+/-- Interpret the separately declared source and projector capabilities consistently. -/
+@[expose]
+public def interpretation {width : Nat} (U : UnitaryOperator (Qubits width))
+    (left right : OrthogonalProjector width) (allowControlled : Bool := false) :
+    (model width allowControlled).Interpretation where
   operator query := match query with
-    | .source query => (UnitarySource.model U allowControlled true).operator query
+    | .source query => (UnitarySource.interpretation U allowControlled true).operator query
     | .leftNot =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
           (OrthogonalProjector.controlledNotOp left)
     | .rightNot =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
           (OrthogonalProjector.controlledNotOp right)
-  coordinate query := match query with
-    | .source query => .source ((UnitarySource.model U allowControlled true).coordinate query)
-    | .leftNot => .leftNot
-    | .rightNot => .rightNot
 
 /-- The declared left and right capabilities remain distinct even for equal projectors. -/
-public theorem projectedSignal_projector_coordinates_distinct {width : Nat}
-    (U : UnitaryOperator (Qubits width)) (left right : OrthogonalProjector width)
+public lemma projectedSignal_projector_coordinates_distinct (width : Nat)
     (allowControlled : Bool) :
-    (model U left right allowControlled).coordinate .leftNot ≠
-      (model U left right allowControlled).coordinate .rightNot := by
+    (model width allowControlled).coordinate .leftNot ≠
+      (model width allowControlled).coordinate .rightNot := by
   change Coordinate.leftNot ≠ Coordinate.rightNot
   decide
 
 /-- The inverse source query has its own coordinate and does not become a projector call. -/
-public theorem projectedSignal_inverse_coordinate {width : Nat}
-    (U : UnitaryOperator (Qubits width)) (left right : OrthogonalProjector width)
+public lemma projectedSignal_inverse_coordinate (width : Nat)
     (allowControlled : Bool) :
-    (model U left right allowControlled).coordinate (.source (.inverse rfl)) =
+    (model width allowControlled).coordinate (.source (.inverse rfl)) =
       .source .inverse := rfl
 
 end

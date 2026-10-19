@@ -24,7 +24,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A deterministic actual store/history map preserves every complete physical seed block. -/
-theorem mapStore {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
+lemma mapStore {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
     {History Later : Type} [Fintype History] [Fintype Later]
     {decision : DecidableEq (Store ctx × Later)} (seed : ctx.register.Index)
     (state : State ctx Reference History) (seeded : Holds seed state)

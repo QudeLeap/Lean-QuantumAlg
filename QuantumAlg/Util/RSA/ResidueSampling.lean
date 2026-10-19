@@ -37,7 +37,7 @@ def decodeFixedWidthWord (wordWidth wordCount : Nat)
     Nat.mod_lt _ (pow_pos (by decide) wordWidth)⟩
 
 /-- Cardinality identity behind fixed-width word packing. -/
-theorem fixedWidthWords_card (wordWidth wordCount : Nat) :
+lemma fixedWidthWords_card (wordWidth wordCount : Nat) :
     2 ^ (wordCount * wordWidth) = (2 ^ wordWidth) ^ wordCount := by
   rw [Nat.mul_comm, pow_mul]
 
@@ -63,7 +63,7 @@ def decodeFixedWidthWords (wordWidth wordCount : Nat)
     Fin wordCount → Fin (2 ^ wordWidth) :=
   fixedWidthWordsEquiv wordWidth wordCount bits
 
-private theorem decodeFun_val_eq_div_pow_mod {base count : Nat}
+private lemma decodeFun_val_eq_div_pow_mod {base count : Nat}
     (basePos : 0 < base) (value : Fin (base ^ count))
     (index : Fin count) :
     (Fin.decodeFun value index).val =
@@ -87,7 +87,7 @@ private theorem decodeFun_val_eq_div_pow_mod {base count : Nat}
 /-- The vector decoder used by the sampler is the ordinary consecutive
 little-endian word slicing formula.  This bridge lets the typed bit-reference
 machine decode the same public packed sample without a host callback. -/
-theorem decodeFixedWidthWords_eq_decodeFixedWidthWord
+lemma decodeFixedWidthWords_eq_decodeFixedWidthWord
     (wordWidth wordCount : Nat)
     (bits : Fin (2 ^ (wordCount * wordWidth)))
     (index : Fin wordCount) :
@@ -105,7 +105,7 @@ theorem decodeFixedWidthWords_eq_decodeFixedWidthWord
 
 /-- Packing preserves the exact count of word vectors whose coordinates all
 lie in a fixed finite set. -/
-theorem card_filter_decodeFixedWidthWords_forall_mem
+lemma card_filter_decodeFixedWidthWords_forall_mem
     (wordWidth wordCount : Nat) (s : Finset (Fin (2 ^ wordWidth))) :
     ((Finset.univ : Finset (Fin (2 ^ (wordCount * wordWidth)))).filter
       fun bits => ∀ index, decodeFixedWidthWords wordWidth wordCount bits index ∈ s).card =
@@ -134,7 +134,7 @@ theorem card_filter_decodeFixedWidthWords_forall_mem
 /-- Exact count of nonempty packed word vectors whose first coordinate lies
 in a fixed finite set.  Every admissible first word has an arbitrary
 `wordCount`-word tail. -/
-theorem card_filter_decodeFixedWidthWords_first_mem
+lemma card_filter_decodeFixedWidthWords_first_mem
     (wordWidth wordCount : Nat) (s : Finset (Fin (2 ^ wordWidth))) :
     ((Finset.univ :
         Finset (Fin (2 ^ ((wordCount + 1) * wordWidth)))).filter
@@ -198,7 +198,7 @@ theorem card_filter_decodeFixedWidthWords_first_mem
 
 /-- Packing also transports the union bound for a word vector with at least
 one exceptional coordinate. -/
-theorem card_filter_decodeFixedWidthWords_exists_mem_le
+lemma card_filter_decodeFixedWidthWords_exists_mem_le
     (wordWidth wordCount : Nat) (s : Finset (Fin (2 ^ wordWidth))) :
     ((Finset.univ : Finset (Fin (2 ^ (wordCount * wordWidth)))).filter
       fun bits => ∃ index, decodeFixedWidthWords wordWidth wordCount bits index ∈ s).card ≤
@@ -246,7 +246,7 @@ def rejectedResidueCandidates (modulus wordWidth : Nat) :
 
 /-- If the public modulus fits in one proposal word, there are exactly
 `modulus - 1` accepted nonzero representatives. -/
-theorem eligibleResidueCandidates_card {modulus wordWidth : Nat}
+lemma eligibleResidueCandidates_card {modulus wordWidth : Nat}
     (hmodulus : modulus ≤ 2 ^ wordWidth) :
     (eligibleResidueCandidates modulus wordWidth).card = modulus - 1 := by
   classical
@@ -287,7 +287,7 @@ theorem eligibleResidueCandidates_card {modulus wordWidth : Nat}
     _ = modulus - 1 := Fintype.card_fin _
 
 /-- Rejected words are the complement of the exact accepted interval. -/
-theorem rejectedResidueCandidates_card {modulus wordWidth : Nat}
+lemma rejectedResidueCandidates_card {modulus wordWidth : Nat}
     (hmodulus : modulus ≤ 2 ^ wordWidth) :
     (rejectedResidueCandidates modulus wordWidth).card =
       2 ^ wordWidth - (modulus - 1) := by
@@ -328,14 +328,14 @@ def firstWordBits (wordWidth wordCount : Nat)
       rw [Nat.add_mul]
       omega⟩
 
-@[simp] theorem decodeFixedWidthWord_firstWordBits_zero
+@[simp] lemma decodeFixedWidthWord_firstWordBits_zero
     (wordWidth wordCount : Nat) (candidate : Fin (2 ^ wordWidth)) :
     decodeFixedWidthWord wordWidth (wordCount + 1)
         (firstWordBits wordWidth wordCount candidate) 0 = candidate := by
   apply Fin.ext
   simp [decodeFixedWidthWord, firstWordBits, Nat.mod_eq_of_lt candidate.isLt]
 
-@[simp] theorem decodeFixedWidthWords_firstWordBits_zero
+@[simp] lemma decodeFixedWidthWords_firstWordBits_zero
     (wordWidth wordCount : Nat) (candidate : Fin (2 ^ wordWidth)) :
     decodeFixedWidthWords wordWidth (wordCount + 1)
         (firstWordBits wordWidth wordCount candidate) 0 = candidate := by
@@ -344,7 +344,7 @@ def firstWordBits (wordWidth wordCount : Nat)
   exact Nat.mod_eq_of_lt candidate.isLt
 
 /-- A successful first entry determines the fixed-vector selector. -/
-theorem firstValidResidue_eq_first {wordCount candidate : Nat}
+lemma firstValidResidue_eq_first {wordCount candidate : Nat}
     (proposals : Fin (wordCount + 1) → Option Nat)
     (hfirst : proposals 0 = some candidate) :
     firstValidResidue proposals = some candidate := by
@@ -352,7 +352,7 @@ theorem firstValidResidue_eq_first {wordCount candidate : Nat}
 
 /-- If the first fixed-width proposal is eligible, classification and
 first-success selection return that proposal independently of the tail. -/
-theorem firstValidResidue_classify_eq_first
+lemma firstValidResidue_classify_eq_first
     {wordWidth wordCount modulus : Nat}
     (proposals : Fin (wordCount + 1) → Fin (2 ^ wordWidth))
     (heligible : ResidueEligible modulus (proposals 0).val) :
@@ -362,13 +362,13 @@ theorem firstValidResidue_classify_eq_first
   simp [classifyResidueProposals, heligible]
 
 /-- The fixed-vector selector rejects exactly when every proposal rejects. -/
-@[simp] theorem firstValidResidue_eq_none_iff {wordCount : Nat}
+@[simp] lemma firstValidResidue_eq_none_iff {wordCount : Nat}
     (proposals : Fin wordCount → Option Nat) :
     firstValidResidue proposals = none ↔ ∀ index, proposals index = none := by
   exact Fin.findSome?_eq_none_iff
 
 /-- Every value returned by the fixed-vector selector is one of its entries. -/
-theorem exists_eq_some_of_firstValidResidue_eq_some
+lemma exists_eq_some_of_firstValidResidue_eq_some
     {wordCount candidate : Nat} {proposals : Fin wordCount → Option Nat}
     (hselected : firstValidResidue proposals = some candidate) :
     ∃ index, proposals index = some candidate :=
@@ -376,7 +376,7 @@ theorem exists_eq_some_of_firstValidResidue_eq_some
 
 /-- The classified selector rejects exactly when every decoded word lies
 outside the public residue interval. -/
-theorem firstValidResidue_classify_eq_none_iff
+lemma firstValidResidue_classify_eq_none_iff
     {wordWidth wordCount : Nat} (modulus : Nat)
     (proposals : Fin wordCount → Fin (2 ^ wordWidth)) :
     firstValidResidue (classifyResidueProposals modulus proposals) = none ↔
@@ -390,7 +390,7 @@ theorem firstValidResidue_classify_eq_none_iff
     simp [classifyResidueProposals, hall index]
 
 /-- A selected classified residue is the value of one eligible decoded word. -/
-theorem exists_eligible_of_firstValidResidue_classify_eq_some
+lemma exists_eligible_of_firstValidResidue_classify_eq_some
     {wordWidth wordCount modulus candidate : Nat}
     {proposals : Fin wordCount → Fin (2 ^ wordWidth)}
     (hselected :
@@ -497,7 +497,7 @@ def prepareResidueArithmetic (modulus : Nat) (selected : Option Nat) :
   (prepareResidueExecution modulus selected).arithmetic
 
 /-- A rejected sampler slot performs one option-tag comparison. -/
-theorem prepareResidueExecution_none_schoolbookCharge (modulus : Nat) :
+lemma prepareResidueExecution_none_schoolbookCharge (modulus : Nat) :
     NumberTheory.arithmeticEventListCharge
         (prepareResidueExecution modulus none).arithmetic = 2 := by
   simp [prepareResidueExecution, NumberTheory.arithmeticEventListCharge,
@@ -506,7 +506,7 @@ theorem prepareResidueExecution_none_schoolbookCharge (modulus : Nat) :
 
 /-- A selected sampler residue has a cubic operand-derived preparation bound.
 The envelope contains only the actual candidate and public-modulus widths. -/
-theorem prepareResidueExecution_some_schoolbookCharge_le
+lemma prepareResidueExecution_some_schoolbookCharge_le
     (modulus candidate : Nat) :
     NumberTheory.arithmeticEventListCharge
         (prepareResidueExecution modulus (some candidate)).arithmetic ≤
@@ -620,7 +620,7 @@ def prepareResidueFromBits (modulus wordWidth wordCount : Nat)
 
 /-- A legal residue packed into the first word is recovered by the complete
 fixed-width preparation semantics. -/
-theorem prepareResidueFromBits_firstWord
+lemma prepareResidueFromBits_firstWord
     (modulus wordWidth wordCount : Nat)
     (candidate : Fin (2 ^ wordWidth))
     (heligible : ResidueEligible modulus candidate.val) :
@@ -638,21 +638,21 @@ theorem prepareResidueFromBits_firstWord
   rw [hdecode]
   simp [heligible]
 
-@[simp] theorem prepareResidue_none_candidate (modulus : Nat) :
+@[simp] lemma prepareResidue_none_candidate (modulus : Nat) :
     (prepareResidue modulus none).candidate = 1 := rfl
 
-@[simp] theorem prepareResidue_none_unit (modulus : Nat) :
+@[simp] lemma prepareResidue_none_unit (modulus : Nat) :
     (prepareResidue modulus none).unit = 1 := rfl
 
-@[simp] theorem prepareResidue_none_earlyFactor (modulus : Nat) :
+@[simp] lemma prepareResidue_none_earlyFactor (modulus : Nat) :
     (prepareResidue modulus none).earlyFactor = none := rfl
 
-@[simp] theorem prepareResidue_some_candidate (modulus candidate : Nat) :
+@[simp] lemma prepareResidue_some_candidate (modulus candidate : Nat) :
     (prepareResidue modulus (some candidate)).candidate = candidate := by
   simp only [prepareResidue, prepareResidueExecution]
   split <;> rfl
 
-theorem prepareResidue_some_unit_of_coprime
+lemma prepareResidue_some_unit_of_coprime
     (modulus candidate : Nat) (hcoprime : Nat.Coprime candidate modulus) :
     (prepareResidue modulus (some candidate)).unit =
       ZMod.unitOfCoprime candidate hcoprime := by
@@ -663,7 +663,7 @@ theorem prepareResidue_some_unit_of_coprime
   simp only [prepareResidue, prepareResidueExecution]
   rw [dif_pos htrace]
 
-theorem prepareResidue_some_earlyFactor_of_coprime
+lemma prepareResidue_some_earlyFactor_of_coprime
     (modulus candidate : Nat) (hcoprime : Nat.Coprime candidate modulus) :
     (prepareResidue modulus (some candidate)).earlyFactor = none := by
   have htrace :
@@ -676,7 +676,7 @@ theorem prepareResidue_some_earlyFactor_of_coprime
 /-- Every selected eligible nonunit residue immediately exposes its nontrivial
 gcd factor.  Thus the sampler's `unit = 1` fallback can only represent total
 proposal rejection, not a silently discarded nonunit candidate. -/
-theorem prepareResidue_some_earlyFactor_of_not_coprime
+lemma prepareResidue_some_earlyFactor_of_not_coprime
     (modulus candidate : Nat)
     (hpositive : 0 < candidate) (hbelow : candidate < modulus)
     (hnotCoprime : ¬ Nat.Coprime candidate modulus) :
@@ -700,7 +700,7 @@ theorem prepareResidue_some_earlyFactor_of_not_coprime
 
 /-- Every early result emitted by the closed sampler preparation is a genuine
 nontrivial divisor of the public modulus. -/
-theorem prepareResidue_earlyFactor_some_sound
+lemma prepareResidue_earlyFactor_some_sound
     (modulus factor : Nat) (selected : Option Nat)
     (hfactor : (prepareResidue modulus selected).earlyFactor = some factor) :
     factor ∣ modulus ∧ 1 < factor ∧ factor < modulus :=
@@ -708,7 +708,7 @@ theorem prepareResidue_earlyFactor_some_sound
 
 /-- Every early result emitted from a packed fixed-width sample is a genuine
 nontrivial divisor of the public modulus. -/
-theorem prepareResidueFromBits_earlyFactor_some_sound
+lemma prepareResidueFromBits_earlyFactor_some_sound
     (modulus wordWidth wordCount : Nat)
     (bits : Fin (2 ^ (wordCount * wordWidth))) (factor : Nat)
     (hfactor :

@@ -37,7 +37,7 @@ public def permutationAt (permutation : Equiv.Perm source.Basis) : Equiv.Perm ta
   (frame.trans (Equiv.prodCongr permutation (Equiv.refl _))).trans frame.symm
 
 /-- Equality of placed basis actions checks the selected output and every spectator. -/
-public theorem permutationAt_eq_iff (permutation : Equiv.Perm source.Basis)
+public lemma permutationAt_eq_iff (permutation : Equiv.Perm source.Basis)
     (row column : target.Basis) :
     permutationAt source target position dimensions permutation row = column ↔
       permutation (selectedInput source target position dimensions row) =
@@ -56,7 +56,7 @@ public theorem permutationAt_eq_iff (permutation : Equiv.Perm source.Basis)
   rfl
 
 /-- Placing an exact permutation operator preserves its complete phase and spectator action. -/
-public theorem operatorAt_ofPerm (permutation : Equiv.Perm source.Basis) :
+public lemma operatorAt_ofPerm (permutation : Equiv.Perm source.Basis) :
     operatorAt source target position dimensions (UnitaryOperator.ofPerm permutation) =
       UnitaryOperator.ofPerm (permutationAt source target position dimensions permutation) := by
   apply Subtype.ext

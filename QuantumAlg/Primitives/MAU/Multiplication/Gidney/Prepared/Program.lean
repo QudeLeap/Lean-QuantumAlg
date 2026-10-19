@@ -51,14 +51,15 @@ def preparedUnitary (width : Nat) (modulus : Fin (2 ^ width + 1))
     (preparedContext width).quantumLayout (preparedSourceLayout_wires width)
     (placedMultiplier width modulus coefficient)
 
-private theorem multiplierPhysicalOperator_matrix (width : Nat)
+private lemma multiplierPhysicalOperator_matrix {environment : OracleModel.empty.Interpretation}
+    (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
-    (program width modulus coefficient).matrix =
+    (program width modulus coefficient).matrix environment =
       multiplierPhysicalOperator width modulus coefficient := by
-  have h := gidneyUnitMultiplication_matrix width modulus coefficient
+  have h := gidneyUnitMultiplication_matrix (environment := environment) width modulus coefficient
   change UnitaryOperator.reindex
       (QubitLayout.canonical (encoding width).width).basisEquiv
-      (program width modulus coefficient).matrix =
+      ((program width modulus coefficient).matrix environment) =
         wordUnitMultiplicationOperator width modulus coefficient at h
   have h' := congrArg
     (UnitaryOperator.reindex
@@ -68,16 +69,17 @@ private theorem multiplierPhysicalOperator_matrix (width : Nat)
 
 /-- The placed literal gates equal the independent full-carrier unitary,
 including every noncanonical label and external superposition. -/
-theorem gidneyPreparedUnitary_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedUnitary_matrix {environment : OracleModel.empty.Interpretation}
+    (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
-    (preparedUnitary width modulus coefficient).matrix =
+    (preparedUnitary width modulus coefficient).matrix environment =
       preparedOperator width modulus coefficient := by
   rw [preparedUnitary, Execution.unitaryOfEqualWires_matrix, placedMultiplier,
     UnitaryCircuit.placeAt_matrix, multiplierPhysicalOperator_matrix]
   rfl
 
 /-- Placement retains the complete literal native event pool. -/
-theorem gidneyPreparedUnitary_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedUnitary_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     (preparedUnitary width modulus coefficient).eventCost =
       (program width modulus coefficient).eventCost := by
@@ -88,7 +90,7 @@ theorem gidneyPreparedUnitary_eventCost (width : Nat) (modulus : Fin (2 ^ width 
     placedMultiplier_eventCost]
 
 /-- Placement retains the complete unit-duration dependency depth. -/
-theorem gidneyPreparedUnitary_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedUnitary_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     (preparedUnitary width modulus coefficient).evaluatedEventDepth (fun _ => 1) =
       (program width modulus coefficient).evaluatedEventDepth (fun _ => 1) := by

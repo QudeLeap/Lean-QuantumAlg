@@ -47,18 +47,18 @@ def PreparationRefs.Separated (refs : PreparationRefs ctx width) : Prop :=
   Function.Injective refs.key
 
 /-- Different original internal positions give the precise key inequality used by execution. -/
-theorem PreparationRefs.key_ne (refs : PreparationRefs ctx width) (separate : refs.Separated)
+lemma PreparationRefs.key_ne (refs : PreparationRefs ctx width) (separate : refs.Separated)
     (left right : Fin 13) (different : left ≠ right) : refs.key left ≠ refs.key right :=
   fun same => different (separate same)
 
 /-- Fresh preparation cells supply the original split's three internal key inequalities. -/
-theorem PreparationRefs.split_separation (refs : PreparationRefs ctx width)
+lemma PreparationRefs.split_separation (refs : PreparationRefs ctx width)
     (separate : refs.Separated) : Word.Split.Separation refs.split :=
   ⟨refs.key_ne separate 0 2 (by decide), refs.key_ne separate 0 1 (by decide),
     refs.key_ne separate 1 2 (by decide)⟩
 
 /-- Fresh preparation cells protect the original source reads while arithmetic scratch is reused. -/
-theorem PreparationRefs.scale_separation (refs : PreparationRefs ctx width)
+lemma PreparationRefs.scale_separation (refs : PreparationRefs ctx width)
     (separate : refs.Separated) :
     ScalePairSeparation (scaleRead refs.rawRight) (scaleRead refs.modulusWide)
       (scaleRead refs.denominator) refs.product refs.division refs.left refs.right := by
@@ -76,7 +76,7 @@ public def preparationInput (value : CShape.Value (.fixedVector (width + width) 
   .bits (measuredDecodeInput value).bits
 
 /-- Actual decoder and split produce the same two raw frequencies as the original input model. -/
-theorem preparationDecode_values {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationDecode_values {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx) :
@@ -98,7 +98,7 @@ theorem preparationDecode_values {model : ExecutionModel} [BitWord.Selected mode
       (congrArg (fun word => word % 2 ^ width) value)⟩
 
 /-- The decode-and-split phase changes no read outside its three real destinations. -/
-theorem preparationDecode_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationDecode_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) {shape : CShape} (other : CInputRef ctx shape)
@@ -111,7 +111,7 @@ theorem preparationDecode_read_other {model : ExecutionModel} [BitWord.Selected 
     (measuredDecodeInto_read_other (model := model) input refs.decoded store other decodedFree)
 
 /-- Both original constants are loaded exactly; the internal denominator starts at actual zero. -/
-theorem preparationConstants_values {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationConstants_values {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx)
     (initialZero : (store.read (scaleRead refs.denominator)).toNat = 0) :
@@ -141,7 +141,7 @@ theorem preparationConstants_values {model : ExecutionModel} [BitWord.Selected m
         (scaleRead refs.denominator) denominatorFree store)).trans initialZero
 
 /-- The original two loaders preserve every read outside their actual two constant cells. -/
-theorem preparationConstants_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationConstants_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (modulusFree : refs.modulusWide.key ∉ other.storageKeys)
@@ -152,7 +152,7 @@ theorem preparationConstants_read_other {model : ExecutionModel} [BitWord.Select
       modulusFree store)
 
 /-- The exact stored original constants make both native scaling results the original residues. -/
-theorem preparationScale_original_values {model : ExecutionModel} [BitWord.Selected model]
+lemma preparationScale_original_values {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (separate : refs.Separated) (store : Store ctx)
     (modulusValue : (store.read (scaleRead refs.modulusWide)).toNat = spec.modulus)

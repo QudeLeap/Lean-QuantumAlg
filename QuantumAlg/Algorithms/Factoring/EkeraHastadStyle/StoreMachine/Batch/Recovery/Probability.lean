@@ -28,12 +28,15 @@ open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Probability maps preserve the already constructed source context as one fixed interface.
 attribute [local irreducible] NativeBatch.context NativeBatch.code body tail step
 
-private theorem map_eq_on_support {Source Target : Type} (distribution : PMF Source)
+private lemma map_eq_on_support {Source Target : Type} (distribution : PMF Source)
     (left right : Source → Target)
     (equal : ∀ source ∈ distribution.support, left source = right source) :
     distribution.map left = distribution.map right := by
@@ -48,17 +51,18 @@ private theorem map_eq_on_support {Source Target : Type} (distribution : PMF Sou
       simpa only [PMF.mem_support_iff, not_not] using supported
     simp only [zero, ite_self]
 
-private theorem result_mem_support {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+private lemma result_mem_support {model : ExecutionModel} {environment : model.Environment}
+    {pre post : RuntimeCtx model.kind}
     {shape : CShape} (program : AlgorithmRun model pre post shape)
     {Reference : Register} (input : OracleInput model.classicalOracles pre Reference)
     (record : program.Record)
-    (supported : record ∈ (program.executionDistribution input).support) :
-    program.result record ∈ (program.outputDistribution input).support := by
+    (supported : record ∈ (program.executionDistribution environment input).support) :
+    program.result record ∈ (program.outputDistribution environment input).support := by
   rw [AlgorithmRun.outputDistribution, PMF.mem_support_map_iff]
   exact ⟨record, supported, rfl⟩
 
 /-- Every supported complete source value carries the parameter of its own decoded source. -/
-theorem sourceDistribution_parameter {N : Nat} (input : Input N)
+lemma sourceDistribution_parameter {N : Nat} (input : Input N)
     (value : (NativeBatch.resultShape N).Value)
     (supported : value ∈ (NativeBatch.sourceDistribution input).support) :
     value.second.first = parameterValue input (decodeSource value) := by
@@ -71,7 +75,7 @@ theorem sourceDistribution_parameter {N : Nat} (input : Input N)
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Decoding the actual source Output gives the exact pure value used by recovery. -/
-theorem packedValue_sourceOutput (before : Store (NativeBatch.context base noQuantum N)) :
+lemma packedValue_sourceOutput (before : Store (NativeBatch.context base noQuantum N)) :
     packedValue ((NativeBatch.run base noQuantum N).output.eval before) =
       LatticeFixedBatchRecoveryMachine.batchValue
         (decodeSource ((NativeBatch.run base noQuantum N).output.eval before))
@@ -85,13 +89,13 @@ theorem packedValue_sourceOutput (before : Store (NativeBatch.context base noQua
     List.Vector.get_map, List.Vector.get_ofFn]
   congr 1
 
-private theorem read_middle {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma read_middle {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {first middle last : CShape} (store : Store ctx) (firstRef : CInputRef ctx first)
     (middleRef : CInputRef ctx middle) (lastRef : CInputRef ctx last) :
     (store.read (.product firstRef (.product middleRef lastRef))).second.first =
       store.read middleRef := rfl
 
-private theorem sourceResult_parameter_read
+private lemma sourceResult_parameter_read
     (record : (NativeBatch.run base noQuantum N).Record) :
     ((NativeBatch.run base noQuantum N).result record).second.first =
       record.1.read (NativeBatch.finalParameter base noQuantum N) := by
@@ -101,12 +105,12 @@ private theorem sourceResult_parameter_read
     (NativeBatch.finalParameter base noQuantum N) (NativeBatch.finalResults base noQuantum N)
 
 /-- A supported actual source record supplies the parameter needed by the recovery proof. -/
-theorem sourceRecord_parameter (specification : Input N)
+lemma sourceRecord_parameter (specification : Input N)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (record : (NativeBatch.run base noQuantum N).Record)
     (supported : record ∈
-      ((NativeBatch.run base noQuantum N).executionDistribution input).support) :
+      ((NativeBatch.run base noQuantum N).executionDistribution environment input).support) :
     record.1.read (NativeBatch.finalParameter base noQuantum N) =
       parameterValue specification
         (decodeSource ((NativeBatch.run base noQuantum N).result record)) := by
@@ -117,12 +121,12 @@ theorem sourceRecord_parameter (specification : Input N)
     (sourceDistribution_parameter specification _ observed)
 
 /-- The actual factor read equals the pure source projection on every supported source record. -/
-theorem nativeBatchRecovery_output_on_support (specification : Input N)
+lemma nativeBatchRecovery_output_on_support (specification : Input N)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference)
     (record : (NativeBatch.run base noQuantum N).Record)
     (supported : record ∈
-      ((NativeBatch.run base noQuantum N).executionDistribution input).support) :
+      ((NativeBatch.run base noQuantum N).executionDistribution environment input).support) :
     (run base noQuantum specification).output.eval
         (step base noQuantum specification (record.1, record.2.1)).1.1 =
       packedValue ((NativeBatch.run base noQuantum N).result record) := by
@@ -142,50 +146,51 @@ def recoveryRecord (specification : Input N)
 attribute [local irreducible] code
 
 /-- The complete run maps the original source blocks by its real recovery record update. -/
-theorem nativeBatchRecovery_run_execute (specification : Input N) :
-    AlgorithmRun.RetainedRecord (NativeBatch.run base noQuantum N)
+lemma nativeBatchRecovery_run_execute (specification : Input N) :
+    AlgorithmRun.RetainedRecord (environment := environment) (NativeBatch.run base noQuantum N)
       (run base noQuantum specification) (recoveryRecord base noQuantum specification) := by
   unfold recoveryRecord run code
-  exact AlgorithmRun.RetainedRecord.ofTail (NativeBatch.run base noQuantum N)
+  exact AlgorithmRun.RetainedRecord.ofTail (environment := environment)
+    (NativeBatch.run base noQuantum N)
     (tail base noQuantum specification)
     (Output.all (context base noQuantum N)
       (.read (.storage (resultRef base noQuantum N).toCStorageRef)))
     (step base noQuantum specification) (tail_execute base noQuantum specification)
 
 /-- Actual record probabilities are the deterministic map of the original source records. -/
-theorem nativeBatchRecovery_executionDistribution (specification : Input N)
+lemma nativeBatchRecovery_executionDistribution (specification : Input N)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    (run base noQuantum specification).executionDistribution input =
-      ((NativeBatch.run base noQuantum N).executionDistribution input).map
+    (run base noQuantum specification).executionDistribution environment input =
+      ((NativeBatch.run base noQuantum N).executionDistribution environment input).map
         (recoveryRecord base noQuantum specification) :=
-  AlgorithmRun.RetainedRecord.executionDistribution_eq_map
+  AlgorithmRun.RetainedRecord.executionDistribution_eq_map (environment := environment)
     (NativeBatch.run base noQuantum N) (run base noQuantum specification)
     (recoveryRecord base noQuantum specification)
     (nativeBatchRecovery_run_execute base noQuantum specification) input
 
 /-- The real source and recovery execution has the original same-source optional factor law. -/
-theorem nativeBatchRecovery_run_outputDistribution (specification : Input N)
+lemma nativeBatchRecovery_run_outputDistribution (specification : Input N)
     {Reference : Register}
     (input : OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    (run base noQuantum specification).outputDistribution input =
+    (run base noQuantum specification).outputDistribution environment input =
       (sampledBatchOutputPMF specification).map LatticeBatchRecoveryOutput.outputValue := by
   unfold AlgorithmRun.outputDistribution
   rw [nativeBatchRecovery_executionDistribution, PMF.map_comp]
   calc
-    (((NativeBatch.run base noQuantum N).executionDistribution input).map
+    (((NativeBatch.run base noQuantum N).executionDistribution environment input).map
         ((run base noQuantum specification).result ∘
           recoveryRecord base noQuantum specification)) =
-        ((NativeBatch.run base noQuantum N).executionDistribution input).map
+        ((NativeBatch.run base noQuantum N).executionDistribution environment input).map
           (packedValue (N := N) ∘ (NativeBatch.run base noQuantum N).result) := by
       apply map_eq_on_support
       intro record supported
       simpa only [Function.comp_apply, AlgorithmRun.result, recoveryRecord] using
         nativeBatchRecovery_output_on_support base noQuantum specification input record supported
-    _ = ((NativeBatch.run base noQuantum N).outputDistribution input).map
+    _ = ((NativeBatch.run base noQuantum N).outputDistribution environment input).map
         (packedValue (N := N)) :=
       (PMF.map_comp (NativeBatch.run base noQuantum N).result
-        ((NativeBatch.run base noQuantum N).executionDistribution input)
+        ((NativeBatch.run base noQuantum N).executionDistribution environment input)
         (packedValue (N := N))).symm
     _ = (sampledBatchOutputPMF specification).map
         LatticeBatchRecoveryOutput.outputValue := by

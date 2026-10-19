@@ -23,7 +23,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {N m ell : Nat} {model : ExecutionModel} [BitWord.Selected model]
+variable {N m ell : Nat} {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 -- Keep the dependent scan path folded when comparing record projections.
@@ -50,7 +51,7 @@ noncomputable def initializedStep (input : Input N)
     (LatticeCandidateScan.scanStep (LatticeCandidateModularSetup.modulusSpec input) refs) store
 
 /-- Project the actual initialized store without expanding the canonical scan path. -/
-theorem initializedStep_store (input : Input N)
+lemma initializedStep_store (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) (store : Store ctx) :
     (initializedStep input refs store).1 =
@@ -63,15 +64,16 @@ theorem initializedStep_store (input : Input N)
     (LatticeCandidateScan.scanStep (LatticeCandidateModularSetup.modulusSpec input) refs) store
 
 /-- Actual initialization and finite candidate execution retain the complete incoming state. -/
-theorem initializedScanInto_execute (input : Input N)
+lemma initializedScanInto_execute (input : Input N)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (initializedScanInto input refs).execute Reference state = state.mapClassical (fun entry =>
+    (initializedScanInto input refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := initializedStep input refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  exact Circuit.execute_sequenceStoreRecord
+  exact Circuit.execute_sequenceStoreRecord (environment := environment)
     (LatticeCandidateSelectorInit.clearAcceptedInto refs.selector.selection)
     (LatticeCandidateScan.scanInto (LatticeCandidateModularSetup.modulusSpec input) refs)
     (LatticeCandidateSelectorInit.clearStep refs.selector.selection)
@@ -93,7 +95,7 @@ structure Outcome (input : Input N) (generator : (ZMod N)ˣ)
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Actual latch initialization and all original checks compute the source pair recovery. -/
-theorem initializedScanInto_correct (input : Input N) (generator : (ZMod N)ˣ)
+lemma initializedScanInto_correct (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (refs : LatticeCandidateSlotMachine.Refs ctx
       (RSA.ShortLogWidths.coordinateWidth N m ell) (modulusBits N))

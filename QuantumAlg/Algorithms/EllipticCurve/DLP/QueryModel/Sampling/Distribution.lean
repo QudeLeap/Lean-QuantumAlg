@@ -45,21 +45,21 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
     (basis : (post I).register.Index) : Fin (sampleWidth I) → Bool :=
   fun index => decide ((basis (exponentPosition I index)).val = 1)
 
-private theorem observedOutcome_after_measurement (I : ECDLPInstance E) (A : Access I)
+private lemma observedOutcome_after_measurement (I : ECDLPInstance E)
     (stored : Store (post I)) (basis : (post I).register.Index) :
-    observedOutcome I ((writtenStore I A stored basis).read (sampleInput I)) =
+    observedOutcome I ((writtenStore I stored basis).read (sampleInput I)) =
       basisOutcome I basis := by
   funext index
   change decide
-    ((((writtenStore I A stored basis).read (.storage (cell I index).toCStorageRef)).toFin.val)
+    ((((writtenStore I stored basis).read (.storage (cell I index).toCStorageRef)).toFin.val)
       = 1) = decide ((basis (exponentPosition I index)).val = 1)
   rw [writtenStore, measured_cell]
 
-private theorem readoutCode_block_mass (I : ECDLPInstance E) (A : Access I)
+private lemma readoutCode_block_mass (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (post I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (post I) Reference ((executionModel I).HiddenState × History))
     (outcome : Fin (sampleWidth I) → Bool) :
-    ((((readoutCode I A).execute Reference state).mapClassical
+    ((((readoutCode I).execute (sourceEnvironment I A) Reference state).mapClassical
       (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass =
       (∑ basis : (post I).register.Index,
         if basisOutcome I basis = outcome then
@@ -69,7 +69,7 @@ private theorem readoutCode_block_mass (I : ECDLPInstance E) (A : Access I)
   rw [readoutCode, Circuit.measurementSequence_diagonalSum]
   change ExecutionState.diagonalSum state
     (fun record basis =>
-      if observedOutcome I ((writtenStore I A record.1 basis.1).read (sampleInput I)) = outcome
+      if observedOutcome I ((writtenStore I record.1 basis.1).read (sampleInput I)) = outcome
       then 1 else 0) = _
   simp only [observedOutcome_after_measurement]
   refine (ExecutionState.diagonalSum_localMarginal state (fun basis =>
@@ -78,7 +78,7 @@ private theorem readoutCode_block_mass (I : ECDLPInstance E) (A : Access I)
   intro basis _
   split <;> simp only [one_mul, zero_mul]
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
@@ -86,24 +86,26 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (Complex.normSq_eq_norm_sq (state basis))
 
 /-- Each actual observed sample block has precisely its full source Born-fiber mass. -/
-public theorem ecdlpSampling_code_block_mass (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpSampling_code_block_mass (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (pre I) Reference ((executionModel I).HiddenState × History))
     (normalized : state.IsNormalized) (outcome : Fin (sampleWidth I) → Bool) :
-    ((((code I A expansion).execute Reference state).mapClassical
+    ((((code I expansion).execute (sourceEnvironment I A) Reference state).mapClassical
       (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass =
       ∑ basis : (post I).register.Index,
         if basisOutcome I basis = outcome then ‖runtimeSourceState I A basis‖ ^ 2 else 0 := by
   calc
     _ = (∑ basis : (post I).register.Index,
         if basisOutcome I basis = outcome then
-          ((beforeMeasurement I A expansion).execute Reference state).quantumMarginal.marginalLeft
+          ((beforeMeasurement I expansion).execute (sourceEnvironment I A) Reference
+            state).quantumMarginal.marginalLeft
             |>.matrix basis basis else 0).re := by
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory,
         ExecutionState.executionState_mapClassical_comp, Function.comp_def] using
-          readoutCode_block_mass I A ((beforeMeasurement I A expansion).execute Reference state)
+          readoutCode_block_mass I A ((beforeMeasurement I expansion).execute (sourceEnvironment
+            I A) Reference state)
             outcome
     _ = _ := by
       rw [ecdlpBeforeMeasurement_localDensity I A expansion state normalized, Complex.re_sum]
@@ -114,24 +116,26 @@ public theorem ecdlpSampling_code_block_mass (I : ECDLPInstance E) (A : Access I
       · simp only [accepts, if_false, Complex.zero_re]
 
 /-- The actual run's retained output has the source Born probabilities. -/
-public theorem ecdlpSampling_run_outputProbability (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpSampling_run_outputProbability (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register}
-    (input : OracleInput (executionModel I A).classicalOracles (pre I) Reference)
+    (input : OracleInput (executionModel I).classicalOracles (pre I) Reference)
     (outcome : Fin (sampleWidth I) → Bool) :
-    ((run I A expansion).outputDistribution input).map (observedOutcome I) outcome =
+    ((run I expansion).outputDistribution (sourceEnvironment I A) input).map (observedOutcome I)
+      outcome =
       ENNReal.ofReal (∑ basis : (post I).register.Index,
         if basisOutcome I basis = outcome then ‖runtimeSourceState I A basis‖ ^ 2 else 0) := by
   have actual := congrArg (fun distribution : PMF (Fin (sampleWidth I) → Bool) =>
     distribution outcome)
-    (ExecutionState.toPMF_mapClassical ((run I A expansion).execute Reference input.state)
-      ((run I A expansion).execute_normalized input)
-      (fun record => observedOutcome I ((run I A expansion).result record)))
+    (ExecutionState.toPMF_mapClassical ((run I expansion).execute (sourceEnvironment I A)
+      Reference input.state)
+      ((run I expansion).execute_normalized (sourceEnvironment I A) input)
+      (fun record => observedOutcome I ((run I expansion).result record)))
   rw [AlgorithmRun.outputDistribution, PMF.map_comp]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    ((((code I A expansion).execute Reference
+    ((((code I expansion).execute (sourceEnvironment I A) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).mapClassical
         (fun record => observedOutcome I (record.1.read (sampleInput I)))).block outcome).mass = _
   rw [ecdlpSampling_code_block_mass I A expansion _

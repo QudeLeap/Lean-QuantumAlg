@@ -36,7 +36,7 @@ def predicateBound (width : Nat) : Nat := 10 * (width.size + (width + 3) + 1) + 
 def refreshBound (width : Nat) : Nat :=
   4 * (2 ^ width.size * ((width + 3) * (width.size * predicateBound width)))
 
-theorem predicate_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+lemma predicate_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (output : Fin width.size) :
     (ControlledLengthPredicate.gates width field key firstWord position output).length ≤
       predicateBound width := by
@@ -47,7 +47,7 @@ theorem predicate_length_le (width : Nat) (field : Field) (key : BitVec width.si
   unfold predicateBound
   omega
 
-theorem position_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+lemma position_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) :
     (ControlledLengthWrite.positionGates width field key firstWord position).length ≤
       width.size * predicateBound width := by
@@ -59,7 +59,7 @@ theorem position_length_le (width : Nat) (field : Field) (key : BitVec width.siz
         predicate_length_le width field key firstWord position output)
     _ ≤ _ := Nat.mul_le_mul_right _ (Word.constantOneIndices_length_le _)
 
-theorem key_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
+lemma key_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
     (ControlledLengthWrite.keyGates width field key firstWord).length ≤
       (width + 3) * (width.size * predicateBound width) := by
   unfold ControlledLengthWrite.keyGates
@@ -72,7 +72,7 @@ theorem key_length_le (width : Nat) (field : Field) (key : BitVec width.size) (f
       rw [List.length_ofFn]
     _ ≤ _ := Nat.mul_le_mul_right _ (region_le width field key)
 
-theorem schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
+lemma schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
     (ControlledLengthWrite.gates width field firstWord).length ≤
       2 ^ width.size * ((width + 3) * (width.size * predicateBound width)) := by
   unfold ControlledLengthWrite.gates
@@ -84,7 +84,7 @@ theorem schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
     _ = _ := by rw [LengthSchedule.keys_length]
 
 /-- The actual four complete source-ordered native schedules satisfy the independent envelope. -/
-theorem refresh_length_le (width : Nat) :
+lemma refresh_length_le (width : Nat) :
     (ControlledLengthRefresh.gates width).length ≤ refreshBound width := by
   unfold ControlledLengthRefresh.gates
   have actual := LengthResources.flatMap_length_le ControlledLengthRefresh.blocks
@@ -94,14 +94,14 @@ theorem refresh_length_le (width : Nat) :
   exact actual
 
 /-- The same bound applies to actual strict unit depth of the same native program. -/
-theorem program_depth_le (width : Nat) :
+lemma program_depth_le (width : Nat) :
     (ControlledLengthRefresh.program width).evaluatedEventDepth (fun _ => 1) ≤
       refreshBound width := by
   rw [ControlledLengthRefresh.program_unitDepth]
   exact refresh_length_le width
 
 /-- The exact actual event pool cardinality has the same independently stated finite bound. -/
-theorem program_eventCount_le (width : Nat) :
+lemma program_eventCount_le (width : Nat) :
     (ControlledLengthRefresh.program width).eventCost.card ≤ refreshBound width := by
   rw [ControlledLengthRefresh.program, GateSpec.programList_eventCost_card]
   exact refresh_length_le width

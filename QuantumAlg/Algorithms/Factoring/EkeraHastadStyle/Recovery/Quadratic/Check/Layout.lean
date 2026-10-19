@@ -174,11 +174,11 @@ def internalKeys (ctx : RuntimeCtx kind) (width : Nat) : List StorageKey :=
     (upper ctx width).key, (zero ctx width).key]
 
 /-- No other entry is introduced by this actual check layout. -/
-theorem nativeQuadratic_checkLayout_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_checkLayout_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).keys = internalKeys ctx width ++ ctx.keys := rfl
 
 /-- Intrinsic context uniqueness makes all five actual workspace cells distinct. -/
-theorem nativeQuadratic_checkLayout_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_checkLayout_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     (internalKeys ctx width).Nodup := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -186,7 +186,7 @@ theorem nativeQuadratic_checkLayout_nodup (ctx : RuntimeCtx kind) (width : Nat) 
   exact (List.nodup_append.mp unique).1
 
 /-- Every actual new cell is outside all original operand and selector storage. -/
-theorem nativeQuadratic_checkLayout_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_checkLayout_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint (internalKeys ctx width) ctx.keys := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -196,7 +196,7 @@ theorem nativeQuadratic_checkLayout_disjoint (ctx : RuntimeCtx kind) (width : Na
   exact (List.nodup_append.mp unique).2.2 key internal key external rfl
 
 /-- These five actual allocations retain precisely the same physical quantum systems. -/
-theorem nativeQuadratic_checkLayout_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_checkLayout_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 /-- Actual five-cell allocation encloses both checks and consumes their bits before release. -/

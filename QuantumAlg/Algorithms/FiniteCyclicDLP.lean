@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Binary.Endpoint
+public import QuantumAlg.Algorithms.FiniteCyclicDLP.Binary.Endpoint.Results
 public import QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Endpoint.Final
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Execution.Seed
 
@@ -28,10 +30,10 @@ variable {G : Type u} [Group G] [Fintype G]
 
 /-- The known-order finite-cyclic discrete-logarithm problem. The secret is a
 proof-side witness in the acceptance relation and never an executable input. -/
-public def problem (P : KnownOrderProblem G) (input : Input P) :
+public def problem (P : KnownOrderProblem G) :
     Problem (OrderExecution.model P) OrderExecution.pre (OrderEndpoint.outputContext P)
       (.option (.unsignedWord (OrderPreparation.width P))) :=
-  OrderEndpoint.problem P input
+  OrderEndpoint.problem P
 
 /-- Fresh native-dimensional sample banks followed by checked first-success recovery. -/
 @[expose] public def algorithm (P : KnownOrderProblem G) :
@@ -41,9 +43,9 @@ public def problem (P : KnownOrderProblem G) (input : Input P) :
 
 /-- The complete execution returns the advertised discrete logarithm with
 probability at least two thirds and meets its independent native budgets. -/
-public theorem main (P : KnownOrderProblem G) (input : Input P) :
-    Algorithm.Solves (algorithm P) (problem P input) :=
-  OrderEndpoint.algorithm_solves P input
+public theorem main (P : KnownOrderProblem G) :
+    Algorithm.Solves (algorithm P) (problem P) :=
+  OrderEndpoint.algorithm_solves P
 
 end
 

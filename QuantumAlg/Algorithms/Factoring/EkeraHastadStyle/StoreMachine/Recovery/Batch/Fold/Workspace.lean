@@ -39,7 +39,7 @@ def liftTerminals {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
   fun index => transport.liftInput (terminals index)
 
 /-- Transport commutes with the canonical unordered-pair enumeration. -/
-theorem terminalPairs_lift {kind : ProblemKind}
+lemma terminalPairs_lift {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (terminals : LatticePairRecoveryBatch.Terminals outer N) :
@@ -76,7 +76,7 @@ def refs {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
   sharedFactorSelection _ := rfl
 
 /-- The indexed physical views read exactly the transported terminal pairs. -/
-theorem aligned {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
+lemma aligned {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
     (selection : FirstAccepted.Refs outer (QuadraticScratchLayout.CandidateWidth N))
@@ -109,12 +109,12 @@ structure FactorFrameAvoids {kind : ProblemKind}
   second : ∀ index cell, QuadraticCheckSeparation.factorKey selection cell ∉
     ((LatticePairRecoveryBatch.terminalPairs terminals).get index).2.storageKeys
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
 
-private theorem callerFrame_of_outerProjection {kind : ProblemKind}
+private lemma callerFrame_of_outerProjection {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {outerShape shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -181,7 +181,7 @@ private theorem callerFrame_of_outerProjection {kind : ProblemKind}
     exact factorAvoids cell
 
 /-- An outer input avoids the complete reusable pair under transport. -/
-theorem callerFrame_of_outerInput {kind : ProblemKind}
+lemma callerFrame_of_outerInput {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -202,7 +202,7 @@ theorem callerFrame_of_outerInput {kind : ProblemKind}
     secondTerminal parameter other (transport.liftInput other)
       (fun _ avoids => avoids) factorAvoids
 
-private theorem callerFrame_quadraticCell {kind : ProblemKind}
+private lemma callerFrame_quadraticCell {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairFactorWorkspaceSeparation.Cells ctx N)
@@ -281,7 +281,7 @@ private theorem callerFrame_quadraticCell {kind : ProblemKind}
     exact factorDifferent.symm
 
 /-- One reusable physical allocation supplies every pair in the fixed fold. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairFactorWorkspaceSeparation.Cells ctx N}

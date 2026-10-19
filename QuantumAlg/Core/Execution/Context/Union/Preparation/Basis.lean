@@ -39,7 +39,7 @@ def preparedFramedBasisEquiv :
     (preparation_wires_union key layout fresh disjoint separate)
 
 /-- Preparation retains each original and framed coordinate, including arbitrary fresh labels. -/
-theorem preparedFramedBasis_join (newBasis : layout.register.Index)
+lemma preparedFramedBasis_join (newBasis : layout.register.Index)
     (oldBasis : ctx.register.Index) (frameBasis : frame.register.Index) :
     preparedFramedBasisEquiv key layout fresh disjoint separate
       (newBasis, (unionBasisEquiv ctx frame

@@ -57,14 +57,15 @@ def signedReductionBodyStep {model : ExecutionModel} [BitWord.Selected model]
   (result.1, (classified.2, (magnitude.2, (reduced.2, result.2))))
 
 /-- All real phases preserve complete quantum-reference blocks and retain the actual histories. -/
-theorem signedReductionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
     (remainder output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (signedReductionBody (model := model) raw modulus work negative remainder output).execute
-      Reference state =
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((signedReductionBodyStep (model := model) raw modulus work negative remainder output
           entry.1).1,
@@ -77,7 +78,7 @@ theorem signedReductionBody_execute {model : ExecutionModel} [BitWord.Selected m
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The only writes target the three true internal cells and the original output. -/
-theorem signedReductionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CWriteRef ctx .bit)
@@ -98,7 +99,7 @@ theorem signedReductionBody_read_other {model : ExecutionModel} [BitWord.Selecte
   exact signClassification_read_other raw work negative other workFree negativeFree store
 
 /-- Internal fresh-cell obligations suffice for the exact original canonical signed residue. -/
-theorem signedReductionBody_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_original_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))

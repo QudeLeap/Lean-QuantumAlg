@@ -26,6 +26,8 @@ namespace MeasuredPlacement.Allocation
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredPointAddition
 
 /-- The original paired exponent words and affine seed supply the complete caller input. -/
@@ -47,7 +49,7 @@ def pairedInputAllowed {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
         (fun index => (points index).toGroupPoint) seed.toGroupPoint branch
 
 /-- Every original admissible paired branch satisfies the complete initialized trajectory domain. -/
-theorem pairedAffineInput_trajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma pairedAffineInput_trajectory {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {exponentWidth : Nat}
     (points : Fin (2 * exponentWidth) → AffinePoint E) (seed : AffinePoint E)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth))
@@ -63,7 +65,7 @@ theorem pairedAffineInput_trajectory {p : Nat} (E : PrimeFieldShortWeierstrass p
   exact AffineTrajectory.admissible_finRange_of_group E points _ seed admissible
 
 /-- Actual complete execution has the full independent density on the original paired good set. -/
-theorem circuit_density_of_paired_admissible {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma circuit_density_of_paired_admissible {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {exponentWidth : Nat}
     (points : Fin (2 * exponentWidth) → AffinePoint E) (seed : AffinePoint E)
     {Reference : Register} {H : Type} [Fintype H]
@@ -72,7 +74,7 @@ theorem circuit_density_of_paired_admissible {p : Nat} (E : PrimeFieldShortWeier
     (support : ∀ input,
       ¬pairedInputAllowed E points seed input.1 →
         original.quantumMarginal.matrix input input = 0) :
-    ((circuit E points (List.finRange (2 * exponentWidth))).execute Reference
+    ((circuit E points (List.finRange (2 * exponentWidth))).execute environment Reference
       original).quantumMarginal =
       resultDensity E points (List.finRange (2 * exponentWidth)) Reference
         original.quantumMarginal := by
@@ -85,7 +87,7 @@ theorem circuit_density_of_paired_admissible {p : Nat} (E : PrimeFieldShortWeier
   exact pairedAffineInput_trajectory E points seed branch admissible
 
 /-- The final affine point denotes the original offset times the selected group product. -/
-theorem pairedAffinePath_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma pairedAffinePath_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {exponentWidth : Nat}
     (points : Fin (2 * exponentWidth) → AffinePoint E) (seed : AffinePoint E)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth))

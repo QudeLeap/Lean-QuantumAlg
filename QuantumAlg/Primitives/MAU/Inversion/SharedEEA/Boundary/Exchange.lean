@@ -32,25 +32,27 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.BoundaryExchange
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NativePredicate
 
 /-- The original boundary predicate reads the two actual retained finite fields. -/
 def condition {width : Nat} (state : Registers width) : Bool :=
   decide (state.quotientLength = 0 ∧ state.shift = 0)
 
-private theorem condition_xorControl {width : Nat} (value : Bool) (state : Registers width) :
+private lemma condition_xorControl {width : Nat} (value : Bool) (state : Registers width) :
     condition (xorControl value state) = condition state := rfl
 
 /-- Actual joint zero-predicate gates, with the complete borrowed Work2 restored. -/
 def conditionGates (width : Nat) (enough : 2 ≤ width.size) : List (GateSpec (encoding width)) :=
   pairGates width .quotient .shift (by decide) enough
 
-private theorem conditionGates_step (width : Nat) (enough : 2 ≤ width.size)
+private lemma conditionGates_step (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) :
     GateSpec.stepList (conditionGates width enough) state = xorControl (condition state) state :=
   pairGates_step width .quotient .shift (by decide) enough state
 
-private theorem conditionGates_reverse_step (width : Nat) (enough : 2 ≤ width.size)
+private lemma conditionGates_reverse_step (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) :
     GateSpec.stepList (conditionGates width enough).reverse state =
       xorControl (condition state) state := by
@@ -67,7 +69,7 @@ private theorem conditionGates_reverse_step (width : Nat) (enough : 2 ≤ width.
       congrArg (GateSpec.stepList (conditionGates width enough).reverse) forward.symm
     _ = toggled := GateSpec.stepList_reverse_stepList (conditionGates width enough) toggled
 
-private theorem control_iteration (width : Nat) :
+private lemma control_iteration (width : Nat) :
     (controlBit width).wire ≠ (iterationBit width).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -82,7 +84,7 @@ private def parityStep {width : Nat} (state : Registers width) : Registers width
   { state with flags := { state.flags with
       iteration := if state.control then !state.flags.iteration else state.flags.iteration } }
 
-private theorem parityGates_step (width : Nat) (state : Registers width) :
+private lemma parityGates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (parityGates width) state = parityStep state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
     ⟨p1, p2, sign, iteration⟩, control⟩
@@ -96,10 +98,10 @@ def step {width : Nat} (state : Registers width) : Registers width :=
     flags := { state.flags with iteration :=
       if state.control ^^ condition state then !state.flags.iteration else state.flags.iteration } }
 
-private theorem condition_step {width : Nat} (state : Registers width) :
+private lemma condition_step {width : Nat} (state : Registers width) :
     condition (step state) = condition state := rfl
 
-private theorem body_computed {width : Nat} (state : Registers width) :
+private lemma body_computed {width : Nat} (state : Registers width) :
     parityStep (WorkWordExchange.step (xorControl (condition state) state)) =
       xorControl (condition state) (step state) := rfl
 
@@ -109,14 +111,14 @@ def gates (width : Nat) (enough : 2 ≤ width.size) : List (GateSpec (encoding w
     (conditionGates width enough).reverse
 
 /-- The whole native sequence has the complete frame action, including inverse Ctrl cleanup. -/
-theorem gates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
+lemma gates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
     GateSpec.stepList (gates width enough) state = step state := by
   rw [gates, GateSpec.stepList_append, GateSpec.stepList_append, GateSpec.stepList_append,
     conditionGates_step, WorkWordExchange.gates_step, parityGates_step, body_computed,
     conditionGates_reverse_step, condition_xorControl, condition_step, xorControl_twice]
 
 /-- The original Ctrl is restored even after arbitrary complete words have exchanged. -/
-theorem gates_control (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
+lemma gates_control (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
     (GateSpec.stepList (gates width enough) state).control = state.control := by
   rw [gates_step]
   rfl
@@ -130,7 +132,7 @@ def sourceStep {width : Nat} (state : Registers width) : Registers width :=
       iteration := (if condition state then !state.flags.iteration else state.flags.iteration) } }
 
 /-- The internally initialized Ctrl invariant gives the exact source exchange/parity action. -/
-theorem step_eq_sourceStep {width : Nat} (state : Registers width)
+lemma step_eq_sourceStep {width : Nat} (state : Registers width)
     (preparedControl : state.control = false) : step state = sourceStep state := by
   simp only [step, preparedControl, Bool.false_xor, sourceStep]
 
@@ -141,15 +143,15 @@ def program (width : Nat) (enough : 2 ≤ width.size) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Exact full-register circuit realization on every encoded basis label. -/
-theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit.Realizes (encoding width) (program width enough) step :=
+lemma program_realizes (width : Nat) (enough : 2 ≤ width.size) :
+    UnitaryCircuit.Realizes (encoding width) (program width enough) environment step :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width enough) (gates_step width enough)
+    (gates width enough) (gates_step width enough) environment
 
 /-- The source specialization is an action of the actual native program on the prepared subspace. -/
-theorem program_apply_prepared (width : Nat) (enough : 2 ≤ width.size)
+lemma program_apply_prepared (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) (preparedControl : state.control = false) :
-    (program width enough).applyNormalized
+    (program width enough).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
         ((encoding width).encode state))) =
       NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
@@ -157,7 +159,7 @@ theorem program_apply_prepared (width : Nat) (enough : 2 ≤ width.size)
   rw [(program_realizes width enough).apply_encoded_ket, step_eq_sourceStep state preparedControl]
 
 /-- Exact actual native trace, including both complete predicate passes after word movement. -/
-theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace =
       (conditionGates width enough).map (GateSpec.event .empty) ++
         List.replicate (3 * (width + 3)) (.gate .toffoli) ++
@@ -172,7 +174,7 @@ theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
   rfl
 
 /-- Both predicate passes, every actual word-swap Toffoli, and the final parity CNOT are counted. -/
-theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
+lemma gates_length (width : Nat) (enough : 2 ≤ width.size) :
     (gates width enough).length = 2 * gateCount (2 * width.size - 2) + 3 * (width + 3) + 1 := by
   have predicateCount : (conditionGates width enough).length = gateCount (2 * width.size - 2) :=
     pairGates_length width .quotient .shift (by decide) enough
@@ -184,12 +186,12 @@ theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
   simp only [gates, List.length_append, List.length_reverse, predicateCount, wordCount, parityCount]
   omega
 
-theorem program_eventCost_card (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventCost_card (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventCost.card =
       2 * gateCount (2 * width.size - 2) + 3 * (width + 3) + 1 := by
   rw [program, GateSpec.programList_eventCost_card, gates_length]
 
-theorem program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) =
       2 * gateCount (2 * width.size - 2) + 3 * (width + 3) + 1 := by
   rw [program, GateSpec.programList_evaluatedEventDepth_unit, gates_length]

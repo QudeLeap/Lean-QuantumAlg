@@ -289,7 +289,7 @@ noncomputable def NeighborEquiv (R : JohnsonVertex N r) (hr_pos : 0 < r) :
     exact swapSet_reconstruct h_adj hr_pos
 
 /-- **Degree theorem**: every vertex in J(N,r) has exactly r*(N-r) neighbours. -/
-theorem neighbors_card (hr_pos : 0 < r) (_hr_lt_N : r < N) (R : JohnsonVertex N r) :
+lemma neighbors_card (hr_pos : 0 < r) (_hr_lt_N : r < N) (R : JohnsonVertex N r) :
     (neighbors R).card = degree N r := by
   rw [degree]
   -- From the bijection, |neighbors R| = r * (N - r)
@@ -380,7 +380,7 @@ noncomputable def activeSet : Finset (Fin (2 ^ N)) :=
   (Finset.univ : Finset (JohnsonVertex N r)).image embed
 
 /-- The active set has exactly `C(N,r)` elements (embedding is injective). -/
-theorem activeSet_card : (activeSet (N := N) (r := r)).card = (Finset.univ : Finset (JohnsonVertex
+lemma activeSet_card : (activeSet (N := N) (r := r)).card = (Finset.univ : Finset (JohnsonVertex
   N r)).card := by
   rw [activeSet]
   exact Finset.card_image_of_injective _ embed_injective
@@ -389,7 +389,7 @@ theorem activeSet_card : (activeSet (N := N) (r := r)).card = (Finset.univ : Fin
 
 /-- Existence proof shared by `decodeOpt` and `decodeOpt_embed`.
 Given `i ∈ activeSet`, produces `∃ R, embed R = i`. -/
-theorem existsEmbed (N r : ℕ) (i : Fin (2 ^ N))
+lemma existsEmbed (N r : ℕ) (i : Fin (2 ^ N))
     (h : i ∈ activeSet (N := N) (r := r)) : ∃ (R : JohnsonVertex N r), embed R = i := by
   unfold activeSet at h
   rcases Finset.mem_image.mp h with ⟨R, _, hR⟩
@@ -756,7 +756,7 @@ lemma marked_count_mul_eq (N r : ℕ) (h1 : 2 ≤ r) (h2 : r ≤ N) :
 
 /-- Exact marked fraction for element distinctness with one collision:
 `ε = r(r-1) / (N(N-1))`. -/
-theorem exact_marked_fraction (N r : ℕ) (h1 : 2 ≤ r) (h2 : r ≤ N) :
+lemma exact_marked_fraction (N r : ℕ) (h1 : 2 ≤ r) (h2 : r ≤ N) :
     ((Nat.choose (N - 2) (r - 2) : ℝ) / (Nat.choose N r : ℝ)) =
     ((r : ℝ) / (N : ℝ)) * (((r : ℝ) - 1) / ((N : ℝ) - 1)) := by
   have hN_pos : 1 ≤ N := by omega

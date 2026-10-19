@@ -42,7 +42,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open Execution.OwnedQubits
 
-private theorem supplied_wires (width : Nat) :
+private lemma supplied_wires (width : Nat) :
     (QubitLayout.canonical (encoding width).width).toQuantum.wires =
       (context (2 * width)).quantumLayout.wires := by
   rw [(gidneyAccumulate_interface width).1]
@@ -66,24 +66,25 @@ private def nativeProgram (width : Nat) (modulus : Fin (2 ^ width + 1))
     (context (2 * width)).quantumLayout (supplied_wires width)
       (program width modulus coefficient)
 
-private theorem nativeProgram_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma nativeProgram_matrix {environment : OracleModel.empty.Interpretation}
+    (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
-    (nativeProgram width modulus coefficient).matrix =
+    (nativeProgram width modulus coefficient).matrix environment =
       nativeOperator width modulus coefficient := by
   unfold nativeOperator
-  have sourceMatrix : (program width modulus coefficient).matrix =
+  have sourceMatrix : (program width modulus coefficient).matrix environment =
       UnitaryOperator.reindex
         (QubitLayout.canonical (encoding width).width).basisEquiv.symm
           (wordAccumulateOperator width modulus coefficient) := by
     have binary := congrArg
       (UnitaryOperator.reindex
         (QubitLayout.canonical (encoding width).width).basisEquiv.symm)
-      (gidneyAccumulate_matrix width modulus coefficient)
+      (gidneyAccumulate_matrix (environment := environment) width modulus coefficient)
     change UnitaryOperator.reindex
         (QubitLayout.canonical (encoding width).width).basisEquiv.symm
           (UnitaryOperator.reindex
             (QubitLayout.canonical (encoding width).width).basisEquiv
-            (program width modulus coefficient).matrix) = _ at binary
+            ((program width modulus coefficient).matrix environment)) = _ at binary
     rw [UnitaryOperator.unitaryOperator_reindex_cancel] at binary
     exact binary
   rw [nativeProgram, Execution.unitaryOfEqualWires_matrix, sourceMatrix]
@@ -133,20 +134,17 @@ the selected binary-add recurrence [VBE95, 9511018.tex:333-367].
 public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
     Problem (.quantum AlgorithmGate.model .empty)
       (context (2 * width)) (context (2 * width)) .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary (nativeOperator width modulus coefficient)]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [StateRequirement.unitary (nativeOperator width modulus coefficient)]
   resources :=
     { events := nativeBudget width
       resident := space (2 * width)
       auxiliary := space (2 * width) }
-  depth :=
-    { duration := fun _ => 1
-      limit := width * stageEventBound width
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := width * stageEventBound width
 
 /-- Execute the actual two-word circuit and explicitly retain its complete live output. -/
 public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
@@ -157,16 +155,16 @@ public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient 
       output := Output.all (context (2 * width)) .unit }
 
 /-- The public run retains the complete supplied two-word context. -/
-public theorem gidneyAccumulate_output_listing (width : Nat)
+public lemma gidneyAccumulate_output_listing (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
     (algorithm width modulus coefficient).run.output.listing = (context (2 * width)).keys := (rfl)
 
 /-- The independent resident budget contains exactly the two supplied words. -/
-public theorem gidneyAccumulate_resident_budget (width : Nat)
+public lemma gidneyAccumulate_resident_budget (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
     (problem width modulus coefficient).resources.resident = space (2 * width) := (rfl)
 
-private theorem actual_events (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
+private lemma actual_events (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
     (path : (code width modulus coefficient).Path) :
     (code width modulus coefficient).resourcePool path ≤
       (problem width modulus coefficient).resources.events := by
@@ -182,7 +180,7 @@ private theorem actual_events (width : Nat) (modulus : Fin (2 ^ width + 1)) (coe
   rw [cost]
   exact gidneyAccumulate_native_bound width modulus coefficient
 
-private theorem actual_resident (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
+private lemma actual_resident (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
     (path : (code width modulus coefficient).Path) :
     (code width modulus coefficient).peakResidentSpace path ≤ space (2 * width) := by
   intro axis
@@ -190,7 +188,7 @@ private theorem actual_resident (width : Nat) (modulus : Fin (2 ^ width + 1)) (c
   rw [ownedQubits_resident]
   exact le_of_eq (Nat.max_zero _)
 
-private theorem actual_auxiliary (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
+private lemma actual_auxiliary (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat)
     (path : (code width modulus coefficient).Path) :
     (code width modulus coefficient).peakAuxiliarySpace path ≤ space (2 * width) := by
   intro axis
@@ -198,7 +196,7 @@ private theorem actual_auxiliary (width : Nat) (modulus : Fin (2 ^ width + 1)) (
   rw [ownedQubits_auxiliary]
   exact le_of_eq (Nat.max_zero _)
 
-private theorem actual_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma actual_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (path : (code width modulus coefficient).Path) :
     (code width modulus coefficient).depth (fun _ => 1) path ≤
       width * stageEventBound width := by
@@ -209,33 +207,36 @@ private theorem actual_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
 
 /-- The native algorithm meets the independent arithmetic and coordinatewise resource contract. -/
 public theorem main (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
-    ∃ candidate, Algorithm.Solves candidate (problem width modulus coefficient) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate
+      (problem width modulus coefficient) := by
   refine ⟨algorithm width modulus coefficient, ?_⟩
   constructor
-  · intro Reference input _valid _initialized
+  · intro environment _witness Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialized requirement present
+  · intro environment _witness Reference input _valid _initialized requirement present
     have same : requirement = StateRequirement.unitary (nativeOperator width modulus coefficient) :=
       List.mem_singleton.mp present
     subst requirement
-    exact StateRequirement.unitary_holds (nativeOperator width modulus coefficient)
-      (nativeProgram width modulus coefficient) (nativeProgram_matrix width modulus coefficient)
+    exact StateRequirement.unitary_holds environment (nativeOperator width modulus coefficient)
+      (nativeProgram width modulus coefficient)
+      (nativeProgram_matrix (environment := environment.quantum) width modulus coefficient)
       (Output.all (context (2 * width)) .unit) input
-  · intro Reference input _valid _initialized
-    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
+  · intro environment _witness Reference input _valid _initialized
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed environment rfl rfl
       (nativeProgram width modulus coefficient)
       (Output.all (context (2 * width)) .unit) input
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_events width modulus coefficient path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_resident width modulus coefficient path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_auxiliary width modulus coefficient path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact actual_depth width modulus coefficient path
 
 end

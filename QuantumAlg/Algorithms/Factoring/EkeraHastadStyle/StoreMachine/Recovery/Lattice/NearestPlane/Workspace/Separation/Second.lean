@@ -85,20 +85,20 @@ private def secondCellInverse : PhysicalCell →
   | .inr .reduceProduct => some .reduceProduct
   | _ => none
 
-private theorem secondCellInverse_apply
+private lemma secondCellInverse_apply
     (cell : LatticeNearestPlaneSecond.PhaseCell) :
     secondCellInverse (secondCell cell) = some cell := by
   cases cell <;> rfl
 
 /-- The second-phase semantic projection is injective. -/
-theorem secondCell_injective : Function.Injective secondCell := by
+lemma secondCell_injective : Function.Injective secondCell := by
   intro left right equal
   have mapped := congrArg secondCellInverse equal
   rw [secondCellInverse_apply, secondCellInverse_apply] at mapped
   exact Option.some.inj mapped
 
 /-- Second-phase semantic keys are their unified physical keys. -/
-theorem secondCellKey_eq_physicalKey {kind : ProblemKind}
+lemma secondCellKey_eq_physicalKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N)
@@ -110,7 +110,7 @@ theorem secondCellKey_eq_physicalKey {kind : ProblemKind}
   cases cell <;> rfl
 
 /-- Physical packages supply the second-phase global key separation. -/
-theorem secondPhaseSeparation {kind : ProblemKind}
+lemma secondPhaseSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -133,12 +133,12 @@ private def secondCrossMutableCell : LatticeCross.MutableCell →
   | .productLeft => .crossProductLeft
   | .productRight => .crossProductRight
 
-private theorem secondCrossMutableCell_injective :
+private lemma secondCrossMutableCell_injective :
     Function.Injective secondCrossMutableCell := by
   intro left right equal
   cases left <;> cases right <;> cases equal <;> rfl
 
-private theorem secondCrossMutableKey {kind : ProblemKind}
+private lemma secondCrossMutableKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (cell : LatticeCross.MutableCell) :
@@ -159,7 +159,7 @@ private def secondCrossSourceCell : LatticeCross.SourceCell →
 
 /-- Physical phase separation supplies the complete second-coordinate cross
 product subcontract. -/
-theorem secondCrossSeparation {kind : ProblemKind}
+lemma secondCrossSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -190,7 +190,7 @@ theorem secondCrossSeparation {kind : ProblemKind}
     apply phase.keyInjective
     simpa only [secondCrossMutableKey] using equal
 
-private theorem secondWriteInputAvoids {kind : ProblemKind}
+private lemma secondWriteInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat} {shape : CShape}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation refs)
@@ -205,7 +205,7 @@ private theorem secondWriteInputAvoids {kind : ProblemKind}
   rw [sourceKey]
   exact phase.phaseCellKey_ne sourceCell target different
 
-private theorem secondCoordinateInputAvoids {kind : ProblemKind}
+private lemma secondCoordinateInputAvoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation refs)
@@ -220,7 +220,7 @@ private theorem secondCoordinateInputAvoids {kind : ProblemKind}
   rw [sourceKey]
   exact phase.phaseCellKey_ne sourceCell target different
 
-private theorem secondDotCoordinateSeparation {kind : ProblemKind}
+private lemma secondDotCoordinateSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation refs)
@@ -272,7 +272,7 @@ private theorem secondDotCoordinateSeparation {kind : ProblemKind}
       productKey productNeAccumulator
 
 /-- Physical phase separation supplies the refreshed `g11` dot product. -/
-theorem secondG11DotSeparation {kind : ProblemKind}
+lemma secondG11DotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -304,7 +304,7 @@ theorem secondG11DotSeparation {kind : ProblemKind}
         (by decide) (by decide) (by decide) (by decide) (by decide)
 
 /-- Physical phase separation supplies the refreshed `g21` dot product. -/
-theorem secondG21DotSeparation {kind : ProblemKind}
+lemma secondG21DotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -337,7 +337,7 @@ theorem secondG21DotSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the refreshed target-second dot
 product. -/
-theorem secondTargetSecondDotSeparation {kind : ProblemKind}
+lemma secondTargetSecondDotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -370,7 +370,7 @@ theorem secondTargetSecondDotSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the refreshed target-first dot
 product. -/
-theorem secondTargetFirstDotSeparation {kind : ProblemKind}
+lemma secondTargetFirstDotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -403,7 +403,7 @@ theorem secondTargetFirstDotSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the refreshed second-coordinate
 denominator dot product. -/
-theorem secondDenominatorDotSeparation {kind : ProblemKind}
+lemma secondDenominatorDotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -436,7 +436,7 @@ theorem secondDenominatorDotSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the second-coordinate rounded-division
 subcontract. -/
-theorem secondDivisionSeparation {kind : ProblemKind}
+lemma secondDivisionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -526,7 +526,7 @@ theorem secondDivisionSeparation {kind : ProblemKind}
   · exact divisionKeyNe .divisionWideDenominator .divisionOutput (by decide)
   · exact divisionKeyNe .divisionQuotientRemainder .divisionOutput (by decide)
 
-private theorem secondCoordinateAvoidsWrite {kind : ProblemKind}
+private lemma secondCoordinateAvoidsWrite {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation refs)
@@ -542,7 +542,7 @@ private theorem secondCoordinateAvoidsWrite {kind : ProblemKind}
   exact secondCoordinateInputAvoids refs phase source sourceCell targetCell
     sourceKey different
 
-private theorem secondWriteInputAvoidsWrite {kind : ProblemKind}
+private lemma secondWriteInputAvoidsWrite {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation refs)
@@ -558,7 +558,7 @@ private theorem secondWriteInputAvoidsWrite {kind : ProblemKind}
   exact secondWriteInputAvoids refs phase source sourceCell targetCell sourceKey
     different
 
-private theorem secondReduceCoordinateSeparation {kind : ProblemKind}
+private lemma secondReduceCoordinateSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (refs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation refs)
@@ -605,7 +605,7 @@ private theorem secondReduceCoordinateSeparation {kind : ProblemKind}
 
 /-- Physical phase separation supplies the second-coordinate point reduction
 subcontract. -/
-theorem secondReductionSeparation {kind : ProblemKind}
+lemma secondReductionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -667,7 +667,7 @@ theorem secondReductionSeparation {kind : ProblemKind}
 
 /-- The persistent state and reusable scratch package satisfy the complete
 second-coordinate separation contract. -/
-theorem secondSeparation {kind : ProblemKind}
+lemma secondSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}

@@ -22,7 +22,7 @@ open ClassicalAlgorithms ClassicalAlgorithms.NumberTheory ClassicalAlgorithms.Mo
 
 /-- Wrapping subtraction agrees with ordinary subtraction when the right
 operand is no larger than the left operand. -/
-theorem widenedWordSub_exact_of_le {width : Nat}
+lemma widenedWordSub_exact_of_le {width : Nat}
     (left right : CShape.Word (xgcdWidth width))
     (rightLe : right.toNat ≤ left.toNat) :
     (CShape.wordSub (xgcdWidth width) left right).toNat =
@@ -44,7 +44,7 @@ theorem widenedWordSub_exact_of_le {width : Nat}
 /-- Reducing `modulus - remainder` performs the required zero normalization.
 The statement does not assume that the modulus is strictly below capacity, so
 it also covers the `modulus = 2 ^ width` boundary. -/
-theorem correctionRemainder_eq_normalized {width : Nat}
+lemma correctionRemainder_eq_normalized {width : Nat}
     (spec : ModulusSpec width) (remainder : Nat)
     (remainderRange : remainder < spec.modulus) :
     (spec.modulus - remainder) % spec.modulus =

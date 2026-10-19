@@ -33,7 +33,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (result : CWriteRef ctx (.bits (resultBits m ell width)))
 
 /-- The actual measured writes and packed output retain every structurally separate input. -/
-theorem shortDLP_runtimePacked_read_preserved {shape : CShape} (input : CInputRef ctx shape)
+lemma shortDLP_runtimePacked_read_preserved {shape : CShape} (input : CInputRef ctx shape)
     (cellsSeparate : ∀ index, (cells index).key ∉ input.storageKeys)
     (resultSeparate : result.key ∉ input.storageKeys)
     (store : Store ctx) (basis : ctx.register.Index) :
@@ -60,7 +60,7 @@ theorem shortDLP_runtimePacked_read_preserved {shape : CShape} (input : CInputRe
       (readouts m ell width sameWires cells) input separate store _)
 
 /-- The actual joint read combines unchanged earlier data with the source measurement outcome. -/
-theorem shortDLP_runtimePacked_joint_read {shape : CShape} (input : CInputRef ctx shape)
+lemma shortDLP_runtimePacked_joint_read {shape : CShape} (input : CInputRef ctx shape)
     (distinct : Function.Injective (fun index => (cells index).key))
     (cellsSeparate : ∀ index, (cells index).key ∉ input.storageKeys)
     (resultSeparate : result.key ∉ input.storageKeys)

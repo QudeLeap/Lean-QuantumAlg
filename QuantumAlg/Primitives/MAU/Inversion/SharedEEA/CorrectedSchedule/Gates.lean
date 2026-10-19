@@ -15,6 +15,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.CorrectedSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec
 
 /-- The actual complete word includes every fixed microstep repetition and every decoder gate. -/
@@ -34,7 +36,7 @@ def step (modulus : Nat) (state : Registers modulus.size) : Registers modulus.si
     secondWord := active.secondWord.rotateRight (ExtendedClockRegisters.clock active).toNat }
 
 /-- The fixed literal schedule agrees on every original register, including arbitrary dirty data. -/
-theorem correctedSchedule_gates_step (modulus : Nat) (nontrivial : 1 < modulus)
+lemma correctedSchedule_gates_step (modulus : Nat) (nontrivial : 1 < modulus)
     (state : Registers modulus.size) :
     stepList (gates modulus nontrivial) state = step modulus state := by
   have same : stepList (NativeMicrostep.gates modulus.size
@@ -50,8 +52,8 @@ theorem correctedSchedule_gates_step (modulus : Nat) (nontrivial : 1 < modulus)
 attribute [local irreducible] gates
 
 /-- The original symbolic schedule realizes the same complete unrestricted action. -/
-theorem correctedSchedule_program_realizes (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus nontrivial)
+lemma correctedSchedule_program_realizes (modulus : Nat) (nontrivial : 1 < modulus) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus nontrivial) environment
       (step modulus) := by
   exact (((InitialFrame.program_realizes modulus).seq
     ((NativeMicrostep.program_realizes modulus.size
@@ -67,26 +69,26 @@ def nativeProgram (modulus : Nat) (nontrivial : 1 < modulus) :
   programList (QubitLayout.canonical _) .empty (gates modulus nontrivial)
 
 /-- Exact phases and every original frame coordinate are retained by the emitted word. -/
-theorem correctedSchedule_nativeProgram_realizes (modulus : Nat) (nontrivial : 1 < modulus) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (nativeProgram modulus nontrivial)
+lemma correctedSchedule_nativeProgram_realizes (modulus : Nat) (nontrivial : 1 < modulus) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (nativeProgram modulus nontrivial) environment
       (step modulus) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (correctedSchedule_gates_step modulus nontrivial)
+    (correctedSchedule_gates_step modulus nontrivial) environment
 
 /-- The complete native and symbolic schedules agree exactly on every encoded basis label. -/
-theorem correctedSchedule_nativeProgram_basis (modulus : Nat) (nontrivial : 1 < modulus)
+lemma correctedSchedule_nativeProgram_basis (modulus : Nat) (nontrivial : 1 < modulus)
     (state : Registers modulus.size) :
-    (nativeProgram modulus nontrivial).applyNormalized
+    (nativeProgram modulus nontrivial).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
         ((encoding modulus.size).encode state))) =
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
         ((encoding modulus.size).encode state))) :=
   ((correctedSchedule_nativeProgram_realizes modulus nontrivial).apply_encoded_ket state).trans
     ((correctedSchedule_program_realizes modulus nontrivial).apply_encoded_ket state).symm
 
 /-- No repetition, fold, decode or correction event is omitted or reordered. -/
-theorem correctedSchedule_gates_trace (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma correctedSchedule_gates_trace (modulus : Nat) (nontrivial : 1 < modulus) :
     (gates modulus nontrivial).map (event .empty) = (program modulus nontrivial).eventTrace := by
   simp only [gates, List.map_append, FoldProgram.foldProgram_gates_trace,
     List.map_flatten, List.map_replicate, ClockDecode.clockDecode_gates_trace,
@@ -97,7 +99,7 @@ theorem correctedSchedule_gates_trace (modulus : Nat) (nontrivial : 1 < modulus)
     NativeMicrostep.program, InitialLengthWrite.program, programList_eventTrace]
 
 /-- The emitted schedule has exactly the chronological trace of the original program. -/
-theorem correctedSchedule_nativeProgram_trace (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma correctedSchedule_nativeProgram_trace (modulus : Nat) (nontrivial : 1 < modulus) :
     (nativeProgram modulus nontrivial).eventTrace = (program modulus nontrivial).eventTrace := by
   rw [nativeProgram, programList_eventTrace, correctedSchedule_gates_trace]
 

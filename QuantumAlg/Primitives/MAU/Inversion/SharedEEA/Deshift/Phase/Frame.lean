@@ -34,7 +34,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA
 
-private theorem shift_fits (state : IterationState) (modulus shift : Nat)
+private lemma shift_fits (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (within : shift ≤ state.quotient.size) : shift < 2 ^ modulus.size.size :=
   (within.trans (CoefficientPhaseFrame.quotient_size_le state modulus valid conserved)).trans_lt
@@ -55,7 +55,7 @@ def frame (state : IterationState) (modulus shift : Nat)
     flags := ⟨true, true, sign, iteration⟩ }
 
 /-- Original macro capacity supplies the actual divisor-plus-shift window check internally. -/
-theorem window_fits (state : IterationState) (modulus shift : Nat)
+lemma window_fits (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (sign iteration : Bool) :
@@ -69,7 +69,7 @@ theorem window_fits (state : IterationState) (modulus shift : Nat)
   omega
 
 /-- The enlarged Work1 window is the old coefficient, even with a nonzero remainder. -/
-theorem sourceWord_value (state : IterationState) (modulus shift : Nat)
+lemma sourceWord_value (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (sign iteration : Bool) :
@@ -88,7 +88,7 @@ theorem sourceWord_value (state : IterationState) (modulus shift : Nat)
   exact DeshiftSourceWindow.read_completed state modulus shift valid conserved active within
 
 /-- The actual enlarged Work2 window contains the entire aligned integer coefficient. -/
-theorem targetWord_value (state : IterationState) (modulus shift : Nat)
+lemma targetWord_value (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (sign iteration : Bool) :
@@ -107,7 +107,7 @@ theorem targetWord_value (state : IterationState) (modulus shift : Nat)
   exact DeshiftWindow.read_completed state modulus shift valid conserved active within
 
 /-- Native comparison implements the full source inequality and retains every other frame bit. -/
-theorem native_frame (state : IterationState) (modulus shift : Nat)
+lemma native_frame (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (sign iteration : Bool) :

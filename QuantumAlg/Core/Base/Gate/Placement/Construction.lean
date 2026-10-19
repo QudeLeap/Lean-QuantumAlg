@@ -39,7 +39,7 @@ public def ofPositions (model : GateModel) (token : model.Token)
   embedding := { position := position, wire_eq := fun _ => rfl }
 
 /-- The placement constructor retains the exact declared instance. -/
-public theorem gateApplication_ofPositions_instance
+public lemma gateApplication_ofPositions_instance
     (model : GateModel) (token : model.Token)
     {count : Nat} (layout : QuantumLayout count)
     (position : Fin (model.signature token).systemCount ↪ Fin count)
@@ -48,7 +48,7 @@ public theorem gateApplication_ofPositions_instance
     (ofPositions model token layout position dimensions).occurrence.token = token := rfl
 
 /-- The original instance fixes the emitted coordinate after actual placement. -/
-public theorem gateApplication_ofPositions_coordinate
+public lemma gateApplication_ofPositions_coordinate
     (model : GateModel) (token : model.Token)
     {count : Nat} (layout : QuantumLayout count)
     (position : Fin (model.signature token).systemCount ↪ Fin count)

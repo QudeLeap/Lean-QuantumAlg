@@ -93,18 +93,18 @@ def eval {width : Nat} (input : Input width) : Output width where
     BoundedSigned.ofInt (coefficientWidth width)
       (Nat.gcdB input.left.val input.right.val)
 
-@[simp] theorem xgcdEval_gcd_val {width : Nat} (input : Input width) :
+@[simp] lemma xgcdEval_gcd_val {width : Nat} (input : Input width) :
     (eval input).gcd.val = Nat.gcd input.left.val input.right.val :=
   rfl
 
-@[simp] theorem xgcdEval_leftCoefficient_toInt {width : Nat}
+@[simp] lemma xgcdEval_leftCoefficient_toInt {width : Nat}
     (input : Input width) :
     (eval input).leftCoefficient.toInt =
       Nat.gcdA input.left.val input.right.val := by
   simpa [eval] using
     gcdA_toInt_ofInt_coefficientWidth input.left input.right
 
-@[simp] theorem xgcdEval_rightCoefficient_toInt {width : Nat}
+@[simp] lemma xgcdEval_rightCoefficient_toInt {width : Nat}
     (input : Input width) :
     (eval input).rightCoefficient.toInt =
       Nat.gcdB input.left.val input.right.val := by
@@ -113,7 +113,7 @@ def eval {width : Nat} (input : Input width) : Output width where
 
 /-- The deterministic implementation satisfies the normalization-independent
 public relation. -/
-theorem xgcdEval_accepts {width : Nat} (input : Input width) :
+lemma xgcdEval_accepts {width : Nat} (input : Input width) :
     accepts input (eval input) := by
   constructor
   · rfl
@@ -201,19 +201,19 @@ def coefficientMagnitude (state : State) : Nat :=
     (max state.secondLeftCoefficient.natAbs
       state.secondRightCoefficient.natAbs)
 
-theorem firstLeftCoefficient_natAbs_le_coefficientMagnitude (state : State) :
+lemma firstLeftCoefficient_natAbs_le_coefficientMagnitude (state : State) :
     state.firstLeftCoefficient.natAbs ≤ state.coefficientMagnitude :=
   (Nat.le_max_left _ _).trans (Nat.le_max_left _ _)
 
-theorem firstRightCoefficient_natAbs_le_coefficientMagnitude (state : State) :
+lemma firstRightCoefficient_natAbs_le_coefficientMagnitude (state : State) :
     state.firstRightCoefficient.natAbs ≤ state.coefficientMagnitude :=
   (Nat.le_max_right _ _).trans (Nat.le_max_left _ _)
 
-theorem secondLeftCoefficient_natAbs_le_coefficientMagnitude (state : State) :
+lemma secondLeftCoefficient_natAbs_le_coefficientMagnitude (state : State) :
     state.secondLeftCoefficient.natAbs ≤ state.coefficientMagnitude :=
   (Nat.le_max_left _ _).trans (Nat.le_max_right _ _)
 
-theorem secondRightCoefficient_natAbs_le_coefficientMagnitude (state : State) :
+lemma secondRightCoefficient_natAbs_le_coefficientMagnitude (state : State) :
     state.secondRightCoefficient.natAbs ≤ state.coefficientMagnitude :=
   (Nat.le_max_right _ _).trans (Nat.le_max_right _ _)
 
@@ -248,12 +248,12 @@ def path : Nat → State → List State
 def activeStepCount (fuel : Nat) (state : State) : Nat :=
   (path fuel state).length
 
-@[simp] theorem xgcdStep_toEuclid (state : State) :
+@[simp] lemma xgcdStep_toEuclid (state : State) :
     (step state).toEuclid = Euclid.step state.toEuclid :=
   rfl
 
 /-- Forgetting coefficients commutes with the entire fuelled run. -/
-theorem xgcdRun_toEuclid (fuel : Nat) (state : State) :
+lemma xgcdRun_toEuclid (fuel : Nat) (state : State) :
     (run fuel state).toEuclid = Euclid.run fuel state.toEuclid := by
   induction fuel generalizing state with
   | zero => rfl
@@ -269,7 +269,7 @@ theorem xgcdRun_toEuclid (fuel : Nat) (state : State) :
         rw [inductionHypothesis (step state), xgcdStep_toEuclid]
 
 /-- Forgetting coefficients maps the actual XGCD path to the GCD path. -/
-theorem xgcdPath_toEuclid (fuel : Nat) (state : State) :
+lemma xgcdPath_toEuclid (fuel : Nat) (state : State) :
     (path fuel state).map State.toEuclid =
       Euclid.path fuel state.toEuclid := by
   induction fuel generalizing state with
@@ -289,14 +289,14 @@ theorem xgcdPath_toEuclid (fuel : Nat) (state : State) :
         rw [inductionHypothesis (step state), xgcdStep_toEuclid]
 
 /-- The extended path and its underlying Euclidean path have equal length. -/
-theorem xgcdPath_length_eq_euclidPath_length (fuel : Nat) (state : State) :
+lemma xgcdPath_length_eq_euclidPath_length (fuel : Nat) (state : State) :
     (path fuel state).length =
       (Euclid.path fuel state.toEuclid).length := by
   have mapped := congrArg List.length (xgcdPath_toEuclid fuel state)
   simpa using mapped
 
 /-- Every recorded extended state is an actual active pre-state. -/
-theorem xgcdPath_mem_active {fuel : Nat} {state visited : State}
+lemma xgcdPath_mem_active {fuel : Nat} {state visited : State}
     (membership : visited ∈ path fuel state) : visited.active := by
   induction fuel generalizing state with
   | zero => simp [path] at membership
@@ -310,22 +310,22 @@ theorem xgcdPath_mem_active {fuel : Nat} {state visited : State}
         · exact inductionHypothesis later
 
 /-- An extended path cannot exceed its supplied fuel. -/
-theorem xgcdPath_length_le_fuel (fuel : Nat) (state : State) :
+lemma xgcdPath_length_le_fuel (fuel : Nat) (state : State) :
     (path fuel state).length ≤ fuel := by
   rw [xgcdPath_length_eq_euclidPath_length]
   exact Euclid.euclidPath_length_le_fuel fuel state.toEuclid
 
-@[simp] theorem xgcdActiveStepCount_eq_path_length
+@[simp] lemma xgcdActiveStepCount_eq_path_length
     (fuel : Nat) (state : State) :
     activeStepCount fuel state = (path fuel state).length :=
   rfl
 
-theorem xgcdActiveStepCount_le_fuel (fuel : Nat) (state : State) :
+lemma xgcdActiveStepCount_le_fuel (fuel : Nat) (state : State) :
     activeStepCount fuel state ≤ fuel :=
   xgcdPath_length_le_fuel fuel state
 
 /-- A sufficient Euclidean budget also terminates the extended run. -/
-theorem xgcdRun_first_eq_zero_of_first_lt (fuel : Nat) (state : State)
+lemma xgcdRun_first_eq_zero_of_first_lt (fuel : Nat) (state : State)
     (firstRange : state.first < fuel) :
     (run fuel state).first = 0 := by
   exact
@@ -334,7 +334,7 @@ theorem xgcdRun_first_eq_zero_of_first_lt (fuel : Nat) (state : State)
         fuel state.toEuclid firstRange)
 
 /-- A sufficient run carries the GCD in its second remainder. -/
-theorem xgcdRun_result_eq_gcd_of_first_lt (fuel : Nat) (state : State)
+lemma xgcdRun_result_eq_gcd_of_first_lt (fuel : Nat) (state : State)
     (firstRange : state.first < fuel) :
     (run fuel state).resultGCD = Nat.gcd state.first state.second := by
   calc
@@ -347,7 +347,7 @@ theorem xgcdRun_result_eq_gcd_of_first_lt (fuel : Nat) (state : State)
     _ = Nat.gcd state.first state.second := rfl
 
 /-- One extended step preserves both linear-combination equations. -/
-theorem xgcdStep_represents {state : State} {left right : Nat}
+lemma xgcdStep_represents {state : State} {left right : Nat}
     (representation : state.represents left right) :
     (step state).represents left right := by
   rcases representation with ⟨firstEquation, secondEquation⟩
@@ -386,7 +386,7 @@ theorem xgcdStep_represents {state : State} {left right : Nat}
   · exact firstEquation
 
 /-- Every fuelled run preserves both linear-combination equations. -/
-theorem xgcdRun_represents (fuel : Nat) {state : State} {left right : Nat}
+lemma xgcdRun_represents (fuel : Nat) {state : State} {left right : Nat}
     (representation : state.represents left right) :
     (run fuel state).represents left right := by
   induction fuel generalizing state with
@@ -399,7 +399,7 @@ theorem xgcdRun_represents (fuel : Nat) {state : State} {left right : Nat}
 
 /-- A fuelled run that reached zero returns exactly the tuple selected by
 Mathlib's extended-Euclidean recurrence from the same starting state. -/
-theorem xgcdRun_resultTriple_eq_xgcdAux (fuel : Nat) (state : State)
+lemma xgcdRun_resultTriple_eq_xgcdAux (fuel : Nat) (state : State)
     (finished : (run fuel state).first = 0) :
     (run fuel state).resultTriple =
       Nat.xgcdAux state.first state.firstLeftCoefficient
@@ -473,7 +473,7 @@ This list is used only to define a workspace bound.  The resource trace remains
 def executionStates {width : Nat} (input : Input width) : List State :=
   trace input ++ [finalState input]
 
-theorem xgcdInitialState_represents {width : Nat} (input : Input width) :
+lemma xgcdInitialState_represents {width : Nat} (input : Input width) :
     (initialState input).represents input.left.val input.right.val := by
   change
     (input.left.val : Int) =
@@ -482,13 +482,13 @@ theorem xgcdInitialState_represents {width : Nat} (input : Input width) :
         (input.left.val : Int) * 0 + (input.right.val : Int) * 1
   constructor <;> ring
 
-theorem xgcdInitialState_first_lt_pow {width : Nat}
+lemma xgcdInitialState_first_lt_pow {width : Nat}
     (input : Input width) :
     (initialState input).first < 2 ^ width := by
   exact input.left.isLt
 
 /-- The linear Euclidean budget also terminates the extended recurrence. -/
-theorem xgcdRun_first_eq_zero_of_first_lt_pow (width : Nat) (state : State)
+lemma xgcdRun_first_eq_zero_of_first_lt_pow (width : Nat) (state : State)
     (firstRange : state.first < 2 ^ width) :
     (run (Euclid.gcdFuel width) state).first = 0 := by
   exact
@@ -498,14 +498,14 @@ theorem xgcdRun_first_eq_zero_of_first_lt_pow (width : Nat) (state : State)
         width state.toEuclid firstRange)
 
 /-- The width-derived budget always reaches a finished XGCD state. -/
-theorem xgcdFinalState_first_eq_zero {width : Nat} (input : Input width) :
+lemma xgcdFinalState_first_eq_zero {width : Nat} (input : Input width) :
     (finalState input).first = 0 := by
   exact xgcdRun_first_eq_zero_of_first_lt_pow width (initialState input)
     (xgcdInitialState_first_lt_pow input)
 
 /-- The finished executable recurrence selects exactly Mathlib's deterministic
 GCD and coefficient tuple. -/
-theorem xgcdFinalState_resultTriple_eq_selected {width : Nat}
+lemma xgcdFinalState_resultTriple_eq_selected {width : Nat}
     (input : Input width) :
     (finalState input).resultTriple =
       (Nat.gcd input.left.val input.right.val,
@@ -528,14 +528,14 @@ theorem xgcdFinalState_resultTriple_eq_selected {width : Nat}
             Nat.gcdB input.left.val input.right.val)) := by
       rw [Nat.xgcd_val]
 
-@[simp] theorem xgcdFinalState_resultLeftCoefficient_eq_gcdA {width : Nat}
+@[simp] lemma xgcdFinalState_resultLeftCoefficient_eq_gcdA {width : Nat}
     (input : Input width) :
     (finalState input).resultLeftCoefficient =
       Nat.gcdA input.left.val input.right.val := by
   exact congrArg (fun result : Nat × Int × Int => result.2.1)
     (xgcdFinalState_resultTriple_eq_selected input)
 
-@[simp] theorem xgcdFinalState_resultRightCoefficient_eq_gcdB {width : Nat}
+@[simp] lemma xgcdFinalState_resultRightCoefficient_eq_gcdB {width : Nat}
     (input : Input width) :
     (finalState input).resultRightCoefficient =
       Nat.gcdB input.left.val input.right.val := by
@@ -543,7 +543,7 @@ theorem xgcdFinalState_resultTriple_eq_selected {width : Nat}
     (xgcdFinalState_resultTriple_eq_selected input)
 
 /-- The finished extended state carries the same GCD as `eval`. -/
-theorem xgcdFinalState_resultGCD_eq_eval {width : Nat}
+lemma xgcdFinalState_resultGCD_eq_eval {width : Nat}
     (input : Input width) :
     (finalState input).resultGCD = (eval input).gcd.val := by
   have finished := xgcdFinalState_first_eq_zero input
@@ -572,13 +572,13 @@ theorem xgcdFinalState_resultGCD_eq_eval {width : Nat}
       simp [eval]
 
 /-- The final state's coefficients remain a genuine Bezout representation. -/
-theorem xgcdFinalState_represents {width : Nat} (input : Input width) :
+lemma xgcdFinalState_represents {width : Nat} (input : Input width) :
     (finalState input).represents input.left.val input.right.val := by
   exact xgcdRun_represents (Euclid.gcdFuel width)
     (xgcdInitialState_represents input)
 
 /-- The actual extended recurrence finishes with a valid Bezout equation. -/
-theorem xgcdFinalState_bezout {width : Nat} (input : Input width) :
+lemma xgcdFinalState_bezout {width : Nat} (input : Input width) :
     (Nat.gcd input.left.val input.right.val : Int) =
       (input.left.val : Int) *
           (finalState input).resultLeftCoefficient +
@@ -601,23 +601,23 @@ theorem xgcdFinalState_bezout {width : Nat} (input : Input width) :
             (finalState input).resultRightCoefficient :=
       representation
 
-@[simp] theorem xgcdTraceStepCount_eq_trace_length {width : Nat}
+@[simp] lemma xgcdTraceStepCount_eq_trace_length {width : Nat}
     (input : Input width) :
     traceStepCount input = (trace input).length :=
   rfl
 
 /-- Every trace entry is an active state, with no finished padding. -/
-theorem xgcdTrace_mem_active {width : Nat} (input : Input width)
+lemma xgcdTrace_mem_active {width : Nat} (input : Input width)
     {state : State} (membership : state ∈ trace input) : state.active := by
   exact xgcdPath_mem_active membership
 
 /-- The actual XGCD trace has the linear width-derived length bound. -/
-theorem xgcdTrace_length_le_gcdFuel {width : Nat} (input : Input width) :
+lemma xgcdTrace_length_le_gcdFuel {width : Nat} (input : Input width) :
     (trace input).length ≤ Euclid.gcdFuel width := by
   exact xgcdPath_length_le_fuel
     (Euclid.gcdFuel width) (initialState input)
 
-theorem xgcdTraceStepCount_le_gcdFuel {width : Nat}
+lemma xgcdTraceStepCount_le_gcdFuel {width : Nat}
     (input : Input width) :
     traceStepCount input ≤ Euclid.gcdFuel width :=
   xgcdTrace_length_le_gcdFuel input
@@ -626,7 +626,7 @@ theorem xgcdTraceStepCount_le_gcdFuel {width : Nat}
 def stateListCoefficientMagnitude (states : List State) : Nat :=
   (states.map State.coefficientMagnitude).foldr max 0
 
-theorem coefficientMagnitude_le_stateListCoefficientMagnitude
+lemma coefficientMagnitude_le_stateListCoefficientMagnitude
     {states : List State} {state : State} (membership : state ∈ states) :
     state.coefficientMagnitude ≤ stateListCoefficientMagnitude states := by
   apply List.le_max_of_le
@@ -650,18 +650,18 @@ def executionCoefficientWidth (width : Nat) : Nat :=
 /-- The execution workspace is never narrower than the public coefficient
 encoding, so final two's-complement words can be narrowed without sign
 extension. -/
-theorem coefficientWidth_le_executionCoefficientWidth (width : Nat) :
+lemma coefficientWidth_le_executionCoefficientWidth (width : Nat) :
     coefficientWidth width ≤ executionCoefficientWidth width := by
   exact Nat.le_max_left _ _
 
-theorem executionCoefficientWidth_pos (width : Nat) :
+lemma executionCoefficientWidth_pos (width : Nat) :
     0 < executionCoefficientWidth width := by
   exact (coefficientWidth_pos width).trans_le
     (coefficientWidth_le_executionCoefficientWidth width)
 
 /-- Every coefficient in every visited or final state is below the uniform
 width-derived execution bound. -/
-theorem xgcdExecutionState_coefficientMagnitude_le_bound {width : Nat}
+lemma xgcdExecutionState_coefficientMagnitude_le_bound {width : Nat}
     (input : Input width) {state : State}
     (membership : state ∈ executionStates input) :
     state.coefficientMagnitude ≤ executionCoefficientBound width := by
@@ -683,13 +683,13 @@ theorem xgcdExecutionState_coefficientMagnitude_le_bound {width : Nat}
       (Finset.mem_univ (left, right))
   exact localBound.trans inputBound
 
-theorem xgcdTrace_coefficientMagnitude_le_bound {width : Nat}
+lemma xgcdTrace_coefficientMagnitude_le_bound {width : Nat}
     (input : Input width) {state : State} (membership : state ∈ trace input) :
     state.coefficientMagnitude ≤ executionCoefficientBound width := by
   apply xgcdExecutionState_coefficientMagnitude_le_bound input
   simp [executionStates, membership]
 
-theorem xgcdFinalState_coefficientMagnitude_le_bound {width : Nat}
+lemma xgcdFinalState_coefficientMagnitude_le_bound {width : Nat}
     (input : Input width) :
     (finalState input).coefficientMagnitude ≤
       executionCoefficientBound width := by
@@ -698,7 +698,7 @@ theorem xgcdFinalState_coefficientMagnitude_le_bound {width : Nat}
 
 /-- The execution coefficient bound fits strictly inside the positive capacity
 of the public execution workspace width. -/
-theorem executionCoefficientBound_lt_signedCapacity (width : Nat) :
+lemma executionCoefficientBound_lt_signedCapacity (width : Nat) :
     executionCoefficientBound width <
       2 ^ (executionCoefficientWidth width - 1) := by
   have bound_lt_size :
@@ -725,7 +725,7 @@ theorem executionCoefficientBound_lt_signedCapacity (width : Nat) :
 
 /-- Any integer below the execution bound lies in the corresponding signed
 workspace range. -/
-theorem int_in_executionCoefficientRange_of_natAbs_le {width : Nat}
+lemma int_in_executionCoefficientRange_of_natAbs_le {width : Nat}
     {value : Int}
     (magnitude : value.natAbs ≤ executionCoefficientBound width) :
     signedRepresentable (executionCoefficientWidth width) value := by
@@ -768,7 +768,7 @@ theorem int_in_executionCoefficientRange_of_natAbs_le {width : Nat}
 
 /-- Every coefficient in a visited or final state fits the uniform signed
 workspace width. -/
-theorem xgcdExecutionState_coefficients_representable {width : Nat}
+lemma xgcdExecutionState_coefficients_representable {width : Nat}
     (input : Input width) {state : State}
     (membership : state ∈ executionStates input) :
     signedRepresentable (executionCoefficientWidth width)

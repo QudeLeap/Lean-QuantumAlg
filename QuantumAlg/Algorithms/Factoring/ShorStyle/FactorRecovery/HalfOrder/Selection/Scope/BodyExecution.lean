@@ -24,21 +24,23 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem one_execute (Reference : Register) {History : Type} [Fintype History]
+private lemma one_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (ConstantWord.circuit (model := model) (oneRef ctx N) 1).execute Reference state =
+    (ConstantWord.circuit (model := model) (oneRef ctx N) 1).execute environment Reference state =
       state.mapClassical (fun entry => ((oneStep (model := model) entry.1).1, (entry.2.1,
           (entry.2.2, (oneStep (model := model) entry.1).2)))) := by
   refine (ConstantWord.constantWord_fold_execute (model := model) (oneRef ctx N)
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) 1)) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem modulus_execute (Reference : Register) {History : Type} [Fintype History]
+private lemma modulus_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (ConstantWord.circuit (model := model) (modulusRef ctx N) N).execute Reference state =
+    (ConstantWord.circuit (model := model) (modulusRef ctx N) N).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((modulusStep (model := model) entry.1).1, (entry.2.1, (entry.2.2, (modulusStep (model :=
             model) entry.1).2)))) := by
@@ -46,15 +48,14 @@ private theorem modulus_execute (Reference : Register) {History : Type} [Fintype
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem modulusTail_execute
+private lemma modulusTail_execute
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
     (Circuit.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N)
         (NativeHalfFactor.code (model := model) (liftInput halfPower) (cells ctx N) (liftWrite
-            output))).execute
-        Reference state =
+            output))).execute environment Reference state =
       state.mapClassical (fun entry => ((modulusTailStep (model := model) halfPower output
           entry.1).1,
         (entry.2.1, (entry.2.2, (modulusTailStep (model := model) halfPower output entry.1).2))))
@@ -65,11 +66,11 @@ private theorem modulusTail_execute
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual initialized body executes its exact physical store and complete path on CQ blocks. -/
-theorem body_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma body_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) halfPower output).execute Reference state =
+    (body (model := model) halfPower output).execute environment Reference state =
       state.mapClassical (fun entry => ((bodyStep (model := model) halfPower output entry.1).1,
         (entry.2.1, (entry.2.2, (bodyStep (model := model) halfPower output entry.1).2)))) := by
   unfold body

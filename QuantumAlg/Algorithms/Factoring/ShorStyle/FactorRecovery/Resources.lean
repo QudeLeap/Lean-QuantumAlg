@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx mod
   {N : Nat}
 
 /-- The actual two reduction stages fit their independently specified event coordinates. -/
-theorem reduce_pool_le (source : Input N) (cells : Cells ctx N)
+lemma reduce_pool_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (reduce (model := model) source cells output).Path) :
     (reduce (model := model) source cells output).resourcePool path ≤ reduceEnvelope model N := by
@@ -45,7 +45,7 @@ theorem reduce_pool_le (source : Input N) (cells : Cells ctx N)
     (NativeHalfFactorScope.code_pool_le (halfRead cells) output path.2)
 
 /-- All five runtime guard operations are genuine native event occurrences. -/
-theorem guardOrder_pool (cells : Cells ctx N) (path : (guardOrder (model := model) cells).Path) :
+lemma guardOrder_pool (cells : Cells ctx N) (path : (guardOrder (model := model) cells).Path) :
     (guardOrder (model := model) cells).resourcePool path = ResourcePool.ofList (guardEvents model
         N) := by
   unfold Circuit.resourcePool
@@ -60,7 +60,7 @@ theorem guardOrder_pool (cells : Cells ctx N) (path : (guardOrder (model := mode
   simp only [BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem checkedBranch_pool_le (source : Input N) (cells : Cells ctx N)
+private lemma checkedBranch_pool_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (Circuit.branch (activeRead cells)
       (fun value => if value.toBool then reduce (model := model) source cells output
@@ -83,7 +83,7 @@ private theorem checkedBranch_pool_le (source : Input N) (cells : Cells ctx N)
       · exact (reduce_pool_le source cells output path).trans (ResourcePool.le_max_right _ _)
 
 /-- Actual order rejection still consumes its output pack after the complete runtime guard. -/
-theorem checkedOrder_pool_le (source : Input N) (cells : Cells ctx N)
+lemma checkedOrder_pool_le (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (checkedOrder (model := model) source cells output).Path) :
     (checkedOrder (model := model) source cells output).resourcePool path ≤ checkedEnvelope model
@@ -98,7 +98,7 @@ theorem checkedOrder_pool_le (source : Input N) (cells : Cells ctx N)
     (checkedBranch_pool_le source cells output path.2)
 
 /-- The real early-factor branch and the full order route fit the independent dispatch maximum. -/
-theorem dispatch_pool_le (source : Input N)
+lemma dispatch_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (dispatch (model := model) source parameter cells output).Path) :
@@ -119,7 +119,7 @@ theorem dispatch_pool_le (source : Input N)
         exact ResourcePool.le_max_left _ _
 
 /-- The stored base and measured word enter the complete real native order-recovery program. -/
-theorem recovered_pool_le (source : Input N)
+lemma recovered_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -141,7 +141,7 @@ theorem recovered_pool_le (source : Input N)
       (add_le_add le_rfl (dispatch_pool_le source parameter cells output path.2.2.2)))
 
 /-- The known even exception counts actual flag writes, the literal load and the option pack. -/
-theorem evenModulus_pool_le (cells : Cells ctx N)
+lemma evenModulus_pool_le (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (evenModulus (model := model) cells output).Path) :
     (evenModulus (model := model) cells output).resourcePool path ≤ evenEnvelope model N := by
@@ -158,7 +158,7 @@ theorem evenModulus_pool_le (cells : Cells ctx N)
     (add_le_add (ConstantWord.constantWord_pool_le cells.halfPower 2 path.2.2.1) le_rfl))
 
 /-- Every complete actual factor-tail path fits the independently selected native event budget. -/
-theorem code_pool_le (source : Input N)
+lemma code_pool_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

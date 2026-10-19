@@ -34,7 +34,7 @@ noncomputable section
 open ArithmeticWindowRegisters ArithmeticWindowLaws RemainderReassembly RemainderPhaseFrame
 open NumberTheory.SharedEEA
 
-private theorem frame_divisor_nonzero (state : IterationState) (modulus count : Nat)
+private lemma frame_divisor_nonzero (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -46,7 +46,7 @@ private theorem frame_divisor_nonzero (state : IterationState) (modulus count : 
   have positive := Nat.size_pos.mpr active
   omega
 
-private theorem scaled_threshold (state : IterationState) (count : Nat)
+private lemma scaled_threshold (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     state.divisor * 2 ^ DivisionWindow.shift state count =
@@ -54,7 +54,7 @@ private theorem scaled_threshold (state : IterationState) (count : Nat)
   (Nat.mul_comm _ _).trans (DivisionThreshold.threshold_eq state count active beforeEnd).symm
 
 /-- The existing native block computes the exact next full remainder on every reachable frame. -/
-theorem native_remainder (state : IterationState) (modulus count : Nat)
+lemma native_remainder (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -84,7 +84,7 @@ theorem native_remainder (state : IterationState) (modulus count : Nat)
   exact actual.trans (SignedDivisionPhase.next_remainder state count).symm
 
 /-- The actual Sign is precisely the quotient bit required by the next pure division state. -/
-theorem native_digit (state : IterationState) (modulus count : Nat)
+lemma native_digit (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -112,7 +112,7 @@ theorem native_digit (state : IterationState) (modulus count : Nat)
     (ArithmeticBlocks.remainderStep_eq_source modulus.size original rfl)).trans actual
 
 /-- Reachable next capacity bounds the actual output after subtraction, without narrowing input. -/
-theorem native_next_fits (state : IterationState) (modulus count : Nat)
+lemma native_next_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -126,7 +126,7 @@ theorem native_next_fits (state : IterationState) (modulus count : Nat)
     valid conserved active (by omega)
 
 /-- The actual complementary coordinates remain jointly unchanged at every reachable position. -/
-theorem native_complement (state : IterationState) (modulus count : Nat)
+lemma native_complement (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

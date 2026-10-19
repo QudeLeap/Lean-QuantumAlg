@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Multiplication.VariableGidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- The independent complete output of an increasing-bit prefix. -/
@@ -40,14 +42,14 @@ def prefixProgram (width : Nat) (modulus : Fin (2 ^ width + 1)) :
       (stageProgram width modulus ⟨index, by omega⟩)
 
 /-- Every actual prefix realizes the exact three-word action on all basis labels. -/
-theorem variableGidney_prefix_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_prefix_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (count : Nat) (within : count ≤ width) :
-    UnitaryCircuit.Realizes (encoding width) (prefixProgram width modulus count within)
+    UnitaryCircuit.Realizes (encoding width) (prefixProgram width modulus count within) environment
       (prefixOutput modulus count) := by
   induction count with
   | zero =>
       apply (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
-        (encoding width) (QubitLayout.canonical (encoding width).width)).congrStep
+        (encoding width) (QubitLayout.canonical (encoding width).width) environment).congrStep
       rintro ⟨first, second, target⟩
       rfl
   | succ index inductionHypothesis =>
@@ -71,19 +73,19 @@ def program (width : Nat) (modulus : Fin (2 ^ width + 1)) :
   prefixProgram width modulus width (Nat.le_refl width)
 
 /-- Exact all-label coherent correctness of the actual complete three-word program. -/
-theorem variableGidney_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (encoding width) (program width modulus)
+lemma variableGidney_realizes (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+    UnitaryCircuit.Realizes (encoding width) (program width modulus) environment
       (prefixOutput modulus width) :=
   variableGidney_prefix_realizes width modulus width (Nat.le_refl width)
 
 /-- Every original quantum wire is retained, with exactly three input-sized words. -/
-theorem variableGidney_interface (width : Nat) :
+lemma variableGidney_interface (width : Nat) :
     (encoding width).width = 3 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (3 * width) :=
   variableGidney_stage_interface width
 
 /-- Canonical accumulators receive the exact product while both quantum inputs are preserved. -/
-theorem variableGidney_valid (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_valid (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Registers width) (valid : state.2.2.val < modulus.val) :
     (prefixOutput modulus width state).1 = state.1 ∧
       (prefixOutput modulus width state).2.1 = state.2.1 ∧

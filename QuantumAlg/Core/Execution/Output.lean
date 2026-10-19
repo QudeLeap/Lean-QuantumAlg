@@ -30,32 +30,41 @@ public inductive OutputRead {kind : ProblemKind} (post : RuntimeCtx kind) : CSha
   | unit : OutputRead post .unit
   /-- Read an existing typed structural reference. -/
   | read {shape : CShape} (input : CInputRef post shape) : OutputRead post shape
+  /-- Pair two actual observations, including a payload-free observation on either side. -/
+  | product {left right : CShape} (first : OutputRead post left)
+      (second : OutputRead post right) : OutputRead post (.product left right)
 
 namespace OutputRead
 
 variable {kind : ProblemKind} {post : RuntimeCtx kind} {shape : CShape}
 
 /-- Obtain the result from the final store without transforming that store. -/
-@[expose] public def eval (output : OutputRead post shape)
-    (store : Execution.Store post) : shape.Value :=
-  match output with
-  | .unit => .unit
-  | .read input => store.read input
+@[expose] public def eval : {shape : CShape} → OutputRead post shape →
+    Execution.Store post → shape.Value
+  | _, .unit, _ => .unit
+  | _, .read input, store => store.read input
+  | _, .product first second, store => .product (first.eval store) (second.eval store)
 
 /-- The unit observation returns the unique payload-free value. -/
-@[simp] theorem eval_unit (store : Execution.Store post) :
+@[simp] lemma eval_unit (store : Execution.Store post) :
     (OutputRead.unit : OutputRead post .unit).eval store = .unit := rfl
 
 /-- A non-unit observation delegates directly to the existing typed store read. -/
-@[simp] theorem eval_read (input : CInputRef post shape) (store : Execution.Store post) :
+@[simp] lemma eval_read (input : CInputRef post shape) (store : Execution.Store post) :
     (OutputRead.read input).eval store = store.read input := rfl
 
 /-- The output observes exactly the value written to its underlying cell. -/
-theorem eval_read_write_same (store : Execution.Store post)
+lemma eval_read_write_same (store : Execution.Store post)
     (written : CWriteRef post shape) (value : shape.Value) :
     (OutputRead.read (.storage written.toCStorageRef)).eval
       (store.write written value) = value :=
   Execution.Store.read_write_same store written value
+
+/-- Pairing output observations reads the same final store and allocates no payload. -/
+@[simp] public lemma eval_product {left right : CShape}
+    (first : OutputRead post left) (second : OutputRead post right)
+    (store : Execution.Store post) :
+    (first.product second).eval store = .product (first.eval store) (second.eval store) := rfl
 
 end OutputRead
 
@@ -80,7 +89,7 @@ variable {kind : ProblemKind} {post : RuntimeCtx kind} {shape : CShape}
   result := result
 
 /-- The context-order manifest retains every original live key. -/
-@[simp] theorem all_listing (post : RuntimeCtx kind) (result : OutputRead post shape) :
+@[simp] lemma all_listing (post : RuntimeCtx kind) (result : OutputRead post shape) :
     (all post result).listing = post.keys := rfl
 
 /-- Obtain the shaped result through the manifest's actual store observation. -/
@@ -89,32 +98,32 @@ variable {kind : ProblemKind} {post : RuntimeCtx kind} {shape : CShape}
   output.result.eval store
 
 /-- The canonical complete manifest uses exactly its supplied structural readout. -/
-@[simp] theorem all_eval (post : RuntimeCtx kind) (result : OutputRead post shape)
+@[simp] lemma all_eval (post : RuntimeCtx kind) (result : OutputRead post shape)
     (store : Execution.Store post) :
     (all post result).eval store = result.eval store := rfl
 
 /-- A complete output cannot list the same live resource twice. -/
-theorem listing_nodup (output : Output post shape) : output.listing.Nodup :=
+lemma listing_nodup (output : Output post shape) : output.listing.Nodup :=
   output.complete.symm.nodup post.keysNodup
 
 /-- A key is listed precisely when it is live in the output context. -/
-theorem mem_listing_iff (output : Output post shape) (key : StorageKey) :
+lemma mem_listing_iff (output : Output post shape) (key : StorageKey) :
     key ∈ output.listing ↔ key ∈ post.keys :=
   output.complete.mem_iff
 
 /-- Every actual entry, including borrowed storage and complete layout banks, is listed. -/
-theorem entry_key_mem_listing (output : Output post shape) (entry : RuntimeEntry kind)
+lemma entry_key_mem_listing (output : Output post shape) (entry : RuntimeEntry kind)
     (live : entry ∈ post.entries) : entry.key ∈ output.listing :=
   (output.mem_listing_iff entry.key).mpr (List.mem_map_of_mem live)
 
 /-- Every listed key names an actual live entry; a manifest cannot invent storage. -/
-theorem exists_entry_of_mem_listing (output : Output post shape) (key : StorageKey)
+lemma exists_entry_of_mem_listing (output : Output post shape) (key : StorageKey)
     (listed : key ∈ output.listing) :
     ∃ entry ∈ post.entries, entry.key = key :=
   List.mem_map.mp ((output.mem_listing_iff key).mp listed)
 
 /-- The complete manifest contains exactly as many keys as there are live entries. -/
-theorem listing_length (output : Output post shape) :
+lemma listing_length (output : Output post shape) :
     output.listing.length = post.entries.length := by
   simpa only [RuntimeCtx.keys, List.length_map] using output.complete.length_eq
 

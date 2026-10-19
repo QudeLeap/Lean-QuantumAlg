@@ -39,7 +39,7 @@ variable (queryCost : ∀ {count : Nat} {layout : QuantumLayout count}
 
 include nativeCost queryCost
 
-private theorem realizeSequence_eventCost {count : Nat} {layout : QuantumLayout count}
+private lemma realizeSequence_eventCost {count : Nat} {layout : QuantumLayout count}
     (sequence : UnitarySequence sourceGates sourceOracles layout) :
     (realizeSequence implementations sequence).circuit.eventCost =
       accounting sequence.eventCost := by
@@ -66,7 +66,7 @@ private theorem realizeSequence_eventCost {count : Nat} {layout : QuantumLayout 
       simpa only [realizeSequence, macroCall_eventCost, UnitarySequence.eventCost] using bodyIH
 
 /-- The substituted event pool belongs to the same actual refined circuit as its matrix. -/
-public theorem refine_eventCost {count : Nat} {layout : QuantumLayout count}
+public lemma refine_eventCost {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit sourceGates sourceOracles layout) :
     (circuit.refine implementations).eventCost = accounting circuit.eventCost :=
   realizeSequence_eventCost implementations accounting nativeCost queryCost circuit.sequence

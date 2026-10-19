@@ -28,6 +28,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {allowAllocation : Bool}
 
 /-- Lift a caller-store record through an execution model whose service state is unchanged. -/
 @[expose] public def preserveHiddenRecord {Path : Type}
@@ -38,7 +39,7 @@ variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
       ((result.1, hidden), result.2)
 
 /-- Record two actual component updates on their shared intermediate store and service state. -/
-@[expose] public def sequenceRecord (first second : Circuit model ctx ctx)
+@[expose] public def sequenceRecord (first second : Circuit model ctx ctx allowAllocation)
     (firstStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × first.Path)
     (secondStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × second.Path)
     (entry : Store ctx × model.HiddenState) :
@@ -48,7 +49,7 @@ variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
   (tail.1, (head.2, tail.2))
 
 /-- The actual sequential record returns the second component's real caller store. -/
-theorem sequenceRecord_store (first second : Circuit model ctx ctx)
+lemma sequenceRecord_store (first second : Circuit model ctx ctx allowAllocation)
     (firstStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × first.Path)
     (secondStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × second.Path)
     (entry : Store ctx × model.HiddenState) :
@@ -56,7 +57,7 @@ theorem sequenceRecord_store (first second : Circuit model ctx ctx)
       (secondStep (firstStep entry).1).1.1 := rfl
 
 /-- The second component receives the first component's actual next service state. -/
-theorem sequenceRecord_hiddenState (first second : Circuit model ctx ctx)
+lemma sequenceRecord_hiddenState (first second : Circuit model ctx ctx allowAllocation)
     (firstStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × first.Path)
     (secondStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × second.Path)
     (entry : Store ctx × model.HiddenState) :
@@ -64,25 +65,29 @@ theorem sequenceRecord_hiddenState (first second : Circuit model ctx ctx)
       (secondStep (firstStep entry).1).1.2 := rfl
 
 /-- Two proved component equations give the complete record of their existing real sequence. -/
-theorem execute_sequenceRecord (first second : Circuit model ctx ctx)
+lemma execute_sequenceRecord (first second : Circuit model ctx ctx allowAllocation)
+    (environment : model.Environment)
     (firstStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × first.Path)
     (secondStep : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × second.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      first.execute Reference state = state.mapClassical (fun entry =>
+      first.execute environment Reference state =
+      state.mapClassical (fun entry =>
         let result := firstStep (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      second.execute Reference state = state.mapClassical (fun entry =>
+      second.execute environment Reference state =
+      state.mapClassical (fun entry =>
         let result := secondStep (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq first second).execute Reference state = state.mapClassical (fun entry =>
+    (Circuit.seq first second).execute environment Reference state =
+      state.mapClassical (fun entry =>
       let result := sequenceRecord first second firstStep secondStep (entry.1, entry.2.1)
       (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  refine (execute_seq_mapClassical first second firstStep secondStep
+  refine (execute_seq_mapClassical (environment := environment) first second firstStep secondStep
     ?_ ?_ Reference state).trans ?_
   · intro reference history _ input
     exact (firstEquation reference input).trans
@@ -93,7 +98,7 @@ theorem execute_sequenceRecord (first second : Circuit model ctx ctx)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Record a sequence of deterministic caller-store updates that leave service state unchanged. -/
-@[expose] public def sequenceStoreRecord (first second : Circuit model ctx ctx)
+@[expose] public def sequenceStoreRecord (first second : Circuit model ctx ctx allowAllocation)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path) (store : Store ctx) :
     Store ctx × (Circuit.seq first second).Path :=
@@ -102,32 +107,36 @@ theorem execute_sequenceRecord (first second : Circuit model ctx ctx)
   (tail.1, (head.2, tail.2))
 
 /-- The final store of a store-only sequence is the second step on the first result. -/
-theorem sequenceStoreRecord_store (first second : Circuit model ctx ctx)
+lemma sequenceStoreRecord_store (first second : Circuit model ctx ctx allowAllocation)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path) (store : Store ctx) :
     (sequenceStoreRecord first second firstStep secondStep store).1 =
       (secondStep (firstStep store).1).1 := rfl
 
 /-- Two store-only component equations compose while retaining the persistent service state. -/
-theorem execute_sequenceStoreRecord (first second : Circuit model ctx ctx)
+lemma execute_sequenceStoreRecord (first second : Circuit model ctx ctx allowAllocation)
+    (environment : model.Environment)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      first.execute Reference state = state.mapClassical (fun entry =>
+      first.execute environment Reference state =
+      state.mapClassical (fun entry =>
         let result := firstStep entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      second.execute Reference state = state.mapClassical (fun entry =>
+      second.execute environment Reference state =
+      state.mapClassical (fun entry =>
         let result := secondStep entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq first second).execute Reference state = state.mapClassical (fun entry =>
+    (Circuit.seq first second).execute environment Reference state =
+      state.mapClassical (fun entry =>
       let result := sequenceStoreRecord first second firstStep secondStep entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (execute_sequenceRecord first second
+  refine (execute_sequenceRecord first second environment
     (preserveHiddenRecord (model := model) firstStep)
     (preserveHiddenRecord (model := model) secondStep) ?_ ?_ Reference state).trans ?_
   · intro reference history _ input
@@ -140,7 +149,7 @@ theorem execute_sequenceStoreRecord (first second : Circuit model ctx ctx)
 
 /-- Record the branch selected by the actual caller-store value. -/
 @[expose] public def branchStoreRecord {shape : CShape} (input : CInputRef ctx shape)
-    (body : shape.Value → Circuit model ctx ctx)
+    (body : shape.Value → Circuit model ctx ctx allowAllocation)
     (step : (value : shape.Value) → Store ctx → Store ctx × (body value).Path)
     (store : Store ctx) : Store ctx × (Circuit.branch input body).Path :=
   let selected := store.read input
@@ -148,21 +157,24 @@ theorem execute_sequenceStoreRecord (first second : Circuit model ctx ctx)
   (result.1, ⟨selected, result.2⟩)
 
 /-- Store-only branch equations retain the persistent service state. -/
-theorem execute_branchStoreRecord {shape : CShape} (input : CInputRef ctx shape)
-    (body : shape.Value → Circuit model ctx ctx)
+lemma execute_branchStoreRecord {shape : CShape} (input : CInputRef ctx shape)
+    (body : shape.Value → Circuit model ctx ctx allowAllocation)
+    (environment : model.Environment)
     (step : (value : shape.Value) → Store ctx → Store ctx × (body value).Path)
     (bodyEquation : ∀ (value : shape.Value) (Reference : Register)
       {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (body value).execute Reference state = state.mapClassical (fun entry =>
+      (body value).execute environment Reference state =
+      state.mapClassical (fun entry =>
         let result := step value entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.branch input body).execute Reference state = state.mapClassical (fun entry =>
+    (Circuit.branch input body).execute environment Reference state =
+      state.mapClassical (fun entry =>
       let result := branchStoreRecord input body step entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (execute_branch_mapClassical input body
+  refine (execute_branch_mapClassical (environment := environment) input body
     (fun value => preserveHiddenRecord (model := model) (step value)) ?_
     Reference state).trans ?_
   · intro value reference history _ current

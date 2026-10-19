@@ -60,13 +60,13 @@ public noncomputable def application {kind : ProblemKind} {ctx : RuntimeCtx kind
   output := op.outputRef
 
 /-- Migration preserves the exact deterministic value semantics of every existing instruction. -/
-public theorem bitWord_application_evaluate {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma bitWord_application_evaluate {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {input output : CShape} (op : ClassicalOp input output ctx ctx) (value : input.Value) :
     model.evaluate (application op).token value = PMF.pure (op.eval value) := by
   cases op <;> first | rfl | (cases value; rfl)
 
 /-- Migration preserves the same width-indexed native coordinate. -/
-public theorem bitWord_application_coordinate {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma bitWord_application_coordinate {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {input output : CShape} (op : ClassicalOp input output ctx ctx) :
     model.coordinate (application op).token = op.label := by
   cases op <;> rfl

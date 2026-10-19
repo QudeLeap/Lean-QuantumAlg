@@ -46,11 +46,11 @@ def subtractionWord (spec : ModulusSpec width) (left right : CShape.Word width) 
   reductionValue (subtractionDifferenceWord spec left right) (subtractionModulusWord spec)
 
 /-- The extended shape stores every original admitted modulus, including the full capacity. -/
-theorem subtractionModulusWord_toNat (spec : ModulusSpec width) :
+lemma subtractionModulusWord_toNat (spec : ModulusSpec width) :
     (subtractionModulusWord spec).toNat = spec.modulus :=
   Nat.mod_eq_of_lt (modulusSpec_modulus_lt_extended spec)
 
-private theorem subtraction_widened_toNat (value : CShape.Word width) :
+private lemma subtraction_widened_toNat (value : CShape.Word width) :
     (CShape.wordResize (width + 1) value).toNat = value.toNat := by
   change value.toNat % 2 ^ (width + 1) = _
   apply Nat.mod_eq_of_lt
@@ -59,7 +59,7 @@ private theorem subtraction_widened_toNat (value : CShape.Word width) :
   omega
 
 /-- The original first arithmetic sum is exact even for arbitrary raw left inputs. -/
-theorem subtractionAugmentedWord_toNat (spec : ModulusSpec width) (left : CShape.Word width) :
+lemma subtractionAugmentedWord_toNat (spec : ModulusSpec width) (left : CShape.Word width) :
     (subtractionAugmentedWord spec left).toNat = left.toNat + spec.modulus := by
   change ((CShape.wordResize (width + 1) left).toNat +
     (subtractionModulusWord spec).toNat) % 2 ^ (width + 1) = _
@@ -70,7 +70,7 @@ theorem subtractionAugmentedWord_toNat (spec : ModulusSpec width) (left : CShape
   rw [pow_succ]
   omega
 
-private theorem subtraction_word_mod_sub (initial subtract capacity : Nat)
+private lemma subtraction_word_mod_sub (initial subtract capacity : Nat)
     (noBorrow : subtract ≤ initial) (fits : initial < capacity) :
     (initial + capacity - subtract) % capacity = initial - subtract := by
   have regroup : initial + capacity - subtract = (initial - subtract) + capacity := by omega
@@ -78,7 +78,7 @@ private theorem subtraction_word_mod_sub (initial subtract capacity : Nat)
   exact Nat.mod_eq_of_lt (lt_of_le_of_lt (Nat.sub_le _ _) fits)
 
 /-- The original canonical-right domain makes the actual low subtraction word nonnegative. -/
-theorem subtractionDifferenceWord_toNat (spec : ModulusSpec width)
+lemma subtractionDifferenceWord_toNat (spec : ModulusSpec width)
     (left right : CShape.Word width)
     (rightCanonical : right.toNat < spec.modulus) :
     (subtractionDifferenceWord spec left right).toNat =
@@ -94,7 +94,7 @@ theorem subtractionDifferenceWord_toNat (spec : ModulusSpec width)
     omega
 
 /-- The original canonical operand domain gives exact native field subtraction. -/
-theorem subtractionWord_toNat (spec : ModulusSpec width) (left right : CShape.Word width)
+lemma subtractionWord_toNat (spec : ModulusSpec width) (left right : CShape.Word width)
     (rightCanonical : right.toNat < spec.modulus) :
     (subtractionWord spec left right).toNat =
       (left.toNat + spec.modulus - right.toNat) % spec.modulus := by

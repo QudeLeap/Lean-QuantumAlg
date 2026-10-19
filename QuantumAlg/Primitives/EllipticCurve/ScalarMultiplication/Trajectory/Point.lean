@@ -35,12 +35,12 @@ def nextPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   else P
 
 /-- A disabled step fixes every affine input without an exceptional-domain premise. -/
-theorem nextPoint_false {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma nextPoint_false {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q P : AffinePoint E) : nextPoint E Q false P = P := by
   simp only [nextPoint, Bool.false_eq_true, ↓reduceDIte]
 
 /-- An enabled original-domain input follows the independent generic affine formula. -/
-theorem nextPoint_true {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma nextPoint_true {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q P : AffinePoint E) (different : P ≠ Q) (inverseDifferent : P ≠ AffinePoint.negate Q) :
     nextPoint E Q true P =
       genericAddPoint E P Q
@@ -48,7 +48,7 @@ theorem nextPoint_true {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
   simp only [nextPoint, ↓reduceDIte, different, inverseDifferent]
 
 /-- Only an active step needs affine exclusions to represent the corresponding group update. -/
-theorem nextPoint_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma nextPoint_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (control : Bool) (P : AffinePoint E)
     (allowed : control = true → P ≠ Q ∧ P ≠ AffinePoint.negate Q) :
     (nextPoint E Q control P).toGroupPoint =
@@ -79,7 +79,7 @@ def admissible {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         (nextPoint E (points active) (controls active) initial)
 
 /-- An admissible affine path follows precisely the selected group multiplications in order. -/
-theorem path_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma path_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (order : List (Fin count)) (initial : AffinePoint E)
     (allowed : admissible E points controls order initial) :

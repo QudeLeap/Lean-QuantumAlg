@@ -34,39 +34,39 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 attribute [local implicit_reducible] Layout.pointWidth
 
-private theorem initialized_word_pool (I : ECDLPInstance E) (A : Access I)
+private lemma initialized_word_pool (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (Sampling.Reuse.nativeProgram I A expansion).eventCost =
-      ResourcePool.singleton (model := .quantum AlgorithmGate.model (model I A))
-        (.gate .singleQubit) + (circuit I A expansion).eventCost := by
+    (Sampling.Reuse.nativeProgram I expansion).eventCost =
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model (model I))
+        (.gate .singleQubit) + (circuit I expansion).eventCost := by
   rw [Sampling.Reuse.nativeProgram, Execution.unitaryOfEqualWires_cost,
     UnitaryCircuit.seq_eventCost, initializer,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_eventCost, pointInitializer]
   rfl
 
 /-- The actual infinity-tag X is paid beside the unchanged transported query word. -/
-public theorem initialized_word_count (I : ECDLPInstance E) (A : Access I)
+public lemma initialized_word_count (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (event : Resource.Event (Sampling.executionModel I A)) :
+    (event : Resource.Event (Sampling.executionModel I)) :
     ResourcePool.count event
-        ((Sampling.Reuse.nativeProgram I A expansion).eventCost BitWord.model .empty) =
+        ((Sampling.Reuse.nativeProgram I expansion).eventCost BitWord.model .empty) =
       (if event = .gate .singleQubit then 1 else 0) +
-        ResourcePool.count event ((circuit I A expansion).eventCost BitWord.model .empty) := by
+        ResourcePool.count event ((circuit I expansion).eventCost BitWord.model .empty) := by
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context,
     UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   cases event <;> simp [initialized_word_pool, ResourcePool.count_add,
     ResourcePool.count_singleton, eq_comm]
 
 /-- Both full-bank resets and all exponent reads have independent symbolic coordinates. -/
-public theorem reused_sampling_budget_count (I : ECDLPInstance E) (A : Access I)
+public lemma reused_sampling_budget_count (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (event : Resource.Event (Sampling.executionModel I A)) :
-    ResourcePool.count event (Sampling.Reuse.eventBudget I A expansion) =
+    (event : Resource.Event (Sampling.executionModel I)) :
+    ResourcePool.count event (Sampling.Reuse.eventBudget I expansion) =
       2 * (Sampling.Reuse.context I).systemCount *
           ((if event = .gate .singleQubit then 1 else 0) +
             (if event = .measurement (2 : ℕ+) then 1 else 0)) +
         (if event = .gate .singleQubit then 1 else 0) +
-        ResourcePool.count event ((circuit I A expansion).eventCost BitWord.model .empty) +
+        ResourcePool.count event ((circuit I expansion).eventCost BitWord.model .empty) +
         Sampling.sampleWidth I * (if event = .measurement (2 : ℕ+) then 1 else 0) := by
   simp only [Sampling.Reuse.eventBudget, ResourcePool.count_add,
     ZReset.Bank.envelope, ZReset.eventEnvelope, ResourcePool.count_nsmul,
@@ -75,26 +75,26 @@ public theorem reused_sampling_budget_count (I : ECDLPInstance E) (A : Access I)
   ring
 
 
-private theorem bank_systemCount (I : ECDLPInstance E) :
+private lemma bank_systemCount (I : ECDLPInstance E) :
     (Sampling.Reuse.context I).systemCount = Layout.totalQubits I := by
   have same := congrArg List.length (Sampling.Reuse.ecdlpReuse_sourceWires I)
   simpa only [QuantumLayout.wires_length] using same.symm
 
 /-- A width-only pool dominates the unchanged actual sampling allowance. -/
-public theorem reused_sampling_scalar_pool_le (I : ECDLPInstance E) (A : Access I)
+public lemma reused_sampling_scalar_pool_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    Sampling.Reuse.eventBudget I A expansion ≤
-      ResourcePool.singleton (model := Sampling.executionModel I A) (.gate .singleQubit)
+    Sampling.Reuse.eventBudget I expansion ≤
+      ResourcePool.singleton (model := Sampling.executionModel I) (.gate .singleQubit)
         (2 * Layout.totalQubits I + 1 + 22 * FiniteCyclicDLP.orderWidth (problem I) +
           2 * (FiniteCyclicDLP.orderWidth (problem I) +
             3 * Nat.choose (FiniteCyclicDLP.orderWidth (problem I)) 2)) +
-      ResourcePool.singleton (model := Sampling.executionModel I A) (.gate .cnot)
+      ResourcePool.singleton (model := Sampling.executionModel I) (.gate .cnot)
         (6 * FiniteCyclicDLP.orderWidth (problem I) +
           2 * (2 * Nat.choose (FiniteCyclicDLP.orderWidth (problem I)) 2 +
             3 * (FiniteCyclicDLP.orderWidth (problem I) / 2))) +
-      ResourcePool.singleton (model := Sampling.executionModel I A)
+      ResourcePool.singleton (model := Sampling.executionModel I)
         (.oracle Coordinate.groupAction) +
-      ResourcePool.singleton (model := Sampling.executionModel I A) (.measurement (2 : ℕ+))
+      ResourcePool.singleton (model := Sampling.executionModel I) (.measurement (2 : ℕ+))
         (2 * Layout.totalQubits I + 2 * FiniteCyclicDLP.orderWidth (problem I)) := by
   have preparation := circuit_preparation_width_bounds I expansion
   apply ResourcePool.le_iff_count.mpr

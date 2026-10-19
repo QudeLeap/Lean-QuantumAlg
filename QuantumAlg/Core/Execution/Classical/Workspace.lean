@@ -24,14 +24,14 @@ alternative instruction language or independently chosen execution is added.
 namespace QuantumAlg.Execution.Store
 
 /-- Newly allocated lexical storage contains the shape's canonical initial value. -/
-theorem read_pushWorkspace_head {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma read_pushWorkspace_head {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (store.pushWorkspace key shape fresh).read
       (.storage (CStorageRef.workspaceHead ctx key shape fresh)) =
       CShape.initialValue shape := rfl
 
 /-- Entering the lexical scope preserves every structural read from its parent context. -/
-theorem read_pushWorkspace_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma read_pushWorkspace_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     {observed : CShape} (input : CInputRef ctx observed) :
     (store.pushWorkspace key shape fresh).read (input.underWorkspace key shape fresh) =
@@ -50,7 +50,7 @@ theorem read_pushWorkspace_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx
       exact congrArg (fun value => value.wordBitGet index) sourceIH
 
 /-- Popping the exact lexical head exposes the existing tail values without changing them. -/
-theorem read_popWorkspace_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma read_popWorkspace_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (store : Store (ctx.addWorkspace key shape fresh))
     {observed : CShape} (input : CInputRef ctx observed) :
@@ -74,7 +74,7 @@ end QuantumAlg.Execution.Store
 namespace QuantumAlg.CInputRef
 
 /-- The lexical lift keeps precisely the same structural read support. -/
-theorem storageKeys_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma storageKeys_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (workspaceShape : CShape) (fresh : key ∉ ctx.keys) :
     (input.underWorkspace key workspaceShape fresh).storageKeys = input.storageKeys := by
@@ -98,7 +98,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Workspace entry is the same typed store map on the unchanged complete quantum register. -/
-theorem state_pushWorkspace_as_mapClassical {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma state_pushWorkspace_as_mapClassical {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference History) :
@@ -111,7 +111,7 @@ theorem state_pushWorkspace_as_mapClassical {kind : ProblemKind} {ctx : RuntimeC
   congr 1
 
 /-- Workspace exit maps its actual extended store on that same complete quantum register. -/
-theorem state_popWorkspace_as_mapClassical {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma state_popWorkspace_as_mapClassical {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (ctx.addWorkspace key shape fresh) Reference History) :
@@ -122,7 +122,7 @@ theorem state_popWorkspace_as_mapClassical {kind : ProblemKind} {ctx : RuntimeCt
   congr 1
 
 /-- A store update inside the scope uses the unchanged parent quantum register as its carrier. -/
-theorem state_workspace_mapClassical_as_parent {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma state_workspace_mapClassical_as_parent {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (Reference : Register) {History Later : Type} [Fintype History] [Fintype Later]
     (state : State (ctx.addWorkspace key shape fresh) Reference History)
@@ -148,7 +148,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem mapClassical_canonicalDecision {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_canonicalDecision {C D : Type} [Fintype C] [Fintype D]
     {R : Register} (decision : DecidableEq D) (state : ExecutionState C R) (update : C → D) :
     @ExecutionState.mapClassical C D _ _ R decision state update =
       @ExecutionState.mapClassical C D _ _ R (Classical.decEq D) state update :=
@@ -156,29 +156,31 @@ private theorem mapClassical_canonicalDecision {C D : Type} [Fintype C] [Fintype
     (Subsingleton.elim decision (Classical.decEq D))
 
 /-- The existing workspace instruction performs its actual allocation, body and release. -/
-theorem execute_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma execute_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (environment : model.Environment)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.workspace ctx key shape fresh body).execute Reference state =
+    (Circuit.workspace ctx key shape fresh body).execute environment Reference state =
       State.popWorkspace key shape fresh
-        (body.execute Reference (state.pushWorkspace key shape fresh)) := rfl
+        (body.execute environment Reference (state.pushWorkspace key shape fresh)) := rfl
 
 /-- A proved deterministic body retains its service update across lexical storage release. -/
-theorem execute_workspace_mapClassical {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+lemma execute_workspace_mapClassical {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (environment : model.Environment)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (step : Store (ctx.addWorkspace key shape fresh) × model.HiddenState →
       (Store (ctx.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (ctx.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := step (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.workspace ctx key shape fresh body).execute Reference state =
+    (Circuit.workspace ctx key shape fresh body).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (entry.1.pushWorkspace key shape fresh, entry.2.1)
         (Store.popWorkspace key shape fresh result.1.1,

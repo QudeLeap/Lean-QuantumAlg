@@ -39,19 +39,19 @@ namespace QuantumAlg.NumberTheory.SharedEEA.TerminalTail
 
 variable {wordWidth clockWidth : Nat}
 
-private theorem literal_zero (width : Nat) : BitVec.ofNat width 0 = (0 : BitVec width) := by
+private lemma literal_zero (width : Nat) : BitVec.ofNat width 0 = (0 : BitVec width) := by
   apply BitVec.eq_of_toNat_eq
   change 0 % 2 ^ width = 0
   exact Nat.zero_mod _
 
 /-- The finite shift increment has its actual modular value, including a zero-bit register. -/
-theorem increment_toNat (shift : BitVec clockWidth) :
+lemma increment_toNat (shift : BitVec clockWidth) :
     (shift + 1).toNat = (shift.toNat + 1) % 2 ^ clockWidth := by
   change (shift.toNat + 1 % 2 ^ clockWidth) % 2 ^ clockWidth = _
   exact Nat.add_mod_mod _ _ _
 
 /-- Literal finite addition advances the encoded natural count modulo the register capacity. -/
-theorem increment_ofNat (count : Nat) :
+lemma increment_ofNat (count : Nat) :
     BitVec.ofNat clockWidth count + 1 = BitVec.ofNat clockWidth (count + 1) := by
   apply BitVec.eq_of_toNat_eq
   rw [increment_toNat]
@@ -59,7 +59,7 @@ theorem increment_ofNat (count : Nat) :
     (count + 1) % 2 ^ clockWidth
   exact Nat.mod_add_mod _ _ _
 
-private theorem ofNat_nonzero (count : Nat) (positive : 0 < count)
+private lemma ofNat_nonzero (count : Nat) (positive : 0 < count)
     (within : count < 2 ^ clockWidth) : BitVec.ofNat clockWidth count ≠ 0 := by
   intro zero
   have values := congrArg BitVec.toNat zero
@@ -68,13 +68,13 @@ private theorem ofNat_nonzero (count : Nat) (positive : 0 < count)
   omega
 
 /-- The first complete finite-counter period is detected as zero by the actual register. -/
-theorem first_wrap_zero : BitVec.ofNat clockWidth (2 ^ clockWidth) = 0 := by
+lemma first_wrap_zero : BitVec.ofNat clockWidth (2 ^ clockWidth) = 0 := by
   apply BitVec.eq_of_toNat_eq
   change 2 ^ clockWidth % 2 ^ clockWidth = 0
   exact Nat.mod_self _
 
 /-- The zero divisor changes neither operand of the actual subtract-and-add-back arithmetic. -/
-theorem zero_arithmetic (word : BitVec wordWidth) : (word - 0) + 0 = word := by
+lemma zero_arithmetic (word : BitVec wordWidth) : (word - 0) + 0 = word := by
   calc
     _ = (word - BitVec.ofNat wordWidth 0) + BitVec.ofNat wordWidth 0 := by rw [literal_zero]
     _ = word :=
@@ -82,7 +82,7 @@ theorem zero_arithmetic (word : BitVec wordWidth) : (word - 0) + 0 = word := by
         (BitVec.add_zero word)
 
 /-- With zero divisor, only the actual zero-shift test changes phase and iteration parity. -/
-theorem zero_divisor_control (shiftZero iteration : Bool) :
+lemma zero_divisor_control (shiftZero iteration : Bool) :
     PhaseControl.update true false shiftZero ⟨false, false, false, iteration⟩ =
       ⟨shiftZero, shiftZero, false, if shiftZero then !iteration else iteration⟩ := by
   cases shiftZero <;> cases iteration <;> decide
@@ -114,14 +114,14 @@ def rewindPrefix (state : Frame wordWidth clockWidth) : Frame wordWidth clockWid
     PhaseControl.rewind true false shiftZero state.flags⟩
 
 /-- Neither the finite increment, conditional exchange, nor ordered flags lose tracked data. -/
-theorem rewind_alignmentPrefix (state : Frame wordWidth clockWidth) :
+lemma rewind_alignmentPrefix (state : Frame wordWidth clockWidth) :
     rewindPrefix (alignmentPrefix state) = state := by
   cases predicate : decide (state.shift + 1 = 0) <;>
     simp only [alignmentPrefix, rewindPrefix, predicate, Bool.false_eq_true, if_false, if_true,
       WordRotation.rotateRight_rotateLeft, BitVec.add_sub_cancel, PhaseControl.rewind_update]
 
 /-- The restricted terminal branch is injective on its tracked finite coordinates. -/
-theorem alignmentPrefix_injective :
+lemma alignmentPrefix_injective :
     Function.Injective (alignmentPrefix (wordWidth := wordWidth) (clockWidth := clockWidth)) := by
   intro left right same
   calc
@@ -144,14 +144,14 @@ def position (count : Nat) (first second : BitVec wordWidth) (iteration : Bool) 
   ⟨first, second.rotateLeft count, BitVec.ofNat clockWidth count,
     ⟨false, false, false, iteration⟩⟩
 
-private theorem rotateLeft_zero (word : BitVec wordWidth) : word.rotateLeft 0 = word := by
+private lemma rotateLeft_zero (word : BitVec wordWidth) : word.rotateLeft 0 = word := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
   simp only [BitVec.getMsbD_rotateLeft, Nat.zero_add, Nat.mod_eq_of_lt within,
     within, decide_true, Bool.true_and]
 
 /-- A pre-wrap step preserves terminal phase `00` while advancing the real rotation and counter. -/
-theorem step_position (count : Nat) (first second : BitVec wordWidth) (iteration : Bool)
+lemma step_position (count : Nat) (first second : BitVec wordWidth) (iteration : Bool)
     (beforeWrap : count + 1 < 2 ^ clockWidth) :
     alignmentPrefix (position (clockWidth := clockWidth) count first second iteration) =
       position (count + 1) first second iteration := by
@@ -160,7 +160,7 @@ theorem step_position (count : Nat) (first second : BitVec wordWidth) (iteration
     Bool.false_eq_true, if_false, WordRotation.rotateLeft_comp, zero_divisor_control]
 
 /-- Every source step before wrap remains in the actual zero-divisor alignment branch. -/
-theorem repeatPrefix_position (count : Nat) (first second : BitVec wordWidth) (iteration : Bool)
+lemma repeatPrefix_position (count : Nat) (first second : BitVec wordWidth) (iteration : Bool)
     (beforeWrap : count < 2 ^ clockWidth) :
     repeatPrefix count (start (clockWidth := clockWidth) first second iteration) =
       position count first second iteration := by
@@ -175,7 +175,7 @@ theorem repeatPrefix_position (count : Nat) (first second : BitVec wordWidth) (i
     exact step_position count first second iteration beforeWrap
 
 /-- Before wrap, the retained finite shift register records the entire actual padding length. -/
-theorem retained_shift (count : Nat) (first second : BitVec wordWidth) (iteration : Bool)
+lemma retained_shift (count : Nat) (first second : BitVec wordWidth) (iteration : Bool)
     (beforeWrap : count < 2 ^ clockWidth) :
     (repeatPrefix count (start (clockWidth := clockWidth) first second iteration)).shift.toNat =
       count := by
@@ -184,7 +184,7 @@ theorem retained_shift (count : Nat) (first second : BitVec wordWidth) (iteratio
   exact Nat.mod_eq_of_lt beforeWrap
 
 /-- Keeping the actual shift coordinate allows the full second work word to be recovered. -/
-theorem retained_shift_recovers_word (count : Nat) (first second : BitVec wordWidth)
+lemma retained_shift_recovers_word (count : Nat) (first second : BitVec wordWidth)
     (iteration : Bool) (beforeWrap : count < 2 ^ clockWidth) :
     let final := repeatPrefix count (start (clockWidth := clockWidth) first second iteration)
     final.secondWord.rotateRight final.shift.toNat = second := by
@@ -194,7 +194,7 @@ theorem retained_shift_recovers_word (count : Nat) (first second : BitVec wordWi
   exact WordRotation.rotateRight_rotateLeft second count
 
 /-- At the first actual wrap, the source tests zero, exchanges both words, and enters phase `11`. -/
-theorem first_wrap (first second : BitVec wordWidth) (iteration : Bool) :
+lemma first_wrap (first second : BitVec wordWidth) (iteration : Bool) :
     repeatPrefix (2 ^ clockWidth) (start (clockWidth := clockWidth) first second iteration) =
       ⟨second.rotateLeft (2 ^ clockWidth), first, 0, ⟨true, true, false, !iteration⟩⟩ := by
   have capacityPositive := Nat.two_pow_pos clockWidth
@@ -212,14 +212,14 @@ theorem first_wrap (first second : BitVec wordWidth) (iteration : Bool) :
         decide_true, if_true, WordRotation.rotateLeft_comp, zero_divisor_control]
 
 /-- The actual smallest-input terminal word does not remain idle during padding. -/
-theorem smallest_terminal_not_idle :
+lemma smallest_terminal_not_idle :
     let terminal := start (clockWidth := 2) (9 : BitVec 5) (16 : BitVec 5) true
     (alignmentPrefix terminal).secondWord.toNat = 1 ∧
       (alignmentPrefix terminal).shift.toNat = 1 ∧ alignmentPrefix terminal ≠ terminal := by
   decide
 
 /-- The stated two-bit length register wraps after four terminal steps and triggers exchange. -/
-theorem smallest_terminal_wrap :
+lemma smallest_terminal_wrap :
     let terminal := start (clockWidth := 2) (9 : BitVec 5) (16 : BitVec 5) true
     (repeatPrefix 4 terminal).firstWord.toNat = 8 ∧
       (repeatPrefix 4 terminal).secondWord.toNat = 9 ∧

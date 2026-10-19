@@ -25,17 +25,18 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- The genuine inner factor circuit has its complete store and path map on every CQ input. -/
-theorem body_execute (source : Input N)
+lemma body_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) source parameter phase output).execute Reference state =
+    (body (model := model) source parameter phase output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := bodyStep (model := model) source parameter phase output entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by

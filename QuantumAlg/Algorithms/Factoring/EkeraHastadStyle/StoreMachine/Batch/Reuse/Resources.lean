@@ -46,7 +46,7 @@ def tailAdditionalSpace (N : Nat) : SpacePool .quantum :=
 def additionalSpace (N : Nat) : SpacePool .quantum :=
   NativeBatchReuse.additionalSpace N + tailAdditionalSpace N
 
-private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
+private lemma sequence_pool {pre middle post : RuntimeCtx .quantum}
     (first : Circuit RuntimeRound.model pre middle)
     (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
@@ -54,7 +54,7 @@ private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
       first.resourcePool path.1 + second.resourcePool path.2 :=
   ResourcePool.ofList_append _ _
 
-private theorem retained_pool_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
+private lemma retained_pool_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys)
     (inner : Circuit RuntimeRound.model
       (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
@@ -65,7 +65,7 @@ private theorem retained_pool_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
         path ≤ budget :=
   bounded path.2
 
-private theorem retained_depth_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
+private lemma retained_depth_le (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (shape : CShape) (fresh : key ∉ ctx.keys)
     (inner : Circuit RuntimeRound.model
       (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
@@ -82,7 +82,7 @@ variable (base : RuntimeCtx .quantum) {N : Nat}
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
-private theorem context_residentSpace (N : Nat) :
+private lemma context_residentSpace (N : Nat) :
     (context base N).residentSpace =
       SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) +
         (NativeBatchReuse.context base N).residentSpace :=
@@ -90,7 +90,7 @@ private theorem context_residentSpace (N : Nat) :
     (resultKey base N) (LatticeBatchRecoveryOutput.OutputShape N)
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh
 
-private theorem context_auxiliarySpace (N : Nat) :
+private lemma context_auxiliarySpace (N : Nat) :
     (context base N).auxiliarySpace =
       SpacePool.ofShape (LatticeBatchRecoveryOutput.OutputShape N) +
         (NativeBatchReuse.context base N).auxiliarySpace :=
@@ -99,7 +99,7 @@ private theorem context_auxiliarySpace (N : Nat) :
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh
 
 /-- Real retained allocation emits no event, and the full body obeys its independent budget. -/
-theorem tail_pool_le (input : Input N) (path : (tail base input).Path) :
+lemma tail_pool_le (input : Input N) (path : (tail base input).Path) :
     (tail base input).resourcePool path ≤
       LatticeFixedBatchRecoveryMachine.eventEnvelope (model := RuntimeRound.model) N := by
   unfold tail at path ⊢
@@ -111,7 +111,7 @@ theorem tail_pool_le (input : Input N) (path : (tail base input).Path) :
     (terminals base N) (resultRef base N) selected
 
 /-- Retained allocation adds no event duration to the actual complete recovery dependence. -/
-theorem tail_depth_le (input : Input N) (path : (tail base input).Path) :
+lemma tail_depth_le (input : Input N) (path : (tail base input).Path) :
     (tail base input).depth (fun _ => 1) path ≤
       LatticeFixedBatchRecoveryMachine.depthBound N := by
   unfold tail at path ⊢
@@ -124,7 +124,7 @@ theorem tail_depth_le (input : Input N) (path : (tail base input).Path) :
     (resultRef base N) selected
 
 /-- Every complete execution path satisfies the independent native-coordinate allowance. -/
-theorem code_pool_le (input : Input N) (path : (code base sameWires originalCells input).Path) :
+lemma code_pool_le (input : Input N) (path : (code base sameWires originalCells input).Path) :
     (code base sameWires originalCells input).resourcePool path ≤ eventEnvelope N :=
   (sequence_pool (NativeBatchReuse.code base N sameWires originalCells)
     (tail base input) path).le.trans
@@ -133,20 +133,20 @@ theorem code_pool_le (input : Input N) (path : (code base sameWires originalCell
       (tail_pool_le base input path.2))
 
 /-- The same independent event ledger bounds the number of emitted operations. -/
-theorem code_eventCount_le (input : Input N)
+lemma code_eventCount_le (input : Input N)
     (path : (code base sameWires originalCells input).Path) :
     ((code base sameWires originalCells input).eventTrace path).length ≤
       (eventEnvelope N).card :=
   Multiset.card_le_card (code_pool_le base sameWires originalCells input path)
 
 /-- The complete actual sequential path obeys the independent unit-duration depth formula. -/
-theorem code_depth_le (input : Input N) (path : (code base sameWires originalCells input).Path) :
+lemma code_depth_le (input : Input N) (path : (code base sameWires originalCells input).Path) :
     (code base sameWires originalCells input).depth (fun _ => 1) path ≤ depthBound N :=
   Nat.add_le_add (NativeBatchReuse.nativeBatchReuse_unitDepth_le
     base N sameWires originalCells path.1)
     (tail_depth_le base input path.2)
 
-private theorem nativeContext_resident_le (N : Nat) :
+private lemma nativeContext_resident_le (N : Nat) :
     (NativeBatchReuse.context base N).residentSpace ≤
       base.residentSpace + NativeBatchReuse.additionalSpace N := by
   have actual := RuntimeResults.shortDLP_runtimeResults_resident
@@ -163,7 +163,7 @@ private theorem nativeContext_resident_le (N : Nat) :
       ShorStyle.Canonical.Sampler.Retained.resultSpace, SpacePool.ofShape]
   omega
 
-private theorem nativeContext_auxiliary_le (N : Nat) :
+private lemma nativeContext_auxiliary_le (N : Nat) :
     (NativeBatchReuse.context base N).auxiliarySpace ≤
       base.auxiliarySpace + NativeBatchReuse.additionalSpace N := by
   have actual := RuntimeResults.shortDLP_runtimeResults_auxiliary
@@ -181,7 +181,7 @@ private theorem nativeContext_auxiliary_le (N : Nat) :
   omega
 
 /-- Every tail context includes the same source bank plus the full classical live allowance. -/
-theorem tail_resident_le (input : Input N) (path : (tail base input).Path) :
+lemma tail_resident_le (input : Input N) (path : (tail base input).Path) :
     (tail base input).peakResidentSpace path ≤
       (NativeBatchReuse.context base N).residentSpace + tailAdditionalSpace N := by
   unfold tail at path ⊢
@@ -214,7 +214,7 @@ theorem tail_resident_le (input : Input N) (path : (tail base input).Path) :
     omega
 
 /-- Auxiliary roles retain all source entries while charging every allocated recovery cell. -/
-theorem tail_auxiliary_le (input : Input N) (path : (tail base input).Path) :
+lemma tail_auxiliary_le (input : Input N) (path : (tail base input).Path) :
     (tail base input).peakAuxiliarySpace path ≤
       (NativeBatchReuse.context base N).auxiliarySpace + tailAdditionalSpace N := by
   unfold tail at path ⊢
@@ -247,7 +247,7 @@ theorem tail_auxiliary_le (input : Input N) (path : (tail base input).Path) :
     omega
 
 /-- Full resident accounting includes one bank, every retained result and all recovery scratch. -/
-theorem code_resident_le (input : Input N) (path : (code base sameWires originalCells input).Path) :
+lemma code_resident_le (input : Input N) (path : (code base sameWires originalCells input).Path) :
     (code base sameWires originalCells input).peakResidentSpace path ≤
       base.residentSpace + additionalSpace N := by
   unfold code at path ⊢
@@ -267,7 +267,7 @@ theorem code_resident_le (input : Input N) (path : (code base sameWires original
       (Nat.add_assoc _ _ _))
 
 /-- Full auxiliary accounting uses the same real bank and retained cells at every actual peak. -/
-theorem code_auxiliary_le (input : Input N)
+lemma code_auxiliary_le (input : Input N)
     (path : (code base sameWires originalCells input).Path) :
     (code base sameWires originalCells input).peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N := by

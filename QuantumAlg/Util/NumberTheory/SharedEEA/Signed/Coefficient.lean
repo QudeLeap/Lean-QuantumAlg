@@ -38,7 +38,7 @@ def addBit (value coefficient : BitVec width) (digit : Bool) : BitVec (width + 1
   BitVec.cons (!digit) reduced + coefficient.setWidth (width + 1)
 
 /-- The actual signed instructions return the prescribed coefficient contribution numerically. -/
-theorem addBit_toNat (value coefficient : BitVec width) (digit : Bool)
+lemma addBit_toNat (value coefficient : BitVec width) (digit : Bool)
     (below : value.toNat < coefficient.toNat)
     (room : value.toNat + coefficient.toNat < 2 ^ width) :
     (addBit value coefficient digit).toNat =
@@ -69,7 +69,7 @@ theorem addBit_toNat (value coefficient : BitVec width) (digit : Bool)
     exact room.trans_le (Nat.pow_le_pow_right (by decide : 0 < 2) (by omega))
 
 /-- The concrete signed result fits below the sign bit in both quotient branches. -/
-theorem addBit_fits (value coefficient : BitVec width) (digit : Bool)
+lemma addBit_fits (value coefficient : BitVec width) (digit : Bool)
     (below : value.toNat < coefficient.toNat)
     (room : value.toNat + coefficient.toNat < 2 ^ width) :
     (addBit value coefficient digit).toNat < 2 ^ width := by
@@ -79,7 +79,7 @@ theorem addBit_fits (value coefficient : BitVec width) (digit : Bool)
   | true => exact room
 
 /-- The signed addition clears the high Sign bit, including its wraparound branch. -/
-theorem addBit_sign (value coefficient : BitVec width) (digit : Bool)
+lemma addBit_sign (value coefficient : BitVec width) (digit : Bool)
     (below : value.toNat < coefficient.toNat)
     (room : value.toNat + coefficient.toNat < 2 ^ width) :
     (addBit value coefficient digit).msb = false := by
@@ -88,7 +88,7 @@ theorem addBit_sign (value coefficient : BitVec width) (digit : Bool)
   simp only [Nat.not_le.mpr fits, decide_false]
 
 /-- The actual integer window extracted after addition is the intended, untruncated contribution. -/
-theorem addBit_low (value coefficient : BitVec width) (digit : Bool)
+lemma addBit_low (value coefficient : BitVec width) (digit : Bool)
     (below : value.toNat < coefficient.toNat)
     (room : value.toNat + coefficient.toNat < 2 ^ width) :
     ((addBit value coefficient digit).setWidth width).toNat =
@@ -97,7 +97,7 @@ theorem addBit_low (value coefficient : BitVec width) (digit : Bool)
   exact addBit_toNat value coefficient digit below room
 
 /-- The updated word recovers the consumed quotient bit through the actual weak comparison. -/
-theorem addBit_recover_digit (value coefficient : BitVec width) (digit : Bool)
+lemma addBit_recover_digit (value coefficient : BitVec width) (digit : Bool)
     (below : value.toNat < coefficient.toNat)
     (room : value.toNat + coefficient.toNat < 2 ^ width) :
     QuotientBits.readBit coefficient.toNat
@@ -111,7 +111,7 @@ def rewind (coefficient output : BitVec width) : BitVec width × Bool :=
   (if digit then output - coefficient else output, digit)
 
 /-- The updated arithmetic window restores the old window and the consumed quotient bit. -/
-theorem rewind_addBit (value coefficient : BitVec width) (digit : Bool)
+lemma rewind_addBit (value coefficient : BitVec width) (digit : Bool)
     (below : value.toNat < coefficient.toNat)
     (room : value.toNat + coefficient.toNat < 2 ^ width) :
     rewind coefficient ((addBit value coefficient digit).setWidth width) = (value, digit) := by
@@ -138,7 +138,7 @@ theorem rewind_addBit (value coefficient : BitVec width) (digit : Bool)
   · exact recovered
 
 /-- Equality of actual updated low words preserves both reachable inputs and consumed digits. -/
-theorem addBit_low_injective (coefficient : BitVec width)
+lemma addBit_low_injective (coefficient : BitVec width)
     {left right : BitVec width} {leftDigit rightDigit : Bool}
     (leftBelow : left.toNat < coefficient.toNat)
     (rightBelow : right.toNat < coefficient.toNat)
@@ -155,7 +155,7 @@ theorem addBit_low_injective (coefficient : BitVec width)
     _ = (right, rightDigit) := rewind_addBit right coefficient rightDigit rightBelow rightRoom
 
 /-- The smallest window exercises actual signed wraparound and equality recovery. -/
-theorem smallest_window_branches :
+lemma smallest_window_branches :
     addBit (0 : BitVec 2) (1 : BitVec 2) false = (0 : BitVec 3) ∧
       addBit (0 : BitVec 2) (1 : BitVec 2) true = (1 : BitVec 3) ∧
       rewind (1 : BitVec 2) (1 : BitVec 2) = ((0 : BitVec 2), true) := by

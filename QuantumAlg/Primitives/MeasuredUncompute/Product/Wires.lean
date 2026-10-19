@@ -40,7 +40,7 @@ private def sourceAddress (wordWidth tailWidth index : Nat) : Nat :=
   else if index < 2 * wordWidth + 6 + tailWidth then index + wordWidth
   else index - (wordWidth + 6 + tailWidth)
 
-private theorem address_bound (wordWidth tailWidth : Nat)
+private lemma address_bound (wordWidth tailWidth : Nat)
     (index : Fin (width wordWidth tailWidth)) :
     address wordWidth tailWidth index.val < width wordWidth tailWidth := by
   have bound := index.isLt
@@ -48,7 +48,7 @@ private theorem address_bound (wordWidth tailWidth : Nat)
   unfold address
   split_ifs <;> omega
 
-private theorem sourceAddress_bound (wordWidth tailWidth : Nat)
+private lemma sourceAddress_bound (wordWidth tailWidth : Nat)
     (index : Fin (width wordWidth tailWidth)) :
     sourceAddress wordWidth tailWidth index.val < width wordWidth tailWidth := by
   have bound := index.isLt
@@ -77,12 +77,12 @@ def permutation (wordWidth tailWidth : Nat) : Equiv.Perm (Fin (width wordWidth t
     split_ifs <;> omega
 
 /-- The first product input reads precisely the original trailing Work2 data port. -/
-theorem address_first (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
+lemma address_first (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
     address wordWidth tailWidth index.val = wordWidth + 6 + index.val :=
   if_pos index.isLt
 
 /-- The second product input reads precisely the existing Y word after the shared frame. -/
-theorem address_second (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
+lemma address_second (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
     address wordWidth tailWidth (wordWidth + index.val) =
       2 * wordWidth + 6 + tailWidth + index.val := by
   have bound := index.isLt
@@ -91,7 +91,7 @@ theorem address_second (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
   omega
 
 /-- The accumulator uses the first n existing Work1 wires, leaving its three history bits intact. -/
-theorem address_target (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
+lemma address_target (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
     address wordWidth tailWidth (2 * wordWidth + index.val) = index.val := by
   have bound := index.isLt
   unfold address
@@ -99,7 +99,7 @@ theorem address_target (wordWidth tailWidth : Nat) (index : Fin wordWidth) :
   omega
 
 /-- The six retained padding bits keep their exact original positions between A and X. -/
-theorem address_padding (wordWidth tailWidth : Nat) (index : Fin 6) :
+lemma address_padding (wordWidth tailWidth : Nat) (index : Fin 6) :
     address wordWidth tailWidth (3 * wordWidth + index.val) = wordWidth + index.val := by
   have bound := index.isLt
   unfold address
@@ -107,7 +107,7 @@ theorem address_padding (wordWidth tailWidth : Nat) (index : Fin 6) :
   omega
 
 /-- Every small arithmetic field keeps its exact original position following Work2. -/
-theorem address_tail (wordWidth tailWidth : Nat) (index : Fin tailWidth) :
+lemma address_tail (wordWidth tailWidth : Nat) (index : Fin tailWidth) :
     address wordWidth tailWidth (3 * wordWidth + 6 + index.val) =
       2 * wordWidth + 6 + index.val := by
   unfold address

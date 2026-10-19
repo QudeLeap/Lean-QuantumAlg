@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Reuse.Program
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Space.Reset
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Resources
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Space
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Resources
@@ -18,7 +19,7 @@ import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Repetition.Space
 The complete source sampler and sixteen measured rounds contribute their
 native coordinates and serial dependencies. All new storage is classical:
 source preparation work, two retained source results, sixteen retained
-outcomes and the real reset scratch bit. The original bank and measurement
+outcomes and the simultaneous reset result cells. The original bank and measurement
 cells remain in the caller's resident and auxiliary pools.
 -/
 
@@ -42,7 +43,7 @@ def unitDepthBound (N : Nat) : Nat :=
 def additionalSpace (N : Nat) : SpacePool .quantum :=
   SpacePool.ofShape (.bits (27 * modulusBits N + 16 * measurementBits N + 16))
 
-private theorem samplerSpaceBound (width measured : Nat) (original : SpacePool .quantum) :
+private lemma samplerSpaceBound (width measured : Nat) (original : SpacePool .quantum) :
     original + ShorStyle.Canonical.Sampler.Retained.additionalSpace .quantum width ≤
       original + SpacePool.ofShape (.bits (27 * width + 16 * measured + 16)) := by
   intro axis
@@ -50,15 +51,19 @@ private theorem samplerSpaceBound (width measured : Nat) (original : SpacePool .
     simp [ShorStyle.Canonical.Sampler.Retained.additionalSpace, SpacePool.ofShape]
   omega
 
-private theorem continuationSpaceBound (width measured : Nat) (original : SpacePool .quantum) :
-    SpacePool.ofShape (.finite 2) + 16 • SpacePool.ofShape (.bits measured) +
+private lemma continuationSpaceBound (width measured : Nat) (scratch : SpacePool .quantum)
+    (bounded : scratch + ShorStyle.Canonical.Sampler.Retained.resultSpace .quantum width ≤
+      ShorStyle.Canonical.Sampler.Retained.additionalSpace .quantum width)
+    (original : SpacePool .quantum) :
+    scratch + 16 • SpacePool.ofShape (.bits measured) +
         (original + ShorStyle.Canonical.Sampler.Retained.resultSpace .quantum width) ≤
       original + SpacePool.ofShape (.bits (27 * width + 16 * measured + 16)) := by
-  have bitSize : Nat.clog 2 2 = 1 := by decide
   intro axis
+  have capacity := bounded axis
   cases axis <;>
-    simp [ShorStyle.Canonical.Sampler.Retained.resultSpace, SpacePool.ofShape, bitSize]
-  omega
+    simp [ShorStyle.Canonical.Sampler.Retained.resultSpace,
+      ShorStyle.Canonical.Sampler.Retained.additionalSpace, SpacePool.ofShape] at capacity ⊢ <;>
+    omega
 
 variable (base : RuntimeCtx .quantum) (N : Nat)
   (sameWires : base.quantumWires =
@@ -66,7 +71,7 @@ variable (base : RuntimeCtx .quantum) (N : Nat)
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
 /-- The actual later-batch path obeys every independent native coordinate allowance. -/
-theorem nativeBatchReuse_resourcePool_le (path : (code base N sameWires originalCells).Path) :
+lemma nativeBatchReuse_resourcePool_le (path : (code base N sameWires originalCells).Path) :
     (code base N sameWires originalCells).resourcePool path ≤ nativeEnvelope N := by
   change ResourcePool.ofList
     ((ShorStyle.Canonical.Sampler.Retained.circuit
@@ -83,7 +88,7 @@ theorem nativeBatchReuse_resourcePool_le (path : (code base N sameWires original
       (parameter base N) (cells base N originalCells) 16 path.2)
 
 /-- One source draw precedes the serial depth of all sixteen complete measured rounds. -/
-theorem nativeBatchReuse_unitDepth_le (path : (code base N sameWires originalCells).Path) :
+lemma nativeBatchReuse_unitDepth_le (path : (code base N sameWires originalCells).Path) :
     (code base N sameWires originalCells).depth (fun _ => 1) path ≤ unitDepthBound N :=
   Nat.add_le_add
     (ShorStyle.Canonical.Sampler.Retained.samplerRetained_unit_depth_le
@@ -95,7 +100,7 @@ theorem nativeBatchReuse_unitDepth_le (path : (code base N sameWires originalCel
       (parameter base N) (cells base N originalCells) 16 path.2)
 
 /-- Resident space includes the same original bank and all newly live classical storage. -/
-theorem nativeBatchReuse_resident_le (path : (code base N sameWires originalCells).Path) :
+lemma nativeBatchReuse_resident_le (path : (code base N sameWires originalCells).Path) :
     (code base N sameWires originalCells).peakResidentSpace path ≤
       base.residentSpace + additionalSpace N := by
   refine (Circuit.peakResidentSpace_seq
@@ -112,12 +117,15 @@ theorem nativeBatchReuse_resident_le (path : (code base N sameWires originalCell
       (parameter base N) (cells base N originalCells) 16 path.2
     have sampled := ShorStyle.Canonical.Sampler.Retained.samplerRetained_context_resident base N
     exact (repeated.trans_eq (congrArg
-      (fun frame : SpacePool .quantum => SpacePool.ofShape (.finite 2) +
+      (fun frame : SpacePool .quantum =>
+        RuntimeRound.resetSpace (shortLogBits N) (tradeoffBits N) (arithmeticBits N) +
         16 • SpacePool.ofShape (.bits (measurementBits N)) + frame) sampled)).trans
-      (continuationSpaceBound (modulusBits N) (measurementBits N) _)
+      (continuationSpaceBound (modulusBits N) (measurementBits N)
+        (RuntimeRound.resetSpace (shortLogBits N) (tradeoffBits N) (arithmeticBits N))
+        (NativeBatch.nativeBatch_reset_retained_le_sampler N) _)
 
-/-- Auxiliary space counts the same bank, retained results and real reset scratch cell. -/
-theorem nativeBatchReuse_auxiliary_le (path : (code base N sameWires originalCells).Path) :
+/-- Auxiliary space includes the same bank, retained results and simultaneous reset cells. -/
+lemma nativeBatchReuse_auxiliary_le (path : (code base N sameWires originalCells).Path) :
     (code base N sameWires originalCells).peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N := by
   refine (Circuit.peakAuxiliarySpace_seq
@@ -134,9 +142,12 @@ theorem nativeBatchReuse_auxiliary_le (path : (code base N sameWires originalCel
       (parameter base N) (cells base N originalCells) 16 path.2
     have sampled := ShorStyle.Canonical.Sampler.Retained.samplerRetained_context_auxiliary base N
     exact (repeated.trans_eq (congrArg
-      (fun frame : SpacePool .quantum => SpacePool.ofShape (.finite 2) +
+      (fun frame : SpacePool .quantum =>
+        RuntimeRound.resetSpace (shortLogBits N) (tradeoffBits N) (arithmeticBits N) +
         16 • SpacePool.ofShape (.bits (measurementBits N)) + frame) sampled)).trans
-      (continuationSpaceBound (modulusBits N) (measurementBits N) _)
+      (continuationSpaceBound (modulusBits N) (measurementBits N)
+        (RuntimeRound.resetSpace (shortLogBits N) (tradeoffBits N) (arithmeticBits N))
+        (NativeBatch.nativeBatch_reset_retained_le_sampler N) _)
 
 end
 

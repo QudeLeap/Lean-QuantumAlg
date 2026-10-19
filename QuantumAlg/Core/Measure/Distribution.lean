@@ -39,13 +39,13 @@ def basisPMF {qubitCount : Nat} {layout : QubitLayout qubitCount}
       rw [← EuclideanSpace.norm_sq_eq, state.normalized.norm_eq_one]
       norm_num)
 
-@[simp] theorem basisPMF_apply {qubitCount : Nat}
+@[simp] lemma basisPMF_apply {qubitCount : Nat}
     {layout : QubitLayout qubitCount} (state : QubitLayout.State layout)
     (outcome : Fin (2 ^ qubitCount)) :
     QubitLayout.basisPMF state outcome =
       ENNReal.ofReal (‖state.normalized outcome‖ ^ 2) := rfl
 
-theorem basisPMF_total {qubitCount : Nat}
+lemma basisPMF_total {qubitCount : Nat}
     {layout : QubitLayout qubitCount} (state : QubitLayout.State layout) :
     ∑' outcome, QubitLayout.basisPMF state outcome = 1 :=
   PMF.tsum_coe (QubitLayout.basisPMF state)
@@ -71,7 +71,7 @@ public def fullRegisterIndex {qubitCount : Nat}
 
 /-- Full-register Z readout followed by the canonical big-endian decoder
 recovers the measured computational-basis index. -/
-@[simp] theorem fullRegisterIndex_zMeasure_readout {qubitCount : Nat}
+@[simp] lemma fullRegisterIndex_zMeasure_readout {qubitCount : Nat}
     (layout : QubitLayout qubitCount) (basis : Fin (2 ^ qubitCount)) :
     fullRegisterIndex ((zMeasure layout).readout basis) = basis := by
   apply Fin.val_injective
@@ -98,7 +98,7 @@ def outcomePMF {totalQubits measuredQubits : Nat}
     (state : QubitLayout.State layout) : PMF (Outcome measuredQubits) :=
   PMF.map measurement.readout (QubitLayout.basisPMF state)
 
-@[simp] theorem outcomePMF_apply {totalQubits measuredQubits : Nat}
+@[simp] lemma outcomePMF_apply {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
     (state : QubitLayout.State layout) (outcome : Outcome measuredQubits) :
@@ -115,7 +115,7 @@ def outcomePMF {totalQubits measuredQubits : Nat}
 
 /-- Terminal Born distributions depend only on the normalized mathematical
 state; preparation-cost metadata attached to equal vectors is irrelevant. -/
-theorem outcomePMF_congr_normalized {totalQubits measuredQubits : Nat}
+lemma outcomePMF_congr_normalized {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
     {left right : QubitLayout.State layout}
@@ -126,7 +126,7 @@ theorem outcomePMF_congr_normalized {totalQubits measuredQubits : Nat}
   simp only [outcomePMF_apply]
   rw [equal]
 
-theorem outcomePMF_total {totalQubits measuredQubits : Nat}
+lemma outcomePMF_total {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
     (state : QubitLayout.State layout) :

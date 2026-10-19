@@ -27,23 +27,24 @@ namespace QuantumAlg.ProjectedSignal.Circuit
 
 noncomputable section
 
-variable (gates : GateModel) {width : Nat} (U : UnitaryOperator (Qubits width))
-  (left right : OrthogonalProjector width) (allowControlled : Bool)
+variable (gates : GateModel) (width : Nat) (allowControlled : Bool)
 
 /-- Select the right projector when true, otherwise the left projector. -/
 def projectorFlip (useRight : Bool) :
-    UnitaryCircuit gates (model U left right allowControlled)
+    UnitaryCircuit gates (model width allowControlled)
       (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout :=
   if useRight then
-    .query (OracleModel.Application.onPlacement (model U left right allowControlled) .rightNot
+    .query (OracleModel.Application.onPlacement (model width allowControlled) .rightNot
       (QuantumSignature.qubits (1 + width)).canonicalPlacement)
   else
-    .query (OracleModel.Application.onPlacement (model U left right allowControlled) .leftNot
+    .query (OracleModel.Application.onPlacement (model width allowControlled) .leftNot
       (QuantumSignature.qubits (1 + width)).canonicalPlacement)
 
 /-- The query's complete binary matrix is exactly the fixed projector-controlled NOT. -/
-theorem projectorFlip_matrix (useRight : Bool) :
-    (projectorFlip gates U left right allowControlled useRight).binaryMatrix =
+lemma projectorFlip_matrix (U : UnitaryOperator (Qubits width))
+    (left right : OrthogonalProjector width) (useRight : Bool) :
+    (projectorFlip gates width allowControlled useRight).binaryMatrix
+      (interpretation U left right allowControlled) =
       OrthogonalProjector.controlledNotOp (if useRight then right else left) := by
   cases useRight <;>
     simp only [projectorFlip, Bool.false_eq_true, ↓reduceIte,
@@ -61,15 +62,15 @@ theorem projectorFlip_matrix (useRight : Bool) :
       (QuantumSignature.qubitsIndexEquiv (1 + width)).symm _
 
 /-- Every projector call emits exactly its own declared query coordinate. -/
-theorem projectorFlip_events (useRight : Bool) :
-    (projectorFlip gates U left right allowControlled useRight).eventCost =
-      ResourcePool.singleton (model := .quantum gates (model U left right allowControlled))
+lemma projectorFlip_events (useRight : Bool) :
+    (projectorFlip gates width allowControlled useRight).eventCost =
+      ResourcePool.singleton (model := .quantum gates (model width allowControlled))
         (.oracle (if useRight then Coordinate.rightNot else Coordinate.leftNot)) := by
   cases useRight <;> rfl
 
 /-- A projector query occupies one abstract dependency step. -/
-theorem projectorFlip_depth (useRight : Bool) :
-    (projectorFlip gates U left right allowControlled useRight).evaluatedEventDepth (fun _ => 1) =
+lemma projectorFlip_depth (useRight : Bool) :
+    (projectorFlip gates width allowControlled useRight).evaluatedEventDepth (fun _ => 1) =
       1 := by
   cases useRight <;> rfl
 

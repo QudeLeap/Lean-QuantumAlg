@@ -24,7 +24,7 @@ namespace QuantumAlg.Execution
 noncomputable section
 
 /-- Each actual uniform draw contributes its equal fraction of every full reference entry. -/
-theorem referenceFiberSum_uniformChoice {C : Type} [Fintype C] {R Reference : Register}
+lemma referenceFiberSum_uniformChoice {C : Type} [Fintype C] {R Reference : Register}
     (state : ExecutionState C (Register.prod R Reference)) (count : ℕ+)
     (weight : (C × Fin count) → R.Index → ℂ) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum (uniformChoice state count) weight leftRef rightRef =

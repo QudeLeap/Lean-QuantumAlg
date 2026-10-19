@@ -52,18 +52,19 @@ def coordinateSwapStep {model : ExecutionModel} [BitWord.Selected model]
     (LatticeRows.copyOp scratch right) second.1
   (third.1, (first.2, (second.2, third.2)))
 
-theorem coordinateSwapStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateSwapStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (coordinateSwapStep (model := model) left right scratch store).1 =
       coordinateSwapStore left right scratch store := rfl
 
 /-- The actual swap preserves service state and external-reference correlations. -/
-theorem coordinateSwap_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateSwap_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right scratch : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (coordinateSwap (model := model) left right scratch).execute Reference state =
+    (coordinateSwap (model := model) left right scratch).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := coordinateSwapStep (model := model) left right scratch entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -73,7 +74,7 @@ theorem coordinateSwap_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Reads outside the two exchanged words and scratch survive the actual exchange. -/
-theorem coordinateSwap_callerFrame (left right scratch : CWriteRef ctx (.unsignedWord width))
+lemma coordinateSwap_callerFrame (left right scratch : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoidLeft : left.key ∉ other.storageKeys) (avoidRight : right.key ∉ other.storageKeys)
     (avoidScratch : scratch.key ∉ other.storageKeys) :
@@ -84,7 +85,7 @@ theorem coordinateSwap_callerFrame (left right scratch : CWriteRef ctx (.unsigne
     Store.read_applyOp_of_not_mem_storageKeys _ (LatticeRows.copyOp left scratch) _ avoidScratch]
 
 /-- The actual outputs exchange both original words, with no initial scratch condition. -/
-theorem coordinateSwap_reads (left right scratch : CWriteRef ctx (.unsignedWord width))
+lemma coordinateSwap_reads (left right scratch : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) (leftRight : left.key ≠ right.key)
     (leftScratch : left.key ≠ scratch.key) (rightScratch : right.key ≠ scratch.key) :
     (coordinateSwapStore left right scratch store).read (writeInput left) =
@@ -107,7 +108,7 @@ theorem coordinateSwap_reads (left right scratch : CWriteRef ctx (.unsignedWord 
       LatticeRows.copy_read]
 
 /-- The actual scratch retains the original left word after the exchange. -/
-theorem coordinateSwap_scratch (left right scratch : CWriteRef ctx (.unsignedWord width))
+lemma coordinateSwap_scratch (left right scratch : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) (leftScratch : left.key ≠ scratch.key)
     (rightScratch : right.key ≠ scratch.key) :
     (coordinateSwapStore left right scratch store).read (writeInput scratch) =

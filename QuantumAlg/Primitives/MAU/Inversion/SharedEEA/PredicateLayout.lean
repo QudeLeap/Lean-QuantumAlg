@@ -67,7 +67,7 @@ def lengthBit (width : Nat) (field : LengthField) (index : Fin width.size) :
   | .divisor => divisorLengthBit width index
   | .shift => shiftBit width index
 
-theorem lengthBit_get (width : Nat) (field : LengthField) (index : Fin width.size)
+lemma lengthBit_get (width : Nat) (field : LengthField) (index : Fin width.size)
     (state : Registers width) :
     (lengthBit width field index).get state = (lengthValue field state).getMsbD index.val := by
   cases field
@@ -75,7 +75,7 @@ theorem lengthBit_get (width : Nat) (field : LengthField) (index : Fin width.siz
   · exact divisorLengthBit_get width index state
   · exact shiftBit_get width index state
 
-private theorem lengthBit_wire (width : Nat) (field : LengthField) (index : Fin width.size) :
+private lemma lengthBit_wire (width : Nat) (field : LengthField) (index : Fin width.size) :
     (lengthBit width field index).wire.val =
       2 * (width + 3) + lengthOffset field * width.size + index.val := by
   cases field
@@ -83,20 +83,20 @@ private theorem lengthBit_wire (width : Nat) (field : LengthField) (index : Fin 
   · exact divisorLengthBit_wire width index
   · exact shiftBit_wire width index
 
-private theorem lengthBit_after_words (width : Nat) (field : LengthField)
+private lemma lengthBit_after_words (width : Nat) (field : LengthField)
     (index : Fin width.size) :
     2 * (width + 3) ≤ (lengthBit width field index).wire.val := by
   rw [lengthBit_wire]
   omega
 
-private theorem lengthBit_before_control (width : Nat) (field : LengthField)
+private lemma lengthBit_before_control (width : Nat) (field : LengthField)
     (index : Fin width.size) :
     (lengthBit width field index).wire.val < (controlBit width).wire.val := by
   rw [lengthBit_wire, controlBit_wire]
   have within := index.isLt
   cases field <;> simp only [lengthOffset] <;> omega
 
-private theorem lengthBit_injective (width : Nat) (field : LengthField) :
+private lemma lengthBit_injective (width : Nat) (field : LengthField) :
     Function.Injective (fun index : Fin width.size => (lengthBit width field index).wire) := by
   intro left right same
   apply Fin.ext
@@ -104,7 +104,7 @@ private theorem lengthBit_injective (width : Nat) (field : LengthField) :
   rw [lengthBit_wire, lengthBit_wire] at values
   omega
 
-private theorem lengthBit_distinct (width : Nat) (first second : LengthField)
+private lemma lengthBit_distinct (width : Nat) (first second : LengthField)
     (different : first ≠ second) (left right : Fin width.size) :
     (lengthBit width first left).wire ≠ (lengthBit width second right).wire := by
   intro same
@@ -118,7 +118,7 @@ private theorem lengthBit_distinct (width : Nat) (first second : LengthField)
   all_goals omega
 
 /-- Even two length registers need at most `n` arbitrary conjunction-work bits. -/
-theorem pair_work_capacity (width : Nat) : 2 * width.size - 2 ≤ width := by
+lemma pair_work_capacity (width : Nat) : 2 * width.size - 2 ≤ width := by
   by_cases empty : width.size = 0
   · simp only [empty, Nat.mul_zero, Nat.zero_sub, Nat.zero_le]
   · have previous : width.size - 1 < width.size := by omega
@@ -126,11 +126,11 @@ theorem pair_work_capacity (width : Nat) : 2 * width.size - 2 ≤ width := by
     have linearBound := Nat.mul_le_pow (by decide : 2 ≠ 1) (width.size - 1)
     omega
 
-private theorem size_capacity (width : Nat) : width.size ≤ width :=
+private lemma size_capacity (width : Nat) : width.size ≤ width :=
   Nat.size_le.mpr Nat.lt_two_pow_self
 
 /-- Every nontrivial modulus supplies the static at-least-two length width. -/
-theorem modulus_length_width (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma modulus_length_width (modulus : Nat) (nontrivial : 1 < modulus) :
     2 ≤ modulus.size.size := by
   have modulusWidth : 1 < modulus.size := Nat.lt_size.mpr nontrivial
   have lengthWidth : 1 < modulus.size.size := Nat.lt_size.mpr modulusWidth
@@ -141,12 +141,12 @@ def workBit (width count : Nat) (capacity : count ≤ width + 3) (index : Fin co
     EncodedBit (encoding width) :=
   secondWordBit width ⟨index.val, lt_of_lt_of_le index.isLt capacity⟩
 
-theorem workBit_get (width count : Nat) (capacity : count ≤ width + 3) (index : Fin count)
+lemma workBit_get (width count : Nat) (capacity : count ≤ width + 3) (index : Fin count)
     (state : Registers width) :
     (workBit width count capacity index).get state = state.secondWord.getMsbD index.val :=
   secondWordBit_get width _ state
 
-theorem workBit_wire (width count : Nat) (capacity : count ≤ width + 3) (index : Fin count) :
+lemma workBit_wire (width count : Nat) (capacity : count ≤ width + 3) (index : Fin count) :
     (workBit width count capacity index).wire.val = width + 3 + index.val :=
   secondWordBit_wire width _
 
@@ -202,7 +202,7 @@ def single (width : Nat) (field : LengthField) (enough : 2 ≤ width.size) :
     (fun index => Or.inr (lengthBit_after_words width field _))
     (fun index => lengthBit_before_control width field _)
 
-theorem single_source_get (width : Nat) (field : LengthField) (enough : 2 ≤ width.size)
+lemma single_source_get (width : Nat) (field : LengthField) (enough : 2 ≤ width.size)
     (index : Fin (width.size - 2 + 2)) (state : Registers width) :
     ((single width field enough).source.bit index).get state =
       (lengthValue field state).getMsbD index.val :=
@@ -213,7 +213,7 @@ private def pairBit (width : Nat) (first second : LengthField) (index : Fin (2 *
   if initial : index.val < width.size then lengthBit width first ⟨index.val, initial⟩
   else lengthBit width second ⟨index.val - width.size, by have bound := index.isLt; omega⟩
 
-private theorem pairBit_injective (width : Nat) (first second : LengthField)
+private lemma pairBit_injective (width : Nat) (first second : LengthField)
     (different : first ≠ second) :
     Function.Injective
       (fun index : Fin (2 * width.size) => (pairBit width first second index).wire) := by
@@ -253,7 +253,7 @@ def pair (width : Nat) (first second : LengthField) (different : first ≠ secon
       unfold pairBit
       split <;> exact lengthBit_before_control width _ _)
 
-theorem pair_source_get (width : Nat) (first second : LengthField)
+lemma pair_source_get (width : Nat) (first second : LengthField)
     (different : first ≠ second) (enough : 2 ≤ width.size)
     (index : Fin (2 * width.size - 2 + 2)) (state : Registers width) :
     ((pair width first second different enough).source.bit index).get state =
@@ -278,7 +278,7 @@ def clockBit (width : Nat) (index : Fin (width.size + 2)) : EncodedBit (encoding
   if high : index.val < 2 then paddingBit width ⟨index.val, high⟩
   else shiftBit width ⟨index.val - 2, by have bound := index.isLt; omega⟩
 
-private theorem clockBit_injective (width : Nat) :
+private lemma clockBit_injective (width : Nat) :
     Function.Injective (fun index : Fin (width.size + 2) => (clockBit width index).wire) := by
   intro left right same
   change (clockBit width left).wire = (clockBit width right).wire at same
@@ -332,7 +332,7 @@ def extendedClock (width : Nat) :
         omega)
 
 /-- The extended predicate observes the actual Work1 high bits, not an extra logical register. -/
-theorem extendedClock_source_get (width : Nat) (index : Fin (width.size + 2))
+lemma extendedClock_source_get (width : Nat) (index : Fin (width.size + 2))
     (state : Registers width) :
     ((extendedClock width).source.bit index).get state =
       if index.val < 2 then
@@ -345,7 +345,7 @@ theorem extendedClock_source_get (width : Nat) (index : Fin (width.size + 2))
   · exact shiftBit_get width _ state
 
 /-- Each borrowed work bit has its unchanged physical identity inside the existing Work2. -/
-theorem workBit_placement (width count base : Nat) (capacity : count ≤ width + 3)
+lemma workBit_placement (width count base : Nat) (capacity : count ≤ width + 3)
     (index : Fin count) :
     (qubitLayout width base).physical_idx (workBit width count capacity index).wire =
       base + (width + 3) + index.val := by
@@ -353,7 +353,7 @@ theorem workBit_placement (width count base : Nat) (capacity : count ≤ width +
   omega
 
 /-- The zero-test output is the fifth allocated control, independently of any input value. -/
-theorem control_placement (width base : Nat) :
+lemma control_placement (width base : Nat) :
     (qubitLayout width base).physical_idx (controlBit width).wire =
       base + 2 * (width + 3) + 4 * width.size + 4 := by
   rw [qubitLayout_bit_identity, controlBit_wire]

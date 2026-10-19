@@ -58,13 +58,13 @@ def decodeCode {width : Nat} : CShape.Value (PointShape width) → Pure.Code wid
   | .ellipticCurvePoint tag x y => ⟨tag, x, y⟩
 
 @[simp]
-theorem decodeCode_encodeCode {width : Nat} (code : Pure.Code width) :
+lemma decodeCode_encodeCode {width : Nat} (code : Pure.Code width) :
     decodeCode (encodeCode code) = code := by
   cases code
   rfl
 
 @[simp]
-theorem encodeCode_decodeCode {width : Nat}
+lemma encodeCode_decodeCode {width : Nat}
     (encoded : CShape.Value (PointShape width)) :
     encodeCode (decodeCode encoded) = encoded := by
   cases encoded
@@ -93,18 +93,18 @@ def encodePoint {width : Nat} (spec : CurveSpec width)
   encodeCode (ClassicalAlgorithms.EllipticCurve.encode spec point)
 
 @[simp]
-theorem decodeCode_encodePoint {width : Nat} (spec : CurveSpec width)
+lemma decodeCode_encodePoint {width : Nat} (spec : CurveSpec width)
     (point : Pure.Point spec) :
     decodeCode (encodePoint spec point) =
       ClassicalAlgorithms.EllipticCurve.encode spec point := by
   simp [encodePoint]
 
-theorem encodePoint_represents {width : Nat} (spec : CurveSpec width)
+lemma encodePoint_represents {width : Nat} (spec : CurveSpec width)
     (point : Pure.Point spec) :
     PointRepresents spec (encodePoint spec point) point := by
   simp [PointRepresents, encodePoint]
 
-theorem encodePoint_valid {width : Nat} (spec : CurveSpec width)
+lemma encodePoint_valid {width : Nat} (spec : CurveSpec width)
     (point : Pure.Point spec) : PointValid spec (encodePoint spec point) :=
   ⟨point, encodePoint_represents spec point⟩
 

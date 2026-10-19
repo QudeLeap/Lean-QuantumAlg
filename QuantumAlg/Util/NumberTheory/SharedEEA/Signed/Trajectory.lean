@@ -39,13 +39,13 @@ def retainedIteration : Nat → IterationState → Bool → Bool
       else retainedIteration fuel (IterationState.step state) (!iteration)
 
 /-- A completed mathematical active prefix contributes no further iteration-bit complements. -/
-theorem retainedIteration_finished (fuel : Nat) (state : IterationState) (iteration : Bool)
+lemma retainedIteration_finished (fuel : Nat) (state : IterationState) (iteration : Bool)
     (finished : state.divisor = 0) :
     retainedIteration fuel state iteration = iteration := by
   cases fuel <;> simp only [retainedIteration, if_pos finished]
 
 /-- Every actual active macro exchange preserves both congruences with its retained parity. -/
-theorem activeRun_holds (fuel modulus input : Nat) (state : IterationState) (iteration : Bool)
+lemma activeRun_holds (fuel modulus input : Nat) (state : IterationState) (iteration : Bool)
     (invariant : SignedInvariant.Holds modulus input state iteration) :
     SignedInvariant.Holds modulus input (QuotientTrajectory.activeRun fuel state)
       (retainedIteration fuel state iteration) := by
@@ -64,7 +64,7 @@ def finalIteration (modulus input : Nat) : Bool :=
     (IterationState.initial modulus (foldInput modulus input).2) (foldInput modulus input).1
 
 /-- The original residue establishes the full signed terminal relation without extra premises. -/
-theorem final_holds (modulus input : Nat) (bounded : input < modulus) :
+lemma final_holds (modulus input : Nat) (bounded : input < modulus) :
     SignedInvariant.Holds modulus input (TerminalPadding.finalState modulus input)
       (finalIteration modulus input) :=
   activeRun_holds (Euclid.gcdFuel modulus.size) modulus input
@@ -72,7 +72,7 @@ theorem final_holds (modulus input : Nat) (bounded : input < modulus) :
     (SignedInvariant.folded_initial modulus input bounded)
 
 /-- The retained parity selects a genuine inverse for every coprime positive residue. -/
-theorem final_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma final_product (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (input : ZMod modulus) *
       (SignedInvariant.output modulus (TerminalPadding.finalState modulus input)

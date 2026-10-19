@@ -38,7 +38,7 @@ public def qubitBound (N : Nat) : Nat → Nat
   | 0 => 0
   | _ + 1 => shortLogBits N + 2 * tradeoffBits N + 2 * arithmeticBits N
 
-private theorem first_classical (N : Nat) :
+private lemma first_classical (N : Nat) :
     NativeBatchRecovery.additionalSpace N .classicalBits =
       LatticeBatchRecoveryWorkspace.allocationBits N + 36 * modulusBits N +
         17 * measurementBits N + 19 := by
@@ -52,7 +52,7 @@ private theorem first_classical (N : Nat) :
   simp only [BatchMachine.JWidth, BatchMachine.KWidth]
   omega
 
-private theorem later_classical (N : Nat) :
+private lemma later_classical (N : Nat) :
     NativeBatchReuseRecovery.additionalSpace N .classicalBits =
       LatticeBatchRecoveryWorkspace.allocationBits N + 36 * modulusBits N +
         16 * measurementBits N + 19 := by
@@ -63,7 +63,7 @@ private theorem later_classical (N : Nat) :
     SpacePool.ofShape]
   omega
 
-private theorem first_retained_classical (N : Nat) :
+private lemma first_retained_classical (N : Nat) :
     NativeBatchRecovery.retainedSpace N .classicalBits =
       measurementBits N + NativeBatchReuseRecovery.retainedBits N := by
   have binaryBits : Nat.clog 2 2 = 1 := by decide
@@ -71,7 +71,7 @@ private theorem first_retained_classical (N : Nat) :
     NativeBatchReuseRecovery.retainedSpace_bits, SpacePool.ofShape, SpacePool.ofQuantumLayout,
     binaryBits]
 
-private theorem first_quantum (N : Nat) (dimension : ℕ+) :
+private lemma first_quantum (N : Nat) (dimension : ℕ+) :
     NativeBatchRecovery.additionalSpace N (.quantumSystems dimension) =
       (runtimeLayout (shortLogBits N) (tradeoffBits N)
         (arithmeticBits N)).dimensionCount dimension := by
@@ -82,14 +82,14 @@ private theorem first_quantum (N : Nat) (dimension : ℕ+) :
     ClassicalRoutines.Modular.NativePower.powerSpace, SpacePool.ofShape,
     SpacePool.ofQuantumLayout]
 
-private theorem later_quantum (N : Nat) (dimension : ℕ+) :
+private lemma later_quantum (N : Nat) (dimension : ℕ+) :
     NativeBatchReuseRecovery.additionalSpace N (.quantumSystems dimension) = 0 := by
   simp [NativeBatchReuseRecovery.additionalSpace, NativeBatchReuseRecovery.tailAdditionalSpace,
     NativeBatchReuse.additionalSpace, LatticeFixedBatchRecoveryMachine.additionalSpace,
     LatticeBatchRecoveryWorkspace.batchAllocationSpace_eq_bits,
     ClassicalRoutines.Modular.NativePower.powerSpace, SpacePool.ofShape]
 
-private theorem chain_allowance (N count : Nat) :
+private lemma chain_allowance (N count : Nat) :
     NativeRetryChain.additionalSpace N count =
       NativeBatchRecovery.retainedSpace N + NativeRetryChain.suffixAllowance N count := by
   unfold NativeRetryChain.additionalSpace
@@ -108,7 +108,7 @@ private theorem chain_allowance (N count : Nat) :
         NativeBatchReuseRecovery.retainedSpace_quantum, SpacePool.ofShape,
         SpacePool.ofQuantumLayout]
 
-private theorem selected_allowance (N count : Nat) :
+private lemma selected_allowance (N count : Nat) :
     NativeRetrySelection.additionalSpace N count = NativeRetryChain.additionalSpace N count := by
   unfold NativeRetrySelection.additionalSpace
   apply SpacePool.max_eq_left
@@ -129,7 +129,7 @@ private theorem selected_allowance (N count : Nat) :
         NativeBatchReuseRecovery.retainedSpace_quantum]
 
 /-- The zero and positive formulas equal the classical coordinate of the accepted allowance. -/
-theorem additionalSpace_classicalBits (N totalRounds : Nat) :
+lemma additionalSpace_classicalBits (N totalRounds : Nat) :
     additionalSpace N totalRounds .classicalBits = classicalBitBound N totalRounds := by
   cases totalRounds with
   | zero => rfl
@@ -142,7 +142,7 @@ theorem additionalSpace_classicalBits (N totalRounds : Nat) :
       omega
 
 /-- Every positive count charges precisely the actual bank in every quantum dimension. -/
-theorem additionalSpace_succ_quantum_layout (N count : Nat) (dimension : ℕ+) :
+lemma additionalSpace_succ_quantum_layout (N count : Nat) (dimension : ℕ+) :
     additionalSpace N (count + 1) (.quantumSystems dimension) =
       (runtimeLayout (shortLogBits N) (tradeoffBits N)
         (arithmeticBits N)).dimensionCount dimension := by
@@ -154,7 +154,7 @@ theorem additionalSpace_succ_quantum_layout (N count : Nat) (dimension : ℕ+) :
     SpacePool.max, SpacePool.ofShape, SpacePool.ofQuantumLayout]
 
 /-- The sole positive-count bank contains exactly the independently stated number of qubits. -/
-theorem additionalSpace_qubits (N totalRounds : Nat) :
+lemma additionalSpace_qubits (N totalRounds : Nat) :
     additionalSpace N totalRounds (.quantumSystems 2) = qubitBound N totalRounds := by
   cases totalRounds with
   | zero => rfl
@@ -167,7 +167,7 @@ theorem additionalSpace_qubits (N totalRounds : Nat) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Actual code resident classical bits obey the scalar formula on the same path. -/
-theorem code_resident_classicalBits_le (input : Input N) (totalRounds : Nat)
+lemma code_resident_classicalBits_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).peakResidentSpace path .classicalBits ≤
       base.residentSpace .classicalBits + classicalBitBound N totalRounds := by
@@ -175,7 +175,7 @@ theorem code_resident_classicalBits_le (input : Input N) (totalRounds : Nat)
     code_resident_le base noQuantum input totalRounds path .classicalBits
 
 /-- Actual code auxiliary classical bits obey the same independent scalar capacity. -/
-theorem code_auxiliary_classicalBits_le (input : Input N) (totalRounds : Nat)
+lemma code_auxiliary_classicalBits_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).peakAuxiliarySpace path .classicalBits ≤
       base.auxiliarySpace .classicalBits + classicalBitBound N totalRounds := by
@@ -183,7 +183,7 @@ theorem code_auxiliary_classicalBits_le (input : Input N) (totalRounds : Nat)
     code_auxiliary_le base noQuantum input totalRounds path .classicalBits
 
 /-- Actual code resident qubits include at most the one positive-count bank. -/
-theorem code_resident_qubits_le (input : Input N) (totalRounds : Nat)
+lemma code_resident_qubits_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).peakResidentSpace path (.quantumSystems 2) ≤
       base.residentSpace (.quantumSystems 2) + qubitBound N totalRounds := by
@@ -191,7 +191,7 @@ theorem code_resident_qubits_le (input : Input N) (totalRounds : Nat)
     code_resident_le base noQuantum input totalRounds path (.quantumSystems 2)
 
 /-- Actual code auxiliary qubits include at most the same single bank. -/
-theorem code_auxiliary_qubits_le (input : Input N) (totalRounds : Nat)
+lemma code_auxiliary_qubits_le (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).peakAuxiliarySpace path (.quantumSystems 2) ≤
       base.auxiliarySpace (.quantumSystems 2) + qubitBound N totalRounds := by
@@ -199,7 +199,7 @@ theorem code_auxiliary_qubits_le (input : Input N) (totalRounds : Nat)
     code_auxiliary_le base noQuantum input totalRounds path (.quantumSystems 2)
 
 /-- Every complete run path has the same independent resident classical-bit bound. -/
-theorem run_resident_classicalBits_le (input : Input N) (totalRounds : Nat)
+lemma run_resident_classicalBits_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.peakResidentSpace path .classicalBits ≤
       base.residentSpace .classicalBits + classicalBitBound N totalRounds := by
@@ -207,7 +207,7 @@ theorem run_resident_classicalBits_le (input : Input N) (totalRounds : Nat)
     run_resident_le base noQuantum input totalRounds path .classicalBits
 
 /-- Every complete run path has the same independent auxiliary classical-bit bound. -/
-theorem run_auxiliary_classicalBits_le (input : Input N) (totalRounds : Nat)
+lemma run_auxiliary_classicalBits_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.peakAuxiliarySpace path .classicalBits ≤
       base.auxiliarySpace .classicalBits + classicalBitBound N totalRounds := by
@@ -215,7 +215,7 @@ theorem run_auxiliary_classicalBits_le (input : Input N) (totalRounds : Nat)
     run_auxiliary_le base noQuantum input totalRounds path .classicalBits
 
 /-- Complete actual run resident qubits are bounded without multiplying the bank by retries. -/
-theorem run_resident_qubits_le (input : Input N) (totalRounds : Nat)
+lemma run_resident_qubits_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.peakResidentSpace path (.quantumSystems 2) ≤
       base.residentSpace (.quantumSystems 2) + qubitBound N totalRounds := by
@@ -223,7 +223,7 @@ theorem run_resident_qubits_le (input : Input N) (totalRounds : Nat)
     run_resident_le base noQuantum input totalRounds path (.quantumSystems 2)
 
 /-- Complete actual run auxiliary qubits obey the same bank bound, including zero batches. -/
-theorem run_auxiliary_qubits_le (input : Input N) (totalRounds : Nat)
+lemma run_auxiliary_qubits_le (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.peakAuxiliarySpace path (.quantumSystems 2) ≤
       base.auxiliarySpace (.quantumSystems 2) + qubitBound N totalRounds := by

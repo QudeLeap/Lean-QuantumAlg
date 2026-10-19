@@ -28,6 +28,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.DecodedSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- Actual independent forward schedule followed by every native weighted decoder sweep. -/
@@ -44,10 +46,10 @@ def result (modulus input : Nat) (positive : 0 < input) (bounded : input < modul
     secondWord := terminal.secondWord }
 
 /-- Actual preprocessing, fixed repetition, and real decoder produce this entire original frame. -/
-theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
@@ -66,10 +68,11 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
   rfl
 
 /-- Every decoded Work2 coordinate is exactly the terminal coefficient's little-endian bit. -/
-theorem result_coefficient_bit (modulus input index : Nat)
+lemma result_coefficient_bit (modulus input index : Nat)
     (positive : 0 < input) (bounded : input < modulus) (within : index < modulus.size + 3) :
     (result modulus input positive bounded).secondWord.getMsbD index =
-      (TerminalPadding.finalState modulus input).previousCoefficient.testBit index := by
+      (TerminalPadding.finalState modulus input).previousCoefficient.testBit
+        index := by
   let state := TerminalPadding.finalState modulus input
   let valid := TerminalPadding.final_admissible modulus input positive bounded
   let conserved := TerminalPadding.final_balance modulus input
@@ -84,7 +87,7 @@ theorem result_coefficient_bit (modulus input index : Nat)
     exact within), coefficient, remainder, finished, Nat.zero_testBit, Bool.or_false]
 
 /-- The retained iteration bit is the exact original-fold and macro-exchange history. -/
-theorem result_iteration (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma result_iteration (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (result modulus input positive bounded).flags.iteration =
       SignedTrajectory.finalIteration modulus input := rfl
 

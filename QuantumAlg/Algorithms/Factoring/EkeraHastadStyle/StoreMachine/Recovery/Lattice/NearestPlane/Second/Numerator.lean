@@ -49,17 +49,18 @@ def numeratorStep {model : ExecutionModel} [BitWord.Selected model]
     refs.numerator refs.numerator refs.numeratorProduct store
 
 /-- The complete actual numerator interpreter retains history and quantum-reference blocks. -/
-theorem numeratorInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (numeratorInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (numeratorInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := numeratorStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   exact LatticeCross.coordinateCross_execute _ _ _ _ _ _ _ Reference state
 
 /-- Only the original two numerator words are modified. -/
-theorem numeratorInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma numeratorInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (notNumerator : refs.numerator.key ∉ other.storageKeys)
     (notProduct : refs.numeratorProduct.key ∉ other.storageKeys) :
@@ -68,7 +69,7 @@ theorem numeratorInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     notNumerator notNumerator notProduct
 
 /-- Distinct named phase cells survive the two numerator writes. -/
-theorem numeratorInto_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma numeratorInto_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape) (source : PhaseCell)
     (sourceKey : other.key = phaseCellKey refs source)
     (notNumerator : .numerator ≠ source) (notProduct : .numeratorProduct ≠ source) :
@@ -83,7 +84,7 @@ theorem numeratorInto_frame (refs : Refs ctx width) (separation : PhaseSeparatio
       separation.phaseCellKey_ne .numeratorProduct source notProduct
 
 /-- Actual multiplication and subtraction compute the cleared second numerator. -/
-theorem numeratorInto_correct (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma numeratorInto_correct (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (store : Store ctx) (g11 g21 targetSecond targetFirst : Int)
     (g11Rep : RawSignedRepresents (store.read (writeInput refs.g11)) g11)
     (g21Rep : RawSignedRepresents (store.read (writeInput refs.g21)) g21)
@@ -104,16 +105,17 @@ theorem numeratorInto_correct (refs : Refs ctx width) (separation : PhaseSeparat
   · exact separation.phaseCellKey_ne .numeratorProduct .numerator (by decide)
 
 /-- The actual numerator restores all borrowed correlations for arbitrary incoming states. -/
-theorem numeratorInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (numeratorInto refs).BorrowedRestored Reference state
-      ((numeratorInto refs).execute Reference state) := by
+      ((numeratorInto refs).execute environment Reference state) := by
   exact LatticeCross.coordinateCross_borrowedRestored _ _ _ _ _ _ _ Reference state
 
 /-- The actual numerator has exactly three native instruction dependencies. -/
-theorem numeratorInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma numeratorInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (path : (numeratorInto refs).Path) :
     (numeratorInto refs).depth (fun _ => 1) path = 3 := rfl
 

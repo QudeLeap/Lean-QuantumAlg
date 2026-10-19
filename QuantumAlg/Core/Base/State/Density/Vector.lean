@@ -24,7 +24,7 @@ open scoped ComplexOrder
 
 variable {R : Register}
 
-private theorem trace_vectorOuterProduct (vector : HilbertVector R) :
+private lemma trace_vectorOuterProduct (vector : HilbertVector R) :
     (Matrix.vecMulVec (fun index => vector index) (fun index => star (vector index))).trace.re =
       ‖vector‖ ^ 2 := by
   have innerEquality :
@@ -44,25 +44,25 @@ def ofSubnormalizedVector (vector : HilbertVector R) (bounded : ‖vector‖ ≤
     rw [trace_vectorOuterProduct]
     nlinarith [norm_nonneg vector]
 
-@[simp] theorem ofSubnormalizedVector_matrix (vector : HilbertVector R)
+@[simp] lemma ofSubnormalizedVector_matrix (vector : HilbertVector R)
     (bounded : ‖vector‖ ≤ 1) (row column : R.Index) :
     (ofSubnormalizedVector vector bounded).matrix row column =
       vector row * star (vector column) := rfl
 
 /-- No branch normalization is performed: the mass is precisely the squared vector norm. -/
-theorem ofSubnormalizedVector_mass (vector : HilbertVector R) (bounded : ‖vector‖ ≤ 1) :
+lemma ofSubnormalizedVector_mass (vector : HilbertVector R) (bounded : ‖vector‖ ≤ 1) :
     (ofSubnormalizedVector vector bounded).mass = ‖vector‖ ^ 2 :=
   trace_vectorOuterProduct vector
 
 /-- On normalized vectors, the same construction agrees with the canonical pure embedding. -/
-theorem ofSubnormalizedVector_of_normalized (vector : NormalizedVector R) :
+lemma ofSubnormalizedVector_of_normalized (vector : NormalizedVector R) :
     ofSubnormalizedVector (R := R) (vector : HilbertVector R)
       (by rw [vector.norm_eq_one]) = ofPure vector := by
   apply ext
   rfl
 
 /-- A coherent support condition gives the diagonal support used by exact density execution. -/
-theorem ofSubnormalizedVector_supported (vector : HilbertVector R) (bounded : ‖vector‖ ≤ 1)
+lemma ofSubnormalizedVector_supported (vector : HilbertVector R) (bounded : ‖vector‖ ≤ 1)
     (allowed : R.Index → Prop) (support : ∀ index, ¬allowed index → vector index = 0) :
     ∀ index, ¬allowed index → (ofSubnormalizedVector vector bounded).matrix index index = 0 := by
   intro index outside

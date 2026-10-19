@@ -42,7 +42,7 @@ public def sampleEquiv (width : Nat) : CShape.Value (.bits width) ≃ Fin (2 ^ w
   exact (coordinates width).trans (BinaryBasis.bigEndianEquiv width)
 
 /-- Decoding a sample index gives the exact existing most-significant-first stored bit. -/
-public theorem randomSampleEquiv_symm_bit (width : Nat) (value : Fin (2 ^ width))
+public lemma randomSampleEquiv_symm_bit (width : Nat) (value : Fin (2 ^ width))
     (index : Fin width) :
     (((sampleEquiv width).symm value).bitGet index).toBool =
       value.val.testBit (width - 1 - index.val) := by
@@ -53,17 +53,17 @@ public theorem randomSampleEquiv_symm_bit (width : Nat) (value : Fin (2 ^ width)
   omega
 
 /-- The native output carrier has exactly one value for each finite sample label. -/
-public theorem randomBitsValue_card (width : Nat) :
+public lemma randomBitsValue_card (width : Nat) :
     Fintype.card (CShape.Value (.bits width)) = 2 ^ width :=
   (Fintype.card_congr (sampleEquiv width)).trans (Fintype.card_fin _)
 
 /-- Every actual bit-string value has the source uniform probability, including width zero. -/
-public theorem randomUniformBits_apply (width : Nat) (value : CShape.Value (.bits width)) :
+public lemma randomUniformBits_apply (width : Nat) (value : CShape.Value (.bits width)) :
     uniformBits width value = ((2 ^ width : Nat) : ENNReal)⁻¹ := by
   rw [uniformBits, PMF.uniformOfFintype_apply, randomBitsValue_card]
 
 /-- Finite sample indexing preserves the same uniform mass used by the original source. -/
-public theorem randomUniformBits_sample (width : Nat) (value : Fin (2 ^ width)) :
+public lemma randomUniformBits_sample (width : Nat) (value : Fin (2 ^ width)) :
     uniformBits width ((sampleEquiv width).symm value) = ((2 ^ width : Nat) : ENNReal)⁻¹ :=
   randomUniformBits_apply width _
 

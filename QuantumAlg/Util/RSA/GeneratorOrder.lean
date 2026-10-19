@@ -62,7 +62,7 @@ nonvacuous. -/
 public def effectiveCutoffBits : Nat := 512
 
 /-- A convenient linear upper bound for the rounded divisor exponent. -/
-theorem divisorBoundBits_le (b : Nat) :
+lemma divisorBoundBits_le (b : Nat) :
     divisorBoundBits b ≤ b / 9 + 32 := by
   unfold divisorBoundBits NumberTheory.divisorCountBoundBits
   apply (ceilDiv_le_iff_le_mul (by decide : 0 < 9)).2
@@ -70,7 +70,7 @@ theorem divisorBoundBits_le (b : Nat) :
 
 /-- Above the effective cutoff, the two coordinate losses and the common
 divisor loss fit strictly inside the source exponent budget. -/
-theorem loss_budget_of_effective {b : Nat}
+lemma loss_budget_of_effective {b : Nat}
     (hb : effectiveCutoffBits ≤ b) :
     2 * coordinateLossBits b + gcdLossBits b < sourceLossBits b := by
   have hdivisor := divisorBoundBits_le b
@@ -85,7 +85,7 @@ theorem loss_budget_of_effective {b : Nat}
 /-- A linear fraction of the bit width remains available for the common
 divisor cutoff throughout the effective range.  This deliberately weak bound
 is chosen for a transparent asymptotic proof. -/
-theorem div_sixteen_le_gcdLossBits {b : Nat}
+lemma div_sixteen_le_gcdLossBits {b : Nat}
     (hb : effectiveCutoffBits ≤ b) :
     b / 16 ≤ gcdLossBits b := by
   have hdivisor := divisorBoundBits_le b
@@ -100,7 +100,7 @@ def OrderSufficient (b shortLog order : Nat) : Prop :=
 
 /-- The loss exponent and the short-DLP target exponent exactly fill the
 `2*b-2` bits supplied by two odd `b`-bit prime factors. -/
-theorem sourceLoss_add_targetExponent {b : Nat} (hb : 9 ≤ b) :
+lemma sourceLoss_add_targetExponent {b : Nat} (hb : 9 ≤ b) :
     sourceLossBits b + (ell b + m b + 1) = 2 * (b - 1) := by
   unfold sourceLossBits ell m
   have hhalf : (b + 2) / 2 + 4 ≤ b := by omega
@@ -114,7 +114,7 @@ prime-order unit group, and their common divisor may lose a further
 the resulting LCM satisfies the original Ekerå–Håstad short-DLP order
 condition.  Probability bounds for the three excluded events are proved
 separately; this theorem contains no distributional assumption. -/
-theorem effectiveOrderCondition
+lemma effectiveOrderCondition
     {b p q shortLog leftOrder rightOrder : Nat}
     (hb : 9 ≤ b)
     (hpLower : 2 ^ (b - 1) ≤ p - 1)
@@ -210,7 +210,7 @@ theorem effectiveOrderCondition
 
 /-- The hidden RSA short logarithm of an exact same-bit key fits the source
 register width `m=b+1`. -/
-theorem RSAKeyPairBits.shortLogSecret_lt_two_pow_m {b : Nat}
+lemma RSAKeyPairBits.shortLogSecret_lt_two_pow_m {b : Nat}
     (pair : RSAKeyPairBits b) :
     shortLogSecret pair.p pair.q < 2 ^ m b := by
   have hpUpper := pair.p_bits.2
@@ -238,7 +238,7 @@ noncomputable def componentOrders {b : Nat} (pair : RSAKeyPairBits b)
 
 /-- The common divisor of the sampled CRT component orders is bounded by the
 common divisor of the two full prime-group orders. -/
-theorem componentOrderGcd_le_keyGcd {b : Nat}
+lemma componentOrderGcd_le_keyGcd {b : Nat}
     (pair : RSAKeyPairBits b) (unit : (ZMod pair.modulus)ˣ) :
     Nat.gcd (componentOrders pair unit).1 (componentOrders pair unit).2 ≤
       Nat.gcd (pair.p - 1) (pair.q - 1) := by
@@ -262,7 +262,7 @@ theorem componentOrderGcd_le_keyGcd {b : Nat}
 
 /-- The global order of an actual RSA unit is the LCM of its two recorded CRT
 component orders. -/
-theorem orderOf_eq_lcm_componentOrders {b : Nat}
+lemma orderOf_eq_lcm_componentOrders {b : Nat}
     (pair : RSAKeyPairBits b) (unit : (ZMod pair.modulus)ˣ) :
     orderOf unit =
       Nat.lcm (componentOrders pair unit).1 (componentOrders pair unit).2 := by
@@ -278,7 +278,7 @@ theorem orderOf_eq_lcm_componentOrders {b : Nat}
 /-- Actual same-bit RSA specialization of `effectiveOrderCondition`.  The
 hypotheses are precisely the complements of the two coordinate low-order
 events and the common-divisor tail event. -/
-theorem sampledUnit_orderSufficient
+lemma sampledUnit_orderSufficient
     {b : Nat} (pair : RSAKeyPairBits b)
     (unit : (ZMod pair.modulus)ˣ)
     (hb : 9 ≤ b)
@@ -302,11 +302,11 @@ theorem sampledUnit_orderSufficient
     (RSAKeyPairBits.shortLogSecret_lt_two_pow_m pair)
     hleft hright hcommon hloss
 
-theorem rsa1024_parameters :
+lemma rsa1024_parameters :
     m 1024 = 1025 ∧ ell 1024 = 513 ∧ sourceLossBits 1024 = 507 := by
   decide
 
-theorem rsa1024_loss_thresholds :
+lemma rsa1024_loss_thresholds :
     divisorBoundBits 1024 = 145 ∧
       coordinateLossBits 1024 = 161 ∧
       gcdLossBits 1024 = 181 := by
@@ -314,7 +314,7 @@ theorem rsa1024_loss_thresholds :
 
 /-- The two cyclic-coordinate cutoffs plus the common-factor cutoff fit below
 the source loss threshold with four bits of margin. -/
-theorem rsa1024_loss_certificate :
+lemma rsa1024_loss_certificate :
     2 * coordinateLossBits 1024 + gcdLossBits 1024 = 503 ∧
       2 * coordinateLossBits 1024 + gcdLossBits 1024 <
         sourceLossBits 1024 := by
@@ -370,7 +370,7 @@ noncomputable def commonDivisorBadKeyEmbedding (b D : Nat) :
 
 /-- The all-integer common-divisor union is an upper bound for the number of
 bad accepted RSA keys. -/
-theorem commonDivisorBadKeys_card_le (b D : Nat) :
+lemma commonDivisorBadKeys_card_le (b D : Nat) :
     (commonDivisorBadKeys b D).card ≤
       (NumberTheory.commonDivisorPairs (2 ^ b) D).card := by
   classical
@@ -380,7 +380,7 @@ theorem commonDivisorBadKeys_card_le (b D : Nat) :
 /-- Explicit real-valued numerator bound for the common-divisor bad-key
 event.  Counting all positive integers makes this conservative but fully
 elementary. -/
-theorem commonDivisorBadKeys_card_bound (b D : Nat) (hD : 0 < D) :
+lemma commonDivisorBadKeys_card_bound (b D : Nat) (hD : 0 < D) :
     (D : Real) * (commonDivisorBadKeys b D).card ≤
       2 * ((2 ^ b : Nat) : Real) ^ 2 := by
   have hcardNat := commonDivisorBadKeys_card_le b D
@@ -409,7 +409,7 @@ noncomputable def keyGenerationBadFraction (b : Nat) : Real :=
 
 /-- The exact common-divisor exceptional fraction is the actual event mass of
 the canonical uniform same-bit RSA key generator. -/
-theorem RSAKeyGenBits_commonDivisorBadMass_eq (b : Nat)
+lemma RSAKeyGenBits_commonDivisorBadMass_eq (b : Nat)
     (h : Nonempty (RSAKeyPairBits b)) :
     (RSAKeyGenBits b h).toOuterMeasure
         {pair | 2 ^ gcdLossBits b ≤
@@ -428,7 +428,7 @@ theorem RSAKeyGenBits_commonDivisorBadMass_eq (b : Nat)
 
 /-- The analytic key failure bound really dominates the exact bad-key mass of
 the canonical uniform same-bit distribution. -/
-theorem keyGenerationBadFraction_le_keyFailureBound {b : Nat}
+lemma keyGenerationBadFraction_le_keyFailureBound {b : Nat}
     (hb : effectiveCutoffBits ≤ b) :
     keyGenerationBadFraction b ≤ keyFailureBound b := by
   let lower := NumberTheory.topQuarterPrimeCountLowerBound b
@@ -521,7 +521,7 @@ noncomputable def generatorFailureBound (b : Nat) : Real :=
 
 /-- Above the effective cutoff, the two-coordinate generator tail is at most
 `1/128`. -/
-theorem generatorFailureBound_le_oneOver128 {b : Nat}
+lemma generatorFailureBound_le_oneOver128 {b : Nat}
     (hb : effectiveCutoffBits ≤ b) :
     generatorFailureBound b ≤ (1 / 128 : Real) := by
   have hexponent : 8 ≤ b / 64 := by
@@ -543,18 +543,18 @@ Ekerå–Håstad order gate. -/
 noncomputable def effectiveFailure (b : Nat) : Real :=
   keyFailureBound b + generatorFailureBound b
 
-theorem effectiveFailure_nonneg (b : Nat) : 0 ≤ effectiveFailure b := by
+lemma effectiveFailure_nonneg (b : Nat) : 0 ≤ effectiveFailure b := by
   unfold effectiveFailure keyFailureBound generatorFailureBound
   positivity
 
-theorem keyFailureBound_nonneg (b : Nat) : 0 ≤ keyFailureBound b := by
+lemma keyFailureBound_nonneg (b : Nat) : 0 ≤ keyFailureBound b := by
   unfold keyFailureBound
   positivity
 
 /-- The explicit key/generator exceptional-mass bound vanishes with the prime
 bit width.  The proof uses only the elementary common-divisor count, the
 top-quarter prime count, and exponential domination of a quadratic. -/
-theorem effectiveFailure_tendsto_zero :
+lemma effectiveFailure_tendsto_zero :
     Filter.Tendsto effectiveFailure Filter.atTop (nhds 0) := by
   let envelope : Nat → Real := fun b =>
     4194304 * (((b / 16 : Nat) : Real) ^ 2) /
@@ -636,7 +636,7 @@ theorem effectiveFailure_tendsto_zero :
   simpa only [add_zero] using hkey.add hgenerator
 
 /-- The key-generation component alone vanishes with the prime bit width. -/
-theorem keyFailureBound_tendsto_zero :
+lemma keyFailureBound_tendsto_zero :
     Filter.Tendsto keyFailureBound Filter.atTop (nhds 0) := by
   apply squeeze_zero'
     (Filter.Eventually.of_forall keyFailureBound_nonneg)
@@ -649,7 +649,7 @@ theorem keyFailureBound_tendsto_zero :
 
 /-- At 1024-bit prime width, the complete key/generator exceptional mass is
 strictly below `1/30000`. -/
-theorem rsa1024_generator_failure_lt :
+lemma rsa1024_generator_failure_lt :
     effectiveFailure 1024 < (1 / 30000 : Real) := by
   rw [effectiveFailure, keyFailureBound, generatorFailureBound,
     rsa1024_loss_thresholds.2.2]
@@ -657,14 +657,14 @@ theorem rsa1024_generator_failure_lt :
 
 /-- The generic divisor-count theorem specialized to the binary budget used
 by the RSA generator-order analysis. -/
-theorem card_divisors_lt_two_pow_divisorBoundBits
+lemma card_divisors_lt_two_pow_divisorBoundBits
     {n b : Nat} (hn : n ≠ 0) (hnLt : n < 2 ^ b) :
     n.divisors.card < 2 ^ divisorBoundBits b :=
   NumberTheory.card_divisors_lt_two_pow_divisorCountBoundBits hn hnLt
 
 /-- For a prime below `2^b`, a uniformly chosen nonzero residue has order at
 most the indexed cutoff with frequency strictly below `2^(-tailBits)`. -/
-theorem primeUnits_lowOrder_tail
+lemma primeUnits_lowOrder_tail
     {p b tailBits : Nat} [Fact p.Prime] (hpLt : p < 2 ^ b) :
     2 ^ tailBits *
         (Finset.univ.filter fun unit : (ZMod p)ˣ =>
@@ -682,7 +682,7 @@ theorem primeUnits_lowOrder_tail
 /-- Union bound for the two cyclic CRT coordinates.  Under the uniform
 product carrier, the fraction of pairs for which either coordinate loses more
 than the prescribed index bits is strictly below `2 * 2^(-tailBits)`. -/
-theorem primeUnitPairs_lowOrder_tail
+lemma primeUnitPairs_lowOrder_tail
     {p q b tailBits : Nat} [Fact p.Prime] [Fact q.Prime]
     (hpLt : p < 2 ^ b) (hqLt : q < 2 ^ b) :
     2 ^ tailBits *
@@ -768,7 +768,7 @@ theorem primeUnitPairs_lowOrder_tail
 
 /-- Transport the uniform-product coordinate tail through the actual CRT
 equivalence of one same-bit RSA key. -/
-theorem sampledUnit_lowOrder_tail
+lemma sampledUnit_lowOrder_tail
     {b tailBits : Nat} (pair : RSAKeyPairBits b)
     [NeZero pair.p] [NeZero pair.q] [NeZero pair.modulus] :
     2 ^ tailBits *
@@ -836,7 +836,7 @@ noncomputable def generatorBadFraction {b : Nat}
 
 /-- The exact bad-unit fraction for either CRT coordinate is bounded by the
 two-coordinate union bound. -/
-theorem generatorBadFraction_lt {b tailBits : Nat}
+lemma generatorBadFraction_lt {b tailBits : Nat}
     (pair : RSAKeyPairBits b) :
     generatorBadFraction pair tailBits <
       2 / ((2 ^ tailBits : Nat) : Real) := by
@@ -869,7 +869,7 @@ theorem generatorBadFraction_lt {b tailBits : Nat}
   rfl
 
 /-- Effective specialization of the exact generator tail. -/
-theorem generatorBadFraction_lt_generatorFailureBound {b : Nat}
+lemma generatorBadFraction_lt_generatorFailureBound {b : Nat}
     (pair : RSAKeyPairBits b) :
     generatorBadFraction pair (b / 64) < generatorFailureBound b := by
   simpa [generatorFailureBound] using

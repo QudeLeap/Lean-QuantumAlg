@@ -31,7 +31,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem public_signed_value
+private lemma public_signed_value
     (word : CShape.Word (PureXGCD.executionCoefficientWidth width))
     (value : BoundedSigned (coefficientWidth width))
     (decoded : decodeRawSignedWord word = value.toInt) :
@@ -50,7 +50,7 @@ private theorem public_signed_value
   rfl
 
 /-- Public narrowing and nominal packing return the original deterministic mathematical result. -/
-theorem xgcdNativePackedRawValue_finalState (outputs : RawOutputs ctx width)
+lemma xgcdNativePackedRawValue_finalState (outputs : RawOutputs ctx width)
     (store : Store ctx) (input : PureXGCD.Input width)
     (stateMatches : outputs.MatchesState store (PureXGCD.finalState input)) :
     packedRawValue (store.read (GCD.cellRead outputs.gcd))
@@ -71,15 +71,16 @@ theorem xgcdNativePackedRawValue_finalState (outputs : RawOutputs ctx width)
   rfl
 
 /-- The public entry writes the original result and preserves the complete remaining store. -/
-theorem xgcdNativePublicIntoResult_actualRecord
-    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+lemma xgcdNativePublicIntoResult_actualRecord
+    {model : ExecutionModel}
+      {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
       (model := model) input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (publicIntoResult (model := model) input result).execute Reference state =
+        (publicIntoResult (model := model) input result).execute environment Reference state =
           state.mapClassical (fun entry =>
             let actual := record (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
@@ -92,7 +93,7 @@ theorem xgcdNativePublicIntoResult_actualRecord
       (encodeXGCDTuple ((PureXGCD.eval (GCD.decodeOperands (before.read input))).gcd,
         ((PureXGCD.eval (GCD.decodeOperands (before.read input))).leftCoefficient,
           (PureXGCD.eval (GCD.decodeOperands (before.read input))).rightCoefficient)))
-  apply withCells_actualRecord_post ctx (publicRawShapes width)
+  apply withCells_actualRecord_post (environment := environment) ctx (publicRawShapes width)
     (fun cells _ transport _ => publicBody (model := model) (transport.liftInput input)
       (publicRawOutputs cells) (transport.liftWrite result)) Post
   intro inner cells distinct transport separated
@@ -107,7 +108,8 @@ theorem xgcdNativePublicIntoResult_actualRecord
     (packRawOutputs (model := model) outputs target) rawRecord packRecord
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord (rawEngine (model := model) lifted outputs)
+    exact Circuit.execute_sequenceRecord
+      (environment := environment) (rawEngine (model := model) lifted outputs)
       (packRawOutputs (model := model) outputs target) rawRecord packRecord rawEquation
         packEquation reference state
   · intro source before reads

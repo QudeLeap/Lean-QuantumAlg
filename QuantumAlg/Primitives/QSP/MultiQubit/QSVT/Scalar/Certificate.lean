@@ -21,19 +21,21 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.Scalar
 noncomputable section
 
 /-- The original interval bound certifies the constant coefficient without accessing the oracle. -/
-theorem constant_coefficient_bound (P : Polynomial ℂ)
+lemma constant_coefficient_bound (P : Polynomial ℂ)
     (bounded : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     Complex.normSq (P.coeff 0) ≤ 1 := by
   rw [Polynomial.coeff_zero_eq_eval_zero]
   simpa only [Complex.ofReal_zero] using bounded 0 (by constructor <;> norm_num)
 
 /-- The single executed native gate realizes a constant source polynomial on the full domain. -/
-theorem scalarCircuit_constant_polynomial {m n : Nat} (oracles : OracleModel)
+lemma scalarCircuit_constant_polynomial {m n : Nat} (oracles : OracleModel)
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) (degree : P.natDegree = 0)
-    (bounded : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
+    (bounded : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1)
+      (environment : oracles.Interpretation) :
     ExactBlockEncoding (1 + m) n
       (reassociatePhaseAncillaOperator (m := m) (n := n)
-        (circuit oracles m n (P.coeff 0) (constant_coefficient_bound P bounded)).binaryMatrix)
+        ((circuit oracles m n (P.coeff 0) (constant_coefficient_bound P bounded)).binaryMatrix
+          environment))
       (polynomialOperator P A) := by
   rw [circuit_source_matrix]
   exact exactBlockEncoding_constantPolynomialWithSourceAncillas P A degree _

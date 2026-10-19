@@ -60,13 +60,13 @@ public inductive StorageRole where
   | finalOutput
 deriving DecidableEq
 
-private theorem layout_identities_eq_map_wires {systemCount : Nat}
+private lemma layout_identities_eq_map_wires {systemCount : Nat}
     (layout : QuantumLayout systemCount) :
     layout.identities = layout.wires.map QuantumWire.identity := by
   simp only [QuantumLayout.identities, QuantumLayout.wires, List.map_ofFn]
   rfl
 
-private theorem layout_dimensionCount_eq_count_wires {systemCount : Nat}
+private lemma layout_dimensionCount_eq_count_wires {systemCount : Nat}
     (layout : QuantumLayout systemCount) (dimension : ℕ+) :
     layout.dimensionCount dimension =
       (layout.wires.map QuantumWire.dimension).count dimension := by
@@ -74,7 +74,7 @@ private theorem layout_dimensionCount_eq_count_wires {systemCount : Nat}
     QuantumLayout.wires, List.map_ofFn]
   rfl
 
-private theorem dimensionCount_ofWires (wires : List QuantumWire)
+private lemma dimensionCount_ofWires (wires : List QuantumWire)
     (distinct : (wires.map QuantumWire.identity).Nodup) (dimension : ℕ+) :
     (QuantumLayout.ofWires wires distinct).dimensionCount dimension =
       (wires.map QuantumWire.dimension).count dimension := by
@@ -117,12 +117,12 @@ public def layout {copyCount systemsPerCopy : Nat}
     QuantumLayout bank.quantumWires.length :=
   QuantumLayout.ofWires bank.quantumWires bank.identitiesNodup
 
-@[simp] theorem layout_wires {copyCount systemsPerCopy : Nat}
+@[simp] lemma layout_wires {copyCount systemsPerCopy : Nat}
     (bank : OwnedCopyBank copyCount systemsPerCopy) :
     bank.layout.wires = bank.quantumWires :=
   QuantumLayout.wires_ofWires bank.quantumWires bank.identitiesNodup
 
-@[simp] theorem layout_identities {copyCount systemsPerCopy : Nat}
+@[simp] lemma layout_identities {copyCount systemsPerCopy : Nat}
     (bank : OwnedCopyBank copyCount systemsPerCopy) :
     bank.layout.identities = bank.identities := by
   rw [layout_identities_eq_map_wires, layout_wires]
@@ -133,11 +133,11 @@ public def space {copyCount systemsPerCopy : Nat}
     (bank : OwnedCopyBank copyCount systemsPerCopy) : SpacePool .quantum :=
   SpacePool.ofQuantumLayout bank.layout
 
-@[simp] theorem count_classicalBits_space {copyCount systemsPerCopy : Nat}
+@[simp] lemma count_classicalBits_space {copyCount systemsPerCopy : Nat}
     (bank : OwnedCopyBank copyCount systemsPerCopy) :
     SpacePool.count .classicalBits bank.space = 0 := rfl
 
-@[simp] theorem count_quantumSystems_space {copyCount systemsPerCopy : Nat}
+@[simp] lemma count_quantumSystems_space {copyCount systemsPerCopy : Nat}
     (bank : OwnedCopyBank copyCount systemsPerCopy) (dimension : ℕ+) :
     SpacePool.count (.quantumSystems dimension) bank.space =
       (bank.quantumWires.map QuantumWire.dimension).count dimension :=
@@ -208,7 +208,7 @@ public def auxiliarySpace {kind : ProblemKind} : RuntimeEntry kind → SpacePool
   | .ownedCopies _ bank => bank.space
 
 /-- An entry's quantum-space coordinate counts exactly its actual matching wires. -/
-theorem residentSpace_quantumSystems (entry : RuntimeEntry .quantum) (dimension : ℕ+) :
+lemma residentSpace_quantumSystems (entry : RuntimeEntry .quantum) (dimension : ℕ+) :
     entry.residentSpace (.quantumSystems dimension) =
       (entry.quantumWires.map QuantumWire.dimension).count dimension := by
   cases entry with
@@ -235,6 +235,14 @@ public structure RuntimeCtx (kind : ProblemKind) where
 
 namespace RuntimeCtx
 
+/-- Construct a complete live context from its actual entries and global uniqueness proofs. -/
+public def ofEntries {kind : ProblemKind} (entries : List (RuntimeEntry kind))
+    (keysNodup : (entries.map RuntimeEntry.key).Nodup)
+    (identitiesNodup :
+      ((entries.flatMap RuntimeEntry.quantumWires).map QuantumWire.identity).Nodup) :
+    RuntimeCtx kind :=
+  ⟨entries, keysNodup, identitiesNodup⟩
+
 /-- Live storage keys in stable entry order. -/
 public def keys {kind : ProblemKind} (ctx : RuntimeCtx kind) : List StorageKey :=
   ctx.entries.map RuntimeEntry.key
@@ -244,7 +252,7 @@ public def canonicalFreshKey {kind : ProblemKind} (ctx : RuntimeCtx kind) : Stor
   ⟨(ctx.keys.map StorageKey.id).foldr Nat.max 0 + 1⟩
 
 /-- The deterministic lexical key is absent from its source context. -/
-theorem canonicalFreshKey_fresh {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+lemma canonicalFreshKey_fresh {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     canonicalFreshKey ctx ∉ ctx.keys := by
   intro member
   have memberIds : (canonicalFreshKey ctx).id ∈ ctx.keys.map StorageKey.id :=
@@ -255,7 +263,7 @@ theorem canonicalFreshKey_fresh {kind : ProblemKind} (ctx : RuntimeCtx kind) :
   exact (Nat.not_succ_le_self _) (by simpa [canonicalFreshKey] using bounded)
 
 /-- The canonical key is available for the next actual storage allocation. -/
-public theorem runtimeCtx_canonicalFreshKey_fresh {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+public lemma runtimeCtx_canonicalFreshKey_fresh {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     ctx.canonicalFreshKey ∉ ctx.keys := canonicalFreshKey_fresh ctx
 
 /-- Every live physical quantum wire, including all members of every bank. -/
@@ -267,8 +275,13 @@ public theorem runtimeCtx_canonicalFreshKey_fresh {kind : ProblemKind} (ctx : Ru
 public def physicalIdx {kind : ProblemKind} (ctx : RuntimeCtx kind) : List Nat :=
   ctx.quantumWires.map QuantumWire.identity
 
+/-- Physical identities are the identities of the complete live wire list. -/
+public lemma physicalIdx_eq_map_quantumWires {kind : ProblemKind}
+    (ctx : RuntimeCtx kind) :
+    ctx.physicalIdx = ctx.quantumWires.map QuantumWire.identity := by rfl
+
 /-- Entry-wise and context-wide physical projections use the same identities. -/
-theorem physicalIdx_eq_flatMap {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+lemma physicalIdx_eq_flatMap {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     ctx.physicalIdx = ctx.entries.flatMap RuntimeEntry.physicalIdx := by
   simp only [physicalIdx, quantumWires, List.map_flatMap]
   rfl
@@ -277,7 +290,7 @@ theorem physicalIdx_eq_flatMap {kind : ProblemKind} (ctx : RuntimeCtx kind) :
 @[reducible] public def systemCount {kind : ProblemKind} (ctx : RuntimeCtx kind) : Nat :=
   ctx.quantumWires.length
 
-@[simp] theorem physicalIdx_length {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+@[simp] lemma physicalIdx_length {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     ctx.physicalIdx.length = ctx.systemCount := by
   simp only [physicalIdx, List.length_map, systemCount]
 
@@ -291,21 +304,21 @@ an empty layout, so the same state interpreter can handle both problem kinds. -/
 public abbrev register {kind : ProblemKind} (ctx : RuntimeCtx kind) : Register :=
   ctx.quantumLayout.register
 
-public theorem quantumLayout_wires {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+public lemma quantumLayout_wires {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     ctx.quantumLayout.wires = ctx.quantumWires :=
   QuantumLayout.wires_ofWires ctx.quantumWires ctx.identitiesNodup
 
-@[simp] theorem quantumLayout_identities {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+@[simp] lemma quantumLayout_identities {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     ctx.quantumLayout.identities = ctx.physicalIdx := by
   rw [layout_identities_eq_map_wires, quantumLayout_wires]
   rfl
 
 /-- The public joint layout carries exactly the live context's physical identities. -/
-public theorem runtimeCtx_quantumLayout_identities {kind : ProblemKind}
+public lemma runtimeCtx_quantumLayout_identities {kind : ProblemKind}
     (ctx : RuntimeCtx kind) : ctx.quantumLayout.identities = ctx.physicalIdx :=
   quantumLayout_identities ctx
 
-private theorem classicalEntries_quantumWires (entries : List (RuntimeEntry .classical)) :
+private lemma classicalEntries_quantumWires (entries : List (RuntimeEntry .classical)) :
     entries.flatMap RuntimeEntry.quantumWires = [] := by
   induction entries with
   | nil => rfl
@@ -313,11 +326,11 @@ private theorem classicalEntries_quantumWires (entries : List (RuntimeEntry .cla
       cases entry
       exact ih
 
-@[simp] theorem quantumWires_classical (ctx : RuntimeCtx .classical) :
+@[simp] lemma quantumWires_classical (ctx : RuntimeCtx .classical) :
     ctx.quantumWires = [] :=
   classicalEntries_quantumWires ctx.entries
 
-theorem systemCount_classical (ctx : RuntimeCtx .classical) :
+lemma systemCount_classical (ctx : RuntimeCtx .classical) :
     ctx.systemCount = 0 := by
   simp only [systemCount, quantumWires_classical, List.length_nil]
 
@@ -327,18 +340,22 @@ theorem systemCount_classical (ctx : RuntimeCtx .classical) :
   keysNodup := by simp
   identitiesNodup := by simp
 
-private theorem empty_quantumWires_eq {kind : ProblemKind} :
+/-- The empty context has no live storage keys. -/
+@[simp] public lemma keys_empty {kind : ProblemKind} :
+    (empty : RuntimeCtx kind).keys = [] := by rfl
+
+private lemma empty_quantumWires_eq {kind : ProblemKind} :
     (empty : RuntimeCtx kind).quantumWires = [] := rfl
 
 /-- An empty context contains no physical quantum wires. -/
-public theorem runtimeCtx_empty_quantumWires {kind : ProblemKind} :
+public lemma runtimeCtx_empty_quantumWires {kind : ProblemKind} :
     (empty : RuntimeCtx kind).quantumWires = [] := empty_quantumWires_eq
 
-private theorem empty_physicalIdx_eq {kind : ProblemKind} :
+private lemma empty_physicalIdx_eq {kind : ProblemKind} :
     (empty : RuntimeCtx kind).physicalIdx = [] := rfl
 
 /-- An empty context has no occupied physical identities. -/
-public theorem runtimeCtx_empty_physicalIdx {kind : ProblemKind} :
+public lemma runtimeCtx_empty_physicalIdx {kind : ProblemKind} :
     (empty : RuntimeCtx kind).physicalIdx = [] := empty_physicalIdx_eq
 
 @[implicit_reducible]
@@ -365,45 +382,50 @@ public def addRetained {kind : ProblemKind} (ctx : RuntimeCtx kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) : RuntimeCtx kind :=
   addStorage ctx key .retained shape fresh
 
+/-- Retaining a classical cell adds exactly its fresh storage key. -/
+@[simp] public lemma keys_addRetained {kind : ProblemKind} (ctx : RuntimeCtx kind)
+    (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
+    (ctx.addRetained key shape fresh).keys = key :: ctx.keys := by rfl
+
 /-- Add dedicated output storage without removing or retagging any live entry. -/
 public def addFinalOutput {kind : ProblemKind} (ctx : RuntimeCtx kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) : RuntimeCtx kind :=
   addStorage ctx key .finalOutput shape fresh
 
-@[simp] theorem quantumWires_addBorrowedInput {kind : ProblemKind}
+@[simp] lemma quantumWires_addBorrowedInput {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addBorrowedInput key shape fresh).quantumWires = ctx.quantumWires := rfl
 
-@[simp] theorem quantumWires_addWorkspace {kind : ProblemKind}
+@[simp] lemma quantumWires_addWorkspace {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addWorkspace key shape fresh).quantumWires = ctx.quantumWires := rfl
 
-@[simp] theorem quantumWires_addRetained {kind : ProblemKind}
+@[simp] lemma quantumWires_addRetained {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).quantumWires = ctx.quantumWires := rfl
 
-@[simp] theorem quantumWires_addFinalOutput {kind : ProblemKind}
+@[simp] lemma quantumWires_addFinalOutput {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addFinalOutput key shape fresh).quantumWires = ctx.quantumWires := rfl
 
 /-- Adding a classical result cell preserves the full joint quantum carrier. -/
-@[simp] theorem register_addRetained {kind : ProblemKind}
+@[simp] lemma register_addRetained {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).register = ctx.register := rfl
 
 /-- Allocating a retained classical cell preserves every physical quantum wire. -/
-public theorem runtimeCtx_quantumWires_addRetained {kind : ProblemKind}
+public lemma runtimeCtx_quantumWires_addRetained {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).quantumWires = ctx.quantumWires :=
   quantumWires_addRetained ctx key shape fresh
 
 /-- Allocating a retained classical cell preserves the exact complete quantum register. -/
-public theorem runtimeCtx_register_addRetained {kind : ProblemKind}
+public lemma runtimeCtx_register_addRetained {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).register = ctx.register :=
   register_addRetained ctx key shape fresh
@@ -446,21 +468,27 @@ and do not contribute to auxiliary space. -/
     rw [List.map_append, ← layout_identities_eq_map_wires]
     exact layout.identities_nodup.append ctx.identitiesNodup disjoint
 
-private theorem quantumWires_addOwnedLayout_eq (ctx : RuntimeCtx .quantum) (key : StorageKey)
+/-- Allocating an owned layout adds exactly its fresh storage key. -/
+@[simp] public lemma keys_addOwnedLayout (ctx : RuntimeCtx .quantum) (key : StorageKey)
+    {systemCount : Nat} (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
+    (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
+    (ctx.addOwnedLayout key layout fresh disjoint).keys = key :: ctx.keys := by rfl
+
+private lemma quantumWires_addOwnedLayout_eq (ctx : RuntimeCtx .quantum) (key : StorageKey)
     {systemCount : Nat} (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addOwnedLayout key layout fresh disjoint).quantumWires =
       layout.wires ++ ctx.quantumWires := rfl
 
 /-- Allocating an owned layout prepends its actual wires to the existing complete layout. -/
-public theorem runtimeCtx_quantumWires_addOwnedLayout (ctx : RuntimeCtx .quantum)
+public lemma runtimeCtx_quantumWires_addOwnedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addOwnedLayout key layout fresh disjoint).quantumWires =
       layout.wires ++ ctx.quantumWires :=
   quantumWires_addOwnedLayout_eq ctx key layout fresh disjoint
 
-private theorem quantumWires_addSuppliedLayout_eq (ctx : RuntimeCtx .quantum)
+private lemma quantumWires_addSuppliedLayout_eq (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
@@ -468,7 +496,7 @@ private theorem quantumWires_addSuppliedLayout_eq (ctx : RuntimeCtx .quantum)
       layout.wires ++ ctx.quantumWires := rfl
 
 /-- Adding a supplied interface prepends its actual wires to the complete layout. -/
-public theorem runtimeCtx_quantumWires_addSuppliedLayout (ctx : RuntimeCtx .quantum)
+public lemma runtimeCtx_quantumWires_addSuppliedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addSuppliedLayout key layout fresh disjoint).quantumWires =
@@ -517,8 +545,13 @@ instance instDecidablePhysicallyDisjoint {kind : ProblemKind}
 public def StorageDisjoint {kind : ProblemKind} (left right : RuntimeCtx kind) : Prop :=
   KeysDisjoint left right ∧ PhysicallyDisjoint left right
 
+/-- Storage separation includes separation of live storage keys. -/
+public lemma keysDisjoint_of_storageDisjoint {kind : ProblemKind}
+    {left right : RuntimeCtx kind} (disjoint : StorageDisjoint left right) :
+    KeysDisjoint left right := disjoint.1
+
 /-- Storage separation includes separation of physical wire identities. -/
-public theorem physicallyDisjoint_of_storageDisjoint {kind : ProblemKind}
+public lemma physicallyDisjoint_of_storageDisjoint {kind : ProblemKind}
     {left right : RuntimeCtx kind} (disjoint : StorageDisjoint left right) :
     PhysicallyDisjoint left right :=
   disjoint.2
@@ -529,16 +562,25 @@ instance instDecidableStorageDisjoint {kind : ProblemKind}
   infer_instance
 
 /-- The decidable key guard is equivalent to list disjointness. -/
-theorem keysDisjoint_iff_listDisjoint {kind : ProblemKind}
+lemma keysDisjoint_iff_listDisjoint {kind : ProblemKind}
     (left right : RuntimeCtx kind) :
     KeysDisjoint left right ↔ List.Disjoint left.keys right.keys :=
   List.disjoint_toFinset_iff_disjoint
 
 /-- The decidable physical guard is equivalent to list disjointness. -/
-public theorem physicallyDisjoint_iff_listDisjoint {kind : ProblemKind}
+public lemma physicallyDisjoint_iff_listDisjoint {kind : ProblemKind}
     (left right : RuntimeCtx kind) :
     PhysicallyDisjoint left right ↔ List.Disjoint left.physicalIdx right.physicalIdx :=
   List.disjoint_toFinset_iff_disjoint
+
+/-- Storage separation can be checked on the two observable lists. -/
+public lemma storageDisjoint_iff_listDisjoint {kind : ProblemKind}
+    (left right : RuntimeCtx kind) :
+    StorageDisjoint left right ↔
+      List.Disjoint left.keys right.keys ∧
+        List.Disjoint left.physicalIdx right.physicalIdx :=
+  and_congr (keysDisjoint_iff_listDisjoint left right)
+    (physicallyDisjoint_iff_listDisjoint left right)
 
 /-- Append two contexts only after checking both forms of physical ownership. -/
 public def disjointUnion {kind : ProblemKind} (left right : RuntimeCtx kind)
@@ -553,29 +595,29 @@ public def disjointUnion {kind : ProblemKind} (left right : RuntimeCtx kind)
     exact left.identitiesNodup.append right.identitiesNodup
       ((physicallyDisjoint_iff_listDisjoint left right).mp disjoint.2)
 
-@[simp] theorem keys_disjointUnion {kind : ProblemKind}
+@[simp] public lemma keys_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).keys = left.keys ++ right.keys := by
   simp [keys, disjointUnion]
 
-@[simp] public theorem quantumWires_disjointUnion {kind : ProblemKind}
+@[simp] public lemma quantumWires_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).quantumWires =
       left.quantumWires ++ right.quantumWires := by
   simp only [quantumWires, disjointUnion, List.flatMap_append]
 
-@[simp] theorem physicalIdx_disjointUnion {kind : ProblemKind}
+@[simp] public lemma physicalIdx_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).physicalIdx =
       left.physicalIdx ++ right.physicalIdx := by
   simp only [physicalIdx, quantumWires_disjointUnion, List.map_append]
 
-theorem systemCount_disjointUnion {kind : ProblemKind}
+lemma systemCount_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).systemCount = left.systemCount + right.systemCount := by
   simp only [systemCount, quantumWires_disjointUnion, List.length_append]
 
-private theorem foldSpace_append {kind : ProblemKind}
+private lemma foldSpace_append {kind : ProblemKind}
     (project : RuntimeEntry kind → SpacePool kind)
     (left right : List (RuntimeEntry kind)) :
     (left ++ right).foldr (fun entry total => project entry + total) 0 =
@@ -591,127 +633,127 @@ private theorem foldSpace_append {kind : ProblemKind}
       ext axis
       exact (Nat.add_assoc _ _ _).symm
 
-@[simp] theorem residentSpace_disjointUnion {kind : ProblemKind}
+@[simp] public lemma residentSpace_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).residentSpace =
       left.residentSpace + right.residentSpace := by
   exact foldSpace_append RuntimeEntry.residentSpace left.entries right.entries
 
-@[simp] theorem auxiliarySpace_disjointUnion {kind : ProblemKind}
+@[simp] lemma auxiliarySpace_disjointUnion {kind : ProblemKind}
     (left right : RuntimeCtx kind) (disjoint : StorageDisjoint left right) :
     (disjointUnion left right disjoint).auxiliarySpace =
       left.auxiliarySpace + right.auxiliarySpace := by
   exact foldSpace_append RuntimeEntry.auxiliarySpace left.entries right.entries
 
-@[simp] theorem residentSpace_empty {kind : ProblemKind} :
-    residentSpace (empty : RuntimeCtx kind) = 0 := rfl
+@[simp] public lemma residentSpace_empty {kind : ProblemKind} :
+    residentSpace (empty : RuntimeCtx kind) = 0 := by rfl
 
-@[simp] theorem auxiliarySpace_empty {kind : ProblemKind} :
+@[simp] lemma auxiliarySpace_empty {kind : ProblemKind} :
     auxiliarySpace (empty : RuntimeCtx kind) = 0 := rfl
 
-@[simp] theorem residentSpace_addBorrowedInput {kind : ProblemKind}
+@[simp] lemma residentSpace_addBorrowedInput {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addBorrowedInput key shape fresh).residentSpace =
       SpacePool.ofShape shape + ctx.residentSpace := rfl
 
-@[simp] theorem auxiliarySpace_addBorrowedInput {kind : ProblemKind}
+@[simp] lemma auxiliarySpace_addBorrowedInput {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addBorrowedInput key shape fresh).auxiliarySpace = ctx.auxiliarySpace := by
   ext axis
   simp [auxiliarySpace, addBorrowedInput, addStorage, RuntimeEntry.auxiliarySpace]
 
-@[simp] theorem residentSpace_addWorkspace {kind : ProblemKind}
+@[simp] lemma residentSpace_addWorkspace {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addWorkspace key shape fresh).residentSpace =
       SpacePool.ofShape shape + ctx.residentSpace := rfl
 
-@[simp] theorem auxiliarySpace_addWorkspace {kind : ProblemKind}
+@[simp] lemma auxiliarySpace_addWorkspace {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addWorkspace key shape fresh).auxiliarySpace =
       SpacePool.ofShape shape + ctx.auxiliarySpace := rfl
 
-@[simp] theorem residentSpace_addRetained {kind : ProblemKind}
+@[simp] public lemma residentSpace_addRetained {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).residentSpace =
-      SpacePool.ofShape shape + ctx.residentSpace := rfl
+      SpacePool.ofShape shape + ctx.residentSpace := by rfl
 
-@[simp] theorem auxiliarySpace_addRetained {kind : ProblemKind}
+@[simp] lemma auxiliarySpace_addRetained {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).auxiliarySpace =
       SpacePool.ofShape shape + ctx.auxiliarySpace := rfl
 
-@[simp] theorem residentSpace_addFinalOutput {kind : ProblemKind}
+@[simp] lemma residentSpace_addFinalOutput {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addFinalOutput key shape fresh).residentSpace =
       SpacePool.ofShape shape + ctx.residentSpace := rfl
 
-@[simp] theorem auxiliarySpace_addFinalOutput {kind : ProblemKind}
+@[simp] lemma auxiliarySpace_addFinalOutput {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (ctx.addFinalOutput key shape fresh).auxiliarySpace = ctx.auxiliarySpace := by
   ext axis
   simp [auxiliarySpace, addFinalOutput, addStorage, RuntimeEntry.auxiliarySpace]
 
-@[simp] theorem residentSpace_addBorrowedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma residentSpace_addBorrowedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addBorrowedLayout key layout fresh disjoint).residentSpace =
       SpacePool.ofQuantumLayout layout + ctx.residentSpace := rfl
 
-@[simp] theorem auxiliarySpace_addBorrowedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma auxiliarySpace_addBorrowedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addBorrowedLayout key layout fresh disjoint).auxiliarySpace = ctx.auxiliarySpace := by
   ext axis
   simp [auxiliarySpace, RuntimeEntry.auxiliarySpace]
 
-@[simp] theorem residentSpace_addSuppliedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma residentSpace_addSuppliedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addSuppliedLayout key layout fresh disjoint).residentSpace =
       SpacePool.ofQuantumLayout layout + ctx.residentSpace := rfl
 
-@[simp] theorem auxiliarySpace_addSuppliedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma auxiliarySpace_addSuppliedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addSuppliedLayout key layout fresh disjoint).auxiliarySpace = ctx.auxiliarySpace := by
   ext axis
   simp [auxiliarySpace, RuntimeEntry.auxiliarySpace]
 
-@[simp] theorem residentSpace_addOwnedLayout (ctx : RuntimeCtx .quantum)
+@[simp] public lemma residentSpace_addOwnedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addOwnedLayout key layout fresh disjoint).residentSpace =
-      SpacePool.ofQuantumLayout layout + ctx.residentSpace := rfl
+      SpacePool.ofQuantumLayout layout + ctx.residentSpace := by rfl
 
-@[simp] theorem auxiliarySpace_addOwnedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma auxiliarySpace_addOwnedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addOwnedLayout key layout fresh disjoint).auxiliarySpace =
       SpacePool.ofQuantumLayout layout + ctx.auxiliarySpace := rfl
 
-@[simp] theorem residentSpace_addOwnedCopies (ctx : RuntimeCtx .quantum)
+@[simp] lemma residentSpace_addOwnedCopies (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {copyCount systemCount : Nat}
     (bank : OwnedCopyBank copyCount systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint bank.identities ctx.physicalIdx) :
     (ctx.addOwnedCopies key bank fresh disjoint).residentSpace =
       bank.space + ctx.residentSpace := rfl
 
-@[simp] theorem auxiliarySpace_addOwnedCopies (ctx : RuntimeCtx .quantum)
+@[simp] lemma auxiliarySpace_addOwnedCopies (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {copyCount systemCount : Nat}
     (bank : OwnedCopyBank copyCount systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint bank.identities ctx.physicalIdx) :
     (ctx.addOwnedCopies key bank fresh disjoint).auxiliarySpace =
       bank.space + ctx.auxiliarySpace := rfl
 
-private theorem residentSpace_quantumSystems_entries
+private lemma residentSpace_quantumSystems_entries
     (entries : List (RuntimeEntry .quantum)) (dimension : ℕ+) :
     (entries.foldr
       (fun (entry : RuntimeEntry .quantum) (total : SpacePool .quantum) =>
@@ -732,7 +774,7 @@ private theorem residentSpace_quantumSystems_entries
 
 /-- The resident ledger and the complete joint layout count exactly the same
 systems at every dimension, including all bank members. -/
-theorem residentSpace_quantumSystems (ctx : RuntimeCtx .quantum) (dimension : ℕ+) :
+lemma residentSpace_quantumSystems (ctx : RuntimeCtx .quantum) (dimension : ℕ+) :
     ctx.residentSpace (.quantumSystems dimension) =
       ctx.quantumLayout.dimensionCount dimension := by
   rw [quantumLayout, dimensionCount_ofWires]

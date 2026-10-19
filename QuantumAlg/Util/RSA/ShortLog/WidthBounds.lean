@@ -21,18 +21,18 @@ assumptions.
 namespace QuantumAlg.RSA.ShortLogWidths
 
 /-- The source register exponent is strictly below the original arithmetic word width. -/
-theorem shortLog_sourceExponent_lt_coordinateWidth (N m ell : Nat) :
+lemma shortLog_sourceExponent_lt_coordinateWidth (N m ell : Nat) :
     ell + m < coordinateWidth N m ell := by
   have contains := sourceWidth_le_coordinateWidth N m ell
   omega
 
 /-- The actual source lattice modulus fits strictly inside the original unsigned word capacity. -/
-theorem shortLog_sourceModulus_lt_coordinateCapacity (N m ell : Nat) :
+lemma shortLog_sourceModulus_lt_coordinateCapacity (N m ell : Nat) :
     2 ^ (ell + m) < 2 ^ coordinateWidth N m ell :=
   Nat.pow_lt_pow_right (by decide) (shortLog_sourceExponent_lt_coordinateWidth N m ell)
 
 /-- The original formula leaves a strict sign-bit margin beyond the complete source register. -/
-theorem shortLog_sourceExponent_lt_signExponent (N m ell : Nat) :
+lemma shortLog_sourceExponent_lt_signExponent (N m ell : Nat) :
     ell + m < coordinateWidth N m ell - 1 := by
   unfold coordinateWidth operandWidthBound inputBitWidth RSA.shortLogRecoveryInputBits
   have twoPow : (2 : Nat) ^ 20 = 1_048_576 := by norm_num
@@ -40,7 +40,7 @@ theorem shortLog_sourceExponent_lt_signExponent (N m ell : Nat) :
   omega
 
 /-- Every nonnegative initial basis coordinate lies below the original positive signed capacity. -/
-theorem shortLog_sourceModulus_lt_signedCapacity (N m ell : Nat) :
+lemma shortLog_sourceModulus_lt_signedCapacity (N m ell : Nat) :
     2 ^ (ell + m) < 2 ^ (coordinateWidth N m ell - 1) :=
   Nat.pow_lt_pow_right (by decide) (shortLog_sourceExponent_lt_signExponent N m ell)
 

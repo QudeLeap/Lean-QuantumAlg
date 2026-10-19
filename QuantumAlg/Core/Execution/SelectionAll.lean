@@ -38,7 +38,7 @@ private instance complementAllSubsingleton {count : Nat} (layout : QuantumLayout
       Finset.mem_compl.mp index.property
     exact (impossible (Finset.mem_univ _)).elim
 
-theorem joinSelectedBasis_all {count : Nat} (layout : QuantumLayout count)
+lemma joinSelectedBasis_all {count : Nat} (layout : QuantumLayout count)
     (selected : layout.SelectedBasis Finset.univ)
     (complement : layout.ComplementBasis Finset.univ) :
     layout.joinSelectedBasis Finset.univ selected complement =
@@ -51,7 +51,7 @@ end QuantumLayout
 
 namespace DensityOperator
 
-theorem observeSelection_all {count : Nat} (layout : QuantumLayout count)
+lemma observeSelection_all {count : Nat} (layout : QuantumLayout count)
     (Reference : Register) (state : DensityOperator (Register.prod layout.register Reference)) :
     observeSelection layout Finset.univ Reference state =
       state.marginalLeft.reindex (S := layout.selectedRegister Finset.univ)

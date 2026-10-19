@@ -39,13 +39,13 @@ structure Separated (inputs : Inputs ctx width) (refs : Refs ctx width) : Prop w
   /-- The final latch copy preserves the selected word. -/
   acceptedSelected : refs.accepted.key ≠ refs.selected.key
 
-private theorem preserves_cell {input output observed : CShape}
+private lemma preserves_cell {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
     (store.applyOp op).read (cellRead other) = store.read (cellRead other) :=
   Store.read_write_other store op.outputRef other.toCStorageRef _ different
 
-private theorem available_read (refs : Refs ctx width) (store : Store ctx) :
+private lemma available_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (availableOp refs)).read (cellRead refs.available)).toBool =
       !(store.read (cellRead refs.accepted)).toBool := by
   have actual := congrArg CShape.Value.toBool
@@ -57,7 +57,7 @@ private theorem available_read (refs : Refs ctx width) (store : Store ctx) :
       rw [value] at actual
       exact actual
 
-private theorem take_read (inputs : Inputs ctx width) (refs : Refs ctx width)
+private lemma take_read (inputs : Inputs ctx width) (refs : Refs ctx width)
     (store : Store ctx) :
     ((store.applyOp (takeOp inputs refs)).read (cellRead refs.take)).toBool =
       ((store.read (cellRead refs.available)).toBool && (store.read inputs.eligible).toBool) := by
@@ -73,7 +73,7 @@ private theorem take_read (inputs : Inputs ctx width) (refs : Refs ctx width)
           rw [left, right] at actual
           exact actual
 
-private theorem accepted_read (refs : Refs ctx width) (store : Store ctx) :
+private lemma accepted_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (acceptedCopyOp refs)).read (cellRead refs.accepted)).toBool =
       (store.read (cellRead refs.take)).toBool := by
   have actual := congrArg CShape.Value.toBool
@@ -86,7 +86,7 @@ private theorem accepted_read (refs : Refs ctx width) (store : Store ctx) :
       exact actual
 
 /-- The actual decision bit is the conjunction of availability and original eligibility. -/
-theorem firstAccepted_decision_take (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma firstAccepted_decision_take (inputs : Inputs ctx width) (refs : Refs ctx width)
     (availableEligible : refs.available.key ∉ inputs.eligible.storageKeys) (store : Store ctx) :
     ((decisionStore inputs refs store).read (cellRead refs.take)).toBool =
       ((!(store.read (cellRead refs.accepted)).toBool) &&
@@ -96,17 +96,17 @@ theorem firstAccepted_decision_take (inputs : Inputs ctx width) (refs : Refs ctx
     Store.read_applyOp_of_not_mem_storageKeys _ (availableOp refs)
       inputs.eligible availableEligible]
 
-private theorem latch_when_taken (accepted eligible : Bool)
+private lemma latch_when_taken (accepted eligible : Bool)
     (taken : ((!accepted) && eligible) = true) :
     ((!accepted) && eligible) = (accepted || eligible) := by
   cases accepted <;> cases eligible <;> simp_all
 
-private theorem latch_when_skipped (accepted eligible : Bool)
+private lemma latch_when_skipped (accepted eligible : Bool)
     (skipped : ((!accepted) && eligible) ≠ true) : accepted = (accepted || eligible) := by
   cases accepted <;> cases eligible <;> simp_all
 
 /-- The latch becomes an OR fold, and the selected word changes only on first acceptance. -/
-theorem firstAccepted_latches {model : ExecutionModel} [BitWord.Selected model]
+lemma firstAccepted_latches {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (inputs : Inputs ctx width) (refs : Refs ctx width)
     (separated : Separated inputs refs) (store : Store ctx) :
     let final := (step (model := model) inputs refs store).1

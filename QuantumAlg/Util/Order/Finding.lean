@@ -43,7 +43,7 @@ public structure Input (N x r : ℕ) : Prop where
   minimal : ∀ m : ℕ, 0 < m → x ^ m % N = 1 → r ≤ m
 
 /-- Exact order recovery from the dyadic phase-estimation output. -/
-theorem main_recovery {t s r : ℕ} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
+lemma main_recovery {t s r : ℕ} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
     (hsr : Nat.Coprime s r) :
     2 ^ t / Nat.gcd (s * (2 ^ t / r)) (2 ^ t) = r := by
   obtain ⟨m, hm⟩ := hrt
@@ -68,7 +68,7 @@ theorem main_recovery {t s r : ℕ} (hr : 0 < r) (hrt : r ∣ 2 ^ t)
 /-- If an order `r` is strictly below a modulus `N`, the Shor-style public
 register-size bound `N^2 <= 2^t` supplies the scaled-error hypothesis
 `r^2 < 2^t`. -/
-theorem publicRegisterBound_implies_scaledError_of_order_lt_modulus {N r t : ℕ}
+lemma publicRegisterBound_implies_scaledError_of_order_lt_modulus {N r t : ℕ}
     (hrN : r < N) (hregister : N ^ 2 ≤ 2 ^ t) :
     (r : ℝ) ^ 2 < (2 : ℝ) ^ t := by
   have hsquare : r ^ 2 < N ^ 2 := by
@@ -79,13 +79,13 @@ theorem publicRegisterBound_implies_scaledError_of_order_lt_modulus {N r t : ℕ
 /-- The Shor-style public register-size bound alone does not imply the stronger
 large-register hypothesis `12*r <= 2^t` used by the current finite
 large-register proof. -/
-private theorem publicRegisterBound_not_imply_largeRegister :
+private lemma publicRegisterBound_not_imply_largeRegister :
     (2 ^ 2 ≤ 2 ^ 2 ∧ 2 ^ 2 < 2 * 2 ^ 2) ∧ ¬ 12 * 1 ≤ 2 ^ 2 := by
   norm_num
 
 /-- A source-side strengthening with `12*N <= 2^t` would imply the current
 large-register hypothesis from the natural order bound `r <= N`. -/
-theorem largeRegister_of_order_le_modulus {N r t : ℕ}
+lemma largeRegister_of_order_le_modulus {N r t : ℕ}
     (hrN : r ≤ N) (hregister : 12 * N ≤ 2 ^ t) :
     12 * r ≤ 2 ^ t := by
   nlinarith
@@ -93,7 +93,7 @@ theorem largeRegister_of_order_le_modulus {N r t : ℕ}
 /-- For moduli at least `12`, Shor's public register lower bound `N^2 <= 2^t`
 already supplies the large-register hypothesis used by the current finite
 source-joint probability route [Sho95, source.tex:1183-1185]. -/
-theorem largeRegister_of_publicRegisterBound_of_modulus_ge_twelve
+lemma largeRegister_of_publicRegisterBound_of_modulus_ge_twelve
     {N r t : ℕ} (hN : 12 ≤ N) (hrN : r < N)
     (hregister : N ^ 2 ≤ 2 ^ t) :
     12 * r ≤ 2 ^ t := by
@@ -107,7 +107,7 @@ theorem largeRegister_of_publicRegisterBound_of_modulus_ge_twelve
 /-- In the small-modulus Shor register window, the public upper bound
 `2^t < 2N^2` gives a uniform finite search bound for the phase-register size
 [Sho95, source.tex:1183-1185]. -/
-theorem smallModulus_publicRegisterWindow_t_lt_nine
+lemma smallModulus_publicRegisterWindow_t_lt_nine
     {N t : ℕ} (hN_lt : N < 12) (hhi : 2 ^ t < 2 * N ^ 2) :
     t < 9 := by
   by_contra hnot
@@ -125,7 +125,7 @@ failure of the current large-register route is confined to an explicit finite
 candidate list. This is only a search-space classification: later lemmas still
 have to discard impossible orders and prove the residual pointwise probability
 certificates [Sho95, source.tex:1183-1185]. -/
-theorem smallModulus_publicRegisterWindow_large_or_residual
+lemma smallModulus_publicRegisterWindow_large_or_residual
     {N r t : ℕ}
     (hN_ge : 2 ≤ N) (hN_lt : N < 12) (hr_lt : r < N)
     (hlo : N ^ 2 ≤ 2 ^ t) (hhi : 2 ^ t < 2 * N ^ 2) :
@@ -148,13 +148,13 @@ abbrev ShorGcdBridgeInput := NumberTheory.Factoring.GcdBridgeInput
 abbrev ShorHalfOrderGcdInput := NumberTheory.Factoring.HalfOrderGcdInput
 
 /-- Compatibility wrapper for the quantum-free factoring-reduction gcd step. -/
-theorem main_factor_reduction {N a b : ℕ} (hN : 1 < N)
+lemma main_factor_reduction {N a b : ℕ} (hN : 1 < N)
     (hdvd : N ∣ a * b) (ha : ¬ N ∣ a) (hb : ¬ N ∣ b) :
     1 < Nat.gcd a N ∧ Nat.gcd a N < N :=
   NumberTheory.Factoring.main_factor_reduction hN hdvd ha hb
 
 /-- Compatibility wrapper for the half-order square-one bridge. -/
-private theorem shor_half_order_square_modEq_one {N x r : ℕ}
+private lemma shor_half_order_square_modEq_one {N x r : ℕ}
     (heven : Even r) (hpow : x ^ r ≡ 1 [MOD N]) :
     (x ^ (r / 2)) * (x ^ (r / 2)) ≡ 1 [MOD N] :=
   NumberTheory.Factoring.half_order_square_modEq_one heven hpow
@@ -163,7 +163,7 @@ private theorem shor_half_order_square_modEq_one {N x r : ℕ}
 then the source-level natural-number base satisfies `a^r = 1 (mod N)`. This is
 the bridge from the order-finding carrier `(ZMod N)^x` to Shor's classical
 half-order side-condition vocabulary. -/
-theorem shor_return_to_one_modEq_of_unitOfCoprime_order {N n a r : ℕ}
+lemma shor_return_to_one_modEq_of_unitOfCoprime_order {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (ha : Nat.Coprime a N)
     (horder : orderOf (D.unitOfCoprime a ha) = r) :
     a ^ r ≡ 1 [MOD N] := by
@@ -180,7 +180,7 @@ theorem shor_return_to_one_modEq_of_unitOfCoprime_order {N n a r : ℕ}
 
 /-- The source-level `OrderFinding.Input` minimality condition identifies the
 same order as the canonical `ZMod.unitOfCoprime` carrier. -/
-theorem orderOf_zmodUnitOfCoprime_eq_input_order {N a r : ℕ}
+lemma orderOf_zmodUnitOfCoprime_eq_input_order {N a r : ℕ}
     (hinput : OrderFinding.Input N a r) :
     orderOf (ZMod.unitOfCoprime a hinput.coprime) = r := by
   have hN_gt_one : 1 < N :=
@@ -213,14 +213,14 @@ theorem orderOf_zmodUnitOfCoprime_eq_input_order {N a r : ℕ}
 same order as the unit-group carrier used by the modular-multiplication
 circuit. This removes a downstream handoff where Shor's gcd bridge had to
 assume `orderOf (unitOfCoprime a) = r` separately from the order-finding input. -/
-theorem orderOf_unitOfCoprime_eq_input_order {N n a r : ℕ}
+lemma orderOf_unitOfCoprime_eq_input_order {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (hinput : OrderFinding.Input N a r) :
     orderOf (D.unitOfCoprime a hinput.coprime) = r := by
   simpa [ModularMultiplicationDomain.unitOfCoprime] using
     orderOf_zmodUnitOfCoprime_eq_input_order hinput
 
 /-- The source-level order is strictly smaller than the modulus. -/
-theorem input_order_lt_modulus {N a r : ℕ}
+lemma input_order_lt_modulus {N a r : ℕ}
     (hinput : OrderFinding.Input N a r) :
     r < N := by
   have hN_gt_one : 1 < N :=
@@ -235,7 +235,7 @@ theorem input_order_lt_modulus {N a r : ℕ}
 /-- The source-level order divides Euler's totient of the modulus. This is the
 small-case elimination bridge used when the restored Shor register window leaves
 finite residual candidates that cannot occur as unit-group orders. -/
-theorem input_order_dvd_totient {N a r : ℕ}
+lemma input_order_dvd_totient {N a r : ℕ}
     (hinput : OrderFinding.Input N a r) :
     r ∣ Nat.totient N := by
   have hN_pos : 0 < N :=
@@ -252,7 +252,7 @@ theorem input_order_dvd_totient {N a r : ℕ}
 sharpened by eliminating candidate orders that do not divide Euler's totient of
 the modulus. The remaining cases are the finite inputs consumed by the
 pointwise-certificate pass. -/
-theorem smallModulus_publicRegisterWindow_large_or_possibleResidual
+lemma smallModulus_publicRegisterWindow_large_or_possibleResidual
     {N a r t : ℕ}
     (hinput : OrderFinding.Input N a r) (hN_lt : N < 12)
     (hlo : N ^ 2 ≤ 2 ^ t) (hhi : 2 ^ t < 2 * N ^ 2) :
@@ -320,7 +320,7 @@ theorem smallModulus_publicRegisterWindow_large_or_possibleResidual
 /-- Build Shor's half-order gcd side-condition input from an order found on the
 selected unit-group carrier plus the standard even/nontrivial half-order
 checks. -/
-theorem shor_halfOrderGcdInput_of_unitOfCoprime_order {N n a r : ℕ}
+lemma shor_halfOrderGcdInput_of_unitOfCoprime_order {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (ha : Nat.Coprime a N)
     (hN : 1 < N) (ha_pos : 0 < a)
     (horder : orderOf (D.unitOfCoprime a ha) = r)
@@ -339,7 +339,7 @@ theorem shor_halfOrderGcdInput_of_unitOfCoprime_order {N n a r : ℕ}
 order-finding input vocabulary. The base positivity follows from coprimality
 and `N ≥ 2`, so callers only provide the source side-condition checks that
 Shor treats as retry/failure cases. -/
-theorem shor_halfOrderGcdInput_of_input_order {N n a r : ℕ}
+lemma shor_halfOrderGcdInput_of_input_order {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (hinput : OrderFinding.Input N a r)
     (heven : Even r)
     (hleft : ¬ (a ^ (r / 2) - 1) ≡ 0 [MOD N])
@@ -356,14 +356,14 @@ theorem shor_halfOrderGcdInput_of_input_order {N n a r : ℕ}
     ha_pos (orderOf_unitOfCoprime_eq_input_order D hinput) heven hleft hright
 
 /-- Compatibility wrapper for the quantum-free Shor gcd bridge. -/
-theorem shor_gcd_bridge {N y : ℕ} (h : ShorGcdBridgeInput N y) :
+lemma shor_gcd_bridge {N y : ℕ} (h : ShorGcdBridgeInput N y) :
     (1 < Nat.gcd (y - 1) N ∧ Nat.gcd (y - 1) N < N) ∧
       (1 < Nat.gcd (y + 1) N ∧ Nat.gcd (y + 1) N < N) :=
   NumberTheory.Factoring.gcd_bridge h
 
 /-- Compatibility wrapper from even-order Shor side conditions to nontrivial
 gcd factors. -/
-theorem shor_gcd_bridge_of_half_order {N x r : ℕ}
+lemma shor_gcd_bridge_of_half_order {N x r : ℕ}
     (h : ShorHalfOrderGcdInput N x r) :
     (1 < Nat.gcd (x ^ (r / 2) - 1) N ∧ Nat.gcd (x ^ (r / 2) - 1) N < N) ∧
       (1 < Nat.gcd (x ^ (r / 2) + 1) N ∧ Nat.gcd (x ^ (r / 2) + 1) N < N) :=
@@ -371,7 +371,7 @@ theorem shor_gcd_bridge_of_half_order {N x r : ℕ}
 
 /-- Direct Shor side-condition bridge from an order found on the selected
 unit-group carrier to nontrivial gcd factors for the half-order residue. -/
-private theorem shor_gcd_bridge_of_unitOfCoprime_order {N n a r : ℕ}
+private lemma shor_gcd_bridge_of_unitOfCoprime_order {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (ha : Nat.Coprime a N)
     (hN : 1 < N) (ha_pos : 0 < a)
     (horder : orderOf (D.unitOfCoprime a ha) = r)
@@ -386,7 +386,7 @@ private theorem shor_gcd_bridge_of_unitOfCoprime_order {N n a r : ℕ}
 
 /-- Direct Shor side-condition bridge from the order-finding input vocabulary
 to nontrivial gcd factors for the half-order residue. -/
-theorem shor_gcd_bridge_of_input_order {N n a r : ℕ}
+lemma shor_gcd_bridge_of_input_order {N n a r : ℕ}
     (D : ModularMultiplicationDomain N n) (hinput : OrderFinding.Input N a r)
     (heven : Even r)
     (hleft : ¬ (a ^ (r / 2) - 1) ≡ 0 [MOD N])

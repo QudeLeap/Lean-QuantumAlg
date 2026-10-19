@@ -48,7 +48,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual three-phase prefix realizes the original source candidate and squared distance. -/
-theorem candidateDistancePrefixInto_correct (m ell : Nat)
+lemma candidateDistancePrefixInto_correct (m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (offset originalTarget : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (separation : Separation refs) (store : Store ctx)

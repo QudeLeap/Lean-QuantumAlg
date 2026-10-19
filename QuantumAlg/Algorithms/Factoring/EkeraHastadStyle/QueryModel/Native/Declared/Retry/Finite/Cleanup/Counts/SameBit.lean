@@ -26,7 +26,7 @@ open Execution
 
 noncomputable section
 
-private theorem scalar_additional_packs (N count : Nat) :
+private lemma scalar_additional_packs (N count : Nat) :
     scalarClassicalOperationBound N count =
       NativeFiniteRetry.scalarClassicalOperationBound N count + 16 * count := by
   cases count with
@@ -36,7 +36,7 @@ private theorem scalar_additional_packs (N count : Nat) :
       ring
 
 /-- The actual original-bank allowance includes all sixteen additional slot packs per batch. -/
-theorem declaredCleanup_classicalCeiling_sameBit_eq {n : Nat}
+lemma declaredCleanup_classicalCeiling_sameBit_eq {n : Nat}
     (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) (count : Nat) :
     scalarClassicalOperationBound pair.modulus (count + 1) =
       (count + 1) * (1_833_172_434_460_552 * n +
@@ -46,7 +46,7 @@ theorem declaredCleanup_classicalCeiling_sameBit_eq {n : Nat}
   ring
 
 /-- The full original-bank literal-classical ceiling retains a linear bound for every count. -/
-theorem declaredCleanup_classicalCeiling_sameBit_le_linear {n : Nat}
+lemma declaredCleanup_classicalCeiling_sameBit_le_linear {n : Nat}
     (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) (count : Nat) :
     scalarClassicalOperationBound pair.modulus count ≤ 2 ^ 52 * count * n + 1 := by
   cases count with
@@ -63,7 +63,7 @@ theorem declaredCleanup_classicalCeiling_sameBit_le_linear {n : Nat}
         Nat.add_le_add_right repeated 1
 
 /-- The original cubic constant covers the same-bit allowance including the paid slot writes. -/
-theorem declaredCleanup_classicalCeiling_sameBit_le_cubic {n : Nat}
+lemma declaredCleanup_classicalCeiling_sameBit_le_cubic {n : Nat}
     (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) (count : Nat) :
     scalarClassicalOperationBound pair.modulus count ≤ 2 ^ 54 * count * n ^ 3 + 2 := by
   have linear := declaredCleanup_classicalCeiling_sameBit_le_linear pair positive count

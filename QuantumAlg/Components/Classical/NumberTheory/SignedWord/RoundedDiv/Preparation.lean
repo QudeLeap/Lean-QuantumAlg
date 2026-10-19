@@ -26,14 +26,14 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem read_other {input output observed : CShape} (store : Store ctx)
+private lemma read_other {input output observed : CShape} (store : Store ctx)
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) :
     (store.applyOp op).read (writeInput other) = store.read (writeInput other) :=
   Store.read_applyOp_of_not_mem_storageKeys store op (writeInput other)
     (by simpa only [writeInput, CInputRef.storageKeys, List.mem_singleton] using different)
 
-private theorem resize_read {sourceWidth targetWidth : Nat} (store : Store ctx)
+private lemma resize_read {sourceWidth targetWidth : Nat} (store : Store ctx)
     (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord targetWidth))
     (fits : (store.read input).toNat < CShape.wordModulus targetWidth) :
@@ -46,7 +46,7 @@ private theorem resize_read {sourceWidth targetWidth : Nat} (store : Store ctx)
   exact ClassicalOp.eval_wordResize_exact sourceWidth targetWidth ctx input output
     (store.read input) fits
 
-private theorem double_read (store : Store ctx) (input : CInputRef ctx (.unsignedWord width))
+private lemma double_read (store : Store ctx) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (fits : 2 * (store.read input).toNat < CShape.wordModulus width) :
     ((store.applyOp (.wordUnary .shiftLeft width ctx input output)).read
@@ -61,7 +61,7 @@ private theorem double_read (store : Store ctx) (input : CInputRef ctx (.unsigne
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Reads outside the four actual prefix outputs survive preparation. -/
-theorem prepare_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
+lemma prepare_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoidsFlag : refs.negative.key ∉ other.storageKeys)
     (avoidsMagnitude : refs.magnitude.key ∉ other.storageKeys)
@@ -77,7 +77,7 @@ theorem prepare_callerFrame (refs : BodyRefs ctx width) (store : Store ctx)
     store other avoidsFlag avoidsMagnitude
 
 /-- Prepared words contain the exact doubled magnitude, original denominator and original sign. -/
-theorem prepare_values (refs : BodyRefs ctx width) (separation : Separation refs)
+lemma prepare_values (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (widthPositive : 0 < width) :
     (((prepareStep (model := model) refs store).1).read (writeInput refs.wideNumerator)).toNat =
         2 * rawMagnitude (store.read refs.numerator) ∧

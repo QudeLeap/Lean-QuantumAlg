@@ -62,7 +62,7 @@ structure ScanSourceReads
   oneValue : (store.read cells.one).toNat = 1
 
 /-- The actual initialization establishes the source cursor without an initialization premise. -/
-theorem nativeRecovery_initialized_cursor {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeRecovery_initialized_cursor {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
@@ -108,7 +108,7 @@ theorem nativeRecovery_initialized_cursor {model : ExecutionModel} [BitWord.Sele
       9 (by decide)
 
 /-- The actual initialization establishes the source base and comparison operands. -/
-theorem nativeRecovery_initialized_source_reads {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeRecovery_initialized_source_reads {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)

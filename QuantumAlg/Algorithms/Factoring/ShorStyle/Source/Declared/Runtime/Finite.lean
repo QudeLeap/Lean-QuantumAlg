@@ -48,7 +48,7 @@ def cells (ctx : RuntimeCtx .quantum) (N count : Nat) (original : NativeFactorSc
   scratch := liftWrite ctx N count original.scratch
 
 /-- Every finite retained round preserves the bank's exact ordered physical wire list. -/
-theorem quantumWires (ctx : RuntimeCtx .quantum) (N count : Nat) :
+lemma quantumWires (ctx : RuntimeCtx .quantum) (N count : Nat) :
     (context ctx N count).quantumWires = ctx.quantumWires := by
   induction count generalizing ctx with
   | zero => rfl
@@ -60,18 +60,18 @@ def body (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    (count : Nat) → Circuit (executionModel input) ctx (context ctx N count)
-  | 0 => Circuit.id (model := executionModel input) ctx
+    (count : Nat) → Circuit (executionModel N) ctx (context ctx N count)
+  | 0 => Circuit.id (model := executionModel N) ctx
   | count + 1 => (Completion.code ctx N input sameWires original result).seq
       (body (Iteration.context ctx N) N input ((Iteration.quantumWires ctx N).trans sameWires)
         (Completion.cells ctx N original) (Completion.liftWrite ctx N result) count)
 
 /-- The sole terminal optional encoding is one real paid pack of the actual latches. -/
-def pack (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N) (count : Nat)
+def pack (ctx : RuntimeCtx .quantum) (N : Nat) (count : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (executionModel input) (context ctx N count) (context ctx N count) :=
-  BitWord.instruction (execution := executionModel input)
+    Circuit (executionModel N) (context ctx N count) (context ctx N count) :=
+  BitWord.instruction (execution := executionModel N)
     (NativeFactorScan.packOp (cells ctx N count original) (liftWrite ctx N count result))
 
 /-- The complete finite tail runs all real rounds before the one terminal pack. -/
@@ -79,68 +79,73 @@ def code (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) :
-    Circuit (executionModel input) ctx (context ctx N count) :=
-  (body ctx N input sameWires original result count).seq (pack ctx N input count original result)
+    Circuit (executionModel N) ctx (context ctx N count) :=
+  (body ctx N input sameWires original result count).seq (pack ctx N count original result)
 
 /-- Every arbitrary-count actual tail keeps the physical seed established
 by the real initializer. -/
-theorem body_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma body_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+    {environment : (executionModel N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state) :
     BasisSeeded.Holds (context ctx N count).quantumLayout.zeroLabel
-      ((body ctx N input sameWires original result count).execute Reference state) := by
+      ((body ctx N input sameWires original result count).execute environment Reference state) := by
   induction count generalizing ctx History with
   | zero =>
       change BasisSeeded.Holds ctx.quantumLayout.zeroLabel
-        ((Circuit.id (model := executionModel input) ctx).execute Reference state)
+        ((Circuit.id (model := executionModel N) ctx).execute environment Reference state)
       rw [Circuit.execute_id]
       exact BasisSeeded.mapStore _ state seeded id
         (fun entry => (entry.2.1, (entry.2.2, ())))
   | succ count induction =>
-      exact BasisSeeded.seq (Completion.code ctx N input sameWires original result)
+      exact BasisSeeded.seq
+        (environment := environment) (Completion.code ctx N input sameWires original result)
         (body (Iteration.context ctx N) N input ((Iteration.quantumWires ctx N).trans sameWires)
           (Completion.cells ctx N original) (Completion.liftWrite ctx N result) count) _ state
         (induction (Iteration.context ctx N) ((Iteration.quantumWires ctx N).trans sameWires)
           (Completion.cells ctx N original) (Completion.liftWrite ctx N result)
-          ((Completion.code ctx N input sameWires original result).execute Reference state)
+          ((Completion.code ctx N input sameWires original result).execute
+            environment Reference state)
           (Completion.code_seeded ctx N input sameWires original result state))
 
 /-- Final real classical packing preserves every complete zero-bank/reference block. -/
-theorem pack_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N) (count : Nat)
+lemma pack_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (count : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+    {environment : (executionModel N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context ctx N count) Reference ((executionModel input).HiddenState × History))
+    (state : State (context ctx N count) Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds (context ctx N count).quantumLayout.zeroLabel state) :
     BasisSeeded.Holds (context ctx N count).quantumLayout.zeroLabel
-      ((pack ctx N input count original result).execute Reference state) := by
+      ((pack ctx N count original result).execute environment Reference state) := by
   rw [pack, BitWord.bitWord_instruction_execute]
   exact BasisSeeded.mapStore _ state seeded
-    (fun store => (BitWord.instructionStep (execution := executionModel input)
+    (fun store => (BitWord.instructionStep (execution := executionModel N)
       (NativeFactorScan.packOp (cells ctx N count original) (liftWrite ctx N count result))
         store).1)
     (fun entry => (entry.2.1, (entry.2.2,
-      (BitWord.instructionStep (execution := executionModel input)
+      (BitWord.instructionStep (execution := executionModel N)
         (NativeFactorScan.packOp (cells ctx N count original) (liftWrite ctx N count result))
           entry.1).2)))
 
 /-- The finite complete tail and its final paid pack keep the same physical seed. -/
-theorem code_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma code_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+    {environment : (executionModel N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state) :
     BasisSeeded.Holds (context ctx N count).quantumLayout.zeroLabel
-      ((code ctx N input sameWires count original result).execute Reference state) :=
-  BasisSeeded.seq (body ctx N input sameWires original result count)
-    (pack ctx N input count original result) _ state
-    (pack_seeded ctx N input count original result _
+      ((code ctx N input sameWires count original result).execute environment Reference state) :=
+  BasisSeeded.seq (environment := environment) (body ctx N input sameWires original result count)
+    (pack ctx N count original result) _ state
+    (pack_seeded ctx N count original result _
       (body_seeded ctx N input sameWires count original result state seeded))
 
 end

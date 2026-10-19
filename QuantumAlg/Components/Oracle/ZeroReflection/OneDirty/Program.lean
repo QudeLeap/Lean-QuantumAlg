@@ -41,10 +41,11 @@ def program (oracles : OracleModel) (controls : Nat)
   (layout controls).zeroReflectionProgram physical oracles
 
 /-- Every source/work basis label has exactly the positive source-reflection phase. -/
-theorem program_applyVec_pair (oracles : OracleModel) (controls : Nat)
+lemma program_applyVec_pair (oracles : OracleModel)
+    {environment : oracles.Interpretation} (controls : Nat)
     (physical : QubitLayout (controls + 1 + 1))
     (source : Fin (2 ^ (controls + 1))) (work : Fin (2 ^ 1)) :
-    (program oracles controls physical).applyVec
+    (program oracles controls physical).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (prodEquiv (source, work)))).vec =
       if source = 0 then
@@ -55,9 +56,10 @@ theorem program_applyVec_pair (oracles : OracleModel) (controls : Nat)
   have encoded :
       (encoding controls).encode (source, finTwoEquiv work) = prodEquiv (source, work) := by
     fin_cases work <;> rfl
-  have actual := (layout controls).zeroReflectionProgram_applyVec_encoded_ket physical oracles
+  have actual := (layout controls).zeroReflectionProgram_applyVec_encoded_ket
+        (environment := environment) physical oracles
     (source, finTwoEquiv work)
-  change (program oracles controls physical).applyVec
+  change (program oracles controls physical).applyVec environment
       (NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm
           ((encoding controls).encode (source, finTwoEquiv work)))).vec =
@@ -71,9 +73,11 @@ theorem program_applyVec_pair (oracles : OracleModel) (controls : Nat)
   simpa only [reflectedZero_iff, encoded] using actual
 
 /-- Full operator equality restores the arbitrary work subsystem, including its correlations. -/
-theorem program_matrix (oracles : OracleModel) (controls : Nat)
+lemma program_matrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} (controls : Nat)
     (physical : QubitLayout (controls + 1 + 1)) :
-    UnitaryOperator.reindex physical.basisEquiv (program oracles controls physical).matrix =
+    UnitaryOperator.reindex physical.basisEquiv
+      ((program oracles controls physical).matrix environment) =
       UnitaryOperator.tensor (zeroReflectionOperator (controls + 1))
         (1 : UnitaryOperator (Qubits 1)) := by
   apply Subtype.ext
@@ -104,14 +108,14 @@ theorem program_matrix (oracles : OracleModel) (controls : Nat)
     · rw [if_pos zero, if_pos zero]
     · rw [if_neg zero, if_neg zero, HilbertVector.neg_tensor]
   have actual := congrArg (fun state => state (physical.basisEquiv.symm row))
-    (program_applyVec_pair oracles controls physical source work)
+    (program_applyVec_pair (environment := environment) oracles controls physical source work)
   have sourceEntry := congrArg (fun state => state row) expected
   simp only [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
     HilbertOperator.applyVec_ket] at actual
   simp only [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at sourceEntry
   by_cases zero : source = 0
   · rw [if_pos zero] at actual sourceEntry
-    change (program oracles controls physical).matrix (physical.basisEquiv.symm row)
+    change ((program oracles controls physical).matrix environment) (physical.basisEquiv.symm row)
         (physical.basisEquiv.symm (prodEquiv (source, work))) =
       ((NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm (prodEquiv (source, work))))
@@ -123,7 +127,7 @@ theorem program_matrix (oracles : OracleModel) (controls : Nat)
     simp only [Equiv.symm_apply_eq, Equiv.apply_symm_apply] at actual
     exact actual.trans sourceEntry.symm
   · rw [if_neg zero] at actual sourceEntry
-    change (program oracles controls physical).matrix (physical.basisEquiv.symm row)
+    change ((program oracles controls physical).matrix environment) (physical.basisEquiv.symm row)
         (physical.basisEquiv.symm (prodEquiv (source, work))) =
       -((NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm (prodEquiv (source, work))))
@@ -136,14 +140,14 @@ theorem program_matrix (oracles : OracleModel) (controls : Nat)
     exact actual.trans sourceEntry.symm
 
 /-- All complement, phase, MCX and exact global-minus events belong to this same program. -/
-theorem program_eventTrace_length (oracles : OracleModel) (controls : Nat)
+lemma program_eventTrace_length (oracles : OracleModel) (controls : Nat)
     (physical : QubitLayout (controls + 1 + 1)) :
     (program oracles controls physical).eventTrace.length =
       2 * (controls + 1) + (layout controls).gates.length + 3 :=
   (layout controls).zeroReflectionProgram_eventTrace_length physical oracles
 
 /-- The actual elementary sequence has a linear count with one arbitrary work wire. -/
-theorem program_eventTrace_length_le (oracles : OracleModel) (controls : Nat)
+lemma program_eventTrace_length_le (oracles : OracleModel) (controls : Nat)
     (physical : QubitLayout (controls + 1 + 1)) :
     (program oracles controls physical).eventTrace.length ≤ 10 * controls + 6 :=
   (layout controls).zeroReflectionProgram_eventTrace_length_le physical oracles

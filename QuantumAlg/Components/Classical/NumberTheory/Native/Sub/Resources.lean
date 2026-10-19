@@ -35,7 +35,7 @@ def nativeEnvelope (width : Nat) : ResourcePool model :=
         (.wordBinary .sub width))))
 
 /-- The actual decision selects precisely one of the two native output coordinates. -/
-theorem nativeSub_into_eventTrace (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_eventTrace (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     (into (model := model) left right output).eventTrace path =
@@ -64,7 +64,7 @@ theorem nativeSub_into_eventTrace (left right : CInputRef ctx (.unsignedWord wid
         rfl
 
 /-- Every actual path fits the independent allowance in each native event coordinate. -/
-theorem nativeSub_into_pool_le (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_pool_le (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     (into (model := model) left right output).resourcePool path ≤ nativeEnvelope (model := model)
@@ -80,12 +80,12 @@ theorem nativeSub_into_pool_le (left right : CInputRef ctx (.unsignedWord width)
         (.wordBinary .sub width)))))
 
 /-- The independent envelope admits three native coordinates rather than claiming three events. -/
-theorem nativeSub_nativeEnvelope_card (width : Nat) :
+lemma nativeSub_nativeEnvelope_card (width : Nat) :
     (nativeEnvelope (model := model) width).card = 3 := by
   simp [nativeEnvelope, ResourcePool.singleton]
 
 /-- Both actual branches execute exactly two native instructions, including at width zero. -/
-theorem nativeSub_into_eventCount (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_eventCount (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     ((into (model := model) left right output).resourcePool path).card = 2 := by
@@ -103,7 +103,7 @@ def nativeDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : N
         .sub width))))
 
 /-- The actual dependency chain charges both the comparison and its selected instruction. -/
-theorem nativeSub_into_depth_le (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_depth_le (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (into (model := model) left right output).Path) :
     (into (model := model) left right output).depth duration path ≤ nativeDepthLimit width
@@ -129,7 +129,7 @@ theorem nativeSub_into_depth_le (left right : CInputRef ctx (.unsignedWord width
         exact Nat.add_le_add_left (Nat.le_max_left _ _) _
 
 /-- At unit native duration every actual selected path has serial depth exactly two. -/
-theorem nativeSub_into_unitDepth (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_unitDepth (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     (into (model := model) left right output).depth (fun _ => 1) path = 2 := by

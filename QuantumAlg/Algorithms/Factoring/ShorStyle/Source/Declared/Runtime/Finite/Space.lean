@@ -33,7 +33,7 @@ def additionalSpace (N count : Nat) : SpacePool .quantum :=
   count • roundResultSpace N + completionAdditionalSpace N
 
 /-- Every real retained round contributes its full surviving resident capacity. -/
-theorem context_resident (ctx : RuntimeCtx .quantum) (N count : Nat) :
+lemma context_resident (ctx : RuntimeCtx .quantum) (N count : Nat) :
     (context ctx N count).residentSpace = ctx.residentSpace + count • roundResultSpace N := by
   induction count generalizing ctx with
   | zero => simp only [context, zero_nsmul, add_zero]
@@ -43,7 +43,7 @@ theorem context_resident (ctx : RuntimeCtx .quantum) (N count : Nat) :
       ac_rfl
 
 /-- Every actual finite path counts its caller, retained results and full resident workspace. -/
-theorem body_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma body_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -75,7 +75,7 @@ theorem body_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
         exact later.trans_eq frame
 
 /-- The one real final pack retains every existing resident entry without extra scratch. -/
-theorem code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -84,12 +84,12 @@ theorem code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
       ctx.residentSpace + additionalSpace N count := by
   rcases path with ⟨roundsPath, packedPath⟩
   refine (Circuit.peakResidentSpace_seq (body ctx N input sameWires cells result count)
-    (pack ctx N input count cells result) ⟨roundsPath, packedPath⟩).le.trans ?_
+    (pack ctx N count cells result) ⟨roundsPath, packedPath⟩).le.trans ?_
   apply SpacePool.max_le
   · exact body_resident_le ctx N input sameWires count cells result roundsPath
-  · have packed : (pack ctx N input count cells result).peakResidentSpace packedPath =
+  · have packed : (pack ctx N count cells result).peakResidentSpace packedPath =
         (context ctx N count).residentSpace :=
-      Circuit.peakResidentSpace_classical (model := executionModel input)
+      Circuit.peakResidentSpace_classical (model := executionModel N)
         (BitWord.application
           (NativeFactorScan.packOp (Finite.cells ctx N count cells) (liftWrite ctx N count result)))
         packedPath
@@ -98,7 +98,7 @@ theorem code_resident_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
       omega)
 
 /-- Every real retained round contributes its full surviving auxiliary capacity. -/
-theorem context_auxiliary (ctx : RuntimeCtx .quantum) (N count : Nat) :
+lemma context_auxiliary (ctx : RuntimeCtx .quantum) (N count : Nat) :
     (context ctx N count).auxiliarySpace = ctx.auxiliarySpace + count • roundResultSpace N := by
   induction count generalizing ctx with
   | zero => simp only [context, zero_nsmul, add_zero]
@@ -108,7 +108,7 @@ theorem context_auxiliary (ctx : RuntimeCtx .quantum) (N count : Nat) :
       ac_rfl
 
 /-- Every actual finite path counts its caller, retained results and full auxiliary workspace. -/
-theorem body_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma body_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -140,7 +140,7 @@ theorem body_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N
         exact later.trans_eq frame
 
 /-- The one real final pack retains every existing auxiliary entry without extra scratch. -/
-theorem code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -149,12 +149,12 @@ theorem code_auxiliary_le (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N
       ctx.auxiliarySpace + additionalSpace N count := by
   rcases path with ⟨roundsPath, packedPath⟩
   refine (Circuit.peakAuxiliarySpace_seq (body ctx N input sameWires cells result count)
-    (pack ctx N input count cells result) ⟨roundsPath, packedPath⟩).le.trans ?_
+    (pack ctx N count cells result) ⟨roundsPath, packedPath⟩).le.trans ?_
   apply SpacePool.max_le
   · exact body_auxiliary_le ctx N input sameWires count cells result roundsPath
-  · have packed : (pack ctx N input count cells result).peakAuxiliarySpace packedPath =
+  · have packed : (pack ctx N count cells result).peakAuxiliarySpace packedPath =
         (context ctx N count).auxiliarySpace :=
-      Circuit.peakAuxiliarySpace_classical (model := executionModel input)
+      Circuit.peakAuxiliarySpace_classical (model := executionModel N)
         (BitWord.application
           (NativeFactorScan.packOp (Finite.cells ctx N count cells) (liftWrite ctx N count result)))
         packedPath

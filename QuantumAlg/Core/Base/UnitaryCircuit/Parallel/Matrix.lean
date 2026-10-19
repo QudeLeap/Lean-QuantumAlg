@@ -47,7 +47,7 @@ variable {leftLayout : QuantumLayout leftCount}
       (rightComplementEquiv leftPlacement rightPlacement partition))
 
 /-- The first intrinsic product coordinate is the left physical restriction. -/
-@[simp] public theorem parallelBasisEquiv_left
+@[simp] public lemma parallelBasisEquiv_left
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ)
@@ -55,7 +55,7 @@ variable {leftLayout : QuantumLayout leftCount}
     (parallelBasisEquiv leftPlacement rightPlacement partition basis).1 =
       (leftPlacement.splitBasis basis).1 := rfl
 
-private theorem leftSelection_eq_rightComplement
+private lemma leftSelection_eq_rightComplement
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ) :
@@ -63,7 +63,7 @@ private theorem leftSelection_eq_rightComplement
   have complement := congrArg (fun selection : Finset (Fin count) => selectionᶜ) partition
   simpa only [compl_compl] using complement.symm
 
-private theorem castSelectedBasis_apply_val
+private lemma castSelectedBasis_apply_val
     {first second : Finset (Fin count)} (same : first = second)
     (basis : layout.SelectedBasis first)
     (index : QuantumLayout.SelectedPosition second) :
@@ -81,7 +81,7 @@ private def leftComplementEquiv
     (congrArg layout.SelectedBasis
       (leftSelection_eq_rightComplement leftPlacement rightPlacement partition)))
 
-private theorem leftComplementEquiv_restrict
+private lemma leftComplementEquiv_restrict
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ)
@@ -108,7 +108,7 @@ private theorem leftComplementEquiv_restrict
   exact congrArg (fun position => (basis position).val)
     (congrArg Subtype.val equality)
 
-private theorem rightComplementEquiv_restrict
+private lemma rightComplementEquiv_restrict
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ)
@@ -137,7 +137,7 @@ private theorem rightComplementEquiv_restrict
     (congrArg Subtype.val equality).symm
 
 /-- The second intrinsic product coordinate is the right physical restriction. -/
-@[simp] public theorem parallelBasisEquiv_right
+@[simp] public lemma parallelBasisEquiv_right
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ)
@@ -146,7 +146,7 @@ private theorem rightComplementEquiv_restrict
       (rightPlacement.splitBasis basis).1 :=
   rightComplementEquiv_restrict leftPlacement rightPlacement partition basis
 
-private theorem left_lift_entry
+private lemma left_lift_entry
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ)
@@ -171,7 +171,7 @@ private theorem left_lift_entry
     parallelBasisEquiv_right leftPlacement rightPlacement partition column]
   rw [if_congr complementEq rfl rfl]
 
-private theorem right_lift_entry
+private lemma right_lift_entry
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (partition : rightPlacement.selection = leftPlacement.selectionᶜ)
@@ -208,30 +208,31 @@ private theorem right_lift_entry
 
 /-- A complete disjoint parallel placement has the exact tensor matrix in its
 intrinsic product basis. -/
-public theorem parallel_matrix
+public lemma parallel_matrix
     (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (disjoint : Disjoint leftPlacement.selection rightPlacement.selection)
-    (partition : rightPlacement.selection = leftPlacement.selectionᶜ) :
-    (parallel left right leftPlacement rightPlacement disjoint).matrix =
+    (partition : rightPlacement.selection = leftPlacement.selectionᶜ) (environment :
+      oracles.Interpretation) :
+    ((parallel left right leftPlacement rightPlacement disjoint).matrix environment) =
       UnitaryOperator.reindex
         (parallelBasisEquiv leftPlacement rightPlacement partition).symm
-        (UnitaryOperator.prodTensor left.matrix right.matrix) := by
+        (UnitaryOperator.prodTensor (left.matrix environment) (right.matrix environment)) := by
   apply Subtype.ext
   funext row column
   rw [parallel_matrix_raw]
   simp only [UnitaryOperator.coe_reindex, Matrix.reindex_apply,
     Matrix.submatrix_apply, UnitaryOperator.unitaryOperator_prodTensor_apply]
   let summand : layout.Basis → ℂ := fun index =>
-    rightPlacement.liftOperator right.matrix row index *
-      leftPlacement.liftOperator left.matrix index column
+    rightPlacement.liftOperator (right.matrix environment) row index *
+      leftPlacement.liftOperator (left.matrix environment) index column
   change (∑ index : layout.Basis, summand index) =
-    left.matrix
+    (left.matrix environment)
         (parallelBasisEquiv leftPlacement rightPlacement partition row).1
         (parallelBasisEquiv leftPlacement rightPlacement partition column).1 *
-      right.matrix
+      (right.matrix environment)
         (parallelBasisEquiv leftPlacement rightPlacement partition row).2
         (parallelBasisEquiv leftPlacement rightPlacement partition column).2
   rw [← Equiv.sum_comp
@@ -240,18 +241,18 @@ public theorem parallel_matrix
       summand
         ((parallelBasisEquiv leftPlacement rightPlacement partition).symm index)) = _
   have rightEntryPair (index : leftLayout.Basis × rightLayout.Basis) :
-      rightPlacement.liftOperator right.matrix row
+      rightPlacement.liftOperator (right.matrix environment) row
           ((parallelBasisEquiv leftPlacement rightPlacement partition).symm index) =
-        right.matrix
+        (right.matrix environment)
             (parallelBasisEquiv leftPlacement rightPlacement partition row).2 index.2 *
           (if (parallelBasisEquiv leftPlacement rightPlacement partition row).1 = index.1
             then 1 else 0) := by
     rw [right_lift_entry leftPlacement rightPlacement partition]
     simp only [Equiv.apply_symm_apply]
   have leftEntryPair (index : leftLayout.Basis × rightLayout.Basis) :
-      leftPlacement.liftOperator left.matrix
+      leftPlacement.liftOperator (left.matrix environment)
           ((parallelBasisEquiv leftPlacement rightPlacement partition).symm index) column =
-        left.matrix index.1
+        (left.matrix environment) index.1
             (parallelBasisEquiv leftPlacement rightPlacement partition column).1 *
           (if index.2 =
             (parallelBasisEquiv leftPlacement rightPlacement partition column).2
@@ -263,10 +264,10 @@ public theorem parallel_matrix
     mul_ite, ite_mul, mul_one, mul_zero, zero_mul,
     Finset.sum_ite_eq, Finset.sum_ite_eq', Finset.mem_univ, if_true]
   exact mul_comm
-    (right.matrix
+    ((right.matrix environment)
       (parallelBasisEquiv leftPlacement rightPlacement partition row).2
       (parallelBasisEquiv leftPlacement rightPlacement partition column).2)
-    (left.matrix
+    ((left.matrix environment)
       (parallelBasisEquiv leftPlacement rightPlacement partition row).1
       (parallelBasisEquiv leftPlacement rightPlacement partition column).1)
 

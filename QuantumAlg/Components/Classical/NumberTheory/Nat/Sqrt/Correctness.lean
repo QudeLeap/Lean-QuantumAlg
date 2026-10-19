@@ -40,7 +40,7 @@ structure Outcome (refs : Refs ctx inputWidth) (before after : Store ctx) : Prop
   callerFrame : IntoCallerFrame refs before after
 
 /-- Actual initialization supplies precisely the original remaining-round interval. -/
-theorem remainingState_of_init (refs : Refs ctx inputWidth) (positive : 0 < inputWidth)
+lemma remainingState_of_init (refs : Refs ctx inputWidth) (positive : 0 < inputWidth)
     (before after : Store ctx) (holds : InitOutcome refs before after) :
     RemainingState inputWidth refs after := by
   refine ⟨?_, ?_, ?_, ?_⟩
@@ -60,7 +60,7 @@ theorem remainingState_of_init (refs : Refs ctx inputWidth) (positive : 0 < inpu
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Every actual caller read outside the driver's writes is preserved without value premises. -/
-theorem into_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
+lemma into_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
     IntoCallerFrame refs store (step (model := model) refs store).1 := by
   intro shape other avoidsWide avoidsRound avoidsOutput
   rw [step_store, Store.read_applyOp_of_not_mem_storageKeys _ (finishOp refs) other avoidsOutput]
@@ -69,7 +69,7 @@ theorem into_callerFrame (refs : Refs ctx inputWidth) (store : Store ctx) :
       (avoidsRound .root) (avoidsRound .half))
 
 /-- The actual finite driver writes Nat.sqrt of the original input into the caller output. -/
-theorem step_correct (refs : Refs ctx inputWidth) (separation : Separation refs)
+lemma step_correct (refs : Refs ctx inputWidth) (separation : Separation refs)
     (positive : 0 < inputWidth) (store : Store ctx) :
     Outcome refs store (step (model := model) refs store).1 := by
   have initialized := initializeInto_correct (model := model) refs separation positive store

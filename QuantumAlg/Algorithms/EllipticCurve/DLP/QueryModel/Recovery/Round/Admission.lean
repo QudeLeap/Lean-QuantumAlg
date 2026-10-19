@@ -15,8 +15,9 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Support
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Correctness
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Validity
 import all
+
   QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Validity.Loop
-import all QuantumAlg.Core.Execution.CycleSchedule.InputDistribution
+import all QuantumAlg.Core.Execution.Input.Successor.Distribution
 
 /-!
 # Admission supplied by actual complete ECDLP rounds
@@ -35,7 +36,7 @@ noncomputable section
 open Execution ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 attribute [local instance] Classical.decEq Classical.propDecidable
-attribute [local irreducible] underPersistent
+attribute [local irreducible] sampleUnderPersistent
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
@@ -63,17 +64,17 @@ public def roundStoreDomain (I : ECDLPInstance E) (store : Store (context I)) : 
         (roundSelectedPair I store).2.toNat • I.basePoint.toMathlib = I.targetPoint.toMathlib)
 
 /-- The domain quantifies every positive local joint block, retaining correlated service state. -/
-public def roundInputDomain (I : ECDLPInstance E) (A : Access I)
-    (state : ExecutionState (Store (context I) × (Sampling.executionModel I A).HiddenState)
+public def roundInputDomain (I : ECDLPInstance E)
+    (state : ExecutionState (Store (context I) × (Sampling.executionModel I).HiddenState)
       (context I).register) : Prop :=
   ∀ record, 0 < (state.block record).mass → roundStoreDomain I record.1
 
-private theorem original_borrowed (I : ECDLPInstance E) (store : Store (context I)) :
+private lemma original_borrowed (I : ECDLPInstance E) (store : Store (context I)) :
     HEq store.readBorrowedClassical (roundOriginalStore I store).readBorrowedClassical :=
   (persistentTail_borrowed (fieldWidth E) (scalarWidth I) store).trans
     (samplingOriginal_borrowed I (persistentOriginal I store))
 
-private theorem original_borrowed_injective (I : ECDLPInstance E)
+private lemma original_borrowed_injective (I : ECDLPInstance E)
     (left right : Store (Sampling.pre I))
     (same : left.readBorrowedClassical = right.readBorrowedClassical) : left = right := by
   obtain ⟨⟨leftTarget, leftBase, leftUnit⟩⟩ := left
@@ -85,27 +86,29 @@ private theorem original_borrowed_injective (I : ECDLPInstance E)
   cases same
   rfl
 
-private theorem original_read (I : ECDLPInstance E) (store : Store (context I))
+private lemma original_read (I : ECDLPInstance E) (store : Store (context I))
     {shape : CShape} (input : CInputRef (Sampling.pre I) shape) :
     (roundOriginalStore I store).read input =
       store.read (persistentInput (fieldWidth E) (scalarWidth I) (originalInput I input)) :=
   (samplingOriginal_read I (persistentOriginal I store) input).trans
     (persistentOriginal_read I store (originalInput I input))
 
-private theorem original_preserved (I : ECDLPInstance E) (A : Access I)
-    (prefixCode : Circuit (Sampling.executionModel I A) (context I) (context I))
+private lemma original_preserved (I : ECDLPInstance E) (A : Access I)
+    (prefixCode : Circuit (Sampling.executionModel I) (context I) (context I))
     {Reference : Register} {History : Type} [Fintype History]
-    (initial : State (context I) Reference ((Sampling.executionModel I A).HiddenState × History))
+    (initial : State (context I) Reference ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ record, 0 < (initial.block record).mass →
       roundOriginalStore I record.1 = Runtime.Context.inputStore I)
     (result : Store (context I) ×
-      ((Sampling.executionModel I A).HiddenState × (History × prefixCode.Path)))
-    (positive : 0 < ((prefixCode.execute Reference initial).block result).mass) :
+      ((Sampling.executionModel I).HiddenState × (History × prefixCode.Path)))
+    (positive : 0 < ((prefixCode.execute (Sampling.sourceEnvironment I A) Reference initial).block
+      result).mass) :
     roundOriginalStore I result.1 = Runtime.Context.inputStore I := by
   have noBorrowed : (context I).borrowedQuantumWires = [] :=
     (persistentCtx_borrowedQuantumWires (Sampling.Reuse.context I) (fieldWidth E)
       (scalarWidth I)).trans (Sampling.Reuse.ecdlpReuse_noBorrowedQuantum I)
-  have restored := prefixCode.borrowedRestored_of_noBorrowedQuantum noBorrowed Reference initial
+  have restored := prefixCode.borrowedRestored_of_noBorrowedQuantum (Sampling.sourceEnvironment I
+    A) noBorrowed Reference initial
   obtain ⟨previous, present, same⟩ := prefixCode.borrowedRestored_supported_initial
     Reference initial _ restored result positive
   have beforeAfter : HEq previous.1.readBorrowedClassical result.1.readBorrowedClassical :=
@@ -117,15 +120,16 @@ private theorem original_preserved (I : ECDLPInstance E) (A : Access I)
   exact (original_borrowed_injective I _ _ originals).symm.trans (admitted previous present)
 
 /-- Original point interpretations hold on any actual prefix from the admitted live context. -/
-theorem ecdlpRecovery_round_prefix_represents (I : ECDLPInstance E) (A : Access I)
+lemma ecdlpRecovery_round_prefix_represents (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (initial : State (context I) Reference ((Sampling.executionModel I A).HiddenState × History))
+    (initial : State (context I) Reference ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ record, 0 < (initial.block record).mass →
       roundOriginalStore I record.1 = Runtime.Context.inputStore I)
-    (prefixCode : Circuit (Sampling.executionModel I A) (context I) (context I))
+    (prefixCode : Circuit (Sampling.executionModel I) (context I) (context I))
     (result : Store (context I) ×
-      ((Sampling.executionModel I A).HiddenState × (History × prefixCode.Path)))
-    (positive : 0 < ((prefixCode.execute Reference initial).block result).mass) :
+      ((Sampling.executionModel I).HiddenState × (History × prefixCode.Path)))
+    (positive : 0 < ((prefixCode.execute (Sampling.sourceEnvironment I A) Reference initial).block
+      result).mass) :
     ClassicalRoutines.EllipticCurve.PointRepresents (curve E)
         (result.1.read (persistentInput (fieldWidth E) (scalarWidth I) (baseInput I)))
         I.basePoint.toMathlib ∧
@@ -150,22 +154,24 @@ theorem ecdlpRecovery_round_prefix_represents (I : ECDLPInstance E) (A : Access 
 variable [Fact p.Prime]
 
 /-- The same actual complete round preserves the independently admitted point and latch domain. -/
-theorem ecdlpRecovery_round_preserves_domain (I : ECDLPInstance E) (A : Access I)
+lemma ecdlpRecovery_round_preserves_domain (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
     {History : Type} [Fintype History]
-    (state : State (context I) Reference ((Sampling.executionModel I A).HiddenState × History))
+    (state : State (context I) Reference ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ record, 0 < (state.block record).mass → roundStoreDomain I record.1)
     (result : Store (context I) ×
-      ((Sampling.executionModel I A).HiddenState ×
-        (History × (round I A expansion nontrivial).Path)))
-    (positive : 0 < (((round I A expansion nontrivial).execute
+      ((Sampling.executionModel I).HiddenState ×
+        (History × (round I expansion nontrivial).Path)))
+    (positive : 0 < (((round I expansion nontrivial).execute (Sampling.sourceEnvironment I A)
       Reference state).block result).mass) :
     roundStoreDomain I result.1 := by
-  have original := original_preserved I A (round I A expansion nontrivial) state
+  have original := original_preserved I A (round I expansion nontrivial) state
     (fun record present => (admitted record present).1) result positive
-  have bounded := sampledAttempt_preserves_selected_lt (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) (curve E) (modulus I nontrivial)
+  have bounded := sampledAttempt_preserves_selected_lt (environment :=
+    Sampling.sourceEnvironment I A)
+    (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I) state
     (fun record present => (admitted record present).2.1) result positive
   have points := ecdlpRecovery_round_prefix_represents I A state
@@ -194,27 +200,32 @@ theorem ecdlpRecovery_round_preserves_domain (I : ECDLPInstance E) (A : Access I
         (curve E) I.basePoint.toMathlib,
       target ▸ ClassicalRoutines.EllipticCurve.encodePoint_represents
         (curve E) I.targetPoint.toMathlib, prior.2.2⟩
-  have checked := sampledAttempt_preserves_validity (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) (curve E) (modulus I nontrivial)
+  have checked := sampledAttempt_preserves_validity (environment :=
+    Sampling.sourceEnvironment I A)
+    (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
     I.basePoint.toMathlib I.targetPoint.toMathlib state initialValid
-    (points (underPersistent (Sampling.Reuse.code I A expansion)
-      (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) (fieldWidth E) (scalarWidth I)))
+    (points (sampleUnderPersistent
+      (Sampling.Reuse.code (allowAllocation := false) I expansion)
+      (fieldWidth E) (scalarWidth I)))
     result positive
   exact ⟨original, bounded, checked.2.2⟩
 
 omit [Fact p.Prime] in
 /-- The actual normalized predecessor, without service initialization, admits the next round. -/
-public theorem ecdlpRecovery_round_nextInput_admitted (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_round_nextInput_admitted (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles (context I) Reference)
-    (admitted : roundInputDomain I A original.localState) :
-    roundInputDomain I A ((round I A expansion nontrivial).nextInput original).localState := by
+    (original : OracleInput (Sampling.executionModel I).classicalOracles (context I) Reference)
+    (admitted : roundInputDomain I original.localState) :
+    roundInputDomain I ((round I expansion nontrivial).nextInput (Sampling.sourceEnvironment I A)
+      original).localState := by
   let : Fact p.Prime := ⟨E.prime⟩
   intro record positive
   obtain ⟨result, storeEq, _serviceEq, present⟩ :=
-    Circuit.nextInput_local_supported_execution (round I A expansion nontrivial)
+    Circuit.nextInput_local_supported_execution (environment := Sampling.sourceEnvironment I A)
+      (round I expansion nontrivial)
       original record positive
   have initialDomain : ∀ previous, 0 < ((original.state.mapClassical
       (fun entry => (entry.1, (entry.2, ())))).block previous).mass →

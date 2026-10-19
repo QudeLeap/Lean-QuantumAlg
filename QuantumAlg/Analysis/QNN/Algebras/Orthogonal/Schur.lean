@@ -48,11 +48,11 @@ variable {m : ℕ}
 
 /-! ### The `#Y`-parity behaviour under `pauliXor` -/
 
-private theorem ySign_xor (a b : Fin 4) :
+private lemma ySign_xor (a b : Fin 4) :
     ySign (xor4 a b) = ySign a * ySign b * negOnePow (omega4 a b) := by
   fin_cases a <;> fin_cases b <;> simp [ySign, xor4, omega4, negOnePow]
 
-private theorem prod_ySign_xor (a b : Fin m → Fin 4) :
+private lemma prod_ySign_xor (a b : Fin m → Fin 4) :
     (∏ k, ySign (pauliXor a b k))
       = (∏ k, ySign (a k)) * (∏ k, ySign (b k)) * negOnePow (pauliOmega a b) := by
   have hpt : ∀ k, ySign (pauliXor a b k)
@@ -62,7 +62,7 @@ private theorem prod_ySign_xor (a b : Fin m → Fin 4) :
     negOnePow_sum, pauliOmega]
 
 /-- **The odd-`#Y` set is closed under the product of an anticommuting odd-`#Y` pair.** -/
-theorem soMem_xor_of_anticomm {a b : Fin m → Fin 4}
+lemma soMem_xor_of_anticomm {a b : Fin m → Fin 4}
     (ha : Odd (yCount a)) (hb : Odd (yCount b)) (hω : pauliOmega a b = 1) :
     Odd (yCount (pauliXor a b)) := by
   by_contra hne
@@ -78,7 +78,7 @@ theorem soMem_xor_of_anticomm {a b : Fin m → Fin 4}
 /-! ### Small-support witness plumbing (private; the generic versions live in `SymplecticSchur`) -/
 
 /-- The single-site symplectic pairing: `ω(σ_r^g, d) = ω₄(g, d_r)`. -/
-private theorem pauliOmega_update_single_left (r : Fin m) (g : Fin 4) (d : Fin m → Fin 4) :
+private lemma pauliOmega_update_single_left (r : Fin m) (g : Fin 4) (d : Fin m → Fin 4) :
     pauliOmega (Function.update (0 : Fin m → Fin 4) r g) d = omega4 g (d r) := by
   rw [pauliOmega, Finset.sum_eq_single r]
   · rw [Function.update_self]
@@ -86,7 +86,7 @@ private theorem pauliOmega_update_single_left (r : Fin m) (g : Fin 4) (d : Fin m
   · intro h; exact absurd (Finset.mem_univ r) h
 
 /-- A string that is `Y` at exactly one site (and non-`Y` elsewhere) has `#Y = 1`. -/
-private theorem yCount_eq_one {z : Fin m → Fin 4} {s : Fin m} (hs : z s = 2)
+private lemma yCount_eq_one {z : Fin m → Fin 4} {s : Fin m} (hs : z s = 2)
     (hne : ∀ k, k ≠ s → z k ≠ 2) : yCount z = 1 := by
   rw [yCount]
   have hset : (Finset.univ.filter fun k => z k = 2) = {s} := by
@@ -96,7 +96,7 @@ private theorem yCount_eq_one {z : Fin m → Fin 4} {s : Fin m} (hs : z s = 2)
   rw [hset, Finset.card_singleton]
 
 /-- Reading off a two-site witness `σ_q^g ⊕ σ_r^h` (`q ≠ r`) at an index. -/
-private theorem xor2_apply {q r : Fin m} (hqr : q ≠ r) (g h : Fin 4) (k : Fin m) :
+private lemma xor2_apply {q r : Fin m} (hqr : q ≠ r) (g h : Fin 4) (k : Fin m) :
     pauliXor (Function.update 0 q g) (Function.update 0 r h) k
       = if k = q then g else if k = r then h else 0 := by
   simp only [pauliXor]
@@ -111,7 +111,7 @@ private theorem xor2_apply {q r : Fin m} (hqr : q ≠ r) (g h : Fin 4) (k : Fin 
 
 /-- Reading off a three-site witness `σ_0^{g₀} ⊕ σ_p^{gₚ} ⊕ σ_r^{gᵣ}` at an index
 (`0,p,r` distinct). -/
-private theorem xor3_apply [NeZero m] {p r : Fin m} (h0p : (0 : Fin m) ≠ p) (h0r : (0 : Fin m) ≠ r)
+private lemma xor3_apply [NeZero m] {p r : Fin m} (h0p : (0 : Fin m) ≠ p) (h0r : (0 : Fin m) ≠ r)
     (hpr : p ≠ r) (g0 gp gr : Fin 4) (k : Fin m) :
     pauliXor (pauliXor (Function.update 0 0 g0) (Function.update 0 p gp))
         (Function.update 0 r gr) k
@@ -126,7 +126,7 @@ private theorem xor3_apply [NeZero m] {p r : Fin m} (h0p : (0 : Fin m) ≠ p) (h
       | simp_all
 
 /-- With at least three qubits, any two sites miss a third. -/
-private theorem exists_third_site (hm : 3 ≤ m) (a b : Fin m) : ∃ r, r ≠ a ∧ r ≠ b := by
+private lemma exists_third_site (hm : 3 ≤ m) (a b : Fin m) : ∃ r, r ≠ a ∧ r ≠ b := by
   have h2 : ({a, b} : Finset (Fin m)).card ≤ 2 := (Finset.card_insert_le a {b}).trans (by simp)
   have hne : ({a, b} : Finset (Fin m)) ≠ Finset.univ := by
     intro he; rw [he, Finset.card_univ, Fintype.card_fin] at h2; omega
@@ -135,13 +135,13 @@ private theorem exists_third_site (hm : 3 ≤ m) (a b : Fin m) : ∃ r, r ≠ a 
   exact ⟨r, fun h => hr (Or.inl h), fun h => hr (Or.inr h)⟩
 
 /-- The odd-`#Y` anchor `Y₀`. -/
-private theorem pauliOmega_soAnchor [NeZero m] (x : Fin m → Fin 4) :
+private lemma pauliOmega_soAnchor [NeZero m] (x : Fin m → Fin 4) :
     pauliOmega x (Function.update (0 : Fin m → Fin 4) 0 2) = omega4 (x 0) 2 := by
   rw [pauliOmega, Finset.sum_eq_single 0
     (fun k _ hk => by rw [Function.update_of_ne hk, Pi.zero_apply, omega4_comm, omega4_zero_left])
     (fun h => absurd (Finset.mem_univ 0) h), Function.update_self]
 
-private theorem odd_yCount_soAnchor [NeZero m] :
+private lemma odd_yCount_soAnchor [NeZero m] :
     Odd (yCount (Function.update (0 : Fin m → Fin 4) 0 2)) := by
   rw [yCount_eq_one (s := 0) (Function.update_self ..)
     (fun k hk => by rw [Function.update_of_ne hk, Pi.zero_apply]; decide)]
@@ -152,7 +152,7 @@ private theorem odd_yCount_soAnchor [NeZero m] :
 /-- **In-set non-degeneracy** (`m ≥ 2`). Every nonzero string anticommutes with some
 odd-`#Y` string.
 (The lone exception is the trivial `so(2)`, `m = 1`, whose only string `Y` commutes with itself.) -/
-theorem exists_so_anticomm {d : Fin m → Fin 4} (hm : 2 ≤ m) (hd : d ≠ 0) :
+lemma exists_so_anticomm {d : Fin m → Fin 4} (hm : 2 ≤ m) (hd : d ≠ 0) :
     ∃ k, Odd (yCount k) ∧ pauliOmega k d = 1 := by
   by_cases hXZ : ∃ q, d q = 1 ∨ d q = 3
   · -- a support site carries `X`/`Z`: a single `Y` there
@@ -198,7 +198,7 @@ theorem exists_so_anticomm {d : Fin m → Fin 4} (hm : 2 ≤ m) (hd : d ≠ 0) :
 /-- **Common anchor-neighbour** (`m ≥ 3`). Any odd-`#Y` string that commutes with the anchor `Y₀`
 (`x₀ ∈ {I, Y}`) has an odd-`#Y` string anticommuting with both it and `Y₀`. The three-qubit lower
 bound is genuine: `so(4)` (`m = 2`) has only one spare site and is disconnected. -/
-private theorem exists_so_common (hm : 3 ≤ m) [NeZero m] {x : Fin m → Fin 4}
+private lemma exists_so_common (hm : 3 ≤ m) [NeZero m] {x : Fin m → Fin 4}
     (hx : Odd (yCount x)) (hx0 : x 0 = 0 ∨ x 0 = 2) :
     ∃ z, Odd (yCount z) ∧ pauliOmega z x = 1 ∧
       pauliOmega z (Function.update (0 : Fin m → Fin 4) 0 2) = 1 := by
@@ -305,7 +305,7 @@ private theorem exists_so_common (hm : 3 ≤ m) [NeZero m] {x : Fin m → Fin 4}
           (rcases hxr with h' | h' <;> rw [h'] <;> decide)
 
 /-- **In-set connectivity (constancy form), simple members `m ≥ 3`.** -/
-theorem soAnticomm_const [NeZero m] (hm : 3 ≤ m) {α : Type*} {T : (Fin m → Fin 4) → α}
+lemma soAnticomm_const [NeZero m] (hm : 3 ≤ m) {α : Type*} {T : (Fin m → Fin 4) → α}
     (hT : ∀ a b, Odd (yCount a) → Odd (yCount b) → pauliOmega a b = 1 → T a = T b)
     {x : Fin m → Fin 4} (hx : Odd (yCount x)) :
     T x = T (Function.update (0 : Fin m → Fin 4) 0 2) := by
@@ -364,7 +364,7 @@ noncomputable def soSchurFamily (m : ℕ) (hm : 3 ≤ m) : PauliSchurFamily m (s
 /-- The one-dimensional `so(2)` member has the Schur identity for the same reason as any
 one-dimensional abelian basis: there are no off-diagonal coefficient matrices. This is a separate
 low-dimensional case, not part of the simple `m ≥ 3` family. -/
-theorem soHermBasis_one_schur :
+lemma soHermBasis_one_schur :
     gTensorGInvariant (soHermBasis 1) = Submodule.span ℂ {(soHermBasis 1).casimir} := by
   have hdim : (soHermBasis 1).dim = 1 := by
     rw [soHermBasis_dim, soDim]
@@ -383,7 +383,7 @@ is genuinely proved from the odd-`#Y` Pauli structure, with `gTensorGInvariant` 
 two-dimensional) and degenerate at `m = 1` (`so(2)`, abelian, dimension one); those two members are
 treated as separate special cases. This is a concrete Pauli proof of the
 simple-algebra invariant-line characterization [RBS+23, Arxiv_Final.tex:1263-1280]. -/
-public theorem soHermBasis_schur (m : ℕ) (hm : 3 ≤ m) :
+public lemma soHermBasis_schur (m : ℕ) (hm : 3 ≤ m) :
     gTensorGInvariant (soHermBasis m) = Submodule.span ℂ {(soHermBasis m).casimir} :=
   (soSchurFamily m hm).schur
 

@@ -21,10 +21,11 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.Add.Native
 
 open Execution
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
+variable {model : ExecutionModel} {environment : model.Environment} {ctx : RuntimeCtx
+  model.kind} {width : Nat}
 
 /-- Each real dispatch path retains one real arm's events, dependencies and visited contexts. -/
-theorem dispatch_selectedTrace (classifier : Classifier ctx width)
+lemma dispatch_selectedTrace (classifier : Classifier ctx width)
     (arms : Case → Circuit model ctx ctx)
     (path : (dispatch (model := model) classifier arms).Path) :
     ∃ selected, ∃ armPath : (arms selected).Path,

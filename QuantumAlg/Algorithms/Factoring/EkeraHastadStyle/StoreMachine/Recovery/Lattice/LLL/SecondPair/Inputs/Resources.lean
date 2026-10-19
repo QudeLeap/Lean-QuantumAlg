@@ -24,7 +24,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {width : Nat} {model : ExecutionModel} [BitWord.Selected model]
+variable {width : Nat} {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent six-operation trace for the two original Gram expressions. -/
@@ -33,7 +34,7 @@ def secondReductionInputsTrace (width : Nat) : List (Resource.Event model) :=
     ProductDifference.operationTrace (model := model) width
 
 /-- Both actual product differences emit the six specified native operations. -/
-theorem secondReductionInputsInto_events (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_events (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (secondReductionInputsInto (model := model) inputs refs).Path) :
     (secondReductionInputsInto (model := model) inputs refs).eventTrace path =
       secondReductionInputsTrace (model := model) width := by
@@ -47,7 +48,7 @@ theorem secondReductionInputsInto_events (inputs : Inputs ctx width) (refs : Ref
   rfl
 
 /-- Actual native multiplicity comes from the independent six-operation formula. -/
-theorem secondReductionInputsInto_resourcePool (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_resourcePool (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (secondReductionInputsInto (model := model) inputs refs).Path) :
     (secondReductionInputsInto (model := model) inputs refs).resourcePool path =
       ResourcePool.ofList (secondReductionInputsTrace (model := model) width) := by
@@ -56,29 +57,30 @@ theorem secondReductionInputsInto_resourcePool (inputs : Inputs ctx width) (refs
   rw [secondReductionInputsInto_events]
 
 /-- All six actual native operations remain serially dependent. -/
-theorem secondReductionInputsInto_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_depth (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (secondReductionInputsInto (model := model) inputs refs).Path) :
     (secondReductionInputsInto (model := model) inputs refs).depth (fun _ => 1) path = 6 := rfl
 
 /-- Both actual stages restore borrowed state jointly with every external quantum reference. -/
-theorem secondReductionInputsInto_borrowedRestored
+lemma secondReductionInputsInto_borrowedRestored
     (inputs : Inputs ctx width) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (secondReductionInputsInto (model := model) inputs refs).BorrowedRestored Reference state
-      ((secondReductionInputsInto (model := model) inputs refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((secondReductionInputsInto (model := model) inputs refs).execute environment
+        Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (ProductDifference.computeInto_borrowedRestored _ _ _ _ _ _ _ Reference state)
     (ProductDifference.computeInto_borrowedRestored _ _ _ _ _ _ _ Reference _)
 
 /-- All six operations visit the complete original supplied context. -/
-theorem secondReductionInputsInto_visited (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_visited (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (secondReductionInputsInto (model := model) inputs refs).Path) :
     (secondReductionInputsInto (model := model) inputs refs).visitedContexts path =
       [ctx, ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- Resident space retains every original quantum system and actual classical cell. -/
-theorem secondReductionInputsInto_resident_le (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_resident_le (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (secondReductionInputsInto (model := model) inputs refs).Path) :
     (secondReductionInputsInto (model := model) inputs refs).peakResidentSpace path ≤
       ctx.residentSpace := by
@@ -90,7 +92,7 @@ theorem secondReductionInputsInto_resident_le (inputs : Inputs ctx width) (refs 
   rw [same]
 
 /-- Auxiliary accounting includes the original shared product word throughout actual execution. -/
-theorem secondReductionInputsInto_auxiliary_le (inputs : Inputs ctx width) (refs : Refs ctx width)
+lemma secondReductionInputsInto_auxiliary_le (inputs : Inputs ctx width) (refs : Refs ctx width)
     (path : (secondReductionInputsInto (model := model) inputs refs).Path) :
     (secondReductionInputsInto (model := model) inputs refs).peakAuxiliarySpace path ≤
       ctx.auxiliarySpace := by

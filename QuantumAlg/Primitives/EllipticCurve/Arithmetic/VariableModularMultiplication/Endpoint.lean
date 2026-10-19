@@ -45,7 +45,7 @@ noncomputable section
 
 -- The list induction keeps the physical carrier opaque behind cleanRegisters.
 set_option exponentiation.threshold 2048 in
-theorem forwardStep_cleanEndpoint :
+lemma forwardStep_cleanEndpoint :
     ∀ (roundBits : List (Fin params.width))
       (x : VariableModularMul.Data),
       forwardStep roundBits (VariableModularMul.cleanRegisters x) =
@@ -119,7 +119,7 @@ def cleanStepData (x : VariableModularMul.Data) : VariableModularMul.Data :=
 set_option exponentiation.threshold 2048 in
 /-- The complete physical schedule maps a clean carrier to its exact pure
 forward/final-bit/restoration fold and restores every work register. -/
-theorem step_cleanEndpoint_exact (x : VariableModularMul.Data) :
+lemma step_cleanEndpoint_exact (x : VariableModularMul.Data) :
     step (VariableModularMul.cleanRegisters x) =
       VariableModularMul.cleanRegisters (cleanStepData x) := by
   simp only [step, cleanStepData]
@@ -169,7 +169,7 @@ def prefixData (rounds : Nat) (x : VariableModularMul.Data) :
 
 /-- One actual selected-add/doubling data round advances the closed binary
 prefix invariant by one bit. -/
-theorem roundData_prefixData (round : Fin params.width)
+lemma roundData_prefixData (round : Fin params.width)
     (x : VariableModularMul.Data) :
     roundData round (prefixData round.val x) =
       prefixData (round.val + 1) x := by
@@ -206,7 +206,7 @@ theorem roundData_prefixData (round : Fin params.width)
           ring
 
 /-- Processing no multiplier bits leaves the semantic data unchanged. -/
-@[simp] theorem prefixData_zero (x : VariableModularMul.Data) :
+@[simp] lemma prefixData_zero (x : VariableModularMul.Data) :
     prefixData 0 x = x := by
   cases x
   simp [prefixData, Nat.mod_one]
@@ -214,7 +214,7 @@ theorem roundData_prefixData (round : Fin params.width)
 omit params in
 /-- The finite index at a valid position is the next element appended to the
 corresponding canonical low-to-high prefix. -/
-theorem finRange_take_succ {width : Nat} (round : Fin width) :
+lemma finRange_take_succ {width : Nat} (round : Fin width) :
     (List.finRange width).take (round.val + 1) =
       (List.finRange width).take round.val ++ [round] := by
   have hround :
@@ -229,7 +229,7 @@ theorem finRange_take_succ {width : Nat} (round : Fin width) :
 
 /-- The clean semantic forward fold over the first `rounds` canonical bit
 indices is exactly the closed low-bit prefix state. -/
-theorem forwardData_finRange_take :
+lemma forwardData_finRange_take :
     ∀ (rounds : Nat), rounds ≤ params.width →
       ∀ x : VariableModularMul.Data,
         forwardData
@@ -261,7 +261,7 @@ theorem forwardData_finRange_take :
                 roundData_prefixData round x
 
 /-- The schedule's explicit bit list is the canonical finite range. -/
-theorem bits_eq_finRange :
+lemma bits_eq_finRange :
     bits = List.finRange params.width := by
   change List.ofFn (fun bit : Fin params.width => bit) = List.finRange params.width
   exact List.ofFn_id params.width
@@ -269,7 +269,7 @@ theorem bits_eq_finRange :
 /-- The first (params.width - 1) physical rounds reach the exact closed
 (params.width - 1)-bit prefix
 state used by the final selected-add stage. -/
-theorem forwardData_bits_take_init (x : VariableModularMul.Data) :
+lemma forwardData_bits_take_init (x : VariableModularMul.Data) :
     forwardData (bits.take (params.width - 1)) x = prefixData (params.width - 1) x := by
   rw [bits_eq_finRange]
   exact forwardData_finRange_take (params.width - 1) (Nat.sub_le _ _) x
@@ -313,7 +313,7 @@ def preRestoreData (x : VariableModularMul.Data) :
 
 set_option exponentiation.threshold 2048 in
 /-- The last selected add completes the params.width-bit multiplier decomposition. -/
-theorem finalSelected_prefixData (x : VariableModularMul.Data) :
+lemma finalSelected_prefixData (x : VariableModularMul.Data) :
     VariableModularMul.Data.addSelected lastBit (prefixData (params.width - 1) x) =
       preRestoreData x := by
   let _ : NeZero params.modulus.val :=
@@ -423,7 +423,7 @@ def inverseScaleData (rounds : Nat) (x : VariableModularMul.Data) :
 
 /-- Adding one inverse-doubling before a closed restoration fold increments
 its exponent by one. -/
-theorem inverseScaleData_after_inverseDoubled (rounds : Nat)
+lemma inverseScaleData_after_inverseDoubled (rounds : Nat)
     (x : VariableModularMul.Data) :
     inverseScaleData rounds (inverseDoubledData x) =
       inverseScaleData (rounds + 1) x := by
@@ -434,7 +434,7 @@ theorem inverseScaleData_after_inverseDoubled (rounds : Nat)
   ring
 
 /-- The abstract restoration fold has the expected inverse-power closed form. -/
-theorem restoreData_eq_inverseScaleData :
+lemma restoreData_eq_inverseScaleData :
     ∀ (rounds : Nat) (x : VariableModularMul.Data),
       restoreData rounds x = inverseScaleData rounds x
   | 0, x => by
@@ -452,7 +452,7 @@ theorem restoreData_eq_inverseScaleData :
 set_option exponentiation.threshold 2048 in
 /-- The (params.width - 1) inverse doublings exactly restore the scaled source left after the
 final selected add, while preserving the completed product accumulation. -/
-theorem restoreData_preRestoreData (x : VariableModularMul.Data) :
+lemma restoreData_preRestoreData (x : VariableModularMul.Data) :
     restoreData (params.width - 1) (preRestoreData x) =
       VariableModularMul.Data.addProduct x := by
   have htwo :
@@ -504,7 +504,7 @@ noncomputable section
 
 /-- The exact pure fold of the production schedule is modular product
 accumulation with both variable inputs preserved. -/
-theorem cleanStepData_eq_addProduct (x : VariableModularMul.Data) :
+lemma cleanStepData_eq_addProduct (x : VariableModularMul.Data) :
     cleanStepData x = VariableModularMul.Data.addProduct x := by
   simp only [cleanStepData]
   rw [forwardData_bits_take_init, finalSelected_prefixData,
@@ -513,7 +513,7 @@ theorem cleanStepData_eq_addProduct (x : VariableModularMul.Data) :
 set_option exponentiation.threshold 2048 in
 /-- The actual fixed params.width-bit circuit restores all work registers and both
 variable inputs while adding their modular product into the accumulator. -/
-theorem step_cleanEndpoint (x : VariableModularMul.Data) :
+lemma step_cleanEndpoint (x : VariableModularMul.Data) :
     step (VariableModularMul.cleanRegisters x) =
       VariableModularMul.cleanRegisters
         (VariableModularMul.Data.addProduct x) := by
@@ -522,8 +522,9 @@ theorem step_cleanEndpoint (x : VariableModularMul.Data) :
 set_option exponentiation.threshold 2048 in
 /-- Normalized computational-basis form of the complete clean product
 endpoint for the same actual schedule whose strict resources are projected. -/
-theorem circuit_applyNormalized_clean_ket (x : VariableModularMul.Data) :
-    circuit.applyNormalized
+lemma circuit_applyNormalized_clean_ket
+    {environment : OracleModel.empty.Interpretation} (x : VariableModularMul.Data) :
+    circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical VariableModularMul.rawEncoding.width).basisEquiv.symm
             (VariableModularMul.encoding.encode
@@ -533,7 +534,8 @@ theorem circuit_applyNormalized_clean_ket (x : VariableModularMul.Data) :
           (VariableModularMul.encoding.encode
             (VariableModularMul.cleanRegisters
               (VariableModularMul.Data.addProduct x)))) := by
-  have h := realizes.apply_encoded_ket (VariableModularMul.cleanRegisters x)
+  have h := (realizes (environment := environment)).apply_encoded_ket
+    (VariableModularMul.cleanRegisters x)
   rw [step_cleanEndpoint x] at h
   exact h
 

@@ -30,6 +30,7 @@ attribute [local instance] Classical.decEq
 universe u
 
 variable {G : Type u} [Group G] [Fintype G]
+variable {oracles : OracleModel}
 variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum} {width : Nat}
 
 /-- The raw model determines the candidate, including its zero failure value. -/
@@ -49,7 +50,7 @@ variable (P : KnownOrderProblem G) {ctx : RuntimeCtx .quantum} {width : Nat}
     decide (P.generator ^ (attemptCandidateValue spec input).toNat = P.target)
 
 /-- The raw candidate always fits the supplied modulus, on success and failure. -/
-public theorem attemptCandidateValue_lt
+public lemma attemptCandidateValue_lt
     (spec : ClassicalAlgorithms.Modular.ModulusSpec width)
     (input : CShape.Value (.fixedVector (width + width) (.finite 2))) :
     (attemptCandidateValue spec input).toNat < spec.modulus := by
@@ -68,7 +69,7 @@ public theorem attemptCandidateValue_lt
         CShape.wordModulus, reduced]
       exact output.candidate.isLt
 
-private theorem raw_store (refs : AttemptRefs ctx width) (store : Store ctx) :
+private lemma raw_store (refs : AttemptRefs ctx width) (store : Store ctx) :
     store.applyOp (rawAcceptanceOp refs) =
       store.write refs.rawAccepted
         (.bit ((store.read (.storage refs.inverseSuccess.toCStorageRef)).toBool &&
@@ -81,7 +82,7 @@ private theorem raw_store (refs : AttemptRefs ctx width) (store : Store ctx) :
       cases store.read (.storage refs.reconstruction.toCStorageRef) with
       | bit reconstructed => rfl
 
-private theorem accepted_store (refs : AttemptRefs ctx width) (store : Store ctx) :
+private lemma accepted_store (refs : AttemptRefs ctx width) (store : Store ctx) :
     store.applyOp (candidateAcceptanceOp refs) =
       store.write refs.acceptedCandidate
         (.bit ((store.read (.storage refs.rawAccepted.toCStorageRef)).toBool &&
@@ -95,11 +96,11 @@ private theorem accepted_store (refs : AttemptRefs ctx width) (store : Store ctx
       | bit equal => rfl
 
 /-- The two conjunctions combine their three actual Boolean inputs. -/
-public theorem acceptanceRecord_value
+public lemma acceptanceRecord_value
     (refs : AttemptRefs ctx width)
-    (entry : Store ctx × (OrderExecution.model P).HiddenState)
+    (entry : Store ctx × (recoveryModel P oracles).HiddenState)
     (rawEquality : refs.rawAccepted.key ≠ refs.powerEqualsTarget.key) :
-    (acceptanceRecord P refs entry).1.1.read
+    (acceptanceRecord (oracles := oracles) P refs entry).1.1.read
         (.storage refs.acceptedCandidate.toCStorageRef) =
       .bit (((entry.1.read (.storage refs.inverseSuccess.toCStorageRef)).toBool &&
         (entry.1.read (.storage refs.reconstruction.toCStorageRef)).toBool) &&
@@ -113,37 +114,40 @@ public theorem acceptanceRecord_value
 /-- The actual power check followed by both conjunctions. -/
 @[expose] public def verificationRecord
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : AttemptRefs ctx width)
-    (entry : Store ctx × (OrderExecution.model P).HiddenState) :
-    (Store ctx × (OrderExecution.model P).HiddenState) ×
-      ((powerCheck P candidate refs.powerEqualsTarget).seq
-        (acceptanceSuffix P refs)).Path :=
-  Circuit.sequenceRecord (model := OrderExecution.model P) _ _
-    (powerCheckRecord P candidate refs.powerEqualsTarget)
-    (acceptanceRecord P refs) entry
+    (entry : Store ctx × (recoveryModel P oracles).HiddenState) :
+    (Store ctx × (recoveryModel P oracles).HiddenState) ×
+      ((powerCheck (oracles := oracles) P candidate refs.powerEqualsTarget).seq
+        (acceptanceSuffix (oracles := oracles) P refs)).Path :=
+  Circuit.sequenceRecord (model := recoveryModel P oracles) _ _
+    (powerCheckRecord (oracles := oracles) P candidate refs.powerEqualsTarget)
+    (acceptanceRecord (oracles := oracles) P refs) entry
 
 /-- The hidden group service and conjunctions compute the exact checked value. -/
-public theorem verificationRecord_value
+public lemma verificationRecord_value
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : AttemptRefs ctx width)
-    (entry : Store ctx × (OrderExecution.model P).HiddenState)
+    (entry : Store ctx × (recoveryModel P oracles).HiddenState)
     (candidateSeparate : refs.powerEqualsTarget.key ∉ candidate.storageKeys)
     (inverseSeparate : refs.powerEqualsTarget.key ∉
       (CInputRef.storage refs.inverseSuccess.toCStorageRef).storageKeys)
     (reconstructionSeparate : refs.powerEqualsTarget.key ∉
       (CInputRef.storage refs.reconstruction.toCStorageRef).storageKeys)
     (rawEquality : refs.rawAccepted.key ≠ refs.powerEqualsTarget.key) :
-    (verificationRecord P candidate refs entry).1.1.read
+    (verificationRecord (oracles := oracles) P candidate refs entry).1.1.read
         (.storage refs.acceptedCandidate.toCStorageRef) =
       .bit (((entry.1.read (.storage refs.inverseSuccess.toCStorageRef)).toBool &&
         (entry.1.read (.storage refs.reconstruction.toCStorageRef)).toBool) &&
           decide (P.generator ^ (entry.1.read candidate).toNat = P.target)) := by
-  let checked := powerCheckRecord P candidate refs.powerEqualsTarget entry
-  have accepted := acceptanceRecord_value P refs checked.1 rawEquality
-  have inverse := powerCheckRecord_preserves_read P candidate refs.powerEqualsTarget entry
+  let checked := powerCheckRecord (oracles := oracles) P candidate refs.powerEqualsTarget entry
+  have accepted := acceptanceRecord_value (oracles := oracles) P refs checked.1 rawEquality
+  have inverse := powerCheckRecord_preserves_read (oracles := oracles) P candidate
+    refs.powerEqualsTarget entry
     (.storage refs.inverseSuccess.toCStorageRef) inverseSeparate
-  have reconstructed := powerCheckRecord_preserves_read P candidate refs.powerEqualsTarget entry
+  have reconstructed := powerCheckRecord_preserves_read (oracles := oracles) P candidate
+    refs.powerEqualsTarget entry
     (.storage refs.reconstruction.toCStorageRef) reconstructionSeparate
-  have equality := powerCheckRecord_value P candidate refs.powerEqualsTarget entry candidateSeparate
-  change (acceptanceRecord P refs checked.1).1.1.read
+  have equality := powerCheckRecord_value (oracles := oracles) P candidate
+    refs.powerEqualsTarget entry candidateSeparate
+  change (acceptanceRecord (oracles := oracles) P refs checked.1).1.1.read
     (.storage refs.acceptedCandidate.toCStorageRef) = _
   rw [accepted, inverse, reconstructed, equality]
   rfl

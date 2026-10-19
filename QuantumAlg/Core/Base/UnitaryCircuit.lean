@@ -33,14 +33,9 @@ variable {gates : GateModel} {oracles : OracleModel}
 variable {count : Nat} {layout : QuantumLayout count}
 
 /-- Exact, metadata-free unitary semantics of the actual construction. -/
-public def matrix (circuit : UnitaryCircuit gates oracles layout) :
-    UnitaryOperator layout.register := circuit.sequence.toUnitary
-
-instance : CoeOut (UnitaryCircuit gates oracles layout) (UnitaryOperator layout.register) :=
-  ⟨matrix⟩
-
-instance : CoeFun (UnitaryCircuit gates oracles layout)
-    (fun _ => layout.Basis → layout.Basis → ℂ) := ⟨fun circuit => circuit.matrix⟩
+public def matrix (circuit : UnitaryCircuit gates oracles layout)
+    (environment : oracles.Interpretation) : UnitaryOperator layout.register :=
+  circuit.sequence.toUnitary environment
 
 /-- Ordered native occurrences, including every actual macro expansion. -/
 public def eventTrace (circuit : UnitaryCircuit gates oracles layout)
@@ -86,7 +81,7 @@ public def resourcesFromEventDepth (circuit : UnitaryCircuit gates oracles layou
     (circuit.eventDepth operations classicalOracles)
 
 /-- Native multiplicity and dependency accounting observe the same construction. -/
-@[simp] public theorem resourcesFromEventDepth_eq_eventCost
+@[simp] public lemma resourcesFromEventDepth_eq_eventCost
     (circuit : UnitaryCircuit gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -95,7 +90,7 @@ public def resourcesFromEventDepth (circuit : UnitaryCircuit gates oracles layou
   UnitarySequence.resourcesFromEventDepth_eq_eventCost circuit.sequence operations classicalOracles
 
 /-- Forgetting order in the actual native trace yields exactly the circuit's event ledger. -/
-@[simp] public theorem ofList_eventTrace_eq_eventCost
+@[simp] public lemma ofList_eventTrace_eq_eventCost
     (circuit : UnitaryCircuit gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -105,112 +100,118 @@ public def resourcesFromEventDepth (circuit : UnitaryCircuit gates oracles layou
 
 /-- The action on a mathematical vector carries no model selection in the state type. -/
 public def applyVec (circuit : UnitaryCircuit gates oracles layout)
+    (environment : oracles.Interpretation)
     (state : HilbertVector layout.register) : HilbertVector layout.register :=
-  circuit.matrix.applyVec state
+  (circuit.matrix environment).applyVec state
 
 /-- Apply the actual operator while preserving mathematical normalization. -/
 public def applyNormalized (circuit : UnitaryCircuit gates oracles layout)
+    (environment : oracles.Interpretation)
     (state : NormalizedVector layout.register) : NormalizedVector layout.register :=
-  circuit.matrix.apply state
+  (circuit.matrix environment).apply state
 
-@[simp] theorem identity_matrix : (identity gates oracles layout).matrix = 1 := by rfl
+variable (environment : oracles.Interpretation)
 
-@[simp] theorem identity_eventCost : (identity gates oracles layout).eventCost = 0 := by rfl
+@[simp] lemma identity_matrix : ((identity gates oracles layout).matrix environment) = 1 := by rfl
 
-@[simp] theorem identity_eventTrace : (identity gates oracles layout).eventTrace = [] := by rfl
+@[simp] lemma identity_eventCost : (identity gates oracles layout).eventCost = 0 := by rfl
 
-@[simp] theorem identity_eventDepth : (identity gates oracles layout).eventDepth = .id := by rfl
+@[simp] lemma identity_eventTrace : (identity gates oracles layout).eventTrace = [] := by rfl
 
-@[simp] theorem evaluatedEventDepth_identity
+@[simp] lemma identity_eventDepth : (identity gates oracles layout).eventDepth = .id := by rfl
+
+@[simp] lemma evaluatedEventDepth_identity
     (duration : Resource.Event (.quantum gates oracles) → Nat) :
     (identity gates oracles layout).evaluatedEventDepth duration = 0 := by
   rfl
 
-@[simp] theorem leaf_matrix (leaf : UnitaryLeaf gates oracles layout) :
-    (ofLeaf leaf).matrix = leaf.operator := by rfl
+@[simp] lemma leaf_matrix (leaf : UnitaryLeaf gates oracles layout) :
+    ((ofLeaf leaf).matrix environment) = leaf.operator environment := by rfl
 
-@[simp] theorem leaf_eventCost (leaf : UnitaryLeaf gates oracles layout) :
+@[simp] lemma leaf_eventCost (leaf : UnitaryLeaf gates oracles layout) :
     (ofLeaf leaf).eventCost = ResourcePool.singleton leaf.event := by rfl
 
-@[simp] public theorem native_matrix (application : GateModel.Application gates layout) :
-    (native (oracles := oracles) application).matrix = application.operator := by rfl
+@[simp] public lemma native_matrix (application : GateModel.Application gates layout) :
+    ((native (oracles := oracles) application).matrix environment) = application.operator := by rfl
 
-@[simp] public theorem native_eventCost (application : GateModel.Application gates layout) :
+@[simp] public lemma native_eventCost (application : GateModel.Application gates layout) :
     (native (oracles := oracles) application).eventCost =
       ResourcePool.singleton (model := .quantum gates oracles) (.gate application.coordinate) := by
   rfl
 
 /-- A native instruction records exactly the coordinate of its actual model token. -/
-@[simp] public theorem native_eventTrace (application : GateModel.Application gates layout) :
+@[simp] public lemma native_eventTrace (application : GateModel.Application gates layout) :
     (native (oracles := oracles) application).eventTrace =
       [.gate application.coordinate] := by rfl
 
-@[simp] theorem evaluatedEventDepth_native
+@[simp] lemma evaluatedEventDepth_native
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (application : GateModel.Application gates layout) :
     (native (oracles := oracles) application).evaluatedEventDepth duration =
       duration (.gate application.coordinate) := by
   rfl
 
-@[simp] theorem query_matrix (application : OracleModel.Application oracles layout) :
-    (query (gates := gates) application).matrix = application.operator := by rfl
+@[simp] lemma query_matrix (application : OracleModel.Application oracles layout) :
+    (query (gates := gates) application).matrix environment =
+      application.operator environment := by rfl
 
-@[simp] theorem query_eventCost (application : OracleModel.Application oracles layout) :
+@[simp] lemma query_eventCost (application : OracleModel.Application oracles layout) :
     (query (gates := gates) application).eventCost =
       ResourcePool.singleton (model := .quantum gates oracles)
         (.oracle application.coordinate) := by
   rfl
 
-@[simp] theorem evaluatedEventDepth_query
+@[simp] lemma evaluatedEventDepth_query
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (application : OracleModel.Application oracles layout) :
     (query (gates := gates) application).evaluatedEventDepth duration =
       duration (.oracle application.coordinate) := by
   rfl
 
-@[simp] theorem seq_matrix (left right : UnitaryCircuit gates oracles layout) :
-    (seq left right).matrix = right.matrix * left.matrix := by rfl
+@[simp] lemma seq_matrix (left right : UnitaryCircuit gates oracles layout) :
+    (seq left right).matrix environment =
+      right.matrix environment * left.matrix environment := by rfl
 
 /-- Parallel syntax denotes the product of the two actual lifted operators. -/
-@[simp] public theorem parallel_matrix_raw {leftCount rightCount count : Nat}
+@[simp] public lemma parallel_matrix_raw {leftCount rightCount count : Nat}
     {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
     {layout : QuantumLayout count} (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
     (leftPlacement : QuantumLayout.Embedding leftLayout layout)
     (rightPlacement : QuantumLayout.Embedding rightLayout layout)
     (disjoint : Disjoint leftPlacement.selection rightPlacement.selection) :
-    (parallel left right leftPlacement rightPlacement disjoint).matrix =
-      rightPlacement.liftOperator right.matrix *
-        leftPlacement.liftOperator left.matrix := by
+    ((parallel left right leftPlacement rightPlacement disjoint).matrix environment) =
+      rightPlacement.liftOperator (right.matrix environment) *
+        leftPlacement.liftOperator (left.matrix environment) := by
   rfl
 
 /-- Sequential execution applies the first actual operator before the second. -/
-@[simp] public theorem applyNormalized_seq (left right : UnitaryCircuit gates oracles layout)
+@[simp] public lemma applyNormalized_seq (left right : UnitaryCircuit gates oracles layout)
     (state : NormalizedVector layout.register) :
-    (seq left right).applyNormalized state =
-      right.applyNormalized (left.applyNormalized state) := by
+    (seq left right).applyNormalized environment state =
+      right.applyNormalized environment (left.applyNormalized environment state) := by
   apply NormalizedVector.ext
   intro index
-  change (right.matrix * left.matrix).applyVec state index =
-    right.matrix.applyVec (left.matrix.applyVec state) index
+  change ((right.matrix environment) * (left.matrix environment)).applyVec state index =
+    (right.matrix environment).applyVec ((left.matrix environment).applyVec state) index
   rw [UnitaryOperator.mul_applyVec]
 
-@[simp] theorem seq_eventCost (left right : UnitaryCircuit gates oracles layout) :
+@[simp] lemma seq_eventCost (left right : UnitaryCircuit gates oracles layout) :
     (seq left right).eventCost = left.eventCost + right.eventCost := by rfl
 
-@[simp] theorem seq_eventTrace (left right : UnitaryCircuit gates oracles layout) :
+@[simp] lemma seq_eventTrace (left right : UnitaryCircuit gates oracles layout) :
     (seq left right).eventTrace = left.eventTrace ++ right.eventTrace := by rfl
 
-@[simp] theorem seq_eventDepth (left right : UnitaryCircuit gates oracles layout) :
+@[simp] lemma seq_eventDepth (left right : UnitaryCircuit gates oracles layout) :
     (seq left right).eventDepth = .seq left.eventDepth right.eventDepth := by rfl
 
-@[simp] theorem evaluatedEventDepth_seq
+@[simp] lemma evaluatedEventDepth_seq
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (left right : UnitaryCircuit gates oracles layout) :
     (seq left right).evaluatedEventDepth duration =
       left.evaluatedEventDepth duration + right.evaluatedEventDepth duration := by rfl
 
-@[simp] theorem parallel_eventCost {leftCount rightCount totalCount : Nat}
+@[simp] lemma parallel_eventCost {leftCount rightCount totalCount : Nat}
     {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
     {totalLayout : QuantumLayout totalCount}
     (left : UnitaryCircuit gates oracles leftLayout)
@@ -222,7 +223,7 @@ public def applyNormalized (circuit : UnitaryCircuit gates oracles layout)
       left.eventCost + right.eventCost := by
   rfl
 
-@[simp] theorem evaluatedEventDepth_parallel {leftCount rightCount totalCount : Nat}
+@[simp] lemma evaluatedEventDepth_parallel {leftCount rightCount totalCount : Nat}
     {leftLayout : QuantumLayout leftCount} {rightLayout : QuantumLayout rightCount}
     {totalLayout : QuantumLayout totalCount}
     (duration : Resource.Event (.quantum gates oracles) → Nat)
@@ -235,38 +236,39 @@ public def applyNormalized (circuit : UnitaryCircuit gates oracles layout)
       max (left.evaluatedEventDepth duration) (right.evaluatedEventDepth duration) := by
   rfl
 
-@[simp] theorem iterate_matrix (repetitions : Nat)
+@[simp] lemma iterate_matrix (repetitions : Nat)
     (body : UnitaryCircuit gates oracles layout) :
-    (iterate repetitions body).matrix = body.matrix ^ repetitions := by rfl
+    (iterate repetitions body).matrix environment =
+      body.matrix environment ^ repetitions := by rfl
 
-@[simp] theorem iterate_eventCost (repetitions : Nat)
+@[simp] lemma iterate_eventCost (repetitions : Nat)
     (body : UnitaryCircuit gates oracles layout) :
     (iterate repetitions body).eventCost = repetitions • body.eventCost := by rfl
 
-@[simp] theorem iterate_eventTrace (repetitions : Nat)
+@[simp] lemma iterate_eventTrace (repetitions : Nat)
     (body : UnitaryCircuit gates oracles layout) :
     (iterate repetitions body).eventTrace =
       (List.replicate repetitions body.eventTrace).flatten := by
   rfl
 
-@[simp] theorem iterate_eventDepth (repetitions : Nat)
+@[simp] lemma iterate_eventDepth (repetitions : Nat)
     (body : UnitaryCircuit gates oracles layout) :
     (iterate repetitions body).eventDepth = .iterate repetitions body.eventDepth := by rfl
 
-@[simp] theorem macroCall_matrix (name : String) (body : UnitaryCircuit gates oracles layout) :
-    (macroCall name body).matrix = body.matrix := by rfl
+@[simp] lemma macroCall_matrix (name : String) (body : UnitaryCircuit gates oracles layout) :
+    ((macroCall name body).matrix environment) = (body.matrix environment) := by rfl
 
-@[simp] theorem macroCall_eventCost (name : String) (body : UnitaryCircuit gates oracles layout) :
+@[simp] lemma macroCall_eventCost (name : String) (body : UnitaryCircuit gates oracles layout) :
     (macroCall name body).eventCost = body.eventCost := by rfl
 
-@[simp] theorem macroCall_eventTrace (name : String) (body : UnitaryCircuit gates oracles layout) :
+@[simp] lemma macroCall_eventTrace (name : String) (body : UnitaryCircuit gates oracles layout) :
     (macroCall name body).eventTrace = body.eventTrace := by rfl
 
-@[simp] theorem macroCall_eventDepth (name : String) (body : UnitaryCircuit gates oracles layout) :
+@[simp] lemma macroCall_eventDepth (name : String) (body : UnitaryCircuit gates oracles layout) :
     (macroCall name body).eventDepth = body.eventDepth := by rfl
 
 /-- Descriptive macro boundaries add no dependency beyond their retained native body. -/
-@[simp] public theorem evaluatedEventDepth_macroCall
+@[simp] public lemma evaluatedEventDepth_macroCall
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (name : String) (body : UnitaryCircuit gates oracles layout) :
     (macroCall name body).evaluatedEventDepth duration =
@@ -274,7 +276,7 @@ public def applyNormalized (circuit : UnitaryCircuit gates oracles layout)
   rfl
 
 /-- The macro name adds one observation while every nested occurrence remains visible. -/
-public theorem macroCount_macroCall (focus name : String)
+public lemma macroCount_macroCall (focus name : String)
     (body : UnitaryCircuit gates oracles layout) :
     (macroCall name body).macroCount focus =
       (if name = focus then 1 else 0) + body.macroCount focus := by
@@ -283,27 +285,27 @@ public theorem macroCount_macroCall (focus name : String)
     simp [macroCount, macroCall, UnitarySequence.macroTrace, Nat.add_comm]
   · simp [macroCount, macroCall, UnitarySequence.macroTrace, same]
 
-@[simp] theorem indexedProduct_matrix (label : String) (steps : Nat)
+@[simp] lemma indexedProduct_matrix (label : String) (steps : Nat)
     (start : UnitaryCircuit gates oracles layout)
     (step : Fin steps → UnitaryCircuit gates oracles layout) :
-    (indexedProduct label steps start step).matrix =
-      (List.ofFn (fun index => (step index).matrix)).foldl
-        (fun accumulated next => next * accumulated) start.matrix := by rfl
+    ((indexedProduct label steps start step).matrix environment) =
+      (List.ofFn (fun index => ((step index).matrix environment))).foldl
+        (fun accumulated next => next * accumulated) (start.matrix environment) := by rfl
 
-@[simp] theorem indexedProduct_eventCost (label : String) (steps : Nat)
+@[simp] lemma indexedProduct_eventCost (label : String) (steps : Nat)
     (start : UnitaryCircuit gates oracles layout)
     (step : Fin steps → UnitaryCircuit gates oracles layout) :
     (indexedProduct label steps start step).eventCost =
       start.eventCost + ∑ index, (step index).eventCost := by rfl
 
-@[simp] theorem indexedProduct_eventDepth (label : String) (steps : Nat)
+@[simp] lemma indexedProduct_eventDepth (label : String) (steps : Nat)
     (start : UnitaryCircuit gates oracles layout)
     (step : Fin steps → UnitaryCircuit gates oracles layout) :
     (indexedProduct label steps start step).eventDepth =
       .indexedProduct label steps start.eventDepth
         (fun index => (step index).eventDepth) := by rfl
 
-@[simp] theorem evaluatedEventDepth_indexedProduct
+@[simp] lemma evaluatedEventDepth_indexedProduct
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (label : String) (steps : Nat) (start : UnitaryCircuit gates oracles layout)
     (step : Fin steps → UnitaryCircuit gates oracles layout) :

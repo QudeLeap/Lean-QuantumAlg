@@ -67,7 +67,7 @@ private def read {kind : ProblemKind} {target : RuntimeEntry kind}
   | .here => cells.1
   | .there next => read cells.2 next
 
-private theorem read_ofValues {kind : ProblemKind} {target : RuntimeEntry kind}
+private lemma read_ofValues {kind : ProblemKind} {target : RuntimeEntry kind}
     {entries : List (RuntimeEntry kind)}
     (values : ∀ entry, entry ∈ entries → CellValue entry)
     (slot : RuntimeEntrySlot target entries) :
@@ -83,7 +83,7 @@ private def write {kind : ProblemKind} {target : RuntimeEntry kind}
   | .here => (value, cells.2)
   | .there next => (cells.1, write cells.2 next value)
 
-private theorem read_write_same {kind : ProblemKind} {target : RuntimeEntry kind}
+private lemma read_write_same {kind : ProblemKind} {target : RuntimeEntry kind}
     {entries : List (RuntimeEntry kind)} (cells : Cells entries)
     (slot : RuntimeEntrySlot target entries) (value : CellValue target) :
     read (write cells slot value) slot = value := by
@@ -91,7 +91,7 @@ private theorem read_write_same {kind : ProblemKind} {target : RuntimeEntry kind
   | here => rfl
   | there next ih => exact ih cells.2
 
-private theorem read_write_other {kind : ProblemKind}
+private lemma read_write_other {kind : ProblemKind}
     {written observed : RuntimeEntry kind} {entries : List (RuntimeEntry kind)}
     (cells : Cells entries) (output : RuntimeEntrySlot written entries)
     (input : RuntimeEntrySlot observed entries) (value : CellValue written)
@@ -170,7 +170,7 @@ public def read {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
   | .wordBitGet input index => (read store input).wordBitGet index
 
 /-- Every live classical reference reads precisely its supplied initial value. -/
-public theorem read_ofValues {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+public lemma read_ofValues {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     (values : ∀ key role shape,
       RuntimeEntry.storage key role shape ∈ ctx.entries → CShape.Value shape)
     (ref : CStorageRef ctx shape) :
@@ -183,14 +183,14 @@ public def write {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
   ⟨Cells.write store.cells output.toCStorageRef.slot value⟩
 
 /-- A later read of the written reference obtains exactly the value stored. -/
-public theorem read_write_same {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+public lemma read_write_same {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     (store : Store ctx) (output : CWriteRef ctx shape) (value : CShape.Value shape) :
     (store.write output value).read (.storage output.toCStorageRef) = value :=
   Cells.read_write_same store.cells output.toCStorageRef.slot value
 
 /-- Writing a measured or computed result leaves every differently named
 classical cell unchanged, even when its stored shape is different. -/
-public theorem read_write_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma read_write_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {writtenShape observedShape : CShape} (store : Store ctx)
     (output : CWriteRef ctx writtenShape) (input : CStorageRef ctx observedShape)
     (value : CShape.Value writtenShape) (different : output.key ≠ input.key) :
@@ -203,7 +203,7 @@ public def applyOp {kind : ProblemKind} {ctx : RuntimeCtx kind} {input output : 
   store.write op.outputRef (op.eval (store.read op.inputRef))
 
 /-- The output cell contains precisely the result computed from the pre-step store. -/
-public theorem read_applyOp_output {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma read_applyOp_output {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {input output : CShape} (store : Store ctx) (op : ClassicalOp input output ctx ctx) :
     (store.applyOp op).read (.storage op.outputRef.toCStorageRef) =
       op.eval (store.read op.inputRef) :=
@@ -235,30 +235,30 @@ public def pushOwnedLayout {ctx : RuntimeCtx .quantum} (store : Store ctx)
     Store (ctx.addOwnedLayout key layout fresh disjoint) :=
   ⟨((), store.cells)⟩
 
-private theorem popWorkspace_pushWorkspace_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma popWorkspace_pushWorkspace_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     popWorkspace key shape fresh (store.pushWorkspace key shape fresh) = store := rfl
 
 /-- An untouched workspace allocation releases back to the identical classical store. -/
-public theorem popWorkspace_pushWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma popWorkspace_pushWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     popWorkspace key shape fresh (store.pushWorkspace key shape fresh) = store :=
   popWorkspace_pushWorkspace_eq store key shape fresh
 
-private theorem read_pushRetained_head_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma read_pushRetained_head_eq {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (store.pushRetained key shape fresh).read
       (.storage (CStorageRef.retainedHead ctx key shape fresh)) = CShape.initialValue shape := rfl
 
 /-- A freshly allocated retained cell contains the shape's initial encoding. -/
-public theorem read_pushRetained_head {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma read_pushRetained_head {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (store.pushRetained key shape fresh).read
       (.storage (CStorageRef.retainedHead ctx key shape fresh)) = CShape.initialValue shape :=
   read_pushRetained_head_eq store key shape fresh
 
 /-- Allocating retained storage preserves every previously readable classical value. -/
-public theorem read_pushRetained_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma read_pushRetained_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     {observed : CShape} (input : CInputRef ctx observed) :
     (store.pushRetained key shape fresh).read (input.underRetained key shape fresh) =

@@ -35,7 +35,7 @@ def stepPermutation {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
       (pointBasis p.size active).symm)
 
 /-- The independent step changes exactly the original point coordinate of the complete basis. -/
-theorem pointBasis_stepPermutation {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma pointBasis_stepPermutation {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (value : (readyContext p.size count).register.Index) :
     pointBasis p.size active (stepPermutation E Q active value) =
@@ -44,7 +44,7 @@ theorem pointBasis_stepPermutation {p : Nat} (E : PrimeFieldShortWeierstrass p) 
   simp only [stepPermutation, Equiv.trans_apply, Equiv.apply_symm_apply,
     Equiv.prodCongr_apply, Prod.map, Equiv.refl_apply]
 
-private theorem originalTarget_apply_ket {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma originalTarget_apply_ket {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) {Reference : Register}
     (value : (MeasuredPointAddition.context p.size).register.Index)
     (reference : Reference.Index) :
@@ -57,7 +57,7 @@ private theorem originalTarget_apply_ket {p : Nat} (E : PrimeFieldShortWeierstra
     value
 
 /-- The complete independent operator applies its basis permutation and retains any reference. -/
-theorem stepTarget_apply_ket {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma stepTarget_apply_ket {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {count : Nat} (active : Fin count) {Reference : Register}
     (value : (readyContext p.size count).register.Index) (reference : Reference.Index) :
     (stepTarget E Q active Reference).applyVec (NormalizedVector.ket (value, reference)).vec =

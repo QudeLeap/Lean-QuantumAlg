@@ -31,34 +31,36 @@ variable {model : ExecutionModel} {pre middle : RuntimeCtx model.kind}
   {key : StorageKey} {shape sourceShape resultShape : CShape} {fresh : key ∉ middle.keys}
 
 /-- The actual retained record map pushes forward the normalized execution law. -/
-theorem RetainedRecord.executionDistribution_eq_map
+lemma RetainedRecord.executionDistribution_eq_map
     (source : AlgorithmRun model pre middle sourceShape)
     (result : AlgorithmRun model pre (middle.addRetained key shape fresh) resultShape)
+    (environment : model.Environment)
     (update : source.Record → result.Record)
-    (mapped : RetainedRecord source result update)
+    (mapped : RetainedRecord source result environment update)
     {Reference : Register}
     (input : OracleInput model.classicalOracles pre Reference) :
-    result.executionDistribution input =
-      (source.executionDistribution input).map update := by
+    result.executionDistribution environment input =
+      (source.executionDistribution environment input).map update := by
   apply PMF.ext
   intro record
-  change ENNReal.ofReal (((result.execute Reference input.state).block record).mass) = _
+  change ENNReal.ofReal (((result.execute environment Reference input.state).block record).mass) = _
   rw [mapped Reference input.state]
   exact congrArg (fun distribution : PMF result.Record => distribution record)
-    (ExecutionState.toPMF_mapClassical (source.execute Reference input.state)
-      (source.execute_normalized input) update)
+    (ExecutionState.toPMF_mapClassical (source.execute environment Reference input.state)
+      (source.execute_normalized environment input) update)
 
 /-- Retention followed by an actual deterministic body keeps every initial store,
 service transition, chronological path and quantum-reference block in its run record. -/
-theorem execute_retained_eq_map
+lemma execute_retained_eq_map
     (ctx : RuntimeCtx model.kind) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
+    (environment : model.Environment)
     (output : Output (ctx.addRetained key shape fresh) resultShape)
     (step : Store (ctx.addRetained key shape fresh) × model.HiddenState →
       (Store (ctx.addRetained key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (ctx.addRetained key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := step (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register)
@@ -66,14 +68,14 @@ theorem execute_retained_eq_map
       (Register.prod ctx.register Reference)) :
     ({ code := .seq (.retain ctx key shape fresh) body, output := output } :
       AlgorithmRun model ctx (ctx.addRetained key shape fresh) resultShape).execute
-        Reference input =
+        environment Reference input =
       input.mapClassical (D := Store (ctx.addRetained key shape fresh) ×
         (model.HiddenState × (Store ctx × (Unit × body.Path)))) (fun entry =>
           let result := step (entry.1.pushRetained key shape fresh, entry.2)
           (result.1.1, (result.1.2, (entry.1, ((), result.2))))) := by
   unfold execute
   refine (Circuit.execute_retain_seq_mapClassical (model := model) ctx key shape fresh
-    body step bodyEquation Reference
+    body environment step bodyEquation Reference
     (input.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))).trans ?_
   erw [ExecutionState.executionState_mapClassical_comp_instances
     (R := Register.prod ctx.register Reference) (result := inferInstance)]
@@ -81,21 +83,22 @@ theorem execute_retained_eq_map
 
 /-- The exact retained run record induces the joint law of the original store
 and the value read from its actual final output, with arbitrary incoming reference. -/
-theorem relationalDistribution_retained_eq_map
+lemma relationalDistribution_retained_eq_map
     (ctx : RuntimeCtx model.kind) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
+    (environment : model.Environment)
     (output : Output (ctx.addRetained key shape fresh) resultShape)
     (step : Store (ctx.addRetained key shape fresh) × model.HiddenState →
       (Store (ctx.addRetained key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (ctx.addRetained key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := step (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     {Reference : Register} (input : OracleInput model.classicalOracles ctx Reference) :
     ({ code := .seq (.retain ctx key shape fresh) body, output := output } :
       AlgorithmRun model ctx (ctx.addRetained key shape fresh) resultShape).relationalDistribution
-        input =
+        environment input =
       (input.state.toPMF input.normalized).map (fun entry =>
         (entry.1, output.eval (step (entry.1.pushRetained key shape fresh, entry.2)).1.1)) := by
   let selected : AlgorithmRun model ctx (ctx.addRetained key shape fresh) resultShape :=
@@ -104,17 +107,18 @@ theorem relationalDistribution_retained_eq_map
       (model.HiddenState × (Store ctx × (Unit × body.Path))) := fun entry =>
     let result := step (entry.1.pushRetained key shape fresh, entry.2)
     (result.1.1, (result.1.2, (entry.1, ((), result.2))))
-  have mapped : selected.executionDistribution input =
+  have mapped : selected.executionDistribution environment input =
       (input.state.toPMF input.normalized).map update := by
     apply PMF.ext
     intro record
-    change ENNReal.ofReal (((selected.execute Reference input.state).block record).mass) = _
+    change ENNReal.ofReal
+      (((selected.execute environment Reference input.state).block record).mass) = _
     dsimp only [selected]
-    rw [execute_retained_eq_map ctx key shape fresh body output step bodyEquation]
+    rw [execute_retained_eq_map ctx key shape fresh body environment output step bodyEquation]
     exact congrArg (fun distribution : PMF (Store (ctx.addRetained key shape fresh) ×
       (model.HiddenState × (Store ctx × (Unit × body.Path)))) => distribution record)
       (ExecutionState.toPMF_mapClassical input.state input.normalized update)
-  change selected.relationalDistribution input = _
+  change selected.relationalDistribution environment input = _
   rw [relationalDistribution, mapped, PMF.map_comp]
   rfl
 

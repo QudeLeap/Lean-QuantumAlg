@@ -31,13 +31,15 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- The existing short-DLP physical layout with each actual wire's dimension recorded. -/
 abbrev runtimeLayout (m ell width : Nat) :
     QuantumLayout (totalQubits (registerParameters m ell width)) :=
   (QubitLayout.canonical (totalQubits (registerParameters m ell width))).toQuantum
 
 /-- The native layout is exactly the complete source layout, including every ordered wire. -/
-theorem shortDLP_runtimeLayout_eq_source (m ell width : Nat) :
+lemma shortDLP_runtimeLayout_eq_source (m ell width : Nat) :
     runtimeLayout m ell width =
       (ShortDLP.layout (registerParameters m ell width)).toQuantumLayout := rfl
 
@@ -48,25 +50,25 @@ def seedState (m ell width N : Nat) : NormalizedVector (runtimeLayout m ell widt
       (reloadLabel m ell width N))
 
 /-- All actual systems in the bank are qubits. -/
-theorem shortDLP_runtimeLayout_dimension (m ell width : Nat)
+lemma shortDLP_runtimeLayout_dimension (m ell width : Nat)
     (wire : Fin (totalQubits (registerParameters m ell width))) :
     ((runtimeLayout m ell width).wire wire).dimension = 2 := rfl
 
 /-- The original ordered physical identities are used without an extra system. -/
-theorem shortDLP_runtimeLayout_identities (m ell width : Nat) :
+lemma shortDLP_runtimeLayout_identities (m ell width : Nat) :
     (runtimeLayout m ell width).identities =
       List.range (totalQubits (registerParameters m ell width)) :=
   (ShortDLP.layout (registerParameters m ell width)).toQuantumLayout_identities.trans
     (ShortDLP.layout_systemIdx (registerParameters m ell width))
 
 /-- Binary zero denotes exactly the wirewise zero produced by actual allocation. -/
-theorem shortDLP_runtimeLayout_zeroBasis (m ell width : Nat) :
+lemma shortDLP_runtimeLayout_zeroBasis (m ell width : Nat) :
     (ShortDLP.layout (registerParameters m ell width)).binaryIndexEquiv.symm 0 =
       (runtimeLayout m ell width).zeroLabel :=
   BinaryBasis.bigEndianEquiv_symm_zero _
 
 /-- The physical seed target has exactly the source's binary basis amplitudes. -/
-theorem shortDLP_seedState_entry (m ell width N : Nat)
+lemma shortDLP_seedState_entry (m ell width N : Nat)
     (basis : (runtimeLayout m ell width).register.Index) :
     seedState m ell width N basis =
       NormalizedVector.ket
@@ -99,17 +101,17 @@ theorem shortDLP_seedState_entry (m ell width N : Nat)
   · rfl
 
 /-- The literal X word constructs the seed from the actual allocated zero state. -/
-theorem shortDLP_reload_seedState (m ell width N : Nat) :
-    (reloadProgram m ell width N).applyNormalized
+lemma shortDLP_reload_seedState (m ell width N : Nat) :
+    (reloadProgram m ell width N).applyNormalized environment
         (ZeroPreparation.normalized (runtimeLayout m ell width)) =
       seedState m ell width N := by
-  change (reloadProgram m ell width N).applyNormalized
+  change (reloadProgram m ell width N).applyNormalized environment
       (NormalizedVector.ket (runtimeLayout m ell width).zeroLabel) = _
   rw [← shortDLP_runtimeLayout_zeroBasis]
-  exact shortDLP_reload_apply_zero m ell width N
+  exact shortDLP_reload_apply_zero (environment := environment) m ell width N
 
 /-- Selecting classical operations and services preserves the literal X loading cost. -/
-theorem shortDLP_reload_eventCost_classical_context (m ell width N : Nat)
+lemma shortDLP_reload_eventCost_classical_context (m ell width N : Nat)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (reloadProgram m ell width N).eventCost operations services =
       reloadXCount m ell width N • ResourcePool.singleton

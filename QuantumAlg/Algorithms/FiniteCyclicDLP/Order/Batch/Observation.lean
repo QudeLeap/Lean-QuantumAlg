@@ -35,11 +35,11 @@ infer from a store. -/
 @[expose] public def terminalStore (P : KnownOrderProblem G) (count : Nat)
     (store : Store (post P count)) (basis : (post P count).register.Index) :
     Store (post P count) :=
-  Circuit.writeMeasurementPath
+  Circuit.writeMeasurementPath (allowAllocation := true)
     (gates := AlgorithmGate.model) (oracles := OrderOracle.model P)
     (operations := BitWord.model) (classicalOracles := ClassicalFiniteGroupOracle.model G)
     (allReadouts P count) store
-    (Circuit.measurementBasisPath
+    (Circuit.measurementBasisPath (allowAllocation := true)
       (gates := AlgorithmGate.model) (oracles := OrderOracle.model P)
       (operations := BitWord.model) (classicalOracles := ClassicalFiniteGroupOracle.model G)
       (allReadouts P count) basis)
@@ -58,7 +58,7 @@ public def observedBasisVector (P : KnownOrderProblem G) (count : Nat)
   List.Vector.ofFn fun slot => OrderBornBridge.readout P (bankBasis P slot basis)
 
 /-- Every pair of sample and exponent coordinates names a distinct retained cell. -/
-public theorem cell_keys_injective (P : KnownOrderProblem G) (count : Nat) :
+public lemma cell_keys_injective (P : KnownOrderProblem G) (count : Nat) :
     Function.Injective (fun pair : Fin count × Fin (OrderExecution.sampleWidth P) =>
       (cell P pair.1 pair.2).key) := by
   intro left right same
@@ -71,7 +71,7 @@ public theorem cell_keys_injective (P : KnownOrderProblem G) (count : Nat) :
   exact finProdFinEquiv.injective flat
 
 /-- No terminal readout writes a cell used by another bank or exponent position. -/
-public theorem allReadouts_nodup (P : KnownOrderProblem G) (count : Nat) :
+public lemma allReadouts_nodup (P : KnownOrderProblem G) (count : Nat) :
     ((allReadouts P count).map fun item => item.output.key).Nodup := by
   rw [allReadouts, List.map_flatten, List.map_ofFn]
   let keys : Fin (count * OrderExecution.sampleWidth P) → StorageKey := fun flat =>
@@ -144,7 +144,7 @@ public theorem allReadouts_nodup (P : KnownOrderProblem G) (count : Nat) :
   exact finProdFinEquiv.symm.injective pairSame
 
 /-- A terminal cell contains the actual measured value of its physical bank wire. -/
-public theorem measured_cell (P : KnownOrderProblem G) (count : Nat)
+public lemma measured_cell (P : KnownOrderProblem G) (count : Nat)
     (store : Store (post P count)) (basis : (post P count).register.Index)
     (slot : Fin count) (index : Fin (OrderExecution.sampleWidth P)) :
     ((terminalStore P count store basis).read
@@ -154,7 +154,7 @@ public theorem measured_cell (P : KnownOrderProblem G) (count : Nat)
     rw [allReadouts, List.mem_flatten]
     exact ⟨readouts P slot, List.mem_ofFn.mpr ⟨slot, rfl⟩,
       List.mem_ofFn.mpr ⟨index, rfl⟩⟩
-  have actual := Circuit.writeMeasurementBasis_read
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
     (gates := AlgorithmGate.model) (oracles := OrderOracle.model P)
     (operations := BitWord.model) (services := ClassicalFiniteGroupOracle.model G)
     (allReadouts P count)
@@ -165,7 +165,7 @@ public theorem measured_cell (P : KnownOrderProblem G) (count : Nat)
     (cell P slot index) _).symm.trans values
 
 /-- One retained sample is exactly the source readout of its actual bank basis. -/
-public theorem observedOutcome_after_measurement (P : KnownOrderProblem G) (count : Nat)
+public lemma observedOutcome_after_measurement (P : KnownOrderProblem G) (count : Nat)
     (store : Store (post P count)) (basis : (post P count).register.Index)
     (slot : Fin count) :
     OrderExecution.observedOutcome P
@@ -187,7 +187,7 @@ public theorem observedOutcome_after_measurement (P : KnownOrderProblem G) (coun
 
 /-- Reading the complete retained vector after the terminal measurement pass
 is the bankwise Born readout of the same physical family basis. -/
-public theorem observedVector_after_measurement (P : KnownOrderProblem G) (count : Nat)
+public lemma observedVector_after_measurement (P : KnownOrderProblem G) (count : Nat)
     (store : Store (post P count)) (basis : (post P count).register.Index) :
     observedVector P count
         ((terminalStore P count store basis).read (samplesInput P count)) =

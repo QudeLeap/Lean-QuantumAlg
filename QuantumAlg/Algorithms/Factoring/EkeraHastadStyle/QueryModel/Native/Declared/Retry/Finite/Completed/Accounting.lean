@@ -28,32 +28,32 @@ noncomputable section
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private abbrev groupQuery : Resource.Event (model input) := .oracle .groupOperation
+private abbrev groupQuery : Resource.Event (model N) := .oracle .groupOperation
 
 /-- Every further real completed batch contributes sixteen granted queries
 on each actual chronological path. -/
-theorem laterCompleted_query_count (count : Nat)
+lemma laterCompleted_query_count (count : Nat)
     (path : (laterCompletedCode base noQuantum N input count).Path) :
-    ResourcePool.count (groupQuery N input)
+    ResourcePool.count (groupQuery N)
       ((laterCompletedCode base noQuantum N input count).resourcePool path) =
         16 * count := by
-  have exactCount := Circuit.forRange_event_count (groupQuery N input) count
+  have exactCount := Circuit.forRange_event_count (groupQuery N) count
     (fun _ => nextCompletedCode base noQuantum N input) 16
     (fun _ path => nextCompleted_query_count base noQuantum N input path) path
   simpa only [laterCompletedCode, Nat.mul_comm] using exactCount
 
 /-- The physically completed positive execution pays exactly sixteen queries
 per requested batch, including the one-batch and arbitrary-repeat cases. -/
-theorem completed_query_count (laterCount : Nat)
+lemma completed_query_count (laterCount : Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
-    ResourcePool.count (groupQuery N input)
+    ResourcePool.count (groupQuery N)
       ((completedCode base noQuantum N input laterCount).resourcePool path) =
         16 * (laterCount + 1) := by
-  change ResourcePool.count (groupQuery N input)
+  change ResourcePool.count (groupQuery N)
     ((firstCompletedAlgorithm base noQuantum input).run.code.resourcePool path.1 +
       (laterCompletedCode base noQuantum N input laterCount).resourcePool path.2) = _
   rw [ResourcePool.count_add]
-  have first : ResourcePool.count (groupQuery N input)
+  have first : ResourcePool.count (groupQuery N)
       ((firstCompletedAlgorithm base noQuantum input).run.code.resourcePool path.1) = 16 :=
     firstCompleted_query_count base noQuantum input path.1
   have later := laterCompleted_query_count base noQuantum N input laterCount path.2

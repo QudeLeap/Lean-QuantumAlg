@@ -32,7 +32,7 @@ namespace UnitarySequence
 variable {gates : GateModel} {oracles : OracleModel} {count : Nat}
   {layout : QuantumLayout count}
 
-private theorem count_in_classical_context (body : UnitarySequence gates oracles layout)
+private lemma count_in_classical_context (body : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (event : Resource.Event (.quantum gates oracles operations services)) :
     ResourcePool.count event (body.eventCost operations services) =
@@ -88,7 +88,7 @@ private theorem count_in_classical_context (body : UnitarySequence gates oracles
         simp_all [eventCost, ResourcePool.count, Multiset.count_add, Multiset.count_sum']
   | macroCall name body bodyIH => exact bodyIH
 
-private theorem unit_depth_in_classical_context (body : UnitarySequence gates oracles layout)
+private lemma unit_depth_in_classical_context (body : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     DepthExpr.depthEval (fun _ => 1) (body.eventDepth operations services) =
       DepthExpr.depthEval (fun _ => 1) body.eventDepth := by
@@ -112,7 +112,7 @@ variable {gates : GateModel} {oracles : OracleModel} {count : Nat}
   {layout : QuantumLayout count}
 
 /-- The surrounding classical selection leaves every actual quantum count unchanged. -/
-public theorem unitaryCircuit_event_count_classical_context
+public lemma unitaryCircuit_event_count_classical_context
     (body : UnitaryCircuit gates oracles layout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (event : Resource.Event (.quantum gates oracles operations services)) :
@@ -126,7 +126,7 @@ public theorem unitaryCircuit_event_count_classical_context
   UnitarySequence.count_in_classical_context body.sequence operations services event
 
 /-- The same native dependency graph has the same unit depth in any classical context. -/
-public theorem unitaryCircuit_unit_depth_classical_context
+public lemma unitaryCircuit_unit_depth_classical_context
     (body : UnitaryCircuit gates oracles layout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     DepthExpr.depthEval (fun _ => 1) (body.eventDepth operations services) =

@@ -39,7 +39,7 @@ attribute [local instance] Classical.decEq
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem prepared_zero (I : ECDLPInstance E) :
+private lemma prepared_zero (I : ECDLPInstance E) :
     preparedEmptyBasisEquiv (pre I) (pre I).canonicalFreshKey (layout I)
         (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (pre I)) (bankDisjoint I) (by rfl)
         (layout I).zeroLabel = (bankContext I).quantumLayout.zeroLabel := by
@@ -55,7 +55,7 @@ private theorem prepared_zero (I : ECDLPInstance E) :
   exact basisOfEqualWires_value (layout I) (bankContext I).quantumLayout wires
     (layout I).zeroLabel index
 
-private theorem cells_zero (ctx : RuntimeCtx .quantum) (count : Nat) :
+private lemma cells_zero (ctx : RuntimeCtx .quantum) (count : Nat) :
     MeasurementCells.basisEquiv ctx 2 count ctx.quantumLayout.zeroLabel =
       (MeasurementCells.context ctx 2 count).quantumLayout.zeroLabel := by
   induction count with
@@ -63,13 +63,14 @@ private theorem cells_zero (ctx : RuntimeCtx .quantum) (count : Nat) :
   | succ count ih => exact ih
 
 /-- Real allocation establishes the complete zero seed without an input-state premise. -/
-private theorem initialCode_seeded (I : ECDLPInstance E) (A : Access I)
+private lemma initialCode_seeded (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre I) Reference ((executionModel I A).HiddenState × History)) :
+    (state : State (pre I) Reference ((executionModel I).HiddenState × History)) :
     BasisSeeded.Holds (post I).quantumLayout.zeroLabel
-      ((initialCode I A).execute Reference state) := by
+      ((initialCode I).execute (sourceEnvironment I A) Reference state) := by
   have prepared := Circuit.prepareZero_empty_seeded
-    (gates := AlgorithmGate.model) (oracles := model I A)
+    (environment := sourceEnvironment I A)
+    (gates := AlgorithmGate.model) (oracles := model I)
     (operations := BitWord.model) (services := ClassicalOracleModel.empty)
     (pre I).canonicalFreshKey (layout I) (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (pre I))
     (bankDisjoint I) (by rfl) state
@@ -77,17 +78,19 @@ private theorem initialCode_seeded (I : ECDLPInstance E) (A : Access I)
     (preparedEmptyBasisEquiv (pre I) (pre I).canonicalFreshKey (layout I)
       (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (pre I)) (bankDisjoint I) (by rfl)
       (layout I).zeroLabel)
-    ((preparationCode I A).execute Reference state) at prepared
+    ((preparationCode I).execute (sourceEnvironment I A) Reference state) at prepared
   rw [prepared_zero] at prepared
-  have allocated := MeasurementCells.allocate_seeded (model := executionModel I A)
+  have allocated := MeasurementCells.allocate_seeded
+    (environment := sourceEnvironment I A) (model := executionModel I)
     (bankContext I) 2 (sampleWidth I) (bankContext I).quantumLayout.zeroLabel
-    ((preparationCode I A).execute Reference state) prepared
+    ((preparationCode I).execute (sourceEnvironment I A) Reference state) prepared
   rw [cells_zero] at allocated
-  exact BasisSeeded.seq (preparationCode I A) (allocationCode I A)
+  exact BasisSeeded.seq (environment := sourceEnvironment I A) (preparationCode I)
+    (allocationCode I)
     (post I).quantumLayout.zeroLabel state allocated
 
 /-- Equal-wire transport takes the runtime zero back to the same source zero. -/
-public theorem basisEquiv_zero (I : ECDLPInstance E) :
+public lemma basisEquiv_zero (I : ECDLPInstance E) :
     basisEquiv I (post I).quantumLayout.zeroLabel = (layout I).zeroLabel := by
   let forward := basisOfEqualWires (layout I) (post I).quantumLayout (sourceWires I)
   have mapped : forward (layout I).zeroLabel = (post I).quantumLayout.zeroLabel := by
@@ -100,28 +103,28 @@ public theorem basisEquiv_zero (I : ECDLPInstance E) :
   rw [← mapped, Equiv.symm_apply_apply]
 
 /-- The runtime native word has exactly the independent source state's zero amplitudes. -/
-public theorem nativeProgram_zero_amplitude (I : ECDLPInstance E) (A : Access I)
+public lemma nativeProgram_zero_amplitude (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (row : (post I).register.Index) :
-    (nativeProgram I A expansion).matrix row (post I).quantumLayout.zeroLabel =
+    (nativeProgram I expansion).matrix (interpretation I A) row (post I).quantumLayout.zeroLabel =
       sourceState I A ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I))
         (basisEquiv I row)) := by
   rw [nativeProgram, Execution.unitaryOfEqualWires_matrix]
-  change ((initializer I A).seq (circuit I A expansion)).matrix
+  change ((initializer I).seq (circuit I expansion)).matrix (interpretation I A)
     (basisEquiv I row) (basisEquiv I (post I).quantumLayout.zeroLabel) = _
   rw [basisEquiv_zero, initializedCircuit_zero_amplitude]
 
 /-- Actual coherent execution keeps every stored reference coefficient and both source phases. -/
-private theorem nativeProgram_store_entry (I : ECDLPInstance E) (A : Access I)
+private lemma nativeProgram_store_entry (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (post I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (post I) Reference ((executionModel I).HiddenState × History))
     (seeded : BasisSeeded.Holds (post I).quantumLayout.zeroLabel state)
     (stored : Store (post I)) (left right : (post I).register.Index)
     (leftRef rightRef : Reference.Index) :
-    (((Circuit.unitary (operations := BitWord.model)
+    (((Circuit.unitary (allowAllocation := true) (operations := BitWord.model)
       (classicalOracles := ClassicalOracleModel.empty)
-      (nativeProgram I A expansion)).execute Reference state).filterClassical
+      (nativeProgram I expansion)).execute (sourceEnvironment I A) Reference state).filterClassical
         (fun record => record.1 = stored)).quantumMarginal.matrix
           (left, leftRef) (right, rightRef) =
       sourceState I A ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I))
@@ -131,11 +134,13 @@ private theorem nativeProgram_store_entry (I : ECDLPInstance E) (A : Access I)
         ((post I).quantumLayout.zeroLabel, rightRef) *
       star (sourceState I A ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I))
         (basisEquiv I right))) := by
-  rw [Circuit.unitary_store_filter (operations := BitWord.model)
-    (services := ClassicalOracleModel.empty) (nativeProgram I A expansion) state
+  rw [Circuit.unitary_store_filter (environment := sourceEnvironment I A)
+    (operations := BitWord.model)
+    (services := ClassicalOracleModel.empty) (nativeProgram I expansion) state
     (fun original => original = stored)]
   exact (BasisSeeded.unitary_entry (post I).quantumLayout.zeroLabel state seeded
-    (nativeProgram I A expansion).matrix stored left right leftRef rightRef).trans
+    ((nativeProgram I expansion).matrix (interpretation I A)) stored left right leftRef
+      rightRef).trans
     (congrArg₂ (fun first second : ℂ => first *
       (state.filterClassical (fun record => record.1 = stored)).quantumMarginal.matrix
         ((post I).quantumLayout.zeroLabel, leftRef)
@@ -144,18 +149,18 @@ private theorem nativeProgram_store_entry (I : ECDLPInstance E) (A : Access I)
       (nativeProgram_zero_amplitude I A expansion right))
 
 /-- The real preparation-to-query prefix has the source state in every complete store block. -/
-public theorem beforeMeasurement_store_entry (I : ECDLPInstance E) (A : Access I)
+public lemma beforeMeasurement_store_entry (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (pre I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (pre I) Reference ((executionModel I).HiddenState × History))
     (stored : Store (post I)) (left right : (post I).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((beforeMeasurement I A expansion).execute Reference state).mapClassical
+    ((((beforeMeasurement I expansion).execute (sourceEnvironment I A) Reference state).mapClassical
       (fun record => record.1)).block stored).matrix
         (left, leftRef) (right, rightRef) =
       sourceState I A ((QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I))
         (basisEquiv I left)) *
-      ((((initialCode I A).execute Reference state).mapClassical
+      ((((initialCode I).execute (sourceEnvironment I A) Reference state).mapClassical
         (fun record => record.1)).block stored).matrix
           ((post I).quantumLayout.zeroLabel, leftRef)
           ((post I).quantumLayout.zeroLabel, rightRef) *
@@ -163,18 +168,19 @@ public theorem beforeMeasurement_store_entry (I : ECDLPInstance E) (A : Access I
         (basisEquiv I right))) := by
   rw [BasisSeeded.store_matrix, BasisSeeded.store_matrix,
     beforeMeasurement, Circuit.seq_store_marginal]
-  exact nativeProgram_store_entry I A expansion ((initialCode I A).execute Reference state)
+  exact nativeProgram_store_entry I A expansion ((initialCode I).execute (sourceEnvironment I A)
+    Reference state)
     (initialCode_seeded I A state) stored left right leftRef rightRef
 
 /-- The complete sampler restores both borrowed point inputs jointly with the reference. -/
-public theorem run_restoresBorrowed (I : ECDLPInstance E) (A : Access I)
+public lemma run_restoresBorrowed (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) {Reference : Register}
-    (original : OracleInput (executionModel I A).classicalOracles (pre I) Reference) :
-    (run I A expansion).RestoresBorrowed original := by
+    (original : OracleInput (executionModel I).classicalOracles (pre I) Reference) :
+    (run I expansion).RestoresBorrowed (sourceEnvironment I A) original := by
   apply AlgorithmRun.restoresBorrowed_of_circuit
   intro reference history _ state
-  exact Circuit.borrowedRestored_of_noBorrowedQuantum (code I A expansion)
-    (by rfl) reference state
+  exact Circuit.borrowedRestored_of_noBorrowedQuantum (code I expansion)
+    (sourceEnvironment I A) (by rfl) reference state
 
 end
 

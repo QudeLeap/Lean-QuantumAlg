@@ -9,7 +9,7 @@ module
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Acceptance
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.First.Loop
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Range
-import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Validity.Local
+import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Persistent.Embedding.Observation
 import all QuantumAlg.Core.Execution.Classical.Support
 
 /-!
@@ -30,7 +30,7 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 private def validSelection (curve : CurveSpec width)
@@ -44,7 +44,7 @@ private def validSelection (curve : CurveSpec width)
           basePoint = targetPoint)
 
 /-- Every positive actual checked block retains the original natural-scalar soundness invariant. -/
-theorem persistentAttempt_preserves_validity
+lemma persistentAttempt_preserves_validity
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (basePoint targetPoint : Pure.Point curve)
@@ -59,7 +59,8 @@ theorem persistentAttempt_preserves_validity
             basePoint = targetPoint))
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
-    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
+    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute environment
+      Reference
       state).block result).mass) :
     PointRepresents curve (result.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (result.1.read (persistentInput width scalarWidth target)) targetPoint ∧
@@ -83,7 +84,7 @@ theorem persistentAttempt_preserves_validity
       basePoint targetPoint prior.1 prior.2.1 prior.2.2 acceptedNow
 
 /-- The original selected-word modulus bound also holds in every positive actual output block. -/
-theorem persistentAttempt_preserves_selected_lt
+lemma persistentAttempt_preserves_selected_lt
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -94,7 +95,8 @@ theorem persistentAttempt_preserves_selected_lt
         modulus.modulus)
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (persistentAttempt curve modulus sample base target).Path)))
-    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute Reference
+    (positive : 0 < (((persistentAttempt curve modulus sample base target).execute environment
+      Reference
       state).block result).mass) :
     (result.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
       modulus.modulus := by
@@ -114,31 +116,31 @@ private def selectedBound (modulus : ModulusSpec scalarWidth)
     modulus.modulus
 
 omit [BitWord.Selected model] in
-private theorem underPersistent_supported_selectedBound
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+private lemma sampleUnderPersistent_supported_selectedBound
+    (sampleCode : Circuit model ctx ctx false)
     (width scalarWidth : Nat) (modulus : ModulusSpec scalarWidth) :
-    PreservesStore (underPersistent sampleCode supported width scalarWidth)
+    PreservesStore (environment := environment) (sampleUnderPersistent sampleCode width scalarWidth)
       (selectedBound modulus) := by
   unfold PreservesStore
   intro Reference H _ state holds result positive
-  exact underPersistent_selected_property sampleCode supported width scalarWidth
-    (fun word => word.toNat < modulus.modulus) state holds result positive
+  exact candidateCheck_sampleUnderPersistent_latches_property sampleCode width scalarWidth state
+    (fun pair => pair.2.toNat < modulus.modulus) holds result positive
 
-private theorem persistentAttempt_supported_selectedBound
+private lemma persistentAttempt_supported_selectedBound
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) :
-    PreservesStore (persistentAttempt curve modulus sample base target)
+    PreservesStore (environment := environment) (persistentAttempt curve modulus sample base target)
       (selectedBound modulus) := by
   unfold PreservesStore
   intro Reference H _ state holds result positive
   exact persistentAttempt_preserves_selected_lt curve modulus sample base target
     state holds result positive
 
-/-- The actual local sampling and checked recovery preserve the modulus bound
+/-- The actual sampling and checked recovery preserve the modulus bound
 of the retained selected word on every positive output block. -/
-theorem sampledAttempt_preserves_selected_lt
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+lemma sampledAttempt_preserves_selected_lt
+    (sampleCode : Circuit model ctx ctx false)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -149,23 +151,23 @@ theorem sampledAttempt_preserves_selected_lt
         modulus.modulus)
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState ×
-        (H × (sampledAttempt sampleCode supported curve modulus sample base target).Path)))
-    (positive : 0 < (((sampledAttempt sampleCode supported curve modulus sample base
-      target).execute Reference state).block result).mass) :
+        (H × (sampledAttempt sampleCode curve modulus sample base target).Path)))
+    (positive : 0 < (((sampledAttempt sampleCode curve modulus sample base
+      target).execute environment Reference state).block result).mass) :
     (result.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat <
       modulus.modulus := by
   exact preservesStore_seq
-    (underPersistent sampleCode supported width scalarWidth)
+    (sampleUnderPersistent sampleCode width scalarWidth)
     (persistentAttempt curve modulus sample base target) (selectedBound modulus)
-    (underPersistent_supported_selectedBound sampleCode supported width scalarWidth modulus)
+    (sampleUnderPersistent_supported_selectedBound sampleCode width scalarWidth modulus)
     (persistentAttempt_supported_selectedBound curve modulus sample base target)
     state holds result positive
 
-/-- Local sampling preserves the accepted selection, and a subsequent actual
+/-- Sampling preserves the accepted selection, and a subsequent actual
 checked recovery preserves its scalar equation whenever the sampled public
 points retain their admitted interpretations. -/
-theorem sampledAttempt_preserves_validity
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+lemma sampledAttempt_preserves_validity
+    (sampleCode : Circuit model ctx ctx false)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
@@ -180,16 +182,16 @@ theorem sampledAttempt_preserves_validity
         (entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
           basePoint = targetPoint))
     (localPoints : ∀ entry,
-      0 < (((underPersistent sampleCode supported width scalarWidth).execute Reference
+      0 < (((sampleUnderPersistent sampleCode width scalarWidth).execute environment Reference
         state).block entry).mass →
       PointRepresents curve (entry.1.read (persistentInput width scalarWidth base)) basePoint ∧
         PointRepresents curve (entry.1.read (persistentInput width scalarWidth target))
           targetPoint)
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState ×
-        (H × (sampledAttempt sampleCode supported curve modulus sample base target).Path)))
-    (positive : 0 < (((sampledAttempt sampleCode supported curve modulus sample base
-      target).execute Reference state).block result).mass) :
+        (H × (sampledAttempt sampleCode curve modulus sample base target).Path)))
+    (positive : 0 < (((sampledAttempt sampleCode curve modulus sample base
+      target).execute environment Reference state).block result).mass) :
     PointRepresents curve (result.1.read (persistentInput width scalarWidth base)) basePoint ∧
       PointRepresents curve (result.1.read (persistentInput width scalarWidth target)) targetPoint ∧
       ((result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
@@ -200,25 +202,26 @@ theorem sampledAttempt_preserves_validity
   rw [Circuit.execute_seq] at positive
   obtain ⟨original, equality, present⟩ := (mapped_positive _ _ _ _).mp positive
   have localSound : ∀ entry,
-      0 < (((underPersistent sampleCode supported width scalarWidth).execute Reference
+      0 < (((sampleUnderPersistent sampleCode width scalarWidth).execute environment Reference
         state).block entry).mass →
       ((entry.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
           true →
         (entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef)).toNat •
           basePoint = targetPoint) := by
     intro entry present
-    exact underPersistent_latches_property sampleCode supported width scalarWidth
+    exact candidateCheck_sampleUnderPersistent_latches_property sampleCode width scalarWidth state
       (fun pair => pair.1 = true → pair.2.toNat • basePoint = targetPoint)
-      state (fun previous source => (holds previous source).2.2) entry present
-  have checked := persistentAttempt_preserves_validity curve modulus sample base target
+      (fun previous source => (holds previous source).2.2) entry present
+  have checked := persistentAttempt_preserves_validity (environment := environment)
+    curve modulus sample base target
     basePoint targetPoint
-    ((underPersistent sampleCode supported width scalarWidth).execute Reference state)
+    ((sampleUnderPersistent sampleCode width scalarWidth).execute environment Reference state)
     (fun entry source => ⟨(localPoints entry source).1, (localPoints entry source).2,
       localSound entry source⟩) original present
   rw [← equality]
   exact checked
 
-private theorem packing_store_property (property : (CShape.unsignedWord scalarWidth).Value → Prop)
+private lemma packing_store_property (property : (CShape.unsignedWord scalarWidth).Value → Prop)
     (before : Store (persistentCtx ctx width scalarWidth))
     (holds : (before.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = true →
@@ -242,7 +245,7 @@ private theorem packing_store_property (property : (CShape.unsignedWord scalarWi
 local instance : DecidableEq Bool := Classical.decEq Bool
 
 /-- The actual retained option carries every proved property of its same accepted selected word. -/
-theorem packBatchResult_supported_property
+lemma packBatchResult_supported_property
     (property : (CShape.unsignedWord scalarWidth).Value → Prop)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
@@ -253,7 +256,8 @@ theorem packBatchResult_supported_property
           (persistentSelected ctx width scalarWidth).toCStorageRef)))
     (result : Store (batchResultCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (packBatchResult ctx width scalarWidth).Path)))
-    (positive : 0 < (((packBatchResult ctx width scalarWidth).execute Reference state).block
+    (positive : 0 < (((packBatchResult ctx width scalarWidth).execute environment Reference
+      state).block
       result).mass) (value : (CShape.unsignedWord scalarWidth).Value)
     (output : result.1.read (batchResultRead ctx width scalarWidth) = .optionSome value) :
     property value := by

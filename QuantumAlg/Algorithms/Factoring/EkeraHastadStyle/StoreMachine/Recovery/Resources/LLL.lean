@@ -28,7 +28,7 @@ three-coordinate nearest-plane pass. -/
 def nearestPlaneSavedTargetCardBound (m ell : Nat) : Nat :=
   8 * m + 12 * ell + 258 + 264 * RSA.shortLogRecoveryFuel m ell
 
-private theorem savedTargetOperationBound_le (N : Nat) :
+private lemma savedTargetOperationBound_le (N : Nat) :
     LatticePairNearestPlaneSavedTarget.operationBound N ≤
       nearestPlaneSavedTargetCardBound (shortLogBits N) (tradeoffBits N) := by
   have measurementEq :
@@ -45,7 +45,7 @@ private theorem savedTargetOperationBound_le (N : Nat) :
   omega
 
 /-- Every actual saved-target path satisfies the original independent public-width event bound. -/
-theorem pairNearestSavedTarget_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+lemma pairNearestSavedTarget_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {N : Nat} (refs : LatticePairNearestPlaneSavedTarget.Refs ctx N)
     (path : (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs).Path) :
@@ -55,7 +55,7 @@ theorem pairNearestSavedTarget_eventCount_le {model : ExecutionModel} [BitWord.S
     refs path).trans (savedTargetOperationBound_le N)
 
 /-- The complete actual dependency depth satisfies the same independent public-width bound. -/
-theorem pairNearestSavedTarget_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma pairNearestSavedTarget_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {N : Nat} (refs : LatticePairNearestPlaneSavedTarget.Refs ctx N)
     (path : (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs).Path) :

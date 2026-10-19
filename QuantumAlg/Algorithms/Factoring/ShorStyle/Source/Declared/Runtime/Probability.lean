@@ -26,14 +26,14 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem source_weight (amplitude coefficient : ℂ) :
+private lemma source_weight (amplitude coefficient : ℂ) :
     amplitude * coefficient * star amplitude = ((‖amplitude‖ ^ 2 : ℝ) : ℂ) * coefficient := by
   calc
     _ = (amplitude * star amplitude) * coefficient := by ring
     _ = _ := congrArg (fun value : ℂ => value * coefficient)
       (by simpa only [Complex.star_def, Complex.ofReal_pow] using Complex.mul_conj' amplitude)
 
-private theorem bits_indicator (width : Nat) (left right : Fin width → Bool) :
+private lemma bits_indicator (width : Nat) (left right : Fin width → Bool) :
     (if CShape.Value.bits left = CShape.Value.bits right then (1 : ℂ) else 0) =
       if left = right then 1 else 0 := by
   by_cases same : left = right
@@ -48,31 +48,32 @@ variable (base : RuntimeCtx .quantum) (N : Nat) (input : Input N)
   (sameWires : base.quantumWires = (layout N).wires)
 
 -- Measurement and packing transport the reference fiber through the actual stores.
-private theorem measured_packed_reference
+private lemma measured_packed_reference
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (observe : Store (Storage.context base N) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      (((Circuit.measurementSequence (gates := AlgorithmGate.model)
-        (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+      (((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+        (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
         (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
         (readouts base N sameWires)).seq
-        (.classical (BitWord.application (packing base N)))).execute Reference state)
+        (.classical (BitWord.application (packing base N)))).execute
+          (environment input) Reference state)
       (fun entry _ => observe entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry basis => observe
-          ((measuredStore base N input sameWires entry.1 basis).applyOp
+          ((measuredStore base N sameWires entry.1 basis).applyOp
             (packing base N))) leftRef rightRef := by
   rw [Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.referenceFiberSum_mapClassical]
-  rw [packing_execute base N input]
+  rw [packing_execute base N]
   simp only [ExecutionState.referenceFiberSum_mapClassical]
-  exact Circuit.measurementSequence_referenceFiberSum
+  exact Circuit.measurementSequence_referenceFiberSum (environment := environment input)
     (readouts base N sameWires) state _ leftRef rightRef
 
-private theorem weighted_fiber {Basis : Type} [Fintype Basis]
+private lemma weighted_fiber {Basis : Type} [Fintype Basis]
     (predicate : Basis → Prop) (decision : DecidablePred predicate)
     (value : Basis → ℝ) (coefficient : ℂ) :
     (∑ basis : Basis, (@ite ℂ (predicate basis) (decision basis) 1 0) *
@@ -96,19 +97,19 @@ private theorem weighted_fiber {Basis : Type} [Fintype Basis]
 
 /-- The actual selected, measured and packed outcome has its conditional Born law
 jointly with any classical weight preserved by measurement and packing. -/
-theorem body_outcome_weighted_reference
+lemma body_outcome_weighted_reference
     (parameter : CInputRef base (ParameterShape (modulusBits N)))
     (readWeight : Store (Storage.context base N) → ℂ)
     (readWeight_stable : ∀ store basis,
-      readWeight ((measuredStore base N input sameWires store basis).applyOp
+      readWeight ((measuredStore base N sameWires store basis).applyOp
         (packing base N)) = readWeight store)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds (Storage.context base N).quantumLayout.zeroLabel state)
     (outcome : Fin (phaseBits N) → Bool) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((body base N input sameWires parameter).execute Reference state)
+      ((body base N sameWires parameter).execute (environment input) Reference state)
       (fun entry _ => readWeight entry.1 *
         (if entry.1.read (.storage (Storage.resultRef base N).toCStorageRef) =
           CShape.Value.bits outcome then 1 else 0)) leftRef rightRef =
@@ -125,15 +126,16 @@ theorem body_outcome_weighted_reference
     readWeight store *
       (if store.read (.storage (Storage.resultRef base N).toCStorageRef) =
         CShape.Value.bits outcome then (1 : ℂ) else 0)
-  have first := Circuit.referenceFiberSum_execute_seq (selected base N input sameWires parameter)
-    ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+  have first := Circuit.referenceFiberSum_execute_seq
+    (environment := environment input) (selected base N sameWires parameter)
+    ((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts base N sameWires)).seq
       (.classical (BitWord.application (packing base N)))) state observed
         leftRef rightRef
   refine first.trans ((measured_packed_reference base N input sameWires
-    ((selected base N input sameWires parameter).execute Reference state)
+    ((selected base N sameWires parameter).execute (environment input) Reference state)
     observed leftRef rightRef).trans ?_)
   let bornWeight := fun original : Store (Storage.context base N) =>
     fun basis : (Storage.context base N).register.Index =>
@@ -144,9 +146,9 @@ theorem body_outcome_weighted_reference
       then (1 : ℂ) else 0)
   have actualWeight (store : Store (Storage.context base N))
       (basis : (Storage.context base N).register.Index) :
-      observed ((measuredStore base N input sameWires store basis).applyOp
+      observed ((measuredStore base N sameWires store basis).applyOp
           (packing base N)) = bornWeight store basis := by
-    have packed := packed_output base N sameWires input store basis
+    have packed := packed_output base N sameWires store basis
     have indicator := congrArg
       (fun value : (CShape.bits (phaseBits N)).Value =>
         if value = CShape.Value.bits outcome then (1 : ℂ) else 0) packed
@@ -167,7 +169,8 @@ theorem body_outcome_weighted_reference
       ((Storage.context base N).quantumLayout.zeroLabel, rightRef)
   have terms :
       (∑ basis : (Storage.context base N).register.Index, bornWeight original basis *
-        (((selected base N input sameWires parameter).execute Reference state).filterClassical
+        (((selected base N sameWires parameter).execute
+          (environment input) Reference state).filterClassical
           (fun entry => entry.1 = original)).quantumMarginal.matrix
             (basis, leftRef) (basis, rightRef)) =
       ∑ basis : (Storage.context base N).register.Index, bornWeight original basis *
@@ -216,15 +219,15 @@ theorem body_outcome_weighted_reference
     _ = _ := by ring
 
 /-- The ordinary conditional Born law is the unit-weight case. -/
-theorem body_outcome_reference
+lemma body_outcome_reference
     (parameter : CInputRef base (ParameterShape (modulusBits N)))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds (Storage.context base N).quantumLayout.zeroLabel state)
     (outcome : Fin (phaseBits N) → Bool) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((body base N input sameWires parameter).execute Reference state)
+      ((body base N sameWires parameter).execute (environment input) Reference state)
       (fun entry _ => if entry.1.read (.storage (Storage.resultRef base N).toCStorageRef) =
         CShape.Value.bits outcome then 1 else 0) leftRef rightRef =
       ∑ original : Store (Storage.context base N),
@@ -241,44 +244,44 @@ theorem body_outcome_reference
 
 /-- Two store observations agreeing after each actual measurement and pack
 have identical reference fibers after the declared body. -/
-theorem body_reference_congr
+lemma body_reference_congr
     (parameter : CInputRef base (ParameterShape (modulusBits N)))
     (left right : Store (Storage.context base N) → ℂ)
     (agree : ∀ store basis,
-      left ((measuredStore base N input sameWires store basis).applyOp
+      left ((measuredStore base N sameWires store basis).applyOp
         (packing base N)) =
-      right ((measuredStore base N input sameWires store basis).applyOp
+      right ((measuredStore base N sameWires store basis).applyOp
         (packing base N)))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((body base N input sameWires parameter).execute Reference state)
+      ((body base N sameWires parameter).execute (environment input) Reference state)
       (fun entry _ => left entry.1) leftRef rightRef =
     ExecutionState.referenceFiberSum
-      ((body base N input sameWires parameter).execute Reference state)
+      ((body base N sameWires parameter).execute (environment input) Reference state)
       (fun entry _ => right entry.1) leftRef rightRef := by
-  let previous := (selected base N input sameWires parameter).execute Reference state
-  let tail := ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+  let previous := (selected base N sameWires parameter).execute (environment input) Reference state
+  let tail := ((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (readouts base N sameWires)).seq
     (.classical (BitWord.application (packing base N))))
-  have leftSeq := Circuit.referenceFiberSum_execute_seq
-    (selected base N input sameWires parameter) tail state left leftRef rightRef
-  have rightSeq := Circuit.referenceFiberSum_execute_seq
-    (selected base N input sameWires parameter) tail state right leftRef rightRef
+  have leftSeq := Circuit.referenceFiberSum_execute_seq (environment := environment input)
+    (selected base N sameWires parameter) tail state left leftRef rightRef
+  have rightSeq := Circuit.referenceFiberSum_execute_seq (environment := environment input)
+    (selected base N sameWires parameter) tail state right leftRef rightRef
   have leftMeasured := measured_packed_reference base N input sameWires
     previous left leftRef rightRef
   have rightMeasured := measured_packed_reference base N input sameWires
     previous right leftRef rightRef
   calc
     _ = ExecutionState.referenceFiberSum previous
-      (fun entry basis => left ((measuredStore base N input sameWires entry.1 basis).applyOp
+      (fun entry basis => left ((measuredStore base N sameWires entry.1 basis).applyOp
         (packing base N))) leftRef rightRef := leftSeq.trans leftMeasured
     _ = ExecutionState.referenceFiberSum previous
-      (fun entry basis => right ((measuredStore base N input sameWires entry.1 basis).applyOp
+      (fun entry basis => right ((measuredStore base N sameWires entry.1 basis).applyOp
         (packing base N))) leftRef rightRef := by
           apply congrArg (fun observe =>
             ExecutionState.referenceFiberSum previous observe leftRef rightRef)

@@ -25,11 +25,12 @@ open Execution
 noncomputable section
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {allowAllocation : Bool}
 
 /-- A native event that occurs the same number of times in every component
 occurs exactly that number times the length of the actual indexed sequence. -/
-theorem forRange_event_count (event : Resource.Event model) (count : Nat)
-    (body : Fin count → Circuit model ctx ctx) (amount : Nat)
+lemma forRange_event_count (event : Resource.Event model) (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation) (amount : Nat)
     (equations : ∀ index path,
       ResourcePool.count event ((body index).resourcePool path) = amount)
     (path : (forRange count body).Path) :
@@ -47,7 +48,8 @@ theorem forRange_event_count (event : Resource.Event model) (count : Nat)
       ring
 
 /-- The actual sequence adds every stage's own independent native-event allowance. -/
-theorem forRange_pool_le_sum (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_pool_le_sum (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (budgets : Fin count → ResourcePool model)
     (bounds : ∀ index path, (body index).resourcePool path ≤ budgets index)
     (path : (forRange count body).Path) :
@@ -64,7 +66,8 @@ theorem forRange_pool_le_sum (count : Nat) (body : Fin count → Circuit model c
         (ih _ (fun index => budgets index.succ) (fun index => bounds index.succ) path.2)
 
 /-- Arbitrary event durations add the distinct original dependency allowance of every stage. -/
-theorem forRange_depth_le_sum (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_depth_le_sum (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (duration : Resource.Event model → Nat) (budgets : Fin count → Nat)
     (bounds : ∀ index path, (body index).depth duration path ≤ budgets index)
     (path : (forRange count body).Path) :
@@ -81,7 +84,8 @@ theorem forRange_depth_le_sum (count : Nat) (body : Fin count → Circuit model 
         (ih _ (fun index => budgets index.succ) (fun index => bounds index.succ) path.2)
 
 /-- Actual serial event-duration equations compose on the same complete indexed-sequence path. -/
-theorem forRange_duration_eventTrace (count : Nat) (body : Fin count → Circuit model ctx ctx)
+lemma forRange_duration_eventTrace (count : Nat)
+    (body : Fin count → Circuit model ctx ctx allowAllocation)
     (duration : Resource.Event model → Nat)
     (equations : ∀ index path, (body index).depth duration path =
       (((body index).eventTrace path).map duration).sum)

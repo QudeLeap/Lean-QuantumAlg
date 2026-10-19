@@ -30,7 +30,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace Execution
 
 /-- With no borrowed quantum wires, each classical block retains its full reference matrix. -/
-theorem observeBorrowed_noQuantum_entry {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_noQuantum_entry {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference H)
     (value : ctx.borrowedClassicalShape.Value)
@@ -53,20 +53,23 @@ end Execution
 
 namespace Circuit
 
-variable {gates : GateModel} {oracles : OracleModel}
+variable {allowAllocation : Bool} {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+
+variable (environment : ExecutionModel.Environment
+  (.quantum gates oracles operations classicalOracles))
 
 open Execution
 
 /-- A local unitary restores every borrowed classical value jointly with its reference. -/
-theorem borrowedRestored_unitary_classicalReference {ctx : RuntimeCtx .quantum}
+lemma borrowedRestored_unitary_classicalReference {ctx : RuntimeCtx .quantum}
     (noQuantum : ctx.borrowedQuantumWires = []) {Reference : Register}
     {H : Type} [Fintype H] (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (state : State ctx Reference (classicalOracles.HiddenState × H)) :
-    (Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
-      program).BorrowedRestored Reference state
-      ((Circuit.unitary (operations := operations) (classicalOracles := classicalOracles)
-      program).execute Reference state) := by
+    (Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+      (classicalOracles := classicalOracles) program).BorrowedRestored Reference state
+      ((Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+        (classicalOracles := classicalOracles) program).execute environment Reference state) := by
   rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_unitary]
   apply ExecutionState.ext
   intro value
@@ -80,20 +83,22 @@ theorem borrowedRestored_unitary_classicalReference {ctx : RuntimeCtx .quantum}
   rw [← ExecutionState.applyUnitary_mapClassical state
     (fun label : Store ctx × (classicalOracles.HiddenState × H) => label.1.readBorrowedClassical)
     (fun _ : ctx.borrowedClassicalShape.Value =>
-      UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))]
-  exact DensityOperator.localUnitary_reference_entry program.matrix _ refLeft refRight
+      UnitaryOperator.prodTensor (program.matrix environment.quantum)
+        (1 : UnitaryOperator Reference))]
+  exact DensityOperator.localUnitary_reference_entry (program.matrix environment.quantum) _
+    refLeft refRight
 
 /-- Actual Z measurement preserves every borrowed classical-reference correlation. -/
-theorem borrowedRestored_measureZ_classicalReference {ctx : RuntimeCtx .quantum}
+lemma borrowedRestored_measureZ_classicalReference {ctx : RuntimeCtx .quantum}
     (noQuantum : ctx.borrowedQuantumWires = []) (item : ZReadout ctx)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (classicalOracles.HiddenState × H)) :
-    (Circuit.measureZ (gates := gates) (oracles := oracles)
+    (Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) item.wire
       item.output).BorrowedRestored Reference state
-      ((Circuit.measureZ (gates := gates) (oracles := oracles)
+      ((Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) item.wire
-        item.output).execute Reference state) := by
+        item.output).execute environment Reference state) := by
   rw [BorrowedRestored, observeBorrowedAfter_sameContext, execute_measureZ]
   apply ExecutionState.ext
   intro value
@@ -115,28 +120,33 @@ theorem borrowedRestored_measureZ_classicalReference {ctx : RuntimeCtx .quantum}
   · simp [same]
 
 /-- A finite actual Z sequence preserves borrowed classical inputs jointly with their reference. -/
-theorem borrowedRestored_measurementSequence_classicalReference {ctx : RuntimeCtx .quantum}
+lemma borrowedRestored_measurementSequence_classicalReference {ctx : RuntimeCtx .quantum}
     (noQuantum : ctx.borrowedQuantumWires = []) (readouts : List (ZReadout ctx))
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (classicalOracles.HiddenState × H)) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts).BorrowedRestored
       Reference state
-      ((measurementSequence (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := classicalOracles) readouts).execute
+      ((measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+        (oracles := oracles) (operations := operations)
+        (classicalOracles := classicalOracles) readouts).execute environment
         Reference state) := by
   induction readouts generalizing H with
   | nil =>
-      exact borrowedRestored_id (model := .quantum gates oracles operations classicalOracles)
+      exact borrowedRestored_id (environment := environment) (allowAllocation := allowAllocation)
+        (model := .quantum gates oracles operations classicalOracles)
         (ctx := ctx) (Reference := Reference) (H := H) state
   | cons head tail ih =>
-      exact borrowedRestored_seq
-        (Circuit.measureZ (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := classicalOracles) head.wire head.output)
-        (measurementSequence (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := classicalOracles) tail) state
-        (borrowedRestored_measureZ_classicalReference (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := classicalOracles)
+      exact borrowedRestored_seq (environment := environment)
+        (Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
+          (operations := operations) (classicalOracles := classicalOracles) head.wire head.output)
+        (measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+          (oracles := oracles) (operations := operations)
+          (classicalOracles := classicalOracles) tail) state
+        (borrowedRestored_measureZ_classicalReference
+          (environment := environment) (allowAllocation := allowAllocation)
+          (gates := gates) (oracles := oracles) (operations := operations)
+          (classicalOracles := classicalOracles)
           noQuantum head state) (ih _)
 
 end Circuit

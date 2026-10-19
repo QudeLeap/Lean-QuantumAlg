@@ -33,7 +33,7 @@ def RawSignedRepresents {signedWidth : Nat}
     (encoded.toNat : Int) value
 
 /-- A nonnegative raw representation below the word modulus has its natural value. -/
-theorem rawSignedRepresents_toNat_eq_of_lt {width value : Nat}
+lemma rawSignedRepresents_toNat_eq_of_lt {width value : Nat}
     (encoded : CShape.Word width)
     (represents : RawSignedRepresents encoded (value : Int))
     (valueFits : value < CShape.wordModulus width) :
@@ -44,7 +44,7 @@ theorem rawSignedRepresents_toNat_eq_of_lt {width value : Nat}
   exact congruence.eq_of_lt_of_lt encoded.toNat_lt valueFits
 
 /-- The canonical low-word encoding of an integer represents that integer. -/
-theorem rawSignedWordRepresents_ofInt (signedWidth : Nat) (value : Int) :
+lemma rawSignedWordRepresents_ofInt (signedWidth : Nat) (value : Int) :
     RawSignedRepresents
       (encodeWord (BoundedSigned.ofInt signedWidth value).encode) value := by
   unfold RawSignedRepresents Int.ModEq
@@ -63,7 +63,7 @@ def decodeRawSignedWord {signedWidth : Nat}
   (BoundedSigned.decode (decodeWord encoded)).toInt
 
 /-- A modulo-represented integer in the signed interval decodes exactly. -/
-theorem rawSignedRepresents_decode_eq {signedWidth : Nat}
+lemma rawSignedRepresents_decode_eq {signedWidth : Nat}
     (encoded : CShape.Word signedWidth) (value : Int)
     (widthPositive : 0 < signedWidth)
     (represents : RawSignedRepresents encoded value)
@@ -102,7 +102,7 @@ theorem rawSignedRepresents_decode_eq {signedWidth : Nat}
         widthPositive range.1 range.2
 
 /-- A literal word copy preserves every raw two's-complement representation. -/
-theorem rawSignedWordRepresents_copy {signedWidth : Nat}
+lemma rawSignedWordRepresents_copy {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents
@@ -110,7 +110,7 @@ theorem rawSignedWordRepresents_copy {signedWidth : Nat}
   simpa only [Resource.WordUnaryOpcode.eval] using represents
 
 /-- Resizing represents the source word's raw unsigned value at the target width. -/
-theorem rawSignedWordRepresents_wordResize
+lemma rawSignedWordRepresents_wordResize
     {sourceWidth targetWidth : Nat} (input : CShape.Word sourceWidth) :
     RawSignedRepresents (CShape.wordResize targetWidth input)
       (input.toNat : Int) := by
@@ -127,7 +127,7 @@ theorem rawSignedWordRepresents_wordResize
       exact Int.natCast_modEq_iff.mpr naturalCongruence
 
 /-- Truncating to a no-wider word preserves the represented integer. -/
-theorem rawSignedWordRepresents_resize_of_width_le
+lemma rawSignedWordRepresents_resize_of_width_le
     {sourceWidth targetWidth : Nat} (widthLe : targetWidth ≤ sourceWidth)
     (input : CShape.Word sourceWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
@@ -143,7 +143,7 @@ theorem rawSignedWordRepresents_resize_of_width_le
   exact resized.trans (represents.of_dvd modulusDvd)
 
 /-- No-wider resizing is the target-width two's-complement encoding. -/
-theorem rawResize_eq_ofInt_of_rawSignedRepresents
+lemma rawResize_eq_ofInt_of_rawSignedRepresents
     {sourceWidth targetWidth : Nat} (widthLe : targetWidth ≤ sourceWidth)
     (input : CShape.Word sourceWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
@@ -187,7 +187,7 @@ theorem rawResize_eq_ofInt_of_rawSignedRepresents
         (BoundedSigned.ofInt targetWidth value).encode.isLt
 
 /-- Incrementing a raw word represents addition by one modulo its width. -/
-theorem rawSignedWordRepresents_increment {signedWidth : Nat}
+lemma rawSignedWordRepresents_increment {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents
@@ -213,7 +213,7 @@ theorem rawSignedWordRepresents_increment {signedWidth : Nat}
         integerCongruence.trans valueCongruence
 
 /-- Low-word multiplication preserves the product modulo the shared width. -/
-theorem rawSignedWordRepresents_mulLow {signedWidth : Nat}
+lemma rawSignedWordRepresents_mulLow {signedWidth : Nat}
     (left right : CShape.Word signedWidth) (leftValue rightValue : Int)
     (leftRepresents : RawSignedRepresents left leftValue)
     (rightRepresents : RawSignedRepresents right rightValue) :
@@ -252,7 +252,7 @@ theorem rawSignedWordRepresents_mulLow {signedWidth : Nat}
             integerCongruence.trans productCongruence
 
 /-- Wrapping subtraction preserves the integer difference modulo the width. -/
-theorem rawSignedWordRepresents_sub {signedWidth : Nat}
+lemma rawSignedWordRepresents_sub {signedWidth : Nat}
     (left right : CShape.Word signedWidth) (leftValue rightValue : Int)
     (leftRepresents : RawSignedRepresents left leftValue)
     (rightRepresents : RawSignedRepresents right rightValue) :
@@ -301,7 +301,7 @@ theorem rawSignedWordRepresents_sub {signedWidth : Nat}
           exact integerCongruence.trans wrappedCongruence
 
 /-- A literal low word represents its source natural number modulo its width. -/
-theorem rawSignedWordRepresents_wordOfNat (signedWidth value : Nat) :
+lemma rawSignedWordRepresents_wordOfNat (signedWidth value : Nat) :
     RawSignedRepresents (CShape.wordOfNat signedWidth value) (value : Int) := by
   change
     ((value % CShape.wordModulus signedWidth : Nat) : Int) ≡
@@ -311,7 +311,7 @@ theorem rawSignedWordRepresents_wordOfNat (signedWidth value : Nat) :
     (Nat.mod_modEq value (CShape.wordModulus signedWidth))
 
 /-- Complementing a raw word represents negation followed by subtraction of one. -/
-theorem rawSignedWordRepresents_complement {signedWidth : Nat}
+lemma rawSignedWordRepresents_complement {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents
@@ -357,7 +357,7 @@ theorem rawSignedWordRepresents_complement {signedWidth : Nat}
       exact integerCongruence.trans wrappedCongruence
 
 /-- Decrementing a raw word represents subtraction of one modulo its width. -/
-theorem rawSignedWordRepresents_decrement {signedWidth : Nat}
+lemma rawSignedWordRepresents_decrement {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents
@@ -368,7 +368,7 @@ theorem rawSignedWordRepresents_decrement {signedWidth : Nat}
       represents (rawSignedWordRepresents_wordOfNat signedWidth 1)
 
 /-- Wrapping addition preserves the signed integer sum modulo the shared width. -/
-theorem rawSignedWordRepresents_add {signedWidth : Nat}
+lemma rawSignedWordRepresents_add {signedWidth : Nat}
     (left right : CShape.Word signedWidth) (leftValue rightValue : Int)
     (leftRepresents : RawSignedRepresents left leftValue)
     (rightRepresents : RawSignedRepresents right rightValue) :
@@ -406,7 +406,7 @@ theorem rawSignedWordRepresents_add {signedWidth : Nat}
             integerCongruence.trans sumCongruence
 
 /-- A one-bit raw left shift represents multiplication by two modulo the width. -/
-theorem rawSignedWordRepresents_shiftLeft {signedWidth : Nat}
+lemma rawSignedWordRepresents_shiftLeft {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents
@@ -432,7 +432,7 @@ theorem rawSignedWordRepresents_shiftLeft {signedWidth : Nat}
         integerCongruence.trans doubledCongruence
 
 /-- Complement followed by increment represents raw two's-complement negation. -/
-theorem rawSignedWordRepresents_negate {signedWidth : Nat}
+lemma rawSignedWordRepresents_negate {signedWidth : Nat}
     (input : CShape.Word signedWidth) (value : Int)
     (represents : RawSignedRepresents input value) :
     RawSignedRepresents

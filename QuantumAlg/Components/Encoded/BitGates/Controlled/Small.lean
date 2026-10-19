@@ -23,7 +23,7 @@ noncomputable section
 variable {Left Right : Type} {left : BinaryLabelEncoding Left}
   {right : BinaryLabelEncoding Right}
 
-private theorem no_three_wires (small : right.width ≤ 2)
+private lemma no_three_wires (small : right.width ≤ 2)
     (a b c : EncodedBit right) (ab : a.wire ≠ b.wire)
     (ac : a.wire ≠ c.wire) (bc : b.wire ≠ c.wire) : False := by
   have ha := a.wire.isLt
@@ -51,7 +51,7 @@ def controlSmall (control : EncodedBit left) (small : right.width ≤ 2) :
   | .toffoli a b c ab ac bc => False.elim (no_three_wires small a b c ab ac bc)
 
 /-- Controlled small gates emit no single-qubit instruction. -/
-@[simp] theorem controlSmall_xMultiplicity (control : EncodedBit left)
+@[simp] lemma controlSmall_xMultiplicity (control : EncodedBit left)
     (small : right.width ≤ 2) (gate : GateSpec right) :
     xMultiplicity (controlSmall control small gate) = 0 := by
   cases gate with
@@ -60,7 +60,7 @@ def controlSmall (control : EncodedBit left) (small : right.width ≤ 2) :
   | toffoli a b c ab ac bc => exact False.elim (no_three_wires small a b c ab ac bc)
 
 /-- Each source X emits one CNOT. -/
-@[simp] theorem controlSmall_cnotMultiplicity (control : EncodedBit left)
+@[simp] lemma controlSmall_cnotMultiplicity (control : EncodedBit left)
     (small : right.width ≤ 2) (gate : GateSpec right) :
     cnotMultiplicity (controlSmall control small gate) = xMultiplicity gate := by
   cases gate with
@@ -69,7 +69,7 @@ def controlSmall (control : EncodedBit left) (small : right.width ≤ 2) :
   | toffoli a b c ab ac bc => exact False.elim (no_three_wires small a b c ab ac bc)
 
 /-- Each source CNOT emits one Toffoli. -/
-@[simp] theorem controlSmall_toffoliMultiplicity (control : EncodedBit left)
+@[simp] lemma controlSmall_toffoliMultiplicity (control : EncodedBit left)
     (small : right.width ≤ 2) (gate : GateSpec right) :
     toffoliMultiplicity (controlSmall control small gate) = cnotMultiplicity gate := by
   cases gate with
@@ -78,7 +78,7 @@ def controlSmall (control : EncodedBit left) (small : right.width ≤ 2) :
   | toffoli a b c ab ac bc => exact False.elim (no_three_wires small a b c ab ac bc)
 
 /-- Both branches have their exact basis action, with every left-field bit retained. -/
-theorem controlSmall_step (control : EncodedBit left) (small : right.width ≤ 2)
+lemma controlSmall_step (control : EncodedBit left) (small : right.width ≤ 2)
     (gate : GateSpec right) (state : Left × Right) :
     (controlSmall control small gate).step state =
       (state.1, if control.get state.1 then gate.step state.2 else state.2) := by
@@ -94,7 +94,7 @@ theorem controlSmall_step (control : EncodedBit left) (small : right.width ≤ 2
   | toffoli a b c ab ac bc => exact False.elim (no_three_wires small a b c ab ac bc)
 
 /-- Literal control of the list preserves order and requires no additional work bit. -/
-theorem controlSmallList_step (control : EncodedBit left) (small : right.width ≤ 2)
+lemma controlSmallList_step (control : EncodedBit left) (small : right.width ≤ 2)
     (gates : List (GateSpec right)) (state : Left × Right) :
     stepList (gates.map (controlSmall control small)) state =
       (state.1, if control.get state.1 then stepList gates state.2 else state.2) := by
@@ -107,17 +107,18 @@ theorem controlSmallList_step (control : EncodedBit left) (small : right.width �
       cases control.get state.1 <;> simp [stepList]
 
 /-- The compiled word realizes the conditional action with exact phase. -/
-theorem controlSmallList_realizes (control : EncodedBit left) (small : right.width ≤ 2)
+lemma controlSmallList_realizes (control : EncodedBit left) (small : right.width ≤ 2)
     (physical : QubitLayout (left.width + right.width)) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (gates : List (GateSpec right)) :
     UnitaryCircuit.Realizes (layout := physical) (BinaryLabelEncoding.prod left right)
-      (programList physical oracles (gates.map (controlSmall control small)))
+      (programList physical oracles (gates.map (controlSmall control small))) environment
       (fun state => (state.1,
         if control.get state.1 then stepList gates state.2 else state.2)) :=
-  realizesList_congrStep physical oracles _ (controlSmallList_step control small gates)
+  realizesList_congrStep physical oracles _ (controlSmallList_step control small gates) environment
 
 /-- One physical instruction is emitted for each source X or CNOT. -/
-theorem controlSmallList_resources (control : EncodedBit left) (small : right.width ≤ 2)
+lemma controlSmallList_resources (control : EncodedBit left) (small : right.width ≤ 2)
     (physical : QubitLayout (left.width + right.width)) (oracles : OracleModel)
     (gates : List (GateSpec right)) :
     (programList physical oracles (gates.map (controlSmall control small))).eventCost.card =

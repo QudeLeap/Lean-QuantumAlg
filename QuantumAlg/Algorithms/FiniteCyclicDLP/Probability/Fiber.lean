@@ -94,7 +94,7 @@ order. -/
     Fin (2 ^ orderWidth P) :=
   selectedRawFrequency P (residueIndex P value)
 
-public theorem selectedIndex_injective (P : KnownOrderProblem G) :
+public lemma selectedIndex_injective (P : KnownOrderProblem G) :
     Function.Injective (selectedIndex P) := by
   let _ : NeZero P.order := ⟨P.order_ne_zero⟩
   intro left right h
@@ -111,7 +111,7 @@ public theorem selectedIndex_injective (P : KnownOrderProblem G) :
   ⟨(k.val + input.secret.val * b.val) % P.order,
     Nat.mod_lt _ P.order_pos⟩
 
-public theorem oracleMultiplier_fiber (P : KnownOrderProblem G)
+public lemma oracleMultiplier_fiber (P : KnownOrderProblem G)
     (input : SecretInput P) (k b : Fin P.order) :
     P.toSourceScope.oracleMultiplier (fiberLeft P input k b).val b.val =
       P.generator ^ k.val := by
@@ -125,7 +125,7 @@ public theorem oracleMultiplier_fiber (P : KnownOrderProblem G)
   rw [← input.target_eq_generator_pow, ← pow_mul, hleft, pow_add]
   simp [mul_assoc]
 
-public theorem oracleMultiplier_eq_generator_pow_iff
+public lemma oracleMultiplier_eq_generator_pow_iff
     (P : KnownOrderProblem G) (input : SecretInput P)
     (a b k : Fin P.order) :
     P.toSourceScope.oracleMultiplier a.val b.val = P.generator ^ k.val ↔
@@ -159,7 +159,7 @@ public theorem oracleMultiplier_eq_generator_pow_iff
     exact oracleMultiplier_fiber P input k b
 
 
-public theorem sum_fin_fourierModulus_if_sourceRange
+public lemma sum_fin_fourierModulus_if_sourceRange
     (P : KnownOrderProblem G) (f : Fin P.order → ℂ) :
     (∑ i : Fin (2 ^ orderWidth P),
       if hi : i.val < P.order then f ⟨i.val, hi⟩ else 0) =
@@ -204,7 +204,7 @@ private def selectedError (P : KnownOrderProblem G) (residue : Fin P.order) :
   (selectedRawFrequency P residue).val * P.order -
     residue.val * fourierModulus P
 
-private theorem selectedRawFrequency_mul_order (P : KnownOrderProblem G)
+private lemma selectedRawFrequency_mul_order (P : KnownOrderProblem G)
     (residue : Fin P.order) :
     (selectedRawFrequency P residue).val * P.order =
       residue.val * fourierModulus P + selectedError P residue := by
@@ -229,7 +229,7 @@ private def balanceQuotient (P : KnownOrderProblem G)
   (input.secret.val * (selectedLeftResidue P unit).val +
       (selectedRightResidue P input unit).val) / P.order
 
-private theorem secret_mul_left_add_right_eq_order_mul_balanceQuotient
+private lemma secret_mul_left_add_right_eq_order_mul_balanceQuotient
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) :
     input.secret.val * (selectedLeftResidue P unit).val +
@@ -270,7 +270,7 @@ private def fiberQuotient (P : KnownOrderProblem G) (input : SecretInput P)
     (tail b : Fin P.order) : Nat :=
   (tail.val + input.secret.val * b.val) / P.order
 
-private theorem fiber_mod_add_order_mul_quotient
+private lemma fiber_mod_add_order_mul_quotient
     (P : KnownOrderProblem G) (input : SecretInput P)
     (tail b : Fin P.order) :
     (fiberLeft P input tail b).val +
@@ -293,7 +293,7 @@ public def phaseError (P : KnownOrderProblem G) (input : SecretInput P)
         (residueIndex P (-input.secret * (unit : ZMod P.order))).val *
           fourierModulus P)
 
-private theorem phaseError_eq_selectedErrors
+private lemma phaseError_eq_selectedErrors
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail b : Fin P.order) :
     phaseError P input unit tail b =
@@ -302,7 +302,7 @@ private theorem phaseError_eq_selectedErrors
         b.val * selectedError P (selectedRightResidue P input unit) := by
   rfl
 
-private theorem hiddenLine_phase_nat_identity
+private lemma hiddenLine_phase_nat_identity
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail b : Fin P.order) :
     P.order *
@@ -417,7 +417,7 @@ the selected outcome probability.  [Sho95, source.tex:1742-1775] -/
     (-(2 * Real.pi * ((phaseError P input unit tail b : Nat) : ℝ) /
       ((P.order : ℝ) * (fourierModulus P : ℝ))) * Complex.I)
 
-theorem selectedFiberPhase_eq_tail_mul_error
+lemma selectedFiberPhase_eq_tail_mul_error
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail b : Fin P.order) :
     selectedFiberPhase P input unit tail b =
@@ -488,11 +488,11 @@ theorem selectedFiberPhase_eq_tail_mul_error
   ring_nf at hcomplex ⊢
   exact hcomplex
 
-private theorem selectedError_lt_order (P : KnownOrderProblem G)
+private lemma selectedError_lt_order (P : KnownOrderProblem G)
     (residue : Fin P.order) : selectedError P residue < P.order := by
   simpa [selectedError] using selectedRawFrequency_error_lt_order P residue
 
-private theorem six_mul_phaseError_le (P : KnownOrderProblem G)
+private lemma six_mul_phaseError_le (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (tail b : Fin P.order) :
     6 * phaseError P input unit tail b ≤ P.order * fourierModulus P := by
@@ -529,7 +529,7 @@ private def phaseAngle (P : KnownOrderProblem G) (input : SecretInput P)
   -(2 * Real.pi * (phaseError P input unit tail b : ℝ) /
     ((P.order : ℝ) * (fourierModulus P : ℝ)))
 
-private theorem abs_phaseAngle_le_pi_div_three (P : KnownOrderProblem G)
+private lemma abs_phaseAngle_le_pi_div_three (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (tail b : Fin P.order) :
     |phaseAngle P input unit tail b| ≤ Real.pi / 3 := by
@@ -560,7 +560,7 @@ private theorem abs_phaseAngle_le_pi_div_three (P : KnownOrderProblem G)
       mul_le_mul_of_nonneg_left hratio (by positivity)
     _ = Real.pi / 3 := by ring
 
-private theorem one_half_le_re_selectedErrorPhase (P : KnownOrderProblem G)
+private lemma one_half_le_re_selectedErrorPhase (P : KnownOrderProblem G)
     (input : SecretInput P) (unit : (ZMod P.order)ˣ)
     (tail b : Fin P.order) :
     (1 : ℝ) / 2 ≤ (selectedErrorPhase P input unit tail b).re := by
@@ -580,13 +580,13 @@ private theorem one_half_le_re_selectedErrorPhase (P : KnownOrderProblem G)
     (by nlinarith [Real.pi_pos])
     (abs_phaseAngle_le_pi_div_three P input unit tail b)
 
-@[simp] theorem norm_selectedTailPhase (P : KnownOrderProblem G)
+@[simp] lemma norm_selectedTailPhase (P : KnownOrderProblem G)
     (unit : (ZMod P.order)ˣ) (tail : Fin P.order) :
     ‖selectedTailPhase P unit tail‖ = 1 := by
   rw [selectedTailPhase, Complex.norm_exp]
   simp
 
-public theorem half_order_le_norm_sum_selectedFiberPhase
+public lemma half_order_le_norm_sum_selectedFiberPhase
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail : Fin P.order) :
     (P.order : ℝ) / 2 ≤
@@ -616,7 +616,7 @@ public theorem half_order_le_norm_sum_selectedFiberPhase
         selectedErrorPhase P input unit tail b‖ :=
       Complex.re_le_norm _
 
-private theorem invSqrtOrder_mul_self (P : KnownOrderProblem G) :
+private lemma invSqrtOrder_mul_self (P : KnownOrderProblem G) :
     invSqrtOrder P.order * invSqrtOrder P.order =
       (((P.order : ℝ) : ℂ))⁻¹ := by
   rw [invSqrtOrder, ← mul_inv, ← Complex.ofReal_mul,
@@ -627,7 +627,7 @@ private theorem invSqrtOrder_mul_self (P : KnownOrderProblem G) :
   ((((2 : ℝ) ^ orderWidth P : ℂ))⁻¹) *
     (((P.order : ℝ) : ℂ))⁻¹
 
-public theorem selectedFiberTerm_eq_scale_mul_phase
+public lemma selectedFiberTerm_eq_scale_mul_phase
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail b : Fin P.order) :
     selectedFiberTerm input
@@ -675,7 +675,7 @@ public theorem selectedFiberTerm_eq_scale_mul_phase
       norm_num [Nat.cast_pow]
 
 /-- The original selected Fourier fiber has its calibrated backend-independent amplitude floor. -/
-theorem one_div_two_fourierModulus_le_norm_sum_selectedFiberTerm
+lemma one_div_two_fourierModulus_le_norm_sum_selectedFiberTerm
     (P : KnownOrderProblem G) (input : SecretInput P)
     (unit : (ZMod P.order)ˣ) (tail : Fin P.order) :
     1 / (2 * (fourierModulus P : ℝ)) ≤

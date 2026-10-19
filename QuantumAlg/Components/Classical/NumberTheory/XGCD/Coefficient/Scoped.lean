@@ -66,7 +66,8 @@ def coefficientUpdatedCell (ctx : RuntimeCtx kind) (width : Nat) :
     (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (coefficientProductCtx ctx width).canonicalFreshKey_fresh
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Execute the four-operation recurrence inside two actual lexical allocations. -/
 def scopedCoefficientUpdate (quotient : CInputRef ctx (.unsignedWord width))
@@ -95,11 +96,12 @@ def scopedCoefficientStep (quotient : CInputRef ctx (.unsignedWord width))
     final.2)
 
 /-- Both lexical scopes preserve every full quantum-reference block and the actual body path. -/
-theorem xgcdScopedCoefficient_execute (quotient : CInputRef ctx (.unsignedWord width))
+lemma xgcdScopedCoefficient_execute (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scopedCoefficientUpdate (model := model) quotient first second).execute Reference state =
+    (scopedCoefficientUpdate (model := model) quotient first second).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((scopedCoefficientStep (model := model) quotient first second entry.1).1,
           (entry.2.1, (entry.2.2, (scopedCoefficientStep
@@ -122,10 +124,11 @@ theorem xgcdScopedCoefficient_execute (quotient : CInputRef ctx (.unsignedWord w
     ((Store.popWorkspace (coefficientProductCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (coefficientProductCtx ctx width).canonicalFreshKey_fresh final.1.1,
       final.1.2), final.2)
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh inner innerUpdate
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
-  · exact Circuit.execute_workspace_mapClassical
+  · exact Circuit.execute_workspace_mapClassical (environment := environment)
       (coefficientProductCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (coefficientProductCtx ctx width).canonicalFreshKey_fresh body update
       (fun reference {_} _ initial => by
@@ -137,7 +140,7 @@ theorem xgcdScopedCoefficient_execute (quotient : CInputRef ctx (.unsignedWord w
   · congr 1
 
 omit [BitWord.Selected model] in
-private theorem coefficientFresh_ne_cell {shape : CShape} (cell : CWriteRef ctx shape) :
+private lemma coefficientFresh_ne_cell {shape : CShape} (cell : CWriteRef ctx shape) :
     ctx.canonicalFreshKey ≠ cell.key := by
   intro same
   apply ctx.canonicalFreshKey_fresh
@@ -145,11 +148,11 @@ private theorem coefficientFresh_ne_cell {shape : CShape} (cell : CWriteRef ctx 
   exact List.mem_map_of_mem cell.toCStorageRef.present
 
 omit [BitWord.Selected model] in
-private theorem coefficientWriteUnderScratch_key (cell : CWriteRef ctx (.unsignedWord width)) :
+private lemma coefficientWriteUnderScratch_key (cell : CWriteRef ctx (.unsignedWord width)) :
     (coefficientWriteUnderScratch cell).key = cell.key := rfl
 
 /-- Every original read outside the persistent coefficient cells survives both scratch releases. -/
-theorem xgcdScopedCoefficient_read_other (quotient : CInputRef ctx (.unsignedWord width))
+lemma xgcdScopedCoefficient_read_other (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width)) {observed : CShape}
     (other : CInputRef ctx observed)
     (firstFree : first.key ∉ other.storageKeys) (secondFree : second.key ∉ other.storageKeys)
@@ -183,7 +186,7 @@ theorem xgcdScopedCoefficient_read_other (quotient : CInputRef ctx (.unsignedWor
         ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
 /-- The actual allocated scratch leaves only persistent-cell separation to the state layout. -/
-theorem xgcdScopedCoefficient_store_values (quotient : CInputRef ctx (.unsignedWord width))
+lemma xgcdScopedCoefficient_store_values (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width)) (different : first.key ≠ second.key)
     (store : Store ctx) :
     let final := (scopedCoefficientStep (model := model) quotient first second store).1
@@ -214,7 +217,7 @@ theorem xgcdScopedCoefficient_store_values (quotient : CInputRef ctx (.unsignedW
     Store.read_pushWorkspace_underWorkspace] using actual
 
 /-- Lexical allocation adds no padding operation to the original four-instruction trace. -/
-theorem xgcdScopedCoefficient_eventTrace (quotient : CInputRef ctx (.unsignedWord width))
+lemma xgcdScopedCoefficient_eventTrace (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (path : (scopedCoefficientUpdate (model := model) quotient first second).Path) :
     (scopedCoefficientUpdate (model := model) quotient first second).eventTrace path =

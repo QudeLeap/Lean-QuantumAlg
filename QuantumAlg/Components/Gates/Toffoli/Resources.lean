@@ -19,7 +19,7 @@ namespace QuantumAlg.Gate.Toffoli
 noncomputable section
 
 /-- The complete event pool counts every phase, boundary Hadamard and parity CNOT. -/
-theorem toffoliExpansion_eventCost (oracles : OracleModel) :
+lemma toffoliExpansion_eventCost (oracles : OracleModel) :
     (circuit oracles).eventCost =
       9 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) +
@@ -32,7 +32,7 @@ theorem toffoliExpansion_eventCost (oracles : OracleModel) :
   ac_rfl
 
 /-- Exactly nine native single-qubit operations occur in the same expansion. -/
-theorem toffoliExpansion_singleQubit_count (oracles : OracleModel) :
+lemma toffoliExpansion_singleQubit_count (oracles : OracleModel) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
       (.gate AlgorithmGate.Coordinate.singleQubit)
       (circuit oracles).eventCost = 9 := by
@@ -40,14 +40,14 @@ theorem toffoliExpansion_singleQubit_count (oracles : OracleModel) :
   simp
 
 /-- Exactly six native CNOT operations occur in the same expansion. -/
-theorem toffoliExpansion_cnot_count (oracles : OracleModel) :
+lemma toffoliExpansion_cnot_count (oracles : OracleModel) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
       (.gate AlgorithmGate.Coordinate.cnot) (circuit oracles).eventCost = 6 := by
   rw [toffoliExpansion_eventCost]
   simp
 
 /-- The expanded construction contains no residual native three-qubit gate. -/
-theorem toffoliExpansion_toffoli_count (oracles : OracleModel) :
+lemma toffoliExpansion_toffoli_count (oracles : OracleModel) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
       (.gate AlgorithmGate.Coordinate.toffoli)
       (circuit oracles).eventCost = 0 := by

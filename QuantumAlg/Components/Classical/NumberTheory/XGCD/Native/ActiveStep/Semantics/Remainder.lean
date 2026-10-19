@@ -25,7 +25,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual body rotates total remainders and refreshes activity against the fresh zero cell. -/
-theorem xgcdNativeActiveBody_remainder_values
+lemma xgcdNativeActiveBody_remainder_values
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (scratch : Cells ctx (activeScratchShapes width)) (scratchDistinct : scratch.Distinct)
     (cross : CrossSeparated cells scratch) (zero : CInputRef ctx (.unsignedWord width))

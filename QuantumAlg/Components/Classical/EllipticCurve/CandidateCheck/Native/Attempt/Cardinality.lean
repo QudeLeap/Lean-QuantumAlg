@@ -24,11 +24,11 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 open FiniteCyclicDLP.RawRecovery.Native
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The actual complete attempt retains the original public numerical event ceiling. -/
-theorem attemptEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma attemptEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth) :
     (attemptEnvelope model curve modulus).card ≤
@@ -40,7 +40,7 @@ theorem attemptEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model
   omega
 
 /-- Every actual path of the original six-stage attempt satisfies its original event bound. -/
-theorem attemptInto_eventCount_le (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma attemptInto_eventCount_le (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord scalarWidth))

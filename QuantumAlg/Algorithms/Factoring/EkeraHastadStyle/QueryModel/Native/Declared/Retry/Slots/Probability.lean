@@ -26,39 +26,42 @@ open Execution
 
 noncomputable section
 
-variable (base : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+variable (base : RuntimeCtx .quantum) (N : Nat)
+
+variable {environment : (model N).Environment}
 
 /-- Actual selector-cell allocation begins with no accepted factor in each
 external-reference matrix coefficient. -/
-theorem allocation_selected_reference
+lemma allocation_selected_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Native.Retry.Slots.allocate (model := model input) base (modulusBits N)).execute
-        Reference state)
+      ((Native.Retry.Slots.allocate (model := model N) base (modulusBits N)).execute
+        environment Reference state)
       (fun entry _ => weight (CShape.packOption
         (entry.1.read (originalSelectionInput base N))))
       left right =
     ExecutionState.referenceFiberSum state (fun _ _ => weight .optionNone) left right := by
-  let update := fun entry : Store base × ((model input).HiddenState × History) =>
+  let update := fun entry : Store base × ((model N).HiddenState × History) =>
     (Slots.pushStore base (modulusBits N) entry.1,
       (entry.2.1, (entry.2.2, ((), ((), ())))))
   let observe := fun store : Store (callerContext base N) =>
     weight (CShape.packOption (store.read (originalSelectionInput base N)))
   have executed := congrArg
     (fun output : State (callerContext base N) Reference
-        ((model input).HiddenState ×
+        ((model N).HiddenState ×
           (History × (Native.Retry.Slots.allocate
-            (model := model input) base (modulusBits N)).Path)) =>
+            (model := model N) base (modulusBits N)).Path)) =>
       ExecutionState.referenceFiberSum output
         (fun entry _ => observe entry.1) left right)
-    (Slots.allocate_execute (model := model input) base (modulusBits N) Reference state)
+    (Slots.allocate_execute (model := model N) (environment := environment) base (modulusBits
+      N) Reference state)
   refine executed.trans ((ExecutionState.referenceFiberSum_mapClassical state update
     (fun entry _ => observe entry.1) left right).trans ?_)
   apply congrArg
-    (fun observed : (Store base × ((model input).HiddenState × History)) →
+    (fun observed : (Store base × ((model N).HiddenState × History)) →
         base.register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observed left right)
   funext entry basis

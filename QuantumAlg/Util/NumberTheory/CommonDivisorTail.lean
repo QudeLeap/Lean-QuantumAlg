@@ -40,7 +40,7 @@ def commonDivisorPairs (X D : Nat) : Finset (Nat × Nat) :=
   (Finset.Icc D (X - 1)).biUnion fun d =>
     (positiveMultiplesBelow X d).product (positiveMultiplesBelow X d)
 
-theorem card_positiveMultiplesBelow (X d : Nat) (hX : 0 < X) :
+lemma card_positiveMultiplesBelow (X d : Nat) (hX : 0 < X) :
     (positiveMultiplesBelow X d).card = (X - 1) / d := by
   unfold positiveMultiplesBelow
   simpa [Nat.sub_add_cancel (by omega : 1 ≤ X)] using
@@ -48,7 +48,7 @@ theorem card_positiveMultiplesBelow (X d : Nat) (hX : 0 < X) :
 
 /-- A positive bounded pair with gcd at least `D` belongs to the explicit
 common-multiple union. -/
-theorem mem_commonDivisorPairs {X D a b : Nat}
+lemma mem_commonDivisorPairs {X D a b : Nat}
     (haPos : 0 < a) (hbPos : 0 < b)
     (haLt : a < X) (hbLt : b < X)
     (hlarge : D ≤ Nat.gcd a b) :
@@ -69,7 +69,7 @@ theorem mem_commonDivisorPairs {X D a b : Nat}
 
 /-- The elementary square-summable union bound.  The factor `2` is the
 standard tail estimate `sum_{d≥D} 1/d² ≤ 2/D`. -/
-theorem commonDivisorPairs_card_bound (X D : Nat) (hX : 0 < X)
+lemma commonDivisorPairs_card_bound (X D : Nat) (hX : 0 < X)
     (hD : 0 < D) :
     (D : Real) * (commonDivisorPairs X D).card ≤ 2 * (X : Real) ^ 2 := by
   have hcardNat :

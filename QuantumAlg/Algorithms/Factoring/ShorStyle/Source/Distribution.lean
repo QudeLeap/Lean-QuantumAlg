@@ -28,7 +28,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical
 noncomputable section
 
 /-- The declared source operator selected by the sampled public residue. -/
-theorem sourceAccess {N : Nat} (input : Input N)
+lemma sourceAccess {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     OrderFinding.ModExpOracleAccess N (parameterValue input sample).first.toNat
       (phaseBits N) (modulusBits N) where

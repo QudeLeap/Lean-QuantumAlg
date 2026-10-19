@@ -31,8 +31,9 @@ attribute [local instance] Classical.decEq
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Actual bank and measurement/reset-cell allocation fixes zero without an input seed. -/
-theorem ecdlpInitialAllocation_reinitializedAt (I : ECDLPInstance E) (A : Access I) :
-    Circuit.ReinitializedAt (Sampling.Reuse.initialCode I A) (Sampling.Reuse.zeroSeed I) := by
+lemma ecdlpInitialAllocation_reinitializedAt (I : ECDLPInstance E) (A : Access I) :
+    Circuit.ReinitializedAt (Sampling.Reuse.initialCode I) (Sampling.sourceEnvironment I A)
+      (Sampling.Reuse.zeroSeed I) := by
   have empty : (Sampling.Reuse.context I).borrowedSelection = ∅ := by
     ext wire
     simp [RuntimeCtx.mem_borrowedSelection, Sampling.Reuse.ecdlpReuse_noBorrowedQuantum I]
@@ -40,25 +41,29 @@ theorem ecdlpInitialAllocation_reinitializedAt (I : ECDLPInstance E) (A : Access
   unfold Circuit.ReinitializedAt Sampling.Reuse.zeroSeed
   rw [all]
   intro Reference History _ state record
-  have allocated := BasisSeeded.retain (model := Sampling.executionModel I A)
-    (Sampling.post I).quantumLayout.zeroLabel ((Sampling.initialCode I A).execute Reference state)
+  have allocated := BasisSeeded.retain (environment := Sampling.sourceEnvironment I A)
+    (model := Sampling.executionModel I)
+    (Sampling.post I).quantumLayout.zeroLabel ((Sampling.initialCode I).execute
+      (Sampling.sourceEnvironment I A) Reference state)
     (Sampling.initialCode_seeded I A state) (Sampling.post I).canonicalFreshKey (.finite 2)
     (Sampling.post I).canonicalFreshKey_fresh
-  have seeded := BasisSeeded.seq (Sampling.initialCode I A)
-    (Circuit.retain (model := Sampling.executionModel I A) (Sampling.post I)
+  have seeded := BasisSeeded.seq (environment := Sampling.sourceEnvironment I A)
+    (Sampling.initialCode I)
+    (Circuit.retain (model := Sampling.executionModel I) (Sampling.post I)
       (Sampling.post I).canonicalFreshKey (.finite 2) (Sampling.post I).canonicalFreshKey_fresh)
     (Sampling.Reuse.context I).quantumLayout.zeroLabel state allocated
   exact BasisSeeded.block_pure_fullSelection (Sampling.Reuse.context I).quantumLayout.zeroLabel
-    ((Sampling.Reuse.initialCode I A).execute Reference state) seeded record
+    ((Sampling.Reuse.initialCode I).execute (Sampling.sourceEnvironment I A) Reference state)
+      seeded record
 
 namespace Recovery
 
 open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 /-- Actual initialization and seven destinations establish the unchanged zero bank. -/
-public theorem ecdlpRecovery_allocation_reinitializedAt (I : ECDLPInstance E) (A : Access I) :
-    Circuit.ReinitializedAt (allocationCode I A) (roundZeroSeed I) :=
-  followedByPersistentAt (Sampling.Reuse.initialCode I A) (fieldWidth E) (scalarWidth I)
+public lemma ecdlpRecovery_allocation_reinitializedAt (I : ECDLPInstance E) (A : Access I) :
+    Circuit.ReinitializedAt (allocationCode I) (Sampling.sourceEnvironment I A) (roundZeroSeed I) :=
+  followedByPersistentAt (Sampling.Reuse.initialCode I) (fieldWidth E) (scalarWidth I)
     (Sampling.Reuse.zeroSeed I) (ecdlpInitialAllocation_reinitializedAt I A)
 
 end Recovery

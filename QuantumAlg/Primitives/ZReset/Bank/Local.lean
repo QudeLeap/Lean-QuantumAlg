@@ -28,23 +28,32 @@ namespace QuantumAlg.ZReset.Bank
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 open Execution
 
 variable {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
+  {environment :
+    (ExecutionModel.quantum AlgorithmGate.model oracles .empty services).Environment}
 
 /-- The actual reset has pure zero local density at its real subnormalized mass. -/
-theorem zResetBank_localDensity_pure
+lemma zResetBank_localDensity_pure {allowAllocation : Bool}
     (qubits : ∀ wire : Fin ctx.systemCount, (ctx.quantumLayout.wire wire).dimension = 2)
     (scratch : CWriteRef ctx (.finite 2)) (operations : ClassicalOpModel)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum AlgorithmGate.model oracles operations).HiddenState × History)) :
+      ((ExecutionModel.quantum AlgorithmGate.model oracles operations services).HiddenState ×
+        History)) :
     (StatePromise.pure
       (NormalizedVector.ket (R := ctx.register) ctx.quantumLayout.zeroLabel)).Holds
-        ((code (oracles := oracles) qubits scratch operations).execute
-          Reference state).quantumMarginal.marginalLeft := by
+        ((code (allowAllocation := allowAllocation) (services := services) (oracles := oracles)
+            qubits scratch operations).execute
+      ⟨environment.quantum, environment.classical⟩
+        Reference state).quantumMarginal.marginalLeft := by
   have erased := congrArg ExecutionState.quantumMarginal
-    (ZReset.sequence_execute_operationModel (implementations (oracles := oracles) qubits)
+    (ZReset.sequence_execute_operationModel (environment := environment)
+      (allowAllocation := allowAllocation) (implementations
+        (oracles := oracles) qubits)
       (readouts qubits scratch) operations state)
   simp only [State.mapHistory_quantumMarginal] at erased
   apply StatePromise.statePromise_pureKet_of_row_support
@@ -52,13 +61,18 @@ theorem zResetBank_localDensity_pure
   rw [DensityOperator.marginalLeft_matrix]
   apply Finset.sum_eq_zero
   intro reference _
-  change ((ZReset.sequence (implementations (oracles := oracles) qubits)
-    (readouts qubits scratch) operations).execute Reference state).quantumMarginal.matrix
+  change ((ZReset.sequence (allowAllocation := allowAllocation) (services := services)
+      (implementations (oracles := oracles) qubits)
+    (readouts qubits scratch) operations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference state).quantumMarginal.matrix
       (row, reference) (column, reference) = 0
   rw [erased]
-  change ((code (oracles := oracles) qubits scratch).execute Reference state).quantumMarginal.matrix
+  change ((code (allowAllocation := allowAllocation) (services := services) (oracles := oracles)
+      qubits scratch).execute
+      ⟨environment.quantum, environment.classical⟩ Reference
+    state).quantumMarginal.matrix
     (row, reference) (column, reference) = 0
-  rw [zResetBank_complete_entry]
+  rw [zResetBank_complete_entry (allowAllocation := allowAllocation)]
   simp only [different, false_and, if_false]
 
 end

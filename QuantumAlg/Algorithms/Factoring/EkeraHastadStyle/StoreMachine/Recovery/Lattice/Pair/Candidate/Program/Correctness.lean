@@ -33,7 +33,7 @@ structure Outcome (input : Input N) (generator : (ZMod N)ˣ) (refs : Refs ctx N)
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Original source input assumptions suffice for the actual complete pair-candidate circuit. -/
-theorem pairCandidateRecoveryInto_correct (input : Input N) (generator : (ZMod N)ˣ)
+lemma pairCandidateRecoveryInto_correct (input : Input N) (generator : (ZMod N)ˣ)
     (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     Outcome input generator refs store (recoveryStep input refs store).1 := by

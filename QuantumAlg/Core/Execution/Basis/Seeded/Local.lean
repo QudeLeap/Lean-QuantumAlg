@@ -26,7 +26,7 @@ noncomputable section
 attribute [local instance] Classical.decEq Classical.propDecidable
 
 /-- A normalized complete seed has exactly the corresponding pure local marginal. -/
-theorem basisSeeded_localDensity {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma basisSeeded_localDensity {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) (seed : ctx.register.Index)
     (seeded : Holds seed state) (normalized : state.IsNormalized) :

@@ -24,6 +24,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeRuntime
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ControlPreparation NativePlacement
 
 /-- The source-register coordinate selected by the actual placed physical wires. -/
@@ -34,7 +39,7 @@ def nativeFrame (width : Nat) (basis : (after width).register.Index) : Registers
         (QubitLayout.canonical (encoding width).width).toQuantum
         (after width).quantumLayout (position width) (position_dimensions width) basis))
 
-private theorem position_surjective (width : Nat) :
+private lemma position_surjective (width : Nat) :
     Function.Surjective (position width) := by
   have sameWidth : (encoding width).width = (after width).systemCount := by
     rw [after_count]
@@ -57,10 +62,10 @@ def program (width : Nat) (enough : 2 ≤ width.size) :
   NativePlacement.program width enough
 
 /-- Each runtime matrix coordinate reads precisely the corresponding source gate coordinates. -/
-theorem program_matrix_entry (width : Nat) (enough : 2 ≤ width.size)
+lemma program_matrix_entry (width : Nat) (enough : 2 ≤ width.size)
     (row column : (after width).register.Index) :
-    (program width enough).matrix row column =
-      (NativeControl.program width enough).matrix
+    ((program width enough).matrix environment) row column =
+      ((NativeControl.program width enough).matrix environment)
         (UnitaryCircuit.basisAt
           (QubitLayout.canonical (encoding width).width).toQuantum
           (after width).quantumLayout (position width) (position_dimensions width) row)
@@ -72,9 +77,9 @@ theorem program_matrix_entry (width : Nat) (enough : 2 ≤ width.size)
     (position_surjective width) _ row column
 
 /-- The native phase-control step uses source labels decoded from the placed wires. -/
-theorem program_source_entry (width : Nat) (enough : 2 ≤ width.size)
+lemma program_source_entry (width : Nat) (enough : 2 ≤ width.size)
     (row column : (after width).register.Index) :
-    (program width enough).matrix row column =
+    ((program width enough).matrix environment) row column =
       if nativeFrame width row = NativeControl.step (nativeFrame width column) then 1 else 0 := by
   rw [program_matrix_entry]
   have sourceBasis (basis : (after width).register.Index) :
@@ -94,9 +99,9 @@ theorem program_source_entry (width : Nat) (enough : 2 ≤ width.size)
       (QubitLayout.canonical (encoding width).width).toQuantum.register =>
       vector ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
         ((encoding width).encode (nativeFrame width row))))
-    ((NativeControl.program_realizes width enough).apply_encoded_ket
+    ((NativeControl.program_realizes (environment := environment) width enough).apply_encoded_ket
       (nativeFrame width column))
-  change (NativeControl.program width enough).applyVec
+  change (NativeControl.program width enough).applyVec environment
       (NormalizedVector.ket ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
         ((encoding width).encode (nativeFrame width column))))
       ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
@@ -123,16 +128,16 @@ def initializeThenControl (width : Nat) (enough : 2 ≤ width.size) :
     Circuit (.quantum AlgorithmGate.model .empty) (before width) (after width) :=
   .seq (ControlPreparation.circuit width) (circuit width enough)
 
-theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace = (NativeControl.program width enough).eventTrace :=
   NativePlacement.program_eventTrace width enough
 
-theorem program_eventCost (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventCost (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventCost = (NativeControl.program width enough).eventCost :=
   NativePlacement.program_eventCost width enough
 
 /-- The allocation event and both predicate passes remain on one executed path. -/
-theorem initializeThenControl_trace (width : Nat) (enough : 2 ≤ width.size)
+lemma initializeThenControl_trace (width : Nat) (enough : 2 ≤ width.size)
     (path : (initializeThenControl width enough).Path) :
     (initializeThenControl width enough).eventTrace path =
       ZeroPreparation.eventTrace AlgorithmGate.model .empty (controlLayout width) ++
@@ -144,16 +149,16 @@ theorem initializeThenControl_trace (width : Nat) (enough : 2 ≤ width.size)
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- Actual execution preserves every external-reference matrix entry. -/
-theorem execute_reference_entry (width : Nat) (enough : 2 ≤ width.size)
+lemma execute_reference_entry (width : Nat) (enough : 2 ≤ width.size)
     (state : State (after width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (left right : Reference.Index) :
     (∑ basis : (after width).register.Index,
-      ((circuit width enough).execute Reference state).quantumMarginal.matrix
+      ((circuit width enough).execute runtimeEnvironment Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (after width).register.Index,
         state.quantumMarginal.matrix (basis, left) (basis, right) :=
   Circuit.unitary_reference_entry (operations := .empty) (classicalOracles := .empty)
-    (program width enough) state left right
+    runtimeEnvironment (program width enough) state left right
 
 end
 

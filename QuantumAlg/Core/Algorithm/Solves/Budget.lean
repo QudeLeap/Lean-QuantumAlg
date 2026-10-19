@@ -22,31 +22,33 @@ namespace QuantumAlg.Algorithm.Solves
 noncomputable section
 
 /-- Increasing independently supplied ceilings preserves every same-run obligation. -/
-theorem enlargeBudgets {model : ExecutionModel}
+lemma enlargeBudgets {allowAllocation : Bool} {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape : CShape}
-    {algorithm : Algorithm model pre post shape} {problem : Problem model pre post shape}
+    {algorithm : Algorithm model pre post shape allowAllocation}
+    {problem : Problem model pre post shape}
     (solves : Algorithm.Solves algorithm problem)
-    (resources : ResourceBudget model) (depth : DepthBudget model)
+    (resources : ResourceBudget model) (quantumTimeLimit : Nat)
     (events : problem.resources.events ≤ resources.events)
     (resident : problem.resources.resident ≤ resources.resident)
     (auxiliary : problem.resources.auxiliary ≤ resources.auxiliary)
-    (duration : depth.duration = problem.depth.duration)
-    (limit : problem.depth.limit ≤ depth.limit) :
-    Algorithm.Solves algorithm { problem with resources := resources, depth := depth } where
+    (limit : problem.quantumTimeLimit ≤ quantumTimeLimit) :
+    Algorithm.Solves algorithm
+      { problem with resources := resources, quantumTimeLimit := quantumTimeLimit } where
   success := solves.success
   states := solves.states
   borrowed := solves.borrowed
-  events := fun reference input valid initialized path supported =>
-    (solves.events reference input valid initialized path supported).trans events
-  resident := fun reference input valid initialized path supported =>
-    (solves.resident reference input valid initialized path supported).trans resident
-  auxiliary := fun reference input valid initialized path supported =>
-    (solves.auxiliary reference input valid initialized path supported).trans auxiliary
-  depth := by
-    intro reference input valid initialized path supported
-    change algorithm.run.code.depth depth.duration path ≤ depth.limit
-    rw [duration]
-    exact (solves.depth reference input valid initialized path supported).trans limit
+  events := fun environment witness reference input valid initialized path supported =>
+    (solves.events environment witness
+      reference input valid initialized path supported).trans events
+  resident := fun environment witness reference input valid initialized path supported =>
+    (solves.resident environment witness
+      reference input valid initialized path supported).trans resident
+  auxiliary := fun environment witness reference input valid initialized path supported =>
+    (solves.auxiliary environment witness
+      reference input valid initialized path supported).trans auxiliary
+  time := fun environment witness reference input valid initialized path supported =>
+    (solves.time environment witness
+      reference input valid initialized path supported).trans limit
 
 end
 

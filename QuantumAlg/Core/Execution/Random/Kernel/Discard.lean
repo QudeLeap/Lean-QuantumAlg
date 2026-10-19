@@ -25,7 +25,7 @@ namespace QuantumAlg.Execution
 noncomputable section
 
 /-- Summing a normalized finite transition preserves every complete original block. -/
-public theorem kernelChoice_map_fst {C Outcome : Type} [Fintype C] [Fintype Outcome]
+public lemma kernelChoice_map_fst {C Outcome : Type} [Fintype C] [Fintype Outcome]
     [DecidableEq C] {R : Register} (state : ExecutionState C R)
     (transition : C → PMF Outcome) :
     (kernelChoice state transition).mapClassical Prod.fst = state := by
@@ -42,7 +42,7 @@ public theorem kernelChoice_map_fst {C Outcome : Type} [Fintype C] [Fintype Outc
     exact (absent (Finset.mem_univ result)).elim
 
 /-- Observations of the original record retain all correlations after summing actual outcomes. -/
-private theorem kernelChoice_map_ignore_proof {C D Outcome : Type}
+private lemma kernelChoice_map_ignore_proof {C D Outcome : Type}
     [Fintype C] [Fintype D] [Fintype Outcome] [DecidableEq D] {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome) (update : C → D) :
     (kernelChoice state transition).mapClassical (fun entry => update entry.1) =
@@ -53,7 +53,7 @@ private theorem kernelChoice_map_ignore_proof {C D Outcome : Type}
       (congrArg (fun prior => prior.mapClassical update) (kernelChoice_map_fst state transition))
 
 /-- Outcome forgetting preserves observations for both chosen equality-decision implementations. -/
-public theorem kernelChoice_map_ignore {C D Outcome : Type}
+public lemma kernelChoice_map_ignore {C D Outcome : Type}
     [Fintype C] [Fintype D] [Fintype Outcome]
     {beforeMap afterMap : DecidableEq D} {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome) (update : C → D) :

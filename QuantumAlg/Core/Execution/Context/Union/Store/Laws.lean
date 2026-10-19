@@ -20,7 +20,7 @@ external-reference correlations in the interpreter.
 
 namespace QuantumAlg.Execution.ContextUnion
 
-private theorem read_joinCells_left {kind : ProblemKind} {target : RuntimeEntry kind}
+private lemma read_joinCells_left {kind : ProblemKind} {target : RuntimeEntry kind}
     {left : List (RuntimeEntry kind)} (right : List (RuntimeEntry kind))
     (first : Cells left) (second : Cells right) (slot : RuntimeEntrySlot target left) :
     Cells.read (joinCells left right first second) (slotLeft right slot) =
@@ -29,7 +29,7 @@ private theorem read_joinCells_left {kind : ProblemKind} {target : RuntimeEntry 
   | here => rfl
   | there next ih => exact ih first.2
 
-private theorem read_joinCells_right {kind : ProblemKind} {target : RuntimeEntry kind}
+private lemma read_joinCells_right {kind : ProblemKind} {target : RuntimeEntry kind}
     (left : List (RuntimeEntry kind)) {right : List (RuntimeEntry kind)}
     (first : Cells left) (second : Cells right) (slot : RuntimeEntrySlot target right) :
     Cells.read (joinCells left right first second) (slotRight left slot) =
@@ -38,7 +38,7 @@ private theorem read_joinCells_right {kind : ProblemKind} {target : RuntimeEntry
   | nil => rfl
   | cons head tail ih => exact ih first.2
 
-private theorem write_joinCells_left {kind : ProblemKind} {target : RuntimeEntry kind}
+private lemma write_joinCells_left {kind : ProblemKind} {target : RuntimeEntry kind}
     {left : List (RuntimeEntry kind)} (right : List (RuntimeEntry kind))
     (first : Cells left) (second : Cells right) (slot : RuntimeEntrySlot target left)
     (value : CellValue target) :
@@ -48,7 +48,7 @@ private theorem write_joinCells_left {kind : ProblemKind} {target : RuntimeEntry
   | here => rfl
   | there next ih => exact congrArg (Prod.mk first.1) (ih first.2)
 
-private theorem write_joinCells_right {kind : ProblemKind} {target : RuntimeEntry kind}
+private lemma write_joinCells_right {kind : ProblemKind} {target : RuntimeEntry kind}
     (left : List (RuntimeEntry kind)) {right : List (RuntimeEntry kind)}
     (first : Cells left) (second : Cells right) (slot : RuntimeEntrySlot target right)
     (value : CellValue target) :
@@ -58,7 +58,7 @@ private theorem write_joinCells_right {kind : ProblemKind} {target : RuntimeEntr
   | nil => rfl
   | cons head tail ih => exact congrArg (Prod.mk first.1) (ih first.2)
 
-private theorem read_mapInput {kind : ProblemKind} {first second : RuntimeCtx kind}
+private lemma read_mapInput {kind : ProblemKind} {first second : RuntimeCtx kind}
     (original : Store first) (framed : Store second)
     (lift : ∀ {shape}, CStorageRef first shape → CStorageRef second shape)
     (reads : ∀ {shape} (ref : CStorageRef first shape),
@@ -82,21 +82,21 @@ variable {kind : ProblemKind} {left right : RuntimeCtx kind}
   (separate : RuntimeCtx.StorageDisjoint left right)
 
 /-- Every lifted structural left read obtains its original value in the actual joined store. -/
-theorem contextUnion_read_join_left (first : Store left) (second : Store right)
+lemma contextUnion_read_join_left (first : Store left) (second : Store right)
     {shape : CShape} (input : CInputRef left shape) :
     (join separate first second).read (inputLeft separate input) = first.read input :=
   read_mapInput first (join separate first second) (storageLeft separate)
     (fun ref => read_joinCells_left right.entries first.cells second.cells ref.slot) input
 
 /-- Every structural right read retains its exact original cell value. -/
-theorem contextUnion_read_join_right (first : Store left) (second : Store right)
+lemma contextUnion_read_join_right (first : Store left) (second : Store right)
     {shape : CShape} (input : CInputRef right shape) :
     (join separate first second).read (inputRight separate input) = second.read input :=
   read_mapInput second (join separate first second) (storageRight separate)
     (fun ref => read_joinCells_right left.entries first.cells second.cells ref.slot) input
 
 /-- An actual left write changes only the original left store, preserving the entire frame. -/
-theorem contextUnion_write_join_left (first : Store left) (second : Store right)
+lemma contextUnion_write_join_left (first : Store left) (second : Store right)
     {shape : CShape} (output : CWriteRef left shape) (value : shape.Value) :
     (join separate first second).write (writeLeft separate output) value =
       join separate (first.write output value) second :=
@@ -104,7 +104,7 @@ theorem contextUnion_write_join_left (first : Store left) (second : Store right)
     (write_joinCells_left right.entries first.cells second.cells output.slot value)
 
 /-- An actual right write likewise leaves the entire left store unchanged. -/
-theorem contextUnion_write_join_right (first : Store left) (second : Store right)
+lemma contextUnion_write_join_right (first : Store left) (second : Store right)
     {shape : CShape} (output : CWriteRef right shape) (value : shape.Value) :
     (join separate first second).write (writeRight separate output) value =
       join separate first (second.write output value) :=

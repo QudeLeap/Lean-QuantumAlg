@@ -32,7 +32,7 @@ def basisSliceEffect (effect : Effect (R.prod Reference)) (label : R.Index) : Ef
     congrArg Prod.snd equality) effect
 
 /-- A fixed local ket has exactly the compressed effect's actual conditional reference weight. -/
-theorem weight_basisSlice_of_factor (effect : Effect (R.prod Reference))
+lemma weight_basisSlice_of_factor (effect : Effect (R.prod Reference))
     (state : DensityOperator (R.prod Reference)) (label : R.Index)
     (factor : ∀ left right : R.Index, ∀ refLeft refRight : Reference.Index,
       state.matrix (left, refLeft) (right, refRight) =
@@ -59,7 +59,7 @@ theorem weight_basisSlice_of_factor (effect : Effect (R.prod Reference))
   simp [ite_and]
 
 /-- A uniform bound for pure references applies to the full actual mixed ket-supported block. -/
-theorem mass_mul_le_weight_of_basis_factor (effect : Effect (R.prod Reference))
+lemma mass_mul_le_weight_of_basis_factor (effect : Effect (R.prod Reference))
     (state : DensityOperator (R.prod Reference)) (label : R.Index) (lower : ℝ)
     (factor : ∀ left right : R.Index, ∀ refLeft refRight : Reference.Index,
       state.matrix (left, refLeft) (right, refRight) =

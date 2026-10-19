@@ -35,7 +35,7 @@ def storageContext : RuntimeCtx .quantum :=
   Native.Batch.Slots.context (sourceContext base N) N
 
 include noQuantum in
-theorem storage_empty : (storageContext base N).quantumWires = [] := by
+lemma storage_empty : (storageContext base N).quantumWires = [] := by
   rw [storageContext, Native.Batch.Slots.nativeOracle_batchSlots_wires]
   exact noQuantum
 
@@ -91,7 +91,7 @@ def factorRef :
     (Native.Batch.Slots.factorRef (sourceContext base N) N)
 
 /-- The fixed batch has exactly the same original physical quantum bank. -/
-theorem context_wires : (context base noQuantum N).quantumWires = (Native.layout N).wires :=
+lemma context_wires : (context base noQuantum N).quantumWires = (Native.layout N).wires :=
   Native.nativeOracle_context_wires
     (storageContext base N) (storage_empty base noQuantum N) N
 

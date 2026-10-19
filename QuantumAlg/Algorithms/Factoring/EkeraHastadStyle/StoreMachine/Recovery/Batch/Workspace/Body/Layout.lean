@@ -63,7 +63,7 @@ def endpointRefs (refs : Refs root topCtx inner N) : LatticeBatchRecoveryEndpoin
     LatticeBatchRecoveryWorkspaceViews.factorSelection_topAt refs.pairTransport refs.top
 
 /-- Actual physical certificates discharge both the seeded fold and output separation. -/
-theorem endpointSeparation (refs : Refs root topCtx inner N) (separation : Separation refs) :
+lemma endpointSeparation (refs : Refs root topCtx inner N) (separation : Separation refs) :
     LatticeBatchRecoveryEndpoint.Separation (endpointRefs refs) where
   tail := LatticeBatchRecoveryWorkspaceViews.tailSeparation refs.topTransport refs.pairTransport
     refs.top separation.topDistinct separation.topSeparated refs.cells separation.cells

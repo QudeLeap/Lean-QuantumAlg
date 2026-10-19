@@ -26,7 +26,7 @@ noncomputable section
 
 variable {N : Nat}
 
-private theorem recovered_even (parameter : CShape.Value (ParameterShape (modulusBits N)))
+private lemma recovered_even (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (recovered : ClassicalAlgorithms.OrderRecovery.Output
       (modulusBits N) (phaseBits N)) (exceptional : 2 < N ∧ Even N) :
     outputOfRecovered parameter recovered = some 2 := by
@@ -35,7 +35,7 @@ private theorem recovered_even (parameter : CShape.Value (ParameterShape (modulu
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The actual complete factor tail returns the original pure selector on the original input. -/
-theorem result (source : Input N)
+lemma result (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)

@@ -25,7 +25,7 @@ open Execution
 
 noncomputable section
 
-private theorem cells_basis_zero (ctx : RuntimeCtx .quantum)
+private lemma cells_basis_zero (ctx : RuntimeCtx .quantum)
     (dimension : ℕ+) (count : Nat) :
     MeasurementCells.basisEquiv ctx dimension count ctx.quantumLayout.zeroLabel =
       (MeasurementCells.context ctx dimension count).quantumLayout.zeroLabel := by
@@ -34,14 +34,16 @@ private theorem cells_basis_zero (ctx : RuntimeCtx .quantum)
   | succ count induction => exact induction
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
+
+variable {environment : (model N).Environment}
 
 /-- The actual initial allocation and zero preparation establish the declared
 member's zero basis in every complete input-store and reference block. -/
-theorem prepare_seeded {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History)) :
+lemma prepare_seeded {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((model N).HiddenState × History)) :
     BasisSeeded.Holds (Native.bankContext base noQuantum N).quantumLayout.zeroLabel
-      ((prepare base noQuantum N input).execute Reference state) := by
+      ((prepare base noQuantum N).execute environment Reference state) := by
   have empty : base.systemCount = 0 := by
     change base.quantumWires.length = 0
     rw [noQuantum]
@@ -78,40 +80,40 @@ theorem prepare_seeded {Reference : Register} {History : Type} [Fintype History]
     matched.trans mapped
   have actual := Circuit.prepareZero_empty_seeded
     (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model)
     (services := ClassicalOracleModel.empty)
     base.canonicalFreshKey (Native.layout N)
     base.canonicalFreshKey_fresh (Native.allocationDisjoint base noQuantum N)
-    empty state
+    empty environment state
   simpa +instances only [prepare, Native.bankContext, seed] using actual
 
 /-- The actual result-cell and packed-output allocations keep the same zero
 quantum support while preserving the original classical store. -/
-theorem allocate_seeded {Reference : Register} {History : Type} [Fintype History]
+lemma allocate_seeded {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.bankContext base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (seeded : BasisSeeded.Holds
       (Native.bankContext base noQuantum N).quantumLayout.zeroLabel state) :
     BasisSeeded.Holds (Native.context base noQuantum N).quantumLayout.zeroLabel
-      ((allocate base noQuantum N input).execute Reference state) := by
-  have measured := MeasurementCells.allocate_seeded (model := model input)
-    (Native.bankContext base noQuantum N) 2 (measurementBits N)
+      ((allocate base noQuantum N).execute environment Reference state) := by
+  have measured := MeasurementCells.allocate_seeded (model := model N)
+    (Native.bankContext base noQuantum N) 2 (measurementBits N) environment
     (Native.bankContext base noQuantum N).quantumLayout.zeroLabel state seeded
   rw [cells_basis_zero] at measured
   exact BasisSeeded.seq
-    (MeasurementCells.allocate (model := model input)
+    (MeasurementCells.allocate (model := model N)
       (Native.bankContext base noQuantum N) 2 (measurementBits N))
-    (Circuit.retain (model := model input) (Native.cellsContext base noQuantum N)
+    (Circuit.retain (model := model N) (Native.cellsContext base noQuantum N)
       (Native.cellsContext base noQuantum N).canonicalFreshKey
       (.bits (measurementBits N))
       (Native.cellsContext base noQuantum N).canonicalFreshKey_fresh)
-    (Native.context base noQuantum N).quantumLayout.zeroLabel state
-    (BasisSeeded.retain (model := model input)
-      (ctx := Native.cellsContext base noQuantum N)
+    environment (Native.context base noQuantum N).quantumLayout.zeroLabel state
+    (BasisSeeded.retain (model := model N)
+      (ctx := Native.cellsContext base noQuantum N) environment
       (Native.cellsContext base noQuantum N).quantumLayout.zeroLabel
-      ((MeasurementCells.allocate (model := model input)
-        (Native.bankContext base noQuantum N) 2 (measurementBits N)).execute
+      ((MeasurementCells.allocate (model := model N)
+        (Native.bankContext base noQuantum N) 2 (measurementBits N)).execute environment
           Reference state)
       measured (Native.cellsContext base noQuantum N).canonicalFreshKey
       (.bits (measurementBits N))
@@ -119,13 +121,13 @@ theorem allocate_seeded {Reference : Register} {History : Type} [Fintype History
 
 /-- The actual prepared prefix establishes the selected member's seed from
 every original input state. -/
-theorem initial_seeded {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History)) :
+lemma initial_seeded {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((model N).HiddenState × History)) :
     BasisSeeded.Holds (Native.context base noQuantum N).quantumLayout.zeroLabel
-      ((allocate base noQuantum N input).execute Reference
-        ((prepare base noQuantum N input).execute Reference state)) :=
-  allocate_seeded base noQuantum N input _
-    (prepare_seeded base noQuantum N input state)
+      ((allocate base noQuantum N).execute environment Reference
+        ((prepare base noQuantum N).execute environment Reference state)) :=
+  allocate_seeded base noQuantum N (environment := environment) _
+    (prepare_seeded base noQuantum N (environment := environment) state)
 
 end
 

@@ -26,6 +26,8 @@ namespace PipelineState
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Product view of the staged modular-division pipeline state. -/
 def tupleEquiv (N : Nat) :
     PipelineState N ≃
@@ -79,22 +81,22 @@ def encodingOfCardBound {N : Nat} [NeZero N] (width : Nat)
     BinaryLabelEncoding (PipelineState N) :=
   BinaryLabelEncoding.ofFintypeCardLe (PipelineState N) width hcard
 
-@[simp] theorem encodingOfCardBound_width {N : Nat} [NeZero N]
+@[simp] lemma encodingOfCardBound_width {N : Nat} [NeZero N]
     (width : Nat) (hcard : Fintype.card (PipelineState N) <= 2 ^ width) :
     (encodingOfCardBound (N := N) width hcard).width = width :=
   rfl
 
-@[simp] theorem fieldTupleEncoding_width {N n : Nat}
+@[simp] lemma fieldTupleEncoding_width {N n : Nat}
     (E : BinaryResidueEncoding N n) :
     (fieldTupleEncoding E).width = n + (n + (n + (n + (n + 1)))) :=
   rfl
 
-@[simp] theorem fieldEncoding_width {N n : Nat}
+@[simp] lemma fieldEncoding_width {N n : Nat}
     (E : BinaryResidueEncoding N n) :
     (fieldEncoding E).width = n + (n + (n + (n + (n + 1)))) :=
   rfl
 
-@[simp] theorem fieldEncoding_encode {N n : Nat}
+@[simp] lemma fieldEncoding_encode {N n : Nat}
     (E : BinaryResidueEncoding N n) (s : PipelineState N) :
     (fieldEncoding E).encode s =
       (fieldTupleEncoding E).encode
@@ -152,32 +154,32 @@ def flagWire {N n : Nat} (E : BinaryResidueEncoding N n) :
     rw [fieldEncoding_width]
     omega⟩
 
-@[simp] theorem denominatorWire_val {N n : Nat}
+@[simp] lemma denominatorWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (denominatorWire E bit).val = bit.val :=
   rfl
 
-@[simp] theorem numeratorWire_val {N n : Nat}
+@[simp] lemma numeratorWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (numeratorWire E bit).val = n + bit.val :=
   rfl
 
-@[simp] theorem targetWire_val {N n : Nat} (E : BinaryResidueEncoding N n)
+@[simp] lemma targetWire_val {N n : Nat} (E : BinaryResidueEncoding N n)
     (bit : Fin n) :
     (targetWire E bit).val = n + n + bit.val :=
   rfl
 
-@[simp] theorem inverseScratchWire_val {N n : Nat}
+@[simp] lemma inverseScratchWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (inverseScratchWire E bit).val = n + n + n + bit.val :=
   rfl
 
-@[simp] theorem quotientScratchWire_val {N n : Nat}
+@[simp] lemma quotientScratchWire_val {N n : Nat}
     (E : BinaryResidueEncoding N n) (bit : Fin n) :
     (quotientScratchWire E bit).val = n + n + n + n + bit.val :=
   rfl
 
-@[simp] theorem flagWire_val {N n : Nat} (E : BinaryResidueEncoding N n) :
+@[simp] lemma flagWire_val {N n : Nat} (E : BinaryResidueEncoding N n) :
     (flagWire E).val = n + n + n + n + n :=
   rfl
 
@@ -221,7 +223,7 @@ def toggleFlag {N : Nat} (s : PipelineState N) : PipelineState N where
   quotientScratch := s.quotientScratch
   flag := !s.flag
 
-@[simp] theorem flagBit_flip {N n : Nat} (E : BinaryResidueEncoding N n)
+@[simp] lemma flagBit_flip {N n : Nat} (E : BinaryResidueEncoding N n)
     (s : PipelineState N) :
     (flagBit E).flip s = toggleFlag s := by
   cases s
@@ -234,14 +236,14 @@ def toggleFlagProgram {N n : Nat} (E : BinaryResidueEncoding N n) :
   (QubitPrimitive.x (flagBit E).wire).circuit (QubitLayout.canonical _) .empty
 
 /-- The flag X gate realizes cleanup-flag toggling on the same field encoding. -/
-theorem toggleFlagProgram_realizes {N n : Nat}
+lemma toggleFlagProgram_realizes {N n : Nat}
     (E : BinaryResidueEncoding N n) :
-    UnitaryCircuit.Realizes (fieldEncoding E) (toggleFlagProgram E)
+    UnitaryCircuit.Realizes (fieldEncoding E) (toggleFlagProgram E) environment
       toggleFlag where
   apply_encoded_ket := by
     intro s
     simpa [toggleFlagProgram] using
-      (EncodedBit.x_realizes (flagBit E)).apply_encoded_ket s
+      (EncodedBit.x_realizes (environment := environment) (flagBit E)).apply_encoded_ket s
 
 end
 

@@ -38,7 +38,7 @@ def preparationSeedEvents (model : ExecutionModel) [BitWord.Selected model]
     Word.PowerOfTwo.shiftTrace (model := model) (width + 1) width
 
 /-- The original seed is not repeated by either frequency scaling. -/
-theorem preparationSeed_eventTrace (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+lemma preparationSeed_eventTrace (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (scaleSeed (model := model) denominator).Path) :
     (scaleSeed (model := model) denominator).eventTrace path = preparationSeedEvents model
       width := by
@@ -49,7 +49,7 @@ theorem preparationSeed_eventTrace (denominator : CWriteRef ctx (.unsignedWord (
   rfl
 
 /-- The three final instructions include only the actually selected copy or subtraction. -/
-theorem preparationFinalize_eventTrace (refs : PreparationRefs ctx width)
+lemma preparationFinalize_eventTrace (refs : PreparationRefs ctx width)
     (path : (preparationFinalize (model := model) refs).Path) :
     (preparationFinalize (model := model) refs).eventTrace path =
       [.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -62,7 +62,7 @@ theorem preparationFinalize_eventTrace (refs : PreparationRefs ctx width)
   rfl
 
 /-- Every actual preparation path has its original chronological component trace. -/
-theorem preparationBody_eventTrace (spec : ModulusSpec width)
+lemma preparationBody_eventTrace (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
       refs).Path) :
@@ -91,7 +91,7 @@ theorem preparationBody_eventTrace (spec : ModulusSpec width)
     scaled]
 
 /-- Seeding depends serially on its increment and each of the original left shifts. -/
-theorem preparationSeed_unitDepth (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+lemma preparationSeed_unitDepth (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (scaleSeed (model := model) denominator).Path) :
     (scaleSeed (model := model) denominator).depth (fun _ => 1) path = width + 1 := by
   change 1 + (Word.PowerOfTwo.shiftInto (model := model) width denominator).depth (fun _ => 1)
@@ -100,12 +100,12 @@ theorem preparationSeed_unitDepth (denominator : CWriteRef ctx (.unsignedWord (w
   omega
 
 /-- Exactly six dependent native operations execute across the original two scalings. -/
-theorem preparationScale_unitDepth (refs : PreparationRefs ctx width)
+lemma preparationScale_unitDepth (refs : PreparationRefs ctx width)
     (path : (preparationScale (model := model) refs).Path) :
     (preparationScale (model := model) refs).depth (fun _ => 1) path = 6 := rfl
 
 /-- Either actual final branch has one resize, one equality and one arithmetic operation. -/
-theorem preparationFinalize_unitDepth (refs : PreparationRefs ctx width)
+lemma preparationFinalize_unitDepth (refs : PreparationRefs ctx width)
     (path : (preparationFinalize (model := model) refs).Path) :
     (preparationFinalize (model := model) refs).depth (fun _ => 1) path = 3 := by
   rcases path with ⟨resizePath, testPath, value, branchPath⟩
@@ -113,7 +113,7 @@ theorem preparationFinalize_unitDepth (refs : PreparationRefs ctx width)
   | bit bit => cases bit <;> rfl
 
 /-- The original preparation bound includes the one actual finite-measurement packing operation. -/
-theorem preparationBody_unitDepth_le (spec : ModulusSpec width)
+lemma preparationBody_unitDepth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (path : (preparationBody (model := model) spec input
       refs).Path) :

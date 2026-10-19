@@ -66,7 +66,7 @@ public def oracle (s : Fin (2 ^ n)) : WalshHadamard.Oracle n := fun x => dotPari
 /-! ### Walsh-sign algebra -/
 
 /-- The bitwise inner-product parity is symmetric. -/
-theorem dotParity_comm (x y : Fin (2 ^ n)) : dotParity x y = dotParity y x := by
+lemma dotParity_comm (x y : Fin (2 ^ n)) : dotParity x y = dotParity y x := by
   have hset : (Finset.univ.filter fun k : Fin n => bit x k && bit y k)
       = Finset.univ.filter fun k : Fin n => bit y k && bit x k := by
     apply Finset.filter_congr
@@ -76,12 +76,12 @@ theorem dotParity_comm (x y : Fin (2 ^ n)) : dotParity x y = dotParity y x := by
   rw [hset]
 
 /-- The Walsh sign is symmetric. -/
-theorem walshSign_comm (x y : Fin (2 ^ n)) : walshSign x y = walshSign y x := by
+lemma walshSign_comm (x y : Fin (2 ^ n)) : walshSign x y = walshSign y x := by
   unfold WalshHadamard.walshSign
   rw [dotParity_comm]
 
 /-- A Walsh sign squares to `1`. -/
-theorem walshSign_mul_self (x y : Fin (2 ^ n)) :
+lemma walshSign_mul_self (x y : Fin (2 ^ n)) :
     walshSign x y * walshSign x y = 1 := by
   unfold WalshHadamard.walshSign
   by_cases h : dotParity x y <;> simp [h]
@@ -93,7 +93,7 @@ def flipBit (x : Fin (2 ^ n)) (k : Fin n) : Fin (2 ^ n) :=
   ⟨x.val ^^^ 2 ^ k.val,
     Nat.xor_lt_two_pow x.isLt (Nat.pow_lt_pow_right one_lt_two k.isLt)⟩
 
-theorem bit_flipBit (x : Fin (2 ^ n)) (k k' : Fin n) :
+lemma bit_flipBit (x : Fin (2 ^ n)) (k k' : Fin n) :
     bit (flipBit x k) k' = (bit x k' ^^ decide (k = k')) := by
   change (x.val ^^^ 2 ^ k.val).testBit k'.val = (bit x k' ^^ decide (k = k'))
   rw [Nat.testBit_xor, Nat.testBit_two_pow]
@@ -101,20 +101,20 @@ theorem bit_flipBit (x : Fin (2 ^ n)) (k k' : Fin n) :
   rw [decide_eq_decide]
   exact Fin.val_inj
 
-theorem flipBit_flipBit (x : Fin (2 ^ n)) (k : Fin n) :
+lemma flipBit_flipBit (x : Fin (2 ^ n)) (k : Fin n) :
     flipBit (flipBit x k) k = x := by
   unfold flipBit
   ext
   simp
 
-theorem flipBit_ne (x : Fin (2 ^ n)) (k : Fin n) : flipBit x k ≠ x := by
+lemma flipBit_ne (x : Fin (2 ^ n)) (k : Fin n) : flipBit x k ≠ x := by
   intro h
   have hb := congrArg (fun y : Fin (2 ^ n) => bit y k) h
   simp [bit_flipBit] at hb
 
 /-- Flipping bit `k` of `x` toggles the parity `x · z` exactly when bit `k`
 of `z` is set. -/
-theorem dotParity_flipBit (x z : Fin (2 ^ n)) (k : Fin n) :
+lemma dotParity_flipBit (x z : Fin (2 ^ n)) (k : Fin n) :
     dotParity (flipBit x k) z = (dotParity x z ^^ bit z k) := by
   unfold WalshHadamard.dotParity
   cases hz : bit z k
@@ -155,7 +155,7 @@ theorem dotParity_flipBit (x z : Fin (2 ^ n)) (k : Fin n) :
         decide_eq_decide, Nat.odd_add_one]
 
 /-- Two distinct labels differ at some bit. -/
-theorem exists_bit_ne {y s : Fin (2 ^ n)} (h : y ≠ s) :
+lemma exists_bit_ne {y s : Fin (2 ^ n)} (h : y ≠ s) :
     ∃ k : Fin n, bit y k ≠ bit s k := by
   by_contra hall
   push Not at hall
@@ -167,13 +167,13 @@ theorem exists_bit_ne {y s : Fin (2 ^ n)} (h : y ≠ s) :
     have hs : s.val < 2 ^ i := lt_of_lt_of_le s.isLt (Nat.pow_le_pow_right (by norm_num) hi)
     rw [Nat.testBit_lt_two_pow hy, Nat.testBit_lt_two_pow hs]
 
-private theorem if_xor_true (a : Bool) :
+private lemma if_xor_true (a : Bool) :
     (if (a ^^ true) = true then (-1 : ℂ) else 1) = -(if a = true then -1 else 1) := by
   cases a <;> simp
 
 /-- Flipping a bit on which `y` and `s` disagree negates the product of their
 Walsh signs. -/
-theorem walshSign_mul_walshSign_flipBit {y s : Fin (2 ^ n)} {k : Fin n}
+lemma walshSign_mul_walshSign_flipBit {y s : Fin (2 ^ n)} {k : Fin n}
     (hk : bit y k ≠ bit s k) (x : Fin (2 ^ n)) :
     walshSign y (flipBit x k) * walshSign s (flipBit x k)
       = -(walshSign y x * walshSign s x) := by
@@ -190,7 +190,7 @@ theorem walshSign_mul_walshSign_flipBit {y s : Fin (2 ^ n)} {k : Fin n}
 
 /-- Walsh-character orthogonality: for `y ≠ s` the signed sum over all basis
 labels cancels in pairs under the bit-flip involution. -/
-theorem sum_walshSign_mul_walshSign {y s : Fin (2 ^ n)} (h : y ≠ s) :
+lemma sum_walshSign_mul_walshSign {y s : Fin (2 ^ n)} (h : y ≠ s) :
     ∑ x, walshSign y x * walshSign s x = 0 := by
   obtain ⟨k, hk⟩ := exists_bit_ne h
   refine Finset.sum_involution (fun x _ => flipBit x k)
@@ -203,14 +203,14 @@ theorem sum_walshSign_mul_walshSign {y s : Fin (2 ^ n)} (h : y ≠ s) :
 
 /-- Querying the inner-product oracle phases each basis label by its Walsh
 sign with the hidden string [dW19, qcnotes.tex:1293]. -/
-theorem phaseSign_oracle (s x : Fin (2 ^ n)) :
+lemma phaseSign_oracle (s x : Fin (2 ^ n)) :
     phaseSign (oracle s) x = walshSign s x := by
   unfold WalshHadamard.phaseSign WalshHadamard.walshSign oracle
   rw [dotParity_comm]
 
 /-- The second Hadamard layer maps the Bernstein-Vazirani phase pattern
 exactly to the classical state `|s⟩` [dW19, qcnotes.tex:1296]. -/
-theorem finalState_oracle (s : Fin (2 ^ n)) :
+lemma finalState_oracle (s : Fin (2 ^ n)) :
     finalState (oracle s) = NormalizedVector.ket (R := Qubits n) s := by
   apply NormalizedVector.ext
   intro y
@@ -236,7 +236,7 @@ theorem finalState_oracle (s : Fin (2 ^ n)) :
 
 /-- Running the shared Walsh-Hadamard circuit with the inner-product oracle
 recovers the hidden string in the input register. -/
-theorem finalJointState_oracle (s : Fin (2 ^ n)) :
+lemma finalJointState_oracle (s : Fin (2 ^ n)) :
     WalshHadamard.finalJointState (oracle s) =
       NormalizedVector.tensor
         (NormalizedVector.ket (R := Qubits n) s) ketMinus := by
@@ -246,7 +246,7 @@ theorem finalJointState_oracle (s : Fin (2 ^ n)) :
 
 /-- The typed canonical input has exactly the normalized state expected by
 the Walsh-Hadamard circuit theorem. -/
-@[simp] theorem inputState_normalized (n : ℕ) :
+@[simp] lemma inputState_normalized (n : ℕ) :
     (inputState n).normalized = WalshHadamard.input n := rfl
 
 /-- Embed the two unmeasured target basis values into the terminal-measurement
@@ -260,11 +260,11 @@ def measurementFiberEmbedding (s : Fin (2 ^ n)) :
     rfl
 
 /-- The measurement-fiber embedding has the expected product-basis action. -/
-@[simp] theorem measurementFiberEmbedding_apply (s : Fin (2 ^ n))
+@[simp] lemma measurementFiberEmbedding_apply (s : Fin (2 ^ n))
     (target : Fin (2 ^ 1)) :
     measurementFiberEmbedding s target = prodEquiv (s, target) := rfl
 
-private theorem measurementOutcome_fiber (s : Fin (2 ^ n)) :
+private lemma measurementOutcome_fiber (s : Fin (2 ^ n)) :
     Finset.univ.filter
         (fun basis : Fin (2 ^ (n + 1)) =>
           (measurement n).readout basis = measurementOutcome n s) =
@@ -289,14 +289,14 @@ def evolvedState (s : Fin (2 ^ n)) : QubitLayout.State (layout n) :=
   WalshHadamard.Readout.evolvedState (oracle s)
 
 /-- The original final state is exactly the recovered string tensored with the minus target. -/
-@[simp] theorem evolvedState_normalized (s : Fin (2 ^ n)) :
+@[simp] lemma evolvedState_normalized (s : Fin (2 ^ n)) :
     (evolvedState s).normalized =
       NormalizedVector.tensor (NormalizedVector.ket (R := Qubits n) s) ketMinus :=
   finalJointState_oracle s
 
 /-- Each basis point in the recovered-string fiber has the target-qubit
 amplitude of `|−⟩`. -/
-theorem evolvedState_apply_prod (s : Fin (2 ^ n))
+lemma evolvedState_apply_prod (s : Fin (2 ^ n))
     (target : Fin (2 ^ 1)) :
     (evolvedState s).normalized (prodEquiv (s, target)) = ketMinus target := by
   rw [evolvedState_normalized, NormalizedVector.tensor_apply_prod,
@@ -304,7 +304,7 @@ theorem evolvedState_apply_prod (s : Fin (2 ^ n))
 
 /-- The actual Born PMF of the canonical partial terminal measurement returns
 the big-endian encoding of the hidden string with probability one. -/
-theorem measurementOutcome_probability_one (s : Fin (2 ^ n)) :
+lemma measurementOutcome_probability_one (s : Fin (2 ^ n)) :
     (measurement n).outcomePMF (evolvedState s) (measurementOutcome n s) = 1 := by
   rw [TerminalZMeasure.outcomePMF_apply, measurementOutcome_fiber s,
     Finset.sum_map]
@@ -318,22 +318,24 @@ theorem measurementOutcome_probability_one (s : Fin (2 ^ n)) :
 
 /-- One actual zero-input native word yields the complete recovered-string state
 [dW19, qcnotes.tex:1296], with its own gate, query and dependency counts. -/
-theorem circuitMain (s : Fin (2 ^ n)) :
-    ∃ body : UnitaryCircuit AlgorithmGate.model (XorOracle.model (oracle s))
+lemma circuitMain (n : Nat) :
+    ∃ body : UnitaryCircuit AlgorithmGate.model (XorOracle.model n)
         (Gate.HadamardLayer.layout (n + 1)),
-      body.binaryMatrix.apply (NormalizedVector.ket (R := Qubits (n + 1)) 0) =
-        NormalizedVector.tensor (NormalizedVector.ket (R := Qubits n) s) ketMinus ∧
+      (∀ s : Fin (2 ^ n), (body.binaryMatrix (XorOracle.interpretation (oracle s))).apply
+        (NormalizedVector.ket (R := Qubits (n + 1)) 0) =
+        NormalizedVector.tensor (NormalizedVector.ket (R := Qubits n) s) ketMinus) ∧
       body.eventCost =
         (2 * n + 2) • ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (XorOracle.model (oracle s)))
+          (model := .quantum AlgorithmGate.model (XorOracle.model n))
           (.gate AlgorithmGate.Coordinate.singleQubit) +
           ResourcePool.singleton
-            (model := .quantum AlgorithmGate.model (XorOracle.model (oracle s)))
+            (model := .quantum AlgorithmGate.model (XorOracle.model n))
             (.oracle XorOracle.Coordinate.xor) ∧
       body.evaluatedEventDepth (fun _ => 1) = if n = 0 then 3 else 4 := by
-  refine ⟨WalshHadamard.Native.zeroInputProgram (oracle s), ?_,
-    WalshHadamard.Native.walshNative_zeroInputProgram_eventCost (oracle s),
-    WalshHadamard.Native.walshNative_zeroInputProgram_unit_depth (oracle s)⟩
+  refine ⟨WalshHadamard.Native.zeroInputProgram n, ?_,
+    WalshHadamard.Native.walshNative_zeroInputProgram_eventCost n,
+    WalshHadamard.Native.walshNative_zeroInputProgram_unit_depth n⟩
+  intro s
   rw [WalshHadamard.Native.walshNative_zeroInputProgram_apply_zero]
   exact finalJointState_oracle s
 

@@ -26,7 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem retain_pair_execute {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+private lemma retain_pair_execute {model : ExecutionModel}
+    {environment : model.Environment} (ctx : RuntimeCtx model.kind)
     (firstKey : StorageKey) (firstShape : CShape) (firstFresh : firstKey ∉ ctx.keys)
     (secondKey : StorageKey) (secondShape : CShape)
     (secondFresh : secondKey ∉ (ctx.addRetained firstKey firstShape firstFresh).keys)
@@ -34,7 +35,7 @@ private theorem retain_pair_execute {model : ExecutionModel} (ctx : RuntimeCtx m
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (Circuit.retain (model := model) ctx firstKey firstShape firstFresh)
       (Circuit.retain (ctx.addRetained firstKey firstShape firstFresh)
-        secondKey secondShape secondFresh)).execute Reference state =
+        secondKey secondShape secondFresh)).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((entry.1.pushRetained firstKey firstShape firstFresh).pushRetained
           secondKey secondShape secondFresh, (entry.2.1, (entry.2.2, ((), ()))))) := by
@@ -43,7 +44,8 @@ private theorem retain_pair_execute {model : ExecutionModel} (ctx : RuntimeCtx m
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem retain_triple_execute {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+private lemma retain_triple_execute {model : ExecutionModel}
+    {environment : model.Environment} (ctx : RuntimeCtx model.kind)
     (firstKey : StorageKey) (firstShape : CShape) (firstFresh : firstKey ∉ ctx.keys)
     (secondKey : StorageKey) (secondShape : CShape)
     (secondFresh : secondKey ∉ (ctx.addRetained firstKey firstShape firstFresh).keys)
@@ -58,7 +60,7 @@ private theorem retain_triple_execute {model : ExecutionModel} (ctx : RuntimeCtx
         secondKey secondShape secondFresh)
         (Circuit.retain ((ctx.addRetained firstKey firstShape firstFresh).addRetained
           secondKey secondShape secondFresh) thirdKey thirdShape thirdFresh))).execute
-          Reference state =
+          environment Reference state =
       state.mapClassical (fun entry =>
         ((((entry.1.pushRetained firstKey firstShape firstFresh).pushRetained
           secondKey secondShape secondFresh).pushRetained thirdKey thirdShape thirdFresh),
@@ -91,10 +93,11 @@ def liftInput {shape : CShape} (input : CInputRef ctx shape) :
       (Native.Retry.Slots.selectedContext ctx width).canonicalFreshKey_fresh
 
 /-- Retention preserves every caller and service history in the same reference block. -/
-theorem allocate_execute {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
+lemma allocate_execute {model : ExecutionModel}
+    {environment : model.Environment} (ctx : RuntimeCtx model.kind)
     (width : Nat) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Native.Retry.Slots.allocate (model := model) ctx width).execute Reference state =
+    (Native.Retry.Slots.allocate (model := model) ctx width).execute environment Reference state =
       state.mapClassical (fun entry =>
         (pushStore ctx width entry.1,
           (entry.2.1, (entry.2.2, ((), ((), ())))))) := by
@@ -108,7 +111,7 @@ theorem allocate_execute {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
     Reference state
 
 /-- Initial flag and selected word have their actual default values. -/
-theorem initial (store : Store ctx) :
+lemma initial (store : Store ctx) :
     (pushStore ctx width store).read
       (.storage (Native.Retry.Slots.acceptedRef ctx width).toCStorageRef) = .bit false ∧
     (pushStore ctx width store).read
@@ -117,7 +120,7 @@ theorem initial (store : Store ctx) :
   constructor <;> rfl
 
 /-- Every earlier caller read remains exactly equal after the real retentions. -/
-theorem read (store : Store ctx) {shape : CShape} (input : CInputRef ctx shape) :
+lemma read (store : Store ctx) {shape : CShape} (input : CInputRef ctx shape) :
     (pushStore ctx width store).read (liftInput ctx width input) = store.read input := by
   exact (Store.read_pushRetained_underRetained _ _ _ _ _).trans
     ((Store.read_pushRetained_underRetained _ _ _ _ _).trans

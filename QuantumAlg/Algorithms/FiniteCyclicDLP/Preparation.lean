@@ -56,13 +56,13 @@ index whose error lies in the source phase cone. -/
   2 ^ orderWidth P
 
 /-- The source-safe oversampled range fits in the Fourier register. -/
-public theorem oversampledOrder_le_fourierModulus (P : KnownOrderProblem G) :
+public lemma oversampledOrder_le_fourierModulus (P : KnownOrderProblem G) :
     oversampledOrder P ≤ fourierModulus P := by
   exact Nat.le_pow_clog (by norm_num : 1 < 2) (oversampledOrder P)
 
 /-- The selected power of two is strictly less than twice the oversampled
 range, so `12N ≤ q < 24N`. -/
-public theorem fourierModulus_lt_twice_oversampledOrder
+public lemma fourierModulus_lt_twice_oversampledOrder
     (P : KnownOrderProblem G) :
     fourierModulus P < 2 * oversampledOrder P := by
   have hlarge : 1 < oversampledOrder P := by
@@ -78,7 +78,7 @@ public theorem fourierModulus_lt_twice_oversampledOrder
   omega
 
 /-- The actual source range `0, ..., N-1` fits in the oversampled register. -/
-public theorem order_le_fourierModulus (P : KnownOrderProblem G) :
+public lemma order_le_fourierModulus (P : KnownOrderProblem G) :
     P.order ≤ fourierModulus P := by
   calc
     P.order ≤ oversampledOrder P := by
@@ -89,7 +89,7 @@ public theorem order_le_fourierModulus (P : KnownOrderProblem G) :
 /-- The actual group order fits strictly below the Fourier-register capacity.
 The stronger inequality follows from the twelve-fold oversampling and is the
 boundary needed by fixed-width routines that materialize the modulus itself. -/
-public theorem order_lt_fourierModulus (P : KnownOrderProblem G) :
+public lemma order_lt_fourierModulus (P : KnownOrderProblem G) :
     P.order < fourierModulus P := by
   calc
     P.order < oversampledOrder P := by
@@ -133,7 +133,7 @@ public def selectedRawFrequency (P : KnownOrderProblem G) (residue : Fin P.order
     exact (Nat.mul_lt_mul_right P.order_pos).mp hproduct⟩
 
 /-- The canonical raw frequency scales back to its exact residue. -/
-public theorem selectedRawFrequency_scale
+public lemma selectedRawFrequency_scale
     (P : KnownOrderProblem G) (residue : Fin P.order) :
     (selectedRawFrequency P residue).val * P.order / fourierModulus P =
       residue.val := by
@@ -160,7 +160,7 @@ public theorem selectedRawFrequency_scale
   · exact (Nat.le_div_iff_mul_le hq).2 hlower
 
 /-- The one-sided raw-frequency rounding error is less than one group order. -/
-public theorem selectedRawFrequency_error_lt_order
+public lemma selectedRawFrequency_error_lt_order
     (P : KnownOrderProblem G) (residue : Fin P.order) :
     (selectedRawFrequency P residue).val * P.order -
         residue.val * fourierModulus P < P.order := by
@@ -176,7 +176,7 @@ public theorem selectedRawFrequency_error_lt_order
 
 /-- Twelve times the rounding error remains strictly below the Fourier
 modulus, the arithmetic form of the phase-cone margin. -/
-public theorem twelve_mul_selectedRawFrequency_error_lt
+public lemma twelve_mul_selectedRawFrequency_error_lt
     (P : KnownOrderProblem G) (residue : Fin P.order) :
     12 * ((selectedRawFrequency P residue).val * P.order -
         residue.val * fourierModulus P) < fourierModulus P := by
@@ -194,7 +194,7 @@ public theorem twelve_mul_selectedRawFrequency_error_lt
 public def invSqrtOrder (order : Nat) : ℂ :=
   (Real.sqrt (order : ℝ) : ℂ)⁻¹
 
-theorem norm_sq_invSqrtOrder {order : Nat} (horder : 0 < order) :
+lemma norm_sq_invSqrtOrder {order : Nat} (horder : 0 < order) :
     ‖invSqrtOrder order‖ ^ 2 = ((order : ℝ)⁻¹) := by
   rw [invSqrtOrder, norm_inv, Complex.norm_real,
     Real.norm_eq_abs, abs_of_nonneg (Real.sqrt_nonneg _), inv_pow,
@@ -222,13 +222,13 @@ def rangeUniformState (order width : Nat) (horder : 0 < order)
       rw [hsum, Real.sqrt_one])
 
 @[simp]
-theorem rangeUniformState_apply {order width : Nat} (horder : 0 < order)
+lemma rangeUniformState_apply {order width : Nat} (horder : 0 < order)
     (hfits : order ≤ 2 ^ width) (i : Fin (2 ^ width)) :
     rangeUniformState order width horder hfits i =
       if i.val < order then invSqrtOrder order else 0 :=
   rfl
 
-theorem rangeUniformState_singleton_orthonormal
+lemma rangeUniformState_singleton_orthonormal
     {order width : Nat} (horder : 0 < order)
     (hfits : order ≤ 2 ^ width) :
     Orthonormal ℂ
@@ -247,7 +247,7 @@ theorem rangeUniformState_singleton_orthonormal
     (rangeUniformState order width horder hfits).norm_eq_one
 
 /-- The singleton range-uniform state extends to a full orthonormal basis. -/
-theorem exists_rangeUniformBasis
+lemma exists_rangeUniformBasis
     (order width : Nat) (horder : 0 < order)
     (hfits : order ≤ 2 ^ width) :
     ∃ b : OrthonormalBasis (Fin (2 ^ width)) ℂ
@@ -270,7 +270,7 @@ noncomputable def rangeUniformBasis
       (HilbertVector (Qubits width)) :=
   Classical.choose (exists_rangeUniformBasis order width horder hfits)
 
-private theorem rangeUniformBasis_zero
+private lemma rangeUniformBasis_zero
     (order width : Nat) (horder : 0 < order)
     (hfits : order ≤ 2 ^ width) :
     rangeUniformBasis order width horder hfits 0 =
@@ -286,7 +286,7 @@ def rangePreparationOperator (order width : Nat) (horder : 0 < order)
     (rangeUniformState order width horder hfits)
 
 /-- The selected unitary really prepares the source range-uniform state. -/
-theorem rangePreparationOperator_apply_zero
+lemma rangePreparationOperator_apply_zero
     (order width : Nat) (horder : 0 < order)
     (hfits : order ≤ 2 ^ width) :
     (rangePreparationOperator order width horder hfits).apply

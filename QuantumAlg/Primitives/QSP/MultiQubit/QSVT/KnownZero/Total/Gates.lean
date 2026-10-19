@@ -21,7 +21,7 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total
 open Gate.Toffoli
 noncomputable section
 
-private theorem phase_native_gate_bound (m n : Nat) (oracles : OracleModel) :
+private lemma phase_native_gate_bound (m n : Nat) (oracles : OracleModel) :
     nativeGateCount (phaseBudget m n oracles) ≤ 40 * m + 3 := by
   cases n with
   | zero =>
@@ -39,10 +39,10 @@ private theorem phase_native_gate_bound (m n : Nat) (oracles : OracleModel) :
       omega
 
 /-- The independent matching-parity word budget has linear width-times-degree gate cost. -/
-theorem totalRealBudget_native_gate_bound {m n : Nat}
-    (U : UnitaryOperator (Qubits (m + n))) (allowControlled : Bool) (L : Nat) :
-    nativeGateCount (budget U allowControlled L) ≤ (40 * m + 3) * L := by
-  have bound := phase_native_gate_bound m n (UnitarySource.model U allowControlled true false)
+lemma totalRealBudget_native_gate_bound {m n : Nat}
+    (allowControlled : Bool) (L : Nat) :
+    nativeGateCount (budget (m := m) (n := n) allowControlled L) ≤ (40 * m + 3) * L := by
+  have bound := phase_native_gate_bound m n (UnitarySource.model (m + n) allowControlled true false)
   simp only [budget, nativeGateCount_add, nativeGateCount_nsmul, eventPool,
     nativeGateCount_singleton_query, Nat.mul_zero, zero_add]
   simpa only [Nat.mul_comm] using Nat.mul_le_mul_left L bound

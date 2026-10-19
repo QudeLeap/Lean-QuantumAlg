@@ -40,7 +40,7 @@ def baseCarryGates (low high output : EncodedBit encoding)
     (if constantHigh then [.x high] else [])
 
 /-- The first stage writes exactly the two-bit carry and restores both inputs. -/
-theorem hrsBaseCarry_step (low high output : EncodedBit encoding)
+lemma hrsBaseCarry_step (low high output : EncodedBit encoding)
     (hlh : low.wire ≠ high.wire) (hlo : low.wire ≠ output.wire)
     (hho : high.wire ≠ output.wire) (constantLow constantHigh : Bool) (state : Data) :
     stepList (baseCarryGates low high output hlh hlo hho constantLow constantHigh) state =
@@ -68,7 +68,7 @@ def propagateCarryGates (input previous output : EncodedBit encoding)
 
 /-- The paired Toffolis cancel the unknown predecessor value. The lower
 computation remains executed once; only the propagated output flip is added. -/
-theorem hrsPropagateCarry_step (input previous output : EncodedBit encoding)
+lemma hrsPropagateCarry_step (input previous output : EncodedBit encoding)
     (hip : input.wire ≠ previous.wire) (hio : input.wire ≠ output.wire)
     (hpo : previous.wire ≠ output.wire) (constant : Bool)
     (lower : List (EncodedBit.GateSpec encoding))
@@ -97,7 +97,7 @@ theorem hrsPropagateCarry_step (input previous output : EncodedBit encoding)
 
 /-- Reversing the lower carry computation retains the output toggle while
 restoring all other joint input components. No output-wire gate is reversed. -/
-theorem hrsCarry_uncompute_lower (output : EncodedBit encoding)
+lemma hrsCarry_uncompute_lower (output : EncodedBit encoding)
     (lower : List (EncodedBit.GateSpec encoding))
     (houtput : ∀ gate, gate ∈ lower → bitDisjoint output gate)
     (toggle : Bool) (state : Data) :

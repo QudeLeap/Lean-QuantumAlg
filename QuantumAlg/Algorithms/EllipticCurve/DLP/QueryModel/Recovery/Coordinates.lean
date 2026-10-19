@@ -39,20 +39,20 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Quantum coordinates receive only initialization and the unchanged actual sampling rounds. -/
-public theorem whole_budget_nonclassical_count (I : ECDLPInstance E) (A : Access I)
+public lemma whole_budget_nonclassical_count (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (event : Resource.Event (Sampling.executionModel I A))
+    (event : Resource.Event (Sampling.executionModel I))
     (outside : ∀ label, event ≠ .classicalOperation label) :
-    ResourcePool.count event (eventBudget I A expansion nontrivial count) =
-      ResourcePool.count event (initializationBudget I A) +
-        count * ResourcePool.count event (Sampling.Reuse.eventBudget I A expansion) := by
+    ResourcePool.count event (eventBudget I expansion nontrivial count) =
+      ResourcePool.count event (initializationBudget I) +
+        count * ResourcePool.count event (Sampling.Reuse.eventBudget I expansion) := by
   have checking := attemptEnvelope_count_eq_zero event outside (curve E) (modulus I nontrivial)
   simp only [eventBudget, tailEventBudget, sampledRecoveryEnvelope, sampledAttemptsEnvelope,
     ResourcePool.count_add, ResourcePool.count_scale, checking, add_zero]
   simp [ResourcePool.count, ResourcePool.ofList, outside]
 
-private theorem pure_classical_weight_zero {gates : GateModel} {oracles : OracleModel}
+private lemma pure_classical_weight_zero {gates : GateModel} {oracles : OracleModel}
     {count : Nat} {layout : QuantumLayout count} (body : UnitaryCircuit gates oracles layout) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (body.eventCost BitWord.model .empty) = 0 := by
@@ -77,15 +77,15 @@ private theorem pure_classical_weight_zero {gates : GateModel} {oracles : Oracle
   | measurement _ => rfl
 
 /-- Sampling emits no classical instructions; actual checked attempts and final packing do. -/
-theorem whole_budget_classical_count (I : ECDLPInstance E) (A : Access I)
+lemma whole_budget_classical_count (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (eventBudget I A expansion nontrivial count) =
+        (eventBudget I expansion nontrivial count) =
       ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-          (initializationBudget I A) +
+          (initializationBudget I) +
         count * ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-          (attemptEnvelope (Sampling.executionModel I A) (curve E) (modulus I nontrivial)) + 1 := by
+          (attemptEnvelope (Sampling.executionModel I) (curve E) (modulus I nontrivial)) + 1 := by
   simp only [eventBudget, tailEventBudget, sampledRecoveryEnvelope, sampledAttemptsEnvelope,
     ResourcePool.scale, Sampling.Reuse.eventBudget, ZReset.Bank.envelope, ZReset.eventEnvelope,
     ResourcePool.weightedCount_add, ResourcePool.weightedCount_nsmul,

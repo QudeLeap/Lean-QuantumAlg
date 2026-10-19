@@ -22,8 +22,9 @@ noncomputable section
 private def weight (angle : ℝ) (bit : Fin 2) : ℂ :=
   if bit = 0 then 1 else Complex.exp ((angle : ℂ) * Complex.I)
 
-private theorem phase_diagonal (oracles : OracleModel) (target : Fin 3) (angle : ℝ) :
-    ((phase oracles target angle).matrix : HilbertOperator layout.register) =
+private lemma phase_diagonal (oracles : OracleModel) (target : Fin 3) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phase oracles target angle).matrix environment) : HilbertOperator layout.register) =
       Matrix.diagonal (fun basis => weight angle (bits basis target)) := by
   let application := singleQubitApplication layout (phaseGateOp angle) target rfl
   have selected (basis : layout.register.Index) :
@@ -48,7 +49,7 @@ private def weighted (values : layout.register.Index → ℂ)
     (p : Equiv.Perm layout.register.Index) :
     HilbertOperator layout.register := fun row column => if p row = column then values row else 0
 
-private theorem weighted_mul (values next : layout.register.Index → ℂ)
+private lemma weighted_mul (values next : layout.register.Index → ℂ)
     (p q : Equiv.Perm layout.register.Index) :
     weighted values p * weighted next q =
       weighted (fun basis => values basis * next (p basis)) (p.trans q) := by
@@ -62,24 +63,26 @@ private theorem weighted_mul (values next : layout.register.Index → ℂ)
     simp [Ne.symm different]
   · simp
 
-private theorem weighted_eq_diagonal (values : layout.register.Index → ℂ)
+private lemma weighted_eq_diagonal (values : layout.register.Index → ℂ)
     (p : Equiv.Perm layout.register.Index) (fixed : ∀ basis, p basis = basis) :
     weighted values p = Matrix.diagonal values := by
   have same : p = Equiv.refl _ := Equiv.ext fixed
   subst p
   rfl
 
-private theorem phase_weighted (oracles : OracleModel) (target : Fin 3) (angle : ℝ) :
-    ((phase oracles target angle).matrix : HilbertOperator layout.register) =
+private lemma phase_weighted (oracles : OracleModel) (target : Fin 3) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phase oracles target angle).matrix environment) : HilbertOperator layout.register) =
       weighted (fun basis => weight angle (bits basis target)) (Equiv.refl _) := by
   rw [phase_diagonal]
   ext row column
   simp [weighted, Matrix.diagonal_apply]
   rfl
 
-private theorem cnot_weighted (oracles : OracleModel) (control target : Fin 3)
-    (distinct : control ≠ target) :
-    ((cnot oracles control target distinct).matrix : HilbertOperator layout.register) =
+private lemma cnot_weighted (oracles : OracleModel) (control target : Fin 3)
+    (distinct : control ≠ target) (environment : oracles.Interpretation) :
+    (((cnot oracles control target distinct).matrix environment) : HilbertOperator layout.register)
+      =
       weighted (fun _ => 1) (permutation control target distinct) := by
   rw [cnot_matrix]
   ext row column

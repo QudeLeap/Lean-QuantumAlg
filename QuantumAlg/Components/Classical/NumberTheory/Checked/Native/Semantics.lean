@@ -27,11 +27,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original canonical input domain suffices for the actual complete checked inverse. -/
-theorem withCheckedInverse_actualRecord (spec : ModulusSpec width)
+lemma withCheckedInverse_actualRecord (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
@@ -39,7 +39,7 @@ theorem withCheckedInverse_actualRecord (spec : ModulusSpec width)
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
         (withCheckedInverse (model := model) spec denominator success inverse).execute
-          Reference state =
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -66,7 +66,8 @@ theorem withCheckedInverse_actualRecord (spec : ModulusSpec width)
         (after.read (decisionRead inverse)).toNat = (Engine.inverseCoefficient spec semantic).val) ∧
       (Engine.unitDecision spec semantic = false →
         after.read (decisionRead inverse) = before.read (decisionRead inverse))
-  refine withCells_actualRecord_initialized_restricted_post ctx (checkedInverseShapes width)
+  refine withCells_actualRecord_initialized_restricted_post
+    (environment := environment) ctx (checkedInverseShapes width)
     (fun cells _ transport _ => checkedInverseBody (model := model) spec
       (transport.liftInput denominator)
       (checkedModulusCell cells) (checkedRawOutputs cells)

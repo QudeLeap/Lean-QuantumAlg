@@ -77,39 +77,39 @@ def Candidate (samples : Finset (BitVec n)) (t : BitVec n) : Prop :=
   t ≠ 0 ∧ SatisfiesEquations samples t
 
 @[simp]
-theorem dot_zero_left (x : BitVec n) : dot (0 : BitVec n) x = 0 := by
+lemma dot_zero_left (x : BitVec n) : dot (0 : BitVec n) x = 0 := by
   simp [dot]
 
 @[simp]
-theorem dot_zero_right (x : BitVec n) : dot x (0 : BitVec n) = 0 := by
+lemma dot_zero_right (x : BitVec n) : dot x (0 : BitVec n) = 0 := by
   simp [dot]
 
 /-- The `𝔽₂` dot product is symmetric. -/
-theorem dot_comm (x y : BitVec n) : dot x y = dot y x := by
+lemma dot_comm (x y : BitVec n) : dot x y = dot y x := by
   unfold dot
   refine Finset.sum_congr rfl ?_
   intro i _
   rw [mul_comm]
 
 /-- Right additivity of the `𝔽₂` dot product. -/
-theorem dot_add_right (x y z : BitVec n) :
+lemma dot_add_right (x y z : BitVec n) :
     dot x (y + z) = dot x y + dot x z := by
   simp [dot, mul_add, Finset.sum_add_distrib]
 
 /-- Left additivity of the `𝔽₂` dot product. -/
-theorem dot_add_left (x y z : BitVec n) :
+lemma dot_add_left (x y z : BitVec n) :
     dot (x + y) z = dot x z + dot y z := by
   simp [dot, add_mul, Finset.sum_add_distrib]
 
 /-- The zero vector satisfies every collected Simon equation. -/
-theorem satisfiesEquations_zero (samples : Finset (BitVec n)) :
+lemma satisfiesEquations_zero (samples : Finset (BitVec n)) :
     SatisfiesEquations samples (0 : BitVec n) := by
   intro y _
   simp [SatisfiesEquation, Orthogonal]
 
 /-- Sums of solutions to the collected equations are again solutions; the
 solution set is a linear subspace over `𝔽₂`. -/
-theorem satisfiesEquations_add {samples : Finset (BitVec n)} {a b : BitVec n}
+lemma satisfiesEquations_add {samples : Finset (BitVec n)} {a b : BitVec n}
     (ha : SatisfiesEquations samples a) (hb : SatisfiesEquations samples b) :
     SatisfiesEquations samples (a + b) := by
   intro y hy
@@ -118,14 +118,14 @@ theorem satisfiesEquations_add {samples : Finset (BitVec n)} {a b : BitVec n}
 
 /-- If the equations are complete, the unknown nonzero string itself satisfies all of
 them. -/
-theorem hiddenMask_satisfiesEquations {samples : Finset (BitVec n)}
+lemma hiddenMask_satisfiesEquations {samples : Finset (BitVec n)}
     {s : BitVec n} (hcomplete : CompleteEquations samples s) :
     SatisfiesEquations samples s := by
   exact (hcomplete s).2 (Or.inr rfl)
 
 /-- Complete Simon equations identify the unknown nonzero string among nonzero
 candidates. -/
-theorem recover_from_complete_equations {samples : Finset (BitVec n)}
+lemma recover_from_complete_equations {samples : Finset (BitVec n)}
     {s t : BitVec n} (hcomplete : CompleteEquations samples s)
     (hcandidate : Candidate samples t) :
     t = s := by
@@ -135,7 +135,7 @@ theorem recover_from_complete_equations {samples : Finset (BitVec n)}
   · exact ht_s
 
 /-- The Simon promise determines a unique nonzero mask for an oracle. -/
-theorem promise_mask_unique {f : Oracle n α} {s t : BitVec n}
+lemma promise_mask_unique {f : Oracle n α} {s t : BitVec n}
     (hs : Promise f s) (ht : Promise f t) :
     s = t := by
   have hf0t : f 0 = f t := by

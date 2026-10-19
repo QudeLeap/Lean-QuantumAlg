@@ -73,12 +73,12 @@ def stateKey (cells : Cells ctx (stateShapes width)) (index : Fin 7) : StorageKe
   (cellAt cells index).ref.key
 
 /-- Actual lexical distinctness gives every pair of internal cells different keys. -/
-theorem xgcdNativeState_key_injective (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeState_key_injective (cells : Cells ctx (stateShapes width))
     (distinct : cells.Distinct) : Function.Injective (stateKey cells) :=
   workspaceCells_cellAt_key_injective cells distinct
 
 /-- Every state cell avoids every structurally transported caller read. -/
-theorem xgcdNativeState_input_separated {outer : RuntimeCtx kind}
+lemma xgcdNativeState_input_separated {outer : RuntimeCtx kind}
     (cells : Cells ctx (stateShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport)
     {shape : CShape} (input : CInputRef outer shape) (index : Fin 7) :
@@ -86,7 +86,7 @@ theorem xgcdNativeState_input_separated {outer : RuntimeCtx kind}
   Cells.workspaceCells_cellAt_transport_avoids cells transport separated input index
 
 /-- Lexical entry gives each actual state cell its declared initial encoding. -/
-theorem xgcdNativeState_initial_value (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeState_initial_value (cells : Cells ctx (stateShapes width))
     (store : Store ctx) (initialized : cells.Initialized store) (index : Fin 7) :
     store.read (.storage (cellAt cells index).ref.toCStorageRef) =
       CShape.initialValue ((stateShapes width).get index) :=

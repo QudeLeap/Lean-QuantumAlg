@@ -42,6 +42,8 @@ namespace MAU.Multiplication.DirtyBorrowed
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open scoped BigOperators
 
 /-- Canonical native circuit carrier for one binary encoding. -/
@@ -55,12 +57,12 @@ private def programOf {Data : Type} {encoding : BinaryLabelEncoding Data}
   EncodedBit.GateSpec.programList (QubitLayout.canonical encoding.width) .empty gates
 
 /-- A canonical literal program executes the fold of the same gate list. -/
-private theorem realizesProgramOf {Data : Type} {encoding : BinaryLabelEncoding Data}
+private lemma realizesProgramOf {Data : Type} {encoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec encoding)) :
-    UnitaryCircuit.Realizes encoding (programOf gates)
+    UnitaryCircuit.Realizes encoding (programOf gates) environment
       (EncodedBit.GateSpec.stepList gates) :=
   EncodedBit.GateSpec.realizesList
-    (QubitLayout.canonical encoding.width) .empty gates
+    (QubitLayout.canonical encoding.width) .empty gates environment
 
 /-! ## R.0 building block -/
 
@@ -75,10 +77,10 @@ abbrev r0PlainAdderProgram (n : Nat) (constant : PlainAdder.Word n.succ) :
 
 /-- R.0's literal program has the exact strong dirty-state semantics already
 proved in the addition module. -/
-theorem r0PlainAdderProgram_realizes (n : Nat)
+lemma r0PlainAdderProgram_realizes (n : Nat)
     (constant : PlainAdder.Word n.succ) :
     UnitaryCircuit.Realizes (MAU.Addition.DirtyBorrowed.straightforwardEncoding n)
-      (r0PlainAdderProgram n constant)
+      (r0PlainAdderProgram n constant) environment
       (fun state => (state.1 + constant, state.2)) :=
   MAU.Addition.DirtyBorrowed.straightforwardProgram_realizes n constant
 
@@ -127,68 +129,68 @@ def withCleanFlag {n : Nat} {Borrowed : Register} (state : State n Borrowed)
     (newFlag : Bool) : State n Borrowed :=
   ((source state, target state), (newFlag, borrowed state))
 
-@[simp] theorem source_withTarget {n : Nat} {Borrowed : Register}
+@[simp] lemma source_withTarget {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newTarget : PlainAdder.Word n) :
     source (withTarget state newTarget) = source state :=
   rfl
 
-@[simp] theorem target_withTarget {n : Nat} {Borrowed : Register}
+@[simp] lemma target_withTarget {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newTarget : PlainAdder.Word n) :
     target (withTarget state newTarget) = newTarget :=
   rfl
 
-@[simp] theorem cleanFlag_withTarget {n : Nat} {Borrowed : Register}
+@[simp] lemma cleanFlag_withTarget {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newTarget : PlainAdder.Word n) :
     cleanFlag (withTarget state newTarget) = cleanFlag state :=
   rfl
 
-@[simp] theorem borrowed_withTarget {n : Nat} {Borrowed : Register}
+@[simp] lemma borrowed_withTarget {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newTarget : PlainAdder.Word n) :
     borrowed (withTarget state newTarget) = borrowed state :=
   rfl
 
-@[simp] theorem source_withCleanFlag {n : Nat} {Borrowed : Register}
+@[simp] lemma source_withCleanFlag {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newFlag : Bool) :
     source (withCleanFlag state newFlag) = source state :=
   rfl
 
-@[simp] theorem target_withCleanFlag {n : Nat} {Borrowed : Register}
+@[simp] lemma target_withCleanFlag {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newFlag : Bool) :
     target (withCleanFlag state newFlag) = target state :=
   rfl
 
-@[simp] theorem cleanFlag_withCleanFlag {n : Nat} {Borrowed : Register}
+@[simp] lemma cleanFlag_withCleanFlag {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newFlag : Bool) :
     cleanFlag (withCleanFlag state newFlag) = newFlag :=
   rfl
 
-@[simp] theorem borrowed_withCleanFlag {n : Nat} {Borrowed : Register}
+@[simp] lemma borrowed_withCleanFlag {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newFlag : Bool) :
     borrowed (withCleanFlag state newFlag) = borrowed state :=
   rfl
 
 /-- Replacing the accumulator by its current value is the identity. -/
-@[simp] theorem withTarget_target {n : Nat} {Borrowed : Register}
+@[simp] lemma withTarget_target {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) :
     withTarget state (target state) = state := by
   rcases state with ⟨⟨sourceWord, targetWord⟩, ⟨flag, dirty⟩⟩
   rfl
 
 /-- Consecutive accumulator replacements retain only the final value. -/
-@[simp] theorem withTarget_withTarget {n : Nat} {Borrowed : Register}
+@[simp] lemma withTarget_withTarget {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (first second : PlainAdder.Word n) :
     withTarget (withTarget state first) second = withTarget state second :=
   rfl
 
 /-- Replacing the clean flag by its current value is the identity. -/
-@[simp] theorem withCleanFlag_cleanFlag {n : Nat} {Borrowed : Register}
+@[simp] lemma withCleanFlag_cleanFlag {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) :
     withCleanFlag state (cleanFlag state) = state := by
   rcases state with ⟨⟨sourceWord, targetWord⟩, ⟨flag, dirty⟩⟩
   rfl
 
 /-- Consecutive clean-flag replacements retain only the final value. -/
-@[simp] theorem withCleanFlag_withCleanFlag {n : Nat} {Borrowed : Register}
+@[simp] lemma withCleanFlag_withCleanFlag {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (first second : Bool) :
     withCleanFlag (withCleanFlag state first) second =
       withCleanFlag state second :=
@@ -196,7 +198,7 @@ def withCleanFlag {n : Nat} {Borrowed : Register} (state : State n Borrowed)
 
 /-- Accumulator and clean-flag replacement commute because they address
 disjoint logical projections. -/
-theorem withCleanFlag_withTarget {n : Nat} {Borrowed : Register}
+lemma withCleanFlag_withTarget {n : Nat} {Borrowed : Register}
     (state : State n Borrowed) (newTarget : PlainAdder.Word n)
     (newFlag : Bool) :
     withCleanFlag (withTarget state newTarget) newFlag =
@@ -228,7 +230,7 @@ namespace Parameters
 def word (params : Parameters n) (value : Nat) : PlainAdder.Word n :=
   (value % params.modulus : PlainAdder.Word n)
 
-@[simp] theorem word_val (params : Parameters n) (value : Nat) :
+@[simp] lemma word_val (params : Parameters n) (value : Nat) :
     (params.word value).val = value % params.modulus :=
   ZMod.val_natCast_of_lt
     ((Nat.mod_lt _ params.modulus_pos).trans params.modulus_lt_width)
@@ -249,7 +251,7 @@ def signedStageConstant (params : Parameters n) (subtract : Bool)
 
 /-- Every forward or inverse-pass stage constant is a canonical residue below
 the positive modulus. -/
-theorem signedStageConstant_lt_modulus (params : Parameters n)
+lemma signedStageConstant_lt_modulus (params : Parameters n)
     (subtract : Bool) (bit : Fin n) :
     params.signedStageConstant subtract bit < params.modulus := by
   cases subtract <;>
@@ -267,7 +269,7 @@ def addReduced (params : Parameters n) (addend : Nat)
   else
     value
 
-@[simp] theorem addReduced_invalid (params : Parameters n) (addend : Nat)
+@[simp] lemma addReduced_invalid (params : Parameters n) (addend : Nat)
     (value : PlainAdder.Word n) (hvalue : ¬ value.val < params.modulus) :
     params.addReduced addend value = value := by
   simp [addReduced, hvalue]
@@ -291,17 +293,17 @@ def stageUpdate (params : Parameters n) (bit : Fin n) (subtract : Bool)
     (state : State n Borrowed) : State n Borrowed :=
   withTarget state (stageTarget params bit subtract state)
 
-@[simp] theorem stageUpdate_source (params : Parameters n) (bit : Fin n)
+@[simp] lemma stageUpdate_source (params : Parameters n) (bit : Fin n)
     (subtract : Bool) (state : State n Borrowed) :
     source (stageUpdate params bit subtract state) = source state :=
   rfl
 
-@[simp] theorem stageUpdate_cleanFlag (params : Parameters n) (bit : Fin n)
+@[simp] lemma stageUpdate_cleanFlag (params : Parameters n) (bit : Fin n)
     (subtract : Bool) (state : State n Borrowed) :
     cleanFlag (stageUpdate params bit subtract state) = cleanFlag state :=
   rfl
 
-@[simp] theorem stageUpdate_borrowed (params : Parameters n) (bit : Fin n)
+@[simp] lemma stageUpdate_borrowed (params : Parameters n) (bit : Fin n)
     (subtract : Bool) (state : State n Borrowed) :
     borrowed (stageUpdate params bit subtract state) = borrowed state :=
   rfl
@@ -346,7 +348,7 @@ variable {n : Nat} {params : Parameters n} {Borrowed : Register}
 variable {bit : Fin n} {subtract : Bool}
 
 /-- The inverse permutation also leaves the entire borrowed label unchanged. -/
-theorem preserves_borrowed_symm
+lemma preserves_borrowed_symm
     (implementation : ControlledModularAdd params Borrowed bit subtract)
     (state : State n Borrowed) :
     borrowed (implementation.perm.symm state) = borrowed state := by
@@ -422,7 +424,7 @@ def dirtyTripleControlledXStep
 
 /-- The arbitrary dirty value cancels: the sequence flips only the target,
 and only when all three controls are true. -/
-theorem dirtyTripleControlledXStep_eq
+lemma dirtyTripleControlledXStep_eq
     (controlA controlB controlC target work : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire)
     (hac : controlA.wire ≠ controlC.wire)
@@ -492,7 +494,7 @@ def dirtyTripleControlledXProgram
       hab hac hat haw hbc hbt hbw hct hcw htw)
 
 /-- The actual circuit realizes its exact arbitrary-dirty semantic action. -/
-theorem dirtyTripleControlledXProgram_realizes
+lemma dirtyTripleControlledXProgram_realizes
     (controlA controlB controlC target work : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire)
     (hac : controlA.wire ≠ controlC.wire)
@@ -506,7 +508,7 @@ theorem dirtyTripleControlledXProgram_realizes
     (htw : target.wire ≠ work.wire) :
     UnitaryCircuit.Realizes encoding
       (dirtyTripleControlledXProgram controlA controlB controlC target work
-        hab hac hat haw hbc hbt hbw hct hcw htw)
+        hab hac hat haw hbc hbt hbw hct hcw htw) environment
       (dirtyTripleControlledXStep controlA controlB controlC target work
         hab hac hat haw hbc hbt hbw hct hcw htw) :=
   realizesProgramOf
@@ -514,7 +516,7 @@ theorem dirtyTripleControlledXProgram_realizes
       hab hac hat haw hbc hbt hbw hct hcw htw)
 
 /-- The same owned circuit contains exactly four Toffoli leaves. -/
-theorem dirtyTripleControlledXProgram_toffoli_count_eq
+lemma dirtyTripleControlledXProgram_toffoli_count_eq
     (controlA controlB controlC target work : EncodedBit encoding)
     (hab : controlA.wire ≠ controlB.wire)
     (hac : controlA.wire ≠ controlC.wire)
@@ -554,7 +556,7 @@ def wordBitsEquiv (n : Nat) :
 
 /-- Reading the canonical bit-vector view is ordinary little-endian
 `testBit`. -/
-@[simp] theorem wordBitsEquiv_apply (n : Nat) (word : PlainAdder.Word n)
+@[simp] lemma wordBitsEquiv_apply (n : Nat) (word : PlainAdder.Word n)
     (bit : Fin n) :
     wordBitsEquiv n word bit = word.val.testBit bit.val :=
   rfl
@@ -569,13 +571,13 @@ def wordRemoveEquiv (pivot : Fin n.succ) :
       ((Equiv.refl Bool).prodCongr (wordBitsEquiv n).symm))
 
 /-- The first split component is exactly the selected source bit. -/
-@[simp] theorem wordRemoveEquiv_fst (pivot : Fin n.succ)
+@[simp] lemma wordRemoveEquiv_fst (pivot : Fin n.succ)
     (word : PlainAdder.Word n.succ) :
     (wordRemoveEquiv pivot word).1 = word.val.testBit pivot.val := by
   rfl
 
 /-- Residual bit `j` is exactly source bit `pivot.succAbove j`. -/
-@[simp] theorem wordRemoveEquiv_snd_testBit (pivot : Fin n.succ)
+@[simp] lemma wordRemoveEquiv_snd_testBit (pivot : Fin n.succ)
     (word : PlainAdder.Word n.succ) (bit : Fin n) :
     (wordRemoveEquiv pivot word).2.val.testBit bit.val =
       word.val.testBit (pivot.succAbove bit).val := by
@@ -593,7 +595,7 @@ def wordRemoveEquiv (pivot : Fin n.succ) :
     _ = word.val.testBit (pivot.succAbove bit).val := rfl
 
 /-- Reinsertion restores the selected bit at the pivot position. -/
-@[simp] theorem wordRemoveEquiv_symm_testBit_pivot (pivot : Fin n.succ)
+@[simp] lemma wordRemoveEquiv_symm_testBit_pivot (pivot : Fin n.succ)
     (selector : Bool) (remainder : PlainAdder.Word n) :
     ((wordRemoveEquiv pivot).symm (selector, remainder)).val.testBit pivot.val =
       selector := by
@@ -602,7 +604,7 @@ def wordRemoveEquiv (pivot : Fin n.succ) :
   simpa using h.symm
 
 /-- Reinsertion restores every residual bit at its `succAbove` position. -/
-@[simp] theorem wordRemoveEquiv_symm_testBit_succAbove
+@[simp] lemma wordRemoveEquiv_symm_testBit_succAbove
     (pivot : Fin n.succ) (selector : Bool)
     (remainder : PlainAdder.Word n) (bit : Fin n) :
     ((wordRemoveEquiv pivot).symm (selector, remainder)).val.testBit
@@ -622,7 +624,7 @@ def flagTargetWordEquiv (n : Nat) :
       (PlainAdder.Schedule.PowerOfTwo.wordLabelEquiv n.succ).symm)
 
 /-- Numeric value of the packed flag/target word. -/
-@[simp] theorem flagTargetWordEquiv_val (n : Nat) (flag : Bool)
+@[simp] lemma flagTargetWordEquiv_val (n : Nat) (flag : Bool)
     (targetWord : PlainAdder.Word n) :
     (flagTargetWordEquiv n (flag, targetWord)).val =
       (prodEquiv (m := 1) (n := n)
@@ -646,7 +648,7 @@ def flagTargetWordEquiv (n : Nat) :
 
 /-- Packing the clean flag above the accumulator leaves every low accumulator
 bit at the same little-endian position. -/
-theorem flagTargetWordEquiv_low_bit (n : Nat) (flag : Bool)
+lemma flagTargetWordEquiv_low_bit (n : Nat) (flag : Bool)
     (targetWord : PlainAdder.Word n) (bit : Fin n) :
     (flagTargetWordEquiv n (flag, targetWord)).val.testBit bit.val =
       targetWord.val.testBit bit.val := by
@@ -656,7 +658,7 @@ theorem flagTargetWordEquiv_low_bit (n : Nat) (flag : Bool)
     (PlainAdder.Schedule.PowerOfTwo.wordLabelEquiv n targetWord) bit
 
 /-- The final bit of the packed target is exactly the clean flag. -/
-theorem flagTargetWordEquiv_high_bit (n : Nat) (flag : Bool)
+lemma flagTargetWordEquiv_high_bit (n : Nat) (flag : Bool)
     (targetWord : PlainAdder.Word n) :
     (flagTargetWordEquiv n (flag, targetWord)).val.testBit n = flag := by
   rw [flagTargetWordEquiv_val]
@@ -691,7 +693,7 @@ def literalR0StateEquiv (n : Nat) :
 
 /-- On the literal `2n+1` carrier, R.0 borrows the source word rather than a
 third physical word. -/
-@[simp] theorem literalR0StateEquiv_snd (n : Nat)
+@[simp] lemma literalR0StateEquiv_snd (n : Nat)
     (state : State n (LiteralBorrowed n)) :
     (literalR0StateEquiv n state).2 =
       PlainAdder.Schedule.PowerOfTwo.wordLabelEquiv n (source state) := by
@@ -699,7 +701,7 @@ third physical word. -/
 
 /-- The other R.0 component is exactly the accumulator with the clean flag
 packed above it. -/
-@[simp] theorem literalR0StateEquiv_fst (n : Nat)
+@[simp] lemma literalR0StateEquiv_fst (n : Nat)
     (state : State n (LiteralBorrowed n)) :
     (literalR0StateEquiv n state).1 =
       flagTargetWordEquiv n (cleanFlag state, target state) := by
@@ -713,7 +715,7 @@ def literalR0Encoding (n : Nat) :
     (literalR0StateEquiv n)
 
 /-- The literal R.0 carrier is exactly the HRS `2n+1` core. -/
-@[simp] theorem literalR0Encoding_width (n : Nat) :
+@[simp] lemma literalR0Encoding_width (n : Nat) :
     (literalR0Encoding n).width = 2 * n + 1 := by
   exact MAU.Addition.DirtyBorrowed.straightforwardEncoding_width n
 
@@ -723,7 +725,7 @@ def literalR0LabelEquiv (n : Nat) :
   (literalR0StateEquiv n).trans
     (MAU.Addition.DirtyBorrowed.straightforwardLabelEquiv n)
 
-@[simp] theorem literalR0Encoding_encode (n : Nat)
+@[simp] lemma literalR0Encoding_encode (n : Nat)
     (state : State n (LiteralBorrowed n)) :
     (literalR0Encoding n).encode state = literalR0LabelEquiv n state :=
   rfl
@@ -734,7 +736,7 @@ def literalR0IndexEquiv (n : Nat) :
       (register n (LiteralBorrowed n)).Index :=
   (literalR0LabelEquiv n).symm
 
-theorem literalR0IndexEquiv_encode (n : Nat)
+lemma literalR0IndexEquiv_encode (n : Nat)
     (state : State n (LiteralBorrowed n)) :
     literalR0IndexEquiv n ((literalR0Encoding n).encode state) = state := by
   change (literalR0LabelEquiv n).symm (literalR0LabelEquiv n state) = state
@@ -764,7 +766,7 @@ def literalR0Step (n : Nat) (constant : PlainAdder.Word n.succ)
 
 /-- The aliased R.0 step restores the entire source word for every complete
 basis label; the source is the dirty work and is never initialized. -/
-@[simp] theorem literalR0Step_source (n : Nat)
+@[simp] lemma literalR0Step_source (n : Nat)
     (constant : PlainAdder.Word n.succ)
     (state : State n (LiteralBorrowed n)) :
     source (literalR0Step n constant state) = source state := by
@@ -778,9 +780,9 @@ abbrev literalR0Program (n : Nat) (constant : PlainAdder.Word n.succ) :
   MAU.Addition.DirtyBorrowed.straightforwardProgram n constant
 
 /-- The wire-identical R.0 program realizes the aliased core transition. -/
-theorem literalR0Program_realizes (n : Nat)
+lemma literalR0Program_realizes (n : Nat)
     (constant : PlainAdder.Word n.succ) :
-    UnitaryCircuit.Realizes (literalR0Encoding n) (literalR0Program n constant)
+    UnitaryCircuit.Realizes (literalR0Encoding n) (literalR0Program n constant) environment
       (literalR0Step n constant) := by
   constructor
   intro state
@@ -789,7 +791,7 @@ theorem literalR0Program_realizes (n : Nat)
         ((literalR0StateEquiv n state).1 + constant,
           (literalR0StateEquiv n state).2) := by
     simp [literalR0Step]
-  change (MAU.Addition.DirtyBorrowed.straightforwardProgram n constant).applyNormalized
+  change (MAU.Addition.DirtyBorrowed.straightforwardProgram n constant).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical
           (MAU.Addition.DirtyBorrowed.straightforwardEncoding n).width).basisEquiv.symm
@@ -801,18 +803,19 @@ theorem literalR0Program_realizes (n : Nat)
         ((MAU.Addition.DirtyBorrowed.straightforwardEncoding n).encode
           (literalR0StateEquiv n (literalR0Step n constant state))))
   rw [hstep]
-  exact (MAU.Addition.DirtyBorrowed.straightforwardProgram_realizes n constant).apply_encoded_ket
+  exact (MAU.Addition.DirtyBorrowed.straightforwardProgram_realizes
+    (environment := environment) n constant).apply_encoded_ket
     (literalR0StateEquiv n state)
 
 /-- Exact Toffoli count of the aliased R.0 program. -/
-theorem literalR0Program_toffoli_count_eq (n : Nat)
+lemma literalR0Program_toffoli_count_eq (n : Nat)
     (constant : PlainAdder.Word n.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (literalR0Program n constant).eventCost = 2 * n * (n - 1) :=
   MAU.Addition.DirtyBorrowed.straightforwardProgram_toffoli_count_eq n constant
 
 /-- Exact CNOT count of the same aliased R.0 program. -/
-theorem literalR0Program_cnot_count_eq (n : Nat)
+lemma literalR0Program_cnot_count_eq (n : Nat)
     (constant : PlainAdder.Word n.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (literalR0Program n constant).eventCost =
@@ -820,7 +823,7 @@ theorem literalR0Program_cnot_count_eq (n : Nat)
   MAU.Addition.DirtyBorrowed.straightforwardProgram_cnot_count_eq n constant
 
 /-- Exact X count of the same aliased R.0 program. -/
-theorem literalR0Program_x_count_eq (n : Nat)
+lemma literalR0Program_x_count_eq (n : Nat)
     (constant : PlainAdder.Word n.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (literalR0Program n constant).eventCost =
@@ -836,7 +839,7 @@ abbrev literalSwapEncoding (n : Nat) :
   literalR0Encoding n
 
 /-- The concrete literal swap carrier has the actual HRS core width. -/
-theorem literalSwapEncoding_width (n : Nat) :
+lemma literalSwapEncoding_width (n : Nat) :
     (literalSwapEncoding n).width = 2 * n + 1 := by
   exact literalR0Encoding_width n
 
@@ -868,7 +871,7 @@ def literalTargetWord (n : Nat) :
   bit := literalTargetBit n
 
 /-- Readout of one source-word wire in the literal HRS layout. -/
-@[simp] theorem literalSourceBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma literalSourceBit_get (n : Nat) (bit : Fin n)
     (state : State n (LiteralBorrowed n)) :
     (literalSourceBit n bit).get state =
       (source state).val.testBit bit.val := by
@@ -879,7 +882,7 @@ def literalTargetWord (n : Nat) :
   rfl
 
 /-- Readout of one accumulator-word wire in the literal HRS layout. -/
-@[simp] theorem literalTargetBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma literalTargetBit_get (n : Nat) (bit : Fin n)
     (state : State n (LiteralBorrowed n)) :
     (literalTargetBit n bit).get state =
       (target state).val.testBit bit.val := by
@@ -890,7 +893,7 @@ def literalTargetWord (n : Nat) :
   exact flagTargetWordEquiv_low_bit n (cleanFlag state) (target state) bit
 
 /-- Readout of the clean comparison flag in the shared R.0/swap layout. -/
-@[simp] theorem literalFlagBit_get (n : Nat)
+@[simp] lemma literalFlagBit_get (n : Nat)
     (state : State n (LiteralBorrowed n)) :
     (literalFlagBit n).get state = cleanFlag state := by
   change (MAU.Addition.DirtyBorrowed.straightforwardTargetBit n (Fin.last n)).get
@@ -900,19 +903,19 @@ def literalTargetWord (n : Nat) :
   exact flagTargetWordEquiv_high_bit n (cleanFlag state) (target state)
 
 /-- Corresponding source and target wires are physically distinct. -/
-theorem literalSourceTargetBit_wire_ne (n : Nat) (bit : Fin n) :
+lemma literalSourceTargetBit_wire_ne (n : Nat) (bit : Fin n) :
     (literalSourceBit n bit).wire ≠ (literalTargetBit n bit).wire := by
   exact (MAU.Addition.DirtyBorrowed.straightforwardTargetBit_wire_ne_dirtyBit
     n bit.castSucc bit).symm
 
 /-- Distinct source-word indices occupy distinct physical wires. -/
-theorem literalSourceBit_wire_ne (n : Nat) {left right : Fin n}
+lemma literalSourceBit_wire_ne (n : Nat) {left right : Fin n}
     (hne : left ≠ right) :
     (literalSourceBit n left).wire ≠ (literalSourceBit n right).wire := by
   exact MAU.Addition.DirtyBorrowed.straightforwardDirtyBit_wire_ne n hne
 
 /-- Distinct target-word indices occupy distinct physical wires. -/
-theorem literalTargetBit_wire_ne (n : Nat) {left right : Fin n}
+lemma literalTargetBit_wire_ne (n : Nat) {left right : Fin n}
     (hne : left ≠ right) :
     (literalTargetBit n left).wire ≠ (literalTargetBit n right).wire := by
   apply MAU.Addition.DirtyBorrowed.straightforwardTargetBit_wire_ne n
@@ -922,7 +925,7 @@ theorem literalTargetBit_wire_ne (n : Nat) {left right : Fin n}
   simpa using congrArg Fin.val heq
 
 /-- Any source-word wire is distinct from any target-word wire. -/
-theorem literalSourceTargetBit_cross_wire_ne (n : Nat)
+lemma literalSourceTargetBit_cross_wire_ne (n : Nat)
     (sourceBit targetBit : Fin n) :
     (literalSourceBit n sourceBit).wire ≠
       (literalTargetBit n targetBit).wire := by
@@ -930,13 +933,13 @@ theorem literalSourceTargetBit_cross_wire_ne (n : Nat)
     n targetBit.castSucc sourceBit).symm
 
 /-- Every source-word wire is disjoint from the clean flag wire. -/
-theorem literalSourceBit_wire_ne_flag (n : Nat) (bit : Fin n) :
+lemma literalSourceBit_wire_ne_flag (n : Nat) (bit : Fin n) :
     (literalSourceBit n bit).wire ≠ (literalFlagBit n).wire :=
   (MAU.Addition.DirtyBorrowed.straightforwardTargetBit_wire_ne_dirtyBit
     n (Fin.last n) bit).symm
 
 /-- Every low target-word wire is disjoint from the clean flag wire. -/
-theorem literalTargetBit_wire_ne_flag (n : Nat) (bit : Fin n) :
+lemma literalTargetBit_wire_ne_flag (n : Nat) (bit : Fin n) :
     (literalTargetBit n bit).wire ≠ (literalFlagBit n).wire := by
   apply MAU.Addition.DirtyBorrowed.straightforwardTargetBit_wire_ne n
   exact bit.castSucc_ne_last
@@ -955,7 +958,7 @@ def literalCarryDirtyBit {tail : Nat} (pivot : Fin tail.succ)
   literalSourceBit tail.succ (pivot.succAbove bit)
 
 /-- The selector lens reads exactly the requested source-word bit. -/
-@[simp] theorem literalSelectedSourceBit_get {tail : Nat}
+@[simp] lemma literalSelectedSourceBit_get {tail : Nat}
     (pivot : Fin tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     (literalSelectedSourceBit pivot).get state =
@@ -963,7 +966,7 @@ def literalCarryDirtyBit {tail : Nat} (pivot : Fin tail.succ)
   literalSourceBit_get tail.succ pivot state
 
 /-- Every dirty-carry lens reads the corresponding non-selector source bit. -/
-@[simp] theorem literalCarryDirtyBit_get {tail : Nat}
+@[simp] lemma literalCarryDirtyBit_get {tail : Nat}
     (pivot : Fin tail.succ) (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     (literalCarryDirtyBit pivot bit).get state =
@@ -972,7 +975,7 @@ def literalCarryDirtyBit {tail : Nat} (pivot : Fin tail.succ)
 
 /-- The physical dirty-carry lens agrees with the residual word produced by
 the selector-removal equivalence. -/
-theorem literalCarryDirtyBit_get_eq_removedWord {tail : Nat}
+lemma literalCarryDirtyBit_get_eq_removedWord {tail : Nat}
     (pivot : Fin tail.succ) (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     (literalCarryDirtyBit pivot bit).get state =
@@ -980,21 +983,21 @@ theorem literalCarryDirtyBit_get_eq_removedWord {tail : Nat}
   rw [literalCarryDirtyBit_get, wordRemoveEquiv_snd_testBit]
 
 /-- The selected control wire is excluded from every dirty-carry role. -/
-theorem literalSelectedSourceBit_wire_ne_carryDirtyBit {tail : Nat}
+lemma literalSelectedSourceBit_wire_ne_carryDirtyBit {tail : Nat}
     (pivot : Fin tail.succ) (bit : Fin tail) :
     (literalSelectedSourceBit pivot).wire ≠
       (literalCarryDirtyBit pivot bit).wire := by
   exact literalSourceBit_wire_ne tail.succ (Fin.ne_succAbove pivot bit)
 
 /-- Reverse orientation of selector/dirty disjointness for gate predicates. -/
-theorem literalCarryDirtyBit_wire_ne_selectedSourceBit {tail : Nat}
+lemma literalCarryDirtyBit_wire_ne_selectedSourceBit {tail : Nat}
     (pivot : Fin tail.succ) (bit : Fin tail) :
     (literalCarryDirtyBit pivot bit).wire ≠
       (literalSelectedSourceBit pivot).wire :=
   (literalSelectedSourceBit_wire_ne_carryDirtyBit pivot bit).symm
 
 /-- Different residual indices occupy different physical source wires. -/
-theorem literalCarryDirtyBit_wire_ne {tail : Nat}
+lemma literalCarryDirtyBit_wire_ne {tail : Nat}
     (pivot : Fin tail.succ) {left right : Fin tail} (hne : left ≠ right) :
     (literalCarryDirtyBit pivot left).wire ≠
       (literalCarryDirtyBit pivot right).wire := by
@@ -1002,7 +1005,7 @@ theorem literalCarryDirtyBit_wire_ne {tail : Nat}
     (fun heq => hne (Fin.succAbove_right_injective heq))
 
 /-- Every residual dirty-carry wire is disjoint from every accumulator wire. -/
-theorem literalCarryDirtyBit_wire_ne_targetBit {tail : Nat}
+lemma literalCarryDirtyBit_wire_ne_targetBit {tail : Nat}
     (pivot : Fin tail.succ) (dirty : Fin tail) (targetBit : Fin tail.succ) :
     (literalCarryDirtyBit pivot dirty).wire ≠
       (literalTargetBit tail.succ targetBit).wire :=
@@ -1010,35 +1013,35 @@ theorem literalCarryDirtyBit_wire_ne_targetBit {tail : Nat}
     (pivot.succAbove dirty) targetBit
 
 /-- Every residual dirty-carry wire is disjoint from the clean flag. -/
-theorem literalCarryDirtyBit_wire_ne_flag {tail : Nat}
+lemma literalCarryDirtyBit_wire_ne_flag {tail : Nat}
     (pivot : Fin tail.succ) (bit : Fin tail) :
     (literalCarryDirtyBit pivot bit).wire ≠
       (literalFlagBit tail.succ).wire :=
   literalSourceBit_wire_ne_flag tail.succ (pivot.succAbove bit)
 
 /-- The selector is disjoint from every accumulator bit. -/
-theorem literalSelectedSourceBit_wire_ne_targetBit {tail : Nat}
+lemma literalSelectedSourceBit_wire_ne_targetBit {tail : Nat}
     (pivot : Fin tail.succ) (targetBit : Fin tail.succ) :
     (literalSelectedSourceBit pivot).wire ≠
       (literalTargetBit tail.succ targetBit).wire :=
   literalSourceTargetBit_cross_wire_ne tail.succ pivot targetBit
 
 /-- Reverse orientation of selector/accumulator disjointness. -/
-theorem literalTargetBit_wire_ne_selectedSourceBit {tail : Nat}
+lemma literalTargetBit_wire_ne_selectedSourceBit {tail : Nat}
     (pivot : Fin tail.succ) (targetBit : Fin tail.succ) :
     (literalTargetBit tail.succ targetBit).wire ≠
       (literalSelectedSourceBit pivot).wire :=
   (literalSelectedSourceBit_wire_ne_targetBit pivot targetBit).symm
 
 /-- The selector is disjoint from the clean comparison flag. -/
-theorem literalSelectedSourceBit_wire_ne_flag {tail : Nat}
+lemma literalSelectedSourceBit_wire_ne_flag {tail : Nat}
     (pivot : Fin tail.succ) :
     (literalSelectedSourceBit pivot).wire ≠
       (literalFlagBit tail.succ).wire :=
   literalSourceBit_wire_ne_flag tail.succ pivot
 
 /-- Flipping a residual source bit never changes the accumulator word. -/
-@[simp] theorem literalCarryDirtyBit_flip_target {tail : Nat}
+@[simp] lemma literalCarryDirtyBit_flip_target {tail : Nat}
     (pivot : Fin tail.succ) (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     target ((literalCarryDirtyBit pivot bit).flip state) = target state := by
@@ -1052,7 +1055,7 @@ theorem literalSelectedSourceBit_wire_ne_flag {tail : Nat}
 
 /-- Flipping one physical accumulator bit has exactly the ordinary word-bit
 action on the accumulator projection. -/
-@[simp] theorem literalTargetBit_flip_target (n : Nat) (bit : Fin n)
+@[simp] lemma literalTargetBit_flip_target (n : Nat) (bit : Fin n)
     (state : State n (LiteralBorrowed n)) :
     target ((literalTargetBit n bit).flip state) =
       (PlainAdder.Schedule.PowerOfTwo.wordBit n bit).flip (target state) := by
@@ -1077,7 +1080,7 @@ action on the accumulator projection. -/
 
 /-- Flipping one literal accumulator wire is exactly replacement of the
 accumulator by the corresponding fixed-width word-bit flip. -/
-theorem literalTargetBit_flip_eq_withTarget (n : Nat) (bit : Fin n)
+lemma literalTargetBit_flip_eq_withTarget (n : Nat) (bit : Fin n)
     (state : State n (LiteralBorrowed n)) :
     (literalTargetBit n bit).flip state =
       withTarget state
@@ -1101,7 +1104,7 @@ theorem literalTargetBit_flip_eq_withTarget (n : Nat) (bit : Fin n)
 
 /-- Flipping the physical comparison-flag wire replaces only the logical
 clean flag by its Boolean complement. -/
-theorem literalFlagBit_flip_eq_withCleanFlag (n : Nat)
+lemma literalFlagBit_flip_eq_withCleanFlag (n : Nat)
     (state : State n (LiteralBorrowed n)) :
     (literalFlagBit n).flip state =
       withCleanFlag state (!cleanFlag state) := by
@@ -1176,7 +1179,7 @@ decreasing_by omega
 
 /-- The selected lower carry prefix only borrows accumulator bits as controls;
 every temporary target flip is undone before the prefix returns. -/
-@[simp] theorem selectedLowerCarryGates_target (tail : Nat)
+@[simp] lemma selectedLowerCarryGates_target (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -1303,7 +1306,7 @@ decreasing_by
 /-- A selected carry prefix never writes a residual dirty bit above its own
 output.  This isolates the unknown higher dirty value while a lower carry is
 computed. -/
-theorem selectedLowerCarryGates_higherDirty_get (tail : Nat)
+lemma selectedLowerCarryGates_higherDirty_get (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit observed : Fin tail) (hlt : bit.val < observed.val)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -1457,7 +1460,7 @@ def selectedLowerCarryToggle (tail : Nat)
 /-- The selected physical carry prefix toggles its current residual source bit
 by exactly the classical low-word carry, independently of every dirty input
 value. -/
-theorem selectedLowerCarryGates_currentDirty_get (tail : Nat)
+lemma selectedLowerCarryGates_currentDirty_get (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -1741,7 +1744,7 @@ decreasing_by
 /-- Every gate in a selector-excluding carry prefix is disjoint from any
 strictly higher accumulator bit.  This lets the prefix commute through the
 controlled flip that writes its output bit. -/
-theorem selectedLowerCarryGates_forall_bitDisjoint_target_of_lt (tail : Nat)
+lemma selectedLowerCarryGates_forall_bitDisjoint_target_of_lt (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) (observed : Fin tail.succ)
     (hlt : bit.val < observed.val) :
@@ -1831,7 +1834,7 @@ decreasing_by
 
 /-- The selected lower carry prefix has exactly the same strict primitive
 event schedule as the corresponding already-verified R.0 carry prefix. -/
-theorem selectedLowerCarryGates_eventTrace_eq (tail : Nat)
+lemma selectedLowerCarryGates_eventTrace_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     (selectedLowerCarryGates tail pivot constant bit).map
@@ -1868,7 +1871,7 @@ termination_by bit.val
 decreasing_by omega
 
 /-- The carry prefix never reads or writes its excluded selector wire. -/
-theorem selectedLowerCarryGates_forall_bitDisjoint_selector (tail : Nat)
+lemma selectedLowerCarryGates_forall_bitDisjoint_selector (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     (selectedLowerCarryGates tail pivot constant bit).Forall
@@ -1902,7 +1905,7 @@ decreasing_by
 
 /-- The lower carry prefix also leaves the clean comparison flag completely
 untouched, reserving it for the terminal selected-copy layer. -/
-theorem selectedLowerCarryGates_forall_bitDisjoint_flag (tail : Nat)
+lemma selectedLowerCarryGates_forall_bitDisjoint_flag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     (selectedLowerCarryGates tail pivot constant bit).Forall
@@ -1934,7 +1937,7 @@ decreasing_by
   all_goals exact Nat.lt_succ_self index
 
 /-- A gate list disjoint from one observed bit preserves that bit's readout. -/
-theorem stepList_get_of_forall_bitDisjoint
+lemma stepList_get_of_forall_bitDisjoint
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec encoding))
     (observed : EncodedBit encoding)
@@ -1959,18 +1962,18 @@ def selectedLowerCarryProgram (tail : Nat) (pivot : Fin tail.succ)
     (selectedLowerCarryGates tail pivot constant bit)
 
 /-- The compiled prefix realizes its literal folded encoded-bit action. -/
-theorem selectedLowerCarryProgram_realizes (tail : Nat)
+lemma selectedLowerCarryProgram_realizes (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (selectedLowerCarryProgram tail pivot constant bit)
+      (selectedLowerCarryProgram tail pivot constant bit) environment
       (EncodedBit.GateSpec.stepList
         (selectedLowerCarryGates tail pivot constant bit)) :=
   realizesProgramOf
     (selectedLowerCarryGates tail pivot constant bit)
 
 /-- Exact Toffoli count of the actual selector-excluding carry prefix. -/
-theorem selectedLowerCarryProgram_toffoli_count_eq (tail : Nat)
+lemma selectedLowerCarryProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -1991,7 +1994,7 @@ theorem selectedLowerCarryProgram_toffoli_count_eq (tail : Nat)
         tail constant bit
 
 /-- Exact CNOT count of the actual selector-excluding carry prefix. -/
-theorem selectedLowerCarryProgram_cnot_count_eq (tail : Nat)
+lemma selectedLowerCarryProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -2014,7 +2017,7 @@ theorem selectedLowerCarryProgram_cnot_count_eq (tail : Nat)
         tail constant bit
 
 /-- Exact X count of the actual selector-excluding carry prefix. -/
-theorem selectedLowerCarryProgram_x_count_eq (tail : Nat)
+lemma selectedLowerCarryProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -2062,7 +2065,7 @@ def sourceControlledOutputBitGates (tail : Nat)
 
 /-- A source-controlled output block cancels the arbitrary dirty initial bit
 and flips precisely by the selected sum bit contribution. -/
-theorem sourceControlledOutputBitGates_step (tail : Nat)
+lemma sourceControlledOutputBitGates_step (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -2210,17 +2213,17 @@ def sourceControlledOutputBitProgram (tail : Nat)
     (sourceControlledOutputBitGates tail pivot constant bit)
 
 /-- The compiled output-bit circuit realizes its folded encoded-bit action. -/
-theorem sourceControlledOutputBitProgram_realizes (tail : Nat)
+lemma sourceControlledOutputBitProgram_realizes (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (sourceControlledOutputBitProgram tail pivot constant bit)
+      (sourceControlledOutputBitProgram tail pivot constant bit) environment
       (sourceControlledOutputBitStep tail pivot constant bit) :=
   realizesProgramOf
     (sourceControlledOutputBitGates tail pivot constant bit)
 
 /-- Exact Toffoli count of one source-controlled output-bit block. -/
-theorem sourceControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
+lemma sourceControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -2239,7 +2242,7 @@ theorem sourceControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     simp [hc, hcarry] <;> omega
 
 /-- Exact CNOT count of one source-controlled output-bit block. -/
-theorem sourceControlledOutputBitProgram_cnot_count_eq (tail : Nat)
+lemma sourceControlledOutputBitProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -2264,7 +2267,7 @@ theorem sourceControlledOutputBitProgram_cnot_count_eq (tail : Nat)
       MAU.Addition.DirtyBorrowed.constantBitMultiplicity] <;> omega
 
 /-- Exact X count of one source-controlled output-bit block. -/
-theorem sourceControlledOutputBitProgram_x_count_eq (tail : Nat)
+lemma sourceControlledOutputBitProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -2283,7 +2286,7 @@ theorem sourceControlledOutputBitProgram_x_count_eq (tail : Nat)
     simp [hc, hcarry] <;> omega
 
 /-- Gate-list form of the exact Toffoli coordinate for one output bit. -/
-theorem sourceControlledOutputBitGates_toffoliMultiplicity_sum (tail : Nat)
+lemma sourceControlledOutputBitGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ((sourceControlledOutputBitGates tail pivot constant bit).map
@@ -2294,7 +2297,7 @@ theorem sourceControlledOutputBitGates_toffoliMultiplicity_sum (tail : Nat)
     tail pivot constant bit
 
 /-- Gate-list form of the exact CNOT coordinate for one output bit. -/
-theorem sourceControlledOutputBitGates_cnotMultiplicity_sum (tail : Nat)
+lemma sourceControlledOutputBitGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ((sourceControlledOutputBitGates tail pivot constant bit).map
@@ -2308,7 +2311,7 @@ theorem sourceControlledOutputBitGates_cnotMultiplicity_sum (tail : Nat)
     tail pivot constant bit
 
 /-- Gate-list form of the exact X coordinate for one output bit. -/
-theorem sourceControlledOutputBitGates_xMultiplicity_sum (tail : Nat)
+lemma sourceControlledOutputBitGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ((sourceControlledOutputBitGates tail pivot constant bit).map
@@ -2351,7 +2354,7 @@ def sourceControlledAdderGates (tail : Nat) (pivot : Fin tail.succ)
 /-- Every gate in one non-low source-controlled output block is disjoint from
 the comparison flag.  This lets a surrounding construction borrow that flag
 as arbitrary dirty work while adding one further control to the block. -/
-theorem sourceControlledOutputBitGates_forall_bitDisjoint_flag (tail : Nat)
+lemma sourceControlledOutputBitGates_forall_bitDisjoint_flag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     (sourceControlledOutputBitGates tail pivot constant bit).Forall
@@ -2373,7 +2376,7 @@ theorem sourceControlledOutputBitGates_forall_bitDisjoint_flag (tail : Nat)
     literalTargetBit_wire_ne_flag]
 
 /-- The whole high-to-low controlled output sweep avoids the comparison flag. -/
-theorem sourceControlledHighGates_forall_bitDisjoint_flag (tail : Nat)
+lemma sourceControlledHighGates_forall_bitDisjoint_flag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     (sourceControlledHighGates tail pivot constant count hcount).Forall
@@ -2393,7 +2396,7 @@ theorem sourceControlledHighGates_forall_bitDisjoint_flag (tail : Nat)
         ih (by omega)⟩
 
 /-- The final controlled low-bit gate also avoids the comparison flag. -/
-theorem sourceControlledLowGates_forall_bitDisjoint_flag (tail : Nat)
+lemma sourceControlledLowGates_forall_bitDisjoint_flag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     (sourceControlledLowGates tail pivot constant).Forall
       (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
@@ -2405,7 +2408,7 @@ theorem sourceControlledLowGates_forall_bitDisjoint_flag (tail : Nat)
 
 /-- The complete source-controlled fixed-width adder never touches the
 comparison flag. -/
-theorem sourceControlledAdderGates_forall_bitDisjoint_flag (tail : Nat)
+lemma sourceControlledAdderGates_forall_bitDisjoint_flag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     (sourceControlledAdderGates tail pivot constant).Forall
       (EncodedBit.GateSpec.bitDisjoint (literalFlagBit tail.succ)) := by
@@ -2435,7 +2438,7 @@ def sourceControlledHighXClosedForm {width : Nat}
         sourceControlledHighXClosedForm constant count
 
 /-- Exact Toffoli coordinate of a high-to-low controlled prefix. -/
-theorem sourceControlledHighGates_toffoliMultiplicity_sum (tail : Nat)
+lemma sourceControlledHighGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     ((sourceControlledHighGates tail pivot constant count hcount).map
@@ -2456,7 +2459,7 @@ theorem sourceControlledHighGates_toffoliMultiplicity_sum (tail : Nat)
       ring
 
 /-- Exact CNOT coordinate of a high-to-low controlled prefix. -/
-theorem sourceControlledHighGates_cnotMultiplicity_sum (tail : Nat)
+lemma sourceControlledHighGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     ((sourceControlledHighGates tail pivot constant count hcount).map
@@ -2476,7 +2479,7 @@ theorem sourceControlledHighGates_cnotMultiplicity_sum (tail : Nat)
         ih (by omega)]
 
 /-- Exact X coordinate of a high-to-low controlled prefix. -/
-theorem sourceControlledHighGates_xMultiplicity_sum (tail : Nat)
+lemma sourceControlledHighGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     ((sourceControlledHighGates tail pivot constant count hcount).map
@@ -2511,16 +2514,16 @@ def sourceControlledAdderProgram (tail : Nat) (pivot : Fin tail.succ)
     (sourceControlledAdderGates tail pivot constant)
 
 /-- The compiled controlled adder realizes its folded encoded-bit action. -/
-theorem sourceControlledAdderProgram_realizesFoldedStep (tail : Nat)
+lemma sourceControlledAdderProgram_realizesFoldedStep (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (sourceControlledAdderProgram tail pivot constant)
+      (sourceControlledAdderProgram tail pivot constant) environment
       (sourceControlledAdderStep tail pivot constant) :=
   realizesProgramOf
     (sourceControlledAdderGates tail pivot constant)
 
 /-- Exact Toffoli count of the complete source-controlled adder. -/
-theorem sourceControlledAdderProgram_toffoli_count_eq (tail : Nat)
+lemma sourceControlledAdderProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (sourceControlledAdderProgram tail pivot constant).eventCost =
@@ -2532,7 +2535,7 @@ theorem sourceControlledAdderProgram_toffoli_count_eq (tail : Nat)
       sourceControlledHighGates_toffoliMultiplicity_sum]
 
 /-- Exact CNOT count of the complete source-controlled adder. -/
-theorem sourceControlledAdderProgram_cnot_count_eq (tail : Nat)
+lemma sourceControlledAdderProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (sourceControlledAdderProgram tail pivot constant).eventCost =
@@ -2546,7 +2549,7 @@ theorem sourceControlledAdderProgram_cnot_count_eq (tail : Nat)
       MAU.Addition.DirtyBorrowed.constantBitMultiplicity]
 
 /-- Exact X count of the complete source-controlled adder. -/
-theorem sourceControlledAdderProgram_x_count_eq (tail : Nat)
+lemma sourceControlledAdderProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (sourceControlledAdderProgram tail pivot constant).eventCost =
@@ -2560,7 +2563,7 @@ theorem sourceControlledAdderProgram_x_count_eq (tail : Nat)
 /-! ### Classical semantics of the controlled adder -/
 
 /-- One non-low output block is exactly an accumulator-only replacement. -/
-theorem sourceControlledOutputBitGates_step_eq_withTarget (tail : Nat)
+lemma sourceControlledOutputBitGates_step_eq_withTarget (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -2585,7 +2588,7 @@ theorem sourceControlledOutputBitGates_step_eq_withTarget (tail : Nat)
 
 /-- One non-low block changes only its selected accumulator readout, by the
 source-controlled xor of the propagated carry and compile-time constant bit. -/
-theorem sourceControlledOutputBitGates_target_testBit (tail : Nat)
+lemma sourceControlledOutputBitGates_target_testBit (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ))
@@ -2628,7 +2631,7 @@ theorem sourceControlledOutputBitGates_target_testBit (tail : Nat)
     · rfl
 
 /-- The final low-bit layer is also exactly an accumulator-only replacement. -/
-theorem sourceControlledLowGates_step_eq_withTarget (tail : Nat)
+lemma sourceControlledLowGates_step_eq_withTarget (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     EncodedBit.GateSpec.stepList
@@ -2667,7 +2670,7 @@ theorem sourceControlledLowGates_step_eq_withTarget (tail : Nat)
       Bool.and_false, if_false, withTarget_target]
 
 /-- Exact accumulator readout after the final controlled low-bit layer. -/
-theorem sourceControlledLowGates_target_testBit (tail : Nat)
+lemma sourceControlledLowGates_target_testBit (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ))
     (observed : Fin tail.succ) :
@@ -2711,7 +2714,7 @@ theorem sourceControlledLowGates_target_testBit (tail : Nat)
     · rw [if_neg hzero]
 
 /-- A single non-low block preserves the selected source readout. -/
-theorem sourceControlledOutputBitGates_selector_get (tail : Nat)
+lemma sourceControlledOutputBitGates_selector_get (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -2723,7 +2726,7 @@ theorem sourceControlledOutputBitGates_selector_get (tail : Nat)
   split <;> rfl
 
 /-- The high-to-low prefix preserves the selected source readout. -/
-theorem sourceControlledHighGates_selector_get (tail : Nat)
+lemma sourceControlledHighGates_selector_get (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -2745,7 +2748,7 @@ theorem sourceControlledHighGates_selector_get (tail : Nat)
 
 /-- After a controlled high prefix, the selected non-low accumulator bits
 agree with fixed-width addition exactly when the source selector is true. -/
-theorem sourceControlledHighGates_target_testBit (tail : Nat)
+lemma sourceControlledHighGates_target_testBit (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail)
     (state : State tail.succ (LiteralBorrowed tail.succ))
@@ -2853,7 +2856,7 @@ theorem sourceControlledHighGates_target_testBit (tail : Nat)
         simpa [afterTop, hselectorSourceFalse] using hread
 
 /-- Every high prefix changes only the accumulator component. -/
-theorem sourceControlledHighGates_step_eq_withTarget (tail : Nat)
+lemma sourceControlledHighGates_step_eq_withTarget (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -2890,7 +2893,7 @@ theorem sourceControlledHighGates_step_eq_withTarget (tail : Nat)
       simp only [withTarget_withTarget]
 
 /-- The complete controlled-adder schedule changes only the accumulator. -/
-theorem sourceControlledAdderStep_eq_withTargetCurrent (tail : Nat)
+lemma sourceControlledAdderStep_eq_withTargetCurrent (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     sourceControlledAdderStep tail pivot constant state =
@@ -2920,7 +2923,7 @@ theorem sourceControlledAdderStep_eq_withTargetCurrent (tail : Nat)
 
 /-- The complete physical schedule performs fixed-width addition iff the
 selected source bit is true. -/
-theorem sourceControlledAdderStep_target (tail : Nat)
+lemma sourceControlledAdderStep_target (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     target (sourceControlledAdderStep tail pivot constant state) =
@@ -2995,7 +2998,7 @@ def sourceControlledAdd (tail : Nat) (pivot : Fin tail.succ)
     state
 
 /-- The folded gate action agrees exactly with classical controlled addition. -/
-theorem sourceControlledAdderStep_eq (tail : Nat)
+lemma sourceControlledAdderStep_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     sourceControlledAdderStep tail pivot constant state =
@@ -3009,10 +3012,10 @@ theorem sourceControlledAdderStep_eq (tail : Nat)
 
 /-- The actual circuit realizes classical source-controlled fixed-width
 addition and restores every non-accumulator basis label. -/
-theorem sourceControlledAdderProgram_realizes (tail : Nat)
+lemma sourceControlledAdderProgram_realizes (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (sourceControlledAdderProgram tail pivot constant)
+      (sourceControlledAdderProgram tail pivot constant) environment
       (sourceControlledAdd tail pivot constant) :=
   UnitaryCircuit.Realizes.congrStep
     (sourceControlledAdderProgram_realizesFoldedStep tail pivot constant)
@@ -3046,7 +3049,7 @@ def flagControlledOutputBitGates (tail : Nat)
 
 /-- The clean-flag-controlled output block cancels every dirty initial value
 and flips exactly by the selected sum-bit contribution. -/
-theorem flagControlledOutputBitGates_step (tail : Nat)
+lemma flagControlledOutputBitGates_step (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -3184,18 +3187,18 @@ def flagControlledOutputBitProgram (tail : Nat)
     (flagControlledOutputBitGates tail pivot constant bit)
 
 /-- The flag-controlled output circuit realizes its literal folded action. -/
-theorem flagControlledOutputBitProgram_realizes (tail : Nat)
+lemma flagControlledOutputBitProgram_realizes (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (flagControlledOutputBitProgram tail pivot constant bit)
+      (flagControlledOutputBitProgram tail pivot constant bit) environment
       (EncodedBit.GateSpec.stepList
         (flagControlledOutputBitGates tail pivot constant bit)) :=
   realizesProgramOf
     (flagControlledOutputBitGates tail pivot constant bit)
 
 /-- Exact Toffoli count of one flag-controlled output bit. -/
-theorem flagControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
+lemma flagControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -3214,7 +3217,7 @@ theorem flagControlledOutputBitProgram_toffoli_count_eq (tail : Nat)
     simp [hc, hcarry] <;> omega
 
 /-- Exact CNOT count of one flag-controlled output bit. -/
-theorem flagControlledOutputBitProgram_cnot_count_eq (tail : Nat)
+lemma flagControlledOutputBitProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -3239,7 +3242,7 @@ theorem flagControlledOutputBitProgram_cnot_count_eq (tail : Nat)
       MAU.Addition.DirtyBorrowed.constantBitMultiplicity] <;> omega
 
 /-- Exact X count of one flag-controlled output bit. -/
-theorem flagControlledOutputBitProgram_x_count_eq (tail : Nat)
+lemma flagControlledOutputBitProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -3258,7 +3261,7 @@ theorem flagControlledOutputBitProgram_x_count_eq (tail : Nat)
     simp [hc, hcarry] <;> omega
 
 /-- Gate-list Toffoli coordinate of one flag-controlled output bit. -/
-theorem flagControlledOutputBitGates_toffoliMultiplicity_sum (tail : Nat)
+lemma flagControlledOutputBitGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ((flagControlledOutputBitGates tail pivot constant bit).map
@@ -3269,7 +3272,7 @@ theorem flagControlledOutputBitGates_toffoliMultiplicity_sum (tail : Nat)
     tail pivot constant bit
 
 /-- Gate-list CNOT coordinate of one flag-controlled output bit. -/
-theorem flagControlledOutputBitGates_cnotMultiplicity_sum (tail : Nat)
+lemma flagControlledOutputBitGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ((flagControlledOutputBitGates tail pivot constant bit).map
@@ -3283,7 +3286,7 @@ theorem flagControlledOutputBitGates_cnotMultiplicity_sum (tail : Nat)
     tail pivot constant bit
 
 /-- Gate-list X coordinate of one flag-controlled output bit. -/
-theorem flagControlledOutputBitGates_xMultiplicity_sum (tail : Nat)
+lemma flagControlledOutputBitGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail) :
     ((flagControlledOutputBitGates tail pivot constant bit).map
@@ -3321,7 +3324,7 @@ def flagControlledAdderGates (tail : Nat) (pivot : Fin tail.succ)
     flagControlledLowGates tail constant
 
 /-- Exact Toffoli coordinate of a flag-controlled high prefix. -/
-theorem flagControlledHighGates_toffoliMultiplicity_sum (tail : Nat)
+lemma flagControlledHighGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     ((flagControlledHighGates tail pivot constant count hcount).map
@@ -3342,7 +3345,7 @@ theorem flagControlledHighGates_toffoliMultiplicity_sum (tail : Nat)
       ring
 
 /-- Exact CNOT coordinate of a flag-controlled high prefix. -/
-theorem flagControlledHighGates_cnotMultiplicity_sum (tail : Nat)
+lemma flagControlledHighGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     ((flagControlledHighGates tail pivot constant count hcount).map
@@ -3362,7 +3365,7 @@ theorem flagControlledHighGates_cnotMultiplicity_sum (tail : Nat)
         ih (by omega)]
 
 /-- Exact X coordinate of a flag-controlled high prefix. -/
-theorem flagControlledHighGates_xMultiplicity_sum (tail : Nat)
+lemma flagControlledHighGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail) :
     ((flagControlledHighGates tail pivot constant count hcount).map
@@ -3397,16 +3400,16 @@ def flagControlledAdderProgram (tail : Nat) (pivot : Fin tail.succ)
     (flagControlledAdderGates tail pivot constant)
 
 /-- The compiled flag-controlled adder realizes its folded action. -/
-theorem flagControlledAdderProgram_realizesFoldedStep (tail : Nat)
+lemma flagControlledAdderProgram_realizesFoldedStep (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (flagControlledAdderProgram tail pivot constant)
+      (flagControlledAdderProgram tail pivot constant) environment
       (flagControlledAdderStep tail pivot constant) :=
   realizesProgramOf
     (flagControlledAdderGates tail pivot constant)
 
 /-- Exact Toffoli count of the complete flag-controlled adder. -/
-theorem flagControlledAdderProgram_toffoli_count_eq (tail : Nat)
+lemma flagControlledAdderProgram_toffoli_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (flagControlledAdderProgram tail pivot constant).eventCost =
@@ -3418,7 +3421,7 @@ theorem flagControlledAdderProgram_toffoli_count_eq (tail : Nat)
       flagControlledHighGates_toffoliMultiplicity_sum]
 
 /-- Exact CNOT count of the complete flag-controlled adder. -/
-theorem flagControlledAdderProgram_cnot_count_eq (tail : Nat)
+lemma flagControlledAdderProgram_cnot_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (flagControlledAdderProgram tail pivot constant).eventCost =
@@ -3432,7 +3435,7 @@ theorem flagControlledAdderProgram_cnot_count_eq (tail : Nat)
       MAU.Addition.DirtyBorrowed.constantBitMultiplicity]
 
 /-- Exact X count of the complete flag-controlled adder. -/
-theorem flagControlledAdderProgram_x_count_eq (tail : Nat)
+lemma flagControlledAdderProgram_x_count_eq (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (flagControlledAdderProgram tail pivot constant).eventCost =
@@ -3446,7 +3449,7 @@ theorem flagControlledAdderProgram_x_count_eq (tail : Nat)
 /-! ### Classical semantics of the flag-controlled adder -/
 
 /-- One flag-controlled output block is accumulator-only replacement. -/
-theorem flagControlledOutputBitGates_step_eq_withTarget (tail : Nat)
+lemma flagControlledOutputBitGates_step_eq_withTarget (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -3470,7 +3473,7 @@ theorem flagControlledOutputBitGates_step_eq_withTarget (tail : Nat)
   · rw [if_neg htoggle, if_neg htoggle, withTarget_target]
 
 /-- Exact accumulator readout of one flag-controlled non-low block. -/
-theorem flagControlledOutputBitGates_target_testBit (tail : Nat)
+lemma flagControlledOutputBitGates_target_testBit (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ))
@@ -3514,7 +3517,7 @@ theorem flagControlledOutputBitGates_target_testBit (tail : Nat)
     · rfl
 
 /-- A flag-controlled output block preserves its own clean control. -/
-@[simp] theorem flagControlledOutputBitGates_cleanFlag (tail : Nat)
+@[simp] lemma flagControlledOutputBitGates_cleanFlag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (bit : Fin tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -3525,7 +3528,7 @@ theorem flagControlledOutputBitGates_target_testBit (tail : Nat)
   exact cleanFlag_withTarget _ _
 
 /-- The final flag-controlled low-bit layer is accumulator-only replacement. -/
-theorem flagControlledLowGates_step_eq_withTarget (tail : Nat)
+lemma flagControlledLowGates_step_eq_withTarget (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     EncodedBit.GateSpec.stepList
@@ -3561,7 +3564,7 @@ theorem flagControlledLowGates_step_eq_withTarget (tail : Nat)
       Bool.false_eq_true, Bool.and_false, if_false, withTarget_target]
 
 /-- Exact accumulator readout after the flag-controlled low-bit layer. -/
-theorem flagControlledLowGates_target_testBit (tail : Nat)
+lemma flagControlledLowGates_target_testBit (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ))
     (observed : Fin tail.succ) :
@@ -3601,7 +3604,7 @@ theorem flagControlledLowGates_target_testBit (tail : Nat)
     · rw [if_neg hzero]
 
 /-- The high flag-controlled sweep preserves the clean control. -/
-@[simp] theorem flagControlledHighGates_cleanFlag (tail : Nat)
+@[simp] lemma flagControlledHighGates_cleanFlag (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -3622,7 +3625,7 @@ theorem flagControlledLowGates_target_testBit (tail : Nat)
 
 /-- After a flag-controlled high prefix, selected non-low accumulator bits
 agree with fixed-width addition exactly when the clean flag is true. -/
-theorem flagControlledHighGates_target_testBit (tail : Nat)
+lemma flagControlledHighGates_target_testBit (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail)
     (state : State tail.succ (LiteralBorrowed tail.succ))
@@ -3721,7 +3724,7 @@ theorem flagControlledHighGates_target_testBit (tail : Nat)
         simpa [afterTop, hcontrolFalse] using hread
 
 /-- Every flag-controlled high prefix changes only the accumulator. -/
-theorem flagControlledHighGates_step_eq_withTarget (tail : Nat)
+lemma flagControlledHighGates_step_eq_withTarget (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (count : Nat) (hcount : count ≤ tail)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
@@ -3758,7 +3761,7 @@ theorem flagControlledHighGates_step_eq_withTarget (tail : Nat)
       simp only [withTarget_withTarget]
 
 /-- The complete flag-controlled schedule changes only the accumulator. -/
-theorem flagControlledAdderStep_eq_withTargetCurrent (tail : Nat)
+lemma flagControlledAdderStep_eq_withTargetCurrent (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     flagControlledAdderStep tail pivot constant state =
@@ -3787,7 +3790,7 @@ theorem flagControlledAdderStep_eq_withTargetCurrent (tail : Nat)
 
 /-- The complete physical schedule adds the constant iff the clean flag is
 true, while leaving that flag itself unchanged. -/
-theorem flagControlledAdderStep_target (tail : Nat)
+lemma flagControlledAdderStep_target (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     target (flagControlledAdderStep tail pivot constant state) =
@@ -3852,7 +3855,7 @@ def flagControlledAdd (tail : Nat) (constant : PlainAdder.Word tail.succ)
     state
 
 /-- The folded flag-controlled gate action has the advertised semantics. -/
-theorem flagControlledAdderStep_eq (tail : Nat) (pivot : Fin tail.succ)
+lemma flagControlledAdderStep_eq (tail : Nat) (pivot : Fin tail.succ)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     flagControlledAdderStep tail pivot constant state =
@@ -3865,10 +3868,10 @@ theorem flagControlledAdderStep_eq (tail : Nat) (pivot : Fin tail.succ)
   · rw [if_neg hcontrol, if_neg hcontrol, withTarget_target]
 
 /-- The actual flag-controlled circuit realizes its classical transition. -/
-theorem flagControlledAdderProgram_realizes (tail : Nat)
+lemma flagControlledAdderProgram_realizes (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (flagControlledAdderProgram tail pivot constant)
+      (flagControlledAdderProgram tail pivot constant) environment
       (flagControlledAdd tail constant) :=
   UnitaryCircuit.Realizes.congrStep
     (flagControlledAdderProgram_realizesFoldedStep tail pivot constant)
@@ -3897,7 +3900,7 @@ def selectedTerminalWorkBit (interior : Nat)
 
 /-- The carry-holding residual bit and dirty work bit are distinct for every
 word width `interior+3`. -/
-theorem selectedTerminalCarryBit_wire_ne_workBit (interior : Nat)
+lemma selectedTerminalCarryBit_wire_ne_workBit (interior : Nat)
     (pivot : Fin (interior + 2).succ) :
     (selectedTerminalCarryBit interior pivot).wire ≠
       (selectedTerminalWorkBit interior pivot).wire := by
@@ -3959,7 +3962,7 @@ def selectedTerminalCarryGates (interior : Nat)
   else
     selectedTerminalAndGates interior pivot
 
-private theorem selectedTerminalCarryGates_toffoliMultiplicity_sum
+private lemma selectedTerminalCarryGates_toffoliMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedTerminalCarryGates interior pivot constant).map
@@ -3973,7 +3976,7 @@ private theorem selectedTerminalCarryGates_toffoliMultiplicity_sum
     change 4 = 4
     rfl
 
-private theorem selectedTerminalCarryGates_cnotMultiplicity_sum
+private lemma selectedTerminalCarryGates_cnotMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedTerminalCarryGates interior pivot constant).map
@@ -3986,7 +3989,7 @@ private theorem selectedTerminalCarryGates_cnotMultiplicity_sum
     change 0 = 0
     rfl
 
-private theorem selectedTerminalCarryGates_xMultiplicity_sum
+private lemma selectedTerminalCarryGates_xMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedTerminalCarryGates interior pivot constant).map
@@ -4001,7 +4004,7 @@ private theorem selectedTerminalCarryGates_xMultiplicity_sum
 
 /-- The four-Toffoli terminal AND block has its advertised arbitrary-dirty
 semantics on the concrete HRS bits. -/
-theorem selectedTerminalAndGates_step (interior : Nat)
+lemma selectedTerminalAndGates_step (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ)) :
@@ -4052,7 +4055,7 @@ def selectedTerminalCarryToggle (interior : Nat)
 
 /-- Both highest-constant branches implement the same selected carry-out
 formula.  The arbitrary dirty work bit is restored by the four-Toffoli block. -/
-theorem selectedTerminalCarryGates_step (interior : Nat)
+lemma selectedTerminalCarryGates_step (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ)
     (state : State (interior + 2).succ
@@ -4167,11 +4170,11 @@ def selectedTerminalCarryProgram (interior : Nat)
     (selectedTerminalCarryGates interior pivot constant)
 
 /-- The compiled terminal list realizes its folded base-gate action. -/
-theorem selectedTerminalCarryProgram_realizes (interior : Nat)
+lemma selectedTerminalCarryProgram_realizes (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     UnitaryCircuit.Realizes (literalR0Encoding (interior + 2).succ)
-      (selectedTerminalCarryProgram interior pivot constant)
+      (selectedTerminalCarryProgram interior pivot constant) environment
       (EncodedBit.GateSpec.stepList
         (selectedTerminalCarryGates interior pivot constant)) :=
   realizesProgramOf
@@ -4179,7 +4182,7 @@ theorem selectedTerminalCarryProgram_realizes (interior : Nat)
 
 /-- The selected terminal block uses four Toffolis when the highest constant
 bit is zero and six when it is one. -/
-theorem selectedTerminalCarryProgram_toffoli_count_eq (interior : Nat)
+lemma selectedTerminalCarryProgram_toffoli_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -4191,7 +4194,7 @@ theorem selectedTerminalCarryProgram_toffoli_count_eq (interior : Nat)
     interior pivot constant
 
 /-- No CNOT coordinate is hidden in the terminal selected carry block. -/
-theorem selectedTerminalCarryProgram_cnot_count_eq_zero (interior : Nat)
+lemma selectedTerminalCarryProgram_cnot_count_eq_zero (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -4202,7 +4205,7 @@ theorem selectedTerminalCarryProgram_cnot_count_eq_zero (interior : Nat)
     interior pivot constant
 
 /-- No X coordinate is hidden in the terminal selected carry block. -/
-theorem selectedTerminalCarryProgram_x_count_eq_zero (interior : Nat)
+lemma selectedTerminalCarryProgram_x_count_eq_zero (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -4244,7 +4247,7 @@ def selectedCarryIntoFlagCorrectionGates (interior : Nat)
   else
     []
 
-private theorem selectedCarryIntoFlagCorrectionGates_toffoliMultiplicity_sum
+private lemma selectedCarryIntoFlagCorrectionGates_toffoliMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedCarryIntoFlagCorrectionGates interior pivot constant).map
@@ -4257,7 +4260,7 @@ private theorem selectedCarryIntoFlagCorrectionGates_toffoliMultiplicity_sum
   · simp only [selectedCarryIntoFlagCorrectionGates, hc,
       Bool.false_eq_true, if_false, List.map_nil, List.sum_nil]
 
-private theorem selectedCarryIntoFlagCorrectionGates_cnotMultiplicity_sum
+private lemma selectedCarryIntoFlagCorrectionGates_cnotMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedCarryIntoFlagCorrectionGates interior pivot constant).map
@@ -4269,7 +4272,7 @@ private theorem selectedCarryIntoFlagCorrectionGates_cnotMultiplicity_sum
   · simp only [selectedCarryIntoFlagCorrectionGates, hc,
       Bool.false_eq_true, if_false, List.map_nil, List.sum_nil]
 
-private theorem selectedCarryIntoFlagCorrectionGates_xMultiplicity_sum
+private lemma selectedCarryIntoFlagCorrectionGates_xMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedCarryIntoFlagCorrectionGates interior pivot constant).map
@@ -4292,7 +4295,7 @@ def selectedCarryIntoFlagCorrectionToggle (interior : Nat)
     (selectedTerminalTopBit interior pivot).get state
 
 /-- The correction list has exactly its advertised selected top-bit action. -/
-theorem selectedCarryIntoFlagCorrectionGates_step (interior : Nat)
+lemma selectedCarryIntoFlagCorrectionGates_step (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ)
     (state : State (interior + 2).succ
@@ -4313,7 +4316,7 @@ theorem selectedCarryIntoFlagCorrectionGates_step (interior : Nat)
       EncodedBit.GateSpec.stepList]
 
 /-- The dirty-carry cancellation identity used by the physical construction. -/
-theorem selectedCarryDirtyCancellation (selector top constantTop dirty carry : Bool) :
+lemma selectedCarryDirtyCancellation (selector top constantTop dirty carry : Bool) :
     ((selector && Bool.carry top constantTop (dirty ^^ carry)) ^^
       (selector && Bool.carry top constantTop dirty) ^^
       (constantTop && selector && top)) =
@@ -4336,7 +4339,7 @@ def selectedCarryIntoFlagToggle (interior : Nat)
 
 /-- The compiled selected carry predicate is exactly a source-bit-selected
 overflow comparison on the complete accumulator word. -/
-theorem selectedCarryIntoFlagToggle_eq_overflow (interior : Nat)
+lemma selectedCarryIntoFlagToggle_eq_overflow (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ)
     (state : State (interior + 2).succ
@@ -4360,7 +4363,7 @@ whose cast into the word would be zero. -/
 def overflowComparisonConstant (n threshold : Nat) : PlainAdder.Word n :=
   ((2 ^ n - threshold : Nat) : PlainAdder.Word n)
 
-@[simp] theorem overflowComparisonConstant_val {n threshold : Nat}
+@[simp] lemma overflowComparisonConstant_val {n threshold : Nat}
     (hthreshold : 0 < threshold) :
     (overflowComparisonConstant n threshold).val = 2 ^ n - threshold := by
   unfold overflowComparisonConstant
@@ -4370,7 +4373,7 @@ def overflowComparisonConstant (n threshold : Nat) : PlainAdder.Word n :=
 
 /-- Instantiating the selected carry extractor with the two's-complement of a
 positive threshold gives a literal selected `threshold ≤ target` comparator. -/
-theorem selectedCarryIntoFlagToggle_comparison (interior threshold : Nat)
+lemma selectedCarryIntoFlagToggle_comparison (interior threshold : Nat)
     (pivot : Fin (interior + 2).succ)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ))
@@ -4406,7 +4409,7 @@ def selectedCarryIntoFlagGates (interior : Nat)
     selectedCarryIntoFlagCorrectionGates interior pivot constant
 
 /-- The lower carry prefix is completely disjoint from the clean output flag. -/
-theorem selectedCarryIntoFlagLowerGates_forall_bitDisjoint_flag
+lemma selectedCarryIntoFlagLowerGates_forall_bitDisjoint_flag
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     (selectedCarryIntoFlagLowerGates interior pivot constant).Forall
@@ -4418,7 +4421,7 @@ theorem selectedCarryIntoFlagLowerGates_forall_bitDisjoint_flag
 /-- The complete dirty compute-copy-uncompute-copy block restores every
 borrowed wire and toggles only the clean flag by the selected arithmetic carry,
 with no dependence on any dirty initial value. -/
-theorem selectedCarryIntoFlagGates_step (interior : Nat)
+lemma selectedCarryIntoFlagGates_step (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ)
     (state : State (interior + 2).succ
@@ -4582,7 +4585,7 @@ def selectedCarryIntoFlagStep (interior : Nat)
 
 /-- The selected comparator changes only the clean flag, toggling it by its
 literal selected-carry predicate. -/
-theorem selectedCarryIntoFlagStep_eq_withCleanFlag (interior : Nat)
+lemma selectedCarryIntoFlagStep_eq_withCleanFlag (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ)
     (state : State (interior + 2).succ
@@ -4597,7 +4600,7 @@ theorem selectedCarryIntoFlagStep_eq_withCleanFlag (interior : Nat)
     simp [literalFlagBit_flip_eq_withCleanFlag]
 
 /-- Exact state transition of the compiled positive-threshold comparator. -/
-theorem selectedCarryIntoFlagStep_comparison (interior threshold : Nat)
+lemma selectedCarryIntoFlagStep_comparison (interior threshold : Nat)
     (pivot : Fin (interior + 2).succ)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ))
@@ -4623,17 +4626,17 @@ def selectedCarryIntoFlagProgram (interior : Nat)
 
 /-- The compiled circuit realizes the same folded basis action used by the
 restoration theorem. -/
-theorem selectedCarryIntoFlagProgram_realizes (interior : Nat)
+lemma selectedCarryIntoFlagProgram_realizes (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     UnitaryCircuit.Realizes (literalR0Encoding (interior + 2).succ)
-      (selectedCarryIntoFlagProgram interior pivot constant)
+      (selectedCarryIntoFlagProgram interior pivot constant) environment
       (selectedCarryIntoFlagStep interior pivot constant) :=
   realizesProgramOf
     (selectedCarryIntoFlagGates interior pivot constant)
 
 /-- Exact Toffoli coordinate of the complete compute-copy-uncompute block. -/
-theorem selectedCarryIntoFlagProgram_toffoli_count_eq (interior : Nat)
+lemma selectedCarryIntoFlagProgram_toffoli_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -4682,7 +4685,7 @@ theorem selectedCarryIntoFlagProgram_toffoli_count_eq (interior : Nat)
     simp [hc] <;> omega
 
 /-- Exact CNOT coordinate of the complete compute-copy-uncompute block. -/
-theorem selectedCarryIntoFlagProgram_cnot_count_eq (interior : Nat)
+lemma selectedCarryIntoFlagProgram_cnot_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -4732,7 +4735,7 @@ theorem selectedCarryIntoFlagProgram_cnot_count_eq (interior : Nat)
   omega
 
 /-- Exact X coordinate of the complete compute-copy-uncompute block. -/
-theorem selectedCarryIntoFlagProgram_x_count_eq (interior : Nat)
+lemma selectedCarryIntoFlagProgram_x_count_eq (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -4794,7 +4797,7 @@ def selectedSourceFlagCnotGates (interior : Nat)
     (literalSelectedSourceBit_wire_ne_flag pivot)]
 
 /-- Exact logical action of the selected source-to-flag CNOT. -/
-theorem selectedSourceFlagCnotGates_step (interior : Nat)
+lemma selectedSourceFlagCnotGates_step (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ)) :
@@ -4885,7 +4888,7 @@ def literalControlledModularAddCircuit (interior : Nat)
 /-- The HRS overflow threshold is equivalent to the reduced sum lying below
 the addend.  This is the arithmetic identity used by the final comparison to
 erase the clean flag. -/
-theorem addMod_lt_addend_iff_threshold (modulus addend value : Nat)
+lemma addMod_lt_addend_iff_threshold (modulus addend value : Nat)
     (_hmodulusPos : 0 < modulus) (haddend : addend < modulus)
     (hvalue : value < modulus) :
     (value + addend) % modulus < addend ↔
@@ -4901,7 +4904,7 @@ theorem addMod_lt_addend_iff_threshold (modulus addend value : Nat)
 /-- Adding the HRS correction `2^width-modulus` exactly reduces a canonical
 sum modulo `modulus`; when the comparison flag is false, no correction is
 needed. -/
-theorem fixedWidthConditionalCorrection_eq_mod (width modulus addend : Nat)
+lemma fixedWidthConditionalCorrection_eq_mod (width modulus addend : Nat)
     (value : PlainAdder.Word width)
     (_hmodulusPos : 0 < modulus) (hmodulusWidth : modulus < 2 ^ width)
     (haddend : addend < modulus) (hvalue : value.val < modulus) :
@@ -4944,7 +4947,7 @@ theorem fixedWidthConditionalCorrection_eq_mod (width modulus addend : Nat)
 /-- Canonical action of the compare/add/correct core.  The accumulator is
 already reduced modulo `modulus`; the clean flag records the same overflow
 predicate that the final HRS comparison will erase. -/
-theorem literalControlledModularAddCoreGates_step_canonical
+lemma literalControlledModularAddCoreGates_step_canonical
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5018,7 +5021,7 @@ theorem literalControlledModularAddCoreGates_step_canonical
 
 /-- On a selected canonical input, the final source CNOT and comparison erase
 the overflow flag left by the core without changing the reduced accumulator. -/
-theorem literalControlledModularAddClearGates_step_canonical
+lemma literalControlledModularAddClearGates_step_canonical
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5110,7 +5113,7 @@ theorem literalControlledModularAddClearGates_step_canonical
 
 /-- The flag-clear suffix is the identity whenever the selected source bit is
 false, on every physical basis label and for every numerical addend. -/
-theorem literalControlledModularAddClearGates_step_unselected
+lemma literalControlledModularAddClearGates_step_unselected
     (interior : Nat) (pivot : Fin (interior + 2).succ) (addend : Nat)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ))
@@ -5146,7 +5149,7 @@ theorem literalControlledModularAddClearGates_step_unselected
 /-- Complete canonical semantics of the literal HRS controlled modular-add
 gate list, including exact restoration of the clean flag and every other
 non-accumulator label. -/
-theorem literalControlledModularAddStep_canonical
+lemma literalControlledModularAddStep_canonical
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5182,7 +5185,7 @@ theorem literalControlledModularAddStep_canonical
 
 /-- The compare/add/correct core never overwrites the source word, including
 on padding labels and for an arbitrary initial clean-flag label. -/
-theorem literalControlledModularAddCoreGates_source
+lemma literalControlledModularAddCoreGates_source
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5206,7 +5209,7 @@ theorem literalControlledModularAddCoreGates_source
 
 /-- The compare/add/correct core restores every source label used as dirty
 carry work; the zero-qubit literal environment is therefore also unchanged. -/
-theorem literalControlledModularAddCoreGates_borrowed
+lemma literalControlledModularAddCoreGates_borrowed
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5217,7 +5220,7 @@ theorem literalControlledModularAddCoreGates_borrowed
   exact (Fin.eq_zero _).trans (Fin.eq_zero _).symm
 
 /-- The final flag-clear suffix never overwrites the source word. -/
-theorem literalControlledModularAddClearGates_source
+lemma literalControlledModularAddClearGates_source
     (interior : Nat) (pivot : Fin (interior + 2).succ) (addend : Nat)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ)) :
@@ -5240,7 +5243,7 @@ theorem literalControlledModularAddClearGates_source
 
 /-- The final flag-clear suffix leaves the literal borrowed environment
 unchanged on every physical label. -/
-theorem literalControlledModularAddClearGates_borrowed
+lemma literalControlledModularAddClearGates_borrowed
     (interior : Nat) (pivot : Fin (interior + 2).succ) (addend : Nat)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ)) :
@@ -5251,7 +5254,7 @@ theorem literalControlledModularAddClearGates_borrowed
 
 /-- The complete literal modular-add permutation preserves the source word on
 the entire basis, not only on the canonical modular subspace. -/
-theorem literalControlledModularAddStep_source
+lemma literalControlledModularAddStep_source
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5265,7 +5268,7 @@ theorem literalControlledModularAddStep_source
 
 /-- The complete literal modular-add permutation restores the full borrowed
 label on every physical basis state. -/
-theorem literalControlledModularAddStep_borrowed
+lemma literalControlledModularAddStep_borrowed
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat)
     (state : State (interior + 2).succ
@@ -5340,7 +5343,7 @@ def literalControlledModularAddXCount (interior modulus addend : Nat) : Nat :=
         (interior + 1)
 
 /-- Gate-list form of the exact selected-comparator Toffoli coordinate. -/
-theorem selectedCarryIntoFlagGates_toffoliMultiplicity_sum (interior : Nat)
+lemma selectedCarryIntoFlagGates_toffoliMultiplicity_sum (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedCarryIntoFlagGates interior pivot constant).map
@@ -5351,7 +5354,7 @@ theorem selectedCarryIntoFlagGates_toffoliMultiplicity_sum (interior : Nat)
     interior pivot constant
 
 /-- Gate-list form of the exact selected-comparator CNOT coordinate. -/
-theorem selectedCarryIntoFlagGates_cnotMultiplicity_sum (interior : Nat)
+lemma selectedCarryIntoFlagGates_cnotMultiplicity_sum (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedCarryIntoFlagGates interior pivot constant).map
@@ -5362,7 +5365,7 @@ theorem selectedCarryIntoFlagGates_cnotMultiplicity_sum (interior : Nat)
     interior pivot constant
 
 /-- Gate-list form of the exact selected-comparator X coordinate. -/
-theorem selectedCarryIntoFlagGates_xMultiplicity_sum (interior : Nat)
+lemma selectedCarryIntoFlagGates_xMultiplicity_sum (interior : Nat)
     (pivot : Fin (interior + 2).succ)
     (constant : PlainAdder.Word (interior + 2).succ) :
     ((selectedCarryIntoFlagGates interior pivot constant).map
@@ -5373,7 +5376,7 @@ theorem selectedCarryIntoFlagGates_xMultiplicity_sum (interior : Nat)
   exact selectedCarryIntoFlagProgram_x_count_eq interior pivot constant
 
 /-- Gate-list form of the exact source-controlled-adder Toffoli coordinate. -/
-theorem sourceControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
+lemma sourceControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((sourceControlledAdderGates tail pivot constant).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -5382,7 +5385,7 @@ theorem sourceControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
   exact sourceControlledAdderProgram_toffoli_count_eq tail pivot constant
 
 /-- Gate-list form of the exact source-controlled-adder CNOT coordinate. -/
-theorem sourceControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
+lemma sourceControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((sourceControlledAdderGates tail pivot constant).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -5391,7 +5394,7 @@ theorem sourceControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
   exact sourceControlledAdderProgram_cnot_count_eq tail pivot constant
 
 /-- Gate-list form of the exact source-controlled-adder X coordinate. -/
-theorem sourceControlledAdderGates_xMultiplicity_sum (tail : Nat)
+lemma sourceControlledAdderGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((sourceControlledAdderGates tail pivot constant).map
         EncodedBit.GateSpec.xMultiplicity).sum =
@@ -5400,7 +5403,7 @@ theorem sourceControlledAdderGates_xMultiplicity_sum (tail : Nat)
   exact sourceControlledAdderProgram_x_count_eq tail pivot constant
 
 /-- Gate-list form of the exact flag-controlled-adder Toffoli coordinate. -/
-theorem flagControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
+lemma flagControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((flagControlledAdderGates tail pivot constant).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -5409,7 +5412,7 @@ theorem flagControlledAdderGates_toffoliMultiplicity_sum (tail : Nat)
   exact flagControlledAdderProgram_toffoli_count_eq tail pivot constant
 
 /-- Gate-list form of the exact flag-controlled-adder CNOT coordinate. -/
-theorem flagControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
+lemma flagControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((flagControlledAdderGates tail pivot constant).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -5418,7 +5421,7 @@ theorem flagControlledAdderGates_cnotMultiplicity_sum (tail : Nat)
   exact flagControlledAdderProgram_cnot_count_eq tail pivot constant
 
 /-- Gate-list form of the exact flag-controlled-adder X coordinate. -/
-theorem flagControlledAdderGates_xMultiplicity_sum (tail : Nat)
+lemma flagControlledAdderGates_xMultiplicity_sum (tail : Nat)
     (pivot : Fin tail.succ) (constant : PlainAdder.Word tail.succ) :
     ((flagControlledAdderGates tail pivot constant).map
         EncodedBit.GateSpec.xMultiplicity).sum =
@@ -5428,7 +5431,7 @@ theorem flagControlledAdderGates_xMultiplicity_sum (tail : Nat)
 
 /-- The typed literal modular-add circuit has exactly its closed Toffoli
 coordinate, derived from the same compiled gate list. -/
-theorem literalControlledModularAddCircuit_toffoli_count_eq
+lemma literalControlledModularAddCircuit_toffoli_count_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
@@ -5459,7 +5462,7 @@ theorem literalControlledModularAddCircuit_toffoli_count_eq
 
 /-- The typed literal modular-add circuit has exactly its closed CNOT
 coordinate, including the sole nonzero-addend source-to-flag CNOT. -/
-theorem literalControlledModularAddCircuit_cnot_count_eq
+lemma literalControlledModularAddCircuit_cnot_count_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
@@ -5489,7 +5492,7 @@ theorem literalControlledModularAddCircuit_cnot_count_eq
 
 /-- The typed literal modular-add circuit has exactly its closed X
 coordinate, including both optional flag-clear branches. -/
-theorem literalControlledModularAddCircuit_x_count_eq
+lemma literalControlledModularAddCircuit_x_count_eq
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
@@ -5602,7 +5605,7 @@ def unselectedCarryIntoFlagProgram (tail : Nat)
 
 /-- Relabelling only conjugates the source dirty-carry step by the literal HRS
 state equivalence. -/
-theorem literalR0StateEquiv_unselectedCarryIntoFlagStep (tail : Nat)
+lemma literalR0StateEquiv_unselectedCarryIntoFlagStep (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     literalR0StateEquiv tail.succ
@@ -5625,7 +5628,7 @@ def unselectedCarryToggle (tail : Nat)
 
 /-- The aliased R.0 carry predicate observes exactly the low accumulator and
 the supplied low constant, not the input value of the clean high flag. -/
-theorem straightforwardCarryToggle_literalR0StateEquiv (tail : Nat)
+lemma straightforwardCarryToggle_literalR0StateEquiv (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     MAU.Addition.DirtyBorrowed.straightforwardCarryToggle tail.succ
@@ -5643,7 +5646,7 @@ theorem straightforwardCarryToggle_literalR0StateEquiv (tail : Nat)
 
 /-- The unselected carry extractor restores the complete source word that it
 borrows as dirty carry work. -/
-@[simp] theorem unselectedCarryIntoFlagStep_source (tail : Nat)
+@[simp] lemma unselectedCarryIntoFlagStep_source (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     source (unselectedCarryIntoFlagStep tail constant state) = source state := by
@@ -5656,7 +5659,7 @@ borrows as dirty carry work. -/
 
 /-- Only the high clean flag changes; every low accumulator bit, and hence the
 entire accumulator word, is restored. -/
-@[simp] theorem unselectedCarryIntoFlagStep_target (tail : Nat)
+@[simp] lemma unselectedCarryIntoFlagStep_target (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     target (unselectedCarryIntoFlagStep tail constant state) = target state := by
@@ -5684,7 +5687,7 @@ entire accumulator word, is restored. -/
 
 /-- The clean flag is toggled exactly by the carry out of low-word addition.
 The widened constant's dedicated high bit is definitionally clean. -/
-@[simp] theorem unselectedCarryIntoFlagStep_cleanFlag (tail : Nat)
+@[simp] lemma unselectedCarryIntoFlagStep_cleanFlag (tail : Nat)
     (constant : PlainAdder.Word tail.succ)
     (state : State tail.succ (LiteralBorrowed tail.succ)) :
     cleanFlag (unselectedCarryIntoFlagStep tail constant state) =
@@ -5713,16 +5716,16 @@ The widened constant's dedicated high bit is definitionally clean. -/
   simpa [observed, hconstantValueHigh] using hread
 
 /-- The concrete compiled list realizes its own carry-to-flag folded step. -/
-theorem unselectedCarryIntoFlagProgram_realizes (tail : Nat)
+lemma unselectedCarryIntoFlagProgram_realizes (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
     UnitaryCircuit.Realizes (literalR0Encoding tail.succ)
-      (unselectedCarryIntoFlagProgram tail constant)
+      (unselectedCarryIntoFlagProgram tail constant) environment
       (unselectedCarryIntoFlagStep tail constant) :=
   realizesProgramOf
     (unselectedCarryIntoFlagGates tail constant)
 
 /-- Exact Toffoli coordinate of the literal full-width carry extractor. -/
-theorem unselectedCarryIntoFlagProgram_toffoli_count_eq (tail : Nat)
+lemma unselectedCarryIntoFlagProgram_toffoli_count_eq (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (unselectedCarryIntoFlagProgram tail constant).eventCost = 4 * tail := by
@@ -5744,7 +5747,7 @@ theorem unselectedCarryIntoFlagProgram_toffoli_count_eq (tail : Nat)
             (unselectedCarryConstant tail constant) (Fin.last tail))
 
 /-- Exact CNOT coordinate of the same carry extractor. -/
-theorem unselectedCarryIntoFlagProgram_cnot_count_eq (tail : Nat)
+lemma unselectedCarryIntoFlagProgram_cnot_count_eq (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (unselectedCarryIntoFlagProgram tail constant).eventCost =
@@ -5769,7 +5772,7 @@ theorem unselectedCarryIntoFlagProgram_cnot_count_eq (tail : Nat)
             (unselectedCarryConstant tail constant) (Fin.last tail))
 
 /-- Exact X coordinate of the same carry extractor. -/
-theorem unselectedCarryIntoFlagProgram_x_count_eq (tail : Nat)
+lemma unselectedCarryIntoFlagProgram_x_count_eq (tail : Nat)
     (constant : PlainAdder.Word tail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (unselectedCarryIntoFlagProgram tail constant).eventCost =
@@ -5813,7 +5816,7 @@ def literalSwapStep (n : Nat) :
 /-- The folded standard three-CNOT word swap exchanges exactly the two
 arithmetic words and leaves the clean flag and every dirty-borrowed label
 unchanged. -/
-theorem literalSwapStep_swaps (n : Nat) (state : State n (LiteralBorrowed n)) :
+lemma literalSwapStep_swaps (n : Nat) (state : State n (LiteralBorrowed n)) :
     literalSwapStep n state =
       ((target state, source state), (cleanFlag state, borrowed state)) := by
   have hleft :
@@ -5878,22 +5881,22 @@ theorem literalSwapStep_swaps (n : Nat) (state : State n (LiteralBorrowed n)) :
   · exact hframe
 
 /-- The concrete circuit realizes precisely its own folded base-gate action. -/
-theorem literalSwapProgram_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (literalSwapEncoding n) (literalSwapProgram n)
+lemma literalSwapProgram_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (literalSwapEncoding n) (literalSwapProgram n) environment
       (literalSwapStep n) :=
   realizesProgramOf (literalSwapGates n)
 
 /-- Basis-state endpoint of the actual three-CNOT word-swap circuit in the
 HRS carrier, including exact preservation of the borrowed label. -/
-theorem literalSwapProgram_realizes_standard (n : Nat) :
-    UnitaryCircuit.Realizes (literalSwapEncoding n) (literalSwapProgram n)
+lemma literalSwapProgram_realizes_standard (n : Nat) :
+    UnitaryCircuit.Realizes (literalSwapEncoding n) (literalSwapProgram n) environment
       (fun state =>
         ((target state, source state), (cleanFlag state, borrowed state))) :=
   UnitaryCircuit.Realizes.congrStep (literalSwapProgram_realizes n)
     (literalSwapStep_swaps n)
 
 /-- Exact native CNOT coordinate of the standard physical word swap. -/
-theorem literalSwapProgram_cnot_count_eq (n : Nat) :
+lemma literalSwapProgram_cnot_count_eq (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (literalSwapProgram n).eventCost = 3 * n := by
   rw [literalSwapProgram, programOf,
@@ -5903,7 +5906,7 @@ theorem literalSwapProgram_cnot_count_eq (n : Nat) :
     (literalSourceTargetBit_wire_ne n)
 
 /-- The standard physical word swap contains no Toffoli leaves. -/
-theorem literalSwapProgram_toffoli_count_eq (n : Nat) :
+lemma literalSwapProgram_toffoli_count_eq (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (literalSwapProgram n).eventCost = 0 := by
   rw [literalSwapProgram, programOf,
@@ -5933,7 +5936,7 @@ namespace WordSwap
 variable {n : Nat} {Borrowed : Register}
 
 /-- A certified word swap leaves every borrowed label unchanged. -/
-theorem preserves_borrowed (swap : WordSwap n Borrowed)
+lemma preserves_borrowed (swap : WordSwap n Borrowed)
     (state : State n Borrowed) :
     borrowed (swap.perm state) = borrowed state := by
   rcases state with ⟨⟨sourceWord, targetWord⟩, ⟨flag, borrowedWord⟩⟩
@@ -5955,7 +5958,7 @@ def selectedPerm {params : Parameters n} {Borrowed : Register}
       (implementation bit).perm.trans (selectedPerm implementation bits)
 
 /-- Every selected-stage pass restores the complete borrowed label. -/
-theorem selectedPerm_preserves_borrowed
+lemma selectedPerm_preserves_borrowed
     {params : Parameters n} {Borrowed : Register} {subtract : Bool}
     (implementation : ∀ bit : Fin n,
       ControlledModularAdd params Borrowed bit subtract) :
@@ -5992,7 +5995,7 @@ def selectedTarget (params : Parameters n) (subtract : Bool)
           targetWord)
 
 /-- A selected target step preserves canonicality below the modulus. -/
-theorem selectedTarget_lt_modulus (params : Parameters n) (subtract : Bool)
+lemma selectedTarget_lt_modulus (params : Parameters n) (subtract : Bool)
     (sourceWord : PlainAdder.Word n) :
     ∀ (bits : List (Fin n)) (targetWord : PlainAdder.Word n),
       targetWord.val < params.modulus →
@@ -6009,7 +6012,7 @@ theorem selectedTarget_lt_modulus (params : Parameters n) (subtract : Bool)
 
 /-- On the clean canonical subspace, a certified selected-stage pass changes
 only the accumulator according to `selectedTarget`. -/
-theorem selectedPerm_canonical_action
+lemma selectedPerm_canonical_action
     {params : Parameters n} {Borrowed : Register} {subtract : Bool}
     (implementation : ∀ bit : Fin n,
       ControlledModularAdd params Borrowed bit subtract) :
@@ -6047,7 +6050,7 @@ theorem selectedPerm_canonical_action
       · simpa [hselected] using htarget
 
 /-- Splitting a selected-target schedule preserves execution order. -/
-theorem selectedTarget_append (params : Parameters n) (subtract : Bool)
+lemma selectedTarget_append (params : Parameters n) (subtract : Bool)
     (sourceWord targetWord : PlainAdder.Word n)
     (first second : List (Fin n)) :
     selectedTarget params subtract sourceWord (first ++ second) targetWord =
@@ -6061,7 +6064,7 @@ theorem selectedTarget_append (params : Parameters n) (subtract : Bool)
 
 /-- Numeric value after a selected pass is the initial canonical accumulator
 plus the sum of its actually selected modular constants, reduced once. -/
-theorem selectedTarget_val_eq_sum (params : Parameters n) (subtract : Bool)
+lemma selectedTarget_val_eq_sum (params : Parameters n) (subtract : Bool)
     (sourceWord : PlainAdder.Word n) :
     ∀ (bits : List (Fin n)) (targetWord : PlainAdder.Word n),
       targetWord.val < params.modulus →
@@ -6113,7 +6116,7 @@ def binaryContribution (modulus coefficient sourceValue : Nat)
 
 /-- A valid position extends the canonical finite-range prefix by exactly
 that position. -/
-theorem finRange_take_succ {width : Nat} (bit : Fin width) :
+lemma finRange_take_succ {width : Nat} (bit : Fin width) :
     (List.finRange width).take (bit.val + 1) =
       (List.finRange width).take bit.val ++ [bit] := by
   have hbit : bit.val < (List.finRange width).length := by
@@ -6126,7 +6129,7 @@ theorem finRange_take_succ {width : Nat} (bit : Fin width) :
 /-- Cast form of the binary-prefix identity for the sum of selected modular
 contributions.  Casting into `ZMod modulus` removes each stage's local
 reduction without losing the exact final residue. -/
-theorem binaryContribution_sum_cast_take {modulus width : Nat}
+lemma binaryContribution_sum_cast_take {modulus width : Nat}
     [NeZero modulus] (coefficient sourceValue : Nat) :
     ∀ rounds : Nat, rounds ≤ width →
       ((((List.finRange width).take rounds).map
@@ -6182,7 +6185,7 @@ theorem binaryContribution_sum_cast_take {modulus width : Nat}
                   ring
 
 /-- Full-width specialization of the selected binary-contribution sum. -/
-theorem binaryContribution_sum_cast (modulus width coefficient sourceValue : Nat)
+lemma binaryContribution_sum_cast (modulus width coefficient sourceValue : Nat)
     [NeZero modulus] (hsource : sourceValue < 2 ^ width) :
     (((List.finRange width).map
         (binaryContribution modulus coefficient sourceValue)).sum : Nat) =
@@ -6197,7 +6200,7 @@ theorem binaryContribution_sum_cast (modulus width coefficient sourceValue : Nat
 
 /-- A forward HRS stage selects exactly the ordinary binary contribution of
 the multiplication constant. -/
-theorem selectedContribution_false_eq_binary (params : Parameters n)
+lemma selectedContribution_false_eq_binary (params : Parameters n)
     (sourceWord : PlainAdder.Word n) (bit : Fin n) :
     selectedContribution params false sourceWord bit =
       binaryContribution params.modulus params.constant.val sourceWord.val bit := by
@@ -6206,7 +6209,7 @@ theorem selectedContribution_false_eq_binary (params : Parameters n)
 
 /-- A reverse HRS stage contributes the additive inverse, modulo `N`, of the
 ordinary binary contribution of the registered inverse constant. -/
-theorem selectedContribution_true_cast_eq_neg (params : Parameters n)
+lemma selectedContribution_true_cast_eq_neg (params : Parameters n)
     (sourceWord : PlainAdder.Word n) (bit : Fin n) :
     letI : NeZero params.modulus := ⟨Nat.ne_of_gt params.modulus_pos⟩
     ((selectedContribution params true sourceWord bit : Nat) :
@@ -6228,7 +6231,7 @@ theorem selectedContribution_true_cast_eq_neg (params : Parameters n)
 /-- The complete reverse-pass contribution sum is the additive inverse of
 the inverse constant times the source word.  Reversing the bit schedule does
 not change this additive sum. -/
-theorem selectedContribution_true_sum_cast (params : Parameters n)
+lemma selectedContribution_true_sum_cast (params : Parameters n)
     (sourceWord : PlainAdder.Word n) :
     letI : NeZero params.modulus := ⟨Nat.ne_of_gt params.modulus_pos⟩
     ((((List.finRange n).reverse.map
@@ -6258,7 +6261,7 @@ theorem selectedContribution_true_sum_cast (params : Parameters n)
 
 /-- The complete forward-pass contribution sum is the multiplication
 constant times the source word modulo `N`. -/
-theorem selectedContribution_false_sum_cast (params : Parameters n)
+lemma selectedContribution_false_sum_cast (params : Parameters n)
     (sourceWord : PlainAdder.Word n) :
     letI : NeZero params.modulus := ⟨Nat.ne_of_gt params.modulus_pos⟩
     (((List.finRange n).map
@@ -6281,7 +6284,7 @@ theorem selectedContribution_false_sum_cast (params : Parameters n)
 
 /-- The complete forward selected-add pass, starting from zero, produces the
 modular product of the fixed constant and the source word. -/
-theorem selectedTarget_forward_zero (params : Parameters n)
+lemma selectedTarget_forward_zero (params : Parameters n)
     (sourceWord : PlainAdder.Word n) :
     selectedTarget params false sourceWord
         (List.ofFn fun bit : Fin n => bit) (params.word 0) =
@@ -6308,7 +6311,7 @@ theorem selectedTarget_forward_zero (params : Parameters n)
 /-- The reverse selected-add pass subtracts the inverse multiple of the
 post-swap source.  When that source is the forward product, the original
 source word in the target is cleared exactly. -/
-theorem selectedTarget_inverse_cancels_product (params : Parameters n)
+lemma selectedTarget_inverse_cancels_product (params : Parameters n)
     (sourceWord : PlainAdder.Word n)
     (hsource : sourceWord.val < params.modulus) :
     selectedTarget params true
@@ -6430,7 +6433,7 @@ def inPlacePerm (params : Parameters n) (Borrowed : Register)
 
 /-- The total assembled permutation restores every borrowed label on the
 entire carrier. -/
-theorem inPlacePerm_preserves_borrowed (params : Parameters n)
+lemma inPlacePerm_preserves_borrowed (params : Parameters n)
     (Borrowed : Register)
     (forward : ∀ bit : Fin n,
       ControlledModularAdd params Borrowed bit false)
@@ -6450,7 +6453,7 @@ theorem inPlacePerm_preserves_borrowed (params : Parameters n)
 /-- Clean HRS endpoint of the certified compute/swap/uncompute permutation.
 The forward pass writes `constant * source`, the physical word swap moves that
 product into place, and the inverse pass clears the former source word. -/
-theorem inPlacePerm_clean_endpoint (params : Parameters n)
+lemma inPlacePerm_clean_endpoint (params : Parameters n)
     (Borrowed : Register)
     (forward : ∀ bit : Fin n,
       ControlledModularAdd params Borrowed bit false)
@@ -6502,13 +6505,13 @@ zero-qubit literal core below realizes this count. -/
 def coreQubitCount (n : Nat) : Nat :=
   2 * n + 1
 
-@[simp] theorem coreQubitCount_eq (n : Nat) :
+@[simp] lemma coreQubitCount_eq (n : Nat) :
     coreQubitCount n = 2 * n + 1 :=
   rfl
 
 /-- The actual literal word-swap encoding, rather than an independent
 metadata numeral, realizes the advertised HRS core width. -/
-theorem literalSwapEncoding_width_eq_coreQubitCount (n : Nat) :
+lemma literalSwapEncoding_width_eq_coreQubitCount (n : Nat) :
     (literalSwapEncoding n).width = coreQubitCount n := by
   rw [literalSwapEncoding_width, coreQubitCount_eq]
 
@@ -6568,7 +6571,7 @@ def literalInPlacePerm (interior : Nat)
 
 /-- Literal program width is the exact HRS core count `2n+1`; the source word
 is reused as dirty carry work rather than allocating a third word. -/
-theorem literalInPlaceProgram_qubit_count_eq (interior : Nat) :
+lemma literalInPlaceProgram_qubit_count_eq (interior : Nat) :
     (literalR0Encoding (interior + 2).succ).width =
       coreQubitCount (interior + 2).succ :=
   literalSwapEncoding_width_eq_coreQubitCount (interior + 2).succ
@@ -6591,7 +6594,7 @@ def literalSelectedGates (interior : Nat)
 
 /-- Folding the flat selected-pass gate list gives the same total basis
 action as the certified selected permutation. -/
-theorem literalSelectedGates_stepList (interior : Nat)
+lemma literalSelectedGates_stepList (interior : Nat)
     (params : Parameters (interior + 2).succ) (subtract : Bool) :
     ∀ (bits : List (Fin (interior + 2).succ))
       (state : State (interior + 2).succ
@@ -6621,7 +6624,7 @@ def literalInPlaceGates (interior : Nat)
 
 /-- The exposed flat list implements the same complete total permutation as
 the typed HRS circuit on every basis label. -/
-theorem literalInPlaceGates_stepList (interior : Nat)
+lemma literalInPlaceGates_stepList (interior : Nat)
     (params : Parameters (interior + 2).succ)
     (state : State (interior + 2).succ
       (LiteralBorrowed (interior + 2).succ)) :
@@ -6643,15 +6646,16 @@ def literalInPlaceProgram (interior : Nat)
   programOf (literalInPlaceGates interior params)
 
 /-- The compiled multiplier realizes its total basis permutation. -/
-theorem literalInPlaceProgram_realizes (interior : Nat)
+lemma literalInPlaceProgram_realizes (interior : Nat)
     (params : Parameters (interior + 2).succ) :
     UnitaryCircuit.Realizes (literalR0Encoding (interior + 2).succ)
-      (literalInPlaceProgram interior params)
+      (literalInPlaceProgram interior params) environment
       (literalInPlacePerm interior params) :=
-  (realizesProgramOf (literalInPlaceGates interior params)).congrStep
+  (realizesProgramOf (environment := environment)
+    (literalInPlaceGates interior params)).congrStep
     (literalInPlaceGates_stepList interior params)
 
-private theorem literalControlledModularAddGates_toffoliMultiplicity_sum
+private lemma literalControlledModularAddGates_toffoliMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     ((literalControlledModularAddGates interior pivot modulus addend).map
@@ -6663,7 +6667,7 @@ private theorem literalControlledModularAddGates_toffoliMultiplicity_sum
     EncodedBit.GateSpec.programList_toffoli_count_eq_sum] at exactCount
   exact exactCount
 
-private theorem literalControlledModularAddGates_cnotMultiplicity_sum
+private lemma literalControlledModularAddGates_cnotMultiplicity_sum
     (interior : Nat) (pivot : Fin (interior + 2).succ)
     (modulus addend : Nat) :
     ((literalControlledModularAddGates interior pivot modulus addend).map
@@ -6675,7 +6679,7 @@ private theorem literalControlledModularAddGates_cnotMultiplicity_sum
     EncodedBit.GateSpec.programList_cnot_count_eq_sum] at exactCount
   exact exactCount
 
-private theorem literalSelectedGates_toffoliMultiplicity_sum
+private lemma literalSelectedGates_toffoliMultiplicity_sum
     (interior : Nat) (params : Parameters (interior + 2).succ)
     (subtract : Bool) :
     ∀ bits : List (Fin (interior + 2).succ),
@@ -6692,7 +6696,7 @@ private theorem literalSelectedGates_toffoliMultiplicity_sum
         literalSelectedGates_toffoliMultiplicity_sum interior params subtract bits]
       rfl
 
-private theorem literalSelectedGates_cnotMultiplicity_sum
+private lemma literalSelectedGates_cnotMultiplicity_sum
     (interior : Nat) (params : Parameters (interior + 2).succ)
     (subtract : Bool) :
     ∀ bits : List (Fin (interior + 2).succ),
@@ -6710,7 +6714,7 @@ private theorem literalSelectedGates_cnotMultiplicity_sum
       rfl
 
 /-- Exact Toffoli count of the direct literal multiplier circuit. -/
-theorem literalInPlaceProgram_toffoli_count_eq (interior : Nat)
+lemma literalInPlaceProgram_toffoli_count_eq (interior : Nat)
     (params : Parameters (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (literalInPlaceProgram interior params).eventCost =
@@ -6729,7 +6733,7 @@ theorem literalInPlaceProgram_toffoli_count_eq (interior : Nat)
   rfl
 
 /-- Exact CNOT count, including the physical three-CNOT-per-bit swap. -/
-theorem literalInPlaceProgram_cnot_count_eq (interior : Nat)
+lemma literalInPlaceProgram_cnot_count_eq (interior : Nat)
     (params : Parameters (interior + 2).succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (literalInPlaceProgram interior params).eventCost =
@@ -6749,12 +6753,12 @@ theorem literalInPlaceProgram_cnot_count_eq (interior : Nat)
   rfl
 
 /-- Computational-basis correctness of the actual literal multiplier. -/
-theorem literalInPlaceProgram_applyNormalized_clean_ket (interior : Nat)
+lemma literalInPlaceProgram_applyNormalized_clean_ket (interior : Nat)
     (params : Parameters (interior + 2).succ)
     (sourceWord : PlainAdder.Word (interior + 2).succ)
     (borrowedWord : (LiteralBorrowed (interior + 2).succ).Index)
     (hsource : sourceWord.val < params.modulus) :
-    (literalInPlaceProgram interior params).applyNormalized
+    (literalInPlaceProgram interior params).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (literalR0Encoding (interior + 2).succ).width).basisEquiv.symm
@@ -6766,7 +6770,8 @@ theorem literalInPlaceProgram_applyNormalized_clean_ket (interior : Nat)
           ((literalR0Encoding (interior + 2).succ).encode
             ((params.word (params.constant.val * sourceWord.val), params.word 0),
               (false, borrowedWord)))) := by
-  rw [(literalInPlaceProgram_realizes interior params).apply_encoded_ket]
+  rw [(literalInPlaceProgram_realizes (environment := environment)
+    interior params).apply_encoded_ket]
   rw [literalInPlacePerm, inPlacePerm_clean_endpoint params
     (LiteralBorrowed (interior + 2).succ)
     (literalForwardAdd interior params)

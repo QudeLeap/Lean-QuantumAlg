@@ -31,7 +31,7 @@ open NumberTheory.Checked.SignedReduction.Native
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original loader and independent raw-engine and signed-reduction syntax allowances. -/
@@ -57,7 +57,7 @@ def coefficientActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :
   SpacePool.max (SpacePool.ofShape (.unsignedWord (width + 1)) + rawScratchSpace kind (width + 1))
     (signedReductionSpaceLimit kind width)
 
-private theorem coefficientBody_pool_le (spec : ModulusSpec width)
+private lemma coefficientBody_pool_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientBody spec denominator scratch output).Path) :
@@ -75,7 +75,7 @@ private theorem coefficientBody_pool_le (spec : ModulusSpec width)
     (withSignedReduction_pool_le _ _ _ path.2.2))
 
 /-- All actual selected native counts satisfy the original total coefficient syntax allowance. -/
-theorem coefficientIntoWord_pool_le (spec : ModulusSpec width)
+lemma coefficientIntoWord_pool_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientIntoWord spec denominator output).Path) :
@@ -88,7 +88,7 @@ theorem coefficientIntoWord_pool_le (spec : ModulusSpec width)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => coefficientBody_pool_le _ _ _ _ selected) path
 
-private theorem coefficientBody_duration_eventTrace (spec : ModulusSpec width)
+private lemma coefficientBody_duration_eventTrace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientBody spec denominator scratch output).Path) :
@@ -118,7 +118,7 @@ private theorem coefficientBody_duration_eventTrace (spec : ModulusSpec width)
     (congrArg₂ Nat.add (withWidenedXgcd_duration_eventTrace _ _ _ duration path.2.1) signed)
 
 /-- Selected durations equal the same actual native trace through every persistent scope. -/
-theorem coefficientIntoWord_duration_eventTrace (spec : ModulusSpec width)
+lemma coefficientIntoWord_duration_eventTrace (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientIntoWord spec denominator output).Path) :
@@ -133,7 +133,7 @@ theorem coefficientIntoWord_duration_eventTrace (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       coefficientBody_duration_eventTrace _ _ _ _ duration selected) path
 
-private theorem coefficientBody_depth_le (spec : ModulusSpec width)
+private lemma coefficientBody_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientBody spec denominator scratch output).Path) :
@@ -144,7 +144,7 @@ private theorem coefficientBody_depth_le (spec : ModulusSpec width)
       (withSignedReduction_depth_le _ _ _ duration path.2.2))
 
 /-- The original independent serial allowance bounds every actual selected coefficient path. -/
-theorem coefficientIntoWord_depth_le (spec : ModulusSpec width)
+lemma coefficientIntoWord_depth_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (coefficientIntoWord spec denominator output).Path) :
@@ -157,7 +157,7 @@ theorem coefficientIntoWord_depth_le (spec : ModulusSpec width)
     (fun _ _ _ _ _ available => available)
     (fun cells _ transport _ selected => coefficientBody_depth_le _ _ _ _ duration selected) path
 
-private theorem coefficientBody_resident_le (spec : ModulusSpec width)
+private lemma coefficientBody_resident_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientBody spec denominator scratch output).Path) :
@@ -171,7 +171,7 @@ private theorem coefficientBody_resident_le (spec : ModulusSpec width)
     · exact (withSignedReduction_resident_le _ _ _ path.2.2).trans
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
-private theorem coefficientBody_auxiliary_le (spec : ModulusSpec width)
+private lemma coefficientBody_auxiliary_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientBody spec denominator scratch output).Path) :
@@ -186,7 +186,7 @@ private theorem coefficientBody_auxiliary_le (spec : ModulusSpec width)
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The original four persistent cells coexist with the larger actual arithmetic allowance. -/
-theorem coefficientIntoWord_resident_le (spec : ModulusSpec width)
+lemma coefficientIntoWord_resident_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientIntoWord spec denominator output).Path) :
@@ -200,7 +200,7 @@ theorem coefficientIntoWord_resident_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected => coefficientBody_resident_le _ _ _ _ selected) path
 
 /-- Auxiliary ownership counts those same original cells and all caller context entries. -/
-theorem coefficientIntoWord_auxiliary_le (spec : ModulusSpec width)
+lemma coefficientIntoWord_auxiliary_le (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientIntoWord spec denominator output).Path) :

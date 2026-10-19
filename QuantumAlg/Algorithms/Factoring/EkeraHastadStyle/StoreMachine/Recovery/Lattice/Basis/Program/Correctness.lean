@@ -29,7 +29,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N width : Nat}
 
 /-- Both actual native power loaders preserve the complete frame outside their two outputs. -/
-theorem powerRowsInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma powerRowsInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (m ell : Nat) (output : RawOutputRefs ctx width)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (b21 : output.b21.key ∉ other.storageKeys) (b32 : output.b32.key ∉ other.storageKeys) :
@@ -40,7 +40,7 @@ theorem powerRowsInto_callerFrame {model : ExecutionModel} [BitWord.Selected mod
     Word.PowerOfTwo.into_callerFrame _ _ _ other b21]
 
 /-- The complete actual basis loader preserves every read outside its original five write cells. -/
-theorem loadBasisInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma loadBasisInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (b11 : output.b11.key ∉ other.storageKeys)
@@ -52,7 +52,7 @@ theorem loadBasisInto_callerFrame {model : ExecutionModel} [BitWord.Selected mod
   exact loadFirstBasisRowInto_callerFrame pair output store other b11 b12 b13
 
 /-- Actual lower-row power loading preserves all previously materialized first-row values. -/
-theorem powerRowsInto_firstRow {model : ExecutionModel} [BitWord.Selected model]
+lemma powerRowsInto_firstRow {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (separation : Separation pair output)
     (store : Store ctx) (cell : FirstRowCell) :
@@ -62,7 +62,7 @@ theorem powerRowsInto_firstRow {model : ExecutionModel} [BitWord.Selected model]
     (separation.firstRowAvoidsB32 cell)
 
 /-- Every original zero coordinate is unchanged through the full actual basis loader. -/
-theorem loadBasisInto_zeroFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma loadBasisInto_zeroFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (separation : Separation pair output)
     (store : Store ctx) (cell : ZeroCell) :
@@ -90,7 +90,7 @@ structure BasisOutcome (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
         output.b32.key ∉ other.storageKeys → after.read other = before.read other
 
 /-- The actual native circuit realizes all original basis values and the original complete frame. -/
-theorem loadBasisInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma loadBasisInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (m ell : Nat) (pair : BatchMachine.PairRefs ctx N)
     (output : RawOutputRefs ctx width) (separation : Separation pair output)
     (store : Store ctx) (zeros : InitialZeros output store) :

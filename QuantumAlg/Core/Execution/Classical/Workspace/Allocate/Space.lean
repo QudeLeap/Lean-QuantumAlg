@@ -19,7 +19,7 @@ further resources, accounted for by an independent additional space budget.
 
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
-private theorem peak_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+private lemma peak_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
     (projection : RuntimeCtx model.kind → SpacePool model.kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (code : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
@@ -37,7 +37,7 @@ private theorem peak_workspace {model : ExecutionModel} {ctx : RuntimeCtx model.
   change _ = max (projection ctx axis) (Circuit.peak projection (code.visitedContexts path) axis)
   omega
 
-private theorem withCellsFrom_peak_le {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
+private lemma withCellsFrom_peak_le {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
     (transport : Transport outer ctx) (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
@@ -80,7 +80,7 @@ variable {model : ExecutionModel} {outer ctx : RuntimeCtx model.kind}
     (additional : SpacePool model.kind)
 
 /-- Resident peak includes all actual allocated shapes and the body's independent extra budget. -/
-theorem withCellsFrom_resident_le
+lemma withCellsFrom_resident_le
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)
@@ -94,7 +94,7 @@ theorem withCellsFrom_resident_le
     RuntimeCtx.residentSpace_addWorkspace additional bodyBound path
 
 /-- Auxiliary peak charges each live workspace cell together with the body's extra allocation. -/
-theorem withCellsFrom_auxiliary_le
+lemma withCellsFrom_auxiliary_le
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes)
       (distinct : cells.Distinct) (innerTransport : Transport outer inner)
       (separated : cells.TransportSeparated innerTransport)

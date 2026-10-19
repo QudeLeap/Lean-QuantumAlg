@@ -32,6 +32,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.OutputCorrectionFocus
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Addition.Gidney FoldSourceProgram
 
 /-- Two real flag X gates select the existing controlled reflection on Iter zero. -/
@@ -48,7 +50,7 @@ def step (modulus : Nat) (state : Addition.Gidney.Registers (wordWidth modulus))
   (state.1, (if state.1 then state.2.1 else
     Nat.FixedWidth.biFlipWordOutput (reflectionPivot modulus) state.2.1, state.2.2))
 
-private theorem component_steps (modulus : Nat)
+private lemma component_steps (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     flagFlipOutput (biFlipOutput (reflectionPivot modulus) (flagFlipOutput state)) =
       step modulus state := by
@@ -56,25 +58,26 @@ private theorem component_steps (modulus : Nat)
   cases iteration <;> rfl
 
 /-- Exact phase-preserving action of the actual three native blocks on every input label. -/
-theorem program_realizes (modulus : Nat) :
+lemma program_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (Addition.Gidney.encoding (wordWidth modulus)) (program modulus)
+      environment
       (step modulus) :=
   (((gidneyFlagFlip_realizes (wordWidth modulus)).seq
     (gidneyBiFlip_realizes (wordWidth modulus) (reflectionPivot modulus))).seq
       (gidneyFlagFlip_realizes (wordWidth modulus))).congrStep (component_steps modulus)
 
 /-- The sign history is retained rather than erased by the output correction. -/
-theorem step_iteration (modulus : Nat)
+lemma step_iteration (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     (step modulus state).1 = state.1 := rfl
 
 /-- Every value and correlation of the borrowed helper is restored by the actual program. -/
-theorem step_helper (modulus : Nat)
+lemma step_helper (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     (step modulus state).2.2 = state.2.2 := rfl
 
 /-- The internally reached coefficient interval gives the source's exact natural correction. -/
-theorem step_value (modulus : Nat) (iteration helper : Bool)
+lemma step_value (modulus : Nat) (iteration helper : Bool)
     (word : Fin (2 ^ wordWidth modulus)) (bounded : word.val ≤ modulus) :
     (step modulus (iteration, (word, helper))).2.1.val =
       if iteration then word.val else modulus - word.val := by
@@ -90,7 +93,7 @@ theorem step_value (modulus : Nat) (iteration helper : Bool)
   | true => rfl
 
 /-- The original parity and finite reflection make the full register action involutive. -/
-theorem step_involutive (modulus : Nat) : Function.Involutive (step modulus) := by
+lemma step_involutive (modulus : Nat) : Function.Involutive (step modulus) := by
   rintro ⟨iteration, word, helper⟩
   cases iteration with
   | false =>
@@ -100,17 +103,19 @@ theorem step_involutive (modulus : Nat) : Function.Involutive (step modulus) := 
   | true => rfl
 
 /-- The actual circuit adjoint has the same total label action and restores its helper. -/
-theorem inverse_realizes (modulus : Nat) :
+lemma inverse_realizes (modulus : Nat) :
     UnitaryCircuit.Realizes (Addition.Gidney.encoding (wordWidth modulus))
-      ((program modulus).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+      ((program modulus).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
       (step modulus) := by
   apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes modulus)
-  · rw [UnitaryCircuit.dagger_matrix]
+  · rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]
     exact Unitary.star_eq_inv _
   · exact step_involutive modulus
 
 /-- The actual trace includes both flag operations and the selected controlled arithmetic body. -/
-theorem program_eventTrace (modulus : Nat) :
+lemma program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace =
       (flagFlipProgram (wordWidth modulus)).eventTrace ++
         (biFlipProgram (wordWidth modulus) (reflectionPivot modulus)).eventTrace ++
@@ -118,7 +123,7 @@ theorem program_eventTrace (modulus : Nat) :
   simp only [program, UnitaryCircuit.seq_eventTrace]
 
 /-- Exact event cardinality, including both real parity complements. -/
-theorem program_event_count (modulus : Nat) :
+lemma program_event_count (modulus : Nat) :
     (program modulus).eventCost.card =
       (biFlipProgram (wordWidth modulus) (reflectionPivot modulus)).eventCost.card + 2 := by
   simp only [program, UnitaryCircuit.seq_eventCost, Multiset.card_add,
@@ -126,7 +131,7 @@ theorem program_event_count (modulus : Nat) :
   omega
 
 /-- The shared actual coherent control serializes the body and the two parity gates. -/
-theorem program_unitDepth (modulus : Nat) :
+lemma program_unitDepth (modulus : Nat) :
     (program modulus).evaluatedEventDepth (fun _ => 1) =
       (biFlipProgram (wordWidth modulus) (reflectionPivot modulus)).eventCost.card + 2 := by
   simp only [program, UnitaryCircuit.evaluatedEventDepth_seq, gidneyFlagFlip_depth,

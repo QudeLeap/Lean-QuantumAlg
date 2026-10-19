@@ -6,6 +6,12 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Results
+
+public import QuantumAlg.Algorithms.Factoring.RSA2048.Results
+
+public import QuantumAlg.Algorithms.Factoring.RSA.Results
+
 import QuantumAlg.Init
 public import QuantumAlg.Algorithms.Factoring.Common
 public import QuantumAlg.Algorithms.Factoring.ShorStyle

@@ -39,26 +39,28 @@ section KeyAverage
 variable (bitWidth : Nat) (nonempty : Nonempty (RSA.RSAKeyPairBits bitWidth))
   (count : Nat) {Reference : Register}
   (inputs : (pair : RSA.RSAKeyPairBits bitWidth) →
-    Execution.OracleInput (model (inputOfKeyPair pair)).classicalOracles base Reference)
+    Execution.OracleInput (model pair.modulus).classicalOracles base Reference)
 
 /-- The original ordered key law followed by the actual completed run with each fixed model. -/
 public def completedKeygenOutputDistribution : PMF (Nat × Nat × Option Nat) :=
   (RSA.RSAKeyGenBits bitWidth nonempty).bind fun pair =>
     ((completedAlgorithm base noQuantum (inputOfKeyPair pair) count).run.outputDistribution
-      (inputs pair)).map fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output)
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).map fun output => (pair.p,
+        pair.q, NativeRetrySelection.decodeFactor output)
 
 /-- Success observes the actual factor from the same generated key branch. -/
 public def completedKeygenSuccessMass : ENNReal :=
   (completedKeygenOutputDistribution base noQuantum bitWidth nonempty count inputs).toOuterMeasure
     keySuccessEvent
 
-private theorem branch_success (pair : RSA.RSAKeyPairBits bitWidth) :
+private lemma branch_success (pair : RSA.RSAKeyPairBits bitWidth) :
     (((completedAlgorithm base noQuantum (inputOfKeyPair pair) count).run.outputDistribution
-      (inputs pair)).map
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).map
         (fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output))).toOuterMeasure
           keySuccessEvent =
       ((completedAlgorithm base noQuantum (inputOfKeyPair pair) count).run.outputDistribution
-        (inputs pair)).toOuterMeasure {output | output ≠ CShape.Value.optionNone} := by
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).toOuterMeasure {output | output ≠
+        CShape.Value.optionNone} := by
   rw [PMF.toOuterMeasure_map_apply]
   apply PMF.toOuterMeasure_apply_eq_of_inter_support_eq
   ext output
@@ -86,13 +88,13 @@ private theorem branch_success (pair : RSA.RSAKeyPairBits bitWidth) :
         exact ⟨word.toNat, rfl, declared⟩
 
 /-- The actual key average retains the conditional failure power inside each original key. -/
-theorem completedFinite_completedKeygenSuccessMass_eq :
+lemma completedFinite_completedKeygenSuccessMass_eq :
     completedKeygenSuccessMass base noQuantum bitWidth nonempty count inputs =
       ∑' pair, RSA.RSAKeyGenBits bitWidth nonempty pair *
         (1 - sampledBatchOutputPMF (inputOfKeyPair pair) none ^ count) := by
   change ((RSA.RSAKeyGenBits bitWidth nonempty).bind fun pair =>
     ((completedAlgorithm base noQuantum (inputOfKeyPair pair) count).run.outputDistribution
-      (inputs pair)).map fun output =>
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).map fun output =>
         (pair.p, pair.q, NativeRetrySelection.decodeFactor output)).toOuterMeasure
           keySuccessEvent = _
   rw [PMF.toOuterMeasure_bind_apply]
@@ -101,7 +103,7 @@ theorem completedFinite_completedKeygenSuccessMass_eq :
   rw [branch_success, completedAlgorithm_populatedProbability]
   rfl
 
-private theorem good_key_mass (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
+private lemma good_key_mass (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
     1 - ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth) ≤
       (RSA.RSAKeyGenBits bitWidth nonempty).toOuterMeasure
         {pair | ¬ 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
@@ -112,14 +114,15 @@ private theorem good_key_mass (effective : RSA.GeneratorOrder.effectiveCutoffBit
   exact tsub_le_tsub_left (ENNReal.ofReal_le_ofReal
     (RSA.GeneratorOrder.keyGenerationBadFraction_le_keyFailureBound effective)) 1
 
-private theorem good_branch_floor (pair : RSA.RSAKeyPairBits bitWidth)
+private lemma good_branch_floor (pair : RSA.RSAKeyPairBits bitWidth)
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
     (pairGood : ¬ 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
       Nat.gcd (pair.p - 1) (pair.q - 1))
-    (budget : FailureBudget) (wellFormed : budget.WellFormed) :
-    1 - ENNReal.ofReal (budget.value / 2) ≤
+    (η : Real) (etaPositive : 0 < η) :
+    1 - ENNReal.ofReal (η / 2) ≤
       (((completedAlgorithm base noQuantum (inputOfKeyPair pair)
-        (calibratedCount budget)).run.outputDistribution (inputs pair)).map
+        (NativeFiniteRetry.Calibration.retryCount η)).run.outputDistribution
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).map
           (fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output))).toOuterMeasure
             keySuccessEvent := by
   rw [branch_success]
@@ -127,109 +130,96 @@ private theorem good_branch_floor (pair : RSA.RSAKeyPairBits bitWidth)
     ⟨bitWidth, pair, rfl, effective, Nat.lt_of_not_ge pairGood⟩
   have conditional := (tsub_le_tsub_left
     (NativeFiniteRetry.Calibration.retryBatchFailure_le_halfTarget
-      good.effective budget wellFormed) 1).trans
+      good.effective η etaPositive) 1).trans
     (completedAlgorithm_successProbability_ge base noQuantum
-      good (calibratedCount budget) (inputs pair))
+      good (NativeFiniteRetry.Calibration.retryCount η) (inputs pair))
   simpa only [good, GoodKeyModel.input, inputOfKeyPair] using conditional
 
-private theorem good_mass_times_floor_le
+private lemma good_mass_times_floor_le
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
-    (budget : FailureBudget) (wellFormed : budget.WellFormed) :
+    (η : Real) (etaPositive : 0 < η) :
     (RSA.RSAKeyGenBits bitWidth nonempty).toOuterMeasure
         {pair | ¬ 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
           Nat.gcd (pair.p - 1) (pair.q - 1)} *
-      (1 - ENNReal.ofReal (budget.value / 2)) ≤
+      (1 - ENNReal.ofReal (η / 2)) ≤
         completedKeygenSuccessMass base noQuantum bitWidth nonempty
-          (calibratedCount budget) inputs := by
+          (NativeFiniteRetry.Calibration.retryCount η) inputs := by
   change _ ≤ ((RSA.RSAKeyGenBits bitWidth nonempty).bind fun pair =>
     ((completedAlgorithm base noQuantum (inputOfKeyPair pair)
-      (calibratedCount budget)).run.outputDistribution (inputs pair)).map fun output =>
+      (NativeFiniteRetry.Calibration.retryCount η)).run.outputDistribution
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).map fun output =>
         (pair.p, pair.q, NativeRetrySelection.decodeFactor output)).toOuterMeasure
           keySuccessEvent
   exact PMF.bind_eventProbability_ge_goodMass_mul
     (RSA.RSAKeyGenBits bitWidth nonempty)
     (fun pair => ((completedAlgorithm base noQuantum (inputOfKeyPair pair)
-      (calibratedCount budget)).run.outputDistribution (inputs pair)).map fun output =>
+      (NativeFiniteRetry.Calibration.retryCount η)).run.outputDistribution
+      (sourceEnvironment (inputOfKeyPair pair)) (inputs pair)).map fun output =>
         (pair.p, pair.q, NativeRetrySelection.decodeFactor output))
     (fun pair => 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
       Nat.gcd (pair.p - 1) (pair.q - 1))
     (fun triple => triple ∈ keySuccessEvent)
-    (1 - ENNReal.ofReal (budget.value / 2))
+    (1 - ENNReal.ofReal (η / 2))
     (fun pair pairGood => good_branch_floor base noQuantum bitWidth inputs pair
-      effective pairGood budget wellFormed)
+      effective pairGood η etaPositive)
 
 /-- The one-time key exception and conditional half-target bound the actual completed average. -/
-theorem completedFinite_keygen_success_ge
+lemma completedFinite_keygen_success_ge
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
-    (budget : FailureBudget) (wellFormed : budget.WellFormed) :
+    (η : Real) (etaPositive : 0 < η) :
     1 - (ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth) +
-      ENNReal.ofReal (budget.value / 2)) ≤
+      ENNReal.ofReal (η / 2)) ≤
       completedKeygenSuccessMass base noQuantum bitWidth nonempty
-          (calibratedCount budget) inputs := by
+          (NativeFiniteRetry.Calibration.retryCount η) inputs := by
   calc
     1 - (ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth) +
-        ENNReal.ofReal (budget.value / 2)) ≤
+        ENNReal.ofReal (η / 2)) ≤
       (1 - ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth)) *
-        (1 - ENNReal.ofReal (budget.value / 2)) := PMF.one_sub_add_le_mul_one_sub _ _
+        (1 - ENNReal.ofReal (η / 2)) := PMF.one_sub_add_le_mul_one_sub _ _
     _ ≤ (RSA.RSAKeyGenBits bitWidth nonempty).toOuterMeasure
         {pair | ¬ 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
           Nat.gcd (pair.p - 1) (pair.q - 1)} *
-        (1 - ENNReal.ofReal (budget.value / 2)) := by
+        (1 - ENNReal.ofReal (η / 2)) := by
       simpa only [mul_comm] using
         mul_le_mul_right (good_key_mass bitWidth nonempty effective)
-          (1 - ENNReal.ofReal (budget.value / 2))
+          (1 - ENNReal.ofReal (η / 2))
     _ ≤ _ := good_mass_times_floor_le base noQuantum bitWidth nonempty inputs
-      effective budget wellFormed
+      effective η etaPositive
 
 /-- When the original one-time key exception fits its half-budget, the full target follows. -/
-theorem completedFinite_keygen_success_ge_target
+lemma completedFinite_keygen_success_ge_target
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
-    (budget : FailureBudget) (wellFormed : budget.WellFormed)
+    (η : Real) (etaPositive : 0 < η)
     (keyBound : ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth) ≤
-      ENNReal.ofReal (budget.value / 2)) :
-    FailureBudget.successThreshold budget ≤
+      ENNReal.ofReal (η / 2)) :
+    ENNReal.ofReal (1 - η) ≤
       completedKeygenSuccessMass base noQuantum bitWidth nonempty
-          (calibratedCount budget) inputs := by
-  apply le_trans _
+          (NativeFiniteRetry.Calibration.retryCount η) inputs := by
+  exact NativeFiniteRetry.Calibration.realFailureCalibration_twoHalvesSuccess
+    η etaPositive _ _ _ keyBound le_rfl
     (completedFinite_keygen_success_ge base noQuantum bitWidth nonempty inputs effective
-      budget wellFormed)
-  unfold FailureBudget.successThreshold
-  rw [ENNReal.ofReal_sub 1 (FailureBudget.value_nonneg budget wellFormed), ENNReal.ofReal_one]
-  apply tsub_le_tsub_left
-  calc
-    ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth) +
-        ENNReal.ofReal (budget.value / 2) ≤
-      ENNReal.ofReal (budget.value / 2) + ENNReal.ofReal (budget.value / 2) :=
-        add_le_add keyBound le_rfl
-    _ = ENNReal.ofReal budget.value := by
-      rw [← ENNReal.ofReal_add
-        (div_nonneg (FailureBudget.value_nonneg budget wellFormed) (by norm_num))
-        (div_nonneg (FailureBudget.value_nonneg budget wellFormed) (by norm_num))]
-      congr 1
-      ring
+      η etaPositive)
 
 /-- The same completed run reaches every original target on eventual original same-bit keys. -/
-theorem eventually_completedFinite_keygen_success_ge_target
-    (budget : FailureBudget) (wellFormed : budget.WellFormed) :
+lemma eventually_completedFinite_keygen_success_ge_target
+    (η : Real) (etaPositive : 0 < η) :
     ∀ᶠ bitWidth in Filter.atTop,
       ∀ nonempty : Nonempty (RSA.RSAKeyPairBits bitWidth),
         RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth →
         ∀ {Reference : Register}
           (inputs : (pair : RSA.RSAKeyPairBits bitWidth) →
-            Execution.OracleInput (model (inputOfKeyPair pair)).classicalOracles base Reference),
-          FailureBudget.successThreshold budget ≤
+            Execution.OracleInput (model pair.modulus).classicalOracles base Reference),
+          ENNReal.ofReal (1 - η) ≤
             completedKeygenSuccessMass base noQuantum bitWidth nonempty
-          (calibratedCount budget) inputs := by
-  have halfPositive : 0 < budget.value / 2 := by
-    have valuePositive := FailureBudget.value_pos budget wellFormed
-    positivity
+          (NativeFiniteRetry.Calibration.retryCount η) inputs := by
+  have halfPositive : 0 < η / 2 := div_pos etaPositive (by norm_num)
   have eventuallyKey : ∀ᶠ bitWidth in Filter.atTop,
-      RSA.GeneratorOrder.keyFailureBound bitWidth < budget.value / 2 :=
+      RSA.GeneratorOrder.keyFailureBound bitWidth < η / 2 :=
     (tendsto_order.1 RSA.GeneratorOrder.keyFailureBound_tendsto_zero).2 _ halfPositive
   filter_upwards [eventuallyKey] with width keySmall
   intro populated effective reference inputs
   exact completedFinite_keygen_success_ge_target base noQuantum width populated inputs effective
-    budget wellFormed (ENNReal.ofReal_le_ofReal keySmall.le)
+    η etaPositive (ENNReal.ofReal_le_ofReal keySmall.le)
 
 end KeyAverage
 

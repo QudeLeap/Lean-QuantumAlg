@@ -46,7 +46,7 @@ open QuantumAlg.Nat.FixedWidth
 
 /-- The canonical trace start agrees with the clean finite register seed
 readout. -/
-theorem ofInput_start_eq_fromRegisters_initialRegisters
+lemma ofInput_start_eq_fromRegisters_initialRegisters
     (n counterWidth : Nat) (p x : Word n) :
     (ofInput n p.val x.val).start =
       RoundState.fromRegisters n counterWidth
@@ -70,7 +70,7 @@ open NumberTheory.BinaryGCD
 
 /-- The selected branch-code/history/aux-shift dispatch preserves `v` in the
 `uEven` source branch, matching the source-level fixed round. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_v_uEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -145,7 +145,7 @@ theorem
 
 /-- The selected branch-code/history/aux-shift dispatch preserves `r` in the
 `uEven` source branch, matching the source-level fixed round. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_rCoeff_uEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -222,7 +222,7 @@ theorem
 
 /-- The selected branch-code/history/aux-shift dispatch preserves `u` in the
 `vEven` source branch, matching the source-level fixed round. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_u_vEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -305,7 +305,7 @@ theorem
 
 /-- The selected branch-code/history/aux-shift dispatch preserves `s` in the
 `vEven` source branch, matching the source-level fixed round. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_sCoeff_vEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -390,7 +390,7 @@ theorem
 
 /-- The carried selected-odd dispatch preserves `v` in the `uGreater` source
 branch, matching the source-level fixed round. -/
-theorem coeffWorkSelectedOddCarriedDispatch_get_v_uGreater_eq_sourceRound_clean
+lemma coeffWorkSelectedOddCarriedDispatch_get_v_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -473,7 +473,7 @@ theorem coeffWorkSelectedOddCarriedDispatch_get_v_uGreater_eq_sourceRound_clean
 
 /-- The carried selected-odd dispatch preserves `u` in the `vLe` source
 branch, matching the source-level fixed round. -/
-theorem coeffWorkSelectedOddCarriedDispatch_get_u_vLe_eq_sourceRound_clean
+lemma coeffWorkSelectedOddCarriedDispatch_get_u_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -556,7 +556,7 @@ theorem coeffWorkSelectedOddCarriedDispatch_get_u_vLe_eq_sourceRound_clean
 
 /-- The nonzero-active selected wrapper's `uEven` `v` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_v_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -591,7 +591,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `uEven` `r` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -626,7 +626,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `vEven` `u` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_u_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -666,7 +666,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `vEven` `s` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -706,7 +706,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's odd `uGreater` `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_v_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -748,7 +748,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's odd `vLe` `u` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_u_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -790,7 +790,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `uEven` `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_v_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -823,7 +823,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `uEven` `r` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -856,7 +856,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `vEven` `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_u_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -893,7 +893,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `vEven` `s` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -930,7 +930,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `uGreater` `v` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_v_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -970,7 +970,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `vLe` `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_u_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1010,7 +1010,7 @@ theorem
 
 /-- In the nonzero `uEven` branch, the active-only selector's `v` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_v_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1046,7 +1046,7 @@ theorem
 
 /-- In the nonzero `uEven` branch, the active-only selector's `r` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1082,7 +1082,7 @@ theorem
 
 /-- In the nonzero `vEven` branch, the active-only selector's `u` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_u_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1123,7 +1123,7 @@ theorem
 
 /-- In the nonzero `vEven` branch, the active-only selector's `s` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1164,7 +1164,7 @@ theorem
 
 /-- In the nonzero odd `uGreater` branch, the active-only selector's `v`
 readout agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_v_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1208,7 +1208,7 @@ theorem
 
 /-- In the nonzero odd `vLe` branch, the active-only selector's `u` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_u_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1252,7 +1252,7 @@ theorem
 
 /-- In the nonzero `uEven` branch, the active/inactive semantic selector's `v`
 readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_v_uEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_v_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1287,7 +1287,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_v_uEven_eq_sourceRound_clean
 
 /-- In the nonzero `uEven` branch, the active/inactive semantic selector's `r`
 readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1322,7 +1322,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
 
 /-- In the nonzero `vEven` branch, the active/inactive semantic selector's `u`
 readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_u_vEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_u_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1361,7 +1361,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_u_vEven_eq_sourceRound_clean
 
 /-- In the nonzero `vEven` branch, the active/inactive semantic selector's `s`
 readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1400,7 +1400,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
 
 /-- In the nonzero odd `uGreater` branch, the active/inactive semantic
 selector's `v` readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_v_uGreater_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_v_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1441,7 +1441,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_v_uGreater_eq_sourceRound_clean
 
 /-- In the nonzero odd `vLe` branch, the active/inactive semantic selector's
 `u` readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_u_vLe_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_u_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1482,7 +1482,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_u_vLe_eq_sourceRound_clean
 
 /-- In the concrete active-only nonzero `uEven` branch, the `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_v_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1554,7 +1554,7 @@ theorem
 
 /-- In the concrete active-only nonzero `uEven` branch, the `r` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_rCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1626,7 +1626,7 @@ theorem
 
 /-- In the concrete active-only nonzero `vEven` branch, the `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_u_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1707,7 +1707,7 @@ theorem
 
 /-- In the concrete active-only nonzero `vEven` branch, the `s` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_sCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1788,7 +1788,7 @@ theorem
 
 /-- In the concrete active-only odd `uGreater` branch, the `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_v_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1844,7 +1844,7 @@ theorem
 
 /-- In the concrete active-only odd `vLe` branch, the `u` readout agrees with
 the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_u_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1900,7 +1900,7 @@ theorem
 
 /-- On clean active `uEven` inputs, the path/control route's four source data
 readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_uEven_full
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -1972,7 +1972,7 @@ theorem
 
 /-- On clean active `vEven` inputs, the path/control route's four source data
 readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_vEven_full
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2045,7 +2045,7 @@ theorem
 
 /-- On clean active odd `uGreater` inputs, the path/control route's four source
 data readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_uGreater_full
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2122,7 +2122,7 @@ theorem
 
 /-- On clean active odd `vLe` inputs, the path/control route's four source data
 readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_vLe_full
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2200,7 +2200,7 @@ theorem
 /-- On clean active `uEven` inputs, the path/control route's complete branch
 readout matches the source round's data/metadata and selected branch-history
 bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_uEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2264,7 +2264,7 @@ theorem
 /-- On clean active `vEven` inputs, the path/control route's complete branch
 readout matches the source round's data/metadata and selected branch-history
 bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_vEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2329,7 +2329,7 @@ theorem
 /-- On clean active odd `uGreater` inputs, the path/control route's complete
 branch readout matches the source round's data/metadata and selected
 branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_uGreater_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2399,7 +2399,7 @@ theorem
 /-- On clean active odd `vLe` inputs, the path/control route's complete branch
 readout matches the source round's data/metadata and selected branch-history
 bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_vLe_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2468,7 +2468,7 @@ theorem
 
 /-- Fixed-round schedule wrapper for a clean active terminating slot.  The
 history register is the slot selected by `roundIndex`. -/
-theorem
+lemma
     fixedRoundPathControlWorkKaliskiRoundStep_roundStateReadout_active_v_zero_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -2509,7 +2509,7 @@ theorem
 
 /-- Fixed-round schedule wrapper for a clean inactive slot.  The result is
 independent of whether `v` is zero. -/
-theorem
+lemma
     fixedRoundPathControlWorkKaliskiRoundStep_roundStateReadout_inactive_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -2546,7 +2546,7 @@ theorem
       hcompare hactive hhistory
 
 /-- Fixed-round schedule wrapper for a clean active `uEven` slot. -/
-theorem
+lemma
     fixedRoundPathControlWorkKaliskiRoundStep_roundStateReadout_uEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -2597,7 +2597,7 @@ theorem
       huEven hmsb hdouble
 
 /-- Fixed-round schedule wrapper for a clean active `vEven` slot. -/
-theorem
+lemma
     fixedRoundPathControlWorkKaliskiRoundStep_roundStateReadout_vEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -2649,7 +2649,7 @@ theorem
       hvNonzero hmsb hdouble
 
 /-- Fixed-round schedule wrapper for a clean active odd `uGreater` slot. -/
-theorem
+lemma
     fixedRoundPathControlWorkKaliskiRoundStep_roundStateReadout_uGreater_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -2704,7 +2704,7 @@ theorem
       hlt hlsb hadd hmsb hdouble
 
 /-- Fixed-round schedule wrapper for a clean active odd `vLe` slot. -/
-theorem
+lemma
     fixedRoundPathControlWorkKaliskiRoundStep_roundStateReadout_vLe_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -2760,7 +2760,7 @@ theorem
 
 /-- On clean active nonzero inputs, the corrected semantic route agrees with
 the existing path-controlled concrete route. -/
-theorem
+lemma
     modeControlledSemanticStep_eq_controlledStep_clean_of_active_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2785,7 +2785,7 @@ theorem
 
 /-- On clean active nonzero fixed-round inputs, the corrected semantic route
 agrees with the existing path-controlled concrete fixed-round route. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_eq_pathControlled_clean_of_active_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -2809,7 +2809,7 @@ theorem
       hcompare hactive hvNonzero
 
 /-- Corrected semantic route wrapper for a clean active `uEven` slot. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_uEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2860,7 +2860,7 @@ theorem
       hvNonzero huEven hmsb hdouble
 
 /-- Corrected semantic route wrapper for a clean active `vEven` slot. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_vEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2912,7 +2912,7 @@ theorem
       huOdd hvEven hvNonzero hmsb hdouble
 
 /-- Corrected semantic route wrapper for a clean active odd `uGreater` slot. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_uGreater_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -2969,7 +2969,7 @@ theorem
       hvOdd hlt hlsb hadd hmsb hdouble
 
 /-- Corrected semantic route wrapper for a clean active odd `vLe` slot. -/
-theorem
+lemma
     modeControlledSemanticStep_roundStateReadout_vLe_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -3026,7 +3026,7 @@ theorem
       hvOdd hnlt hlsb hadd hmsb hdouble
 
 /-- Corrected semantic fixed-round wrapper for a clean active `uEven` slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_roundStateReadout_uEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -3080,7 +3080,7 @@ theorem
       hvNonzero huEven hmsb hdouble
 
 /-- Corrected semantic fixed-round wrapper for a clean active `vEven` slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_roundStateReadout_vEven_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -3136,7 +3136,7 @@ theorem
 
 /-- Corrected semantic fixed-round wrapper for a clean active odd `uGreater`
 slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_roundStateReadout_uGreater_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -3196,7 +3196,7 @@ theorem
       hvOdd hlt hlsb hadd hmsb hdouble
 
 /-- Corrected semantic fixed-round wrapper for a clean active odd `vLe` slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticStep_roundStateReadout_vLe_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
@@ -3476,7 +3476,7 @@ structure ModeControlledSemanticStepMsbCertificate
 /-- Build coefficient top-bit bounds from the source Bezout invariant and
 nonzero active operands.  This is the arithmetic entrypoint for discharging
 the remaining fresh-workspace readout side condition from source invariants. -/
-theorem modeControlledSemanticStepMsbCertificate_of_bezout_bound
+lemma modeControlledSemanticStepMsbCertificate_of_bezout_bound
     (tail counterWidth p : Nat)
     (x : Registers tail.succ counterWidth)
     (hbezout :
@@ -3553,7 +3553,7 @@ structure ModeControlledSemanticStepAddMsbCertificate
 
 /-- Build the add/MSB package from branch-independent coefficient top-bit
 bounds. -/
-theorem modeControlledSemanticStepAddMsbCertificate_of_msb_fields
+lemma modeControlledSemanticStepAddMsbCertificate_of_msb_fields
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (cert :
@@ -3586,7 +3586,7 @@ theorem modeControlledSemanticStepAddMsbCertificate_of_msb_fields
 
 /-- Build the non-LSB overflow package from the true add/MSB fields.  The
 doubling bounds follow from the matching top-bit facts. -/
-theorem modeControlledSemanticStepOverflowCertificate_of_add_msb_fields
+lemma modeControlledSemanticStepOverflowCertificate_of_add_msb_fields
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (cert :
@@ -3621,7 +3621,7 @@ theorem modeControlledSemanticStepOverflowCertificate_of_add_msb_fields
 
 /-- Build the non-LSB overflow package from branch-independent coefficient
 top-bit bounds. -/
-theorem modeControlledSemanticStepOverflowCertificate_of_msb_fields
+lemma modeControlledSemanticStepOverflowCertificate_of_msb_fields
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (cert :
@@ -3635,7 +3635,7 @@ theorem modeControlledSemanticStepOverflowCertificate_of_msb_fields
 /-- Build the arithmetic side-condition package from the non-LSB branch
 guards.  The odd-minus-odd LSB guards are consequences of the selected
 comparison branch and do not need to be supplied by callers. -/
-theorem modeControlledSemanticStepArithmeticCertificate_of_overflow_fields
+lemma modeControlledSemanticStepArithmeticCertificate_of_overflow_fields
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (overflow :
@@ -3661,7 +3661,7 @@ theorem modeControlledSemanticStepArithmeticCertificate_of_overflow_fields
 
 /-- Build the arithmetic side-condition package from the true add/MSB fields.
 The odd-minus-odd LSB and top-bit-to-double guards are discharged uniformly. -/
-theorem modeControlledSemanticStepArithmeticCertificate_of_add_msb_fields
+lemma modeControlledSemanticStepArithmeticCertificate_of_add_msb_fields
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (cert :
@@ -3675,7 +3675,7 @@ theorem modeControlledSemanticStepArithmeticCertificate_of_add_msb_fields
 /-- Build the arithmetic side-condition package from branch-independent
 coefficient top-bit bounds.  LSB, add, and double guards are discharged
 uniformly. -/
-theorem modeControlledSemanticStepArithmeticCertificate_of_msb_fields
+lemma modeControlledSemanticStepArithmeticCertificate_of_msb_fields
     (tail counterWidth : Nat)
     (x : Registers tail.succ counterWidth)
     (cert :
@@ -3687,7 +3687,7 @@ theorem modeControlledSemanticStepArithmeticCertificate_of_msb_fields
       tail counterWidth x cert)
 
 /-- Build the add/MSB package from a Bezout equality plus bounded modulus. -/
-theorem modeControlledSemanticStepAddMsbCertificate_of_bezout_bound
+lemma modeControlledSemanticStepAddMsbCertificate_of_bezout_bound
     (tail counterWidth p : Nat)
     (x : Registers tail.succ counterWidth)
     (hbezout :
@@ -3702,7 +3702,7 @@ theorem modeControlledSemanticStepAddMsbCertificate_of_bezout_bound
 
 /-- Build the non-LSB overflow package from a Bezout equality plus bounded
 modulus. -/
-theorem modeControlledSemanticStepOverflowCertificate_of_bezout_bound
+lemma modeControlledSemanticStepOverflowCertificate_of_bezout_bound
     (tail counterWidth p : Nat)
     (x : Registers tail.succ counterWidth)
     (hbezout :
@@ -3717,7 +3717,7 @@ theorem modeControlledSemanticStepOverflowCertificate_of_bezout_bound
 
 /-- Build the full arithmetic side-condition package from a Bezout equality
 plus bounded modulus. -/
-theorem modeControlledSemanticStepArithmeticCertificate_of_bezout_bound
+lemma modeControlledSemanticStepArithmeticCertificate_of_bezout_bound
     (tail counterWidth p : Nat)
     (x : Registers tail.succ counterWidth)
     (hbezout :
@@ -3733,7 +3733,7 @@ theorem modeControlledSemanticStepArithmeticCertificate_of_bezout_bound
 
 /-- Build the full readout certificate from clean/basic fields plus the
 branch arithmetic side-condition package. -/
-theorem modeControlledSemanticStepReadoutCertificate_of_clean_arithmetic
+lemma modeControlledSemanticStepReadoutCertificate_of_clean_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -3766,7 +3766,7 @@ theorem modeControlledSemanticStepReadoutCertificate_of_clean_arithmetic
   vLe_msb := arith.vLe_msb
   vLe_double := arith.vLe_double
 
-private theorem roundState_eq_of_component_readouts
+private lemma roundState_eq_of_component_readouts
     {left right : RoundState}
     (hu : left.u = right.u) (hv : left.v = right.v)
     (hr : left.rCoeff = right.rCoeff) (hs : left.sCoeff = right.sCoeff)
@@ -3781,7 +3781,7 @@ private theorem roundState_eq_of_component_readouts
 /-- All-branch corrected semantic route wrapper for one clean source-shaped
 round.  The full readout certificate supplies clean/basic fields plus the
 branch arithmetic side conditions needed by the selected source branch. -/
-theorem modeControlledSemanticStep_roundStateReadout_complete
+lemma modeControlledSemanticStep_roundStateReadout_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -3900,7 +3900,7 @@ theorem modeControlledSemanticStep_roundStateReadout_complete
       modeControlledSemanticReadoutPaddingSteps, hactiveFalse] using hread
 
 /-- Schedule-slot wrapper for the all-branch corrected semantic route readout. -/
-theorem fixedRoundModeControlledSemanticStep_roundStateReadout_complete
+lemma fixedRoundModeControlledSemanticStep_roundStateReadout_complete
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -3964,7 +3964,7 @@ def initialModeControlledSemanticReadoutFoldState
   kaliskiSteps := 0
   paddingSteps := 0
 
-@[simp] theorem initialModeControlledSemanticReadoutFoldState_roundState
+@[simp] lemma initialModeControlledSemanticReadoutFoldState_roundState
     (n counterWidth : Nat) (p x : Word n) :
     modeControlledSemanticReadoutFoldStateRoundState n counterWidth
         (initialModeControlledSemanticReadoutFoldState
@@ -4002,7 +4002,7 @@ def fixedRoundModeControlledSemanticReadoutStep
 
 /-- One fresh-workspace readout step agrees with one source `RoundState.round`
 and writes the selected history slot with the source prefix history bit. -/
-theorem fixedRoundModeControlledSemanticReadoutStep_roundState_complete
+lemma fixedRoundModeControlledSemanticReadoutStep_roundState_complete
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1))
@@ -4036,7 +4036,7 @@ theorem fixedRoundModeControlledSemanticReadoutStep_roundState_complete
 
 /-- One fresh-workspace readout step preserves every branch-history slot except
 the slot selected for the current fixed-round schedule entry. -/
-theorem fixedRoundModeControlledSemanticReadoutStep_get_historyBit_of_ne
+lemma fixedRoundModeControlledSemanticReadoutStep_get_historyBit_of_ne
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (observed : Fin (2 * tail.succ))
@@ -4102,7 +4102,7 @@ theorem fixedRoundModeControlledSemanticReadoutStep_get_historyBit_of_ne
         workIndex state.registers hactiveFalse]
     simp [RegisterBits.historyBit_get]
 
-@[simp] theorem fixedRoundModeControlledSemanticReadoutStep_scratchA
+@[simp] lemma fixedRoundModeControlledSemanticReadoutStep_scratchA
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1))
@@ -4113,7 +4113,7 @@ theorem fixedRoundModeControlledSemanticReadoutStep_get_historyBit_of_ne
       false := by
   simp [fixedRoundModeControlledSemanticReadoutStep]
 
-@[simp] theorem fixedRoundModeControlledSemanticReadoutStep_scratchB
+@[simp] lemma fixedRoundModeControlledSemanticReadoutStep_scratchB
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1))
@@ -4124,7 +4124,7 @@ theorem fixedRoundModeControlledSemanticReadoutStep_get_historyBit_of_ne
       false := by
   simp [fixedRoundModeControlledSemanticReadoutStep]
 
-@[simp] theorem fixedRoundModeControlledSemanticReadoutStep_compare
+@[simp] lemma fixedRoundModeControlledSemanticReadoutStep_compare
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1))
@@ -4147,7 +4147,7 @@ def fixedRoundModeControlledSemanticReadoutStepSchedule
     fixedRoundModeControlledSemanticReadoutStep
       tail counterWidth comparisonIndex roundIndex workIndex
 
-@[simp] theorem
+@[simp] lemma
     fixedRoundModeControlledSemanticReadoutStepSchedule_length
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -4159,7 +4159,7 @@ def fixedRoundModeControlledSemanticReadoutStepSchedule
 
 /-- The `roundIndex`-th fresh-workspace readout schedule entry is the matching
 fixed-round source slot. -/
-theorem fixedRoundModeControlledSemanticReadoutStepSchedule_get
+lemma fixedRoundModeControlledSemanticReadoutStepSchedule_get
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds) :
@@ -4194,7 +4194,7 @@ def fixedRoundModeControlledSemanticReadoutPrefixState
     ((fixedRoundModeControlledSemanticReadoutStepSchedule
       tail counterWidth comparisonIndex workIndex).take rounds)
 
-@[simp] theorem fixedRoundModeControlledSemanticReadoutPrefixState_zero
+@[simp] lemma fixedRoundModeControlledSemanticReadoutPrefixState_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (state :
@@ -4206,7 +4206,7 @@ def fixedRoundModeControlledSemanticReadoutPrefixState
 
 /-- Prefix successor form for the fresh-workspace corrected semantic readout
 schedule. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_succ
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_succ
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1))
@@ -4238,7 +4238,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_succ
 
 /-- Fresh-workspace readout prefixes keep the source-shaped `scratchA`
 ancilla clean. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_scratchA_clean
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_scratchA_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (state :
@@ -4264,7 +4264,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_scratchA_clean
 
 /-- Fresh-workspace readout prefixes keep the source-shaped `scratchB`
 ancilla clean. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_scratchB_clean
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_scratchB_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (state :
@@ -4290,7 +4290,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_scratchB_clean
 
 /-- Fresh-workspace readout prefixes keep the source-shaped comparison
 ancilla clean. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_compare_clean
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_compare_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (state :
@@ -4318,7 +4318,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_compare_clean
 readout fold, its selected history register is still clean.  The induction
 only requires certificates for earlier consumed slots, so this is not circular
 in the certificate for the current slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_clean_before
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (targetIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -4397,7 +4397,7 @@ theorem
 
 /-- The selected history register for a schedule slot is clean immediately
 before that slot executes. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_clean_before_slot
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -4426,7 +4426,7 @@ theorem
 /-- Build the per-slot readout certificate for a fresh-workspace prefix from
 automatic clean/readout fields plus explicit branch arithmetic side
 conditions. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_readoutCertificate_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -4485,7 +4485,7 @@ theorem
 arithmetic side conditions.  The induction supplies only earlier-slot
 certificates to the current slot, matching the before-write history-clean
 dependency. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_certAt_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4531,7 +4531,7 @@ theorem
 
 /-- Generate the full per-slot readout certificate package from per-slot
 non-LSB arithmetic side conditions. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_certAt_of_overflow_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4564,7 +4564,7 @@ theorem
 
 /-- Generate the full per-slot readout certificate package from the true
 per-slot add/MSB arithmetic fields. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_certAt_of_add_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4597,7 +4597,7 @@ theorem
 
 /-- Generate the full per-slot readout certificate package from per-slot
 coefficient top-bit bounds. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_certAt_of_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4655,7 +4655,7 @@ structure FixedRoundModeControlledSemanticReadoutPrefixBezoutBounds
 
 /-- Generate the full per-slot readout certificate package from concrete
 per-slot Bezout bounds. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_certAt_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4686,7 +4686,7 @@ theorem
 
 /-- A one-slot extension of the fresh-workspace readout prefix agrees with a
 one-round source extension of the readout prefix state. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_roundState_succ
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -4736,7 +4736,7 @@ theorem
 readout fold: if every consumed source slot has the full readout certificate
 needed by the one-round dispatcher, the prefix readout agrees with the source
 `RoundState.runRounds` prefix. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_roundState_eq_runRounds
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_roundState_eq_runRounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (state :
@@ -4808,7 +4808,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_roundState_eq_runRoun
 
 /-- Full fixed-round source-state corollary for the fresh-workspace corrected
 semantic readout fold started from the clean finite-register seed. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -4841,7 +4841,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState
 
 /-- Full fixed-round source-state corollary using only per-slot arithmetic
 side conditions plus the final comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_arithmetic
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -4868,7 +4868,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_ar
 
 /-- Full fixed-round source-state corollary using only per-slot non-LSB
 arithmetic side conditions plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_overflow_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4896,7 +4896,7 @@ theorem
 
 /-- Full fixed-round source-state corollary using only per-slot add/MSB
 arithmetic side conditions plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_add_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4924,7 +4924,7 @@ theorem
 
 /-- Full fixed-round source-state corollary using only per-slot coefficient
 top-bit bounds plus the final comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_msb_fields
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -4951,7 +4951,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_ms
 
 /-- Full fixed-round source-state corollary using concrete per-slot Bezout
 bounds plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_roundState_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -4975,7 +4975,7 @@ theorem
 
 /-- The selected history slot after its fresh-workspace readout step agrees
 with the source history bit of the corresponding `runRounds` prefix. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_succ_eq_runRounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5037,7 +5037,7 @@ theorem
 
 /-- Clean-seed history readout corollary for one fixed-round schedule slot of
 the fresh-workspace corrected semantic readout fold. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_succ_eq_fixedRoundHistoryAt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5089,7 +5089,7 @@ theorem
 
 /-- Once a schedule slot has been written, every later fresh-workspace readout
 step preserves that slot. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_preserved_after
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (targetIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5183,7 +5183,7 @@ theorem
 /-- Under the per-slot readout certificates, the final register for a fixed
 history slot in the full fresh-workspace readout fold agrees with the source
 fixed-round history value. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_eq_fixedRoundHistoryAt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5222,7 +5222,7 @@ theorem
 
 /-- Final-register history-slot corollary using only per-slot arithmetic side
 conditions plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5251,7 +5251,7 @@ theorem
 
 /-- Final-register history-slot corollary using only per-slot non-LSB
 arithmetic side conditions plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_overflow_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5280,7 +5280,7 @@ theorem
 
 /-- Final-register history-slot corollary using only per-slot add/MSB
 arithmetic side conditions plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_add_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5309,7 +5309,7 @@ theorem
 
 /-- Final-register history-slot corollary using only per-slot coefficient
 top-bit bounds plus the final comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_msb_fields
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5337,7 +5337,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_ms
 
 /-- Final-register history-slot corollary using concrete per-slot Bezout
 bounds plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixState_full_historyBit_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
@@ -5378,7 +5378,7 @@ open QuantumAlg.Nat.FixedWidth
 /-- Fresh-workspace corrected semantic readout fold reaches the finish state of
 the canonical fixed-round trace, under the same per-slot certificate package as
 the source-prefix theorem. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_finish
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -5405,7 +5405,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish
 /-- Fresh-workspace corrected semantic readout fold reaches the canonical
 finish state from per-slot arithmetic side conditions plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_arithmetic
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5433,7 +5433,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_arithm
 /-- Fresh-workspace corrected semantic readout fold reaches the canonical
 finish state from per-slot non-LSB arithmetic side conditions plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_overflow_fields
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_overflow_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5461,7 +5461,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_overfl
 /-- Fresh-workspace corrected semantic readout fold reaches the canonical
 finish state from per-slot add/MSB arithmetic side conditions plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_add_msb_fields
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_add_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5489,7 +5489,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_add_ms
 /-- Fresh-workspace corrected semantic readout fold reaches the canonical
 finish state from per-slot coefficient top-bit bounds plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_msb_fields
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5517,7 +5517,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_msb_fi
 /-- Fresh-workspace corrected semantic readout fold reaches the canonical
 finish state from concrete per-slot Bezout bounds plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_bezout_bounds
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5540,7 +5540,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixState_full_finish_of_bezout
 
 /-- Fresh-workspace corrected semantic readout fold's selected `m_i` readout
 agrees with the canonical trace history view for the same schedule slot. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_succ_eq_historyAt
+lemma fixedRoundModeControlledSemanticReadoutPrefixState_historyBit_succ_eq_historyAt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (roundIndex : Fin (rnsl17MontgomerySchedule tail.succ).rounds)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5586,7 +5586,7 @@ def fixedRoundModeControlledSemanticReadoutFinalHistory
 /-- Under the per-slot readout certificates, the final-register fresh-workspace
 history readout list agrees pointwise with the canonical trace history
 accessor. -/
-theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_historyAtList
+lemma fixedRoundModeControlledSemanticReadoutFinalHistory_eq_historyAtList
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -5616,7 +5616,7 @@ theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_historyAtList
 /-- Under the per-slot readout certificates, the final-register fresh-workspace
 history readout list agrees with the materialized canonical trace history list.
 -/
-theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory
+lemma fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -5641,7 +5641,7 @@ theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory
 /-- Final-register fresh-workspace history readout list agrees with the
 canonical trace history list from per-slot arithmetic side conditions plus the
 final comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_arithmetic
+lemma fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5664,7 +5664,7 @@ theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_a
 /-- Final-register fresh-workspace history readout list agrees with the
 canonical trace history list from per-slot non-LSB arithmetic side conditions
 plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_overflow_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5688,7 +5688,7 @@ theorem
 /-- Final-register fresh-workspace history readout list agrees with the
 canonical trace history list from per-slot add/MSB arithmetic side conditions
 plus the final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_add_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5712,7 +5712,7 @@ theorem
 /-- Final-register fresh-workspace history readout list agrees with the
 canonical trace history list from per-slot coefficient top-bit bounds plus the
 final comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_msb_fields
+lemma fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5735,7 +5735,7 @@ theorem fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_m
 /-- Final-register fresh-workspace history readout list agrees with the
 canonical trace history list from concrete per-slot Bezout bounds plus the
 final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutFinalHistory_eq_traceHistory_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5771,7 +5771,7 @@ def fixedRoundModeControlledSemanticReadoutPrefixHistory
 
 /-- The per-slot fresh-workspace history readout list agrees pointwise with the
 canonical trace history accessor. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_historyAtList
+lemma fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_historyAtList
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -5799,7 +5799,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_historyAtList
 
 /-- The per-slot fresh-workspace history readout list agrees with the
 materialized canonical trace history list. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory
+lemma fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -5824,7 +5824,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory
 /-- Per-slot fresh-workspace history readout list agrees with the canonical
 trace history list from per-slot arithmetic side conditions plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_arithmetic
+lemma fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_arithmetic
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5847,7 +5847,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_
 /-- Per-slot fresh-workspace history readout list agrees with the canonical
 trace history list from per-slot non-LSB arithmetic side conditions plus the
 final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_overflow_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5871,7 +5871,7 @@ theorem
 /-- Per-slot fresh-workspace history readout list agrees with the canonical
 trace history list from per-slot add/MSB arithmetic side conditions plus the
 final comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_add_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5895,7 +5895,7 @@ theorem
 /-- Per-slot fresh-workspace history readout list agrees with the canonical
 trace history list from per-slot coefficient top-bit bounds plus the final
 comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_msb_fields
+lemma fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_msb_fields
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -5918,7 +5918,7 @@ theorem fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_
 /-- Per-slot fresh-workspace history readout list agrees with the canonical
 trace history list from concrete per-slot Bezout bounds plus the final
 comparison-index condition. -/
-theorem
+lemma
     fixedRoundModeControlledSemanticReadoutPrefixHistory_eq_traceHistory_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
@@ -5957,7 +5957,7 @@ structure FixedRoundModeControlledSemanticReadoutAgreement
 
 /-- Package the fresh-workspace fixed-round final state and final stored-history
 readout equalities into one trace-agreement witness. -/
-theorem fixedRoundModeControlledSemanticReadoutAgreement
+lemma fixedRoundModeControlledSemanticReadoutAgreement
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (certAt :
@@ -5980,7 +5980,7 @@ theorem fixedRoundModeControlledSemanticReadoutAgreement
 
 /-- Package the fresh-workspace fixed-round trace agreement from concrete
 per-slot Bezout bounds and the final comparison-index condition. -/
-theorem fixedRoundModeControlledSemanticReadoutAgreement_of_bezout_bounds
+lemma fixedRoundModeControlledSemanticReadoutAgreement_of_bezout_bounds
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) (p x : Word tail.succ)
     (hfinal : comparisonIndex.val + 1 = tail.succ)
@@ -6000,7 +6000,7 @@ def CorrectedResidueMatchesScaledUnitInverse {n p : Nat}
     (trace : Trace n) (scale : ZMod p) (u : (ZMod p)ˣ) : Prop :=
   trace.correctedInverseResidue p = scaledInverseResidue scale u
 
-theorem correctedResidueMatchesScaledUnitInverse_of_mul_input_eq {n p : Nat}
+lemma correctedResidueMatchesScaledUnitInverse_of_mul_input_eq {n p : Nat}
     (trace : Trace n) (scale : ZMod p) (u : (ZMod p)ˣ)
     (hmul : trace.correctedInverseResidue p * (u : ZMod p) = scale) :
     trace.CorrectedResidueMatchesScaledUnitInverse scale u := by
@@ -6010,7 +6010,7 @@ theorem correctedResidueMatchesScaledUnitInverse_of_mul_input_eq {n p : Nat}
 
 /-- Final fixed-trace correction bridge into the explicitly scaled endpoint.
 For the RNSL/HJN Montgomery route, the scale is the fixed source factor. -/
-theorem ofInput_correctedResidueMatchesScaledUnitInverse_of_final_state
+lemma ofInput_correctedResidueMatchesScaledUnitInverse_of_final_state
     (n p x : Nat) (u : (ZMod p)ˣ)
     (hx : (x : ZMod p) = (u : ZMod p))
     (hfinish : (ofInput n p x).finish.u = 1) :
@@ -6027,7 +6027,7 @@ theorem ofInput_correctedResidueMatchesScaledUnitInverse_of_final_state
 
 /-- Unit-input form of the final fixed-trace correction bridge into the scaled
 endpoint. -/
-theorem ofUnitInput_correctedResidueMatchesScaledUnitInverse_of_final_state
+lemma ofUnitInput_correctedResidueMatchesScaledUnitInverse_of_final_state
     (n p : Nat) [NeZero p] (u : (ZMod p)ˣ)
     (hfinish : (ofUnitInput n p u).finish.u = 1) :
     (ofUnitInput n p u).CorrectedResidueMatchesScaledUnitInverse
@@ -6042,7 +6042,7 @@ theorem ofUnitInput_correctedResidueMatchesScaledUnitInverse_of_final_state
 
 /-- The sign-adjusted unit-input endpoint is the unit inverse scaled by the
 positive Montgomery factor `2^(2n)`. -/
-theorem
+lemma
     ofUnitInput_signedCorrectedInverseResidue_eq_scaledInverseResidue_of_final_state
     (n p : Nat) [NeZero p] (u : (ZMod p)ˣ)
     (hfinish : (ofUnitInput n p u).finish.u = 1) :
@@ -6058,7 +6058,7 @@ theorem
 Montgomery scale.  Unlike the old normalization premise, this asks for a
 multiplicative inverse of the scale rather than asking the scale itself to be
 `1`. -/
-theorem
+lemma
     ofUnitInput_unscaleSignedCorrectedInverseResidue_eq_inverseResidue_of_final_state
     (n p : Nat) [NeZero p] (u : (ZMod p)ˣ) (inverseScale : ZMod p)
     (hfinish : (ofUnitInput n p u).finish.u = 1)
@@ -6075,7 +6075,7 @@ theorem
 
 /-- For an odd actual modulus, the canonical inverse-scale construction
 discharges the raw-unscale premise. -/
-theorem
+lemma
     ofUnitInput_inverseMontgomeryScale_mul_signedCorrectedInverseResidue_eq_inverseResidue
     (n p : Nat) (hodd : Odd p) (u : (ZMod p)ˣ)
     (hfinish : (ofUnitInput n p u).finish.u = 1) :

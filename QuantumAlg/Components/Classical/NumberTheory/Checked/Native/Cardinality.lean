@@ -23,7 +23,7 @@ namespace QuantumAlg.ClassicalRoutines.NumberTheory.Checked.Native
 open ClassicalAlgorithms.Modular XGCD.Native SignedReduction.Native
 
 /-- The original real decision and signed branch require at most eighteen instructions. -/
-theorem checkedSelectionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
+lemma checkedSelectionEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
   : Nat) :
     (checkedSelectionEnvelope model width).card ≤ 18 := by
   have signed := signedReductionEnvelope_card_le model width
@@ -32,7 +32,7 @@ theorem checkedSelectionEnvelope_card_le (model : ExecutionModel) [BitWord.Selec
     List.length_cons, List.length_nil] using Nat.add_le_add_left signed 2
 
 /-- The actual independent checked-inverse pool obeys the original width-linear ceiling. -/
-theorem checkedInverseEnvelope_card_le {width : Nat}
+lemma checkedInverseEnvelope_card_le {width : Nat}
     (model : ExecutionModel) [BitWord.Selected model] (spec : ModulusSpec width) :
     (checkedInverseEnvelope model spec).card ≤ 30 * width + 72 := by
   have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus

@@ -25,12 +25,12 @@ def decodeWord {width : Nat} (word : CShape.Word width) :
   match word with
   | .unsignedWord value => value
 
-@[simp] theorem fixedWidthDecode_encode_word {width : Nat}
+@[simp] lemma fixedWidthDecode_encode_word {width : Nat}
     (word : ClassicalAlgorithms.Word width) :
     decodeWord (encodeWord word) = word :=
   rfl
 
-@[simp] theorem fixedWidthEncode_decode_word {width : Nat}
+@[simp] lemma fixedWidthEncode_decode_word {width : Nat}
     (word : CShape.Word width) :
     encodeWord (decodeWord word) = word := by
   cases word

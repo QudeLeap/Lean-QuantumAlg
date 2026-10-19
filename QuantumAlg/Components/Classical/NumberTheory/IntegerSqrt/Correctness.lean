@@ -18,24 +18,24 @@ open Execution
 
 noncomputable section
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
 
-private theorem read_product {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma read_product {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) {left right : CShape}
     (first : CInputRef ctx left) (second : CInputRef ctx right) :
     store.read (.product first second) =
       .product (store.read first) (store.read second) := rfl
 
-private theorem bitNotEval_toBool (value : CShape.Value .bit) :
+private lemma bitNotEval_toBool (value : CShape.Value .bit) :
     (Resource.BitOpcode.not.eval value).toBool = !value.toBool := by
   cases value
   rfl
 
 /-- Every actual caller read outside the four prefix destinations survives the prefix. -/
-theorem roundPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma roundPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -52,7 +52,7 @@ theorem roundPrefixInto_callerFrame {model : ExecutionModel} [BitWord.Selected m
     Store.read_applyOp_of_not_mem_storageKeys _ (addOp refs) other midCarryAvoids]
 
 /-- The actual prefix materializes the original midpoint and its exact acceptance flag. -/
-theorem roundPrefixStep_values {model : ExecutionModel} [BitWord.Selected model]
+lemma roundPrefixStep_values {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : Refs ctx width)
     (separated : Separation input refs) (store : Store ctx)
@@ -208,7 +208,7 @@ theorem roundPrefixStep_values {model : ExecutionModel} [BitWord.Selected model]
   rw [prefixEval]
   exact ⟨midpointAfterTake, takeValue⟩
 
-private theorem rootOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+private lemma rootOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     (refs : Refs ctx width) (flag : Bool) (store : Store ctx) :
     ((store.applyOp (rootOp refs flag)).read (writeInput refs.root)).toNat =
       if flag then (store.read (.first (writeInput refs.midCarry))).toNat
@@ -219,7 +219,7 @@ private theorem rootOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width
   | true =>
     exact congrArg CShape.Value.toNat (Store.read_applyOp_output store (rootOp refs true))
 
-private theorem halfOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+private lemma halfOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (halfOp refs)).read (writeInput refs.half)).toNat =
       (store.read (writeInput refs.half)).toNat / 2 := by
@@ -232,7 +232,7 @@ private theorem halfOp_value {kind : ProblemKind} {ctx : RuntimeCtx kind} {width
   exact written
 
 /-- The complete actual round frames every original read outside its six destinations. -/
-theorem roundInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma roundInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : Refs ctx width)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -247,7 +247,7 @@ theorem roundInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     (avoids .square) (avoids .tooLarge) (avoids .take)
 
 /-- One actual refinement round implements the original binary choice and retains its interval. -/
-theorem roundStep_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma roundStep_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : Refs ctx width)
     (separated : Separation input refs) (store : Store ctx)

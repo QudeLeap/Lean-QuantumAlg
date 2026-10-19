@@ -52,7 +52,7 @@ def internalKeys (ctx : RuntimeCtx kind) (width : Nat) : List StorageKey :=
     (halfCell ctx width).key, (rootCell ctx width).key, (wideCell ctx width).key]
 
 /-- Actual context uniqueness supplies the six-cell separation proof. -/
-theorem nativeSqrt_internalKeys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeSqrt_internalKeys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     (internalKeys ctx width).Nodup := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -60,7 +60,7 @@ theorem nativeSqrt_internalKeys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).1
 
 /-- Every original context key lies outside the six actual new cells. -/
-theorem nativeSqrt_internalKeys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeSqrt_internalKeys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint (internalKeys ctx width) ctx.keys := by
   have unique := (context ctx width).keysNodup
   change (context ctx width).keys.Nodup at unique
@@ -72,7 +72,7 @@ theorem nativeSqrt_internalKeys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
 private def cellKey (ctx : RuntimeCtx kind) (width : Nat) (index : Fin 6) : StorageKey :=
   (internalKeys ctx width).get ⟨index.val, by change index.val < 6; exact index.isLt⟩
 
-private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
+private lemma cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
     (left right : Fin 6) (different : left ≠ right) :
     cellKey ctx width left ≠ cellKey ctx width right := by
   intro same
@@ -80,7 +80,7 @@ private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
   exact different (Fin.ext (congrArg Fin.val positions))
 
 /-- The actual generated references satisfy the entire internal arithmetic contract. -/
-theorem nativeSqrt_round_separated (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeSqrt_round_separated (ctx : RuntimeCtx kind) (width : Nat) :
     Separated (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width) where
   inputFree := by
     intro key present

@@ -21,7 +21,7 @@ namespace QuantumAlg.ExecutionState
 noncomputable section
 
 /-- A finite sum of actual weights commutes with the complete reference observation. -/
-theorem referenceFiberSum_sum {C Index : Type} [Fintype C] [Fintype Index]
+lemma referenceFiberSum_sum {C Index : Type} [Fintype C] [Fintype Index]
     {R Reference : Register} (state : ExecutionState C (Register.prod R Reference))
     (weight : Index → C → R.Index → ℂ) (left right : Reference.Index) :
     referenceFiberSum state (fun record basis => ∑ index, weight index record basis) left right =
@@ -36,7 +36,7 @@ theorem referenceFiberSum_sum {C Index : Type} [Fintype C] [Fintype Index]
     _ = _ := Finset.sum_comm
 
 /-- Agreement on actual positive records suffices for every complete reference fiber. -/
-theorem referenceFiberSum_congr_on_positive {C : Type} [Fintype C] {R Reference : Register}
+lemma referenceFiberSum_congr_on_positive {C : Type} [Fintype C] {R Reference : Register}
     (state : ExecutionState C (Register.prod R Reference))
     (first second : C → R.Index → ℂ)
     (matching : ∀ record, 0 < (state.block record).mass →

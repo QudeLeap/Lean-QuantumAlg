@@ -49,7 +49,7 @@ public noncomputable def polynomialOperator {n : Nat} (P : Polynomial ℂ)
 /-- Polynomial evaluation on a diagonal matrix is pointwise evaluation on the
 diagonal entries.  This is the finite-dimensional algebraic core used to connect
 the QSVT polynomial statement with Mathlib's Hermitian spectral theorem. -/
-theorem diagonal_aeval_polynomial {ι : Type*} [Fintype ι] [DecidableEq ι]
+lemma diagonal_aeval_polynomial {ι : Type*} [Fintype ι] [DecidableEq ι]
     (P : Polynomial ℂ) (d : ι → ℂ) :
     Polynomial.aeval (Matrix.diagonal d) P =
       Matrix.diagonal (fun i => P.eval (d i)) := by
@@ -67,7 +67,7 @@ theorem diagonal_aeval_polynomial {ι : Type*} [Fintype ι] [DecidableEq ι]
 /-- Spectral form of polynomial evaluation on a Hermitian matrix: `P(A)` is
 diagonalized by the same eigenbasis as `A`, with eigenvalues transformed by
 `P`. -/
-theorem polynomialOperator_spectral {ι : Type*} [Fintype ι] [DecidableEq ι]
+lemma polynomialOperator_spectral {ι : Type*} [Fintype ι] [DecidableEq ι]
     (P : Polynomial ℂ) (A : Matrix ι ι ℂ) (hA : A.IsHermitian) :
     Polynomial.aeval A P =
       Unitary.conjStarAlgAut ℂ _ hA.eigenvectorUnitary
@@ -88,7 +88,7 @@ theorem polynomialOperator_spectral {ι : Type*} [Fintype ι] [DecidableEq ι]
           (Matrix.diagonal (fun i => P.eval ((hA.eigenvalues i : ℝ) : ℂ))) := by
           rw [diagonal_aeval_polynomial]
 
-theorem left_tensor_one_apply_zero {a n : Nat} (V : UnitaryOperator (Qubits n))
+lemma left_tensor_one_apply_zero {a n : Nat} (V : UnitaryOperator (Qubits n))
     (i y : Fin (2 ^ n)) (x : Fin (2 ^ a)) :
     HilbertOperator.tensor (1 : HilbertOperator (Qubits a))
         (V : HilbertOperator (Qubits n))
@@ -100,7 +100,7 @@ theorem left_tensor_one_apply_zero {a n : Nat} (V : UnitaryOperator (Qubits n))
   · have h0x : ¬(0 : Fin (2 ^ a)) = x := fun h => hx h.symm
     simp [HilbertOperator.tensor_apply, hx, h0x]
 
-theorem right_tensor_one_apply_zero {a n : Nat} (V : UnitaryOperator (Qubits n))
+lemma right_tensor_one_apply_zero {a n : Nat} (V : UnitaryOperator (Qubits n))
     (x : Fin (2 ^ a)) (y j : Fin (2 ^ n)) :
     HilbertOperator.tensor (1 : HilbertOperator (Qubits a))
         (V.dagger : HilbertOperator (Qubits n))
@@ -109,7 +109,7 @@ theorem right_tensor_one_apply_zero {a n : Nat} (V : UnitaryOperator (Qubits n))
   by_cases hx : x = 0 <;>
     simp [HilbertOperator.tensor_apply, Matrix.one_apply, hx]
 
-theorem left_tensor_sum_collapse {a n : Nat} (V : UnitaryOperator (Qubits n))
+lemma left_tensor_sum_collapse {a n : Nat} (V : UnitaryOperator (Qubits n))
     (D : UnitaryOperator (Qubits (a + n)))
     (i y : Fin (2 ^ n)) :
     (∑ z : Fin (2 ^ (a + n)),
@@ -120,7 +120,7 @@ theorem left_tensor_sum_collapse {a n : Nat} (V : UnitaryOperator (Qubits n))
   rw [← Equiv.sum_comp (prodEquiv (m := a) (n := n))]
   simp [Fintype.sum_prod_type]
 
-theorem projectedBlock_system_conjugate
+lemma projectedBlock_system_conjugate
     {a n : Nat} (V : UnitaryOperator (Qubits n))
     (D : UnitaryOperator (Qubits (a + n))) :
     projectedBlock a n
@@ -164,7 +164,7 @@ noncomputable def hermitianPolynomialDilationOperator {n : Nat} (P : Polynomial 
     UnitaryOperator.tensor identity (eigenbasisOperator A hA).dagger
   exact basis * dilation * basisDagger
 
-theorem hermitianPolynomialDilation_projectedBlock {n : Nat} (P : Polynomial ℂ)
+lemma hermitianPolynomialDilation_projectedBlock {n : Nat} (P : Polynomial ℂ)
     (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian)
     (hcontract : ∀ i, Complex.normSq (hermitianPolynomialEigenvalues P A hA i) <= 1) :
     projectedBlock 1 n
@@ -187,7 +187,7 @@ theorem hermitianPolynomialDilation_projectedBlock {n : Nat} (P : Polynomial ℂ
   simp [eigenbasisOperator, Unitary.conjStarAlgAut_apply, Matrix.star_eq_conjTranspose]
   congr 2
 
-theorem hermitianPolynomialDilation_exactBlockEncoding {n : Nat} (P : Polynomial ℂ)
+lemma hermitianPolynomialDilation_exactBlockEncoding {n : Nat} (P : Polynomial ℂ)
     (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian)
     (hcontract : ∀ i, Complex.normSq (hermitianPolynomialEigenvalues P A hA i) <= 1) :
     ExactBlockEncoding 1 n (hermitianPolynomialDilationOperator P A hA hcontract)
@@ -196,7 +196,7 @@ theorem hermitianPolynomialDilation_exactBlockEncoding {n : Nat} (P : Polynomial
   intro i j
   rw [hermitianPolynomialDilation_projectedBlock]
 
-theorem hermitian_eigenvalue_norm_le_of_operator_norm_le_one {n : Nat}
+lemma hermitian_eigenvalue_norm_le_of_operator_norm_le_one {n : Nat}
     (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian) (hnorm : ‖A‖ ≤ 1)
     (i : Fin (2 ^ n)) :
     ‖(hA.eigenvalues i : ℝ)‖ ≤ 1 := by
@@ -204,14 +204,14 @@ theorem hermitian_eigenvalue_norm_le_of_operator_norm_le_one {n : Nat}
     hA.eigenvalues_mem_spectrum_real i
   exact (spectrum.norm_le_norm_of_mem hspec).trans hnorm
 
-theorem hermitian_eigenvalue_mem_Icc_of_operator_norm_le_one {n : Nat}
+lemma hermitian_eigenvalue_mem_Icc_of_operator_norm_le_one {n : Nat}
     (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian) (hnorm : ‖A‖ ≤ 1)
     (i : Fin (2 ^ n)) :
     hA.eigenvalues i ∈ Set.Icc (-1 : ℝ) 1 := by
   have hnorm_i := hermitian_eigenvalue_norm_le_of_operator_norm_le_one A hA hnorm i
   simpa [Real.norm_eq_abs] using (abs_le.mp hnorm_i)
 
-theorem hermitianPolynomialEigenvalues_contract_of_bound {n : Nat}
+lemma hermitianPolynomialEigenvalues_contract_of_bound {n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian)
     (hnorm : ‖A‖ ≤ 1)
     (hbound :
@@ -223,12 +223,12 @@ theorem hermitianPolynomialEigenvalues_contract_of_bound {n : Nat}
     (hermitian_eigenvalue_mem_Icc_of_operator_norm_le_one A hA hnorm i)
 
 @[simp]
-theorem polynomialOperator_X {n : Nat} (A : HilbertOperator (Qubits n)) :
+lemma polynomialOperator_X {n : Nat} (A : HilbertOperator (Qubits n)) :
     polynomialOperator (Polynomial.X : Polynomial ℂ) A = A := by
   simp [polynomialOperator]
 
 @[simp]
-theorem polynomialOperator_C {n : Nat} (c : ℂ) (A : HilbertOperator (Qubits n)) :
+lemma polynomialOperator_C {n : Nat} (c : ℂ) (A : HilbertOperator (Qubits n)) :
     polynomialOperator (Polynomial.C c : Polynomial ℂ) A =
       c • (1 : HilbertOperator (Qubits n)) := by
   ext i j
@@ -236,7 +236,7 @@ theorem polynomialOperator_C {n : Nat} (c : ℂ) (A : HilbertOperator (Qubits n)
     simp [polynomialOperator, Matrix.algebraMap_matrix_apply, Matrix.smul_apply, h]
 
 @[simp]
-theorem polynomialOperator_C_mul {n : Nat} (c : ℂ) (P : Polynomial ℂ)
+lemma polynomialOperator_C_mul {n : Nat} (c : ℂ) (P : Polynomial ℂ)
     (A : HilbertOperator (Qubits n)) :
     polynomialOperator (Polynomial.C c * P) A = c • polynomialOperator P A := by
   ext i j
@@ -245,7 +245,7 @@ theorem polynomialOperator_C_mul {n : Nat} (c : ℂ) (P : Polynomial ℂ)
 
 /-- A constant polynomial acts as its scalar multiple of the identity under
 functional calculus. -/
-theorem polynomialOperator_eq_scalar_one_of_natDegree_eq_zero {n : Nat}
+lemma polynomialOperator_eq_scalar_one_of_natDegree_eq_zero {n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) (hdeg : P.natDegree = 0) :
     polynomialOperator P A = P.coeff 0 • (1 : HilbertOperator (Qubits n)) := by
   rw [Polynomial.eq_C_of_natDegree_eq_zero hdeg, polynomialOperator_C]
@@ -253,7 +253,7 @@ theorem polynomialOperator_eq_scalar_one_of_natDegree_eq_zero {n : Nat}
 
 /-- Elementary eigenvector support lemma: powers of an operator preserve an
 eigenvector with the corresponding powered eigenvalue. -/
-theorem operatorPower_applyVec_of_eigenvector {N : Nat}
+lemma operatorPower_applyVec_of_eigenvector {N : Nat}
     (A : HilbertOperator (Qubits N)) («λ» : Complex)
     (v : HilbertVector (Qubits N))
     (hA : HilbertOperator.applyVec A v = «λ» • v) (k : Nat) :
@@ -269,7 +269,7 @@ theorem operatorPower_applyVec_of_eigenvector {N : Nat}
 /-- Elementary eigenvector support lemma for polynomial functional calculus:
 if `v` is an eigenvector of `A` with eigenvalue `lambda`, then `P(A)` acts on
 `v` by the scalar `P(lambda)`. -/
-theorem polynomialOperator_applyVec_of_eigenvector {N : Nat}
+lemma polynomialOperator_applyVec_of_eigenvector {N : Nat}
     (P : Polynomial Complex) (A : HilbertOperator (Qubits N))
     («λ» : Complex) (v : HilbertVector (Qubits N))
     (hA : HilbertOperator.applyVec A v = «λ» • v) :
@@ -301,12 +301,12 @@ theorem polynomialOperator_applyVec_of_eigenvector {N : Nat}
         operatorPower_applyVec_of_eigenvector A «λ» v hA k,
         hscalar, smul_smul]
 
-theorem polynomialOperator_add {n : Nat} (P Q : Polynomial ℂ)
+lemma polynomialOperator_add {n : Nat} (P Q : Polynomial ℂ)
     (A : HilbertOperator (Qubits n)) :
     polynomialOperator (P + Q) A = polynomialOperator P A + polynomialOperator Q A := by
   simp [polynomialOperator]
 
-theorem polynomialOperator_smul {n : Nat} (c : ℂ) (P : Polynomial ℂ)
+lemma polynomialOperator_smul {n : Nat} (c : ℂ) (P : Polynomial ℂ)
     (A : HilbertOperator (Qubits n)) :
     polynomialOperator (c • P) A = c • polynomialOperator P A := by
   rw [Polynomial.smul_eq_C_mul, polynomialOperator_C_mul]
@@ -315,7 +315,7 @@ theorem polynomialOperator_smul {n : Nat} (c : ℂ) (P : Polynomial ℂ)
 coefficient split used in the arbitrary-parity QSVT reduction. This is an
 elementary bookkeeping lemma supporting the four component construction in
 [GSLW19, BlockHam.tex:1936-1952]. -/
-theorem polynomialOperator_complex_fourPart_recompose {n : Nat}
+lemma polynomialOperator_complex_fourPart_recompose {n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) :
     polynomialOperator
         (realPolynomialToComplex
@@ -370,7 +370,7 @@ theorem polynomialOperator_complex_fourPart_recompose {n : Nat}
 /-- Averaging the four real/imaginary even/odd functional-calculus branches
 gives the normalization-four target used by the complex Hermitian QSVT public
 statement [GSLW19, BlockHam.tex:1936-1952]. -/
-theorem polynomialOperator_complex_fourPart_average_recompose {n : Nat}
+lemma polynomialOperator_complex_fourPart_average_recompose {n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) :
     (1 / 4 : ℂ) • polynomialOperator
         (realPolynomialToComplex
@@ -421,7 +421,7 @@ theorem polynomialOperator_complex_fourPart_average_recompose {n : Nat}
 This is the polynomial-functional-calculus bookkeeping behind the real
 arbitrary-parity reduction in `thm:arbParity`
 [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem polynomialOperator_real_evenOdd_double_average_recompose {n : Nat}
+lemma polynomialOperator_real_evenOdd_double_average_recompose {n : Nat}
     (PRe : Polynomial ℝ) (A : HilbertOperator (Qubits n)) :
     (1 / 2 : ℂ) • polynomialOperator
         (realPolynomialToComplex ((2 : ℝ) • realPolynomialEvenPart PRe)) A +
@@ -455,7 +455,7 @@ theorem polynomialOperator_real_evenOdd_double_average_recompose {n : Nat}
 `P(A)`.  This is the two-branch bookkeeping needed when the complex
 arbitrary-parity QSVT construction realizes complex even/odd branches directly
 and then uses one selector ancilla. -/
-theorem polynomialOperator_complex_evenOdd_double_average_recompose {n : Nat}
+lemma polynomialOperator_complex_evenOdd_double_average_recompose {n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) :
     (1 / 2 : ℂ) • polynomialOperator
         ((2 : ℂ) • complexPolynomialEvenPart P) A +
@@ -479,7 +479,7 @@ public def projectedUnitaryBlock {N : Nat} (left right : OrthogonalProjector N)
 /-- The projected block kills vectors in the input-projector complement.  This
 is the input-side zero sector used in the source singular-invariant
 decomposition [GSLW19, BlockHam.tex:599-611]. -/
-theorem projectedUnitaryBlock_applyVec_eq_zero_of_right_complement {N : Nat}
+lemma projectedUnitaryBlock_applyVec_eq_zero_of_right_complement {N : Nat}
     {left right : OrthogonalProjector N} {U : UnitaryOperator (Qubits N)}
     {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement right) ψ = ψ) :
@@ -494,7 +494,7 @@ theorem projectedUnitaryBlock_applyVec_eq_zero_of_right_complement {N : Nat}
   simp [HilbertOperator.applyVec]
 
 /-- The projected block only sees the input's `right`-projector component. -/
-theorem projectedUnitaryBlock_applyVec_projector_applyVec {N : Nat}
+lemma projectedUnitaryBlock_applyVec_projector_applyVec {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (ψ : HilbertVector (Qubits N)) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U)
@@ -511,7 +511,7 @@ theorem projectedUnitaryBlock_applyVec_projector_applyVec {N : Nat}
 
 /-- The adjoint projected block only sees the output's `left`-projector
 component. -/
-theorem projectedUnitaryBlock_conjTranspose_applyVec_projector_applyVec {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_applyVec_projector_applyVec {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (ψ : HilbertVector (Qubits N)) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
@@ -529,7 +529,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_projector_applyVec {N : Nat
 
 /-- The projected-block Gram operator also kills vectors in the input-projector
 complement [GSLW19, BlockHam.tex:599-611]. -/
-theorem projectedUnitaryBlock_gram_applyVec_eq_zero_of_right_complement {N : Nat}
+lemma projectedUnitaryBlock_gram_applyVec_eq_zero_of_right_complement {N : Nat}
     {left right : OrthogonalProjector N} {U : UnitaryOperator (Qubits N)}
     {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement right) ψ = ψ) :
@@ -544,7 +544,7 @@ theorem projectedUnitaryBlock_gram_applyVec_eq_zero_of_right_complement {N : Nat
 /-- Orthogonal projectors have L2 operator norm at most one.  This elementary
 supporting fact is used to bound the singular values in the source
 `def:singDec` decomposition [GSLW19, BlockHam.tex:570-613]. -/
-theorem orthogonalProjector_norm_le_one {N : Nat} (P : OrthogonalProjector N) :
+lemma orthogonalProjector_norm_le_one {N : Nat} (P : OrthogonalProjector N) :
     ‖P.op‖ ≤ 1 := by
   have hnorm := Matrix.l2_opNorm_conjTranspose_mul_self P.op
   rw [P.selfAdjoint, P.idempotent] at hnorm
@@ -552,14 +552,14 @@ theorem orthogonalProjector_norm_le_one {N : Nat} (P : OrthogonalProjector N) :
   nlinarith [norm_nonneg P.op]
 
 /-- Unitary operators have L2 operator norm one. -/
-theorem gate_norm_eq_one {N : Nat} (U : UnitaryOperator (Qubits N)) :
+lemma gate_norm_eq_one {N : Nat} (U : UnitaryOperator (Qubits N)) :
     ‖(U : HilbertOperator (Qubits N))‖ = 1 :=
   CStarRing.norm_of_mem_unitary U.property
 
 /-- Raw finite-register vector norm squared is the real part of its
 star-dot-product.  This local bridge keeps the projected-singular-value proof
 in matrix notation while using the Hilbert-space norm supplied by Mathlib. -/
-theorem stateVector_norm_sq_eq_re_star_dot {N : Nat}
+lemma stateVector_norm_sq_eq_re_star_dot {N : Nat}
     (v : HilbertVector (Qubits N)) :
     ‖v‖ ^ 2 = RCLike.re ((star v.ofLp) ⬝ᵥ v.ofLp) := by
   rw [PiLp.norm_sq_eq_of_L2]
@@ -569,7 +569,7 @@ theorem stateVector_norm_sq_eq_re_star_dot {N : Nat}
 /-- Applying an operator has squared norm `v^* A^* A v`.  This is the Gram
 identity used to pass from the spectral theorem for `A^*A` to source singular
 values in `def:singDec` [GSLW19, BlockHam.tex:570-613]. -/
-theorem applyVec_norm_sq_eq_re_star_dot_gram {N : Nat}
+lemma applyVec_norm_sq_eq_re_star_dot_gram {N : Nat}
     (A : HilbertOperator (Qubits N)) (v : HilbertVector (Qubits N)) :
     ‖HilbertOperator.applyVec A v‖ ^ 2 =
       RCLike.re ((star v.ofLp) ⬝ᵥ
@@ -583,7 +583,7 @@ theorem applyVec_norm_sq_eq_re_star_dot_gram {N : Nat}
 `⟪Aψ, Bφ⟫ = ⟪ψ, A†Bφ⟫`.  This is the local Hilbert-space bridge used for the
 orthogonal projector decomposition in `lemma:singInvDec` [GSLW19,
 BlockHam.tex:570-613]. -/
-theorem inner_applyVec_applyVec {N : Nat}
+lemma inner_applyVec_applyVec {N : Nat}
     (A B : HilbertOperator (Qubits N))
     (ψ φ : HilbertVector (Qubits N)) :
     inner ℂ (HilbertOperator.applyVec A ψ) (HilbertOperator.applyVec B φ) =
@@ -622,7 +622,7 @@ theorem inner_applyVec_applyVec {N : Nat}
         refine Finset.sum_congr rfl fun k _ => by ring
 
 /-- Applying a unitary operator after its adjoint returns the original vector. -/
-theorem gate_applyVec_conjTranspose_applyVec {N : Nat}
+lemma gate_applyVec_conjTranspose_applyVec {N : Nat}
     (U : UnitaryOperator (Qubits N)) (ψ : HilbertVector (Qubits N)) :
     U.applyVec (U.dagger.applyVec ψ) = ψ := by
   change HilbertOperator.applyVec (U : HilbertOperator (Qubits N))
@@ -640,7 +640,7 @@ theorem gate_applyVec_conjTranspose_applyVec {N : Nat}
   rw [hUU, HilbertOperator.one_applyVec]
 
 /-- Applying a unitary operator's adjoint after the operator returns the original vector. -/
-theorem gate_conjTranspose_applyVec_applyVec {N : Nat}
+lemma gate_conjTranspose_applyVec_applyVec {N : Nat}
     (U : UnitaryOperator (Qubits N)) (ψ : HilbertVector (Qubits N)) :
     U.dagger.applyVec (U.applyVec ψ) = ψ := by
   change HilbertOperator.applyVec (U.dagger : HilbertOperator (Qubits N))
@@ -658,7 +658,7 @@ theorem gate_conjTranspose_applyVec_applyVec {N : Nat}
   rw [hUU, HilbertOperator.one_applyVec]
 
 /-- Applying a projector complement is subtracting the projector component. -/
-theorem orthogonalProjector_complement_applyVec {N : Nat}
+lemma orthogonalProjector_complement_applyVec {N : Nat}
     (P : OrthogonalProjector N) (ψ : HilbertVector (Qubits N)) :
     HilbertOperator.applyVec (OrthogonalProjector.complement P) ψ =
       ψ - HilbertOperator.applyVec P.op ψ := by
@@ -667,7 +667,7 @@ theorem orthogonalProjector_complement_applyVec {N : Nat}
   rfl
 
 /-- A vector is the sum of its projector and complementary components. -/
-theorem orthogonalProjector_applyVec_add_complement_applyVec {N : Nat}
+lemma orthogonalProjector_applyVec_add_complement_applyVec {N : Nat}
     (P : OrthogonalProjector N) (ψ : HilbertVector (Qubits N)) :
     HilbertOperator.applyVec P.op ψ +
         HilbertOperator.applyVec (OrthogonalProjector.complement P) ψ = ψ := by
@@ -675,7 +675,7 @@ theorem orthogonalProjector_applyVec_add_complement_applyVec {N : Nat}
   module
 
 /-- A projector image is orthogonal to its complement. -/
-theorem orthogonalProjector_inner_applyVec_complement {N : Nat}
+lemma orthogonalProjector_inner_applyVec_complement {N : Nat}
     (P : OrthogonalProjector N) (ψ : HilbertVector (Qubits N)) :
     inner ℂ (HilbertOperator.applyVec P.op ψ)
       (HilbertOperator.applyVec (OrthogonalProjector.complement P) ψ) = 0 := by
@@ -684,7 +684,7 @@ theorem orthogonalProjector_inner_applyVec_complement {N : Nat}
   simp [HilbertOperator.applyVec]
 
 /-- Orthogonal projectors split norm squares into image and complement parts. -/
-theorem orthogonalProjector_norm_sq_decomposition {N : Nat}
+lemma orthogonalProjector_norm_sq_decomposition {N : Nat}
     (P : OrthogonalProjector N) (ψ : HilbertVector (Qubits N)) :
     ‖ψ‖ ^ 2 =
       ‖HilbertOperator.applyVec P.op ψ‖ ^ 2 +
@@ -719,7 +719,7 @@ theorem orthogonalProjector_norm_sq_decomposition {N : Nat}
 
 /-- If an orthogonal projector preserves the norm of a unit vector, the vector
 already lies in the projector image. -/
-theorem orthogonalProjector_applyVec_eq_self_of_norm_eq_one {N : Nat}
+lemma orthogonalProjector_applyVec_eq_self_of_norm_eq_one {N : Nat}
     (P : OrthogonalProjector N) (ψ : NormalizedVector (Qubits N))
     (hproj : ‖HilbertOperator.applyVec P.op ψ‖ = 1) :
     HilbertOperator.applyVec P.op ψ = ψ := by
@@ -755,7 +755,7 @@ theorem orthogonalProjector_applyVec_eq_self_of_norm_eq_one {N : Nat}
 projector component has norm `sqrt (1 - σ^2)`.  This is the normalization
 identity used for the `0 < σ < 1` two-dimensional sectors in `lemma:singInvDec`
 [GSLW19, BlockHam.tex:655-716]. -/
-theorem orthogonalProjector_complement_norm_eq_sqrt {N : Nat}
+lemma orthogonalProjector_complement_norm_eq_sqrt {N : Nat}
     (P : OrthogonalProjector N) (ψ : NormalizedVector (Qubits N)) (σ : ℝ)
     (hproj : ‖HilbertOperator.applyVec P.op ψ‖ = σ) :
     ‖HilbertOperator.applyVec (OrthogonalProjector.complement P) ψ‖ =
@@ -775,7 +775,7 @@ theorem orthogonalProjector_complement_norm_eq_sqrt {N : Nat}
 /-- Projected-unitary encodings are contractions.  This supplies the upper
 singular-value bound used when splitting `def:singDec` into unit, nontrivial,
 and kernel sectors [GSLW19, BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlock_norm_le_one {N : Nat}
+lemma projectedUnitaryBlock_norm_le_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     ‖projectedUnitaryBlock left right U‖ ≤ 1 := by
   unfold projectedUnitaryBlock
@@ -794,7 +794,7 @@ theorem projectedUnitaryBlock_norm_le_one {N : Nat}
     _ = 1 := by norm_num
 
 /-- The projected block is supported on the left projector. -/
-theorem projectedUnitaryBlock_left_support {N : Nat}
+lemma projectedUnitaryBlock_left_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     left.op * projectedUnitaryBlock left right U =
       projectedUnitaryBlock left right U := by
@@ -805,7 +805,7 @@ theorem projectedUnitaryBlock_left_support {N : Nat}
   simpa [projectedUnitaryBlock, Matrix.mul_assoc] using h
 
 /-- The projected block is supported on the right projector. -/
-theorem projectedUnitaryBlock_right_support {N : Nat}
+lemma projectedUnitaryBlock_right_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     projectedUnitaryBlock left right U * right.op =
       projectedUnitaryBlock left right U := by
@@ -817,7 +817,7 @@ theorem projectedUnitaryBlock_right_support {N : Nat}
 
 /-- The adjoint projected block is supported on the input projector from the
 left. -/
-theorem projectedUnitaryBlock_conjTranspose_left_support {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_left_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     right.op * (projectedUnitaryBlock left right U).conjTranspose =
       (projectedUnitaryBlock left right U).conjTranspose := by
@@ -828,7 +828,7 @@ theorem projectedUnitaryBlock_conjTranspose_left_support {N : Nat}
 
 /-- The adjoint projected block is supported on the output projector from the
 right. -/
-theorem projectedUnitaryBlock_conjTranspose_right_support {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_right_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     (projectedUnitaryBlock left right U).conjTranspose * left.op =
       (projectedUnitaryBlock left right U).conjTranspose := by
@@ -837,7 +837,7 @@ theorem projectedUnitaryBlock_conjTranspose_right_support {N : Nat}
       congrArg Matrix.conjTranspose
         (projectedUnitaryBlock_left_support left right U)
 
-theorem projectedUnitaryBlock_conjTranspose_applyVec_left_supported {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_applyVec_left_supported {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec left.op ψ = ψ) :
@@ -846,7 +846,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_left_supported {N : Nat}
         (HilbertOperator.applyVec left.op ψ) := by
   rw [hpsi]
 
-theorem projectedUnitaryBlock_conjTranspose_applyVec_left_support_reduce {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_applyVec_left_support_reduce {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (ψ : HilbertVector (Qubits N)) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
@@ -859,7 +859,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_left_support_reduce {N : Na
 the left.  This is the algebraic support fact used when converting the Gram
 eigenbasis into the right singular-vector sector of `def:singDec` [GSLW19,
 BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlock_gram_left_support {N : Nat}
+lemma projectedUnitaryBlock_gram_left_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     right.op *
         ((projectedUnitaryBlock left right U).conjTranspose *
@@ -877,7 +877,7 @@ theorem projectedUnitaryBlock_gram_left_support {N : Nat}
 
 /-- The projected-block Gram operator is supported on the input projector from
 the right. -/
-theorem projectedUnitaryBlock_gram_right_support {N : Nat}
+lemma projectedUnitaryBlock_gram_right_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     ((projectedUnitaryBlock left right U).conjTranspose *
         projectedUnitaryBlock left right U) * right.op =
@@ -895,7 +895,7 @@ theorem projectedUnitaryBlock_gram_right_support {N : Nat}
 /-- The Gram operator `A† A` of a projected block is Hermitian.  This is the
 Mathlib spectral-theorem entry point for constructing the singular-vector
 decomposition used in `lemma:singInvDec` [GSLW19, BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlock_gram_isHermitian {N : Nat}
+lemma projectedUnitaryBlock_gram_isHermitian {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     ((projectedUnitaryBlock left right U).conjTranspose *
       projectedUnitaryBlock left right U).IsHermitian :=
@@ -904,14 +904,14 @@ theorem projectedUnitaryBlock_gram_isHermitian {N : Nat}
 /-- The projected-block Gram operator is positive semidefinite, so its spectral
 decomposition supplies nonnegative squared singular values [GSLW19,
 BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlock_gram_posSemidef {N : Nat}
+lemma projectedUnitaryBlock_gram_posSemidef {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     ((projectedUnitaryBlock left right U).conjTranspose *
       projectedUnitaryBlock left right U).PosSemidef :=
   Matrix.posSemidef_conjTranspose_mul_self _
 
 /-- The projected-block Gram operator is a contraction. -/
-theorem projectedUnitaryBlock_gram_norm_le_one {N : Nat}
+lemma projectedUnitaryBlock_gram_norm_le_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     ‖(projectedUnitaryBlock left right U).conjTranspose *
       projectedUnitaryBlock left right U‖ ≤ 1 := by
@@ -924,7 +924,7 @@ theorem projectedUnitaryBlock_gram_norm_le_one {N : Nat}
 /-- Eigenvalues of the projected-block Gram operator are nonnegative.  These
 are the squared singular values used in the SVD invariant-subspace construction
 [GSLW19, BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlock_gram_eigenvalues_nonneg {N : Nat}
+lemma projectedUnitaryBlock_gram_eigenvalues_nonneg {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     0 ≤ (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i :=
@@ -933,7 +933,7 @@ theorem projectedUnitaryBlock_gram_eigenvalues_nonneg {N : Nat}
 
 /-- Gram eigenvalues are at most one, because a projected-unitary block is a
 contraction. -/
-theorem projectedUnitaryBlock_gram_eigenvalues_le_one {N : Nat}
+lemma projectedUnitaryBlock_gram_eigenvalues_le_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     (projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i ≤ 1 := by
@@ -960,7 +960,7 @@ def projectedUnitaryBlockLeftGram {N : Nat}
   projectedUnitaryBlock left right U * (projectedUnitaryBlock left right U).conjTranspose
 
 /-- The output-side Gram operator `A A†` is Hermitian. -/
-theorem projectedUnitaryBlockLeftGram_isHermitian {N : Nat}
+lemma projectedUnitaryBlockLeftGram_isHermitian {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N)) :
     (projectedUnitaryBlockLeftGram left right U).IsHermitian := by
   simpa [projectedUnitaryBlockLeftGram] using
@@ -974,7 +974,7 @@ noncomputable def projectedUnitaryBlockLeftGramEigenbasis {N : Nat}
   (projectedUnitaryBlockLeftGram_isHermitian left right U).eigenvectorBasis
 
 /-- Output-side Gram eigenvector equation. -/
-theorem projectedUnitaryBlockLeftGram_mulVec_eigenbasis {N : Nat}
+lemma projectedUnitaryBlockLeftGram_mulVec_eigenbasis {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     Matrix.mulVec (projectedUnitaryBlockLeftGram left right U)
@@ -984,7 +984,7 @@ theorem projectedUnitaryBlockLeftGram_mulVec_eigenbasis {N : Nat}
   (projectedUnitaryBlockLeftGram_isHermitian left right U).mulVec_eigenvectorBasis i
 
 /-- Norm-square bridge for applying `A†` to an output-side Gram eigenvector. -/
-theorem projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_norm_sq
+lemma projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_norm_sq
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     ‖HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
@@ -1017,7 +1017,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_norm_sq
 
 /-- A zero output-side Gram eigenvalue gives a left-kernel vector for the
 adjoint projected block. -/
-theorem projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_eq_zero_of_eigenvalue_zero
+lemma projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_eq_zero_of_eigenvalue_zero
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1038,7 +1038,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_leftGramEigenbasis_eq_zero_
 
 /-- Gram eigenvectors are normalized by the spectral theorem's orthonormal
 basis. -/
-theorem projectedUnitaryBlockGramEigenbasis_norm_eq_one {N : Nat}
+lemma projectedUnitaryBlockGramEigenbasis_norm_eq_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     ‖(projectedUnitaryBlockGramEigenbasis left right U i :
@@ -1046,7 +1046,7 @@ theorem projectedUnitaryBlockGramEigenbasis_norm_eq_one {N : Nat}
   (projectedUnitaryBlockGramEigenbasis left right U).orthonormal.norm_eq_one i
 
 /-- Eigenvector equation for the projected-block Gram eigenbasis. -/
-theorem projectedUnitaryBlock_gram_mulVec_eigenbasis {N : Nat}
+lemma projectedUnitaryBlock_gram_mulVec_eigenbasis {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     Matrix.mulVec
@@ -1060,7 +1060,7 @@ theorem projectedUnitaryBlock_gram_mulVec_eigenbasis {N : Nat}
 /-- A nonzero Gram eigenvector lies in the input projector image.  This is the
 first support step in extracting the right singular-vector sector of
 `def:singDec` from the spectral theorem [GSLW19, BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlockGramEigenbasis_right_support_of_eigenvalue_ne_zero {N : Nat}
+lemma projectedUnitaryBlockGramEigenbasis_right_support_of_eigenvalue_ne_zero {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1096,7 +1096,7 @@ theorem projectedUnitaryBlockGramEigenbasis_right_support_of_eigenvalue_ne_zero 
 
 /-- State-vector form of
 `projectedUnitaryBlockGramEigenbasis_right_support_of_eigenvalue_ne_zero`. -/
-theorem projectedUnitaryBlockGramEigenbasis_right_applyVec_support_of_eigenvalue_ne_zero
+lemma projectedUnitaryBlockGramEigenbasis_right_applyVec_support_of_eigenvalue_ne_zero
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1116,13 +1116,13 @@ noncomputable def projectedUnitaryBlockSingularValue {N : Nat}
     (i : (Qubits N).Index) : ℝ :=
   Real.sqrt ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i)
 
-theorem projectedUnitaryBlockSingularValue_nonneg {N : Nat}
+lemma projectedUnitaryBlockSingularValue_nonneg {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     0 ≤ projectedUnitaryBlockSingularValue left right U i :=
   Real.sqrt_nonneg _
 
-theorem projectedUnitaryBlockSingularValue_sq {N : Nat}
+lemma projectedUnitaryBlockSingularValue_sq {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     (projectedUnitaryBlockSingularValue left right U i) ^ 2 =
@@ -1133,7 +1133,7 @@ theorem projectedUnitaryBlockSingularValue_sq {N : Nat}
 /-- Singular values of a projected-unitary block lie in `[0,1]`, matching the
 source sector parameter `σ` in `lemma:singInvDec` [GSLW19,
 BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlockSingularValue_le_one {N : Nat}
+lemma projectedUnitaryBlockSingularValue_le_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     projectedUnitaryBlockSingularValue left right U i ≤ 1 := by
@@ -1141,7 +1141,7 @@ theorem projectedUnitaryBlockSingularValue_le_one {N : Nat}
   exact projectedUnitaryBlock_gram_eigenvalues_le_one left right U i
 
 /-- A nonzero Gram eigenvalue gives a nonzero singular value. -/
-theorem projectedUnitaryBlockSingularValue_ne_zero_of_eigenvalue_ne_zero {N : Nat}
+lemma projectedUnitaryBlockSingularValue_ne_zero_of_eigenvalue_ne_zero {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1166,7 +1166,7 @@ noncomputable def projectedUnitaryBlockRightSingularVector {N : Nat}
     (projectedUnitaryBlockGramEigenbasis_norm_eq_one left right U i)
 
 /-- Right singular-vector candidates are normalized. -/
-theorem projectedUnitaryBlockRightSingularVector_norm_eq_one {N : Nat}
+lemma projectedUnitaryBlockRightSingularVector_norm_eq_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     ‖(projectedUnitaryBlockRightSingularVector left right U i :
@@ -1183,7 +1183,7 @@ noncomputable def projectedUnitaryBlockLeftSingularVector {N : Nat}
     HilbertOperator.applyVec (projectedUnitaryBlock left right U)
       (projectedUnitaryBlockRightSingularVector left right U i)
 
-theorem projectedUnitaryBlockRightSingularVector_support_of_eigenvalue_ne_zero
+lemma projectedUnitaryBlockRightSingularVector_support_of_eigenvalue_ne_zero
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1195,7 +1195,7 @@ theorem projectedUnitaryBlockRightSingularVector_support_of_eigenvalue_ne_zero
     projectedUnitaryBlockGramEigenbasis_right_applyVec_support_of_eigenvalue_ne_zero
       left right U i hlambda
 
-theorem projectedUnitaryBlockLeftSingularVector_support {N : Nat}
+lemma projectedUnitaryBlockLeftSingularVector_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     HilbertOperator.applyVec left.op
@@ -1207,7 +1207,7 @@ theorem projectedUnitaryBlockLeftSingularVector_support {N : Nat}
   rw [← HilbertOperator.mul_applyVec,
     projectedUnitaryBlock_left_support]
 
-theorem projectedUnitaryBlock_applyVec_rightSingularVector {N : Nat}
+lemma projectedUnitaryBlock_applyVec_rightSingularVector {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hsigma : (projectedUnitaryBlockSingularValue left right U i : ℂ) ≠ 0) :
@@ -1223,7 +1223,7 @@ theorem projectedUnitaryBlock_applyVec_rightSingularVector {N : Nat}
     mul_inv_cancel₀ hsigma
   simp [hmul]
 
-theorem projectedUnitaryBlock_gram_applyVec_rightSingularVector {N : Nat}
+lemma projectedUnitaryBlock_gram_applyVec_rightSingularVector {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     HilbertOperator.applyVec
@@ -1241,7 +1241,7 @@ theorem projectedUnitaryBlock_gram_applyVec_rightSingularVector {N : Nat}
 `σ^2`.  This is the norm bridge used to turn the Gram eigenvector into the
 source singular-pair normalization in `def:singDec` [GSLW19,
 BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlock_applyVec_rightSingularVector_norm_sq {N : Nat}
+lemma projectedUnitaryBlock_applyVec_rightSingularVector_norm_sq {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index) :
     ‖HilbertOperator.applyVec (projectedUnitaryBlock left right U)
@@ -1279,7 +1279,7 @@ theorem projectedUnitaryBlock_applyVec_rightSingularVector_norm_sq {N : Nat}
 /-- A zero Gram eigenvalue gives a right-kernel vector for the projected block.
 This is the entry point for the zero-singular-value part of
 `lemma:singInvDec` [GSLW19, BlockHam.tex:599-611]. -/
-theorem projectedUnitaryBlock_applyVec_rightSingularVector_eq_zero_of_eigenvalue_zero
+lemma projectedUnitaryBlock_applyVec_rightSingularVector_eq_zero_of_eigenvalue_zero
     {N : Nat} (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -1303,7 +1303,7 @@ theorem projectedUnitaryBlock_applyVec_rightSingularVector_eq_zero_of_eigenvalue
 /-- The nonzero left singular-vector candidate is normalized.  This completes
 the source singular-pair data obtained from the Gram eigenbasis before the
 `σ=1`/`0<σ<1` sector split [GSLW19, BlockHam.tex:570-613]. -/
-theorem projectedUnitaryBlockLeftSingularVector_norm_eq_one {N : Nat}
+lemma projectedUnitaryBlockLeftSingularVector_norm_eq_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hsigma : (projectedUnitaryBlockSingularValue left right U i : ℂ) ≠ 0) :
@@ -1325,7 +1325,7 @@ theorem projectedUnitaryBlockLeftSingularVector_norm_eq_one {N : Nat}
     (projectedUnitaryBlockSingularValue_nonneg left right U i)]
   field_simp [hsigma_real_ne]
 
-theorem projectedUnitaryBlock_conjTranspose_applyVec_leftSingularVector {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_applyVec_leftSingularVector {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hsigma : (projectedUnitaryBlockSingularValue left right U i : ℂ) ≠ 0) :
@@ -1428,7 +1428,7 @@ namespace SourceNonzeroSingularPair
 /-- A nonzero singular pair for a projected-unitary block has `σ ∈ (0,1]`.
 This is the sector split used in `def:singDec` before separating the
 `σ=1` and `0<σ<1` blocks [GSLW19, BlockHam.tex:583-613]. -/
-theorem sigma_mem_Ioc {N : Nat} {left right : OrthogonalProjector N}
+lemma sigma_mem_Ioc {N : Nat} {left right : OrthogonalProjector N}
     {U : UnitaryOperator (Qubits N)} {i : (Qubits N).Index}
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -1440,7 +1440,7 @@ theorem sigma_mem_Ioc {N : Nat} {left right : OrthogonalProjector N}
 
 /-- The source singular-pair sector split: a nonzero singular value is either
 the unit sector or the genuine two-dimensional sector. -/
-theorem sigma_eq_one_or_lt_one {N : Nat} {left right : OrthogonalProjector N}
+lemma sigma_eq_one_or_lt_one {N : Nat} {left right : OrthogonalProjector N}
     {U : UnitaryOperator (Qubits N)} {i : (Qubits N).Index}
     (hlambda :
       ((projectedUnitaryBlock_gram_isHermitian left right U).eigenvalues i : ℂ) ≠ 0) :
@@ -1482,7 +1482,7 @@ public noncomputable def singularValuePolynomial {N : Nat} (input : OrthogonalPr
 
 /-- The even branch of `P^{(SV)}` kills the input-projector complement because
 the target contains the input projector on the right. -/
-theorem evenSingularValuePolynomial_applyVec_eq_zero_of_input_complement {N : Nat}
+lemma evenSingularValuePolynomial_applyVec_eq_zero_of_input_complement {N : Nat}
     {input : OrthogonalProjector N} {A : HilbertOperator (Qubits N)}
     (P : Polynomial ℂ) {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement input) ψ = ψ) :
@@ -1499,7 +1499,7 @@ theorem evenSingularValuePolynomial_applyVec_eq_zero_of_input_complement {N : Na
 /-- The odd branch of `P^{(SV)}` kills the input-projector complement for a
 projected unitary block: the Gram operator has eigenvalue `0` there, and the
 leading projected block kills the remaining scalar multiple. -/
-theorem oddSingularValuePolynomial_applyVec_eq_zero_of_right_complement {N : Nat}
+lemma oddSingularValuePolynomial_applyVec_eq_zero_of_right_complement {N : Nat}
     {left right : OrthogonalProjector N} {U : UnitaryOperator (Qubits N)}
     (P : Polynomial ℂ) {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement right) ψ = ψ) :
@@ -1525,7 +1525,7 @@ theorem oddSingularValuePolynomial_applyVec_eq_zero_of_right_complement {N : Nat
 
 /-- The parity-selected singular-value polynomial target kills vectors in the
 input-projector complement for projected-unitary encodings. -/
-theorem singularValuePolynomial_applyVec_eq_zero_of_right_complement {N L : Nat}
+lemma singularValuePolynomial_applyVec_eq_zero_of_right_complement {N L : Nat}
     {left right : OrthogonalProjector N} {U : UnitaryOperator (Qubits N)}
     (P : Polynomial ℂ) {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement right) ψ = ψ) :
@@ -1539,13 +1539,13 @@ theorem singularValuePolynomial_applyVec_eq_zero_of_right_complement {N L : Nat}
       (left := left) (right := right) (U := U) P hpsi]
 
 @[simp]
-theorem singularValuePolynomial_X_one {N : Nat} (input : OrthogonalProjector N)
+lemma singularValuePolynomial_X_one {N : Nat} (input : OrthogonalProjector N)
     (A : HilbertOperator (Qubits N)) :
     singularValuePolynomial input 1 (Polynomial.X : Polynomial ℂ) A = A := by
   unfold singularValuePolynomial oddSingularValuePolynomial polynomialOperator
   simp
 
-theorem evenSingularValuePolynomial_add {N : Nat} (input : OrthogonalProjector N)
+lemma evenSingularValuePolynomial_add {N : Nat} (input : OrthogonalProjector N)
     (P Q : Polynomial ℂ) (A : HilbertOperator (Qubits N)) :
     evenSingularValuePolynomial input (P + Q) A =
       evenSingularValuePolynomial input P A + evenSingularValuePolynomial input Q A := by
@@ -1553,7 +1553,7 @@ theorem evenSingularValuePolynomial_add {N : Nat} (input : OrthogonalProjector N
   rw [evenSquareQuotient_add, polynomialOperator_add]
   simp [Matrix.mul_add, Matrix.add_mul]
 
-theorem evenSingularValuePolynomial_smul {N : Nat} (input : OrthogonalProjector N)
+lemma evenSingularValuePolynomial_smul {N : Nat} (input : OrthogonalProjector N)
     (c : ℂ) (P : Polynomial ℂ) (A : HilbertOperator (Qubits N)) :
     evenSingularValuePolynomial input (c • P) A =
       c • evenSingularValuePolynomial input P A := by
@@ -1561,7 +1561,7 @@ theorem evenSingularValuePolynomial_smul {N : Nat} (input : OrthogonalProjector 
   rw [evenSquareQuotient_smul, polynomialOperator_smul]
   simp
 
-theorem oddSingularValuePolynomial_add {N : Nat} (P Q : Polynomial ℂ)
+lemma oddSingularValuePolynomial_add {N : Nat} (P Q : Polynomial ℂ)
     (A : HilbertOperator (Qubits N)) :
     oddSingularValuePolynomial (P + Q) A =
       oddSingularValuePolynomial P A + oddSingularValuePolynomial Q A := by
@@ -1569,7 +1569,7 @@ theorem oddSingularValuePolynomial_add {N : Nat} (P Q : Polynomial ℂ)
   rw [oddSquareQuotient_add, polynomialOperator_add]
   simp [Matrix.mul_add]
 
-theorem oddSingularValuePolynomial_smul {N : Nat}
+lemma oddSingularValuePolynomial_smul {N : Nat}
     (c : ℂ) (P : Polynomial ℂ) (A : HilbertOperator (Qubits N)) :
     oddSingularValuePolynomial (c • P) A =
       c • oddSingularValuePolynomial P A := by
@@ -1577,7 +1577,7 @@ theorem oddSingularValuePolynomial_smul {N : Nat}
   rw [oddSquareQuotient_smul, polynomialOperator_smul]
   simp
 
-theorem singularValuePolynomial_add {N : Nat} (input : OrthogonalProjector N)
+lemma singularValuePolynomial_add {N : Nat} (input : OrthogonalProjector N)
     (L : ℕ) (P Q : Polynomial ℂ) (A : HilbertOperator (Qubits N)) :
     singularValuePolynomial input L (P + Q) A =
       singularValuePolynomial input L P A + singularValuePolynomial input L Q A := by
@@ -1586,7 +1586,7 @@ theorem singularValuePolynomial_add {N : Nat} (input : OrthogonalProjector N)
   · simp [h, evenSingularValuePolynomial_add]
   · simp [h, oddSingularValuePolynomial_add]
 
-theorem singularValuePolynomial_smul {N : Nat} (input : OrthogonalProjector N)
+lemma singularValuePolynomial_smul {N : Nat} (input : OrthogonalProjector N)
     (L : ℕ) (c : ℂ) (P : Polynomial ℂ) (A : HilbertOperator (Qubits N)) :
     singularValuePolynomial input L (c • P) A =
       c • singularValuePolynomial input L P A := by
@@ -1597,7 +1597,7 @@ theorem singularValuePolynomial_smul {N : Nat} (input : OrthogonalProjector N)
 
 /-- Polynomial average identities lift through the singular-value polynomial
 operation used in `cor:matchingParity` [GSLW19, BlockHam.tex:851-887]. -/
-theorem singularValuePolynomial_average_of_polynomial_average {N : Nat}
+lemma singularValuePolynomial_average_of_polynomial_average {N : Nat}
     (input : OrthogonalProjector N) (L : ℕ)
     (P Pneg Preal : Polynomial ℂ) (A : HilbertOperator (Qubits N))
     (havg : (1 / 2 : ℂ) • P + (1 / 2 : ℂ) • Pneg = Preal) :
@@ -1611,7 +1611,7 @@ theorem singularValuePolynomial_average_of_polynomial_average {N : Nat}
 `sigma^2` on the right singular vector.  This is the target-side scalar
 calculation used in the local blocks of the singular-value transform
 [GSLW19, BlockHam.tex:747-849]. -/
-theorem singularPair_gram_applyVec_rightVec {N : Nat}
+lemma singularPair_gram_applyVec_rightVec {N : Nat}
     {A : HilbertOperator (Qubits N)} {left right : OrthogonalProjector N}
     (pair : SourceNonzeroSingularPair A left right) :
     HilbertOperator.applyVec (A.conjTranspose * A) pair.rightVec =
@@ -1623,7 +1623,7 @@ theorem singularPair_gram_applyVec_rightVec {N : Nat}
 /-- Even branch of `P^{(SV)}` on a right singular vector: the quotient
 polynomial evaluates at `sigma^2`, hence the full target scalar is `P(sigma)`
 [GSLW19, BlockHam.tex:747-764]. -/
-theorem evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
+lemma evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
     {A : HilbertOperator (Qubits N)} {left right : OrthogonalProjector N}
     (pair : SourceNonzeroSingularPair A left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
@@ -1640,7 +1640,7 @@ theorem evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
 /-- Odd branch of `P^{(SV)}` on a right singular vector: after applying the
 quotient polynomial to `A^*A`, the leading `A` maps to the left singular vector
 and contributes the missing factor `sigma` [GSLW19, BlockHam.tex:747-764]. -/
-theorem oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
+lemma oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
     {A : HilbertOperator (Qubits N)} {left right : OrthogonalProjector N}
     (pair : SourceNonzeroSingularPair A left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
@@ -1658,7 +1658,7 @@ theorem oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
 
 /-- Even-parity branch of the parity-selected singular-value target on a
 right singular vector [GSLW19, BlockHam.tex:747-764]. -/
-theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
     {A : HilbertOperator (Qubits N)} {left right : OrthogonalProjector N}
     (pair : SourceNonzeroSingularPair A left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
@@ -1669,7 +1669,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
 
 /-- Odd-parity branch of the parity-selected singular-value target on a right
 singular vector [GSLW19, BlockHam.tex:747-764]. -/
-theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
     {A : HilbertOperator (Qubits N)} {left right : OrthogonalProjector N}
     (pair : SourceNonzeroSingularPair A left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
@@ -1686,7 +1686,7 @@ structure ProjectedUnitaryEncoding {N : Nat} (left right : OrthogonalProjector N
     (U : UnitaryOperator (Qubits N)) (A : HilbertOperator (Qubits N)) : Prop where
   block_eq : projectedUnitaryBlock left right U = A
 
-theorem ProjectedUnitaryEncoding.block_entry {N : Nat}
+lemma ProjectedUnitaryEncoding.block_entry {N : Nat}
     {left right : OrthogonalProjector N} {U : UnitaryOperator (Qubits N)}
     {A : HilbertOperator (Qubits N)}
     (h : ProjectedUnitaryEncoding left right U A) (i j : Fin (2 ^ N)) :
@@ -1707,14 +1707,14 @@ def zeroAncillaEmbeddedOperator (a n : Nat) (A : HilbertOperator (Qubits n)) :
 /-- The top-left block of a zero-ancilla embedding is the embedded system
 operator. -/
 @[simp]
-theorem projectedBlock_zeroAncillaEmbeddedOperator {a n : Nat}
+lemma projectedBlock_zeroAncillaEmbeddedOperator {a n : Nat}
     (A : HilbertOperator (Qubits n)) :
     projectedBlock a n (zeroAncillaEmbeddedOperator a n A) = A := by
   ext i j
   simp [projectedBlock, zeroAncillaEmbeddedOperator]
 
 /-- Multiplication is preserved inside the zero-ancilla embedded block. -/
-theorem zeroAncillaEmbeddedOperator_mul {a n : Nat}
+lemma zeroAncillaEmbeddedOperator_mul {a n : Nat}
     (A B : HilbertOperator (Qubits n)) :
     zeroAncillaEmbeddedOperator a n A * zeroAncillaEmbeddedOperator a n B =
       zeroAncillaEmbeddedOperator a n (A * B) := by
@@ -1734,7 +1734,7 @@ theorem zeroAncillaEmbeddedOperator_mul {a n : Nat}
 
 /-- Positive powers of a zero-ancilla embedded operator remain zero-ancilla
 embeddings of the corresponding system powers. -/
-theorem zeroAncillaEmbeddedOperator_pow_succ {a n : Nat}
+lemma zeroAncillaEmbeddedOperator_pow_succ {a n : Nat}
     (A : HilbertOperator (Qubits n)) (k : Nat) :
     zeroAncillaEmbeddedOperator a n A ^ (k + 1) =
       zeroAncillaEmbeddedOperator a n (A ^ (k + 1)) := by
@@ -1758,7 +1758,7 @@ theorem zeroAncillaEmbeddedOperator_pow_succ {a n : Nat}
 
 /-- Taking the top-left block commutes with powers of a zero-ancilla embedded
 operator. -/
-theorem projectedBlock_zeroAncillaEmbeddedOperator_pow {a n : Nat}
+lemma projectedBlock_zeroAncillaEmbeddedOperator_pow {a n : Nat}
     (A : HilbertOperator (Qubits n)) (k : Nat) :
     projectedBlock a n (zeroAncillaEmbeddedOperator a n A ^ k) = A ^ k := by
   cases k with
@@ -1770,7 +1770,7 @@ theorem projectedBlock_zeroAncillaEmbeddedOperator_pow {a n : Nat}
 
 /-- The top-left block of `zeroAncillaEmbeddedOperator A * M` is `A` times the
 top-left block of `M`. -/
-theorem projectedBlock_zeroAncillaEmbeddedOperator_mul_left {a n : Nat}
+lemma projectedBlock_zeroAncillaEmbeddedOperator_mul_left {a n : Nat}
     (A : HilbertOperator (Qubits n)) (M : HilbertOperator (Qubits (a + n))) :
     projectedBlock a n (zeroAncillaEmbeddedOperator a n A * M) =
       A * projectedBlock a n M := by
@@ -1781,7 +1781,7 @@ theorem projectedBlock_zeroAncillaEmbeddedOperator_mul_left {a n : Nat}
 
 /-- The top-left block of `M * zeroAncillaEmbeddedOperator A` is the top-left
 block of `M` times `A`. -/
-theorem projectedBlock_mul_zeroAncillaEmbeddedOperator_right {a n : Nat}
+lemma projectedBlock_mul_zeroAncillaEmbeddedOperator_right {a n : Nat}
     (M : HilbertOperator (Qubits (a + n))) (A : HilbertOperator (Qubits n)) :
     projectedBlock a n (M * zeroAncillaEmbeddedOperator a n A) =
       projectedBlock a n M * A := by
@@ -1792,7 +1792,7 @@ theorem projectedBlock_mul_zeroAncillaEmbeddedOperator_right {a n : Nat}
 
 /-- The top-left block of a polynomial in a zero-ancilla embedded operator is
 the corresponding polynomial in the system operator. -/
-theorem projectedBlock_polynomialOperator_zeroAncillaEmbeddedOperator {a n : Nat}
+lemma projectedBlock_polynomialOperator_zeroAncillaEmbeddedOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) :
     projectedBlock a n (polynomialOperator P (zeroAncillaEmbeddedOperator a n A)) =
       polynomialOperator P A := by
@@ -1820,7 +1820,7 @@ theorem projectedBlock_polynomialOperator_zeroAncillaEmbeddedOperator {a n : Nat
         using congrArg (fun z => c * z) hpow
 
 /-- Conjugate-transpose preserves the zero-ancilla embedding. -/
-theorem zeroAncillaEmbeddedOperator_conjTranspose {a n : Nat}
+lemma zeroAncillaEmbeddedOperator_conjTranspose {a n : Nat}
     (A : HilbertOperator (Qubits n)) :
     (zeroAncillaEmbeddedOperator a n A).conjTranspose =
       zeroAncillaEmbeddedOperator a n A.conjTranspose := by
@@ -1832,7 +1832,7 @@ theorem zeroAncillaEmbeddedOperator_conjTranspose {a n : Nat}
 
 /-- The zero-ancilla embedding of the identity is the all-zero ancilla
 projector. -/
-theorem zeroAncillaEmbeddedOperator_one {a n : Nat} :
+lemma zeroAncillaEmbeddedOperator_one {a n : Nat} :
     zeroAncillaEmbeddedOperator a n (1 : HilbertOperator (Qubits n)) =
       (OrthogonalProjector.zeroAncilla a n).op := by
   ext i j
@@ -1846,7 +1846,7 @@ theorem zeroAncillaEmbeddedOperator_one {a n : Nat} :
 
 /-- The top-left block of the even branch of `P^{(SV)}` for a zero-ancilla
 embedded operator is the even quotient applied to `A^*A`. -/
-theorem projectedBlock_evenSingularValuePolynomial_zeroAncillaEmbeddedOperator {a n : Nat}
+lemma projectedBlock_evenSingularValuePolynomial_zeroAncillaEmbeddedOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) :
     projectedBlock a n
         (evenSingularValuePolynomial (OrthogonalProjector.zeroAncilla a n) P
@@ -1861,7 +1861,7 @@ theorem projectedBlock_evenSingularValuePolynomial_zeroAncillaEmbeddedOperator {
 
 /-- The top-left block of the odd branch of `P^{(SV)}` for a zero-ancilla
 embedded operator is the odd Hermitian functional-calculus branch on `A`. -/
-theorem projectedBlock_oddSingularValuePolynomial_zeroAncillaEmbeddedOperator {a n : Nat}
+lemma projectedBlock_oddSingularValuePolynomial_zeroAncillaEmbeddedOperator {a n : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) :
     projectedBlock a n
         (oddSingularValuePolynomial P (zeroAncillaEmbeddedOperator a n A)) =
@@ -1873,7 +1873,7 @@ theorem projectedBlock_oddSingularValuePolynomial_zeroAncillaEmbeddedOperator {a
 
 /-- Even Hermitian specialization of the singular-value polynomial:
 `P^{(SV)}(A)=P(A)` when `A` is Hermitian and `P` has matching even parity. -/
-theorem evenHermitianSingularValuePolynomial_eq_polynomialOperator {n L : Nat}
+lemma evenHermitianSingularValuePolynomial_eq_polynomialOperator {n L : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian)
     (hL : L % 2 = 0) (hP : HasParity P L) :
     polynomialOperator (evenSquareQuotient P) (A.conjTranspose * A) =
@@ -1892,7 +1892,7 @@ theorem evenHermitianSingularValuePolynomial_eq_polynomialOperator {n L : Nat}
 
 /-- Odd Hermitian specialization of the singular-value polynomial:
 `P^{(SV)}(A)=P(A)` when `A` is Hermitian and `P` has matching odd parity. -/
-theorem oddHermitianSingularValuePolynomial_eq_polynomialOperator {n L : Nat}
+lemma oddHermitianSingularValuePolynomial_eq_polynomialOperator {n L : Nat}
     (P : Polynomial ℂ) (A : HilbertOperator (Qubits n)) (hA : A.IsHermitian)
     (hL : L % 2 = 1) (hP : HasParity P L) :
     A * polynomialOperator (oddSquareQuotient P) (A.conjTranspose * A) =
@@ -1911,7 +1911,7 @@ theorem oddHermitianSingularValuePolynomial_eq_polynomialOperator {n L : Nat}
 
 /-- Ordinary exact block encodings specialize projected QSVT's
 `P^{(SV)}` target to the Hermitian polynomial target `P(A)`. -/
-theorem projectedBlock_singularValuePolynomial_zeroAncillaEmbeddedOperator_of_hermitian
+lemma projectedBlock_singularValuePolynomial_zeroAncillaEmbeddedOperator_of_hermitian
     {a n L : Nat} (P : Polynomial ℂ) (A : HilbertOperator (Qubits n))
     (hA : A.IsHermitian) (hP : HasParity P L) :
     projectedBlock a n
@@ -1926,7 +1926,7 @@ theorem projectedBlock_singularValuePolynomial_zeroAncillaEmbeddedOperator_of_he
     simp [hL, projectedBlock_oddSingularValuePolynomial_zeroAncillaEmbeddedOperator,
       oddHermitianSingularValuePolynomial_eq_polynomialOperator P A hA hLodd hP]
 
-theorem zeroAncilla_op_apply_prod (a n : Nat)
+lemma zeroAncilla_op_apply_prod (a n : Nat)
     (x x' : Fin (2 ^ a)) (y y' : Fin (2 ^ n)) :
     (OrthogonalProjector.zeroAncilla a n).op (prodEquiv (x, y)) (prodEquiv (x', y')) =
       (if x = 0 then if x' = 0 then if y = y' then (1 : ℂ) else 0 else 0 else 0) := by
@@ -1938,7 +1938,7 @@ theorem zeroAncilla_op_apply_prod (a n : Nat)
 /-- Projecting a unitary onto the all-zero ancilla block gives the full-space
 operator that is zero outside the selected block and equal to the ordinary
 projected block inside it. -/
-theorem projected_zeroAncilla_entry {a n : Nat}
+lemma projected_zeroAncilla_entry {a n : Nat}
     (U : UnitaryOperator (Qubits (a + n)))
     (x x' : Fin (2 ^ a)) (y y' : Fin (2 ^ n)) :
     projectedUnitaryBlock (OrthogonalProjector.zeroAncilla a n)
@@ -1971,7 +1971,7 @@ theorem projected_zeroAncilla_entry {a n : Nat}
 
 /-- Ordinary exact block encodings are projected-unitary encodings with both
 projectors selecting the all-zero ancilla block. -/
-theorem exactBlockEncoding_to_projectedUnitaryEncoding {a n : Nat}
+lemma exactBlockEncoding_to_projectedUnitaryEncoding {a n : Nat}
     {U : UnitaryOperator (Qubits (a + n))} {A : HilbertOperator (Qubits n)}
     (h : ExactBlockEncoding a n U A) :
     ProjectedUnitaryEncoding (OrthogonalProjector.zeroAncilla a n)
@@ -2011,7 +2011,7 @@ noncomputable def ancillaBlock {N : Nat} (a b : Fin (2 ^ 1))
   fun i j => V (prodEquiv (a, i)) (prodEquiv (b, j))
 
 /-- Ancilla-indexed blocks multiply as ordinary block matrices. -/
-theorem ancillaBlock_mul {N : Nat} (a c : Fin (2 ^ 1))
+lemma ancillaBlock_mul {N : Nat} (a c : Fin (2 ^ 1))
     (V W : HilbertOperator (Qubits (1 + N))) :
     ancillaBlock a c (V * W) =
       ∑ b : Fin (2 ^ 1), ancillaBlock a b V * ancillaBlock b c W := by
@@ -2026,7 +2026,7 @@ theorem ancillaBlock_mul {N : Nat} (a c : Fin (2 ^ 1))
   simp [Fintype.sum_prod_type]
 
 /-- Ancilla block of a tensor unitary acting only on the phase qubit. -/
-theorem ancillaBlock_tensor_left {N : Nat} (A : UnitaryOperator (Qubits 1))
+lemma ancillaBlock_tensor_left {N : Nat} (A : UnitaryOperator (Qubits 1))
     (a b : Fin (2 ^ 1)) :
     ancillaBlock a b
         (HilbertOperator.tensor (A : HilbertOperator (Qubits 1))
@@ -2045,7 +2045,7 @@ theorem ancillaBlock_tensor_left {N : Nat} (A : UnitaryOperator (Qubits 1))
 /-- Rewrite the `⟨+|V|+⟩` block as a sum of ancilla-indexed matrix blocks.
 This is the block-matrix form used by the phased-sequence proof [GSLW19,
 BlockHam.tex:768-849]. -/
-theorem phasePlusBlock_eq_sum_ancillaBlock {N : Nat}
+lemma phasePlusBlock_eq_sum_ancillaBlock {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) :
     phasePlusBlock V =
       ∑ a : Fin (2 ^ 1), ∑ b : Fin (2 ^ 1),
@@ -2057,7 +2057,7 @@ theorem phasePlusBlock_eq_sum_ancillaBlock {N : Nat}
 
 /-- The standard top-left block of the Hadamard-wrapped circuit is the same as
 the `⟨+|V|+⟩` phase-ancilla block. -/
-theorem projectedBlock_phaseHadamardWrapper {N : Nat}
+lemma projectedBlock_phaseHadamardWrapper {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) :
     projectedBlock 1 N
         (phaseHadamardWrapperOperator V : HilbertOperator (Qubits (1 + N))) =
@@ -2105,7 +2105,7 @@ theorem projectedBlock_phaseHadamardWrapper {N : Nat}
   abel_nf
 
 @[simp]
-theorem phaseAncillaAssocEquiv_symm_zero {m n : Nat} (i : Fin (2 ^ n)) :
+lemma phaseAncillaAssocEquiv_symm_zero {m n : Nat} (i : Fin (2 ^ n)) :
     (phaseAncillaAssocEquiv m n).symm
         (prodEquiv ((0 : Fin (2 ^ (1 + m))), i)) =
       prodEquiv ((0 : Fin (2 ^ 1)), prodEquiv ((0 : Fin (2 ^ m)), i)) := by
@@ -2113,7 +2113,7 @@ theorem phaseAncillaAssocEquiv_symm_zero {m n : Nat} (i : Fin (2 ^ n)) :
   simp [phaseAncillaAssocEquiv, prodEquiv, finProdFinEquiv, finCongr]
 
 @[simp]
-theorem reassociatePhaseAncillaOperator_apply_zero {m n : Nat}
+lemma reassociatePhaseAncillaOperator_apply_zero {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (m + n)))) (i j : Fin (2 ^ n)) :
     (reassociatePhaseAncillaOperator (m := m) (n := n) V :
         HilbertOperator (Qubits ((1 + m) + n)))
@@ -2127,7 +2127,7 @@ theorem reassociatePhaseAncillaOperator_apply_zero {m n : Nat}
 /-- Taking the top-left block after Hadamard-wrapping and reassociating
 ancillas is the same as first taking the phase `|+⟩` block and then the
 ordinary `m`-ancilla block. -/
-theorem projectedBlock_reassociatedPhaseHadamardWrapper {m n : Nat}
+lemma projectedBlock_reassociatedPhaseHadamardWrapper {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (m + n)))) :
     projectedBlock (1 + m) n
         (reassociatePhaseAncillaOperator (m := m) (n := n)
@@ -2145,7 +2145,7 @@ theorem projectedBlock_reassociatedPhaseHadamardWrapper {m n : Nat}
 
 /-- Reassociating `1+(m+n)` to `(1+m)+n` exposes the same top-left block as
 first taking the phase-ancilla `0,0` block and then the source-ancilla block. -/
-theorem projectedBlock_reassociatePhaseAncillaOperator {m n : Nat}
+lemma projectedBlock_reassociatePhaseAncillaOperator {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (m + n)))) :
     projectedBlock (1 + m) n
         (reassociatePhaseAncillaOperator (m := m) (n := n) V :
@@ -2167,7 +2167,7 @@ public noncomputable def projectedPhasePlusBlock {N : Nat}
 /-- With both signal-space projectors selecting the all-zero source ancilla
 block, the top-left system block of the projected phase block is just the
 top-left system block of the underlying `⟨+|V|+⟩` phase block. -/
-theorem projectedBlock_projectedPhasePlusBlock_zeroAncilla {m n : Nat}
+lemma projectedBlock_projectedPhasePlusBlock_zeroAncilla {m n : Nat}
     (V : UnitaryOperator (Qubits (1 + (m + n)))) :
     projectedBlock m n
         (projectedPhasePlusBlock (OrthogonalProjector.zeroAncilla m n)

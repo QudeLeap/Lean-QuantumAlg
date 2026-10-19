@@ -40,17 +40,17 @@ def weight : Nat → IterationState → Nat
       if state.divisor = 0 then 0 else state.quotient.size + weight fuel (IterationState.step state)
 
 /-- A terminal mathematical trace has no additional macro states. -/
-theorem activeRun_finished (fuel : Nat) (state : IterationState) (finished : state.divisor = 0) :
+lemma activeRun_finished (fuel : Nat) (state : IterationState) (finished : state.divisor = 0) :
     activeRun fuel state = state := by
   cases fuel <;> simp only [activeRun, if_pos finished]
 
 /-- A terminal mathematical trace contains no extra quotient contribution. -/
-theorem weight_finished (fuel : Nat) (state : IterationState) (finished : state.divisor = 0) :
+lemma weight_finished (fuel : Nat) (state : IterationState) (finished : state.divisor = 0) :
     weight fuel state = 0 := by
   cases fuel <;> simp only [weight, if_pos finished]
 
 /-- Every actual macro state retains strictly ordered remainders, including its terminal state. -/
-theorem activeRun_ordered (fuel : Nat) (state : IterationState)
+lemma activeRun_ordered (fuel : Nat) (state : IterationState)
     (ordered : state.divisor < state.remainder) :
     (activeRun fuel state).divisor < (activeRun fuel state).remainder := by
   induction fuel generalizing state with
@@ -63,7 +63,7 @@ theorem activeRun_ordered (fuel : Nat) (state : IterationState)
         (IterationState.step_divisor_lt state (Nat.pos_of_ne_zero finished))
 
 /-- The actual active trajectory preserves the original remainder gcd. -/
-theorem activeRun_gcd (fuel : Nat) (state : IterationState) :
+lemma activeRun_gcd (fuel : Nat) (state : IterationState) :
     Nat.gcd (activeRun fuel state).remainder (activeRun fuel state).divisor =
       Nat.gcd state.remainder state.divisor := by
   induction fuel generalizing state with
@@ -75,7 +75,7 @@ theorem activeRun_gcd (fuel : Nat) (state : IterationState) :
       exact (inductionHypothesis (IterationState.step state)).trans (IterationState.step_gcd state)
 
 /-- The squared local factors telescope along every fully completed active trajectory. -/
-theorem square_bound : ∀ (fuel : Nat) (state : IterationState),
+lemma square_bound : ∀ (fuel : Nat) (state : IterationState),
     state.divisor < state.remainder → (activeRun fuel state).divisor = 0 →
       2 ^ weight fuel state * (activeRun fuel state).remainder ^ 2 ≤ state.remainder ^ 2 := by
   apply Nat.twoStepInduction
@@ -119,7 +119,7 @@ theorem square_bound : ∀ (fuel : Nat) (state : IterationState),
             QuotientPotential.two_step_square state ordered active nextActive
 
 /-- The ordinary local factors telescope even along an unfinished active prefix. -/
-theorem linear_bound (fuel : Nat) (state : IterationState) :
+lemma linear_bound (fuel : Nat) (state : IterationState) :
     state.remainder ≤ 2 ^ weight fuel state * (activeRun fuel state).remainder := by
   induction fuel generalizing state with
   | zero => simp only [weight, activeRun, Nat.pow_zero, Nat.one_mul, le_refl]
@@ -137,7 +137,7 @@ theorem linear_bound (fuel : Nat) (state : IterationState) :
         _ = _ := by rw [Nat.pow_add]; ring
 
 /-- A nonempty active prefix retains the strict factor needed for the source lower bound. -/
-theorem linear_strict (fuel : Nat) (state : IterationState) (active : 0 < state.divisor) :
+lemma linear_strict (fuel : Nat) (state : IterationState) (active : 0 < state.divisor) :
     state.remainder < 2 ^ weight (fuel + 1) state * (activeRun (fuel + 1) state).remainder := by
   rw [weight, if_neg (Nat.ne_of_gt active), activeRun, if_neg (Nat.ne_of_gt active)]
   calc
@@ -150,7 +150,7 @@ theorem linear_strict (fuel : Nat) (state : IterationState) (active : 0 < state.
     _ = _ := by rw [Nat.pow_add]; ring
 
 /-- The complete actual quotient weight is strictly below twice the leading remainder bit length. -/
-theorem weight_lt_twice_size (fuel : Nat) (state : IterationState)
+lemma weight_lt_twice_size (fuel : Nat) (state : IterationState)
     (ordered : state.divisor < state.remainder) (finished : (activeRun fuel state).divisor = 0) :
     weight fuel state < 2 * state.remainder.size := by
   have terminalOrdered := activeRun_ordered fuel state ordered
@@ -170,7 +170,7 @@ theorem weight_lt_twice_size (fuel : Nat) (state : IterationState)
   exact (Nat.pow_lt_pow_iff_right (by decide : 1 < 2)).mp (weightPower.trans_lt upper)
 
 /-- A completed gcd-one trajectory has at least the original leading remainder's bit length. -/
-theorem size_le_weight (fuel : Nat) (state : IterationState) (active : 0 < state.divisor)
+lemma size_le_weight (fuel : Nat) (state : IterationState) (active : 0 < state.divisor)
     (finished : (activeRun fuel state).divisor = 0)
     (coprime : Nat.gcd state.remainder state.divisor = 1) :
     state.remainder.size ≤ weight fuel state := by

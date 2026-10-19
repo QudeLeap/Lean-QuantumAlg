@@ -46,7 +46,7 @@ public def oracleFreePool (oracles : OracleModel) :
   map_add' := Multiset.map_add _
 
 /-- The actual generated native inverses preserve the full query-free event ledger. -/
-public theorem algorithmGate_oracleFreeAdjoints_eventCost (oracles : OracleModel)
+public lemma algorithmGate_oracleFreeAdjoints_eventCost (oracles : OracleModel)
     {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit model .empty layout) :
     (circuit.dagger (oracleFreeAdjoints oracles)).eventCost =
@@ -62,7 +62,7 @@ public theorem algorithmGate_oracleFreeAdjoints_eventCost (oracles : OracleModel
     exact False.elim (OracleModel.Occurrence.no_empty_oracle_occurrence application.occurrence)
 
 /-- One native inverse per source gate preserves unit-duration dependency depth. -/
-public theorem algorithmGate_oracleFreeAdjoints_unit_depth (oracles : OracleModel)
+public lemma algorithmGate_oracleFreeAdjoints_unit_depth (oracles : OracleModel)
     {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit model .empty layout) :
     (circuit.dagger (oracleFreeAdjoints oracles)).evaluatedEventDepth (fun _ => 1) =

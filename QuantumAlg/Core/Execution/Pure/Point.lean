@@ -31,7 +31,7 @@ open scoped ComplexOrder
 
 /-- A probability-bearing density operator supported on one basis label has
 exactly that pure-state promise at its original mass. -/
-public theorem statePromise_pureKet_of_row_support {R : Register}
+public lemma statePromise_pureKet_of_row_support {R : Register}
     (state : DensityOperator R) (basis : R.Index)
     (support : ∀ row, row ≠ basis → ∀ column, state.matrix row column = 0) :
     (StatePromise.pure (NormalizedVector.ket basis)).Holds state := by
@@ -73,7 +73,7 @@ public theorem statePromise_pureKet_of_row_support {R : Register}
 /-- A full joint-coordinate relabeling that preserves the local basis value
 also preserves a fixed pure local ket, even when the reference coordinates
 depend on the local value. No assumption of a product reference state is needed. -/
-theorem pureKet_marginal_of_reindex_first {R Reference EncodedReference : Register}
+lemma pureKet_marginal_of_reindex_first {R Reference EncodedReference : Register}
     (state : DensityOperator (Register.prod R Reference))
     (basis : (Register.prod R Reference).Index ≃
       (Register.prod R EncodedReference).Index)
@@ -115,7 +115,7 @@ theorem pureKet_marginal_of_reindex_first {R Reference EncodedReference : Regist
 /-- The same full-coordinate transport applies to the physical observation of
 every quantum wire. It keeps the actual probability mass and arbitrary
 external-reference correlations. -/
-theorem pureKet_fullSelection_of_reindex_first {count : Nat}
+lemma pureKet_fullSelection_of_reindex_first {count : Nat}
     (layout : QuantumLayout count) {Reference EncodedReference : Register}
     (state : DensityOperator (Register.prod layout.register Reference))
     (basis : (Register.prod layout.register Reference).Index ≃

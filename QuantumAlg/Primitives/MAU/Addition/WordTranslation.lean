@@ -26,7 +26,7 @@ private def translationPermutation (width constant : Nat) : Equiv.Perm (Fin (2 ^
   letI : NeZero (2 ^ width) := ⟨Nat.ne_of_gt (Nat.two_pow_pos width)⟩
   Equiv.addRight (⟨constant % 2 ^ width, Nat.mod_lt _ (Nat.two_pow_pos width)⟩ : Fin (2 ^ width))
 
-private theorem translationPermutation_apply (width constant : Nat) (input : Fin (2 ^ width)) :
+private lemma translationPermutation_apply (width constant : Nat) (input : Fin (2 ^ width)) :
     translationPermutation width constant input =
       ⟨(input.val + constant) % 2 ^ width, Nat.mod_lt _ (Nat.two_pow_pos width)⟩ := by
   apply Fin.ext
@@ -39,7 +39,7 @@ public def wordTranslation (width constant : Nat) : UnitaryOperator (Qubits widt
   UnitaryOperator.ofPerm (translationPermutation width constant).symm
 
 /-- Exact arithmetic basis action; its phase is preserved before coherent control. -/
-public theorem wordTranslation_ket (width constant : Nat) (input : Fin (2 ^ width)) :
+public lemma wordTranslation_ket (width constant : Nat) (input : Fin (2 ^ width)) :
     (wordTranslation width constant).apply (NormalizedVector.ket input) =
       NormalizedVector.ket (R := Qubits width)
         ⟨(input.val + constant) % 2 ^ width, Nat.mod_lt _ (Nat.two_pow_pos width)⟩ := by

@@ -12,12 +12,20 @@ public import QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Recovery.Native.Select
 public import QuantumAlg.Components.Classical.FiniteCyclicDLP.Trivial.Native.Resources
 public import QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Oracle
 public import QuantumAlg.Components.GateModel.Algorithm
-public import QuantumAlg.Core.Execution.CycleSchedule
+public import QuantumAlg.Core.Execution.Classical.Predicate
+public import QuantumAlg.Core.Execution.Restart
+public import QuantumAlg.Core.Execution.Input.Successor
+public import QuantumAlg.Core.Algorithm.Solves
+public import QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Endpoint.Run
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Batch.Resources
 import all QuantumAlg.Algorithms.FiniteCyclicDLP.Order.Recovery.Native.Selection.Resources
 import all QuantumAlg.Core.Execution.Trace.Composition
-import all QuantumAlg.Core.Execution.CycleSchedule
+import all QuantumAlg.Core.Execution.Classical.Predicate
+import all QuantumAlg.Core.Execution.Restart
+import all QuantumAlg.Core.Execution.Input.Successor
+import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Core.Execution.Circuit.Restoration
 
 /-!
@@ -74,9 +82,8 @@ variable {G : Type u} [Group G] [Fintype G]
   OrderBatch.unitDepth P (sampleCount P) (OrderExecution.canonicalExpansion P) +
     recoveryDepthLimit P duration
 
-/-- Independent maximum complete-cycle allowance. The full classical recovery
-remains in `depthLimit` and is not assigned a quantum-cycle duration. -/
-@[expose] public def completeCycleDepthLimit (P : KnownOrderProblem G) : Nat :=
+/-- Independent unit-event ceiling for the complete sampling protocol. -/
+@[expose] public def samplingTimeLimit (P : KnownOrderProblem G) : Nat :=
   OrderBatch.unitDepth P (sampleCount P) (OrderExecution.canonicalExpansion P)
 
 /-- Reused classical scratch is the larger of the order-one and nontrivial tails. -/
@@ -113,8 +120,6 @@ public structure PublicCoordinates where
   singleQubitGates : Nat
   /-- Whole-run dependency depth, including the classical recovery tail. -/
   wholeRunDepth : Nat
-  /-- Longest complete quantum sampling cycle under unit event duration. -/
-  maximumCompleteCycleDepth : Nat
   /-- Calls to the classical group-operation oracle. -/
   groupOperations : Nat
   deriving DecidableEq
@@ -134,7 +139,6 @@ public structure PublicCoordinates where
       2 * (OrderPreparation.width P +
         3 * (OrderPreparation.width P).choose 2))
   wholeRunDepth := depthLimit P (fun _ => 1)
-  maximumCompleteCycleDepth := completeCycleDepthLimit P
   groupOperations :=
     if P.order = 1 then 0
     else sampleCount P * (2 * OrderPreparation.width P)
@@ -146,7 +150,7 @@ qubits and from the public scalar coordinates. -/
     Nat × ℕ+ :=
   (sampleCount P, OrderOracle.workspaceDimension G)
 
-private theorem sampling_groupOperation_count_zero (P : KnownOrderProblem G) :
+private lemma sampling_groupOperation_count_zero (P : KnownOrderProblem G) :
     ResourcePool.count (OrderRecovery.Native.groupOperationEvent P)
       (OrderBatch.eventBudget P (sampleCount P)
         (OrderExecution.canonicalExpansion P)) = 0 := by
@@ -164,7 +168,7 @@ private theorem sampling_groupOperation_count_zero (P : KnownOrderProblem G) :
     ResourcePool.ofList, ResourcePool.count,
     OrderRecovery.Native.groupOperationEvent]
 
-private theorem recoveryEventBudget_count_nonclassical
+private lemma recoveryEventBudget_count_nonclassical
     (P : KnownOrderProblem G) (event : Resource.Event (OrderExecution.model P))
     (outsideOperation : ∀ operation, event ≠ .classicalOperation operation)
     (outsideQuery : ∀ query, event ≠ .classicalQuery query) :
@@ -178,19 +182,19 @@ private theorem recoveryEventBudget_count_nonclassical
 
 /-- The logical-qubit projection is exactly the exponent-register component of
 the certified batch footprint. -/
-public theorem publicCoordinates_logicalQubits_eq (P : KnownOrderProblem G) :
+public lemma publicCoordinates_logicalQubits_eq (P : KnownOrderProblem G) :
     (publicCoordinates P).logicalQubits =
       (OrderBatch.quantumFootprint P (sampleCount P)).logicalQubits := rfl
 
 /-- The separate native-group footprint records one actual group system per
 independent sample at the ambient finite-group dimension. -/
-public theorem nativeGroupFootprint_eq (P : KnownOrderProblem G) :
+public lemma nativeGroupFootprint_eq (P : KnownOrderProblem G) :
     nativeGroupFootprint P =
       ((OrderBatch.quantumFootprint P (sampleCount P)).groupSystems,
         (OrderBatch.quantumFootprint P (sampleCount P)).groupDimension) := rfl
 
 /-- The public query coordinate is the exact multiplicity in the certified endpoint ledger. -/
-public theorem eventBudget_ux_count (P : KnownOrderProblem G) :
+public lemma eventBudget_ux_count (P : KnownOrderProblem G) :
     ResourcePool.count (model := OrderExecution.model P)
       (.oracle OrderOracle.Coordinate.ux) (eventBudget P) =
       (publicCoordinates P).uxQueries := by
@@ -203,7 +207,7 @@ public theorem eventBudget_ux_count (P : KnownOrderProblem G) :
 
 /-- The public Toffoli coordinate is the exact zero multiplicity in the
 certified endpoint ledger. -/
-public theorem eventBudget_toffoli_count (P : KnownOrderProblem G) :
+public lemma eventBudget_toffoli_count (P : KnownOrderProblem G) :
     ResourcePool.count (model := OrderExecution.model P)
       (.gate AlgorithmGate.Coordinate.toffoli) (eventBudget P) =
       (publicCoordinates P).toffoliGates := by
@@ -215,7 +219,7 @@ public theorem eventBudget_toffoli_count (P : KnownOrderProblem G) :
   rfl
 
 /-- The public CNOT coordinate is the exact multiplicity in the certified endpoint ledger. -/
-public theorem eventBudget_cnot_count (P : KnownOrderProblem G) :
+public lemma eventBudget_cnot_count (P : KnownOrderProblem G) :
     ResourcePool.count (model := OrderExecution.model P)
       (.gate AlgorithmGate.Coordinate.cnot) (eventBudget P) =
       (publicCoordinates P).cnotGates := by
@@ -228,7 +232,7 @@ public theorem eventBudget_cnot_count (P : KnownOrderProblem G) :
 
 /-- The public one-qubit coordinate is the exact multiplicity in the certified
 endpoint ledger. -/
-public theorem eventBudget_singleQubit_count (P : KnownOrderProblem G) :
+public lemma eventBudget_singleQubit_count (P : KnownOrderProblem G) :
     ResourcePool.count (model := OrderExecution.model P)
       (.gate AlgorithmGate.Coordinate.singleQubit) (eventBudget P) =
       (publicCoordinates P).singleQubitGates := by
@@ -241,16 +245,12 @@ public theorem eventBudget_singleQubit_count (P : KnownOrderProblem G) :
 
 /-- The whole-run projection is the certified complete chronological
 allowance evaluated at unit event duration. -/
-public theorem publicCoordinates_wholeRunDepth_eq (P : KnownOrderProblem G) :
+public lemma publicCoordinates_wholeRunDepth_eq (P : KnownOrderProblem G) :
     (publicCoordinates P).wholeRunDepth = depthLimit P (fun _ => 1) := rfl
-
-/-- The separately reported cycle coordinate uses the independent sampling-cycle limit. -/
-public theorem publicCoordinates_maximumCompleteCycleDepth_eq (P : KnownOrderProblem G) :
-    (publicCoordinates P).maximumCompleteCycleDepth = completeCycleDepthLimit P := rfl
 
 /-- The public abstract group-operation coordinate is the exact multiplicity
 reserved by the selected all-order endpoint branch. -/
-public theorem eventBudget_groupOperation_count (P : KnownOrderProblem G) :
+public lemma eventBudget_groupOperation_count (P : KnownOrderProblem G) :
     ResourcePool.count (OrderRecovery.Native.groupOperationEvent P) (eventBudget P) =
       (publicCoordinates P).groupOperations := by
   unfold eventBudget
@@ -264,7 +264,7 @@ public theorem eventBudget_groupOperation_count (P : KnownOrderProblem G) :
   · rw [OrderRecovery.Native.recoveryEnvelope_groupOperation_count]
 
 /-- The known-order branch meets its independently exposed event allowance. -/
-public theorem recoveryCircuit_pool_le (P : KnownOrderProblem G) :
+public lemma recoveryCircuit_pool_le (P : KnownOrderProblem G) :
     ∀ path : (recoveryCircuit P).Path,
       (recoveryCircuit P).resourcePool path ≤ recoveryEventBudget P := by
   by_cases trivial : P.order = 1
@@ -285,22 +285,26 @@ public theorem recoveryCircuit_pool_le (P : KnownOrderProblem G) :
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
   · have branch : ∀ path :
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).Path,
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).resourcePool path ≤ recoveryEventBudget P := by
       intro path
       simp only [recoveryEventBudget, dif_neg trivial]
-      exact OrderRecovery.Native.recoveryInto_pool_le P (recoverySpec P trivial)
+      exact OrderRecovery.Native.recoveryInto_pool_le (oracles := OrderOracle.model P) P
+        (recoverySpec P trivial)
         (sampleCount P) (retainedSample P) (outputRef P) path
     have circuitEq : recoveryCircuit P =
-        OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P) := by
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
 
 /-- The same branch meets its arbitrary-duration dependency allowance. -/
-public theorem recoveryCircuit_depth_le (P : KnownOrderProblem G)
+public lemma recoveryCircuit_depth_le (P : KnownOrderProblem G)
     (duration : Resource.Event (OrderExecution.model P) → Nat) :
     ∀ path : (recoveryCircuit P).Path,
       (recoveryCircuit P).depth duration path ≤ recoveryDepthLimit P duration := by
@@ -322,23 +326,27 @@ public theorem recoveryCircuit_depth_le (P : KnownOrderProblem G)
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
   · have branch : ∀ path :
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).Path,
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).depth duration path ≤
             recoveryDepthLimit P duration := by
       intro path
       simp only [recoveryDepthLimit, dif_neg trivial]
-      exact OrderRecovery.Native.recoveryInto_depth_le P (recoverySpec P trivial)
+      exact OrderRecovery.Native.recoveryInto_depth_le (oracles := OrderOracle.model P) P
+        (recoverySpec P trivial)
         (sampleCount P) (retainedSample P) (outputRef P) duration path
     have circuitEq : recoveryCircuit P =
-        OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P) := by
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
 
 /-- Either known-order branch fits the shared endpoint resident allowance. -/
-public theorem recoveryCircuit_resident_le (P : KnownOrderProblem G) :
+public lemma recoveryCircuit_resident_le (P : KnownOrderProblem G) :
     ∀ path : (recoveryCircuit P).Path,
       (recoveryCircuit P).peakResidentSpace path ≤ residentBudget P := by
   by_cases trivial : P.order = 1
@@ -359,23 +367,27 @@ public theorem recoveryCircuit_resident_le (P : KnownOrderProblem G) :
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
   · have branch : ∀ path :
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).Path,
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).peakResidentSpace path ≤ residentBudget P := by
       intro path
       unfold residentBudget recoveryScratchBudget
-      exact (OrderRecovery.Native.recoveryInto_resident_le P (recoverySpec P trivial)
+      exact (OrderRecovery.Native.recoveryInto_resident_le (oracles := OrderOracle.model P) P
+        (recoverySpec P trivial)
         (sampleCount P) (retainedSample P) (outputRef P) path).trans
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
     have circuitEq : recoveryCircuit P =
-        OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P) := by
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
 
 /-- Either known-order branch fits the shared endpoint auxiliary allowance. -/
-public theorem recoveryCircuit_auxiliary_le (P : KnownOrderProblem G) :
+public lemma recoveryCircuit_auxiliary_le (P : KnownOrderProblem G) :
     ∀ path : (recoveryCircuit P).Path,
       (recoveryCircuit P).peakAuxiliarySpace path ≤ auxiliaryBudget P := by
   by_cases trivial : P.order = 1
@@ -396,29 +408,33 @@ public theorem recoveryCircuit_auxiliary_le (P : KnownOrderProblem G) :
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
   · have branch : ∀ path :
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).Path,
-        (OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        (OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P)).peakAuxiliarySpace path ≤ auxiliaryBudget P := by
       intro path
       unfold auxiliaryBudget recoveryScratchBudget
-      exact (OrderRecovery.Native.recoveryInto_auxiliary_le P (recoverySpec P trivial)
+      exact (OrderRecovery.Native.recoveryInto_auxiliary_le (oracles := OrderOracle.model P) P
+        (recoverySpec P trivial)
         (sampleCount P) (retainedSample P) (outputRef P) path).trans
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
     have circuitEq : recoveryCircuit P =
-        OrderRecovery.Native.recoveryInto P (recoverySpec P trivial) (sampleCount P)
+        OrderRecovery.Native.recoveryInto (oracles := OrderOracle.model P) P (recoverySpec P
+          trivial) (sampleCount P)
           (retainedSample P) (outputRef P) := by
       simp [recoveryCircuit, trivial]
     exact circuitEq.symm ▸ branch
 
 /-- Result allocation emits no event before the selected recovery tail. -/
-public theorem retainedRecovery_pool_le (P : KnownOrderProblem G)
+public lemma retainedRecovery_pool_le (P : KnownOrderProblem G)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).resourcePool path ≤ recoveryEventBudget P := by
   rw [retainedRecovery_resourcePool]
   exact recoveryCircuit_pool_le P path.2
 
-private theorem recoveryBudget_classical_event (P : KnownOrderProblem G)
+private lemma recoveryBudget_classical_event (P : KnownOrderProblem G)
     (event : Resource.Event (OrderExecution.model P))
     (present : event ∈ recoveryEventBudget P) :
     (∃ coordinate, event = .classicalOperation coordinate) ∨
@@ -445,7 +461,7 @@ private theorem recoveryBudget_classical_event (P : KnownOrderProblem G)
 
 /-- The result allocation and recovery tail contain only declared classical
 operations and classical queries on every interpreter path. -/
-public theorem retainedRecovery_isClassical (P : KnownOrderProblem G) :
+public lemma retainedRecovery_isClassical (P : KnownOrderProblem G) :
     Circuit.IsClassical (retainedRecovery P) := by
   intro path event present
   apply recoveryBudget_classical_event P event
@@ -454,7 +470,7 @@ public theorem retainedRecovery_isClassical (P : KnownOrderProblem G) :
   exact present
 
 /-- Result allocation adds no dependency duration. -/
-public theorem retainedRecovery_depth_le (P : KnownOrderProblem G)
+public lemma retainedRecovery_depth_le (P : KnownOrderProblem G)
     (duration : Resource.Event (OrderExecution.model P) → Nat)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).depth duration path ≤ recoveryDepthLimit P duration := by
@@ -462,7 +478,7 @@ public theorem retainedRecovery_depth_le (P : KnownOrderProblem G)
   exact recoveryCircuit_depth_le P duration path.2
 
 /-- Result retention and recovery fit the complete resident budget. -/
-public theorem retainedRecovery_resident_le (P : KnownOrderProblem G)
+public lemma retainedRecovery_resident_le (P : KnownOrderProblem G)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).peakResidentSpace path ≤ residentBudget P := by
   rw [retainedRecovery_peakResidentSpace]
@@ -471,7 +487,7 @@ public theorem retainedRecovery_resident_le (P : KnownOrderProblem G)
     (recoveryCircuit_resident_le P path.2)
 
 /-- Result retention and recovery fit the complete auxiliary budget. -/
-public theorem retainedRecovery_auxiliary_le (P : KnownOrderProblem G)
+public lemma retainedRecovery_auxiliary_le (P : KnownOrderProblem G)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).peakAuxiliarySpace path ≤ auxiliaryBudget P := by
   rw [retainedRecovery_peakAuxiliarySpace]
@@ -480,7 +496,7 @@ public theorem retainedRecovery_auxiliary_le (P : KnownOrderProblem G)
     (recoveryCircuit_auxiliary_le P path.2)
 
 /-- Every endpoint path meets the complete sampling and recovery ledger. -/
-public theorem code_pool_le (P : KnownOrderProblem G) (path : (code P).Path) :
+public lemma code_pool_le (P : KnownOrderProblem G) (path : (code P).Path) :
     (code P).resourcePool path ≤ eventBudget P := by
   unfold code at path ⊢
   change ResourcePool.ofList (_ ++ _) ≤ _
@@ -489,7 +505,7 @@ public theorem code_pool_le (P : KnownOrderProblem G) (path : (code P).Path) :
   exact add_le_add le_rfl (retainedRecovery_pool_le P path.2)
 
 /-- Every endpoint path meets the full chronological dependency allowance. -/
-public theorem code_depth_le (P : KnownOrderProblem G)
+public lemma code_depth_le (P : KnownOrderProblem G)
     (path : (code P).Path) :
     (code P).depth (fun _ => 1) path ≤ depthLimit P (fun _ => 1) := by
   unfold code at path ⊢
@@ -501,15 +517,15 @@ public theorem code_depth_le (P : KnownOrderProblem G)
   exact Nat.add_le_add_left (retainedRecovery_depth_le P (fun _ => 1) path.2) _
 
 /-- The public whole-run coordinate bounds the same actual sampling and
-recovery execution whose maximum complete-cycle depth is reported below. -/
-public theorem code_depth_le_publicCoordinates (P : KnownOrderProblem G)
+recovery execution, including every chronological section. -/
+public lemma code_depth_le_publicCoordinates (P : KnownOrderProblem G)
     (path : (code P).Path) :
     (code P).depth (fun _ => 1) path ≤ (publicCoordinates P).wholeRunDepth := by
   rw [publicCoordinates_wholeRunDepth_eq]
   exact code_depth_le P path
 
 /-- The full sampler and recovery tail meet the complete resident bound. -/
-public theorem code_resident_le (P : KnownOrderProblem G) (path : (code P).Path) :
+public lemma code_resident_le (P : KnownOrderProblem G) (path : (code P).Path) :
     (code P).peakResidentSpace path ≤ residentBudget P := by
   unfold code at path ⊢
   rw [Circuit.peakResidentSpace_seq]
@@ -520,7 +536,7 @@ public theorem code_resident_le (P : KnownOrderProblem G) (path : (code P).Path)
     (retainedRecovery_resident_le P path.2)
 
 /-- The full sampler and recovery tail meet the complete auxiliary bound. -/
-public theorem code_auxiliary_le (P : KnownOrderProblem G) (path : (code P).Path) :
+public lemma code_auxiliary_le (P : KnownOrderProblem G) (path : (code P).Path) :
     (code P).peakAuxiliarySpace path ≤ auxiliaryBudget P := by
   unfold code at path ⊢
   rw [Circuit.peakAuxiliarySpace_seq]

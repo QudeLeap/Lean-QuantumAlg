@@ -26,20 +26,20 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem outcomeLayoutWires {ctx : RuntimeCtx .quantum} (N : Nat)
+private lemma outcomeLayoutWires {ctx : RuntimeCtx .quantum} (N : Nat)
     (sameWires : ctx.quantumWires = (layout N).wires) :
     (layout N).wires = ctx.quantumLayout.wires :=
   (ctx.quantumLayout_wires.trans sameWires).symm
 
 variable (base : RuntimeCtx .quantum) (N : Nat) (sameWires : base.quantumWires = (layout N).wires)
 
-private theorem readout_key (index : Fin (phaseBits N)) :
+private lemma readout_key (index : Fin (phaseBits N)) :
     (readout base N sameWires index).output.key = (Storage.cells base N index).key :=
   FiniteReadout.transported_key
     (shorDeclared_context_qubits N ((Storage.quantumWires base N).trans sameWires) _)
     (Storage.cells base N index)
 
-private theorem readout_value (index : Fin (phaseBits N))
+private lemma readout_value (index : Fin (phaseBits N))
     (store : Store (Storage.context base N)) :
     (store.read (.storage (readout base N sameWires index).output.toCStorageRef)).toFin.val =
       (store.read (.storage (Storage.cells base N index).toCStorageRef)).toFin.val :=
@@ -47,7 +47,7 @@ private theorem readout_value (index : Fin (phaseBits N))
     (shorDeclared_context_qubits N ((Storage.quantumWires base N).trans sameWires) _)
     (Storage.cells base N index) store
 
-private theorem readouts_nodup :
+private lemma readouts_nodup :
     ((readouts base N sameWires).map fun item => item.output.key).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -56,15 +56,15 @@ private theorem readouts_nodup :
     (same.trans (readout_key base N sameWires right))
   exact MeasurementCells.reference_key_injective _ _ _ keys
 
-private theorem measured_cell (input : Input N) (store : Store (Storage.context base N))
+private lemma measured_cell (store : Store (Storage.context base N))
     (basis : (Storage.context base N).register.Index)
     (index : Fin (phaseBits N)) :
-    ((measuredStore base N input sameWires store basis).read
+    ((measuredStore base N sameWires store basis).read
         (.storage (Storage.cells base N index).toCStorageRef)).toFin.val =
       (basis (readout base N sameWires index).wire).val := by
-  have actual := Circuit.writeMeasurementBasis_read
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model)
     (services := ClassicalOracleModel.empty)
     (readouts base N sameWires)
@@ -74,7 +74,7 @@ private theorem measured_cell (input : Input N) (store : Store (Storage.context 
   rw [readout_value] at numeric
   exact numeric
 
-private theorem wire_value (basis : (Storage.context base N).register.Index)
+private lemma wire_value (basis : (Storage.context base N).register.Index)
     (index : Fin (bankQubits N)) :
     (basis (wireEquiv N ((Storage.quantumWires base N).trans sameWires) index)).val =
       ((OrderFinding.Native.sourceLayout (phaseBits N) (modulusBits N)).binaryIndexEquiv.symm
@@ -100,7 +100,7 @@ private theorem wire_value (basis : (Storage.context base N).register.Index)
       (source index).val)
     inverse).symm
 
-private theorem measured_bit (basis : (Storage.context base N).register.Index)
+private lemma measured_bit (basis : (Storage.context base N).register.Index)
     (index : Fin (phaseBits N)) :
     decide ((basis (readout base N sameWires index).wire).val = 1) =
       (OrderFinding.Native.measurement (phaseBits N) (modulusBits N)).readout
@@ -133,20 +133,20 @@ private theorem measured_bit (basis : (Storage.context base N).register.Index)
       omega
 
 /-- The same actual writes and final packing compute precisely the original phase outcome. -/
-theorem packed_output (input : Input N) (store : Store (Storage.context base N))
+lemma packed_output (store : Store (Storage.context base N))
     (basis : (Storage.context base N).register.Index) :
-    ((measuredStore base N input sameWires store basis).applyOp
+    ((measuredStore base N sameWires store basis).applyOp
         (packing base N)).read
           (.storage (Storage.resultRef base N).toCStorageRef) =
       CShape.Value.bits ((OrderFinding.Native.measurement (phaseBits N) (modulusBits N)).readout
         (basisEquiv N ((Storage.quantumWires base N).trans sameWires) basis)) := by
   refine (Store.read_applyOp_output _ (packing base N)).trans ?_
   change CShape.Value.bits (fun index => decide
-    (((measuredStore base N input sameWires store basis).read
+    (((measuredStore base N sameWires store basis).read
         (.storage (Storage.cells base N index).toCStorageRef)).toFin.val = 1)) = _
   apply congrArg CShape.Value.bits
   funext index
-  rw [measured_cell base N sameWires input]
+  rw [measured_cell base N sameWires]
   exact measured_bit base N sameWires basis index
 
 

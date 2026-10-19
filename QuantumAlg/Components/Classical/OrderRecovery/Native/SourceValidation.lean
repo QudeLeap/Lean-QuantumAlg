@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- A fitted actual word with the stated natural value is its unique finite source encoding. -/
-private theorem actual_candidate_word
+private lemma actual_candidate_word
     (value : CShape.Word (phaseBits + 1)) (candidate : Nat)
     (fits : candidate < 2 ^ (phaseBits + 1)) (actual : value.toNat = candidate) :
     value = .unsignedWord ⟨candidate, fits⟩ := by
@@ -36,7 +36,7 @@ private theorem actual_candidate_word
   | unsignedWord word => exact congrArg CShape.Value.unsignedWord (Fin.ext actual)
 
 /-- The real validation bit equals the original source predicate on its represented candidate. -/
-theorem nativeScan_validation_matches_source
+lemma nativeScan_validation_matches_source
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

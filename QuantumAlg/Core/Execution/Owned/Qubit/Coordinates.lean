@@ -26,22 +26,22 @@ def wireEquiv (width : Nat) : Fin width ≃ Fin (context width).systemCount :=
   positionsOfEqualWires (layout width) (context width).quantumLayout (layout_wires width)
 
 /-- The corresponding context wire has precisely the original identity and dimension two. -/
-theorem ownedQubits_wire (width : Nat) (index : Fin width) :
+lemma ownedQubits_wire (width : Nat) (index : Fin width) :
     (context width).quantumLayout.wire (wireEquiv width index) =
       ({ identity := index.val, dimension := 2 } : QuantumWire) :=
   wireAtCorrespondingPosition (layout width) (context width).quantumLayout
     (layout_wires width) index
 
-theorem ownedQubits_wire_identity (width : Nat) (index : Fin width) :
+lemma ownedQubits_wire_identity (width : Nat) (index : Fin width) :
     ((context width).quantumLayout.wire (wireEquiv width index)).identity = index.val :=
   congrArg QuantumWire.identity (ownedQubits_wire width index)
 
-theorem ownedQubits_wire_dimension (width : Nat) (index : Fin width) :
+lemma ownedQubits_wire_dimension (width : Nat) (index : Fin width) :
     ((context width).quantumLayout.wire (wireEquiv width index)).dimension = 2 :=
   congrArg QuantumWire.dimension (ownedQubits_wire width index)
 
 /-- The complete binary label reads the same finite value as its actual corresponding wire. -/
-theorem ownedQubits_basis_value (width : Nat) (state : (context width).register.Index)
+lemma ownedQubits_basis_value (width : Nat) (state : (context width).register.Index)
     (index : Fin width) :
     (state (wireEquiv width index)).val =
       (finTwoEquiv.symm ((basisEquiv width state).val.testBit index.rev.val)).val := by

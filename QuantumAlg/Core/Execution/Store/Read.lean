@@ -33,7 +33,7 @@ namespace QuantumAlg.CInputRef
   | .wordBitGet input _index => storageKeys input
 
 /-- Every structurally read key names a real existing context entry. -/
-public theorem storageKeys_subset_context {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma storageKeys_subset_context {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape) :
     input.storageKeys ⊆ ctx.keys := by
   induction input with
@@ -57,7 +57,7 @@ public theorem storageKeys_subset_context {kind : ProblemKind} {ctx : RuntimeCtx
   | wordBitGet input index ih => exact ih
 
 /-- Lifting an old reference under a retained cell preserves its exact read support. -/
-public theorem storageKeys_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma storageKeys_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (retainedShape : CShape) (fresh : key ∉ ctx.keys) :
     (input.underRetained key retainedShape fresh).storageKeys = input.storageKeys := by
@@ -73,7 +73,7 @@ public theorem storageKeys_underRetained {kind : ProblemKind} {ctx : RuntimeCtx 
   | wordBitGet input index ih => exact ih
 
 /-- A fresh retained output cannot alias any pre-existing structural input. -/
-public theorem fresh_not_mem_storageKeys_underRetained {kind : ProblemKind}
+public lemma fresh_not_mem_storageKeys_underRetained {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (retainedShape : CShape) (fresh : key ∉ ctx.keys) :
     key ∉ (input.underRetained key retainedShape fresh).storageKeys := by
@@ -85,7 +85,7 @@ end QuantumAlg.CInputRef
 namespace QuantumAlg.Execution.Store
 
 /-- A write outside the structural input's actual key support preserves its complete value. -/
-public theorem read_write_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma read_write_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {written observed : CShape} (store : Store ctx) (output : CWriteRef ctx written)
     (value : written.Value) (input : CInputRef ctx observed)
     (separate : output.key ∉ input.storageKeys) :
@@ -116,7 +116,7 @@ public theorem read_write_of_not_mem_storageKeys {kind : ProblemKind} {ctx : Run
       exact congrArg (fun entry => entry.wordBitGet index) (ih separate)
 
 /-- A closed operation changes no structural input outside its actual written key. -/
-public theorem read_applyOp_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma read_applyOp_of_not_mem_storageKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {input output observed : CShape} (store : Store ctx)
     (op : ClassicalOp input output ctx ctx) (other : CInputRef ctx observed)
     (separate : op.outputRef.key ∉ other.storageKeys) :

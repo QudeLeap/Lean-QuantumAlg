@@ -41,7 +41,7 @@ def weight (effect : Effect R) (state : DensityOperator R) : ℝ :=
   (effect.matrix * state.matrix).trace.re
 
 /-- On a pure input, the density trace pairing is its coherent quadratic form. -/
-theorem weight_ofPure (effect : Effect R) (input : NormalizedVector R) :
+lemma weight_ofPure (effect : Effect R) (input : NormalizedVector R) :
     effect.weight (DensityOperator.ofPure input) =
       HilbertOperator.quadraticWeight effect.matrix input := by
   unfold weight HilbertOperator.quadraticWeight
@@ -72,10 +72,10 @@ def zero (R : Register) : Effect R where
     rw [vanish, norm_zero]
     exact norm_nonneg _
 
-@[simp] theorem weight_one (state : DensityOperator R) :
+@[simp] lemma weight_one (state : DensityOperator R) :
     (one R).weight state = state.mass := by simp [weight, one, DensityOperator.mass]
 
-@[simp] theorem weight_zero (state : DensityOperator R) :
+@[simp] lemma weight_zero (state : DensityOperator R) :
     (zero R).weight state = 0 := by simp [weight, zero]
 
 end

@@ -32,7 +32,7 @@ open ArithmeticInstruction
 
 /-- Independent bound for one complete enumeration of the stated finite arithmetic instruction. -/
 def instructionBound (width : Nat) (instruction : Instruction) : Nat :=
-  2 ^ (4 * width.size + 2 + if includeSign instruction then 1 else 0) *
+  2 ^ ((4 * width.size + 2 + if includeSign instruction then 1 else 0) - 1) *
     ArithmeticScheduleResources.selectorBound width (includeSign instruction)
 
 /-- All actual sign-location selectors, followed by the complete low quotient update. -/
@@ -55,7 +55,7 @@ def bound (width : Nat) : Nat :=
     TerminalBoundaryResources.boundaryBound width
 
 /-- The same actual remainder list is bounded by its two full enumerations and three Sign gates. -/
-theorem remainder_trace_le (width : Nat) :
+lemma remainder_trace_le (width : Nat) :
     (ArithmeticBlocks.remainderProgram width).eventTrace.length ≤
       instructionBound width .remainderSubtract + instructionBound width .remainderAddback + 3 := by
   have subtract := ArithmeticScheduleResources.program_trace_le width .remainderSubtract
@@ -67,7 +67,7 @@ theorem remainder_trace_le (width : Nat) :
   omega
 
 /-- The same actual coefficient list includes both enumerations and its real Sign CNOT. -/
-theorem coefficient_trace_le (width : Nat) :
+lemma coefficient_trace_le (width : Nat) :
     (ArithmeticBlocks.coefficientProgram width).eventTrace.length ≤
       instructionBound width .coefficientSubtract + instructionBound width .coefficientAdd + 1 := by
   have subtract := ArithmeticScheduleResources.program_trace_le width .coefficientSubtract
@@ -79,14 +79,14 @@ theorem coefficient_trace_le (width : Nat) :
   omega
 
 /-- All Sign selectors and the actual quotient HRS gates satisfy the independent envelope. -/
-theorem signQuotient_trace_le (width : Nat) :
+lemma signQuotient_trace_le (width : Nat) :
     (SignQuotient.program width).eventTrace.length ≤ signQuotientBound width := by
   have selectors := SelectionResources.count_le_enumeration width
   rw [SignQuotient.program_eventTrace_length, ShiftResources.low_count, signQuotientBound]
   omega
 
 /-- The actual terminal-aware zero-shift list charges both predicate passes and both phase CNOTs. -/
-theorem zeroShift_trace_le (width : Nat) (enough : 2 ≤ width.size) :
+lemma zeroShift_trace_le (width : Nat) (enough : 2 ≤ width.size) :
     (ZeroShiftControl.program width enough).eventTrace.length ≤ zeroShiftBound width := by
   have conjunction := TerminalPredicate.clockDivisorGates_length_le width
   rw [ShiftResources.trace_count, ZeroShiftControl.program_eventCost_card,
@@ -95,7 +95,7 @@ theorem zeroShift_trace_le (width : Nat) (enough : 2 ≤ width.size) :
   omega
 
 /-- Every actual occurrence in the complete eight-block source order is covered. -/
-theorem program_trace_le (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_trace_le (width : Nat) (enough : 2 ≤ width.size) :
     (NativeMicrostep.program width enough).eventTrace.length ≤ bound width := by
   have firstShift := ShiftResources.guarded_trace_le width false
   have remainder := remainder_trace_le width
@@ -115,7 +115,7 @@ theorem program_trace_le (width : Nat) (enough : 2 ≤ width.size) :
   omega
 
 /-- The event pool and strict unit depth are both derived from that same actual native microstep. -/
-theorem program_resources (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_resources (width : Nat) (enough : 2 ≤ width.size) :
     (NativeMicrostep.program width enough).eventCost.card ≤ bound width ∧
       (NativeMicrostep.program width enough).evaluatedEventDepth (fun _ => 1) ≤ bound width := by
   have count := (ShiftResources.trace_count (NativeMicrostep.program width enough)).symm.le.trans

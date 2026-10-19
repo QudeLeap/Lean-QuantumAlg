@@ -43,17 +43,17 @@ def iterationOperands {shape : CShape} (ctx : RuntimeCtx .quantum) (N : Nat)
     (.product (Iteration.parameterInput ctx N) (Iteration.sampleInput ctx N))
 
 /-- The actual Born law retains original operands and the complete sampled parameter jointly. -/
-theorem iteration_outcome_reference_input (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma iteration_outcome_reference_input (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     {shape : CShape} (observed : CInputRef ctx shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (weight : (CShape.product shape (.product (ParameterShape (modulusBits N))
       (.bits (residueSamplingBits N)))).Value → ℂ)
     (outcome : Fin (phaseBits N) → Bool) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Iteration.code ctx N input sameWires).execute Reference state)
+      ((Iteration.code ctx N sameWires).execute (environment input) Reference state)
       (fun entry _ => weight (entry.1.read (iterationOperands ctx N observed)) *
         (if entry.1.read (Iteration.phaseInput ctx N) = CShape.Value.bits outcome then 1 else 0))
       leftRef rightRef =
@@ -64,16 +64,16 @@ theorem iteration_outcome_reference_input (ctx : RuntimeCtx .quantum) (N : Nat) 
               (.product (parameterValue input sample) (.bits (Sampler.PackedSample.storedBits
                 sample)))) * ((sourceSampleOutcomePMF input sample outcome).toReal : ℂ)))
         leftRef rightRef := by
-  let sampled := (Sampler.Retained.circuit (model := executionModel input) ctx N).execute
-    Reference state
+  let sampled := (Sampler.Retained.circuit (model := executionModel N) ctx N).execute
+    (environment input) Reference state
   let parameter := CInputRef.storage (Sampler.Retained.parameterRef ctx N).toCStorageRef
   let operands := CInputRef.product (Sampler.Retained.liftInput (N := N) observed)
     (.product parameter (.storage (Sampler.Retained.sampleRef ctx N).toCStorageRef))
-  have sampleSeed := Sampler.Retained.samplerRetained_seeded
-    (model := executionModel input) (ctx := ctx) input ctx.quantumLayout.zeroLabel state seeded
-  have sequence := Circuit.referenceFiberSum_execute_seq
-    (Sampler.Retained.circuit (model := executionModel input) ctx N)
-    (Runtime.code (Sampler.Retained.context ctx N) N input
+  have sampleSeed := Sampler.Retained.samplerRetained_seeded (environment := environment input)
+    (model := executionModel N) (ctx := ctx) input ctx.quantumLayout.zeroLabel state seeded
+  have sequence := Circuit.referenceFiberSum_execute_seq (environment := environment input)
+    (Sampler.Retained.circuit (model := executionModel N) ctx N)
+    (Runtime.code (Sampler.Retained.context ctx N) N
       ((Iteration.sampled_quantumWires ctx N).trans sameWires) parameter) state
     (fun store => weight (store.read (iterationOperands ctx N observed)) *
       (if store.read (Iteration.phaseInput ctx N) = CShape.Value.bits outcome then 1 else 0))
@@ -84,7 +84,8 @@ theorem iteration_outcome_reference_input (ctx : RuntimeCtx .quantum) (N : Nat) 
   dsimp only [operands] at measured
   rw [observation_liftInput_product, observation_liftInput_product] at measured
   have sampledLaw := Sampler.Retained.samplerRetained_reference_input
-    (model := executionModel input) (ctx := ctx) input observed state
+    (environment := environment input)
+    (model := executionModel N) (ctx := ctx) input observed state
     (fun old value sample => weight (.product old (.product value sample)) *
       sourceWeight N input value outcome) leftRef rightRef
   refine sequence.trans (measured.trans (sampledLaw.trans ?_))

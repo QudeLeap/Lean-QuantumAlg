@@ -26,7 +26,7 @@ open Execution ClassicalWorkspace
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original ordered operations that establish complete affine branch predicates. -/
@@ -44,7 +44,7 @@ def classifierTrace (model : ExecutionModel) [BitWord.Selected model]
       (.wordBinary .equal width))]
 
 /-- Every actual classifier path emits exactly the original five operations. -/
-theorem classifierBody_eventTrace (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_eventTrace (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width)
     (path : (classifierBody (model := model) left right classifier).Path) :
     (classifierBody (model := model) left right classifier).eventTrace path =
@@ -55,7 +55,7 @@ theorem classifierBody_eventTrace (left right : CInputRef ctx (PointShape width)
     ClassicalOp.label]
 
 /-- Exact event multiplicities are derived from that same actual classifier trace. -/
-theorem classifierBody_resourcePool (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_resourcePool (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width)
     (path : (classifierBody (model := model) left right classifier).Path) :
     (classifierBody (model := model) left right classifier).resourcePool path =
@@ -63,7 +63,7 @@ theorem classifierBody_resourcePool (left right : CInputRef ctx (PointShape widt
   congrArg ResourcePool.ofList (classifierBody_eventTrace left right classifier path)
 
 /-- The actual classifier is serial in exactly the original five native event durations. -/
-theorem classifierBody_depth (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_depth (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width) (duration : Resource.Event model → Nat)
     (path : (classifierBody (model := model) left right classifier).Path) :
     (classifierBody (model := model) left right classifier).depth duration path =
@@ -79,7 +79,7 @@ theorem classifierBody_depth (left right : CInputRef ctx (PointShape width))
   all_goals simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- Unit native durations give the original five classifier stages. -/
-theorem classifierBody_unitDepth (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_unitDepth (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width)
     (path : (classifierBody (model := model) left right classifier).Path) :
     (classifierBody (model := model) left right classifier).depth (fun _ => 1) path = 5 := by
@@ -87,7 +87,7 @@ theorem classifierBody_unitDepth (left right : CInputRef ctx (PointShape width))
   rfl
 
 /-- Classifier instructions allocate no additional context entries. -/
-theorem classifierBody_resident (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_resident (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width)
     (path : (classifierBody (model := model) left right classifier).Path) :
     (classifierBody (model := model) left right classifier).peakResidentSpace path ≤
@@ -97,7 +97,7 @@ theorem classifierBody_resident (left right : CInputRef ctx (PointShape width))
   fin_cases index <;> exact (Circuit.peakResidentSpace_classical _ selected).le
 
 /-- Every live classifier cell remains charged according to its actual workspace role. -/
-theorem classifierBody_auxiliary (left right : CInputRef ctx (PointShape width))
+lemma classifierBody_auxiliary (left right : CInputRef ctx (PointShape width))
     (classifier : Classifier ctx width)
     (path : (classifierBody (model := model) left right classifier).Path) :
     (classifierBody (model := model) left right classifier).peakAuxiliarySpace path ≤
@@ -108,14 +108,14 @@ theorem classifierBody_auxiliary (left right : CInputRef ctx (PointShape width))
 
 omit [BitWord.Selected model] in
 /-- Both full raw points, the zero word and all three classifier bits have their actual widths. -/
-theorem classifierShapes_classicalBits :
+lemma classifierShapes_classicalBits :
     (((classifierShapes width).map (SpacePool.ofShape (kind := model.kind))).sum) .classicalBits =
       5 * width + 5 := by
   simp [classifierShapes, PointEquality.RawPointShape, SpacePool.ofShape, CShape.bitWidth]
   omega
 
 /-- The allocated classifier and continuation are charged with all six live workspace shapes. -/
-theorem withClassification_resident (left right : CInputRef ctx (PointShape width))
+lemma withClassification_resident (left right : CInputRef ctx (PointShape width))
     (body : ∀ {inner : RuntimeCtx model.kind}, Classifier inner width →
       Transport ctx inner → Circuit model inner inner)
     (additional : SpacePool model.kind)
@@ -139,7 +139,7 @@ theorem withClassification_resident (left right : CInputRef ctx (PointShape widt
     (bodyBound (classifierOfCells cells) transport selected.2)
 
 /-- All classifier temporaries retain their actual auxiliary roles through the continuation. -/
-theorem withClassification_auxiliary (left right : CInputRef ctx (PointShape width))
+lemma withClassification_auxiliary (left right : CInputRef ctx (PointShape width))
     (body : ∀ {inner : RuntimeCtx model.kind}, Classifier inner width →
       Transport ctx inner → Circuit model inner inner)
     (additional : SpacePool model.kind)

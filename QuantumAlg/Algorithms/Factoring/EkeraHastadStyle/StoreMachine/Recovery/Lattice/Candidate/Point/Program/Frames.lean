@@ -23,7 +23,7 @@ noncomputable section
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Distinct original mutable cells have disjoint actual storage identities. -/
-theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     (saved written : MutableCell) (different : saved ≠ written) :
     mutableKey refs written ∉ (writeInput (mutableRef refs saved)).storageKeys := by
   change mutableKey refs written ∉ [mutableKey refs saved]
@@ -32,7 +32,7 @@ theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
   exact different (separation.mutableInjective equal.symm)
 
 /-- Coefficient addition retains every source coordinate from the original inputs. -/
-theorem coefficient_source_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma coefficient_source_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (written : Coordinate) (source : SourceCell) :
     (store.applyOp (coefficientOp refs written)).read (sourceInput refs source) =
       store.read (sourceInput refs source) := by
@@ -43,7 +43,7 @@ theorem coefficient_source_frame (refs : Refs ctx width) (separation : Separatio
   | third => exact separation.sourceAvoidsMutable source .coefficientThird
 
 /-- Later coefficient writes preserve all other original coefficient coordinates. -/
-theorem coefficient_output_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma coefficient_output_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (written saved : Coordinate) (different : written ≠ saved) :
     (store.applyOp (coefficientOp refs written)).read
         (writeInput (pointRef refs.coefficient saved)) =
@@ -61,7 +61,7 @@ theorem coefficient_output_frame (refs : Refs ctx width) (separation : Separatio
   · exact False.elim (different rfl)
 
 /-- Actual additions frame every read outside the three coefficient outputs. -/
-theorem coefficientInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma coefficientInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ coordinate, (pointRef refs.coefficient coordinate).key ∉ other.storageKeys) :
     (coefficientStore refs store).read other = store.read other := by
@@ -71,7 +71,7 @@ theorem coefficientInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ (avoids .first)]
 
 /-- One actual dot refresh changes only its output coordinate and shared product word. -/
-theorem coordinateCombination_callerFrame (refs : Refs ctx width) (coordinate : Coordinate)
+lemma coordinateCombination_callerFrame (refs : Refs ctx width) (coordinate : Coordinate)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (output : (pointRef refs.point coordinate).key ∉ other.storageKeys)
     (product : refs.product.key ∉ other.storageKeys) :
@@ -79,7 +79,7 @@ theorem coordinateCombination_callerFrame (refs : Refs ctx width) (coordinate : 
   LatticeDotRefresh.refreshInto_callerFrame _ _ _ store other output product
 
 /-- All three dot refreshes frame reads outside the point and shared product cells. -/
-theorem pointInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma pointInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (output : ∀ coordinate, (pointRef refs.point coordinate).key ∉ other.storageKeys)
     (product : refs.product.key ∉ other.storageKeys) :
@@ -95,7 +95,7 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
     (∀ cell, mutableKey refs cell ∉ other.storageKeys) → after.read other = before.read other
 
 /-- Every actual read outside the complete original write footprint remains unchanged. -/
-theorem candidatePointInto_callerFrame [BitWord.Selected model]
+lemma candidatePointInto_callerFrame [BitWord.Selected model]
     (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (candidateStep (model := model) refs store).1 := by
   intro shape other avoids
@@ -116,7 +116,7 @@ theorem candidatePointInto_callerFrame [BitWord.Selected model]
       | third => exact avoids .coefficientThird)
 
 /-- Original basis representations follow any frame preserving their nine source reads. -/
-theorem basis_of_source_frames (refs : Refs ctx width) (before after : Store ctx)
+lemma basis_of_source_frames (refs : Refs ctx width) (before after : Store ctx)
     (basis : NumberTheory.IntegerBasis3) (rep : BasisRawRepresents before refs.basis basis)
     (frames : ∀ source,
       after.read (sourceInput refs source) = before.read (sourceInput refs source)) :
@@ -152,7 +152,7 @@ theorem basis_of_source_frames (refs : Refs ctx width) (before after : Store ctx
     exact i
 
 /-- The original basis survives every actual coefficient addition. -/
-theorem basis_after_coefficient (refs : Refs ctx width) (separation : Separation refs)
+lemma basis_after_coefficient (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : BasisRawRepresents store refs.basis basis) :
     BasisRawRepresents (coefficientStore refs store) refs.basis basis := by
@@ -164,7 +164,7 @@ theorem basis_after_coefficient (refs : Refs ctx width) (separation : Separation
     coefficient_source_frame refs separation _ .first source]
 
 /-- The original basis survives one actual dot refresh. -/
-theorem basis_after_combination (refs : Refs ctx width) (separation : Separation refs)
+lemma basis_after_combination (refs : Refs ctx width) (separation : Separation refs)
     (coordinate : Coordinate) (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : BasisRawRepresents store refs.basis basis) :
     BasisRawRepresents (combinationStore refs coordinate store) refs.basis basis := by
@@ -178,7 +178,7 @@ theorem basis_after_combination (refs : Refs ctx width) (separation : Separation
   · exact separation.sourceAvoidsMutable source .product
 
 /-- Every coefficient survives the actual dot refresh, including reuse of product scratch. -/
-theorem coefficient_after_combination (refs : Refs ctx width) (separation : Separation refs)
+lemma coefficient_after_combination (refs : Refs ctx width) (separation : Separation refs)
     (coordinate : Coordinate) (store : Store ctx) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store refs.coefficient value) :
     LatticeArithmetic.PointRawRepresents (combinationStore refs coordinate store)
@@ -219,7 +219,7 @@ theorem coefficient_after_combination (refs : Refs ctx width) (separation : Sepa
     exact rep.2.2
 
 /-- Later dot refreshes preserve each previously computed output coordinate. -/
-theorem combination_output_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma combination_output_frame (refs : Refs ctx width) (separation : Separation refs)
     (written saved : Coordinate) (different : written ≠ saved) (store : Store ctx) :
     (combinationStore refs written store).read (writeInput (pointRef refs.point saved)) =
       store.read (writeInput (pointRef refs.point saved)) := by
@@ -240,7 +240,7 @@ theorem combination_output_frame (refs : Refs ctx width) (separation : Separatio
     | third => exact mutable_avoids refs separation .pointThird .product (by decide)
 
 /-- Original complete separation entails every read exclusion of each native dot refresh. -/
-theorem combination_separation (refs : Refs ctx width) (separation : Separation refs)
+lemma combination_separation (refs : Refs ctx width) (separation : Separation refs)
     (coordinate : Coordinate) :
     LatticeDotRefresh.Separation refs.coefficient (columnRefs refs.basis coordinate)
       (dotRefs refs coordinate) := by

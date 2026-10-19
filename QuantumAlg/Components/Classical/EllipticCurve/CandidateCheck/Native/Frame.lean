@@ -26,7 +26,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
 /-- Each actual caller read outside the two verification destinations is bitwise unchanged. -/
-theorem verifyStep_preserves_read {model : ExecutionModel} [BitWord.Selected model]
+lemma verifyStep_preserves_read {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
@@ -36,7 +37,8 @@ theorem verifyStep_preserves_read {model : ExecutionModel} [BitWord.Selected mod
     {shape : CShape} (observed : CInputRef ctx shape)
     (scalarFree : scalarResult.key ∉ observed.storageKeys)
     (acceptedFree : accepted.key ∉ observed.storageKeys) :
-    (verifyStep spec candidate base target inverseSuccess reconstruction
+    (verifyStep (environment := environment) spec candidate base target inverseSuccess
+      reconstruction
       scalarResult accepted (store, hidden)).1.1.read observed =
         store.read observed := by
   rw [verifyStep_store]

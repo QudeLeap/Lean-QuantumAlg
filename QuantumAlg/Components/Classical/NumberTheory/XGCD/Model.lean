@@ -75,7 +75,7 @@ abbrev trace {width : Nat} (input : Input width) : List State :=
   ClassicalAlgorithms.NumberTheory.XGCD.trace input
 
 /-- The deterministic pure evaluator satisfies its acceptance relation. -/
-theorem xgcdEval_accepts {width : Nat} (input : Input width) :
+lemma xgcdEval_accepts {width : Nat} (input : Input width) :
     accepts input (eval input) :=
   ClassicalAlgorithms.NumberTheory.XGCD.xgcdEval_accepts input
 

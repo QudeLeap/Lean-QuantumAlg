@@ -24,7 +24,7 @@ open Execution
 noncomputable section
 
 /-- The source Born weight is the original selected short-DLP law. -/
-theorem sourceWeight_eq_selected {N : Nat} (input : Input N)
+lemma sourceWeight_eq_selected {N : Nat} (input : Input N)
     (parameter : (ParameterShape N).Value)
     (outcome : Fin (measurementBits N) → Bool) :
     sourceWeight N input parameter outcome =
@@ -35,13 +35,14 @@ theorem sourceWeight_eq_selected {N : Nat} (input : Input N)
 
 /-- The actual run returns the selected law weighted by the original complete
 caller and external reference state. -/
-theorem outputDistribution_selected (base : RuntimeCtx .quantum)
+lemma outputDistribution_selected (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N)
     (parameter : CInputRef base (ParameterShape N))
     {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference)
+    (original : Execution.OracleInput (model N).classicalOracles base Reference)
     (outcome : Fin (measurementBits N) → Bool) :
-    (run base noQuantum N input parameter).outputDistribution original (.bits outcome) =
+    (run base noQuantum N parameter).outputDistribution (sourceEnvironment input) original
+      (.bits outcome) =
       ENNReal.ofReal (∑ reference : Reference.Index,
         ExecutionState.referenceFiberSum original.state
           (fun entry _ =>

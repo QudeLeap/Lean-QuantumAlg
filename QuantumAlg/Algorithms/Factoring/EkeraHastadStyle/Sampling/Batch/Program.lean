@@ -71,7 +71,7 @@ def run : AlgorithmRun RuntimeRound.model base (context base noQuantum N) (resul
       (.product (finalParameter base noQuantum N) (finalResults base noQuantum N))))
 
 /-- Nothing live is hidden from the first batch's complete final manifest. -/
-theorem nativeBatch_output_listing :
+lemma nativeBatch_output_listing :
     (run base noQuantum N).output.listing = (context base noQuantum N).keys := rfl
 
 end

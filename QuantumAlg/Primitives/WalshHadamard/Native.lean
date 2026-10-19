@@ -35,23 +35,24 @@ open scoped BigOperators
 open NormalizedVector
 
 /-- The operator computed by the actual native layer, expressed in binary labels. -/
-public def binaryOperator (oracles : OracleModel) (width : Nat) :
+public def binaryOperator (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
     UnitaryOperator (Qubits width) :=
   UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv width)
-    (Gate.HadamardLayer.circuit oracles width).matrix
+    ((Gate.HadamardLayer.circuit oracles width).matrix environment)
 
-private theorem hadamard_entry (row column : Fin 2) :
+private lemma hadamard_entry (row column : Fin 2) :
     Gate.HOp row column = invSqrt2 *
       (if finTwoEquiv row && finTwoEquiv column then (-1 : ℂ) else 1) := by
   fin_cases row <;> fin_cases column <;> simp [Gate.HOp, finTwoEquiv]
 
-private theorem normalization_product (width : Nat) :
+private lemma normalization_product (width : Nat) :
     (∏ _ : Fin width, invSqrt2) = invSqrtCard width := by
   induction width with
   | zero => simp [invSqrtCard]
   | succ width ih => rw [Fin.prod_univ_castSucc, ih, invSqrtCard_succ]
 
-private theorem sign_product (width : Nat) (row column : Fin (2 ^ width)) :
+private lemma sign_product (width : Nat) (row column : Fin (2 ^ width)) :
     (∏ index : Fin width, if bit row index && bit column index then (-1 : ℂ) else 1) =
       walshSign row column := by
   rw [← Finset.prod_filter]
@@ -66,10 +67,11 @@ private theorem sign_product (width : Nat) (row column : Fin (2 ^ width)) :
     exact (Nat.not_odd_iff_even.mp parity).neg_one_pow
 
 /-- The actual native word realizes the original Walsh character matrix exactly. -/
-theorem native_binary_matrix (oracles : OracleModel) (width : Nat) :
-    binaryOperator oracles width = hadamardLayerOperator width := by
+lemma native_binary_matrix (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    binaryOperator oracles width environment = hadamardLayerOperator width := by
   ext row column
-  change (Gate.HadamardLayer.circuit oracles width).matrix
+  change ((Gate.HadamardLayer.circuit oracles width).matrix environment)
       ((QuantumSignature.qubitsIndexEquiv width).symm row)
       ((QuantumSignature.qubitsIndexEquiv width).symm column) = _
   rw [Gate.HadamardLayer.hadamardLayer_circuit_matrix_entry]

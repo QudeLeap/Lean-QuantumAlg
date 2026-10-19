@@ -74,73 +74,85 @@ def run (width : Nat) : AlgorithmRun model (pre width) (post width) (.finite 2) 
   output := Output.all (post width)
     (.read (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))
 
-/-- Only the complete native run is stored in the public algorithm. -/
-public def algorithm (width : Nat) : Algorithm model (pre width) (post width) (.finite 2) :=
-  ⟨run width⟩
+lemma run_output_listing (width : Nat) :
+    (run width).output.listing = (post width).keys := rfl
 
 /-- Native and abstract source operators coincide in the exact actual physical coordinates. -/
-theorem nativeProgram_matrix (width : Nat) :
-    (nativeProgram width).matrix =
-      (HadamardTest.nativeProgram (swapRegistersOp width)).matrix := by
+lemma nativeProgram_matrix (width : Nat) (actual : model.Environment) :
+    (nativeProgram width).matrix actual.quantum =
+      (HadamardTest.nativeProgram (width + width)).matrix
+        (UnitarySource.interpretation (swapRegistersOp width) true) := by
   rw [HadamardTest.nativeProgram_matrix]
-  have physical : (sourceCircuit width).matrix =
+  have physical : (sourceCircuit width).matrix actual.quantum =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + (width + width))).symm
         (swapTest width) := by
     rw [← sourceCircuit_matrix]
     exact (UnitaryOperator.unitaryOperator_reindex_cancel
       (QuantumSignature.qubitsIndexEquiv (1 + (width + width)))
-      (sourceCircuit width).matrix).symm
+      ((sourceCircuit width).matrix actual.quantum)).symm
   rw [nativeProgram, Execution.unitaryOfEqualWires_matrix, physical,
     ← OwnedQubitPrefix.canonicalBasisEquiv_eq_basisEquiv]
   exact UnitaryOperator.unitaryOperator_reindex_trans _ _ _
 
-private theorem preparation_execute (width : Nat) {Reference : Register}
+private lemma preparation_execute (width : Nat) (actual : model.Environment) {Reference :
+    Register}
     {History : Type} [Fintype History]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    (OwnedQubitPrefix.prepareCode AlgorithmGate.model .empty 1 (width + width)).execute
+    (OwnedQubitPrefix.prepareCode AlgorithmGate.model .empty 1 (width + width)).execute actual
         Reference state =
       (OwnedQubitPrefix.prepareCode AlgorithmGate.model
-        (UnitarySource.model (swapRegistersOp width) true) 1 (width + width)).execute
+        (UnitarySource.model (width + width) true) 1 (width + width)).execute
+          (HadamardTest.environment (swapRegistersOp width))
           Reference state := rfl
 
-private theorem nativeProgram_execute (width : Nat) {Reference : Register}
+private lemma nativeProgram_execute (width : Nat) (actual : model.Environment) {Reference :
+    Register}
     {History : Type} [Fintype History]
     (state : State (HadamardTest.prepared (width + width)) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
-    (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
-      (nativeProgram width)).execute Reference state =
-      (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
-        (HadamardTest.nativeProgram (swapRegistersOp width))).execute Reference state := by
+    (Circuit.unitary (allowAllocation := true)
+      (operations := .empty) (classicalOracles := .empty)
+      (nativeProgram width)).execute actual Reference state =
+      (Circuit.unitary (allowAllocation := true)
+        (operations := .empty) (classicalOracles := .empty)
+        (HadamardTest.nativeProgram (width + width))).execute (HadamardTest.environment
+          (swapRegistersOp width)) Reference state := by
   rw [Circuit.execute_unitary, Circuit.execute_unitary, nativeProgram_matrix]
+  rfl
 
-private theorem beforeMeasurement_execute (width : Nat) {Reference : Register}
+private lemma beforeMeasurement_execute (width : Nat) (actual : model.Environment) {Reference :
+    Register}
     {History : Type} [Fintype History]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    (beforeMeasurement width).execute Reference state =
-      (HadamardTest.beforeMeasurement (swapRegistersOp width)).execute Reference state := by
+    (beforeMeasurement width).execute actual Reference state =
+      (HadamardTest.beforeMeasurement (width + width)).execute (HadamardTest.environment
+        (swapRegistersOp width)) Reference state := by
   simp only [beforeMeasurement, HadamardTest.beforeMeasurement, Circuit.execute_seq,
     Circuit.execute_retain]
   rw [nativeProgram_execute, preparation_execute]
   rfl
 
-private theorem readout_execute (width : Nat) {Reference : Register}
+private lemma readout_execute (width : Nat) (actual : model.Environment) {Reference : Register}
     {History : Type} [Fintype History]
     (state : State (post width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    (readoutCode width).execute Reference state =
-      (HadamardTest.readoutCode (swapRegistersOp width)).execute Reference state := rfl
+    (readoutCode width).execute actual Reference state =
+      (HadamardTest.readoutCode (width + width)).execute (HadamardTest.environment
+        (swapRegistersOp width)) Reference state := rfl
 
 /-- The complete quantum/classical state equals the source experiment; actual event ledgers
 are derived separately from the elementary program. -/
-theorem code_execute (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+lemma code_execute (width : Nat) (actual : model.Environment) {Reference : Register} {History :
+    Type} [Fintype History]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    (code width).execute Reference state =
-      (HadamardTest.code (swapRegistersOp width)).execute Reference state := by
+    (code width).execute actual Reference state =
+      (HadamardTest.code (width + width)).execute (HadamardTest.environment (swapRegistersOp
+        width)) Reference state := by
   simp only [code, HadamardTest.code, Circuit.execute_seq]
   exact congrArg
     (fun result => result.mapHistory
       (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))))
-    ((congrArg ((readoutCode width).execute Reference)
-      (beforeMeasurement_execute width state)).trans (readout_execute width _))
+    ((congrArg ((readoutCode width).execute actual Reference)
+      (beforeMeasurement_execute width actual state)).trans (readout_execute width actual _))
 
 end
 

@@ -57,7 +57,7 @@ structure ScalePairSeparation (rawRight : CInputRef ctx (.unsignedWord width))
   rightLeft : right.key ∉ (scaleRead left).storageKeys
 
 /-- Both actual output words are the original two quotient expressions from the incoming store. -/
-theorem scalePairBody_results (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+lemma scalePairBody_results (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -88,7 +88,7 @@ theorem scalePairBody_results (rawLeft rawRight : CInputRef ctx (.unsignedWord w
     exact value.trans (by rw [oldRight, oldModulus, oldDenominator])
 
 /-- No structural caller read outside the four actual destinations changes during either call. -/
-theorem scalePairBody_read_other (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+lemma scalePairBody_read_other (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -106,7 +106,7 @@ theorem scalePairBody_read_other (rawLeft rawRight : CInputRef ctx (.unsignedWor
 
 end Descriptor
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original six native instructions share both arithmetic scratch cells. -/
@@ -133,7 +133,7 @@ def scalePairStep (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
   (second.1, (first.2, second.2))
 
 /-- Both original calls preserve the complete service, history and quantum-reference state. -/
-theorem scalePairBody_execute (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+lemma scalePairBody_execute (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -141,11 +141,11 @@ theorem scalePairBody_execute (rawLeft rawRight : CInputRef ctx (.unsignedWord w
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (scalePairBody (model := model) rawLeft rawRight modulus denominator product division
-      left right).execute Reference state = state.mapClassical (fun entry =>
+      left right).execute environment Reference state = state.mapClassical (fun entry =>
         let result := scalePairStep (model := model) rawLeft rawRight modulus denominator
           product division left right entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (scaleBody (model := model) rawLeft modulus denominator product division left)
     (scaleBody (model := model) rawRight modulus denominator product division right)
     (fun before =>
@@ -165,7 +165,7 @@ theorem scalePairBody_execute (rawLeft rawRight : CInputRef ctx (.unsignedWord w
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Exactly the original two full-product, division and resize triples are executed. -/
-theorem scalePairBody_eventTrace (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
+lemma scalePairBody_eventTrace (rawLeft rawRight : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))

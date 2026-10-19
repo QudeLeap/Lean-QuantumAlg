@@ -22,10 +22,13 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 /-- Allocating actual finite measurement cells preserves every complete prepared seed block. -/
-theorem shortDLP_runtimeMeasurementCells_seedBlocks {ctx : RuntimeCtx .quantum}
+lemma shortDLP_runtimeMeasurementCells_seedBlocks {ctx : RuntimeCtx .quantum}
     (m ell width N : Nat)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
     (dimension : ℕ+) (count : Nat)
@@ -34,7 +37,7 @@ theorem shortDLP_runtimeMeasurementCells_seedBlocks {ctx : RuntimeCtx .quantum}
     (seeded : HasSeedBlocks m ell width sameWires N state) :
     HasSeedBlocks m ell width
       ((MeasurementCells.context_quantumWires ctx dimension count).trans sameWires) N
-      ((MeasurementCells.allocate (model := model) ctx dimension count).execute
+      ((MeasurementCells.allocate (model := model) ctx dimension count).execute environment
         Reference state) := by
   have corresponding :
       (RuntimePlacement.basisEquiv m ell width
@@ -48,7 +51,8 @@ theorem shortDLP_runtimeMeasurementCells_seedBlocks {ctx : RuntimeCtx .quantum}
     | succ count induction => exact induction
   change BasisSeeded.Holds _ _
   rw [corresponding]
-  exact MeasurementCells.allocate_seeded (model := model) ctx dimension count
+  exact MeasurementCells.allocate_seeded (environment := environment)
+    (model := model) ctx dimension count
     ((RuntimePlacement.basisEquiv m ell width sameWires).symm
       (CompiledMAU.reloadLabel m ell width N)) state seeded
 

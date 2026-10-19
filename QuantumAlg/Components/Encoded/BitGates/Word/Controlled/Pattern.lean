@@ -59,7 +59,7 @@ def controlledPatternValues (expected : Fin controls → Bool) : Fin (controls +
   Fin.cases true expected
 
 /-- Exact matching of the enlarged physical source is retained control and the original pattern. -/
-theorem controlledPattern_matches (expected : Fin controls → Bool) (state : Data) :
+lemma controlledPattern_matches (expected : Fin controls → Bool) (state : Data) :
     (layout.controlledPatternLayout control sources output work).PatternMatches
         (controlledPatternValues expected) state ↔
       control.get state = true ∧ layout.PatternMatches expected state := by
@@ -74,7 +74,7 @@ def controlledPatternGates (expected : Fin controls → Bool) : List (GateSpec e
   (layout.controlledPatternLayout control sources output work).patternGates
     (controlledPatternValues expected)
 
-private theorem controlledPattern_result (expected : Fin controls → Bool) (state : Data) :
+private lemma controlledPattern_result (expected : Fin controls → Bool) (state : Data) :
     (if (layout.controlledPatternLayout control sources output work).PatternMatches
         (controlledPatternValues expected) state then layout.output.flip state else state) =
       if control.get state then
@@ -84,7 +84,7 @@ private theorem controlledPattern_result (expected : Fin controls → Bool) (sta
   by_cases selected : control.get state = true <;> simp [selected]
 
 /-- Full native-list action is the original exact pattern flip selected by the real control. -/
-theorem controlledPatternGates_step (expected : Fin controls → Bool) (state : Data) :
+lemma controlledPatternGates_step (expected : Fin controls → Bool) (state : Data) :
     GateSpec.stepList (layout.controlledPatternGates control sources output work expected) state =
       if control.get state then
         (if layout.PatternMatches expected state then layout.output.flip state else state)
@@ -95,7 +95,7 @@ theorem controlledPatternGates_step (expected : Fin controls → Bool) (state : 
       (layout.controlledPattern_result control sources output work expected state)
 
 /-- The actual reversed list has the same full-state conditional flip, including false controls. -/
-theorem controlledPatternGates_reverse_step (expected : Fin controls → Bool) (state : Data) :
+lemma controlledPatternGates_reverse_step (expected : Fin controls → Bool) (state : Data) :
     GateSpec.stepList (layout.controlledPatternGates control sources output work expected).reverse
         state =
       if control.get state then
@@ -107,7 +107,7 @@ theorem controlledPatternGates_reverse_step (expected : Fin controls → Bool) (
       (layout.controlledPattern_result control sources output work expected state)
 
 /-- The original dirty work value is restored on every input without a cleanliness premise. -/
-theorem controlledPatternGates_work (expected : Fin controls → Bool) (state : Data) :
+lemma controlledPatternGates_work (expected : Fin controls → Bool) (state : Data) :
     layout.work.get
         (GateSpec.stepList (layout.controlledPatternGates control sources output work expected)
           state) = layout.work.get state := by
@@ -116,18 +116,19 @@ theorem controlledPatternGates_work (expected : Fin controls → Bool) (state : 
     (controlledPatternValues expected) state
 
 /-- Actual pattern control retains exact encoded amplitudes and every original non-output value. -/
-theorem controlledPatternGates_realizes (expected : Fin controls → Bool) :
+lemma controlledPatternGates_realizes {environment : OracleModel.empty.Interpretation} (expected
+    : Fin controls → Bool) :
     UnitaryCircuit.Realizes encoding (layout := QubitLayout.canonical encoding.width)
       (GateSpec.programList (QubitLayout.canonical encoding.width) .empty
         (layout.controlledPatternGates control sources output work expected))
-      (fun state => if control.get state then
+      environment (fun state => if control.get state then
         (if layout.PatternMatches expected state then layout.output.flip state else state)
       else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical encoding.width) .empty _
-    (layout.controlledPatternGates_step control sources output work expected)
+    (layout.controlledPatternGates_step control sources output work expected) environment
 
 /-- Exact emitted length includes both original masks and the enlarged native conjunction. -/
-theorem controlledPatternGates_length (expected : Fin controls → Bool) :
+lemma controlledPatternGates_length (expected : Fin controls → Bool) :
     (layout.controlledPatternGates control sources output work expected).length =
       2 * (patternMaskIndices (controlledPatternValues expected)).length +
         (layout.controlledPatternLayout control sources output work).gates.length := by
@@ -136,7 +137,7 @@ theorem controlledPatternGates_length (expected : Fin controls → Bool) :
     (controlledPatternValues expected)
 
 /-- A linear bound counts the additional actual control and the complete dirty cleanup. -/
-theorem controlledPatternGates_length_le (expected : Fin controls → Bool) :
+lemma controlledPatternGates_length_le (expected : Fin controls → Bool) :
     (layout.controlledPatternGates control sources output work expected).length ≤
       10 * (controls + 1) + 1 := by
   unfold controlledPatternGates
@@ -144,7 +145,7 @@ theorem controlledPatternGates_length_le (expected : Fin controls → Bool) :
     (controlledPatternValues expected)
 
 /-- Strict unit duration uses the complete actual elementary list. -/
-theorem controlledPatternGates_unitDepth (expected : Fin controls → Bool) :
+lemma controlledPatternGates_unitDepth (expected : Fin controls → Bool) :
     (GateSpec.programList (QubitLayout.canonical encoding.width) .empty
       (layout.controlledPatternGates control sources output work expected)).evaluatedEventDepth
         (fun _ => 1) =

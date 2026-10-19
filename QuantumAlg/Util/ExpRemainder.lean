@@ -170,7 +170,7 @@ lemma norm_exp_sub_one_sub_id_le_tsum_norm [CompleteSpace 𝔸] (A : 𝔸) :
       norm_tsum_le_tsum_norm hnorm_tail
 
 /-- A second-order norm bound for the exponential in a Banach algebra. -/
-theorem norm_exp_sub_one_sub_id_le [NormOneClass 𝔸] [CompleteSpace 𝔸] (A : 𝔸) :
+lemma norm_exp_sub_one_sub_id_le [NormOneClass 𝔸] [CompleteSpace 𝔸] (A : 𝔸) :
     ‖NormedSpace.exp A - 1 - A‖ ≤
       (1 / 2) * ‖A‖ ^ 2 * Real.exp ‖A‖ := by
   have hnorm_tail : Summable fun n : ℕ =>
@@ -263,7 +263,7 @@ lemma norm_exp_sub_one_sub_id_le_tsum_norm_rclike [CompleteSpace 𝔸] (A : 𝔸
 
 /-- A second-order norm bound for the exponential in a Banach algebra over
 `ℝ` or `ℂ`. -/
-theorem norm_exp_sub_one_sub_id_le_rclike (𝕂 : Type*) [RCLike 𝕂]
+lemma norm_exp_sub_one_sub_id_le_rclike (𝕂 : Type*) [RCLike 𝕂]
     [NormedAlgebra 𝕂 𝔸] [CompleteSpace 𝔸] (A : 𝔸) :
     ‖NormedSpace.exp A - 1 - A‖ ≤
       (1 / 2) * ‖A‖ ^ 2 * Real.exp ‖A‖ := by
@@ -292,7 +292,7 @@ end RCLikeNormedRing
 
 /-- The concrete complex norm satisfies the scalar-square hypothesis used in
 the global qDRIFT bound. -/
-theorem complex_norm_scalar_square_bound (t : ℝ) (steps : ℕ) :
+lemma complex_norm_scalar_square_bound (t : ℝ) (steps : ℕ) :
     (‖(((t / (steps : ℝ) : ℝ) : ℂ) ^ 2)‖ : ℝ)
       ≤ (t / (steps : ℝ)) ^ 2 := by
   rw [norm_pow]
@@ -302,13 +302,13 @@ theorem complex_norm_scalar_square_bound (t : ℝ) (steps : ℕ) :
 
 /-- Mathlib's complex exponential second-order remainder estimate, re-exported
 in the shape used by the qDRIFT scalar remainder interface. -/
-theorem complex_exp_second_order_remainder_bound (z : ℂ) (hz : ‖z‖ ≤ 1) :
+lemma complex_exp_second_order_remainder_bound (z : ℂ) (hz : ‖z‖ ≤ 1) :
     ‖Complex.exp z - 1 - z‖ ≤ ‖z‖ ^ 2 :=
   Complex.norm_exp_sub_one_sub_id_le hz
 
 /-- Complex exponential second-order remainder bound with the global
 `exp ‖z‖` tail factor. -/
-theorem complex_exp_second_order_remainder_bound_exp (z : ℂ) :
+lemma complex_exp_second_order_remainder_bound_exp (z : ℂ) :
     ‖Complex.exp z - 1 - z‖ ≤ ‖z‖ ^ 2 * Real.exp ‖z‖ := by
   calc
     ‖Complex.exp z - 1 - z‖

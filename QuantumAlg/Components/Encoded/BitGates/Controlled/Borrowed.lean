@@ -30,7 +30,7 @@ private def usedWires : GateSpec encoding → Finset (Fin encoding.width)
   | .cnot source target _ => {source.wire, target.wire}
   | .toffoli first second target _ _ _ => {first.wire, second.wire, target.wire}
 
-private theorem usedWires_card (gate : GateSpec encoding) : (usedWires gate).card ≤ 3 := by
+private lemma usedWires_card (gate : GateSpec encoding) : (usedWires gate).card ≤ 3 := by
   cases gate with
   | x => simp [usedWires]
   | cnot => exact Finset.card_le_two.trans (by decide)
@@ -39,7 +39,7 @@ private theorem usedWires_card (gate : GateSpec encoding) : (usedWires gate).car
 private def availableWires (control : EncodedBit encoding) (gate : GateSpec encoding) :
     Finset (Fin encoding.width) := Finset.univ \ insert control.wire (usedWires gate)
 
-private theorem availableWires_nonempty (capacity : 5 ≤ encoding.width)
+private lemma availableWires_nonempty (capacity : 5 ≤ encoding.width)
     (control : EncodedBit encoding) (gate : GateSpec encoding) :
     (availableWires control gate).Nonempty := by
   apply Finset.sdiff_nonempty_of_card_lt_card
@@ -53,7 +53,7 @@ def borrowedWire (capacity : 5 ≤ encoding.width)
     (control : EncodedBit encoding) (gate : GateSpec encoding) : Fin encoding.width :=
   (availableWires control gate).min' (availableWires_nonempty capacity control gate)
 
-private theorem borrowedWire_available (capacity : 5 ≤ encoding.width)
+private lemma borrowedWire_available (capacity : 5 ≤ encoding.width)
     (control : EncodedBit encoding) (gate : GateSpec encoding) :
     borrowedWire capacity control gate ≠ control.wire ∧
       borrowedWire capacity control gate ∉ usedWires gate := by
@@ -91,7 +91,7 @@ def internalControlPlans (bitAt : Fin encoding.width → EncodedBit encoding)
           (fun next present => separated next (by simp [present]))
 
 /-- Work selection keeps every original instruction in its original position. -/
-theorem internalControlPlans_source (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma internalControlPlans_source (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (gates : List (GateSpec encoding))
@@ -115,7 +115,7 @@ def controlWithin (bitAt : Fin encoding.width → EncodedBit encoding)
     (internalControlPlans bitAt bitAt_wire capacity control gates separated)
 
 /-- Exact all-input action restores every borrowed wire inside its instruction block. -/
-theorem controlWithin_step (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma controlWithin_step (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (gates : List (GateSpec encoding))
@@ -125,20 +125,22 @@ theorem controlWithin_step (bitAt : Fin encoding.width → EncodedBit encoding)
   rw [controlWithin, listWithDirtyControlBy_step, internalControlPlans_source]
 
 /-- The emitted CNOT/Toffoli program realizes coherent selection with exact phase. -/
-theorem controlWithin_realizes (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma controlWithin_realizes (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (gates : List (GateSpec encoding))
     (separated : ∀ gate, gate ∈ gates → bitDisjoint control gate) :
     UnitaryCircuit.Realizes (layout := layout) encoding
       (programList layout oracles (controlWithin bitAt bitAt_wire capacity control gates separated))
+      environment
       (fun state => if control.get state then stepList gates state else state) :=
   realizesList_congrStep layout oracles _
-    (controlWithin_step bitAt bitAt_wire capacity control gates separated)
+    (controlWithin_step bitAt bitAt_wire capacity control gates separated) environment
 
 /-- Exact emitted length counts one gate per source X/CNOT and four per source Toffoli. -/
-theorem controlWithin_length (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma controlWithin_length (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (gates : List (GateSpec encoding))
@@ -148,7 +150,7 @@ theorem controlWithin_length (bitAt : Fin encoding.width → EncodedBit encoding
   rw [controlWithin, listWithDirtyControlBy_length, internalControlPlans_source]
 
 /-- Exact default native coordinates include the full four-Toffoli expansion. -/
-theorem controlWithin_native_counts (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma controlWithin_native_counts (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (gates : List (GateSpec encoding))
@@ -164,7 +166,7 @@ theorem controlWithin_native_counts (bitAt : Fin encoding.width → EncodedBit e
     internalControlPlans_source, and_self]
 
 /-- A parameter-only envelope bounds the real expansion, including all borrowed-bit restoration. -/
-theorem controlWithin_length_bound (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma controlWithin_length_bound (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (gates : List (GateSpec encoding))
@@ -180,7 +182,7 @@ theorem controlWithin_length_bound (bitAt : Fin encoding.width → EncodedBit en
         <;> omega
 
 /-- The actual sequential native program obeys the same gate-count and depth envelope. -/
-theorem controlWithin_resources (bitAt : Fin encoding.width → EncodedBit encoding)
+lemma controlWithin_resources (bitAt : Fin encoding.width → EncodedBit encoding)
     (bitAt_wire : ∀ position, (bitAt position).wire = position)
     (capacity : 5 ≤ encoding.width) (control : EncodedBit encoding)
     (layout : QubitLayout encoding.width) (oracles : OracleModel)

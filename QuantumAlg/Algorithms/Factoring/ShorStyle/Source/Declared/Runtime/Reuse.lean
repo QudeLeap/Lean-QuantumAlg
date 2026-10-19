@@ -31,14 +31,14 @@ local instance {N : Nat} : Fintype (SourceOutcome N) :=
     (SourceWeights.outcomeEquiv N)
 
 /-- The complete actual program has the original joint point weights. -/
-theorem iteration_source_reference (ctx : RuntimeCtx .quantum)
+lemma iteration_source_reference (ctx : RuntimeCtx .quantum)
     (N : Nat) (input : Input N) (sameWires : ctx.quantumWires = (layout N).wires)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (outcome : SourceOutcome N) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Iteration.code ctx N input sameWires).execute Reference state)
+      ((Iteration.code ctx N sameWires).execute (environment input) Reference state)
       (fun entry _ => if sourceRead ctx N entry.1 = outcome
         then 1 else 0) leftRef rightRef =
       ExecutionState.referenceFiberSum state
@@ -58,72 +58,81 @@ theorem iteration_source_reference (ctx : RuntimeCtx .quantum)
     rw [coefficient] at actual
     refine Eq.trans ?_ actual
     apply congrArg (fun observe => ExecutionState.referenceFiberSum
-      ((Iteration.code ctx N input sameWires).execute Reference state)
+      ((Iteration.code ctx N sameWires).execute (environment input) Reference state)
       observe leftRef rightRef)
     funext entry basis
     exact sourceRead_indicator ctx N entry.1 sample phase
 
 /-- The actual trace-derived source output PMF equals the original joint distribution. -/
-theorem iteration_source_toPMF (ctx : RuntimeCtx .quantum)
+lemma iteration_source_toPMF (ctx : RuntimeCtx .quantum)
     (N : Nat) (input : Input N) (sameWires : ctx.quantumWires = (layout N).wires)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized) :
-    (((Iteration.code ctx N input sameWires).execute Reference state).toPMF
-      (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans normalized)).map
+    (((Iteration.code ctx N sameWires).execute (environment input) Reference state).toPMF
+      (((Iteration.code ctx N sameWires).execute_mass
+        (environment input) Reference state).trans normalized)).map
         (fun entry => sourceRead ctx N entry.1) =
           sourceOutcomePMF input := by
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((Iteration.code ctx N input sameWires).execute Reference state) normalized
-    (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans normalized)
+    ((Iteration.code ctx N sameWires).execute (environment input) Reference state) normalized
+    (((Iteration.code ctx N sameWires).execute_mass
+      (environment input) Reference state).trans normalized)
   intro outcome leftRef rightRef
   exact iteration_source_reference ctx N input sameWires state seeded outcome leftRef rightRef
 
 
 /-- The real first completed round supplies the entire state used by the next source sample. -/
-theorem completion_next_source_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma completion_next_source_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (outcome : SourceOutcome N) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Iteration.code (Iteration.context ctx N) N input
-        ((Iteration.quantumWires ctx N).trans sameWires)).execute Reference
-          ((Completion.code ctx N input sameWires cells result).execute Reference state))
+      ((Iteration.code (Iteration.context ctx N) N
+        ((Iteration.quantumWires ctx N).trans sameWires)).execute (environment input) Reference
+          ((Completion.code ctx N input sameWires cells result).execute
+            (environment input) Reference state))
       (fun entry _ => if sourceRead (Iteration.context ctx N) N entry.1 = outcome then 1 else 0)
       leftRef rightRef =
       ExecutionState.referenceFiberSum
-        ((Completion.code ctx N input sameWires cells result).execute Reference state)
+        ((Completion.code ctx N input sameWires cells result).execute
+          (environment input) Reference state)
         (fun _ _ => ((sourceOutcomePMF input outcome).toReal : ℂ)) leftRef rightRef :=
   iteration_source_reference (Iteration.context ctx N) N input
     ((Iteration.quantumWires ctx N).trans sameWires)
-    ((Completion.code ctx N input sameWires cells result).execute Reference state)
-    (Completion.code_seeded ctx N input sameWires cells result state) outcome leftRef rightRef
+    ((Completion.code ctx N input sameWires cells result).execute
+      (environment input) Reference state)
+    (Completion.code_seeded
+      (environment := environment input) ctx N input sameWires cells result state)
+    outcome leftRef rightRef
 
 /-- Two actual complete rounds retain one unchanged physical bank and finish in fixed zero. -/
-theorem completion_two_rounds_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma completion_two_rounds_seeded (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History)) :
+    (state : State ctx Reference ((executionModel N).HiddenState × History)) :
     BasisSeeded.Holds (Iteration.context (Iteration.context ctx N) N).quantumLayout.zeroLabel
       (((Completion.code ctx N input sameWires cells result).seq
         (Completion.code (Iteration.context ctx N) N input
           ((Iteration.quantumWires ctx N).trans sameWires)
           (Completion.cells ctx N cells) (Completion.liftWrite ctx N result))).execute
-            Reference state) :=
-  BasisSeeded.seq (Completion.code ctx N input sameWires cells result)
+            (environment input) Reference state) :=
+  BasisSeeded.seq
+    (environment := environment input) (Completion.code ctx N input sameWires cells result)
     (Completion.code (Iteration.context ctx N) N input
       ((Iteration.quantumWires ctx N).trans sameWires)
       (Completion.cells ctx N cells) (Completion.liftWrite ctx N result)) _ state
-    (Completion.code_seeded (Iteration.context ctx N) N input
+    (Completion.code_seeded (environment := environment input) (Iteration.context ctx N) N input
       ((Iteration.quantumWires ctx N).trans sameWires)
       (Completion.cells ctx N cells) (Completion.liftWrite ctx N result)
-      ((Completion.code ctx N input sameWires cells result).execute Reference state))
+      ((Completion.code ctx N input sameWires cells result).execute
+        (environment input) Reference state))
 
 end
 

@@ -39,7 +39,7 @@ def frame (state : IterationState) (modulus : Nat)
   control := false
 
 /-- The retained coefficient length is exact in the original finite counter. -/
-theorem frame_coefficientLength (state : IterationState) (modulus : Nat)
+lemma frame_coefficientLength (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) (iteration : Bool) :
     (frame state modulus valid conserved iteration).coefficientLength.toNat =
       state.coefficient.size :=
@@ -47,7 +47,7 @@ theorem frame_coefficientLength (state : IterationState) (modulus : Nat)
     (Capacity.iteration_fields_le state modulus valid conserved).2.2.1
 
 /-- The retained divisor length is exact, including the terminal value zero. -/
-theorem frame_divisorLength (state : IterationState) (modulus : Nat)
+lemma frame_divisorLength (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) (iteration : Bool) :
     (frame state modulus valid conserved iteration).divisorLength.toNat = state.divisor.size :=
   NumberTheory.SharedEEA.LengthRefresh.encoded_length_toNat state.divisor modulus

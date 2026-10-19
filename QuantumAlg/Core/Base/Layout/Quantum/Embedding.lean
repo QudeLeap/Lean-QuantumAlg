@@ -50,7 +50,7 @@ public noncomputable def positionEquiv (embedding : Embedding source target) :
       exact ⟨original, Subtype.ext same⟩⟩
 
 /-- The selected position is exactly the supplied wire position. -/
-public theorem embedding_positionEquiv_val (embedding : Embedding source target)
+public lemma embedding_positionEquiv_val (embedding : Embedding source target)
     (index : Fin small) :
     (embedding.positionEquiv index).val = embedding.position index := rfl
 
@@ -71,7 +71,7 @@ public noncomputable def valueEquiv (embedding : Embedding source target) (index
     rfl
 
 /-- Reading a source value at its selected position preserves its full finite value. -/
-public theorem embedding_valueEquiv_val (embedding : Embedding source target)
+public lemma embedding_valueEquiv_val (embedding : Embedding source target)
     (index : Fin small) (value : Fin (source.wire index).dimension) :
     (embedding.valueEquiv index value).val = value.val := rfl
 
@@ -82,7 +82,7 @@ public noncomputable def selectedBasisEquiv (embedding : Embedding source target
   embedding.positionEquiv.piCongr embedding.valueEquiv
 
 /-- The ordered-subsystem basis keeps each original local value. -/
-public theorem embedding_selectedBasisEquiv_val (embedding : Embedding source target)
+public lemma embedding_selectedBasisEquiv_val (embedding : Embedding source target)
     (basis : source.Basis) (index : Fin small) :
     (embedding.selectedBasisEquiv basis (embedding.positionEquiv index)).val =
       (basis index).val := by
@@ -97,13 +97,13 @@ public noncomputable def splitBasis (embedding : Embedding source target) :
     (Equiv.prodCongr embedding.selectedBasisEquiv.symm (Equiv.refl _))
 
 /-- Splitting reads precisely the original basis value at each selected physical wire. -/
-public theorem embedding_splitBasis_selected_value (embedding : Embedding source target)
+public lemma embedding_splitBasis_selected_value (embedding : Embedding source target)
     (basis : target.Basis) (index : Fin small) :
     ((embedding.splitBasis basis).1 index).val =
       (basis (embedding.position index)).val := rfl
 
 /-- Splitting retains the exact joint basis of all unselected systems. -/
-public theorem embedding_splitBasis_complement_value (embedding : Embedding source target)
+public lemma embedding_splitBasis_complement_value (embedding : Embedding source target)
     (basis : target.Basis) (index : SelectedPosition embedding.selectionᶜ) :
     (embedding.splitBasis basis).2 index = basis index.val := rfl
 

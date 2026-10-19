@@ -56,7 +56,7 @@ def testBit {width : Nat} (word : Word width) (column : Fin width) : Bool :=
   word.val.testBit (Fin.rev column).val
 
 /-- The logical GF(2) coordinate is exactly the machine MSB-first word bit. -/
-theorem testBit_machine_coordinate {width : Nat} (word : Word width)
+lemma testBit_machine_coordinate {width : Nat} (word : Word width)
     (column : Fin width) :
     testBit word column = word.val.testBit (width - 1 - column.val) :=
   by
@@ -69,7 +69,7 @@ theorem testBit_machine_coordinate {width : Nat} (word : Word width)
 
 This remains a named bridge rather than a global simp rule so higher-level
 logical-coordinate lemmas stay in simp-normal form. -/
-theorem testBit_eq_rev {width : Nat} (word : Word width)
+lemma testBit_eq_rev {width : Nat} (word : Word width)
     (column : Fin width) :
     testBit word column = word.val.testBit (Fin.rev column).val :=
   rfl
@@ -79,7 +79,7 @@ def wordOfLogicalBits {width : Nat} (bits : Fin width → Bool) : Word width :=
   ⟨Nat.ofBits (bits ∘ Fin.rev), Nat.ofBits_lt_two_pow _⟩
 
 /-- Reading an assembled word recovers the same logical coordinate. -/
-@[simp] theorem testBit_wordOfLogicalBits {width : Nat} (bits : Fin width → Bool)
+@[simp] lemma testBit_wordOfLogicalBits {width : Nat} (bits : Fin width → Bool)
     (column : Fin width) :
     testBit (wordOfLogicalBits bits) column = bits column := by
   unfold testBit wordOfLogicalBits
@@ -96,11 +96,11 @@ public def bitValue {width : Nat} (word : Word width) (column : Fin width) : F2 
 def rowXor {width : Nat} (left right : Word width) : Word width :=
   ⟨left.val ^^^ right.val, Nat.xor_lt_two_pow left.isLt right.isLt⟩
 
-@[simp] theorem rowXor_val {width : Nat} (left right : Word width) :
+@[simp] lemma rowXor_val {width : Nat} (left right : Word width) :
     (rowXor left right).val = left.val ^^^ right.val :=
   rfl
 
-@[simp] theorem testBit_rowXor {width : Nat} (left right : Word width)
+@[simp] lemma testBit_rowXor {width : Nat} (left right : Word width)
     (column : Fin width) :
     testBit (rowXor left right) column =
       (testBit left column ^^ testBit right column) := by
@@ -126,7 +126,7 @@ def satisfies? {rowCount width : Nat} (samples : Samples rowCount width)
     decide (dot (samples row) candidate = 0)
 
 /-- The executable check is equivalent to semantic satisfaction. -/
-@[simp] theorem satisfies?_eq_true {rowCount width : Nat}
+@[simp] lemma satisfies?_eq_true {rowCount width : Nat}
     (samples : Samples rowCount width) (candidate : Word width) :
     satisfies? samples candidate = true ↔ satisfies samples candidate := by
   simp [satisfies?, satisfies]
@@ -138,19 +138,19 @@ instance decidableSatisfies {rowCount width : Nat} (samples : Samples rowCount w
   infer_instance
 
 /-- Boolean XOR is addition after embedding its bits into `ZMod 2`. -/
-theorem boolToF2_xor (left right : Bool) :
+lemma boolToF2_xor (left right : Bool) :
     ((left ^^ right).toNat : F2) =
       (left.toNat : F2) + (right.toNat : F2) := by
   cases left <;> cases right <;> decide
 
 /-- Boolean conjunction is multiplication after embedding its bits into
 `ZMod 2`. -/
-theorem boolToF2_and (left right : Bool) :
+lemma boolToF2_and (left right : Bool) :
     ((left && right).toNat : F2) =
       (left.toNat : F2) * (right.toNat : F2) := by
   cases left <;> cases right <;> decide
 
-private theorem logicalParity_fold_toF2 {width : Nat}
+private lemma logicalParity_fold_toF2 {width : Nat}
     (row candidate : Word width) (columns : List (Fin width)) (parity : Bool) :
     ((columns.foldl
       (fun current column =>
@@ -169,7 +169,7 @@ private theorem logicalParity_fold_toF2 {width : Nat}
 
 /-- The ordered machine-style Boolean parity fold is false exactly when the
 corresponding GF(2) dot product is zero. -/
-theorem logicalParity_eq_false_iff_dot_eq_zero {width : Nat}
+lemma logicalParity_eq_false_iff_dot_eq_zero {width : Nat}
     (row candidate : Word width) :
     (List.finRange width).foldl
         (fun parity column =>
@@ -207,7 +207,7 @@ theorem logicalParity_eq_false_iff_dot_eq_zero {width : Nat}
   exact boolToF2_eq_zero _
 
 /-- XOR is addition in the GF(2) bit representation. -/
-theorem bitValue_rowXor {width : Nat} (left right : Word width)
+lemma bitValue_rowXor {width : Nat} (left right : Word width)
     (column : Fin width) :
     bitValue (rowXor left right) column =
       bitValue left column + bitValue right column := by
@@ -218,7 +218,7 @@ theorem bitValue_rowXor {width : Nat} (left right : Word width)
   exact boolToF2_xor _ _
 
 /-- A row XOR distributes through the GF(2) dot product. -/
-theorem dot_rowXor {width : Nat} (left right candidate : Word width) :
+lemma dot_rowXor {width : Nat} (left right candidate : Word width) :
     dot (rowXor left right) candidate =
       dot left candidate + dot right candidate := by
   unfold dot
@@ -234,7 +234,7 @@ def rowXorAt {rowCount width : Nat} (samples : Samples rowCount width)
     Function.update samples target (rowXor (samples target) (samples pivot))
 
 /-- One elementary row XOR preserves the complete solution set. -/
-theorem satisfies_rowXorAt {rowCount width : Nat}
+lemma satisfies_rowXorAt {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot target : Fin rowCount)
     (candidate : Word width) :
     satisfies (rowXorAt samples pivot target) candidate ↔
@@ -269,7 +269,7 @@ def eliminateStep {rowCount width : Nat} (pivot : Fin rowCount)
     else samples
 
 /-- Every target-row decision preserves the solution set. -/
-theorem satisfies_eliminateStep {rowCount width : Nat} (pivot : Fin rowCount)
+lemma satisfies_eliminateStep {rowCount width : Nat} (pivot : Fin rowCount)
     (column : Fin width) (samples : Samples rowCount width)
     (target : Fin rowCount) (candidate : Word width) :
     satisfies (eliminateStep pivot column samples target) candidate ↔
@@ -299,13 +299,13 @@ def eliminateRows {rowCount width : Nat} (samples : Samples rowCount width)
   fun target => eliminateRow pivot column samples target
 
 /-- The selected pivot row is retained by one full elimination. -/
-theorem eliminateRows_pivot {rowCount width : Nat}
+lemma eliminateRows_pivot {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount) (column : Fin width) :
     eliminateRows samples pivot column pivot = samples pivot := by
   simp [eliminateRows, eliminateRow]
 
 /-- Every non-pivot target has a cleared pivot-column bit after elimination. -/
-theorem testBit_eliminateRows_other {rowCount width : Nat}
+lemma testBit_eliminateRows_other {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount) (column : Fin width)
     (pivotBit : testBit (samples pivot) column = true)
     {target : Fin rowCount} (targetNe : target ≠ pivot) :
@@ -319,7 +319,7 @@ theorem testBit_eliminateRows_other {rowCount width : Nat}
     exact Bool.eq_false_of_not_eq_true targetBit
 
 /-- A zero retained-pivot coefficient preserves another logical column. -/
-theorem testBit_eliminateRows_preserves {rowCount width : Nat}
+lemma testBit_eliminateRows_preserves {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount) (column preserved : Fin width)
     (pivotZero : testBit (samples pivot) preserved = false) (target : Fin rowCount) :
     testBit (eliminateRows samples pivot column target) preserved =
@@ -334,7 +334,7 @@ theorem testBit_eliminateRows_preserves {rowCount width : Nat}
     · rw [if_neg targetBit]
 
 /-- A finite sequence of elementary row XORs preserves every solution. -/
-theorem satisfies_foldl_eliminate {rowCount width : Nat}
+lemma satisfies_foldl_eliminate {rowCount width : Nat}
     (targets : List (Fin rowCount)) (pivot : Fin rowCount) (column : Fin width)
     (samples : Samples rowCount width) (candidate : Word width) :
     satisfies (targets.foldl (eliminateStep pivot column) samples) candidate ↔
@@ -352,7 +352,7 @@ theorem satisfies_foldl_eliminate {rowCount width : Nat}
           (satisfies_eliminateStep pivot column samples target candidate)
 
 /-- One full pivot-column elimination preserves the solution set. -/
-theorem satisfies_eliminateRows {rowCount width : Nat}
+lemma satisfies_eliminateRows {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount)
     (column : Fin width) (candidate : Word width) :
     satisfies (eliminateRows samples pivot column) candidate ↔
@@ -511,7 +511,7 @@ def firstUnusedPivot {rowCount width : Nat} (state : State rowCount width)
   Fin.find? (pivotPredicate state column)
 
 /-- A returned pivot is unused and has the requested set bit. -/
-theorem firstUnusedPivot_spec {rowCount width : Nat}
+lemma firstUnusedPivot_spec {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width} {pivot : Fin rowCount}
     (choice : firstUnusedPivot state column = some pivot) :
     pivot ∉ state.used ∧ testBit (state.rows pivot) column = true := by
@@ -524,7 +524,7 @@ theorem firstUnusedPivot_spec {rowCount width : Nat}
   simpa [pivotPredicate] using predicate
 
 /-- No lower row index satisfies the pivot predicate before a returned pivot. -/
-theorem firstUnusedPivot_is_first {rowCount width : Nat}
+lemma firstUnusedPivot_is_first {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width} {pivot row : Fin rowCount}
     (choice : firstUnusedPivot state column = some pivot) (lower : row < pivot) :
     ¬ (row ∉ state.used ∧ testBit (state.rows row) column = true) := by
@@ -553,7 +553,7 @@ def searchTrace {rowCount width : Nat} (state : State rowCount width)
           [.pivot pivot column]
 
 /-- An exhausted search means that every row probe fails the pivot predicate. -/
-theorem firstUnusedPivot_none_rejects {rowCount width : Nat}
+lemma firstUnusedPivot_none_rejects {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width}
     (choice : firstUnusedPivot state column = none) (row : Fin rowCount) :
     ¬ (row ∉ state.used ∧ testBit (state.rows row) column = true) := by
@@ -564,7 +564,7 @@ theorem firstUnusedPivot_none_rejects {rowCount width : Nat}
   simpa [pivotPredicate] using failed
 
 /-- An exhausted pivot search gives zero in that column for every unused row. -/
-theorem firstUnusedPivot_none_bit_eq_false {rowCount width : Nat}
+lemma firstUnusedPivot_none_bit_eq_false {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width}
     (choice : firstUnusedPivot state column = none) {row : Fin rowCount}
     (unused : row ∉ state.used) :
@@ -574,7 +574,7 @@ theorem firstUnusedPivot_none_bit_eq_false {rowCount width : Nat}
   · exact Bool.eq_false_of_not_eq_true bit
 
 /-- The no-pivot branch exposes every ordered row rejection explicitly. -/
-theorem searchTrace_none {rowCount width : Nat}
+lemma searchTrace_none {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width}
     (choice : firstUnusedPivot state column = none) :
     searchTrace state column =
@@ -583,7 +583,7 @@ theorem searchTrace_none {rowCount width : Nat}
   simp [searchTrace, choice]
 
 /-- The pivot branch exposes precisely the probes preceding its first pivot. -/
-theorem searchTrace_some {rowCount width : Nat}
+lemma searchTrace_some {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width} {pivot : Fin rowCount}
     (choice : firstUnusedPivot state column = some pivot) :
     searchTrace state column =
@@ -593,7 +593,7 @@ theorem searchTrace_some {rowCount width : Nat}
   simp [searchTrace, choice]
 
 /-- Every rejection retained in a search trace is a genuinely failed probe. -/
-theorem searchTrace_rejected_sound {rowCount width : Nat}
+lemma searchTrace_rejected_sound {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width} {row : Fin rowCount}
     (event : TraceEvent.rejected row column ∈ searchTrace state column) :
     ¬ (row ∉ state.used ∧ testBit (state.rows row) column = true) := by
@@ -619,7 +619,7 @@ def stepColumn {rowCount width : Nat} (column : Fin width)
         trace := state.trace ++ searchTrace state column }
 
 /-- Each processed column preserves the complete solution set. -/
-theorem satisfies_stepColumn {rowCount width : Nat} (column : Fin width)
+lemma satisfies_stepColumn {rowCount width : Nat} (column : Fin width)
     (state : State rowCount width) (candidate : Word width) :
     satisfies (stepColumn column state).rows candidate ↔
       satisfies state.rows candidate := by
@@ -689,7 +689,7 @@ def pivotColumnMask {rowCount width : Nat} (result : Result rowCount width) :
 
 /-- A pivot-column mask reads the pivot decision at every logical
 coordinate. -/
-theorem testBit_pivotColumnMask {rowCount width : Nat}
+lemma testBit_pivotColumnMask {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     testBit (pivotColumnMask result) column = isPivotColumn result column := by
   simp [pivotColumnMask]
@@ -707,7 +707,7 @@ def freeColumnMask {rowCount width : Nat} (result : Result rowCount width) :
 
 /-- A free-column mask reads the failed-pivot-lookup decision at every
 logical coordinate. -/
-theorem testBit_freeColumnMask {rowCount width : Nat}
+lemma testBit_freeColumnMask {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     testBit (freeColumnMask result) column =
       decide (pivotForColumn? result column = none) := by
@@ -715,7 +715,7 @@ theorem testBit_freeColumnMask {rowCount width : Nat}
 
 /-- Every free-column mask bit is the Boolean complement of the corresponding
 pivot-column decision. -/
-theorem testBit_freeColumnMask_eq_not_isPivotColumn {rowCount width : Nat}
+lemma testBit_freeColumnMask_eq_not_isPivotColumn {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     testBit (freeColumnMask result) column = !isPivotColumn result column := by
   cases lookup : pivotForColumn? result column <;>
@@ -723,7 +723,7 @@ theorem testBit_freeColumnMask_eq_not_isPivotColumn {rowCount width : Nat}
 
 /-- The canonical free-column mask is the logical word formed by complementing
 the pivot-column decisions coordinatewise. -/
-theorem freeColumnMask_eq_wordOfLogicalBits_not_isPivotColumn
+lemma freeColumnMask_eq_wordOfLogicalBits_not_isPivotColumn
     {rowCount width : Nat} (result : Result rowCount width) :
     freeColumnMask result =
       wordOfLogicalBits (fun column => !isPivotColumn result column) := by
@@ -744,7 +744,7 @@ theorem freeColumnMask_eq_wordOfLogicalBits_not_isPivotColumn
 
 /-- Free- and pivot-column masks are Boolean complements at every logical
 coordinate. -/
-theorem testBit_freeColumnMask_eq_not_testBit_pivotColumnMask
+lemma testBit_freeColumnMask_eq_not_testBit_pivotColumnMask
     {rowCount width : Nat} (result : Result rowCount width)
     (column : Fin width) :
     testBit (freeColumnMask result) column =
@@ -753,7 +753,7 @@ theorem testBit_freeColumnMask_eq_not_testBit_pivotColumnMask
 
 /-- The free-column mask is the logical-bit complement of the canonical
 pivot-column mask. -/
-theorem freeColumnMask_eq_wordOfLogicalBits_not_testBit_pivotColumnMask
+lemma freeColumnMask_eq_wordOfLogicalBits_not_testBit_pivotColumnMask
     {rowCount width : Nat} (result : Result rowCount width) :
     freeColumnMask result =
       wordOfLogicalBits
@@ -793,14 +793,14 @@ def backSubstitute {rowCount width : Nat} (result : Result rowCount width)
   wordOfLogicalBits (backSubstituteBit result free)
 
 /-- The back-substitution word has exactly its declared logical coordinates. -/
-@[simp] theorem testBit_backSubstitute {rowCount width : Nat}
+@[simp] lemma testBit_backSubstitute {rowCount width : Nat}
     (result : Result rowCount width) (free column : Fin width) :
     testBit (backSubstitute result free) column =
       backSubstituteBit result free column := by
   simp [backSubstitute]
 
 /-- The chosen free coordinate of a back-substitution word is one. -/
-theorem testBit_backSubstitute_free {rowCount width : Nat}
+lemma testBit_backSubstitute_free {rowCount width : Nat}
     (result : Result rowCount width) (free : Fin width) :
     testBit (backSubstitute result free) free = true := by
   rw [testBit_backSubstitute]
@@ -822,7 +822,7 @@ def recover? {rowCount width : Nat} (samples : Samples rowCount width) :
         if satisfies? samples candidate = true then some candidate else none
 
 /-- Every successful polynomial recovery is nonzero and satisfies the originals. -/
-theorem recover?_sound {rowCount width : Nat}
+lemma recover?_sound {rowCount width : Nat}
     (samples : Samples rowCount width) {candidate : Word width}
     (output : recover? samples = some candidate) :
     candidate ≠ 0 ∧ satisfies samples candidate := by
@@ -845,7 +845,7 @@ theorem recover?_sound {rowCount width : Nat}
             exact ⟨zero, sat⟩
 
 /-- A run over any ordered column list preserves the complete solution set. -/
-theorem satisfies_runColumns {rowCount width : Nat}
+lemma satisfies_runColumns {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width)
     (candidate : Word width) :
     satisfies (runColumns columns state).rows candidate ↔
@@ -861,14 +861,14 @@ theorem satisfies_runColumns {rowCount width : Nat}
           (satisfies_stepColumn column state candidate)
 
 /-- The reduced equations have exactly the same kernel as the original samples. -/
-theorem reduce_kernel_equiv {rowCount width : Nat}
+lemma reduce_kernel_equiv {rowCount width : Nat}
     (samples : Samples rowCount width) (candidate : Word width) :
     satisfies samples candidate ↔ satisfies (reduce samples).reduced candidate := by
   simpa [reduce, finalState, initial] using
     (satisfies_runColumns (List.finRange width) (initial samples) candidate).symm
 
 /-- One column step preserves the pivotCount/pivot-list counting invariant. -/
-theorem stepColumn_pivotCount_eq_pivots_length {rowCount width : Nat}
+lemma stepColumn_pivotCount_eq_pivots_length {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width)
     (invariant : state.pivotCount = state.pivots.length) :
     (stepColumn column state).pivotCount = (stepColumn column state).pivots.length := by
@@ -877,7 +877,7 @@ theorem stepColumn_pivotCount_eq_pivots_length {rowCount width : Nat}
   | some pivot => simp [stepColumn, choice, invariant]
 
 /-- The pivot-count invariant is preserved over any ordered column list. -/
-theorem runColumns_pivotCount_eq_pivots_length {rowCount width : Nat}
+lemma runColumns_pivotCount_eq_pivots_length {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width)
     (invariant : state.pivotCount = state.pivots.length) :
     (runColumns columns state).pivotCount =
@@ -892,26 +892,26 @@ theorem runColumns_pivotCount_eq_pivots_length {rowCount width : Nat}
         (stepColumn_pivotCount_eq_pivots_length column state invariant)
 
 /-- The initial pivotCount is the length of its empty pivot list. -/
-@[simp] theorem initial_pivotCount_eq_pivots_length {rowCount width : Nat}
+@[simp] lemma initial_pivotCount_eq_pivots_length {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (initial samples).pivotCount = (initial samples).pivots.length :=
   rfl
 
 /-- The executable final pivotCount is exactly the number of recorded pivots. -/
-theorem finalState_pivotCount_eq_pivots_length {rowCount width : Nat}
+lemma finalState_pivotCount_eq_pivots_length {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).pivotCount = (finalState samples).pivots.length := by
   exact runColumns_pivotCount_eq_pivots_length (List.finRange width) (initial samples)
     (initial_pivotCount_eq_pivots_length samples)
 
 /-- The public pivotCount is exactly the length of the public pivot list. -/
-theorem reduce_pivotCount_eq_pivots_length {rowCount width : Nat}
+lemma reduce_pivotCount_eq_pivots_length {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (reduce samples).pivotCount = (reduce samples).pivots.length := by
   simpa [reduce] using finalState_pivotCount_eq_pivots_length samples
 
 /-- One column can increase the executable pivotCount by at most one. -/
-theorem stepColumn_pivotCount_le_succ {rowCount width : Nat}
+lemma stepColumn_pivotCount_le_succ {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width) :
     (stepColumn column state).pivotCount ≤ state.pivotCount + 1 := by
   cases choice : firstUnusedPivot state column with
@@ -919,7 +919,7 @@ theorem stepColumn_pivotCount_le_succ {rowCount width : Nat}
   | some pivot => simp [stepColumn, choice]
 
 /-- Processing `k` supplied columns increases pivotCount by at most `k`. -/
-theorem runColumns_pivotCount_le_add_length {rowCount width : Nat}
+lemma runColumns_pivotCount_le_add_length {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width) :
     (runColumns columns state).pivotCount ≤ state.pivotCount + columns.length := by
   induction columns generalizing state with
@@ -936,27 +936,27 @@ theorem runColumns_pivotCount_le_add_length {rowCount width : Nat}
           rw [List.length_cons, Nat.add_assoc, Nat.add_comm 1 columns.length]
 
 /-- The final executable pivotCount is bounded by the number of processed columns. -/
-theorem finalState_pivotCount_le_width {rowCount width : Nat}
+lemma finalState_pivotCount_le_width {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).pivotCount ≤ width := by
   simpa [finalState, initial] using
     (runColumns_pivotCount_le_add_length (List.finRange width) (initial samples))
 
 /-- The public executable pivotCount is bounded by the word width. -/
-theorem reduce_pivotCount_le_width {rowCount width : Nat}
+lemma reduce_pivotCount_le_width {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (reduce samples).pivotCount ≤ width := by
   simpa [reduce] using finalState_pivotCount_le_width samples
 
 /-- A returned first pivot is not already in the used-row set. -/
-theorem firstUnusedPivot_not_mem_used {rowCount width : Nat}
+lemma firstUnusedPivot_not_mem_used {rowCount width : Nat}
     {state : State rowCount width} {column : Fin width} {pivot : Fin rowCount}
     (choice : firstUnusedPivot state column = some pivot) :
     pivot ∉ state.used :=
   (firstUnusedPivot_spec choice).1
 
 /-- One column step preserves the pivotCount/used-row-cardinality invariant. -/
-theorem stepColumn_pivotCount_eq_used_card {rowCount width : Nat}
+lemma stepColumn_pivotCount_eq_used_card {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width)
     (invariant : state.pivotCount = state.used.card) :
     (stepColumn column state).pivotCount = (stepColumn column state).used.card := by
@@ -969,7 +969,7 @@ theorem stepColumn_pivotCount_eq_used_card {rowCount width : Nat}
       rw [invariant]
 
 /-- The pivotCount/used-row-cardinality invariant survives any ordered column list. -/
-theorem runColumns_pivotCount_eq_used_card {rowCount width : Nat}
+lemma runColumns_pivotCount_eq_used_card {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width)
     (invariant : state.pivotCount = state.used.card) :
     (runColumns columns state).pivotCount = (runColumns columns state).used.card := by
@@ -983,7 +983,7 @@ theorem runColumns_pivotCount_eq_used_card {rowCount width : Nat}
         (stepColumn_pivotCount_eq_used_card column state invariant)
 
 /-- A column step keeps `used` equal to the distinct row indices in its pivots. -/
-theorem stepColumn_used_eq_pivotRows_toFinset {rowCount width : Nat}
+lemma stepColumn_used_eq_pivotRows_toFinset {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width)
     (invariant : state.used = (pivotRows state.pivots).toFinset) :
     (stepColumn column state).used =
@@ -993,7 +993,7 @@ theorem stepColumn_used_eq_pivotRows_toFinset {rowCount width : Nat}
   | some pivot => simp [stepColumn, choice, pivotRows, invariant]
 
 /-- The used-row/pivot-row correspondence survives an ordered column pass. -/
-theorem runColumns_used_eq_pivotRows_toFinset {rowCount width : Nat}
+lemma runColumns_used_eq_pivotRows_toFinset {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width)
     (invariant : state.used = (pivotRows state.pivots).toFinset) :
     (runColumns columns state).used =
@@ -1008,13 +1008,13 @@ theorem runColumns_used_eq_pivotRows_toFinset {rowCount width : Nat}
         (stepColumn_used_eq_pivotRows_toFinset column state invariant)
 
 /-- The initial state records no used or pivot row. -/
-@[simp] theorem initial_used_eq_pivotRows_toFinset {rowCount width : Nat}
+@[simp] lemma initial_used_eq_pivotRows_toFinset {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (initial samples).used = (pivotRows (initial samples).pivots).toFinset := by
   simp [initial, pivotRows]
 
 /-- The final used set is exactly the distinct list of selected pivot rows. -/
-theorem finalState_used_eq_pivotRows_toFinset {rowCount width : Nat}
+lemma finalState_used_eq_pivotRows_toFinset {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).used =
       (pivotRows (finalState samples).pivots).toFinset := by
@@ -1022,14 +1022,14 @@ theorem finalState_used_eq_pivotRows_toFinset {rowCount width : Nat}
     (initial_used_eq_pivotRows_toFinset samples)
 
 /-- The final pivotCount equals the number of distinct used pivot rows. -/
-theorem finalState_pivotCount_eq_used_card {rowCount width : Nat}
+lemma finalState_pivotCount_eq_used_card {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).pivotCount = (finalState samples).used.card := by
   exact runColumns_pivotCount_eq_used_card (List.finRange width) (initial samples) (by
     simp [initial])
 
 /-- The final executable pivotCount counts distinct selected pivot-row indices. -/
-theorem finalState_pivotCount_eq_distinct_pivot_rows {rowCount width : Nat}
+lemma finalState_pivotCount_eq_distinct_pivot_rows {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).pivotCount =
       (pivotRows (finalState samples).pivots).toFinset.card := by
@@ -1037,14 +1037,14 @@ theorem finalState_pivotCount_eq_distinct_pivot_rows {rowCount width : Nat}
     finalState_used_eq_pivotRows_toFinset samples]
 
 /-- The public executable pivotCount counts distinct recorded pivot rows. -/
-theorem reduce_pivotCount_eq_distinct_pivot_rows {rowCount width : Nat}
+lemma reduce_pivotCount_eq_distinct_pivot_rows {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (reduce samples).pivotCount =
       (pivotRows (reduce samples).pivots).toFinset.card := by
   simpa [reduce] using finalState_pivotCount_eq_distinct_pivot_rows samples
 
 /-- Pivot row records in a completed reduction are pairwise distinct. -/
-theorem finalState_pivotRows_nodup {rowCount width : Nat}
+lemma finalState_pivotRows_nodup {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (pivotRows (finalState samples).pivots).Nodup := by
   let rows := pivotRows (finalState samples).pivots
@@ -1063,13 +1063,13 @@ theorem finalState_pivotRows_nodup {rowCount width : Nat}
     (Multiset.toFinset_card_eq_card_iff_nodup.mp multisetCardEq)
 
 /-- Public pivot records retain pairwise distinct row indices. -/
-theorem reduce_pivotRows_nodup {rowCount width : Nat}
+lemma reduce_pivotRows_nodup {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (pivotRows (reduce samples).pivots).Nodup := by
   simpa [reduce] using finalState_pivotRows_nodup samples
 
 /-- The final executable pivotCount cannot exceed the number of ordered sample rows. -/
-theorem finalState_pivotCount_le_rowCount {rowCount width : Nat}
+lemma finalState_pivotCount_le_rowCount {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).pivotCount ≤ rowCount := by
   calc
@@ -1078,7 +1078,7 @@ theorem finalState_pivotCount_le_rowCount {rowCount width : Nat}
     _ ≤ rowCount := card_finset_fin_le _
 
 /-- The public executable pivotCount cannot exceed the number of ordered sample rows. -/
-theorem reduce_pivotCount_le_rowCount {rowCount width : Nat}
+lemma reduce_pivotCount_le_rowCount {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (reduce samples).pivotCount ≤ rowCount := by
   simpa [reduce] using finalState_pivotCount_le_rowCount samples
@@ -1107,7 +1107,7 @@ def PivotColumnsAvoid {rowCount width : Nat} (state : State rowCount width)
   ∀ ⦃column⦄, column ∈ pivotColumns state.pivots → column ∉ columns
 
 /-- A recorded pivot row is present in the corresponding used-row set. -/
-theorem pivotRow_mem_used {rowCount width : Nat} {state : State rowCount width}
+lemma pivotRow_mem_used {rowCount width : Nat} {state : State rowCount width}
     (invariant : ReducedStateInvariant state) {pivot : Pivot rowCount width}
     (member : pivot ∈ state.pivots) :
     pivot.row ∈ state.used := by
@@ -1115,7 +1115,7 @@ theorem pivotRow_mem_used {rowCount width : Nat} {state : State rowCount width}
   exact List.mem_toFinset.mpr (List.mem_map.mpr ⟨pivot, member, rfl⟩)
 
 /-- A later column step leaves every already-recorded pivot column unchanged. -/
-theorem stepColumn_preserves_recorded_pivot_column {rowCount width : Nat}
+lemma stepColumn_preserves_recorded_pivot_column {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width)
     (invariant : ReducedStateInvariant state) {recorded : Pivot rowCount width}
     (recordedMem : recorded ∈ state.pivots) (target : Fin rowCount) :
@@ -1139,7 +1139,7 @@ theorem stepColumn_preserves_recorded_pivot_column {rowCount width : Nat}
           pivotZero target)
 
 /-- A column step keeps all recorded pivot columns outside the remaining pass. -/
-theorem stepColumn_pivotColumnsAvoid_tail {rowCount width : Nat}
+lemma stepColumn_pivotColumnsAvoid_tail {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width)
     (columns : List (Fin width))
     (avoid : PivotColumnsAvoid state (column :: columns))
@@ -1160,7 +1160,7 @@ theorem stepColumn_pivotColumnsAvoid_tail {rowCount width : Nat}
       · exact columnNotMem remainingMem
 
 /-- One fresh column step preserves the full reduced-state invariant. -/
-theorem stepColumn_reducedStateInvariant {rowCount width : Nat}
+lemma stepColumn_reducedStateInvariant {rowCount width : Nat}
     (column : Fin width) (state : State rowCount width)
     (invariant : ReducedStateInvariant state)
     (fresh : column ∉ pivotColumns state.pivots) :
@@ -1230,7 +1230,7 @@ theorem stepColumn_reducedStateInvariant {rowCount width : Nat}
             simpa [stepColumn, choice, targetPivot] using cleared
 
 /-- An ordered pass of pairwise distinct fresh columns preserves reduced form. -/
-theorem runColumns_reducedStateInvariant {rowCount width : Nat}
+lemma runColumns_reducedStateInvariant {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width)
     (invariant : ReducedStateInvariant state) (columnsNodup : columns.Nodup)
     (avoid : PivotColumnsAvoid state columns) :
@@ -1251,7 +1251,7 @@ theorem runColumns_reducedStateInvariant {rowCount width : Nat}
         (List.nodup_cons.mp columnsNodup).2 nextAvoid
 
 /-- The initial state satisfies the reduced-state invariant vacuously. -/
-theorem initial_reducedStateInvariant {rowCount width : Nat}
+lemma initial_reducedStateInvariant {rowCount width : Nat}
     (samples : Samples rowCount width) :
     ReducedStateInvariant (initial samples) := by
   refine
@@ -1263,14 +1263,14 @@ theorem initial_reducedStateInvariant {rowCount width : Nat}
   simp [initial] at member
 
 /-- Initially every column is fresh for the empty pivot record. -/
-theorem initial_pivotColumnsAvoid {rowCount width : Nat}
+lemma initial_pivotColumnsAvoid {rowCount width : Nat}
     (samples : Samples rowCount width) (columns : List (Fin width)) :
   PivotColumnsAvoid (initial samples) columns := by
   intro column member
   simp [initial, pivotColumns] at member
 
 /-- The completed ordered reduction has unit recorded pivot columns. -/
-theorem finalState_reducedStateInvariant {rowCount width : Nat}
+lemma finalState_reducedStateInvariant {rowCount width : Nat}
     (samples : Samples rowCount width) :
     ReducedStateInvariant (finalState samples) := by
   unfold finalState
@@ -1279,13 +1279,13 @@ theorem finalState_reducedStateInvariant {rowCount width : Nat}
     (initial_pivotColumnsAvoid samples (List.finRange width))
 
 /-- Completed pivot columns are pairwise distinct. -/
-theorem finalState_pivotColumns_nodup {rowCount width : Nat}
+lemma finalState_pivotColumns_nodup {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (pivotColumns (finalState samples).pivots).Nodup :=
   (finalState_reducedStateInvariant samples).pivotColumns_nodup
 
 /-- Every completed pivot coordinate is a unit column of the final row system. -/
-theorem finalState_pivotColumn_unit {rowCount width : Nat}
+lemma finalState_pivotColumn_unit {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Pivot rowCount width)
     (member : pivot ∈ (finalState samples).pivots) (row : Fin rowCount) :
     testBit ((finalState samples).rows row) pivot.column =
@@ -1293,13 +1293,13 @@ theorem finalState_pivotColumn_unit {rowCount width : Nat}
   (finalState_reducedStateInvariant samples).pivotColumns_unit pivot member row
 
 /-- Public reduction records pairwise distinct pivot columns. -/
-theorem reduce_pivotColumns_nodup {rowCount width : Nat}
+lemma reduce_pivotColumns_nodup {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (pivotColumns (reduce samples).pivots).Nodup := by
   simpa [reduce] using finalState_pivotColumns_nodup samples
 
 /-- Every public recorded pivot coordinate is a unit column of the reduced rows. -/
-theorem reduce_pivotColumn_unit {rowCount width : Nat}
+lemma reduce_pivotColumn_unit {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Pivot rowCount width)
     (member : pivot ∈ (reduce samples).pivots) (row : Fin rowCount) :
     testBit ((reduce samples).reduced row) pivot.column =
@@ -1316,7 +1316,7 @@ def ProcessedColumnsZero {rowCount width : Nat} (processed : List (Fin width))
     testBit (state.rows row) column = false
 
 /-- Processing one more column extends the unused-row zero invariant. -/
-theorem stepColumn_processedColumnsZero {rowCount width : Nat}
+lemma stepColumn_processedColumnsZero {rowCount width : Nat}
     (processed : List (Fin width)) (column : Fin width)
     (state : State rowCount width)
     (invariant : ProcessedColumnsZero processed state) :
@@ -1362,7 +1362,7 @@ theorem stepColumn_processedColumnsZero {rowCount width : Nat}
           (testBit_eliminateRows_other state.rows pivot column pivotSpec.2 rowNePivot)
 
 /-- Extending an ordered pass extends its set of certified processed columns. -/
-theorem runColumns_processedColumnsZero {rowCount width : Nat}
+lemma runColumns_processedColumnsZero {rowCount width : Nat}
     (processed columns : List (Fin width)) (state : State rowCount width)
     (invariant : ProcessedColumnsZero processed state) :
     ProcessedColumnsZero (processed ++ columns) (runColumns columns state) := by
@@ -1380,7 +1380,7 @@ theorem runColumns_processedColumnsZero {rowCount width : Nat}
 
 /-- The initial pass has no processed columns, hence satisfies the invariant
 vacuously. -/
-theorem initial_processedColumnsZero {rowCount width : Nat}
+lemma initial_processedColumnsZero {rowCount width : Nat}
     (samples : Samples rowCount width) :
     ProcessedColumnsZero [] (initial samples) := by
   intro row unused column member
@@ -1388,7 +1388,7 @@ theorem initial_processedColumnsZero {rowCount width : Nat}
 
 /-- At completion, every row that was never selected as a pivot is the zero
 row in every logical coordinate. -/
-theorem finalState_unusedRows_zero {rowCount width : Nat}
+lemma finalState_unusedRows_zero {rowCount width : Nat}
     (samples : Samples rowCount width) (row : Fin rowCount)
     (unused : row ∉ (finalState samples).used) (column : Fin width) :
     testBit ((finalState samples).rows row) column = false := by
@@ -1401,7 +1401,7 @@ theorem finalState_unusedRows_zero {rowCount width : Nat}
   exact completed row unused column (by simp)
 
 /-- A final row is either its recorded pivot row or is the all-zero row. -/
-theorem finalState_row_is_pivot_or_zero {rowCount width : Nat}
+lemma finalState_row_is_pivot_or_zero {rowCount width : Nat}
     (samples : Samples rowCount width) (row : Fin rowCount) :
     (∃ pivot, pivot ∈ (finalState samples).pivots ∧ pivot.row = row) ∨
       ∀ column, testBit ((finalState samples).rows row) column = false := by
@@ -1417,7 +1417,7 @@ theorem finalState_row_is_pivot_or_zero {rowCount width : Nat}
 
 /-- Public reduced rows are exactly the recorded pivot rows together with
 zero rows. -/
-theorem reduce_row_is_pivot_or_zero {rowCount width : Nat}
+lemma reduce_row_is_pivot_or_zero {rowCount width : Nat}
     (samples : Samples rowCount width) (row : Fin rowCount) :
     (∃ pivot, pivot ∈ (reduce samples).pivots ∧ pivot.row = row) ∨
       ∀ column, testBit ((reduce samples).reduced row) column = false := by
@@ -1438,25 +1438,25 @@ def rowSpan {rowCount width : Nat} (samples : Samples rowCount width) :
   Submodule.span F2 (Set.range (fun row => rowVector (samples row)))
 
 /-- A matrix row is exactly the coordinate vector of the corresponding sample. -/
-@[simp] theorem sampleMatrix_row {rowCount width : Nat}
+@[simp] lemma sampleMatrix_row {rowCount width : Nat}
     (samples : Samples rowCount width) (row : Fin rowCount) :
     (sampleMatrix samples).row row = rowVector (samples row) :=
   rfl
 
 /-- Word XOR is vector addition in the concrete GF(2) row representation. -/
-theorem rowVector_rowXor {width : Nat} (left right : Word width) :
+lemma rowVector_rowXor {width : Nat} (left right : Word width) :
     rowVector (rowXor left right) = rowVector left + rowVector right := by
   funext column
   exact bitValue_rowXor left right column
 
 /-- A concrete sample row belongs to its declared row space. -/
-theorem rowVector_mem_rowSpan {rowCount width : Nat}
+lemma rowVector_mem_rowSpan {rowCount width : Nat}
     (samples : Samples rowCount width) (row : Fin rowCount) :
     rowVector (samples row) ∈ rowSpan samples := by
   exact Submodule.subset_span ⟨row, rfl⟩
 
 /-- One output row of an elimination is in the span of its input rows. -/
-theorem rowVector_eliminateRows_mem_rowSpan {rowCount width : Nat}
+lemma rowVector_eliminateRows_mem_rowSpan {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount) (column : Fin width)
     (target : Fin rowCount) :
     rowVector (eliminateRows samples pivot column target) ∈ rowSpan samples := by
@@ -1473,7 +1473,7 @@ theorem rowVector_eliminateRows_mem_rowSpan {rowCount width : Nat}
       exact rowVector_mem_rowSpan samples target
 
 /-- Over GF(2), adding a vector to itself gives the zero vector. -/
-theorem rowVector_add_self {width : Nat} (vector : Fin width → F2) :
+lemma rowVector_add_self {width : Nat} (vector : Fin width → F2) :
     vector + vector = 0 := by
   funext column
   calc
@@ -1484,7 +1484,7 @@ theorem rowVector_add_self {width : Nat} (vector : Fin width → F2) :
     _ = 0 := zero_mul (vector column)
 
 /-- Every input row is in the span of the rows after one elimination. -/
-theorem rowVector_mem_rowSpan_eliminateRows {rowCount width : Nat}
+lemma rowVector_mem_rowSpan_eliminateRows {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount) (column : Fin width)
     (target : Fin rowCount) :
     rowVector (samples target) ∈ rowSpan (eliminateRows samples pivot column) := by
@@ -1536,7 +1536,7 @@ theorem rowVector_mem_rowSpan_eliminateRows {rowCount width : Nat}
       exact rowVector_mem_rowSpan (eliminateRows samples pivot column) target
 
 /-- A full XOR elimination preserves the concrete GF(2) row space. -/
-theorem rowSpan_eliminateRows {rowCount width : Nat}
+lemma rowSpan_eliminateRows {rowCount width : Nat}
     (samples : Samples rowCount width) (pivot : Fin rowCount) (column : Fin width) :
     rowSpan (eliminateRows samples pivot column) = rowSpan samples := by
   apply le_antisymm
@@ -1548,7 +1548,7 @@ theorem rowSpan_eliminateRows {rowCount width : Nat}
     exact rowVector_mem_rowSpan_eliminateRows samples pivot column target
 
 /-- One ordered column decision preserves the concrete GF(2) row space. -/
-theorem rowSpan_stepColumn {rowCount width : Nat} (column : Fin width)
+lemma rowSpan_stepColumn {rowCount width : Nat} (column : Fin width)
     (state : State rowCount width) :
     rowSpan (stepColumn column state).rows = rowSpan state.rows := by
   cases choice : firstUnusedPivot state column with
@@ -1558,7 +1558,7 @@ theorem rowSpan_stepColumn {rowCount width : Nat} (column : Fin width)
         (rowSpan_eliminateRows state.rows pivot column)
 
 /-- Any ordered sequence of column decisions preserves the row space. -/
-theorem rowSpan_runColumns {rowCount width : Nat}
+lemma rowSpan_runColumns {rowCount width : Nat}
     (columns : List (Fin width)) (state : State rowCount width) :
     rowSpan (runColumns columns state).rows = rowSpan state.rows := by
   induction columns generalizing state with
@@ -1572,20 +1572,20 @@ theorem rowSpan_runColumns {rowCount width : Nat}
         _ = rowSpan state.rows := rowSpan_stepColumn column state
 
 /-- The completed ordered reduction has the same row space as its input samples. -/
-theorem rowSpan_finalState {rowCount width : Nat}
+lemma rowSpan_finalState {rowCount width : Nat}
     (samples : Samples rowCount width) :
     rowSpan (finalState samples).rows = rowSpan samples := by
   simpa [finalState, initial] using
     (rowSpan_runColumns (List.finRange width) (initial samples))
 
 /-- The public reduced rows span exactly the row space of the input samples. -/
-theorem rowSpan_reduce {rowCount width : Nat}
+lemma rowSpan_reduce {rowCount width : Nat}
     (samples : Samples rowCount width) :
     rowSpan (reduce samples).reduced = rowSpan samples := by
   simpa [reduce] using rowSpan_finalState samples
 
 /-- Mathlib's matrix rank is the finrank of the concrete ordered sample row space. -/
-theorem sampleMatrix_rank_eq_finrank_rowSpan {rowCount width : Nat}
+lemma sampleMatrix_rank_eq_finrank_rowSpan {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (sampleMatrix samples).rank = Module.finrank F2 (rowSpan samples) := by
   change (sampleMatrix samples).rank =
@@ -1593,7 +1593,7 @@ theorem sampleMatrix_rank_eq_finrank_rowSpan {rowCount width : Nat}
   exact Matrix.rank_eq_finrank_span_row (sampleMatrix samples)
 
 /-- A successful pivot lookup returns a pivot actually recorded in the result. -/
-theorem pivotForColumn?_some_mem {rowCount width : Nat}
+lemma pivotForColumn?_some_mem {rowCount width : Nat}
     {result : Result rowCount width} {column : Fin width}
     {pivot : Pivot rowCount width}
     (lookup : pivotForColumn? result column = some pivot) :
@@ -1602,7 +1602,7 @@ theorem pivotForColumn?_some_mem {rowCount width : Nat}
   exact List.mem_of_find?_eq_some lookup
 
 /-- The pivot returned by a successful lookup has the requested column. -/
-theorem pivotForColumn?_some_column {rowCount width : Nat}
+lemma pivotForColumn?_some_column {rowCount width : Nat}
     {result : Result rowCount width} {column : Fin width}
     {pivot : Pivot rowCount width}
     (lookup : pivotForColumn? result column = some pivot) :
@@ -1611,7 +1611,7 @@ theorem pivotForColumn?_some_column {rowCount width : Nat}
   simpa using List.find?_some lookup
 
 /-- A failed pivot lookup means that no record has the requested column. -/
-theorem pivotForColumn?_eq_none_iff {rowCount width : Nat}
+lemma pivotForColumn?_eq_none_iff {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     pivotForColumn? result column = none ↔
       ∀ pivot, pivot ∈ result.pivots → pivot.column ≠ column := by
@@ -1628,13 +1628,13 @@ theorem pivotForColumn?_eq_none_iff {rowCount width : Nat}
     simpa using absent pivot member
 
 /-- Free columns are exactly the columns whose pivot lookup fails. -/
-theorem mem_freeColumns_iff {rowCount width : Nat}
+lemma mem_freeColumns_iff {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     column ∈ freeColumns result ↔ pivotForColumn? result column = none := by
   simp [freeColumns, isPivotColumn]
 
 /-- A free-column mask bit is set exactly at a failed pivot lookup. -/
-theorem testBit_freeColumnMask_eq_true_iff {rowCount width : Nat}
+lemma testBit_freeColumnMask_eq_true_iff {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     testBit (freeColumnMask result) column = true ↔
       pivotForColumn? result column = none := by
@@ -1642,7 +1642,7 @@ theorem testBit_freeColumnMask_eq_true_iff {rowCount width : Nat}
   simp
 
 /-- A free-column mask bit is set exactly at a member of `freeColumns`. -/
-theorem testBit_freeColumnMask_eq_true_iff_mem_freeColumns {rowCount width : Nat}
+lemma testBit_freeColumnMask_eq_true_iff_mem_freeColumns {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     testBit (freeColumnMask result) column = true ↔
       column ∈ freeColumns result := by
@@ -1651,7 +1651,7 @@ theorem testBit_freeColumnMask_eq_true_iff_mem_freeColumns {rowCount width : Nat
 
 /-- The Boolean free-column mask coordinate is the membership decision for
 the ordered free-column list. -/
-theorem testBit_freeColumnMask_eq_decide_mem_freeColumns {rowCount width : Nat}
+lemma testBit_freeColumnMask_eq_decide_mem_freeColumns {rowCount width : Nat}
     (result : Result rowCount width) (column : Fin width) :
     testBit (freeColumnMask result) column =
       decide (column ∈ freeColumns result) := by
@@ -1665,7 +1665,7 @@ theorem testBit_freeColumnMask_eq_decide_mem_freeColumns {rowCount width : Nat}
     simp [testBit_freeColumnMask, lookup, member]
 
 /-- A one-free-column decision exposes the exact singleton free-column list. -/
-theorem freeColumns_eq_singleton_of_soleFreeColumn {rowCount width : Nat}
+lemma freeColumns_eq_singleton_of_soleFreeColumn {rowCount width : Nat}
     {result : Result rowCount width} {free : Fin width}
     (choice : soleFreeColumn? result = some free) :
     freeColumns result = [free] := by
@@ -1680,7 +1680,7 @@ theorem freeColumns_eq_singleton_of_soleFreeColumn {rowCount width : Nat}
       | cons second rest => simp [soleFreeColumn?, hcolumns] at choice
 
 /-- The selected free coordinate really has no recorded pivot. -/
-theorem soleFreeColumn_lookup_none {rowCount width : Nat}
+lemma soleFreeColumn_lookup_none {rowCount width : Nat}
     {result : Result rowCount width} {free : Fin width}
     (choice : soleFreeColumn? result = some free) :
     pivotForColumn? result free = none := by
@@ -1690,7 +1690,7 @@ theorem soleFreeColumn_lookup_none {rowCount width : Nat}
 
 /-- Every coordinate other than a selected sole free coordinate has a pivot
 record. -/
-theorem exists_pivotForColumn_of_soleFreeColumn {rowCount width : Nat}
+lemma exists_pivotForColumn_of_soleFreeColumn {rowCount width : Nat}
     {result : Result rowCount width} {free column : Fin width}
     (choice : soleFreeColumn? result = some free) (different : column ≠ free) :
     ∃ pivot, pivotForColumn? result column = some pivot := by
@@ -1706,7 +1706,7 @@ theorem exists_pivotForColumn_of_soleFreeColumn {rowCount width : Nat}
       exact (different same).elim
 
 /-- Distinct recorded pivot columns make the record at a given column unique. -/
-theorem pivot_eq_of_mem_same_column {rowCount width : Nat}
+lemma pivot_eq_of_mem_same_column {rowCount width : Nat}
     {result : Result rowCount width} {left right : Pivot rowCount width}
     (columnsNodup : (pivotColumns result.pivots).Nodup)
     (leftMember : left ∈ result.pivots) (rightMember : right ∈ result.pivots)
@@ -1718,7 +1718,7 @@ theorem pivot_eq_of_mem_same_column {rowCount width : Nat}
 
 /-- Looking up a recorded pivot returns that very pivot when columns are
 pairwise distinct. -/
-theorem pivotForColumn?_eq_some_of_mem {rowCount width : Nat}
+lemma pivotForColumn?_eq_some_of_mem {rowCount width : Nat}
     {result : Result rowCount width} {pivot : Pivot rowCount width}
     (columnsNodup : (pivotColumns result.pivots).Nodup)
     (member : pivot ∈ result.pivots) :
@@ -1737,14 +1737,14 @@ theorem pivotForColumn?_eq_some_of_mem {rowCount width : Nat}
       exact congrArg some same
 
 /-- Addition in the concrete coefficient field has characteristic two. -/
-theorem f2_add_self (value : F2) : value + value = 0 := by
+lemma f2_add_self (value : F2) : value + value = 0 := by
   calc
     value + value = (2 : F2) * value := (two_mul value).symm
     _ = 0 * value := by rw [show (2 : F2) = 0 from ZMod.natCast_self 2]
     _ = 0 := zero_mul value
 
 /-- A false logical bit has zero GF(2) coefficient. -/
-theorem bitValue_eq_zero_of_testBit_eq_false {width : Nat}
+lemma bitValue_eq_zero_of_testBit_eq_false {width : Nat}
     (word : Word width) (column : Fin width)
     (bit : testBit word column = false) :
     bitValue word column = 0 := by
@@ -1753,7 +1753,7 @@ theorem bitValue_eq_zero_of_testBit_eq_false {width : Nat}
   rfl
 
 /-- A true logical bit has unit GF(2) coefficient. -/
-theorem bitValue_eq_one_of_testBit_eq_true {width : Nat}
+lemma bitValue_eq_one_of_testBit_eq_true {width : Nat}
     (word : Word width) (column : Fin width)
     (bit : testBit word column = true) :
     bitValue word column = 1 := by
@@ -1763,7 +1763,7 @@ theorem bitValue_eq_one_of_testBit_eq_true {width : Nat}
 
 /-- A row whose logical bits are all zero has zero dot product with every
 candidate. -/
-theorem dot_eq_zero_of_all_testBit_eq_false {width : Nat}
+lemma dot_eq_zero_of_all_testBit_eq_false {width : Nat}
     (row candidate : Word width)
     (zeroBits : ∀ column, testBit row column = false) :
     dot row candidate = 0 := by
@@ -1774,7 +1774,7 @@ theorem dot_eq_zero_of_all_testBit_eq_false {width : Nat}
 
 /-- If every summand except two distinguished coordinates is zero, the finite
 sum is exactly the sum of those two coordinates. -/
-theorem sum_eq_pivot_add_free {width : Nat} (term : Fin width → F2)
+lemma sum_eq_pivot_add_free {width : Nat} (term : Fin width → F2)
     (pivot free : Fin width) (different : pivot ≠ free)
     (zeroOther : ∀ column, column ≠ pivot → column ≠ free → term column = 0) :
     (∑ column, term column) = term pivot + term free := by
@@ -1801,7 +1801,7 @@ theorem sum_eq_pivot_add_free {width : Nat} (term : Fin width → F2)
       rw [Finset.sum_eq_zero remainingZero, add_zero]
 
 /-- Distinct recorded pivot rows make the record at a given row unique. -/
-theorem pivot_eq_of_mem_same_row {rowCount width : Nat}
+lemma pivot_eq_of_mem_same_row {rowCount width : Nat}
     {result : Result rowCount width} {left right : Pivot rowCount width}
     (rowsNodup : (pivotRows result.pivots).Nodup)
     (leftMember : left ∈ result.pivots) (rightMember : right ∈ result.pivots)
@@ -1822,14 +1822,14 @@ def finalPivotFamily {rowCount width : Nat} (samples : Samples rowCount width) :
   fun pivot => rowVector ((finalState samples).rows pivot.val.row)
 
 /-- The completed pivot list itself has no duplicate records. -/
-theorem finalState_pivots_nodup {rowCount width : Nat}
+lemma finalState_pivots_nodup {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalState samples).pivots.Nodup := by
   apply List.Nodup.of_map Pivot.row
   simpa [pivotRows] using finalState_pivotRows_nodup samples
 
 /-- The indexed pivot rows have unit values in one another's pivot columns. -/
-theorem finalPivotFamily_unit {rowCount width : Nat}
+lemma finalPivotFamily_unit {rowCount width : Nat}
     (samples : Samples rowCount width) (left right : finalPivotSet samples) :
     finalPivotFamily samples left right.val.column =
       if left = right then 1 else 0 := by
@@ -1871,7 +1871,7 @@ theorem finalPivotFamily_unit {rowCount width : Nat}
     exact bitValue_eq_zero_of_testBit_eq_false _ _ bit
 
 /-- Distinct pivot columns make the retained final pivot rows linearly independent. -/
-theorem finalPivotFamily_linearIndependent {rowCount width : Nat}
+lemma finalPivotFamily_linearIndependent {rowCount width : Nat}
     (samples : Samples rowCount width) :
     LinearIndependent F2 (finalPivotFamily samples) := by
   classical
@@ -1886,7 +1886,7 @@ theorem finalPivotFamily_linearIndependent {rowCount width : Nat}
     mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true] using coordinateSum
 
 /-- The final row space is generated exactly by the retained pivot-row family. -/
-theorem rowSpan_finalState_eq_finalPivotSpan {rowCount width : Nat}
+lemma rowSpan_finalState_eq_finalPivotSpan {rowCount width : Nat}
     (samples : Samples rowCount width) :
     rowSpan (finalState samples).rows =
       Submodule.span F2 (Set.range (finalPivotFamily samples)) := by
@@ -1911,7 +1911,7 @@ theorem rowSpan_finalState_eq_finalPivotSpan {rowCount width : Nat}
     exact rowVector_mem_rowSpan (finalState samples).rows pivot.val.row
 
 /-- The finite pivot-record index has exactly the executable number of pivots. -/
-theorem finalPivotSet_card_eq_pivotCount {rowCount width : Nat}
+lemma finalPivotSet_card_eq_pivotCount {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (finalPivotSet samples).card = (finalState samples).pivotCount := by
   calc
@@ -1922,7 +1922,7 @@ theorem finalPivotSet_card_eq_pivotCount {rowCount width : Nat}
       (finalState_pivotCount_eq_pivots_length samples).symm
 
 /-- The final row-space finrank equals the number of actual recorded pivots. -/
-theorem finrank_rowSpan_finalState_eq_pivotCount {rowCount width : Nat}
+lemma finrank_rowSpan_finalState_eq_pivotCount {rowCount width : Nat}
     (samples : Samples rowCount width) :
     Module.finrank F2 (rowSpan (finalState samples).rows) =
       (finalState samples).pivotCount := by
@@ -1937,7 +1937,7 @@ theorem finrank_rowSpan_finalState_eq_pivotCount {rowCount width : Nat}
       finalPivotSet_card_eq_pivotCount samples
 
 /-- The executable pivot count is the Mathlib matrix rank of the input GF(2) rows. -/
-theorem sampleMatrix_rank_eq_reduce_pivotCount {rowCount width : Nat}
+lemma sampleMatrix_rank_eq_reduce_pivotCount {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (sampleMatrix samples).rank = (reduce samples).pivotCount := by
   calc
@@ -1950,7 +1950,7 @@ theorem sampleMatrix_rank_eq_reduce_pivotCount {rowCount width : Nat}
     _ = (reduce samples).pivotCount := rfl
 
 /-- A recorded pivot coordinate cannot be a coordinate whose lookup fails. -/
-theorem pivotColumn_ne_of_lookup_none {rowCount width : Nat}
+lemma pivotColumn_ne_of_lookup_none {rowCount width : Nat}
     {result : Result rowCount width} {free : Fin width}
     {pivot : Pivot rowCount width}
     (columnsNodup : (pivotColumns result.pivots).Nodup)
@@ -1964,7 +1964,7 @@ theorem pivotColumn_ne_of_lookup_none {rowCount width : Nat}
 
 /-- A back-substitution coordinate with a failed pivot lookup is zero unless
 it is the distinguished free coordinate. -/
-theorem testBit_backSubstitute_of_lookup_none {rowCount width : Nat}
+lemma testBit_backSubstitute_of_lookup_none {rowCount width : Nat}
     (result : Result rowCount width) (free column : Fin width)
     (different : column ≠ free)
     (lookup : pivotForColumn? result column = none) :
@@ -1974,7 +1974,7 @@ theorem testBit_backSubstitute_of_lookup_none {rowCount width : Nat}
 
 /-- A back-substitution pivot coordinate is read from that pivot's reduced
 row at the distinguished free coordinate. -/
-theorem testBit_backSubstitute_pivotColumn {rowCount width : Nat}
+lemma testBit_backSubstitute_pivotColumn {rowCount width : Nat}
     {result : Result rowCount width} {free : Fin width}
     {pivot : Pivot rowCount width}
     (columnsNodup : (pivotColumns result.pivots).Nodup)
@@ -1990,7 +1990,7 @@ theorem testBit_backSubstitute_pivotColumn {rowCount width : Nat}
 
 /-- Back substitution always carries a one at its distinguished coordinate,
 and is therefore nonzero. -/
-theorem backSubstitute_ne_zero {rowCount width : Nat}
+lemma backSubstitute_ne_zero {rowCount width : Nat}
     (result : Result rowCount width) (free : Fin width) :
     backSubstitute result free ≠ 0 := by
   intro zero
@@ -2000,7 +2000,7 @@ theorem backSubstitute_ne_zero {rowCount width : Nat}
 
 /-- In a completed reduction, a pivot row has zero at every other recorded
 pivot coordinate. -/
-theorem reduce_pivotRow_other_pivotColumn_eq_false {rowCount width : Nat}
+lemma reduce_pivotRow_other_pivotColumn_eq_false {rowCount width : Nat}
     (samples : Samples rowCount width) {pivot other : Pivot rowCount width}
     (pivotMember : pivot ∈ (reduce samples).pivots)
     (otherMember : other ∈ (reduce samples).pivots)
@@ -2016,7 +2016,7 @@ theorem reduce_pivotRow_other_pivotColumn_eq_false {rowCount width : Nat}
 
 /-- Every summand outside a pivot coordinate and a selected free coordinate
 vanishes in that pivot row. -/
-theorem reducedPivotRow_backSubstitute_term_eq_zero {rowCount width : Nat}
+lemma reducedPivotRow_backSubstitute_term_eq_zero {rowCount width : Nat}
     (samples : Samples rowCount width) {pivot : Pivot rowCount width}
     {free column : Fin width}
     (pivotMember : pivot ∈ (reduce samples).pivots)
@@ -2053,7 +2053,7 @@ theorem reducedPivotRow_backSubstitute_term_eq_zero {rowCount width : Nat}
 
 /-- The back-substitution word for any genuine free coordinate satisfies the
 equation represented by each recorded pivot row. -/
-theorem dot_reduce_pivotRow_backSubstitute_eq_zero {rowCount width : Nat}
+lemma dot_reduce_pivotRow_backSubstitute_eq_zero {rowCount width : Nat}
     (samples : Samples rowCount width) {free : Fin width}
     {pivot : Pivot rowCount width}
     (pivotMember : pivot ∈ (reduce samples).pivots)
@@ -2103,7 +2103,7 @@ theorem dot_reduce_pivotRow_backSubstitute_eq_zero {rowCount width : Nat}
 
 /-- A back-substitution word for a free coordinate satisfies every reduced
 equation, including the final zero rows. -/
-theorem backSubstitute_satisfies_reduced_of_lookup_none {rowCount width : Nat}
+lemma backSubstitute_satisfies_reduced_of_lookup_none {rowCount width : Nat}
     (samples : Samples rowCount width) (free : Fin width)
     (freeLookup : pivotForColumn? (reduce samples) free = none) :
     satisfies (reduce samples).reduced (backSubstitute (reduce samples) free) := by
@@ -2117,7 +2117,7 @@ theorem backSubstitute_satisfies_reduced_of_lookup_none {rowCount width : Nat}
 
 /-- A back-substitution word for any actual free coordinate satisfies the
 original ordered equations. -/
-theorem backSubstitute_satisfies_of_lookup_none {rowCount width : Nat}
+lemma backSubstitute_satisfies_of_lookup_none {rowCount width : Nat}
     (samples : Samples rowCount width) (free : Fin width)
     (freeLookup : pivotForColumn? (reduce samples) free = none) :
     satisfies samples (backSubstitute (reduce samples) free) :=
@@ -2126,7 +2126,7 @@ theorem backSubstitute_satisfies_of_lookup_none {rowCount width : Nat}
 
 /-- Membership in the computed free-column list gives a nonzero semantic
 solution directly from the reducer, without enumerating words. -/
-theorem backSubstitute_sound_of_mem_freeColumns {rowCount width : Nat}
+lemma backSubstitute_sound_of_mem_freeColumns {rowCount width : Nat}
     (samples : Samples rowCount width) (free : Fin width)
     (freeMember : free ∈ freeColumns (reduce samples)) :
     backSubstitute (reduce samples) free ≠ 0 ∧
@@ -2143,14 +2143,14 @@ def nonzeroSolutions {rowCount width : Nat} (samples : Samples rowCount width) :
     fun candidate => decide (candidate ≠ 0 ∧ satisfies samples candidate)
 
 /-- Membership in the executable candidate list is exactly the semantic contract. -/
-theorem mem_nonzeroSolutions {rowCount width : Nat}
+lemma mem_nonzeroSolutions {rowCount width : Nat}
     (samples : Samples rowCount width) (candidate : Word width) :
     candidate ∈ nonzeroSolutions samples ↔
       candidate ≠ 0 ∧ satisfies samples candidate := by
   simp [nonzeroSolutions]
 
 /-- The fixed-domain candidate enumeration has no duplicate words. -/
-theorem nonzeroSolutions_nodup {rowCount width : Nat}
+lemma nonzeroSolutions_nodup {rowCount width : Nat}
     (samples : Samples rowCount width) :
     (nonzeroSolutions samples).Nodup := by
   unfold nonzeroSolutions
@@ -2170,7 +2170,7 @@ instance decidableHasUniqueNonzeroSolution {rowCount width : Nat}
   infer_instance
 
 /-- The ordered free-column list has no duplicate coordinates. -/
-theorem freeColumns_nodup {rowCount width : Nat}
+lemma freeColumns_nodup {rowCount width : Nat}
     (result : Result rowCount width) :
     (freeColumns result).Nodup := by
   unfold freeColumns
@@ -2178,7 +2178,7 @@ theorem freeColumns_nodup {rowCount width : Nat}
 
 /-- Equality of GF(2) bit coefficients reflects equality of the underlying
 logical Boolean bits. -/
-theorem testBit_eq_of_bitValue_eq {width : Nat}
+lemma testBit_eq_of_bitValue_eq {width : Nat}
     {left right : Word width} {column : Fin width}
     (valueEq : bitValue left column = bitValue right column) :
     testBit left column = testBit right column := by
@@ -2205,7 +2205,7 @@ theorem testBit_eq_of_bitValue_eq {width : Nat}
       | true => rfl
 
 /-- A word is zero if all of its MSB-first logical bits are false. -/
-theorem word_eq_zero_of_all_testBit_eq_false {width : Nat} (word : Word width)
+lemma word_eq_zero_of_all_testBit_eq_false {width : Nat} (word : Word width)
     (zeroBits : ∀ column, testBit word column = false) :
     word = 0 := by
   apply QuantumAlg.Nat.FixedWidth.word_eq_of_testBit_eq
@@ -2213,7 +2213,7 @@ theorem word_eq_zero_of_all_testBit_eq_false {width : Nat} (word : Word width)
   simpa [testBit] using zeroBits (Fin.rev physical)
 
 /-- A zero GF(2) bit coefficient is represented by a false Boolean bit. -/
-theorem testBit_eq_false_of_bitValue_eq_zero {width : Nat}
+lemma testBit_eq_false_of_bitValue_eq_zero {width : Nat}
     (word : Word width) (column : Fin width)
     (valueZero : bitValue word column = 0) :
     testBit word column = false := by
@@ -2226,7 +2226,7 @@ theorem testBit_eq_false_of_bitValue_eq_zero {width : Nat}
 
 /-- The free-column mask is zero exactly when the ordered free-column list is
 empty. -/
-theorem freeColumnMask_eq_zero_iff_freeColumns_eq_nil {rowCount width : Nat}
+lemma freeColumnMask_eq_zero_iff_freeColumns_eq_nil {rowCount width : Nat}
     (result : Result rowCount width) :
     freeColumnMask result = 0 ↔ freeColumns result = [] := by
   constructor
@@ -2255,7 +2255,7 @@ theorem freeColumnMask_eq_zero_iff_freeColumns_eq_nil {rowCount width : Nat}
 
 /-- Under a one-free-column result, the free-column mask has exactly that
 one logical bit set. -/
-theorem testBit_freeColumnMask_of_soleFreeColumn {rowCount width : Nat}
+lemma testBit_freeColumnMask_of_soleFreeColumn {rowCount width : Nat}
     {result : Result rowCount width} {free : Fin width}
     (choice : soleFreeColumn? result = some free) (column : Fin width) :
     testBit (freeColumnMask result) column = decide (column = free) := by
@@ -2270,7 +2270,7 @@ theorem testBit_freeColumnMask_of_soleFreeColumn {rowCount width : Nat}
 
 /-- Under a sole-free-column decision, back substitution is exactly the initial
 free-column mask OR the coefficient selected by the pivot lookup. -/
-theorem testBit_backSubstitute_eq_freeMask_or_lookup
+lemma testBit_backSubstitute_eq_freeMask_or_lookup
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free)
     (column : Fin width) :
@@ -2284,7 +2284,7 @@ theorem testBit_backSubstitute_eq_freeMask_or_lookup
 
 /-- A sole free column makes the canonical free-column mask exactly the
 one-hot logical word at that coordinate. -/
-theorem freeColumnMask_eq_wordOfLogicalBits_of_soleFreeColumn
+lemma freeColumnMask_eq_wordOfLogicalBits_of_soleFreeColumn
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free) :
     freeColumnMask result =
@@ -2304,7 +2304,7 @@ theorem freeColumnMask_eq_wordOfLogicalBits_of_soleFreeColumn
   exact logical
 
 /-- The sole free coordinate is set in the canonical free-column mask. -/
-theorem testBit_freeColumnMask_free_of_soleFreeColumn
+lemma testBit_freeColumnMask_free_of_soleFreeColumn
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free) :
     testBit (freeColumnMask result) free = true := by
@@ -2313,7 +2313,7 @@ theorem testBit_freeColumnMask_free_of_soleFreeColumn
 
 /-- Every coordinate other than the sole free column is clear in the
 canonical free-column mask. -/
-theorem testBit_freeColumnMask_other_of_soleFreeColumn
+lemma testBit_freeColumnMask_other_of_soleFreeColumn
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free)
     (column : Fin width) (different : column ≠ free) :
@@ -2322,7 +2322,7 @@ theorem testBit_freeColumnMask_other_of_soleFreeColumn
   simp [different]
 
 /-- A one-free-column result has a nonzero free-column mask. -/
-theorem freeColumnMask_ne_zero_of_soleFreeColumn {rowCount width : Nat}
+lemma freeColumnMask_ne_zero_of_soleFreeColumn {rowCount width : Nat}
     {result : Result rowCount width} {free : Fin width}
     (choice : soleFreeColumn? result = some free) :
     freeColumnMask result ≠ 0 := by
@@ -2336,7 +2336,7 @@ theorem freeColumnMask_ne_zero_of_soleFreeColumn {rowCount width : Nat}
 
 /-- The logical one-hot word at `free` has its unique physical bit at the
 finite reversal of that MSB-first coordinate. -/
-theorem wordOfLogicalBits_singleton_val {width : Nat} (free : Fin width) :
+lemma wordOfLogicalBits_singleton_val {width : Nat} (free : Fin width) :
     (wordOfLogicalBits (fun column => decide (column = free))).val =
       2 ^ (Fin.rev free).val := by
   let power : Word width :=
@@ -2381,7 +2381,7 @@ theorem wordOfLogicalBits_singleton_val {width : Nat} (free : Fin width) :
 
 /-- A selected sole free column gives the exact physical power-of-two value of
 the canonical free-column mask. -/
-theorem freeColumnMask_val_eq_twoPow_of_soleFreeColumn
+lemma freeColumnMask_val_eq_twoPow_of_soleFreeColumn
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free) :
     (freeColumnMask result).val = 2 ^ (Fin.rev free).val := by
@@ -2390,7 +2390,7 @@ theorem freeColumnMask_val_eq_twoPow_of_soleFreeColumn
 
 /-- AND with a sole-free-column mask is zero exactly when the corresponding
 MSB-first logical row bit is false. -/
-theorem land_freeColumnMask_eq_zero_iff_testBit_eq_false
+lemma land_freeColumnMask_eq_zero_iff_testBit_eq_false
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free)
     (row : Word width) :
@@ -2403,7 +2403,7 @@ theorem land_freeColumnMask_eq_zero_iff_testBit_eq_false
 
 /-- AND with a sole-free-column mask is nonzero exactly when the corresponding
 MSB-first logical row bit is true. -/
-theorem land_freeColumnMask_ne_zero_iff_testBit_eq_true
+lemma land_freeColumnMask_ne_zero_iff_testBit_eq_true
     {rowCount width : Nat} {result : Result rowCount width}
     {free : Fin width} (choice : soleFreeColumn? result = some free)
     (row : Word width) :
@@ -2421,7 +2421,7 @@ theorem land_freeColumnMask_ne_zero_iff_testBit_eq_true
 
 /-- Conversely, a power-of-two free-column mask value determines a genuine
 sole free logical coordinate. -/
-theorem exists_soleFreeColumn_of_freeColumnMask_val_eq_twoPow
+lemma exists_soleFreeColumn_of_freeColumnMask_val_eq_twoPow
     {rowCount width : Nat} (result : Result rowCount width) {exponent : Nat}
     (power : (freeColumnMask result).val = 2 ^ exponent) :
     ∃ free, soleFreeColumn? result = some free := by
@@ -2491,7 +2491,7 @@ theorem exists_soleFreeColumn_of_freeColumnMask_val_eq_twoPow
       exact ⟨free, by simp [soleFreeColumn?, singleton]⟩
 
 /-- A natural has exactly one set bit precisely when it is a power of two. -/
-private theorem exactOneBit_iff_exists_twoPow (value : Nat) :
+private lemma exactOneBit_iff_exists_twoPow (value : Nat) :
     value ≠ 0 ∧ value &&& (value - 1) = 0 ↔ ∃ exponent, value = 2 ^ exponent := by
   induction value using Nat.binaryRec with
   | zero =>
@@ -2573,7 +2573,7 @@ private theorem exactOneBit_iff_exists_twoPow (value : Nat) :
 
 /-- The canonical free-column mask has exactly one set bit precisely when the
 reducer exposes a sole free logical coordinate. -/
-theorem freeColumnMask_singleBit_iff_exists_soleFreeColumn
+lemma freeColumnMask_singleBit_iff_exists_soleFreeColumn
     {rowCount width : Nat} (result : Result rowCount width) :
     freeColumnMask result ≠ 0 ∧
         (freeColumnMask result).val &&& ((freeColumnMask result).val - 1) = 0 ↔
@@ -2601,7 +2601,7 @@ theorem freeColumnMask_singleBit_iff_exists_soleFreeColumn
 
 /-- If every summand except a distinguished coordinate is zero, the finite sum
 is exactly that distinguished summand. -/
-theorem sum_eq_pivot_of_all_other_zero {width : Nat} (term : Fin width → F2)
+lemma sum_eq_pivot_of_all_other_zero {width : Nat} (term : Fin width → F2)
     (pivot : Fin width)
     (zeroOther : ∀ column, column ≠ pivot → term column = 0) :
     (∑ column, term column) = term pivot := by
@@ -2618,7 +2618,7 @@ theorem sum_eq_pivot_of_all_other_zero {width : Nat} (term : Fin width → F2)
 
 /-- If the reducer reports no free coordinate, every logical coordinate has a
 recorded pivot lookup. -/
-theorem exists_pivotForColumn_of_freeColumns_eq_nil {rowCount width : Nat}
+lemma exists_pivotForColumn_of_freeColumns_eq_nil {rowCount width : Nat}
     (samples : Samples rowCount width)
     (noFree : freeColumns (reduce samples) = []) (column : Fin width) :
     ∃ pivot, pivotForColumn? (reduce samples) column = some pivot := by
@@ -2632,7 +2632,7 @@ theorem exists_pivotForColumn_of_freeColumns_eq_nil {rowCount width : Nat}
 
 /-- With no free column, a reduced pivot-row equation is exactly its candidate
 pivot-coordinate coefficient. -/
-theorem dot_reduce_pivotRow_eq_candidateBit_of_freeColumns_eq_nil
+lemma dot_reduce_pivotRow_eq_candidateBit_of_freeColumns_eq_nil
     {rowCount width : Nat} (samples : Samples rowCount width)
     (noFree : freeColumns (reduce samples) = [])
     {pivot : Pivot rowCount width}
@@ -2676,7 +2676,7 @@ theorem dot_reduce_pivotRow_eq_candidateBit_of_freeColumns_eq_nil
 
 /-- If there is no free column, the original system has only the zero kernel
 word. -/
-theorem candidate_eq_zero_of_freeColumns_eq_nil {rowCount width : Nat}
+lemma candidate_eq_zero_of_freeColumns_eq_nil {rowCount width : Nat}
     (samples : Samples rowCount width)
     (noFree : freeColumns (reduce samples) = [])
     (candidate : Word width) (candidateSatisfies : satisfies samples candidate) :
@@ -2708,7 +2708,7 @@ theorem candidate_eq_zero_of_freeColumns_eq_nil {rowCount width : Nat}
   exact bitZero
 
 /-- Back-substitution words for distinct genuine free coordinates are distinct. -/
-theorem backSubstitute_ne_of_distinct_freeColumns {rowCount width : Nat}
+lemma backSubstitute_ne_of_distinct_freeColumns {rowCount width : Nat}
     (samples : Samples rowCount width) {left right : Fin width}
     (leftMember : left ∈ freeColumns (reduce samples))
     (different : left ≠ right) :
@@ -2728,7 +2728,7 @@ theorem backSubstitute_ne_of_distinct_freeColumns {rowCount width : Nat}
 
 /-- A semantic unique nonzero solution forces the actual reducer to expose one
 and only one free coordinate. -/
-theorem exists_soleFreeColumn_of_unique {rowCount width : Nat}
+lemma exists_soleFreeColumn_of_unique {rowCount width : Nat}
     (samples : Samples rowCount width) (expected : Word width)
     (unique : HasUniqueNonzeroSolution samples expected) :
     ∃ free, soleFreeColumn? (reduce samples) = some free := by
@@ -2766,7 +2766,7 @@ theorem exists_soleFreeColumn_of_unique {rowCount width : Nat}
 
 /-- A one-free-column decision makes the polynomial recovery path return its
 direct back-substitution candidate. -/
-theorem recover?_of_soleFreeColumn {rowCount width : Nat}
+lemma recover?_of_soleFreeColumn {rowCount width : Nat}
     (samples : Samples rowCount width) {free : Fin width}
     (choice : soleFreeColumn? (reduce samples) = some free) :
     recover? samples = some (backSubstitute (reduce samples) free) := by
@@ -2785,7 +2785,7 @@ theorem recover?_of_soleFreeColumn {rowCount width : Nat}
 
 /-- Polynomial recovery is complete for the semantic unique-nonzero-solution
 contract, without consulting the exhaustive specification. -/
-theorem recover?_complete {rowCount width : Nat}
+lemma recover?_complete {rowCount width : Nat}
     (samples : Samples rowCount width) (expected : Word width)
     (unique : HasUniqueNonzeroSolution samples expected) :
     recover? samples = some expected := by
@@ -2800,7 +2800,7 @@ theorem recover?_complete {rowCount width : Nat}
 
 The hypothesis is semantic rather than an exhaustive computation: `recover?`
 itself is the polynomial reduction/back-substitution program above. -/
-theorem recover?_equals_unique {rowCount width : Nat}
+lemma recover?_equals_unique {rowCount width : Nat}
     (samples : Samples rowCount width) {recovered expected : Word width}
     (output : recover? samples = some recovered)
     (unique : HasUniqueNonzeroSolution samples expected) :
@@ -2809,7 +2809,7 @@ theorem recover?_equals_unique {rowCount width : Nat}
   exact unique.2.2 recovered sound.1 sound.2
 
 /-- Semantic uniqueness gives the exact singleton executable candidate list. -/
-theorem nonzeroSolutions_eq_singleton {rowCount width : Nat}
+lemma nonzeroSolutions_eq_singleton {rowCount width : Nat}
     (samples : Samples rowCount width) (candidate : Word width)
     (unique : HasUniqueNonzeroSolution samples candidate) :
     nonzeroSolutions samples = [candidate] := by
@@ -2832,7 +2832,7 @@ def uniqueNonzero? {rowCount width : Nat}
   | _ => none
 
 /-- A successful result means that the candidate list was exactly a singleton. -/
-theorem uniqueNonzero?_some_exact {rowCount width : Nat}
+lemma uniqueNonzero?_some_exact {rowCount width : Nat}
     (samples : Samples rowCount width) {candidate : Word width}
     (output : uniqueNonzero? samples = some candidate) :
     nonzeroSolutions samples = [candidate] := by
@@ -2848,7 +2848,7 @@ theorem uniqueNonzero?_some_exact {rowCount width : Nat}
       | cons next tail => simp [uniqueNonzero?, hsolutions] at output
 
 /-- Every successful result is nonzero and satisfies all original equations. -/
-theorem uniqueNonzero?_sound {rowCount width : Nat}
+lemma uniqueNonzero?_sound {rowCount width : Nat}
     (samples : Samples rowCount width) {candidate : Word width}
     (output : uniqueNonzero? samples = some candidate) :
     candidate ≠ 0 ∧ satisfies samples candidate := by
@@ -2858,7 +2858,7 @@ theorem uniqueNonzero?_sound {rowCount width : Nat}
   exact (mem_nonzeroSolutions samples candidate).mp member
 
 /-- Every successful result is the unique nonzero solution. -/
-theorem uniqueNonzero?_some_unique {rowCount width : Nat}
+lemma uniqueNonzero?_some_unique {rowCount width : Nat}
     (samples : Samples rowCount width) {candidate : Word width}
     (output : uniqueNonzero? samples = some candidate) :
     HasUniqueNonzeroSolution samples candidate := by
@@ -2871,7 +2871,7 @@ theorem uniqueNonzero?_some_unique {rowCount width : Nat}
   simpa using otherMember
 
 /-- A semantic unique nonzero solution is returned by finite enumeration. -/
-theorem uniqueNonzero?_complete {rowCount width : Nat}
+lemma uniqueNonzero?_complete {rowCount width : Nat}
     (samples : Samples rowCount width) (candidate : Word width)
     (unique : HasUniqueNonzeroSolution samples candidate) :
     uniqueNonzero? samples = some candidate := by
@@ -2879,7 +2879,7 @@ theorem uniqueNonzero?_complete {rowCount width : Nat}
   rw [nonzeroSolutions_eq_singleton samples candidate unique]
 
 /-- Failure is equivalent to the absence of any unique nonzero solution. -/
-theorem uniqueNonzero?_none_iff {rowCount width : Nat}
+lemma uniqueNonzero?_none_iff {rowCount width : Nat}
     (samples : Samples rowCount width) :
     uniqueNonzero? samples = none ↔
       ∀ candidate, ¬ HasUniqueNonzeroSolution samples candidate := by
@@ -2896,7 +2896,7 @@ theorem uniqueNonzero?_none_iff {rowCount width : Nat}
         exact (noUnique candidate (uniqueNonzero?_some_unique samples success)).elim
 
 /-- No nonzero solution forces explicit failure. -/
-theorem uniqueNonzero?_none_of_no_nonzero {rowCount width : Nat}
+lemma uniqueNonzero?_none_of_no_nonzero {rowCount width : Nat}
     (samples : Samples rowCount width)
     (noneExists : ∀ candidate, candidate ≠ 0 → ¬ satisfies samples candidate) :
     uniqueNonzero? samples = none := by
@@ -2905,7 +2905,7 @@ theorem uniqueNonzero?_none_of_no_nonzero {rowCount width : Nat}
   exact noneExists candidate unique.1 unique.2.1
 
 /-- Two distinct nonzero solutions force explicit failure. -/
-theorem uniqueNonzero?_none_of_multiple {rowCount width : Nat}
+lemma uniqueNonzero?_none_of_multiple {rowCount width : Nat}
     (samples : Samples rowCount width)
     (multiple : ∃ first second : Word width,
       first ≠ second ∧ first ≠ 0 ∧ satisfies samples first ∧
@@ -2921,13 +2921,13 @@ theorem uniqueNonzero?_none_of_multiple {rowCount width : Nat}
   exact different (firstEq.trans secondEq.symm)
 
 /-- At width zero every fixed-width word is the zero word. -/
-theorem word_width_zero_eq_zero (word : Word 0) : word = 0 := by
+lemma word_width_zero_eq_zero (word : Word 0) : word = 0 := by
   apply Fin.ext
   have range : word.val < 1 := by simpa only [pow_zero] using word.isLt
   exact Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ range)
 
 /-- Width zero has no nonzero candidate, independently of the row count. -/
-theorem uniqueNonzero?_width_zero {rowCount : Nat}
+lemma uniqueNonzero?_width_zero {rowCount : Nat}
     (samples : Samples rowCount 0) :
     uniqueNonzero? samples = none := by
   apply uniqueNonzero?_none_of_no_nonzero
@@ -2935,7 +2935,7 @@ theorem uniqueNonzero?_width_zero {rowCount : Nat}
   exact (nonzero (word_width_zero_eq_zero candidate)).elim
 
 /-- Width zero leaves no free coordinate for the polynomial recovery path. -/
-theorem recover?_width_zero {rowCount : Nat}
+lemma recover?_width_zero {rowCount : Nat}
     (samples : Samples rowCount 0) :
     recover? samples = none := by
   rfl
@@ -2944,13 +2944,13 @@ theorem recover?_width_zero {rowCount : Nat}
 def noSamples (width : Nat) : Samples 0 width := fun row => Fin.elim0 row
 
 /-- Every candidate satisfies an empty ordered system. -/
-theorem satisfies_noSamples (width : Nat) (candidate : Word width) :
+lemma satisfies_noSamples (width : Nat) (candidate : Word width) :
     satisfies (noSamples width) candidate := by
   intro row
   exact Fin.elim0 row
 
 /-- One free bit and no rows has the sole nonzero word as its solution. -/
-theorem uniqueNonzero?_noSamples_one :
+lemma uniqueNonzero?_noSamples_one :
     uniqueNonzero? (noSamples 1) = some (wordOfNat 1 1) := by
   decide
 
@@ -2958,17 +2958,17 @@ theorem uniqueNonzero?_noSamples_one :
 def uniqueFixture : Samples 1 2 := fun _row => wordOfNat 2 3
 
 /-- The concrete two-bit fixture has exactly one nonzero solution. -/
-theorem uniqueFixture_unique :
+lemma uniqueFixture_unique :
     HasUniqueNonzeroSolution uniqueFixture (wordOfNat 2 3) := by
   decide
 
 /-- The unique fixture returns its unique nonzero solution. -/
-theorem uniqueNonzero?_uniqueFixture :
+lemma uniqueNonzero?_uniqueFixture :
     uniqueNonzero? uniqueFixture = some (wordOfNat 2 3) :=
   uniqueNonzero?_complete uniqueFixture (wordOfNat 2 3) uniqueFixture_unique
 
 /-- The empty two-bit system has at least two distinct nonzero solutions. -/
-theorem noSamples_two_multiple :
+lemma noSamples_two_multiple :
     ∃ first second : Word 2,
       first ≠ second ∧ first ≠ 0 ∧ satisfies (noSamples 2) first ∧
         second ≠ 0 ∧ satisfies (noSamples 2) second := by
@@ -2977,7 +2977,7 @@ theorem noSamples_two_multiple :
     satisfies_noSamples 2 (wordOfNat 2 2)⟩
 
 /-- The empty two-bit system exercises the explicit ambiguous-result branch. -/
-theorem uniqueNonzero?_noSamples_two :
+lemma uniqueNonzero?_noSamples_two :
     uniqueNonzero? (noSamples 2) = none :=
   uniqueNonzero?_none_of_multiple (noSamples 2) noSamples_two_multiple
 

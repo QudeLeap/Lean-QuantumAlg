@@ -24,7 +24,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent original comparison plus clear-or-subtract coordinate allowance. -/
@@ -45,7 +46,7 @@ def nativeTrace (width : Nat) (underflow : Bool) : List (Resource.Event model) :
       (.wordBinary (if underflow then .bitXor else .sub) width))]
 
 /-- The actual path emits exactly its independently selected two-instruction formula. -/
-theorem into_events (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_events (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).eventTrace path = nativeTrace (model := model) width
       path.2.1.toBool := by
   rcases path with ⟨comparison, flag, selected⟩
@@ -64,13 +65,13 @@ theorem into_events (refs : Refs ctx width) (path : (into (model := model) refs)
         rfl
 
 /-- Actual native multiplicities come from the same comparison and selected output write. -/
-theorem into_resourcePool (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_resourcePool (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).resourcePool path = ResourcePool.ofList (nativeTrace (model :=
       model) width path.2.1.toBool) :=
   congrArg ResourcePool.ofList (into_events refs path)
 
 /-- Every actual path meets the original independent native coordinate envelope. -/
-theorem into_pool_le (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_pool_le (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).resourcePool path ≤ eventEnvelope (model := model) width := by
   rw [into_resourcePool]
   cases underflow : path.2.1.toBool
@@ -82,27 +83,27 @@ theorem into_pool_le (refs : Refs ctx width) (path : (into (model := model) refs
     exact add_le_add le_rfl (ResourcePool.le_max_left _ _)
 
 /-- Exactly two native operations execute, including a charged clear on underflow. -/
-theorem into_eventCount (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_eventCount (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     ((into (model := model) refs).eventTrace path).length = 2 := by
   rw [into_events]
   rfl
 
 /-- Unit-duration dependency depth includes comparison before the selected output write. -/
-theorem into_depth (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_depth (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).depth (fun _ => 1) path = 2 := by
   rcases path with ⟨comparison, flag, selected⟩
   cases flag with
   | bit flag => cases flag <;> rfl
 
 /-- Both actual instructions keep the complete caller-supplied runtime context live. -/
-theorem into_visited (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_visited (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).visitedContexts path = List.replicate 2 ctx := by
   rcases path with ⟨comparison, flag, selected⟩
   cases flag with
   | bit flag => cases flag <;> rfl
 
 /-- Resident accounting retains every supplied classical cell and quantum system. -/
-theorem into_resident_le (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_resident_le (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
@@ -110,7 +111,7 @@ theorem into_resident_le (refs : Refs ctx width) (path : (into (model := model) 
   rw [(List.mem_replicate.mp present).2]
 
 /-- Auxiliary accounting retains all original workspace roles without hidden allocation. -/
-theorem into_auxiliary_le (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
+lemma into_auxiliary_le (refs : Refs ctx width) (path : (into (model := model) refs).Path) :
     (into (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
@@ -118,18 +119,22 @@ theorem into_auxiliary_le (refs : Refs ctx width) (path : (into (model := model)
   rw [(List.mem_replicate.mp present).2]
 
 /-- Actual comparison and selected writing restore the full borrowed-reference joint state. -/
-theorem into_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma into_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) refs).BorrowedRestored Reference state ((into (model := model)
-      refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq (BitWord.instruction (execution := model) (compareOp refs))
+      refs).execute environment Reference state) := by
+  refine Circuit.borrowedRestored_seq
+    (environment := environment) (BitWord.instruction (execution := model) (compareOp refs))
     (selectedInto (model := model) refs) state
-    (Circuit.borrowedRestored_classical _ state) ?_
-  apply Circuit.borrowedRestored_branch (writeInput refs.lessThan) (arm (model := model) refs)
+    (Circuit.borrowedRestored_classical (environment := environment) _ state) ?_
+  apply Circuit.borrowedRestored_branch
+    (environment := environment) (writeInput refs.lessThan) (arm (model := model) refs)
     Reference
   intro flag History _ state
   cases flag with
-  | bit flag => cases flag <;> exact Circuit.borrowedRestored_classical _ state
+  | bit flag =>
+    cases flag <;> exact Circuit.borrowedRestored_classical
+      (environment := environment) _ state
 
 end
 

@@ -45,11 +45,11 @@ def hadamard (target : EncodedBit encoding) (layout : QubitLayout encoding.width
   Gate.singleQubitAt layout.toQuantum oracles Gate.HOp target.wire rfl
 
 /-- The default model charges the actual Hadamard as one single-qubit instruction. -/
-theorem hadamard_eventTrace (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+lemma hadamard_eventTrace (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
     (oracles : OracleModel) :
     (target.hadamard layout oracles).eventTrace = [.gate .singleQubit] := rfl
 
-private theorem complement_eq_iff (target : EncodedBit encoding)
+private lemma complement_eq_iff (target : EncodedBit encoding)
     (layout : QubitLayout encoding.width) (row column : Fin encoding.width → Fin 2) :
     let application := Gate.singleQubitApplication layout.toQuantum Gate.HOp target.wire rfl
     (application.basisEquiv row).2 = (application.basisEquiv column).2 ↔
@@ -87,28 +87,29 @@ private theorem complement_eq_iff (target : EncodedBit encoding)
       (Finset.mem_compl.mp index.property) ((member index.val).mpr equal)⟩
 
 /-- Every other original wire is retained in the exact native matrix entry. -/
-theorem hadamard_entry (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
-    (oracles : OracleModel) (row column : Fin encoding.width → Fin 2) :
-    (target.hadamard layout oracles).matrix row column =
+lemma hadamard_entry (target : EncodedBit encoding) (layout : QubitLayout encoding.width)
+    (oracles : OracleModel) {environment : oracles.Interpretation}
+    (row column : Fin encoding.width → Fin 2) :
+    ((target.hadamard layout oracles).matrix environment) row column =
       Gate.HOp (row target.wire) (column target.wire) *
         if (target.targetBasisEquiv (layout.basisEquiv row)).2 =
             (target.targetBasisEquiv (layout.basisEquiv column)).2 then 1 else 0 := by
   classical
   refine (Gate.singleQubitAt_matrix_entry layout.toQuantum oracles Gate.HOp
-    target.wire rfl row column).trans ?_
+    target.wire rfl row column environment).trans ?_
   exact congrArg (fun value : ℂ => Gate.HOp (row target.wire) (column target.wire) * value)
     (if_congr (complement_eq_iff target layout row column) rfl rfl)
 
-private theorem hadamard_diagonal (value : Bool) :
+private lemma hadamard_diagonal (value : Bool) :
     Gate.HOp (finTwoEquiv.symm value) (finTwoEquiv.symm value) =
       invSqrt2 * (if value then -1 else 1) := by
   cases value <;> rfl
 
-private theorem hadamard_offDiagonal (value : Bool) :
+private lemma hadamard_offDiagonal (value : Bool) :
     Gate.HOp (finTwoEquiv.symm (!value)) (finTwoEquiv.symm value) = invSqrt2 := by
   cases value <;> simp [Gate.HOp, finTwoEquiv]
 
-private theorem encode_flip_ne (target : EncodedBit encoding) (state : Data) :
+private lemma encode_flip_ne (target : EncodedBit encoding) (state : Data) :
     encoding.encode (target.flip state) ≠ encoding.encode state := by
   intro same
   have bitSame := congrArg target.get (encoding.encode_injective same)
@@ -116,9 +117,11 @@ private theorem encode_flip_ne (target : EncodedBit encoding) (state : Data) :
   cases value : target.get state <;> simp [value] at bitSame
 
 /-- Exact full-register superposition, including the sign for an input-one target. -/
-theorem hadamard_applyVec_encoded_ket (target : EncodedBit encoding)
-    (layout : QubitLayout encoding.width) (oracles : OracleModel) (state : Data) :
-    (target.hadamard layout oracles).applyVec
+lemma hadamard_applyVec_encoded_ket (target : EncodedBit encoding)
+    (layout : QubitLayout encoding.width) (oracles : OracleModel) {environment :
+      oracles.Interpretation}
+    (state : Data) :
+    (target.hadamard layout oracles).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       invSqrt2 •
@@ -130,7 +133,7 @@ theorem hadamard_applyVec_encoded_ket (target : EncodedBit encoding)
   classical
   ext row
   refine (HilbertOperator.applyVec_ket (R := layout.toQuantum.register)
-    (target.hadamard layout oracles).matrix
+    ((target.hadamard layout oracles).matrix environment)
     (layout.basisEquiv.symm (encoding.encode state)) row).trans ?_
   refine (hadamard_entry target layout oracles row
     (layout.basisEquiv.symm (encoding.encode state))).trans ?_

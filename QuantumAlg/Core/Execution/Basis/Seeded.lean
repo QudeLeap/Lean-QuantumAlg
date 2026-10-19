@@ -42,7 +42,7 @@ def Holds (seed : ctx.register.Index) (state : State ctx Reference History) : Pr
           (seed, leftRef) (seed, rightRef)
       else 0
 
-private theorem ket_factor {R : Register} (seed left right : R.Index) (coefficient : ℂ) :
+private lemma ket_factor {R : Register} (seed left right : R.Index) (coefficient : ℂ) :
     NormalizedVector.ket (R := R) seed left * coefficient *
         star (NormalizedVector.ket (R := R) seed right) =
       if left = seed ∧ right = seed then coefficient else 0 := by
@@ -50,7 +50,7 @@ private theorem ket_factor {R : Register} (seed left right : R.Index) (coefficie
     simp [hleft, hright]
 
 /-- A proved actual seed outer-product formula establishes the intrinsic support invariant. -/
-theorem of_entries (seed : ctx.register.Index) (state : State ctx Reference History)
+lemma of_entries (seed : ctx.register.Index) (state : State ctx Reference History)
     (coefficient : Store ctx → Reference.Index → Reference.Index → ℂ)
     (entries : ∀ (original : Store ctx) (left right : ctx.register.Index)
       (leftRef rightRef : Reference.Index),
@@ -71,7 +71,7 @@ theorem of_entries (seed : ctx.register.Index) (state : State ctx Reference Hist
         seedValue.symm))
 
 /-- The seed entry is the entire actual reference block after summing the local register. -/
-theorem reference_entry (seed : ctx.register.Index) (state : State ctx Reference History)
+lemma reference_entry (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (original : Store ctx) (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,
       (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix
@@ -92,7 +92,7 @@ theorem reference_entry (seed : ctx.register.Index) (state : State ctx Reference
     simp only [Finset.sum_ite_eq', Finset.mem_univ, if_true])
 
 /-- A local unitary acts on the actual seed column and preserves the complete reference entry. -/
-theorem unitary_entry (seed : ctx.register.Index) (state : State ctx Reference History)
+lemma unitary_entry (seed : ctx.register.Index) (state : State ctx Reference History)
     (seeded : Holds seed state) (operator : UnitaryOperator ctx.register) (original : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (DensityOperator.applyUnitary
@@ -118,7 +118,7 @@ theorem unitary_entry (seed : ctx.register.Index) (state : State ctx Reference H
     Finset.mem_univ, if_true]
 
 /-- Forgetting history groups precisely the actual density blocks of each complete store. -/
-theorem store_matrix (state : State ctx Reference History) (original : Store ctx) :
+lemma store_matrix (state : State ctx Reference History) (original : Store ctx) :
     ((state.mapClassical (fun entry => entry.1)).block original).matrix =
       (state.filterClassical (fun entry => entry.1 = original)).quantumMarginal.matrix := by
   change (∑ entry : Store ctx × History,
@@ -132,7 +132,7 @@ theorem store_matrix (state : State ctx Reference History) (original : Store ctx
       DensityOperator.zero_matrix]
 
 /-- Reference observations can sum complete actual store blocks before summing local labels. -/
-theorem fiber_store_blocks (state : State ctx Reference History)
+lemma fiber_store_blocks (state : State ctx Reference History)
     (weight : Store ctx → ctx.register.Index → ℂ) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum state (fun entry basis => weight entry.1 basis)
         leftRef rightRef =
@@ -153,7 +153,7 @@ theorem fiber_store_blocks (state : State ctx Reference History)
       weight original basis * matrix (basis, leftRef) (basis, rightRef))
     (store_matrix state original)
 
-private theorem readout_matrix {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
+private lemma readout_matrix {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
     (state : State ctx Reference History) (read : Store ctx → Outcome) (outcome : Outcome) :
     ((state.mapClassical (fun entry => read entry.1)).block outcome).matrix =
       ∑ original : Store ctx, if read original = outcome then
@@ -172,7 +172,7 @@ private theorem readout_matrix {Outcome : Type} [Fintype Outcome] [DecidableEq O
 
 /-- A read of actual storage retains the seed outer product
 and that result's complete reference fiber. -/
-theorem readout_entry {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
+lemma readout_entry {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
     (seed : ctx.register.Index) (state : State ctx Reference History) (seeded : Holds seed state)
     (read : Store ctx → Outcome) (outcome : Outcome)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :

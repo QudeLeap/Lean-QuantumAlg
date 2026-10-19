@@ -55,7 +55,7 @@ def IsInsideSquaredBall {dimension : Nat}
 
 /-- Two natural numbers in the same Euclidean-division block differ by less
 than the positive block width. -/
-theorem natDist_lt_of_div_eq {left right width : Nat}
+lemma natDist_lt_of_div_eq {left right width : Nat}
     (hwidth : 0 < width) (hquotient : left / width = right / width) :
     Nat.dist left right < width := by
   have hleft : left = left % width + width * (left / width) := by
@@ -70,7 +70,7 @@ theorem natDist_lt_of_div_eq {left right width : Nat}
 
 /-- On nonnegative integers, integer absolute difference agrees with natural
 distance after `Int.toNat`. -/
-theorem natAbs_sub_eq_natDist_toNat {left right : Int}
+lemma natAbs_sub_eq_natDist_toNat {left right : Int}
     (hleft : 0 ≤ left) (hright : 0 ≤ right) :
     (left - right).natAbs = Nat.dist left.toNat right.toNat := by
   by_cases hle : left ≤ right
@@ -102,7 +102,7 @@ def integerCube3 (center : IntegerPoint3) (radius : Nat) :
       Finset.Icc (center.2.2 - radius) (center.2.2 + radius)
 
 @[simp]
-theorem mem_integerCube3 {center point : IntegerPoint3} {radius : Nat} :
+lemma mem_integerCube3 {center point : IntegerPoint3} {radius : Nat} :
     point ∈ integerCube3 center radius ↔
       center.1 - radius ≤ point.1 ∧ point.1 ≤ center.1 + radius ∧
       center.2.1 - radius ≤ point.2.1 ∧
@@ -112,13 +112,13 @@ theorem mem_integerCube3 {center point : IntegerPoint3} {radius : Nat} :
   simp [integerCube3, and_assoc]
 
 @[simp]
-theorem squaredDistance_self {dimension : Nat}
+lemma squaredDistance_self {dimension : Nat}
     (vector : IntegerVector dimension) :
     squaredDistance vector vector = 0 := by
   simp [squaredDistance, squaredNorm]
 
 @[simp]
-theorem squaredDistance_point3 (left right : IntegerPoint3) :
+lemma squaredDistance_point3 (left right : IntegerPoint3) :
     squaredDistance left.toVector right.toVector =
       (left.1 - right.1).natAbs ^ 2 +
         (left.2.1 - right.2.1).natAbs ^ 2 +

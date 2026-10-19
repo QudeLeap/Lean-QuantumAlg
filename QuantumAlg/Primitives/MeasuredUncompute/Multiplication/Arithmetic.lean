@@ -27,6 +27,8 @@ namespace QuantumAlg.MeasuredUncompute.MultiplicationArithmetic
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement ProductReadout MAU.Inversion SharedEEA
 open NumberTheory.SharedEEA InPlaceArithmetic
 
@@ -47,7 +49,7 @@ def inverseFrame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
     (InPlaceForward.result modulus value.val positive bounded, saved modulus value numerator)
 
 /-- The independent arithmetic value follows from the actual native accumulation at clean A. -/
-theorem saved_value (modulus : Nat) (prime : Nat.Prime modulus)
+lemma saved_value (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size)) :
     (saved modulus value numerator).val = (value.val * numerator.val) % modulus := by
   have valid : (accumulator modulus.size
@@ -64,7 +66,7 @@ theorem saved_value (modulus : Nat) (prime : Nat.Prime modulus)
   simpa only [Fin.val_zero, Nat.zero_add, nativeModulus] using actual
 
 /-- The actual product followed by a reset label has exactly the full reused-forward input. -/
-theorem reset_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
+lemma reset_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     let multiplied := NativeProductFrame.step modulus.size (modulusWord modulus)
       (InitialPortProgram.inputFrame modulus value, numerator)
     (multiplied.1, 0) = resetFrame modulus value numerator :=
@@ -72,10 +74,10 @@ theorem reset_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     (initial_accumulator modulus value numerator)
 
 /-- The existing reused native EEA maps the complete reset frame to its exact inverse frame. -/
-theorem forward_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma forward_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
-    (NativeReusedEEA.forward modulus prime).applyNormalized
+    ((NativeReusedEEA.forward modulus prime).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode (resetFrame modulus value numerator)))) =
@@ -86,7 +88,7 @@ theorem forward_ket (modulus : Nat) (prime : Nat.Prime modulus)
   NativeReusedEEA.forward_initial modulus prime value (saved modulus value numerator)
     positive bounded
 
-private theorem inverse_input (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma inverse_input (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     input modulus.size (inverseFrame modulus value numerator positive bounded) =
@@ -94,7 +96,7 @@ private theorem inverse_input (modulus : Nat) (prime : Nat.Prime modulus)
   change input modulus.size ((WorkspaceReuse.placement modulus.size).grouping.symm _) = _
   rw [ReusedProductReadout.input_symm, forward_input modulus prime]
 
-private theorem inverse_numerator (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma inverse_numerator (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     ProductReadout.numerator modulus.size (inverseFrame modulus value numerator positive bounded) =
@@ -103,7 +105,7 @@ private theorem inverse_numerator (modulus : Nat) (prime : Nat.Prime modulus)
     ((WorkspaceReuse.placement modulus.size).grouping.symm _) = _
   rw [ReusedProductReadout.numerator_symm, forward_accumulator modulus prime]
 
-private theorem inverse_accumulator (modulus : Nat)
+private lemma inverse_accumulator (modulus : Nat)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     accumulator modulus.size (inverseFrame modulus value numerator positive bounded) =
@@ -112,7 +114,7 @@ private theorem inverse_accumulator (modulus : Nat)
   rw [ReusedProductReadout.accumulator_symm, numerator_eq]
 
 /-- Inverse X times saved X*Y is the original Y, including Y=0 on the full original domain. -/
-theorem recomputed_value (modulus : Nat) (prime : Nat.Prime modulus)
+lemma recomputed_value (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
@@ -140,7 +142,7 @@ theorem recomputed_value (modulus : Nat) (prime : Nat.Prime modulus)
   exact values
 
 /-- The actual X/A/Y recomputation writes precisely the original measured Y label. -/
-theorem recomputed_numerator (modulus : Nat) (prime : Nat.Prime modulus)
+lemma recomputed_numerator (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :

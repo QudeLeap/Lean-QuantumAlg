@@ -13,6 +13,7 @@ import QuantumAlg.Primitives.MAU.Inversion.Layout
 import QuantumAlg.Primitives.MAU.Multiplication
 import QuantumAlg.Primitives.MAU.Division
 public import QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Endpoint
+public import QuantumAlg.Primitives.MAU.Exponentiation.Gidney.Endpoint.Results
 
 /-!
 # Modular arithmetic units

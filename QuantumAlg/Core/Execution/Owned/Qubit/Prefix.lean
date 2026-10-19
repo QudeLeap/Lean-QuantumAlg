@@ -48,12 +48,12 @@ def inputLayout (freshWidth width : Nat) : QubitLayout width :=
   RuntimeCtx.empty.addOwnedLayout ⟨1⟩ (inputLayout freshWidth width).toQuantumLayout
     (by decide) (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-theorem prefix_fresh (freshWidth width : Nat) :
+lemma prefix_fresh (freshWidth width : Nat) :
     (⟨0⟩ : StorageKey) ∉ (pre freshWidth width).keys := by
   change (⟨0⟩ : StorageKey) ∉ [⟨1⟩]
   decide
 
-theorem prefix_disjoint (freshWidth width : Nat) :
+lemma prefix_disjoint (freshWidth width : Nat) :
     List.Disjoint (prefixLayout freshWidth).toQuantumLayout.identities
       (pre freshWidth width).physicalIdx := by
   change List.Disjoint (List.ofFn (fun index : Fin freshWidth => index.val))
@@ -74,7 +74,7 @@ theorem prefix_disjoint (freshWidth width : Nat) :
   (pre freshWidth width).addOwnedLayout ⟨0⟩ (prefixLayout freshWidth).toQuantumLayout
     (prefix_fresh freshWidth width) (prefix_disjoint freshWidth width)
 
-private theorem input_wires (freshWidth width : Nat) :
+private lemma input_wires (freshWidth width : Nat) :
     (inputLayout freshWidth width).toQuantumLayout.wires =
       (pre freshWidth width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
@@ -104,7 +104,7 @@ def basisEquiv (freshWidth width : Nat) :
       prodEquiv)
 
 /-- Actual preparation has exactly the claimed prefix/input binary concatenation. -/
-theorem basisEquiv_assembly (freshWidth width : Nat)
+lemma basisEquiv_assembly (freshWidth width : Nat)
     (fresh : (prefixLayout freshWidth).toQuantumLayout.register.Index)
     (original : (pre freshWidth width).register.Index) :
     basisEquiv freshWidth width (assembly freshWidth width (fresh, original)) =
@@ -120,7 +120,7 @@ theorem basisEquiv_assembly (freshWidth width : Nat)
   exact congrArg encodePair ((assembly freshWidth width).symm_apply_apply (fresh, original))
 
 /-- The canonical full physical interface follows from the actual ordered wire records. -/
-theorem post_physicalIdx (freshWidth width : Nat) :
+lemma post_physicalIdx (freshWidth width : Nat) :
     (post freshWidth width).physicalIdx = List.range (freshWidth + width) := by
   change ((List.ofFn (fun index : Fin freshWidth =>
       ({ identity := index.val, dimension := 2 } : QuantumWire))) ++
@@ -139,11 +139,11 @@ theorem post_physicalIdx (freshWidth width : Nat) :
         simp
 
 /-- No input value is disguised as borrowed storage in this destructive-input frame. -/
-theorem pre_noBorrowedQuantum (freshWidth width : Nat) :
+lemma pre_noBorrowedQuantum (freshWidth width : Nat) :
     (pre freshWidth width).borrowedQuantumWires = [] :=
   rfl
 
-theorem post_noBorrowedQuantum (freshWidth width : Nat) :
+lemma post_noBorrowedQuantum (freshWidth width : Nat) :
     (post freshWidth width).borrowedQuantumWires = [] := rfl
 
 /-- The actual zero vector of the reserved physical prefix. -/
@@ -160,7 +160,7 @@ def prepareCode (gates : GateModel) (oracles : OracleModel) (freshWidth width : 
     (prefix_fresh freshWidth width) (prefix_disjoint freshWidth width)
 
 /-- Preparation pays once per physical prefix qubit and nothing for an empty prefix. -/
-theorem prepareCode_events (gates : GateModel) (oracles : OracleModel) (freshWidth width : Nat)
+lemma prepareCode_events (gates : GateModel) (oracles : OracleModel) (freshWidth width : Nat)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (path : (prepareCode gates oracles freshWidth width operations services).Path) :
     (prepareCode gates oracles freshWidth width operations services).eventTrace path =
@@ -170,7 +170,7 @@ theorem prepareCode_events (gates : GateModel) (oracles : OracleModel) (freshWid
     (prefixLayout freshWidth).toQuantumLayout 2 (fun _ => rfl) operations services
 
 /-- The prepared word is exactly the canonical prefix followed by the original input wires. -/
-theorem post_canonical_wires (freshWidth width : Nat) :
+lemma post_canonical_wires (freshWidth width : Nat) :
     (QuantumSignature.qubits (freshWidth + width)).canonicalPlacement.layout.wires =
       (post freshWidth width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]

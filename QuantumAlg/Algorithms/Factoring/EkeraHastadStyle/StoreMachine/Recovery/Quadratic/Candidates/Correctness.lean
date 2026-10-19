@@ -26,7 +26,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- The five actual suffix instructions preserve every read outside their writable cells. -/
-theorem suffixInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma suffixInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (suffixStep refs store).1.read other = store.read other := by
   let afterCenter := store.applyOp (centerOp refs)
@@ -42,7 +42,7 @@ theorem suffixInto_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
           other avoids.centerWide)))
 
 /-- The complete actual prefix and candidate writes retain the original seven-part frame. -/
-theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other :=
   (suffixInto_callerFrame refs (QuadraticPrefix.step refs.quadraticPrefix store).1
@@ -51,7 +51,7 @@ theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
       avoids.prefixAvoids avoids.sqrt)
 
 /-- Original word widths suffice for both natural candidates and an actual false carry bit. -/
-theorem step_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
+lemma step_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx) : Outcome refs store (step refs store).1 := by
   let afterPrefix := (QuadraticPrefix.step refs.quadraticPrefix store).1
   let afterCenter := afterPrefix.applyOp (centerOp refs)

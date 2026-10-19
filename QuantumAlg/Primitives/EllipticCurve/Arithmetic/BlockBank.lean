@@ -29,6 +29,8 @@ namespace Arithmetic
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- A right-nested bank of `count` identical arithmetic carriers. -/
 inductive BlockBank (Block : Type) : Nat → Type
   | nil : BlockBank Block 0
@@ -74,7 +76,7 @@ def encoding (blockEncoding : BinaryLabelEncoding Block) :
       (BinaryLabelEncoding.prod blockEncoding (encoding blockEncoding count)).relabel
         (consEquiv count)
 
-@[simp] theorem encoding_width (blockEncoding : BinaryLabelEncoding Block) :
+@[simp] lemma encoding_width (blockEncoding : BinaryLabelEncoding Block) :
     ∀ count, (encoding blockEncoding count).width = count * blockEncoding.width
   | 0 => by simp [encoding, emptyEncoding]
   | Nat.succ count => by
@@ -88,7 +90,7 @@ def get : {count : Nat} → BlockBank Block count → Fin count → Block
       Fin.cases head (fun later => get tail later) index
 
 /-- Pointwise equality of selected blocks determines a fixed-size bank. -/
-theorem ext_get {count : Nat} (left right : BlockBank Block count)
+lemma ext_get {count : Nat} (left right : BlockBank Block count)
     (hget : ∀ index, get left index = get right index) : left = right := by
   induction count with
   | zero =>
@@ -114,7 +116,7 @@ def set : {count : Nat} → BlockBank Block count → Fin count → Block →
       Fin.cases (.cons value tail)
         (fun later => .cons head (set tail later value)) index
 
-@[simp] theorem get_set_same {count : Nat} (state : BlockBank Block count)
+@[simp] lemma get_set_same {count : Nat} (state : BlockBank Block count)
     (index : Fin count) (value : Block) :
     get (set state index value) index = value := by
   induction count with
@@ -126,7 +128,7 @@ def set : {count : Nat} → BlockBank Block count → Fin count → Block →
           · rfl
           · simpa [get, set] using ih tail later
 
-@[simp] theorem get_set_of_ne {count : Nat} (state : BlockBank Block count)
+@[simp] lemma get_set_of_ne {count : Nat} (state : BlockBank Block count)
     (updated observed : Fin count) (value : Block) (hne : observed ≠ updated) :
     get (set state updated value) observed = get state observed := by
   induction count with
@@ -146,7 +148,7 @@ def set : {count : Nat} → BlockBank Block count → Fin count → Block →
                 apply Fin.ext
                 exact congrArg Nat.succ (congrArg Fin.val h))
 
-@[simp] theorem set_get_same {count : Nat} (state : BlockBank Block count)
+@[simp] lemma set_get_same {count : Nat} (state : BlockBank Block count)
     (index : Fin count) :
     set state index (get state index) = state := by
   induction count with
@@ -178,7 +180,7 @@ def wordAt (blockEncoding : BinaryLabelEncoding Block) {width count : Nat}
     EncodedBit.Word (encoding blockEncoding count) width where
   bit := fun bit => bitAt blockEncoding index (word.bit bit)
 
-@[simp] theorem bitAt_get (blockEncoding : BinaryLabelEncoding Block)
+@[simp] lemma bitAt_get (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count) (bit : EncodedBit blockEncoding)
     (state : BlockBank Block count) :
     (bitAt blockEncoding index bit).get state = bit.get (get state index) := by
@@ -193,7 +195,7 @@ def wordAt (blockEncoding : BinaryLabelEncoding Block) {width count : Nat}
               bit.get (get tail later)
             exact ih later tail
 
-@[simp] theorem bitAt_flip (blockEncoding : BinaryLabelEncoding Block)
+@[simp] lemma bitAt_flip (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count) (bit : EncodedBit blockEncoding)
     (state : BlockBank Block count) :
     (bitAt blockEncoding index bit).flip state =
@@ -210,7 +212,7 @@ def wordAt (blockEncoding : BinaryLabelEncoding Block) {width count : Nat}
             exact congrArg (fun updated => BlockBank.cons head updated)
               (ih later tail)
 
-@[simp] theorem set_set_same {count : Nat} (state : BlockBank Block count)
+@[simp] lemma set_set_same {count : Nat} (state : BlockBank Block count)
     (index : Fin count) (first second : Block) :
     set (set state index first) index second = set state index second := by
   induction count with
@@ -226,7 +228,7 @@ def wordAt (blockEncoding : BinaryLabelEncoding Block) {width count : Nat}
               (ih tail later)
 
 /-- Bits lifted from different bank blocks are physically disjoint. -/
-theorem bitAt_wire_ne_of_index_ne (blockEncoding : BinaryLabelEncoding Block)
+lemma bitAt_wire_ne_of_index_ne (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (left right : Fin count) (hne : left ≠ right)
     (leftBit rightBit : EncodedBit blockEncoding) :
     (bitAt blockEncoding left leftBit).wire ≠
@@ -334,14 +336,14 @@ def directCopyGates (source target : WordPort blockEncoding width)
   EncodedBit.Word.xorIntoGates source.word target.word hdisjoint
 
 /-- A direct word-port copy contains one CNOT per word bit. -/
-@[simp] theorem directCopyGates_length (source target : WordPort blockEncoding width)
+@[simp] lemma directCopyGates_length (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire) :
     (directCopyGates source target hdisjoint).length = width := by
   exact EncodedBit.Word.xorIntoGates_length source.word target.word hdisjoint
 
 /-- A direct word-port copy contains exactly one CNOT per word bit. -/
-theorem directCopyGates_cnotMultiplicity_sum
+lemma directCopyGates_cnotMultiplicity_sum
     (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire) :
@@ -351,7 +353,7 @@ theorem directCopyGates_cnotMultiplicity_sum
     source.word target.word hdisjoint
 
 /-- A direct word-port copy contains no Toffoli gate. -/
-theorem directCopyGates_toffoliMultiplicity_sum
+lemma directCopyGates_toffoliMultiplicity_sum
     (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire) :
@@ -375,16 +377,16 @@ def directCopyStep (source target : WordPort blockEncoding width)
       (target.word.bit bit).wire) : Block → Block :=
   EncodedBit.GateSpec.stepList (directCopyGates source target hdisjoint)
 
-theorem directCopy_realizes (source target : WordPort blockEncoding width)
+lemma directCopy_realizes (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire) :
     UnitaryCircuit.Realizes blockEncoding
-      (directCopyProgram source target hdisjoint)
+      (directCopyProgram source target hdisjoint) environment
       (directCopyStep source target hdisjoint) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-- A direct CNOT copy installs the source word in a clean target port. -/
-theorem directCopyStep_eq_set_of_clean
+lemma directCopyStep_eq_set_of_clean
     (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire)
@@ -404,7 +406,7 @@ theorem directCopyStep_eq_set_of_clean
 
 /-- A direct CNOT copy clears the target when source and target initially hold
 the same word. -/
-theorem directCopyStep_eq_set_zero_of_equal
+lemma directCopyStep_eq_set_zero_of_equal
     (source target : WordPort blockEncoding width)
     (hdisjoint : ∀ bit, (source.word.bit bit).wire ≠
       (target.word.bit bit).wire)
@@ -454,20 +456,20 @@ def bankSet (port : WordPort blockEncoding width)
     (value : Nat.FixedWidth.Word width) : BlockBank Block count :=
   BlockBank.set state index (port.set (get state index) value)
 
-@[simp] theorem bankRead_bankSet (port : WordPort blockEncoding width)
+@[simp] lemma bankRead_bankSet (port : WordPort blockEncoding width)
     (index : Fin count) (state : BlockBank Block count)
     (value : Nat.FixedWidth.Word width) :
     port.bankRead index (port.bankSet index state value) = value := by
   unfold bankRead bankSet
   rw [get_set_same, port.read_set]
 
-@[simp] theorem bankSet_bankRead (port : WordPort blockEncoding width)
+@[simp] lemma bankSet_bankRead (port : WordPort blockEncoding width)
     (index : Fin count) (state : BlockBank Block count) :
     port.bankSet index state (port.bankRead index state) = state := by
   unfold bankRead bankSet
   rw [port.set_read, set_get_same]
 
-@[simp] theorem bankSet_bankSet (port : WordPort blockEncoding width)
+@[simp] lemma bankSet_bankSet (port : WordPort blockEncoding width)
     (index : Fin count) (state : BlockBank Block count)
     (first second : Nat.FixedWidth.Word width) :
     port.bankSet index (port.bankSet index state first) second =
@@ -475,13 +477,13 @@ def bankSet (port : WordPort blockEncoding width)
   unfold bankSet
   rw [get_set_same, port.set_set, set_set_same]
 
-theorem bankWord_get (port : WordPort blockEncoding width)
+lemma bankWord_get (port : WordPort blockEncoding width)
     (index : Fin count) (bit : Fin width) (state : BlockBank Block count) :
     ((port.bankWord index).bit bit).get state =
       (port.bankRead index state).val.testBit bit.val := by
   simp [bankWord, bankRead, wordAt, port.get_bit]
 
-theorem bankWord_pairwise_ne (port : WordPort blockEncoding width)
+lemma bankWord_pairwise_ne (port : WordPort blockEncoding width)
     (index : Fin count) (left right : Fin width) (hne : left ≠ right) :
     ((port.bankWord index).bit left).wire ≠
       ((port.bankWord index).bit right).wire := by
@@ -500,7 +502,7 @@ theorem bankWord_pairwise_ne (port : WordPort blockEncoding width)
         apply EncodedBit.GateSpec.prodRightWire_ne blockEncoding
         exact ih later
 
-theorem bankSet_clear_flip (port : WordPort blockEncoding width)
+lemma bankSet_clear_flip (port : WordPort blockEncoding width)
     (index : Fin count) (bit : Fin width) (state : BlockBank Block count) :
     port.bankSet index (((port.bankWord index).bit bit).flip state) 0 =
       port.bankSet index state 0 := by
@@ -543,15 +545,16 @@ def copyStep (source target : WordPort blockEncoding width)
     (fun bit => bitAt_wire_ne_of_index_ne blockEncoding sourceIndex targetIndex
       hne (source.word.bit bit) (target.word.bit bit))
 
-theorem copy_realizes (source target : WordPort blockEncoding width)
+lemma copy_realizes (source target : WordPort blockEncoding width)
     (sourceIndex targetIndex : Fin count) (hne : sourceIndex ≠ targetIndex) :
     UnitaryCircuit.Realizes (encoding blockEncoding count)
-      (copyProgram source target sourceIndex targetIndex hne)
+      (copyProgram source target sourceIndex targetIndex hne) environment
       (copyStep source target sourceIndex targetIndex hne) :=
-  EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty _ _ _
+  EncodedBit.Word.xorInto_realizes (environment := environment) (QubitLayout.canonical _) .empty _
+    _ _
 
 /-- Copying a source port into a clean target port installs the source word. -/
-theorem copyStep_eq_bankSet_of_clean
+lemma copyStep_eq_bankSet_of_clean
     (source target : WordPort blockEncoding width)
     (sourceIndex targetIndex : Fin count) (hne : sourceIndex ≠ targetIndex)
     (state : BlockBank Block count) (value : Nat.FixedWidth.Word width)
@@ -595,7 +598,7 @@ def liftGates (blockEncoding : BinaryLabelEncoding Block) :
 
 /-- Lifting a block schedule into one selected bank entry preserves its
 complete ordered primitive-event trace. -/
-theorem liftGates_map_event (blockEncoding : BinaryLabelEncoding Block)
+lemma liftGates_map_event (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding)) :
     (liftGates blockEncoding index gates).map (EncodedBit.GateSpec.event .empty) =
@@ -620,7 +623,7 @@ theorem liftGates_map_event (blockEncoding : BinaryLabelEncoding Block)
 
 /-- Lifting a block schedule into a bank changes only wire addresses, not the
 number of executed primitive gates. -/
-theorem liftGates_length (blockEncoding : BinaryLabelEncoding Block)
+lemma liftGates_length (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding)) :
     (liftGates blockEncoding index gates).length = gates.length := by
@@ -637,7 +640,7 @@ theorem liftGates_length (blockEncoding : BinaryLabelEncoding Block)
 
 /-- Selected-bank lifting preserves the exact Toffoli coordinate of the
 underlying block schedule. -/
-theorem liftGates_toffoliMultiplicity_sum
+lemma liftGates_toffoliMultiplicity_sum
     (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding)) :
@@ -648,7 +651,7 @@ theorem liftGates_toffoliMultiplicity_sum
     (liftGates_map_event blockEncoding index gates)
 
 /-- Folding a lifted gate list updates exactly its selected bank entry. -/
-theorem liftGates_stepList (blockEncoding : BinaryLabelEncoding Block)
+lemma liftGates_stepList (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding))
     (state : BlockBank Block count) :
@@ -688,15 +691,15 @@ theorem liftGates_stepList (blockEncoding : BinaryLabelEncoding Block)
             rw [ih later tail]
 
 /-- The literal selected-bank gate list realizes its folded update. -/
-theorem liftGates_realizes (blockEncoding : BinaryLabelEncoding Block)
+lemma liftGates_realizes (blockEncoding : BinaryLabelEncoding Block)
     {count : Nat} (index : Fin count)
     (gates : List (EncodedBit.GateSpec blockEncoding)) :
     UnitaryCircuit.Realizes (encoding blockEncoding count)
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (liftGates blockEncoding index gates))
+        (liftGates blockEncoding index gates)) environment
       (fun state =>
         set state index (EncodedBit.GateSpec.stepList gates (get state index))) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty _
     (liftGates_stepList blockEncoding index gates)
 

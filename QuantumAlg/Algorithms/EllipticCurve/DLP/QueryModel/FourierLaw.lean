@@ -44,7 +44,7 @@ public def pointLabel (point : GroupPoint E) : Fin (2 ^ Layout.pointWidth E) :=
   (Layout.pointEncoding E).encode point
 
 /-- The intrinsic binary labels distinguish all actual points. -/
-public theorem pointLabel_injective : Function.Injective (pointLabel (E := E)) :=
+public lemma pointLabel_injective : Function.Injective (pointLabel (E := E)) :=
   (Layout.pointEncoding E).encode_injective
 
 /-- Independent group-action amplitude before Fourier readout. -/
@@ -61,7 +61,7 @@ public theorem pointLabel_injective : Function.Injective (pointLabel (E := E)) :
     else 0
   else 0
 
-private theorem preparedState_rawBasis (I : ECDLPInstance E)
+private lemma preparedState_rawBasis (I : ECDLPInstance E)
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I)))
     (tail : Fin (2 ^ Layout.pointWidth E)) :
     preparedState I (rawBasis I left right tail) =
@@ -76,7 +76,7 @@ private theorem preparedState_rawBasis (I : ECDLPInstance E)
   simp [preparedState, rawBasis, FiniteCyclicDLP.OrderPreparation.state_apply,
     NormalizedVector.ket_apply, problem]
 
-private theorem oracle_identity_column (I : ECDLPInstance E) (A : Access I)
+private lemma oracle_identity_column (I : ECDLPInstance E) (A : Access I)
     (row : Fin (2 ^ Layout.totalQubits I))
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I))) :
     A.operator row (rawBasis I left right ((Layout.pointEncoding E).encode 1)) =
@@ -94,7 +94,7 @@ private theorem oracle_identity_column (I : ECDLPInstance E) (A : Access I)
   exact action
 
 /-- The granted action determines the complete actual post-query state. -/
-public theorem postQueryState_rawBasis (I : ECDLPInstance E) (A : Access I)
+public lemma postQueryState_rawBasis (I : ECDLPInstance E) (A : Access I)
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I)))
     (tail : Fin (2 ^ Layout.pointWidth E)) :
     A.operator.apply (preparedState I) (rawBasis I left right tail) =
@@ -138,14 +138,14 @@ public theorem postQueryState_rawBasis (I : ECDLPInstance E) (A : Access I)
         ω (FiniteCyclicDLP.orderWidth (problem I)) ^ (sourceRight.val * right.val)) *
       postQueryCoefficient I sourceLeft sourceRight tail
 
-private theorem inverseFourier_entry (width : Nat) (row column : Fin (2 ^ width)) :
+private lemma inverseFourier_entry (width : Nat) (row column : Fin (2 ^ width)) :
     (star (QFTOperator width) : UnitaryOperator (Qubits width)) row column =
       star (invSqrtN width * ω width ^ (column.val * row.val)) := by
   change star (QFTOperator width column row) = _
   rw [QFTOperator_entry]
 
 /-- The actual terminal state has the source amplitude on all raw codes. -/
-public theorem sourceState_rawBasis (I : ECDLPInstance E) (A : Access I)
+public lemma sourceState_rawBasis (I : ECDLPInstance E) (A : Access I)
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I)))
     (tail : Fin (2 ^ Layout.pointWidth E)) :
     sourceState I A (rawBasis I left right tail) = sourceAmplitude I left right tail := by
@@ -186,7 +186,7 @@ public theorem sourceState_rawBasis (I : ECDLPInstance E) (A : Access I)
   sourceAmplitude I exponents.1 exponents.2 full.2
 
 /-- The full actual source state is independent of the query's unused columns. -/
-public theorem sourceState_eq_sourceAmplitudeAt (I : ECDLPInstance E) (A : Access I)
+public lemma sourceState_eq_sourceAmplitudeAt (I : ECDLPInstance E) (A : Access I)
     (label : Fin (2 ^ Layout.totalQubits I)) :
     sourceState I A label = sourceAmplitudeAt I label := by
   let full := (prodEquiv (m := FiniteCyclicDLP.orderWidth (problem I) +

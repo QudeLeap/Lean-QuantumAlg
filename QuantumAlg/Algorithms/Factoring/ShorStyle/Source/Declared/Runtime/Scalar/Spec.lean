@@ -53,7 +53,7 @@ public def roundClassicalOperations (N : Nat) : Nat :=
   44 * modulusBits N + 169 + recoveryEvents N
 
 /-- The same conservative complete classical allowance has a simple modulus-width polynomial. -/
-theorem roundClassicalOperations_polynomial (N : Nat) :
+lemma roundClassicalOperations_polynomial (N : Nat) :
     roundClassicalOperations N =
       if 2 < N ∧ Even N then 46 * modulusBits N + 172
       else 56 * (modulusBits N) ^ 2 + 222 * modulusBits N + 316 := by
@@ -71,9 +71,6 @@ public def classicalOperations (N count : Nat) : Nat :=
 /-- Complete quantum and classical native event allowance for one original attempt. -/
 public def roundEvents (N : Nat) : Nat :=
   roundSingleQubit N + roundCnot N + 1 + roundMeasurements N + roundClassicalOperations N
-
-/-- The first complete quantum cycle includes actual storage initialization and bank preparation. -/
-public def maximumCycleDepth (N : Nat) : Nat := qubits N + 1 + roundEvents N
 
 /-- Chronological depth additionally counts all requested complete attempts and the final pack. -/
 public def wholeRunDepth (N count : Nat) : Nat := qubits N + count * roundEvents N + 2

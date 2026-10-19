@@ -30,7 +30,7 @@ open Execution MAU.Inversion.SharedEEA NumeratorMeasurement
 def word (width : Nat) (basis : (context width).register.Index) : Fin (2 ^ width) :=
   ((prodEquiv (m := (encoding width).width) (n := width)).symm (frameBasis width basis)).2
 
-theorem word_bit (width : Nat) (basis : (context width).register.Index) (index : Fin width) :
+lemma word_bit (width : Nat) (basis : (context width).register.Index) (index : Fin width) :
     (frameBasis width basis).val.testBit index.val = (word width basis).val.testBit index.val := by
   have bits := prodEquiv_testBit_right
     ((prodEquiv (m := (encoding width).width) (n := width)).symm (frameBasis width basis)).1
@@ -42,7 +42,7 @@ theorem word_bit (width : Nat) (basis : (context width).register.Index) (index :
     (prodEquiv (m := (encoding width).width) (n := width)).apply_symm_apply _
   exact (congrArg (fun value => value.val.testBit index.val) packed).symm.trans bits
 
-private theorem agree_iff {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout ctx))
+private lemma agree_iff {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout ctx))
     (left right : ctx.register.Index) :
     Circuit.measurementLabelsAgree readouts left right ↔
       ∀ item ∈ readouts, left item.wire = right item.wire := by
@@ -51,7 +51,7 @@ private theorem agree_iff {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout
   | cons head tail induction =>
       simp only [Circuit.measurementLabelsAgree, induction, List.mem_cons, forall_eq_or_imp]
 
-private theorem wire_eq_of_bit_eq (width : Nat) (left right : (context width).register.Index)
+private lemma wire_eq_of_bit_eq (width : Nat) (left right : (context width).register.Index)
     (index : Fin width)
     (same : decide ((left (wire width index)).val = 1) =
       decide ((right (wire width index)).val = 1)) :
@@ -68,7 +68,7 @@ private theorem wire_eq_of_bit_eq (width : Nat) (left right : (context width).re
   omega
 
 /-- Agreement in the actual interpreter is exactly equality of the physical native Y word. -/
-theorem measurement_agrees (width : Nat) (left right : (context width).register.Index) :
+lemma measurement_agrees (width : Nat) (left right : (context width).register.Index) :
     Circuit.measurementLabelsAgree (readouts width) left right ↔
       word width left = word width right := by
   rw [agree_iff]
@@ -88,12 +88,14 @@ theorem measurement_agrees (width : Nat) (left right : (context width).register.
     rw [wire_basis_bit, wire_basis_bit, word_bit, word_bit, same]
 
 /-- The actual stored finite results index precisely the native word measured on that branch. -/
-theorem stored_outcome (width : Nat) (store : Store (context width))
+lemma stored_outcome (width : Nat) (store : Store (context width))
     (basis : (context width).register.Index) :
-    NumeratorReset.outcome ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+    NumeratorReset.outcome ((Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model)
       (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
       (readouts width) store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model)
         (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
         (readouts width) basis)).read (input width)) =
         word width basis := by

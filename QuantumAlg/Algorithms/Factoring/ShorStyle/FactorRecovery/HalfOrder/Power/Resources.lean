@@ -41,7 +41,7 @@ def spaceBound (kind : ProblemKind) (N : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (phaseBits N + 8 * modulusBits N + 3))
 
 /-- The actual resource path fits the stated shift plus modular-power native event envelope. -/
-theorem code_pool_le (source : Input N)
+lemma code_pool_le (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))
@@ -58,7 +58,7 @@ theorem code_pool_le (source : Input N)
       (.storage (halfRef ctx N).toCStorageRef) (liftWrite output) path.2)
 
 /-- The actual native unit depth includes the right shift and every power initialization step. -/
-theorem code_unitDepth_le (source : Input N)
+lemma code_unitDepth_le (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))
@@ -75,14 +75,14 @@ theorem code_unitDepth_le (source : Input N)
     (Modular.NativePower.nativePower_into_unitDepth_le (modulusSpec source) (liftInput base)
       (.storage (halfRef ctx N).toCStorageRef) (liftWrite output) powerPath) 1
 
-private theorem resident_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} :
+private lemma resident_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} :
     (context ctx N).residentSpace + Modular.NativePower.powerSpace kind (modulusBits N) ≤
       ctx.residentSpace + spaceBound kind N := by
   intro axis
   cases axis <;> simp [context, Modular.NativePower.powerSpace, spaceBound, SpacePool.ofShape]
   omega
 
-private theorem auxiliary_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} :
+private lemma auxiliary_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} :
     (context ctx N).auxiliarySpace + Modular.NativePower.powerSpace kind (modulusBits N) ≤
       ctx.auxiliarySpace + spaceBound kind N := by
   intro axis
@@ -90,7 +90,7 @@ private theorem auxiliary_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} 
   omega
 
 /-- The actual resident peak includes the parent frame, half-order cell and power scratch. -/
-theorem code_resident_le (source : Input N)
+lemma code_resident_le (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))
@@ -117,7 +117,7 @@ theorem code_resident_le (source : Input N)
         resident_capacity
 
 /-- The same actual trace counts all newly owned scratch in its auxiliary peak. -/
-theorem code_auxiliary_le (source : Input N)
+lemma code_auxiliary_le (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N)))

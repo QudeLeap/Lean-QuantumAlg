@@ -53,6 +53,7 @@ namespace ZeroTestLayout
 
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- The source index consumed alongside the previous conjunction result at a
 non-initial chain stage. -/
@@ -77,14 +78,14 @@ def lastWorkIndex (tail : Nat) (h : tail ≠ 0) : Fin tail :=
 def lastSourceIndex (tail : Nat) : Fin (tail + 2) :=
   ⟨tail + 1, by omega⟩
 
-theorem zero_ne_chainSourceIndex (j : Fin tail) :
+lemma zero_ne_chainSourceIndex (j : Fin tail) :
     (0 : Fin (tail + 2)) ≠ chainSourceIndex j := by
   intro h
   have hval := congrArg Fin.val h
   dsimp [chainSourceIndex] at hval
   omega
 
-theorem previousWorkIndex_ne_self (j : Fin tail) (h : j.val ≠ 0) :
+lemma previousWorkIndex_ne_self (j : Fin tail) (h : j.val ≠ 0) :
     previousWorkIndex j h ≠ j := by
   intro heq
   have hval := congrArg Fin.val heq
@@ -101,7 +102,7 @@ def chainControlA (j : Fin tail) : EncodedBit encoding :=
 def chainControlB (j : Fin tail) : EncodedBit encoding :=
   layout.source.bit (chainSourceIndex j)
 
-theorem chainControlA_ne_chainControlB (j : Fin tail) :
+lemma chainControlA_ne_chainControlB (j : Fin tail) :
     (chainControlA layout j).wire ≠ (chainControlB layout j).wire := by
   unfold chainControlA chainControlB
   split
@@ -110,7 +111,7 @@ theorem chainControlA_ne_chainControlB (j : Fin tail) :
   · exact (layout.source_work_ne (chainSourceIndex j)
       (previousWorkIndex j _)).symm
 
-theorem chainControlA_ne_work (j : Fin tail) :
+lemma chainControlA_ne_work (j : Fin tail) :
     (chainControlA layout j).wire ≠ (layout.work.bit j).wire := by
   unfold chainControlA
   split
@@ -118,18 +119,18 @@ theorem chainControlA_ne_work (j : Fin tail) :
   · exact layout.work_work_ne (previousWorkIndex j _ ) j
       (previousWorkIndex_ne_self j _)
 
-theorem chainControlB_ne_work (j : Fin tail) :
+lemma chainControlB_ne_work (j : Fin tail) :
     (chainControlB layout j).wire ≠ (layout.work.bit j).wire :=
   layout.source_work_ne (chainSourceIndex j) j
 
-theorem chainControlA_output_ne (j : Fin tail) :
+lemma chainControlA_output_ne (j : Fin tail) :
     (chainControlA layout j).wire ≠ layout.output.wire := by
   unfold chainControlA
   split
   · exact layout.source_output_ne 0
   · exact layout.work_output_ne _
 
-theorem chainControlB_output_ne (j : Fin tail) :
+lemma chainControlB_output_ne (j : Fin tail) :
     (chainControlB layout j).wire ≠ layout.output.wire :=
   layout.source_output_ne (chainSourceIndex j)
 
@@ -161,7 +162,7 @@ def andStagePrefixStep (t : Nat) : Data → Data :=
 
 /-- The concrete `List.ofFn` gate list agrees with the indexed conjunction
 fold. -/
-theorem andGates_stepList_eq_indexStep (x : Data) :
+lemma andGates_stepList_eq_indexStep (x : Data) :
     GateSpec.stepList (andGates layout) x = andStageIndexStep layout x := by
   rw [andGates, GateSpec.stepList_eq_foldl]
   unfold andStageIndexStep andStageIndices
@@ -182,7 +183,7 @@ theorem andGates_stepList_eq_indexStep (x : Data) :
       simp [ih]
 
 /-- One conjunction stage xors its two controls into its designated work bit. -/
-theorem andGateAt_get_work (j : Fin tail) (x : Data) :
+lemma andGateAt_get_work (j : Fin tail) (x : Data) :
     (layout.work.bit j).get ((andGateAt layout j).step x) =
       ((layout.work.bit j).get x ^^
         ((chainControlA layout j).get x && (chainControlB layout j).get x)) := by
@@ -191,7 +192,7 @@ theorem andGateAt_get_work (j : Fin tail) (x : Data) :
     (chainControlA layout j) (chainControlB layout j) (layout.work.bit j) x
 
 /-- A conjunction stage leaves each source bit unchanged. -/
-theorem andGateAt_get_source (j : Fin tail) (i : Fin (tail + 2)) (x : Data) :
+lemma andGateAt_get_source (j : Fin tail) (i : Fin (tail + 2)) (x : Data) :
     (layout.source.bit i).get ((andGateAt layout j).step x) =
       (layout.source.bit i).get x := by
   unfold andGateAt GateSpec.step
@@ -200,7 +201,7 @@ theorem andGateAt_get_source (j : Fin tail) (i : Fin (tail + 2)) (x : Data) :
     (layout.source.bit i) (layout.source_work_ne i j).symm x
 
 /-- A conjunction stage leaves every other work bit unchanged. -/
-theorem andGateAt_get_work_of_ne (j k : Fin tail) (hne : j ≠ k) (x : Data) :
+lemma andGateAt_get_work_of_ne (j k : Fin tail) (hne : j ≠ k) (x : Data) :
     (layout.work.bit k).get ((andGateAt layout j).step x) =
       (layout.work.bit k).get x := by
   unfold andGateAt GateSpec.step
@@ -209,7 +210,7 @@ theorem andGateAt_get_work_of_ne (j k : Fin tail) (hne : j ≠ k) (x : Data) :
     (layout.work.bit k) (layout.work_work_ne j k hne) x
 
 /-- Any fold of conjunction stages preserves every source readout. -/
-theorem foldl_andGateAt_get_source (indices : List (Fin tail))
+lemma foldl_andGateAt_get_source (indices : List (Fin tail))
     (i : Fin (tail + 2)) (x : Data) :
     (layout.source.bit i).get
         (indices.foldl (fun y j => (andGateAt layout j).step y) x) =
@@ -227,7 +228,7 @@ theorem foldl_andGateAt_get_source (indices : List (Fin tail))
       exact andGateAt_get_source layout j i x
 
 /-- A fold preserves a work bit when its stage index is absent from the fold. -/
-theorem foldl_andGateAt_get_work_of_forall_ne (indices : List (Fin tail))
+lemma foldl_andGateAt_get_work_of_forall_ne (indices : List (Fin tail))
     (k : Fin tail) (hne : ∀ j, j ∈ indices → j ≠ k) (x : Data) :
     (layout.work.bit k).get
         (indices.foldl (fun y j => (andGateAt layout j).step y) x) =
@@ -246,17 +247,17 @@ theorem foldl_andGateAt_get_work_of_forall_ne (indices : List (Fin tail))
       · intro next hnext
         exact hne next (by simp [hnext])
 
-@[simp] theorem andStageIndices_length :
+@[simp] lemma andStageIndices_length :
     (andStageIndices (tail := tail)).length = tail := by
   simp [andStageIndices]
 
-theorem andStageIndices_getElem_val {i : Nat}
+lemma andStageIndices_getElem_val {i : Nat}
     (hi : i < (andStageIndices (tail := tail)).length) :
     ((andStageIndices (tail := tail))[i]'hi).val = i := by
   simp [andStageIndices]
 
 /-- Every stage in the prefix before `j` has a smaller index. -/
-theorem andStageIndices_mem_take_val_lt {j k : Fin tail}
+lemma andStageIndices_mem_take_val_lt {j k : Fin tail}
     (hmem : k ∈ (andStageIndices (tail := tail)).take j.val) :
     k.val < j.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -277,7 +278,7 @@ theorem andStageIndices_mem_take_val_lt {j k : Fin tail}
   omega
 
 /-- Every stage in the suffix after `j` has a larger index. -/
-theorem andStageIndices_mem_drop_succ_val_gt {j k : Fin tail}
+lemma andStageIndices_mem_drop_succ_val_gt {j k : Fin tail}
     (hmem : k ∈ (andStageIndices (tail := tail)).drop (j.val + 1)) :
     j.val < k.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -294,7 +295,7 @@ theorem andStageIndices_mem_drop_succ_val_gt {j k : Fin tail}
     exact andStageIndices_getElem_val (tail := tail) hiOrig
   omega
 
-theorem andStagePrefixStep_get_source (t : Nat) (i : Fin (tail + 2))
+lemma andStagePrefixStep_get_source (t : Nat) (i : Fin (tail + 2))
     (x : Data) :
     (layout.source.bit i).get (andStagePrefixStep layout t x) =
       (layout.source.bit i).get x := by
@@ -303,7 +304,7 @@ theorem andStagePrefixStep_get_source (t : Nat) (i : Fin (tail + 2))
     ((andStageIndices (tail := tail)).take t) i x
 
 /-- The work bit for stage `j` is clean immediately before that stage. -/
-theorem andStagePrefixStep_get_work_before (j : Fin tail) (x : Data) :
+lemma andStagePrefixStep_get_work_before (j : Fin tail) (x : Data) :
     (layout.work.bit j).get (andStagePrefixStep layout j.val x) =
       (layout.work.bit j).get x := by
   unfold andStagePrefixStep
@@ -319,7 +320,7 @@ theorem andStagePrefixStep_get_work_before (j : Fin tail) (x : Data) :
 
 /-- On clean incoming work, the prefix ending at `j` computes that stage's
 two-control conjunction into `work[j]`. -/
-theorem andStagePrefixStep_get_work_current (j : Fin tail) (x : Data)
+lemma andStagePrefixStep_get_work_current (j : Fin tail) (x : Data)
     (hclean : ∀ k, (layout.work.bit k).get x = false) :
     (layout.work.bit j).get (andStagePrefixStep layout (j.val + 1) x) =
       ((chainControlA layout j).get (andStagePrefixStep layout j.val x) &&
@@ -356,7 +357,7 @@ theorem andStagePrefixStep_get_work_current (j : Fin tail) (x : Data)
   simpa [andStagePrefixStep, List.foldl] using hlocal'
 
 /-- The suffix after stage `j` does not modify `work[j]`. -/
-theorem andStageIndexStep_get_work_from_prefix (j : Fin tail) (x : Data) :
+lemma andStageIndexStep_get_work_from_prefix (j : Fin tail) (x : Data) :
     (layout.work.bit j).get (andStageIndexStep layout x) =
       (layout.work.bit j).get (andStagePrefixStep layout (j.val + 1) x) := by
   unfold andStageIndexStep andStagePrefixStep
@@ -374,14 +375,14 @@ theorem andStageIndexStep_get_work_from_prefix (j : Fin tail) (x : Data) :
     (((andStageIndices (tail := tail)).take (j.val + 1)).foldl
       (fun y k => (andGateAt layout k).step y) x)
 
-theorem andStageIndexStep_get_source (i : Fin (tail + 2)) (x : Data) :
+lemma andStageIndexStep_get_source (i : Fin (tail + 2)) (x : Data) :
     (layout.source.bit i).get (andStageIndexStep layout x) =
       (layout.source.bit i).get x := by
   unfold andStageIndexStep
   exact foldl_andGateAt_get_source layout
     (andStageIndices (tail := tail)) i x
 
-theorem andStagePrefixStep_previousWork_eq_indexStep (j : Fin tail)
+lemma andStagePrefixStep_previousWork_eq_indexStep (j : Fin tail)
     (h : j.val ≠ 0) (x : Data) :
     (layout.work.bit (previousWorkIndex j h)).get
         (andStagePrefixStep layout j.val x) =
@@ -395,7 +396,7 @@ theorem andStagePrefixStep_previousWork_eq_indexStep (j : Fin tail)
   rw [hprevious] at hfull
   exact hfull.symm
 
-theorem chainControlA_get_prefix_eq_indexStep (j : Fin tail) (x : Data) :
+lemma chainControlA_get_prefix_eq_indexStep (j : Fin tail) (x : Data) :
     (chainControlA layout j).get (andStagePrefixStep layout j.val x) =
       (chainControlA layout j).get (andStageIndexStep layout x) := by
   unfold chainControlA
@@ -403,7 +404,7 @@ theorem chainControlA_get_prefix_eq_indexStep (j : Fin tail) (x : Data) :
   · rw [andStagePrefixStep_get_source, andStageIndexStep_get_source]
   · exact andStagePrefixStep_previousWork_eq_indexStep layout j _ x
 
-theorem chainControlB_get_prefix_eq_indexStep (j : Fin tail) (x : Data) :
+lemma chainControlB_get_prefix_eq_indexStep (j : Fin tail) (x : Data) :
     (chainControlB layout j).get (andStagePrefixStep layout j.val x) =
       (chainControlB layout j).get (andStageIndexStep layout x) := by
   unfold chainControlB
@@ -411,7 +412,7 @@ theorem chainControlB_get_prefix_eq_indexStep (j : Fin tail) (x : Data) :
 
 /-- Full-chain recurrence for one work bit, expressed at the final forward
 stage state. -/
-theorem andStageIndexStep_get_work_recurrence (j : Fin tail) (x : Data)
+lemma andStageIndexStep_get_work_recurrence (j : Fin tail) (x : Data)
     (hclean : ∀ k, (layout.work.bit k).get x = false) :
     (layout.work.bit j).get (andStageIndexStep layout x) =
       ((chainControlA layout j).get (andStageIndexStep layout x) &&
@@ -421,7 +422,7 @@ theorem andStageIndexStep_get_work_recurrence (j : Fin tail) (x : Data)
   rw [chainControlA_get_prefix_eq_indexStep,
     chainControlB_get_prefix_eq_indexStep]
 
-theorem andGateAt_output_bitDisjoint (j : Fin tail) :
+lemma andGateAt_output_bitDisjoint (j : Fin tail) :
     GateSpec.bitDisjoint layout.output (andGateAt layout j) := by
   change
     (chainControlA layout j).wire ≠ layout.output.wire ∧
@@ -430,7 +431,7 @@ theorem andGateAt_output_bitDisjoint (j : Fin tail) :
   exact ⟨chainControlA_output_ne layout j, chainControlB_output_ne layout j,
     layout.work_output_ne j⟩
 
-theorem andGates_output_bitDisjoint :
+lemma andGates_output_bitDisjoint :
     ∀ gate, gate ∈ andGates layout →
       GateSpec.bitDisjoint layout.output gate := by
   intro gate hgate
@@ -438,7 +439,7 @@ theorem andGates_output_bitDisjoint :
   rcases List.mem_ofFn.mp hgate with ⟨j, rfl⟩
   exact andGateAt_output_bitDisjoint layout j
 
-theorem source_zero_ne_one :
+lemma source_zero_ne_one :
     (layout.source.bit (0 : Fin (tail + 2))).wire ≠
       (layout.source.bit (1 : Fin (tail + 2))).wire := by
   apply layout.source_source_ne
@@ -468,7 +469,7 @@ def finalControl (x : Data) : Bool :=
     (layout.work.bit (lastWorkIndex tail h)).get x &&
       (layout.source.bit (lastSourceIndex tail)).get x
 
-theorem finalGate_step_eq_if (x : Data) :
+lemma finalGate_step_eq_if (x : Data) :
     (finalGate layout).step x =
       if finalControl layout x then layout.output.flip x else x := by
   by_cases h : tail = 0 <;>
@@ -483,7 +484,7 @@ def sourceXGates : List (GateSpec encoding) :=
 def sourceXIndicesStep (indices : List (Fin (tail + 2))) : Data → Data :=
   fun x => indices.foldl (fun y i => (layout.source.bit i).flip y) x
 
-theorem sourceXGates_stepList_eq_indicesStep (x : Data) :
+lemma sourceXGates_stepList_eq_indicesStep (x : Data) :
     GateSpec.stepList (sourceXGates layout) x =
       sourceXIndicesStep layout (List.ofFn fun i : Fin (tail + 2) => i) x := by
   rw [sourceXGates, GateSpec.stepList_eq_foldl, sourceXIndicesStep]
@@ -504,7 +505,7 @@ theorem sourceXGates_stepList_eq_indicesStep (x : Data) :
   | cons i rest ih =>
       simp [ih]
 
-theorem sourceXIndicesStep_get_source (indices : List (Fin (tail + 2)))
+lemma sourceXIndicesStep_get_source (indices : List (Fin (tail + 2)))
     (hnodup : indices.Nodup) (bit : Fin (tail + 2))
     (hsourceSource :
       ∀ other, other ≠ bit →
@@ -541,7 +542,7 @@ theorem sourceXIndicesStep_get_source (indices : List (Fin (tail + 2)))
         by_cases hmem : bit ∈ rest <;> simp [hbitHead, hmem]
 
 /-- Every source bit is inverted exactly once by the source-X stage. -/
-theorem sourceXGates_get_source (i : Fin (tail + 2)) (x : Data) :
+lemma sourceXGates_get_source (i : Fin (tail + 2)) (x : Data) :
     (layout.source.bit i).get (GateSpec.stepList (sourceXGates layout) x) =
       !(layout.source.bit i).get x := by
   rw [sourceXGates_stepList_eq_indicesStep]
@@ -564,7 +565,7 @@ theorem sourceXGates_get_source (i : Fin (tail + 2)) (x : Data) :
       cases (layout.source.bit i).get x <;> rfl
 
 /-- The source-X stage leaves each conjunction-work bit unchanged. -/
-theorem sourceXGates_get_work (j : Fin tail) (x : Data) :
+lemma sourceXGates_get_work (j : Fin tail) (x : Data) :
     (layout.work.bit j).get (GateSpec.stepList (sourceXGates layout) x) =
       (layout.work.bit j).get x := by
   unfold sourceXGates
@@ -583,7 +584,7 @@ def sourcePrefixTrue (x : Data) (count : Nat) : Prop :=
 
 /-- On clean work, `work[j]` is true exactly when source positions through
 `j + 1` are all true after the source-X stage. -/
-theorem andStageIndexStep_get_work_eq_true_iff (j : Fin tail) (x : Data)
+lemma andStageIndexStep_get_work_eq_true_iff (j : Fin tail) (x : Data)
     (hclean : ∀ k, (layout.work.bit k).get x = false) :
     (layout.work.bit j).get (andStageIndexStep layout x) = true ↔
       sourcePrefixTrue layout x (j.val + 2) := by
@@ -684,7 +685,7 @@ theorem andStageIndexStep_get_work_eq_true_iff (j : Fin tail) (x : Data)
 
 /-- The final conjunction control is true exactly when every source bit is
 true, provided the chain workspace began clean. -/
-theorem finalControl_andStage_eq_true_iff (x : Data)
+lemma finalControl_andStage_eq_true_iff (x : Data)
     (hclean : ∀ k, (layout.work.bit k).get x = false) :
     finalControl layout (andStageIndexStep layout x) = true ↔
       ∀ i, (layout.source.bit i).get x = true := by
@@ -732,7 +733,7 @@ theorem finalControl_andStage_eq_true_iff (x : Data)
       · rw [andStageIndexStep_get_source]
         exact h (lastSourceIndex tail)
 
-theorem sourceXGates_output_bitDisjoint :
+lemma sourceXGates_output_bitDisjoint :
     ∀ gate, gate ∈ sourceXGates layout →
       GateSpec.bitDisjoint layout.output gate := by
   intro gate hgate
@@ -747,7 +748,7 @@ def computeGates : List (GateSpec encoding) :=
 
 /-- With clean work, the physical compute stage fires its final control
 exactly for an all-zero source word. -/
-theorem finalControl_compute_eq_true_iff (x : Data)
+lemma finalControl_compute_eq_true_iff (x : Data)
     (hclean : ∀ j, (layout.work.bit j).get x = false) :
     finalControl layout (GateSpec.stepList (computeGates layout) x) = true ↔
       ∀ i, (layout.source.bit i).get x = false := by
@@ -781,7 +782,7 @@ theorem finalControl_compute_eq_true_iff (x : Data)
     | true =>
         simp [hsource] at hfalse
 
-theorem computeGates_output_bitDisjoint :
+lemma computeGates_output_bitDisjoint :
     ∀ gate, gate ∈ computeGates layout →
       GateSpec.bitDisjoint layout.output gate := by
   intro gate hgate
@@ -798,7 +799,7 @@ def gates : List (GateSpec encoding) :=
 
 /-- A zero-test schedule is disjoint from any external observed bit that is
 disjoint from each of its source, output, and work wires. -/
-theorem gates_bitDisjoint (observed : EncodedBit encoding)
+lemma gates_bitDisjoint (observed : EncodedBit encoding)
     (hsource : ∀ i, (layout.source.bit i).wire ≠ observed.wire)
     (houtput : layout.output.wire ≠ observed.wire)
     (hwork : ∀ j, (layout.work.bit j).wire ≠ observed.wire) :
@@ -845,42 +846,42 @@ theorem gates_bitDisjoint (observed : EncodedBit encoding)
       exact hfinal
   · exact hcompute gate hreverse
 
-private theorem finalGate_xMultiplicity :
+private lemma finalGate_xMultiplicity :
     GateSpec.xMultiplicity (finalGate layout) = 0 := by
   unfold finalGate
   split <;> rfl
 
-private theorem finalGate_cnotMultiplicity :
+private lemma finalGate_cnotMultiplicity :
     GateSpec.cnotMultiplicity (finalGate layout) = 0 := by
   unfold finalGate
   split <;> rfl
 
-private theorem finalGate_toffoliMultiplicity :
+private lemma finalGate_toffoliMultiplicity :
     GateSpec.toffoliMultiplicity (finalGate layout) = 1 := by
   unfold finalGate
   split <;> rfl
 
 /-- Exact leaf count of the clean width-`tail+2` zero test. -/
-theorem gates_length :
+lemma gates_length :
     (gates layout).length = 4 * tail + 5 := by
   simp [gates, computeGates, sourceXGates, andGates]
   omega
 
 /-- Exact X coordinate of the clean zero-test gate list. -/
-theorem gates_xMultiplicity_sum :
+lemma gates_xMultiplicity_sum :
     ((gates layout).map GateSpec.xMultiplicity).sum = 2 * tail + 4 := by
   simp [gates, computeGates, sourceXGates, andGates, andGateAt,
     finalGate_xMultiplicity, List.sum_ofFn]
   omega
 
 /-- The clean zero test contains no CNOT leaves. -/
-theorem gates_cnotMultiplicity_sum :
+lemma gates_cnotMultiplicity_sum :
     ((gates layout).map GateSpec.cnotMultiplicity).sum = 0 := by
   simp [gates, computeGates, sourceXGates, andGates, andGateAt,
     finalGate_cnotMultiplicity, List.sum_ofFn]
 
 /-- Exact Toffoli coordinate of the clean zero-test gate list. -/
-theorem gates_toffoliMultiplicity_sum :
+lemma gates_toffoliMultiplicity_sum :
     ((gates layout).map GateSpec.toffoliMultiplicity).sum = 2 * tail + 1 := by
   simp [gates, computeGates, sourceXGates, andGates, andGateAt,
     finalGate_toffoliMultiplicity, List.sum_ofFn]
@@ -895,11 +896,11 @@ def step : Data → Data :=
   GateSpec.stepList (gates layout)
 
 /-- The physical zero-test circuit realizes its exact ordered gate-list step. -/
-theorem realizes :
-    UnitaryCircuit.Realizes encoding (program layout physical oracles) (step layout) :=
-  GateSpec.realizesList physical oracles (gates layout)
+lemma realizes :
+    UnitaryCircuit.Realizes encoding (program layout physical oracles) environment (step layout) :=
+  GateSpec.realizesList physical oracles (environment := environment) (gates layout)
 
-theorem computeGates_reverse_output_flip (x : Data) :
+lemma computeGates_reverse_output_flip (x : Data) :
     GateSpec.stepList (computeGates layout).reverse (layout.output.flip x) =
       layout.output.flip (GateSpec.stepList (computeGates layout).reverse x) := by
   apply GateSpec.stepList_flip_comm_of_bitDisjoint
@@ -908,7 +909,7 @@ theorem computeGates_reverse_output_flip (x : Data) :
 
 /-- The complete schedule is exactly an xor into `output`; every other
 encoded-bit readout is restored by the compute-copy-uncompute sandwich. -/
-theorem step_eq_outputConditional (x : Data) :
+lemma step_eq_outputConditional (x : Data) :
     step layout x =
       if finalControl layout (GateSpec.stepList (computeGates layout) x) then
         layout.output.flip x
@@ -929,7 +930,7 @@ theorem step_eq_outputConditional (x : Data) :
 
 /-- The full clean schedule preserves every observed readout outside the xor
 output wire. -/
-theorem step_get_of_output_ne (observed : EncodedBit encoding)
+lemma step_get_of_output_ne (observed : EncodedBit encoding)
     (houtput : layout.output.wire ≠ observed.wire) (x : Data) :
     observed.get (step layout x) = observed.get x := by
   rw [step_eq_outputConditional]
@@ -938,20 +939,20 @@ theorem step_get_of_output_ne (observed : EncodedBit encoding)
   · rfl
 
 /-- The source word is a read-only input of the physical zero-test schedule. -/
-theorem step_get_source (i : Fin (tail + 2)) (x : Data) :
+lemma step_get_source (i : Fin (tail + 2)) (x : Data) :
     (layout.source.bit i).get (step layout x) = (layout.source.bit i).get x :=
   step_get_of_output_ne layout (layout.source.bit i)
     (layout.source_output_ne i).symm x
 
 /-- Every conjunction-work bit is restored by the physical zero-test schedule. -/
-theorem step_get_work (j : Fin tail) (x : Data) :
+lemma step_get_work (j : Fin tail) (x : Data) :
     (layout.work.bit j).get (step layout x) = (layout.work.bit j).get x :=
   step_get_of_output_ne layout (layout.work.bit j)
     (layout.work_output_ne j).symm x
 
 /-- Readout of the clean xor endpoint.  The predicate is the final conjunction
 control evaluated after the explicitly exposed compute stage. -/
-theorem step_get_output (x : Data) :
+lemma step_get_output (x : Data) :
     layout.output.get (step layout x) =
       (layout.output.get x ^^
         finalControl layout (GateSpec.stepList (computeGates layout) x)) := by
@@ -966,7 +967,7 @@ theorem step_get_output (x : Data) :
     cases layout.output.get x <;> rfl
 
 /-- A clean work register remains clean after the zero-test schedule. -/
-theorem step_preserves_clean_work (x : Data)
+lemma step_preserves_clean_work (x : Data)
     (hclean : ∀ j, (layout.work.bit j).get x = false) :
     ∀ j, (layout.work.bit j).get (step layout x) = false := by
   intro j
@@ -975,7 +976,7 @@ theorem step_preserves_clean_work (x : Data)
 
 /-- Combined clean endpoint/frame statement for callers that allocate a fresh
 output and clean conjunction workspace. -/
-theorem step_cleanEndpoint (x : Data)
+lemma step_cleanEndpoint (x : Data)
     (hclean : ∀ j, (layout.work.bit j).get x = false) :
     (∀ i, (layout.source.bit i).get (step layout x) = (layout.source.bit i).get x) ∧
       (∀ j, (layout.work.bit j).get (step layout x) = false) ∧
@@ -988,7 +989,7 @@ theorem step_cleanEndpoint (x : Data)
 /-- Public clean endpoint for the physical width-at-least-two zero test.  A
 clean conjunction chain is restored, the source stays read-only, and the
 fresh output is xored with the ordinary all-zero predicate. -/
-theorem step_cleanZeroEndpoint (x : Data)
+lemma step_cleanZeroEndpoint (x : Data)
     (hclean : ∀ j, (layout.work.bit j).get x = false) :
     (∀ i, (layout.source.bit i).get (step layout x) = (layout.source.bit i).get x) ∧
       (∀ j, (layout.work.bit j).get (step layout x) = false) ∧

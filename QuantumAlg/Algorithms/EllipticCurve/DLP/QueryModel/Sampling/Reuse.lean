@@ -8,14 +8,14 @@ module
 
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.SuccessFloor
 public import QuantumAlg.Primitives.ZReset.Bank
-public import QuantumAlg.Core.Execution.Local.Framing
+public import QuantumAlg.Core.Execution.Circuit.Local
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling
 import all QuantumAlg.Primitives.ZReset.Bank
 import all QuantumAlg.Primitives.ZReset.Sequence
 import all QuantumAlg.Primitives.ZReset.Circuit
 import all QuantumAlg.Components.QuditShift.Reset.Circuit
 import all QuantumAlg.Core.Execution.Measurement.Sequence
-import all QuantumAlg.Core.Execution.Local.Framing
+import all QuantumAlg.Core.Execution.Circuit.Local
 import all QuantumAlg.Core.Execution.Store
 
 /-!
@@ -65,17 +65,17 @@ public def exponentPosition (I : ECDLPInstance E) (index : Fin (sampleWidth I)) 
     Fin (context I).systemCount := Sampling.exponentPosition I index
 
 /-- The same original exponent wire is a qubit in this actual reused context. -/
-public theorem exponent_dimension (I : ECDLPInstance E) (index : Fin (sampleWidth I)) :
+public lemma exponent_dimension (I : ECDLPInstance E) (index : Fin (sampleWidth I)) :
     ((context I).quantumLayout.wire (exponentPosition I index)).dimension = 2 :=
   Sampling.exponent_dimension I index
 
 /-- The single retained reset cell changes no physical identity, dimension or wire order. -/
-public theorem ecdlpReuse_sourceWires (I : ECDLPInstance E) :
+public lemma ecdlpReuse_sourceWires (I : ECDLPInstance E) :
     (layout I).wires = (context I).quantumLayout.wires :=
   Sampling.sourceWires I
 
 /-- Every system in the unchanged complete bank is an actual qubit. -/
-public theorem ecdlpReuse_qubits (I : ECDLPInstance E)
+public lemma ecdlpReuse_qubits (I : ECDLPInstance E)
     (wire : Fin (context I).systemCount) :
     ((context I).quantumLayout.wire wire).dimension = 2 := by
   let positions := Execution.positionsOfEqualWires (layout I) (context I).quantumLayout
@@ -88,16 +88,18 @@ public theorem ecdlpReuse_qubits (I : ECDLPInstance E)
   rfl
 
 /-- Both actual bank resets use Z readout and its selected native X correction. -/
-public def reset (I : ECDLPInstance E) (A : Access I) :
-    Circuit (executionModel I A) (context I) (context I) :=
-  ZReset.Bank.code (oracles := model I A) (ecdlpReuse_qubits I) (scratch I) BitWord.model
+public def reset (I : ECDLPInstance E)
+    (allowAllocation : Bool := true) :
+    Circuit (executionModel I) (context I) (context I) allowAllocation :=
+  ZReset.Bank.code (allowAllocation := allowAllocation) (oracles := model I)
+    (ecdlpReuse_qubits I) (scratch I) BitWord.model
 
 /-- Execute the same native infinity-tag X and the original declared sampling word. -/
-public def nativeProgram (I : ECDLPInstance E) (A : Access I)
+public def nativeProgram (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    UnitaryCircuit AlgorithmGate.model (model I A) (context I).quantumLayout :=
+    UnitaryCircuit AlgorithmGate.model (model I) (context I).quantumLayout :=
   Execution.unitaryOfEqualWires (layout I) (context I).quantumLayout (ecdlpReuse_sourceWires I)
-    ((initializer I A).seq (circuit I A expansion))
+    ((initializer I).seq (circuit I expansion))
 
 /-- Measure each original exponent position into its existing retained result cell. -/
 public def readout (I : ECDLPInstance E) (index : Fin (sampleWidth I)) :
@@ -110,25 +112,32 @@ public def readouts (I : ECDLPInstance E) : List (ZReadout (context I)) :=
   List.ofFn (readout I)
 
 /-- A round includes its leading reset, actual sample and required final physical reset. -/
-public def code (I : ECDLPInstance E) (A : Access I)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    Circuit (executionModel I A) (context I) (context I) :=
-  (reset I A).seq ((Circuit.unitary (nativeProgram I A expansion)).seq
-    ((Circuit.measurementSequence (readouts I)).seq (reset I A)))
+public def code (I : ECDLPInstance E)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
+    (allowAllocation : Bool := true) :
+    Circuit (executionModel I) (context I) (context I) allowAllocation :=
+  (reset (allowAllocation := allowAllocation) I).seq
+    ((Circuit.unitary (nativeProgram I expansion)).seq
+      ((Circuit.measurementSequence (allowAllocation := allowAllocation) (readouts I)).seq
+        (reset (allowAllocation := allowAllocation) I)))
 
-private theorem resetSequence_local {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
+private lemma resetSequence_local {allowAllocation : Bool}
+    {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
     (implementations : ∀ wire,
       QuditShift.Realizations AlgorithmGate.model oracles ctx.quantumLayout wire)
     (items : List (ZReadout ctx)) :
-    (ZReset.sequence implementations items BitWord.model).IsLocal := by
+    (ZReset.sequence (allowAllocation := allowAllocation) implementations items
+        BitWord.model).IsLocal := by
   induction items with
   | nil => trivial
   | cons head tail induction =>
       exact ⟨⟨trivial, fun _ => trivial⟩, induction⟩
 
-private theorem readoutSequence_local {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
+private lemma readoutSequence_local {allowAllocation : Bool}
+    {ctx : RuntimeCtx .quantum} {oracles : OracleModel}
     (items : List (ZReadout ctx)) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := oracles)
+    (Circuit.measurementSequence (allowAllocation := allowAllocation)
+      (gates := AlgorithmGate.model) (oracles := oracles)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       items).IsLocal := by
   induction items with
@@ -136,25 +145,27 @@ private theorem readoutSequence_local {ctx : RuntimeCtx .quantum} {oracles : Ora
   | cons head tail induction => exact ⟨trivial, induction⟩
 
 /-- Every actual round reuses the same live bank and allocates no additional entry. -/
-public theorem ecdlpReuse_code_isLocal (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_code_isLocal {allowAllocation : Bool} (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (code I A expansion).IsLocal := by
-  have resetLocal : (reset I A).IsLocal := resetSequence_local _ _
-  exact ⟨resetLocal, ⟨trivial, ⟨readoutSequence_local _, resetLocal⟩⟩⟩
+    (code (allowAllocation := allowAllocation) I expansion).IsLocal := by
+  have resetLocal : (reset (allowAllocation := allowAllocation) I).IsLocal := resetSequence_local
+      (allowAllocation := allowAllocation) _ _
+  exact ⟨resetLocal, ⟨trivial, ⟨readoutSequence_local (allowAllocation := allowAllocation) _,
+      resetLocal⟩⟩⟩
 
 /-- Allocate the original bank, original measured cells and exactly one reset cell once. -/
-public def initialCode (I : ECDLPInstance E) (A : Access I) :
-    Circuit (executionModel I A) (Sampling.pre I) (context I) :=
-  (Sampling.initialCode I A).seq (Circuit.retain (model := executionModel I A) (Sampling.post I)
+public def initialCode (I : ECDLPInstance E) :
+    Circuit (executionModel I) (Sampling.pre I) (context I) :=
+  (Sampling.initialCode I).seq (Circuit.retain (model := executionModel I) (Sampling.post I)
     (Sampling.post I).canonicalFreshKey (.finite 2)
     (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.post I)))
 
 /-- The complete returned manifest retains every input, point/exponent system and real cell. -/
-public def run (I : ECDLPInstance E) (A : Access I)
+public def run (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    AlgorithmRun (executionModel I A) (context I) (context I)
+    AlgorithmRun (executionModel I) (context I) (context I)
       (.fixedVector (sampleWidth I) (.finite 2)) where
-  code := code I A expansion
+  code := code I expansion
   output := Output.all (context I) (.read (sampleInput I))
 
 end

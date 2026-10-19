@@ -26,33 +26,34 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
-private theorem firstAdvanceArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
+private lemma firstAdvanceArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstAdvanceArm (model := model) refs flag).execute Reference state =
+    (firstAdvanceArm (model := model) refs flag).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := firstAdvanceArmStep (model := model) refs flag entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
     cases flag
-    · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+    · refine (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl
     · exact LatticePhaseControl.transitionInto_execute refs.machine .firstPass
         Reference state
 
 /-- The actual first Lovasz bit selects the matching full-state phase update. -/
-theorem firstAdvanceInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma firstAdvanceInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstAdvanceInto (model := model) refs).execute Reference state =
+    (firstAdvanceInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := firstAdvanceStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical
+  refine (Circuit.execute_branch_mapClassical (environment := environment)
     (.storage refs.first.lovasz.passes.toCStorageRef)
     (firstAdvanceArm (model := model) refs)
     (fun flag before =>
@@ -63,14 +64,14 @@ theorem firstAdvanceInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual first phase update and Gram refresh compose in the full state. -/
-theorem firstTailInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma firstTailInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstTailInto (model := model) refs).execute Reference state =
+    (firstTailInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := firstTailStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (firstAdvanceInto (model := model) refs)
     (LatticeMetricMachine.refreshInto (model := model) refs.machine.basis refs.metric)
     (fun before =>
@@ -87,14 +88,14 @@ theorem firstTailInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual first pair feeds its phase update and full Gram refresh in the complete state. -/
-theorem firstStepInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma firstStepInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstStepInto (model := model) refs).execute Reference state =
+    (firstStepInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := firstStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeFirstPairMachine.firstPairInto (model := model) refs.first)
     (firstTailInto (model := model) refs)
     (fun before =>
@@ -110,10 +111,10 @@ theorem firstStepInto_execute (refs : Refs ctx width) (Reference : Register)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem secondAdvanceArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
+private lemma secondAdvanceArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondAdvanceArm (model := model) refs flag).execute Reference state =
+    (secondAdvanceArm (model := model) refs flag).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondAdvanceArmStep (model := model) refs flag entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -126,14 +127,14 @@ private theorem secondAdvanceArm_execute (refs : Refs ctx width) (flag : CShape.
         Reference state
 
 /-- The actual second Lovasz bit selects the matching full-state phase update. -/
-theorem secondAdvanceInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma secondAdvanceInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondAdvanceInto (model := model) refs).execute Reference state =
+    (secondAdvanceInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondAdvanceStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical
+  refine (Circuit.execute_branch_mapClassical (environment := environment)
     (.storage refs.second.branch.lovasz.passes.toCStorageRef)
     (secondAdvanceArm (model := model) refs)
     (fun flag before =>
@@ -144,14 +145,14 @@ theorem secondAdvanceInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual second phase update and Gram refresh compose in the full state. -/
-theorem secondTailInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma secondTailInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondTailInto (model := model) refs).execute Reference state =
+    (secondTailInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondTailStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (secondAdvanceInto (model := model) refs)
     (LatticeMetricMachine.refreshInto (model := model) refs.machine.basis refs.metric)
     (fun before =>
@@ -168,14 +169,14 @@ theorem secondTailInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual second pair feeds its phase update and full Gram refresh in the complete state. -/
-theorem secondStepInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma secondStepInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondStepInto (model := model) refs).execute Reference state =
+    (secondStepInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeSecondPairFullMachine.secondPairInto (model := model) refs.second)
     (secondTailInto (model := model) refs)
     (fun before =>
@@ -191,10 +192,10 @@ theorem secondStepInto_execute (refs : Refs ctx width) (Reference : Register)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem nonDoneArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
+private lemma nonDoneArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (nonDoneArm (model := model) refs flag).execute Reference state =
+    (nonDoneArm (model := model) refs flag).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := nonDoneArmStep (model := model) refs flag entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -205,14 +206,15 @@ private theorem nonDoneArm_execute (refs : Refs ctx width) (flag : CShape.Value 
     · exact secondStepInto_execute refs Reference state
 
 /-- The actual incoming phase bit selects the corresponding complete-state execution. -/
-theorem nonDoneStepInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma nonDoneStepInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (nonDoneStepInto (model := model) refs).execute Reference state =
+    (nonDoneStepInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := nonDoneStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (phaseInput refs.machine.secondPhase)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (phaseInput refs.machine.secondPhase)
     (nonDoneArm (model := model) refs)
     (fun flag before =>
       let actual := nonDoneArmStep (model := model) refs flag before.1
@@ -221,10 +223,10 @@ theorem nonDoneStepInto_execute (refs : Refs ctx width) (Reference : Register)
       nonDoneArm_execute refs flag reference current) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem stepArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
+private lemma stepArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (stepArm (model := model) refs flag).execute Reference state =
+    (stepArm (model := model) refs flag).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := stepArmStep (model := model) refs flag entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -232,18 +234,19 @@ private theorem stepArm_execute (refs : Refs ctx width) (flag : CShape.Value .bi
   | bit flag =>
     cases flag
     · exact nonDoneStepInto_execute refs Reference state
-    · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+    · refine (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual incoming phase bit selects the corresponding complete-state execution. -/
-theorem stepInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma stepInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (stepInto (model := model) refs).execute Reference state =
+    (stepInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := step (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (phaseInput refs.machine.done)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (phaseInput refs.machine.done)
     (stepArm (model := model) refs)
     (fun flag before =>
       let actual := stepArmStep (model := model) refs flag before.1
@@ -255,10 +258,10 @@ theorem stepInto_execute (refs : Refs ctx width) (Reference : Register)
 set_option maxHeartbeats 800000 in
 -- Reconcile the finite path instances of all nested actual branches.
 /-- Fixed-fuel execution retains the final store and chronological paths in the full state. -/
-theorem fixedFuelInto_execute (fuel : Nat) (refs : Refs ctx width) (Reference : Register)
+lemma fixedFuelInto_execute (fuel : Nat) (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (fixedFuelInto (model := model) fuel refs).execute Reference state =
+    (fixedFuelInto (model := model) fuel refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := fixedFuelStep (model := model) fuel refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -274,7 +277,8 @@ theorem fixedFuelInto_execute (fuel : Nat) (refs : Refs ctx width) (Reference : 
     | succ steps inductionHypothesis =>
         rw [Function.iterate_succ_apply', Function.iterate_succ_apply',
           inductionHypothesis]
-  refine (Circuit.execute_iterate_mapClassical (stepInto (model := model) refs)
+  refine (Circuit.execute_iterate_mapClassical
+    (environment := environment) (stepInto (model := model) refs)
     jointStep (fun reference _history _ current => stepInto_execute refs reference current)
     fuel Reference state).trans ?_
   apply ExecutionState.executionState_mapClassical_congr

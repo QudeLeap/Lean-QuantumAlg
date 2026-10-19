@@ -34,18 +34,18 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem write_read (store : Store ctx) {shape : CShape} (output : CWriteRef ctx shape) :
+private lemma write_read (store : Store ctx) {shape : CShape} (output : CWriteRef ctx shape) :
     store.write output (store.read (.storage output.toCStorageRef)) = store :=
   (Store.store_eq_write_of_read_frame store store output _ rfl (fun _ _ => rfl)).symm
 
 omit [BitWord.Selected model] in
-private theorem rejected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma rejected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
     store.applyOp (pivotRejectedOp sink) = store := by
   change store.write sink (store.read (.storage sink.toCStorageRef)) = store
   exact write_read store sink
 
 omit [BitWord.Selected model] in
-private theorem selected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma selected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
     store.applyOp (pivotSelectedOp sink) = store := by
   have selfAnd (value : CShape.Value .bit) :
       Resource.BitOpcode.eval .and (.product value value) = value := by
@@ -58,7 +58,7 @@ private theorem selected_store (sink : CWriteRef ctx .bit) (store : Store ctx) :
   exact write_read store sink
 
 omit [BitWord.Selected model] in
-private theorem word_avoids_bit {size : Nat} (word : CWriteRef ctx (.unsignedWord size))
+private lemma word_avoids_bit {size : Nat} (word : CWriteRef ctx (.unsignedWord size))
     (bit : CWriteRef ctx .bit) :
     word.key ∉ (CInputRef.storage bit.toCStorageRef).storageKeys := by
   simp only [CInputRef.storageKeys, List.mem_singleton]
@@ -68,7 +68,7 @@ private theorem word_avoids_bit {size : Nat} (word : CWriteRef ctx (.unsignedWor
   cases impossible
 
 omit [BitWord.Selected model] in
-private theorem vector_avoids_bit {count : Nat} {shape : CShape}
+private lemma vector_avoids_bit {count : Nat} {shape : CShape}
     (vector : CWriteRef ctx (.fixedVector count shape)) (bit : CWriteRef ctx .bit) :
     vector.key ∉ (CInputRef.storage bit.toCStorageRef).storageKeys := by
   simp only [CInputRef.storageKeys, List.mem_singleton]
@@ -82,7 +82,7 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
   (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
 
-private theorem selected_found (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
+private lemma selected_found (pivot : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (selectPivotStep matrix used rows columns found sink pivot column store).1.read
       (.storage found.toCStorageRef) =
         .bit (!(store.read (.storage found.toCStorageRef)).toBool) := by
@@ -106,7 +106,7 @@ private def eligible (row : Fin rowCount) (column : Fin width) (store : Store ct
   !(store.read (pivotUsedBit used row)).toBool &&
     (store.read (eliminationBit matrix row column)).toBool
 
-private theorem matrix_choice_store (row : Fin rowCount) (column : Fin width)
+private lemma matrix_choice_store (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pivotMatrixChoiceStep matrix used rows columns found sink row column value store).1 =
       if value.toBool then
@@ -118,7 +118,7 @@ private theorem matrix_choice_store (row : Fin rowCount) (column : Fin width)
       · exact rejected_store sink store
       · rfl
 
-private theorem used_choice_store (row : Fin rowCount) (column : Fin width)
+private lemma used_choice_store (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pivotUsedChoiceStep matrix used rows columns found sink row column value store).1 =
       if value.toBool then store
@@ -131,7 +131,7 @@ private theorem used_choice_store (row : Fin rowCount) (column : Fin width)
       · exact matrix_choice_store matrix used rows columns found sink row column _ store
       · exact rejected_store sink store
 
-private theorem found_choice_store (row : Fin rowCount) (column : Fin width)
+private lemma found_choice_store (row : Fin rowCount) (column : Fin width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pivotFoundChoiceStep matrix used rows columns found sink row column value store).1 =
       if value.toBool then store
@@ -151,7 +151,7 @@ private theorem found_choice_store (row : Fin rowCount) (column : Fin width)
         cases (store.read (pivotUsedBit used row)).toBool <;> rfl
       · rfl
 
-private theorem probe_store (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
+private lemma probe_store (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
     (pivotProbeRowStep matrix used rows columns found sink row column store).1 =
       if (store.read (.storage found.toCStorageRef)).toBool then store
       else if eligible matrix used row column store then
@@ -159,7 +159,7 @@ private theorem probe_store (row : Fin rowCount) (column : Fin width) (store : S
       else store :=
   found_choice_store matrix used rows columns found sink row column _ store
 
-private theorem scan_found (count : Nat) (indices : Fin count → Fin rowCount)
+private lemma scan_found (count : Nat) (indices : Fin count → Fin rowCount)
     (column : Fin width) (store : Store ctx)
     (already : store.read (.storage found.toCStorageRef) = .bit true) :
     (Circuit.forRangeStoreRecord count
@@ -175,7 +175,7 @@ private theorem scan_found (count : Nat) (indices : Fin count → Fin rowCount)
       rw [probe_store, already]
       exact ih (fun index => indices index.succ) store already
 
-private theorem scan_first (count : Nat) (indices : Fin count → Fin rowCount)
+private lemma scan_first (count : Nat) (indices : Fin count → Fin rowCount)
     (column : Fin width) (store : Store ctx)
     (unfound : store.read (.storage found.toCStorageRef) = .bit false) :
     (Circuit.forRangeStoreRecord count
@@ -206,7 +206,7 @@ private theorem scan_first (count : Nat) (indices : Fin count → Fin rowCount)
           rfl
 
 omit [BitWord.Selected model] in
-private theorem cleared_found (store : Store ctx) :
+private lemma cleared_found (store : Store ctx) :
     (store.applyOp (pivotClearOp found)).read (.storage found.toCStorageRef) = .bit false := by
   refine (Store.read_applyOp_output store (pivotClearOp found)).trans ?_
   have selfXor (value : CShape.Value .bit) :
@@ -216,7 +216,7 @@ private theorem cleared_found (store : Store ctx) :
   exact selfXor _
 
 omit [BitWord.Selected model] in
-private theorem cleared_eligible (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
+private lemma cleared_eligible (row : Fin rowCount) (column : Fin width) (store : Store ctx) :
     eligible matrix used row column (store.applyOp (pivotClearOp found)) =
       eligible matrix used row column store := by
   have usedNe : used.key ≠ found.key := by
@@ -232,7 +232,7 @@ private theorem cleared_eligible (row : Fin rowCount) (column : Fin width) (stor
     Store.read_applyOp_of_not_mem_storageKeys _ (pivotClearOp found) _ matrixFree]
 
 /-- The actual increasing scan executes the selected arm of exactly the first eligible row. -/
-theorem gf2ReduceColumnBody_store (column : Fin width) (store : Store ctx) :
+lemma gf2ReduceColumnBody_store (column : Fin width) (store : Store ctx) :
     (reduceColumnBodyStep matrix used rows columns found sink column store).1 =
       match Fin.find? (fun row => !(store.read (pivotUsedBit used row)).toBool &&
         (store.read (eliminationBit matrix row column)).toBool) with
@@ -263,7 +263,7 @@ theorem gf2ReduceColumnBody_store (column : Fin width) (store : Store ctx) :
       rfl
 
 /-- The original pure first-pivot choice indexes the actual selected-arm store without promises. -/
-theorem gf2ReduceColumnBody_of_state (column : Fin width) (store : Store ctx)
+lemma gf2ReduceColumnBody_of_state (column : Fin width) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)
     (matrixValue : store.read (.storage matrix.toCStorageRef) =
       .fixedVector (fun row => .unsignedWord (state.rows row)))

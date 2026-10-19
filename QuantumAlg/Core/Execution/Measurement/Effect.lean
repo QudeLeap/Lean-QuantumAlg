@@ -33,12 +33,12 @@ namespace ZMeasurement
 variable {R : Register} {Outcome : Type}
 
 /-- The retained readout-fiber projector is self-adjoint. -/
-@[simp] theorem projector_conjTranspose (readout : R.Index → Outcome) (outcome : Outcome) :
+@[simp] lemma projector_conjTranspose (readout : R.Index → Outcome) (outcome : Outcome) :
     (projector readout outcome).conjTranspose = projector readout outcome := by
   simp [projector, Matrix.diagonal_conjTranspose]
 
 /-- Applying the actual projector retains precisely the selected basis coordinates. -/
-theorem projector_applyVec (readout : R.Index → Outcome) (outcome : Outcome)
+lemma projector_applyVec (readout : R.Index → Outcome) (outcome : Outcome)
     (vector : HilbertVector R) (index : R.Index) :
     (projector readout outcome).applyVec vector index =
       if readout index = outcome then vector index else 0 := by
@@ -49,7 +49,7 @@ theorem projector_applyVec (readout : R.Index → Outcome) (outcome : Outcome)
 variable [Fintype Outcome]
 
 /-- The disjoint readout fibers account for the complete squared vector norm. -/
-theorem sum_norm_projector_applyVec_sq (readout : R.Index → Outcome)
+lemma sum_norm_projector_applyVec_sq (readout : R.Index → Outcome)
     (vector : HilbertVector R) :
     ∑ outcome, ‖(projector readout outcome).applyVec vector‖ ^ 2 = ‖vector‖ ^ 2 := by
   simp_rw [EuclideanSpace.norm_sq_eq, projector_applyVec]
@@ -59,7 +59,7 @@ theorem sum_norm_projector_applyVec_sq (readout : R.Index → Outcome)
 
 omit [Fintype Outcome] in
 /-- Selecting a readout fiber cannot increase a vector norm. -/
-theorem projector_applyVec_norm_le (readout : R.Index → Outcome) (outcome : Outcome)
+lemma projector_applyVec_norm_le (readout : R.Index → Outcome) (outcome : Outcome)
     (vector : HilbertVector R) :
     ‖(projector readout outcome).applyVec vector‖ ≤ ‖vector‖ := by
   have bound : ‖(projector readout outcome).applyVec vector‖ ^ 2 ≤ ‖vector‖ ^ 2 := by
@@ -76,7 +76,7 @@ def pullbackMatrix (readout : R.Index → Outcome) (effects : Outcome → Effect
     (projector readout outcome).conjTranspose
 
 /-- Every output coordinate belongs to its actual readout fiber. -/
-theorem pullbackMatrix_applyVec (readout : R.Index → Outcome) (effects : Outcome → Effect R)
+lemma pullbackMatrix_applyVec (readout : R.Index → Outcome) (effects : Outcome → Effect R)
     (vector : HilbertVector R) (index : R.Index) :
     (pullbackMatrix readout effects).applyVec vector index =
       (effects (readout index)).matrix.applyVec
@@ -88,7 +88,7 @@ theorem pullbackMatrix_applyVec (readout : R.Index → Outcome) (effects : Outco
   simp
 
 /-- Disjoint retained fibers preserve contractivity of the outcome-dependent effects. -/
-theorem pullbackMatrix_contractive (readout : R.Index → Outcome)
+lemma pullbackMatrix_contractive (readout : R.Index → Outcome)
     (effects : Outcome → Effect R) (vector : HilbertVector R) :
     ‖(pullbackMatrix readout effects).applyVec vector‖ ≤ ‖vector‖ := by
   have split : ‖(pullbackMatrix readout effects).applyVec vector‖ ^ 2 =
@@ -117,7 +117,7 @@ def pullbackEffect (readout : R.Index → Outcome) (effects : Outcome → Effect
   contractive := pullbackMatrix_contractive readout effects
 
 /-- Exact trace pairing with the actual probability-bearing measurement branches. -/
-theorem weight_pullbackEffect (readout : R.Index → Outcome) (effects : Outcome → Effect R)
+lemma weight_pullbackEffect (readout : R.Index → Outcome) (effects : Outcome → Effect R)
     (state : DensityOperator R) :
     (pullbackEffect readout effects).weight state =
       ∑ outcome, (effects outcome).weight (branch readout outcome state) := by
@@ -149,13 +149,13 @@ def effectWeight (state : ExecutionState C R) (effects : C → Effect R) : ℝ :
   ∑ value, (effects value).weight (state.block value)
 
 /-- A definite classical input selects its own quantum observable. -/
-theorem effectWeight_ofValue (value : C) (state : DensityOperator R)
+lemma effectWeight_ofValue (value : C) (state : DensityOperator R)
     (effects : C → Effect R) :
     (ofValue value state).effectWeight effects = (effects value).weight state := by
   simp [effectWeight, ofValue_block, Effect.weight, apply_ite]
 
 /-- The actual mass of an observed classical value is the corresponding indicator effect. -/
-theorem effectWeight_observed_mass (state : ExecutionState C R) (read : C → D) (value : D) :
+lemma effectWeight_observed_mass (state : ExecutionState C R) (read : C → D) (value : D) :
     state.effectWeight (fun input => if read input = value then Effect.one R else Effect.zero R) =
       ((state.mapClassical read).block value).mass := by
   change (∑ input, (if read input = value then Effect.one R else Effect.zero R).weight
@@ -167,7 +167,7 @@ theorem effectWeight_observed_mass (state : ExecutionState C R) (read : C → D)
   split_ifs <;> simp [DensityOperator.mass]
 
 /-- Pulling an observation across a classical update uses the actual resulting value. -/
-theorem effectWeight_mapClassical (state : ExecutionState C R) (update : C → D)
+lemma effectWeight_mapClassical (state : ExecutionState C R) (update : C → D)
     (effects : D → Effect R) :
     (state.mapClassical update).effectWeight effects =
       state.effectWeight (fun value => effects (update value)) := by
@@ -182,7 +182,7 @@ theorem effectWeight_mapClassical (state : ExecutionState C R) (update : C → D
   simp [Effect.weight]
 
 /-- Observe the outcome-dependent quantum poststates of the actual retained measurement. -/
-theorem effectWeight_measureZ {Outcome : Type} [Fintype Outcome]
+lemma effectWeight_measureZ {Outcome : Type} [Fintype Outcome]
     (state : ExecutionState C R) (readout : R.Index → Outcome)
     (effects : C × Outcome → Effect R) :
     (state.measureZ readout).effectWeight effects =
@@ -192,7 +192,7 @@ theorem effectWeight_measureZ {Outcome : Type} [Fintype Outcome]
     ZMeasurement.weight_pullbackEffect]
 
 /-- A retained measurement followed by its classical write has one exact pullback. -/
-theorem effectWeight_measureZ_mapClassical {Outcome : Type} [Fintype Outcome]
+lemma effectWeight_measureZ_mapClassical {Outcome : Type} [Fintype Outcome]
     (state : ExecutionState C R) (readout : R.Index → Outcome)
     (update : C × Outcome → D) (effects : D → Effect R) :
     ((state.measureZ readout).mapClassical update).effectWeight effects =
@@ -206,7 +206,7 @@ namespace Execution.State
 
 /-- The pullback follows the real wire measurement, Store write and recorded outcome,
 while retaining the complete context register and external reference. -/
-theorem effectWeight_measureZ {ctx : RuntimeCtx .quantum} {Reference : Register}
+lemma effectWeight_measureZ {ctx : RuntimeCtx .quantum} {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference H) (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (effects : (Store ctx × (H × Fin (ctx.quantumLayout.wire wire).dimension)) →

@@ -77,28 +77,58 @@ public def controlledElementaryToffoliCount : Nat → Nat
   | 2 => 1
   | extra + 3 => gateCount (extra + 3)
 
+/-- The controlled reflection Toffoli count has an explicit formula at every width. -/
+public lemma zeroReflection_controlledElementaryToffoliCount_table (width : Nat) :
+    controlledElementaryToffoliCount width = match width with
+      | 0 | 1 => 0
+      | 2 => 1
+      | 3 => 4
+      | 4 => 10
+      | extra + 5 => 8 * (extra + 2) := by
+  match width with
+  | 0 | 1 | 2 | 3 | 4 => decide
+  | extra + 5 =>
+      change gateCount (extra + 5) = 8 * (extra + 2)
+      rw [gateCount_of_five_le (by omega)]
+      omega
+
+/-- The controlled reflection single-qubit count is explicit at every width. -/
+public lemma zeroReflection_controlledElementarySingleQubitCount_table (width : Nat) :
+    controlledElementarySingleQubitCount width = match width with
+      | 0 => 0
+      | 1 => 2
+      | 2 => 7
+      | extra + 3 => 2 * (extra + 3) + 3 := by
+  rfl
+
+/-- A controlled source reflection uses one CNOT exactly at source width one. -/
+public lemma zeroReflection_controlledElementaryCNOTCount_table (width : Nat) :
+    controlledElementaryCNOTCount width = if width = 1 then 1 else 0 := by
+  match width with
+  | 0 | 1 | extra + 2 => simp [controlledElementaryCNOTCount]
+
 /-- The empty controlled reflection is the identity and has no gate occurrences. -/
-@[simp] public theorem controlledElementaryGateCount_zero :
+@[simp] public lemma controlledElementaryGateCount_zero :
     controlledElementaryGateCount 0 = 0 := by decide
 
 /-- One source qubit uses the actual three-gate positive controlled reflection. -/
-@[simp] public theorem controlledElementaryGateCount_one :
+@[simp] public lemma controlledElementaryGateCount_one :
     controlledElementaryGateCount 1 = 3 := by decide
 
 /-- Two source qubits use the actual eight-gate controlled reflection. -/
-@[simp] public theorem controlledElementaryGateCount_two :
+@[simp] public lemma controlledElementaryGateCount_two :
     controlledElementaryGateCount 2 = 8 := by decide
 
 /-- Three source qubits use thirteen elementary occurrences, including the controlled sign. -/
-@[simp] public theorem controlledElementaryGateCount_three :
+@[simp] public lemma controlledElementaryGateCount_three :
     controlledElementaryGateCount 3 = 13 := by decide
 
 /-- Four source qubits use twenty-one elementary occurrences. -/
-@[simp] public theorem controlledElementaryGateCount_four :
+@[simp] public lemma controlledElementaryGateCount_four :
     controlledElementaryGateCount 4 = 21 := by decide
 
 /-- From five source qubits onward the actual independent count has this linear formula. -/
-public theorem controlledElementaryGateCount_of_five_le {width : Nat} (large : 5 ≤ width) :
+public lemma controlledElementaryGateCount_of_five_le {width : Nat} (large : 5 ≤ width) :
     controlledElementaryGateCount width = 10 * width - 21 := by
   obtain ⟨extra, rfl⟩ : ∃ extra, width = extra + 5 := ⟨width - 5, by omega⟩
   rw [controlledElementaryGateCount, gateCount_of_five_le (by omega)]
@@ -106,7 +136,7 @@ public theorem controlledElementaryGateCount_of_five_le {width : Nat} (large : 5
 
 namespace SmallPhase
 
-theorem program_eventCost (oracles : OracleModel) (phases width : Nat)
+lemma program_eventCost (oracles : OracleModel) (phases width : Nat)
     (physical : QubitLayout (phases + width)) (small : width ≤ 2) (control : Fin phases) :
     (program oracles phases width physical small control).eventCost =
       controlledElementaryEventPool oracles width := by
@@ -121,7 +151,7 @@ theorem program_eventCost (oracles : OracleModel) (phases width : Nat)
       (PhaseWorkspace.phaseBit_ne_sourceBit phases 1 control 0)
       (PhaseWorkspace.phaseBit_ne_sourceBit phases 1 control 1) (source_two_ne phases)
 
-theorem program_unitDepth (oracles : OracleModel) (phases width : Nat)
+lemma program_unitDepth (oracles : OracleModel) (phases width : Nat)
     (physical : QubitLayout (phases + width)) (small : width ≤ 2) (control : Fin phases) :
     (program oracles phases width physical small control).evaluatedEventDepth
         (fun _ => 1) = controlledElementaryGateCount width := by
@@ -140,7 +170,7 @@ end SmallPhase
 
 namespace PhaseWorkspace
 
-theorem program_eventCost (oracles : OracleModel) (phases controls : Nat)
+lemma program_eventCost (oracles : OracleModel) (phases controls : Nat)
     (physical : QubitLayout (phases + (controls + 1))) (large : 2 ≤ controls)
     (control work : Fin phases) (different : control ≠ work) :
     (program oracles phases controls physical control work different).eventCost =
@@ -157,7 +187,7 @@ theorem program_eventCost (oracles : OracleModel) (phases controls : Nat)
   rw [gatePool, if_neg (by omega), if_neg (by omega)] at actual
   exact actual
 
-theorem program_unitDepth (oracles : OracleModel) (phases controls : Nat)
+lemma program_unitDepth (oracles : OracleModel) (phases controls : Nat)
     (physical : QubitLayout (phases + (controls + 1))) (large : 2 ≤ controls)
     (control work : Fin phases) (different : control ≠ work) :
     (program oracles phases controls physical control work different).evaluatedEventDepth
@@ -176,7 +206,7 @@ theorem program_unitDepth (oracles : OracleModel) (phases controls : Nat)
 end PhaseWorkspace
 
 /-- Every occurrence in the independent controlled-reflection pool is an elementary gate. -/
-theorem controlledElementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
+lemma controlledElementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
       | .gate _ => 1 | _ => 0) (controlledElementaryEventPool oracles width) =
       controlledElementaryGateCount width := by
@@ -191,7 +221,7 @@ theorem controlledElementaryEventPool_gateCount (oracles : OracleModel) (width :
       omega
 
 /-- The elementary controlled reflection invokes no opaque source query. -/
-theorem controlledElementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
+lemma controlledElementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
       | .oracle _ => 1 | _ => 0) (controlledElementaryEventPool oracles width) = 0 := by
   match width with
@@ -204,7 +234,7 @@ theorem controlledElementaryEventPool_queryCount (oracles : OracleModel) (width 
         mul_zero, add_zero]
 
 /-- The selected controlled synthesis has a uniform linear elementary count. -/
-theorem controlledElementaryGateCount_le (width : Nat) :
+lemma controlledElementaryGateCount_le (width : Nat) :
     controlledElementaryGateCount width ≤ 10 * width + 3 := by
   match width with
   | 0 => decide

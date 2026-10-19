@@ -30,7 +30,7 @@ def writeKeys (refs : RoundRefs ctx width) : List StorageKey :=
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem copy_preserves {shape : CShape} (refs : RoundRefs ctx width)
+private lemma copy_preserves {shape : CShape} (refs : RoundRefs ctx width)
     (other : CInputRef ctx shape) (separate : refs.root.key ∉ other.storageKeys)
     (store : Store ctx) :
     ((selectStep (model := model) refs store).1).read other = store.read other := by
@@ -43,7 +43,7 @@ private theorem copy_preserves {shape : CShape} (refs : RoundRefs ctx width)
       | true => rfl
 
 /-- Every actual round retains all original values outside its five genuine destinations. -/
-theorem nativeSqrt_round_read_unchanged
+lemma nativeSqrt_round_read_unchanged
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys) (store : Store ctx) :

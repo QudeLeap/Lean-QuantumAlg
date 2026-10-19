@@ -22,11 +22,11 @@ noncomputable section
 
 variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
 
-private theorem zero_phase_matrix (oracles : OracleModel) :
-    ((KnownZero.phase m n positive oracles 0).binaryMatrix :
+private lemma zero_phase_matrix (oracles : OracleModel) (environment : oracles.Interpretation) :
+    (((KnownZero.phase m n positive oracles 0).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (m + n)))) = 1 := by
-  rw [KnownZero.phase, ProjectorPhase.circuit_projector_matrix _ _
-    (KnownZero.flip_matrix m n positive oracles)]
+  rw [KnownZero.phase, ProjectorPhase.circuit_projector_matrix _ _ environment
+    (KnownZero.flip_matrix m n positive oracles environment)]
   simp only [mul_zero, neg_zero, rotZStdOp_zero]
   change HilbertOperator.tensor 1 _ + HilbertOperator.tensor 1 _ = _
   rw [← HilbertOperator.tensor_add]
@@ -35,18 +35,21 @@ private theorem zero_phase_matrix (oracles : OracleModel) :
 
 /-- The common word is followed by the one extra slot of selector branch one. -/
 def unmatched (phases : List (ℝ × ℝ)) (lastAngle : ℝ) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U true true false) (layout m n) :=
-  ((circuit U positive true phases).seq
-    (UnitarySource.Conditional.withSpectator U (decide ((phases.length + 1) % 2 = 0)))).seq
-    (phase m n positive (UnitarySource.model U true true false) 0 lastAngle)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) true true false) (layout m n) :=
+  ((circuit (m := m) (n := n) positive true phases).seq
+    (UnitarySource.Conditional.withSpectator (m + n) (decide ((phases.length + 1) % 2 = 0)))).seq
+    (phase m n positive (UnitarySource.model (m + n) true true false) 0 lastAngle)
 
 /-- The shorter branch is unchanged; the longer branch has exactly its additional source slot. -/
-theorem unmatched_matrix (phases : List (ℝ × ℝ)) (lastAngle : ℝ) :
-    ((unmatched U positive phases lastAngle).binaryMatrix :
+lemma unmatched_matrix (phases : List (ℝ × ℝ)) (lastAngle : ℝ) :
+    (((unmatched (m := m) (n := n) positive phases lastAngle).binaryMatrix
+      (UnitarySource.interpretation U true true false)) :
       HilbertOperator (Qubits (1 + (1 + (m + n))))) =
       Native.branchMatrix
-        (KnownZero.circuit U positive true (phases.map Prod.fst)).binaryMatrix
-        (KnownZero.circuit U positive true (lastAngle :: phases.map Prod.snd)).binaryMatrix := by
+        ((KnownZero.circuit (m := m) (n := n) positive true (phases.map Prod.fst)).binaryMatrix
+          (UnitarySource.interpretation U true true false))
+        ((KnownZero.circuit (m := m) (n := n) positive true (lastAngle :: phases.map
+          Prod.snd)).binaryMatrix (UnitarySource.interpretation U true true false)) := by
   rw [unmatched, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq]
   change _ * (_ * _) = _
@@ -60,8 +63,8 @@ theorem unmatched_matrix (phases : List (ℝ × ℝ)) (lastAngle : ℝ) :
   rfl
 
 /-- Exact depth includes the native selector and, when needed, expanded inverse control. -/
-theorem unmatched_depth (phases : List (ℝ × ℝ)) (lastAngle : ℝ) :
-    (unmatched U positive phases lastAngle).evaluatedEventDepth (fun _ => 1) =
+lemma unmatched_depth (phases : List (ℝ × ℝ)) (lastAngle : ℝ) :
+    (unmatched (m := m) (n := n) positive phases lastAngle).evaluatedEventDepth (fun _ => 1) =
       (2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 5) * phases.length +
         (if (phases.length + 1) % 2 = 0 then 4 else 1) +
         (2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 4) := by

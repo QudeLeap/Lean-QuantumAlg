@@ -25,20 +25,21 @@ noncomputable section
 open Execution
 
 /-- Finite history maps commute with actual execution and external-reference transport. -/
-theorem execute_mapHistory_reference {model : ExecutionModel}
+lemma execute_mapHistory_reference {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} (code : Circuit model pre post)
+    (environment : model.Environment)
     (Reference Other : Register) {H K L : Type}
     [Fintype H] [Fintype K] [Fintype L]
     (state : State pre Reference (model.HiddenState × H))
     (initial : H → K) (final : model.HiddenState × (K × code.Path) → L)
     (basis : Reference.Index ≃ Other.Index) :
     State.mapHistory (ctx := post)
-      ((code.execute Reference
+      ((code.execute environment Reference
         (State.mapHistory (ctx := pre) state
           (fun record => (record.1, initial record.2)))).reindex
         (S := Register.prod post.register Other)
         ((Equiv.refl post.register.Index).prodCongr basis)) final =
-      (State.mapHistory (ctx := post) (code.execute Reference state)
+      (State.mapHistory (ctx := post) (code.execute environment Reference state)
         (fun record => final (record.1, (initial record.2.1, record.2.2)))).reindex
         (S := Register.prod post.register Other)
         ((Equiv.refl post.register.Index).prodCongr basis) := by
@@ -47,7 +48,7 @@ theorem execute_mapHistory_reference {model : ExecutionModel}
       State.mapHistory (ctx := post)
         (result.reindex (S := Register.prod post.register Other)
           ((Equiv.refl post.register.Index).prodCongr basis)) final)
-    (execute_mapHistory code Reference state initial)
+    (execute_mapHistory code environment Reference state initial)
   refine mapped.trans ?_
   rw [State.reference_history, State.mapHistory_comp]
   rfl

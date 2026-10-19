@@ -51,14 +51,14 @@ public def mass (state : ExecutionState C R) : ℝ := ∑ value, (state.block va
 /-- Normalization concerns the joint state, not each conditional block. -/
 public def IsNormalized (state : ExecutionState C R) : Prop := state.mass = 1
 
-theorem mass_nonneg (state : ExecutionState C R) : 0 ≤ state.mass :=
+lemma mass_nonneg (state : ExecutionState C R) : 0 ≤ state.mass :=
   Finset.sum_nonneg (fun value _ => (state.block value).mass_nonneg)
 
-theorem mass_le_one (state : ExecutionState C R) : state.mass ≤ 1 :=
+lemma mass_le_one (state : ExecutionState C R) : state.mass ≤ 1 :=
   state.total_le_one
 
 @[ext]
-theorem ext {left right : ExecutionState C R}
+lemma ext {left right : ExecutionState C R}
     (h : ∀ value, left.block value = right.block value) : left = right := by
   cases left
   cases right
@@ -70,20 +70,20 @@ public def zero : ExecutionState C R where
   block _ := DensityOperator.zero R
   total_le_one := by simp
 
-@[simp] theorem zero_block (value : C) :
+@[simp] lemma zero_block (value : C) :
     (zero : ExecutionState C R).block value = DensityOperator.zero R := rfl
 
-@[simp] theorem zero_mass : (zero : ExecutionState C R).mass = 0 := by
+@[simp] lemma zero_mass : (zero : ExecutionState C R).mass = 0 := by
   simp [mass]
 
 /-- One classical block has at most the total state's mass. -/
-theorem block_mass_le (state : ExecutionState C R) (value : C) :
+lemma block_mass_le (state : ExecutionState C R) (value : C) :
     (state.block value).mass ≤ state.mass :=
   Finset.single_le_sum (fun other _ => (state.block other).mass_nonneg)
     (Finset.mem_univ value)
 
 /-- A classical value of probability zero carries the zero quantum operator. -/
-theorem block_eq_zero_of_mass_eq_zero (state : ExecutionState C R) (value : C)
+lemma block_eq_zero_of_mass_eq_zero (state : ExecutionState C R) (value : C)
     (h : (state.block value).mass = 0) :
     state.block value = DensityOperator.zero R :=
   (state.block value).eq_zero_of_mass_eq_zero h
@@ -95,10 +95,10 @@ public def ofValue [DecidableEq C] (value : C) (ρ : DensityOperator R) :
   total_le_one := by simpa only [apply_ite DensityOperator.mass, DensityOperator.zero_mass,
     Finset.sum_ite_eq', Finset.mem_univ, if_true] using ρ.mass_le_one
 
-@[simp] theorem ofValue_block [DecidableEq C] (value other : C) (ρ : DensityOperator R) :
+@[simp] lemma ofValue_block [DecidableEq C] (value other : C) (ρ : DensityOperator R) :
     (ofValue value ρ).block other = if other = value then ρ else DensityOperator.zero R := rfl
 
-@[simp] theorem ofValue_mass [DecidableEq C] (value : C) (ρ : DensityOperator R) :
+@[simp] lemma ofValue_mass [DecidableEq C] (value : C) (ρ : DensityOperator R) :
     (ofValue value ρ).mass = ρ.mass := by simp [mass, apply_ite]
 
 /-- Computational-basis measurement retains the old classical value and
@@ -111,18 +111,18 @@ def measureZ [DecidableEq Outcome] (state : ExecutionState C R)
     simp_rw [ZMeasurement.sum_branch_mass]
     exact state.total_le_one
 
-@[simp] theorem measureZ_block [DecidableEq Outcome] (state : ExecutionState C R)
+@[simp] lemma measureZ_block [DecidableEq Outcome] (state : ExecutionState C R)
     (readout : R.Index → Outcome) (value : C) (outcome : Outcome) :
     (state.measureZ readout).block (value, outcome) =
       ZMeasurement.branch readout outcome (state.block value) := rfl
 
 /-- Recording a Z result preserves the complete state's total mass. -/
-theorem measureZ_mass [DecidableEq Outcome] (state : ExecutionState C R)
+lemma measureZ_mass [DecidableEq Outcome] (state : ExecutionState C R)
     (readout : R.Index → Outcome) : (state.measureZ readout).mass = state.mass := by
   simp only [mass, Fintype.sum_prod_type, measureZ_block, ZMeasurement.sum_branch_mass]
 
 /-- The later result distribution retains each earlier classical probability. -/
-theorem measureZ_first_mass [DecidableEq Outcome] (state : ExecutionState C R)
+lemma measureZ_first_mass [DecidableEq Outcome] (state : ExecutionState C R)
     (readout : R.Index → Outcome) (value : C) :
     ∑ outcome, ((state.measureZ readout).block (value, outcome)).mass =
       (state.block value).mass := by
@@ -139,19 +139,19 @@ public def applyUnitary (state : ExecutionState C R) (operator : C → UnitaryOp
     simp_rw [DensityOperator.applyUnitary_mass]
     exact state.total_le_one
 
-@[simp] theorem applyUnitary_block (state : ExecutionState C R)
+@[simp] lemma applyUnitary_block (state : ExecutionState C R)
     (operator : C → UnitaryOperator R) (value : C) :
     (state.applyUnitary operator).block value =
       DensityOperator.applyUnitary (operator value) (state.block value) := rfl
 
 /-- A selected unitary does not change the probability of its classical branch. -/
-theorem applyUnitary_block_mass (state : ExecutionState C R)
+lemma applyUnitary_block_mass (state : ExecutionState C R)
     (operator : C → UnitaryOperator R) (value : C) :
     ((state.applyUnitary operator).block value).mass = (state.block value).mass := by
   simp only [applyUnitary_block, DensityOperator.applyUnitary_mass]
 
 /-- Conditional unitary execution preserves the total mass. -/
-theorem applyUnitary_mass (state : ExecutionState C R) (operator : C → UnitaryOperator R) :
+lemma applyUnitary_mass (state : ExecutionState C R) (operator : C → UnitaryOperator R) :
     (state.applyUnitary operator).mass = state.mass := by
   simp only [mass, applyUnitary_block_mass]
 
@@ -164,17 +164,17 @@ public def quantumMarginal (state : ExecutionState C R) : DensityOperator R wher
     rw [Matrix.trace_sum, Complex.re_sum]
     exact state.total_le_one
 
-theorem quantumMarginal_mass (state : ExecutionState C R) :
+lemma quantumMarginal_mass (state : ExecutionState C R) :
     state.quantumMarginal.mass = state.mass := by
   simp only [DensityOperator.mass, quantumMarginal, Matrix.trace_sum, Complex.re_sum, mass]
 
-@[simp] theorem ofValue_quantumMarginal [DecidableEq C] (value : C)
+@[simp] lemma ofValue_quantumMarginal [DecidableEq C] (value : C)
     (ρ : DensityOperator R) : (ofValue value ρ).quantumMarginal = ρ := by
   apply DensityOperator.ext
   simp [quantumMarginal, ofValue, apply_ite]
 
 omit [Fintype D] in
-private theorem sum_fiber_trace [DecidableEq D] (state : ExecutionState C R)
+private lemma sum_fiber_trace [DecidableEq D] (state : ExecutionState C R)
     (f : C → D) (value : D) :
     (∑ input, if f input = value then (state.block input).matrix else 0).trace.re =
       ∑ input, if f input = value then (state.block input).mass else 0 := by
@@ -211,7 +211,7 @@ public def mapClassical [DecidableEq D] (state : ExecutionState C R) (f : C → 
 
 /-- Deterministic classical processing preserves total probability mass even
 when several input values collide. -/
-theorem mapClassical_mass [DecidableEq D] (state : ExecutionState C R) (f : C → D) :
+lemma mapClassical_mass [DecidableEq D] (state : ExecutionState C R) (f : C → D) :
     (state.mapClassical f).mass = state.mass := by
   change (∑ value, (∑ input,
     if f input = value then (state.block input).matrix else 0).trace.re) = state.mass
@@ -221,7 +221,7 @@ theorem mapClassical_mass [DecidableEq D] (state : ExecutionState C R) (f : C �
 
 /-- Classical processing changes no entry of the quantum marginal, including
 coherences with any reference subsystem retained in the full register. -/
-theorem mapClassical_quantumMarginal [DecidableEq D]
+lemma mapClassical_quantumMarginal [DecidableEq D]
     (state : ExecutionState C R) (f : C → D) :
     (state.mapClassical f).quantumMarginal = state.quantumMarginal := by
   apply DensityOperator.ext
@@ -231,7 +231,7 @@ theorem mapClassical_quantumMarginal [DecidableEq D]
   rw [Finset.sum_comm]
   simp
 
-@[simp] theorem mapClassical_id [DecidableEq C] (state : ExecutionState C R) :
+@[simp] lemma mapClassical_id [DecidableEq C] (state : ExecutionState C R) :
     state.mapClassical id = state := by
   apply ext
   intro value
@@ -242,7 +242,7 @@ theorem mapClassical_quantumMarginal [DecidableEq D]
 
 /-- Successive deterministic classical updates compose on the actual quantum blocks.
 Every intermediate collision is summed, preserving complete quantum coherences. -/
-public theorem executionState_mapClassical_comp {E : Type} [Fintype E]
+public lemma executionState_mapClassical_comp {E : Type} [Fintype E]
     [DecidableEq D] [DecidableEq E] (state : ExecutionState C R)
     (first : C → D) (second : D → E) :
     (state.mapClassical first).mapClassical second =
@@ -270,7 +270,7 @@ public theorem executionState_mapClassical_comp {E : Type} [Fintype E]
 /-- Reading a stored classical value after an update selects the same unitary
 on every original block that contributes to that value. This is the internal
 read-after-write bridge for measured classical control. -/
-theorem applyUnitary_mapClassical [DecidableEq D] (state : ExecutionState C R)
+lemma applyUnitary_mapClassical [DecidableEq D] (state : ExecutionState C R)
     (update : C → D) (operator : D → UnitaryOperator R) :
     (state.mapClassical update).applyUnitary operator =
       (state.applyUnitary fun value => operator (update value)).mapClassical update := by

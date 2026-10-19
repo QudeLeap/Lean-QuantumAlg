@@ -27,7 +27,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The independent complete source PMF has the exact nested weight derived by the native batch. -/
-theorem nativeBatch_sourceDistribution_weighted {N : Nat} (input : Input N)
+lemma nativeBatch_sourceDistribution_weighted {N : Nat} (input : Input N)
     (weight : (resultShape N).Value → ℂ) :
     (∑ output : (resultShape N).Value,
       ((sourceDistribution input output).toReal : ℂ) * weight output) =
@@ -61,7 +61,7 @@ theorem nativeBatch_sourceDistribution_weighted {N : Nat} (input : Input N)
   simp only [sourceLaw, conditionalMoment, sourceValue]
 
 /-- A characteristic weight extracts the same source PMF's exact probability of one output. -/
-theorem nativeBatch_sourceDistribution_indicator {N : Nat} (input : Input N)
+lemma nativeBatch_sourceDistribution_indicator {N : Nat} (input : Input N)
     (selected : (resultShape N).Value) :
     (∑ source : Fin (2 ^ residueSamplingBits N),
       (((2 ^ residueSamplingBits N : Nat) : ℝ)⁻¹ : ℂ) *

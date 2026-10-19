@@ -35,26 +35,26 @@ attribute [local instance 100] LieRing.ofAssociativeRing
 def majoranaIndexEquiv (n : ℕ) : Fin n × Fin 2 ≃ Fin (2 * n) :=
   finProdFinEquiv.trans (finCongr (Nat.mul_comm n 2))
 
-@[simp] theorem majoranaIndexEquiv_val {n : ℕ} (p : Fin n × Fin 2) :
+@[simp] lemma majoranaIndexEquiv_val {n : ℕ} (p : Fin n × Fin 2) :
     (majoranaIndexEquiv n p).val = p.2.val + 2 * p.1.val := rfl
 
 /-- Jordan--Wigner Majorana label: a `Z` prefix followed by `X` or `Y`. -/
 def jwLabel {n : ℕ} (p : Fin n × Fin 2) (k : Fin n) : Fin 4 :=
   if k < p.1 then 3 else if k = p.1 then if p.2 = 0 then 1 else 2 else 0
 
-@[simp] theorem jwLabel_at {n : ℕ} (p : Fin n × Fin 2) :
+@[simp] lemma jwLabel_at {n : ℕ} (p : Fin n × Fin 2) :
     jwLabel p p.1 = if p.2 = 0 then 1 else 2 := by
   simp [jwLabel]
 
-theorem jwLabel_of_lt {n : ℕ} (p : Fin n × Fin 2) {k : Fin n} (h : k < p.1) :
+lemma jwLabel_of_lt {n : ℕ} (p : Fin n × Fin 2) {k : Fin n} (h : k < p.1) :
     jwLabel p k = 3 := by
   simp [jwLabel, h]
 
-theorem jwLabel_of_gt {n : ℕ} (p : Fin n × Fin 2) {k : Fin n} (h : p.1 < k) :
+lemma jwLabel_of_gt {n : ℕ} (p : Fin n × Fin 2) {k : Fin n} (h : p.1 < k) :
     jwLabel p k = 0 := by
   simp [jwLabel, not_lt_of_ge h.le, Ne.symm (ne_of_lt h)]
 
-private theorem jwOmega_of_site_lt {n : ℕ} (p q : Fin n × Fin 2) (h : p.1 < q.1) :
+private lemma jwOmega_of_site_lt {n : ℕ} (p q : Fin n × Fin 2) (h : p.1 < q.1) :
     pauliOmega (jwLabel p) (jwLabel q) = 1 := by
   rw [pauliOmega, Finset.sum_eq_single p.1]
   · rw [jwLabel_at, jwLabel_of_lt q h]
@@ -70,7 +70,7 @@ private theorem jwOmega_of_site_lt {n : ℕ} (p q : Fin n × Fin 2) (h : p.1 < q
       fin_cases r <;> rfl
   · simp
 
-private theorem jwOmega_same_site {n : ℕ} (p q : Fin n × Fin 2)
+private lemma jwOmega_same_site {n : ℕ} (p q : Fin n × Fin 2)
     (hsite : p.1 = q.1) (hpq : p ≠ q) :
     pauliOmega (jwLabel p) (jwLabel q) = 1 := by
   have hpar : p.2 ≠ q.2 := by
@@ -93,7 +93,7 @@ private theorem jwOmega_same_site {n : ℕ} (p q : Fin n × Fin 2)
   · simp
 
 /-- Distinct Jordan--Wigner Majorana labels anticommute. -/
-theorem jwOmega {n : ℕ} (p q : Fin n × Fin 2) (hpq : p ≠ q) :
+lemma jwOmega {n : ℕ} (p q : Fin n × Fin 2) (hpq : p ≠ q) :
     pauliOmega (jwLabel p) (jwLabel q) = 1 := by
   rcases lt_trichotomy p.1 q.1 with h | h | h
   · exact jwOmega_of_site_lt p q h
@@ -109,7 +109,7 @@ def frame (n : ℕ) : PauliMajoranaFrame n where
     intro h
     exact hab ((majoranaIndexEquiv n).symm.injective h)
 
-@[simp] theorem frame_v_index {n : ℕ} (p : Fin n × Fin 2) :
+@[simp] lemma frame_v_index {n : ℕ} (p : Fin n × Fin 2) :
     (frame n).v (majoranaIndexEquiv n p) = jwLabel p := by
   simp [frame]
 
@@ -127,7 +127,7 @@ def xxLabel {n : ℕ} (j : Fin (n - 1)) (k : Fin n) : Fin 4 :=
   if k = leftSite j ∨ k = rightSite j then 1 else 0
 
 /-- The `j`-th field edge is exactly the Pauli `Z_j` label. -/
-theorem edgeLabel_field {n : ℕ} (j : Fin n) :
+lemma edgeLabel_field {n : ℕ} (j : Fin n) :
     (frame n).edgeLabel
       s(majoranaIndexEquiv n (j, 0), majoranaIndexEquiv n (j, 1)) = zLabel j := by
   funext k
@@ -143,7 +143,7 @@ theorem edgeLabel_field {n : ℕ} (j : Fin n) :
       simp [heq, xor4]
 
 /-- The edge between neighboring sites is exactly `X_j X_{j+1}`. -/
-theorem edgeLabel_coupling {n : ℕ} (j : Fin (n - 1)) :
+lemma edgeLabel_coupling {n : ℕ} (j : Fin (n - 1)) :
     (frame n).edgeLabel
       s(majoranaIndexEquiv n (leftSite j, 1), majoranaIndexEquiv n (rightSite j, 0)) =
         xxLabel j := by
@@ -182,7 +182,7 @@ def majoranaPath (n : ℕ) : SimpleGraph (Fin (2 * n)) :=
   SimpleGraph.pathGraph (2 * n)
 
 /-- The Majorana path is connected whenever the physical chain is nonempty. -/
-theorem majoranaPath_connected {n : ℕ} (hn : 1 ≤ n) : (majoranaPath n).Connected := by
+lemma majoranaPath_connected {n : ℕ} (hn : 1 ≤ n) : (majoranaPath n).Connected := by
   obtain ⟨m, rfl⟩ := Nat.exists_eq_add_of_le hn
   unfold majoranaPath
   rw [show 2 * (1 + m) = (2 * m + 1) + 1 by omega]
@@ -204,7 +204,7 @@ noncomputable def couplingGen {n : ℕ} (j : Fin (n - 1)) : Matrix (Fin (2 ^ n))
 def physicalGens (n : ℕ) : Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) :=
   Set.range fieldGen ∪ Set.range couplingGen
 
-theorem fieldGen_mem_gens {n : ℕ} (j : Fin n) : fieldGen j ∈ gens n := by
+lemma fieldGen_mem_gens {n : ℕ} (j : Fin n) : fieldGen j ∈ gens n := by
   refine ⟨⟨s(majoranaIndexEquiv n (j, 0), majoranaIndexEquiv n (j, 1)), ?_⟩, ?_⟩
   · rw [SimpleGraph.mem_edgeSet, majoranaPath, SimpleGraph.pathGraph_adj]
     left
@@ -214,7 +214,7 @@ theorem fieldGen_mem_gens {n : ℕ} (j : Fin n) : fieldGen j ∈ gens n := by
       ((frame n).edgeLabel s(majoranaIndexEquiv n (j, 0), majoranaIndexEquiv n (j, 1)))
     rw [edgeLabel_field]
 
-theorem couplingGen_mem_gens {n : ℕ} (j : Fin (n - 1)) : couplingGen j ∈ gens n := by
+lemma couplingGen_mem_gens {n : ℕ} (j : Fin (n - 1)) : couplingGen j ∈ gens n := by
   refine ⟨⟨s(majoranaIndexEquiv n (leftSite j, 1),
       majoranaIndexEquiv n (rightSite j, 0)), ?_⟩, ?_⟩
   · rw [SimpleGraph.mem_edgeSet, majoranaPath, SimpleGraph.pathGraph_adj]
@@ -226,12 +226,12 @@ theorem couplingGen_mem_gens {n : ℕ} (j : Fin (n - 1)) : couplingGen j ∈ gen
         majoranaIndexEquiv n (rightSite j, 0)))
     rw [edgeLabel_coupling]
 
-theorem physicalGens_subset_gens (n : ℕ) : physicalGens n ⊆ gens n := by
+lemma physicalGens_subset_gens (n : ℕ) : physicalGens n ⊆ gens n := by
   rintro A (⟨j, rfl⟩ | ⟨j, rfl⟩)
   · exact fieldGen_mem_gens j
   · exact couplingGen_mem_gens j
 
-theorem gens_subset_physicalGens (n : ℕ) : gens n ⊆ physicalGens n := by
+lemma gens_subset_physicalGens (n : ℕ) : gens n ⊆ physicalGens n := by
   have hconsecutive : ∀ a b : Fin (2 * n), a.val + 1 = b.val →
       Complex.I • pauliMat ((frame n).edgeLabel s(a, b)) ∈ physicalGens n := by
     intro a b hab
@@ -282,11 +282,11 @@ theorem gens_subset_physicalGens (n : ℕ) : gens n ⊆ physicalGens n := by
         simpa only [PauliMajoranaFrame.edgeLabel_mk, pauliXor_comm] using h
 
 /-- The path-edge and physical `{iZ_j,iX_jX_{j+1}}` descriptions coincide. -/
-theorem physicalGens_eq_gens (n : ℕ) : physicalGens n = gens n :=
+lemma physicalGens_eq_gens (n : ℕ) : physicalGens n = gens n :=
   Set.Subset.antisymm (physicalGens_subset_gens n) (gens_subset_physicalGens n)
 
 /-- Consequently the physical TFIM generators have the full quadratic `so(2n)` Lie closure. -/
-theorem physical_dla_toSubmodule {n : ℕ} (hn : 1 ≤ n) :
+lemma physical_dla_toSubmodule {n : ℕ} (hn : 1 ≤ n) :
     (dynamicalLieAlgebra (physicalGens n)).toSubmodule =
       Submodule.span ℂ (frame n).matchgateSOPauliSet := by
   rw [physicalGens_eq_gens]
@@ -296,18 +296,18 @@ theorem physical_dla_toSubmodule {n : ℕ} (hn : 1 ≤ n) :
 public noncomputable def hermBasis (n : ℕ) (hn : 1 ≤ n) : DLAHermBasis (gens n) :=
   (frame n).graphHermBasis (majoranaPath n) (majoranaPath_connected hn)
 
-@[simp] theorem hermBasis_B (n : ℕ) (hn : 1 ≤ n)
+@[simp] lemma hermBasis_B (n : ℕ) (hn : 1 ≤ n)
     (i : Fin (Fintype.card (MatchgateSOEdge n))) :
     (hermBasis n hn).B i = (frame n).matchgateSOB i := rfl
 
 /-- The open-chain TFIM DLA has dimension `n(2n-1)`. -/
-theorem hermBasis_dim (n : ℕ) (hn : 1 ≤ n) :
+lemma hermBasis_dim (n : ℕ) (hn : 1 ≤ n) :
     (hermBasis n hn).dim = n * (2 * n - 1) := by
   change Fintype.card (MatchgateSOEdge n) = n * (2 * n - 1)
   exact matchgateSOEdge_card n
 
 /-- Schur identity for the simple open-chain TFIM DLA (`n≥3`). -/
-theorem hermBasis_schur {n : ℕ} (hn : 3 ≤ n) :
+lemma hermBasis_schur {n : ℕ} (hn : 3 ≤ n) :
     gTensorGInvariant (hermBasis n (by omega)) =
       Submodule.span ℂ {(hermBasis n (by omega)).casimir} := by
   change gTensorGInvariant (frame n).matchgateSOHermBasis =

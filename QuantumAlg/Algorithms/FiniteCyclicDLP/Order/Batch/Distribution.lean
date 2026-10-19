@@ -66,7 +66,7 @@ physical family label. -/
     List.Vector (OrderOracle.layout P).Basis count ≃ (layout P count).Basis :=
   (vectorFamilyEquiv P count).trans (familyBasisEquiv P count).symm
 
-@[simp] public theorem physicalBasisEquiv_symm_get (P : KnownOrderProblem G)
+@[simp] public lemma physicalBasisEquiv_symm_get (P : KnownOrderProblem G)
     (count : Nat) (basis : (layout P count).Basis) (slot : Fin count) :
     ((physicalBasisEquiv P count).symm basis).get slot = bankBasis P slot basis := by
   unfold physicalBasisEquiv
@@ -87,7 +87,7 @@ physical family label. -/
 
 /-- Every complete physical-basis mass is the product of the corresponding
 one-cycle source-basis masses. -/
-public theorem physicalBasisPMF_apply (P : KnownOrderProblem G) (count : Nat)
+public lemma physicalBasisPMF_apply (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (basis : (layout P count).Basis) :
     physicalBasisPMF P count expansion basis =
       ∏ slot : Fin count,
@@ -114,7 +114,7 @@ public theorem physicalBasisPMF_apply (P : KnownOrderProblem G) (count : Nat)
 
 /-- Terminally observing the exact product state gives independent copies of
 the source circuit's Born distribution. -/
-public theorem physicalBasisPMF_map_observedBasisVector
+public lemma physicalBasisPMF_map_observedBasisVector
     (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) :
     (physicalBasisPMF P count expansion).map (observedBasisVector P count) =
@@ -136,12 +136,13 @@ public theorem physicalBasisPMF_map_observedBasisVector
 
 /-- Terminal measurements place exactly the corresponding family Born fiber
 in each observed-vector block. -/
-public theorem readoutCode_block_mass (P : KnownOrderProblem G) (count : Nat)
+public lemma readoutCode_block_mass (P : KnownOrderProblem G) (count : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (post P count) Reference ((OrderExecution.model P).HiddenState × H))
     (outcome : List.Vector
       (TerminalZMeasure.Outcome (OrderExecution.sampleWidth P)) count) :
-    ((((readoutCode P count).execute Reference state).mapClassical
+    ((((readoutCode P count).execute
+      (OrderExecution.sourceEnvironment P) Reference state).mapClassical
       (fun value => observedVector P count
         (value.1.read (samplesInput P count)))).block outcome).mass =
       (∑ basis : (post P count).register.Index,
@@ -172,14 +173,14 @@ public theorem readoutCode_block_mass (P : KnownOrderProblem G) (count : Nat)
       intro basis _
       split <;> simp only [one_mul, zero_mul]
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
   exact (congrArg Complex.re (Complex.mul_conj (state basis))).trans
     (Complex.normSq_eq_norm_sq (state basis))
 
-private theorem physicalIndependentState_mass_eq
+private lemma physicalIndependentState_mass_eq
     (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (basis : (layout P count).Basis) :
     ENNReal.ofReal (‖physicalIndependentState P count expansion basis‖ ^ 2) =
@@ -191,7 +192,7 @@ private theorem physicalIndependentState_mass_eq
 
 /-- Every output block of the complete actual batch circuit has the independent
 physical product-state Born mass. -/
-public theorem code_block_mass (P : KnownOrderProblem G) (count : Nat)
+public lemma code_block_mass (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State OrderExecution.pre Reference
@@ -199,7 +200,8 @@ public theorem code_block_mass (P : KnownOrderProblem G) (count : Nat)
     (normalized : state.IsNormalized)
     (outcome : List.Vector
       (TerminalZMeasure.Outcome (OrderExecution.sampleWidth P)) count) :
-    (((code P count expansion).execute Reference state).mapClassical
+    (((code P count expansion).execute
+      (OrderExecution.sourceEnvironment P) Reference state).mapClassical
       (fun value => observedVector P count
         (value.1.read (samplesInput P count))) |>.block outcome).mass =
       ∑ basis : (layout P count).Basis,
@@ -208,13 +210,15 @@ public theorem code_block_mass (P : KnownOrderProblem G) (count : Nat)
   calc
     _ = (∑ basis : (post P count).register.Index,
         if observedBasisVector P count (basisEquiv P count basis) = outcome then
-          ((((beforeMeasurement P count expansion).execute Reference state).quantumMarginal
+          ((((beforeMeasurement P count expansion).execute
+            (OrderExecution.sourceEnvironment P) Reference state).quantumMarginal
             ).marginalLeft).matrix basis basis else 0).re := by
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory,
         ExecutionState.executionState_mapClassical_comp, Function.comp_def] using
           readoutCode_block_mass P count
-            ((beforeMeasurement P count expansion).execute Reference state) outcome
+            ((beforeMeasurement P count expansion).execute
+              (OrderExecution.sourceEnvironment P) Reference state) outcome
     _ = (∑ basis : (layout P count).Basis,
         if observedBasisVector P count basis = outcome then
           (DensityOperator.ofPure (physicalIndependentState P count expansion)).matrix
@@ -236,12 +240,12 @@ public theorem code_block_mass (P : KnownOrderProblem G) (count : Nat)
 
 /-- The output of the complete actual batch run is the independent replicated
 one-cycle Born law. -/
-public theorem run_outputDistribution (P : KnownOrderProblem G) (count : Nat)
+public lemma run_outputDistribution (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order)
     {Reference : Register}
     (input : OracleInput (OrderExecution.model P).classicalOracles
       OrderExecution.pre Reference) :
-    ((run P count expansion).outputDistribution input).map
+    ((run P count expansion).outputDistribution (OrderExecution.sourceEnvironment P) input).map
         (observedVector P count) =
       PMF.independentReplicateVector (OrderBornBridge.outcomePMF P expansion) count := by
   apply PMF.ext
@@ -250,14 +254,15 @@ public theorem run_outputDistribution (P : KnownOrderProblem G) (count : Nat)
     (fun distribution : PMF (List.Vector
       (TerminalZMeasure.Outcome (OrderExecution.sampleWidth P)) count) =>
         distribution outcome)
-    (ExecutionState.toPMF_mapClassical ((run P count expansion).execute Reference input.state)
-      ((run P count expansion).execute_normalized input)
+    (ExecutionState.toPMF_mapClassical ((run P count expansion).execute
+      (OrderExecution.sourceEnvironment P) Reference input.state)
+      ((run P count expansion).execute_normalized (OrderExecution.sourceEnvironment P) input)
       (fun record => observedVector P count ((run P count expansion).result record)))
   rw [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution, PMF.map_comp]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    ((((code P count expansion).execute Reference
+    ((((code P count expansion).execute (OrderExecution.sourceEnvironment P) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).mapClassical
         (fun value => observedVector P count
           (value.1.read (samplesInput P count))) |>.block outcome).mass) = _

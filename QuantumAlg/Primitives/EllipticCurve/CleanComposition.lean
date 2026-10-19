@@ -38,7 +38,7 @@ def composeList (Data Work : Type)
     (WorkRegister.CleanReversibleMap.identity Data Work)
 
 /-- The composed clean map preserves the work-register label. -/
-theorem composeList_preserves_work
+lemma composeList_preserves_work
     (steps : List (WorkRegister.CleanReversibleMap Data Work)) (x : Data × Work) :
     ((composeList Data Work steps).perm x).2 = x.2 :=
   (composeList Data Work steps).preservesWork x

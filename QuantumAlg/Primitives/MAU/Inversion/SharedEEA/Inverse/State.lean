@@ -34,6 +34,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InverseState
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution InversePreparation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -43,11 +48,11 @@ private def preparedSupport (modulus : Nat) (basis : (after modulus.size).regist
     InverseSpecification.admissible modulus ((assembly modulus.size).symm basis).2
 
 /-- The original local valid-input predicate suffices for complete joint conjugation equality. -/
-theorem prepared_conjugation (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma prepared_conjugation (modulus : Nat) (modulusPositive : 0 < modulus)
     {Reference : Register} (input : Input (before modulus.size) Reference)
     (valid : InverseSpecification.valid modulus input.localState) :
     DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (InverseRuntime.program modulus).matrix
+        (UnitaryOperator.prodTensor ((InverseRuntime.program modulus).matrix environment)
           (1 : UnitaryOperator Reference))
         (preparedDensity auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
           (auxiliary_fresh modulus.size) (auxiliary_disjoint modulus.size)
@@ -71,30 +76,34 @@ theorem prepared_conjugation (modulus : Nat) (modulusPositive : 0 < modulus)
     exact InverseAgreement.prepared_column modulus modulusPositive old admitted row
 
 /-- Every actual complete run gives the independent full target for arbitrary valid mixed input. -/
-theorem finalState_quantumMarginal (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma finalState_quantumMarginal (modulus : Nat) (modulusPositive : 0 < modulus)
     {shape : CShape} (output : Output (after modulus.size) shape)
     {Reference : Register}
     (input : OracleInput .empty (before modulus.size) Reference)
     (valid : InverseSpecification.valid modulus input.caller.localState) :
     (({ code := InverseRuntime.code modulus, output := output } :
       AlgorithmRun (.quantum AlgorithmGate.model .empty)
-        (before modulus.size) (after modulus.size) shape).finalState
+        (before modulus.size) (after modulus.size) shape).finalState runtimeEnvironment
         Reference input.state).quantumMarginal =
       InverseTarget.density modulus modulusPositive Reference input.caller := by
   let recorded := input.state.mapClassical (fun value => (value.1, (value.2, value.1)))
   have result := AlgorithmRun.finalState_quantumMarginal
     ({ code := InverseRuntime.code modulus, output := output } :
       AlgorithmRun (.quantum AlgorithmGate.model .empty)
-        (before modulus.size) (after modulus.size) shape) Reference input.state
+        (before modulus.size) (after modulus.size) shape) runtimeEnvironment Reference input.state
   calc
-    _ = ((InverseRuntime.code modulus).execute Reference recorded).quantumMarginal := result
+    _ = ((InverseRuntime.code modulus).execute runtimeEnvironment Reference
+      recorded).quantumMarginal := result
     _ = DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (InverseRuntime.program modulus).matrix
+        (UnitaryOperator.prodTensor ((InverseRuntime.program modulus).matrix
+          runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
-        (((InversePreparation.circuit modulus).execute Reference recorded).quantumMarginal) :=
+        (((InversePreparation.circuit modulus).execute runtimeEnvironment Reference
+          recorded).quantumMarginal) :=
       InverseRuntime.code_quantumMarginal modulus recorded
     _ = DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (InverseRuntime.program modulus).matrix
+        (UnitaryOperator.prodTensor ((InverseRuntime.program modulus).matrix
+          runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
         (preparedDensity auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
           (auxiliary_fresh modulus.size) (auxiliary_disjoint modulus.size)
@@ -107,7 +116,7 @@ theorem finalState_quantumMarginal (modulus : Nat) (modulusPositive : 0 < modulu
       exact prepared_conjugation modulus modulusPositive input.caller valid
 
 /-- The full-layout mixed promise holds after aggregating the actual unit output observation. -/
-theorem requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
     {shape : CShape} (output : Output (after modulus.size) shape)
     {Reference : Register}
     (input : OracleInput .empty (before modulus.size) Reference)
@@ -115,7 +124,7 @@ theorem requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
     (InverseTarget.requirement modulus modulusPositive).Holds input.caller
       (({ code := InverseRuntime.code modulus, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty)
-          (before modulus.size) (after modulus.size) shape).finalState
+          (before modulus.size) (after modulus.size) shape).finalState runtimeEnvironment
           Reference input.state) := by
   intro value
   cases value with
@@ -127,7 +136,7 @@ theorem requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
         Finset.univ Reference
         (((({ code := InverseRuntime.code modulus, output := output } :
           AlgorithmRun (.quantum AlgorithmGate.model .empty)
-            (before modulus.size) (after modulus.size) shape).finalState
+            (before modulus.size) (after modulus.size) shape).finalState runtimeEnvironment
             Reference input.state).mapClassical
               (fun _ => CShape.Value.unit)).block CShape.Value.unit))
     rw [ExecutionState.executionState_mapClassical_const_block,
@@ -139,13 +148,14 @@ theorem requirement_holds (modulus : Nat) (modulusPositive : 0 < modulus)
     simp only [one_smul]
 
 /-- Actual preparation and complete inversion restore the mandatory joint borrowed observation. -/
-theorem borrowedRestored (modulus : Nat)
+lemma borrowedRestored (modulus : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
     (InverseRuntime.code modulus).BorrowedRestored Reference state
-      ((InverseRuntime.code modulus).execute Reference state) := by
-  apply Circuit.borrowedRestored_of_noBorrowedQuantum (InverseRuntime.code modulus)
+      ((InverseRuntime.code modulus).execute runtimeEnvironment Reference state) := by
+  apply Circuit.borrowedRestored_of_noBorrowedQuantum
+    (environment := runtimeEnvironment) (InverseRuntime.code modulus)
   simp [before]
 
 end

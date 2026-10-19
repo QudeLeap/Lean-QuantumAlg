@@ -28,16 +28,15 @@ noncomputable section
 open scoped BigOperators
 
 /-- Execute the original binary stages in increasing exponent order. -/
-public def queryLadder (gates : GateModel) (phaseWidth : Nat) {systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) :
-    UnitaryCircuit gates (UnitarySource.model unitary true)
+public def queryLadder (gates : GateModel) (phaseWidth : Nat) (systemWidth : Nat) :
+    UnitaryCircuit gates (UnitarySource.model systemWidth true)
       (QuantumSignature.qubits (phaseWidth + systemWidth)).canonicalPlacement.layout :=
   UnitaryCircuit.indexedProduct "qpe-controlled-source-ladder" phaseWidth
-    (UnitaryCircuit.identity gates (UnitarySource.model unitary true)
+    (UnitaryCircuit.identity gates (UnitarySource.model systemWidth true)
       (QuantumSignature.qubits (phaseWidth + systemWidth)).canonicalPlacement.layout)
-    (powerStage gates unitary)
+    (powerStage gates systemWidth)
 
-private theorem sum_stage_queries (width : Nat) :
+private lemma sum_stage_queries (width : Nat) :
     (∑ index : Fin width, 2 ^ index.val) = 2 ^ width - 1 := by
   induction width with
   | zero => simp
@@ -49,18 +48,18 @@ private theorem sum_stage_queries (width : Nat) :
       omega
 
 /-- An actual repeated-query stage has one abstract dependency step per source call. -/
-public theorem qpeNative_powerStage_unit_depth (gates : GateModel)
-    {phaseWidth systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth))
+public lemma qpeNative_powerStage_unit_depth (gates : GateModel)
+    {phaseWidth : Nat} (systemWidth : Nat)
     (stage : Fin phaseWidth) :
-    (powerStage gates unitary stage).evaluatedEventDepth (fun _ => 1) = 2 ^ stage.val := by
+    (powerStage gates systemWidth stage).evaluatedEventDepth (fun _ => 1) = 2 ^ stage.val := by
   change 2 ^ stage.val * 1 = 2 ^ stage.val
   exact mul_one _
 
 /-- The complete source ladder counts every actual controlled query repetition. -/
-public theorem qpeNative_queryLadder_eventCost (gates : GateModel) (phaseWidth : Nat)
-    {systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth)) :
-    (queryLadder gates phaseWidth unitary).eventCost = (2 ^ phaseWidth - 1) •
-      ResourcePool.singleton (model := .quantum gates (UnitarySource.model unitary true))
+public lemma qpeNative_queryLadder_eventCost (gates : GateModel) (phaseWidth : Nat)
+    (systemWidth : Nat) :
+    (queryLadder gates phaseWidth systemWidth).eventCost = (2 ^ phaseWidth - 1) •
+      ResourcePool.singleton (model := .quantum gates (UnitarySource.model systemWidth true))
         (.oracle UnitarySource.Coordinate.controlled) := by
   rw [queryLadder, UnitaryCircuit.indexedProduct_eventCost,
     UnitaryCircuit.identity_eventCost, zero_add]
@@ -68,12 +67,12 @@ public theorem qpeNative_queryLadder_eventCost (gates : GateModel) (phaseWidth :
   rw [Finset.sum_nsmul_assoc, sum_stage_queries]
 
 /-- Sequential binary stages retain the actual sum of their query durations. -/
-public theorem qpeNative_queryLadder_unit_depth (gates : GateModel) (phaseWidth : Nat)
-    {systemWidth : Nat} (unitary : UnitaryOperator (Qubits systemWidth)) :
-    (queryLadder gates phaseWidth unitary).evaluatedEventDepth (fun _ => 1) =
+public lemma qpeNative_queryLadder_unit_depth (gates : GateModel) (phaseWidth : Nat)
+    (systemWidth : Nat) :
+    (queryLadder gates phaseWidth systemWidth).evaluatedEventDepth (fun _ => 1) =
       2 ^ phaseWidth - 1 := by
   change 0 + (∑ stage : Fin phaseWidth,
-    (powerStage gates unitary stage).evaluatedEventDepth (fun _ => 1)) = _
+    (powerStage gates systemWidth stage).evaluatedEventDepth (fun _ => 1)) = _
   simp only [zero_add, qpeNative_powerStage_unit_depth]
   exact sum_stage_queries phaseWidth
 

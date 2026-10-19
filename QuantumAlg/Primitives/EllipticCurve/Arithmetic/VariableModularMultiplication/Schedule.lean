@@ -55,6 +55,8 @@ namespace VariableModularMulSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-! ## Inverse source-doubling block -/
 
 /-- The fixed unit which undoes the source-doubling multiplication. -/
@@ -80,7 +82,7 @@ def rawInverseDoublingStep :
   EncodedBit.GateSpec.stepList inverseDoublingGates
 
 /-- The literal inverse-doubling list has its displayed raw action. -/
-theorem inverseDoublingGates_stepList
+lemma inverseDoublingGates_stepList
     (x : VariableModularMul.RawRegisters) :
     EncodedBit.GateSpec.stepList inverseDoublingGates x =
       rawInverseDoublingStep x := by
@@ -95,13 +97,14 @@ def inverseDoublingStep :
 
 set_option exponentiation.threshold 2048 in
 /-- The reversed concrete source list realizes its displayed inverse fold. -/
-theorem inverseDoubling_realizes :
-    UnitaryCircuit.Realizes VariableModularMul.encoding inverseDoublingCircuit
+lemma inverseDoubling_realizes :
+    UnitaryCircuit.Realizes VariableModularMul.encoding inverseDoublingCircuit environment
       inverseDoublingStep := by
   have raw : UnitaryCircuit.Realizes VariableModularMul.rawEncoding
-      inverseDoublingCircuit rawInverseDoublingStep := by
+      inverseDoublingCircuit environment rawInverseDoublingStep := by
     unfold inverseDoublingCircuit
-    exact EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+    exact EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _)
+      .empty
       inverseDoublingGates
   exact UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv raw
 
@@ -128,7 +131,7 @@ def inverseDoubledData
 
 -- This is the actual shift/reduce multiplication-by-two action on clean data.
 set_option exponentiation.threshold 2048 in
-theorem doublingStep_cleanEndpoint (x : VariableModularMul.Data) :
+lemma doublingStep_cleanEndpoint (x : VariableModularMul.Data) :
     VariableModularMul.doublingStep (VariableModularMul.cleanRegisters x) =
       VariableModularMul.cleanRegisters (doubledData x) := by
   simpa only [doubledData, scaleMultiplicand,
@@ -139,7 +142,7 @@ theorem doublingStep_cleanEndpoint (x : VariableModularMul.Data) :
 
 -- This is the exact reverse of the actual shift/reduce doubling action.
 set_option exponentiation.threshold 2048 in
-theorem inverseDoublingStep_cleanEndpoint (x : VariableModularMul.Data) :
+lemma inverseDoublingStep_cleanEndpoint (x : VariableModularMul.Data) :
     inverseDoublingStep (VariableModularMul.cleanRegisters x) =
       VariableModularMul.cleanRegisters (inverseDoubledData x) := by
   let y := inverseDoubledData x
@@ -228,7 +231,7 @@ def rawForwardStep :
   | roundBits => foldSteps VariableModularMul.rawRoundStep roundBits
 
 /-- The literal forward primitive list has its displayed raw fold. -/
-theorem forwardGates_stepList : ∀ bits : List (Fin params.width),
+lemma forwardGates_stepList : ∀ bits : List (Fin params.width),
     EncodedBit.GateSpec.stepList (forwardGates bits) = rawForwardStep bits
   | [] => rfl
   | bit :: rest => by
@@ -243,14 +246,15 @@ theorem forwardGates_stepList : ∀ bits : List (Fin params.width),
 -- Normalize the width-indexed carrier without expanding its exponent.
 set_option exponentiation.threshold 2048 in
 /-- Every explicit forward list serially realizes its matching named fold. -/
-theorem forward_realizes :
+lemma forward_realizes :
     ∀ bits : List (Fin params.width),
-      UnitaryCircuit.Realizes VariableModularMul.encoding (forwardProgram bits)
+      UnitaryCircuit.Realizes VariableModularMul.encoding (forwardProgram bits) environment
         (forwardStep bits)
   | [] => by
       apply UnitaryCircuit.Realizes.congrStep
         (UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv
-          (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+          (UnitaryCircuit.Realizes.identityAt (environment := environment) AlgorithmGate.model
+            .empty
             VariableModularMul.rawEncoding (QubitLayout.canonical _)))
       intro x
       exact VariableModularMul.registersEquiv.symm_apply_apply x
@@ -293,7 +297,7 @@ def rawRestoreStep :
   | rounds => iterateSteps rawInverseDoublingStep rounds
 
 /-- The literal restoration primitive list has its displayed raw fold. -/
-theorem restoreGates_stepList : ∀ rounds : Nat,
+lemma restoreGates_stepList : ∀ rounds : Nat,
     EncodedBit.GateSpec.stepList (restoreGates rounds) = rawRestoreStep rounds
   | 0 => rfl
   | rounds + 1 => by
@@ -309,14 +313,15 @@ theorem restoreGates_stepList : ∀ rounds : Nat,
 set_option exponentiation.threshold 2048 in
 /-- Every requested source-restoration length serially realizes its named
 inverse-doubling fold. -/
-theorem restore_realizes :
+lemma restore_realizes :
     ∀ rounds : Nat,
-      UnitaryCircuit.Realizes VariableModularMul.encoding (restoreProgram rounds)
+      UnitaryCircuit.Realizes VariableModularMul.encoding (restoreProgram rounds) environment
         (restoreStep rounds)
   | 0 => by
       apply UnitaryCircuit.Realizes.congrStep
         (UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv
-          (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
+          (UnitaryCircuit.Realizes.identityAt (environment := environment) AlgorithmGate.model
+            .empty
             VariableModularMul.rawEncoding (QubitLayout.canonical _)))
       intro x
       exact VariableModularMul.registersEquiv.symm_apply_apply x
@@ -338,14 +343,14 @@ def lastBit : Fin params.width :=
   ⟨params.width - 1, Nat.pred_lt params.widthPos.ne'⟩
 
 /-- The raw inverse-doubling action is the packed form of its named action. -/
-theorem rawInverseDoublingStep_registersEquiv
+lemma rawInverseDoublingStep_registersEquiv
     (x : VariableModularMul.Registers) :
     rawInverseDoublingStep (VariableModularMul.registersEquiv x) =
       VariableModularMul.registersEquiv (inverseDoublingStep x) := by
   simp only [inverseDoublingStep, Equiv.apply_symm_apply]
 
 /-- Every literal forward fold is the packed form of the matching named fold. -/
-theorem rawForwardStep_registersEquiv :
+lemma rawForwardStep_registersEquiv :
     ∀ (roundBits : List (Fin params.width)) (x : VariableModularMul.Registers),
       rawForwardStep roundBits (VariableModularMul.registersEquiv x) =
         VariableModularMul.registersEquiv (forwardStep roundBits x)
@@ -360,7 +365,7 @@ theorem rawForwardStep_registersEquiv :
         rawForwardStep_registersEquiv]
 
 /-- Every literal restoration fold is the packed form of the matching named fold. -/
-theorem rawRestoreStep_registersEquiv :
+lemma rawRestoreStep_registersEquiv :
     ∀ (rounds : Nat) (x : VariableModularMul.Registers),
       rawRestoreStep rounds (VariableModularMul.registersEquiv x) =
         VariableModularMul.registersEquiv (restoreStep rounds x)
@@ -388,7 +393,7 @@ def rawStep :
       (rawForwardStep (bits.take (params.width - 1)) x))
 
 /-- The full literal source list has its displayed raw schedule fold. -/
-theorem gates_stepList (x : VariableModularMul.RawRegisters) :
+lemma gates_stepList (x : VariableModularMul.RawRegisters) :
     EncodedBit.GateSpec.stepList gates x = rawStep x := by
   unfold gates rawStep
   rw [EncodedBit.GateSpec.stepList_append,
@@ -409,7 +414,7 @@ def step : VariableModularMul.Registers → VariableModularMul.Registers :=
       (forwardStep (bits.take (params.width - 1)) x))
 
 /-- The full raw literal fold is the packed form of the public named step. -/
-theorem rawStep_registersEquiv (x : VariableModularMul.Registers) :
+lemma rawStep_registersEquiv (x : VariableModularMul.Registers) :
     rawStep (VariableModularMul.registersEquiv x) =
       VariableModularMul.registersEquiv (step x) := by
   unfold rawStep step
@@ -419,10 +424,13 @@ theorem rawStep_registersEquiv (x : VariableModularMul.Registers) :
 
 set_option exponentiation.threshold 2048 in
 /-- The complete physical schedule realizes its direct folded action. -/
-theorem realizes : UnitaryCircuit.Realizes VariableModularMul.encoding circuit step := by
-  have raw : UnitaryCircuit.Realizes VariableModularMul.rawEncoding circuit rawStep := by
+lemma realizes : UnitaryCircuit.Realizes VariableModularMul.encoding circuit environment step :=
+  by
+  have raw : UnitaryCircuit.Realizes VariableModularMul.rawEncoding circuit environment rawStep :=
+    by
     unfold circuit
-    exact EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+    exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
+      (QubitLayout.canonical _) .empty
       gates gates_stepList
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.relabel VariableModularMul.registersEquiv raw)
@@ -443,7 +451,7 @@ def eventDepth :=
 
 /-- Linearizing the actual schedule's strict event-depth tree recovers its
 strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost :
+lemma resourcesFromEventDepth_eq_eventCost :
     circuit.resourcesFromEventDepth = eventCost := by
   simpa only [eventCost] using
     UnitaryCircuit.resourcesFromEventDepth_eq_eventCost circuit
@@ -473,7 +481,7 @@ noncomputable section
 omit params in
 /-- An embedding respected by one abstract step is respected by every finite
 iteration count. -/
-theorem iterateSteps_cleanEndpoint
+lemma iterateSteps_cleanEndpoint
     {Data Registers : Type}
     (physical : Registers → Registers)
     (semantic : Data → Data)
@@ -496,7 +504,7 @@ def restoreData : Nat → VariableModularMul.Data → VariableModularMul.Data
 
 -- The restoration induction never unfolds a full common-carrier state.
 set_option exponentiation.threshold 2048 in
-theorem restoreStep_cleanEndpoint :
+lemma restoreStep_cleanEndpoint :
     ∀ (rounds : Nat) (x : VariableModularMul.Data),
       restoreStep rounds (VariableModularMul.cleanRegisters x) =
         VariableModularMul.cleanRegisters (restoreData rounds x)
@@ -536,7 +544,7 @@ def roundData (bit : Fin params.width)
 
 -- The one-round clean bridge retains the width-indexed carrier in its type.
 set_option exponentiation.threshold 2048 in
-theorem roundStep_cleanEndpoint (bit : Fin params.width)
+lemma roundStep_cleanEndpoint (bit : Fin params.width)
     (x : VariableModularMul.Data) :
     VariableModularMul.roundStep bit (VariableModularMul.cleanRegisters x) =
       VariableModularMul.cleanRegisters (roundData bit x) := by
@@ -570,7 +578,7 @@ noncomputable section
 omit params in
 /-- An embedding respected by one abstract step is respected by every finite
 left-to-right fold. -/
-theorem foldSteps_cleanEndpoint
+lemma foldSteps_cleanEndpoint
     {Index Data Registers : Type}
     (physical : Index → Registers → Registers)
     (semantic : Index → Data → Data)
@@ -596,7 +604,7 @@ def forwardData :
 omit params in
 /-- Splitting an indexed step list at append agrees with sequential fold
 composition. -/
-theorem foldSteps_append {Index State : Type} (next : Index → State → State)
+lemma foldSteps_append {Index State : Type} (next : Index → State → State)
     (first second : List Index) (x : State) :
     foldSteps next (first ++ second) x =
       foldSteps next second (foldSteps next first x) := by

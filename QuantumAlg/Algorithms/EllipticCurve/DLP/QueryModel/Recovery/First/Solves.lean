@@ -35,68 +35,73 @@ open Execution
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem first_success (I : ECDLPInstance E) (A : Access I)
+private lemma first_success (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState) :
     ENNReal.ofReal (Sampling.Reuse.successFloor I) ≤
-      ((firstRoundAlgorithm I A expansion nontrivial).relationalDistribution
-        original).toOuterMeasure
+      ((firstRoundAlgorithm I expansion nontrivial).relationalDistribution
+        (Sampling.sourceEnvironment I A) original).toOuterMeasure
         {pair | roundAccepts I pair.2} := by
   have lower := ecdlpRecovery_round_success I A expansion nontrivial
-    ((allocationCode I A).nextInput original)
+    ((allocationCode I).nextInput (Sampling.sourceEnvironment I A) original)
     (ecdlpRecovery_allocation_nextInput_admitted I A nontrivial original valid)
-  exact AlgorithmRun.relationalSuccess_after_prefix (allocationCode I A)
-    (roundAlgorithm I A expansion nontrivial).run original
+  exact AlgorithmRun.relationalSuccess_after_prefix (environment := Sampling.sourceEnvironment I
+    A) (allocationCode I)
+    (roundAlgorithm I expansion nontrivial).run original
     {pair | roundAccepts I pair.2} {result | roundAccepts I result}
     (ENNReal.ofReal (Sampling.Reuse.successFloor I)) lower (fun _ accepted => accepted)
 
 /-- The actual first complete cycle establishes every independently fixed protocol clause. -/
-public theorem ecdlpRecovery_firstRound_solves (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_firstRound_solves (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (nontrivial : 2 ≤ (problem I).order)
-    (duration : Resource.Event (Sampling.executionModel I A) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    (firstRoundAlgorithm I A expansion nontrivial).Solves
-      (firstRoundProblem I A expansion nontrivial duration unitQueries) := by
+    (nontrivial : 2 ≤ (problem I).order) :
+    (firstRoundAlgorithm I expansion nontrivial).Solves
+      (firstRoundProblem I expansion nontrivial) := by
   constructor
-  · intro Reference original valid _initialized
-    exact first_success I A expansion nontrivial original valid
-  · intro Reference original _valid _initialized requirement present
+  · intro environment witness Reference original valid _initialized
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    have originalValid := valid.2
+    exact first_success I A expansion nontrivial original originalValid
+  · intro environment witness Reference original valid _initialized requirement present
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
     have same : requirement = firstRoundStateRequirement I := List.mem_singleton.mp present
     subst requirement
     exact AlgorithmRun.stateRequirement_of_reinitializedAt
-      (firstRoundAlgorithm I A expansion nontrivial).run
-      (roundZeroSeed I) (ecdlpRecovery_firstRound_reinitializedAt I A expansion nontrivial)
+      (firstRoundAlgorithm I expansion nontrivial).run
+      (Sampling.sourceEnvironment I A) (roundZeroSeed I) (ecdlpRecovery_firstRound_reinitializedAt
+        I A expansion nontrivial)
       (roundResultRead I) original
-  · intro Reference original _valid _initialized
+  · intro environment witness Reference original valid _initialized
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
     apply AlgorithmRun.restoresBorrowed_of_circuit
     intro reference history _ state
     exact (ecdlpRecovery_firstRound_restartCleanup I A expansion nontrivial).restores
       reference state
-  · intro _Reference _original _valid _initialized path _supported
-    exact ecdlpRecovery_firstRound_events_le I A expansion nontrivial path
-  · intro _Reference _original _valid _initialized path _supported
-    exact ecdlpRecovery_firstRound_resident_le I A expansion nontrivial path
-  · intro _Reference _original _valid _initialized path _supported
-    exact ecdlpRecovery_firstRound_auxiliary_le I A expansion nontrivial path
-  · intro _Reference _original _valid _initialized path _supported
-    exact Circuit.depth_le_weightedCount_of_pool_le (firstRound I A expansion nontrivial) duration
-      (firstRoundEventBudget I A expansion nontrivial) path
-      (ecdlpRecovery_firstRound_events_le I A expansion nontrivial path)
-
-/-- The same real first-cycle code and complete live manifest implement its fixed protocol. -/
-public def firstRoundCompleteCycle (I : ECDLPInstance E) (A : Access I)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (nontrivial : 2 ≤ (problem I).order)
-    (duration : Resource.Event (Sampling.executionModel I A) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Circuit.CompleteCycle (firstRound I A expansion nontrivial)
-      (firstRoundProblem I A expansion nontrivial duration unitQueries) where
-  output := Output.all (context I) (roundResultRead I)
-  certified := ecdlpRecovery_firstRound_solves I A expansion nontrivial duration unitQueries
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact ecdlpRecovery_firstRound_events_le I expansion nontrivial path
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact ecdlpRecovery_firstRound_resident_le I expansion nontrivial path
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact ecdlpRecovery_firstRound_auxiliary_le I expansion nontrivial path
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact Circuit.depth_le_weightedCount_of_pool_le (firstRound I expansion nontrivial)
+      Resource.Event.quantumDuration
+      (firstRoundEventBudget I expansion nontrivial) path
+      (ecdlpRecovery_firstRound_events_le I expansion nontrivial path)
 
 end
 

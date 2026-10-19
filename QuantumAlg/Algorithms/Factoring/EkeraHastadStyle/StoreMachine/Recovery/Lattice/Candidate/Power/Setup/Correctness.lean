@@ -24,14 +24,14 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 /-- The original public target exponent is strictly below the modulus and fits its original
 width. -/
-theorem targetExponent_fits (input : Input N) :
+lemma targetExponent_fits (input : Input N) :
     RSA.targetExponent N < 2 ^ modulusBits N := by
   have positive := input.modulus_gt_one
   have targetLt : RSA.targetExponent N < N := by unfold RSA.targetExponent; omega
   exact targetLt.trans_le input.samplerInput.register_fits
 
 /-- The widened actual modulus word contains the original public modulus without truncation. -/
-theorem modulus_fits (input : Input N) : N < 2 ^ (modulusBits N + 1) := by
+lemma modulus_fits (input : Input N) : N < 2 ^ (modulusBits N + 1) := by
   rw [pow_succ]
   have capacity : N ≤ 2 ^ modulusBits N := input.samplerInput.register_fits
   have positive : 0 < 2 ^ modulusBits N := pow_pos (by decide) _
@@ -45,7 +45,7 @@ structure PreparedValues (refs : Refs ctx N) (before after : Store ctx) : Prop w
   exponent : (after.read (writeInput refs.targetExponent)).toNat = RSA.targetExponent N
 
 /-- Actual full-width loading overwrites arbitrary previous values and retains the packed base. -/
-theorem prepareInto_correct (input : Input N) (refs : Refs ctx N)
+lemma prepareInto_correct (input : Input N) (refs : Refs ctx N)
     (separation : Separation refs) (store : Store ctx) :
     PreparedValues refs store (prepareStep refs store).1 := by
   let packed := store.applyOp (packOp refs)
@@ -79,7 +79,7 @@ structure Outcome (refs : Refs ctx N) (before after : Store ctx) : Prop where
   callerFrame : CallerFrame refs before after
 
 /-- The shared target power is computed from the original retained base and public exponent. -/
-theorem setupInto_correct (input : Input N) (refs : Refs ctx N) (separation : Separation refs)
+lemma setupInto_correct (input : Input N) (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions input store refs) :
     Outcome refs store (setupStep input refs store).1 := by
   let prepared := (prepareStep refs store).1

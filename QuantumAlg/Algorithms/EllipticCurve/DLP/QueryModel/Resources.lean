@@ -30,18 +30,18 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 attribute [local implicit_reducible] problem
 
 /-- The complete ledger is obtained from both actual native peripherals and one query. -/
-public theorem circuit_eventCost (I : ECDLPInstance E) (A : Access I)
+public lemma circuit_eventCost (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (circuit I A expansion).eventCost =
-      ((FiniteCyclicDLP.OrderPreparation.Native.circuit (model I A)
+    (circuit I expansion).eventCost =
+      ((FiniteCyclicDLP.OrderPreparation.Native.circuit (model I)
           (problem I) expansion).eventCost +
-        (FiniteCyclicDLP.OrderPreparation.Native.circuit (model I A)
+        (FiniteCyclicDLP.OrderPreparation.Native.circuit (model I)
           (problem I) expansion).eventCost) +
-      ResourcePool.singleton (model := .quantum AlgorithmGate.model (model I A))
+      ResourcePool.singleton (model := .quantum AlgorithmGate.model (model I))
         (.oracle Coordinate.groupAction) +
-      ((QuantumFourierTransform.Native.inverseCircuit (model I A)
+      ((QuantumFourierTransform.Native.inverseCircuit (model I)
           (FiniteCyclicDLP.orderWidth (problem I))).eventCost +
-        (QuantumFourierTransform.Native.inverseCircuit (model I A)
+        (QuantumFourierTransform.Native.inverseCircuit (model I)
           (FiniteCyclicDLP.orderWidth (problem I))).eventCost) := by
   rw [circuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
     preparations, inverseQFTs, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost,
@@ -51,26 +51,26 @@ public theorem circuit_eventCost (I : ECDLPInstance E) (A : Access I)
   rfl
 
 /-- Exactly one ordinary group-action query is executed for every positive order. -/
-public theorem circuit_query_count (I : ECDLPInstance E) (A : Access I)
+public lemma circuit_query_count (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (model I A))
-      (.oracle Coordinate.groupAction) (circuit I A expansion).eventCost = 1 := by
+    ResourcePool.count (model := .quantum AlgorithmGate.model (model I))
+      (.oracle Coordinate.groupAction) (circuit I expansion).eventCost = 1 := by
   rw [circuit_eventCost]
   simp only [ResourcePool.count_add,
     QuantumFourierTransform.Native.qftNative_inverseCircuit_event_count,
     ResourcePool.count_singleton_self]
   rw [FiniteCyclicDLP.OrderPreparation.Native.circuit_oracle_count
-    (model I A) (problem I) expansion Coordinate.groupAction]
+    (model I) (problem I) expansion Coordinate.groupAction]
   simp
 
 /-- Exact parallel-peripheral depth plus the one actual query step. -/
-public theorem circuit_unit_depth (I : ECDLPInstance E) (A : Access I)
+public lemma circuit_unit_depth (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    (circuit I A expansion).evaluatedEventDepth (fun _ => 1) =
+    (circuit I expansion).evaluatedEventDepth (fun _ => 1) =
       FiniteCyclicDLP.OrderPreparation.unitDepth expansion + 1 +
         (FiniteCyclicDLP.orderWidth (problem I) +
           5 * Nat.choose (FiniteCyclicDLP.orderWidth (problem I)) 2 +
-          3 * (FiniteCyclicDLP.orderWidth (problem I) / 2)) := by
+          (if FiniteCyclicDLP.orderWidth (problem I) / 2 = 0 then 0 else 3)) := by
   rw [circuit, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.evaluatedEventDepth_seq,
     preparations, inverseQFTs,
@@ -80,7 +80,7 @@ public theorem circuit_unit_depth (I : ECDLPInstance E) (A : Access I)
     UnitaryCircuit.parallelBinary_evaluatedEventDepth, Nat.max_self, Nat.max_self,
     FiniteCyclicDLP.OrderPreparation.Native.circuit_unit_depth]
   have Fourier := QuantumFourierTransform.Native.qftNative_inverseCircuit_unit_depth
-    (model I A) (FiniteCyclicDLP.orderWidth (problem I))
+    (model I) (FiniteCyclicDLP.orderWidth (problem I))
   rw [Fourier]
   rfl
 

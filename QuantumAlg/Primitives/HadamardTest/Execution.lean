@@ -33,7 +33,7 @@ noncomputable section
 
 open Execution
 
-theorem resultFresh (width : Nat) : (⟨2⟩ : StorageKey) ∉ (prepared width).keys := by
+lemma resultFresh (width : Nat) : (⟨2⟩ : StorageKey) ∉ (prepared width).keys := by
   change (⟨2⟩ : StorageKey) ∉ [⟨0⟩, ⟨1⟩]
   decide
 
@@ -56,7 +56,7 @@ def controlWire (width : Nat) : Fin (post width).systemCount :=
     (OwnedQubitPrefix.prefix_fresh 1 width) (OwnedQubitPrefix.prefix_disjoint 1 width)
     (.inl 0)
 
-theorem controlWire_dimension (width : Nat) :
+lemma controlWire_dimension (width : Nat) :
     ((post width).quantumLayout.wire (controlWire width)).dimension = 2 := by
   exact congrArg QuantumWire.dimension
     (PreparationBorrowed.fullPositionEquiv_new_wire (pre width) ⟨0⟩
@@ -70,37 +70,30 @@ def readout (width : Nat) : ZReadout (post width) where
     rw [controlWire_dimension]
     exact resultRef width
 
-def beforeMeasurement {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Circuit (model unitary) (pre width) (post width) :=
-  .seq (OwnedQubitPrefix.prepareCode AlgorithmGate.model (UnitarySource.model unitary true) 1 width)
-    (.seq (.unitary (nativeProgram unitary))
-      (.retain (model := model unitary) (prepared width) ⟨2⟩ (.finite 2) (resultFresh width)))
+def beforeMeasurement (width : Nat) :
+    Circuit (model width) (pre width) (post width) :=
+  .seq (OwnedQubitPrefix.prepareCode AlgorithmGate.model (UnitarySource.model width true) 1 width)
+    (.seq (.unitary (nativeProgram width))
+      (.retain (model := model width) (prepared width) ⟨2⟩ (.finite 2) (resultFresh width)))
 
-def readoutCode {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Circuit (model unitary) (post width) (post width) :=
+def readoutCode (width : Nat) :
+    Circuit (model width) (post width) (post width) :=
   Circuit.measurementSequence [readout width]
 
 /-- Every preparation, gate and stored measurement belongs to this one circuit. -/
-def code {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Circuit (model unitary) (pre width) (post width) :=
-  .seq (beforeMeasurement unitary) (readoutCode unitary)
+def code (width : Nat) :
+    Circuit (model width) (pre width) (post width) :=
+  .seq (beforeMeasurement width) (readoutCode width)
 
-def run {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    AlgorithmRun (model unitary) (pre width) (post width) (.finite 2) where
-  code := code unitary
+def run (width : Nat) :
+    AlgorithmRun (model width) (pre width) (post width) (.finite 2) where
+  code := code width
   output := Output.all (post width) (.read (.storage (resultRef width).toCStorageRef))
 
-/-- The algorithm contains only the same complete native run. -/
-public def algorithm {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    Algorithm (model unitary) (pre width) (post width) (.finite 2) := ⟨run unitary⟩
+lemma run_output_listing (width : Nat) :
+    (run width).output.listing = (post width).keys := rfl
 
-theorem run_output_listing {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    (run unitary).output.listing = (post width).keys := rfl
-
-public theorem algorithm_output_listing {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    (algorithm unitary).run.output.listing = (post width).keys := run_output_listing unitary
-
-theorem post_noBorrowedQuantum (width : Nat) : (post width).borrowedQuantumWires = [] := rfl
+lemma post_noBorrowedQuantum (width : Nat) : (post width).borrowedQuantumWires = [] := rfl
 
 end
 

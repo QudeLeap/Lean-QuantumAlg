@@ -37,13 +37,13 @@ strictly below `2 * N`. -/
 def reduceOnce (N s : Nat) : Nat :=
   if N ≤ s then s - N else s
 
-theorem reduceOnce_eq_compareSubtractAddBack (N a b : Nat) :
+lemma reduceOnce_eq_compareSubtractAddBack (N a b : Nat) :
     reduceOnce N (a + b) = compareSubtractAddBack N a b := by
   rfl
 
 /-- A single conditional subtraction returns a canonical residue whenever its
 input is strictly below twice the modulus. -/
-theorem reduceOnce_lt {N s : Nat} (_hN : 0 < N) (hs : s < 2 * N) :
+lemma reduceOnce_lt {N s : Nat} (_hN : 0 < N) (hs : s < 2 * N) :
     reduceOnce N s < N := by
   unfold reduceOnce
   by_cases hreduce : N ≤ s
@@ -54,7 +54,7 @@ theorem reduceOnce_lt {N s : Nat} (_hN : 0 < N) (hs : s < 2 * N) :
 
 /-- On the two-modulus input range, one conditional subtraction is reduction
 modulo `N`. -/
-theorem reduceOnce_eq_mod {N s : Nat} (_hN : 0 < N) (hs : s < 2 * N) :
+lemma reduceOnce_eq_mod {N s : Nat} (_hN : 0 < N) (hs : s < 2 * N) :
     reduceOnce N s = s % N := by
   unfold reduceOnce
   by_cases hreduce : N ≤ s
@@ -65,7 +65,7 @@ theorem reduceOnce_eq_mod {N s : Nat} (_hN : 0 < N) (hs : s < 2 * N) :
 
 /-- Exact representative of a subtraction between two canonical natural
 representatives in `ZMod M`. -/
-theorem zmodVal_natCast_sub_natCast {M x y : Nat} [NeZero M]
+lemma zmodVal_natCast_sub_natCast {M x y : Nat} [NeZero M]
     (hx : x < M) (hy : y < M) :
     ((x : ZMod M) - (y : ZMod M)).val =
       if y ≤ x then x - y else M + x - y := by
@@ -89,7 +89,7 @@ theorem zmodVal_natCast_sub_natCast {M x y : Nat} [NeZero M]
 
 /-- A number lying between two successive powers of two has its boundary bit
 set. -/
-theorem testBit_eq_true_of_two_pow_le_of_lt_two_pow_succ
+lemma testBit_eq_true_of_two_pow_le_of_lt_two_pow_succ
     {x n : Nat} (hlo : 2 ^ n ≤ x) (hi : x < 2 ^ (n + 1)) :
     x.testBit n = true := by
   have hdecomp :
@@ -106,14 +106,14 @@ theorem testBit_eq_true_of_two_pow_le_of_lt_two_pow_succ
     Nat.mod_lt x (Nat.two_pow_pos n)
   omega
 
-theorem sum_lt_wordModulus {n N a b : Nat}
+lemma sum_lt_wordModulus {n N a b : Nat}
     (hN : N ≤ 2 ^ n) (ha : a < N) (hb : b < N) :
     a + b < 2 ^ (n + 1) := by
   have _hpowpos : 0 < 2 ^ n := Nat.two_pow_pos n
   rw [pow_succ]
   omega
 
-theorem modulus_lt_wordModulus {n N : Nat}
+lemma modulus_lt_wordModulus {n N : Nat}
     (_hNpos : 0 < N) (hN : N ≤ 2 ^ n) :
     N < 2 ^ (n + 1) := by
   have _hpowpos : 0 < 2 ^ n := Nat.two_pow_pos n
@@ -121,7 +121,7 @@ theorem modulus_lt_wordModulus {n N : Nat}
   omega
 
 /-- The high bit after subtracting the modulus is exactly the underflow bit. -/
-theorem subtractModulus_msb {n N a b : Nat}
+lemma subtractModulus_msb {n N a b : Nat}
     (hN : N ≤ 2 ^ n) (ha : a < N) (hb : b < N) :
     (((((a + b : Nat) : ZMod (2 ^ (n + 1))) -
           (N : ZMod (2 ^ (n + 1)))).val).testBit n) =
@@ -149,7 +149,7 @@ theorem subtractModulus_msb {n N a b : Nat}
 /-- The subtraction high bit for an arbitrary one-word input below twice the
 modulus.  Unlike `subtractModulus_msb`, this form does not require the input to
 already be presented as a sum of two canonical residues. -/
-theorem subtractModulusRaw_msb {n N s : Nat}
+lemma subtractModulusRaw_msb {n N s : Nat}
     (hNpos : 0 < N) (hN : N < 2 ^ n) (hs : s < 2 * N) :
     (((((s : Nat) : ZMod (2 ^ (n + 1))) -
           (N : ZMod (2 ^ (n + 1)))).val).testBit n) =
@@ -176,7 +176,7 @@ theorem subtractModulusRaw_msb {n N s : Nat}
     simp [hlt]
 
 /-- Word equality behind the add-back stage. -/
-theorem addBack_word_eq_reduceOnce {n N a b : Nat} :
+lemma addBack_word_eq_reduceOnce {n N a b : Nat} :
     (((a + b : Nat) : ZMod (2 ^ (n + 1))) -
         (N : ZMod (2 ^ (n + 1)))) +
       (if N ≤ a + b then 0 else (N : ZMod (2 ^ (n + 1)))) =
@@ -189,7 +189,7 @@ theorem addBack_word_eq_reduceOnce {n N a b : Nat} :
 
 /-- The add-back stage has the ordinary representative produced by one
 conditional subtraction. -/
-theorem addBack_eq_reduceOnce {n N a b : Nat}
+lemma addBack_eq_reduceOnce {n N a b : Nat}
     (hN : N ≤ 2 ^ n) (ha : a < N) (hb : b < N) :
     ((((a + b : Nat) : ZMod (2 ^ (n + 1))) -
           (N : ZMod (2 ^ (n + 1))) +
@@ -206,7 +206,7 @@ theorem addBack_eq_reduceOnce {n N a b : Nat}
   · simp only [if_neg h, reduceOnce]
     rw [sub_add_cancel, ZMod.val_cast_of_lt hsB]
 
-theorem addBack_eq_mod {n N a b : Nat}
+lemma addBack_eq_mod {n N a b : Nat}
     (hN : N ≤ 2 ^ n) (ha : a < N) (hb : b < N) :
     ((((a + b : Nat) : ZMod (2 ^ (n + 1))) -
           (N : ZMod (2 ^ (n + 1))) +
@@ -217,7 +217,7 @@ theorem addBack_eq_mod {n N a b : Nat}
 
 /-- The high bit exposed by subtracting the original addend from the reduced
 result is exactly the stored reduction flag, so the final CNOT clears it. -/
-theorem cleanupProbe_msb {n N a b : Nat}
+lemma cleanupProbe_msb {n N a b : Nat}
     (hN : N ≤ 2 ^ n) (ha : a < N) (hb : b < N) :
     (((((reduceOnce N (a + b) : Nat) : ZMod (2 ^ (n + 1))) -
           (a : ZMod (2 ^ (n + 1)))).val).testBit n) =

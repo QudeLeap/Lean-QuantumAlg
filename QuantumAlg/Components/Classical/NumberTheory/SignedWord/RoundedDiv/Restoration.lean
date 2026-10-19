@@ -22,66 +22,71 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The actual preparation prefix restores the complete borrowed interface. -/
-theorem prepare_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
+lemma prepare_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (prepare (model := model) refs).BorrowedRestored Reference state
-      ((prepare (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((prepare (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact SignedWord.normalizeMagnitude_borrowedRestored refs.numerator refs.negative
       refs.magnitude Reference state
-  · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_seq _ _ _
-        (Circuit.borrowedRestored_classical _ _) (Circuit.borrowedRestored_classical _ _)
-    · exact Circuit.borrowedRestored_classical _ _
+  · apply Circuit.borrowedRestored_seq (environment := environment)
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
+        (Circuit.borrowedRestored_classical
+          (environment := environment) _ _) (Circuit.borrowedRestored_classical (environment :=
+          environment) _ _)
+    · exact Circuit.borrowedRestored_classical (environment := environment) _ _
 
 /-- Conditional correction restores borrowed state on each actual selected input fiber. -/
-theorem rounding_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
+lemma rounding_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (roundingArm (model := model) refs).BorrowedRestored Reference state
-      ((roundingArm (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical _ _
-  · apply Circuit.borrowedRestored_seq
-    · apply Circuit.borrowedRestored_branch
+      ((roundingArm (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · exact Circuit.borrowedRestored_classical (environment := environment) _ _
+  · apply Circuit.borrowedRestored_seq (environment := environment)
+    · apply Circuit.borrowedRestored_branch (environment := environment)
       intro value _history _ current
       cases value with
       | bit flag =>
           cases flag
-          · exact Circuit.borrowedRestored_id current
-          · exact Circuit.borrowedRestored_classical _ current
-    · exact Circuit.borrowedRestored_classical _ _
+          · exact Circuit.borrowedRestored_id (environment := environment) current
+          · exact Circuit.borrowedRestored_classical (environment := environment) _ current
+    · exact Circuit.borrowedRestored_classical (environment := environment) _ _
 
 /-- The final stored-sign dispatch also preserves all borrowed correlations. -/
-theorem finish_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
+lemma finish_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (finish (model := model) refs).BorrowedRestored Reference state
-      ((finish (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical _ _
-  · apply Circuit.borrowedRestored_branch
+      ((finish (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · exact Circuit.borrowedRestored_classical (environment := environment) _ _
+  · apply Circuit.borrowedRestored_branch (environment := environment)
     intro value _history _ current
     cases value with
     | bit flag =>
         cases flag
-        · exact Circuit.borrowedRestored_id current
-        · exact Circuit.borrowedRestored_seq _ _ current
-            (Circuit.borrowedRestored_classical _ _) (Circuit.borrowedRestored_classical _ _)
+        · exact Circuit.borrowedRestored_id (environment := environment) current
+        · exact Circuit.borrowedRestored_seq (environment := environment) _ _ current
+            (Circuit.borrowedRestored_classical
+              (environment := environment) _ _) (Circuit.borrowedRestored_classical (environment
+              := environment) _ _)
 
 /-- Complete actual signed division restores the joint borrowed state for every reference input. -/
-theorem body_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
+lemma body_borrowedRestored (refs : BodyRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (body (model := model) refs).BorrowedRestored Reference state
-      ((body (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((body (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact prepare_borrowedRestored refs Reference state
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
     · exact rounding_borrowedRestored refs Reference _
-    · apply Circuit.borrowedRestored_seq
-      · exact Circuit.borrowedRestored_classical _ _
+    · apply Circuit.borrowedRestored_seq (environment := environment)
+      · exact Circuit.borrowedRestored_classical (environment := environment) _ _
       · exact finish_borrowedRestored refs Reference _
 
 end

@@ -41,28 +41,28 @@ def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .emp
 def eventBound (width : Nat) : Nat := width * stageEventBound width
 
 /-- Every native single-qubit allowance in the variable multiplier comes from its stage pool. -/
-theorem nativeBudget_singleQubit_count (width : Nat) :
+lemma nativeBudget_singleQubit_count (width : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .singleQubit) (nativeBudget width) = eventBound width := by
   simp [nativeBudget, stageBudget, eventBound, primitiveAlphabet]
 
 /-- The same independent stage cap applies to the CNOT coordinate. -/
-theorem nativeBudget_cnot_count (width : Nat) :
+lemma nativeBudget_cnot_count (width : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .cnot) (nativeBudget width) = eventBound width := by
   simp [nativeBudget, stageBudget, eventBound, primitiveAlphabet]
 
 /-- The same independent stage cap applies to the Toffoli coordinate. -/
-theorem nativeBudget_toffoli_count (width : Nat) :
+lemma nativeBudget_toffoli_count (width : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .toffoli) (nativeBudget width) = eventBound width := by
   simp [nativeBudget, stageBudget, eventBound, primitiveAlphabet]
 
 /-- The 256-bit variable multiplier's independent cap at each native coordinate. -/
-theorem eventBound_256 : eventBound 256 = 3096220532736 := by decide
+lemma eventBound_256 : eventBound 256 = 3096220532736 := by decide
 
 /-- The literal controlled list satisfies the independent per-stage envelope. -/
-theorem variableGidney_stageGates_length_bound (width : Nat)
+lemma variableGidney_stageGates_length_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (index : Fin width) :
     (stageGates width modulus index).length ≤ stageEventBound width := by
   have source := Accumulate.Gidney.gidneyAccumulateGates_length_bound
@@ -82,7 +82,7 @@ theorem variableGidney_stageGates_length_bound (width : Nat)
     omega
 
 /-- All emitted coordinates belong to the default-model native alphabet. -/
-theorem variableGidney_stage_native_support (width : Nat)
+lemma variableGidney_stage_native_support (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (index : Fin width)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (stageProgram width modulus index).eventCost) :
@@ -90,14 +90,14 @@ theorem variableGidney_stage_native_support (width : Nat)
   programList_native_support _ (stageGates width modulus index) focus present
 
 /-- The actual number of emitted native instructions obeys the stage cap. -/
-theorem variableGidney_stage_count (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_stage_count (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
     (stageProgram width modulus index).eventCost.card ≤ stageEventBound width := by
   simp only [stageProgram, encoding, programList_eventCost_card]
   exact variableGidney_stageGates_length_bound width modulus index
 
 /-- The same actual list gives the stage's exact serial unit depth. -/
-theorem variableGidney_stage_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_stage_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
     (stageProgram width modulus index).evaluatedEventDepth (fun _ => 1) =
       (stageProgram width modulus index).eventCost.card := by
@@ -105,14 +105,14 @@ theorem variableGidney_stage_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     programList_eventCost_card]
 
 /-- Every native coordinate has a separate independent upper bound. -/
-theorem variableGidney_stage_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_stage_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (index : Fin width) :
     (stageProgram width modulus index).eventCost ≤ stageBudget width :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
     (variableGidney_stage_native_support width modulus index)
     (variableGidney_stage_count width modulus index)
 
-theorem variableGidney_prefix_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_prefix_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus count within).eventCost ≤ count • stageBudget width := by
   induction count with
@@ -124,7 +124,7 @@ theorem variableGidney_prefix_budget (width : Nat) (modulus : Fin (2 ^ width + 1
       exact add_le_add (ih (by omega))
         (variableGidney_stage_budget width modulus ⟨index, by omega⟩)
 
-theorem variableGidney_prefix_count (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_prefix_count (width : Nat) (modulus : Fin (2 ^ width + 1))
     (count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus count within).eventCost.card ≤
       count * stageEventBound width := by
@@ -137,7 +137,7 @@ theorem variableGidney_prefix_count (width : Nat) (modulus : Fin (2 ^ width + 1)
       exact Nat.add_le_add (ih (by omega))
         (variableGidney_stage_count width modulus ⟨index, by omega⟩)
 
-theorem variableGidney_prefix_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma variableGidney_prefix_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus count within).evaluatedEventDepth (fun _ => 1) =
       (prefixProgram width modulus count within).eventCost.card := by
@@ -152,17 +152,17 @@ theorem variableGidney_prefix_depth (width : Nat) (modulus : Fin (2 ^ width + 1)
         Multiset.card_add, ih, variableGidney_stage_depth]
 
 /-- Complete circuit satisfies the independent default-model resource budget. -/
-theorem variableGidney_native_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma variableGidney_native_budget (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).eventCost ≤ nativeBudget width :=
   variableGidney_prefix_budget width modulus width (Nat.le_refl width)
 
 /-- The actual complete event count has the explicit polynomial upper bound. -/
-theorem variableGidney_event_count (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma variableGidney_event_count (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).eventCost.card ≤ eventBound width :=
   variableGidney_prefix_count width modulus width (Nat.le_refl width)
 
 /-- The actual sequential critical path counts the controlled native events. -/
-theorem variableGidney_unit_depth (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma variableGidney_unit_depth (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (program width modulus).evaluatedEventDepth (fun _ => 1) ≤ eventBound width := by
   have depth := variableGidney_prefix_depth width modulus width (Nat.le_refl width)
   rw [program] at *

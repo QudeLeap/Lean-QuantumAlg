@@ -28,7 +28,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original invariant supplies the complete actual second-pair initial representation. -/
-theorem second_initial (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
+lemma second_initial (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
     (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
     LatticeSecondPairFullMachine.Initial refs.second store state.basis := by
@@ -51,7 +51,7 @@ theorem second_initial (refs : Refs ctx width) (input : NumberTheory.IntegerBasi
     exact norm
 
 /-- Full rank and the original seven scalar bounds satisfy every actual second-pair phase. -/
-theorem second_fits (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
+lemma second_fits (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
     (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
     LatticeSecondPairFullMachine.Fits width state.basis := by
@@ -75,7 +75,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual second-pair writes preserve both original phase bits. -/
-theorem second_pair_phase (refs : Refs ctx width) (separation : Separation refs)
+lemma second_pair_phase (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (phase : NumberTheory.LLLPhase3)
     (rep : refs.machine.PhaseRepresents store phase) :
     refs.machine.PhaseRepresents
@@ -87,7 +87,7 @@ theorem second_pair_phase (refs : Refs ctx width) (separation : Separation refs)
       (fun cell _ => separation.doneSecond cell)) rep
 
 /-- The second Lovasz result selects finish or restart without changing its selected basis. -/
-theorem second_advance_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma second_advance_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (passes : Bool)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
     (phase : refs.machine.PhaseRepresents store .second)
@@ -117,7 +117,7 @@ theorem second_advance_correct (refs : Refs ctx width) (separation : Separation 
           store phase⟩
 
 /-- The actual complete second driver arm preserves the original mathematical LLL invariant. -/
-theorem secondStepInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma secondStepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) (phase : state.phase = .second) :
     StoreInvariant refs input (secondStep (model := model) refs store).1

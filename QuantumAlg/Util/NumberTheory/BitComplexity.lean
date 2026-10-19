@@ -103,29 +103,29 @@ def schoolbookCharge (event : ArithmeticEvent) : Nat :=
       4 * (event.operandWidth + 1) ^ 2
 
 /-- Every arithmetic event has positive schoolbook charge. -/
-theorem schoolbookCharge_pos (event : ArithmeticEvent) :
+lemma schoolbookCharge_pos (event : ArithmeticEvent) :
     0 < event.schoolbookCharge := by
   cases event <;> simp [schoolbookCharge, operandWidth]
 
 /-- One positive operand-width unit is bounded by its schoolbook square. -/
-private theorem widthSucc_le_square (width : Nat) :
+private lemma widthSucc_le_square (width : Nat) :
     width + 1 ≤ (width + 1) ^ 2 := by
   rw [pow_two]
   exact Nat.le_mul_of_pos_left (width + 1) (Nat.zero_lt_succ width)
 
 /-- One schoolbook square is bounded by four copies of itself. -/
-private theorem square_le_four_mul_square (width : Nat) :
+private lemma square_le_four_mul_square (width : Nat) :
     (width + 1) ^ 2 ≤ 4 * (width + 1) ^ 2 :=
   Nat.le_mul_of_pos_left _ (by decide)
 
 /-- One positive operand-width unit is bounded by four schoolbook squares. -/
-private theorem widthSucc_le_four_mul_square (width : Nat) :
+private lemma widthSucc_le_four_mul_square (width : Nat) :
     width + 1 ≤ 4 * (width + 1) ^ 2 :=
   (widthSucc_le_square width).trans (square_le_four_mul_square width)
 
 /-- Every primitive event is bounded by four schoolbook quadratic passes at
 the width of the operands carried by that same event. -/
-theorem schoolbookCharge_le_four_sq (event : ArithmeticEvent) :
+lemma schoolbookCharge_le_four_sq (event : ArithmeticEvent) :
     event.schoolbookCharge ≤ 4 * (event.operandWidth + 1) ^ 2 := by
   cases event with
   | intAdd left right =>
@@ -178,14 +178,14 @@ def arithmeticEventListMaxOperandWidth (events : List ArithmeticEvent) : Nat :=
 
 /-- Extensional list charge is additive under concatenation. -/
 @[simp]
-theorem arithmeticEventListCharge_append
+lemma arithmeticEventListCharge_append
     (left right : List ArithmeticEvent) :
     arithmeticEventListCharge (left ++ right) =
       arithmeticEventListCharge left + arithmeticEventListCharge right := by
   simp [arithmeticEventListCharge]
 
 /-- Extensional list charge distributes over a complete flat map. -/
-theorem arithmeticEventListCharge_flatMap {Value : Type}
+lemma arithmeticEventListCharge_flatMap {Value : Type}
     (values : List Value) (events : Value → List ArithmeticEvent) :
     arithmeticEventListCharge (values.flatMap events) =
       (values.map fun value =>
@@ -197,7 +197,7 @@ theorem arithmeticEventListCharge_flatMap {Value : Type}
       rfl
 
 /-- A pointwise bound controls the sum of a mapped natural-valued workload. -/
-theorem listSumMap_le_length_mul {Value : Type}
+lemma listSumMap_le_length_mul {Value : Type}
     (values : List Value) (work : Value → Nat) (bound : Nat)
     (hwork : ∀ value ∈ values, work value ≤ bound) :
     (values.map work).sum ≤ values.length * bound := by
@@ -216,7 +216,7 @@ theorem listSumMap_le_length_mul {Value : Type}
 
 /-- Adding one event updates the largest operand width by maximum. -/
 @[simp]
-theorem arithmeticEventListMaxOperandWidth_cons
+lemma arithmeticEventListMaxOperandWidth_cons
     (event : ArithmeticEvent) (events : List ArithmeticEvent) :
     arithmeticEventListMaxOperandWidth (event :: events) =
       max event.operandWidth
@@ -225,7 +225,7 @@ theorem arithmeticEventListMaxOperandWidth_cons
 
 /-- Concatenating event lists takes the maximum of their operand widths. -/
 @[simp]
-theorem arithmeticEventListMaxOperandWidth_append
+lemma arithmeticEventListMaxOperandWidth_append
     (left right : List ArithmeticEvent) :
     arithmeticEventListMaxOperandWidth (left ++ right) =
       max (arithmeticEventListMaxOperandWidth left)
@@ -235,7 +235,7 @@ theorem arithmeticEventListMaxOperandWidth_append
   | cons event left ih => simp [ih, Nat.max_assoc]
 
 /-- Every member's operand width is bounded by the list maximum. -/
-theorem ArithmeticEvent.operandWidth_le_listMax
+lemma ArithmeticEvent.operandWidth_le_listMax
     {event : ArithmeticEvent} {events : List ArithmeticEvent}
     (hmem : event ∈ events) :
     event.operandWidth ≤ arithmeticEventListMaxOperandWidth events := by
@@ -249,7 +249,7 @@ theorem ArithmeticEvent.operandWidth_le_listMax
 
 /-- A pointwise operand-width bound controls the largest width of an event
 list. -/
-theorem arithmeticEventListMaxOperandWidth_le
+lemma arithmeticEventListMaxOperandWidth_le
     {events : List ArithmeticEvent} {width : Nat}
     (h : ∀ event ∈ events, event.operandWidth ≤ width) :
     arithmeticEventListMaxOperandWidth events ≤ width := by
@@ -264,7 +264,7 @@ theorem arithmeticEventListMaxOperandWidth_le
 
 /-- A list charge is bounded by its number of events times the square of its
 largest actual operand width. -/
-theorem arithmeticEventListCharge_le (events : List ArithmeticEvent) :
+lemma arithmeticEventListCharge_le (events : List ArithmeticEvent) :
     arithmeticEventListCharge events ≤
       4 * events.length *
         (arithmeticEventListMaxOperandWidth events + 1) ^ 2 := by
@@ -304,7 +304,7 @@ theorem arithmeticEventListCharge_le (events : List ArithmeticEvent) :
         _ = 4 * (events.length + 1) * (width + 1) ^ 2 := by ring
 
 /-- The binary size of a product is at most the sum of the operand sizes. -/
-theorem natSize_mul_le_add (left right : Nat) :
+lemma natSize_mul_le_add (left right : Nat) :
     Nat.size (left * right) ≤ Nat.size left + Nat.size right := by
   rw [Nat.size_le, Nat.pow_add]
   exact Nat.mul_lt_mul_of_lt_of_lt
@@ -312,7 +312,7 @@ theorem natSize_mul_le_add (left right : Nat) :
 
 /-- The binary size of a sum is at most one more than the larger operand
 size. -/
-theorem natSize_add_le_max_add_one (left right : Nat) :
+lemma natSize_add_le_max_add_one (left right : Nat) :
     Nat.size (left + right) ≤
       max (Nat.size left) (Nat.size right) + 1 := by
   rw [Nat.size_le, pow_succ]
@@ -326,7 +326,7 @@ theorem natSize_add_le_max_add_one (left right : Nat) :
 
 /-- A deliberately uniform binary-size bound for natural powers, including the
 zero exponent. -/
-theorem natSize_pow_le_mul_add_one (base exponent : Nat) :
+lemma natSize_pow_le_mul_add_one (base exponent : Nat) :
     Nat.size (base ^ exponent) ≤ exponent * Nat.size base + 1 := by
   induction exponent with
   | zero => simp

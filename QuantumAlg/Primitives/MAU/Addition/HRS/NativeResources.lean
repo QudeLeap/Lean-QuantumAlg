@@ -25,7 +25,7 @@ noncomputable section
 
 open EncodedBit.GateSpec
 
-private theorem hrs_count_zero (width : Nat) (constant : Fin (2 ^ width))
+private lemma hrs_count_zero (width : Nat) (constant : Fin (2 ^ width))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (outside : focus ∉ primitiveAlphabet) :
     ResourcePool.count focus (oneDirtyProgram width constant).eventCost = 0 := by
@@ -68,7 +68,7 @@ private theorem hrs_count_zero (width : Nat) (constant : Fin (2 ^ width))
           ih (highWidth width) decrease.2 ((splitWord width) constant).2]
 
 /-- The actual recursive HRS program contains only the three native primitive coordinates. -/
-theorem hrsOneDirty_native_support (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsOneDirty_native_support (width : Nat) (constant : Fin (2 ^ width))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (oneDirtyProgram width constant).eventCost) :
     focus ∈ primitiveAlphabet := by
@@ -82,7 +82,7 @@ def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .emp
   (width * (39 * Nat.clog 2 width + 1)) • primitiveAlphabet
 
 /-- The actual one-dirty circuit meets the independently specified finite native pool. -/
-theorem hrsOneDirty_native_bound (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_native_bound (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyProgram width constant).eventCost ≤ nativeBudget width :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
     (hrsOneDirty_native_support width constant)

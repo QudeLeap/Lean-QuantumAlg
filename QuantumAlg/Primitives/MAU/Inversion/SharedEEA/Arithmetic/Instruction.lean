@@ -33,6 +33,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticInstruction
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ArithmeticWindowRegisters ArithmeticWindowProgram ArithmeticWindowPreservation
 open ArithmeticSelectionKey
 
@@ -92,7 +94,7 @@ def sourceEnabled {width : Nat} (instruction : Instruction) (state : Registers w
   | .coefficientSubtract | .coefficientAdd => sourcePhaseEnabled instruction state
 
 /-- The phase condition is decoded from actual source bits, rather than supplied externally. -/
-theorem enabled_readKey (width : Nat) (instruction : Instruction) (state : Registers width) :
+lemma enabled_readKey (width : Nat) (instruction : Instruction) (state : Registers width) :
     enabled instruction (readKey width (includeSign instruction) state) =
       sourceEnabled instruction state := by
   cases instruction <;>
@@ -100,7 +102,7 @@ theorem enabled_readKey (width : Nat) (instruction : Instruction) (state : Regis
       readsSign, first_readKey, second_readKey, sign_readKey, divisor_readKey]
 
 /-- Internally active frames retain exactly the source arithmetic phase condition. -/
-theorem sourceEnabled_active {width : Nat} (instruction : Instruction) (state : Registers width)
+lemma sourceEnabled_active {width : Nat} (instruction : Instruction) (state : Registers width)
     (active : state.divisorLength ≠ 0) :
     sourceEnabled instruction state = sourcePhaseEnabled instruction state := by
   cases instruction with
@@ -110,7 +112,7 @@ theorem sourceEnabled_active {width : Nat} (instruction : Instruction) (state : 
   | coefficientAdd => rfl
 
 /-- A physical zero divisor length rejects both actual remainder bodies, even after low wrap. -/
-theorem sourceEnabled_terminal {width : Nat} (instruction : Instruction)
+lemma sourceEnabled_terminal {width : Nat} (instruction : Instruction)
     (remainder : coefficient instruction = false)
     (state : Registers width) (finished : state.divisorLength = 0) :
     sourceEnabled instruction state = false := by
@@ -163,14 +165,14 @@ def sourceWindow {width : Nat} (instruction : Instruction) (state : Registers wi
     else none
 
 /-- Exact field decoding gives precisely the same whole physical window and its bounds. -/
-theorem selectedWindow_readKey (width : Nat) (instruction : Instruction) (state : Registers width) :
+lemma selectedWindow_readKey (width : Nat) (instruction : Instruction) (state : Registers width) :
     selectedWindow instruction (readKey width (includeSign instruction) state) =
       sourceWindow instruction state := by
   simp only [selectedWindow, sourceWindow, ArithmeticSelectionKey.coefficient_readKey,
     quotient_readKey, divisor_readKey, shift_readKey, second_readKey]
 
 /-- The actual coefficient-phase branch retains exactly its established fixed physical window. -/
-theorem sourceWindow_phaseThree {width : Nat} (instruction : Instruction)
+lemma sourceWindow_phaseThree {width : Nat} (instruction : Instruction)
     (oriented : coefficient instruction = true) (state : Registers width)
     (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
@@ -187,7 +189,7 @@ theorem sourceWindow_phaseThree {width : Nat} (instruction : Instruction)
   rw [dif_pos fits]
 
 /-- Phase four reads every aligned coefficient bit, excluding the actual divisor and fraction. -/
-theorem sourceWindow_phaseFour {width : Nat} (instruction : Instruction)
+lemma sourceWindow_phaseFour {width : Nat} (instruction : Instruction)
     (oriented : coefficient instruction = true) (state : Registers width)
     (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
@@ -207,10 +209,10 @@ private def identity (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical (encoding width).width).toQuantum :=
   UnitaryCircuit.identity AlgorithmGate.model .empty (QubitLayout.canonical _).toQuantum
 
-private theorem identity_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (identity width) id :=
+private lemma identity_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (identity width) environment id :=
   UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
-    (encoding width) (QubitLayout.canonical _)
+    (encoding width) (QubitLayout.canonical _) environment
 
 /-- Execute the actual selector at a valid enabled static key, otherwise the actual identity. -/
 def program (width : Nat) (instruction : Instruction)
@@ -235,9 +237,9 @@ def step (width : Nat) (instruction : Instruction)
   else state
 
 /-- The actual fixed-key instruction realizes its full action for arbitrary input Ctrl and Iter. -/
-theorem program_realizes (width : Nat) (instruction : Instruction)
+lemma program_realizes (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) :
-    UnitaryCircuit.Realizes (encoding width) (program width instruction selected)
+    UnitaryCircuit.Realizes (encoding width) (program width instruction selected) environment
       (step width instruction selected) := by
   unfold program step
   split
@@ -267,13 +269,13 @@ def sourceStep {width : Nat} (instruction : Instruction) (state : Registers widt
   else state
 
 /-- The actual key's chosen body equals the independent current-field source action. -/
-theorem selectedBody_readKey (width : Nat) (instruction : Instruction) (state : Registers width) :
+lemma selectedBody_readKey (width : Nat) (instruction : Instruction) (state : Registers width) :
     selectedBody width instruction (readKey width (includeSign instruction) state) state =
       sourceStep instruction state := by
   simp only [selectedBody, sourceStep, enabled_readKey, selectedWindow_readKey]
 
 /-- Every static instruction restores its incoming Ctrl on every frame. -/
-theorem step_control (width : Nat) (instruction : Instruction)
+lemma step_control (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) (state : Registers width) :
     (step width instruction selected state).control = state.control := by
   unfold step
@@ -284,7 +286,7 @@ theorem step_control (width : Nat) (instruction : Instruction)
   · rfl
 
 /-- The actual static instruction restores arbitrary Iter on its active and inactive branches. -/
-theorem step_iteration (width : Nat) (instruction : Instruction)
+lemma step_iteration (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) (state : Registers width) :
     (step width instruction selected state).flags.iteration = state.flags.iteration := by
   unfold step
@@ -295,7 +297,7 @@ theorem step_iteration (width : Nat) (instruction : Instruction)
   · rfl
 
 /-- Every later selector sees precisely the same actual source key after this instruction. -/
-theorem step_readKey (width : Nat) (instruction : Instruction)
+lemma step_readKey (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) (state : Registers width) :
     readKey width (includeSign instruction) (step width instruction selected state) =
       readKey width (includeSign instruction) state := by
@@ -307,7 +309,7 @@ theorem step_readKey (width : Nat) (instruction : Instruction)
   · rfl
 
 /-- Every nonmatching static key is inactive when Ctrl has been initialized by the algorithm. -/
-theorem step_inactive (width : Nat) (instruction : Instruction)
+lemma step_inactive (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) (state : Registers width)
     (clean : state.control = false)
     (different : selected ≠ readKey width (includeSign instruction) state) :
@@ -321,7 +323,7 @@ theorem step_inactive (width : Nat) (instruction : Instruction)
   · rfl
 
 /-- The actual matching selector executes its enabled body once, with complete predicate cleanup. -/
-theorem step_matching (width : Nat) (instruction : Instruction) (state : Registers width)
+lemma step_matching (width : Nat) (instruction : Instruction) (state : Registers width)
     (clean : state.control = false) :
     step width instruction (readKey width (includeSign instruction) state) state =
       selectedBody width instruction (readKey width (includeSign instruction) state) state := by

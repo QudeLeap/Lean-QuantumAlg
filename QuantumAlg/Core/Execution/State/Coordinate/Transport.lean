@@ -25,7 +25,7 @@ variable {C D : Type} [Fintype C] [Fintype D] [DecidableEq D]
   {R S : Register}
 
 /-- The combined coordinate transformation and its inverse restore the complete state. -/
-theorem coordinate_transport_inverse [DecidableEq C] (state : ExecutionState C R) (labels : C ≃ D)
+lemma coordinate_transport_inverse [DecidableEq C] (state : ExecutionState C R) (labels : C ≃ D)
     (basis : R.Index ≃ S.Index) :
     (((state.mapClassical labels).reindex basis).mapClassical labels.symm).reindex basis.symm =
       state := by
@@ -33,7 +33,7 @@ theorem coordinate_transport_inverse [DecidableEq C] (state : ExecutionState C R
     coordinate_reindex_inverse]
 
 /-- Each combined coordinate entry is the corresponding original complete block entry. -/
-theorem coordinate_transport_entry (state : ExecutionState C R) (labels : C ≃ D)
+lemma coordinate_transport_entry (state : ExecutionState C R) (labels : C ≃ D)
     (basis : R.Index ≃ S.Index) (value : D) (row column : S.Index) :
     (((state.mapClassical labels).reindex basis).block value).matrix row column =
       (state.block (labels.symm value)).matrix (basis.symm row) (basis.symm column) :=

@@ -25,18 +25,18 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- One actual state-path record returns a tuple satisfying the original total XGCD relation. -/
-theorem xgcdNativePublicIntoResult_accepts
+lemma xgcdNativePublicIntoResult_accepts
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (publicIntoResult
       (model := model) input result).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (publicIntoResult (model := model) input result).execute Reference state =
+        (publicIntoResult (model := model) input result).execute environment Reference state =
           state.mapClassical (fun entry =>
             let actual := record (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧

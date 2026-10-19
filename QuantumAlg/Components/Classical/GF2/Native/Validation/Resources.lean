@@ -38,7 +38,7 @@ def validationColumnEvents : List (Resource.Event model) :=
     validationOperationEvent (model := model) (.bit .xor)]
 
 /-- The actual column emits both original native bit instructions. -/
-theorem gf2ValidationColumn_events
+lemma gf2ValidationColumn_events
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width)
@@ -57,7 +57,7 @@ theorem gf2ValidationColumn_events
   rfl
 
 /-- The exact actual column duration equals the sum of its two emitted event durations. -/
-theorem gf2ValidationColumn_duration_eventTrace
+lemma gf2ValidationColumn_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (parity product : CWriteRef ctx .bit)
     (row : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
@@ -110,7 +110,7 @@ def validationDepthLimit (rowCount width : Nat) (duration : Resource.Event model
   (∑ _row : Fin rowCount, validationRowDepthLimit width duration) +
     duration (validationOperationEvent (model := model) (.bit .and))
 
-private theorem rowBody_pool_le
+private lemma rowBody_pool_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
@@ -140,7 +140,7 @@ private theorem rowBody_pool_le
       rw [gf2ValidationColumn_events]) path.2.1)
     (choice_pool_le true success path.2.2.1 path.2.2.2))
 
-private theorem rowBody_depth_le
+private lemma rowBody_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
@@ -171,7 +171,7 @@ private theorem rowBody_depth_le
       exact le_rfl) path.2.1)
     (choice_depth_le true success path.2.2.1 duration path.2.2.2)) _
 
-private theorem rowBody_duration
+private lemma rowBody_duration
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount)
@@ -210,7 +210,7 @@ private theorem rowBody_duration
     List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- Both actual row scopes preserve the original native event allowance. -/
-theorem gf2ValidationRow_pool_le
+lemma gf2ValidationRow_pool_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validateRow input candidate success row).Path) :
@@ -219,7 +219,7 @@ theorem gf2ValidationRow_pool_le
   rowBody_pool_le _ _ _ _ _ row path
 
 /-- Both actual row scopes preserve all original arbitrary event durations. -/
-theorem gf2ValidationRow_depth_le
+lemma gf2ValidationRow_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (duration : Resource.Event model → Nat)
@@ -229,7 +229,7 @@ theorem gf2ValidationRow_depth_le
   rowBody_depth_le _ _ _ _ _ row duration path
 
 /-- Actual lexical initialization and release preserve the same-path serial duration equation. -/
-theorem gf2ValidationRow_duration_eventTrace
+lemma gf2ValidationRow_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (duration : Resource.Event model → Nat)
@@ -239,7 +239,7 @@ theorem gf2ValidationRow_duration_eventTrace
   rowBody_duration _ _ _ _ _ row duration path
 
 /-- The real current-success branch cannot exceed the original selected-row allowance. -/
-theorem gf2ValidationSample_pool_le
+lemma gf2ValidationSample_pool_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validationSample input candidate success row).Path) :
@@ -254,7 +254,7 @@ theorem gf2ValidationSample_pool_le
       · exact gf2ValidationRow_pool_le input candidate success row path
 
 /-- The current-success branch retains the original arbitrary-duration row allowance. -/
-theorem gf2ValidationSample_depth_le
+lemma gf2ValidationSample_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (duration : Resource.Event model → Nat)
@@ -269,7 +269,7 @@ theorem gf2ValidationSample_depth_le
       · exact gf2ValidationRow_depth_le input candidate success row duration path
 
 /-- The actual success outcome selects the same path in both trace and duration. -/
-theorem gf2ValidationSample_duration_eventTrace
+lemma gf2ValidationSample_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (duration : Resource.Event model → Nat)
@@ -284,7 +284,7 @@ theorem gf2ValidationSample_duration_eventTrace
       · exact gf2ValidationRow_duration_eventTrace input candidate success row duration path
 
 /-- The complete actual row traversal charges its final real self-AND, even with no rows. -/
-theorem gf2ValidationSamples_pool_le
+lemma gf2ValidationSamples_pool_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (path : (validateSamples input candidate success).Path) :
@@ -308,7 +308,7 @@ theorem gf2ValidationSamples_pool_le
     (gf2ValidationSample_pool_le input candidate success) path.1) le_rfl
 
 /-- All original row and final-marker durations are retained in the complete allowance. -/
-theorem gf2ValidationSamples_depth_le
+lemma gf2ValidationSamples_depth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (duration : Resource.Event model → Nat)
@@ -331,7 +331,7 @@ theorem gf2ValidationSamples_depth_le
     (gf2ValidationSample_depth_le input candidate success · duration) path.1) _
 
 /-- The same full actual validation path determines both serial duration and emitted events. -/
-theorem gf2ValidationSamples_duration_eventTrace
+lemma gf2ValidationSamples_duration_eventTrace
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (duration : Resource.Event model → Nat)
@@ -363,7 +363,7 @@ theorem gf2ValidationSamples_duration_eventTrace
     List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- Every syntactic selected-row path has at most two events per column plus three markers. -/
-theorem gf2ValidationRow_unitDepth_le
+lemma gf2ValidationRow_unitDepth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (path : (validateRow input candidate success row).Path) :
@@ -374,7 +374,7 @@ theorem gf2ValidationRow_unitDepth_le
   omega
 
 /-- The original full validation allowance includes its final real marker at every row count. -/
-theorem gf2ValidationSamples_unitDepth_le
+lemma gf2ValidationSamples_unitDepth_le
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (path : (validateSamples input candidate success).Path) :

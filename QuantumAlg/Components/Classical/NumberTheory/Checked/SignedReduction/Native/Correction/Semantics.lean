@@ -36,13 +36,15 @@ def negativeCorrectionValue (remainder : CShape.Word width)
     modulus
 
 /-- All four actual operations retain complete quantum-reference blocks and original histories. -/
-theorem correctionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma correctionBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (correctionBody (model := model) remainder modulus extended output).execute Reference state =
+    (correctionBody (model := model) remainder modulus extended output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((correctionBodyStep (model := model) remainder modulus extended output entry.1).1,
           (entry.2.1, (entry.2.2, (correctionBodyStep (model := model) remainder modulus extended
@@ -53,7 +55,7 @@ theorem correctionBody_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Internal scratch separation suffices for the exact finite word, without a range promise. -/
-theorem correctionBody_value {model : ExecutionModel} [BitWord.Selected model]
+lemma correctionBody_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
@@ -82,7 +84,7 @@ theorem correctionBody_value {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- Every structural read outside scratch and result keys survives all four operations. -/
-theorem correctionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma correctionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (extended : CWriteRef ctx (.unsignedWord (width + 1)))
@@ -101,17 +103,20 @@ theorem correctionBody_read_other {model : ExecutionModel} [BitWord.Selected mod
       other extendedFree]
 
 /-- Actual widened-word entry and both matching scratch releases preserve full reference data. -/
-theorem withNegativeCorrection_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (withNegativeCorrection (model := model) remainder modulus output).execute Reference state =
+    (withNegativeCorrection (model := model) remainder modulus output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((withNegativeCorrectionStep (model := model) remainder modulus output entry.1).1,
           (entry.2.1, (entry.2.2, (withNegativeCorrectionStep (model := model) remainder modulus
             output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord (width + 1))
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh (correctionPlaced (model := model) remainder modulus output)
     (fun before =>
       let result := correctionBodyStep (model := model) (underCorrection remainder width)
@@ -125,13 +130,13 @@ theorem withNegativeCorrection_execute {model : ExecutionModel} [BitWord.Selecte
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem correctionExtended_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma correctionExtended_free {shape : CShape} (input : CInputRef ctx shape) :
     (correctionExtendedCell ctx width).key ∉ (underCorrection input width).storageKeys := by
   rw [underCorrection, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
 /-- The actual original result has its exact finite native value for every caller store. -/
-theorem withNegativeCorrection_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
@@ -146,7 +151,7 @@ theorem withNegativeCorrection_value {model : ExecutionModel} [BitWord.Selected 
   simp only [underCorrection, Store.read_pushWorkspace_underWorkspace]
 
 /-- Only the caller result key may change once both actual scratch scopes have been released. -/
-theorem withNegativeCorrection_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
@@ -162,7 +167,7 @@ theorem withNegativeCorrection_read_other {model : ExecutionModel} [BitWord.Sele
     simpa only [underCorrection, CInputRef.storageKeys_underWorkspace] using separate
 
 /-- The original fitted modulus and canonical remainder give ordinary modular negation. -/
-theorem negativeCorrectionValue_original_toNat (remainder : CShape.Word width)
+lemma negativeCorrectionValue_original_toNat (remainder : CShape.Word width)
     (modulus : CShape.Word (width + 1)) (spec : ModulusSpec width)
     (modulusValue : modulus.toNat = spec.modulus)
     (remainderRange : remainder.toNat < spec.modulus) :
@@ -185,7 +190,7 @@ theorem negativeCorrectionValue_original_toNat (remainder : CShape.Word width)
     (modulusValue ▸ spec.le_capacity), difference, modulusValue]
 
 /-- Real reduction maps modulus minus zero back to zero even at full word capacity. -/
-theorem withNegativeCorrection_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_original_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) (store : Store ctx)

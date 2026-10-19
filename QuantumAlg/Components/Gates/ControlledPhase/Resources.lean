@@ -23,7 +23,7 @@ namespace QuantumAlg.Gate.ControlledPhase
 noncomputable section
 
 /-- The selected implementation contains exactly three native one-qubit occurrences. -/
-public theorem controlledPhase_singleQubit_count (oracles : OracleModel) (angle : Real) :
+public lemma controlledPhase_singleQubit_count (oracles : OracleModel) (angle : Real) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
       (circuit oracles angle).eventCost = 3 := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, controlledPhase_circuit_events,
@@ -31,7 +31,7 @@ public theorem controlledPhase_singleQubit_count (oracles : OracleModel) (angle 
   simp
 
 /-- The selected implementation contains exactly two native CNOT occurrences. -/
-public theorem controlledPhase_cnot_count (oracles : OracleModel) (angle : Real) :
+public lemma controlledPhase_cnot_count (oracles : OracleModel) (angle : Real) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot) (circuit
       oracles angle).eventCost = 2 := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, controlledPhase_circuit_events,
@@ -39,7 +39,7 @@ public theorem controlledPhase_cnot_count (oracles : OracleModel) (angle : Real)
   simp
 
 /-- The selected implementation uses no Toffoli occurrence. -/
-public theorem controlledPhase_toffoli_count (oracles : OracleModel) (angle : Real) :
+public lemma controlledPhase_toffoli_count (oracles : OracleModel) (angle : Real) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli) (circuit
       oracles angle).eventCost = 0 := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, controlledPhase_circuit_events,
@@ -47,7 +47,7 @@ public theorem controlledPhase_toffoli_count (oracles : OracleModel) (angle : Re
   simp
 
 /-- Every declared oracle coordinate has zero queries in this implementation. -/
-public theorem controlledPhase_oracle_count (oracles : OracleModel) (angle : Real)
+public lemma controlledPhase_oracle_count (oracles : OracleModel) (angle : Real)
     (coordinate : oracles.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.oracle coordinate)
       (circuit oracles angle).eventCost = 0 := by

@@ -28,26 +28,25 @@ noncomputable section
 
 /-- The original source families count the actual initial and readout layers:
 explicit initial Hadamards plus Fourier Hadamards, phases and register swaps. -/
-public theorem orderFinding_nativeSourceFamilyCounts {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (sourceModel access))
-        (.gate .singleQubit) (initialLayer access).eventCost +
-      (readoutLayer access).macroCount "hadamard" = 2 * t ∧
-    (readoutLayer access).macroCount "controlled-phase" = t.choose 2 ∧
-    (readoutLayer access).macroCount "swap" = t / 2 := by
+public lemma orderFinding_nativeSourceFamilyCounts (t width : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (sourceModel t width))
+        (.gate .singleQubit) (initialLayer t width).eventCost +
+      (readoutLayer t width).macroCount "hadamard" = 2 * t ∧
+    (readoutLayer t width).macroCount "controlled-phase" = t.choose 2 ∧
+    (readoutLayer t width).macroCount "swap" = t / 2 := by
   have initial : ResourcePool.count
-      (model := .quantum AlgorithmGate.model (sourceModel access))
-      (.gate .singleQubit) (initialLayer access).eventCost = t := by
+      (model := .quantum AlgorithmGate.model (sourceModel t width))
+      (.gate .singleQubit) (initialLayer t width).eventCost = t := by
     rw [initialLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost,
-      Gate.HadamardLayer.hadamardLayer_circuit_eventCost (sourceModel access) t]
+      Gate.HadamardLayer.hadamardLayer_circuit_eventCost (sourceModel t width) t]
     simp
-  have readout (name : String) : (readoutLayer access).macroCount name =
+  have readout (name : String) : (readoutLayer t width).macroCount name =
       t * (if "hadamard" = name then 1 else 0) +
         t.choose 2 * (if "controlled-phase" = name then 1 else 0) +
           (t / 2) * (if "swap" = name then 1 else 0) := by
     rw [readoutLayer, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_macroCount]
     exact QuantumFourierTransform.Native.qftNative_inverseCircuit_macro_count
-      (sourceModel access) name t
+      (sourceModel t width) name t
   simp [initial, readout]
   omega
 

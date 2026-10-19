@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeFactorSc
 variable {kind : ProblemKind}
 
 /-- The actual seven allocated cells satisfy every guard read/write condition. -/
-theorem guard_separated (ctx : RuntimeCtx kind) (N : Nat) :
+lemma guard_separated (ctx : RuntimeCtx kind) (N : Nat) :
     NativeFactorTail.GuardSeparation (cells ctx N) where
   zeroExpanded := scratchKeys_ne ctx N 3 4 (by decide)
   activeExpanded := scratchKeys_ne ctx N 2 4 (by decide)

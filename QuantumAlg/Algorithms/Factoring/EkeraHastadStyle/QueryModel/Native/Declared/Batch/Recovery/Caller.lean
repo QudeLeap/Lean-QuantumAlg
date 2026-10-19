@@ -26,22 +26,22 @@ noncomputable section
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private theorem recovered_caller_reference
+private lemma recovered_caller_reference
     {origin : RuntimeCtx .quantum}
-    (sampler : Circuit (model input) origin (Batch.context base noQuantum N))
+    (sampler : Circuit (model N) origin (Batch.context base noQuantum N))
     {shape : CShape} (original : CInputRef origin shape)
     (retained : CInputRef (Batch.context base noQuantum N) shape)
     (factorFree : (Batch.factorRef base noQuantum N).key ∉ retained.storageKeys)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State origin Reference ((model input).HiddenState × History))
+    (state : State origin Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
-    (sourceLaw : (((sampler.execute Reference state).toPMF
-      ((sampler.execute_mass Reference state).trans normalized)).map
+    (sourceLaw : (((sampler.execute (sourceEnvironment input) Reference state).toPMF
+      ((sampler.execute_mass (sourceEnvironment input) Reference state).trans normalized)).map
         (fun entry => entry.1.read (Batch.sourceRead base noQuantum N))) =
       Batch.sourceDistribution input)
     (jointLaw : ∀ (jointWeight : shape.Value → (Batch.resultShape N).Value → ℂ)
       (left right : Reference.Index),
-      ExecutionState.referenceFiberSum (sampler.execute Reference state)
+      ExecutionState.referenceFiberSum (sampler.execute (sourceEnvironment input) Reference state)
         (fun entry _ => jointWeight (entry.1.read retained)
           (entry.1.read (Batch.sourceRead base noQuantum N))) left right =
       ExecutionState.referenceFiberSum state
@@ -51,7 +51,8 @@ private theorem recovered_caller_reference
     (weight : shape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((sampler.seq (into base noQuantum N input)).execute Reference state)
+      ((sampler.seq (into base noQuantum N input)).execute (sourceEnvironment input) Reference
+        state)
       (fun entry _ => weight (entry.1.read retained)
         (entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)))
       left right =
@@ -60,9 +61,11 @@ private theorem recovered_caller_reference
         ((Batch.sourceDistribution input output).toReal : ℂ) *
           weight (entry.1.read original) (Batch.SourceRecovery.packedValue output))
       left right := by
-  let before := sampler.execute Reference state
-  have normalizedBefore := (sampler.execute_mass Reference state).trans normalized
-  have recovered := into_joint_read base noQuantum N input retained factorFree
+  let before := sampler.execute (sourceEnvironment input) Reference state
+  have normalizedBefore := (sampler.execute_mass (sourceEnvironment input) Reference
+    state).trans normalized
+  have recovered := into_joint_read (environment := sourceEnvironment input) base noQuantum N
+    input retained factorFree
     before normalizedBefore sourceLaw
   have mapped := congrArg
     (fun result : ExecutionState
@@ -72,7 +75,7 @@ private theorem recovered_caller_reference
         (fun entry _ => weight entry.1 entry.2) left right) recovered
   have recoveryLaw :
       ExecutionState.referenceFiberSum
-        ((into base noQuantum N input).execute Reference before)
+        ((into base noQuantum N input).execute (sourceEnvironment input) Reference before)
         (fun entry _ => weight (entry.1.read retained)
           (entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)))
         left right =
@@ -82,7 +85,8 @@ private theorem recovered_caller_reference
             (entry.1.read (Batch.sourceRead base noQuantum N))))
         left right := by
     simpa only [ExecutionState.referenceFiberSum_mapClassical] using mapped
-  exact (Circuit.referenceFiberSum_execute_seq sampler (into base noQuantum N input)
+  exact (Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment input))
+    sampler (into base noQuantum N input)
     state (fun store => weight (store.read retained)
       (store.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)))
     left right).trans (recoveryLaw.trans
@@ -91,15 +95,15 @@ private theorem recovered_caller_reference
 
 /-- The first paid batch and recovery retain the original caller value jointly
 with the optional factor in every reference matrix entry. -/
-theorem run_caller_reference
+lemma run_caller_reference
     {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : shape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((run base noQuantum N input).code.execute Reference state)
+      ((run base noQuantum N input).code.execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (Batch.callerInput base noQuantum N observed))
         (entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)))
@@ -110,7 +114,7 @@ theorem run_caller_reference
           weight (entry.1.read observed) (Batch.SourceRecovery.packedValue output))
       left right := by
   exact recovered_caller_reference base noQuantum N input
-    (Batch.code base noQuantum N input) observed
+    (Batch.code base noQuantum N) observed
     (Batch.callerInput base noQuantum N observed)
     (Batch.caller_factor_separated base noQuantum N observed)
     state normalized (Batch.source_toPMF base noQuantum N input state normalized)
@@ -119,16 +123,16 @@ theorem run_caller_reference
 
 /-- Every later redraw, paid reuse and recovery retains the original caller
 value jointly with the new optional factor and external reference. -/
-theorem nextRun_caller_reference
+lemma nextRun_caller_reference
     {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Batch.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : shape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextRun base noQuantum N input).code.execute Reference state)
+      ((nextRun base noQuantum N input).code.execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (Batch.callerInput base noQuantum N observed))
         (entry.1.read (.storage (Batch.factorRef base noQuantum N).toCStorageRef)))
@@ -140,7 +144,7 @@ theorem nextRun_caller_reference
             (Batch.SourceRecovery.packedValue output))
       left right := by
   exact recovered_caller_reference base noQuantum N input
-    (Batch.nextBatch base noQuantum N input)
+    (Batch.nextBatch base noQuantum N)
     (Batch.callerInput base noQuantum N observed)
     (Batch.callerInput base noQuantum N observed)
     (Batch.caller_factor_separated base noQuantum N observed)

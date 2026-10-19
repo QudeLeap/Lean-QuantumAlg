@@ -6,8 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Setup.Probability
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Next.Probability
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Setup.Probability
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Next.Probability
 import all
 QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Next.Caller
 import all QuantumAlg.Core.Execution.Reference.Probability
@@ -55,7 +57,7 @@ def sourceDistribution {N : Nat} (input : Input N) : PMF (resultShape N).Value :
     (PMF.independentReplicateVector (selectedOutcomePMF (parameterValue input source)) 16).map
       (sourceValue input source)
 
-private theorem reference_sum {C Index : Type} [Fintype C] [Fintype Index]
+private lemma reference_sum {C Index : Type} [Fintype C] [Fintype Index]
     {R Reference : Register} (state : ExecutionState C (Register.prod R Reference))
     (weight : Index → C → R.Index → ℂ) (left right : Reference.Index) :
     ExecutionState.referenceFiberSum state (fun value basis => ∑ index, weight index value basis)
@@ -70,7 +72,7 @@ private theorem reference_sum {C Index : Type} [Fintype C] [Fintype Index]
       exact Finset.sum_comm
     _ = _ := Finset.sum_comm
 
-private theorem vector_weight (count width : Nat)
+private lemma vector_weight (count width : Nat)
     (values : Fin count → (CShape.bits width).Value)
     (weight : (CShape.fixedVector count (.bits width)).Value → ℂ) :
     weight (.fixedVector values) =
@@ -113,7 +115,7 @@ def sourceRead : CInputRef (context base noQuantum N) (resultShape N) :=
     (.product (.storage (parameterRef base noQuantum N).toCStorageRef)
       (.fixedVector fun index => .storage (terminalRef base noQuantum N index).toCStorageRef))
 
-private theorem source_read_weight (store : Store (context base noQuantum N))
+private lemma source_read_weight (store : Store (context base noQuantum N))
     (weight : (resultShape N).Value → ℂ) :
     weight (store.read (sourceRead base noQuantum N)) =
       ∑ samples : List.Vector (Fin (measurementBits N) → Bool) 16,
@@ -127,7 +129,7 @@ private theorem source_read_weight (store : Store (context base noQuantum N))
       (.product (store.read (.storage (sourceRef base noQuantum N).toCStorageRef))
         (.product (store.read (.storage (parameterRef base noQuantum N).toCStorageRef)) outcomes)))
 
-private theorem sourceDistribution_weighted (input : Input N)
+private lemma sourceDistribution_weighted (input : Input N)
     (weight : (resultShape N).Value → ℂ) :
     (∑ output : (resultShape N).Value,
       ((sourceDistribution input output).toReal : ℂ) * weight output) =
@@ -144,7 +146,7 @@ private theorem sourceDistribution_weighted (input : Input N)
   rw [PMF.sum_map_toReal_mul, PMF.uniformOfFintype_apply, Fintype.card_fin,
     ENNReal.toReal_inv, ENNReal.toReal_natCast, Complex.ofReal_inv]
 
-private theorem source_moment (input : Input N)
+private lemma source_moment (input : Input N)
     (weight : (resultShape N).Value → ℂ) :
     (∑ samples : List.Vector (Fin (measurementBits N) → Bool) 16,
       ∑ source : Fin (2 ^ residueSamplingBits N),
@@ -165,7 +167,7 @@ private theorem source_moment (input : Input N)
   rw [PMF.independentReplicateVector_toReal_prod, Complex.ofReal_prod]
   exact mul_comm _ _
 
-private theorem weighted_from_samples {origin : RuntimeCtx .quantum}
+private lemma weighted_from_samples {origin : RuntimeCtx .quantum}
     {Reference : Register} {History FinalHistory : Type}
     [Fintype History] [Fintype FinalHistory]
     (initial : State origin Reference History)
@@ -206,12 +208,13 @@ private theorem weighted_from_samples {origin : RuntimeCtx .quantum}
 
 /-- The actual first declared batch has the complete canonical joint source
 distribution, with arbitrary input-store and external-reference weights. -/
-theorem source_weighted_reference
+lemma source_weighted_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : (resultShape N).Value → ℂ)
     (left right : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base noQuantum N input).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base noQuantum N).execute (sourceEnvironment input)
+      Reference state)
       (fun entry _ => weight (entry.1.read (sourceRead base noQuantum N))) left right =
     ExecutionState.referenceFiberSum state
       (fun _ _ => ∑ output : (resultShape N).Value,
@@ -231,20 +234,21 @@ attribute [local irreducible] callerInput
 
 /-- The first physical batch retains an original caller value jointly with
 its source, parameter and sixteen outcomes in every reference matrix entry. -/
-theorem source_caller_weighted_reference
+lemma source_caller_weighted_reference
     {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (weight : shape.Value → (resultShape N).Value → ℂ)
     (left right : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base noQuantum N input).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base noQuantum N).execute (sourceEnvironment input)
+      Reference state)
       (fun entry _ => weight (entry.1.read (callerInput base noQuantum N observed))
         (entry.1.read (sourceRead base noQuantum N))) left right =
       ExecutionState.referenceFiberSum state
         (fun entry _ => ∑ output : (resultShape N).Value,
           ((sourceDistribution input output).toReal : ℂ) *
             weight (entry.1.read observed) output) left right := by
-  let final := (code base noQuantum N input).execute Reference state
+  let final := (code base noQuantum N).execute (sourceEnvironment input) Reference state
   let oldRead := callerInput base noQuantum N observed
   let sourceRefRead : CInputRef (context base noQuantum N)
       (.bits (residueSamplingBits N)) :=
@@ -275,7 +279,7 @@ theorem source_caller_weighted_reference
         (List.mem_singleton.mp present))
   have expanded := congrArg
     (fun observe : (Store (context base noQuantum N) ×
-        ((model input).HiddenState × (History × (code base noQuantum N input).Path))) →
+        ((model N).HiddenState × (History × (code base noQuantum N).Path))) →
         (context base noQuantum N).register.Index → ℂ =>
       ExecutionState.referenceFiberSum final observe left right)
     (funext fun entry => funext fun _ =>
@@ -296,13 +300,13 @@ theorem source_caller_weighted_reference
             Declared.sourceWeight N input parameter (samples.get index)
       have conditional := firstTerminals_frame_reference base noQuantum N input
         jointOld measuredFree workingFree slotFree
-        ((setup base noQuantum N input).execute Reference state)
+        ((setup base noQuantum N).execute (sourceEnvironment input) Reference state)
         (setup_seeded base noQuantum N input state)
         sampleWeight samples.get left right
       have drawn := setup_input_reference base noQuantum N input observed state
         setupWeight left right
-      exact (Circuit.referenceFiberSum_execute_seq
-        (setup base noQuantum N input) (firstBatch base noQuantum N input)
+      exact (Circuit.referenceFiberSum_execute_seq (environment := sourceEnvironment input)
+        (setup base noQuantum N) (firstBatch base noQuantum N)
         state (fun store => sampleWeight
           (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
           (store.read jointOld) *
@@ -310,7 +314,7 @@ theorem source_caller_weighted_reference
         left right).trans (conditional.trans drawn))
   refine sampleLaws.trans ((reference_sum state _ left right).symm.trans ?_)
   apply congrArg
-    (fun observe : (Store base × ((model input).HiddenState × History)) →
+    (fun observe : (Store base × ((model N).HiddenState × History)) →
         base.register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observe left right)
   funext entry basis
@@ -319,14 +323,14 @@ theorem source_caller_weighted_reference
 
 /-- Every later redraw and sixteen paid resets restore that same complete
 source distribution on an arbitrary live bank and reference state. -/
-theorem next_source_weighted_reference
+lemma next_source_weighted_reference
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : (resultShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextBatch base noQuantum N input).execute Reference state)
+      ((nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight (entry.1.read (sourceRead base noQuantum N))) left right =
     ExecutionState.referenceFiberSum state
       (fun _ _ => ∑ output : (resultShape N).Value,
@@ -344,15 +348,15 @@ theorem next_source_weighted_reference
 
 /-- Every later paid batch redraws one new source and all sixteen samples,
 while retaining an original caller value in every reference matrix entry. -/
-theorem next_source_caller_weighted_reference
+lemma next_source_caller_weighted_reference
     {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : shape.Value → (resultShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextBatch base noQuantum N input).execute Reference state)
+      ((nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight (entry.1.read (callerInput base noQuantum N observed))
         (entry.1.read (sourceRead base noQuantum N))) left right =
       ExecutionState.referenceFiberSum state
@@ -360,11 +364,11 @@ theorem next_source_caller_weighted_reference
           ((sourceDistribution input output).toReal : ℂ) *
             weight (entry.1.read (callerInput base noQuantum N observed)) output)
         left right := by
-  let final := (nextBatch base noQuantum N input).execute Reference state
+  let final := (nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state
   let oldRead := callerInput base noQuantum N observed
   have expanded := congrArg
     (fun observe : (Store (context base noQuantum N) ×
-        ((model input).HiddenState × (History × (nextBatch base noQuantum N input).Path))) →
+        ((model N).HiddenState × (History × (nextBatch base noQuantum N).Path))) →
         (context base noQuantum N).register.Index → ℂ =>
       ExecutionState.referenceFiberSum final observe left right)
     (funext fun entry => funext fun _ =>
@@ -384,7 +388,7 @@ theorem next_source_caller_weighted_reference
   refine sampleLaws.trans ((reference_sum state _ left right).symm.trans ?_)
   apply congrArg
     (fun observe : (Store (context base noQuantum N) ×
-        ((model input).HiddenState × History)) →
+        ((model N).HiddenState × History)) →
         (context base noQuantum N).register.Index → ℂ =>
       ExecutionState.referenceFiberSum state observe left right)
   funext entry basis
@@ -392,17 +396,19 @@ theorem next_source_caller_weighted_reference
 
 /-- The first declared batch's real structural read has the exact canonical
 joint distribution of source, parameter and sixteen samples. -/
-theorem source_toPMF
+lemma source_toPMF
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized) :
-    ((((code base noQuantum N input).execute Reference state).toPMF
-      (((code base noQuantum N input).execute_mass Reference state).trans normalized)).map
+    ((((code base noQuantum N).execute (sourceEnvironment input) Reference state).toPMF
+      (((code base noQuantum N).execute_mass (sourceEnvironment input) Reference state).trans
+        normalized)).map
         (fun record => record.1.read (sourceRead base noQuantum N))) =
       sourceDistribution input := by
   refine ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((code base noQuantum N input).execute Reference state) normalized
-    (((code base noQuantum N input).execute_mass Reference state).trans normalized)
+    ((code base noQuantum N).execute (sourceEnvironment input) Reference state) normalized
+    (((code base noQuantum N).execute_mass (sourceEnvironment input) Reference state).trans
+      normalized)
     (fun record => record.1.read (sourceRead base noQuantum N))
     (sourceDistribution input) ?_
   intro selected left right
@@ -414,18 +420,20 @@ theorem source_toPMF
 
 /-- A later declared batch has the same complete source distribution after
 its actual redraw, reset, observation and paid sample-copy sequence. -/
-theorem next_source_toPMF
+lemma next_source_toPMF
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized) :
-    ((((nextBatch base noQuantum N input).execute Reference state).toPMF
-      (((nextBatch base noQuantum N input).execute_mass Reference state).trans normalized)).map
+    ((((nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state).toPMF
+      (((nextBatch base noQuantum N).execute_mass (sourceEnvironment input) Reference
+        state).trans normalized)).map
         (fun record => record.1.read (sourceRead base noQuantum N))) =
       sourceDistribution input := by
   refine ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((nextBatch base noQuantum N input).execute Reference state) normalized
-    (((nextBatch base noQuantum N input).execute_mass Reference state).trans normalized)
+    ((nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state) normalized
+    (((nextBatch base noQuantum N).execute_mass (sourceEnvironment input) Reference
+      state).trans normalized)
     (fun record => record.1.read (sourceRead base noQuantum N))
     (sourceDistribution input) ?_
   intro selected left right

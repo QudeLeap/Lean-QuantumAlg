@@ -35,7 +35,7 @@ variable [params : Arithmetic.VariableModularMul.Parameters]
 local instance modulusNeZero : NeZero params.modulus.val :=
   ⟨Nat.ne_of_gt params.modulusPos⟩
 
-@[simp] theorem divisionResidueWord_zero :
+@[simp] lemma divisionResidueWord_zero :
     Arithmetic.ModularDivision.residueWord
         (0 : ZMod params.modulus.val) = 0 := by
   apply Fin.ext
@@ -54,7 +54,7 @@ def framedProductRegisters
     ParameterizedPointAddition.Workspace.productRegistersWithFrame
       inversion product tail), controlWork))
 
-theorem liftPublicPort_read_framedProductRegisters
+lemma liftPublicPort_read_framedProductRegisters
     (port : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (control : Bool)
@@ -69,7 +69,7 @@ theorem liftPublicPort_read_framedProductRegisters
       port.read publicWords :=
   rfl
 
-@[simp] theorem liftProductMultiplicand_read_framedProductRegisters
+@[simp] lemma liftProductMultiplicand_read_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -84,7 +84,7 @@ theorem liftPublicPort_read_framedProductRegisters
   exact ParameterizedPointAddition.Workspace.productMultiplicandPort_read_productRegistersWithFrame
     inversion product tail
 
-@[simp] theorem liftProductMultiplier_read_framedProductRegisters
+@[simp] lemma liftProductMultiplier_read_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -99,7 +99,7 @@ theorem liftPublicPort_read_framedProductRegisters
   exact ParameterizedPointAddition.Workspace.productMultiplierPort_read_productRegistersWithFrame
     inversion product tail
 
-@[simp] theorem liftSharedProductMultiplier_read_framedProductRegisters
+@[simp] lemma liftSharedProductMultiplier_read_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -114,7 +114,7 @@ theorem liftPublicPort_read_framedProductRegisters
   exact ParameterizedPointAddition.Workspace.productMultiplierPort_read_productRegistersWithFrame
     inversion product tail
 
-@[simp] theorem liftSharedProductMultiplicand_read_framedProductRegisters
+@[simp] lemma liftSharedProductMultiplicand_read_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -129,7 +129,7 @@ theorem liftPublicPort_read_framedProductRegisters
   exact ParameterizedPointAddition.Workspace.productMultiplicandPort_read_productRegistersWithFrame
     inversion product tail
 
-@[simp] theorem liftProductAccumulator_read_framedProductRegisters
+@[simp] lemma liftProductAccumulator_read_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -144,7 +144,7 @@ theorem liftPublicPort_read_framedProductRegisters
   exact ParameterizedPointAddition.Workspace.productAccumulatorPort_read_productRegistersWithFrame
     inversion product tail
 
-@[simp] theorem liftSharedProductAccumulator_read_framedProductRegisters
+@[simp] lemma liftSharedProductAccumulator_read_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -159,7 +159,7 @@ theorem liftPublicPort_read_framedProductRegisters
   exact ParameterizedPointAddition.Workspace.productAccumulatorPort_read_productRegistersWithFrame
     inversion product tail
 
-@[simp] theorem liftThinPort_read_framedProductRegisters
+@[simp] lemma liftThinPort_read_framedProductRegisters
     (port : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -174,7 +174,7 @@ theorem liftPublicPort_read_framedProductRegisters
       port.read tail.1 :=
   rfl
 
-theorem liftProductMultiplier_set_framedProductRegisters
+lemma liftProductMultiplier_set_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -196,7 +196,7 @@ theorem liftProductMultiplier_set_framedProductRegisters
   rw [ParameterizedPointAddition.Workspace.productMultiplierPort_set_productRegistersWithFrame]
   rfl
 
-theorem liftProductAccumulator_set_framedProductRegisters
+lemma liftProductAccumulator_set_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -218,7 +218,7 @@ theorem liftProductAccumulator_set_framedProductRegisters
   rw [ParameterizedPointAddition.Workspace.productAccumulatorPort_set_productRegistersWithFrame]
   rfl
 
-theorem liftThinPort_set_framedProductRegisters
+lemma liftThinPort_set_framedProductRegisters
     (port : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -236,7 +236,7 @@ theorem liftThinPort_set_framedProductRegisters
         (port.set tail.1 value, tail.2) controlWork :=
   rfl
 
-@[simp] theorem liftProductMultiplicand_set_framedProductRegisters
+@[simp] lemma liftProductMultiplicand_set_framedProductRegisters
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -260,7 +260,7 @@ theorem liftThinPort_set_framedProductRegisters
   rfl
 
 /-- Copy one public field word into a clean direct multiplicand. -/
-theorem publicToMultiplicandGates_set_of_clean
+lemma publicToMultiplicandGates_set_of_clean
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (control : Bool)
@@ -293,7 +293,7 @@ theorem publicToMultiplicandGates_set_of_clean
 
 /-- Reapplying the same public field word clears an equal direct
 multiplicand. -/
-theorem publicToMultiplicandGates_set_zero_of_equal
+lemma publicToMultiplicandGates_set_zero_of_equal
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (control : Bool)
@@ -326,7 +326,7 @@ theorem publicToMultiplicandGates_set_zero_of_equal
 
 /-- One public subtraction uses the actual selected-add inverse and restores
 the multiplier and multiplicand words to zero. -/
-theorem subtractPublicGates_clean
+lemma subtractPublicGates_clean
     (source : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
     (control : Bool)
@@ -402,7 +402,7 @@ theorem subtractPublicGates_clean
 
 /-- Moving the direct accumulator into a clean multiplier uses two CNOT copies:
 the first installs the value and the second clears its old location. -/
-theorem moveAccumulatorToMultiplierGates_clean
+lemma moveAccumulatorToMultiplierGates_clean
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -456,7 +456,7 @@ theorem moveAccumulatorToMultiplierGates_clean
 
 /-- Move the direct product multiplier into a clean saved word and clear the
 multiplier's old physical location. -/
-theorem moveMultiplierToThinGates_clean
+lemma moveMultiplierToThinGates_clean
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -522,7 +522,7 @@ theorem moveMultiplierToThinGates_clean
 
 /-- Move the direct product accumulator into a clean saved word and clear the
 accumulator's old physical location. -/
-theorem moveAccumulatorToThinGates_clean
+lemma moveAccumulatorToThinGates_clean
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -588,7 +588,7 @@ theorem moveAccumulatorToThinGates_clean
 
 /-- Lifting the real shared multiplication ledger through the public frame
 preserves the frame and adds the direct product to the accumulator. -/
-theorem liftSharedMultiplicationGates_clean
+lemma liftSharedMultiplicationGates_clean
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -617,7 +617,7 @@ theorem liftSharedMultiplicationGates_clean
 
 /-- The reversed lifted multiplication ledger subtracts the direct product and
 preserves the complete public frame. -/
-theorem liftSharedMultiplicationGates_reverse_clean
+lemma liftSharedMultiplicationGates_reverse_clean
     (control : Bool)
     (publicWords : PointAddition.PortFrame.PublicWords params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
@@ -645,7 +645,7 @@ theorem liftSharedMultiplicationGates_reverse_clean
   rfl
 
 /-- Load a saved field word into a clean direct multiplier. -/
-theorem thinToMultiplierGates_set_of_clean
+lemma thinToMultiplierGates_set_of_clean
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -677,7 +677,7 @@ theorem thinToMultiplierGates_set_of_clean
       divisionResidueWord_zero]
 
 /-- Reapplying the same saved word clears an equal direct multiplier. -/
-theorem thinToMultiplierGates_set_zero_of_equal
+lemma thinToMultiplierGates_set_zero_of_equal
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -710,7 +710,7 @@ theorem thinToMultiplierGates_set_zero_of_equal
       liftSharedProductMultiplier_read_framedProductRegisters, hsource, htarget]
 
 /-- Load a saved field word into a clean direct multiplicand. -/
-theorem thinToMultiplicandGates_set_of_clean
+lemma thinToMultiplicandGates_set_of_clean
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -742,7 +742,7 @@ theorem thinToMultiplicandGates_set_of_clean
       divisionResidueWord_zero]
 
 /-- Reapplying the same saved word clears an equal direct multiplicand. -/
-theorem thinToMultiplicandGates_set_zero_of_equal
+lemma thinToMultiplicandGates_set_zero_of_equal
     (thin : Arithmetic.BlockBank.WordPort
       ParameterizedPointAddition.Workspace.thinEncoding params.width)
     (control : Bool)
@@ -794,7 +794,7 @@ def inputPublicWordsAt
   (pointWords P.1, (pointWords Q, output))
 
 omit [Fact params.modulus.val.Prime] in
-@[simp] theorem mutableXPublicPort_read_inputPublicWordsAt
+@[simp] lemma mutableXPublicPort_read_inputPublicWordsAt
     (output : PointAddition.PortFrame.PointWords params.width)
     (P : GenericPointAddition.Input E Q) :
     (PointAddition.PortFrame.mutableXPublicPort params.width).read
@@ -803,7 +803,7 @@ omit [Fact params.modulus.val.Prime] in
   rfl
 
 omit [Fact params.modulus.val.Prime] in
-@[simp] theorem mutableYPublicPort_read_inputPublicWordsAt
+@[simp] lemma mutableYPublicPort_read_inputPublicWordsAt
     (output : PointAddition.PortFrame.PointWords params.width)
     (P : GenericPointAddition.Input E Q) :
     (PointAddition.PortFrame.mutableYPublicPort params.width).read
@@ -812,7 +812,7 @@ omit [Fact params.modulus.val.Prime] in
   rfl
 
 omit [Fact params.modulus.val.Prime] in
-@[simp] theorem constantXPublicPort_read_inputPublicWordsAt
+@[simp] lemma constantXPublicPort_read_inputPublicWordsAt
     (output : PointAddition.PortFrame.PointWords params.width)
     (P : GenericPointAddition.Input E Q) :
     (PointAddition.PortFrame.constantXPublicPort params.width).read
@@ -821,7 +821,7 @@ omit [Fact params.modulus.val.Prime] in
   rfl
 
 omit [Fact params.modulus.val.Prime] in
-@[simp] theorem constantYPublicPort_read_inputPublicWordsAt
+@[simp] lemma constantYPublicPort_read_inputPublicWordsAt
     (output : PointAddition.PortFrame.PointWords params.width)
     (P : GenericPointAddition.Input E Q) :
     (PointAddition.PortFrame.constantYPublicPort params.width).read
@@ -851,7 +851,7 @@ def initialRegistersAt
     Arithmetic.ModularInversion.blankRegisters zeroProductData blankTail false
 
 /-- The first public difference computes `P.x-Q.x` in the direct accumulator. -/
-theorem denominatorDifferenceGates_initial
+lemma denominatorDifferenceGates_initial
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList denominatorDifferenceGates
@@ -930,7 +930,7 @@ def denominatorReadyRegistersAt
 
 /-- The three literal denominator routes load both Kaliski copies and clear
 the temporary direct accumulator. -/
-theorem denominatorGates_initial
+lemma denominatorGates_initial
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList denominatorGates
@@ -1031,7 +1031,7 @@ def denominatorInversionRegisters (P : GenericPointAddition.Input E Q) :
     (Arithmetic.ModularInversion.preservedInputPort.set
       Arithmetic.ModularInversion.blankRegisters extended) extended
 
-theorem denominatorLoadedRegistersAt_eq_framed
+lemma denominatorLoadedRegistersAt_eq_framed
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     denominatorLoadedRegistersAt output control P =
@@ -1041,7 +1041,7 @@ theorem denominatorLoadedRegistersAt_eq_framed
         blankTail false := by
   rfl
 
-theorem denominatorReadyRegistersAt_eq_framed
+lemma denominatorReadyRegistersAt_eq_framed
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     denominatorReadyRegistersAt output control P =
@@ -1066,7 +1066,7 @@ def divisionReadyRegistersAt
 
 /-- The numerator schedule computes `P.y-Q.y`, moves it into the division
 numerator, and clears the direct accumulator. -/
-theorem numeratorGates_denominatorReady
+lemma numeratorGates_denominatorReady
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList numeratorGates
@@ -1110,7 +1110,7 @@ theorem numeratorGates_denominatorReady
 
 /-- Denominator and numerator loading produce exactly the canonical clean
 division carrier expected by the proved direct division endpoint. -/
-theorem divisionReadyRegistersAt_eq_divisionRegistersWithTail
+lemma divisionReadyRegistersAt_eq_divisionRegistersWithTail
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     divisionReadyRegistersAt output control P =
@@ -1183,7 +1183,7 @@ def divisionCompleteRegistersAt
 
 /-- Lifting the proved direct-division ledger through the public frame preserves
 the public words and produces its canonical quotient endpoint. -/
-theorem divisionGates_divisionReady
+lemma divisionGates_divisionReady
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList
@@ -1218,7 +1218,7 @@ def slopeProductData (P : GenericPointAddition.Input E Q) :
 
 /-- The canonical division endpoint has the explicit field-level slope shape
 needed by the following saved-word routes. -/
-theorem divisionCompleteRegistersAt_eq_framed
+lemma divisionCompleteRegistersAt_eq_framed
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     divisionCompleteRegistersAt output control P =
@@ -1278,7 +1278,7 @@ def slopeSavedRegistersAt
 
 /-- The direct division ledger computes the slope, then the two move routes
 retain the numerator and slope while clearing the product carrier. -/
-theorem divisionAndSaveGates_divisionReady
+lemma divisionAndSaveGates_divisionReady
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList divisionAndSaveGates
@@ -1336,7 +1336,7 @@ def slopeSquareRegistersAt
 
 /-- The slope-square schedule loads the same saved slope into both operands,
 runs the actual multiplication ledger, and clears both operand words. -/
-theorem multiplySlopeSquareGates_slopeSaved
+lemma multiplySlopeSquareGates_slopeSaved
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList multiplySlopeSquareGates
@@ -1468,7 +1468,7 @@ def xSavedRegistersAt
   framedProductRegisters control (inputPublicWordsAt output P)
     (slopeInversionRegisters P) zeroProductData (xSavedTail P) false
 
-@[simp] theorem xCoordinateData_accumulator
+@[simp] lemma xCoordinateData_accumulator
     (P : GenericPointAddition.Input E Q) :
     (xCoordinateData P).accumulator =
       ParameterizedPointAddition.xScratch P := by
@@ -1480,7 +1480,7 @@ def xSavedRegistersAt
 
 /-- The x-coordinate schedule subtracts both public x inputs from the computed
 slope square, saves the result, and restores the product carrier. -/
-theorem xCoordinateGates_slopeSaved
+lemma xCoordinateGates_slopeSaved
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList xCoordinateGates
@@ -1582,7 +1582,7 @@ def ySlopeMutableXRegistersAt
 
 /-- The first y-coordinate product loads the saved slope and public mutable x,
 runs the actual multiplication ledger, and clears both operands. -/
-theorem multiplySlopeMutableXGates_xSaved
+lemma multiplySlopeMutableXGates_xSaved
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList multiplySlopeMutableXGates
@@ -1723,7 +1723,7 @@ def yBeforePublicSubtractionRegistersAt
 
 /-- The reversed multiplication route subtracts `slope * x` and then clears
 both reloaded operands. -/
-theorem subtractSlopeXGates_ySlopeMutableX
+lemma subtractSlopeXGates_ySlopeMutableX
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList subtractSlopeXGates
@@ -1859,7 +1859,7 @@ def computedRegistersAt
   framedProductRegisters control (inputPublicWordsAt output P)
     (slopeInversionRegisters P) zeroProductData (ySavedTail P) false
 
-@[simp] theorem yCoordinateData_accumulator
+@[simp] lemma yCoordinateData_accumulator
     (P : GenericPointAddition.Input E Q) :
     (yCoordinateData P).accumulator =
       ParameterizedPointAddition.yScratch P := by
@@ -1874,7 +1874,7 @@ def computedRegistersAt
 
 /-- The y-coordinate schedule computes `slope * P.x - slope * x - P.y`, saves
 the result, and restores the sole product carrier. -/
-theorem yCoordinateGates_xSaved
+lemma yCoordinateGates_xSaved
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList yCoordinateGates
@@ -1927,7 +1927,7 @@ theorem yCoordinateGates_xSaved
 /-- The complete direct forward schedule computes the two generic affine
 coordinates while retaining every public input and restoring its single
 product carrier. -/
-theorem computeGates_initial
+lemma computeGates_initial
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList computeGates

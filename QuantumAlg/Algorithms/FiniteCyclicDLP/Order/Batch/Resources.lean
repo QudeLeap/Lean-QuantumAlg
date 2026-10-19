@@ -60,7 +60,7 @@ public def programUnitDepth (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) : Nat :=
   OrderPreparation.unitDepth expansion + 1 +
     (OrderPreparation.width P + 5 * (OrderPreparation.width P).choose 2 +
-      3 * (OrderPreparation.width P / 2))
+      (if OrderPreparation.width P / 2 = 0 then 0 else 3))
 
 /-- Complete critical-path depth, including parallel preparation and source
 words followed by the explicit terminal readout sequence. -/
@@ -87,7 +87,7 @@ public structure QuantumFootprint where
   groupSystems := count
   groupDimension := OrderOracle.workspaceDimension G
 
-private theorem preparation_gate_count_zero (P : KnownOrderProblem G) (count : Nat)
+private lemma preparation_gate_count_zero (P : KnownOrderProblem G) (count : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := OrderExecution.model P) (.gate coordinate)
       (ZeroPreparation.eventCost AlgorithmGate.model (OrderOracle.model P)
@@ -95,14 +95,14 @@ private theorem preparation_gate_count_zero (P : KnownOrderProblem G) (count : N
   simp [ZeroPreparation.eventCost, ZeroPreparation.eventTrace,
     ResourcePool.count, ResourcePool.ofList]
 
-private theorem preparation_oracle_count_zero (P : KnownOrderProblem G) (count : Nat) :
+private lemma preparation_oracle_count_zero (P : KnownOrderProblem G) (count : Nat) :
     ResourcePool.count (model := OrderExecution.model P) (.oracle .ux)
       (ZeroPreparation.eventCost AlgorithmGate.model (OrderOracle.model P)
         (layout P count) BitWord.model (ClassicalFiniteGroupOracle.model G)) = 0 := by
   simp [ZeroPreparation.eventCost, ZeroPreparation.eventTrace,
     ResourcePool.count, ResourcePool.ofList]
 
-private theorem circuit_singleQubit_count (P : KnownOrderProblem G)
+private lemma circuit_singleQubit_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.gate .singleQubit)
       ((OrderCircuit.circuit P expansion).eventCost BitWord.model
@@ -112,7 +112,7 @@ private theorem circuit_singleQubit_count (P : KnownOrderProblem G)
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   exact OrderCircuit.circuit_singleQubit_count P expansion
 
-private theorem circuit_cnot_count (P : KnownOrderProblem G)
+private lemma circuit_cnot_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.gate .cnot)
       ((OrderCircuit.circuit P expansion).eventCost BitWord.model
@@ -123,7 +123,7 @@ private theorem circuit_cnot_count (P : KnownOrderProblem G)
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   exact OrderCircuit.circuit_cnot_count P expansion
 
-private theorem circuit_toffoli_count (P : KnownOrderProblem G)
+private lemma circuit_toffoli_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.gate .toffoli)
       ((OrderCircuit.circuit P expansion).eventCost BitWord.model
@@ -131,7 +131,7 @@ private theorem circuit_toffoli_count (P : KnownOrderProblem G)
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   exact OrderCircuit.circuit_toffoli_count P expansion
 
-private theorem circuit_ux_count (P : KnownOrderProblem G)
+private lemma circuit_ux_count (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.oracle .ux)
       ((OrderCircuit.circuit P expansion).eventCost BitWord.model
@@ -140,7 +140,7 @@ private theorem circuit_ux_count (P : KnownOrderProblem G)
   exact OrderCircuit.circuit_ux_count P expansion
 
 /-- Exact single-qubit count of all independent native sample banks. -/
-public theorem eventBudget_singleQubit_count (P : KnownOrderProblem G) (count : Nat)
+public lemma eventBudget_singleQubit_count (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.gate .singleQubit)
       (eventBudget P count expansion) =
@@ -154,7 +154,7 @@ public theorem eventBudget_singleQubit_count (P : KnownOrderProblem G) (count : 
   simp
 
 /-- Exact CNOT count of all independent native sample banks. -/
-public theorem eventBudget_cnot_count (P : KnownOrderProblem G) (count : Nat)
+public lemma eventBudget_cnot_count (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.gate .cnot)
       (eventBudget P count expansion) =
@@ -170,7 +170,7 @@ public theorem eventBudget_cnot_count (P : KnownOrderProblem G) (count : Nat)
 
 /-- The sampler uses no Toffoli gate: range preparation and inverse QFT are
 already literal one-qubit/CNOT words. -/
-public theorem eventBudget_toffoli_count (P : KnownOrderProblem G) (count : Nat)
+public lemma eventBudget_toffoli_count (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.gate .toffoli)
       (eventBudget P count expansion) = 0 := by
@@ -181,7 +181,7 @@ public theorem eventBudget_toffoli_count (P : KnownOrderProblem G) (count : Nat)
   simp
 
 /-- Every independent bank invokes the sole granted quantum oracle once. -/
-public theorem eventBudget_ux_count (P : KnownOrderProblem G) (count : Nat)
+public lemma eventBudget_ux_count (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count (model := OrderExecution.model P) (.oracle .ux)
       (eventBudget P count expansion) = count := by
@@ -191,23 +191,23 @@ public theorem eventBudget_ux_count (P : KnownOrderProblem G) (count : Nat)
     circuit_ux_count]
   simp
 
-private theorem readouts_length (P : KnownOrderProblem G) {count : Nat}
+private lemma readouts_length (P : KnownOrderProblem G) {count : Nat}
     (slot : Fin count) : (readouts P slot).length = OrderExecution.sampleWidth P := by
   simp [readouts]
 
-private theorem readouts_qubits (P : KnownOrderProblem G) {count : Nat}
+private lemma readouts_qubits (P : KnownOrderProblem G) {count : Nat}
     (slot : Fin count) (item : ZReadout (post P count))
     (present : item ∈ readouts P slot) :
     ((post P count).quantumLayout.wire item.wire).dimension = 2 := by
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present
   exact exponent_dimension P slot index
 
-private theorem allReadouts_length (P : KnownOrderProblem G) (count : Nat) :
+private lemma allReadouts_length (P : KnownOrderProblem G) (count : Nat) :
     (allReadouts P count).length = count * OrderExecution.sampleWidth P := by
   rw [allReadouts, List.length_flatten, List.map_ofFn, List.sum_ofFn]
   simp [readouts_length]
 
-private theorem allReadouts_qubits (P : KnownOrderProblem G) (count : Nat)
+private lemma allReadouts_qubits (P : KnownOrderProblem G) (count : Nat)
     (item : ZReadout (post P count)) (present : item ∈ allReadouts P count) :
     ((post P count).quantumLayout.wire item.wire).dimension = 2 := by
   rw [allReadouts, List.mem_flatten] at present
@@ -215,12 +215,13 @@ private theorem allReadouts_qubits (P : KnownOrderProblem G) (count : Nat)
   obtain ⟨slot, rfl⟩ := List.mem_ofFn.mp bankPresent
   exact readouts_qubits P slot item itemPresent
 
-private theorem measurement_pool (P : KnownOrderProblem G) (count : Nat)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
+private lemma measurement_pool (P : KnownOrderProblem G) (count : Nat)
+    (path : (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
       (oracles := OrderOracle.model P) (operations := BitWord.model)
       (classicalOracles := ClassicalFiniteGroupOracle.model G)
       (allReadouts P count)).Path) :
-    ResourcePool.ofList ((Circuit.measurementSequence (gates := AlgorithmGate.model)
+    ResourcePool.ofList ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
       (oracles := OrderOracle.model P) (operations := BitWord.model)
       (classicalOracles := ClassicalFiniteGroupOracle.model G)
       (allReadouts P count)).eventTrace path) =
@@ -233,7 +234,7 @@ private theorem measurement_pool (P : KnownOrderProblem G) (count : Nat)
     allReadouts_length]
   rfl
 
-private theorem programs_pool (P : KnownOrderProblem G) (count : Nat)
+private lemma programs_pool (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (path : (programs P count expansion).Path) :
     (programs P count expansion).resourcePool path =
       count • (OrderCircuit.circuit P expansion).eventCost BitWord.model
@@ -250,21 +251,21 @@ private theorem programs_pool (P : KnownOrderProblem G) (count : Nat)
     _ = _ := by
       rw [nativeFamilyProgram, Execution.unitaryOfEqualWires_cost, familyProgram_eventCost]
 
-private theorem preparation_pool (P : KnownOrderProblem G) (count : Nat)
+private lemma preparation_pool (P : KnownOrderProblem G) (count : Nat)
     (path : (preparationCode P count).Path) :
     (preparationCode P count).resourcePool path =
       ZeroPreparation.eventCost AlgorithmGate.model (OrderOracle.model P)
         (layout P count) BitWord.model (ClassicalFiniteGroupOracle.model G) := by
   rfl
 
-private theorem allocation_trace (P : KnownOrderProblem G) (count : Nat)
+private lemma allocation_trace (P : KnownOrderProblem G) (count : Nat)
     (path : (allocationCode P count).Path) :
     (allocationCode P count).eventTrace path = [] :=
   MeasurementCells.allocate_eventTrace (model := OrderExecution.model P)
     (bankContext P count) 2 (count * OrderExecution.sampleWidth P) path
 
 /-- Every actual batch path has exactly the exposed independent ledger. -/
-public theorem code_events (P : KnownOrderProblem G) (count : Nat)
+public lemma code_events (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (path : (code P count expansion).Path) :
     (code P count expansion).resourcePool path = eventBudget P count expansion := by
   unfold code beforeMeasurement at path ⊢
@@ -280,7 +281,8 @@ public theorem code_events (P : KnownOrderProblem G) (count : Nat)
   rw [preparation_pool, programs_pool]
   change _ + (ResourcePool.ofList
       ((allocationCode P count).eventTrace allocationPath) + _) +
-    ResourcePool.ofList ((Circuit.measurementSequence (gates := AlgorithmGate.model)
+    ResourcePool.ofList ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
       (oracles := OrderOracle.model P) (operations := BitWord.model)
       (classicalOracles := ClassicalFiniteGroupOracle.model G)
       (allReadouts P count)).eventTrace measurementPath) = _
@@ -291,7 +293,7 @@ public theorem code_events (P : KnownOrderProblem G) (count : Nat)
   simp only [add_assoc]
   rw [smul_comm (OrderExecution.sampleWidth P) count]
 
-private theorem programs_depth (P : KnownOrderProblem G) (count : Nat)
+private lemma programs_depth (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (path : (programs P count expansion).Path) :
     (programs P count expansion).depth (fun _ => 1) path =
       if count = 0 then 0 else programUnitDepth P expansion := by
@@ -306,14 +308,14 @@ private theorem programs_depth (P : KnownOrderProblem G) (count : Nat)
     OrderPreparation.Native.circuit_unit_depth]
   rfl
 
-private theorem measurement_depth (P : KnownOrderProblem G) (count : Nat)
+private lemma measurement_depth (P : KnownOrderProblem G) (count : Nat)
     (path : (readoutCode P count).Path) :
     (readoutCode P count).depth (fun _ => 1) path =
       count * OrderExecution.sampleWidth P := by
   unfold readoutCode at path ⊢
   rw [Circuit.measurementSequence_unitDepth, allReadouts_length]
 
-private theorem preparation_depth (P : KnownOrderProblem G) (count : Nat)
+private lemma preparation_depth (P : KnownOrderProblem G) (count : Nat)
     (path : (preparationCode P count).Path) :
     (preparationCode P count).depth (fun _ => 1) path =
       if count * bankSize P = 0 then 0 else 1 := by
@@ -325,7 +327,7 @@ private theorem preparation_depth (P : KnownOrderProblem G) (count : Nat)
     (OrderOracle.model P) (layout P count) BitWord.model
     (ClassicalFiniteGroupOracle.model G)
 
-private theorem allocation_depth (P : KnownOrderProblem G) (count : Nat)
+private lemma allocation_depth (P : KnownOrderProblem G) (count : Nat)
     (path : (allocationCode P count).Path) :
     (allocationCode P count).depth (fun _ => 1) path = 0 := by
   unfold allocationCode
@@ -333,7 +335,7 @@ private theorem allocation_depth (P : KnownOrderProblem G) (count : Nat)
     (bankContext P count) 2 (count * OrderExecution.sampleWidth P) (fun _ => 1) path
 
 /-- Every batch path has the same complete critical-path unit depth. -/
-public theorem code_depth (P : KnownOrderProblem G) (count : Nat)
+public lemma code_depth (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (path : (code P count expansion).Path) :
     (code P count expansion).depth (fun _ => 1) path = unitDepth P count expansion := by
   unfold code beforeMeasurement at path ⊢
@@ -343,7 +345,7 @@ public theorem code_depth (P : KnownOrderProblem G) (count : Nat)
     preparation_depth, allocation_depth, programs_depth, measurement_depth, zero_add]
 
 /-- The terminal context contains every bank and exactly all retained sample cells. -/
-public theorem post_residentSpace (P : KnownOrderProblem G) (count : Nat) :
+public lemma post_residentSpace (P : KnownOrderProblem G) (count : Nat) :
     (post P count).residentSpace =
       (count * OrderExecution.sampleWidth P) • SpacePool.ofShape (.finite 2) +
         SpacePool.ofQuantumLayout (layout P count) := by
@@ -351,7 +353,7 @@ public theorem post_residentSpace (P : KnownOrderProblem G) (count : Nat) :
     RuntimeCtx.residentSpace_addOwnedLayout, OrderExecution.pre_residentSpace, add_zero]
 
 /-- The terminal context counts the same owned systems and retained cells as auxiliary. -/
-public theorem post_auxiliarySpace (P : KnownOrderProblem G) (count : Nat) :
+public lemma post_auxiliarySpace (P : KnownOrderProblem G) (count : Nat) :
     (post P count).auxiliarySpace =
       (count * OrderExecution.sampleWidth P) • SpacePool.ofShape (.finite 2) +
         SpacePool.ofQuantumLayout (layout P count) := by
@@ -359,54 +361,58 @@ public theorem post_auxiliarySpace (P : KnownOrderProblem G) (count : Nat) :
     RuntimeCtx.auxiliarySpace_addOwnedLayout]
   rfl
 
-private theorem measurementSequence_resident
+private lemma measurementSequence_resident
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
     {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout ctx))
-    (path : (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+    (Circuit.measurementSequence (allowAllocation := true) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).peakResidentSpace
         path = ctx.residentSpace := by
   induction readouts with
   | nil => exact Circuit.peakResidentSpace_id path
   | cons head tail induction =>
       change SpacePool.max ctx.residentSpace
-        ((Circuit.measurementSequence (gates := gates) (oracles := oracles)
+        ((Circuit.measurementSequence (allowAllocation := true)
+          (gates := gates) (oracles := oracles)
           (operations := operations) (classicalOracles := classicalOracles)
           tail).peakResidentSpace path.2) = ctx.residentSpace
       rw [induction, SpacePool.max_self]
 
-private theorem measurementSequence_auxiliary
+private lemma measurementSequence_auxiliary
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
     {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout ctx))
-    (path : (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).Path) :
-    (Circuit.measurementSequence (gates := gates) (oracles := oracles)
+    (Circuit.measurementSequence (allowAllocation := true) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts).peakAuxiliarySpace
         path = ctx.auxiliarySpace := by
   induction readouts with
   | nil => exact Circuit.peakAuxiliarySpace_id path
   | cons head tail induction =>
       change SpacePool.max ctx.auxiliarySpace
-        ((Circuit.measurementSequence (gates := gates) (oracles := oracles)
+        ((Circuit.measurementSequence (allowAllocation := true)
+          (gates := gates) (oracles := oracles)
           (operations := operations) (classicalOracles := classicalOracles)
           tail).peakAuxiliarySpace path.2) = ctx.auxiliarySpace
       rw [induction, SpacePool.max_self]
 
-private theorem readout_resident (P : KnownOrderProblem G) (count : Nat)
+private lemma readout_resident (P : KnownOrderProblem G) (count : Nat)
     (path : (readoutCode P count).Path) :
     (readoutCode P count).peakResidentSpace path = (post P count).residentSpace := by
   exact measurementSequence_resident (allReadouts P count) path
 
-private theorem readout_auxiliary (P : KnownOrderProblem G) (count : Nat)
+private lemma readout_auxiliary (P : KnownOrderProblem G) (count : Nat)
     (path : (readoutCode P count).Path) :
     (readoutCode P count).peakAuxiliarySpace path = (post P count).auxiliarySpace := by
   exact measurementSequence_auxiliary (allReadouts P count) path
 
 /-- Every sampler path peaks at the complete native bank and retained-cell context. -/
-public theorem code_resident_le (P : KnownOrderProblem G) (count : Nat)
+public lemma code_resident_le (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (path : (code P count expansion).Path) :
     (code P count expansion).peakResidentSpace path ≤ (post P count).residentSpace := by
   unfold code beforeMeasurement at path ⊢
@@ -424,7 +430,7 @@ public theorem code_resident_le (P : KnownOrderProblem G) (count : Nat)
   · exact le_of_eq (readout_resident P count path.2)
 
 /-- The same actual path bounds the complete auxiliary-role peak. -/
-public theorem code_auxiliary_le (P : KnownOrderProblem G) (count : Nat)
+public lemma code_auxiliary_le (P : KnownOrderProblem G) (count : Nat)
     (expansion : OrderExpansion P.order) (path : (code P count expansion).Path) :
     (code P count expansion).peakAuxiliarySpace path ≤ (post P count).auxiliarySpace := by
   unfold code beforeMeasurement at path ⊢

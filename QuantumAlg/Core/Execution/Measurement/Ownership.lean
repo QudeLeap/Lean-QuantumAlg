@@ -21,7 +21,7 @@ every finite measurement dimension, including dimensions beyond two.
 namespace QuantumAlg.Execution
 
 /-- A writable result reference cannot point to the borrowed input head. -/
-public theorem borrowedInput_not_measurementOutput
+public lemma borrowedInput_not_measurementOutput
     {ctx : RuntimeCtx .quantum} (key : StorageKey) (dimension : ℕ+)
     (fresh : key ∉ ctx.keys)
     (output : CWriteRef (ctx.addBorrowedInput key (.finite dimension) fresh)

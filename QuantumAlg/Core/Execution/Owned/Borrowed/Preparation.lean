@@ -29,7 +29,7 @@ namespace QuantumAlg.Execution.OwnedBorrowedQubits
 
 noncomputable section
 
-private theorem borrowedInput_wires (owned borrowed : Nat) :
+private lemma borrowedInput_wires (owned borrowed : Nat) :
     (borrowedLayout owned borrowed).toQuantumLayout.wires =
       (borrowedContext owned borrowed).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
@@ -49,7 +49,7 @@ private def borrowedInputPosition (owned borrowed : Nat) (index : Fin borrowed) 
   Execution.positionsOfEqualWires (borrowedLayout owned borrowed).toQuantumLayout
     (borrowedContext owned borrowed).quantumLayout (borrowedInput_wires owned borrowed) index
 
-private theorem borrowedInput_bit (owned borrowed : Nat)
+private lemma borrowedInput_bit (owned borrowed : Nat)
     (basis : (borrowedContext owned borrowed).register.Index) (index : Fin borrowed) :
     (borrowedInputBasisEquiv owned borrowed basis).val.testBit index.rev.val =
       decide ((basis (borrowedInputPosition owned borrowed index)).val = 1) := by
@@ -64,7 +64,7 @@ private theorem borrowedInput_bit (owned borrowed : Nat)
     ((finiteBit_value (original index)).trans
       (congrArg (fun value => decide (value = 1)) values.symm))
 
-private theorem ownedKey_fresh (owned borrowed : Nat) :
+private lemma ownedKey_fresh (owned borrowed : Nat) :
     (⟨0⟩ : StorageKey) ∉ (borrowedContext owned borrowed).keys := by
   change (⟨0⟩ : StorageKey) ∉ [⟨1⟩]
   decide
@@ -78,7 +78,7 @@ def preparationBasisEquiv (owned borrowed : Nat) :
     (wordLayout owned).toQuantumLayout (ownedKey_fresh owned borrowed)
     (disjointWords owned borrowed)
 
-private theorem preparationBasisEquiv_owned_value (owned borrowed : Nat)
+private lemma preparationBasisEquiv_owned_value (owned borrowed : Nat)
     (newBasis : (wordLayout owned).toQuantumLayout.register.Index)
     (oldBasis : (borrowedContext owned borrowed).register.Index) (index : Fin owned) :
     (preparationBasisEquiv owned borrowed (newBasis, oldBasis)
@@ -97,7 +97,7 @@ private theorem preparationBasisEquiv_owned_value (owned borrowed : Nat)
     (Fin.castAdd (borrowedContext owned borrowed).systemCount index)).trans
       (QuantumLayout.appendJoinBasis_left_value _ _ _ newBasis oldBasis index)
 
-private theorem preparationBasisEquiv_borrowed_value (owned borrowed : Nat)
+private lemma preparationBasisEquiv_borrowed_value (owned borrowed : Nat)
     (newBasis : (wordLayout owned).toQuantumLayout.register.Index)
     (oldBasis : (borrowedContext owned borrowed).register.Index) (index : Fin borrowed) :
     (preparationBasisEquiv owned borrowed (newBasis, oldBasis)
@@ -119,7 +119,7 @@ private theorem preparationBasisEquiv_borrowed_value (owned borrowed : Nat)
         (borrowedInputPosition owned borrowed index))
 
 /-- The actual preparation tensor map agrees with the complete binary frame encoding. -/
-theorem basisEquiv_preparation (owned borrowed : Nat)
+lemma basisEquiv_preparation (owned borrowed : Nat)
     (newBasis : (wordLayout owned).toQuantumLayout.register.Index)
     (oldBasis : (borrowedContext owned borrowed).register.Index) :
     basisEquiv owned borrowed (preparationBasisEquiv owned borrowed (newBasis, oldBasis)) =

@@ -25,7 +25,7 @@ noncomputable section
 
 variable {sourceGates targetGates : GateModel} {sourceOracles targetOracles : OracleModel}
 
-private theorem reverseWords_depth {count : Nat} {layout : QuantumLayout count}
+private lemma reverseWords_depth {count : Nat} {layout : QuantumLayout count}
     (duration : Resource.Event (.quantum targetGates targetOracles) → Nat)
     (words : List (UnitaryCircuit targetGates targetOracles layout)) :
     (reverseWords words).evaluatedEventDepth duration =
@@ -37,7 +37,7 @@ private theorem reverseWords_depth {count : Nat} {layout : QuantumLayout count}
       rw [evaluatedEventDepth_seq, ih, List.map_cons, List.sum_cons]
       exact add_comm _ _
 
-private theorem inverseSequence_depth
+private lemma inverseSequence_depth
     (implementations : AdjointRealizations sourceGates sourceOracles targetGates targetOracles)
     (sourceDuration : Resource.Event (.quantum sourceGates sourceOracles) → Nat)
     (targetDuration : Resource.Event (.quantum targetGates targetOracles) → Nat)
@@ -83,7 +83,7 @@ private theorem inverseSequence_depth
   | macroCall name body ih => exact ih
 
 /-- Actual inverse words with matching leaf durations preserve the complete dependency depth. -/
-public theorem dagger_evaluatedEventDepth
+public lemma dagger_evaluatedEventDepth
     {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit sourceGates sourceOracles layout)
     (implementations : AdjointRealizations sourceGates sourceOracles targetGates targetOracles)

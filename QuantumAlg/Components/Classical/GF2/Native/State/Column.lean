@@ -46,7 +46,7 @@ def columnStateValues (cells : Cells ctx (stateShapes rowCount width)) (store : 
       (fun column => (lookup column).isSome)))
 
 omit [BitWord.Selected model] in
-private theorem word_or_bits (left right : Fin width → Bool) :
+private lemma word_or_bits (left right : Fin width → Bool) :
     (ClassicalAlgorithms.GF2.wordOfLogicalBits left).val |||
       (ClassicalAlgorithms.GF2.wordOfLogicalBits right).val =
         (ClassicalAlgorithms.GF2.wordOfLogicalBits (fun index => left index || right index)).val :=
@@ -71,7 +71,7 @@ private theorem word_or_bits (left right : Fin width → Bool) :
   exact congrArg Fin.val same
 
 omit [BitWord.Selected model] in
-private theorem used_insert (used : Finset (Fin rowCount)) (pivot : Fin rowCount) :
+private lemma used_insert (used : Finset (Fin rowCount)) (pivot : Fin rowCount) :
     (ClassicalAlgorithms.GF2.wordOfLogicalBits (fun row => decide (row ∈ used))).val |||
       2 ^ (Fin.rev pivot).val =
         (ClassicalAlgorithms.GF2.wordOfLogicalBits
@@ -82,7 +82,7 @@ private theorem used_insert (used : Finset (Fin rowCount)) (pivot : Fin rowCount
   simp [Finset.mem_insert, Bool.or_comm]
 
 omit [BitWord.Selected model] in
-private theorem lookup_append_same (state : ClassicalAlgorithms.GF2.State rowCount width)
+private lemma lookup_append_same (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column : Fin width)
     (absent : state.pivots.find? (fun entry => decide (entry.column = column)) = none) :
     (state.pivots ++ [(⟨pivot, column⟩ : ClassicalAlgorithms.GF2.Pivot rowCount width)]).find?
@@ -90,7 +90,7 @@ private theorem lookup_append_same (state : ClassicalAlgorithms.GF2.State rowCou
   simp [List.find?_append, absent]
 
 omit [BitWord.Selected model] in
-private theorem lookup_append_other (state : ClassicalAlgorithms.GF2.State rowCount width)
+private lemma lookup_append_other (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column other : Fin width) (different : other ≠ column) :
     (state.pivots ++ [(⟨pivot, column⟩ : ClassicalAlgorithms.GF2.Pivot rowCount width)]).find?
       (fun entry => decide (entry.column = other)) =
@@ -98,7 +98,7 @@ private theorem lookup_append_other (state : ClassicalAlgorithms.GF2.State rowCo
   simp [List.find?_append, different.symm]
 
 omit [BitWord.Selected model] in
-private theorem rows_append (state : ClassicalAlgorithms.GF2.State rowCount width)
+private lemma rows_append (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column : Fin width)
     (absent : state.pivots.find? (fun entry => decide (entry.column = column)) = none) :
     CShape.vectorWrite
@@ -124,7 +124,7 @@ private theorem rows_append (state : ClassicalAlgorithms.GF2.State rowCount widt
       lookup_append_other state pivot column other same]
 
 omit [BitWord.Selected model] in
-private theorem columns_append (state : ClassicalAlgorithms.GF2.State rowCount width)
+private lemma columns_append (state : ClassicalAlgorithms.GF2.State rowCount width)
     (pivot : Fin rowCount) (column : Fin width)
     (absent : state.pivots.find? (fun entry => decide (entry.column = column)) = none) :
     (ClassicalAlgorithms.GF2.wordOfLogicalBits (fun other =>
@@ -143,7 +143,7 @@ private theorem columns_append (state : ClassicalAlgorithms.GF2.State rowCount w
   · simp [lookup_append_other state pivot column other same, same]
 
 omit [BitWord.Selected model] in
-private theorem word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
+private lemma word_eq_of_nat (left right : CShape.Value (.unsignedWord width))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -156,7 +156,7 @@ The actual ordered scan supplies `choice`; the original increasing-column
 prefix supplies `absent`. These are internal step contracts, not requirements
 on an algorithm input or on a host-provided execution result.
 -/
-theorem gf2SelectPivot_cellState
+lemma gf2SelectPivot_cellState
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (found sink : CWriteRef ctx .bit) (pivot : Fin rowCount) (column : Fin width)
     (store : Store ctx) (state : ClassicalAlgorithms.GF2.State rowCount width)
@@ -183,7 +183,7 @@ theorem gf2SelectPivot_cellState
     exact columns_append state pivot column absent
 
 omit [BitWord.Selected model] in
-private theorem clear_read (found : CWriteRef ctx .bit) (store : Store ctx)
+private lemma clear_read (found : CWriteRef ctx .bit) (store : Store ctx)
     {shape : CShape} (other : CWriteRef ctx shape) (nonbit : .bit ≠ shape) :
     (store.applyOp (pivotClearOp found)).read (.storage other.toCStorageRef) =
       store.read (.storage other.toCStorageRef) := by
@@ -194,7 +194,7 @@ private theorem clear_read (found : CWriteRef ctx .bit) (store : Store ctx)
     other.toCStorageRef same)
 
 omit [BitWord.Selected model] in
-private theorem clear_values (cells : Cells ctx (stateShapes rowCount width))
+private lemma clear_values (cells : Cells ctx (stateShapes rowCount width))
     (found : CWriteRef ctx .bit) (store : Store ctx)
     (state : ClassicalAlgorithms.GF2.State rowCount width)
     (represented : columnStateValues cells store state) :
@@ -209,7 +209,7 @@ private theorem clear_values (cells : Cells ctx (stateShapes rowCount width))
   exact represented
 
 omit [BitWord.Selected model] in
-private theorem used_value (cells : Cells ctx (stateShapes rowCount width))
+private lemma used_value (cells : Cells ctx (stateShapes rowCount width))
     (store : Store ctx) (state : ClassicalAlgorithms.GF2.State rowCount width)
     (represented : columnStateValues cells store state) (row : Fin rowCount) :
     (store.read (pivotUsedBit cells.tail.tail.tail.tail.head.ref row)).toBool =
@@ -223,7 +223,7 @@ private theorem used_value (cells : Cells ctx (stateShapes rowCount width))
       (ClassicalAlgorithms.GF2.testBit_wordOfLogicalBits _ row)
 
 /-- The complete actual scan, including its no-pivot branch, realizes the original column step. -/
-theorem gf2ReduceColumnBody_cellState
+lemma gf2ReduceColumnBody_cellState
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (found sink : CWriteRef ctx .bit) (column : Fin width)
     (store : Store ctx) (state : ClassicalAlgorithms.GF2.State rowCount width)

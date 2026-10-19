@@ -48,7 +48,7 @@ variable {N M : ℕ}
 `i·X ∈ g`, then `X = ∑ⱼ rⱼ Bⱼ` with `rⱼ ∈ ℝ`. (The DLA is `*`-closed, so its
 Hermitian part is the real
 span of `B`; concretely, `ℂ`-coordinates of a Hermitian element in a Hermitian basis are real.) -/
-theorem DLAHermBasis.hermitian_real_combo {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
+lemma DLAHermBasis.hermitian_real_combo {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
     (b : DLAHermBasis gens) {X : Matrix (Fin N) (Fin N) ℂ} (hX : Xᴴ = X)
     (hmem : Complex.I • X ∈ (dynamicalLieAlgebra gens).toSubmodule) :
     ∃ r : Fin b.dim → ℝ, X = ∑ j, (r j : ℂ) • b.B j := by
@@ -77,7 +77,7 @@ theorem DLAHermBasis.hermitian_real_combo {gens : Set (Matrix (Fin N) (Fin N) �
 /-- **Larocca Theorem 1 — the QFIM rank is bounded by the DLA dimension.** For Hermitian generators
 `hₐ` whose skew-Hermitian forms lie in the dynamical Lie algebra `g`, the QFIM rank obeys
 `rank[F] ≤ dim(g)`. This is a *proved* consequence of the real-form structure, not an assumption. -/
-theorem qfim_rank_le_dlaDim {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
+lemma qfim_rank_le_dlaDim {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
     (ψ : Fin N → ℂ) {h : Fin M → Matrix (Fin N) (Fin N) ℂ} (hherm : ∀ a, (h a)ᴴ = h a)
     (hmem : ∀ a, Complex.I • h a ∈ (dynamicalLieAlgebra gens).toSubmodule) :
     (qfim ψ h).rank ≤ dlaDim gens := by
@@ -88,7 +88,7 @@ theorem qfim_rank_le_dlaDim {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHe
 itself): each `Bₐ` is Hermitian and `i·Bₐ ∈ g`. This is a genuine instance for every simple/full DLA
 (`su`, `so`, `sp`, `gl`), avoiding the degenerate-witness defect of the previous
 overparametrization model. -/
-theorem qfim_basis_rank_le_dlaDim {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
+lemma qfim_basis_rank_le_dlaDim {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
     (ψ : Fin N → ℂ) :
     (qfim ψ b.B).rank ≤ dlaDim gens :=
   qfim_rank_le_dlaDim b ψ b.herm fun a => by
@@ -96,7 +96,7 @@ theorem qfim_basis_rank_le_dlaDim {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b :
 
 /-- **Fully-controllable witness `gl(2ⁿ)`.** Concrete non-vacuous instance of Theorem 1: the QFIM of
 the Hermitized matrix-unit basis has rank at most `dim gl(N) = N²`. -/
-theorem qfim_fullControllable_rank_le (ψ : Fin N → ℂ) :
+lemma qfim_fullControllable_rank_le (ψ : Fin N → ℂ) :
     (qfim ψ (fullHermBasis N).B).rank ≤ dlaDim (Set.univ : Set (Matrix (Fin N) (Fin N) ℂ)) :=
   qfim_basis_rank_le_dlaDim (fullHermBasis N) ψ
 
@@ -111,7 +111,7 @@ def pauliX2 : Matrix (Fin 2) (Fin 2) ℂ := fun i j => if i = j then 0 else 1
 rank bound: the QFIM is
 not vacuously zero (e.g. `qfim 0 = 0`), so the bound `0 < rank[F] ≤ dim g` is
 non-trivially exercised. -/
-theorem qfim_rank_pos_witness : 0 < (qfim ket0 (fun _ : Fin 1 => pauliX2)).rank := by
+lemma qfim_rank_pos_witness : 0 < (qfim ket0 (fun _ : Fin 1 => pauliX2)).rank := by
   have h40 : (qfim ket0 (fun _ : Fin 1 => pauliX2)) 0 0 = 4 := by
     simp [qfim_apply, qCov, expval, ket0, pauliX2, Matrix.mulVec, dotProduct, Matrix.mul_apply,
       Fin.sum_univ_two]

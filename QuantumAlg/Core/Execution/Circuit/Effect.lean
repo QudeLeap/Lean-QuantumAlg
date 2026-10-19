@@ -13,6 +13,10 @@ import all QuantumAlg.Core.Execution.Interpret
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.Classical.Iteration
 import all QuantumAlg.Core.Execution.Classical.Workspace
+import all QuantumAlg.Core.Execution.Composition.Effect
+import all QuantumAlg.Core.Execution.Composition.Parallel
+import all QuantumAlg.Core.Execution.Composition.Embedding
+import all QuantumAlg.Core.Execution.Interpret.Preserving
 
 /-!
 # Certified observations of the actual finite circuit
@@ -54,7 +58,9 @@ private def repeatEffectPullback {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Pull the final block observables backward through this same finite circuit syntax. -/
 def effectPullback {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (Reference : Register) {History : Type}
+    {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation) (environment : model.Environment)
+    (Reference : Register) {History : Type}
     (effects : EffectFamily post Reference (model.HiddenState × (History × code.Path))) :
     EffectFamily pre Reference (model.HiddenState × History) :=
   match code with
@@ -65,12 +71,13 @@ def effectPullback {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
       (fun result => effects (original.1.write application.output result,
         (original.2.1, (original.2.2, result))))
   | .classicalQuery (model := selected) application => fun original => kernelEffect
-      (selected.classicalOracles.transition application.query original.2.1
+      (selected.classicalOracles.transition environment.classical application.query original.2.1
         (original.1.read application.input))
       (fun result => effects (original.1.write application.output result.2,
         (result.1, (original.2.2, result.2))))
   | .unitary program => fun original => Effect.pullbackUnitary
-      (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+      (UnitaryOperator.prodTensor (program.matrix environment.quantum)
+        (1 : UnitaryOperator Reference))
       (effects (original.1, (original.2.1, (original.2.2, ()))))
   | .measureZ wire output => fun original => ZMeasurement.pullbackEffect
       (fun basis => basis.1 wire) (fun outcome =>
@@ -86,17 +93,34 @@ def effectPullback {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
         (effects (original.1.pushOwnedLayout key layout fresh disjoint,
           (original.2.1, (original.2.2, ()))))
   | .seq first second =>
-      effectPullback first Reference (effectPullback second Reference (fun result =>
+      effectPullback first environment Reference
+        (effectPullback second environment Reference (fun result =>
         effects (result.1, (result.2.1, (result.2.2.1.1, (result.2.2.1.2, result.2.2.2))))))
   | .branch input body => fun original =>
-      effectPullback (body (original.1.read input)) Reference (fun result =>
+      effectPullback (body (original.1.read input)) environment Reference (fun result =>
         effects (result.1, (result.2.1,
           (result.2.2.1, ⟨original.1.read input, result.2.2.2⟩)))) original
-  | .iterate count body => repeatEffectPullback (effectPullback body Reference) count effects
+  | .iterate count body =>
+      repeatEffectPullback (effectPullback body environment Reference) count effects
   | .workspace _ctx key shape fresh body => fun original =>
-      effectPullback body Reference (fun result =>
+      effectPullback body environment Reference (fun result =>
         effects (Store.popWorkspace key shape fresh result.1, result.2))
           (original.1.pushWorkspace key shape fresh, original.2)
+  | .embed placement body =>
+      embedEffectPullback placement Reference
+        (effectPullback body environment (Register.prod placement.frame.register Reference)) effects
+  | .parallelClassical join separate first second =>
+      parallelEffectPullback join separate Reference
+        (effectPullback first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _)
+        (effectPullback second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _) effects
+  | .parallelQuantum join separate first second =>
+      parallelEffectPullback join separate Reference
+        (effectPullback first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _)
+        (effectPullback second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _) effects
 termination_by structural code
 
 end Circuit
@@ -104,7 +128,7 @@ end Circuit
 namespace Execution.State
 
 /-- Mathematical history reindexing pulls back only the observation's history argument. -/
-theorem effectWeight_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma effectWeight_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {H K : Type} [Fintype H] [Fintype K]
     (state : State ctx Reference H) (update : H → K)
     (effects : Circuit.EffectFamily ctx Reference K) :
@@ -114,7 +138,7 @@ theorem effectWeight_mapHistory {kind : ProblemKind} {ctx : RuntimeCtx kind}
   exact ExecutionState.effectWeight_mapClassical_decision _ state _ effects
 
 /-- The actual unitary instruction pulls back the full context-reference observable. -/
-theorem effectWeight_unitary {ctx : RuntimeCtx .quantum} {Reference : Register}
+lemma effectWeight_unitary {ctx : RuntimeCtx .quantum} {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference H)
     (program : UnitaryOperator ctx.register)
     (effects : Circuit.EffectFamily ctx Reference (H × Unit)) :
@@ -127,7 +151,7 @@ theorem effectWeight_unitary {ctx : RuntimeCtx .quantum} {Reference : Register}
     ExecutionState.effectWeight_applyUnitary]
 
 /-- Actual random-bit outcomes use the real uniform probability and Store write. -/
-theorem effectWeight_randomBits {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma effectWeight_randomBits {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {H : Type} [Fintype H] (state : State ctx Reference H)
     (width : Nat) (output : CWriteRef ctx (.bits width))
     (effects : Circuit.EffectFamily ctx Reference (H × Fin (2 ^ width))) :
@@ -147,25 +171,29 @@ namespace Circuit
 
 open Execution
 
-private theorem effectWeight_branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
+private lemma effectWeight_branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {allowAllocation : Bool}
+    {shape : CShape} (input : CInputRef pre shape)
+    (body : shape.Value → Circuit model pre post allowAllocation)
+    (environment : model.Environment)
     (Reference : Register)
     (bodyEquation : ∀ value {H : Type} [Fintype H]
       (state : State pre Reference (model.HiddenState × H))
       (effects : EffectFamily post Reference (model.HiddenState × (H × (body value).Path))),
-      ((body value).execute Reference state).effectWeight effects =
-        state.effectWeight (effectPullback (body value) Reference effects))
+      ((body value).execute environment Reference state).effectWeight effects =
+        state.effectWeight (effectPullback (body value) environment Reference effects))
     {H : Type} [Fintype H] (state : State pre Reference (model.HiddenState × H))
     (effects : EffectFamily post Reference (model.HiddenState ×
       (H × (Circuit.branch input body).Path))) :
-    ((Circuit.branch input body).execute Reference state).effectWeight effects =
-      state.effectWeight (effectPullback (Circuit.branch input body) Reference effects) := by
+    ((Circuit.branch input body).execute environment Reference state).effectWeight effects =
+      state.effectWeight
+        (effectPullback (Circuit.branch input body) environment Reference effects) := by
   classical
   unfold ExecutionState.effectWeight Effect.weight
   simp only [execute_branch_block_matrix, Matrix.mul_sum, Matrix.trace_sum, Complex.re_sum]
   rw [Finset.sum_comm]
   change (∑ value : shape.Value,
-    (((body value).execute Reference
+    (((body value).execute environment Reference
       (state.selectClassical (fun original => original.1.read input) value)).mapHistory
         (fun history => (history.1, (history.2.1,
           (⟨value, history.2.2⟩ : (Circuit.branch input body).Path))))).effectWeight effects) = _
@@ -175,19 +203,21 @@ private theorem effectWeight_branch {model : ExecutionModel} {pre post : Runtime
   simp only [Finset.sum_ite_eq, Finset.mem_univ, if_true]
   rfl
 
-private theorem effectWeight_iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-    (body : Circuit model ctx ctx) (Reference : Register)
+private lemma effectWeight_iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    {allowAllocation : Bool}
+    (body : Circuit model ctx ctx allowAllocation) (environment : model.Environment)
+    (Reference : Register)
     (bodyEquation : ∀ {H : Type} [Fintype H]
       (state : State ctx Reference (model.HiddenState × H))
       (effects : EffectFamily ctx Reference (model.HiddenState × (H × body.Path))),
-      (body.execute Reference state).effectWeight effects =
-        state.effectWeight (effectPullback body Reference effects)) :
+      (body.execute environment Reference state).effectWeight effects =
+        state.effectWeight (effectPullback body environment Reference effects)) :
     ∀ (count : Nat) {H : Type} [Fintype H]
       (state : State ctx Reference (model.HiddenState × H))
       (effects : EffectFamily ctx Reference (model.HiddenState × (H × (Fin count → body.Path)))),
-      ((Circuit.iterate count body).execute Reference state).effectWeight effects =
+      ((Circuit.iterate count body).execute environment Reference state).effectWeight effects =
         state.effectWeight
-          (repeatEffectPullback (effectPullback body Reference) count effects) := by
+          (repeatEffectPullback (effectPullback body environment Reference) count effects) := by
   intro count
   induction count with
   | zero =>
@@ -201,13 +231,15 @@ private theorem effectWeight_iterate {model : ExecutionModel} {ctx : RuntimeCtx 
 
 /-- Every final certified block observation has this exact pullback through actual execution.
 The statement retains arbitrary initial mixtures and external-reference correlations. -/
-theorem effectWeight_execute {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (Reference : Register) {H : Type} [Fintype H]
+lemma effectWeight_execute {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation) (environment : model.Environment)
+    (Reference : Register) {H : Type} [Fintype H]
     (state : State pre Reference (model.HiddenState × H))
     (effects : EffectFamily post Reference (model.HiddenState × (H × code.Path))) :
-    (code.execute Reference state).effectWeight effects =
-      state.effectWeight (effectPullback code Reference effects) := by
-  induction code generalizing H with
+    (code.execute environment Reference state).effectWeight effects =
+      state.effectWeight (effectPullback code environment Reference effects) := by
+  induction code generalizing Reference H with
   | id ctx =>
       rw [execute_id, ExecutionState.effectWeight_mapClassical_decision]
       rfl
@@ -237,9 +269,11 @@ theorem effectWeight_execute {model : ExecutionModel} {pre post : RuntimeCtx mod
       rw [execute_seq, State.effectWeight_mapHistory, secondEquation, firstEquation]
       rfl
   | branch input body bodyEquation =>
-      exact effectWeight_branch input body Reference bodyEquation state effects
+      exact effectWeight_branch input body environment Reference
+        (fun value => bodyEquation value environment Reference) state effects
   | iterate count body bodyEquation =>
-      exact effectWeight_iterate body Reference bodyEquation count state effects
+      exact effectWeight_iterate body environment Reference
+        (bodyEquation environment Reference) count state effects
   | workspace ctx key shape fresh body bodyEquation =>
       rw [execute_workspace]
       unfold State.popWorkspace
@@ -247,24 +281,63 @@ theorem effectWeight_execute {model : ExecutionModel} {pre post : RuntimeCtx mod
       unfold State.pushWorkspace
       erw [ExecutionState.effectWeight_mapClassical_decision]
       rfl
+  | embed placement body bodyEquation =>
+      exact embedPreserving_effect placement Reference
+        (fun original => interpret body environment _ original)
+        (effectPullback body environment _)
+        (fun {_} _ original effects => bodyEquation environment _ original effects)
+        state effects
+  | parallelClassical join separate first second firstEquation secondEquation =>
+      exact parallelPreserving_effect join separate
+        (fun original => interpret first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original)
+        (fun original => interpret second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original)
+        (effectPullback first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _)
+        (effectPullback second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _)
+        (fun {_} _ original effects => firstEquation
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original effects)
+        (fun {_} _ original effects => secondEquation
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original effects)
+        state effects
+  | parallelQuantum join separate first second firstEquation secondEquation =>
+      exact parallelPreserving_effect join separate
+        (fun original => interpret first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original)
+        (fun original => interpret second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original)
+        (effectPullback first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _)
+        (effectPullback second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _)
+        (fun {_} _ original effects => firstEquation
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original effects)
+        (fun {_} _ original effects => secondEquation
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original effects)
+        state effects
 
 /-- Partition an actual circuit observation by any finite label on its input
 store, service state and earlier history. Each selected execution retains its
 original quantum and reference blocks, without normalizing the fiber. -/
-theorem effectWeight_execute_partition {model : ExecutionModel}
+lemma effectWeight_execute_partition {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) {Reference : Register} {H D : Type}
+    {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation) (environment : model.Environment)
+    {Reference : Register} {H D : Type}
     [Fintype H] [Fintype D] [DecidableEq D]
     (state : State pre Reference (model.HiddenState × H))
     (read : Store pre × (model.HiddenState × H) → D)
     (effects : EffectFamily post Reference (model.HiddenState × (H × code.Path))) :
-    (code.execute Reference state).effectWeight effects =
+    (code.execute environment Reference state).effectWeight effects =
       ∑ label : D,
-        (code.execute Reference (state.selectClassical read label)).effectWeight effects := by
+        (code.execute environment Reference
+          (state.selectClassical read label)).effectWeight effects := by
   simp only [effectWeight_execute]
   have partition := congrArg
     (fun current : State pre Reference (model.HiddenState × H) =>
-      current.effectWeight (code.effectPullback Reference effects))
+      current.effectWeight (code.effectPullback environment Reference effects))
     (ExecutionState.finiteSum_selectClassical state read)
   rw [ExecutionState.effectWeight_finiteSum] at partition
   exact partition.symm

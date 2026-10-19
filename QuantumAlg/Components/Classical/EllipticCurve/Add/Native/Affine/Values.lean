@@ -77,7 +77,7 @@ structure AffineScratch.Separation
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Each actual native component has exactly its certified one-destination Store update. -/
@@ -108,11 +108,12 @@ def affineStageStore (spec : ModulusSpec width)
       (.product (classifierRead scratch.xOutput) (classifierRead scratch.yOutput))) output]
 
 /-- The exact Store part of each certified actual path is its native arithmetic update. -/
-theorem affineStageRecord_store (spec : ModulusSpec width)
+lemma affineStageRecord_store (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (index : Fin 9) (before : Store ctx × model.HiddenState) :
-    (affineStageRecord spec leftX rightX leftY numerator denominator scratch output index
+    (affineStageRecord (environment := environment) spec leftX rightX leftY numerator
+      denominator scratch output index
       before).1.1 =
       affineStageStore spec leftX rightX leftY numerator denominator scratch output
         index before.1 := by
@@ -154,11 +155,12 @@ def affineBodyStore (spec : ModulusSpec width)
     (fun current update => update current) store
 
 /-- The actual nine-call execution record returns precisely that complete chronological Store. -/
-theorem affineBodyStep_store (spec : ModulusSpec width)
+lemma affineBodyStep_store (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (store : Store ctx) (hidden : model.HiddenState) :
-    (affineBodyStep spec leftX rightX leftY numerator denominator scratch output
+    (affineBodyStep (environment := environment) spec leftX rightX leftY numerator denominator
+      scratch output
       (store, hidden)).1.1 =
       affineBodyStore spec leftX rightX leftY numerator denominator scratch output store := by
   rw [affineBodyStep, Circuit.forRangeRecord_store]
@@ -176,23 +178,23 @@ def affineArithmeticStore (scratch : AffineScratch ctx width) (values : AffineVa
     scratch.xOutput values.xOutput).write scratch.xDifference values.xDifference).write
     scratch.yProduct values.yProduct).write scratch.yOutput values.yOutput)
 
-private theorem scratch_key_ne (scratch : AffineScratch ctx width)
+private lemma scratch_key_ne (scratch : AffineScratch ctx width)
     (distinct : scratch.keys.Nodup) (first second : Fin 9) (different : first ≠ second) :
     scratch.keys.get first ≠ scratch.keys.get second :=
   fun same => different ((List.nodup_iff_injective_get.mp distinct) same)
 
-private theorem read_product (store : Store ctx) {first second : CShape}
+private lemma read_product (store : Store ctx) {first second : CShape}
     (left : CInputRef ctx first) (right : CInputRef ctx second) :
     store.read (.product left right) = .product (store.read left) (store.read right) := rfl
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 omit [BitWord.Selected model] in
 /-- The real chronological arithmetic and pack yield exactly the closed original finite values. -/
-theorem affineBodyStore_values (spec : ModulusSpec width)
+lemma affineBodyStore_values (spec : ModulusSpec width)
     (leftX rightX leftY numerator denominator : CInputRef ctx (.unsignedWord width))
     (scratch : AffineScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (separate : scratch.Separation leftX rightX leftY numerator denominator) (store : Store ctx) :
@@ -375,7 +377,7 @@ theorem affineBodyStore_values (spec : ModulusSpec width)
 end
 
 /-- The exact arithmetic prefix preserves every read outside the actual eight written cells. -/
-theorem affineArithmeticStore_preserves (scratch : AffineScratch ctx width)
+lemma affineArithmeticStore_preserves (scratch : AffineScratch ctx width)
     (values : AffineValues width) (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (separate : ∀ key ∈ scratch.keys, key ∉ input.storageKeys) :
     (affineArithmeticStore scratch values store).read input = store.read input := by

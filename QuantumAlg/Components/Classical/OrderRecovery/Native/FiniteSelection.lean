@@ -35,7 +35,7 @@ def observedCandidate (cells : ScanCells ctx modulusWidth (phaseBits + 1))
   else none
 
 /-- An actual false accepted latch denotes no selected candidate. -/
-theorem nativeScan_observed_pending
+lemma nativeScan_observed_pending
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (store : Store ctx)
     (cursor : EuclideanContinuantCursor) (pending : PendingCursorReads cells store cursor) :
     observedCandidate cells store = none := by
@@ -44,7 +44,7 @@ theorem nativeScan_observed_pending
   rfl
 
 /-- Actual selected-result reads denote precisely their represented candidate. -/
-theorem nativeScan_observed_chosen
+lemma nativeScan_observed_chosen
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (store : Store ctx) (candidate : Nat)
     (chosen : ChosenCursorReads cells store candidate) :
     observedCandidate cells store = some candidate := by
@@ -53,7 +53,7 @@ theorem nativeScan_observed_chosen
   exact congrArg some chosen.selected
 
 /-- The actual fixed-fuel execution equals the original source selection on its genuine suffix. -/
-theorem nativeScan_finite_source_selection {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeScan_finite_source_selection {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

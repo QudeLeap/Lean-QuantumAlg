@@ -32,6 +32,7 @@ noncomputable section
 variable {gates : GateModel} {oracles : OracleModel} (left right : RuntimeCtx .quantum)
   (disjoint : RuntimeCtx.StorageDisjoint left right)
   (program : UnitaryCircuit gates oracles left.quantumLayout)
+  (environment : oracles.Interpretation)
 
 private def leftPlacement : QuantumLayout.Embedding left.quantumLayout
     (left.disjointUnion right disjoint).quantumLayout where
@@ -49,7 +50,7 @@ private def rightPlacement : QuantumLayout.Embedding right.quantumLayout
         Sum.inr.inj ((unionPositionEquiv left right disjoint).injective same) }
   wire_eq := contextUnion_right_wire left right disjoint
 
-private theorem placements_disjoint :
+private lemma placements_disjoint :
     Disjoint (leftPlacement left right disjoint).selection
       (rightPlacement left right disjoint).selection := by
   apply Finset.disjoint_left.mpr
@@ -58,7 +59,7 @@ private theorem placements_disjoint :
   obtain ⟨second, _, second_eq⟩ := Finset.mem_map.mp inRight
   exact contextUnion_positions_ne left right disjoint first second (first_eq.trans second_eq.symm)
 
-private theorem right_not_left (index : Fin right.systemCount) :
+private lemma right_not_left (index : Fin right.systemCount) :
     rightPosition left right disjoint index ∉ (leftPlacement left right disjoint).selection := by
   intro member
   obtain ⟨first, _, equal⟩ := Finset.mem_map.mp member
@@ -69,7 +70,7 @@ private def rightComplement (index : Fin right.systemCount) :
   ⟨rightPosition left right disjoint index,
     Finset.mem_compl.mpr (right_not_left left right disjoint index)⟩
 
-private theorem selected_basis
+private lemma selected_basis
     (value : (left.disjointUnion right disjoint).register.Index) :
     ((leftPlacement left right disjoint).splitBasis value).1 =
       (unionBasisEquiv left right disjoint value).1 := by
@@ -79,7 +80,7 @@ private theorem selected_basis
     (leftPlacement left right disjoint) value index).trans
       (contextUnion_split_left_value left right disjoint value index)
 
-private theorem complement_eq_iff
+private lemma complement_eq_iff
     (row column : (left.disjointUnion right disjoint).register.Index) :
     ((leftPlacement left right disjoint).splitBasis row).2 =
         ((leftPlacement left right disjoint).splitBasis column).2 ↔
@@ -115,18 +116,18 @@ public def frameUnitary :
     (leftPlacement left right disjoint) (rightPlacement left right disjoint)
     (placements_disjoint left right disjoint)
 
-private theorem frameUnitary_matrix :
-    (frameUnitary left right disjoint program).matrix =
-      (leftPlacement left right disjoint).liftOperator program.matrix := by
+private lemma frameUnitary_matrix :
+    ((frameUnitary left right disjoint program).matrix environment) =
+      (leftPlacement left right disjoint).liftOperator (program.matrix environment) := by
   change (rightPlacement left right disjoint).liftOperator 1 *
-    (leftPlacement left right disjoint).liftOperator program.matrix = _
+    (leftPlacement left right disjoint).liftOperator (program.matrix environment) = _
   rw [QuantumLayout.Embedding.embedding_liftOperator_one, one_mul]
 
 /-- Every matrix entry contains the unchanged identity on the full right-context basis. -/
-public theorem contextUnion_frameUnitary_entry
+public lemma contextUnion_frameUnitary_entry
     (row column : (RuntimeCtx.disjointUnion left right disjoint).register.Index) :
-    (frameUnitary left right disjoint program).matrix row column =
-      program.matrix (unionBasisEquiv left right disjoint row).1
+    ((frameUnitary left right disjoint program).matrix environment) row column =
+      (program.matrix environment) (unionBasisEquiv left right disjoint row).1
         (unionBasisEquiv left right disjoint column).1 *
           (if (unionBasisEquiv left right disjoint row).2 =
             (unionBasisEquiv left right disjoint column).2 then 1 else 0) := by
@@ -134,7 +135,7 @@ public theorem contextUnion_frameUnitary_entry
     selected_basis, selected_basis]
   simp only [complement_eq_iff]
 
-private theorem selected_basis_right
+private lemma selected_basis_right
     (value : (left.disjointUnion right disjoint).register.Index) :
     ((rightPlacement left right disjoint).splitBasis value).1 =
       (unionBasisEquiv left right disjoint value).2 := by
@@ -151,7 +152,7 @@ private def leftComplement (index : Fin left.systemCount) :
     obtain ⟨second, _, equal⟩ := Finset.mem_map.mp member
     exact contextUnion_positions_ne left right disjoint index second equal.symm)⟩
 
-private theorem complement_eq_iff_right
+private lemma complement_eq_iff_right
     (row column : (left.disjointUnion right disjoint).register.Index) :
     ((rightPlacement left right disjoint).splitBasis row).2 =
         ((rightPlacement left right disjoint).splitBasis column).2 ↔
@@ -189,17 +190,17 @@ public def frameRightUnitary
     (placements_disjoint left right disjoint)
 
 /-- The right instruction acts on exactly the right union basis and fixes the left basis. -/
-public theorem contextUnion_frameRightUnitary_entry
+public lemma contextUnion_frameRightUnitary_entry
     (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
     (row column : (left.disjointUnion right disjoint).register.Index) :
-    (frameRightUnitary left right disjoint rightProgram).matrix row column =
+    ((frameRightUnitary left right disjoint rightProgram).matrix environment) row column =
       (if (unionBasisEquiv left right disjoint row).1 =
         (unionBasisEquiv left right disjoint column).1 then 1 else 0) *
-        rightProgram.matrix (unionBasisEquiv left right disjoint row).2
+        (rightProgram.matrix environment) (unionBasisEquiv left right disjoint row).2
           (unionBasisEquiv left right disjoint column).2 := by
-  have matrix : (frameRightUnitary left right disjoint rightProgram).matrix =
-      (rightPlacement left right disjoint).liftOperator rightProgram.matrix := by
-    change (rightPlacement left right disjoint).liftOperator rightProgram.matrix *
+  have matrix : ((frameRightUnitary left right disjoint rightProgram).matrix environment) =
+      (rightPlacement left right disjoint).liftOperator (rightProgram.matrix environment) := by
+    change (rightPlacement left right disjoint).liftOperator (rightProgram.matrix environment) *
       (leftPlacement left right disjoint).liftOperator 1 = _
     rw [QuantumLayout.Embedding.embedding_liftOperator_one, mul_one]
   rw [matrix, QuantumLayout.Embedding.liftOperator_entry,
@@ -208,7 +209,7 @@ public theorem contextUnion_frameRightUnitary_entry
   split_ifs <;> ring
 
 /-- Identity framing adds no native or query occurrence. -/
-public theorem contextUnion_frameRightUnitary_eventTrace
+public lemma contextUnion_frameRightUnitary_eventTrace
     (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (frameRightUnitary left right disjoint rightProgram).eventTrace operations services =
@@ -216,7 +217,7 @@ public theorem contextUnion_frameRightUnitary_eventTrace
   exact List.nil_append _
 
 /-- Identity framing retains every resource coordinate of the right instruction. -/
-public theorem contextUnion_frameRightUnitary_eventCost
+public lemma contextUnion_frameRightUnitary_eventCost
     (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (frameRightUnitary left right disjoint rightProgram).eventCost operations services =
@@ -224,7 +225,7 @@ public theorem contextUnion_frameRightUnitary_eventCost
   exact zero_add _
 
 /-- Identity framing leaves the right instruction's evaluated depth unchanged. -/
-public theorem contextUnion_frameRightUnitary_evaluatedEventDepth
+public lemma contextUnion_frameRightUnitary_evaluatedEventDepth
     (rightProgram : UnitaryCircuit gates oracles right.quantumLayout)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (weight : Resource.Event (.quantum gates oracles operations services) → Nat) :
@@ -236,28 +237,28 @@ public theorem contextUnion_frameRightUnitary_evaluatedEventDepth
   exact Nat.zero_max _
 
 /-- The actual parallel identity adds no native or query event to the original trace. -/
-theorem contextUnion_frameUnitary_eventTrace
+lemma contextUnion_frameUnitary_eventTrace
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (frameUnitary left right disjoint program).eventTrace operations services =
       program.eventTrace operations services :=
   List.append_nil _
 
 /-- Every native resource coordinate has exactly its original multiplicity. -/
-public theorem contextUnion_frameUnitary_eventCost
+public lemma contextUnion_frameUnitary_eventCost
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (frameUnitary left right disjoint program).eventCost operations services =
       program.eventCost operations services :=
   add_zero _
 
 /-- The symbolic tree records the actual parallel identity factor. -/
-public theorem contextUnion_frameUnitary_eventDepth
+public lemma contextUnion_frameUnitary_eventDepth
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (frameUnitary left right disjoint program).eventDepth operations services =
       .tensor (program.eventDepth operations services) .id := by
   rfl
 
 /-- The true framed instruction has the original depth for every event duration assignment. -/
-public theorem contextUnion_frameUnitary_evaluatedEventDepth
+public lemma contextUnion_frameUnitary_evaluatedEventDepth
     (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (weight : Resource.Event (.quantum gates oracles operations services) → Nat) :
     DepthExpr.depthEval weight ((frameUnitary left right disjoint program).eventDepth
@@ -267,12 +268,12 @@ public theorem contextUnion_frameUnitary_evaluatedEventDepth
     DepthExpr.depthEval, Nat.max_zero]
 
 /-- The real right frame and an arbitrary external reference retain their matrix coordinates. -/
-public theorem contextUnion_frameUnitary_reference_entry {Reference : Register}
+public lemma contextUnion_frameUnitary_reference_entry {Reference : Register}
     (row column : (RuntimeCtx.disjointUnion left right disjoint).register.Index)
     (refRow refColumn : Reference.Index) :
-    (UnitaryOperator.prodTensor (frameUnitary left right disjoint program).matrix
+    (UnitaryOperator.prodTensor ((frameUnitary left right disjoint program).matrix environment)
       (1 : UnitaryOperator Reference)) (row, refRow) (column, refColumn) =
-        (program.matrix (unionBasisEquiv left right disjoint row).1
+        ((program.matrix environment) (unionBasisEquiv left right disjoint row).1
           (unionBasisEquiv left right disjoint column).1 *
             (if (unionBasisEquiv left right disjoint row).2 =
               (unionBasisEquiv left right disjoint column).2 then 1 else 0)) *

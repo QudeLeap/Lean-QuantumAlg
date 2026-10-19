@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Core.Algorithm
+public import QuantumAlg.Core.Algorithm.Solves
 public import QuantumAlg.Core.Algorithm.Unitary.Requirement
 import all QuantumAlg.Core.Algorithm.Unitary.Requirement
 import all QuantumAlg.Core.Algorithm.Unitary.Borrowed
@@ -32,20 +32,21 @@ variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
 
 /-- **Input.** Any normalized state on the supplied context and external reference.
 **Output.** The same live context after the specified mathematical unitary acts.
-**Resource budget.** Independently supplied event, resident, auxiliary and depth limits.
+**Resource budget.** Independently supplied event, resident, auxiliary and quantum time limits.
 **Success.** Exact full joint-state action with probability one and borrowed restoration.
 **Source.** The complete-state unitary semantics of the typed execution model. -/
-public def problem (operator : UnitaryOperator ctx.register)
+public def problem (operator : oracles.Interpretation → UnitaryOperator ctx.register)
     (resources : ResourceBudget (.quantum gates oracles))
-    (depth : DepthBudget (.quantum gates oracles)) :
+    (quantumTimeLimit : Nat) :
     Problem (.quantum gates oracles) ctx ctx .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary operator]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun environment _ => [StateRequirement.unitary (operator environment.quantum)]
   resources := resources
-  depth := depth
+  quantumTimeLimit := quantumTimeLimit
 
 /-- Execute the actual native construction and retain the entire live context. -/
 public def algorithm (program : UnitaryCircuit gates oracles ctx.quantumLayout) :
@@ -53,44 +54,45 @@ public def algorithm (program : UnitaryCircuit gates oracles ctx.quantumLayout) 
   run := { code := .unitary program, output := Output.all ctx .unit }
 
 /-- An owned-interface implementation satisfies the complete independent unitary contract. -/
-theorem main (operator : UnitaryOperator ctx.register)
+theorem main (operator : oracles.Interpretation → UnitaryOperator ctx.register)
     (resources : ResourceBudget (.quantum gates oracles))
-    (depth : DepthBudget (.quantum gates oracles))
+    (quantumTimeLimit : Nat)
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
-    (same : program.matrix = operator)
+    (same : ∀ environment, program.matrix environment = operator environment)
     (noClassical : ctx.borrowedClassicalShape = .unit)
     (noQuantum : ctx.borrowedQuantumWires = [])
     (events : program.eventCost ≤ resources.events)
     (resident : ctx.residentSpace ≤ resources.resident)
     (auxiliary : ctx.auxiliarySpace ≤ resources.auxiliary)
-    (timing : program.evaluatedEventDepth depth.duration ≤ depth.limit) :
-    Algorithm.Solves (algorithm program) (problem operator resources depth) := by
+    (timing : program.evaluatedEventDepth Resource.Event.quantumDuration ≤ quantumTimeLimit) :
+    Algorithm.Solves (algorithm program) (problem operator resources quantumTimeLimit) := by
   constructor
-  · intro Reference input _valid _initialization
+  · intro environment _witness Reference input _valid _initialization
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialization requirement present
-    have sameRequirement : requirement = StateRequirement.unitary operator :=
+  · intro environment _witness Reference input _valid _initialization requirement present
+    have sameRequirement : requirement = StateRequirement.unitary (operator environment.quantum) :=
       List.mem_singleton.mp present
     subst requirement
-    exact StateRequirement.unitary_holds operator program same (Output.all ctx .unit) input
-  · intro Reference input _valid _initialization
-    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed noClassical noQuantum
+    exact StateRequirement.unitary_holds environment (operator environment.quantum)
+      program (same environment.quantum) (Output.all ctx .unit) input
+  · intro environment _witness Reference input _valid _initialization
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed environment noClassical noQuantum
       program (Output.all ctx .unit) input
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     change ResourcePool.ofList program.eventTrace ≤ resources.events
     rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost]
     exact events
-  · intro _Reference _input _valid _initialization path _supported axis
+  · intro _environment _witness _Reference _input _valid _initialization path _supported axis
     change Nat.max (ctx.residentSpace axis) 0 ≤ resources.resident axis
     exact (le_of_eq (Nat.max_zero _)).trans (resident axis)
-  · intro _Reference _input _valid _initialization path _supported axis
+  · intro _environment _witness _Reference _input _valid _initialization path _supported axis
     change Nat.max (ctx.auxiliarySpace axis) 0 ≤ resources.auxiliary axis
     exact (le_of_eq (Nat.max_zero _)).trans (auxiliary axis)
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact timing
 
 end

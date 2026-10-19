@@ -60,7 +60,7 @@ structure CrossSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
   state : Execution.ClassicalWorkspace.CrossSeparated core.state other
 
 /-- Further transport preserves every core-to-scratch key inequality. -/
-theorem CrossSeparated.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+lemma CrossSeparated.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     {N : Nat} {shapes : List CShape} {core : Cells outer N}
     {other : Execution.ClassicalWorkspace.Cells outer shapes}
     (separated : CrossSeparated core other) (transport : Transport outer inner) :
@@ -70,7 +70,7 @@ theorem CrossSeparated.transport {kind : ProblemKind} {outer inner : RuntimeCtx 
   state := separated.state.transport transport
 
 /-- Caller-read separation of new scratch separates it from every live core package. -/
-theorem crossSeparated_of_nested {kind : ProblemKind} {outer inner : RuntimeCtx kind}
+lemma crossSeparated_of_nested {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     {N : Nat} {shapes : List CShape} (transport : Transport outer inner)
     (core : Cells outer N) (other : Execution.ClassicalWorkspace.Cells inner shapes)
     (separated : other.TransportSeparated transport) :
@@ -82,7 +82,7 @@ theorem crossSeparated_of_nested {kind : ProblemKind} {outer inner : RuntimeCtx 
     transport core.state other separated
 
 /-- Core certificates survive further structural allocation without changing physical keys. -/
-theorem Certificates.transport {kind : ProblemKind} {root middle inner : RuntimeCtx kind}
+lemma Certificates.transport {kind : ProblemKind} {root middle inner : RuntimeCtx kind}
     {N : Nat} {rootTransport : Transport root middle} {cells : Cells middle N}
     (certificates : Certificates rootTransport cells) (transport : Transport middle inner) :
     Certificates (rootTransport.compose transport) (cells.transport transport) where

@@ -28,14 +28,14 @@ noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
-private theorem firstBits_sameBit {n : Nat} (pair : RSA.RSAKeyPairBits n)
+private lemma firstBits_sameBit {n : Nat} (pair : RSA.RSAKeyPairBits n)
     (positive : 1 ≤ n) : ShortDLP.firstBits (parameters pair.modulus) =
       n + 1 + (n + 2) / 2 := by
   simp only [ShortDLP.firstBits, parameters, shortLogBits_sameBit pair positive,
     tradeoffBits_sameBit pair positive, RSA.GeneratorOrder.m, RSA.GeneratorOrder.ell]
   omega
 
-private theorem ell_sameBit {n : Nat} (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) :
+private lemma ell_sameBit {n : Nat} (pair : RSA.RSAKeyPairBits n) (positive : 1 ≤ n) :
     (parameters pair.modulus).ell = (n + 2) / 2 := by
   simp only [parameters, tradeoffBits_sameBit pair positive, RSA.GeneratorOrder.ell]
 

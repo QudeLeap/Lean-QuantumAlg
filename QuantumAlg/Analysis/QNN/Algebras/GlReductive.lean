@@ -54,7 +54,7 @@ def centerGens (m : ℕ) : Set (Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ) :=
   {Complex.I • pauliMat (0 : Fin m → Fin 4)}
 
 /-- Rescaling a nonzero scalar does not change a one-dimensional span. -/
-private theorem span_singleton_smul_ne {m : ℕ} (a : ℂ) (ha : a ≠ 0)
+private lemma span_singleton_smul_ne {m : ℕ} (a : ℂ) (ha : a ≠ 0)
     (P : Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ) :
     Submodule.span ℂ {a • P} = Submodule.span ℂ {P} := by
   refine le_antisymm ?_ ?_ <;> rw [Submodule.span_le, Set.singleton_subset_iff, SetLike.mem_coe]
@@ -79,12 +79,12 @@ noncomputable def centerHermBasis (m : ℕ) : DLAHermBasis (centerGens m) where
         (by rintro x rfl y rfl; exact lie_self _),
       centerGens, span_singleton_smul_ne Complex.I Complex.I_ne_zero]
 
-@[simp] theorem centerHermBasis_dim (m : ℕ) : (centerHermBasis m).dim = 1 := rfl
+@[simp] lemma centerHermBasis_dim (m : ℕ) : (centerHermBasis m).dim = 1 := rfl
 
 /-- **The Schur identity is trivial for the centre.** On the one-dimensional centre the coefficient
 matrix has no off-diagonal entries and a single diagonal entry, so `(g⊗g)^g = span{C}` directly from
 the generic solver. -/
-theorem centerHermBasis_schur (m : ℕ) :
+lemma centerHermBasis_schur (m : ℕ) :
     gTensorGInvariant (centerHermBasis m) = Submodule.span ℂ {(centerHermBasis m).casimir} := by
   let _ : Subsingleton (Fin (centerHermBasis m).dim) := by rw [centerHermBasis_dim]; infer_instance
   refine le_antisymm (fun X hX => ?_) (spanC_le_gTensorGInvariant _)
@@ -104,13 +104,13 @@ noncomputable def glBasis (n : ℕ) : (j : Fin 2) → DLAHermBasis (glGens n j) 
     (Fin.cons (α := fun j => DLAHermBasis (glGens n j.succ)) (centerHermBasis (n + 1))
       (fun x => x.elim0))
 
-@[simp] theorem glBasis_zero (n : ℕ) : glBasis n 0 = suHermBasis (n + 1) := rfl
+@[simp] lemma glBasis_zero (n : ℕ) : glBasis n 0 = suHermBasis (n + 1) := rfl
 
-@[simp] theorem glBasis_one (n : ℕ) : glBasis n 1 = centerHermBasis (n + 1) := rfl
+@[simp] lemma glBasis_one (n : ℕ) : glBasis n 1 = centerHermBasis (n + 1) := rfl
 
 /-- **`su`-strings are Hilbert–Schmidt orthogonal to the centre** (nonzero Pauli strings are
 traceless, hence orthogonal to the identity). -/
-theorem su_center_ortho (n : ℕ) (a : Fin (suHermBasis (n + 1)).dim)
+lemma su_center_ortho (n : ℕ) (a : Fin (suHermBasis (n + 1)).dim)
     (b : Fin (centerHermBasis (n + 1)).dim) :
     hsInner ((suHermBasis (n + 1)).B a) ((centerHermBasis (n + 1)).B b) = 0 := by
   change hsInner (rtNinv (n + 1) • pauliMat (nzEquiv (n + 1) a).1)
@@ -119,7 +119,7 @@ theorem su_center_ortho (n : ℕ) (a : Fin (suHermBasis (n + 1)).dim)
     mul_zero, mul_zero]
 
 /-- The two ideals of `gl(2ⁿ⁺¹)` are mutually Hilbert–Schmidt orthogonal. -/
-theorem gl_cross_ortho (n : ℕ) : ∀ (i j : Fin 2), i ≠ j →
+lemma gl_cross_ortho (n : ℕ) : ∀ (i j : Fin 2), i ≠ j →
     ∀ (a : Fin (glBasis n i).dim) (b : Fin (glBasis n j).dim),
       hsInner ((glBasis n i).B a) ((glBasis n j).B b) = 0 := by
   intro i j hij a b
@@ -138,7 +138,7 @@ basis element, used for both slots of the bilinear variance law. -/
 public noncomputable def glObs (n : ℕ) : Matrix (Fin (2 ^ (n + 1))) (Fin (2 ^ (n + 1))) ℂ :=
   (suHermBasis (n + 1)).B (suI0 n)
 
-theorem glObs_isHermitian (n : ℕ) : (glObs n)ᴴ = glObs n := (suHermBasis (n + 1)).herm (suI0 n)
+lemma glObs_isHermitian (n : ℕ) : (glObs n)ᴴ = glObs n := (suHermBasis (n + 1)).herm (suI0 n)
 
 /-- **The reductive `gl(2ⁿ⁺¹) = su ⊕ centre` bundle.** Both per-ideal Schur identities are genuinely
 proved (`suHermBasis_schur` for the simple part, `centerHermBasis_schur` for the
@@ -192,7 +192,7 @@ public theorem glReductive_totalVariance_eq (n : ℕ) :
 honest reductive full-controllability treatment. The proof uses the Hilbert-Schmidt-norm
 capstone, with both Hermitian witness operators chosen as a normalized `su(2^(n+1))` basis element.
 -/
-theorem fullControllability_hasBarrenPlateau_b2 :
+lemma fullControllability_hasBarrenPlateau_b2 :
     HasBarrenPlateau (fun n => (suSM n (suHermBasis_schur (n + 1))).variance) := by
   refine ragone_hasBarrenPlateau_hsNorm
     (M := fun n => suSM n (suHermBasis_schur (n + 1)))
@@ -229,7 +229,7 @@ theorem fullControllability_hasBarrenPlateau_b2 :
 
 /-- Non-vacuity of the reductive full-controllability bundle, anchored on the honest
 `gl = su ⊕ center` construction. -/
-theorem ragone_reductive_nonempty_gl2 :
+lemma ragone_reductive_nonempty_gl2 :
     Nonempty (RagoneReductive (glObs 1) (glObs 1)) :=
   ⟨glReductive 1⟩
 

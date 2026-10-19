@@ -74,13 +74,13 @@ def input (ctx : RuntimeCtx .quantum) (count : Nat) :
   .fixedVector fun index => .storage (reference m ell width ctx count index).toCStorageRef
 
 /-- The new cell does not change any quantum wire's identity, dimension or order. -/
-theorem shortDLP_runtimeResult_next_wires (ctx : RuntimeCtx .quantum) :
+lemma shortDLP_runtimeResult_next_wires (ctx : RuntimeCtx .quantum) :
     (next m ell width ctx).quantumWires = ctx.quantumWires :=
   RuntimeCtx.quantumWires_addRetained ctx ctx.canonicalFreshKey
     (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh
 
 /-- Arbitrarily many recorded outcomes keep precisely the same physical bank. -/
-theorem shortDLP_runtimeResults_wires (ctx : RuntimeCtx .quantum) (count : Nat) :
+lemma shortDLP_runtimeResults_wires (ctx : RuntimeCtx .quantum) (count : Nat) :
     (context m ell width ctx count).quantumWires = ctx.quantumWires := by
   induction count generalizing ctx with
   | zero => rfl
@@ -89,7 +89,7 @@ theorem shortDLP_runtimeResults_wires (ctx : RuntimeCtx .quantum) (count : Nat) 
         (shortDLP_runtimeResult_next_wires m ell width ctx)
 
 /-- Every actually retained result contributes its full declared classical capacity. -/
-theorem shortDLP_runtimeResults_resident (ctx : RuntimeCtx .quantum) (count : Nat) :
+lemma shortDLP_runtimeResults_resident (ctx : RuntimeCtx .quantum) (count : Nat) :
     (context m ell width ctx count).residentSpace =
       count • SpacePool.ofShape (.bits (RuntimeRound.resultBits m ell width)) +
         ctx.residentSpace := by
@@ -100,7 +100,7 @@ theorem shortDLP_runtimeResults_resident (ctx : RuntimeCtx .quantum) (count : Na
       ac_rfl
 
 /-- Retained outcomes also remain present in the actual auxiliary-space accounting. -/
-theorem shortDLP_runtimeResults_auxiliary (ctx : RuntimeCtx .quantum) (count : Nat) :
+lemma shortDLP_runtimeResults_auxiliary (ctx : RuntimeCtx .quantum) (count : Nat) :
     (context m ell width ctx count).auxiliarySpace =
       count • SpacePool.ofShape (.bits (RuntimeRound.resultBits m ell width)) +
         ctx.auxiliarySpace := by
@@ -111,7 +111,7 @@ theorem shortDLP_runtimeResults_auxiliary (ctx : RuntimeCtx .quantum) (count : N
       ac_rfl
 
 /-- Input lifting agrees with the same existing cell's writable-reference lift. -/
-theorem shortDLP_runtimeResults_lift_storage {ctx : RuntimeCtx .quantum} {shape : CShape}
+lemma shortDLP_runtimeResults_lift_storage {ctx : RuntimeCtx .quantum} {shape : CShape}
     (ref : CWriteRef ctx shape) (count : Nat) :
     liftInput m ell width (.storage ref.toCStorageRef) count =
       .storage (liftWrite m ell width ref count).toCStorageRef := by

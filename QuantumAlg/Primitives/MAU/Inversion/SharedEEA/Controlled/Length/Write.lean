@@ -32,7 +32,7 @@ noncomputable section
 
 open EncodedBit LengthCoordinates
 
-private theorem constant_control (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
+private lemma constant_control (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
     (state : Registers width) :
     (Word.xorConstantStep (LengthWrite.target width field) constant state).control =
       state.control := by
@@ -46,7 +46,7 @@ def positionGates (width : Nat) (field : Field) (key : BitVec width.size) (first
     (ControlledLengthPredicate.gates width field key firstWord position)
 
 /-- Full actual constant-write refinement retains Ctrl and the entire original register action. -/
-theorem position_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma position_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (state : Registers width) :
     GateSpec.stepList (positionGates width field key firstWord position) state =
       if state.control
@@ -60,7 +60,7 @@ theorem position_step_if (width : Nat) (field : Field) (key : BitVec width.size)
       rw [ControlledLengthPredicate.original_control width field key firstWord position output])
     _ state
 
-private theorem original_position_control (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma original_position_control (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (state : Registers width) :
     (GateSpec.stepList (LengthWrite.positionGates width field key firstWord position)
       state).control = state.control := by
@@ -76,7 +76,7 @@ def keyGates (width : Nat) (field : Field) (key : BitVec width.size) (firstWord 
     (positionGates width field key firstWord)
 
 /-- The actual fixed-key read is exactly the original complete native read under retained Ctrl. -/
-theorem key_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma key_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (state : Registers width) :
     GateSpec.stepList (keyGates width field key firstWord) state =
       if state.control then GateSpec.stepList (LengthWrite.gates width field key firstWord) state
@@ -88,7 +88,7 @@ theorem key_step_if (width : Nat) (field : Field) (key : BitVec width.size) (fir
     (fun position state => by
       rw [original_position_control width field key firstWord position]) _ state
 
-private theorem original_key_control (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma original_key_control (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (state : Registers width) :
     (GateSpec.stepList (LengthWrite.gates width field key firstWord) state).control =
       state.control := by
@@ -102,7 +102,7 @@ def gates (width : Nat) (field : Field) (firstWord : Bool) : List (GateSpec (enc
   (LengthSchedule.keys width).flatMap fun key => keyGates width field key firstWord
 
 /-- The full emitted sequence conditionally performs the entire original dynamic length write. -/
-theorem gates_step_if (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
+lemma gates_step_if (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
     GateSpec.stepList (gates width field firstWord) state =
       if state.control then GateSpec.stepList (LengthSchedule.gates width field firstWord) state
       else state :=
@@ -113,13 +113,13 @@ theorem gates_step_if (width : Nat) (field : Field) (firstWord : Bool) (state : 
     (fun key state => by rw [original_key_control width field key firstWord]) _ state
 
 /-- Its exact result is the existing independent finite length XOR on every full frame. -/
-theorem gates_step (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
+lemma gates_step (width : Nat) (field : Field) (firstWord : Bool) (state : Registers width) :
     GateSpec.stepList (gates width field firstWord) state =
       if state.control then LengthSchedule.step width field firstWord state else state := by
   rw [gates_step_if, LengthSchedule.gates_step]
 
 /-- The complete original dynamic writer retains Ctrl while updating its true output field. -/
-theorem original_control (width : Nat) (field : Field) (firstWord : Bool)
+lemma original_control (width : Nat) (field : Field) (firstWord : Bool)
     (state : Registers width) :
     (GateSpec.stepList (LengthSchedule.gates width field firstWord) state).control =
       state.control := by

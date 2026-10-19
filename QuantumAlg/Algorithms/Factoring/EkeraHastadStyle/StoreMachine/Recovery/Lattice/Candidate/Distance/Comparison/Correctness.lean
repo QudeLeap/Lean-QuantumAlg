@@ -23,7 +23,7 @@ noncomputable section
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Copying followed by three actual shifts computes eight times the input modulo its width. -/
-theorem copyScaleInto_read_mod [BitWord.Selected model]
+lemma copyScaleInto_read_mod [BitWord.Selected model]
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((copyScaleStep (model := model) input output store).1.read (writeInput output)).toNat =
@@ -41,7 +41,7 @@ theorem copyScaleInto_read_mod [BitWord.Selected model]
   norm_num [Nat.mul_comm]
 
 /-- The original scaled operand bound gives exact unsigned scaling with arbitrary scratch. -/
-theorem copyScaleInto_read [BitWord.Selected model]
+lemma copyScaleInto_read [BitWord.Selected model]
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) (value : Nat)
     (inputValue : (store.read input).toNat = value)
@@ -51,13 +51,13 @@ theorem copyScaleInto_read [BitWord.Selected model]
   rw [copyScaleInto_read_mod, inputValue]
   exact Nat.mod_eq_of_lt fits
 
-private theorem raw_of_toNat (word : CShape.Word width) (value : Nat)
+private lemma raw_of_toNat (word : CShape.Word width) (value : Nat)
     (equal : word.toNat = value) : RawSignedRepresents word (value : Int) := by
   change Int.ModEq _ (word.toNat : Int) (value : Int)
   rw [equal]
 
 /-- The actual multiplication stores the exact original range square under its original bound. -/
-theorem squareOp_read (refs : Refs ctx width) (store : Store ctx) (value : Nat)
+lemma squareOp_read (refs : Refs ctx width) (store : Store ctx) (value : Nat)
     (input : (store.read refs.upperBound).toNat = value)
     (fits : value * value < CShape.wordModulus width) :
     ((store.applyOp (squareOp refs)).read (writeInput refs.rangeSquare)).toNat = value * value := by
@@ -73,7 +73,7 @@ theorem squareOp_read (refs : Refs ctx width) (store : Store ctx) (value : Nat)
     (raw_of_toNat _ value input) (raw_of_toNat _ value input)
 
 /-- The original range square remains available while its scaled copy is computed. -/
-theorem rangeSquare_at_add [BitWord.Selected model]
+lemma rangeSquare_at_add [BitWord.Selected model]
     (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (copyScaleStep (model := model) (writeInput refs.rangeSquare) refs.scaledRange store).1.read
@@ -82,7 +82,7 @@ theorem rangeSquare_at_add [BitWord.Selected model]
     (mutable_avoids refs separation refs.rangeSquare .rangeSquare .scaledRange rfl (by decide))
 
 /-- The final actual range addition stores exactly nine times the original range square. -/
-theorem addRangeOp_read (refs : Refs ctx width) (store : Store ctx) (square : Nat)
+lemma addRangeOp_read (refs : Refs ctx width) (store : Store ctx) (square : Nat)
     (scaled : (store.read (writeInput refs.scaledRange)).toNat = 8 * square)
     (original : (store.read (writeInput refs.rangeSquare)).toNat = square)
     (fits : 9 * square < CShape.wordModulus width) :
@@ -99,7 +99,7 @@ theorem addRangeOp_read (refs : Refs ctx width) (store : Store ctx) (square : Na
     (raw_of_toNat _ _ scaled) (raw_of_toNat _ _ original)
 
 /-- The two actual stored comparison operands equal their original source arithmetic values. -/
-theorem preparedStore_operands [BitWord.Selected model]
+lemma preparedStore_operands [BitWord.Selected model]
     (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (distance upperBound : Nat)
     (initial : InitialConditions store refs distance upperBound) :
@@ -130,7 +130,7 @@ theorem preparedStore_operands [BitWord.Selected model]
     exact square
 
 /-- Actual less-than compares exactly the two words currently stored in the supplied cells. -/
-theorem compareOp_read (refs : Refs ctx width) (store : Store ctx) :
+lemma compareOp_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (compareOp refs)).read (writeInput refs.accepted)).toBool =
       decide ((store.read (writeInput refs.scaledDistance)).toNat <
         (store.read (writeInput refs.scaledRange)).toNat) := by
@@ -147,7 +147,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
   callerFrame : CallerFrame refs before after
 
 /-- The actual eleven-instruction circuit realizes the original scaled near-target comparison. -/
-theorem scaleInto_correct [BitWord.Selected model]
+lemma scaleInto_correct [BitWord.Selected model]
     (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (distance upperBound : Nat)
     (initial : InitialConditions store refs distance upperBound) :

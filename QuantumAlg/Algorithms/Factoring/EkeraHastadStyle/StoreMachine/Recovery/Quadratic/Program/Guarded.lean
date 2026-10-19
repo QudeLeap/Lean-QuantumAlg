@@ -107,7 +107,8 @@ structure CallerFrameAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
   recovery : QuadraticRecoveryMachine.CallerFrameAvoids
     refs.quadratic.recovery other
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Select the actual recovery circuit exactly when the short-log latch is set. -/
@@ -143,7 +144,7 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
     (QuadraticRecoveryReset.step refs.quadratic) (chooseStep refs) store
 
 /-- The selected store follows the actual true-recovery or false-identity arm. -/
-theorem chooseStep_store (refs : Refs ctx shortWidth) (store : Store ctx) :
+lemma chooseStep_store (refs : Refs ctx shortWidth) (store : Store ctx) :
     (chooseStep refs store).1 =
       if (store.read (FirstAccepted.cellRead refs.shortLogSelection.accepted)).toBool then
         (QuadraticRecoveryMachine.step refs.quadratic.recovery store).1 else store := by
@@ -151,28 +152,29 @@ theorem chooseStep_store (refs : Refs ctx shortWidth) (store : Store ctx) :
   cases value : store.read (FirstAccepted.cellRead refs.shortLogSelection.accepted) with
   | bit flag => cases flag <;> rfl
 
-private theorem arm_execute (refs : Refs ctx shortWidth) (flag : CShape.Value .bit)
+private lemma arm_execute (refs : Refs ctx shortWidth) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (arm refs flag).execute Reference state = state.mapClassical (fun entry =>
+    (arm refs flag).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := armStep refs flag entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
       cases flag with
       | false =>
-          refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+          refine (Circuit.execute_id_mapClassical
+            (environment := environment) Reference state).trans ?_
           exact ExecutionState.executionState_mapClassical_congr _ rfl
       | true => exact QuadraticRecoveryMachine.into_execute refs.quadratic.recovery Reference state
 
 /-- Actual stored-value dispatch preserves complete history and external-reference blocks. -/
-theorem chooseInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma chooseInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (chooseInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (chooseInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := chooseStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical
+  refine (Circuit.execute_branch_mapClassical (environment := environment)
     (FirstAccepted.cellRead refs.shortLogSelection.accepted) (arm refs)
     (fun flag before =>
       let actual := armStep refs flag before.1
@@ -182,19 +184,20 @@ theorem chooseInto_execute (refs : Refs ctx shortWidth) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete reset-and-branch execution follows its actual full-store record. -/
-theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord (QuadraticRecoveryReset.into refs.quadratic)
+  Circuit.execute_sequenceStoreRecord
+    (environment := environment) (QuadraticRecoveryReset.into refs.quadratic)
     (chooseInto refs) (QuadraticRecoveryReset.step refs.quadratic) (chooseStep refs)
     (QuadraticRecoveryReset.into_execute refs.quadratic) (chooseInto_execute refs)
     Reference state
 
 /-- Caller reads outside the reset and optional recovery writes survive either actual branch. -/
-theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other := by
   change (chooseStep refs (QuadraticRecoveryReset.step refs.quadratic store).1).1.read other = _
@@ -216,7 +219,7 @@ structure Relation (modulus : Nat) (refs : Refs ctx shortWidth)
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- The actual reset-and-branch circuit realizes the original optional quadratic recovery. -/
-theorem into_correct (modulus : Nat) (refs : Refs ctx shortWidth)
+lemma into_correct (modulus : Nat) (refs : Refs ctx shortWidth)
     (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions modulus store refs) :
     Relation modulus refs store (step refs store).1 := by
@@ -290,13 +293,13 @@ def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
     ResourcePool.max (QuadraticRecoveryMachine.eventEnvelope shortWidth) 0
 
 /-- The same recorded path charges every reset instruction and only the selected recovery arm. -/
-theorem into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).eventTrace path =
       (QuadraticRecoveryReset.into refs.quadratic).eventTrace path.1 ++
         (arm refs path.2.1).eventTrace path.2.2 := rfl
 
 /-- All actual native coordinates meet the independent reset-and-maximum-branch allowance. -/
-theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path ≤ eventEnvelope shortWidth := by
   change ResourcePool.ofList ((QuadraticRecoveryReset.into refs.quadratic).eventTrace path.1 ++
     (arm refs path.2.1).eventTrace path.2.2) ≤ _
@@ -311,7 +314,7 @@ theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
           refs.quadratic.recovery selected).trans (ResourcePool.le_max_left _ _)
 
 /-- Depth charges all four reset instructions before the optional complete recovery. -/
-theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path ≤
       7 * QuadraticPrefix.discriminantWidth shortWidth + 38 := by
   change (QuadraticRecoveryReset.into refs.quadratic).depth (fun _ => 1) path.1 +
@@ -329,7 +332,7 @@ theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
           omega
 
 /-- Every branch keeps all supplied classical and quantum runtime entries live. -/
-theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
+lemma into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨resetPath, flag, selected⟩
@@ -347,33 +350,34 @@ theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
               refs.quadratic.recovery selected visited chosen
 
 /-- Resident space includes every caller and reusable scratch cell in either selected branch. -/
-theorem into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Auxiliary space preserves all workspace roles through reset and optional recovery. -/
-theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Both actual branches restore borrowed systems jointly with every external quantum reference. -/
-theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+    (into refs).BorrowedRestored
+      Reference state ((into refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact QuadraticRecoveryReset.into_borrowedRestored refs.quadratic Reference state
-  · apply Circuit.borrowedRestored_branch
+  · apply Circuit.borrowedRestored_branch (environment := environment)
     intro flag History _ selected
     cases flag with
     | bit flag =>
         cases flag with
         | false =>
-            exact Circuit.borrowedRestored_id (model := model) selected
+            exact Circuit.borrowedRestored_id (environment := environment) (model := model) selected
         | true =>
             exact QuadraticRecoveryMachine.into_borrowedRestored
               refs.quadratic.recovery Reference selected

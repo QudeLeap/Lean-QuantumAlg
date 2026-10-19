@@ -39,7 +39,7 @@ open ClassicalRoutines
 
 noncomputable section
 
-private theorem classical_weight_le_card {model : ExecutionModel} (pool : ResourcePool model) :
+private lemma classical_weight_le_card {model : ExecutionModel} (pool : ResourcePool model) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight pool ≤ pool.card := by
   have bounded := Multiset.sum_map_le_sum_map Resource.Event.classicalOperationWeight
     (fun _ : Resource.Event model => 1) (s := pool)
@@ -47,14 +47,14 @@ private theorem classical_weight_le_card {model : ExecutionModel} (pool : Resour
   simpa only [ResourcePool.weightedCount, Multiset.map_const', Multiset.sum_replicate,
     Nat.nsmul_eq_mul, Nat.mul_one] using bounded
 
-private theorem unit_weight_card {model : ExecutionModel} (pool : ResourcePool model) :
+private lemma unit_weight_card {model : ExecutionModel} (pool : ResourcePool model) :
     ResourcePool.weightedCount (fun _ => 1) pool = pool.card := by
   simp [ResourcePool.weightedCount, Multiset.map_const']
 
 /-- One complete actual round has a width-only ceiling before any fixed-instance substitution. -/
-theorem completion_card_le {N : Nat} (input : Input N) :
-    (completionEnvelope input).card ≤ roundEvents N := by
-  have recovered := recovery_card_le (executionModel input) N
+lemma completion_card_le (N : Nat) :
+    (completionEnvelope N).card ≤ roundEvents N := by
+  have recovered := recovery_card_le (executionModel N) N
   simp only [completionEnvelope, iterationEnvelope, observationEnvelope,
     DeclaredSource.eventEnvelope, NativeFactorScan.visitEnvelope,
     NativeFactorScan.selectionEnvelope, ZReset.Bank.envelope, ZReset.eventEnvelope,
@@ -64,23 +64,11 @@ theorem completion_card_le {N : Nat} (input : Input N) :
   rw [bankQubits_eq_three_mul]
   omega
 
-/-- The real initialized first cycle includes the complete attempt and physical bank preparation. -/
-theorem first_depth_scalar {N : Nat} (input : Input N) :
-    ResourcePool.weightedCount (fun _ => 1) (Initialized.firstEnvelope input) ≤
-      maximumCycleDepth N := by
-  have complete := completion_card_le input
-  rw [unit_weight_card]
-  simp only [Initialized.firstEnvelope, Initialized.readyEnvelope,
-    Multiset.card_add, Multiset.card_nsmul, ResourcePool.singleton, Multiset.card_replicate]
-  unfold maximumCycleDepth qubits
-  rw [bankQubits_eq_three_mul]
-  omega
-
 /-- Every chronological attempt and the genuine terminal encoding count in the complete run. -/
-theorem machine_depth_scalar {N : Nat} (input : Input N) (count : Nat) :
-    ResourcePool.weightedCount (fun _ => 1) (Machine.eventEnvelope input count) ≤
+lemma machine_depth_scalar (N : Nat) (count : Nat) :
+    ResourcePool.weightedCount (fun _ => 1) (Machine.eventEnvelope N count) ≤
       wholeRunDepth N count := by
-  have complete := Nat.mul_le_mul_left count (completion_card_le input)
+  have complete := Nat.mul_le_mul_left count (completion_card_le N)
   rw [unit_weight_card]
   simp only [Machine.eventEnvelope, Initialized.readyEnvelope, Finite.eventEnvelope,
     Multiset.card_add, ResourcePool.scale, Multiset.card_nsmul, ResourcePool.singleton,
@@ -90,16 +78,16 @@ theorem machine_depth_scalar {N : Nat} (input : Input N) (count : Nat) :
   omega
 
 /-- Recovery and original native sampling charge no quantum coordinate. -/
-theorem completion_nonclassical_count {N : Nat} (input : Input N)
-    (event : Resource.Event (executionModel input))
+lemma completion_nonclassical_count (N : Nat)
+    (event : Resource.Event (executionModel N))
     (outside : ∀ label, Resource.Event.classicalOperation label ≠ event) :
-    ResourcePool.count event (completionEnvelope input) =
+    ResourcePool.count event (completionEnvelope N) =
       ResourcePool.count event
-        (DeclaredSource.eventEnvelope (sourceBounds input) (phaseBits N) BitWord.model .empty) +
+        (DeclaredSource.eventEnvelope (modulusBits N) (phaseBits N) BitWord.model .empty) +
       phaseBits N * ResourcePool.count event
-        (ResourcePool.singleton (model := executionModel input) (.measurement (2 : ℕ+))) +
+        (ResourcePool.singleton (model := executionModel N) (.measurement (2 : ℕ+))) +
       ResourcePool.count event
-        (ZReset.Bank.envelope (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+        (ZReset.Bank.envelope (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
           (bankQubits N) BitWord.model) := by
   simp only [completionEnvelope, iterationEnvelope, observationEnvelope,
     NativeFactorScan.visitEnvelope, NativeFactorScan.selectionEnvelope,
@@ -111,91 +99,91 @@ theorem completion_nonclassical_count {N : Nat} (input : Input N)
     ResourcePool.ofList, ResourcePool.singleton, ResourcePool.count, add_assoc]
 
 /-- Classical initialization and final packing add no quantum coordinate to the real finite run. -/
-theorem machine_nonclassical_count {N : Nat} (input : Input N) (count : Nat)
-    (event : Resource.Event (executionModel input))
+lemma machine_nonclassical_count (N : Nat) (count : Nat)
+    (event : Resource.Event (executionModel N))
     (outside : ∀ label, Resource.Event.classicalOperation label ≠ event) :
-    ResourcePool.count event (Machine.eventEnvelope input count) =
+    ResourcePool.count event (Machine.eventEnvelope N count) =
       bankQubits N * ResourcePool.count event
-        (ResourcePool.singleton (model := executionModel input) (.preparation (2 : ℕ+))) +
-      count * ResourcePool.count event (completionEnvelope input) := by
+        (ResourcePool.singleton (model := executionModel N) (.preparation (2 : ℕ+))) +
+      count * ResourcePool.count event (completionEnvelope N) := by
   simp only [Machine.eventEnvelope, Initialized.readyEnvelope, Finite.eventEnvelope,
     ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_scale]
   simp [ResourcePool.count_singleton, outside]
 
 /-- Every real selected native gate is bounded by the symbolic full-round scalar. -/
-theorem machine_gate_count {N : Nat} (input : Input N) (count : Nat)
+lemma machine_gate_count (N : Nat) (count : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
-    ResourcePool.count (model := executionModel input) (.gate coordinate)
-        (Machine.eventEnvelope input count) =
+    ResourcePool.count (model := executionModel N) (.gate coordinate)
+        (Machine.eventEnvelope N count) =
       count * (match coordinate with
         | .singleQubit => roundSingleQubit N
         | .cnot => roundCnot N
         | .toffoli => 0) := by
-  rw [machine_nonclassical_count input count (.gate coordinate) (by intro label; simp),
-    completion_nonclassical_count input (.gate coordinate) (by intro label; simp)]
+  rw [machine_nonclassical_count N count (.gate coordinate) (by intro label; simp),
+    completion_nonclassical_count N (.gate coordinate) (by intro label; simp)]
   cases coordinate <;>
     simp [DeclaredSource.eventEnvelope, ZReset.Bank.envelope, ZReset.eventEnvelope,
       roundSingleQubit, roundCnot, qubits, bankQubits_eq_three_mul]
 
 /-- Every original complete attempt contributes exactly one declared query allowance. -/
-theorem machine_query_count {N : Nat} (input : Input N) (count : Nat)
-    (coordinate : (executionModel input).OracleCoordinate) :
-    ResourcePool.count (model := executionModel input) (.oracle coordinate)
-        (Machine.eventEnvelope input count) = count := by
-  rw [machine_nonclassical_count input count (.oracle coordinate) (by intro label; simp),
-    completion_nonclassical_count input (.oracle coordinate) (by intro label; simp)]
+lemma machine_query_count (N : Nat) (count : Nat)
+    (coordinate : (executionModel N).OracleCoordinate) :
+    ResourcePool.count (model := executionModel N) (.oracle coordinate)
+        (Machine.eventEnvelope N count) = count := by
+  rw [machine_nonclassical_count N count (.oracle coordinate) (by intro label; simp),
+    completion_nonclassical_count N (.oracle coordinate) (by intro label; simp)]
   cases coordinate
   simp [DeclaredSource.eventEnvelope, ZReset.Bank.envelope, ZReset.eventEnvelope]
 
 /-- The single real initializer prepares every binary bank system and no other dimension. -/
-theorem machine_preparation_count {N : Nat} (input : Input N) (count : Nat)
+lemma machine_preparation_count (N : Nat) (count : Nat)
     (dimension : ℕ+) :
-    ResourcePool.count (model := executionModel input) (.preparation dimension)
-        (Machine.eventEnvelope input count) = if 2 = dimension then qubits N else 0 := by
-  rw [machine_nonclassical_count input count (.preparation dimension) (by intro label; simp),
-    completion_nonclassical_count input (.preparation dimension) (by intro label; simp)]
+    ResourcePool.count (model := executionModel N) (.preparation dimension)
+        (Machine.eventEnvelope N count) = if 2 = dimension then qubits N else 0 := by
+  rw [machine_nonclassical_count N count (.preparation dimension) (by intro label; simp),
+    completion_nonclassical_count N (.preparation dimension) (by intro label; simp)]
   have tagged :
-      (Resource.Event.preparation (model := executionModel input) (2 : ℕ+) =
+      (Resource.Event.preparation (model := executionModel N) (2 : ℕ+) =
         .preparation dimension) ↔ (2 : ℕ+) = dimension := by
     constructor
     · exact Resource.Event.preparation.inj
-    · exact congrArg (Resource.Event.preparation (model := executionModel input))
+    · exact congrArg (Resource.Event.preparation (model := executionModel N))
   simp [DeclaredSource.eventEnvelope, ZReset.Bank.envelope, ZReset.eventEnvelope,
     bankQubits_eq_three_mul, qubits, mul_ite, tagged]
 
 /-- Every actual phase and reset readout is charged at its binary system dimension. -/
-theorem machine_measurement_count {N : Nat} (input : Input N) (count : Nat)
+lemma machine_measurement_count (N : Nat) (count : Nat)
     (dimension : ℕ+) :
-    ResourcePool.count (model := executionModel input) (.measurement dimension)
-        (Machine.eventEnvelope input count) =
+    ResourcePool.count (model := executionModel N) (.measurement dimension)
+        (Machine.eventEnvelope N count) =
       if 2 = dimension then count * roundMeasurements N else 0 := by
-  rw [machine_nonclassical_count input count (.measurement dimension) (by intro label; simp),
-    completion_nonclassical_count input (.measurement dimension) (by intro label; simp)]
+  rw [machine_nonclassical_count N count (.measurement dimension) (by intro label; simp),
+    completion_nonclassical_count N (.measurement dimension) (by intro label; simp)]
   have tagged :
-      (Resource.Event.measurement (model := executionModel input) (2 : ℕ+) =
+      (Resource.Event.measurement (model := executionModel N) (2 : ℕ+) =
         .measurement dimension) ↔ (2 : ℕ+) = dimension := by
     constructor
     · exact Resource.Event.measurement.inj
-    · exact congrArg (Resource.Event.measurement (model := executionModel input))
+    · exact congrArg (Resource.Event.measurement (model := executionModel N))
   simp [DeclaredSource.eventEnvelope, ZReset.Bank.envelope, ZReset.eventEnvelope,
     bankQubits_eq_three_mul, roundMeasurements, qubits, mul_ite, ite_add_ite,
     tagged]
 
 /-- The full real classical ledger includes both actual boundary operations. -/
-theorem machine_classical_operations_le {N : Nat} (input : Input N) (count : Nat) :
+lemma machine_classical_operations_le (N : Nat) (count : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-        (Machine.eventEnvelope input count) ≤ classicalOperations N count := by
+        (Machine.eventEnvelope N count) ≤ classicalOperations N count := by
   have sampled := (classical_weight_le_card
-    (Sampler.Retained.nativeEnvelope (executionModel input) N)).trans_eq
-      (Sampler.Retained.samplerRetainedEnvelope_card (executionModel input) N)
+    (Sampler.Retained.nativeEnvelope (executionModel N) N)).trans_eq
+      (Sampler.Retained.samplerRetainedEnvelope_card (executionModel N) N)
   have recovered := (classical_weight_le_card
-    (FactorRecovery.NativeFactorTail.eventEnvelope (executionModel input) N)).trans
-      (recovery_card_le (executionModel input) N)
+    (FactorRecovery.NativeFactorTail.eventEnvelope (executionModel N) N)).trans
+      (recovery_card_le (executionModel N) N)
   have selected := (classical_weight_le_card
-    (FirstAccepted.nativeEnvelope (executionModel input) (modulusBits N))).trans_eq
-      (FirstAccepted.firstAccepted_nativeEnvelope_card (executionModel input) (modulusBits N))
+    (FirstAccepted.nativeEnvelope (executionModel N) (modulusBits N))).trans_eq
+      (FirstAccepted.firstAccepted_nativeEnvelope_card (executionModel N) (modulusBits N))
   have roundBound : ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (completionEnvelope input) ≤ roundClassicalOperations N := by
+      (completionEnvelope N) ≤ roundClassicalOperations N := by
     simp only [completionEnvelope, iterationEnvelope, observationEnvelope,
       DeclaredSource.eventEnvelope, NativeFactorScan.visitEnvelope,
       NativeFactorScan.selectionEnvelope, ZReset.Bank.envelope, ZReset.eventEnvelope,

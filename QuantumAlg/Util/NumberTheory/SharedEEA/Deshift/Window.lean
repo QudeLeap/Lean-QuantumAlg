@@ -30,7 +30,7 @@ window bound below follows from the original admissible macro state.
 namespace QuantumAlg.NumberTheory.SharedEEA.DeshiftWindow
 
 /-- Extracting every remaining coefficient bit recovers the full integer, without truncation. -/
-theorem read_full (shift : Nat) {coefficientWidth remainderWidth : Nat}
+lemma read_full (shift : Nat) {coefficientWidth remainderWidth : Nat}
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (within : shift ≤ coefficientWidth) :
     (PhysicalWindow.read (coefficientWidth - shift)
@@ -46,7 +46,7 @@ theorem read_full (shift : Nat) {coefficientWidth remainderWidth : Nat}
       rw [← Nat.pow_add, Nat.sub_add_cancel within]
 
 /-- The original active macro capacity supplies the complete coefficient-region boundary. -/
-theorem source_window_bound (state : IterationState) (modulus shift : Nat)
+lemma source_window_bound (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     shift + (state.coefficient.size + 1) ≤
@@ -54,7 +54,7 @@ theorem source_window_bound (state : IterationState) (modulus shift : Nat)
   CoefficientWindow.arithmetic_window_fits state modulus shift valid conserved active within
 
 /-- The full physical window after quotient consumption reads the entire updated coefficient. -/
-theorem read_completed (state : IterationState) (modulus shift : Nat)
+lemma read_completed (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     (PhysicalWindow.read (CoefficientCapacity.work2CoefficientWidth state modulus - shift)
@@ -72,7 +72,7 @@ theorem read_completed (state : IterationState) (modulus shift : Nat)
   rw [complete]
 
 /-- This complete physical read gives exactly the source's full fourth-phase comparison. -/
-theorem comparison_completed (state : IterationState) (modulus shift : Nat)
+lemma comparison_completed (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     state.coefficient ≤
@@ -85,7 +85,7 @@ theorem comparison_completed (state : IterationState) (modulus shift : Nat)
   exact DivisionScale.comparison (IterationState.step state).coefficient state.coefficient shift
 
 /-- The full physical window retains the high bit omitted by the fixed two-bit example. -/
-theorem full_window_seventeen :
+lemma full_window_seventeen :
     (PhysicalWindow.read (7 - 2)
       (WordRotation.packRotatedWork2 2
         (⟨17#7, 1#1⟩ : WordPacking.Work2Payload 7 1))).toNat = 4 := by decide

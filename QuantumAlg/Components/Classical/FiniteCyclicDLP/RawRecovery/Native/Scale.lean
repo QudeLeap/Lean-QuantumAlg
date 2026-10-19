@@ -80,7 +80,7 @@ def scaleWordValue (raw : CShape.Word width)
       (.product (CShape.mulFull width (width + 1) (.product raw modulus)) denominator)).first
 
 /-- Product storage preserves the later-read denominator; every scratch start is arbitrary. -/
-theorem scaleBody_result (raw : CInputRef ctx (.unsignedWord width))
+lemma scaleBody_result (raw : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -109,7 +109,7 @@ theorem scaleBody_result (raw : CInputRef ctx (.unsignedWord width))
   rfl
 
 /-- The full-width product and quotient are exact before the last native narrowing. -/
-theorem scaleWordValue_toNat (raw : CShape.Word width)
+lemma scaleWordValue_toNat (raw : CShape.Word width)
     (modulus denominator : CShape.Word (width + 1)) :
     (scaleWordValue raw modulus denominator).toNat =
       (raw.toNat * modulus.toNat / denominator.toNat) % 2 ^ width := by
@@ -123,14 +123,14 @@ theorem scaleWordValue_toNat (raw : CShape.Word width)
   rw [Nat.mod_eq_of_lt full, Nat.mod_eq_of_lt quotient]
 
 /-- A bounded raw frequency rescales strictly below the original group order. -/
-theorem scaleQuotient_lt (spec : ModulusSpec width) (raw : CShape.Word width) :
+lemma scaleQuotient_lt (spec : ModulusSpec width) (raw : CShape.Word width) :
     raw.toNat * spec.modulus / 2 ^ width < spec.modulus := by
   apply (Nat.div_lt_iff_lt_mul (Nat.two_pow_pos width)).2
   simpa only [Nat.mul_comm] using
     Nat.mul_lt_mul_of_pos_right raw.toNat_lt (modulusSpec_modulus_pos spec)
 
 /-- The native quotient already lies in the original canonical residue range. -/
-theorem scaleWordValue_original (spec : ModulusSpec width) (raw : CShape.Word width)
+lemma scaleWordValue_original (spec : ModulusSpec width) (raw : CShape.Word width)
     (modulus denominator : CShape.Word (width + 1))
     (orderValue : modulus.toNat = spec.modulus) (powerValue : denominator.toNat = 2 ^ width) :
     (scaleWordValue raw modulus denominator).toNat = (scaleFrequency spec raw.toNat).val := by
@@ -141,7 +141,7 @@ theorem scaleWordValue_original (spec : ModulusSpec width) (raw : CShape.Word wi
   exact (Nat.mod_eq_of_lt below).symm
 
 /-- Every original structural read outside the actual three written cells remains unchanged. -/
-theorem scaleBody_read_other (raw : CInputRef ctx (.unsignedWord width))
+lemma scaleBody_read_other (raw : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -160,7 +160,7 @@ theorem scaleBody_read_other (raw : CInputRef ctx (.unsignedWord width))
 
 end Descriptor
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The literal original full-product, division and quotient materialization sequence. -/
@@ -189,7 +189,7 @@ def scaleStep (raw : CInputRef ctx (.unsignedWord width))
   (third.1, (first.2, (second.2, third.2)))
 
 /-- Full execution preserves the shared service and all quantum-reference correlations. -/
-theorem scaleBody_execute (raw : CInputRef ctx (.unsignedWord width))
+lemma scaleBody_execute (raw : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -197,7 +197,7 @@ theorem scaleBody_execute (raw : CInputRef ctx (.unsignedWord width))
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (scaleBody (model := model) raw modulus denominator product division output).execute
-      Reference state = state.mapClassical (fun entry =>
+      environment Reference state = state.mapClassical (fun entry =>
         let result := scaleStep (model := model) raw modulus denominator product division
           output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -215,7 +215,7 @@ def scaleBodyEvents (width : Nat) : List (Resource.Event model) :=
       (.wordResize (width + (width + 1)) width))]
 
 /-- The original three native instructions are the complete actual chronological trace. -/
-theorem scaleBody_eventTrace (raw : CInputRef ctx (.unsignedWord width))
+lemma scaleBody_eventTrace (raw : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))
@@ -234,7 +234,7 @@ theorem scaleBody_eventTrace (raw : CInputRef ctx (.unsignedWord width))
   rfl
 
 /-- Every scaling operation depends on the original preceding result. -/
-theorem scaleBody_depth (raw : CInputRef ctx (.unsignedWord width))
+lemma scaleBody_depth (raw : CInputRef ctx (.unsignedWord width))
     (modulus denominator : CInputRef ctx (.unsignedWord (width + 1)))
     (product : CWriteRef ctx (.unsignedWord (width + (width + 1))))
     (division : CWriteRef ctx (scaleDivisionShape width))

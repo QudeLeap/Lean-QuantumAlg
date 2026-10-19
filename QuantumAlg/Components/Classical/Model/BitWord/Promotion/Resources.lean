@@ -20,7 +20,7 @@ namespace QuantumAlg.BitWord
 noncomputable section
 
 /-- Selecting native bit/word operations preserves a quantum gate coordinate. -/
-theorem liftQuantumPool_gate_count (gate : AlgorithmGate.Coordinate)
+lemma liftQuantumPool_gate_count (gate : AlgorithmGate.Coordinate)
     (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
       (.gate gate) (liftQuantumPool pool) =
@@ -35,10 +35,10 @@ theorem liftQuantumPool_gate_count (gate : AlgorithmGate.Coordinate)
     cases event with
     | classicalOperation impossible => cases impossible
     | classicalQuery impossible => cases impossible
-    | gate coordinate => simp [liftQuantumEvent]
-    | oracle coordinate => simp [liftQuantumEvent]
-    | preparation dimension => simp [liftQuantumEvent]
-    | measurement dimension => simp [liftQuantumEvent]
+    | gate coordinate => simp [liftQuantumEvent, liftEvent]
+    | oracle coordinate => simp [liftQuantumEvent, liftEvent]
+    | preparation dimension => simp [liftQuantumEvent, liftEvent]
+    | measurement dimension => simp [liftQuantumEvent, liftEvent]
   have filtered :
       Multiset.filter (fun event : Resource.Event (.quantum AlgorithmGate.model .empty) =>
         Resource.Event.gate (model := .quantum AlgorithmGate.model .empty BitWord.model) gate =
@@ -53,7 +53,7 @@ theorem liftQuantumPool_gate_count (gate : AlgorithmGate.Coordinate)
       (.gate (model := .quantum AlgorithmGate.model .empty) gate)).symm
 
 /-- A selected pure-quantum ledger has no classical-operation occurrences. -/
-theorem liftQuantumPool_classicalWeight_zero
+lemma liftQuantumPool_classicalWeight_zero
     (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (liftQuantumPool pool) = 0 := by

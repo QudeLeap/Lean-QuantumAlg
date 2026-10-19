@@ -42,9 +42,25 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- Native gates, one supplied source query and width-indexed classical operations. -/
-public abbrev model {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
+public abbrev model (t width : Nat) :
     ExecutionModel :=
-  .quantum AlgorithmGate.model (OrderFinding.Native.sourceModel access) BitWord.model .empty
+  .quantum AlgorithmGate.model (OrderFinding.Native.sourceModel t width) BitWord.model .empty
+
+/-- Canonical source semantics for the fixed sampler. -/
+@[expose] public def environment {N x t width : Nat}
+    (access : ModExpOracleAccess N x t width) : (model t width).Environment :=
+  ⟨OrderFinding.Native.interpretation access, ()⟩
+
+/-- The empty classical service leaves only the modular source interpretation. -/
+lemma environment_eq_of_quantum {N x t width : Nat}
+    (access : ModExpOracleAccess N x t width) (actual : (model t width).Environment)
+    (same : actual.quantum = OrderFinding.Native.interpretation access) :
+    actual = environment access := by
+  cases actual with
+  | mk quantum classical =>
+      cases same
+      cases classical
+      rfl
 
 /-- The source sample has no prior quantum or classical input. -/
 @[reducible] public def pre : RuntimeCtx .quantum := RuntimeCtx.empty
@@ -53,9 +69,9 @@ public abbrev model {N x t width : Nat} (access : ModExpOracleAccess N x t width
 public abbrev runtimeLayout (t width : Nat) : QuantumLayout (t + width) :=
   (QuantumSignature.qubits (t + width)).canonicalPlacement.layout
 
-private theorem preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
+private lemma preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
 
-private theorem preparationDisjoint (t width : Nat) :
+private lemma preparationDisjoint (t width : Nat) :
     List.Disjoint (runtimeLayout t width).identities pre.physicalIdx :=
   List.disjoint_nil_right _
 
@@ -65,24 +81,24 @@ public def preparedContext (t width : Nat) : RuntimeCtx .quantum :=
   pre.addOwnedLayout ⟨0⟩ (runtimeLayout t width)
     preparationFresh (preparationDisjoint t width)
 
-private theorem preparedContext_quantumWires (t width : Nat) :
+private lemma preparedContext_quantumWires (t width : Nat) :
     (preparedContext t width).quantumWires = (runtimeLayout t width).wires := by
   change (runtimeLayout t width).wires ++ [] = _
   exact List.append_nil _
 
-public theorem prepared_wires (t width : Nat) :
+public lemma prepared_wires (t width : Nat) :
     (runtimeLayout t width).wires = (preparedContext t width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
 
 /-- The selected source word acts on exactly the wires prepared by this run. -/
-public def nativeProgram {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    UnitaryCircuit AlgorithmGate.model (OrderFinding.Native.sourceModel access)
+public def nativeProgram (t width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (OrderFinding.Native.sourceModel t width)
       (preparedContext t width).quantumLayout :=
   Execution.unitaryOfEqualWires (runtimeLayout t width)
     (preparedContext t width).quantumLayout (prepared_wires t width)
-      (OrderFinding.Native.circuit access)
+      (OrderFinding.Native.circuit t width)
 
-private theorem resultFresh (t width : Nat) :
+private lemma resultFresh (t width : Nat) :
     (⟨1⟩ : StorageKey) ∉ (preparedContext t width).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
@@ -108,7 +124,7 @@ public def preparedWire (t width : Nat) (index : Fin (t + width)) :
   pre.addOwnedLayoutPositionEquiv ⟨0⟩ (runtimeLayout t width)
     preparationFresh (preparationDisjoint t width) (Fin.castAdd pre.systemCount index)
 
-private theorem preparedWire_preserved (t width : Nat) (index : Fin (t + width)) :
+private lemma preparedWire_preserved (t width : Nat) (index : Fin (t + width)) :
     (preparedContext t width).quantumLayout.wire (preparedWire t width index) =
       (runtimeLayout t width).wire index :=
   (pre.addOwnedLayout_wire_preserved ⟨0⟩ (runtimeLayout t width)
@@ -120,7 +136,7 @@ public def phaseWire (t width : Nat) (index : Fin t) : Fin (post t width).system
   MeasurementCells.wireEquiv (resultContext t width) 2 t
     (preparedWire t width (Fin.castAdd width index))
 
-public theorem phaseWire_dimension (t width : Nat) (index : Fin t) :
+public lemma phaseWire_dimension (t width : Nat) (index : Fin t) :
     ((post t width).quantumLayout.wire (phaseWire t width index)).dimension = 2 := by
   rw [phaseWire, MeasurementCells.wireEquiv_preserved]
   change ((preparedContext t width).quantumLayout.wire
@@ -146,50 +162,46 @@ public def packing (t width : Nat) :
     (MeasurementCells.input (resultContext t width) 2 t) (resultRef t width)
 
 /-- Every source system is prepared to its original computational zero. -/
-public def preparationCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) pre (preparedContext t width) :=
+public def preparationCode (t width : Nat) :
+    Circuit (model t width) pre (preparedContext t width) :=
   .prepareZero pre ⟨0⟩ (runtimeLayout t width)
     preparationFresh (preparationDisjoint t width)
 
 /-- Allocate the packed result and the individual measured-bit cells. -/
-public def allocationCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) (preparedContext t width) (post t width) :=
-  .seq (.retain (model := model access) (preparedContext t width)
+public def allocationCode (t width : Nat) :
+    Circuit (model t width) (preparedContext t width) (post t width) :=
+  .seq (.retain (model := model t width) (preparedContext t width)
     ⟨1⟩ (.bits t) (resultFresh t width))
-    (MeasurementCells.allocate (model := model access) (resultContext t width) 2 t)
+    (MeasurementCells.allocate (model := model t width) (resultContext t width) 2 t)
 
 /-- Source preparation and the unitary word precede the measured readout. -/
-public def beforeMeasurement {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) pre (post t width) :=
-  .seq (preparationCode access)
-    (.seq (.unitary (nativeProgram access)) (allocationCode access))
+public def beforeMeasurement (t width : Nat) :
+    Circuit (model t width) pre (post t width) :=
+  .seq (preparationCode t width)
+    (.seq (.unitary (nativeProgram t width)) (allocationCode t width))
 
 /-- Retained Z writes and the closed packing instruction complete one sample. -/
-public def readoutCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) (post t width) (post t width) :=
+public def readoutCode (t width : Nat) :
+    Circuit (model t width) (post t width) (post t width) :=
   .seq (Circuit.measurementSequence (readouts t width))
     (.classical (BitWord.application (packing t width)))
 
 /-- The full source sample includes preparation, one query and actual stored readout. -/
-public def code {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) pre (post t width) :=
-  .seq (beforeMeasurement access) (readoutCode access)
+public def code (t width : Nat) :
+    Circuit (model t width) pre (post t width) :=
+  .seq (beforeMeasurement t width) (readoutCode t width)
 
 /-- The result is read from the retained word produced by this exact code. -/
-@[expose] public def run {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    AlgorithmRun (model access) pre (post t width) (.bits t) where
-  code := code access
+@[expose] public def run (t width : Nat) :
+    AlgorithmRun (model t width) pre (post t width) (.bits t) where
+  code := code t width
   output := Output.all (post t width)
     (.read (.storage (resultRef t width).toCStorageRef))
 
 /-- The endpoint returns its actual retained packed word. -/
-public theorem run_result {N x t width : Nat} (access : ModExpOracleAccess N x t width)
-    (record : (run access).Record) :
-    (run access).result record =
+public lemma run_result (t width : Nat)
+    (record : (run t width).Record) :
+    (run t width).result record =
       record.1.read (.storage (resultRef t width).toCStorageRef) := rfl
 
 end

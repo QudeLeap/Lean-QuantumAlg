@@ -42,7 +42,7 @@ def callerInput {shape : CShape} (observed : CInputRef base shape) :
   Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N
     (fixedInput base N (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) observed))
 
-private theorem slotsInput_keys {ctx : RuntimeCtx .quantum} {shape : CShape}
+private lemma slotsInput_keys {ctx : RuntimeCtx .quantum} {shape : CShape}
     (width : Nat) (observed : CInputRef ctx shape) (count : Nat) :
     (Native.Batch.Slots.slotsInput width observed count).storageKeys =
       observed.storageKeys := by
@@ -51,13 +51,13 @@ private theorem slotsInput_keys {ctx : RuntimeCtx .quantum} {shape : CShape}
   | succ count ih =>
       exact (CInputRef.storageKeys_underRetained _ _ _ _).trans ih
 
-private theorem fixedInput_keys {shape : CShape}
+private lemma fixedInput_keys {shape : CShape}
     (observed : CInputRef (sourceContext base N) shape) :
     (fixedInput base N observed).storageKeys = observed.storageKeys :=
   (CInputRef.storageKeys_underRetained _ _ _ _).trans
     (slotsInput_keys (measurementBits N) observed 16)
 
-private theorem bankInput_keys {ctx : RuntimeCtx .quantum} (noQuantum : ctx.quantumWires = [])
+private lemma bankInput_keys {ctx : RuntimeCtx .quantum} (noQuantum : ctx.quantumWires = [])
     (N : Nat) {shape : CShape} (observed : CInputRef ctx shape) :
     (Native.bankInput ctx noQuantum N observed).storageKeys = observed.storageKeys := by
   induction observed with
@@ -71,7 +71,7 @@ private theorem bankInput_keys {ctx : RuntimeCtx .quantum} (noQuantum : ctx.quan
   | bitsGet input index ih => exact ih
   | wordBitGet input index ih => exact ih
 
-private theorem nativeInput_keys {ctx : RuntimeCtx .quantum} (noQuantum : ctx.quantumWires = [])
+private lemma nativeInput_keys {ctx : RuntimeCtx .quantum} (noQuantum : ctx.quantumWires = [])
     (N : Nat) {shape : CShape} (observed : CInputRef ctx shape) :
     (Native.liftInput ctx noQuantum N observed).storageKeys = observed.storageKeys :=
   (CInputRef.storageKeys_underRetained _ _ _ _).trans
@@ -79,7 +79,7 @@ private theorem nativeInput_keys {ctx : RuntimeCtx .quantum} (noQuantum : ctx.qu
       (measurementBits N)).trans (bankInput_keys noQuantum N observed))
 
 /-- A caller read has exactly its earlier storage keys under the whole bank. -/
-theorem callerInput_keys {shape : CShape} (observed : CInputRef base shape) :
+lemma callerInput_keys {shape : CShape} (observed : CInputRef base shape) :
     (callerInput base noQuantum N observed).storageKeys = observed.storageKeys := by
   have sourceKeys :
       (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) observed).storageKeys =
@@ -90,7 +90,7 @@ theorem callerInput_keys {shape : CShape} (observed : CInputRef base shape) :
     (fixedInput base N (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) observed))).trans
       ((fixedInput_keys base N _).trans sourceKeys)
 
-private theorem sample_not_mem_input {ctx : RuntimeCtx .quantum} {shape : CShape}
+private lemma sample_not_mem_input {ctx : RuntimeCtx .quantum} {shape : CShape}
     (width : Nat) (observed : CInputRef ctx shape) (count : Nat) (index : Fin count) :
     (Native.Batch.Slots.sampleRef ctx width count index).key ∉
       (Native.Batch.Slots.slotsInput width observed count).storageKeys := by
@@ -112,7 +112,7 @@ private theorem sample_not_mem_input {ctx : RuntimeCtx .quantum} {shape : CShape
 attribute [local irreducible] Native.Batch.Slots.samples
 
 /-- Every original caller read avoids each actual retained sample destination. -/
-theorem caller_slot_separated {shape : CShape}
+lemma caller_slot_separated {shape : CShape}
     (observed : CInputRef base shape) (index : Fin 16) :
     (terminalRef base noQuantum N index).key ∉
       (callerInput base noQuantum N observed).storageKeys := by
@@ -134,7 +134,7 @@ theorem caller_slot_separated {shape : CShape}
       (Native.Batch.Slots.terminalRef (sourceContext base N) N index)) finalKeys).mpr oldResult
 
 /-- Every original caller read avoids all physical measurement destinations. -/
-theorem caller_measured_separated {shape : CShape}
+lemma caller_measured_separated {shape : CShape}
     (observed : CInputRef base shape) (position : Fin (measurementBits N)) :
     (Native.cells (storageContext base N) (storage_empty base noQuantum N) N position).key ∉
       (callerInput base noQuantum N observed).storageKeys :=
@@ -143,14 +143,14 @@ theorem caller_measured_separated {shape : CShape}
     position
 
 /-- Every original caller read avoids the working packed-result destination. -/
-theorem caller_working_separated {shape : CShape}
+lemma caller_working_separated {shape : CShape}
     (observed : CInputRef base shape) :
     (Native.resultRef (storageContext base N) (storage_empty base noQuantum N) N).key ∉
       (callerInput base noQuantum N observed).storageKeys :=
   lifted_working_separate base noQuantum N
     (fixedInput base N (ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) observed))
 
-theorem fixedInput_storage {shape : CShape}
+lemma fixedInput_storage {shape : CShape}
     (ref : CWriteRef (sourceContext base N) shape) :
     fixedInput base N (.storage ref.toCStorageRef) =
       .storage (Native.Batch.Slots.liftWrite N ref).toCStorageRef :=
@@ -166,7 +166,7 @@ theorem fixedInput_storage {shape : CShape}
 
 /-- Lifting an earlier pair preserves its structural product through
 the sixteen sample cells and factor cell. -/
-theorem fixedInput_product {left right : CShape}
+lemma fixedInput_product {left right : CShape}
     (first : CInputRef (sourceContext base N) left)
     (second : CInputRef (sourceContext base N) right) :
     fixedInput base N (.product first second) =
@@ -183,7 +183,7 @@ theorem fixedInput_product {left right : CShape}
     (Native.Batch.Slots.slotsInput_product (measurementBits N) first second 16)
 
 /-- Bank preparation and measurement cells preserve an earlier structural pair. -/
-theorem lifted_product {left right : CShape}
+lemma lifted_product {left right : CShape}
     (first : CInputRef (storageContext base N) left)
     (second : CInputRef (storageContext base N) right) :
     Native.liftInput (storageContext base N) (storage_empty base noQuantum N) N
@@ -206,7 +206,7 @@ theorem lifted_product {left right : CShape}
       (Native.bankInput (storageContext base N) (storage_empty base noQuantum N) N second)
       (measurementBits N))
 
-private theorem liftWrite_key {shape : CShape}
+private lemma liftWrite_key {shape : CShape}
     (ref : CWriteRef (sourceContext base N) shape) :
     (Native.Batch.Slots.liftWrite N ref).key = ref.key := by
   have same := (congrArg CInputRef.storageKeys (fixedInput_storage base N ref)).symm.trans
@@ -214,7 +214,7 @@ private theorem liftWrite_key {shape : CShape}
   exact List.singleton_inj.mp same
 
 /-- A caller read avoids the source residue cell that the next batch redraws. -/
-theorem caller_source_separated {shape : CShape}
+lemma caller_source_separated {shape : CShape}
     (observed : CInputRef base shape) :
     (sourceRef base noQuantum N).key ∉
       (callerInput base noQuantum N observed).storageKeys := by
@@ -239,7 +239,7 @@ theorem caller_source_separated {shape : CShape}
   exact (congrArg₂ (fun key keys => key ∉ keys) keyEqual finalKeys).mpr oldAbsent
 
 /-- A caller read avoids the complete parameter cell that the next batch rewrites. -/
-theorem caller_parameter_separated {shape : CShape}
+lemma caller_parameter_separated {shape : CShape}
     (observed : CInputRef base shape) :
     (parameterRef base noQuantum N).key ∉
       (callerInput base noQuantum N observed).storageKeys := by
@@ -258,7 +258,7 @@ theorem caller_parameter_separated {shape : CShape}
   exact (congrArg₂ (fun key keys => key ∉ keys) keyEqual finalKeys).mpr oldAbsent
 
 /-- The actual factor destination is fresh relative to every original caller read. -/
-theorem caller_factor_separated {shape : CShape}
+lemma caller_factor_separated {shape : CShape}
     (observed : CInputRef base shape) :
     (factorRef base noQuantum N).key ∉ (callerInput base noQuantum N observed).storageKeys := by
   let sourceInput := ShorStyle.Canonical.Sampler.Retained.liftInput (N := N) observed

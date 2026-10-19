@@ -27,7 +27,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The first compilation-time increment fits its real target word at every width. -/
-theorem nativeSqrt_initialHalf_lt (width : Nat) : initialHalf width < 2 ^ width := by
+lemma nativeSqrt_initialHalf_lt (width : Nat) : initialHalf width < 2 ^ width := by
   cases width with
   | zero => decide
   | succ width =>
@@ -36,7 +36,7 @@ theorem nativeSqrt_initialHalf_lt (width : Nat) : initialHalf width < 2 ^ width 
       omega
 
 /-- The actual widening operation preserves the complete original unsigned value. -/
-theorem nativeSqrt_widen_read (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_widen_read (input : CInputRef ctx (.unsignedWord width))
     (store : Store (context ctx width)) :
     ((store.applyOp (widenOp input)).read (.storage (wideCell ctx width).toCStorageRef)).toNat =
       (store.read (underRead input width)).toNat := by
@@ -58,7 +58,7 @@ noncomputable def initializeStore (input : CInputRef ctx (.unsignedWord width))
     (store.applyOp (widenOp input))).1
 
 /-- The saved input, real zero root and literal increment establish every internal invariant. -/
-theorem nativeSqrt_initial_invariant (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_initial_invariant (input : CInputRef ctx (.unsignedWord width))
     (store : Store ctx) :
     LoopInvariant (.storage (wideCell ctx width).toCStorageRef) (roundRefs ctx width)
       (store.read input).toNat width (initializeStore (model := model) input (pushStore width
@@ -111,7 +111,7 @@ theorem nativeSqrt_initial_invariant (input : CInputRef ctx (.unsignedWord width
     rw [rootValue, Nat.zero_add]
 
 /-- Real allocation and initialization followed by the real rounds produce the exact root. -/
-theorem nativeSqrt_initialized_iteration_root
+lemma nativeSqrt_initialized_iteration_root
     (input : CInputRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((iteratedRoundStep (model := model) (.storage (wideCell ctx width).toCStorageRef) (roundRefs
       ctx width)

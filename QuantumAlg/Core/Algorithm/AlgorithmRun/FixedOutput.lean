@@ -7,9 +7,10 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Algorithm.AlgorithmRun
-public import QuantumAlg.Core.Execution.CycleSchedule
+public import QuantumAlg.Core.Execution.Restart
 public import QuantumAlg.Core.Execution.State.Requirement
-import all QuantumAlg.Core.Execution.CycleSchedule.Cleanup.Deterministic
+import all QuantumAlg.Core.Execution.State.Requirement
+import all QuantumAlg.Core.Execution.Restart.Deterministic
 import all QuantumAlg.Core.Execution.Classical.Composition
 
 /-!
@@ -22,6 +23,8 @@ seed is transported through the same run; no replacement channel is used.
 
 namespace QuantumAlg.AlgorithmRun
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 open Execution
@@ -30,21 +33,23 @@ attribute [local instance] Classical.decEq
 attribute [local irreducible] ExecutionState.mapClassical
 
 /-- Every real observed result has the fixed owned state established by the same actual code. -/
-public theorem stateRequirement_of_reinitializedAt {model : ExecutionModel}
+public lemma stateRequirement_of_reinitializedAt {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape resultShape : CShape}
-    (actual : AlgorithmRun model pre post shape)
+    (actual : AlgorithmRun model pre post shape allowAllocation)
+    (environment : model.Environment)
     (seed : post.quantumLayout.SelectedBasis post.borrowedSelectionᶜ)
-    (fixed : Circuit.ReinitializedAt actual.code seed)
+    (fixed : Circuit.ReinitializedAt actual.code environment seed)
     (read : OutputRead post resultShape) {Reference : Register}
     (original : OracleInput model.classicalOracles pre Reference) :
     (StateRequirement.marginal post.borrowedSelectionᶜ read
       (fun _ _ => .pure (NormalizedVector.ket seed))).Holds original.caller
-        (actual.finalState Reference original.state) := by
+        (actual.finalState environment Reference original.state) := by
+  rw [StateRequirement.marginal_pure_holds_iff]
   intro value
   unfold AlgorithmRun.finalState
   rw [ExecutionState.executionState_mapClassical_comp]
   apply Circuit.RestartCleanup.selectedPureMapDecision post.quantumLayout
-    post.borrowedSelectionᶜ Reference _ (actual.execute Reference original.state)
+    post.borrowedSelectionᶜ Reference _ (actual.execute environment Reference original.state)
     (fun record => read.eval record.1) (NormalizedVector.ket seed) _ value
   intro record
   exact fixed Reference

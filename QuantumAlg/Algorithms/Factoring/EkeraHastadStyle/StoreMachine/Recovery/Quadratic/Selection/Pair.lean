@@ -70,7 +70,8 @@ structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Na
   callerFrame : ∀ {shape : CShape} (other : CInputRef ctx shape),
     CallerFrameAvoids refs other → after.read other = before.read other
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {shortWidth : Nat}
 
 /-- Execute both actual checks and selectors in their original order. -/
@@ -84,27 +85,28 @@ def step (refs : Refs ctx shortWidth) (store : Store ctx) : Store ctx × (into r
     (QuadraticCandidateSelect.step refs.first) (QuadraticCandidateSelect.step refs.second) store
 
 /-- Both real executions preserve their entire quantum-reference blocks and history. -/
-theorem into_execute (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).execute Reference state = state.mapClassical (fun entry =>
+    (into refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := step refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  Circuit.execute_sequenceStoreRecord (QuadraticCandidateSelect.into refs.first)
+  Circuit.execute_sequenceStoreRecord
+    (environment := environment) (QuadraticCandidateSelect.into refs.first)
     (QuadraticCandidateSelect.into refs.second)
     (QuadraticCandidateSelect.step refs.first) (QuadraticCandidateSelect.step refs.second)
     (QuadraticCandidateSelect.into_execute refs.first)
     (QuadraticCandidateSelect.into_execute refs.second) Reference state
 
 /-- Every original caller read outside the two write footprints remains unchanged. -/
-theorem into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
+lemma into_callerFrame (refs : Refs ctx shortWidth) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : CallerFrameAvoids refs other) :
     (step refs store).1.read other = store.read other :=
   (QuadraticCandidateSelect.into_callerFrame refs.second _ other avoids.second).trans
     (QuadraticCandidateSelect.into_callerFrame refs.first store other avoids.first)
 
 /-- The same actual pair execution implements the original ordered option fold. -/
-theorem into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
+lemma into_correct (refs : Refs ctx shortWidth) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     Relation refs store (step refs store).1 := by
   let middle := (QuadraticCandidateSelect.step refs.first store).1
@@ -138,13 +140,13 @@ def eventEnvelope (shortWidth : Nat) : ResourcePool model :=
     QuadraticCandidateSelect.eventEnvelope shortWidth
 
 /-- Both recorded paths contribute their actual native events in order. -/
-theorem into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_events (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).eventTrace path =
       (QuadraticCandidateSelect.into refs.first).eventTrace path.1 ++
         (QuadraticCandidateSelect.into refs.second).eventTrace path.2 := rfl
 
 /-- The actual native coordinates meet the sum of the two independent allowances. -/
-theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).resourcePool path ≤ eventEnvelope shortWidth := by
   change ResourcePool.ofList
     ((QuadraticCandidateSelect.into refs.first).eventTrace path.1 ++
@@ -154,7 +156,7 @@ theorem into_pool_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (QuadraticCandidateSelect.into_pool_le refs.second path.2)
 
 /-- All measurement-free classical dependencies lie within twenty native instruction steps. -/
-theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path ≤ 20 := by
   change (QuadraticCandidateSelect.into refs.first).depth (fun _ => 1) path.1 +
     (QuadraticCandidateSelect.into refs.second).depth (fun _ => 1) path.2 ≤ 20
@@ -163,7 +165,7 @@ theorem into_depth_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
   omega
 
 /-- Both complete executions keep precisely the supplied runtime context live. -/
-theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
+lemma into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ (QuadraticCandidateSelect.into refs.first).visitedContexts path.1 ++
@@ -173,25 +175,26 @@ theorem into_visited (refs : Refs ctx shortWidth) (path : (into refs).Path)
   · exact QuadraticCandidateSelect.into_visited refs.second path.2 visited second
 
 /-- Resident space includes every supplied caller and workspace cell. -/
-theorem into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_resident_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Auxiliary space retains the supplied roles throughout both actual paths. -/
-theorem into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
+lemma into_auxiliary_le (refs : Refs ctx shortWidth) (path : (into refs).Path) :
     (into refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Both actual selections restore borrowed storage jointly with any external reference. -/
-theorem into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
+lemma into_borrowedRestored (refs : Refs ctx shortWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+    (into refs).BorrowedRestored
+      Reference state ((into refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact QuadraticCandidateSelect.into_borrowedRestored refs.first Reference state
   · exact QuadraticCandidateSelect.into_borrowedRestored refs.second Reference _
 

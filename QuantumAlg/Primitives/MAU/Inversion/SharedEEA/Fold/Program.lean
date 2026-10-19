@@ -28,6 +28,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.FoldProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Full-frame action of the actual source fold under the exact named-field decomposition. -/
 def step (modulus : Nat) (state : Registers modulus.size) : Registers modulus.size :=
   (FoldRegisters.grouping modulus.size).symm
@@ -41,8 +43,8 @@ def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
     (FoldComparisonFocus.place (modulus.size + 3) (FoldSourceProgram.program modulus))
 
 /-- Exact all-frame action preserves amplitudes and every spectator coordinate. -/
-theorem program_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) (step modulus) :=
+lemma program_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) environment (step modulus) :=
   (FoldComparisonPlacement.placeFocus_realizes modulus.size
     (FoldComparisonFocus.place_realizes (modulus.size + 3)
       (FoldSourceProgram.program_realizes modulus))).congrStep (by
@@ -57,26 +59,26 @@ theorem program_realizes (modulus : Nat) :
             (FoldSourceProgram.step modulus (FoldRegisters.grouping modulus.size state).1)))
 
 /-- The original full decomposition exhibits the changed focus and every retained field. -/
-theorem step_grouping (modulus : Nat) (state : Registers modulus.size) :
+lemma step_grouping (modulus : Nat) (state : Registers modulus.size) :
     FoldRegisters.grouping modulus.size (step modulus state) =
       (FoldSourceProgram.step modulus (FoldRegisters.grouping modulus.size state).1,
         (FoldRegisters.grouping modulus.size state).2) :=
   (FoldRegisters.grouping modulus.size).apply_symm_apply _
 
 /-- The complete Work1 word is an untouched spectator, including arbitrary dirty bits. -/
-theorem step_firstWord (modulus : Nat) (state : Registers modulus.size) :
+lemma step_firstWord (modulus : Nat) (state : Registers modulus.size) :
     (step modulus state).firstWord = state.firstWord := rfl
 
 /-- Folding leaves the actual divisor-length field unchanged for the following native writer. -/
-theorem step_divisorLength (modulus : Nat) (state : Registers modulus.size) :
+lemma step_divisorLength (modulus : Nat) (state : Registers modulus.size) :
     (step modulus state).divisorLength = state.divisorLength := rfl
 
 /-- The original existing helper is restored by the same actual arithmetic program. -/
-theorem step_control (modulus : Nat) (state : Registers modulus.size) :
+lemma step_control (modulus : Nat) (state : Registers modulus.size) :
     (step modulus state).control = state.control := rfl
 
 /-- The complete native trace is the literal comparison, X, and controlled reflection trace. -/
-theorem program_eventTrace (modulus : Nat) :
+lemma program_eventTrace (modulus : Nat) :
     (program modulus).eventTrace = (FoldSourceProgram.program modulus).eventTrace :=
   (FoldComparisonPlacement.placeFocus_eventTrace modulus.size _).trans
     (FoldComparisonFocus.place_eventTrace (modulus.size + 3) _)

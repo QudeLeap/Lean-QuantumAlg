@@ -26,7 +26,7 @@ variable {C D : Type} [Fintype C] [Fintype D] [DecidableEq D]
   {R S : Register}
 
 /-- A bijective label change retains precisely the original complete density block. -/
-theorem coordinate_mapClassical_block (state : ExecutionState C R) (labels : C ≃ D)
+lemma coordinate_mapClassical_block (state : ExecutionState C R) (labels : C ≃ D)
     (value : D) :
     (state.mapClassical labels).block value = state.block (labels.symm value) := by
   classical
@@ -36,7 +36,7 @@ theorem coordinate_mapClassical_block (state : ExecutionState C R) (labels : C �
   simp
 
 /-- Existing quantum coordinate changes commute with arbitrary actual classical block sums. -/
-theorem coordinate_reindex_mapClassical (state : ExecutionState C R)
+lemma coordinate_reindex_mapClassical (state : ExecutionState C R)
     (basis : R.Index ≃ S.Index) (labels : C → D) :
     (state.reindex basis).mapClassical labels = (state.mapClassical labels).reindex basis := by
   apply ExecutionState.ext
@@ -50,7 +50,7 @@ theorem coordinate_reindex_mapClassical (state : ExecutionState C R)
   split <;> rfl
 
 /-- A forward and inverse classical coordinate change restore the complete initial state. -/
-theorem coordinate_mapClassical_inverse [DecidableEq C]
+lemma coordinate_mapClassical_inverse [DecidableEq C]
     (state : ExecutionState C R) (labels : C ≃ D) :
     (state.mapClassical labels).mapClassical labels.symm = state := by
   apply ExecutionState.ext
@@ -59,7 +59,7 @@ theorem coordinate_mapClassical_inverse [DecidableEq C]
   simp only [Equiv.symm_symm, Equiv.symm_apply_apply]
 
 /-- A forward and inverse basis correspondence restore every classical and quantum entry. -/
-theorem coordinate_reindex_inverse (state : ExecutionState C R) (basis : R.Index ≃ S.Index) :
+lemma coordinate_reindex_inverse (state : ExecutionState C R) (basis : R.Index ≃ S.Index) :
     (state.reindex basis).reindex basis.symm = state := by
   apply ExecutionState.ext
   intro value

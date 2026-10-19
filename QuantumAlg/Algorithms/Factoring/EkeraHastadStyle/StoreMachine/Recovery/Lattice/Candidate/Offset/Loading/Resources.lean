@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent original signed native formulas in first, second and third coordinate order. -/
@@ -29,7 +30,7 @@ def offsetTrace (width : Nat) (offset : NumberTheory.IntegerPoint3) :
       ClassicalRoutines.ConstantWord.Signed.nativeTrace width offset.2.2)
 
 /-- Every actual offset path emits the independently specified original signed-loading formula. -/
-theorem setOffsetInto_events (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_events (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) :
     (setOffsetInto offset refs).eventTrace path = offsetTrace width offset :=
   congrArg₂ List.append
@@ -39,7 +40,7 @@ theorem setOffsetInto_events (offset : NumberTheory.IntegerPoint3) (refs : Refs 
       (ClassicalRoutines.ConstantWord.Signed.into_events offset.2.2 refs.offset.third path.2.2))
 
 /-- Actual multiplicities include every coordinate initialization and original signed unit step. -/
-theorem setOffsetInto_resourcePool (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_resourcePool (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) :
     (setOffsetInto offset refs).resourcePool path =
       ResourcePool.ofList (offsetTrace width offset) :=
@@ -50,7 +51,7 @@ def operationCount (offset : NumberTheory.IntegerPoint3) : Nat :=
   offset.1.natAbs + offset.2.1.natAbs + offset.2.2.natAbs + 3
 
 /-- Actual native count equals the independent offset magnitude formula. -/
-theorem setOffsetInto_eventCount (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_eventCount (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) :
     ((setOffsetInto offset refs).eventTrace path).length = operationCount offset := by
   rw [setOffsetInto_events]
@@ -60,7 +61,7 @@ theorem setOffsetInto_eventCount (offset : NumberTheory.IntegerPoint3) (refs : R
   omega
 
 /-- The same independent magnitude formula charges all actual sequential dependencies. -/
-theorem setOffsetInto_depth (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_depth (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) :
     (setOffsetInto offset refs).depth (fun _ => 1) path = operationCount offset := by
   change (ClassicalRoutines.ConstantWord.Signed.into offset.1 refs.offset.first).depth
@@ -76,30 +77,30 @@ theorem setOffsetInto_depth (offset : NumberTheory.IntegerPoint3) (refs : Refs c
   omega
 
 /-- Actual second and third coordinate loading restore all borrowed-reference correlations. -/
-theorem suffixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma suffixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (suffixInto offset refs).BorrowedRestored Reference state
-      ((suffixInto offset refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((suffixInto offset refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (ClassicalRoutines.ConstantWord.Signed.into_borrowedRestored offset.2.1 refs.offset.second
       Reference state)
     (ClassicalRoutines.ConstantWord.Signed.into_borrowedRestored offset.2.2 refs.offset.third
       Reference _)
 
 /-- Complete actual offset loading restores the full borrowed-reference joint state. -/
-theorem setOffsetInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_borrowedRestored (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (setOffsetInto offset refs).BorrowedRestored Reference state
-      ((setOffsetInto offset refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((setOffsetInto offset refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (ClassicalRoutines.ConstantWord.Signed.into_borrowedRestored offset.1 refs.offset.first
       Reference state)
     (suffixInto_borrowedRestored offset refs Reference _)
 
 /-- Every actual initialization, unit step and loop boundary retains the original context. -/
-theorem setOffsetInto_visited (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_visited (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (setOffsetInto offset refs).visitedContexts path) : visited = ctx := by
   change visited ∈
@@ -119,7 +120,7 @@ theorem setOffsetInto_visited (offset : NumberTheory.IntegerPoint3) (refs : Refs
         path.2.2 visited))
 
 /-- Resident accounting keeps the original three offset words and all other supplied resources. -/
-theorem setOffsetInto_resident_le (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_resident_le (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) :
     (setOffsetInto offset refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -127,7 +128,7 @@ theorem setOffsetInto_resident_le (offset : NumberTheory.IntegerPoint3) (refs : 
   rw [setOffsetInto_visited offset refs path visited present]
 
 /-- Auxiliary accounting preserves the original roles without allocating additional cells. -/
-theorem setOffsetInto_auxiliary_le (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_auxiliary_le (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (path : (setOffsetInto offset refs).Path) :
     (setOffsetInto offset refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

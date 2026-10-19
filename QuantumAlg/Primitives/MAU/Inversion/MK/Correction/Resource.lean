@@ -27,7 +27,7 @@ noncomputable section
 /-! ### Strict gate-count bounds -/
 
 /-- Lifting a fixed-register gate list preserves its primitive-leaf count. -/
-@[simp] theorem liftFixedGates_length
+@[simp] lemma liftFixedGates_length
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MK.Circuit.encoding tail.succ counterWidth))) :
@@ -49,7 +49,7 @@ noncomputable section
       simp only [workGates, List.length_map]
 
 /-- Lifting a VBE-workspace gate list preserves its primitive-leaf count. -/
-@[simp] theorem liftWorkGates_length
+@[simp] lemma liftWorkGates_length
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ))) :
@@ -72,7 +72,7 @@ noncomputable section
 
 /-- Product lifting a fixed-register list preserves its complete ordered
 primitive-event trace. -/
-theorem liftFixedGates_events_eq_source
+lemma liftFixedGates_events_eq_source
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MK.Circuit.encoding tail.succ counterWidth))) :
@@ -88,7 +88,7 @@ theorem liftFixedGates_events_eq_source
 
 /-- Product lifting a VBE-workspace list preserves its complete ordered
 primitive-event trace. -/
-theorem liftWorkGates_events_eq_source
+lemma liftWorkGates_events_eq_source
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ))) :
@@ -103,7 +103,7 @@ theorem liftWorkGates_events_eq_source
         (MK.Circuit.encoding tail.succ counterWidth) gates)
 
 /-- Fixed-register lifting preserves the strict CNOT coordinate. -/
-@[simp] theorem liftFixedGates_cnotMultiplicity_sum
+@[simp] lemma liftFixedGates_cnotMultiplicity_sum
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MK.Circuit.encoding tail.succ counterWidth))) :
@@ -115,7 +115,7 @@ theorem liftWorkGates_events_eq_source
     (liftFixedGates_events_eq_source tail counterWidth gates)
 
 /-- Fixed-register lifting preserves the strict Toffoli coordinate. -/
-@[simp] theorem liftFixedGates_toffoliMultiplicity_sum
+@[simp] lemma liftFixedGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MK.Circuit.encoding tail.succ counterWidth))) :
@@ -127,7 +127,7 @@ theorem liftWorkGates_events_eq_source
     (liftFixedGates_events_eq_source tail counterWidth gates)
 
 /-- VBE-workspace lifting preserves the strict X coordinate. -/
-@[simp] theorem liftWorkGates_xMultiplicity_sum
+@[simp] lemma liftWorkGates_xMultiplicity_sum
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ))) :
@@ -139,7 +139,7 @@ theorem liftWorkGates_events_eq_source
     (liftWorkGates_events_eq_source tail counterWidth gates)
 
 /-- VBE-workspace lifting preserves the strict CNOT coordinate. -/
-@[simp] theorem liftWorkGates_cnotMultiplicity_sum
+@[simp] lemma liftWorkGates_cnotMultiplicity_sum
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ))) :
@@ -151,7 +151,7 @@ theorem liftWorkGates_events_eq_source
     (liftWorkGates_events_eq_source tail counterWidth gates)
 
 /-- VBE-workspace lifting preserves the strict Toffoli coordinate. -/
-@[simp] theorem liftWorkGates_toffoliMultiplicity_sum
+@[simp] lemma liftWorkGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ))) :
@@ -214,7 +214,7 @@ def stagedTargetAddToffoliCount (tail : Nat) : Nat :=
   30 * tail.succ
 
 /-- The lifted fixed-round compute is bounded by the literal fold ledger. -/
-theorem fixedComputeGates_length_le
+lemma fixedComputeGates_length_le
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -226,7 +226,7 @@ theorem fixedComputeGates_length_le
 
 /-- The lifted fixed-round compute retains the exact fold-ledger CNOT
 coordinate. -/
-theorem fixedComputeGates_cnotMultiplicity_sum
+lemma fixedComputeGates_cnotMultiplicity_sum
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -239,7 +239,7 @@ theorem fixedComputeGates_cnotMultiplicity_sum
 
 /-- The lifted fixed-round compute retains the exact fold-ledger Toffoli
 coordinate. -/
-theorem fixedComputeGates_toffoliMultiplicity_sum
+lemma fixedComputeGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -252,7 +252,7 @@ theorem fixedComputeGates_toffoliMultiplicity_sum
   exact MK.Circuit.foldGates_toffoliMultiplicity_sum
     tail counterWidth comparisonIndex workIndex
 
-private theorem sourceLiftedModularAddGates_events_eq_source
+private lemma sourceLiftedModularAddGates_events_eq_source
     (n p : Nat) :
     (MAU.Multiplication.Accumulate.VBECircuit.liftedModularAddGates n p).map
         (EncodedBit.GateSpec.event .empty) =
@@ -264,7 +264,7 @@ private theorem sourceLiftedModularAddGates_events_eq_source
   intro gate _
   cases gate <;> rfl
 
-private theorem liftedWorkModularAddGates_events_eq_source
+private lemma liftedWorkModularAddGates_events_eq_source
     (tail counterWidth p : Nat) :
     (liftedWorkModularAddGates tail counterWidth p).map
         (EncodedBit.GateSpec.event .empty) =
@@ -276,7 +276,7 @@ private theorem liftedWorkModularAddGates_events_eq_source
       (sourceLiftedModularAddGates_events_eq_source tail.succ p)
 
 /-- The lifted VBE modular-add payload keeps its established linear bound. -/
-theorem liftedWorkModularAddGates_length_le
+lemma liftedWorkModularAddGates_length_le
     (tail counterWidth p : Nat) :
     (liftedWorkModularAddGates tail counterWidth p).length ≤
       48 * tail.succ + 45 := by
@@ -287,7 +287,7 @@ theorem liftedWorkModularAddGates_length_le
 
 /-- The lifted VBE modular-add payload has the exact established Toffoli
 coordinate. -/
-theorem liftedWorkModularAddGates_toffoliMultiplicity_sum
+lemma liftedWorkModularAddGates_toffoliMultiplicity_sum
     (tail counterWidth p : Nat) :
     ((liftedWorkModularAddGates tail counterWidth p).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -300,7 +300,7 @@ theorem liftedWorkModularAddGates_toffoliMultiplicity_sum
 
 /-- The lifted VBE modular-add payload has the established width-only CNOT
 bound. -/
-theorem liftedWorkModularAddGates_cnotMultiplicity_sum_le
+lemma liftedWorkModularAddGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) :
     ((liftedWorkModularAddGates tail counterWidth p).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -313,7 +313,7 @@ theorem liftedWorkModularAddGates_cnotMultiplicity_sum_le
 
 /-- Loading and reducing the full runtime pseudo-residue has a width-only
 primitive-leaf bound. -/
-theorem rawPseudoResidueLoadGates_length_le
+lemma rawPseudoResidueLoadGates_length_le
     (tail counterWidth p : Nat) :
     (rawPseudoResidueLoadGates tail counterWidth p).length ≤
       99 * tail.succ + 92 := by
@@ -332,7 +332,7 @@ theorem rawPseudoResidueLoadGates_length_le
 
 /-- Loading and reducing the runtime pseudo-residue has a width-only CNOT
 bound derived from its two literal copies and two modular-add traversals. -/
-theorem rawPseudoResidueLoadGates_cnotMultiplicity_sum_le
+lemma rawPseudoResidueLoadGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) :
     ((rawPseudoResidueLoadGates tail counterWidth p).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -353,7 +353,7 @@ theorem rawPseudoResidueLoadGates_cnotMultiplicity_sum_le
 
 /-- Only the two modular-add traversals contribute Toffoli gates to the raw
 pseudo-residue loader. -/
-theorem rawPseudoResidueLoadGates_toffoliMultiplicity_sum
+lemma rawPseudoResidueLoadGates_toffoliMultiplicity_sum
     (tail counterWidth p : Nat) :
     ((rawPseudoResidueLoadGates tail counterWidth p).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -367,7 +367,7 @@ theorem rawPseudoResidueLoadGates_toffoliMultiplicity_sum
 
 /-- A lifted static unit multiplication retains the VBE quadratic gate
 bound. -/
-theorem liftedUnitMultiplicationGates_length_le
+lemma liftedUnitMultiplicationGates_length_le
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
     (liftedUnitMultiplicationGates tail counterWidth p unit).length ≤
       unitMultiplicationGateLengthBound tail := by
@@ -376,7 +376,7 @@ theorem liftedUnitMultiplicationGates_length_le
     tail.succ p unit
 
 /-- A lifted unit multiplication retains the exact source X coordinate. -/
-theorem liftedUnitMultiplicationGates_xMultiplicity_sum
+lemma liftedUnitMultiplicationGates_xMultiplicity_sum
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
     ((liftedUnitMultiplicationGates tail counterWidth p unit).map
         EncodedBit.GateSpec.xMultiplicity).sum = 2 * tail.succ := by
@@ -385,7 +385,7 @@ theorem liftedUnitMultiplicationGates_xMultiplicity_sum
     tail.succ p unit
 
 /-- A lifted unit multiplication retains the source width-only CNOT bound. -/
-theorem liftedUnitMultiplicationGates_cnotMultiplicity_sum_le
+lemma liftedUnitMultiplicationGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
     ((liftedUnitMultiplicationGates tail counterWidth p unit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -396,7 +396,7 @@ theorem liftedUnitMultiplicationGates_cnotMultiplicity_sum_le
 
 /-- A lifted unit multiplication retains the exact source Toffoli
 coordinate. -/
-theorem liftedUnitMultiplicationGates_toffoliMultiplicity_sum
+lemma liftedUnitMultiplicationGates_toffoliMultiplicity_sum
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
     ((liftedUnitMultiplicationGates tail counterWidth p unit).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -408,7 +408,7 @@ theorem liftedUnitMultiplicationGates_toffoliMultiplicity_sum
 
 /-- One counter-bit payload retains the same quadratic bound before its
 literal control decomposition. -/
-theorem counterCorrectionBitPayloadGates_length_le
+lemma counterCorrectionBitPayloadGates_length_le
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     (counterCorrectionBitPayloadGates
@@ -419,7 +419,7 @@ theorem counterCorrectionBitPayloadGates_length_le
     tail.succ p (counterBitUnit p hpOdd bit.val)
 
 /-- One counter-bit payload retains the exact source X coordinate. -/
-theorem counterCorrectionBitPayloadGates_xMultiplicity_sum
+lemma counterCorrectionBitPayloadGates_xMultiplicity_sum
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ((counterCorrectionBitPayloadGates
@@ -430,7 +430,7 @@ theorem counterCorrectionBitPayloadGates_xMultiplicity_sum
     tail.succ p (counterBitUnit p hpOdd bit.val)
 
 /-- One counter-bit payload retains the source width-only CNOT bound. -/
-theorem counterCorrectionBitPayloadGates_cnotMultiplicity_sum_le
+lemma counterCorrectionBitPayloadGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ((counterCorrectionBitPayloadGates
@@ -442,7 +442,7 @@ theorem counterCorrectionBitPayloadGates_cnotMultiplicity_sum_le
     tail.succ p (counterBitUnit p hpOdd bit.val)
 
 /-- One counter-bit payload retains the exact source Toffoli coordinate. -/
-theorem counterCorrectionBitPayloadGates_toffoliMultiplicity_sum
+lemma counterCorrectionBitPayloadGates_toffoliMultiplicity_sum
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ((counterCorrectionBitPayloadGates
@@ -456,7 +456,7 @@ theorem counterCorrectionBitPayloadGates_toffoliMultiplicity_sum
 
 /-- Literal clean-work control expands one counter-bit payload by at most a
 factor of three. -/
-theorem counterCorrectionBitGates_length_le
+lemma counterCorrectionBitGates_length_le
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     (counterCorrectionBitGates tail counterWidth p hpOdd bit).length ≤
@@ -481,7 +481,7 @@ theorem counterCorrectionBitGates_length_le
 
 /-- A literal clean-work control turns the payload X coordinate into exactly
 two CNOTs per arithmetic bit. -/
-theorem counterCorrectionBitGates_cnotMultiplicity_sum
+lemma counterCorrectionBitGates_cnotMultiplicity_sum
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ((counterCorrectionBitGates tail counterWidth p hpOdd bit).map
@@ -492,7 +492,7 @@ theorem counterCorrectionBitGates_cnotMultiplicity_sum
 
 /-- A literal clean-work control contributes one Toffoli per payload CNOT and
 three per payload Toffoli. -/
-theorem counterCorrectionBitGates_toffoliMultiplicity_sum_le
+lemma counterCorrectionBitGates_toffoliMultiplicity_sum_le
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ((counterCorrectionBitGates tail counterWidth p hpOdd bit).map
@@ -509,7 +509,7 @@ theorem counterCorrectionBitGates_toffoliMultiplicity_sum_le
   unfold counterCorrectionBitToffoliBound
   omega
 
-private theorem flatMap_counterCorrectionBitGates_length_le
+private lemma flatMap_counterCorrectionBitGates_length_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ∀ bits : List (Fin counterWidth),
       (bits.flatMap
@@ -543,7 +543,7 @@ private theorem flatMap_counterCorrectionBitGates_length_le
               (Nat.succ_mul rest.length
               (counterCorrectionBitGateLengthBound tail)).symm
 
-private theorem flatMap_counterCorrectionBitGates_cnotMultiplicity_sum
+private lemma flatMap_counterCorrectionBitGates_cnotMultiplicity_sum
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ∀ bits : List (Fin counterWidth),
       (((bits.flatMap
@@ -560,7 +560,7 @@ private theorem flatMap_counterCorrectionBitGates_cnotMultiplicity_sum
       rw [Nat.add_mul, Nat.one_mul]
       exact Nat.add_comm _ _
 
-private theorem flatMap_counterCorrectionBitGates_toffoliMultiplicity_sum_le
+private lemma flatMap_counterCorrectionBitGates_toffoliMultiplicity_sum_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ∀ bits : List (Fin counterWidth),
       (((bits.flatMap
@@ -586,7 +586,7 @@ private theorem flatMap_counterCorrectionBitGates_toffoliMultiplicity_sum_le
 
 /-- The counter-driven correction ledger has one uniformly bounded literal
 controlled payload per physical counter bit. -/
-theorem counterCorrectionGates_length_le
+lemma counterCorrectionGates_length_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     (counterCorrectionGates tail counterWidth p hpOdd).length ≤
       counterWidth * counterCorrectionBitGateLengthBound tail := by
@@ -597,7 +597,7 @@ theorem counterCorrectionGates_length_le
 
 /-- The full runtime-counter ledger has exactly two CNOTs per arithmetic bit
 for every physical counter bit. -/
-theorem counterCorrectionGates_cnotMultiplicity_sum
+lemma counterCorrectionGates_cnotMultiplicity_sum
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ((counterCorrectionGates tail counterWidth p hpOdd).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -609,7 +609,7 @@ theorem counterCorrectionGates_cnotMultiplicity_sum
 
 /-- The full runtime-counter ledger has the sum of the per-bit controlled
 Toffoli bounds. -/
-theorem counterCorrectionGates_toffoliMultiplicity_sum_le
+lemma counterCorrectionGates_toffoliMultiplicity_sum_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ((counterCorrectionGates tail counterWidth p hpOdd).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
@@ -620,7 +620,7 @@ theorem counterCorrectionGates_toffoliMultiplicity_sum_le
   simpa only [counterCorrectionGates, List.length_ofFn] using h
 
 /-- The static sign correction is one lifted unit multiplication. -/
-theorem signCorrectionGates_length_le
+lemma signCorrectionGates_length_le
     (tail counterWidth p : Nat) :
     (signCorrectionGates tail counterWidth p).length ≤
       unitMultiplicationGateLengthBound tail := by
@@ -630,7 +630,7 @@ theorem signCorrectionGates_length_le
 
 /-- The static sign correction retains the source multiplication CNOT
 bound. -/
-theorem signCorrectionGates_cnotMultiplicity_sum_le
+lemma signCorrectionGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) :
     ((signCorrectionGates tail counterWidth p).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -641,7 +641,7 @@ theorem signCorrectionGates_cnotMultiplicity_sum_le
 
 /-- The static sign correction retains the exact source multiplication
 Toffoli coordinate. -/
-theorem signCorrectionGates_toffoliMultiplicity_sum
+lemma signCorrectionGates_toffoliMultiplicity_sum
     (tail counterWidth p : Nat) :
     ((signCorrectionGates tail counterWidth p).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -652,7 +652,7 @@ theorem signCorrectionGates_toffoliMultiplicity_sum
 
 /-- Raw reduction, runtime counter correction, and sign correction together
 obey the named width-only bound. -/
-theorem correctionComputeGates_length_le
+lemma correctionComputeGates_length_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     (correctionComputeGates tail counterWidth p hpOdd).length ≤
       correctionComputeGateLengthBound tail counterWidth := by
@@ -666,7 +666,7 @@ theorem correctionComputeGates_length_le
 
 /-- Raw reduction, counter correction, and sign correction together obey the
 coordinate-specific CNOT bound. -/
-theorem correctionComputeGates_cnotMultiplicity_sum_le
+lemma correctionComputeGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ((correctionComputeGates tail counterWidth p hpOdd).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -683,7 +683,7 @@ theorem correctionComputeGates_cnotMultiplicity_sum_le
 
 /-- Raw reduction, counter correction, and sign correction together obey the
 coordinate-specific Toffoli bound. -/
-theorem correctionComputeGates_toffoliMultiplicity_sum_le
+lemma correctionComputeGates_toffoliMultiplicity_sum_le
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     ((correctionComputeGates tail counterWidth p hpOdd).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
@@ -700,7 +700,7 @@ theorem correctionComputeGates_toffoliMultiplicity_sum_le
 
 /-- Swapping the target in, copying the source, adding, and undoing both
 transfers obeys the named linear bound. -/
-theorem stagedTargetAddGates_length_le
+lemma stagedTargetAddGates_length_le
     (tail counterWidth p : Nat) :
     (stagedTargetAddGates tail counterWidth p).length ≤
       stagedTargetAddGateLengthBound tail := by
@@ -719,7 +719,7 @@ theorem stagedTargetAddGates_length_le
 
 /-- The staged public-target transfer obeys the coordinate-specific CNOT
 bound. -/
-theorem stagedTargetAddGates_cnotMultiplicity_sum_le
+lemma stagedTargetAddGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat) :
     ((stagedTargetAddGates tail counterWidth p).map
         EncodedBit.GateSpec.cnotMultiplicity).sum ≤
@@ -741,7 +741,7 @@ theorem stagedTargetAddGates_cnotMultiplicity_sum_le
 
 /-- Only the modular-add payload contributes Toffoli gates to the staged
 public-target transfer. -/
-theorem stagedTargetAddGates_toffoliMultiplicity_sum
+lemma stagedTargetAddGates_toffoliMultiplicity_sum
     (tail counterWidth p : Nat) :
     ((stagedTargetAddGates tail counterWidth p).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =

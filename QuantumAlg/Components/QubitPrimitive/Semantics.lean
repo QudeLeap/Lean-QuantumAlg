@@ -36,7 +36,7 @@ public def nativeLocalPermutation {n : Nat} (primitive : QubitPrimitive n) :
   | .toffoli _ _ _ _ _ _ => AlgorithmGate.toffoliPermutation
 
 /-- The same model token determines both the local permutation and its full operator. -/
-public theorem nativeLocalPermutation_operator {n : Nat} (primitive : QubitPrimitive n) :
+public lemma nativeLocalPermutation_operator {n : Nat} (primitive : QubitPrimitive n) :
     AlgorithmGate.model.operator (nativeToken primitive) =
       UnitaryOperator.ofPerm (nativeLocalPermutation primitive) := by
   cases primitive with
@@ -62,7 +62,7 @@ public def nativeAmbientPermutation {n : Nat} (layout : QubitLayout n)
   (nativeApplication layout primitive).liftPermutation (nativePlacedPermutation layout primitive)
 
 /-- Exact ambient operator of each placed primitive, including all unused systems. -/
-public theorem nativeApplication_operator_ofPerm {n : Nat} (layout : QubitLayout n)
+public lemma nativeApplication_operator_ofPerm {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) :
     (nativeApplication layout primitive).operator =
       UnitaryOperator.ofPerm (nativeAmbientPermutation layout primitive) := by
@@ -73,7 +73,7 @@ public theorem nativeApplication_operator_ofPerm {n : Nat} (layout : QubitLayout
   | toffoli _ _ _ _ _ _ => exact AlgorithmGate.toffoli_operator_ofPerm
 
 /-- The complete joint complement is unchanged by the actual native permutation. -/
-public theorem nativeAmbientPermutation_basis {n : Nat} (layout : QubitLayout n)
+public lemma nativeAmbientPermutation_basis {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) (basis : layout.toQuantum.Basis) :
     (nativeApplication layout primitive).basisEquiv
         (nativeAmbientPermutation layout primitive basis) =

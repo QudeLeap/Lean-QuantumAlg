@@ -45,7 +45,7 @@ def walkCost (S C U t₁ t₂ : ℕ) : ℕ :=
   S + t₁ * (C + (2 ^ t₂) * U)
 
 /-- Rounding bounds for a scalar cost expression under explicit parameter assumptions. -/
-theorem walkCost_le_of_parameters
+lemma walkCost_le_of_parameters
     (S C U : ℕ) (ε δ η : ℝ) (hε_pos : 0 < ε) (_hδ_pos : 0 < δ) (_hη_pos : 0 < η)
     (h_ratio_ge_one : 1 ≤ π / Real.sqrt (2 * η * δ)) :
     let t₁ := Nat.ceil (π / (4 * Real.sqrt ε))

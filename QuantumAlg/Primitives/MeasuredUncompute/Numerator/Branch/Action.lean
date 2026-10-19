@@ -23,6 +23,8 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorBranchAction
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement NumeratorObservation
 open NumeratorResetMatrix
 
@@ -33,14 +35,14 @@ def replaceWord (width : Nat) (basis : (context width).register.Index)
     (value : Fin (2 ^ width)) : (context width).register.Index :=
   (frameBasis width).symm (prodEquiv (framePrefix width basis, value))
 
-private theorem replace_frame (width : Nat) (basis : (context width).register.Index)
+private lemma replace_frame (width : Nat) (basis : (context width).register.Index)
     (value : Fin (2 ^ width)) :
     frameBasis width (replaceWord width basis value) =
       prodEquiv (framePrefix width basis, value) :=
   (frameBasis width).apply_symm_apply _
 
 /-- The complete prefix and the measured word characterize replacement exactly. -/
-theorem eq_replace_iff (width : Nat) (row basis : (context width).register.Index)
+lemma eq_replace_iff (width : Nat) (row basis : (context width).register.Index)
     (value : Fin (2 ^ width)) :
     row = replaceWord width basis value ↔
       framePrefix width row = framePrefix width basis ∧ word width row = value := by
@@ -67,21 +69,21 @@ theorem eq_replace_iff (width : Nat) (row basis : (context width).register.Index
     exact pair.trans coordinates.symm
 
 /-- Replacement preserves all unmeasured coordinates and sets precisely the requested word. -/
-theorem replace_coordinates (width : Nat) (basis : (context width).register.Index)
+lemma replace_coordinates (width : Nat) (basis : (context width).register.Index)
     (value : Fin (2 ^ width)) :
     framePrefix width (replaceWord width basis value) = framePrefix width basis ∧
       word width (replaceWord width basis value) = value :=
   (eq_replace_iff width _ basis value).mp rfl
 
 /-- Actual H followed by the stored Z projection has one complete reference-labelled output ket. -/
-theorem projected_hadamard_ket (width : Nat) {Reference : Register}
+lemma projected_hadamard_ket (width : Nat) {Reference : Register}
     (stored : Store (context width)) (basis : (context width).register.Index)
     (reference : Reference.Index) :
     HilbertOperator.applyVec (ZMeasurement.projector
         (fun entry : (Register.prod (context width).register Reference).Index => word width entry.1)
         (NumeratorReset.outcome (stored.read (input width))) *
       (UnitaryOperator.prodTensor
-        (NumeratorRuntime.program width (NumeratorReset.hadamardMember width)).matrix
+        ((NumeratorRuntime.program width (NumeratorReset.hadamardMember width)).matrix environment)
         (1 : UnitaryOperator Reference) :
           HilbertOperator (Register.prod (context width).register Reference)))
       (NormalizedVector.ket (R := Register.prod (context width).register Reference)
@@ -125,12 +127,12 @@ theorem projected_hadamard_ket (width : Nat) {Reference : Register}
     simp [measured, samePrefix, sameReference]
 
 /-- The actually selected reset keeps both the complete prefix and the external reference. -/
-theorem reset_replaced_ket (width : Nat) {Reference : Register}
+lemma reset_replaced_ket (width : Nat) {Reference : Register}
     (stored : Store (context width)) (basis : (context width).register.Index)
     (reference : Reference.Index) :
     (UnitaryOperator.prodTensor
-      (NumeratorRuntime.program width
-        (NumeratorReset.member width (stored.read (input width)))).matrix
+      ((NumeratorRuntime.program width
+        (NumeratorReset.member width (stored.read (input width)))).matrix environment)
       (1 : UnitaryOperator Reference)).applyVec
       (NormalizedVector.ket (R := Register.prod (context width).register Reference)
         (replaceWord width basis (NumeratorReset.outcome (stored.read (input width))),
@@ -140,8 +142,8 @@ theorem reset_replaced_ket (width : Nat) {Reference : Register}
   ext ⟨row, other⟩
   change HilbertOperator.applyVec
     (UnitaryOperator.prodTensor
-      (NumeratorRuntime.program width
-        (NumeratorReset.member width (stored.read (input width)))).matrix
+      ((NumeratorRuntime.program width
+        (NumeratorReset.member width (stored.read (input width)))).matrix environment)
       (1 : UnitaryOperator Reference) :
         HilbertOperator (Register.prod (context width).register Reference))
     (NormalizedVector.ket (R := Register.prod (context width).register Reference)
@@ -181,10 +183,10 @@ theorem reset_replaced_ket (width : Nat) {Reference : Register}
     by_cases refSame : other = reference <;> simp [same, refSame]
 
 /-- The full actual H/Z/stored-X matrix keeps exactly the original numerator character. -/
-theorem operator_ket (width : Nat) {Reference : Register}
+lemma operator_ket (width : Nat) {Reference : Register}
     (stored : Store (context width)) (basis : (context width).register.Index)
     (reference : Reference.Index) :
-    (NumeratorResetConjugation.operator width Reference stored).applyVec
+    (NumeratorResetConjugation.operator environment width Reference stored).applyVec
       (NormalizedVector.ket (R := Register.prod (context width).register Reference)
         (basis, reference)).vec =
       (WalshHadamard.invSqrtCard width *

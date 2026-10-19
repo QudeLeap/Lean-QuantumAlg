@@ -105,15 +105,16 @@ def validateStep (spec : ModulusSpec modulusWidth)
   (checked.1, (powered.2, checked.2))
 
 /-- The actual interpreter composes source-word power with its real stored comparisons. -/
-theorem nativeValidation_execute (spec : ModulusSpec modulusWidth)
+lemma nativeValidation_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord candidateWidth))
     (one : CInputRef ctx (.unsignedWord modulusWidth))
     (power : CWriteRef ctx (.unsignedWord modulusWidth))
-    (positive valid : CWriteRef ctx .bit) (Reference : Register)
+    (positive valid : CWriteRef ctx .bit) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (validate (model := model) spec base candidate zero one power
-      positive valid).execute Reference state =
+      positive valid).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((validateStep (model := model) spec base candidate zero one power
           positive valid entry.1).1,
@@ -127,7 +128,7 @@ theorem nativeValidation_execute (spec : ModulusSpec modulusWidth)
   exact Subsingleton.elim _ _
 
 /-- Validation preserves every actual borrowed classical value before any branch is chosen. -/
-theorem nativeValidation_borrowed_values (spec : ModulusSpec modulusWidth)
+lemma nativeValidation_borrowed_values (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord candidateWidth))
     (one : CInputRef ctx (.unsignedWord modulusWidth))
@@ -141,7 +142,7 @@ theorem nativeValidation_borrowed_values (spec : ModulusSpec modulusWidth)
     Modular.NativePower.nativePower_into_borrowed_values]
 
 /-- The actual validation trace appends exactly the three real checks to native power. -/
-theorem nativeValidation_eventTrace (spec : ModulusSpec modulusWidth)
+lemma nativeValidation_eventTrace (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord candidateWidth))
     (one : CInputRef ctx (.unsignedWord modulusWidth))
@@ -162,7 +163,7 @@ theorem nativeValidation_eventTrace (spec : ModulusSpec modulusWidth)
   rfl
 
 /-- The real checks add three dependent unit-time instructions to the actual power path. -/
-theorem nativeValidation_unitDepth (spec : ModulusSpec modulusWidth)
+lemma nativeValidation_unitDepth (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord candidateWidth))
     (one : CInputRef ctx (.unsignedWord modulusWidth))

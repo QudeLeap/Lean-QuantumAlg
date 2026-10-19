@@ -34,7 +34,8 @@ def checkOp (refs : Refs ctx numeratorWidth divisorWidth) :=
   ClassicalOp.wordBinary .equal divisorWidth ctx
     (.product (remainderInput refs) refs.zero) refs.accepted
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual native division followed by the stored-remainder comparison. -/
 def into (refs : Refs ctx numeratorWidth divisorWidth) : Circuit model ctx ctx :=
@@ -49,9 +50,10 @@ def step (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
   (checked.1, (division.2, checked.2))
 
 /-- The actual two-instruction circuit executes its full store and path record. -/
-theorem into_execute (refs : Refs ctx numeratorWidth divisorWidth) (Reference : Register)
+lemma into_execute (refs : Refs ctx numeratorWidth divisorWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (into (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := step (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, BitWord.bitWord_instruction_execute,

@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.SelectionSchedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit SelectionKey
 
 /-- Exact finite encoding of both complete length words and the first phase bit. -/
@@ -43,24 +45,24 @@ def keyIndex (width : Nat) : Key width ≃ Fin (2 ^ (width.size + (width.size + 
 /-- Enumerate all possible actual length/phase keys through that proved complete encoding. -/
 def keys (width : Nat) : List (Key width) := List.ofFn (keyIndex width).symm
 
-theorem keys_nodup (width : Nat) : (keys width).Nodup :=
+lemma keys_nodup (width : Nat) : (keys width).Nodup :=
   List.nodup_ofFn_ofInjective (keyIndex width).symm.injective
 
-theorem key_mem (width : Nat) (selected : Key width) : selected ∈ keys width :=
+lemma key_mem (width : Nat) (selected : Key width) : selected ∈ keys width :=
   List.mem_ofFn.mpr ⟨keyIndex width selected, (keyIndex width).symm_apply_apply selected⟩
 
 /-- The schedule length counts the complete actual finite key enumeration. -/
-theorem keys_length (width : Nat) :
+lemma keys_length (width : Nat) :
     (keys width).length = 2 ^ (width.size + (width.size + 1)) := by
   rw [keys, List.length_ofFn]
 
-private theorem condition_false_of_ne (width : Nat) (selected : Key width) (state : Registers width)
+private lemma condition_false_of_ne (width : Nat) (selected : Key width) (state : Registers width)
     (different : selected ≠ readKey state) :
     SelectionPredicate.condition (pattern selected) state = false :=
   decide_eq_false (fun matched => different
     ((matches_key_iff width selected state).mp matched).1.symm)
 
-private theorem selector_inactive (width : Nat) (selected : Key width) (state : Registers width)
+private lemma selector_inactive (width : Nat) (selected : Key width) (state : Registers width)
     (clean : state.control = false)
     (inactive : SelectionPredicate.condition (pattern selected) state = false) :
     SelectionSwap.step width selected state = state := by
@@ -70,7 +72,7 @@ private theorem selector_inactive (width : Nat) (selected : Key width) (state : 
       Bool.false_eq_true, if_false]
   · rfl
 
-private theorem fold_inactive (width : Nat) (indices : List (Key width))
+private lemma fold_inactive (width : Nat) (indices : List (Key width))
     (state : Registers width) (clean : state.control = false)
     (inactive : ∀ selected, selected ∈ indices →
       SelectionPredicate.condition (pattern selected) state = false) :
@@ -83,7 +85,7 @@ private theorem fold_inactive (width : Nat) (indices : List (Key width))
         (inactive selected List.mem_cons_self)]
       exact ih (fun other present => inactive other (List.mem_cons_of_mem _ present))
 
-private theorem fold_once (width : Nat) (indices : List (Key width)) :
+private lemma fold_once (width : Nat) (indices : List (Key width)) :
     ∀ state : Registers width, state.control = false → indices.Nodup →
       indices.foldl (fun current selected => SelectionSwap.step width selected current) state =
         if readKey state ∈ indices then
@@ -120,7 +122,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
 def step (width : Nat) (state : Registers width) : Registers width :=
   (keys width).foldl (fun current selected => SelectionSwap.step width selected current) state
 
-private theorem stepList_flatMap (width : Nat) (indices : List (Key width))
+private lemma stepList_flatMap (width : Nat) (indices : List (Key width))
     (state : Registers width) :
     GateSpec.stepList (indices.flatMap (SelectionSwap.gates width)) state =
       indices.foldl (fun current selected => SelectionSwap.step width selected current) state := by
@@ -131,17 +133,17 @@ private theorem stepList_flatMap (width : Nat) (indices : List (Key width))
         List.foldl_cons, ih]
 
 /-- Complete native-list correctness holds for every frame, including nonzero incoming Ctrl. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state = step width state := stepList_flatMap width _ state
 
 /-- Internal Ctrl zero reduces the executed full enumeration to its unique actual matching key. -/
-theorem step_prepared (width : Nat) (state : Registers width) (clean : state.control = false) :
+lemma step_prepared (width : Nat) (state : Registers width) (clean : state.control = false) :
     step width state = SelectionSwap.step width (readKey state) state := by
   have actual := fold_once width (keys width) state clean (keys_nodup width)
   rw [if_pos (key_mem width (readKey state))] at actual
   exact actual
 
-private theorem own_condition (width : Nat) (state : Registers width) :
+private lemma own_condition (width : Nat) (state : Registers width) :
     SelectionPredicate.condition (pattern (readKey state)) state = phaseSelected state := by
   apply Bool.eq_iff_iff.mpr
   simp only [SelectionPredicate.condition, decide_eq_true_eq, matches_key_iff,
@@ -159,7 +161,7 @@ def sourceStep (width : Nat) (state : Registers width) : Registers width :=
   else state
 
 /-- Exact source-selected exchange by the actual complete native schedule on initialized frames. -/
-theorem step_eq_sourceStep (width : Nat) (state : Registers width) (clean : state.control = false) :
+lemma step_eq_sourceStep (width : Nat) (state : Registers width) (clean : state.control = false) :
     step width state = sourceStep width state := by
   rw [step_prepared width state clean]
   unfold SelectionSwap.step sourceStep
@@ -176,15 +178,15 @@ def program (width : Nat) :
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) (step width) :=
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment (step width) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width) (gates_step width)
+    (gates width) (gates_step width) environment
 
 /-- The actual native program implements the source-selected exchange with its relative phases. -/
-theorem program_apply_prepared (width : Nat) (state : Registers width)
+lemma program_apply_prepared (width : Nat) (state : Registers width)
     (clean : state.control = false) :
-    (program width).applyNormalized
+    (program width).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
         ((encoding width).encode state))) =
       NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm

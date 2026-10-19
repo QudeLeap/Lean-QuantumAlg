@@ -37,7 +37,7 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
               after.read other = before.read other
 
 /-- The four actual stages preserve every caller read outside their complete writable footprint. -/
-theorem firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (firstStep refs store).1 := by
   intro shape other dotProduct numerator normProduct denominator division product first second third
@@ -47,7 +47,7 @@ theorem firstInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     LatticeNormRefresh.refreshInto_callerFrame _ _ _ other denominator normProduct,
     LatticeDotRefresh.refreshInto_callerFrame _ _ _ _ other numerator dotProduct]
 
-private theorem point_of_frames {before after : Store ctx}
+private lemma point_of_frames {before after : Store ctx}
     (refs : LatticeState.PointRefs ctx width) (value : NumberTheory.IntegerPoint3)
     (represents : LatticeArithmetic.PointRawRepresents before refs value)
     (first : after.read (writeInput refs.first) = before.read (writeInput refs.first))
@@ -63,7 +63,7 @@ private theorem point_of_frames {before after : Store ctx}
   · change RawSignedRepresents (after.read (writeInput refs.third)) value.2.2
     rw [third]; exact thirdRep
 
-private theorem division_preserves_point {model : ExecutionModel} [BitWord.Selected model]
+private lemma division_preserves_point {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     (point : LatticeState.PointRefs ctx width) (value : NumberTheory.IntegerPoint3)
     (represents : LatticeArithmetic.PointRawRepresents store point value)
@@ -80,7 +80,7 @@ private theorem division_preserves_point {model : ExecutionModel} [BitWord.Selec
       (fun key member => (avoids key member).third)
 
 /-- The actual stored coefficient and updated residual satisfy the original nearest-plane target. -/
-theorem firstInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma firstInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx)
     (firstValue targetValue : NumberTheory.IntegerPoint3)

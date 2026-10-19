@@ -38,20 +38,21 @@ private def remainderChoiceStep {model : ExecutionModel} [BitWord.Selected model
   | .bit false => (store, ())
   | .bit true => scopedRemainderStep (model := model) first second zero active store
 
-private theorem remainderChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma remainderChoice_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
-    (value : CShape.Value .bit) (Reference : Register)
+    (value : CShape.Value .bit) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (if value.toBool then scopedRemainder (model := model) first second zero active else
-      Circuit.id (model := model) ctx).execute
+      Circuit.id (model := model) ctx).execute environment
       Reference state = state.mapClassical (fun entry =>
         let result := remainderChoiceStep (model := model) first second zero active value entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   cases value with
   | bit bit =>
       cases bit
-      · exact (Circuit.execute_id_mapClassical Reference state).trans
+      · exact (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans
           (ExecutionState.executionState_mapClassical_congr _ rfl)
       · exact (gcdScopedRemainder_execute (model := model)
           first second zero active Reference state).trans
@@ -69,16 +70,18 @@ def guardedRemainderStep {model : ExecutionModel} [BitWord.Selected model]
   (selected.1, ⟨value, selected.2⟩)
 
 /-- The actual branch maps every complete input block to its actual store and selected path. -/
-theorem gcdGuardedRemainder_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdGuardedRemainder_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (guardedRemainder (model := model) first second zero active).execute Reference state =
+    (guardedRemainder (model := model) first second zero active).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := guardedRemainderStep (model := model) first second zero active entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (cellRead active) _
+  refine (Circuit.execute_branch_mapClassical (environment := environment) (cellRead active) _
     (fun value before =>
       let result := remainderChoiceStep (model := model) first second zero active value before.1
       ((result.1, before.2), result.2))
@@ -90,7 +93,7 @@ theorem gcdGuardedRemainder_execute {model : ExecutionModel} [BitWord.Selected m
 
 
 /-- The state update follows the actual bit, including an untouched inactive arm. -/
-theorem gcdGuardedRemainder_step_store {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdGuardedRemainder_step_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (store : Store ctx) :
@@ -114,7 +117,7 @@ def storedEuclidReady (first : CWriteRef ctx (.unsignedWord width))
     (store.read (cellRead active)).toBool = decide ((store.read (cellRead first)).toNat ≠ 0)
 
 /-- The selected body preserves initialization and realizes the terminating Euclidean step. -/
-theorem gcdGuardedRemainder_store_transition {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdGuardedRemainder_store_transition {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (firstSecond : first.key ≠ second.key)

@@ -127,13 +127,13 @@ def encoding (width : Nat) : BinaryLabelEncoding (Registers width) :=
   (tupleEncoding width).relabel (registerTupleEquiv width)
 
 /-- The width counts exactly the present two words, four length fields, and five control wires. -/
-theorem encoding_width (width : Nat) :
+lemma encoding_width (width : Nat) :
     (encoding width).width = 2 * (width + 3) + 4 * width.size + 5 := by
   change ((width + 3) + (width + 3)) +
     (((width.size + width.size) + (width.size + width.size)) + ((1 + 1) + (1 + 1) + 1)) = _
   omega
 
-private theorem prod_surjective {Left Right : Type}
+private lemma prod_surjective {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (leftTotal : Function.Surjective left.encode) (rightTotal : Function.Surjective right.encode) :
     Function.Surjective (BinaryLabelEncoding.prod left right).encode := by
@@ -144,17 +144,17 @@ private theorem prod_surjective {Left Right : Type}
   obtain ⟨rightValue, rfl⟩ := rightTotal rightLabel
   exact ⟨(leftValue, rightValue), rfl⟩
 
-private theorem bool_surjective : Function.Surjective BinaryLabelEncoding.bool.encode := by
+private lemma bool_surjective : Function.Surjective BinaryLabelEncoding.bool.encode := by
   intro label
   obtain ⟨value, rfl⟩ := finTwoEquiv.symm.surjective label
   refine ⟨value, ?_⟩
   cases value <;> rfl
 
-private theorem word_surjective (width : Nat) : Function.Surjective (wordEncoding width).encode :=
+private lemma word_surjective (width : Nat) : Function.Surjective (wordEncoding width).encode :=
   BitVec.equivFin.toEquiv.surjective
 
 /-- Every binary tuple label decodes to every declared finite register field. -/
-theorem tupleEncoding_surjective (width : Nat) :
+lemma tupleEncoding_surjective (width : Nat) :
     Function.Surjective (tupleEncoding width).encode :=
   prod_surjective _ _
     (prod_surjective _ _ (word_surjective _) (word_surjective _))
@@ -168,7 +168,7 @@ theorem tupleEncoding_surjective (width : Nat) :
           (prod_surjective _ _ bool_surjective bool_surjective)) bool_surjective))
 
 /-- The native encoding covers every computational-basis label, not just admissible EEA states. -/
-theorem encoding_surjective (width : Nat) : Function.Surjective (encoding width).encode := by
+lemma encoding_surjective (width : Nat) : Function.Surjective (encoding width).encode := by
   intro label
   obtain ⟨tuple, encoded⟩ := tupleEncoding_surjective width label
   refine ⟨(registerTupleEquiv width).symm tuple, ?_⟩
@@ -191,19 +191,19 @@ def Registers.withFrame {width : Nat} (state : Registers width)
     shift := frame.shift
     flags := frame.flags }
 
-theorem registers_frame_withFrame {width : Nat} (state : Registers width)
+lemma registers_frame_withFrame {width : Nat} (state : Registers width)
     (frame : TerminalTail.Frame (width + 3) width.size) :
     (state.withFrame frame).frame = frame := by
   cases frame
   rfl
 
-theorem registers_withFrame_frame {width : Nat} (state : Registers width) :
+lemma registers_withFrame_frame {width : Nat} (state : Registers width) :
     state.withFrame state.frame = state := by
   cases state
   rfl
 
 /-- The frame projection never consumes the actual coefficient/quotient/divisor lengths or Ctrl. -/
-theorem registers_withFrame_retained {width : Nat} (state : Registers width)
+lemma registers_withFrame_retained {width : Nat} (state : Registers width)
     (frame : TerminalTail.Frame (width + 3) width.size) :
     (state.withFrame frame).coefficientLength = state.coefficientLength ∧
       (state.withFrame frame).quotientLength = state.quotientLength ∧

@@ -28,22 +28,23 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 omit [BitWord.Selected model] in
-private theorem preservesStore_forRange (count : Nat)
+private lemma preservesStore_forRange (count : Nat)
     (body : Fin count → Circuit model ctx ctx)
-    (predicate : Store ctx → Prop) (keeps : ∀ index, PreservesStore (body index) predicate) :
-    PreservesStore (Circuit.forRange count body) predicate := by
+    (predicate : Store ctx → Prop) (keeps : ∀ index, PreservesStore (environment := environment)
+      (body index) predicate) :
+    PreservesStore (environment := environment) (Circuit.forRange count body) predicate := by
   induction count with
   | zero =>
       unfold PreservesStore
       intro Reference H _ state holds result positive
-      change 0 < (((Circuit.id (model := model) ctx).execute Reference state).block
+      change 0 < (((Circuit.id (model := model) ctx).execute environment Reference state).block
         result).mass at positive
       rw [Circuit.execute_id_mapClassical] at positive
-      obtain ⟨original, equality, present⟩ := (mapped_positive _ _ _ _).mp positive
+      obtain ⟨original, equality, present⟩ := (first_mapped_positive _ _ _ _).mp positive
       rw [← equality]
       exact holds original present
   | succ count ih =>
@@ -52,30 +53,31 @@ private theorem preservesStore_forRange (count : Nat)
         (@keeps 0) (ih (fun index => body index.succ) (fun index => @keeps index.succ))
 
 omit [BitWord.Selected model] in
-private theorem preservesStore_then {post : RuntimeCtx model.kind}
+private lemma preservesStore_then {post : RuntimeCtx model.kind}
     (first : Circuit model ctx ctx) (second : Circuit model ctx post)
     (predicate : Store ctx → Prop) (outputPredicate : Store post → Prop)
-    (firstKeeps : PreservesStore first predicate)
+    (firstKeeps : PreservesStore (environment := environment) first predicate)
     (secondKeeps : ∀ {Reference : Register} {H : Type} [Fintype H]
       (state : State ctx Reference (model.HiddenState × H)),
       (∀ entry, 0 < (state.block entry).mass → predicate entry.1) →
-      ∀ result, 0 < ((second.execute Reference state).block result).mass →
+      ∀ result, 0 < ((second.execute environment Reference state).block result).mass →
         outputPredicate result.1)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (model.HiddenState × H))
     (holds : ∀ entry, 0 < (state.block entry).mass → predicate entry.1)
     (result : Store post × (model.HiddenState × (H × (first.seq second).Path)))
-    (positive : 0 < (((first.seq second).execute Reference state).block result).mass) :
+    (positive : 0 < (((first.seq second).execute environment Reference state).block result).mass) :
     outputPredicate result.1 := by
   rw [Circuit.execute_seq] at positive
-  obtain ⟨original, equality, present⟩ := (mapped_positive _ _ _ _).mp positive
-  have kept := secondKeeps (first.execute Reference state) (firstKeeps state holds) original present
+  obtain ⟨original, equality, present⟩ := (first_mapped_positive _ _ _ _).mp positive
+  have kept := secondKeeps (first.execute environment Reference state) (firstKeeps state holds)
+    original present
   rw [← equality]
   exact kept
 
 attribute [local irreducible] persistentCtx packBatchResultStep
 
-private theorem packing_store_first
+private lemma packing_store_first
     (wanted : (CShape.unsignedWord scalarWidth).Value)
     (before : Store (persistentCtx ctx width scalarWidth))
     (holds : firstSelected width scalarWidth wanted before) :
@@ -91,7 +93,7 @@ private theorem packing_store_first
           (show bitValue = true by simpa only [value, CShape.Value.toBool] using holds.1)
   rw [accepted, CShape.packOption_true]
 
-private theorem packing_supported_first
+private lemma packing_supported_first
     (wanted : (CShape.unsignedWord scalarWidth).Value)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H))
@@ -99,17 +101,19 @@ private theorem packing_supported_first
       firstSelected width scalarWidth wanted entry.1)
     (result : Store (batchResultCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (packBatchResult ctx width scalarWidth).Path)))
-    (positive : 0 < (((packBatchResult ctx width scalarWidth).execute Reference state).block
+    (positive : 0 < (((packBatchResult ctx width scalarWidth).execute environment Reference
+      state).block
       result).mass) :
     result.1.read (batchResultRead ctx width scalarWidth) = .optionSome wanted := by
   let observe := fun entry : Store (batchResultCtx ctx width scalarWidth) × H =>
     entry.1.read (batchResultRead ctx width scalarWidth)
-  have executed := packBatchResult_execute ctx width scalarWidth Reference state
+  have executed := packBatchResult_execute (environment := environment)
+    ctx width scalarWidth Reference state
   rw [executed] at positive
   have observedPositive : 0 < ((packBatchResultObserved ctx width scalarWidth observe
       Reference state).block (observe (result.1, result.2.2.1))).mass := by
     unfold packBatchResultObserved
-    exact (mapped_positive _ _ _ _).mpr ⟨result, rfl, positive⟩
+    exact (first_mapped_positive _ _ _ _).mpr ⟨result, rfl, positive⟩
   rw [packBatchResult_observe] at observedPositive
   have expectedConstant : packBatchResultExpected ctx width scalarWidth observe Reference state =
       state.mapClassical (fun _ => CShape.Value.optionSome wanted) := by
@@ -127,8 +131,8 @@ private theorem packing_supported_first
   simp only [opposite, if_false, Finset.sum_const_zero, lt_self_iff_false] at observedPositive
 
 /-- Every positive block keeps the same accepted first word through all actual sampling rounds. -/
-theorem sampledAttempts_preserves_first
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
+lemma sampledAttempts_preserves_first
+    (sampleCode : Circuit model ctx ctx false) (count : Nat)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
@@ -141,23 +145,23 @@ theorem sampledAttempts_preserves_first
         entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = wanted)
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState ×
-        (H × (sampledAttempts sampleCode supported count curve modulus sample base target).Path)))
-    (positive : 0 < (((sampledAttempts sampleCode supported count curve modulus sample base
-      target).execute Reference state).block result).mass) :
+        (H × (sampledAttempts sampleCode count curve modulus sample base target).Path)))
+    (positive : 0 < (((sampledAttempts sampleCode count curve modulus sample base
+      target).execute environment Reference state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         true ∧
       result.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) =
         wanted := by
   exact preservesStore_forRange count
-    (fun _ => sampledAttempt sampleCode supported curve modulus sample base target)
+    (fun _ => sampledAttempt sampleCode curve modulus sample base target)
     (firstSelected width scalarWidth wanted)
     (fun _ {Reference H} _ state =>
-      sampledAttempt_preserves_first sampleCode supported curve modulus sample base target
+      sampledAttempt_preserves_first sampleCode curve modulus sample base target
         state wanted) state holds result positive
 
 /-- Final real option packing returns the accepted first word after any further sampling count. -/
-theorem sampledAttempts_pack_first_supported
-    (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
+lemma sampledAttempts_pack_first_supported
+    (sampleCode : Circuit model ctx ctx false) (count : Nat)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
@@ -170,18 +174,19 @@ theorem sampledAttempts_pack_first_supported
         entry.1.read (.storage (persistentSelected ctx width scalarWidth).toCStorageRef) = wanted)
     (result : Store (batchResultCtx ctx width scalarWidth) ×
       (model.HiddenState ×
-        (H × ((sampledAttempts sampleCode supported count curve modulus sample base target).seq
+        (H × ((sampledAttempts sampleCode count curve modulus sample base target).seq
           (packBatchResult ctx width scalarWidth)).Path)))
-    (positive : 0 < ((((sampledAttempts sampleCode supported count curve modulus sample base
-      target).seq (packBatchResult ctx width scalarWidth)).execute Reference state).block
+    (positive : 0 < ((((sampledAttempts sampleCode count curve modulus sample base
+      target).seq (packBatchResult ctx width scalarWidth)).execute environment Reference
+        state).block
         result).mass) :
     result.1.read (batchResultRead ctx width scalarWidth) = .optionSome wanted := by
   exact preservesStore_then
-    (sampledAttempts sampleCode supported count curve modulus sample base target)
+    (sampledAttempts sampleCode count curve modulus sample base target)
     (packBatchResult ctx width scalarWidth) (firstSelected width scalarWidth wanted)
     (fun store => store.read (batchResultRead ctx width scalarWidth) = .optionSome wanted)
     (fun {Reference H} _ state =>
-      sampledAttempts_preserves_first sampleCode supported count curve modulus sample base target
+      sampledAttempts_preserves_first sampleCode count curve modulus sample base target
         state wanted)
     (packing_supported_first wanted) state holds result positive
 

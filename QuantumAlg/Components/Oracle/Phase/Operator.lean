@@ -41,7 +41,7 @@ public def phaseOracleOp {n : Nat} (marked : Fin (2 ^ n) -> Bool) :
       · have hji : j ≠ i := fun h => hij h.symm
         simp [op, Matrix.conjTranspose, Matrix.transpose, hij, hji])
 
-theorem phaseOracle_apply_ket {n : Nat}
+lemma phaseOracle_apply_ket {n : Nat}
     (marked : Fin (2 ^ n) -> Bool) (j : Fin (2 ^ n)) :
     ((phaseOracleOp marked).apply (NormalizedVector.ket (R := Qubits n) j) :
         HilbertVector (Qubits n)) =

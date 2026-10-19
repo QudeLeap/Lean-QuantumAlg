@@ -63,13 +63,13 @@ private def outerScope (ctx : RuntimeCtx model.kind) (N : Nat)
       (.option (.unsignedWord (phaseBits N + 1)))
       (baseContext ctx N).canonicalFreshKey_fresh tail)
 
-private theorem strip_context {α : Type} (head : α) (inside : List α) (value : α)
+private lemma strip_context {α : Type} (head : α) (inside : List α) (value : α)
     (present : value ∈ head :: inside ++ [head]) : value = head ∨ value ∈ inside := by
   rcases List.mem_append.mp present with before | after
   · exact List.mem_cons.mp before
   · exact Or.inl (List.mem_singleton.mp after)
 
-private theorem inner_visited (tail : Circuit model (context ctx N) (context ctx N))
+private lemma inner_visited (tail : Circuit model (context ctx N) (context ctx N))
     (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (innerScope ctx N tail).visitedContexts path) :
     visited ∈ [zeroContext ctx N, activeContext ctx N, positiveContext ctx N] ∨
@@ -86,7 +86,7 @@ private theorem inner_visited (tail : Circuit model (context ctx N) (context ctx
       (List.mem_cons.mpr (Or.inr (List.mem_singleton.mpr same)))))
   · exact Or.inr inside
 
-private theorem middle_visited (tail : Circuit model (zeroContext ctx N) (zeroContext ctx N))
+private lemma middle_visited (tail : Circuit model (zeroContext ctx N) (zeroContext ctx N))
     (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (middleScope ctx N tail).visitedContexts path) :
     visited ∈ [orderContext ctx N, expandedContext ctx N] ∨
@@ -100,7 +100,7 @@ private theorem middle_visited (tail : Circuit model (zeroContext ctx N) (zeroCo
   · exact Or.inl (List.mem_cons.mpr (Or.inr (List.mem_singleton.mpr same)))
   · exact Or.inr inside
 
-private theorem outer_visited (tail : Circuit model (orderContext ctx N) (orderContext ctx N))
+private lemma outer_visited (tail : Circuit model (orderContext ctx N) (orderContext ctx N))
     (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (outerScope ctx N tail).visitedContexts path) :
     visited ∈ [ctx, baseContext ctx N] ∨ visited ∈ tail.visitedContexts path := by
@@ -112,7 +112,7 @@ private theorem outer_visited (tail : Circuit model (orderContext ctx N) (orderC
   · exact Or.inl (List.mem_cons.mpr (Or.inr (List.mem_singleton.mpr same)))
   · exact Or.inr inside
 
-private theorem layered_visited (tail : Circuit model (context ctx N) (context ctx N))
+private lemma layered_visited (tail : Circuit model (context ctx N) (context ctx N))
     (path : tail.Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈
       (outerScope ctx N (middleScope ctx N (innerScope ctx N tail))).visitedContexts path) :
@@ -135,7 +135,7 @@ private theorem layered_visited (tail : Circuit model (context ctx N) (context c
 
 variable [BitWord.Selected model]
 
-private theorem code_visited (source : Input N)
+private lemma code_visited (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -153,7 +153,7 @@ section Capacity
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
+private lemma prefix_resident_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N,
       zeroContext ctx N, activeContext ctx N, positiveContext ctx N]) :
     visited.residentSpace ≤ ctx.residentSpace + spaceBound kind N := by
@@ -167,7 +167,7 @@ private theorem prefix_resident_capacity (visited : RuntimeCtx kind)
     all_goals omega
   exact capacities visited present
 
-private theorem full_resident_capacity :
+private lemma full_resident_capacity :
     (context ctx N).residentSpace + NativeFactorTail.spaceBound kind N ≤
       ctx.residentSpace + spaceBound kind N := by
   intro axis
@@ -179,7 +179,7 @@ private theorem full_resident_capacity :
 end Capacity
 
 /-- Every outer entry remains included while the complete resident recovery scratch is live. -/
-theorem code_resident_le (source : Input N)
+lemma code_resident_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -200,7 +200,7 @@ section Capacity
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
+private lemma prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     (present : visited ∈ [ctx, baseContext ctx N, orderContext ctx N, expandedContext ctx N,
       zeroContext ctx N, activeContext ctx N, positiveContext ctx N]) :
     visited.auxiliarySpace ≤ ctx.auxiliarySpace + spaceBound kind N := by
@@ -214,7 +214,7 @@ private theorem prefix_auxiliary_capacity (visited : RuntimeCtx kind)
     all_goals omega
   exact capacities visited present
 
-private theorem full_auxiliary_capacity :
+private lemma full_auxiliary_capacity :
     (context ctx N).auxiliarySpace + NativeFactorTail.spaceBound kind N ≤
       ctx.auxiliarySpace + spaceBound kind N := by
   intro axis
@@ -226,7 +226,7 @@ private theorem full_auxiliary_capacity :
 end Capacity
 
 /-- Every outer entry remains included while the complete auxiliary recovery scratch is live. -/
-theorem code_auxiliary_le (source : Input N)
+lemma code_auxiliary_le (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

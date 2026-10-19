@@ -24,7 +24,7 @@ noncomputable section
 
 /-- Marginalizing a faithful workspace encoding is the same as summing over
 all group units; padding basis states contribute zero. -/
-theorem pairBornProbability_eq_unit_sum
+lemma pairBornProbability_eq_unit_sum
     {N : Nat} [NeZero N] {params : ShortDLP.RegisterParameters}
     (encoding : ShortDLP.UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
@@ -69,7 +69,7 @@ theorem pairBornProbability_eq_unit_sum
 
 /-- Two faithful workspace encodings with the same exponent dimensions induce
 the same exponent-pair marginal, even when their workspace widths differ. -/
-theorem pairBornProbability_encoding_independent
+lemma pairBornProbability_encoding_independent
     {N : Nat} [NeZero N] (m ell : Nat) {leftBits rightBits : Nat}
     (leftEncoding : ShortDLP.UnitEncoding N leftBits)
     (rightEncoding : ShortDLP.UnitEncoding N rightBits)

@@ -159,7 +159,7 @@ structure FrameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     mutableKey refs target ∉ (externalSourceInput refs source).storageKeys
 
 /-- Different named mutable cells have different storage identities. -/
-theorem FrameSeparation.mutableKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma FrameSeparation.mutableKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {coordinateWidth modulusWidth : Nat}
     {refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth}
     (separation : FrameSeparation refs) {left right : MutableCell}
@@ -168,7 +168,7 @@ theorem FrameSeparation.mutableKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kin
   exact different (separation.mutableKeyInjective equal)
 
 /-- One named external source avoids one named mutable cell. -/
-theorem FrameSeparation.externalAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma FrameSeparation.externalAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {coordinateWidth modulusWidth : Nat}
     {refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth}
     (separation : FrameSeparation refs) (source : ExternalSourceCell)
@@ -177,7 +177,7 @@ theorem FrameSeparation.externalAvoids {kind : ProblemKind} {ctx : RuntimeCtx ki
   separation.externalAvoidsMutable source target
 
 /-- Every named external input avoids the whole write footprint of one stage. -/
-theorem FrameSeparation.externalAvoidsStage {kind : ProblemKind}
+lemma FrameSeparation.externalAvoidsStage {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
     {refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth}
     (separation : FrameSeparation refs) (source : ExternalSourceCell)
@@ -190,7 +190,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
 /-- A named live mutable read survives every stage that does not write that physical cell. -/
-theorem mutableWrite_avoids_stage
+lemma mutableWrite_avoids_stage
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) {shape : CShape} (source : CWriteRef ctx shape)
     (sourceCell : MutableCell) (stage : Stage) (sourceKey : source.key = mutableKey refs sourceCell)
@@ -205,7 +205,7 @@ theorem mutableWrite_avoids_stage
   exact notWritten (same ▸ targetWrite)
 
 /-- Actual distance execution retains reads outside the unified distance-stage footprint. -/
-theorem candidateDistancePrefixInto_callerFrame (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_callerFrame (offset : NumberTheory.IntegerPoint3)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : AvoidsStageWrites refs other .distance) :
@@ -220,7 +220,7 @@ theorem candidateDistancePrefixInto_callerFrame (offset : NumberTheory.IntegerPo
       avoids .squaredDistance (by trivial), avoids .distanceProduct (by trivial)⟩
 
 /-- Actual near-target execution retains reads outside its four original destinations. -/
-theorem scaleInto_callerFrame
+lemma scaleInto_callerFrame
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : AvoidsStageWrites refs other .near) :
@@ -229,7 +229,7 @@ theorem scaleInto_callerFrame
     (fun cell => avoids (.nearTarget cell) (by trivial))
 
 /-- Actual exponent execution retains reads outside its seven original destinations. -/
-theorem candidateExponentInto_callerFrame
+lemma candidateExponentInto_callerFrame
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : AvoidsStageWrites refs other .exponent) :
@@ -238,7 +238,7 @@ theorem candidateExponentInto_callerFrame
     (fun cell => avoids (.exponent cell) (by trivial))
 
 /-- Actual power execution retains caller reads outside its result and equality predicate. -/
-theorem candidatePowerInto_callerFrame
+lemma candidatePowerInto_callerFrame
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -249,7 +249,7 @@ theorem candidatePowerInto_callerFrame
     (avoids .power (by trivial)) (avoids .powerAccepted (by trivial))
 
 /-- Actual conjunctions and first-success selection retain all other caller reads. -/
-theorem candidateSelectorInto_callerFrame
+lemma candidateSelectorInto_callerFrame
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : AvoidsStageWrites refs other .selector) :
@@ -264,7 +264,7 @@ theorem candidateSelectorInto_callerFrame
   | selected => exact avoids (.selection .selected) (by trivial)
 
 /-- Every actual stage retains a caller read outside the complete slot footprint. -/
-theorem candidateSlotInto_callerFrame
+lemma candidateSlotInto_callerFrame
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
@@ -282,7 +282,7 @@ theorem candidateSlotInto_callerFrame
     candidateDistancePrefixInto_callerFrame offset refs store other avoids.distance]
 
 /-- Each original external source survives the complete actual slot execution. -/
-theorem candidateSlotInto_external_frame
+lemma candidateSlotInto_external_frame
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (offset : NumberTheory.IntegerPoint3)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)

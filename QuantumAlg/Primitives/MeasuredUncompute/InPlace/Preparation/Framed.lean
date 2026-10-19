@@ -21,6 +21,8 @@ namespace QuantumAlg.MeasuredUncompute.InPlacePreparation.Framed
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ContextUnion MAU.Inversion.SharedEEA
 
 variable (modulus : Nat) (frame : RuntimeCtx .quantum)
@@ -43,7 +45,7 @@ def circuit :
     (InPlacePreparation.loadProgram modulus)
 
 /-- Zero allocation and every fixed-bit X gate are counted in this framed circuit. -/
-theorem eventTrace (path : (circuit modulus frame separate).Path) :
+lemma eventTrace (path : (circuit modulus frame separate).Path) :
     (circuit modulus frame separate).eventTrace path =
       ZeroPreparation.eventTrace AlgorithmGate.model .empty
         (InputPreparation.auxiliaryLayout modulus.size) ++
@@ -57,7 +59,7 @@ theorem eventTrace (path : (circuit modulus frame separate).Path) :
 set_option maxHeartbeats 800000 in
 -- Instantiating the general frame theorem reduces the full fixed auxiliary layout.
 /-- The same complete joint state is prepared beside arbitrary resident systems. -/
-theorem execute {Reference : Register} {History : Type} [Fintype History]
+lemma execute {Reference : Register} {History : Type} [Fintype History]
     (state : State
       ((InversePreparation.before modulus.size).disjointUnion frame
         (preparation_original_disjoint InversePreparation.auxiliaryKey
@@ -66,7 +68,7 @@ theorem execute {Reference : Register} {History : Type} [Fintype History]
           (InversePreparation.auxiliary_disjoint modulus.size) separate))
       Reference (Unit × History)) :
     splitServiceState (InversePreparation.after modulus.size) frame separate
-      ((circuit modulus frame separate).execute Reference state) =
+      ((circuit modulus frame separate).execute environment Reference state) =
       (((Circuit.prepareZero (gates := AlgorithmGate.model) (oracles := .empty)
             (operations := .empty) (classicalOracles := .empty)
             (InversePreparation.before modulus.size) InversePreparation.auxiliaryKey
@@ -74,7 +76,7 @@ theorem execute {Reference : Register} {History : Type} [Fintype History]
             (InversePreparation.auxiliary_fresh modulus.size)
             (InversePreparation.auxiliary_disjoint modulus.size)).seq
           (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
-            (InPlacePreparation.loadProgram modulus))).execute
+            (InPlacePreparation.loadProgram modulus))).execute environment
         (Register.prod frame.register Reference)
         (splitServiceState (InversePreparation.before modulus.size) frame
           (preparation_original_disjoint InversePreparation.auxiliaryKey
@@ -91,7 +93,7 @@ theorem execute {Reference : Register} {History : Type} [Fintype History]
     (InputPreparation.auxiliaryLayout modulus.size)
     (InversePreparation.auxiliary_fresh modulus.size)
     (InversePreparation.auxiliary_disjoint modulus.size) separate
-    (InPlacePreparation.loadProgram modulus) state
+    (InPlacePreparation.loadProgram modulus) environment state
 
 end
 

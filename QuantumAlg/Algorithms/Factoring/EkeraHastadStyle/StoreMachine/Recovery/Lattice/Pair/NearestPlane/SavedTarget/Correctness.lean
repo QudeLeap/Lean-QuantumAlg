@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Copying the target preserves the original nearest-plane coefficients and residual. -/
-theorem savedTargetInto_nearest (refs : Refs ctx N) (separation : Separation refs)
+lemma savedTargetInto_nearest (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     let samples := sourceSamples refs store
     let after := savedTargetStore refs store
@@ -69,7 +69,7 @@ structure Outcome {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- The actual saved-target run returns the original mathematical objects and full caller frame. -/
-theorem pairToNearestPlaneSavedTargetInto_correct (refs : Refs ctx N) (separation : Separation refs)
+lemma pairToNearestPlaneSavedTargetInto_correct (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     Outcome refs store (savedTargetStore refs store) := by
   have nearest := savedTargetInto_nearest refs separation store initial

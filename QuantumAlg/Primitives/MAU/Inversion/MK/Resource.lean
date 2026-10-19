@@ -29,6 +29,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open MK.Correction
 open Nat.FixedWidth
@@ -71,14 +73,14 @@ def inversionStep (tail counterWidth p : Nat)
     (inversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- The complete actual inversion circuit realizes its full gate list. -/
-theorem inversionProgram_realizes (tail counterWidth p : Nat)
+lemma inversionProgram_realizes (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (hpOdd : Odd p) :
     UnitaryCircuit.Realizes (Correction.encoding tail counterWidth)
-      (inversionProgram tail counterWidth p comparisonIndex workIndex hpOdd)
+      (inversionProgram tail counterWidth p comparisonIndex workIndex hpOdd) environment
       (inversionStep tail counterWidth p comparisonIndex workIndex hpOdd) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (inversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- Complete scale-removing inversion gate schedule. -/
@@ -118,14 +120,14 @@ def unscaledInversionStep (tail counterWidth p : Nat)
     (unscaledInversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- The complete actual unscaled-inversion circuit realizes its full gate list. -/
-theorem unscaledInversionProgram_realizes (tail counterWidth p : Nat)
+lemma unscaledInversionProgram_realizes (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (hpOdd : Odd p) :
     UnitaryCircuit.Realizes (Correction.encoding tail counterWidth)
-      (unscaledInversionProgram tail counterWidth p comparisonIndex workIndex hpOdd)
+      (unscaledInversionProgram tail counterWidth p comparisonIndex workIndex hpOdd) environment
       (unscaledInversionStep tail counterWidth p comparisonIndex workIndex hpOdd) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (unscaledInversionGates tail counterWidth p comparisonIndex workIndex hpOdd)
 
 /-- Width-only primitive-leaf bound for the complete scale-removing inversion
@@ -157,7 +159,7 @@ def unscaledInversionToffoliBound (tail counterWidth : Nat) : Nat :=
 
 /-- The exact scale-removing inversion gate list obeys its named width-only
 primitive-leaf bound. -/
-theorem unscaledInversionGates_length_le
+lemma unscaledInversionGates_length_le
     (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -181,7 +183,7 @@ theorem unscaledInversionGates_length_le
 
 /-- The exact scale-removing inversion gate list obeys its named
 coordinate-specific CNOT bound. -/
-theorem unscaledInversionGates_cnotMultiplicity_sum_le
+lemma unscaledInversionGates_cnotMultiplicity_sum_le
     (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -210,7 +212,7 @@ theorem unscaledInversionGates_cnotMultiplicity_sum_le
 
 /-- The exact scale-removing inversion gate list obeys its named
 coordinate-specific Toffoli bound. -/
-theorem unscaledInversionGates_toffoliMultiplicity_sum_le
+lemma unscaledInversionGates_toffoliMultiplicity_sum_le
     (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -243,7 +245,7 @@ set_option maxHeartbeats 800000 in
 VBE work register while adding the source-facing signed Montgomery residue to
 the public target.  The program is static; the trace occurs only in this
 post-hoc arithmetic description of the physical endpoint. -/
-theorem inversionProgram_cleanEndpoint
+lemma inversionProgram_cleanEndpoint
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (comparisonIndex : Fin tail.succ)
@@ -420,7 +422,7 @@ theorem inversionProgram_cleanEndpoint
 /-- Unit-input specialization of the exact physical endpoint.  The circuit
 adds the positive fixed Montgomery scale times the unit inverse; the relation
 between the physical input word and the supplied unit is stated explicitly. -/
-theorem inversionProgram_scaledMontgomeryEndpoint
+lemma inversionProgram_scaledMontgomeryEndpoint
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (comparisonIndex : Fin tail.succ)
@@ -487,7 +489,7 @@ theorem inversionProgram_scaledMontgomeryEndpoint
 /-- Unit-input clean endpoint of the seven-stage static inversion ledger.
 It removes the Montgomery scale before target transfer and restores the
 correction workspace before reverse computation. -/
-theorem unscaledInversionProgram_cleanUnitEndpoint
+lemma unscaledInversionProgram_cleanUnitEndpoint
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (comparisonIndex : Fin tail.succ)
@@ -759,7 +761,7 @@ theorem unscaledInversionProgram_cleanUnitEndpoint
 the canonical, satisfiable unscale bridge to the raw unit inverse.  The second
 conjunct is a semantic bridge; it does not misstate the circuit as directly
 emitting an unscaled residue. -/
-theorem inversionProgram_montgomeryEndpoint
+lemma inversionProgram_montgomeryEndpoint
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (comparisonIndex : Fin tail.succ)
@@ -823,7 +825,7 @@ def inversionCircuit (tail counterWidth p : Nat)
 /-- Normalized clean unit-input endpoint of the same static circuit used for
 resource accounting.  Input data and source-trace premises occur only in the
 correctness theorem; they do not select the program or its gate list. -/
-theorem inversionCircuit_applyNormalized_clean_ket
+lemma inversionCircuit_applyNormalized_clean_ket
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (comparisonIndex : Fin tail.succ)
@@ -846,7 +848,7 @@ theorem inversionCircuit_applyNormalized_clean_ket
       (Trace.ofInput tail.succ p.val input.val).finish.u = 1)
     (target : ZMod p.val) :
     (inversionCircuit tail counterWidth p.val comparisonIndex workIndex
-        hpOdd).applyNormalized
+        hpOdd).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
           ((Correction.encoding tail counterWidth).encode
@@ -891,7 +893,7 @@ theorem inversionCircuit_applyNormalized_clean_ket
       hcapacity hfinal arithAt u hinput hfinish target
   change
     (inversionProgram tail counterWidth p.val comparisonIndex workIndex
-      hpOdd).applyNormalized
+      hpOdd).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
             ((Correction.encoding tail counterWidth).encode inputData))) =
@@ -903,7 +905,7 @@ theorem inversionCircuit_applyNormalized_clean_ket
 
 /-- Normalized clean endpoint with arithmetic and fixed-round termination
 evidence derived from the supplied odd modulus and unit input. -/
-theorem inversionCircuit_applyNormalized_clean_ket_of_unit
+lemma inversionCircuit_applyNormalized_clean_ket_of_unit
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (comparisonIndex : Fin tail.succ)
@@ -916,7 +918,7 @@ theorem inversionCircuit_applyNormalized_clean_ket_of_unit
     (hinput : (input.val : ZMod p.val) = (u : ZMod p.val))
     (target : ZMod p.val) :
     (inversionCircuit tail counterWidth p.val comparisonIndex workIndex
-        hpOdd).applyNormalized
+        hpOdd).applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical (Correction.encoding tail counterWidth).width).basisEquiv.symm
           ((Correction.encoding tail counterWidth).encode
@@ -1019,7 +1021,7 @@ def inversionEventGateCount (tail counterWidth p : Nat)
 
 /-- Linearizing the complete inversion circuit's strict event depth recovers
 its exact event pool. -/
-theorem inversionCircuit_resourcesFromEventDepth_eq_eventCost
+lemma inversionCircuit_resourcesFromEventDepth_eq_eventCost
     (tail counterWidth p : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1039,7 +1041,7 @@ namespace DecomposedStageWithWorkspaceWitness
 
 /-- Linearizing this exact circuit's strict event depth recovers its event
 pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n counterWidth : Nat}
+lemma resourcesFromEventDepth_eq_eventCost {n counterWidth : Nat}
     (w : DecomposedStageWithWorkspaceWitness n counterWidth) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
@@ -1050,7 +1052,7 @@ namespace DecomposedStageWithFullRoundWorkspaceWitness
 
 /-- Linearizing this exact circuit's strict event depth recovers its event
 pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n counterWidth : Nat}
+lemma resourcesFromEventDepth_eq_eventCost {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundWorkspaceWitness n counterWidth) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
@@ -1061,7 +1063,7 @@ namespace DecomposedStageWithFullRoundPathControlWorkspaceWitness
 
 /-- Linearizing this exact circuit's strict event depth recovers its event
 pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n counterWidth : Nat}
+lemma resourcesFromEventDepth_eq_eventCost {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundPathControlWorkspaceWitness
       n counterWidth) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=

@@ -24,6 +24,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuse
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 variable (base : RuntimeCtx .quantum) (N : Nat)
@@ -51,27 +54,30 @@ def run : AlgorithmRun RuntimeRound.model base (context base N) (NativeBatch.res
       (.product (finalParameter base N) (finalResults base N))))
 
 /-- Every surviving original and new entry appears in the actual output manifest. -/
-theorem nativeBatchReuse_output_listing :
+lemma nativeBatchReuse_output_listing :
     (run base N sameWires originalCells).output.listing = (context base N).keys := rfl
 
 /-- The complete actual continuation restores the same seed in every complete store block. -/
-theorem nativeBatchReuse_code_seedBlocks (input : Input N)
+lemma nativeBatchReuse_code_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (seeded : RuntimeRound.HasSeedBlocks
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (nativeBatchReuse_context_wires base N sameWires) N
-      ((code base N sameWires originalCells).execute Reference state) := by
-  have sampled := nativeBatchReuse_sampler_seedBlocks input sameWires state seeded
-  have repeated := RuntimeRepetition.shortDLP_runtimeRepetition_seedBlocks
+      ((code base N sameWires originalCells).execute environment Reference state) := by
+  have sampled := nativeBatchReuse_sampler_seedBlocks (environment := environment)
+    input sameWires state seeded
+  have repeated := RuntimeRepetition.shortDLP_runtimeRepetition_seedBlocks (environment :=
+    environment)
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (parameterUnit (N := N)) (parameterTarget (N := N)) 16
     (sampledContext base N) (nativeBatchReuse_sampled_wires base N sameWires)
     (parameter base N) (cells base N originalCells)
     ((ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N).execute
+      environment
       Reference state) sampled
-  exact BasisSeeded.seq
+  exact BasisSeeded.seq (environment := environment)
     (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (rounds base N sameWires originalCells)
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)

@@ -60,7 +60,7 @@ public def workspaceLayout [Fintype G] (P : KnownOrderProblem G) : QuantumLayout
     (fun _ _ _ => Subsingleton.elim _ _)
 
 /-- The group system has a fresh physical identity after all exponent qubits. -/
-public theorem exponent_workspace_disjoint [Fintype G] (P : KnownOrderProblem G) :
+public lemma exponent_workspace_disjoint [Fintype G] (P : KnownOrderProblem G) :
     List.Disjoint (exponentLayout P).identities (workspaceLayout P).identities := by
   apply List.disjoint_left.mpr
   intro identity exponentMember workspaceMember
@@ -78,7 +78,7 @@ public def layout [Fintype G] (P : KnownOrderProblem G) :
     (exponent_workspace_disjoint P)
 
 /-- The canonical query bank uses its logical position as its physical identity. -/
-public theorem layout_wire_identity [Fintype G] (P : KnownOrderProblem G)
+public lemma layout_wire_identity [Fintype G] (P : KnownOrderProblem G)
     (index : Fin (OrderPreparation.width P + OrderPreparation.width P + 1)) :
     ((layout P).wire index).identity = index.val := by
   refine Fin.addCases (m := OrderPreparation.width P + OrderPreparation.width P)
@@ -106,7 +106,7 @@ public def groupBasisEquiv [Fintype G] : Fin (workspaceDimension G) ≃ G :=
   (Equiv.swap 0 (Fintype.equivFin G 1)).trans (Fintype.equivFin G).symm
 
 /-- Physical basis zero denotes the group identity, so fixed zero preparation starts at `y = 1`. -/
-public theorem groupBasisEquiv_zero [Fintype G] : groupBasisEquiv (G := G) 0 = 1 := by
+public lemma groupBasisEquiv_zero [Fintype G] : groupBasisEquiv (G := G) 0 = 1 := by
   change (Fintype.equivFin G).symm
     (Equiv.swap 0 (Fintype.equivFin G 1) 0) = 1
   rw [Equiv.swap_apply_left]
@@ -119,7 +119,7 @@ public def workspaceBasisEquiv [Fintype G] (P : KnownOrderProblem G) :
     groupBasisEquiv
 
 /-- The physical zero of the group system denotes the group identity. -/
-@[simp] public theorem workspaceBasisEquiv_zero [Fintype G]
+@[simp] public lemma workspaceBasisEquiv_zero [Fintype G]
     (P : KnownOrderProblem G) :
     workspaceBasisEquiv P (workspaceLayout P).zeroLabel = 1 := by
   change groupBasisEquiv
@@ -137,7 +137,7 @@ public def workspaceBasisEquiv [Fintype G] (P : KnownOrderProblem G) :
     (Equiv.prodCongr (exponentBasisEquiv P) (workspaceBasisEquiv P))
 
 /-- Semantic coordinates of a physically joined exponent and group label. -/
-@[simp] public theorem basisEquiv_appendJoin [Fintype G]
+@[simp] public lemma basisEquiv_appendJoin [Fintype G]
     (P : KnownOrderProblem G) (exponent : (exponentLayout P).Basis)
     (workspace : (workspaceLayout P).Basis) :
     basisEquiv P
@@ -149,7 +149,7 @@ public def workspaceBasisEquiv [Fintype G] (P : KnownOrderProblem G) :
   rfl
 
 /-- The complete physical zero label is exactly `(a,b,y) = (0,0,1_G)`. -/
-public theorem basisEquiv_zero [Fintype G] (P : KnownOrderProblem G) :
+public lemma basisEquiv_zero [Fintype G] (P : KnownOrderProblem G) :
     basisEquiv P (layout P).zeroLabel = ((0, 0), 1) := by
   have splitZero :
       QuantumLayout.appendBasisEquiv (exponentLayout P) (workspaceLayout P)
@@ -228,7 +228,7 @@ public def operator [Fintype G]
   UnitaryOperator.ofPerm (physicalAction P).symm
 
 /-- The transported operator has exactly the advertised group-action basis semantics. -/
-public theorem operator_apply_basis [Fintype G]
+public lemma operator_apply_basis [Fintype G]
     (P : KnownOrderProblem G) (state : LogicalBasis P) :
     (operator P).apply (NormalizedVector.ket ((basisEquiv P).symm state)) =
       NormalizedVector.ket ((basisEquiv P).symm (logicalAction P state)) := by
@@ -236,15 +236,19 @@ public theorem operator_apply_basis [Fintype G]
   apply congrArg NormalizedVector.ket
   simp [physicalAction, actionEquiv]
 
-/-- Problem-selected oracle model granting exactly `U_x`. -/
+/-- Fixed query interface granting exactly `U_x` at the public source dimensions. -/
 @[expose, implicit_reducible]
 public def model [Fintype G] (P : KnownOrderProblem G) : OracleModel where
   Query := Unit
   Coordinate := Coordinate
   coordinateDecidableEq := inferInstance
   signature _ := (layout P).signature
-  operator _ := operator P
   coordinate _ := .ux
+
+/-- The public source instance supplies the operator only to the query interpreter. -/
+@[expose] public def interpretation [Fintype G] (P : KnownOrderProblem G) :
+    (model P).Interpretation where
+  operator _ := operator P
 
 /-- One actual occurrence of the sole declared query on its complete placement. -/
 @[expose]
@@ -255,24 +259,24 @@ public def circuit [Fintype G]
     (model P) () (layout P).signaturePlacement)
 
 /-- The sole query circuit carries exactly the declared permutation operator. -/
-@[simp] public theorem circuit_matrix [Fintype G]
+@[simp] public lemma circuit_matrix [Fintype G]
     (gates : GateModel) (P : KnownOrderProblem G) :
-    (circuit gates P).matrix = operator P := by
+    (circuit gates P).matrix (interpretation P) = operator P := by
   change (OracleModel.Application.onPlacement
-    (model P) () (layout P).signaturePlacement).operator = _
+    (model P) () (layout P).signaturePlacement).operator (interpretation P) = _
   rw [OracleModel.Application.queryApplication_onPlacement_operator]
   apply Subtype.ext
   rfl
 
 /-- The query contributes exactly one oracle event and no native gate event. -/
-public theorem circuit_eventCost [Fintype G]
+public lemma circuit_eventCost [Fintype G]
     (gates : GateModel) (P : KnownOrderProblem G) :
     (circuit gates P).eventCost =
       ResourcePool.singleton (model := .quantum gates (model P)) (.oracle .ux) := by
   rfl
 
 /-- One abstract query occupies one dependency step. -/
-public theorem circuit_unit_depth [Fintype G]
+public lemma circuit_unit_depth [Fintype G]
     (gates : GateModel) (P : KnownOrderProblem G) :
     (circuit gates P).evaluatedEventDepth (fun _ => 1) = 1 := by
   rfl

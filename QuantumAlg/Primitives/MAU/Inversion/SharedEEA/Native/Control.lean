@@ -31,16 +31,18 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeControl
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit PredicateLayout NativePredicate NumberTheory.SharedEEA
 
 /-- The actual retained-length condition; no precomputed quotient is supplied. -/
 def condition {width : Nat} (state : Registers width) : Bool :=
   decide (state.quotientLength = 0 ∧ state.divisorLength ≠ 0)
 
-private theorem condition_xorControl {width : Nat} (value : Bool) (state : Registers width) :
+private lemma condition_xorControl {width : Nat} (value : Bool) (state : Registers width) :
     condition (xorControl value state) = condition state := rfl
 
-private theorem xorControl_comp {width : Nat} (first second : Bool) (state : Registers width) :
+private lemma xorControl_comp {width : Nat} (first second : Bool) (state : Registers width) :
     xorControl second (xorControl first state) = xorControl (first ^^ second) state := by
   cases first <;> cases second <;> cases selected : state.control <;> simp [xorControl, selected]
 
@@ -49,7 +51,7 @@ def conditionGates (width : Nat) (enough : 2 ≤ width.size) : List (GateSpec (e
   singleGates width .quotient enough ++ pairGates width .quotient .divisor (by decide) enough
 
 /-- The full literal predicate computation xors exactly the retained-length condition. -/
-theorem conditionGates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
+lemma conditionGates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
     GateSpec.stepList (conditionGates width enough) state = xorControl (condition state) state := by
   rw [conditionGates, GateSpec.stepList_append, singleGates_step, pairGates_step]
   change xorControl (decide (state.quotientLength = 0 ∧ state.divisorLength = 0))
@@ -63,7 +65,7 @@ theorem conditionGates_step (width : Nat) (enough : 2 ≤ width.size) (state : R
   rw [predicate]
 
 /-- The actual inverse gate list has the same xor action, with arbitrary work restored again. -/
-theorem conditionGates_reverse_step (width : Nat) (enough : 2 ≤ width.size)
+lemma conditionGates_reverse_step (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) :
     GateSpec.stepList (conditionGates width enough).reverse state =
       xorControl (condition state) state := by
@@ -86,10 +88,10 @@ def step {width : Nat} (state : Registers width) : Registers width :=
       if state.control ^^ condition state
       then PhaseControl.update true true false state.flags else state.flags }
 
-private theorem condition_step {width : Nat} (state : Registers width) :
+private lemma condition_step {width : Nat} (state : Registers width) :
     condition (step state) = condition state := rfl
 
-private theorem update_computed {width : Nat} (state : Registers width) :
+private lemma update_computed {width : Nat} (state : Registers width) :
     PhaseGates.updateStep (xorControl (condition state) state) =
       xorControl (condition state) (step state) := rfl
 
@@ -99,20 +101,20 @@ def gates (width : Nat) (enough : 2 ≤ width.size) : List (GateSpec (encoding w
     (conditionGates width enough).reverse
 
 /-- Full-register correctness of the actual compute/use/inverse-cleanup sequence. -/
-theorem gates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
+lemma gates_step (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
     GateSpec.stepList (gates width enough) state = step state := by
   rw [gates, GateSpec.stepList_append, GateSpec.stepList_append,
     conditionGates_step, PhaseGates.updateGates_step, update_computed,
     conditionGates_reverse_step, condition_xorControl, condition_step, xorControl_twice]
 
 /-- Ctrl is restored even for inputs outside the algorithm's prepared-zero subspace. -/
-theorem gates_control (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
+lemma gates_control (width : Nat) (enough : 2 ≤ width.size) (state : Registers width) :
     (GateSpec.stepList (gates width enough) state).control = state.control := by
   rw [gates_step]
   rfl
 
 /-- Therefore the internal Ctrl-zero invariant survives this actual native sequence. -/
-theorem gates_control_clean (width : Nat) (enough : 2 ≤ width.size) (state : Registers width)
+lemma gates_control_clean (width : Nat) (enough : 2 ≤ width.size) (state : Registers width)
     (clean : state.control = false) :
     (GateSpec.stepList (gates width enough) state).control = false := by
   rw [gates_control, clean]
@@ -124,7 +126,7 @@ def sourceStep {width : Nat} (state : Registers width) : Registers width :=
       (decide (state.divisorLength ≠ 0)) false state.flags) }
 
 /-- On internally prepared Ctrl zero, the actual flags equal the registered source assignments. -/
-theorem step_eq_sourceStep {width : Nat} (state : Registers width) (clean : state.control = false) :
+lemma step_eq_sourceStep {width : Nat} (state : Registers width) (clean : state.control = false) :
     step state = sourceStep state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift, flags, control⟩
   change control = false at clean
@@ -140,16 +142,16 @@ def program (width : Nat) (enough : 2 ≤ width.size) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width enough)
 
 /-- Its exact all-label realization retains relative phases by the original circuit semantics. -/
-theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_realizes (width : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (layout := QubitLayout.canonical _)
-      (encoding width) (program width enough) step :=
+      (encoding width) (program width enough) environment step :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (gates_step width enough)
+    (gates_step width enough) environment
 
 /-- The actual program acts as the source phase update on each internally prepared basis label. -/
-theorem program_apply_clean (width : Nat) (enough : 2 ≤ width.size) (state : Registers width)
+lemma program_apply_clean (width : Nat) (enough : 2 ≤ width.size) (state : Registers width)
     (clean : state.control = false) :
-    (program width enough).applyNormalized
+    (program width enough).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
         ((encoding width).encode state))) =
       NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
@@ -160,23 +162,23 @@ theorem program_apply_clean (width : Nat) (enough : 2 ≤ width.size) (state : R
 def conditionCount (width : Nat) : Nat :=
   gateCount (width.size - 2) + gateCount (2 * width.size - 2)
 
-theorem conditionGates_length (width : Nat) (enough : 2 ≤ width.size) :
+lemma conditionGates_length (width : Nat) (enough : 2 ≤ width.size) :
     (conditionGates width enough).length = conditionCount width := by
   rw [conditionGates, List.length_append, singleGates_length, pairGates_length]
   rfl
 
 /-- Both complete predicate passes and all three Toffoli gates are counted. -/
-theorem gates_length (width : Nat) (enough : 2 ≤ width.size) :
+lemma gates_length (width : Nat) (enough : 2 ≤ width.size) :
     (gates width enough).length = 2 * conditionCount width + 3 := by
   have phaseCount : (PhaseGates.updateGates width).length = 3 := rfl
   simp only [gates, List.length_append, List.length_reverse, conditionGates_length, phaseCount]
   omega
 
-theorem program_eventCost_card (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventCost_card (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventCost.card = 2 * conditionCount width + 3 := by
   rw [program, GateSpec.programList_eventCost_card, gates_length]
 
-theorem program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) = 2 * conditionCount width + 3 := by
   rw [program, GateSpec.programList_evaluatedEventDepth_unit, gates_length]
 

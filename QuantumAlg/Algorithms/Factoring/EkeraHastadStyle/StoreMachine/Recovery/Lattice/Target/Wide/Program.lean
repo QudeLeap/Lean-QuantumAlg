@@ -27,7 +27,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual native resize followed by precisely the prescribed original preimage shifts. -/
@@ -40,23 +41,23 @@ def scaleKStep (refs : PreimageRefs ctx m ell width) (store : Store ctx) :
   Word.PowerOfTwo.Scale.step (model := model) m refs.k refs.scaled store
 
 /-- Actual preimage loading retains all incoming state blocks, histories and correlations. -/
-theorem scaleKInto_execute (refs : PreimageRefs ctx m ell width) (Reference : Register)
+lemma scaleKInto_execute (refs : PreimageRefs ctx m ell width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scaleKInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (scaleKInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := scaleKStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   Word.PowerOfTwo.Scale.into_execute m refs.k refs.scaled Reference state
 
 /-- Native scaling gives exactly the original integer preimage when its word fits. -/
-theorem scaleKInto_read (refs : PreimageRefs ctx m ell width) (store : Store ctx)
+lemma scaleKInto_read (refs : PreimageRefs ctx m ell width) (store : Store ctx)
     (sourceFits : ell + m + 1 ≤ width) :
     ((scaleKStep refs store).1.read (writeInput refs.scaled)).toNat =
       2 ^ m * (store.read refs.k).toNat :=
   (Word.PowerOfTwo.Scale.into_read m refs.k refs.scaled store (by omega)).trans (Nat.mul_comm _ _)
 
 /-- Actual native preimage loading retains every read outside the original supplied destination. -/
-theorem scaleKInto_callerFrame (refs : PreimageRefs ctx m ell width) (store : Store ctx)
+lemma scaleKInto_callerFrame (refs : PreimageRefs ctx m ell width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : refs.scaled.key ∉ other.storageKeys) :
     (scaleKStep refs store).1.read other = store.read other :=
   Word.PowerOfTwo.Scale.into_callerFrame m refs.k refs.scaled store other avoids
@@ -73,13 +74,14 @@ def preimagesStep (refs : Refs ctx m ell width) (store : Store ctx) :
   (second.1, (first.2, second.2))
 
 /-- Both actual preimages preserve every quantum-reference block and incoming history. -/
-theorem preimagesInto_execute (refs : Refs ctx m ell width) (Reference : Register)
+lemma preimagesInto_execute (refs : Refs ctx m ell width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (preimagesInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (preimagesInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := preimagesStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (scaleKInto refs.first) (scaleKInto refs.second)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (scaleKInto refs.first) (scaleKInto refs.second)
     (fun before =>
       let actual := scaleKStep refs.first before.1
       ((actual.1, before.2), actual.2))
@@ -103,13 +105,13 @@ def targetStep (refs : Refs ctx m ell width) (store : Store ctx) :
   (target.1, (prepared.2, target.2))
 
 /-- Actual wide-target loading retains the complete incoming execution state and correlations. -/
-theorem loadTargetInto_execute (refs : Refs ctx m ell width) (Reference : Register)
+lemma loadTargetInto_execute (refs : Refs ctx m ell width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loadTargetInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (loadTargetInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := targetStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (preimagesInto refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (preimagesInto refs)
     (LatticeTargetPoint.loadTargetPointInto refs.target)
     (fun before =>
       let actual := preimagesStep refs before.1

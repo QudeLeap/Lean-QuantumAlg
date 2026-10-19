@@ -26,7 +26,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width count : Nat}
 
 /-- The actual decoding and comparison prefix visits only its original live context. -/
-theorem proposalPrefix_visited (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalPrefix_visited (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (prefixBody (model := model)
       sample proposal shared scratch).Path) (visited : RuntimeCtx model.kind)
@@ -43,7 +43,7 @@ theorem proposalPrefix_visited (sample : CInputRef ctx (.bits (count * width)))
   · simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using comparison
 
 /-- Both actual latch paths reuse only the original proposal cells. -/
-theorem proposalSlot_visited (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalSlot_visited (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (slot (model := model) sample proposal shared scratch).Path)
     (visited : RuntimeCtx model.kind)
@@ -62,7 +62,7 @@ theorem proposalSlot_visited (sample : CInputRef ctx (.bits (count * width)))
       (selectorInputs scratch) shared.selector path.2 visited selected
 
 /-- Every finite actual proposal fold visits the same caller context. -/
-theorem proposalFold_visited (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalFold_visited (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) :
     ∀ (path : (foldSlots (model := model)
@@ -83,7 +83,7 @@ theorem proposalFold_visited (sample : CInputRef ctx (.bits (count * width)))
       · exact ih path.2 visited later
 
 /-- The complete source scan needs no additional resident storage. -/
-theorem proposalScan_resident_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalScan_resident_le (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (scan (model := model) sample shared scratch).Path) :
     (scan (model := model) sample shared scratch).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -93,7 +93,7 @@ theorem proposalScan_resident_le (sample : CInputRef ctx (.bits (count * width))
     (List.ofFn (fun proposal : Fin count => proposal)) path visited present) ▸ le_rfl
 
 /-- The auxiliary peak is bounded by the already present roles of those same cells. -/
-theorem proposalScan_auxiliary_le (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalScan_auxiliary_le (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (path : (scan (model := model) sample shared scratch).Path) :
     (scan (model := model) sample shared scratch).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by

@@ -32,12 +32,12 @@ open ClassicalRoutines
 
 noncomputable section
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
 
-private theorem storageRead_not_mem_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey} :
     key ∉ (CInputRef.storage source).storageKeys ↔ source.key ≠ key := by
   simp only [CInputRef.storageKeys, List.mem_singleton, ne_comm]
@@ -76,7 +76,7 @@ def prefixCells : List LatticePairStateWorkspaceLayout.Cell :=
     .secondFull, .secondScratch, .secondJ, .secondK,
     .basis11, .basis12, .basis13, .basis21, .basis32]
 
-private theorem writtenKeys_eq_prefixCells {kind : ProblemKind}
+private lemma writtenKeys_eq_prefixCells {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -89,7 +89,7 @@ private theorem writtenKeys_eq_prefixCells {kind : ProblemKind}
         (stateCellRef cells.core.state cell).toCStorageRef.key := by
   rfl
 
-private theorem targetKeyAvoidsPrefix {kind : ProblemKind}
+private lemma targetKeyAvoidsPrefix {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -138,7 +138,7 @@ private def targetThirdInput {kind : ProblemKind}
   let refs := wideRefs transport cells firstTerminal secondTerminal
   LatticeState.coordinateInput refs.target.target.point.third
 
-private theorem firstScratchAvoidsPrefix {kind : ProblemKind}
+private lemma firstScratchAvoidsPrefix {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -153,7 +153,7 @@ private theorem firstScratchAvoidsPrefix {kind : ProblemKind}
   exact targetKeyAvoidsPrefix certificates firstTerminal secondTerminal
     .firstScratch key member
 
-private theorem secondScratchAvoidsPrefix {kind : ProblemKind}
+private lemma secondScratchAvoidsPrefix {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -168,7 +168,7 @@ private theorem secondScratchAvoidsPrefix {kind : ProblemKind}
   exact targetKeyAvoidsPrefix certificates firstTerminal secondTerminal
     .secondScratch key member
 
-private theorem targetThirdAvoidsPrefix {kind : ProblemKind}
+private lemma targetThirdAvoidsPrefix {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -203,7 +203,7 @@ def basisStateCell : LatticeMetricMachine.BasisCell →
   | .thirdSecond => .basis32
   | .thirdThird => .basis33
 
-private theorem basisInput_avoids_iff {kind : ProblemKind}
+private lemma basisInput_avoids_iff {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (source : LatticeMetricMachine.BasisCell) (key : StorageKey) :
@@ -212,7 +212,7 @@ private theorem basisInput_avoids_iff {kind : ProblemKind}
       (stateCellRef state (basisStateCell source)).toCStorageRef.key ≠ key := by
   cases source <;> exact storageRead_not_mem_iff
 
-private theorem basisInputAvoidsTargetScratch {kind : ProblemKind}
+private lemma basisInputAvoidsTargetScratch {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -226,7 +226,7 @@ private theorem basisInputAvoidsTargetScratch {kind : ProblemKind}
     (LatticePairStateWorkspaceLayout.cellIndex N (basisStateCell source))
     (LatticeWideTargetWorkspaceLayout.cellIndex N target)
 
-private theorem basisInputAvoidsState {kind : ProblemKind}
+private lemma basisInputAvoidsState {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct) (source : LatticeMetricMachine.BasisCell)
@@ -251,7 +251,7 @@ private def driverBasisInput {kind : ProblemKind}
   LatticeMetricMachine.basisCellInput
     refs.initialization.driver.machine.basis source
 
-private theorem driverBasisAvoidsTarget {kind : ProblemKind}
+private lemma driverBasisAvoidsTarget {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -278,7 +278,7 @@ private theorem driverBasisAvoidsTarget {kind : ProblemKind}
 
 /-- All physical allocation certificates combine into the exact separation
 contract consumed by the wide pair-to-LLL routine. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -355,7 +355,7 @@ def targetInput {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
       LatticeState.coordinateInput
         (LatticePairStateWorkspaceViews.targetRefs state).third
 
-private theorem targetInput_avoids_iff {kind : ProblemKind}
+private lemma targetInput_avoids_iff {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (source : TargetCoordinate) (key : StorageKey) :
@@ -363,14 +363,14 @@ private theorem targetInput_avoids_iff {kind : ProblemKind}
       (stateCellRef state (targetStateCell source)).toCStorageRef.key ≠ key := by
   cases source <;> exact storageRead_not_mem_iff
 
-private theorem targetState_ne_firstCell (source : TargetCoordinate)
+private lemma targetState_ne_firstCell (source : TargetCoordinate)
     (target : LatticeFirstPairMachine.TransitionCell) :
     (Sum.inl (targetStateCell source) :
       LatticeFixedFuelScratchWorkspaceSeparation.DriverCell) ≠
         LatticeFixedFuelScratchWorkspaceSeparation.firstTransitionCell target := by
   cases source <;> cases target <;> decide
 
-private theorem secondTransitionInverse_apply
+private lemma secondTransitionInverse_apply
     (cell : LatticeSecondPairMachine.TransitionCell) :
     LatticeFixedFuelScratchWorkspaceSeparation.secondTransitionCellInverse
         (LatticeFixedFuelScratchWorkspaceSeparation.secondTransitionCell cell) =
@@ -379,7 +379,7 @@ private theorem secondTransitionInverse_apply
   case division32 cell => cases cell <;> rfl
   case division31 cell => cases cell <;> rfl
 
-private theorem secondFullInverse_apply
+private lemma secondFullInverse_apply
     (cell : LatticeSecondPairFullMachine.Cell) :
     LatticeFixedFuelScratchWorkspaceSeparation.secondFullCellInverse
         (LatticeFixedFuelScratchWorkspaceSeparation.secondFullCell cell) =
@@ -407,7 +407,7 @@ private theorem secondFullInverse_apply
   | lovaszPasses => rfl
   | swapScratch => rfl
 
-private theorem targetState_ne_secondCell (source : TargetCoordinate)
+private lemma targetState_ne_secondCell (source : TargetCoordinate)
     (target : LatticeSecondPairFullMachine.Cell) :
     (Sum.inl (targetStateCell source) :
       LatticeFixedFuelScratchWorkspaceSeparation.DriverCell) ≠
@@ -420,7 +420,7 @@ private theorem targetState_ne_secondCell (source : TargetCoordinate)
     change (none : Option LatticeSecondPairFullMachine.Cell) = some target at mapped <;>
     cases mapped
 
-private theorem targetInputAvoidsDriverKey {kind : ProblemKind}
+private lemma targetInputAvoidsDriverKey {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -444,7 +444,7 @@ private theorem targetInputAvoidsDriverKey {kind : ProblemKind}
       ⟨certificates.core.stateDistinct, certificates.lllDistinct,
         certificates.coreLll.state⟩ equal)
 
-private theorem targetDriverCallerSeparated {kind : ProblemKind}
+private lemma targetDriverCallerSeparated {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -474,7 +474,7 @@ private theorem targetDriverCallerSeparated {kind : ProblemKind}
   · exact targetInputAvoidsDriverKey certificates source (.inl .done)
       (by cases source <;> decide)
 
-private theorem targetInputSeparated {kind : ProblemKind}
+private lemma targetInputSeparated {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -489,7 +489,7 @@ private theorem targetInputSeparated {kind : ProblemKind}
 
 /-- The physical state and LLL scratch packages preserve all three target
 coordinates through Gram refresh, latch reset, and fixed-fuel reduction. -/
-theorem targetPreservation {kind : ProblemKind}
+lemma targetPreservation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -514,7 +514,7 @@ theorem targetPreservation {kind : ProblemKind}
 
 /-- Avoiding every physical state, target, and LLL scratch cell is sufficient
 for the complete wide-LLL caller-frame contract. -/
-theorem callerSeparated_of_physical {kind : ProblemKind}
+lemma callerSeparated_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)

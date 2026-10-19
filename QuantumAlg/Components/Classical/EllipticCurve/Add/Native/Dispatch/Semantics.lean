@@ -24,7 +24,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
+variable {model : ExecutionModel} {environment : model.Environment} {ctx : RuntimeCtx
+  model.kind} {width : Nat}
 
 private def classifierBranchBodyRecord (whenTrue whenFalse : Circuit model ctx ctx)
     (trueRecord : Store ctx × model.HiddenState →
@@ -51,7 +52,7 @@ private def classifierBranchRecord (input : CInputRef ctx .bit)
   let result := classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord value entry
   (result.1, ⟨value, result.2⟩)
 
-private theorem classifierBranchBodyRecord_store (whenTrue whenFalse : Circuit model ctx ctx)
+private lemma classifierBranchBodyRecord_store (whenTrue whenFalse : Circuit model ctx ctx)
     (trueRecord : Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × whenTrue.Path)
     (falseRecord : Store ctx × model.HiddenState →
@@ -62,7 +63,7 @@ private theorem classifierBranchBodyRecord_store (whenTrue whenFalse : Circuit m
   cases value with
   | bit flag => cases flag <;> rfl
 
-private theorem classifierBranchRecord_store (input : CInputRef ctx .bit)
+private lemma classifierBranchRecord_store (input : CInputRef ctx .bit)
     (whenTrue whenFalse : Circuit model ctx ctx)
     (trueRecord : Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × whenTrue.Path)
@@ -75,7 +76,7 @@ private theorem classifierBranchRecord_store (input : CInputRef ctx .bit)
   exact classifierBranchBodyRecord_store whenTrue whenFalse trueRecord falseRecord
     (entry.1.read input) entry
 
-private theorem classifierBranchRecord_execute (input : CInputRef ctx .bit)
+private lemma classifierBranchRecord_execute (input : CInputRef ctx .bit)
     (whenTrue whenFalse : Circuit model ctx ctx)
     (trueRecord : Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × whenTrue.Path)
@@ -83,22 +84,23 @@ private theorem classifierBranchRecord_execute (input : CInputRef ctx .bit)
       (Store ctx × model.HiddenState) × whenFalse.Path)
     (trueEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      whenTrue.execute Reference state = state.mapClassical (fun entry =>
+      whenTrue.execute environment Reference state = state.mapClassical (fun entry =>
         let result := trueRecord (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (falseEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      whenFalse.execute Reference state = state.mapClassical (fun entry =>
+      whenFalse.execute environment Reference state = state.mapClassical (fun entry =>
         let result := falseRecord (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (classifierBranch (model := model) input whenTrue whenFalse).execute Reference state =
+    (classifierBranch (model := model) input whenTrue whenFalse).execute environment Reference
+      state =
       state.mapClassical (fun entry =>
         let result := classifierBranchRecord input whenTrue whenFalse
           trueRecord falseRecord (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  apply Circuit.execute_branch_mapClassical input
+  apply Circuit.execute_branch_mapClassical (environment := environment) input
     (fun value => if value.toBool then whenTrue else whenFalse)
     (classifierBranchBodyRecord whenTrue whenFalse trueRecord falseRecord)
   intro value reference history _ initial
@@ -125,18 +127,18 @@ def dispatchRecord (classifier : Classifier ctx width) (arms : Case → Circuit 
           (records .vertical)) (records .generic)))
 
 /-- Actual full-state arm equations give the complete actual branch-tree execution. -/
-theorem dispatch_execute (classifier : Classifier ctx width)
+lemma dispatch_execute (classifier : Classifier ctx width)
     (arms : Case → Circuit model ctx ctx)
     (records : ∀ selected, Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × (arms selected).Path)
     (equations : ∀ selected (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (arms selected).execute Reference state = state.mapClassical (fun entry =>
+      (arms selected).execute environment Reference state = state.mapClassical (fun entry =>
         let result := records selected (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (dispatch (model := model) classifier arms).execute Reference state =
+    (dispatch (model := model) classifier arms).execute environment Reference state =
       state.mapClassical (fun entry =>
       let result := dispatchRecord classifier arms records (entry.1, entry.2.1)
       (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
@@ -156,7 +158,7 @@ theorem dispatch_execute (classifier : Classifier ctx width)
         · exact equations .vertical
       · exact equations .generic
 
-private theorem completeSelector_store (selectedStore : Case → Store ctx)
+private lemma completeSelector_store (selectedStore : Case → Store ctx)
     (leftInfinity rightInfinity xEqual yEqual yZero : Bool) :
     (if leftInfinity then selectedStore .leftInfinity
       else if rightInfinity then selectedStore .rightInfinity
@@ -174,7 +176,7 @@ private theorem completeSelector_store (selectedStore : Case → Store ctx)
     cases yZero <;> rfl
 
 /-- The final store is exactly the chosen actual arm's result on the incoming store. -/
-theorem dispatchRecord_store (classifier : Classifier ctx width)
+lemma dispatchRecord_store (classifier : Classifier ctx width)
     (arms : Case → Circuit model ctx ctx)
     (records : ∀ selected, Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × (arms selected).Path)
@@ -185,7 +187,7 @@ theorem dispatchRecord_store (classifier : Classifier ctx width)
   exact completeSelector_store (fun selected => (records selected entry).1.1) _ _ _ _ _
 
 /-- Actual classification supplies the original complete case without a caller branch promise. -/
-theorem dispatchRecord_ready_store (classifier : Classifier ctx width)
+lemma dispatchRecord_ready_store (classifier : Classifier ctx width)
     (arms : Case → Circuit model ctx ctx)
     (records : ∀ selected, Store ctx × model.HiddenState →
       (Store ctx × model.HiddenState) × (arms selected).Path)

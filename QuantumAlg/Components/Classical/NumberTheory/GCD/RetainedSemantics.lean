@@ -42,11 +42,12 @@ def retainedStep (input : CInputRef ctx (operandShape width))
   (final.1, ((), final.2))
 
 /-- Every complete block undergoes the actual store and path update of the retained circuit. -/
-theorem gcdRetained_execute (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_execute (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (retainedCircuit (model := model) input key fresh).execute Reference state =
+    (retainedCircuit (model := model) input key fresh).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := retainedStep (model := model) input key fresh entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -57,7 +58,8 @@ theorem gcdRetained_execute (input : CInputRef ctx (operandShape width))
     let result := lexicalStep (model := model) (input.underRetained key (.unsignedWord width) fresh)
       (CWriteRef.retainedHead ctx key (.unsignedWord width) fresh) before.1
     ((result.1, before.2), result.2)
-  refine (Circuit.execute_retain_seq_mapClassical ctx key (.unsignedWord width) fresh body record
+  refine (Circuit.execute_retain_seq_mapClassical
+    (environment := environment) ctx key (.unsignedWord width) fresh body record
     (fun reference history _ state => by
       exact (gcdLexical_execute (model := model)
         (input.underRetained key (.unsignedWord width) fresh)
@@ -67,7 +69,7 @@ theorem gcdRetained_execute (input : CInputRef ctx (operandShape width))
 
 
 /-- Actual fresh allocation supplies the zero used internally, and the result is total GCD. -/
-theorem gcdRetained_read_result (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_read_result (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (store : Store ctx) :
     ((retainedStep (model := model) input key fresh store).1).read (retainedRead ctx width key
       fresh) =

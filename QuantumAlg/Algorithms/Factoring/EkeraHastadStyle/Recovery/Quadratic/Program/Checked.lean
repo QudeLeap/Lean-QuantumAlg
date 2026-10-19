@@ -27,7 +27,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {width resultWidth : Nat}
 
 /-- The actual checked pair runs before the actual converted persistent selection. -/
@@ -43,12 +44,13 @@ def checkedBodyStep (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWi
   (narrowed.1, (checked.2, narrowed.2))
 
 /-- The exact checked body preserves every full incoming quantum-reference block. -/
-theorem nativeQuadratic_checkedBody_execute
+lemma nativeQuadratic_checkedBody_execute
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (LocalLayout.context ctx width) Reference (model.HiddenState × History)) :
-    (checkedBody modulus original).execute Reference state = state.mapClassical (fun entry =>
+    (checkedBody modulus original).execute environment
+      Reference state = state.mapClassical (fun entry =>
       ((checkedBodyStep modulus original entry.1).1,
         (entry.2.1, (entry.2.2, (checkedBodyStep modulus original entry.1).2)))) := by
   simp only [checkedBody, Circuit.execute_seq, Pair.nativeQuadratic_pair_execute,

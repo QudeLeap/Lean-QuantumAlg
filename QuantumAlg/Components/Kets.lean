@@ -38,7 +38,7 @@ noncomputable section
 /-- `|1>`, the second one-qubit basis ket. -/
 @[expose] public def ket1 : NormalizedVector (Qubits 1) := ket 1
 
-@[simp] public theorem ket0_apply (index : Fin 2) :
+@[simp] public lemma ket0_apply (index : Fin 2) :
     (ket0 : HilbertVector (Qubits 1)) index =
       if index = 0 then 1 else 0 := by
   exact ket_apply (R := Qubits 1) 0 index
@@ -47,17 +47,17 @@ noncomputable section
 @[expose] public def invSqrt2 : ℂ := (Real.sqrt 2 : ℂ)⁻¹
 
 @[simp]
-public theorem invSqrt2_mul_self : invSqrt2 * invSqrt2 = (2 : ℂ)⁻¹ := by
+public lemma invSqrt2_mul_self : invSqrt2 * invSqrt2 = (2 : ℂ)⁻¹ := by
   rw [invSqrt2, ← mul_inv, ← Complex.ofReal_mul,
     Real.mul_self_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
   norm_num
 
 @[simp]
-theorem invSqrt2_sq : invSqrt2 ^ 2 = (2 : ℂ)⁻¹ := by
+lemma invSqrt2_sq : invSqrt2 ^ 2 = (2 : ℂ)⁻¹ := by
   rw [sq, invSqrt2_mul_self]
 
 @[simp]
-theorem invSqrt2_mul_mul_invSqrt2 (z : ℂ) :
+lemma invSqrt2_mul_mul_invSqrt2 (z : ℂ) :
     invSqrt2 * (z * invSqrt2) = (2 : ℂ)⁻¹ * z := by
   calc
     invSqrt2 * (z * invSqrt2) = z * (invSqrt2 * invSqrt2) := by ring
@@ -65,23 +65,23 @@ theorem invSqrt2_mul_mul_invSqrt2 (z : ℂ) :
     _ = (2 : ℂ)⁻¹ * z := by ring
 
 @[simp]
-public theorem star_invSqrt2 : star invSqrt2 = invSqrt2 := by
+public lemma star_invSqrt2 : star invSqrt2 = invSqrt2 := by
   rw [invSqrt2, star_inv₀, Complex.star_def, Complex.conj_ofReal]
 
 @[simp]
-theorem norm_invSqrt2 : ‖invSqrt2‖ = (Real.sqrt 2)⁻¹ := by
+lemma norm_invSqrt2 : ‖invSqrt2‖ = (Real.sqrt 2)⁻¹ := by
   rw [invSqrt2, norm_inv, Complex.norm_real,
     Real.norm_of_nonneg (Real.sqrt_nonneg 2)]
 
-theorem invSqrt2_ne_zero : invSqrt2 ≠ 0 :=
+lemma invSqrt2_ne_zero : invSqrt2 ≠ 0 :=
   inv_ne_zero <| Complex.ofReal_ne_zero.mpr <|
     Real.sqrt_ne_zero'.mpr (by norm_num)
 
-theorem norm_sq_invSqrt2 : ‖invSqrt2‖ ^ 2 = 2⁻¹ := by
+lemma norm_sq_invSqrt2 : ‖invSqrt2‖ ^ 2 = 2⁻¹ := by
   rw [norm_invSqrt2, inv_pow, Real.sq_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
 
 /-- Norm over `Fin (2 ^ 1)` as a two-term sum. -/
-theorem norm_eq_two_terms (ψ : HilbertVector (Qubits 1)) :
+lemma norm_eq_two_terms (ψ : HilbertVector (Qubits 1)) :
     ‖ψ‖ = √(‖ψ 0‖ ^ 2 + ‖ψ 1‖ ^ 2) := by
   rw [EuclideanSpace.norm_eq]
   congr 1
@@ -127,38 +127,38 @@ public def ketMinus : NormalizedVector (Qubits 1) :=
       rw [h0, h1, norm_neg, ← two_mul, norm_sq_invSqrt2]
       norm_num)
 
-theorem ketPlus_coe :
+lemma ketPlus_coe :
     (ketPlus : HilbertVector (Qubits 1)) =
       invSqrt2 •
         ((ket0 : HilbertVector (Qubits 1)) + (ket1 : HilbertVector (Qubits 1))) :=
   rfl
 
-theorem ketMinus_coe :
+lemma ketMinus_coe :
     (ketMinus : HilbertVector (Qubits 1)) =
       invSqrt2 •
         ((ket0 : HilbertVector (Qubits 1)) - (ket1 : HilbertVector (Qubits 1))) :=
   rfl
 
 @[simp]
-public theorem ketPlus_apply (i : Fin (2 ^ 1)) : ketPlus i = invSqrt2 := by
+public lemma ketPlus_apply (i : Fin (2 ^ 1)) : ketPlus i = invSqrt2 := by
   fin_cases i <;>
     simp [ketPlus, ket0, ket1, PiLp.smul_apply, PiLp.add_apply, smul_eq_mul]
 
 @[simp]
-theorem ketMinus_apply (i : Fin (2 ^ 1)) :
+lemma ketMinus_apply (i : Fin (2 ^ 1)) :
     ketMinus i = if i = 0 then invSqrt2 else -invSqrt2 := by
   fin_cases i <;>
     simp [ketMinus, ket0, ket1, PiLp.smul_apply, PiLp.sub_apply, smul_eq_mul]
 
-theorem norm_ketPlus : ‖ketPlus‖ = 1 := by
+lemma norm_ketPlus : ‖ketPlus‖ = 1 := by
   exact ketPlus.norm_eq_one
 
-theorem norm_ketMinus : ‖ketMinus‖ = 1 := by
+lemma norm_ketMinus : ‖ketMinus‖ = 1 := by
   exact ketMinus.norm_eq_one
 
 /-- Workhorse for test circuits: the leading-`0` weight of
 `|0> ⊗ alpha + |1> ⊗ beta` is `‖alpha‖^2`. -/
-theorem leadingQubitWeight_ket0_tensor_add_ket1_tensor {n : ℕ}
+lemma leadingQubitWeight_ket0_tensor_add_ket1_tensor {n : ℕ}
     (α β : HilbertVector (Qubits n)) :
     HilbertVector.leadingQubitWeight
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) α
@@ -173,7 +173,7 @@ theorem leadingQubitWeight_ket0_tensor_add_ket1_tensor {n : ℕ}
     add_zero]
 
 /-- The leading-`1` weight of `|0> ⊗ alpha + |1> ⊗ beta` is `‖beta‖^2`. -/
-theorem leadingQubitWeight_one_ket0_tensor_add_ket1_tensor {n : ℕ}
+lemma leadingQubitWeight_one_ket0_tensor_add_ket1_tensor {n : ℕ}
     (α β : HilbertVector (Qubits n)) :
     HilbertVector.leadingQubitWeight
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) α

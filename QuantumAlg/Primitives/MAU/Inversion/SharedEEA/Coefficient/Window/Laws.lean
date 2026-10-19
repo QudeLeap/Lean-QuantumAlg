@@ -48,7 +48,7 @@ def signedTarget {width : Nat} (window : Window width) (state : Registers width)
     BitVec (window.length + 1) :=
   BitVec.cons state.flags.sign (targetWord window state)
 
-private theorem sourceWord_grouping {width : Nat} (window : Window width)
+private lemma sourceWord_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     sourceWord window state =
       BitVec.ofFin (CoefficientWindowOrientation.grouping window state).1.1.1 := by
@@ -56,7 +56,7 @@ private theorem sourceWord_grouping {width : Nat} (window : Window width)
   apply BitVec.eq_of_toNat_eq
   rfl
 
-private theorem targetWord_grouping {width : Nat} (window : Window width)
+private lemma targetWord_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     targetWord window state =
       BitVec.ofFin (CoefficientWindowOrientation.grouping window state).1.1.2 := by
@@ -64,7 +64,7 @@ private theorem targetWord_grouping {width : Nat} (window : Window width)
   apply BitVec.eq_of_toNat_eq
   rfl
 
-private theorem signedTarget_grouping {width : Nat} (window : Window width)
+private lemma signedTarget_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     signedTarget window state =
       Addition.TTK.outputWord (CoefficientWindowOrientation.grouping window state).1 := by
@@ -72,7 +72,7 @@ private theorem signedTarget_grouping {width : Nat} (window : Window width)
   rw [targetWord_grouping, CoefficientWindowOrientation.grouping_sign]
 
 /-- The actual original Work1 source word is unchanged by every coefficient arithmetic mode. -/
-theorem step_sourceWord {width : Nat} (window : Window width) (operation : Operation)
+lemma step_sourceWord {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     sourceWord window (CoefficientWindowProgram.step window operation state) =
       sourceWord window state := by
@@ -81,7 +81,7 @@ theorem step_sourceWord {width : Nat} (window : Window width) (operation : Opera
     (focusStep_source operation (CoefficientWindowOrientation.grouping window state).1)
 
 /-- All original outside bits, including the wrapped fractional suffix, retain their joint value. -/
-theorem step_complement {width : Nat} (window : Window width) (operation : Operation)
+lemma step_complement {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (CoefficientWindowOrientation.grouping window
       (CoefficientWindowProgram.step window operation state)).2 =
@@ -89,7 +89,7 @@ theorem step_complement {width : Nat} (window : Window width) (operation : Opera
   rw [CoefficientWindowProgram.step_grouping]
 
 /-- The same actual native signed addition acts on the full coefficient word and original Sign. -/
-theorem step_signed_add {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_signed_add {width : Nat} (window : Window width) (state : Registers width) :
     signedTarget window (CoefficientWindowProgram.step window .addSigned state) =
       signedTarget window state + (sourceWord window state).setWidth (window.length + 1) := by
   rw [signedTarget_grouping, CoefficientWindowProgram.step_grouping, signedTarget_grouping,
@@ -97,7 +97,7 @@ theorem step_signed_add {width : Nat} (window : Window width) (state : Registers
   exact Addition.TTK.ttkOverflowOutput_word (CoefficientWindowOrientation.grouping window state).1
 
 /-- Reversing that same TTK list gives complete signed subtraction at the coefficient wires. -/
-theorem step_signed_subtract {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_signed_subtract {width : Nat} (window : Window width) (state : Registers width) :
     signedTarget window (CoefficientWindowProgram.step window .subtractSigned state) =
       signedTarget window state - (sourceWord window state).setWidth (window.length + 1) := by
   rw [signedTarget_grouping, CoefficientWindowProgram.step_grouping, signedTarget_grouping,
@@ -106,7 +106,7 @@ theorem step_signed_subtract {width : Nat} (window : Window width) (state : Regi
     (CoefficientWindowOrientation.grouping window state).1
 
 /-- Actual low addition updates precisely the current integer part modulo its physical width. -/
-theorem step_low_add {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_low_add {width : Nat} (window : Window width) (state : Registers width) :
     targetWord window (CoefficientWindowProgram.step window .addLow state) =
       targetWord window state + sourceWord window state := by
   rw [targetWord_grouping, CoefficientWindowProgram.step_grouping, targetWord_grouping,
@@ -114,7 +114,7 @@ theorem step_low_add {width : Nat} (window : Window width) (state : Registers wi
   exact ArithmeticWindowLaws.focus_low_add (CoefficientWindowOrientation.grouping window state).1
 
 /-- Actual low subtraction retains the original Sign and all wrapped fractional bits. -/
-theorem step_low_subtract {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_low_subtract {width : Nat} (window : Window width) (state : Registers width) :
     targetWord window (CoefficientWindowProgram.step window .subtractLow state) =
       targetWord window state - sourceWord window state := by
   rw [targetWord_grouping, CoefficientWindowProgram.step_grouping, targetWord_grouping,

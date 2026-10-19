@@ -58,18 +58,18 @@ public def dotParity (x y : Fin (2 ^ n)) : Bool :=
 public def walshSign (x y : Fin (2 ^ n)) : ℂ := if dotParity x y then -1 else 1
 
 @[simp]
-theorem walshSign_zero_left (x : Fin (2 ^ n)) :
+lemma walshSign_zero_left (x : Fin (2 ^ n)) :
     walshSign (0 : Fin (2 ^ n)) x = 1 := by
   unfold walshSign dotParity bit
   simp
 
 @[simp]
-theorem walshSign_zero_right (x : Fin (2 ^ n)) :
+lemma walshSign_zero_right (x : Fin (2 ^ n)) :
     walshSign x (0 : Fin (2 ^ n)) = 1 := by
   unfold walshSign dotParity bit
   simp
 
-theorem dotParity_comm (x y : Fin (2 ^ n)) : dotParity x y = dotParity y x := by
+lemma dotParity_comm (x y : Fin (2 ^ n)) : dotParity x y = dotParity y x := by
   have hset : (Finset.univ.filter fun k : Fin n => bit x k && bit y k)
       = Finset.univ.filter fun k : Fin n => bit y k && bit x k := by
     apply Finset.filter_congr
@@ -79,25 +79,25 @@ theorem dotParity_comm (x y : Fin (2 ^ n)) : dotParity x y = dotParity y x := by
   rw [hset]
 
 @[simp]
-theorem bit_prodEquiv_zero (left : Fin (2 ^ n)) (right : Fin (2 ^ 1)) :
+lemma bit_prodEquiv_zero (left : Fin (2 ^ n)) (right : Fin (2 ^ 1)) :
     bit (prodEquiv (m := n) (n := 1) (left, right)) 0 = bit right 0 := by
   exact prodEquiv_testBit_right left right 0
 
 @[simp]
-theorem bit_prodEquiv_succ (left : Fin (2 ^ n)) (right : Fin (2 ^ 1))
+lemma bit_prodEquiv_succ (left : Fin (2 ^ n)) (right : Fin (2 ^ 1))
     (k : Fin n) :
     bit (prodEquiv (m := n) (n := 1) (left, right)) k.succ = bit left k := by
   simpa [bit, Nat.add_comm] using prodEquiv_testBit_left left right k
 
 @[simp]
-private theorem decide_even_eq_not_decide_odd (value : Nat) :
+private lemma decide_even_eq_not_decide_odd (value : Nat) :
     decide (Even value) = !decide (Odd value) := by
   rw [← decide_not, decide_eq_decide, Nat.not_odd_iff_even]
 
 /-- Appending one low qubit adds its Boolean product to the Walsh inner-product
 parity. This pins the analytical bit convention to the structural tensor
 convention used by `UnitaryCircuit.tensorQubits`. -/
-theorem dotParity_prodEquiv (leftX leftY : Fin (2 ^ n))
+lemma dotParity_prodEquiv (leftX leftY : Fin (2 ^ n))
     (rightX rightY : Fin (2 ^ 1)) :
     dotParity (prodEquiv (m := n) (n := 1) (leftX, rightX))
         (prodEquiv (m := n) (n := 1) (leftY, rightY)) =
@@ -110,7 +110,7 @@ theorem dotParity_prodEquiv (leftX leftY : Fin (2 ^ n))
     simp [Nat.odd_add_one]
 
 @[simp]
-theorem dotParity_one (x y : Fin (2 ^ 1)) :
+lemma dotParity_one (x y : Fin (2 ^ 1)) :
     dotParity x y = Bool.and (bit x 0) (bit y 0) := by
   unfold dotParity
   rw [Fin.card_filter_univ_succ]
@@ -118,7 +118,7 @@ theorem dotParity_one (x y : Fin (2 ^ 1)) :
 
 /-- The Walsh character of a big-endian product label factors into the
 characters of its high and low components. -/
-theorem walshSign_prodEquiv (leftX leftY : Fin (2 ^ n))
+lemma walshSign_prodEquiv (leftX leftY : Fin (2 ^ n))
     (rightX rightY : Fin (2 ^ 1)) :
     walshSign (prodEquiv (m := n) (n := 1) (leftX, rightX))
         (prodEquiv (m := n) (n := 1) (leftY, rightY)) =
@@ -129,24 +129,24 @@ theorem walshSign_prodEquiv (leftX leftY : Fin (2 ^ n))
     cases hright : Bool.and (bit rightX 0) (bit rightY 0) <;>
     simp
 
-theorem walshSign_comm (x y : Fin (2 ^ n)) : walshSign x y = walshSign y x := by
+lemma walshSign_comm (x y : Fin (2 ^ n)) : walshSign x y = walshSign y x := by
   unfold walshSign
   rw [dotParity_comm]
 
 @[simp]
-public theorem walshSign_mul_self (x y : Fin (2 ^ n)) :
+public lemma walshSign_mul_self (x y : Fin (2 ^ n)) :
     walshSign x y * walshSign x y = 1 := by
   unfold walshSign
   by_cases h : dotParity x y <;> simp [h]
 
 @[simp]
-theorem star_walshSign (x y : Fin (2 ^ n)) :
+lemma star_walshSign (x y : Fin (2 ^ n)) :
     star (walshSign x y) = walshSign x y := by
   unfold walshSign
   by_cases h : dotParity x y <;> simp [h]
 
 @[simp]
-theorem norm_walshSign (x y : Fin (2 ^ n)) : ‖walshSign x y‖ = 1 := by
+lemma norm_walshSign (x y : Fin (2 ^ n)) : ‖walshSign x y‖ = 1 := by
   unfold walshSign
   by_cases h : dotParity x y <;> simp [h]
 
@@ -157,7 +157,7 @@ def flipBit (x : Fin (2 ^ n)) (k : Fin n) : Fin (2 ^ n) :=
   ⟨x.val ^^^ 2 ^ k.val,
     Nat.xor_lt_two_pow x.isLt (Nat.pow_lt_pow_right one_lt_two k.isLt)⟩
 
-theorem bit_flipBit (x : Fin (2 ^ n)) (k k' : Fin n) :
+lemma bit_flipBit (x : Fin (2 ^ n)) (k k' : Fin n) :
     bit (flipBit x k) k' = (bit x k' ^^ decide (k = k')) := by
   change (x.val ^^^ 2 ^ k.val).testBit k'.val = (bit x k' ^^ decide (k = k'))
   rw [Nat.testBit_xor, Nat.testBit_two_pow]
@@ -165,20 +165,20 @@ theorem bit_flipBit (x : Fin (2 ^ n)) (k k' : Fin n) :
   rw [decide_eq_decide]
   exact Fin.val_inj
 
-theorem flipBit_flipBit (x : Fin (2 ^ n)) (k : Fin n) :
+lemma flipBit_flipBit (x : Fin (2 ^ n)) (k : Fin n) :
     flipBit (flipBit x k) k = x := by
   unfold flipBit
   ext
   simp
 
-theorem flipBit_ne (x : Fin (2 ^ n)) (k : Fin n) : flipBit x k ≠ x := by
+lemma flipBit_ne (x : Fin (2 ^ n)) (k : Fin n) : flipBit x k ≠ x := by
   intro h
   have hb := congrArg (fun y : Fin (2 ^ n) => bit y k) h
   simp [bit_flipBit] at hb
 
 /-- Flipping bit `k` of `x` toggles the parity `x · z` exactly when bit `k`
 of `z` is set. -/
-theorem dotParity_flipBit (x z : Fin (2 ^ n)) (k : Fin n) :
+lemma dotParity_flipBit (x z : Fin (2 ^ n)) (k : Fin n) :
     dotParity (flipBit x k) z = (dotParity x z ^^ bit z k) := by
   unfold dotParity
   cases hz : bit z k
@@ -217,7 +217,7 @@ theorem dotParity_flipBit (x z : Fin (2 ^ n)) (k : Fin n) :
         decide_eq_decide, Nat.odd_add_one]
 
 /-- Two distinct labels differ at some bit. -/
-theorem exists_bit_ne {y s : Fin (2 ^ n)} (h : y ≠ s) :
+lemma exists_bit_ne {y s : Fin (2 ^ n)} (h : y ≠ s) :
     ∃ k : Fin n, bit y k ≠ bit s k := by
   by_contra hall
   push Not at hall
@@ -229,13 +229,13 @@ theorem exists_bit_ne {y s : Fin (2 ^ n)} (h : y ≠ s) :
     have hs : s.val < 2 ^ i := lt_of_lt_of_le s.isLt (Nat.pow_le_pow_right (by norm_num) hi)
     rw [Nat.testBit_lt_two_pow hy, Nat.testBit_lt_two_pow hs]
 
-private theorem if_xor_true (a : Bool) :
+private lemma if_xor_true (a : Bool) :
     (if (a ^^ true) = true then (-1 : ℂ) else 1) = -(if a = true then -1 else 1) := by
   cases a <;> simp
 
 /-- Flipping a bit on which `y` and `s` disagree negates the product of their
 Walsh signs. -/
-theorem walshSign_mul_walshSign_flipBit {y s : Fin (2 ^ n)} {k : Fin n}
+lemma walshSign_mul_walshSign_flipBit {y s : Fin (2 ^ n)} {k : Fin n}
     (hk : bit y k ≠ bit s k) (x : Fin (2 ^ n)) :
     walshSign y (flipBit x k) * walshSign s (flipBit x k)
       = -(walshSign y x * walshSign s x) := by
@@ -252,7 +252,7 @@ theorem walshSign_mul_walshSign_flipBit {y s : Fin (2 ^ n)} {k : Fin n}
 
 /-- Walsh-character orthogonality: for `y ≠ s` the signed sum over all basis
 labels cancels in pairs under the bit-flip involution. -/
-theorem sum_walshSign_mul_walshSign {y s : Fin (2 ^ n)} (h : y ≠ s) :
+lemma sum_walshSign_mul_walshSign {y s : Fin (2 ^ n)} (h : y ≠ s) :
     ∑ x, walshSign y x * walshSign s x = 0 := by
   obtain ⟨k, hk⟩ := exists_bit_ne h
   refine Finset.sum_involution (fun x _ => flipBit x k)
@@ -261,7 +261,7 @@ theorem sum_walshSign_mul_walshSign {y s : Fin (2 ^ n)} (h : y ≠ s) :
   rw [walshSign_mul_walshSign_flipBit hk x]
   ring
 
-theorem sum_walshSign_mul_walshSign_eq (y s : Fin (2 ^ n)) :
+lemma sum_walshSign_mul_walshSign_eq (y s : Fin (2 ^ n)) :
     ∑ x, walshSign y x * walshSign s x =
       if y = s then ((2 ^ n : ℕ) : ℂ) else 0 := by
   by_cases hys : y = s
@@ -272,7 +272,7 @@ theorem sum_walshSign_mul_walshSign_eq (y s : Fin (2 ^ n)) :
   · rw [if_neg hys, sum_walshSign_mul_walshSign hys]
 
 @[simp]
-theorem invSqrtCard_mul_self (n : ℕ) :
+lemma invSqrtCard_mul_self (n : ℕ) :
     invSqrtCard n * invSqrtCard n = (((2 ^ n : ℕ) : ℂ)⁻¹) := by
   rw [invSqrtCard, ← mul_inv, ← Complex.ofReal_mul,
     Real.mul_self_sqrt (by positivity : (0 : ℝ) ≤ ((2 ^ n : ℕ) : ℝ))]
@@ -280,7 +280,7 @@ theorem invSqrtCard_mul_self (n : ℕ) :
 
 /-- The Walsh normalization factors multiplicatively when one low qubit is
 appended to the register. -/
-theorem invSqrtCard_succ (n : ℕ) :
+lemma invSqrtCard_succ (n : ℕ) :
     invSqrtCard (n + 1) = invSqrtCard n * invSqrt2 := by
   rw [invSqrtCard, invSqrtCard, invSqrt2]
   rw [pow_succ, Nat.cast_mul, Real.sqrt_mul (by positivity)]
@@ -289,7 +289,7 @@ theorem invSqrtCard_succ (n : ℕ) :
 
 /-- A Boolean phase has unit norm. -/
 @[simp]
-theorem norm_phaseSign (f : Oracle n) (x : Fin (2 ^ n)) :
+lemma norm_phaseSign (f : Oracle n) (x : Fin (2 ^ n)) :
     ‖phaseSign f x‖ = 1 := by
   unfold phaseSign
   by_cases h : f x <;> simp [h]
@@ -326,7 +326,7 @@ public def hadamardLayerOperator (n : ℕ) : UnitaryOperator (Qubits n) :=
               · rw [if_neg hys, Matrix.one_apply_ne hys, mul_zero])
 
 @[simp]
-theorem hadamardLayerOperator_apply (n : ℕ) (y x : Fin (2 ^ n)) :
+lemma hadamardLayerOperator_apply (n : ℕ) (y x : Fin (2 ^ n)) :
     hadamardLayerOperator n y x = invSqrtCard n * walshSign y x := rfl
 
 

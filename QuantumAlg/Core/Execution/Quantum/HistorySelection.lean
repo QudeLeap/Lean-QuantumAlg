@@ -26,7 +26,7 @@ noncomputable section
 variable {C D O : Type} [Fintype C] [DecidableEq D] {R : Register}
 
 /-- Unitary conjugation commutes with selecting an unchanged original classical label. -/
-theorem selectClassical_applyUnitary (state : ExecutionState C R)
+lemma selectClassical_applyUnitary (state : ExecutionState C R)
     (operator : C → UnitaryOperator R) (read : C → D) (selected : D) :
     (state.applyUnitary operator).selectClassical read selected =
       (state.selectClassical read selected).applyUnitary operator := by
@@ -40,7 +40,7 @@ theorem selectClassical_applyUnitary (state : ExecutionState C R)
       Matrix.mul_zero, Matrix.zero_mul]
 
 /-- Recording the actual Z outcome preserves selection by the complete original label. -/
-theorem selectClassical_measureZ [Fintype O] [DecidableEq O]
+lemma selectClassical_measureZ [Fintype O] [DecidableEq O]
     (state : ExecutionState C R) (readout : R.Index → O)
     (read : C → D) (selected : D) :
     (state.measureZ readout).selectClassical (fun record => read record.1) selected =

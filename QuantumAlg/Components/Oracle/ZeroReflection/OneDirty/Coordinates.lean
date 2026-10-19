@@ -46,20 +46,20 @@ def workBit (controls : Nat) : EncodedBit (encoding controls) :=
     BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit
 
 /-- Every lifted source position has precisely its original physical index. -/
-theorem sourceBit_wire_val (controls : Nat) (index : Fin (controls + 1)) :
+lemma sourceBit_wire_val (controls : Nat) (index : Fin (controls + 1)) :
     (sourceBit controls index).wire.val = index.val := rfl
 
 /-- The work wire is the single position immediately after the source. -/
-theorem workBit_wire_val (controls : Nat) :
+lemma workBit_wire_val (controls : Nat) :
     (workBit controls).wire.val = controls + 1 := rfl
 
 /-- Reading a lifted source position reads that exact original source bit. -/
-theorem sourceBit_get (controls : Nat) (index : Fin (controls + 1)) (state : Data controls) :
+lemma sourceBit_get (controls : Nat) (index : Fin (controls + 1)) (state : Data controls) :
     (sourceBit controls index).get state =
       (BinaryLabelEncoding.finIdentityBit (controls + 1) index).get state.1 := rfl
 
 /-- The work readout is the actual arbitrary Boolean supplied in the input. -/
-theorem workBit_get (controls : Nat) (state : Data controls) :
+lemma workBit_get (controls : Nat) (state : Data controls) :
     (workBit controls).get state = state.2 := rfl
 
 /-- The first source bit is the phase target; the remaining source bits are controls. -/
@@ -89,7 +89,7 @@ def layout (controls : Nat) : OneDirtyLayout (encoding := encoding controls) con
     omega
 
 /-- The layout's reflected-zero condition is exactly the original source label being zero. -/
-theorem reflectedZero_iff (controls : Nat) (state : Data controls) :
+lemma reflectedZero_iff (controls : Nat) (state : Data controls) :
     (layout controls).reflectedZero state ↔ state.1 = 0 := by
   rw [← BinaryLabelEncoding.finIdentity_all_zero_iff (controls + 1) state.1]
   change ((∀ index : Fin controls,

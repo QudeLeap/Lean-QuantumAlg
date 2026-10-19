@@ -30,7 +30,7 @@ def additionalSpace (kind : ProblemKind) : SpacePool kind := SpacePool.ofShape .
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual entry, two instructions and release visit precisely these four contexts. -/
-theorem nativeSub_into_visited (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_visited (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     (into (model := model) left right output).visitedContexts path = [ctx, context ctx, context
@@ -40,7 +40,7 @@ theorem nativeSub_into_visited (left right : CInputRef ctx (.unsignedWord width)
   | bit flag => cases flag <;> rfl
 
 /-- The resident peak includes the actual decision bit and every pre-existing live system. -/
-theorem nativeSub_into_resident_le (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_resident_le (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     (into (model := model) left right output).peakResidentSpace path ≤ ctx.residentSpace +
@@ -55,7 +55,7 @@ theorem nativeSub_into_resident_le (left right : CInputRef ctx (.unsignedWord wi
     cases model <;> cases axis <;> simp [context, additionalSpace, SpacePool.ofShape] <;> omega
 
 /-- The one temporary bit is also charged as actual auxiliary storage for its full live scope. -/
-theorem nativeSub_into_auxiliary_le (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_auxiliary_le (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) left right
       output).Path) :
     (into (model := model) left right output).peakAuxiliarySpace path ≤

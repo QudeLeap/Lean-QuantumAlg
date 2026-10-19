@@ -19,9 +19,11 @@ construction and its matrix statement allow an empty signal register.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.ControlWork
 noncomputable section
 
-private theorem first_rotation_diagonal (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((Gate.singleQubitAt (layout k n) oracles (rotZStdOp angle)
-      (0 : Fin (1 + (k + (1 + n)))) rfl).matrix : HilbertOperator (layout k n).register) =
+private lemma first_rotation_diagonal (k n : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((Gate.singleQubitAt (layout k n) oracles (rotZStdOp angle)
+      (0 : Fin (1 + (k + (1 + n)))) rfl).matrix environment) : HilbertOperator (layout k
+        n).register) =
         Matrix.diagonal (fun basis => Gate.Rotation.Multiplex.weight angle
           (bits k n basis 0)) := by
   let application := Gate.singleQubitApplication (layout k n) (rotZStdOp angle)
@@ -53,8 +55,9 @@ def phaseWeight (k n : Nat) (angle : ℝ)
       then -2 * angle else 2 * angle) (bits k n basis 0)
 
 /-- Full original-coordinate matrix of the executed phase word, without a signal-width premise. -/
-theorem controlWork_phase_matrix (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((phase k n oracles angle).matrix : HilbertOperator (layout k n).register) =
+lemma controlWork_phase_matrix (k n : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phase k n oracles angle).matrix environment) : HilbertOperator (layout k n).register) =
       Matrix.diagonal (phaseWeight k n angle) := by
   rw [phase, UnitaryCircuit.seq_matrix]
   change _ * _ = _

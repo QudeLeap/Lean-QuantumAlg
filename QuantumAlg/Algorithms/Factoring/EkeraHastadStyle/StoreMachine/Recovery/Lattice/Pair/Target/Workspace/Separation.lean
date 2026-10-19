@@ -32,14 +32,14 @@ open ClassicalRoutines
 
 noncomputable section
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
 
 /-- The state-to-target cross certificate gives every source-to-scratch
 avoidance required by the wide target loader. -/
-theorem externalAvoids {kind : ProblemKind}
+lemma externalAvoids {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -85,7 +85,7 @@ theorem externalAvoids {kind : ProblemKind}
 
 /-- The physical state and target packages supply the compact frame
 separation expected by `LatticeWideTargetWorkspaceSeparation`. -/
-theorem frameSeparation {kind : ProblemKind}
+lemma frameSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -103,7 +103,7 @@ theorem frameSeparation {kind : ProblemKind}
 
 /-- The complete semantic target-loader separation follows from the same
 physical certificate. -/
-theorem targetSeparation {kind : ProblemKind}
+lemma targetSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}

@@ -34,7 +34,7 @@ def rawEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat) 
       ResourcePool.ofList (rawOutputEvents model width))
 
 /-- Each selected actual branch stays within one full original active sequence. -/
-theorem xgcdNativeGuardedActive_pool_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeGuardedActive_pool_le (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (guardedActive (model := model) cells zero).Path) :
     (guardedActive (model := model) cells zero).resourcePool path ≤
@@ -46,7 +46,7 @@ theorem xgcdNativeGuardedActive_pool_le (cells : Cells ctx (stateShapes width))
   · exact zero_le
 
 /-- The actual finite path vector contains at most one active allowance per scheduled iteration. -/
-theorem xgcdNativeLoop_pool_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeLoop_pool_le (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat) :
     ∀ path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path,
       (Circuit.iterate count (guardedActive (model := model) cells zero)).resourcePool path ≤
@@ -64,7 +64,7 @@ theorem xgcdNativeLoop_pool_le (cells : Cells ctx (stateShapes width))
         (ih (fun index => path index.succ))
 
 /-- Actual initialization, selected iterations and final copies satisfy the original ledger. -/
-theorem xgcdNativeScheduledRaw_pool_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeScheduledRaw_pool_le (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (scheduledRawBody (model := model) cells input zero outputs).Path) :
@@ -81,7 +81,7 @@ theorem xgcdNativeScheduledRaw_pool_le (cells : Cells ctx (stateShapes width))
     (xgcdNativeLoop_pool_le cells zero (Euclid.gcdFuel width) path.2.1) le_rfl)
 
 /-- The original seven state scopes introduce no hidden arithmetic events. -/
-theorem xgcdNativeWithRawState_pool_le
+lemma xgcdNativeWithRawState_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (withRawState (model := model) input zero outputs).Path) :
@@ -93,7 +93,7 @@ theorem xgcdNativeWithRawState_pool_le
     (fun cells _ transport _ selected => xgcdNativeScheduledRaw_pool_le cells _ _ _ selected) path
 
 omit [BitWord.Selected model] in
-private theorem lexical_pool_le {inner : RuntimeCtx model.kind}
+private lemma lexical_pool_le {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
     (budget : ResourcePool model) (bound : ∀ selected, body.resourcePool selected ≤ budget)
@@ -101,7 +101,7 @@ private theorem lexical_pool_le {inner : RuntimeCtx model.kind}
     (Circuit.workspace inner key shape fresh body).resourcePool path ≤ budget := bound path
 
 /-- The entire actual raw engine obeys the same independent native coordinate allowance. -/
-theorem xgcdNativeRawEngine_pool_le
+lemma xgcdNativeRawEngine_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (path : (rawEngine (model := model) input outputs).Path) :
     (rawEngine (model := model) input outputs).resourcePool path ≤ rawEnvelope model width :=

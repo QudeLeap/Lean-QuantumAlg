@@ -21,11 +21,11 @@ namespace QuantumAlg.ClassicalRoutines.EllipticCurve.ScalarMul.Native
 
 open Execution ClassicalAlgorithms.EllipticCurve
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Every original slot retains both actual complete-addition allowances. -/
-theorem scalarEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
+lemma scalarEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
     (spec : CurveSpec width)
     (scalarWidth : Nat) :
     (scalarEnvelope model spec scalarWidth).card ≤
@@ -37,7 +37,7 @@ theorem scalarEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model]
   exact Nat.add_le_add_left (Nat.mul_le_mul_left scalarWidth doubled) 2
 
 /-- The actual full scalar trace obeys the original declared-width numerical ceiling. -/
-theorem scalarInto_eventCount_le (spec : CurveSpec width)
+lemma scalarInto_eventCount_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :

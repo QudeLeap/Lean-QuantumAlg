@@ -25,10 +25,12 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorRuntime
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement
 
 /-- Retaining classical outcomes leaves the complete ordered physical wire list intact. -/
-theorem frame_wires (width : Nat) :
+lemma frame_wires (width : Nat) :
     (InversePreparation.after width).quantumLayout.wires =
       (context width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, RuntimeCtx.quantumLayout_wires]
@@ -41,7 +43,7 @@ def frameCoordinates (width : Nat) :
     (context width).quantumLayout (frame_wires width)
 
 /-- The physical coordinate transport is the retained-cell coordinate map. -/
-theorem frameCoordinates_eq_cells (width : Nat) :
+lemma frameCoordinates_eq_cells (width : Nat) :
     frameCoordinates width =
       MeasurementCells.basisEquiv (InversePreparation.after width) 2 width := by
   apply Equiv.ext
@@ -72,11 +74,11 @@ def program (width : Nat)
       (InverseRuntimeFrame.program width body)
 
 /-- The exact matrix reads the same physically selected source coordinates. -/
-theorem program_matrix (width : Nat)
+lemma program_matrix (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (row column : (context width).register.Index) :
-    (program width body).matrix row column =
-      body.matrix
+    ((program width body).matrix environment) row column =
+      (body.matrix environment)
         (UnitaryCircuit.basisAt (InverseRuntimeFrame.source width)
           (InversePreparation.after width).quantumLayout
           (InverseRuntimeFrame.position width) (InverseRuntimeFrame.position_dimensions width)
@@ -90,7 +92,7 @@ theorem program_matrix (width : Nat)
     ((frameCoordinates width).symm row) ((frameCoordinates width).symm column)
 
 /-- Source positions read exactly the existing complete-frame binary label. -/
-theorem selected_basis (width : Nat) (basis : (context width).register.Index) :
+lemma selected_basis (width : Nat) (basis : (context width).register.Index) :
     UnitaryCircuit.basisAt (InverseRuntimeFrame.source width)
       (InversePreparation.after width).quantumLayout
       (InverseRuntimeFrame.position width) (InverseRuntimeFrame.position_dimensions width)
@@ -119,52 +121,55 @@ theorem selected_basis (width : Nat) (basis : (context width).register.Index) :
     ((MeasurementCells.basisEquiv (InversePreparation.after width) 2 width).symm basis)
 
 /-- The same placed matrix is the canonical binary view of the actual native circuit. -/
-theorem program_binary_matrix (width : Nat)
+lemma program_binary_matrix (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (row column : (context width).register.Index) :
-    (program width body).matrix row column =
-      body.binaryMatrix (frameBasis width row) (frameBasis width column) := by
+    ((program width body).matrix environment) row column =
+      (body.binaryMatrix environment) (frameBasis width row) (frameBasis width column) := by
   rw [program_matrix, selected_basis, selected_basis]
   rfl
 
 /-- Classical storage changes no native event in the actual program. -/
-theorem program_trace (width : Nat)
+lemma program_trace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width)) :
     (program width body).eventTrace .empty .empty = body.eventTrace .empty .empty := by
   rw [program, unitaryOfEqualWires_trace, InverseRuntimeFrame.program_eventTrace]
 
 /-- The resource pool is the ledger of the same placed native word. -/
-theorem program_cost (width : Nat)
+lemma program_cost (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width)) :
     (program width body).eventCost .empty .empty = body.eventCost .empty .empty := by
   rw [program, unitaryOfEqualWires_cost, InverseRuntimeFrame.program_eventCost]
 
 /-- Run the actual placed member with the existing unitary instruction. -/
 def code (width : Nat)
-    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width)) :
-    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) :=
+    (body : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
+    (allowAllocation : Bool := true) :
+    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) allowAllocation :=
   .unitary (program width body)
 
 /-- A retained finite result vector selects its corresponding concrete native member. -/
 def selected (width : Nat)
     (body : CShape.Value (.fixedVector width (.finite 2)) →
-      UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width)) :
-    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) :=
-  .branch (input width) (fun value => code width (body value))
+      UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
+    (allowAllocation : Bool := true) :
+    Circuit (.quantum AlgorithmGate.model .empty) (context width) (context width) allowAllocation :=
+  .branch (input width) (fun value => code width (body value) allowAllocation)
 
 /-- Each actual store read selects one member on every complete reference block. -/
-theorem selected_reference (width : Nat)
+lemma selected_reference (width : Nat)
     (body : CShape.Value (.fixedVector width (.finite 2)) →
       UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
+    {runtimeEnvironment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((selected width body).execute Reference state).quantumMarginal =
+    ((selected width body).execute runtimeEnvironment Reference state).quantumMarginal =
       (state.applyUnitary fun entry => UnitaryOperator.prodTensor
-        (program width (body (entry.1.read (input width)))).matrix
+        ((program width (body (entry.1.read (input width)))).matrix runtimeEnvironment.quantum)
         (1 : UnitaryOperator Reference)).quantumMarginal :=
   Circuit.selectedUnitary_quantumMarginal (input width) (fun value => program width (body value))
-    state
+    runtimeEnvironment state
 
 end
 

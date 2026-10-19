@@ -29,7 +29,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual comparison retains every represented basis row. -/
-theorem comparison_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma comparison_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents (LatticeLovasz.secondLovaszStore refs.lovasz store)
@@ -87,7 +87,7 @@ theorem comparison_basis (refs : Refs ctx width) (separation : Separation refs)
       rw [comparison_frame refs _ _
         (basis_avoids refs separation .thirdThird comparisonCells (by decide))]
       exact (rep .third).2.2
-private theorem swap_first (refs : Refs ctx width) (separation : Separation refs)
+private lemma swap_first (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeArithmetic.PointRawRepresents
@@ -110,7 +110,7 @@ private theorem swap_first (refs : Refs ctx width) (separation : Separation refs
     rw [swap_frame refs _ _ (basis_avoids refs separation .firstThird swapCells (by decide))]
     exact (rep .first).2.2
 
-private theorem selectArm_basis {model : ExecutionModel} [BitWord.Selected model]
+private lemma selectArm_basis {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (flag : CShape.Value .bit) (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
@@ -130,7 +130,7 @@ private theorem selectArm_basis {model : ExecutionModel} [BitWord.Selected model
     · exact rep
 
 /-- The actual stored decision selects exactly the original pure second-Lovasz basis result. -/
-theorem select_basis {model : ExecutionModel} [BitWord.Selected model]
+lemma select_basis {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)
@@ -153,7 +153,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
     FrameAvoids refs mutableCells other → after.read other = before.read other
 
 /-- Actual second-Lovasz comparison and its selected exchange realize the original contract. -/
-theorem branchInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma branchInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :

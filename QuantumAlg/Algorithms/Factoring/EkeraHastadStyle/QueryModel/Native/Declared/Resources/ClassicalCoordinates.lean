@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model] (event : Resource.Eve
 include outside
 
 /-- The actual sampled-source allowance has no other event coordinate. -/
-theorem declared_source_count_eq_zero (N : Nat) :
+lemma declared_source_count_eq_zero (N : Nat) :
     ResourcePool.count event (ShorStyle.Canonical.Sampler.Retained.nativeEnvelope model N) =
       0 := by
   simp [Factoring.ShorStyle.Canonical.Sampler.Retained.nativeEnvelope,
@@ -52,7 +52,7 @@ theorem declared_source_count_eq_zero (N : Nat) :
     ConstantWord.shiftEvent, ConstantWord.incrementEvent, TerminalDecode.shiftEvent,
     TerminalDecode.incrementEvent, outside, eq_comm]
 
-private theorem slot_zero (coordinateWidth modulusWidth : Nat)
+private lemma slot_zero (coordinateWidth modulusWidth : Nat)
     (offset : QuantumAlg.NumberTheory.IntegerPoint3) :
     ResourcePool.count event
       (LatticeCandidateSlotMachine.candidateSlotEventEnvelope model coordinateWidth modulusWidth
@@ -74,7 +74,7 @@ private theorem slot_zero (coordinateWidth modulusWidth : Nat)
     ResourcePool.ofList_replicate,
     ConstantWord.shiftEvent, ConstantWord.incrementEvent, outside, eq_comm]
 
-private theorem offsets_zero (coordinateWidth modulusWidth : Nat)
+private lemma offsets_zero (coordinateWidth modulusWidth : Nat)
     (offsets : List QuantumAlg.NumberTheory.IntegerPoint3) :
     ResourcePool.count event
       (LatticeCandidateScan.offsetsEventEnvelope model coordinateWidth modulusWidth offsets) =
@@ -86,7 +86,7 @@ private theorem offsets_zero (coordinateWidth modulusWidth : Nat)
         slot_zero event outside, ih, add_zero]
 
 /-- Every non-classical-operation coordinate is absent from the original recovery allowance. -/
-theorem declared_recovery_count_eq_zero (N : Nat) :
+lemma declared_recovery_count_eq_zero (N : Nat) :
     ResourcePool.count event
       (LatticeFixedBatchRecoveryMachine.eventEnvelope (model := model) N) = 0 := by
   simp [LatticeFixedBatchRecoveryMachine.eventEnvelope,

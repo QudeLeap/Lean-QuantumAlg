@@ -34,6 +34,7 @@ namespace Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Gates for swapping one adjacent pair of word bits. -/
 def adjacentSwapGates
@@ -66,7 +67,7 @@ def adjacentShiftRightGates
 
 /-- An adjacent-swap sweep contains three CNOT leaves for every adjacent word
 position. -/
-theorem adjacentShiftLeftGates_length
+lemma adjacentShiftLeftGates_length
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     (adjacentShiftLeftGates word hword).length = 3 * (width - 1) := by
@@ -74,14 +75,14 @@ theorem adjacentShiftLeftGates_length
     List.length_flatMap, Function.comp_def, Nat.mul_comm]
 
 /-- Reversing the adjacent-swap sweep preserves its exact leaf count. -/
-theorem adjacentShiftRightGates_length
+lemma adjacentShiftRightGates_length
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     (adjacentShiftRightGates word hword).length = 3 * (width - 1) := by
   simpa only [adjacentShiftRightGates, List.length_reverse] using
     adjacentShiftLeftGates_length word hword
 
-private theorem flatMap_adjacentSwapGates_multiplicity_sums
+private lemma flatMap_adjacentSwapGates_multiplicity_sums
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ∀ indices : List (Fin (width - 1)),
@@ -103,7 +104,7 @@ private theorem flatMap_adjacentSwapGates_multiplicity_sums
       omega
 
 /-- An adjacent-swap sweep contains no physical X leaves. -/
-theorem adjacentShiftLeftGates_xMultiplicity_sum
+lemma adjacentShiftLeftGates_xMultiplicity_sum
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ((adjacentShiftLeftGates word hword).map
@@ -112,7 +113,7 @@ theorem adjacentShiftLeftGates_xMultiplicity_sum
     (List.ofFn fun i : Fin (width - 1) => i)).1
 
 /-- Every leaf in an adjacent-swap sweep is a CNOT. -/
-theorem adjacentShiftLeftGates_cnotMultiplicity_sum
+lemma adjacentShiftLeftGates_cnotMultiplicity_sum
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ((adjacentShiftLeftGates word hword).map
@@ -122,7 +123,7 @@ theorem adjacentShiftLeftGates_cnotMultiplicity_sum
       (List.ofFn fun i : Fin (width - 1) => i)).2.1
 
 /-- An adjacent-swap sweep contains no Toffoli leaves. -/
-theorem adjacentShiftLeftGates_toffoliMultiplicity_sum
+lemma adjacentShiftLeftGates_toffoliMultiplicity_sum
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ((adjacentShiftLeftGates word hword).map
@@ -131,7 +132,7 @@ theorem adjacentShiftLeftGates_toffoliMultiplicity_sum
     (List.ofFn fun i : Fin (width - 1) => i)).2.2
 
 /-- Reversing the sweep preserves its zero X coordinate. -/
-theorem adjacentShiftRightGates_xMultiplicity_sum
+lemma adjacentShiftRightGates_xMultiplicity_sum
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ((adjacentShiftRightGates word hword).map
@@ -140,7 +141,7 @@ theorem adjacentShiftRightGates_xMultiplicity_sum
     adjacentShiftLeftGates_xMultiplicity_sum]
 
 /-- Reversing the sweep preserves its exact CNOT coordinate. -/
-theorem adjacentShiftRightGates_cnotMultiplicity_sum
+lemma adjacentShiftRightGates_cnotMultiplicity_sum
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ((adjacentShiftRightGates word hword).map
@@ -149,7 +150,7 @@ theorem adjacentShiftRightGates_cnotMultiplicity_sum
     adjacentShiftLeftGates_cnotMultiplicity_sum]
 
 /-- Reversing the sweep preserves its zero Toffoli coordinate. -/
-theorem adjacentShiftRightGates_toffoliMultiplicity_sum
+lemma adjacentShiftRightGates_toffoliMultiplicity_sum
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     ((adjacentShiftRightGates word hword).map
@@ -198,7 +199,7 @@ def adjacentSwapIndexPerm (width : Nat) :
 
 /-- Appending one adjacent-swap index composes that swap before the source
 permutation represented by the preceding list. -/
-theorem adjacentSwapIndexPerm_concat (width : Nat)
+lemma adjacentSwapIndexPerm_concat (width : Nat)
     (indices : List (Fin (width - 1))) (i : Fin (width - 1)) :
     adjacentSwapIndexPerm width (indices.concat i) =
       (Equiv.swap (adjacentLeftIndex width i) (adjacentRightIndex width i)).trans
@@ -220,7 +221,7 @@ theorem adjacentSwapIndexPerm_concat (width : Nat)
 
 /-- Extending every adjacent-swap index by `Fin.castSucc` preserves the action
 on non-last target indices. -/
-theorem adjacentSwapIndexPerm_map_castSucc_apply_castSucc
+lemma adjacentSwapIndexPerm_map_castSucc_apply_castSucc
     (tail : Nat) (indices : List (Fin tail)) (target : Fin tail.succ) :
     adjacentSwapIndexPerm tail.succ.succ (indices.map Fin.castSucc)
         (Fin.castSucc target) =
@@ -256,7 +257,7 @@ theorem adjacentSwapIndexPerm_map_castSucc_apply_castSucc
 
 /-- Extending every adjacent-swap index by `Fin.castSucc` leaves the new last
 target index fixed. -/
-theorem adjacentSwapIndexPerm_map_castSucc_apply_last
+lemma adjacentSwapIndexPerm_map_castSucc_apply_last
     (tail : Nat) (indices : List (Fin tail)) :
     adjacentSwapIndexPerm tail.succ.succ (indices.map Fin.castSucc)
         (Fin.last tail.succ) =
@@ -279,7 +280,7 @@ theorem adjacentSwapIndexPerm_map_castSucc_apply_last
 
 /-- The full low-to-high adjacent-swap sweep induces `finRotate` as its
 source-index permutation on a nonempty word. -/
-theorem adjacentSwapIndexPerm_ofFn_eq_finRotate_succ (tail : Nat) :
+lemma adjacentSwapIndexPerm_ofFn_eq_finRotate_succ (tail : Nat) :
     adjacentSwapIndexPerm tail.succ
         (List.ofFn fun i : Fin tail =>
           (Fin.cast (by omega) i : Fin (tail.succ - 1))) =
@@ -411,7 +412,7 @@ theorem adjacentSwapIndexPerm_ofFn_eq_finRotate_succ (tail : Nat) :
 
 /-- The full low-to-high adjacent-swap sweep induces `finRotate` as its
 source-index permutation. -/
-theorem adjacentSwapIndexPerm_ofFn_eq_finRotate (width : Nat) :
+lemma adjacentSwapIndexPerm_ofFn_eq_finRotate (width : Nat) :
     adjacentSwapIndexPerm width (List.ofFn fun i : Fin (width - 1) => i) =
       finRotate width := by
   cases width with
@@ -423,7 +424,7 @@ theorem adjacentSwapIndexPerm_ofFn_eq_finRotate (width : Nat) :
 
 /-- A single adjacent swap implements the corresponding source-index
 permutation on word-bit readouts. -/
-theorem adjacentSwapStep_get_indexPerm
+lemma adjacentSwapStep_get_indexPerm
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (i : Fin (width - 1)) (target : Fin width) (x : Data) :
@@ -468,7 +469,7 @@ theorem adjacentSwapStep_get_indexPerm
 
 /-- An indexed adjacent-swap gate list implements its source-index
 permutation on word-bit readouts. -/
-theorem adjacentSwapIndexListStep_get
+lemma adjacentSwapIndexListStep_get
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (indices : List (Fin (width - 1))) (target : Fin width) (x : Data) :
@@ -503,7 +504,7 @@ theorem adjacentSwapIndexListStep_get
 
 /-- The low-to-high adjacent-swap cyclic shift implements the corresponding
 source-index permutation on word-bit readouts. -/
-theorem adjacentShiftLeftStep_get_indexPerm
+lemma adjacentShiftLeftStep_get_indexPerm
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (target : Fin width) (x : Data) :
@@ -517,7 +518,7 @@ theorem adjacentShiftLeftStep_get_indexPerm
 
 /-- The low-to-high adjacent-swap cyclic shift reads each non-last target from
 the next higher source bit. -/
-theorem adjacentShiftLeftStep_get_castSucc
+lemma adjacentShiftLeftStep_get_castSucc
     {tail : Nat} (word : Word encoding tail.succ)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (target : Fin tail) (x : Data) :
@@ -531,7 +532,7 @@ theorem adjacentShiftLeftStep_get_castSucc
 
 /-- The low-to-high adjacent-swap cyclic shift wraps the last target bit from
 source bit zero. -/
-theorem adjacentShiftLeftStep_get_last
+lemma adjacentShiftLeftStep_get_last
     {tail : Nat} (word : Word encoding tail.succ)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (x : Data) :
@@ -542,43 +543,44 @@ theorem adjacentShiftLeftStep_get_last
   simpa [finRotate_last] using h
 
 /-- The adjacent-swap cyclic-shift program realizes its folded semantics. -/
-theorem adjacentShiftLeft_realizes
+lemma adjacentShiftLeft_realizes
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (adjacentShiftLeftProgram physical oracles word hword)
+      (adjacentShiftLeftProgram physical oracles word hword) environment
       (adjacentShiftLeftStep word hword) :=
-  GateSpec.realizesList physical oracles (adjacentShiftLeftGates word hword)
+  GateSpec.realizesList physical oracles (adjacentShiftLeftGates word hword) environment
 
 /-- The inverse adjacent-swap cyclic-shift program realizes its folded
 semantics. -/
-theorem adjacentShiftRight_realizes
+lemma adjacentShiftRight_realizes
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (adjacentShiftRightProgram physical oracles word hword)
+      (adjacentShiftRightProgram physical oracles word hword) environment
       (adjacentShiftRightStep word hword) :=
-  GateSpec.realizesList physical oracles (adjacentShiftRightGates word hword)
+  GateSpec.realizesList physical oracles (adjacentShiftRightGates word hword) environment
 
 /-- Direct realization proof for the adjacent-swap cyclic shift. -/
-theorem adjacentShiftLeftWitness
+lemma adjacentShiftLeftWitness
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding (adjacentShiftLeftProgram physical oracles word hword)
+      environment
       (adjacentShiftLeftStep word hword) :=
   adjacentShiftLeft_realizes physical oracles word hword
 
 /-- Direct realization proof for the inverse adjacent-swap cyclic shift. -/
-theorem adjacentShiftRightWitness
+lemma adjacentShiftRightWitness
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (adjacentShiftRightProgram physical oracles word hword)
+      (adjacentShiftRightProgram physical oracles word hword) environment
       (adjacentShiftRightStep word hword) :=
   adjacentShiftRight_realizes physical oracles word hword
 
 /-- The inverse adjacent-swap cyclic shift undoes the low-to-high sweep. -/
-theorem adjacentShiftRightStep_adjacentShiftLeftStep
+lemma adjacentShiftRightStep_adjacentShiftLeftStep
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (x : Data) :
@@ -590,7 +592,7 @@ theorem adjacentShiftRightStep_adjacentShiftLeftStep
       GateSpec.stepList_reverse_stepList (adjacentShiftLeftGates word hword) x
 
 /-- The low-to-high adjacent-swap cyclic shift undoes the inverse sweep. -/
-theorem adjacentShiftLeftStep_adjacentShiftRightStep
+lemma adjacentShiftLeftStep_adjacentShiftRightStep
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (x : Data) :
@@ -605,7 +607,7 @@ theorem adjacentShiftLeftStep_adjacentShiftRightStep
 
 /-- The high-to-low inverse adjacent-swap cyclic shift implements the inverse
 source-index permutation on word-bit readouts. -/
-theorem adjacentShiftRightStep_get_indexPerm
+lemma adjacentShiftRightStep_get_indexPerm
     (word : Word encoding width)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (target : Fin width) (x : Data) :
@@ -623,7 +625,7 @@ theorem adjacentShiftRightStep_get_indexPerm
 
 /-- The high-to-low inverse adjacent-swap cyclic shift wraps target bit zero
 from the last source bit. -/
-theorem adjacentShiftRightStep_get_zero
+lemma adjacentShiftRightStep_get_zero
     {tail : Nat} (word : Word encoding tail.succ)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (x : Data) :
@@ -638,7 +640,7 @@ theorem adjacentShiftRightStep_get_zero
 
 /-- The high-to-low inverse adjacent-swap cyclic shift reads each successor
 target bit from the previous lower source bit. -/
-theorem adjacentShiftRightStep_get_succ
+lemma adjacentShiftRightStep_get_succ
     {tail : Nat} (word : Word encoding tail.succ)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
     (target : Fin tail) (x : Data) :
@@ -668,7 +670,7 @@ def controlledAdjacentSwapGates
       (adjacentLeftIndex_ne_adjacentRightIndex width i))
 
 /-- One controlled adjacent swap contains three physical leaves. -/
-@[simp] theorem controlledAdjacentSwapGates_length
+@[simp] lemma controlledAdjacentSwapGates_length
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -677,7 +679,7 @@ def controlledAdjacentSwapGates
   simp [controlledAdjacentSwapGates]
 
 /-- One controlled adjacent swap contains no X gate. -/
-@[simp] theorem controlledAdjacentSwapGates_xMultiplicity_sum
+@[simp] lemma controlledAdjacentSwapGates_xMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -687,7 +689,7 @@ def controlledAdjacentSwapGates
   simp [controlledAdjacentSwapGates]
 
 /-- One controlled adjacent swap contains no CNOT gate. -/
-@[simp] theorem controlledAdjacentSwapGates_cnotMultiplicity_sum
+@[simp] lemma controlledAdjacentSwapGates_cnotMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -697,7 +699,7 @@ def controlledAdjacentSwapGates
   simp [controlledAdjacentSwapGates]
 
 /-- One controlled adjacent swap contains exactly three Toffoli gates. -/
-@[simp] theorem controlledAdjacentSwapGates_toffoliMultiplicity_sum
+@[simp] lemma controlledAdjacentSwapGates_toffoliMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -727,7 +729,7 @@ def controlledAdjacentShiftRightGates
 
 /-- A controlled adjacent left shift is disjoint from an observed bit when
 its control and every word bit are disjoint from that observation. -/
-theorem controlledAdjacentShiftLeftGates_bitDisjoint
+lemma controlledAdjacentShiftLeftGates_bitDisjoint
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -752,7 +754,7 @@ theorem controlledAdjacentShiftLeftGates_bitDisjoint
 
 /-- The inverse controlled adjacent shift has the same noninterference
 boundary as its forward gate list. -/
-theorem controlledAdjacentShiftRightGates_bitDisjoint
+lemma controlledAdjacentShiftRightGates_bitDisjoint
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -768,7 +770,7 @@ theorem controlledAdjacentShiftRightGates_bitDisjoint
     hword observed hcontrolObserved hwordObserved gate
       (List.mem_reverse.mp hgate)
 
-private theorem controlledAdjacentSwap_length_of_indices
+private lemma controlledAdjacentSwap_length_of_indices
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -784,7 +786,7 @@ private theorem controlledAdjacentSwap_length_of_indices
       simp only [List.length_cons]
       omega
 
-private theorem controlledAdjacentSwap_multiplicity_of_indices
+private lemma controlledAdjacentSwap_multiplicity_of_indices
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire)
@@ -806,7 +808,7 @@ private theorem controlledAdjacentSwap_multiplicity_of_indices
 
 /-- A controlled adjacent cyclic left shift has one three-Toffoli swap for
 each adjacent word position. -/
-theorem controlledAdjacentShiftLeftGates_length
+lemma controlledAdjacentShiftLeftGates_length
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -817,7 +819,7 @@ theorem controlledAdjacentShiftLeftGates_length
   simp
 
 /-- A controlled adjacent cyclic left shift contains no X gate. -/
-theorem controlledAdjacentShiftLeftGates_xMultiplicity_sum
+lemma controlledAdjacentShiftLeftGates_xMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -832,7 +834,7 @@ theorem controlledAdjacentShiftLeftGates_xMultiplicity_sum
       (List.ofFn fun i : Fin (width - 1) => i))
 
 /-- A controlled adjacent cyclic left shift contains no CNOT gate. -/
-theorem controlledAdjacentShiftLeftGates_cnotMultiplicity_sum
+lemma controlledAdjacentShiftLeftGates_cnotMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -847,7 +849,7 @@ theorem controlledAdjacentShiftLeftGates_cnotMultiplicity_sum
       (List.ofFn fun i : Fin (width - 1) => i))
 
 /-- Exact Toffoli coordinate of a controlled adjacent cyclic left shift. -/
-theorem controlledAdjacentShiftLeftGates_toffoliMultiplicity_sum
+lemma controlledAdjacentShiftLeftGates_toffoliMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -861,7 +863,7 @@ theorem controlledAdjacentShiftLeftGates_toffoliMultiplicity_sum
       (List.ofFn fun i : Fin (width - 1) => i))
 
 /-- Reversing the adjacent-swap sweep preserves its exact physical length. -/
-theorem controlledAdjacentShiftRightGates_length
+lemma controlledAdjacentShiftRightGates_length
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -871,7 +873,7 @@ theorem controlledAdjacentShiftRightGates_length
     controlledAdjacentShiftLeftGates_length control word hcontrol hword
 
 /-- Reversing the adjacent-swap sweep preserves its zero X coordinate. -/
-theorem controlledAdjacentShiftRightGates_xMultiplicity_sum
+lemma controlledAdjacentShiftRightGates_xMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -883,7 +885,7 @@ theorem controlledAdjacentShiftRightGates_xMultiplicity_sum
       hword
 
 /-- Reversing the adjacent-swap sweep preserves its zero CNOT coordinate. -/
-theorem controlledAdjacentShiftRightGates_cnotMultiplicity_sum
+lemma controlledAdjacentShiftRightGates_cnotMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -895,7 +897,7 @@ theorem controlledAdjacentShiftRightGates_cnotMultiplicity_sum
       hword
 
 /-- Reversing the adjacent-swap sweep preserves its exact Toffoli coordinate. -/
-theorem controlledAdjacentShiftRightGates_toffoliMultiplicity_sum
+lemma controlledAdjacentShiftRightGates_toffoliMultiplicity_sum
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j → (word.bit i).wire ≠ (word.bit j).wire) :
@@ -946,52 +948,52 @@ def controlledAdjacentShiftRightStep
 
 /-- The single-control adjacent-swap cyclic-shift program realizes its folded
 semantics. -/
-theorem controlledAdjacentShiftLeft_realizes
+lemma controlledAdjacentShiftLeft_realizes
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftLeftProgram physical oracles control word hcontrol hword)
+      (controlledAdjacentShiftLeftProgram physical oracles control word hcontrol hword) environment
       (controlledAdjacentShiftLeftStep control word hcontrol hword) :=
   GateSpec.realizesList physical oracles
-    (controlledAdjacentShiftLeftGates control word hcontrol hword)
+    (controlledAdjacentShiftLeftGates control word hcontrol hword) environment
 
 /-- The inverse single-control adjacent-swap cyclic-shift program realizes its
 folded semantics. -/
-theorem controlledAdjacentShiftRight_realizes
+lemma controlledAdjacentShiftRight_realizes
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftRightProgram physical oracles control word hcontrol hword)
+      (controlledAdjacentShiftRightProgram physical oracles control word hcontrol hword) environment
       (controlledAdjacentShiftRightStep control word hcontrol hword) :=
   GateSpec.realizesList physical oracles
-    (controlledAdjacentShiftRightGates control word hcontrol hword)
+    (controlledAdjacentShiftRightGates control word hcontrol hword) environment
 
 /-- Direct realization proof for the controlled adjacent cyclic shift. -/
-theorem controlledAdjacentShiftLeftWitness
+lemma controlledAdjacentShiftLeftWitness
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftLeftProgram physical oracles control word hcontrol hword)
+      (controlledAdjacentShiftLeftProgram physical oracles control word hcontrol hword) environment
       (controlledAdjacentShiftLeftStep control word hcontrol hword) :=
   controlledAdjacentShiftLeft_realizes physical oracles control word hcontrol hword
 
 /-- Direct realization proof for the inverse controlled adjacent cyclic
 shift. -/
-theorem controlledAdjacentShiftRightWitness
+lemma controlledAdjacentShiftRightWitness
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire) :
     UnitaryCircuit.Realizes encoding
-      (controlledAdjacentShiftRightProgram physical oracles control word hcontrol hword)
+      (controlledAdjacentShiftRightProgram physical oracles control word hcontrol hword) environment
       (controlledAdjacentShiftRightStep control word hcontrol hword) :=
   controlledAdjacentShiftRight_realizes physical oracles control word hcontrol hword
 
 /-- The inverse single-control adjacent-swap cyclic shift undoes the
 low-to-high controlled sweep. -/
-theorem controlledAdjacentShiftRightStep_controlledAdjacentShiftLeftStep
+lemma controlledAdjacentShiftRightStep_controlledAdjacentShiftLeftStep
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)
@@ -1006,7 +1008,7 @@ theorem controlledAdjacentShiftRightStep_controlledAdjacentShiftLeftStep
 
 /-- The low-to-high controlled sweep undoes the inverse single-control
 adjacent-swap cyclic shift. -/
-theorem controlledAdjacentShiftLeftStep_controlledAdjacentShiftRightStep
+lemma controlledAdjacentShiftLeftStep_controlledAdjacentShiftRightStep
     (control : EncodedBit encoding) (word : Word encoding width)
     (hcontrol : ∀ i, control.wire ≠ (word.bit i).wire)
     (hword : ∀ i j, i ≠ j -> (word.bit i).wire ≠ (word.bit j).wire)

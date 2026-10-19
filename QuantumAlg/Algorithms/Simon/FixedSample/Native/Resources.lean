@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Simon.FixedSample.Native.Recovery
+import all QuantumAlg.Algorithms.Simon.FixedSample.Native.Reset.Time
 import all QuantumAlg.Algorithms.Simon.FixedSample.Model
 import all QuantumAlg.Components.Classical.Model.BitWord
 import all QuantumAlg.Components.Classical.GF2.Native.Retained.Resources
@@ -34,30 +35,30 @@ noncomputable section
 variable {oracles : OracleModel}
 
 /-- Original unitary allowance together with each real Z and the paid row packing. -/
-def sampleEnvelope {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n))) :
-    ResourcePool (executionModel oracle) :=
-  circuitEventLimit oracle + (n • ResourcePool.singleton (model := executionModel oracle)
+def sampleEnvelope (n : Nat) :
+    ResourcePool (executionModel n) :=
+  circuitEventLimit n + (n • ResourcePool.singleton (model := executionModel n)
     (Circuit.zEvent 2 BitWord.model .empty) +
-    ResourcePool.singleton (model := executionModel oracle)
+    ResourcePool.singleton (model := executionModel n)
       (.classicalOperation (.nominalEncoding (.packFiniteBits n))))
 
 /-- Fixed slots are sampled in order, with the native reset allowance at every successor. -/
-def sampleBatchEnvelope {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
-    (count : Nat) : ResourcePool (executionModel oracle) :=
-  count • sampleEnvelope oracle +
-    (count - 1) • ZReset.Bank.envelope (oracles := sourceModel oracle) (2 * n) BitWord.model
+def sampleBatchEnvelope (n : Nat)
+    (count : Nat) : ResourcePool (executionModel n) :=
+  count • sampleEnvelope n +
+    (count - 1) • ZReset.Bank.envelope (oracles := sourceModel n) (2 * n) BitWord.model
 
 /-- Every actually prepared physical qubit precedes the finite sampling envelope. -/
-def samplingEnvelope {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
-    (count : Nat) : ResourcePool (executionModel oracle) :=
-  (2 * n) • ResourcePool.singleton (model := executionModel oracle)
-    (.preparation (2 : ℕ+)) + sampleBatchEnvelope oracle count
+def samplingEnvelope (n : Nat)
+    (count : Nat) : ResourcePool (executionModel n) :=
+  (2 * n) • ResourcePool.singleton (model := executionModel n)
+    (.preparation (2 : ℕ+)) + sampleBatchEnvelope n count
 
 /-- The original polynomial recovery allowance is added once after sampling. -/
-def recoveryEnvelope {n : Nat} (oracle : UnitaryOperator (Qubits (2 * n)))
-    (count : Nat) : ResourcePool (executionModel oracle) :=
-  samplingEnvelope oracle count +
-    ClassicalRoutines.GF2.Native.intoEnvelope (executionModel oracle) count n
+def recoveryEnvelope (n : Nat)
+    (count : Nat) : ResourcePool (executionModel n) :=
+  samplingEnvelope n count +
+    ClassicalRoutines.GF2.Native.intoEnvelope (executionModel n) count n
 
 /-- Every reset uses at most one measurement and one correction per existing bank wire. -/
 def samplingEventLimit (n count : Nat) : Nat :=
@@ -72,24 +73,25 @@ def samplingSpace (n count : Nat) : SpacePool .quantum :=
   n • SpacePool.ofShape (.finite 2) + SpacePool.ofQuantumLayout (bankLayout n) +
     count • SpacePool.ofShape (.bits n)
 
-/-- Reset and recovery use sequential lexical allowances beside the same persistent samples. -/
+/-- Independent recovery workspace allowance beside the same persistent sampling storage. -/
 def recoveryScratchSpace (oracles : OracleModel) (n count : Nat) : SpacePool .quantum :=
-  SpacePool.max (SpacePool.ofShape (.finite 2))
-    (((ClassicalRoutines.GF2.Native.stateShapes count n).map SpacePool.ofShape).sum +
-      ClassicalRoutines.GF2.Native.intoScratchSpace (nativeModel oracles) count n +
-        SpacePool.ofShape (.option (.unsignedWord n)))
+  ((ClassicalRoutines.GF2.Native.stateShapes count n).map SpacePool.ofShape).sum +
+    ClassicalRoutines.GF2.Native.intoScratchSpace (nativeModel oracles) count n +
+      SpacePool.ofShape (.option (.unsignedWord n))
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (n count : Nat)
 
-private theorem context_width : (context base noQuantum n count).systemCount = 2 * n := by
+private lemma context_width : (context base noQuantum n count).systemCount = 2 * n := by
   have same := congrArg List.length (nativeSimon_context_wires base noQuantum n count)
   simpa only [RuntimeCtx.systemCount, QuantumLayout.wires_length] using same
 
-private theorem readouts_events
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := oracles)
+private lemma readouts_events
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := oracles)
       (operations := BitWord.model) (classicalOracles := .empty) (readouts base noQuantum
       n count)).Path) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := oracles)
+    (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := oracles)
       (operations := BitWord.model) (classicalOracles := .empty) (readouts base noQuantum n
       count)).eventTrace path =
       List.replicate n (Circuit.zEvent 2 BitWord.model .empty) := by
@@ -97,18 +99,20 @@ private theorem readouts_events
   simp only [nativeSimon_context_qubits n (nativeSimon_context_wires base noQuantum n count)]
   exact List.ofFn_const _ _
 
-private theorem readouts_depth
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := oracles)
+private lemma readouts_depth
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := oracles)
       (operations := BitWord.model) (classicalOracles := .empty) (readouts base noQuantum
       n count)).Path) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := oracles)
+    (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := oracles)
       (operations := BitWord.model) (classicalOracles := .empty) (readouts base noQuantum n
       count)).depth (fun _ => 1) path =
       n := by
   rw [Circuit.measurementSequence_unitDepth, readouts, List.length_ofFn]
 
 /-- Real measurement and paid packing follow the unchanged original unitary trace. -/
-theorem nativeSimon_sample_eventTrace (sampling : SamplingCircuit n) (index : Fin count)
+lemma nativeSimon_sample_eventTrace (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) :
     (sample base noQuantum n count sampling index).eventTrace path =
       sampling.circuit.eventTrace BitWord.model .empty ++ (List.replicate n (Circuit.zEvent 2
@@ -116,8 +120,9 @@ theorem nativeSimon_sample_eventTrace (sampling : SamplingCircuit n) (index : Fi
         [.classicalOperation (.nominalEncoding (.packFiniteBits n))]) := by
   change (member n (nativeSimon_context_wires base noQuantum n count) sampling).eventTrace
     BitWord.model .empty ++
-    ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := sourceModel sampling.oracle) (operations := BitWord.model)
+    ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := sourceModel n) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts base
       noQuantum n count)).eventTrace path.2.1 ++
       [.classicalOperation (.nominalEncoding (.packFiniteBits n))]) = _
@@ -125,17 +130,17 @@ theorem nativeSimon_sample_eventTrace (sampling : SamplingCircuit n) (index : Fi
   simp only [member, Execution.unitaryOfEqualWires_trace]
 
 /-- The same sampled path uses exactly the independent original-member and boundary allowance. -/
-theorem nativeSimon_sample_pool (sampling : SamplingCircuit n) (index : Fin count)
+lemma nativeSimon_sample_pool (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) :
     (sample base noQuantum n count sampling index).resourcePool path = sampleEnvelope
-      sampling.oracle := by
+      n := by
   rw [Circuit.resourcePool, nativeSimon_sample_eventTrace]
   simp only [ResourcePool.ofList_append, ResourcePool.ofList_cons, ResourcePool.ofList_nil,
     add_zero, UnitaryCircuit.ofList_eventTrace_eq_eventCost, sampling.circuitEventCost,
     ResourcePool.ofList_replicate, ResourcePool.scale, sampleEnvelope]
 
 /-- The real sample count includes the original 2n Hadamards, oracle, n Zs and one pack. -/
-theorem nativeSimon_sample_eventCount (sampling : SamplingCircuit n) (index : Fin count)
+lemma nativeSimon_sample_eventCount (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) :
     ((sample base noQuantum n count sampling index).eventTrace path).length = 3 * n + 2 := by
   have pool := congrArg Multiset.card
@@ -146,14 +151,15 @@ theorem nativeSimon_sample_eventCount (sampling : SamplingCircuit n) (index : Fi
   omega
 
 /-- Unit depth preserves the original member's critical path and charges every terminal step. -/
-theorem nativeSimon_sample_depth_le (sampling : SamplingCircuit n) (index : Fin count)
+lemma nativeSimon_sample_depth_le (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) :
     (sample base noQuantum n count sampling index).depth (fun _ => 1) path ≤ n + 4 := by
   change DepthExpr.depthEval (fun _ => 1)
     ((member n (nativeSimon_context_wires base noQuantum n count) sampling).eventDepth
       BitWord.model .empty) +
-      ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := sourceModel sampling.oracle) (operations := BitWord.model)
+      ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := sourceModel n) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts base
         noQuantum n count)).depth (fun _ => 1)
         path.2.1 + 1) ≤ _
@@ -163,60 +169,50 @@ theorem nativeSimon_sample_depth_le (sampling : SamplingCircuit n) (index : Fin 
   omega
 
 /-- Every later sample charges the full bank reset before the same original sampling body. -/
-theorem nativeSimon_reusedSample_pool_le (sampling : SamplingCircuit n) (index : Fin count)
+lemma nativeSimon_reusedSample_pool_le (sampling : SamplingCircuit n) (index : Fin count)
     (path : (reusedSample base noQuantum n count sampling index).Path) :
     (reusedSample base noQuantum n count sampling index).resourcePool path ≤
-      ZReset.Bank.envelope (oracles := sourceModel sampling.oracle) (2 * n) BitWord.model +
-        sampleEnvelope sampling.oracle := by
-  change ResourcePool.ofList ((reset (oracles := sourceModel sampling.oracle) base noQuantum n
+      ZReset.Bank.envelope (oracles := sourceModel n) (2 * n) BitWord.model +
+        sampleEnvelope n := by
+  change ResourcePool.ofList ((reset (oracles := sourceModel n) base noQuantum n
     count).eventTrace path.1 ++
     (sample base noQuantum n count sampling index).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
-  have bound := ZReset.BankScope.zResetBankScope_resourcePool_le (oracles := sourceModel
-    sampling.oracle) (operations := BitWord.model)
-    (nativeSimon_context_qubits n (nativeSimon_context_wires base noQuantum n count)) path.1
-  rw [context_width] at bound
+  have bound := ReusedReset.code_resourcePool_le
+    (oracles := sourceModel n) base noQuantum n count path.1
   exact add_le_add bound (nativeSimon_sample_pool base noQuantum n count sampling index path.2).le
 
 /-- Each successor adds at most 4n measurement and selected-correction events. -/
-theorem nativeSimon_reusedSample_eventCount_le (sampling : SamplingCircuit n) (index : Fin count)
+lemma nativeSimon_reusedSample_eventCount_le (sampling : SamplingCircuit n) (index : Fin count)
     (path : (reusedSample base noQuantum n count sampling index).Path) :
     ((reusedSample base noQuantum n count sampling index).eventTrace path).length ≤
       4 * n + (3 * n + 2) := by
-  change ((reset (oracles := sourceModel sampling.oracle) base noQuantum n count).eventTrace
+  change ((reset (oracles := sourceModel n) base noQuantum n count).eventTrace
     path.1 ++
     (sample base noQuantum n count sampling index).eventTrace path.2).length ≤ _
   rw [List.length_append, nativeSimon_sample_eventCount]
-  have actual := ZReset.BankScope.zResetBankScope_eventTrace_length_le (oracles := sourceModel
-    sampling.oracle) (operations := BitWord.model)
-    (nativeSimon_context_qubits n (nativeSimon_context_wires base noQuantum n count)) path.1
-  rw [context_width] at actual
-  change ((reset (oracles := sourceModel sampling.oracle) base noQuantum n count).eventTrace
-    path.1).length ≤ 2 * (2 * n) at actual
-  omega
+  have actual := ReusedReset.code_eventCount_le
+    (oracles := sourceModel n) base noQuantum n count path.1
+  simpa only [reset] using Nat.add_le_add_right actual (3 * n + 2)
 
-/-- Sequential reset depth is charged before the original three-layer sampling contract. -/
-theorem nativeSimon_reusedSample_depth_le (sampling : SamplingCircuit n) (index : Fin count)
+/-- The independent coarse unit-event allowance still bounds the optimized complete round. -/
+lemma nativeSimon_reusedSample_depth_le (sampling : SamplingCircuit n) (index : Fin count)
     (path : (reusedSample base noQuantum n count sampling index).Path) :
     (reusedSample base noQuantum n count sampling index).depth (fun _ => 1) path ≤
       4 * n + (n + 4) := by
-  change (reset (oracles := sourceModel sampling.oracle) base noQuantum n count).depth (fun _ =>
+  change (reset (oracles := sourceModel n) base noQuantum n count).depth (fun _ =>
     1) path.1 +
     (sample base noQuantum n count sampling index).depth (fun _ => 1) path.2 ≤ _
-  have actual := ZReset.BankScope.zResetBankScope_unitDepth_le (oracles := sourceModel
-    sampling.oracle) (operations := BitWord.model)
-    (nativeSimon_context_qubits n (nativeSimon_context_wires base noQuantum n count)) path.1
-  rw [context_width] at actual
+  have actual := ReusedReset.code_unitDepth_le
+    (oracles := sourceModel n) base noQuantum n count path.1
   have sampled := nativeSimon_sample_depth_le base noQuantum n count sampling index path.2
-  change (reset (oracles := sourceModel sampling.oracle) base noQuantum n count).depth (fun _ =>
-    1) path.1 ≤ 2 * (2 * n) at actual
-  omega
+  simpa only [reset] using Nat.add_le_add actual sampled
 
 /-- The literal finite loop stays below the original member and reset coordinate envelope. -/
-theorem nativeSimon_sampleBatch_pool_le (sampling : SamplingCircuit n)
+lemma nativeSimon_sampleBatch_pool_le (sampling : SamplingCircuit n)
     (path : (sampleBatch base noQuantum n sampling count).Path) :
     (sampleBatch base noQuantum n sampling count).resourcePool path ≤
-      sampleBatchEnvelope sampling.oracle count := by
+      sampleBatchEnvelope n count := by
   cases count with
   | zero => simp [sampleBatch, Circuit.resourcePool, Circuit.eventTrace, sampleBatchEnvelope]
   | succ count =>
@@ -227,8 +223,8 @@ theorem nativeSimon_sampleBatch_pool_le (sampling : SamplingCircuit n)
       rw [ResourcePool.ofList_append]
       have later := Circuit.forRange_pool_le count
         (fun index => reusedSample base noQuantum n (count + 1) sampling index.succ)
-        (ZReset.Bank.envelope (oracles := sourceModel sampling.oracle) (2 * n) BitWord.model +
-          sampleEnvelope sampling.oracle)
+        (ZReset.Bank.envelope (oracles := sourceModel n) (2 * n) BitWord.model +
+          sampleEnvelope n)
         (fun index record => nativeSimon_reusedSample_pool_le base noQuantum n (count + 1)
           sampling index.succ record) path.2
       refine (add_le_add
@@ -239,7 +235,7 @@ theorem nativeSimon_sampleBatch_pool_le (sampling : SamplingCircuit n)
       ac_rfl
 
 /-- The actual fixed loop counts only selected reset corrections at each successor. -/
-theorem nativeSimon_sampleBatch_eventCount_le (sampling : SamplingCircuit n)
+lemma nativeSimon_sampleBatch_eventCount_le (sampling : SamplingCircuit n)
     (path : (sampleBatch base noQuantum n sampling count).Path) :
     ((sampleBatch base noQuantum n sampling count).eventTrace path).length ≤
       count * (3 * n + 2) + (count - 1) * (4 * n) := by
@@ -260,7 +256,7 @@ theorem nativeSimon_sampleBatch_eventCount_le (sampling : SamplingCircuit n)
       omega
 
 /-- The original unitary critical path is retained in the real sequential finite loop. -/
-theorem nativeSimon_sampleBatch_depth_le (sampling : SamplingCircuit n)
+lemma nativeSimon_sampleBatch_depth_le (sampling : SamplingCircuit n)
     (path : (sampleBatch base noQuantum n sampling count).Path) :
     (sampleBatch base noQuantum n sampling count).depth (fun _ => 1) path ≤
       count * (n + 4) + (count - 1) * (4 * n) := by
@@ -280,7 +276,7 @@ theorem nativeSimon_sampleBatch_depth_le (sampling : SamplingCircuit n)
       simp only [Nat.add_sub_cancel, Nat.succ_mul, Nat.mul_add] at *
       omega
 
-private theorem allocateSlots_events (path : (allocateSlots (oracles := oracles) base n
+private lemma allocateSlots_events (path : (allocateSlots (oracles := oracles) base n
   count).Path) :
     (allocateSlots (oracles := oracles) base n count).eventTrace path = [] := by
   induction count with
@@ -290,7 +286,7 @@ private theorem allocateSlots_events (path : (allocateSlots (oracles := oracles)
       rw [ih]
       rfl
 
-private theorem allocateSlots_depth (path : (allocateSlots (oracles := oracles) base n
+private lemma allocateSlots_depth (path : (allocateSlots (oracles := oracles) base n
   count).Path) :
     (allocateSlots (oracles := oracles) base n count).depth (fun _ => 1) path = 0 := by
   induction count with
@@ -300,7 +296,7 @@ private theorem allocateSlots_depth (path : (allocateSlots (oracles := oracles) 
       rw [ih]
 
 /-- Real initialization emits one dimension-two preparation per physical bank qubit. -/
-theorem nativeSimon_allocate_events
+lemma nativeSimon_allocate_events
     (path : (allocate (oracles := oracles) base noQuantum n count).Path) :
     (allocate (oracles := oracles) base noQuantum n count).eventTrace path =
       List.replicate (2 * n) (.preparation (2 : ℕ+)) := by
@@ -315,7 +311,7 @@ theorem nativeSimon_allocate_events
   exact List.append_nil _
 
 /-- All fresh bank qubits prepare in at most one parallel layer. -/
-theorem nativeSimon_allocate_depth
+lemma nativeSimon_allocate_depth
     (path : (allocate (oracles := oracles) base noQuantum n count).Path) :
     (allocate (oracles := oracles) base noQuantum n count).depth (fun _ => 1) path ≤ 1 := by
   change (allocateSlots (oracles := oracles) base n count).depth (fun _ => 1) path.1 +
@@ -330,22 +326,22 @@ theorem nativeSimon_allocate_depth
   split <;> omega
 
 /-- The complete actual sampler fits the independent coordinate allowance. -/
-theorem nativeSimon_code_pool_le (sampling : SamplingCircuit n)
+lemma nativeSimon_code_pool_le (sampling : SamplingCircuit n)
     (path : (code base noQuantum n count sampling).Path) :
-    (code base noQuantum n count sampling).resourcePool path ≤ samplingEnvelope sampling.oracle
+    (code base noQuantum n count sampling).resourcePool path ≤ samplingEnvelope n
       count := by
-  change ResourcePool.ofList ((allocate (oracles := sourceModel sampling.oracle) base noQuantum n
+  change ResourcePool.ofList ((allocate (oracles := sourceModel n) base noQuantum n
     count).eventTrace path.1 ++
     (sampleBatch base noQuantum n sampling count).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append, nativeSimon_allocate_events, ResourcePool.ofList_replicate]
   exact add_le_add le_rfl (nativeSimon_sampleBatch_pool_le base noQuantum n count sampling path.2)
 
 /-- Same-path native count includes one initialization and the actual successor resets. -/
-theorem nativeSimon_code_eventCount_le (sampling : SamplingCircuit n)
+lemma nativeSimon_code_eventCount_le (sampling : SamplingCircuit n)
     (path : (code base noQuantum n count sampling).Path) :
     ((code base noQuantum n count sampling).eventTrace path).length ≤
       samplingEventLimit n count := by
-  change ((allocate (oracles := sourceModel sampling.oracle) base noQuantum n count).eventTrace
+  change ((allocate (oracles := sourceModel n) base noQuantum n count).eventTrace
     path.1 ++
     (sampleBatch base noQuantum n sampling count).eventTrace path.2).length ≤ _
   rw [List.length_append, nativeSimon_allocate_events]
@@ -354,68 +350,68 @@ theorem nativeSimon_code_eventCount_le (sampling : SamplingCircuit n)
   omega
 
 /-- Same-path depth uses the original member layers and all actual sequential boundaries. -/
-theorem nativeSimon_code_depth_le (sampling : SamplingCircuit n)
+lemma nativeSimon_code_depth_le (sampling : SamplingCircuit n)
     (path : (code base noQuantum n count sampling).Path) :
     (code base noQuantum n count sampling).depth (fun _ => 1) path ≤
       samplingDepthLimit n count := by
-  change (allocate (oracles := sourceModel sampling.oracle) base noQuantum n count).depth (fun _
+  change (allocate (oracles := sourceModel n) base noQuantum n count).depth (fun _
     => 1) path.1 +
     (sampleBatch base noQuantum n sampling count).depth (fun _ => 1) path.2 ≤ _
   have prepared := nativeSimon_allocate_depth
-    (oracles := sourceModel sampling.oracle) base noQuantum n count path.1
+    (oracles := sourceModel n) base noQuantum n count path.1
   have bound := nativeSimon_sampleBatch_depth_le base noQuantum n count sampling path.2
   unfold samplingDepthLimit
   omega
 
 /-- The real sampling-and-recovery program fits the independent complete event envelope. -/
-theorem nativeSimon_recovery_pool_le (sampling : SamplingCircuit n)
+lemma nativeSimon_recovery_pool_le (sampling : SamplingCircuit n)
     (path : (recoveryCode base noQuantum n count sampling).Path) :
     (recoveryCode base noQuantum n count sampling).resourcePool path ≤
-      recoveryEnvelope sampling.oracle count := by
+      recoveryEnvelope n count := by
   change ResourcePool.ofList ((code base noQuantum n count sampling).eventTrace path.1 ++
-    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel sampling.oracle)
+    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel n)
       (samplesInput base noQuantum n count)
       (context base noQuantum n count).canonicalFreshKey
       (context base noQuantum n count).canonicalFreshKey_fresh).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append]
   exact add_le_add (nativeSimon_code_pool_le base noQuantum n count sampling path.1)
-    (ClassicalRoutines.GF2.Native.gf2Retained_pool_le (model := executionModel sampling.oracle) _
+    (ClassicalRoutines.GF2.Native.gf2Retained_pool_le (model := executionModel n) _
       _ _ path.2)
 
 /-- Original polynomial recovery contributes its complete serial instruction ceiling once. -/
-theorem nativeSimon_recovery_eventCount_le (sampling : SamplingCircuit n)
+lemma nativeSimon_recovery_eventCount_le (sampling : SamplingCircuit n)
     (path : (recoveryCode base noQuantum n count sampling).Path) :
     ((recoveryCode base noQuantum n count sampling).eventTrace path).length ≤
       samplingEventLimit n count +
-        ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel sampling.oracle)
+        ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel n)
           count n (fun _ => 1) := by
   change ((code base noQuantum n count sampling).eventTrace path.1 ++
-    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel sampling.oracle)
+    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel n)
       (samplesInput base noQuantum n count)
       (context base noQuantum n count).canonicalFreshKey
       (context base noQuantum n count).canonicalFreshKey_fresh).eventTrace path.2).length ≤ _
   rw [List.length_append]
   exact Nat.add_le_add (nativeSimon_code_eventCount_le base noQuantum n count sampling path.1)
     (ClassicalRoutines.GF2.Native.gf2Retained_eventCount_le (model := executionModel
-      sampling.oracle) _ _ _ path.2)
+      n) _ _ _ path.2)
 
 /-- The actual final recovery depth is added after the original quantum member critical paths. -/
-theorem nativeSimon_recovery_depth_le (sampling : SamplingCircuit n)
+lemma nativeSimon_recovery_depth_le (sampling : SamplingCircuit n)
     (path : (recoveryCode base noQuantum n count sampling).Path) :
     (recoveryCode base noQuantum n count sampling).depth (fun _ => 1) path ≤
       samplingDepthLimit n count +
-        ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel sampling.oracle)
+        ClassicalRoutines.GF2.Native.intoDepthLimit (model := executionModel n)
           count n (fun _ => 1) := by
   change (code base noQuantum n count sampling).depth (fun _ => 1) path.1 +
-    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel sampling.oracle)
+    (ClassicalRoutines.GF2.Native.retainedCircuit (model := executionModel n)
       (samplesInput base noQuantum n count)
       (context base noQuantum n count).canonicalFreshKey
       (context base noQuantum n count).canonicalFreshKey_fresh).depth (fun _ => 1) path.2 ≤ _
   exact Nat.add_le_add (nativeSimon_code_depth_le base noQuantum n count sampling path.1)
-    (ClassicalRoutines.GF2.Native.gf2Retained_depth_le (model := executionModel sampling.oracle)
+    (ClassicalRoutines.GF2.Native.gf2Retained_depth_le (model := executionModel n)
       _ _ _ _ path.2)
 
-private theorem slots_resident : (slots base n count).residentSpace =
+private lemma slots_resident : (slots base n count).residentSpace =
     count • SpacePool.ofShape (.bits n) + base.residentSpace := by
   induction count with
   | zero => simp [slots]
@@ -423,7 +419,7 @@ private theorem slots_resident : (slots base n count).residentSpace =
       rw [slots, RuntimeCtx.residentSpace_addRetained, ih, succ_nsmul]
       ac_rfl
 
-private theorem slots_auxiliary : (slots base n count).auxiliarySpace =
+private lemma slots_auxiliary : (slots base n count).auxiliarySpace =
     count • SpacePool.ofShape (.bits n) + base.auxiliarySpace := by
   induction count with
   | zero => simp [slots]
@@ -432,18 +428,18 @@ private theorem slots_auxiliary : (slots base n count).auxiliarySpace =
       ac_rfl
 
 /-- All live sampling cells and the single original bank retain the complete caller footprint. -/
-theorem nativeSimon_context_residentSpace : (context base noQuantum n count).residentSpace =
+lemma nativeSimon_context_residentSpace : (context base noQuantum n count).residentSpace =
     samplingSpace n count + base.residentSpace := by
   simp only [context, MeasurementCells.context_residentSpace, bankContext,
     RuntimeCtx.residentSpace_addOwnedLayout, slots_resident, samplingSpace, add_assoc]
 
 /-- Every new sampling entry is auxiliary, beside the caller's own auxiliary roles. -/
-theorem nativeSimon_context_auxiliarySpace : (context base noQuantum n count).auxiliarySpace =
+lemma nativeSimon_context_auxiliarySpace : (context base noQuantum n count).auxiliarySpace =
     samplingSpace n count + base.auxiliarySpace := by
   simp only [context, MeasurementCells.context_auxiliarySpace, bankContext,
     RuntimeCtx.auxiliarySpace_addOwnedLayout, slots_auxiliary, samplingSpace, add_assoc]
 
-private theorem slots_visited (path : (allocateSlots (oracles := oracles) base n count).Path)
+private lemma slots_visited (path : (allocateSlots (oracles := oracles) base n count).Path)
     (frame : RuntimeCtx .quantum)
     (present : frame ∈ (allocateSlots (oracles := oracles) base n count).visitedContexts path) :
     ∃ used, used ≤ count ∧ frame = slots base n used := by
@@ -460,7 +456,7 @@ private theorem slots_visited (path : (allocateSlots (oracles := oracles) base n
         · exact ⟨count, Nat.le_succ count, same⟩
         · exact ⟨count + 1, le_rfl, List.mem_singleton.mp last⟩
 
-private theorem allocate_visited (path : (allocate (oracles := oracles) base noQuantum n
+private lemma allocate_visited (path : (allocate (oracles := oracles) base noQuantum n
   count).Path)
     (frame : RuntimeCtx .quantum)
     (present : frame ∈ (allocate (oracles := oracles) base noQuantum n count).visitedContexts
@@ -482,7 +478,7 @@ private theorem allocate_visited (path : (allocate (oracles := oracles) base noQ
       · exact Or.inr ⟨0, Nat.zero_le n, List.mem_singleton.mp second⟩
     · exact Or.inr (MeasurementCells.allocate_visitedContexts _ _ _ _ _ cells)
 
-private theorem allocate_resident (path : (allocate (oracles := oracles) base noQuantum n
+private lemma allocate_resident (path : (allocate (oracles := oracles) base noQuantum n
   count).Path) :
     (allocate (oracles := oracles) base noQuantum n count).peakResidentSpace path ≤
       (context base noQuantum n count).residentSpace := by
@@ -501,7 +497,7 @@ private theorem allocate_resident (path : (allocate (oracles := oracles) base no
   · obtain ⟨used, bounded, rfl⟩ := cells
     exact MeasurementCells.context_residentSpace_mono _ 2 bounded
 
-private theorem allocate_auxiliary (path : (allocate (oracles := oracles) base noQuantum n
+private lemma allocate_auxiliary (path : (allocate (oracles := oracles) base noQuantum n
   count).Path) :
     (allocate (oracles := oracles) base noQuantum n count).peakAuxiliarySpace path ≤
       (context base noQuantum n count).auxiliarySpace := by
@@ -520,21 +516,22 @@ private theorem allocate_auxiliary (path : (allocate (oracles := oracles) base n
   · obtain ⟨used, bounded, rfl⟩ := cells
     exact MeasurementCells.context_auxiliarySpace_mono _ 2 bounded
 
-private theorem sample_visited (sampling : SamplingCircuit n) (index : Fin count)
+private lemma sample_visited (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) (frame : RuntimeCtx .quantum)
     (present : frame ∈ (sample base noQuantum n count sampling index).visitedContexts path) :
     frame = context base noQuantum n count := by
   change frame ∈ List.append (α := RuntimeCtx .quantum) [context base noQuantum n count]
     (List.append (α := RuntimeCtx .quantum)
-      ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-        (oracles := sourceModel sampling.oracle) (operations := BitWord.model)
+      ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+        (oracles := sourceModel n) (operations := BitWord.model)
         (classicalOracles := .empty) (readouts base noQuantum n count)).visitedContexts path.2.1)
       [context base noQuantum n count]) at present
   rw [Circuit.measurementSequence_visitedContexts] at present
   simp only [List.append_eq, List.mem_append, List.mem_singleton, List.mem_replicate] at present
   rcases present with same | ⟨_, same⟩ | same <;> exact same
 
-private theorem sample_resident (sampling : SamplingCircuit n) (index : Fin count)
+private lemma sample_resident (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) :
     (sample base noQuantum n count sampling index).peakResidentSpace path ≤
       (context base noQuantum n count).residentSpace := by
@@ -542,7 +539,7 @@ private theorem sample_resident (sampling : SamplingCircuit n) (index : Fin coun
   intro frame present
   rw [sample_visited base noQuantum n count sampling index path frame present]
 
-private theorem sample_auxiliary (sampling : SamplingCircuit n) (index : Fin count)
+private lemma sample_auxiliary (sampling : SamplingCircuit n) (index : Fin count)
     (path : (sample base noQuantum n count sampling index).Path) :
     (sample base noQuantum n count sampling index).peakAuxiliarySpace path ≤
       (context base noQuantum n count).auxiliarySpace := by
@@ -550,151 +547,136 @@ private theorem sample_auxiliary (sampling : SamplingCircuit n) (index : Fin cou
   intro frame present
   rw [sample_visited base noQuantum n count sampling index path frame present]
 
-private theorem reusedSample_resident (sampling : SamplingCircuit n) (index : Fin count)
+private lemma reusedSample_resident (sampling : SamplingCircuit n) (index : Fin count)
     (path : (reusedSample base noQuantum n count sampling index).Path) :
     (reusedSample base noQuantum n count sampling index).peakResidentSpace path ≤
-      SpacePool.ofShape (.finite 2) + (context base noQuantum n count).residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (reset (oracles := sourceModel sampling.oracle) base
-    noQuantum n count)
-    (sample base noQuantum n count sampling index) path).le.trans ?_
-  apply SpacePool.max_le
-  · exact (ZReset.BankScope.zResetBankScope_peakResidentSpace (oracles := sourceModel
-    sampling.oracle) (operations := BitWord.model) _ path.1).le
-  · refine (sample_resident base noQuantum n count sampling index path.2).trans ?_
-    intro axis
-    exact Nat.le_add_left _ _
+      (context base noQuantum n count).residentSpace := by
+  refine (Circuit.peakResidentSpace_seq (reset (oracles := sourceModel n) base
+    noQuantum n count) (sample base noQuantum n count sampling index) path).le.trans ?_
+  exact SpacePool.max_le (ReusedReset.code_peakResidentSpace base noQuantum n count path.1).le
+    (sample_resident base noQuantum n count sampling index path.2)
 
-private theorem reusedSample_auxiliary (sampling : SamplingCircuit n) (index : Fin count)
+private lemma reusedSample_auxiliary (sampling : SamplingCircuit n) (index : Fin count)
     (path : (reusedSample base noQuantum n count sampling index).Path) :
     (reusedSample base noQuantum n count sampling index).peakAuxiliarySpace path ≤
-      SpacePool.ofShape (.finite 2) + (context base noQuantum n count).auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (reset (oracles := sourceModel sampling.oracle) base
-    noQuantum n count)
-    (sample base noQuantum n count sampling index) path).le.trans ?_
-  apply SpacePool.max_le
-  · exact (ZReset.BankScope.zResetBankScope_peakAuxiliarySpace (oracles := sourceModel
-    sampling.oracle) (operations := BitWord.model) _ path.1).le
-  · refine (sample_auxiliary base noQuantum n count sampling index path.2).trans ?_
-    intro axis
-    exact Nat.le_add_left _ _
+      (context base noQuantum n count).auxiliarySpace := by
+  refine (Circuit.peakAuxiliarySpace_seq (reset (oracles := sourceModel n) base
+    noQuantum n count) (sample base noQuantum n count sampling index) path).le.trans ?_
+  exact SpacePool.max_le (ReusedReset.code_peakAuxiliarySpace base noQuantum n count path.1).le
+    (sample_auxiliary base noQuantum n count sampling index path.2)
 
-private theorem sampleBatch_resident (sampling : SamplingCircuit n)
+private lemma sampleBatch_resident (sampling : SamplingCircuit n)
     (path : (sampleBatch base noQuantum n sampling count).Path) :
     (sampleBatch base noQuantum n sampling count).peakResidentSpace path ≤
-      SpacePool.ofShape (.finite 2) + (context base noQuantum n count).residentSpace := by
+      (context base noQuantum n count).residentSpace := by
   cases count with
   | zero =>
       apply Circuit.peakResidentSpace_le_of_visited
       intro frame present
-      have same := List.mem_singleton.mp present
-      subst frame
-      intro axis
-      exact Nat.le_add_left _ _
+      rw [List.mem_singleton.mp present]
   | succ count =>
       refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-      · refine (sample_resident base noQuantum n (count + 1) sampling 0 path.1).trans ?_
-        intro axis
-        exact Nat.le_add_left _ _
-      · exact Circuit.forRange_resident_le count _ _ (fun _ => Nat.le_add_left _ _)
+      · exact sample_resident base noQuantum n (count + 1) sampling 0 path.1
+      · exact Circuit.forRange_resident_le count _ _ le_rfl
           (fun index record => reusedSample_resident base noQuantum n (count + 1)
             sampling index.succ record) path.2
 
-private theorem sampleBatch_auxiliary (sampling : SamplingCircuit n)
+private lemma sampleBatch_auxiliary (sampling : SamplingCircuit n)
     (path : (sampleBatch base noQuantum n sampling count).Path) :
     (sampleBatch base noQuantum n sampling count).peakAuxiliarySpace path ≤
-      SpacePool.ofShape (.finite 2) + (context base noQuantum n count).auxiliarySpace := by
+      (context base noQuantum n count).auxiliarySpace := by
   cases count with
   | zero =>
       apply Circuit.peakAuxiliarySpace_le_of_visited
       intro frame present
-      have same := List.mem_singleton.mp present
-      subst frame
-      intro axis
-      exact Nat.le_add_left _ _
+      rw [List.mem_singleton.mp present]
   | succ count =>
       refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-      · refine (sample_auxiliary base noQuantum n (count + 1) sampling 0 path.1).trans ?_
-        intro axis
-        exact Nat.le_add_left _ _
-      · exact Circuit.forRange_auxiliary_le count _ _ (fun _ => Nat.le_add_left _ _)
+      · exact sample_auxiliary base noQuantum n (count + 1) sampling 0 path.1
+      · exact Circuit.forRange_auxiliary_le count _ _ le_rfl
           (fun index record => reusedSample_auxiliary base noQuantum n (count + 1)
             sampling index.succ record) path.2
 
-/-- All sampled storage remains live, with one reset scratch reused across successors. -/
-theorem nativeSimon_code_resident_le (sampling : SamplingCircuit n)
+/-- Sampling retains exactly its real contexts, with no separate reset scratch cell. -/
+lemma nativeSimon_code_resident_le (sampling : SamplingCircuit n)
     (path : (code base noQuantum n count sampling).Path) :
     (code base noQuantum n count sampling).peakResidentSpace path ≤
-      SpacePool.ofShape (.finite 2) + samplingSpace n count + base.residentSpace := by
-  rw [add_assoc, ← nativeSimon_context_residentSpace base noQuantum n count]
+      samplingSpace n count + base.residentSpace := by
+  rw [← nativeSimon_context_residentSpace base noQuantum n count]
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · refine (allocate_resident (oracles := sourceModel sampling.oracle) base noQuantum n count
-    path.1).trans ?_
-    intro axis
-    exact Nat.le_add_left _ _
+  · exact allocate_resident (oracles := sourceModel n) base noQuantum n count path.1
   · exact sampleBatch_resident base noQuantum n count sampling path.2
 
-/-- The same live sampling entries are charged in auxiliary storage according to their roles. -/
-theorem nativeSimon_code_auxiliary_le (sampling : SamplingCircuit n)
+/-- The same exact sampling entries remain live with their original auxiliary roles. -/
+lemma nativeSimon_code_auxiliary_le (sampling : SamplingCircuit n)
     (path : (code base noQuantum n count sampling).Path) :
     (code base noQuantum n count sampling).peakAuxiliarySpace path ≤
-      SpacePool.ofShape (.finite 2) + samplingSpace n count + base.auxiliarySpace := by
-  rw [add_assoc, ← nativeSimon_context_auxiliarySpace base noQuantum n count]
+      samplingSpace n count + base.auxiliarySpace := by
+  rw [← nativeSimon_context_auxiliarySpace base noQuantum n count]
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · refine (allocate_auxiliary (oracles := sourceModel sampling.oracle) base noQuantum n count
-    path.1).trans ?_
-    intro axis
-    exact Nat.le_add_left _ _
+  · exact allocate_auxiliary (oracles := sourceModel n) base noQuantum n count path.1
   · exact sampleBatch_auxiliary base noQuantum n count sampling path.2
 
+/-- Complete sampling has the exact persistent resident peak, including zero rounds and width zero.
+-/
+lemma nativeSimon_code_residentSpace (sampling : SamplingCircuit n)
+    (path : (code base noQuantum n count sampling).Path) :
+    (code base noQuantum n count sampling).peakResidentSpace path =
+      samplingSpace n count + base.residentSpace := by
+  apply le_antisymm (nativeSimon_code_resident_le base noQuantum n count sampling path)
+  rw [← nativeSimon_context_residentSpace base noQuantum n count]
+  exact Circuit.output_residentSpace_le_peak _ path
+
+/-- The corresponding complete auxiliary peak removes the same former reset scratch bit. -/
+lemma nativeSimon_code_auxiliarySpace (sampling : SamplingCircuit n)
+    (path : (code base noQuantum n count sampling).Path) :
+    (code base noQuantum n count sampling).peakAuxiliarySpace path =
+      samplingSpace n count + base.auxiliarySpace := by
+  apply le_antisymm (nativeSimon_code_auxiliary_le base noQuantum n count sampling path)
+  rw [← nativeSimon_context_auxiliarySpace base noQuantum n count]
+  exact Circuit.output_auxiliarySpace_le_peak _ path
+
 /-- Recovery uses one seven-cell workspace after sampling, retaining the complete original bank. -/
-theorem nativeSimon_recovery_resident_le (sampling : SamplingCircuit n)
+lemma nativeSimon_recovery_resident_le (sampling : SamplingCircuit n)
     (path : (recoveryCode base noQuantum n count sampling).Path) :
     (recoveryCode base noQuantum n count sampling).peakResidentSpace path ≤
-      recoveryScratchSpace (sourceModel sampling.oracle) n count + samplingSpace n count +
+      recoveryScratchSpace (sourceModel n) n count + samplingSpace n count +
         base.residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · refine (nativeSimon_code_resident_le base noQuantum n count sampling path.1).trans ?_
-    exact add_le_add (add_le_add (SpacePool.le_max_left _ _) le_rfl) le_rfl
+    intro axis
+    change samplingSpace n count axis + base.residentSpace axis ≤ _
+    simp only [Pi.add_apply]
+    omega
   · have bound := ClassicalRoutines.GF2.Native.gf2Retained_resident_le
-      (model := executionModel sampling.oracle)
+      (model := executionModel n)
       (samplesInput base noQuantum n count) (context base noQuantum n count).canonicalFreshKey
       (context base noQuantum n count).canonicalFreshKey_fresh path.2
     rw [nativeSimon_context_residentSpace] at bound
-    refine bound.trans ?_
     intro axis
-    have maxBound := SpacePool.le_max_right
-      (SpacePool.ofShape (.finite 2))
-      (((ClassicalRoutines.GF2.Native.stateShapes count n).map SpacePool.ofShape).sum +
-        ClassicalRoutines.GF2.Native.intoScratchSpace (executionModel sampling.oracle) count n +
-          SpacePool.ofShape (.option (.unsignedWord n))) axis
-    simpa only [recoveryScratchSpace, Pi.add_apply, Nat.add_assoc] using
-      Nat.add_le_add_right (Nat.add_le_add_right maxBound (samplingSpace n count axis))
-        (base.residentSpace axis)
+    simpa only [recoveryScratchSpace, recoveryContext, executionModel, Pi.add_apply,
+      Nat.add_assoc] using bound axis
 
 /-- Auxiliary storage is the same owned allowance beside the caller's existing auxiliary cells. -/
-theorem nativeSimon_recovery_auxiliary_le (sampling : SamplingCircuit n)
+lemma nativeSimon_recovery_auxiliary_le (sampling : SamplingCircuit n)
     (path : (recoveryCode base noQuantum n count sampling).Path) :
     (recoveryCode base noQuantum n count sampling).peakAuxiliarySpace path ≤
-      recoveryScratchSpace (sourceModel sampling.oracle) n count + samplingSpace n count +
+      recoveryScratchSpace (sourceModel n) n count + samplingSpace n count +
         base.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
   · refine (nativeSimon_code_auxiliary_le base noQuantum n count sampling path.1).trans ?_
-    exact add_le_add (add_le_add (SpacePool.le_max_left _ _) le_rfl) le_rfl
+    intro axis
+    change samplingSpace n count axis + base.auxiliarySpace axis ≤ _
+    simp only [Pi.add_apply]
+    omega
   · have bound := ClassicalRoutines.GF2.Native.gf2Retained_auxiliary_le
-      (model := executionModel sampling.oracle)
+      (model := executionModel n)
       (samplesInput base noQuantum n count) (context base noQuantum n count).canonicalFreshKey
       (context base noQuantum n count).canonicalFreshKey_fresh path.2
     rw [nativeSimon_context_auxiliarySpace] at bound
-    refine bound.trans ?_
     intro axis
-    have maxBound := SpacePool.le_max_right
-      (SpacePool.ofShape (.finite 2))
-      (((ClassicalRoutines.GF2.Native.stateShapes count n).map SpacePool.ofShape).sum +
-        ClassicalRoutines.GF2.Native.intoScratchSpace (executionModel sampling.oracle) count n +
-          SpacePool.ofShape (.option (.unsignedWord n))) axis
-    simpa only [recoveryScratchSpace, Pi.add_apply, Nat.add_assoc] using
-      Nat.add_le_add_right (Nat.add_le_add_right maxBound (samplingSpace n count axis))
-        (base.auxiliarySpace axis)
+    simpa only [recoveryScratchSpace, recoveryContext, executionModel, Pi.add_apply,
+      Nat.add_assoc] using bound axis
 
 end
 

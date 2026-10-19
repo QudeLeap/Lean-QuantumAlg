@@ -30,13 +30,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Work2Rotation
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 /-- Work2 in physical most-significant-first order, matching its source circular rotation. -/
 def word (width : Nat) : Word (encoding width) (width + 3) :=
   ⟨secondWordBit width⟩
 
-private theorem word_distinct (width : Nat) (left right : Fin (width + 3))
+private lemma word_distinct (width : Nat) (left right : Fin (width + 3))
     (different : left ≠ right) :
     ((word width).bit left).wire ≠ ((word width).bit right).wire := by
   intro same
@@ -68,11 +70,11 @@ def rightProgram (width : Nat) :
 private def withoutWord {width : Nat} (state : Registers width) : Registers width :=
   { state with secondWord := 0#(width + 3) }
 
-private theorem withoutWord_flip (width : Nat) (index : Fin (width + 3))
+private lemma withoutWord_flip (width : Nat) (index : Fin (width + 3))
     (state : Registers width) :
     withoutWord ((secondWordBit width index).flip state) = withoutWord state := rfl
 
-private theorem withoutWord_cnot (width : Nat) (left right : Fin (width + 3))
+private lemma withoutWord_cnot (width : Nat) (left right : Fin (width + 3))
     (state : Registers width) :
     withoutWord (cnotStep (secondWordBit width left) (secondWordBit width right) state) =
       withoutWord state := by
@@ -81,7 +83,7 @@ private theorem withoutWord_cnot (width : Nat) (left right : Fin (width + 3))
   · exact withoutWord_flip width right state
   · rfl
 
-private theorem withoutWord_swap (width : Nat) (index : Fin (width + 3 - 1))
+private lemma withoutWord_swap (width : Nat) (index : Fin (width + 3 - 1))
     (state : Registers width) :
     withoutWord (GateSpec.stepList
       (Word.adjacentSwapGates (word width) (word_distinct width) index) state) =
@@ -89,7 +91,7 @@ private theorem withoutWord_swap (width : Nat) (index : Fin (width + 3 - 1))
   simp only [Word.adjacentSwapGates, swapGates, GateSpec.stepList, GateSpec.step, word,
     id_eq, withoutWord_cnot]
 
-private theorem withoutWord_indices (width : Nat) (indices : List (Fin (width + 3 - 1)))
+private lemma withoutWord_indices (width : Nat) (indices : List (Fin (width + 3 - 1)))
     (state : Registers width) :
     withoutWord (GateSpec.stepList
       (indices.flatMap (Word.adjacentSwapGates (word width) (word_distinct width))) state) =
@@ -99,11 +101,11 @@ private theorem withoutWord_indices (width : Nat) (indices : List (Fin (width + 
   | cons index rest ih =>
       rw [List.flatMap_cons, GateSpec.stepList_append, ih, withoutWord_swap]
 
-private theorem left_preserves_complement (width : Nat) (state : Registers width) :
+private lemma left_preserves_complement (width : Nat) (state : Registers width) :
     withoutWord (GateSpec.stepList (leftGates width) state) = withoutWord state :=
   withoutWord_indices width _ state
 
-private theorem left_word (width : Nat) (state : Registers width) :
+private lemma left_word (width : Nat) (state : Registers width) :
     (GateSpec.stepList (leftGates width) state).secondWord = state.secondWord.rotateLeft 1 := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -122,7 +124,7 @@ private theorem left_word (width : Nat) (state : Registers width) :
   simpa only [BitVec.getMsbD_rotateLeft, within, decide_true, Bool.true_and] using entry
 
 /-- The actual native left sweep rotates the full word and retains the complete other frame. -/
-theorem left_step (width : Nat) (state : Registers width) :
+lemma left_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (leftGates width) state =
       { state with secondWord := state.secondWord.rotateLeft 1 } := by
   let result := GateSpec.stepList (leftGates width) state
@@ -133,17 +135,17 @@ theorem left_step (width : Nat) (state : Registers width) :
       rfl
 
 /-- Reversing the actual native list restores every original frame bit. -/
-theorem right_left (width : Nat) (state : Registers width) :
+lemma right_left (width : Nat) (state : Registers width) :
     GateSpec.stepList (rightGates width) (GateSpec.stepList (leftGates width) state) = state :=
   Word.adjacentShiftRightStep_adjacentShiftLeftStep (word width) (word_distinct width) state
 
 /-- The actual forward list also reverses the inverse list on every possible incoming frame. -/
-theorem left_right (width : Nat) (state : Registers width) :
+lemma left_right (width : Nat) (state : Registers width) :
     GateSpec.stepList (leftGates width) (GateSpec.stepList (rightGates width) state) = state :=
   Word.adjacentShiftLeftStep_adjacentShiftRightStep (word width) (word_distinct width) state
 
 /-- The inverse native sweep rotates right and retains the complete other frame. -/
-theorem right_step (width : Nat) (state : Registers width) :
+lemma right_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (rightGates width) state =
       { state with secondWord := state.secondWord.rotateRight 1 } := by
   let result := GateSpec.stepList (rightGates width) state
@@ -162,28 +164,28 @@ theorem right_step (width : Nat) (state : Registers width) :
       rfl
 
 /-- Exact full-frame realization by the actual left CNOT circuit, with no phase discarded. -/
-theorem left_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (leftProgram width)
+lemma left_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (leftProgram width) environment
       (fun state => { state with secondWord := state.secondWord.rotateLeft 1 }) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (leftGates width) (left_step width)
+    (leftGates width) (left_step width) environment
 
 /-- Exact full-frame realization by the actual inverse CNOT circuit. -/
-theorem right_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (rightProgram width)
+lemma right_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (rightProgram width) environment
       (fun state => { state with secondWord := state.secondWord.rotateRight 1 }) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (rightGates width) (right_step width)
+    (rightGates width) (right_step width) environment
 
 /-- The actual left event trace has three native CNOT events per adjacent Work2 pair. -/
-theorem left_eventTrace_length (width : Nat) :
+lemma left_eventTrace_length (width : Nat) :
     (leftProgram width).eventTrace.length = 3 * (width + 2) := by
   rw [leftProgram, GateSpec.programList_eventTrace, List.length_map]
   exact (Word.adjacentShiftLeftGates_length (word width) (word_distinct width)).trans
     (congrArg (3 * ·) (by omega))
 
 /-- The literal inverse list has the same exact number of native events. -/
-theorem right_eventTrace_length (width : Nat) :
+lemma right_eventTrace_length (width : Nat) :
     (rightProgram width).eventTrace.length = 3 * (width + 2) := by
   rw [rightProgram, GateSpec.programList_eventTrace, List.length_map]
   exact (Word.adjacentShiftRightGates_length (word width) (word_distinct width)).trans

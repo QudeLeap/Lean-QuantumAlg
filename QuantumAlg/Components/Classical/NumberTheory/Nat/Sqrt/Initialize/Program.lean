@@ -54,7 +54,8 @@ def initializeSeed (refs : Refs ctx inputWidth) (store : Store ctx) : Store ctx 
     (initializeClearOp refs.round.root)).applyOp
       (initializeClearOp refs.round.half)).applyOp (initializeIncrementOp refs)
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- One actual in-place left shift of the binary-search half interval. -/
 def shiftHalfInto (refs : Refs ctx inputWidth) : Circuit model ctx ctx :=
@@ -72,10 +73,10 @@ def shiftHalfLoopStep (refs : Refs ctx inputWidth) (count : Nat) (store : Store 
       ((fun before => before.applyOp (shiftHalfOp refs))^[index.val] store)).2)
 
 /-- The loop record follows the existing iterator on the full classical-quantum state. -/
-theorem shiftHalfLoopInto_execute (refs : Refs ctx inputWidth) (count : Nat)
+lemma shiftHalfLoopInto_execute (refs : Refs ctx inputWidth) (count : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (shiftHalfLoopInto (model := model) refs count).execute Reference state =
+    (shiftHalfLoopInto (model := model) refs count).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := shiftHalfLoopStep (model := model) refs count entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -91,9 +92,10 @@ theorem shiftHalfLoopInto_execute (refs : Refs ctx inputWidth) (count : Nat)
     | succ count ih =>
         rw [Function.iterate_succ_apply, Function.iterate_succ_apply]
         exact ih (nativeStep store).1
-  refine (Circuit.execute_iterate_mapClassical (shiftHalfInto (model := model) refs) jointStep
+  refine (Circuit.execute_iterate_mapClassical
+    (environment := environment) (shiftHalfInto (model := model) refs) jointStep
     (fun _reference _history _ current =>
-      BitWord.bitWord_instruction_execute (shiftHalfOp refs) current)
+      BitWord.bitWord_instruction_execute (environment := environment) (shiftHalfOp refs) current)
     count Reference state).trans ?_
   apply ExecutionState.executionState_mapClassical_congr
   funext entry
@@ -122,9 +124,10 @@ def initializeStep (refs : Refs ctx inputWidth) (store : Store ctx) :
   (shifted.1, (resized.2, (root.2, (half.2, (incremented.2, shifted.2)))))
 
 /-- Initialization executes its exact record while retaining every incoming reference block. -/
-theorem initializeInto_execute (refs : Refs ctx inputWidth) (Reference : Register)
+lemma initializeInto_execute (refs : Refs ctx inputWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (initializeInto (model := model) refs).execute Reference state = state.mapClassical (fun entry
+    (initializeInto (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry
       =>
       let actual := initializeStep (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by

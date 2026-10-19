@@ -26,6 +26,9 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -42,16 +45,18 @@ def measuredPacking : Circuit model ctx ctx :=
 
 /-- The actual writes on one basis fiber, including the final real packing output write. -/
 def packedBasisStore (store : Store ctx) (basis : ctx.register.Index) : Store ctx :=
-  (Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+  (Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
+    (oracles := .empty)
     (operations := BitWord.model) (classicalOracles := .empty)
     (readouts m ell width sameWires cells) store
-    (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+    (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
       (readouts m ell width sameWires cells) basis)).applyOp
       (packing m ell width cells result)
 
 /-- The actual final packed cell contains the original source's complete two-exponent outcome. -/
-theorem shortDLP_runtimePacked_output
+lemma shortDLP_runtimePacked_output
     (distinct : Function.Injective (fun index => (cells index).key))
     (store : Store ctx) (basis : ctx.register.Index) :
     (packedBasisStore m ell width sameWires cells result store basis).read
@@ -59,10 +64,12 @@ theorem shortDLP_runtimePacked_output
       CShape.Value.bits ((ShortDLP.measurement (registerParameters m ell width)).readout
         (RuntimePlacement.basisEquiv m ell width sameWires basis)) :=
   (Store.read_applyOp_output
-    (Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+    (Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
       (readouts m ell width sameWires cells) store
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := AlgorithmGate.model)
+        (oracles := .empty)
         (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells) basis))
     (packing m ell width cells result)).trans
@@ -71,7 +78,7 @@ theorem shortDLP_runtimePacked_output
 
 /-- Each observed packed store has its actual-input reference fiber,
 including off-diagonal entries. -/
-theorem shortDLP_runtimePacked_joint_reference_entry
+lemma shortDLP_runtimePacked_joint_reference_entry
     {Reference : Register} {History Observed : Type} [Fintype History] [Fintype Observed]
     (state : State ctx Reference (model.HiddenState × History))
     (observe : Store ctx → Observed) (value : Observed)
@@ -79,7 +86,7 @@ theorem shortDLP_runtimePacked_joint_reference_entry
     (∑ basis : ctx.register.Index,
       DensityOperator.matrix
         ((ExecutionState.mapClassical
-          ((measuredPacking m ell width sameWires cells result).execute Reference state)
+          ((measuredPacking m ell width sameWires cells result).execute environment Reference state)
           (fun entry => observe entry.1)).block value)
         (basis, left) (basis, right)) =
       ExecutionState.referenceFiberSum state (fun original basis =>

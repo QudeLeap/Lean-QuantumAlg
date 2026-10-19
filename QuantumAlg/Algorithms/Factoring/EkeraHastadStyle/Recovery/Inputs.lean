@@ -57,18 +57,18 @@ def terminalPairs (inputs : Inputs ctx N) :
   (List.ofFn (terminalInput inputs)).unorderedPairs
 
 /-- All sixteen chronological input positions produce exactly 120 literal recovery pairs. -/
-theorem nativeRecovery_terminalPairs_length (inputs : Inputs ctx N) :
+lemma nativeRecovery_terminalPairs_length (inputs : Inputs ctx N) :
     (terminalPairs inputs).length = 120 := by
   rw [terminalPairs, List.length_unorderedPairs, List.length_ofFn]
   norm_num [Nat.choose]
 
 /-- An actual vector projection reads exactly the terminal value at its original position. -/
-theorem nativeRecovery_terminal_read (inputs : Inputs ctx N) (store : Store ctx)
+lemma nativeRecovery_terminal_read (inputs : Inputs ctx N) (store : Store ctx)
     (index : Fin 16) :
     store.read (terminalInput inputs index) = (store.read inputs.outcomes).get index := rfl
 
 /-- Reading the literal pair references yields the unchanged pair order of actual stored values. -/
-theorem nativeRecovery_terminalPairs_read (inputs : Inputs ctx N) (store : Store ctx) :
+lemma nativeRecovery_terminalPairs_read (inputs : Inputs ctx N) (store : Store ctx) :
     (terminalPairs inputs).map (fun pair => (store.read pair.1, store.read pair.2)) =
       (List.ofFn (fun index => (store.read inputs.outcomes).get index)).unorderedPairs := by
   have pairs := List.unorderedPairs_map (List.ofFn (terminalInput inputs))

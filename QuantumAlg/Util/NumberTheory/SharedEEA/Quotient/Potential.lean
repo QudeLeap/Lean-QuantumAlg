@@ -31,7 +31,7 @@ actual terminating trajectory and its physical schedule remain separate.
 namespace QuantumAlg.NumberTheory.SharedEEA.QuotientPotential
 
 /-- The exact two-quotient recurrence factor pays for the sum of both quotient bit lengths. -/
-theorem positive_pair_square (left right : Nat)
+lemma positive_pair_square (left right : Nat)
     (leftPositive : 0 < left) (rightPositive : 0 < right) :
     2 ^ (left.size + right.size) ≤ (left * right + 1) ^ 2 := by
   have leftSize := Nat.size_pos.mpr leftPositive
@@ -57,7 +57,7 @@ theorem positive_pair_square (left right : Nat)
     interval_cases left <;> interval_cases right <;> decide
 
 /-- A final quotient of at least two pays for its own bit length under the squared potential. -/
-theorem final_quotient_square (quotient : Nat) (twoLe : 2 ≤ quotient) :
+lemma final_quotient_square (quotient : Nat) (twoLe : 2 ≤ quotient) :
     2 ^ quotient.size ≤ quotient ^ 2 := by
   have lengthTwo : 2 ≤ quotient.size := by
     have oneLt : 1 < quotient.size := Nat.lt_size.mpr twoLe
@@ -70,7 +70,7 @@ theorem final_quotient_square (quotient : Nat) (twoLe : 2 ≤ quotient) :
     _ ≤ quotient ^ 2 := Nat.pow_le_pow_left lower 2
 
 /-- One actual macro step has the exact quotient-plus-remainder decomposition. -/
-theorem decomposition (state : IterationState) :
+lemma decomposition (state : IterationState) :
     state.remainder = state.quotient * state.divisor + (IterationState.step state).divisor := by
   change state.remainder = (state.remainder / state.divisor) * state.divisor +
     state.remainder % state.divisor
@@ -78,7 +78,7 @@ theorem decomposition (state : IterationState) :
   exact (Nat.div_add_mod state.remainder state.divisor).symm
 
 /-- Two actual macro steps have the exact continuant factor, including the residual term. -/
-theorem two_step_decomposition (state : IterationState) :
+lemma two_step_decomposition (state : IterationState) :
     state.remainder =
       (state.quotient * (IterationState.step state).quotient + 1) *
           (IterationState.step (IterationState.step state)).remainder +
@@ -98,7 +98,7 @@ theorem two_step_decomposition (state : IterationState) :
       ring
 
 /-- Every genuine active quotient step has the strict factor bound used by the lower potential. -/
-theorem step_strict (state : IterationState) (active : 0 < state.divisor) :
+lemma step_strict (state : IterationState) (active : 0 < state.divisor) :
     state.remainder < 2 ^ state.quotient.size * (IterationState.step state).remainder := by
   have remainderBound : (IterationState.step state).divisor < state.divisor :=
     Nat.mod_lt _ active
@@ -113,7 +113,7 @@ theorem step_strict (state : IterationState) (active : 0 < state.divisor) :
     _ ≤ 2 ^ state.quotient.size * state.divisor := Nat.mul_le_mul_right _ digitBound
 
 /-- Every actual active pair decreases the squared remainder by both quotient-size factors. -/
-theorem two_step_square (state : IterationState) (ordered : state.divisor < state.remainder)
+lemma two_step_square (state : IterationState) (ordered : state.divisor < state.remainder)
     (active : 0 < state.divisor) (nextActive : 0 < (IterationState.step state).divisor) :
     2 ^ (state.quotient.size + (IterationState.step state).quotient.size) *
         (IterationState.step (IterationState.step state)).remainder ^ 2 ≤ state.remainder ^ 2 := by
@@ -137,7 +137,7 @@ theorem two_step_square (state : IterationState) (ordered : state.divisor < stat
     _ ≤ state.remainder ^ 2 := Nat.pow_le_pow_left factorBound 2
 
 /-- A genuine final division has quotient at least two, including the smallest prime input. -/
-theorem terminal_quotient_two (state : IterationState)
+lemma terminal_quotient_two (state : IterationState)
     (ordered : state.divisor < state.remainder) (active : 0 < state.divisor)
     (finished : (IterationState.step state).divisor = 0) : 2 ≤ state.quotient := by
   have positive := IterationState.quotient_pos state ordered active
@@ -149,7 +149,7 @@ theorem terminal_quotient_two (state : IterationState)
   omega
 
 /-- A genuine final step pays for the unmatched quotient without adding a boundary assumption. -/
-theorem terminal_step_square (state : IterationState)
+lemma terminal_step_square (state : IterationState)
     (ordered : state.divisor < state.remainder) (active : 0 < state.divisor)
     (finished : (IterationState.step state).divisor = 0) :
     2 ^ state.quotient.size * (IterationState.step state).remainder ^ 2 ≤ state.remainder ^ 2 := by

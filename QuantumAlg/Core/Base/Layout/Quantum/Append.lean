@@ -74,7 +74,7 @@ public def appendBasisEquiv (left : QuantumLayout leftCount) (right : QuantumLay
       simp [appendRightBasis, appendJoinBasis]
 
 /-- Splitting reassembled labels recovers both original labels exactly. -/
-public theorem appendBasisEquiv_join (left : QuantumLayout leftCount)
+public lemma appendBasisEquiv_join (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (leftBasis : left.Basis) (rightBasis : right.Basis) :
@@ -84,7 +84,7 @@ public theorem appendBasisEquiv_join (left : QuantumLayout leftCount)
 
 /-- Joining the two all-zero subsystem labels gives the all-zero label of the
 complete appended layout. -/
-public theorem appendJoinBasis_zero (left : QuantumLayout leftCount)
+public lemma appendJoinBasis_zero (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities) :
     appendJoinBasis left right disjoint left.zeroLabel right.zeroLabel =
@@ -97,7 +97,7 @@ public theorem appendJoinBasis_zero (left : QuantumLayout leftCount)
     simp [appendJoinBasis, zeroLabel]
 
 /-- The left physical wire receives precisely its original finite value. -/
-public theorem appendJoinBasis_left_value (left : QuantumLayout leftCount)
+public lemma appendJoinBasis_left_value (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (leftBasis : left.Basis) (rightBasis : right.Basis) (index : Fin leftCount) :
@@ -106,7 +106,7 @@ public theorem appendJoinBasis_left_value (left : QuantumLayout leftCount)
   simp [appendJoinBasis]
 
 /-- The right physical wire receives precisely its original finite value. -/
-public theorem appendJoinBasis_right_value (left : QuantumLayout leftCount)
+public lemma appendJoinBasis_right_value (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (leftBasis : left.Basis) (rightBasis : right.Basis) (index : Fin rightCount) :

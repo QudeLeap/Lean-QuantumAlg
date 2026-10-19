@@ -7,8 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Finite.Specification
-import all
-QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Finite.Repeated
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Finite.Repeated
 import all QuantumAlg.Core.Execution.Classical.Composition.Range.Path
 
 /-!
@@ -32,18 +31,18 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- Every further completed batch is charged the same complete independent
 event allowance, including its additional pack and reset. -/
-def completedEventBudget (laterCount : Nat) : ResourcePool (model input) :=
-  eventBudget input 1 + ResourcePool.scale laterCount (nextCompletedEventBudget input)
+def completedEventBudget (laterCount : Nat) : ResourcePool (model N) :=
+  eventBudget N 1 + ResourcePool.scale laterCount (nextCompletedEventBudget N)
 
 /-- Whole-run serial duration adds every batch's actual internal dependencies. -/
 def completedDurationBudget (laterCount : Nat)
-    (duration : Resource.Event (model input) → Nat) : Nat :=
-  durationBudget input duration 1 +
-    laterCount * nextCompletedDurationBudget input duration
+    (duration : Resource.Event (model N) → Nat) : Nat :=
+  durationBudget N duration 1 +
+    laterCount * nextCompletedDurationBudget N duration
 
 /-- The actual complete path is the first batch followed by every projected
 later batch trace in chronological order; no reset or pack is hidden. -/
-theorem completed_eventTrace_eq (laterCount : Nat)
+lemma completed_eventTrace_eq (laterCount : Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
     (completedCode base noQuantum N input laterCount).eventTrace path =
       (firstCompletedAlgorithm base noQuantum input).run.code.eventTrace path.1 ++
@@ -60,8 +59,8 @@ theorem completed_eventTrace_eq (laterCount : Nat)
       (fun _ => nextCompletedCode base noQuantum N input) path.2)
 
 /-- The same projected paths add actual internal dependency depths. -/
-theorem completed_depth_eq (laterCount : Nat)
-    (duration : Resource.Event (model input) → Nat)
+lemma completed_depth_eq (laterCount : Nat)
+    (duration : Resource.Event (model N) → Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
     (completedCode base noQuantum N input laterCount).depth duration path =
       (firstCompletedAlgorithm base noQuantum input).run.code.depth duration path.1 +
@@ -79,13 +78,13 @@ theorem completed_depth_eq (laterCount : Nat)
 
 /-- The actual repeated code obeys its independently stated full event pool
 for every path and every original input. -/
-theorem completed_resourcePool_le (laterCount : Nat)
+lemma completed_resourcePool_le (laterCount : Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
     (completedCode base noQuantum N input laterCount).resourcePool path ≤
-      completedEventBudget N input laterCount := by
+      completedEventBudget N laterCount := by
   have tail := Circuit.forRange_pool_le laterCount
     (fun _ => nextCompletedCode base noQuantum N input)
-    (nextCompletedEventBudget input)
+    (nextCompletedEventBudget N)
     (fun _ => nextCompleted_resourcePool_le base noQuantum N input) path.2
   change (firstCompletedAlgorithm base noQuantum input).run.code.resourcePool path.1 +
     (laterCompletedCode base noQuantum N input laterCount).resourcePool path.2 ≤ _
@@ -94,14 +93,14 @@ theorem completed_resourcePool_le (laterCount : Nat)
 
 /-- Whole-run depth counts the first complete batch and each real later
 completed batch in sequence, for arbitrary event durations. -/
-theorem completed_depth_le (laterCount : Nat)
-    (duration : Resource.Event (model input) → Nat)
+lemma completed_depth_le (laterCount : Nat)
+    (duration : Resource.Event (model N) → Nat)
     (path : (completedCode base noQuantum N input laterCount).Path) :
     (completedCode base noQuantum N input laterCount).depth duration path ≤
-      completedDurationBudget N input laterCount duration := by
+      completedDurationBudget N laterCount duration := by
   have tail := Circuit.forRange_depth_le_sum laterCount
     (fun _ => nextCompletedCode base noQuantum N input) duration
-    (fun _ => nextCompletedDurationBudget input duration)
+    (fun _ => nextCompletedDurationBudget N duration)
     (fun _ => nextCompleted_depth_le base noQuantum N input duration) path.2
   simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul] at tail
   change (firstCompletedAlgorithm base noQuantum input).run.code.depth duration path.1 +

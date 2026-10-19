@@ -28,7 +28,7 @@ open ClassicalRoutines
 
 variable {width resultWidth : Nat}
 
-private theorem latch_replace
+private lemma latch_replace
     {accepted eligible sourceAccepted sourceEligible : Bool}
     {old sourceOld : CShape.Value (.unsignedWord resultWidth)} {candidate sourceCandidate : Nat}
     (acceptedEq : accepted = sourceAccepted) (eligibleEq : eligible = sourceEligible)
@@ -42,7 +42,7 @@ private theorem latch_replace
   cases candidateEq
   rfl
 
-private theorem latch_order (accepted firstValid secondValid : Bool) (first second : Nat)
+private lemma latch_order (accepted firstValid secondValid : Bool) (first second : Nat)
     (old : CShape.Value (.unsignedWord resultWidth)) :
     (if (!accepted) && (firstValid || secondValid) then
       CShape.wordOfNat resultWidth (if firstValid then first else if secondValid then second else 0)
@@ -54,7 +54,7 @@ private theorem latch_order (accepted firstValid secondValid : Bool) (first seco
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
-private theorem checked_store_projection
+private lemma checked_store_projection
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (store : Store (context ctx width)) :
     (checkedBodyStep (model := model) (ctx := ctx) (width := width) modulus original store).1 =
@@ -67,7 +67,7 @@ private theorem checked_store_projection
 set_option maxHeartbeats 800000 in -- Instantiate source and read laws for thirteen actual cells.
 /-- Actual checking and narrowing implement source priority in the same original persistent cells.
 -/
-theorem nativeQuadratic_persistent_checked_values
+lemma nativeQuadratic_persistent_checked_values
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth)

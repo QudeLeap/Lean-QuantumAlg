@@ -29,7 +29,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem load_rows
+private lemma load_rows
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (separate : matrix.key ∉ input.storageKeys) (count : Nat)
@@ -78,7 +78,7 @@ private theorem load_rows
         · simp only [later, current, List.mem_cons, or_self, if_false,
             CShape.vectorWrite, CShape.Value.get, Function.update_of_ne current]
 
-private theorem load_matrix
+private lemma load_matrix
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (separate : matrix.key ∉ input.storageKeys) (store : Store ctx)
@@ -91,7 +91,7 @@ private theorem load_matrix
   simpa only [loadMatrixStep, List.mem_ofFn, id_eq, exists_eq, if_true] using loaded
 
 /-- The original allocator supplies input separation for every actual matrix-row decode. -/
-theorem gf2LoadMatrix_cellRows {outer : RuntimeCtx model.kind}
+lemma gf2LoadMatrix_cellRows {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (store : Store ctx)
@@ -121,7 +121,7 @@ theorem gf2LoadMatrix_cellRows {outer : RuntimeCtx model.kind}
                   (separated.2.2.2.2.2.1 input) store samples inputValues
 
 omit [BitWord.Selected model] in
-private theorem row_written
+private lemma row_written
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (column : Fin width) (store : Store ctx) :
     (store.applyOp (pivotRowWriteOp rows zero column)).read (.storage rows.toCStorageRef) =
@@ -131,7 +131,7 @@ private theorem row_written
   rfl
 
 omit [BitWord.Selected model] in
-private theorem row_zero_frame
+private lemma row_zero_frame
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (column : Fin width) (store : Store ctx) :
     (store.applyOp (pivotRowWriteOp rows zero column)).read (.storage zero.toCStorageRef) =
@@ -143,7 +143,7 @@ private theorem row_zero_frame
     zero.toCStorageRef same
   cases impossible
 
-private theorem clear_rows
+private lemma clear_rows
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (count : Nat)
     (indices : Fin count → Fin width) (store : Store ctx)
@@ -180,7 +180,7 @@ private theorem clear_rows
         · simp only [later, current, List.mem_cons, or_self, if_false,
             CShape.vectorWrite, CShape.Value.get, Function.update_of_ne current]
 
-private theorem clear_rows_other
+private lemma clear_rows_other
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (zero : CWriteRef ctx (.unsignedWord rowCount)) (count : Nat)
     (indices : Fin count → Fin width) (store : Store ctx)
@@ -201,7 +201,7 @@ private theorem clear_rows_other
           (pivotRowWriteOp rows zero (indices 0)) other separate)
 
 /-- The original real zero-row scope initializes every pivot record, including width zero. -/
-theorem gf2ClearPivotRows_read
+lemma gf2ClearPivotRows_read
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount))) (store : Store ctx) :
     (clearPivotRowsStep rows store).1.read (.storage rows.toCStorageRef) =
       .fixedVector (fun _ => CShape.wordOfNat rowCount 0) := by
@@ -223,7 +223,7 @@ theorem gf2ClearPivotRows_read
   simpa only [pivotRowsClearBodyStep, List.mem_ofFn, id_eq, exists_eq, if_true] using cleared
 
 /-- The original real row initialization preserves every other caller read through its scope. -/
-theorem gf2ClearPivotRows_read_other
+lemma gf2ClearPivotRows_read_other
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount))) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : rows.key ∉ other.storageKeys) :
     (clearPivotRowsStep rows store).1.read other = store.read other := by
@@ -247,7 +247,7 @@ theorem gf2ClearPivotRows_read_other
   exact Store.read_pushWorkspace_underWorkspace store _ _ _ other
 
 omit [BitWord.Selected model] in
-private theorem word_eq_of_nat {size : Nat} (left right : CShape.Value (.unsignedWord size))
+private lemma word_eq_of_nat {size : Nat} (left right : CShape.Value (.unsignedWord size))
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -255,7 +255,7 @@ private theorem word_eq_of_nat {size : Nat} (left right : CShape.Value (.unsigne
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
 omit [BitWord.Selected model] in
-private theorem zero_word (size : Nat) :
+private lemma zero_word (size : Nat) :
     CShape.wordOfNat size 0 = .unsignedWord
       (ClassicalAlgorithms.GF2.wordOfLogicalBits (fun _ : Fin size => false)) := by
   let zero : ClassicalAlgorithms.Word size := ⟨0, pow_pos (by decide : 0 < 2) size⟩
@@ -269,7 +269,7 @@ private theorem zero_word (size : Nat) :
     (congrArg CShape.Value.unsignedWord same).symm
 
 omit [BitWord.Selected model] in
-private theorem clear_word (word : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+private lemma clear_word (word : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (store.applyOp (Word.PowerOfTwo.clearOp word)).read (.storage word.toCStorageRef) =
       CShape.wordOfNat width 0 := by
   apply word_eq_of_nat
@@ -277,19 +277,19 @@ private theorem clear_word (word : CWriteRef ctx (.unsignedWord width)) (store :
   simp only [CShape.wordOfNat, CShape.Value.toNat, Nat.zero_mod]
 
 omit [BitWord.Selected model] in
-private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
+private lemma avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 omit [BitWord.Selected model] in
-private theorem shapes_ne {left right : CShape} (output : CWriteRef ctx left)
+private lemma shapes_ne {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (different : left ≠ right) : output.key ≠ other.key := by
   intro same
   exact different (CStorageRef.storageRef_shape_eq_of_key output.toCStorageRef
     other.toCStorageRef same)
 
-private theorem initialized_fields
+private lemma initialized_fields
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
@@ -328,7 +328,7 @@ private theorem initialized_fields
     exact clear_word columns _
 
 /-- The original actual initialization establishes all four initial fields internally. -/
-theorem gf2Initialization_cellState {outer : RuntimeCtx model.kind}
+lemma gf2Initialization_cellState {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
@@ -375,7 +375,7 @@ theorem gf2Initialization_cellState {outer : RuntimeCtx model.kind}
       (And.intro rowsDone (columnsDone.trans (zero_word width))))
 
 /-- Actual loading, initialization and the original increasing pass realize the pure GF(2) state. -/
-theorem gf2LoadAndReduce_cellState {outer : RuntimeCtx model.kind}
+lemma gf2LoadAndReduce_cellState {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)

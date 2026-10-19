@@ -23,7 +23,7 @@ variable {G : Type u} [Group G]
 
 /-- The expected candidate encoding is not truncated by the endpoint word
 width. -/
-theorem expectedOutput_toNat {P : KnownOrderProblem G}
+lemma expectedOutput_toNat {P : KnownOrderProblem G}
     (input : Probability.SecretInput P) :
     (CShape.wordOfNat (orderWidth P) input.secret.val).toNat =
       input.secret.val := by

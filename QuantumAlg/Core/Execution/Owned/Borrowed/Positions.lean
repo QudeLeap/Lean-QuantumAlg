@@ -28,7 +28,7 @@ def positionEquiv (owned borrowed : Nat) :
     (context owned borrowed).quantumLayout (context_wires owned borrowed)
 
 /-- Each corresponding wire keeps its exact physical identity and binary dimension. -/
-theorem position_wire (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
+lemma position_wire (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
     (context owned borrowed).quantumLayout.wire (positionEquiv owned borrowed index) =
       ({ identity := index.val, dimension := 2 } : QuantumWire) :=
   Execution.wireAtCorrespondingPosition
@@ -36,7 +36,7 @@ theorem position_wire (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
     (context owned borrowed).quantumLayout (context_wires owned borrowed) index
 
 /-- The actual borrowed selection is precisely the supplied suffix of the full word. -/
-theorem borrowed_position_iff (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
+lemma borrowed_position_iff (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
     positionEquiv owned borrowed index ∈ (context owned borrowed).borrowedSelection ↔
       owned ≤ index.val := by
   rw [RuntimeCtx.mem_borrowedSelection, position_wire, context_borrowedWires]
@@ -55,7 +55,7 @@ theorem borrowed_position_iff (owned borrowed : Nat) (index : Fin (owned + borro
     simp only [Nat.add_sub_of_le afterOwned]
 
 /-- The actual complementary selection is exactly the supplied owned prefix. -/
-theorem owned_position_iff (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
+lemma owned_position_iff (owned borrowed : Nat) (index : Fin (owned + borrowed)) :
     positionEquiv owned borrowed index ∈ (context owned borrowed).borrowedSelectionᶜ ↔
       index.val < owned := by
   rw [Finset.mem_compl, borrowed_position_iff, Nat.not_le]

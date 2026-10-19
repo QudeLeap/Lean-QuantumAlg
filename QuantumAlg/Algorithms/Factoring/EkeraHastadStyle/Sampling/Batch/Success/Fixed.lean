@@ -23,7 +23,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchSuccess
 
 noncomputable section
 
-private theorem fixedBatchInputPMF_measurements {N : Nat} (input : Input N)
+private lemma fixedBatchInputPMF_measurements {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     fixedBatchInputPMF input sample =
       (PMF.independentReplicateVector (selectedOutcomePMF (parameterValue input sample)) 16).map
@@ -31,7 +31,7 @@ private theorem fixedBatchInputPMF_measurements {N : Nat} (input : Input N)
   unfold fixedBatchInputPMF fixedPreparedSamplePMF
   exact (PMF.independentReplicateVector_map _ _ 16).symm
 
-private theorem batchValue_some_of_earlyFactor {N factor : Nat}
+private lemma batchValue_some_of_earlyFactor {N factor : Nat}
     (sample : Fin (2 ^ residueSamplingBits N))
     (earlyFactor : (preparedResidue sample).earlyFactor = some factor)
     (measurements : List.Vector (TerminalZMeasure.Outcome (measurementBits N)) 16) :
@@ -60,7 +60,7 @@ private theorem batchValue_some_of_earlyFactor {N factor : Nat}
     rw [BatchRecovery.recoverPreparedPair_same_prepared, earlyFactor, Option.orElse_some]
 
 /-- Every actual fixed-source branch with an early factor succeeds with probability one. -/
-theorem fixed_eq_one_of_earlyFactor {N : Nat} (model : GoodKeyModel N)
+lemma fixed_eq_one_of_earlyFactor {N : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (earlyFactor : (preparedResidue sample).earlyFactor.isSome) :
     (fixedBatchOutputPMF model.input sample).toOuterMeasure (accepts model) = 1 := by
@@ -75,7 +75,7 @@ theorem fixed_eq_one_of_earlyFactor {N : Nat} (model : GoodKeyModel N)
       rcases batchValue_some_of_earlyFactor sample earlyEq measurements with ⟨recovered, result⟩
       exact ⟨recovered, result, batchValue_some_declared model result⟩
 
-private theorem targetPower {N : Nat} (model : GoodKeyModel N)
+private lemma targetPower {N : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     RSA.targetUnit (preparedResidue sample).unit =
       (preparedResidue sample).unit ^ RSA.shortLogSecret model.pair.p model.pair.q := by
@@ -84,7 +84,7 @@ private theorem targetPower {N : Nat} (model : GoodKeyModel N)
     pair.p_odd pair.q_odd (preparedResidue sample).unit
 
 /-- The raw sixteen-vector law inherits the original raw list feasible-pair probability floor. -/
-theorem fixed_hasPair_ge {N : Nat} (model : GoodKeyModel N)
+lemma fixed_hasPair_ge {N : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (orderSufficient : ShortDLP.oracleFiberSpan (registerParameters N)
       (RSA.shortLogSecret model.pair.p model.pair.q) ≤ orderOf (preparedResidue sample).unit) :
@@ -101,7 +101,7 @@ theorem fixed_hasPair_ge {N : Nat} (model : GoodKeyModel N)
   exact born
 
 /-- A feasible pair in the complete fixed batch yields a declared factor under the original key. -/
-theorem batchValue_accepts_of_feasiblePair {N : Nat} (model : GoodKeyModel N)
+lemma batchValue_accepts_of_feasiblePair {N : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (orderSufficient : ShortDLP.oracleFiberSpan (registerParameters N)
       (RSA.shortLogSecret model.pair.p model.pair.q) ≤ orderOf (preparedResidue sample).unit)
@@ -119,7 +119,7 @@ theorem batchValue_accepts_of_feasiblePair {N : Nat} (model : GoodKeyModel N)
   exact ⟨factor, result, batchValue_some_declared model result⟩
 
 /-- Sufficient order transfers the same-source Born floor to the original complete recovery law. -/
-theorem fixed_ge_of_order {N : Nat} (model : GoodKeyModel N)
+lemma fixed_ge_of_order {N : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (orderSufficient : ShortDLP.oracleFiberSpan (registerParameters N)
       (RSA.shortLogSecret model.pair.p model.pair.q) ≤ orderOf (preparedResidue sample).unit) :
@@ -132,7 +132,7 @@ theorem fixed_ge_of_order {N : Nat} (model : GoodKeyModel N)
   exact batchValue_accepts_of_feasiblePair model sample orderSufficient inputs feasible.1
 
 /-- Every nonexceptional original sampler branch has the declared fixed-batch success floor. -/
-theorem fixed_ge_of_samplerGood {N : Nat} (model : GoodKeyModel N)
+lemma fixed_ge_of_samplerGood {N : Nat} (model : GoodKeyModel N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (samplerGood : ¬ RSA.FixedWidthSampling.SamplerExceptional model.pair
       (model.bitWidth / 64) (modulusBits N) residueProposalCount sample) :

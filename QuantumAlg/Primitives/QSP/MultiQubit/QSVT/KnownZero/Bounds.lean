@@ -20,16 +20,16 @@ remain visible, including for an empty source word.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.KnownZero
 noncomputable section
 
-private theorem conjunction_bound (m n : Nat) (positive : 0 < n) :
+private lemma conjunction_bound (m n : Nat) (positive : 0 < n) :
     EncodedBit.Word.OneDirtyLayout.gateCount m ≤ 8 * m + 1 := by
   have actual := (ZeroProjector.SourceWork.layout m n positive).gates_length_le
   rw [EncodedBit.Word.OneDirtyLayout.gates_length] at actual
   exact actual
 
 /-- Actual word depth grows linearly in the phase count and original block-ancilla width. -/
-theorem circuit_depth_le {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
+lemma circuit_depth_le {m n : Nat}
     (positive : 0 < n) (allowControlled : Bool) (phases : List ℝ) :
-    (circuit U positive allowControlled phases).evaluatedEventDepth (fun _ => 1) ≤
+    (circuit (m := m) (n := n) positive allowControlled phases).evaluatedEventDepth (fun _ => 1) ≤
       (20 * m + 4) * phases.length := by
   rw [circuit_depth]
   apply Nat.mul_le_mul_right
@@ -37,9 +37,10 @@ theorem circuit_depth_le {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
   omega
 
 /-- Both boundary Hadamards remain charged in the standard zero-block implementation. -/
-theorem zeroBlockCircuit_depth_le {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
+lemma zeroBlockCircuit_depth_le {m n : Nat}
     (positive : 0 < n) (allowControlled : Bool) (phases : List ℝ) :
-    (zeroBlockCircuit U positive allowControlled phases).evaluatedEventDepth (fun _ => 1) ≤
+    (zeroBlockCircuit (m := m) (n := n) positive allowControlled phases).evaluatedEventDepth (fun _
+      => 1) ≤
       (20 * m + 4) * phases.length + 2 := by
   rw [zeroBlockCircuit_depth]
   apply Nat.add_le_add_right

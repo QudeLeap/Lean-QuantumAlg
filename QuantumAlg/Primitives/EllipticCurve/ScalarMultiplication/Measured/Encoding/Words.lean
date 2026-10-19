@@ -27,11 +27,13 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MeasuredPointAddition MeasuredUncompute Nat.FixedWidth
 open GenericPointAddition.InPlace
 
 /-- Unit multiplication of an ordinary field word has the exact field interpretation. -/
-theorem unitProductWord_fieldWord {p : Nat} [Fact p.Prime]
+lemma unitProductWord_fieldWord {p : Nat} [Fact p.Prime]
     (coefficient : (ZMod p)ˣ) (value : ZMod p) :
     unitProductWord (InPlaceTarget.modulusWord p) (Fact.out : Nat.Prime p).pos
         coefficient (fieldWord value) =
@@ -40,7 +42,7 @@ theorem unitProductWord_fieldWord {p : Nat} [Fact p.Prime]
   exact (ZMod.val_mul (coefficient : ZMod p) value).symm
 
 /-- The old Montgomery word is exactly the ordinary word of the radix-scaled field value. -/
-theorem montgomeryWord_fieldWord {p : Nat} [Fact p.Prime]
+lemma montgomeryWord_fieldWord {p : Nat} [Fact p.Prime]
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
     (fits : p < 2 ^ fieldTail.succ) (value : ZMod p) :
     Fin.cast (congrArg (fun width : Nat => 2 ^ width) sameWidth)
@@ -55,7 +57,7 @@ theorem montgomeryWord_fieldWord {p : Nat} [Fact p.Prime]
   exact residue
 
 /-- Multiplication by the original radix produces the unchanged Montgomery representation. -/
-theorem unitProductWord_toMontgomery {p : Nat} [Fact p.Prime]
+lemma unitProductWord_toMontgomery {p : Nat} [Fact p.Prime]
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (value : ZMod p) :
     unitProductWord (InPlaceTarget.modulusWord p) (Fact.out : Nat.Prime p).pos
@@ -66,7 +68,7 @@ theorem unitProductWord_toMontgomery {p : Nat} [Fact p.Prime]
     montgomeryWord_fieldWord fieldTail sameWidth fits value]
 
 /-- Multiplication by the inverse original radix recovers the ordinary field word. -/
-theorem unitProductWord_fromMontgomery {p : Nat} [Fact p.Prime]
+lemma unitProductWord_fromMontgomery {p : Nat} [Fact p.Prime]
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (value : ZMod p) :
     unitProductWord (InPlaceTarget.modulusWord p) (Fact.out : Nat.Prime p).pos
@@ -79,11 +81,11 @@ theorem unitProductWord_fromMontgomery {p : Nat} [Fact p.Prime]
     (Semantics.radixUnit p fieldTail.succ odd) (fieldWord value) (ZMod.val_lt value)
 
 /-- The actual radix program converts an ordinary coordinate and restores its zero auxiliary. -/
-theorem gidney_toMontgomery_clean {p : Nat} [Fact p.Prime]
+lemma gidney_toMontgomery_clean {p : Nat} [Fact p.Prime]
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (value : ZMod p) :
     (MAU.Multiplication.Gidney.program p.size (InPlaceTarget.modulusWord p)
-        (Semantics.radixUnit p fieldTail.succ odd)).applyNormalized
+        (Semantics.radixUnit p fieldTail.succ odd)).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical
         (MAU.Multiplication.Accumulate.Gidney.encoding p.size).width).basisEquiv.symm
         ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode
@@ -100,11 +102,11 @@ theorem gidney_toMontgomery_clean {p : Nat} [Fact p.Prime]
   rw [unitProductWord_toMontgomery fieldTail sameWidth fits odd value]
 
 /-- The actual inverse-radix program decodes a canonical Montgomery coordinate and cleans up. -/
-theorem gidney_fromMontgomery_clean {p : Nat} [Fact p.Prime]
+lemma gidney_fromMontgomery_clean {p : Nat} [Fact p.Prime]
     (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size)
     (fits : p < 2 ^ fieldTail.succ) (odd : Odd p) (value : ZMod p) :
     (MAU.Multiplication.Gidney.program p.size (InPlaceTarget.modulusWord p)
-        (Semantics.radixUnit p fieldTail.succ odd)⁻¹).applyNormalized
+        (Semantics.radixUnit p fieldTail.succ odd)⁻¹).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical
         (MAU.Multiplication.Accumulate.Gidney.encoding p.size).width).basisEquiv.symm
         ((MAU.Multiplication.Accumulate.Gidney.encoding p.size).encode

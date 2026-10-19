@@ -23,7 +23,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native copy formula when a pending selector takes an eligible candidate. -/
@@ -31,7 +31,7 @@ def copyTrace (width : Nat) : List (Resource.Event model) :=
   [.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary .copy width)),
     .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .copy))]
 
-private theorem eligibleArm_events (eligible : CInputRef ctx .bit)
+private lemma eligibleArm_events (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (path : (eligibleArm (model := model) eligible candidate refs
       value).Path) :
@@ -48,7 +48,7 @@ private theorem eligibleArm_events (eligible : CInputRef ctx .bit)
         simp only [BitWord.bitWord_instruction_eventTrace]
         rfl
 
-private theorem pendingArm_actualEvents (eligible : CInputRef ctx .bit)
+private lemma pendingArm_actualEvents (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (value : CShape.Value .bit) (store : Store ctx) :
     (pendingArm (model := model) eligible candidate refs value).eventTrace
@@ -63,7 +63,7 @@ private theorem pendingArm_actualEvents (eligible : CInputRef ctx .bit)
       · rfl
 
 /-- The actual selected trace contains only the two writes allowed by the original stored bits. -/
-theorem into_actualEvents (eligible : CInputRef ctx .bit)
+lemma into_actualEvents (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width) (store : Store ctx) :
     (into (model := model) eligible candidate refs).eventTrace (step (model := model) eligible
       candidate refs store).2 =
@@ -75,7 +75,7 @@ theorem into_actualEvents (eligible : CInputRef ctx .bit)
     cases (store.read eligible).toBool <;> rfl
 
 /-- Every actual first-success path fits the independent allowance of one word and one bit copy. -/
-theorem into_pool_le (eligible : CInputRef ctx .bit)
+lemma into_pool_le (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (path : (into (model := model) eligible candidate refs).Path) :
     (into (model := model) eligible candidate refs).resourcePool path ≤ ResourcePool.ofList
@@ -97,7 +97,7 @@ theorem into_pool_le (eligible : CInputRef ctx .bit)
       · exact zero_le
 
 /-- Actual native depth charges at most the two dependent persistent writes. -/
-theorem into_depth_le (eligible : CInputRef ctx .bit)
+lemma into_depth_le (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (path : (into (model := model) eligible candidate refs).Path) :
     (into (model := model) eligible candidate refs).depth (fun _ => 1) path ≤ 2 := by
@@ -114,7 +114,7 @@ theorem into_depth_le (eligible : CInputRef ctx .bit)
       · exact Nat.zero_le 2
 
 /-- Actual direct selection preserves every borrowed classical value. -/
-theorem step_borrowed_values (eligible : CInputRef ctx .bit)
+lemma step_borrowed_values (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width) (store : Store ctx) :
     (step (model := model) eligible candidate refs store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
@@ -126,12 +126,12 @@ theorem step_borrowed_values (eligible : CInputRef ctx .bit)
     · rfl
 
 /-- The actual direct selector restores every borrowed system jointly with arbitrary references. -/
-theorem into_borrowedRestored (eligible : CInputRef ctx .bit)
+lemma into_borrowedRestored (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) eligible candidate refs).BorrowedRestored Reference state
-      ((into (model := model) eligible candidate refs).execute Reference state) := by
+      ((into (model := model) eligible candidate refs).execute environment Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, into_execute]
   refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
     (H := model.HiddenState × History)
@@ -147,7 +147,7 @@ theorem into_borrowedRestored (eligible : CInputRef ctx .bit)
 
 /-- All actual stored-bit branches retain the original live context without any scratch
 allocation. -/
-theorem into_visited (eligible : CInputRef ctx .bit)
+lemma into_visited (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (path : (into (model := model) eligible candidate refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (into (model := model) eligible candidate refs).visitedContexts path) :
@@ -167,7 +167,7 @@ theorem into_visited (eligible : CInputRef ctx .bit)
           List.not_mem_nil, or_false] using present
 
 /-- Resident accounting retains the two persistent results and every other original resource. -/
-theorem into_resident_le (eligible : CInputRef ctx .bit)
+lemma into_resident_le (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (path : (into (model := model) eligible candidate refs).Path) :
     (into (model := model) eligible candidate refs).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -176,7 +176,7 @@ theorem into_resident_le (eligible : CInputRef ctx .bit)
   rw [into_visited eligible candidate refs path visited present]
 
 /-- Auxiliary accounting retains original roles and introduces no selector work bit. -/
-theorem into_auxiliary_le (eligible : CInputRef ctx .bit)
+lemma into_auxiliary_le (eligible : CInputRef ctx .bit)
     (candidate : CInputRef ctx (.unsignedWord width)) (refs : Refs ctx width)
     (path : (into (model := model) eligible candidate refs).Path) :
     (into (model := model) eligible candidate refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=

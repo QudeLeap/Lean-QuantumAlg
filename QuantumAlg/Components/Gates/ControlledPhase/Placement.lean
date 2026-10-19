@@ -27,7 +27,7 @@ namespace QuantumAlg.Gate.ControlledPhase
 
 noncomputable section
 
-private theorem phase_token_diagonal (angle : Real) :
+private lemma phase_token_diagonal (angle : Real) :
     ((AlgorithmGate.model.operator (.singleQubit (phaseGateOp angle))).val :
       HilbertOperator (QuantumSignature.qubits 1).register) =
         Matrix.diagonal (fun basis =>
@@ -40,9 +40,9 @@ private theorem phase_token_diagonal (angle : Real) :
   simp only [Matrix.diagonal_apply, Equiv.apply_eq_iff_eq]
 
 /-- Each actual phase occurrence acts on exactly the selected bit of the full two-qubit basis. -/
-public theorem controlledPhase_single_phase_diagonal (oracles : OracleModel) (angle : Real)
-    (target : Fin 2) :
-    ((singleQubitAt layout oracles (phaseGateOp angle) target rfl).matrix :
+public lemma controlledPhase_single_phase_diagonal (oracles : OracleModel) (angle : Real)
+    (target : Fin 2) (environment : oracles.Interpretation) :
+    (((singleQubitAt layout oracles (phaseGateOp angle) target rfl).matrix environment) :
       HilbertOperator layout.register) =
         Matrix.diagonal (fun basis => if basis target = 0 then 1 else
           Complex.exp ((angle : Complex) * Complex.I)) := by

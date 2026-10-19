@@ -41,23 +41,25 @@ def circuit (flip : UnitaryCircuit AlgorithmGate.model oracles (layout width)) (
     (0 : Fin (1 + width)) rfl)).seq flip
 
 /-- The actual circuit realizes the complete sandwich operator. -/
-theorem circuit_matrix
-    (flip : UnitaryCircuit AlgorithmGate.model oracles (layout width)) (φ : ℝ) :
-    (circuit flip φ).binaryMatrix =
-      flip.binaryMatrix *
-        ((rotZStdOp φ).tensor (1 : UnitaryOperator (Qubits width)) * flip.binaryMatrix) := by
+lemma circuit_matrix
+    (flip : UnitaryCircuit AlgorithmGate.model oracles (layout width)) (φ : ℝ)
+    (environment : oracles.Interpretation) :
+    ((circuit flip φ).binaryMatrix environment) =
+      (flip.binaryMatrix environment) *
+        ((rotZStdOp φ).tensor (1 : UnitaryOperator (Qubits width)) * (flip.binaryMatrix
+          environment)) := by
   rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, Gate.singleQubitAt_first_binaryMatrix]
 
 /-- The resource pool includes both concrete flip implementations and the actual rotation. -/
-theorem circuit_events
+lemma circuit_events
     (flip : UnitaryCircuit AlgorithmGate.model oracles (layout width)) (φ : ℝ) :
     (circuit flip φ).eventCost =
       flip.eventCost + ResourcePool.singleton
         (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit) + flip.eventCost := rfl
 
 /-- No projector invocation is free in the sequential dependency depth. -/
-theorem circuit_depth
+lemma circuit_depth
     (flip : UnitaryCircuit AlgorithmGate.model oracles (layout width)) (φ : ℝ) :
     (circuit flip φ).evaluatedEventDepth (fun _ => 1) =
       2 * flip.evaluatedEventDepth (fun _ => 1) + 1 := by
@@ -65,7 +67,7 @@ theorem circuit_depth
     flip.evaluatedEventDepth (fun _ => 1) = _
   omega
 
-private theorem x_rotation_x (φ : ℝ) :
+private lemma x_rotation_x (φ : ℝ) :
     (Gate.XOp : HilbertOperator (Qubits 1)) *
         (rotZStdOp φ : HilbertOperator (Qubits 1)) *
         (Gate.XOp : HilbertOperator (Qubits 1)) =
@@ -76,11 +78,12 @@ private theorem x_rotation_x (φ : ℝ) :
     congr 1 <;> ring
 
 /-- Correct projector implementations give the source's two complementary phase branches. -/
-theorem circuit_projector_matrix
+lemma circuit_projector_matrix
     (flip : UnitaryCircuit AlgorithmGate.model oracles (layout width))
     (P : OrthogonalProjector width)
-    (hflip : flip.binaryMatrix = OrthogonalProjector.controlledNotOp P) (φ : ℝ) :
-    ((circuit flip φ).binaryMatrix : HilbertOperator (Qubits (1 + width))) =
+    (environment : oracles.Interpretation)
+    (hflip : (flip.binaryMatrix environment) = OrthogonalProjector.controlledNotOp P) (φ : ℝ) :
+    (((circuit flip φ).binaryMatrix environment) : HilbertOperator (Qubits (1 + width))) =
       HilbertOperator.tensor (rotZStdOp (-φ) : HilbertOperator (Qubits 1)) P.op +
         HilbertOperator.tensor (rotZStdOp φ : HilbertOperator (Qubits 1))
           (OrthogonalProjector.complement P) := by

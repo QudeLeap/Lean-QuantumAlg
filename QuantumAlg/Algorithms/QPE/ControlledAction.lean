@@ -23,7 +23,7 @@ namespace QuantumAlg
 noncomputable section
 
 /-- A phase basis label selects the source exponent of the existing block-diagonal operator. -/
-theorem qpeExponentOp_applyVec_ket_tensor {n : Nat} (t : Nat)
+lemma qpeExponentOp_applyVec_ket_tensor {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (exponent : Fin (2 ^ t) → Nat)
     (phase : Fin (2 ^ t)) (target : HilbertVector (Qubits n)) :
     (qpeExponentOp t U exponent).applyVec
@@ -53,7 +53,7 @@ theorem qpeExponentOp_applyVec_ket_tensor {n : Nat} (t : Nat)
   · simp [equalPhase, eq_comm]
 
 /-- One selected phase bit either applies the source operator or preserves the full source. -/
-theorem qpeControlledBitOp_applyVec_ket_tensor {n : Nat} (t : Nat)
+lemma qpeControlledBitOp_applyVec_ket_tensor {n : Nat} (t : Nat)
     (U : UnitaryOperator (Qubits n)) (stage : Fin t)
     (phase : Fin (2 ^ t)) (target : HilbertVector (Qubits n)) :
     (qpeControlledBitOp t U stage).applyVec

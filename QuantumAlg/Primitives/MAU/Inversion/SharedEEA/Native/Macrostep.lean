@@ -36,7 +36,7 @@ noncomputable section
 open NumberTheory.SharedEEA
 
 /-- All four actual phases compose on the full frame, without supplied intermediate states. -/
-theorem four_phases (state : IterationState) (modulus : Nat)
+lemma four_phases (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (iteration : Bool) :
@@ -61,7 +61,7 @@ theorem four_phases (state : IterationState) (modulus : Nat)
     DeshiftTrajectory.finish_frame state modulus valid conserved coprime active iteration]
 
 /-- The proved four-phase count implements the complete Euclidean macro transition. -/
-theorem native_frame (state : IterationState) (modulus : Nat)
+lemma native_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (iteration : Bool) :

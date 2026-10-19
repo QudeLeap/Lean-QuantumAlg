@@ -37,25 +37,26 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 The zero and first completed branches use this budget directly; repeated
 completed contracts replace its event and duration allowances with the
 actual per-batch pack and reset budgets. -/
-def problem (input : Input N) (count : Nat)
-    (duration : Resource.Event (model input) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (model input) base (context base noQuantum N count)
+def problem (input : Input N) (count : Nat) :
+    Problem (model N) base (context base noQuantum N count)
       (LatticeBatchRecoveryOutput.OutputShape N) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ output => output ∈ accepts N
-  successLB := ⟨1 - sourceFailure input ^ count, tsub_le_self⟩
-  states := [Cleanup.stateRequirement base noQuantum N count]
+  Witness := Unit
+  valid := fun environment _ _ => environment = sourceEnvironment input
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ output => output ∈ accepts N
+  successLB := fun _ _ => ⟨1 - sourceFailure input ^ count, tsub_le_self⟩
+  states := fun _ _ => [Cleanup.stateRequirement base noQuantum N count]
   resources :=
-    { events := Cleanup.eventBudget input count
+    { events := Cleanup.eventBudget N count
       resident := additionalSpace N count + base.residentSpace
       auxiliary := additionalSpace N count + base.auxiliarySpace }
-  depth :=
-    { duration := duration
-      limit := Cleanup.durationBudget input duration count
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
+  quantumTimeLimit := Cleanup.durationBudget N Resource.Event.quantumDuration count
+
+/-- Every original source input admits every normalized caller and external-reference extension. -/
+lemma declaredFiniteAllKeys_admits (input : Input N) (count : Nat) {Reference : Register}
+    (original : OracleInput (model N).classicalOracles base Reference) :
+    (problem base noQuantum input count).Admits (sourceEnvironment input) () original :=
+  ⟨rfl, trivial⟩
 
 end
 

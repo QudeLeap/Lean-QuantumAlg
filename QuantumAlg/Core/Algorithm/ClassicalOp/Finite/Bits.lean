@@ -25,34 +25,34 @@ variable {kind : ProblemKind} (count : Nat) (ctx : RuntimeCtx kind)
   (input : CInputRef ctx (.fixedVector count (.finite 2)))
   (output : CWriteRef ctx (.bits count))
 
-private theorem inputRef_packFiniteBits_proof :
+private lemma inputRef_packFiniteBits_proof :
     (packFiniteBits count ctx input output).inputRef = input := rfl
 
-@[simp] public theorem inputRef_packFiniteBits :
+@[simp] public lemma inputRef_packFiniteBits :
     (packFiniteBits count ctx input output).inputRef = input :=
   inputRef_packFiniteBits_proof count ctx input output
 
-private theorem outputRef_packFiniteBits_proof :
+private lemma outputRef_packFiniteBits_proof :
     (packFiniteBits count ctx input output).outputRef = output := rfl
 
-@[simp] public theorem outputRef_packFiniteBits :
+@[simp] public lemma outputRef_packFiniteBits :
     (packFiniteBits count ctx input output).outputRef = output :=
   outputRef_packFiniteBits_proof count ctx input output
 
-private theorem eval_packFiniteBits_bit_proof
+private lemma eval_packFiniteBits_bit_proof
     (operand : CShape.Value (.fixedVector count (.finite 2))) (index : Fin count) :
     ((packFiniteBits count ctx input output).eval operand).bitGet index =
       .bit (decide ((operand.get index).toFin.val = 1)) := rfl
 
 /-- The written bit is exactly the corresponding stored binary value. -/
-public theorem eval_packFiniteBits_bit
+public lemma eval_packFiniteBits_bit
     (operand : CShape.Value (.fixedVector count (.finite 2))) (index : Fin count) :
     ((packFiniteBits count ctx input output).eval operand).bitGet index =
       .bit (decide ((operand.get index).toFin.val = 1)) :=
   eval_packFiniteBits_bit_proof count ctx input output operand index
 
 /-- Converting the written Boolean back to a natural number recovers the input. -/
-public theorem eval_packFiniteBits_recovers
+public lemma eval_packFiniteBits_recovers
     (operand : CShape.Value (.fixedVector count (.finite 2))) (index : Fin count) :
     (((packFiniteBits count ctx input output).eval operand).bitGet index).toBool.toNat =
       (operand.get index).toFin.val := by
@@ -64,11 +64,11 @@ public theorem eval_packFiniteBits_recovers
   · have zero : (operand.get index).toFin.val = 0 := by omega
     simp [zero]
 
-private theorem label_packFiniteBits_proof :
+private lemma label_packFiniteBits_proof :
     (packFiniteBits count ctx input output).label =
       .nominalEncoding (.packFiniteBits count) := rfl
 
-@[simp] public theorem label_packFiniteBits :
+@[simp] public lemma label_packFiniteBits :
     (packFiniteBits count ctx input output).label =
       .nominalEncoding (.packFiniteBits count) :=
   label_packFiniteBits_proof count ctx input output

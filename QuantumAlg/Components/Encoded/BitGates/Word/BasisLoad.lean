@@ -32,12 +32,12 @@ private def bit (width : Nat) (index : Fin width) : EncodedBit (finIdentity widt
 
 private def word (width : Nat) : EncodedBit.Word (finIdentity width) width := ⟨bit width⟩
 
-private theorem bit_get (width : Nat) (index : Fin width) (state : Fin (2 ^ width)) :
+private lemma bit_get (width : Nat) (index : Fin width) (state : Fin (2 ^ width)) :
     (bit width index).get state = state.val.testBit index.val := by
   change state.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire index)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem bit_disjoint (width : Nat) (left right : Fin width) (different : left ≠ right) :
+private lemma bit_disjoint (width : Nat) (left right : Fin width) (different : left ≠ right) :
     (bit width left).wire ≠ (bit width right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -56,7 +56,7 @@ def program {width : Nat} (physical : QubitLayout width) (oracles : OracleModel)
     (constant : Fin (2 ^ width)) : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
   programList physical oracles (gates constant)
 
-private theorem step_zero {width : Nat} (constant : Fin (2 ^ width)) :
+private lemma step_zero {width : Nat} (constant : Fin (2 ^ width)) :
     stepList (gates constant) 0 = constant := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq
   intro index
@@ -67,14 +67,15 @@ private theorem step_zero {width : Nat} (constant : Fin (2 ^ width)) :
   simpa only [bit_get, Fin.val_zero, Nat.zero_testBit, Bool.false_xor] using action
 
 /-- The actual X sequence maps the internally established zero state to the specified basis word. -/
-theorem basisLoad_apply_zero {width : Nat} (physical : QubitLayout width)
-    (oracles : OracleModel) (constant : Fin (2 ^ width)) :
-    (program physical oracles constant).applyNormalized
+lemma basisLoad_apply_zero {width : Nat} (physical : QubitLayout width)
+    (oracles : OracleModel) {environment : oracles.Interpretation}
+    (constant : Fin (2 ^ width)) :
+    (program physical oracles constant).applyNormalized environment
         (NormalizedVector.ket (R := physical.toQuantum.register) (physical.basisEquiv.symm 0)) =
       NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm constant) := by
-  have action := (realizesList physical oracles (gates constant)).apply_encoded_ket 0
-  change (programList physical oracles (gates constant)).applyNormalized
+  have action := (realizesList physical oracles (gates constant) environment).apply_encoded_ket 0
+  change (programList physical oracles (gates constant)).applyNormalized environment
       (NormalizedVector.ket (R := physical.toQuantum.register) (physical.basisEquiv.symm 0)) =
       NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm (stepList (gates constant) 0)) at action
@@ -86,7 +87,7 @@ def xCount {width : Nat} (constant : Fin (2 ^ width)) : Nat :=
   (EncodedBit.Word.constantOneIndices constant).length
 
 /-- Every actual event is one X gate at a selected position of the fixed constant. -/
-theorem basisLoad_eventCost {width : Nat} (physical : QubitLayout width)
+lemma basisLoad_eventCost {width : Nat} (physical : QubitLayout width)
     (oracles : OracleModel) (constant : Fin (2 ^ width)) :
     (program physical oracles constant).eventCost =
       xCount constant • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
@@ -101,14 +102,14 @@ theorem basisLoad_eventCost {width : Nat} (physical : QubitLayout width)
   rfl
 
 /-- The literal sequential loading depth equals its exact number of selected X gates. -/
-theorem basisLoad_unitDepth {width : Nat} (physical : QubitLayout width)
+lemma basisLoad_unitDepth {width : Nat} (physical : QubitLayout width)
     (oracles : OracleModel) (constant : Fin (2 ^ width)) :
     (program physical oracles constant).evaluatedEventDepth (fun _ => 1) = xCount constant := by
   rw [program, programList_evaluatedEventDepth_unit]
   exact EncodedBit.Word.xorConstantGates_length _ _
 
 /-- Actual constant loading never requires more than one X gate per existing bit. -/
-theorem basisLoad_count_le {width : Nat} (constant : Fin (2 ^ width)) :
+lemma basisLoad_count_le {width : Nat} (constant : Fin (2 ^ width)) :
     xCount constant ≤ width := EncodedBit.Word.constantOneIndices_length_le _
 
 end

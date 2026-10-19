@@ -48,7 +48,7 @@ def normalized {qubitCount : Nat} {layout : QubitLayout qubitCount}
   state.state.state
 
 @[simp]
-theorem normalized_coe {qubitCount : Nat} {layout : QubitLayout qubitCount}
+lemma normalized_coe {qubitCount : Nat} {layout : QubitLayout qubitCount}
     (state : QubitLayout.State layout) :
     ((state.normalized : NormalizedVector (Qubits qubitCount)) :
       HilbertVector (Qubits qubitCount)) = state.state := rfl
@@ -99,7 +99,7 @@ public def selection {totalQubits measuredQubits : Nat}
   QubitSelection.ofLogicalIdx measurement.logical_idx
     measurement.logical_idx_injective
 
-@[simp] theorem selection_logical_idx {totalQubits measuredQubits : Nat}
+@[simp] lemma selection_logical_idx {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
     measurement.selection.logical_idx = measurement.logical_idx := rfl
@@ -110,13 +110,13 @@ def systemIdx {totalQubits measuredQubits : Nat}
     (measurement : TerminalZMeasure layout measuredQubits) : List Nat :=
   List.ofFn fun index => layout.physical_idx (measurement.logical_idx index)
 
-@[simp] theorem systemIdx_length {totalQubits measuredQubits : Nat}
+@[simp] lemma systemIdx_length {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
     measurement.systemIdx.length = measuredQubits := by
   simp [systemIdx]
 
-theorem systemIdx_nodup {totalQubits measuredQubits : Nat}
+lemma systemIdx_nodup {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
     measurement.systemIdx.Nodup := by
@@ -124,7 +124,7 @@ theorem systemIdx_nodup {totalQubits measuredQubits : Nat}
   exact layout.physical_idx_injective.comp measurement.logical_idx_injective
 
 /-- A typed `k`-qubit result has exactly `2^k` possible bit vectors. -/
-theorem outcome_card (measuredQubits : Nat) :
+lemma outcome_card (measuredQubits : Nat) :
     Fintype.card (Outcome measuredQubits) = 2 ^ measuredQubits := by
   simp [Outcome]
 
@@ -185,20 +185,20 @@ def eventQueryDepth {totalQubits measuredQubits : Nat}
     (measurement : TerminalZMeasure layout measuredQubits) : Nat :=
   DepthExpr.queryDepthEval focus (measurement.eventDepth gates oracles classical services)
 
-@[simp] theorem eventTrace_length {totalQubits measuredQubits : Nat}
+@[simp] lemma eventTrace_length {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
     (measurement.eventTrace gates oracles classical services).length = measuredQubits := by
   simp [eventTrace]
 
-@[simp] theorem ofList_eventTrace_eq_eventCost
+@[simp] lemma ofList_eventTrace_eq_eventCost
     {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
     ResourcePool.ofList (measurement.eventTrace gates oracles classical services) =
       (measurement.eventCost gates oracles classical services) := rfl
 
-private theorem parallel_event_resources
+private lemma parallel_event_resources
     (events : List (Resource.Event (.quantum gates oracles classical services))) :
     DepthExpr.costEval (fun current => ResourcePool.singleton current)
         (events.foldr
@@ -212,7 +212,7 @@ private theorem parallel_event_resources
 
 /-- Linearizing the strict event-depth expression recovers the strict event
 pool exactly. -/
-@[simp] theorem resourcesFromEventDepth_eq_eventCost
+@[simp] lemma resourcesFromEventDepth_eq_eventCost
     {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
@@ -222,7 +222,7 @@ pool exactly. -/
   exact parallel_event_resources gates oracles classical services
       (measurement.eventTrace gates oracles classical services)
 
-@[simp] theorem count_eventCost {totalQubits measuredQubits : Nat}
+@[simp] lemma count_eventCost {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
     ResourcePool.count (measurement.event gates oracles classical services)
@@ -230,7 +230,7 @@ pool exactly. -/
       measuredQubits := by
   simp [eventCost, eventTrace]
 
-private theorem parallel_unit_event_depth
+private lemma parallel_unit_event_depth
     (events : List (Resource.Event (.quantum gates oracles classical services))) :
     DepthExpr.depthEval (fun _ => 1)
         (events.foldr
@@ -242,7 +242,7 @@ private theorem parallel_unit_event_depth
   | cons current events ih =>
       by_cases hempty : events = [] <;> simp [hempty, ih]
 
-private theorem parallel_self_event_query_depth
+private lemma parallel_self_event_query_depth
     (event : Resource.Event (.quantum gates oracles classical services)) (count : Nat) :
     DepthExpr.depthEval (DepthExpr.indicator event)
         ((List.replicate count event).foldr
@@ -257,13 +257,13 @@ private theorem parallel_self_event_query_depth
   | succ count ih =>
       simp [List.replicate_succ, ih, DepthExpr.indicator_self]
 
-@[simp] theorem empty_evaluatedEventDepth {totalQubits : Nat}
+@[simp] lemma empty_evaluatedEventDepth {totalQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout 0) :
     (measurement.evaluatedEventDepth gates oracles classical services) (fun _ => 1) = 0 := by
   rfl
 
-@[simp] theorem nonempty_evaluatedEventDepth
+@[simp] lemma nonempty_evaluatedEventDepth
     {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout (measuredQubits + 1)) :
@@ -274,7 +274,7 @@ private theorem parallel_self_event_query_depth
 
 /-- Any positive-width terminal measurement is one all-one strict-event depth
 layer.  This form avoids exposing a predecessor at module boundaries. -/
-theorem evaluatedEventDepth_one_of_pos
+lemma evaluatedEventDepth_one_of_pos
     {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
@@ -286,7 +286,7 @@ theorem evaluatedEventDepth_one_of_pos
 /-- Querying the descriptor-derived event evaluates the same parallel layer as
 the all-one event assignment, because every terminal occurrence has that one
 sealed coordinate. -/
-theorem eventQueryDepth_self
+lemma eventQueryDepth_self
     {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits) :
@@ -298,14 +298,14 @@ theorem eventQueryDepth_self
   exact parallel_self_event_query_depth gates oracles classical services
       (measurement.event gates oracles classical services) measuredQubits
 
-@[simp] theorem empty_eventQueryDepth {totalQubits : Nat}
+@[simp] lemma empty_eventQueryDepth {totalQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout 0) :
     (measurement.eventQueryDepth gates oracles classical services)
       (measurement.event gates oracles classical services) = 0 := by
   rw [eventQueryDepth_self, empty_evaluatedEventDepth]
 
-@[simp] theorem nonempty_eventQueryDepth
+@[simp] lemma nonempty_eventQueryDepth
     {totalQubits measuredQubits : Nat}
     {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout (measuredQubits + 1)) :
@@ -321,7 +321,7 @@ theorem eventQueryDepth_self
 
 
 
-@[simp] theorem zMeasure_systemIdx {qubitCount : Nat}
+@[simp] lemma zMeasure_systemIdx {qubitCount : Nat}
     (layout : QubitLayout qubitCount) :
     (zMeasure layout).systemIdx = layout.systemIdx := rfl
 

@@ -46,13 +46,13 @@ by `(-1)^{#Y}`, recorded multiplicatively as `∏ₖ ySign (sₖ)`. -/
 noncomputable def ySign (a : Fin 4) : ℂ := if a = 2 then -1 else 1
 
 /-- Single-qubit Pauli transpose: `σ_aᵀ = ySign a · σ_a` (only `Y` flips sign). -/
-theorem pauli1_transpose (a : Fin 4) : (pauli1 a)ᵀ = ySign a • pauli1 a := by
+lemma pauli1_transpose (a : Fin 4) : (pauli1 a)ᵀ = ySign a • pauli1 a := by
   fin_cases a <;>
     (ext i j; fin_cases i <;> fin_cases j <;>
       simp [pauli1, ySign, pauliX, pauliY, pauliZ, Matrix.transpose_apply, Matrix.smul_apply])
 
 /-- **Pauli-string transpose parity**: `(P_s)ᵀ = (∏ₖ ySign sₖ) · P_s = (-1)^{#Y(s)} · P_s`. -/
-theorem pauliStr_transpose {n : ℕ} (s : Fin n → Fin 4) :
+lemma pauliStr_transpose {n : ℕ} (s : Fin n → Fin 4) :
     (pauliStr s)ᵀ = (∏ k, ySign (s k)) • pauliStr s := by
   ext i j
   simp only [Matrix.transpose_apply, pauliStr, Matrix.of_apply, Matrix.smul_apply, smul_eq_mul]
@@ -62,7 +62,7 @@ theorem pauliStr_transpose {n : ℕ} (s : Fin n → Fin 4) :
   simpa only [Matrix.transpose_apply, Matrix.smul_apply, smul_eq_mul] using h
 
 /-- The same parity on the `Fin (2ⁿ)` reindexing used by `DLAHermBasis`. -/
-theorem pauliMat_transpose {n : ℕ} (s : Fin n → Fin 4) :
+lemma pauliMat_transpose {n : ℕ} (s : Fin n → Fin 4) :
     (pauliMat s)ᵀ = (∏ k, ySign (s k)) • pauliMat s := by
   ext p q
   have h := congrFun (congrFun (pauliStr_transpose s)
@@ -79,7 +79,7 @@ algebra. This lets us read off the Pauli coordinates of any matrix and split a s
 by transpose parity. -/
 
 /-- The `4ⁿ` Pauli strings are linearly independent (from Hilbert–Schmidt orthogonality). -/
-theorem pauliMat_linearIndependent (n : ℕ) :
+lemma pauliMat_linearIndependent (n : ℕ) :
     LinearIndependent ℂ (fun s : Fin n → Fin 4 => pauliMat s) := by
   rw [Fintype.linearIndependent_iff]
   intro c hc s
@@ -95,11 +95,11 @@ theorem pauliMat_linearIndependent (n : ℕ) :
   exact (mul_eq_zero.mp h1.symm).resolve_right (pow_ne_zero n two_ne_zero)
 
 /-- The Pauli index type has `4ⁿ = 2ⁿ·2ⁿ` elements. -/
-theorem card_pauliIndex (n : ℕ) : Fintype.card (Fin n → Fin 4) = 2 ^ n * 2 ^ n := by
+lemma card_pauliIndex (n : ℕ) : Fintype.card (Fin n → Fin 4) = 2 ^ n * 2 ^ n := by
   rw [Fintype.card_fun, Fintype.card_fin, Fintype.card_fin, show (4 : ℕ) = 2 * 2 from rfl, mul_pow]
 
 /-- **The `4ⁿ` Pauli strings span `gl(2ⁿ)`** (a linearly independent family of full dimension). -/
-theorem pauliMat_span_top (n : ℕ) :
+lemma pauliMat_span_top (n : ℕ) :
     Submodule.span ℂ (Set.range (fun s : Fin n → Fin 4 => pauliMat s)) = ⊤ := by
   apply Submodule.eq_top_of_finrank_eq
   have hM : Module.finrank ℂ (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) = 2 ^ n * 2 ^ n := by
@@ -112,7 +112,7 @@ theorem pauliMat_span_top (n : ℕ) :
 def yCount {n : ℕ} (s : Fin n → Fin 4) : ℕ := (Finset.univ.filter fun k => s k = 2).card
 
 /-- The transpose sign is `(-1)^{#Y}`. -/
-theorem prod_ySign_eq {n : ℕ} (s : Fin n → Fin 4) :
+lemma prod_ySign_eq {n : ℕ} (s : Fin n → Fin 4) :
     (∏ k, ySign (s k)) = (-1 : ℂ) ^ yCount s := by
   have h1 : ∀ k ∈ Finset.univ.filter (fun k => s k = 2), ySign (s k) = (-1 : ℂ) := by
     intro k hk; simp only [Finset.mem_filter] at hk; simp [ySign, hk.2]
@@ -139,10 +139,10 @@ noncomputable def soB (n : ℕ) (i : Fin (soDim n)) :
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   rtNinv n • pauliMat (soEquiv n i).1
 
-theorem soB_isHermitian (n : ℕ) (i : Fin (soDim n)) : (soB n i)ᴴ = soB n i := by
+lemma soB_isHermitian (n : ℕ) (i : Fin (soDim n)) : (soB n i)ᴴ = soB n i := by
   rw [soB, conjTranspose_smul, rtNinv_conj, pauliMat_isHermitian]
 
-theorem soB_ortho (n : ℕ) (i j : Fin (soDim n)) :
+lemma soB_ortho (n : ℕ) (i j : Fin (soDim n)) :
     hsInner (soB n i) (soB n j) = if i = j then 1 else 0 := by
   rw [soB, soB, hsInner_smul_left, hsInner_smul_right, starRingEnd_apply, rtNinv_conj, ← mul_assoc,
     rtNinv_mul_self, pauliMat_hsInner]
@@ -152,7 +152,7 @@ theorem soB_ortho (n : ℕ) (i j : Fin (soDim n)) :
       inv_mul_cancel₀ (pow_ne_zero n (by norm_num : (2 : ℂ) ≠ 0))]
   · rw [if_neg h, if_neg (fun he => h ((soEquiv n).injective (Subtype.ext he))), mul_zero]
 
-theorem soB_linearIndependent (n : ℕ) : LinearIndependent ℂ (soB n) := by
+lemma soB_linearIndependent (n : ℕ) : LinearIndependent ℂ (soB n) := by
   rw [Fintype.linearIndependent_iff]
   intro c hc i
   have h1 : hsInner (soB n i) (∑ j, c j • soB n j) = c i := by
@@ -164,20 +164,20 @@ theorem soB_linearIndependent (n : ℕ) : LinearIndependent ℂ (soB n) := by
   rw [hc] at h1
   simpa [hsInner] using h1.symm
 
-theorem soB_span_finrank (n : ℕ) :
+lemma soB_span_finrank (n : ℕ) :
     Module.finrank ℂ (Submodule.span ℂ (Set.range (soB n))) = soDim n := by
   rw [finrank_span_eq_card (soB_linearIndependent n), Fintype.card_fin]
 
 /-! ### `span{soB} = so(2ⁿ)` via transpose parity and the Pauli basis -/
 
 /-- Each odd-`#Y` basis element is skew-symmetric. -/
-theorem soB_skew (n : ℕ) (i : Fin (soDim n)) : (soB n i)ᵀ = -(soB n i) := by
+lemma soB_skew (n : ℕ) (i : Fin (soDim n)) : (soB n i)ᵀ = -(soB n i) := by
   simp only [soB, Matrix.transpose_smul, pauliMat_transpose, prod_ySign_eq,
     Odd.neg_one_pow (soEquiv n i).2, neg_one_smul, smul_neg]
 
 /-- **Every skew-symmetric matrix is a span of odd-`#Y` Pauli strings.** Expanding `A` in the full
 Pauli basis, the transpose parity forces the even-`#Y` (symmetric) coordinates to vanish. -/
-theorem mem_span_soB_of_skew {n : ℕ} {A : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
+lemma mem_span_soB_of_skew {n : ℕ} {A : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
     (hA : Aᵀ = -A) : A ∈ Submodule.span ℂ (Set.range (soB n)) := by
   obtain ⟨c, hc⟩ := (Submodule.mem_span_range_iff_exists_fun ℂ).mp
     (show A ∈ Submodule.span ℂ (Set.range (fun s : Fin n → Fin 4 => pauliMat s)) by
@@ -215,7 +215,7 @@ theorem mem_span_soB_of_skew {n : ℕ} {A : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) �
     rw [hcs, zero_smul]; exact Submodule.zero_mem _
 
 /-- **The odd-`#Y` Pauli basis spans Mathlib's complex orthogonal Lie algebra.** -/
-theorem soB_span_orthogonal_so (n : ℕ) :
+lemma soB_span_orthogonal_so (n : ℕ) :
     Submodule.span ℂ (Set.range (soB n)) =
       (LieAlgebra.Orthogonal.so (Fin (2 ^ n)) ℂ).toSubmodule := by
   refine le_antisymm ?_ ?_
@@ -229,7 +229,7 @@ theorem soB_span_orthogonal_so (n : ℕ) :
 
 /-- The odd-`#Y` Pauli basis spans exactly the dynamical Lie algebra generated by the
 skew-Hermitian odd-`#Y` Pauli generators. -/
-theorem soB_span_dla (n : ℕ) :
+lemma soB_span_dla (n : ℕ) :
     Submodule.span ℂ (Set.range (soB n)) = (dynamicalLieAlgebra (soGens n)).toSubmodule := by
   have hf : Submodule.span ℂ (Set.range (soB n)) ≤
       (dynamicalLieAlgebra (soGens n)).toSubmodule := by
@@ -277,7 +277,7 @@ public noncomputable def soHermBasis (n : ℕ) : DLAHermBasis (soGens n) where
 /-! ### The dimension count `dim so(2ⁿ) = (4ⁿ − 2ⁿ)/2` -/
 
 /-- The signed Pauli count: `∑_s (-1)^{#Y(s)} = ∏_k (∑_a ySign a) = 2ⁿ`. -/
-theorem sum_ySign_pow (n : ℕ) : ∑ s : Fin n → Fin 4, (-1 : ℂ) ^ yCount s = 2 ^ n := by
+lemma sum_ySign_pow (n : ℕ) : ∑ s : Fin n → Fin 4, (-1 : ℂ) ^ yCount s = 2 ^ n := by
   have h1 : ∑ s : Fin n → Fin 4, (-1 : ℂ) ^ yCount s
       = ∑ s : Fin n → Fin 4, ∏ k, ySign (s k) :=
     Finset.sum_congr rfl fun s _ => (prod_ySign_eq s).symm
@@ -287,7 +287,7 @@ theorem sum_ySign_pow (n : ℕ) : ∑ s : Fin n → Fin 4, (-1 : ℂ) ^ yCount s
   simp only [hsum4, Finset.prod_const, Finset.card_univ, Fintype.card_fin]
 
 /-- **`2·dim so(2ⁿ) + 2ⁿ = 4ⁿ`** — the division-free count of odd-`#Y` Pauli strings. -/
-theorem soDim_two_mul (n : ℕ) : 2 * soDim n + 2 ^ n = 2 ^ n * 2 ^ n := by
+lemma soDim_two_mul (n : ℕ) : 2 * soDim n + 2 ^ n = 2 ^ n * 2 ^ n := by
   have htot : (Finset.univ.filter fun s : Fin n → Fin 4 => Odd (yCount s)).card
       + (Finset.univ.filter fun s : Fin n → Fin 4 => ¬ Odd (yCount s)).card = 2 ^ n * 2 ^ n := by
     rw [Finset.card_filter_add_card_filter_not, Finset.card_univ, card_pauliIndex]
@@ -318,15 +318,15 @@ theorem soDim_two_mul (n : ℕ) : 2 * soDim n + 2 ^ n = 2 ^ n * 2 ^ n := by
   omega
 
 /-- **`dim so(2ⁿ) = (4ⁿ − 2ⁿ)/2`**. -/
-theorem soDim_eq (n : ℕ) : soDim n = (2 ^ n * 2 ^ n - 2 ^ n) / 2 := by
+lemma soDim_eq (n : ℕ) : soDim n = (2 ^ n * 2 ^ n - 2 ^ n) / 2 := by
   have := soDim_two_mul n; omega
 
 /-! ### The single-ideal variance reduction and the exponential barren plateau -/
 
-@[simp] theorem soHermBasis_dim (n : ℕ) : (soHermBasis n).dim = soDim n := rfl
+@[simp] lemma soHermBasis_dim (n : ℕ) : (soHermBasis n).dim = soDim n := rfl
 
 /-- **Closed-form dimension of the `so(2ⁿ)` Pauli DLA basis.** -/
-theorem soHermBasis_dim_closedForm (n : ℕ) :
+lemma soHermBasis_dim_closedForm (n : ℕ) :
     (soHermBasis n).dim = (2 ^ n * 2 ^ n - 2 ^ n) / 2 := by
   rw [soHermBasis_dim, soDim_eq]
 
@@ -342,14 +342,14 @@ public theorem SimpleSO.main {n : ℕ} {ρ O : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)
   rw [M.variance_eq_gPurity hρ hO (by rwa [soHermBasis_dim]), soHermBasis_dim, soDim_eq]
 
 /-- `2ⁿ ≤ dim so(2ⁿ⁺¹)`, so the dimension grows exponentially (used for the barren plateau). -/
-theorem two_pow_le_soDim_succ (n : ℕ) : 2 ^ n ≤ soDim (n + 1) := by
+lemma two_pow_le_soDim_succ (n : ℕ) : 2 ^ n ≤ soDim (n + 1) := by
   have h := soDim_two_mul (n + 1)
   have h2 : 2 ^ (n + 1) = 2 * 2 ^ n := by rw [pow_succ]; ring
   have hsq : 2 ^ n ≤ 2 ^ n * 2 ^ n := Nat.le_mul_of_pos_left _ (by positivity : 0 < 2 ^ n)
   rw [h2] at h
   nlinarith [h, hsq]
 
-theorem soDim_succ_pos (n : ℕ) : 0 < soDim (n + 1) :=
+lemma soDim_succ_pos (n : ℕ) : 0 < soDim (n + 1) :=
   lt_of_lt_of_le (by positivity) (two_pow_le_soDim_succ n)
 
 /-- The index of the first `so(2ⁿ⁺¹)` basis element. -/
@@ -376,7 +376,7 @@ public noncomputable def soSM (n : ℕ)
 (`P_g = 1`), given the Schur hypothesis the loss variance is `1 / dim so(2ⁿ⁺¹) = 2 / (4ⁿ⁺¹ − 2ⁿ⁺¹)`,
 vanishing exponentially in the qubit count — the orthogonal analogue of the `su(2ⁿ)` reduction
 [RBS+23, Arxiv_Final.tex:691]. -/
-theorem soN_variance_value (n : ℕ)
+lemma soN_variance_value (n : ℕ)
     (hSchur : gTensorGInvariant (soHermBasis (n + 1))
       = Submodule.span ℂ {(soHermBasis (n + 1)).casimir}) :
     ((soSM n hSchur).variance : ℂ) = 1 / (soDim (n + 1) : ℂ) := by
@@ -388,7 +388,7 @@ theorem soN_variance_value (n : ℕ)
 genuine `RagoneSecondMoment` family on `so(2ⁿ⁺³) = so(8), so(16), ...`, bounded `g`-purity numerator
 and exponential DLA dimension imply a barren plateau. Starting at `m = 3` is load-bearing:
 `so(2)` is abelian and `so(4)` is reductive with a two-Casimir invariant space. -/
-theorem soN_hasBarrenPlateau
+lemma soN_hasBarrenPlateau
     {ρ O : (n : ℕ) → Matrix (Fin (2 ^ (n + 3))) (Fin (2 ^ (n + 3))) ℂ}
     (M : (n : ℕ) → RagoneSecondMoment (soHermBasis (n + 3)) (ρ n) (O n))
     (hρ : ∀ n, (ρ n)ᴴ = ρ n) (hO : ∀ n, (O n)ᴴ = O n)

@@ -23,18 +23,26 @@ open Execution
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 /-- The same paid measurement and correction execute identically in every
 classical operation model with the same quantum and service grants. -/
-theorem circuit_execute_operationModel {gates : GateModel} {oracles : OracleModel}
+lemma circuit_execute_operationModel {allowAllocation : Bool}
+    {gates : GateModel} {oracles : OracleModel}
+    {environment : (ExecutionModel.quantum gates oracles .empty services).Environment}
     {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
     (operations : ClassicalOpModel) {Reference : Register} {History : Type}
     [Fintype History]
     (state : State ctx Reference
-      ((ExecutionModel.quantum gates oracles).HiddenState × History)) :
-    (circuit wire output realizations operations).execute Reference state =
-      (circuit wire output realizations).execute Reference state := by
+      ((ExecutionModel.quantum gates oracles .empty services).HiddenState × History)) :
+    (circuit (allowAllocation := allowAllocation) (services := services) wire output realizations
+        operations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference state =
+      (circuit (allowAllocation := allowAllocation) (services := services) wire output
+          realizations).execute
+      ⟨environment.quantum, environment.classical⟩ Reference state := by
   rfl
 
 end

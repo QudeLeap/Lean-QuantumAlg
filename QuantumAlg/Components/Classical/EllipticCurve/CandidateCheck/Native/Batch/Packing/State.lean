@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Batch.Packing
-import all QuantumAlg.Core.Execution.CycleSchedule.Cleanup.Retained
+import all QuantumAlg.Core.Execution.Restart.Retained
 
 /-!
 # Actual paid option packing preserves the full completed physical seed
@@ -30,15 +30,16 @@ def finalPackSeed {kind : ProblemKind} (ctx : RuntimeCtx kind) (width scalar : N
       (batchResultCtx ctx width scalar).borrowedSelectionᶜ := seed
 
 /-- The generic actual pack preserves the preceding full physical state on every record. -/
-theorem packedReinitializedAt {model : ExecutionModel} [BitWord.Selected model]
+lemma packedReinitializedAt {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model]
     {pre : RuntimeCtx model.kind} (ctx : RuntimeCtx model.kind) (width scalar : Nat)
     (first : Circuit model pre (persistentCtx ctx width scalar))
     (seed : (persistentCtx ctx width scalar).quantumLayout.SelectedBasis
       (persistentCtx ctx width scalar).borrowedSelectionᶜ)
-    (fixed : Circuit.ReinitializedAt first seed) :
-    Circuit.ReinitializedAt ((first.seq (packBatchResult ctx width scalar)))
+    (fixed : Circuit.ReinitializedAt first environment seed) :
+    Circuit.ReinitializedAt ((first.seq (packBatchResult ctx width scalar))) environment
       (finalPackSeed ctx width scalar seed) :=
-  Circuit.RestartCleanup.followedByRetainedAt
+  Circuit.RestartCleanup.followedByRetainedAt (environment := environment)
     (model := model) (pre := pre) (ctx := persistentCtx ctx width scalar)
     (key := (persistentCtx ctx width scalar).canonicalFreshKey)
     (shape := .option (.unsignedWord scalar))

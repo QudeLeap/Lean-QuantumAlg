@@ -26,6 +26,8 @@ namespace QuantumAlg.MeasuredUncompute.FrameSwapReadout
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement ProductReadout MAU.Inversion
 
 private def historyBit (width : Nat) (index : Fin (historyWidth width)) :
@@ -41,7 +43,7 @@ private def historyBit (width : Nat) (index : Fin (historyWidth width)) :
     (Equiv.ofBijective (frameEncoding width).encode
       ⟨(frameEncoding width).encode_injective, frame_total width⟩).apply_symm_apply _
 
-private theorem history_unchanged (width : Nat) (state : Frame width) :
+private lemma history_unchanged (width : Nat) (state : Frame width) :
     history width (FrameSwap.step width state) = history width state := by
   apply word_ext
   intro index
@@ -66,7 +68,7 @@ private theorem history_unchanged (width : Nat) (state : Frame width) :
   exact actual
 
 /-- Every complete frame undergoes exactly the actual A/Y coordinate exchange. -/
-theorem step_eq_grouping (width : Nat) (state : Frame width) :
+lemma step_eq_grouping (width : Nat) (state : Frame width) :
     FrameSwap.step width state = (WorkspaceReuse.placement width).grouping state := by
   apply ProductPortLaws.frame_ext
   · rw [ReusedProductReadout.input]
@@ -87,8 +89,8 @@ theorem step_eq_grouping (width : Nat) (state : Frame width) :
   · exact (history_unchanged width state).trans (ReusedProductReadout.history width state).symm
 
 /-- The real final gates undo the earlier workspace-role exchange on every complete label. -/
-theorem program_reused_ket (width : Nat) (state : Frame width) :
-    (FrameSwap.program width).applyNormalized
+lemma program_reused_ket (width : Nat) (state : Frame width) :
+    ((FrameSwap.program width).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
             ((frameEncoding width).encode
@@ -96,7 +98,7 @@ theorem program_reused_ket (width : Nat) (state : Frame width) :
       NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
           ((frameEncoding width).encode state)) := by
-  have actual := (FrameSwap.frameSwap_realizes width).apply_encoded_ket
+  have actual := (FrameSwap.frameSwap_realizes (environment := environment) width).apply_encoded_ket
     ((WorkspaceReuse.placement width).grouping.symm state)
   rw [step_eq_grouping, Equiv.apply_symm_apply] at actual
   exact actual

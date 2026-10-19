@@ -32,6 +32,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.QuotientIncrement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 private def sourceProgram (width : Nat) :
     UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum :=
@@ -48,8 +50,8 @@ def step {width : Nat} (state : Registers width) : Registers width :=
   if state.control then { state with quotientLength := state.quotientLength + 1 } else state
 
 /-- Exact native all-label action, restoring the entire dirty Work1 and every other field. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) step :=
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment step :=
   (QuotientPlacement.place_realizes width
     (ControlPlacement.place_realizes width (LowShiftIncrement.program_realizes width))).congrStep
     (by
@@ -62,23 +64,26 @@ theorem program_realizes (width : Nat) :
 def inverseStep {width : Nat} (state : Registers width) : Registers width :=
   if state.control then { state with quotientLength := state.quotientLength - 1 } else state
 
-private theorem step_inverseStep (width : Nat) (state : Registers width) :
+private lemma step_inverseStep (width : Nat) (state : Registers width) :
     step (inverseStep state) = state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift, flags, control⟩
   cases control <;> simp only [inverseStep, step, Bool.false_eq_true, if_false, if_true,
     BitVec.sub_add_cancel]
 
 /-- The literal native adjoint performs finite decrement with the same fully restored work. -/
-theorem inverse_realizes (width : Nat) :
+lemma inverse_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width)
-      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) inverseStep := by
+      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment inverseStep
+        := by
   apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes width)
-  · rw [UnitaryCircuit.dagger_matrix]
+  · rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]
     exact Unitary.star_eq_inv _
   · exact step_inverseStep width
 
 /-- Both shared words, every other retained length, and all controls are unchanged. -/
-theorem step_retained {width : Nat} (state : Registers width) :
+lemma step_retained {width : Nat} (state : Registers width) :
     (step state).firstWord = state.firstWord ∧
       (step state).secondWord = state.secondWord ∧
       (step state).coefficientLength = state.coefficientLength ∧
@@ -89,9 +94,9 @@ theorem step_retained {width : Nat} (state : Registers width) :
     if_false, if_true, and_self]
 
 /-- The control-zero branch retains the entire input frame exactly. -/
-theorem program_apply_closed (width : Nat) (state : Registers width)
+lemma program_apply_closed (width : Nat) (state : Registers width)
     (closed : state.control = false) :
-    (program width).applyNormalized
+    (program width).applyNormalized environment
       (NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
         ((encoding width).encode state))) =
       NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm
@@ -100,7 +105,7 @@ theorem program_apply_closed (width : Nat) (state : Registers width)
   simp only [step, closed, Bool.false_eq_true, if_false]
 
 /-- The quotient operation retains every actual event of the placed native HRS incrementer. -/
-theorem program_eventTrace (width : Nat) :
+lemma program_eventTrace (width : Nat) :
     (program width).eventTrace = (LowShiftIncrement.program width).eventTrace := by
   rw [program, QuotientPlacement.place_eventTrace, sourceProgram,
     ControlPlacement.place_eventTrace]

@@ -35,7 +35,7 @@ def ScanCells.writeKeys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     cells.selected.key, cells.accepted.key, cells.power.key, cells.positive.key, cells.valid.key]
 
 /-- Lifting the real scan destinations through a workspace preserves their exact keys. -/
-theorem nativeScan_writeKeys_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeScan_writeKeys_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (cells : ScanCells ctx modulusWidth candidateWidth)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (cells.underWorkspace key shape fresh).writeKeys = cells.writeKeys := by
@@ -43,7 +43,7 @@ theorem nativeScan_writeKeys_underWorkspace {kind : ProblemKind} {ctx : RuntimeC
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem selection_read_other (cells : ScanCells ctx modulusWidth candidateWidth)
+private lemma selection_read_other (cells : ScanCells ctx modulusWidth candidateWidth)
     (remainder : CInputRef ctx (.unsignedWord candidateWidth)) (value : CShape.Value .bit)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ cells.writeKeys, key ∉ other.storageKeys) (store : Store ctx) :
@@ -64,7 +64,7 @@ private theorem selection_read_other (cells : ScanCells ctx modulusWidth candida
           (separate _ (by simp [ScanCells.writeKeys])) store
 
 /-- The full actual visit preserves every read outside its division pair and persistent writes. -/
-theorem nativeScan_visit_read_other (spec : ModulusSpec modulusWidth)
+lemma nativeScan_visit_read_other (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth)
     (division : CWriteRef ctx (cursorDivisionShape candidateWidth))
@@ -86,7 +86,7 @@ theorem nativeScan_visit_read_other (spec : ModulusSpec modulusWidth)
     (separate _ (by simp [ScanCells.writeKeys])) store
 
 /-- The genuine fresh division pair is separate from every original structural read. -/
-theorem nativeScan_division_input_separate {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeScan_division_input_separate {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape}
     (other : CInputRef ctx shape) :
     (scanDivisionCell ctx candidateWidth).key ∉
@@ -96,7 +96,7 @@ theorem nativeScan_division_input_separate {kind : ProblemKind} {ctx : RuntimeCt
   exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
 
 /-- Allocating and releasing the actual division pair preserves every external scan read. -/
-theorem nativeScan_activeVisit_read_other (spec : ModulusSpec modulusWidth)
+lemma nativeScan_activeVisit_read_other (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) {shape : CShape}
     (other : CInputRef ctx shape)
@@ -116,7 +116,7 @@ theorem nativeScan_activeVisit_read_other (spec : ModulusSpec modulusWidth)
     liftedSeparate]
   exact Store.read_pushWorkspace_underWorkspace _ _ _ _ other
 
-private theorem activity_read_other (spec : ModulusSpec modulusWidth)
+private lemma activity_read_other (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (value : CShape.Value .bit)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -130,7 +130,7 @@ private theorem activity_read_other (spec : ModulusSpec modulusWidth)
       · exact nativeScan_activeVisit_read_other spec base cells other separate store
 
 /-- The actual activity-gated slot preserves the same original structural reads. -/
-theorem nativeScan_slot_read_other (spec : ModulusSpec modulusWidth)
+lemma nativeScan_slot_read_other (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) {shape : CShape}
     (other : CInputRef ctx shape)
@@ -140,7 +140,7 @@ theorem nativeScan_slot_read_other (spec : ModulusSpec modulusWidth)
     other separate store
 
 /-- Every finite number of actual scan slots preserves the same exact external values. -/
-theorem nativeScan_iterate_read_other (spec : ModulusSpec modulusWidth)
+lemma nativeScan_iterate_read_other (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (fuel : Nat) {shape : CShape}
     (other : CInputRef ctx shape)

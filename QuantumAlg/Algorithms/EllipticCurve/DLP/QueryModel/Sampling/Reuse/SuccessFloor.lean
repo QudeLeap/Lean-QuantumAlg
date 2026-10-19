@@ -51,7 +51,7 @@ private def selectedBasis (I : ECDLPInstance E) (input : SecretInput (problem I)
     (selectedIndex (problem I) (-input.secret * (unit : ZMod (problem I).order)))
     (selectedPointLabel I index))
 
-private theorem selectedBasis_injective (I : ECDLPInstance E)
+private lemma selectedBasis_injective (I : ECDLPInstance E)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ) :
     Function.Injective (selectedBasis I input unit) := by
   intro left right same
@@ -63,7 +63,7 @@ private theorem selectedBasis_injective (I : ECDLPInstance E)
     prodEquiv (_, selectedPointLabel I right) at binary
   exact selectedPointLabel_injective I (congrArg Prod.snd (prodEquiv.injective binary))
 
-private theorem selectedBasis_outcome (I : ECDLPInstance E)
+private lemma selectedBasis_outcome (I : ECDLPInstance E)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ)
     (index : Fin I.subgroupOrder) :
     basisOutcome I (selectedBasis I input unit index) =
@@ -72,7 +72,7 @@ private theorem selectedBasis_outcome (I : ECDLPInstance E)
   rw [Sampling.ecdlpSampling_basisOutcome_runtimeBasis]
   rfl
 
-private theorem selectedBasis_amplitude (I : ECDLPInstance E) (A : Access I)
+private lemma selectedBasis_amplitude (I : ECDLPInstance E) (A : Access I)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ)
     (index : Fin I.subgroupOrder) :
     runtimeSourceState I A (selectedBasis I input unit index) =
@@ -83,7 +83,7 @@ private theorem selectedBasis_amplitude (I : ECDLPInstance E) (A : Access I)
   change Sampling.runtimeSourceState I A (Sampling.runtimeBasis I _) = _
   exact Sampling.ecdlpSampling_runtimeSourceState_runtimeBasis I A _
 
-private theorem selectedOutcome_source_floor (I : ECDLPInstance E) (A : Access I)
+private lemma selectedOutcome_source_floor (I : ECDLPInstance E) (A : Access I)
     (input : SecretInput (problem I)) (unit : (ZMod (problem I).order)ˣ) :
     (I.subgroupOrder : ℝ) / (4 * (FiniteCyclicDLP.fourierModulus (problem I) : ℝ) ^ 2) ≤
       ∑ basis : (context I).register.Index,
@@ -117,7 +117,7 @@ private theorem selectedOutcome_source_floor (I : ECDLPInstance E) (A : Access I
       (by intro basis _; exact Finset.mem_univ basis)
       (fun basis _ _ => by split <;> positivity)
 
-private theorem selectedFamily_source_floor (I : ECDLPInstance E) (A : Access I)
+private lemma selectedFamily_source_floor (I : ECDLPInstance E) (A : Access I)
     (input : SecretInput (problem I)) :
     successFloor I ≤
       (selectedRawOutcomeFamily (problem I) input).sum (fun outcome =>
@@ -144,16 +144,19 @@ private theorem selectedFamily_source_floor (I : ECDLPInstance E) (A : Access I)
     _ ≤ _ := Finset.sum_le_sum (fun unit _ => selectedOutcome_source_floor I A input unit)
 
 /-- The actual reused round keeps the original selected-family floor at its incoming mass. -/
-public theorem ecdlpReuse_selectedFamily_mass_floor (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpReuse_selectedFamily_mass_floor {allowAllocation : Bool}
+    (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (input : SecretInput (problem I)) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context I) Reference ((executionModel I A).HiddenState × History)) :
+    (state : State (context I) Reference ((executionModel I).HiddenState × History)) :
     state.mass * successFloor I ≤
       (selectedRawOutcomeFamily (problem I) input).sum (fun outcome =>
-        ((((code I A expansion).execute Reference state).mapClassical
+        ((((code (allowAllocation := allowAllocation) I expansion).execute (sourceEnvironment I A)
+          Reference
+            state).mapClassical
           (fun record => observedOutcome I (record.1.read (sampleInput I)))).block
             outcome).mass) := by
-  simp only [ecdlpReuse_code_outcome_mass, ← Finset.mul_sum]
+  simp only [ecdlpReuse_code_outcome_mass (allowAllocation := allowAllocation), ← Finset.mul_sum]
   exact mul_le_mul_of_nonneg_left (selectedFamily_source_floor I A input) state.mass_nonneg
 
 end

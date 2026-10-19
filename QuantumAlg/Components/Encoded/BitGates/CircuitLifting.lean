@@ -43,43 +43,43 @@ def prodRight {m n : Nat}
       (QuantumSignature.qubits (m + n)).canonicalPlacement.layout :=
   onBinarySuffix m program
 
-@[simp] theorem prodLeft_eventTrace {m n : Nat}
+@[simp] lemma prodLeft_eventTrace {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).eventTrace = program.eventTrace :=
   unitaryCircuit_onBinaryPrefix_eventTrace n program
 
-@[simp] theorem prodRight_eventTrace {m n : Nat}
+@[simp] lemma prodRight_eventTrace {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).eventTrace = program.eventTrace :=
   unitaryCircuit_onBinarySuffix_eventTrace m program
 
-@[simp] theorem prodLeft_eventCost {m n : Nat}
+@[simp] lemma prodLeft_eventCost {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).eventCost = program.eventCost :=
   unitaryCircuit_onBinaryPrefix_eventCost n program
 
-@[simp] theorem prodRight_eventCost {m n : Nat}
+@[simp] lemma prodRight_eventCost {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).eventCost = program.eventCost :=
   unitaryCircuit_onBinarySuffix_eventCost m program
 
-@[simp] theorem prodLeft_eventDepth {m n : Nat}
+@[simp] lemma prodLeft_eventDepth {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).eventDepth = program.eventDepth :=
   unitaryCircuit_onBinaryPrefix_eventDepth n program
 
-@[simp] theorem prodRight_eventDepth {m n : Nat}
+@[simp] lemma prodRight_eventDepth {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).eventDepth = program.eventDepth :=
   unitaryCircuit_onBinarySuffix_eventDepth m program
 
-@[simp] theorem prodLeft_evaluatedEventDepth {m n : Nat}
+@[simp] lemma prodLeft_evaluatedEventDepth {m n : Nat}
     (assign : Resource.Event (.quantum gates oracles) → Nat)
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits m).canonicalPlacement.layout) :
@@ -87,7 +87,7 @@ def prodRight {m n : Nat}
       program.evaluatedEventDepth assign :=
   unitaryCircuit_onBinaryPrefix_evaluatedEventDepth n assign program
 
-@[simp] theorem prodRight_evaluatedEventDepth {m n : Nat}
+@[simp] lemma prodRight_evaluatedEventDepth {m n : Nat}
     (assign : Resource.Event (.quantum gates oracles) → Nat)
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits n).canonicalPlacement.layout) :
@@ -95,7 +95,7 @@ def prodRight {m n : Nat}
       program.evaluatedEventDepth assign :=
   unitaryCircuit_onBinarySuffix_evaluatedEventDepth m assign program
 
-@[simp] theorem prodLeft_eventQueryDepth {m n : Nat}
+@[simp] lemma prodLeft_eventQueryDepth {m n : Nat}
     (focus : Resource.Event (.quantum gates oracles))
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits m).canonicalPlacement.layout) :
@@ -103,7 +103,7 @@ def prodRight {m n : Nat}
       program.eventQueryDepth focus :=
   unitaryCircuit_onBinaryPrefix_eventQueryDepth n focus program
 
-@[simp] theorem prodRight_eventQueryDepth {m n : Nat}
+@[simp] lemma prodRight_eventQueryDepth {m n : Nat}
     (focus : Resource.Event (.quantum gates oracles))
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits n).canonicalPlacement.layout) :
@@ -111,14 +111,14 @@ def prodRight {m n : Nat}
       program.eventQueryDepth focus :=
   unitaryCircuit_onBinarySuffix_eventQueryDepth m focus program
 
-theorem prodLeft_resourcesFromEventDepth {m n : Nat}
+lemma prodLeft_resourcesFromEventDepth {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits m).canonicalPlacement.layout) :
     (prodLeft (n := n) program).resourcesFromEventDepth =
       program.resourcesFromEventDepth :=
   unitaryCircuit_onBinaryPrefix_resourcesFromEventDepth n program
 
-theorem prodRight_resourcesFromEventDepth {m n : Nat}
+lemma prodRight_resourcesFromEventDepth {m n : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits n).canonicalPlacement.layout) :
     (prodRight (m := m) program).resourcesFromEventDepth =
@@ -135,7 +135,7 @@ def insertMiddle {leftWidth middleWidth rightWidth : Nat}
         (leftWidth + middleWidth + rightWidth)).canonicalPlacement.layout :=
   onBinaryMiddle middleWidth program
 
-@[simp] theorem insertMiddle_eventTrace
+@[simp] lemma insertMiddle_eventTrace
     {leftWidth middleWidth rightWidth : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
@@ -143,7 +143,7 @@ def insertMiddle {leftWidth middleWidth rightWidth : Nat}
       program.eventTrace :=
   unitaryCircuit_onBinaryMiddle_eventTrace middleWidth program
 
-@[simp] theorem insertMiddle_eventCost
+@[simp] lemma insertMiddle_eventCost
     {leftWidth middleWidth rightWidth : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
@@ -151,7 +151,7 @@ def insertMiddle {leftWidth middleWidth rightWidth : Nat}
       program.eventCost :=
   unitaryCircuit_onBinaryMiddle_eventCost middleWidth program
 
-@[simp] theorem insertMiddle_eventDepth
+@[simp] lemma insertMiddle_eventDepth
     {leftWidth middleWidth rightWidth : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :
@@ -159,7 +159,7 @@ def insertMiddle {leftWidth middleWidth rightWidth : Nat}
       program.eventDepth :=
   unitaryCircuit_onBinaryMiddle_eventDepth middleWidth program
 
-@[simp] theorem insertMiddle_evaluatedEventDepth
+@[simp] lemma insertMiddle_evaluatedEventDepth
     {leftWidth middleWidth rightWidth : Nat}
     (assign : Resource.Event (.quantum gates oracles) → Nat)
     (program : UnitaryCircuit gates oracles
@@ -168,7 +168,7 @@ def insertMiddle {leftWidth middleWidth rightWidth : Nat}
       program.evaluatedEventDepth assign :=
   unitaryCircuit_onBinaryMiddle_evaluatedEventDepth middleWidth assign program
 
-@[simp] theorem insertMiddle_eventQueryDepth
+@[simp] lemma insertMiddle_eventQueryDepth
     {leftWidth middleWidth rightWidth : Nat}
     (focus : Resource.Event (.quantum gates oracles))
     (program : UnitaryCircuit gates oracles
@@ -177,7 +177,7 @@ def insertMiddle {leftWidth middleWidth rightWidth : Nat}
       program.eventQueryDepth focus :=
   unitaryCircuit_onBinaryMiddle_eventQueryDepth middleWidth focus program
 
-theorem insertMiddle_resourcesFromEventDepth
+lemma insertMiddle_resourcesFromEventDepth
     {leftWidth middleWidth rightWidth : Nat}
     (program : UnitaryCircuit gates oracles
       (QuantumSignature.qubits (leftWidth + rightWidth)).canonicalPlacement.layout) :

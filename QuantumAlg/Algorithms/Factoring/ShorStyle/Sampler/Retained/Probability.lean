@@ -30,33 +30,34 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
 
 /-- The actual complete sampled execution preserves normalized mass. -/
-theorem samplerRetained_normalized (ctx : RuntimeCtx model.kind) (N : Nat)
+lemma samplerRetained_normalized (ctx : RuntimeCtx model.kind) (N : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (normalized : state.IsNormalized) :
-    ((circuit (model := model) ctx N).execute Reference state).IsNormalized :=
-  ((circuit (model := model) ctx N).execute_mass Reference state).trans normalized
+    ((circuit (model := model) ctx N).execute environment Reference state).IsNormalized :=
+  ((circuit (model := model) ctx N).execute_mass environment Reference state).trans normalized
 
 /-- The complete caller quantum state and every external reference coherence are unchanged. -/
-theorem samplerRetained_quantumMarginal (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
+lemma samplerRetained_quantumMarginal (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    ((circuit (model := model) ctx N).execute Reference state).quantumMarginal =
+    ((circuit (model := model) ctx N).execute environment Reference state).quantumMarginal =
       state.quantumMarginal := by
   have actual := congrArg
     (fun final : State (context ctx N) Reference
         (model.HiddenState × (History × (circuit (model := model) ctx N).Path)) =>
-      final.quantumMarginal) (samplerRetained_execute ctx input Reference state)
+      final.quantumMarginal) (samplerRetained_execute (environment := environment)
+        ctx input Reference state)
   exact actual.trans ((ExecutionState.mapClassical_quantumMarginal _ _).trans
     (uniformChoice_quantumMarginal state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩))
 
 /-- Every actual complete execution record has the unchanged independent uniform source law. -/
-theorem samplerRetained_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
+lemma samplerRetained_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (normalized : state.IsNormalized) :
-    ((circuit (model := model) ctx N).execute Reference state).toPMF
+    ((circuit (model := model) ctx N).execute environment Reference state).toPMF
         (samplerRetained_normalized ctx N Reference state normalized) =
       (state.toPMF normalized).bind (fun original =>
         (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
@@ -73,7 +74,7 @@ theorem samplerRetained_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : I
     (resultStore input entry.1.1 entry.2,
       (entry.1.2.1, (entry.1.2.2, resultPath (model := model) ctx N entry.1.1 entry.2)))
   have actual :
-      ((circuit (model := model) ctx N).execute Reference state).toPMF
+      ((circuit (model := model) ctx N).execute environment Reference state).toPMF
           (samplerRetained_normalized ctx N Reference state normalized) =
         (sampled.mapClassical update).toPMF
           (sampled.mapClassical_normalized sampledNormalized update) := by
@@ -84,7 +85,7 @@ theorem samplerRetained_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : I
       (fun final : State (context ctx N) Reference
         (model.HiddenState × (History × (circuit (model := model) ctx N).Path)) =>
         ENNReal.ofReal (final.block record).mass)
-      (samplerRetained_execute ctx input Reference state)
+      (samplerRetained_execute (environment := environment) ctx input Reference state)
   refine actual.trans ((ExecutionState.toPMF_mapClassical
     sampled sampledNormalized update).trans ?_)
   have sampledLaw := congrArg (fun distribution => distribution.map update)
@@ -100,7 +101,7 @@ theorem samplerRetained_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : I
 
 omit [BitWord.Selected model] in
 /-- The complete mathematical result store reads the independently specified source value. -/
-theorem samplerRetained_output_resultStore {kind : ProblemKind} (ctx : RuntimeCtx kind) {N : Nat}
+lemma samplerRetained_output_resultStore {kind : ProblemKind} (ctx : RuntimeCtx kind) {N : Nat}
     (input : Input N) (store : Store ctx) (value : Fin (2 ^ residueSamplingBits N)) :
     (output ctx N).eval (resultStore input store value) = outputValue input value := by
   change CShape.Value.product
@@ -111,10 +112,10 @@ theorem samplerRetained_output_resultStore {kind : ProblemKind} (ctx : RuntimeCt
     (samplerRetained_resultStore_parameter input store value)
 
 /-- Reading the actual complete Output gives exactly the original uniform source distribution. -/
-theorem samplerRetained_output_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
+lemma samplerRetained_output_toPMF (ctx : RuntimeCtx model.kind) {N : Nat} (input : Input N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (normalized : state.IsNormalized) :
-    (((circuit (model := model) ctx N).execute Reference state).toPMF
+    (((circuit (model := model) ctx N).execute environment Reference state).toPMF
         (samplerRetained_normalized ctx N Reference state normalized)).map
           (fun record => (output ctx N).eval record.1) =
       (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map (outputValue input) := by

@@ -57,7 +57,7 @@ def words (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus) :
   | .division => Nat.FixedWidth.PrimeWordProduct.division (modulusWord modulus) prime
 
 /-- The complete original first word is fixed, including all non-domain labels. -/
-theorem words_first (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma words_first (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (value : Fin (2 ^ modulus.size) × Fin (2 ^ modulus.size)) :
     (words operation modulus prime value).1 = value.1 := by
   cases operation <;> rfl
@@ -68,14 +68,14 @@ def resultWord (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulu
   (words operation modulus prime (value, numerator)).2
 
 /-- The target fixes X and writes only the independently prescribed second word. -/
-theorem words_pair (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma words_pair (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size)) :
     words operation modulus prime (value, numerator) =
       (value, resultWord operation modulus prime value numerator) :=
   Prod.ext (words_first operation modulus prime (value, numerator)) rfl
 
 /-- Multiplication's original-domain word has the canonical X*Y modulo p value. -/
-theorem multiplication_value (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_value (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
@@ -85,7 +85,7 @@ theorem multiplication_value (modulus : Nat) (prime : Nat.Prime modulus)
     value numerator positive bounded numeratorBound
 
 /-- Division's original-domain word has the canonical inverse-X times Y modulo p value. -/
-theorem division_value (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_value (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
@@ -103,7 +103,7 @@ def frameEquiv (width : Nat) :
     ((assembly width).trans (MeasurementCells.basisEquiv (after width) 2 width))
 
 /-- Each mathematical coordinate is its explicit physical auxiliary/old-input assembly. -/
-theorem frameEquiv_apply (width : Nat)
+lemma frameEquiv_apply (width : Nat)
     (fresh : (InputPreparation.auxiliaryLayout width).register.Index)
     (value : Fin (2 ^ width) × Fin (2 ^ width)) :
     frameEquiv width (fresh, value) =
@@ -118,7 +118,7 @@ def permutation (operation : Operation) (modulus : Nat) (prime : Nat.Prime modul
       (frameEquiv modulus.size))
 
 /-- Every auxiliary coordinate survives the independent full-state target exactly. -/
-theorem permutation_frame (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma permutation_frame (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (value : Fin (2 ^ modulus.size) × Fin (2 ^ modulus.size)) :
     permutation operation modulus prime (frameEquiv modulus.size (fresh, value)) =
@@ -137,7 +137,7 @@ def operator (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
   UnitaryOperator.ofPerm (permutation operation modulus prime).symm
 
 /-- Exact basis action of the independent target, including all auxiliary coordinates. -/
-theorem operator_ket (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma operator_ket (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (value : Fin (2 ^ modulus.size) × Fin (2 ^ modulus.size)) :
     (operator operation modulus prime).applyVec
@@ -174,7 +174,7 @@ def inputDensity (modulus : Nat) (Reference : Register)
     (MeasurementCells.jointBasisEquiv (after modulus.size) 2 modulus.size Reference)
 
 /-- Neither the fixed tensor nor the retained-cell coordinate map loses any incoming mass. -/
-theorem inputDensity_mass (modulus : Nat) (Reference : Register)
+lemma inputDensity_mass (modulus : Nat) (Reference : Register)
     (input : DensityOperator (Register.prod (before modulus.size).register Reference)) :
     (inputDensity modulus Reference input).mass = input.mass := by
   have reindexed := DensityOperator.reindex_mass
@@ -200,7 +200,7 @@ def density (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (inputDensity modulus Reference input)
 
 /-- The complete target retains the original density mass, including subnormalized blocks. -/
-theorem density_mass (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma density_mass (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (Reference : Register)
     (input : DensityOperator (Register.prod (before modulus.size).register Reference)) :
     (density operation modulus prime Reference input).mass = input.mass :=
@@ -208,7 +208,7 @@ theorem density_mass (operation : Operation) (modulus : Nat) (prime : Nat.Prime 
     (inputDensity modulus Reference input)).trans (inputDensity_mass modulus Reference input)
 
 /-- Certified normalized inputs give normalized full-reference mathematical targets. -/
-theorem density_normalized (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+lemma density_normalized (operation : Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (Reference : Register) (input : Input (before modulus.size) Reference) :
     (density operation modulus prime Reference input.state.quantumMarginal).IsNormalized := by
   change (density operation modulus prime Reference input.state.quantumMarginal).mass = 1

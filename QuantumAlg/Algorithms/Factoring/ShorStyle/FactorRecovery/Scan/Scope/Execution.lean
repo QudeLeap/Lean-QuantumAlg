@@ -29,14 +29,15 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem body_execute (source : Input N) (inputs : List (Inputs ctx N))
+private lemma body_execute (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) source inputs result).execute Reference state =
+    (body (model := model) source inputs result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := bodyStep (model := model) source inputs result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -61,15 +62,16 @@ private def update3 (source : Input N) (inputs : List (Inputs ctx N))
   (Store.popWorkspace (selectedContext ctx N).canonicalFreshKey .bit (selectedContext ctx
     N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation3 (source : Input N) (inputs : List (Inputs ctx N))
+private lemma equation3 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (selectedContext ctx N) Reference (model.HiddenState × History)) :
-    (part3 (model := model) source inputs result).execute Reference state =
+    (part3 (model := model) source inputs result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := update3 (model := model) source inputs result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (selectedContext ctx N).canonicalFreshKey .bit
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (selectedContext ctx N).canonicalFreshKey .bit
     (selectedContext ctx N).canonicalFreshKey_fresh
     (body (model := model) source inputs result)
     (fun entry =>
@@ -100,15 +102,16 @@ private def update2 (source : Input N) (inputs : List (Inputs ctx N))
   (Store.popWorkspace (acceptedContext ctx N).canonicalFreshKey (.unsignedWord (modulusBits N))
     (acceptedContext ctx N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation2 (source : Input N) (inputs : List (Inputs ctx N))
+private lemma equation2 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (acceptedContext ctx N) Reference (model.HiddenState × History)) :
-    (part2 (model := model) source inputs result).execute Reference state =
+    (part2 (model := model) source inputs result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := update2 (model := model) source inputs result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (acceptedContext ctx N).canonicalFreshKey (.unsignedWord
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (acceptedContext ctx N).canonicalFreshKey (.unsignedWord
     (modulusBits N)) (acceptedContext ctx N).canonicalFreshKey_fresh
     (part3 (model := model) source inputs result)
     (fun entry =>
@@ -140,15 +143,16 @@ private def update1 (source : Input N) (inputs : List (Inputs ctx N))
   (Store.popWorkspace (candidateContext ctx N).canonicalFreshKey .bit (candidateContext ctx
     N).canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation1 (source : Input N) (inputs : List (Inputs ctx N))
+private lemma equation1 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (candidateContext ctx N) Reference (model.HiddenState × History)) :
-    (part1 (model := model) source inputs result).execute Reference state =
+    (part1 (model := model) source inputs result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := update1 (model := model) source inputs result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord (candidateContext ctx N).canonicalFreshKey .bit
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) (candidateContext ctx N).canonicalFreshKey .bit
     (candidateContext ctx N).canonicalFreshKey_fresh
     (part2 (model := model) source inputs result)
     (fun entry =>
@@ -179,15 +183,16 @@ private def update0 (source : Input N) (inputs : List (Inputs ctx N))
   (Store.popWorkspace ctx.canonicalFreshKey (.product .bit (.unsignedWord (modulusBits N)))
     ctx.canonicalFreshKey_fresh selected.1, selected.2)
 
-private theorem equation0 (source : Input N) (inputs : List (Inputs ctx N))
+private lemma equation0 (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (part0 (model := model) source inputs result).execute Reference state =
+    (part0 (model := model) source inputs result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := update0 (model := model) source inputs result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_workspaceRecord ctx.canonicalFreshKey (.product .bit (.unsignedWord
+  refine (Circuit.execute_workspaceRecord
+    (environment := environment) ctx.canonicalFreshKey (.product .bit (.unsignedWord
     (modulusBits N))) ctx.canonicalFreshKey_fresh
     (part1 (model := model) source inputs result)
     (fun entry =>
@@ -203,11 +208,11 @@ private theorem equation0 (source : Input N) (inputs : List (Inputs ctx N))
     rfl
 
 /-- The complete scan executes and releases all four real workspace entries. -/
-theorem code_execute (source : Input N) (inputs : List (Inputs ctx N))
+lemma code_execute (source : Input N) (inputs : List (Inputs ctx N))
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) source inputs result).execute Reference state =
+    (code (model := model) source inputs result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := step (model := model) source inputs result entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by

@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The complete allocated caller program satisfies the independent fixed-batch event bound. -/
-theorem fixedBatchRecovery_eventCount_le (input : Input N)
+lemma fixedBatchRecovery_eventCount_le (input : Input N)
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))

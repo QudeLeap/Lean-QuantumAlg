@@ -25,7 +25,7 @@ import all QuantumAlg.Core.Base.State.Density
 
 These equations retain caller storage, persistent classical service state,
 mathematical paths and the full quantum/reference block. Native operations and
-queries use only their model-owned transitions. A query changes its service
+queries use only their environment-provided transitions. A query changes its service
 state explicitly; other instructions preserve that state.
 
 Unitary execution conjugates each complete block beside the reference identity
@@ -36,6 +36,8 @@ Classical branches select bodies by actual stored values.
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 open Execution
 
 noncomputable section
@@ -43,14 +45,14 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Decidable equality implementations do not change finite block pushforwards.
-private theorem mapClassical_instance_eq {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_instance_eq {C D : Type} [Fintype C] [Fintype D]
     {R : Register} (first second : DecidableEq D) (state : ExecutionState C R) (f : C → D) :
     @ExecutionState.mapClassical C D _ _ R first state f =
       @ExecutionState.mapClassical C D _ _ R second state f := by
   cases Subsingleton.elim first second
   rfl
 
-private theorem mapClassical_function_eq {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_function_eq {C D : Type} [Fintype C] [Fintype D]
     {R : Register} {first second : DecidableEq D} (state : ExecutionState C R)
     {f g : C → D} (agree : f = g) :
     @ExecutionState.mapClassical C D _ _ R first state f =
@@ -59,7 +61,7 @@ private theorem mapClassical_function_eq {C D : Type} [Fintype C] [Fintype D]
   cases agree
   rfl
 
-private theorem mapClassical_comp_any {C D E : Type} [Fintype C] [Fintype D] [Fintype E]
+private lemma mapClassical_comp_any {C D E : Type} [Fintype C] [Fintype D] [Fintype E]
     {R : Register} {middle : DecidableEq D} {last result : DecidableEq E}
     (state : ExecutionState C R) (first : C → D) (second : D → E) :
     @ExecutionState.mapClassical D E _ _ R last
@@ -68,7 +70,7 @@ private theorem mapClassical_comp_any {C D E : Type} [Fintype C] [Fintype D] [Fi
   exact (@ExecutionState.executionState_mapClassical_comp C D _ _ R E _ middle last
     state first second).trans (mapClassical_instance_eq last result state _)
 
-private theorem record_key {C S H : Type} (entry : C × (S × H))
+private lemma record_key {C S H : Type} (entry : C × (S × H))
     (store : C) (hidden : S) (history : H) :
     (entry.1, (entry.2.1, (entry.2.2, ()))) = (store, (hidden, (history, ()))) ↔
       entry = (store, (hidden, history)) := by
@@ -81,7 +83,7 @@ private theorem record_key {C S H : Type} (entry : C × (S × H))
     cases equality
     rfl
 
-private theorem record_block {C S H : Type} [Fintype C] [Fintype S] [Fintype H]
+private lemma record_block {C S H : Type} [Fintype C] [Fintype S] [Fintype H]
     {R : Register} (state : ExecutionState (C × (S × H)) R)
     (store : C) (hidden : S) (history : H) :
     (state.mapClassical fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))).block
@@ -95,33 +97,41 @@ private theorem record_block {C S H : Type} [Fintype C] [Fintype S] [Fintype H]
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {Reference : Register}
   {H : Type} [Fintype H]
 
+variable (environment : model.Environment)
+
 /-- Identity records its unique path and preserves the same persistent state. -/
-theorem execute_id (state : State ctx Reference (model.HiddenState × H)) :
-    (Circuit.id (model := model) ctx).execute Reference state =
+lemma execute_id (state : State ctx Reference (model.HiddenState × H)) :
+    (Circuit.id (allowAllocation := allowAllocation) (model := model) ctx).execute
+      environment Reference state =
       state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
   dsimp only [execute, interpret, preserveService, State.skip, State.mapHistory]
   rw [mapClassical_comp_any (result := inferInstance)]
   exact mapClassical_function_eq _ rfl
 
 /-- The identity instruction preserves each complete service/quantum/reference block. -/
-theorem execute_id_block (state : State ctx Reference (model.HiddenState × H))
+lemma execute_id_block (state : State ctx Reference (model.HiddenState × H))
     (store : Store ctx) (hidden : model.HiddenState) (history : H) :
-    ((Circuit.id (model := model) ctx).execute Reference state).block
+    ((Circuit.id (allowAllocation := allowAllocation) (model := model) ctx).execute
+      environment Reference
+        state).block
       (store, (hidden, (history, ()))) = state.block (store, (hidden, history)) := by
   rw [execute_id]
   exact record_block state store hidden history
 
 /-- Public identity execution keeps the entire joint state block. -/
-public theorem circuit_execute_id_block (state : State ctx Reference (model.HiddenState × H))
+public lemma circuit_execute_id_block (state : State ctx Reference (model.HiddenState × H))
     (store : Store ctx) (hidden : model.HiddenState) (history : H) :
-    ((Circuit.id (model := model) ctx).execute Reference state).block
+    ((Circuit.id (allowAllocation := allowAllocation) (model := model) ctx).execute
+      environment Reference
+        state).block
       (store, (hidden, (history, ()))) = state.block (store, (hidden, history)) :=
-  execute_id_block state store hidden history
+  execute_id_block environment state store hidden history
 
 /-- A native instruction samples its declaration and writes that actual result. -/
-theorem execute_classical (state : State ctx Reference (model.HiddenState × H))
+lemma execute_classical (state : State ctx Reference (model.HiddenState × H))
     (application : model.classicalOperations.Application ctx) :
-    (Circuit.classical (model := model) application).execute Reference state =
+    (Circuit.classical (allowAllocation := allowAllocation) (model := model) application).execute
+        environment Reference state =
       (kernelChoice state fun entry => model.classicalOperations.evaluate application.token
         (entry.1.read application.input)).mapClassical (fun entry =>
           (entry.1.1.write application.output entry.2,
@@ -131,11 +141,12 @@ theorem execute_classical (state : State ctx Reference (model.HiddenState × H))
   exact mapClassical_function_eq _ rfl
 
 /-- Native output blocks sum the actual declaration probabilities without losing correlations. -/
-theorem execute_classical_block_matrix (state : State ctx Reference (model.HiddenState × H))
+lemma execute_classical_block_matrix (state : State ctx Reference (model.HiddenState × H))
     (application : model.classicalOperations.Application ctx)
     (result : Store ctx × (model.HiddenState ×
       (H × (model.classicalOperations.outputShape application.token).Value))) :
-    (((Circuit.classical (model := model) application).execute Reference state).block
+    (((Circuit.classical (allowAllocation := allowAllocation) (model := model) application).execute
+        environment Reference state).block
       result).matrix =
       ∑ entry : Store ctx × (model.HiddenState × H), ∑ outcome,
         if (entry.1.write application.output outcome,
@@ -155,62 +166,65 @@ theorem execute_classical_block_matrix (state : State ctx Reference (model.Hidde
 
 open scoped Classical in
 /-- Public native execution uses only the granted token's actual probability law. -/
-public theorem circuit_execute_classical_block_matrix
+public lemma circuit_execute_classical_block_matrix
     (state : State ctx Reference (model.HiddenState × H))
     (application : model.classicalOperations.Application ctx)
     (result : Store ctx × (model.HiddenState ×
       (H × (model.classicalOperations.outputShape application.token).Value))) :
-    (((Circuit.classical (model := model) application).execute Reference state).block
+    (((Circuit.classical (allowAllocation := allowAllocation) (model := model) application).execute
+        environment Reference state).block
       result).matrix =
       ∑ entry : Store ctx × (model.HiddenState × H), ∑ outcome,
         if (entry.1.write application.output outcome,
             (entry.2.1, (entry.2.2, outcome))) = result then
           (model.classicalOperations.evaluate application.token
             (entry.1.read application.input) outcome).toReal • (state.block entry).matrix else 0 :=
-  execute_classical_block_matrix state application result
+  execute_classical_block_matrix environment state application result
 
 /-- A granted query uses the current shared state and returns its actual next state. -/
-theorem execute_classicalQuery (state : State ctx Reference (model.HiddenState × H))
+lemma execute_classicalQuery (state : State ctx Reference (model.HiddenState × H))
     (application : model.classicalOracles.Application ctx) :
-    (Circuit.classicalQuery (model := model) application).execute Reference state =
-      queryStep application state := rfl
+    (Circuit.classicalQuery (allowAllocation := allowAllocation) (model := model)
+        application).execute environment Reference state =
+      queryStep environment.classical application state := rfl
 
 open scoped Classical in
 /-- A granted query retains its joint next-state/result distribution in public observations. -/
-public theorem circuit_execute_classicalQuery_block_matrix
+public lemma circuit_execute_classicalQuery_block_matrix
     (state : State ctx Reference (model.HiddenState × H))
     (application : model.classicalOracles.Application ctx)
     (result : Store ctx × (model.HiddenState ×
       (H × (model.classicalOracles.outputShape application.query).Value))) :
-    (((Circuit.classicalQuery (model := model) application).execute Reference state).block
+    (((Circuit.classicalQuery (allowAllocation := allowAllocation) (model := model)
+        application).execute environment Reference state).block
       result).matrix =
       ∑ entry : Store ctx × (model.HiddenState × H),
         ∑ outcome : model.HiddenState ×
             (model.classicalOracles.outputShape application.query).Value,
           if (entry.1.write application.output outcome.2,
               (outcome.1, (entry.2.2, outcome.2))) = result then
-            (model.classicalOracles.transition application.query entry.2.1
+            (model.classicalOracles.transition environment.classical application.query entry.2.1
               (entry.1.read application.input) outcome).toReal • (state.block entry).matrix
           else 0 := by
   rw [execute_classicalQuery]
-  exact queryStep_block_matrix application state result
+  exact queryStep_block_matrix environment.classical application state result
 
 /-- Branches execute only the corresponding actual read fibers, preserving service state. -/
-theorem execute_branch_block_matrix {post : RuntimeCtx model.kind} {shape : CShape}
-    (input : CInputRef ctx shape) (body : shape.Value → Circuit model ctx post)
+lemma execute_branch_block_matrix {post : RuntimeCtx model.kind} {shape : CShape}
+    (input : CInputRef ctx shape) (body : shape.Value → Circuit model ctx post allowAllocation)
     (state : State ctx Reference (model.HiddenState × H))
     (result : Store post × (model.HiddenState × (H × (Circuit.branch input body).Path))) :
-    (((Circuit.branch input body).execute Reference state).block result).matrix =
+    (((Circuit.branch input body).execute environment Reference state).block result).matrix =
       ∑ value : shape.Value,
-        ((((body value).execute Reference
+        ((((body value).execute environment Reference
           (state.selectClassical (fun entry => entry.1.read input) value)).mapHistory
             (fun history => (history.1, (history.2.1, ⟨value, history.2.2⟩)))).block
               result).matrix := rfl
 
 /-- Retaining a result initializes its real cell and preserves the existing service state. -/
-theorem execute_retain (state : State ctx Reference (model.HiddenState × H))
+lemma execute_retain (state : State ctx Reference (model.HiddenState × H))
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
-    (Circuit.retain (model := model) ctx key shape fresh).execute Reference state =
+    (Circuit.retain (model := model) ctx key shape fresh).execute environment Reference state =
       state.mapClassical (fun entry =>
         (entry.1.pushRetained key shape fresh, (entry.2.1, (entry.2.2, ())))) := by
   dsimp only [execute, interpret, preserveService, State.retain, State.mapHistory]
@@ -218,11 +232,12 @@ theorem execute_retain (state : State ctx Reference (model.HiddenState × H))
   exact mapClassical_function_eq _ rfl
 
 /-- Sequential execution passes the same service state between actual bodies. -/
-theorem execute_seq {middle post : RuntimeCtx model.kind}
-    (first : Circuit model ctx middle) (second : Circuit model middle post)
+lemma execute_seq {middle post : RuntimeCtx model.kind}
+    (first : Circuit model ctx middle allowAllocation) (second : Circuit model middle post
+        allowAllocation)
     (state : State ctx Reference (model.HiddenState × H)) :
-    (Circuit.seq first second).execute Reference state =
-      (second.execute Reference (first.execute Reference state)).mapHistory
+    (Circuit.seq first second).execute environment Reference state =
+      (second.execute environment Reference (first.execute environment Reference state)).mapHistory
         (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))) := rfl
 
 section Quantum
@@ -230,38 +245,49 @@ section Quantum
 variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
 
+variable
+  (quantumEnvironment : (ExecutionModel.quantum gates oracles operations services).Environment)
+
 /-- The granted unitary acts on each block beside the external reference identity. -/
-theorem execute_unitary (state : State ctx Reference (services.HiddenState × H))
+lemma execute_unitary (state : State ctx Reference (services.HiddenState × H))
     (program : UnitaryCircuit gates oracles ctx.quantumLayout) :
-    (Circuit.unitary (operations := operations) (classicalOracles := services)
-      program).execute Reference state =
+    (Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+        (classicalOracles := services)
+      program).execute quantumEnvironment Reference state =
       (state.applyUnitary fun _ =>
-        UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)).mapClassical
+        UnitaryOperator.prodTensor (program.matrix quantumEnvironment.quantum)
+          (1 : UnitaryOperator Reference)).mapClassical
           (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
   dsimp only [execute, interpret, preserveService, State.unitary, State.mapHistory]
   rw [mapClassical_comp_any (result := inferInstance)]
   exact mapClassical_function_eq _ rfl
 
 /-- A unitary preserves hidden-state correlations as well as the external reference. -/
-theorem execute_unitary_block (state : State ctx Reference (services.HiddenState × H))
+lemma execute_unitary_block (state : State ctx Reference (services.HiddenState × H))
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (store : Store ctx) (hidden : services.HiddenState) (history : H) :
-    ((Circuit.unitary (operations := operations) (classicalOracles := services)
-      program).execute Reference state).block (store, (hidden, (history, ()))) =
+    ((Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+        (classicalOracles := services)
+      program).execute quantumEnvironment Reference state).block (store, (hidden, (history, ()))) =
         DensityOperator.applyUnitary
-          (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+          (UnitaryOperator.prodTensor (program.matrix quantumEnvironment.quantum)
+          (1 : UnitaryOperator Reference))
           (state.block (store, (hidden, history))) := by
   rw [execute_unitary]
   exact record_block (state.applyUnitary fun _ =>
-    UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)) store hidden history
+    UnitaryOperator.prodTensor (program.matrix quantumEnvironment.quantum)
+          (1 : UnitaryOperator Reference)) store hidden history
 
 /-- Complete unitary block evolution, including mixed and reference-correlated inputs. -/
-theorem execute_unitary_block_matrix (state : State ctx Reference (services.HiddenState × H))
+lemma execute_unitary_block_matrix (state : State ctx Reference (services.HiddenState × H))
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (store : Store ctx) (hidden : services.HiddenState) (history : H) :
-    (((Circuit.unitary (operations := operations) (classicalOracles := services)
-      program).execute Reference state).block (store, (hidden, (history, ())))).matrix =
-        let operator := UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)
+    (((Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+        (classicalOracles := services)
+      program).execute quantumEnvironment Reference state).block
+      (store, (hidden, (history, ())))).matrix =
+        let operator := UnitaryOperator.prodTensor (program.matrix quantumEnvironment.quantum)
+          (1 : UnitaryOperator Reference)
         (operator : HilbertOperator (ctx.register.prod Reference)) *
           (state.block (store, (hidden, history))).matrix *
             (operator : HilbertOperator (ctx.register.prod Reference)).conjTranspose := by
@@ -269,24 +295,28 @@ theorem execute_unitary_block_matrix (state : State ctx Reference (services.Hidd
   exact DensityOperator.applyUnitary_matrix _ _
 
 /-- Public exact unitary evolution keeps the complete service/quantum/reference block. -/
-public theorem circuit_execute_unitary_block_matrix
+public lemma circuit_execute_unitary_block_matrix
     (state : State ctx Reference (services.HiddenState × H))
     (program : UnitaryCircuit gates oracles ctx.quantumLayout)
     (store : Store ctx) (hidden : services.HiddenState) (history : H) :
-    (((Circuit.unitary (operations := operations) (classicalOracles := services)
-      program).execute Reference state).block (store, (hidden, (history, ())))).matrix =
-        let operator := UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference)
+    (((Circuit.unitary (allowAllocation := allowAllocation) (operations := operations)
+        (classicalOracles := services)
+      program).execute quantumEnvironment Reference state).block
+      (store, (hidden, (history, ())))).matrix =
+        let operator := UnitaryOperator.prodTensor (program.matrix quantumEnvironment.quantum)
+          (1 : UnitaryOperator Reference)
         (operator : HilbertOperator (ctx.register.prod Reference)) *
           (state.block (store, (hidden, history))).matrix *
             (operator : HilbertOperator (ctx.register.prod Reference)).conjTranspose :=
-  execute_unitary_block_matrix state program store hidden history
+  execute_unitary_block_matrix quantumEnvironment state program store hidden history
 
 /-- Z execution writes and records the same observed result without resetting service state. -/
-theorem execute_measureZ (state : State ctx Reference (services.HiddenState × H))
+lemma execute_measureZ (state : State ctx Reference (services.HiddenState × H))
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) :
-    (Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
-      (classicalOracles := services) wire output).execute Reference state =
+    (Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
+        (operations := operations)
+      (classicalOracles := services) wire output).execute quantumEnvironment Reference state =
       (ExecutionState.measureZ state fun basis => basis.1 wire).mapClassical (fun entry =>
         (entry.1.1.write output (.finite entry.2), (entry.1.2.1, (entry.1.2.2, entry.2)))) := by
   dsimp only [execute, interpret, preserveService, State.measureZ, State.mapHistory]
@@ -294,13 +324,15 @@ theorem execute_measureZ (state : State ctx Reference (services.HiddenState × H
   exact mapClassical_function_eq _ rfl
 
 /-- Measurement projects the physical wire while retaining every classical and reference block. -/
-theorem execute_measureZ_block_matrix (state : State ctx Reference (services.HiddenState × H))
+lemma execute_measureZ_block_matrix (state : State ctx Reference (services.HiddenState × H))
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (result : Store ctx × (services.HiddenState ×
       (H × Fin (ctx.quantumLayout.wire wire).dimension))) :
-    (((Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
-      (classicalOracles := services) wire output).execute Reference state).block result).matrix =
+    (((Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
+        (operations := operations)
+      (classicalOracles := services) wire output).execute quantumEnvironment Reference state).block
+      result).matrix =
       ∑ entry : (Store ctx × (services.HiddenState × H)) ×
           Fin (ctx.quantumLayout.wire wire).dimension,
         if (entry.1.1.write output (.finite entry.2),
@@ -312,21 +344,23 @@ theorem execute_measureZ_block_matrix (state : State ctx Reference (services.Hid
 
 open scoped Classical in
 /-- Public Z execution retains its complete projected blocks and the actual stored readout. -/
-public theorem circuit_execute_measureZ_block_matrix
+public lemma circuit_execute_measureZ_block_matrix
     (state : State ctx Reference (services.HiddenState × H))
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (result : Store ctx × (services.HiddenState ×
       (H × Fin (ctx.quantumLayout.wire wire).dimension))) :
-    (((Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
-      (classicalOracles := services) wire output).execute Reference state).block result).matrix =
+    (((Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
+        (operations := operations)
+      (classicalOracles := services) wire output).execute quantumEnvironment Reference state).block
+      result).matrix =
       ∑ entry : (Store ctx × (services.HiddenState × H)) ×
           Fin (ctx.quantumLayout.wire wire).dimension,
         if (entry.1.1.write output (.finite entry.2),
             (entry.1.2.1, (entry.1.2.2, entry.2))) = result then
           (ZMeasurement.branch (R := ctx.register.prod Reference)
             (fun basis => basis.1 wire) entry.2 (state.block entry.1)).matrix else 0 :=
-  execute_measureZ_block_matrix state wire output result
+  execute_measureZ_block_matrix quantumEnvironment state wire output result
 
 end Quantum
 

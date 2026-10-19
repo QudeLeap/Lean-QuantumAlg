@@ -45,20 +45,20 @@ def xor (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   ForwardResources.xorBound width • Addition.Gidney.offsetAlphabet
 
 /-- Actual corrected-forward multiplicities meet the independent cap at every native coordinate. -/
-theorem corrected_bound (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma corrected_bound (modulus : Nat) (nontrivial : 1 < modulus) :
     (CorrectedSchedule.program modulus nontrivial).eventCost ≤ corrected modulus.size :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
     (NativeSupport.corrected modulus nontrivial)
     (ForwardResources.corrected_count modulus nontrivial)
 
 /-- The actual in-place forward meets every independently specified native-coordinate budget. -/
-theorem inPlace_bound (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma inPlace_bound (modulus : Nat) (nontrivial : 1 < modulus) :
     (InPlaceForward.program modulus nontrivial).eventCost ≤ inPlace modulus.size :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
     (NativeSupport.inPlace modulus nontrivial) (ForwardResources.inPlace_count modulus nontrivial)
 
 /-- The same dagger has the same coordinatewise budget, including complete history reversal. -/
-theorem inPlace_dagger_bound (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma inPlace_dagger_bound (modulus : Nat) (nontrivial : 1 < modulus) :
     ((InPlaceForward.program modulus nontrivial).dagger
       (AlgorithmGate.oracleFreeAdjoints .empty)).eventCost ≤ inPlace modulus.size :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
@@ -66,7 +66,7 @@ theorem inPlace_dagger_bound (modulus : Nat) (nontrivial : 1 < modulus) :
     (ForwardResources.inPlace_dagger_count modulus nontrivial)
 
 /-- The separate XOR interface counts both full passes and its actual native copy at every label. -/
-theorem xor_bound (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma xor_bound (modulus : Nat) (nontrivial : 1 < modulus) :
     (NativeInverse.program modulus nontrivial).eventCost ≤ xor modulus.size :=
   ResourcePool.le_scaled_of_support_card_le _ _ _
     (NativeSupport.xor modulus nontrivial) (ForwardResources.xor_count modulus nontrivial)

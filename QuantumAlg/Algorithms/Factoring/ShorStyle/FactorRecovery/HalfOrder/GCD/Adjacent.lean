@@ -82,7 +82,7 @@ def code (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (tail (model := model) successor output)
 
 /-- Every actual adjacent-word path contains the widening instruction first. -/
-theorem code_eventTrace (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma code_eventTrace (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (code (model := model) successor input output).Path) :
     (code (model := model) successor input output).eventTrace path =

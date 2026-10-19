@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Allocation retains the original two decision events and the actual selected two-copy arm. -/
-theorem withSelection_eventTrace (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_eventTrace (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     (withSelection (model := model) inputs accepted selected).eventTrace path =
@@ -52,7 +52,7 @@ theorem withSelection_eventTrace (inputs : Inputs ctx width) (accepted : CWriteR
       | bit taken => cases taken <;> rfl
 
 /-- The actual path's exact native pool comes from its own selected trace. -/
-theorem withSelection_resourcePool (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_resourcePool (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     (withSelection (model := model) inputs accepted selected).resourcePool path =
@@ -61,7 +61,7 @@ theorem withSelection_resourcePool (inputs : Inputs ctx width) (accepted : CWrit
   rw [Circuit.resourcePool, withSelection_eventTrace]
 
 /-- The independent original four-operation allowance bounds every actual selected path. -/
-theorem withSelection_pool_le (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_pool_le (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     (withSelection (model := model) inputs accepted selected).resourcePool path ≤ nativeEnvelope
@@ -74,7 +74,7 @@ theorem withSelection_pool_le (inputs : Inputs ctx width) (accepted : CWriteRef 
   · exact zero_le
 
 /-- Exactly two or four native instructions execute according to the actual stored branch. -/
-theorem withSelection_eventCount (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_eventCount (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     ((withSelection (model := model) inputs accepted selected).eventTrace path).length =
@@ -83,7 +83,7 @@ theorem withSelection_eventCount (inputs : Inputs ctx width) (accepted : CWriteR
   cases path.2.1.toBool <;> rfl
 
 /-- Serial duration retains the original decision and selected copy instructions. -/
-theorem withSelection_depth (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_depth (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
     (path : (withSelection (model := model) inputs accepted selected).Path) :
@@ -114,7 +114,7 @@ theorem withSelection_depth (inputs : Inputs ctx width) (accepted : CWriteRef ct
       | bit taken => cases taken <;> rfl
 
 /-- Every actual dependency duration is the sum over the same executed native trace. -/
-theorem withSelection_duration_eventTrace (inputs : Inputs ctx width)
+lemma withSelection_duration_eventTrace (inputs : Inputs ctx width)
     (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
     (path : (withSelection (model := model) inputs accepted selected).Path) :
@@ -125,7 +125,7 @@ theorem withSelection_duration_eventTrace (inputs : Inputs ctx width)
   cases path.2.1.toBool <;> simp [decisionEvents, copyEvents, Nat.add_assoc]
 
 /-- The original four native durations bound every actual selected path. -/
-theorem withSelection_depth_le (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_depth_le (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
     (path : (withSelection (model := model) inputs accepted selected).Path) :
@@ -145,7 +145,7 @@ private def takeCtx {kind : ProblemKind} (ctx : RuntimeCtx kind) : RuntimeCtx ki
   (availableCtx ctx).addWorkspace (availableCtx ctx).canonicalFreshKey .bit
     (availableCtx ctx).canonicalFreshKey_fresh
 
-private theorem withSelection_visitedContexts (inputs : Inputs ctx width)
+private lemma withSelection_visitedContexts (inputs : Inputs ctx width)
     (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     (withSelection (model := model) inputs accepted selected).visitedContexts path =
@@ -157,7 +157,7 @@ private theorem withSelection_visitedContexts (inputs : Inputs ctx width)
   | bit taken => cases taken <;> rfl
 
 /-- Resident peak includes exactly the original caller context and two lexical bits. -/
-theorem withSelection_resident (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_resident (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     (withSelection (model := model) inputs accepted selected).peakResidentSpace path =
@@ -171,7 +171,7 @@ theorem withSelection_resident (inputs : Inputs ctx width) (accepted : CWriteRef
       selectionScratchSpace, SpacePool.ofShape, SpacePool.max] <;> omega
 
 /-- Auxiliary peak charges those same two bits throughout their actual simultaneous lifetime. -/
-theorem withSelection_auxiliary (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
+lemma withSelection_auxiliary (inputs : Inputs ctx width) (accepted : CWriteRef ctx .bit)
     (selected : CWriteRef ctx (.unsignedWord width))
     (path : (withSelection (model := model) inputs accepted selected).Path) :
     (withSelection (model := model) inputs accepted selected).peakAuxiliarySpace path =
@@ -185,7 +185,7 @@ theorem withSelection_auxiliary (inputs : Inputs ctx width) (accepted : CWriteRe
       selectionScratchSpace, SpacePool.ofShape, SpacePool.max] <;> omega
 
 /-- Scratch costs exactly two classical bits even for a zero-width candidate word. -/
-theorem selectionScratchSpace_classicalBits (kind : ProblemKind) :
+lemma selectionScratchSpace_classicalBits (kind : ProblemKind) :
     selectionScratchSpace kind .classicalBits = 2 := rfl
 
 end

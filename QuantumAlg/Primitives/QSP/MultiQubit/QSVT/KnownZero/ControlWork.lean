@@ -27,7 +27,7 @@ abbrev layout (k n : Nat) := ProjectorPhase.layout (k + (1 + n))
 private def lastControl (k n : Nat) : Fin (1 + (k + (1 + n))) :=
   Fin.natAdd 1 (Fin.natAdd k (0 : Fin (1 + n)))
 
-private theorem lastControl_ne_phase (k n : Nat) : lastControl k n ≠ 0 := by
+private lemma lastControl_ne_phase (k n : Nat) : lastControl k n ≠ 0 := by
   intro same
   have values := congrArg Fin.val same
   change 1 + (k + 0) = 0 at values
@@ -60,11 +60,11 @@ def phase (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
     (intersectionRotation k n oracles (-4 * angle))
 
 /-- The final-control flip retains both masks and its native CNOT. -/
-theorem controlWork_lastFlip_depth (k n : Nat) (oracles : OracleModel) :
+lemma controlWork_lastFlip_depth (k n : Nat) (oracles : OracleModel) :
     (lastFlip k n oracles).evaluatedEventDepth (fun _ => 1) = 3 := rfl
 
 /-- The complete word has linear depth in the number of original controls, including n=0. -/
-theorem controlWork_phase_depth (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
+lemma controlWork_phase_depth (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
     (phase k n oracles angle).evaluatedEventDepth (fun _ => 1) =
       4 * (2 * k + EncodedBit.Word.OneDirtyLayout.gateCount k) + 11 := by
   simp only [phase, intersectionRotation, UnitaryCircuit.evaluatedEventDepth_seq,

@@ -27,7 +27,7 @@ noncomputable section
 open Execution MeasuredPointAddition
 
 /-- The complete target follows the independent word fold while retaining every other input. -/
-theorem cascadeTarget_initialized_wordFold {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma cascadeTarget_initialized_wordFold {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (exponent : (exponents p.size count).register.Index) (order : List (Fin count))
     (words : Fin (2 ^ p.size) × Fin (2 ^ p.size))
@@ -52,7 +52,7 @@ theorem cascadeTarget_initialized_wordFold {p : Nat} (E : PrimeFieldShortWeierst
       exact ih _
 
 /-- On the original affine domain the full target has the exact final point and restored work. -/
-theorem cascadeTarget_initialized_affine {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma cascadeTarget_initialized_affine {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (controls : Fin count → Bool) (exponent : (exponents p.size count).register.Index)
     (encoded : rangeBasis p.size count exponent =

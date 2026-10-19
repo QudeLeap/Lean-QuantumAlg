@@ -20,10 +20,10 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
 /-- The complete executed word has linear native depth in width times the longer phase length. -/
-theorem complexWord_depth_le {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
+lemma complexWord_depth_le {m n : Nat}
     (positive : 0 < n) (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
-    (complexWord U positive phases realAngle imaginaryAngle
+    (complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
       realConstant imaginaryConstant).evaluatedEventDepth (fun _ => 1) ≤
         (20 * m + 13) * (phases.length + 1) + 20 := by
   rw [complexWord_depth, fourUnmatched_depth]

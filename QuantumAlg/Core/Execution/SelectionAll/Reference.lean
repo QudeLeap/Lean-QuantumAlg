@@ -26,7 +26,7 @@ noncomputable section
 namespace DensityOperator
 
 /-- Full wire selection keeps the same density and reference through an exact basis relabeling. -/
-theorem observeSelectionWithReference_all {count : Nat} (layout : QuantumLayout count)
+lemma observeSelectionWithReference_all {count : Nat} (layout : QuantumLayout count)
     (Reference : Register) (state : DensityOperator (Register.prod layout.register Reference)) :
     observeSelectionWithReference layout Finset.univ Reference state =
       state.reindex (S := Register.prod (layout.selectedRegister Finset.univ) Reference)
@@ -48,7 +48,7 @@ end DensityOperator
 namespace StatePromise
 
 /-- Exact relabeling preserves the existing mixed promise with the same actual block mass. -/
-theorem mixed_reindex {R S : Register} (target : DensityOperator R)
+lemma mixed_reindex {R S : Register} (target : DensityOperator R)
     (normalized : target.IsNormalized) (state : DensityOperator R)
     (basis : R.Index ≃ S.Index) (holds : (StatePromise.mixed target normalized).Holds state) :
     (StatePromise.mixed (target.reindex (S := S) basis)
@@ -63,7 +63,7 @@ theorem mixed_reindex {R S : Register} (target : DensityOperator R)
 
 /-- A complete-layout observation transports the joint promise
 without tracing its reference. -/
-theorem mixed_fullSelection {count : Nat} (layout : QuantumLayout count)
+lemma mixed_fullSelection {count : Nat} (layout : QuantumLayout count)
     (Reference : Register) (target : DensityOperator (Register.prod layout.register Reference))
     (normalized : target.IsNormalized)
     (state : DensityOperator (Register.prod layout.register Reference))

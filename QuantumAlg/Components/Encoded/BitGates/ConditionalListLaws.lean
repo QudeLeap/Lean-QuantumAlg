@@ -24,7 +24,7 @@ namespace QuantumAlg.EncodedBit.GateSpec
 noncomputable section
 
 /-- Conditional block refinement composes over the complete flattened native sequence. -/
-theorem stepList_flatMap_if {Data Block : Type} {encoding : BinaryLabelEncoding Data}
+lemma stepList_flatMap_if {Data Block : Type} {encoding : BinaryLabelEncoding Data}
     (predicate : Data → Prop) [DecidablePred predicate]
     (original replacement : Block → List (GateSpec encoding))
     (blockAction : ∀ block state,

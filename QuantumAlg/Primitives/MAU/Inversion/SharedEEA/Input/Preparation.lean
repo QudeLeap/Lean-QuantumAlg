@@ -39,6 +39,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InputPreparation
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 /-- Work1 and the three zero padding positions preceding the original Work2 input. -/
@@ -67,7 +72,7 @@ def inputLayout (width : Nat) : QuantumLayout width :=
 def auxiliaryPhysicalIndex (width : Nat) (index : Fin (auxiliaryWidth width)) : Nat :=
   if index.val < prefixWidth width then index.val else width + index.val
 
-private theorem auxiliaryPhysicalIndex_injective (width : Nat) :
+private lemma auxiliaryPhysicalIndex_injective (width : Nat) :
     Function.Injective (auxiliaryPhysicalIndex width) := by
   intro left right same
   apply Fin.ext
@@ -88,12 +93,12 @@ def before (width : Nat) : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addOwnedLayout ⟨0⟩ (inputLayout width) (by decide)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-private theorem before_physical (width : Nat) :
+private lemma before_physical (width : Nat) :
     (before width).physicalIdx = (inputLayout width).identities := by
   change ((inputLayout width).wires ++ []).map QuantumWire.identity = _
   rw [List.append_nil, ← layout_identities_eq_map_wires]
 
-private theorem input_wires (width : Nat) :
+private lemma input_wires (width : Nat) :
     (inputLayout width).wires = (before width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (inputLayout width).wires = (inputLayout width).wires ++ []
@@ -106,11 +111,11 @@ def inputBasisEquiv (width : Nat) : (before width).register.Index ≃ (Qubits wi
 
 private def auxiliaryKey : StorageKey := ⟨1⟩
 
-private theorem auxiliary_fresh (width : Nat) : auxiliaryKey ∉ (before width).keys := by
+private lemma auxiliary_fresh (width : Nat) : auxiliaryKey ∉ (before width).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
 
-private theorem auxiliary_disjoint (width : Nat) :
+private lemma auxiliary_disjoint (width : Nat) :
     List.Disjoint (auxiliaryLayout width).identities (before width).physicalIdx := by
   rw [before_physical]
   apply List.disjoint_left.mpr
@@ -129,7 +134,7 @@ def after (width : Nat) : RuntimeCtx .quantum :=
     (auxiliary_fresh width) (auxiliary_disjoint width)
 
 /-- Runtime order places fresh auxiliary systems before the unchanged original input. -/
-theorem after_physical (width : Nat) :
+lemma after_physical (width : Nat) :
     (after width).physicalIdx =
       (auxiliaryLayout width).identities ++ (inputLayout width).identities := by
   change ((auxiliaryLayout width).wires ++ (before width).quantumWires).map
@@ -139,14 +144,14 @@ theorem after_physical (width : Nat) :
   rw [before_physical]
 
 /-- The declared source encoding counts exactly the supplied input plus all newly prepared wires. -/
-theorem complete_width (width : Nat) :
+lemma complete_width (width : Nat) :
     width + auxiliaryWidth width = (encoding width).width := by
   rw [encoding_width]
   unfold auxiliaryWidth prefixWidth suffixWidth
   omega
 
 /-- The actual live context contains every canonical native source address. -/
-theorem range_contained (width : Nat) :
+lemma range_contained (width : Nat) :
     List.range (encoding width).width ⊆ (after width).physicalIdx := by
   intro wire present
   have bound := List.mem_range.mp present
@@ -218,13 +223,13 @@ def circuit (modulus : Nat) :
   (zeroCircuit modulus).seq (Circuit.unitary (loadProgram modulus))
 
 /-- Every newly prepared finite bit is the stated modulus-dependent value at its actual identity. -/
-theorem preparation_bit (modulus : Nat) (index : Fin (auxiliaryWidth modulus.size)) :
+lemma preparation_bit (modulus : Nat) (index : Fin (auxiliaryWidth modulus.size)) :
     finTwoEquiv ((preparation modulus).value index) =
       fixedBit modulus (auxiliaryPhysicalIndex modulus.size index) :=
   finTwoEquiv.apply_symm_apply _
 
 /-- The trace includes the zero allocation and every literal fixed-seed X gate. -/
-theorem circuit_eventTrace (modulus : Nat) (path : (circuit modulus).Path) :
+lemma circuit_eventTrace (modulus : Nat) (path : (circuit modulus).Path) :
     (circuit modulus).eventTrace path =
       ZeroPreparation.eventTrace AlgorithmGate.model .empty (auxiliaryLayout modulus.size) ++
         (loadProgram modulus).eventTrace := by
@@ -243,9 +248,9 @@ def joined (modulus : Nat) (fresh : (auxiliaryLayout modulus.size).register.Inde
     (auxiliary_disjoint modulus.size) (fresh, old)
 
 /-- The literal X list maps the zero auxiliary bank to the modulus-dependent fixed seed. -/
-theorem sourceLoad_seed (modulus : Nat) :
+lemma sourceLoad_seed (modulus : Nat) :
     (EncodedBit.Word.BasisLoad.program (auxiliaryQubitLayout modulus.size) .empty
-      (loadConstant modulus)).applyNormalized
+      (loadConstant modulus)).applyNormalized environment
         (NormalizedVector.ket (BasisPreparation.zero (auxiliaryLayout modulus.size)).value) =
       NormalizedVector.ket (preparation modulus).value := by
   have zeroBasis : (auxiliaryQubitLayout modulus.size).binaryIndexEquiv.symm 0 =
@@ -263,9 +268,9 @@ theorem sourceLoad_seed (modulus : Nat) :
     (auxiliaryQubitLayout modulus.size) .empty (loadConstant modulus)
 
 /-- Every old input label is untouched while the literal X list loads the exact fixed seed. -/
-theorem loadProgram_seed (modulus : Nat)
+lemma loadProgram_seed (modulus : Nat)
     (old : (before modulus.size).register.Index) :
-    (loadProgram modulus).applyNormalized
+    (loadProgram modulus).applyNormalized environment
         (NormalizedVector.ket
           (Execution.preparedLocalBasisEquiv (before modulus.size) auxiliaryKey
             (auxiliaryLayout modulus.size) (auxiliary_fresh modulus.size)
@@ -280,7 +285,7 @@ theorem loadProgram_seed (modulus : Nat)
     (auxiliary_disjoint modulus.size) _ _ _ (sourceLoad_seed modulus) old
 
 /-- Fixed auxiliary loading charges at most one actual X per newly owned wire. -/
-theorem loadProgram_resources (modulus : Nat) :
+lemma loadProgram_resources (modulus : Nat) :
     (loadProgram modulus).eventCost.card ≤ auxiliaryWidth modulus.size ∧
       (loadProgram modulus).evaluatedEventDepth (fun _ => 1) ≤
         auxiliaryWidth modulus.size := by
@@ -308,32 +313,35 @@ theorem loadProgram_resources (modulus : Nat) :
 
 /-- The complete joint input-reference density is zero-prepared and then acted on by
 the literal fixed-seed X program, with all incoming coherences retained. -/
-theorem execute_full_density (modulus : Nat)
+lemma execute_full_density (modulus : Nat)
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((circuit modulus).execute Reference state).quantumMarginal =
+    ((circuit modulus).execute runtimeEnvironment Reference state).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (loadProgram modulus).matrix
+        (UnitaryOperator.prodTensor ((loadProgram modulus).matrix runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
-        (((zeroCircuit modulus).execute Reference state).quantumMarginal) := by
+        (((zeroCircuit modulus).execute runtimeEnvironment Reference state).quantumMarginal) := by
   rw [circuit, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.unitary_jointDensity]
 
 /-- Actual preparation preserves every external-reference matrix entry, not only diagonal mass. -/
-theorem execute_reference_entry (modulus : Nat)
+lemma execute_reference_entry (modulus : Nat)
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) (left right : Reference.Index) :
     (∑ basis : (after modulus.size).register.Index,
-      ((circuit modulus).execute Reference state).quantumMarginal.matrix
+      ((circuit modulus).execute runtimeEnvironment Reference state).quantumMarginal.matrix
         (basis, left) (basis, right)) =
       ∑ basis : (before modulus.size).register.Index,
         state.quantumMarginal.matrix (basis, left) (basis, right) :=
   (by
     rw [execute_full_density]
-    exact (DensityOperator.localUnitary_reference_entry (loadProgram modulus).matrix
-      (((zeroCircuit modulus).execute Reference state).quantumMarginal) left right).trans
+    exact (DensityOperator.localUnitary_reference_entry ((loadProgram modulus).matrix
+      runtimeEnvironment.quantum)
+      (((zeroCircuit modulus).execute runtimeEnvironment
+        Reference state).quantumMarginal) left right).trans
         (by
-          convert (Circuit.prepareZero_reference_entry (gates := AlgorithmGate.model)
+          convert (Circuit.prepareZero_reference_entry
+            (environment := runtimeEnvironment) (gates := AlgorithmGate.model)
               (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
               state auxiliaryKey (auxiliaryLayout modulus.size)
               (auxiliary_fresh modulus.size) (auxiliary_disjoint modulus.size) left right)

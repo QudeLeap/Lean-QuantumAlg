@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- The actual complete routine changes no original structural read outside its output cell. -/
-theorem nativeRecovery_into_read_other (spec : Spec modulusWidth phaseBits)
+lemma nativeRecovery_into_read_other (spec : Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
     {shape : CShape} (other : CInputRef ctx shape)

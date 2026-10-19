@@ -39,7 +39,7 @@ def targetBasisEquiv (target : EncodedBit encoding) :
     (Equiv.funSplitAt target.wire (Fin 2))
 
 /-- The first coordinate is precisely the encoded target value. -/
-theorem targetBasisEquiv_first (target : EncodedBit encoding) (state : Data) :
+lemma targetBasisEquiv_first (target : EncodedBit encoding) (state : Data) :
     (target.targetBasisEquiv (encoding.encode state)).1 =
       finTwoEquiv.symm (target.get state) := by
   change finTwoEquiv.symm
@@ -51,7 +51,7 @@ theorem targetBasisEquiv_first (target : EncodedBit encoding) (state : Data) :
   rw [address, target.get_eq]
 
 /-- Flipping the target toggles just the first coordinate of the same split. -/
-theorem targetBasisEquiv_flip (target : EncodedBit encoding) (state : Data) :
+lemma targetBasisEquiv_flip (target : EncodedBit encoding) (state : Data) :
     target.targetBasisEquiv (encoding.encode (target.flip state)) =
       (finTwoEquiv.symm (!target.get state),
         (target.targetBasisEquiv (encoding.encode state)).2) := by
@@ -68,7 +68,7 @@ theorem targetBasisEquiv_flip (target : EncodedBit encoding) (state : Data) :
     rw [target.encode_flip, address, WireAddress.bit_flipBit_of_ne wire.property.symm]
 
 /-- Equal complementary coordinates give exactly the two target-bit possibilities. -/
-theorem targetBasisEquiv_fiber (target : EncodedBit encoding) (state : Data)
+lemma targetBasisEquiv_fiber (target : EncodedBit encoding) (state : Data)
     (label : (Qubits encoding.width).Index)
     (same : (target.targetBasisEquiv label).2 =
       (target.targetBasisEquiv (encoding.encode state)).2) :

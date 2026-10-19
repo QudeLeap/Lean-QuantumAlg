@@ -218,7 +218,7 @@ def code (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 end
 
 /-- The entire half-factor scope keeps exactly the original physical quantum bank. -/
-theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
+lemma quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeHalfFactorScope

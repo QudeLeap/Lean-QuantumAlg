@@ -26,7 +26,9 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
-private theorem lowChildWidth (low high : Nat) :
+variable {environment : OracleModel.empty.Interpretation}
+
+private lemma lowChildWidth (low high : Nat) :
     (BinaryLabelEncoding.finIdentity high).width + (oneDirtyEncoding low).width =
       (bridgeEncoding low high).width := by
   change high + (low + 1) = high + low + 1
@@ -42,7 +44,7 @@ def placeLowChild (low high : Nat)
     (UnitaryCircuit.onCanonicalBinarySuffix
       (BinaryLabelEncoding.finIdentity high).width program)
 
-private theorem lowChildCastIndex_encode (low high : Nat)
+private lemma lowChildCastIndex_encode (low high : Nat)
     (lowWord : Fin (2 ^ low)) (highWord : Fin (2 ^ high)) (dirty : Bool) :
     UnitaryCircuit.castQubitWidthIndex
         (lowChildWidth low high)
@@ -58,11 +60,12 @@ private theorem lowChildCastIndex_encode (low high : Nat)
   ring
 
 /-- The low recursive call preserves the high word and restores the shared dirty bit. -/
-theorem hrsPlaceLowChild_realizes (low high : Nat) (constant : Fin (2 ^ low))
+lemma hrsPlaceLowChild_realizes (low high : Nat) (constant : Fin (2 ^ low))
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (oneDirtyEncoding low).width).toQuantum)
-    (h : UnitaryCircuit.Realizes (oneDirtyEncoding low) program (oneDirtyOutput constant)) :
-    UnitaryCircuit.Realizes (bridgeEncoding low high) (placeLowChild low high program)
+    (h : UnitaryCircuit.Realizes (oneDirtyEncoding low) program
+      environment (oneDirtyOutput constant)) :
+    UnitaryCircuit.Realizes (bridgeEncoding low high) (placeLowChild low high program) environment
       (fun state => ((addWord constant state.1.1, state.1.2), state.2)) where
   apply_encoded_ket := by
     rintro ⟨⟨lowWord, highWord⟩, dirty⟩
@@ -111,27 +114,27 @@ theorem hrsPlaceLowChild_realizes (low high : Nat) (constant : Fin (2 ^ low))
             (lowChildCastIndex_encode low high
               (addWord constant lowWord) highWord dirty))
     calc
-      _ = (placeLowChild low high program).applyNormalized
+      _ = (placeLowChild low high program).applyNormalized environment
           (lowChildWidth low high ▸ sourceInput) :=
-        congrArg (placeLowChild low high program).applyNormalized inputCast.symm
+        congrArg ((placeLowChild low high program).applyNormalized environment) inputCast.symm
       _ = lowChildWidth low high ▸
           (UnitaryCircuit.onCanonicalBinarySuffix
-            (BinaryLabelEncoding.finIdentity high).width program).applyNormalized
+            (BinaryLabelEncoding.finIdentity high).width program).applyNormalized environment
               sourceInput :=
         UnitaryCircuit.castCanonicalQubitWidth_applyNormalized
           (lowChildWidth low high)
           (UnitaryCircuit.onCanonicalBinarySuffix
-            (BinaryLabelEncoding.finIdentity high).width program) sourceInput
+            (BinaryLabelEncoding.finIdentity high).width program) sourceInput environment
       _ = lowChildWidth low high ▸ sourceOutput := congrArg
         (fun state => lowChildWidth low high ▸ state)
         (show (UnitaryCircuit.onCanonicalBinarySuffix
-            (BinaryLabelEncoding.finIdentity high).width program).applyNormalized
+            (BinaryLabelEncoding.finIdentity high).width program).applyNormalized environment
               sourceInput = sourceOutput by
           simpa only [sourceInput, sourceOutput, oneDirtyOutput] using run)
       _ = _ := outputCast
 
 /-- Adding the inactive sibling changes neither the native ledger nor the evaluated depth. -/
-theorem hrsPlaceLowChild_resources (low high : Nat)
+lemma hrsPlaceLowChild_resources (low high : Nat)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (oneDirtyEncoding low).width).toQuantum)
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
@@ -160,11 +163,12 @@ def placeHighChild (low high : Nat)
   UnitaryCircuit.onBinaryMiddle low program
 
 /-- The high recursive call preserves the low word and restores the shared dirty bit. -/
-theorem hrsPlaceHighChild_realizes (low high : Nat) (constant : Fin (2 ^ high))
+lemma hrsPlaceHighChild_realizes (low high : Nat) (constant : Fin (2 ^ high))
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (oneDirtyEncoding high).width).toQuantum)
-    (h : UnitaryCircuit.Realizes (oneDirtyEncoding high) program (oneDirtyOutput constant)) :
-    UnitaryCircuit.Realizes (bridgeEncoding low high) (placeHighChild low high program)
+    (h : UnitaryCircuit.Realizes (oneDirtyEncoding high) program
+      environment (oneDirtyOutput constant)) :
+    UnitaryCircuit.Realizes (bridgeEncoding low high) (placeHighChild low high program) environment
       (fun state => ((state.1.1, addWord constant state.1.2), state.2)) := by
   have placed := UnitaryCircuit.Realizes.onBinaryMiddle
     (middle := BinaryLabelEncoding.finIdentity low) h
@@ -174,7 +178,7 @@ theorem hrsPlaceHighChild_realizes (low high : Nat) (constant : Fin (2 ^ high))
   rfl
 
 /-- Middle placement preserves the child's actual native ledger and evaluated depth. -/
-theorem hrsPlaceHighChild_resources (low high : Nat)
+lemma hrsPlaceHighChild_resources (low high : Nat)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (oneDirtyEncoding high).width).toQuantum)
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :

@@ -26,9 +26,9 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment} {ctx : RuntimeCtx model.kind}
 
-private theorem mapped_indicator_weight {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma mapped_indicator_weight {C D : Type} [Fintype C] [Fintype D] {R : Register}
     (decision : DecidableEq D) (state : ExecutionState C R) (update : C → D)
     (condition : D → Prop) [DecidablePred condition] :
     (@ExecutionState.mapClassical C D _ _ R decision state update).effectWeight
@@ -38,14 +38,14 @@ private theorem mapped_indicator_weight {C D : Type} [Fintype C] [Fintype D] {R 
   classical
   exact ExecutionState.effectWeight_mapClassical_decision decision state update _
 
-private theorem mapped_record_positive {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma mapped_record_positive {C D : Type} [Fintype C] [Fintype D] {R : Register}
     (decision : DecidableEq D) (state : ExecutionState C R) (update : C → D) (value : D) :
     0 < ((@ExecutionState.mapClassical C D _ _ R decision state update).block value).mass ↔
       ∃ original, update original = value ∧ 0 < (state.block original).mass := by
   cases Subsingleton.elim decision (Classical.decEq D)
   exact ExecutionState.mapClassical_block_mass_pos_iff state update value
 
-private theorem allocation_latches (width scalarWidth : Nat) (before : Store ctx) :
+private lemma allocation_latches (width scalarWidth : Nat) (before : Store ctx) :
     ((persistentAllocationStep (model := model) width scalarWidth before).1.read
       (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false ∧
     (persistentAllocationStep (model := model) width scalarWidth before).1.read
@@ -56,12 +56,12 @@ private theorem allocation_latches (width scalarWidth : Nat) (before : Store ctx
       persistentInitialStore_selected width scalarWidth before⟩
 
 /-- Every positive actual allocation block has the original initial first-success latches. -/
-theorem retainPersistent_latches_supported (width scalarWidth : Nat)
+lemma retainPersistent_latches_supported (width scalarWidth : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (model.HiddenState × H))
     (result : Store (persistentCtx ctx width scalarWidth) ×
       (model.HiddenState × (H × (retainPersistent ctx width scalarWidth).Path)))
-    (positive : 0 < (((retainPersistent ctx width scalarWidth).execute
+    (positive : 0 < (((retainPersistent ctx width scalarWidth).execute environment
       Reference state).block result).mass) :
     (result.1.read (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool =
         false ∧
@@ -77,10 +77,10 @@ theorem retainPersistent_latches_supported (width scalarWidth : Nat)
   exact allocation_latches width scalarWidth original.1
 
 /-- Real allocation starts with failure mass equal to all incoming subnormalized mass. -/
-theorem retainPersistent_failure_weight (width scalarWidth : Nat)
+lemma retainPersistent_failure_weight (width scalarWidth : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (model.HiddenState × H)) :
-    ((retainPersistent ctx width scalarWidth).execute Reference state).effectWeight
+    ((retainPersistent ctx width scalarWidth).execute environment Reference state).effectWeight
         (fun entry => if (entry.1.read
           (.storage (persistentAccepted ctx width scalarWidth).toCStorageRef)).toBool = false then
             Effect.one ((persistentCtx ctx width scalarWidth).register.prod Reference)

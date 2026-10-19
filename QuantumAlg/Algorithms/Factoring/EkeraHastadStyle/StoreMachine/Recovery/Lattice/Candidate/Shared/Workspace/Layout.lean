@@ -136,7 +136,7 @@ def setupIndex (N : Nat) :
   | .targetPower => targetPowerIndex N
 
 /-- The setup's mutable-key projection is exactly the layout projection. -/
-theorem setupMutableKey {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
+lemma setupMutableKey {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
     {N : Nat} (cells : Cells ctx N) (transport : ClassicalWorkspace.Transport outer ctx)
     (parameter : CInputRef outer (ParameterShape N))
     (cell : LatticeCandidateModularSetup.MutableCell) :
@@ -146,7 +146,7 @@ theorem setupMutableKey {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
   cases cell <;> rfl
 
 /-- Layout indices of distinct setup cells are distinct. -/
-private theorem setupIndex_injective (N : Nat) :
+private lemma setupIndex_injective (N : Nat) :
     Function.Injective (setupIndex N) := by
   intro left right equal
   cases left <;> cases right <;>
@@ -154,7 +154,7 @@ private theorem setupIndex_injective (N : Nat) :
       targetPowerIndex] at equal ⊢
 
 /-- Distinct layout cells supply the two-constant separation contract. -/
-theorem constantSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma constantSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Cells ctx N) (distinct : cells.Distinct) :
     LatticeCandidateConstants.Separation (constantRefs cells) := by
   refine ⟨?_⟩
@@ -167,7 +167,7 @@ theorem constantSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
   norm_num [upperBoundIndex, zeroIndex] at values
 
 /-- Outer-parameter separation and cell distinctness supply modular setup. -/
-theorem setupSeparation {kind : ProblemKind}
+lemma setupSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (cells : Cells ctx N) (distinct : cells.Distinct)
     (transport : ClassicalWorkspace.Transport outer ctx)

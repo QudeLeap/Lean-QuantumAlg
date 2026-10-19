@@ -29,7 +29,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual dot refresh preserves the complete represented basis. -/
-theorem refresh_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma refresh_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -42,7 +42,7 @@ theorem refresh_basis (refs : Refs ctx width) (separation : Separation refs)
   cases cell <;> decide
 
 /-- The original actual first norm survives numerator refresh exactly. -/
-theorem refresh_denominator (refs : Refs ctx width) (separation : Separation refs)
+lemma refresh_denominator (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (LatticeDotRefresh.refreshStore refs.machine.basis.third refs.machine.basis.first
       (refreshG31Refs refs) store).read refs.machine.division31.denominator =
@@ -52,7 +52,7 @@ theorem refresh_denominator (refs : Refs ctx width) (separation : Separation ref
     separation.phase .g11 refreshCells (by decide))
 
 /-- The actual refreshed dot product and retained norm produce the original rounded coefficient. -/
-theorem refreshed_division_coefficient {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshed_division_coefficient {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :
@@ -73,7 +73,7 @@ theorem refreshed_division_coefficient {model : ExecutionModel} [BitWord.Selecte
   · exact fits.denominatorFits
 
 /-- Actual final-direction division preserves all represented basis coordinates. -/
-theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
+lemma division_basis {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
@@ -87,7 +87,7 @@ theorem division_basis {model : ExecutionModel} [BitWord.Selected model]
   cases cell <;> decide
 
 /-- The actual stored first-direction coefficient updates exactly the third basis row. -/
-theorem reduction_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma reduction_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
     (coefficient : RawSignedRepresents (store.read (writeInput refs.machine.division31.output))
@@ -115,7 +115,7 @@ theorem reduction_basis (refs : Refs ctx width) (separation : Separation refs)
       _ _ _ coefficient (rep .first) (rep .third)
 
 /-- The final actual row update retains the actual coefficient word exactly. -/
-theorem reduction_coefficient (refs : Refs ctx width) (separation : Separation refs)
+lemma reduction_coefficient (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (LatticeArithmetic.pointStore (writeInput refs.machine.division31.output)
       refs.machine.basis.first refs.machine.basis.third refs.machine.reduceProduct store).read
@@ -139,7 +139,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx)
       after.read other = before.read other
 
 /-- Actual final first-direction reduction realizes the original result on the original domain. -/
-theorem postReductionInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma postReductionInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (initial : Initial refs store basis) (fits : Fits width basis) :

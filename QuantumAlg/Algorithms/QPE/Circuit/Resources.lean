@@ -28,10 +28,9 @@ namespace QuantumAlg.QuantumPhaseEstimation.Native
 noncomputable section
 
 /-- Counts are projected from the same actual word whose full matrix realizes QPE. -/
-public theorem qpeNative_circuit_event_count (phaseWidth : Nat) {systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth))
-    (event : Resource.Event (.quantum AlgorithmGate.model (UnitarySource.model unitary true))) :
-    ResourcePool.count event (circuit phaseWidth unitary).eventCost =
+public lemma qpeNative_circuit_event_count (phaseWidth : Nat) (systemWidth : Nat)
+    (event : Resource.Event (.quantum AlgorithmGate.model (UnitarySource.model systemWidth true))) :
+    ResourcePool.count event (circuit phaseWidth systemWidth).eventCost =
       (2 * phaseWidth + 3 * phaseWidth.choose 2) *
         (if .gate .singleQubit = event then 1 else 0) +
       (2 * phaseWidth.choose 2 + 3 * (phaseWidth / 2)) *
@@ -43,9 +42,9 @@ public theorem qpeNative_circuit_event_count (phaseWidth : Nat) {systemWidth : N
     UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost,
     UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost,
     Gate.HadamardLayer.hadamardLayer_circuit_eventCost
-      (UnitarySource.model unitary true) phaseWidth,
-    qpeNative_queryLadder_eventCost AlgorithmGate.model phaseWidth unitary,
-    qpeReadout_native_event_count (UnitarySource.model unitary true) event phaseWidth]
+      (UnitarySource.model systemWidth true) phaseWidth,
+    qpeNative_queryLadder_eventCost AlgorithmGate.model phaseWidth systemWidth,
+    qpeReadout_native_event_count (UnitarySource.model systemWidth true) event phaseWidth]
   simp only [ResourcePool.count_nsmul, ResourcePool.count_singleton]
   ring
 

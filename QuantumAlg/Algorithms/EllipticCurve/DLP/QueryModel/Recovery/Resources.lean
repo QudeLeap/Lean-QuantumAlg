@@ -33,12 +33,12 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- All real sampling/checking rounds and one actual final optional-result pack. -/
-public def tailEventBudget (I : ECDLPInstance E) (A : Access I)
+public def tailEventBudget (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    ResourcePool (Sampling.executionModel I A) :=
-  sampledRecoveryEnvelope (Sampling.executionModel I A)
-    (Sampling.Reuse.eventBudget I A expansion) (curve E) (modulus I nontrivial) count
+    ResourcePool (Sampling.executionModel I) :=
+  sampledRecoveryEnvelope (Sampling.executionModel I)
+    (Sampling.Reuse.eventBudget I expansion) (curve E) (modulus I nontrivial) count
 
 /-- Every actual resident dimension, including borrowed inputs and reused checking scratch. -/
 public def tailResidentBudget (I : ECDLPInstance E) : SpacePool .quantum :=
@@ -53,36 +53,36 @@ public def tailAuxiliaryBudget (I : ECDLPInstance E) : SpacePool .quantum :=
       (Sampling.Reuse.context I).auxiliarySpace
 
 /-- Every actual finite tail path charges native sampling, checking and final packing. -/
-public theorem ecdlpRecovery_tail_events_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_tail_events_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (path : (tail I A expansion nontrivial count).Path) :
-    (tail I A expansion nontrivial count).resourcePool path ≤
-      tailEventBudget I A expansion nontrivial count :=
-  sampledRecoveryTail_pool_le (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+    (path : (tail I expansion nontrivial count).Path) :
+    (tail I expansion nontrivial count).resourcePool path ≤
+      tailEventBudget I expansion nontrivial count :=
+  sampledRecoveryTail_pool_le (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
-    (Sampling.Reuse.eventBudget I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_events_le I A expansion) path
+    (Sampling.Reuse.eventBudget I expansion)
+    (Sampling.Reuse.ecdlpReuse_code_events_le (allowAllocation := false) I expansion) path
 
 /-- The full resident peak is bounded independently of the real prescribed round count. -/
-public theorem ecdlpRecovery_tail_resident_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_tail_resident_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (path : (tail I A expansion nontrivial count).Path) :
-    (tail I A expansion nontrivial count).peakResidentSpace path ≤ tailResidentBudget I :=
-  sampledRecoveryTail_resident_le (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+    (path : (tail I expansion nontrivial count).Path) :
+    (tail I expansion nontrivial count).peakResidentSpace path ≤ tailResidentBudget I :=
+  sampledRecoveryTail_resident_le (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I) path
 
 /-- The auxiliary peak counts the same reused real storage roles for every round count. -/
-public theorem ecdlpRecovery_tail_auxiliary_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_tail_auxiliary_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (path : (tail I A expansion nontrivial count).Path) :
-    (tail I A expansion nontrivial count).peakAuxiliarySpace path ≤ tailAuxiliaryBudget I :=
-  sampledRecoveryTail_auxiliary_le (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+    (path : (tail I expansion nontrivial count).Path) :
+    (tail I expansion nontrivial count).peakAuxiliarySpace path ≤ tailAuxiliaryBudget I :=
+  sampledRecoveryTail_auxiliary_le (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I) path
 
 end

@@ -29,6 +29,9 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.PreparedFrame
 
 noncomputable section
 
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ControlPreparation
 
 /-- The original complete source encoding, viewed as its actual proved bijection. -/
@@ -37,7 +40,7 @@ def registerLabelEquiv (width : Nat) :
   Equiv.ofBijective (encoding width).encode
     ⟨(encoding width).encode_injective, encoding_surjective width⟩
 
-theorem registerLabelEquiv_encode (width : Nat) (state : Registers width) :
+lemma registerLabelEquiv_encode (width : Nat) (state : Registers width) :
     registerLabelEquiv width state = (encoding width).encode state := rfl
 
 /-- Reuse the exact runtime preparation assembly of the fresh and existing physical wires. -/
@@ -65,11 +68,11 @@ def basisEquiv (width : Nat) :
 def frameEquiv (width : Nat) : (after width).register.Index ≃ Registers width :=
   (basisEquiv width).trans (registerLabelEquiv width).symm
 
-theorem encode_frameEquiv (width : Nat) (basis : (after width).register.Index) :
+lemma encode_frameEquiv (width : Nat) (basis : (after width).register.Index) :
     (encoding width).encode (frameEquiv width basis) = basisEquiv width basis :=
   (registerLabelEquiv width).apply_symm_apply (basisEquiv width basis)
 
-private theorem basisEquiv_assembly (width : Nat)
+private lemma basisEquiv_assembly (width : Nat)
     (fresh : (controlLayout width).register.Index) (old : (before width).register.Index) :
     basisEquiv width (assembly width (fresh, old)) =
       appendControlEquiv width ((controlQubitLayout width).binaryIndexEquiv fresh,
@@ -84,7 +87,7 @@ private theorem basisEquiv_assembly (width : Nat)
   exact congrArg encodePair ((assembly width).symm_apply_apply (fresh, old))
 
 /-- The exact integer binary label is the original body followed by the new Ctrl bit. -/
-theorem basisEquiv_assembly_val (width : Nat)
+lemma basisEquiv_assembly_val (width : Nat)
     (fresh : (controlLayout width).register.Index) (old : (before width).register.Index) :
     (basisEquiv width (assembly width (fresh, old))).val =
       (prodEquiv (m := bodyWidth width) (n := 1)
@@ -94,7 +97,7 @@ theorem basisEquiv_assembly_val (width : Nat)
   rfl
 
 /-- Every native semantic lens reads the unchanged bit at its actual physical source position. -/
-theorem frameEquiv_bit (width : Nat) (bit : EncodedBit (encoding width))
+lemma frameEquiv_bit (width : Nat) (bit : EncodedBit (encoding width))
     (fresh : (controlLayout width).register.Index) (old : (before width).register.Index) :
     bit.get (frameEquiv width (assembly width (fresh, old))) =
       if bit.wire.val = bodyWidth width then finTwoEquiv (fresh 0)
@@ -125,7 +128,7 @@ theorem frameEquiv_bit (width : Nat) (bit : EncodedBit (encoding width))
       ((controlQubitLayout width).binaryIndexEquiv fresh) reversedOld
 
 /-- The decoded source Ctrl is exactly the finite bit on the newly prepared physical system. -/
-theorem frameEquiv_control (width : Nat) (fresh : (controlLayout width).register.Index)
+lemma frameEquiv_control (width : Nat) (fresh : (controlLayout width).register.Index)
     (old : (before width).register.Index) :
     (frameEquiv width (assembly width (fresh, old))).control = finTwoEquiv (fresh 0) := by
   have actual := frameEquiv_bit width (controlBit width) fresh old
@@ -134,7 +137,7 @@ theorem frameEquiv_control (width : Nat) (fresh : (controlLayout width).register
   exact actual.trans (if_pos rfl)
 
 /-- Actual preparation therefore supplies the source program's internal Ctrl-zero invariant. -/
-theorem frameEquiv_prepared_control (width : Nat) (old : (before width).register.Index) :
+lemma frameEquiv_prepared_control (width : Nat) (old : (before width).register.Index) :
     (frameEquiv width (assembly width ((preparation width).value, old))).control = false := by
   rw [frameEquiv_control, prepared_control_zero]
   rfl
@@ -142,12 +145,12 @@ theorem frameEquiv_prepared_control (width : Nat) (old : (before width).register
 variable {Reference : Register} {H : Type} [Fintype H]
 
 /-- The actual preparation has zero row support on every decoded source frame with Ctrl one. -/
-theorem execute_dirty_frame_row (width : Nat)
+lemma execute_dirty_frame_row (width : Nat)
     (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (freshRow freshColumn : (controlLayout width).register.Index)
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index)
     (dirty : (frameEquiv width (assembly width (freshRow, oldRow.1))).control = true) :
-    ((circuit width).execute Reference state).quantumMarginal.matrix
+    ((circuit width).execute runtimeEnvironment Reference state).quantumMarginal.matrix
       (joined width freshRow oldRow) (joined width freshColumn oldColumn) = 0 := by
   apply execute_nonzero_control_row width state freshRow freshColumn oldRow oldColumn
   intro zero
@@ -155,10 +158,10 @@ theorem execute_dirty_frame_row (width : Nat)
   contradiction
 
 /-- The complete matrix on the source Ctrl-zero subspace is the unchanged prior joint matrix. -/
-theorem execute_prepared_frame_entry (width : Nat)
+lemma execute_prepared_frame_entry (width : Nat)
     (state : State (before width) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (oldRow oldColumn : (Register.prod (before width).register Reference).Index) :
-    ((circuit width).execute Reference state).quantumMarginal.matrix
+    ((circuit width).execute runtimeEnvironment Reference state).quantumMarginal.matrix
       (joined width (preparation width).value oldRow)
       (joined width (preparation width).value oldColumn) =
         state.quantumMarginal.matrix oldRow oldColumn :=

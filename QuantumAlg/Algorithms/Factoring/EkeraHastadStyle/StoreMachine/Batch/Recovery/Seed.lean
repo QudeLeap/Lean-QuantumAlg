@@ -28,6 +28,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchRecovery
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 attribute [local irreducible] NativeBatch.context NativeBatch.code
@@ -35,14 +38,14 @@ attribute [local irreducible] NativeBatch.context NativeBatch.code
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The completed recovery context still uses exactly the originally prepared ordered bank. -/
-theorem seedWires (N : Nat) :
+lemma seedWires (N : Nat) :
     (context base noQuantum N).quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires :=
   (context_quantumWires base noQuantum N).trans
     (NativeBatch.nativeBatch_context_wires base noQuantum N)
 
 /-- Actual classical allocation and recovery preserve every complete source seed block. -/
-theorem tail_seedBlocks (input : Input N)
+lemma tail_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (NativeBatch.context base noQuantum N) Reference
       (RuntimeRound.model.HiddenState × History))
@@ -50,7 +53,7 @@ theorem tail_seedBlocks (input : Input N)
       (NativeBatch.nativeBatch_context_wires base noQuantum N) N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (seedWires base noQuantum N) N
-      ((tail base noQuantum input).execute Reference state) :=
+      ((tail base noQuantum input).execute environment Reference state) :=
   RuntimeRound.shortDLP_runtimeRetainedRecord_seedBlocks
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (NativeBatch.nativeBatch_context_wires base noQuantum N)
@@ -58,20 +61,23 @@ theorem tail_seedBlocks (input : Input N)
     (tail_execute base noQuantum input) state seeded
 
 /-- The actual first recovered batch establishes the seed without an incoming seed premise. -/
-theorem code_seedBlocks (input : Input N)
+lemma code_seedBlocks (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
-      (seedWires base noQuantum N) N ((code base noQuantum input).execute Reference state) := by
-  have source := NativeBatch.nativeBatch_complete_seedBlocks base noQuantum N state
-  exact BasisSeeded.seq (NativeBatch.code base noQuantum N) (tail base noQuantum input)
+      (seedWires base noQuantum N) N ((code base noQuantum input).execute
+        environment Reference state) := by
+  have source := NativeBatch.nativeBatch_complete_seedBlocks (environment := environment)
+    base noQuantum N state
+  exact BasisSeeded.seq (environment := environment)
+    (NativeBatch.code base noQuantum N) (tail base noQuantum input)
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (seedWires base noQuantum N)).symm
       (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state
     (tail_seedBlocks base noQuantum input _ source)
 
 /-- The first owned bank contributes no borrowed quantum wire to the subsequent retry context. -/
-theorem context_noBorrowedQuantum (N : Nat) :
+lemma context_noBorrowedQuantum (N : Nat) :
     (context base noQuantum N).borrowedQuantumWires = [] := by
   have empty : base.borrowedQuantumWires = [] := by
     have subset := base.borrowedQuantumWires_sublist

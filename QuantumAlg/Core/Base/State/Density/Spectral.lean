@@ -35,11 +35,11 @@ def spectralMass (state : DensityOperator R) (index : R.Index) : ℝ :=
   state.positive.isHermitian.eigenvalues index
 
 /-- Every spectral contribution is nonnegative. -/
-theorem spectralMass_nonneg (state : DensityOperator R) (index : R.Index) :
+lemma spectralMass_nonneg (state : DensityOperator R) (index : R.Index) :
     0 ≤ state.spectralMass index := state.positive.eigenvalues_nonneg index
 
 /-- The complete matrix, including all coherences, equals its finite spectral sum. -/
-theorem matrix_eq_sum_spectral (state : DensityOperator R) :
+lemma matrix_eq_sum_spectral (state : DensityOperator R) :
     state.matrix = ∑ index, state.spectralMass index •
       (ofPure (state.spectralVector index)).matrix := by
   classical
@@ -57,7 +57,7 @@ theorem matrix_eq_sum_spectral (state : DensityOperator R) :
   ring
 
 /-- The decomposition keeps the actual mass instead of replacing it by one. -/
-theorem sum_spectralMass (state : DensityOperator R) :
+lemma sum_spectralMass (state : DensityOperator R) :
     ∑ index, state.spectralMass index = state.mass := by
   have traced := congrArg (fun matrix : HilbertOperator R => matrix.trace.re)
     state.matrix_eq_sum_spectral

@@ -143,12 +143,13 @@ def activeBodyPath {model : ExecutionModel} [BitWord.Selected model]
   (activeBodyStep (model := model) cells scratch zero store).2
 
 /-- All fourteen operations retain every quantum-reference block and the actual execution path. -/
-theorem xgcdNativeActiveBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeActiveBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (activeBody (model := model) cells scratch zero).execute Reference state =
+    (activeBody (model := model) cells scratch zero).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := activeBodyStep (model := model) cells scratch zero entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -172,7 +173,7 @@ def activeEvents (model : ExecutionModel) [BitWord.Selected model] (width : Nat)
         width)), .classicalOperation (BitWord.selectedCoordinate (execution := model) (.bit .not))]
 
 /-- Every actual body path emits the unchanged native fourteen-operation sequence. -/
-theorem xgcdNativeActiveBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeActiveBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -208,7 +209,7 @@ theorem xgcdNativeActiveBody_eventTrace {model : ExecutionModel} [BitWord.Select
   rfl
 
 /-- Native accounting follows the same actual body and its chronological operations. -/
-theorem xgcdNativeActiveBody_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeActiveBody_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
@@ -218,7 +219,7 @@ theorem xgcdNativeActiveBody_resourcePool {model : ExecutionModel} [BitWord.Sele
   congrArg ResourcePool.ofList (xgcdNativeActiveBody_eventTrace cells scratch zero path)
 
 /-- The dependent native instructions have exact unit-duration depth fourteen. -/
-theorem xgcdNativeActiveBody_unitDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeActiveBody_unitDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (scratch : Cells ctx (activeScratchShapes width))
     (zero : CInputRef ctx (.unsignedWord width))

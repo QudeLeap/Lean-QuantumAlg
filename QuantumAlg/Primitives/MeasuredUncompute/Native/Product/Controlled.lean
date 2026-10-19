@@ -23,6 +23,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeProductFrame.Controlled
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MAU.Multiplication ProductPlacement EncodedBit GateSpec
 
 /-- The complete original frame followed by its supplied quantum control. -/
@@ -37,14 +39,14 @@ private def originalGates (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     List (GateSpec (BinaryLabelEncoding.prod (frameEncoding width) BinaryLabelEncoding.bool)) :=
   (NativeProductFrame.gates width modulus).map (GateSpec.prodLeft BinaryLabelEncoding.bool)
 
-private theorem originalGates_disjoint (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+private lemma originalGates_disjoint (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     ∀ gate, gate ∈ originalGates width modulus → bitDisjoint (control width) gate := by
   intro gate present
   obtain ⟨source, _, rfl⟩ := List.mem_map.mp present
   exact bitDisjoint_prodLeft_rightBit (frameEncoding width) BinaryLabelEncoding.bool
     BinaryLabelEncoding.boolBit source
 
-private theorem originalGates_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma originalGates_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width) :
     (programList layout .empty (originalGates width modulus)).eventCost =
       (NativeProductFrame.program width modulus).eventCost := by
@@ -66,7 +68,7 @@ def step (width : Nat) (modulus : Fin (2 ^ width + 1))
   (if state.2 then NativeProductFrame.step width modulus state.1 else state.1, state.2)
 
 /-- Exact all-label action also restores any temporarily borrowed history or arithmetic bit. -/
-theorem nativeProductControlled_gates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_gates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width × Bool) :
     stepList (gates width modulus) state = step width modulus state := by
   have lifted := stepList_prodLeft (left := frameEncoding width) BinaryLabelEncoding.bool
@@ -90,26 +92,28 @@ def program (width : Nat) (modulus : Fin (2 ^ width + 1))
   programList layout .empty (gates width modulus)
 
 /-- Exact coherent action includes the relative phase between both control sectors. -/
-theorem nativeProductControlled_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width) :
     UnitaryCircuit.Realizes (layout := layout) (encoding width) (program width modulus layout)
+      environment
       (step width modulus) :=
   realizesList_congrStep layout .empty _ (nativeProductControlled_gates_step width modulus)
+    environment
 
 /-- The control is the original final frame position, including at the smallest width. -/
-theorem nativeProductControlled_control_position (width : Nat) :
+lemma nativeProductControlled_control_position (width : Nat) :
     (control width).wire.val = (frameEncoding width).width := by
   change (frameEncoding width).width + 0 = _
   omega
 
 /-- The actual emitted trace is the expanded native instruction sequence. -/
-theorem nativeProductControlled_trace (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_trace (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width) :
     (program width modulus layout).eventTrace = (gates width modulus).map (event .empty) :=
   programList_eventTrace layout .empty _
 
 /-- Exact native multiplicities include all four Toffolis needed for arbitrary dirty work. -/
-theorem nativeProductControlled_counts (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_counts (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (program width modulus layout).eventCost = 0 ∧
@@ -135,13 +139,13 @@ theorem nativeProductControlled_counts (width : Nat) (modulus : Fin (2 ^ width +
     (originalGates width modulus) (originalGates_disjoint width modulus)
 
 /-- The actual length charges each source instruction's complete native control expansion. -/
-theorem nativeProductControlled_length (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductControlled_length (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (gates width modulus).length = ((originalGates width modulus).map dirtyControlCount).sum :=
   controlWithin_length (bits width) (bits_wire width) (capacity width) (control width)
     (originalGates width modulus) (originalGates_disjoint width modulus)
 
 /-- Three extra native events per original Toffoli are the exact dirty-control overhead. -/
-theorem nativeProductControlled_event_card (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_event_card (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width) :
     (program width modulus layout).eventCost.card =
       (NativeProductFrame.program width modulus).eventCost.card +
@@ -172,7 +176,7 @@ theorem nativeProductControlled_event_card (width : Nat) (modulus : Fin (2 ^ wid
   omega
 
 /-- All remaining resource coordinates have zero multiplicity outside the actual native alphabet. -/
-theorem nativeProductControlled_count_zero (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_count_zero (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (outside : focus ∉ primitiveAlphabet) :
@@ -180,7 +184,7 @@ theorem nativeProductControlled_count_zero (width : Nat) (modulus : Fin (2 ^ wid
   programList_count_zero_of_not_mem_primitiveAlphabet layout (gates width modulus) focus outside
 
 /-- Gate-local control multiplies the unchanged independent product count by at most four. -/
-theorem nativeProductControlled_length_bound (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductControlled_length_bound (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (gates width modulus).length ≤ 4 * VariableGidney.eventBound width := by
   have bound := controlWithin_length_bound (bits width) (bits_wire width) (capacity width)
     (control width) (originalGates width modulus) (originalGates_disjoint width modulus)
@@ -192,7 +196,7 @@ theorem nativeProductControlled_length_bound (width : Nat) (modulus : Fin (2 ^ w
   exact bound.trans (Nat.mul_le_mul_left 4 (originalLength.le.trans source))
 
 /-- Actual event count and serial unit depth use the same expanded list. -/
-theorem nativeProductControlled_resources (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductControlled_resources (width : Nat) (modulus : Fin (2 ^ width + 1))
     (layout : QubitLayout (encoding width).width) :
     (program width modulus layout).eventCost.card ≤ 4 * VariableGidney.eventBound width ∧
       (program width modulus layout).evaluatedEventDepth (fun _ => 1) ≤

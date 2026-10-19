@@ -23,7 +23,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Exhaustive norm reduction over the `48` numerator codes needs this local budget.
 /-- Every integer numerator has squared norm `4` (the unit quaternion scaled by `2`). -/
-theorem octNumerator_normSq : ∀ a, Quaternion.normSq (octNumerator a) = 4 := by decide
+lemma octNumerator_normSq : ∀ a, Quaternion.normSq (octNumerator a) = 4 := by decide
 
 end QuantumAlg.QubitTwoDesign
 

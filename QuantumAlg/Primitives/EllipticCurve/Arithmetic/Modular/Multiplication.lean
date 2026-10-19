@@ -25,6 +25,8 @@ namespace ModularMultiplication
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : VariableModularMul.Parameters]
 
 local instance modulusNeZero : NeZero params.modulus.val :=
@@ -58,7 +60,7 @@ def subProduct (x : Data) : Data where
   target := x.target - x.left * x.right
   flag := x.flag
 
-@[simp] theorem addProduct_subProduct (x : Data) :
+@[simp] lemma addProduct_subProduct (x : Data) :
     addProduct (subProduct x) = x := by
   cases x
   simp [addProduct, subProduct, sub_eq_add_neg, add_assoc]
@@ -102,7 +104,7 @@ def rightWord : EncodedBit.Word rawEncoding params.width where
 def targetWord : EncodedBit.Word rawEncoding params.width where
   bit := targetBit
 
-@[simp] theorem leftBit_get (bit : Fin params.width) (state : RawRegisters) :
+@[simp] lemma leftBit_get (bit : Fin params.width) (state : RawRegisters) :
     (leftBit bit).get state = state.1.multiplier.val.testBit bit.val := by
   change (VariableModularMul.multiplierBit bit).get state.1 = _
   change (VariableModularMul.rawMultiplierBit bit).get
@@ -110,13 +112,13 @@ def targetWord : EncodedBit.Word rawEncoding params.width where
   exact VariableModularMul.rawMultiplierBit_get bit
     (VariableModularMul.registersEquiv state.1)
 
-@[simp] theorem rightBit_get (bit : Fin params.width) (state : RawRegisters) :
+@[simp] lemma rightBit_get (bit : Fin params.width) (state : RawRegisters) :
     (rightBit bit).get state =
       state.1.inPlace.multiplicand.val.testBit bit.val := by
   change (VariableModularMul.inPlaceMultiplicandBit bit).get state.1 = _
   exact VariableModularMul.inPlaceMultiplicandBit_get bit state.1
 
-@[simp] theorem targetBit_get (bit : Fin params.width) (state : RawRegisters) :
+@[simp] lemma targetBit_get (bit : Fin params.width) (state : RawRegisters) :
     (targetBit bit).get state = state.1.accumulator.val.testBit bit.val := by
   change (VariableModularMul.accumulatorBit bit).get state.1 = _
   change (VariableModularMul.rawAccumulatorBit bit).get
@@ -124,17 +126,17 @@ def targetWord : EncodedBit.Word rawEncoding params.width where
   exact VariableModularMul.rawAccumulatorBit_get bit
     (VariableModularMul.registersEquiv state.1)
 
-theorem leftBit_pairwise_ne (a b : Fin params.width) (hne : a ≠ b) :
+lemma leftBit_pairwise_ne (a b : Fin params.width) (hne : a ≠ b) :
     (leftBit a).wire ≠ (leftBit b).wire :=
   EncodedBit.GateSpec.prodLeftWire_ne BinaryLabelEncoding.bool
     (VariableModularMul.multiplierBit_pairwise_ne a b hne)
 
-theorem rightBit_pairwise_ne (a b : Fin params.width) (hne : a ≠ b) :
+lemma rightBit_pairwise_ne (a b : Fin params.width) (hne : a ≠ b) :
     (rightBit a).wire ≠ (rightBit b).wire :=
   EncodedBit.GateSpec.prodLeftWire_ne BinaryLabelEncoding.bool
     (VariableModularMul.inPlaceMultiplicandBit_pairwise_ne a b hne)
 
-theorem targetBit_pairwise_ne (a b : Fin params.width) (hne : a ≠ b) :
+lemma targetBit_pairwise_ne (a b : Fin params.width) (hne : a ≠ b) :
     (targetBit a).wire ≠ (targetBit b).wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne BinaryLabelEncoding.bool
   intro hwire
@@ -256,7 +258,7 @@ def multiplicationData (x : Data) : VariableModularMul.Data where
 def cleanRegisters (x : Data) : RawRegisters :=
   (VariableModularMul.cleanRegisters (multiplicationData x), x.flag)
 
-private theorem cleanRegisters_injective : Function.Injective cleanRegisters := by
+private lemma cleanRegisters_injective : Function.Injective cleanRegisters := by
   intro left right h
   rcases left with ⟨leftA, leftB, leftTarget, leftFlag⟩
   rcases right with ⟨rightA, rightB, rightTarget, rightFlag⟩
@@ -310,7 +312,7 @@ def physicalWidthFor (f : Nat) : Nat :=
   7 * f + 6
 
 /-- Exact physical width of the modular-multiplication adapter. -/
-theorem encoding_width_exact : encoding.width = physicalWidthFor params.width := by
+lemma encoding_width_exact : encoding.width = physicalWidthFor params.width := by
   change VariableModularMul.encoding.width + 1 = _
   calc
     VariableModularMul.encoding.width + 1 =
@@ -340,7 +342,7 @@ def rawStep : RawRegisters → RawRegisters :=
   fun state => (VariableModularMulSchedule.step state.1, state.2)
 
 /-- The literal lifted source list has the displayed flag-preserving action. -/
-theorem gates_stepList (state : RawRegisters) :
+lemma gates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList gates state = rawStep state := by
   rcases state with ⟨data, flag⟩
   have h :
@@ -359,7 +361,7 @@ theorem gates_stepList (state : RawRegisters) :
   simpa only [RawRegisters, rawEncoding, gates, rawStep] using h
 
 /-- Lifting and semantic relabeling preserve the strict event trace. -/
-theorem gates_events_eq :
+lemma gates_events_eq :
     gates.map (EncodedBit.GateSpec.event .empty) =
       VariableModularMulSchedule.gates.map (EncodedBit.GateSpec.event .empty) := by
   rw [show gates =
@@ -381,7 +383,7 @@ theorem gates_events_eq :
       cases gate <;> rfl
 
 /-- Lifting and semantic relabeling preserve the source-list length. -/
-@[simp] theorem gates_length :
+@[simp] lemma gates_length :
     gates.length = VariableModularMulSchedule.gates.length := by
   rw [show gates =
       (VariableModularMulSchedule.gates.map
@@ -431,54 +433,55 @@ def unitDepthBound : Nat :=
   unitDepthBoundFor params.width
 
 /-- The lifted multiplication list preserves the source X coordinate exactly. -/
-theorem gates_xMultiplicity_sum :
+lemma gates_xMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum =
       (VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.xMultiplicity).sum :=
   EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty gates_events_eq
 
 /-- The lifted multiplication list preserves the source CNOT coordinate exactly. -/
-theorem gates_cnotMultiplicity_sum :
+lemma gates_cnotMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       (VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum :=
   EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty gates_events_eq
 
 /-- The lifted multiplication list preserves the source Toffoli coordinate exactly. -/
-theorem gates_toffoliMultiplicity_sum :
+lemma gates_toffoliMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum :=
   EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty gates_events_eq
 
 /-- The literal modular-multiplication list obeys its closed primitive-length bound. -/
-theorem gates_length_le : gates.length ≤ gateLengthBound := by
+lemma gates_length_le : gates.length ≤ gateLengthBound := by
   rw [gates_length]
   exact VariableModularMulSchedule.gates_length_le
 
 /-- The literal modular-multiplication list obeys its closed X-coordinate bound. -/
-theorem gates_xMultiplicity_sum_le :
+lemma gates_xMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum ≤ xBound := by
   rw [gates_xMultiplicity_sum]
   exact VariableModularMulSchedule.gates_xMultiplicity_sum_le
 
 /-- The literal modular-multiplication list obeys its closed CNOT-coordinate bound. -/
-theorem gates_cnotMultiplicity_sum_le :
+lemma gates_cnotMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤ cnotBound := by
   rw [gates_cnotMultiplicity_sum]
   exact VariableModularMulSchedule.gates_cnotMultiplicity_sum_le
 
 /-- The literal modular-multiplication list obeys its closed Toffoli-coordinate bound. -/
-theorem gates_toffoliMultiplicity_sum_le :
+lemma gates_toffoliMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       toffoliBound := by
   rw [gates_toffoliMultiplicity_sum]
   exact VariableModularMulSchedule.gates_toffoliMultiplicity_sum_le
 
 /-- The actual circuit realizes its total raw action. -/
-theorem rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit rawStep := by
+lemma rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit environment rawStep := by
   unfold circuit
-  exact EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
+    (QubitLayout.canonical _) .empty
     gates gates_stepList
 
 noncomputable instance rawFinite : Finite RawRegisters :=
@@ -492,7 +495,7 @@ noncomputable def rawInverseStep : RawRegisters → RawRegisters :=
   EncodedBit.GateSpec.stepList gates.reverse
 
 /-- The literal reverse schedule is a total right inverse on every raw register state. -/
-theorem rawInverseStep_rightInverse :
+lemma rawInverseStep_rightInverse :
     Function.RightInverse rawInverseStep rawStep := by
   intro state
   rw [rawInverseStep, ← gates_stepList]
@@ -500,7 +503,7 @@ theorem rawInverseStep_rightInverse :
     EncodedBit.GateSpec.stepList_reverse_stepList gates.reverse state
 
 /-- The same actual schedules cancel in the opposite order. -/
-theorem rawInverseStep_leftInverse :
+lemma rawInverseStep_leftInverse :
     Function.LeftInverse rawInverseStep rawStep := by
   intro state
   rw [rawInverseStep, ← gates_stepList]
@@ -512,14 +515,15 @@ def cleanKet (value : Data) :
   NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm (encoding.encode value))
 
 /-- The named inverse is exactly the semantic action of the emitted reverse list. -/
-theorem gates_reverse_stepList (state : RawRegisters) :
+lemma gates_reverse_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList gates.reverse state = rawInverseStep state := rfl
 
-theorem rawDaggerRealizes :
-    UnitaryCircuit.Realizes rawEncoding reverseCircuit rawInverseStep :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates.reverse
+lemma rawDaggerRealizes :
+    UnitaryCircuit.Realizes rawEncoding reverseCircuit environment rawInverseStep :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
+    gates.reverse
 
-theorem rawStep_cleanEndpoint (x : Data) :
+lemma rawStep_cleanEndpoint (x : Data) :
     rawStep (cleanRegisters x) = cleanRegisters x.addProduct := by
   have h := VariableModularMulSchedule.step_cleanEndpoint
     (multiplicationData x)
@@ -530,34 +534,35 @@ theorem rawStep_cleanEndpoint (x : Data) :
   rw [h]
   rfl
 
-theorem rawInverseStep_cleanEndpoint (x : Data) :
+lemma rawInverseStep_cleanEndpoint (x : Data) :
     rawInverseStep (cleanRegisters x) = cleanRegisters x.subProduct := by
   have hforward := rawStep_cleanEndpoint (x.subProduct)
   rw [Data.addProduct_subProduct] at hforward
   rw [← hforward]
   exact rawInverseStep_leftInverse _
 
-theorem realizes : UnitaryCircuit.Realizes encoding circuit Data.addProduct where
+lemma realizes : UnitaryCircuit.Realizes encoding circuit environment Data.addProduct where
   apply_encoded_ket := by
     intro x
-    have h := rawRealizes.apply_encoded_ket (cleanRegisters x)
+    have h := (rawRealizes (environment := environment)).apply_encoded_ket (cleanRegisters x)
     rw [rawStep_cleanEndpoint] at h
     exact h
 
-theorem circuit_applyNormalized_clean_ket (x : Data) :
-    circuit.applyNormalized (cleanKet x) =
+lemma circuit_applyNormalized_clean_ket (x : Data) :
+    circuit.applyNormalized environment (cleanKet x) =
       cleanKet x.addProduct :=
-  realizes.apply_encoded_ket x
+  (realizes (environment := environment)).apply_encoded_ket x
 
-theorem dagger_applyNormalized_clean_ket (x : Data) :
-    reverseCircuit.applyNormalized
+lemma dagger_applyNormalized_clean_ket (x : Data) :
+    reverseCircuit.applyNormalized environment
         (cleanKet x) =
       cleanKet x.subProduct := by
-  have actual := rawDaggerRealizes.apply_encoded_ket (cleanRegisters x)
+  have actual := (rawDaggerRealizes (environment := environment)).apply_encoded_ket (cleanRegisters
+    x)
   rw [rawInverseStep_cleanEndpoint] at actual
   exact actual
 
-theorem circuit_toffoli_count_le :
+lemma circuit_toffoli_count_le :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       circuit.eventCost ≤
       toffoliBound := by
@@ -566,7 +571,7 @@ theorem circuit_toffoli_count_le :
   rw [EncodedBit.GateSpec.programList_toffoli_count_eq_sum]
   exact gates_toffoliMultiplicity_sum_le
 
-theorem circuit_unitDepth_le :
+lemma circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
   change
     (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates).evaluatedEventDepth

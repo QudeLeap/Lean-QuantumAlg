@@ -36,12 +36,12 @@ namespace QuantumAlg.NumberTheory.SharedEEA.PackingBoundary
 variable {coefficientWidth quotientWidth remainderWidth : Nat}
 variable {otherCoefficientWidth otherRemainderWidth wordWidth : Nat}
 
-private theorem upper_bit_zero {width : Nat} (word : BitVec width) (index : Nat)
+private lemma upper_bit_zero {width : Nat} (word : BitVec width) (index : Nat)
     (above : width ≤ index) : word.toNat.testBit index = false :=
   Nat.testBit_lt_two_pow (word.isLt.trans_le (Nat.pow_le_pow_right Nat.zero_lt_two above))
 
 /-- Every two-field word bit is determined by the two actual endpoint values. -/
-theorem work2_bit (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
+lemma work2_bit (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (index : Nat) (within : index < coefficientWidth + remainderWidth) :
     (WordPacking.packWork2 payload).getMsbD index =
       (payload.coefficientBits.toNat.testBit index ||
@@ -64,7 +64,7 @@ theorem work2_bit (payload : WordPacking.Work2Payload coefficientWidth remainder
     rw [sourceIndex, upper_bit_zero payload.coefficientBits index afterCoefficient, Bool.false_or]
 
 /-- Once the quotient is actually zero, its entire region and the separator are zero padding. -/
-theorem work1_zero_quotient_bit
+lemma work1_zero_quotient_bit
     (payload : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth)
     (empty : payload.quotientBits.toNat = 0) (index : Nat)
     (within : index < (coefficientWidth + 1) + (quotientWidth + remainderWidth)) :
@@ -112,7 +112,7 @@ theorem work1_zero_quotient_bit
         rw [sourceIndex]
 
 /-- Redistributing zero padding between two bounded endpoint fields preserves the entire word. -/
-theorem work2_resegment
+lemma work2_resegment
     (left : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (right : WordPacking.Work2Payload otherCoefficientWidth otherRemainderWidth)
     (leftWidth : coefficientWidth + remainderWidth = wordWidth)
@@ -128,7 +128,7 @@ theorem work2_resegment
     leftWidth, rightWidth, coefficient, remainder]
 
 /-- A genuinely cleared first-word quotient can be absorbed into either pair boundary exactly. -/
-theorem work1_resegment
+lemma work1_resegment
     (left : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth)
     (right : WordPacking.Work2Payload otherCoefficientWidth otherRemainderWidth)
     (leftWidth : (coefficientWidth + 1) + (quotientWidth + remainderWidth) = wordWidth)
@@ -149,7 +149,7 @@ def firstRemainderWidth (state : IterationState) (modulus : Nat) : Nat :=
   modulus.size + 3 - (state.coefficient.size + 1)
 
 /-- Reachable macro capacity leaves precisely the remainder region after coefficient and zero. -/
-theorem first_width (state : IterationState) (modulus : Nat)
+lemma first_width (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     (state.coefficient.size + 1) + (0 + firstRemainderWidth state modulus) =
       modulus.size + 3 := by
@@ -158,7 +158,7 @@ theorem first_width (state : IterationState) (modulus : Nat)
   omega
 
 /-- The actual macro remainder fits the first word, including at the final zero-divisor boundary. -/
-theorem first_remainder_fits (state : IterationState) (modulus : Nat)
+lemma first_remainder_fits (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.remainder < 2 ^ firstRemainderWidth state modulus := by
   apply Nat.size_le.mp
@@ -204,7 +204,7 @@ def completedSecondWord (state : IterationState) (modulus : Nat)
         (CoefficientCapacity.work2_width state modulus valid conserved)
 
 /-- The completed first word is exactly the next second word under its refreshed boundary. -/
-theorem completed_first_eq_next_second (state : IterationState) (modulus : Nat)
+lemma completed_first_eq_next_second (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     completedFirstWord state modulus valid conserved =
@@ -219,7 +219,7 @@ theorem completed_first_eq_next_second (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- The completed second word supplies the next coefficient and its genuine zero separator. -/
-theorem completed_second_eq_next_first (state : IterationState) (modulus : Nat)
+lemma completed_second_eq_next_first (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     completedSecondWord state modulus valid conserved active =
@@ -234,7 +234,7 @@ theorem completed_second_eq_next_first (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- The literal whole-word exchange has precisely the next macro state's two physical words. -/
-theorem completed_exchange (state : IterationState) (modulus : Nat)
+lemma completed_exchange (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (completedFirstWord state modulus valid conserved,
@@ -249,7 +249,7 @@ theorem completed_exchange (state : IterationState) (modulus : Nat)
     (completed_first_eq_next_second state modulus valid conserved active)
 
 /-- The smallest original domain input reaches a zero-divisor exchange without excluding it. -/
-theorem smallest_terminal_exchange :
+lemma smallest_terminal_exchange :
     let state := IterationState.initial 2 (foldInput 2 1).2
     let valid := folded_initial_admissible 2 1 (by decide) (by decide)
     let conserved := IterationState.initial_balance 2 (foldInput 2 1).2

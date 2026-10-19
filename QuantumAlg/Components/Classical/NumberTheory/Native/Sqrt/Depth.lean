@@ -49,7 +49,7 @@ def nativeDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : N
           .copy width)))))
 
 /-- The real selected branch has at most the duration of its one actual copy. -/
-theorem nativeSqrt_select_depth_le (refs : RoundRefs ctx width)
+lemma nativeSqrt_select_depth_le (refs : RoundRefs ctx width)
     (duration : Resource.Event model → Nat) (path : (select (model := model) refs).Path) :
     (select (model := model) refs).depth duration path ≤
       duration (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary
@@ -65,7 +65,7 @@ theorem nativeSqrt_select_depth_le (refs : RoundRefs ctx width)
       · exact Nat.zero_le _
 
 /-- The actual round includes all arithmetic dependencies before and after selection. -/
-theorem nativeSqrt_round_depth_le
+lemma nativeSqrt_round_depth_le
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (duration : Resource.Event model → Nat) (path : (round (model := model) input refs).Path) :
     (round (model := model) input refs).depth duration path ≤ roundDuration width duration := by
@@ -89,7 +89,7 @@ theorem nativeSqrt_round_depth_le
     (Nat.add_le_add_right (nativeSqrt_select_depth_le refs duration path.2.2.2.1) _) _) _) _
 
 /-- Repetition sums exactly the actual body depths at its finite stage indices. -/
-theorem nativeSqrt_iteration_depth_le
+lemma nativeSqrt_iteration_depth_le
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (count : Nat) (duration : Resource.Event model → Nat)
     (path : (Circuit.iterate count (round (model := model) input refs)).Path) :
@@ -104,7 +104,7 @@ theorem nativeSqrt_iteration_depth_le
     _ = count * roundDuration width duration := by simp
 
 /-- The initialized body pays its literal loader and both outer operations in full. -/
-theorem nativeSqrt_body_depth_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_body_depth_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (body (model := model) input output).Path) :
     (body (model := model) input output).depth duration path ≤ nativeDepthLimit width duration := by
@@ -128,14 +128,14 @@ theorem nativeSqrt_body_depth_le (input : CInputRef ctx (.unsignedWord width))
       duration path.2.2.1) _)) _
 
 /-- The real lexical scopes add no arithmetic duration beyond their actual body. -/
-theorem nativeSqrt_into_depth_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_depth_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (into (model := model) input output).Path) :
     (into (model := model) input output).depth duration path ≤ nativeDepthLimit width duration :=
   nativeSqrt_body_depth_le input output duration path
 
 /-- At unit native duration the actual complete serial depth is at most the linear event bound. -/
-theorem nativeSqrt_into_unitDepth_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_unitDepth_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path) :
     (into (model := model) input output).depth (fun _ => 1) path ≤ 7 * width + 2 := by

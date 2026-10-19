@@ -22,7 +22,7 @@ noncomputable section
 
 /-- Matrix entries of the group query are precisely the source-register
 permutation. The permutation matrix uses the row-to-column convention. -/
-theorem oracleOperator_entry {N : Nat} {params : RegisterParameters}
+lemma oracleOperator_entry {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (output input :
@@ -36,7 +36,7 @@ theorem oracleOperator_entry {N : Nat} {params : RegisterParameters}
   simp only [Equiv.apply_eq_iff_eq]
 
 /-- A basis state is relabelled by the exact reversible group query. -/
-theorem oracleOperator_apply_ket {N : Nat} {params : RegisterParameters}
+lemma oracleOperator_apply_ket {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ)
     (input :

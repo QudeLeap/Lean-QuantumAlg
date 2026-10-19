@@ -33,14 +33,14 @@ public def cnotPermutation : Equiv.Perm (QuantumSignature.qubits 2).Basis :=
     (QuantumSignature.qubitsIndexEquiv 2).symm)
 
 /-- This permutation interprets the actual native token with exact phase. -/
-public theorem cnot_operator_ofPerm :
+public lemma cnot_operator_ofPerm :
     model.operator .cnot = UnitaryOperator.ofPerm cnotPermutation := by
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 2).symm
     (UnitaryOperator.ofPerm (Equiv.swap 2 3)) = _
   exact UnitaryOperator.reindex_ofPerm (QuantumSignature.qubitsIndexEquiv 2).symm _
 
 /-- CNOT acts on the ordered control and target values, with addition in `Fin 2`. -/
-public theorem cnotPermutation_pair (control target : Fin 2) :
+public lemma cnotPermutation_pair (control target : Fin 2) :
     cnotPermutation ![control, target] = ![control, control + target] := by
   fin_cases control <;> fin_cases target
   all_goals
@@ -48,7 +48,7 @@ public theorem cnotPermutation_pair (control target : Fin 2) :
     fin_cases index <;> rfl
 
 /-- The local CNOT action reads its actual two argument coordinates. -/
-public theorem cnotPermutation_apply (basis : Fin 2 → Fin 2) :
+public lemma cnotPermutation_apply (basis : Fin 2 → Fin 2) :
     cnotPermutation basis = ![basis 0, basis 0 + basis 1] := by
   have coordinates : basis = ![basis 0, basis 1] := by
     funext index
@@ -62,14 +62,14 @@ public def xPermutation : Equiv.Perm (QuantumSignature.qubits 1).Basis :=
     (QuantumSignature.qubitsIndexEquiv 1).symm)
 
 /-- Pauli X is one actual single-qubit token with its complete exact-phase semantics. -/
-public theorem x_operator_ofPerm :
+public lemma x_operator_ofPerm :
     model.operator (.singleQubit Gate.XOp) = UnitaryOperator.ofPerm xPermutation := by
   change UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 1).symm
     (UnitaryOperator.ofPerm (Equiv.swap 0 1)) = _
   exact UnitaryOperator.reindex_ofPerm (QuantumSignature.qubitsIndexEquiv 1).symm _
 
 /-- The actual X token flips its one finite binary argument. -/
-public theorem xPermutation_single (value : Fin 2) :
+public lemma xPermutation_single (value : Fin 2) :
     xPermutation ![value] = ![value + 1] := by
   fin_cases value
   all_goals
@@ -85,7 +85,7 @@ public def toffoliPermutation : Equiv.Perm (QuantumSignature.qubits 3).Basis :=
     (QuantumSignature.qubitsIndexEquiv 3).symm)
 
 /-- Toffoli's permutation interpretation is proved for the model-owned native token. -/
-public theorem toffoli_operator_ofPerm :
+public lemma toffoli_operator_ofPerm :
     model.operator .toffoli = UnitaryOperator.ofPerm toffoliPermutation := by
   have canonical :
       (QubitPrimitive.perm
@@ -99,7 +99,7 @@ public theorem toffoli_operator_ofPerm :
   exact UnitaryOperator.reindex_ofPerm (QuantumSignature.qubitsIndexEquiv 3).symm _
 
 /-- The actual Toffoli token preserves both controls and adds their product into the target. -/
-public theorem toffoliPermutation_triple (first second target : Fin 2) :
+public lemma toffoliPermutation_triple (first second target : Fin 2) :
     toffoliPermutation ![first, second, target] = ![first, second, first * second + target] := by
   fin_cases first <;> fin_cases second <;> fin_cases target
   all_goals
@@ -107,7 +107,7 @@ public theorem toffoliPermutation_triple (first second target : Fin 2) :
     fin_cases index <;> rfl
 
 /-- The model's exact Toffoli action reads its original three argument coordinates. -/
-public theorem toffoliPermutation_apply (basis : Fin 3 → Fin 2) :
+public lemma toffoliPermutation_apply (basis : Fin 3 → Fin 2) :
     toffoliPermutation basis = ![basis 0, basis 1, basis 0 * basis 1 + basis 2] := by
   have coordinates : basis = ![basis 0, basis 1, basis 2] := by
     funext index

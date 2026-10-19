@@ -25,17 +25,19 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ContextUnion MeasuredUncompute MAU.Inversion.SharedEEA
 
 /-- The complete shared-frame allocation remains disjoint from the supplied coherent control. -/
-theorem auxiliary_disjoint_control (width : Nat) :
+lemma auxiliary_disjoint_control (width : Nat) :
     RuntimeCtx.StorageDisjoint (InversePreparation.after width)
       (InPlaceControlled.controlContext width) :=
   MeasurementCells.original_disjoint (InversePreparation.after width)
     (InPlaceControlled.controlContext width) 2 width (InPlaceControlled.control_disjoint width)
 
 /-- The two original supplied words are disjoint from the same supplied coherent control. -/
-theorem input_disjoint_control (width : Nat) :
+lemma input_disjoint_control (width : Nat) :
     RuntimeCtx.StorageDisjoint (InversePreparation.before width)
       (InPlaceControlled.controlContext width) :=
   preparation_original_disjoint InversePreparation.auxiliaryKey
@@ -66,7 +68,7 @@ def allocateCells (width : Nat) :
     (InversePreparation.after width)
     (InPlaceControlled.controlContext width) 2 width (InPlaceControlled.control_disjoint width)
 
-private theorem selector_physical_disjoint (width : Nat) :
+private lemma selector_physical_disjoint (width : Nat) :
     List.Disjoint (selectorLayout width).identities
       (InPlaceControlled.context width).physicalIdx := by
   have separated := (RuntimeCtx.physicallyDisjoint_iff_listDisjoint _ _).mp
@@ -91,7 +93,7 @@ def prepareSelector (width : Nat) :
     (InPlaceControlled.context width).canonicalFreshKey_fresh (selector_physical_disjoint width)
 
 /-- All original cells, physical wires, shapes and roles match the accepted body exactly. -/
-theorem body_entries (width : Nat) : (context width).entries.Perm (after width).entries := by
+lemma body_entries (width : Nat) : (context width).entries.Perm (after width).entries := by
   change ((InPlaceControlled.context width).entries ++
     [RuntimeEntry.ownedLayout (selectorKey width) (selectorLayout width)]).Perm
       (RuntimeEntry.ownedLayout (selectorKey width) (selectorLayout width) ::
@@ -108,7 +110,7 @@ def output (width : Nat) : Output (after width) (.fixedVector width (.finite 2))
   Output.all (after width)
     (.read (ContextPermutation.input (body_entries width) (resultInput width)))
 
-theorem output_listing (width : Nat) : (output width).listing = (after width).keys :=
+lemma output_listing (width : Nat) : (output width).listing = (after width).keys :=
   Output.all_listing _ _
 
 
@@ -121,7 +123,7 @@ def initializationTrace (modulus : Nat) :
     ZeroPreparation.eventTrace AlgorithmGate.model .empty (selectorLayout modulus.size)
 
 /-- The actual initialization charges all auxiliary zeros, literal X loads and the selector zero. -/
-theorem initializeWork_eventTrace (modulus : Nat)
+lemma initializeWork_eventTrace (modulus : Nat)
     (path : (initializeWork modulus).Path) :
     (initializeWork modulus).eventTrace path = initializationTrace modulus := by
   have loaded : (prepareAuxiliary modulus).eventTrace path.1 =
@@ -144,40 +146,41 @@ theorem initializeWork_eventTrace (modulus : Nat)
   rw [loaded, retained, List.nil_append]
 
 /-- The resource pool is derived from exactly those emitted native events. -/
-theorem initializeWork_resourcePool (modulus : Nat)
+lemma initializeWork_resourcePool (modulus : Nat)
     (path : (initializeWork modulus).Path) :
     (initializeWork modulus).resourcePool path =
       ResourcePool.ofList (initializationTrace modulus) :=
   congrArg ResourcePool.ofList (initializeWork_eventTrace modulus path)
 
 /-- Zero allocation and X loading preserve every store block and the full resident reference. -/
-theorem prepareAuxiliary_execute (modulus : Nat)
+lemma prepareAuxiliary_execute (modulus : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (before modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
     splitServiceState (InversePreparation.after modulus.size)
       (InPlaceControlled.controlContext modulus.size) (auxiliary_disjoint_control modulus.size)
-      ((prepareAuxiliary modulus).execute Reference state) =
-      ((InPlacePreparation.circuit modulus).execute
+      ((prepareAuxiliary modulus).execute environment Reference state) =
+      ((InPlacePreparation.circuit modulus).execute environment
         (Register.prod (InPlaceControlled.controlContext modulus.size).register Reference)
         (splitServiceState (InversePreparation.before modulus.size)
           (InPlaceControlled.controlContext modulus.size)
           (input_disjoint_control modulus.size) state)).mapHistory
             (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) :=
-  InPlacePreparation.Framed.execute modulus (InPlaceControlled.controlContext modulus.size)
+  InPlacePreparation.Framed.execute (environment := environment) modulus
+    (InPlaceControlled.controlContext modulus.size)
     (auxiliary_disjoint_control modulus.size) state
 
 /-- The original retained cells keep every store, service, history and reference coordinate. -/
-theorem allocateCells_execute (width : Nat)
+lemma allocateCells_execute (width : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ((InversePreparation.after width).disjointUnion
       (InPlaceControlled.controlContext width) (auxiliary_disjoint_control width))
       Reference (ClassicalOracleModel.empty.HiddenState × History)) :
     splitServiceState (NumeratorMeasurement.context width) (InPlaceControlled.controlContext width)
       (InPlaceControlled.control_disjoint width)
-      ((allocateCells width).execute Reference state) =
+      ((allocateCells width).execute environment Reference state) =
       ((MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
-        (InversePreparation.after width) 2 width).execute
+        (InversePreparation.after width) 2 width).execute environment
         (Register.prod (InPlaceControlled.controlContext width).register Reference)
         (splitServiceState (InversePreparation.after width) (InPlaceControlled.controlContext width)
           (auxiliary_disjoint_control width) state)).mapHistory
@@ -186,16 +189,17 @@ theorem allocateCells_execute (width : Nat)
                 (model := .quantum AlgorithmGate.model .empty)
                 (InversePreparation.after width) (InPlaceControlled.controlContext width) 2 width
                 (InPlaceControlled.control_disjoint width) record.2.2)))) :=
-  MeasurementCells.allocateFramed_execute (model := .quantum AlgorithmGate.model .empty)
+  MeasurementCells.allocateFramed_execute (environment := environment)
+    (model := .quantum AlgorithmGate.model .empty)
     (InversePreparation.after width) (InPlaceControlled.controlContext width) 2 width
     (InPlaceControlled.control_disjoint width) state
 
 /-- The selector instruction adds its actual zero factor to the complete incoming state. -/
-theorem prepareSelector_execute (width : Nat)
+lemma prepareSelector_execute (width : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (InPlaceControlled.context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
-    (prepareSelector width).execute Reference state =
+    (prepareSelector width).execute environment Reference state =
       (state.prepare (selectorKey width) (selectorLayout width)
         (InPlaceControlled.context width).canonicalFreshKey_fresh (selector_physical_disjoint width)
         (BasisPreparation.zero (selectorLayout width))).mapHistory

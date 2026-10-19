@@ -26,10 +26,10 @@ namespace QuantumAlg.WireAddress
 @[expose] public def bitIndex {n : Nat} (wire : Fin n) : Fin n :=
   ⟨n - 1 - wire.val, by omega⟩
 
-public theorem bitIndex_val {n : Nat} (wire : Fin n) :
+public lemma bitIndex_val {n : Nat} (wire : Fin n) :
     (bitIndex wire).val = n - 1 - wire.val := rfl
 
-public theorem bitIndex_injective {n : Nat} : Function.Injective (bitIndex (n := n)) := by
+public lemma bitIndex_injective {n : Nat} : Function.Injective (bitIndex (n := n)) := by
   intro left right h
   apply Fin.ext
   have hv := congrArg Fin.val h
@@ -41,14 +41,14 @@ public theorem bitIndex_injective {n : Nat} : Function.Injective (bitIndex (n :=
   bitIndex bit
 
 @[simp]
-public theorem bitIndex_littleEndianWire {n : Nat} (bit : Fin n) :
+public lemma bitIndex_littleEndianWire {n : Nat} (bit : Fin n) :
     bitIndex (littleEndianWire bit) = bit := by
   apply Fin.ext
   dsimp [bitIndex, littleEndianWire]
   omega
 
 @[simp]
-public theorem littleEndianWire_bitIndex {n : Nat} (wire : Fin n) :
+public lemma littleEndianWire_bitIndex {n : Nat} (wire : Fin n) :
     littleEndianWire (bitIndex wire) = wire := by
   apply Fin.ext
   dsimp [bitIndex, littleEndianWire]
@@ -61,7 +61,7 @@ public theorem littleEndianWire_bitIndex {n : Nat} (wire : Fin n) :
     Nat.xor_lt_two_pow x.isLt
       (Nat.pow_lt_pow_right Nat.one_lt_two (bitIndex target).isLt)⟩
 
-public theorem bit_flipBit {n : Nat} (target bit : Fin n) (x : Fin (2 ^ n)) :
+public lemma bit_flipBit {n : Nat} (target bit : Fin n) (x : Fin (2 ^ n)) :
     (flipBit target x).val.testBit (bitIndex bit).val =
       (x.val.testBit (bitIndex bit).val ^^ decide (target = bit)) := by
   change (x.val ^^^ 2 ^ (bitIndex target).val).testBit (bitIndex bit).val =
@@ -71,24 +71,24 @@ public theorem bit_flipBit {n : Nat} (target bit : Fin n) (x : Fin (2 ^ n)) :
   rw [decide_eq_decide]
   exact ⟨fun h => bitIndex_injective (Fin.ext h), fun h => by cases h; rfl⟩
 
-public theorem bit_flipBit_self {n : Nat} (target : Fin n) (x : Fin (2 ^ n)) :
+public lemma bit_flipBit_self {n : Nat} (target : Fin n) (x : Fin (2 ^ n)) :
     (flipBit target x).val.testBit (bitIndex target).val =
       !x.val.testBit (bitIndex target).val := by
   simp [bit_flipBit]
 
-public theorem bit_flipBit_of_ne {n : Nat} {target bit : Fin n} (hne : target ≠ bit)
+public lemma bit_flipBit_of_ne {n : Nat} {target bit : Fin n} (hne : target ≠ bit)
     (x : Fin (2 ^ n)) :
     (flipBit target x).val.testBit (bitIndex bit).val =
       x.val.testBit (bitIndex bit).val := by
   simp [bit_flipBit, hne]
 
-public theorem flipBit_flipBit {n : Nat} (target : Fin n) (x : Fin (2 ^ n)) :
+public lemma flipBit_flipBit {n : Nat} (target : Fin n) (x : Fin (2 ^ n)) :
     flipBit target (flipBit target x) = x := by
   unfold flipBit
   ext
   simp
 
-public theorem flipBit_comm {n : Nat} (left right : Fin n) (x : Fin (2 ^ n)) :
+public lemma flipBit_comm {n : Nat} (left right : Fin n) (x : Fin (2 ^ n)) :
     flipBit left (flipBit right x) = flipBit right (flipBit left x) := by
   unfold flipBit
   ext
@@ -108,14 +108,14 @@ public theorem flipBit_comm {n : Nat} (left right : Fin n) (x : Fin (2 ^ n)) :
   left_inv := flipBit_flipBit target
   right_inv := flipBit_flipBit target
 
-@[simp] public theorem xPerm_apply {n : Nat} (target : Fin n) (x : Fin (2 ^ n)) :
+@[simp] public lemma xPerm_apply {n : Nat} (target : Fin n) (x : Fin (2 ^ n)) :
     xPerm target x = flipBit target x := rfl
 
 /-- Addressed CNOT action. -/
 @[expose] public def cnotMap {n : Nat} (control target : Fin n) (x : Fin (2 ^ n)) : Fin (2 ^ n) :=
   if x.val.testBit (bitIndex control).val then flipBit target x else x
 
-public theorem cnotMap_cnotMap {n : Nat} {control target : Fin n} (hct : control ≠ target)
+public lemma cnotMap_cnotMap {n : Nat} {control target : Fin n} (hct : control ≠ target)
     (x : Fin (2 ^ n)) : cnotMap control target (cnotMap control target x) = x := by
   unfold cnotMap
   by_cases hc : x.val.testBit (bitIndex control).val
@@ -131,7 +131,7 @@ public theorem cnotMap_cnotMap {n : Nat} {control target : Fin n} (hct : control
   left_inv := cnotMap_cnotMap hct
   right_inv := cnotMap_cnotMap hct
 
-@[simp] public theorem cnotPerm_apply {n : Nat} (control target : Fin n)
+@[simp] public lemma cnotPerm_apply {n : Nat} (control target : Fin n)
     (hct : control ≠ target) (x : Fin (2 ^ n)) :
     cnotPerm control target hct x = cnotMap control target x := rfl
 
@@ -142,7 +142,7 @@ public theorem cnotMap_cnotMap {n : Nat} {control target : Fin n} (hct : control
     flipBit target x
   else x
 
-public theorem toffoliMap_toffoliMap {n : Nat} {controlA controlB target : Fin n}
+public lemma toffoliMap_toffoliMap {n : Nat} {controlA controlB target : Fin n}
     (ha : controlA ≠ target) (hb : controlB ≠ target) (x : Fin (2 ^ n)) :
     toffoliMap controlA controlB target (toffoliMap controlA controlB target x) = x := by
   unfold toffoliMap
@@ -170,7 +170,7 @@ inequalities. -/
   left_inv := toffoliMap_toffoliMap ha hb
   right_inv := toffoliMap_toffoliMap ha hb
 
-@[simp] public theorem toffoliPerm_apply {n : Nat} (controlA controlB target : Fin n)
+@[simp] public lemma toffoliPerm_apply {n : Nat} (controlA controlB target : Fin n)
     (hab : controlA ≠ controlB) (ha : controlA ≠ target) (hb : controlB ≠ target)
     (x : Fin (2 ^ n)) :
     toffoliPerm controlA controlB target hab ha hb x =

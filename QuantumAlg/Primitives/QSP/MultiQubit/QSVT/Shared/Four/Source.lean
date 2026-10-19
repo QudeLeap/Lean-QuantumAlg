@@ -20,7 +20,7 @@ without querying or inspecting the source unitary.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
-private theorem exists_positive_branch {m n L : Nat} {P : Polynomial ℝ}
+private lemma exists_positive_branch {m n L : Nat} {P : Polynomial ℝ}
     (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
     (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
     (hermitian : A.IsHermitian)
@@ -37,7 +37,7 @@ private theorem exists_positive_branch {m n L : Nat} {P : Polynomial ℝ}
   exact ⟨phases, length, by simpa only [initializedBranch_one] using block⟩
 
 /-- Every matching-parity source polynomial has a native branch, including the constant boundary. -/
-theorem exists_initialized_polynomial_branch {m n L : Nat} {P : Polynomial ℝ}
+lemma exists_initialized_polynomial_branch {m n L : Nat} {P : Polynomial ℝ}
     (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
     (A : HilbertOperator (Qubits n)) (encoding : ExactBlockEncoding m n U A)
     (hermitian : A.IsHermitian)

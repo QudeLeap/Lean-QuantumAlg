@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem clear_lowest (mask : Fin (2 ^ width)) (nonzero : mask.val ≠ 0) :
+private lemma clear_lowest (mask : Fin (2 ^ width)) (nonzero : mask.val ≠ 0) :
     (CShape.wordBitAnd width (.unsignedWord mask)
       (CShape.wordSub width (.unsignedWord mask) (CShape.wordOfNat width 1))).toNat =
       mask.val &&& (mask.val - 1) := by
@@ -53,7 +53,7 @@ private theorem clear_lowest (mask : Fin (2 ^ width)) (nonzero : mask.val ≠ 0)
   rw [difference, Nat.mod_eq_of_lt maskedRange]
 
 omit [BitWord.Selected model] in
-private theorem represented_test (result : ClassicalAlgorithms.GF2.Result rowCount width) :
+private lemma represented_test (result : ClassicalAlgorithms.GF2.Result rowCount width) :
     ((CShape.wordBitAnd width (.unsignedWord (ClassicalAlgorithms.GF2.freeColumnMask result))
       (CShape.wordSub width (.unsignedWord (ClassicalAlgorithms.GF2.freeColumnMask result))
         (CShape.wordOfNat width 1))).toNat = 0 ∧
@@ -72,14 +72,14 @@ private theorem represented_test (result : ClassicalAlgorithms.GF2.Result rowCou
     exact ⟨(clear_lowest _ valueNonzero).trans cleared, valueNonzero⟩
 
 omit [BitWord.Selected model] in
-private theorem bool_test (before : Bool) (left right zeroValue : Nat) :
+private lemma bool_test (before : Bool) (left right zeroValue : Nat) :
     (before && decide (left = zeroValue) && !decide (right = zeroValue)) = true ↔
       before = true ∧ left = zeroValue ∧ right ≠ zeroValue := by
   by_cases leftZero : left = zeroValue <;> by_cases rightZero : right = zeroValue <;>
     cases before <;> simp [leftZero, rightZero]
 
 /-- The actual scoped test succeeds precisely on an incoming success and one pure free column. -/
-theorem gf2UniqueFree_success_iff (free zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2UniqueFree_success_iff (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (store : Store ctx)
     (result : ClassicalAlgorithms.GF2.Result rowCount width)
     (freeValue : store.read (.storage free.toCStorageRef) =

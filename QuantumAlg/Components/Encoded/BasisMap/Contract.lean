@@ -64,11 +64,11 @@ def identity (E : BinaryResidueEncoding N n) : EncodedResidueBasisMap E where
     rfl
 
 @[simp]
-theorem identity_perm (E : BinaryResidueEncoding N n) (x : Fin (2 ^ n)) :
+lemma identity_perm (E : BinaryResidueEncoding N n) (x : Fin (2 ^ n)) :
     (identity E).perm x = x := rfl
 
 @[simp]
-theorem identity_residueMap (E : BinaryResidueEncoding N n) (z : ZMod N) :
+lemma identity_residueMap (E : BinaryResidueEncoding N n) (z : ZMod N) :
     (identity E).residueMap z = z := rfl
 
 /-- Sequential composition: apply `first`, then `second`. -/
@@ -93,11 +93,11 @@ def sequential (first second : EncodedResidueBasisMap E) : EncodedResidueBasisMa
           rw [first.action_on_valid x hx]
 
 @[simp]
-theorem sequential_perm (first second : EncodedResidueBasisMap E) (x : Fin (2 ^ n)) :
+lemma sequential_perm (first second : EncodedResidueBasisMap E) (x : Fin (2 ^ n)) :
     (sequential first second).perm x = second.perm (first.perm x) := rfl
 
 @[simp]
-theorem sequential_residueMap (first second : EncodedResidueBasisMap E) (z : ZMod N) :
+lemma sequential_residueMap (first second : EncodedResidueBasisMap E) (z : ZMod N) :
     (sequential first second).residueMap z = second.residueMap (first.residueMap z) := rfl
 
 /-- Inverse basis-map contract. Its residue action is defined by decoding the
@@ -118,16 +118,16 @@ def inverse (contract : EncodedResidueBasisMap E) : EncodedResidueBasisMap E whe
     simp [hxround]
 
 @[simp]
-theorem inverse_perm (contract : EncodedResidueBasisMap E) (x : Fin (2 ^ n)) :
+lemma inverse_perm (contract : EncodedResidueBasisMap E) (x : Fin (2 ^ n)) :
     contract.inverse.perm x = contract.perm.symm x := rfl
 
 @[simp]
-theorem inverse_residueMap (contract : EncodedResidueBasisMap E) (z : ZMod N) :
+lemma inverse_residueMap (contract : EncodedResidueBasisMap E) (z : ZMod N) :
     contract.inverse.residueMap z = E.decode (contract.perm.symm (E.encode z)) := rfl
 
 /-- On canonical residue labels, the total basis permutation agrees with the
 contract's residue-level map and returns a canonical label. -/
-theorem perm_encode_eq (contract : EncodedResidueBasisMap E) (z : ZMod N) :
+lemma perm_encode_eq (contract : EncodedResidueBasisMap E) (z : ZMod N) :
     contract.perm (E.encode z) = E.encode (contract.residueMap z) := by
   have hcanonical : E.IsValid (E.encode z) := E.encode_isValid z
   have hvalid : E.IsValid (contract.perm (E.encode z)) :=
@@ -153,11 +153,11 @@ second component is unchanged for every input. -/
 def Preserves (σ : Equiv.Perm (Data × Work)) : Prop :=
   ∀ x : Data × Work, (σ x).2 = x.2
 
-theorem preserves_refl : Preserves (Equiv.refl (Data × Work)) := by
+lemma preserves_refl : Preserves (Equiv.refl (Data × Work)) := by
   intro x
   rfl
 
-theorem preserves_sequential {first second : Equiv.Perm (Data × Work)}
+lemma preserves_sequential {first second : Equiv.Perm (Data × Work)}
     (hfirst : Preserves first) (hsecond : Preserves second) :
     Preserves (first.trans second) := by
   intro x
@@ -166,7 +166,7 @@ theorem preserves_sequential {first second : Equiv.Perm (Data × Work)}
     _ = (first x).2 := hsecond (first x)
     _ = x.2 := hfirst x
 
-theorem preserves_inverse {σ : Equiv.Perm (Data × Work)} (h : Preserves σ) :
+lemma preserves_inverse {σ : Equiv.Perm (Data × Work)} (h : Preserves σ) :
     Preserves σ.symm := by
   intro x
   have hx := h (σ.symm x)
@@ -178,14 +178,14 @@ def iterate : ℕ → Equiv.Perm (Data × Work) → Equiv.Perm (Data × Work)
   | k + 1, σ => (iterate k σ).trans σ
 
 @[simp]
-theorem iterate_zero (σ : Equiv.Perm (Data × Work)) :
+lemma iterate_zero (σ : Equiv.Perm (Data × Work)) :
     iterate 0 σ = Equiv.refl (Data × Work) := rfl
 
 @[simp]
-theorem iterate_succ (k : ℕ) (σ : Equiv.Perm (Data × Work)) :
+lemma iterate_succ (k : ℕ) (σ : Equiv.Perm (Data × Work)) :
     iterate (k + 1) σ = (iterate k σ).trans σ := rfl
 
-theorem preserves_iterate (k : ℕ) {σ : Equiv.Perm (Data × Work)}
+lemma preserves_iterate (k : ℕ) {σ : Equiv.Perm (Data × Work)}
     (h : Preserves σ) : Preserves (iterate k σ) := by
   induction k with
   | zero =>
@@ -225,7 +225,7 @@ def controlled [DecidableEq Control] (controlValue : Control)
       simp
     · simp [h]
 
-theorem preserves_controlled [DecidableEq Control] (controlValue : Control)
+lemma preserves_controlled [DecidableEq Control] (controlValue : Control)
     {body : Equiv.Perm (Data × Work)} (hbody : Preserves body) :
     Preserves (controlled (Control := Control) (Data := Data) (Work := Work)
       controlValue body) := by
@@ -283,18 +283,18 @@ def controlled [DecidableEq Control] (controlValue : Control)
   preservesWork := preserves_controlled controlValue clean.preservesWork
 
 @[simp]
-theorem identity_perm (x : Data × Work) :
+lemma identity_perm (x : Data × Work) :
     (identity Data Work).perm x = x :=
   rfl
 
 @[simp]
-theorem sequential_perm (first second : CleanReversibleMap Data Work)
+lemma sequential_perm (first second : CleanReversibleMap Data Work)
     (x : Data × Work) :
     (sequential first second).perm x = second.perm (first.perm x) :=
   rfl
 
 @[simp]
-theorem inverse_perm (clean : CleanReversibleMap Data Work) (x : Data × Work) :
+lemma inverse_perm (clean : CleanReversibleMap Data Work) (x : Data × Work) :
     clean.inverse.perm x = clean.perm.symm x :=
   rfl
 

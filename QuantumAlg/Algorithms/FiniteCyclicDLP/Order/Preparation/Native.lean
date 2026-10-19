@@ -33,7 +33,7 @@ variable {P : KnownOrderProblem G}
 
 /-- Every positive expansion fits in the one-qubit envelope above its highest
 set bit. -/
-public theorem order_le_intrinsicCapacity {N : Nat}
+public lemma order_le_intrinsicCapacity {N : Nat}
     (expansion : OrderExpansion N) :
     N ≤ 2 ^ Intrinsic.width expansion := by
   classical
@@ -51,7 +51,7 @@ public theorem order_le_intrinsicCapacity {N : Nat}
 
 /-- The intrinsic active register is a suffix of the reviewed exponent
 register. -/
-public theorem intrinsicWidth_le (P : KnownOrderProblem G)
+public lemma intrinsicWidth_le (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     Intrinsic.width expansion ≤ width P := by
   unfold Intrinsic.width
@@ -71,7 +71,7 @@ public def padHigh {source target : Nat} (within : source ≤ target)
   (UnitaryCircuit.onBinarySuffix (target - source) body).castQubitWidth
     (Nat.sub_add_cancel within)
 
-@[simp] public theorem padHigh_eventTrace {source target : Nat}
+@[simp] public lemma padHigh_eventTrace {source target : Nat}
     (within : source ≤ target) {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout) :
@@ -79,7 +79,7 @@ public def padHigh {source target : Nat} (within : source ≤ target)
   simp [padHigh, UnitaryCircuit.castQubitWidth_eventTrace,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_eventTrace]
 
-@[simp] public theorem padHigh_eventCost {source target : Nat}
+@[simp] public lemma padHigh_eventCost {source target : Nat}
     (within : source ≤ target) {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout) :
@@ -87,7 +87,7 @@ public def padHigh {source target : Nat} (within : source ≤ target)
   rw [padHigh, UnitaryCircuit.castQubitWidth_eventCost,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_eventCost]
 
-@[simp] public theorem padHigh_evaluatedEventDepth {source target : Nat}
+@[simp] public lemma padHigh_evaluatedEventDepth {source target : Nat}
     (within : source ≤ target) {gates : GateModel} {oracles : OracleModel}
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout)
@@ -105,7 +105,7 @@ with only a high identity prefix added to reach the Fourier width. -/
   padHigh (intrinsicWidth_le P expansion)
     (Intrinsic.circuit oracles expansion)
 
-private theorem intrinsicInitialX_single_count (oracles : OracleModel)
+private lemma intrinsicInitialX_single_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -129,7 +129,7 @@ private theorem intrinsicInitialX_single_count (oracles : OracleModel)
   simp_rw [each]
   simp
 
-private theorem intrinsicInitialX_cnot_count (oracles : OracleModel)
+private lemma intrinsicInitialX_cnot_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -154,7 +154,7 @@ private theorem intrinsicInitialX_cnot_count (oracles : OracleModel)
   simp_rw [each]
   simp
 
-private theorem intrinsicInitialX_unit_depth (oracles : OracleModel)
+private lemma intrinsicInitialX_unit_depth (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     (Intrinsic.initialX oracles expansion).evaluatedEventDepth (fun _ => 1) =
       expansion.gaps := by
@@ -174,7 +174,7 @@ private theorem intrinsicInitialX_unit_depth (oracles : OracleModel)
   simp_rw [each]
   simp
 
-private theorem intrinsicLowHadamards_single_count (oracles : OracleModel)
+private lemma intrinsicLowHadamards_single_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -187,7 +187,7 @@ private theorem intrinsicLowHadamards_single_count (oracles : OracleModel)
     (Gate.HadamardLayer.hadamardLayer_circuit_eventCost oracles expansion.first)
   simpa using events
 
-private theorem intrinsicLowHadamards_cnot_count (oracles : OracleModel)
+private lemma intrinsicLowHadamards_cnot_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -200,7 +200,7 @@ private theorem intrinsicLowHadamards_cnot_count (oracles : OracleModel)
     (Gate.HadamardLayer.hadamardLayer_circuit_eventCost oracles expansion.first)
   simpa using events
 
-private theorem intrinsicLowHadamards_unit_depth (oracles : OracleModel)
+private lemma intrinsicLowHadamards_unit_depth (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     (Intrinsic.lowHadamards oracles expansion).evaluatedEventDepth (fun _ => 1) =
       if expansion.first = 0 then 0 else 1 := by
@@ -210,7 +210,7 @@ private theorem intrinsicLowHadamards_unit_depth (oracles : OracleModel)
   exact Gate.HadamardLayer.hadamardLayer_circuit_unit_depth
     oracles expansion.first
 
-private theorem intrinsicGapHadamards_single_count (oracles : OracleModel)
+private lemma intrinsicGapHadamards_single_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -222,7 +222,7 @@ private theorem intrinsicGapHadamards_single_count (oracles : OracleModel)
     Gate.OpenControl.hadamard_eventCost, ResourcePool.count_add]
   simp [Nat.mul_comm]
 
-private theorem intrinsicGapHadamards_cnot_count (oracles : OracleModel)
+private lemma intrinsicGapHadamards_cnot_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -234,7 +234,7 @@ private theorem intrinsicGapHadamards_cnot_count (oracles : OracleModel)
     Gate.OpenControl.hadamard_eventCost, ResourcePool.count_add]
   simp
 
-private theorem intrinsicGapHadamards_unit_depth (oracles : OracleModel)
+private lemma intrinsicGapHadamards_unit_depth (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     (Intrinsic.gapHadamards oracles expansion gap).evaluatedEventDepth
         (fun _ => 1) = 3 * OrderPreparation.gapWidth expansion gap := by
@@ -244,7 +244,7 @@ private theorem intrinsicGapHadamards_unit_depth (oracles : OracleModel)
     Gate.OpenControl.hadamard_unit_depth]
   simp [Nat.mul_comm]
 
-private theorem intrinsicInitialRotation_single_count (oracles : OracleModel)
+private lemma intrinsicInitialRotation_single_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -255,7 +255,7 @@ private theorem intrinsicInitialRotation_single_count (oracles : OracleModel)
     Intrinsic.singleQubit, Gate.singleQubitAt_eventCost,
     ResourcePool.count_singleton_self]
 
-private theorem intrinsicInitialRotation_cnot_count (oracles : OracleModel)
+private lemma intrinsicInitialRotation_cnot_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -266,7 +266,7 @@ private theorem intrinsicInitialRotation_cnot_count (oracles : OracleModel)
     Intrinsic.singleQubit, Gate.singleQubitAt_eventCost]
   exact ResourcePool.count_singleton_of_ne (by simp) 1
 
-private theorem intrinsicInitialRotation_unit_depth (oracles : OracleModel)
+private lemma intrinsicInitialRotation_unit_depth (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     (Intrinsic.rotYAt oracles expansion
       (Intrinsic.wire expansion (OrderPreparation.rightIndex expansion gap))
@@ -276,7 +276,7 @@ private theorem intrinsicInitialRotation_unit_depth (oracles : OracleModel)
     UnitaryCircuit.unitaryCircuit_onBinaryWire_evaluatedEventDepth]
   rfl
 
-private theorem intrinsicControlledRotation_single_count (oracles : OracleModel)
+private lemma intrinsicControlledRotation_single_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -289,7 +289,7 @@ private theorem intrinsicControlledRotation_single_count (oracles : OracleModel)
   simp [UnitaryCircuit.unitaryCircuit_onBinarySeparated_eventCost,
     Gate.OpenControl.rotYRight_eventCost, ResourcePool.count_add]
 
-private theorem intrinsicControlledRotation_cnot_count (oracles : OracleModel)
+private lemma intrinsicControlledRotation_cnot_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -302,7 +302,7 @@ private theorem intrinsicControlledRotation_cnot_count (oracles : OracleModel)
   simp [UnitaryCircuit.unitaryCircuit_onBinarySeparated_eventCost,
     Gate.OpenControl.rotYRight_eventCost, ResourcePool.count_add]
 
-private theorem intrinsicControlledRotation_unit_depth (oracles : OracleModel)
+private lemma intrinsicControlledRotation_unit_depth (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     (UnitaryCircuit.onBinarySeparated
       (Intrinsic.wire expansion (OrderPreparation.rightIndex expansion gap))
@@ -314,7 +314,7 @@ private theorem intrinsicControlledRotation_unit_depth (oracles : OracleModel)
   rw [UnitaryCircuit.unitaryCircuit_onBinarySeparated_evaluatedEventDepth,
     Gate.OpenControl.rotYRight_unit_depth]
 
-private theorem intrinsicGapStage_single_count (oracles : OracleModel)
+private lemma intrinsicGapStage_single_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -331,7 +331,7 @@ private theorem intrinsicGapStage_single_count (oracles : OracleModel)
     rw [intrinsicControlledRotation_single_count,
       intrinsicGapHadamards_single_count]
 
-private theorem intrinsicGapStage_cnot_count (oracles : OracleModel)
+private lemma intrinsicGapStage_cnot_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -348,7 +348,7 @@ private theorem intrinsicGapStage_cnot_count (oracles : OracleModel)
     rw [intrinsicControlledRotation_cnot_count,
       intrinsicGapHadamards_cnot_count]
 
-private theorem intrinsicGapStage_unit_depth (oracles : OracleModel)
+private lemma intrinsicGapStage_unit_depth (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     (Intrinsic.gapStage oracles expansion gap).evaluatedEventDepth (fun _ => 1) =
       (if gap.val = 0 then 1 else 5) +
@@ -363,7 +363,7 @@ private theorem intrinsicGapStage_unit_depth (oracles : OracleModel)
     rw [intrinsicControlledRotation_unit_depth,
       intrinsicGapHadamards_unit_depth]
 
-private theorem intrinsicInitialX_toffoli_count (oracles : OracleModel)
+private lemma intrinsicInitialX_toffoli_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -388,7 +388,7 @@ private theorem intrinsicInitialX_toffoli_count (oracles : OracleModel)
   simp_rw [each]
   simp
 
-private theorem intrinsicLowHadamards_toffoli_count (oracles : OracleModel)
+private lemma intrinsicLowHadamards_toffoli_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -401,7 +401,7 @@ private theorem intrinsicLowHadamards_toffoli_count (oracles : OracleModel)
     (Gate.HadamardLayer.hadamardLayer_circuit_eventCost oracles expansion.first)
   simpa using events
 
-private theorem intrinsicGapHadamards_toffoli_count (oracles : OracleModel)
+private lemma intrinsicGapHadamards_toffoli_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -412,7 +412,7 @@ private theorem intrinsicGapHadamards_toffoli_count (oracles : OracleModel)
     Gate.OpenControl.hadamard_eventCost]
   simp
 
-private theorem intrinsicInitialRotation_toffoli_count (oracles : OracleModel)
+private lemma intrinsicInitialRotation_toffoli_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -423,7 +423,7 @@ private theorem intrinsicInitialRotation_toffoli_count (oracles : OracleModel)
     Intrinsic.singleQubit, Gate.singleQubitAt_eventCost]
   exact ResourcePool.count_singleton_of_ne (by simp) 1
 
-private theorem intrinsicControlledRotation_toffoli_count (oracles : OracleModel)
+private lemma intrinsicControlledRotation_toffoli_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -437,7 +437,7 @@ private theorem intrinsicControlledRotation_toffoli_count (oracles : OracleModel
     Gate.OpenControl.rotYRight_eventCost]
   simp
 
-private theorem intrinsicGapStage_toffoli_count (oracles : OracleModel)
+private lemma intrinsicGapStage_toffoli_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -452,7 +452,7 @@ private theorem intrinsicGapStage_toffoli_count (oracles : OracleModel)
     rw [intrinsicControlledRotation_toffoli_count,
       intrinsicGapHadamards_toffoli_count]
 
-private theorem intrinsicInitialX_oracle_count (oracles : OracleModel)
+private lemma intrinsicInitialX_oracle_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (query : oracles.Coordinate) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.oracle query)
@@ -470,7 +470,7 @@ private theorem intrinsicInitialX_oracle_count (oracles : OracleModel)
   simp_rw [each]
   simp
 
-private theorem intrinsicLowHadamards_oracle_count (oracles : OracleModel)
+private lemma intrinsicLowHadamards_oracle_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (query : oracles.Coordinate) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.oracle query)
@@ -483,7 +483,7 @@ private theorem intrinsicLowHadamards_oracle_count (oracles : OracleModel)
     (Gate.HadamardLayer.hadamardLayer_circuit_eventCost oracles expansion.first)
   simpa using events
 
-private theorem intrinsicGapHadamards_oracle_count (oracles : OracleModel)
+private lemma intrinsicGapHadamards_oracle_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps)
     (query : oracles.Coordinate) :
     ResourcePool.count
@@ -495,7 +495,7 @@ private theorem intrinsicGapHadamards_oracle_count (oracles : OracleModel)
     Gate.OpenControl.hadamard_eventCost]
   simp
 
-private theorem intrinsicInitialRotation_oracle_count (oracles : OracleModel)
+private lemma intrinsicInitialRotation_oracle_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps)
     (query : oracles.Coordinate) :
     ResourcePool.count
@@ -507,7 +507,7 @@ private theorem intrinsicInitialRotation_oracle_count (oracles : OracleModel)
     Intrinsic.singleQubit, Gate.singleQubitAt_eventCost]
   exact ResourcePool.count_singleton_of_ne (by simp) 1
 
-private theorem intrinsicControlledRotation_oracle_count (oracles : OracleModel)
+private lemma intrinsicControlledRotation_oracle_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps)
     (query : oracles.Coordinate) :
     ResourcePool.count
@@ -522,7 +522,7 @@ private theorem intrinsicControlledRotation_oracle_count (oracles : OracleModel)
     Gate.OpenControl.rotYRight_eventCost]
   simp
 
-private theorem intrinsicGapStage_oracle_count (oracles : OracleModel)
+private lemma intrinsicGapStage_oracle_count (oracles : OracleModel)
     (expansion : OrderExpansion P.order) (gap : Fin expansion.gaps)
     (query : oracles.Coordinate) :
     ResourcePool.count
@@ -539,7 +539,7 @@ private theorem intrinsicGapStage_oracle_count (oracles : OracleModel)
       intrinsicGapHadamards_oracle_count]
 
 /-- Range preparation uses only declared native gates and performs no oracle query. -/
-public theorem circuit_oracle_count (oracles : OracleModel)
+public lemma circuit_oracle_count (oracles : OracleModel)
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
     (query : oracles.Coordinate) :
     ResourcePool.count
@@ -554,7 +554,7 @@ public theorem circuit_oracle_count (oracles : OracleModel)
   simp
 
 /-- The all-order range preparation contains no native Toffoli occurrence. -/
-public theorem circuit_toffoli_count (oracles : OracleModel)
+public lemma circuit_toffoli_count (oracles : OracleModel)
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
@@ -569,7 +569,7 @@ public theorem circuit_toffoli_count (oracles : OracleModel)
 
 /-- Endpoint padding preserves the exact one-qubit count of the intrinsic
 native preparation word. -/
-public theorem circuit_singleQubit_count (oracles : OracleModel)
+public lemma circuit_singleQubit_count (oracles : OracleModel)
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
@@ -584,7 +584,7 @@ public theorem circuit_singleQubit_count (oracles : OracleModel)
   rfl
 
 /-- Endpoint padding preserves the exact CNOT count of the intrinsic word. -/
-public theorem circuit_cnot_count (oracles : OracleModel)
+public lemma circuit_cnot_count (oracles : OracleModel)
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
     ResourcePool.count
       (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
@@ -599,7 +599,7 @@ public theorem circuit_cnot_count (oracles : OracleModel)
   simp [OrderPreparation.cnotCount]
 
 /-- Endpoint padding preserves the exact max-plus unit dependency depth. -/
-public theorem circuit_unit_depth (oracles : OracleModel)
+public lemma circuit_unit_depth (oracles : OracleModel)
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
     (circuit oracles P expansion).evaluatedEventDepth (fun _ => 1) =
       OrderPreparation.unitDepth expansion := by
@@ -610,7 +610,7 @@ public theorem circuit_unit_depth (oracles : OracleModel)
   simp_rw [intrinsicGapStage_unit_depth]
   rfl
 
-private theorem zero_split {source target : Nat} (within : source ≤ target) :
+private lemma zero_split {source target : Nat} (within : source ≤ target) :
     (NormalizedVector.ket (R := Qubits target) 0 :
         HilbertVector (Qubits target)) =
       UnitaryCircuit.castQubitWidthVec (Nat.sub_add_cancel within)
@@ -636,7 +636,7 @@ private theorem zero_split {source target : Nat} (within : source ≤ target) :
   rw [tensorZero, UnitaryCircuit.castQubitWidthVec_ket]
   congr 2
 
-private theorem paddedRangeVector_eq_state (P : KnownOrderProblem G)
+private lemma paddedRangeVector_eq_state (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     UnitaryCircuit.castQubitWidthVec
       (Nat.sub_add_cancel (intrinsicWidth_le P expansion))
@@ -706,33 +706,35 @@ private theorem paddedRangeVector_eq_state (P : KnownOrderProblem G)
 
 /-- The endpoint circuit sends the all-zero exponent register to the exact
 known-order range state for every positive order. -/
-public theorem circuit_applyVec_zero (oracles : OracleModel)
+public lemma circuit_applyVec_zero (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
-    (circuit oracles P expansion).applyBinaryVec
+    ((circuit oracles P expansion).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits (width P)) 0 :
           HilbertVector (Qubits (width P))) =
       (state P : HilbertVector (Qubits (width P))) := by
   let within := intrinsicWidth_le P expansion
   rw [zero_split within]
-  change (circuit oracles P expansion).binaryMatrix.applyVec _ = _
+  change ((circuit oracles P expansion).binaryMatrix environment).applyVec _ = _
   unfold circuit padHigh
   rw [UnitaryCircuit.castQubitWidth_binaryMatrix_applyVec,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_applyVec_tensor]
   change UnitaryCircuit.castQubitWidthVec _
       (HilbertVector.tensor _
-        ((Intrinsic.circuit oracles expansion).applyBinaryVec _)) = _
+        (((Intrinsic.circuit oracles expansion).applyBinaryVec environment) _)) = _
   rw [Intrinsic.circuit_applyVec_zero oracles expansion
       (Nat.pos_of_ne_zero P.order_ne_zero),
     paddedRangeVector_eq_state]
 
 /-- Normalized-state form used by the complete finite-cyclic experiment. -/
-public theorem circuit_apply_zero (oracles : OracleModel)
+public lemma circuit_apply_zero (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) :
-    (circuit oracles P expansion).binaryMatrix.apply
+    ((circuit oracles P expansion).binaryMatrix environment).apply
         (NormalizedVector.ket (R := Qubits (width P)) 0) = state P := by
   apply NormalizedVector.ext
   intro index
-  change (circuit oracles P expansion).applyBinaryVec
+  change ((circuit oracles P expansion).applyBinaryVec environment)
       (NormalizedVector.ket (R := Qubits (width P)) 0 :
         HilbertVector (Qubits (width P))) index = state P index
   rw [circuit_applyVec_zero]

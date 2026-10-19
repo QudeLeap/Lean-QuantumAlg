@@ -11,6 +11,8 @@ public import QuantumAlg.Core.Execution.Preparation
 public import QuantumAlg.Core.Execution.Classical.Native
 public import QuantumAlg.Core.Execution.Classical.Query
 public import QuantumAlg.Core.Execution.Store
+public import QuantumAlg.Core.Base.Accounting.Context.Embedding
+public import QuantumAlg.Core.Base.Classical.Oracle.Composition
 import all QuantumAlg.Core.Execution.Classical.Native
 import all QuantumAlg.Core.Execution.Classical.Query
 import all QuantumAlg.Core.Execution.Preparation
@@ -32,26 +34,32 @@ namespace QuantumAlg
 
 /-- Actual execution syntax sharing its operation model with the surrounding specification. -/
 public inductive Circuit : (model : ExecutionModel) →
-    RuntimeCtx model.kind → RuntimeCtx model.kind → Type 1 where
+    RuntimeCtx model.kind → RuntimeCtx model.kind →
+      (allowAllocation : Bool := true) → Type 1 where
   /-- Preserve the exact live context. -/
-  | id {model : ExecutionModel} (ctx : RuntimeCtx model.kind) : Circuit model ctx ctx
+  | id {model : ExecutionModel} {allowAllocation : Bool}
+      (ctx : RuntimeCtx model.kind) : Circuit model ctx ctx allowAllocation
   /-- Execute one granted classical native operation at its actual references. -/
-  | classical {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-      (application : model.classicalOperations.Application ctx) : Circuit model ctx ctx
+  | classical {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {allowAllocation : Bool}
+      (application : model.classicalOperations.Application ctx) :
+      Circuit model ctx ctx allowAllocation
   /-- Query the selected classical service using its current persistent hidden state. -/
-  | classicalQuery {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-      (application : model.classicalOracles.Application ctx) : Circuit model ctx ctx
+  | classicalQuery {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {allowAllocation : Bool}
+      (application : model.classicalOracles.Application ctx) :
+      Circuit model ctx ctx allowAllocation
   /-- Execute the selected language on exactly the complete live physical layout. -/
   | unitary {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
       {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+      {allowAllocation : Bool}
       (program : UnitaryCircuit gates oracles ctx.quantumLayout) :
-      Circuit (.quantum gates oracles operations classicalOracles) ctx ctx
+      Circuit (.quantum gates oracles operations classicalOracles) ctx ctx allowAllocation
   /-- Measure one actual wire and retain its quantum system and classical outcome. -/
   | measureZ {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
       {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+      {allowAllocation : Bool}
       (wire : Fin ctx.systemCount)
       (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension)) :
-      Circuit (.quantum gates oracles operations classicalOracles) ctx ctx
+      Circuit (.quantum gates oracles operations classicalOracles) ctx ctx allowAllocation
   /-- Allocate retained classical storage with its canonical initial encoding. -/
   | retain {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (key : StorageKey)
       (shape : CShape) (fresh : key ∉ ctx.keys) :
@@ -66,26 +74,55 @@ public inductive Circuit : (model : ExecutionModel) →
         (ctx.addOwnedLayout key layout fresh disjoint)
   /-- Exact intermediate contexts and the operation model agree at composition. -/
   | seq {model : ExecutionModel} {pre mid post : RuntimeCtx model.kind}
-      (first : Circuit model pre mid) (second : Circuit model mid post) : Circuit model pre post
+      {allowAllocation : Bool}
+      (first : Circuit model pre mid allowAllocation)
+      (second : Circuit model mid post allowAllocation) : Circuit model pre post allowAllocation
   /-- Read a shaped classical value before executing its selected branch. -/
   | branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
-      (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post) :
-      Circuit model pre post
+      {allowAllocation : Bool}
+      (input : CInputRef pre shape)
+      (body : shape.Value → Circuit model pre post allowAllocation) :
+      Circuit model pre post allowAllocation
   /-- Execute a context-preserving body an exact finite number of times. -/
-  | iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-      (count : Nat) (body : Circuit model ctx ctx) : Circuit model ctx ctx
+  | iterate {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {allowAllocation : Bool}
+      (count : Nat) (body : Circuit model ctx ctx allowAllocation) :
+      Circuit model ctx ctx allowAllocation
   /-- Allocate, execute with and release the same lexical classical work cell. -/
   | workspace {model : ExecutionModel} (ctx : RuntimeCtx model.kind)
       (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
       (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh)) :
       Circuit model ctx ctx
+  /-- Interpret an original fixed-context child at its certified physical placement. -/
+  | embed {model : ExecutionModel} {localCtx caller : RuntimeCtx model.kind}
+      {allowAllocation : Bool} (placement : ContextEmbedding localCtx caller)
+      (body : Circuit model localCtx localCtx false) : Circuit model caller caller allowAllocation
+  /-- Run disjoint classical children with independent persistent services. -/
+  | parallelClassical {operations : ClassicalOpModel}
+      {leftService rightService parentService : ClassicalOracleModel}
+      {left right : RuntimeCtx .classical} {allowAllocation : Bool}
+      (join : ClassicalOracleModel.ServiceJoin leftService rightService parentService)
+      (separate : RuntimeCtx.StorageDisjoint left right)
+      (first : Circuit (.classical operations leftService) left left false)
+      (second : Circuit (.classical operations rightService) right right false) :
+      Circuit (.classical operations parentService) (left.disjointUnion right separate)
+        (left.disjointUnion right separate) allowAllocation
+  /-- Run disjoint hybrid children with common gate grants and independent classical services. -/
+  | parallelQuantum {gates : GateModel} {oracles : OracleModel} {operations : ClassicalOpModel}
+      {leftService rightService parentService : ClassicalOracleModel}
+      {left right : RuntimeCtx .quantum} {allowAllocation : Bool}
+      (join : ClassicalOracleModel.ServiceJoin leftService rightService parentService)
+      (separate : RuntimeCtx.StorageDisjoint left right)
+      (first : Circuit (.quantum gates oracles operations leftService) left left false)
+      (second : Circuit (.quantum gates oracles operations rightService) right right false) :
+      Circuit (.quantum gates oracles operations parentService) (left.disjointUnion right separate)
+        (left.disjointUnion right separate) allowAllocation
 
 namespace Circuit
 
 /-- Complete finite histories record actual measurement outcomes and classical branch selections. -/
 @[expose, implicit_reducible]
-public def Path {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
-    Circuit model pre post → Type
+public def Path {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {allowAllocation : Bool} : Circuit model pre post allowAllocation → Type
   | .id _ => Unit
   | .classical (model := model) application =>
       (model.classicalOperations.outputShape application.token).Value
@@ -99,10 +136,14 @@ public def Path {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
   | .branch (shape := shape) _ body => (value : shape.Value) × (body value).Path
   | .iterate count body => Fin count → body.Path
   | .workspace _ _ _ _ body => body.Path
+  | .embed _ body => body.Path
+  | .parallelClassical _ _ first second => first.Path × second.Path
+  | .parallelQuantum _ _ first second => first.Path × second.Path
 
 /-- Mathematical execution histories are finite and allocate no physical runtime storage. -/
 public noncomputable instance pathFintype {model : ExecutionModel}
-    {pre post : RuntimeCtx model.kind} (code : Circuit model pre post) : Fintype code.Path := by
+    {pre post : RuntimeCtx model.kind} {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation) : Fintype code.Path := by
   induction code with
   | id | classical | classicalQuery | unitary | measureZ | retain | prepareZero =>
       dsimp [Path]
@@ -118,6 +159,12 @@ public noncomputable instance pathFintype {model : ExecutionModel}
       letI := bodyIH
       exact inferInstanceAs (Fintype (Fin count → body.Path))
   | workspace ctx key shape fresh body bodyIH => exact bodyIH
+  | embed placement body bodyIH => exact bodyIH
+  | parallelClassical join separate first second firstIH secondIH
+  | parallelQuantum join separate first second firstIH secondIH =>
+      letI := firstIH
+      letI := secondIH
+      exact inferInstanceAs (Fintype (first.Path × second.Path))
 
 end Circuit
 

@@ -50,11 +50,11 @@ public def localState (input : Input ctx Reference) : ExecutionState (Store ctx)
     exact input.state.total_le_one
 
 /-- Each local block is the reference marginal of that same classical input block. -/
-@[simp] theorem localState_block (input : Input ctx Reference) (value : Store ctx) :
+@[simp] lemma localState_block (input : Input ctx Reference) (value : Store ctx) :
     input.localState.block value = DensityOperator.marginalLeft (input.state.block value) := rfl
 
 /-- Local input entries retain off-diagonal coherences on the complete physical context. -/
-theorem localState_block_entry (input : Input ctx Reference) (value : Store ctx)
+lemma localState_block_entry (input : Input ctx Reference) (value : Store ctx)
     (left right : ctx.register.Index) :
     (input.localState.block value).matrix left right =
       ∑ reference : Reference.Index,
@@ -62,17 +62,17 @@ theorem localState_block_entry (input : Input ctx Reference) (value : Store ctx)
   DensityOperator.marginalLeft_matrix (input.state.block value) left right
 
 /-- Projecting away the reference does not change any classical input probability. -/
-theorem localState_block_mass (input : Input ctx Reference) (value : Store ctx) :
+lemma localState_block_mass (input : Input ctx Reference) (value : Store ctx) :
     (input.localState.block value).mass = (input.state.block value).mass :=
   DensityOperator.marginalLeft_mass (input.state.block value)
 
 /-- The local projection retains the complete input mass. -/
-theorem localState_mass (input : Input ctx Reference) :
+lemma localState_mass (input : Input ctx Reference) :
     input.localState.mass = input.state.mass := by
   simp only [ExecutionState.mass, localState_block_mass]
 
 /-- Every certified input has a normalized local state. -/
-theorem localState_normalized (input : Input ctx Reference) :
+lemma localState_normalized (input : Input ctx Reference) :
     input.localState.IsNormalized :=
   (localState_mass input).trans input.normalized
 

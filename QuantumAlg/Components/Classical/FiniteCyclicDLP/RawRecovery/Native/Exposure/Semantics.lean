@@ -40,11 +40,11 @@ open Execution ClassicalWorkspace ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual single recovery exposes the original three cells and retains the caller frame. -/
-public theorem singleIntoCells_actualRecord (spec : ModulusSpec width)
+public lemma singleIntoCells_actualRecord (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) :
@@ -53,7 +53,7 @@ public theorem singleIntoCells_actualRecord (spec : ModulusSpec width)
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
         (singleIntoCells (model := model) spec input inverseSuccess candidate
-          reconstruction).execute Reference state =
+          reconstruction).execute environment Reference state =
           @ExecutionState.mapClassical _ _ _ _ _ (Classical.decEq _) state (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -62,7 +62,7 @@ public theorem singleIntoCells_actualRecord (spec : ModulusSpec width)
           (RawRecovery.outputCells spec (preparationInput (before.1.read input))) := by
   unfold singleIntoCells
   obtain ⟨record, equation, correct⟩ :=
-    withPreparation_actualRecord_post (model := model) spec input
+    withPreparation_actualRecord_post (environment := environment) (model := model) spec input
       (fun refs transport => withCheckedExposure (model := model) spec refs
         (transport.liftWrite inverseSuccess) (transport.liftWrite candidate)
         (transport.liftWrite reconstruction))
@@ -70,7 +70,8 @@ public theorem singleIntoCells_actualRecord (spec : ModulusSpec width)
         (RawRecovery.outputCells spec (preparationInput (before.read input)))) (by
         intro inner cells _distinct transport _separated
         obtain ⟨innerRecord, innerEquation, innerCorrect⟩ :=
-          withCheckedExposure_actualRecord (model := model) spec (preparationRefs cells)
+          withCheckedExposure_actualRecord (environment := environment)
+            (model := model) spec (preparationRefs cells)
             (transport.liftWrite inverseSuccess) (transport.liftWrite candidate)
             (transport.liftWrite reconstruction)
         refine ⟨innerRecord, innerEquation, ?_⟩

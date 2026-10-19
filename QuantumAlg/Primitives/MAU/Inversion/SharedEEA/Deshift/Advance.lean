@@ -31,7 +31,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA DeshiftPhaseFrame
 
-private theorem word_after (state : IterationState) (modulus shift : Nat)
+private lemma word_after (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (positive : 0 < shift) (sign iteration : Bool) :
@@ -48,7 +48,7 @@ private theorem word_after (state : IterationState) (modulus shift : Nat)
   conv_lhs => rw [displacement, WordRotation.packRotatedWork2_unshift]
   rfl
 
-private theorem shift_after (state : IterationState) (modulus shift : Nat)
+private lemma shift_after (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (positive : 0 < shift) (sign iteration : Bool) :
@@ -66,7 +66,7 @@ private theorem shift_after (state : IterationState) (modulus shift : Nat)
   rw [Nat.mod_eq_of_lt oneFits, Nat.sub_add_cancel positive, Nat.mod_eq_of_lt bounded]
 
 /-- The actual post-shift preserves the entire frame except its exact rotation and counter. -/
-theorem post_shift_frame (state : IterationState) (modulus shift : Nat)
+lemma post_shift_frame (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size)
     (positive : 0 < shift) (sign iteration : Bool) :
@@ -86,7 +86,7 @@ theorem post_shift_frame (state : IterationState) (modulus shift : Nat)
   rfl
 
 /-- The real ordered control clears comparison Sign one and retains the full phase-four frame. -/
-theorem control_frame (state : IterationState) (modulus shift : Nat)
+lemma control_frame (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) (iteration : Bool) :
     NativeControl.step (frame state modulus shift valid conserved active within true iteration) =
@@ -105,7 +105,7 @@ theorem control_frame (state : IterationState) (modulus shift : Nat)
   exact DeshiftPhasePrelude.control_clears original rfl rfl rfl rfl quotient divisor
 
 /-- Actual comparison, post-shifts, and control reach the complete next rotation with Sign zero. -/
-theorem native_shift_control (state : IterationState) (modulus count : Nat)
+lemma native_shift_control (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     NativeControl.step (GuardedShift.step true (ArithmeticBlocks.coefficientStep modulus.size
@@ -120,7 +120,7 @@ theorem native_shift_control (state : IterationState) (modulus count : Nat)
       ((Nat.sub_le _ _).trans (Nat.sub_le _ _)) iteration]
 
 /-- Every intermediate microstep includes all eight real blocks and retains the complete frame. -/
-theorem microstep_frame (state : IterationState) (modulus count : Nat)
+lemma microstep_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (notLast : count + 1 < state.quotient.size) (iteration : Bool) :
     NativeMicrostep.step modulus.size

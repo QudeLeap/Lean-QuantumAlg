@@ -110,7 +110,7 @@ def retainedCircuit {model : ExecutionModel} [BitWord.Selected model]
       (CWriteRef.retainedHead ctx key (.unsignedWord width) fresh))
 
 /-- The selected active body emits precisely the five literal native operations. -/
-theorem gcdScopedRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdScopedRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (path : (scopedRemainder (model := model) first second zero active).Path) :
@@ -119,7 +119,7 @@ theorem gcdScopedRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected
   exact gcdRemainder_eventTrace _ _ _ _ _ path
 
 /-- An inactive actual branch has no padding operations in its event trace. -/
-theorem gcdGuardedRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma gcdGuardedRemainder_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (path : (guardedRemainder (model := model) first second zero active).Path) :

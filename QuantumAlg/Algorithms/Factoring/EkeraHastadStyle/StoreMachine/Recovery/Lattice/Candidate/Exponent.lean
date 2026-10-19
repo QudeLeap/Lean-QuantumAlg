@@ -21,7 +21,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual signed normalization reads the candidate and writes only its sign and magnitude. -/
@@ -104,10 +105,10 @@ def exponentStep (refs : Refs ctx width) (store : Store ctx) :
   (suffix.1, (normalized.2, suffix.2))
 
 /-- The actual seven-instruction suffix retains all incoming histories and reference blocks. -/
-theorem suffixInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma suffixInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (suffixInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (suffixInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := suffixStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [suffixInto, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
@@ -115,13 +116,15 @@ theorem suffixInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete actual classifier executes its real sign-selected magnitude branch. -/
-theorem candidateExponentInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma candidateExponentInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidateExponentInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidateExponentInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := exponentStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (normalizeInto refs) (suffixInto refs)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (normalizeInto refs) (suffixInto refs)
     (fun before =>
       let actual := normalizeStep refs before.1
       ((actual.1, before.2), actual.2))

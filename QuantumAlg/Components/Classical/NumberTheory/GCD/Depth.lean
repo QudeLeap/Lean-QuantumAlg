@@ -57,7 +57,7 @@ def nativeDepthLimit (width : Nat) (duration : Resource.Event model → Nat) : N
       duration (.classicalOperation (BitWord.selectedCoordinate (execution := model) (.wordUnary
         .copy width))))
 
-private theorem initialization_duration
+private lemma initialization_duration
     (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
@@ -76,7 +76,7 @@ private theorem initialization_duration
   simp only [BitWord.bitWord_instruction_depth]
   rfl
 
-private theorem remainder_duration
+private lemma remainder_duration
     (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (scratch : CWriteRef ctx (operandShape width)) (duration : Resource.Event model → Nat)
@@ -97,7 +97,7 @@ private theorem remainder_duration
   rfl
 
 /-- The actual selected loop arm respects the duration of its full dependent instruction chain. -/
-theorem gcdGuardedRemainder_depth_le (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdGuardedRemainder_depth_le (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (duration : Resource.Event model → Nat)
     (path : (guardedRemainder (model := model) first second zero active).Path) :
@@ -111,7 +111,7 @@ theorem gcdGuardedRemainder_depth_le (first second : CWriteRef ctx (.unsignedWor
       · exact (remainder_duration _ _ _ _ _ duration path).le
 
 /-- Sequential iteration adds each selected body's actual native dependency depth. -/
-theorem gcdLoop_depth_le (first second : CWriteRef ctx (.unsignedWord width))
+lemma gcdLoop_depth_le (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (count : Nat) (duration : Resource.Event model → Nat)
     (path : (Circuit.iterate count (guardedRemainder (model := model) first second zero
@@ -129,7 +129,7 @@ theorem gcdLoop_depth_le (first second : CWriteRef ctx (.unsignedWord width))
     _ = count * remainderDuration width duration := by simp
 
 /-- The initialized schedule includes its final result-copy dependency. -/
-theorem gcdScheduled_depth_le (input : CInputRef ctx (operandShape width))
+lemma gcdScheduled_depth_le (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
@@ -147,7 +147,7 @@ theorem gcdScheduled_depth_le (input : CInputRef ctx (operandShape width))
       duration path.2.1) _) _
 
 /-- Entering and releasing the actual classical scopes adds no hidden event duration. -/
-theorem gcdLexical_depth_le (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_depth_le (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (lexicalBody (model := model) input result).Path) :
     (lexicalBody (model := model) input result).depth duration path ≤ nativeDepthLimit width
@@ -156,7 +156,7 @@ theorem gcdLexical_depth_le (input : CInputRef ctx (operandShape width))
     (conditionCell ctx width) (writeUnderLoop result width) duration path
 
 /-- The entire retained circuit satisfies the same independent native duration allowance. -/
-theorem gcdRetained_depth_le (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_depth_le (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (duration : Resource.Event model → Nat)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
     (retainedCircuit (model := model) input key fresh).depth duration path ≤ nativeDepthLimit
@@ -167,7 +167,7 @@ theorem gcdRetained_depth_le (input : CInputRef ctx (operandShape width))
   exact gcdLexical_depth_le _ _ duration path.2
 
 /-- Unit duration yields an explicit linear upper bound, including width zero. -/
-theorem gcdNativeDepthLimit_unit (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+lemma gcdNativeDepthLimit_unit (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
     nativeDepthLimit width (fun _ : Resource.Event model => 1) = 10 * width + 10 := by
   simp only [nativeDepthLimit, initializationDuration, remainderDuration, Euclid.gcdFuel]
   omega

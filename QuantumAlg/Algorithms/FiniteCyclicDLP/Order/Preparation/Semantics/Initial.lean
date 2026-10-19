@@ -37,7 +37,7 @@ public def initialXLabel (b : PositiveGapExpansion N) : Fin (2 ^ b.width) :=
   (List.ofFn fun gap : Fin b.gaps => b.wire gap.succ).foldl
     (fun label wire => WireAddress.flipBit wire label) 0
 
-private theorem xor_two_pow_eq_add_of_lt {value bit : Nat}
+private lemma xor_two_pow_eq_add_of_lt {value bit : Nat}
     (below : value < 2 ^ bit) :
     value ^^^ 2 ^ bit = value + 2 ^ bit := by
   have asOr : 2 ^ bit + value = 2 ^ bit ||| value := by
@@ -53,7 +53,7 @@ private theorem xor_two_pow_eq_add_of_lt {value bit : Nat}
       Nat.testBit_two_pow_of_ne (Ne.symm same)
     simp [powerZero]
 
-private theorem sum_pow_lt_pow_of_strictMono {count : Nat}
+private lemma sum_pow_lt_pow_of_strictMono {count : Nat}
     (exponent : Fin count → Nat) (strict : StrictMono exponent)
     (upper : Nat) (bounded : ∀ index, exponent index < upper) :
     (∑ index, 2 ^ exponent index) < 2 ^ upper := by
@@ -64,7 +64,7 @@ private theorem sum_pow_lt_pow_of_strictMono {count : Nat}
       rcases Finset.mem_image.mp member with ⟨index, -, rfl⟩
       exact bounded index)
 
-private theorem foldl_xorPow_eq_sum_of_strictMono :
+private lemma foldl_xorPow_eq_sum_of_strictMono :
     ∀ (count : Nat) (exponent : Fin count → Nat), StrictMono exponent →
       (List.ofFn exponent).foldl (fun value bit => value ^^^ 2 ^ bit) 0 =
         ∑ index, 2 ^ exponent index := by
@@ -96,7 +96,7 @@ private theorem foldl_xorPow_eq_sum_of_strictMono :
         Fin.sum_univ_castSucc]
       simp
 
-private theorem foldl_flipBit_values (width : Nat) :
+private lemma foldl_flipBit_values (width : Nat) :
     ∀ (wires : List (Fin width)) (label : Fin (2 ^ width)),
       (wires.foldl (fun current wire => WireAddress.flipBit wire current) label).val =
         (wires.map fun wire => (WireAddress.bitIndex wire).val).foldl
@@ -110,7 +110,7 @@ private theorem foldl_flipBit_values (width : Nat) :
       rfl
 
 /-- The literal X prefix reaches the aligned base address of source zero. -/
-public theorem initialXLabel_val (b : PositiveGapExpansion N) :
+public lemma initialXLabel_val (b : PositiveGapExpansion N) :
     b.initialXLabel.val = b.tailMass 0 := by
   unfold initialXLabel
   rw [foldl_flipBit_values]
@@ -133,21 +133,23 @@ public theorem initialXLabel_val (b : PositiveGapExpansion N) :
   rw [Fin.sum_univ_succ]
   simp
 
-public theorem initialXLabel_eq_tailMass (b : PositiveGapExpansion N) :
+public lemma initialXLabel_eq_tailMass (b : PositiveGapExpansion N) :
     b.initialXLabel =
       ⟨b.tailMass 0, b.tailMass_lt_pow_width 0⟩ := by
   apply Fin.ext
   exact b.initialXLabel_val
 
 /-- One actual addressed native X flips its selected binary wire. -/
-public theorem xAt_applyBinary_ket (oracles : OracleModel)
+public lemma xAt_applyBinary_ket (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) (wire : Fin b.width)
     (label : Fin (2 ^ b.width)) :
-    (OrderPreparation.Intrinsic.xAt oracles b.asOrderExpansion wire).binaryMatrix.apply
+    ((OrderPreparation.Intrinsic.xAt oracles b.asOrderExpansion wire).binaryMatrix
+      environment).apply
         (NormalizedVector.ket label) =
       NormalizedVector.ket (WireAddress.flipBit wire label) := by
-  change (QubitPrimitive.circuit (.x wire)
-      (QubitLayout.canonical b.width) oracles).binaryMatrix.apply
+  change ((QubitPrimitive.circuit (.x wire)
+      (QubitLayout.canonical b.width) oracles).binaryMatrix environment).apply
         (NormalizedVector.ket label) =
     NormalizedVector.ket (WireAddress.flipBit wire label)
   rw [QubitPrimitive.circuit_canonical_binaryMatrix,
@@ -155,10 +157,11 @@ public theorem xAt_applyBinary_ket (oracles : OracleModel)
   rfl
 
 /-- The actual intrinsic X sweep maps zero to its explicit folded address. -/
-public theorem initialX_applyVec_zero (oracles : OracleModel)
+public lemma initialX_applyVec_zero (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N) :
-    (OrderPreparation.Intrinsic.initialX oracles
-      b.asOrderExpansion).applyBinaryVec
+    ((OrderPreparation.Intrinsic.initialX oracles
+      b.asOrderExpansion).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits b.width) 0 :
           HilbertVector (Qubits b.width)) =
       (NormalizedVector.ket (R := Qubits b.width) b.initialXLabel :
@@ -171,19 +174,19 @@ public theorem initialX_applyVec_zero (oracles : OracleModel)
           oracles b.asOrderExpansion (b.wire gap.succ)) by rfl]
   rw [UnitaryCircuit.applyBinaryVec_indexedProduct]
   have identityAction :
-      (UnitaryCircuit.identity AlgorithmGate.model oracles
-        (QuantumSignature.qubits b.width).canonicalPlacement.layout).applyBinaryVec
+      ((UnitaryCircuit.identity AlgorithmGate.model oracles
+        (QuantumSignature.qubits b.width).canonicalPlacement.layout).applyBinaryVec environment)
           (NormalizedVector.ket (R := Qubits b.width) 0 :
             HilbertVector (Qubits b.width)) =
         (NormalizedVector.ket (R := Qubits b.width) 0 :
           HilbertVector (Qubits b.width)) :=
-    UnitaryCircuit.applyBinaryVec_identity _
+    UnitaryCircuit.applyBinaryVec_identity _ environment
   rw [identityAction]
   have foldAction : ∀ (wires : List (Fin b.width))
       (label : Fin (2 ^ b.width)),
       (wires.map (fun wire => OrderPreparation.Intrinsic.xAt
         oracles b.asOrderExpansion wire)).foldl
-          (fun state circuit => circuit.applyBinaryVec state)
+          (fun state circuit => (circuit.applyBinaryVec environment) state)
           (NormalizedVector.ket (R := Qubits b.width) label :
             HilbertVector (Qubits b.width)) =
         (NormalizedVector.ket (R := Qubits b.width)
@@ -195,13 +198,13 @@ public theorem initialX_applyVec_zero (oracles : OracleModel)
     | nil => simp
     | cons wire wires induction =>
         simp only [List.map_cons, List.foldl_cons]
-        have step := b.xAt_applyBinary_ket oracles wire label
+        have step := b.xAt_applyBinary_ket oracles (environment := environment) wire label
         have raw := congrArg
           (fun state : NormalizedVector (Qubits b.width) =>
             (state : HilbertVector (Qubits b.width))) step
         have rawAction :
-            (OrderPreparation.Intrinsic.xAt oracles
-              b.asOrderExpansion wire).applyBinaryVec
+            ((OrderPreparation.Intrinsic.xAt oracles
+              b.asOrderExpansion wire).applyBinaryVec environment)
                 (NormalizedVector.ket (R := Qubits b.width) label :
                   HilbertVector (Qubits b.width)) =
               (NormalizedVector.ket (R := Qubits b.width)
@@ -223,7 +226,7 @@ public theorem initialX_applyVec_zero (oracles : OracleModel)
   change ((List.ofFn fun gap : Fin b.gaps => b.wire gap.succ).map
       (fun wire => OrderPreparation.Intrinsic.xAt
         oracles b.asOrderExpansion wire)).foldl
-        (fun state circuit => circuit.applyBinaryVec state)
+        (fun state circuit => (circuit.applyBinaryVec environment) state)
         (NormalizedVector.ket (R := Qubits b.width) 0 :
           HilbertVector (Qubits b.width)) =
       (NormalizedVector.ket (R := Qubits b.width) b.initialXLabel :
@@ -231,7 +234,7 @@ public theorem initialX_applyVec_zero (oracles : OracleModel)
   simpa [initialXLabel] using
     foldAction (List.ofFn fun gap : Fin b.gaps => b.wire gap.succ) 0
 
-private theorem initialXLabel_eq_tensorLabel (b : PositiveGapExpansion N) :
+private lemma initialXLabel_eq_tensorLabel (b : PositiveGapExpansion N) :
     b.initialXLabel =
       UnitaryCircuit.castQubitWidthIndex (by
         have upper : b.first < b.width := by
@@ -256,7 +259,7 @@ private theorem initialXLabel_eq_tensorLabel (b : PositiveGapExpansion N) :
   rw [pow_succ]
   ring
 
-private theorem raw_tensor_ket {m n : Nat}
+private lemma raw_tensor_ket {m n : Nat}
     (left : Fin (2 ^ m)) (right : Fin (2 ^ n)) :
     HilbertVector.tensor
         (NormalizedVector.ket (R := Qubits m) left : HilbertVector (Qubits m))
@@ -274,7 +277,7 @@ private theorem raw_tensor_ket {m n : Nat}
     by_cases rightSame : rightIndex = right <;>
     simp [leftSame, rightSame]
 
-private theorem initialXLabel_raw_tensor (b : PositiveGapExpansion N) :
+private lemma initialXLabel_raw_tensor (b : PositiveGapExpansion N) :
     (NormalizedVector.ket (R := Qubits b.width) b.initialXLabel :
       HilbertVector (Qubits b.width)) =
       UnitaryCircuit.castQubitWidthVec (by
@@ -297,11 +300,12 @@ private theorem initialXLabel_raw_tensor (b : PositiveGapExpansion N) :
   rw [raw_tensor_ket, UnitaryCircuit.castQubitWidthVec_ket,
     raw_tensor_ket, UnitaryCircuit.castQubitWidthVec_ket]
 
-private theorem lowHadamards_applyVec_tensor (oracles : OracleModel)
+private lemma lowHadamards_applyVec_tensor (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (b : PositiveGapExpansion N)
     (high : HilbertVector (Qubits (b.width - b.first))) :
-    (OrderPreparation.Intrinsic.lowHadamards oracles
-      b.asOrderExpansion).applyBinaryVec
+    ((OrderPreparation.Intrinsic.lowHadamards oracles
+      b.asOrderExpansion).applyBinaryVec environment)
         (UnitaryCircuit.castQubitWidthVec (by
           have upper : b.first < b.width := by
             simpa [first] using b.ell_lt_width (0 : Fin (b.gaps + 1))
@@ -315,10 +319,10 @@ private theorem lowHadamards_applyVec_tensor (oracles : OracleModel)
           (WalshHadamard.uniformState b.first :
             HilbertVector (Qubits b.first))) := by
   have zeroAction :
-      (Gate.HadamardLayer.circuit oracles b.first).binaryMatrix.applyVec
+      ((Gate.HadamardLayer.circuit oracles b.first).binaryMatrix environment).applyVec
           (rawKetZero b.first) =
         (WalshHadamard.uniformState b.first : HilbertVector (Qubits b.first)) := by
-    change (WalshHadamard.Native.binaryOperator oracles b.first).applyVec
+    change (WalshHadamard.Native.binaryOperator oracles b.first environment).applyVec
         (rawKetZero b.first) = _
     rw [WalshHadamard.Native.native_binary_matrix]
     unfold rawKetZero basisKetVec
@@ -340,12 +344,13 @@ private theorem lowHadamards_applyVec_tensor (oracles : OracleModel)
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_applyVec_tensor, zeroAction]
 
 /-- The literal initial X and low-Hadamard layers prepare residual block zero. -/
-public theorem initialPreparation_applyVec_zero_eq_residualBlock_zero
-    (oracles : OracleModel) (b : PositiveGapExpansion N) :
-    ((OrderPreparation.Intrinsic.initialX oracles
+public lemma initialPreparation_applyVec_zero_eq_residualBlock_zero
+    (oracles : OracleModel)
+    {environment : oracles.Interpretation} (b : PositiveGapExpansion N) :
+    (((OrderPreparation.Intrinsic.initialX oracles
       b.asOrderExpansion).seq
       (OrderPreparation.Intrinsic.lowHadamards oracles
-        b.asOrderExpansion)).applyBinaryVec
+        b.asOrderExpansion)).applyBinaryVec environment)
         (NormalizedVector.ket (R := Qubits b.width) 0 :
           HilbertVector (Qubits b.width)) =
       b.residualBlock 0 := by

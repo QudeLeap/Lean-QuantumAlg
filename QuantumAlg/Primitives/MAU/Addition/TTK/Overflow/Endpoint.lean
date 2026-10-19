@@ -40,6 +40,8 @@ open QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {interpretation : OracleModel.empty.Interpretation}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open Execution.OwnedQubits
@@ -48,7 +50,7 @@ private def semanticOperator (width : Nat) :
     UnitaryOperator (context (width + width + 1)).register :=
   UnitaryOperator.reindex (basisEquiv (width + width + 1)).symm (overflowOperator width)
 
-private theorem supplied_wires (width : Nat) :
+private lemma supplied_wires (width : Nat) :
     (QubitLayout.canonical (overflowEncoding width).width).toQuantum.wires =
       (context (width + width + 1)).quantumLayout.wires := by
   rw [ttkOverflowEncoding_width, two_mul]
@@ -62,22 +64,22 @@ private def program (width : Nat) :
     (context (width + width + 1)).quantumLayout (supplied_wires width)
       (overflowProgram width)
 
-private theorem program_matrix (width : Nat) :
-    (program width).matrix = semanticOperator width := by
+private lemma program_matrix (width : Nat) :
+    ((program width).matrix interpretation) = semanticOperator width := by
   unfold semanticOperator
-  have sourceMatrix : (overflowProgram width).matrix =
+  have sourceMatrix : ((overflowProgram width).matrix interpretation) =
       UnitaryOperator.reindex
         (QubitLayout.canonical (overflowEncoding width).width).basisEquiv.symm
           (overflowOperator width) := by
     have binary := congrArg
       (UnitaryOperator.reindex
         (QubitLayout.canonical (overflowEncoding width).width).basisEquiv.symm)
-      (ttkOverflow_matrix width)
+      (ttkOverflow_matrix (environment := interpretation) width)
     change UnitaryOperator.reindex
         (QubitLayout.canonical (overflowEncoding width).width).basisEquiv.symm
           (UnitaryOperator.reindex
             (QubitLayout.canonical (overflowEncoding width).width).basisEquiv
-            (overflowProgram width).matrix) = _ at binary
+            ((overflowProgram width).matrix interpretation)) = _ at binary
     rw [UnitaryOperator.unitaryOperator_reindex_cancel] at binary
     exact binary
   rw [program, Execution.unitaryOfEqualWires_matrix, sourceMatrix]
@@ -116,11 +118,12 @@ different parallel scheduling as the implemented depth.
 public def problem (width : Nat) :
     Problem (.quantum AlgorithmGate.model .empty)
       (context (width + width + 1)) (context (width + width + 1)) .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary (semanticOperator width)]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [StateRequirement.unitary (semanticOperator width)]
   resources :=
     { events := (width + 2 * (width - 1) + 2 * (width - 2) + (if 2 ≤ width then 1 else 0)) •
         ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
@@ -130,12 +133,8 @@ public def problem (width : Nat) :
             (.gate .toffoli)
       resident := space (width + width + 1)
       auxiliary := space (width + width + 1) }
-  depth :=
-    { duration := fun _ => 1
-      limit := width + 4 * (width - 1) + 2 * (width - 2) +
+  quantumTimeLimit := width + 4 * (width - 1) + 2 * (width - 2) +
         (if 2 ≤ width then 1 else 0) + (if width = 0 then 0 else 1)
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
 
 /-- Execute the literal overflow ripple and retain both operands and the XOR output. -/
 public def algorithm (width : Nat) :
@@ -143,7 +142,7 @@ public def algorithm (width : Nat) :
       (context (width + width + 1)) (context (width + width + 1)) .unit where
   run := { code := code width, output := Output.all (context (width + width + 1)) .unit }
 
-private theorem actual_events (width : Nat) (path : (code width).Path) :
+private lemma actual_events (width : Nat) (path : (code width).Path) :
     (code width).resourcePool path = (problem width).resources.events := by
   change ResourcePool.ofList (program width).eventTrace = _
   have cost : (program width).eventCost = (overflowProgram width).eventCost :=
@@ -159,7 +158,7 @@ private theorem actual_events (width : Nat) (path : (code width).Path) :
   simp only [problem, Multiset.count_add, Multiset.count_nsmul,
     ResourcePool.singleton, Multiset.count_replicate]
 
-private theorem actual_resident (width : Nat) (path : (code width).Path) :
+private lemma actual_resident (width : Nat) (path : (code width).Path) :
     (code width).peakResidentSpace path ≤ space (width + width + 1) := by
   intro axis
   change Nat.max ((context (width + width + 1)).residentSpace axis) 0 ≤
@@ -167,7 +166,7 @@ private theorem actual_resident (width : Nat) (path : (code width).Path) :
   rw [ownedQubits_resident]
   exact le_of_eq (Nat.max_zero _)
 
-private theorem actual_auxiliary (width : Nat) (path : (code width).Path) :
+private lemma actual_auxiliary (width : Nat) (path : (code width).Path) :
     (code width).peakAuxiliarySpace path ≤ space (width + width + 1) := by
   intro axis
   change Nat.max ((context (width + width + 1)).auxiliarySpace axis) 0 ≤
@@ -175,7 +174,7 @@ private theorem actual_auxiliary (width : Nat) (path : (code width).Path) :
   rw [ownedQubits_auxiliary]
   exact le_of_eq (Nat.max_zero _)
 
-private theorem actual_depth (width : Nat) (path : (code width).Path) :
+private lemma actual_depth (width : Nat) (path : (code width).Path) :
     (code width).depth (fun _ => 1) path =
       width + 4 * (width - 1) + 2 * (width - 2) +
         (if 2 ≤ width then 1 else 0) + (if width = 0 then 0 else 1) := by
@@ -185,32 +184,33 @@ private theorem actual_depth (width : Nat) (path : (code width).Path) :
 
 /-- Exact native addition with arbitrary initial carry output and no extra workspace. -/
 public theorem main (width : Nat) :
-    ∃ candidate, Algorithm.Solves candidate (problem width) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate (problem width) := by
   refine ⟨algorithm width, ?_⟩
   constructor
-  · intro Reference input _valid _initialized
+  · intro _environment _witness Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialized requirement present
+  · intro environment _witness Reference input _valid _initialized requirement present
     have same : requirement = StateRequirement.unitary (semanticOperator width) :=
       List.mem_singleton.mp present
     subst requirement
-    exact StateRequirement.unitary_holds (semanticOperator width)
-      (program width) (program_matrix width)
+    exact StateRequirement.unitary_holds environment (semanticOperator width)
+      (program width) (program_matrix (interpretation := environment.quantum) width)
       (Output.all (context (width + width + 1)) .unit) input
-  · intro Reference input _valid _initialized
-    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed rfl rfl
+  · intro environment _witness Reference input _valid _initialized
+    exact AlgorithmRun.restoresBorrowed_unitary_noBorrowed environment rfl rfl
       (program width) (Output.all (context (width + width + 1)) .unit) input
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact le_of_eq (actual_events width path)
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_resident width path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_auxiliary width path
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact le_of_eq (actual_depth width path)
 
 end

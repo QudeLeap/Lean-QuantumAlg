@@ -8,8 +8,7 @@ module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Allocation.Preparation
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Runtime
-import all QuantumAlg.Core.Execution.Context.Permutation.Local.State
-import all QuantumAlg.Core.Execution.Context.Permutation.Local.Resources
+import all QuantumAlg.Core.Base.Accounting.Context.Embedding.Construction
 
 /-!
 # Measured point addition on the actual allocated workspace
@@ -27,7 +26,7 @@ open Execution ContextUnion MeasuredUncompute MAU.Inversion.SharedEEA
 /-- The original measured body executes on the actually allocated entries. -/
 def placedBody {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E) :
     Circuit (.quantum AlgorithmGate.model .empty) (after p.size) (after p.size) :=
-  ContextPermutation.localCircuit (body E Q) (body_isLocal E Q) (after p.size) (body_entries p.size)
+  .embed (ContextEmbedding.alongPermutation (body_entries p.size)) (body E Q false)
 
 /-- One circuit initializes its own work and then executes measured controlled point addition. -/
 def circuit {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffinePoint E) :

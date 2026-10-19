@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth EncodedBit.GateSpec
 
 /-- The standard source bit uses the little-endian-to-wire conversion. -/
@@ -30,7 +32,7 @@ def sourceBit (width : Nat) (selected : Fin width) :
   BinaryLabelEncoding.finIdentityBit width (WireAddress.littleEndianWire selected)
 
 /-- The addressed source bit is exactly the selected little-endian binary digit. -/
-theorem gidneySourceBit_get (width : Nat) (selected : Fin width) (source : Fin (2 ^ width)) :
+lemma gidneySourceBit_get (width : Nat) (selected : Fin width) (source : Fin (2 ^ width)) :
     (sourceBit width selected).get source = source.val.testBit selected.val := by
   change source.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire selected)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
@@ -51,10 +53,10 @@ def smallStageProgram (width : Nat) (small : width ≤ 2) (selected : Fin width)
     (smallStageGates width small selected modulus constant)
 
 /-- Exact coherent semantics includes both control branches and every target label. -/
-theorem gidneySmallStage_realizes (width : Nat) (small : width ≤ 2) (selected : Fin width)
+lemma gidneySmallStage_realizes (width : Nat) (small : width ≤ 2) (selected : Fin width)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     UnitaryCircuit.Realizes (encoding width)
-      (smallStageProgram width small selected modulus constant)
+      (smallStageProgram width small selected modulus constant) environment
       (selectedOutput selected modulus constant) := by
   apply (controlSmallList_realizes (sourceBit width selected) small
     (QubitLayout.canonical _) .empty
@@ -64,7 +66,7 @@ theorem gidneySmallStage_realizes (width : Nat) (small : width ≤ 2) (selected 
   rfl
 
 /-- The typed layout contains exactly the two original words, including at width zero. -/
-theorem gidneySmallStage_interface (width : Nat) :
+lemma gidneySmallStage_interface (width : Nat) :
     (encoding width).width = 2 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) := by
   have size : (encoding width).width = 2 * width := by
@@ -73,7 +75,7 @@ theorem gidneySmallStage_interface (width : Nat) :
   exact ⟨size, (QubitLayout.canonical_systemIdx _).trans (congrArg List.range size)⟩
 
 /-- The native ledger records the emitted CNOT/Toffoli list, in the default model. -/
-theorem gidneySmallStage_eventCost (width : Nat) (small : width ≤ 2) (selected : Fin width)
+lemma gidneySmallStage_eventCost (width : Nat) (small : width ≤ 2) (selected : Fin width)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (smallStageProgram width small selected modulus constant).eventCost =
       ResourcePool.ofList
@@ -81,7 +83,7 @@ theorem gidneySmallStage_eventCost (width : Nat) (small : width ≤ 2) (selected
   programList_eventCost _ _ _
 
 /-- Every source instruction becomes exactly one native controlled instruction. -/
-theorem gidneySmallStage_event_count_bound (width : Nat) (small : width ≤ 2)
+lemma gidneySmallStage_event_count_bound (width : Nat) (small : width ≤ 2)
     (selected : Fin width) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     (smallStageProgram width small selected modulus constant).eventCost.card ≤ 9 := by
@@ -91,7 +93,7 @@ theorem gidneySmallStage_event_count_bound (width : Nat) (small : width ≤ 2)
       (Addition.Gidney.Small.modularOffsetGates_length width small modulus constant)
 
 /-- The literal gate list has the same serial depth as its actual native instruction count. -/
-theorem gidneySmallStage_depth_eq_events (width : Nat) (small : width ≤ 2)
+lemma gidneySmallStage_depth_eq_events (width : Nat) (small : width ≤ 2)
     (selected : Fin width) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     (smallStageProgram width small selected modulus constant).evaluatedEventDepth (fun _ => 1) =
@@ -99,7 +101,7 @@ theorem gidneySmallStage_depth_eq_events (width : Nat) (small : width ≤ 2)
   rw [smallStageProgram, programList_evaluatedEventDepth_unit, programList_eventCost_card]
 
 /-- The emitted circuit uses no single-qubit gates, at most six CNOTs and three Toffolis. -/
-theorem gidneySmallStage_native_bounds (width : Nat) (small : width ≤ 2)
+lemma gidneySmallStage_native_bounds (width : Nat) (small : width ≤ 2)
     (selected : Fin width) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)

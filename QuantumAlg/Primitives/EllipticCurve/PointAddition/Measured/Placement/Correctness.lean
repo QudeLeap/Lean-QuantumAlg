@@ -8,7 +8,7 @@ module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Placement
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Correctness
-import all QuantumAlg.Core.Execution.Context.Relabeling.Local.State
+import all QuantumAlg.Core.Execution.Context.Embedding.Relabeling
 
 /-!
 # Complete measured point action on mapped physical systems
@@ -24,11 +24,13 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem relabeled_marginal {source : RuntimeCtx .quantum}
+private lemma relabeled_marginal {source : RuntimeCtx .quantum}
     (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     {Reference : Register} {H : Type} [Fintype H] (original : State source Reference H) :
     (ContextRelabeling.state keys physical original).quantumMarginal =
@@ -37,36 +39,39 @@ private theorem relabeled_marginal {source : RuntimeCtx .quantum}
   rw [ContextRelabeling.state, reindex_marginal, ExecutionState.mapClassical_quantumMarginal]
 
 /-- Full measured execution follows the corresponding complete store and physical coordinates. -/
-theorem body_execute {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_execute {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (MeasuredPointAddition.context p.size) Reference
-      (ClassicalOracleModel.empty.HiddenState × H)) :
-    (body E Q keys physical).execute Reference (ContextRelabeling.state keys physical original) =
-      (ContextRelabeling.state keys physical
-        ((MeasuredPointAddition.body E Q).execute Reference original)).mapHistory
-          (fun record => (record.1,
-            (record.2.1, pathEquiv E Q keys physical record.2.2))) :=
-  ContextRelabeling.localCircuit_execute _ (MeasuredPointAddition.body_isLocal E Q)
-    keys physical Reference original
+      (ClassicalOracleModel.empty.HiddenState × H)) (allowAllocation : Bool := true) :
+    (body E Q keys physical allowAllocation).execute environment Reference
+      (ContextRelabeling.state keys physical original) =
+      ContextRelabeling.state keys physical
+        ((MeasuredPointAddition.body E Q false).execute environment Reference original) :=
+  Circuit.relabeling_embed_execute (environment := environment) keys physical
+    (MeasuredPointAddition.body E Q false)
+    Reference original
 
-private theorem body_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma body_marginal {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (MeasuredPointAddition.context p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((body E Q keys physical).execute Reference
+    ((body E Q keys physical allowAllocation).execute environment Reference
       (ContextRelabeling.state keys physical original)).quantumMarginal =
-        ((MeasuredPointAddition.body E Q).execute Reference original).quantumMarginal.reindex
+        ((MeasuredPointAddition.body E Q false).execute environment Reference
+          original).quantumMarginal.reindex
           (ContextRelabeling.referenceBasis (source := MeasuredPointAddition.context p.size)
             keys physical Reference) := by
-  have actual := body_execute E Q keys physical original
+  have actual := body_execute (environment := environment) E Q keys physical original
+    allowAllocation
   have marginal := congrArg
     (fun result : State (context p.size keys physical) Reference
-      (ClassicalOracleModel.empty.HiddenState × (H × (body E Q keys physical).Path)) =>
+      (ClassicalOracleModel.empty.HiddenState ×
+        (H × (body E Q keys physical allowAllocation).Path)) =>
         result.quantumMarginal) actual
-  exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans
-    (relabeled_marginal keys physical _))
+  exact marginal.trans (relabeled_marginal keys physical _)
 
 /-- Independent mathematical point action in the exact mapped physical-reference coordinates. -/
 def target {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -78,7 +83,7 @@ def target {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
       keys physical Reference) (MeasuredPointAddition.target E Q Reference)
 
 /-- Actual placed execution has the original complete point action on exactly its mapped domain. -/
-theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (context p.size keys physical) Reference
@@ -86,8 +91,10 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (support : ∀ input : (Register.prod (context p.size keys physical).register Reference).Index,
       ¬MeasuredPointAddition.admissible E Q
         ((ContextRelabeling.basis (MeasuredPointAddition.context p.size) keys physical).symm
-          input.1) → original.quantumMarginal.matrix input input = 0) :
-    ((body E Q keys physical).execute Reference original).quantumMarginal =
+          input.1) → original.quantumMarginal.matrix input input = 0)
+    (allowAllocation : Bool := true) :
+    ((body E Q keys physical allowAllocation).execute environment Reference
+      original).quantumMarginal =
       DensityOperator.applyUnitary (target E Q keys physical Reference)
         original.quantumMarginal := by
   let coordinates :=
@@ -114,13 +121,16 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
         (ContextRelabeling.basis (MeasuredPointAddition.context p.size) keys physical input.1))
     rw [Equiv.symm_apply_apply]
     exact outside
-  have transported := (body_marginal E Q keys physical reversed).trans
+  have transported :=
+    (body_marginal (environment := environment)
+      (allowAllocation := allowAllocation) E Q keys physical reversed).trans
     (congrArg (fun density => density.reindex coordinates)
-      (MeasuredPointAddition.body_density E Q reversed originalSupport))
+      (MeasuredPointAddition.body_density E Q reversed originalSupport false))
   have inverse : coordinates.symm.trans coordinates = Equiv.refl _ :=
     Equiv.symm_trans_self coordinates
   calc
-    ((body E Q keys physical).execute Reference original).quantumMarginal =
+    ((body E Q keys physical allowAllocation).execute environment Reference
+      original).quantumMarginal =
         (DensityOperator.applyUnitary (MeasuredPointAddition.target E Q Reference)
           reversed.quantumMarginal).reindex coordinates := by
       simpa only [roundtrip] using transported

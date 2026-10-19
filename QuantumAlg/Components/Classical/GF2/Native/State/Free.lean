@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem complement_pivot (result : ClassicalAlgorithms.GF2.Result rowCount width) :
+private lemma complement_pivot (result : ClassicalAlgorithms.GF2.Result rowCount width) :
     CShape.wordComplement width (.unsignedWord (ClassicalAlgorithms.GF2.pivotColumnMask result)) =
       .unsignedWord (ClassicalAlgorithms.GF2.freeColumnMask result) := by
   apply congrArg CShape.Value.unsignedWord
@@ -51,7 +51,7 @@ private theorem complement_pivot (result : ClassicalAlgorithms.GF2.Result rowCou
 
 omit [BitWord.Selected model] in
 /-- One real complement maps a represented pivot word to the original free-column word. -/
-theorem gf2ComplementPivotMask_read
+lemma gf2ComplementPivotMask_read
     (columns : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (result : ClassicalAlgorithms.GF2.Result rowCount width)
     (represented : store.read (.storage columns.toCStorageRef) =
@@ -65,7 +65,7 @@ theorem gf2ComplementPivotMask_read
 
 omit [BitWord.Selected model] in
 /-- The original complement writes only its one actual mask destination. -/
-theorem gf2ComplementPivotMask_read_other
+lemma gf2ComplementPivotMask_read_other
     (columns : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : columns.key ∉ other.storageKeys) :
     (store.applyOp (complementPivotMaskOp columns)).read other = store.read other :=
@@ -73,7 +73,7 @@ theorem gf2ComplementPivotMask_read_other
 
 omit [BitWord.Selected model] in
 /-- The complete actual store differs only by the represented free-column mask write. -/
-theorem gf2ComplementPivotMask_store
+lemma gf2ComplementPivotMask_store
     (columns : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (result : ClassicalAlgorithms.GF2.Result rowCount width)
     (represented : store.read (.storage columns.toCStorageRef) =
@@ -85,7 +85,7 @@ theorem gf2ComplementPivotMask_store
   rw [represented, complement_pivot result]
 
 /-- The actual initialized increasing-column pass supplies the represented pivot mask. -/
-theorem gf2LoadAndReduce_pivotMask {outer : RuntimeCtx model.kind}
+lemma gf2LoadAndReduce_pivotMask {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
@@ -108,7 +108,7 @@ theorem gf2LoadAndReduce_pivotMask {outer : RuntimeCtx model.kind}
   rfl
 
 /-- The real reduction followed by its real complement writes the canonical free mask. -/
-theorem gf2LoadAndComplement_store {outer : RuntimeCtx model.kind}
+lemma gf2LoadAndComplement_store {outer : RuntimeCtx model.kind}
     (input : CInputRef outer (.fixedVector rowCount (.bits width)))
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)

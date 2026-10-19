@@ -33,7 +33,7 @@ variable {G : Type u} [Group G]
 @[expose] public def invSqrtOrder (order : Nat) : ℂ :=
   (Real.sqrt (order : ℝ) : ℂ)⁻¹
 
-public theorem norm_sq_invSqrtOrder {order : Nat} (positive : 0 < order) :
+public lemma norm_sq_invSqrtOrder {order : Nat} (positive : 0 < order) :
     ‖invSqrtOrder order‖ ^ 2 = ((order : ℝ)⁻¹) := by
   rw [invSqrtOrder, norm_inv, Complex.norm_real,
     Real.norm_eq_abs, abs_of_nonneg (Real.sqrt_nonneg _), inv_pow,
@@ -58,13 +58,13 @@ public def state (P : KnownOrderProblem G) : NormalizedVector (Qubits (width P))
         exact div_self (by exact_mod_cast P.order_ne_zero)
       rw [sum_norms, Real.sqrt_one])
 
-private theorem state_apply_internal (P : KnownOrderProblem G)
+private lemma state_apply_internal (P : KnownOrderProblem G)
     (index : Fin (2 ^ width P)) :
     state P index =
       if index.val < P.order then invSqrtOrder P.order else 0 :=
   rfl
 
-@[simp] public theorem state_apply (P : KnownOrderProblem G)
+@[simp] public lemma state_apply (P : KnownOrderProblem G)
     (index : Fin (2 ^ width P)) :
     state P index =
       if index.val < P.order then invSqrtOrder P.order else 0 :=

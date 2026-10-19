@@ -64,7 +64,7 @@ def fieldWidth : Nat :=
 
 set_option exponentiation.threshold 260 in
 /-- The derived P-256 field width is 256 bits. -/
-theorem fieldWidth_eq_256 : fieldWidth = 256 := by
+lemma fieldWidth_eq_256 : fieldWidth = 256 := by
   change Nat.clog 2 primeModulus = 256
   have h256 : (256 : Nat) = 16 * 16 := by norm_num
   have h255 : (255 : Nat) = 15 * 16 + 15 := by norm_num
@@ -81,7 +81,7 @@ theorem fieldWidth_eq_256 : fieldWidth = 256 := by
 
 set_option exponentiation.threshold 260 in
 /-- The standard modulus fits strictly inside its derived binary carrier. -/
-theorem primeModulus_lt_capacity : primeModulus < 2 ^ fieldWidth := by
+lemma primeModulus_lt_capacity : primeModulus < 2 ^ fieldWidth := by
   rw [fieldWidth_eq_256, show (256 : Nat) = 16 * 16 by norm_num, pow_mul]
   norm_num [primeModulus]
 
@@ -94,18 +94,18 @@ public def fieldModulus : Nat :=
   modulusWord.val
 
 /-- The derived arithmetic modulus is exactly the standard P-256 prime. -/
-@[simp] theorem fieldModulus_eq_primeModulus :
+@[simp] lemma fieldModulus_eq_primeModulus :
     fieldModulus = primeModulus := by
   unfold fieldModulus modulusWord
   exact ZMod.val_natCast_of_lt primeModulus_lt_capacity
 
 /-- The P-256 field has characteristic greater than three. -/
-theorem three_lt_fieldModulus : 3 < fieldModulus := by
+lemma three_lt_fieldModulus : 3 < fieldModulus := by
   rw [fieldModulus_eq_primeModulus]
   norm_num [primeModulus]
 
 /-- The recorded P-256 cofactor has its standard value. -/
-theorem cofactor_eq_one : cofactor = 1 := rfl
+lemma cofactor_eq_one : cofactor = 1 := rfl
 
 /-- P-256 short-Weierstrass `a` coefficient. -/
 public def coefficientA : ZMod fieldModulus :=
@@ -181,7 +181,7 @@ public structure SubgroupCertificate (cert : CurveCertificate)
     subgroupOrder = orderOf (basePoint cert baseCert).toGroupPoint
 
 /-- The certified subgroup order is positive. -/
-theorem SubgroupCertificate.positive
+lemma SubgroupCertificate.positive
     {cert : CurveCertificate} {baseCert : BasePointCertificate cert}
     (subgroupCert : SubgroupCertificate cert baseCert) :
     0 < subgroupOrder :=

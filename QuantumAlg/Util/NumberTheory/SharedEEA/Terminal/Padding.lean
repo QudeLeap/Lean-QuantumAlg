@@ -39,7 +39,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.TerminalPadding
 open QuantumAlg.ClassicalAlgorithms.NumberTheory
 
 /-- Active mathematical macro steps preserve the source cross-sum through their exact update. -/
-theorem activeRun_balance (fuel : Nat) (state : IterationState) :
+lemma activeRun_balance (fuel : Nat) (state : IterationState) :
     (QuotientTrajectory.activeRun fuel state).balance = state.balance := by
   induction fuel generalizing state with
   | zero => rfl
@@ -50,7 +50,7 @@ theorem activeRun_balance (fuel : Nat) (state : IterationState) :
         IterationState.step_balance]
 
 /-- Every reached macro state satisfies the invariant needed to encode its exact shared words. -/
-theorem activeRun_admissible (fuel : Nat) (state : IterationState) (valid : state.Admissible) :
+lemma activeRun_admissible (fuel : Nat) (state : IterationState) (valid : state.Admissible) :
     (QuotientTrajectory.activeRun fuel state).Admissible := by
   induction fuel generalizing state with
   | zero => exact valid
@@ -67,23 +67,23 @@ def finalState (modulus input : Nat) : IterationState :=
     (IterationState.initial modulus (foldInput modulus input).2)
 
 /-- The original positive-residue domain supplies the full final reachable invariant. -/
-theorem final_admissible (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma final_admissible (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (finalState modulus input).Admissible :=
   activeRun_admissible _ _ (folded_initial_admissible modulus input positive bounded)
 
 /-- The exact final cross-sum remains the original modulus. -/
-theorem final_balance (modulus input : Nat) : (finalState modulus input).balance = modulus :=
+lemma final_balance (modulus input : Nat) : (finalState modulus input).balance = modulus :=
   (activeRun_balance (Euclid.gcdFuel modulus.size)
     (IterationState.initial modulus (foldInput modulus input).2)).trans
       (IterationState.initial_balance modulus _)
 
 /-- Mathematical termination at divisor zero is established internally for every original input. -/
-theorem final_divisor (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma final_divisor (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (finalState modulus input).divisor = 0 :=
   QuotientSchedule.folded_finishes modulus input positive bounded
 
 /-- Every coprime positive input reaches the actual gcd-one terminal remainder. -/
-theorem final_remainder (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma final_remainder (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (finalState modulus input).remainder = 1 := by
   have preserved := QuotientTrajectory.activeRun_gcd (Euclid.gcdFuel modulus.size)
@@ -95,7 +95,7 @@ theorem final_remainder (modulus input : Nat) (coprime : Nat.Coprime input modul
   exact preserved.trans coprime.symm
 
 /-- The retained terminal coefficient equals the modulus by the exact conserved source cross-sum. -/
-theorem final_coefficient (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma final_coefficient (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     (finalState modulus input).coefficient = modulus := by
   have conserved := final_balance modulus input
@@ -115,7 +115,7 @@ def terminalWord (modulus : Nat) : BitVec (modulus.size + 3) :=
   WordPacking.packWork2 (terminalPayload modulus)
 
 /-- Exact terminal field values imply equality of the entire physical first word. -/
-theorem firstWord_terminal (state : IterationState) (modulus : Nat)
+lemma firstWord_terminal (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (remainder : state.remainder = 1) (coefficient : state.coefficient = modulus) :
     PackingBoundary.firstWord state modulus valid conserved = terminalWord modulus := by
@@ -124,7 +124,7 @@ theorem firstWord_terminal (state : IterationState) (modulus : Nat)
     (PackingBoundary.first_width state modulus valid conserved) rfl rfl coefficient remainder
 
 /-- The coprime-input domain establishes the complete terminal word without new premises. -/
-theorem final_firstWord (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma final_firstWord (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     PackingBoundary.firstWord (finalState modulus input) modulus
         (final_admissible modulus input positive bounded) (final_balance modulus input) =
@@ -133,7 +133,7 @@ theorem final_firstWord (modulus input : Nat) (coprime : Nat.Coprime input modul
     (final_coefficient modulus input coprime positive bounded)
 
 /-- Each original modulus bit occupies its actual distinct left-to-right physical position. -/
-theorem terminalWord_main_bit (modulus index : Nat) (within : index < modulus.size) :
+lemma terminalWord_main_bit (modulus index : Nat) (within : index < modulus.size) :
     (terminalWord modulus).getMsbD index = modulus.testBit index :=
   WordPacking.packWork2_coefficient_bit (terminalPayload modulus) index within
 
@@ -142,7 +142,7 @@ def paddingPosition (modulus : Nat) (index : Fin 2) : Fin (modulus.size + 3) :=
   ⟨modulus.size + index.val, by have bound := index.isLt; omega⟩
 
 /-- The candidate high bits refer to distinct physical positions. -/
-theorem paddingPosition_injective (modulus : Nat) :
+lemma paddingPosition_injective (modulus : Nat) :
     Function.Injective (paddingPosition modulus) := by
   intro left right same
   apply Fin.ext
@@ -151,7 +151,7 @@ theorem paddingPosition_injective (modulus : Nat) :
   omega
 
 /-- Neither candidate position overlaps a modulus bit or the final constant-one position. -/
-theorem paddingPosition_bounds (modulus : Nat) (index : Fin 2) :
+lemma paddingPosition_bounds (modulus : Nat) (index : Fin 2) :
     modulus.size ≤ (paddingPosition modulus index).val ∧
       (paddingPosition modulus index).val < modulus.size + 2 := by
   have bound := index.isLt
@@ -159,7 +159,7 @@ theorem paddingPosition_bounds (modulus : Nat) (index : Fin 2) :
   omega
 
 /-- The actual terminal word supplies two zero bits at precisely the proposed fixed positions. -/
-theorem terminalWord_padding_zero (modulus : Nat) (index : Fin 2) :
+lemma terminalWord_padding_zero (modulus : Nat) (index : Fin 2) :
     (terminalWord modulus).getMsbD (paddingPosition modulus index).val = false := by
   change (WordPacking.packWork2 (terminalPayload modulus)).getMsbD
     (modulus.size + index.val) = false
@@ -174,7 +174,7 @@ theorem terminalWord_padding_zero (modulus : Nat) (index : Fin 2) :
     decide
 
 /-- The neighboring final bit is one and is excluded from the candidate high-counter positions. -/
-theorem terminalWord_last_one (modulus : Nat) :
+lemma terminalWord_last_one (modulus : Nat) :
     (terminalWord modulus).getMsbD (modulus.size + 2) = true := by
   change (WordPacking.packWork2 (terminalPayload modulus)).getMsbD (modulus.size + 2) = true
   rw [WordPacking.packWork2_remainder_bit]
@@ -182,7 +182,7 @@ theorem terminalWord_last_one (modulus : Nat) :
   decide
 
 /-- Both actual fixed positions are zero after the coprime-input macro computation. -/
-theorem final_padding_zero (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma final_padding_zero (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) (index : Fin 2) :
     (PackingBoundary.firstWord (finalState modulus input) modulus
       (final_admissible modulus input positive bounded) (final_balance modulus input)).getMsbD

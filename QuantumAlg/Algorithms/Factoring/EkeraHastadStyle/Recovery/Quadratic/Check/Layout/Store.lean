@@ -58,7 +58,7 @@ def popStore (width : Nat) (store : Store (context ctx width)) : Store ctx :=
     ctx.canonicalFreshKey_fresh store1
 
 /-- Structural lifting preserves the complete set of actually read original keys. -/
-theorem nativeQuadratic_checkLayout_underRead_keys {shape : CShape}
+lemma nativeQuadratic_checkLayout_underRead_keys {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (underRead input width).storageKeys = input.storageKeys := by
   let ref1 : CInputRef (zeroCtx ctx width) shape :=
@@ -86,7 +86,7 @@ theorem nativeQuadratic_checkLayout_underRead_keys {shape : CShape}
     ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh)))))
 
 /-- The five concrete pushes preserve every original structural read completely. -/
-theorem nativeQuadratic_checkLayout_push_read {shape : CShape}
+lemma nativeQuadratic_checkLayout_push_read {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) (store : Store ctx) :
     (pushStore width store).read (underRead input width) = store.read input := by
   let ref1 : CInputRef (zeroCtx ctx width) shape :=
@@ -130,7 +130,7 @@ theorem nativeQuadratic_checkLayout_push_read {shape : CShape}
     ctx.canonicalFreshKey_fresh input)))))
 
 /-- The five reverse releases preserve exactly the surviving original structural reads. -/
-theorem nativeQuadratic_checkLayout_pop_read {shape : CShape}
+lemma nativeQuadratic_checkLayout_pop_read {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) (store : Store (context ctx width)) :
     (popStore width store).read input = store.read (underRead input width) := by
   let ref1 : CInputRef (zeroCtx ctx width) shape :=
@@ -169,23 +169,23 @@ theorem nativeQuadratic_checkLayout_pop_read {shape : CShape}
     (firstCtx ctx width).canonicalFreshKey_fresh store ref4)))))
 
 /-- The actual fresh zero word has its declared zero value before either check runs. -/
-theorem nativeQuadratic_checkLayout_push_zero (width : Nat) (store : Store ctx) :
+lemma nativeQuadratic_checkLayout_push_zero (width : Nat) (store : Store ctx) :
     (pushStore width store).read (.storage (zero ctx width).toCStorageRef) =
       CShape.wordOfNat width 0 := rfl
 
 /-- The actual zero's unsigned read is zero also at width zero. -/
-theorem nativeQuadratic_checkLayout_push_zero_toNat (width : Nat) (store : Store ctx) :
+lemma nativeQuadratic_checkLayout_push_zero_toNat (width : Nat) (store : Store ctx) :
     ((pushStore width store).read (.storage (zero ctx width).toCStorageRef)).toNat = 0 := by
   rw [nativeQuadratic_checkLayout_push_zero]
   exact Nat.zero_mod _
 
 /-- Actual write-reference lifting retains the same original storage identity. -/
-theorem nativeQuadratic_checkLayout_underWrite_key {shape : CShape}
+lemma nativeQuadratic_checkLayout_underWrite_key {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     (underWrite output width).key = output.key := rfl
 
 /-- Reading a lifted destination is the same closed structural read beneath the five entries. -/
-theorem nativeQuadratic_checkLayout_underWrite_read {shape : CShape}
+lemma nativeQuadratic_checkLayout_underWrite_read {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     CInputRef.storage (underWrite output width).toCStorageRef =
       underRead (.storage output.toCStorageRef) width := rfl

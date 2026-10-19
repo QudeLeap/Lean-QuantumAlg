@@ -30,14 +30,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem append_borrowed (output : CWriteRef ctx (.unsignedWord width))
+private lemma append_borrowed (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (store : Store ctx) :
     (appendStep (model := model) output bit store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
   cases bit <;> simp only [appendStep, BitWord.instructionStep, Store.readBorrowedClassical_applyOp]
 
 /-- The actual literal-bit fold preserves every borrowed classical value. -/
-theorem constantWord_foldStep_borrowed_values (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_foldStep_borrowed_values (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) (store : Store ctx) :
     (foldStep (model := model) output bits store).1.readBorrowedClassical =
       store.readBorrowedClassical := by
@@ -49,11 +49,12 @@ theorem constantWord_foldStep_borrowed_values (output : CWriteRef ctx (.unsigned
       rw [ih, append_borrowed]
 
 /-- The actual fold restores all borrowed classical and quantum systems with every reference. -/
-theorem constantWord_fold_borrowedRestored (output : CWriteRef ctx (.unsignedWord width))
-    (bits : List Bool) (Reference : Register) {History : Type} [Fintype History]
+lemma constantWord_fold_borrowedRestored (output : CWriteRef ctx (.unsignedWord width))
+    (bits : List Bool) {environment : model.Environment}
+    (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (fold (model := model) output bits).BorrowedRestored Reference state
-      ((fold (model := model) output bits).execute Reference state) := by
+      ((fold (model := model) output bits).execute environment Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, constantWord_fold_execute]
   refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
     (H := model.HiddenState × History)

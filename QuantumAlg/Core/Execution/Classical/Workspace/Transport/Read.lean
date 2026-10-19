@@ -25,13 +25,13 @@ def ReadsAs {kind : ProblemKind} {outer inner : RuntimeCtx kind}
     after.read (transport.liftInput input) = before.read input
 
 /-- Identity transport compares an actual store with itself. -/
-theorem workspaceTransport_readsAs_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma workspaceTransport_readsAs_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) : (id ctx).ReadsAs store store := by
   intro shape input
   rw [liftInput_id]
 
 /-- Agreement through identity transport is equality of actual stores. -/
-theorem workspaceTransport_readsAs_id_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma workspaceTransport_readsAs_id_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {before after : Store ctx} : (id ctx).ReadsAs before after ↔ after = before := by
   constructor
   · intro reads
@@ -42,7 +42,7 @@ theorem workspaceTransport_readsAs_id_iff {kind : ProblemKind} {ctx : RuntimeCtx
     exact workspaceTransport_readsAs_id _
 
 /-- Agreement of actual reads composes through nested structural transports. -/
-theorem workspaceTransport_readsAs_compose {kind : ProblemKind}
+lemma workspaceTransport_readsAs_compose {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind}
     (first : Transport outer middle) (second : Transport middle inner)
     {before : Store outer} {between : Store middle} {after : Store inner}
@@ -54,7 +54,7 @@ theorem workspaceTransport_readsAs_compose {kind : ProblemKind}
   exact (secondReads (first.liftInput input)).trans (firstReads input)
 
 /-- Actual workspace entry preserves every transported caller reading. -/
-theorem workspaceTransport_readsAs_pushWorkspace {kind : ProblemKind}
+lemma workspaceTransport_readsAs_pushWorkspace {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     {before : Store outer} {after : Store inner}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
@@ -67,7 +67,7 @@ theorem workspaceTransport_readsAs_pushWorkspace {kind : ProblemKind}
     (transport.liftInput input)).trans (reads input)
 
 /-- Actual workspace exit preserves every transported caller reading. -/
-theorem workspaceTransport_readsAs_popWorkspace {kind : ProblemKind}
+lemma workspaceTransport_readsAs_popWorkspace {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     {before : Store outer} (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     {after : Store (inner.addWorkspace key shape fresh)}
@@ -79,7 +79,7 @@ theorem workspaceTransport_readsAs_popWorkspace {kind : ProblemKind}
       simpa only [liftInput_underWorkspace] using reads input)
 
 /-- Agreement in an extended scope is precisely agreement after popping its lexical head. -/
-theorem workspaceTransport_readsAs_underWorkspace_iff {kind : ProblemKind}
+lemma workspaceTransport_readsAs_underWorkspace_iff {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     {before : Store outer} (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     {after : Store (inner.addWorkspace key shape fresh)} :

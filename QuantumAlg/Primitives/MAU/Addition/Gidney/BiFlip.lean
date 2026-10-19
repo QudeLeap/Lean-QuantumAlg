@@ -27,10 +27,12 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth BinaryLabelEncoding EncodedBit GateSpec
 
 /-- The finite arithmetic action agrees with the complement of the negative offset. -/
-theorem gidneyBiFlipWord_eq_offset_complement (width : Nat)
+lemma gidneyBiFlipWord_eq_offset_complement (width : Nat)
     (pivot : Fin (2 ^ width + 1)) (input : Fin (2 ^ width)) :
     HRS.complementWord (HRS.addWord (negatedPivot width pivot.val) input) =
       biFlipWordOutput pivot input := by
@@ -58,7 +60,7 @@ def biFlipBodyGates (width : Nat) (pivot : Fin (2 ^ width + 1)) :
   HRS.oneDirtyGates width (negatedPivot width pivot.val) ++ complementBodyGates width
 
 /-- The literal arithmetic body restores the helper on every joint input. -/
-theorem gidneyBiFlipBodyGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlipBodyGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
     (state : HRS.OneDirtyRegisters width) :
     stepList (biFlipBodyGates width pivot) state = biFlipBodyOutput pivot state := by
   rw [biFlipBodyGates, stepList_append, HRS.hrsOneDirtyGates_step]
@@ -67,7 +69,7 @@ theorem gidneyBiFlipBodyGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
       ((gidneyComplement_step width _).trans
         (gidneyBiFlipWord_eq_offset_complement width pivot state.1)))
 
-private theorem singleBit_wire (position : Fin bool.width) : boolBit.wire = position := by
+private lemma singleBit_wire (position : Fin bool.width) : boolBit.wire = position := by
   apply Fin.ext
   have bound : position.val < 1 := position.isLt
   change 0 = position.val
@@ -79,7 +81,7 @@ def oneDirtyBits (width : Nat) : Fin (HRS.oneDirtyEncoding width).width →
   productBit (finIdentityBit width) (fun _ => boolBit)
 
 /-- Every physical position has its corresponding bit lens. -/
-theorem gidneyOneDirtyBits_wire (width : Nat) (position : Fin (HRS.oneDirtyEncoding width).width) :
+lemma gidneyOneDirtyBits_wire (width : Nat) (position : Fin (HRS.oneDirtyEncoding width).width) :
     (oneDirtyBits width position).wire = position := by
   exact productBit_wire (left := finIdentity width) (right := bool)
     (finIdentityBit width) (fun _ => boolBit)
@@ -107,7 +109,7 @@ private def smallBiFlipGates (width : Nat) (small : width ≤ 2)
   (((Small.biFlipGates width small pivot).map (controlSmall boolBit small)).map
     (GateSpec.prodLeft bool)).map (smallPlacement width).placeGate
 
-private theorem smallBiFlipGates_step (width : Nat) (small : width ≤ 2)
+private lemma smallBiFlipGates_step (width : Nat) (small : width ≤ 2)
     (pivot : Fin (2 ^ width + 1)) (state : Registers width) :
     stepList (smallBiFlipGates width small pivot) state = biFlipOutput pivot state := by
   have lifted := stepList_prodLeft bool
@@ -135,7 +137,7 @@ private def largeBiFlipGates (width : Nat) (large : 3 ≤ width)
     singleBit_wire (gidneyOneDirtyBits_wire width)
     (by change 5 ≤ 1 + (width + 1); omega) boolBit (biFlipBodyGates width pivot)
 
-private theorem largeBiFlipGates_step (width : Nat) (large : 3 ≤ width)
+private lemma largeBiFlipGates_step (width : Nat) (large : 3 ≤ width)
     (pivot : Fin (2 ^ width + 1)) (state : Registers width) :
     stepList (largeBiFlipGates width large pivot) state = biFlipOutput pivot state := by
   have actual := controlRightList_step (fun _ => boolBit) (oneDirtyBits width)
@@ -153,7 +155,7 @@ def biFlipGates (width : Nat) (pivot : Fin (2 ^ width + 1)) :
   else largeBiFlipGates width (by omega) pivot
 
 /-- Exact conditional action, with no phase relaxation and no fresh work wire. -/
-theorem gidneyBiFlipGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
+lemma gidneyBiFlipGates_step (width : Nat) (pivot : Fin (2 ^ width + 1))
     (state : Registers width) :
     stepList (biFlipGates width pivot) state = biFlipOutput pivot state := by
   unfold biFlipGates
@@ -168,24 +170,25 @@ def biFlipProgram (width : Nat) (pivot : Fin (2 ^ width + 1)) :
   programList (QubitLayout.canonical _) .empty (biFlipGates width pivot)
 
 /-- The actual native expansion implements the complete coherent bi-flip contract. -/
-theorem gidneyBiFlip_realizes (width : Nat) (pivot : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (encoding width) (biFlipProgram width pivot) (biFlipOutput pivot) :=
-  realizesList_congrStep _ _ _ (gidneyBiFlipGates_step width pivot)
+lemma gidneyBiFlip_realizes (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+    UnitaryCircuit.Realizes (encoding width) (biFlipProgram width pivot)
+      environment (biFlipOutput pivot) :=
+  realizesList_congrStep _ _ _ (gidneyBiFlipGates_step width pivot) environment
 
 /-- The interface remains exactly the original target word and two arbitrary bits. -/
-theorem gidneyBiFlip_interface (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyBiFlip_interface (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (encoding width).width = width + 2 ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (width + 2) :=
   gidneyPackedOffset_interface width (extendedNegatedPivot width pivot.val)
 
 /-- Actual events come only from the emitted literal expansion. -/
-theorem gidneyBiFlip_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyBiFlip_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipProgram width pivot).eventCost =
       ResourcePool.ofList ((biFlipGates width pivot).map (event .empty)) :=
   programList_eventCost _ _ _
 
 /-- A coarse independent bound accounts for every expanded source gate and the small bases. -/
-theorem gidneyBiFlipGates_length_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyBiFlipGates_length_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipGates width pivot).length ≤
       4 * (width * (39 * Nat.clog 2 width + 1) + width) + 2 := by
   unfold biFlipGates

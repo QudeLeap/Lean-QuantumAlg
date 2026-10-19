@@ -30,10 +30,10 @@ namespace QuantumAlg.QuantumPhaseEstimation.Native
 noncomputable section
 
 /-- An unselected position must belong to the original phase register. -/
-public theorem qpeNative_complement_phase_position {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
+public lemma qpeNative_complement_phase_position {phaseWidth : Nat} (systemWidth : Nat)
+  (stage : Fin phaseWidth)
     (position : Fin (phaseWidth + systemWidth))
-    (unselected : position ∉ (queryApplication unitary stage).embedding.selection) :
+    (unselected : position ∉ (queryApplication systemWidth stage).embedding.selection) :
     ∃ index : Fin phaseWidth, Fin.castAdd systemWidth index = position := by
   revert unselected
   refine Fin.addCases (fun phaseIndex => ?_) (fun sourceIndex => ?_) position
@@ -42,16 +42,16 @@ public theorem qpeNative_complement_phase_position {phaseWidth systemWidth : Nat
   · intro unselected
     apply False.elim
     apply unselected
-    rw [← qpeNative_query_source_position unitary stage sourceIndex]
+    rw [← qpeNative_query_source_position systemWidth stage sourceIndex]
     exact Finset.mem_map_of_mem
-      (queryApplication unitary stage).embedding.position
+      (queryApplication systemWidth stage).embedding.position
       (Finset.mem_univ (Fin.natAdd 1 sourceIndex))
 
 /-- Every phase wire other than the declared control is untouched by the query. -/
-public theorem qpeNative_other_phase_unselected {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage index : Fin phaseWidth)
+public lemma qpeNative_other_phase_unselected {phaseWidth : Nat} (systemWidth : Nat) (stage
+  index : Fin phaseWidth)
     (different : index ≠ stage.rev) :
-    Fin.castAdd systemWidth index ∉ (queryApplication unitary stage).embedding.selection := by
+    Fin.castAdd systemWidth index ∉ (queryApplication systemWidth stage).embedding.selection := by
   intro selected
   obtain ⟨argument, _, same⟩ := Finset.mem_map.mp selected
   revert same
@@ -68,15 +68,15 @@ public theorem qpeNative_other_phase_unselected {phaseWidth systemWidth : Nat}
     omega
 
 /-- Equal original phase labels give equal complete complements, regardless of source values. -/
-public theorem qpeNative_query_complement_same_phase {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
+public lemma qpeNative_query_complement_same_phase {phaseWidth : Nat} (systemWidth : Nat)
+  (stage : Fin phaseWidth)
     (phase : Fin (2 ^ phaseWidth)) (leftSource rightSource : Fin (2 ^ systemWidth)) :
-    ((queryApplication unitary stage).basisEquiv (pairBasis phase leftSource)).2 =
-      ((queryApplication unitary stage).basisEquiv (pairBasis phase rightSource)).2 := by
+    ((queryApplication systemWidth stage).basisEquiv (pairBasis phase leftSource)).2 =
+      ((queryApplication systemWidth stage).basisEquiv (pairBasis phase rightSource)).2 := by
   funext position
   rw [OracleModel.Application.oracleApplication_complement_value,
     OracleModel.Application.oracleApplication_complement_value]
-  obtain ⟨index, same⟩ := qpeNative_complement_phase_position unitary stage position.val
+  obtain ⟨index, same⟩ := qpeNative_complement_phase_position systemWidth stage position.val
     (Finset.mem_compl.mp position.property)
   apply Fin.ext
   have left := congrArg Fin.val (BinaryBasis.bigEndianEquiv_prod_left
@@ -87,15 +87,15 @@ public theorem qpeNative_query_complement_same_phase {phaseWidth systemWidth : N
   exact left.trans right.symm
 
 /-- The control and full complementary phase values determine the original entire phase label. -/
-public theorem qpeNative_control_complement_phase_eq {phaseWidth systemWidth : Nat}
-    (unitary : UnitaryOperator (Qubits systemWidth)) (stage : Fin phaseWidth)
+public lemma qpeNative_control_complement_phase_eq {phaseWidth : Nat} (systemWidth : Nat)
+  (stage : Fin phaseWidth)
     (leftPhase rightPhase : Fin (2 ^ phaseWidth))
     (leftSource rightSource : Fin (2 ^ systemWidth))
     (control : finTwoEquiv.symm (leftPhase.val.testBit stage.val) =
       finTwoEquiv.symm (rightPhase.val.testBit stage.val))
     (complement :
-      ((queryApplication unitary stage).basisEquiv (pairBasis leftPhase leftSource)).2 =
-        ((queryApplication unitary stage).basisEquiv (pairBasis rightPhase rightSource)).2) :
+      ((queryApplication systemWidth stage).basisEquiv (pairBasis leftPhase leftSource)).2 =
+        ((queryApplication systemWidth stage).basisEquiv (pairBasis rightPhase rightSource)).2) :
     leftPhase = rightPhase := by
   apply (QuantumSignature.qubitsIndexEquiv phaseWidth).symm.injective
   funext index
@@ -105,9 +105,9 @@ public theorem qpeNative_control_complement_phase_eq {phaseWidth systemWidth : N
       (BinaryBasis.bigEndianEquiv phaseWidth).symm rightPhase stage.rev
     simpa only [BinaryBasis.bigEndianEquiv_symm_value, Fin.rev_rev] using control
   · let position : QuantumLayout.SelectedPosition
-        (queryApplication unitary stage).embedding.selectionᶜ :=
+        (queryApplication systemWidth stage).embedding.selectionᶜ :=
       ⟨Fin.castAdd systemWidth index,
-        Finset.mem_compl.mpr (qpeNative_other_phase_unselected unitary stage index selected)⟩
+        Finset.mem_compl.mpr (qpeNative_other_phase_unselected systemWidth stage index selected)⟩
     have actual := congrFun complement position
     rw [OracleModel.Application.oracleApplication_complement_value,
       OracleModel.Application.oracleApplication_complement_value] at actual

@@ -18,7 +18,7 @@ remain in the domain; no signed-range or runtime-state premise is imposed.
 
 namespace QuantumAlg.Nat.FixedWidth
 
-public theorem lowMultiplySubtract_intModEq (width target coefficient source : Nat) :
+public lemma lowMultiplySubtract_intModEq (width target coefficient source : Nat) :
     Int.ModEq (2 ^ width : Nat)
       (((target + 2 ^ width - (coefficient * source) % 2 ^ width) % 2 ^ width : Nat) : Int)
       ((target : Int) - (coefficient : Int) * (source : Int)) := by

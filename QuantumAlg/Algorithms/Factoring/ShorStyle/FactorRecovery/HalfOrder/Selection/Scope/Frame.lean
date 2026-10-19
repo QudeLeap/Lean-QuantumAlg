@@ -27,7 +27,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
 
-private theorem frame_free (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+private lemma frame_free (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) :
     NativeHalfFactor.FrameFree (cells ctx N) (liftWrite output) (liftInput other) := by
   constructor
@@ -44,7 +44,7 @@ private theorem frame_free (output : CWriteRef ctx (.option (.unsignedWord (modu
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem body_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma body_read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys)
     (store : Store (context ctx N)) :
@@ -59,7 +59,7 @@ private theorem body_read_other (halfPower : CInputRef ctx (.unsignedWord (modul
           (initialized_read_original (model := model) other store))
 
 /-- After actual release, only the declared output can change in the original classical frame. -/
-theorem read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma read_other (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
     (step (model := model) halfPower output store).1.read other = store.read other :=

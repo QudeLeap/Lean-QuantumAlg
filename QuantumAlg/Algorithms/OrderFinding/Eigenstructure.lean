@@ -95,27 +95,27 @@ def cycleEigenstateVec (r k : ℕ) : HilbertVector (cycleRegister r) :=
   WithLp.toLp 2 fun j : Fin r => modularEigenCoefficient r k j.val
 
 @[simp]
-theorem modularEigenphase_eq (r k : ℕ) :
+lemma modularEigenphase_eq (r k : ℕ) :
     modularEigenphase r k =
       Complex.exp (2 * Real.pi * ((k : ℝ) / r) * Complex.I) :=
   rfl
 
 @[simp]
-theorem modularEigenCoefficient_eq (r k j : ℕ) :
+lemma modularEigenCoefficient_eq (r k j : ℕ) :
     modularEigenCoefficient r k j =
       (Real.sqrt (r : ℝ))⁻¹ *
         Complex.exp (-(2 * Real.pi * ((k : ℝ) * j / r)) * Complex.I) :=
   rfl
 
 @[simp]
-theorem cycleEigenstateVec_apply (r k : ℕ) (j : Fin r) :
+lemma cycleEigenstateVec_apply (r k : ℕ) (j : Fin r) :
     cycleEigenstateVec r k j = modularEigenCoefficient r k j.val :=
   rfl
 
 /-- The Fourier eigenvector is normalized whenever the cycle length is
 positive. The raw vector remains total at `r = 0`; this theorem is the
 certification boundary for physical eigenstates. -/
-theorem cycleEigenstateVec_norm_eq_one (r k : ℕ) (hr : 0 < r) :
+lemma cycleEigenstateVec_norm_eq_one (r k : ℕ) (hr : 0 < r) :
     ‖cycleEigenstateVec r k‖ = 1 := by
   rw [EuclideanSpace.norm_eq]
   have hcoefficient (j : Fin r) :
@@ -148,7 +148,7 @@ public noncomputable def cycleEigenstate (r k : ℕ) (hr : 0 < r) :
     (cycleEigenstateVec_norm_eq_one r k hr)
 
 @[simp]
-theorem cycleEigenstate_coe (r k : ℕ) (hr : 0 < r) :
+lemma cycleEigenstate_coe (r k : ℕ) (hr : 0 < r) :
     (cycleEigenstate r k hr : HilbertVector (cycleRegister r)) =
       cycleEigenstateVec r k :=
   rfl
@@ -162,18 +162,18 @@ def cyclePred (r : ℕ) (j : Fin r) : Fin r :=
   else
     ⟨j.val - 1, lt_of_le_of_lt (Nat.sub_le _ _) j.isLt⟩
 
-theorem cyclePred_val (r : ℕ) (j : Fin r) :
+lemma cyclePred_val (r : ℕ) (j : Fin r) :
     (cyclePred r j).val = if j.val = 0 then r - 1 else j.val - 1 := by
   unfold cyclePred
   split <;> rfl
 
 @[simp]
-theorem cyclePred_val_zero {r : ℕ} (j : Fin r) (h : j.val = 0) :
+lemma cyclePred_val_zero {r : ℕ} (j : Fin r) (h : j.val = 0) :
     (cyclePred r j).val = r - 1 := by
   rw [cyclePred_val, if_pos h]
 
 @[simp]
-theorem cyclePred_val_nonzero {r : ℕ} (j : Fin r) (h : j.val ≠ 0) :
+lemma cyclePred_val_nonzero {r : ℕ} (j : Fin r) (h : j.val ≠ 0) :
     (cyclePred r j).val = j.val - 1 := by
   rw [cyclePred_val, if_neg h]
 
@@ -184,24 +184,24 @@ public def cycleSucc (r : ℕ) (j : Fin r) : Fin r :=
   else
     ⟨0, lt_of_le_of_lt (Nat.zero_le _) j.isLt⟩
 
-theorem cycleSucc_val (r : ℕ) (j : Fin r) :
+lemma cycleSucc_val (r : ℕ) (j : Fin r) :
     (cycleSucc r j).val = if j.val + 1 < r then j.val + 1 else 0 := by
   unfold cycleSucc
   split <;> rfl
 
 @[simp]
-theorem cycleSucc_val_of_lt {r : ℕ} (j : Fin r) (h : j.val + 1 < r) :
+lemma cycleSucc_val_of_lt {r : ℕ} (j : Fin r) (h : j.val + 1 < r) :
     (cycleSucc r j).val = j.val + 1 := by
   rw [cycleSucc_val, if_pos h]
 
 @[simp]
-theorem cycleSucc_val_of_wrap {r : ℕ} (j : Fin r) (h : ¬ j.val + 1 < r) :
+lemma cycleSucc_val_of_wrap {r : ℕ} (j : Fin r) (h : ¬ j.val + 1 < r) :
     (cycleSucc r j).val = 0 := by
   rw [cycleSucc_val, if_neg h]
 
 /-- Moving to the predecessor and then forward returns the original cycle
 coordinate. -/
-theorem cycleSucc_cyclePred {r : ℕ} (j : Fin r) :
+lemma cycleSucc_cyclePred {r : ℕ} (j : Fin r) :
     cycleSucc r (cyclePred r j) = j := by
   apply Fin.ext
   by_cases hzero : j.val = 0
@@ -220,12 +220,12 @@ def cycleForwardShiftVec (r : ℕ) (ψ : HilbertVector (cycleRegister r)) :
   WithLp.toLp 2 fun j : Fin r => ψ (cyclePred r j)
 
 @[simp]
-theorem cycleForwardShiftVec_apply (r : ℕ) (ψ : HilbertVector (cycleRegister r))
+lemma cycleForwardShiftVec_apply (r : ℕ) (ψ : HilbertVector (cycleRegister r))
     (j : Fin r) :
     cycleForwardShiftVec r ψ j = ψ (cyclePred r j) :=
   rfl
 
-theorem modularEigenCoefficient_cyclePred (r k : ℕ) (hr : 0 < r) (j : Fin r) :
+lemma modularEigenCoefficient_cyclePred (r k : ℕ) (hr : 0 < r) (j : Fin r) :
     modularEigenCoefficient r k (cyclePred r j).val =
       modularEigenphase r k * modularEigenCoefficient r k j.val := by
   rw [modularEigenCoefficient, modularEigenCoefficient, modularEigenphase]
@@ -259,7 +259,7 @@ theorem modularEigenCoefficient_cyclePred (r k : ℕ) (hr : 0 < r) (j : Fin r) :
     rw [hangle, Complex.exp_add]
     ring
 
-theorem cycleForwardShiftVec_eigenstateVec (r k : ℕ) (hr : 0 < r) :
+lemma cycleForwardShiftVec_eigenstateVec (r k : ℕ) (hr : 0 < r) :
     cycleForwardShiftVec r (cycleEigenstateVec r k) =
       modularEigenphase r k • cycleEigenstateVec r k := by
   apply WithLp.ofLp_injective
@@ -276,7 +276,7 @@ theorem cycleForwardShiftVec_eigenstateVec (r k : ℕ) (hr : 0 < r) :
 def cyclePhaseRoot (r : ℕ) (j : Fin r) : ℂ :=
   Complex.exp (2 * (Real.pi : ℂ) * Complex.I * (j.val : ℂ) / (r : ℂ))
 
-theorem cyclePhaseRoot_pow_card (r : ℕ) (hr : 0 < r) (j : Fin r) :
+lemma cyclePhaseRoot_pow_card (r : ℕ) (hr : 0 < r) (j : Fin r) :
     cyclePhaseRoot r j ^ r = 1 := by
   have hrC : (r : ℂ) ≠ 0 := by exact_mod_cast hr.ne'
   rw [cyclePhaseRoot, ← Complex.exp_nat_mul]
@@ -288,7 +288,7 @@ theorem cyclePhaseRoot_pow_card (r : ℕ) (hr : 0 < r) (j : Fin r) :
   simpa [mul_assoc, mul_comm, mul_left_comm] using
     Complex.exp_nat_mul_two_pi_mul_I j.val
 
-theorem cyclePhaseRoot_ne_one_of_nonzero (r : ℕ) (hr : 0 < r)
+lemma cyclePhaseRoot_ne_one_of_nonzero (r : ℕ) (hr : 0 < r)
     (j : Fin r) (hj : j.val ≠ 0) :
     cyclePhaseRoot r j ≠ 1 := by
   intro hroot
@@ -307,17 +307,17 @@ theorem cyclePhaseRoot_ne_one_of_nonzero (r : ℕ) (hr : 0 < r)
     exact not_le_of_gt j.isLt this
   exact hj (by simp [hm, hm0])
 
-theorem cyclePhaseRoot_inv_ne_one_of_nonzero (r : ℕ) (hr : 0 < r)
+lemma cyclePhaseRoot_inv_ne_one_of_nonzero (r : ℕ) (hr : 0 < r)
     (j : Fin r) (hj : j.val ≠ 0) :
     (cyclePhaseRoot r j)⁻¹ ≠ 1 := by
   intro hinv
   exact cyclePhaseRoot_ne_one_of_nonzero r hr j hj (inv_eq_one.mp hinv)
 
-theorem cyclePhaseRoot_inv_pow_card (r : ℕ) (hr : 0 < r) (j : Fin r) :
+lemma cyclePhaseRoot_inv_pow_card (r : ℕ) (hr : 0 < r) (j : Fin r) :
     (cyclePhaseRoot r j)⁻¹ ^ r = 1 := by
   rw [inv_pow, cyclePhaseRoot_pow_card r hr j, inv_one]
 
-theorem cyclePhaseRoot_inv_pow_eq_coefficient_phase
+lemma cyclePhaseRoot_inv_pow_eq_coefficient_phase
     (r : ℕ) (_hr : 0 < r) (j k : Fin r) :
     (cyclePhaseRoot r j)⁻¹ ^ k.val =
       Complex.exp (-(2 * Real.pi * ((k.val : ℝ) * j.val / r)) * Complex.I) := by
@@ -331,7 +331,7 @@ theorem cyclePhaseRoot_inv_pow_eq_coefficient_phase
   push_cast
   ring_nf
 
-theorem sum_cyclePhaseRoot_inv_pow (r : ℕ) (hr : 0 < r) (j : Fin r) :
+lemma sum_cyclePhaseRoot_inv_pow (r : ℕ) (hr : 0 < r) (j : Fin r) :
     ∑ k : Fin r, (cyclePhaseRoot r j)⁻¹ ^ k.val =
       if j.val = 0 then (r : ℂ) else 0 := by
   by_cases hj : j.val = 0
@@ -350,7 +350,7 @@ theorem sum_cyclePhaseRoot_inv_pow (r : ℕ) (hr : 0 < r) (j : Fin r) :
       cyclePhaseRoot_inv_pow_card r hr j
     rw [geom_sum_eq hne, hpow, sub_self, zero_div]
 
-theorem sum_modularEigenCoefficient_over_modes (r : ℕ) (hr : 0 < r) (j : Fin r) :
+lemma sum_modularEigenCoefficient_over_modes (r : ℕ) (hr : 0 < r) (j : Fin r) :
     ∑ k : Fin r, modularEigenCoefficient r k.val j.val =
       if j.val = 0 then (Real.sqrt (r : ℝ) : ℂ) else 0 := by
   calc
@@ -374,7 +374,7 @@ theorem sum_modularEigenCoefficient_over_modes (r : ℕ) (hr : 0 < r) (j : Fin r
 
 /-- The first cycle basis state is the uniform average of all Fourier
 eigenvectors. -/
-theorem cycleBasisZero_eq_eigenstate_average (r : ℕ) (hr : 0 < r) :
+lemma cycleBasisZero_eq_eigenstate_average (r : ℕ) (hr : 0 < r) :
     (NormalizedVector.ket (R := cycleRegister r) ⟨0, hr⟩ : HilbertVector (cycleRegister r)) =
       (Real.sqrt (r : ℝ))⁻¹ • ∑ k : Fin r, cycleEigenstateVec r k := by
   apply WithLp.ofLp_injective
@@ -417,12 +417,12 @@ def residueMultiplicationPerm {N : ℕ} (u : (ZMod N)ˣ) : Equiv.Perm (ZMod N) w
   right_inv x := by simp
 
 @[simp]
-theorem residueMultiplicationPerm_apply {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
+lemma residueMultiplicationPerm_apply {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
     residueMultiplicationPerm u x = (u : ZMod N) * x :=
   rfl
 
 @[simp]
-theorem residueMultiplicationPerm_symm_apply {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
+lemma residueMultiplicationPerm_symm_apply {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
     (residueMultiplicationPerm u).symm x =
       ((u⁻¹ : (ZMod N)ˣ) : ZMod N) * x :=
   rfl
@@ -436,7 +436,7 @@ public noncomputable def residueMultiplicationOp {N : ℕ} [NeZero N]
 
 /-- Intrinsically normalized basis action of the residue multiplication
 operator. -/
-theorem residueMultiplicationOp_apply_ket {N : ℕ} [NeZero N]
+lemma residueMultiplicationOp_apply_ket {N : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (x : ZMod N) :
     (residueMultiplicationOp u).apply
         (NormalizedVector.ket (R := residueRegister N) x) =
@@ -444,7 +444,7 @@ theorem residueMultiplicationOp_apply_ket {N : ℕ} [NeZero N]
   rw [residueMultiplicationOp, UnitaryOperator.ofPerm_apply_ket]
   rfl
 
-theorem residueMultiplicationOp_applyVec {N : ℕ} [NeZero N]
+lemma residueMultiplicationOp_applyVec {N : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (ψ : HilbertVector (residueRegister N)) (x : ZMod N) :
     (residueMultiplicationOp u).applyVec ψ x =
       ψ (((u⁻¹ : (ZMod N)ˣ) : ZMod N) * x) := by
@@ -456,7 +456,7 @@ public def residueOrbitLabel {N r : ℕ} (u : (ZMod N)ˣ) (j : Fin r) : ZMod N :
   (u ^ j.val : (ZMod N)ˣ)
 
 /-- Residue-register orbit labels are injective over one order cycle. -/
-theorem residueOrbitLabel_injective_of_order {N r : ℕ}
+lemma residueOrbitLabel_injective_of_order {N r : ℕ}
     (u : (ZMod N)ˣ) (horder : orderOf u = r) :
     Function.Injective (residueOrbitLabel (N := N) u : Fin r → ZMod N) := by
   intro i j h
@@ -481,7 +481,7 @@ noncomputable def residueOrbitLiftVec {N r : ℕ} [NeZero N]
 
 /-- On generated residue-orbit labels, the residue lift recovers the original
 cycle-coordinate amplitude. -/
-theorem residueOrbitLiftVec_apply_orbit {N r : ℕ} [NeZero N]
+lemma residueOrbitLiftVec_apply_orbit {N r : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (horder : orderOf u = r)
     (ψ : HilbertVector (cycleRegister r)) (j : Fin r) :
     residueOrbitLiftVec u ψ (residueOrbitLabel u j) = ψ j := by
@@ -501,7 +501,7 @@ theorem residueOrbitLiftVec_apply_orbit {N r : ℕ} [NeZero N]
     simp [hlabel]
 
 /-- The residue lift is zero away from the generated residue orbit. -/
-theorem residueOrbitLiftVec_apply_not_mem_orbit {N r : ℕ} [NeZero N]
+lemma residueOrbitLiftVec_apply_not_mem_orbit {N r : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (ψ : HilbertVector (cycleRegister r)) {x : ZMod N}
     (hnot :
       x ∉ (Finset.univ : Finset (Fin r)).image (residueOrbitLabel u)) :
@@ -519,7 +519,7 @@ theorem residueOrbitLiftVec_apply_not_mem_orbit {N r : ℕ} [NeZero N]
 
 /-- Lifting along one injectively labelled order cycle preserves the Hilbert
 space norm. -/
-theorem residueOrbitLiftVec_norm_eq {N r : ℕ} [NeZero N]
+lemma residueOrbitLiftVec_norm_eq {N r : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (horder : orderOf u = r)
     (ψ : HilbertVector (cycleRegister r)) :
     ‖residueOrbitLiftVec u ψ‖ = ‖ψ‖ := by
@@ -553,7 +553,7 @@ public noncomputable def residueEigenstate {N r : ℕ} [NeZero N]
       (cycleEigenstateVec_norm_eq_one r k hr))
 
 @[simp]
-theorem residueEigenstate_coe {N r : ℕ} [NeZero N]
+lemma residueEigenstate_coe {N r : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (k : ℕ)
     (hr : 0 < r) (horder : orderOf u = r) :
     (residueEigenstate u k hr horder : HilbertVector (residueRegister N)) =
@@ -562,7 +562,7 @@ theorem residueEigenstate_coe {N r : ℕ} [NeZero N]
 
 /-- Multiplication by the generating unit advances the residue-orbit label by
 one cycle coordinate. -/
-theorem residueMultiplication_residueOrbitLabel_cycleSucc {N r : ℕ}
+lemma residueMultiplication_residueOrbitLabel_cycleSucc {N r : ℕ}
     (u : (ZMod N)ˣ) (horder : orderOf u = r) (j : Fin r) :
     (u : ZMod N) * residueOrbitLabel u j =
       residueOrbitLabel u (cycleSucc r j) := by
@@ -580,7 +580,7 @@ theorem residueMultiplication_residueOrbitLabel_cycleSucc {N r : ℕ}
 
 /-- Multiplication by the inverse unit preserves the complement of the
 residue orbit. -/
-theorem residueMultiplication_inv_notMem_residueOrbitLabel_image_of_notMem
+lemma residueMultiplication_inv_notMem_residueOrbitLabel_image_of_notMem
     {N r : ℕ} (u : (ZMod N)ˣ) (horder : orderOf u = r) {x : ZMod N}
     (hnot : x ∉ (Finset.univ : Finset (Fin r)).image (residueOrbitLabel u)) :
     ((u⁻¹ : (ZMod N)ˣ) : ZMod N) * x ∉
@@ -599,7 +599,7 @@ theorem residueMultiplication_inv_notMem_residueOrbitLabel_image_of_notMem
 
 /-- Multiplication by the inverse generating unit moves one step backward on
 the public residue orbit. -/
-theorem residueMultiplication_inv_residueOrbitLabel_cyclePred {N r : ℕ}
+lemma residueMultiplication_inv_residueOrbitLabel_cyclePred {N r : ℕ}
     (u : (ZMod N)ˣ) (horder : orderOf u = r) (j : Fin r) :
     ((u⁻¹ : (ZMod N)ˣ) : ZMod N) * residueOrbitLabel u j =
       residueOrbitLabel u (cyclePred r j) := by
@@ -618,7 +618,7 @@ theorem residueMultiplication_inv_residueOrbitLabel_cyclePred {N r : ℕ}
       simp
 
 /-- Orbit-local residue-register eigenvalue calculation. -/
-theorem residueMultiplicationOp_applyVec_residueOrbitLiftEigenstateVec_orbit
+lemma residueMultiplicationOp_applyVec_residueOrbitLiftEigenstateVec_orbit
     {N r k : ℕ} [NeZero N] (u : (ZMod N)ˣ)
     (hr : 0 < r) (horder : orderOf u = r) (j : Fin r) :
     (residueMultiplicationOp u).applyVec
@@ -639,7 +639,7 @@ theorem residueMultiplicationOp_applyVec_residueOrbitLiftEigenstateVec_orbit
   exact modularEigenCoefficient_cyclePred r k hr j
 
 /-- Full residue-register lifted eigenvector relation. -/
-theorem residueMultiplicationOp_applyVec_residueOrbitLiftEigenstateVec
+lemma residueMultiplicationOp_applyVec_residueOrbitLiftEigenstateVec
     {N r k : ℕ} [NeZero N] (u : (ZMod N)ˣ)
     (hr : 0 < r) (horder : orderOf u = r) :
     (residueMultiplicationOp u).applyVec
@@ -669,7 +669,7 @@ theorem residueMultiplicationOp_applyVec_residueOrbitLiftEigenstateVec
 
 /-- In the public residue register, `|1>` is the uniform average of the lifted
 Fourier eigenvectors. -/
-theorem residueBasisOne_eq_lifted_eigenstate_average {N r : ℕ} [NeZero N]
+lemma residueBasisOne_eq_lifted_eigenstate_average {N r : ℕ} [NeZero N]
     (u : (ZMod N)ˣ) (hr : 0 < r) (horder : orderOf u = r) :
     (NormalizedVector.ket (R := residueRegister N) (1 : ZMod N) :
       HilbertVector (residueRegister N)) =

@@ -17,7 +17,7 @@ noncomputable section
 open EncodedBit GateSpec
 
 /-- Every bridge and child retains its original chronological position through width transport. -/
-theorem hrsOneDirtyGates_trace (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirtyGates_trace (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyGates width constant).map (event .empty) =
       (oneDirtyProgram width constant).eventTrace := by
   induction width using Nat.strong_induction_on with

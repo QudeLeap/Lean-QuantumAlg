@@ -32,7 +32,7 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
@@ -52,7 +52,7 @@ def refs {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
           (LatticeCandidateSharedWorkspaceLayout.setupRefs
             cells.core.shared transport parameter)
 
-private theorem pairSource_avoids_key {kind : ProblemKind}
+private lemma pairSource_avoids_key {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {target : StorageKey}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -93,7 +93,7 @@ private theorem pairSource_avoids_key {kind : ProblemKind}
   | zero | upperBound | modulus | generator | targetPower =>
       simp only [LatticePairCandidateRecovery.IsPairSource] at pairSource
 
-private theorem pairSource_avoids_shared {kind : ProblemKind}
+private lemma pairSource_avoids_shared {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -119,7 +119,7 @@ private theorem pairSource_avoids_shared {kind : ProblemKind}
     exact (certificates.coreNearest.shared.keysNe target
       (LatticeNearestPlaneScratchWorkspaceLayout.cellIndex N cell)).symm
 
-private theorem scanExternalAvoids {kind : ProblemKind}
+private lemma scanExternalAvoids {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -180,7 +180,7 @@ private theorem scanExternalAvoids {kind : ProblemKind}
         (LatticeCandidateSharedWorkspaceLayout.targetPowerIndex N)
         (LatticeCandidateSlotWorkspaceLayout.cellIndex N target)
 
-private theorem scanCallerFrame_of_physical {kind : ProblemKind}
+private lemma scanCallerFrame_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -218,7 +218,7 @@ private theorem scanCallerFrame_of_physical {kind : ProblemKind}
     power := fun cell _ => avoids cell
     selector := fun cell _ => avoids cell }
 
-private theorem pairPreservesParameter {kind : ProblemKind}
+private lemma pairPreservesParameter {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -250,7 +250,7 @@ private theorem pairPreservesParameter {kind : ProblemKind}
       certificates.nearestSeparated parameter
         (LatticeNearestPlaneScratchWorkspaceLayout.cellIndex N cell)
 
-private theorem pairPreservesParameterBase {kind : ProblemKind}
+private lemma pairPreservesParameterBase {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -285,7 +285,7 @@ private theorem pairPreservesParameterBase {kind : ProblemKind}
         (LatticeNearestPlaneScratchWorkspaceLayout.cellIndex N cell)
 
 /-- Avoiding every physical package supplies the full candidate caller frame. -/
-theorem callerFrame_of_physical {kind : ProblemKind}
+lemma callerFrame_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -328,7 +328,7 @@ theorem callerFrame_of_physical {kind : ProblemKind}
       (LatticeCandidateSharedWorkspaceLayout.setupIndex N cell)
 
 /-- All physical workspace certificates supply candidate recovery separation. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}

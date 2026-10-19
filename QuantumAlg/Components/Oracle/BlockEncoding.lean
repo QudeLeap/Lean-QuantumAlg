@@ -63,14 +63,14 @@ public structure ExactBlockEncoding (a n : Nat) (U : UnitaryOperator (Qubits (a 
   block_eq : ∀ i j : Fin (2 ^ n),
     projectedBlock a n (U : HilbertOperator (Qubits (a + n))) i j = A i j
 
-theorem ExactBlockEncoding.projected_block_eq {a n : Nat}
+lemma ExactBlockEncoding.projected_block_eq {a n : Nat}
     {U : UnitaryOperator (Qubits (a + n))}
     {A : HilbertOperator (Qubits n)} (h : ExactBlockEncoding a n U A) :
     projectedBlock a n (U : HilbertOperator (Qubits (a + n))) = A := by
   ext i j
   exact h.block_eq i j
 
-theorem ExactBlockEncoding.block_entry {a n : Nat}
+lemma ExactBlockEncoding.block_entry {a n : Nat}
     {U : UnitaryOperator (Qubits (a + n))}
     {A : HilbertOperator (Qubits n)} (h : ExactBlockEncoding a n U A) (i j : Fin (2 ^ n)) :
     (U : HilbertOperator (Qubits (a + n)))
@@ -78,7 +78,7 @@ theorem ExactBlockEncoding.block_entry {a n : Nat}
       = A i j :=
   h.block_eq i j
 
-theorem exactBlockEncoding_iff_projectedBlock {a n : Nat}
+lemma exactBlockEncoding_iff_projectedBlock {a n : Nat}
     {U : UnitaryOperator (Qubits (a + n))} {A : HilbertOperator (Qubits n)} :
     ExactBlockEncoding a n U A ↔
       projectedBlock a n (U : HilbertOperator (Qubits (a + n))) = A := by
@@ -88,7 +88,7 @@ theorem exactBlockEncoding_iff_projectedBlock {a n : Nat}
   · intro h
     exact ⟨by intro i j; rw [h]⟩
 
-theorem ExactBlockEncoding.toBlockEncoding {a n : Nat}
+lemma ExactBlockEncoding.toBlockEncoding {a n : Nat}
     {U : UnitaryOperator (Qubits (a + n))}
     {A : HilbertOperator (Qubits n)} (h : ExactBlockEncoding a n U A) :
     BlockEncoding 1 a n 0 U A := by
@@ -97,7 +97,7 @@ theorem ExactBlockEncoding.toBlockEncoding {a n : Nat}
 
 /-- If the projected block exactly equals `alpha⁻¹ A`, then the same carrier is
 an exact `(alpha, a, 0)` block encoding of `A`. -/
-theorem ExactBlockEncoding.toScaledBlockEncoding {α : ℝ} (halpha : 0 < α)
+lemma ExactBlockEncoding.toScaledBlockEncoding {α : ℝ} (halpha : 0 < α)
     {a n : Nat} {U : UnitaryOperator (Qubits (a + n))}
     {A : HilbertOperator (Qubits n)}
     (h : ExactBlockEncoding a n U ((α : ℂ)⁻¹ • A)) :
@@ -124,7 +124,7 @@ def lcuProj (i : Fin (2 ^ a)) : HilbertOperator (Qubits a) :=
   Matrix.of fun r c =>
     (if r = i then (1 : ℂ) else 0) * (if c = i then (1 : ℂ) else 0)
 
-private theorem lcuSelectFormula_apply
+private lemma lcuSelectFormula_apply
     (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
     (x x' : Fin (2 ^ a)) (y y' : Fin (2 ^ n)) :
     (∑ i, HilbertOperator.tensor (lcuProj i)
@@ -170,7 +170,7 @@ public def lcuSelectOp (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
     · rw [Fintype.sum_prod_type]
       simp [lcuSelectFormula_apply, hxx, eq_comm])
 
-theorem lcuSelectOp_apply (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
+lemma lcuSelectOp_apply (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
     (x x' : Fin (2 ^ a)) (y y' : Fin (2 ^ n)) :
     lcuSelectOp U (prodEquiv (x, y)) (prodEquiv (x', y'))
       = (if x = x' then U x y y' else 0) := by

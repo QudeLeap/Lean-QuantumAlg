@@ -28,6 +28,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.FoldComparisonPlacement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Exactly the four lengths and the first three source flags between Work2 and Iter. -/
 abbrev Middle (width : Nat) :=
   ((BitVec width.size × BitVec width.size) × (BitVec width.size × BitVec width.size)) ×
@@ -73,7 +75,7 @@ private def packedEquiv (width : Nat) : Registers width ≃ Packed width where
       ⟨⟨p1, p2⟩, sign⟩⟩⟩, ⟨iter, control⟩⟩⟩
     rfl
 
-private theorem packed_width (width : Nat) :
+private lemma packed_width (width : Nat) :
     (packedEncoding width).width = (encoding width).width := by
   change (width + 3) +
       (((width + 3) +
@@ -83,7 +85,7 @@ private theorem packed_width (width : Nat) :
       (((width.size + width.size) + (width.size + width.size)) + ((1 + 1) + (1 + 1) + 1))
   omega
 
-private theorem middle_width (width : Nat) :
+private lemma middle_width (width : Nat) :
     (middleEncoding width).width = 4 * width.size + 3 := by
   change ((width.size + width.size) + (width.size + width.size)) + ((1 + 1) + 1) = _
   omega
@@ -94,7 +96,7 @@ def nativePhysicalIndex (width index : Nat) : Nat :=
     (middleEncoding width).width (FoldComparisonFocus.physicalIndex (width + 3) index)
 
 /-- Every original native address agrees with the actual selected source-register coordinate. -/
-theorem nativePhysicalIndex_eq (width : Nat) (index : Fin (width + 5)) :
+lemma nativePhysicalIndex_eq (width : Nat) (index : Fin (width + 5)) :
     nativePhysicalIndex width index.val = FoldRegisters.physicalIndex width index.val := by
   have within := index.isLt
   unfold nativePhysicalIndex FoldComparisonFocus.physicalIndex
@@ -109,7 +111,7 @@ private def packedIndex (width : Nat) :
   finCongr (congrArg (fun count : Nat => 2 ^ count) (packed_width width))
 
 /-- The complete integer basis label is unchanged, including all spectator fields. -/
-private theorem packedIndex_encode (width : Nat) (state : Registers width) :
+private lemma packedIndex_encode (width : Nat) (state : Registers width) :
     packedIndex width ((packedEncoding width).encode (packedEquiv width state)) =
       (encoding width).encode state := by
   let lengthLabel := (lengthEncoding width).encode
@@ -145,7 +147,7 @@ private def rawFocus (width : Nat)
       (leftWidth := width + 3) (middleWidth := (middleEncoding width).width)
       (rightWidth := 1 + 1) body)
 
-private theorem inserted_prefix_trace (width : Nat)
+private lemma inserted_prefix_trace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical ((width + 3) + (1 + 1))).toQuantum) :
     (UnitaryCircuit.prodRight (m := width + 3)
@@ -164,13 +166,14 @@ private def rawStep {width : Nat}
   let result := action (state.2.1.1, state.2.2)
   (state.1, ((result.1, state.2.1.2), result.2))
 
-private theorem rawFocus_realizes (width : Nat)
+private lemma rawFocus_realizes (width : Nat)
     {body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum}
     {action : FoldComparisonFocus.Data (width + 3) → FoldComparisonFocus.Data (width + 3)}
-    (realizes : UnitaryCircuit.Realizes (FoldComparisonFocus.encoding (width + 3)) body
+    (realizes : UnitaryCircuit.Realizes (FoldComparisonFocus.encoding (width + 3)) body environment
       action) :
-    UnitaryCircuit.Realizes (packedEncoding width) (rawFocus width body) (rawStep action) :=
+    UnitaryCircuit.Realizes (packedEncoding width) (rawFocus width body) environment (rawStep
+      action) :=
   (realizes.onBinaryMiddle (middle := middleEncoding width)).onBinarySuffix
     (left := wordEncoding (width + 3))
 
@@ -192,13 +195,14 @@ def focusStep {width : Nat}
         (FoldRegisters.grouping width state).1)), (FoldRegisters.grouping width state).2)
 
 /-- Actual tensor insertion and exact binary regrouping preserve the full certified action. -/
-theorem placeFocus_realizes (width : Nat)
+lemma placeFocus_realizes (width : Nat)
     {body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum}
     {action : FoldComparisonFocus.Data (width + 3) → FoldComparisonFocus.Data (width + 3)}
-    (realizes : UnitaryCircuit.Realizes (FoldComparisonFocus.encoding (width + 3)) body
+    (realizes : UnitaryCircuit.Realizes (FoldComparisonFocus.encoding (width + 3)) body environment
       action) :
-    UnitaryCircuit.Realizes (encoding width) (placeFocus width body) (focusStep action) where
+    UnitaryCircuit.Realizes (encoding width) (placeFocus width body) environment (focusStep
+      action) where
   apply_encoded_ket := by
     intro state
     let input := packedEquiv width state
@@ -233,17 +237,17 @@ theorem placeFocus_realizes (width : Nat)
         (by simpa only [packedIndex, UnitaryCircuit.castQubitWidthIndex] using
           packedIndex_encode width (focusStep action state))
     calc
-      _ = (placeFocus width body).applyNormalized
+      _ = (placeFocus width body).applyNormalized environment
           (packed_width width ▸ NormalizedVector.ket
             ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
               ((packedEncoding width).encode input))) :=
-        congrArg (placeFocus width body).applyNormalized inputCast.symm
-      _ = packed_width width ▸ (rawFocus width body).applyNormalized
+        congrArg ((placeFocus width body).applyNormalized environment) inputCast.symm
+      _ = packed_width width ▸ (rawFocus width body).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
               ((packedEncoding width).encode input))) :=
         UnitaryCircuit.castCanonicalQubitWidth_applyNormalized
-          (packed_width width) (rawFocus width body) _
+          (packed_width width) (rawFocus width body) _ environment
       _ = packed_width width ▸ NormalizedVector.ket
           ((QubitLayout.canonical (packedEncoding width).width).basisEquiv.symm
             ((packedEncoding width).encode output)) := congrArg (fun vector =>
@@ -251,7 +255,7 @@ theorem placeFocus_realizes (width : Nat)
       _ = _ := outputCast
 
 /-- Spectator tensor insertion and regrouping retain every actual native event in order. -/
-theorem placeFocus_eventTrace (width : Nat)
+lemma placeFocus_eventTrace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (FoldComparisonFocus.encoding (width + 3)).width).toQuantum) :
     (placeFocus width body).eventTrace = body.eventTrace := by
@@ -266,8 +270,8 @@ def program (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
   placeFocus width (FoldComparisonFocus.program (width + 3) pivot)
 
 /-- Only Iter changes, by comparison with the actual Work2 value; every spectator is retained. -/
-theorem program_realizes (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
-    UnitaryCircuit.Realizes (encoding width) (program width pivot)
+lemma program_realizes (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
+    UnitaryCircuit.Realizes (encoding width) (program width pivot) environment
       (FoldRegisters.comparisonStep width pivot.val) :=
   (placeFocus_realizes width (FoldComparisonFocus.program_realizes (width + 3) pivot)).congrStep
     (by
@@ -276,7 +280,7 @@ theorem program_realizes (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
       rfl)
 
 /-- Every actual native event is retained; adding untouched fields adds no arithmetic event. -/
-theorem program_eventTrace (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
+lemma program_eventTrace (width : Nat) (pivot : Fin (2 ^ (width + 3) + 1)) :
     (program width pivot).eventTrace =
       (Addition.Gidney.comparisonProgram (width + 3) pivot).eventTrace :=
   (placeFocus_eventTrace width (FoldComparisonFocus.program (width + 3) pivot)).trans

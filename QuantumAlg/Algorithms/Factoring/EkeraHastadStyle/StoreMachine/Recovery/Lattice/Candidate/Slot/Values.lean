@@ -40,7 +40,7 @@ def slotCheckedOption {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
       (store.read refs.powerMatches).toBool then some (store.read refs.candidate).toNat else none
 
 /-- An actual first-success outcome is exactly the original pure retain-first update. -/
-theorem selectedOption_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma selectedOption_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} (eligible : CInputRef ctx .bit) (candidate : CInputRef ctx (.unsignedWord width))
     (refs : ClassicalRoutines.FirstAccepted.Direct.Refs ctx width) (before after : Store ctx)
     (holds : ClassicalRoutines.FirstAccepted.Direct.Outcome eligible candidate refs before after) :
@@ -53,7 +53,7 @@ theorem selectedOption_of_outcome {kind : ProblemKind} {ctx : RuntimeCtx kind}
       simp [RSA.retainFirstShortLogCandidate]
 
 /-- An actual conjunction-selector outcome feeds the original three-check candidate option. -/
-theorem candidateSelectorOutcome_selectedOption {model : ExecutionModel}
+lemma candidateSelectorOutcome_selectedOption {model : ExecutionModel}
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (refs : LatticeCandidateSelector.Refs ctx width)
     (before after : Store ctx) (holds : LatticeCandidateSelector.Outcome refs before after) :
@@ -72,7 +72,7 @@ theorem candidateSelectorOutcome_selectedOption {model : ExecutionModel}
       simp [RSA.retainFirstShortLogCandidate]
 
 /-- The actual executed selector retains exactly the first source-checked candidate. -/
-theorem candidateSelectorInto_selectedOption {model : ExecutionModel}
+lemma candidateSelectorInto_selectedOption {model : ExecutionModel}
     [BitWord.Selected model] {ctx : RuntimeCtx model.kind} {width : Nat}
     (refs : LatticeCandidateSelector.Refs ctx width)
     (separation : LatticeCandidateSelector.Separation refs) (store : Store ctx) :
@@ -83,7 +83,7 @@ theorem candidateSelectorInto_selectedOption {model : ExecutionModel}
     (LatticeCandidateSelector.candidateSelectorInto_correct refs separation store)
 
 /-- Three exact machine checks decode to the source candidate option. -/
-theorem slotCheckedOption_eq_shortLogCandidateAtOffset {N : Nat} (m ell : Nat)
+lemma slotCheckedOption_eq_shortLogCandidateAtOffset {N : Nat} (m ell : Nat)
     (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3) {kind : ProblemKind}
@@ -119,7 +119,7 @@ theorem slotCheckedOption_eq_shortLogCandidateAtOffset {N : Nat} (m ell : Nat)
           simp_all [slotCheckedOption]
 
 /-- A range-accepted actual exponent outcome exposes the source integer's natural value. -/
-theorem candidateExponentOutcome_toNat_of_inRange {model : ExecutionModel}
+lemma candidateExponentOutcome_toNat_of_inRange {model : ExecutionModel}
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (refs : LatticeCandidateExponent.Refs ctx width) (exponentBits : Nat)
     (before after : Store ctx)
@@ -147,7 +147,7 @@ theorem candidateExponentOutcome_toNat_of_inRange {model : ExecutionModel}
 power machine receives the exponent classifier's natural magnitude.  Outside
 the strict exponent interval the selector rejects before that distinction can
 matter. -/
-theorem slotCheckedOption_eq_shortLogCandidateAtOffset_of_natAbsPower
+lemma slotCheckedOption_eq_shortLogCandidateAtOffset_of_natAbsPower
     {N : Nat} (m ell : Nat) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (offset : NumberTheory.IntegerPoint3) {kind : ProblemKind}

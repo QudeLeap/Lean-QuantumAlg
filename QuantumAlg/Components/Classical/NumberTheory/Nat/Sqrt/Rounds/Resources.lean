@@ -20,7 +20,8 @@ open scoped BigOperators
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {inputWidth : Nat}
 
 /-- The independent chronological instruction list of the finite refinement chain. -/
@@ -29,14 +30,14 @@ def roundsTrace (inputWidth remaining : Nat) : List (Resource.Event model) :=
     inputWidth))).flatten
 
 /-- Each recorded branch vector emits the same original six-operation round sequence. -/
-theorem roundsInto_events (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_events (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) :
     (roundsInto (model := model) refs remaining).eventTrace path = roundsTrace inputWidth
       remaining := by
   simp only [roundsInto, Circuit.eventTrace, IntegerSqrt.roundInto_events,
     List.ofFn_const, roundsTrace]
 
-private theorem roundsTrace_pool (inputWidth remaining : Nat) :
+private lemma roundsTrace_pool (inputWidth remaining : Nat) :
     ResourcePool.ofList (roundsTrace (model := model) inputWidth remaining) =
       ResourcePool.scale remaining
         (ResourcePool.ofList (IntegerSqrt.roundTrace (model := model) (workWidth inputWidth))) := by
@@ -48,7 +49,7 @@ private theorem roundsTrace_pool (inputWidth remaining : Nat) :
         inductionHypothesis, ResourcePool.scale_succ]
 
 /-- The actual loop has exactly the independently scaled original native coordinates. -/
-theorem roundsInto_resourcePool (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_resourcePool (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) :
     (roundsInto (model := model) refs remaining).resourcePool path = ResourcePool.scale remaining
       (ResourcePool.ofList (IntegerSqrt.roundTrace (model := model) (workWidth inputWidth))) := by
@@ -56,14 +57,14 @@ theorem roundsInto_resourcePool (refs : Refs ctx inputWidth) (remaining : Nat)
   rw [roundsInto_events, roundsTrace_pool]
 
 /-- Six dependent native instructions are charged for every actual refinement round. -/
-theorem roundsInto_eventCount (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_eventCount (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) :
     ((roundsInto (model := model) refs remaining).eventTrace path).length = remaining * 6 := by
   rw [roundsInto_events]
   simp [roundsTrace, IntegerSqrt.roundTrace]
 
 /-- The actual iteration retains the dependency between all six instructions of every round. -/
-theorem roundsInto_depth (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_depth (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) :
     (roundsInto (model := model) refs remaining).depth (fun _ => 1) path = remaining * 6 := by
   change (DepthExpr.depthEval (fun _ => 1)
@@ -76,7 +77,7 @@ theorem roundsInto_depth (refs : Refs ctx inputWidth) (remaining : Nat)
   simp [IntegerSqrt.roundInto_depth]
 
 /-- The original context is the only context visited by the finite refinement loop. -/
-theorem roundsInto_visited (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_visited (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (roundsInto (model := model) refs remaining).visitedContexts path) :
       visited = ctx := by
@@ -92,7 +93,7 @@ theorem roundsInto_visited (refs : Refs ctx inputWidth) (remaining : Nat)
       or_false, or_self] using visitedMember
 
 /-- Every actual loop path retains all original resident storage. -/
-theorem roundsInto_resident_le (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_resident_le (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) :
     (roundsInto (model := model) refs remaining).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -100,7 +101,7 @@ theorem roundsInto_resident_le (refs : Refs ctx inputWidth) (remaining : Nat)
   rw [roundsInto_visited refs remaining path visited present]
 
 /-- Every actual loop path retains the original auxiliary roles. -/
-theorem roundsInto_auxiliary_le (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_auxiliary_le (refs : Refs ctx inputWidth) (remaining : Nat)
     (path : (roundsInto (model := model) refs remaining).Path) :
     (roundsInto (model := model) refs remaining).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -108,12 +109,13 @@ theorem roundsInto_auxiliary_le (refs : Refs ctx inputWidth) (remaining : Nat)
   rw [roundsInto_visited refs remaining path visited present]
 
 /-- Iterating actual rounds restores the complete borrowed state and external correlations. -/
-theorem roundsInto_borrowedRestored (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_borrowedRestored (refs : Refs ctx inputWidth) (remaining : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (roundsInto (model := model) refs remaining).BorrowedRestored Reference state
-      ((roundsInto (model := model) refs remaining).execute Reference state) :=
-  Circuit.borrowedRestored_iterate (IntegerSqrt.roundInto (model := model) (wideInput refs)
+      ((roundsInto (model := model) refs remaining).execute environment Reference state) :=
+  Circuit.borrowedRestored_iterate
+    (environment := environment) (IntegerSqrt.roundInto (model := model) (wideInput refs)
     refs.round) Reference
     (IntegerSqrt.roundInto_borrowedRestored (wideInput refs) refs.round Reference) remaining state
 

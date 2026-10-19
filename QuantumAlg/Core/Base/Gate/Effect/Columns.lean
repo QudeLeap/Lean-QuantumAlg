@@ -22,7 +22,7 @@ namespace QuantumAlg.Effect
 
 noncomputable section
 
-private theorem operator_finite_sum {R : Register} (operator : HilbertOperator R)
+private lemma operator_finite_sum {R : Register} (operator : HilbertOperator R)
     {Index : Type} (indices : Finset Index) (vectors : Index → HilbertVector R) :
     operator.applyVec (∑ index ∈ indices, vectors index) =
       ∑ index ∈ indices, operator.applyVec (vectors index) := by
@@ -36,7 +36,7 @@ private theorem operator_finite_sum {R : Register} (operator : HilbertOperator R
   | @insert index indices absent induction =>
       simp only [Finset.sum_insert absent, HilbertOperator.applyVec_add, induction]
 
-private theorem inner_ket_column {R : Register} (operator : HilbertOperator R)
+private lemma inner_ket_column {R : Register} (operator : HilbertOperator R)
     (left right : R.Index) :
     inner ℂ (NormalizedVector.ket left : HilbertVector R)
       (operator.applyVec (NormalizedVector.ket right : HilbertVector R)) =
@@ -46,7 +46,7 @@ private theorem inner_ket_column {R : Register} (operator : HilbertOperator R)
     NormalizedVector.ket_apply, HilbertOperator.applyVec_ket]
   simp
 
-private theorem coherent_inner_columns {R : Register} (operator : HilbertOperator R)
+private lemma coherent_inner_columns {R : Register} (operator : HilbertOperator R)
     {Index : Type} (indices : Finset Index) (labels : Index → R.Index)
     (amplitude : Index → ℂ) :
     inner ℂ (∑ index ∈ indices,
@@ -67,7 +67,7 @@ private theorem coherent_inner_columns {R : Register} (operator : HilbertOperato
   ring
 
 /-- Matching every selected matrix entry preserves the entire coherent subnormalized weight. -/
-theorem weight_eq_of_coherent_columns {R S : Register} {Index : Type}
+lemma weight_eq_of_coherent_columns {R S : Register} {Index : Type}
     (indices : Finset Index) (amplitude : Index → ℂ)
     (leftLabel : Index → R.Index) (rightLabel : Index → S.Index)
     (leftEffect : Effect R) (rightEffect : Effect S)

@@ -25,7 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {inputWidth : Nat}
 
 /-- Execute the specified finite number of actual binary-refinement rounds. -/
@@ -42,11 +43,11 @@ def roundsStep (refs : Refs ctx inputWidth) (remaining : Nat) (store : Store ctx
       (advance^[index.val] store)).2)
 
 /-- Zero refinement rounds preserve the complete input store. -/
-theorem roundsStep_zero_store (refs : Refs ctx inputWidth) (store : Store ctx) :
+lemma roundsStep_zero_store (refs : Refs ctx inputWidth) (store : Store ctx) :
     (roundsStep (model := model) refs 0 store).1 = store := rfl
 
 /-- One successor iteration executes its actual head round before the remaining rounds. -/
-theorem roundsStep_succ_store (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsStep_succ_store (refs : Refs ctx inputWidth) (remaining : Nat)
     (store : Store ctx) :
     (roundsStep (model := model) refs (remaining + 1) store).1 =
       (roundsStep (model := model) refs remaining (IntegerSqrt.roundStep (model := model)
@@ -54,10 +55,10 @@ theorem roundsStep_succ_store (refs : Refs ctx inputWidth) (remaining : Nat)
   Function.iterate_succ_apply _ _ _
 
 /-- The finite actual loop preserves all incoming histories and quantum-reference blocks. -/
-theorem roundsInto_execute (refs : Refs ctx inputWidth) (remaining : Nat)
+lemma roundsInto_execute (refs : Refs ctx inputWidth) (remaining : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (roundsInto (model := model) refs remaining).execute Reference state =
+    (roundsInto (model := model) refs remaining).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := roundsStep (model := model) refs remaining entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -73,7 +74,7 @@ theorem roundsInto_execute (refs : Refs ctx inputWidth) (remaining : Nat)
     | succ count ih =>
         rw [Function.iterate_succ_apply, Function.iterate_succ_apply]
         exact ih (nativeStep store).1
-  refine (Circuit.execute_iterate_mapClassical
+  refine (Circuit.execute_iterate_mapClassical (environment := environment)
     (IntegerSqrt.roundInto (model := model) (wideInput refs) refs.round) jointStep
     (fun reference _history _ current =>
       IntegerSqrt.roundInto_execute (wideInput refs) refs.round reference current)

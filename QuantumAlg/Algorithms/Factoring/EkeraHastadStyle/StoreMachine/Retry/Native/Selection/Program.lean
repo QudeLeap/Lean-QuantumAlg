@@ -26,6 +26,9 @@ open ClassicalRoutines.FirstAccepted.Direct
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {source : RuntimeCtx .quantum} {N length : Nat}
@@ -40,18 +43,19 @@ def body (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.O
 def bodyStep (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (before : Store (context source N) × RuntimeRound.model.HiddenState) :
     (Store (context source N) × RuntimeRound.model.HiddenState) × (body inputs).Path :=
-  Optional.Allocation.step (model := RuntimeRound.model)
+  Optional.Allocation.step (environment := environment) (model := RuntimeRound.model)
     (fun index => liftInput source N (inputs index)) (resultRef source N) before
 
-private theorem body_execute
+private lemma body_execute
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context source N) Reference (RuntimeRound.model.HiddenState × History)) :
-    (body inputs).execute Reference state = state.mapClassical (fun entry =>
-      let actual := bodyStep inputs (entry.1, entry.2.1)
+    (body inputs).execute environment Reference state = state.mapClassical (fun entry =>
+      let actual := bodyStep (environment := environment) inputs (entry.1, entry.2.1)
       (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) := by
   unfold body bodyStep
-  refine (Optional.Allocation.into_execute (model := RuntimeRound.model)
+  refine (Optional.Allocation.into_execute (environment := environment)
+    (model := RuntimeRound.model)
     _ _ Reference state).trans ?_
   congr 1
 
@@ -66,19 +70,23 @@ def tail (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.O
 def step (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (before : Store source × RuntimeRound.model.HiddenState) :
     (Store (context source N) × RuntimeRound.model.HiddenState) × (tail inputs).Path :=
-  let record := bodyStep inputs (before.1.pushRetained (resultKey source)
+  let record := bodyStep (environment := environment)
+    inputs (before.1.pushRetained (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh, before.2)
   (record.1, ((), record.2))
 
 /-- Real allocation and selection map complete store/history/reference blocks. -/
-theorem tail_execute
+lemma tail_execute
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N)) :
-    Circuit.RetainedRecord (tail inputs) (step inputs) := by
+    Circuit.RetainedRecord (environment := environment)
+      (tail inputs) (step (environment := environment) inputs) := by
   intro Reference History historyFinite state
-  have equation := Circuit.execute_retain_seq_mapClassical (model := RuntimeRound.model)
+  have equation := Circuit.execute_retain_seq_mapClassical (environment := environment)
+    (model := RuntimeRound.model)
     source (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
-    (body inputs) (bodyStep inputs) (body_execute inputs) Reference state
+    (body inputs) (bodyStep (environment := environment)
+      inputs) (body_execute inputs) Reference state
   unfold tail step
   refine equation.trans ?_
   congr 1
@@ -102,7 +110,7 @@ def run (input : Input N) (count : Nat) :
     (.read (.storage (resultRef (NativeRetryChain.context base noQuantum N count) N).toCStorageRef))
 
 /-- Every old live entry and the new selected cell occurs in the complete output manifest. -/
-theorem output_listing (input : Input N) (count : Nat) :
+lemma output_listing (input : Input N) (count : Nat) :
     (run base noQuantum input count).output.listing =
       (context (NativeRetryChain.context base noQuantum N count) N).keys := rfl
 
@@ -110,28 +118,34 @@ theorem output_listing (input : Input N) (count : Nat) :
 def selectionRecord (input : Input N) (count : Nat)
     (record : (NativeRetryChain.run base noQuantum input count).Record) :
     (run base noQuantum input count).Record :=
-  let selected := step (NativeRetryChain.resultRefs base noQuantum N count)
+  let selected := step (environment := environment)
+    (NativeRetryChain.resultRefs base noQuantum N count)
     (record.1, record.2.1)
   (selected.1.1, (selected.1.2, (record.2.2.1, (record.2.2.2, selected.2))))
 
 /-- The same original chain execution feeds the complete actual selection tail. -/
-theorem code_execute (input : Input N) (count : Nat) :
-    Circuit.RetainedTailRecord (NativeRetryChain.code base noQuantum input count)
+lemma code_execute (input : Input N) (count : Nat) :
+    Circuit.RetainedTailRecord (environment := environment)
+      (NativeRetryChain.code base noQuantum input count)
       (tail (NativeRetryChain.resultRefs base noQuantum N count))
-      (step (NativeRetryChain.resultRefs base noQuantum N count)) :=
-  Circuit.RetainedRecord.after _ _ _ (tail_execute _)
+      (step (environment := environment) (NativeRetryChain.resultRefs base noQuantum N count)) :=
+  Circuit.RetainedRecord.after (environment := environment) _ _ _ (tail_execute _)
 
 /-- The actual complete run maps the chain record through the actual retained-tail record. -/
-theorem run_execute (input : Input N) (count : Nat) :
-    AlgorithmRun.RetainedRecord (NativeRetryChain.run base noQuantum input count)
-      (run base noQuantum input count) (selectionRecord base noQuantum input count) := by
+lemma run_execute (input : Input N) (count : Nat) :
+    AlgorithmRun.RetainedRecord (environment := environment)
+      (NativeRetryChain.run base noQuantum input count)
+      (run base noQuantum input count) (selectionRecord (environment := environment)
+        base noQuantum input count) := by
   unfold selectionRecord run code
-  exact AlgorithmRun.RetainedRecord.ofTail (NativeRetryChain.run base noQuantum input count)
+  exact AlgorithmRun.RetainedRecord.ofTail (environment := environment)
+    (NativeRetryChain.run base noQuantum input count)
     (tail (NativeRetryChain.resultRefs base noQuantum N count))
     (Output.all (context (NativeRetryChain.context base noQuantum N count) N)
       (.read (.storage
         (resultRef (NativeRetryChain.context base noQuantum N count) N).toCStorageRef)))
-    (step (NativeRetryChain.resultRefs base noQuantum N count)) (tail_execute _)
+    (step (environment := environment)
+      (NativeRetryChain.resultRefs base noQuantum N count)) (tail_execute _)
 
 end
 

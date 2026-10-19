@@ -24,7 +24,7 @@ def allocationBits (N : Nat) : Nat :=
   2 * LatticeBatchRecoveryWorkspaceLayout.FactorWidth N + modulusBits N + 3 +
     LatticePairRecoveryWorkspace.allocationBits N + QuadraticScratchLayout.allocationBits N
 
-private theorem batchSpaceArithmetic {kind : ProblemKind}
+private lemma batchSpaceArithmetic {kind : ProblemKind}
     (factor modulus pair quadratic : Nat) :
     ((([.unsignedWord factor, .bit, .unsignedWord factor, .bit, .bit,
       .unsignedWord modulus].map SpacePool.ofShape).sum + SpacePool.ofShape (.bits pair) +
@@ -36,7 +36,7 @@ private theorem batchSpaceArithmetic {kind : ProblemKind}
       SpacePool.ofShape, Pi.add_apply, Pi.zero_apply, CShape.bitWidth] <;> omega
 
 /-- Every actually allocated batch bit is accounted for, with no additional quantum system. -/
-theorem batchAllocationSpace_eq_bits {kind : ProblemKind} (N : Nat) :
+lemma batchAllocationSpace_eq_bits {kind : ProblemKind} (N : Nat) :
     (allocationSpace N : SpacePool kind) = SpacePool.ofShape (.bits (allocationBits N)) := by
   rw [allocationSpace, LatticePairRecoveryWorkspace.pairAllocationSpace_eq_bits,
     QuadraticScratchLayout.quadraticAllocationSpace_eq_bits]

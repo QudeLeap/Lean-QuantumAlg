@@ -51,7 +51,7 @@ public def toBool : Value .bit → Bool
 public def toFin {cardinality : ℕ+} : Value (.finite cardinality) → Fin cardinality
   | .finite value => value
 
-@[simp] theorem toFin_finite {cardinality : ℕ+} (value : Fin cardinality) :
+@[simp] lemma toFin_finite {cardinality : ℕ+} (value : Fin cardinality) :
     (Value.finite value).toFin = value := rfl
 
 /-- Natural encoding stored by one nominal unsigned word. -/
@@ -59,7 +59,7 @@ public def toNat {width : Nat} : Value (.unsignedWord width) → Nat
   | .unsignedWord value => value.val
 
 /-- The stored unsigned-word encoding is within its declared width. -/
-theorem toNat_lt {width : Nat} (value : Value (.unsignedWord width)) :
+lemma toNat_lt {width : Nat} (value : Value (.unsignedWord width)) :
     value.toNat < 2 ^ width := by
   cases value with
   | unsignedWord value => exact value.isLt
@@ -120,7 +120,7 @@ public abbrev Word (width : Nat) := Value (.unsignedWord width)
 @[expose] public def wordModulus (width : Nat) : Nat :=
   2 ^ width
 
-public theorem wordModulus_pos (width : Nat) : 0 < wordModulus width := by
+public lemma wordModulus_pos (width : Nat) : 0 < wordModulus width := by
   exact Nat.two_pow_pos width
 
 /-- Canonically truncate a natural number to one fixed-width word. -/
@@ -128,7 +128,7 @@ public theorem wordModulus_pos (width : Nat) : 0 < wordModulus width := by
   .unsignedWord
     ⟨value % wordModulus width, Nat.mod_lt value (wordModulus_pos width)⟩
 
-@[simp] theorem wordOfNat_val (width value : Nat) :
+@[simp] lemma wordOfNat_val (width value : Nat) :
     (wordOfNat width value).toNat = value % wordModulus width :=
   rfl
 
@@ -155,15 +155,15 @@ public def initialValue : (shape : CShape) → Value shape
       .ellipticCurvePoint true
         ⟨0, Nat.two_pow_pos fieldWidth⟩ ⟨0, Nat.two_pow_pos fieldWidth⟩
 
-@[simp] theorem initialValue_bit : initialValue .bit = .bit false := rfl
+@[simp] lemma initialValue_bit : initialValue .bit = .bit false := rfl
 
-@[simp] theorem initialValue_finite (cardinality : ℕ+) :
+@[simp] lemma initialValue_finite (cardinality : ℕ+) :
     initialValue (.finite cardinality) = .finite ⟨0, cardinality.pos⟩ := rfl
 
-@[simp] theorem initialValue_bits (width : Nat) :
+@[simp] lemma initialValue_bits (width : Nat) :
     initialValue (.bits width) = .bits fun _index => false := rfl
 
-@[simp] theorem initialValue_unsignedWord (width : Nat) :
+@[simp] lemma initialValue_unsignedWord (width : Nat) :
     initialValue (.unsignedWord width) = wordOfNat width 0 := rfl
 
 /-- Resize one unsigned word with truncation modulo the target word modulus. -/
@@ -220,56 +220,56 @@ def unpackUnitResidue (width : Nat)
   | .unitResidue encoding => .unsignedWord encoding
 
 /-- Product materialization preserves both components and their nesting. -/
-theorem packProduct_eq {left right : CShape}
+lemma packProduct_eq {left right : CShape}
     (input : Value (.product left right)) : packProduct input = input :=
   rfl
 
 /-- Bounded-signed packing preserves the exact raw finite encoding. -/
-theorem packBoundedSignedWord_encoding (width : Nat) (input : Word width) :
+lemma packBoundedSignedWord_encoding (width : Nat) (input : Word width) :
     (packBoundedSignedWord width input).boundedSignedEncoding.val = input.toNat := by
   cases input
   rfl
 
 /-- A false tag materializes the empty optional encoding. -/
-theorem packOption_false {payload : CShape} (value : Value payload) :
+lemma packOption_false {payload : CShape} (value : Value payload) :
     packOption (.product (.bit false) value) = .optionNone :=
   rfl
 
 /-- A true tag materializes the supplied payload. -/
-theorem packOption_true {payload : CShape} (value : Value payload) :
+lemma packOption_true {payload : CShape} (value : Value payload) :
     packOption (.product (.bit true) value) = .optionSome value :=
   rfl
 
 /-- An empty optional encoding exposes a false tag and initialized payload. -/
-theorem unpackOption_none {payload : CShape} :
+lemma unpackOption_none {payload : CShape} :
     unpackOption (.optionNone : Value (.option payload)) =
       .product (.bit false) (initialValue payload) :=
   rfl
 
 /-- A present optional encoding exposes its true tag and exact payload. -/
-theorem unpackOption_some {payload : CShape} (value : Value payload) :
+lemma unpackOption_some {payload : CShape} (value : Value payload) :
     unpackOption (.optionSome value) = .product (.bit true) value :=
   rfl
 
 /-- Packing an unpacked optional encoding returns its exact original value. -/
-theorem packOption_unpackOption {payload : CShape} (input : Value (.option payload)) :
+lemma packOption_unpackOption {payload : CShape} (input : Value (.option payload)) :
     packOption (unpackOption input) = input := by
   cases input <;> rfl
 
 /-- Unpacking a false-tagged packed value normalizes its unused payload. -/
-theorem unpackOption_packOption_false {payload : CShape} (value : Value payload) :
+lemma unpackOption_packOption_false {payload : CShape} (value : Value payload) :
     unpackOption (packOption (.product (.bit false) value)) =
       .product (.bit false) (initialValue payload) :=
   rfl
 
 /-- Unpacking a true-tagged packed value preserves its exact payload. -/
-theorem unpackOption_packOption_true {payload : CShape} (value : Value payload) :
+lemma unpackOption_packOption_true {payload : CShape} (value : Value payload) :
     unpackOption (packOption (.product (.bit true) value)) =
       .product (.bit true) value :=
   rfl
 
 /-- Unit-residue unpacking preserves the exact raw finite encoding. -/
-theorem unpackUnitResidue_toNat (width : Nat)
+lemma unpackUnitResidue_toNat (width : Nat)
     (input : Value (.unitResidue width)) :
     (unpackUnitResidue width input).toNat = input.unitResidueEncoding.val := by
   cases input
@@ -339,28 +339,28 @@ def packEllipticCurvePoint (width : Nat)
   | .product (.bit infinityTag) (.product (.unsignedWord x) (.unsignedWord y)) =>
       .ellipticCurvePoint infinityTag x y
 
-@[simp] theorem unpackEllipticCurvePoint_infinityTag (width : Nat)
+@[simp] lemma unpackEllipticCurvePoint_infinityTag (width : Nat)
     (input : Value (.ellipticCurvePoint width)) :
     (unpackEllipticCurvePoint width input).first.toBool =
       input.ellipticCurvePointInfinityTag := by
   cases input
   rfl
 
-@[simp] theorem unpackEllipticCurvePoint_x (width : Nat)
+@[simp] lemma unpackEllipticCurvePoint_x (width : Nat)
     (input : Value (.ellipticCurvePoint width)) :
     (unpackEllipticCurvePoint width input).second.first.toNat =
       input.ellipticCurvePointX.val := by
   cases input
   rfl
 
-@[simp] theorem unpackEllipticCurvePoint_y (width : Nat)
+@[simp] lemma unpackEllipticCurvePoint_y (width : Nat)
     (input : Value (.ellipticCurvePoint width)) :
     (unpackEllipticCurvePoint width input).second.second.toNat =
       input.ellipticCurvePointY.val := by
   cases input
   rfl
 
-@[simp] theorem unpackEllipticCurvePoint_packEllipticCurvePoint (width : Nat)
+@[simp] lemma unpackEllipticCurvePoint_packEllipticCurvePoint (width : Nat)
     (input : Value (.product .bit
       (.product (.unsignedWord width) (.unsignedWord width)))) :
     unpackEllipticCurvePoint width (packEllipticCurvePoint width input) = input := by
@@ -373,19 +373,19 @@ def packEllipticCurvePoint (width : Nat)
           cases y
           rfl
 
-@[simp] theorem packEllipticCurvePoint_unpackEllipticCurvePoint (width : Nat)
+@[simp] lemma packEllipticCurvePoint_unpackEllipticCurvePoint (width : Nat)
     (input : Value (.ellipticCurvePoint width)) :
     packEllipticCurvePoint width (unpackEllipticCurvePoint width input) = input := by
   cases input
   rfl
 
-@[simp] theorem unpackCanonicalResidue_packCanonicalResidue
+@[simp] lemma unpackCanonicalResidue_packCanonicalResidue
     (width : Nat) (input : Word width) :
     unpackCanonicalResidue width (packCanonicalResidue width input) = input := by
   cases input
   rfl
 
-@[simp] theorem packCanonicalResidue_unpackCanonicalResidue
+@[simp] lemma packCanonicalResidue_unpackCanonicalResidue
     (width : Nat) (input : Value (.canonicalResidue width)) :
     packCanonicalResidue width (unpackCanonicalResidue width input) = input := by
   cases input
@@ -515,7 +515,7 @@ public instance (cardinality : ℕ+) : Inhabited (ClassicalRegister cardinality)
   ⟨.finite ⟨0, cardinality.pos⟩⟩
 
 /-- Finite-register cardinality counts values, including no unused bit patterns. -/
-@[simp] public theorem card (cardinality : ℕ+) :
+@[simp] public lemma card (cardinality : ℕ+) :
     Fintype.card (ClassicalRegister cardinality) = (cardinality : Nat) := by
   simpa only [Fintype.card_fin] using Fintype.card_congr (finEquiv cardinality)
 
@@ -526,7 +526,7 @@ public def encode {cardinality : ℕ+} (value : ClassicalRegister cardinality) :
   CShape.encodeFinite cardinality value.toFin
 
 /-- No two finite classical values share their binary storage representation. -/
-public theorem encode_injective (cardinality : ℕ+) :
+public lemma encode_injective (cardinality : ℕ+) :
     Function.Injective (encode (cardinality := cardinality)) := by
   intro left right equal
   apply (finEquiv cardinality).injective
@@ -539,7 +539,7 @@ public def decode (cardinality : ℕ+)
     Option (ClassicalRegister cardinality) :=
   (CShape.decodeFinite cardinality encoding).map CShape.Value.finite
 
-@[simp] public theorem decode_encode {cardinality : ℕ+}
+@[simp] public lemma decode_encode {cardinality : ℕ+}
     (value : ClassicalRegister cardinality) :
     decode cardinality (encode value) = some value := by
   cases value with
@@ -573,14 +573,14 @@ public def eval : (opcode : BitOpcode) → opcode.inputShape.Value → opcode.ou
   | .select, .product (.bit condition) (.product whenTrue whenFalse) =>
       if condition = true then whenTrue else whenFalse
 
-@[simp] theorem inputShape_copy : inputShape .copy = .bit := rfl
-@[simp] theorem inputShape_not : inputShape .not = .bit := rfl
-@[simp] theorem inputShape_and : inputShape .and = .product .bit .bit := rfl
-@[simp] theorem inputShape_or : inputShape .or = .product .bit .bit := rfl
-@[simp] theorem inputShape_xor : inputShape .xor = .product .bit .bit := rfl
-@[simp] theorem inputShape_select :
+@[simp] lemma inputShape_copy : inputShape .copy = .bit := rfl
+@[simp] lemma inputShape_not : inputShape .not = .bit := rfl
+@[simp] lemma inputShape_and : inputShape .and = .product .bit .bit := rfl
+@[simp] lemma inputShape_or : inputShape .or = .product .bit .bit := rfl
+@[simp] lemma inputShape_xor : inputShape .xor = .product .bit .bit := rfl
+@[simp] lemma inputShape_select :
     inputShape .select = .product .bit (.product .bit .bit) := rfl
-@[simp] theorem outputShape_eq (opcode : BitOpcode) : outputShape opcode = .bit := by
+@[simp] lemma outputShape_eq (opcode : BitOpcode) : outputShape opcode = .bit := by
   cases opcode <;> rfl
 
 end Resource.BitOpcode
@@ -630,8 +630,8 @@ public def eval : (opcode : WordBinaryOpcode) → (width : Nat) →
   | .lessThan, _width, .product left right =>
       .bit (decide (left.toNat < right.toNat))
 
-@[simp] theorem outputShape_equal (width : Nat) : outputShape .equal width = .bit := rfl
-@[simp] theorem outputShape_lessThan (width : Nat) :
+@[simp] lemma outputShape_equal (width : Nat) : outputShape .equal width = .bit := rfl
+@[simp] lemma outputShape_lessThan (width : Nat) :
     outputShape .lessThan width = .bit := rfl
 
 end Resource.WordBinaryOpcode
@@ -651,7 +651,7 @@ public inductive RuntimeEntrySlot {kind : ProblemKind}
 namespace RuntimeEntrySlot
 
 /-- Erase a computational entry position to ordinary list membership. -/
-public theorem toMem {kind : ProblemKind} {target : RuntimeEntry kind}
+public lemma toMem {kind : ProblemKind} {target : RuntimeEntry kind}
     {entries : List (RuntimeEntry kind)} :
     RuntimeEntrySlot target entries → target ∈ entries
   | .here => .head _
@@ -673,7 +673,7 @@ public structure CStorageRef {kind : ProblemKind}
 namespace CStorageRef
 
 /-- The exact referenced entry occurs in the sealed runtime context. -/
-public theorem present {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+public lemma present {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     (ref : CStorageRef ctx shape) :
     RuntimeEntry.storage ref.key ref.role shape ∈ ctx.entries :=
   ref.slot.toMem
@@ -907,7 +907,7 @@ def AllRetained {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape} :
 
 /-- Lifting beneath a borrowed input preserves retained ownership of every
 leaf in the structural input. -/
-theorem allRetained_underBorrowedInput {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma allRetained_underBorrowedInput {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (inputShape : CShape) (fresh : key ∉ ctx.keys)
     (retained : input.AllRetained) :
@@ -926,7 +926,7 @@ theorem allRetained_underBorrowedInput {kind : ProblemKind} {ctx : RuntimeCtx ki
 
 /-- Lifting beneath a workspace preserves retained ownership of every leaf in
 the structural input. -/
-theorem allRetained_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma allRetained_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (workspaceShape : CShape) (fresh : key ∉ ctx.keys)
     (retained : input.AllRetained) :
@@ -945,7 +945,7 @@ theorem allRetained_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- Lifting beneath another retained cell preserves retained ownership of every
 leaf in the structural input. -/
-theorem allRetained_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma allRetained_underRetained {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (retainedShape : CShape) (fresh : key ∉ ctx.keys)
     (retained : input.AllRetained) :
@@ -1173,119 +1173,119 @@ public def outputRef {kind : ProblemKind} {input output : CShape}
   | .vectorRowXor _length _elementWidth _source _destination _ctx _input output =>
       output
 
-@[simp] theorem inputRef_wordResize {kind : ProblemKind}
+@[simp] lemma inputRef_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord targetWidth)) :
     (ClassicalOp.wordResize sourceWidth targetWidth ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_wordResize {kind : ProblemKind}
+@[simp] lemma outputRef_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unsignedWord sourceWidth))
     (output : CWriteRef ctx (.unsignedWord targetWidth)) :
     (ClassicalOp.wordResize sourceWidth targetWidth ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_packProduct {kind : ProblemKind}
+@[simp] lemma inputRef_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.product left right))
     (output : CWriteRef ctx (.product left right)) :
     (ClassicalOp.packProduct ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_packProduct {kind : ProblemKind}
+@[simp] lemma outputRef_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.product left right))
     (output : CWriteRef ctx (.product left right)) :
     (ClassicalOp.packProduct ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma inputRef_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.boundedSignedWord width)) :
     (ClassicalOp.packBoundedSignedWord width ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma outputRef_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.boundedSignedWord width)) :
     (ClassicalOp.packBoundedSignedWord width ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_packOption {kind : ProblemKind}
+@[simp] lemma inputRef_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.product .bit payload))
     (output : CWriteRef ctx (.option payload)) :
     (ClassicalOp.packOption ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_packOption {kind : ProblemKind}
+@[simp] lemma outputRef_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.product .bit payload))
     (output : CWriteRef ctx (.option payload)) :
     (ClassicalOp.packOption ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_unpackOption {kind : ProblemKind}
+@[simp] lemma inputRef_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.option payload))
     (output : CWriteRef ctx (.product .bit payload)) :
     (ClassicalOp.unpackOption ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_unpackOption {kind : ProblemKind}
+@[simp] lemma outputRef_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.option payload))
     (output : CWriteRef ctx (.product .bit payload)) :
     (ClassicalOp.unpackOption ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma inputRef_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unitResidue width))
     (output : CWriteRef ctx (.unsignedWord width)) :
     (ClassicalOp.unpackUnitResidue width ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma outputRef_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unitResidue width))
     (output : CWriteRef ctx (.unsignedWord width)) :
     (ClassicalOp.unpackUnitResidue width ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma inputRef_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.canonicalResidue width))
     (output : CWriteRef ctx (.unsignedWord width)) :
     (ClassicalOp.unpackCanonicalResidue width ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma outputRef_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.canonicalResidue width))
     (output : CWriteRef ctx (.unsignedWord width)) :
     (ClassicalOp.unpackCanonicalResidue width ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma inputRef_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.canonicalResidue width)) :
     (ClassicalOp.packCanonicalResidue width ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma outputRef_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.canonicalResidue width)) :
     (ClassicalOp.packCanonicalResidue width ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_unpackEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma inputRef_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.ellipticCurvePoint width))
     (output : CWriteRef ctx
@@ -1293,7 +1293,7 @@ public def outputRef {kind : ProblemKind} {input output : CShape}
     (ClassicalOp.unpackEllipticCurvePoint width ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_unpackEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma outputRef_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx (.ellipticCurvePoint width))
     (output : CWriteRef ctx
@@ -1301,7 +1301,7 @@ public def outputRef {kind : ProblemKind} {input output : CShape}
     (ClassicalOp.unpackEllipticCurvePoint width ctx input output).outputRef = output :=
   rfl
 
-@[simp] theorem inputRef_packEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma inputRef_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -1309,7 +1309,7 @@ public def outputRef {kind : ProblemKind} {input output : CShape}
     (ClassicalOp.packEllipticCurvePoint width ctx input output).inputRef = input :=
   rfl
 
-@[simp] theorem outputRef_packEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma outputRef_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (input : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -1516,13 +1516,13 @@ def EvaluatesTo {kind : ProblemKind} {input output : CShape}
   op.eval operand = result
 
 /-- Evaluation satisfies the instruction's own closed local specification. -/
-theorem eval_correct {kind : ProblemKind} {input output : CShape}
+lemma eval_correct {kind : ProblemKind} {input output : CShape}
     {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) (operand : input.Value) :
     op.EvaluatesTo operand (op.eval operand) :=
   rfl
 
-@[simp] theorem eval_bit {kind : ProblemKind}
+@[simp] lemma eval_bit {kind : ProblemKind}
     (opcode : Resource.BitOpcode) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx opcode.inputShape)
     (outputRef : CWriteRef ctx opcode.outputShape)
@@ -1530,7 +1530,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
     (ClassicalOp.bit opcode ctx inputRef outputRef).eval operand = opcode.eval operand :=
   rfl
 
-@[simp] theorem eval_wordUnary {kind : ProblemKind}
+@[simp] lemma eval_wordUnary {kind : ProblemKind}
     (opcode : Resource.WordUnaryOpcode) (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.unsignedWord width))
@@ -1539,7 +1539,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       opcode.eval width operand :=
   rfl
 
-@[simp] theorem eval_wordBinary {kind : ProblemKind}
+@[simp] lemma eval_wordBinary {kind : ProblemKind}
     (opcode : Resource.WordBinaryOpcode) (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -1550,7 +1550,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       opcode.eval width operand :=
   rfl
 
-@[simp] theorem eval_wordResize {kind : ProblemKind}
+@[simp] lemma eval_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth))
@@ -1560,7 +1560,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.wordResize targetWidth operand :=
   rfl
 
-@[simp] theorem eval_addCarry {kind : ProblemKind}
+@[simp] lemma eval_addCarry {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -1571,7 +1571,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.addCarry width operand :=
   rfl
 
-@[simp] theorem eval_subBorrow {kind : ProblemKind}
+@[simp] lemma eval_subBorrow {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -1582,7 +1582,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.subBorrow width operand :=
   rfl
 
-@[simp] theorem eval_mulFull {kind : ProblemKind}
+@[simp] lemma eval_mulFull {kind : ProblemKind}
     (leftWidth rightWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord leftWidth) (.unsignedWord rightWidth)))
@@ -1593,7 +1593,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.mulFull leftWidth rightWidth operand :=
   rfl
 
-@[simp] theorem eval_divRem {kind : ProblemKind}
+@[simp] lemma eval_divRem {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -1605,7 +1605,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.divRem numeratorWidth divisorWidth operand :=
   rfl
 
-@[simp] theorem eval_packProduct {kind : ProblemKind}
+@[simp] lemma eval_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product left right))
     (outputRef : CWriteRef ctx (.product left right))
@@ -1614,7 +1614,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.packProduct operand :=
   rfl
 
-@[simp] theorem eval_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma eval_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.boundedSignedWord width))
@@ -1623,7 +1623,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.packBoundedSignedWord width operand :=
   rfl
 
-@[simp] theorem eval_packOption {kind : ProblemKind}
+@[simp] lemma eval_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload))
@@ -1632,7 +1632,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.packOption operand :=
   rfl
 
-@[simp] theorem eval_unpackOption {kind : ProblemKind}
+@[simp] lemma eval_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload))
@@ -1641,7 +1641,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.unpackOption operand :=
   rfl
 
-@[simp] theorem eval_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma eval_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unitResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width))
@@ -1650,7 +1650,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.unpackUnitResidue width operand :=
   rfl
 
-@[simp] theorem eval_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma eval_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.canonicalResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width))
@@ -1659,7 +1659,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.unpackCanonicalResidue width operand :=
   rfl
 
-@[simp] theorem eval_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma eval_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.canonicalResidue width))
@@ -1668,7 +1668,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.packCanonicalResidue width operand :=
   rfl
 
-@[simp] theorem eval_unpackEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma eval_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.ellipticCurvePoint width))
     (outputRef : CWriteRef ctx
@@ -1678,7 +1678,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.unpackEllipticCurvePoint width operand :=
   rfl
 
-@[simp] theorem eval_packEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma eval_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -1689,7 +1689,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.packEllipticCurvePoint width operand :=
   rfl
 
-@[simp] theorem eval_vectorRead {kind : ProblemKind}
+@[simp] lemma eval_vectorRead {kind : ProblemKind}
     (length elementWidth : Nat) (index : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.fixedVector length (.unsignedWord elementWidth)))
@@ -1700,7 +1700,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       operand = operand.get index :=
   rfl
 
-@[simp] theorem eval_vectorWrite {kind : ProblemKind}
+@[simp] lemma eval_vectorWrite {kind : ProblemKind}
     (length elementWidth : Nat) (index : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.fixedVector length (.unsignedWord elementWidth))
@@ -1716,7 +1716,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
     cases operand
     rfl
 
-@[simp] theorem eval_vectorSwap {kind : ProblemKind}
+@[simp] lemma eval_vectorSwap {kind : ProblemKind}
     (length elementWidth : Nat) (left right : Fin length)
     (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
@@ -1730,7 +1730,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.vectorSwap operand left right :=
   rfl
 
-@[simp] theorem eval_vectorRowXor {kind : ProblemKind}
+@[simp] lemma eval_vectorRowXor {kind : ProblemKind}
     (length elementWidth : Nat) (source destination : Fin length)
     (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
@@ -1744,7 +1744,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       CShape.vectorRowXor operand source destination :=
   rfl
 
-@[simp] theorem label_wordResize {kind : ProblemKind}
+@[simp] lemma label_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth)) :
@@ -1752,7 +1752,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .wordResize sourceWidth targetWidth :=
   rfl
 
-@[simp] theorem label_packProduct {kind : ProblemKind}
+@[simp] lemma label_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product left right))
     (outputRef : CWriteRef ctx (.product left right)) :
@@ -1760,7 +1760,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.packProduct left.bitWidth right.bitWidth) :=
   rfl
 
-@[simp] theorem label_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma label_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.boundedSignedWord width)) :
@@ -1768,7 +1768,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.packBoundedSignedWord width) :=
   rfl
 
-@[simp] theorem label_packOption {kind : ProblemKind}
+@[simp] lemma label_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload)) :
@@ -1776,7 +1776,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.packOption payload.bitWidth) :=
   rfl
 
-@[simp] theorem label_unpackOption {kind : ProblemKind}
+@[simp] lemma label_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload)) :
@@ -1784,7 +1784,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.unpackOption payload.bitWidth) :=
   rfl
 
-@[simp] theorem label_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma label_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unitResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -1792,7 +1792,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.unpackUnitResidue width) :=
   rfl
 
-@[simp] theorem label_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma label_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.canonicalResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -1800,7 +1800,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .residueEncoding .unpack width :=
   rfl
 
-@[simp] theorem label_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma label_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.canonicalResidue width)) :
@@ -1808,7 +1808,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .residueEncoding .pack width :=
   rfl
 
-@[simp] theorem label_unpackEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma label_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.ellipticCurvePoint width))
     (outputRef : CWriteRef ctx
@@ -1817,7 +1817,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.unpackEllipticCurvePoint width) :=
   rfl
 
-@[simp] theorem label_packEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma label_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -1826,7 +1826,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       .nominalEncoding (.packEllipticCurvePoint width) :=
   rfl
 
-@[simp] theorem flow_wordResize {kind : ProblemKind}
+@[simp] lemma flow_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth)) :
@@ -1834,14 +1834,14 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_packProduct {kind : ProblemKind}
+@[simp] lemma flow_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product left right))
     (outputRef : CWriteRef ctx (.product left right)) :
     (ClassicalOp.packProduct ctx inputRef outputRef).flow = SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma flow_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.boundedSignedWord width)) :
@@ -1849,21 +1849,21 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_packOption {kind : ProblemKind}
+@[simp] lemma flow_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload)) :
     (ClassicalOp.packOption ctx inputRef outputRef).flow = SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_unpackOption {kind : ProblemKind}
+@[simp] lemma flow_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload)) :
     (ClassicalOp.unpackOption ctx inputRef outputRef).flow = SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma flow_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unitResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -1871,7 +1871,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma flow_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.canonicalResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -1879,7 +1879,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma flow_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.canonicalResidue width)) :
@@ -1887,7 +1887,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_unpackEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma flow_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.ellipticCurvePoint width))
     (outputRef : CWriteRef ctx
@@ -1896,7 +1896,7 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
       SpaceFlow.stay ctx :=
   rfl
 
-@[simp] theorem flow_packEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma flow_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -1906,36 +1906,36 @@ theorem eval_correct {kind : ProblemKind} {input output : CShape}
   rfl
 
 /-- Every admitted atomic instruction preserves its exact live context. -/
-theorem pre_eq_post {kind : ProblemKind} {input output : CShape}
+lemma pre_eq_post {kind : ProblemKind} {input output : CShape}
     {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) : pre = post := by
   cases op <;> rfl
 
-@[simp] theorem peakResidentSpace_flow {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_flow {kind : ProblemKind}
     {input output : CShape} {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) :
     op.flow.peakResidentSpace = pre.residentSpace := by
   cases op <;> rfl
 
-@[simp] theorem peakAuxiliarySpace_flow {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_flow {kind : ProblemKind}
     {input output : CShape} {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) :
     op.flow.peakAuxiliarySpace = pre.auxiliarySpace := by
   cases op <;> rfl
 
-@[simp] theorem inputBitWidth_eq_shape {kind : ProblemKind}
+@[simp] lemma inputBitWidth_eq_shape {kind : ProblemKind}
     {input output : CShape} {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) :
     op.inputBitWidth = input.bitWidth := by
   cases op <;> rfl
 
-@[simp] theorem outputBitWidth_eq_shape {kind : ProblemKind}
+@[simp] lemma outputBitWidth_eq_shape {kind : ProblemKind}
     {input output : CShape} {pre post : RuntimeCtx kind}
     (op : ClassicalOp input output pre post) :
     op.outputBitWidth = output.bitWidth := by
   cases op <;> rfl
 
-@[simp] theorem inputBitWidth_bit {kind : ProblemKind}
+@[simp] lemma inputBitWidth_bit {kind : ProblemKind}
     (opcode : Resource.BitOpcode) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx opcode.inputShape)
     (outputRef : CWriteRef ctx opcode.outputShape) :
@@ -1943,7 +1943,7 @@ theorem pre_eq_post {kind : ProblemKind} {input output : CShape}
       opcode.inputShape.bitWidth :=
   rfl
 
-theorem outputBitWidth_bit {kind : ProblemKind}
+lemma outputBitWidth_bit {kind : ProblemKind}
     (opcode : Resource.BitOpcode) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx opcode.inputShape)
     (outputRef : CWriteRef ctx opcode.outputShape) :
@@ -1951,21 +1951,21 @@ theorem outputBitWidth_bit {kind : ProblemKind}
   by
     cases opcode <;> rfl
 
-@[simp] theorem inputBitWidth_wordUnary {kind : ProblemKind}
+@[simp] lemma inputBitWidth_wordUnary {kind : ProblemKind}
     (opcode : Resource.WordUnaryOpcode) (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
     (ClassicalOp.wordUnary opcode width ctx inputRef outputRef).inputBitWidth = width :=
   rfl
 
-@[simp] theorem outputBitWidth_wordUnary {kind : ProblemKind}
+@[simp] lemma outputBitWidth_wordUnary {kind : ProblemKind}
     (opcode : Resource.WordUnaryOpcode) (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
     (ClassicalOp.wordUnary opcode width ctx inputRef outputRef).outputBitWidth = width :=
   rfl
 
-@[simp] theorem inputBitWidth_wordBinary {kind : ProblemKind}
+@[simp] lemma inputBitWidth_wordBinary {kind : ProblemKind}
     (opcode : Resource.WordBinaryOpcode) (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -1974,7 +1974,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       width + width :=
   rfl
 
-@[simp] theorem outputBitWidth_wordBinary {kind : ProblemKind}
+@[simp] lemma outputBitWidth_wordBinary {kind : ProblemKind}
     (opcode : Resource.WordBinaryOpcode) (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -1983,7 +1983,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       (opcode.outputShape width).bitWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_wordResize {kind : ProblemKind}
+@[simp] lemma inputBitWidth_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth)) :
@@ -1991,7 +1991,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).inputBitWidth = sourceWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_wordResize {kind : ProblemKind}
+@[simp] lemma outputBitWidth_wordResize {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth)) :
@@ -1999,7 +1999,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).outputBitWidth = targetWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_addCarry {kind : ProblemKind}
+@[simp] lemma inputBitWidth_addCarry {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2007,7 +2007,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
     (ClassicalOp.addCarry width ctx inputRef outputRef).inputBitWidth = width + width :=
   rfl
 
-@[simp] theorem outputBitWidth_addCarry {kind : ProblemKind}
+@[simp] lemma outputBitWidth_addCarry {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2015,7 +2015,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
     (ClassicalOp.addCarry width ctx inputRef outputRef).outputBitWidth = width + 1 :=
   rfl
 
-@[simp] theorem inputBitWidth_subBorrow {kind : ProblemKind}
+@[simp] lemma inputBitWidth_subBorrow {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2023,7 +2023,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
     (ClassicalOp.subBorrow width ctx inputRef outputRef).inputBitWidth = width + width :=
   rfl
 
-@[simp] theorem outputBitWidth_subBorrow {kind : ProblemKind}
+@[simp] lemma outputBitWidth_subBorrow {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2031,7 +2031,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
     (ClassicalOp.subBorrow width ctx inputRef outputRef).outputBitWidth = width + 1 :=
   rfl
 
-@[simp] theorem inputBitWidth_mulFull {kind : ProblemKind}
+@[simp] lemma inputBitWidth_mulFull {kind : ProblemKind}
     (leftWidth rightWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord leftWidth) (.unsignedWord rightWidth)))
@@ -2040,7 +2040,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       leftWidth + rightWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_mulFull {kind : ProblemKind}
+@[simp] lemma outputBitWidth_mulFull {kind : ProblemKind}
     (leftWidth rightWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord leftWidth) (.unsignedWord rightWidth)))
@@ -2049,7 +2049,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       leftWidth + rightWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_divRem {kind : ProblemKind}
+@[simp] lemma inputBitWidth_divRem {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2059,7 +2059,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       numeratorWidth + divisorWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_divRem {kind : ProblemKind}
+@[simp] lemma outputBitWidth_divRem {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2069,7 +2069,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       numeratorWidth + divisorWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_packProduct {kind : ProblemKind}
+@[simp] lemma inputBitWidth_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product left right))
     (outputRef : CWriteRef ctx (.product left right)) :
@@ -2077,7 +2077,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       left.bitWidth + right.bitWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_packProduct {kind : ProblemKind}
+@[simp] lemma outputBitWidth_packProduct {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product left right))
     (outputRef : CWriteRef ctx (.product left right)) :
@@ -2085,7 +2085,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       left.bitWidth + right.bitWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma inputBitWidth_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.boundedSignedWord width)) :
@@ -2093,7 +2093,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).inputBitWidth = width :=
   rfl
 
-@[simp] theorem outputBitWidth_packBoundedSignedWord {kind : ProblemKind}
+@[simp] lemma outputBitWidth_packBoundedSignedWord {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.boundedSignedWord width)) :
@@ -2101,7 +2101,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).outputBitWidth = width :=
   rfl
 
-@[simp] theorem inputBitWidth_packOption {kind : ProblemKind}
+@[simp] lemma inputBitWidth_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload)) :
@@ -2109,7 +2109,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       1 + payload.bitWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_packOption {kind : ProblemKind}
+@[simp] lemma outputBitWidth_packOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload)) :
@@ -2117,7 +2117,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       1 + payload.bitWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_unpackOption {kind : ProblemKind}
+@[simp] lemma inputBitWidth_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload)) :
@@ -2125,7 +2125,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       1 + payload.bitWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_unpackOption {kind : ProblemKind}
+@[simp] lemma outputBitWidth_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload)) :
@@ -2133,7 +2133,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       1 + payload.bitWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma inputBitWidth_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unitResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -2141,7 +2141,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).inputBitWidth = width :=
   rfl
 
-@[simp] theorem outputBitWidth_unpackUnitResidue {kind : ProblemKind}
+@[simp] lemma outputBitWidth_unpackUnitResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unitResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -2149,7 +2149,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).outputBitWidth = width :=
   rfl
 
-@[simp] theorem inputBitWidth_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma inputBitWidth_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.canonicalResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -2157,7 +2157,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).inputBitWidth = width :=
   rfl
 
-@[simp] theorem outputBitWidth_unpackCanonicalResidue {kind : ProblemKind}
+@[simp] lemma outputBitWidth_unpackCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.canonicalResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width)) :
@@ -2165,7 +2165,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).outputBitWidth = width :=
   rfl
 
-@[simp] theorem inputBitWidth_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma inputBitWidth_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.canonicalResidue width)) :
@@ -2173,7 +2173,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).inputBitWidth = width :=
   rfl
 
-@[simp] theorem outputBitWidth_packCanonicalResidue {kind : ProblemKind}
+@[simp] lemma outputBitWidth_packCanonicalResidue {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.canonicalResidue width)) :
@@ -2181,7 +2181,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).outputBitWidth = width :=
   rfl
 
-@[simp] theorem inputBitWidth_unpackEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma inputBitWidth_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.ellipticCurvePoint width))
     (outputRef : CWriteRef ctx
@@ -2190,7 +2190,7 @@ theorem outputBitWidth_bit {kind : ProblemKind}
       outputRef).inputBitWidth = 1 + 2 * width :=
   rfl
 
-theorem outputBitWidth_unpackEllipticCurvePoint {kind : ProblemKind}
+lemma outputBitWidth_unpackEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.ellipticCurvePoint width))
     (outputRef : CWriteRef ctx
@@ -2201,7 +2201,7 @@ theorem outputBitWidth_unpackEllipticCurvePoint {kind : ProblemKind}
     change 1 + (width + width) = 1 + 2 * width
     omega
 
-theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
+lemma inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -2212,7 +2212,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
     change 1 + (width + width) = 1 + 2 * width
     omega
 
-@[simp] theorem outputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
+@[simp] lemma outputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -2221,7 +2221,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).outputBitWidth = 1 + 2 * width :=
   rfl
 
-@[simp] theorem inputBitWidth_vectorRead {kind : ProblemKind}
+@[simp] lemma inputBitWidth_vectorRead {kind : ProblemKind}
     (length elementWidth : Nat) (index : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.fixedVector length (.unsignedWord elementWidth)))
@@ -2230,7 +2230,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).inputBitWidth = length * elementWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_vectorRead {kind : ProblemKind}
+@[simp] lemma outputBitWidth_vectorRead {kind : ProblemKind}
     (length elementWidth : Nat) (index : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.fixedVector length (.unsignedWord elementWidth)))
@@ -2239,7 +2239,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).outputBitWidth = elementWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_vectorWrite {kind : ProblemKind}
+@[simp] lemma inputBitWidth_vectorWrite {kind : ProblemKind}
     (length elementWidth : Nat) (index : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.fixedVector length (.unsignedWord elementWidth))
@@ -2250,7 +2250,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).inputBitWidth = length * elementWidth + elementWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_vectorWrite {kind : ProblemKind}
+@[simp] lemma outputBitWidth_vectorWrite {kind : ProblemKind}
     (length elementWidth : Nat) (index : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.fixedVector length (.unsignedWord elementWidth))
@@ -2261,7 +2261,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).outputBitWidth = length * elementWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_vectorSwap {kind : ProblemKind}
+@[simp] lemma inputBitWidth_vectorSwap {kind : ProblemKind}
     (length elementWidth : Nat) (left right : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.fixedVector length (.unsignedWord elementWidth)))
@@ -2271,7 +2271,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).inputBitWidth = length * elementWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_vectorSwap {kind : ProblemKind}
+@[simp] lemma outputBitWidth_vectorSwap {kind : ProblemKind}
     (length elementWidth : Nat) (left right : Fin length) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.fixedVector length (.unsignedWord elementWidth)))
@@ -2281,7 +2281,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).outputBitWidth = length * elementWidth :=
   rfl
 
-@[simp] theorem inputBitWidth_vectorRowXor {kind : ProblemKind}
+@[simp] lemma inputBitWidth_vectorRowXor {kind : ProblemKind}
     (length elementWidth : Nat) (source destination : Fin length)
     (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
@@ -2292,7 +2292,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
       outputRef).inputBitWidth = length * elementWidth :=
   rfl
 
-@[simp] theorem outputBitWidth_vectorRowXor {kind : ProblemKind}
+@[simp] lemma outputBitWidth_vectorRowXor {kind : ProblemKind}
     (length elementWidth : Nat) (source destination : Fin length)
     (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
@@ -2304,7 +2304,7 @@ theorem inputBitWidth_packEllipticCurvePoint {kind : ProblemKind}
   rfl
 
 /-- Resizing has the declared modulo-two-to-the-target-width semantics. -/
-theorem eval_wordResize_toNat {kind : ProblemKind}
+lemma eval_wordResize_toNat {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth))
@@ -2314,7 +2314,7 @@ theorem eval_wordResize_toNat {kind : ProblemKind}
   rfl
 
 /-- A resize is lossless whenever the represented value fits the target width. -/
-theorem eval_wordResize_exact {kind : ProblemKind}
+lemma eval_wordResize_exact {kind : ProblemKind}
     (sourceWidth targetWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord sourceWidth))
     (outputRef : CWriteRef ctx (.unsignedWord targetWidth))
@@ -2325,7 +2325,7 @@ theorem eval_wordResize_exact {kind : ProblemKind}
   rw [eval_wordResize_toNat, Nat.mod_eq_of_lt inputFits]
 
 /-- Product packing preserves both values, their order, and all nesting. -/
-theorem eval_packProduct_eq {kind : ProblemKind}
+lemma eval_packProduct_eq {kind : ProblemKind}
     {left right : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product left right))
     (outputRef : CWriteRef ctx (.product left right))
@@ -2334,7 +2334,7 @@ theorem eval_packProduct_eq {kind : ProblemKind}
   rfl
 
 /-- Bounded-signed packing changes only the nominal shape. -/
-theorem eval_packBoundedSignedWord_encoding {kind : ProblemKind}
+lemma eval_packBoundedSignedWord_encoding {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.boundedSignedWord width))
@@ -2345,7 +2345,7 @@ theorem eval_packBoundedSignedWord_encoding {kind : ProblemKind}
   rfl
 
 /-- A false tag produces the empty optional encoding. -/
-theorem eval_packOption_false {kind : ProblemKind}
+lemma eval_packOption_false {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload))
@@ -2355,7 +2355,7 @@ theorem eval_packOption_false {kind : ProblemKind}
   rfl
 
 /-- A true tag retains the supplied optional payload exactly. -/
-theorem eval_packOption_true {kind : ProblemKind}
+lemma eval_packOption_true {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.product .bit payload))
     (outputRef : CWriteRef ctx (.option payload))
@@ -2365,7 +2365,7 @@ theorem eval_packOption_true {kind : ProblemKind}
   rfl
 
 /-- Unpacking an empty option returns a false tag and initialized payload. -/
-theorem eval_unpackOption_none {kind : ProblemKind}
+lemma eval_unpackOption_none {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload)) :
@@ -2375,7 +2375,7 @@ theorem eval_unpackOption_none {kind : ProblemKind}
   rfl
 
 /-- Unpacking a present option preserves its true tag and exact payload. -/
-theorem eval_unpackOption_some {kind : ProblemKind}
+lemma eval_unpackOption_some {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.option payload))
     (outputRef : CWriteRef ctx (.product .bit payload))
@@ -2385,7 +2385,7 @@ theorem eval_unpackOption_some {kind : ProblemKind}
   rfl
 
 /-- Repacking a typed unpacked option returns its exact original encoding. -/
-theorem eval_packOption_unpackOption {kind : ProblemKind}
+lemma eval_packOption_unpackOption {kind : ProblemKind}
     {payload : CShape} (ctx : RuntimeCtx kind)
     (unpackInput : CInputRef ctx (.option payload))
     (unpackOutput : CWriteRef ctx (.product .bit payload))
@@ -2397,7 +2397,7 @@ theorem eval_packOption_unpackOption {kind : ProblemKind}
   cases input <;> rfl
 
 /-- Unit-residue unpacking exposes exactly the stored raw word encoding. -/
-theorem eval_unpackUnitResidue_toNat {kind : ProblemKind}
+lemma eval_unpackUnitResidue_toNat {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unitResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width))
@@ -2408,7 +2408,7 @@ theorem eval_unpackUnitResidue_toNat {kind : ProblemKind}
   rfl
 
 /-- Unpacking exposes exactly the stored raw residue encoding. -/
-theorem eval_unpackCanonicalResidue_toNat {kind : ProblemKind}
+lemma eval_unpackCanonicalResidue_toNat {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.canonicalResidue width))
     (outputRef : CWriteRef ctx (.unsignedWord width))
@@ -2419,7 +2419,7 @@ theorem eval_unpackCanonicalResidue_toNat {kind : ProblemKind}
   rfl
 
 /-- Packing preserves a word's raw encoding without asserting modulus validity. -/
-theorem eval_packCanonicalResidue_encoding {kind : ProblemKind}
+lemma eval_packCanonicalResidue_encoding {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.unsignedWord width))
     (outputRef : CWriteRef ctx (.canonicalResidue width))
@@ -2430,7 +2430,7 @@ theorem eval_packCanonicalResidue_encoding {kind : ProblemKind}
   rfl
 
 /-- Point unpacking preserves the exact raw tag and coordinate encoding. -/
-theorem eval_unpackEllipticCurvePoint_roundTrip {kind : ProblemKind}
+lemma eval_unpackEllipticCurvePoint_roundTrip {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx (.ellipticCurvePoint width))
     (outputRef : CWriteRef ctx
@@ -2442,7 +2442,7 @@ theorem eval_unpackEllipticCurvePoint_roundTrip {kind : ProblemKind}
   exact CShape.packEllipticCurvePoint_unpackEllipticCurvePoint width input
 
 /-- Point packing preserves the exact raw tag and coordinate encoding. -/
-theorem eval_packEllipticCurvePoint_roundTrip {kind : ProblemKind}
+lemma eval_packEllipticCurvePoint_roundTrip {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product .bit (.product (.unsignedWord width) (.unsignedWord width))))
@@ -2454,7 +2454,7 @@ theorem eval_packEllipticCurvePoint_roundTrip {kind : ProblemKind}
         input := by
   exact CShape.unpackEllipticCurvePoint_packEllipticCurvePoint width input
 
-theorem eval_addCarry_low {kind : ProblemKind}
+lemma eval_addCarry_low {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2467,7 +2467,7 @@ theorem eval_addCarry_low {kind : ProblemKind}
     cases input
     rfl
 
-theorem eval_addCarry_flag {kind : ProblemKind}
+lemma eval_addCarry_flag {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2480,7 +2480,7 @@ theorem eval_addCarry_flag {kind : ProblemKind}
     cases input
     rfl
 
-theorem eval_subBorrow_low {kind : ProblemKind}
+lemma eval_subBorrow_low {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2493,7 +2493,7 @@ theorem eval_subBorrow_low {kind : ProblemKind}
     cases input
     rfl
 
-theorem eval_subBorrow_flag {kind : ProblemKind}
+lemma eval_subBorrow_flag {kind : ProblemKind}
     (width : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord width) (.unsignedWord width)))
@@ -2506,7 +2506,7 @@ theorem eval_subBorrow_flag {kind : ProblemKind}
     cases input
     rfl
 
-theorem eval_mulFull_val {kind : ProblemKind}
+lemma eval_mulFull_val {kind : ProblemKind}
     (leftWidth rightWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord leftWidth) (.unsignedWord rightWidth)))
@@ -2522,7 +2522,7 @@ theorem eval_mulFull_val {kind : ProblemKind}
     rfl
 
 /-- The full-width multiplication carrier is large enough for the exact product. -/
-theorem mulFull_product_lt (leftWidth rightWidth : Nat)
+lemma mulFull_product_lt (leftWidth rightWidth : Nat)
     (input : CShape.Value
       (.product (.unsignedWord leftWidth) (.unsignedWord rightWidth))) :
     input.first.toNat * input.second.toNat <
@@ -2531,7 +2531,7 @@ theorem mulFull_product_lt (leftWidth rightWidth : Nat)
   exact Nat.mul_lt_mul_of_lt_of_lt input.first.toNat_lt input.second.toNat_lt
 
 /-- Full multiplication does not truncate its mathematical product. -/
-theorem eval_mulFull_exact {kind : ProblemKind}
+lemma eval_mulFull_exact {kind : ProblemKind}
     (leftWidth rightWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord leftWidth) (.unsignedWord rightWidth)))
@@ -2542,7 +2542,7 @@ theorem eval_mulFull_exact {kind : ProblemKind}
       input).toNat = input.first.toNat * input.second.toNat := by
   rw [eval_mulFull_val, Nat.mod_eq_of_lt (mulFull_product_lt _ _ input)]
 
-theorem eval_divRem_quotient {kind : ProblemKind}
+lemma eval_divRem_quotient {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2557,7 +2557,7 @@ theorem eval_divRem_quotient {kind : ProblemKind}
     cases input
     rfl
 
-theorem eval_divRem_remainder {kind : ProblemKind}
+lemma eval_divRem_remainder {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2573,7 +2573,7 @@ theorem eval_divRem_remainder {kind : ProblemKind}
     rfl
 
 /-- The quotient encoding is exact (and in range) for every machine input. -/
-theorem eval_divRem_quotient_exact {kind : ProblemKind}
+lemma eval_divRem_quotient_exact {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2587,7 +2587,7 @@ theorem eval_divRem_quotient_exact {kind : ProblemKind}
   exact (Nat.div_le_self _ _).trans_lt input.first.toNat_lt
 
 /-- Under the public nonzero-divisor condition, the remainder encoding is exact. -/
-theorem eval_divRem_remainder_exact {kind : ProblemKind}
+lemma eval_divRem_remainder_exact {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2602,7 +2602,7 @@ theorem eval_divRem_remainder_exact {kind : ProblemKind}
   exact (Nat.mod_lt _ (Nat.pos_of_ne_zero divisor_ne_zero)).trans input.second.toNat_lt
 
 /-- Valid division results reconstruct the input numerator exactly. -/
-theorem eval_divRem_reconstruct {kind : ProblemKind}
+lemma eval_divRem_reconstruct {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))
@@ -2620,7 +2620,7 @@ theorem eval_divRem_reconstruct {kind : ProblemKind}
   simpa [Nat.mul_comm] using Nat.div_add_mod input.first.toNat input.second.toNat
 
 /-- A valid division result's remainder is strictly smaller than the divisor. -/
-theorem eval_divRem_remainder_lt {kind : ProblemKind}
+lemma eval_divRem_remainder_lt {kind : ProblemKind}
     (numeratorWidth divisorWidth : Nat) (ctx : RuntimeCtx kind)
     (inputRef : CInputRef ctx
       (.product (.unsignedWord numeratorWidth) (.unsignedWord divisorWidth)))

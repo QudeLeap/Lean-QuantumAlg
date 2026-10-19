@@ -23,7 +23,7 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The actual interleaved loop is followed by its one original final pack instruction. -/
@@ -35,18 +35,18 @@ def sampledRecoveryEnvelope (model : ExecutionModel) [BitWord.Selected model]
     ResourcePool.ofList [.classicalOperation (BitWord.selectedCoordinate (execution := model)
       (.nominalEncoding (.packOption scalarWidth)))]
 
-variable (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal) (count : Nat)
+variable (sampleCode : Circuit model ctx ctx false) (count : Nat)
     (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width))
 
 /-- Actual allocation adds no event; the same loop path is followed by one final pack. -/
-theorem sampledRecoveryTail_eventTrace
+lemma sampledRecoveryTail_eventTrace
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    (sampledRecoveryTail sampleCode supported count curve modulus sample base target).eventTrace
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    (sampledRecoveryTail sampleCode count curve modulus sample base target).eventTrace
       path =
-        (sampledAttempts sampleCode supported count curve modulus sample base target).eventTrace
+        (sampledAttempts sampleCode count curve modulus sample base target).eventTrace
           path.1.2 ++ [.classicalOperation (BitWord.selectedCoordinate (execution := model)
             (.nominalEncoding (.packOption scalarWidth)))] := by
   change ((retainPersistent ctx width scalarWidth).eventTrace path.1.1 ++ _) ++
@@ -54,12 +54,12 @@ theorem sampledRecoveryTail_eventTrace
   rw [retainPersistent_eventTrace, List.nil_append, packBatchResult_eventTrace]
 
 /-- The exact loop duration is followed by the one actual final packing dependency. -/
-theorem sampledRecoveryTail_duration (duration : Resource.Event model → Nat)
+lemma sampledRecoveryTail_duration (duration : Resource.Event model → Nat)
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    (sampledRecoveryTail sampleCode supported count curve modulus sample base target).depth
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    (sampledRecoveryTail sampleCode count curve modulus sample base target).depth
       duration path =
-        (sampledAttempts sampleCode supported count curve modulus sample base target).depth
+        (sampledAttempts sampleCode count curve modulus sample base target).depth
           duration path.1.2 +
             duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
               (.nominalEncoding (.packOption scalarWidth)))) := by
@@ -69,53 +69,53 @@ theorem sampledRecoveryTail_duration (duration : Resource.Event model → Nat)
   rfl
 
 /-- Every round's actual events and the final real pack remain in the complete native allowance. -/
-theorem sampledRecoveryTail_pool_le (sampleBudget : ResourcePool model)
+lemma sampledRecoveryTail_pool_le (sampleBudget : ResourcePool model)
     (sampleBound : ∀ path, sampleCode.resourcePool path ≤ sampleBudget)
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    (sampledRecoveryTail sampleCode supported count curve modulus sample base target).resourcePool
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    (sampledRecoveryTail sampleCode count curve modulus sample base target).resourcePool
       path ≤ sampledRecoveryEnvelope model sampleBudget curve modulus count := by
   rw [Circuit.resourcePool, sampledRecoveryTail_eventTrace, ResourcePool.ofList_append]
-  exact add_le_add (sampledAttempts_pool_le sampleCode supported curve modulus sample base target
+  exact add_le_add (sampledAttempts_pool_le sampleCode curve modulus sample base target
     count sampleBudget sampleBound path.1.2) le_rfl
 
 /-- Counting the actual budget includes all native classical instructions as well as sampling. -/
-theorem sampledRecoveryTail_eventCount_le (sampleBudget : ResourcePool model)
+lemma sampledRecoveryTail_eventCount_le (sampleBudget : ResourcePool model)
     (sampleBound : ∀ path, sampleCode.resourcePool path ≤ sampleBudget)
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    ((sampledRecoveryTail sampleCode supported count curve modulus sample base target).eventTrace
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    ((sampledRecoveryTail sampleCode count curve modulus sample base target).eventTrace
       path).length ≤
         count * (sampleBudget.card + (attemptEnvelope model curve modulus).card) + 1 := by
-  have bounded := Multiset.card_le_card (sampledRecoveryTail_pool_le sampleCode supported count
+  have bounded := Multiset.card_le_card (sampledRecoveryTail_pool_le sampleCode count
     curve modulus sample base target sampleBudget sampleBound path)
   simpa only [Circuit.resourcePool, ResourcePool.ofList, Multiset.coe_card,
     sampledRecoveryEnvelope, sampledAttemptsEnvelope, ResourcePool.scale, Multiset.card_add,
     Multiset.card_nsmul, smul_eq_mul, List.length_singleton] using bounded
 
 /-- Arbitrary durations sum across all actual rounds and the final pack, including count zero. -/
-theorem sampledRecoveryTail_depth_le (duration : Resource.Event model → Nat)
+lemma sampledRecoveryTail_depth_le (duration : Resource.Event model → Nat)
     (sampleDepth : Nat) (sampleBound : ∀ path, sampleCode.depth duration path ≤ sampleDepth)
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    (sampledRecoveryTail sampleCode supported count curve modulus sample base target).depth
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    (sampledRecoveryTail sampleCode count curve modulus sample base target).depth
       duration path ≤ count * (sampleDepth + attemptDepthLimit curve modulus duration) +
         duration (.classicalOperation (BitWord.selectedCoordinate (execution := model)
           (.nominalEncoding (.packOption scalarWidth)))) := by
   rw [sampledRecoveryTail_duration]
-  exact Nat.add_le_add (sampledAttempts_depth_le sampleCode supported curve modulus sample base
+  exact Nat.add_le_add (sampledAttempts_depth_le sampleCode curve modulus sample base
     target count duration sampleDepth sampleBound path.1.2) le_rfl
 
 /-- All original residents and all actual persistent destinations are charged once. -/
-theorem sampledRecoveryTail_resident_le
+lemma sampledRecoveryTail_resident_le
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    (sampledRecoveryTail sampleCode supported count curve modulus sample base
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    (sampledRecoveryTail sampleCode count curve modulus sample base
       target).peakResidentSpace
       path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
         persistentCellSpace model.kind width scalarWidth + ctx.residentSpace := by
   have bounded :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base
+      (sampledRecoveryTail sampleCode count curve modulus sample base
       target).peakResidentSpace
         path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
           (persistentCtx ctx width scalarWidth).residentSpace := by
@@ -123,22 +123,22 @@ theorem sampledRecoveryTail_resident_le
     · refine (Circuit.peakResidentSpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
       · rw [retainPersistent_resident]
         exact fun _ => Nat.le_add_left _ _
-      · exact (sampledAttempts_resident_le sampleCode supported curve modulus sample base target
+      · exact (sampledAttempts_resident_le sampleCode curve modulus sample base target
           count path.1.2).trans (add_le_add (SpacePool.le_max_left _ _) le_rfl)
     · exact (packBatchResult_resident ctx width scalarWidth path.2).le.trans
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)
   simpa only [persistentCtx_residentSpace, add_assoc] using bounded
 
 /-- The reused auxiliary allowance retains every original role and does not grow with count. -/
-theorem sampledRecoveryTail_auxiliary_le
+lemma sampledRecoveryTail_auxiliary_le
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    (sampledRecoveryTail sampleCode supported count curve modulus sample base
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    (sampledRecoveryTail sampleCode count curve modulus sample base
       target).peakAuxiliarySpace
       path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
         persistentCellSpace model.kind width scalarWidth + ctx.auxiliarySpace := by
   have bounded :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base
+      (sampledRecoveryTail sampleCode count curve modulus sample base
       target).peakAuxiliarySpace
         path ≤ recoveryTailScratchSpace model.kind width scalarWidth +
           (persistentCtx ctx width scalarWidth).auxiliarySpace := by
@@ -146,7 +146,7 @@ theorem sampledRecoveryTail_auxiliary_le
     · refine (Circuit.peakAuxiliarySpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
       · rw [retainPersistent_auxiliary]
         exact fun _ => Nat.le_add_left _ _
-      · exact (sampledAttempts_auxiliary_le sampleCode supported curve modulus sample base target
+      · exact (sampledAttempts_auxiliary_le sampleCode curve modulus sample base target
           count path.1.2).trans (add_le_add (SpacePool.le_max_left _ _) le_rfl)
     · exact (packBatchResult_auxiliary ctx width scalarWidth path.2).le.trans
         (add_le_add (SpacePool.le_max_right _ _) le_rfl)

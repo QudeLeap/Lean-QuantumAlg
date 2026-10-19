@@ -40,7 +40,7 @@ def inputKey : StorageKey := ⟨0⟩
 public def resultKey : StorageKey := ⟨1⟩
 
 /-- The input key is fresh for the empty classical runtime context. -/
-theorem inputFresh (_inputShape : CShape) :
+lemma inputFresh (_inputShape : CShape) :
     inputKey ∉ (RuntimeCtx.empty : RuntimeCtx .classical).keys := by
   simp [inputKey, RuntimeCtx.keys]
 
@@ -57,7 +57,7 @@ def inputRef (inputShape : CShape) : CInputRef (pre inputShape) inputShape :=
       inputKey inputShape (inputFresh inputShape))
 
 /-- The result key is distinct from the sole borrowed input key. -/
-public theorem resultFresh (inputShape : CShape) :
+public lemma resultFresh (inputShape : CShape) :
     resultKey ∉ (pre inputShape).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
@@ -98,14 +98,14 @@ def run {inputShape outputShape : CShape}
     (.read (resultRef inputShape outputShape))
 
 /-- Both live cells occur in the final manifest, in the context's actual order. -/
-theorem run_output_listing {inputShape outputShape : CShape}
+lemma run_output_listing {inputShape outputShape : CShape}
     (code : Circuit (.classical operations services)
       (pre inputShape) (post inputShape outputShape)) :
     (run code).output.listing = [resultKey, inputKey] :=
   rfl
 
 /-- The endpoint returns the value in its actual final retained cell. -/
-theorem run_result {inputShape outputShape : CShape}
+lemma run_result {inputShape outputShape : CShape}
     (code : Circuit (.classical operations services)
       (pre inputShape) (post inputShape outputShape))
     (record : (run code).Record) :
@@ -113,33 +113,37 @@ theorem run_result {inputShape outputShape : CShape}
   rfl
 
 /-- Sealing a circuit preserves its single interpreter and its full input/reference state. -/
-theorem run_execute {inputShape outputShape : CShape}
+lemma run_execute {inputShape outputShape : CShape}
     (code : Circuit (.classical operations services)
       (pre inputShape) (post inputShape outputShape))
+    (environment : (ExecutionModel.classical operations services).Environment)
     (Reference : Register)
     (state : ExecutionState (Execution.Store (pre inputShape) × services.HiddenState)
       (Register.prod (pre inputShape).register Reference)) :
-    (run code).execute Reference state =
-      code.execute Reference (state.mapClassical (fun value => (value.1, (value.2, value.1)))) :=
+    (run code).execute environment Reference state =
+      code.execute
+      environment Reference (state.mapClassical (fun value => (value.1, (value.2, value.1)))) :=
   rfl
 
 /-- Output probabilities are the actual final-store readout of this execution. -/
-theorem run_outputDistribution {inputShape outputShape : CShape}
+lemma run_outputDistribution {inputShape outputShape : CShape}
     (code : Circuit (.classical operations services)
       (pre inputShape) (post inputShape outputShape))
+    (environment : (ExecutionModel.classical operations services).Environment)
     {Reference : Register} (input : Execution.OracleInput services (pre inputShape) Reference) :
-    (run code).outputDistribution input =
-      ((run code).executionDistribution input).map
+    (run code).outputDistribution environment input =
+      ((run code).executionDistribution environment input).map
         (fun record => record.1.read (resultRef inputShape outputShape)) :=
   rfl
 
 /-- The endpoint reports exactly the events on its actual circuit path. -/
-theorem run_eventTraceDistribution {inputShape outputShape : CShape}
+lemma run_eventTraceDistribution {inputShape outputShape : CShape}
     (code : Circuit (.classical operations services)
       (pre inputShape) (post inputShape outputShape))
+    (environment : (ExecutionModel.classical operations services).Environment)
     {Reference : Register} (input : Execution.OracleInput services (pre inputShape) Reference) :
-    (run code).eventTraceDistribution input =
-      ((run code).executionDistribution input).map
+    (run code).eventTraceDistribution environment input =
+      ((run code).executionDistribution environment input).map
         (fun record => code.eventTrace record.2.2.2) :=
   rfl
 

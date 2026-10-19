@@ -24,7 +24,7 @@ open LatticeCandidateSlotOutcome (initialConditions_transport)
 
 noncomputable section
 
-private theorem natAbs_lt_wordModulus_of_signedRepresentable {width : Nat} {value : Int}
+private lemma natAbs_lt_wordModulus_of_signedRepresentable {width : Nat} {value : Int}
     (widthPositive : 0 < width)
     (fits : ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable width value) :
     value.natAbs < CShape.wordModulus width := by
@@ -54,7 +54,7 @@ private theorem natAbs_lt_wordModulus_of_signedRepresentable {width : Nat} {valu
       exact_mod_cast magnitudeAtMostHalf
     exact magnitudeAtMostHalfNat.trans_lt halfBelowFull
 
-private theorem word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word width)
+private lemma word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word width)
     (equal : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -65,7 +65,7 @@ private theorem word_eq_of_toNat_eq {width : Nat} (left right : CShape.Word widt
 
 /-- Every actual slot execution preserves its original entry data and retains exactly the first
 source-accepted candidate, with the complete actual caller frame. -/
-theorem candidateSlotInto_correct {N m ell : Nat} {model : ExecutionModel}
+lemma candidateSlotInto_correct {N m ell : Nat} {model : ExecutionModel}
     [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)

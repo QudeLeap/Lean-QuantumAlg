@@ -46,7 +46,7 @@ def compactInitialRegisters
 
 /-- Xor-loading a classical word into a clean public target changes exactly
 that target field. -/
-theorem targetConstantLoadStep_zero
+lemma targetConstantLoadStep_zero
     (n counterWidth : Nat) (base : MK.Compact.Registers n counterWidth)
     (target : Word n) :
     EncodedBit.Word.xorConstantStep
@@ -112,7 +112,7 @@ theorem targetConstantLoadStep_zero
 
 /-- The complete fixed-round ledger commutes with loading the caller-owned
 target because no round gate reads or writes those wires. -/
-theorem compactFoldStep_targetConstantLoad_comm
+lemma compactFoldStep_targetConstantLoad_comm
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (target : Word fieldTail.succ)
@@ -132,7 +132,7 @@ theorem compactFoldStep_targetConstantLoad_comm
     x
 
 /-- The compact fixed-round ledger preserves the caller-owned target word. -/
-theorem compactFoldStep_target
+lemma compactFoldStep_target
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ (counterTail + 2)) :
@@ -148,7 +148,7 @@ theorem compactFoldStep_target
 
 /-- Changing the caller-owned target in the clean compact seed changes only
 the target field of the complete forward fold. -/
-theorem compactFoldStep_initial_target_frame
+lemma compactFoldStep_initial_target_frame
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (p input target : Word fieldTail.succ) :
@@ -206,7 +206,7 @@ structure CompactCleanPrefixInvariant
       (historyBit fieldTail.succ (counterTail + 2) i).get x = false
 
 /-- The clean compact seed satisfies the zero-round invariant. -/
-theorem compactInitial_cleanPrefixInvariant
+lemma compactInitial_cleanPrefixInvariant
     (fieldTail counterTail : Nat)
     (p input target : Word fieldTail.succ)
     (hpOdd : p.val % 2 = 1) (hinput : 0 < input.val) :
@@ -235,7 +235,7 @@ theorem compactInitial_cleanPrefixInvariant
 
 /-- Every compact prefix supplies the bounded-arithmetic side conditions for
 its next active Montgomery--Kaliski round. -/
-theorem compactCleanPrefixInvariant_arithmeticCertificate
+lemma compactCleanPrefixInvariant_arithmeticCertificate
     (fieldTail counterTail : Nat)
     (p input : Word fieldTail.succ) {target : Word fieldTail.succ}
     (rounds : Nat)
@@ -288,7 +288,7 @@ theorem compactCleanPrefixInvariant_arithmeticCertificate
 
 /-- The source mode/counter invariant and exact physical counter identify the
 compact active flag with the zero-counter test required by the handoff. -/
-theorem compactCleanPrefixInvariant_mode
+lemma compactCleanPrefixInvariant_mode
     (fieldTail counterTail : Nat)
     (p input : Word fieldTail.succ) {target : Word fieldTail.succ}
     (rounds : Nat)
@@ -319,7 +319,7 @@ theorem compactCleanPrefixInvariant_mode
 
 /-- Under the canonical logarithmic counter width, every strict compact
 prefix has room for the next handoff increment without modular wraparound. -/
-theorem compactCleanPrefixInvariant_counterRoom
+lemma compactCleanPrefixInvariant_counterRoom
     (fieldTail counterTail : Nat)
     (p input : Word fieldTail.succ) {target : Word fieldTail.succ}
     (rounds : Nat)
@@ -363,7 +363,7 @@ set_option maxHeartbeats 800000 in
 -- The endpoint combines several bitwise preservation families for one round.
 /-- One nonterminated active round restores every reusable carrier component
 and preserves every stable field. -/
-theorem compactRound_activeNonzero_carrierEndpoint
+lemma compactRound_activeNonzero_carrierEndpoint
     (fieldTail counterTail modulus kaliskiSteps paddingSteps : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (historyIndex : Fin (2 * fieldTail.succ))
@@ -513,7 +513,7 @@ set_option maxHeartbeats 800000 in
 -- The source equality and carrier endpoint are normalized together here.
 /-- A nonterminated active compact round advances the clean-prefix invariant
 by exactly one source round. -/
-theorem compactRound_activeNonzero_cleanPrefixInvariant
+lemma compactRound_activeNonzero_cleanPrefixInvariant
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -636,7 +636,7 @@ set_option maxHeartbeats 800000 in
 -- The exact inactive handoff record is normalized against the source round.
 /-- A terminating or already inactive compact round advances the clean-prefix
 invariant by one padding round. -/
-theorem compactRound_inactive_cleanPrefixInvariant
+lemma compactRound_inactive_cleanPrefixInvariant
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -788,7 +788,7 @@ theorem compactRound_inactive_cleanPrefixInvariant
 
 /-- One arbitrary compact round advances the clean prefix, with the physical
 mode deciding between the active and padding lemmas above. -/
-theorem compactRound_cleanPrefixInvariant
+lemma compactRound_cleanPrefixInvariant
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -829,7 +829,7 @@ set_option maxHeartbeats 800000 in
 -- Prefix induction repeatedly composes the exact compact one-round contract.
 /-- Every bounded prefix of the literal compact ledger satisfies the clean
 physical/source invariant. -/
-theorem compactFoldPrefix_cleanInvariant
+lemma compactFoldPrefix_cleanInvariant
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -862,7 +862,7 @@ theorem compactFoldPrefix_cleanInvariant
 
 /-- The complete literal compact fold satisfies the full-length clean-prefix
 invariant. -/
-theorem compactFold_cleanPrefixInvariant
+lemma compactFold_cleanPrefixInvariant
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (hcounterWidth : counterTail + 2 =
@@ -881,7 +881,7 @@ set_option maxHeartbeats 800000 in
 -- The full trace endpoint is unfolded once after the prefix induction.
 /-- The direct compact fold reaches the exact fixed-round source state while
 restoring its one shared workspace and preserving the caller's public target. -/
-theorem compactFold_cleanEndpoint_eq_source
+lemma compactFold_cleanEndpoint_eq_source
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ)
     (hcounterWidth : counterTail + 2 =

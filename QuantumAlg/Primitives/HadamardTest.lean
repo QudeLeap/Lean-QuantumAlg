@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Primitives.HadamardTest.Basic
 public import QuantumAlg.Primitives.HadamardTest.Endpoint
+public import QuantumAlg.Primitives.HadamardTest.Endpoint.Results
 
 /-!
 # Hadamard test

@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent duration of zero/upper-bound loading and original modular setup. -/
@@ -40,7 +41,7 @@ def recoveryDepthBound (N : Nat) : Nat := prefixDepthBound N +
   LatticeCandidateScanInitialized.initializedScanDepthBound N (shortLogBits N) (tradeoffBits N)
 
 /-- Actual native accounting adds the two chronological component ledgers. -/
-theorem sharedInto_resourcePool (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_resourcePool (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).resourcePool path =
       (LatticeCandidateConstants.loadInto (shortLogBits N) refs.constants).resourcePool path.1 +
@@ -49,7 +50,7 @@ theorem sharedInto_resourcePool (input : Input N) (refs : Refs ctx N)
   exact ResourcePool.ofList_append _ _
 
 /-- Every actual path satisfies the independent complete sequential duration. -/
-theorem sharedInto_depth_le (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_depth_le (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).depth (fun _ => 1) path ≤ sharedDepthBound N :=
   Nat.add_le_add
@@ -57,7 +58,7 @@ theorem sharedInto_depth_le (input : Input N) (refs : Refs ctx N)
     (LatticeCandidateModularSetup.setupInto_depth_le input refs.setup path.2)
 
 /-- Actual native accounting adds the two chronological component ledgers. -/
-theorem pairCandidatePrefix_resourcePool (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_resourcePool (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).resourcePool path =
       (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto refs.pair).resourcePool
@@ -67,7 +68,7 @@ theorem pairCandidatePrefix_resourcePool (input : Input N) (refs : Refs ctx N)
   exact ResourcePool.ofList_append _ _
 
 /-- Every actual path satisfies the independent complete sequential duration. -/
-theorem pairCandidatePrefix_depth_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_depth_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).depth (fun _ => 1) path ≤ prefixDepthBound N :=
   Nat.add_le_add
@@ -76,7 +77,7 @@ theorem pairCandidatePrefix_depth_le (input : Input N) (refs : Refs ctx N)
     (sharedInto_depth_le input refs path.2)
 
 /-- Actual native accounting adds the two chronological component ledgers. -/
-theorem pairCandidateRecoveryInto_resourcePool (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_resourcePool (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).resourcePool path =
       (pairCandidatePrefix input refs).resourcePool path.1 +
@@ -86,7 +87,7 @@ theorem pairCandidateRecoveryInto_resourcePool (input : Input N) (refs : Refs ct
   exact ResourcePool.ofList_append _ _
 
 /-- Every actual path satisfies the independent complete sequential duration. -/
-theorem pairCandidateRecoveryInto_depth_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_depth_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).depth (fun _ => 1) path ≤ recoveryDepthBound N :=
   Nat.add_le_add
@@ -94,18 +95,18 @@ theorem pairCandidateRecoveryInto_depth_le (input : Input N) (refs : Refs ctx N)
     (LatticeCandidateScanInitialized.initializedScanInto_depth_le input refs.scan path.2)
 
 /-- Every actual stage restores the full borrowed-reference joint state. -/
-theorem sharedInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (sharedInto input refs).BorrowedRestored Reference state
-      ((sharedInto input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((sharedInto input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeCandidateConstants.loadInto_borrowedRestored (shortLogBits N)
       refs.constants Reference state)
     (LatticeCandidateModularSetup.setupInto_borrowedRestored input refs.setup Reference _)
 
 /-- Sequential scopes reuse one native-power allocation while retaining all caller storage. -/
-theorem sharedInto_resident_le (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).peakResidentSpace path ≤ ctx.residentSpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
@@ -118,7 +119,7 @@ theorem sharedInto_resident_le (input : Input N) (refs : Refs ctx N)
     (LatticeCandidateModularSetup.setupInto_resident_le input refs.setup path.2)
 
 /-- Sequential scopes reuse one native-power allocation while retaining all caller storage. -/
-theorem sharedInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
@@ -131,18 +132,18 @@ theorem sharedInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (LatticeCandidateModularSetup.setupInto_auxiliary_le input refs.setup path.2)
 
 /-- Every actual stage restores the full borrowed-reference joint state. -/
-theorem pairCandidatePrefix_borrowedRestored (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_borrowedRestored (input : Input N) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (pairCandidatePrefix input refs).BorrowedRestored Reference state
-      ((pairCandidatePrefix input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((pairCandidatePrefix input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticePairNearestPlaneSavedTarget.pairToNearestPlaneSavedTargetInto_borrowedRestored
       refs.pair Reference state)
     (sharedInto_borrowedRestored input refs Reference _)
 
 /-- Sequential scopes reuse one native-power allocation while retaining all caller storage. -/
-theorem pairCandidatePrefix_resident_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).peakResidentSpace path ≤ ctx.residentSpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
@@ -155,7 +156,7 @@ theorem pairCandidatePrefix_resident_le (input : Input N) (refs : Refs ctx N)
     (sharedInto_resident_le input refs path.2)
 
 /-- Sequential scopes reuse one native-power allocation while retaining all caller storage. -/
-theorem pairCandidatePrefix_auxiliary_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
@@ -168,18 +169,18 @@ theorem pairCandidatePrefix_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (sharedInto_auxiliary_le input refs path.2)
 
 /-- Every actual stage restores the full borrowed-reference joint state. -/
-theorem pairCandidateRecoveryInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_borrowedRestored (input : Input N) (refs : Refs ctx N)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (pairCandidateRecoveryInto input refs).BorrowedRestored Reference state
-      ((pairCandidateRecoveryInto input refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((pairCandidateRecoveryInto input refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (pairCandidatePrefix_borrowedRestored input refs Reference state)
     (LatticeCandidateScanInitialized.initializedScanInto_borrowedRestored input
       refs.scan Reference _)
 
 /-- Sequential scopes reuse one native-power allocation while retaining all caller storage. -/
-theorem pairCandidateRecoveryInto_resident_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_resident_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).peakResidentSpace path ≤ ctx.residentSpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by
@@ -191,7 +192,7 @@ theorem pairCandidateRecoveryInto_resident_le (input : Input N) (refs : Refs ctx
     (LatticeCandidateScanInitialized.initializedScanInto_resident_le input refs.scan path.2)
 
 /-- Sequential scopes reuse one native-power allocation while retaining all caller storage. -/
-theorem pairCandidateRecoveryInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_auxiliary_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
       ClassicalRoutines.Modular.NativePower.powerSpace model.kind (modulusBits N) := by

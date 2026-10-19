@@ -32,7 +32,7 @@ namespace QuantumAlg.NumberTheory.SharedEEA.SignedInvariant
 def sign (modulus : Nat) (iteration : Bool) : ZMod modulus :=
   if iteration then -1 else 1
 
-private theorem sign_flip (modulus : Nat) (iteration : Bool) :
+private lemma sign_flip (modulus : Nat) (iteration : Bool) :
     sign modulus (!iteration) = -sign modulus iteration := by
   cases iteration <;> simp [sign]
 
@@ -44,7 +44,7 @@ def Holds (modulus input : Nat) (state : IterationState) (iteration : Bool) : Pr
       -sign modulus iteration * (input : ZMod modulus) * (state.previousCoefficient : ZMod modulus)
 
 /-- The real folded value and retained fold bit establish the original-input modular relations. -/
-theorem folded_initial (modulus input : Nat) (bounded : input < modulus) :
+lemma folded_initial (modulus input : Nat) (bounded : input < modulus) :
     Holds modulus input (IterationState.initial modulus (foldInput modulus input).2)
       (foldInput modulus input).1 := by
   by_cases complemented : modulus / 2 < input
@@ -58,7 +58,7 @@ theorem folded_initial (modulus input : Nat) (bounded : input < modulus) :
     · simp [IterationState.initial, sign]
 
 /-- The exact Euclidean/coefficient update preserves both relations under the real Iter flip. -/
-theorem step (modulus input : Nat) (state : IterationState) (iteration : Bool)
+lemma step (modulus input : Nat) (state : IterationState) (iteration : Bool)
     (invariant : Holds modulus input state iteration) :
     Holds modulus input (IterationState.step state) (!iteration) := by
   have decomposition := congrArg (fun value : Nat => (value : ZMod modulus))
@@ -84,7 +84,7 @@ def output (modulus : Nat) (state : IterationState) (iteration : Bool) : Nat :=
   if iteration then state.previousCoefficient else modulus - state.previousCoefficient
 
 /-- At the true terminal gcd-one boundary, the retained source correction is an actual inverse. -/
-theorem terminal_product (modulus input : Nat) (state : IterationState) (iteration : Bool)
+lemma terminal_product (modulus input : Nat) (state : IterationState) (iteration : Bool)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (invariant : Holds modulus input state iteration)
     (finished : state.divisor = 0) (unit : state.remainder = 1) :

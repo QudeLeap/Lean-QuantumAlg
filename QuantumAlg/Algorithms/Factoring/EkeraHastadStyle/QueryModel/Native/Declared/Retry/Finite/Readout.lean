@@ -6,8 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all
-QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Finite.Repeated
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Finite.Repeated
 import all QuantumAlg.Core.Algorithm.ExecutionState.Map
 import all QuantumAlg.Core.Execution.State.Readout
 
@@ -32,24 +31,24 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private irreducible_def sealedRun (laterCount : Nat) : AlgorithmRun (model input) base
+private irreducible_def sealedRun (laterCount : Nat) : AlgorithmRun (model N) base
     (Retry.context base noQuantum N) (LatticeBatchRecoveryOutput.OutputShape N) :=
   completedRun base noQuantum N input laterCount
 
-private theorem sealedRun_code (laterCount : Nat) :
+private lemma sealedRun_code (laterCount : Nat) :
     (sealedRun base noQuantum N input laterCount).code =
       completedCode base noQuantum N input laterCount := by
   rw [sealedRun_def]
   exact completedRun_code base noQuantum N input laterCount
 
-private theorem sealedRun_output (laterCount : Nat) :
+private lemma sealedRun_output (laterCount : Nat) :
     (sealedRun base noQuantum N input laterCount).output =
       (completedRun base noQuantum N input laterCount).output := by
   rw [sealedRun_def]
 
 set_option Elab.async false in
-private theorem sealed_statePromise (laterCount : Nat) {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference)
+private lemma sealed_statePromise (laterCount : Nat) {Reference : Register}
+    (original : Execution.OracleInput (model N).classicalOracles base Reference)
     (value : (LatticeBatchRecoveryOutput.OutputShape N).Value) :
     (StatePromise.mixed
       (BasisReference.target (R := (Retry.context base noQuantum N).register)
@@ -62,10 +61,11 @@ private theorem sealed_statePromise (laterCount : Nat) {Reference : Register}
         ((ExecutionState.referenceMarginal_mass original.caller.state).trans
           original.caller.normalized))).Holds
       ((ExecutionState.mapClassical
-        ((sealedRun base noQuantum N input laterCount).finalState Reference original.state)
+        ((sealedRun base noQuantum N input laterCount).finalState (sourceEnvironment input)
+          Reference original.state)
         (sealedRun base noQuantum N input laterCount).output.eval).block value) := by
   apply AlgorithmRun.basisReference_readout_of_executionEntries
-    (sealedRun base noQuantum N input laterCount)
+    (sealedRun base noQuantum N input laterCount) (sourceEnvironment input)
     (Retry.context base noQuantum N).quantumLayout.zeroLabel
     (Optional.Distribution.selectedDistribution
       ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue)
@@ -75,21 +75,23 @@ private theorem sealed_statePromise (laterCount : Nat) {Reference : Register}
   exact completed_joint_entry base noQuantum N input laterCount
     state normalized output left right leftRef rightRef
 
-private theorem sealedReadout_eq (laterCount : Nat) {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference)
+private lemma sealedReadout_eq (laterCount : Nat) {Reference : Register}
+    (original : Execution.OracleInput (model N).classicalOracles base Reference)
     (value : (LatticeBatchRecoveryOutput.OutputShape N).Value) :
     (ExecutionState.mapClassical
-      ((sealedRun base noQuantum N input laterCount).finalState Reference original.state)
+      ((sealedRun base noQuantum N input laterCount).finalState (sourceEnvironment input)
+        Reference original.state)
       (sealedRun base noQuantum N input laterCount).output.eval).block value =
     (ExecutionState.mapClassical
-      ((completedRun base noQuantum N input laterCount).finalState Reference original.state)
+      ((completedRun base noQuantum N input laterCount).finalState (sourceEnvironment input)
+        Reference original.state)
       (completedRun base noQuantum N input laterCount).output.eval).block value := by
   rw [sealedRun_def]
 
 /-- The actual completed execution has the same full zero-bank/reference
 promise at each output as the preserved positive finite run. -/
-theorem completed_statePromise (laterCount : Nat) {Reference : Register}
-    (original : Execution.OracleInput (model input).classicalOracles base Reference)
+lemma completed_statePromise (laterCount : Nat) {Reference : Register}
+    (original : Execution.OracleInput (model N).classicalOracles base Reference)
     (value : (LatticeBatchRecoveryOutput.OutputShape N).Value) :
     (StatePromise.mixed
       (BasisReference.target (R := (Retry.context base noQuantum N).register)
@@ -102,7 +104,8 @@ theorem completed_statePromise (laterCount : Nat) {Reference : Register}
         ((ExecutionState.referenceMarginal_mass original.caller.state).trans
           original.caller.normalized))).Holds
       ((ExecutionState.mapClassical
-        ((completedRun base noQuantum N input laterCount).finalState Reference original.state)
+        ((completedRun base noQuantum N input laterCount).finalState (sourceEnvironment input)
+          Reference original.state)
         (completedRun base noQuantum N input laterCount).output.eval).block value) := by
   have canonical := sealed_statePromise base noQuantum N input laterCount original value
   rw [sealedReadout_eq base noQuantum N input laterCount original value] at canonical

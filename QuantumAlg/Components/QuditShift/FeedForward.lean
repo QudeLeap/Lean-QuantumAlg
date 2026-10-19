@@ -49,7 +49,7 @@ def resetAfterZWrite (state : ExecutionState (Store ctx) layout.register)
 
 /-- The gate selected by the stored result is exactly the negative-outcome
 operator applied to that measurement branch. -/
-theorem resetAfterZWrite_eq (state : ExecutionState (Store ctx) layout.register)
+lemma resetAfterZWrite_eq (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension)) :
     resetAfterZWrite state wire output =
@@ -60,7 +60,7 @@ theorem resetAfterZWrite_eq (state : ExecutionState (Store ctx) layout.register)
 
 /-- Exact final-store matrix entries, summing all old stores and outcomes that
 actually write that final store. Every other quantum system remains in the block. -/
-theorem resetAfterZWrite_block_entry (state : ExecutionState (Store ctx) layout.register)
+lemma resetAfterZWrite_block_entry (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension))
     (finalStore : Store ctx) (left right : layout.Basis) :
@@ -97,7 +97,7 @@ theorem resetAfterZWrite_block_entry (state : ExecutionState (Store ctx) layout.
 
 /-- Summing the classical blocks leaves zero on the selected wire and retains
 the original joint marginal of the other systems, including all coherences. -/
-theorem resetAfterZWrite_quantum_entry (state : ExecutionState (Store ctx) layout.register)
+lemma resetAfterZWrite_quantum_entry (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension))
     (left right : layout.Basis) :
@@ -119,7 +119,7 @@ theorem resetAfterZWrite_quantum_entry (state : ExecutionState (Store ctx) layou
       by_cases h : left wire = 0 ∧ right wire = 0 <;> simp [h]
 
 /-- The concrete write/read sequence preserves the complete execution mass. -/
-theorem resetAfterZWrite_mass (state : ExecutionState (Store ctx) layout.register)
+lemma resetAfterZWrite_mass (state : ExecutionState (Store ctx) layout.register)
     (wire : Fin systemCount)
     (output : CWriteRef ctx (.finite (layout.wire wire).dimension)) :
     (resetAfterZWrite state wire output).mass = state.mass := by
@@ -130,7 +130,7 @@ private def qutritQubitLayout : QuantumLayout 2 :=
 
 /-- A qutrit Z result is written to a three-valued classical register before
 the selected gate resets it, while the second physical system is a qubit. -/
-theorem qutritZWrite_reset_zero
+lemma qutritZWrite_reset_zero
     (state : ExecutionState (Store ctx) qutritQubitLayout.register)
     (output : CWriteRef ctx (.finite 3)) (left right : qutritQubitLayout.Basis)
     (nonzero : left 0 ≠ 0) :
@@ -140,7 +140,7 @@ theorem qutritZWrite_reset_zero
 
 /-- The same concrete qutrit write/read sequence retains every matrix entry
 of the reference qubit's reduced state, even for an entangled input. -/
-theorem qutritZWrite_reference_entry
+lemma qutritZWrite_reference_entry
     (state : ExecutionState (Store ctx) qutritQubitLayout.register)
     (output : CWriteRef ctx (.finite 3)) (left right : qutritQubitLayout.Basis)
     (leftZero : left 0 = 0) (rightZero : right 0 = 0) :

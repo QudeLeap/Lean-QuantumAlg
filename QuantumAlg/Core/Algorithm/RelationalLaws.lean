@@ -25,6 +25,8 @@ restoration obligations remain part of their own correctness proofs.
 
 namespace QuantumAlg.AlgorithmRun
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -33,38 +35,41 @@ variable {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
   {outputShape : CShape}
 
 /-- Exact actual block masses determine the execution distribution of a mapped record. -/
-theorem executionDistribution_eq_map_of_block_mass
-    (run : AlgorithmRun model pre post outputShape) {Reference : Register}
+lemma executionDistribution_eq_map_of_block_mass
+    (run : AlgorithmRun model pre post outputShape allowAllocation)
+    (environment : model.Environment) {Reference : Register}
     (input : Execution.OracleInput model.classicalOracles pre Reference)
     (record : Execution.Store pre × model.HiddenState → run.Record)
     (blocks : ∀ value,
-      ((run.execute Reference input.state).block value).mass =
+      ((run.execute environment Reference input.state).block value).mass =
         ((input.state.mapClassical record).block value).mass) :
-    run.executionDistribution input = (input.state.toPMF input.normalized).map record := by
+    run.executionDistribution environment input =
+      (input.state.toPMF input.normalized).map record := by
   apply PMF.ext
   intro value
-  change ENNReal.ofReal (((run.execute Reference input.state).block value).mass) = _
+  change ENNReal.ofReal (((run.execute environment Reference input.state).block value).mass) = _
   rw [blocks value]
   exact congrArg (fun distribution : PMF run.Record => distribution value)
     (ExecutionState.toPMF_mapClassical input.state input.normalized record)
 
 /-- Read the actual run's retained initial store and complete Output after mapping its records. -/
-theorem relationalDistribution_eq_map_of_block_mass
-    (run : AlgorithmRun model pre post outputShape) {Reference : Register}
+lemma relationalDistribution_eq_map_of_block_mass
+    (run : AlgorithmRun model pre post outputShape allowAllocation)
+    (environment : model.Environment) {Reference : Register}
     (input : Execution.OracleInput model.classicalOracles pre Reference)
     (record : Execution.Store pre × model.HiddenState → run.Record)
     (blocks : ∀ value,
-      ((run.execute Reference input.state).block value).mass =
+      ((run.execute environment Reference input.state).block value).mass =
         ((input.state.mapClassical record).block value).mass) :
-    run.relationalDistribution input =
+    run.relationalDistribution environment input =
       (input.state.toPMF input.normalized).map
         (fun store => ((record store).2.2.1, run.result (record store))) := by
-  change (run.executionDistribution input).map
+  change (run.executionDistribution environment input).map
     (fun value => (value.2.2.1, run.result value)) = _
   exact (congrArg
     (fun distribution : PMF run.Record =>
       distribution.map (fun value => (value.2.2.1, run.result value)))
-    (executionDistribution_eq_map_of_block_mass run input record blocks)).trans
+    (executionDistribution_eq_map_of_block_mass run environment input record blocks)).trans
       (PMF.map_comp _ _ _)
 
 end

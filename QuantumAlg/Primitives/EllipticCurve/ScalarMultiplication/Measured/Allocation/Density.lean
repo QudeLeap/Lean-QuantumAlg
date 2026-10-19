@@ -23,6 +23,8 @@ namespace MeasuredPlacement.Allocation
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute MAU.Inversion.SharedEEA
 
 /-- Reassociate the actual local assembly while keeping the complete reference unchanged. -/
@@ -55,13 +57,13 @@ def initializedDensity (modulus count : Nat) (Reference : Register)
       (initializedJointAssembly modulus count Reference)
 
 /-- The independent preparation target preserves the original full mass. -/
-theorem initializedDensity_mass (modulus count : Nat) (Reference : Register)
+lemma initializedDensity_mass (modulus count : Nat) (Reference : Register)
     (input : DensityOperator (Register.prod (before modulus.size count).register Reference)) :
     (initializedDensity modulus count Reference input).mass = input.mass := by
   rw [initializedDensity, DensityOperator.reindex_mass, prependPrepared_mass, prependPrepared_mass]
 
 /-- The mathematical target has the exact two prescribed factors and complete old coherence. -/
-theorem initializedDensity_entry (modulus count : Nat) (Reference : Register)
+lemma initializedDensity_entry (modulus count : Nat) (Reference : Register)
     (input : DensityOperator (Register.prod (before modulus.size count).register Reference))
     (selectorRow selectorColumn : (indexedLayout modulus.size count).register.Index)
     (auxiliaryRow auxiliaryColumn : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
@@ -85,10 +87,10 @@ theorem initializedDensity_entry (modulus count : Nat) (Reference : Register)
   rfl
 
 /-- Actual initialization equals the independent full-reference preparation target exactly. -/
-theorem initialize_density (modulus count : Nat) {Reference : Register} {History : Type}
+lemma initialize_density (modulus count : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (before modulus.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((initializeWork modulus count).execute Reference state).quantumMarginal =
+    ((initializeWork modulus count).execute environment Reference state).quantumMarginal =
       initializedDensity modulus count Reference state.quantumMarginal := by
   apply DensityOperator.ext
   ext row column

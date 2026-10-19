@@ -30,12 +30,15 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem source_weight (amplitude coefficient : ℂ) :
+private lemma source_weight (amplitude coefficient : ℂ) :
     amplitude * coefficient * star amplitude =
       ((‖amplitude‖ ^ 2 : ℝ) : ℂ) * coefficient := by
   calc
@@ -47,14 +50,15 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Every actual selected-state reference fiber has the conditional source Born weights. -/
-theorem shortDLP_runtimeSelected_source_fiber {shape : CShape}
+lemma shortDLP_runtimeSelected_source_fiber {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (seeded : HasSeedBlocks m ell width sameWires N state)
     (weight : Store ctx → ctx.register.Index → ℂ) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((selected m ell width sameWires parameter N generator target).execute Reference state)
+      ((selected m ell width sameWires parameter N generator target).execute
+        environment Reference state)
       (fun entry basis => weight entry.1 basis) leftRef rightRef =
         ∑ basis : ctx.register.Index, ∑ original : Store ctx, weight original basis *
           (((‖(CompiledMAU.evolvedState m ell width N
@@ -66,7 +70,8 @@ theorem shortDLP_runtimeSelected_source_fiber {shape : CShape}
               ((RuntimePlacement.basisEquiv m ell width sameWires).symm
                 (CompiledMAU.reloadLabel m ell width N), rightRef)) := by
   refine (BasisSeeded.fiber_store_blocks
-    ((selected m ell width sameWires parameter N generator target).execute Reference state)
+    ((selected m ell width sameWires parameter N generator target).execute
+      environment Reference state)
     weight leftRef rightRef).trans ?_
   apply Finset.sum_congr rfl
   intro basis _
@@ -77,7 +82,7 @@ theorem shortDLP_runtimeSelected_source_fiber {shape : CShape}
     generator target state seeded original basis basis leftRef rightRef).trans (source_weight _ _)
 
 /-- The final actual store has its source-weighted input reference fiber and the exact seed. -/
-theorem shortDLP_runtimeRound_source_store_entry {shape : CShape}
+lemma shortDLP_runtimeRound_source_store_entry {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
@@ -87,7 +92,7 @@ theorem shortDLP_runtimeRound_source_store_entry {shape : CShape}
     (finalStore : Store ctx) (left right : ctx.register.Index)
     (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((code m ell width sameWires parameter N generator target cells result).execute
+      ((code m ell width sameWires parameter N generator target cells result).execute environment
         Reference state)
       (fun entry => entry.1 = finalStore)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =

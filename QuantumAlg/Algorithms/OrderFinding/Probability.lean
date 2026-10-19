@@ -40,7 +40,7 @@ def generalOrderEigenphase (s r : ℕ) : ℝ :=
   (s : ℝ) / r
 
 @[simp]
-theorem generalOrderEigenphase_eq (s r : ℕ) :
+lemma generalOrderEigenphase_eq (s r : ℕ) :
     generalOrderEigenphase s r = (s : ℝ) / r :=
   rfl
 
@@ -55,19 +55,19 @@ general-order eigenphase `s/r`. -/
 def generalOrderPhaseRegisterDistribution (t s r : ℕ) (j : Fin (2 ^ t)) : ℝ :=
   ‖generalOrderPhaseRegisterState t s r j‖ ^ 2
 
-theorem generalOrderPhaseRegisterDistribution_nonneg (t s r : ℕ)
+lemma generalOrderPhaseRegisterDistribution_nonneg (t s r : ℕ)
     (j : Fin (2 ^ t)) :
     0 ≤ generalOrderPhaseRegisterDistribution t s r j :=
   sq_nonneg _
 
-private theorem sum_generalOrderPhaseRegisterDistribution (t s r : ℕ) :
+private lemma sum_generalOrderPhaseRegisterDistribution (t s r : ℕ) :
     ∑ j : Fin (2 ^ t), generalOrderPhaseRegisterDistribution t s r j = 1 := by
   unfold generalOrderPhaseRegisterDistribution
   rw [← EuclideanSpace.norm_sq_eq,
     (generalOrderPhaseRegisterState t s r).norm_eq_one]
   norm_num
 
-private theorem generalOrderPhaseRegisterDistribution_eq_qpe_probOutcome (t s r : ℕ)
+private lemma generalOrderPhaseRegisterDistribution_eq_qpe_probOutcome (t s r : ℕ)
     (j : Fin (2 ^ t)) :
     generalOrderPhaseRegisterDistribution t s r j =
       ‖((invQFT t).apply (phaseState t ((s : ℝ) / r))) j‖ ^ 2 := by
@@ -77,13 +77,13 @@ private theorem generalOrderPhaseRegisterDistribution_eq_qpe_probOutcome (t s r 
 def generalOrderPhaseRegisterAmplitude (t s r : ℕ) (j : Fin (2 ^ t)) : ℂ :=
   phaseRegisterGeometricAmplitude t (generalOrderEigenphase s r) j
 
-theorem generalOrderPhaseRegisterState_apply_geometricAmplitude (t s r : ℕ)
+lemma generalOrderPhaseRegisterState_apply_geometricAmplitude (t s r : ℕ)
     (j : Fin (2 ^ t)) :
     (generalOrderPhaseRegisterState t s r : HilbertVector (Qubits t)) j =
       generalOrderPhaseRegisterAmplitude t s r j := by
   exact invQFT_phaseState_apply_geometricSum t (generalOrderEigenphase s r) j
 
-private theorem generalOrderPhaseRegisterDistribution_eq_normSq_geometricAmplitude
+private lemma generalOrderPhaseRegisterDistribution_eq_normSq_geometricAmplitude
     (t s r : ℕ) (j : Fin (2 ^ t)) :
     generalOrderPhaseRegisterDistribution t s r j =
       ‖generalOrderPhaseRegisterAmplitude t s r j‖ ^ 2 := by
@@ -97,7 +97,7 @@ def IsGoodPhaseRegisterOutcome (t s r : ℕ) (j : Fin (2 ^ t)) : Prop :=
   |(j.val : ℝ) / (2 : ℝ) ^ t - generalOrderEigenphase s r| <
     1 / (2 * (r : ℝ) ^ 2)
 
-private theorem goodPhaseRegisterOutcome_error_bound {t s r : ℕ} {j : Fin (2 ^ t)}
+private lemma goodPhaseRegisterOutcome_error_bound {t s r : ℕ} {j : Fin (2 ^ t)}
     (hgood : IsGoodPhaseRegisterOutcome t s r j) :
     |(j.val : ℝ) / (2 : ℝ) ^ t - generalOrderEigenphase s r| <
       1 / (2 * (r : ℝ) ^ 2) :=
@@ -106,7 +106,7 @@ private theorem goodPhaseRegisterOutcome_error_bound {t s r : ℕ} {j : Fin (2 ^
 /-- Shor's nearest-fraction condition `|c/q - d/r| ≤ 1/(2q)` implies the
 continued-fraction recovery radius used by the Lean good-outcome predicate when
 the phase register size satisfies `q > r^2`. -/
-theorem shorNearestFraction_isGoodPhaseRegisterOutcome {t d r : ℕ}
+lemma shorNearestFraction_isGoodPhaseRegisterOutcome {t d r : ℕ}
     {j : Fin (2 ^ t)} (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hnear :
@@ -124,7 +124,7 @@ theorem shorNearestFraction_isGoodPhaseRegisterOutcome {t d r : ℕ}
 
 /-- A good phase-register outcome supplies the continued-fraction denominator
 recovery condition for the true reduced phase `s/r`. -/
-theorem goodPhaseRegisterOutcome_denominatorRecovery {t s r : ℕ}
+lemma goodPhaseRegisterOutcome_denominatorRecovery {t s r : ℕ}
     {j : Fin (2 ^ t)} (hr : 0 < r) (hsr : Nat.Coprime s r)
     (hgood : IsGoodPhaseRegisterOutcome t s r j) :
     ∃ n,
@@ -147,7 +147,7 @@ noncomputable def goodPhaseRegisterOutcomeMass (t s r : ℕ) : ℝ :=
         else
           0
 
-private theorem goodPhaseRegisterOutcomeMass_nonneg (t s r : ℕ) :
+private lemma goodPhaseRegisterOutcomeMass_nonneg (t s r : ℕ) :
     0 ≤ goodPhaseRegisterOutcomeMass t s r := by
   classical
   unfold goodPhaseRegisterOutcomeMass
@@ -159,7 +159,7 @@ private theorem goodPhaseRegisterOutcomeMass_nonneg (t s r : ℕ) :
 /-- Aggregate good-outcome lower bound from explicit per-outcome lower bounds.
 The analytic estimate for a concrete set of good outcomes can be supplied
 separately, while this theorem fixes the probability-composition interface. -/
-private theorem goodPhaseRegisterOutcomeMass_lowerBound_of_pointwise
+private lemma goodPhaseRegisterOutcomeMass_lowerBound_of_pointwise
     (t s r : ℕ) (J : Finset (Fin (2 ^ t))) {c : ℝ}
     (_hc : 0 ≤ c)
     (hgood : ∀ j, j ∈ J → IsGoodPhaseRegisterOutcome t s r j)
@@ -214,7 +214,7 @@ def shorRecoverableStateIndices (r : ℕ) :
     Finset (ShorRecoverableStateIndex r) :=
   Finset.univ.product (shorRecoverableFractionIndices r)
 
-theorem card_shorRecoverableFractionIndices (r : ℕ) :
+lemma card_shorRecoverableFractionIndices (r : ℕ) :
     (shorRecoverableFractionIndices r).card = Nat.totient r := by
   rw [Nat.totient_eq_card_coprime]
   refine Finset.card_bij (fun d _ => d.val) ?_ ?_ ?_
@@ -230,7 +230,7 @@ theorem card_shorRecoverableFractionIndices (r : ℕ) :
     refine ⟨⟨d, hd.1⟩, ?_, rfl⟩
     simpa [shorRecoverableFractionIndices] using hd.2
 
-theorem card_shorRecoverableStateIndices (r : ℕ) :
+lemma card_shorRecoverableStateIndices (r : ℕ) :
     (shorRecoverableStateIndices r).card = shorRecoverableStateCount r := by
   simp [shorRecoverableStateIndices, shorRecoverableStateCount,
     ShorRecoverableStateIndex, card_shorRecoverableFractionIndices]
@@ -251,25 +251,25 @@ state count and pointwise state lower bound in Shor's analysis. -/
 def shorOrderRecoverySuccessLowerBound (r : ℕ) : ℝ :=
   (Nat.totient r : ℝ) / (3 * (r : ℝ))
 
-theorem shorRecoverableStatePointwiseLowerBound_nonneg (r : ℕ) :
+lemma shorRecoverableStatePointwiseLowerBound_nonneg (r : ℕ) :
     0 ≤ shorRecoverableStatePointwiseLowerBound r := by
   unfold shorRecoverableStatePointwiseLowerBound
   positivity
 
-private theorem shorSingleNumeratorSuccessLowerBound_nonneg (r : ℕ) :
+private lemma shorSingleNumeratorSuccessLowerBound_nonneg (r : ℕ) :
     0 ≤ shorSingleNumeratorSuccessLowerBound r := by
   unfold shorSingleNumeratorSuccessLowerBound
   exact mul_nonneg (Nat.cast_nonneg r)
     (shorRecoverableStatePointwiseLowerBound_nonneg r)
 
-private theorem shorOrderRecoverySuccessLowerBound_nonneg (r : ℕ) :
+private lemma shorOrderRecoverySuccessLowerBound_nonneg (r : ℕ) :
     0 ≤ shorOrderRecoverySuccessLowerBound r := by
   unfold shorOrderRecoverySuccessLowerBound
   positivity
 
 /-- The source count `r * φ(r)` and pointwise lower bound `1/(3r^2)` multiply
 to Shor's stated order-recovery lower bound `φ(r)/(3r)`. -/
-theorem shorRecoverableStateCount_mul_pointwiseLowerBound_eq_successLowerBound
+lemma shorRecoverableStateCount_mul_pointwiseLowerBound_eq_successLowerBound
     {r : ℕ} (hr : 0 < r) :
     (shorRecoverableStateCount r : ℝ) *
         shorRecoverableStatePointwiseLowerBound r =
@@ -282,7 +282,7 @@ theorem shorRecoverableStateCount_mul_pointwiseLowerBound_eq_successLowerBound
 
 /-- The recoverable coprime-numerator count times the per-numerator success
 lower bound is Shor's aggregate order-recovery lower bound. -/
-private theorem recoverableFractionCount_mul_singleSuccess_eq_orderRecovery
+private lemma recoverableFractionCount_mul_singleSuccess_eq_orderRecovery
     {r : ℕ} (hr : 0 < r) :
     ((shorRecoverableFractionIndices r).card : ℝ) *
         shorSingleNumeratorSuccessLowerBound r =
@@ -307,7 +307,7 @@ finite event set has the source recoverable-state cardinality and every event
 has the source pointwise lower bound, then the total probability mass is at
 least `φ(r)/(3r)`. The analytic construction of the event set is kept as the
 caller-supplied premise. -/
-private theorem shorOrderRecoverySuccessLowerBound_le_totalMass_of_sourceEvents
+private lemma shorOrderRecoverySuccessLowerBound_le_totalMass_of_sourceEvents
     {Ω : Type*} [Fintype Ω] (prob : Ω → ℝ)
     (J : Finset Ω) {r : ℕ} (hr : 0 < r)
     (hcard : J.card = shorRecoverableStateCount r)
@@ -375,14 +375,14 @@ def orderFindingOutputSuccessLowerBound (r : ℕ) : ℝ :=
   (Nat.totient r : ℝ) / (3 * (r : ℝ))
 
 @[simp]
-theorem orderFindingOutputSuccessLowerBound_eq_shor (r : ℕ) :
+lemma orderFindingOutputSuccessLowerBound_eq_shor (r : ℕ) :
     orderFindingOutputSuccessLowerBound r =
       shorOrderRecoverySuccessLowerBound r :=
   rfl
 
 /-- The general order-finding lower bound is strictly positive for a positive
 true order. -/
-theorem orderFindingOutputSuccessLowerBound_pos {r : ℕ} (hr : 0 < r) :
+lemma orderFindingOutputSuccessLowerBound_pos {r : ℕ} (hr : 0 < r) :
     0 < orderFindingOutputSuccessLowerBound r := by
   unfold orderFindingOutputSuccessLowerBound
   exact div_pos (by exact_mod_cast Nat.totient_pos.mpr hr)
@@ -397,7 +397,7 @@ noncomputable def orderFindingOutputSuccessMass {G : Type*} [Monoid G] {t r : �
       ∑ outcome : ShorSourceJointOutcome t r,
         if orderFindingOutputSuccessEvent g outcome then prob outcome else 0
 
-theorem orderFindingOutputSuccessEvent.of_denominator_and_orderOf
+lemma orderFindingOutputSuccessEvent.of_denominator_and_orderOf
     {G : Type*} [Monoid G] {g : G} {t r : ℕ}
     {outcome : ShorSourceJointOutcome t r}
     (hcf : orderFindingContinuedFractionCandidate outcome r)
@@ -406,7 +406,7 @@ theorem orderFindingOutputSuccessEvent.of_denominator_and_orderOf
   refine ⟨r, ⟨hcf, ?_⟩, rfl⟩
   exact OrderCandidate.isMinimalPowerReturn_of_orderOf_eq hr horder
 
-theorem shorRecoverableEvents_subset_orderFindingOutputSuccessEvent
+lemma shorRecoverableEvents_subset_orderFindingOutputSuccessEvent
     {G : Type*} [Monoid G] {g : G} {t r : ℕ}
     {eventOf : Fin r → Fin (2 ^ t)}
     (hcf : ∀ outcome,
@@ -420,7 +420,7 @@ theorem shorRecoverableEvents_subset_orderFindingOutputSuccessEvent
   exact orderFindingOutputSuccessEvent.of_denominator_and_orderOf
     (hcf outcome houtcome) hr horder
 
-theorem shorOrderRecoverySuccessLowerBound_le_outputSuccessMass_of_recoverableEvents
+lemma shorOrderRecoverySuccessLowerBound_le_outputSuccessMass_of_recoverableEvents
     {G : Type*} [Monoid G] {g : G} {t r : ℕ}
     {eventOf : Fin r → Fin (2 ^ t)}
     (prob : ShorSourceJointOutcome t r → ℝ)
@@ -482,13 +482,13 @@ def shorSourceJointExponentOfQuotient (t : ℕ) {r : ℕ}
     ⟨0, pow_pos (by norm_num) t⟩
 
 @[simp]
-theorem mem_shorSourceJointPreimageIndices {t r : ℕ} {k : Fin r}
+lemma mem_shorSourceJointPreimageIndices {t r : ℕ} {k : Fin r}
     {a : Fin (2 ^ t)} :
     a ∈ shorSourceJointPreimageIndices t k ↔ a.val % r = k.val := by
   simp [shorSourceJointPreimageIndices]
 
 @[simp]
-theorem mem_shorSourceJointQuotientIndices {t r : ℕ} {k : Fin r}
+lemma mem_shorSourceJointQuotientIndices {t r : ℕ} {k : Fin r}
     {b : ℕ} :
     b ∈ shorSourceJointQuotientIndices t k ↔
       b < 2 ^ t ∧ k.val + r * b < 2 ^ t := by
@@ -496,7 +496,7 @@ theorem mem_shorSourceJointQuotientIndices {t r : ℕ} {k : Fin r}
 
 /-- Under positive order, the explicit phase-register range bound in the
 quotient-index definition is redundant. -/
-theorem mem_shorSourceJointQuotientIndices_iff_orbit_add_order_mul_lt
+lemma mem_shorSourceJointQuotientIndices_iff_orbit_add_order_mul_lt
     {t r : ℕ} (hr : 0 < r) {k : Fin r} {b : ℕ} :
     b ∈ shorSourceJointQuotientIndices t k ↔
       k.val + r * b < 2 ^ t := by
@@ -517,7 +517,7 @@ theorem mem_shorSourceJointQuotientIndices_iff_orbit_add_order_mul_lt
 /-- The quotient-index set for one source orbit is the initial range of all
 legal quotients. This is the Shor-specific range form needed before applying a
 finite geometric-sum estimate. -/
-theorem shorSourceJointQuotientIndices_eq_range
+lemma shorSourceJointQuotientIndices_eq_range
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) :
     shorSourceJointQuotientIndices t k =
@@ -549,7 +549,7 @@ theorem shorSourceJointQuotientIndices_eq_range
     omega
 
 /-- Cardinality of one Shor source orbit's quotient-index set. -/
-private theorem card_shorSourceJointQuotientIndices
+private lemma card_shorSourceJointQuotientIndices
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) :
     (shorSourceJointQuotientIndices t k).card =
@@ -559,7 +559,7 @@ private theorem card_shorSourceJointQuotientIndices
 
 /-- The finite largeness premise used by the source-faithful Shor lower-bound
 route ensures every orbit offset fits in the phase-register range. -/
-theorem shorSourceJointOrbit_lt_phaseRegister_of_large
+lemma shorSourceJointOrbit_lt_phaseRegister_of_large
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t) (k : Fin r) :
     k.val < 2 ^ t := by
   omega
@@ -569,7 +569,7 @@ lower-bound route, the number of source exponents in one orbit residue class is
 within a `13/12` and `11/12` multiplicative window after scaling by `r / 2^t`.
 This quotient-length estimate is the arithmetic input to the later sine-ratio
 bound. -/
-theorem shorSourceJointQuotientLength_scaled_bounds
+lemma shorSourceJointQuotientLength_scaled_bounds
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t) (k : Fin r) :
     let m : ℕ := ((2 ^ t - 1 - k.val) / r) + 1
     (11 / 12 : ℝ) ≤ ((m : ℝ) * (r : ℝ)) / (2 : ℝ) ^ t ∧
@@ -643,14 +643,14 @@ theorem shorSourceJointQuotientLength_scaled_bounds
   simpa [q, m, Nat.cast_pow] using htarget
 
 @[simp]
-theorem shorSourceJointExponentOfQuotient_val_of_mem
+lemma shorSourceJointExponentOfQuotient_val_of_mem
     {t r : ℕ} {k : Fin r} {b : ℕ}
     (hb : b ∈ shorSourceJointQuotientIndices t k) :
     (shorSourceJointExponentOfQuotient t k b).val = k.val + r * b := by
   simp [shorSourceJointExponentOfQuotient,
     (mem_shorSourceJointQuotientIndices.mp hb).2]
 
-theorem shorSourceJointExponentOfQuotient_mem_preimageIndices
+lemma shorSourceJointExponentOfQuotient_mem_preimageIndices
     {t r : ℕ} {k : Fin r} {b : ℕ}
     (hb : b ∈ shorSourceJointQuotientIndices t k) :
     shorSourceJointExponentOfQuotient t k b ∈
@@ -661,7 +661,7 @@ theorem shorSourceJointExponentOfQuotient_mem_preimageIndices
   exact Nat.mod_eq_of_lt k.isLt
 
 /-- Residue-class normal form for source exponents in one Shor orbit. -/
-theorem shorSourceJointPreimageIndices_val_eq_orbit_add_order_mul_div
+lemma shorSourceJointPreimageIndices_val_eq_orbit_add_order_mul_div
     {t r : ℕ} {k : Fin r} {a : Fin (2 ^ t)}
     (ha : a ∈ shorSourceJointPreimageIndices t k) :
     a.val = k.val + r * (a.val / r) := by
@@ -672,7 +672,7 @@ theorem shorSourceJointPreimageIndices_val_eq_orbit_add_order_mul_div
 
 /-- Membership in a Shor source preimage class is equivalent to having the
 selected orbit offset plus an order-spaced quotient. -/
-private theorem mem_shorSourceJointPreimageIndices_iff_exists_order_quotient
+private lemma mem_shorSourceJointPreimageIndices_iff_exists_order_quotient
     {t r : ℕ} {k : Fin r} {a : Fin (2 ^ t)} :
     a ∈ shorSourceJointPreimageIndices t k ↔
       ∃ b : ℕ, a.val = k.val + r * b := by
@@ -687,7 +687,7 @@ private theorem mem_shorSourceJointPreimageIndices_iff_exists_order_quotient
 
 /-- Reconstruct the phase-register exponent from a quotient in one source
 orbit residue class. -/
-theorem mk_mem_shorSourceJointPreimageIndices_of_orbit_add_order_mul_lt
+lemma mk_mem_shorSourceJointPreimageIndices_of_orbit_add_order_mul_lt
     {t r : ℕ} {k : Fin r} {b : ℕ}
     (hb : k.val + r * b < 2 ^ t) :
     (⟨k.val + r * b, hb⟩ : Fin (2 ^ t)) ∈
@@ -698,7 +698,7 @@ theorem mk_mem_shorSourceJointPreimageIndices_of_orbit_add_order_mul_lt
 
 /-- The quotient normal form of a source preimage exponent stays inside the
 phase-register range. -/
-theorem shorSourceJointPreimageIndices_orbit_add_order_mul_div_lt
+lemma shorSourceJointPreimageIndices_orbit_add_order_mul_div_lt
     {t r : ℕ} {k : Fin r} {a : Fin (2 ^ t)}
     (ha : a ∈ shorSourceJointPreimageIndices t k) :
     k.val + r * (a.val / r) < 2 ^ t := by
@@ -707,7 +707,7 @@ theorem shorSourceJointPreimageIndices_orbit_add_order_mul_div_lt
 
 /-- A source preimage exponent determines a quotient index in the same orbit
 residue class. -/
-theorem shorSourceJointPreimageIndices_div_mem_quotientIndices
+lemma shorSourceJointPreimageIndices_div_mem_quotientIndices
     {t r : ℕ} {k : Fin r} {a : Fin (2 ^ t)}
     (ha : a ∈ shorSourceJointPreimageIndices t k) :
     a.val / r ∈ shorSourceJointQuotientIndices t k := by
@@ -718,7 +718,7 @@ theorem shorSourceJointPreimageIndices_div_mem_quotientIndices
 
 /-- Rebuilding a source exponent from the quotient determined by a preimage
 element returns the same phase-register index value. -/
-private theorem shorSourceJointPreimageIndices_orbit_add_order_mul_div_val
+private lemma shorSourceJointPreimageIndices_orbit_add_order_mul_div_val
     {t r : ℕ} {k : Fin r} {a : Fin (2 ^ t)}
     (ha : a ∈ shorSourceJointPreimageIndices t k) :
     (⟨k.val + r * (a.val / r),
@@ -728,7 +728,7 @@ private theorem shorSourceJointPreimageIndices_orbit_add_order_mul_div_val
 
 /-- Dividing a reconstructed source exponent by the order recovers its
 quotient index. -/
-theorem shorSourceJointPreimageIndices_orbit_add_order_mul_div
+lemma shorSourceJointPreimageIndices_orbit_add_order_mul_div
     {t r : ℕ} (hr : 0 < r) {k : Fin r} {b : ℕ}
     (hb : k.val + r * b < 2 ^ t) :
     (⟨k.val + r * b, hb⟩ : Fin (2 ^ t)).val / r = b := by
@@ -736,7 +736,7 @@ theorem shorSourceJointPreimageIndices_orbit_add_order_mul_div
 
 /-- A quotient index reconstructs a source preimage exponent in the same orbit
 residue class. -/
-private theorem shorSourceJointQuotientIndices_mk_mem_preimageIndices
+private lemma shorSourceJointQuotientIndices_mk_mem_preimageIndices
     {t r : ℕ} {k : Fin r} {b : ℕ}
     (hb : b ∈ shorSourceJointQuotientIndices t k) :
     (⟨k.val + r * b, (mem_shorSourceJointQuotientIndices.mp hb).2⟩ :
@@ -746,7 +746,7 @@ private theorem shorSourceJointQuotientIndices_mk_mem_preimageIndices
 
 /-- Reindex a source preimage sum by the quotient `b` in the normal form
 `a = k + r*b`. -/
-theorem sum_shorSourceJointPreimageIndices_eq_sum_quotientIndices
+lemma sum_shorSourceJointPreimageIndices_eq_sum_quotientIndices
     {M : Type*} [AddCommMonoid M] {t r : ℕ} (hr : 0 < r)
     (k : Fin r) (f : Fin (2 ^ t) → M) :
     (shorSourceJointPreimageIndices t k).sum f =
@@ -786,7 +786,7 @@ def shorSourceJointPhaseTerm (t : ℕ) (c a : Fin (2 ^ t)) : ℂ :=
 
 /-- On a legal quotient index, the source phase term splits into the orbit
 offset phase and the quotient-step phase. -/
-theorem shorSourceJointPhaseTerm_exponentOfQuotient_eq_orbit_mul_step
+lemma shorSourceJointPhaseTerm_exponentOfQuotient_eq_orbit_mul_step
     {t r : ℕ} {k : Fin r} {b : ℕ} {c : Fin (2 ^ t)}
     (hb : b ∈ shorSourceJointQuotientIndices t k) :
     shorSourceJointPhaseTerm t c
@@ -814,7 +814,7 @@ def shorSourceJointAmplitude (t r : ℕ)
       shorSourceJointPhaseTerm t outcome.1 a
 
 /-- Reindexed source joint amplitude as a quotient-indexed sum. -/
-theorem shorSourceJointAmplitude_eq_quotient_sum {t r : ℕ}
+lemma shorSourceJointAmplitude_eq_quotient_sum {t r : ℕ}
     (hr : 0 < r) (outcome : ShorSourceJointOutcome t r) :
     shorSourceJointAmplitude t r outcome =
       (((2 : ℝ) ^ t : ℂ))⁻¹ *
@@ -826,7 +826,7 @@ theorem shorSourceJointAmplitude_eq_quotient_sum {t r : ℕ}
 
 /-- Reindexed and phase-factored source joint amplitude. The remaining sum is
 the quotient-step geometric sum used by the analytic lower-bound pass. -/
-theorem shorSourceJointAmplitude_eq_orbit_phase_mul_quotient_step_sum
+lemma shorSourceJointAmplitude_eq_orbit_phase_mul_quotient_step_sum
     {t r : ℕ} (hr : 0 < r) (outcome : ShorSourceJointOutcome t r) :
     shorSourceJointAmplitude t r outcome =
       (((2 : ℝ) ^ t : ℂ))⁻¹ *
@@ -865,7 +865,7 @@ theorem shorSourceJointAmplitude_eq_orbit_phase_mul_quotient_step_sum
 
 /-- The quotient-step phase can be rewritten using the scaled phase error
 `r*c/q - d`; the discarded phase is an integer multiple of `2πi`. -/
-theorem shorSourceJointQuotient_step_phase_eq_drift_phase
+lemma shorSourceJointQuotient_step_phase_eq_drift_phase
     {t r : ℕ} (c : Fin (2 ^ t)) (d : Fin r) (b : ℕ) :
     Complex.exp (2 * Real.pi *
         (((((r : ℝ) * (b : ℝ) * (c.val : ℝ)) /
@@ -914,7 +914,7 @@ def shorSourceJointDriftSum (t r : ℕ)
 
 /-- Under the finite largeness premise, the drift sum is a consecutive
 geometric-style range sum. -/
-theorem shorSourceJointDriftSum_eq_range_sum_of_orbit_lt_phaseRegister
+lemma shorSourceJointDriftSum_eq_range_sum_of_orbit_lt_phaseRegister
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) (c : Fin (2 ^ t)) (d : Fin r) :
     shorSourceJointDriftSum t r c k d =
@@ -927,7 +927,7 @@ theorem shorSourceJointDriftSum_eq_range_sum_of_orbit_lt_phaseRegister
 
 /-- Under the finite largeness premise, the drift sum is a consecutive
 geometric-style range sum. -/
-private theorem shorSourceJointDriftSum_eq_range_sum_of_large
+private lemma shorSourceJointDriftSum_eq_range_sum_of_large
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r) :
     shorSourceJointDriftSum t r c k d =
@@ -941,7 +941,7 @@ private theorem shorSourceJointDriftSum_eq_range_sum_of_large
 
 /-- If the drift phase is trivial, the source drift sum is exactly the number
 of quotient indices. -/
-theorem shorSourceJointDriftSum_eq_card_of_orbit_lt_phaseRegister_of_base_eq_one
+lemma shorSourceJointDriftSum_eq_card_of_orbit_lt_phaseRegister_of_base_eq_one
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) (c : Fin (2 ^ t)) (d : Fin r)
     (hbase :
@@ -957,7 +957,7 @@ theorem shorSourceJointDriftSum_eq_card_of_orbit_lt_phaseRegister_of_base_eq_one
 
 /-- If the drift phase is trivial, the source drift sum is exactly the number
 of quotient indices. -/
-private theorem shorSourceJointDriftSum_eq_card_of_large_of_base_eq_one
+private lemma shorSourceJointDriftSum_eq_card_of_large_of_base_eq_one
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hbase :
@@ -972,7 +972,7 @@ private theorem shorSourceJointDriftSum_eq_card_of_large_of_base_eq_one
 
 /-- Under the finite largeness premise and a nontrivial drift phase, the drift
 sum has the closed finite-geometric form. -/
-theorem shorSourceJointDriftSum_eq_geometric_closed_of_orbit_lt_phaseRegister
+lemma shorSourceJointDriftSum_eq_geometric_closed_of_orbit_lt_phaseRegister
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) (c : Fin (2 ^ t)) (d : Fin r)
     (hne :
@@ -994,7 +994,7 @@ theorem shorSourceJointDriftSum_eq_geometric_closed_of_orbit_lt_phaseRegister
 
 /-- Under the finite largeness premise and a nontrivial drift phase, the drift
 sum has the closed finite-geometric form. -/
-private theorem shorSourceJointDriftSum_eq_geometric_closed_of_large
+private lemma shorSourceJointDriftSum_eq_geometric_closed_of_large
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hne :
@@ -1014,7 +1014,7 @@ private theorem shorSourceJointDriftSum_eq_geometric_closed_of_large
     (shorSourceJointOrbit_lt_phaseRegister_of_large hlarge k) c d hne
 
 /-- Norm form of the nontrivial closed finite-geometric drift sum. -/
-theorem norm_shorSourceJointDriftSum_eq_geometric_ratio_of_orbit_lt_phaseRegister
+lemma norm_shorSourceJointDriftSum_eq_geometric_ratio_of_orbit_lt_phaseRegister
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) (c : Fin (2 ^ t)) (d : Fin r)
     (hne :
@@ -1034,7 +1034,7 @@ theorem norm_shorSourceJointDriftSum_eq_geometric_ratio_of_orbit_lt_phaseRegiste
   rw [norm_div]
 
 /-- Norm form of the nontrivial closed finite-geometric drift sum. -/
-private theorem norm_shorSourceJointDriftSum_eq_geometric_ratio_of_large
+private lemma norm_shorSourceJointDriftSum_eq_geometric_ratio_of_large
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hne :
@@ -1055,7 +1055,7 @@ private theorem norm_shorSourceJointDriftSum_eq_geometric_ratio_of_large
 
 /-- Normalizing a drift sum by the phase-register dimension divides its norm
 by `2^t`. -/
-theorem norm_scaled_shorSourceJointDriftSum_eq
+lemma norm_scaled_shorSourceJointDriftSum_eq
     (t r : ℕ) (c : Fin (2 ^ t)) (k d : Fin r) :
     ‖(((2 : ℝ) ^ t : ℂ))⁻¹ * shorSourceJointDriftSum t r c k d‖ =
       ‖shorSourceJointDriftSum t r c k d‖ / (2 : ℝ) ^ t := by
@@ -1068,7 +1068,7 @@ theorem norm_scaled_shorSourceJointDriftSum_eq
   rw [norm_mul, norm_inv, hnorm_q, div_eq_inv_mul, mul_comm]
 
 /-- Normalized norm form of the nontrivial closed finite-geometric drift sum. -/
-theorem norm_scaled_shorSourceJointDriftSum_eq_geometric_ratio_of_orbit_lt_phaseRegister
+lemma norm_scaled_shorSourceJointDriftSum_eq_geometric_ratio_of_orbit_lt_phaseRegister
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) (c : Fin (2 ^ t)) (d : Fin r)
     (hne :
@@ -1088,7 +1088,7 @@ theorem norm_scaled_shorSourceJointDriftSum_eq_geometric_ratio_of_orbit_lt_phase
     hr hkq c d hne]
 
 /-- Normalized norm form of the nontrivial closed finite-geometric drift sum. -/
-theorem norm_scaled_shorSourceJointDriftSum_eq_geometric_ratio_of_large
+lemma norm_scaled_shorSourceJointDriftSum_eq_geometric_ratio_of_large
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hne :
@@ -1109,7 +1109,7 @@ theorem norm_scaled_shorSourceJointDriftSum_eq_geometric_ratio_of_large
 
 /-- Explicit normalized lower bound for the nontrivial Shor drift branch,
 leaving only the source-specific real-arithmetic estimates as hypotheses. -/
-private theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_geometric_ratio
+private lemma lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_geometric_ratio
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hprincipal :
@@ -1141,7 +1141,7 @@ private theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_geometric_r
 /-- Normalized lower bound for the nontrivial Shor drift branch from an
 explicit absolute phase-angle bound. This is the source-faithful interface used
 by the later nearest-fraction and quotient-length estimates. -/
-theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_angle_of_orbit_lt_phaseRegister
+lemma lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_angle_of_orbit_lt_phaseRegister
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t) (c : Fin (2 ^ t)) (d : Fin r) {A : ℝ}
     (hApos : 0 < A) (hApi : A ≤ Real.pi)
@@ -1170,7 +1170,7 @@ theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_angle_of_orbit_lt_p
 /-- Normalized lower bound for the nontrivial Shor drift branch from an
 explicit absolute phase-angle bound. This is the source-faithful interface used
 by the later nearest-fraction and quotient-length estimates. -/
-theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_angle
+lemma lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_angle
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r) {A : ℝ}
     (hApos : 0 < A) (hApi : A ≤ Real.pi)
@@ -1196,7 +1196,7 @@ theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_angle
 nearest-fraction scaled-error estimate. The resulting angle `A` is the
 source-derived half window `π m r / (2q)`, with `q = 2^t` and `m` the quotient
 length of the selected orbit. -/
-theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_scaled_error_of_quotient_bounds
+lemma lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_scaled_error_of_quotient_bounds
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t)
     (hbounds :
@@ -1270,7 +1270,7 @@ theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_scaled_error_of_quo
 nearest-fraction scaled-error estimate. The resulting angle `A` is the
 source-derived half window `π m r / (2q)`, with `q = 2^t` and `m` the quotient
 length of the selected orbit. -/
-theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_scaled_error
+lemma lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_scaled_error
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hδ :
@@ -1294,7 +1294,7 @@ theorem lowerBound_le_norm_scaled_shorSourceJointDriftSum_of_scaled_error
 
 /-- On the source-derived Shor angle window around `π/2`, sine is at least
 `11/12`. -/
-private theorem eleven_div_twelve_le_sin_of_mem_shor_window
+private lemma eleven_div_twelve_le_sin_of_mem_shor_window
     {A : ℝ}
     (hlo : (11 / 24 : ℝ) * Real.pi ≤ A)
     (hhi : A ≤ (13 / 24 : ℝ) * Real.pi) :
@@ -1336,7 +1336,7 @@ private theorem eleven_div_twelve_le_sin_of_mem_shor_window
 
 /-- The Shor sine-window lower bound implies the source pointwise square
 constant after scaling by the order. -/
-private theorem one_div_three_order_sq_le_two_sin_div_pi_order_sq
+private lemma one_div_three_order_sq_le_two_sin_div_pi_order_sq
     {r : ℕ} (hr : 0 < r) {A : ℝ}
     (hsin : (11 / 12 : ℝ) ≤ Real.sin A) :
     1 / (3 * (r : ℝ) ^ 2) ≤
@@ -1372,7 +1372,7 @@ private theorem one_div_three_order_sq_le_two_sin_div_pi_order_sq
 nearest-fraction scaled-error certificate and explicit quotient-length bounds.
 This is the core proof route; large-register and finite residual wrappers only
 provide the arithmetic premises. -/
-theorem shorSourceJointDriftSum_scaled_normSq_lower_of_scaled_error_of_quotient_bounds
+lemma shorSourceJointDriftSum_scaled_normSq_lower_of_scaled_error_of_quotient_bounds
     {t r : ℕ} (hr : 0 < r) {k : Fin r}
     (hkq : k.val < 2 ^ t)
     (hbounds :
@@ -1509,7 +1509,7 @@ theorem shorSourceJointDriftSum_scaled_normSq_lower_of_scaled_error_of_quotient_
 
 /-- Source-faithful pointwise lower bound for a Shor drift sum selected by a
 nearest-fraction scaled-error certificate. -/
-theorem shorSourceJointDriftSum_scaled_normSq_lower_of_scaled_error
+lemma shorSourceJointDriftSum_scaled_normSq_lower_of_scaled_error
     {t r : ℕ} (hlarge : 12 * r ≤ 2 ^ t)
     (c : Fin (2 ^ t)) (k d : Fin r)
     (hδ :
@@ -1528,7 +1528,7 @@ theorem shorSourceJointDriftSum_scaled_normSq_lower_of_scaled_error
 
 /-- Reindexed and drift-factored source joint amplitude. The remaining sum is
 now written in terms of the scaled phase error for the target numerator `d`. -/
-theorem shorSourceJointAmplitude_eq_orbit_phase_mul_quotient_drift_sum
+lemma shorSourceJointAmplitude_eq_orbit_phase_mul_quotient_drift_sum
     {t r : ℕ} (hr : 0 < r) (outcome : ShorSourceJointOutcome t r)
     (d : Fin r) :
     shorSourceJointAmplitude t r outcome =
@@ -1552,7 +1552,7 @@ def shorSourceJointProbability (t r : ℕ)
 
 /-- The source joint probability is the normalized squared norm of the
 drift-indexed quotient sum; the orbit phase has unit norm. -/
-theorem shorSourceJointProbability_eq_normSq_scaled_driftSum
+lemma shorSourceJointProbability_eq_normSq_scaled_driftSum
     {t r : ℕ} (hr : 0 < r) (outcome : ShorSourceJointOutcome t r)
     (d : Fin r) :
     shorSourceJointProbability t r outcome =
@@ -1574,7 +1574,7 @@ theorem shorSourceJointProbability_eq_normSq_scaled_driftSum
 /-- A lower bound for the normalized drift sum gives the corresponding
 pointwise source joint probability lower bound. This isolates the remaining
 finite geometric/sine estimate from the source-probability plumbing. -/
-theorem shorSourceJointProbability_lowerBound_of_scaled_driftSum
+lemma shorSourceJointProbability_lowerBound_of_scaled_driftSum
     {t r : ℕ} (hr : 0 < r) {c : Fin (2 ^ t)} {k d : Fin r}
     (hbound :
       shorRecoverableStatePointwiseLowerBound r ≤
@@ -1584,7 +1584,7 @@ theorem shorSourceJointProbability_lowerBound_of_scaled_driftSum
   rw [shorSourceJointProbability_eq_normSq_scaled_driftSum hr (c, k) d]
   exact hbound
 
-theorem shorSourceJointProbability_nonneg (t r : ℕ)
+lemma shorSourceJointProbability_nonneg (t r : ℕ)
     (outcome : ShorSourceJointOutcome t r) :
     0 ≤ shorSourceJointProbability t r outcome := by
   unfold shorSourceJointProbability
@@ -1598,7 +1598,7 @@ def orderFindingPublicOutcomeProbability (t r : ℕ) :
     ShorSourceJointOutcome t r → ℝ :=
   shorSourceJointProbability t r
 
-theorem orderFindingPublicOutcomeProbability_nonneg (t r : ℕ)
+lemma orderFindingPublicOutcomeProbability_nonneg (t r : ℕ)
     (outcome : ShorSourceJointOutcome t r) :
     0 ≤ orderFindingPublicOutcomeProbability t r outcome :=
   shorSourceJointProbability_nonneg t r outcome
@@ -1606,7 +1606,7 @@ theorem orderFindingPublicOutcomeProbability_nonneg (t r : ℕ)
 /-- If the phase-event assignment is injective on coprime numerator indices,
 then the joint recoverable source events have the source cardinality
 `r * φ(r)`. -/
-theorem card_shorSourceJointRecoverableEvents {t r : ℕ}
+lemma card_shorSourceJointRecoverableEvents {t r : ℕ}
     (eventOf : Fin r → Fin (2 ^ t))
     (hinj :
       Set.InjOn eventOf
@@ -1625,7 +1625,7 @@ theorem card_shorSourceJointRecoverableEvents {t r : ℕ}
   exact Prod.ext horbit (hinj hidx_frac hidx'_frac hphase)
 
 /-- An integer strictly above `-1/2` is nonnegative. -/
-private theorem int_nonneg_of_neg_half_lt_cast {z : ℤ}
+private lemma int_nonneg_of_neg_half_lt_cast {z : ℤ}
     (h : (-1 / 2 : ℝ) < z) :
     0 ≤ z := by
   by_contra hz
@@ -1637,7 +1637,7 @@ private theorem int_nonneg_of_neg_half_lt_cast {z : ℤ}
 Shor's nearest-fraction radius. The event is obtained by rounding
 `2^t * d / r`; the hypotheses ensure that the rounded integer lies in the
 phase-register range. -/
-theorem exists_shorNearestFractionEvent {t r : ℕ}
+lemma exists_shorNearestFractionEvent {t r : ℕ}
     (d : Fin r) (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t) :
     ∃ j : Fin (2 ^ t),
@@ -1719,7 +1719,7 @@ noncomputable def shorNearestFractionEvent {t r : ℕ}
   Classical.choose (exists_shorNearestFractionEvent d hr hq)
 
 /-- The selected rounded phase event satisfies Shor's nearest-fraction radius. -/
-theorem shorNearestFractionEvent_nearestFraction {t r : ℕ}
+lemma shorNearestFractionEvent_nearestFraction {t r : ℕ}
     (hr : 0 < r) (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (d : Fin r) :
     |((shorNearestFractionEvent (t := t) (r := r) hr hq d).val : ℝ) /
@@ -1729,7 +1729,7 @@ theorem shorNearestFractionEvent_nearestFraction {t r : ℕ}
 
 /-- The selected rounded event is already a good phase-register outcome for
 continued-fraction recovery. -/
-private theorem shorNearestFractionEvent_isGoodPhaseRegisterOutcome {t r : ℕ}
+private lemma shorNearestFractionEvent_isGoodPhaseRegisterOutcome {t r : ℕ}
     (hr : 0 < r) (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (d : Fin r) :
     IsGoodPhaseRegisterOutcome t d.val r
@@ -1739,7 +1739,7 @@ private theorem shorNearestFractionEvent_isGoodPhaseRegisterOutcome {t r : ℕ}
 
 /-- Scaled nearest-fraction error for the rounded phase event. This is the
 form used by the source-level geometric-sum lower-bound pass. -/
-theorem shorNearestFractionEvent_scaled_error_le {t r : ℕ}
+lemma shorNearestFractionEvent_scaled_error_le {t r : ℕ}
     (hr : 0 < r) (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (d : Fin r) :
     |(r : ℝ) *
@@ -1774,7 +1774,7 @@ theorem shorNearestFractionEvent_scaled_error_le {t r : ℕ}
 
 /-- Rounded nearest-fraction pointwise source bound reduced to the drift-sum
 lower-bound obligation for each recoverable state. -/
-theorem shorSourceJointProbability_roundedNearestFractionEvent_pointwise_of_driftSum
+lemma shorSourceJointProbability_roundedNearestFractionEvent_pointwise_of_driftSum
     {t r : ℕ} (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hdrift :
@@ -1793,7 +1793,7 @@ theorem shorSourceJointProbability_roundedNearestFractionEvent_pointwise_of_drif
 
 /-- Rounded nearest-fraction pointwise source bound, with the drift-sum
 lower-bound obligation discharged by the finite geometric/sine estimate. -/
-theorem shorSourceJointProbability_roundedNearestFractionEvent_pointwise
+lemma shorSourceJointProbability_roundedNearestFractionEvent_pointwise
     {t r : ℕ} (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hlarge : 12 * r ≤ 2 ^ t) :
@@ -1810,7 +1810,7 @@ theorem shorSourceJointProbability_roundedNearestFractionEvent_pointwise
 /-- The scaled-error premise implies that every orbit representative is within
 the phase-register range. This is the finite bound needed by the quotient-bound
 version of Shor's source probability estimate [Sho95, source.tex:1183-1185]. -/
-theorem shorSourceJointOrbit_lt_phaseRegister_of_scaledError
+lemma shorSourceJointOrbit_lt_phaseRegister_of_scaledError
     {t r : ℕ} (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t) (k : Fin r) :
     k.val < 2 ^ t := by
@@ -1825,7 +1825,7 @@ lower-bound obligation discharged by explicit quotient-length bounds. This is
 the reusable interface for finite residual cases where the large-register route
 does not apply but Shor's geometric/sine estimate is still verified directly
 [Sho95, source.tex:1183-1185]. -/
-theorem shorSourceJointProbability_roundedNearestFractionEvent_pointwise_of_quotient_bounds
+lemma shorSourceJointProbability_roundedNearestFractionEvent_pointwise_of_quotient_bounds
     {t r : ℕ} (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hbounds :
@@ -1849,7 +1849,7 @@ theorem shorSourceJointProbability_roundedNearestFractionEvent_pointwise_of_quot
 
 /-- A source-level nearest-fraction estimate for every recoverable numerator
 supplies the Lean good-outcome predicate used by continued fractions. -/
-theorem shorRecoverableFractionEvents_good_of_nearestFraction {t r : ℕ}
+lemma shorRecoverableFractionEvents_good_of_nearestFraction {t r : ℕ}
     (eventOf : Fin r → Fin (2 ^ t)) (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hnear :
@@ -1865,7 +1865,7 @@ theorem shorRecoverableFractionEvents_good_of_nearestFraction {t r : ℕ}
 If two numerators had the same phase event, both reduced fractions would be
 within `1/(2q)` of the same dyadic point, forcing their real distance below
 `1/r`; integer discreteness then gives equal numerator labels. -/
-theorem shorRecoverableFractionEvents_injOn_of_nearestFraction {t r : ℕ}
+lemma shorRecoverableFractionEvents_injOn_of_nearestFraction {t r : ℕ}
     (eventOf : Fin r → Fin (2 ^ t)) (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hnear :
@@ -1943,7 +1943,7 @@ theorem shorRecoverableFractionEvents_injOn_of_nearestFraction {t r : ℕ}
 
 /-- Nearest-fraction events have the full source recoverable-state cardinality
 once paired with all orbit coordinates. -/
-private theorem card_shorSourceJointRecoverableEvents_of_nearestFraction {t r : ℕ}
+private lemma card_shorSourceJointRecoverableEvents_of_nearestFraction {t r : ℕ}
     (eventOf : Fin r → Fin (2 ^ t)) (hr : 0 < r)
     (hq : (r : ℝ) ^ 2 < (2 : ℝ) ^ t)
     (hnear :
@@ -1957,7 +1957,7 @@ private theorem card_shorSourceJointRecoverableEvents_of_nearestFraction {t r : 
 
 /-- Pointwise source-event bounds imply the one-numerator joint marginal lower
 bound, independently of the later joint-to-phase marginal comparison. -/
-private theorem shorSingleNumeratorSuccessLowerBound_le_sourceJointMarginal_of_pointwise
+private lemma shorSingleNumeratorSuccessLowerBound_le_sourceJointMarginal_of_pointwise
     {t r : ℕ}
     (eventOf : Fin r → Fin (2 ^ t))
     (prob : ShorSourceJointOutcome t r → ℝ)
@@ -2188,7 +2188,7 @@ def ofSourceJointProbabilityRoundedNearestFractionEventsOfQuotientBounds
 
 /-- The source-indexed joint event certificate gives the aggregate Shor
 order-recovery lower bound over the certified recoverable-event mass. -/
-theorem successLowerBound_le_recoverableMass {t r : ℕ}
+lemma successLowerBound_le_recoverableMass {t r : ℕ}
     (cert : ShorSourceJointEventMapCertificate t r) (hr : 0 < r) :
     shorOrderRecoverySuccessLowerBound r ≤
       (shorSourceJointRecoverableEvents (t := t) (r := r) cert.eventOf).sum
@@ -2218,7 +2218,7 @@ theorem successLowerBound_le_recoverableMass {t r : ℕ}
 /-- Corollary of the recoverable-event mass theorem: when probabilities are
 nonnegative away from the certified recoverable events, the same lower bound is
 below the total joint mass. -/
-theorem successLowerBound_le_totalMass {t r : ℕ}
+lemma successLowerBound_le_totalMass {t r : ℕ}
     (cert : ShorSourceJointEventMapCertificate t r) (hr : 0 < r) :
     shorOrderRecoverySuccessLowerBound r ≤
       ∑ outcome : ShorSourceJointOutcome t r, cert.prob outcome := by
@@ -2250,7 +2250,7 @@ structure GeneralOrderRunCertificate (t s r : ℕ) where
 namespace GeneralOrderRunCertificate
 
 /-- Continued-fraction denominator recovery from the certified good sample. -/
-theorem denominatorRecovery {t s r : ℕ}
+lemma denominatorRecovery {t s r : ℕ}
     (cert : GeneralOrderRunCertificate t s r) (hr : 0 < r) :
     ∃ n,
       (s : ℚ) / (r : ℚ) =
@@ -2354,7 +2354,7 @@ def ofSourceJointProbabilityRoundedNearestFractionEvents {t r : ℕ}
 recoverable numerator gives a lower bound on that numerator's formal
 good-outcome mass, provided the joint distribution has the certified marginal
 comparison. -/
-theorem singleNumeratorSuccessLowerBound_le_goodMass {t r : ℕ}
+lemma singleNumeratorSuccessLowerBound_le_goodMass {t r : ℕ}
     (cert : ShorSourcePhaseMassCertificate t r)
     (d : Fin r) (hd : d ∈ shorRecoverableFractionIndices r) :
     shorSingleNumeratorSuccessLowerBound r ≤
@@ -2373,7 +2373,7 @@ theorem singleNumeratorSuccessLowerBound_le_goodMass {t r : ℕ}
 
 /-- Summing the certified per-numerator phase masses gives Shor's aggregate
 order-recovery success lower bound. -/
-theorem orderRecoverySuccessLowerBound_le_goodMassSum {t r : ℕ}
+lemma orderRecoverySuccessLowerBound_le_goodMassSum {t r : ℕ}
     (cert : ShorSourcePhaseMassCertificate t r) (hr : 0 < r) :
     shorOrderRecoverySuccessLowerBound r ≤
       (shorRecoverableFractionIndices r).sum

@@ -41,11 +41,12 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-theorem allocationCode_localDensity {n : Nat} (P : QPEEigenstateInput n)
+lemma allocationCode_localDensity {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) {Reference : Register}
     {H : Type} [Fintype H]
     (state : State (preparedContext t n) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((allocationCode P t).execute Reference state).quantumMarginal.marginalLeft =
+    ((allocationCode n t).execute (sourceEnvironment P.unitary) Reference
+      state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex (S := (post t n).register)
         (MeasurementCells.basisEquiv (resultContext t n) 2 t) := by
   rw [allocationCode, Circuit.execute_seq, State.mapHistory_quantumMarginal]
@@ -57,31 +58,36 @@ theorem allocationCode_localDensity {n : Nat} (P : QPEEigenstateInput n)
         simpa only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal,
           State.retain_quantumMarginal] using
           congrArg (DensityOperator.marginalLeft (R := (post t n).register) (S := Reference))
-            (MeasurementCells.allocate_quantumMarginal (model := model P)
+            (MeasurementCells.allocate_quantumMarginal (environment := sourceEnvironment
+              P.unitary) (model := model n)
               (resultContext t n) 2 t
-              ((Circuit.retain (model := model P) (preparedContext t n)
-                ⟨2⟩ (.bits t) (resultFresh t n)).execute Reference state))
+              ((Circuit.retain (model := model n) (preparedContext t n)
+                ⟨2⟩ (.bits t) (resultFresh t n)).execute (sourceEnvironment P.unitary) Reference
+                  state))
     _ = _ := by
       rw [MeasurementCells.jointBasisEquiv, DensityOperator.reindex_prod_marginalLeft,
         State.retain_quantumMarginal]
 
-private theorem nativeProgram_matrix {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    (nativeProgram P t).matrix = UnitaryOperator.reindex (preparedBasisEquiv t n).symm
-      (Native.circuit t P.unitary).binaryMatrix := by
+private lemma nativeProgram_matrix {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
+    ((nativeProgram n t).matrix (UnitarySource.interpretation P.unitary true)) =
+      UnitaryOperator.reindex (preparedBasisEquiv t n).symm
+      ((Native.circuit t n).binaryMatrix (UnitarySource.interpretation P.unitary true)) := by
   rw [nativeProgram, unitaryOfEqualWires_matrix (runtimeLayout t n)
-    (preparedContext t n).quantumLayout (runtime_wires t n) (Native.circuit t P.unitary)]
+    (preparedContext t n).quantumLayout (runtime_wires t n)
+    (UnitarySource.interpretation P.unitary true) (Native.circuit t n)]
   apply Subtype.ext
   ext row column
-  change (Native.circuit t P.unitary).matrix
+  change ((Native.circuit t n).matrix (UnitarySource.interpretation P.unitary true))
     ((preparedLayoutEquiv t n).symm row) ((preparedLayoutEquiv t n).symm column) =
-      (Native.circuit t P.unitary).matrix
+      ((Native.circuit t n).matrix (UnitarySource.interpretation P.unitary true))
         ((qpeLayout t n).binaryIndexEquiv.symm (preparedBasisEquiv t n row))
         ((qpeLayout t n).binaryIndexEquiv.symm (preparedBasisEquiv t n column))
   simp only [preparedBasisEquiv, Equiv.trans_apply, Equiv.symm_apply_apply]
 
-private theorem nativeProgram_input {n : Nat} (P : QPEEigenstateInput n)
+private lemma nativeProgram_input {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) :
-    DensityOperator.applyUnitary (nativeProgram P t).matrix
+    DensityOperator.applyUnitary ((nativeProgram n t).matrix (UnitarySource.interpretation
+      P.unitary true))
       ((DensityOperator.ofPure (qpeInput P t)).reindex
         (S := (preparedContext t n).register) (preparedBasisEquiv t n).symm) =
       (DensityOperator.ofPure ((qpeEvolvedState P t).normalized)).reindex
@@ -91,17 +97,21 @@ private theorem nativeProgram_input {n : Nat} (P : QPEEigenstateInput n)
   rfl
 
 /-- The actual prepared state is the original coherent source state before the real Z reads. -/
-theorem beforeMeasurement_localDensity {n : Nat} (P : QPEEigenstateInput n)
+lemma beforeMeasurement_localDensity {n : Nat} (P : QPEEigenstateInput n)
     (t : Nat) {Reference : Register} {H : Type} [Fintype H]
     (state : State (pre t n) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise P t state.quantumMarginal.marginalLeft) :
-    ((beforeMeasurement P t).execute Reference state).quantumMarginal.marginalLeft =
+    ((beforeMeasurement n t).execute (sourceEnvironment P.unitary) Reference
+      state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure ((qpeEvolvedState P t).normalized)).reindex
         (S := (post t n).register) (outputBasisEquiv t n).symm := by
   have prepared := preparationCode_localDensity P t state promised
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal, allocationCode_localDensity,
-    Circuit.unitary_localDensity, prepared, nativeProgram_input, DensityOperator.reindex_trans]
+    Circuit.unitary_localDensity, prepared]
+  change (DensityOperator.applyUnitary
+    ((nativeProgram n t).matrix (UnitarySource.interpretation P.unitary true)) _).reindex _ = _
+  rw [nativeProgram_input, DensityOperator.reindex_trans]
   rfl
 
 end

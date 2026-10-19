@@ -39,7 +39,7 @@ noncomputable def invOp (N : ℕ) [NeZero N] : UnitaryOperator (register N) :=
   UnitaryOperator.ofPerm (Data.invEquiv N).symm
 
 /-- Ideal clean basis action of modular inversion. -/
-theorem invOp_apply_ket (N : ℕ) [NeZero N] (x : Data N) :
+lemma invOp_apply_ket (N : ℕ) [NeZero N] (x : Data N) :
     (invOp N).apply (NormalizedVector.ket (R := register N) x) =
       NormalizedVector.ket (R := register N) x.addInverseIntoTarget := by
   rw [invOp, UnitaryOperator.ofPerm_apply_ket]
@@ -102,9 +102,10 @@ def qubitCount (w : DecomposedStageWitness N) : Nat :=
   w.encoding.width
 
 /-- The exact decomposed circuit preserves normalization on its clean endpoint. -/
-theorem applyNormalized_clean_ket (w : DecomposedStageWitness N)
+lemma applyNormalized_clean_ket (w : DecomposedStageWitness N)
+    {environment : OracleModel.empty.Interpretation}
     (u : (ZMod N)ˣ) (z : ZMod N) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode (StageState.initial u z)))) =
@@ -120,7 +121,7 @@ theorem applyNormalized_clean_ket (w : DecomposedStageWitness N)
 
 
 /-- Linearizing decomposed event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost (w : DecomposedStageWitness N) :
+lemma resourcesFromEventDepth_eq_eventCost (w : DecomposedStageWitness N) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
 
@@ -194,9 +195,10 @@ def qubitCount (w : StructuredCircuitWitness N) : Nat :=
   w.encoding.width
 
 /-- Normalized clean endpoint of the exact encoded circuit. -/
-theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
+lemma applyNormalized_clean_ket (w : StructuredCircuitWitness N)
+    {environment : OracleModel.empty.Interpretation}
     (u : (ZMod N)ˣ) (z : ZMod N) :
-    w.circuit.applyNormalized
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
@@ -210,7 +212,7 @@ theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
 
 
 /-- Linearizing encoded event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost (w : StructuredCircuitWitness N) :
+lemma resourcesFromEventDepth_eq_eventCost (w : StructuredCircuitWitness N) :
     w.circuit.resourcesFromEventDepth = w.circuit.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.circuit
 

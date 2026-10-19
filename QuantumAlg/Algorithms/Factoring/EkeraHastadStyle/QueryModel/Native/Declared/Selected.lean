@@ -28,34 +28,37 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
+variable {environment : (model N).Environment}
+
 /-- The stored parameter selects a declared member without replacing the
 classical store or its reference operator. -/
-theorem selected_execute (parameter : CInputRef base (ParameterShape N))
+lemma selected_execute (parameter : CInputRef base (ParameterShape N))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.context base noQuantum N) Reference
-      ((model input).HiddenState × History)) :
-    (selected base noQuantum N input parameter).execute Reference state =
+      ((model N).HiddenState × History)) :
+    (selected base noQuantum N parameter).execute environment Reference state =
       (state.applyUnitary fun entry => UnitaryOperator.prodTensor
-        (Native.declaredMember N (Native.nativeOracle_context_wires base noQuantum N)
-          input (entry.1.read (Native.liftInput base noQuantum N parameter))).matrix
+        ((Native.declaredMember N (Native.nativeOracle_context_wires base noQuantum N)
+          (entry.1.read (Native.liftInput base noQuantum N parameter) )).matrix environment.quantum)
         (1 : UnitaryOperator Reference)).mapClassical
           (fun entry => (entry.1,
             (entry.2.1, (entry.2.2,
               ⟨entry.1.read (Native.liftInput base noQuantum N parameter), ()⟩)))) :=
-  Circuit.selectedUnitary_execute _ _ state
+  Circuit.selectedUnitary_execute _ _ environment state
 
 /-- Each complete store retains its reference matrix and gains precisely the
 declared short-DLP output vector selected by that store's parameter. -/
-theorem selected_seed_entry (parameter : CInputRef base (ParameterShape N))
+lemma selected_seed_entry (parameter : CInputRef base (ParameterShape N))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (seeded : BasisSeeded.Holds
       (Native.context base noQuantum N).quantumLayout.zeroLabel state)
     (original : Store (Native.context base noQuantum N))
     (left right : (Native.context base noQuantum N).register.Index)
     (leftRef rightRef : Reference.Index) :
-    (((selected base noQuantum N input parameter).execute Reference state).filterClassical
+    (((selected base noQuantum N parameter).execute (sourceEnvironment input) Reference
+      state).filterClassical
       (fun entry => entry.1 = original)).quantumMarginal.matrix
         (left, leftRef) (right, rightRef) =
       (ShortDLP.BornProbability.evolvedState (Native.encoding input)
@@ -74,8 +77,9 @@ theorem selected_seed_entry (parameter : CInputRef base (ParameterShape N))
   rw [Circuit.selectedUnitary_store_matrix]
   refine (BasisSeeded.unitary_entry
     (Native.context base noQuantum N).quantumLayout.zeroLabel state seeded
-    (Native.declaredMember N (Native.nativeOracle_context_wires base noQuantum N)
-      input (original.read (Native.liftInput base noQuantum N parameter))).matrix
+    ((Native.declaredMember N (Native.nativeOracle_context_wires base noQuantum N)
+      (original.read (Native.liftInput base noQuantum N parameter))).matrix (sourceEnvironment
+        input).quantum)
     original left right leftRef rightRef).trans ?_
   rw [declared_member_zero_amplitude, declared_member_zero_amplitude]
 

@@ -45,24 +45,40 @@ noncomputable section
 open QuantumAlg.ZeroReflection.Workspace
 
 /-- Ordinary predicate queries, default native gates and width-indexed bit/word operations. -/
-public abbrev model {n : Nat} (marked : Fin (2 ^ n) → Bool) : ExecutionModel :=
-  .quantum AlgorithmGate.model (UnitarySource.model (phaseOracleOp marked) false)
+public abbrev model (n : Nat) : ExecutionModel :=
+  .quantum AlgorithmGate.model (UnitarySource.model n false)
     BitWord.model .empty
+
+/-- Canonical source semantics, supplied only at execution time. -/
+@[expose] public def environment {n : Nat} (marked : Fin (2 ^ n) → Bool) :
+    (model n).Environment :=
+  ⟨UnitarySource.interpretation (phaseOracleOp marked) false, ()⟩
+
+/-- The empty classical-service signature leaves only the quantum source interpretation. -/
+lemma environment_eq_of_quantum {n : Nat} (marked : Fin (2 ^ n) → Bool)
+    (actual : (model n).Environment)
+    (same : actual.quantum = UnitarySource.interpretation (phaseOracleOp marked) false) :
+    actual = environment marked := by
+  cases actual with
+  | mk quantum classical =>
+      cases same
+      cases classical
+      rfl
 
 /-- The original zero-bit borrowed input, with no supplied quantum systems. -/
 @[reducible] public def pre : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addBorrowedInput ⟨0⟩ .unit (by decide)
 
-theorem pre_systemCount : pre.systemCount = 0 := rfl
+lemma pre_systemCount : pre.systemCount = 0 := rfl
 
 /-- The original n search positions, each of dimension two. -/
 @[implicit_reducible]
 def runtimeLayout (n : Nat) : QuantumLayout n :=
   (layout n).toQuantumLayout
 
-theorem preparationFresh : (⟨1⟩ : StorageKey) ∉ pre.keys := by decide
+lemma preparationFresh : (⟨1⟩ : StorageKey) ∉ pre.keys := by decide
 
-theorem preparationDisjoint (n : Nat) :
+lemma preparationDisjoint (n : Nat) :
     List.Disjoint (runtimeLayout n).identities pre.physicalIdx := by
   exact List.disjoint_nil_right _
 
@@ -71,12 +87,12 @@ theorem preparationDisjoint (n : Nat) :
 def preparedContext (n : Nat) : RuntimeCtx .quantum :=
   pre.addOwnedLayout ⟨1⟩ (runtimeLayout n) preparationFresh (preparationDisjoint n)
 
-theorem preparedContext_quantumWires (n : Nat) :
+lemma preparedContext_quantumWires (n : Nat) :
     (preparedContext n).quantumWires = (runtimeLayout n).wires := by
   change (runtimeLayout n).wires ++ [] = _
   exact List.append_nil _
 
-theorem preparedContext_physicalIdx (n : Nat) :
+lemma preparedContext_physicalIdx (n : Nat) :
     (preparedContext n).physicalIdx = List.range n := by
   rw [RuntimeCtx.physicalIdx, preparedContext_quantumWires]
   change (List.ofFn fun index : Fin n =>
@@ -100,7 +116,7 @@ def inputPreparation (n : Nat) : BasisPreparation (runtimeLayout n) :=
   ⟨(layout n).binaryIndexEquiv.symm (0 : Fin (2 ^ n))⟩
 
 /-- The prescribed preparation is exactly the original pure input in its physical coordinates. -/
-theorem inputPreparation_density (n : Nat) :
+lemma inputPreparation_density (n : Nat) :
     (DensityOperator.ofPure (inputPreparation n).normalized).reindex
       (S := (preparedContext n).register) (preparedLayoutEquiv n) =
         (DensityOperator.ofPure ((inputState n).normalized)).reindex
@@ -120,7 +136,7 @@ theorem inputPreparation_density (n : Nat) :
   rfl
 
 /-- The internally prepared zero source and work vector is the actual all-zero basis. -/
-theorem elementaryInput_eq_zero (n k : Nat) :
+lemma elementaryInput_eq_zero (n k : Nat) :
     Elementary.inputVector n k = (inputState (totalQubits n k)).normalized := by
   change (NormalizedVector.ket (R := Qubits n) 0).tensor
     (NormalizedVector.ket (R := Qubits (helperWidth n k)) 0) =
@@ -129,20 +145,20 @@ theorem elementaryInput_eq_zero (n k : Nat) :
   rfl
 
 /-- The complete prepared context contains precisely the same ordered physical wires. -/
-theorem prepared_canonical_wires (width : Nat) :
+lemma prepared_canonical_wires (width : Nat) :
     (QuantumSignature.qubits width).canonicalPlacement.layout.wires =
       (preparedContext width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
   rfl
 
 /-- The actual elementary word acts on the runtime register's identical physical systems. -/
-def program {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (Elementary.oracles marked)
+def program (n : Nat) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (Elementary.oracles n)
       (preparedContext (totalQubits n k)).quantumLayout :=
   Execution.unitaryOfEqualWires
     (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout
     (preparedContext (totalQubits n k)).quantumLayout
-    (prepared_canonical_wires (totalQubits n k)) (Elementary.circuit marked k)
+    (prepared_canonical_wires (totalQubits n k)) (Elementary.circuit n k)
 
 end
 

@@ -41,24 +41,24 @@ def residueProposalCount : Nat := 16
 public structure Input (N : Nat) : Prop where
   modulus_gt_one : 1 < N
 
-theorem Input.modulus_ge_two {N : Nat} (input : Input N) : 2 ≤ N :=
+lemma Input.modulus_ge_two {N : Nat} (input : Input N) : 2 ≤ N :=
   input.modulus_gt_one
 
-theorem Input.modulus_pos {N : Nat} (input : Input N) : 0 < N :=
+lemma Input.modulus_pos {N : Nat} (input : Input N) : 0 < N :=
   Nat.zero_lt_of_lt input.modulus_gt_one
 
-theorem Input.neZero {N : Nat} (input : Input N) : NeZero N :=
+lemma Input.neZero {N : Nat} (input : Input N) : NeZero N :=
   ⟨Nat.ne_of_gt input.modulus_pos⟩
 
-theorem Input.modulusBits_pos {N : Nat} (input : Input N) :
+lemma Input.modulusBits_pos {N : Nat} (input : Input N) :
     0 < modulusBits N :=
   Nat.clog_pos (by norm_num : 1 < 2) input.modulus_gt_one
 
-theorem Input.register_fits {N : Nat} (_input : Input N) :
+lemma Input.register_fits {N : Nat} (_input : Input N) :
     N ≤ 2 ^ modulusBits N :=
   Nat.le_pow_clog (by norm_num : 1 < 2) N
 
-theorem Input.registerSquare_fits {N : Nat} (input : Input N) :
+lemma Input.registerSquare_fits {N : Nat} (input : Input N) :
     N ^ 2 ≤ 2 ^ phaseBits N := by
   calc
     N ^ 2 ≤ (2 ^ modulusBits N) ^ 2 :=
@@ -74,7 +74,7 @@ def sourceFailureBudget (N : Nat) : FailureBudget where
   failureNumerator := sourceSuccessDenominator N - 1
   failureDenominator := sourceSuccessDenominator N
 
-theorem sourceFailureBudget_strictlyWellFormed {N : Nat} (input : Input N) :
+lemma sourceFailureBudget_strictlyWellFormed {N : Nat} (input : Input N) :
     (sourceFailureBudget N).StrictlyWellFormed := by
   have positive : 0 < sourceSuccessDenominator N := by
     exact Nat.mul_pos (by norm_num) input.modulusBits_pos
@@ -99,7 +99,7 @@ theorem sourceFailureBudget_strictlyWellFormed {N : Nat} (input : Input N) :
 def retryCount (N : Nat) (budget : FailureBudget) : Nat :=
   FailureBudget.retryCountFor (sourceFailureBudget N) budget
 
-theorem retryCount_pos (N : Nat) (budget : FailureBudget) :
+lemma retryCount_pos (N : Nat) (budget : FailureBudget) :
     0 < retryCount N budget :=
   FailureBudget.retryCountFor_pos (sourceFailureBudget N) budget
 
@@ -127,14 +127,14 @@ def parameterValue {N : Nat} (input : Input N)
         .product (.bit true) (CShape.wordOfNat (modulusBits N) factor)
   .product (.unsignedWord unitValue) factorValue
 
-@[simp] theorem parameterValue_unit_toNat {N : Nat} (input : Input N)
+@[simp] lemma parameterValue_unit_toNat {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     (parameterValue input sample).first.toNat =
       (((RSA.prepareResidueFromBits N (modulusBits N)
         residueProposalCount sample).unit : ZMod N).val) := by
   simp [parameterValue, CShape.Value.first, CShape.Value.toNat]
 
-theorem parameterValue_earlyFactor_none {N : Nat} (input : Input N)
+lemma parameterValue_earlyFactor_none {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (noneFound : (RSA.prepareResidueFromBits N (modulusBits N)
       residueProposalCount sample).earlyFactor = none) :
@@ -142,7 +142,7 @@ theorem parameterValue_earlyFactor_none {N : Nat} (input : Input N)
   simp [parameterValue, noneFound, CShape.Value.second, CShape.Value.first,
     CShape.Value.toBool]
 
-theorem parameterValue_earlyFactor_some {N factor : Nat} (input : Input N)
+lemma parameterValue_earlyFactor_some {N factor : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (found : (RSA.prepareResidueFromBits N (modulusBits N)
       residueProposalCount sample).earlyFactor = some factor) :

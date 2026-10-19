@@ -30,7 +30,7 @@ open scoped ComplexOrder
 
 noncomputable section
 
-private theorem finite_probability_sum {Outcome : Type} [Fintype Outcome]
+private lemma finite_probability_sum {Outcome : Type} [Fintype Outcome]
     (distribution : PMF Outcome) : ∑ outcome, (distribution outcome).toReal = 1 := by
   have total : ∑ outcome, distribution outcome = 1 := by
     simpa only [tsum_fintype] using distribution.tsum_coe
@@ -52,14 +52,14 @@ private def weightBlock {R : Register} (state : DensityOperator R)
       _ ≤ 1 := by
         simpa using ENNReal.toReal_mono ENNReal.one_ne_top (distribution.coe_le_one outcome)
 
-private theorem weightBlock_mass {R : Register} (state : DensityOperator R)
+private lemma weightBlock_mass {R : Register} (state : DensityOperator R)
     {Outcome : Type} (distribution : PMF Outcome) (outcome : Outcome) :
     (weightBlock state distribution outcome).mass =
       (distribution outcome).toReal * state.mass := by
   simp only [DensityOperator.mass, weightBlock, Matrix.trace_smul,
     Complex.smul_re, smul_eq_mul]
 
-private theorem sum_weightBlock_mass {R : Register} (state : DensityOperator R)
+private lemma sum_weightBlock_mass {R : Register} (state : DensityOperator R)
     {Outcome : Type} [Fintype Outcome] (distribution : PMF Outcome) :
     ∑ outcome, (weightBlock state distribution outcome).mass = state.mass := by
   simp only [weightBlock_mass]
@@ -75,7 +75,7 @@ public def kernelChoice {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Re
     simp only [sum_weightBlock_mass]
     exact state.total_le_one
 
-private theorem kernelChoice_block_matrix_proof
+private lemma kernelChoice_block_matrix_proof
     {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome)
     (value : C) (outcome : Outcome) :
@@ -83,7 +83,7 @@ private theorem kernelChoice_block_matrix_proof
       (transition value outcome).toReal • (state.block value).matrix := rfl
 
 /-- The full conditional quantum matrix carries precisely the declared probability. -/
-public theorem kernelChoice_block_matrix
+public lemma kernelChoice_block_matrix
     {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome)
     (value : C) (outcome : Outcome) :
@@ -92,7 +92,7 @@ public theorem kernelChoice_block_matrix
   kernelChoice_block_matrix_proof state transition value outcome
 
 /-- Stochastic classical execution preserves the complete subnormalized mass. -/
-public theorem kernelChoice_mass
+public lemma kernelChoice_mass
     {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome) :
     (kernelChoice state transition).mass = state.mass := by
@@ -102,7 +102,7 @@ public theorem kernelChoice_mass
   simp only [sum_weightBlock_mass, ExecutionState.mass]
 
 /-- Forgetting the sampled classical label preserves every quantum and reference entry. -/
-public theorem kernelChoice_quantumMarginal
+public lemma kernelChoice_quantumMarginal
     {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome) :
     (kernelChoice state transition).quantumMarginal = state.quantumMarginal := by
@@ -118,7 +118,7 @@ public theorem kernelChoice_quantumMarginal
   rw [← Finset.sum_smul, finite_probability_sum, one_smul]
 
 /-- An impossible sampled result has an exactly zero conditional operator. -/
-public theorem kernelChoice_zero_probability
+public lemma kernelChoice_zero_probability
     {C Outcome : Type} [Fintype C] [Fintype Outcome] {R : Register}
     (state : ExecutionState C R) (transition : C → PMF Outcome)
     (value : C) (outcome : Outcome) (impossible : transition value outcome = 0) :

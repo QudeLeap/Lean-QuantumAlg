@@ -29,6 +29,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InitialPortProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NumberTheory.SharedEEA
 
 /-- The source's full modulus-dependent initial Work1 value. -/
@@ -48,19 +50,19 @@ def inputFrame (modulus : Nat) (input : Fin (2 ^ modulus.size)) : Registers modu
     firstWord := initialWord modulus ^^^ mask modulus }
 
 /-- The supplied large port is zero on every one of its n actual physical positions. -/
-theorem inputFrame_large_zero (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma inputFrame_large_zero (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     PaddingClock.main (inputFrame modulus input).firstWord = 0#modulus.size :=
   (WordUnloading.unload_main (initialWord modulus)).1
 
 /-- Each addressed large-workspace wire reads zero in the supplied input frame. -/
-theorem inputFrame_large_bit (modulus : Nat) (input : Fin (2 ^ modulus.size))
+lemma inputFrame_large_bit (modulus : Nat) (input : Fin (2 ^ modulus.size))
     (index : Fin modulus.size) :
     (inputFrame modulus input).firstWord.getMsbD index.val = false := by
   rw [WordUnloading.main_bit _ _ index.isLt, inputFrame_large_zero]
   exact BitVec.getMsbD_zero
 
 /-- The high-clock positions and the final bit retain the original fixed source values. -/
-theorem inputFrame_small_word (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma inputFrame_small_word (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     PaddingClock.high (inputFrame modulus input).firstWord =
         PaddingClock.high (initialWord modulus) ∧
       PaddingClock.last (inputFrame modulus input).firstWord =
@@ -68,7 +70,7 @@ theorem inputFrame_small_word (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
   (WordUnloading.unload_main (initialWord modulus)).2
 
 /-- The actual input word is unchanged by the zero-workspace specification. -/
-theorem inputFrame_input (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma inputFrame_input (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     (inputFrame modulus input).secondWord = (InitialFrame.initial modulus input).secondWord := rfl
 
 /-- Execute the fixed constant-X load, using only the existing full frame. -/
@@ -77,7 +79,7 @@ def program (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   Work1Constant.program modulus.size (constant modulus)
 
 /-- The literal fixed X list reconstructs the complete source initial frame. -/
-theorem gates_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+lemma gates_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
     GateSpec.stepList (Work1Constant.gates modulus.size (constant modulus))
         (inputFrame modulus input) = InitialFrame.initial modulus input := by
   rw [Work1Constant.gates_step]
@@ -88,8 +90,8 @@ theorem gates_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
   rfl
 
 /-- Actual normalized amplitudes are preserved while loading A from zero, for every input label. -/
-theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
-    (program modulus).applyNormalized
+lemma program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
+    (program modulus).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (inputFrame modulus input)))) =
@@ -97,7 +99,7 @@ theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
         ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
           ((encoding modulus.size).encode (InitialFrame.initial modulus input))) := by
   exact (GateSpec.realizesList (QubitLayout.canonical _) .empty
-    (Work1Constant.gates modulus.size (constant modulus))).apply_encoded_ket
+    (Work1Constant.gates modulus.size (constant modulus)) environment).apply_encoded_ket
       (inputFrame modulus input) |>.trans
         (congrArg (fun state => NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
@@ -105,7 +107,7 @@ theorem program_initial (modulus : Nat) (input : Fin (2 ^ modulus.size)) :
           (gates_initial modulus input))
 
 /-- Every literal initial X occurrence is charged, independently of the input value. -/
-theorem program_resources (modulus : Nat) :
+lemma program_resources (modulus : Nat) :
     (program modulus).eventCost.card ≤ modulus.size + 3 ∧
       (program modulus).evaluatedEventDepth (fun _ => 1) ≤ modulus.size + 3 := by
   have bound := Word.constantOneIndices_length_le (constant modulus)

@@ -25,7 +25,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Actual pair reduction and shared initialization establish the original scan invariant. -/
-theorem pairCandidatePrefix_correct (input : Input N) (generator : (ZMod N)ˣ)
+lemma pairCandidatePrefix_correct (input : Input N) (generator : (ZMod N)ˣ)
     (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions input generator store refs) :
     LatticeCandidateSlotOutcome.InitialConditions input generator

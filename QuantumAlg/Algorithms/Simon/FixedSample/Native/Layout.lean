@@ -68,7 +68,7 @@ def slotsInput {base : RuntimeCtx .quantum} {shape : CShape} (n : Nat)
         (.bits n) (slots base n count).canonicalFreshKey_fresh
 
 /-- The retained sample slots contribute no quantum wire. -/
-theorem nativeSimon_slots_wires (base : RuntimeCtx .quantum) (n count : Nat) :
+lemma nativeSimon_slots_wires (base : RuntimeCtx .quantum) (n count : Nat) :
     (slots base n count).quantumWires = base.quantumWires := by
   induction count with
   | zero => rfl
@@ -78,7 +78,7 @@ theorem nativeSimon_slots_wires (base : RuntimeCtx .quantum) (n count : Nat) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (n count : Nat)
 
 include noQuantum in
-private theorem allocationDisjoint :
+private lemma allocationDisjoint :
     List.Disjoint (bankLayout n).identities (slots base n count).physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, nativeSimon_slots_wires, noQuantum, List.map_nil]
   exact List.disjoint_nil_right _
@@ -120,13 +120,13 @@ def liftInput {shape : CShape} (input : CInputRef base shape) :
       (allocationDisjoint base noQuantum n count)) n
 
 /-- The prepared context contains exactly the original two-register bank. -/
-theorem nativeSimon_bankContext_wires :
+lemma nativeSimon_bankContext_wires :
     (bankContext base noQuantum n count).quantumWires = (bankLayout n).wires := by
   change (bankLayout n).wires ++ (slots base n count).quantumWires = _
   rw [nativeSimon_slots_wires, noQuantum, List.append_nil]
 
 /-- Classical readout cells add no physical system or wire permutation. -/
-theorem nativeSimon_context_wires :
+lemma nativeSimon_context_wires :
     (context base noQuantum n count).quantumWires = (bankLayout n).wires := by
   rw [context, MeasurementCells.context_quantumWires]
   exact nativeSimon_bankContext_wires base noQuantum n count
@@ -139,7 +139,7 @@ variable {ctx : RuntimeCtx .quantum} (n : Nat)
   (sameWires : ctx.quantumWires = (bankLayout n).wires)
 
 include sameWires in
-private theorem layoutWires : (bankLayout n).wires = ctx.quantumLayout.wires :=
+private lemma layoutWires : (bankLayout n).wires = ctx.quantumLayout.wires :=
   (ctx.quantumLayout_wires.trans sameWires).symm
 
 /-- The source position denotes the same physical wire in the live runtime context. -/
@@ -147,14 +147,14 @@ def wireEquiv : Fin (2 * n) ≃ Fin ctx.systemCount :=
   Execution.positionsOfEqualWires (bankLayout n) ctx.quantumLayout (layoutWires n sameWires)
 
 /-- Both identity and dimension are preserved at each source wire position. -/
-theorem nativeSimon_wire_preserved (wire : Fin (2 * n)) :
+lemma nativeSimon_wire_preserved (wire : Fin (2 * n)) :
     ctx.quantumLayout.wire (wireEquiv n sameWires wire) = (bankLayout n).wire wire :=
   Execution.wireAtCorrespondingPosition
     (bankLayout n) ctx.quantumLayout (layoutWires n sameWires) wire
 
 include sameWires in
 /-- Every live quantum system belongs to the original qubit bank. -/
-theorem nativeSimon_context_qubits (wire : Fin ctx.systemCount) :
+lemma nativeSimon_context_qubits (wire : Fin ctx.systemCount) :
     (ctx.quantumLayout.wire wire).dimension = 2 := by
   obtain ⟨original, rfl⟩ := (wireEquiv n sameWires).surjective wire
   simpa only [bankLayout, QubitLayout.toQuantum_wire] using
@@ -167,7 +167,7 @@ def basisEquiv : ctx.register.Index ≃ (Qubits (2 * n)).Index :=
 
 include sameWires in
 /-- Reindexing the source basis leaves every original physical identity unchanged. -/
-theorem nativeSimon_physicalIdx :
+lemma nativeSimon_physicalIdx :
     ctx.physicalIdx = (SimonsProblem.layout n).systemIdx := by
   change ctx.quantumWires.map QuantumWire.identity = _
   rw [sameWires]
@@ -176,7 +176,7 @@ theorem nativeSimon_physicalIdx :
 
 /-- Place the supplied original circuit on this same physical bank. -/
 def member (sampling : SamplingCircuit n) :
-    UnitaryCircuit AlgorithmGate.model (sourceModel sampling.oracle) ctx.quantumLayout :=
+    UnitaryCircuit AlgorithmGate.model (sourceModel n) ctx.quantumLayout :=
   Execution.unitaryOfEqualWires (bankLayout n) ctx.quantumLayout
     (layoutWires n sameWires) sampling.circuit
 

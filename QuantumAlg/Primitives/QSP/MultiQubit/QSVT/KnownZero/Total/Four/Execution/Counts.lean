@@ -21,29 +21,30 @@ noncomputable section
 variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
 
 /-- The independent complete budget permits precisely one controlled forward query. -/
-theorem totalComplexBudget_controlled_queries (L : Nat) :
+lemma totalComplexBudget_controlled_queries (L : Nat) :
     ResourcePool.count
-      (model := .quantum AlgorithmGate.model (UnitarySource.model U true true false))
-      (.oracle UnitarySource.Coordinate.controlled) (complexBudget U L) = 1 := by
+      (model := .quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false))
+      (.oracle UnitarySource.Coordinate.controlled) (complexBudget (m := m) (n := n) L) = 1 := by
   unfold complexBudget unmatchedBudget
   split_ifs <;> simp [budget, eventPool, phaseBudget_query_zero]
 
 /-- The complete budget never assumes controlled inverse access. -/
-theorem totalComplexBudget_controlled_inverse_queries (L : Nat) :
+lemma totalComplexBudget_controlled_inverse_queries (L : Nat) :
     ResourcePool.count
-      (model := .quantum AlgorithmGate.model (UnitarySource.model U true true false))
-      (.oracle UnitarySource.Coordinate.controlledInverse) (complexBudget U L) = 0 := by
+      (model := .quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false))
+      (.oracle UnitarySource.Coordinate.controlledInverse) (complexBudget (m := m) (n := n) L)
+        = 0 := by
   unfold complexBudget unmatchedBudget
   split_ifs <;> simp [budget, eventPool, phaseBudget_query_zero]
 
 /-- Ordinary and inverse query slots together are bounded by the longer branch length. -/
-theorem totalComplexBudget_uncontrolled_queries_le (L : Nat) :
+lemma totalComplexBudget_uncontrolled_queries_le (L : Nat) :
     ResourcePool.count
-      (model := .quantum AlgorithmGate.model (UnitarySource.model U true true false))
-      (.oracle UnitarySource.Coordinate.ordinary) (complexBudget U L) +
+      (model := .quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false))
+      (.oracle UnitarySource.Coordinate.ordinary) (complexBudget (m := m) (n := n) L) +
     ResourcePool.count
-      (model := .quantum AlgorithmGate.model (UnitarySource.model U true true false))
-      (.oracle UnitarySource.Coordinate.inverse) (complexBudget U L) ≤ L + 1 := by
+      (model := .quantum AlgorithmGate.model (UnitarySource.model (m + n) true true false))
+      (.oracle UnitarySource.Coordinate.inverse) (complexBudget (m := m) (n := n) L) ≤ L + 1 := by
   unfold complexBudget unmatchedBudget
   split_ifs <;> simp [budget, eventPool, phaseBudget_query_zero] <;> omega
 

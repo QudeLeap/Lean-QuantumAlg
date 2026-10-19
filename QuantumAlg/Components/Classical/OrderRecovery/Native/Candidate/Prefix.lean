@@ -60,13 +60,14 @@ def candidatePrefixStep
   (materialized.1, (divided.2, materialized.2))
 
 /-- The actual prefix composes division and materialization on the same complete state. -/
-theorem nativeCandidatePrefix_execute
+lemma nativeCandidatePrefix_execute
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
-    (candidate : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (candidate : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePrefix (model := model) numerator denominator previous older
-      division candidate).execute
+      division candidate).execute environment
         Reference state =
       state.mapClassical (fun entry =>
         ((candidatePrefixStep (model := model) numerator denominator previous older
@@ -82,7 +83,7 @@ theorem nativeCandidatePrefix_execute
   exact Subsingleton.elim _ _
 
 /-- The actual written candidate uses the real quotient and the original predecessor words. -/
-theorem nativeCandidatePrefix_result
+lemma nativeCandidatePrefix_result
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
@@ -109,7 +110,7 @@ theorem nativeCandidatePrefix_result
       (cursorDivision numerator denominator division) older olderFree]
 
 /-- The prefix changes only its live division pair and the specified candidate cell. -/
-theorem nativeCandidatePrefix_read_other
+lemma nativeCandidatePrefix_read_other
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
@@ -125,7 +126,7 @@ theorem nativeCandidatePrefix_read_other
       (cursorDivision numerator denominator division) other divisionFree)
 
 /-- Its actual event list contains the original-width division, product and sum in that order. -/
-theorem nativeCandidatePrefix_eventTrace
+lemma nativeCandidatePrefix_eventTrace
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
@@ -143,7 +144,7 @@ theorem nativeCandidatePrefix_eventTrace
   rfl
 
 /-- The three actual dependent arithmetic instructions have unit depth three. -/
-theorem nativeCandidatePrefix_unitDepth
+lemma nativeCandidatePrefix_unitDepth
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))

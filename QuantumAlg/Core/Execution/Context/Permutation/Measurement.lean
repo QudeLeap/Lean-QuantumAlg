@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Base.Model
-import all QuantumAlg.Core.Execution.Context.Permutation.Local
+import all QuantumAlg.Core.Execution.Context.Permutation.References
 import all QuantumAlg.Core.Execution.Context.Permutation.State
 import all QuantumAlg.Core.Execution.Context.Union.Measurement
 import all QuantumAlg.Core.Execution.State.Coordinate.Measurement
@@ -25,6 +25,8 @@ namespace QuantumAlg.Execution.ContextPermutation
 
 noncomputable section
 
+variable {allowAllocation : Bool}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {source target : RuntimeCtx .quantum}
@@ -37,13 +39,13 @@ def measurementOutcome : Fin (source.quantumLayout.wire wire).dimension ≃
     (congrArg QuantumWire.dimension (positions_wire same wire)).symm)
 
 /-- Reading the corresponding wire gives the identical numerical observation. -/
-theorem measurement_read (value : source.register.Index) :
+lemma measurement_read (value : source.register.Index) :
     measurementOutcome same wire (value wire) = basis same value (positions same wire) := by
   apply Fin.ext
   exact (basis_value same value wire).symm
 
 /-- Writing the observed value commutes with the complete actual store correspondence. -/
-theorem measurement_write (original : Store source)
+lemma measurement_write (original : Store source)
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension))
     (outcome : Fin (source.quantumLayout.wire wire).dimension) :
     store same (original.write output (.finite outcome)) =
@@ -55,7 +57,7 @@ theorem measurement_write (original : Store source)
       (writable same output) outcome).symm
 
 /-- The existing interpreter preserves the full conditional state and actual written outcome. -/
-private theorem state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
+private lemma state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference H)
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension)) :
     (state same (original.measureZ wire output)).mapHistory
@@ -106,18 +108,23 @@ private theorem state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
   simp only [ExecutionState.mapClassical_block_matrix]
 
 /-- The actual modeled measurement retains its service label and corresponding Z outcome. -/
-theorem state_measureZ {gates : GateModel} {oracles : OracleModel}
+lemma state_measureZ {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference (services.HiddenState × H))
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension)) :
-    (state same ((Circuit.measureZ (gates := gates) (oracles := oracles)
+    (state same ((Circuit.measureZ
+        (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) wire output).execute
-        Reference original)).mapHistory (fun record =>
+        environment Reference original)).mapHistory (fun record =>
           (record.1, (record.2.1, measurementOutcome same wire record.2.2))) =
-      (Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+      (Circuit.measureZ
+          (allowAllocation := allowAllocation)
+          (gates := gates) (oracles := oracles) (operations := operations)
         (classicalOracles := services) (positions same wire) (measurement same wire output)).execute
-          Reference (state same original) := by
+          environment Reference (state same original) := by
   have measured := congrArg
     (fun value : State target Reference ((services.HiddenState × H) ×
         Fin (target.quantumLayout.wire (positions same wire)).dimension) =>

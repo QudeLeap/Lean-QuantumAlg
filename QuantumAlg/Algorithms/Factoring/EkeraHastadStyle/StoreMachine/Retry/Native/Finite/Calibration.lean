@@ -7,18 +7,27 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.Factoring.Common
+public import QuantumAlg.Util.RSA.GeneratorOrder
+public import Mathlib.Algebra.Order.Floor.Ring
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+import Mathlib.Tactic.FieldSimp
+import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Positivity
+import Mathlib.Tactic.Ring
 
 import all QuantumAlg.Algorithms.Factoring.Common
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.Sampling.Batch.Success.Specification
 
 /-!
-# Original rational calibration for actual finite batch repetition
+# Shared real calibration for actual finite batch repetition
 
-The conditional batch floor determines its failure complement. The original
-conservative rational ceiling and halved target select an exact total count
-through the shared failure-budget formula. These are independent mathematical
-budgets; their use by an actual run is a separate probability theorem.
-The tighter fixed-seven RSA instance remains a separate width-specific result.
+An arbitrary real failure target selects the natural ceiling of
+log(eta / 2) / log(147 / 256). The original batch failure floor is unchanged.
+Conditional retry loss receives half the target; original-key loss is charged
+once outside the retry power. Both generic native RSA and declared EH use
+this single calibration. The fixed RSA-2048 instance retains its separate,
+tighter seven-batch bound; the generic one-percent count is ten.
 -/
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeFiniteRetry.Calibration
@@ -32,7 +41,7 @@ public def batchFailure (bitWidth : Nat) : ENNReal :=
 
 /-- Exact real normalization of the canonical conditional batch failure in
 the effective-width range. -/
-theorem batchFailure_eq_ofReal_of_effective {bitWidth : Nat}
+lemma batchFailure_eq_ofReal_of_effective {bitWidth : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
     batchFailure bitWidth =
       ENNReal.ofReal
@@ -62,26 +71,9 @@ theorem batchFailure_eq_ofReal_of_effective {bitWidth : Nat}
     ← ENNReal.ofReal_mul complementNonneg,
     ← ENNReal.ofReal_sub 1 productNonneg]
 
-/-- Conservative rational ceiling for the conditional failure of one
-canonical batch. -/
-def conditionalFailureBudget : FailureBudget where
-  failureNumerator := 147
-  failureDenominator := 256
-
-/-- Half of the caller's target is reserved for independent retry failure. -/
-def retryTargetBudget (budget : FailureBudget) : FailureBudget where
-  failureNumerator := budget.failureNumerator
-  failureDenominator := 2 * budget.failureDenominator
-
-/-- Exact retry count calibrated from the canonical one-batch failure
-ceiling. -/
-public def retryCount (budget : FailureBudget) : Nat :=
-  FailureBudget.retryCountFor conditionalFailureBudget
-    (retryTargetBudget budget)
-
 /-- At every effective RSA width, the canonical shared-batch success floor is
 at least `109 / 256`. -/
-theorem oneHundredNineOver256_le_successFloor {bitWidth : Nat}
+lemma oneHundredNineOver256_le_successFloor {bitWidth : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
     ENNReal.ofReal ((109 : Real) / 256) ≤ NativeBatchSuccess.successFloor bitWidth := by
   let bound : Real := (513 / 1024 : Real) ^ 16 + 1 / 8
@@ -121,7 +113,7 @@ theorem oneHundredNineOver256_le_successFloor {bitWidth : Nat}
 
 /-- Conditional canonical batch failure is at most `147 / 256` throughout
 the effective range. -/
-theorem batchFailure_le_147Over256 {bitWidth : Nat}
+lemma batchFailure_le_147Over256 {bitWidth : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
     batchFailure bitWidth ≤ ENNReal.ofReal ((147 : Real) / 256) := by
   rw [show (147 : Real) / 256 = 1 - 109 / 256 by norm_num,
@@ -130,68 +122,210 @@ theorem batchFailure_le_147Over256 {bitWidth : Nat}
   exact tsub_le_tsub_left
     (oneHundredNineOver256_le_successFloor effective) 1
 
-/-- The canonical conditional-failure calibration lies strictly between zero
-and one. -/
-theorem conditionalFailureBudget_strictlyWellFormed :
-    conditionalFailureBudget.StrictlyWellFormed := by
-  refine {
-    numerator_pos := ?_
-    denominator_pos := ?_
-    numerator_le_denominator := ?_
-    numerator_lt_denominator := ?_ } <;>
-    norm_num [conditionalFailureBudget]
+/-- The real exponent in the agreed direct failure-ratio formula. -/
+public def realRetryExponent (η : Real) : Real :=
+  Real.log (η / 2) / Real.log ((147 : Real) / 256)
 
-@[simp] theorem conditionalFailureBudget_value :
-    conditionalFailureBudget.value = (147 : Real) / 256 := by
-  norm_num [conditionalFailureBudget, FailureBudget.value]
+/-- The least natural ceiling of the real exponent, without a redundant maximum. -/
+public def retryCount (η : Real) : Nat :=
+  Nat.ceil (realRetryExponent η)
 
-/-- Halving a well-formed caller target preserves its well-formedness. -/
-theorem retryTargetBudget_wellFormed (budget : FailureBudget)
-    (wellFormed : budget.WellFormed) :
-    (retryTargetBudget budget).WellFormed := by
-  constructor
-  · exact wellFormed.numerator_pos
-  · exact Nat.mul_pos (by norm_num) wellFormed.denominator_pos
-  · change budget.failureNumerator ≤ 2 * budget.failureDenominator
-    exact wellFormed.numerator_le_denominator.trans (by omega)
+/-- The direct and reciprocal logarithm formulas agree, even at totalized zero. -/
+public lemma realRetryExponent_eq_inverse_log (η : Real) :
+    realRetryExponent η = Real.log (2 / η) / Real.log ((256 : Real) / 147) := by
+  have numerator : Real.log (η / 2) = -Real.log (2 / η) := by
+    rw [show η / 2 = (2 / η)⁻¹ by rw [inv_div], Real.log_inv]
+  have denominator :
+      Real.log ((147 : Real) / 256) = -Real.log ((256 : Real) / 147) := by
+    rw [show (147 : Real) / 256 = ((256 : Real) / 147)⁻¹ by norm_num,
+      Real.log_inv]
+  rw [realRetryExponent, numerator, denominator, neg_div_neg_eq]
 
-@[simp] theorem retryTargetBudget_value (budget : FailureBudget) :
-    (retryTargetBudget budget).value = budget.value / 2 := by
-  by_cases denominatorZero : budget.failureDenominator = 0
-  · simp [retryTargetBudget, FailureBudget.value, denominatorZero]
-  · unfold retryTargetBudget FailureBudget.value
-    have denominatorReal : (budget.failureDenominator : Real) ≠ 0 := by
-      exact_mod_cast denominatorZero
-    field_simp
-    norm_num only [Nat.cast_mul, Nat.cast_ofNat]
-    ring
+/-- The retry count can equivalently be read using positive reciprocal logarithms. -/
+public lemma realRetryCount_eq_inverse_log (η : Real) :
+    retryCount η = Nat.ceil (Real.log (2 / η) / Real.log ((256 : Real) / 147)) := by
+  rw [retryCount, realRetryExponent_eq_inverse_log]
 
-/-- The calibrated independent-retry failure power is at most half of the
-caller's declared target. -/
-theorem retryBatchFailure_le_halfTarget {bitWidth : Nat}
-    (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
-    (budget : FailureBudget) (wellFormed : budget.WellFormed) :
-    batchFailure bitWidth ^ retryCount budget ≤
-      ENNReal.ofReal (budget.value / 2) := by
+/-- An admissible failure target gives a strictly positive real exponent. -/
+public lemma realRetryExponent_pos (η : Real) (positive : 0 < η) (lessOne : η < 1) :
+    0 < realRetryExponent η := by
+  have ratioGreater : 1 < (2 : Real) / η := by
+    apply (lt_div_iff₀ positive).mpr
+    linarith
+  rw [realRetryExponent_eq_inverse_log]
+  exact div_pos (Real.log_pos ratioGreater) (Real.log_pos (by norm_num))
+
+/-- An admissible failure target requires at least one batch. -/
+public lemma realRetryCount_pos (η : Real) (positive : 0 < η) (lessOne : η < 1) :
+    0 < retryCount η := by
+  exact Nat.ceil_pos.mpr (realRetryExponent_pos η positive lessOne)
+
+/-- On the admissible domain the older maximum-with-one form adds nothing. -/
+public lemma realRetryCount_eq_max_inverse_log (η : Real)
+    (positive : 0 < η) (lessOne : η < 1) :
+    retryCount η = max 1
+      (Nat.ceil (Real.log (2 / η) / Real.log ((256 : Real) / 147))) := by
+  have oneLe : 1 ≤ retryCount η := realRetryCount_pos η positive lessOne
+  rw [← realRetryCount_eq_inverse_log, max_eq_right oneLe]
+
+/-- The selected number of batches bounds the generic failure by half the target. -/
+public lemma realRetryFailure_power_le_half (η : Real) (positive : 0 < η) :
+    ((147 : Real) / 256) ^ retryCount η ≤ η / 2 := by
+  let ratio : Real := 256 / 147
+  have ratioPositive : 0 < ratio := by norm_num [ratio]
+  have ratioGreater : 1 < ratio := by norm_num [ratio]
+  have logPositive : 0 < Real.log ratio := Real.log_pos ratioGreater
+  have exponentLe : Real.log (2 / η) / Real.log ratio ≤ (retryCount η : Real) := by
+    rw [realRetryCount_eq_inverse_log]
+    exact Nat.le_ceil _
+  have logLe : Real.log (2 / η) ≤ (retryCount η : Real) * Real.log ratio :=
+    (div_le_iff₀ logPositive).mp exponentLe
+  have ratioLe : 2 / η ≤ ratio ^ retryCount η := by
+    calc
+      2 / η = Real.exp (Real.log (2 / η)) :=
+        (Real.exp_log (div_pos (by norm_num) positive)).symm
+      _ ≤ Real.exp ((retryCount η : Real) * Real.log ratio) :=
+        Real.exp_le_exp.mpr logLe
+      _ = ratio ^ retryCount η := by
+        rw [← Real.log_pow]
+        exact Real.exp_log (pow_pos ratioPositive _)
+  have multiplied : 2 ≤ ratio ^ retryCount η * η :=
+    (div_le_iff₀ positive).mp ratioLe
+  have cancel : ratio ^ retryCount η * ((147 : Real) / 256) ^ retryCount η = 1 := by
+    rw [← mul_pow]
+    norm_num [ratio]
+  have twiceLe : 2 * ((147 : Real) / 256) ^ retryCount η ≤ η := by
+    calc
+      2 * ((147 : Real) / 256) ^ retryCount η ≤
+          (ratio ^ retryCount η * η) * ((147 : Real) / 256) ^ retryCount η :=
+        mul_le_mul_of_nonneg_right multiplied (by positivity)
+      _ = η * (ratio ^ retryCount η * ((147 : Real) / 256) ^ retryCount η) := by ring
+      _ = η := by rw [cancel, mul_one]
+  linarith
+
+/-- Nine reciprocal powers fall strictly below the one-percent threshold. -/
+public lemma realRetryInversePower_nine_lt_twoHundred :
+    ((256 : Real) / 147) ^ 9 < 200 := by
+  norm_num
+
+/-- Ten reciprocal powers reach the one-percent threshold. -/
+public lemma realRetryInversePower_twoHundred_le_ten :
+    (200 : Real) ≤ ((256 : Real) / 147) ^ 10 := by
+  norm_num
+
+/-- The generic real calibration selects exactly ten batches at a one-percent target. -/
+public lemma realRetryCount_one_percent : retryCount ((1 : Real) / 100) = 10 := by
+  have ratioPositive : 0 < (256 : Real) / 147 := by norm_num
+  have logPositive : 0 < Real.log ((256 : Real) / 147) :=
+    Real.log_pos (by norm_num)
+  have lowerLog : (9 : Real) * Real.log ((256 : Real) / 147) < Real.log 200 := by
+    have result := Real.log_lt_log (pow_pos ratioPositive 9)
+      realRetryInversePower_nine_lt_twoHundred
+    simpa only [Real.log_pow, Nat.cast_ofNat] using result
+  have upperLog : Real.log 200 ≤ (10 : Real) * Real.log ((256 : Real) / 147) := by
+    have result := Real.log_le_log (by norm_num : (0 : Real) < 200)
+      realRetryInversePower_twoHundred_le_ten
+    simpa only [Real.log_pow, Nat.cast_ofNat] using result
+  have lower : (9 : Real) < Real.log 200 / Real.log ((256 : Real) / 147) :=
+    (lt_div_iff₀ logPositive).mpr lowerLog
+  have upper : Real.log 200 / Real.log ((256 : Real) / 147) ≤ (10 : Real) :=
+    (div_le_iff₀ logPositive).mpr upperLog
+  have evaluated :
+      realRetryExponent ((1 : Real) / 100) = Real.log 200 / Real.log ((256 : Real) / 147) := by
+    rw [realRetryExponent_eq_inverse_log]
+    norm_num
+  rw [retryCount, evaluated]
+  exact Nat.le_antisymm (Nat.ceil_le.mpr upper) (Nat.succ_le_of_lt (Nat.lt_ceil.mpr lower))
+
+/-- Any certified conditional failure below the generic ceiling has the half-target power. -/
+public lemma realFailureCalibration_ennrealPower_le_half
+    (η : Real) (positive : 0 < η) (failure : ENNReal)
+    (bounded : failure ≤ ENNReal.ofReal ((147 : Real) / 256)) :
+    failure ^ retryCount η ≤ ENNReal.ofReal (η / 2) := by
   calc
-    batchFailure bitWidth ^ retryCount budget ≤
-        ENNReal.ofReal ((147 : Real) / 256) ^ retryCount budget :=
-      pow_le_pow_left' (batchFailure_le_147Over256 effective) _
-    _ = ENNReal.ofReal conditionalFailureBudget.value ^ retryCount budget := by
-      rw [conditionalFailureBudget_value]
-    _ ≤ ENNReal.ofReal (retryTargetBudget budget).value := by
-      unfold retryCount
-      exact FailureBudget.retryFailurePowerFor_le conditionalFailureBudget
-        (retryTargetBudget budget)
-        conditionalFailureBudget_strictlyWellFormed
-        (retryTargetBudget_wellFormed budget wellFormed)
-    _ = ENNReal.ofReal (budget.value / 2) := by
-      rw [retryTargetBudget_value]
+    failure ^ retryCount η ≤
+        ENNReal.ofReal ((147 : Real) / 256) ^ retryCount η :=
+      pow_le_pow_left' bounded _
+    _ ≤ ENNReal.ofReal (η / 2) := by
+      rw [← ENNReal.ofReal_pow (by norm_num : (0 : Real) ≤ 147 / 256)]
+      exact ENNReal.ofReal_le_ofReal
+        (realRetryFailure_power_le_half η positive)
 
+/-- The exact real conditional-success threshold agrees with ENNReal subtraction. -/
+public lemma realFailureCalibration_halfSuccess_eq
+    (η : Real) (positive : 0 < η) :
+    ENNReal.ofReal (1 - η / 2) = 1 - ENNReal.ofReal (η / 2) := by
+  rw [ENNReal.ofReal_sub 1 (by positivity : (0 : Real) ≤ η / 2), ENNReal.ofReal_one]
 
-/-- The original exact calibration supplies positivity without another caller hypothesis. -/
-theorem retryCount_pos (budget : FailureBudget) : 0 < retryCount budget :=
-  FailureBudget.retryCountFor_pos conditionalFailureBudget (retryTargetBudget budget)
+/-- An existing same-run success theorem receives the numerical half-target without new PMFs. -/
+public lemma realFailureCalibration_conditionalSuccess
+    (η : Real) (positive : 0 < η) (failure success : ENNReal)
+    (bounded : failure ≤ ENNReal.ofReal ((147 : Real) / 256))
+    (actual : 1 - failure ^ retryCount η ≤ success) :
+    1 - ENNReal.ofReal (η / 2) ≤ success :=
+  (tsub_le_tsub_left
+    (realFailureCalibration_ennrealPower_le_half η positive failure bounded) 1).trans actual
+
+/-- Key loss is charged once, outside the conditional retry power. -/
+public lemma realFailureCalibration_twoHalvesSuccess
+    (η : Real) (positive : 0 < η) (keyLoss retryLoss success : ENNReal)
+    (keyBound : keyLoss ≤ ENNReal.ofReal (η / 2))
+    (retryBound : retryLoss ≤ ENNReal.ofReal (η / 2))
+    (actual : 1 - (keyLoss + retryLoss) ≤ success) :
+    ENNReal.ofReal (1 - η) ≤ success := by
+  apply le_trans _ actual
+  rw [ENNReal.ofReal_sub 1 positive.le, ENNReal.ofReal_one]
+  apply tsub_le_tsub_left
+  calc
+    keyLoss + retryLoss ≤ ENNReal.ofReal (η / 2) + ENNReal.ofReal (η / 2) :=
+      add_le_add keyBound retryBound
+    _ = ENNReal.ofReal η := by
+      rw [← ENNReal.ofReal_add (by positivity : (0 : Real) ≤ η / 2)
+        (by positivity : (0 : Real) ≤ η / 2)]
+      congr 1
+      ring
+
+/-- The existing batch model plugs into the real scalar theorem at every effective width. -/
+public lemma retryBatchFailure_le_halfTarget
+    {bitWidth : Nat}
+    (effective : QuantumAlg.RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth)
+    (η : Real) (positive : 0 < η) :
+    batchFailure bitWidth ^
+        retryCount η ≤ ENNReal.ofReal (η / 2) :=
+  realFailureCalibration_ennrealPower_le_half η positive _
+    (batchFailure_le_147Over256 effective)
+
+/-- Compatibility is one-way mathematical specialization, not rationalization of real inputs. -/
+public lemma realRetryCount_eq_rationalCalibration
+    (budget : FailureBudget) (wellFormed : budget.WellFormed)
+    (lessOne : budget.value < 1) :
+    retryCount budget.value =
+      max 1 (Nat.ceil
+        (Real.log (((2 * budget.failureDenominator : Nat) : Real) / budget.failureNumerator) /
+          Real.log ((256 : Real) / 147))) := by
+  have numeratorNonzero : (budget.failureNumerator : Real) ≠ 0 :=
+    Nat.cast_ne_zero.mpr (Nat.ne_of_gt wellFormed.numerator_pos)
+  have denominatorNonzero : (budget.failureDenominator : Real) ≠ 0 :=
+    Nat.cast_ne_zero.mpr (Nat.ne_of_gt wellFormed.denominator_pos)
+  have reciprocal : 2 / budget.value =
+      (((2 * budget.failureDenominator : Nat) : Real) / budget.failureNumerator) := by
+    unfold FailureBudget.value
+    push_cast
+    field_simp [numeratorNonzero, denominatorNonzero]
+  simpa only [reciprocal] using
+    realRetryCount_eq_max_inverse_log budget.value
+      (FailureBudget.value_pos budget wellFormed) lessOne
+
+/-- The public expanded formula is exactly the original private rational count. -/
+private lemma realRetryCount_eq_legacy_rationalCalibration
+    (budget : FailureBudget) (wellFormed : budget.WellFormed)
+    (lessOne : budget.value < 1) :
+    retryCount budget.value =
+      FailureBudget.retryCountFor
+        { failureNumerator := 147, failureDenominator := 256 }
+        { failureNumerator := budget.failureNumerator,
+          failureDenominator := 2 * budget.failureDenominator } := by
+  exact realRetryCount_eq_rationalCalibration budget wellFormed lessOne
 
 end
 

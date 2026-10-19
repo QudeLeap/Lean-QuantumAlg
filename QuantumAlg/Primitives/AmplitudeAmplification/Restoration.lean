@@ -34,26 +34,29 @@ private instance pre_borrowedSubsingleton : Subsingleton pre.borrowedClassicalSh
     cases right
     rfl
 
-theorem preparationCode_borrowedRestored {n : Nat}
-    (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
+lemma preparationCode_borrowedRestored (n : Nat) (k : Nat) (environment : (model n).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    (preparationCode M k).BorrowedRestored Reference state
-      ((preparationCode M k).execute Reference state) :=
-  Circuit.borrowedRestored_prepareZero_noBorrowedQuantum rfl state ⟨0⟩ (runtimeLayout n k)
+    (preparationCode n k).BorrowedRestored Reference state
+      ((preparationCode n k).execute environment Reference state) :=
+  Circuit.borrowedRestored_prepareZero_noBorrowedQuantum
+    rfl environment state ⟨0⟩ (runtimeLayout n k)
     preparationFresh (preparationDisjoint n k)
 
 /-- Every actual complete run preserves the same external reference. -/
-theorem code_borrowedRestored {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat)
+lemma code_borrowedRestored (n : Nat) (k : Nat) (environment : (model n).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    (code M k).BorrowedRestored Reference state ((code M k).execute Reference state) := by
-  have unitaryRestores := Circuit.borrowedRestored_unitary_noBorrowed
+    (code n k).BorrowedRestored Reference state
+      ((code n k).execute environment Reference state) := by
+  have unitaryRestores := Circuit.borrowedRestored_unitary_noBorrowed (environment := environment)
+    (allowAllocation := true)
     (operations := .empty) (classicalOracles := .empty)
-    (ctx := post n k) rfl rfl (nativeProgram M k)
-    ((preparationCode M k).execute Reference state)
-  exact Circuit.borrowedRestored_seq (model := model M) (preparationCode M k)
-    (.unitary (nativeProgram M k)) state (preparationCode_borrowedRestored M k state)
+    (ctx := post n k) rfl rfl (nativeProgram n k)
+    ((preparationCode n k).execute environment Reference state)
+  exact Circuit.borrowedRestored_seq (model := model n)
+    (environment := environment) (preparationCode n k)
+    (.unitary (nativeProgram n k)) state (preparationCode_borrowedRestored n k environment state)
     unitaryRestores
 
 end

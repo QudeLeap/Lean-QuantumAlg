@@ -21,6 +21,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -28,25 +31,27 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- The real run enters the same code while recording the original caller store as history. -/
-theorem nativeBatch_run_enter (Reference : Register)
+lemma nativeBatch_run_enter (Reference : Register)
     (state : ExecutionState (Store base × RuntimeRound.model.HiddenState)
       (Register.prod base.register Reference)) :
-    (run base noQuantum N).execute Reference state =
-      (code base noQuantum N).execute Reference
+    (run base noQuantum N).execute environment Reference state =
+      (code base noQuantum N).execute environment Reference
         (state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))) := rfl
 
 /-- The complete run's actual Output probabilities have the original same-source batch law. -/
-theorem nativeBatch_run_outputDistribution (specification : Input N)
+lemma nativeBatch_run_outputDistribution (specification : Input N)
     {Reference : Register}
     (input : Execution.OracleInput RuntimeRound.model.classicalOracles base Reference) :
-    (run base noQuantum N).outputDistribution input = sourceDistribution specification := by
+    (run base noQuantum N).outputDistribution environment input = sourceDistribution specification
+      := by
   let entered : State base Reference (RuntimeRound.model.HiddenState × Store base) :=
     input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
   have normalized := input.state.mapClassical_normalized input.normalized
     (fun entry => (entry.1, (entry.2, entry.1)))
-  have actual : (run base noQuantum N).executionDistribution input =
-      ((code base noQuantum N).execute Reference entered).toPMF
-        (((code base noQuantum N).execute_mass Reference entered).trans normalized) := by
+  have actual : (run base noQuantum N).executionDistribution environment input =
+      ((code base noQuantum N).execute environment Reference entered).toPMF
+        (((code base noQuantum N).execute_mass environment Reference entered).trans normalized) :=
+          by
     apply PMF.ext
     intro record
     exact congrArg

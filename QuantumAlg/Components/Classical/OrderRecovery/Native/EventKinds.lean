@@ -26,7 +26,7 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 noncomputable section
 
 /-- Every coordinate outside classical operations is absent from the independent allowance. -/
-theorem eventEnvelope_count_nonclassical {model : ExecutionModel} [BitWord.Selected model]
+lemma eventEnvelope_count_nonclassical {model : ExecutionModel} [BitWord.Selected model]
     (modulusWidth phaseBits : Nat) (event : Resource.Event model)
     (nonclassical : ∀ operation, Resource.Event.classicalOperation operation ≠ event) :
     ResourcePool.count event (eventEnvelope model modulusWidth phaseBits) = 0 := by
@@ -40,7 +40,7 @@ theorem eventEnvelope_count_nonclassical {model : ExecutionModel} [BitWord.Selec
     nonclassical]
 
 /-- The actual complete recovery adds no event outside its classical-operation coordinates. -/
-theorem nativeRecovery_into_count_nonclassical {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeRecovery_into_count_nonclassical {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {modulusWidth phaseBits : Nat}
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)

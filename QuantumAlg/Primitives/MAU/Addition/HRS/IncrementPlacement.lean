@@ -28,6 +28,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 private def incrementSourceLayout (extra high : Nat) :
     QuantumLayout (extra + (TTK.overflowEncoding high).width) :=
   (QubitLayout.canonical (extra + (TTK.overflowEncoding high).width)).toQuantum
@@ -64,7 +66,7 @@ private def incrementPlacementPosition (extra high : Nat) :
     simp only [incrementPlacementPositionValue] at sameValue
     split_ifs at sameValue <;> omega
 
-@[simp] private theorem incrementPlacementPosition_val (extra high : Nat)
+@[simp] private lemma incrementPlacementPosition_val (extra high : Nat)
     (index : Fin (extra + (TTK.overflowEncoding high).width)) :
     (incrementPlacementPosition extra high index).val =
       if index.val < extra + high then high + index.val
@@ -72,7 +74,7 @@ private def incrementPlacementPosition (extra high : Nat) :
       else high + extra + high := by
   rfl
 
-private theorem incrementPlacementPosition_surjective (extra high : Nat) :
+private lemma incrementPlacementPosition_surjective (extra high : Nat) :
     Function.Surjective (incrementPlacementPosition extra high) := by
   intro target
   by_cases inTarget : target.val < high
@@ -107,7 +109,7 @@ private theorem incrementPlacementPosition_surjective (extra high : Nat) :
         simp only [before, ↓reduceIte]
         omega
 
-private theorem incrementPlacementDimensions (extra high : Nat)
+private lemma incrementPlacementDimensions (extra high : Nat)
     (index : Fin (extra + (TTK.overflowEncoding high).width)) :
     ((incrementSourceLayout extra high).wire index).dimension =
       ((incrementTargetLayout extra high).wire
@@ -118,7 +120,7 @@ private abbrev incrementSourceEncoding (extra high : Nat) :
   BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity extra)
     (TTK.overflowEncoding high)
 
-private theorem binaryBasis_prod_left {leftWidth rightWidth : Nat}
+private lemma binaryBasis_prod_left {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth))
     (index : Fin leftWidth) :
     (BinaryBasis.bigEndianEquiv (leftWidth + rightWidth)).symm
@@ -137,7 +139,7 @@ private theorem binaryBasis_prod_left {leftWidth rightWidth : Nat}
   rw [bitPosition]
   exact prodEquiv_testBit_left left right index.rev
 
-private theorem binaryBasis_prod_right {leftWidth rightWidth : Nat}
+private lemma binaryBasis_prod_right {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth))
     (index : Fin rightWidth) :
     (BinaryBasis.bigEndianEquiv (leftWidth + rightWidth)).symm
@@ -156,7 +158,7 @@ private theorem binaryBasis_prod_right {leftWidth rightWidth : Nat}
   rw [bitPosition]
   exact prodEquiv_testBit_right left right index.rev
 
-private theorem incrementPlacement_selectedInput (extra high : Nat)
+private lemma incrementPlacement_selectedInput (extra high : Nat)
     (unused : Fin (2 ^ extra)) (borrowed target : Fin (2 ^ high)) (dirty : Bool) :
     UnitaryCircuit.selectedInput (incrementSourceLayout extra high)
         (incrementTargetLayout extra high) (incrementPlacementPosition extra high)
@@ -401,7 +403,7 @@ def placedIncrementGates (extra high : Nat) :
       (incrementFullPlacement extra high).placeGate
 
 /-- The literal placed list increments the high word and restores its borrowed low bits. -/
-theorem hrsPlacedIncrementGates_step (extra high : Nat)
+lemma hrsPlacedIncrementGates_step (extra high : Nat)
     (state : BridgeRegisters (Fin (2 ^ (extra + high))) high) :
     EncodedBit.GateSpec.stepList (placedIncrementGates extra high) state =
       bridgeIncrementStep state := by
@@ -423,21 +425,21 @@ def placedIncrementProgram (extra high : Nat) :
     (placedIncrementGates extra high)
 
 /-- The placed actual program increments only the high word when the dirty bit is set. -/
-theorem hrsPlacedIncrement_realizes (extra high : Nat) :
+lemma hrsPlacedIncrement_realizes (extra high : Nat) :
     UnitaryCircuit.Realizes (bridgeEncoding (extra + high) high)
-      (placedIncrementProgram extra high) bridgeIncrementStep :=
+      (placedIncrementProgram extra high) environment bridgeIncrementStep :=
   EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (placedIncrementGates extra high) (hrsPlacedIncrementGates_step extra high)
+    (placedIncrementGates extra high) (hrsPlacedIncrementGates_step extra high) environment
 
 /-- The canonical physical layout is exactly the low word, high word, and one dirty bit. -/
-theorem hrsPlacedIncrement_physical_range (extra high : Nat) :
+lemma hrsPlacedIncrement_physical_range (extra high : Nat) :
     (QubitLayout.canonical (bridgeEncoding (extra + high) high).width).systemIdx =
       List.range ((extra + high) + high + 1) := by
   rw [hrsBridgeEncoding_width]
   exact QubitLayout.canonical_systemIdx ((extra + high) + high + 1)
 
 /-- Placement retains the original actual native-event ledger and evaluated depth. -/
-theorem hrsPlacedIncrement_resources (extra high : Nat)
+lemma hrsPlacedIncrement_resources (extra high : Nat)
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (placedIncrementProgram extra high).eventCost =
         (controlledBorrowedIncrementProgram high).eventCost ∧

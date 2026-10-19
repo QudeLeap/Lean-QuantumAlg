@@ -31,22 +31,23 @@ namespace QuantumAlg.HadamardTest.Native
 noncomputable section
 
 /-- One native Hadamard on the control, with every input system untouched. -/
-public def boundary {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model unitary true)
+public def boundary (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model width true)
       (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout :=
   Gate.singleQubitAt (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout
-    (UnitarySource.model unitary true) Gate.HOp (0 : Fin (1 + width)) rfl
+    (UnitarySource.model width true) Gate.HOp (0 : Fin (1 + width)) rfl
 
 /-- Two actual single-qubit operations surround the granted controlled source call. -/
-public def circuit {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model unitary true)
+public def circuit (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model width true)
       (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout :=
-  ((boundary unitary).seq (UnitarySource.controlledProgram AlgorithmGate.model unitary)).seq
-    (boundary unitary)
+  ((boundary width).seq (UnitarySource.controlledProgram AlgorithmGate.model width)).seq
+    (boundary width)
 
-private theorem query_binaryMatrix {width : Nat}
+private lemma query_binaryMatrix {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) :
-    (UnitarySource.controlledProgram AlgorithmGate.model unitary).binaryMatrix =
+    (UnitarySource.controlledProgram AlgorithmGate.model width).binaryMatrix
+      (UnitarySource.interpretation unitary true) =
       UnitaryOperator.controlledQubits unitary := by
   unfold UnitaryCircuit.binaryMatrix
   rw [UnitarySource.controlledProgram_matrix]
@@ -54,23 +55,23 @@ private theorem query_binaryMatrix {width : Nat}
     (QuantumSignature.qubitsIndexEquiv (1 + width)).symm _
 
 /-- Exact binary matrix of the actual native three-instruction word. -/
-public theorem hadamardTestNative_binaryMatrix {width : Nat}
+public lemma hadamardTestNative_binaryMatrix {width : Nat}
     (unitary : UnitaryOperator (Qubits width)) :
-    (circuit unitary).binaryMatrix = hadamardTest unitary := by
+    (circuit width).binaryMatrix
+      (UnitarySource.interpretation unitary true) = hadamardTest unitary := by
   rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, query_binaryMatrix]
   rw [boundary, Gate.singleQubitAt_first_binaryMatrix]
   rfl
 
 /-- The event ledger records both actual native gates and the one granted source query. -/
-public theorem hadamardTestNative_eventCost {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    (circuit unitary).eventCost =
+public lemma hadamardTestNative_eventCost (width : Nat) :
+    (circuit width).eventCost =
       2 • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (UnitarySource.model unitary true))
+        (model := .quantum AlgorithmGate.model (UnitarySource.model width true))
         (.gate AlgorithmGate.Coordinate.singleQubit) +
       ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (UnitarySource.model unitary true))
+        (model := .quantum AlgorithmGate.model (UnitarySource.model width true))
         (.oracle UnitarySource.Coordinate.controlled) := by
   rw [circuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
     boundary, Gate.singleQubitAt_eventCost, UnitarySource.controlledProgram_events]
@@ -78,9 +79,8 @@ public theorem hadamardTestNative_eventCost {width : Nat}
   ac_rfl
 
 /-- The three instructions share the control wire and have unit-event depth three. -/
-public theorem hadamardTestNative_unit_depth {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) :
-    (circuit unitary).evaluatedEventDepth (fun _ => 1) = 3 := by
+public lemma hadamardTestNative_unit_depth (width : Nat) :
+    (circuit width).evaluatedEventDepth (fun _ => 1) = 3 := by
   rw [circuit, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.evaluatedEventDepth_seq, UnitarySource.controlledProgram_depth]
   change (1 + 1) + 1 = 3

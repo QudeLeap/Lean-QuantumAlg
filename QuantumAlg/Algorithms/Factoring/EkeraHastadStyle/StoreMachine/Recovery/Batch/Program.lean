@@ -62,7 +62,8 @@ structure Relation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   output : after.read (FirstAccepted.cellRead result) = batchValue sample terminals before
   callerFrame : CallerFrame result before after
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- References produced by the actual top and scratch allocators, with the lifted caller output. -/
@@ -94,7 +95,7 @@ def into (ctx : RuntimeCtx model.kind) (input : Input N)
         (bodyRefs parameter terminals result top topTransport cells pairTransport)
 
 omit [BitWord.Selected model] in
-private theorem bodyInitial {topCtx inner : RuntimeCtx model.kind} (input : Input N)
+private lemma bodyInitial {topCtx inner : RuntimeCtx model.kind} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (refs : LatticeBatchRecoveryWorkspaceBody.Refs ctx topCtx inner N) (before : Store inner)
     (parameterStored : before.read
@@ -126,7 +127,7 @@ private theorem bodyInitial {topCtx inner : RuntimeCtx model.kind} (input : Inpu
     exact congrArg CShape.Value.toBool initialized
 
 omit [BitWord.Selected model] in
-private theorem bodyValue_restrict {topCtx inner : RuntimeCtx model.kind}
+private lemma bodyValue_restrict {topCtx inner : RuntimeCtx model.kind}
     (sample : Fin (2 ^ residueSamplingBits N))
     (refs : LatticeBatchRecoveryWorkspaceBody.Refs ctx topCtx inner N) (before : Store inner) :
     LatticeBatchRecoveryEndpoint.batchOutputValue sample
@@ -157,14 +158,14 @@ private def Post (input : Input N) (parameter : CInputRef ctx (ParameterShape N)
     ∀ sample, InitialConditions input sample before parameter →
       after.read (FirstAccepted.cellRead result) = batchValue sample terminals before
 
-private theorem actualRecord_exists (input : Input N)
+private lemma actualRecord_exists (input : Input N)
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N)) :
     ∃ record : Store ctx → Store ctx × (into ctx input parameter terminals result).Path,
-      (∀ (Reference : Register) {History : Type} [Fintype History]
+      (∀ (environment : model.Environment) (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (into ctx input parameter terminals result).execute Reference state =
+        (into ctx input parameter terminals result).execute environment Reference state =
           state.mapClassical (fun entry =>
             (let actual := record entry.1
              (actual.1, (entry.2.1, (entry.2.2, actual.2)))))) ∧
@@ -176,7 +177,8 @@ private theorem actualRecord_exists (input : Input N)
   have separation : LatticeBatchRecoveryWorkspaceBody.Separation refs :=
     ⟨topDistinct, topSeparated, certificates⟩
   refine ⟨LatticeBatchRecoveryWorkspaceBody.step input refs,
-    LatticeBatchRecoveryWorkspaceBody.into_execute input refs, ?_⟩
+    (fun environment => LatticeBatchRecoveryWorkspaceBody.into_execute
+      (environment := environment) input refs), ?_⟩
   intro before topInitialized _scratchInitialized
   have reads : (topTransport.compose pairTransport).ReadsAs
       ((topTransport.compose pairTransport).restrict before) before :=
@@ -212,26 +214,27 @@ def step (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
   Classical.choose (actualRecord_exists input parameter terminals result)
 
 /-- The complete allocated execution equals its actual record on every history and reference. -/
-theorem into_execute (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_execute (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into ctx input parameter terminals result).execute Reference state =
+    (into ctx input parameter terminals result).execute environment Reference state =
       state.mapClassical (fun entry =>
         (let actual := step input parameter terminals result entry.1
          (actual.1, (entry.2.1, (entry.2.2, actual.2))))) :=
-  (Classical.choose_spec (actualRecord_exists input parameter terminals result)).1 Reference state
+  (Classical.choose_spec (actualRecord_exists input parameter terminals result)).1 environment
+    Reference state
 
 /-- Every caller value outside the result survives, without parameter or scratch premises. -/
-theorem into_callerFrame (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_callerFrame (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N)) (before : Store ctx) :
     CallerFrame result before (step input parameter terminals result before).1 :=
   ((Classical.choose_spec (actualRecord_exists input parameter terminals result)).2 before).1
 
 /-- Actual allocation, complete recovery and release return the original batch value. -/
-theorem into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma into_correct (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N)) (before : Store ctx)
@@ -253,7 +256,7 @@ def additionalSpace (N : Nat) : SpacePool model.kind :=
     Modular.NativePower.powerSpace model.kind (modulusBits N)
 
 /-- Every full actual path satisfies the independent native-coordinate budget. -/
-theorem into_pool_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_pool_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
@@ -264,7 +267,7 @@ theorem into_pool_le (input : Input N) (parameter : CInputRef ctx (ParameterShap
   exact LatticeBatchRecoveryWorkspaceBody.into_pool_le input _ selected
 
 /-- Actual dependency depth follows shared initialization, every pair, and final output packing. -/
-theorem into_depth_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_depth_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
@@ -275,7 +278,7 @@ theorem into_depth_le (input : Input N) (parameter : CInputRef ctx (ParameterSha
   exact LatticeBatchRecoveryWorkspaceBody.into_depth_le input _ selected
 
 /-- Resident accounting retains all caller entries and all simultaneously allocated native cells. -/
-theorem into_resident_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_resident_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
@@ -288,7 +291,7 @@ theorem into_resident_le (input : Input N) (parameter : CInputRef ctx (Parameter
     (bodyRefs parameter terminals result top topTransport cells pairTransport) selected
 
 /-- Auxiliary accounting includes every original role and all eight allocated scratch packages. -/
-theorem into_auxiliary_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_auxiliary_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
@@ -301,13 +304,13 @@ theorem into_auxiliary_le (input : Input N) (parameter : CInputRef ctx (Paramete
     (bodyRefs parameter terminals result top topTransport cells pairTransport) selected
 
 /-- Complete lexical release restores every borrowed system jointly with arbitrary references. -/
-theorem into_borrowedRestored (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_borrowedRestored (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (into ctx input parameter terminals result).BorrowedRestored Reference state
-      ((into ctx input parameter terminals result).execute Reference state) := by
+      ((into ctx input parameter terminals result).execute environment Reference state) := by
   apply LatticeBatchRecoveryWorkspace.withWorkspaces_borrowedRestored
   intro topCtx inner top topDistinct topTransport topSeparated cells pairTransport certificates
     Past inst initial

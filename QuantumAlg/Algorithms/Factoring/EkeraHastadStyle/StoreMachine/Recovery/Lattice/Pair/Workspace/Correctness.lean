@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+import all QuantumAlg.Core.Execution.Classical.Workspace.Allocate.Initialization.Uniform
+
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.Pair.Workspace.Core.Correctness
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Recovery.Lattice.Pair.Workspace.Initialization
 
@@ -27,7 +29,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Six actual package allocations supply initialization and return the caller postcondition. -/
-theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
+lemma withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (N : Nat)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner), Certificates transport cells → Circuit model inner inner)
@@ -35,34 +37,35 @@ theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
     (bodyContract : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells),
       ∃ step : Store inner → Store inner × (body cells transport certificates).Path,
-        (∀ (Reference : Register) {History : Type} [Fintype History]
+        (∀ (environment : model.Environment) (Reference : Register) {History : Type} [Fintype
+          History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells transport certificates).execute Reference state =
+          (body cells transport certificates).execute environment Reference state =
             state.mapClassical (fun entry =>
               ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
         ∀ before : Store inner, Initialized before cells →
           Post (transport.restrict before) (transport.restrict (step before).1)) :
     ∃ step : Store ctx → Store ctx × (withWorkspaces ctx N body).Path,
-      (∀ (Reference : Register) {History : Type} [Fintype History]
+      (∀ (environment : model.Environment) (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withWorkspaces ctx N body).execute Reference state =
+        (withWorkspaces ctx N body).execute environment Reference state =
           state.mapClassical (fun entry =>
           ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
       ∀ before : Store ctx, Post before (step before).1 := by
   unfold withWorkspaces
   apply LatticePairCoreWorkspace.withWorkspaces_actualRecord_initialized_post _ _ _ Post
   intro coreCtx core coreTransport coreCertificates
-  apply withCells_actualStoreRecord_initialized_restricted_post _ _ _
+  apply withCells_actualStoreRecord_initialized_uniform_restricted_post _ _ _
     (fun before after => LatticePairCoreWorkspace.Initialized before core →
       Post (coreTransport.restrict before) (coreTransport.restrict after))
   intro targetCtx target targetDistinct targetTransport targetSeparated
-  apply withCells_actualStoreRecord_initialized_restricted_post _ _ _
+  apply withCells_actualStoreRecord_initialized_uniform_restricted_post _ _ _
     (fun before after => target.Initialized before →
       LatticePairCoreWorkspace.Initialized (targetTransport.restrict before) core →
       Post (coreTransport.restrict (targetTransport.restrict before))
         (coreTransport.restrict (targetTransport.restrict after)))
   intro lllCtx lll lllDistinct lllTransport lllSeparated
-  apply withCells_actualStoreRecord_initialized_restricted_post _ _ _
+  apply withCells_actualStoreRecord_initialized_uniform_restricted_post _ _ _
     (fun before after => lll.Initialized before →
       target.Initialized (lllTransport.restrict before) →
       LatticePairCoreWorkspace.Initialized

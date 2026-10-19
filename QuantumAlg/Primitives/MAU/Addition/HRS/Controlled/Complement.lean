@@ -20,6 +20,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 private def highWord (low high : Nat) : EncodedBit.Word (bridgeEncoding low high) high :=
@@ -28,7 +30,7 @@ private def highWord (low high : Nat) : EncodedBit.Word (bridgeEncoding low high
 private def highOnes (high : Nat) : Fin (2 ^ high) :=
   ⟨2 ^ high - 1, by have := Nat.two_pow_pos high; omega⟩
 
-private theorem highOnes_testBit (high : Nat) (bit : Fin high) :
+private lemma highOnes_testBit (high : Nat) (bit : Fin high) :
     (highOnes high).val.testBit bit.val = true := by
   simp [highOnes, bit.isLt]
 
@@ -45,7 +47,7 @@ def controlledComplementProgram (low high : Nat) :
       (QubitLayout.canonical (bridgeEncoding low high).width).toQuantum :=
   programList (QubitLayout.canonical _) .empty (controlledComplementGates low high)
 
-private theorem gates_eq_constantXor (low high : Nat) :
+private lemma gates_eq_constantXor (low high : Nat) :
     controlledComplementGates low high =
       EncodedBit.Word.controlledXorConstantGates (bridgeDirtyBit low high)
         (highWord low high) (highOnes high)
@@ -59,7 +61,7 @@ private theorem gates_eq_constantXor (low high : Nat) :
   simp [controlledComplementGates, highWord, Function.comp_def]
 
 /-- Every joint input, including an arbitrary dirty control, has the required action. -/
-theorem hrsControlledComplement_step (low high : Nat)
+lemma hrsControlledComplement_step (low high : Nat)
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
     stepList (controlledComplementGates low high) state = bridgeComplementStep state := by
   rw [gates_eq_constantXor]
@@ -100,15 +102,15 @@ theorem hrsControlledComplement_step (low high : Nat)
       (fun bit => Ne.symm (hrsBridgeHighDirty_disjoint low high bit)) state hfalse
 
 /-- The real CNOT program realizes the exact conditional complement without phase. -/
-theorem hrsControlledComplement_realizes (low high : Nat) :
+lemma hrsControlledComplement_realizes (low high : Nat) :
     UnitaryCircuit.Realizes (bridgeEncoding low high)
-      (controlledComplementProgram low high) bridgeComplementStep :=
+      (controlledComplementProgram low high) environment bridgeComplementStep :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
     (controlledComplementGates low high)
-    (hrsControlledComplement_step low high)
+    (hrsControlledComplement_step low high) environment
 
 /-- Native coordinates of the actual high-word CNOT list. -/
-theorem hrsControlledComplement_native_count (low high : Nat)
+lemma hrsControlledComplement_native_count (low high : Nat)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (controlledComplementProgram low high).eventCost =
       high * (if (.gate .cnot :
@@ -124,7 +126,7 @@ theorem hrsControlledComplement_native_count (low high : Nat)
       AlgorithmGate.model, AlgorithmGate.coordinate, List.sum_ofFn, h]
 
 /-- A shared dirty control is executed serially, once per high bit. -/
-theorem hrsControlledComplement_serial_resources (low high : Nat) :
+lemma hrsControlledComplement_serial_resources (low high : Nat) :
     (controlledComplementProgram low high).eventCost.card = high ∧
       (controlledComplementProgram low high).evaluatedEventDepth (fun _ => 1) = high := by
   change (programList (QubitLayout.canonical _) .empty

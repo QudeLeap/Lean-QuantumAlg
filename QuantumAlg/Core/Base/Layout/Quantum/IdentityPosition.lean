@@ -25,7 +25,7 @@ variable {small large : Nat} (source : QuantumLayout small) (target : QuantumLay
 
 include contained
 
-private theorem position_exists (index : Fin small) :
+private lemma position_exists (index : Fin small) :
     ∃ located : Fin large,
       (target.wire located).identity = (source.wire index).identity := by
   have sourceMember : (source.wire index).identity ∈ source.identities := by
@@ -48,13 +48,13 @@ def positionOfIdentity : Fin small ↪ Fin large where
       (target.wire index).identity) same).trans rightIdentity)
 
 /-- The selected target wire has the literal physical identity of its source. -/
-theorem positionOfIdentity_identity (index : Fin small) :
+lemma positionOfIdentity_identity (index : Fin small) :
     (target.wire (positionOfIdentity source target contained index)).identity =
       (source.wire index).identity :=
   (position_exists source target contained index).choose_spec
 
 /-- When both layouts contain the same identities, every target wire is selected. -/
-theorem positionOfIdentity_surjective
+lemma positionOfIdentity_surjective
     (reverse : target.identities ⊆ source.identities) :
     Function.Surjective (positionOfIdentity source target contained) := by
   intro targetIndex

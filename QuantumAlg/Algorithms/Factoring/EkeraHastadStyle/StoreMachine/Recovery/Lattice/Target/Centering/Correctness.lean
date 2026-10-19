@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- An actual correct stored half comparison selects its exact original raw integer expression. -/
-theorem half_represents (refs : Refs ctx width) (store : Store ctx)
+lemma half_represents (refs : Refs ctx width) (store : Store ctx)
     (correct : (store.read (writeInput refs.belowHalf)).toBool =
       decide ((store.read refs.a).toNat < (store.read refs.modulus).toNat / 2)) :
     RawSignedRepresents ((halfStep refs store).1.read (writeInput refs.output))
@@ -54,7 +54,7 @@ theorem half_represents (refs : Refs ctx width) (store : Store ctx)
       exact negate_represents refs store
 
 /-- Actual correct zero and half bits select precisely the original centered integer formula. -/
-theorem finish_represents (refs : Refs ctx width) (store : Store ctx)
+lemma finish_represents (refs : Refs ctx width) (store : Store ctx)
     (zero : (store.read (writeInput refs.isZero)).toBool = decide ((store.read refs.a).toNat = 0))
     (half : (store.read (writeInput refs.belowHalf)).toBool =
       decide ((store.read refs.a).toNat < (store.read refs.modulus).toNat / 2)) :
@@ -79,7 +79,7 @@ theorem finish_represents (refs : Refs ctx width) (store : Store ctx)
       exact subtracted
 
 /-- The complete actual output represents the centered value of the original source and modulus. -/
-theorem centeredTargetInto_output (refs : Refs ctx width) (separation : Separation refs)
+lemma centeredTargetInto_output (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     RawSignedRepresents ((centeredTargetStep refs store).1.read (writeInput refs.output))
       (RSA.ShortLogTarget.centeredValue (store.read refs.a).toNat
@@ -115,7 +115,7 @@ structure CenteredTargetOutcome (refs : Refs ctx width) (before after : Store ct
         after.read other = before.read other
 
 /-- Actual comparison and selection realize the original centered target without initial zeros. -/
-theorem centeredTargetInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma centeredTargetInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) : CenteredTargetOutcome refs store (centeredTargetStep refs store).1 := by
   refine ⟨?_, ?_, ?_, centeredTargetInto_output refs separation store,
     centeredTargetInto_callerFrame refs store⟩

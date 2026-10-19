@@ -43,7 +43,7 @@ public def residualBlock (expansion : PositiveGapExpansion N)
   expansion.residualBlockAt expansion.width source
 
 /-- Pointwise form of an aligned residual block. -/
-@[simp] public theorem residualBlock_apply (expansion : PositiveGapExpansion N)
+@[simp] public lemma residualBlock_apply (expansion : PositiveGapExpansion N)
     (source : Fin (expansion.gaps + 1))
     (address : Fin (2 ^ expansion.width)) :
     expansion.residualBlock source address =
@@ -53,7 +53,7 @@ public def residualBlock (expansion : PositiveGapExpansion N)
   rfl
 
 /-- Pointwise form of an aligned block in an arbitrary ambient width. -/
-@[simp] public theorem residualBlockAt_apply (expansion : PositiveGapExpansion N)
+@[simp] public lemma residualBlockAt_apply (expansion : PositiveGapExpansion N)
     (registerWidth : Nat) (source : Fin (expansion.gaps + 1))
     (address : Fin (2 ^ registerWidth)) :
     expansion.residualBlockAt registerWidth source address =
@@ -63,7 +63,7 @@ public def residualBlock (expansion : PositiveGapExpansion N)
   rfl
 
 /-- An address outside a residual interval has zero block amplitude. -/
-public theorem residualBlock_apply_of_not_support
+public lemma residualBlock_apply_of_not_support
     (expansion : PositiveGapExpansion N)
     (source : Fin (expansion.gaps + 1))
     (address : Fin (2 ^ expansion.width))
@@ -73,7 +73,7 @@ public theorem residualBlock_apply_of_not_support
 
 /-- An address outside a residual interval has zero amplitude at every
 ambient width. -/
-public theorem residualBlockAt_apply_of_not_support
+public lemma residualBlockAt_apply_of_not_support
     (expansion : PositiveGapExpansion N) (registerWidth : Nat)
     (source : Fin (expansion.gaps + 1))
     (address : Fin (2 ^ registerWidth))
@@ -93,13 +93,13 @@ public def rangeVector (expansion : PositiveGapExpansion N) :
   expansion.rangeVectorAt expansion.width
 
 /-- Pointwise form of the intrinsic uniform-range vector. -/
-@[simp] public theorem rangeVector_apply (expansion : PositiveGapExpansion N)
+@[simp] public lemma rangeVector_apply (expansion : PositiveGapExpansion N)
     (address : Fin (2 ^ expansion.width)) :
     expansion.rangeVector address =
       if address.val < N then OrderPreparation.invSqrtOrder N else 0 := by
   rfl
 
-@[simp] public theorem rangeVectorAt_apply (expansion : PositiveGapExpansion N)
+@[simp] public lemma rangeVectorAt_apply (expansion : PositiveGapExpansion N)
     (registerWidth : Nat) (address : Fin (2 ^ registerWidth)) :
     expansion.rangeVectorAt registerWidth address =
       if address.val < N then OrderPreparation.invSqrtOrder N else 0 := by
@@ -110,7 +110,7 @@ private def sourcePosition (expansion : PositiveGapExpansion N) (count : Nat) :
     Fin (expansion.gaps + 1) :=
   ⟨min count expansion.gaps, by omega⟩
 
-private theorem sourcePosition_eq_of_le (expansion : PositiveGapExpansion N)
+private lemma sourcePosition_eq_of_le (expansion : PositiveGapExpansion N)
     {count : Nat} (bounded : count ≤ expansion.gaps) :
     expansion.sourcePosition count = ⟨count, by omega⟩ := by
   apply Fin.ext
@@ -118,7 +118,7 @@ private theorem sourcePosition_eq_of_le (expansion : PositiveGapExpansion N)
 
 /-- The aligned source intervals cover every address below the represented
 order. -/
-public theorem residualSupport_exists_of_lt_order
+public lemma residualSupport_exists_of_lt_order
     (expansion : PositiveGapExpansion N) {address : Nat}
     (below : address < N) :
     ∃ source : Fin (expansion.gaps + 1),
@@ -184,7 +184,7 @@ public theorem residualSupport_exists_of_lt_order
     omega
 
 /-- An address belongs to at most one aligned source interval. -/
-public theorem residualSupport_unique (expansion : PositiveGapExpansion N)
+public lemma residualSupport_unique (expansion : PositiveGapExpansion N)
     {left right : Fin (expansion.gaps + 1)} {address : Nat}
     (leftSupport : expansion.residualSupport left address)
     (rightSupport : expansion.residualSupport right address) :
@@ -198,7 +198,7 @@ public theorem residualSupport_unique (expansion : PositiveGapExpansion N)
 
 /-- A block weight times its normalized block amplitude is the common target
 amplitude. -/
-public theorem blockWeight_mul_residualAmplitude
+public lemma blockWeight_mul_residualAmplitude
     (expansion : PositiveGapExpansion N)
     (source : Fin (expansion.gaps + 1)) :
     (expansion.blockWeight source : Complex) *
@@ -219,7 +219,7 @@ public theorem blockWeight_mul_residualAmplitude
 
 /-- The weighted aligned blocks are pointwise the uniform vector over the
 represented range. -/
-public theorem blockSum_eq_rangeVector (expansion : PositiveGapExpansion N) :
+public lemma blockSum_eq_rangeVector (expansion : PositiveGapExpansion N) :
     (∑ source : Fin (expansion.gaps + 1),
       (expansion.blockWeight source : Complex) •
         expansion.residualBlock source) =
@@ -255,7 +255,7 @@ public theorem blockSum_eq_rangeVector (expansion : PositiveGapExpansion N) :
 
 /-- The same weighted block partition is valid in every ambient binary
 register that contains the represented range. -/
-public theorem blockSumAt_eq_rangeVectorAt (expansion : PositiveGapExpansion N)
+public lemma blockSumAt_eq_rangeVectorAt (expansion : PositiveGapExpansion N)
     (registerWidth : Nat) (_fits : N ≤ 2 ^ registerWidth) :
     (∑ source : Fin (expansion.gaps + 1),
       (expansion.blockWeight source : Complex) •

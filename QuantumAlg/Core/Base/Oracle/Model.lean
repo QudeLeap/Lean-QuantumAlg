@@ -15,7 +15,8 @@ import all QuantumAlg.Core.Base.Control.Operator
 # Independently declared unitary oracle access
 
 The query type contains exactly the granted, parameterized access forms. Their
-operators and physical signatures are fixed by the declaration. Inverse and
+physical signatures are fixed by the declaration. An execution environment
+supplies their unitary interpretation without changing the program. Inverse and
 controlled queries require values of that same declared query type; Core does
 not grant them by transforming a label or an operator supplied at a call site.
 
@@ -34,14 +35,17 @@ public structure OracleModel where
   coordinateDecidableEq : DecidableEq Coordinate
   /-- Ordered positive dimensions of the systems involved in the query. -/
   signature : Query → QuantumSignature
-  /-- Each granted query has its fixed unitary semantics. -/
-  operator : (query : Query) → UnitaryOperator (signature query).register
   /-- One query emits exactly the coordinate selected by its declaration. -/
   coordinate : Query → Coordinate
 
 attribute [instance] OracleModel.coordinateDecidableEq
 
 namespace OracleModel
+
+/-- A mathematical interpretation of the granted queries, supplied only at execution. -/
+public structure Interpretation (model : OracleModel) where
+  /-- Each available query acts unitarily on exactly its declared systems. -/
+  operator : (query : model.Query) → UnitaryOperator (model.signature query).register
 
 /-- The absence of oracle access has no query instances and no query coordinates. -/
 @[expose, implicit_reducible]
@@ -50,8 +54,22 @@ public def empty : OracleModel where
   Coordinate := Empty
   coordinateDecidableEq := inferInstance
   signature query := nomatch query
-  operator query := nomatch query
   coordinate query := nomatch query
+
+/-- Empty access has one interpretation and cannot reveal any oracle information. -/
+@[expose, implicit_reducible]
+public def emptyInterpretation : Interpretation empty where
+  operator query := nomatch query
+
+public instance : Subsingleton (Interpretation empty) where
+  allEq left right := by
+    cases left with
+    | mk left =>
+      cases right with
+      | mk right =>
+        have same : left = right := funext fun query => nomatch query
+        cases same
+        rfl
 
 /-- One granted query, placed on systems of exactly its declared dimensions. -/
 public structure Occurrence (model : OracleModel) where
@@ -67,23 +85,26 @@ namespace Occurrence
 public def coordinate {model : OracleModel} (query : Occurrence model) : model.Coordinate :=
   model.coordinate query.query
 
-/-- The declaration fixes the operator; placement only transports dimension-equal coordinates. -/
+/-- The environment interprets the query; placement only transports its declared coordinates. -/
 @[expose]
-public noncomputable def operator {model : OracleModel} (query : Occurrence model) :
+public noncomputable def operator {model : OracleModel} (query : Occurrence model)
+    (environment : Interpretation model) :
     UnitaryOperator query.placement.layout.register :=
-  UnitaryOperator.reindex query.placement.indexEquiv.symm (model.operator query.query)
+  UnitaryOperator.reindex query.placement.indexEquiv.symm (environment.operator query.query)
 
 /-- A call cannot supply an operator independently of its granted query. -/
-public theorem oracle_occurrence_operator {model : OracleModel} (query : Occurrence model) :
-    query.operator =
-      UnitaryOperator.reindex query.placement.indexEquiv.symm (model.operator query.query) := rfl
+public lemma oracle_occurrence_operator {model : OracleModel} (query : Occurrence model)
+    (environment : Interpretation model) :
+    query.operator environment =
+      UnitaryOperator.reindex query.placement.indexEquiv.symm
+        (environment.operator query.query) := rfl
 
 /-- The coordinate is fixed by the same query instance that determines the operator. -/
-public theorem oracle_occurrence_coordinate {model : OracleModel} (query : Occurrence model) :
+public lemma oracle_occurrence_coordinate {model : OracleModel} (query : Occurrence model) :
     query.coordinate = model.coordinate query.query := rfl
 
 /-- Declaring no access cannot produce an executable query occurrence. -/
-public theorem no_empty_oracle_occurrence (query : Occurrence empty) : False :=
+public lemma no_empty_oracle_occurrence (query : Occurrence empty) : False :=
   nomatch query.query
 
 end Occurrence

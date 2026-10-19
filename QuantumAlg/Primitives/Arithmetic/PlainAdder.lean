@@ -82,37 +82,37 @@ def subFromRight {n : ℕ} (x : Data n) : Data n where
   right := x.right - x.left
   carry := x.carry
 
-@[simp] theorem addIntoRight_left {n : ℕ} (x : Data n) :
+@[simp] lemma addIntoRight_left {n : ℕ} (x : Data n) :
     x.addIntoRight.left = x.left :=
   rfl
 
-@[simp] theorem addIntoRight_right {n : ℕ} (x : Data n) :
+@[simp] lemma addIntoRight_right {n : ℕ} (x : Data n) :
     x.addIntoRight.right = x.right + x.left :=
   rfl
 
-@[simp] theorem addIntoRight_carry {n : ℕ} (x : Data n) :
+@[simp] lemma addIntoRight_carry {n : ℕ} (x : Data n) :
     x.addIntoRight.carry = x.carry :=
   rfl
 
-@[simp] theorem subFromRight_left {n : ℕ} (x : Data n) :
+@[simp] lemma subFromRight_left {n : ℕ} (x : Data n) :
     x.subFromRight.left = x.left :=
   rfl
 
-@[simp] theorem subFromRight_right {n : ℕ} (x : Data n) :
+@[simp] lemma subFromRight_right {n : ℕ} (x : Data n) :
     x.subFromRight.right = x.right - x.left :=
   rfl
 
-@[simp] theorem subFromRight_carry {n : ℕ} (x : Data n) :
+@[simp] lemma subFromRight_carry {n : ℕ} (x : Data n) :
     x.subFromRight.carry = x.carry :=
   rfl
 
 /-- Clean carry flags remain clean after addition. -/
-theorem addIntoRight_preserves_clean {n : ℕ} (x : Data n)
+lemma addIntoRight_preserves_clean {n : ℕ} (x : Data n)
     (h : x.CarryClean) : x.addIntoRight.CarryClean :=
   h
 
 /-- Clean carry flags remain clean after subtraction. -/
-theorem subFromRight_preserves_clean {n : ℕ} (x : Data n)
+lemma subFromRight_preserves_clean {n : ℕ} (x : Data n)
     (h : x.CarryClean) : x.subFromRight.CarryClean :=
   h
 
@@ -129,7 +129,7 @@ def addEquiv (n : ℕ) : Equiv.Perm (Data n) where
     cases x
     simp [addIntoRight, subFromRight]
 
-@[simp] theorem addEquiv_apply {n : ℕ} (x : Data n) :
+@[simp] lemma addEquiv_apply {n : ℕ} (x : Data n) :
     addEquiv n x = x.addIntoRight :=
   rfl
 
@@ -137,12 +137,12 @@ def addEquiv (n : ℕ) : Equiv.Perm (Data n) where
 def withWorkEquiv (n : ℕ) (Work : Type) : Equiv.Perm (Data n × Work) :=
   Equiv.prodCongr (addEquiv n) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {n : ℕ} {Work : Type} (x : Data n) (w : Work) :
+@[simp] lemma withWorkEquiv_apply {n : ℕ} {Work : Type} (x : Data n) (w : Work) :
     withWorkEquiv n Work (x, w) = (x.addIntoRight, w) :=
   rfl
 
 /-- The plain adder leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {n : ℕ} {Work : Type} :
+lemma withWorkEquiv_preserves_work {n : ℕ} {Work : Type} :
     WorkRegister.Preserves (Data := Data n) (Work := Work) (withWorkEquiv n Work) := by
   intro x
   cases x
@@ -173,7 +173,7 @@ noncomputable def addOp (n : ℕ) : UnitaryOperator (register n) :=
 
 /-- Clean basis action of the plain adder: `|a,b,0> ↦ |a,a+b,0>` over
 `n`-bit words. -/
-theorem addOp_apply_ket (n : ℕ) (x : Data n) :
+lemma addOp_apply_ket (n : ℕ) (x : Data n) :
     (addOp n).apply (NormalizedVector.ket (R := register n) x) =
       NormalizedVector.ket (R := register n) x.addIntoRight := by
   rw [addOp, UnitaryOperator.ofPerm_apply_ket]

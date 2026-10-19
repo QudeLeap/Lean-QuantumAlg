@@ -40,6 +40,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeMicrostep
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec
 
 /-- The complete native instruction word in the original eight-block source order. -/
@@ -63,7 +65,7 @@ def step (width : Nat) (state : Registers width) : Registers width :=
         (GuardedShift.step false state)))))))
 
 /-- Every complete original frame follows all eight actual blocks without a work premise. -/
-theorem nativeMicrostep_gates_step (width : Nat) (enough : 2 ≤ width.size)
+lemma nativeMicrostep_gates_step (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) : stepList (gates width enough) state = step width state := by
   simp only [gates, stepList_append, GuardedShift.guardedShift_gates_step,
     ArithmeticBlocks.arithmeticBlocks_remainderGates_step, SignQuotient.signQuotient_gates_step,
@@ -72,28 +74,31 @@ theorem nativeMicrostep_gates_step (width : Nat) (enough : 2 ≤ width.size)
   rfl
 
 /-- Full-label realization of the literal native word preserves all amplitudes and phases. -/
-theorem program_realizes (width : Nat) (enough : 2 ≤ width.size) :
-    UnitaryCircuit.Realizes (encoding width) (program width enough) (step width) :=
+lemma program_realizes (width : Nat) (enough : 2 ≤ width.size) :
+    UnitaryCircuit.Realizes (encoding width) (program width enough) environment (step width) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (nativeMicrostep_gates_step width enough)
+    (nativeMicrostep_gates_step width enough) environment
 
 /-- The actual finite microstep is injective on every complete original frame. -/
-theorem step_injective (width : Nat) (enough : 2 ≤ width.size) :
+lemma step_injective (width : Nat) (enough : 2 ≤ width.size) :
     Function.Injective (step width) :=
-  (program_realizes width enough).injective
+  (program_realizes (environment := OracleModel.emptyInterpretation) width enough).injective
 
 /-- The actual inverse circuit restores every normalized state, beyond individual basis labels. -/
-theorem dagger_after_forward (width : Nat) (enough : 2 ≤ width.size)
+lemma dagger_after_forward (width : Nat) (enough : 2 ≤ width.size)
     (state : NormalizedVector (QubitLayout.canonical (encoding width).width).toQuantum.register) :
     ((program width enough).dagger (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
-      ((program width enough).applyNormalized state) =
+      environment
+      ((program width enough).applyNormalized environment state) =
       state :=
   UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized (program width enough)
     ((program width enough).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-    (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _) state
+    (by rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]; exact Unitary.star_eq_inv _) state
 
 /-- Every source block contributes its complete actual event list in the literal execution order. -/
-theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
+lemma program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).eventTrace =
       (GuardedShift.program width false).eventTrace ++
         (ArithmeticBlocks.remainderProgram width).eventTrace ++
@@ -110,14 +115,14 @@ theorem program_eventTrace (width : Nat) (enough : 2 ≤ width.size) :
     NativeControl.program, ZeroShiftControl.program, TerminalBoundary.program, List.append_assoc]
 
 /-- Reversing the same actual primitive list restores every complete original input frame. -/
-theorem nativeMicrostep_reverseGates_restores (width : Nat) (enough : 2 ≤ width.size)
+lemma nativeMicrostep_reverseGates_restores (width : Nat) (enough : 2 ≤ width.size)
     (state : Registers width) :
     stepList (gates width enough).reverse (step width state) = state := by
   rw [← nativeMicrostep_gates_step width enough state]
   exact stepList_reverse_stepList _ state
 
 /-- The complete sequential native microstep has exactly one unit of depth per emitted gate. -/
-theorem nativeMicrostep_program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
+lemma nativeMicrostep_program_unitDepth (width : Nat) (enough : 2 ≤ width.size) :
     (program width enough).evaluatedEventDepth (fun _ => 1) = (gates width enough).length := by
   rw [program, programList_evaluatedEventDepth_unit]
 

@@ -28,7 +28,7 @@ variable {systemCount : Nat} (ctx : RuntimeCtx .quantum) (key : StorageKey)
   (disjoint : List.Disjoint layout.identities ctx.physicalIdx) (empty : ctx.systemCount = 0)
   (sameWires : layout.wires = (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.wires)
 
-private theorem prepared_corresponding_value (basis : layout.register.Index)
+private lemma prepared_corresponding_value (basis : layout.register.Index)
     (index : Fin systemCount) :
     (preparedEmptyBasisEquiv ctx key layout fresh disjoint empty basis
       (positionsOfEqualWires layout
@@ -53,7 +53,7 @@ private theorem prepared_corresponding_value (basis : layout.register.Index)
     (assembledValue.trans sourceValue)
 
 /-- Actual empty-context preparation agrees with the correspondence of the same physical wires. -/
-theorem preparedEmptyBasisEquiv_eq_basisOfEqualWires (basis : layout.register.Index) :
+lemma preparedEmptyBasisEquiv_eq_basisOfEqualWires (basis : layout.register.Index) :
     preparedEmptyBasisEquiv ctx key layout fresh disjoint empty basis =
       basisOfEqualWires layout
         (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout sameWires basis := by

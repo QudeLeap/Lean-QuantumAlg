@@ -32,7 +32,7 @@ public def qftSwapLabel {n : Nat} (left right : Fin n)
       (WireAddress.cnotMap left right label))
 
 @[simp]
-theorem qftSwapLabel_left {n : Nat} (left right : Fin n)
+lemma qftSwapLabel_left {n : Nat} (left right : Fin n)
     (hne : left ≠ right) (label : Fin (2 ^ n)) :
     (qftSwapLabel left right label).val.testBit
         (WireAddress.bitIndex left).val =
@@ -44,7 +44,7 @@ theorem qftSwapLabel_left {n : Nat} (left right : Fin n)
         WireAddress.bit_flipBit_of_ne (Ne.symm hne)]
 
 @[simp]
-theorem qftSwapLabel_right {n : Nat} (left right : Fin n)
+lemma qftSwapLabel_right {n : Nat} (left right : Fin n)
     (hne : left ≠ right) (label : Fin (2 ^ n)) :
     (qftSwapLabel left right label).val.testBit
         (WireAddress.bitIndex right).val =
@@ -57,7 +57,7 @@ theorem qftSwapLabel_right {n : Nat} (left right : Fin n)
         WireAddress.bit_flipBit_of_ne hne]
 
 @[simp]
-theorem qftSwapLabel_of_ne {n : Nat} (left right bit : Fin n)
+lemma qftSwapLabel_of_ne {n : Nat} (left right bit : Fin n)
     (hne : left ≠ right) (hleft : bit ≠ left) (hright : bit ≠ right)
     (label : Fin (2 ^ n)) :
     (qftSwapLabel left right label).val.testBit
@@ -72,7 +72,7 @@ theorem qftSwapLabel_of_ne {n : Nat} (left right bit : Fin n)
         WireAddress.bit_flipBit_of_ne (Ne.symm hright)]
 
 @[simp]
-public theorem qftSwapOperator_applyVec_ket {n : Nat} (left right : Fin n)
+public lemma qftSwapOperator_applyVec_ket {n : Nat} (left right : Fin n)
     (hne : left ≠ right) (label : Fin (2 ^ n)) :
     (qftSwapOperator left right hne).applyVec
         (NormalizedVector.ket (R := Qubits n) label : HilbertVector (Qubits n)) =

@@ -274,7 +274,7 @@ lemma entry_norm_one_of_smul_unitary {d : ℕ} (W : Matrix (Fin d) (Fin d) ℂ)
 
 /-- Any unitary W stabilizing both simple-spectrum Hermitian matrices is a
 scalar unitary. -/
-theorem commonUnitaryStabilizer_isScalar {d : ℕ}
+lemma commonUnitaryStabilizer_isScalar {d : ℕ}
     (W : Matrix (Fin d) (Fin d) ℂ)
     (ρ σ : Matrix (Fin d) (Fin d) ℂ)
     (r s : Fin d → ℝ)

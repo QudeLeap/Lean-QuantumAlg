@@ -61,7 +61,7 @@ def AffineEquation (x y : ZMod p) : Prop :=
 
 /-- The local affine equation agrees with Mathlib's Weierstrass equation for
 the associated short-form curve. -/
-theorem affineEquation_iff_mathlib_equation (x y : ZMod p) :
+lemma affineEquation_iff_mathlib_equation (x y : ZMod p) :
     E.toWeierstrassCurve.toAffine.Equation x y ↔ E.AffineEquation x y := by
   rw [WeierstrassCurve.Affine.equation_iff]
   simp [toWeierstrassCurve, AffineEquation]
@@ -79,7 +79,7 @@ structure FinitePoint (E : PrimeFieldShortWeierstrass p) where
 namespace FinitePoint
 
 /-- Coordinate extensionality for finite affine points. -/
-theorem ext_coordinates {E : PrimeFieldShortWeierstrass p}
+lemma ext_coordinates {E : PrimeFieldShortWeierstrass p}
     (P Q : FinitePoint E) (hx : P.x = Q.x) (hy : P.y = Q.y) :
     P = Q := by
   cases P with
@@ -186,7 +186,7 @@ def IsValidFiniteEncoding {E : PrimeFieldShortWeierstrass p}
       (encoding.coordinate.decode xy.2)
 
 /-- Encoded finite points are valid finite-point encodings. -/
-theorem encodeFinite_isValid {E : PrimeFieldShortWeierstrass p}
+lemma encodeFinite_isValid {E : PrimeFieldShortWeierstrass p}
     (encoding : PointEncoding E n) (P : FinitePoint E) :
     IsValidFiniteEncoding encoding (encodeFinite encoding P) := by
   constructor
@@ -196,7 +196,7 @@ theorem encodeFinite_isValid {E : PrimeFieldShortWeierstrass p}
   · simpa [encodeFinite] using P.equation
 
 /-- Equality of finite encodings implies equality of affine coordinates. -/
-theorem encodeFinite_ext {E : PrimeFieldShortWeierstrass p}
+lemma encodeFinite_ext {E : PrimeFieldShortWeierstrass p}
     (encoding : PointEncoding E n)
     {P Q : FinitePoint E} (h : encodeFinite encoding P = encodeFinite encoding Q) :
     P.x = Q.x ∧ P.y = Q.y := by
@@ -213,7 +213,7 @@ theorem encodeFinite_ext {E : PrimeFieldShortWeierstrass p}
     simpa using hdecode
 
 /-- The finite affine encoding is injective on curve points. -/
-theorem encodeFinite_injective {E : PrimeFieldShortWeierstrass p}
+lemma encodeFinite_injective {E : PrimeFieldShortWeierstrass p}
     (encoding : PointEncoding E n) :
     Function.Injective (encodeFinite encoding) := by
   intro P Q h
@@ -262,7 +262,7 @@ noncomputable instance instFintypeAffinePoint
 namespace AffinePoint
 
 /-- Coordinate extensionality for finite affine points. -/
-theorem ext_coordinates {E : PrimeFieldShortWeierstrass p}
+lemma ext_coordinates {E : PrimeFieldShortWeierstrass p}
     (P Q : AffinePoint E) (hx : P.x = Q.x) (hy : P.y = Q.y) :
     P = Q := by
   cases P with
@@ -297,12 +297,12 @@ def toCurvePoint {E : PrimeFieldShortWeierstrass p} (P : AffinePoint E) :
     Point E :=
   P.toFinitePoint.toPoint
 
-@[simp] theorem toCurvePoint_isFinite {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma toCurvePoint_isFinite {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) :
     Point.IsFinite E P.toCurvePoint :=
   trivial
 
-@[simp] theorem toCurvePoint_not_infinity {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma toCurvePoint_not_infinity {E : PrimeFieldShortWeierstrass p}
     (P : AffinePoint E) :
     ¬ Point.IsInfinity E P.toCurvePoint := by
   simp [toCurvePoint, FinitePoint.toPoint, Point.IsInfinity]
@@ -313,25 +313,25 @@ def encode {E : PrimeFieldShortWeierstrass p} {n : ℕ}
     Fin (2 ^ n) × Fin (2 ^ n) :=
   encoding.encodeFinite P.toFinitePoint
 
-theorem encode_isValid {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+lemma encode_isValid {E : PrimeFieldShortWeierstrass p} {n : ℕ}
     (encoding : PointEncoding E n) (P : AffinePoint E) :
     encoding.IsValidFiniteEncoding (P.encode encoding) :=
   encoding.encodeFinite_isValid P.toFinitePoint
 
-theorem decodeFiniteCoordinates_encode
+lemma decodeFiniteCoordinates_encode
     {E : PrimeFieldShortWeierstrass p} {n : ℕ}
     (encoding : PointEncoding E n) (P : AffinePoint E) :
     encoding.decodeFiniteCoordinates (P.encode encoding) = (P.x, P.y) := by
   simp [encode, PointEncoding.decodeFiniteCoordinates,
     PointEncoding.encodeFinite, toFinitePoint]
 
-theorem encode_ext {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+lemma encode_ext {E : PrimeFieldShortWeierstrass p} {n : ℕ}
     (encoding : PointEncoding E n) {P Q : AffinePoint E}
     (h : P.encode encoding = Q.encode encoding) :
     P.x = Q.x ∧ P.y = Q.y :=
   encoding.encodeFinite_ext h
 
-theorem encode_injective {E : PrimeFieldShortWeierstrass p} {n : ℕ}
+lemma encode_injective {E : PrimeFieldShortWeierstrass p} {n : ℕ}
     (encoding : PointEncoding E n) :
     Function.Injective (fun P : AffinePoint E => P.encode encoding) := by
   intro P Q h
@@ -370,7 +370,7 @@ def CandidateScalar {E : PrimeFieldShortWeierstrass p}
   I.basePoint.toGroupPoint ^ m.val = I.targetPoint.toGroupPoint
 
 /-- The stored subgroup promise gives at least one candidate scalar. -/
-theorem exists_candidateScalar {E : PrimeFieldShortWeierstrass p}
+lemma exists_candidateScalar {E : PrimeFieldShortWeierstrass p}
     (I : ECDLPInstance E) :
     ∃ m : ZMod I.subgroupOrder, CandidateScalar I m :=
   I.target_mem_span

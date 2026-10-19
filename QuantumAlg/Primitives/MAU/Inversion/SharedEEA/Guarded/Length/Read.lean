@@ -36,7 +36,7 @@ private instance guardDecidable {width : Nat} (state : Registers width) :
   infer_instance
 
 /-- Each added guard source reads the corresponding original finite field bit. -/
-theorem guardBit_get (width : Nat) (index : Fin (2 * width.size)) (state : Registers width) :
+lemma guardBit_get (width : Nat) (index : Fin (2 * width.size)) (state : Registers width) :
     (guardBit width index).get state =
       if index.val < width.size then state.quotientLength.getMsbD index.val
       else state.shift.getMsbD (index.val - width.size) := by
@@ -46,7 +46,7 @@ theorem guardBit_get (width : Nat) (index : Fin (2 * width.size)) (state : Regis
   · exact shiftBit_get width _ state
 
 /-- Testing all actual guard sources for zero is precisely the complete two-field boundary test. -/
-theorem guard_matches_iff (width : Nat) (state : Registers width) :
+lemma guard_matches_iff (width : Nat) (state : Registers width) :
     (∀ index : Fin (2 * width.size), (guardBit width index).get state = false) ↔ Guard state := by
   constructor
   · intro matched
@@ -83,14 +83,14 @@ def prefixBit (width : Nat) (field : Field) (key : BitVec width.size) (firstWord
     ⟨index.val, by have within := index.isLt; omega⟩
 
 /-- A guard embedding selects precisely the original quotient or low-shift physical lens. -/
-theorem prefixBit_guard (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma prefixBit_guard (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (index : Fin (2 * width.size)) :
     prefixBit width field key firstWord (guardIndex width index) = guardBit width index := by
   change GuardedLengthCoordinates.sourceBit width field key firstWord ⟨index.val, _⟩ = _
   rw [GuardedLengthCoordinates.sourceBit, dif_pos index.isLt]
 
 /-- A boundary embedding selects precisely the original other length-field lens. -/
-theorem prefixBit_boundary (width : Nat) (field : Field) (key : BitVec width.size)
+lemma prefixBit_boundary (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (index : Fin width.size) :
     prefixBit width field key firstWord (boundaryIndex width index) =
       boundaryBit width field index := by
@@ -112,11 +112,11 @@ theorem prefixBit_boundary (width : Nat) (field : Field) (key : BitVec width.siz
 def expected (width : Nat) (key : BitVec width.size) (index : Fin (prefixWidth width)) : Bool :=
   if index.val < 2 * width.size then false else key.getMsbD (index.val - 2 * width.size)
 
-theorem expected_guard (width : Nat) (key : BitVec width.size) (index : Fin (2 * width.size)) :
+lemma expected_guard (width : Nat) (key : BitVec width.size) (index : Fin (2 * width.size)) :
     expected width key (guardIndex width index) = false := by
   exact if_pos index.isLt
 
-theorem expected_boundary (width : Nat) (key : BitVec width.size) (index : Fin width.size) :
+lemma expected_boundary (width : Nat) (key : BitVec width.size) (index : Fin width.size) :
     expected width key (boundaryIndex width index) = key.getMsbD index.val := by
   have afterGuard : ¬2 * width.size + index.val < 2 * width.size := by omega
   change (if 2 * width.size + index.val < 2 * width.size then false
@@ -125,7 +125,7 @@ theorem expected_boundary (width : Nat) (key : BitVec width.size) (index : Fin w
   exact congrArg key.getMsbD (Nat.add_sub_cancel_left _ _)
 
 /-- The actual full prefix matches exactly the real boundary guard and retained key. -/
-theorem prefix_matches_iff (width : Nat) (field : Field) (key : BitVec width.size)
+lemma prefix_matches_iff (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (state : Registers width) :
     (∀ index : Fin (prefixWidth width),
       (prefixBit width field key firstWord index).get state = expected width key index) ↔
@@ -162,7 +162,7 @@ theorem prefix_matches_iff (width : Nat) (field : Field) (key : BitVec width.siz
       exact (LengthRead.boundary_matches_iff width field key state).mpr boundary original
 
 /-- Every actual target length flip preserves the complete original boundary guard. -/
-theorem guard_output_flip (width : Nat) (field : Field) (output : Fin width.size)
+lemma guard_output_flip (width : Nat) (field : Field) (output : Fin width.size)
     (state : Registers width) :
     Guard ((outputBit width field output).flip state) ↔ Guard state := by
   cases field <;> rfl

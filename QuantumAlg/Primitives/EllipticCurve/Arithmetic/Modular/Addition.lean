@@ -27,6 +27,8 @@ namespace ModularAddition
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : VariableModularMul.Parameters]
 
 local instance modulusNeZero : NeZero params.modulus.val :=
@@ -57,7 +59,7 @@ def firstBit : Fin params.width :=
 def cleanRegisters (x : MAU.Addition.Data params.modulus.val) : RawRegisters :=
   (VariableModularMul.cleanRegisters (multiplicationData x), x.flag)
 
-private theorem cleanRegisters_injective : Function.Injective cleanRegisters := by
+private lemma cleanRegisters_injective : Function.Injective cleanRegisters := by
   intro left right h
   rcases left with ⟨leftSource, leftTarget, leftFlag⟩
   rcases right with ⟨rightSource, rightTarget, rightFlag⟩
@@ -106,7 +108,7 @@ def physicalWidthFor (f : Nat) : Nat :=
   7 * f + 6
 
 /-- Exact physical width of the modular-addition adapter. -/
-theorem encoding_width_exact : encoding.width = physicalWidthFor params.width := by
+lemma encoding_width_exact : encoding.width = physicalWidthFor params.width := by
   change VariableModularMul.encoding.width + 1 = _
   calc
     VariableModularMul.encoding.width + 1 =
@@ -136,7 +138,7 @@ def rawStep : RawRegisters → RawRegisters :=
   fun state => (VariableModularMul.selectedAddStep firstBit state.1, state.2)
 
 /-- The literal lifted source list has the displayed flag-preserving action. -/
-theorem gates_stepList (state : RawRegisters) :
+lemma gates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList gates state = rawStep state := by
   rcases state with ⟨data, flag⟩
   have h :
@@ -155,7 +157,7 @@ theorem gates_stepList (state : RawRegisters) :
   simpa only [RawRegisters, rawEncoding, gates, rawStep] using h
 
 /-- Lifting and semantic relabeling preserve the strict event trace. -/
-theorem gates_events_eq :
+lemma gates_events_eq :
     gates.map (EncodedBit.GateSpec.event .empty) =
       (VariableModularMul.selectedAddGates firstBit).map
         (EncodedBit.GateSpec.event .empty) := by
@@ -178,7 +180,7 @@ theorem gates_events_eq :
       cases gate <;> rfl
 
 /-- Lifting and semantic relabeling preserve the source-list length. -/
-@[simp] theorem gates_length :
+@[simp] lemma gates_length :
     gates.length = (VariableModularMul.selectedAddGates firstBit).length := by
   rw [show gates =
       ((VariableModularMul.selectedAddGates firstBit).map
@@ -228,28 +230,28 @@ def unitDepthBound : Nat :=
   unitDepthBoundFor params.width
 
 /-- The lifted addition list preserves the source X coordinate exactly. -/
-theorem gates_xMultiplicity_sum :
+lemma gates_xMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum =
       ((VariableModularMul.selectedAddGates firstBit).map
         EncodedBit.GateSpec.xMultiplicity).sum :=
   EncodedBit.GateSpec.sum_xMultiplicity_eq_of_events_eq .empty gates_events_eq
 
 /-- The lifted addition list preserves the source CNOT coordinate exactly. -/
-theorem gates_cnotMultiplicity_sum :
+lemma gates_cnotMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       ((VariableModularMul.selectedAddGates firstBit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum :=
   EncodedBit.GateSpec.sum_cnotMultiplicity_eq_of_events_eq .empty gates_events_eq
 
 /-- The lifted addition list preserves the source Toffoli coordinate exactly. -/
-theorem gates_toffoliMultiplicity_sum :
+lemma gates_toffoliMultiplicity_sum :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((VariableModularMul.selectedAddGates firstBit).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum :=
   EncodedBit.GateSpec.sum_toffoliMultiplicity_eq_of_events_eq .empty gates_events_eq
 
 /-- The literal modular-addition list obeys its closed primitive-length bound. -/
-theorem gates_length_le : gates.length ≤ gateLengthBound := by
+lemma gates_length_le : gates.length ≤ gateLengthBound := by
   rw [gates_length]
   simpa only [gateLengthBound, gateLengthBoundFor,
     VariableModularMul.selectedAddCircuit,
@@ -257,7 +259,7 @@ theorem gates_length_le : gates.length ≤ gateLengthBound := by
     VariableModularMul.selectedAddCircuit_eventCount_le firstBit
 
 /-- The literal modular-addition list obeys its closed X-coordinate bound. -/
-theorem gates_xMultiplicity_sum_le :
+lemma gates_xMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.xMultiplicity).sum ≤ xBound := by
   have hcoordinates := EncodedBit.GateSpec.length_eq_multiplicity_sums gates
   have hx :
@@ -268,14 +270,14 @@ theorem gates_xMultiplicity_sum_le :
     hx.trans gates_length_le
 
 /-- The literal modular-addition list obeys its closed CNOT-coordinate bound. -/
-theorem gates_cnotMultiplicity_sum_le :
+lemma gates_cnotMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤ cnotBound := by
   rw [gates_cnotMultiplicity_sum]
   simpa only [cnotBound, cnotBoundFor] using
     (VariableModularMul.selectedAddGates_cnotMultiplicity_sum firstBit).le
 
 /-- The literal modular-addition list obeys its closed Toffoli-coordinate bound. -/
-theorem gates_toffoliMultiplicity_sum_le :
+lemma gates_toffoliMultiplicity_sum_le :
     (gates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       toffoliBound := by
   rw [gates_toffoliMultiplicity_sum]
@@ -285,9 +287,10 @@ theorem gates_toffoliMultiplicity_sum_le :
     VariableModularMul.selectedAddCircuit_toffoli_count_le firstBit
 
 /-- The actual circuit realizes its total raw action. -/
-theorem rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit rawStep := by
+lemma rawRealizes : UnitaryCircuit.Realizes rawEncoding circuit environment rawStep := by
   unfold circuit
-  exact EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
+    (QubitLayout.canonical _) .empty
     gates gates_stepList
 
 noncomputable instance rawFinite : Finite RawRegisters :=
@@ -302,7 +305,7 @@ noncomputable def rawInverseStep : RawRegisters → RawRegisters :=
   EncodedBit.GateSpec.stepList gates.reverse
 
 /-- The literal reverse schedule is a total right inverse on every raw register state. -/
-theorem rawInverseStep_rightInverse :
+lemma rawInverseStep_rightInverse :
     Function.RightInverse rawInverseStep rawStep := by
   intro state
   rw [rawInverseStep, ← gates_stepList]
@@ -310,22 +313,23 @@ theorem rawInverseStep_rightInverse :
     EncodedBit.GateSpec.stepList_reverse_stepList gates.reverse state
 
 /-- The same actual schedules cancel in the opposite order. -/
-theorem rawInverseStep_leftInverse :
+lemma rawInverseStep_leftInverse :
     Function.LeftInverse rawInverseStep rawStep := by
   intro state
   rw [rawInverseStep, ← gates_stepList]
   exact EncodedBit.GateSpec.stepList_reverse_stepList gates state
 
 /-- The named inverse is exactly the semantic action of the emitted reverse list. -/
-theorem gates_reverse_stepList (state : RawRegisters) :
+lemma gates_reverse_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList gates.reverse state = rawInverseStep state := rfl
 
-theorem rawDaggerRealizes :
-    UnitaryCircuit.Realizes rawEncoding reverseCircuit rawInverseStep :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates.reverse
+lemma rawDaggerRealizes :
+    UnitaryCircuit.Realizes rawEncoding reverseCircuit environment rawInverseStep :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
+    gates.reverse
 
 /-- The raw action specializes to modular addition on clean states. -/
-theorem rawStep_cleanEndpoint (x : MAU.Addition.Data params.modulus.val) :
+lemma rawStep_cleanEndpoint (x : MAU.Addition.Data params.modulus.val) :
     rawStep (cleanRegisters x) = cleanRegisters x.addIntoRight := by
   have hselected := VariableModularMul.selectedAddStep_cleanEndpoint firstBit
     (multiplicationData x)
@@ -357,7 +361,7 @@ theorem rawStep_cleanEndpoint (x : MAU.Addition.Data params.modulus.val) :
   rw [hadd]
   rfl
 
-theorem rawInverseStep_cleanEndpoint
+lemma rawInverseStep_cleanEndpoint
     (x : MAU.Addition.Data params.modulus.val) :
     rawInverseStep (cleanRegisters x) = cleanRegisters x.subFromRight := by
   have hforward := rawStep_cleanEndpoint (x.subFromRight)
@@ -370,11 +374,11 @@ theorem rawInverseStep_cleanEndpoint
   exact rawInverseStep_leftInverse _
 
 /-- The actual width-parameterized circuit realizes modular addition. -/
-theorem realizes : UnitaryCircuit.Realizes encoding circuit
+lemma realizes : UnitaryCircuit.Realizes encoding circuit environment
     (MAU.Addition.Data.addIntoRight) where
   apply_encoded_ket := by
     intro x
-    have h := rawRealizes.apply_encoded_ket (cleanRegisters x)
+    have h := (rawRealizes (environment := environment)).apply_encoded_ket (cleanRegisters x)
     rw [rawStep_cleanEndpoint] at h
     exact h
 
@@ -384,25 +388,26 @@ def cleanKet (value : MAU.Addition.Data params.modulus.val) :
   NormalizedVector.ket ((QubitLayout.canonical _).basisEquiv.symm (encoding.encode value))
 
 /-- Exact clean computational-basis modular-addition endpoint. -/
-theorem circuit_applyNormalized_clean_ket
+lemma circuit_applyNormalized_clean_ket
     (x : MAU.Addition.Data params.modulus.val) :
-    circuit.applyNormalized
+    circuit.applyNormalized environment
         (cleanKet x) =
       cleanKet x.addIntoRight :=
-  realizes.apply_encoded_ket x
+  (realizes (environment := environment)).apply_encoded_ket x
 
 /-- Reversing the same actual circuit subtracts the preserved left operand. -/
-theorem dagger_applyNormalized_clean_ket
+lemma dagger_applyNormalized_clean_ket
     (x : MAU.Addition.Data params.modulus.val) :
-    reverseCircuit.applyNormalized
+    reverseCircuit.applyNormalized environment
         (cleanKet x) =
       cleanKet x.subFromRight := by
-  have actual := rawDaggerRealizes.apply_encoded_ket (cleanRegisters x)
+  have actual := (rawDaggerRealizes (environment := environment)).apply_encoded_ket (cleanRegisters
+    x)
   rw [rawInverseStep_cleanEndpoint] at actual
   exact actual
 
 /-- Uniform Toffoli upper bound inherited from the actual selected-add route. -/
-theorem circuit_toffoli_count_le :
+lemma circuit_toffoli_count_le :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       circuit.eventCost ≤
       toffoliBound := by
@@ -413,7 +418,7 @@ theorem circuit_toffoli_count_le :
 
 /-- Uniform circuit-only depth upper bound inherited from the actual
 selected-add route. -/
-theorem circuit_unitDepth_le :
+lemma circuit_unitDepth_le :
     circuit.evaluatedEventDepth (fun _ => 1) ≤ unitDepthBound := by
   change
     (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates).evaluatedEventDepth

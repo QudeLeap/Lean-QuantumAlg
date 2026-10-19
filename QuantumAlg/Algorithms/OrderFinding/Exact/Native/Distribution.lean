@@ -31,11 +31,10 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- One real retained decoding step on the source sample's store. -/
-def decodedStep {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
+def decodedStep (t width : Nat)
     (store : Store (samplePost t width)) :=
   ClassicalRoutines.TerminalDecode.retainedStep
-    (model := Sampling.Native.model access)
+    (model := Sampling.Native.model t width)
     (samplePost t width) t .bigEndian (sampleInput t width)
     (resultKey t width) (resultFresh t width) store
 
@@ -46,10 +45,9 @@ def decodedValue {t : Nat} : CShape.Value (.bits t) →
       .unsignedWord (ClassicalAlgorithms.TerminalDecode.fullRegisterIndex bits)
 
 /-- The actual retained result equals the interpretation of the original stored phase bits. -/
-theorem decodedStep_output {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
+lemma decodedStep_output (t width : Nat)
     (store : Store (samplePost t width)) :
-    (decodedStep access store).1.read
+    (decodedStep t width store).1.read
         (ClassicalRoutines.TerminalDecode.resultRef
           (samplePost t width) t (resultKey t width)
           (resultFresh t width)) =
@@ -58,17 +56,17 @@ theorem decodedStep_output {N x t width : Nat}
   | bits bits =>
       have decoded :=
         ClassicalRoutines.TerminalDecode.terminalDecode_retainedStep_read_output
-          (model := Sampling.Native.model access)
+          (model := Sampling.Native.model t width)
           (samplePost t width) t .bigEndian (sampleInput t width)
           (resultKey t width) (resultFresh t width) store
       rw [measured] at decoded
-      cases actual : (decodedStep access store).1.read
+      cases actual : (decodedStep t width store).1.read
           (ClassicalRoutines.TerminalDecode.resultRef
             (samplePost t width) t (resultKey t width)
             (resultFresh t width)) with
       | unsignedWord word =>
           change ClassicalRoutines.TerminalDecode.decodeOutput
-              ((decodedStep access store).1.read
+              ((decodedStep t width store).1.read
                 (ClassicalRoutines.TerminalDecode.resultRef
                   (samplePost t width) t (resultKey t width)
                   (resultFresh t width))) = _ at decoded
@@ -81,107 +79,105 @@ theorem decodedStep_output {N x t width : Nat}
           simp [decodedValue, same]
 
 /-- Append the real decoder's output store and path to a native sample record. -/
-def decodedRecord {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
-    (record : (sampleRun access).Record) : (run access).Record :=
-  ((decodedStep access record.1).1,
+def decodedRecord (t width : Nat)
+    (record : (sampleRun t width).Record) : (run t width).Record :=
+  ((decodedStep t width record.1).1,
     (record.2.1, (record.2.2.1,
-      (record.2.2.2, (decodedStep access record.1).2))))
+      (record.2.2.2, (decodedStep t width record.1).2))))
 
 /-- The final interpreter maps the same source-sample density blocks. -/
-theorem execute_eq_map {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (Reference : Register)
+lemma execute_eq_map (t width : Nat)
+    (environment : (Sampling.Native.model t width).Environment) (Reference : Register)
     (state : ExecutionState
-      (Store Sampling.Native.pre × (Sampling.Native.model access).HiddenState)
+      (Store Sampling.Native.pre × (Sampling.Native.model t width).HiddenState)
       (Register.prod Sampling.Native.pre.register Reference)) :
-    (run access).execute Reference state =
-      ((sampleRun access).execute Reference state).mapClassical
-        (decodedRecord access) := by
+    (run t width).execute environment Reference state =
+      ((sampleRun t width).execute environment Reference state).mapClassical
+        (decodedRecord t width) := by
   refine (Circuit.execute_seq_retained_mapClassical_tail
-    (model := Sampling.Native.model access)
+    (model := Sampling.Native.model t width)
     (resultKey t width) (.unsignedWord t) (resultFresh t width)
-    (sampleCode access) (decoderCode access)
+    (sampleCode t width) (decoderCode t width) environment
     (fun entry =>
-      (((decodedStep access entry.1).1, entry.2),
-        (decodedStep access entry.1).2))
+      (((decodedStep t width entry.1).1, entry.2),
+        (decodedStep t width entry.1).2))
     (ClassicalRoutines.TerminalDecode.terminalDecode_routine_execute
-      (model := Sampling.Native.model access)
+      (model := Sampling.Native.model t width) (environment := environment)
       (samplePost t width) t .bigEndian (sampleInput t width)
       (resultKey t width) (resultFresh t width)) Reference
     (state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
-  exact congrArg (fun decision : DecidableEq (run access).Record =>
-    @ExecutionState.mapClassical (sampleRun access).Record
-      (run access).Record _ _
+  exact congrArg (fun decision : DecidableEq (run t width).Record =>
+    @ExecutionState.mapClassical (sampleRun t width).Record
+      (run t width).Record _ _
       (Register.prod (samplePost t width).register Reference) decision
-      ((sampleRun access).execute Reference state)
-      (decodedRecord access))
+      ((sampleRun t width).execute environment Reference state)
+      (decodedRecord t width))
     (Subsingleton.elim _ _)
 
 /-- The complete record PMF is the image of the genuine source-sample law. -/
-theorem executionDistribution_eq_map {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
+lemma executionDistribution_eq_map (t width : Nat)
+    (environment : (Sampling.Native.model t width).Environment)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.model access).classicalOracles Sampling.Native.pre Reference) :
-    (run access).executionDistribution input =
-      ((sampleRun access).executionDistribution input).map
-        (decodedRecord access) := by
+      (Sampling.Native.model t width).classicalOracles Sampling.Native.pre Reference) :
+    (run t width).executionDistribution environment input =
+      ((sampleRun t width).executionDistribution environment input).map
+        (decodedRecord t width) := by
   exact AlgorithmRun.RetainedRecord.executionDistribution_eq_map
     (key := resultKey t width) (shape := .unsignedWord t)
     (fresh := resultFresh t width)
-    (sampleRun access) (run access) (decodedRecord access)
-    (fun Reference state => execute_eq_map access Reference state) input
+    (sampleRun t width) (run t width) environment (decodedRecord t width)
+    (fun Reference state => execute_eq_map t width environment Reference state) input
 
 /-- The complete result reads the word written by the actual decoder. -/
-theorem decodedRecord_result {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
-    (record : (sampleRun access).Record) :
-    (run access).result (decodedRecord access record) =
-      decodedValue ((sampleRun access).result record) := by
-  change (decodedStep access record.1).1.read
+lemma decodedRecord_result (t width : Nat)
+    (record : (sampleRun t width).Record) :
+    (run t width).result (decodedRecord t width record) =
+      decodedValue ((sampleRun t width).result record) := by
+  change (decodedStep t width record.1).1.read
       (ClassicalRoutines.TerminalDecode.resultRef
         (samplePost t width) t (resultKey t width)
         (resultFresh t width)) =
       decodedValue (record.1.read (sampleInput t width))
-  exact decodedStep_output access record.1
+  exact decodedStep_output t width record.1
 
 /-- The actual final word law maps the actual source sample's phase bits. -/
-theorem outputDistribution_eq_decode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width)
+lemma outputDistribution_eq_decode (t width : Nat)
+    (environment : (Sampling.Native.model t width).Environment)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.model access).classicalOracles Sampling.Native.pre Reference) :
-    (run access).outputDistribution input =
-      ((sampleRun access).outputDistribution input).map decodedValue := by
-  change ((run access).executionDistribution input).map (run access).result =
-    (((sampleRun access).executionDistribution input).map
-      (sampleRun access).result).map decodedValue
+      (Sampling.Native.model t width).classicalOracles Sampling.Native.pre Reference) :
+    (run t width).outputDistribution environment input =
+      ((sampleRun t width).outputDistribution environment input).map decodedValue := by
+  change ((run t width).executionDistribution environment input).map (run t width).result =
+    (((sampleRun t width).executionDistribution environment input).map
+      (sampleRun t width).result).map decodedValue
   rw [executionDistribution_eq_map, PMF.map_comp, PMF.map_comp]
   congr 1
   funext record
-  exact decodedRecord_result access record
+  exact decodedRecord_result t width record
 
 /-- The empty-input native sample has the Born law of its actual source word. -/
-theorem sample_outputDistribution_eq_source {N x t width : Nat}
+lemma sample_outputDistribution_eq_source {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.model access).classicalOracles Sampling.Native.pre Reference) :
-    (sampleRun access).outputDistribution input =
+      (Sampling.Native.model t width).classicalOracles Sampling.Native.pre Reference) :
+    (sampleRun t width).outputDistribution (Sampling.Native.environment access) input =
       (OrderFinding.Native.sourceOutcomePMF access).map CShape.Value.bits := by
   exact Sampling.Native.Framed.outputDistribution_eq
     Sampling.Native.pre samplePreNoQuantum access input
 
 /-- The complete decoded run maps the actual native source Born distribution. -/
-theorem outputDistribution_eq_source {N x t width : Nat}
+lemma outputDistribution_eq_source {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.model access).classicalOracles Sampling.Native.pre Reference) :
-    (run access).outputDistribution input =
+      (Sampling.Native.model t width).classicalOracles Sampling.Native.pre Reference) :
+    (run t width).outputDistribution (Sampling.Native.environment access) input =
       (OrderFinding.Native.sourceOutcomePMF access).map
         (fun outcome => decodedValue (.bits outcome)) := by
-  rw [outputDistribution_eq_decode access input,
+  rw [outputDistribution_eq_decode t width (Sampling.Native.environment access) input,
     sample_outputDistribution_eq_source access input, PMF.map_comp]
   rfl
 

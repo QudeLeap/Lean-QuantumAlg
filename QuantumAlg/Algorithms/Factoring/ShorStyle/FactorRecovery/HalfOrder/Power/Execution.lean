@@ -26,7 +26,7 @@ open Execution ClassicalRoutines
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Actual shifted store and native modular-power path on the live half-order scope. -/
@@ -51,13 +51,13 @@ def step (source : Input N) (base : CInputRef ctx (.canonicalResidue (modulusBit
     ctx.canonicalFreshKey_fresh next.1, next.2)
 
 /-- The actual shifted half-order word is the exponent read by the native power execution. -/
-theorem body_execute (source : Input N)
+lemma body_execute (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N))) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) source base order output).execute Reference state =
+    (body (model := model) source base order output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((bodyStep (model := model) source base order output entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -69,17 +69,17 @@ theorem body_execute (source : Input N)
   exact Subsingleton.elim _ _
 
 /-- Actual scope execution preserves every full quantum-reference block and its genuine path. -/
-theorem code_execute (source : Input N)
+lemma code_execute (source : Input N)
     (base : CInputRef ctx (.canonicalResidue (modulusBits N)))
     (order : CInputRef ctx (.unsignedWord (phaseBits N + 1)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N))) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) source base order output).execute Reference state =
+    (code (model := model) source base order output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((step (model := model) source base order output entry.1).1,
           (entry.2.1, (entry.2.2,
             (step (model := model) source base order output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord (phaseBits N + 1)) ctx.canonicalFreshKey_fresh
     (body (model := model) source base order output)
     (fun entry =>

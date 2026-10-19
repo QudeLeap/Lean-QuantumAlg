@@ -34,7 +34,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA DeshiftPhaseFrame
 
-private theorem frame_shift_eq (state : IterationState) (modulus left right : Nat)
+private lemma frame_shift_eq (state : IterationState) (modulus left right : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (leftWithin : left ≤ state.quotient.size)
     (rightWithin : right ≤ state.quotient.size) (same : left = right) (sign iteration : Bool) :
@@ -55,7 +55,7 @@ def position (state : IterationState) (modulus count : Nat)
       (IterationState.step_admissible state valid active)
       ((IterationState.step_balance state).trans conserved) (!iteration)
 
-private theorem last_microstep (state : IterationState) (modulus count : Nat)
+private lemma last_microstep (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size)
@@ -81,7 +81,7 @@ private theorem last_microstep (state : IterationState) (modulus count : Nat)
   exact MacroBoundary.deshift_tail_frame state modulus valid conserved coprime active iteration
 
 /-- One complete actual native microstep advances each active position, including the exchange. -/
-theorem microstep_position (state : IterationState) (modulus count : Nat)
+lemma microstep_position (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
@@ -99,7 +99,7 @@ theorem microstep_position (state : IterationState) (modulus count : Nat)
       beforeEnd (by omega) iteration
 
 /-- The ordinary iterate of the actual native action has the complete specified physical frame. -/
-theorem iterate_position (state : IterationState) (modulus count : Nat)
+lemma iterate_position (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) (iteration : Bool) :
@@ -121,7 +121,7 @@ theorem iterate_position (state : IterationState) (modulus count : Nat)
         valid conserved coprime active (by omega) iteration
 
 /-- Full actual deshifting ends at the next macro frame with exact lengths and flipped Iter. -/
-theorem finish_frame (state : IterationState) (modulus : Nat)
+lemma finish_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (iteration : Bool) :

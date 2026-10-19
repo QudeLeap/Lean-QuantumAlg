@@ -50,12 +50,12 @@ def centeredResidue (modulus value : Nat) : Int :=
 def modularNegation (modulus value : Nat) : Nat :=
   (modulus - value % modulus) % modulus
 
-theorem modularNegation_lt {modulus value : Nat} (hmodulus : 0 < modulus) :
+lemma modularNegation_lt {modulus value : Nat} (hmodulus : 0 < modulus) :
     modularNegation modulus value < modulus := by
   exact Nat.mod_lt _ hmodulus
 
 /-- Adding the canonical modular negation gives residue zero. -/
-theorem add_modularNegation_mod_eq_zero {modulus value : Nat}
+lemma add_modularNegation_mod_eq_zero {modulus value : Nat}
     (hmodulus : 0 < modulus) :
     (value + modularNegation modulus value) % modulus = 0 := by
   let residue := value % modulus
@@ -84,7 +84,7 @@ theorem add_modularNegation_mod_eq_zero {modulus value : Nat}
 
 /-- The canonical natural modular negation represents the additive inverse in
 the corresponding integer residue class. -/
-theorem modularNegation_modEq_neg {modulus value : Nat}
+lemma modularNegation_modEq_neg {modulus value : Nat}
     (hmodulus : 0 < modulus) :
     Int.ModEq modulus (modularNegation modulus value) (-(value : Int)) := by
   have hzero := add_modularNegation_mod_eq_zero
@@ -106,20 +106,20 @@ theorem modularNegation_modEq_neg {modulus value : Nat}
     _ = (modulus : Int) * -(multiple : Int) := by simp
 
 @[simp]
-theorem centeredModDistance_zero (modulus : Nat) :
+lemma centeredModDistance_zero (modulus : Nat) :
     centeredModDistance modulus 0 = 0 := by
   simp [centeredModDistance]
 
-theorem centeredModDistance_le_residue (modulus value : Nat) :
+lemma centeredModDistance_le_residue (modulus value : Nat) :
     centeredModDistance modulus value ≤ value % modulus := by
   exact Nat.min_le_left _ _
 
-theorem centeredModDistance_le_complement (modulus value : Nat) :
+lemma centeredModDistance_le_complement (modulus value : Nat) :
     centeredModDistance modulus value ≤ modulus - value % modulus := by
   exact Nat.min_le_right _ _
 
 /-- Centered distance depends only on the residue class of the value. -/
-theorem centeredModDistance_eq_of_modEq {modulus left right : Nat}
+lemma centeredModDistance_eq_of_modEq {modulus left right : Nat}
     (h : left ≡ right [MOD modulus]) :
     centeredModDistance modulus left =
       centeredModDistance modulus right := by
@@ -128,7 +128,7 @@ theorem centeredModDistance_eq_of_modEq {modulus left right : Nat}
 
 /-- Scaling both a residue and its modulus scales centered distance by the
 same natural factor. -/
-theorem centeredModDistance_mul_left (scale modulus value : Nat) :
+lemma centeredModDistance_mul_left (scale modulus value : Nat) :
     centeredModDistance (scale * modulus) (scale * value) =
       scale * centeredModDistance modulus value := by
   unfold centeredModDistance
@@ -148,7 +148,7 @@ def centeredWindowCode (modulus radius value : Nat) : Nat :=
   else radius + (modulus - value % modulus)
 
 /-- A residue in the open centered window has code below `2 * radius`. -/
-theorem centeredWindowCode_lt {modulus radius value : Nat}
+lemma centeredWindowCode_lt {modulus radius value : Nat}
     (hmodulus : 0 < modulus)
     (hwindow : centeredModDistance modulus value < radius) :
     centeredWindowCode modulus radius value < 2 * radius := by
@@ -164,7 +164,7 @@ theorem centeredWindowCode_lt {modulus radius value : Nat}
     omega
 
 /-- The two-half encoding is injective on the open centered window. -/
-theorem centeredWindowCode_injectiveOn {modulus radius : Nat} :
+lemma centeredWindowCode_injectiveOn {modulus radius : Nat} :
     Set.InjOn (centeredWindowCode modulus radius)
       {value | value < modulus ∧
         centeredModDistance modulus value < radius} := by
@@ -200,7 +200,7 @@ theorem centeredWindowCode_injectiveOn {modulus radius : Nat} :
 
 /-- At most `2 * radius` residues modulo a positive modulus lie in the open
 centered window. -/
-theorem card_centeredWindow_lt_le (modulus radius : Nat)
+lemma card_centeredWindow_lt_le (modulus radius : Nat)
     (hmodulus : 0 < modulus) :
     (Finset.univ.filter fun value : Fin modulus =>
       centeredModDistance modulus value.val < radius).card ≤ 2 * radius := by
@@ -232,7 +232,7 @@ the open centered window of radius `2^window`, provided the nonzero
 multiplier itself is shorter than that radius.  The proof factors the
 multiplier into its two-adic scale and odd part; the odd part permutes the
 reduced residue ring, while the scale is exactly the fiber multiplicity. -/
-theorem card_centered_mul_pow_two_window_lt_le
+lemma card_centered_mul_pow_two_window_lt_le
     {bits window multiplier : Nat} (hwindow : window ≤ bits)
     (hmultiplierPos : 0 < multiplier)
     (hmultiplierLt : multiplier < 2 ^ window) :
@@ -385,7 +385,7 @@ theorem card_centered_mul_pow_two_window_lt_le
 
 /-- A residue in the nonnegative half of the canonical interval is the
 centered representative of every congruent natural value. -/
-theorem centeredResidue_eq_natCast_of_modEq {modulus value residue : Nat}
+lemma centeredResidue_eq_natCast_of_modEq {modulus value residue : Nat}
     (hresidueLt : residue < modulus)
     (hhalf : 2 * residue ≤ modulus)
     (hmod : value ≡ residue [MOD modulus]) :
@@ -395,7 +395,7 @@ theorem centeredResidue_eq_natCast_of_modEq {modulus value residue : Nat}
 
 /-- A residue in the upper half of the canonical interval is represented by
 subtracting the modulus. -/
-theorem centeredResidue_eq_sub_of_modEq {modulus value residue : Nat}
+lemma centeredResidue_eq_sub_of_modEq {modulus value residue : Nat}
     (hresidueLt : residue < modulus)
     (hhalf : modulus < 2 * residue)
     (hmod : value ≡ residue [MOD modulus]) :
@@ -407,7 +407,7 @@ theorem centeredResidue_eq_sub_of_modEq {modulus value residue : Nat}
 by the half-period lands inside that quarter.  Endpoints are included in the
 central window, so this is the implication needed for the source's
 conservative Fourier-sampling count. -/
-theorem centeredModDistance_add_half_le_of_lt {width value : Nat}
+lemma centeredModDistance_add_half_le_of_lt {width value : Nat}
     (hwidth : 0 < width)
     (houtside : width < centeredModDistance (4 * width) value) :
     centeredModDistance (4 * width) (value + 2 * width) ≤ width := by
@@ -450,7 +450,7 @@ into the centered quarter-window.  The proof factors the multiplier into its
 two-adic and odd parts.  Translation by `2^(bits-v₂(multiplier)-1)` is
 injective and changes the multiplied residue by exactly one half-period, so it
 maps every bad residue to a good one. -/
-theorem pow_two_half_le_card_centered_mul_quarter
+lemma pow_two_half_le_card_centered_mul_quarter
     {bits multiplier : Nat} (hbits : 2 ≤ bits)
     (hmultiplierPos : 0 < multiplier)
     (hmultiplierLt : multiplier < 2 ^ bits) :
@@ -581,7 +581,7 @@ theorem pow_two_half_le_card_centered_mul_quarter
   simpa [modulus, quarter, half, good] using hhalfLe
 
 /-- The centered distance never exceeds half the modulus. -/
-theorem two_mul_centeredModDistance_le {modulus value : Nat}
+lemma two_mul_centeredModDistance_le {modulus value : Nat}
     (hmodulus : 0 < modulus) :
     2 * centeredModDistance modulus value ≤ modulus := by
   let residue := value % modulus
@@ -596,7 +596,7 @@ theorem two_mul_centeredModDistance_le {modulus value : Nat}
 
 /-- The absolute value of the signed centered representative is exactly the
 unsigned centered modular distance. -/
-theorem natAbs_centeredResidue {modulus value : Nat}
+lemma natAbs_centeredResidue {modulus value : Nat}
     (hmodulus : 0 < modulus) :
     (centeredResidue modulus value).natAbs =
       centeredModDistance modulus value := by
@@ -616,7 +616,7 @@ theorem natAbs_centeredResidue {modulus value : Nat}
 
 /-- The signed centered representative lies in the principal half-modulus
 interval, expressed without division. -/
-theorem two_mul_natAbs_centeredResidue_le {modulus value : Nat}
+lemma two_mul_natAbs_centeredResidue_le {modulus value : Nat}
     (hmodulus : 0 < modulus) :
     2 * (centeredResidue modulus value).natAbs ≤ modulus := by
   rw [natAbs_centeredResidue hmodulus]
@@ -624,7 +624,7 @@ theorem two_mul_natAbs_centeredResidue_le {modulus value : Nat}
 
 /-- The signed centered representative is congruent to the original value
 modulo the positive modulus. -/
-theorem centeredResidue_modEq (modulus value : Nat) :
+lemma centeredResidue_modEq (modulus value : Nat) :
     Int.ModEq modulus (centeredResidue modulus value) value := by
   let residue := value % modulus
   have hresidue : Int.ModEq modulus residue value := by
@@ -644,7 +644,7 @@ theorem centeredResidue_modEq (modulus value : Nat) :
 
 /-- The signed centered residue has least absolute value among all integer
 representatives of the same residue class. -/
-theorem centeredModDistance_le_natAbs_of_intModEq
+lemma centeredModDistance_le_natAbs_of_intModEq
     {modulus value : Nat} {representative : Int}
     (hmodulus : 0 < modulus)
     (hrepresentative : Int.ModEq modulus representative value) :

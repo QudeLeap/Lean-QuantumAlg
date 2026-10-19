@@ -230,7 +230,7 @@ instance instDecidableGloballyDisjoint {kind : ProblemKind}
     ⟨fun evidence => ⟨evidence.1, evidence.2⟩,
       fun evidence => ⟨evidence.keys, evidence.physical⟩⟩
 
-private theorem SpaceTrace.pre_key_mem_used {kind : ProblemKind}
+private lemma SpaceTrace.pre_key_mem_used {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post)
     {key : StorageKey} (member : key ∈ pre.keys) : key ∈ trace.usedKeys := by
   induction trace with
@@ -250,7 +250,7 @@ private theorem SpaceTrace.pre_key_mem_used {kind : ProblemKind}
       · exact List.mem_append_left right.usedKeys (ihLeft inLeft)
       · exact List.mem_append_right left.usedKeys (ihRight inRight)
 
-private theorem SpaceTrace.post_key_mem_used {kind : ProblemKind}
+private lemma SpaceTrace.post_key_mem_used {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post)
     {key : StorageKey} (member : key ∈ post.keys) : key ∈ trace.usedKeys := by
   induction trace with
@@ -270,7 +270,7 @@ private theorem SpaceTrace.post_key_mem_used {kind : ProblemKind}
       · exact List.mem_append_left right.usedKeys (ihLeft inLeft)
       · exact List.mem_append_right left.usedKeys (ihRight inRight)
 
-private theorem SpaceTrace.pre_physical_mem_used {kind : ProblemKind}
+private lemma SpaceTrace.pre_physical_mem_used {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post)
     {physical : Nat} (member : physical ∈ pre.physicalIdx) :
     physical ∈ trace.usedPhysicalIdx := by
@@ -291,7 +291,7 @@ private theorem SpaceTrace.pre_physical_mem_used {kind : ProblemKind}
       · exact List.mem_append_left right.usedPhysicalIdx (ihLeft inLeft)
       · exact List.mem_append_right left.usedPhysicalIdx (ihRight inRight)
 
-private theorem SpaceTrace.post_physical_mem_used {kind : ProblemKind}
+private lemma SpaceTrace.post_physical_mem_used {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post)
     {physical : Nat} (member : physical ∈ post.physicalIdx) :
     physical ∈ trace.usedPhysicalIdx := by
@@ -313,7 +313,7 @@ private theorem SpaceTrace.post_physical_mem_used {kind : ProblemKind}
       · exact List.mem_append_right left.usedPhysicalIdx (ihRight inRight)
 
 /-- Trace-wide separation implies disjoint entry contexts. -/
-theorem GloballyDisjoint.pre {kind : ProblemKind}
+lemma GloballyDisjoint.pre {kind : ProblemKind}
     {leftPre leftPost rightPre rightPost : RuntimeCtx kind}
     {left : SpaceFlow leftPre leftPost} {right : SpaceFlow rightPre rightPost}
     (separate : GloballyDisjoint left right) :
@@ -333,7 +333,7 @@ theorem GloballyDisjoint.pre {kind : ProblemKind}
         SpaceTrace.pre_physical_mem_used right.trace inRight)
 
 /-- Trace-wide separation implies disjoint exit contexts. -/
-theorem GloballyDisjoint.post {kind : ProblemKind}
+lemma GloballyDisjoint.post {kind : ProblemKind}
     {leftPre leftPost rightPre rightPost : RuntimeCtx kind}
     {left : SpaceFlow leftPre leftPost} {right : SpaceFlow rightPre rightPost}
     (separate : GloballyDisjoint left right) :
@@ -378,7 +378,7 @@ def peakAuxiliarySpace {kind : ProblemKind} {pre post : RuntimeCtx kind}
     (flow : SpaceFlow pre post) : SpacePool kind :=
   flow.peaks.2
 
-private theorem SpaceTrace.residentSpace_pre_le {kind : ProblemKind}
+private lemma SpaceTrace.residentSpace_pre_le {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post) :
     pre.residentSpace ≤ trace.spacePeaks.1 := by
   induction trace with
@@ -398,7 +398,7 @@ private theorem SpaceTrace.residentSpace_pre_le {kind : ProblemKind}
       intro axis
       exact Nat.add_le_add (ihLeft axis) (ihRight axis)
 
-private theorem SpaceTrace.residentSpace_post_le {kind : ProblemKind}
+private lemma SpaceTrace.residentSpace_post_le {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post) :
     post.residentSpace ≤ trace.spacePeaks.1 := by
   induction trace with
@@ -418,7 +418,7 @@ private theorem SpaceTrace.residentSpace_post_le {kind : ProblemKind}
       intro axis
       exact Nat.add_le_add (ihLeft axis) (ihRight axis)
 
-private theorem SpaceTrace.auxiliarySpace_pre_le {kind : ProblemKind}
+private lemma SpaceTrace.auxiliarySpace_pre_le {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post) :
     pre.auxiliarySpace ≤ trace.spacePeaks.2 := by
   induction trace with
@@ -438,7 +438,7 @@ private theorem SpaceTrace.auxiliarySpace_pre_le {kind : ProblemKind}
       intro axis
       exact Nat.add_le_add (ihLeft axis) (ihRight axis)
 
-private theorem SpaceTrace.auxiliarySpace_post_le {kind : ProblemKind}
+private lemma SpaceTrace.auxiliarySpace_post_le {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (trace : SpaceTrace pre post) :
     post.auxiliarySpace ≤ trace.spacePeaks.2 := by
   induction trace with
@@ -459,40 +459,40 @@ private theorem SpaceTrace.auxiliarySpace_post_le {kind : ProblemKind}
       exact Nat.add_le_add (ihLeft axis) (ihRight axis)
 
 /-- The entry context participates in the resident peak. -/
-theorem residentSpace_pre_le_peak {kind : ProblemKind}
+lemma residentSpace_pre_le_peak {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (flow : SpaceFlow pre post) :
     pre.residentSpace ≤ flow.peakResidentSpace :=
   SpaceTrace.residentSpace_pre_le flow.trace
 
 /-- The exit context participates in the resident peak. -/
-theorem residentSpace_post_le_peak {kind : ProblemKind}
+lemma residentSpace_post_le_peak {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (flow : SpaceFlow pre post) :
     post.residentSpace ≤ flow.peakResidentSpace :=
   SpaceTrace.residentSpace_post_le flow.trace
 
 /-- The entry context participates in the auxiliary peak. -/
-theorem auxiliarySpace_pre_le_peak {kind : ProblemKind}
+lemma auxiliarySpace_pre_le_peak {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (flow : SpaceFlow pre post) :
     pre.auxiliarySpace ≤ flow.peakAuxiliarySpace :=
   SpaceTrace.auxiliarySpace_pre_le flow.trace
 
 /-- The exit context participates in the auxiliary peak. -/
-theorem auxiliarySpace_post_le_peak {kind : ProblemKind}
+lemma auxiliarySpace_post_le_peak {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (flow : SpaceFlow pre post) :
     post.auxiliarySpace ≤ flow.peakAuxiliarySpace :=
   SpaceTrace.auxiliarySpace_post_le flow.trace
 
-@[simp] theorem peakResidentSpace_stay {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_stay {kind : ProblemKind}
     (ctx : RuntimeCtx kind) :
     (stay ctx).peakResidentSpace = ctx.residentSpace := rfl
 
-@[simp] theorem peakAuxiliarySpace_stay {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_stay {kind : ProblemKind}
     (ctx : RuntimeCtx kind) :
     (stay ctx).peakAuxiliarySpace = ctx.auxiliarySpace := rfl
 
 /-- Retaining one classical cell visits exactly the entry and retained
 contexts. -/
-@[simp] theorem peakResidentSpace_retain {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_retain {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (retain ctx key shape fresh).peakResidentSpace =
@@ -502,7 +502,7 @@ contexts. -/
 
 /-- The auxiliary projection of the same retained-cell transition visits the
 same two contexts. -/
-@[simp] theorem peakAuxiliarySpace_retain {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_retain {kind : ProblemKind}
     (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     (retain ctx key shape fresh).peakAuxiliarySpace =
@@ -510,52 +510,52 @@ same two contexts. -/
         (ctx.addRetained key shape fresh).auxiliarySpace :=
   rfl
 
-@[simp] theorem peakResidentSpace_seq {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_seq {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} (first : SpaceFlow pre mid)
     (second : SpaceFlow mid post) :
     (seq first second).peakResidentSpace =
       SpacePool.max first.peakResidentSpace second.peakResidentSpace := rfl
 
-@[simp] theorem peakAuxiliarySpace_seq {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_seq {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} (first : SpaceFlow pre mid)
     (second : SpaceFlow mid post) :
     (seq first second).peakAuxiliarySpace =
       SpacePool.max first.peakAuxiliarySpace second.peakAuxiliarySpace := rfl
 
-@[simp] theorem peakResidentSpace_branch {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_branch {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (left right : SpaceFlow pre post) :
     (branch left right).peakResidentSpace =
       SpacePool.max left.peakResidentSpace right.peakResidentSpace := rfl
 
-@[simp] theorem peakAuxiliarySpace_branch {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_branch {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (left right : SpaceFlow pre post) :
     (branch left right).peakAuxiliarySpace =
       SpacePool.max left.peakAuxiliarySpace right.peakAuxiliarySpace := rfl
 
-@[simp] theorem peakResidentSpace_loopInvariant_zero {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_loopInvariant_zero {kind : ProblemKind}
     {ctx : RuntimeCtx kind} (body : SpaceFlow ctx ctx) :
     (loopInvariant 0 body).peakResidentSpace = ctx.residentSpace := rfl
 
-@[simp] theorem peakAuxiliarySpace_loopInvariant_zero {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_loopInvariant_zero {kind : ProblemKind}
     {ctx : RuntimeCtx kind} (body : SpaceFlow ctx ctx) :
     (loopInvariant 0 body).peakAuxiliarySpace = ctx.auxiliarySpace := rfl
 
-@[simp] theorem peakResidentSpace_loopInvariant_succ {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_loopInvariant_succ {kind : ProblemKind}
     {ctx : RuntimeCtx kind} (count : Nat) (body : SpaceFlow ctx ctx) :
     (loopInvariant (count + 1) body).peakResidentSpace = body.peakResidentSpace := rfl
 
-@[simp] theorem peakAuxiliarySpace_loopInvariant_succ {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_loopInvariant_succ {kind : ProblemKind}
     {ctx : RuntimeCtx kind} (count : Nat) (body : SpaceFlow ctx ctx) :
     (loopInvariant (count + 1) body).peakAuxiliarySpace = body.peakAuxiliarySpace := rfl
 
-@[simp] theorem peakResidentSpace_tensor {kind : ProblemKind}
+@[simp] lemma peakResidentSpace_tensor {kind : ProblemKind}
     {leftPre leftPost rightPre rightPost : RuntimeCtx kind}
     (left : SpaceFlow leftPre leftPost) (right : SpaceFlow rightPre rightPost)
     (separate : GloballyDisjoint left right) :
     (tensor left right separate).peakResidentSpace =
       left.peakResidentSpace + right.peakResidentSpace := rfl
 
-@[simp] theorem peakAuxiliarySpace_tensor {kind : ProblemKind}
+@[simp] lemma peakAuxiliarySpace_tensor {kind : ProblemKind}
     {leftPre leftPost rightPre rightPost : RuntimeCtx kind}
     (left : SpaceFlow leftPre leftPost) (right : SpaceFlow rightPre rightPost)
     (separate : GloballyDisjoint left right) :
@@ -563,49 +563,49 @@ same two contexts. -/
       left.peakAuxiliarySpace + right.peakAuxiliarySpace := rfl
 
 /-- Extending a valid flow on the right cannot lower its resident peak. -/
-theorem peakResidentSpace_le_seq_left {kind : ProblemKind}
+lemma peakResidentSpace_le_seq_left {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} (first : SpaceFlow pre mid)
     (second : SpaceFlow mid post) :
     first.peakResidentSpace ≤ (seq first second).peakResidentSpace :=
   SpacePool.le_max_left _ _
 
 /-- Extending a valid flow on the left cannot lower its resident peak. -/
-theorem peakResidentSpace_le_seq_right {kind : ProblemKind}
+lemma peakResidentSpace_le_seq_right {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} (first : SpaceFlow pre mid)
     (second : SpaceFlow mid post) :
     second.peakResidentSpace ≤ (seq first second).peakResidentSpace :=
   SpacePool.le_max_right _ _
 
 /-- Extending a valid flow on the right cannot lower its auxiliary peak. -/
-theorem peakAuxiliarySpace_le_seq_left {kind : ProblemKind}
+lemma peakAuxiliarySpace_le_seq_left {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} (first : SpaceFlow pre mid)
     (second : SpaceFlow mid post) :
     first.peakAuxiliarySpace ≤ (seq first second).peakAuxiliarySpace :=
   SpacePool.le_max_left _ _
 
 /-- Extending a valid flow on the left cannot lower its auxiliary peak. -/
-theorem peakAuxiliarySpace_le_seq_right {kind : ProblemKind}
+lemma peakAuxiliarySpace_le_seq_right {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} (first : SpaceFlow pre mid)
     (second : SpaceFlow mid post) :
     second.peakAuxiliarySpace ≤ (seq first second).peakAuxiliarySpace :=
   SpacePool.le_max_right _ _
 
-theorem peakResidentSpace_le_branch_left {kind : ProblemKind}
+lemma peakResidentSpace_le_branch_left {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (left right : SpaceFlow pre post) :
     left.peakResidentSpace ≤ (branch left right).peakResidentSpace :=
   SpacePool.le_max_left _ _
 
-theorem peakResidentSpace_le_branch_right {kind : ProblemKind}
+lemma peakResidentSpace_le_branch_right {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (left right : SpaceFlow pre post) :
     right.peakResidentSpace ≤ (branch left right).peakResidentSpace :=
   SpacePool.le_max_right _ _
 
-theorem peakAuxiliarySpace_le_branch_left {kind : ProblemKind}
+lemma peakAuxiliarySpace_le_branch_left {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (left right : SpaceFlow pre post) :
     left.peakAuxiliarySpace ≤ (branch left right).peakAuxiliarySpace :=
   SpacePool.le_max_left _ _
 
-theorem peakAuxiliarySpace_le_branch_right {kind : ProblemKind}
+lemma peakAuxiliarySpace_le_branch_right {kind : ProblemKind}
     {pre post : RuntimeCtx kind} (left right : SpaceFlow pre post) :
     right.peakAuxiliarySpace ≤ (branch left right).peakAuxiliarySpace :=
   SpacePool.le_max_right _ _
@@ -630,10 +630,10 @@ def repetition {kind : ProblemKind} {pre post : RuntimeCtx kind} {attempts : Nat
   | .zero ctx => stay ctx
   | .succ attempt rest => seq attempt (repetition rest)
 
-@[simp] theorem repetition_zero {kind : ProblemKind} (ctx : RuntimeCtx kind) :
+@[simp] lemma repetition_zero {kind : ProblemKind} (ctx : RuntimeCtx kind) :
     repetition (.zero ctx) = stay ctx := rfl
 
-@[simp] theorem repetition_succ {kind : ProblemKind}
+@[simp] lemma repetition_succ {kind : ProblemKind}
     {pre mid post : RuntimeCtx kind} {attempts : Nat}
     (attempt : SpaceFlow pre mid) (rest : SpaceRepetition mid attempts post) :
     repetition (.succ attempt rest) = seq attempt (repetition rest) := rfl

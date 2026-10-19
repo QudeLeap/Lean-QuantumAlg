@@ -29,7 +29,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 /-- Original numerator then denominator allocation, represented deepest first. -/
 def genericShapes (width : Nat) : List CShape := [.unsignedWord width, .unsignedWord width]
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The two original subtractions precede the shared original affine tail. -/
@@ -51,28 +51,30 @@ def genericBodyStep (spec : ModulusSpec width)
       (genericBody spec leftX leftY rightX rightY numerator denominator output).Path :=
   Circuit.sequenceRecord _ _
     (Circuit.preserveHiddenRecord
-      (Field.Native.subIntoWordStep spec rightY leftY numerator))
+      (Field.Native.subIntoWordStep (environment := environment) spec rightY leftY numerator))
     (Circuit.sequenceRecord _ _
       (Circuit.preserveHiddenRecord
-        (Field.Native.subIntoWordStep spec rightX leftX denominator))
-      (affineIntoStep spec leftX rightX leftY (classifierRead numerator)
+        (Field.Native.subIntoWordStep (environment := environment) spec rightX leftX denominator))
+      (affineIntoStep (environment := environment) spec leftX rightX leftY (classifierRead
+        numerator)
         (classifierRead denominator) output))
 
 /-- The actual generic arm retains all complete quantum-reference blocks and original history. -/
-theorem genericBody_execute (spec : ModulusSpec width)
+lemma genericBody_execute (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (genericBody spec leftX leftY rightX rightY numerator denominator output).execute
+    (genericBody spec leftX leftY rightX rightY numerator denominator output).execute environment
       Reference state = state.mapClassical (fun entry =>
-        let result := genericBodyStep spec leftX leftY rightX rightY numerator denominator
+        let result := genericBodyStep (environment := environment) spec leftX leftY rightX
+          rightY numerator denominator
           output (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  apply Circuit.execute_sequenceRecord _ _ _ _
+  apply Circuit.execute_sequenceRecord (environment := environment) _ _ _ _
   · exact Field.Native.subIntoWord_execute _ _ _ _
-  · apply Circuit.execute_sequenceRecord _ _ _ _
+  · apply Circuit.execute_sequenceRecord (environment := environment) _ _ _ _
     · exact Field.Native.subIntoWord_execute _ _ _ _
     · exact affineInto_execute _ _ _ _ _ _ _
 

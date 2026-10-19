@@ -27,6 +27,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuse
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -39,7 +42,7 @@ variable (base : RuntimeCtx .quantum) (N : Nat)
     (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
-private theorem rounds_weighted_reference
+private lemma rounds_weighted_reference
     {previousShape : CShape} (previous : CInputRef base previousShape)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
@@ -52,7 +55,7 @@ private theorem rounds_weighted_reference
       previousShape.Value → (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((rounds base N sameWires originalCells).execute Reference state)
+        ((rounds base N sameWires originalCells).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (finalParameter base N))
           (entry.1.read (finalSample base N)) (entry.1.read (callerInput base N previous))
           (entry.1.read (finalResults base N)).get) leftRef rightRef =
@@ -72,8 +75,9 @@ private theorem rounds_weighted_reference
   let jointWeight := fun parameter
       (value : (CShape.product (.bits (residueSamplingBits N)) previousShape).Value) outcomes =>
     weight parameter value.first value.second outcomes
-  let repeated := (rounds base N sameWires originalCells).execute Reference state
+  let repeated := (rounds base N sameWires originalCells).execute environment Reference state
   have repetitionLaw := RuntimeRepetition.shortDLP_runtimeRepetition_weighted_reference
+    (environment := environment)
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (parameterUnit (N := N)) (parameterTarget (N := N)) 16
     (sampledContext base N) (nativeBatchReuse_sampled_wires base N sameWires)
@@ -105,7 +109,7 @@ private theorem rounds_weighted_reference
   exact aligned.trans repetitionLaw
 
 /-- Every joint source, earlier operand and outcome weight follows the actual conditional law. -/
-theorem nativeBatchReuse_source_weighted_reference (input : Input N)
+lemma nativeBatchReuse_source_weighted_reference (input : Input N)
     {previousShape : CShape} (previous : CInputRef base previousShape)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
@@ -116,7 +120,8 @@ theorem nativeBatchReuse_source_weighted_reference (input : Input N)
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value →
       previousShape.Value → (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base N sameWires originalCells).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base N sameWires originalCells).execute
+      environment Reference state)
         (fun entry _ => weight (entry.1.read (finalParameter base N))
           (entry.1.read (finalSample base N)) (entry.1.read (callerInput base N previous))
           (entry.1.read (finalResults base N)).get) leftRef rightRef =
@@ -129,17 +134,19 @@ theorem nativeBatchReuse_source_weighted_reference (input : Input N)
               (parameterValue input source)
               (.bits (ShorStyle.Canonical.Sampler.PackedSample.storedBits source)))
         leftRef rightRef := by
-  have repetitionLaw := rounds_weighted_reference base N sameWires originalCells previous
+  have repetitionLaw := rounds_weighted_reference (environment := environment)
+    base N sameWires originalCells previous
     distinct separate
-    (Circuit.execute
+    (Circuit.execute (environment := environment)
       (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
       Reference state)
     (nativeBatchReuse_sampler_seedBlocks input sameWires state seeded) weight leftRef rightRef
   have sampledLaw := ShorStyle.Canonical.Sampler.Retained.samplerRetained_reference_input
+    (environment := environment)
     (model := RuntimeRound.model) input.samplerInput previous state
     (fun old parameter sample => NativeBatch.conditionalMoment
       (fun p s outcomes => weight p s old outcomes) parameter sample) leftRef rightRef
-  exact (Circuit.referenceFiberSum_execute_seq
+  exact (Circuit.referenceFiberSum_execute_seq (environment := environment)
     (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (rounds base N sameWires originalCells) state
     (fun store => weight (store.read (finalParameter base N))
@@ -147,13 +154,13 @@ theorem nativeBatchReuse_source_weighted_reference (input : Input N)
       (store.read (finalResults base N)).get) leftRef rightRef).trans
     (repetitionLaw.trans sampledLaw)
 
-private theorem fixedVector_eta {count : Nat} {shape : CShape}
+private lemma fixedVector_eta {count : Nat} {shape : CShape}
     (value : (CShape.fixedVector count shape).Value) : .fixedVector value.get = value := by
   cases value
   rfl
 
 /-- The complete real output and a protected earlier operand have the original source kernel. -/
-theorem nativeBatchReuse_output_weighted_reference (input : Input N)
+lemma nativeBatchReuse_output_weighted_reference (input : Input N)
     {previousShape : CShape} (previous : CInputRef base previousShape)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
@@ -163,7 +170,8 @@ theorem nativeBatchReuse_output_weighted_reference (input : Input N)
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N) sameWires N state)
     (weight : previousShape.Value → (NativeBatch.resultShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base N sameWires originalCells).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base N sameWires originalCells).execute
+      environment Reference state)
         (fun entry _ => weight (entry.1.read (callerInput base N previous))
           ((run base N sameWires originalCells).output.eval entry.1)) leftRef rightRef =
       ExecutionState.referenceFiberSum state
@@ -172,7 +180,8 @@ theorem nativeBatchReuse_output_weighted_reference (input : Input N)
             weight (entry.1.read previous) output) leftRef rightRef := by
   let sourceWeight := fun parameter sample old outcomes =>
     weight old (.product sample (.product parameter (.fixedVector outcomes)))
-  have sourceLaw := nativeBatchReuse_source_weighted_reference base N sameWires originalCells
+  have sourceLaw := nativeBatchReuse_source_weighted_reference (environment := environment)
+    base N sameWires originalCells
     input previous distinct separate state seeded sourceWeight leftRef rightRef
   have outputRead (store : Store (context base N)) :
       (run base N sameWires originalCells).output.eval store =
@@ -182,7 +191,7 @@ theorem nativeBatchReuse_output_weighted_reference (input : Input N)
   have aligned := congrArg
     (fun observe : Store (context base N) → ℂ =>
       ExecutionState.referenceFiberSum
-        ((code base N sameWires originalCells).execute Reference state)
+        ((code base N sameWires originalCells).execute environment Reference state)
         (fun entry _ => observe entry.1) leftRef rightRef)
     (show (fun store => weight (store.read (callerInput base N previous))
         ((run base N sameWires originalCells).output.eval store)) =

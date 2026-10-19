@@ -34,14 +34,14 @@ def latchedWeight {N : Nat} (input : Input N) (count : Nat)
     (NativeFactorScan.firstPresent initial
       (NativeFactorScan.sourceResults input (List.ofFn outcomes))))
 
-private theorem latchedWeight_zero {N : Nat} (input : Input N)
+private lemma latchedWeight_zero {N : Nat} (input : Input N)
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (initial : CShape.Value (.option (.unsignedWord (modulusBits N)))) :
     latchedWeight input 0 weight initial = weight initial := by
   simp only [latchedWeight, SourceWeights.batch, List.ofFn_zero,
     NativeFactorScan.sourceResults, NativeFactorScan.firstPresent_none_right]
 
-private theorem latchedWeight_succ {N : Nat} (input : Input N) (count : Nat)
+private lemma latchedWeight_succ {N : Nat} (input : Input N) (count : Nat)
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (initial : CShape.Value (.option (.unsignedWord (modulusBits N)))) :
     latchedWeight input (count + 1) weight initial =
@@ -58,19 +58,20 @@ private theorem latchedWeight_succ {N : Nat} (input : Input N) (count : Nat)
   rw [List.ofFn_cons, NativeFactorScan.sourceResults, NativeFactorScan.firstPresent_assoc]
 
 /-- Every arbitrary-count actual complete loop has the original chronological latch law. -/
-theorem Finite.body_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Finite.body_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated cells result)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized)
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Finite.body ctx N input sameWires cells result count).execute Reference state)
+      ((Finite.body ctx N input sameWires cells result count).execute (environment input)
+        Reference state)
       (fun entry _ => weight (NativeFactorScan.latchValue (Finite.cells ctx N count cells) entry.1))
       left right =
     ExecutionState.referenceFiberSum state
@@ -79,7 +80,7 @@ theorem Finite.body_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input
   induction count generalizing ctx History weight with
   | zero =>
       change ExecutionState.referenceFiberSum
-        ((Circuit.id (model := executionModel input) ctx).execute Reference state)
+        ((Circuit.id (model := executionModel N) ctx).execute (environment input) Reference state)
         (fun entry _ => weight (NativeFactorScan.latchValue cells entry.1)) left right =
         ExecutionState.referenceFiberSum state
           (fun entry _ => latchedWeight input 0 weight (NativeFactorScan.latchValue cells entry.1))
@@ -97,12 +98,14 @@ theorem Finite.body_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input
       have tail := induction (Iteration.context ctx N)
         ((Iteration.quantumWires ctx N).trans sameWires)
         (Completion.cells ctx N cells) (Completion.liftWrite ctx N result)
-        (Completion.separated ctx N cells result separated) (first.execute Reference state)
+        (Completion.separated ctx N cells result separated) (first.execute (environment input)
+          Reference state)
         (Completion.code_seeded ctx N input sameWires cells result state)
-        ((first.execute_mass Reference state).trans normalized) weight
+        ((first.execute_mass (environment input) Reference state).trans normalized) weight
       have step := completion_latch_reference ctx N input sameWires cells result separated
         state seeded normalized continuation left right
-      have sequence := Circuit.referenceFiberSum_execute_seq first later state
+      have sequence := Circuit.referenceFiberSum_execute_seq (environment := environment
+        input) first later state
         (fun store => weight (NativeFactorScan.latchValue finalCells store)) left right
       refine sequence.trans (tail.trans (step.trans ?_))
       apply congrArg (fun observe => ExecutionState.referenceFiberSum state observe left right)
@@ -111,16 +114,17 @@ theorem Finite.body_latch_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input
         (NativeFactorScan.latchValue cells entry.1)).symm
 
 /-- The one actual terminal pack exposes precisely the persistent latch value in its real cell. -/
-theorem Finite.pack_output_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Finite.pack_output_reference (ctx : RuntimeCtx .quantum) (N : Nat)
+    {environment : (executionModel N).Environment}
     (count : Nat) (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Finite.context ctx N count) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Finite.pack ctx N input count cells result).execute Reference state)
+      ((Finite.pack ctx N count cells result).execute environment Reference state)
       (fun entry _ => weight (entry.1.read
         (.storage (Finite.liftWrite ctx N count result).toCStorageRef))) left right =
     ExecutionState.referenceFiberSum state
@@ -134,31 +138,34 @@ theorem Finite.pack_output_reference (ctx : RuntimeCtx .quantum) (N : Nat) (inpu
     (Finite.liftWrite ctx N count result) entry.1)
 
 /-- Actual arbitrary-count complete repetition and its paid pack have the original latch law. -/
-theorem Finite.code_output_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Finite.code_output_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires) (count : Nat)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated cells result)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized)
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Finite.code ctx N input sameWires count cells result).execute Reference state)
+      ((Finite.code ctx N input sameWires count cells result).execute (environment input)
+        Reference state)
       (fun entry _ => weight (entry.1.read
         (.storage (Finite.liftWrite ctx N count result).toCStorageRef))) left right =
     ExecutionState.referenceFiberSum state
       (fun entry _ => latchedWeight input count weight (NativeFactorScan.latchValue cells entry.1))
       left right := by
   let repeated := Finite.body ctx N input sameWires cells result count
-  let packed := Finite.pack ctx N input count cells result
-  have sequence := Circuit.referenceFiberSum_execute_seq repeated packed state
+  let packed := Finite.pack ctx N count cells result
+  have sequence := Circuit.referenceFiberSum_execute_seq (environment := environment input)
+    repeated packed state
     (fun store => weight (store.read
       (.storage (Finite.liftWrite ctx N count result).toCStorageRef))) left right
-  have actualPack := Finite.pack_output_reference ctx N input count cells result
-    (repeated.execute Reference state) weight left right
+  have actualPack := Finite.pack_output_reference (environment := environment input) ctx N
+    count cells result
+    (repeated.execute (environment input) Reference state) weight left right
   exact sequence.trans (actualPack.trans (Finite.body_latch_reference ctx N input sameWires count
     cells result separated state seeded normalized weight left right))
 

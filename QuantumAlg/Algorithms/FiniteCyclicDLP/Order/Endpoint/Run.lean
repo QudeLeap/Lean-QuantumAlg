@@ -49,7 +49,7 @@ public abbrev sampledContext (P : KnownOrderProblem G) : RuntimeCtx .quantum :=
 @[expose] public def outputKey (P : KnownOrderProblem G) : StorageKey :=
   (sampledContext P).canonicalFreshKey
 
-public theorem outputKey_fresh (P : KnownOrderProblem G) :
+public lemma outputKey_fresh (P : KnownOrderProblem G) :
     outputKey P ∉ (sampledContext P).keys :=
   RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (sampledContext P)
 
@@ -90,14 +90,14 @@ complete raw recovery, abstract group power and target comparison. -/
       (retainedSample P) (outputRef P)
 
 /-- Order one selects the literal zero-writing recovery branch. -/
-public theorem recoveryCircuit_order_one (P : KnownOrderProblem G)
+public lemma recoveryCircuit_order_one (P : KnownOrderProblem G)
     (trivial : P.order = 1) :
     recoveryCircuit P =
       ClassicalRoutines.FiniteCyclicDLP.Trivial.Native.zeroInto (outputRef P) := by
   exact dif_pos trivial
 
 /-- Every nontrivial positive order selects checked native recovery. -/
-public theorem recoveryCircuit_nontrivial (P : KnownOrderProblem G)
+public lemma recoveryCircuit_nontrivial (P : KnownOrderProblem G)
     (nontrivial : P.order ≠ 1) :
     recoveryCircuit P =
       OrderRecovery.Native.recoveryInto P (recoverySpec P nontrivial) (sampleCount P)
@@ -134,7 +134,7 @@ public def retainedState (P : KnownOrderProblem G)
   state.mapClassical (retainedEntry P)
 
 /-- Allocating a result cell preserves normalization. -/
-public theorem retainedState_normalized (P : KnownOrderProblem G)
+public lemma retainedState_normalized (P : KnownOrderProblem G)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (sampledContext P) Reference
       ((OrderExecution.model P).HiddenState × History))
@@ -143,7 +143,7 @@ public theorem retainedState_normalized (P : KnownOrderProblem G)
   exact state.mapClassical_normalized normalized (retainedEntry P)
 
 /-- Result allocation pushes forward only the finite classical record law. -/
-public theorem retainedState_toPMF (P : KnownOrderProblem G)
+public lemma retainedState_toPMF (P : KnownOrderProblem G)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (sampledContext P) Reference
       ((OrderExecution.model P).HiddenState × History))
@@ -153,7 +153,7 @@ public theorem retainedState_toPMF (P : KnownOrderProblem G)
   exact ExecutionState.toPMF_mapClassical state normalized (retainedEntry P)
 
 /-- Result allocation preserves every sample read under its retained reference. -/
-public theorem retainedEntry_read_sample (P : KnownOrderProblem G) {History : Type}
+public lemma retainedEntry_read_sample (P : KnownOrderProblem G) {History : Type}
     (entry : Store (sampledContext P) ×
       ((OrderExecution.model P).HiddenState × History))
     (index : Fin (sampleCount P)) :
@@ -164,26 +164,28 @@ public theorem retainedEntry_read_sample (P : KnownOrderProblem G) {History : Ty
       (OrderBatch.sampleInput P index)
 
 /-- The literal retained-cell instruction executes as `retainedState`. -/
-public theorem outputRetain_execute (P : KnownOrderProblem G)
+public lemma outputRetain_execute (P : KnownOrderProblem G)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (sampledContext P) Reference
       ((OrderExecution.model P).HiddenState × History)) :
-    (outputAllocation P).execute Reference state = retainedState P state := by
+    (outputAllocation P).execute
+      (OrderExecution.sourceEnvironment P) Reference state = retainedState P state := by
   unfold outputAllocation retainedState retainedEntry outputAllocationPath
-  refine (Circuit.execute_retain (model := OrderExecution.model P)
+  refine (Circuit.execute_retain (environment := OrderExecution.sourceEnvironment P)
+      (model := OrderExecution.model P)
       (ctx := sampledContext P) (Reference := Reference) state (outputKey P)
         (.option (.unsignedWord (OrderPreparation.width P))) (outputKey_fresh P)).trans ?_
   exact ExecutionState.executionState_mapClassical_congr state rfl
 
 /-- Result allocation emits no native event. -/
-public theorem outputAllocation_eventTrace (P : KnownOrderProblem G)
+public lemma outputAllocation_eventTrace (P : KnownOrderProblem G)
     (path : (outputAllocation P).Path) :
     (outputAllocation P).eventTrace path = [] := by
   unfold outputAllocation
   rfl
 
 /-- Result allocation adds no dependency duration. -/
-public theorem outputAllocation_depth (P : KnownOrderProblem G)
+public lemma outputAllocation_depth (P : KnownOrderProblem G)
     (duration : Resource.Event (OrderExecution.model P) → Nat)
     (path : (outputAllocation P).Path) :
     (outputAllocation P).depth duration path = 0 := by
@@ -191,7 +193,7 @@ public theorem outputAllocation_depth (P : KnownOrderProblem G)
   rfl
 
 /-- Allocation visits exactly the original and retained resident contexts. -/
-public theorem outputAllocation_peakResidentSpace (P : KnownOrderProblem G)
+public lemma outputAllocation_peakResidentSpace (P : KnownOrderProblem G)
     (path : (outputAllocation P).Path) :
     (outputAllocation P).peakResidentSpace path =
       (outputContext P).residentSpace := by
@@ -199,7 +201,7 @@ public theorem outputAllocation_peakResidentSpace (P : KnownOrderProblem G)
   exact Circuit.peakResidentSpace_retain _ _ _ path
 
 /-- Allocation visits exactly the original and retained auxiliary contexts. -/
-public theorem outputAllocation_peakAuxiliarySpace (P : KnownOrderProblem G)
+public lemma outputAllocation_peakAuxiliarySpace (P : KnownOrderProblem G)
     (path : (outputAllocation P).Path) :
     (outputAllocation P).peakAuxiliarySpace path =
       (outputContext P).auxiliarySpace := by
@@ -212,12 +214,12 @@ public abbrev retainedRecovery (P : KnownOrderProblem G) :
   .seq (outputAllocation P) (recoveryCircuit P)
 
 /-- Result retention is the literal allocation followed by the selected recovery branch. -/
-public theorem retainedRecovery_sequence (P : KnownOrderProblem G) :
+public lemma retainedRecovery_sequence (P : KnownOrderProblem G) :
     retainedRecovery P =
       .seq (outputAllocation P) (recoveryCircuit P) := rfl
 
 /-- Allocating the result emits no resource event before recovery. -/
-public theorem retainedRecovery_resourcePool (P : KnownOrderProblem G)
+public lemma retainedRecovery_resourcePool (P : KnownOrderProblem G)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).resourcePool path =
       (recoveryCircuit P).resourcePool path.2 := by
@@ -228,7 +230,7 @@ public theorem retainedRecovery_resourcePool (P : KnownOrderProblem G)
   rfl
 
 /-- Allocating the result adds no dependency duration before recovery. -/
-public theorem retainedRecovery_depth (P : KnownOrderProblem G)
+public lemma retainedRecovery_depth (P : KnownOrderProblem G)
     (duration : Resource.Event (OrderExecution.model P) → Nat)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).depth duration path =
@@ -238,7 +240,7 @@ public theorem retainedRecovery_depth (P : KnownOrderProblem G)
   rw [outputAllocation_depth, Nat.zero_add]
 
 /-- The retained tail's resident peak is the maximum of allocation and recovery. -/
-public theorem retainedRecovery_peakResidentSpace (P : KnownOrderProblem G)
+public lemma retainedRecovery_peakResidentSpace (P : KnownOrderProblem G)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).peakResidentSpace path =
       SpacePool.max (outputContext P).residentSpace
@@ -249,7 +251,7 @@ public theorem retainedRecovery_peakResidentSpace (P : KnownOrderProblem G)
         (outputAllocation_peakResidentSpace P path.1))
 
 /-- The retained tail's auxiliary peak is the maximum of allocation and recovery. -/
-public theorem retainedRecovery_peakAuxiliarySpace (P : KnownOrderProblem G)
+public lemma retainedRecovery_peakAuxiliarySpace (P : KnownOrderProblem G)
     (path : (retainedRecovery P).Path) :
     (retainedRecovery P).peakAuxiliarySpace path =
       SpacePool.max (outputContext P).auxiliarySpace

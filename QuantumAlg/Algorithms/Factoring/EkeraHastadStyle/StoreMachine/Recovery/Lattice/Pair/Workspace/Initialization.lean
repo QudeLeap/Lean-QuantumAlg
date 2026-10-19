@@ -35,7 +35,7 @@ structure Initialized {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   nearest : cells.nearest.Initialized store
 
 /-- Actual read agreement carries every package's initial values through a further scope. -/
-theorem Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind} {N : Nat}
+lemma Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind} {N : Nat}
     {source : Store outer} {before : Store inner} {cells : Cells outer N}
     (initial : Initialized source cells) (transport : Transport outer inner)
     (reads : transport.ReadsAs source before) :

@@ -29,7 +29,7 @@ variable {G : Type u} [Group G]
 
 local instance : DecidableEq G := Classical.decEq G
 
-private theorem word_injective {width : Nat} (left right : CShape.Word width)
+private lemma word_injective {width : Nat} (left right : CShape.Word width)
     (same : left.toNat = right.toNat) : left = right := by
   cases left with
   | unsignedWord left =>
@@ -37,7 +37,7 @@ private theorem word_injective {width : Nat} (left right : CShape.Word width)
       | unsignedWord right => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
 /-- The canonical secret is not truncated by the known-order word width. -/
-public theorem secretWord_toNat (P : KnownOrderProblem G)
+public lemma secretWord_toNat (P : KnownOrderProblem G)
     (secret : Canonical.Probability.SecretInput P) :
     (CShape.wordOfNat (OrderPreparation.width P) secret.secret.val).toNat =
       secret.secret.val := by
@@ -47,7 +47,7 @@ public theorem secretWord_toNat (P : KnownOrderProblem G)
     ((ZMod.val_lt secret.secret).trans_le (FiniteCyclicDLP.order_le_fourierModulus P))
 
 /-- Every accepted bounded candidate is the advertised discrete logarithm. -/
-public theorem attemptCandidateValue_eq_secret_of_accepted
+public lemma attemptCandidateValue_eq_secret_of_accepted
     (P : KnownOrderProblem G) (secret : Canonical.Probability.SecretInput P)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (modulus : spec.modulus = P.order)

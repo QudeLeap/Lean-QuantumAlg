@@ -33,15 +33,15 @@ def phase (m n : Nat) (positive : 0 < n) (oracles : OracleModel)
     (2 * a00) (2 * a01) (2 * a10) (2 * a11))).seq flip
 
 /-- All four independently specified phase operators occur as the exact original branches. -/
-theorem fourPhase_matrix (m n : Nat) (positive : 0 < n) (oracles : OracleModel)
-    (a00 a01 a10 a11 : ℝ) :
-    ((phase m n positive oracles a00 a01 a10 a11).binaryMatrix :
+lemma fourPhase_matrix (m n : Nat) (positive : 0 < n) (oracles : OracleModel)
+    (a00 a01 a10 a11 : ℝ) (environment : oracles.Interpretation) :
+    (((phase m n positive oracles a00 a01 a10 a11).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (1 + (1 + (m + n)))))) =
       Native.branchMatrix
-        (Native.branchMatrix (KnownZero.phase m n positive oracles a00).binaryMatrix
-          (KnownZero.phase m n positive oracles a01).binaryMatrix)
-        (Native.branchMatrix (KnownZero.phase m n positive oracles a10).binaryMatrix
-          (KnownZero.phase m n positive oracles a11).binaryMatrix) := by
+        (Native.branchMatrix ((KnownZero.phase m n positive oracles a00).binaryMatrix environment)
+          ((KnownZero.phase m n positive oracles a01).binaryMatrix environment))
+        (Native.branchMatrix ((KnownZero.phase m n positive oracles a10).binaryMatrix environment)
+          ((KnownZero.phase m n positive oracles a11).binaryMatrix environment)) := by
   rw [phase, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_onBinarySuffix_binaryMatrix,
@@ -61,7 +61,7 @@ theorem fourPhase_matrix (m n : Nat) (positive : 0 < n) (oracles : OracleModel)
   rfl
 
 /-- The physical depth charges both shared flips and all ten native selector operations. -/
-theorem fourPhase_depth (m n : Nat) (positive : 0 < n) (oracles : OracleModel)
+lemma fourPhase_depth (m n : Nat) (positive : 0 < n) (oracles : OracleModel)
     (a00 a01 a10 a11 : ℝ) :
     (phase m n positive oracles a00 a01 a10 a11).evaluatedEventDepth (fun _ => 1) =
       2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 10 := by

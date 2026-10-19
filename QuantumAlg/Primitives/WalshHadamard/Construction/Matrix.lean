@@ -39,7 +39,7 @@ noncomputable section
 
 open Gate.HadamardLayer
 
-private theorem prefixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
+private lemma prefixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
     (QuantumLayout.appendBasisEquiv (layout width) (lastLayout width)
       (hadamardLayer_layout_disjoint width)
       ((hadamardLayer_layout_append width).symm ▸
@@ -55,7 +55,7 @@ private theorem prefixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fi
     (BinaryBasis.bigEndianEquiv_prod_left (leftWidth := width) (rightWidth := 1) left right index)
   exact value.trans leftValue
 
-private theorem suffixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
+private lemma suffixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
     (QuantumLayout.appendBasisEquiv (layout width) (lastLayout width)
       (hadamardLayer_layout_disjoint width)
       ((hadamardLayer_layout_append width).symm ▸
@@ -74,7 +74,7 @@ private theorem suffixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fi
     (BinaryBasis.bigEndianEquiv_prod_right (leftWidth := width) (rightWidth := 1) left right 0)
   exact value.trans (rightValue.trans (congrArg Fin.val last))
 
-private theorem spectator_entry (width : Nat) (row column : Fin 2) :
+private lemma spectator_entry (width : Nat) (row column : Fin 2) :
     (1 : UnitaryOperator (lastLayout width).register)
       (fun _ : Fin 1 => row) (fun _ : Fin 1 => column) =
         (1 : UnitaryOperator (Qubits 1)) row column := by
@@ -90,15 +90,16 @@ private theorem spectator_entry (width : Nat) (row column : Fin 2) :
   simp only [same]
 
 /-- The actual final stage preserves the entire target state, with its original matrix. -/
-theorem walshNative_finalLayer_binaryMatrix (oracles : OracleModel) (width : Nat) :
-    (finalLayer oracles width).binaryMatrix = finalHadamardOperator width := by
+lemma walshNative_finalLayer_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((finalLayer oracles width).binaryMatrix environment) = finalHadamardOperator width := by
   ext row column
   rcases (prodEquiv (m := width) (n := 1)).surjective row with ⟨⟨rowLeft, rowRight⟩, rfl⟩
   rcases (prodEquiv (m := width) (n := 1)).surjective column with
     ⟨⟨columnLeft, columnRight⟩, rfl⟩
   rw [finalHadamardOperator, UnitaryOperator.tensor_apply, Equiv.symm_apply_apply,
     Equiv.symm_apply_apply]
-  change (finalLayer oracles width).matrix
+  change ((finalLayer oracles width).matrix environment)
     ((QuantumSignature.qubitsIndexEquiv (width + 1)).symm (prodEquiv (rowLeft, rowRight)))
     ((QuantumSignature.qubitsIndexEquiv (width + 1)).symm
       (prodEquiv (columnLeft, columnRight))) = _
@@ -107,14 +108,15 @@ theorem walshNative_finalLayer_binaryMatrix (oracles : OracleModel) (width : Nat
     suffixDecoded, suffixDecoded, UnitaryCircuit.identity_matrix]
   exact congrArg₂ (· * ·)
     (congrArg (fun operator : UnitaryOperator (Qubits width) => operator rowLeft columnLeft)
-      (native_binary_matrix oracles width))
+      (native_binary_matrix oracles width environment))
     (spectator_entry width rowRight columnRight)
 
 /-- The initial full layer equals the original input-register/target tensor operator. -/
-theorem walshNative_initialLayer_binaryMatrix (oracles : OracleModel) (width : Nat) :
-    (Gate.HadamardLayer.circuit oracles (width + 1)).binaryMatrix =
+lemma walshNative_initialLayer_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (environment : oracles.Interpretation) :
+    ((Gate.HadamardLayer.circuit oracles (width + 1)).binaryMatrix environment) =
       initialHadamardOperator width := by
-  change binaryOperator oracles (width + 1) = _
+  change binaryOperator oracles (width + 1) environment = _
   rw [native_binary_matrix]
   ext row column
   rcases (prodEquiv (m := width) (n := 1)).surjective row with ⟨⟨rowLeft, rowRight⟩, rfl⟩
@@ -127,26 +129,28 @@ theorem walshNative_initialLayer_binaryMatrix (oracles : OracleModel) (width : N
     simp [Gate.HOp, walshSign, dotParity, bit]
 
 /-- The actual declared XOR query retains the original binary-label operator. -/
-theorem walshNative_query_binaryMatrix {width : Nat} (function : Fin (2 ^ width) → Bool) :
-    (XorOracle.circuit AlgorithmGate.model function).binaryMatrix = xorOracleOp function := by
+lemma walshNative_query_binaryMatrix {width : Nat} (function : Fin (2 ^ width) → Bool) :
+    ((XorOracle.circuit AlgorithmGate.model width).binaryMatrix
+      (XorOracle.interpretation function)) = xorOracleOp function := by
   unfold UnitaryCircuit.binaryMatrix
   rw [XorOracle.xorOracle_native_matrix]
   exact UnitaryOperator.unitaryOperator_reindex_cancel
     (QuantumSignature.qubitsIndexEquiv (width + 1)).symm (xorOracleOp function)
 
 /-- All three actual stages compose to the original full phase-query operator. -/
-theorem walshNative_queryPipeline_binaryMatrix {width : Nat}
+lemma walshNative_queryPipeline_binaryMatrix {width : Nat}
     (function : Fin (2 ^ width) → Bool) :
-    (queryPipeline function).binaryMatrix =
+    ((queryPipeline width).binaryMatrix (XorOracle.interpretation function)) =
       finalHadamardOperator width * (xorOracleOp function * initialHadamardOperator width) := by
   rw [queryPipeline, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, walshNative_initialLayer_binaryMatrix,
     walshNative_query_binaryMatrix, walshNative_finalLayer_binaryMatrix]
 
 /-- The actual native pipeline reaches the original normalized final joint state. -/
-theorem walshNative_queryPipeline_apply_input {width : Nat}
+lemma walshNative_queryPipeline_apply_input {width : Nat}
     (function : Fin (2 ^ width) → Bool) :
-    (queryPipeline function).binaryMatrix.apply (input width) = finalJointState function := by
+    ((queryPipeline width).binaryMatrix
+      (XorOracle.interpretation function)).apply (input width) = finalJointState function := by
   rw [walshNative_queryPipeline_binaryMatrix]
   apply NormalizedVector.ext
   intro index

@@ -32,7 +32,7 @@ noncomputable section
 
 open Execution
 
-private theorem readout_event (width : Nat) :
+private lemma readout_event (width : Nat) :
     Circuit.zEvent (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := .empty) (classicalOracles := .empty)
       ((post width).quantumLayout.wire (HadamardTest.readout (width + width)).wire).dimension =
@@ -42,7 +42,7 @@ private theorem readout_event (width : Nat) :
   rfl
 
 /-- Every actual path has exactly the independently stated complete native event ledger. -/
-theorem code_events (width : Nat) (path : (code width).Path) :
+lemma code_events (width : Nat) (path : (code width).Path) :
     (code width).resourcePool path = eventBudget width := by
   change ResourcePool.ofList
     ((ZeroPreparation.eventTrace AlgorithmGate.model .empty
@@ -60,7 +60,7 @@ theorem code_events (width : Nat) (path : (code width).Path) :
   rfl
 
 /-- The full depth includes control preparation, all gates and the actual measurement. -/
-theorem code_depth (width : Nat) (path : (code width).Path) :
+lemma code_depth (width : Nat) (path : (code width).Path) :
     (code width).depth (fun _ => 1) path ≤ 3 * width + 4 := by
   change (1 + ((sourceCircuit width).evaluatedEventDepth (fun _ => 1) + 0)) +
     (1 + 0) ≤ 3 * width + 4
@@ -68,18 +68,18 @@ theorem code_depth (width : Nat) (path : (code width).Path) :
   omega
 
 /-- Actual resident space counts all input, prepared and retained resources. -/
-theorem code_residentSpace (width : Nat) (path : (code width).Path) :
+lemma code_residentSpace (width : Nat) (path : (code width).Path) :
     (code width).peakResidentSpace path ≤ spaceBudget width := by
-  change (HadamardTest.code (swapRegistersOp width)).peakResidentSpace path ≤
+  change (HadamardTest.code (width + width)).peakResidentSpace path ≤
     HadamardTest.spaceBudget (width + width)
-  exact HadamardTest.code_residentSpace (swapRegistersOp width) path
+  exact HadamardTest.code_residentSpace (width + width) path
 
 /-- Owned input words remain included in the actual auxiliary-role capacity. -/
-theorem code_auxiliarySpace (width : Nat) (path : (code width).Path) :
+lemma code_auxiliarySpace (width : Nat) (path : (code width).Path) :
     (code width).peakAuxiliarySpace path ≤ spaceBudget width := by
-  change (HadamardTest.code (swapRegistersOp width)).peakAuxiliarySpace path ≤
+  change (HadamardTest.code (width + width)).peakAuxiliarySpace path ≤
     HadamardTest.spaceBudget (width + width)
-  exact HadamardTest.code_auxiliarySpace (swapRegistersOp width) path
+  exact HadamardTest.code_auxiliarySpace (width + width) path
 
 end
 

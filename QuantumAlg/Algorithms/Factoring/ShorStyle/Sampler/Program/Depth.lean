@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The real public-modulus load and source scan satisfy their explicit serial-depth sum. -/
-theorem samplerScan_unit_depth_le (N : Nat)
+lemma samplerScan_unit_depth_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (path : (Scan.circuit (model := model) N sample).Path) :
     (Scan.circuit (model := model) N sample).depth (fun _ => 1) path ≤
@@ -50,7 +50,7 @@ theorem samplerScan_unit_depth_le (N : Nat)
   omega
 
 /-- The real inner program counts only the result arm that its stored condition executes. -/
-theorem samplerInner_unit_depth_le (N : Nat)
+lemma samplerInner_unit_depth_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (inner (model := model) N sample output).Path) :
@@ -69,7 +69,7 @@ theorem samplerInner_unit_depth_le (N : Nat)
   omega
 
 /-- The complete eleven-scope program has the same actual unit-duration bound. -/
-theorem samplerProgram_unit_depth_le (N : Nat)
+lemma samplerProgram_unit_depth_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (circuit (model := model) N sample output).Path) :

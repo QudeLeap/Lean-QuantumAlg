@@ -30,7 +30,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
-private theorem guardChoice_read (source : Input N) (cells : Cells ctx N)
+private lemma guardChoice_read (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx) :
     (guardChoiceStep (model := model) source cells output store).1.read (.storage
       output.toCStorageRef) =
@@ -43,7 +43,7 @@ private theorem guardChoice_read (source : Input N) (cells : Cells ctx N)
   | bit value => cases value <;> rfl
 
 /-- Actual order checking returns precisely the source's positive-even accepted reduction. -/
-theorem checked_result (source : Input N) (cells : Cells ctx N)
+lemma checked_result (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : GuardSeparation cells)
     (zeroBase : cells.zero.key ≠ cells.base.key)

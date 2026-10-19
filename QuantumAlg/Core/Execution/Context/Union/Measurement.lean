@@ -6,7 +6,7 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Core.Execution.Local.Framing
+import all QuantumAlg.Core.Execution.Context.Union.References
 import all QuantumAlg.Core.Execution.Context.Union.Store.Laws
 
 /-!
@@ -21,7 +21,7 @@ including arbitrary earlier measurement results
 
 namespace QuantumAlg.Execution
 
-private theorem write_finite_transport {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma write_finite_transport {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (store : Store ctx) {first second : ℕ+} (equal : first = second)
     (output : CWriteRef ctx (.finite first)) (value : Fin first) :
     store.write
@@ -38,7 +38,7 @@ variable {left right : RuntimeCtx .quantum}
   (separate : RuntimeCtx.StorageDisjoint left right)
 
 /-- The real framed measurement write updates only the original measured-result cell. -/
-theorem contextUnion_measurementLeft_write (first : Store left) (second : Store right)
+lemma contextUnion_measurementLeft_write (first : Store left) (second : Store right)
     (wire : Fin left.systemCount)
     (output : CWriteRef left (.finite (left.quantumLayout.wire wire).dimension))
     (outcome : Fin (left.quantumLayout.wire wire).dimension) :
@@ -52,7 +52,7 @@ theorem contextUnion_measurementLeft_write (first : Store left) (second : Store 
       (contextUnion_write_join_left separate first second output (.finite outcome))
 
 /-- The numerical Z readout is exactly the original finite value, on the same real wire. -/
-theorem contextUnion_measurementLeft_read
+lemma contextUnion_measurementLeft_read
     (basis : (left.disjointUnion right separate).register.Index)
     (wire : Fin left.systemCount) :
     Fin.cast (congrArg (fun dimension : ℕ+ => (dimension : Nat))

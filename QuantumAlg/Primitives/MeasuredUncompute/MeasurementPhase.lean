@@ -30,7 +30,7 @@ namespace QuantumAlg.MeasuredUncompute
 noncomputable section
 
 /-- The actual Hadamard layer and Z projector retain the complete reference coordinate. -/
-theorem measuredHadamard_reference_entry (width : Nat) {Reference : Register}
+lemma measuredHadamard_reference_entry (width : Nat) {Reference : Register}
     (outcome row column : Fin (2 ^ width)) (leftRef rightRef : Reference.Index) :
     (ZMeasurement.projector (R := Register.prod (Qubits width) Reference)
         (fun index => index.1) outcome *
@@ -49,7 +49,7 @@ theorem measuredHadamard_reference_entry (width : Nat) {Reference : Register}
     simp [measured, reference]
 
 /-- The same recomputed word's correction cancels its measured character exactly. -/
-theorem measuredHadamard_corrected_reference_entry (width : Nat) {Reference : Register}
+lemma measuredHadamard_corrected_reference_entry (width : Nat) {Reference : Register}
     (outcome row column : Fin (2 ^ width)) (leftRef rightRef : Reference.Index) :
     WalshHadamard.walshSign outcome column *
       (ZMeasurement.projector (R := Register.prod (Qubits width) Reference)

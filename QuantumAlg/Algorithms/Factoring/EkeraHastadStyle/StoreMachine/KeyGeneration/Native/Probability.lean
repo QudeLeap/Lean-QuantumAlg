@@ -36,28 +36,28 @@ public def successEvent : Set (Nat × Nat × Option Nat) :=
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (bitWidth : Nat) (nonempty : Nonempty (RSA.RSAKeyPairBits bitWidth))
-    (totalRounds : Nat) {Reference : Register}
+    (totalRounds : Nat) (environment : RuntimeRound.model.Environment) {Reference : Register}
     (inputs : RSA.RSAKeyPairBits bitWidth →
       Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
 
 /-- Actual success mass in the original ordered uniform key average. -/
 def successMass : ENNReal :=
-  (outputDistribution base noQuantum bitWidth nonempty totalRounds inputs).toOuterMeasure
-    successEvent
+  (outputDistribution base noQuantum bitWidth nonempty
+    totalRounds environment inputs).toOuterMeasure successEvent
 
 /-- Actual empty mass in the same original key average. -/
 def failureMass : ENNReal :=
-  (outputDistribution base noQuantum bitWidth nonempty totalRounds inputs).toOuterMeasure
-    {triple | triple.2.2 = none}
+  (outputDistribution base noQuantum bitWidth nonempty
+    totalRounds environment inputs).toOuterMeasure {triple | triple.2.2 = none}
 
 /-- In each key branch, declared-prime success is exactly the populated actual output event. -/
-theorem branch_successMass_eq (pair : RSA.RSAKeyPairBits bitWidth) :
+lemma branch_successMass_eq (pair : RSA.RSAKeyPairBits bitWidth) :
     (((NativeFiniteRetry.run base noQuantum (inputOfKeyPair pair) totalRounds).outputDistribution
-      (inputs pair)).map
+      environment (inputs pair)).map
         (fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output))).toOuterMeasure
           successEvent =
       ((NativeFiniteRetry.run base noQuantum (inputOfKeyPair pair) totalRounds).outputDistribution
-        (inputs pair)).toOuterMeasure {output | output ≠ CShape.Value.optionNone} := by
+        environment (inputs pair)).toOuterMeasure {output | output ≠ CShape.Value.optionNone} := by
   rw [PMF.toOuterMeasure_map_apply]
   apply PMF.toOuterMeasure_apply_eq_of_inter_support_eq
   ext output
@@ -72,7 +72,8 @@ theorem branch_successMass_eq (pair : RSA.RSAKeyPairBits bitWidth) :
           (LatticeBatchRecoveryOutput.OutputShape pair.modulus).Value) ≠ .optionNone
       simp only [reduceCtorEq, false_and, exists_false, ne_eq, not_true_eq_false]
   | optionSome word =>
-      have sound := NativeFiniteRetry.run_some_sound base noQuantum (inputOfKeyPair pair)
+      have sound := NativeFiniteRetry.run_some_sound (environment := environment)
+        base noQuantum (inputOfKeyPair pair)
         totalRounds (inputs pair) word supported
       have declared := (semiprimeOfKeyPair pair).nontrivial_factor_eq_declared
         sound.1 sound.2.1 sound.2.2
@@ -85,17 +86,17 @@ theorem branch_successMass_eq (pair : RSA.RSAKeyPairBits bitWidth) :
         exact ⟨word.toNat, rfl, declared⟩
 
 /-- The exact conditional branch success uses the original batch empty probability's power. -/
-theorem branch_successProbability (pair : RSA.RSAKeyPairBits bitWidth) :
+lemma branch_successProbability (pair : RSA.RSAKeyPairBits bitWidth) :
     (((NativeFiniteRetry.run base noQuantum (inputOfKeyPair pair) totalRounds).outputDistribution
-      (inputs pair)).map
+      environment (inputs pair)).map
         (fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output))).toOuterMeasure
           successEvent =
       1 - sampledBatchOutputPMF (inputOfKeyPair pair) none ^ totalRounds := by
   rw [branch_successMass_eq, NativeFiniteRetry.run_successProbability]
 
 /-- Exact key-averaged success weights each original key's own conditional retry probability. -/
-theorem successMass_eq :
-    successMass base noQuantum bitWidth nonempty totalRounds inputs =
+lemma successMass_eq :
+    successMass base noQuantum bitWidth nonempty totalRounds environment inputs =
       ∑' pair, RSA.RSAKeyGenBits bitWidth nonempty pair *
         (1 - sampledBatchOutputPMF (inputOfKeyPair pair) none ^ totalRounds) := by
   rw [successMass, outputDistribution, PMF.toOuterMeasure_bind_apply]
@@ -104,8 +105,8 @@ theorem successMass_eq :
   rw [branch_successProbability]
 
 /-- Exact failure averages retry powers after fixing each original key, including zero rounds. -/
-theorem failureMass_eq :
-    failureMass base noQuantum bitWidth nonempty totalRounds inputs =
+lemma failureMass_eq :
+    failureMass base noQuantum bitWidth nonempty totalRounds environment inputs =
       ∑' pair, RSA.RSAKeyGenBits bitWidth nonempty pair *
         sampledBatchOutputPMF (inputOfKeyPair pair) none ^ totalRounds := by
   rw [failureMass, outputDistribution, PMF.toOuterMeasure_bind_apply]
@@ -115,7 +116,7 @@ theorem failureMass_eq :
   rw [PMF.toOuterMeasure_map_apply]
   change
     ((NativeFiniteRetry.run base noQuantum (inputOfKeyPair pair) totalRounds).outputDistribution
-      (inputs pair)).toOuterMeasure (NativeRetrySelection.decodeFactor ⁻¹' {none}) = _
+      environment (inputs pair)).toOuterMeasure (NativeRetrySelection.decodeFactor ⁻¹' {none}) = _
   rw [← PMF.toOuterMeasure_map_apply, PMF.toOuterMeasure_apply_singleton,
     NativeFiniteRetry.run_decoded_none]
 
@@ -124,7 +125,7 @@ def keyFailureBound (bitWidth : Nat) : ENNReal :=
   ENNReal.ofReal (RSA.GeneratorOrder.keyFailureBound bitWidth)
 
 /-- The unchanged uniform generator's nonexceptional mass has the original analytic floor. -/
-theorem goodKeyMass_ge (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
+lemma goodKeyMass_ge (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
     1 - keyFailureBound bitWidth ≤
       (RSA.RSAKeyGenBits bitWidth nonempty).toOuterMeasure
         {pair | ¬ 2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤
@@ -136,31 +137,32 @@ theorem goodKeyMass_ge (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b
     (RSA.GeneratorOrder.keyGenerationBadFraction_le_keyFailureBound effective)) 1
 
 /-- Key-averaged actual success charges the key exception once outside the finite retry power. -/
-theorem success_ge_rounds
+lemma success_ge_rounds
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ bitWidth) :
     1 - (keyFailureBound bitWidth +
       NativeFiniteRetry.Calibration.batchFailure bitWidth ^ totalRounds) ≤
-      successMass base noQuantum bitWidth nonempty totalRounds inputs := by
+      successMass base noQuantum bitWidth nonempty totalRounds environment inputs := by
   let exceptional : RSA.RSAKeyPairBits bitWidth → Prop := fun pair =>
     2 ^ RSA.GeneratorOrder.gcdLossBits bitWidth ≤ Nat.gcd (pair.p - 1) (pair.q - 1)
   have bindLower :
       (RSA.RSAKeyGenBits bitWidth nonempty).toOuterMeasure {pair | ¬ exceptional pair} *
         (1 - NativeFiniteRetry.Calibration.batchFailure bitWidth ^ totalRounds) ≤
-      successMass base noQuantum bitWidth nonempty totalRounds inputs := by
+      successMass base noQuantum bitWidth nonempty totalRounds environment inputs := by
     unfold successMass outputDistribution
     apply PMF.bind_eventProbability_ge_goodMass_mul
       (exceptional := exceptional) (event := fun triple => triple ∈ successEvent)
     intro pair pairGood
     change 1 - NativeFiniteRetry.Calibration.batchFailure bitWidth ^ totalRounds ≤
       (((NativeFiniteRetry.run base noQuantum (inputOfKeyPair pair) totalRounds).outputDistribution
-        (inputs pair)).map
+        environment (inputs pair)).map
           (fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output))).toOuterMeasure
             successEvent
     rw [branch_successMass_eq]
     let model : GoodKeyModel pair.modulus :=
       ⟨bitWidth, pair, rfl, effective, Nat.lt_of_not_ge pairGood⟩
     simpa only [model, GoodKeyModel.input, inputOfKeyPair] using
-      NativeFiniteRetry.run_successProbability_ge base noQuantum model totalRounds (inputs pair)
+      NativeFiniteRetry.run_successProbability_ge (environment := environment)
+        base noQuantum model totalRounds (inputs pair)
   calc
     1 - (keyFailureBound bitWidth +
         NativeFiniteRetry.Calibration.batchFailure bitWidth ^ totalRounds) ≤
@@ -172,7 +174,7 @@ theorem success_ge_rounds
       simpa only [mul_comm] using
         mul_le_mul_right (goodKeyMass_ge bitWidth nonempty effective)
           (1 - NativeFiniteRetry.Calibration.batchFailure bitWidth ^ totalRounds)
-    _ ≤ successMass base noQuantum bitWidth nonempty totalRounds inputs := bindLower
+    _ ≤ successMass base noQuantum bitWidth nonempty totalRounds environment inputs := bindLower
 
 end
 

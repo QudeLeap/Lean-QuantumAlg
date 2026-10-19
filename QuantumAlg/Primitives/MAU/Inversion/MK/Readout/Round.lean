@@ -25,6 +25,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -49,7 +51,7 @@ def fullRoundWorkKaliskiActiveOnlyRoundStep
 
 /-- In the `v = 0` branch, the active-only selector dispatches to the
 terminating counter-mode wrapper. -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundStep_eq_terminating_of_v_zero
+lemma fullRoundWorkKaliskiActiveOnlyRoundStep_eq_terminating_of_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -61,7 +63,7 @@ theorem fullRoundWorkKaliskiActiveOnlyRoundStep_eq_terminating_of_v_zero
 
 /-- In the `v ≠ 0` branch, the active-only selector dispatches to the nonzero
 active selected-round wrapper. -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundStep_eq_activeNonzero_of_v_nonzero
+lemma fullRoundWorkKaliskiActiveOnlyRoundStep_eq_activeNonzero_of_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -75,7 +77,7 @@ theorem fullRoundWorkKaliskiActiveOnlyRoundStep_eq_activeNonzero_of_v_nonzero
 /-- On clean work in the concrete `v = 0` case, the active-only selector has
 the same clean endpoint as the terminating counter-mode wrapper.
 -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundStep_cleanEndpoint_of_v_zero
+lemma fullRoundWorkKaliskiActiveOnlyRoundStep_cleanEndpoint_of_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -100,7 +102,7 @@ theorem fullRoundWorkKaliskiActiveOnlyRoundStep_cleanEndpoint_of_v_zero
 /-- On clean work in the concrete `v = 0` case, the active-only selector
 matches the source terminating round on the source-state projection.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_fromRegisters_eq_source_round_of_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -127,7 +129,7 @@ theorem
 source-state projection reduces to the existing nonzero active selected-round
 projection.  This is a routing fact, not the branch-split source-round theorem
 for the nonzero case. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_projection_eq_activeNonzero_of_v_nonzero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -167,7 +169,7 @@ def fullRoundWorkKaliskiRoundStep
 
 /-- In active mode, the total semantic selector dispatches to the active-only
 round selector. -/
-theorem fullRoundWorkKaliskiRoundStep_eq_activeOnly_of_active
+lemma fullRoundWorkKaliskiRoundStep_eq_activeOnly_of_active
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -180,7 +182,7 @@ theorem fullRoundWorkKaliskiRoundStep_eq_activeOnly_of_active
 
 /-- In inactive mode, the total semantic selector dispatches to the inactive
 padding route. -/
-theorem fullRoundWorkKaliskiRoundStep_eq_inactivePadding_of_inactive
+lemma fullRoundWorkKaliskiRoundStep_eq_inactivePadding_of_inactive
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -192,7 +194,7 @@ theorem fullRoundWorkKaliskiRoundStep_eq_inactivePadding_of_inactive
 
 /-- On clean work in inactive mode, the total semantic selector has the same
 clean endpoint as inactive padding mode. -/
-theorem fullRoundWorkKaliskiRoundStep_cleanEndpoint_of_inactive
+lemma fullRoundWorkKaliskiRoundStep_cleanEndpoint_of_inactive
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -213,7 +215,7 @@ theorem fullRoundWorkKaliskiRoundStep_cleanEndpoint_of_inactive
 
 /-- On clean work in inactive mode, the total semantic selector matches the
 source inactive round on the source-state projection. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundStep_fromRegisters_eq_source_round_of_inactive
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -237,7 +239,7 @@ theorem
 
 /-- On clean work in active terminating mode, the total semantic selector has
 the same clean endpoint as the active-only terminating branch. -/
-theorem fullRoundWorkKaliskiRoundStep_cleanEndpoint_of_v_zero
+lemma fullRoundWorkKaliskiRoundStep_cleanEndpoint_of_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -266,7 +268,7 @@ the full clean `v = 0` slice: active termination and inactive padding collapse
 the two possible input active flags to the same clean output.  A gate-level
 total-round witness therefore needs either a narrower domain statement or
 path information outside this clean-restoring step. -/
-theorem fullRoundWorkKaliskiRoundStep_not_injective_clean_v_zero
+lemma fullRoundWorkKaliskiRoundStep_not_injective_clean_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -310,7 +312,7 @@ theorem fullRoundWorkKaliskiRoundStep_not_injective_clean_v_zero
 /-- Consequently, no base-gate program can realize the clean-restoring semantic
 total selector as a total step over the standard full-round workspace whenever
 the clean `v = 0` slice is inhabited. -/
-theorem fullRoundWorkKaliskiRoundStep_not_realizable_clean_v_zero
+lemma fullRoundWorkKaliskiRoundStep_not_realizable_clean_v_zero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -322,7 +324,7 @@ theorem fullRoundWorkKaliskiRoundStep_not_realizable_clean_v_zero
               tail.succ counterWidth).width).toQuantum,
       UnitaryCircuit.Realizes
         (registersWithFullRoundWorkEncoding tail.succ counterWidth)
-        program
+        program environment
         (fullRoundWorkKaliskiRoundStep tail counterWidth
           comparisonIndex historyIndex) := by
   intro hrealizes
@@ -334,7 +336,7 @@ theorem fullRoundWorkKaliskiRoundStep_not_realizable_clean_v_zero
 
 /-- On clean work in active terminating mode, the total semantic selector
 matches the source terminating round on the source-state projection. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundStep_fromRegisters_eq_source_round_of_v_zero
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -359,14 +361,14 @@ theorem
   · exact hactive
 
 
-theorem activeBit_get_eq_active
+lemma activeBit_get_eq_active
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get x = x.active := by
   rfl
 
 /-- In active nonzero mode, the total fixed-round semantic selector reduces
 to the nonzero active semantic wrapper. -/
-theorem fullRoundWorkKaliskiRoundStep_eq_activeNonzero_of_active_v_nonzero
+lemma fullRoundWorkKaliskiRoundStep_eq_activeNonzero_of_active_v_nonzero
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : RegistersWithFullRoundWork tail.succ counterWidth)
@@ -384,7 +386,7 @@ theorem fullRoundWorkKaliskiRoundStep_eq_activeNonzero_of_active_v_nonzero
 
 /-- In the active nonzero low-`u` false case, the active-guarded latch/body
 route agrees with the total fixed-round semantic selector. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_kaliskiRound_of_uLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -415,7 +417,7 @@ theorem
 /-- In the active nonzero low-`u` true and low-`v` false case, the
 active-guarded latch/body route agrees with the total fixed-round semantic
 selector. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_kaliskiRound_of_uLow_true_vLow_false
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -450,7 +452,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, active-guarded latch/body agrees
 with the total fixed-round semantic selector up to the remaining counter
 carry-in latch flip. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_kaliskiRound_clean_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -505,7 +507,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, active-guarded latch/body
 agrees with the total fixed-round semantic selector up to the remaining
 counter carry-in latch flip. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_eq_flip_kaliskiRound_clean_not_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -560,7 +562,7 @@ theorem
 /-- Flipping the full-round counter carry-in latch only changes the
 counter-increment work component, leaving the register/comparison/coefficient
 state untouched. -/
-theorem fullRoundWorkCounterCarryInBit_flip_coeffState
+lemma fullRoundWorkCounterCarryInBit_flip_coeffState
     (tail counterWidth : Nat)
     (x : RegistersWithFullRoundWork tail.succ counterWidth) :
     ((fullRoundWorkCounterCarryInBit tail counterWidth).flip x).1 = x.1 := by
@@ -572,7 +574,7 @@ theorem fullRoundWorkCounterCarryInBit_flip_coeffState
 route and total fixed-round semantic selector agree on the full
 register/comparison/coefficient state; the remaining carry-in latch flip lives
 only in counter work. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_coeffState_eq_kaliskiRound_clean_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -615,7 +617,7 @@ theorem
 route and total fixed-round semantic selector agree on the full
 register/comparison/coefficient state; the remaining carry-in latch flip lives
 only in counter work. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_coeffState_eq_kaliskiRound_clean_not_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -658,7 +660,7 @@ theorem
 route agrees with the total semantic round on the register/comparison/
 coefficient state.  The only remaining difference is the private counter
 carry-in latch. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_coeffState_eq_kaliskiRound_clean_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -717,7 +719,7 @@ theorem
 active-only route agrees with the total semantic round on the register/
 comparison/coefficient state.  The only remaining difference is the private
 counter carry-in latch. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_coeffState_eq_kaliskiRound_clean_not_lt
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -774,7 +776,7 @@ theorem
 
 /-- In the active nonzero clean case, the folded concrete active-only route
 preserves every history slot except the selected target slot. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_historyBit_of_ne_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (target observed : Fin (2 * tail.succ))
@@ -877,7 +879,7 @@ theorem
 /-- The concrete selected branch-code/history/aux-shift dispatch's `uEven`
 history readout agrees with the source-level `RoundState.historyBit` once the
 concrete low-`u` selector bit chooses the even branch. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_history_uEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -937,7 +939,7 @@ theorem
 /-- The concrete selected branch-code/history/aux-shift dispatch's `vEven`
 history readout agrees with the source-level `RoundState.historyBit` once the
 concrete low readouts choose the even-`v` branch. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_history_vEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1004,7 +1006,7 @@ theorem
 
 /-- The concrete selected branch-code/history/aux-shift dispatch's `uEven`
 `u` readout agrees with the source-level fixed round. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_u_uEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1084,7 +1086,7 @@ theorem
 /-- The concrete selected branch-code/history/aux-shift dispatch's `uEven`
 `s` readout agrees with the source-level fixed round under the explicit
 no-overflow coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_sCoeff_uEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1172,7 +1174,7 @@ theorem
 
 /-- The concrete selected branch-code/history/aux-shift dispatch's `vEven`
 `v` readout agrees with the source-level fixed round. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_v_vEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1260,7 +1262,7 @@ theorem
 /-- The concrete selected branch-code/history/aux-shift dispatch's `vEven`
 `r` readout agrees with the source-level fixed round under the explicit
 no-overflow coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchStep_get_rCoeff_vEven_eq_source_clean
     (tail counterWidth : Nat) (tempIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1357,7 +1359,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, the carried selector-selected
 odd wrapper's selected history write agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkSelectedOddCarriedDispatch_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1412,7 +1414,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, the carried selector-selected
 odd wrapper's selected history write agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkSelectedOddCarriedDispatch_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1466,7 +1468,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, the concrete compare-carried odd
 route's selected history write agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkCompareCarriedDispatch_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1521,7 +1523,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, the concrete compare-carried
 odd route's selected history readout agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkCompareCarriedDispatch_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1574,7 +1576,7 @@ theorem
 
 /-- In the active clean odd-odd `v < u` case, the concrete compare-carried odd
 route's `u` readout agrees with the source-level fixed round. -/
-theorem coeffWorkCompareCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
+lemma coeffWorkCompareCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1638,7 +1640,7 @@ theorem coeffWorkCompareCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
 /-- In the active clean odd-odd `v < u` case, the concrete compare-carried odd
 route's `r` readout agrees with the source-level fixed round under the
 explicit no-overflow coefficient-add guard. -/
-theorem
+lemma
     coeffWorkCompareCarriedDispatch_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1705,7 +1707,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, the concrete compare-carried odd
 route's `s` readout agrees with the source-level fixed round under the
 explicit no-overflow coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkCompareCarriedDispatch_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1767,7 +1769,7 @@ theorem
 
 /-- In the active clean odd-odd non-`v < u` case, the concrete compare-carried
 odd route's `v` readout agrees with the source-level fixed round. -/
-theorem coeffWorkCompareCarriedDispatch_get_v_vLe_eq_sourceRound_clean
+lemma coeffWorkCompareCarriedDispatch_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1831,7 +1833,7 @@ theorem coeffWorkCompareCarriedDispatch_get_v_vLe_eq_sourceRound_clean
 /-- In the active clean odd-odd non-`v < u` case, the concrete compare-carried
 odd route's `s` readout agrees with the source-level fixed round under the
 explicit no-overflow coefficient-add guard. -/
-theorem coeffWorkCompareCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
+lemma coeffWorkCompareCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1897,7 +1899,7 @@ theorem coeffWorkCompareCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
 /-- In the active clean odd-odd non-`v < u` case, the concrete compare-carried
 odd route's `r` readout agrees with the source-level fixed round under the
 explicit no-overflow coefficient-doubling guard. -/
-theorem coeffWorkCompareCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
+lemma coeffWorkCompareCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -1958,7 +1960,7 @@ theorem coeffWorkCompareCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
 
 /-- The lifted concrete compare-carried odd route's `uGreater` history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkCompareCarriedDispatch_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -1996,7 +1998,7 @@ theorem
 
 /-- The lifted concrete compare-carried odd route's `vLe` history readout
 agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkCompareCarriedDispatch_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2034,7 +2036,7 @@ theorem
 
 /-- The lifted concrete compare-carried odd route's `uGreater` `u` readout
 agrees with the source-level fixed round. -/
-theorem fullRoundWorkCompareCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
+lemma fullRoundWorkCompareCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2071,7 +2073,7 @@ theorem fullRoundWorkCompareCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
 
 /-- The lifted concrete compare-carried odd route's `uGreater` `r` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkCompareCarriedDispatch_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2110,7 +2112,7 @@ theorem
 
 /-- The lifted concrete compare-carried odd route's `uGreater` `s` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkCompareCarriedDispatch_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2145,7 +2147,7 @@ theorem
 
 /-- The lifted concrete compare-carried odd route's `vLe` `v` readout agrees
 with the source-level fixed round. -/
-theorem fullRoundWorkCompareCarriedDispatch_get_v_vLe_eq_sourceRound_clean
+lemma fullRoundWorkCompareCarriedDispatch_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2182,7 +2184,7 @@ theorem fullRoundWorkCompareCarriedDispatch_get_v_vLe_eq_sourceRound_clean
 
 /-- The lifted concrete compare-carried odd route's `vLe` `s` readout agrees
 with the source-level fixed round. -/
-theorem fullRoundWorkCompareCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
+lemma fullRoundWorkCompareCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2220,7 +2222,7 @@ theorem fullRoundWorkCompareCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
 
 /-- The lifted concrete compare-carried odd route's `vLe` `r` readout agrees
 with the source-level fixed round. -/
-theorem fullRoundWorkCompareCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
+lemma fullRoundWorkCompareCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2254,7 +2256,7 @@ theorem fullRoundWorkCompareCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
 
 /-- The nonzero-active selected wrapper's `uEven` history readout agrees with
 the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2293,7 +2295,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `vEven` history readout agrees with
 the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2337,7 +2339,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `uGreater` carried odd history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2385,7 +2387,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `vLe` carried odd history readout
 agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2433,7 +2435,7 @@ theorem
 
 /-- In the active clean odd-odd `v < u` case, the carried selector-selected
 odd wrapper's `u` readout agrees with the source-level fixed round. -/
-theorem coeffWorkSelectedOddCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
+lemma coeffWorkSelectedOddCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2497,7 +2499,7 @@ theorem coeffWorkSelectedOddCarriedDispatch_get_u_uGreater_eq_sourceRound_clean
 /-- In the active clean odd-odd `v < u` case, the carried selector-selected
 odd wrapper's `r` readout agrees with the source-level fixed round under the
 explicit no-overflow coefficient-add guard. -/
-theorem
+lemma
     coeffWorkSelectedOddCarriedDispatch_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2564,7 +2566,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, the carried selector-selected
 odd wrapper's `s` readout agrees with the source-level fixed round under the
 explicit no-overflow coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkSelectedOddCarriedDispatch_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2627,7 +2629,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, the carried
 selector-selected odd wrapper's `v` readout agrees with the source-level fixed
 round. -/
-theorem coeffWorkSelectedOddCarriedDispatch_get_v_vLe_eq_sourceRound_clean
+lemma coeffWorkSelectedOddCarriedDispatch_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2691,7 +2693,7 @@ theorem coeffWorkSelectedOddCarriedDispatch_get_v_vLe_eq_sourceRound_clean
 /-- In the active clean odd-odd non-`v < u` case, the carried
 selector-selected odd wrapper's `s` readout agrees with the source-level fixed
 round under the explicit no-overflow coefficient-add guard. -/
-theorem coeffWorkSelectedOddCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
+lemma coeffWorkSelectedOddCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2757,7 +2759,7 @@ theorem coeffWorkSelectedOddCarriedDispatch_get_sCoeff_vLe_eq_sourceRound_clean
 /-- In the active clean odd-odd non-`v < u` case, the carried
 selector-selected odd wrapper's `r` readout agrees with the source-level fixed
 round under the explicit no-overflow coefficient-doubling guard. -/
-theorem coeffWorkSelectedOddCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
+lemma coeffWorkSelectedOddCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -2818,7 +2820,7 @@ theorem coeffWorkSelectedOddCarriedDispatch_get_rCoeff_vLe_eq_sourceRound_clean
 
 /-- The nonzero-active selected wrapper's `uEven` `u` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2854,7 +2856,7 @@ theorem
 /-- The nonzero-active selected wrapper's `uEven` `s` readout agrees with the
 source-level fixed round under the explicit no-overflow coefficient-doubling
 guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2893,7 +2895,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's `vEven` `v` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2934,7 +2936,7 @@ theorem
 /-- The nonzero-active selected wrapper's `vEven` `r` readout agrees with the
 source-level fixed round under the explicit no-overflow coefficient-doubling
 guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -2977,7 +2979,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's odd `uGreater` `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3026,7 +3028,7 @@ theorem
 /-- The nonzero-active selected wrapper's odd `uGreater` `r` readout agrees
 with the source-level fixed round under the explicit no-overflow coefficient-add
 guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3076,7 +3078,7 @@ theorem
 /-- The nonzero-active selected wrapper's odd `uGreater` `s` readout agrees
 with the source-level fixed round under the explicit no-overflow coefficient-
 doubling guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3121,7 +3123,7 @@ theorem
 
 /-- The nonzero-active selected wrapper's odd `vLe` `v` readout agrees with the
 source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3170,7 +3172,7 @@ theorem
 /-- The nonzero-active selected wrapper's odd `vLe` `s` readout agrees with the
 source-level fixed round under the explicit no-overflow coefficient-add guard.
 -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3220,7 +3222,7 @@ theorem
 /-- The nonzero-active selected wrapper's odd `vLe` `r` readout agrees with the
 source-level fixed round under the explicit no-overflow coefficient-doubling
 guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3265,7 +3267,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `uEven` history readout agrees
 with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3302,7 +3304,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `vEven` history readout agrees
 with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3344,7 +3346,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `uGreater` history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3389,7 +3391,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `vLe` history readout
 agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3434,7 +3436,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `uEven` `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3467,7 +3469,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `uEven` `s` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3504,7 +3506,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `vEven` `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3542,7 +3544,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's `vEven` `r` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3583,7 +3585,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `uGreater` `u` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3628,7 +3630,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `uGreater` `r` readout
 agrees with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3674,7 +3676,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `uGreater` `s` readout
 agrees with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3716,7 +3718,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `vLe` `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3761,7 +3763,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `vLe` `s` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3807,7 +3809,7 @@ theorem
 
 /-- The lifted nonzero-active selected wrapper's odd `vLe` `r` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveNonzeroRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -3849,7 +3851,7 @@ theorem
 
 /-- On clean active nonzero inputs, the lifted nonzero-active selected wrapper
 keeps the source active flag set. -/
-theorem fullRoundWorkKaliskiActiveNonzeroRoundStep_get_active_clean
+lemma fullRoundWorkKaliskiActiveNonzeroRoundStep_get_active_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (x : Registers tail.succ counterWidth)
@@ -3980,7 +3982,7 @@ theorem fullRoundWorkKaliskiActiveNonzeroRoundStep_get_active_clean
 
 /-- On clean active nonzero inputs, the concrete active-only route keeps the
 source active flag set. -/
-theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_active_clean
+lemma fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_active_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1))
@@ -4098,7 +4100,7 @@ theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_active_clean
 
 /-- In the nonzero `uEven` branch, the active-only selector's history readout
 agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4139,7 +4141,7 @@ theorem
 
 /-- In the nonzero `vEven` branch, the active-only selector's history readout
 agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4184,7 +4186,7 @@ theorem
 
 /-- In the nonzero odd `uGreater` branch, the active-only selector's history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4233,7 +4235,7 @@ theorem
 
 /-- In the nonzero odd `vLe` branch, the active-only selector's history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4282,7 +4284,7 @@ theorem
 
 /-- In the nonzero `uEven` branch, the active-only selector's `u` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4319,7 +4321,7 @@ theorem
 /-- In the nonzero `uEven` branch, the active-only selector's `s` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4359,7 +4361,7 @@ theorem
 
 /-- In the nonzero `vEven` branch, the active-only selector's `v` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4401,7 +4403,7 @@ theorem
 /-- In the nonzero `vEven` branch, the active-only selector's `r` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4445,7 +4447,7 @@ theorem
 
 /-- In the nonzero odd `uGreater` branch, the active-only selector's `u`
 readout agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4495,7 +4497,7 @@ theorem
 /-- In the nonzero odd `uGreater` branch, the active-only selector's `r`
 readout agrees with the source-level fixed round under the explicit
 no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4546,7 +4548,7 @@ theorem
 /-- In the nonzero odd `uGreater` branch, the active-only selector's `s`
 readout agrees with the source-level fixed round under the explicit
 no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4592,7 +4594,7 @@ theorem
 
 /-- In the nonzero odd `vLe` branch, the active-only selector's `v` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4642,7 +4644,7 @@ theorem
 /-- In the nonzero odd `vLe` branch, the active-only selector's `s` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4693,7 +4695,7 @@ theorem
 /-- In the nonzero odd `vLe` branch, the active-only selector's `r` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4739,7 +4741,7 @@ theorem
 
 /-- In the nonzero `uEven` branch, the active/inactive semantic selector's
 history readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4779,7 +4781,7 @@ theorem
 
 /-- In the nonzero `vEven` branch, the active/inactive semantic selector's
 history readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4824,7 +4826,7 @@ theorem
 /-- In the nonzero odd `uGreater` branch, the active/inactive semantic
 selector's history readout agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4871,7 +4873,7 @@ theorem
 
 /-- In the nonzero odd `vLe` branch, the active/inactive semantic selector's
 history readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiRoundStep_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -4919,7 +4921,7 @@ theorem
 
 /-- In the nonzero `uEven` branch, the active/inactive semantic selector's
 `u` readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_u_uEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -4955,7 +4957,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_u_uEven_eq_sourceRound_clean
 /-- In the nonzero `uEven` branch, the active/inactive semantic selector's
 `s` readout agrees with the source-level fixed round under the explicit
 no-overflow guard. -/
-theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -4993,7 +4995,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
 
 /-- In the nonzero `vEven` branch, the active/inactive semantic selector's
 `v` readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_v_vEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5033,7 +5035,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_v_vEven_eq_sourceRound_clean
 /-- In the nonzero `vEven` branch, the active/inactive semantic selector's
 `r` readout agrees with the source-level fixed round under the explicit
 no-overflow guard. -/
-theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5075,7 +5077,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
 
 /-- In the nonzero odd `uGreater` branch, the active/inactive semantic
 selector's `u` readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_u_uGreater_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5122,7 +5124,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_u_uGreater_eq_sourceRound_clean
 /-- In the nonzero odd `uGreater` branch, the active/inactive semantic
 selector's `r` readout agrees with the source-level fixed round under the
 explicit no-overflow guard. -/
-theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5170,7 +5172,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
 /-- In the nonzero odd `uGreater` branch, the active/inactive semantic
 selector's `s` readout agrees with the source-level fixed round under the
 explicit no-overflow guard. -/
-theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5213,7 +5215,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
 
 /-- In the nonzero odd `vLe` branch, the active/inactive semantic selector's
 `v` readout agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiRoundStep_get_v_vLe_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5260,7 +5262,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_v_vLe_eq_sourceRound_clean
 /-- In the nonzero odd `vLe` branch, the active/inactive semantic selector's
 `s` readout agrees with the source-level fixed round under the explicit
 no-overflow guard. -/
-theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5308,7 +5310,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
 /-- In the nonzero odd `vLe` branch, the active/inactive semantic selector's
 `r` readout agrees with the source-level fixed round under the explicit
 no-overflow guard. -/
-theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -5352,7 +5354,7 @@ theorem fullRoundWorkKaliskiRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
 /-- In the active clean odd-odd `v < u` case, the active-guarded latch/body
 route's selected history readout agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5417,7 +5419,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, the active-guarded
 latch/body route's selected history readout agrees with the source-level
 `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5481,7 +5483,7 @@ theorem
 
 /-- In the active clean odd-odd `v < u` case, the active-guarded latch/body
 route's `u` readout agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5546,7 +5548,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, the active-guarded latch/body
 route's `r` readout agrees with the source-level fixed round under the
 explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5612,7 +5614,7 @@ theorem
 /-- In the active clean odd-odd `v < u` case, the active-guarded latch/body
 route's `s` readout agrees with the source-level fixed round under the
 explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5673,7 +5675,7 @@ theorem
 
 /-- In the active clean odd-odd non-`v < u` case, the active-guarded
 latch/body route's `v` readout agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5738,7 +5740,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, the active-guarded
 latch/body route's `s` readout agrees with the source-level fixed round under
 the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5804,7 +5806,7 @@ theorem
 /-- In the active clean odd-odd non-`v < u` case, the active-guarded
 latch/body route's `r` readout agrees with the source-level fixed round under
 the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkActiveOddOddLatchThenBodyStep_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5865,7 +5867,7 @@ theorem
 
 /-- In the concrete active-only nonzero `uEven` branch, the selected history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_history_uEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -5950,7 +5952,7 @@ theorem
 
 /-- In the concrete active-only nonzero `vEven` branch, the selected history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_history_vEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6043,7 +6045,7 @@ theorem
 
 /-- In the concrete active-only nonzero `uEven` branch, the `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6115,7 +6117,7 @@ theorem
 
 /-- In the concrete active-only nonzero `uEven` branch, the `s` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_sCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6190,7 +6192,7 @@ theorem
 
 /-- On clean active `uEven` inputs, the path/control route's updated source
 readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_uEven
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -6249,7 +6251,7 @@ theorem
 
 /-- In the concrete active-only nonzero `vEven` branch, the `v` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6330,7 +6332,7 @@ theorem
 
 /-- In the concrete active-only nonzero `vEven` branch, the `r` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_rCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6413,7 +6415,7 @@ theorem
 
 /-- On clean active `vEven` inputs, the path/control route's updated source
 readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_vEven
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -6473,7 +6475,7 @@ theorem
 
 /-- In the concrete active-only odd `uGreater` branch, the selected history
 readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6536,7 +6538,7 @@ theorem
 
 /-- In the concrete active-only odd `vLe` branch, the selected history readout
 agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_history_vLe_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6599,7 +6601,7 @@ theorem
 
 /-- In the concrete active-only odd `uGreater` branch, the `u` readout agrees
 with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6664,7 +6666,7 @@ theorem
 
 /-- In the concrete active-only odd `uGreater` branch, the `r` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6730,7 +6732,7 @@ theorem
 
 /-- In the concrete active-only odd `uGreater` branch, the `s` readout agrees
 with the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6788,7 +6790,7 @@ theorem
 
 /-- In the concrete active-only odd `vLe` branch, the `v` readout agrees with
 the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6853,7 +6855,7 @@ theorem
 
 /-- In the concrete active-only odd `vLe` branch, the `s` readout agrees with
 the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_sCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6919,7 +6921,7 @@ theorem
 
 /-- In the concrete active-only odd `vLe` branch, the `r` readout agrees with
 the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteStep_get_rCoeff_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -6977,7 +6979,7 @@ theorem
 
 /-- On clean active odd `uGreater` inputs, the path/control route's updated
 source readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_uGreater
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7060,7 +7062,7 @@ theorem
 
 /-- On clean active odd `vLe` inputs, the path/control route's updated source
 readouts match the source active Kaliski round. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_vLe
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7143,7 +7145,7 @@ theorem
 
 /-- On clean active nonzero inputs, the path/control route's RoundState readout
 preserves the nonzero active-round metadata. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_active_nonzero_metadata
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7235,7 +7237,7 @@ theorem
 
 /-- On clean active `uEven` inputs, the path/control route's selected history
 readout matches the source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_uEven
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7278,7 +7280,7 @@ theorem
 
 /-- On clean active `vEven` inputs, the path/control route's selected history
 readout matches the source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_vEven
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7322,7 +7324,7 @@ theorem
 
 /-- On clean active odd `uGreater` inputs, the path/control route's selected
 history readout matches the source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_uGreater
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7369,7 +7371,7 @@ theorem
 
 /-- On clean active odd `vLe` inputs, the path/control route's selected
 history readout matches the source branch-history bit. -/
-theorem
+lemma
     fullRoundPathControlWorkKaliskiRoundControlledStep_roundStateReadout_history_vLe
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ) (historyIndex : Fin (2 * tail.succ))
@@ -7416,7 +7418,7 @@ theorem
 
 /-- In the explicit active-round family, the `uEven` branch's selected
 history readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -7460,7 +7462,7 @@ theorem
 
 /-- In the explicit active-round family, the `vEven` branch's selected
 history readout agrees with the source-level `RoundState.historyBit`. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -7512,7 +7514,7 @@ theorem
 
 /-- In the explicit active-round family, the `uEven` branch's `u` readout
 agrees with the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_uEven_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -7558,7 +7560,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_uEven_eq_sourceRound_clean
 /-- In the explicit active-round family, the `uEven` branch's `s` readout
 agrees with the source-level fixed round under the explicit no-overflow
 coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -7608,7 +7610,7 @@ theorem
 
 /-- In the explicit active-round family, the `uEven` branch preserves the
 untouched `v` readout, matching the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_uEven_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_v_uEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (kaliskiSteps paddingSteps : Nat)
@@ -7652,7 +7654,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_uEven_eq_sourceRound_clean
 
 /-- In the explicit active-round family, the `uEven` branch preserves the
 untouched `r` readout, matching the source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_uEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -7697,7 +7699,7 @@ theorem
 
 /-- In the explicit active-round family, the `vEven` branch's `v` readout
 agrees with the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_vEven_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -7747,7 +7749,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_vEven_eq_sourceRound_clean
 /-- In the explicit active-round family, the `vEven` branch's `r` readout
 agrees with the source-level fixed round under the explicit no-overflow
 coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -7801,7 +7803,7 @@ theorem
 
 /-- In the explicit active-round family, the `vEven` branch preserves the
 untouched `u` readout, matching the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_vEven_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_u_vEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (kaliskiSteps paddingSteps : Nat)
@@ -7849,7 +7851,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_vEven_eq_sourceRound_clean
 
 /-- In the explicit active-round family, the `vEven` branch preserves the
 untouched `s` readout, matching the source-level fixed round. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_vEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -7899,7 +7901,7 @@ theorem
 /-- The selected active wrapper's `uEven` history readout agrees with the
 source-level `RoundState.historyBit` once the concrete low-`u` selector bit
 chooses the fixed `uEven` branch. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7938,7 +7940,7 @@ theorem
 /-- The selected active wrapper's `vEven` history readout agrees with the
 source-level `RoundState.historyBit` once the concrete low readouts choose the
 fixed `vEven` branch. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -7981,7 +7983,7 @@ theorem
 /-- The selected active wrapper's `uEven` `u` readout agrees with the
 source-level fixed round once the concrete low-`u` selector bit chooses the
 fixed `uEven` branch. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8016,7 +8018,7 @@ theorem
 /-- The selected active wrapper's `uEven` `s` readout agrees with the
 source-level fixed round under the explicit no-overflow coefficient-doubling
 guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8054,7 +8056,7 @@ theorem
 /-- The selected active wrapper's `vEven` `v` readout agrees with the
 source-level fixed round once the concrete low readouts choose the fixed
 `vEven` branch. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8093,7 +8095,7 @@ theorem
 /-- The selected active wrapper's `vEven` `r` readout agrees with the
 source-level fixed round under the explicit no-overflow coefficient-doubling
 guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveSelectedBranchRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8135,7 +8137,7 @@ theorem
 /-- In the explicit active-round family, the corrected `uGreater` branch's
 selected history write agrees with the source-level `RoundState.historyBit`.
 -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8187,7 +8189,7 @@ theorem
 /-- In the explicit active-round family, the corrected `vLe` branch's
 selected history readout agrees with the source-level `RoundState.historyBit`.
 -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_history_vLe_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8234,7 +8236,7 @@ theorem
 
 /-- In the explicit active-round family, the corrected `uGreater` branch's
 `u` readout agrees with the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_uGreater_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -8292,7 +8294,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_uGreater_eq_sourceRound_clea
 /-- In the explicit active-round family, the corrected `uGreater` branch's
 `r` readout agrees with the source-level fixed round under the explicit
 no-overflow coefficient-add guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8355,7 +8357,7 @@ theorem
 /-- In the explicit active-round family, the corrected `uGreater` branch's
 `s` readout agrees with the source-level fixed round under the explicit
 no-overflow coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8410,7 +8412,7 @@ theorem
 
 /-- In the explicit active-round family, the corrected `uGreater` branch
 preserves the untouched `v` readout, matching the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_uGreater_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_v_uGreater_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (kaliskiSteps paddingSteps : Nat)
@@ -8460,7 +8462,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_uGreater_eq_sourceRound_clea
 
 /-- In the explicit active-round family, the corrected `vLe` branch's `v`
 readout agrees with the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_vLe_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -8514,7 +8516,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_v_vLe_eq_sourceRound_clean
 /-- In the explicit active-round family, the corrected `vLe` branch's `s`
 readout agrees with the source-level fixed round under the explicit
 no-overflow coefficient-add guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8573,7 +8575,7 @@ theorem
 /-- In the explicit active-round family, the corrected `vLe` branch's `r`
 readout agrees with the source-level fixed round under the explicit
 no-overflow coefficient-doubling guard. -/
-theorem
+lemma
     coeffWorkKaliskiActiveBranchRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8624,7 +8626,7 @@ theorem
 
 /-- In the explicit active-round family, the corrected `vLe` branch preserves
 the untouched `u` readout, matching the source-level fixed round. -/
-theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_vLe_eq_sourceRound_clean
+lemma coeffWorkKaliskiActiveBranchRoundStep_get_u_vLe_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
     (kaliskiSteps paddingSteps : Nat)
@@ -8669,7 +8671,7 @@ theorem coeffWorkKaliskiActiveBranchRoundStep_get_u_vLe_eq_sourceRound_clean
 
 /-- The lifted explicit active-round family preserves the `uEven` source
 history bridge while carrying padding-counter work unchanged. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_history_uEven_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8697,7 +8699,7 @@ theorem
 
 /-- The lifted explicit active-round family preserves the `vEven` source
 history bridge while carrying padding-counter work unchanged. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_history_vEven_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8729,7 +8731,7 @@ theorem
 
 /-- The lifted explicit active-round family's `uEven` `u` readout agrees with
 the source-level fixed round. -/
-theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_u_uEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiActiveBranchRoundStep_get_u_uEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -8756,7 +8758,7 @@ theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_u_uEven_eq_sourceRound_cle
 
 /-- The lifted explicit active-round family's `uEven` `s` readout agrees with
 the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_sCoeff_uEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8785,7 +8787,7 @@ theorem
 
 /-- The lifted explicit active-round family's `vEven` `v` readout agrees with
 the source-level fixed round. -/
-theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_v_vEven_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiActiveBranchRoundStep_get_v_vEven_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -8812,7 +8814,7 @@ theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_v_vEven_eq_sourceRound_cle
 
 /-- The lifted explicit active-round family's `vEven` `r` readout agrees with
 the source-level fixed round under the explicit no-overflow guard. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_rCoeff_vEven_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8841,7 +8843,7 @@ theorem
 
 /-- The lifted explicit active-round family preserves the corrected
 `uGreater` source-history bridge. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_history_uGreater_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8874,7 +8876,7 @@ theorem
 
 /-- The lifted explicit active-round family preserves the corrected `vLe`
 source-history bridge. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_history_vLe_eq_sourceHistoryBit_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8903,7 +8905,7 @@ theorem
 
 /-- The lifted explicit active-round family's corrected `uGreater` `u` readout
 agrees with the source-level fixed round. -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_u_uGreater_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -8938,7 +8940,7 @@ theorem
 /-- The lifted explicit active-round family's corrected `uGreater` `r` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_rCoeff_uGreater_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -8976,7 +8978,7 @@ theorem
 /-- The lifted explicit active-round family's corrected `uGreater` `s` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_sCoeff_uGreater_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -9006,7 +9008,7 @@ theorem
 
 /-- The lifted explicit active-round family's corrected `vLe` `v` readout
 agrees with the source-level fixed round. -/
-theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_v_vLe_eq_sourceRound_clean
+lemma fullRoundWorkKaliskiActiveBranchRoundStep_get_v_vLe_eq_sourceRound_clean
     (tail counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (kaliskiSteps paddingSteps : Nat)
@@ -9038,7 +9040,7 @@ theorem fullRoundWorkKaliskiActiveBranchRoundStep_get_v_vLe_eq_sourceRound_clean
 /-- The lifted explicit active-round family's corrected `vLe` `s` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_sCoeff_vLe_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))
@@ -9074,7 +9076,7 @@ theorem
 /-- The lifted explicit active-round family's corrected `vLe` `r` readout
 agrees with the source-level fixed round under the explicit no-overflow guard.
 -/
-theorem
+lemma
     fullRoundWorkKaliskiActiveBranchRoundStep_get_rCoeff_vLe_eq_sourceRound_clean
     (n counterWidth : Nat) (uIndex vIndex comparisonIndex : Fin n)
     (historyIndex : Fin (2 * n))

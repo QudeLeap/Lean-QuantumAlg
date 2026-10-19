@@ -29,23 +29,25 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.PhaseGuard
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
-private theorem first_control (width : Nat) :
+private lemma first_control (width : Nat) :
     (phase1Bit width).wire ≠ (controlBit width).wire := by
   intro same
   have values := congrArg Fin.val same
   rw [phase1Bit_wire, controlBit_wire] at values
   omega
 
-private theorem second_control (width : Nat) :
+private lemma second_control (width : Nat) :
     (phase2Bit width).wire ≠ (controlBit width).wire := by
   intro same
   have values := congrArg Fin.val same
   rw [phase2Bit_wire, controlBit_wire] at values
   omega
 
-private theorem first_second (width : Nat) :
+private lemma first_second (width : Nat) :
     (phase1Bit width).wire ≠ (phase2Bit width).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -76,7 +78,7 @@ def descendingGates (width : Nat) (selected : Bool) : List (GateSpec (encoding w
   if selected then [gate] else [.x (phase1Bit width), gate, .x (phase1Bit width)]
 
 /-- Full-register action of the literal phase-condition gate list, with arbitrary incoming Ctrl. -/
-theorem first_step (width : Nat) (selected : Bool) (state : Registers width) :
+lemma first_step (width : Nat) (selected : Bool) (state : Registers width) :
     GateSpec.stepList (firstGates width selected) state =
       xorControl (firstPredicate selected state) state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -84,7 +86,7 @@ theorem first_step (width : Nat) (selected : Bool) (state : Registers width) :
   cases selected <;> cases p1 <;> cases control <;> rfl
 
 /-- The literal descending-condition list restores both phase fields and all remaining systems. -/
-theorem descending_step (width : Nat) (selected : Bool) (state : Registers width) :
+lemma descending_step (width : Nat) (selected : Bool) (state : Registers width) :
     GateSpec.stepList (descendingGates width selected) state =
       xorControl (descendingPredicate selected state) state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -92,7 +94,7 @@ theorem descending_step (width : Nat) (selected : Bool) (state : Registers width
   cases selected <;> cases p1 <;> cases p2 <;> cases control <;> rfl
 
 /-- The actual inverse phase-condition list has the same predicate-xor action. -/
-theorem first_reverse_step (width : Nat) (selected : Bool) (state : Registers width) :
+lemma first_reverse_step (width : Nat) (selected : Bool) (state : Registers width) :
     GateSpec.stepList (firstGates width selected).reverse state =
       xorControl (firstPredicate selected state) state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift,
@@ -100,7 +102,7 @@ theorem first_reverse_step (width : Nat) (selected : Bool) (state : Registers wi
   cases selected <;> cases p1 <;> cases control <;> rfl
 
 /-- The literal reverse retains the same reversible predicate xor and preserves phase history. -/
-theorem descending_reverse_step (width : Nat) (selected : Bool) (state : Registers width) :
+lemma descending_reverse_step (width : Nat) (selected : Bool) (state : Registers width) :
     GateSpec.stepList (descendingGates width selected).reverse state =
       xorControl (descendingPredicate selected state) state := by
   have palindrome : (descendingGates width selected).reverse = descendingGates width selected := by
@@ -109,28 +111,30 @@ theorem descending_reverse_step (width : Nat) (selected : Bool) (state : Registe
   exact descending_step width selected state
 
 /-- Exact native realization of the retained phase predicate. -/
-theorem first_realizes (width : Nat) (selected : Bool) :
+lemma first_realizes (width : Nat) (selected : Bool) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty (firstGates width selected))
+        environment
       (fun state => xorControl (firstPredicate selected state) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (firstGates width selected) (first_step width selected)
+    (firstGates width selected) (first_step width selected) environment
 
 /-- Exact native realization of the retained descending-phase predicate. -/
-theorem descending_realizes (width : Nat) (selected : Bool) :
+lemma descending_realizes (width : Nat) (selected : Bool) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty (descendingGates width selected))
+        environment
       (fun state => xorControl (descendingPredicate selected state) state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (descendingGates width selected) (descending_step width selected)
+    (descendingGates width selected) (descending_step width selected) environment
 
 /-- Literal phase predicate size, including the constant-X gate for the negative condition. -/
-theorem first_length (width : Nat) (selected : Bool) :
+lemma first_length (width : Nat) (selected : Bool) :
     (firstGates width selected).length = if selected then 1 else 2 := by
   cases selected <;> rfl
 
 /-- Literal descending predicate size, including both actual Phase1 restoration X gates. -/
-theorem descending_length (width : Nat) (selected : Bool) :
+lemma descending_length (width : Nat) (selected : Bool) :
     (descendingGates width selected).length = if selected then 1 else 3 := by
   cases selected <;> rfl
 

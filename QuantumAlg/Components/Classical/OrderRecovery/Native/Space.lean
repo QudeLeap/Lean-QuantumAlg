@@ -31,10 +31,10 @@ private def Fits (outer inner : RuntimeCtx kind) (bits : Nat) : Prop :=
   inner.residentSpace ≤ outer.residentSpace + SpacePool.ofShape (.bits bits) ∧
     inner.auxiliarySpace ≤ outer.auxiliarySpace + SpacePool.ofShape (.bits bits)
 
-private theorem fits_self (ctx : RuntimeCtx kind) (bits : Nat) : Fits ctx ctx bits := by
+private lemma fits_self (ctx : RuntimeCtx kind) (bits : Nat) : Fits ctx ctx bits := by
   constructor <;> intro axis <;> cases axis <;> simp [SpacePool.ofShape]
 
-private theorem fits_mono {outer inner : RuntimeCtx kind} {small large : Nat}
+private lemma fits_mono {outer inner : RuntimeCtx kind} {small large : Nat}
     (fit : Fits outer inner small) (bounded : small ≤ large) : Fits outer inner large := by
   constructor
   · intro axis
@@ -44,7 +44,7 @@ private theorem fits_mono {outer inner : RuntimeCtx kind} {small large : Nat}
     have actual := fit.2 axis
     cases axis <;> simp [SpacePool.ofShape] at * <;> omega
 
-private theorem fits_trans {outer middle inner : RuntimeCtx kind} {first second : Nat}
+private lemma fits_trans {outer middle inner : RuntimeCtx kind} {first second : Nat}
     (left : Fits outer middle first) (right : Fits middle inner second) :
     Fits outer inner (first + second) := by
   constructor
@@ -57,14 +57,14 @@ private theorem fits_trans {outer middle inner : RuntimeCtx kind} {first second 
     have b := right.2 axis
     cases axis <;> simp [SpacePool.ofShape] at * <;> omega
 
-private theorem fits_workspace (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
+private lemma fits_workspace (ctx : RuntimeCtx kind) (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) :
     Fits ctx (ctx.addWorkspace key shape fresh) shape.bitWidth := by
   constructor <;> intro axis <;> cases axis <;> simp [SpacePool.ofShape] <;> omega
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem candidate_visited_fit
+private lemma candidate_visited_fit
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
@@ -87,7 +87,7 @@ private theorem candidate_visited_fit
   rcases member with rfl | rfl | rfl | rfl | rfl
   all_goals first | exact fits_self _ width | exact fits_workspace _ _ _ _
 
-private theorem validation_visited_fit (spec : ModulusSpec modulusWidth)
+private lemma validation_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (candidate zero : CInputRef ctx (.unsignedWord width))
     (one : CInputRef ctx (.unsignedWord modulusWidth))
@@ -118,7 +118,7 @@ private theorem validation_visited_fit (spec : ModulusSpec modulusWidth)
     subst visited
     exact fits_self _ _
 
-private theorem selection_visited_same (cells : ScanCells ctx modulusWidth width)
+private lemma selection_visited_same (cells : ScanCells ctx modulusWidth width)
     (remainder : CInputRef ctx (.unsignedWord width))
     (path : (selectCandidate (model := model) cells remainder).Path) (visited : RuntimeCtx
       model.kind)
@@ -133,7 +133,7 @@ private theorem selection_visited_same (cells : ScanCells ctx modulusWidth width
       · change visited ∈ [ctx, ctx, ctx] at present
         simpa using present
 
-private theorem visit_visited_fit (spec : ModulusSpec modulusWidth)
+private lemma visit_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
@@ -160,7 +160,7 @@ private theorem visit_visited_fit (spec : ModulusSpec modulusWidth)
     · rw [selection_visited_same cells (.second (cellRead division)) path.2.2 visited selected]
       exact fits_self _ _
 
-private theorem active_visited_fit (spec : ModulusSpec modulusWidth)
+private lemma active_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (path : (activeVisit (model := model) spec base
       cells).Path)
@@ -181,7 +181,7 @@ private theorem active_visited_fit (spec : ModulusSpec modulusWidth)
       subst visited
       exact fits_self _ _
 
-private theorem slot_visited_fit (spec : ModulusSpec modulusWidth)
+private lemma slot_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (path : (scanSlot (model := model) spec base
       cells).Path)
@@ -197,7 +197,7 @@ private theorem slot_visited_fit (spec : ModulusSpec modulusWidth)
         exact fits_self _ _
       · exact active_visited_fit spec base cells path visited present
 
-private theorem scan_visited_fit (spec : ModulusSpec modulusWidth)
+private lemma scan_visited_fit (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (count : Nat)
     (path : (scan (model := model) spec base cells count).Path) (visited : RuntimeCtx model.kind)
@@ -211,7 +211,7 @@ private theorem scan_visited_fit (spec : ModulusSpec modulusWidth)
     rcases List.mem_ofFn.mp member with ⟨index, rfl⟩
     exact slot_visited_fit spec base cells (path index) visited contains
 
-private theorem initialization_visited_same (sample : CInputRef ctx (.bits phaseBits))
+private lemma initialization_visited_same (sample : CInputRef ctx (.bits phaseBits))
     (path : (initializeScan (model := model) ctx modulusWidth phaseBits sample).Path) (visited :
       RuntimeCtx model.kind)
     (present : visited ∈ (initializeScan (model := model) ctx modulusWidth phaseBits
@@ -241,7 +241,7 @@ private theorem initialization_visited_same (sample : CInputRef ctx (.bits phase
         path.2.1 visited loaded
     · simpa using initialized
 
-private theorem body_visited_fit
+private lemma body_visited_fit
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
@@ -270,7 +270,7 @@ private def fieldBits (modulusWidth width : Nat) (fields : List RecoveryField) :
   (fields.map (fun field => (recoveryFieldShape modulusWidth width field).bitWidth)).sum
 
 omit [BitWord.Selected model] in
-private theorem scope_visited_fit (ctx : RuntimeCtx model.kind) (modulusWidth width : Nat)
+private lemma scope_visited_fit (ctx : RuntimeCtx model.kind) (modulusWidth width : Nat)
     (fields : List RecoveryField)
     (body : Circuit model (fieldsContext ctx modulusWidth width fields)
       (fieldsContext ctx modulusWidth width fields)) (extra : Nat)
@@ -306,7 +306,7 @@ private theorem scope_visited_fit (ctx : RuntimeCtx model.kind) (modulusWidth wi
           exact fits_self _ _
 
 /-- Every actually visited context respects the fixed simultaneous classical scratch allowance. -/
-theorem nativeRecovery_into_visited_space_le
+lemma nativeRecovery_into_visited_space_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
@@ -329,7 +329,7 @@ theorem nativeRecovery_into_visited_space_le
   exact actual
 
 /-- The complete native recovery peak retains original storage and adds only the stated bits. -/
-theorem nativeRecovery_into_resident_le
+lemma nativeRecovery_into_resident_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
@@ -342,7 +342,7 @@ theorem nativeRecovery_into_resident_le
   exact (nativeRecovery_into_visited_space_le spec base sample output path visited present).1
 
 /-- The same actual execution gives the auxiliary peak, without counting history as live memory. -/
-theorem nativeRecovery_into_auxiliary_le
+lemma nativeRecovery_into_auxiliary_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))

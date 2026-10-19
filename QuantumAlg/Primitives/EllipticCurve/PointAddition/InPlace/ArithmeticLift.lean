@@ -59,7 +59,7 @@ def gates (fieldWidth counterWidth : Nat)
         (Layout.registerTupleEquiv fieldWidth counterWidth))
 
 /-- Pointwise and staged presentations of the arithmetic lift agree. -/
-theorem gates_eq_map (fieldWidth counterWidth : Nat)
+lemma gates_eq_map (fieldWidth counterWidth : Nat)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :
     gates fieldWidth counterWidth source =
@@ -67,7 +67,7 @@ theorem gates_eq_map (fieldWidth counterWidth : Nat)
   simp [gates, gate]
 
 /-- The arithmetic lift preserves every primitive in the strict event trace. -/
-theorem gates_map_event (fieldWidth counterWidth : Nat)
+lemma gates_map_event (fieldWidth counterWidth : Nat)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :
     (gates fieldWidth counterWidth source).map (EncodedBit.GateSpec.event .empty) =
@@ -75,14 +75,14 @@ theorem gates_map_event (fieldWidth counterWidth : Nat)
   simp [gates]
 
 /-- The arithmetic lift preserves literal gate-list length. -/
-@[simp] theorem gates_length (fieldWidth counterWidth : Nat)
+@[simp] lemma gates_length (fieldWidth counterWidth : Nat)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :
     (gates fieldWidth counterWidth source).length = source.length := by
   simp [gates]
 
 /-- The lifted ledger changes exactly the compact-arithmetic field. -/
-theorem gates_stepList (fieldWidth counterWidth : Nat)
+lemma gates_stepList (fieldWidth counterWidth : Nat)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth)))
     (state : Layout.Registers fieldWidth counterWidth) :
@@ -98,7 +98,7 @@ theorem gates_stepList (fieldWidth counterWidth : Nat)
 
 /-- A lifted gate remains disjoint from the lifted image of any compact bit
 that was disjoint from the source gate. -/
-theorem bitDisjoint_liftArithmeticBit (fieldWidth counterWidth : Nat)
+lemma bitDisjoint_liftArithmeticBit (fieldWidth counterWidth : Nat)
     (observed : EncodedBit (MK.Compact.encoding fieldWidth counterWidth))
     (source : EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))
@@ -126,7 +126,7 @@ theorem bitDisjoint_liftArithmeticBit (fieldWidth counterWidth : Nat)
             target observed hdisjoint.2.2⟩
 
 /-- Every lifted compact gate is disjoint from every mutable-y bit. -/
-theorem bitDisjoint_mutableYBit (fieldWidth counterWidth : Nat)
+lemma bitDisjoint_mutableYBit (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth)
     (source : EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth)) :
@@ -153,7 +153,7 @@ theorem bitDisjoint_mutableYBit (fieldWidth counterWidth : Nat)
             fieldWidth counterWidth bit target).symm⟩
 
 /-- Every lifted compact gate is disjoint from every lambda bit. -/
-theorem bitDisjoint_lambdaBit (fieldWidth counterWidth : Nat)
+lemma bitDisjoint_lambdaBit (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth)
     (source : EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth)) :
@@ -181,7 +181,7 @@ theorem bitDisjoint_lambdaBit (fieldWidth counterWidth : Nat)
 
 /-- Every lifted compact gate is disjoint from the outer point-addition
 control bit. -/
-theorem bitDisjoint_controlBit (fieldWidth counterWidth : Nat)
+lemma bitDisjoint_controlBit (fieldWidth counterWidth : Nat)
     (source : EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth)) :
     EncodedBit.GateSpec.bitDisjoint
@@ -207,7 +207,7 @@ theorem bitDisjoint_controlBit (fieldWidth counterWidth : Nat)
             fieldWidth counterWidth target⟩
 /-- A whole lifted ledger remains disjoint from the lifted image of a compact
 bit whenever its source ledger is disjoint from that bit. -/
-theorem gates_bitDisjoint_liftArithmeticBit
+lemma gates_bitDisjoint_liftArithmeticBit
     (fieldWidth counterWidth : Nat)
     (observed : EncodedBit (MK.Compact.encoding fieldWidth counterWidth))
     (source : List (EncodedBit.GateSpec
@@ -226,7 +226,7 @@ theorem gates_bitDisjoint_liftArithmeticBit
 
 /-- Every gate in a lifted compact ledger is disjoint from every mutable-y
 bit, independently of the source ledger. -/
-theorem gates_bitDisjoint_mutableYBit
+lemma gates_bitDisjoint_mutableYBit
     (fieldWidth counterWidth : Nat) (bit : Fin fieldWidth)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :
@@ -240,7 +240,7 @@ theorem gates_bitDisjoint_mutableYBit
 
 /-- Every gate in a lifted compact ledger is disjoint from every persistent
 slope bit, independently of the source ledger. -/
-theorem gates_bitDisjoint_lambdaBit
+lemma gates_bitDisjoint_lambdaBit
     (fieldWidth counterWidth : Nat) (bit : Fin fieldWidth)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :
@@ -254,7 +254,7 @@ theorem gates_bitDisjoint_lambdaBit
 
 /-- Every gate in a lifted compact ledger is disjoint from the outer
 point-addition control bit. -/
-theorem gates_bitDisjoint_controlBit
+lemma gates_bitDisjoint_controlBit
     (fieldWidth counterWidth : Nat)
     (source : List (EncodedBit.GateSpec
       (MK.Compact.encoding fieldWidth counterWidth))) :

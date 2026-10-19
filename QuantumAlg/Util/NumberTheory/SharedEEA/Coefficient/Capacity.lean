@@ -35,7 +35,7 @@ instructions, and a fixed complete iteration schedule are not asserted.
 
 namespace QuantumAlg.NumberTheory.SharedEEA.CoefficientCapacity
 
-private theorem size_div_two (value : Nat) : (value / 2).size = value.size - 1 := by
+private lemma size_div_two (value : Nat) : (value / 2).size = value.size - 1 := by
   by_cases zero : value = 0
   · simp [zero]
   · have bitNonzero : Nat.bit (Nat.bodd value) (Nat.div2 value) ≠ 0 := by
@@ -49,7 +49,7 @@ private theorem size_div_two (value : Nat) : (value / 2).size = value.size - 1 :
     omega
 
 /-- Each actual right shift removes precisely one effective quotient digit until zero. -/
-theorem size_div_pow_two (value count : Nat) :
+lemma size_div_pow_two (value count : Nat) :
     (value / 2 ^ count).size = value.size - count := by
   induction count with
   | zero => simp
@@ -58,21 +58,21 @@ theorem size_div_pow_two (value count : Nat) :
     omega
 
 /-- The source's decreasing quotient-length coordinate is the actual remaining bit length. -/
-theorem remaining_size (state : IterationState) (count : Nat) :
+lemma remaining_size (state : IterationState) (count : Nat) :
     (CoefficientPhase.run state.coefficient count (CoefficientPhase.start state)).remaining.size =
       state.quotient.size - count := by
   rw [CoefficientPhase.run_remaining]
   exact size_div_pow_two state.quotient count
 
 /-- The source's retained circular shift count matches the actual microstep binary scale. -/
-theorem current_scale (state : IterationState) (count : Nat) :
+lemma current_scale (state : IterationState) (count : Nat) :
     (CoefficientPhase.run state.coefficient count (CoefficientPhase.start state)).scale =
       2 ^ count := by
   simpa only [CoefficientPhase.start, Nat.mul_one] using
     CoefficientPhase.run_scale state.coefficient count (CoefficientPhase.start state)
 
 /-- No intermediate coefficient exceeds the actual next macro coefficient. -/
-theorem value_le_next (state : IterationState) (count : Nat) :
+lemma value_le_next (state : IterationState) (count : Nat) :
     (CoefficientPhase.run state.coefficient count (CoefficientPhase.start state)).value ≤
       (IterationState.step state).coefficient := by
   have conserved := CoefficientPhase.run_total state.coefficient count
@@ -86,7 +86,7 @@ theorem value_le_next (state : IterationState) (count : Nat) :
   unfold CoefficientPhase.total at conserved
   omega
 
-private theorem clamped_product (coefficient quotient remainder modulus : Nat)
+private lemma clamped_product (coefficient quotient remainder modulus : Nat)
     (coefficientPositive : 0 < coefficient) (coefficientBound : coefficient ≤ modulus)
     (quotientProduct : coefficient * quotient ≤ modulus)
     (remainderProduct : coefficient * remainder ≤ modulus)
@@ -106,7 +106,7 @@ private theorem clamped_product (coefficient quotient remainder modulus : Nat)
       simpa [quotientZero, remainderZero] using coefficientBound
 
 /-- The actual first-word triple satisfies the product bound even when a factor is zero. -/
-theorem work1_clamped_product (state : IterationState) (modulus count : Nat)
+lemma work1_clamped_product (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     max state.coefficient 1 *
         max (CoefficientPhase.run state.coefficient count
@@ -149,7 +149,7 @@ theorem work1_clamped_product (state : IterationState) (modulus count : Nat)
     quotientProduct remainderProduct tripleProduct
 
 /-- Every actual first-word triple, including its separator bit, fits the source word. -/
-theorem work1_capacity (state : IterationState) (modulus count : Nat)
+lemma work1_capacity (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.coefficient.size + 1 + (state.quotient.size - count) +
         (state.remainder % state.divisor).size ≤ modulus.size + 3 := by
@@ -161,7 +161,7 @@ theorem work1_capacity (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual increasing coefficient and fixed divisor fit throughout phase three. -/
-theorem work2_capacity (state : IterationState) (modulus count : Nat)
+lemma work2_capacity (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (CoefficientPhase.run state.coefficient count (CoefficientPhase.start state)).value.size +
@@ -184,7 +184,7 @@ def work1RemainderWidth (state : IterationState) (modulus count : Nat) : Nat :=
   modulus.size + 3 - (state.coefficient.size + 1 + (state.quotient.size - count))
 
 /-- The prescribed source segments occupy exactly the first shared word. -/
-theorem work1_width (state : IterationState) (modulus count : Nat)
+lemma work1_width (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     (state.coefficient.size + 1) +
         ((state.quotient.size - count) + work1RemainderWidth state modulus count) =
@@ -194,7 +194,7 @@ theorem work1_width (state : IterationState) (modulus count : Nat)
   omega
 
 /-- The actual division remainder fits the region left by the source's live quotient length. -/
-theorem remainder_fits (state : IterationState) (modulus count : Nat)
+lemma remainder_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.remainder % state.divisor < 2 ^ work1RemainderWidth state modulus count := by
   apply Nat.size_le.mp
@@ -215,7 +215,7 @@ def work1Payload (state : IterationState) (modulus count : Nat)
     (remainder_fits state modulus count valid conserved)
 
 /-- Actual encoding and decoding recover the three unbounded arithmetic coordinates exactly. -/
-theorem work1_decode (state : IterationState) (modulus count : Nat)
+lemma work1_decode (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     let payload := work1Payload state modulus count valid conserved
     let recovered := WordPacking.unpackWork1 (WordPacking.packWork1 payload)
@@ -231,7 +231,7 @@ def work2CoefficientWidth (state : IterationState) (modulus : Nat) : Nat :=
   modulus.size + 3 - state.divisor.size
 
 /-- The prescribed second-word regions occupy exactly the source word. -/
-theorem work2_width (state : IterationState) (modulus : Nat)
+lemma work2_width (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     work2CoefficientWidth state modulus + state.divisor.size = modulus.size + 3 := by
   have divisorSize := Nat.size_le_size
@@ -240,7 +240,7 @@ theorem work2_width (state : IterationState) (modulus : Nat)
   omega
 
 /-- Every actual accumulated coefficient fits the full second-word coefficient region. -/
-theorem value_fits (state : IterationState) (modulus count : Nat)
+lemma value_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (CoefficientPhase.run state.coefficient count (CoefficientPhase.start state)).value <
@@ -261,7 +261,7 @@ def work2Payload (state : IterationState) (modulus count : Nat)
   remainderBits := BitVec.ofNatLT state.divisor (Nat.lt_size_self _)
 
 /-- Undoing the actual retained circular shift recovers both second-word coordinates exactly. -/
-theorem rotated_work2_decode (state : IterationState) (modulus count : Nat)
+lemma rotated_work2_decode (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     let payload := work2Payload state modulus count valid conserved active
@@ -274,7 +274,7 @@ theorem rotated_work2_decode (state : IterationState) (modulus count : Nat)
     BitVec.toNat_ofNatLT, and_self]
 
 /-- The original input fold supplies both intermediate capacities without extra domain premises. -/
-theorem folded_capacities (modulus input count : Nat)
+lemma folded_capacities (modulus input count : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     let state := IterationState.initial modulus (foldInput modulus input).2
     state.coefficient.size + 1 + (state.quotient.size - count) +

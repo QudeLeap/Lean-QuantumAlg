@@ -30,6 +30,7 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
   (layout : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- The literal addressed H, actual program, addressed H sequence. -/
 def conjugateHadamard (target : EncodedBit encoding)
@@ -38,11 +39,11 @@ def conjugateHadamard (target : EncodedBit encoding)
   ((target.hadamard layout oracles).seq program).seq (target.hadamard layout oracles)
 
 /-- Conjugating an actual conditional target flip gives its exact conditional phase. -/
-theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
+lemma conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
     (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum)
     (predicate : Data → Prop) [DecidablePred predicate]
     (unchanged : ∀ state, predicate (target.flip state) ↔ predicate state)
-    (actual : ∀ state, program.applyVec
+    (actual : ∀ state, program.applyVec environment
         (ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       if predicate state then
@@ -51,7 +52,7 @@ theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
       else (ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec)
     (state : Data) :
-    (target.conjugateHadamard layout oracles program).applyVec
+    (target.conjugateHadamard layout oracles program).applyVec environment
         (ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       if predicate state ∧ target.get state = true then
@@ -67,8 +68,9 @@ theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
   by_cases active : predicate state
   <;> simp only [active, if_true, if_false, true_and, false_and, flip_flip]
   all_goals
-    rw [hadamard_applyVec_encoded_ket target layout oracles state,
-      hadamard_applyVec_encoded_ket target layout oracles (target.flip state)]
+    rw [hadamard_applyVec_encoded_ket target layout oracles (environment := environment) state,
+      hadamard_applyVec_encoded_ket target layout oracles (environment := environment) (target.flip
+        state)]
     simp only [get_flip_self, flip_flip]
     cases target.get state
     <;> simp only [Bool.not, Bool.false_eq_true, if_true, if_false]
@@ -78,7 +80,7 @@ theorem conjugateHadamard_applyVec_encoded_ket (target : EncodedBit encoding)
     <;> norm_num [invSqrt2_sq]
 
 /-- The same literal construction adds exactly its two existing Hadamard occurrences. -/
-theorem conjugateHadamard_eventTrace (target : EncodedBit encoding)
+lemma conjugateHadamard_eventTrace (target : EncodedBit encoding)
     (program : UnitaryCircuit AlgorithmGate.model oracles layout.toQuantum) :
     (target.conjugateHadamard layout oracles program).eventTrace =
       [.gate .singleQubit] ++ program.eventTrace ++

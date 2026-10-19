@@ -28,13 +28,15 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {sourceWidth width : Nat}
 
 /-- Actual full quantum-reference execution of the two chronological native instructions. -/
-theorem reductionBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma reductionBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (division : CWriteRef ctx (divisionShape sourceWidth width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (reductionBody (model := model) numerator modulus division output).execute Reference state =
+    (reductionBody (model := model) numerator modulus division output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((reductionBodyStep (model := model) numerator modulus division output entry.1).1,
           (entry.2.1, (entry.2.2, (reductionBodyStep (model := model) numerator modulus division
@@ -50,7 +52,7 @@ def reductionValue (numerator : CShape.Word sourceWidth) (modulus : CShape.Word 
     (CShape.divRem sourceWidth (width + 1) (.product numerator modulus)).second
 
 /-- The unplaced two-operation body reads both operands before its final output write. -/
-theorem reductionBody_value {model : ExecutionModel} [BitWord.Selected model]
+lemma reductionBody_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (division : CWriteRef ctx (divisionShape sourceWidth width))
@@ -69,7 +71,7 @@ theorem reductionBody_value {model : ExecutionModel} [BitWord.Selected model]
   exact written.trans (congrArg (fun value => CShape.wordResize width value.second) result)
 
 /-- The unplaced body preserves every structural read outside the two actual output keys. -/
-theorem reductionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma reductionBody_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (division : CWriteRef ctx (divisionShape sourceWidth width))
@@ -85,17 +87,18 @@ theorem reductionBody_read_other {model : ExecutionModel} [BitWord.Selected mode
       (reductionDivideOp numerator modulus division) other divisionFree]
 
 /-- The real lexical entry, both instructions and matching release preserve full reference data. -/
-theorem reduceWord_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma reduceWord_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (reduceWord (model := model) numerator modulus output).execute Reference state =
+    (reduceWord (model := model) numerator modulus output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((reduceWordStep (model := model) numerator modulus output entry.1).1,
           (entry.2.1, (entry.2.2, (reduceWordStep (model := model) numerator modulus output
             entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (divisionShape sourceWidth width) ctx.canonicalFreshKey_fresh
     (reductionPlaced (model := model) numerator modulus output)
     (fun before =>
@@ -111,7 +114,7 @@ theorem reduceWord_execute {model : ExecutionModel} [BitWord.Selected model]
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual released result is the finite native value of the original two operand reads. -/
-theorem reduceWord_value {model : ExecutionModel} [BitWord.Selected model]
+lemma reduceWord_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
@@ -125,7 +128,7 @@ theorem reduceWord_value {model : ExecutionModel} [BitWord.Selected model]
   simp only [underReduction, Store.read_pushWorkspace_underWorkspace]
 
 /-- Once its internal division pair is released only the original destination may change. -/
-theorem reduceWord_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma reduceWord_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
@@ -144,7 +147,7 @@ theorem reduceWord_read_other {model : ExecutionModel} [BitWord.Selected model]
     simpa only [underReduction, CInputRef.storageKeys_underWorkspace] using separate
 
 /-- Positive fitted actual moduli make both native remainder representations lossless. -/
-theorem reductionValue_toNat (numerator : CShape.Word sourceWidth)
+lemma reductionValue_toNat (numerator : CShape.Word sourceWidth)
     (modulus : CShape.Word (width + 1)) (positive : 0 < modulus.toNat)
     (fits : modulus.toNat ≤ 2 ^ width) :
     (reductionValue numerator modulus).toNat = numerator.toNat % modulus.toNat := by
@@ -154,7 +157,7 @@ theorem reductionValue_toNat (numerator : CShape.Word sourceWidth)
     Nat.mod_eq_of_lt (lt_of_lt_of_le remainderBound fits)]
 
 /-- The actual released destination is the exact remainder of the original stored numerator. -/
-theorem reduceWord_toNat {model : ExecutionModel} [BitWord.Selected model]
+lemma reduceWord_toNat {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
@@ -167,7 +170,7 @@ theorem reduceWord_toNat {model : ExecutionModel} [BitWord.Selected model]
   exact reductionValue_toNat _ _ positive fits
 
 /-- Original intrinsic modulus data include the capacity-modulus boundary without narrowing. -/
-theorem reduceWord_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma reduceWord_original_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (numerator : CInputRef ctx (.unsignedWord sourceWidth))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (spec : ModulusSpec width) (store : Store ctx)

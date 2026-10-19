@@ -40,7 +40,7 @@ def observeSelected
 
 /-- Finite classical grouping and subsystem observation give the same density
 block, including every hidden outcome and arbitrary external reference. -/
-theorem observeSelected_mapClassical
+lemma observeSelected_mapClassical
     (state : ExecutionState C (Register.prod layout.register Reference))
     (read : C → D) (result : D) :
     DensityOperator.observeSelection layout selection Reference
@@ -91,7 +91,7 @@ theorem observeSelected_mapClassical
 
 /-- A single physical pure target survives arbitrary finite grouping of full
 classical records, including hidden paths and records of zero probability. -/
-theorem mapClassical_pure {R : Register} (state : ExecutionState C R)
+lemma mapClassical_pure {R : Register} (state : ExecutionState C R)
     (read : C → D) (target : NormalizedVector R)
     (holds : ∀ entry, (StatePromise.pure target).Holds (state.block entry))
     (result : D) :
@@ -101,7 +101,7 @@ theorem mapClassical_pure {R : Register} (state : ExecutionState C R)
 
 /-- A branchwise selected pure state is still the same weighted state after
 the actual complete records are aggregated by any classical observation. -/
-theorem observeSelected_mapClassical_pure
+lemma observeSelected_mapClassical_pure
     (state : ExecutionState C (Register.prod layout.register Reference))
     (read : C → D) (target : NormalizedVector (layout.selectedRegister selection))
     (holds : ∀ entry, (StatePromise.pure target).Holds

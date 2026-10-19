@@ -24,6 +24,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeCycles.InputProt
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -42,7 +45,7 @@ def accepts (N : Nat) : Set (LatticeBatchRecoveryOutput.OutputShape N).Value :=
   {output | ∃ word, output = .optionSome word ∧
     word.toNat ∣ N ∧ 1 < word.toNat ∧ word.toNat < N}
 
-private theorem accepted_iff_populated (input : Input N)
+private lemma accepted_iff_populated (input : Input N)
     (output : (LatticeBatchRecoveryOutput.OutputShape N).Value)
     (supported : output ∈ (sourceLaw input).support) :
     output ∈ accepts N ↔ output ≠ CShape.Value.optionNone := by
@@ -57,7 +60,7 @@ private theorem accepted_iff_populated (input : Input N)
         exact ⟨word, rfl, sound.1, sound.2.1, sound.2.2⟩
 
 /-- The source probability of a checked factor is exactly one minus its failure mass. -/
-theorem sourceSuccess (input : Input N) :
+lemma sourceSuccess (input : Input N) :
     (sourceLaw input).toOuterMeasure (accepts N) = 1 - sourceFailure input := by
   calc
     (sourceLaw input).toOuterMeasure (accepts N) =
@@ -79,19 +82,19 @@ theorem sourceSuccess (input : Input N) :
       exact congrArg (fun mass : ENNReal => 1 - mass)
         (NativeRetrySelection.batch_outputValue_none input)
 
-private theorem batchSuccess {pre post : RuntimeCtx .quantum}
+private lemma batchSuccess {pre post : RuntimeCtx .quantum}
     (program : AlgorithmRun RuntimeRound.model pre post
       (LatticeBatchRecoveryOutput.OutputShape N))
     (input : Input N) {Reference : Register}
     (original : OracleInput RuntimeRound.model.classicalOracles pre Reference)
-    (law : ReferenceLaw program original (sourceLaw input)) :
+    (law : ReferenceLaw (environment := environment) program original (sourceLaw input)) :
     1 - sourceFailure input ≤
-      (program.relationalDistribution original).toOuterMeasure
+      (program.relationalDistribution environment original).toOuterMeasure
         {pair | pair.2 ∈ accepts N} := by
   have projection :
-      (program.relationalDistribution original).toOuterMeasure
+      (program.relationalDistribution environment original).toOuterMeasure
           {pair | pair.2 ∈ accepts N} =
-        (program.outputDistribution original).toOuterMeasure (accepts N) := by
+        (program.outputDistribution environment original).toOuterMeasure (accepts N) := by
     simp only [AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
       PMF.toOuterMeasure_map_apply]
     rfl
@@ -106,32 +109,29 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 def problem (input : Input N) :
     Problem RuntimeRound.model base (NativeBatchRecovery.context base noQuantum N)
       (LatticeBatchRecoveryOutput.OutputShape N) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ output => InputProtocol.accepts N output
-  successLB := ⟨1 - sourceFailure input, tsub_le_self⟩
-  states := [batchRequirement (model := RuntimeRound.model) (pre := base)
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ output => InputProtocol.accepts N output
+  successLB := fun _ _ => ⟨1 - sourceFailure input, tsub_le_self⟩
+  states := fun _ _ => [batchRequirement (model := RuntimeRound.model) (pre := base)
     (NativeCycles.FirstBatch.seed base noQuantum N)
     (NativeCycles.FirstBatch.read base noQuantum N)]
   resources :=
     { events := NativeBatchRecovery.eventEnvelope N
       resident := base.residentSpace + NativeBatchRecovery.additionalSpace N
       auxiliary := base.auxiliarySpace + NativeBatchRecovery.additionalSpace N }
-  depth :=
-    { duration := fun _ => 1
-      limit := NativeBatchRecovery.depthBound N
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := NativeBatchRecovery.depthBound N
 
 /-- Actual first-batch output, joint state, cleanup and budgets meet the source-law contract. -/
-theorem solves (input : Input N) :
+lemma solves (input : Input N) :
     Algorithm.Solves (NativeCycles.FirstBatch.algorithm base noQuantum input)
       (problem base noQuantum input) := by
   constructor
-  · intro Reference original _valid _initialized
+  · intro environment _witness Reference original _valid _initialized
     exact batchSuccess (NativeCycles.FirstBatch.algorithm base noQuantum input).run input
       original (NativeCycles.FirstBatch.referenceLaw base noQuantum input original)
-  · intro Reference original _valid _initialized requirement present
+  · intro environment _witness Reference original _valid _initialized requirement present
     have same : requirement = batchRequirement (model := RuntimeRound.model) (pre := base)
         (NativeCycles.FirstBatch.seed base noQuantum N)
         (NativeCycles.FirstBatch.read base noQuantum N) := List.mem_singleton.mp present
@@ -143,25 +143,19 @@ theorem solves (input : Input N) :
       (NativeCycles.FirstBatch.referenceLaw base noQuantum input original)
       (NativeBatchRecovery.code_seedBlocks base noQuantum input
         (original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))))
-  · intro Reference original _valid _initialized
-    apply AlgorithmRun.restoresBorrowed_of_circuit
+  · intro environment _witness Reference original _valid _initialized
+    apply AlgorithmRun.restoresBorrowed_of_circuit (environment := environment)
     intro reference history _ state
     exact (firstBatch_restartCleanup base noQuantum input).restores reference state
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact NativeBatchRecovery.code_pool_le base noQuantum input path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact NativeBatchRecovery.code_resident_le base noQuantum input path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact NativeBatchRecovery.code_auxiliary_le base noQuantum input path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact NativeBatchRecovery.code_depth_le base noQuantum input path
-
-/-- The first actual sampled and recovered batch completes one caller request. -/
-def complete (input : Input N) :
-    Circuit.CompleteCycle (NativeBatchRecovery.code base noQuantum input)
-      (problem base noQuantum input) where
-  output := (NativeCycles.FirstBatch.algorithm base noQuantum input).run.output
-  certified := solves base noQuantum input
 
 end FirstBatch
 
@@ -176,39 +170,36 @@ variable (base : RuntimeCtx .quantum)
 def problem (input : Input N) :
     Problem RuntimeRound.model base (NativeBatchReuseRecovery.context base N)
       (LatticeBatchRecoveryOutput.OutputShape N) where
-  valid := SeedDomain (NativeCycles.ReuseBatch.inputSeed base sameWires)
-  initialization := fun _ => True
-  accepts := fun _ output => InputProtocol.accepts N output
-  successLB := ⟨1 - sourceFailure input, tsub_le_self⟩
-  states := [batchRequirement (model := RuntimeRound.model) (pre := base)
+  Witness := Unit
+  valid := fun _ _ => SeedDomain (NativeCycles.ReuseBatch.inputSeed base sameWires)
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ output => InputProtocol.accepts N output
+  successLB := fun _ _ => ⟨1 - sourceFailure input, tsub_le_self⟩
+  states := fun _ _ => [batchRequirement (model := RuntimeRound.model) (pre := base)
     (NativeCycles.ReuseBatch.seed base sameWires)
     (NativeCycles.ReuseBatch.read base)]
   resources :=
     { events := NativeBatchReuseRecovery.eventEnvelope N
       resident := base.residentSpace + NativeBatchReuseRecovery.additionalSpace N
       auxiliary := base.auxiliarySpace + NativeBatchReuseRecovery.additionalSpace N }
-  depth :=
-    { duration := fun _ => 1
-      limit := NativeBatchReuseRecovery.depthBound N
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := NativeBatchReuseRecovery.depthBound N
 
 attribute [local irreducible] NativeBatchReuseRecovery.code
 
 /-- The actual fresh-source reuse satisfies the same all-input batch contract. -/
-theorem solves (input : Input N)
+lemma solves (input : Input N)
     (distinct : Function.Injective (fun index => (cells index).key))
     (noBorrowed : base.borrowedQuantumWires = []) :
     Algorithm.Solves (NativeCycles.ReuseBatch.algorithm base sameWires cells input)
       (problem base sameWires input) := by
   constructor
-  · intro Reference original valid _initialized
+  · intro environment _witness Reference original valid _initialized
     change SeedDomain (NativeCycles.ReuseBatch.inputSeed base sameWires)
       original.caller.localState at valid
     exact batchSuccess (NativeCycles.ReuseBatch.algorithm base sameWires cells input).run
       input original
       (NativeCycles.ReuseBatch.referenceLaw base sameWires cells input distinct original valid)
-  · intro Reference original valid _initialized requirement present
+  · intro environment _witness Reference original valid _initialized requirement present
     change SeedDomain (NativeCycles.ReuseBatch.inputSeed base sameWires)
       original.caller.localState at valid
     have same : requirement = batchRequirement (model := RuntimeRound.model) (pre := base)
@@ -232,31 +223,23 @@ theorem solves (input : Input N)
       (NativeCycles.ReuseBatch.referenceLaw base sameWires cells input distinct original valid)
       (NativeBatchReuseRecovery.code_seedBlocks base sameWires cells input
         (original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))) seeded)
-  · intro Reference original _valid _initialized
-    apply AlgorithmRun.restoresBorrowed_of_circuit
+  · intro environment _witness Reference original _valid _initialized
+    apply AlgorithmRun.restoresBorrowed_of_circuit (environment := environment)
     intro reference history _ state
-    exact Circuit.borrowedRestored_of_noBorrowedQuantum
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum (environment := environment)
       (model := RuntimeRound.model) (pre := base)
       (post := NativeBatchReuseRecovery.context base N)
       (NativeBatchReuseRecovery.code base sameWires cells input)
       noBorrowed reference (History := history) state
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact NativeBatchReuseRecovery.code_pool_le base sameWires cells input path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact NativeBatchReuseRecovery.code_resident_le base sameWires cells input path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
     exact NativeBatchReuseRecovery.code_auxiliary_le base sameWires cells input path
-  · intro _Reference _original _valid _initialized path _supported
+  · intro _environment _witness _Reference _original _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact NativeBatchReuseRecovery.code_depth_le base sameWires cells input path
-
-/-- One actual reused bank and its full recovery complete the next request. -/
-def complete (input : Input N)
-    (distinct : Function.Injective (fun index => (cells index).key))
-    (noBorrowed : base.borrowedQuantumWires = []) :
-    Circuit.CompleteCycle (NativeBatchReuseRecovery.code base sameWires cells input)
-      (problem base sameWires input) where
-  output := (NativeCycles.ReuseBatch.algorithm base sameWires cells input).run.output
-  certified := solves base sameWires cells input distinct noBorrowed
 
 end ReuseBatch
 

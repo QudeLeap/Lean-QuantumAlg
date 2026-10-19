@@ -43,7 +43,7 @@ def window {width : Nat} (state : Registers width)
   remainderWindow width (state.coefficientLength.toNat + state.quotientLength.toNat + 1)
     state.shift.toNat fits
 
-private theorem arithmetic_phase {width : Nat} (selected : Window width) (operation : Operation)
+private lemma arithmetic_phase {width : Nat} (selected : Window width) (operation : Operation)
     (state : Registers width) :
     ((ArithmeticWindowProgram.step selected operation state).flags.first,
       (ArithmeticWindowProgram.step selected operation state).flags.second) =
@@ -51,7 +51,7 @@ private theorem arithmetic_phase {width : Nat} (selected : Window width) (operat
   congrArg (fun value : ArithmeticWindowPreservation.Retained width => value.2.2.1)
     (ArithmeticWindowPreservation.remainder_retained selected operation state)
 
-private theorem marked_sign {width : Nat} (selected : Window width) (state : Registers width)
+private lemma marked_sign {width : Nat} (selected : Window width) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true) :
     (ArithmeticSign.remainderStep
       (ArithmeticWindowProgram.step selected .subtractSigned state)).flags.sign =
@@ -70,7 +70,7 @@ private theorem marked_sign {width : Nat} (selected : Window width) (state : Reg
   exact Bool.xor_true _
 
 /-- Zero divisor rejects both actual remainder bodies while retaining the literal Sign gate. -/
-theorem source_finished {width : Nat} (state : Registers width)
+lemma source_finished {width : Nat} (state : Registers width)
     (finished : state.divisorLength = 0) :
     ArithmeticBlocks.remainderSource state = ArithmeticSign.remainderStep state := by
   have subtract : ArithmeticInstruction.sourceStep .remainderSubtract state = state := by
@@ -82,7 +82,7 @@ theorem source_finished {width : Nat} (state : Registers width)
       (ArithmeticSign.remainderStep state) finished]
   rfl
 
-private theorem source_subtract {width : Nat} (selected : Window width) (state : Registers width)
+private lemma source_subtract {width : Nat} (selected : Window width) (state : Registers width)
     (first : state.flags.first = false)
     (divisor : state.divisorLength ≠ 0)
     (physical : ArithmeticInstruction.sourceWindow .remainderSubtract state = some selected) :
@@ -98,7 +98,7 @@ private theorem source_subtract {width : Nat} (selected : Window width) (state :
   rw [first, physical]
   rfl
 
-private theorem source_addback {width : Nat} (selected : Window width) (state : Registers width)
+private lemma source_addback {width : Nat} (selected : Window width) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (divisor : state.divisorLength ≠ 0)
     (physical : ArithmeticInstruction.sourceWindow .remainderAddback state = some selected) :
@@ -114,7 +114,7 @@ private theorem source_addback {width : Nat} (selected : Window width) (state : 
   rw [ArithmeticInstruction.sourceStep, enabled, physical]
   cases state.flags.sign <;> rfl
 
-private theorem subtract_window {width : Nat} (state : Registers width)
+private lemma subtract_window {width : Nat} (state : Registers width)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
       state.shift.toNat ≤ width + 3) :
     ArithmeticInstruction.sourceWindow .remainderSubtract state =
@@ -127,7 +127,7 @@ private theorem subtract_window {width : Nat} (state : Registers width)
   rw [dif_pos fits]
   rfl
 
-private theorem marked_divisor {width : Nat} (state : Registers width)
+private lemma marked_divisor {width : Nat} (state : Registers width)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
       state.shift.toNat ≤ width + 3) (divisor : state.divisorLength ≠ 0) :
     (ArithmeticSign.remainderStep
@@ -142,7 +142,7 @@ private theorem marked_divisor {width : Nat} (state : Registers width)
       retained
   exact fun zero => divisor (same.symm.trans zero)
 
-private theorem marked_phase {width : Nat} (selected : Window width)
+private lemma marked_phase {width : Nat} (selected : Window width)
     (state : Registers width) :
     ((ArithmeticSign.remainderStep
       (ArithmeticWindowProgram.step selected .subtractSigned state)).flags.first,
@@ -151,7 +151,7 @@ private theorem marked_phase {width : Nat} (selected : Window width)
       (state.flags.first, state.flags.second) :=
   arithmetic_phase selected .subtractSigned state
 
-private theorem source_after_subtraction {width : Nat} (selected : Window width)
+private lemma source_after_subtraction {width : Nat} (selected : Window width)
     (state : Registers width) (first : state.flags.first = false)
     (divisor : state.divisorLength ≠ 0)
     (physical : ArithmeticInstruction.sourceWindow .remainderSubtract state =
@@ -164,7 +164,7 @@ private theorem source_after_subtraction {width : Nat} (selected : Window width)
     (ArithmeticSign.remainderStep current))
     (source_subtract selected state first divisor physical)
 
-private theorem addback_window {width : Nat} (state : Registers width)
+private lemma addback_window {width : Nat} (state : Registers width)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 +
       state.shift.toNat ≤ width + 3) :
     let selected := window state fits
@@ -190,7 +190,7 @@ private theorem addback_window {width : Nat} (state : Registers width)
   rw [coefficientSame, quotientSame, shiftSame, dif_pos fits]
   rfl
 
-private theorem source_eq_preSign {width : Nat} (state : Registers width)
+private lemma source_eq_preSign {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (divisor : state.divisorLength ≠ 0)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
@@ -220,7 +220,7 @@ private theorem source_eq_preSign {width : Nat} (state : Registers width)
         ArithmeticWindowProgram.step selected .addLow marked :=
       source_addback selected marked firstMarked secondMarked markedDivisor addbackWindow
 
-private theorem conditional_flip {α : Type} (flag other : Bool)
+private lemma conditional_flip {α : Type} (flag other : Bool)
     (unchanged body : α) (complement : other = !flag) :
     (if other then unchanged else body) =
       (if flag then body else unchanged) := by
@@ -228,7 +228,7 @@ private theorem conditional_flip {α : Type} (flag other : Bool)
   cases flag <;> rfl
 
 /-- The actual phase-two block adds back precisely on the original signed subtraction's borrow. -/
-theorem source_eq {width : Nat} (state : Registers width)
+lemma source_eq {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (divisor : state.divisorLength ≠ 0)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
@@ -252,7 +252,7 @@ theorem source_eq {width : Nat} (state : Registers width)
         (marked_sign selected state first second)
 
 /-- The actual upper remainder output is precisely conditional subtraction with unsigned borrow. -/
-theorem source_target {width : Nat} (state : Registers width)
+lemma source_target {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)
@@ -289,7 +289,7 @@ theorem source_target {width : Nat} (state : Registers width)
     exact step_subtract_low selected state zeroSign
 
 /-- The real Sign before quotient exchange is the weak full-window comparison digit. -/
-theorem source_sign {width : Nat} (state : Registers width)
+lemma source_sign {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)
@@ -319,7 +319,7 @@ theorem source_sign {width : Nat} (state : Registers width)
     simp only [decide_eq_true borrowed, Bool.not_true, decide_eq_false ordered]
 
 /-- The actual entire low suffix and every other complementary coordinate are retained jointly. -/
-theorem source_complement {width : Nat} (state : Registers width)
+lemma source_complement {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
       width + 3) :
@@ -339,7 +339,7 @@ theorem source_complement {width : Nat} (state : Registers width)
     rfl
 
 /-- The emitted native remainder program computes that same corrected physical upper word. -/
-theorem native_target (width : Nat) (state : Registers width)
+lemma native_target (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true) (zeroSign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ 0)

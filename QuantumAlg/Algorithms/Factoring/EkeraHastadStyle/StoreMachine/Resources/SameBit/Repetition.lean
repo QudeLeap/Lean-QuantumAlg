@@ -24,7 +24,7 @@ namespace PublicResourceBounds
 
 noncomputable section
 
-private theorem samplerBound_sameBit {b : Nat}
+private lemma samplerBound_sameBit {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     ShorStyle.Canonical.Sampler.samplerClassicalBound
         (modulusBits pair.modulus) = 88 * b + 178 := by
@@ -33,7 +33,7 @@ private theorem samplerBound_sameBit {b : Nat}
     ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel
   ring
 
-private theorem measurementBits_sameBit {b : Nat}
+private lemma measurementBits_sameBit {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     measurementBits pair.modulus = b + 1 + 2 * tradeoffWidth b := by
   unfold measurementBits tradeoffWidth
@@ -41,7 +41,7 @@ private theorem measurementBits_sameBit {b : Nat}
   unfold RSA.GeneratorOrder.m RSA.GeneratorOrder.ell
   omega
 
-private theorem memberBound_sameBit_le {b : Nat}
+private lemma memberBound_sameBit_le {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     ShortDLP.CompiledMAU.polynomialPrimitiveBound
         (shortLogBits pair.modulus) (tradeoffBits pair.modulus)
@@ -55,7 +55,7 @@ private theorem memberBound_sameBit_le {b : Nat}
 
 /-- The generic repetition closed form is bounded by the displayed same-bit
 width-only arithmetic formula. -/
-theorem retryRepetitionEventCardClosedFormBound_le_sameBit {b : Nat}
+lemma retryRepetitionEventCardClosedFormBound_le_sameBit {b : Nat}
     (pair : RSA.RSAKeyPairBits b) (hb : 1 ≤ b) :
     retryRepetitionEventCardClosedFormBound pair.modulus ≤
       repetitionEventBound b := by

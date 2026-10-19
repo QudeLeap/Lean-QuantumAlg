@@ -18,7 +18,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Kernel reduction covers two signs and 48 right factors in this bounded shard.
 /-- Multiplication by coordinate-1 axis numerators stays in the doubled numerator set. -/
-theorem coordinate1 :
+lemma coordinate1 :
     ∀ negative b, ∃ c,
       octNumerator (.axis negative (1 : Fin 4)) * octNumerator b =
         octNumerator c + octNumerator c := by decide

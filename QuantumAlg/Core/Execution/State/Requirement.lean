@@ -71,7 +71,7 @@ public def Holds (requirement : StateRequirement pre post) (input : Execution.In
 
 /-- A constant marginal pure promise is checked on each actual output-read
 block, after every unobserved classical path has been summed. -/
-theorem marginal_pure_holds_iff
+lemma marginal_pure_holds_iff
     (selection : Finset (Fin post.systemCount)) {shape : CShape}
     (read : OutputRead post shape)
     (target : NormalizedVector (post.quantumLayout.selectedRegister selection))
@@ -84,7 +84,7 @@ theorem marginal_pure_holds_iff
           ((final.mapClassical read.eval).block value)) := Iff.rfl
 
 /-- A dirty requirement omits state information while leaving its observed systems live. -/
-theorem marginal_dirty_holds (selection : Finset (Fin post.systemCount)) {shape : CShape}
+lemma marginal_dirty_holds (selection : Finset (Fin post.systemCount)) {shape : CShape}
     (read : OutputRead post shape) (input : Execution.Input pre Reference)
     (final : ExecutionState (Execution.Store post) (Register.prod post.register Reference)) :
     (StateRequirement.marginal selection read (fun _ _ => .dirty)).Holds input final := by
@@ -92,7 +92,7 @@ theorem marginal_dirty_holds (selection : Finset (Fin post.systemCount)) {shape 
   exact StatePromise.holds_dirty _
 
 /-- Omitting a joint promise does not assert restoration or remove any resource. -/
-theorem jointReference_dirty_holds (selection : Finset (Fin post.systemCount))
+lemma jointReference_dirty_holds (selection : Finset (Fin post.systemCount))
     {shape : CShape} (read : OutputRead post shape) (input : Execution.Input pre Reference)
     (final : ExecutionState (Execution.Store post) (Register.prod post.register Reference)) :
     (StateRequirement.jointReference selection read (fun _ _ _ => .dirty)).Holds input final := by

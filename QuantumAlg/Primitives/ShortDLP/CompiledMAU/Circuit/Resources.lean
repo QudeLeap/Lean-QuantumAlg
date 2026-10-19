@@ -43,7 +43,7 @@ def readoutEventEnvelope (m ell : Nat) :
     ResourcePool (.quantum AlgorithmGate.model .empty) :=
   qftEventEnvelope (ell + m) + qftEventEnvelope ell
 
-theorem preparationCircuit_eventCost_eq_envelope (m ell width : Nat) :
+lemma preparationCircuit_eventCost_eq_envelope (m ell width : Nat) :
     (preparationCircuit (registerParameters m ell width)).eventCost =
       preparationEventEnvelope m ell := by
   change (Gate.HadamardLayer.circuit .empty (ell + m + ell)).eventCost = _
@@ -51,7 +51,7 @@ theorem preparationCircuit_eventCost_eq_envelope (m ell width : Nat) :
   simp [preparationEventEnvelope, ResourcePool.singleton, Multiset.nsmul_singleton]
 
 /-- The independently specified native inverse-QFT pool is exact. -/
-theorem shortDLP_inverseQFT_eventCost_eq_envelope (bits : Nat) :
+lemma shortDLP_inverseQFT_eventCost_eq_envelope (bits : Nat) :
     (QuantumFourierTransform.Native.inverseCircuit .empty bits).eventCost =
       qftEventEnvelope bits := by
   apply Multiset.ext.mpr
@@ -61,7 +61,7 @@ theorem shortDLP_inverseQFT_eventCost_eq_envelope (bits : Nat) :
   rw [QuantumFourierTransform.Native.qftNative_inverseCircuit_event_count]
   simp [qftEventEnvelope, ResourcePool.singleton, Multiset.count_replicate, eq_comm]
 
-theorem readoutCircuit_eventCost_eq_envelope (m ell width : Nat) :
+lemma readoutCircuit_eventCost_eq_envelope (m ell width : Nat) :
     (readoutCircuit (registerParameters m ell width)).eventCost =
       readoutEventEnvelope m ell := by
   change (QuantumFourierTransform.Native.inverseCircuit .empty (ell + m)).eventCost +
@@ -88,14 +88,14 @@ private def eventInClassicalContext (operations : ClassicalOpModel)
   | .preparation dimension => .preparation dimension
   | .measurement dimension => .measurement dimension
 
-private theorem eventInClassicalContext_injective (operations : ClassicalOpModel)
+private lemma eventInClassicalContext_injective (operations : ClassicalOpModel)
     (services : ClassicalOracleModel) :
     Function.Injective (eventInClassicalContext operations services) := by
   intro left right equality
   cases left <;> cases right <;> try cases ‹Empty›
   all_goals simp_all [eventInClassicalContext]
 
-private theorem count_context_pool (operations : ClassicalOpModel)
+private lemma count_context_pool (operations : ClassicalOpModel)
     (services : ClassicalOracleModel)
     (event : Resource.Event (.quantum AlgorithmGate.model .empty))
     (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
@@ -133,7 +133,7 @@ def polynomialPrimitiveWidthBound (m ell width : Nat) : Nat :=
   groupActionPrimitiveWidthBound m ell width + (m + 2 * ell) +
     qftPrimitiveBound (m + ell) + qftPrimitiveBound ell
 
-theorem polynomialPrimitiveBound_le_widthBound (m ell width N : Nat) :
+lemma polynomialPrimitiveBound_le_widthBound (m ell width N : Nat) :
     polynomialPrimitiveBound m ell width N ≤ polynomialPrimitiveWidthBound m ell width := by
   unfold polynomialPrimitiveBound polynomialPrimitiveWidthBound
   exact Nat.add_le_add_right
@@ -141,30 +141,30 @@ theorem polynomialPrimitiveBound_le_widthBound (m ell width N : Nat) :
       (Nat.add_le_add_right (groupActionPrimitiveBound_le_widthBound m ell width N) _)
       _) _
 
-@[simp] theorem preparationEventEnvelope_card (m ell : Nat) :
+@[simp] lemma preparationEventEnvelope_card (m ell : Nat) :
     (preparationEventEnvelope m ell).card = m + 2 * ell := by
   simp only [preparationEventEnvelope, ResourcePool.singleton,
     Multiset.card_replicate]
   omega
 
-@[simp] theorem qftEventEnvelope_card (bits : Nat) :
+@[simp] lemma qftEventEnvelope_card (bits : Nat) :
     (qftEventEnvelope bits).card = qftPrimitiveBound bits := by
   simp only [qftEventEnvelope, Multiset.card_add, ResourcePool.singleton,
     Multiset.card_replicate, qftPrimitiveBound]
   omega
 
-theorem shortDLP_inverseQFT_eventCost_card (bits : Nat) :
+lemma shortDLP_inverseQFT_eventCost_card (bits : Nat) :
     (QuantumFourierTransform.Native.inverseCircuit .empty bits).eventCost.card =
       qftPrimitiveBound bits := by
   rw [shortDLP_inverseQFT_eventCost_eq_envelope, qftEventEnvelope_card]
 
-@[simp] theorem readoutEventEnvelope_card (m ell : Nat) :
+@[simp] lemma readoutEventEnvelope_card (m ell : Nat) :
     (readoutEventEnvelope m ell).card =
       qftPrimitiveBound (m + ell) + qftPrimitiveBound ell := by
   rw [readoutEventEnvelope, Multiset.card_add, qftEventEnvelope_card, qftEventEnvelope_card,
     Nat.add_comm ell m]
 
-@[simp] theorem compiledCircuitEventEnvelope_card (m ell width N : Nat) :
+@[simp] lemma compiledCircuitEventEnvelope_card (m ell width N : Nat) :
     (compiledCircuitEventEnvelope m ell width N).card =
       polynomialPrimitiveBound m ell width N := by
   simp only [compiledCircuitEventEnvelope, Multiset.card_add, preparationEventEnvelope_card,
@@ -172,7 +172,7 @@ theorem shortDLP_inverseQFT_eventCost_card (bits : Nat) :
   omega
 
 /-- The actual member satisfies every independent native coordinate cap. -/
-theorem compiledCircuit_eventCost_le (m ell width N : Nat) (g x : (ZMod N)ˣ) :
+lemma compiledCircuit_eventCost_le (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (compiledCircuit m ell width N g x).eventCost ≤
       compiledCircuitEventEnvelope m ell width N := by
   rw [compiledCircuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
@@ -182,7 +182,7 @@ theorem compiledCircuit_eventCost_le (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (ResourcePool.add_mono (compiledGroupActionProgram_eventCost_le m ell width N g x) le_rfl)
 
 /-- The same independent coordinate caps apply inside any classical execution context. -/
-theorem compiledCircuit_event_count_classical_context_le
+lemma compiledCircuit_event_count_classical_context_le
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (event : Resource.Event (.quantum AlgorithmGate.model .empty operations services)) :
@@ -205,7 +205,7 @@ theorem compiledCircuit_event_count_classical_context_le
   | _ => exact Nat.le_refl 0
 
 /-- A classical controller retains the full independently stated native resource bound. -/
-theorem compiledCircuit_eventCost_le_classical_context
+lemma compiledCircuit_eventCost_le_classical_context
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (compiledCircuit m ell width N g x).eventCost operations services ≤
@@ -227,14 +227,14 @@ theorem compiledCircuit_eventCost_le_classical_context
   | _ => exact Nat.zero_le _
 
 /-- Context inclusion retains the closed cardinality of the independent native budget. -/
-@[simp] theorem compiledCircuitEventEnvelopeInClassicalContext_card
+@[simp] lemma compiledCircuitEventEnvelopeInClassicalContext_card
     (m ell width N : Nat) (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (compiledCircuitEventEnvelopeInClassicalContext m ell width N operations services).card =
       polynomialPrimitiveBound m ell width N := by
   rw [compiledCircuitEventEnvelopeInClassicalContext, Multiset.card_map,
     compiledCircuitEventEnvelope_card]
 
-theorem compiledCircuit_eventCount_le_polynomial (m ell width N : Nat) (g x : (ZMod N)ˣ) :
+lemma compiledCircuit_eventCount_le_polynomial (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (compiledCircuit m ell width N g x).eventCost.card ≤
       polynomialPrimitiveBound m ell width N :=
   (Multiset.card_le_card (compiledCircuit_eventCost_le m ell width N g x)).trans_eq
@@ -245,7 +245,7 @@ def compiledCircuitActualEventBound (m ell width : Nat) : Nat :=
   groupActionActualEventBound m ell width + (m + 2 * ell) +
     qftPrimitiveBound (m + ell) + qftPrimitiveBound ell
 
-theorem compiledCircuit_actual_event_bound (m ell width N : Nat) (g x : (ZMod N)ˣ) :
+lemma compiledCircuit_actual_event_bound (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     (compiledCircuit m ell width N g x).eventCost.card ≤
       compiledCircuitActualEventBound m ell width := by
   rw [compiledCircuit, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,

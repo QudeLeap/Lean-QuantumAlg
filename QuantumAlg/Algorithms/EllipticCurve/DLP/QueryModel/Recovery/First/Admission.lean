@@ -12,8 +12,8 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.First
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Round.Admission
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Correctness
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Support
-import all QuantumAlg.Core.Execution.CycleSchedule.InputDistribution
-import all QuantumAlg.Core.Execution.CycleSchedule.InputDistribution.Sequence
+import all QuantumAlg.Core.Execution.Input.Successor.Distribution
+import all QuantumAlg.Core.Execution.Input.Successor.Sequence
 
 /-!
 # Original caller admission through the actual ECDLP allocation and first round
@@ -34,18 +34,20 @@ attribute [local instance] Classical.decEq Classical.propDecidable
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
-private theorem prefix_original (I : ECDLPInstance E) (A : Access I)
+private lemma prefix_original (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State (Sampling.pre I) Reference
-      ((Sampling.executionModel I A).HiddenState × History))
+      ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ entry, 0 < (initial.block entry).mass →
       entry.1 = Runtime.Context.inputStore I)
-    (prefixCode : Circuit (Sampling.executionModel I A) (Sampling.pre I) (context I))
+    (prefixCode : Circuit (Sampling.executionModel I) (Sampling.pre I) (context I))
     (result : Store (context I) ×
-      ((Sampling.executionModel I A).HiddenState × (History × prefixCode.Path)))
-    (positive : 0 < ((prefixCode.execute Reference initial).block result).mass) :
+      ((Sampling.executionModel I).HiddenState × (History × prefixCode.Path)))
+    (positive : 0 < ((prefixCode.execute (Sampling.sourceEnvironment I A) Reference initial).block
+      result).mass) :
     roundOriginalStore I result.1 = Runtime.Context.inputStore I := by
-  have restored := prefixCode.borrowedRestored_of_noBorrowedQuantum (by rfl) Reference initial
+  have restored := prefixCode.borrowedRestored_of_noBorrowedQuantum
+    (Sampling.sourceEnvironment I A) (by rfl) Reference initial
   obtain ⟨previous, present, same⟩ := prefixCode.borrowedRestored_supported_initial
     Reference initial _ restored result positive
   rw [admitted previous present] at same
@@ -54,34 +56,38 @@ private theorem prefix_original (I : ECDLPInstance E) (A : Access I)
       (original_borrowed I result.1))
   exact inputStore_eq_of_borrowed I (roundOriginalStore I result.1) (eq_of_heq original.symm)
 
-private theorem allocation_domain (I : ECDLPInstance E) (A : Access I)
+private lemma allocation_domain (I : ECDLPInstance E) (A : Access I)
     (nontrivial : 2 ≤ (problem I).order)
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State (Sampling.pre I) Reference
-      ((Sampling.executionModel I A).HiddenState × History))
+      ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ entry, 0 < (initial.block entry).mass →
       entry.1 = Runtime.Context.inputStore I)
     (result : Store (context I) ×
-      ((Sampling.executionModel I A).HiddenState × (History × (allocationCode I A).Path)))
-    (positive : 0 < (((allocationCode I A).execute Reference initial).block result).mass) :
+      ((Sampling.executionModel I).HiddenState × (History × (allocationCode I).Path)))
+    (positive : 0 < (((allocationCode I).execute (Sampling.sourceEnvironment I A) Reference
+      initial).block result).mass) :
     roundStoreDomain I result.1 := by
   let : Fact p.Prime := ⟨E.prime⟩
-  have original := prefix_original I A initial admitted (allocationCode I A) result positive
-  have selected := allocation_selected_initialized (Sampling.Reuse.initialCode I A)
+  have original := prefix_original I A initial admitted (allocationCode I) result positive
+  have selected := allocation_selected_initialized (environment :=
+    Sampling.sourceEnvironment I A) (Sampling.Reuse.initialCode I)
     (curve E) (modulus I nontrivial) I.basePoint.toMathlib I.targetPoint.toMathlib
     initial result positive
   exact ⟨original, selected.1, selected.2⟩
 
 /-- Actual one-time initialization admits every live joint input of the complete round. -/
-public theorem ecdlpRecovery_allocation_nextInput_admitted (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_allocation_nextInput_admitted (I : ECDLPInstance E) (A : Access I)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState) :
-    roundInputDomain I A ((allocationCode I A).nextInput original).localState := by
+    roundInputDomain I ((allocationCode I).nextInput (Sampling.sourceEnvironment I A)
+      original).localState := by
   intro record positive
   obtain ⟨result, storeEq, _serviceEq, present⟩ :=
-    Circuit.nextInput_local_supported_execution (allocationCode I A) original record positive
+    Circuit.nextInput_local_supported_execution (environment := Sampling.sourceEnvironment I A)
+      (allocationCode I) original record positive
   have admitted : ∀ previous, 0 < ((original.state.mapClassical
       (fun entry => (entry.1, (entry.2, ())))).block previous).mass →
       previous.1 = Runtime.Context.inputStore I := by
@@ -96,16 +102,17 @@ public theorem ecdlpRecovery_allocation_nextInput_admitted (I : ECDLPInstance E)
     admitted result present
 
 /-- The actual first complete cycle admits another round without initializing any service. -/
-public theorem ecdlpRecovery_firstRound_nextInput_admitted (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_firstRound_nextInput_admitted (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState) :
-    roundInputDomain I A ((firstRound I A expansion nontrivial).nextInput original).localState := by
+    roundInputDomain I ((firstRound I expansion nontrivial).nextInput (Sampling.sourceEnvironment
+      I A) original).localState := by
   rw [firstRound, Circuit.nextInput_seq]
   exact ecdlpRecovery_round_nextInput_admitted I A expansion nontrivial
-    ((allocationCode I A).nextInput original)
+    ((allocationCode I).nextInput (Sampling.sourceEnvironment I A) original)
     (ecdlpRecovery_allocation_nextInput_admitted I A nontrivial original valid)
 
 end

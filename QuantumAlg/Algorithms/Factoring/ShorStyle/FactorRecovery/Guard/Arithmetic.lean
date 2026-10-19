@@ -20,7 +20,7 @@ ordinary evenness decision. This identity covers every stored word.
 
 namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeFactorTail
 
-private theorem not_testBit_zero (value : Nat) :
+private lemma not_testBit_zero (value : Nat) :
     Bool.not (value.testBit 0) = decide (Even value) := by
   rw [Nat.testBit_eq_decide_div_mod_eq, Nat.pow_zero, Nat.div_one]
   by_cases even : Even value
@@ -33,7 +33,7 @@ private theorem not_testBit_zero (value : Nat) :
     simp [remainder, even]
 
 /-- The real NOT on the stored word's last bit computes exact natural evenness. -/
-theorem evenOrder_eval {width : Nat} (value : CShape.Word (width + 1)) :
+lemma evenOrder_eval {width : Nat} (value : CShape.Word (width + 1)) :
     (Resource.BitOpcode.eval .not (value.wordBitGet (Fin.last width))).toBool =
       decide (Even value.toNat) := by
   cases value with

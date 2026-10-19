@@ -67,13 +67,13 @@ variable {K : Type*} [Fintype K]
 /-- The `ℓ¹` norm of a Pauli-coefficient vector. -/
 def l1 (x : K → ℝ) : ℝ := ∑ k, |x k|
 
-theorem l1_nonneg (x : K → ℝ) : 0 ≤ l1 x :=
+lemma l1_nonneg (x : K → ℝ) : 0 ≤ l1 x :=
   Finset.sum_nonneg fun _ _ => abs_nonneg _
 
-theorem l1_sub_self (x : K → ℝ) : l1 (x - x) = 0 := by simp [l1]
+lemma l1_sub_self (x : K → ℝ) : l1 (x - x) = 0 := by simp [l1]
 
 /-- The `ℓ¹` triangle inequality (through an intermediate point). -/
-theorem l1_sub_le (a b c : K → ℝ) : l1 (a - c) ≤ l1 (a - b) + l1 (b - c) := by
+lemma l1_sub_le (a b c : K → ℝ) : l1 (a - c) ≤ l1 (a - b) + l1 (b - c) := by
   unfold l1
   rw [← Finset.sum_add_distrib]
   refine Finset.sum_le_sum fun k _ => ?_
@@ -86,7 +86,7 @@ weight of sup-norm at most
 one (`|w k| ≤ 1`) is bounded by the `ℓ¹` norm of the coefficients. With `w k = Tr[ρ P_k]` — every
 Pauli expectation has magnitude at most one — this is the Hölder step that turns a coefficient-`ℓ¹`
 bound into an expectation-value bound. -/
-theorem abs_trace_overlap_le (a w : K → ℝ) (hw : ∀ k, |w k| ≤ 1) :
+lemma abs_trace_overlap_le (a w : K → ℝ) (hw : ∀ k, |w k| ≤ 1) :
     |∑ k, a k * w k| ≤ l1 a := by
   unfold l1
   refine (Finset.abs_sum_le_sum_abs (fun k => a k * w k) Finset.univ).trans ?_
@@ -110,7 +110,7 @@ public def discarded (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → 
   l1 (evolve n (truncState init evolve trunc n)
         - trunc n (evolve n (truncState init evolve trunc n)))
 
-theorem discarded_nonneg (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ)) (n : ℕ) :
+lemma discarded_nonneg (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ)) (n : ℕ) :
     0 ≤ discarded init evolve trunc n := l1_nonneg _
 
 /-- **Coefficient-vector truncation-error bound (substochastic layers).** Under the named hypothesis
@@ -121,7 +121,7 @@ inequality and the nonexpansiveness of subsequent layers (telescoping). The Eq. 
 expectation-value corollary (under the same substochastic hypothesis) is
 `expectation_truncation_error_le`, obtained from this bound by the Hölder step
 `abs_trace_overlap_le`. -/
-theorem truncation_error_le (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
+lemma truncation_error_le (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
     (hne : ∀ n a b, l1 (evolve n a - evolve n b) ≤ l1 (a - b)) (L : ℕ) :
     l1 (exactState init evolve L - truncState init evolve trunc L)
       ≤ ∑ n ∈ Finset.range L, discarded init evolve trunc n := by
@@ -152,13 +152,13 @@ theorem truncation_error_le (init : K → ℝ) (evolve trunc : ℕ → (K → �
           (Finset.sum_range_succ _ L).symm
 
 /-- The error bound (sum of discarded norms) is nonnegative. -/
-theorem truncation_error_bound_nonneg (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
+lemma truncation_error_bound_nonneg (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
     (L : ℕ) : 0 ≤ ∑ n ∈ Finset.range L, discarded init evolve trunc n :=
   Finset.sum_nonneg fun n _ => discarded_nonneg init evolve trunc n
 
 /-- **Exact propagation incurs no error.** If nothing is discarded at any layer, the truncated
 trajectory equals the exact one (zero error). -/
-theorem truncation_error_exact (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
+lemma truncation_error_exact (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
     (hne : ∀ n a b, l1 (evolve n a - evolve n b) ≤ l1 (a - b)) (L : ℕ)
     (h : ∀ n, discarded init evolve trunc n = 0) :
     l1 (exactState init evolve L - truncState init evolve trunc L) = 0 := by
@@ -175,7 +175,7 @@ substochastic / `ℓ¹`-nonexpansive layers is bounded by the same sum of per-la
 `truncation_error_le`, and therefore inherits its `hne` hypothesis. For the Eq. (32) bound that uses
 transported dual weights instead of `ℓ¹` propagation, see
 `expectation_truncation_error_transport_le`. -/
-theorem expectation_truncation_error_le
+lemma expectation_truncation_error_le
     (init : K → ℝ) (evolve trunc : ℕ → (K → ℝ) → (K → ℝ))
     (hne : ∀ n a b, l1 (evolve n a - evolve n b) ≤ l1 (a - b))
     (w : K → ℝ) (hw : ∀ k, |w k| ≤ 1) (L : ℕ) :
@@ -268,7 +268,7 @@ witness is necessarily substochastic: a non-Clifford rotation `R_Z(θ)` sends
 `X`'s coefficient vector
 to `(cos 2θ, sin 2θ)` on `(X, Y)` with `ℓ¹`-mass up to `√2`, so `hne` cannot hold for a general
 rotation layer. -/
-theorem pauli_propagation_substochastic_witness :
+lemma pauli_propagation_substochastic_witness :
     ∃ (init : Fin 2 → ℝ) (evolve trunc : ℕ → (Fin 2 → ℝ) → (Fin 2 → ℝ)),
       (∀ n a b, l1 (evolve n a - evolve n b) ≤ l1 (a - b)) ∧
       0 < discarded init evolve trunc 0 ∧

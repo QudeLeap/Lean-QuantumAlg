@@ -40,7 +40,7 @@ def inputPermutation (modulus : Nat) (modulusPositive : 0 < modulus) :
       (inputBasisEquiv modulus.size).symm)
 
 /-- Actual original data labels read back the same independent mathematical permutation. -/
-theorem accumulateTarget_input_read (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateTarget_input_read (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index) :
     inputBasisEquiv modulus.size (inputPermutation modulus modulusPositive old) =
       AccumulateSpecification.permutation modulus modulusPositive
@@ -48,7 +48,7 @@ theorem accumulateTarget_input_read (modulus : Nat) (modulusPositive : 0 < modul
   (inputBasisEquiv modulus.size).apply_symm_apply _
 
 /-- Modulus one preserves every original quantum label, including arbitrary flags and padding. -/
-theorem accumulateTarget_input_one (old : (before (1 : Nat).size).register.Index) :
+lemma accumulateTarget_input_one (old : (before (1 : Nat).size).register.Index) :
     inputPermutation 1 (by decide) old = old := by
   apply (inputBasisEquiv (1 : Nat).size).injective
   rw [accumulateTarget_input_read, AccumulateSpecification.accumulateSpecification_one]
@@ -61,7 +61,7 @@ def permutation (modulus : Nat) (modulusPositive : 0 < modulus) :
       (PayloadPreparation.assembly modulus.size (modulus.size + 1)))
 
 /-- Complete mathematical assembly retains every fresh coordinate and updates only original data. -/
-theorem accumulateTarget_assembly (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateTarget_assembly (modulus : Nat) (modulusPositive : 0 < modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (old : (before modulus.size).register.Index) :
     permutation modulus modulusPositive
@@ -85,7 +85,7 @@ def operator (modulus : Nat) (modulusPositive : 0 < modulus) :
     (permutation modulus modulusPositive).symm
 
 /-- The exact mathematical basis action retains its full amplitude and every live field. -/
-theorem accumulateTarget_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateTarget_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (fresh : (InputPreparation.auxiliaryLayout modulus.size).register.Index)
     (old : (before modulus.size).register.Index) :
     (operator modulus modulusPositive).apply
@@ -112,7 +112,7 @@ def density (modulus : Nat) (modulusPositive : 0 < modulus) (Reference : Registe
       (InputPreparation.preparation modulus).normalized Reference input.state.quantumMarginal)
 
 /-- The independently prescribed complete joint target is normalized for every normalized input. -/
-theorem accumulateTarget_normalized (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma accumulateTarget_normalized (modulus : Nat) (modulusPositive : 0 < modulus)
     (Reference : Register) (input : Input (before modulus.size) Reference) :
     (density modulus modulusPositive Reference input).IsNormalized := by
   change (density modulus modulusPositive Reference input).mass = 1
@@ -140,7 +140,7 @@ private def selectedDensity (modulus : Nat) (modulusPositive : 0 < modulus) (Ref
   DensityOperator.observeSelectionWithReference (after modulus.size).quantumLayout
     Finset.univ Reference (density modulus modulusPositive Reference input)
 
-private theorem selected_normalized (modulus : Nat) (modulusPositive : 0 < modulus)
+private lemma selected_normalized (modulus : Nat) (modulusPositive : 0 < modulus)
     (Reference : Register) (input : Input (before modulus.size) Reference) :
     (selectedDensity modulus modulusPositive Reference input).IsNormalized := by
   change (selectedDensity modulus modulusPositive Reference input).mass = 1

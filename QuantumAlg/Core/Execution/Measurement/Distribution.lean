@@ -43,7 +43,7 @@ def diagonalSum (state : ExecutionState C R) (weight : C → R.Index → ℂ) : 
   ∑ basis : R.Index, ∑ value : C, weight value basis * (state.block value).matrix basis basis
 
 /-- A real classical pushforward moves only the value argument of a diagonal observation. -/
-theorem diagonalSum_mapClassical {D : Type} [Fintype D] [DecidableEq D]
+lemma diagonalSum_mapClassical {D : Type} [Fintype D] [DecidableEq D]
     (state : ExecutionState C R) (update : C → D)
     (weight : D → R.Index → ℂ) :
     diagonalSum (state.mapClassical update) weight =
@@ -58,7 +58,7 @@ theorem diagonalSum_mapClassical {D : Type} [Fintype D] [DecidableEq D]
   simp only [mul_ite, mul_zero, Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- On each diagonal entry, the actual measurement outcome equals its readout value. -/
-theorem diagonalSum_measureZ {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
+lemma diagonalSum_measureZ {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
     (state : ExecutionState C R) (readout : R.Index → Outcome)
     (weight : (C × Outcome) → R.Index → ℂ) :
     diagonalSum (state.measureZ readout) weight =
@@ -70,7 +70,7 @@ theorem diagonalSum_measureZ {Outcome : Type} [Fintype Outcome] [DecidableEq Out
     mul_ite, mul_zero, Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- An observed classical block's mass is exactly its diagonal fiber sum. -/
-theorem mapClassical_block_mass_diagonalSum {D : Type} [Fintype D] [DecidableEq D]
+lemma mapClassical_block_mass_diagonalSum {D : Type} [Fintype D] [DecidableEq D]
     (state : ExecutionState C R)
     (read : C → D) (value : D) :
     ((state.mapClassical read).block value).mass =
@@ -86,29 +86,39 @@ end ExecutionState
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
+variable (environment : ExecutionModel.Environment
+  (.quantum gates oracles operations services))
 
 open Execution
 
 /-- The diagonal observation follows the actual sequential Store writes and actual path values. -/
-theorem measurementSequence_diagonalSum {ctx : RuntimeCtx .quantum}
+lemma measurementSequence_diagonalSum {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (services.HiddenState × H))
     (weight : (Store ctx × (services.HiddenState × (H ×
-      (measurementSequence (gates := gates) (oracles := oracles)
+      (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
       (operations := operations) (classicalOracles := services)
       readouts).Path))) →
       (Register.prod ctx.register Reference).Index → ℂ) :
-    ExecutionState.diagonalSum ((measurementSequence (gates := gates) (oracles := oracles)
+    ExecutionState.diagonalSum ((measurementSequence (allowAllocation := allowAllocation) (gates :=
+      gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services)
-      readouts).execute Reference state) weight =
+      readouts).execute environment Reference state) weight =
       ExecutionState.diagonalSum state (fun value basis =>
-        weight (writeMeasurementPath (gates := gates) (oracles := oracles)
+        weight (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+          := oracles)
       (operations := operations) (classicalOracles := services) readouts value.1
-          (measurementBasisPath (gates := gates) (oracles := oracles)
+          (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
       (operations := operations) (classicalOracles := services) readouts basis.1),
-          (value.2.1, (value.2.2, measurementBasisPath (gates := gates) (oracles := oracles)
+          (value.2.1, (value.2.2, measurementBasisPath (allowAllocation := allowAllocation) (gates
+            := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) readouts basis.1)))
             basis) := by
   induction readouts generalizing H with
@@ -121,8 +131,9 @@ theorem measurementSequence_diagonalSum {ctx : RuntimeCtx .quantum}
   | cons head tail ih =>
       change ExecutionState.diagonalSum
         ((Circuit.seq (.measureZ head.wire head.output)
-          (measurementSequence (gates := gates) (oracles := oracles)
-      (operations := operations) (classicalOracles := services) tail)).execute Reference
+          (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
+      (operations := operations) (classicalOracles := services) tail)).execute environment Reference
             state) weight = _
       rw [execute_seq]
       simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
@@ -133,23 +144,29 @@ theorem measurementSequence_diagonalSum {ctx : RuntimeCtx .quantum}
 
 /-- The mass of an actual measured observation is its initial-state Born fiber,
 with the final Store and recorded path computed by the real ordered writes. -/
-theorem measurementSequence_observed_mass {ctx : RuntimeCtx .quantum}
+lemma measurementSequence_observed_mass {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) {Reference : Register} {H D : Type}
     [Fintype H] [Fintype D] (state : State ctx Reference (services.HiddenState × H))
     (read : Store ctx × (services.HiddenState × (H ×
-      (measurementSequence (gates := gates) (oracles := oracles)
+      (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
       (operations := operations) (classicalOracles := services)
       readouts).Path)) → D) (value : D) :
-    ((((measurementSequence (gates := gates) (oracles := oracles)
-      (operations := operations) (classicalOracles := services) readouts).execute Reference
+    ((((measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+      oracles)
+      (operations := operations) (classicalOracles := services) readouts).execute
+        environment Reference
       state).mapClassical read).block
       value).mass =
       (ExecutionState.diagonalSum state (fun original basis =>
-        if read (writeMeasurementPath (gates := gates) (oracles := oracles)
+        if read (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+          := oracles)
       (operations := operations) (classicalOracles := services) readouts original.1
-          (measurementBasisPath (gates := gates) (oracles := oracles)
+          (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
       (operations := operations) (classicalOracles := services) readouts basis.1),
-          (original.2.1, (original.2.2, measurementBasisPath (gates := gates) (oracles := oracles)
+          (original.2.1, (original.2.2, measurementBasisPath (allowAllocation := allowAllocation)
+            (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) readouts
             basis.1))) = value then 1 else 0)).re := by
   rw [ExecutionState.mapClassical_block_mass_diagonalSum, measurementSequence_diagonalSum]

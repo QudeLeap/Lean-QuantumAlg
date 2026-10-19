@@ -26,22 +26,24 @@ namespace MeasuredPlacement.Allocation
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ContextUnion MeasuredUncompute MAU.Inversion.SharedEEA
 
 /-- All supplied exponent systems are physically resident from the start. -/
 @[reducible] def exponents (width count : Nat) : RuntimeCtx .quantum :=
   indexedContext width (List.range count) List.nodup_range
 
-private theorem complete_disjoint (width count : Nat) :
+private lemma complete_disjoint (width count : Nat) :
     RuntimeCtx.StorageDisjoint (NumeratorMeasurement.context width) (exponents width count) :=
   indexedContext_disjoint width (List.range count) List.nodup_range
 
-private theorem auxiliary_disjoint (width count : Nat) :
+private lemma auxiliary_disjoint (width count : Nat) :
     RuntimeCtx.StorageDisjoint (InversePreparation.after width) (exponents width count) :=
   MeasurementCells.original_disjoint (InversePreparation.after width)
     (exponents width count) 2 width (complete_disjoint width count)
 
-private theorem input_disjoint (width count : Nat) :
+private lemma input_disjoint (width count : Nat) :
     RuntimeCtx.StorageDisjoint (InversePreparation.before width) (exponents width count) :=
   preparation_original_disjoint InversePreparation.auxiliaryKey
     (InputPreparation.auxiliaryLayout width) (InversePreparation.auxiliary_fresh width)
@@ -74,7 +76,7 @@ def allocateCells (width count : Nat) :
     (InversePreparation.after width)
     (exponents width count) 2 width (complete_disjoint width count)
 
-private theorem selector_entries (width count : Nat) :
+private lemma selector_entries (width count : Nat) :
     (indexedEntry width count :: (withCells width count).entries).Perm
       (readyContext width count).entries := by
   change (indexedEntry width count :: ((NumeratorMeasurement.context width).entries ++
@@ -84,13 +86,13 @@ private theorem selector_entries (width count : Nat) :
   rw [List.range_succ, List.map_append, List.map_cons, List.map_nil, ← List.append_assoc]
   exact (List.perm_append_singleton _ _).symm
 
-private theorem selector_fresh (width count : Nat) :
+private lemma selector_fresh (width count : Nat) :
     indexedKey width count ∉ (withCells width count).keys := by
   have distinct := ((selector_entries width count).map RuntimeEntry.key).nodup_iff.mpr
     (readyContext width count).keysNodup
   exact (List.nodup_cons.mp distinct).1
 
-private theorem selector_disjoint (width count : Nat) :
+private lemma selector_disjoint (width count : Nat) :
     List.Disjoint (indexedLayout width count).identities (withCells width count).physicalIdx := by
   have distinct := (((selector_entries width count).flatMap_right RuntimeEntry.quantumWires).map
     QuantumWire.identity).nodup_iff.mpr (readyContext width count).identitiesNodup
@@ -105,7 +107,7 @@ private theorem selector_disjoint (width count : Nat) :
     (selector_fresh width count) (selector_disjoint width count)
 
 /-- The actual allocated selector contributes a physical system at every parameter width. -/
-theorem after_systemCount_pos (width count : Nat) : 0 < (after width count).systemCount := by
+lemma after_systemCount_pos (width count : Nat) : 0 < (after width count).systemCount := by
   let selector : Fin (after width count).systemCount :=
     PreparationBorrowed.fullPositionEquiv (withCells width count)
       (indexedKey width count) (indexedLayout width count)
@@ -128,7 +130,7 @@ def initializeWork (modulus count : Nat) :
     (.seq (allocateCells modulus.size count) (prepareSelector modulus.size count))
 
 /-- The allocated output retains every common entry, original role and physical identity. -/
-theorem body_entries (width count : Nat) :
+lemma body_entries (width count : Nat) :
     (readyContext width count).entries.Perm (after width count).entries :=
   (selector_entries width count).symm
 
@@ -141,7 +143,7 @@ def output (width count : Nat) :
       (MeasurementCells.input (InversePreparation.after width) 2 width))))
 
 /-- Every live original or allocated entry occurs in the same complete output listing. -/
-theorem output_listing (width count : Nat) :
+lemma output_listing (width count : Nat) :
     (output width count).listing = (after width count).keys := Output.all_listing _ _
 
 
@@ -154,7 +156,7 @@ def initializationTrace (modulus count : Nat) :
     ZeroPreparation.eventTrace AlgorithmGate.model .empty (indexedLayout modulus.size count)
 
 /-- The actual initialization charges all auxiliary zeros, literal X loads and the selector zero. -/
-theorem initializeWork_eventTrace (modulus count : Nat)
+lemma initializeWork_eventTrace (modulus count : Nat)
     (path : (initializeWork modulus count).Path) :
     (initializeWork modulus count).eventTrace path = initializationTrace modulus count := by
   have loaded : (prepareAuxiliary modulus count).eventTrace path.1 =
@@ -177,39 +179,40 @@ theorem initializeWork_eventTrace (modulus count : Nat)
   rw [loaded, retained, List.nil_append]
 
 /-- The resource pool is derived from exactly those emitted native events. -/
-theorem initializeWork_resourcePool (modulus count : Nat)
+lemma initializeWork_resourcePool (modulus count : Nat)
     (path : (initializeWork modulus count).Path) :
     (initializeWork modulus count).resourcePool path =
       ResourcePool.ofList (initializationTrace modulus count) :=
   congrArg ResourcePool.ofList (initializeWork_eventTrace modulus count path)
 
 /-- Zero allocation and X loading preserve every store block and the full resident reference. -/
-theorem prepareAuxiliary_execute (modulus count : Nat)
+lemma prepareAuxiliary_execute (modulus count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (before modulus.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
     splitServiceState (InversePreparation.after modulus.size) (exponents modulus.size count)
       (auxiliary_disjoint modulus.size count)
-      ((prepareAuxiliary modulus count).execute Reference state) =
-      ((InPlacePreparation.circuit modulus).execute
+      ((prepareAuxiliary modulus count).execute environment Reference state) =
+      ((InPlacePreparation.circuit modulus).execute environment
         (Register.prod (exponents modulus.size count).register Reference)
         (splitServiceState (InversePreparation.before modulus.size) (exponents modulus.size count)
           (input_disjoint modulus.size count) state)).mapHistory
             (fun record => (record.1, (record.2.1.1, (record.2.1.2, record.2.2)))) :=
-  InPlacePreparation.Framed.execute modulus (exponents modulus.size count)
+  InPlacePreparation.Framed.execute
+    (environment := environment) modulus (exponents modulus.size count)
     (auxiliary_disjoint modulus.size count) state
 
 /-- The original retained cells keep every store, service, history and reference coordinate. -/
-theorem allocateCells_execute (width count : Nat)
+lemma allocateCells_execute (width count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ((InversePreparation.after width).disjointUnion (exponents width count)
       (auxiliary_disjoint width count)) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
     splitServiceState (NumeratorMeasurement.context width) (exponents width count)
       (complete_disjoint width count)
-      ((allocateCells width count).execute Reference state) =
+      ((allocateCells width count).execute environment Reference state) =
       ((MeasurementCells.allocate (model := .quantum AlgorithmGate.model .empty)
-        (InversePreparation.after width) 2 width).execute
+        (InversePreparation.after width) 2 width).execute environment
         (Register.prod (exponents width count).register Reference)
         (splitServiceState (InversePreparation.after width) (exponents width count)
           (auxiliary_disjoint width count) state)).mapHistory
@@ -218,16 +221,17 @@ theorem allocateCells_execute (width count : Nat)
                 (model := .quantum AlgorithmGate.model .empty)
                 (InversePreparation.after width) (exponents width count) 2 width
                 (complete_disjoint width count) record.2.2)))) :=
-  MeasurementCells.allocateFramed_execute (model := .quantum AlgorithmGate.model .empty)
+  MeasurementCells.allocateFramed_execute
+    (environment := environment) (model := .quantum AlgorithmGate.model .empty)
     (InversePreparation.after width) (exponents width count) 2 width
     (complete_disjoint width count) state
 
 /-- The selector instruction adds its actual zero factor to the complete incoming state. -/
-theorem prepareSelector_execute (width count : Nat)
+lemma prepareSelector_execute (width count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (withCells width count) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
-    (prepareSelector width count).execute Reference state =
+    (prepareSelector width count).execute environment Reference state =
       (state.prepare (indexedKey width count) (indexedLayout width count)
         (selector_fresh width count) (selector_disjoint width count)
         (BasisPreparation.zero (indexedLayout width count))).mapHistory

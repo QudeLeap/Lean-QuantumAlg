@@ -24,7 +24,7 @@ open NormalizedVector
 
 noncomputable section
 
-private theorem invSqrtCard_add (left right : Nat) :
+private lemma invSqrtCard_add (left right : Nat) :
     WalshHadamard.invSqrtCard (left + right) =
       WalshHadamard.invSqrtCard left * WalshHadamard.invSqrtCard right := by
   induction right with
@@ -47,7 +47,7 @@ def preOracleVec (params : RegisterParameters) :
 
 /-- The declared group permutation maps the uniform zero-workspace input to
 the exact source group-operation graph, with every exponent basis amplitude. -/
-theorem oracleOperator_apply_preOracle {N : Nat} {params : RegisterParameters}
+lemma oracleOperator_apply_preOracle {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) :
     (oracleOperator encoding g x).applyVec (preOracleVec params) =

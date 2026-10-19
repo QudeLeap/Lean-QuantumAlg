@@ -20,15 +20,17 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 private def five : Fin (2 ^ 3 + 1) := ⟨5, by decide⟩
 private def six : Fin (2 ^ 3 + 1) := ⟨6, by decide⟩
 private def oneAtThreeBits : Fin (2 ^ 3 + 1) := ⟨1, by decide⟩
 private def oneAtZeroWidth : Fin (2 ^ 0 + 1) := ⟨1, by decide⟩
 
-private theorem five_pos : 0 < five.val := by decide
-private theorem six_pos : 0 < six.val := by decide
-private theorem oneAtThreeBits_pos : 0 < oneAtThreeBits.val := by decide
-private theorem oneAtZeroWidth_pos : 0 < oneAtZeroWidth.val := by decide
+private lemma five_pos : 0 < five.val := by decide
+private lemma six_pos : 0 < six.val := by decide
+private lemma oneAtThreeBits_pos : 0 < oneAtThreeBits.val := by decide
+private lemma oneAtZeroWidth_pos : 0 < oneAtZeroWidth.val := by decide
 
 private def twoModFive : (ZMod 5)ˣ :=
   ZMod.unitOfCoprime 2 (by decide)
@@ -80,7 +82,7 @@ example :
 /-- The actual even-modulus gate list has exactly the independently specified
 phase-sensitive operator, including for every dirty-work basis label. -/
 example :
-    (arithmeticNativeSourceProgram 1 3 six six_pos fiveModSix).matrix =
+    (arithmeticNativeSourceProgram 1 3 six six_pos fiveModSix).matrix environment =
       arithmeticNativeSourceOperator 1 3 six six_pos fiveModSix :=
   arithmeticNativeSourceProgram_matrix 1 3 six six_pos fiveModSix
 

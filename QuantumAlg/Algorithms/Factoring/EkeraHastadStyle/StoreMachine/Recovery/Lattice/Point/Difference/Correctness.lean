@@ -26,14 +26,14 @@ noncomputable section
 
 variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem source_frame (refs : Refs ctx width) (separation : Separation refs)
+private lemma source_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (written : DifferenceCell) (source : SourceCell) :
     (store.applyOp (differenceOp (model := model) refs written)).read (sourceInput refs source) =
       store.read (sourceInput refs source) :=
   Store.read_applyOp_of_not_mem_storageKeys store (differenceOp (model := model) refs written) _
     (separation.sourceAvoidsDifference source written)
 
-private theorem output_frame (refs : Refs ctx width) (separation : Separation refs)
+private lemma output_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (written saved : DifferenceCell) (different : written ≠ saved) :
     (store.applyOp (differenceOp (model := model) refs written)).read
       (writeInput (differenceRef refs saved)) =
@@ -44,7 +44,7 @@ private theorem output_frame (refs : Refs ctx width) (separation : Separation re
   intro equal
   exact different (separation.differenceInjective equal)
 
-private theorem coordinate_correct (refs : Refs ctx width) (cell : DifferenceCell)
+private lemma coordinate_correct (refs : Refs ctx width) (cell : DifferenceCell)
     (store : Store ctx) (left right : Int)
     (leftRep : RawSignedRepresents (store.read (sourceInput refs (pointSource cell))) left)
     (rightRep : RawSignedRepresents (store.read (sourceInput refs (targetSource cell))) right) :
@@ -57,7 +57,7 @@ private theorem coordinate_correct (refs : Refs ctx width) (cell : DifferenceCel
     (store.read (sourceInput refs (targetSource cell))) left right leftRep rightRep
 
 /-- The three actual stored coordinates represent the original integer point difference. -/
-theorem pointDifferenceInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma pointDifferenceInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (point target : NumberTheory.IntegerPoint3)
     (pointRep : LatticeArithmetic.PointRawRepresents store refs.point point)
     (targetRep : LatticeArithmetic.PointRawRepresents store refs.target target) :

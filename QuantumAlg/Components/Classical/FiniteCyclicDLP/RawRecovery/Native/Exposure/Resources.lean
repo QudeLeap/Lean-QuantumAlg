@@ -60,7 +60,7 @@ def selectedExposureEvents (model : ExecutionModel) [BitWord.Selected model] (wi
     List (Resource.Event model) :=
   (if selected then recoveryEvents model width else []) ++ exposureCopyEvents model width
 
-private theorem exposureCopy_eventTrace
+private lemma exposureCopy_eventTrace
     (success : CInputRef ctx .bit) (recoveredCandidate : CInputRef ctx (.unsignedWord width))
     (verified : CInputRef ctx .bit) (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width)) (reconstruction : CWriteRef ctx .bit)
@@ -78,7 +78,7 @@ private theorem exposureCopy_eventTrace
   simp only [BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem exposureCopy_duration
+private lemma exposureCopy_duration
     (success : CInputRef ctx .bit) (recoveredCandidate : CInputRef ctx (.unsignedWord width))
     (verified : CInputRef ctx .bit) (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width)) (reconstruction : CWriteRef ctx .bit)
@@ -98,7 +98,7 @@ private theorem exposureCopy_duration
   rfl
 
 /-- Actual status-selected recovery has its eight operations followed by the three copies. -/
-theorem withSelectedExposure_eventTrace
+lemma withSelectedExposure_eventTrace
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -132,7 +132,7 @@ theorem withSelectedExposure_eventTrace
         rfl
 
 /-- The stored success branch emits eleven events, and the failed branch emits three. -/
-theorem withSelectedExposure_eventCount
+lemma withSelectedExposure_eventCount
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -155,7 +155,7 @@ def selectedExposureDepthLimit (width : Nat) (duration : Resource.Event model �
         ((exposureCopyEvents model width).map duration).sum
 
 /-- Actual durations retain the selected arithmetic and the common output-copy sequence. -/
-theorem withSelectedExposure_durationDepth
+lemma withSelectedExposure_durationDepth
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -194,7 +194,7 @@ theorem withSelectedExposure_durationDepth
         rw [withRecovery_durationDepth, exposureCopy_duration]
         rfl
 
-private theorem selectedExposure_pool_le
+private lemma selectedExposure_pool_le
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -211,7 +211,7 @@ private theorem selectedExposure_pool_le
     exact le_add_self
   · exact le_rfl
 
-private theorem selectedExposure_depth_le
+private lemma selectedExposure_depth_le
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -227,7 +227,7 @@ private theorem selectedExposure_depth_le
     omega
   · exact le_rfl
 
-private theorem exposureCopy_resident
+private lemma exposureCopy_resident
     (success : CInputRef ctx .bit) (recoveredCandidate : CInputRef ctx (.unsignedWord width))
     (verified : CInputRef ctx .bit) (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width)) (reconstruction : CWriteRef ctx .bit)
@@ -239,7 +239,7 @@ private theorem exposureCopy_resident
     (SpacePool.max ctx.residentSpace (SpacePool.max ctx.residentSpace 0)) = _
   simp only [SpacePool.max_zero, SpacePool.max_self]
 
-private theorem exposureBody_resident_le
+private lemma exposureBody_resident_le
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
@@ -262,7 +262,7 @@ private theorem exposureBody_resident_le
   · exact (exposureCopy_resident _ _ _ _ _ _ path.2).le.trans le_add_self
 
 /-- The real payload and successful recovery scratch bound every resident exposure path. -/
-theorem withSelectedExposure_resident_le
+lemma withSelectedExposure_resident_le
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -283,7 +283,7 @@ theorem withSelectedExposure_resident_le
           (writeUnderSelection inverseSuccess width) (writeUnderSelection candidate width)
           (writeUnderSelection reconstruction width) path
 
-private theorem exposureCopy_auxiliary
+private lemma exposureCopy_auxiliary
     (success : CInputRef ctx .bit) (recoveredCandidate : CInputRef ctx (.unsignedWord width))
     (verified : CInputRef ctx .bit) (inverseSuccess : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width)) (reconstruction : CWriteRef ctx .bit)
@@ -295,7 +295,7 @@ private theorem exposureCopy_auxiliary
     (SpacePool.max ctx.auxiliarySpace (SpacePool.max ctx.auxiliarySpace 0)) = _
   simp only [SpacePool.max_zero, SpacePool.max_self]
 
-private theorem exposureBody_auxiliary_le
+private lemma exposureBody_auxiliary_le
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (payload : CWriteRef ctx (FiniteCyclicDLP.OutputShape width))
@@ -318,7 +318,7 @@ private theorem exposureBody_auxiliary_le
   · exact (exposureCopy_auxiliary _ _ _ _ _ _ path.2).le.trans le_add_self
 
 /-- The real payload and successful recovery scratch bound every auxiliary exposure path. -/
-theorem withSelectedExposure_auxiliary_le
+lemma withSelectedExposure_auxiliary_le
     (input : CInputRef ctx (FiniteCyclicDLP.InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1))) (success : CInputRef ctx .bit)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
@@ -350,7 +350,7 @@ public def checkedExposureDepthLimit (spec : ModulusSpec width)
     (duration : Resource.Event model → Nat) : Nat :=
   checkedInverseDepthLimit spec duration + selectedExposureDepthLimit width duration
 
-private theorem checkedExposureBody_pool_le (spec : ModulusSpec width)
+private lemma checkedExposureBody_pool_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -371,7 +371,7 @@ private theorem checkedExposureBody_pool_le (spec : ModulusSpec width)
     (selectedExposure_pool_le _ _ _ _ _ _ path.2)
 
 /-- Both actual checked result cells remain live through the complete pool exposure bound. -/
-theorem withCheckedExposure_pool_le (spec : ModulusSpec width)
+lemma withCheckedExposure_pool_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)
@@ -392,7 +392,7 @@ theorem withCheckedExposure_pool_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       checkedExposureBody_pool_le _ _ _ _ _ _ _ _ _ selected) path
 
-private theorem checkedExposureBody_depth_le (spec : ModulusSpec width)
+private lemma checkedExposureBody_depth_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -407,7 +407,7 @@ private theorem checkedExposureBody_depth_le (spec : ModulusSpec width)
     (selectedExposure_depth_le _ _ _ _ _ _ duration path.2)
 
 /-- Both actual checked result cells remain live through the complete depth exposure bound. -/
-theorem withCheckedExposure_depth_le (spec : ModulusSpec width)
+lemma withCheckedExposure_depth_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (duration : Resource.Event model → Nat)
@@ -428,7 +428,7 @@ theorem withCheckedExposure_depth_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       checkedExposureBody_depth_le _ _ _ _ _ _ _ _ _ duration selected) path
 
-private theorem checkedExposureBody_resident_le (spec : ModulusSpec width)
+private lemma checkedExposureBody_resident_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -446,7 +446,7 @@ private theorem checkedExposureBody_resident_le (spec : ModulusSpec width)
       (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- Both actual checked result cells remain live through the complete resident exposure bound. -/
-theorem withCheckedExposure_resident_le (spec : ModulusSpec width)
+lemma withCheckedExposure_resident_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)
@@ -468,7 +468,7 @@ theorem withCheckedExposure_resident_le (spec : ModulusSpec width)
     (fun cells _ transport _ selected =>
       checkedExposureBody_resident_le _ _ _ _ _ _ _ _ _ selected) path
 
-private theorem checkedExposureBody_auxiliary_le (spec : ModulusSpec width)
+private lemma checkedExposureBody_auxiliary_le (spec : ModulusSpec width)
     (left negatedRight : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (success : CWriteRef ctx .bit) (inverse : CWriteRef ctx (.unsignedWord width))
@@ -486,7 +486,7 @@ private theorem checkedExposureBody_auxiliary_le (spec : ModulusSpec width)
       (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- Both actual checked result cells remain live through the complete auxiliary exposure bound. -/
-theorem withCheckedExposure_auxiliary_le (spec : ModulusSpec width)
+lemma withCheckedExposure_auxiliary_le (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width)
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)
@@ -532,7 +532,7 @@ public def singleExposureActiveSpace (kind : ProblemKind) (width : Nat) : SpaceP
     (checkedExposurePersistentSpace kind width)
 
 /-- The complete actual raw exposure retains every stage and scope in its pool bound. -/
-theorem singleIntoCells_pool_le (spec : ModulusSpec width)
+lemma singleIntoCells_pool_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)
@@ -561,7 +561,7 @@ theorem singleIntoCells_pool_le (spec : ModulusSpec width)
         (withCheckedExposure_pool_le _ _ _ _ _ selected.2)) path
 
 /-- The complete actual raw exposure retains every stage and scope in its depth bound. -/
-theorem singleIntoCells_depth_le (spec : ModulusSpec width)
+lemma singleIntoCells_depth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit) (duration : Resource.Event model → Nat)
@@ -584,7 +584,7 @@ theorem singleIntoCells_depth_le (spec : ModulusSpec width)
 set_option maxHeartbeats 400000 in
 -- Nested lexical-space maxima require normalization through both allocation scopes.
 /-- The complete actual raw exposure retains every stage and scope in its resident bound. -/
-theorem singleIntoCells_resident_le (spec : ModulusSpec width)
+lemma singleIntoCells_resident_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)
@@ -611,7 +611,7 @@ theorem singleIntoCells_resident_le (spec : ModulusSpec width)
 set_option maxHeartbeats 400000 in
 -- The auxiliary proof follows the same nested allocation expression as the resident bound.
 /-- The complete actual raw exposure retains every stage and scope in its auxiliary bound. -/
-theorem singleIntoCells_auxiliary_le (spec : ModulusSpec width)
+lemma singleIntoCells_auxiliary_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)
@@ -636,7 +636,7 @@ theorem singleIntoCells_auxiliary_le (spec : ModulusSpec width)
           (add_le_add (SpacePool.le_max_right _ _) le_rfl)) path
 
 /-- Unit durations charge preparation and eleven possible recovery and copy instructions. -/
-theorem singleIntoCells_unitDepth_le (spec : ModulusSpec width)
+lemma singleIntoCells_unitDepth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)

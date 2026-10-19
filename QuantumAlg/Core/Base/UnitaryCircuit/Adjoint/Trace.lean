@@ -23,7 +23,7 @@ noncomputable section
 
 variable {gates : GateModel} {oracles : OracleModel}
 
-private theorem reverseWords_eventTrace {count : Nat} {layout : QuantumLayout count}
+private lemma reverseWords_eventTrace {count : Nat} {layout : QuantumLayout count}
     (words : List (UnitaryCircuit gates oracles layout)) :
     (reverseWords words).eventTrace = (words.reverse.map eventTrace).flatten := by
   induction words with
@@ -34,7 +34,7 @@ private theorem reverseWords_eventTrace {count : Nat} {layout : QuantumLayout co
         List.map_append, List.map_singleton, List.flatten_append, List.flatten_singleton]
 
 /-- Singleton inverse implementations reverse the actual complete ordered event word. -/
-public theorem dagger_eventTrace_of_singletons
+public lemma dagger_eventTrace_of_singletons
     (implementations : AdjointRealizations gates oracles gates oracles)
     (nativeTrace : ∀ {count : Nat} {layout : QuantumLayout count}
       (application : GateModel.Application gates layout),

@@ -25,6 +25,9 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorResetMatrix
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+  {runtimeEnvironment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement NumeratorObservation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -35,10 +38,11 @@ def framePrefix (width : Nat) (basis : (context width).register.Index) :
   ((prodEquiv (m := (encoding width).width) (n := width)).symm (frameBasis width basis)).1
 
 /-- The actual selected reset has a literal delta column on its own measured outcome. -/
-theorem member_column (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2)))
+lemma member_column (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2)))
     (source row : (context width).register.Index)
     (same : word width source = NumeratorReset.outcome value) :
-    (NumeratorRuntime.program width (NumeratorReset.member width value)).matrix row source =
+    ((NumeratorRuntime.program width (NumeratorReset.member width value)).matrix environment) row
+      source =
       (NormalizedVector.ket (R := Qubits (OutputCopy.encoding width).width)
         (prodEquiv (framePrefix width source, (0 : Fin (2 ^ width))))) (frameBasis width row) := by
   have packed : prodEquiv (framePrefix width source, word width source) = frameBasis width source :=
@@ -50,9 +54,9 @@ theorem member_column (width : Nat) (value : CShape.Value (.fixedVector width (.
   have column := congrArg
     (fun vector : NormalizedVector (Qubits (OutputCopy.encoding width).width) =>
       vector (frameBasis width row))
-    (NumeratorReset.member_ket width value (framePrefix width source))
+    (NumeratorReset.member_ket (environment := environment) width value (framePrefix width source))
   have matrixColumn := (HilbertOperator.applyVec_ket
-    ((NumeratorReset.member width value).binaryMatrix :
+    (((NumeratorReset.member width value).binaryMatrix environment) :
       HilbertOperator (Qubits (OutputCopy.encoding width).width))
     (prodEquiv (framePrefix width source, NumeratorReset.outcome value))
       (frameBasis width row)).symm.trans column
@@ -60,10 +64,11 @@ theorem member_column (width : Nat) (value : CShape.Value (.fixedVector width (.
   exact matrixColumn
 
 /-- No actual reset column on its measured support has an output with nonzero Y. -/
-theorem member_zero (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2)))
+lemma member_zero (width : Nat) (value : CShape.Value (.fixedVector width (.finite 2)))
     (source row : (context width).register.Index)
     (same : word width source = NumeratorReset.outcome value) (nonzero : word width row ≠ 0) :
-    (NumeratorRuntime.program width (NumeratorReset.member width value)).matrix row source = 0 := by
+    ((NumeratorRuntime.program width (NumeratorReset.member width value)).matrix environment) row
+      source = 0 := by
   classical
   rw [member_column width value source row same]
   refine (NormalizedVector.ket_apply (R := Qubits (OutputCopy.encoding width).width)
@@ -78,24 +83,27 @@ theorem member_zero (width : Nat) (value : CShape.Value (.fixedVector width (.fi
   exact nonzero zero
 
 /-- The selected actual reset on a real stored measurement block keeps every reference entry. -/
-def density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+def density (runtimeEnvironment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment)
+    (width : Nat) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     DensityOperator (Register.prod (context width).register Reference) :=
   DensityOperator.applyUnitary
     (UnitaryOperator.prodTensor
-      (NumeratorRuntime.program width
+      ((NumeratorRuntime.program width
         (NumeratorReset.member width (stored.read (input width)))).matrix
+          runtimeEnvironment.quantum)
       (1 : UnitaryOperator Reference))
-    (NumeratorMeasuredSupport.density width state stored)
+    (NumeratorMeasuredSupport.density runtimeEnvironment width state stored)
 
 /-- Every full output row with nonzero Y vanishes, including all reference coordinates. -/
-theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+lemma row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index)
     (nonzero : word width left ≠ 0) :
-    (density width state stored).matrix (left, leftRef) (right, rightRef) = 0 := by
+    (density runtimeEnvironment width state stored).matrix (left, leftRef) (right, rightRef) = 0 :=
+      by
   classical
   rw [density, DensityOperator.localUnitary_block]
   simp only [Matrix.mul_apply, Matrix.submatrix_apply, Matrix.conjTranspose_apply]
@@ -105,40 +113,46 @@ theorem row_zero (width : Nat) {Reference : Register} {History : Type} [Fintype 
   apply Finset.sum_eq_zero
   intro source _
   by_cases same : word width source = NumeratorReset.outcome (stored.read (input width))
-  · rw [member_zero width (stored.read (input width)) source left same nonzero, zero_mul]
-  · rw [NumeratorMeasuredSupport.row_zero width state stored source column leftRef rightRef same,
+  · rw [member_zero (environment := runtimeEnvironment.quantum) width (stored.read (input width))
+    source left same nonzero, zero_mul]
+  · rw [NumeratorMeasuredSupport.row_zero (environment := runtimeEnvironment) width state stored
+    source column leftRef rightRef same,
       mul_zero]
 
 /-- This density is the actual sequential Z-write and stored-result reset block. -/
-theorem actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+lemma actual_density (width : Nat) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     (ExecutionState.filterClassical
       ((Circuit.seq (NumeratorMeasurement.measure width) (NumeratorReset.reset width)).execute
-        Reference state) (fun entry => entry.1 = stored)).quantumMarginal =
-      density width state stored := by
+        runtimeEnvironment Reference state) (fun entry => entry.1 = stored)).quantumMarginal =
+      density runtimeEnvironment width state stored := by
   rw [Circuit.seq_store_marginal]
   apply DensityOperator.ext
   exact Circuit.selectedUnitary_store_matrix (input width)
     (fun value => NumeratorRuntime.program width (NumeratorReset.member width value))
-    ((NumeratorMeasurement.measure width).execute Reference state) stored
+    runtimeEnvironment ((NumeratorMeasurement.measure width).execute runtimeEnvironment Reference
+      state) stored
 
 /-- The complete actual H/Z/reset sequence has no output numerator support away from zero. -/
-theorem actual_code_row_zero (width : Nat) {Reference : Register} {History : Type}
+lemma actual_code_row_zero (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (stored : Store (context width))
     (left right : (context width).register.Index) (leftRef rightRef : Reference.Index)
     (nonzero : word width left ≠ 0) :
-    (ExecutionState.filterClassical ((NumeratorReset.code width).execute Reference state)
+    (ExecutionState.filterClassical ((NumeratorReset.code width).execute runtimeEnvironment
+      Reference state)
       (fun entry => entry.1 = stored)).quantumMarginal.matrix (left, leftRef) (right, rightRef) =
       0 := by
   change (ExecutionState.filterClassical
     ((Circuit.seq (NumeratorReset.hadamard width)
       (.seq (NumeratorMeasurement.measure width) (NumeratorReset.reset width))).execute
-      Reference state) (fun entry => entry.1 = stored)).quantumMarginal.matrix _ _ = 0
+        runtimeEnvironment Reference state) (fun entry => entry.1 = stored)).quantumMarginal.matrix
+        _ _ = 0
   rw [Circuit.seq_store_marginal, actual_density]
-  exact row_zero width ((NumeratorReset.hadamard width).execute Reference state) stored
+  exact row_zero width ((NumeratorReset.hadamard width).execute runtimeEnvironment Reference state)
+    stored
     left right leftRef rightRef nonzero
 
 end

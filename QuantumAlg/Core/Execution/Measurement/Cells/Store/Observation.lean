@@ -27,16 +27,18 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+  (environment :
+    (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
 
 /-- Every complete-store weight follows the actual allocation's initialized store extension. -/
-theorem allocate_referenceFiberSum_store (ctx : RuntimeCtx .quantum)
+lemma allocate_referenceFiberSum_store (ctx : RuntimeCtx .quantum)
     (dimension : ℕ+) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History)) :
     ∀ (weight : Store (context ctx dimension count) → ℂ) (leftRef rightRef : Reference.Index),
       ExecutionState.referenceFiberSum
           ((allocate (model := .quantum gates oracles operations classicalOracles)
-            ctx dimension count).execute Reference state)
+            ctx dimension count).execute environment Reference state)
           (fun entry _ => weight entry.1) leftRef rightRef =
         ExecutionState.referenceFiberSum state
           (fun entry _ => weight (pushStore dimension count entry.1)) leftRef rightRef := by
@@ -48,7 +50,7 @@ theorem allocate_referenceFiberSum_store (ctx : RuntimeCtx .quantum)
             (classicalOracles.HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum output (fun entry _ => weight entry.1)
             leftRef rightRef)
-        (Circuit.execute_id_mapClassical
+        (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
           (model := .quantum gates oracles operations classicalOracles) Reference state)
       exact executed.trans (ExecutionState.referenceFiberSum_mapClassical state
         (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
@@ -61,13 +63,14 @@ theorem allocate_referenceFiberSum_store (ctx : RuntimeCtx .quantum)
       let retained := Circuit.retain
         (model := .quantum gates oracles operations classicalOracles)
         middle middle.canonicalFreshKey (.finite dimension) middle.canonicalFreshKey_fresh
-      have sequence := Circuit.referenceFiberSum_execute_seq previous retained state weight
+      have sequence := Circuit.referenceFiberSum_execute_seq
+        (environment := environment) previous retained state weight
         leftRef rightRef
-      have last := Circuit.referenceFiberSum_execute_retain
+      have last := Circuit.referenceFiberSum_execute_retain (environment := environment)
         (gates := gates) (oracles := oracles) (operations := operations)
         (classicalOracles := classicalOracles) middle.canonicalFreshKey
         (.finite dimension) middle.canonicalFreshKey_fresh
-        (previous.execute Reference state) weight leftRef rightRef
+        (previous.execute environment Reference state) weight leftRef rightRef
       exact sequence.trans (last.trans
         (induction (fun store => weight (store.pushRetained middle.canonicalFreshKey
           (.finite dimension) middle.canonicalFreshKey_fresh)) leftRef rightRef))

@@ -43,14 +43,14 @@ public def withEmptyService (input : Input ctx Reference) :
     input.normalized
 
 /-- Projecting away the empty service recovers the entire original caller state. -/
-public theorem oracleInput_withEmptyService_caller_state (input : Input ctx Reference) :
+public lemma oracleInput_withEmptyService_caller_state (input : Input ctx Reference) :
     (withEmptyService input).caller.state = input.state := by
   dsimp only [caller, withEmptyService]
   rw [ExecutionState.executionState_mapClassical_comp_instances (result := inferInstance)]
   exact ExecutionState.mapClassical_id input.state
 
 /-- The unique empty service can also be recovered from any complete incoming input. -/
-public theorem oracleInput_empty_caller_withEmptyService_state
+public lemma oracleInput_empty_caller_withEmptyService_state
     (input : OracleInput ClassicalOracleModel.empty ctx Reference) :
     (withEmptyService input.caller).state = input.state := by
   dsimp only [withEmptyService, caller]

@@ -7,3 +7,5 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.Factoring.ShorStyle.Endpoint
+public import QuantumAlg.Algorithms.Factoring.ShorStyle.Real
+public import QuantumAlg.Algorithms.Factoring.ShorStyle.Real.Results

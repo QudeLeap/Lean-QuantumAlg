@@ -35,6 +35,7 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 variable (control : EncodedBit encoding)
 variable (sourceNe : ∀ index, control.wire ≠ (layout.source.bit index).wire)
 variable (outputNe : control.wire ≠ layout.output.wire)
@@ -63,7 +64,7 @@ def withControl : OneDirtyLayout (encoding := encoding) (controls + 1) where
   work_output_ne := layout.work_output_ne
 
 include sourceNe outputNe in
-private theorem control_complemented_get (state : Data) :
+private lemma control_complemented_get (state : Data) :
     control.get (GateSpec.stepList layout.reflectionWord.complementGates state) =
       control.get state := by
   apply layout.reflectionWord.complementGates_get_other control
@@ -72,7 +73,7 @@ private theorem control_complemented_get (state : Data) :
   · exact outputNe.symm
   · exact (sourceNe index).symm
 
-private theorem controlled_complemented_condition (state : Data) :
+private lemma controlled_complemented_condition (state : Data) :
     ((∀ index, ((layout.withControl control sourceNe outputNe workNe).source.bit index).get
         (GateSpec.stepList layout.reflectionWord.complementGates state) = true) ∧
       layout.output.get (GateSpec.stepList layout.reflectionWord.complementGates state) = true) ↔
@@ -100,14 +101,15 @@ private theorem controlled_complemented_condition (state : Data) :
   rw [headAndTail, control_complemented_get layout control sourceNe outputNe]
   simp only [sourceGet, outputGet, notTrue, reflectedZero, and_assoc]
 
-private theorem list_applyVec (gates : List (GateSpec encoding)) (state : Data) :
-    (GateSpec.programList physical oracles gates).applyVec
+private lemma list_applyVec (gates : List (GateSpec encoding)) (state : Data) :
+    (GateSpec.programList physical oracles gates).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       (NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm (encoding.encode (GateSpec.stepList gates state)))).vec :=
   congrArg NormalizedVector.vec
-    ((GateSpec.realizesList physical oracles gates).apply_encoded_ket state)
+    ((GateSpec.realizesList physical oracles (environment := environment) gates).apply_encoded_ket
+      state)
 
 /-- Controlled negative zero phase, without complementing the external positive control. -/
 def controlledNegativeZeroPhase : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
@@ -115,8 +117,9 @@ def controlledNegativeZeroPhase : UnitaryCircuit AlgorithmGate.model oracles phy
     ((layout.withControl control sourceNe outputNe workNe).phaseProgram physical oracles)).seq
       (GateSpec.programList physical oracles layout.reflectionWord.complementGates.reverse)
 
-private theorem controlledNegativeZeroPhase_applyVec (state : Data) :
+private lemma controlledNegativeZeroPhase_applyVec (state : Data) :
     (layout.controlledNegativeZeroPhase physical oracles control sourceNe outputNe workNe).applyVec
+      environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       (if control.get state = true ∧ layout.reflectedZero state then (-1 : ℂ) else 1) •
@@ -125,7 +128,7 @@ private theorem controlledNegativeZeroPhase_applyVec (state : Data) :
   simp only [controlledNegativeZeroPhase, UnitaryCircuit.applyVec_seq]
   rw [list_applyVec, phaseProgram_applyVec_encoded_ket]
   change (GateSpec.programList physical oracles
-    layout.reflectionWord.complementGates.reverse).applyVec
+    layout.reflectionWord.complementGates.reverse).applyVec environment
     (if (∀ index,
         ((layout.withControl control sourceNe outputNe workNe).source.bit index).get
           (GateSpec.stepList layout.reflectionWord.complementGates state) = true) ∧
@@ -154,9 +157,9 @@ def controlledZeroReflectionProgram :
     (control.pauliZ physical oracles)
 
 /-- Control zero is exact identity; control one has precisely the source's positive zero phase. -/
-theorem controlledZeroReflectionProgram_applyVec_encoded_ket (state : Data) :
+lemma controlledZeroReflectionProgram_applyVec_encoded_ket (state : Data) :
     (layout.controlledZeroReflectionProgram physical oracles control
-      sourceNe outputNe workNe).applyVec
+      sourceNe outputNe workNe).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       if control.get state then
@@ -173,7 +176,7 @@ theorem controlledZeroReflectionProgram_applyVec_encoded_ket (state : Data) :
   by_cases zeroWord : layout.reflectedZero state <;> cases control.get state <;> simp [zeroWord]
 
 /-- The literal controlled source reflection charges all actual gates, including its final Z. -/
-theorem controlledZeroReflectionProgram_eventTrace_length :
+lemma controlledZeroReflectionProgram_eventTrace_length :
     (layout.controlledZeroReflectionProgram physical oracles control
       sourceNe outputNe workNe).eventTrace.length =
       2 * (controls + 1) + (layout.withControl control sourceNe outputNe workNe).gates.length +
@@ -185,7 +188,7 @@ theorem controlledZeroReflectionProgram_eventTrace_length :
   omega
 
 /-- Adding the positive control keeps the actual elementary event count linear. -/
-theorem controlledZeroReflectionProgram_eventTrace_length_le :
+lemma controlledZeroReflectionProgram_eventTrace_length_le :
     (layout.controlledZeroReflectionProgram physical oracles control
       sourceNe outputNe workNe).eventTrace.length ≤
       10 * (controls + 1) + 4 := by

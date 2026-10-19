@@ -39,7 +39,7 @@ def montgomeryCoordinates (fieldTail : Nat) (sameWidth : fieldTail.succ = p.size
     (Semantics.montgomeryWord fieldTail p (Fact.out : Nat.Prime p).pos fits point.y))
 
 /-- The actual retained coordinate words denote exactly the two radix-scaled field values. -/
-theorem montgomeryCoordinates_fieldWords (fieldTail : Nat)
+lemma montgomeryCoordinates_fieldWords (fieldTail : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ)
     (point : AffinePoint E) :
     montgomeryCoordinates fieldTail sameWidth fits point =
@@ -49,7 +49,7 @@ theorem montgomeryCoordinates_fieldWords (fieldTail : Nat)
     (montgomeryWord_fieldWord fieldTail sameWidth fits point.y)
 
 /-- The actual paired input contains precisely these two words beside its original exponents. -/
-theorem pairedMontgomeryInput_coordinates (fieldTail exponentWidth : Nat)
+lemma pairedMontgomeryInput_coordinates (fieldTail exponentWidth : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ)
     (point : AffinePoint E) (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) :
     pairedMontgomeryInput fieldTail exponentWidth sameWidth fits point branch =
@@ -58,7 +58,7 @@ theorem pairedMontgomeryInput_coordinates (fieldTail exponentWidth : Nat)
         (montgomeryCoordinates fieldTail sameWidth fits point).2 := rfl
 
 /-- Retained Montgomery word equality is exactly equality in the original curve group. -/
-theorem montgomeryCoordinates_eq_iff_group (fieldTail : Nat)
+lemma montgomeryCoordinates_eq_iff_group (fieldTail : Nat)
     (sameWidth : fieldTail.succ = p.size) (fits : p < 2 ^ fieldTail.succ) (odd : Odd p)
     (left right : AffinePoint E) :
     montgomeryCoordinates fieldTail sameWidth fits left =

@@ -28,16 +28,16 @@ variable (placement : FullPlacement source target)
 private def mappedWire (index : Fin source.width) : Fin target.width :=
   ⟨placement.physicalIndex index.val, placement.wire_within index⟩
 
-private theorem mappedWire_injective : Function.Injective placement.mappedWire := by
+private lemma mappedWire_injective : Function.Injective placement.mappedWire := by
   intro left right same
   exact placement.wire_injective (congrArg Fin.val same)
 
-private theorem bitIndex_rev_value {width : Nat} (index : Fin width) :
+private lemma bitIndex_rev_value {width : Nat} (index : Fin width) :
     (WireAddress.bitIndex index).val = index.rev.val := by
   rw [WireAddress.bitIndex_val, Fin.val_rev]
   omega
 
-private theorem mappedWire_bit (label : Fin (2 ^ source.width)) (index : Fin source.width) :
+private lemma mappedWire_bit (label : Fin (2 ^ source.width)) (index : Fin source.width) :
     (placement.basis label).val.testBit
         (WireAddress.bitIndex (placement.mappedWire index)).val =
       label.val.testBit (WireAddress.bitIndex index).val := by
@@ -45,7 +45,7 @@ private theorem mappedWire_bit (label : Fin (2 ^ source.width)) (index : Fin sou
   simpa only [BinaryBasis.bigEndianEquiv_symm_value, Equiv.apply_symm_apply,
     bitIndex_rev_value, mappedWire] using same
 
-private theorem mappedWire_flip (wire : Fin source.width) (label : Fin (2 ^ source.width)) :
+private lemma mappedWire_flip (wire : Fin source.width) (label : Fin (2 ^ source.width)) :
     placement.basis (WireAddress.flipBit wire label) =
       WireAddress.flipBit (placement.mappedWire wire) (placement.basis label) := by
   apply (BinaryBasis.bigEndianEquiv target.width).symm.injective
@@ -78,7 +78,7 @@ def placeBit (bit : EncodedBit source) : EncodedBit target where
     rw [Equiv.apply_symm_apply, bit.encode_flip, placement.mappedWire_flip,
       placement.basis_encode]
 
-private theorem placeBit_wire_ne {first second : EncodedBit source}
+private lemma placeBit_wire_ne {first second : EncodedBit source}
     (different : first.wire ≠ second.wire) :
     (placement.placeBit first).wire ≠ (placement.placeBit second).wire :=
   fun same => different (placement.mappedWire_injective same)
@@ -95,7 +95,7 @@ def placeGate : GateSpec source → GateSpec target
         (placement.placeBit_wire_ne secondTarget)
 
 /-- The placed primitive has the full transported basis action, including unchanged fields. -/
-theorem placeGate_step (gate : GateSpec source) (state : Target) :
+lemma placeGate_step (gate : GateSpec source) (state : Target) :
     (placement.placeGate gate).step state = placement.step gate.step state := by
   cases gate with
   | x bit => rfl
@@ -110,12 +110,12 @@ theorem placeGate_step (gate : GateSpec source) (state : Target) :
       · simp [placeGate, GateSpec.step, toffoliStep, placeBit, step, selected]
 
 /-- Each native event remains attached to the same original primitive. -/
-@[simp] theorem placeGate_event (oracles : OracleModel) (gate : GateSpec source) :
+@[simp] lemma placeGate_event (oracles : OracleModel) (gate : GateSpec source) :
     (placement.placeGate gate).event oracles = gate.event oracles := by
   cases gate <;> rfl
 
 /-- Exact action of the relocated literal list in its original execution order. -/
-theorem placeGates_step (gates : List (GateSpec source)) (state : Target) :
+lemma placeGates_step (gates : List (GateSpec source)) (state : Target) :
     GateSpec.stepList (gates.map placement.placeGate) state =
       placement.step (GateSpec.stepList gates) state := by
   induction gates generalizing state with
@@ -127,15 +127,16 @@ theorem placeGates_step (gates : List (GateSpec source)) (state : Target) :
       simp only [step, Equiv.apply_symm_apply, GateSpec.stepList]
 
 /-- The emitted native program realizes precisely the original grouped action. -/
-theorem placeGates_realizes (layout : QubitLayout target.width) (oracles : OracleModel)
+lemma placeGates_realizes (layout : QubitLayout target.width) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (gates : List (GateSpec source)) :
     UnitaryCircuit.Realizes (layout := layout) target
-      (GateSpec.programList layout oracles (gates.map placement.placeGate))
+      (GateSpec.programList layout oracles (gates.map placement.placeGate)) environment
       (placement.step (GateSpec.stepList gates)) :=
-  GateSpec.realizesList_congrStep layout oracles _ (placement.placeGates_step gates)
+  GateSpec.realizesList_congrStep layout oracles _ (placement.placeGates_step gates) environment
 
 /-- Explicit placement retains the complete ordered source trace. -/
-theorem placeGates_eventTrace (layout : QubitLayout target.width) (oracles : OracleModel)
+lemma placeGates_eventTrace (layout : QubitLayout target.width) (oracles : OracleModel)
     (gates : List (GateSpec source)) :
     (GateSpec.programList layout oracles (gates.map placement.placeGate)).eventTrace =
       gates.map (GateSpec.event oracles) := by

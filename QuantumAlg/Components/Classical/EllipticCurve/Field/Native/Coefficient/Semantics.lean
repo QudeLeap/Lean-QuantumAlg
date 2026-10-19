@@ -31,7 +31,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The total original field result is the reduced right coefficient of widened raw XGCD. -/
@@ -53,7 +53,7 @@ structure CoefficientScratch.Separation (denominator : CInputRef ctx (.unsignedW
   modulusInput : scratch.modulus.key ∉ denominator.storageKeys
 
 omit [BitWord.Selected model] in
-private theorem coefficient_scratch_separated
+private lemma coefficient_scratch_separated
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (separate : scratch.Separation denominator) :
     scratch.outputs.Distinct ∧ scratch.outputs.gcd.key ≠ scratch.modulus.key ∧
@@ -71,7 +71,7 @@ private theorem coefficient_scratch_separated
     distinct.1.1.symm, distinct.1.2.1.symm, distinct.1.2.2.symm⟩
 
 omit [BitWord.Selected model] in
-private theorem coefficient_word_eq {bits : Nat} (first second : CShape.Word bits)
+private lemma coefficient_word_eq {bits : Nat} (first second : CShape.Word bits)
     (same : first.toNat = second.toNat) : first = second := by
   cases first with
   | unsignedWord first =>
@@ -79,14 +79,14 @@ private theorem coefficient_word_eq {bits : Nat} (first second : CShape.Word bit
     | unsignedWord second => exact congrArg CShape.Value.unsignedWord (Fin.ext same)
 
 /-- Original loader, raw engine and signed reducer share their actual intermediate stores. -/
-theorem coefficientBody_actualRecord (spec : ModulusSpec width)
+lemma coefficientBody_actualRecord (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width)) (scratch : CoefficientScratch ctx width)
     (separate : scratch.Separation denominator) (output : CWriteRef ctx (.unsignedWord width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (coefficientBody (model := model) spec denominator scratch output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (coefficientBody (model := model) spec denominator scratch output).execute
+        (coefficientBody (model := model) spec denominator scratch output).execute environment
           Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -104,10 +104,12 @@ theorem coefficientBody_actualRecord (spec : ModulusSpec width)
   let xgcd := NumberTheory.Checked.Native.withWidenedXgcd denominator modulus scratch.outputs
   let reduction := Native.withSignedReduction raw modulus output
   obtain ⟨xgcdRecord, xgcdEquation, xgcdCorrect⟩ :=
-    NumberTheory.Checked.Native.withWidenedXgcd_actualRecord (model := model)
+    NumberTheory.Checked.Native.withWidenedXgcd_actualRecord (environment := environment) (model
+      := model)
       denominator modulus scratch.outputs distinct
   obtain ⟨reductionRecord, reductionEquation, reductionCorrect⟩ :=
-    Native.withSignedReduction_actualRecord (model := model) raw modulus output spec
+    Native.withSignedReduction_actualRecord (environment := environment) (model := model) raw
+      modulus output spec
   let tailRecord := Circuit.sequenceRecord xgcd reduction xgcdRecord reductionRecord
   let loader := ConstantWord.circuit scratch.modulus spec.modulus
   let loaderStep := ConstantWord.foldStep (model := model) scratch.modulus
@@ -116,9 +118,11 @@ theorem coefficientBody_actualRecord (spec : ModulusSpec width)
     let result := loaderStep before.1
     ((result.1, before.2), result.2)
   let record := Circuit.sequenceRecord loader (.seq xgcd reduction) loaderRecord tailRecord
-  have tailEquation := Circuit.execute_sequenceRecord xgcd reduction xgcdRecord reductionRecord
+  have tailEquation := Circuit.execute_sequenceRecord (environment := environment) xgcd
+    reduction xgcdRecord reductionRecord
     xgcdEquation reductionEquation
-  refine ⟨record, Circuit.execute_sequenceRecord loader (.seq xgcd reduction)
+  refine ⟨record, Circuit.execute_sequenceRecord (environment := environment) loader (.seq xgcd
+    reduction)
     loaderRecord tailRecord
       (by
         intro reference history historyFinite initial
@@ -169,7 +173,7 @@ theorem coefficientBody_actualRecord (spec : ModulusSpec width)
     exact actual.trans (congrArg Fin.val residueValue)
 
 omit [BitWord.Selected model] in
-private theorem coefficientScratch_keys (cells : Cells ctx (coefficientShapes width)) :
+private lemma coefficientScratch_keys (cells : Cells ctx (coefficientShapes width)) :
     (coefficientScratch cells).keys = cells.keys.reverse := by
   cases cells with
   | cons right rest =>
@@ -183,7 +187,7 @@ private theorem coefficientScratch_keys (cells : Cells ctx (coefficientShapes wi
           rfl
 
 omit [BitWord.Selected model] in
-private theorem coefficientScratch_separation {outer : RuntimeCtx model.kind}
+private lemma coefficientScratch_separation {outer : RuntimeCtx model.kind}
     (denominator : CInputRef outer (.unsignedWord width))
     (cells : Cells ctx (coefficientShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -199,14 +203,14 @@ private theorem coefficientScratch_separation {outer : RuntimeCtx model.kind}
     exact List.mem_reverse.mp member
 
 /-- Actual allocation supplies every internal condition for the original total coefficient. -/
-theorem coefficientIntoWord_actualRecord (spec : ModulusSpec width)
+lemma coefficientIntoWord_actualRecord (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (coefficientIntoWord (model := model) spec denominator output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (coefficientIntoWord (model := model) spec denominator output).execute
+        (coefficientIntoWord (model := model) spec denominator output).execute environment
           Reference state = state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -220,12 +224,14 @@ theorem coefficientIntoWord_actualRecord (spec : ModulusSpec width)
       after.read other = before.read other) ∧
     (after.read (coefficientRead output)).toNat =
       (coefficientResidue spec (before.read denominator)).val
-  refine withCells_actualRecord_initialized_restricted_post ctx (coefficientShapes width)
+  refine withCells_actualRecord_initialized_restricted_post (environment := environment) ctx
+    (coefficientShapes width)
     (fun cells _ transport _ => coefficientBody (model := model) spec
       (transport.liftInput denominator)
       (coefficientScratch cells) (transport.liftWrite output)) Post ?_
   intro inner cells distinct transport separated
-  obtain ⟨record, equation, correct⟩ := coefficientBody_actualRecord (model := model) spec
+  obtain ⟨record, equation, correct⟩ := coefficientBody_actualRecord (environment :=
+    environment) (model := model) spec
     (transport.liftInput denominator) (coefficientScratch cells)
     (coefficientScratch_separation denominator cells distinct transport separated)
     (transport.liftWrite output)
@@ -260,49 +266,58 @@ def coefficientIntoWordStep (spec : ModulusSpec width)
     (output : CWriteRef ctx (.unsignedWord width)) :
     Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (coefficientIntoWord (model := model) spec denominator output).Path :=
-  Classical.choose (coefficientIntoWord_actualRecord spec denominator output)
+  Classical.choose (coefficientIntoWord_actualRecord (environment := environment) spec
+    denominator output)
 
 /-- All raw engine and signed-reduction paths preserve the complete actual quantum reference. -/
-theorem coefficientIntoWord_execute (spec : ModulusSpec width)
+lemma coefficientIntoWord_execute (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (coefficientIntoWord (model := model) spec denominator output).execute Reference state =
+    (coefficientIntoWord (model := model) spec denominator output).execute environment Reference
+      state =
       state.mapClassical (fun entry =>
-        let result := coefficientIntoWordStep spec denominator output (entry.1, entry.2.1)
+        let result := coefficientIntoWordStep (environment := environment) spec denominator
+          output (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  (Classical.choose_spec (coefficientIntoWord_actualRecord spec denominator output)).1
+  (Classical.choose_spec (coefficientIntoWord_actualRecord (environment := environment) spec
+    denominator output)).1
     Reference state
 
 /-- The actual result is the original canonical right-coefficient residue on every raw input. -/
-theorem coefficientIntoWord_toNat (spec : ModulusSpec width)
+lemma coefficientIntoWord_toNat (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (hidden : model.HiddenState) :
-    ((coefficientIntoWordStep spec denominator output (store, hidden)).1.1.read
+    ((coefficientIntoWordStep (environment := environment) spec denominator output (store,
+      hidden)).1.1.read
       (coefficientRead output)).toNat =
       (coefficientResidue spec (store.read denominator)).val :=
-  ((Classical.choose_spec (coefficientIntoWord_actualRecord spec denominator output)).2
+  ((Classical.choose_spec (coefficientIntoWord_actualRecord (environment := environment) spec
+    denominator output)).2
     (store, hidden)).2
 
 /-- Every caller read outside the result retains its original value through all actual scopes. -/
-theorem coefficientIntoWord_read_other (spec : ModulusSpec width)
+lemma coefficientIntoWord_read_other (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape} (other : CInputRef ctx shape)
     (separate : output.key ∉ other.storageKeys) (store : Store ctx)
     (hidden : model.HiddenState) :
-    (coefficientIntoWordStep spec denominator output (store, hidden)).1.1.read other =
+    (coefficientIntoWordStep (environment := environment) spec denominator output (store,
+      hidden)).1.1.read other =
       store.read other :=
-  ((Classical.choose_spec (coefficientIntoWord_actualRecord spec denominator output)).2
+  ((Classical.choose_spec (coefficientIntoWord_actualRecord (environment := environment) spec
+    denominator output)).2
     (store, hidden)).1 other separate
 
 /-- The complete returned Store is one canonical coefficient write, including operand aliases. -/
-theorem coefficientIntoWordStep_store (spec : ModulusSpec width)
+lemma coefficientIntoWordStep_store (spec : ModulusSpec width)
     (denominator : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (hidden : model.HiddenState) :
-    (coefficientIntoWordStep spec denominator output (store, hidden)).1.1 = store.write output
+    (coefficientIntoWordStep (environment := environment) spec denominator output (store,
+      hidden)).1.1 = store.write output
       (CShape.wordOfNat width (coefficientResidue spec (store.read denominator)).val) := by
   apply Store.store_eq_write_of_read_frame
   · apply coefficient_word_eq

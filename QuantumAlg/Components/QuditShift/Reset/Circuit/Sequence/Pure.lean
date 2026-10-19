@@ -24,24 +24,28 @@ noncomputable section
 
 open Execution
 
-variable {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
+variable {gates : GateModel} {oracles : OracleModel}
+  {environment : (ExecutionModel.quantum gates oracles).Environment} {ctx : RuntimeCtx .quantum}
   (implementations : ∀ wire, Realizations gates oracles ctx.quantumLayout wire)
 
 /-- Every actual reset record has the prescribed pure state on all physical systems. -/
-theorem resetToBasis_pure_fullSelection
+lemma resetToBasis_pure_fullSelection {allowAllocation : Bool}
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (label : ctx.quantumLayout.Basis) {Reference : Register}
     {History : Type} [Fintype History]
     (state : State ctx Reference ((ExecutionModel.quantum gates oracles).HiddenState × History))
     (record : Store ctx × ((ExecutionModel.quantum gates oracles).HiddenState ×
-      (History × (resetToBasis implementations outputs label).Path))) :
+      (History × (resetToBasis (allowAllocation := allowAllocation) implementations outputs
+          label).Path))) :
     (StatePromise.pure (NormalizedVector.ket
       (R := ctx.quantumLayout.selectedRegister Finset.univ)
       (ctx.quantumLayout.restrictSelectedBasis Finset.univ label))).Holds
         (DensityOperator.observeSelection ctx.quantumLayout Finset.univ Reference
-          (((resetToBasis implementations outputs label).execute
+          (((resetToBasis (allowAllocation := allowAllocation) implementations outputs
+              label).execute environment
             Reference state).block record)) := by
-  let joint := ((resetToBasis implementations outputs label).execute Reference state).block record
+  let joint := ((resetToBasis (allowAllocation := allowAllocation) implementations outputs
+      label).execute environment Reference state).block record
   let selection : ctx.register.Index ≃
       (ctx.quantumLayout.selectedRegister Finset.univ).Index := by
     change ctx.quantumLayout.Basis ≃ ctx.quantumLayout.SelectedBasis Finset.univ
@@ -70,8 +74,9 @@ theorem resetToBasis_pure_fullSelection
     _ = 0 := by
       apply Finset.sum_eq_zero
       intro reference _
-      rw [resetToBasis_block_entry (implementations := implementations) outputs label state
-        record (selection.symm row) (selection.symm column) reference reference]
+      rw [resetToBasis_block_entry (allowAllocation := allowAllocation)
+        (implementations := implementations) outputs label state record
+        (selection.symm row) (selection.symm column) reference reference]
       simp only [originalDifferent, false_and, if_false]
 
 end

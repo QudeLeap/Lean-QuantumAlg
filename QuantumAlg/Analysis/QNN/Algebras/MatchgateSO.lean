@@ -69,11 +69,11 @@ def matchgateSOEdgeOfNe {n : ℕ} (a b : Fin (2 * n)) (h : a ≠ b) : MatchgateS
     rw [SimpleGraph.mem_edgeSet]
     simpa using h⟩
 
-@[simp] theorem matchgateSOEdgeOfNe_val {n : ℕ} (a b : Fin (2 * n)) (h : a ≠ b) :
+@[simp] lemma matchgateSOEdgeOfNe_val {n : ℕ} (a b : Fin (2 * n)) (h : a ≠ b) :
     (matchgateSOEdgeOfNe a b h : Sym2 (Fin (2 * n))) = s(a, b) := rfl
 
 /-- The number of Majorana-quadratic labels is `binom(2n,2) = n(2n-1)`. -/
-theorem matchgateSOEdge_card (n : ℕ) :
+lemma matchgateSOEdge_card (n : ℕ) :
     Fintype.card (MatchgateSOEdge n) = n * (2 * n - 1) := by
   change Fintype.card (⊤ : SimpleGraph (Fin (2 * n))).edgeSet = n * (2 * n - 1)
   rw [SimpleGraph.card_edgeSet, SimpleGraph.card_edgeFinset_top_eq_card_choose_two,
@@ -86,7 +86,7 @@ namespace PauliMajoranaFrame
 
 variable {n : ℕ} (F : PauliMajoranaFrame n)
 
-private theorem pauliXor_cancel_left (x y z : Fin n → Fin 4) :
+private lemma pauliXor_cancel_left (x y z : Fin n → Fin 4) :
     pauliXor (pauliXor x y) (pauliXor x z) = pauliXor y z := by
   funext k
   simp only [pauliXor]
@@ -95,7 +95,7 @@ private theorem pauliXor_cancel_left (x y z : Fin n → Fin 4) :
   generalize hz : z k = zk
   fin_cases xk <;> fin_cases yk <;> fin_cases zk <;> rfl
 
-private theorem pauliXor_cancel_right (x y z : Fin n → Fin 4) :
+private lemma pauliXor_cancel_right (x y z : Fin n → Fin 4) :
     pauliXor (pauliXor x y) (pauliXor y z) = pauliXor x z := by
   funext k
   simp only [pauliXor]
@@ -105,7 +105,7 @@ private theorem pauliXor_cancel_right (x y z : Fin n → Fin 4) :
   fin_cases xk <;> fin_cases yk <;> fin_cases zk <;> rfl
 
 /-- Pairwise Majorana anticommutation in if-then-else form. -/
-theorem ω (a b : Fin (2 * n)) :
+lemma ω (a b : Fin (2 * n)) :
     pauliOmega (F.v a) (F.v b) = if a = b then 0 else 1 := by
   by_cases h : a = b
   · subst h
@@ -118,11 +118,11 @@ def edgeLabel (e : Sym2 (Fin (2 * n))) : Fin n → Fin 4 :=
     intro a b
     exact pauliXor_comm (F.v a) (F.v b)⟩ e
 
-@[simp] theorem edgeLabel_mk (a b : Fin (2 * n)) :
+@[simp] lemma edgeLabel_mk (a b : Fin (2 * n)) :
     F.edgeLabel s(a, b) = pauliXor (F.v a) (F.v b) := rfl
 
 /-- Non-diagonal Majorana quadratics are non-identity Pauli labels. -/
-theorem edgeLabel_ne_zero {e : Sym2 (Fin (2 * n))} (he : ¬ e.IsDiag) :
+lemma edgeLabel_ne_zero {e : Sym2 (Fin (2 * n))} (he : ¬ e.IsDiag) :
     F.edgeLabel e ≠ 0 := by
   induction e using Sym2.inductionOn with
   | hf a b =>
@@ -137,7 +137,7 @@ theorem edgeLabel_ne_zero {e : Sym2 (Fin (2 * n))} (he : ¬ e.IsDiag) :
       exact one_ne_zero hω
 
 /-- The edge-to-quadratic-label map is injective on complete-graph edges. -/
-theorem edgeLabel_injective_on_edges :
+lemma edgeLabel_injective_on_edges :
     Function.Injective (fun e : MatchgateSOEdge n => F.edgeLabel e.1) := by
   intro e₁ e₂ h
   apply Subtype.ext
@@ -207,7 +207,7 @@ theorem edgeLabel_injective_on_edges :
 def matchgateSOMem (s : Fin n → Fin 4) : Prop :=
   ∃ e : MatchgateSOEdge n, s = F.edgeLabel e.1
 
-theorem matchgateSOMem_edgeLabel (e : MatchgateSOEdge n) : F.matchgateSOMem (F.edgeLabel e.1) :=
+lemma matchgateSOMem_edgeLabel (e : MatchgateSOEdge n) : F.matchgateSOMem (F.edgeLabel e.1) :=
   ⟨e, rfl⟩
 
 /-- The basis-index equivalence with complete-graph Majorana edges. -/
@@ -220,11 +220,11 @@ noncomputable def matchgateSOB (i : Fin (Fintype.card (MatchgateSOEdge n))) :
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   rtNinv n • pauliMat (F.edgeLabel ((matchgateSOEdgeEquiv (n := n)) i).1)
 
-theorem matchgateSOB_isHermitian (i : Fin (Fintype.card (MatchgateSOEdge n))) :
+lemma matchgateSOB_isHermitian (i : Fin (Fintype.card (MatchgateSOEdge n))) :
     (F.matchgateSOB i)ᴴ = F.matchgateSOB i := by
   rw [matchgateSOB, conjTranspose_smul, rtNinv_conj, pauliMat_isHermitian]
 
-theorem matchgateSOB_ortho (i j : Fin (Fintype.card (MatchgateSOEdge n))) :
+lemma matchgateSOB_ortho (i j : Fin (Fintype.card (MatchgateSOEdge n))) :
     hsInner (F.matchgateSOB i) (F.matchgateSOB j) = if i = j then 1 else 0 := by
   rw [matchgateSOB, matchgateSOB, hsInner_smul_left, hsInner_smul_right, starRingEnd_apply,
     rtNinv_conj, ← mul_assoc, rtNinv_mul_self, pauliMat_hsInner]
@@ -237,7 +237,7 @@ theorem matchgateSOB_ortho (i j : Fin (Fintype.card (MatchgateSOEdge n))) :
     exact h ((matchgateSOEdgeEquiv (n := n)).injective
       (F.edgeLabel_injective_on_edges he))
 
-theorem edgeLabel_omega_mk (a b c d : Fin (2 * n)) :
+lemma edgeLabel_omega_mk (a b c d : Fin (2 * n)) :
     pauliOmega (F.edgeLabel s(a, b)) (F.edgeLabel s(c, d))
       = pauliOmega (F.v a) (F.v c) + pauliOmega (F.v a) (F.v d)
         + (pauliOmega (F.v b) (F.v c) + pauliOmega (F.v b) (F.v d)) := by
@@ -245,7 +245,7 @@ theorem edgeLabel_omega_mk (a b c d : Fin (2 * n)) :
     pauliOmega_xor_right]
 
 /-- Anticommuting Majorana-quadratic labels close under Pauli XOR. -/
-theorem matchgateSOMem_xor_of_anticomm {s t : Fin n → Fin 4}
+lemma matchgateSOMem_xor_of_anticomm {s t : Fin n → Fin 4}
     (hs : F.matchgateSOMem s) (ht : F.matchgateSOMem t) (hω : pauliOmega s t = 1) :
     F.matchgateSOMem (pauliXor s t) := by
   rcases hs with ⟨e₁, rfl⟩
@@ -308,7 +308,7 @@ theorem matchgateSOMem_xor_of_anticomm {s t : Fin n → Fin 4}
               rw [hzero] at hω
               exact absurd hω zero_ne_one
 
-private theorem finset_card_four_le {α : Type*} [DecidableEq α] (a b c d : α) :
+private lemma finset_card_four_le {α : Type*} [DecidableEq α] (a b c d : α) :
     ({a, b, c, d} : Finset α).card ≤ 4 := by
   calc
     ({a, b, c, d} : Finset α).card ≤ ({b, c, d} : Finset α).card + 1 := by
@@ -321,7 +321,7 @@ private theorem finset_card_four_le {α : Type*} [DecidableEq α] (a b c d : α)
         (Nat.add_le_add_right (by simpa using Finset.card_insert_le c ({d} : Finset α)) 1) 1
     _ ≤ 4 := by simp
 
-private theorem exists_fin_ne_four {m : ℕ} (hm : 4 < m) (a b c d : Fin m) :
+private lemma exists_fin_ne_four {m : ℕ} (hm : 4 < m) (a b c d : Fin m) :
     ∃ r : Fin m, r ≠ a ∧ r ≠ b ∧ r ≠ c ∧ r ≠ d := by
   classical
   by_contra h
@@ -345,14 +345,14 @@ private theorem exists_fin_ne_four {m : ℕ} (hm : 4 < m) (a b c d : Fin m) :
     exact finset_card_four_le a b c d
   omega
 
-theorem edgeLabel_omega_shared_left {a b c : Fin (2 * n)}
+lemma edgeLabel_omega_shared_left {a b c : Fin (2 * n)}
     (hab : a ≠ b) (hac : a ≠ c) (hbc : b ≠ c) :
     pauliOmega (F.edgeLabel s(a, b)) (F.edgeLabel s(a, c)) = 1 := by
   rw [F.edgeLabel_omega_mk, F.ω a a, F.ω a c, F.ω b a, F.ω b c,
     if_pos rfl, if_neg hac, if_neg (Ne.symm hab), if_neg hbc]
   decide
 
-theorem matchgateSO_conn_const (T : (Fin n → Fin 4) → ℂ)
+lemma matchgateSO_conn_const (T : (Fin n → Fin 4) → ℂ)
     (hT : ∀ a c, F.matchgateSOMem a → F.matchgateSOMem c →
       pauliOmega a c = 1 → T a = T c) :
     ∀ {x y : Fin n → Fin 4}, F.matchgateSOMem x → F.matchgateSOMem y → T x = T y := by
@@ -429,7 +429,7 @@ theorem matchgateSO_conn_const (T : (Fin n → Fin 4) → ℂ)
                     decide)
               exact hleft.trans hright
 
-theorem matchgateSO_sep_witness (hn : 3 ≤ n) {x y : Fin n → Fin 4}
+lemma matchgateSO_sep_witness (hn : 3 ≤ n) {x y : Fin n → Fin 4}
     (hx : F.matchgateSOMem x) (hy : F.matchgateSOMem y) (hxy : x ≠ y) :
     ∃ s, F.matchgateSOMem s ∧ pauliOmega s (pauliXor x y) = 1 := by
   rcases hx with ⟨e₁, rfl⟩
@@ -528,11 +528,11 @@ def graphGens (G : SimpleGraph (Fin (2 * n))) :
     Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) :=
   {A | ∃ e : G.edgeSet, A = Complex.I • pauliMat (F.edgeLabel e.1)}
 
-theorem pauliMat_mem_matchgateSOPauliSet {s : Fin n → Fin 4} (hs : F.matchgateSOMem s) :
+lemma pauliMat_mem_matchgateSOPauliSet {s : Fin n → Fin 4} (hs : F.matchgateSOMem s) :
     pauliMat s ∈ F.matchgateSOPauliSet :=
   ⟨s, hs, rfl⟩
 
-theorem matchgateSO_lie_mem_span ⦃x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ⦄
+lemma matchgateSO_lie_mem_span ⦃x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ⦄
     (hx : x ∈ Submodule.span ℂ F.matchgateSOPauliSet)
     (hy : y ∈ Submodule.span ℂ F.matchgateSOPauliSet) :
     ⁅x, y⁆ ∈ Submodule.span ℂ F.matchgateSOPauliSet := by
@@ -562,13 +562,13 @@ def matchgateSOLie : LieSubalgebra ℂ (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) 
   toSubmodule := Submodule.span ℂ F.matchgateSOPauliSet
   lie_mem' := fun hx hy => F.matchgateSO_lie_mem_span hx hy
 
-theorem matchgateSOGens_subset_matchgateSOLie :
+lemma matchgateSOGens_subset_matchgateSOLie :
     F.matchgateSOGens ⊆ (F.matchgateSOLie : Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)) := by
   rintro A ⟨s, hs, rfl⟩
   change Complex.I • pauliMat s ∈ Submodule.span ℂ F.matchgateSOPauliSet
   exact Submodule.smul_mem _ _ (Submodule.subset_span (F.pauliMat_mem_matchgateSOPauliSet hs))
 
-theorem graphGens_subset_matchgateSOLie (G : SimpleGraph (Fin (2 * n))) :
+lemma graphGens_subset_matchgateSOLie (G : SimpleGraph (Fin (2 * n))) :
     F.graphGens G ⊆ (F.matchgateSOLie : Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)) := by
   rintro A ⟨⟨z, hz⟩, rfl⟩
   induction z using Sym2.inductionOn with
@@ -578,7 +578,7 @@ theorem graphGens_subset_matchgateSOLie (G : SimpleGraph (Fin (2 * n))) :
         (F.pauliMat_mem_matchgateSOPauliSet
           (F.matchgateSOMem_edgeLabel (matchgateSOEdgeOfNe a b hab))))
 
-private theorem pauliMat_edge_mem_graphDLA_of_adj
+private lemma pauliMat_edge_mem_graphDLA_of_adj
     {G : SimpleGraph (Fin (2 * n))} {a b : Fin (2 * n)} (hab : G.Adj a b) :
     pauliMat (F.edgeLabel s(a, b)) ∈ dynamicalLieAlgebra (F.graphGens G) := by
   have hedge : s(a, b) ∈ G.edgeSet := (SimpleGraph.mem_edgeSet G).mpr hab
@@ -591,7 +591,7 @@ private theorem pauliMat_edge_mem_graphDLA_of_adj
   rw [hpm]
   exact Submodule.smul_mem _ _ hgen
 
-private theorem pauliMat_edge_mem_graphDLA_of_isPath
+private lemma pauliMat_edge_mem_graphDLA_of_isPath
     {G : SimpleGraph (Fin (2 * n))} {a b : Fin (2 * n)}
     (p : G.Walk a b) (hp : p.IsPath) (hab : a ≠ b) :
     pauliMat (F.edgeLabel s(a, b)) ∈ dynamicalLieAlgebra (F.graphGens G) := by
@@ -628,7 +628,7 @@ private theorem pauliMat_edge_mem_graphDLA_of_isPath
         exact Submodule.smul_mem _ _ hbracket
 
 /-- A connected Majorana graph generates the full quadratic `so(2n)` span. -/
-theorem graph_dla_toSubmodule (G : SimpleGraph (Fin (2 * n))) (hG : G.Connected) :
+lemma graph_dla_toSubmodule (G : SimpleGraph (Fin (2 * n))) (hG : G.Connected) :
     (dynamicalLieAlgebra (F.graphGens G)).toSubmodule =
       Submodule.span ℂ F.matchgateSOPauliSet := by
   apply le_antisymm
@@ -663,7 +663,7 @@ public theorem matchgateSO_dla_toSubmodule :
     rw [hpm]
     exact Submodule.smul_mem _ _ hg
 
-theorem matchgateSO_range_span :
+lemma matchgateSO_range_span :
     Submodule.span ℂ (Set.range F.matchgateSOB) = Submodule.span ℂ F.matchgateSOPauliSet := by
   have hrt : rtNinv n ≠ 0 := rtNinv_ne_zero n
   apply le_antisymm
@@ -702,11 +702,11 @@ public noncomputable def matchgateSOHermBasis : DLAHermBasis F.matchgateSOGens w
   span_eq := by
     rw [F.matchgateSO_range_span, F.matchgateSO_dla_toSubmodule]
 
-@[simp] theorem matchgateSOHermBasis_dim :
+@[simp] lemma matchgateSOHermBasis_dim :
     F.matchgateSOHermBasis.dim = Fintype.card (MatchgateSOEdge n) := rfl
 
 /-- Closed-form dimension `dim so(2n) = n(2n-1)` for the Majorana-quadratic basis. -/
-theorem matchgateSOHermBasis_dim_closedForm :
+lemma matchgateSOHermBasis_dim_closedForm :
     F.matchgateSOHermBasis.dim = n * (2 * n - 1) := by
   rw [matchgateSOHermBasis_dim, matchgateSOEdge_card]
 
@@ -736,21 +736,21 @@ noncomputable def matchgateSOSchurFamily (hn : 3 ≤ n) :
 end PauliMajoranaFrame
 
 /-- Closed-form dimension `dim so(2n) = n(2n-1)` for any Pauli-Majorana matchgate frame. -/
-theorem matchgateSOHermBasis_dim_closedForm {n : ℕ} (F : PauliMajoranaFrame n) :
+lemma matchgateSOHermBasis_dim_closedForm {n : ℕ} (F : PauliMajoranaFrame n) :
     F.matchgateSOHermBasis.dim = n * (2 * n - 1) :=
   F.matchgateSOHermBasis_dim_closedForm
 
 /-- **Schur identity for the matchgate/free-fermion `so(2n)` family** (`n ≥ 3`). The
 `n = 2` member is the reductive `so(4) ≅ su(2) ⊕ su(2)` exception, exposed separately below;
 there is intentionally no `n = 1` endpoint. -/
-theorem matchgateSOHermBasis_schur {n : ℕ} (F : PauliMajoranaFrame n) (hn : 3 ≤ n) :
+lemma matchgateSOHermBasis_schur {n : ℕ} (F : PauliMajoranaFrame n) (hn : 3 ≤ n) :
     gTensorGInvariant F.matchgateSOHermBasis =
       Submodule.span ℂ {F.matchgateSOHermBasis.casimir} :=
   (F.matchgateSOSchurFamily hn).schur
 
 /-- The `n = 2` matchgate/free-fermion exception is represented by the existing reductive
 `so(4)` witness, whose variance splits across the two `su(2)` ideals. -/
-theorem matchgateSO4_totalVariance_eq : so4Reductive.variance = 1 / 3 :=
+lemma matchgateSO4_totalVariance_eq : so4Reductive.variance = 1 / 3 :=
   so4_totalVariance_eq
 
 /-- **Shifted matchgate/free-fermion polynomial-DLA dichotomy.** For any `m ↦ so(2(m+3))`

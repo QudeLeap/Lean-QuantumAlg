@@ -31,7 +31,7 @@ noncomputable section
 
 open EncodedBit LengthCoordinates
 
-private theorem predicate_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma predicate_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (output : Fin width.size) :
     (GuardedLengthPredicate.gates width field key firstWord position output).length ≤
       10 * (3 * width.size + (width + 3)) + 1 := by
@@ -40,7 +40,7 @@ private theorem predicate_length_le (width : Nat) (field : Field) (key : BitVec 
   have regionBound := region_le width field key
   omega
 
-private theorem position_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma position_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) :
     (GuardedLengthWrite.positionGates width field key firstWord position).length ≤
       width.size * (10 * (3 * width.size + (width + 3)) + 1) := by
@@ -52,7 +52,7 @@ private theorem position_length_le (width : Nat) (field : Field) (key : BitVec w
         predicate_length_le width field key firstWord position output)
     _ ≤ _ := Nat.mul_le_mul_right _ (Word.constantOneIndices_length_le _)
 
-private theorem key_length_le (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma key_length_le (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) :
     (GuardedLengthWrite.keyGates width field key firstWord).length ≤
       (width + 3) * (width.size * (10 * (3 * width.size + (width + 3)) + 1)) := by
@@ -68,7 +68,7 @@ private theorem key_length_le (width : Nat) (field : Field) (key : BitVec width.
     _ ≤ _ := Nat.mul_le_mul_right _ (region_le width field key)
 
 /-- Every actual boundary call is charged with its enlarged source prefix and complete cleanup. -/
-theorem schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
+lemma schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
     (GuardedLengthWrite.gates width field firstWord).length ≤
       2 ^ width.size * ((width + 3) *
         (width.size * (10 * (3 * width.size + (width + 3)) + 1))) := by
@@ -81,7 +81,7 @@ theorem schedule_length_le (width : Nat) (field : Field) (firstWord : Bool) :
     _ = _ := by rw [LengthSchedule.keys_length]
 
 /-- All four actual guarded source-ordered writes contribute their entire native event lists. -/
-theorem refresh_length_le (width : Nat) :
+lemma refresh_length_le (width : Nat) :
     (GuardedLengthRefresh.gates width).length ≤
       4 * (2 ^ width.size * ((width + 3) *
         (width.size * (10 * (3 * width.size + (width + 3)) + 1)))) := by
@@ -92,7 +92,7 @@ theorem refresh_length_le (width : Nat) :
   exact actual
 
 /-- Eliminating all finite-key and bit-length growth gives a literal polynomial upper bound. -/
-theorem refresh_length_le_polynomial (width : Nat) :
+lemma refresh_length_le_polynomial (width : Nat) :
     (GuardedLengthRefresh.gates width).length ≤
       4 * ((2 * (width + 1)) * ((width + 3) *
         (width * (10 * (3 * width + (width + 3)) + 1)))) := by
@@ -105,19 +105,19 @@ theorem refresh_length_le_polynomial (width : Nat) :
       (Nat.mul_le_mul_left (width + 3) targetBound)))
 
 /-- The actual ordered trace has exactly the full number of emitted elementary gates. -/
-theorem refresh_eventTrace_length (width : Nat) :
+lemma refresh_eventTrace_length (width : Nat) :
     (GuardedLengthRefresh.program width).eventTrace.length =
       (GuardedLengthRefresh.gates width).length := by
   rw [GuardedLengthRefresh.program_eventTrace, List.length_map]
 
 /-- Strict actual depth includes every retained-key, leading-position, and set-bit call. -/
-theorem refresh_unitDepth (width : Nat) :
+lemma refresh_unitDepth (width : Nat) :
     (GuardedLengthRefresh.program width).evaluatedEventDepth (fun _ => 1) =
       (GuardedLengthRefresh.gates width).length :=
   GateSpec.programList_evaluatedEventDepth_unit _ .empty _
 
 /-- Every elementary cleanup gate remains in the actual inverse count. -/
-theorem refresh_reverse_length (width : Nat) :
+lemma refresh_reverse_length (width : Nat) :
     (GuardedLengthRefresh.gates width).reverse.length = (GuardedLengthRefresh.gates width).length :=
   List.length_reverse
 

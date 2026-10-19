@@ -23,11 +23,14 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeCycles
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem positiveRepetition_seedBlocks {shape : CShape} (m ell width N : Nat)
+private lemma positiveRepetition_seedBlocks {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ) (count : Nat)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -39,7 +42,7 @@ private theorem positiveRepetition_seedBlocks {shape : CShape} (m ell width N : 
       (RuntimeRepetition.shortDLP_runtimeRepetition_wires m ell width ctx sameWires
         (count + 1)) N
       ((RuntimeRepetition.code m ell width N generator target ctx sameWires parameter
-        cells (count + 1)).execute Reference state) := by
+        cells (count + 1)).execute environment Reference state) := by
   let next := RuntimeResults.next m ell width ctx
   let nextWires :=
     (RuntimeResults.shortDLP_runtimeResult_next_wires m ell width ctx).trans sameWires
@@ -53,15 +56,17 @@ private theorem positiveRepetition_seedBlocks {shape : CShape} (m ell width N : 
     nextCells (RuntimeResults.head m ell width ctx)
   let tail := RuntimeRepetition.code m ell width N generator target next nextWires
     nextParameter nextCells count
-  let retained := retention.execute Reference state
-  let rounded := round.execute Reference retained
-  have roundSeed := RuntimeRound.shortDLP_runtimeRound_seedBlocks m ell width nextWires
+  let retained := retention.execute environment Reference state
+  let rounded := round.execute environment Reference retained
+  have roundSeed := RuntimeRound.shortDLP_runtimeRound_seedBlocks (environment := environment)
+    m ell width nextWires
     nextParameter N generator target nextCells (RuntimeResults.head m ell width ctx) retained
-  have tailSeed := RuntimeRepetition.shortDLP_runtimeRepetition_seedBlocks
+  have tailSeed := RuntimeRepetition.shortDLP_runtimeRepetition_seedBlocks (environment :=
+    environment)
     m ell width N generator target count next nextWires nextParameter nextCells
     rounded roundSeed
-  have bodySeed := BasisSeeded.seq round tail _ retained tailSeed
-  exact BasisSeeded.seq retention (.seq round tail) _ state bodySeed
+  have bodySeed := BasisSeeded.seq (environment := environment) round tail _ retained tailSeed
+  exact BasisSeeded.seq (environment := environment) retention (.seq round tail) _ state bodySeed
 
 variable (base : RuntimeCtx .quantum) {N : Nat}
   (sameWires : base.quantumWires =
@@ -69,20 +74,21 @@ variable (base : RuntimeCtx .quantum) {N : Nat}
   (cells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
 /-- Sixteen actual reused rounds establish the fixed seed even from an unseeded input. -/
-theorem reuseSource_seedBlocks {Reference : Register} {History : Type} [Fintype History]
+lemma reuseSource_seedBlocks {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatchReuse.nativeBatchReuse_context_wires base N sameWires) N
-      ((NativeBatchReuse.code base N sameWires cells).execute Reference state) := by
-  have repeated := positiveRepetition_seedBlocks
+      ((NativeBatchReuse.code base N sameWires cells).execute environment Reference state) := by
+  have repeated := positiveRepetition_seedBlocks (environment := environment)
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N
     (parameterUnit (N := N)) (parameterTarget (N := N)) 15
     (NativeBatchReuse.sampledContext base N)
     (NativeBatchReuse.nativeBatchReuse_sampled_wires base N sameWires)
     (NativeBatchReuse.parameter base N) (NativeBatchReuse.cells base N cells)
     ((ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N).execute
+      environment
       Reference state)
-  exact BasisSeeded.seq
+  exact BasisSeeded.seq (environment := environment)
     (ShorStyle.Canonical.Sampler.Retained.circuit (model := RuntimeRound.model) base N)
     (NativeBatchReuse.rounds base N sameWires cells)
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -90,15 +96,15 @@ theorem reuseSource_seedBlocks {Reference : Register} {History : Type} [Fintype 
       (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state repeated
 
 /-- Actual recovery retains unconditional seed support in every complete output block. -/
-theorem reuseBatch_seedBlocks (specification : Input N)
+lemma reuseBatch_seedBlocks (specification : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatchReuseRecovery.seedWires base sameWires) N
-      ((NativeBatchReuseRecovery.code base sameWires cells specification).execute
+      ((NativeBatchReuseRecovery.code base sameWires cells specification).execute environment
         Reference state) := by
-  have source := reuseSource_seedBlocks base sameWires cells state
-  exact BasisSeeded.seq (NativeBatchReuse.code base N sameWires cells)
+  have source := reuseSource_seedBlocks (environment := environment) base sameWires cells state
+  exact BasisSeeded.seq (environment := environment) (NativeBatchReuse.code base N sameWires cells)
     (NativeBatchReuseRecovery.tail base specification)
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (NativeBatchReuseRecovery.seedWires base sameWires)).symm
@@ -106,7 +112,7 @@ theorem reuseBatch_seedBlocks (specification : Input N)
     (NativeBatchReuseRecovery.tail_seedBlocks base sameWires specification _ source)
 
 /-- Every actual reused source path contains a measured reset of the nonempty bank. -/
-theorem reuseSource_measured
+lemma reuseSource_measured
     (path : (NativeBatchReuse.code base N sameWires cells).Path) :
     ∃ dimension : ℕ+, Resource.Event.measurement (model := RuntimeRound.model) dimension ∈
       (NativeBatchReuse.code base N sameWires cells).eventTrace path := by
@@ -124,7 +130,7 @@ theorem reuseSource_measured
   exact ⟨dimension, List.mem_append.mpr (Or.inr present)⟩
 
 /-- Actual classical recovery preserves the reset measurement in every complete trace. -/
-theorem reuseBatch_measured (specification : Input N)
+lemma reuseBatch_measured (specification : Input N)
     (path : (NativeBatchReuseRecovery.code base sameWires cells specification).Path) :
     ∃ dimension : ℕ+, Resource.Event.measurement (model := RuntimeRound.model) dimension ∈
       (NativeBatchReuseRecovery.code base sameWires cells specification).eventTrace path := by
@@ -135,13 +141,14 @@ theorem reuseBatch_measured (specification : Input N)
 attribute [local irreducible] NativeBatchReuseRecovery.code
 
 /-- A complete actual reused batch is physically restartable for every input and record. -/
-theorem reuseBatch_restartCleanup (specification : Input N)
+lemma reuseBatch_restartCleanup (specification : Input N)
     (noBorrowed : base.borrowedQuantumWires = []) :
-    Circuit.RestartCleanup (NativeBatchReuseRecovery.code base sameWires cells specification) where
+    Circuit.RestartCleanup (environment := environment)
+      (NativeBatchReuseRecovery.code base sameWires cells specification) where
   measured := reuseBatch_measured base sameWires cells specification
   restores := by
     intro Reference History _ state
-    exact Circuit.borrowedRestored_of_noBorrowedQuantum
+    exact Circuit.borrowedRestored_of_noBorrowedQuantum (environment := environment)
       (model := RuntimeRound.model) (pre := base)
       (post := NativeBatchReuseRecovery.context base N)
       (NativeBatchReuseRecovery.code base sameWires cells specification)

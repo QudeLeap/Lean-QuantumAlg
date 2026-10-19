@@ -48,21 +48,23 @@ def scopeRecoveryStep (ctx : RuntimeCtx model.kind) (modulusWidth candidateWidth
         advanced.1, advanced.2)
 
 /-- Actual recovery scopes compose a proved complete-state body equation through real heads. -/
-theorem nativeRecovery_scope_execute (ctx : RuntimeCtx model.kind)
+lemma nativeRecovery_scope_execute (ctx : RuntimeCtx model.kind)
     (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField)
     (body : Circuit model (fieldsContext ctx modulusWidth candidateWidth fields)
       (fieldsContext ctx modulusWidth candidateWidth fields))
     (step : Store (fieldsContext ctx modulusWidth candidateWidth fields) →
       Store (fieldsContext ctx modulusWidth candidateWidth fields) × body.Path)
+    {environment : model.Environment}
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (fieldsContext ctx modulusWidth candidateWidth fields)
         Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scopeRecoveryFields ctx modulusWidth candidateWidth fields body).execute Reference state =
+    (scopeRecoveryFields ctx modulusWidth candidateWidth fields body).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((scopeRecoveryStep ctx modulusWidth candidateWidth fields body step entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -70,7 +72,8 @@ theorem nativeRecovery_scope_execute (ctx : RuntimeCtx model.kind)
   induction fields generalizing ctx Reference History with
   | nil => exact bodyEquation Reference state
   | cons field rest ih =>
-      refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+      refine (Circuit.execute_workspace_mapClassical
+        (environment := environment) ctx.canonicalFreshKey
         (recoveryFieldShape modulusWidth candidateWidth field) ctx.canonicalFreshKey_fresh
         (scopeRecoveryFields
           (ctx.addWorkspace ctx.canonicalFreshKey
@@ -87,7 +90,7 @@ theorem nativeRecovery_scope_execute (ctx : RuntimeCtx model.kind)
       congr 1
 
 /-- The actual scope output is the body's actual store between the exact enter and leave maps. -/
-theorem nativeRecovery_scope_store (ctx : RuntimeCtx model.kind) (modulusWidth candidateWidth : Nat)
+lemma nativeRecovery_scope_store (ctx : RuntimeCtx model.kind) (modulusWidth candidateWidth : Nat)
     (fields : List RecoveryField)
     (body : Circuit model (fieldsContext ctx modulusWidth candidateWidth fields)
       (fieldsContext ctx modulusWidth candidateWidth fields))

@@ -27,7 +27,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
   {H : Type} [Fintype H]
 
 /-- A native step uses the declaration's probability-weighted observable after its real write. -/
-theorem effectWeight_nativeStep {operations : ClassicalOpModel}
+lemma effectWeight_nativeStep {operations : ClassicalOpModel}
     (application : operations.Application ctx) (state : State ctx Reference H)
     (effects : Store ctx × (H × (operations.outputShape application.token).Value) →
       Effect (ctx.register.prod Reference)) :
@@ -40,14 +40,15 @@ theorem effectWeight_nativeStep {operations : ClassicalOpModel}
   rw [ExecutionState.effectWeight_mapClassical_decision, ExecutionState.effectWeight_kernelChoice]
 
 /-- A query observation retains the actual joint next-service-state and visible-result weights. -/
-theorem effectWeight_queryStep {oracles : ClassicalOracleModel}
-    (application : oracles.Application ctx)
+lemma effectWeight_queryStep {oracles : ClassicalOracleModel}
+    (application : oracles.Application ctx) (environment : oracles.Interpretation)
     (state : State ctx Reference (oracles.HiddenState × H))
     (effects : Store ctx × (oracles.HiddenState ×
       (H × (oracles.outputShape application.query).Value)) → Effect (ctx.register.prod Reference)) :
-    (queryStep application state).effectWeight effects =
+    (queryStep environment application state).effectWeight effects =
       state.effectWeight (fun original => kernelEffect
-        (oracles.transition application.query original.2.1 (original.1.read application.input))
+        (oracles.transition environment application.query original.2.1
+          (original.1.read application.input))
         (fun result => effects (original.1.write application.output result.2,
           (result.1, (original.2.2, result.2))))) := by
   dsimp only [queryStep]

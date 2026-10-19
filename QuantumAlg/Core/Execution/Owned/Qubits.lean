@@ -36,7 +36,7 @@ private def layout (width : Nat) : QuantumLayout width := (qubitLayout width).to
   RuntimeCtx.empty.addOwnedLayout ⟨0⟩ (layout width) (by decide)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-private theorem layout_wires (width : Nat) :
+private lemma layout_wires (width : Nat) :
     (layout width).wires = (context width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (layout width).wires = (layout width).wires ++ []
@@ -44,7 +44,7 @@ private theorem layout_wires (width : Nat) :
 
 /-- The canonical typed-qubit layout has exactly the ordered wires of the
 supplied owned-word context. -/
-public theorem canonical_wires (width : Nat) :
+public lemma canonical_wires (width : Nat) :
     (QubitLayout.canonical width).toQuantum.wires =
       (context width).quantumLayout.wires := by
   rw [← layout_wires width]
@@ -56,7 +56,7 @@ public def basisEquiv (width : Nat) : (context width).register.Index ≃ (Qubits
     (layout_wires width)).symm.trans (qubitLayout width).binaryIndexEquiv
 
 /-- The full physical interface contains every supplied wire, even at width zero. -/
-theorem ownedQubits_physicalIdx (width : Nat) :
+lemma ownedQubits_physicalIdx (width : Nat) :
     (context width).physicalIdx = List.range width := by
   change ((layout width).wires ++ []).map QuantumWire.identity = List.range width
   simp only [List.append_nil, QuantumLayout.wires, List.map_ofFn]
@@ -72,7 +72,7 @@ public def space (width : Nat) : SpacePool .quantum
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then width else 0
 
 /-- Resident space counts the supplied word and no other storage. -/
-theorem ownedQubits_resident (width : Nat) :
+lemma ownedQubits_resident (width : Nat) :
     (context width).residentSpace = space width := by
   simp only [context, RuntimeCtx.residentSpace_addOwnedLayout,
     RuntimeCtx.residentSpace_empty]
@@ -83,7 +83,7 @@ theorem ownedQubits_resident (width : Nat) :
       exact (qubitLayout width).toQuantumLayout_dimensionCount dimension
 
 /-- The owned auxiliary coordinate describes the same word, not another allocation. -/
-theorem ownedQubits_auxiliary (width : Nat) :
+lemma ownedQubits_auxiliary (width : Nat) :
     (context width).auxiliarySpace = space width := by
   simp only [context, RuntimeCtx.auxiliarySpace_addOwnedLayout,
     RuntimeCtx.auxiliarySpace_empty]

@@ -47,7 +47,7 @@ def bitControl {E : PrimeFieldShortWeierstrass p} (schedule : Schedule E)
 /-- The endpoint control bit and fixed-base addend weight use the same schedule
 index: bit `i.val` selects the addend whose group-law weight is `2^i.val`
 [PZ03, ecc.tex:448-462; RNSL17, ECDLP.tex:589-593]. -/
-theorem bitControl_uses_addendWeight_index
+lemma bitControl_uses_addendWeight_index
     {E : PrimeFieldShortWeierstrass p} (schedule : Schedule E)
     (scalar : Fin (2 ^ schedule.length)) (i : Fin schedule.length) :
     bitControl schedule scalar i = scalar.val.testBit i.val ∧
@@ -73,7 +73,7 @@ noncomputable def selectedAddendGroupFold {E : PrimeFieldShortWeierstrass p}
 
 /-- Inactive scalar bits contribute the identity element to the selected-addend
 group fold [RNSL17, ECDLP.tex:589-593]. -/
-theorem selectedAddendGroupFold_inactive_term
+lemma selectedAddendGroupFold_inactive_term
     {E : PrimeFieldShortWeierstrass p} (schedule : Schedule E)
     (scalar : Fin (2 ^ schedule.length)) (i : Fin schedule.length)
     (hcontrol : bitControl schedule scalar i = false) :
@@ -82,7 +82,7 @@ theorem selectedAddendGroupFold_inactive_term
 
 /-- Active scalar bits contribute the fixed-base group-law multiple attached
 to their binary position [PZ03, ecc.tex:448-462; RNSL17, ECDLP.tex:589-593]. -/
-theorem selectedAddendGroupFold_active_term
+lemma selectedAddendGroupFold_active_term
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] (schedule : Schedule E)
     (fixed : schedule.FixedBaseAddends)
     (scalar : Fin (2 ^ schedule.length)) (i : Fin schedule.length)
@@ -93,7 +93,7 @@ theorem selectedAddendGroupFold_active_term
 
 /-- The selected group-law fold equals the selected natural weight acting on
 the fixed base [PZ03, ecc.tex:448-462; RNSL17, ECDLP.tex:589-593]. -/
-theorem selectedAddendGroupFold_eq_selectedAddendWeight_nsmul
+lemma selectedAddendGroupFold_eq_selectedAddendWeight_nsmul
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] (schedule : Schedule E)
     (fixed : schedule.FixedBaseAddends)
     (scalar : Fin (2 ^ schedule.length)) :
@@ -120,7 +120,7 @@ theorem selectedAddendGroupFold_eq_selectedAddendWeight_nsmul
       rw [← Finset.sum_nsmul_assoc]
       simp [ite_smul]
 
-private theorem bitIndex_lt_length_of_lt_two_pow {n m i : Nat} (hm : m < 2 ^ n)
+private lemma bitIndex_lt_length_of_lt_two_pow {n m i : Nat} (hm : m < 2 ^ n)
     (hi : i ∈ m.bitIndices) : i < n := by
   by_contra hlt
   have hni : n ≤ i := Nat.le_of_not_gt hlt
@@ -132,7 +132,7 @@ private theorem bitIndex_lt_length_of_lt_two_pow {n m i : Nat} (hm : m < 2 ^ n)
 /-- The selected binary addend weights sum to exactly the scalar register
 value, using the same bit order as `bitControl` [PZ03, ecc.tex:448-462;
 RNSL17, ECDLP.tex:589-593]. -/
-theorem selectedAddendWeight_eq_scalar
+lemma selectedAddendWeight_eq_scalar
     {E : PrimeFieldShortWeierstrass p} (schedule : Schedule E)
     (scalar : Fin (2 ^ schedule.length)) :
     selectedAddendWeight schedule scalar = scalar.val := by
@@ -164,7 +164,7 @@ theorem selectedAddendWeight_eq_scalar
 /-- For a fixed-base schedule, the group-law fold selected by the scalar bits
 is the scalar multiple of the fixed base [PZ03, ecc.tex:448-462; RNSL17,
 ECDLP.tex:589-593]. -/
-theorem selectedAddendGroupFold_eq_scalar_nsmul
+lemma selectedAddendGroupFold_eq_scalar_nsmul
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] (schedule : Schedule E)
     (fixed : schedule.FixedBaseAddends)
     (scalar : Fin (2 ^ schedule.length)) :
@@ -185,7 +185,7 @@ private noncomputable def selectedAddendRangeFold
     else
       0
 
-private theorem selectedAddendRangeFold_succ
+private lemma selectedAddendRangeFold_succ
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] (schedule : Schedule E)
     (scalar : Fin (2 ^ schedule.length)) {k : Nat} (hk : k < schedule.length) :
     selectedAddendRangeFold schedule scalar (k + 1) =
@@ -198,7 +198,7 @@ private theorem selectedAddendRangeFold_succ
   rw [Finset.sum_range_succ]
   simp [hk]
 
-private theorem selectedAddendRangeFold_final
+private lemma selectedAddendRangeFold_final
     {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] (schedule : Schedule E)
     (scalar : Fin (2 ^ schedule.length)) :
     selectedAddendRangeFold schedule scalar schedule.length =
@@ -215,15 +215,15 @@ variable {schedule : Schedule E}
 def outputPoint (run : Run E schedule) : AffinePoint E :=
   run.accumulators (finalIndex schedule)
 
-@[simp] theorem outputPoint_x (run : Run E schedule) :
+@[simp] lemma outputPoint_x (run : Run E schedule) :
     run.outputPoint.x = (run.accumulators (finalIndex schedule)).x :=
   rfl
 
-@[simp] theorem outputPoint_y (run : Run E schedule) :
+@[simp] lemma outputPoint_y (run : Run E schedule) :
     run.outputPoint.y = (run.accumulators (finalIndex schedule)).y :=
   rfl
 
-private theorem accumulator_after_steps_group_law
+private lemma accumulator_after_steps_group_law
     (run : Run E schedule) (scalar : Fin (2 ^ schedule.length))
     (hcontrols : ∀ i : Fin schedule.length,
       run.controls i = bitControl schedule scalar i) :
@@ -262,7 +262,7 @@ private theorem accumulator_after_steps_group_law
 /-- A run whose controls are the scalar bits has final accumulator equal to the
 start point plus the group-law fold of the selected fixed-base addends
 [PZ03, ecc.tex:448-462; RNSL17, ECDLP.tex:589-593]. -/
-theorem outputPoint_eq_start_add_selectedAddendGroupFold
+lemma outputPoint_eq_start_add_selectedAddendGroupFold
     (run : Run E schedule) (scalar : Fin (2 ^ schedule.length))
     (hcontrols : ∀ i : Fin schedule.length,
       run.controls i = bitControl schedule scalar i) :
@@ -276,7 +276,7 @@ theorem outputPoint_eq_start_add_selectedAddendGroupFold
 /-- For a fixed-base schedule, a scalar-bit controlled run has final
 accumulator equal to the start point plus the scalar multiple of the fixed base
 [PZ03, ecc.tex:448-462; RNSL17, ECDLP.tex:589-593]. -/
-theorem outputPoint_eq_start_add_scalar_nsmul
+lemma outputPoint_eq_start_add_scalar_nsmul
     (run : Run E schedule) (fixed : schedule.FixedBaseAddends)
     (scalar : Fin (2 ^ schedule.length))
     (hcontrols : ∀ i : Fin schedule.length,
@@ -312,7 +312,7 @@ variable {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 variable {schedule : Schedule E}
 
 /-- Extract a certified schedule run for a generic scalar/start-point input. -/
-theorem exists_run (cert : CertifiedScalarAction E schedule)
+lemma exists_run (cert : CertifiedScalarAction E schedule)
     (scalar : Fin (2 ^ schedule.length)) (start : AffinePoint E)
     (hgeneric : cert.genericDomain scalar start) :
     ∃ run : Run E schedule,
@@ -416,7 +416,7 @@ def mulEquiv (E : PrimeFieldShortWeierstrass p)
     cases x
     simp [addIntoTarget, subFromTarget, outputPoint, scalar, startPoint]
 
-@[simp] theorem mulEquiv_apply {schedule : Schedule E}
+@[simp] lemma mulEquiv_apply {schedule : Schedule E}
     {cert : CertifiedScalarAction E schedule} (x : Data E schedule cert) :
     mulEquiv E schedule cert x = x.addIntoTarget :=
   rfl
@@ -427,14 +427,14 @@ def withWorkEquiv (E : PrimeFieldShortWeierstrass p)
     (Work : Type) : Equiv.Perm (Data E schedule cert × Work) :=
   Equiv.prodCongr (mulEquiv E schedule cert) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {schedule : Schedule E}
+@[simp] lemma withWorkEquiv_apply {schedule : Schedule E}
     {cert : CertifiedScalarAction E schedule} {Work : Type}
     (x : Data E schedule cert) (w : Work) :
     withWorkEquiv E schedule cert Work (x, w) = (x.addIntoTarget, w) :=
   rfl
 
 /-- The certified scalar-multiplication map leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {schedule : Schedule E}
+lemma withWorkEquiv_preserves_work {schedule : Schedule E}
     {cert : CertifiedScalarAction E schedule} {Work : Type} :
     WorkRegister.Preserves (withWorkEquiv E schedule cert Work) := by
   intro x
@@ -467,7 +467,7 @@ noncomputable def mulOp (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   UnitaryOperator.ofPerm (Data.mulEquiv E schedule cert).symm
 
 /-- Basis action of the certified scalar-multiplication operator. -/
-theorem mulOp_apply_ket (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma mulOp_apply_ket (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (schedule : Schedule E)
     (cert : CertifiedScalarAction E schedule)
     [Fintype (Data E schedule cert)] (x : Data E schedule cert) :

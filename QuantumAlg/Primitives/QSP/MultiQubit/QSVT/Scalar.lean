@@ -35,14 +35,14 @@ def circuit (oracles : OracleModel) (m n : Nat) (c : ℂ)
     (0 : Fin (1 + (m + n))) rfl
 
 /-- The complete matrix is the scalar dilation tensored with the untouched suffix. -/
-theorem circuit_matrix (oracles : OracleModel) (m n : Nat) (c : ℂ)
-    (hc : Complex.normSq c ≤ 1) :
-    (circuit oracles m n c hc).binaryMatrix =
+lemma circuit_matrix (oracles : OracleModel) (m n : Nat) (c : ℂ)
+    (hc : Complex.normSq c ≤ 1) (environment : oracles.Interpretation) :
+    ((circuit oracles m n c hc).binaryMatrix environment) =
       (scalarDilationOperator c hc).tensor (1 : UnitaryOperator (Qubits (m + n))) :=
-  Gate.singleQubitAt_first_binaryMatrix oracles (m + n) (scalarDilationOperator c hc)
+  Gate.singleQubitAt_first_binaryMatrix oracles (m + n) (scalarDilationOperator c hc) environment
 
 /-- A constant diagonal dilation is exactly one scalar dilation tensored with identity. -/
-theorem constant_diagonal (width : Nat) (c : ℂ) (hc : Complex.normSq c ≤ 1) :
+lemma constant_diagonal (width : Nat) (c : ℂ) (hc : Complex.normSq c ≤ 1) :
     diagonalScalarDilationOperator (n := width) (fun _ => c) (fun _ => hc) =
       (scalarDilationOperator c hc).tensor (1 : UnitaryOperator (Qubits width)) := by
   ext row column
@@ -54,22 +54,22 @@ theorem constant_diagonal (width : Nat) (c : ℂ) (hc : Complex.normSq c ≤ 1) 
       same]
 
 /-- Reassociating physical coordinates gives the existing intrinsic scalar block encoding. -/
-theorem circuit_source_matrix (oracles : OracleModel) (m n : Nat) (c : ℂ)
-    (hc : Complex.normSq c ≤ 1) :
+lemma circuit_source_matrix (oracles : OracleModel) (m n : Nat) (c : ℂ)
+    (hc : Complex.normSq c ≤ 1) (environment : oracles.Interpretation) :
     reassociatePhaseAncillaOperator (m := m) (n := n)
-        (circuit oracles m n c hc).binaryMatrix =
+        ((circuit oracles m n c hc).binaryMatrix environment) =
       scalarDilationWithSourceAncillas (m := m) (n := n) c hc := by
   rw [circuit_matrix, scalarDilationWithSourceAncillas, constant_diagonal]
 
 /-- All actual events consist of exactly one default single-qubit gate, including m=0. -/
-theorem circuit_events (oracles : OracleModel) (m n : Nat) (c : ℂ)
+lemma circuit_events (oracles : OracleModel) (m n : Nat) (c : ℂ)
     (hc : Complex.normSq c ≤ 1) :
     (circuit oracles m n c hc).eventCost =
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := rfl
 
 /-- The constant case occupies one actual native dependency step. -/
-theorem circuit_depth (oracles : OracleModel) (m n : Nat) (c : ℂ)
+lemma circuit_depth (oracles : OracleModel) (m n : Nat) (c : ℂ)
     (hc : Complex.normSq c ≤ 1) :
     (circuit oracles m n c hc).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 

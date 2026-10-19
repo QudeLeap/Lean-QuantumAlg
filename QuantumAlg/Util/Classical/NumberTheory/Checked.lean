@@ -44,7 +44,7 @@ structure UnitResidue {width : Nat} (spec : ModulusSpec width) where
   /-- The value is coprime to the modulus, hence invertible. -/
   coprime : Nat.Coprime value.val spec.modulus
 
-@[ext] theorem UnitResidue.ext {width : Nat} {spec : ModulusSpec width}
+@[ext] lemma UnitResidue.ext {width : Nat} {spec : ModulusSpec width}
     {left right : UnitResidue spec} (value : left.value = right.value) :
     left = right := by
   cases left
@@ -62,14 +62,14 @@ public def inverseCandidate {width : Nat} (spec : ModulusSpec width)
     ⟨((value.val : ZMod spec.modulus)⁻¹).val,
       ZMod.val_lt ((value.val : ZMod spec.modulus)⁻¹)⟩
 
-@[simp] theorem inverseCandidate_val {width : Nat}
+@[simp] lemma inverseCandidate_val {width : Nat}
     (spec : ModulusSpec width) (value : Residue spec) :
     (inverseCandidate spec value).val =
       ((value.val : ZMod spec.modulus)⁻¹).val := by
   rfl
 
 /-- A coprime input really multiplies its selected candidate to canonical one. -/
-theorem inverseCandidate_mul_mod {width : Nat} (spec : ModulusSpec width)
+lemma inverseCandidate_mul_mod {width : Nat} (spec : ModulusSpec width)
     (value : Residue spec) (coprime : Nat.Coprime value.val spec.modulus) :
     value.val * (inverseCandidate spec value).val % spec.modulus = 1 := by
   let _ : NeZero spec.modulus :=
@@ -89,7 +89,7 @@ theorem inverseCandidate_mul_mod {width : Nat} (spec : ModulusSpec width)
 /-- A canonical modular inverse is unique once the denominator is known to be
 a unit. This lets expanded Euclidean implementations bridge to the selected
 pure candidate without depending on the internal coefficient normalization. -/
-theorem inverse_eq_candidate_of_mul_mod {width : Nat}
+lemma inverse_eq_candidate_of_mul_mod {width : Nat}
     (spec : ModulusSpec width) (value inverse : Residue spec)
     (coprime : Nat.Coprime value.val spec.modulus)
     (inverseLaw : value.val * inverse.val % spec.modulus = 1) :
@@ -161,28 +161,28 @@ public def eval {width : Nat} (spec : ModulusSpec width)
   else
     none
 
-theorem tryInv_eval_eq_none_iff {width : Nat} (spec : ModulusSpec width)
+lemma tryInv_eval_eq_none_iff {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) :
     eval spec input = none ↔ ¬ Nat.Coprime input.val spec.modulus := by
   simp [eval]
 
-theorem tryInv_eval_ne_none_iff {width : Nat} (spec : ModulusSpec width)
+lemma tryInv_eval_ne_none_iff {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) :
     eval spec input ≠ none ↔ Nat.Coprime input.val spec.modulus := by
   simp [eval]
 
-theorem tryInv_eval_eq_some_iff {width : Nat} (spec : ModulusSpec width)
+lemma tryInv_eval_eq_some_iff {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) :
     (∃ inverse, eval spec input = some inverse) ↔
       Nat.Coprime input.val spec.modulus := by
   simp [eval]
 
-theorem tryInv_eval_some_value {width : Nat} (spec : ModulusSpec width)
+lemma tryInv_eval_some_value {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) (coprime : Nat.Coprime input.val spec.modulus) :
     eval spec input = some (inverseCandidate spec input) := by
   simp [eval, coprime]
 
-theorem tryInv_eval_accepts {width : Nat} (spec : ModulusSpec width)
+lemma tryInv_eval_accepts {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) : accepts input (eval spec input) := by
   by_cases coprime : Nat.Coprime input.val spec.modulus
   · rw [tryInv_eval_some_value spec input coprime]
@@ -225,7 +225,7 @@ def eval {width : Nat} (spec : ModulusSpec width)
       some (Modular.Mul.eval spec
         { left := input.numerator, right := inverse })
 
-theorem tryDiv_eval_some_value {width : Nat} (spec : ModulusSpec width)
+lemma tryDiv_eval_some_value {width : Nat} (spec : ModulusSpec width)
     (input : Input spec)
     (coprime : Nat.Coprime input.denominator.val spec.modulus) :
     eval spec input = some (Modular.Mul.eval spec
@@ -234,7 +234,7 @@ theorem tryDiv_eval_some_value {width : Nat} (spec : ModulusSpec width)
   unfold eval
   rw [TryInv.tryInv_eval_some_value spec input.denominator coprime]
 
-theorem tryDiv_eval_eq_none_iff {width : Nat} (spec : ModulusSpec width)
+lemma tryDiv_eval_eq_none_iff {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) :
     eval spec input = none ↔
       ¬ Nat.Coprime input.denominator.val spec.modulus := by
@@ -246,14 +246,14 @@ theorem tryDiv_eval_eq_none_iff {width : Nat} (spec : ModulusSpec width)
       rw [(TryInv.tryInv_eval_eq_none_iff spec input.denominator).2 coprime]]
     simp [coprime]
 
-theorem tryDiv_eval_ne_none_iff {width : Nat} (spec : ModulusSpec width)
+lemma tryDiv_eval_ne_none_iff {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) :
     eval spec input ≠ none ↔
       Nat.Coprime input.denominator.val spec.modulus := by
   rw [ne_eq, tryDiv_eval_eq_none_iff]
   simp
 
-theorem tryDiv_eval_accepts {width : Nat} (spec : ModulusSpec width)
+lemma tryDiv_eval_accepts {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) : accepts input (eval spec input) := by
   by_cases coprime : Nat.Coprime input.denominator.val spec.modulus
   · rw [tryDiv_eval_some_value spec input coprime]
@@ -283,7 +283,7 @@ def accepts {width : Nat} {spec : ModulusSpec width}
     (input : Input spec) (output : Output spec) : Prop :=
   input.value.val * output.val % spec.modulus = 1
 
-theorem unitInv_eval_accepts {width : Nat} (spec : ModulusSpec width)
+lemma unitInv_eval_accepts {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) : accepts input (eval spec input) :=
   inverseCandidate_mul_mod spec input.value input.coprime
 
@@ -315,7 +315,7 @@ def accepts {width : Nat} {spec : ModulusSpec width}
     { left := input.numerator,
       right := inverseCandidate spec input.denominator.value }
 
-theorem unitDiv_eval_accepts {width : Nat} (spec : ModulusSpec width)
+lemma unitDiv_eval_accepts {width : Nat} (spec : ModulusSpec width)
     (input : Input spec) : accepts input (eval spec input) :=
   rfl
 

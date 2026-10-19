@@ -22,6 +22,8 @@ namespace QuantumAlg.MeasuredUncompute.InPlacePreparation.Framed
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution ContextUnion MAU.Inversion.SharedEEA
 
 variable (modulus : Nat) (frame : RuntimeCtx .quantum)
@@ -29,14 +31,14 @@ variable (modulus : Nat) (frame : RuntimeCtx .quantum)
   {Reference : Register} {History : Type} [Fintype History]
 
 /-- The real zero/X sequence establishes the fixed factor beside the complete incoming density. -/
-theorem execute_preparedDensity
+lemma execute_preparedDensity
     (state : State ((InversePreparation.before modulus.size).disjointUnion frame
       (preparation_original_disjoint InversePreparation.auxiliaryKey
         (InputPreparation.auxiliaryLayout modulus.size)
         (InversePreparation.auxiliary_fresh modulus.size)
         (InversePreparation.auxiliary_disjoint modulus.size) separate))
       Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((circuit modulus frame separate).execute Reference state).quantumMarginal =
+    ((circuit modulus frame separate).execute environment Reference state).quantumMarginal =
       preparedDensity InversePreparation.auxiliaryKey
         (InputPreparation.auxiliaryLayout modulus.size)
         (preparation_fresh_union InversePreparation.auxiliaryKey _
@@ -52,9 +54,9 @@ theorem execute_preparedDensity
     (operations := .empty) (services := .empty)
     InversePreparation.auxiliaryKey (InputPreparation.auxiliaryLayout modulus.size)
     (InversePreparation.auxiliary_fresh modulus.size)
-    (InversePreparation.auxiliary_disjoint modulus.size) separate
+    (InversePreparation.auxiliary_disjoint modulus.size) separate environment
     (InPlacePreparation.loadProgram modulus) (InPlacePreparation.preparation modulus) state
-    (InPlacePreparation.execute_preparedDensity
+    (InPlacePreparation.execute_preparedDensity (runtimeEnvironment := environment)
       (Reference := Register.prod frame.register Reference) (H := Store frame × History)
       modulus (splitServiceState (InversePreparation.before modulus.size) frame
         (preparation_original_disjoint InversePreparation.auxiliaryKey
@@ -63,7 +65,7 @@ theorem execute_preparedDensity
           (InversePreparation.auxiliary_disjoint modulus.size) separate) state))
 
 /-- Every joint matrix entry retains all old coherences and all resident frame correlations. -/
-theorem execute_joined_entry
+lemma execute_joined_entry
     (state : State ((InversePreparation.before modulus.size).disjointUnion frame
       (preparation_original_disjoint InversePreparation.auxiliaryKey
         (InputPreparation.auxiliaryLayout modulus.size)
@@ -78,7 +80,7 @@ theorem execute_joined_entry
           (InversePreparation.auxiliary_fresh modulus.size)
           (InversePreparation.auxiliary_disjoint modulus.size) separate)).register
       Reference).Index) :
-    ((circuit modulus frame separate).execute Reference state).quantumMarginal.matrix
+    ((circuit modulus frame separate).execute environment Reference state).quantumMarginal.matrix
       (preparedFramedBasisEquiv InversePreparation.auxiliaryKey
         (InputPreparation.auxiliaryLayout modulus.size)
         (InversePreparation.auxiliary_fresh modulus.size)

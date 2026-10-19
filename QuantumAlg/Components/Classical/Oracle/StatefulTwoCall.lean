@@ -37,21 +37,30 @@ inductive Query where
   deriving DecidableEq
 
 /-- A declared deterministic service that reports and flips its hidden bit. -/
-@[implicit_reducible] def service : ClassicalOracleModel where
-  Query := Query
-  Coordinate := Query
-  coordinateDecidableEq := inferInstance
-  HiddenState := Bool
-  stateFintype := inferInstance
-  inputShape _ := .bit
-  outputShape _ := .bit
+@[implicit_reducible] def service : ClassicalOracleModel :=
+  .service
+    { Query := Query
+      Coordinate := Query
+      coordinateDecidableEq := inferInstance
+      HiddenState := Bool
+      stateFintype := inferInstance
+      inputShape _ := .bit
+      outputShape _ := .bit
+      coordinate query := query }
+
+/-- The concrete transition laws are supplied to execution separately from query syntax. -/
+@[implicit_reducible] def interpretation : service.Interpretation where
   transition query hidden _ := match query with
     | .readFlip => PMF.pure (!hidden, .bit hidden)
     | .reset => PMF.pure (false, .bit hidden)
-  coordinate query := query
 
 /-- Only this classical service is available to the two-call program. -/
 @[implicit_reducible] def model : ExecutionModel := .classical .empty service
+
+/-- The designated read-and-flip experiment uses this explicit interpretation. -/
+@[implicit_reducible] def environment : model.Environment where
+  quantum := OracleModel.emptyInterpretation
+  classical := interpretation
 
 variable {ctx : RuntimeCtx .classical} (result : CWriteRef ctx .bit)
 
@@ -78,33 +87,33 @@ variable {ctx : RuntimeCtx .classical} (result : CWriteRef ctx .bit)
   .classicalQuery (resetApplication result)
 
 /-- One execution reports the old bit and keeps the flipped bit for later calls. -/
-private theorem call_execute (Reference : Register) {H : Type} [Fintype H]
+private lemma call_execute (Reference : Register) {H : Type} [Fintype H]
     (state : State ctx Reference (Bool × H)) :
-    (call result).execute Reference state = state.mapClassical (fun entry =>
+    (call result).execute environment Reference state = state.mapClassical (fun entry =>
       (entry.1.write result (.bit entry.2.1),
         (!entry.2.1, (entry.2.2, .bit entry.2.1)))) := by
-  change queryStep (application result) state = _
-  have actual := queryStep_of_pure (application result)
+  change queryStep interpretation (application result) state = _
+  have actual := queryStep_of_pure (application result) interpretation
     (fun hidden _ => (!hidden, .bit hidden)) (by intro hidden value; rfl) state
   exact actual.trans (ExecutionState.executionState_mapClassical_congr state rfl)
 
 /-- Reset reports the old hidden bit while setting the persistent bit to false;
 every existing quantum and reference block remains in its original fiber. -/
-theorem reset_execute (Reference : Register) {H : Type} [Fintype H]
+lemma reset_execute (Reference : Register) {H : Type} [Fintype H]
     (state : State ctx Reference (Bool × H)) :
-    (reset result).execute Reference state = state.mapClassical (fun entry =>
+    (reset result).execute environment Reference state = state.mapClassical (fun entry =>
       (entry.1.write result (.bit entry.2.1),
         (false, (entry.2.2, .bit entry.2.1)))) := by
-  change queryStep (resetApplication result) state = _
-  have actual := queryStep_of_pure (resetApplication result)
+  change queryStep interpretation (resetApplication result) state = _
+  have actual := queryStep_of_pure (resetApplication result) interpretation
     (fun hidden _ => (false, .bit hidden)) (by intro hidden value; rfl) state
   exact actual.trans (ExecutionState.executionState_mapClassical_congr state rfl)
 
 /-- The actual second call sees the first call's update, rather than a reset
 or an independent draw; all complete reference blocks are pushed forward. -/
-theorem twoCalls_execute (Reference : Register) {H : Type} [Fintype H]
+lemma twoCalls_execute (Reference : Register) {H : Type} [Fintype H]
     (state : State ctx Reference (Bool × H)) :
-    (twoCalls result).execute Reference state = state.mapClassical (fun entry =>
+    (twoCalls result).execute environment Reference state = state.mapClassical (fun entry =>
       (((entry.1.write result (.bit entry.2.1)).write result (.bit (!entry.2.1))),
         (entry.2.1, (entry.2.2, (.bit entry.2.1, .bit (!entry.2.1)))))) := by
   unfold twoCalls
@@ -120,14 +129,14 @@ theorem twoCalls_execute (Reference : Register) {H : Type} [Fintype H]
 
 /-- The executed path charges exactly two service queries and no classical
 operation event, independently of the two correlated results. -/
-theorem twoCalls_eventTrace (path : (twoCalls result).Path) :
+lemma twoCalls_eventTrace (path : (twoCalls result).Path) :
     (twoCalls result).eventTrace path =
       [.classicalQuery .readFlip, .classicalQuery .readFlip] := by
   rfl
 
 /-- Reset is a distinct query event, rather than an uncharged change of the
 hidden input state. -/
-theorem reset_eventTrace (path : (reset result).Path) :
+lemma reset_eventTrace (path : (reset result).Path) :
     (reset result).eventTrace path = [.classicalQuery .reset] := by
   rfl
 
@@ -139,7 +148,7 @@ def initializedInput {Reference : Register} (caller : Input ctx Reference) :
 
 /-- The initialization has no true hidden-state block, even when the caller's
 store and external quantum reference were correlated. -/
-theorem initializedInput_true_block {Reference : Register}
+lemma initializedInput_true_block {Reference : Register}
     (caller : Input ctx Reference) (store : Store ctx) :
     ((initializedInput caller).state.block (store, true)).matrix = 0 := by
   rw [initializedInput, OracleInput.oracleInput_ofKernel_block_matrix]

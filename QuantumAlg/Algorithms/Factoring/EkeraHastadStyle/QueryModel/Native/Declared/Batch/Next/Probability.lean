@@ -6,8 +6,10 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Probability
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Redraw.Observation
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Probability
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Redraw.Observation
 
 /-!
 # Joint law of a complete later EH batch
@@ -28,15 +30,15 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- A later physical batch combines its own actual redraw with sixteen paid
 same-bank members and copies into the preallocated terminal cells. -/
-theorem nextBatch_joint_reference
+lemma nextBatch_joint_reference
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : (ParameterShape N).Value → (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextBatch base noQuantum N input).execute Reference state)
+      ((nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *
@@ -49,19 +51,21 @@ theorem nextBatch_joint_reference
             ∏ index : Fin 16,
               Declared.sourceWeight N input (parameterValue input value) (outcomes index)))
       leftRef rightRef := by
-  let redrawCircuit := redraw base noQuantum N input
-  let resetRange := Circuit.forRange 16 (reusedSample base noQuantum N input)
+  let redrawCircuit := redraw base noQuantum N
+  let resetRange := Circuit.forRange 16 (reusedSample base noQuantum N)
   let observed : CInputRef (context base noQuantum N) (.bits (measurementBits N)) :=
     .storage (terminalRef base noQuantum N 0).toCStorageRef
   have separated := terminal_redraw_separated base noQuantum N 0
-  have split := Circuit.referenceFiberSum_execute_seq redrawCircuit resetRange state
+  have split := Circuit.referenceFiberSum_execute_seq (environment := sourceEnvironment input)
+    redrawCircuit resetRange state
     (fun store => weight
       (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
       (store.read (.storage (sourceRef base noQuantum N).toCStorageRef)) *
       terminalIndicator base noQuantum N 16 id outcomes store)
     leftRef rightRef
   have conditional := reusedTerminals_reference base noQuantum N input
-    (redrawCircuit.execute Reference state) weight outcomes leftRef rightRef
+    (redrawCircuit.execute (sourceEnvironment input) Reference state) weight outcomes leftRef
+      rightRef
   have drawn := redraw_frame_reference base noQuantum N input observed separated state
     (fun _ parameter source => weight parameter source *
       ∏ index : Fin 16, Declared.sourceWeight N input parameter (outcomes index))

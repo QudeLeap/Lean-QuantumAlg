@@ -22,7 +22,7 @@ native event, space layout or compilation strategy
 namespace QuantumAlg.Nat.FixedWidth
 
 /-- The two binary scans agree with the mathematical product coefficient on all labels. -/
-theorem variableWordPrefix_eq_accumulate {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableWordPrefix_eq_accumulate {width : Nat} (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) :
     variableWordPrefix modulus first second target width =
       accumulateWordPrefix modulus first.val second target width := by
@@ -47,7 +47,7 @@ def variableTripleEquiv {width : Nat} (modulus : Fin (2 ^ width + 1)) :
     simp only [Equiv.apply_symm_apply]
 
 /-- The independent permutation agrees with the proved bit-pair arithmetic recurrence. -/
-theorem variableTripleEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableTripleEquiv_apply {width : Nat} (modulus : Fin (2 ^ width + 1))
     (state : Fin (2 ^ width) × (Fin (2 ^ width) × Fin (2 ^ width))) :
     variableTripleEquiv modulus state =
       (state.1, state.2.1, variableWordPrefix modulus state.1 state.2.1 state.2.2 width) := by

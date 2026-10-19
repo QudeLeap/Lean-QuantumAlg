@@ -7,17 +7,19 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Reuse
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Resources.Sample
+import all
+  QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Resources.Sample
 import all QuantumAlg.Core.Execution.Circuit.Weighted
+import all QuantumAlg.Primitives.ZReset.Bank.Parallel.Bounds
 
 /-!
 # Actual declared sampling after paid reuse of the original bank
 
 Every existing qubit is measured and receives its selected native correction.
 Zero correction emits no gate; the independent allowance reserves at most one
-X after each Z. Only this serial reset prefix uses its weighted allowance.
+X after each Z. The weighted allowance is a conservative total-work bound.
 The following member retains its original parallel dependency expression for
-arbitrary event durations. The one lexical scratch bit is counted exactly.
+arbitrary event durations. All per-wire lexical scratch bits are counted exactly.
 -/
 
 namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.OracleModel.Native.Declared
@@ -26,139 +28,173 @@ open Execution
 
 noncomputable section
 
+/-- The actual parent reset owns one classical measurement cell per original bank wire. -/
+def resetSpace (N : Nat) : SpacePool .quantum :=
+  ShortDLP.totalQubits (Native.parameters N) • SpacePool.ofShape (.finite 2)
+
+/-- A nonempty bank has one selected correction layer; the empty bank has no work. -/
+public def resetQuantumTime (N : Nat) : Nat :=
+  if ShortDLP.totalQubits (Native.parameters N) = 0 then 0 else 1
+
 variable {N : Nat}
 
 /-- Each original bank wire reserves one Z and at most one native X correction. -/
-def resetEventBudget (input : Input N) : ResourcePool (model input) :=
-  ZReset.Bank.envelope (oracles := ShortDLP.declaredModel (Native.encoding input))
+def resetEventBudget (N : Nat) : ResourcePool (model N) :=
+  ZReset.Bank.envelope (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (ShortDLP.totalQubits (Native.parameters N)) BitWord.model
 
 /-- Reuse has no preparation event and keeps the original member allowance. -/
-def reuseEventBudget (input : Input N) : ResourcePool (model input) :=
-  resetEventBudget input + memberEventBudget input
+def reuseEventBudget (N : Nat) : ResourcePool (model N) :=
+  resetEventBudget N + memberEventBudget N
 
-/-- The serial reset prefix reserves the two actual native durations per bank wire. -/
-def resetDurationBudget (input : Input N)
-    (duration : Resource.Event (model input) → Nat) : Nat :=
+/-- A total-work allowance reserves both actual native durations per bank wire. -/
+def resetDurationBudget (N : Nat)
+    (duration : Resource.Event (model N) → Nat) : Nat :=
   ShortDLP.totalQubits (Native.parameters N) *
     (duration (.measurement (2 : ℕ+)) + duration (.gate .singleQubit))
 
 /-- Reset precedes the original member's complete native dependency expression. -/
-def reuseDurationBudget (input : Input N)
-    (duration : Resource.Event (model input) → Nat) : Nat :=
-  resetDurationBudget input duration + memberDuration input duration
+def reuseDurationBudget (N : Nat)
+    (duration : Resource.Event (model N) → Nat) : Nat :=
+  resetDurationBudget N duration + memberDuration N duration
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
 
-private theorem context_width :
+private lemma context_width :
     (Native.context base noQuantum N).systemCount =
       ShortDLP.totalQubits (Native.parameters N) := by
   have count := congrArg List.length (Native.nativeOracle_context_wires base noQuantum N)
   simpa only [RuntimeCtx.systemCount, QuantumLayout.wires_length] using count
 
 /-- The actual scoped reset obeys the independent width allowance in the same declared model. -/
-theorem declaredReuse_reset_resourcePool_le (path : (resetBank base noQuantum N input).Path) :
-    (resetBank base noQuantum N input).resourcePool path ≤ resetEventBudget input := by
-  have bounded := ZReset.BankScope.zResetBankScope_resourcePool_le
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+lemma declaredReuse_reset_resourcePool_le (path : (resetBank base noQuantum N).Path) :
+    (resetBank base noQuantum N).resourcePool path ≤ resetEventBudget N := by
+  have bounded := ZReset.BankParallel.code_eventEnvelope_le (services := .empty)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model)
     (Native.nativeOracle_context_qubits N (Native.nativeOracle_context_wires base noQuantum N))
     path
   exact bounded.trans_eq (congrArg
     (fun width => ZReset.Bank.envelope
-      (oracles := ShortDLP.declaredModel (Native.encoding input)) width BitWord.model)
+      (oracles := ShortDLP.declaredModel N (Native.parameters N)) width BitWord.model)
     (context_width base noQuantum N))
 
 /-- Zero corrections may be empty; every actual reset path has at most two events per qubit. -/
-theorem declaredReuse_reset_eventTrace_length_le
-    (path : (resetBank base noQuantum N input).Path) :
-    ((resetBank base noQuantum N input).eventTrace path).length ≤
+lemma declaredReuse_reset_eventTrace_length_le
+    (path : (resetBank base noQuantum N).Path) :
+    ((resetBank base noQuantum N).eventTrace path).length ≤
       2 * ShortDLP.totalQubits (Native.parameters N) := by
-  exact (ZReset.BankScope.zResetBankScope_eventTrace_length_le
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+  exact (ZReset.BankParallel.code_eventTrace_length_le (services := .empty)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model)
     (Native.nativeOracle_context_qubits N (Native.nativeOracle_context_wires base noQuantum N))
     path).trans_eq (congrArg (2 * ·) (context_width base noQuantum N))
 
-/-- Arbitrary native durations charge the actual serial reset prefix before reuse. -/
-theorem declaredReuse_reset_depth_le (duration : Resource.Event (model input) → Nat)
-    (path : (resetBank base noQuantum N input).Path) :
-    (resetBank base noQuantum N input).depth duration path ≤
-      resetDurationBudget input duration := by
-  refine (Circuit.depth_le_weightedCount_of_pool_le (resetBank base noQuantum N input)
-    duration (resetEventBudget input) path
-    (declaredReuse_reset_resourcePool_le base noQuantum N input path)).trans_eq ?_
+/-- Arbitrary native durations are bounded by the total work of the actual reset prefix. -/
+lemma declaredReuse_reset_depth_le (duration : Resource.Event (model N) → Nat)
+    (path : (resetBank base noQuantum N).Path) :
+    (resetBank base noQuantum N).depth duration path ≤
+      resetDurationBudget N duration := by
+  refine (Circuit.depth_le_weightedCount_of_pool_le (resetBank base noQuantum N)
+    duration (resetEventBudget N) path
+    (declaredReuse_reset_resourcePool_le base noQuantum N path)).trans_eq ?_
   simp only [resetEventBudget, resetDurationBudget, ZReset.Bank.envelope, ZReset.eventEnvelope,
     ResourcePool.weightedCount_nsmul, ResourcePool.weightedCount_add,
     ResourcePool.weightedCount_singleton, Nat.one_mul]
 
 /-- Actual reset and actual sampling share one complete declared-model event allowance. -/
-theorem declaredReuse_resourcePool_le (parameter : CInputRef base (ParameterShape N))
-    (path : (reuse base noQuantum N input parameter).Path) :
-    (reuse base noQuantum N input parameter).resourcePool path ≤ reuseEventBudget input := by
-  change (resetBank base noQuantum N input).resourcePool path.1 +
-    (body base noQuantum N input parameter).resourcePool path.2 ≤ _
-  exact add_le_add (declaredReuse_reset_resourcePool_le base noQuantum N input path.1)
-    (declaredSample_body_resourcePool base noQuantum N input parameter path.2).le
+lemma declaredReuse_resourcePool_le (parameter : CInputRef base (ParameterShape N))
+    (path : (reuse base noQuantum N parameter).Path) :
+    (reuse base noQuantum N parameter).resourcePool path ≤ reuseEventBudget N := by
+  change (resetBank base noQuantum N).resourcePool path.1 +
+    (body base noQuantum N parameter).resourcePool path.2 ≤ _
+  exact add_le_add (declaredReuse_reset_resourcePool_le base noQuantum N path.1)
+    (declaredSample_body_resourcePool base noQuantum N parameter path.2).le
 
 /-- The real selected reset prefix precedes the exact original member depth. -/
-theorem declaredReuse_depth (parameter : CInputRef base (ParameterShape N))
-    (duration : Resource.Event (model input) → Nat)
-    (path : (reuse base noQuantum N input parameter).Path) :
-    (reuse base noQuantum N input parameter).depth duration path =
-      (resetBank base noQuantum N input).depth duration path.1 + memberDuration input duration := by
-  exact (Circuit.depth_seq (resetBank base noQuantum N input)
-    (body base noQuantum N input parameter) duration path.1 path.2).trans
-      (congrArg ((resetBank base noQuantum N input).depth duration path.1 + ·)
-        (declaredSample_body_depth base noQuantum N input parameter duration path.2))
+lemma declaredReuse_depth (parameter : CInputRef base (ParameterShape N))
+    (duration : Resource.Event (model N) → Nat)
+    (path : (reuse base noQuantum N parameter).Path) :
+    (reuse base noQuantum N parameter).depth duration path =
+      (resetBank base noQuantum N).depth duration path.1 + memberDuration N duration := by
+  exact (Circuit.depth_seq (resetBank base noQuantum N)
+    (body base noQuantum N parameter) duration path.1 path.2).trans
+      (congrArg ((resetBank base noQuantum N).depth duration path.1 + ·)
+        (declaredSample_body_depth base noQuantum N parameter duration path.2))
 
 /-- The original member's parallelism is retained in the arbitrary-duration reuse bound. -/
-theorem declaredReuse_depth_le (parameter : CInputRef base (ParameterShape N))
-    (duration : Resource.Event (model input) → Nat)
-    (path : (reuse base noQuantum N input parameter).Path) :
-    (reuse base noQuantum N input parameter).depth duration path ≤
-      reuseDurationBudget input duration := by
+lemma declaredReuse_depth_le (parameter : CInputRef base (ParameterShape N))
+    (duration : Resource.Event (model N) → Nat)
+    (path : (reuse base noQuantum N parameter).Path) :
+    (reuse base noQuantum N parameter).depth duration path ≤
+      reuseDurationBudget N duration := by
   rw [declaredReuse_depth]
-  exact Nat.add_le_add_right (declaredReuse_reset_depth_le base noQuantum N input duration path.1) _
+  exact Nat.add_le_add_right (declaredReuse_reset_depth_le base noQuantum N duration path.1) _
 
-/-- The only extra resident storage is the one actual finite scratch cell during reset. -/
-theorem declaredReuse_peakResidentSpace (parameter : CInputRef base (ParameterShape N))
-    (path : (reuse base noQuantum N input parameter).Path) :
-    (reuse base noQuantum N input parameter).peakResidentSpace path =
-      SpacePool.ofShape (.finite 2) + (Native.context base noQuantum N).residentSpace := by
-  refine (Circuit.peakResidentSpace_seq (resetBank base noQuantum N input)
-    (body base noQuantum N input parameter) path).trans ?_
-  rw [declaredSample_body_peakResidentSpace]
-  have reset := ZReset.BankScope.zResetBankScope_peakResidentSpace
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
-    (operations := BitWord.model)
-    (Native.nativeOracle_context_qubits N (Native.nativeOracle_context_wires base noQuantum N))
-    path.1
-  refine (congrArg (fun value => SpacePool.max value
-    (Native.context base noQuantum N).residentSpace) reset).trans ?_
-  apply SpacePool.ext
-  intro axis
-  exact max_eq_left (Nat.le_add_left _ _)
+/-- Actual reset time follows the single correction layer, including the empty case. -/
+lemma declaredReuse_reset_quantumTime_le (path : (resetBank base noQuantum N).Path) :
+    (resetBank base noQuantum N).quantumTime path ≤ resetQuantumTime N := by
+  have bounded := ZReset.BankParallel.code_quantumTime_le_layer (services := .empty)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N)) (operations := BitWord.model)
+    (Native.nativeOracle_context_qubits N
+      (Native.nativeOracle_context_wires base noQuantum N)) path
+  rw [context_width base noQuantum N] at bounded
+  exact bounded
 
-/-- The same one-bit lexical allocation contributes once to the actual auxiliary peak. -/
-theorem declaredReuse_peakAuxiliarySpace (parameter : CInputRef base (ParameterShape N))
-    (path : (reuse base noQuantum N input parameter).Path) :
-    (reuse base noQuantum N input parameter).peakAuxiliarySpace path =
-      SpacePool.ofShape (.finite 2) + (Native.context base noQuantum N).auxiliarySpace := by
-  refine (Circuit.peakAuxiliarySpace_seq (resetBank base noQuantum N input)
-    (body base noQuantum N input parameter) path).trans ?_
-  rw [declaredSample_body_peakAuxiliarySpace]
-  have reset := ZReset.BankScope.zResetBankScope_peakAuxiliarySpace
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
-    (operations := BitWord.model)
-    (Native.nativeOracle_context_qubits N (Native.nativeOracle_context_wires base noQuantum N))
-    path.1
-  refine (congrArg (fun value => SpacePool.max value
-    (Native.context base noQuantum N).auxiliarySpace) reset).trans ?_
-  apply SpacePool.ext
-  intro axis
-  exact max_eq_left (Nat.le_add_left _ _)
+/-- Reset's single correction layer precedes the original complete member quantum time. -/
+lemma declaredReuse_quantumTime_le (parameter : CInputRef base (ParameterShape N))
+    (path : (reuse base noQuantum N parameter).Path) :
+    (reuse base noQuantum N parameter).quantumTime path ≤
+      resetQuantumTime N + memberDuration N Resource.Event.quantumDuration := by
+  change (reuse base noQuantum N parameter).depth Resource.Event.quantumDuration path ≤ _
+  rw [declaredReuse_depth]
+  exact Nat.add_le_add_right
+    (declaredReuse_reset_quantumTime_le base noQuantum N path.1) _
+
+/-- Every reset result cell is present together at the actual resident peak. -/
+lemma declaredReuse_reset_peakResidentSpace
+    (path : (resetBank base noQuantum N).Path) :
+    (resetBank base noQuantum N).peakResidentSpace path =
+      resetSpace N + (Native.context base noQuantum N).residentSpace := by
+  have peak := ZReset.BankParallel.code_peakResidentSpace (services := .empty)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N)) (operations := BitWord.model)
+    (Native.nativeOracle_context_qubits N
+      (Native.nativeOracle_context_wires base noQuantum N)) path
+  rw [context_width base noQuantum N] at peak
+  exact peak
+
+/-- Every reset result cell is charged at the actual auxiliary peak. -/
+lemma declaredReuse_reset_peakAuxiliarySpace
+    (path : (resetBank base noQuantum N).Path) :
+    (resetBank base noQuantum N).peakAuxiliarySpace path =
+      resetSpace N + (Native.context base noQuantum N).auxiliarySpace := by
+  have peak := ZReset.BankParallel.code_peakAuxiliarySpace (services := .empty)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N)) (operations := BitWord.model)
+    (Native.nativeOracle_context_qubits N
+      (Native.nativeOracle_context_wires base noQuantum N)) path
+  rw [context_width base noQuantum N] at peak
+  exact peak
+
+/-- The only extra resident storage is the actual per-wire scratch group during reset. -/
+lemma declaredReuse_peakResidentSpace (parameter : CInputRef base (ParameterShape N))
+    (path : (reuse base noQuantum N parameter).Path) :
+    (reuse base noQuantum N parameter).peakResidentSpace path =
+      resetSpace N + (Native.context base noQuantum N).residentSpace := by
+  refine (Circuit.peakResidentSpace_seq
+    (resetBank base noQuantum N) (body base noQuantum N parameter) path).trans ?_
+  rw [declaredReuse_reset_peakResidentSpace, declaredSample_body_peakResidentSpace]
+  exact SpacePool.max_eq_left (fun axis => Nat.le_add_left _ _)
+
+/-- The same per-wire lexical allocation contributes once to the actual auxiliary peak. -/
+lemma declaredReuse_peakAuxiliarySpace (parameter : CInputRef base (ParameterShape N))
+    (path : (reuse base noQuantum N parameter).Path) :
+    (reuse base noQuantum N parameter).peakAuxiliarySpace path =
+      resetSpace N + (Native.context base noQuantum N).auxiliarySpace := by
+  refine (Circuit.peakAuxiliarySpace_seq
+    (resetBank base noQuantum N) (body base noQuantum N parameter) path).trans ?_
+  rw [declaredReuse_reset_peakAuxiliarySpace, declaredSample_body_peakAuxiliarySpace]
+  exact SpacePool.max_eq_left (fun axis => Nat.le_add_left _ _)
 
 end
 

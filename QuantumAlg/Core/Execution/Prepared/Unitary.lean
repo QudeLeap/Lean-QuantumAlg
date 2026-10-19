@@ -47,7 +47,7 @@ def preparedDensity (key : StorageKey) (layout : QuantumLayout systemCount)
   DensityOperator.reindex (Execution.prependPrepared input prepared)
     (prepareContextBasisEquiv ctx Reference key layout fresh disjoint)
 
-theorem preparedDensity_mass (key : StorageKey) (layout : QuantumLayout systemCount)
+lemma preparedDensity_mass (key : StorageKey) (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (prepared : NormalizedVector layout.register) (Reference : Register)
     (input : DensityOperator (Register.prod ctx.register Reference)) :
@@ -55,7 +55,7 @@ theorem preparedDensity_mass (key : StorageKey) (layout : QuantumLayout systemCo
   rw [preparedDensity, DensityOperator.reindex_mass, Execution.prependPrepared_mass]
 
 /-- The actual preparation context has the independent complete joint density. -/
-theorem prepareContext_quantumMarginal_eq_preparedDensity
+lemma prepareContext_quantumMarginal_eq_preparedDensity
     {C : Type} [Fintype C] {Reference : Register}
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount)
@@ -75,13 +75,14 @@ theorem prepareContext_quantumMarginal_eq_preparedDensity
   rfl
 
 /-- The actual zero-preparation/unitary run gives the independent joint tensor/unitary target. -/
-theorem preparedUnitary_finalState_quantumMarginal
+lemma preparedUnitary_finalState_quantumMarginal
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel} (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (body : UnitaryCircuit gates oracles
       (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {shape : CShape} (output : Output (ctx.addOwnedLayout key layout fresh disjoint) shape)
     (Reference : Register)
     (input : ExecutionState (Execution.Store ctx × services.HiddenState)
@@ -91,9 +92,10 @@ theorem preparedUnitary_finalState_quantumMarginal
           ctx key layout fresh disjoint).seq (Circuit.unitary body), output := output } :
         AlgorithmRun (.quantum gates oracles operations services) ctx
           (ctx.addOwnedLayout key layout fresh disjoint) shape).finalState
-          Reference input).quantumMarginal =
+          environment Reference input).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor body.matrix (1 : UnitaryOperator Reference))
+        (UnitaryOperator.prodTensor (body.matrix environment.quantum)
+          (1 : UnitaryOperator Reference))
         (preparedDensity key layout fresh disjoint (BasisPreparation.zero layout).normalized
           Reference input.quantumMarginal) := by
   rw [AlgorithmRun.finalState, ExecutionState.mapClassical_quantumMarginal,

@@ -41,7 +41,7 @@ noncomputable def projectedPhasesFromQSPCertificate (φ₀ : ℝ) (φs : List �
       (φ₀ + last + (((φs.length - 1 : ℕ) : ℝ) * (Real.pi / 2))) ::
         (reversedInit.reverse.map fun φ => φ - Real.pi / 2)
 
-theorem projectedPhasesFromQSPCertificate_length (φ₀ : ℝ) (φs : List ℝ) :
+lemma projectedPhasesFromQSPCertificate_length (φ₀ : ℝ) (φs : List ℝ) :
     (projectedPhasesFromQSPCertificate φ₀ φs).length = φs.length := by
   unfold projectedPhasesFromQSPCertificate
   cases hrev : φs.reverse with
@@ -58,7 +58,7 @@ theorem projectedPhasesFromQSPCertificate_length (φ₀ : ℝ) (φs : List ℝ) 
 to the `(0,0)` entry needed by the singular-value transformation proof: the
 projected-QSVT `R` product is the raw `R` product with the terminal scalar phase
 absorbed into its first phase. -/
-theorem singularSignalRProduct_projectedPhases_zero_zero_eq_rawProduct
+lemma singularSignalRProduct_projectedPhases_zero_zero_eq_rawProduct
     (φ₀ : ℝ) (init : List ℝ) (last x : ℝ) :
     singularSignalRProduct (projectedPhasesFromQSPCertificate φ₀ (init ++ [last])) x 0 0 =
       Complex.exp (((last + init.length * (Real.pi / 2) + Real.pi / 4 : ℝ) : ℂ) *
@@ -90,7 +90,7 @@ theorem singularSignalRProduct_projectedPhases_zero_zero_eq_rawProduct
 
 /-- The projected-QSVT phase conversion preserves the `(0,0)` scalar entry of
 the source `W`-convention QSP certificate [GSLW19, BlockHam.tex:514-528]. -/
-theorem singularSignalRProduct_projectedPhases_zero_zero_eq_qspW
+lemma singularSignalRProduct_projectedPhases_zero_zero_eq_qspW
     (φ₀ : ℝ) (init : List ℝ) (last x : ℝ) :
     singularSignalRProduct (projectedPhasesFromQSPCertificate φ₀ (init ++ [last])) x 0 0 =
       qspW φ₀ (init ++ [last]) x 0 0 := by
@@ -101,7 +101,7 @@ theorem singularSignalRProduct_projectedPhases_zero_zero_eq_qspW
 conjugate scalar polynomial on the local `R`-signal block.  This is the scalar
 half of the real-polynomial averaging step in `cor:matchingParity`
 [GSLW19, BlockHam.tex:851-887]. -/
-theorem singularSignalRProduct_negProjectedPhases_zero_zero_eq_conjP
+lemma singularSignalRProduct_negProjectedPhases_zero_zero_eq_conjP
     {d : Nat} {P Q : Polynomial Complex}
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last x : ℝ)
@@ -127,7 +127,7 @@ set_option linter.flexible false in
 projected-QSVT phases have the same scalar product as the `(0,0)` entry of the
 corresponding `W`-convention QSP sequence at `x=1` [GSLW19,
 BlockHam.tex:520-528,738-849]. -/
-theorem phaseProduct_projectedPhases_append_singleton (φ₀ : ℝ)
+lemma phaseProduct_projectedPhases_append_singleton (φ₀ : ℝ)
     (init : List ℝ) (last : ℝ) :
     phaseProduct (projectedPhasesFromQSPCertificate φ₀ (init ++ [last])) =
       Complex.exp (φ₀ * Complex.I) * phaseProduct (init ++ [last]) := by
@@ -151,7 +151,7 @@ theorem phaseProduct_projectedPhases_append_singleton (φ₀ : ℝ)
 projecting a reflection-QSP phase certificate into the source projected-QSVT
 phase list, the scalar phase product on a unit singular block is exactly the
 certificate's target value at `x=1` [GSLW19, BlockHam.tex:520-528,768-849]. -/
-theorem phaseProduct_projectedPhases_eq_certificate_eval_one {d : Nat}
+lemma phaseProduct_projectedPhases_eq_certificate_eval_one {d : Nat}
     {P Q : Polynomial Complex}
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)
@@ -163,7 +163,7 @@ theorem phaseProduct_projectedPhases_eq_certificate_eval_one {d : Nat}
   rw [← qspW_one_zero_zero_eq_phaseProduct]
   simpa [hφs] using certificate.qspW_zero_zero (x := 1) (by norm_num)
 
-theorem phaseProduct_negProjectedPhases_eq_conjP_eval_one {d : Nat}
+lemma phaseProduct_negProjectedPhases_eq_conjP_eval_one {d : Nat}
     {P Q : Polynomial Complex}
     (certificate : ReflectionQSPPhaseSynthesis.PhaseCertificate d P Q)
     (init : List ℝ) (last : ℝ)

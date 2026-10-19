@@ -20,7 +20,7 @@ of the left and right registers, in that order, including empty registers.
 namespace QuantumAlg.BinaryBasis
 
 /-- The left physical segment decodes to precisely the original left binary label. -/
-theorem bigEndianEquiv_prod_left {leftWidth rightWidth : Nat}
+lemma bigEndianEquiv_prod_left {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) (index : Fin leftWidth) :
     (bigEndianEquiv (leftWidth + rightWidth)).symm (prodEquiv (left, right))
         (Fin.castAdd rightWidth index) = (bigEndianEquiv leftWidth).symm left index := by
@@ -31,7 +31,7 @@ theorem bigEndianEquiv_prod_left {leftWidth rightWidth : Nat}
   rw [position, prodEquiv_testBit_left]
 
 /-- The right physical segment decodes to precisely the original right binary label. -/
-theorem bigEndianEquiv_prod_right {leftWidth rightWidth : Nat}
+lemma bigEndianEquiv_prod_right {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) (index : Fin rightWidth) :
     (bigEndianEquiv (leftWidth + rightWidth)).symm (prodEquiv (left, right))
         (Fin.natAdd leftWidth index) = (bigEndianEquiv rightWidth).symm right index := by
@@ -42,7 +42,7 @@ theorem bigEndianEquiv_prod_right {leftWidth rightWidth : Nat}
   rw [position, prodEquiv_testBit_right]
 
 /-- Tensor-product integer labels preserve both original coordinate segments exactly. -/
-theorem bigEndianEquiv_symm_prod {leftWidth rightWidth : Nat}
+lemma bigEndianEquiv_symm_prod {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) :
     (bigEndianEquiv (leftWidth + rightWidth)).symm (prodEquiv (left, right)) =
       Fin.addCases ((bigEndianEquiv leftWidth).symm left)

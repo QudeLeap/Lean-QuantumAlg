@@ -38,7 +38,7 @@ def selectedUnit {N : Nat} (parameter : CShape.Value (ParameterShape (modulusBit
   else 1
 
 /-- Reading the source sampler's canonical unit selects that same mathematical unit. -/
-theorem selectedUnit_parameterValue {N : Nat} (input : Input N)
+lemma selectedUnit_parameterValue {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     selectedUnit (parameterValue input sample) =
       (RSA.prepareResidueFromBits N (modulusBits N) residueProposalCount sample).unit := by
@@ -52,7 +52,7 @@ theorem selectedUnit_parameterValue {N : Nat} (input : Input N)
   exact ZMod.natCast_zmod_val _
 
 /-- The native bank is four modulus-width words under the unchanged phase-width convention. -/
-theorem totalQubits_eq_four_mul (N : Nat) : totalQubits N = 4 * modulusBits N := by
+lemma totalQubits_eq_four_mul (N : Nat) : totalQubits N = 4 * modulusBits N := by
   unfold totalQubits phaseBits
   omega
 

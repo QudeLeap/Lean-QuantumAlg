@@ -65,7 +65,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Complete actual divisibility work, without short-circuiting either arithmetic instruction. -/
 def code (refs : Refs ctx width) : Circuit model ctx ctx :=
@@ -82,9 +83,10 @@ def step (refs : Refs ctx width) (store : Store ctx) :
   (combined.1, (remainder.2, (equality.2, combined.2)))
 
 /-- The three actual instructions preserve all complete incoming quantum-reference blocks. -/
-theorem nativeQuadratic_divisibility_execute (refs : Refs ctx width) (Reference : Register)
+lemma nativeQuadratic_divisibility_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (code (model := model) refs).execute environment
+      Reference state = state.mapClassical (fun entry =>
       ((step (model := model) refs entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) refs entry.1).2)))) := by
   simp only [code, Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,

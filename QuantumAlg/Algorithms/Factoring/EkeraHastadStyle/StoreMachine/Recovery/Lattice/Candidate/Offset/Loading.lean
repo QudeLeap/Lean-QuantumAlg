@@ -22,7 +22,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original second and third signed coordinate loaders use their supplied offset cells. -/
@@ -53,13 +54,13 @@ def setOffsetStep (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
   (suffix.1, (first.2, suffix.2))
 
 /-- Actual suffix loading preserves all incoming state blocks and chronological histories. -/
-theorem suffixInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma suffixInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (suffixInto offset refs).execute Reference state = state.mapClassical (fun entry =>
+    (suffixInto offset refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := suffixStep offset refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (ClassicalRoutines.ConstantWord.Signed.into offset.2.1 refs.offset.second)
     (ClassicalRoutines.ConstantWord.Signed.into offset.2.2 refs.offset.third)
     (fun before =>
@@ -80,13 +81,14 @@ theorem suffixInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ct
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual complete offset loading retains every original history and reference correlation. -/
-theorem setOffsetInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (setOffsetInto offset refs).execute Reference state = state.mapClassical (fun entry =>
+    (setOffsetInto offset refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := setOffsetStep offset refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (ClassicalRoutines.ConstantWord.Signed.into offset.1 refs.offset.first) (suffixInto offset refs)
     (fun before =>
       let actual := ClassicalRoutines.ConstantWord.Signed.step offset.1
@@ -104,7 +106,7 @@ theorem setOffsetInto_execute (offset : NumberTheory.IntegerPoint3) (refs : Refs
 
 omit [BitWord.Selected model] in
 /-- Different original offset coordinates have distinct actual write identities. -/
-theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     (saved written : MutableCell) (different : saved ≠ written) :
     (mutableRef refs written).key ∉ (writeInput (mutableRef refs saved)).storageKeys := by
   change mutableKey refs written ∉ [mutableKey refs saved]
@@ -118,7 +120,7 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
     (∀ cell, mutableKey refs cell ∉ other.storageKeys) → after.read other = before.read other
 
 /-- Every actual offset write preserves caller reads outside the original three-cell footprint. -/
-theorem setOffsetInto_callerFrame (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_callerFrame (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (store : Store ctx) : CallerFrame refs store (setOffsetStep offset refs store).1 := by
   intro shape other avoids
   change (ClassicalRoutines.ConstantWord.Signed.step offset.2.2 refs.offset.third
@@ -139,7 +141,7 @@ structure Outcome (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
   callerFrame : CallerFrame refs before after
 
 /-- The actual initialized signed loops materialize the original three integer coordinates. -/
-theorem setOffsetInto_correct (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
+lemma setOffsetInto_correct (offset : NumberTheory.IntegerPoint3) (refs : Refs ctx width)
     (separation : Separation refs) (store : Store ctx) :
     Outcome offset refs store (setOffsetStep offset refs store).1 := by
   refine ⟨⟨?_, ?_, ?_⟩, setOffsetInto_callerFrame offset refs store⟩

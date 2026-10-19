@@ -20,7 +20,7 @@ on an execution, stored layout, or resource projection.
 namespace QuantumAlg.RSA.ShortLogWidths
 
 /-- The original same-bit parameters have this exact conservative coordinate width. -/
-theorem coordinateWidth_sameBit_parameters {n : Nat} (pair : RSA.RSAKeyPairBits n)
+lemma coordinateWidth_sameBit_parameters {n : Nat} (pair : RSA.RSAKeyPairBits n)
     (positive : 1 ≤ n) :
     coordinateWidth pair.modulus (RSA.GeneratorOrder.m n) (RSA.GeneratorOrder.ell n) =
       2 ^ 21 * (3 * n + (n + 2) / 2 + 2) + 2 := by

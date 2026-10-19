@@ -7,6 +7,9 @@ Authors: QudeLeap Team
 module
 
 import QuantumAlg.Init
+public import QuantumAlg.Analysis.QNN.Algebras.SimpleDLA
+public import QuantumAlg.Analysis.QNN.Interface.DoubledTwirl
+public import QuantumAlg.Analysis.QNN.Designs.QubitTwoDesign.Core.Twirl.Realization
 import all QuantumAlg.Analysis.QNN.Designs.QubitTwoDesign.Core.Twirl.Commutant
 
 /-!
@@ -23,12 +26,12 @@ namespace QuantumAlg.QubitTwoDesign
 open Matrix
 open scoped ComplexOrder Kronecker Quaternion QuadraticAlgebra
 
-theorem trace_qubitSwap : Matrix.trace qubitSwap = 2 := by
+lemma trace_qubitSwap : Matrix.trace qubitSwap = 2 := by
   have hfixed : ({x : Fin 2 × Fin 2 | x = (x.2, x.1)} : Finset _).card = 2 := by
     decide
   simp [Matrix.trace, qubitSwap, hfixed]
 
-theorem su2_casimir_hsInner_one :
+lemma su2_casimir_hsInner_one :
     hsInner su2HermBasis.casimir (1 : Matrix (Fin 2 × Fin 2) (Fin 2 × Fin 2) ℂ) = 0 := by
   have hfixed : ({x : Fin 2 × Fin 2 | x = (x.2, x.1)} : Finset _).card = 2 := by
     decide
@@ -36,7 +39,7 @@ theorem su2_casimir_hsInner_one :
     Matrix.conjTranspose_apply, hfixed]
   norm_num
 
-theorem su2_casimir_hsInner_qubitSwap :
+lemma su2_casimir_hsInner_qubitSwap :
     hsInner su2HermBasis.casimir qubitSwap = 3 := by
   simp [hsInner, su2_casimir_eq_swap_sub, qubitSwap, Matrix.trace,
     Matrix.mul_apply, Matrix.conjTranspose_apply, Fintype.sum_prod_type, Fin.sum_univ_two]
@@ -46,7 +49,7 @@ theorem su2_casimir_hsInner_qubitSwap :
 concrete single-qubit realization of the carrier and one-dimensional Casimir projections in
 [RBS+23, `Arxiv_Final.tex:1253-1285`]. The finite-design input is consumed through
 `qubitClifford_isDoubledCommutantComplete`. -/
-theorem qubitClifford_twirl_basis_zero :
+public theorem qubitClifford_twirl_basis_zero :
     twirl2 qubitClifford (su2HermBasis.B su2i0 ⊗ₖ su2HermBasis.B su2i0) =
       (1 / 3 : ℂ) • su2HermBasis.casimir := by
   let X := su2HermBasis.B su2i0 ⊗ₖ su2HermBasis.B su2i0
@@ -81,7 +84,7 @@ theorem qubitClifford_twirl_basis_zero :
   rw [hnormal, su2_casimir_eq_swap_sub, hbeta, halpha]
   module
 
-theorem qubitClifford_twirl_basis_zero_mem_gTensorG :
+lemma qubitClifford_twirl_basis_zero_mem_gTensorG :
     twirl2 qubitClifford (su2HermBasis.B su2i0 ⊗ₖ su2HermBasis.B su2i0) ∈
       gTensorG su2HermBasis := by
   rw [qubitClifford_twirl_basis_zero]

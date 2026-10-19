@@ -26,7 +26,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Loading and scanning preserve the complete GCD result cell on arbitrary inner storage. -/
-theorem samplerScan_gcdResult (sample : CInputRef ctx (.bits (residueSamplingBits N)))
+lemma samplerScan_gcdResult (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (store : Store (Layout.context ctx (modulusBits N))) :
     (step (model := model) N sample store).1.read
         (FirstAccepted.cellRead (Layout.gcdResultCell ctx (modulusBits N))) =
@@ -50,7 +50,7 @@ theorem samplerScan_gcdResult (sample : CInputRef ctx (.bits (residueSamplingBit
     (List.ofFn (ConstantWord.constantBits (modulusBits N + 1) N)) zero loaderFree store)
 
 /-- The actual scan retains the exact public modulus written by its literal loader. -/
-theorem samplerScan_modulus (input : Input N)
+lemma samplerScan_modulus (input : Input N)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (store : Store (Layout.context ctx (modulusBits N))) :
     ((step (model := model) N sample store).1.read
@@ -76,7 +76,7 @@ theorem samplerScan_modulus (input : Input N)
     ((ConstantWord.constantWord_read (model := model) target N store).trans (Nat.mod_eq_of_lt fits))
 
 /-- The actual zero allocation remains zero until the GCD arm consumes it. -/
-theorem samplerScan_from_scope_zero (sample : CInputRef ctx (.bits (residueSamplingBits N)))
+lemma samplerScan_from_scope_zero (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (store : Store ctx) :
     ((step (model := model) N sample (Layout.pushStore (modulusBits N) store)).1.read
       (FirstAccepted.cellRead (Layout.gcdResultCell ctx (modulusBits N)))).toNat = 0 := by

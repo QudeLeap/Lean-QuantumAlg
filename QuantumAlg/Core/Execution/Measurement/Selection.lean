@@ -43,7 +43,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace ExecutionState
 
 /-- A complementary Z measurement preserves every selected-reference matrix entry. -/
-theorem measureZ_observeSelectionWithReference {count : Nat} (layout : QuantumLayout count)
+lemma measureZ_observeSelectionWithReference {count : Nat} (layout : QuantumLayout count)
     (selection : Finset (Fin count)) (wire : Fin count) (untouched : wire ∉ selection)
     {C : Type} [Fintype C] {Reference : Register}
     (state : ExecutionState C (Register.prod layout.register Reference)) :
@@ -83,7 +83,7 @@ end ExecutionState
 namespace Execution
 
 /-- A uniquely valued borrowed classical observation collects the actual quantum marginal. -/
-theorem observeBorrowed_block_of_subsingleton {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_block_of_subsingleton {kind : ProblemKind} {ctx : RuntimeCtx kind}
     [Subsingleton ctx.borrowedClassicalShape.Value] {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference H)
     (value : ctx.borrowedClassicalShape.Value) :
@@ -103,20 +103,22 @@ end Execution
 
 namespace Circuit
 
-variable {gates : GateModel} {oracles : OracleModel}
+variable {allowAllocation : Bool} {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+
+variable (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
 
 open Execution
 
 /-- The actual classical write and path retain the same selected-reference observation. -/
-theorem measurementStep_observeSelectionWithReference {ctx : RuntimeCtx .quantum}
+lemma measurementStep_observeSelectionWithReference {ctx : RuntimeCtx .quantum}
     (selection : Finset (Fin ctx.systemCount)) (item : ZReadout ctx)
     (untouched : item.wire ∉ selection) {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (services.HiddenState × H)) :
     DensityOperator.observeSelectionWithReference ctx.quantumLayout selection Reference
-      ((Circuit.measureZ (gates := gates) (oracles := oracles)
+      ((Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) item.wire item.output).execute
-        Reference state).quantumMarginal =
+        environment Reference state).quantumMarginal =
     DensityOperator.observeSelectionWithReference ctx.quantumLayout selection Reference
       state.quantumMarginal := by
   rw [execute_measureZ]
@@ -125,14 +127,15 @@ theorem measurementStep_observeSelectionWithReference {ctx : RuntimeCtx .quantum
     selection item.wire untouched state
 
 /-- A finite sequence of complementary measurements preserves the same joint observation. -/
-theorem measurementSequence_observeSelectionWithReference {ctx : RuntimeCtx .quantum}
+lemma measurementSequence_observeSelectionWithReference {ctx : RuntimeCtx .quantum}
     (selection : Finset (Fin ctx.systemCount)) (readouts : List (ZReadout ctx))
     (untouched : ∀ item ∈ readouts, item.wire ∉ selection)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (services.HiddenState × H)) :
     DensityOperator.observeSelectionWithReference ctx.quantumLayout selection Reference
-      ((measurementSequence (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := services) readouts).execute Reference
+      ((measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+        (oracles := oracles) (operations := operations)
+        (classicalOracles := services) readouts).execute environment Reference
         state).quantumMarginal =
     DensityOperator.observeSelectionWithReference ctx.quantumLayout selection Reference
       state.quantumMarginal := by
@@ -144,23 +147,26 @@ theorem measurementSequence_observeSelectionWithReference {ctx : RuntimeCtx .qua
       rw [measurementSequence, execute_seq,
         State.mapHistory_quantumMarginal]
       exact (ih (fun item present => untouched item (.tail head present))
-        ((Circuit.measureZ (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := services) head.wire head.output).execute
-          Reference state)).trans
-          (measurementStep_observeSelectionWithReference selection head
-            (untouched head (.head tail)) state)
+        ((Circuit.measureZ (allowAllocation := allowAllocation) (gates := gates)
+          (oracles := oracles) (operations := operations)
+          (classicalOracles := services) head.wire head.output).execute
+          environment Reference state)).trans
+          (measurementStep_observeSelectionWithReference environment
+            (allowAllocation := allowAllocation)
+            selection head (untouched head (.head tail)) state)
 
 /-- Measuring only complementary wires restores the full borrowed quantum-reference state. -/
-theorem borrowedRestored_measurementSequence_complement {ctx : RuntimeCtx .quantum}
+lemma borrowedRestored_measurementSequence_complement {ctx : RuntimeCtx .quantum}
     [Subsingleton ctx.borrowedClassicalShape.Value] (readouts : List (ZReadout ctx))
     (untouched : ∀ item ∈ readouts, item.wire ∉ ctx.borrowedSelection)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (services.HiddenState × H)) :
-    (measurementSequence (gates := gates) (oracles := oracles)
+    (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) readouts).BorrowedRestored
       Reference state
-      ((measurementSequence (gates := gates) (oracles := oracles)
-        (operations := operations) (classicalOracles := services) readouts).execute Reference
+      ((measurementSequence (allowAllocation := allowAllocation) (gates := gates)
+        (oracles := oracles) (operations := operations)
+        (classicalOracles := services) readouts).execute environment Reference
         state) := by
   rw [BorrowedRestored, observeBorrowedAfter_sameContext]
   apply ExecutionState.ext
@@ -171,8 +177,9 @@ theorem borrowedRestored_measurementSequence_complement {ctx : RuntimeCtx .quant
         (Register.prod (ctx.quantumLayout.selectedRegister ctx.borrowedSelection) Reference) =>
       observed.reindex (S := Register.prod ctx.borrowedQuantumLayout.register Reference)
         (ctx.borrowedBasisEquiv.prodCongr (Equiv.refl Reference.Index)))
-    (measurementSequence_observeSelectionWithReference ctx.borrowedSelection readouts
-      untouched state)
+    (measurementSequence_observeSelectionWithReference environment
+      (allowAllocation := allowAllocation)
+      ctx.borrowedSelection readouts untouched state)
 
 end Circuit
 

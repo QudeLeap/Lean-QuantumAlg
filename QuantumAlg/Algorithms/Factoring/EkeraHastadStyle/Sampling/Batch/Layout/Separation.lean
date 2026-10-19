@@ -27,7 +27,7 @@ noncomputable section
 open ShortDLP.CompiledMAU
 open Execution
 
-private theorem measurement_input_separate {ctx : RuntimeCtx .quantum} {shape : CShape}
+private lemma measurement_input_separate {ctx : RuntimeCtx .quantum} {shape : CShape}
     (input : CInputRef ctx shape) (dimension : ℕ+) (count : Nat) :
     ∀ index : Fin count, (MeasurementCells.reference ctx dimension count index).key ∉
       (MeasurementCells.liftInput dimension input count).storageKeys := by
@@ -50,18 +50,18 @@ private theorem measurement_input_separate {ctx : RuntimeCtx .quantum} {shape : 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- Every measured source bit writes to its own distinct actual finite cell. -/
-theorem nativeBatch_cells_distinct :
+lemma nativeBatch_cells_distinct :
     Function.Injective (fun index => (cells base noQuantum N index).key) :=
   MeasurementCells.reference_key_injective (bankContext base noQuantum N) 2 (measurementBits N)
 
 /-- No actual measured cell aliases any structural operand of the completed sampler. -/
-theorem nativeBatch_cells_input_separate {shape : CShape}
+lemma nativeBatch_cells_input_separate {shape : CShape}
     (input : CInputRef (sampledContext base N) shape) (index : Fin (measurementBits N)) :
     (cells base noQuantum N index).key ∉ (readyInput base noQuantum N input).storageKeys :=
   measurement_input_separate (bankInput base noQuantum N input) 2 (measurementBits N) index
 
 /-- The actual sampled parameter and any earlier sampled data survive each round's finite writes. -/
-theorem nativeBatch_cells_parameter_separate {shape : CShape}
+lemma nativeBatch_cells_parameter_separate {shape : CShape}
     (previous : CInputRef (sampledContext base N) shape) (index : Fin (measurementBits N)) :
     (cells base noQuantum N index).key ∉
       (CInputRef.product (parameter base noQuantum N)

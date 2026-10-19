@@ -88,7 +88,7 @@ public def systemIdx {qubitCount : Nat} (layout : QubitLayout qubitCount) : List
   List.ofFn layout.physical_idx
 
 /-- The canonical layout lists every physical qubit in increasing order. -/
-@[simp] public theorem canonical_systemIdx (qubitCount : Nat) :
+@[simp] public lemma canonical_systemIdx (qubitCount : Nat) :
     (canonical qubitCount).systemIdx = List.range qubitCount := by
   change List.ofFn (fun index : Fin qubitCount => index.val) = List.range qubitCount
   apply List.ext_getElem
@@ -96,17 +96,17 @@ public def systemIdx {qubitCount : Nat} (layout : QubitLayout qubitCount) : List
   · intro index _left _right
     simp
 
-@[simp] theorem systemIdx_ofSystemIdx (physicalIdx : List Nat)
+@[simp] lemma systemIdx_ofSystemIdx (physicalIdx : List Nat)
     (physicalIdxNodup : physicalIdx.Nodup) :
     (ofSystemIdx physicalIdx physicalIdxNodup).systemIdx = physicalIdx :=
   List.ofFn_get physicalIdx
 
-@[simp] theorem systemIdx_length {qubitCount : Nat}
+@[simp] lemma systemIdx_length {qubitCount : Nat}
     (layout : QubitLayout qubitCount) :
     layout.systemIdx.length = qubitCount := by
   simp [systemIdx]
 
-public theorem systemIdx_nodup {qubitCount : Nat}
+public lemma systemIdx_nodup {qubitCount : Nat}
     (layout : QubitLayout qubitCount) :
     layout.systemIdx.Nodup := by
   exact List.nodup_ofFn.mpr layout.physical_idx_injective
@@ -122,7 +122,7 @@ def append {leftCount rightCount : Nat}
     rw [List.ofFn_fin_append]
     exact left.systemIdx_nodup.append right.systemIdx_nodup disjoint
 
-@[simp] theorem systemIdx_append {leftCount rightCount : Nat}
+@[simp] lemma systemIdx_append {leftCount rightCount : Nat}
     (left : QubitLayout leftCount) (right : QubitLayout rightCount)
     (disjoint : List.Disjoint left.systemIdx right.systemIdx) :
     (append left right disjoint).systemIdx =
@@ -137,7 +137,7 @@ public def toQuantum {qubitCount : Nat} (layout : QubitLayout qubitCount) :
     layout.physical_idx_injective).layout
 
 /-- The physical conversion retains each actual qubit identity and dimension. -/
-@[simp] public theorem toQuantum_wire {qubitCount : Nat} (layout : QubitLayout qubitCount)
+@[simp] public lemma toQuantum_wire {qubitCount : Nat} (layout : QubitLayout qubitCount)
     (index : Fin qubitCount) :
     layout.toQuantum.wire index = ⟨layout.physical_idx index, 2⟩ := rfl
 

@@ -36,31 +36,31 @@ public def toPMF (state : ExecutionState C R) (normalized : state.IsNormalized) 
     rw [normalized, ENNReal.ofReal_one])
 
 /-- The probability of a record is exactly the mass of its actual execution block. -/
-@[simp] theorem toPMF_apply (state : ExecutionState C R) (normalized : state.IsNormalized)
+@[simp] lemma toPMF_apply (state : ExecutionState C R) (normalized : state.IsNormalized)
     (value : C) :
     state.toPMF normalized value = ENNReal.ofReal (state.block value).mass := rfl
 
 /-- Supported records are precisely those with positive execution mass. -/
-theorem mem_support_toPMF_iff (state : ExecutionState C R)
+lemma mem_support_toPMF_iff (state : ExecutionState C R)
     (normalized : state.IsNormalized) (value : C) :
     value ∈ (state.toPMF normalized).support ↔ 0 < (state.block value).mass := by
   rw [PMF.mem_support_iff, toPMF_apply, ENNReal.ofReal_ne_zero_iff]
 
 /-- Every mapped record sums the probabilities of exactly its contributing input records. -/
-theorem mapClassical_block_mass [DecidableEq D] (state : ExecutionState C R)
+lemma mapClassical_block_mass [DecidableEq D] (state : ExecutionState C R)
     (f : C → D) (value : D) :
     ((state.mapClassical f).block value).mass =
       ∑ input, if f input = value then (state.block input).mass else 0 :=
   sum_fiber_trace state f value
 
 /-- Finite deterministic classical processing preserves normalization. -/
-theorem mapClassical_normalized [DecidableEq D] (state : ExecutionState C R)
+lemma mapClassical_normalized [DecidableEq D] (state : ExecutionState C R)
     (normalized : state.IsNormalized) (f : C → D) :
     (state.mapClassical f).IsNormalized :=
   (state.mapClassical_mass f).trans normalized
 
 /-- The derived probability distribution commutes with actual classical record updates. -/
-theorem toPMF_mapClassical [DecidableEq D] (state : ExecutionState C R)
+lemma toPMF_mapClassical [DecidableEq D] (state : ExecutionState C R)
     (normalized : state.IsNormalized) (f : C → D) :
     (state.mapClassical f).toPMF (state.mapClassical_normalized normalized f) =
       (state.toPMF normalized).map f := by

@@ -28,11 +28,10 @@ open AmplitudeAmplificationSource
 noncomputable section
 
 /-- The exact query ledger separates initial preparation from the three per-step calls. -/
-theorem program_oracleCount {n : Nat} (t : Nat)
-    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n))
+lemma program_oracleCount (n : Nat) (t : Nat)
     (coordinate : AmplitudeAmplificationSource.Coordinate) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
-        (.oracle coordinate) (program t U good).eventCost =
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles n))
+        (.oracle coordinate) (program n t).eventCost =
       (if coordinate = .preparation then 1 else 0) +
         (2 ^ t - 1) * (if coordinate = .goodReflection then 0 else 1) := by
   rw [program_eventCost]
@@ -42,10 +41,9 @@ theorem program_oracleCount {n : Nat} (t : Nat)
       ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- Native gates exclude every separately granted oracle query. -/
-theorem program_gateCount {n : Nat} (t : Nat)
-    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
+lemma program_gateCount (n : Nat) (t : Nat) :
     ResourcePool.weightedCount (fun event => match event with
-      | .gate _ => 1 | _ => 0) (program t U good).eventCost = unitaryGateCount t n := by
+      | .gate _ => 1 | _ => 0) (program n t).eventCost = unitaryGateCount t n := by
   rw [program_eventCost]
   rcases n with _ | _ | _ | n <;>
     simp [unitaryEventPool, stepEventPool, readoutEventPool, unitaryGateCount,
@@ -54,32 +52,28 @@ theorem program_gateCount {n : Nat} (t : Nat)
       ResourcePool.weightedCount_singleton] <;> ring
 
 /-- The initial ordinary preparation remains present even with no phase-estimation stage. -/
-theorem program_preparationCount {n : Nat} (t : Nat)
-    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
-      (.oracle .preparation) (program t U good).eventCost = (2 ^ t - 1) + 1 := by
-  simpa [Nat.add_comm] using program_oracleCount t U good .preparation
+lemma program_preparationCount (n : Nat) (t : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles n))
+      (.oracle .preparation) (program n t).eventCost = (2 ^ t - 1) + 1 := by
+  simpa [Nat.add_comm] using program_oracleCount n t .preparation
 
 /-- Every actual source step contains one ordinary inverse-preparation query. -/
-theorem program_inversePreparationCount {n : Nat} (t : Nat)
-    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
-      (.oracle .inversePreparation) (program t U good).eventCost = 2 ^ t - 1 := by
-  simpa using program_oracleCount t U good .inversePreparation
+lemma program_inversePreparationCount (n : Nat) (t : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles n))
+      (.oracle .inversePreparation) (program n t).eventCost = 2 ^ t - 1 := by
+  simpa using program_oracleCount n t .inversePreparation
 
 /-- Every actual source step contains one explicitly granted controlled recognizer. -/
-theorem program_controlledGoodReflectionCount {n : Nat} (t : Nat)
-    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
-      (.oracle .controlledGoodReflection) (program t U good).eventCost = 2 ^ t - 1 := by
-  simpa using program_oracleCount t U good .controlledGoodReflection
+lemma program_controlledGoodReflectionCount (n : Nat) (t : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles n))
+      (.oracle .controlledGoodReflection) (program n t).eventCost = 2 ^ t - 1 := by
+  simpa using program_oracleCount n t .controlledGoodReflection
 
 /-- The ordinary recognizer coordinate is not used in this controlled ladder. -/
-theorem program_goodReflectionCount {n : Nat} (t : Nat)
-    (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles U good))
-      (.oracle .goodReflection) (program t U good).eventCost = 0 := by
-  simpa using program_oracleCount t U good .goodReflection
+lemma program_goodReflectionCount (n : Nat) (t : Nat) :
+    ResourcePool.count (model := .quantum AlgorithmGate.model (oracles n))
+      (.oracle .goodReflection) (program n t).eventCost = 0 := by
+  simpa using program_oracleCount n t .goodReflection
 
 end
 

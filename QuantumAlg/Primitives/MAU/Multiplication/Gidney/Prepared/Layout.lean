@@ -42,7 +42,7 @@ def auxiliaryQubitLayout (width : Nat) : QubitLayout width where
 def auxiliaryLayout (width : Nat) : QuantumLayout width :=
   (auxiliaryQubitLayout width).toQuantumLayout
 
-theorem gidneyAuxiliaryLayout_identities (width : Nat) :
+lemma gidneyAuxiliaryLayout_identities (width : Nat) :
     (auxiliaryLayout width).identities = List.range' width width := by
   change List.ofFn (fun wire : Fin width => width + wire.val) = List.range' width width
   apply List.ext_getElem
@@ -50,11 +50,11 @@ theorem gidneyAuxiliaryLayout_identities (width : Nat) :
   · intro index _left _right
     simp
 
-theorem gidneyAuxiliary_fresh (width : Nat) : auxiliaryKey ∉ (context width).keys := by
+lemma gidneyAuxiliary_fresh (width : Nat) : auxiliaryKey ∉ (context width).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
 
-theorem gidneyAuxiliary_disjoint (width : Nat) :
+lemma gidneyAuxiliary_disjoint (width : Nat) :
     List.Disjoint (auxiliaryLayout width).identities (context width).physicalIdx := by
   rw [gidneyAuxiliaryLayout_identities, ownedQubits_physicalIdx]
   apply List.disjoint_left.mpr
@@ -72,7 +72,7 @@ public def preparedContext (width : Nat) : RuntimeCtx .quantum :=
 def auxiliaryPreparation (width : Nat) : BasisPreparation (auxiliaryLayout width) :=
   BasisPreparation.zero (auxiliaryLayout width)
 
-public theorem gidneyPreparedContext_physical (width : Nat) :
+public lemma gidneyPreparedContext_physical (width : Nat) :
     (preparedContext width).physicalIdx = List.range' width width ++ List.range width := by
   change ((auxiliaryLayout width).wires ++ (context width).quantumWires).map
     QuantumWire.identity = _
@@ -81,7 +81,7 @@ public theorem gidneyPreparedContext_physical (width : Nat) :
   change (auxiliaryLayout width).identities ++ (context width).physicalIdx = _
   rw [gidneyAuxiliaryLayout_identities, ownedQubits_physicalIdx]
 
-theorem gidneyPreparedContext_contains (width : Nat) :
+lemma gidneyPreparedContext_contains (width : Nat) :
     List.range (2 * width) ⊆ (preparedContext width).physicalIdx := by
   intro wire present
   rw [gidneyPreparedContext_physical, List.mem_append]
@@ -103,7 +103,7 @@ def preparedWordBasisEquiv (width : Nat) :
         (Equiv.prodComm _ _) |>.trans (prodEquiv (m := width) (n := width))
 
 /-- The actual fresh basis is the all-zero binary word, including width zero. -/
-theorem gidneyAuxiliaryPreparation_zero (width : Nat) :
+lemma gidneyAuxiliaryPreparation_zero (width : Nat) :
     (auxiliaryQubitLayout width).binaryIndexEquiv (auxiliaryPreparation width).value =
       (0 : Fin (2 ^ width)) := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq

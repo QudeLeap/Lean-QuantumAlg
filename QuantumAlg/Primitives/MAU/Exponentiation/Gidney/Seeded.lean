@@ -23,13 +23,15 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open QuantumAlg.Nat.FixedWidth.UnitExponentiation Nat.FixedWidth
 
 /-- The complete actual schedule multiplies every canonical seed and returns the same auxiliary. -/
-theorem gidneyExponent_seeded (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyExponent_seeded (exponentWidth width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (base seed : (ZMod modulus.val)ˣ)
     (exponent : Fin (2 ^ exponentWidth)) :
-    (program exponentWidth width modulus base).applyNormalized
+    (program exponentWidth width modulus base).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
             ((encoding exponentWidth width).encode
@@ -38,7 +40,8 @@ theorem gidneyExponent_seeded (exponentWidth width : Nat) (modulus : Fin (2 ^ wi
         ((QubitLayout.canonical (encoding exponentWidth width).width).basisEquiv.symm
           ((encoding exponentWidth width).encode
             (exponent, unitResidueWord modulus positive (base ^ exponent.val * seed), 0))) := by
-  have actual := gidneyExponentBits_unit_word exponentWidth width modulus positive base
+  have actual := gidneyExponentBits_unit_word (environment := environment)
+    exponentWidth width modulus positive base
     (List.ofFn fun bit => bit) exponent seed
   rw [scheduledUnit_all_eq_pow] at actual
   exact actual

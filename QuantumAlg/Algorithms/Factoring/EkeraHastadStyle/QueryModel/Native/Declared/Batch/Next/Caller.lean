@@ -29,17 +29,17 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- A complete later physical batch preserves an original caller read jointly
 with its new source, parameter and sixteen actual sample outcomes. -/
-theorem nextBatch_caller_joint_reference
+lemma nextBatch_caller_joint_reference
     {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : shape.Value → (ParameterShape N).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (outcomes : Fin 16 → Fin (measurementBits N) → Bool)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextBatch base noQuantum N input).execute Reference state)
+      ((nextBatch base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (entry.1.read (callerInput base noQuantum N observed))
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
@@ -85,9 +85,9 @@ theorem nextBatch_caller_joint_reference
   have separated : RedrawSeparated base noQuantum N oldRead :=
     ⟨caller_source_separated base noQuantum N observed,
       caller_parameter_separated base noQuantum N observed⟩
-  have split := Circuit.referenceFiberSum_execute_seq
-    (redraw base noQuantum N input)
-    (Circuit.forRange 16 (reusedSample base noQuantum N input)) state
+  have split := Circuit.referenceFiberSum_execute_seq (environment := sourceEnvironment input)
+    (redraw base noQuantum N)
+    (Circuit.forRange 16 (reusedSample base noQuantum N)) state
     (fun store => weight (store.read oldRead)
       (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
       (store.read sourceRefRead) *
@@ -95,7 +95,7 @@ theorem nextBatch_caller_joint_reference
     left right
   have conditional := reusedTerminals_frame_reference base noQuantum N input
     jointOld measuredFree workingFree slotFree
-    ((redraw base noQuantum N input).execute Reference state)
+    ((redraw base noQuantum N).execute (sourceEnvironment input) Reference state)
     (fun parameter previous => weight previous.first parameter previous.second)
     outcomes left right
   have drawn := redraw_frame_reference base noQuantum N input oldRead separated state

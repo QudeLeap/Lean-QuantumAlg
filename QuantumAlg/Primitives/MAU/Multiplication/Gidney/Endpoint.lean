@@ -88,20 +88,17 @@ the clean-auxiliary compute/uncompute specialization, and actual pivot-flip offs
 public def problem (width : Nat) (modulus : Fin (2 ^ width + 1)) (_positive : 0 < modulus.val)
     (coefficient : (ZMod modulus.val)ˣ) :
     Problem model (context width) (preparedContext width) .unit where
-  valid := canonicalInput width modulus
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [preparedRequirement width modulus coefficient]
+  Witness := Unit
+  valid := fun _ _ => canonicalInput width modulus
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [preparedRequirement width modulus coefficient]
   resources :=
     { events := preparedNativeBudget width
       resident := space (2 * width)
       auxiliary := space (2 * width) }
-  depth :=
-    { duration := fun _ => 1
-      limit := 1 + eventBound width
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := fun coordinate => nomatch coordinate }
+  quantumTimeLimit := 1 + eventBound width
 
 /-- Prepare the auxiliary word, run the actual native multiplier, and retain every live entry. -/
 public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1))
@@ -112,27 +109,29 @@ public def algorithm (width : Nat) (modulus : Fin (2 ^ width + 1))
       output := Output.all (preparedContext width) .unit }
 
 /-- Both the supplied word and internally prepared word remain in the public output. -/
-public theorem gidneyUnitMultiplication_output_listing (width : Nat)
+public lemma gidneyUnitMultiplication_output_listing (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     (algorithm width modulus coefficient).run.output.listing = (preparedContext width).keys := (rfl)
 
 /-- The public problem includes its complete joint-state requirement. -/
-public theorem gidneyUnitMultiplication_stateRequirement_count (width : Nat)
+public lemma gidneyUnitMultiplication_stateRequirement_count (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
-    (coefficient : (ZMod modulus.val)ˣ) :
-    (problem width modulus positive coefficient).states.length = 1 := (rfl)
+    (coefficient : (ZMod modulus.val)ˣ) (environment : model.Environment)
+    (witness : (problem width modulus positive coefficient).Witness) :
+    ((problem width modulus positive coefficient).states environment witness).length = 1 := (rfl)
 
 /-- The independent resident budget includes the source and its internally prepared auxiliary. -/
-public theorem gidneyUnitMultiplication_resident_budget (width : Nat)
+public lemma gidneyUnitMultiplication_resident_budget (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (coefficient : (ZMod modulus.val)ˣ) :
     (problem width modulus positive coefficient).resources.resident = space (2 * width) := (rfl)
 
-private theorem actual_borrowed (width : Nat) (modulus : Fin (2 ^ width + 1))
-    (coefficient : (ZMod modulus.val)ˣ) {Reference : Register} {H : Type} [Fintype H]
+private lemma actual_borrowed (width : Nat) (modulus : Fin (2 ^ width + 1))
+    (coefficient : (ZMod modulus.val)ˣ) {environment : model.Environment}
+    {Reference : Register} {H : Type} [Fintype H]
     (state : Execution.State (context width) Reference (model.HiddenState × H)) :
     (preparedCode width modulus coefficient).BorrowedRestored Reference state
-      ((preparedCode width modulus coefficient).execute Reference state) := by
+      ((preparedCode width modulus coefficient).execute environment Reference state) := by
   let : Subsingleton (context width).borrowedClassicalShape.Value := by
     change Subsingleton (CShape.Value .unit)
     exact ⟨fun left right => by cases left; cases right; rfl⟩
@@ -141,57 +140,59 @@ private theorem actual_borrowed (width : Nat) (modulus : Fin (2 ^ width + 1))
       (operations := .empty) (classicalOracles := .empty)
       (context width) auxiliaryKey (auxiliaryLayout width)
       (gidneyAuxiliary_fresh width) (gidneyAuxiliary_disjoint width)
-  exact Circuit.borrowedRestored_seq preparation
+  exact Circuit.borrowedRestored_seq (environment := environment) preparation
     (Circuit.unitary (operations := .empty) (classicalOracles := .empty)
       (preparedUnitary width modulus coefficient)) state
     (Circuit.borrowedRestored_prepareZero_noBorrowedQuantum
       (gates := AlgorithmGate.model) (oracles := .empty)
-      (operations := .empty) (classicalOracles := .empty) rfl state auxiliaryKey
+      (operations := .empty) (classicalOracles := .empty) rfl environment state auxiliaryKey
       (auxiliaryLayout width) (gidneyAuxiliary_fresh width)
       (gidneyAuxiliary_disjoint width))
     (Circuit.borrowedRestored_unitary_noBorrowed
-      (operations := .empty) (classicalOracles := .empty) rfl rfl
+      (operations := .empty) (classicalOracles := .empty) environment rfl rfl
       (preparedUnitary width modulus coefficient)
-      (preparation.execute Reference state))
+      (preparation.execute environment Reference state))
 
 /-- The complete native execution satisfies the original unit domain and independent budgets. -/
 public theorem main (width : Nat) (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (coefficient : (ZMod modulus.val)ˣ) :
-    ∃ candidate, Algorithm.Solves candidate (problem width modulus positive coefficient) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate
+      (problem width modulus positive coefficient) := by
   refine ⟨algorithm width modulus coefficient, ?_⟩
   constructor
-  · intro Reference input _valid _initialization
+  · intro environment _witness Reference input _valid _initialization
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialization requirement present
+  · intro environment _witness Reference input _valid _initialization requirement present
     have same : requirement = preparedRequirement width modulus coefficient :=
       List.mem_singleton.mp present
     subst requirement
-    exact gidneyPreparedRequirement_holds width modulus coefficient
+    exact gidneyPreparedRequirement_holds (environment := environment) width modulus coefficient
       (Output.all (preparedContext width) .unit) input
-  · intro Reference input _valid _initialization
+  · intro environment _witness Reference input _valid _initialization
     change Execution.observeBorrowedAfter
       (preparedCode width modulus coefficient) Reference
-        ((preparedCode width modulus coefficient).execute Reference
+        ((preparedCode width modulus coefficient).execute environment Reference
           (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
       Execution.observeBorrowed Reference input.state
-    refine (actual_borrowed width modulus coefficient
+    refine (actual_borrowed (environment := environment) width modulus coefficient
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
     refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
       (fun _ => rfl) _ _
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_native_bound width modulus coefficient path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_resident_bound width modulus coefficient path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact gidneyPreparedCode_auxiliary_bound width modulus coefficient path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact gidneyPreparedCode_depth_bound width modulus coefficient path
 
 end

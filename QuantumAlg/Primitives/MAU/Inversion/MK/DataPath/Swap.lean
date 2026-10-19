@@ -36,6 +36,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -86,12 +88,13 @@ def compareControlledUVSwapBitStep
 
 /-- The comparison-controlled `u`/`v` bit-swap program realizes its folded
 base-gate semantics. -/
-theorem compareControlledUVSwapBit_realizes
+lemma compareControlledUVSwapBit_realizes
     (n counterWidth : Nat) (uIndex vIndex : Fin n) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (compareControlledUVSwapBitProgram n counterWidth uIndex vIndex)
+      (compareControlledUVSwapBitProgram n counterWidth uIndex vIndex) environment
       (compareControlledUVSwapBitStep n counterWidth uIndex vIndex) :=
-  EncodedBit.controlledSwap_realizes (QubitLayout.canonical _) .empty
+  EncodedBit.controlledSwap_realizes (environment := environment)
+    (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedUBit n counterWidth uIndex)
     (liftedVBit n counterWidth vIndex)
@@ -101,7 +104,7 @@ theorem compareControlledUVSwapBit_realizes
 
 /-- The comparison-controlled `u`/`v` bit swap preserves the comparison
 ancilla. -/
-theorem compareControlledUVSwapBitStep_get_compare
+lemma compareControlledUVSwapBitStep_get_compare
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -118,7 +121,7 @@ theorem compareControlledUVSwapBitStep_get_compare
 
 /-- The comparison-controlled `u`/`v` bit swap sends the original selected
 `v` bit to `u` when compare is set, and otherwise preserves `u`. -/
-theorem compareControlledUVSwapBitStep_get_uBit
+lemma compareControlledUVSwapBitStep_get_uBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedUBit n counterWidth uIndex).get
@@ -138,7 +141,7 @@ theorem compareControlledUVSwapBitStep_get_uBit
 
 /-- The comparison-controlled `u`/`v` bit swap sends the original selected
 `u` bit to `v` when compare is set, and otherwise preserves `v`. -/
-theorem compareControlledUVSwapBitStep_get_vBit
+lemma compareControlledUVSwapBitStep_get_vBit
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedVBit n counterWidth vIndex).get
@@ -158,7 +161,7 @@ theorem compareControlledUVSwapBitStep_get_vBit
 
 /-- A comparison-controlled `u`/`v` bit swap preserves any readout whose wire is
 distinct from the selected `u` and `v` wires. -/
-theorem compareControlledUVSwapBitStep_get_observed_of_swap_ne
+lemma compareControlledUVSwapBitStep_get_observed_of_swap_ne
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -181,7 +184,7 @@ theorem compareControlledUVSwapBitStep_get_observed_of_swap_ne
 
 /-- A comparison-controlled `u`/`v` bit swap preserves every comparison-work
 carry bit. -/
-theorem compareControlledUVSwapBitStep_get_comparisonCarry
+lemma compareControlledUVSwapBitStep_get_comparisonCarry
     (n counterWidth : Nat) (uIndex vIndex workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -240,12 +243,13 @@ def compareControlledUVSwapStep
 
 /-- The comparison-controlled `u`/`v` word-swap program realizes its folded
 base-gate semantics. -/
-theorem compareControlledUVSwap_realizes
+lemma compareControlledUVSwap_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (compareControlledUVSwapProgram n counterWidth)
+      (compareControlledUVSwapProgram n counterWidth) environment
       (compareControlledUVSwapStep n counterWidth) :=
-  EncodedBit.Word.controlledSwap_realizes (QubitLayout.canonical _) .empty
+  EncodedBit.Word.controlledSwap_realizes (environment := environment)
+    (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedUWord n counterWidth)
     (liftedVWord n counterWidth)
@@ -255,7 +259,7 @@ theorem compareControlledUVSwap_realizes
 
 /-- The comparison-controlled `u`/`v` word swap preserves the comparison
 ancilla. -/
-theorem compareControlledUVSwapStep_get_compare
+lemma compareControlledUVSwapStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -277,7 +281,7 @@ theorem compareControlledUVSwapStep_get_compare
       x
 
 /-- The comparison-controlled `u`/`v` word swap preserves the active flag. -/
-theorem compareControlledUVSwapStep_get_active
+lemma compareControlledUVSwapStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -312,7 +316,7 @@ theorem compareControlledUVSwapStep_get_active
 
 /-- The comparison-controlled `u`/`v` word swap preserves every stored
 branch-history bit. -/
-theorem compareControlledUVSwapStep_get_historyBit
+lemma compareControlledUVSwapStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedHistoryBit n counterWidth historyIndex).get
@@ -347,7 +351,7 @@ theorem compareControlledUVSwapStep_get_historyBit
 
 /-- The comparison-controlled `u`/`v` word swap preserves the first scratch
 bit. -/
-theorem compareControlledUVSwapStep_get_scratchA
+lemma compareControlledUVSwapStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -382,7 +386,7 @@ theorem compareControlledUVSwapStep_get_scratchA
 
 /-- The comparison-controlled `u`/`v` word swap preserves the second scratch
 bit. -/
-theorem compareControlledUVSwapStep_get_scratchB
+lemma compareControlledUVSwapStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchBBit n counterWidth).get
@@ -417,7 +421,7 @@ theorem compareControlledUVSwapStep_get_scratchB
 
 /-- The comparison-controlled `u`/`v` word swap preserves every
 comparison-work carry bit. -/
-theorem compareControlledUVSwapStep_get_comparisonCarry
+lemma compareControlledUVSwapStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -440,7 +444,7 @@ theorem compareControlledUVSwapStep_get_comparisonCarry
 
 /-- The comparison-controlled `u`/`v` word swap sends the selected `v` value bit
 to `u` when compare is set, and otherwise preserves the selected `u` value bit. -/
-theorem compareControlledUVSwapStep_get_uWordBit
+lemma compareControlledUVSwapStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedUWord n counterWidth).bit bit).get
@@ -469,7 +473,7 @@ theorem compareControlledUVSwapStep_get_uWordBit
 
 /-- The comparison-controlled `u`/`v` word swap sends the selected `u` value bit
 to `v` when compare is set, and otherwise preserves the selected `v` value bit. -/
-theorem compareControlledUVSwapStep_get_vWordBit
+lemma compareControlledUVSwapStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit bit).get
@@ -498,7 +502,7 @@ theorem compareControlledUVSwapStep_get_vWordBit
 
 /-- The comparison-controlled `u`/`v` word swap preserves every `r`
 coefficient bit. -/
-theorem compareControlledUVSwapStep_get_rCoeffWordBit
+lemma compareControlledUVSwapStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedRCoeffWord n counterWidth).bit bit).get
@@ -521,7 +525,7 @@ theorem compareControlledUVSwapStep_get_rCoeffWordBit
 
 /-- The comparison-controlled `u`/`v` word swap preserves every `s`
 coefficient bit. -/
-theorem compareControlledUVSwapStep_get_sCoeffWordBit
+lemma compareControlledUVSwapStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedSCoeffWord n counterWidth).bit bit).get
@@ -592,12 +596,13 @@ def compareControlledRSSwapStep
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap program realizes its
 folded base-gate semantics. -/
-theorem compareControlledRSSwap_realizes
+lemma compareControlledRSSwap_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (compareControlledRSSwapProgram n counterWidth)
+      (compareControlledRSSwapProgram n counterWidth) environment
       (compareControlledRSSwapStep n counterWidth) :=
-  EncodedBit.Word.controlledSwap_realizes (QubitLayout.canonical _) .empty
+  EncodedBit.Word.controlledSwap_realizes (environment := environment)
+    (QubitLayout.canonical _) .empty
     (liftedCompareBit n counterWidth)
     (liftedRCoeffWord n counterWidth)
     (liftedSCoeffWord n counterWidth)
@@ -608,7 +613,7 @@ theorem compareControlledRSSwap_realizes
 
 /-- The comparison-controlled `r`/`s` word swap preserves the comparison
 ancilla. -/
-theorem compareControlledRSSwapStep_get_compare
+lemma compareControlledRSSwapStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -633,7 +638,7 @@ theorem compareControlledRSSwapStep_get_compare
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap preserves the
 active flag. -/
-theorem compareControlledRSSwapStep_get_active
+lemma compareControlledRSSwapStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -663,7 +668,7 @@ theorem compareControlledRSSwapStep_get_active
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap preserves every
 stored branch-history bit. -/
-theorem compareControlledRSSwapStep_get_historyBit
+lemma compareControlledRSSwapStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedHistoryBit n counterWidth historyIndex).get
@@ -695,7 +700,7 @@ theorem compareControlledRSSwapStep_get_historyBit
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap preserves the first
 scratch bit. -/
-theorem compareControlledRSSwapStep_get_scratchA
+lemma compareControlledRSSwapStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -725,7 +730,7 @@ theorem compareControlledRSSwapStep_get_scratchA
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap preserves the second
 scratch bit. -/
-theorem compareControlledRSSwapStep_get_scratchB
+lemma compareControlledRSSwapStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchBBit n counterWidth).get
@@ -755,7 +760,7 @@ theorem compareControlledRSSwapStep_get_scratchB
 
 /-- The comparison-controlled `r`/`s` word swap preserves every comparison-work
 carry bit. -/
-theorem compareControlledRSSwapStep_get_comparisonCarry
+lemma compareControlledRSSwapStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -781,7 +786,7 @@ theorem compareControlledRSSwapStep_get_comparisonCarry
 /-- The comparison-controlled `r`/`s` word swap sends the selected `s`
 coefficient bit to `r` when compare is set, and otherwise preserves the
 selected `r` coefficient bit. -/
-theorem compareControlledRSSwapStep_get_rCoeffWordBit
+lemma compareControlledRSSwapStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedRCoeffWord n counterWidth).bit bit).get
@@ -815,7 +820,7 @@ theorem compareControlledRSSwapStep_get_rCoeffWordBit
 /-- The comparison-controlled `r`/`s` word swap sends the selected `r`
 coefficient bit to `s` when compare is set, and otherwise preserves the
 selected `s` coefficient bit. -/
-theorem compareControlledRSSwapStep_get_sCoeffWordBit
+lemma compareControlledRSSwapStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedSCoeffWord n counterWidth).bit bit).get
@@ -848,7 +853,7 @@ theorem compareControlledRSSwapStep_get_sCoeffWordBit
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap preserves every
 `u` value bit. -/
-theorem compareControlledRSSwapStep_get_uWordBit
+lemma compareControlledRSSwapStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedUWord n counterWidth).bit bit).get
@@ -875,7 +880,7 @@ theorem compareControlledRSSwapStep_get_uWordBit
 
 /-- The comparison-controlled `r`/`s` coefficient-word swap preserves every
 `v` value bit. -/
-theorem compareControlledRSSwapStep_get_vWordBit
+lemma compareControlledRSSwapStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit bit).get
@@ -925,10 +930,10 @@ def compareControlledUVRSSwapStep (n counterWidth : Nat) :
 
 /-- The paired comparison-controlled swap program realizes its folded
 base-gate semantics. -/
-theorem compareControlledUVRSSwap_realizes
+lemma compareControlledUVRSSwap_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (compareControlledUVRSSwapProgram n counterWidth)
+      (compareControlledUVRSSwapProgram n counterWidth) environment
       (compareControlledUVRSSwapStep n counterWidth) := by
   unfold compareControlledUVRSSwapProgram compareControlledUVRSSwapStep
   exact UnitaryCircuit.Realizes.seq
@@ -938,7 +943,7 @@ theorem compareControlledUVRSSwap_realizes
     (compareControlledRSSwap_realizes n counterWidth)
 
 /-- The paired swap preserves the comparison ancilla. -/
-theorem compareControlledUVRSSwapStep_get_compare
+lemma compareControlledUVRSSwapStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -949,7 +954,7 @@ theorem compareControlledUVRSSwapStep_get_compare
     compareControlledUVSwapStep_get_compare]
 
 /-- The paired swap preserves the active flag. -/
-theorem compareControlledUVRSSwapStep_get_active
+lemma compareControlledUVRSSwapStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -960,7 +965,7 @@ theorem compareControlledUVRSSwapStep_get_active
     compareControlledUVSwapStep_get_active]
 
 /-- The paired swap preserves every stored branch-history bit. -/
-theorem compareControlledUVRSSwapStep_get_historyBit
+lemma compareControlledUVRSSwapStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedHistoryBit n counterWidth historyIndex).get
@@ -971,7 +976,7 @@ theorem compareControlledUVRSSwapStep_get_historyBit
     compareControlledUVSwapStep_get_historyBit]
 
 /-- The paired swap preserves the first scratch bit. -/
-theorem compareControlledUVRSSwapStep_get_scratchA
+lemma compareControlledUVRSSwapStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -982,7 +987,7 @@ theorem compareControlledUVRSSwapStep_get_scratchA
     compareControlledUVSwapStep_get_scratchA]
 
 /-- The paired swap preserves the second scratch bit. -/
-theorem compareControlledUVRSSwapStep_get_scratchB
+lemma compareControlledUVRSSwapStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchBBit n counterWidth).get
@@ -993,7 +998,7 @@ theorem compareControlledUVRSSwapStep_get_scratchB
     compareControlledUVSwapStep_get_scratchB]
 
 /-- The paired swap preserves every comparison-work carry bit. -/
-theorem compareControlledUVRSSwapStep_get_comparisonCarry
+lemma compareControlledUVRSSwapStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -1005,7 +1010,7 @@ theorem compareControlledUVRSSwapStep_get_comparisonCarry
 
 /-- The paired swap sends the selected `v` value bit to `u` when compare is
 set, and otherwise preserves the selected `u` value bit. -/
-theorem compareControlledUVRSSwapStep_get_uWordBit
+lemma compareControlledUVRSSwapStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedUWord n counterWidth).bit bit).get
@@ -1020,7 +1025,7 @@ theorem compareControlledUVRSSwapStep_get_uWordBit
 
 /-- The paired swap sends the selected `u` value bit to `v` when compare is
 set, and otherwise preserves the selected `v` value bit. -/
-theorem compareControlledUVRSSwapStep_get_vWordBit
+lemma compareControlledUVRSSwapStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit bit).get
@@ -1035,7 +1040,7 @@ theorem compareControlledUVRSSwapStep_get_vWordBit
 
 /-- The paired swap sends the selected `s` coefficient bit to `r` when compare
 is set, and otherwise preserves the selected `r` coefficient bit. -/
-theorem compareControlledUVRSSwapStep_get_rCoeffWordBit
+lemma compareControlledUVRSSwapStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedRCoeffWord n counterWidth).bit bit).get
@@ -1052,7 +1057,7 @@ theorem compareControlledUVRSSwapStep_get_rCoeffWordBit
 
 /-- The paired swap sends the selected `r` coefficient bit to `s` when compare
 is set, and otherwise preserves the selected `s` coefficient bit. -/
-theorem compareControlledUVRSSwapStep_get_sCoeffWordBit
+lemma compareControlledUVRSSwapStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedSCoeffWord n counterWidth).bit bit).get

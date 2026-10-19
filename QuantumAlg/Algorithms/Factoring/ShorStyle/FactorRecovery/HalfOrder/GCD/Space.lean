@@ -36,7 +36,7 @@ noncomputable section
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem body_resident_le (successor : Bool)
+private lemma body_resident_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (body (model := model) successor halfPower output).Path) :
@@ -67,7 +67,7 @@ private theorem body_resident_le (successor : Bool)
       · exact NumberTheory.GCD.gcdLexical_resident_le
           (operands ctx N) (liftWrite output) path.2.2.2
 
-private theorem body_auxiliary_le (successor : Bool)
+private lemma body_auxiliary_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (body (model := model) successor halfPower output).Path) :
@@ -102,19 +102,19 @@ section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
-private theorem adjacent_resident_capacity :
+private lemma adjacent_resident_capacity :
     (adjacentContext ctx N).residentSpace ≤ ctx.residentSpace + spaceBound kind N := by
   intro axis
   cases axis <;> simp [adjacentContext, spaceBound, SpacePool.ofShape]
   omega
 
-private theorem adjacent_auxiliary_capacity :
+private lemma adjacent_auxiliary_capacity :
     (adjacentContext ctx N).auxiliarySpace ≤ ctx.auxiliarySpace + spaceBound kind N := by
   intro axis
   cases axis <;> simp [adjacentContext, spaceBound, SpacePool.ofShape]
   omega
 
-private theorem full_resident_capacity :
+private lemma full_resident_capacity :
     (context ctx N).residentSpace +
         NumberTheory.GCD.lexicalAdditionalSpace kind (modulusBits N + 1) ≤
       ctx.residentSpace + spaceBound kind N := by
@@ -123,7 +123,7 @@ private theorem full_resident_capacity :
     spaceBound, SpacePool.ofShape]
   omega
 
-private theorem full_auxiliary_capacity :
+private lemma full_auxiliary_capacity :
     (context ctx N).auxiliarySpace +
         NumberTheory.GCD.lexicalAdditionalSpace kind (modulusBits N + 1) ≤
       ctx.auxiliarySpace + spaceBound kind N := by
@@ -135,7 +135,7 @@ private theorem full_auxiliary_capacity :
 end
 
 /-- The real resident peak includes both operands and the expanded Euclidean division scratch. -/
-theorem code_resident_le (successor : Bool)
+lemma code_resident_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (code (model := model) successor halfPower output).Path) :
@@ -156,7 +156,7 @@ theorem code_resident_le (successor : Bool)
     · exact (body_resident_le successor halfPower output path).trans full_resident_capacity
 
 /-- Every actual operand and division cell is auxiliary while its genuine scope remains live. -/
-theorem code_auxiliary_le (successor : Bool)
+lemma code_auxiliary_le (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (code (model := model) successor halfPower output).Path) :

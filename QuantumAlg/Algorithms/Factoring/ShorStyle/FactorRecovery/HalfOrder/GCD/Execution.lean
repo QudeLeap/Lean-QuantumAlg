@@ -29,7 +29,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- The real result initialization precedes the existing Euclidean record. -/
@@ -83,10 +84,10 @@ def step (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBi
   (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord (modulusBits N + 1))
     ctx.canonicalFreshKey_fresh next.1, next.2)
 
-private theorem gcdTail_execute (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
+private lemma gcdTail_execute (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (gcdTail (model := model) output).execute Reference state =
+    (gcdTail (model := model) output).execute environment Reference state =
       state.mapClassical (fun entry => ((gcdTailStep (model := model) output entry.1).1,
         (entry.2.1, (entry.2.2, (gcdTailStep (model := model) output entry.1).2)))) := by
   simp only [gcdTail, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
@@ -95,11 +96,11 @@ private theorem gcdTail_execute (output : CWriteRef ctx (.unsignedWord (modulusB
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem loadTail_execute (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
+private lemma loadTail_execute (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
     (Circuit.seq (ConstantWord.circuit (model := model) (modulusRef ctx N) N)
-      (gcdTail (model := model) output)).execute Reference state =
+      (gcdTail (model := model) output)).execute environment Reference state =
       state.mapClassical (fun entry => ((loadTailStep (model := model) output entry.1).1,
         (entry.2.1, (entry.2.2, (loadTailStep (model := model) output entry.1).2)))) := by
   simp only [ConstantWord.circuit, Circuit.execute_seq, ConstantWord.constantWord_fold_execute,
@@ -109,11 +110,11 @@ private theorem loadTail_execute (output : CWriteRef ctx (.unsignedWord (modulus
   exact Subsingleton.elim _ _
 
 /-- Actual adjacent arithmetic, literal modulus loading and native GCD compose on full blocks. -/
-theorem body_execute (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma body_execute (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (context ctx N) Reference (model.HiddenState × History)) :
-    (body (model := model) successor halfPower output).execute Reference state =
+    (body (model := model) successor halfPower output).execute environment Reference state =
       state.mapClassical (fun entry => ((bodyStep (model := model) successor halfPower
         output entry.1).1,
         (entry.2.1, (entry.2.2, (bodyStep (model := model) successor halfPower output
@@ -124,19 +125,20 @@ theorem body_execute (successor : Bool) (halfPower : CInputRef ctx (.unsignedWor
   congr 1
   exact Subsingleton.elim _ _
 
-private theorem inner_execute (successor : Bool)
+private lemma inner_execute (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (adjacentContext ctx N) Reference (model.HiddenState × History)) :
     (Circuit.workspace (adjacentContext ctx N) (adjacentContext ctx N).canonicalFreshKey
       (.unsignedWord (modulusBits N + 1)) (adjacentContext ctx N).canonicalFreshKey_fresh
-      (body (model := model) successor halfPower output)).execute Reference state =
+      (body (model := model) successor halfPower output)).execute environment Reference state =
       state.mapClassical (fun entry => ((innerStep (model := model) successor halfPower
         output entry.1).1,
         (entry.2.1, (entry.2.2, (innerStep (model := model) successor halfPower output
           entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (adjacentContext ctx N).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (adjacentContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (adjacentContext ctx N).canonicalFreshKey_fresh
     (body (model := model) successor halfPower output)
     (fun entry =>
@@ -148,16 +150,16 @@ private theorem inner_execute (successor : Bool)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The real complete GCD call releases precisely its two outer operand cells. -/
-theorem code_execute (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_execute (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) successor halfPower output).execute Reference state =
+    (code (model := model) successor halfPower output).execute environment Reference state =
       state.mapClassical (fun entry => ((step (model := model) successor halfPower output
         entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) successor halfPower output entry.1).2))))
           := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
     (.workspace (adjacentContext ctx N) (adjacentContext ctx N).canonicalFreshKey
       (.unsignedWord (modulusBits N + 1)) (adjacentContext ctx N).canonicalFreshKey_fresh

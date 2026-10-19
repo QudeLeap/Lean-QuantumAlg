@@ -33,7 +33,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA CoefficientConsumeFrame
 
-private theorem native_clearedWord (state : IterationState) (modulus count : Nat)
+private lemma native_clearedWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (SignQuotient.step modulus.size
@@ -86,7 +86,7 @@ private theorem native_clearedWord (state : IterationState) (modulus count : Nat
         (position_lowWidth state modulus count valid conserved)
 
 /-- The actual whole Work1 reaches the existing coefficient-arithmetic frame after consumption. -/
-theorem native_firstWord (state : IterationState) (modulus count : Nat)
+lemma native_firstWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (SignQuotient.step modulus.size
@@ -97,7 +97,7 @@ theorem native_firstWord (state : IterationState) (modulus count : Nat)
     (CoefficientPackedStep.clearedWord_eq_next state modulus count valid conserved beforeEnd)
 
 /-- Actual Sign contains precisely the low quotient digit required by the next arithmetic block. -/
-theorem native_sign (state : IterationState) (modulus count : Nat)
+lemma native_sign (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (SignQuotient.step modulus.size
@@ -115,7 +115,7 @@ theorem native_sign (state : IterationState) (modulus count : Nat)
     (firstWord_digit state modulus count valid conserved active beforeEnd iteration))
 
 /-- Existing native quotient consumption reaches all fields of the coefficient arithmetic frame. -/
-theorem native_frame (state : IterationState) (modulus count : Nat)
+lemma native_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     SignQuotient.step modulus.size

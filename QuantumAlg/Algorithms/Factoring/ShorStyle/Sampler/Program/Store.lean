@@ -28,7 +28,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual scoped program changes precisely its complete parameter cell. -/
-theorem samplerProgram_store (input : Input N)
+lemma samplerProgram_store (input : Input N)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))

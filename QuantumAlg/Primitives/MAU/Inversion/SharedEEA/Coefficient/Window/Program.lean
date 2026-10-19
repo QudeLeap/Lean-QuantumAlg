@@ -29,6 +29,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.CoefficientWindowProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit ArithmeticWindowRegisters ArithmeticWindowEncoding
 open ArithmeticWindowProgram
 
@@ -44,7 +46,7 @@ private def focusBit {width : Nat} (window : Window width)
     EncodedBit (groupedEncoding window) :=
   BinaryLabelEncoding.prodLeftBit _ _ bit
 
-private theorem source_read {width : Nat} (window : Window width)
+private lemma source_read {width : Nat} (window : Window width)
     (index : Fin window.length) (state : Registers width) :
     (Addition.TTK.withOverflowBit (Addition.TTK.leftBit window.length index)).get
       ((placement window).grouping state).1 =
@@ -62,7 +64,7 @@ private theorem source_read {width : Nat} (window : Window width)
     (groupedEncoding_surjective window) (encoding_surjective width)
     (CoefficientWindowCoordinates.wireEquiv window) bit _ same state
 
-private theorem target_read {width : Nat} (window : Window width)
+private lemma target_read {width : Nat} (window : Window width)
     (index : Fin window.length) (state : Registers width) :
     (Addition.TTK.withOverflowBit (Addition.TTK.rightBit window.length index)).get
       ((placement window).grouping state).1 =
@@ -83,7 +85,7 @@ private theorem target_read {width : Nat} (window : Window width)
     (groupedEncoding_surjective window) (encoding_surjective width)
     (CoefficientWindowCoordinates.wireEquiv window) bit _ same state
 
-private theorem sign_read {width : Nat} (window : Window width)
+private lemma sign_read {width : Nat} (window : Window width)
     (state : Registers width) :
     (Addition.TTK.overflowBit window.length).get ((placement window).grouping state).1 =
       (signBit width).get state := by
@@ -100,7 +102,7 @@ private theorem sign_read {width : Nat} (window : Window width)
     (groupedEncoding_surjective window) (encoding_surjective width)
     (CoefficientWindowCoordinates.wireEquiv window) bit _ same state
 
-private theorem focus_grouping {width : Nat} (window : Window width)
+private lemma focus_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).1 =
       (CoefficientWindowOrientation.grouping window state).1 := by
@@ -127,7 +129,7 @@ private theorem focus_grouping {width : Nat} (window : Window width)
   · exact (sign_read window state).trans
       (CoefficientWindowOrientation.grouping_sign window state).symm
 
-private theorem complement_grouping {width : Nat} (window : Window width)
+private lemma complement_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     ((placement window).grouping state).2 =
       (CoefficientWindowOrientation.grouping window state).2 := by
@@ -145,14 +147,14 @@ private theorem complement_grouping {width : Nat} (window : Window width)
     (CoefficientWindowOrientation.grouping_complement window state).symm
 
 /-- The reflected physical wire map reconstructs the exact coefficient field grouping. -/
-theorem placement_grouping {width : Nat} (window : Window width)
+lemma placement_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     (placement window).grouping state = CoefficientWindowOrientation.grouping window state := by
   apply Prod.ext
   · exact focus_grouping window state
   · exact complement_grouping window state
 
-theorem placement_grouping_equiv {width : Nat} (window : Window width) :
+lemma placement_grouping_equiv {width : Nat} (window : Window width) :
     (placement window).grouping = CoefficientWindowOrientation.grouping window :=
   Equiv.ext (placement_grouping window)
 
@@ -170,20 +172,20 @@ def step {width : Nat} (window : Window width) (operation : Operation) :
   (placement window).step (fun pair => (focusStep operation pair.1, pair.2))
 
 /-- Exact basis amplitudes of the same actual coefficient elementary program. -/
-theorem program_realizes {width : Nat} (window : Window width) (operation : Operation) :
-    UnitaryCircuit.Realizes (encoding width) (program window operation)
+lemma program_realizes {width : Nat} (window : Window width) (operation : Operation) :
+    UnitaryCircuit.Realizes (encoding width) (program window operation) environment
       (step window operation) := by
   have body : UnitaryCircuit.Realizes (groupedEncoding window)
       (GateSpec.programList (QubitLayout.canonical _) .empty
-        (ArithmeticWindowProgram.gates window operation))
+        (ArithmeticWindowProgram.gates window operation)) environment
       (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
         (focusStep operation pair.1, pair.2)) :=
     GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-      (ArithmeticWindowProgram.gates_step window operation)
+      (ArithmeticWindowProgram.gates_step window operation) environment
   exact (placement window).place_realizes body
 
 /-- The exact output includes oriented arithmetic and the complete original complement. -/
-theorem step_grouping {width : Nat} (window : Window width) (operation : Operation)
+lemma step_grouping {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     CoefficientWindowOrientation.grouping window (step window operation state) =
       (focusStep operation (CoefficientWindowOrientation.grouping window state).1,
@@ -207,25 +209,25 @@ def controlledStep {width : Nat} (window : Window width) (operation : Operation)
       (focusStep operation pair.1, pair.2) else pair)
 
 /-- The selected program realizes the exact whole-frame action for arbitrary Ctrl and Iter. -/
-theorem controlledProgram_realizes {width : Nat} (window : Window width) (operation : Operation) :
-    UnitaryCircuit.Realizes (encoding width) (controlledProgram window operation)
+lemma controlledProgram_realizes {width : Nat} (window : Window width) (operation : Operation) :
+    UnitaryCircuit.Realizes (encoding width) (controlledProgram window operation) environment
       (controlledStep window operation) := by
   have body : UnitaryCircuit.Realizes (groupedEncoding window)
       (GateSpec.programList (QubitLayout.canonical _) .empty
-        (ArithmeticWindowControl.gates window operation))
+        (ArithmeticWindowControl.gates window operation)) environment
       (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
         if (ArithmeticWindowEncoding.controlBit window).get pair then
           (focusStep operation pair.1, pair.2) else pair) :=
     GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-      (ArithmeticWindowControl.gates_step window operation)
+      (ArithmeticWindowControl.gates_step window operation) environment
   exact (placement window).place_realizes body
 
-private theorem control_get {width : Nat} (window : Window width) (state : Registers width) :
+private lemma control_get {width : Nat} (window : Window width) (state : Registers width) :
     (ArithmeticWindowEncoding.controlBit window).get
       (CoefficientWindowOrientation.grouping window state) = state.control := rfl
 
 /-- Incoming Ctrl selects the same actual coefficient arithmetic, with an exact identity branch. -/
-theorem controlledStep_eq_if {width : Nat} (window : Window width) (operation : Operation)
+lemma controlledStep_eq_if {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     controlledStep window operation state =
       if state.control then step window operation state else state := by
@@ -240,14 +242,14 @@ theorem controlledStep_eq_if {width : Nat} (window : Window width) (operation : 
     exact (CoefficientWindowOrientation.grouping window).symm_apply_apply state
 
 /-- Every real controlled TTK gate event is retained in its actual execution order. -/
-theorem controlledProgram_eventTrace {width : Nat} (window : Window width)
+lemma controlledProgram_eventTrace {width : Nat} (window : Window width)
     (operation : Operation) :
     (controlledProgram window operation).eventTrace =
       (ArithmeticWindowControl.gates window operation).map (GateSpec.event .empty) := by
   rw [controlledProgram, FullPlacement.place_eventTrace, GateSpec.programList_eventTrace]
 
 /-- Exact unit depth counts the actual dirty-control expansion of each existing TTK primitive. -/
-theorem controlledProgram_unitDepth {width : Nat} (window : Window width)
+lemma controlledProgram_unitDepth {width : Nat} (window : Window width)
     (operation : Operation) :
     (controlledProgram window operation).evaluatedEventDepth (fun _ => 1) =
       ((ArithmeticWindowProgram.gates window operation).map GateSpec.dirtyControlCount).sum := by

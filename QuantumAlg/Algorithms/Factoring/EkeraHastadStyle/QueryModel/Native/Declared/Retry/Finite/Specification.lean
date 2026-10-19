@@ -23,7 +23,7 @@ import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.StoreMachine.Retry.N
 
 The circuit clock charges one unit for gates, granted oracle queries and
 classical queries, and zero for preparation, measurement and classical
-operations. Rational calibration reserves half the target failure for the
+operations. The shared real calibration reserves half the target failure for the
 separate one-time key exception. Completed algorithm contracts supply their
 actual state and resource requirements.
 -/
@@ -35,7 +35,7 @@ noncomputable section
 variable {N : Nat}
 
 /-- The original gate/query clock also charges every actual reset correction. -/
-@[expose] public def circuitDuration (input : Input N) : Resource.Event (model input) → Nat
+@[expose] public def circuitDuration (N : Nat) : Resource.Event (model N) → Nat
   | .gate _ => 1
   | .oracle _ => 1
   | .classicalQuery _ => 1
@@ -44,12 +44,9 @@ variable {N : Nat}
   | .classicalOperation _ => 0
 
 /-- The public gate/query clock charges each granted group-oracle call once. -/
-public theorem circuitDuration_oracle (input : Input N) (coordinate) :
-    circuitDuration input (.oracle coordinate) = 1 := rfl
+public lemma circuitDuration_oracle (N : Nat) (coordinate) :
+    circuitDuration N (.oracle coordinate) = 1 := rfl
 
-/-- The original rational calibration reserves half the target for the one-time key exception. -/
-public def calibratedCount (budget : FailureBudget) : Nat :=
-  NativeFiniteRetry.Calibration.retryCount budget
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 

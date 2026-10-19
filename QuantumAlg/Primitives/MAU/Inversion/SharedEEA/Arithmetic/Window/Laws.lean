@@ -51,19 +51,19 @@ def signedTarget {width : Nat} (window : Window width) (state : Registers width)
     BitVec (window.length + 1) :=
   BitVec.cons state.flags.sign (targetWord window state)
 
-private theorem sourceWord_grouping {width : Nat} (window : Window width)
+private lemma sourceWord_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     sourceWord window state = BitVec.ofFin (grouping window state).1.1.1 := by
   apply BitVec.eq_of_toNat_eq
   rfl
 
-private theorem targetWord_grouping {width : Nat} (window : Window width)
+private lemma targetWord_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     targetWord window state = BitVec.ofFin (grouping window state).1.1.2 := by
   apply BitVec.eq_of_toNat_eq
   rfl
 
-private theorem signedTarget_grouping {width : Nat} (window : Window width)
+private lemma signedTarget_grouping {width : Nat} (window : Window width)
     (state : Registers width) :
     signedTarget window state = Addition.TTK.outputWord (grouping window state).1 := by
   unfold signedTarget Addition.TTK.outputWord
@@ -71,7 +71,7 @@ private theorem signedTarget_grouping {width : Nat} (window : Window width)
   rfl
 
 /-- The native arithmetic source operand retains its entire original physical word. -/
-theorem step_sourceWord {width : Nat} (window : Window width) (operation : Operation)
+lemma step_sourceWord {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     sourceWord window (ArithmeticWindowProgram.step window operation state) =
       sourceWord window state := by
@@ -79,27 +79,27 @@ theorem step_sourceWord {width : Nat} (window : Window width) (operation : Opera
   exact congrArg BitVec.ofFin (focusStep_source operation (grouping window state).1)
 
 /-- Every outside word bit, length, phase, Iter, and Ctrl stays in the same exact complement. -/
-theorem step_complement {width : Nat} (window : Window width) (operation : Operation)
+lemma step_complement {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     (grouping window (ArithmeticWindowProgram.step window operation state)).2 =
       (grouping window state).2 := by
   rw [step_grouping]
 
 /-- The actual signed TTK addition acts on the full old target and arbitrary incoming Sign. -/
-theorem step_signed_add {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_signed_add {width : Nat} (window : Window width) (state : Registers width) :
     signedTarget window (ArithmeticWindowProgram.step window .addSigned state) =
       signedTarget window state + (sourceWord window state).setWidth (window.length + 1) := by
   rw [signedTarget_grouping, step_grouping, signedTarget_grouping, sourceWord_grouping]
   exact Addition.TTK.ttkOverflowOutput_word (grouping window state).1
 
 /-- The actual reversed TTK list subtracts on that same complete signed physical region. -/
-theorem step_signed_subtract {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_signed_subtract {width : Nat} (window : Window width) (state : Registers width) :
     signedTarget window (ArithmeticWindowProgram.step window .subtractSigned state) =
       signedTarget window state - (sourceWord window state).setWidth (window.length + 1) := by
   rw [signedTarget_grouping, step_grouping, signedTarget_grouping, sourceWord_grouping]
   exact Addition.TTK.ttkOverflowSubtractionOutput_word (grouping window state).1
 
-private theorem focus_low_add {length : Nat} (state : Addition.TTK.OverflowRegisters length) :
+private lemma focus_low_add {length : Nat} (state : Addition.TTK.OverflowRegisters length) :
     BitVec.ofFin (focusStep .addLow state).1.2 =
       BitVec.ofFin state.1.2 + BitVec.ofFin state.1.1 := by
   have actual := congrArg (fun word : BitVec (length + 1) => word.setWidth length)
@@ -109,7 +109,7 @@ private theorem focus_low_add {length : Nat} (state : Addition.TTK.OverflowRegis
     Addition.TTK.outputWord, BitVec.setWidth_add _ _ narrower, BitVec.setWidth_cons,
     BitVec.setWidth_setWidth_of_le _ narrower, BitVec.setWidth_eq] using actual
 
-private theorem focus_low_subtract {length : Nat} (state : Addition.TTK.OverflowRegisters length) :
+private lemma focus_low_subtract {length : Nat} (state : Addition.TTK.OverflowRegisters length) :
     BitVec.ofFin (focusStep .subtractLow state).1.2 =
       BitVec.ofFin state.1.2 - BitVec.ofFin state.1.1 := by
   have actual := congrArg (fun word : BitVec (length + 1) => word.setWidth length)
@@ -122,27 +122,27 @@ private theorem focus_low_subtract {length : Nat} (state : Addition.TTK.Overflow
     BitVec.setWidth_eq] using actual
 
 /-- The actual low addition modifies precisely the full selected remainder word modulo its width. -/
-theorem step_low_add {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_low_add {width : Nat} (window : Window width) (state : Registers width) :
     targetWord window (ArithmeticWindowProgram.step window .addLow state) =
       targetWord window state + sourceWord window state := by
   rw [targetWord_grouping, step_grouping, targetWord_grouping, sourceWord_grouping]
   exact focus_low_add (grouping window state).1
 
 /-- The actual low subtraction is the matching finite-word subtraction on the original slice. -/
-theorem step_low_subtract {width : Nat} (window : Window width) (state : Registers width) :
+lemma step_low_subtract {width : Nat} (window : Window width) (state : Registers width) :
     targetWord window (ArithmeticWindowProgram.step window .subtractLow state) =
       targetWord window state - sourceWord window state := by
   rw [targetWord_grouping, step_grouping, targetWord_grouping, sourceWord_grouping]
   exact focus_low_subtract (grouping window state).1
 
-private theorem cons_false_eq_setWidth {length : Nat} (word : BitVec length) :
+private lemma cons_false_eq_setWidth {length : Nat} (word : BitVec length) :
     BitVec.cons false word = word.setWidth (length + 1) := by
   apply BitVec.eq_of_toNat_eq
   simp only [BitVec.toNat_cons', Bool.toNat_false, Nat.shiftLeft_eq, Nat.zero_mul, Nat.zero_add,
     BitVec.toNat_setWidth_of_le (by omega : length ≤ length + 1)]
 
 /-- Internal zero Sign connects the actual full-width subtraction to the pure division law. -/
-theorem step_subtract_difference {width : Nat} (window : Window width) (state : Registers width)
+lemma step_subtract_difference {width : Nat} (window : Window width) (state : Registers width)
     (zeroSign : state.flags.sign = false) :
     signedTarget window (ArithmeticWindowProgram.step window .subtractSigned state) =
       NumberTheory.SharedEEA.SignedDivision.difference
@@ -151,7 +151,7 @@ theorem step_subtract_difference {width : Nat} (window : Window width) (state : 
   rfl
 
 /-- The actual subtraction Sign is strict underflow, including equal and zero-bit inputs. -/
-theorem step_subtract_sign {width : Nat} (window : Window width) (state : Registers width)
+lemma step_subtract_sign {width : Nat} (window : Window width) (state : Registers width)
     (zeroSign : state.flags.sign = false) :
     (ArithmeticWindowProgram.step window .subtractSigned state).flags.sign =
       decide ((targetWord window state).toNat < (sourceWord window state).toNat) := by
@@ -160,7 +160,7 @@ theorem step_subtract_sign {width : Nat} (window : Window width) (state : Regist
     NumberTheory.SharedEEA.SignedDivision.difference_sign] using actual
 
 /-- All old remainder bits survive until the signed subtraction has actually been executed. -/
-theorem step_subtract_low {width : Nat} (window : Window width) (state : Registers width)
+lemma step_subtract_low {width : Nat} (window : Window width) (state : Registers width)
     (zeroSign : state.flags.sign = false) :
     targetWord window (ArithmeticWindowProgram.step window .subtractSigned state) =
       targetWord window state - sourceWord window state := by

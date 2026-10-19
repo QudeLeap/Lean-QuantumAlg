@@ -27,40 +27,36 @@ namespace QuantumAlg.OrderFinding.ShorSourceJoint.SourceNativeEndpoint
 noncomputable section
 
 /-- Resident classical capacity includes the borrowed base and recovery scratch. -/
-public theorem generalOrderFinding_problem_resident_classical {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
-    (problem hinput access).resources.resident .classicalBits =
+public lemma generalOrderFinding_problem_resident_classical {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (x t : Nat) :
+    (problem spec x t).resources.resident .classicalBits =
       12 * t + 3 * width + 15 + max (t + 1) (8 * width + 2) := by
   simp [problem, spaceBudget, recoveryBits, Sampling.Native.spaceBudget, pre,
     ClassicalRoutines.OrderRecovery.Native.extraClassicalBits, SpacePool.ofShape]
   omega
 
 /-- Auxiliary classical capacity omits the caller's borrowed base. -/
-public theorem generalOrderFinding_problem_auxiliary_classical {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
-    (problem hinput access).resources.auxiliary .classicalBits =
+public lemma generalOrderFinding_problem_auxiliary_classical {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (x t : Nat) :
+    (problem spec x t).resources.auxiliary .classicalBits =
       12 * t + 2 * width + 15 + max (t + 1) (8 * width + 2) := by
   simp [problem, spaceBudget, recoveryBits, Sampling.Native.spaceBudget, pre,
     ClassicalRoutines.OrderRecovery.Native.extraClassicalBits, SpacePool.ofShape]
   omega
 
 /-- The only resident quantum systems are the owned phase and target registers. -/
-public theorem generalOrderFinding_problem_resident_quantum {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width)
+public lemma generalOrderFinding_problem_resident_quantum {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (x t : Nat)
     (dimension : ℕ+) :
-    (problem hinput access).resources.resident (.quantumSystems dimension) =
+    (problem spec x t).resources.resident (.quantumSystems dimension) =
       if (2 : ℕ+) = dimension then t + width else 0 := by
   simp [problem, spaceBudget, Sampling.Native.spaceBudget, pre, SpacePool.ofShape]
 
 /-- All sample quantum systems are fresh and charged as auxiliary systems. -/
-public theorem generalOrderFinding_problem_auxiliary_quantum {N x r t width : Nat}
-    (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width)
+public lemma generalOrderFinding_problem_auxiliary_quantum {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (x t : Nat)
     (dimension : ℕ+) :
-    (problem hinput access).resources.auxiliary (.quantumSystems dimension) =
+    (problem spec x t).resources.auxiliary (.quantumSystems dimension) =
       if (2 : ℕ+) = dimension then t + width else 0 := by
   simp [problem, spaceBudget, Sampling.Native.spaceBudget, pre, SpacePool.ofShape]
 

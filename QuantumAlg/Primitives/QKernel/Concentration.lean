@@ -47,20 +47,20 @@ instance : IsProbabilityMeasure unifAngle := by
     show Real.pi - -Real.pi = 2 * Real.pi from by ring,
     ENNReal.inv_mul_cancel (ENNReal.ofReal_pos.mpr (by positivity)).ne' ENNReal.ofReal_ne_top]
 
-theorem ryKernel_nonneg (n : ℕ) (θ : Fin n → ℝ) : 0 ≤ ryKernel n θ :=
+lemma ryKernel_nonneg (n : ℕ) (θ : Fin n → ℝ) : 0 ≤ ryKernel n θ :=
   Finset.prod_nonneg (fun _ _ => sq_nonneg _)
 
-theorem ryKernel_le_one (n : ℕ) (θ : Fin n → ℝ) : ryKernel n θ ≤ 1 :=
+lemma ryKernel_le_one (n : ℕ) (θ : Fin n → ℝ) : ryKernel n θ ≤ 1 :=
   Finset.prod_le_one (fun k _ => sq_nonneg _)
     (fun k _ => by nlinarith [Real.neg_one_le_cos (θ k), Real.cos_le_one (θ k)])
 
-theorem continuous_ryKernel (n : ℕ) : Continuous (ryKernel n) := by
+lemma continuous_ryKernel (n : ℕ) : Continuous (ryKernel n) := by
   unfold ryKernel
   exact continuous_finsetProd _
     (fun k _ => (Real.continuous_cos.comp (continuous_apply k)).pow 2)
 
 /-- `∫ cos²θ` over the uniform measure on `[-π,π]` equals `1/2`. -/
-theorem integral_cos_sq_unifAngle : ∫ x, Real.cos x ^ 2 ∂unifAngle = 1 / 2 := by
+lemma integral_cos_sq_unifAngle : ∫ x, Real.cos x ^ 2 ∂unifAngle = 1 / 2 := by
   have hpi : (-Real.pi) ≤ Real.pi := by linarith [Real.pi_pos]
   have hpine : Real.pi ≠ 0 := Real.pi_ne_zero
   rw [unifAngle, MeasureTheory.integral_smul_measure, integral_Icc_eq_integral_Ioc,
@@ -71,7 +71,7 @@ theorem integral_cos_sq_unifAngle : ∫ x, Real.cos x ^ 2 ∂unifAngle = 1 / 2 :
   ring
 
 /-- `∫ cos⁴θ` over the uniform measure on `[-π,π]` equals `3/8`. -/
-theorem integral_cos_pow4_unifAngle : ∫ x, Real.cos x ^ 4 ∂unifAngle = 3 / 8 := by
+lemma integral_cos_pow4_unifAngle : ∫ x, Real.cos x ^ 4 ∂unifAngle = 3 / 8 := by
   have hpi : (-Real.pi) ≤ Real.pi := by linarith [Real.pi_pos]
   have hpine : Real.pi ≠ 0 := Real.pi_ne_zero
   have hI : ∫ x in (-Real.pi)..Real.pi, Real.cos x ^ 4 = 3 * Real.pi / 4 := by
@@ -88,20 +88,20 @@ theorem integral_cos_pow4_unifAngle : ∫ x, Real.cos x ^ 4 ∂unifAngle = 3 / 8
 instance instIsProbabilityMeasureRyMeasure (n : ℕ) : IsProbabilityMeasure (ryMeasure n) := by
   unfold ryMeasure; infer_instance
 
-theorem ryKernel_memLp (n : ℕ) : MemLp (ryKernel n) 2 (ryMeasure n) := by
+lemma ryKernel_memLp (n : ℕ) : MemLp (ryKernel n) 2 (ryMeasure n) := by
   refine MemLp.of_bound (continuous_ryKernel n).aestronglyMeasurable 1 ?_
   refine ae_of_all _ (fun θ => ?_)
   rw [Real.norm_eq_abs, abs_of_nonneg (ryKernel_nonneg n θ)]
   exact ryKernel_le_one n θ
 
 /-- First moment: `𝔼[κ_n] = (1/2)ⁿ`. -/
-theorem mean_ryKernel (n : ℕ) : ∫ θ, ryKernel n θ ∂(ryMeasure n) = (1 / 2) ^ n := by
+lemma mean_ryKernel (n : ℕ) : ∫ θ, ryKernel n θ ∂(ryMeasure n) = (1 / 2) ^ n := by
   unfold ryKernel ryMeasure
   rw [integral_fintype_prod_eq_pow (fun t => Real.cos t ^ 2), integral_cos_sq_unifAngle,
     Fintype.card_fin]
 
 /-- Second moment: `𝔼[κ_n²] = (3/8)ⁿ`. -/
-theorem mean_ryKernel_sq (n : ℕ) :
+lemma mean_ryKernel_sq (n : ℕ) :
     ∫ θ, (ryKernel n θ) ^ 2 ∂(ryMeasure n) = (3 / 8) ^ n := by
   have hrw : (fun θ : Fin n → ℝ => (ryKernel n θ) ^ 2)
       = (fun θ => ∏ k, Real.cos (θ k) ^ 4) := by
@@ -115,7 +115,7 @@ theorem mean_ryKernel_sq (n : ℕ) :
     _ = (3 / 8) ^ n := by rw [integral_cos_pow4_unifAngle, Fintype.card_fin]
 
 /-- Exact variance: `Var[κ_n] = (3/8)ⁿ - (1/4)ⁿ`. -/
-theorem variance_ryKernel (n : ℕ) :
+lemma variance_ryKernel (n : ℕ) :
     variance (ryKernel n) (ryMeasure n) = (3 / 8) ^ n - (1 / 4) ^ n := by
   rw [variance_eq_sub (ryKernel_memLp n)]
   simp only [Pi.pow_apply]
@@ -123,7 +123,7 @@ theorem variance_ryKernel (n : ℕ) :
     show ((1 / 2 : ℝ) ^ n) ^ 2 = (1 / 4) ^ n by
       rw [← pow_mul, mul_comm, pow_mul]; norm_num]
 
-theorem variance_ryKernel_le (n : ℕ) :
+lemma variance_ryKernel_le (n : ℕ) :
     variance (ryKernel n) (ryMeasure n) ≤ (3 / 8) ^ n := by
   rw [variance_ryKernel]
   have : (0 : ℝ) ≤ (1 / 4) ^ n := by positivity
@@ -143,7 +143,7 @@ public theorem QuantumKernelConcentration.main :
 
 /-- The RY-kernel deviation probability vanishes as the qubit count grows: the kernel
 landscape becomes exponentially flat, so a polynomial shot budget cannot resolve it. -/
-theorem ryKernel_tendsto_zero {δ : ℝ} (hδ : 0 < δ) :
+lemma ryKernel_tendsto_zero {δ : ℝ} (hδ : 0 < δ) :
     Filter.Tendsto
       (fun n => (ryMeasure n) {θ | δ ≤ |ryKernel n θ - ∫ x, ryKernel n x ∂(ryMeasure n)|})
       Filter.atTop (nhds 0) :=

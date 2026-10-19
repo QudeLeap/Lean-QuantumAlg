@@ -34,24 +34,25 @@ public def castQubitWidth (same : source = target)
   same ▸ body
 
 /-- The regrouped binary view transports unchanged integer basis labels by the width equality. -/
-public theorem castQubitWidth_binaryMatrix (same : source = target)
+public lemma castQubitWidth_binaryMatrix (same : source = target)
     (body : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits source).canonicalPlacement.layout) :
-    (body.castQubitWidth same).binaryMatrix =
+      (QuantumSignature.qubits source).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((body.castQubitWidth same).binaryMatrix environment) =
       UnitaryOperator.reindex (finCongr (congrArg (fun width => 2 ^ width) same))
-        body.binaryMatrix := by
+        (body.binaryMatrix environment) := by
   subst target
   apply Subtype.ext
   rfl
 
 /-- Equal-width regrouping transports the result of binary operator action
 only along the supplied equality of widths. -/
-public theorem castQubitWidth_binaryMatrix_apply (same : source = target)
+public lemma castQubitWidth_binaryMatrix_apply (same : source = target)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout)
-    (state : NormalizedVector (Qubits source)) :
-    (body.castQubitWidth same).binaryMatrix.apply (same ▸ state) =
-      same ▸ body.binaryMatrix.apply state := by
+    (state : NormalizedVector (Qubits source)) (environment : oracles.Interpretation) :
+    ((body.castQubitWidth same).binaryMatrix environment).apply (same ▸ state) =
+      same ▸ (body.binaryMatrix environment).apply state := by
   subst target
   rfl
 
@@ -65,45 +66,45 @@ public theorem castQubitWidth_binaryMatrix_apply (same : source = target)
     (index : Fin (2 ^ source)) : Fin (2 ^ target) :=
   finCongr (congrArg (fun width => 2 ^ width) same) index
 
-@[simp] public theorem castQubitWidthIndex_val (same : source = target)
+@[simp] public lemma castQubitWidthIndex_val (same : source = target)
     (index : Fin (2 ^ source)) :
     (castQubitWidthIndex same index).val = index.val := by
   subst target
   rfl
 
-@[simp] public theorem castQubitWidthIndex_symm (same : source = target)
+@[simp] public lemma castQubitWidthIndex_symm (same : source = target)
     (index : Fin (2 ^ target)) :
     castQubitWidthIndex same (castQubitWidthIndex same.symm index) = index := by
   subst target
   rfl
 
 /-- Equal-width regrouping commutes with action on arbitrary raw vectors. -/
-public theorem castQubitWidth_binaryMatrix_applyVec (same : source = target)
+public lemma castQubitWidth_binaryMatrix_applyVec (same : source = target)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout)
-    (state : HilbertVector (Qubits source)) :
-    (body.castQubitWidth same).binaryMatrix.applyVec
+    (state : HilbertVector (Qubits source)) (environment : oracles.Interpretation) :
+    ((body.castQubitWidth same).binaryMatrix environment).applyVec
         (castQubitWidthVec same state) =
-      castQubitWidthVec same (body.binaryMatrix.applyVec state) := by
+      castQubitWidthVec same ((body.binaryMatrix environment).applyVec state) := by
   subst target
   rfl
 
 /-- Raw-vector width transport evaluates at the inverse transported basis
 index. -/
-public theorem castQubitWidthVec_apply (same : source = target)
+public lemma castQubitWidthVec_apply (same : source = target)
     (state : HilbertVector (Qubits source)) (index : Fin (2 ^ target)) :
     castQubitWidthVec same state index =
       state (castQubitWidthIndex same.symm index) := by
   subst target
   rfl
 
-@[simp] public theorem castQubitWidthVec_self
+@[simp] public lemma castQubitWidthVec_self
     (state : HilbertVector (Qubits source)) :
     castQubitWidthVec rfl state = state := rfl
 
 /-- Width transport maps a raw computational ket to the correspondingly
 transported canonical binary label. -/
-public theorem castQubitWidthVec_ket (same : source = target)
+public lemma castQubitWidthVec_ket (same : source = target)
     (index : Fin (2 ^ source)) :
     castQubitWidthVec same
         (NormalizedVector.ket (R := Qubits source) index :
@@ -113,14 +114,14 @@ public theorem castQubitWidthVec_ket (same : source = target)
   subst target
   rfl
 
-@[simp] public theorem castQubitWidthVec_add (same : source = target)
+@[simp] public lemma castQubitWidthVec_add (same : source = target)
     (left right : HilbertVector (Qubits source)) :
     castQubitWidthVec same (left + right) =
       castQubitWidthVec same left + castQubitWidthVec same right := by
   subst target
   rfl
 
-@[simp] public theorem castQubitWidthVec_smul (same : source = target)
+@[simp] public lemma castQubitWidthVec_smul (same : source = target)
     (scalar : ℂ) (state : HilbertVector (Qubits source)) :
     castQubitWidthVec same (scalar • state) =
       scalar • castQubitWidthVec same state := by
@@ -128,7 +129,7 @@ public theorem castQubitWidthVec_ket (same : source = target)
   rfl
 
 /-- Consecutive raw-vector width transports compose. -/
-public theorem castQubitWidthVec_trans {middle : Nat}
+public lemma castQubitWidthVec_trans {middle : Nat}
     (first : source = middle) (second : middle = target)
     (state : HilbertVector (Qubits source)) :
     castQubitWidthVec second (castQubitWidthVec first state) =
@@ -139,7 +140,7 @@ public theorem castQubitWidthVec_trans {middle : Nat}
 
 /-- Width transports distribute through a raw tensor when both factor
 widths are transported independently. -/
-public theorem castQubitWidthVec_tensor
+public lemma castQubitWidthVec_tensor
     {leftSource leftTarget rightSource rightTarget : Nat}
     (leftSame : leftSource = leftTarget)
     (rightSame : rightSource = rightTarget)
@@ -158,7 +159,7 @@ public theorem castQubitWidthVec_tensor
 
 /-- Transporting the left tensor factor before assembly is the same as
 transporting the assembled vector. -/
-public theorem castQubitWidthVec_tensor_left
+public lemma castQubitWidthVec_tensor_left
     {leftSource leftTarget rightWidth finalWidth : Nat}
     (leftSame : leftSource = leftTarget)
     (finalSame : leftTarget + rightWidth = finalWidth)
@@ -175,7 +176,7 @@ public theorem castQubitWidthVec_tensor_left
 
 /-- Transporting the right tensor factor before assembly is the same as
 transporting the assembled vector. -/
-public theorem castQubitWidthVec_tensor_right
+public lemma castQubitWidthVec_tensor_right
     {leftWidth rightSource rightTarget finalWidth : Nat}
     (rightSame : rightSource = rightTarget)
     (finalSame : leftWidth + rightTarget = finalWidth)
@@ -192,7 +193,7 @@ public theorem castQubitWidthVec_tensor_right
 
 /-- Two surrounding right-associated tensor factors preserve an inner width
 transport. -/
-public theorem castQubitWidthVec_tensor_two_right
+public lemma castQubitWidthVec_tensor_two_right
     {outerWidth innerLeftWidth sourceWidth targetWidth finalWidth : Nat}
     (innerSame : sourceWidth = targetWidth)
     (sourceSame : outerWidth + (innerLeftWidth + sourceWidth) = finalWidth)
@@ -212,7 +213,7 @@ public theorem castQubitWidthVec_tensor_two_right
 
 /-- Three surrounding right-associated tensor factors preserve an inner
 width transport. -/
-public theorem castQubitWidthVec_tensor_three_right
+public lemma castQubitWidthVec_tensor_three_right
     {outerWidth firstWidth middleWidth sourceWidth targetWidth finalWidth : Nat}
     (innerSame : sourceWidth = targetWidth)
     (sourceSame : outerWidth + (firstWidth + (middleWidth + sourceWidth)) = finalWidth)
@@ -233,14 +234,14 @@ public theorem castQubitWidthVec_tensor_three_right
   subst targetWidth
   rfl
 
-public theorem prodEquiv_value {leftWidth rightWidth : Nat}
+public lemma prodEquiv_value {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) :
     (prodEquiv (m := leftWidth) (n := rightWidth) (left, right)).val =
       right.val + 2 ^ rightWidth * left.val := rfl
 
 /-- Raw binary tensors are associative after transporting the equal total
 width; the physical basis order is unchanged. -/
-public theorem castQubitWidthVec_tensor_assoc {m n p : Nat}
+public lemma castQubitWidthVec_tensor_assoc {m n p : Nat}
     (left : HilbertVector (Qubits m))
     (middle : HilbertVector (Qubits n))
     (right : HilbertVector (Qubits p)) :
@@ -276,7 +277,7 @@ public theorem castQubitWidthVec_tensor_assoc {m n p : Nat}
 
 /-- Rebracket five ordered physical factors without permuting any binary
 basis coordinate. -/
-public theorem castQubitWidthVec_tensor_rebracket5
+public lemma castQubitWidthVec_tensor_rebracket5
     {highWidth middleWidth suffixWidth : Nat}
     (high : HilbertVector (Qubits highWidth))
     (first : HilbertVector (Qubits 1))
@@ -361,7 +362,7 @@ public theorem castQubitWidthVec_tensor_rebracket5
 
 /-- Rebracket a fully right-associated five-factor vector into the concrete
 shape used by separated-wire assembly, without permuting basis coordinates. -/
-public theorem castQubitWidthVec_tensor_right_to_separated5
+public lemma castQubitWidthVec_tensor_right_to_separated5
     {highWidth middleWidth suffixWidth : Nat}
     (high : HilbertVector (Qubits highWidth))
     (first : HilbertVector (Qubits 1))
@@ -420,7 +421,7 @@ public theorem castQubitWidthVec_tensor_right_to_separated5
 
 /-- Transporting a normalized binary state along a width equality evaluates
 at the inverse transported basis index. -/
-public theorem castQubitWidth_state_apply (same : source = target)
+public lemma castQubitWidth_state_apply (same : source = target)
     (state : NormalizedVector (Qubits source)) (index : Fin (2 ^ target)) :
     (same ▸ state) index =
       state ((finCongr (congrArg (fun width => 2 ^ width) same)).symm index) := by
@@ -429,7 +430,7 @@ public theorem castQubitWidth_state_apply (same : source = target)
 
 /-- A transported computational-basis ket is the ket at the transported
 binary label. -/
-public theorem castQubitWidth_ket (same : source = target)
+public lemma castQubitWidth_ket (same : source = target)
     (index : Fin (2 ^ source)) :
     same ▸ (NormalizedVector.ket (R := Qubits source) index) =
       NormalizedVector.ket
@@ -440,18 +441,19 @@ public theorem castQubitWidth_ket (same : source = target)
 
 /-- Regrouping transports normalized states only by the width equality; the
 actual circuit action is unchanged. -/
-public theorem castQubitWidth_applyNormalized (same : source = target)
+public lemma castQubitWidth_applyNormalized (same : source = target)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout)
     (state : NormalizedVector
-      (QuantumSignature.qubits source).canonicalPlacement.layout.register) :
-    (body.castQubitWidth same).applyNormalized (same ▸ state) =
-      same ▸ body.applyNormalized state := by
+      (QuantumSignature.qubits source).canonicalPlacement.layout.register) (environment :
+        oracles.Interpretation) :
+    ((body.castQubitWidth same).applyNormalized environment) (same ▸ state) =
+      same ▸ (body.applyNormalized environment) state := by
   subst target
   rfl
 
 /-- Regrouping retains the full actual occurrence sequence. -/
-public theorem castQubitWidth_eventTrace (same : source = target)
+public lemma castQubitWidth_eventTrace (same : source = target)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout) :
     (body.castQubitWidth same).eventTrace = body.eventTrace := by
@@ -459,7 +461,7 @@ public theorem castQubitWidth_eventTrace (same : source = target)
   rfl
 
 /-- Regrouping retains the complete native and query resource pool. -/
-public theorem castQubitWidth_eventCost (same : source = target)
+public lemma castQubitWidth_eventCost (same : source = target)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout) :
     (body.castQubitWidth same).eventCost = body.eventCost := by
@@ -467,7 +469,7 @@ public theorem castQubitWidth_eventCost (same : source = target)
   rfl
 
 /-- Every dependency is retained when the equal-width interface is regrouped. -/
-public theorem castQubitWidth_evaluatedEventDepth (same : source = target)
+public lemma castQubitWidth_evaluatedEventDepth (same : source = target)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits source).canonicalPlacement.layout)
     (duration : Resource.Event (.quantum gates oracles) → Nat) :
@@ -484,17 +486,18 @@ public def castCanonicalQubitWidth (same : source = target)
   same ▸ body
 
 /-- Equal-width canonical-layout regrouping transports normalized states. -/
-public theorem castCanonicalQubitWidth_applyNormalized (same : source = target)
+public lemma castCanonicalQubitWidth_applyNormalized (same : source = target)
     (body : UnitaryCircuit gates oracles (QubitLayout.canonical source).toQuantum)
-    (state : NormalizedVector (QubitLayout.canonical source).toQuantum.register) :
-    (body.castCanonicalQubitWidth same).applyNormalized (same ▸ state) =
-      same ▸ body.applyNormalized state := by
+    (state : NormalizedVector (QubitLayout.canonical source).toQuantum.register) (environment :
+      oracles.Interpretation) :
+    ((body.castCanonicalQubitWidth same).applyNormalized environment) (same ▸ state) =
+      same ▸ (body.applyNormalized environment) state := by
   subst target
   rfl
 
 /-- Transporting a canonical physical basis ket changes only its certified
 binary width and retains the corresponding integer label. -/
-public theorem castCanonicalQubitWidth_ket (same : source = target)
+public lemma castCanonicalQubitWidth_ket (same : source = target)
     (index : Fin (2 ^ source)) :
     same ▸ NormalizedVector.ket
         ((QubitLayout.canonical source).basisEquiv.symm index) =
@@ -505,21 +508,21 @@ public theorem castCanonicalQubitWidth_ket (same : source = target)
   rfl
 
 /-- Equal-width canonical-layout regrouping retains the full event pool. -/
-public theorem castCanonicalQubitWidth_eventCost (same : source = target)
+public lemma castCanonicalQubitWidth_eventCost (same : source = target)
     (body : UnitaryCircuit gates oracles (QubitLayout.canonical source).toQuantum) :
     (body.castCanonicalQubitWidth same).eventCost = body.eventCost := by
   subst target
   rfl
 
 /-- Equal-width canonical-layout regrouping retains the ordered native events. -/
-public theorem castCanonicalQubitWidth_eventTrace (same : source = target)
+public lemma castCanonicalQubitWidth_eventTrace (same : source = target)
     (body : UnitaryCircuit gates oracles (QubitLayout.canonical source).toQuantum) :
     (body.castCanonicalQubitWidth same).eventTrace = body.eventTrace := by
   subst target
   rfl
 
 /-- Equal-width canonical-layout regrouping retains dependency depth. -/
-public theorem castCanonicalQubitWidth_evaluatedEventDepth (same : source = target)
+public lemma castCanonicalQubitWidth_evaluatedEventDepth (same : source = target)
     (body : UnitaryCircuit gates oracles (QubitLayout.canonical source).toQuantum)
     (duration : Resource.Event (.quantum gates oracles) → Nat) :
     (body.castCanonicalQubitWidth same).evaluatedEventDepth duration =

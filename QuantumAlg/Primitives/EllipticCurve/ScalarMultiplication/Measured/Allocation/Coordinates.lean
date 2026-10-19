@@ -33,7 +33,7 @@ private def selectorReadyBasis (width count : Nat)
   (ContextPermutation.basis (body_entries width count)).symm
     (selectorAssembly width count (selector, original))
 
-private theorem selectorReadyBasis_value (width count : Nat)
+private lemma selectorReadyBasis_value (width count : Nat)
     (selector : (indexedLayout width count).register.Index)
     (original : (withCells width count).register.Index)
     (index : Fin (readyContext width count).systemCount) :
@@ -44,7 +44,7 @@ private theorem selectorReadyBasis_value (width count : Nat)
     (selectorReadyBasis width count selector original) index
   simpa only [selectorReadyBasis, Equiv.apply_symm_apply] using actual.symm
 
-private theorem selectorReadyBasis_shared (width count : Nat)
+private lemma selectorReadyBasis_shared (width count : Nat)
     (selector : (indexedLayout width count).register.Index)
     (original : (withCells width count).register.Index) :
     sharedBasis width count (selectorReadyBasis width count selector original) =
@@ -78,7 +78,7 @@ private theorem selectorReadyBasis_shared (width count : Nat)
     (exponents width count) (complete_disjoint width count) original index
   exact ready.symm.trans (read.trans (prepared.trans old))
 
-private theorem selectorReadyBasis_exponent (width count : Nat)
+private lemma selectorReadyBasis_exponent (width count : Nat)
     (selector : (indexedLayout width count).register.Index)
     (original : (withCells width count).register.Index) (index : Fin count) :
     indexedValue width count (selectorReadyBasis width count selector original) index.castSucc =
@@ -112,7 +112,7 @@ private theorem selectorReadyBasis_exponent (width count : Nat)
   exact (indexedValue_value width count _ index.castSucc).trans
     (read.trans (prepared.trans (old.trans (rangeBasis_value width count _ index).symm)))
 
-private theorem selectorReadyBasis_selector (width count : Nat)
+private lemma selectorReadyBasis_selector (width count : Nat)
     (selector : (indexedLayout width count).register.Index)
     (original : (withCells width count).register.Index) :
     (indexedValue width count (selectorReadyBasis width count selector original)
@@ -145,7 +145,7 @@ def initializedReadyBasis (modulus count : Nat)
         (InPlacePreparation.preparation modulus).value, original))
 
 /-- Actual initialization prepares the original complete arithmetic frame from supplied words. -/
-theorem initializedReadyBasis_shared (modulus count : Nat)
+lemma initializedReadyBasis_shared (modulus count : Nat)
     (exponent : (exponents modulus.size count).register.Index) (x y : Fin (2 ^ modulus.size)) :
     sharedBasis modulus.size count
       (initializedReadyBasis modulus count (inputLabel modulus.size count exponent x y)) =
@@ -154,7 +154,7 @@ theorem initializedReadyBasis_shared (modulus count : Nat)
   rw [selectorReadyBasis_shared, Equiv.trans_apply, auxiliary_cells_input, Equiv.apply_symm_apply]
 
 /-- Every supplied exponent survives both preparations and all finite-cell retains exactly. -/
-theorem initializedReadyBasis_exponent (modulus count : Nat)
+lemma initializedReadyBasis_exponent (modulus count : Nat)
     (exponent : (exponents modulus.size count).register.Index) (x y : Fin (2 ^ modulus.size))
     (index : Fin count) :
     indexedValue modulus.size count
@@ -165,7 +165,7 @@ theorem initializedReadyBasis_exponent (modulus count : Nat)
   rw [selectorReadyBasis_exponent, Equiv.trans_apply, auxiliary_cells_input, Equiv.apply_symm_apply]
 
 /-- The charged fresh preparation establishes the zero selector for every original input. -/
-theorem initializedReadyBasis_selector (modulus count : Nat)
+lemma initializedReadyBasis_selector (modulus count : Nat)
     (original : (before modulus.size count).register.Index) :
     indexedValue modulus.size count (initializedReadyBasis modulus count original)
       (Fin.last count) = 0 := by

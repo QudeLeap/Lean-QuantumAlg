@@ -92,12 +92,12 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : 
     SqrtFrameAvoids refs (writeInput refs.subtract.output)
 
 /-- The full discriminant has at least two bits, so the square-root driver width is positive. -/
-theorem discriminantWidth_two_le (shortWidth : Nat) : 2 ≤ discriminantWidth shortWidth := by
+lemma discriminantWidth_two_le (shortWidth : Nat) : 2 ≤ discriminantWidth shortWidth := by
   unfold discriminantWidth centerWidth
   omega
 
 /-- The original short-word width already guarantees space for its incremented center. -/
-theorem center_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
+lemma center_capacity {kind : ProblemKind} {ctx : RuntimeCtx kind} {shortWidth : Nat}
     (refs : Refs ctx shortWidth) (store : Store ctx) :
     (store.read refs.shortLog).toNat + 1 < CShape.wordModulus (centerWidth shortWidth) := by
   have sourceFits := (store.read refs.shortLog).toNat_lt

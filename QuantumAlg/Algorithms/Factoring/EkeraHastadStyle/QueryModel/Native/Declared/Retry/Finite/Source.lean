@@ -46,7 +46,7 @@ public def sourceDistribution (input : Input N) (count : Nat) :
     ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue) count
 
 /-- Every populated source outcome is a checked nontrivial divisor. -/
-theorem sourceDistribution_some_sound (input : Input N) (count : Nat)
+lemma sourceDistribution_some_sound (input : Input N) (count : Nat)
     (word : CShape.Word (modulusBits N))
     (supported : CShape.Value.optionSome word ∈ (sourceDistribution input count).support) :
     word.toNat ∣ N ∧ 1 < word.toNat ∧ word.toNat < N := by
@@ -54,14 +54,14 @@ theorem sourceDistribution_some_sound (input : Input N) (count : Nat)
     (Optional.Distribution.selectedDistribution_some_support _ count word supported)
 
 /-- The empty source outcome has the exact finite failure power, including zero. -/
-theorem sourceDistribution_none (input : Input N) (count : Nat) :
+lemma sourceDistribution_none (input : Input N) (count : Nat) :
     sourceDistribution input count .optionNone = sourceFailure input ^ count := by
   rw [sourceDistribution, Optional.Distribution.selectedDistribution_none,
     Batch.Recovery.packed_none]
   rfl
 
 /-- Populated source output has the complementary probability at every count. -/
-theorem sourceDistribution_populated (input : Input N) (count : Nat) :
+lemma sourceDistribution_populated (input : Input N) (count : Nat) :
     (sourceDistribution input count).toOuterMeasure
       {output | output ≠ CShape.Value.optionNone} = 1 - sourceFailure input ^ count := by
   rw [PMF.eventProbability_eq_one_sub_complement]
@@ -72,7 +72,7 @@ theorem sourceDistribution_populated (input : Input N) (count : Nat) :
   rw [complement, PMF.toOuterMeasure_apply_singleton, sourceDistribution_none]
 
 /-- Sound factors exhaust the populated support of the independent source law. -/
-theorem sourceDistribution_success (input : Input N) (count : Nat) :
+lemma sourceDistribution_success (input : Input N) (count : Nat) :
     (sourceDistribution input count).toOuterMeasure (accepts N) =
       1 - sourceFailure input ^ count := by
   calc

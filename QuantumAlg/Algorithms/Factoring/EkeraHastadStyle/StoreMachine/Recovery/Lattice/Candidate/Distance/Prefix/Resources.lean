@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent offset formula, eighteen candidate instructions and eight distance steps. -/
@@ -28,7 +29,7 @@ def prefixTrace (width : Nat) (offset : NumberTheory.IntegerPoint3) : List (Reso
       LatticeSquaredDistanceMachine.distanceTrace width)
 
 /-- The actual three-phase prefix emits the complete independent native formula. -/
-theorem candidateDistancePrefixInto_events (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_events (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path) :
     (candidateDistancePrefixInto offset refs).eventTrace path = prefixTrace width offset :=
   congrArg₂ List.append
@@ -39,7 +40,7 @@ theorem candidateDistancePrefixInto_events (offset : NumberTheory.IntegerPoint3)
       (LatticeSquaredDistanceMachine.squaredDistanceInto_events refs.distance path.2.2))
 
 /-- Native multiplicities account for all actual offset, candidate and distance instructions. -/
-theorem candidateDistancePrefixInto_resourcePool (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_resourcePool (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path) :
     (candidateDistancePrefixInto offset refs).resourcePool path =
       ResourcePool.ofList (prefixTrace width offset) :=
@@ -50,7 +51,7 @@ def operationCount (offset : NumberTheory.IntegerPoint3) : Nat :=
   LatticeOffsetMaterializer.operationCount offset + 26
 
 /-- Actual event count equals the complete independent candidate-prefix budget. -/
-theorem candidateDistancePrefixInto_eventCount (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_eventCount (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path) :
     ((candidateDistancePrefixInto offset refs).eventTrace path).length = operationCount offset := by
   change List.length (_ ++ (_ ++ _)) = _
@@ -60,7 +61,7 @@ theorem candidateDistancePrefixInto_eventCount (offset : NumberTheory.IntegerPoi
   rfl
 
 /-- Actual dependency depth includes both offset initialization and distance initialization. -/
-theorem candidateDistancePrefixInto_depth (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_depth (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path) :
     (candidateDistancePrefixInto offset refs).depth (fun _ => 1) path = operationCount offset := by
   change (LatticeOffsetMaterializer.setOffsetInto offset refs.materializer).depth
@@ -69,33 +70,33 @@ theorem candidateDistancePrefixInto_depth (offset : NumberTheory.IntegerPoint3)
   rfl
 
 /-- Actual candidate and distance work jointly restore all borrowed-reference states. -/
-theorem candidateDistanceInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma candidateDistanceInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidateDistanceInto refs).BorrowedRestored Reference state
-      ((candidateDistanceInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((candidateDistanceInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeShortLogCandidatePoint.candidatePointInto_borrowedRestored refs.candidate
       Reference state)
     (LatticeSquaredDistanceMachine.squaredDistanceInto_borrowedRestored refs.distance Reference _)
 
 /-- The complete actual prefix restores every borrowed resource jointly with external references. -/
-theorem candidateDistancePrefixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_borrowedRestored (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (candidateDistancePrefixInto offset refs).BorrowedRestored Reference state
-      ((candidateDistancePrefixInto offset refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((candidateDistancePrefixInto offset refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeOffsetMaterializer.setOffsetInto_borrowedRestored offset refs.materializer
       Reference state)
     (candidateDistanceInto_borrowedRestored refs Reference _)
 
 /-- Every actual candidate and distance instruction retains the entire original supplied context. -/
-theorem candidateDistanceInto_visited (refs : Refs ctx width)
+lemma candidateDistanceInto_visited (refs : Refs ctx width)
     (path : (candidateDistanceInto refs).Path) :
     (candidateDistanceInto refs).visitedContexts path = List.replicate 26 ctx := rfl
 
 /-- All three actual phases preserve the original live context, including their scratch roles. -/
-theorem candidateDistancePrefixInto_visited (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_visited (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (candidateDistancePrefixInto offset refs).visitedContexts path) :
@@ -109,7 +110,7 @@ theorem candidateDistancePrefixInto_visited (offset : NumberTheory.IntegerPoint3
     (fun member => (List.mem_replicate.mp member).2)
 
 /-- Resident accounting includes every original live quantum and classical resource. -/
-theorem candidateDistancePrefixInto_resident_le (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_resident_le (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path) :
     (candidateDistancePrefixInto offset refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -117,7 +118,7 @@ theorem candidateDistancePrefixInto_resident_le (offset : NumberTheory.IntegerPo
   rw [candidateDistancePrefixInto_visited offset refs path visited present]
 
 /-- Auxiliary accounting includes the supplied roles through all three actual phases. -/
-theorem candidateDistancePrefixInto_auxiliary_le (offset : NumberTheory.IntegerPoint3)
+lemma candidateDistancePrefixInto_auxiliary_le (offset : NumberTheory.IntegerPoint3)
     (refs : Refs ctx width) (path : (candidateDistancePrefixInto offset refs).Path) :
     (candidateDistancePrefixInto offset refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

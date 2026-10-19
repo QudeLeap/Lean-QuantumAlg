@@ -36,7 +36,7 @@ noncomputable section
 
 variable {leftCount rightCount : Nat}
 
-private theorem appendedMatrix_trace (left : QuantumLayout leftCount)
+private lemma appendedMatrix_trace (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (matrix : Matrix (left.Basis × right.Basis) (left.Basis × right.Basis) ℂ) :
@@ -45,7 +45,7 @@ private theorem appendedMatrix_trace (left : QuantumLayout leftCount)
   (QuantumLayout.appendBasisEquiv left right disjoint).sum_comp
     (fun basis : left.Basis × right.Basis => matrix basis basis)
 
-private theorem pureProduct_trace {R S : Register}
+private lemma pureProduct_trace {R S : Register}
     (state : DensityOperator R) (prepared : NormalizedVector S) :
     (state.matrix ⊗ₖ (DensityOperator.ofPure prepared).matrix).trace = state.matrix.trace := by
   have normalized : (DensityOperator.ofPure prepared).matrix.trace = 1 :=
@@ -68,7 +68,7 @@ def appendPure (left : QuantumLayout leftCount) (right : QuantumLayout rightCoun
         (pureProduct_trace state prepared))).le.trans state.trace_le_one
 
 /-- Every joint entry uses the exact left and right basis coordinates. -/
-theorem appendPure_entry (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
+lemma appendPure_entry (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register)
     (row column : (QuantumLayout.append left right disjoint).Basis) :
@@ -80,7 +80,7 @@ theorem appendPure_entry (left : QuantumLayout leftCount) (right : QuantumLayout
               (QuantumLayout.appendBasisEquiv left right disjoint column).2)) := rfl
 
 /-- Preparation preserves the probability mass of the complete old branch. -/
-theorem appendPure_mass (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
+lemma appendPure_mass (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register) :
     (appendPure left right disjoint state prepared).mass = state.mass := by
@@ -88,7 +88,7 @@ theorem appendPure_mass (left : QuantumLayout leftCount) (right : QuantumLayout 
     ((appendedMatrix_trace left right disjoint _).trans (pureProduct_trace state prepared))
 
 /-- Reassembled basis labels give the tensor product entry on the actual layout. -/
-theorem appendPure_joined_entry (left : QuantumLayout leftCount)
+lemma appendPure_joined_entry (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register)
@@ -102,7 +102,7 @@ theorem appendPure_joined_entry (left : QuantumLayout leftCount)
 
 /-- Summing the prepared coordinates preserves every old matrix entry,
 including coherences between any systems already present in the old layout. -/
-theorem appendPure_old_marginal (left : QuantumLayout leftCount)
+lemma appendPure_old_marginal (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register)
@@ -126,7 +126,7 @@ private def prependedBasisEquiv (left : QuantumLayout leftCount)
     ((Equiv.prodComm left.Basis right.Basis).trans
       (QuantumLayout.appendBasisEquiv right left disjoint.symm).symm)
 
-private theorem prependedBasisEquiv_symm_join (left : QuantumLayout leftCount)
+private lemma prependedBasisEquiv_symm_join (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (oldBasis : left.Basis) (newBasis : right.Basis) :
@@ -149,7 +149,7 @@ def prependPure (left : QuantumLayout leftCount) (right : QuantumLayout rightCou
     (S := (QuantumLayout.append right left disjoint.symm).register)
     (appendPure left right disjoint state prepared) (prependedBasisEquiv left right disjoint)
 
-private theorem prependPure_joined_eq_append (left : QuantumLayout leftCount)
+private lemma prependPure_joined_eq_append (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register)
@@ -171,7 +171,7 @@ private theorem prependPure_joined_eq_append (left : QuantumLayout leftCount)
     (prependedBasisEquiv_symm_join left right disjoint oldColumn newColumn)
 
 /-- Head preparation has the same exact tensor entry on the named physical systems. -/
-theorem prependPure_joined_entry (left : QuantumLayout leftCount)
+lemma prependPure_joined_entry (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register)
@@ -185,7 +185,7 @@ theorem prependPure_joined_entry (left : QuantumLayout leftCount)
       (appendPure_joined_entry left right disjoint state prepared oldRow oldColumn newRow newColumn)
 
 /-- Placing the prepared systems at the head preserves the old branch mass. -/
-theorem prependPure_mass (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
+lemma prependPure_mass (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register) :
     (prependPure left right disjoint state prepared).mass = state.mass :=
@@ -196,7 +196,7 @@ theorem prependPure_mass (left : QuantumLayout leftCount) (right : QuantumLayout
       (appendPure_mass left right disjoint state prepared)
 
 /-- Summing the fresh head coordinates recovers the complete old joint marginal. -/
-theorem prependPure_old_marginal (left : QuantumLayout leftCount)
+lemma prependPure_old_marginal (left : QuantumLayout leftCount)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (state : DensityOperator left.register) (prepared : NormalizedVector right.register)
@@ -223,7 +223,7 @@ def prepare (state : ExecutionState Classical left.register)
     exact state.total_le_one
 
 /-- Preparation preserves each existing classical branch's probability. -/
-theorem prepare_block_mass (state : ExecutionState Classical left.register)
+lemma prepare_block_mass (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) (value : Classical) :
@@ -231,7 +231,7 @@ theorem prepare_block_mass (state : ExecutionState Classical left.register)
   appendPure_mass left right disjoint (state.block value) prepared
 
 /-- The complete execution mass is unchanged by preparing fresh systems. -/
-theorem prepare_mass (state : ExecutionState Classical left.register)
+lemma prepare_mass (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) :
@@ -240,7 +240,7 @@ theorem prepare_mass (state : ExecutionState Classical left.register)
 
 /-- The old marginal is preserved separately in every classical block, so
 preparation also retains all prior classical and quantum correlations. -/
-theorem prepare_old_block_marginal (state : ExecutionState Classical left.register)
+lemma prepare_old_block_marginal (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) (value : Classical)
@@ -262,7 +262,7 @@ def prepareHead (state : ExecutionState Classical left.register)
     (prepare state right disjoint prepared) (prependedBasisEquiv left right disjoint)
 
 /-- Each existing classical block uses precisely the head-preparation state update. -/
-theorem prepareHead_block (state : ExecutionState Classical left.register)
+lemma prepareHead_block (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) (value : Classical) :
@@ -270,7 +270,7 @@ theorem prepareHead_block (state : ExecutionState Classical left.register)
       prependPure left right disjoint (state.block value) prepared := rfl
 
 /-- Head preparation preserves the probability of every existing classical value. -/
-theorem prepareHead_block_mass (state : ExecutionState Classical left.register)
+lemma prepareHead_block_mass (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) (value : Classical) :
@@ -278,7 +278,7 @@ theorem prepareHead_block_mass (state : ExecutionState Classical left.register)
   prependPure_mass left right disjoint (state.block value) prepared
 
 /-- Head preparation preserves the complete execution probability. -/
-theorem prepareHead_mass (state : ExecutionState Classical left.register)
+lemma prepareHead_mass (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) :
@@ -287,7 +287,7 @@ theorem prepareHead_mass (state : ExecutionState Classical left.register)
 
 /-- The old marginal and all previous classical and quantum correlations survive
 head preparation separately in every classical block. -/
-theorem prepareHead_old_block_marginal (state : ExecutionState Classical left.register)
+lemma prepareHead_old_block_marginal (state : ExecutionState Classical left.register)
     (right : QuantumLayout rightCount)
     (disjoint : List.Disjoint left.identities right.identities)
     (prepared : NormalizedVector right.register) (value : Classical)

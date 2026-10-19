@@ -19,7 +19,7 @@ to a caller output and its lifted output preserves every actual caller read.
 namespace QuantumAlg.Execution.ClassicalWorkspace.Transport
 
 /-- Corresponding writes preserve agreement of all actual transported caller reads. -/
-theorem workspaceTransport_readsAs_write {kind : ProblemKind}
+lemma workspaceTransport_readsAs_write {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} (transport : Transport outer inner)
     {source : Store outer} {before : Store inner}
     (reads : transport.ReadsAs source before)

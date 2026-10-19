@@ -32,18 +32,36 @@ noncomputable section
 open Execution
 
 /-- Default native gates with explicitly granted controlled source access. -/
-public abbrev model {width : Nat} (unitary : UnitaryOperator (Qubits width)) : ExecutionModel :=
-  .quantum AlgorithmGate.model (UnitarySource.model unitary true)
+public abbrev model (width : Nat) : ExecutionModel :=
+  .quantum AlgorithmGate.model (UnitarySource.model width true)
+
+/-- The source unitary is supplied only when interpreting the fixed native program. -/
+@[expose]
+public def environment {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
+    (model width).Environment where
+  quantum := UnitarySource.interpretation unitary true
+  classical := ClassicalOracleModel.emptyInterpretation
+
+lemma environment_eq_of_quantum {width : Nat} (unitary : UnitaryOperator (Qubits width))
+    (actual : (model width).Environment)
+    (same : actual.quantum = UnitarySource.interpretation unitary true) :
+    actual = environment unitary := by
+  cases actual with
+  | mk quantum classical =>
+    cases same
+    cases classical
+    rfl
 
 /-- The complete actual H/query/H word on the canonical physical register. -/
-def sourceCircuit {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model unitary true)
+def sourceCircuit (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model width true)
       (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout :=
-  Native.circuit unitary
+  Native.circuit width
 
 /-- The actual source circuit has the registered binary Hadamard-test operator. -/
-theorem sourceCircuit_matrix {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    (sourceCircuit unitary).binaryMatrix = hadamardTest unitary :=
+lemma sourceCircuit_matrix {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
+    (sourceCircuit width).binaryMatrix
+      (UnitarySource.interpretation unitary true) = hadamardTest unitary :=
   Native.hadamardTestNative_binaryMatrix unitary
 
 /-- The source word is supplied without a clean control or borrowed-restoration promise. -/
@@ -59,25 +77,26 @@ public def inputBasisEquiv (width : Nat) :
   OwnedQubitPrefix.post 1 width
 
 /-- Actual native execution on the full prepared register, preserving its ordered physical wires. -/
-def nativeProgram {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model unitary true)
+def nativeProgram (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model width true)
       (prepared width).quantumLayout :=
   Execution.unitaryOfEqualWires
     (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout
     (prepared width).quantumLayout (OwnedQubitPrefix.post_canonical_wires 1 width)
-    (sourceCircuit unitary)
+    (sourceCircuit width)
 
 /-- The native program acts in the exact tensor frame used by real prefix preparation. -/
-theorem nativeProgram_matrix {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    (nativeProgram unitary).matrix =
+lemma nativeProgram_matrix {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
+    (nativeProgram width).matrix (UnitarySource.interpretation unitary true) =
       UnitaryOperator.reindex (OwnedQubitPrefix.basisEquiv 1 width).symm
         (hadamardTest unitary) := by
-  have physical : (sourceCircuit unitary).matrix =
+  have physical : (sourceCircuit width).matrix (UnitarySource.interpretation unitary true) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
         (hadamardTest unitary) := by
     rw [← sourceCircuit_matrix]
     exact (UnitaryOperator.unitaryOperator_reindex_cancel
-      (QuantumSignature.qubitsIndexEquiv (1 + width)) (sourceCircuit unitary).matrix).symm
+      (QuantumSignature.qubitsIndexEquiv (1 + width)) ((sourceCircuit width).matrix
+        (UnitarySource.interpretation unitary true))).symm
   rw [nativeProgram, Execution.unitaryOfEqualWires_matrix, physical,
     ← OwnedQubitPrefix.canonicalBasisEquiv_eq_basisEquiv]
   exact UnitaryOperator.unitaryOperator_reindex_trans _ _ _

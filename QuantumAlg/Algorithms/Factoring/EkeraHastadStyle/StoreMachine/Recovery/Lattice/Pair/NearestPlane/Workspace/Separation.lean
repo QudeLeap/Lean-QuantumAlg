@@ -34,7 +34,7 @@ open ClassicalRoutines.NumberTheory.SignedWord
 
 noncomputable section
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
@@ -51,7 +51,7 @@ def pairRefs {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
     cells.lll cells.nearest (transport.liftInput firstTerminal)
       (transport.liftInput secondTerminal)
 
-private theorem stateCoordinateAvoidsState {kind : ProblemKind}
+private lemma stateCoordinateAvoidsState {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (distinct : state.Distinct)
@@ -73,7 +73,7 @@ private theorem stateCoordinateAvoidsState {kind : ProblemKind}
 
 /-- Persistent target and saved-target cells satisfy the literal point-copy
 contract. -/
-theorem pointCopySeparation {kind : ProblemKind}
+lemma pointCopySeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -110,7 +110,7 @@ theorem pointCopySeparation {kind : ProblemKind}
       certificates.core.stateDistinct saved.second saved.third
         .savedTargetSecond .savedTargetThird rfl rfl (by decide)
 
-private theorem statePointCopyFrame {kind : ProblemKind}
+private lemma statePointCopyFrame {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -144,7 +144,7 @@ private theorem statePointCopyFrame {kind : ProblemKind}
 
 /-- Copying the original target preserves every input consumed by the
 nearest-plane phase. -/
-theorem nearestInputCopyFrames {kind : ProblemKind}
+lemma nearestInputCopyFrames {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -241,7 +241,7 @@ theorem nearestInputCopyFrames {kind : ProblemKind}
         (LatticePairStateWorkspaceLayout.cellRef state .targetThird))
     exact statePointCopyFrame certificates _ .targetThird rfl
       (by decide) (by decide) (by decide)
-private theorem nearestFrameStateCoordinate {kind : ProblemKind}
+private lemma nearestFrameStateCoordinate {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -270,7 +270,7 @@ private theorem nearestFrameStateCoordinate {kind : ProblemKind}
   · exact avoidsThird
 
 /-- The nearest-plane stage preserves the saved target. -/
-theorem savedTargetNearestFrames {kind : ProblemKind}
+lemma savedTargetNearestFrames {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -303,7 +303,7 @@ theorem savedTargetNearestFrames {kind : ProblemKind}
       (by decide) (by decide) (by decide)
 
 /-- The nearest-plane stage preserves all nine reduced-basis coordinates. -/
-theorem basisNearestFrames {kind : ProblemKind}
+lemma basisNearestFrames {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -341,7 +341,7 @@ theorem basisNearestFrames {kind : ProblemKind}
 
 /-- Avoiding every physical package of the pair machine supplies its complete
 caller-frame contract. -/
-theorem callerFrame_of_physical {kind : ProblemKind}
+lemma callerFrame_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : LatticePairRecoveryWorkspace.Cells ctx N)
@@ -378,7 +378,7 @@ theorem callerFrame_of_physical {kind : ProblemKind}
         certificates.coreNearest.state⟩ other
         avoidsState avoidsNearest
 
-private theorem wideCallerNearestCell {kind : ProblemKind}
+private lemma wideCallerNearestCell {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -427,7 +427,7 @@ def denominatorMagnitudeRef {kind : ProblemKind}
 
 /-- The wide reduction preserves the nearest-plane denominator-magnitude
 scratch cell. -/
-theorem denominatorMagnitudePreservedByWide {kind : ProblemKind}
+lemma denominatorMagnitudePreservedByWide {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}
@@ -447,7 +447,7 @@ theorem denominatorMagnitudePreservedByWide {kind : ProblemKind}
 
 /-- Every physical allocation certificate combines into the saved-target pair
 machine's complete separation contract. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : LatticePairRecoveryWorkspace.Cells ctx N}

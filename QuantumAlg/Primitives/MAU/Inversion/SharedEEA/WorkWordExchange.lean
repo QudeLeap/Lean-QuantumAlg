@@ -32,6 +32,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.WorkWordExchange
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 /-- The first complete shared word in its physical most-significant-first order. -/
@@ -40,7 +42,7 @@ def leftWord (width : Nat) : Word (encoding width) (width + 3) := ⟨firstWordBi
 /-- The second complete shared word in the matching physical order. -/
 def rightWord (width : Nat) : Word (encoding width) (width + 3) := ⟨secondWordBit width⟩
 
-private theorem control_left (width : Nat) (index : Fin (width + 3)) :
+private lemma control_left (width : Nat) (index : Fin (width + 3)) :
     (controlBit width).wire ≠ ((leftWord width).bit index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -49,7 +51,7 @@ private theorem control_left (width : Nat) (index : Fin (width + 3)) :
   have within := index.isLt
   omega
 
-private theorem control_right (width : Nat) (index : Fin (width + 3)) :
+private lemma control_right (width : Nat) (index : Fin (width + 3)) :
     (controlBit width).wire ≠ ((rightWord width).bit index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -58,7 +60,7 @@ private theorem control_right (width : Nat) (index : Fin (width + 3)) :
   have within := index.isLt
   omega
 
-private theorem left_right (width : Nat) (left right : Fin (width + 3)) :
+private lemma left_right (width : Nat) (left right : Fin (width + 3)) :
     ((leftWord width).bit left).wire ≠ ((rightWord width).bit right).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -67,7 +69,7 @@ private theorem left_right (width : Nat) (left right : Fin (width + 3)) :
   have within := left.isLt
   omega
 
-private theorem left_distinct (width : Nat) (left right : Fin (width + 3))
+private lemma left_distinct (width : Nat) (left right : Fin (width + 3))
     (different : left ≠ right) :
     ((leftWord width).bit left).wire ≠ ((leftWord width).bit right).wire := by
   intro same
@@ -76,7 +78,7 @@ private theorem left_distinct (width : Nat) (left right : Fin (width + 3))
   rw [firstWordBit_wire, firstWordBit_wire] at values
   exact different (Fin.ext values)
 
-private theorem right_distinct (width : Nat) (left right : Fin (width + 3))
+private lemma right_distinct (width : Nat) (left right : Fin (width + 3))
     (different : left ≠ right) :
     ((rightWord width).bit left).wire ≠ ((rightWord width).bit right).wire := by
   intro same
@@ -93,21 +95,21 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
 private def withoutWords {width : Nat} (state : Registers width) : Registers width :=
   { state with firstWord := 0#(width + 3), secondWord := 0#(width + 3) }
 
-private theorem withoutWords_left (width : Nat) (controlA controlB : EncodedBit (encoding width))
+private lemma withoutWords_left (width : Nat) (controlA controlB : EncodedBit (encoding width))
     (index : Fin (width + 3)) (state : Registers width) :
     withoutWords (toffoliStep controlA controlB (firstWordBit width index) state) =
       withoutWords state := by
   unfold toffoliStep
   split <;> rfl
 
-private theorem withoutWords_right (width : Nat) (controlA controlB : EncodedBit (encoding width))
+private lemma withoutWords_right (width : Nat) (controlA controlB : EncodedBit (encoding width))
     (index : Fin (width + 3)) (state : Registers width) :
     withoutWords (toffoliStep controlA controlB (secondWordBit width index) state) =
       withoutWords state := by
   unfold toffoliStep
   split <;> rfl
 
-private theorem withoutWords_pair (width : Nat) (index : Fin (width + 3))
+private lemma withoutWords_pair (width : Nat) (index : Fin (width + 3))
     (state : Registers width) :
     withoutWords (GateSpec.stepList
       (EncodedBit.controlledSwapGates (controlBit width)
@@ -117,7 +119,7 @@ private theorem withoutWords_pair (width : Nat) (index : Fin (width + 3))
   simp only [EncodedBit.controlledSwapGates, GateSpec.stepList, GateSpec.step, id_eq,
     leftWord, rightWord, withoutWords_left, withoutWords_right]
 
-private theorem withoutWords_indices (width : Nat) (indices : List (Fin (width + 3)))
+private lemma withoutWords_indices (width : Nat) (indices : List (Fin (width + 3)))
     (state : Registers width) :
     withoutWords (GateSpec.stepList
       (indices.flatMap fun index => EncodedBit.controlledSwapGates (controlBit width)
@@ -129,11 +131,11 @@ private theorem withoutWords_indices (width : Nat) (indices : List (Fin (width +
   | cons index rest ih =>
       rw [List.flatMap_cons, GateSpec.stepList_append, ih, withoutWords_pair]
 
-private theorem gates_preserve_complement (width : Nat) (state : Registers width) :
+private lemma gates_preserve_complement (width : Nat) (state : Registers width) :
     withoutWords (GateSpec.stepList (gates width) state) = withoutWords state :=
   withoutWords_indices width _ state
 
-private theorem gates_left_word (width : Nat) (state : Registers width) :
+private lemma gates_left_word (width : Nat) (state : Registers width) :
     (GateSpec.stepList (gates width) state).firstWord =
       if state.control then state.secondWord else state.firstWord := by
   apply BitVec.eq_of_getMsbD_eq
@@ -151,7 +153,7 @@ private theorem gates_left_word (width : Nat) (state : Registers width) :
   cases selected : state.control <;>
     simpa only [selected, Bool.false_eq_true, if_false, if_true] using entry
 
-private theorem gates_right_word (width : Nat) (state : Registers width) :
+private lemma gates_right_word (width : Nat) (state : Registers width) :
     (GateSpec.stepList (gates width) state).secondWord =
       if state.control then state.firstWord else state.secondWord := by
   apply BitVec.eq_of_getMsbD_eq
@@ -176,7 +178,7 @@ def step {width : Nat} (state : Registers width) : Registers width :=
     secondWord := if state.control then state.firstWord else state.secondWord }
 
 /-- The literal native list implements that complete frame equality without input promises. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state = step state := by
   let result := GateSpec.stepList (gates width) state
   calc
@@ -193,26 +195,28 @@ def program (width : Nat) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Exact all-label circuit action, and hence preservation of arbitrary relative phases. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width) step :=
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment step :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width) (gates_step width)
+    (gates width) (gates_step width) environment
 
 /-- Both complete words return after a second selected exchange, with all other fields retained. -/
-theorem step_twice {width : Nat} (state : Registers width) : step (step state) = state := by
+lemma step_twice {width : Nat} (state : Registers width) : step (step state) = state := by
   rcases state with ⟨word1, word2, lengthT, lengthQ, lengthR, shift, flags, control⟩
   cases control <;> rfl
 
 /-- The actual inverse circuit implements the same complete controlled exchange. -/
-theorem inverse_realizes (width : Nat) :
+lemma inverse_realizes (width : Nat) :
     UnitaryCircuit.Realizes (encoding width)
-      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) step := by
+      ((program width).dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment step := by
   apply UnitaryCircuit.Realizes.dagger_of_rightInverse (program_realizes width)
-  · rw [UnitaryCircuit.dagger_matrix]
+  · rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]
     exact Unitary.star_eq_inv _
   · exact step_twice
 
-private theorem indices_trace (width : Nat) (indices : List (Fin (width + 3))) :
+private lemma indices_trace (width : Nat) (indices : List (Fin (width + 3))) :
     (indices.flatMap fun index => EncodedBit.controlledSwapGates (controlBit width)
       ((leftWord width).bit index) ((rightWord width).bit index)
       (control_left width index) (control_right width index) (left_right width index index)).map
@@ -227,7 +231,7 @@ private theorem indices_trace (width : Nat) (indices : List (Fin (width + 3))) :
       rfl
 
 /-- Every original word position contributes its three literal Toffoli events. -/
-theorem program_eventTrace (width : Nat) :
+lemma program_eventTrace (width : Nat) :
     (program width).eventTrace =
       List.replicate (3 * (width + 3)) (.gate .toffoli) := by
   rw [program, GateSpec.programList_eventTrace]

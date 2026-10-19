@@ -30,7 +30,8 @@ noncomputable section
 /-- Expand a Toffoli application and retain each other native gate exactly as applied. -/
 public def nativeExpansion (oracles : OracleModel) {count : Nat} {ambient : QuantumLayout count}
     (application : GateModel.Application AlgorithmGate.model ambient) :
-    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles ambient application.operator := by
+    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles ambient (fun _
+      => application.operator) := by
   rcases application with ⟨⟨token, placement⟩, embedding⟩
   cases token with
   | toffoli =>
@@ -39,17 +40,19 @@ public def nativeExpansion (oracles : OracleModel) {count : Nat} {ambient : Quan
         (oracles := oracles) ⟨⟨.toffoli, placement⟩, embedding⟩ (realization oracles)
   | cnot =>
       exact ⟨UnitaryCircuit.native ⟨⟨.cnot, placement⟩, embedding⟩,
-        UnitaryCircuit.native_matrix _⟩
+        fun environment => UnitaryCircuit.native_matrix environment _⟩
   | singleQubit operator =>
       exact ⟨UnitaryCircuit.native ⟨⟨.singleQubit operator, placement⟩, embedding⟩,
-        UnitaryCircuit.native_matrix _⟩
+        fun environment => UnitaryCircuit.native_matrix environment _⟩
 
 /-- The substitution uses exactly the original oracle applications and access model. -/
 public def expansionInstructions (oracles : OracleModel) :
     UnitaryCircuit.InstructionRealizations AlgorithmGate.model oracles AlgorithmGate.model oracles
       where
+  interpretation := id
   native := nativeExpansion oracles
-  query application := ⟨UnitaryCircuit.query application, UnitaryCircuit.query_matrix application⟩
+  query application := ⟨UnitaryCircuit.query application,
+    fun environment => UnitaryCircuit.query_matrix environment application⟩
 
 /-- Expand all Toffoli occurrences throughout the actual circuit construction. -/
 public def expand {oracles : OracleModel} {count : Nat} {ambient : QuantumLayout count}
@@ -58,10 +61,11 @@ public def expand {oracles : OracleModel} {count : Nat} {ambient : QuantumLayout
   source.refine (expansionInstructions oracles)
 
 /-- The expanded circuit has exactly the source operator on the same full physical layout. -/
-public theorem toffoliExpansion_preserves_matrix {oracles : OracleModel} {count : Nat}
-    {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient) :
-    (expand source).matrix = source.matrix :=
-  UnitaryCircuit.refine_matrix source (expansionInstructions oracles)
+public lemma toffoliExpansion_preserves_matrix {oracles : OracleModel} {count : Nat}
+    {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient)
+      (environment : oracles.Interpretation) :
+    ((expand source).matrix environment) = (source.matrix environment) :=
+  UnitaryCircuit.refine_matrix source (expansionInstructions oracles) environment
 
 end
 end QuantumAlg.Gate.Toffoli

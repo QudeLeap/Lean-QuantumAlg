@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Base.Model
-import all QuantumAlg.Core.Execution.Context.Relabeling.Local
+import all QuantumAlg.Core.Execution.Context.Relabeling.References
 import all QuantumAlg.Core.Execution.Context.Relabeling.State
 import all QuantumAlg.Core.Execution.Context.Union.Measurement
 import all QuantumAlg.Core.Execution.State.Coordinate.Measurement
@@ -25,6 +25,8 @@ namespace QuantumAlg.Execution.ContextRelabeling
 
 noncomputable section
 
+variable {allowAllocation : Bool}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (source : RuntimeCtx .quantum)
@@ -38,14 +40,14 @@ def measurementOutcome : Fin (source.quantumLayout.wire wire).dimension ≃
     (positions_dimension source keys physical wire).symm)
 
 /-- Reading the corresponding wire gives the identical numerical observation. -/
-theorem measurement_read (value : source.register.Index) :
+lemma measurement_read (value : source.register.Index) :
     measurementOutcome source keys physical wire (value wire) =
       basis source keys physical value (positions source keys physical wire) := by
   apply Fin.ext
   exact (basis_value source keys physical value wire).symm
 
 /-- Writing the observed value commutes with the complete actual store correspondence. -/
-theorem measurement_write (original : Store source)
+lemma measurement_write (original : Store source)
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension))
     (outcome : Fin (source.quantumLayout.wire wire).dimension) :
     storeEquiv keys physical source (original.write output (.finite outcome)) =
@@ -58,7 +60,7 @@ theorem measurement_write (original : Store source)
       (writable keys physical output) outcome).symm
 
 /-- The existing interpreter preserves the full conditional state and actual written outcome. -/
-private theorem state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
+private lemma state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference H)
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension)) :
     (state keys physical (original.measureZ wire output)).mapHistory
@@ -114,18 +116,23 @@ private theorem state_measureZ_raw {Reference : Register} {H : Type} [Fintype H]
   simp only [ExecutionState.mapClassical_block_matrix]
 
 /-- Actual Z execution retains the persistent service on the prescribed mapped systems. -/
-theorem state_measureZ {gates : GateModel} {oracles : OracleModel}
+lemma state_measureZ {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State source Reference (services.HiddenState × H))
     (output : CWriteRef source (.finite (source.quantumLayout.wire wire).dimension)) :
-    (state keys physical ((Circuit.measureZ (gates := gates) (oracles := oracles)
+    (state keys physical ((Circuit.measureZ
+        (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) wire output).execute
-        Reference original)).mapHistory (fun record =>
+        environment Reference original)).mapHistory (fun record =>
           (record.1, (record.2.1, measurementOutcome source keys physical wire record.2.2))) =
-      (Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+      (Circuit.measureZ
+          (allowAllocation := allowAllocation)
+          (gates := gates) (oracles := oracles) (operations := operations)
         (classicalOracles := services) (positions source keys physical wire)
-        (measurement source keys physical wire output)).execute Reference
+        (measurement source keys physical wire output)).execute environment Reference
           (state keys physical original) := by
   have measured := congrArg
     (fun value : State (source.relabel keys physical) Reference ((services.HiddenState × H) ×

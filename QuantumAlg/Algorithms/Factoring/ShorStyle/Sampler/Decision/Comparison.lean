@@ -36,7 +36,7 @@ def comparisonStore (shared : Proposal.SharedRefs ctx width)
         scratch.positive)
 
 /-- The stored native equality bit compares the incoming GCD and unit values exactly. -/
-theorem decisionComparison_bit (shared : Proposal.SharedRefs ctx width)
+lemma decisionComparison_bit (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (extendedGcd : scratch.extended.key ≠ gcdResult.key) (store : Store ctx) :
@@ -68,7 +68,7 @@ theorem decisionComparison_bit (shared : Proposal.SharedRefs ctx width)
   exact actual
 
 /-- The comparison suffix preserves every complete read outside its two actual output keys. -/
-theorem decisionComparison_read_other (shared : Proposal.SharedRefs ctx width)
+lemma decisionComparison_read_other (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) {shape : CShape}
     (other : CInputRef ctx shape)
@@ -87,7 +87,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The accepted store composes actual reduction, comparison, and stored branching. -/
-theorem decisionAccepted_store (shared : Proposal.SharedRefs ctx width)
+lemma decisionAccepted_store (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     (acceptedStep (model := model) shared scratch gcdResult store).1 =

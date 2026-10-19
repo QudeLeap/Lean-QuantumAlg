@@ -29,29 +29,32 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem seq_store_marginal {ctx : RuntimeCtx .quantum}
+private lemma seq_store_marginal {ctx : RuntimeCtx .quantum}
     (first second : Circuit model ctx ctx)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx) :
-    (ExecutionState.filterClassical ((Circuit.seq first second).execute Reference state)
+    (ExecutionState.filterClassical ((Circuit.seq first second).execute environment Reference state)
       (fun entry => entry.1 = original)).quantumMarginal =
       (ExecutionState.filterClassical
-        (second.execute Reference (first.execute Reference state))
+        (second.execute environment Reference (first.execute environment Reference state))
         (fun entry => entry.1 = original)).quantumMarginal := by
   let predicate := fun store : Store ctx => store = original
-  let nested := second.execute Reference (first.execute Reference state)
+  let nested := second.execute environment Reference (first.execute environment Reference state)
   let reassociate := fun history : model.HiddenState × ((History × first.Path) × second.Path) =>
     (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))
   have executed := congrArg
     (fun output : State ctx Reference
       (model.HiddenState × (History × (Circuit.seq first second).Path)) =>
       (output.filterClassical (fun entry => predicate entry.1)).quantumMarginal)
-    (Circuit.execute_seq first second state)
+    (Circuit.execute_seq (environment := environment) first second state)
   have filtered := congrArg ExecutionState.quantumMarginal
     (ZReset.filter_mapHistory (ctx := ctx) (Reference := Reference)
       (History := model.HiddenState × ((History × first.Path) × second.Path))
@@ -61,7 +64,7 @@ private theorem seq_store_marginal {ctx : RuntimeCtx .quantum}
     (State.mapHistory_quantumMarginal
       (nested.filterClassical (fun entry => predicate entry.1)) reassociate))
 
-private theorem filtered_store_reference {ctx : RuntimeCtx .quantum}
+private lemma filtered_store_reference {ctx : RuntimeCtx .quantum}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) (original : Store ctx)
     (left right : Reference.Index) :
@@ -84,7 +87,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Every final store retains its actual measured reference fiber and the exact reloaded seed. -/
-theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
+lemma shortDLP_runtimeRound_store_reference_entry {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
@@ -92,14 +95,15 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
     (state : State ctx Reference (model.HiddenState × History)) (original : Store ctx)
     (left right : ctx.register.Index) (leftRef rightRef : Reference.Index) :
     (ExecutionState.filterClassical
-      ((code m ell width sameWires parameter N generator target cells result).execute
+      ((code m ell width sameWires parameter N generator target cells result).execute environment
         Reference state) (fun entry => entry.1 = original)).quantumMarginal.matrix
           (left, leftRef) (right, rightRef) =
       NormalizedVector.ket (R := ctx.register)
           ((RuntimePlacement.basisEquiv m ell width sameWires).symm
             (CompiledMAU.reloadLabel m ell width N)) left *
         ExecutionState.referenceFiberSum
-          ((selected m ell width sameWires parameter N generator target).execute Reference state)
+          ((selected m ell width sameWires parameter N generator target).execute
+            environment Reference state)
           (fun entry basis =>
             if packedBasisStore m ell width sameWires cells result entry.1 basis = original
             then 1 else 0) leftRef rightRef *
@@ -111,12 +115,14 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
     Circuit.measurementSequence (readouts m ell width sameWires cells)
   let pack := BitWord.instruction (execution := model) (packing m ell width cells result)
   let finish := resetReload m ell width sameWires N
-  let evolved := member.execute Reference state
-  let measured := measurement.execute Reference evolved
-  let packed := pack.execute Reference measured
-  have first := seq_store_marginal member (.seq measurement (.seq pack finish)) state original
-  have second := seq_store_marginal measurement (.seq pack finish) evolved original
-  have third := seq_store_marginal pack finish measured original
+  let evolved := member.execute environment Reference state
+  let measured := measurement.execute environment Reference evolved
+  let packed := pack.execute environment Reference measured
+  have first := seq_store_marginal (environment := environment)
+    member (.seq measurement (.seq pack finish)) state original
+  have second := seq_store_marginal (environment := environment)
+    measurement (.seq pack finish) evolved original
+  have third := seq_store_marginal (environment := environment) pack finish measured original
   have composed := first.trans (second.trans third)
   refine (congrArg
     (fun density : DensityOperator (Register.prod ctx.register Reference) =>
@@ -130,7 +136,7 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
       star (NormalizedVector.ket (R := ctx.register)
         ((RuntimePlacement.basisEquiv m ell width sameWires).symm
           (CompiledMAU.reloadLabel m ell width N)) right))
-  have grouped := seq_store_marginal
+  have grouped := seq_store_marginal (environment := environment)
     (Circuit.measurementSequence (readouts m ell width sameWires cells))
     (BitWord.instruction (packing m ell width cells result)) evolved original
   have entries := congrArg
@@ -138,7 +144,7 @@ theorem shortDLP_runtimeRound_store_reference_entry {shape : CShape}
       ∑ basis : ctx.register.Index, density.matrix (basis, leftRef) (basis, rightRef)) grouped
   exact entries.symm.trans
     ((filtered_store_reference
-      ((measuredPacking m ell width sameWires cells result).execute Reference evolved)
+      ((measuredPacking m ell width sameWires cells result).execute environment Reference evolved)
       original leftRef rightRef).trans
       (shortDLP_runtimePacked_joint_reference_entry m ell width sameWires cells result
         evolved id original leftRef rightRef))

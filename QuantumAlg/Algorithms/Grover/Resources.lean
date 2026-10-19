@@ -42,27 +42,27 @@ noncomputable section
 open QuantumAlg.Execution
 open QuantumAlg.ZeroReflection.Workspace
 
-private theorem preparation_pool {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (preparationCode marked k).Path) :
-    ResourcePool.ofList ((preparationCode marked k).eventTrace path) =
-      totalQubits n k • ResourcePool.singleton (model := model marked)
+private lemma preparation_pool (n : Nat) (k : Nat)
+    (path : (preparationCode n k).Path) :
+    ResourcePool.ofList ((preparationCode n k).eventTrace path) =
+      totalQubits n k • ResourcePool.singleton (model := model n)
         (.preparation (2 : ℕ+)) :=
-  ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model (Elementary.oracles marked)
+  ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model (Elementary.oracles n)
     (runtimeLayout (totalQubits n k)) 2 (fun _ => rfl) BitWord.model .empty
 
-private theorem program_pool {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    ResourcePool.ofList ((program marked k).eventTrace BitWord.model .empty) =
-      unitaryBudget marked k := by
-  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (program marked k) BitWord.model .empty,
+private lemma program_pool (n : Nat) (k : Nat) :
+    ResourcePool.ofList ((program n k).eventTrace BitWord.model .empty) =
+      unitaryBudget n k := by
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (program n k) BitWord.model .empty,
     program,
     unitaryOfEqualWires_cost
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout
       (preparedContext (totalQubits n k)).quantumLayout
-      (prepared_canonical_wires (totalQubits n k)) (Elementary.circuit marked k)]
+      (prepared_canonical_wires (totalQubits n k)) (Elementary.circuit n k)]
   apply Multiset.ext.mpr
   intro event
   change ResourcePool.count event
-    ((Elementary.circuit marked k).eventCost BitWord.model .empty) = ResourcePool.count event _
+    ((Elementary.circuit n k).eventCost BitWord.model .empty) = ResourcePool.count event _
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   cases event with
   | gate coordinate =>
@@ -84,74 +84,75 @@ private theorem program_pool {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
         simp [unitaryBudget, ZeroReflection.elementaryEventPool,
           ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
-private theorem measurement_pool {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := Elementary.oracles marked) (operations := BitWord.model)
+private lemma measurement_pool (n : Nat) (k : Nat)
+    (path : (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := Elementary.oracles n) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts n k)).Path) :
-    ResourcePool.ofList ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := Elementary.oracles marked) (operations := BitWord.model)
+    ResourcePool.ofList ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := Elementary.oracles n) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts n k)).eventTrace path) =
-      n • ResourcePool.singleton (model := model marked) (.measurement (2 : ℕ+)) := by
+      n • ResourcePool.singleton (model := model n) (.measurement (2 : ℕ+)) := by
   rw [← Circuit.resourcePool,
     Circuit.measurementSequence_qubit_resourcePool (readouts n k) (readouts_qubits n k),
     readouts_length]
   rfl
 
-private theorem allocation_trace {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (allocationCode marked k).Path) : (allocationCode marked k).eventTrace path = [] :=
-  MeasurementCells.allocate_eventTrace (model := model marked) (resultContext n k) 2 n path.2
+private lemma allocation_trace (n : Nat) (k : Nat)
+    (path : (allocationCode n k).Path) : (allocationCode n k).eventTrace path = [] :=
+  MeasurementCells.allocate_eventTrace (model := model n) (resultContext n k) 2 n path.2
 
 /-- Every actual path has exactly the independent complete native event pool. -/
-theorem code_events {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    (code marked k).resourcePool path = eventBudget marked k := by
+lemma code_events (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    (code n k).resourcePool path = eventBudget n k := by
   simp only [Circuit.resourcePool, code, beforeMeasurement, readoutCode,
     Circuit.eventTrace, allocation_trace, List.append_nil, ResourcePool.ofList_append,
     program_pool, measurement_pool]
-  rw [preparation_pool marked k path.1.1]
+  rw [preparation_pool n k path.1.1]
   rfl
 
-private theorem program_depth {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    DepthExpr.depthEval (fun _ => 1) ((program marked k).eventDepth BitWord.model .empty) =
+private lemma program_depth (n : Nat) (k : Nat) :
+    DepthExpr.depthEval (fun _ => 1) ((program n k).eventDepth BitWord.model .empty) =
       Elementary.unitaryDepth n k := by
   rw [UnitaryCircuit.unitaryCircuit_unit_depth_classical_context]
-  change (Elementary.circuit marked k).evaluatedEventDepth (fun _ => 1) = _
-  exact Elementary.circuit_unitDepth marked k
+  change (Elementary.circuit n k).evaluatedEventDepth (fun _ => 1) = _
+  exact Elementary.circuit_unitDepth n k
 
 /-- Exact unit-event depth includes each preparation layer, sequential Z write and packing. -/
-theorem code_depth_exact {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    (code marked k).depth (fun _ => 1) path =
+lemma code_depth_exact (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    (code n k).depth (fun _ => 1) path =
       (if totalQubits n k = 0 then 0 else 1) + Elementary.unitaryDepth n k + n + 1 := by
   change (DepthExpr.depthEval (fun _ => 1)
-      (ZeroPreparation.eventDepth AlgorithmGate.model (Elementary.oracles marked)
+      (ZeroPreparation.eventDepth AlgorithmGate.model (Elementary.oracles n)
         (runtimeLayout (totalQubits n k)) BitWord.model .empty) +
-    (DepthExpr.depthEval (fun _ => 1) ((program marked k).eventDepth BitWord.model .empty) +
-      (0 + (MeasurementCells.allocate (model := model marked)
+    (DepthExpr.depthEval (fun _ => 1) ((program n k).eventDepth BitWord.model .empty) +
+      (0 + (MeasurementCells.allocate (model := model n)
         (resultContext n k) 2 n).depth (fun _ => 1) path.1.2.2.2))) +
-    ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := Elementary.oracles marked) (operations := BitWord.model)
+    ((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := Elementary.oracles n) (operations := BitWord.model)
       (classicalOracles := .empty) (readouts n k)).depth
       (fun _ => 1) path.2.1 + 1) = _
   rw [ZeroPreparation.zeroPreparation_uniform_unit_depth AlgorithmGate.model
-    (Elementary.oracles marked) (runtimeLayout (totalQubits n k)) 2 (fun _ => rfl)
+    (Elementary.oracles n) (runtimeLayout (totalQubits n k)) 2 (fun _ => rfl)
     BitWord.model .empty, MeasurementCells.allocate_depth,
     Circuit.measurementSequence_unitDepth, readouts_length, program_depth]
   omega
 
 /-- The independent full-cycle depth bound also covers the empty source register. -/
-theorem code_depth {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    (code marked k).depth (fun _ => 1) path ≤ depthBudget n k := by
+lemma code_depth (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    (code n k).depth (fun _ => 1) path ≤ depthBudget n k := by
   rw [code_depth_exact]
   unfold depthBudget
   split <;> omega
 
 /-- Every elementary source-reflection occurrence belongs to this actual execution. -/
-theorem code_elementaryGateCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
+lemma code_elementaryGateCount (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
     ResourcePool.weightedCount (fun event => match event with
-      | .gate _ => 1 | _ => 0) ((code marked k).resourcePool path) =
+      | .gate _ => 1 | _ => 0) ((code n k).resourcePool path) =
         n + k * (2 * n + ZeroReflection.elementaryGateCount n) := by
   rw [code_events]
   rcases n with _ | _ | _ | _ | n <;>
@@ -160,10 +161,10 @@ theorem code_elementaryGateCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : 
       ResourcePool.weightedCount_nsmul, ResourcePool.weightedCount_singleton] <;> ring
 
 /-- Exact native single-qubit count of the same complete search execution. -/
-theorem code_singleQubitCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    ResourcePool.count (model := model marked) (.gate .singleQubit)
-      ((code marked k).resourcePool path) =
+lemma code_singleQubitCount (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    ResourcePool.count (model := model n) (.gate .singleQubit)
+      ((code n k).resourcePool path) =
         n + k * (2 * n + ZeroReflection.elementarySingleQubitCount n) := by
   rw [code_events]
   rcases n with _ | _ | _ | _ | n <;>
@@ -172,10 +173,10 @@ theorem code_singleQubitCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat
       ResourcePool.count_nsmul, ResourcePool.count_singleton] <;> ring
 
 /-- Exact native CNOT count of the same complete search execution. -/
-theorem code_cnotCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    ResourcePool.count (model := model marked) (.gate .cnot)
-      ((code marked k).resourcePool path) =
+lemma code_cnotCount (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    ResourcePool.count (model := model n) (.gate .cnot)
+      ((code n k).resourcePool path) =
         k * ZeroReflection.elementaryCNOTCount n := by
   rw [code_events]
   rcases n with _ | _ | _ | _ | n <;>
@@ -184,10 +185,10 @@ theorem code_cnotCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
       ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- Exact native Toffoli count of the same complete search execution. -/
-theorem code_toffoliCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
-    ResourcePool.count (model := model marked) (.gate .toffoli)
-      ((code marked k).resourcePool path) =
+lemma code_toffoliCount (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
+    ResourcePool.count (model := model n) (.gate .toffoli)
+      ((code n k).resourcePool path) =
         k * ZeroReflection.elementaryToffoliCount n := by
   rw [code_events]
   rcases n with _ | _ | _ | _ | n <;>
@@ -196,10 +197,10 @@ theorem code_toffoliCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
       ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- The actual run contains exactly k phase queries, with no opaque reflection call. -/
-theorem code_queryCount {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
-    (path : (code marked k).Path) :
+lemma code_queryCount (n : Nat) (k : Nat)
+    (path : (code n k).Path) :
     ResourcePool.weightedCount (fun event => match event with
-      | .oracle _ => 1 | _ => 0) ((code marked k).resourcePool path) = k := by
+      | .oracle _ => 1 | _ => 0) ((code n k).resourcePool path) = k := by
   rw [code_events]
   rcases n with _ | _ | _ | _ | n <;>
     simp [eventBudget, unitaryBudget, ZeroReflection.elementaryEventPool,

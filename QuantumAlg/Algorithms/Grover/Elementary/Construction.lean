@@ -7,7 +7,9 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Components.Oracle.ZeroReflection.Workspace
+public import QuantumAlg.Components.Oracle.Phase.Operator
 import all QuantumAlg.Components.Oracle.Phase.Operator
+public import QuantumAlg.Components.Oracle.UnitarySource.Model
 import all QuantumAlg.Components.Oracle.UnitarySource.Model
 import all QuantumAlg.Core.Base.Oracle.Placement.Construction
 import all QuantumAlg.Components.GateModel.Algorithm.Adjoint
@@ -37,8 +39,13 @@ noncomputable section
 open QuantumAlg.ZeroReflection.Workspace
 
 /-- This route grants one ordinary predicate phase query, with no controlled access. -/
-abbrev oracles {n : Nat} (marked : Fin (2 ^ n) → Bool) : OracleModel :=
-  UnitarySource.model (phaseOracleOp marked) false
+public abbrev oracles (n : Nat) : OracleModel :=
+  UnitarySource.model n false
+
+/-- The hidden predicate supplies an interpretation of the fixed phase-query interface. -/
+@[expose] public def interpretation {n : Nat} (marked : Fin (2 ^ n) → Bool) :
+    (oracles n).Interpretation :=
+  UnitarySource.interpretation (phaseOracleOp marked) false
 
 /-- The actual parallel Hadamards leave every helper wire untouched. -/
 def hadamards (queries : OracleModel) (n k : Nat) :
@@ -53,11 +60,11 @@ def inverseHadamards (queries : OracleModel) (n k : Nat) :
   (hadamards .empty n k).dagger (AlgorithmGate.oracleFreeAdjoints queries)
 
 /-- A single declared phase query acts on the source word while preserving all helper values. -/
-def oracle {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (oracles marked)
+def oracle (n : Nat) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
   (UnitaryCircuit.query (gates := AlgorithmGate.model)
-    (OracleModel.Application.onPlacement (oracles marked) .ordinary
+    (OracleModel.Application.onPlacement (oracles n) .ordinary
       (QuantumSignature.qubits n).canonicalPlacement)).onBinaryPrefix (helperWidth n k)
 
 /-- Actual inverse H, exact elementary positive zero reflection, and forward H. -/
@@ -68,17 +75,17 @@ def diffusion (queries : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
     (hadamards queries n k)
 
 /-- One ordinary predicate query followed by the actual native diffusion word. -/
-def step {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) (nonzero : k ≠ 0) :
-    UnitaryCircuit AlgorithmGate.model (oracles marked)
+def step (n : Nat) (k : Nat) (nonzero : k ≠ 0) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  (oracle marked k).seq (diffusion (oracles marked) n k nonzero)
+  (oracle n k).seq (diffusion (oracles n) n k nonzero)
 
 /-- Initial Hadamards followed by precisely k actual Grover iterations. -/
-def circuit {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (oracles marked)
+def circuit (n : Nat) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  if zero : k = 0 then hadamards (oracles marked) n k
-  else (hadamards (oracles marked) n k).seq (UnitaryCircuit.iterate k (step marked k zero))
+  if zero : k = 0 then hadamards (oracles n) n k
+  else (hadamards (oracles n) n k).seq (UnitaryCircuit.iterate k (step n k zero))
 
 end
 

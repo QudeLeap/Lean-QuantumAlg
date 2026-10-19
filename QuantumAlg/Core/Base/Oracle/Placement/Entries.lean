@@ -36,7 +36,7 @@ public def basisEquiv (application : Application model layout) :
     (Equiv.prodCongr application.occurrence.placement.indexEquiv (Equiv.refl _))
 
 /-- The declared argument retains the original physical system's computational value. -/
-public theorem oracleApplication_selected_value (application : Application model layout)
+public lemma oracleApplication_selected_value (application : Application model layout)
     (basis : layout.Basis)
     (index : Fin (model.signature application.occurrence.query).systemCount) :
     ((application.basisEquiv basis).1 index).val =
@@ -44,17 +44,18 @@ public theorem oracleApplication_selected_value (application : Application model
   rfl
 
 /-- The untouched complement retains every original computational value. -/
-public theorem oracleApplication_complement_value (application : Application model layout)
+public lemma oracleApplication_complement_value (application : Application model layout)
     (basis : layout.Basis)
     (index : QuantumLayout.SelectedPosition application.embedding.selectionᶜ) :
     (application.basisEquiv basis).2 index = basis index.val := by
   rfl
 
 /-- The actual matrix entry is the declared query entry times full complement identity. -/
-public theorem oracleApplication_model_entry (application : Application model layout)
+public lemma oracleApplication_model_entry (application : Application model layout)
+    (environment : Interpretation model)
     (row column : layout.Basis) :
-    application.operator row column =
-      model.operator application.occurrence.query
+    application.operator environment row column =
+      environment.operator application.occurrence.query
         (application.basisEquiv row).1 (application.basisEquiv column).1 *
         (if (application.basisEquiv row).2 = (application.basisEquiv column).2 then 1 else 0) := by
   rw [oracle_application_operator_entry]

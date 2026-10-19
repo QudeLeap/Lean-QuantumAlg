@@ -24,7 +24,7 @@ open Execution
 
 noncomputable section
 
-variable (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+variable (ctx : RuntimeCtx .quantum) (N : Nat)
 
 /-- The source sampler's actual retained sample and full parameter context. -/
 @[implicit_reducible]
@@ -34,10 +34,10 @@ def sampledContext : RuntimeCtx .quantum := Sampler.Retained.context ctx N
 @[implicit_reducible]
 def context : RuntimeCtx .quantum := Storage.context (sampledContext ctx N) N
 
-theorem sampled_quantumWires : (sampledContext ctx N).quantumWires = ctx.quantumWires := rfl
+lemma sampled_quantumWires : (sampledContext ctx N).quantumWires = ctx.quantumWires := rfl
 
 /-- Sampling and result retention keep the exact same complete ordered quantum bank. -/
-theorem quantumWires : (context ctx N).quantumWires = ctx.quantumWires :=
+lemma quantumWires : (context ctx N).quantumWires = ctx.quantumWires :=
   (Storage.quantumWires (sampledContext ctx N) N).trans (sampled_quantumWires ctx N)
 
 /-- Read the actual retained source draw after all quantum readout allocations. -/
@@ -56,9 +56,9 @@ def phaseInput : CInputRef (context ctx N) (.bits (phaseBits N)) :=
 
 /-- Draw the source sample, compute its parameter, and execute the actual selected quantum round. -/
 def code (sameWires : ctx.quantumWires = (layout N).wires) :
-    Circuit (executionModel input) ctx (context ctx N) :=
-  .seq (Sampler.Retained.circuit (model := executionModel input) ctx N)
-    (Runtime.code (sampledContext ctx N) N input
+    Circuit (executionModel N) ctx (context ctx N) :=
+  .seq (Sampler.Retained.circuit (model := executionModel N) ctx N)
+    (Runtime.code (sampledContext ctx N) N
       ((sampled_quantumWires ctx N).trans sameWires)
       (.storage (Sampler.Retained.parameterRef ctx N).toCStorageRef))
 
@@ -68,14 +68,14 @@ def resultShape : CShape :=
     (.product (ParameterShape (modulusBits N)) (.bits (phaseBits N)))
 
 def run (sameWires : ctx.quantumWires = (layout N).wires) :
-    AlgorithmRun (executionModel input) ctx (context ctx N) (resultShape N) where
-  code := code ctx N input sameWires
+    AlgorithmRun (executionModel N) ctx (context ctx N) (resultShape N) where
+  code := code ctx N sameWires
   output := Output.all (context ctx N)
     (.read (.product (sampleInput ctx N) (.product (parameterInput ctx N) (phaseInput ctx N))))
 
 /-- The retained source tuple is only a result view; the full live storage is still listed. -/
-theorem output_listing (sameWires : ctx.quantumWires = (layout N).wires) :
-    (run ctx N input sameWires).output.listing = (context ctx N).keys := rfl
+lemma output_listing (sameWires : ctx.quantumWires = (layout N).wires) :
+    (run ctx N sameWires).output.listing = (context ctx N).keys := rfl
 
 
 end

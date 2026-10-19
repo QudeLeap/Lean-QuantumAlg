@@ -27,67 +27,70 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The five real retained allocations preserve every constant full reference weight. -/
-theorem Persistent.allocation_reference (base : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma Persistent.allocation_reference (base : RuntimeCtx .quantum) (N : Nat)
+    {environment : (executionModel N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (coefficient : ℂ) (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Persistent.allocation (model := executionModel input) base N).execute Reference state)
+      ((Persistent.allocation (model := executionModel N) base N).execute
+        environment Reference state)
       (fun _ _ => coefficient) left right =
       ExecutionState.referenceFiberSum state (fun _ _ => coefficient) left right := by
-  let first := Circuit.retain (model := executionModel input) base base.canonicalFreshKey
+  let first := Circuit.retain (model := executionModel N) base base.canonicalFreshKey
     (.option (.unsignedWord (modulusBits N))) base.canonicalFreshKey_fresh
-  let second := Circuit.retain (model := executionModel input) (Persistent.resultContext base N)
+  let second := Circuit.retain (model := executionModel N) (Persistent.resultContext base N)
     (Persistent.resultContext base N).canonicalFreshKey
     (.product .bit (.unsignedWord (modulusBits N)))
     (Persistent.resultContext base N).canonicalFreshKey_fresh
-  let third := Circuit.retain (model := executionModel input) (Persistent.candidateContext base N)
+  let third := Circuit.retain (model := executionModel N) (Persistent.candidateContext base N)
     (Persistent.candidateContext base N).canonicalFreshKey .bit
     (Persistent.candidateContext base N).canonicalFreshKey_fresh
-  let fourth := Circuit.retain (model := executionModel input) (Persistent.acceptedContext base N)
+  let fourth := Circuit.retain (model := executionModel N) (Persistent.acceptedContext base N)
     (Persistent.acceptedContext base N).canonicalFreshKey (.unsignedWord (modulusBits N))
     (Persistent.acceptedContext base N).canonicalFreshKey_fresh
-  let fifth := Circuit.retain (model := executionModel input) (Persistent.selectedContext base N)
+  let fifth := Circuit.retain (model := executionModel N) (Persistent.selectedContext base N)
     (Persistent.selectedContext base N).canonicalFreshKey .bit
     (Persistent.selectedContext base N).canonicalFreshKey_fresh
-  let state1 := first.execute Reference state
-  let state2 := second.execute Reference state1
-  let state3 := third.execute Reference state2
-  let state4 := fourth.execute Reference state3
-  have sequence0 := Circuit.referenceFiberSum_execute_seq first
+  let state1 := first.execute environment Reference state
+  let state2 := second.execute environment Reference state1
+  let state3 := third.execute environment Reference state2
+  let state4 := fourth.execute environment Reference state3
+  have sequence0 := Circuit.referenceFiberSum_execute_seq (environment := environment) first
     (second.seq (third.seq (fourth.seq fifth))) state (fun _ => coefficient) left right
-  have sequence1 := Circuit.referenceFiberSum_execute_seq second
+  have sequence1 := Circuit.referenceFiberSum_execute_seq (environment := environment) second
     (third.seq (fourth.seq fifth)) state1 (fun _ => coefficient) left right
-  have sequence2 := Circuit.referenceFiberSum_execute_seq third
+  have sequence2 := Circuit.referenceFiberSum_execute_seq (environment := environment) third
     (fourth.seq fifth) state2 (fun _ => coefficient) left right
-  have sequence3 := Circuit.referenceFiberSum_execute_seq fourth fifth state3
+  have sequence3 := Circuit.referenceFiberSum_execute_seq
+    (environment := environment) fourth fifth state3
     (fun _ => coefficient) left right
-  have retained0 := Circuit.referenceFiberSum_execute_retain
-    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (sourceBounds input)
+  have retained0 := Circuit.referenceFiberSum_execute_retain (environment := environment)
+    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (modulusBits N)
       (phaseBits N)) (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     base.canonicalFreshKey (.option (.unsignedWord (modulusBits N)))
     base.canonicalFreshKey_fresh state (fun _ => coefficient) left right
-  have retained1 := Circuit.referenceFiberSum_execute_retain
-    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (sourceBounds input)
+  have retained1 := Circuit.referenceFiberSum_execute_retain (environment := environment)
+    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (modulusBits N)
       (phaseBits N)) (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (Persistent.resultContext base N).canonicalFreshKey
     (.product .bit (.unsignedWord (modulusBits N)))
     (Persistent.resultContext base N).canonicalFreshKey_fresh state1
     (fun _ => coefficient) left right
-  have retained2 := Circuit.referenceFiberSum_execute_retain
-    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (sourceBounds input)
+  have retained2 := Circuit.referenceFiberSum_execute_retain (environment := environment)
+    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (modulusBits N)
       (phaseBits N)) (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (Persistent.candidateContext base N).canonicalFreshKey .bit
     (Persistent.candidateContext base N).canonicalFreshKey_fresh state2
     (fun _ => coefficient) left right
-  have retained3 := Circuit.referenceFiberSum_execute_retain
-    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (sourceBounds input)
+  have retained3 := Circuit.referenceFiberSum_execute_retain (environment := environment)
+    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (modulusBits N)
       (phaseBits N)) (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (Persistent.acceptedContext base N).canonicalFreshKey (.unsignedWord (modulusBits N))
     (Persistent.acceptedContext base N).canonicalFreshKey_fresh state3
     (fun _ => coefficient) left right
-  have retained4 := Circuit.referenceFiberSum_execute_retain
-    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (sourceBounds input)
+  have retained4 := Circuit.referenceFiberSum_execute_retain (environment := environment)
+    (gates := AlgorithmGate.model) (oracles := DeclaredSource.model (modulusBits N)
       (phaseBits N)) (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (Persistent.selectedContext base N).canonicalFreshKey .bit
     (Persistent.selectedContext base N).canonicalFreshKey_fresh state4
@@ -96,66 +99,73 @@ theorem Persistent.allocation_reference (base : RuntimeCtx .quantum) (N : Nat) (
     (retained4.trans (retained3.trans (retained2.trans (retained1.trans retained0)))))))
 
 /-- The real clear supplies an absent latch in every complete weighted reference observation. -/
-theorem Persistent.initialization_latch_reference (base : RuntimeCtx .quantum) (N : Nat)
-    (input : Input N) {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+lemma Persistent.initialization_latch_reference (base : RuntimeCtx .quantum) (N : Nat)
+    {environment : (executionModel N).Environment}
+    {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Persistent.initialization (model := executionModel input) base N).execute Reference state)
+      ((Persistent.initialization (model := executionModel N) base N).execute
+        environment Reference state)
       (fun entry _ => weight (NativeFactorScan.latchValue (Persistent.cells base N) entry.1))
       left right =
       ExecutionState.referenceFiberSum state (fun _ _ => weight .optionNone) left right := by
-  let allocated := Persistent.allocation (model := executionModel input) base N
-  let cleared := BitWord.instruction (execution := executionModel input)
+  let allocated := Persistent.allocation (model := executionModel N) base N
+  let cleared := BitWord.instruction (execution := executionModel N)
     (NativeFactorScan.clearAcceptedOp (Persistent.cells base N))
-  let initial := allocated.execute Reference state
-  have sequence := Circuit.referenceFiberSum_execute_seq allocated cleared state
+  let initial := allocated.execute environment Reference state
+  have sequence := Circuit.referenceFiberSum_execute_seq
+    (environment := environment) allocated cleared state
     (fun store => weight (NativeFactorScan.latchValue (Persistent.cells base N) store)) left right
   have clear :
-      ExecutionState.referenceFiberSum (cleared.execute Reference initial)
+      ExecutionState.referenceFiberSum (cleared.execute environment Reference initial)
         (fun entry _ => weight (NativeFactorScan.latchValue (Persistent.cells base N) entry.1))
         left right =
         ExecutionState.referenceFiberSum initial (fun _ _ => weight .optionNone) left right := by
-    rw [show cleared = BitWord.instruction (execution := executionModel input)
+    rw [show cleared = BitWord.instruction (execution := executionModel N)
       (NativeFactorScan.clearAcceptedOp (Persistent.cells base N)) from rfl,
       BitWord.bitWord_instruction_execute, ExecutionState.referenceFiberSum_mapClassical]
     apply congrArg (fun observe => ExecutionState.referenceFiberSum initial observe left right)
     funext entry basis
     exact congrArg weight (Persistent.cleared_latch base N entry.1)
   exact sequence.trans (clear.trans
-    (Persistent.allocation_reference base N input state (weight .optionNone) left right))
+    (Persistent.allocation_reference base N state (weight .optionNone) left right))
 
 /-- Actual persistent initialization and single-bank preparation provide the empty source fold. -/
-theorem Initialized.ready_latch_reference (base : RuntimeCtx .quantum)
-    (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N)
+lemma Initialized.ready_latch_reference (base : RuntimeCtx .quantum)
+    (noQuantum : base.quantumWires = []) (N : Nat)
+    {environment : (executionModel N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (weight : CShape.Value (.option (.unsignedWord (modulusBits N))) → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Initialized.ready base noQuantum N input).execute Reference state)
+      ((Initialized.ready base noQuantum N).execute environment Reference state)
       (fun entry _ => weight (NativeFactorScan.latchValue
         (Initialized.cells base noQuantum N) entry.1)) left right =
     ExecutionState.referenceFiberSum state (fun _ _ => weight .optionNone) left right := by
-  let initial := Persistent.initialization (model := executionModel input) base N
+  let initial := Persistent.initialization (model := executionModel N) base N
   let prepared := Sampling.prepare (Persistent.context base N)
-    (Initialized.noQuantumStorage base noQuantum N) N input
-  have sequence := Circuit.referenceFiberSum_execute_seq initial prepared state
+    (Initialized.noQuantumStorage base noQuantum N) N
+  have sequence := Circuit.referenceFiberSum_execute_seq
+    (environment := environment) initial prepared state
     (fun store => weight (NativeFactorScan.latchValue
       (Initialized.cells base noQuantum N) store)) left right
   have preparation := Circuit.referenceFiberSum_execute_prepareZero_input
+    (environment := environment)
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (latchInput (Persistent.context base N) N (Persistent.cells base N))
     (Persistent.context base N).canonicalFreshKey (layout N)
     (Persistent.context base N).canonicalFreshKey_fresh
     (allocationDisjoint (Persistent.context base N)
-      (Initialized.noQuantumStorage base noQuantum N) N) (initial.execute Reference state)
+      (Initialized.noQuantumStorage base noQuantum N) N) (initial.execute
+        environment Reference state)
     (fun value => weight (CShape.packOption value)) left right
   exact sequence.trans (preparation.trans
-    (Persistent.initialization_latch_reference base N input state weight left right))
+    (Persistent.initialization_latch_reference base N state weight left right))
 
 end
 

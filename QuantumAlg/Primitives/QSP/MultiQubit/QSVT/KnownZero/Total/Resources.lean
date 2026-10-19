@@ -40,7 +40,7 @@ def phaseDepth (m n : Nat) : Nat :=
   | m, _ + 1 => 2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 1
 
 /-- Every native phase event is charged by the same actual execution on all widths. -/
-theorem totalPhase_events (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
+lemma totalPhase_events (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
     (phase m n oracles angle).eventCost = phaseBudget m n oracles := by
   cases n with
   | zero =>
@@ -51,7 +51,7 @@ theorem totalPhase_events (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
       cases m <;> exact KnownZero.phase_events _ (n + 1) (Nat.zero_lt_succ n) oracles angle
 
 /-- Exact dependency depth is derived from the executed native phase word. -/
-theorem totalPhase_depth (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
+lemma totalPhase_depth (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
     (phase m n oracles angle).evaluatedEventDepth (fun _ => 1) = phaseDepth m n := by
   cases n with
   | zero =>
@@ -62,7 +62,7 @@ theorem totalPhase_depth (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
       cases m <;> exact KnownZero.phase_depth _ (n + 1) (Nat.zero_lt_succ n) oracles angle
 
 /-- All original widths have a uniform linear native phase-depth bound. -/
-theorem totalPhaseDepth_le (m n : Nat) : phaseDepth m n ≤ 40 * m + 3 := by
+lemma totalPhaseDepth_le (m n : Nat) : phaseDepth m n ≤ 40 * m + 3 := by
   cases n with
   | zero =>
       cases m with

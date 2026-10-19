@@ -32,6 +32,8 @@ namespace PlainAdder
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- A gate-structured plain-adder witness over an explicit faithful binary
 encoding.  The same actual circuit is used for correctness and resource
 projection. -/
@@ -42,8 +44,8 @@ structure StructuredWitness (n : Nat) where
   program : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical encoding.width).toQuantum
   /-- Correctness of the program on encoded plain-adder labels. -/
-  realizes :
-    UnitaryCircuit.Realizes encoding program Data.addIntoRight
+  realizes : ∀ environment : OracleModel.empty.Interpretation,
+    UnitaryCircuit.Realizes encoding program environment Data.addIntoRight
 
 namespace StructuredWitness
 
@@ -51,15 +53,15 @@ variable {n : Nat}
 
 /-- Encoded-basis correctness for all plain-adder labels, intrinsically
 preserving normalization. -/
-theorem applyNormalized_ket (w : StructuredWitness n) (x : Data n) :
-    w.program.applyNormalized
+lemma applyNormalized_ket (w : StructuredWitness n) (x : Data n) :
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x))) =
       NormalizedVector.ket
         ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode (Data.addIntoRight x))) :=
-  w.realizes.apply_encoded_ket x
+  (w.realizes environment).apply_encoded_ket x
 
 /-- Ordered strict events derived from the folded adder program. -/
 def eventTrace (w : StructuredWitness n) :
@@ -89,7 +91,7 @@ def eventGateCount (w : StructuredWitness n)
     w.program.eventCost
 
 /-- Linearizing folded adder event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost (w : StructuredWitness n) :
+lemma resourcesFromEventDepth_eq_eventCost (w : StructuredWitness n) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
 
@@ -120,7 +122,8 @@ structure StructuredWithWorkWitness (n : Nat) (Work : Type) where
   program : UnitaryCircuit AlgorithmGate.model .empty
     (QubitLayout.canonical encoding.width).toQuantum
   /-- Correctness of the program on encoded data/work labels. -/
-  realizes : UnitaryCircuit.Realizes encoding program step
+  realizes : ∀ environment : OracleModel.empty.Interpretation,
+    UnitaryCircuit.Realizes encoding program environment step
   /-- On clean work and clean carry inputs, the folded action is the plain
   in-place adder and restores the clean work value. -/
   cleanEndpoint :
@@ -133,16 +136,16 @@ variable {n : Nat} {Work : Type}
 
 /-- Encoded-basis correctness on clean work and clean carry inputs,
 intrinsically preserving normalization. -/
-theorem applyNormalized_clean_ket (w : StructuredWithWorkWitness n Work) (x : Data n)
+lemma applyNormalized_clean_ket (w : StructuredWithWorkWitness n Work) (x : Data n)
     (hcarry : x.CarryClean) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode (x, w.cleanWork)))) =
       NormalizedVector.ket
         ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode (Data.addIntoRight x, w.cleanWork))) := by
-  have h := w.realizes.apply_encoded_ket (x, w.cleanWork)
+  have h := (w.realizes environment).apply_encoded_ket (x, w.cleanWork)
   simpa [w.cleanEndpoint x hcarry] using h
 
 /-- Ordered strict events derived from the folded data/work adder program. -/
@@ -173,7 +176,7 @@ def eventGateCount (w : StructuredWithWorkWitness n Work)
     w.program.eventCost
 
 /-- Linearizing data/work event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
+lemma resourcesFromEventDepth_eq_eventCost
     (w : StructuredWithWorkWitness n Work) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program

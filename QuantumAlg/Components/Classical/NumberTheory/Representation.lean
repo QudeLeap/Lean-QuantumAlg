@@ -56,17 +56,17 @@ def WordPairRepresents {width : Nat}
     (value : WordPairValue width) : Prop :=
   decodeWordPair encoded = value
 
-theorem encodeWord_represents {width : Nat} (value : WordValue width) :
+lemma encodeWord_represents {width : Nat} (value : WordValue width) :
     WordRepresents (encodeWord value) value :=
   rfl
 
-@[simp] theorem decode_encode_wordPair {width : Nat}
+@[simp] lemma decode_encode_wordPair {width : Nat}
     (value : WordPairValue width) :
     decodeWordPair (encodeWordPair value) = value := by
   cases value
   rfl
 
-@[simp] theorem encode_decode_wordPair {width : Nat}
+@[simp] lemma encode_decode_wordPair {width : Nat}
     (encoded : CShape.Value (WordPairShape width)) :
     encodeWordPair (decodeWordPair encoded) = encoded := by
   cases encoded with
@@ -75,7 +75,7 @@ theorem encodeWord_represents {width : Nat} (value : WordValue width) :
       cases right
       rfl
 
-theorem encodeWordPair_represents {width : Nat}
+lemma encodeWordPair_represents {width : Nat}
     (value : WordPairValue width) :
     WordPairRepresents (encodeWordPair value) value := by
   simp [WordPairRepresents]
@@ -103,29 +103,29 @@ def SignedRepresents {width : Nat}
   decodeSigned encoded = value
 
 /-- Signed encoding is exactly Core's raw nominal packing boundary. -/
-theorem encodeSigned_eq_packBoundedSignedWord {width : Nat}
+lemma encodeSigned_eq_packBoundedSignedWord {width : Nat}
     (value : BoundedSigned width) :
     encodeSigned value =
       CShape.packBoundedSignedWord width (encodeWord value.encode) :=
   rfl
 
-@[simp] theorem decode_encode_signed {width : Nat}
+@[simp] lemma decode_encode_signed {width : Nat}
     (value : BoundedSigned width) :
     decodeSigned (encodeSigned value) = value := by
   exact BoundedSigned.decode_encode value
 
-@[simp] theorem encode_decode_signed {width : Nat}
+@[simp] lemma encode_decode_signed {width : Nat}
     (encoded : CShape.Value (SignedShape width)) :
     encodeSigned (decodeSigned encoded) = encoded := by
   cases encoded with
   | boundedSignedWord _ => rfl
 
-theorem encodeSigned_represents {width : Nat}
+lemma encodeSigned_represents {width : Nat}
     (value : BoundedSigned width) :
     SignedRepresents (encodeSigned value) value := by
   simp [SignedRepresents]
 
-theorem signedRepresents_iff_encoding_eq {width : Nat}
+lemma signedRepresents_iff_encoding_eq {width : Nat}
     {encoded : CShape.Value (SignedShape width)}
     {value : BoundedSigned width} :
     SignedRepresents encoded value ↔
@@ -174,13 +174,13 @@ def XGCDTupleRepresents {width : Nat}
     (value : XGCDTuple width) : Prop :=
   decodeXGCDTuple encoded = value
 
-@[simp] theorem decode_encode_xgcdTuple {width : Nat}
+@[simp] lemma decode_encode_xgcdTuple {width : Nat}
     (value : XGCDTuple width) :
     decodeXGCDTuple (encodeXGCDTuple value) = value := by
   rcases value with ⟨gcd, left, right⟩
   rfl
 
-@[simp] theorem encode_decode_xgcdTuple {width : Nat}
+@[simp] lemma encode_decode_xgcdTuple {width : Nat}
     (encoded : CShape.Value (XGCDOutputShape width)) :
     encodeXGCDTuple (decodeXGCDTuple encoded) = encoded := by
   cases encoded with
@@ -192,7 +192,7 @@ def XGCDTupleRepresents {width : Nat}
           cases right
           rfl
 
-theorem encodeXGCDTuple_represents {width : Nat}
+lemma encodeXGCDTuple_represents {width : Nat}
     (value : XGCDTuple width) :
     XGCDTupleRepresents (encodeXGCDTuple value) value := by
   simp [XGCDTupleRepresents]

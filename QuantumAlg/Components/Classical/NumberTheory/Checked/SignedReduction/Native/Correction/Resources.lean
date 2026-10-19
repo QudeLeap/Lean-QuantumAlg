@@ -34,7 +34,7 @@ def negativeCorrectionEvents (model : ExecutionModel) [BitWord.Selected model] (
       (.wordBinary .sub (width + 1)))] ++ reductionEvents model (width + 1) width
 
 /-- The actual path emits the original resize, subtraction, division and remainder resize. -/
-theorem withNegativeCorrection_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -55,7 +55,7 @@ theorem withNegativeCorrection_eventTrace {model : ExecutionModel} [BitWord.Sele
   rfl
 
 /-- Multiplicities come from the same four real instructions. -/
-theorem withNegativeCorrection_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -65,7 +65,7 @@ theorem withNegativeCorrection_resourcePool {model : ExecutionModel} [BitWord.Se
   congrArg ResourcePool.ofList (withNegativeCorrection_eventTrace remainder modulus output path)
 
 /-- Any native duration assignment retains all original chronological dependencies. -/
-theorem withNegativeCorrection_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
@@ -83,7 +83,7 @@ theorem withNegativeCorrection_durationDepth {model : ExecutionModel} [BitWord.S
   rfl
 
 /-- Exactly four dependent unit-duration instructions execute. -/
-theorem withNegativeCorrection_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -92,7 +92,7 @@ theorem withNegativeCorrection_depth {model : ExecutionModel} [BitWord.Selected 
       4 := rfl
 
 /-- Complete actual visits include the matching division-pair and widened-word releases. -/
-theorem withNegativeCorrection_visitedContexts {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_visitedContexts {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -109,20 +109,20 @@ def negativeCorrectionScratchSpace {kind : ProblemKind} (width : Nat) : SpacePoo
     SpacePool.ofShape (.unsignedWord (width + 1))
 
 /-- The actual two-scope scratch occupies three widened words. -/
-theorem negativeCorrectionScratchSpace_eq_bits (kind : ProblemKind) (width : Nat) :
+lemma negativeCorrectionScratchSpace_eq_bits (kind : ProblemKind) (width : Nat) :
     negativeCorrectionScratchSpace (kind := kind) width =
       SpacePool.ofShape (.bits (3 * (width + 1))) := by
   funext axis
   cases axis <;> simp [negativeCorrectionScratchSpace, divisionShape, SpacePool.ofShape]
   omega
 
-private theorem correctionVisits_member {α : Type} (a b c x : α)
+private lemma correctionVisits_member {α : Type} (a b c x : α)
     (present : x ∈ [a, b, b, b, c, c, b, a]) : x = a ∨ x = b ∨ x = c := by
   simp only [List.mem_cons, List.not_mem_nil, or_false] at present
   tauto
 
 /-- The actual resident peak is exactly both scratch scopes plus all original context entries. -/
-theorem withNegativeCorrection_resident {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -151,7 +151,7 @@ theorem withNegativeCorrection_resident {model : ExecutionModel} [BitWord.Select
       negativeCorrectionScratchSpace, add_assoc])
 
 /-- The same real visits give the exact auxiliary peak including both complete scratch cells. -/
-theorem withNegativeCorrection_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+lemma withNegativeCorrection_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (remainder : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))

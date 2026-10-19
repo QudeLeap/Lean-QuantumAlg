@@ -28,23 +28,23 @@ open Execution
 
 noncomputable section
 
-variable (base : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+variable (base : RuntimeCtx .quantum) (N : Nat)
   (sameWires : base.quantumWires = (layout N).wires)
 
 /-- Retain the actual phase result and all finite cells without allocating another bank. -/
-def allocate : Circuit (executionModel input) base (Storage.context base N) :=
-  .seq (.retain (model := executionModel input) base base.canonicalFreshKey
+def allocate : Circuit (executionModel N) base (Storage.context base N) :=
+  .seq (.retain (model := executionModel N) base base.canonicalFreshKey
       (.bits (phaseBits N)) base.canonicalFreshKey_fresh)
-    (MeasurementCells.allocate (model := executionModel input) (Storage.resultContext base N)
+    (MeasurementCells.allocate (model := executionModel N) (Storage.resultContext base N)
       2 (phaseBits N))
 
 /-- The actual computed and stored base selects a granted member from the fixed model. -/
 def selected (parameter : CInputRef base (ParameterShape (modulusBits N))) :
-    Circuit (executionModel input) (Storage.context base N)
+    Circuit (executionModel N) (Storage.context base N)
       (Storage.context base N) :=
   .branch (Storage.liftInput base N parameter) fun value =>
     .unitary (member N
-      ((Storage.quantumWires base N).trans sameWires) input value)
+      ((Storage.quantumWires base N).trans sameWires) value)
 
 /-- One exponent wire writes to its own live finite cell. -/
 def readout (index : Fin (phaseBits N)) :
@@ -75,28 +75,28 @@ def packing : ClassicalOp (.fixedVector (phaseBits N) (.finite 2))
 
 /-- The selected quantum stage, actual measurements and paid packing. -/
 def body (parameter : CInputRef base (ParameterShape (modulusBits N))) :
-    Circuit (executionModel input) (Storage.context base N)
+    Circuit (executionModel N) (Storage.context base N)
       (Storage.context base N) :=
-  .seq (selected base N input sameWires parameter)
+  .seq (selected base N sameWires parameter)
     (.seq (Circuit.measurementSequence (readouts base N sameWires))
       (.classical (BitWord.application (packing base N))))
 
 /-- One actual selected observation on the existing prepared bank. -/
 def code (parameter : CInputRef base (ParameterShape (modulusBits N))) :
-    Circuit (executionModel input) base (Storage.context base N) :=
-  .seq (allocate base N input) (body base N input sameWires parameter)
+    Circuit (executionModel N) base (Storage.context base N) :=
+  .seq (allocate base N) (body base N sameWires parameter)
 
 /-- Return the packed exponent bits while retaining every live bank and cell. -/
 def run (parameter : CInputRef base (ParameterShape (modulusBits N))) :
-    AlgorithmRun (executionModel input) base (Storage.context base N)
+    AlgorithmRun (executionModel N) base (Storage.context base N)
       (.bits (phaseBits N)) where
-  code := code base N input sameWires parameter
+  code := code base N sameWires parameter
   output := Output.all (Storage.context base N)
     (.read (.storage (Storage.resultRef base N).toCStorageRef))
 
 /-- The output enumerates every live storage entry. -/
-theorem output_listing (parameter : CInputRef base (ParameterShape (modulusBits N))) :
-    (run base N input sameWires parameter).output.listing =
+lemma output_listing (parameter : CInputRef base (ParameterShape (modulusBits N))) :
+    (run base N sameWires parameter).output.listing =
       (Storage.context base N).keys := rfl
 
 

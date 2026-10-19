@@ -28,6 +28,7 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Actual append record for the same big-endian row decoder. -/
@@ -37,11 +38,12 @@ def rowDecodeStep (input : CInputRef ctx (.bits width))
   TerminalDecode.foldStep (model := model) loader
     (List.ofFn (fun index => CInputRef.bitsGet input index)) store
 
-private theorem rowDecode_execute (input : CInputRef ctx (.bits width))
+private lemma rowDecode_execute (input : CInputRef ctx (.bits width))
     (loader : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (TerminalDecode.into (model := model) .bigEndian input loader).execute Reference state =
+    (TerminalDecode.into (model := model) .bigEndian input loader).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((rowDecodeStep input loader entry.1).1,
           (entry.2.1, (entry.2.2, (rowDecodeStep input loader entry.1).2)))) :=
@@ -63,16 +65,16 @@ def rowBodyStep (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
       (BitWord.instructionStep (execution := model) (rowWriteOp row matrix loader))) store
 
 /-- The original row sequence maps every complete reference and history block exactly. -/
-theorem gf2RowBody_execute (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
+lemma gf2RowBody_execute (input : CInputRef ctx (.bits width)) (row : Fin rowCount)
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (loader : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (rowBody (model := model) input row matrix loader).execute Reference state =
+    (rowBody (model := model) input row matrix loader).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((rowBodyStep input row matrix loader entry.1).1,
           (entry.2.1, (entry.2.2, (rowBodyStep input row matrix loader entry.1).2)))) := by
-  exact Circuit.execute_sequenceStoreRecord (model := model)
+  exact Circuit.execute_sequenceStoreRecord (environment := environment) (model := model)
     (BitWord.instruction (execution := model) (rowClearOp loader))
     (.seq (TerminalDecode.into (model := model) .bigEndian input loader)
       (BitWord.instruction (execution := model) (rowWriteOp row matrix loader)))
@@ -83,14 +85,16 @@ theorem gf2RowBody_execute (input : CInputRef ctx (.bits width)) (row : Fin rowC
       (rowDecodeStep (model := model) input loader)
       (BitWord.instructionStep (execution := model) (rowWriteOp row matrix loader)))
     (fun _ {_} _ current =>
-      BitWord.bitWord_instruction_execute (execution := model) (rowClearOp loader) current)
-    (Circuit.execute_sequenceStoreRecord (model := model)
+      BitWord.bitWord_instruction_execute
+        (environment := environment) (execution := model) (rowClearOp loader) current)
+    (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model)
       (TerminalDecode.into (model := model) .bigEndian input loader)
       (BitWord.instruction (execution := model) (rowWriteOp row matrix loader))
       (rowDecodeStep (model := model) input loader)
       (BitWord.instructionStep (execution := model) (rowWriteOp row matrix loader))
       (rowDecode_execute input loader)
-      (fun _ {_} _ current => BitWord.bitWord_instruction_execute (execution := model)
+      (fun _ {_} _ current => BitWord.bitWord_instruction_execute
+        (environment := environment) (execution := model)
         (rowWriteOp row matrix loader) current)) Reference state
 
 /-- The row's actual lexical scope initializes one word and pops it after its real write. -/
@@ -107,15 +111,15 @@ def loadRowStep (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     ctx.canonicalFreshKey_fresh actual.1, actual.2)
 
 /-- The lexical loader has the complete original-store/reference execution law. -/
-theorem gf2LoadRow_execute (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadRow_execute (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (row : Fin rowCount)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loadRow (model := model) input matrix row).execute Reference state =
+    (loadRow (model := model) input matrix row).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((loadRowStep input matrix row entry.1).1,
         (entry.2.1, (entry.2.2, (loadRowStep input matrix row entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (gf2RowBody_execute (model := model) _ _ _ _) Reference state
 
 /-- All row updates and paths follow the real increasing-index loop. -/
@@ -126,15 +130,15 @@ def loadMatrixStep (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (loadRowStep (model := model) input matrix) store
 
 /-- The whole matrix loader retains arbitrary old Store, Reference and History correlations. -/
-theorem gf2LoadMatrix_execute (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
+lemma gf2LoadMatrix_execute (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width))) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loadMatrix (model := model) input matrix).execute Reference state =
+    (loadMatrix (model := model) input matrix).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((loadMatrixStep input matrix entry.1).1,
         (entry.2.1, (entry.2.2, (loadMatrixStep input matrix entry.1).2)))) :=
-  Circuit.execute_forRangeStoreRecord (model := model) rowCount _ _
+  Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) rowCount _ _
     (gf2LoadRow_execute (model := model) input matrix) Reference state
 
 end

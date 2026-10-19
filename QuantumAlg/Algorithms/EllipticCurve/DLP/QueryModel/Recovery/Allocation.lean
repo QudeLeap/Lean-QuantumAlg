@@ -37,40 +37,40 @@ open Execution
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Every actually prepared bank system is charged once before finite physical reuse. -/
-public def initializationBudget (I : ECDLPInstance E) (A : Access I) :
-    ResourcePool (Sampling.executionModel I A) :=
-  ZeroPreparation.eventCost AlgorithmGate.model (model I A) (layout I) BitWord.model .empty
+public def initializationBudget (I : ECDLPInstance E) :
+    ResourcePool (Sampling.executionModel I) :=
+  ZeroPreparation.eventCost AlgorithmGate.model (model I) (layout I) BitWord.model .empty
 
 /-- The initial preparation and complete actual tail share one event allowance. -/
-public def eventBudget (I : ECDLPInstance E) (A : Access I)
+public def eventBudget (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
-    ResourcePool (Sampling.executionModel I A) :=
-  initializationBudget I A + tailEventBudget I A expansion nontrivial count
+    ResourcePool (Sampling.executionModel I) :=
+  initializationBudget I + tailEventBudget I expansion nontrivial count
 
-private theorem initialization_events (I : ECDLPInstance E) (A : Access I)
-    (path : (Sampling.Reuse.initialCode I A).Path) :
-    (Sampling.Reuse.initialCode I A).resourcePool path = initializationBudget I A := by
+private lemma initialization_events (I : ECDLPInstance E)
+    (path : (Sampling.Reuse.initialCode I).Path) :
+    (Sampling.Reuse.initialCode I).resourcePool path = initializationBudget I := by
   simp only [Sampling.Reuse.initialCode, Sampling.initialCode, Circuit.resourcePool,
     Circuit.eventTrace, Sampling.allocation_trace, ResourcePool.ofList_append,
     ResourcePool.ofList_nil, add_zero, Sampling.preparation_pool]
   rfl
 
-private theorem initialization_resident_le (I : ECDLPInstance E) (A : Access I)
-    (path : (Sampling.Reuse.initialCode I A).Path) :
-    (Sampling.Reuse.initialCode I A).peakResidentSpace path ≤
+private lemma initialization_resident_le (I : ECDLPInstance E)
+    (path : (Sampling.Reuse.initialCode I).Path) :
+    (Sampling.Reuse.initialCode I).peakResidentSpace path ≤
       (Sampling.Reuse.context I).residentSpace := by
-  have bank : (Sampling.preparationCode I A).peakResidentSpace path.1.1 =
+  have bank : (Sampling.preparationCode I).peakResidentSpace path.1.1 =
       (Sampling.bankContext I).residentSpace :=
     Circuit.prepare_peakResidentSpace (gates := AlgorithmGate.model)
-    (oracles := model I A) (operations := BitWord.model) (classicalOracles := .empty)
+    (oracles := model I) (operations := BitWord.model) (classicalOracles := .empty)
     (Sampling.pre I) (Sampling.pre I).canonicalFreshKey (layout I)
     (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.pre I))
     (Sampling.bankDisjoint I) path.1.1
   have cells := MeasurementCells.allocate_peakResidentSpace
-    (model := Sampling.executionModel I A) (Sampling.bankContext I) 2 (Sampling.sampleWidth I)
+    (model := Sampling.executionModel I) (Sampling.bankContext I) 2 (Sampling.sampleWidth I)
     path.1.2
-  have allocated : (Sampling.initialCode I A).peakResidentSpace path.1 ≤
+  have allocated : (Sampling.initialCode I).peakResidentSpace path.1 ≤
       (Sampling.post I).residentSpace := by
     refine (Circuit.peakResidentSpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ cells)
     exact bank.le.trans (MeasurementCells.context_residentSpace_mono (Sampling.bankContext I) 2
@@ -79,25 +79,25 @@ private theorem initialization_resident_le (I : ECDLPInstance E) (A : Access I)
   · exact allocated.trans (by
       rw [Sampling.Reuse.ecdlpReuse_context_resident]
       exact fun _ => Nat.le_add_left _ _)
-  · exact (Circuit.peakResidentSpace_retain (model := Sampling.executionModel I A)
+  · exact (Circuit.peakResidentSpace_retain (model := Sampling.executionModel I)
       (Sampling.post I).canonicalFreshKey (.finite 2)
       (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.post I)) path.2).le
 
-private theorem initialization_auxiliary_le (I : ECDLPInstance E) (A : Access I)
-    (path : (Sampling.Reuse.initialCode I A).Path) :
-    (Sampling.Reuse.initialCode I A).peakAuxiliarySpace path ≤
+private lemma initialization_auxiliary_le (I : ECDLPInstance E)
+    (path : (Sampling.Reuse.initialCode I).Path) :
+    (Sampling.Reuse.initialCode I).peakAuxiliarySpace path ≤
       (Sampling.Reuse.context I).auxiliarySpace := by
-  have bank : (Sampling.preparationCode I A).peakAuxiliarySpace path.1.1 =
+  have bank : (Sampling.preparationCode I).peakAuxiliarySpace path.1.1 =
       (Sampling.bankContext I).auxiliarySpace :=
     Circuit.prepare_peakAuxiliarySpace (gates := AlgorithmGate.model)
-    (oracles := model I A) (operations := BitWord.model) (classicalOracles := .empty)
+    (oracles := model I) (operations := BitWord.model) (classicalOracles := .empty)
     (Sampling.pre I) (Sampling.pre I).canonicalFreshKey (layout I)
     (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.pre I))
     (Sampling.bankDisjoint I) path.1.1
   have cells := MeasurementCells.allocate_peakAuxiliarySpace
-    (model := Sampling.executionModel I A) (Sampling.bankContext I) 2 (Sampling.sampleWidth I)
+    (model := Sampling.executionModel I) (Sampling.bankContext I) 2 (Sampling.sampleWidth I)
     path.1.2
-  have allocated : (Sampling.initialCode I A).peakAuxiliarySpace path.1 ≤
+  have allocated : (Sampling.initialCode I).peakAuxiliarySpace path.1 ≤
       (Sampling.post I).auxiliarySpace := by
     refine (Circuit.peakAuxiliarySpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ cells)
     exact bank.le.trans (MeasurementCells.context_auxiliarySpace_mono (Sampling.bankContext I) 2
@@ -106,41 +106,41 @@ private theorem initialization_auxiliary_le (I : ECDLPInstance E) (A : Access I)
   · exact allocated.trans (by
       rw [Sampling.Reuse.ecdlpReuse_context_auxiliary]
       exact fun _ => Nat.le_add_left _ _)
-  · exact (Circuit.peakAuxiliarySpace_retain (model := Sampling.executionModel I A)
+  · exact (Circuit.peakAuxiliarySpace_retain (model := Sampling.executionModel I)
       (Sampling.post I).canonicalFreshKey (.finite 2)
       (RuntimeCtx.runtimeCtx_canonicalFreshKey_fresh (Sampling.post I)) path.2).le
 
 /-- Every event of the same complete actual run is charged, including count zero. -/
-public theorem ecdlpRecovery_code_events_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_code_events_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (path : (code I A expansion nontrivial count).Path) :
-    (code I A expansion nontrivial count).resourcePool path ≤
-      eventBudget I A expansion nontrivial count := by
+    (path : (code I expansion nontrivial count).Path) :
+    (code I expansion nontrivial count).resourcePool path ≤
+      eventBudget I expansion nontrivial count := by
   change ResourcePool.ofList (_ ++ _) ≤ _
   rw [ResourcePool.ofList_append]
-  exact add_le_add (initialization_events I A path.1).le
-    (ecdlpRecovery_tail_events_le I A expansion nontrivial count path.2)
+  exact add_le_add (initialization_events I path.1).le
+    (ecdlpRecovery_tail_events_le I expansion nontrivial count path.2)
 
 /-- The full run's resident peak includes the initial allocations and all finite rounds. -/
-public theorem ecdlpRecovery_code_resident_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_code_resident_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (path : (code I A expansion nontrivial count).Path) :
-    (code I A expansion nontrivial count).peakResidentSpace path ≤ tailResidentBudget I := by
+    (path : (code I expansion nontrivial count).Path) :
+    (code I expansion nontrivial count).peakResidentSpace path ≤ tailResidentBudget I := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · exact (initialization_resident_le I A path.1).trans (fun _ => Nat.le_add_left _ _)
-  · exact ecdlpRecovery_tail_resident_le I A expansion nontrivial count path.2
+  · exact (initialization_resident_le I path.1).trans (fun _ => Nat.le_add_left _ _)
+  · exact ecdlpRecovery_tail_resident_le I expansion nontrivial count path.2
 
 /-- The full auxiliary peak retains all original roles throughout allocation and reuse. -/
-public theorem ecdlpRecovery_code_auxiliary_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_code_auxiliary_le (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (path : (code I A expansion nontrivial count).Path) :
-    (code I A expansion nontrivial count).peakAuxiliarySpace path ≤ tailAuxiliaryBudget I := by
+    (path : (code I expansion nontrivial count).Path) :
+    (code I expansion nontrivial count).peakAuxiliarySpace path ≤ tailAuxiliaryBudget I := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · exact (initialization_auxiliary_le I A path.1).trans (fun _ => Nat.le_add_left _ _)
-  · exact ecdlpRecovery_tail_auxiliary_le I A expansion nontrivial count path.2
+  · exact (initialization_auxiliary_le I path.1).trans (fun _ => Nat.le_add_left _ _)
+  · exact ecdlpRecovery_tail_auxiliary_le I expansion nontrivial count path.2
 
 end
 

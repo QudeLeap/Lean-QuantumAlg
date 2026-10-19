@@ -31,6 +31,8 @@ open Nat.FixedWidth
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : Arithmetic.VariableModularMul.Parameters]
 
 /-- The one physical variable modular multiply-accumulate carrier. -/
@@ -108,13 +110,13 @@ def fixedWord : EncodedBit.Word wordEncoding params.width where
   bit := fun bit => BinaryLabelEncoding.finIdentityBit params.width
     (WireAddress.littleEndianWire bit)
 
-@[simp] theorem fixedWord_get (bit : Fin params.width)
+@[simp] lemma fixedWord_get (bit : Fin params.width)
     (word : Word params.width) :
     (fixedWord.bit bit).get word = word.val.testBit bit.val := by
   simp [fixedWord, wordEncoding, MAU.Inversion.MK.wordEncoding,
     BinaryLabelEncoding.finIdentityBit, BinaryLabelEncoding.ofEquivBit]
 
-theorem fixedWord_pairwise_ne (left right : Fin params.width)
+lemma fixedWord_pairwise_ne (left right : Fin params.width)
     (hne : left ≠ right) :
     (fixedWord.bit left).wire ≠ (fixedWord.bit right).wire := by
   intro hwire
@@ -330,7 +332,7 @@ def setProductAccumulator (state : ProductRegisters) (value : Word params.width)
     ProductRegisters :=
   { state with accumulator := (value.val : Arithmetic.VariableModularMul.Word) }
 
-theorem productAccumulatorBit_pairwise_ne
+lemma productAccumulatorBit_pairwise_ne
     (left right : Fin params.width) (hne : left ≠ right) :
     (Arithmetic.VariableModularMul.accumulatorBit left).wire ≠
       (Arithmetic.VariableModularMul.accumulatorBit right).wire := by
@@ -469,25 +471,25 @@ def yWord : EncodedBit.Word rawEncoding params.width :=
 
 /-- The product multiplier and division numerator are literally the same
 physical word, not two logical blocks joined by an epoch API. -/
-theorem divisionNumeratorWord_eq_productMultiplierWord :
+lemma divisionNumeratorWord_eq_productMultiplierWord :
     divisionNumeratorWord = productWord productMultiplierWord :=
   rfl
 
 /-- The product accumulator and division quotient are literally the same
 physical word. -/
-theorem divisionQuotientWord_eq_productAccumulatorWord :
+lemma divisionQuotientWord_eq_productAccumulatorWord :
     divisionQuotientWord = productWord productAccumulatorWord :=
   rfl
 
 /-- The public division numerator has no second carrier: it is the product
 multiplier port on this one physical workspace. -/
-theorem divisionNumeratorPort_eq_productMultiplierPort :
+lemma divisionNumeratorPort_eq_productMultiplierPort :
     divisionNumeratorPort = productPort productMultiplierPort :=
   rfl
 
 /-- The public division quotient has no second carrier: it is the product
 accumulator port on this one physical workspace. -/
-theorem divisionQuotientPort_eq_productAccumulatorPort :
+lemma divisionQuotientPort_eq_productAccumulatorPort :
     divisionQuotientPort = productPort productAccumulatorPort :=
   rfl
 
@@ -499,12 +501,12 @@ def zeroExtendWord (value : Word params.width) :
     rw [Arithmetic.ModularInversion.arithmeticWidth_eq]
     exact value.isLt⟩
 
-@[simp] theorem zeroExtendWord_val (value : Word params.width) :
+@[simp] lemma zeroExtendWord_val (value : Word params.width) :
     (zeroExtendWord value).val = value.val :=
   rfl
 
 /-- Any product-carrier wire is physically disjoint from any thin saved word. -/
-theorem product_thin_cross_ne
+lemma product_thin_cross_ne
     (productBit : EncodedBit productEncoding)
     (thinBit : EncodedBit thinEncoding) :
     (BinaryLabelEncoding.prodRightBit Arithmetic.ModularInversion.rawEncoding
@@ -523,7 +525,7 @@ theorem product_thin_cross_ne
 
 /-- Any full-workspace product port is physically disjoint from any retained
 thin-word port. -/
-theorem productPort_thinPort_cross_ne
+lemma productPort_thinPort_cross_ne
     (product : Arithmetic.BlockBank.WordPort productEncoding params.width)
     (thin : Arithmetic.BlockBank.WordPort thinEncoding params.width)
     (productBit thinBit : Fin params.width) :
@@ -533,7 +535,7 @@ theorem productPort_thinPort_cross_ne
 
 /-- The direct multiplier and in-place multiplicand are different physical
 words of the one shared product carrier. -/
-theorem productMultiplier_productMultiplicand_cross_ne
+lemma productMultiplier_productMultiplicand_cross_ne
     (left right : Fin params.width) :
     ((productPort productMultiplierPort).word.bit left).wire ≠
       ((productPort productMultiplicandPort).word.bit right).wire := by
@@ -554,7 +556,7 @@ theorem productMultiplier_productMultiplicand_cross_ne
 
 /-- The direct multiplier and external accumulator are different physical
 words of the one shared product carrier. -/
-theorem productMultiplier_productAccumulator_cross_ne
+lemma productMultiplier_productAccumulator_cross_ne
     (left right : Fin params.width) :
     ((productPort productMultiplierPort).word.bit left).wire ≠
       ((productPort productAccumulatorPort).word.bit right).wire := by
@@ -589,7 +591,7 @@ theorem productMultiplier_productAccumulator_cross_ne
 
 /-- The in-place multiplicand and external accumulator are different physical
 words of the one shared product carrier. -/
-theorem productMultiplicand_productAccumulator_cross_ne
+lemma productMultiplicand_productAccumulator_cross_ne
     (left right : Fin params.width) :
     ((productPort productMultiplicandPort).word.bit left).wire ≠
       ((productPort productAccumulatorPort).word.bit right).wire := by
@@ -643,7 +645,7 @@ theorem productMultiplicand_productAccumulator_cross_ne
 /-- Inversion-owned division wires are disjoint from the shared product
 carrier. This deliberately does not claim that division's product wires are
 disjoint: those wires are the carrier. -/
-theorem division_block_cross_ne
+lemma division_block_cross_ne
     (divisionOwned : EncodedBit Arithmetic.ModularInversion.rawEncoding)
     (productOwned : EncodedBit productEncoding) :
     (BinaryLabelEncoding.prodLeftBit Arithmetic.ModularInversion.rawEncoding
@@ -659,7 +661,7 @@ theorem division_block_cross_ne
 
 /-- Any full-workspace inversion port is physically disjoint from the direct
 product carrier. -/
-theorem inversionPort_productPort_cross_ne
+lemma inversionPort_productPort_cross_ne
     {inversionWidth : Nat}
     (inversion : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding inversionWidth)
@@ -672,7 +674,7 @@ theorem inversionPort_productPort_cross_ne
 
 /-- Any inversion port is physically disjoint from the retained high padding
 flag. -/
-theorem inversionPort_retainedOutputFlagBit_cross_ne
+lemma inversionPort_retainedOutputFlagBit_cross_ne
     {inversionWidth : Nat}
     (inversion : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding inversionWidth)
@@ -701,7 +703,7 @@ def productAccumulatorZeroExtendedWord :
       (Fin.cast Arithmetic.ModularInversion.arithmeticWidth_eq bit)
 
 /-- The physical accumulator transport reads as the value-level transport. -/
-theorem productAccumulatorZeroExtendedWord_get
+lemma productAccumulatorZeroExtendedWord_get
     (state : RawRegisters)
     (bit : Fin Arithmetic.ModularInversion.arithmeticWidth) :
     (productAccumulatorZeroExtendedWord.bit bit).get state =
@@ -714,7 +716,7 @@ theorem productAccumulatorZeroExtendedWord_get
 
 /-- The widened accumulator source is disjoint from every bit of an
 inversion-owned Kaliski input port. -/
-theorem productAccumulatorZeroExtendedWord_inversionPort_cross_ne
+lemma productAccumulatorZeroExtendedWord_inversionPort_cross_ne
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth)
@@ -758,7 +760,7 @@ def productAccumulatorToInversionStep
     (fun bit =>
       productAccumulatorZeroExtendedWord_inversionPort_cross_ne target bit bit)
 
-theorem productAccumulatorToInversionGates_stepList
+lemma productAccumulatorToInversionGates_stepList
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth)
@@ -767,16 +769,17 @@ theorem productAccumulatorToInversionGates_stepList
       productAccumulatorToInversionStep target state :=
   rfl
 
-theorem productAccumulatorToInversion_realizes
+lemma productAccumulatorToInversion_realizes
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth) :
-    UnitaryCircuit.Realizes rawEncoding (productAccumulatorToInversionProgram target)
+    UnitaryCircuit.Realizes rawEncoding (productAccumulatorToInversionProgram target) environment
       (productAccumulatorToInversionStep target) :=
-  EncodedBit.Word.xorInto_realizes (QubitLayout.canonical _) .empty _ _ _
+  EncodedBit.Word.xorInto_realizes (environment := environment)
+    (QubitLayout.canonical _) .empty _ _ _
 
 /-- The widened accumulator loader has one CNOT for every Kaliski input bit. -/
-theorem productAccumulatorToInversionGates_length
+lemma productAccumulatorToInversionGates_length
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth) :
@@ -785,7 +788,7 @@ theorem productAccumulatorToInversionGates_length
   exact EncodedBit.Word.xorIntoGates_length _ _ _
 
 /-- The widened accumulator loader's exact CNOT ledger. -/
-theorem productAccumulatorToInversionGates_cnotMultiplicity_sum
+lemma productAccumulatorToInversionGates_cnotMultiplicity_sum
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth) :
@@ -795,7 +798,7 @@ theorem productAccumulatorToInversionGates_cnotMultiplicity_sum
   exact EncodedBit.Word.xorIntoGates_cnotMultiplicity_sum _ _ _
 
 /-- The widened accumulator loader has no Toffoli leaves. -/
-theorem productAccumulatorToInversionGates_toffoliMultiplicity_sum
+lemma productAccumulatorToInversionGates_toffoliMultiplicity_sum
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth) :
@@ -805,7 +808,7 @@ theorem productAccumulatorToInversionGates_toffoliMultiplicity_sum
 
 /-- Loading a clean inversion input copies the accumulator's zero extension
 without disturbing the rest of the workspace. -/
-theorem productAccumulatorToInversionStep_eq_set_of_clean
+lemma productAccumulatorToInversionStep_eq_set_of_clean
     (target : Arithmetic.BlockBank.WordPort
       Arithmetic.ModularInversion.rawEncoding
         Arithmetic.ModularInversion.arithmeticWidth)
@@ -855,7 +858,7 @@ def productAccumulatorToDenominatorWorkingStep : RawRegisters → RawRegisters :
 
 /-- Clean preserved-denominator loading is the canonical zero extension of
 the direct accumulator. -/
-theorem productAccumulatorToDenominatorPreservedStep_eq_set_of_clean
+lemma productAccumulatorToDenominatorPreservedStep_eq_set_of_clean
     (state : RawRegisters) (value : Word params.width)
     (hsource : (productPort productAccumulatorPort).read state = value)
     (htarget : denominatorPreservedPort.read state = 0) :
@@ -866,7 +869,7 @@ theorem productAccumulatorToDenominatorPreservedStep_eq_set_of_clean
 
 /-- Clean working-denominator loading is the canonical zero extension of the
 direct accumulator. -/
-theorem productAccumulatorToDenominatorWorkingStep_eq_set_of_clean
+lemma productAccumulatorToDenominatorWorkingStep_eq_set_of_clean
     (state : RawRegisters) (value : Word params.width)
     (hsource : (productPort productAccumulatorPort).read state = value)
     (htarget : denominatorWorkingPort.read state = 0) :
@@ -882,7 +885,7 @@ def denominatorPreservedLowWord : EncodedBit.Word rawEncoding params.width where
 
 /-- A preserved denominator stored as a zero extension has the expected low
 field bits. -/
-theorem denominatorPreservedLowWord_get_of_zeroExtend
+lemma denominatorPreservedLowWord_get_of_zeroExtend
     (state : RawRegisters) (value : Word params.width)
     (hpreserved : denominatorPreservedPort.read state = zeroExtendWord value)
     (bit : Fin params.width) :
@@ -895,7 +898,7 @@ theorem denominatorPreservedLowWord_get_of_zeroExtend
 
 /-- Every preserved low denominator bit is physically disjoint from every
 direct product-accumulator bit. -/
-theorem denominatorPreservedLowWord_productAccumulator_cross_ne
+lemma denominatorPreservedLowWord_productAccumulator_cross_ne
     (sourceBit targetBit : Fin params.width) :
     (denominatorPreservedLowWord.bit sourceBit).wire ≠
       ((productPort productAccumulatorPort).word.bit targetBit).wire := by
@@ -923,31 +926,31 @@ def denominatorPreservedToProductAccumulatorStep : RawRegisters → RawRegisters
     (fun bit =>
       denominatorPreservedLowWord_productAccumulator_cross_ne bit bit)
 
-theorem denominatorPreservedToProductAccumulatorGates_stepList
+lemma denominatorPreservedToProductAccumulatorGates_stepList
     (state : RawRegisters) :
     EncodedBit.GateSpec.stepList denominatorPreservedToProductAccumulatorGates state =
       denominatorPreservedToProductAccumulatorStep state :=
   rfl
 
 /-- The preserved-denominator accumulator route has one CNOT per field bit. -/
-theorem denominatorPreservedToProductAccumulatorGates_length :
+lemma denominatorPreservedToProductAccumulatorGates_length :
     denominatorPreservedToProductAccumulatorGates.length = params.width := by
   exact EncodedBit.Word.xorIntoGates_length _ _ _
 
 /-- Exact CNOT ledger of the preserved-denominator accumulator route. -/
-theorem denominatorPreservedToProductAccumulatorGates_cnotMultiplicity_sum :
+lemma denominatorPreservedToProductAccumulatorGates_cnotMultiplicity_sum :
     (denominatorPreservedToProductAccumulatorGates.map
       EncodedBit.GateSpec.cnotMultiplicity).sum = params.width := by
   exact EncodedBit.Word.xorIntoGates_cnotMultiplicity_sum _ _ _
 
 /-- The preserved-denominator accumulator route has no Toffoli leaves. -/
-theorem denominatorPreservedToProductAccumulatorGates_toffoliMultiplicity_sum :
+lemma denominatorPreservedToProductAccumulatorGates_toffoliMultiplicity_sum :
     (denominatorPreservedToProductAccumulatorGates.map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   exact EncodedBit.Word.xorIntoGates_toffoliMultiplicity_sum _ _ _
 
 /-- Loading a clean accumulator copies the low preserved denominator word. -/
-theorem denominatorPreservedToProductAccumulatorStep_eq_set_of_clean
+lemma denominatorPreservedToProductAccumulatorStep_eq_set_of_clean
     (state : RawRegisters) (value : Word params.width)
     (hpreserved : denominatorPreservedPort.read state = zeroExtendWord value)
     (htarget : (productPort productAccumulatorPort).read state = 0) :
@@ -977,7 +980,7 @@ theorem denominatorPreservedToProductAccumulatorStep_eq_set_of_clean
 
 /-- When the direct accumulator already equals the preserved denominator's
 low word, the same literal CNOT route clears it. -/
-theorem denominatorPreservedToProductAccumulatorStep_eq_set_zero_of_equal
+lemma denominatorPreservedToProductAccumulatorStep_eq_set_zero_of_equal
     (state : RawRegisters)
     (hequal : denominatorPreservedPort.read state =
       zeroExtendWord ((productPort productAccumulatorPort).read state)) :
@@ -1025,7 +1028,7 @@ theorem denominatorPreservedToProductAccumulatorStep_eq_set_zero_of_equal
       rw [(productPort productAccumulatorPort).set_set]
 
 /-- The division numerator and its thin saved copy are distinct physical words. -/
-theorem divisionNumerator_numeratorScratch_cross_ne
+lemma divisionNumerator_numeratorScratch_cross_ne
     (left right : Fin params.width) :
     (divisionNumeratorWord.bit left).wire ≠ (numeratorScratchWord.bit right).wire :=
   product_thin_cross_ne (Arithmetic.VariableModularMul.multiplierBit left)
@@ -1071,7 +1074,7 @@ def sharedProductGates
 
 /-- Relabeling the direct multiplication schedule preserves its primitive
 event ledger. -/
-theorem multiplicationGates_map_event :
+lemma multiplicationGates_map_event :
     multiplicationGates.map (EncodedBit.GateSpec.event .empty) =
       Arithmetic.VariableModularMulSchedule.gates.map
         (EncodedBit.GateSpec.event .empty) := by
@@ -1080,13 +1083,13 @@ theorem multiplicationGates_map_event :
 
 /-- Relabeling the direct multiplication schedule preserves its literal
 primitive-list length. -/
-theorem multiplicationGates_length :
+lemma multiplicationGates_length :
     multiplicationGates.length =
       Arithmetic.VariableModularMulSchedule.gates.length := by
   simp only [multiplicationGates, List.length_map]
 
 /-- Relabeling preserves the direct multiplication CNOT coordinate. -/
-theorem multiplicationGates_cnotMultiplicity_sum :
+lemma multiplicationGates_cnotMultiplicity_sum :
     (multiplicationGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       (Arithmetic.VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum :=
@@ -1094,7 +1097,7 @@ theorem multiplicationGates_cnotMultiplicity_sum :
     multiplicationGates_map_event
 
 /-- Relabeling preserves the direct multiplication Toffoli coordinate. -/
-theorem multiplicationGates_toffoliMultiplicity_sum :
+lemma multiplicationGates_toffoliMultiplicity_sum :
     (multiplicationGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (Arithmetic.VariableModularMulSchedule.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum :=
@@ -1114,7 +1117,7 @@ def multiplicationToffoliBound : Nat :=
   Arithmetic.VariableModularMulSchedule.toffoliBoundFor params.width
 
 /-- The direct shared product gate list obeys its source event ledger. -/
-theorem multiplicationGates_length_le :
+lemma multiplicationGates_length_le :
     multiplicationGates.length ≤ multiplicationGateLengthBound := by
   rw [multiplicationGates_length]
   simpa only [multiplicationGateLengthBound,
@@ -1122,7 +1125,7 @@ theorem multiplicationGates_length_le :
     Arithmetic.VariableModularMulSchedule.gates_length_le
 
 /-- The direct shared product gate list obeys its source CNOT ledger. -/
-theorem multiplicationGates_cnotMultiplicity_sum_le :
+lemma multiplicationGates_cnotMultiplicity_sum_le :
     (multiplicationGates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       multiplicationCnotBound := by
   rw [multiplicationGates_cnotMultiplicity_sum]
@@ -1131,7 +1134,7 @@ theorem multiplicationGates_cnotMultiplicity_sum_le :
     Arithmetic.VariableModularMulSchedule.gates_cnotMultiplicity_sum_le
 
 /-- The direct shared product gate list obeys its source Toffoli ledger. -/
-theorem multiplicationGates_toffoliMultiplicity_sum_le :
+lemma multiplicationGates_toffoliMultiplicity_sum_le :
     (multiplicationGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       multiplicationToffoliBound := by
   rw [multiplicationGates_toffoliMultiplicity_sum]
@@ -1140,7 +1143,7 @@ theorem multiplicationGates_toffoliMultiplicity_sum_le :
     Arithmetic.VariableModularMulSchedule.gates_toffoliMultiplicity_sum_le
 
 /-- The direct relabeled multiplication schedule keeps its named endpoint. -/
-theorem multiplicationGates_stepList (state : ProductRegisters) :
+lemma multiplicationGates_stepList (state : ProductRegisters) :
     EncodedBit.GateSpec.stepList multiplicationGates state =
       Arithmetic.VariableModularMulSchedule.step state := by
   rw [multiplicationGates, EncodedBit.GateSpec.stepList_relabel]
@@ -1149,7 +1152,7 @@ theorem multiplicationGates_stepList (state : ProductRegisters) :
   simp only [Equiv.symm_apply_apply]
 
 /-- The direct relabeled selected-add schedule keeps its named endpoint. -/
-theorem selectedAdditionGates_stepList (bit : Fin params.width)
+lemma selectedAdditionGates_stepList (bit : Fin params.width)
     (state : ProductRegisters) :
     EncodedBit.GateSpec.stepList (selectedAdditionGates bit) state =
       Arithmetic.VariableModularMul.selectedAddStep bit state := by
@@ -1159,7 +1162,7 @@ theorem selectedAdditionGates_stepList (bit : Fin params.width)
   simp only [Equiv.symm_apply_apply]
 
 /-- Relabeling the selected-add schedule preserves its primitive events. -/
-theorem selectedAdditionGates_map_event (bit : Fin params.width) :
+lemma selectedAdditionGates_map_event (bit : Fin params.width) :
     (selectedAdditionGates bit).map (EncodedBit.GateSpec.event .empty) =
       (Arithmetic.VariableModularMul.selectedAddGates bit).map
         (EncodedBit.GateSpec.event .empty) := by
@@ -1167,13 +1170,13 @@ theorem selectedAdditionGates_map_event (bit : Fin params.width) :
     .empty Arithmetic.VariableModularMul.registersEquiv _
 
 /-- Relabeling preserves the selected-add primitive-list length. -/
-theorem selectedAdditionGates_length (bit : Fin params.width) :
+lemma selectedAdditionGates_length (bit : Fin params.width) :
     (selectedAdditionGates bit).length =
       (Arithmetic.VariableModularMul.selectedAddGates bit).length := by
   simp only [selectedAdditionGates, List.length_map]
 
 /-- One selected-add route retains the exact direct CNOT coordinate. -/
-theorem selectedAdditionGates_cnotMultiplicity_sum (bit : Fin params.width) :
+lemma selectedAdditionGates_cnotMultiplicity_sum (bit : Fin params.width) :
     ((selectedAdditionGates bit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
       8 * params.width + 1 := by
@@ -1182,7 +1185,7 @@ theorem selectedAdditionGates_cnotMultiplicity_sum (bit : Fin params.width) :
   exact Arithmetic.VariableModularMul.selectedAddGates_cnotMultiplicity_sum bit
 
 /-- The direct selected-add list obeys the source event ledger. -/
-theorem selectedAdditionGates_length_le (bit : Fin params.width) :
+lemma selectedAdditionGates_length_le (bit : Fin params.width) :
     (selectedAdditionGates bit).length ≤ 116 * params.width + 15 := by
   rw [selectedAdditionGates_length]
   simpa only [Arithmetic.VariableModularMul.selectedAddCircuit,
@@ -1190,7 +1193,7 @@ theorem selectedAdditionGates_length_le (bit : Fin params.width) :
     Arithmetic.VariableModularMul.selectedAddCircuit_eventCount_le bit
 
 /-- The direct selected-add list obeys the source Toffoli ledger. -/
-theorem selectedAdditionGates_toffoliMultiplicity_sum_le
+lemma selectedAdditionGates_toffoliMultiplicity_sum_le
     (bit : Fin params.width) :
     ((selectedAdditionGates bit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
@@ -1202,7 +1205,7 @@ theorem selectedAdditionGates_toffoliMultiplicity_sum_le
     Arithmetic.VariableModularMul.selectedAddCircuit_toffoli_count_le bit
 
 /-- Lifting a product schedule changes only its physical wire addresses. -/
-theorem sharedProductGates_map_event
+lemma sharedProductGates_map_event
     (gates : List (EncodedBit.GateSpec productEncoding)) :
     (sharedProductGates gates).map (EncodedBit.GateSpec.event .empty) =
       gates.map (EncodedBit.GateSpec.event .empty) := by
@@ -1212,14 +1215,14 @@ theorem sharedProductGates_map_event
       (EncodedBit.GateSpec.map_event_prodLeft tailEncoding _)
 
 /-- The shared-carrier lift preserves the literal schedule length. -/
-theorem sharedProductGates_length
+lemma sharedProductGates_length
     (gates : List (EncodedBit.GateSpec productEncoding)) :
     (sharedProductGates gates).length = gates.length := by
   simpa only [List.length_map] using
     congrArg List.length (sharedProductGates_map_event gates)
 
 /-- Lifting a direct product schedule changes only untouched outer fields. -/
-theorem sharedProductGates_stepList
+lemma sharedProductGates_stepList
     (gates : List (EncodedBit.GateSpec productEncoding))
     (state : RawRegisters) :
     EncodedBit.GateSpec.stepList (sharedProductGates gates) state =
@@ -1251,7 +1254,7 @@ def productRegistersWithFrame
     (tail : ThinRegisters × OutputRegisters) : RawRegisters :=
   (inversion, (Arithmetic.VariableModularMul.cleanRegisters x, tail))
 
-@[simp] theorem productMultiplierPort_read_productRegistersWithFrame
+@[simp] lemma productMultiplierPort_read_productRegistersWithFrame
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1268,7 +1271,7 @@ def productRegistersWithFrame
     Arithmetic.ModularDivision.productNumeratorPort,
     Arithmetic.ModularDivision.residueWord]
 
-@[simp] theorem productMultiplicandPort_read_productRegistersWithFrame
+@[simp] lemma productMultiplicandPort_read_productRegistersWithFrame
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1285,7 +1288,7 @@ def productRegistersWithFrame
     MAU.Multiplication.Accumulate.VBECircuit.workspaceState,
     Arithmetic.ModularDivision.residueWord]
 
-@[simp] theorem productAccumulatorPort_read_productRegistersWithFrame
+@[simp] lemma productAccumulatorPort_read_productRegistersWithFrame
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1301,7 +1304,7 @@ def productRegistersWithFrame
     Arithmetic.VariableModularMul.cleanRegisters,
     Arithmetic.ModularDivision.residueWord]
 
-theorem productMultiplierPort_set_productRegistersWithFrame
+lemma productMultiplierPort_set_productRegistersWithFrame
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters)
@@ -1318,7 +1321,7 @@ theorem productMultiplierPort_set_productRegistersWithFrame
     Arithmetic.ModularDivision.productNumeratorPort,
     Arithmetic.ModularDivision.residueWord]
 
-theorem productMultiplicandPort_set_productRegistersWithFrame
+lemma productMultiplicandPort_set_productRegistersWithFrame
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters)
@@ -1336,7 +1339,7 @@ theorem productMultiplicandPort_set_productRegistersWithFrame
     MAU.Multiplication.Accumulate.VBECircuit.workspaceState,
     Arithmetic.ModularDivision.residueWord]
 
-theorem productAccumulatorPort_set_productRegistersWithFrame
+lemma productAccumulatorPort_set_productRegistersWithFrame
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters)
@@ -1372,7 +1375,7 @@ def subtractSelected (bit : Fin params.width)
 
 /-- The real shared multiplication list maps a clean framed carrier to the
 clean product-accumulated carrier and preserves both arbitrary frame parts. -/
-theorem sharedMultiplicationGates_clean
+lemma sharedMultiplicationGates_clean
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1388,7 +1391,7 @@ theorem sharedMultiplicationGates_clean
 
 /-- Reversing the same literal multiplication list subtracts the variable
 product and restores a clean framed carrier. -/
-theorem sharedMultiplicationGates_reverse_clean
+lemma sharedMultiplicationGates_reverse_clean
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1409,7 +1412,7 @@ theorem sharedMultiplicationGates_reverse_clean
 
 /-- One real selected-add list preserves a clean framed carrier and adds the
 multiplicand exactly when the selected multiplier bit is set. -/
-theorem sharedSelectedAdditionGates_clean
+lemma sharedSelectedAdditionGates_clean
     (bit : Fin params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
@@ -1426,7 +1429,7 @@ theorem sharedSelectedAdditionGates_clean
 
 /-- Reversing the same literal selected-add list subtracts its selected
 multiplicand contribution and restores the clean carrier. -/
-theorem sharedSelectedAdditionGates_reverse_clean
+lemma sharedSelectedAdditionGates_reverse_clean
     (bit : Fin params.width)
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
@@ -1448,7 +1451,7 @@ theorem sharedSelectedAdditionGates_reverse_clean
 
 /-- The literal one-gate selected-add toggle has exactly the semantic bit-flip
 action of the low multiplier wire. -/
-theorem selectedAdditionToggleGates_stepList (state : RawRegisters) :
+lemma selectedAdditionToggleGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList selectedAdditionToggleGates state =
       (productBit
         (Arithmetic.VariableModularMul.multiplierBit
@@ -1457,7 +1460,7 @@ theorem selectedAdditionToggleGates_stepList (state : RawRegisters) :
 
 /-- On a clean carrier whose semantic multiplier is zero, the literal toggle
 sets the selected-add control bit. -/
-theorem selectedAdditionToggleGates_sets_selectedBit
+lemma selectedAdditionToggleGates_sets_selectedBit
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters)
@@ -1500,7 +1503,7 @@ def enableSelectedAddition
 clean zero-multiplier carrier into the canonical clean one-multiplier carrier.
 This is the bridge that lets the real selected-add schedule serve as an
 unconditional modular-add microkernel. -/
-theorem selectedAdditionToggleGates_enable_clean
+lemma selectedAdditionToggleGates_enable_clean
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters)
@@ -1581,7 +1584,7 @@ theorem selectedAdditionToggleGates_enable_clean
 /-- Executing the same literal selected-add toggle a second time restores the
 entire framed carrier, hence in particular returns the selected bit to its
 clean-zero value. -/
-theorem selectedAdditionToggleGates_twice
+lemma selectedAdditionToggleGates_twice
     (state : RawRegisters) :
     EncodedBit.GateSpec.stepList selectedAdditionToggleGates
         (EncodedBit.GateSpec.stepList selectedAdditionToggleGates state) =
@@ -1592,7 +1595,7 @@ theorem selectedAdditionToggleGates_twice
 
 /-- After the clean enable bridge, executing the same actual X gate restores
 the original zero-multiplier carrier without disturbing either frame part. -/
-theorem selectedAdditionToggleGates_disable_clean
+lemma selectedAdditionToggleGates_disable_clean
     (inversion : Arithmetic.ModularInversion.RawRegisters)
     (x : Arithmetic.VariableModularMul.Data)
     (tail : ThinRegisters × OutputRegisters)
@@ -1612,12 +1615,12 @@ def inversionGates : List (EncodedBit.GateSpec rawEncoding) :=
 
 /-- Lifting inversion over the actual shared carrier preserves its list
 length. -/
-theorem inversionGates_length :
+lemma inversionGates_length :
     inversionGates.length = Arithmetic.ModularInversion.gates.length := by
   exact EncodedBit.GateSpec.length_prodLeft productTailEncoding _
 
 /-- Lifting inversion changes only its wire addresses. -/
-theorem inversionGates_map_event :
+lemma inversionGates_map_event :
     inversionGates.map (EncodedBit.GateSpec.event .empty) =
       Arithmetic.ModularInversion.gates.map (EncodedBit.GateSpec.event .empty) := by
   exact EncodedBit.GateSpec.map_event_prodLeft productTailEncoding _
@@ -1630,7 +1633,7 @@ def inverseSourceWord : EncodedBit.Word rawEncoding params.width where
 
 /-- The inverse source and shared product multiplicand live in separate
 physical product components. -/
-theorem inverseSource_productTarget_ne (bit : Fin params.width) :
+lemma inverseSource_productTarget_ne (bit : Fin params.width) :
     (inverseSourceWord.bit bit).wire ≠ (divisionProductTargetWord.bit bit).wire := by
   exact division_block_cross_ne
     (Arithmetic.ModularDivision.inverseTargetLowBit bit)
@@ -1643,19 +1646,19 @@ def divisionLoadGates : List (EncodedBit.GateSpec rawEncoding) :=
     inverseSource_productTarget_ne
 
 /-- The inverse loader is one CNOT per field bit. -/
-theorem divisionLoadGates_length : divisionLoadGates.length = params.width := by
+lemma divisionLoadGates_length : divisionLoadGates.length = params.width := by
   exact EncodedBit.Word.xorIntoGates_length
     inverseSourceWord divisionProductTargetWord inverseSource_productTarget_ne
 
 /-- The inverse loader has the same CNOT count as its word width. -/
-theorem divisionLoadGates_cnotMultiplicity_sum :
+lemma divisionLoadGates_cnotMultiplicity_sum :
     (divisionLoadGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       params.width := by
   exact EncodedBit.Word.xorIntoGates_cnotMultiplicity_sum
     inverseSourceWord divisionProductTargetWord inverseSource_productTarget_ne
 
 /-- The inverse loader has no Toffoli leaves. -/
-theorem divisionLoadGates_toffoliMultiplicity_sum :
+lemma divisionLoadGates_toffoliMultiplicity_sum :
     (divisionLoadGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   exact EncodedBit.Word.xorIntoGates_toffoliMultiplicity_sum
     inverseSourceWord divisionProductTargetWord inverseSource_productTarget_ne
@@ -1669,7 +1672,7 @@ def divisionGates : List (EncodedBit.GateSpec rawEncoding) :=
     divisionLoadGates.reverse ++ inversionGates.reverse
 
 /-- Exact primitive-length decomposition of the real shared division route. -/
-theorem divisionGates_length :
+lemma divisionGates_length :
     divisionGates.length =
       2 * Arithmetic.ModularInversion.gates.length + 2 * params.width +
         Arithmetic.VariableModularMulSchedule.gates.length := by
@@ -1679,7 +1682,7 @@ theorem divisionGates_length :
   omega
 
 /-- Exact CNOT decomposition of the real shared division route. -/
-theorem divisionGates_cnotMultiplicity_sum :
+lemma divisionGates_cnotMultiplicity_sum :
     (divisionGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       2 * (Arithmetic.ModularInversion.gates.map
         EncodedBit.GateSpec.cnotMultiplicity).sum + 2 * params.width +
@@ -1696,7 +1699,7 @@ theorem divisionGates_cnotMultiplicity_sum :
   omega
 
 /-- Exact Toffoli decomposition of the real shared division route. -/
-theorem divisionGates_toffoliMultiplicity_sum :
+lemma divisionGates_toffoliMultiplicity_sum :
     (divisionGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       2 * (Arithmetic.ModularInversion.gates.map
         EncodedBit.GateSpec.toffoliMultiplicity).sum +
@@ -1747,7 +1750,7 @@ def divisionProductReadyWithTail
     (Arithmetic.ModularDivision.productReadyRegisters x accumulator) tail
 
 /-- The lifted inversion list acts only on the inversion prefix. -/
-theorem inversionGates_stepList (state : RawRegisters) :
+lemma inversionGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList inversionGates state =
       (Arithmetic.ModularInversion.rawStep state.1, state.2) := by
   calc
@@ -1762,7 +1765,7 @@ theorem inversionGates_stepList (state : RawRegisters) :
 
 /-- The direct product target and inversion-produced inverse word are
 physically disjoint in both directions. -/
-theorem divisionProductTarget_inverseSource_cross_ne
+lemma divisionProductTarget_inverseSource_cross_ne
     (sourceBit targetBit : Fin params.width) :
     (divisionProductTargetWord.bit targetBit).wire ≠
       (inverseSourceWord.bit sourceBit).wire := by
@@ -1772,7 +1775,7 @@ theorem divisionProductTarget_inverseSource_cross_ne
 
 /-- On an inverse-ready direct workspace, the lifted source word reads the
 same inverse residue as the canonical division core. -/
-theorem inverseSourceWord_get_inverseReadyWithTail
+lemma inverseSourceWord_get_inverseReadyWithTail
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val)
     (tail : ThinRegisters × OutputRegisters)
@@ -1788,7 +1791,7 @@ theorem inverseSourceWord_get_inverseReadyWithTail
 
 /-- Computing the inverse on a clean direct workspace establishes the same
 inverse-ready core while preserving the complete retained tail. -/
-theorem inversionGates_clean
+lemma inversionGates_clean
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1807,7 +1810,7 @@ theorem inversionGates_clean
 
 /-- The literal direct CNOT loader installs the inverse in the one shared
 product multiplicand and leaves the retained tail unchanged. -/
-theorem divisionLoadGates_inverseReady
+lemma divisionLoadGates_inverseReady
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1872,7 +1875,7 @@ theorem divisionLoadGates_inverseReady
 
 /-- The literal shared product stage adds the quotient to the selected
 accumulator while preserving the inversion prefix and retained tail. -/
-theorem sharedProductGates_productReady
+lemma sharedProductGates_productReady
     (x : MAU.Division.Data params.modulus.val)
     (accumulator : ZMod params.modulus.val)
     (tail : ThinRegisters × OutputRegisters) :
@@ -1901,20 +1904,21 @@ def divisionStep : RawRegisters → RawRegisters :=
 
 /-- The named total action is definitionally the fold of the source gate
 ledger. -/
-theorem divisionGates_stepList (state : RawRegisters) :
+lemma divisionGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList divisionGates state = divisionStep state :=
   rfl
 
 /-- The compiled direct division circuit realizes the same folded source
 ledger used for resources. -/
-theorem divisionProgram_realizes :
-    UnitaryCircuit.Realizes rawEncoding divisionProgram divisionStep :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty divisionGates
+lemma divisionProgram_realizes :
+    UnitaryCircuit.Realizes rawEncoding divisionProgram environment divisionStep :=
+  EncodedBit.GateSpec.realizesList (environment := environment)
+    (QubitLayout.canonical _) .empty divisionGates
 
 /-- The complete literal direct division schedule maps a clean core to the
 quotient-updated clean core while preserving every retained point-addition
 word and control bit. -/
-theorem divisionGates_cleanEndpoint
+lemma divisionGates_cleanEndpoint
     (x : MAU.Division.Data params.modulus.val)
     (tail : ThinRegisters × OutputRegisters) :
     EncodedBit.GateSpec.stepList divisionGates
@@ -1974,7 +1978,7 @@ def divisionToffoliBound : Nat :=
   2 * Arithmetic.ModularInversion.toffoliBound + multiplicationToffoliBound
 
 /-- The actual shared division gate list obeys its literal event ledger. -/
-theorem divisionGates_length_le :
+lemma divisionGates_length_le :
     divisionGates.length ≤ divisionGateLengthBound := by
   rw [divisionGates_length]
   have hinversion : Arithmetic.ModularInversion.gates.length ≤
@@ -1986,7 +1990,7 @@ theorem divisionGates_length_le :
   omega
 
 /-- The actual shared division gate list obeys its literal CNOT ledger. -/
-theorem divisionGates_cnotMultiplicity_sum_le :
+lemma divisionGates_cnotMultiplicity_sum_le :
     (divisionGates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       divisionCnotBound := by
   rw [divisionGates_cnotMultiplicity_sum]
@@ -2001,7 +2005,7 @@ theorem divisionGates_cnotMultiplicity_sum_le :
   omega
 
 /-- The actual shared division gate list obeys its literal Toffoli ledger. -/
-theorem divisionGates_toffoliMultiplicity_sum_le :
+lemma divisionGates_toffoliMultiplicity_sum_le :
     (divisionGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       divisionToffoliBound := by
   rw [divisionGates_toffoliMultiplicity_sum]
@@ -2017,7 +2021,7 @@ theorem divisionGates_toffoliMultiplicity_sum_le :
 
 /-- The physical carrier has one inversion workspace, one direct variable
 product carrier, four thin field words, two output words, and two suffix bits. -/
-theorem rawEncoding_width_exact :
+lemma rawEncoding_width_exact :
     rawEncoding.width =
       Arithmetic.ModularInversion.physicalWidthFor params.width +
         13 * params.width + 7 := by

@@ -27,6 +27,8 @@ namespace Circuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -66,12 +68,12 @@ def spillWorkingPathProgram (tail counterWidth : Nat)
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (spillWorkingPathGates tail counterWidth roundIndex)
 
-theorem spillWorkingPath_realizes (tail counterWidth : Nat)
+lemma spillWorkingPath_realizes (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (spillWorkingPathProgram tail counterWidth roundIndex)
+      (spillWorkingPathProgram tail counterWidth roundIndex) environment
       (spillWorkingPathStep tail counterWidth roundIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (spillWorkingPathGates tail counterWidth roundIndex)
 
 /-- Reset the working path from the just-written route slot. -/
@@ -107,15 +109,15 @@ def resetWorkingPathProgram (tail counterWidth : Nat)
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (resetWorkingPathGates tail counterWidth roundIndex)
 
-theorem resetWorkingPath_realizes (tail counterWidth : Nat)
+lemma resetWorkingPath_realizes (tail counterWidth : Nat)
     (roundIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (resetWorkingPathProgram tail counterWidth roundIndex)
+      (resetWorkingPathProgram tail counterWidth roundIndex) environment
       (resetWorkingPathStep tail counterWidth roundIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (resetWorkingPathGates tail counterWidth roundIndex)
 
-theorem spillWorkingPathStep_get_path
+lemma spillWorkingPathStep_get_path
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (workingPathBit tail counterWidth).get
@@ -132,7 +134,7 @@ theorem spillWorkingPathStep_get_path
     (workingPathBit_routeHistoryBit_wire_ne
       tail counterWidth roundIndex).symm x
 
-theorem spillWorkingPathStep_get_route
+lemma spillWorkingPathStep_get_route
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (routeHistoryBit tail counterWidth roundIndex).get
@@ -147,7 +149,7 @@ theorem spillWorkingPathStep_get_route
     (workingPathBit tail counterWidth)
     (routeHistoryBit tail counterWidth roundIndex) x
 
-theorem spillWorkingPathStep_get_other_route
+lemma spillWorkingPathStep_get_other_route
     (tail counterWidth : Nat)
     (roundIndex otherIndex : Fin (2 * tail.succ))
     (hne : roundIndex ≠ otherIndex)
@@ -166,7 +168,7 @@ theorem spillWorkingPathStep_get_other_route
     (routeHistoryBit_routeHistoryBit_wire_ne
       tail counterWidth roundIndex otherIndex hne) x
 
-theorem resetWorkingPathStep_get_path
+lemma resetWorkingPathStep_get_path
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (workingPathBit tail counterWidth).get
@@ -183,7 +185,7 @@ theorem resetWorkingPathStep_get_path
 
 /-- Reset writes only the path wire, so this covers both the selected route
 bit and every other route bit. -/
-theorem resetWorkingPathStep_get_route
+lemma resetWorkingPathStep_get_route
     (tail counterWidth : Nat)
     (roundIndex observedIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
@@ -201,7 +203,7 @@ theorem resetWorkingPathStep_get_route
     (workingPathBit_routeHistoryBit_wire_ne
       tail counterWidth observedIndex) x
 
-theorem spillResetWorkingPathStep_get_selected_route_of_clean
+lemma spillResetWorkingPathStep_get_selected_route_of_clean
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hclean :
@@ -214,7 +216,7 @@ theorem spillResetWorkingPathStep_get_selected_route_of_clean
     spillWorkingPathStep_get_route, hclean]
   simp
 
-theorem spillResetWorkingPathStep_get_path_of_clean
+lemma spillResetWorkingPathStep_get_path_of_clean
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hclean :
@@ -227,7 +229,7 @@ theorem spillResetWorkingPathStep_get_path_of_clean
     spillWorkingPathStep_get_route, hclean]
   cases (workingPathBit tail counterWidth).get x <;> rfl
 
-theorem spillResetWorkingPathStep_get_other_route
+lemma spillResetWorkingPathStep_get_other_route
     (tail counterWidth : Nat)
     (roundIndex otherIndex : Fin (2 * tail.succ))
     (hne : roundIndex ≠ otherIndex)
@@ -250,7 +252,7 @@ private def fullRoundControlSnapshot (tail counterWidth : Nat)
   fullRound := x.1.1.1
   control := x.1.2
 
-private theorem spillWorkingPathStep_fullRoundControlSnapshot
+private lemma spillWorkingPathStep_fullRoundControlSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     fullRoundControlSnapshot tail counterWidth
@@ -264,7 +266,7 @@ private theorem spillWorkingPathStep_fullRoundControlSnapshot
   intro y
   rfl
 
-private theorem resetWorkingPathStep_fullRoundControlSnapshot
+private lemma resetWorkingPathStep_fullRoundControlSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     fullRoundControlSnapshot tail counterWidth
@@ -278,7 +280,7 @@ private theorem resetWorkingPathStep_fullRoundControlSnapshot
   intro y
   rfl
 
-theorem spillWorkingPathStep_get_fullRound
+lemma spillWorkingPathStep_get_fullRound
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (spillWorkingPathStep tail counterWidth roundIndex x).1.1.1 =
@@ -287,7 +289,7 @@ theorem spillWorkingPathStep_get_fullRound
     (spillWorkingPathStep_fullRoundControlSnapshot
       tail counterWidth roundIndex x)
 
-theorem resetWorkingPathStep_get_fullRound
+lemma resetWorkingPathStep_get_fullRound
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (resetWorkingPathStep tail counterWidth roundIndex x).1.1.1 =
@@ -296,7 +298,7 @@ theorem resetWorkingPathStep_get_fullRound
     (resetWorkingPathStep_fullRoundControlSnapshot
       tail counterWidth roundIndex x)
 
-theorem spillWorkingPathStep_get_control
+lemma spillWorkingPathStep_get_control
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (spillWorkingPathStep tail counterWidth roundIndex x).1.2 = x.1.2 := by
@@ -304,7 +306,7 @@ theorem spillWorkingPathStep_get_control
     (spillWorkingPathStep_fullRoundControlSnapshot
       tail counterWidth roundIndex x)
 
-theorem resetWorkingPathStep_get_control
+lemma resetWorkingPathStep_get_control
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (resetWorkingPathStep tail counterWidth roundIndex x).1.2 = x.1.2 := by
@@ -312,7 +314,7 @@ theorem resetWorkingPathStep_get_control
     (resetWorkingPathStep_fullRoundControlSnapshot
       tail counterWidth roundIndex x)
 
-theorem spillResetWorkingPathStep_get_dataRegisters
+lemma spillResetWorkingPathStep_get_dataRegisters
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     dataRegisters tail counterWidth
@@ -345,7 +347,7 @@ private def persistentDataSnapshot (tail counterWidth : Nat)
   counter := (dataRegisters tail counterWidth x).counter
   history := (dataRegisters tail counterWidth x).history
 
-private theorem branchResidueCleanupStep_persistentDataSnapshot
+private lemma branchResidueCleanupStep_persistentDataSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     persistentDataSnapshot tail counterWidth
@@ -361,7 +363,7 @@ private theorem branchResidueCleanupStep_persistentDataSnapshot
     intro y
     rfl
 
-private theorem spillWorkingPathStep_persistentDataSnapshot
+private lemma spillWorkingPathStep_persistentDataSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     persistentDataSnapshot tail counterWidth
@@ -375,7 +377,7 @@ private theorem spillWorkingPathStep_persistentDataSnapshot
   intro y
   rfl
 
-private theorem resetWorkingPathStep_persistentDataSnapshot
+private lemma resetWorkingPathStep_persistentDataSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     persistentDataSnapshot tail counterWidth
@@ -389,7 +391,7 @@ private theorem resetWorkingPathStep_persistentDataSnapshot
   intro y
   rfl
 
-private theorem cleanupSpillReset_persistentDataSnapshot
+private lemma cleanupSpillReset_persistentDataSnapshot
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     persistentDataSnapshot tail counterWidth
@@ -403,7 +405,7 @@ private theorem cleanupSpillReset_persistentDataSnapshot
 
 /-- The physical suffix preserves the raw source-state projection for any
 explicit source step counters. -/
-theorem cleanupSpillReset_fromRegisters
+lemma cleanupSpillReset_fromRegisters
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
@@ -426,7 +428,7 @@ theorem cleanupSpillReset_fromRegisters
   unfold RoundState.fromRegisters
   rw [hu, hv, hr, hsc, ha]
 
-theorem cleanupSpillReset_get_counter
+lemma cleanupSpillReset_get_counter
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (dataRegisters tail counterWidth
@@ -439,7 +441,7 @@ theorem cleanupSpillReset_get_counter
   simpa [persistentDataSnapshot] using
     congrArg PersistentDataSnapshot.counter hs
 
-theorem cleanupSpillReset_get_history
+lemma cleanupSpillReset_get_history
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (dataRegisters tail counterWidth
@@ -452,7 +454,7 @@ theorem cleanupSpillReset_get_history
   simpa [persistentDataSnapshot] using
     congrArg PersistentDataSnapshot.history hs
 
-theorem cleanupSpillReset_get_selected_route_of_clean
+lemma cleanupSpillReset_get_selected_route_of_clean
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (hclean :
@@ -468,7 +470,7 @@ theorem cleanupSpillReset_get_selected_route_of_clean
   · rw [branchResidueCleanupStep_get_route]
     exact hclean
 
-theorem cleanupSpillReset_get_other_route
+lemma cleanupSpillReset_get_other_route
     (tail counterWidth : Nat)
     (roundIndex observed : Fin (2 * tail.succ))
     (hne : roundIndex ≠ observed)
@@ -486,7 +488,7 @@ theorem cleanupSpillReset_get_other_route
 /-- Residue cleanup followed by the fixed spill/reset suffix restores the
 complete physical workspace.  The proof reconstructs every work product from
 the raw physical endpoint; it does not pass through a masked readout. -/
-theorem cleanupSpillReset_physicalWorkspaceClean
+lemma cleanupSpillReset_physicalWorkspaceClean
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth)
     (cert : BranchResidueCertificate tail counterWidth roundIndex x)
@@ -593,7 +595,7 @@ def roundStructuredStep (tail counterWidth : Nat)
 /-- Once the routed state supplies its physical residue certificate and the
 remaining reusable-work boundary, the fixed cleanup/spill/reset suffix reaches
 the complete round workspace boundary. -/
-theorem roundStructuredStep_physicalWorkspaceClean_of_routed
+lemma roundStructuredStep_physicalWorkspaceClean_of_routed
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -624,7 +626,7 @@ theorem roundStructuredStep_physicalWorkspaceClean_of_routed
   exact cleanupSpillReset_physicalWorkspaceClean
     tail counterWidth roundIndex routed hcert hreusable hrouteFresh
 
-theorem roundStructuredStep_fromRegisters_eq_routed
+lemma roundStructuredStep_fromRegisters_eq_routed
     (tail counterWidth kaliskiSteps paddingSteps : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -650,7 +652,7 @@ theorem roundStructuredStep_fromRegisters_eq_routed
     (routedStepBeforeCleanup tail counterWidth comparisonIndex roundIndex
       workIndex x)
 
-theorem roundStructuredStep_get_counter_eq_routed
+lemma roundStructuredStep_get_counter_eq_routed
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -672,7 +674,7 @@ theorem roundStructuredStep_get_counter_eq_routed
     (routedStepBeforeCleanup tail counterWidth comparisonIndex roundIndex
       workIndex x)
 
-theorem roundStructuredStep_get_history_eq_routed
+lemma roundStructuredStep_get_history_eq_routed
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -694,7 +696,7 @@ theorem roundStructuredStep_get_history_eq_routed
     (routedStepBeforeCleanup tail counterWidth comparisonIndex roundIndex
       workIndex x)
 
-theorem roundStructuredStep_get_selected_route
+lemma roundStructuredStep_get_selected_route
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -730,7 +732,7 @@ theorem roundStructuredStep_get_selected_route
         tail counterWidth comparisonIndex roundIndex workIndex x
         hinput.toPhysicalWorkspaceClean
 
-theorem roundStructuredStep_get_other_route
+lemma roundStructuredStep_get_other_route
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -763,7 +765,7 @@ theorem roundStructuredStep_get_other_route
 /-- Lift the exact routed source boundary through the common physical
 cleanup/spill/reset suffix.  This is the only theorem that assembles the
 physical and semantic halves of a fixed round. -/
-theorem roundStructuredStep_cleanBoundary_of_routed
+lemma roundStructuredStep_cleanBoundary_of_routed
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))

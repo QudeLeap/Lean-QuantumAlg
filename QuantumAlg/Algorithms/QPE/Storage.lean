@@ -36,18 +36,18 @@ open QuantumAlg.Execution
 def preparedWire (t n : Nat) (index : Fin (t + n)) : Fin (preparedContext t n).systemCount :=
   OwnedBorrowedQubits.positionEquiv t n index
 
-theorem preparedWire_preserved (t n : Nat) (index : Fin (t + n)) :
+lemma preparedWire_preserved (t n : Nat) (index : Fin (t + n)) :
     (preparedContext t n).quantumLayout.wire (preparedWire t n index) =
       (runtimeLayout t n).wire index :=
   OwnedBorrowedQubits.position_wire t n index
 
-theorem preparedLayoutEquiv_value (t n : Nat) (basis : (runtimeLayout t n).register.Index)
+lemma preparedLayoutEquiv_value (t n : Nat) (basis : (runtimeLayout t n).register.Index)
     (index : Fin (t + n)) :
     (preparedLayoutEquiv t n basis (preparedWire t n index)).val = (basis index).val :=
   Execution.basisOfEqualWires_value (runtimeLayout t n) (preparedContext t n).quantumLayout
     (runtime_wires t n) basis index
 
-theorem resultFresh (t n : Nat) : (⟨2⟩ : StorageKey) ∉ (preparedContext t n).keys := by
+lemma resultFresh (t n : Nat) : (⟨2⟩ : StorageKey) ∉ (preparedContext t n).keys := by
   change (⟨2⟩ : StorageKey) ∉ [⟨0⟩, ⟨1⟩]
   decide
 
@@ -69,7 +69,7 @@ def phaseWire (t n : Nat) (index : Fin t) : Fin (post t n).systemCount :=
   MeasurementCells.wireEquiv (resultContext t n) 2 t
     (preparedWire t n (Fin.castAdd n index))
 
-theorem phaseWire_dimension (t n : Nat) (index : Fin t) :
+lemma phaseWire_dimension (t n : Nat) (index : Fin t) :
     ((post t n).quantumLayout.wire (phaseWire t n index)).dimension = 2 := by
   rw [phaseWire, MeasurementCells.wireEquiv_preserved]
   change ((preparedContext t n).quantumLayout.wire
@@ -94,9 +94,9 @@ def packing (t n : Nat) :
 def outputBasisEquiv (t n : Nat) : (post t n).register.Index ≃ (Qubits (t + n)).Index :=
   (MeasurementCells.basisEquiv (resultContext t n) 2 t).symm.trans (preparedBasisEquiv t n)
 
-theorem readouts_length (t n : Nat) : (readouts t n).length = t := List.length_ofFn
+lemma readouts_length (t n : Nat) : (readouts t n).length = t := List.length_ofFn
 
-theorem readouts_qubits (t n : Nat) :
+lemma readouts_qubits (t n : Nat) :
     ∀ item ∈ readouts t n, ((post t n).quantumLayout.wire item.wire).dimension = 2 := by
   intro item present
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present

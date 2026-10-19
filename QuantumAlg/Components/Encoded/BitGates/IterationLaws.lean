@@ -22,30 +22,33 @@ namespace QuantumAlg.UnitaryCircuit
 
 noncomputable section
 
-private theorem normalized_of_matrix_eq {gates : GateModel} {oracles : OracleModel}
+private lemma normalized_of_matrix_eq {gates : GateModel} {oracles : OracleModel}
+    {environment : oracles.Interpretation}
     {count : Nat} {layout : QuantumLayout count}
     (first second : UnitaryCircuit gates oracles layout)
-    (same : (first.matrix : HilbertOperator layout.register) =
-      (second.matrix : HilbertOperator layout.register))
+    (same : (first.matrix environment : HilbertOperator layout.register) =
+      (second.matrix environment : HilbertOperator layout.register))
     (state : NormalizedVector layout.register) :
-    first.applyNormalized state = second.applyNormalized state := by
+    first.applyNormalized environment state = second.applyNormalized environment state := by
   apply NormalizedVector.ext
   intro index
-  change HilbertOperator.applyVec (first.matrix : HilbertOperator layout.register)
+  change HilbertOperator.applyVec (first.matrix environment : HilbertOperator layout.register)
       (state : HilbertVector layout.register) index =
-    HilbertOperator.applyVec (second.matrix : HilbertOperator layout.register)
+    HilbertOperator.applyVec (second.matrix environment : HilbertOperator layout.register)
       (state : HilbertVector layout.register) index
   rw [same]
 
-private theorem iterate_applyNormalized {gates : GateModel} {oracles : OracleModel}
+private lemma iterate_applyNormalized {gates : GateModel} {oracles : OracleModel}
+    {environment : oracles.Interpretation}
     (count : Nat) {systemCount : Nat} {layout : QuantumLayout systemCount}
     (body : UnitaryCircuit gates oracles layout)
     (state : NormalizedVector layout.register) :
-    (iterate count body).applyNormalized state = (body.applyNormalized)^[count] state := by
+    (iterate count body).applyNormalized environment state
+      = (body.applyNormalized environment)^[count] state := by
   induction count with
   | zero =>
-    have same : ((iterate 0 body).matrix : HilbertOperator layout.register) =
-        (identity gates oracles layout).matrix := by
+    have same : ((iterate 0 body).matrix environment : HilbertOperator layout.register) =
+        (identity gates oracles layout).matrix environment := by
       rw [iterate_matrix, pow_zero, identity_matrix]
     refine (normalized_of_matrix_eq _ _ same state).trans ?_
     apply NormalizedVector.ext
@@ -53,21 +56,22 @@ private theorem iterate_applyNormalized {gates : GateModel} {oracles : OracleMod
     change (1 : UnitaryOperator layout.register).applyVec state index = state index
     rw [UnitaryOperator.one_applyVec]
   | succ count inductionHypothesis =>
-    have same : ((iterate (count + 1) body).matrix : HilbertOperator layout.register) =
-        ((iterate count body).seq body).matrix := by
+    have same : ((iterate (count + 1) body).matrix environment : HilbertOperator layout.register) =
+        ((iterate count body).seq body).matrix environment := by
       rw [iterate_matrix, seq_matrix, iterate_matrix, pow_succ']
     rw [normalized_of_matrix_eq _ _ same state, applyNormalized_seq, inductionHypothesis]
-    exact (Function.iterate_succ_apply' body.applyNormalized count state).symm
+    exact (Function.iterate_succ_apply' (body.applyNormalized environment) count state).symm
 
 namespace Realizes
 
 /-- Repeating the actual symbolic native circuit repeats its exact encoded semantic action. -/
-theorem iterate {Data : Type} {encoding : BinaryLabelEncoding Data}
+lemma iterate {Data : Type} {encoding : BinaryLabelEncoding Data}
     {gates : GateModel} {oracles : OracleModel}
+    {environment : oracles.Interpretation}
     {layout : QubitLayout encoding.width}
     {body : UnitaryCircuit gates oracles layout.toQuantum} {step : Data → Data}
-    (realizes : Realizes encoding body step) (count : Nat) :
-    Realizes encoding (UnitaryCircuit.iterate count body) (step^[count]) where
+    (realizes : Realizes encoding body environment step) (count : Nat) :
+    Realizes encoding (UnitaryCircuit.iterate count body) environment (step^[count]) where
   apply_encoded_ket := by
     intro state
     rw [iterate_applyNormalized]

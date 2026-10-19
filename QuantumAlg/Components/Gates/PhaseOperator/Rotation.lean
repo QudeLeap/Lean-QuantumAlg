@@ -24,7 +24,7 @@ namespace QuantumAlg
 noncomputable section
 
 /-- `diag(1,e^{iθ}) = e^{iθ/2} · R_Z(θ)`. -/
-public theorem phaseGateOp_signal (θ : ℝ) :
+public lemma phaseGateOp_signal (θ : ℝ) :
     (phaseGateOp θ : HilbertOperator (Qubits 1)) =
       Complex.exp ((θ / 2 : ℝ) * Complex.I) •
         (rotZStdOp θ : HilbertOperator (Qubits 1)) := by
@@ -44,7 +44,7 @@ public theorem phaseGateOp_signal (θ : ℝ) :
     ring_nf
 
 /-- `diag(e^{-iθ},1) = e^{-iθ/2} · R_Z(θ)`. -/
-public theorem phaseGateOnZeroOp_signal (θ : ℝ) :
+public lemma phaseGateOnZeroOp_signal (θ : ℝ) :
     (phaseGateOnZeroOp (-θ) : HilbertOperator (Qubits 1)) =
       Complex.exp (-(θ / 2 : ℝ) * Complex.I) •
         (rotZStdOp θ : HilbertOperator (Qubits 1)) := by

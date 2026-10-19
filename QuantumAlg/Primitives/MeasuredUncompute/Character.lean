@@ -29,7 +29,7 @@ open EncodedBit.Word
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 
-private theorem selected_sign_power (word : EncodedBit.Word encoding width)
+private lemma selected_sign_power (word : EncodedBit.Word encoding width)
     (state : Data) (indices : List (Fin width)) :
     PhaseCorrection.sign word state indices = (-1 : ℂ) ^
       (indices.filter (fun index => (word.bit index).get state)).length := by
@@ -40,7 +40,7 @@ private theorem selected_sign_power (word : EncodedBit.Word encoding width)
         simp [PhaseCorrection.sign, bit, induction, pow_succ, mul_comm]
 
 /-- The executed correction sign is the same binary character as the actual Hadamard layer. -/
-theorem measuredCorrection_sign_walsh (word : EncodedBit.Word encoding width)
+lemma measuredCorrection_sign_walsh (word : EncodedBit.Word encoding width)
     (state : Data) (value outcome : Fin (2 ^ width))
     (reads : ∀ index, (word.bit index).get state = value.val.testBit index.val) :
     PhaseCorrection.sign word state
@@ -76,13 +76,14 @@ theorem measuredCorrection_sign_walsh (word : EncodedBit.Word encoding width)
     simp [even, odd]
 
 /-- The literal selected Z gates cancel exactly the measured Hadamard phase on a recomputed word. -/
-theorem measuredCorrection_cancel_walsh_ket
+lemma measuredCorrection_cancel_walsh_ket
     (physical : QubitLayout encoding.width) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (word : EncodedBit.Word encoding width)
     (state : Data) (value outcome : Fin (2 ^ width))
     (reads : ∀ index, (word.bit index).get state = value.val.testBit index.val) :
-    (PhaseCorrection.program physical oracles word
-      (fun index => outcome.val.testBit index.val)).applyVec
+    ((PhaseCorrection.program physical oracles word
+      (fun index => outcome.val.testBit index.val)).applyVec environment)
         (WalshHadamard.walshSign outcome value •
           (NormalizedVector.ket (R := physical.toQuantum.register)
             (physical.basisEquiv.symm (encoding.encode state))).vec) =

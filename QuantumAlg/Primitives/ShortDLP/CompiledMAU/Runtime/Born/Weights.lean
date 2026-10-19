@@ -29,7 +29,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Each physical measurement fiber has precisely the source compiled outcome probability. -/
-theorem shortDLP_runtimeBorn_outcome_weight (N : Nat) (generator target : (ZMod N)ˣ)
+lemma shortDLP_runtimeBorn_outcome_weight (N : Nat) (generator target : (ZMod N)ˣ)
     (outcome : TerminalZMeasure.Outcome (firstBits (registerParameters m ell width) + ell)) :
     (∑ basis : ctx.register.Index,
       if (ShortDLP.measurement (registerParameters m ell width)).readout
@@ -58,7 +58,7 @@ theorem shortDLP_runtimeBorn_outcome_weight (N : Nat) (generator target : (ZMod 
       (sourceProbability.trans finite).symm)
 
 /-- On the original arithmetic domain, the same actual fiber equals the ideal source PMF. -/
-theorem shortDLP_runtimeBorn_ideal_outcome_weight (N : Nat) (generator target : (ZMod N)ˣ)
+lemma shortDLP_runtimeBorn_ideal_outcome_weight (N : Nat) (generator target : (ZMod N)ˣ)
     (nontrivial : 1 < N) (capacity : N < 2 ^ width)
     (outcome : TerminalZMeasure.Outcome (firstBits (registerParameters m ell width) + ell)) :
     (∑ basis : ctx.register.Index,

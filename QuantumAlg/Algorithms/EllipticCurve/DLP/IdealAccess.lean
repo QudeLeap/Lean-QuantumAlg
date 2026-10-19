@@ -59,7 +59,7 @@ def targetLabel (I : ECDLPInstance E) (input : OracleDomain I) :
       input.1.1.val input.1.2.val)
 
 /-- The canonical semantic encoding is injective. -/
-theorem sourceLabel_injective (I : ECDLPInstance E) :
+lemma sourceLabel_injective (I : ECDLPInstance E) :
     Function.Injective (sourceLabel I) := by
   intro left right equality
   apply (Layout.fullEncoding I).encode_injective
@@ -67,7 +67,7 @@ theorem sourceLabel_injective (I : ECDLPInstance E) :
   exact Fin.ext_iff.mp equality
 
 /-- The target group shift is injective on the semantic domain. -/
-theorem targetLabel_injective (I : ECDLPInstance E) :
+lemma targetLabel_injective (I : ECDLPInstance E) :
     Function.Injective (targetLabel I) := by
   rintro ⟨⟨leftA, leftB⟩, leftPoint⟩
     ⟨⟨rightA, rightB⟩, rightPoint⟩ equality
@@ -105,7 +105,7 @@ def oraclePermutation (I : ECDLPInstance E) : Equiv.Perm (OracleBasis I) :=
       (sourceLabel_injective I) (targetLabel_injective I))
 
 /-- The extension agrees with the source action on every semantic label. -/
-theorem oraclePermutation_sourceLabel (I : ECDLPInstance E)
+lemma oraclePermutation_sourceLabel (I : ECDLPInstance E)
     (input : OracleDomain I) :
     oraclePermutation I (sourceLabel I input) = targetLabel I input :=
   (Classical.choose_spec
@@ -118,7 +118,7 @@ def operator (I : ECDLPInstance E) :
   UnitaryOperator.ofPerm (oraclePermutation I).symm
 
 /-- The permutation operator has the canonical group-action basis semantics. -/
-theorem operator_basisAction (I : ECDLPInstance E)
+lemma operator_basisAction (I : ECDLPInstance E)
     (left right : ExponentLabel I) (workspace : GroupPoint E) :
     (operator I).apply
         (NormalizedVector.ket (R := Qubits (Layout.totalQubits I))

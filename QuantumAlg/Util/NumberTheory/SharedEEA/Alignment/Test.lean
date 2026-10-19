@@ -25,14 +25,14 @@ retains each shift, as in the registered four-phase construction.
 namespace QuantumAlg.NumberTheory.SharedEEA.AlignmentTest
 
 /-- The strict full comparison is exactly that the actual quotient lies below the current scale. -/
-theorem comparison_iff (dividend divisor shift : Nat) (active : 0 < divisor) :
+lemma comparison_iff (dividend divisor shift : Nat) (active : 0 < divisor) :
     dividend < divisor * 2 ^ shift ↔ dividend / divisor < 2 ^ shift := by
   have divided : dividend / divisor < 2 ^ shift ↔ dividend < 2 ^ shift * divisor :=
     Nat.div_lt_iff_lt_mul active
   simpa only [Nat.mul_comm] using divided.symm
 
 /-- Within the real alignment range, rejection occurs precisely at the terminal shift count. -/
-theorem comparison_iff_last (state : IterationState) (shift : Nat)
+lemma comparison_iff_last (state : IterationState) (shift : Nat)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     state.remainder < state.divisor * 2 ^ shift ↔ shift = state.quotient.size := by
   rw [comparison_iff state.remainder state.divisor shift active]
@@ -46,7 +46,7 @@ theorem comparison_iff_last (state : IterationState) (shift : Nat)
     exact Nat.lt_size_self _
 
 /-- The Boolean stored by the real comparison is the exact bounded terminal-position predicate. -/
-theorem decide_comparison (state : IterationState) (shift : Nat)
+lemma decide_comparison (state : IterationState) (shift : Nat)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     decide (state.remainder < state.divisor * 2 ^ shift) =
       decide (shift = state.quotient.size) := by

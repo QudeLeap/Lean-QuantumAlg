@@ -31,7 +31,7 @@ def address (width index : Nat) : Nat :=
   else if (SharedEEA.encoding width).width ≤ index then index - (SharedEEA.encoding width).width
   else index
 
-private theorem address_bound (width : Nat) (index : Fin (frameEncoding width).width) :
+private lemma address_bound (width : Nat) (index : Fin (frameEncoding width).width) :
     address width index.val < (frameEncoding width).width := by
   have bound := index.isLt
   have shared := SharedEEA.encoding_width width
@@ -40,7 +40,7 @@ private theorem address_bound (width : Nat) (index : Fin (frameEncoding width).w
   unfold address
   split_ifs <;> omega
 
-private theorem address_twice (width : Nat) (index : Fin (frameEncoding width).width) :
+private lemma address_twice (width : Nat) (index : Fin (frameEncoding width).width) :
     address width (address width index.val) = index.val := by
   have bound := index.isLt
   have shared := SharedEEA.encoding_width width
@@ -61,12 +61,12 @@ def placement (width : Nat) :
   EncodedBit.FullPlacement.ofWires _ _ (frame_total width) (frame_total width) (wires width)
 
 /-- Each original large-workspace address now names precisely the corresponding reset Y wire. -/
-theorem address_accumulator (width : Nat) (index : Fin width) :
+lemma address_accumulator (width : Nat) (index : Fin width) :
     address width index.val = (SharedEEA.encoding width).width + index.val :=
   if_pos index.isLt
 
 /-- Complementary Y roles retain their old data at the corresponding original A positions. -/
-theorem address_numerator (width : Nat) (index : Fin width) :
+lemma address_numerator (width : Nat) (index : Fin width) :
     address width ((SharedEEA.encoding width).width + index.val) = index.val := by
   have shared := SharedEEA.encoding_width width
   unfold address
@@ -74,7 +74,7 @@ theorem address_numerator (width : Nat) (index : Fin width) :
   omega
 
 /-- X, the six padding positions and every small EEA field keep their original physical identity. -/
-theorem address_retained (width index : Nat)
+lemma address_retained (width index : Nat)
     (afterAccumulator : width ≤ index)
     (beforeNumerator : index < (SharedEEA.encoding width).width) :
     address width index = index := by

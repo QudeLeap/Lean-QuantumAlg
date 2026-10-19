@@ -39,30 +39,33 @@ def iteratedActiveRecord {model : ExecutionModel} [BitWord.Selected model]
     fun index => (record ((fun before => (record before).1)^[index.val] store)).2)
 
 /-- The same actual record interprets every full input density and finite history. -/
-theorem xgcdNativeLoop_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeLoop_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (guardedActive
       (model := model) cells zero).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (guardedActive (model := model) cells zero).execute Reference state = state.mapClassical
+      (guardedActive (model := model) cells zero).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (count : Nat) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.iterate count (guardedActive (model := model) cells zero)).execute Reference state =
+    (Circuit.iterate count (guardedActive (model := model) cells zero)).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := iteratedActiveRecord (model := model) cells zero record count
           (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  exact (Circuit.execute_iterate_mapClassical
+  exact (Circuit.execute_iterate_mapClassical (environment := environment)
     (guardedActive (model := model) cells zero) record equation count Reference state).trans
       (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- A caller read preserved by each actual selected record survives every iteration count. -/
-theorem xgcdNativeLoop_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeLoop_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (guardedActive

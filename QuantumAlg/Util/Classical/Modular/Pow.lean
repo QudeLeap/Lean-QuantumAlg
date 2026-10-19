@@ -80,7 +80,7 @@ def msbStep {width : Nat} (spec : ModulusSpec width)
     squared
 
 /-- No exponent slots processed means that the represented prefix is zero. -/
-@[simp] theorem modularPow_exponentPrefix_zero {exponentWidth : Nat}
+@[simp] lemma modularPow_exponentPrefix_zero {exponentWidth : Nat}
     (exponent : Word exponentWidth) :
     exponentPrefix exponent 0 = 0 := by
   rw [exponentPrefix]
@@ -88,7 +88,7 @@ def msbStep {width : Nat} (spec : ModulusSpec width)
   exact Nat.div_eq_of_lt exponent.isLt
 
 /-- Processing one more slot appends its bit to the represented prefix. -/
-theorem modularPow_exponentPrefix_succ {exponentWidth : Nat}
+lemma modularPow_exponentPrefix_succ {exponentWidth : Nat}
     (exponent : Word exponentWidth) (index : Fin exponentWidth) :
     Nat.bit (exponentBit exponent index)
         (exponentPrefix exponent index.val) =
@@ -120,25 +120,25 @@ theorem modularPow_exponentPrefix_succ {exponentWidth : Nat}
     (exponent.val >>> (exponentWidth - 1 - index.val))
 
 /-- After every declared slot, the represented prefix is the full exponent. -/
-@[simp] theorem modularPow_exponentPrefix_final {exponentWidth : Nat}
+@[simp] lemma modularPow_exponentPrefix_final {exponentWidth : Nat}
     (exponent : Word exponentWidth) :
     exponentPrefix exponent exponentWidth = exponent.val := by
   simp [exponentPrefix]
 
 /-- The empty exponent prefix initializes the accumulator to canonical one. -/
-@[simp] theorem modularPow_partialEval_zero {width exponentWidth : Nat}
+@[simp] lemma modularPow_partialEval_zero {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     partialEval spec input 0 = Residue.one spec := by
   simp [partialEval, Residue.one]
 
 /-- The accumulator after all slots agrees with the public power semantics. -/
-@[simp] theorem modularPow_partialEval_final {width exponentWidth : Nat}
+@[simp] lemma modularPow_partialEval_final {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     partialEval spec input exponentWidth = eval spec input := by
   simp [partialEval, eval]
 
 /-- One MSB step advances the semantic accumulator by exactly one slot. -/
-theorem modularPow_msbStep_partialEval {width exponentWidth : Nat}
+lemma modularPow_msbStep_partialEval {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth)
     (index : Fin exponentWidth) :
     msbStep spec input.base (partialEval spec input index.val)
@@ -222,35 +222,35 @@ theorem modularPow_msbStep_partialEval {width exponentWidth : Nat}
       (exponentBit input.exponent index)).isLt
     (partialEval spec input (index.val + 1)).isLt
 
-@[simp] theorem modularPow_valid {width exponentWidth : Nat}
+@[simp] lemma modularPow_valid {width exponentWidth : Nat}
     {spec : ModulusSpec width} (input : Input spec exponentWidth) :
     valid input :=
   trivial
 
-@[simp] theorem modularPow_eval_val {width exponentWidth : Nat}
+@[simp] lemma modularPow_eval_val {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     (eval spec input).val =
       input.base.val ^ input.exponent.val % spec.modulus :=
   rfl
 
-theorem modularPow_eval_range {width exponentWidth : Nat}
+lemma modularPow_eval_range {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     (eval spec input).val < spec.modulus :=
   (eval spec input).isLt
 
-theorem modularPow_eval_modEq {width exponentWidth : Nat}
+lemma modularPow_eval_modEq {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     (eval spec input).val ≡
       input.base.val ^ input.exponent.val [MOD spec.modulus] :=
   Residue.residueOfNat_modEq spec (input.base.val ^ input.exponent.val)
 
-theorem modularPow_eval_accepts {width exponentWidth : Nat}
+lemma modularPow_eval_accepts {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     accepts input (eval spec input) :=
   rfl
 
 /-- Increasing an exponent's width by one can preserve its exact value. -/
-theorem modularPow_exponent_lt_extended {exponentWidth : Nat}
+lemma modularPow_exponent_lt_extended {exponentWidth : Nat}
     (exponent : Word exponentWidth) :
     exponent.val < ClassicalAlgorithms.modulus (exponentWidth + 1) := by
   have capacityPositive := ClassicalAlgorithms.fixedWidthModulus_pos exponentWidth
@@ -263,13 +263,13 @@ def leadingZeroExponent {exponentWidth : Nat} (exponent : Word exponentWidth) :
     Word (exponentWidth + 1) :=
   ⟨exponent.val, modularPow_exponent_lt_extended exponent⟩
 
-@[simp] theorem modularPow_leadingZeroExponent_val {exponentWidth : Nat}
+@[simp] lemma modularPow_leadingZeroExponent_val {exponentWidth : Nat}
     (exponent : Word exponentWidth) :
     (leadingZeroExponent exponent).val = exponent.val :=
   rfl
 
 /-- A leading zero changes the declared work width but not mathematical power. -/
-theorem modularPow_eval_leadingZero {width exponentWidth : Nat}
+lemma modularPow_eval_leadingZero {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth) :
     eval spec
         ({ base := input.base
@@ -280,7 +280,7 @@ theorem modularPow_eval_leadingZero {width exponentWidth : Nat}
   simp
 
 /-- Exponent zero returns canonical one modulo every admitted modulus. -/
-theorem modularPow_eval_exponent_zero {width exponentWidth : Nat}
+lemma modularPow_eval_exponent_zero {width exponentWidth : Nat}
     (spec : ModulusSpec width) (input : Input spec exponentWidth)
     (exponentZero : input.exponent.val = 0) :
     eval spec input = Residue.one spec := by
@@ -288,7 +288,7 @@ theorem modularPow_eval_exponent_zero {width exponentWidth : Nat}
   simp [exponentZero, Nat.mod_eq_of_lt (modulusSpec_one_lt spec)]
 
 /-- The unique zero-width exponent is zero and therefore returns one. -/
-@[simp] theorem modularPow_eval_width_zero {width : Nat}
+@[simp] lemma modularPow_eval_width_zero {width : Nat}
     (spec : ModulusSpec width) (input : Input spec 0) :
     eval spec input = Residue.one spec := by
   have exponentRange := ClassicalAlgorithms.fixedWidthWord_lt_modulus input.exponent
@@ -298,7 +298,7 @@ theorem modularPow_eval_exponent_zero {width exponentWidth : Nat}
   exact modularPow_eval_exponent_zero spec input exponentZero
 
 /-- Canonical one raised to any fixed-width exponent remains one. -/
-@[simp] theorem modularPow_eval_base_one {width exponentWidth : Nat}
+@[simp] lemma modularPow_eval_base_one {width exponentWidth : Nat}
     (spec : ModulusSpec width) (exponent : Word exponentWidth) :
     eval spec { base := Residue.one spec, exponent := exponent } =
       Residue.one spec := by
@@ -306,7 +306,7 @@ theorem modularPow_eval_exponent_zero {width exponentWidth : Nat}
   simp [Nat.mod_eq_of_lt (modulusSpec_one_lt spec)]
 
 /-- Canonical zero raised to a nonzero exponent remains zero. -/
-theorem modularPow_eval_base_zero_of_exponent_ne_zero
+lemma modularPow_eval_base_zero_of_exponent_ne_zero
     {width exponentWidth : Nat} (spec : ModulusSpec width)
     (exponent : Word exponentWidth) (exponentNonzero : exponent.val ≠ 0) :
     eval spec { base := Residue.zero spec, exponent := exponent } =

@@ -29,10 +29,11 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
   (layout : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- The existing Pauli Z is precisely the positive reflection through bit zero. -/
-theorem pauliZ_reflects_zero (target : EncodedBit encoding) (state : Data) :
-    (target.pauliZ layout oracles).applyVec
+lemma pauliZ_reflects_zero (target : EncodedBit encoding) (state : Data) :
+    (target.pauliZ layout oracles).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       if target.get state = false then
@@ -51,9 +52,9 @@ def twoWireZeroReflection (first second : EncodedBit encoding)
     (first.controlledZ layout oracles second different)
 
 /-- The two-wire construction has the source's exact positive zero phase. -/
-theorem twoWireZeroReflection_applyVec_encoded_ket (first second : EncodedBit encoding)
+lemma twoWireZeroReflection_applyVec_encoded_ket (first second : EncodedBit encoding)
     (different : first.wire ≠ second.wire) (state : Data) :
-    (first.twoWireZeroReflection layout oracles second different).applyVec
+    (first.twoWireZeroReflection layout oracles second different).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       if first.get state = false ∧ second.get state = false then
@@ -69,7 +70,7 @@ theorem twoWireZeroReflection_applyVec_encoded_ket (first second : EncodedBit en
   cases first.get state <;> cases second.get state <;> simp
 
 /-- The event trace contains the two Z gates and three controlled-Z elementary gates. -/
-theorem twoWireZeroReflection_eventTrace_length (first second : EncodedBit encoding)
+lemma twoWireZeroReflection_eventTrace_length (first second : EncodedBit encoding)
     (different : first.wire ≠ second.wire) :
     (first.twoWireZeroReflection layout oracles second different).eventTrace.length = 5 := by
   simp only [twoWireZeroReflection, UnitaryCircuit.seq_eventTrace, List.length_append,
@@ -86,12 +87,12 @@ def threeWireZeroReflection (first second third : EncodedBit encoding)
       (third.globalMinus layout oracles)
 
 /-- Complementing three wires and restoring them retains the exact positive source phase. -/
-theorem threeWireZeroReflection_applyVec_encoded_ket (first second third : EncodedBit encoding)
+lemma threeWireZeroReflection_applyVec_encoded_ket (first second third : EncodedBit encoding)
     (firstSecond : first.wire ≠ second.wire)
     (firstThird : first.wire ≠ third.wire)
     (secondThird : second.wire ≠ third.wire) (state : Data) :
     (first.threeWireZeroReflection layout oracles second third
-      firstSecond firstThird secondThird).applyVec
+      firstSecond firstThird secondThird).applyVec environment
         (NormalizedVector.ket (R := layout.toQuantum.register)
           (layout.basisEquiv.symm (encoding.encode state))).vec =
       if (first.get state = false ∧ second.get state = false) ∧ third.get state = false then
@@ -117,12 +118,14 @@ theorem threeWireZeroReflection_applyVec_encoded_ket (first second third : Encod
     change third.get (third.flip (second.flip (first.flip state))) = _
     rw [get_flip_self, get_flip_of_wire_ne second third secondThird,
       get_flip_of_wire_ne first third firstThird]
-  have middle := GateSpec.conjugateProgram_applyVec_encoded_ket layout oracles
+  have middle := GateSpec.conjugateProgram_applyVec_encoded_ket layout oracles (environment :=
+    environment)
     [.x first, .x second, .x third]
     (first.doubleControlledZ layout oracles second third firstSecond firstThird secondThird)
     (fun state => if (first.get state = true ∧ second.get state = true) ∧ third.get state = true
       then (-1 : ℂ) else 1)
-    (first.doubleControlledZ_applyVec_encoded_ket layout oracles second third
+    (first.doubleControlledZ_applyVec_encoded_ket layout oracles (environment := environment) second
+      third
       firstSecond firstThird secondThird) state
   rw [threeWireZeroReflection, UnitaryCircuit.applyVec_seq, middle,
     UnitaryCircuit.applyVec_smul, globalMinus_applyVec_encoded_ket]
@@ -130,7 +133,7 @@ theorem threeWireZeroReflection_applyVec_encoded_ket (first second third : Encod
   cases first.get state <;> cases second.get state <;> cases third.get state <;> simp
 
 /-- All six complements, three phase gates, and one global-minus gate are actual events. -/
-theorem threeWireZeroReflection_eventTrace_length (first second third : EncodedBit encoding)
+lemma threeWireZeroReflection_eventTrace_length (first second third : EncodedBit encoding)
     (firstSecond : first.wire ≠ second.wire)
     (firstThird : first.wire ≠ third.wire)
     (secondThird : second.wire ≠ third.wire) :

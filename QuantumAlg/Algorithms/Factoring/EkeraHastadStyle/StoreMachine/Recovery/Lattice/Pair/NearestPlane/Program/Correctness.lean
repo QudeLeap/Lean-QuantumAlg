@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual original LLL output establishes the complete source nearest-plane entry contract. -/
-theorem nearest_initial (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
+lemma nearest_initial (refs : Refs ctx N) (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions store refs) :
     LatticeNearestPlaneThree.Initial (nearestRefs refs)
       (LatticeWideLllMachine.pairToLllStep (model := model) refs.wide store).1
@@ -43,7 +43,7 @@ theorem nearest_initial (refs : Refs ctx N) (separation : Separation refs) (stor
   exact ⟨basisRaw .first, basisRaw .second, basisRaw .third, wide.target⟩
 
 /-- Actual source-to-nearest-plane execution yields the original three coefficients and residual. -/
-theorem pairToNearestPlaneInto_represents (refs : Refs ctx N) (separation : Separation refs)
+lemma pairToNearestPlaneInto_represents (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     let samples := LatticeWideLllMachine.sourceSamples refs.wide store
     let after := pairToNearestPlaneStore (model := model) refs store
@@ -78,7 +78,7 @@ structure Outcome (refs : Refs ctx N) (before after : Store ctx) : Prop where
     CallerSeparated refs other → after.read other = before.read other
 
 /-- The complete actual run meets the original pure center, residual and caller-frame contract. -/
-theorem pairToNearestPlaneInto_correct (refs : Refs ctx N) (separation : Separation refs)
+lemma pairToNearestPlaneInto_correct (refs : Refs ctx N) (separation : Separation refs)
     (store : Store ctx) (initial : InitialConditions store refs) :
     Outcome refs store (pairToNearestPlaneStore (model := model) refs store) := by
   have result := pairToNearestPlaneInto_represents refs separation store initial

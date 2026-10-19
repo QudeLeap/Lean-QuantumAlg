@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Every original structural read outside the actual final destination retains its entire value. -/
-theorem nativeSqrt_into_read_unchanged (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_read_unchanged (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape}
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
     (intoStep (model := model) input output store).1.read other = store.read other := by
@@ -69,7 +69,7 @@ theorem nativeSqrt_into_read_unchanged (input : CInputRef ctx (.unsignedWord wid
     (afterCopy.trans (afterRounds.trans (afterLoader.trans (afterWiden.trans entered))))
 
 /-- The actual output value is the canonical unsigned word containing the exact square root. -/
-theorem nativeSqrt_into_output_value (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_output_value (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (intoStep (model := model) input output store).1.read (.storage output.toCStorageRef) =
       CShape.wordOfNat width (Nat.sqrt (store.read input).toNat) := by
@@ -86,7 +86,7 @@ theorem nativeSqrt_into_output_value (input : CInputRef ctx (.unsignedWord width
       simpa only [actual, CShape.Value.toNat] using natural
 
 /-- The complete returned store changes precisely the actual caller destination. -/
-theorem nativeSqrt_into_store (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_store (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (intoStep (model := model) input output store).1 =
       store.write output (CShape.wordOfNat width (Nat.sqrt (store.read input).toNat)) := by

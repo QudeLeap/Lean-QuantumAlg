@@ -22,23 +22,23 @@ noncomputable section
 
 open ContextUnion
 
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} (environment : model.Environment)
 
 attribute [local irreducible] storeFintype
 
-private theorem inputCast_heq {pre next post : RuntimeCtx model.kind}
+private lemma inputCast_heq {pre next post : RuntimeCtx model.kind}
     (same : pre = next) (code : Circuit model next post) :
     HEq (Eq.mpr (congrArg (fun ctx => Circuit model ctx post) same) code) code := by
   cases same
   rfl
 
-private theorem outputCast_heq {pre post next : RuntimeCtx model.kind}
+private lemma outputCast_heq {pre post next : RuntimeCtx model.kind}
     (same : post = next) (code : Circuit model pre next) :
     HEq (Eq.mpr (congrArg (fun ctx => Circuit model pre ctx) same) code) code := by
   cases same
   rfl
 
-private theorem seq_heq {pre mid post nextPre nextMid nextPost : RuntimeCtx model.kind}
+private lemma seq_heq {pre mid post nextPre nextMid nextPost : RuntimeCtx model.kind}
     (first : pre = nextPre) (middle : mid = nextMid) (last : post = nextPost)
     (earlier : Circuit model pre mid) (later : Circuit model mid post)
     (nextEarlier : Circuit model nextPre nextMid) (nextLater : Circuit model nextMid nextPost)
@@ -51,26 +51,27 @@ private theorem seq_heq {pre mid post nextPre nextMid nextPost : RuntimeCtx mode
   cases sameLater
   rfl
 
-private theorem retain_heq {ctx next : RuntimeCtx model.kind} (same : ctx = next)
+private lemma retain_heq {ctx next : RuntimeCtx model.kind} (same : ctx = next)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) (nextFresh : key ∉ next.keys) :
     HEq (Circuit.retain (model := model) ctx key shape fresh)
       (Circuit.retain (model := model) next key shape nextFresh) := by
   cases same
   rfl
 
-private theorem id_heq {ctx next : RuntimeCtx model.kind} (same : ctx = next) :
-    HEq (Circuit.id (model := model) ctx) (Circuit.id (model := model) next) := by
+private lemma id_heq {ctx next : RuntimeCtx model.kind} (same : ctx = next) :
+    HEq (Circuit.id (model := model) (allowAllocation := true) ctx)
+      (Circuit.id (model := model) (allowAllocation := true) next) := by
   cases same
   rfl
 
-private theorem context_eq_model {kind : ProblemKind} (first second : RuntimeCtx kind)
+private lemma context_eq_model {kind : ProblemKind} (first second : RuntimeCtx kind)
     (entries : first.entries = second.entries) : first = second := by
   cases first
   cases second
   cases entries
   rfl
 
-private theorem union_assoc_model (left right framed : RuntimeCtx model.kind)
+private lemma union_assoc_model (left right framed : RuntimeCtx model.kind)
     (original : RuntimeCtx.StorageDisjoint left right)
     (outside : RuntimeCtx.StorageDisjoint (left.disjointUnion right original) framed)
     (rightOutside : RuntimeCtx.StorageDisjoint right framed)
@@ -79,10 +80,10 @@ private theorem union_assoc_model (left right framed : RuntimeCtx model.kind)
       left.disjointUnion (right.disjointUnion framed rightOutside) combined :=
   context_eq_model _ _ (List.append_assoc _ _ _)
 
-private theorem pairWithUnit_eq {α : Type} (value : α × Unit) :
+private lemma pairWithUnit_eq {α : Type} (value : α × Unit) :
     (value.1, ()) = value := Prod.ext rfl (Subsingleton.elim _ _)
 
-private theorem retainedRecordPath_eq {S K V H P Q : Type}
+private lemma retainedRecordPath_eq {S K V H P Q : Type}
     (paths : P × Unit → Q × Unit)
     (value : S × ((K × ((V × H) × P)) × Unit)) :
     (value.1, (value.2.1.1, (value.2.1.2.1.1,
@@ -93,7 +94,7 @@ private theorem retainedRecordPath_eq {S K V H P Q : Type}
   exact Prod.ext rfl (Prod.ext rfl (Prod.ext rfl
     (Prod.ext rfl (pairWithUnit_eq _))))
 
-private theorem recordMap_comp {C D K : Type} [Fintype C] [Fintype D] [Fintype K]
+private lemma recordMap_comp {C D K : Type} [Fintype C] [Fintype D] [Fintype K]
     {R : Register} {middle : DecidableEq D} {last : DecidableEq K}
     (state : ExecutionState C R) (first : C → D) (second : D → K) :
     @ExecutionState.mapClassical D K _ _ R last
@@ -108,7 +109,7 @@ attribute [local irreducible] ExecutionState.mapClassical
 /-- Reassociate two resident frames around every actual retained-cell allocation.
 All models, arbitrary input blocks, external references, hidden state and prior
 history are preserved, including zero cells and every original allocation path. -/
-theorem allocateFramed_associated_execute
+lemma allocateFramed_associated_execute
     (ctx resident framed : RuntimeCtx model.kind) (dimension : ℕ+) :
     ∀ (count : Nat)
       (original : RuntimeCtx.StorageDisjoint
@@ -139,10 +140,10 @@ theorem allocateFramed_associated_execute
             framed initial) Reference (model.HiddenState × History)),
       splitServiceState
         ((MeasurementCells.context ctx dimension count).disjointUnion resident original)
-        framed outside (actual.execute Reference state) =
+        framed outside (actual.execute environment Reference state) =
         ((MeasurementCells.allocateFramed (model := model)
           ctx resident dimension count original).execute
-          (Register.prod framed.register Reference)
+          environment (Register.prod framed.register Reference)
           (splitServiceState (ctx.disjointUnion resident
             (MeasurementCells.original_disjoint ctx resident dimension count original))
             framed initial state)).mapHistory
@@ -159,9 +160,9 @@ theorem allocateFramed_associated_execute
         eq_of_heq (same.trans (id_heq (model := model) entries).symm)
       subst actual
       change splitServiceState (ctx.disjointUnion resident original) framed outside
-        ((Circuit.id (model := model) _).execute Reference state) =
+        ((Circuit.id (model := model) _).execute environment Reference state) =
         ((Circuit.id (model := model) _).execute
-          (Register.prod framed.register Reference)
+          environment (Register.prod framed.register Reference)
           (splitServiceState (ctx.disjointUnion resident original)
             framed outside state)).mapHistory _
       rw [MeasurementCells.id_as_history, MeasurementCells.id_as_history]
@@ -234,23 +235,26 @@ theorem allocateFramed_associated_execute
         earlierCode samePrefix prefixPaths Reference state
       change splitServiceState
           ((middle.addRetained key shape fresh).disjointUnion resident original) framed outside
-          (((retained.execute Reference (earlierCode.execute Reference state))).mapHistory
+          (((retained.execute
+          environment Reference (earlierCode.execute
+          environment Reference state))).mapHistory
             (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2))))) = _
       have splitMapped := contextUnion_splitServiceState_mapHistory
         ((middle.addRetained key shape fresh).disjointUnion resident original) framed outside
-        (retained.execute Reference (earlierCode.execute Reference state))
+        (retained.execute environment Reference (earlierCode.execute environment Reference state))
         (fun history => (history.1.1, (history.1.2, history.2)))
       erw [splitMapped]
-      have retainedNatural := MeasurementCells.retain_splitServiceState (model := model)
+      have retainedNatural := MeasurementCells.retain_splitServiceState
+        (environment := environment) (model := model)
         (ctx := middle.disjointUnion resident originalPrefix) (frame := framed)
         key shape originalFresh outside (Reference := Reference)
-        (earlierCode.execute Reference state)
+        (earlierCode.execute environment Reference state)
       erw [retainedNatural]
       rw [prior, State.mapHistory_retain]
       change _ = (((MeasurementCells.allocateFramed (model := model) ctx resident dimension count
         originalPrefix).seq (Circuit.retain (model := model)
           (middle.disjointUnion resident originalPrefix) key shape originalFresh)).execute
-            (Register.prod framed.register Reference)
+            environment (Register.prod framed.register Reference)
             (splitServiceState (ctx.disjointUnion resident
               (MeasurementCells.original_disjoint ctx resident dimension count originalPrefix))
               framed initial state)).mapHistory _

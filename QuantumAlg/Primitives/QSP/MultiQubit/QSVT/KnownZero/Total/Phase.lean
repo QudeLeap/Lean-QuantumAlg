@@ -29,7 +29,7 @@ def phase (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
   | m, n + 1 => KnownZero.phase m (n + 1) (Nat.zero_lt_succ n) oracles angle
 
 /-- Positive-width execution retains the existing restored signal-work word exactly. -/
-theorem totalPhase_of_positive (m n : Nat) (positive : 0 < n)
+lemma totalPhase_of_positive (m n : Nat) (positive : 0 < n)
     (oracles : OracleModel) (angle : ℝ) :
     phase m n oracles angle = KnownZero.phase m n positive oracles angle := by
   cases n with
@@ -37,8 +37,10 @@ theorem totalPhase_of_positive (m n : Nat) (positive : 0 < n)
   | succ n => cases m <;> rfl
 
 /-- The complete projector-phase operator holds on the original unrestricted width domain. -/
-theorem totalPhase_projector_matrix (m n : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((phase m n oracles angle).binaryMatrix : HilbertOperator (Qubits (1 + (m + n)))) =
+lemma totalPhase_projector_matrix (m n : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phase m n oracles angle).binaryMatrix environment) : HilbertOperator (Qubits (1 + (m + n))))
+      =
       HilbertOperator.tensor (rotZStdOp (-2 * angle) : HilbertOperator (Qubits 1))
         (OrthogonalProjector.zeroAncilla m n).op +
       HilbertOperator.tensor (rotZStdOp (2 * angle) : HilbertOperator (Qubits 1))
@@ -55,13 +57,13 @@ theorem totalPhase_projector_matrix (m n : Nat) (oracles : OracleModel) (angle :
               OrthogonalProjector.basisOp, OrthogonalProjector.identity,
               OrthogonalProjector.complement, HilbertOperator.tensor,
               prodEquiv, finProdFinEquiv, Fin.divNat, Fin.modNat]
-      | succ k => exact ControlWork.controlWork_zeroWidth_phase_matrix k oracles angle
+      | succ k => exact ControlWork.controlWork_zeroWidth_phase_matrix k oracles angle environment
   | succ n =>
       simpa only [phase, KnownZero.phase, neg_mul] using
         ProjectorPhase.circuit_projector_matrix
           (KnownZero.flip m (n + 1) (Nat.zero_lt_succ n) oracles)
-          (OrthogonalProjector.zeroAncilla m (n + 1))
-          (KnownZero.flip_matrix m (n + 1) (Nat.zero_lt_succ n) oracles) (2 * angle)
+          (OrthogonalProjector.zeroAncilla m (n + 1)) environment
+          (KnownZero.flip_matrix m (n + 1) (Nat.zero_lt_succ n) oracles environment) (2 * angle)
 
 end
 end QuantumAlg.QSP.MultiQubit.QSVT.KnownZero.Total

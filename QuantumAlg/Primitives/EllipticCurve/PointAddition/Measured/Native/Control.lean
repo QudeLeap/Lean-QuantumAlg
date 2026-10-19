@@ -23,6 +23,8 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec BinaryLabelEncoding
 
 /-- The two coherent sectors used by the concrete affine schedule. -/
@@ -61,7 +63,7 @@ private def prefixRegrouping {Data : Type} (data : BinaryLabelEncoding Data) :
       rw [pow_add]
       ring)
 
-private theorem prefixBit_wire (index : Fin (finIdentity 1).width) :
+private lemma prefixBit_wire (index : Fin (finIdentity 1).width) :
     (finIdentityBit 1 index).wire = index := rfl
 
 private def negativePrefixGates {Data : Type} (data : BinaryLabelEncoding Data)
@@ -92,7 +94,7 @@ def prefixControlGates {Data : Type} (data : BinaryLabelEncoding Data)
         (negativePrefixGates data bits bitsWire capacity source)).map
           (prefixRegrouping data).placeGate
 
-private theorem negativePrefixGates_step {Data : Type} (data : BinaryLabelEncoding Data)
+private lemma negativePrefixGates_step {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (source : List (GateSpec data)) (state : Fin (2 ^ 1) × Data) :
     stepList (negativePrefixGates data bits bitsWire capacity source) state =
@@ -104,7 +106,7 @@ private theorem negativePrefixGates_step {Data : Type} (data : BinaryLabelEncodi
     norm_num [finIdentityBit, ofEquivBit, WireAddress.bitIndex, WireAddress.flipBit, prodLeftBit]
 
 /-- Exact all-label action, including both unchanged prefix controls and every dirty field. -/
-theorem pointPrefixControlGates_step {Data : Type} (data : BinaryLabelEncoding Data)
+lemma pointPrefixControlGates_step {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (control : OffsetControl) (source : List (GateSpec data))
     (state : Fin (2 ^ controlWidth control) × Data) :
@@ -126,19 +128,20 @@ theorem pointPrefixControlGates_step {Data : Type} (data : BinaryLabelEncoding D
         Fin.ext_iff, Fin.modNat]
 
 /-- The physical program has exact unit phase on every basis label, with no clean-bit premise. -/
-theorem pointPrefixControlGates_realizes {Data : Type} (data : BinaryLabelEncoding Data)
+lemma pointPrefixControlGates_realizes {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (control : OffsetControl) (source : List (GateSpec data))
     (layout : QubitLayout (controlWidth control + data.width)) :
     UnitaryCircuit.Realizes (layout := layout) (prod (finIdentity (controlWidth control)) data)
       (programList layout .empty (prefixControlGates data bits bitsWire capacity control source))
+        environment
       (fun state =>
         (state.1, if state.1 = activeValue control then stepList source state.2 else state.2)) :=
-  realizesList_congrStep layout .empty _
+  realizesList_congrStep (environment := environment) layout .empty _
     (pointPrefixControlGates_step data bits bitsWire capacity control source)
 
 /-- Both negative-control X gates themselves undergo the outer native control expansion. -/
-theorem pointPrefixControlGates_length_bound {Data : Type} (data : BinaryLabelEncoding Data)
+lemma pointPrefixControlGates_length_bound {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (control : OffsetControl) (source : List (GateSpec data)) :
     (prefixControlGates data bits bitsWire capacity control source).length ≤
@@ -165,7 +168,7 @@ theorem pointPrefixControlGates_length_bound {Data : Type} (data : BinaryLabelEn
     rw [negativeLength] at outer
     omega
 
-private theorem rightControl_counts {Left Right : Type}
+private lemma rightControl_counts {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (leftBits : Fin left.width → EncodedBit left)
     (rightBits : Fin right.width → EncodedBit right)
@@ -192,7 +195,7 @@ private theorem rightControl_counts {Left Right : Type}
   exact counts
 
 /-- Actual ordered primitive events, without replacing them by abstract controlled labels. -/
-theorem pointPrefixControlGates_trace {Data : Type} (data : BinaryLabelEncoding Data)
+lemma pointPrefixControlGates_trace {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (control : OffsetControl) (source : List (GateSpec data))
     (layout : QubitLayout (controlWidth control + data.width)) :
@@ -203,7 +206,7 @@ theorem pointPrefixControlGates_trace {Data : Type} (data : BinaryLabelEncoding 
     (prefixControlGates data bits bitsWire capacity control source)
 
 /-- Exact cost cardinality charges every emitted gate, including both outer-controlled X gates. -/
-theorem pointPrefixControlGates_event_count {Data : Type} (data : BinaryLabelEncoding Data)
+lemma pointPrefixControlGates_event_count {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (control : OffsetControl) (source : List (GateSpec data))
     (layout : QubitLayout (controlWidth control + data.width)) :
@@ -214,7 +217,7 @@ theorem pointPrefixControlGates_event_count {Data : Type} (data : BinaryLabelEnc
     (prefixControlGates data bits bitsWire capacity control source)
 
 /-- Exact native multiplicities of the positive and mixed-polarity control expansions. -/
-theorem pointPrefixControlGates_counts {Data : Type} (data : BinaryLabelEncoding Data)
+lemma pointPrefixControlGates_counts {Data : Type} (data : BinaryLabelEncoding Data)
     (bits : Fin data.width → EncodedBit data) (bitsWire : ∀ index, (bits index).wire = index)
     (capacity : 4 ≤ data.width) (control : OffsetControl) (source : List (GateSpec data)) :
     ((prefixControlGates data bits bitsWire capacity control source).map xMultiplicity).sum = 0 ∧

@@ -36,7 +36,7 @@ structure ChosenCursorReads (cells : ScanCells ctx modulusWidth (phaseBits + 1))
   inactive : store.read (cellRead cells.cursor.active) = .bit false
 
 /-- The actual acceptance instructions copy the real candidate and freeze further visits. -/
-theorem nativeScan_accept_chosen
+lemma nativeScan_accept_chosen
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (separated : cells.Separated)
     (store : Store ctx) (candidate : Nat)
     (candidateValue : (store.read (cellRead cells.cursor.candidate)).toNat = candidate)
@@ -59,7 +59,7 @@ theorem nativeScan_accept_chosen
   exact actual.2.2
 
 /-- Rejection advances the same source cursor and preserves the false accepted latch. -/
-theorem nativeScan_advance_pending
+lemma nativeScan_advance_pending
     (cells : ScanCells ctx modulusWidth (phaseBits + 1)) (separated : cells.Separated)
     (remainder : CInputRef ctx (.unsignedWord (phaseBits + 1)))
     (remainderFree : ∀ key ∈ [cells.cursor.older.key, cells.cursor.previous.key,
@@ -112,7 +112,7 @@ theorem nativeScan_advance_pending
         (List.mem_singleton.mp present)
 
 /-- Every remaining actual slot preserves the complete store once a candidate has been selected. -/
-theorem nativeScan_chosen_frozen {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeScan_chosen_frozen {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

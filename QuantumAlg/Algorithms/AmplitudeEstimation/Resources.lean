@@ -41,26 +41,26 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem preparation_pool {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (preparationCode E t).Path) :
-    ResourcePool.ofList ((preparationCode E t).eventTrace path) =
-      (t + (Elementary.helperWidth t n + n)) • ResourcePool.singleton (model := model E)
+private lemma preparation_pool (n : Nat) (t : Nat)
+    (path : (preparationCode n t).Path) :
+    ResourcePool.ofList ((preparationCode n t).eventTrace path) =
+      (t + (Elementary.helperWidth t n + n)) • ResourcePool.singleton (model := model n)
         (.preparation (2 : ℕ+)) :=
   ZeroPreparation.zeroPreparation_uniform_cost AlgorithmGate.model
-    (Elementary.oracles E.source.preparation E.source.good)
+    (Elementary.oracles n)
     (runtimeLayout t n) 2 (fun _ => rfl) BitWord.model .empty
 
-private theorem program_pool {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    ResourcePool.ofList ((nativeProgram E t).eventTrace BitWord.model .empty) =
-      unitaryBudget E t := by
-  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram E t) BitWord.model .empty,
+private lemma program_pool (n : Nat) (t : Nat) :
+    ResourcePool.ofList ((nativeProgram n t).eventTrace BitWord.model .empty) =
+      unitaryBudget n t := by
+  rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost (nativeProgram n t) BitWord.model .empty,
     nativeProgram,
     unitaryOfEqualWires_cost (runtimeLayout t n) (preparedContext t n).quantumLayout
-      (prepared_canonical_wires t n) (runtimeProgram E t)]
+      (prepared_canonical_wires t n) (runtimeProgram n t)]
   apply Multiset.ext.mpr
   intro event
   change ResourcePool.count event
-    ((runtimeProgram E t).eventCost BitWord.model .empty) = ResourcePool.count event _
+    ((runtimeProgram n t).eventCost BitWord.model .empty) = ResourcePool.count event _
   rw [UnitaryCircuit.unitaryCircuit_event_count_classical_context]
   cases event with
   | gate coordinate =>
@@ -87,80 +87,84 @@ private theorem program_pool {n : Nat} (E : GeneralAmplitudeEstimationInput n) (
           ZeroReflection.controlledElementaryEventPool,
           ResourcePool.count_add, ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
-private theorem measurement_pool {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := Elementary.oracles E.source.preparation E.source.good)
+private lemma measurement_pool (n : Nat) (t : Nat)
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := Elementary.oracles n)
       (operations := BitWord.model)
       (classicalOracles := .empty) (readouts t n)).Path) :
-    ResourcePool.ofList ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := Elementary.oracles E.source.preparation E.source.good)
+    ResourcePool.ofList ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := Elementary.oracles n)
       (operations := BitWord.model)
       (classicalOracles := .empty) (readouts t n)).eventTrace path) =
-      t • ResourcePool.singleton (model := model E) (.measurement (2 : ℕ+)) := by
+      t • ResourcePool.singleton (model := model n) (.measurement (2 : ℕ+)) := by
   rw [← Circuit.resourcePool,
     Circuit.measurementSequence_qubit_resourcePool (readouts t n) (readouts_qubits t n),
     readouts_length]
   rfl
 
-private theorem allocation_trace {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (allocationCode E t).Path) : (allocationCode E t).eventTrace path = [] :=
-  MeasurementCells.allocate_eventTrace (model := model E) (resultContext t n) 2 t path.2
+private lemma allocation_trace (n : Nat) (t : Nat)
+    (path : (allocationCode n t).Path) : (allocationCode n t).eventTrace path = [] :=
+  MeasurementCells.allocate_eventTrace (model := model n) (resultContext t n) 2 t path.2
 
 /-- Every actual path has exactly the independent complete native event pool. -/
-theorem code_events {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (code E t).Path) :
-    (code E t).resourcePool path = eventBudget E t := by
+lemma code_events (n : Nat) (t : Nat)
+    (path : (code n t).Path) :
+    (code n t).resourcePool path = eventBudget n t := by
   simp only [Circuit.resourcePool, code, beforeMeasurement, readoutCode,
     Circuit.eventTrace, allocation_trace, List.append_nil, ResourcePool.ofList_append,
     program_pool, measurement_pool]
-  rw [preparation_pool E t path.1.1]
+  rw [preparation_pool n t path.1.1]
   rfl
 
-private theorem program_depth {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    DepthExpr.depthEval (fun _ => 1) ((nativeProgram E t).eventDepth BitWord.model .empty) =
-      Elementary.unitaryDepth t n := by
+private lemma program_depth (n : Nat) (t : Nat) :
+    DepthExpr.depthEval (fun _ => 1) ((nativeProgram n t).eventDepth BitWord.model .empty) =
+      Elementary.unitaryCriticalPath t n := by
   rw [UnitaryCircuit.unitaryCircuit_unit_depth_classical_context]
-  change (runtimeProgram E t).evaluatedEventDepth (fun _ => 1) = _
+  change (runtimeProgram n t).evaluatedEventDepth (fun _ => 1) = _
   rw [runtimeProgram, Elementary.castCircuit_depth,
     Elementary.program_unitDepth]
 
 /-- Exact unit-event depth includes each preparation layer, sequential Z write and packing. -/
-theorem code_depth_exact {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (code E t).Path) :
-    (code E t).depth (fun _ => 1) path =
+lemma code_depth_exact (n : Nat) (t : Nat)
+    (path : (code n t).Path) :
+    (code n t).depth (fun _ => 1) path =
       (if t + (Elementary.helperWidth t n + n) = 0 then 0 else 1) +
-        Elementary.unitaryDepth t n + t + 1 := by
+        Elementary.unitaryCriticalPath t n + t + 1 := by
   change (DepthExpr.depthEval (fun _ => 1)
       (ZeroPreparation.eventDepth AlgorithmGate.model
-        (Elementary.oracles E.source.preparation E.source.good)
+        (Elementary.oracles n)
         (runtimeLayout t n) BitWord.model .empty) +
-    (DepthExpr.depthEval (fun _ => 1) ((nativeProgram E t).eventDepth BitWord.model .empty) +
-      (0 + (MeasurementCells.allocate (model := model E)
+    (DepthExpr.depthEval (fun _ => 1) ((nativeProgram n t).eventDepth BitWord.model .empty) +
+      (0 + (MeasurementCells.allocate (model := model n)
         (resultContext t n) 2 t).depth (fun _ => 1) path.1.2.2.2))) +
-    ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := Elementary.oracles E.source.preparation E.source.good)
+    ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
+      (oracles := Elementary.oracles n)
       (operations := BitWord.model)
       (classicalOracles := .empty) (readouts t n)).depth
       (fun _ => 1) path.2.1 + 1) = _
   rw [ZeroPreparation.zeroPreparation_uniform_unit_depth AlgorithmGate.model
-    (Elementary.oracles E.source.preparation E.source.good) (runtimeLayout t n) 2 (fun _ => rfl)
+    (Elementary.oracles n) (runtimeLayout t n) 2 (fun _ => rfl)
     BitWord.model .empty, MeasurementCells.allocate_depth,
     Circuit.measurementSequence_unitDepth, readouts_length, program_depth]
   omega
 
-/-- The independent full-cycle depth bound also covers the empty source register. -/
-theorem code_depth {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (code E t).Path) :
-    (code E t).depth (fun _ => 1) path ≤ depthBudget t n := by
+/-- The independent complete execution bound also covers the empty source register. -/
+lemma code_depth (n : Nat) (t : Nat)
+    (path : (code n t).Path) :
+    (code n t).depth (fun _ => 1) path ≤ depthBudget t n := by
   rw [code_depth_exact]
+  have bounded := Elementary.unitaryCriticalPath_le_unitaryDepth t n
   unfold depthBudget
   split <;> omega
 
 /-- The full hybrid execution retains exactly the actual unitary's native gate count. -/
-theorem code_gateCount {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (code E t).Path) :
+lemma code_gateCount (n : Nat) (t : Nat)
+    (path : (code n t).Path) :
     ResourcePool.weightedCount (fun event => match event with
-      | .gate _ => 1 | _ => 0) ((code E t).resourcePool path) =
+      | .gate _ => 1 | _ => 0) ((code n t).resourcePool path) =
         Elementary.unitaryGateCount t n := by
   rw [code_events]
   rcases n with _ | _ | _ | n <;>
@@ -170,10 +174,10 @@ theorem code_gateCount {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Na
       ResourcePool.weightedCount_nsmul, ResourcePool.weightedCount_singleton] <;> ring
 
 /-- Exact native single-qubit count of the complete amplitude-estimation run. -/
-theorem aeCode_singleQubitCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.gate .singleQubit)
-      ((code E t).resourcePool path) =
+lemma aeCode_singleQubitCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.gate .singleQubit)
+      ((code n t).resourcePool path) =
         2 * t + (2 ^ t - 1) * ZeroReflection.controlledElementarySingleQubitCount n +
           3 * t.choose 2 := by
   rw [code_events]
@@ -185,10 +189,10 @@ theorem aeCode_singleQubitCount {n : Nat} (E : GeneralAmplitudeEstimationInput n
       ResourcePool.count_singleton] <;> ring
 
 /-- Exact native CNOT count, including the inverse-Fourier readout. -/
-theorem aeCode_cnotCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.gate .cnot)
-      ((code E t).resourcePool path) =
+lemma aeCode_cnotCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.gate .cnot)
+      ((code n t).resourcePool path) =
         (2 ^ t - 1) * ZeroReflection.controlledElementaryCNOTCount n +
           2 * t.choose 2 + 3 * (t / 2) := by
   rw [code_events]
@@ -200,10 +204,10 @@ theorem aeCode_cnotCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
       ResourcePool.count_singleton, Nat.add_assoc]
 
 /-- Exact native Toffoli count of the repeated controlled zero reflection. -/
-theorem aeCode_toffoliCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.gate .toffoli)
-      ((code E t).resourcePool path) =
+lemma aeCode_toffoliCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.gate .toffoli)
+      ((code n t).resourcePool path) =
         (2 ^ t - 1) * ZeroReflection.controlledElementaryToffoliCount n := by
   rw [code_events]
   rcases n with _ | _ | _ | n <;>
@@ -214,9 +218,9 @@ theorem aeCode_toffoliCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
       ResourcePool.count_singleton]
 
 /-- Preparation and readout add no source queries to the actual native unitary. -/
-theorem code_oracleCount {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat)
-    (path : (code E t).Path) (coordinate : AmplitudeAmplificationSource.Coordinate) :
-    ResourcePool.count (model := model E) (.oracle coordinate) ((code E t).resourcePool path) =
+lemma code_oracleCount (n : Nat) (t : Nat)
+    (path : (code n t).Path) (coordinate : AmplitudeAmplificationSource.Coordinate) :
+    ResourcePool.count (model := model n) (.oracle coordinate) ((code n t).resourcePool path) =
       (if coordinate = .preparation then 1 else 0) +
         (2 ^ t - 1) * (if coordinate = .goodReflection then 0 else 1) := by
   rw [code_events]
@@ -226,31 +230,31 @@ theorem code_oracleCount {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : 
       ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- Ordinary preparation includes the initial query before the power ladder. -/
-theorem code_preparationCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.oracle .preparation)
-      ((code E t).resourcePool path) = (2 ^ t - 1) + 1 := by
-  simpa [Nat.add_comm] using code_oracleCount E t path .preparation
+lemma code_preparationCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.oracle .preparation)
+      ((code n t).resourcePool path) = (2 ^ t - 1) + 1 := by
+  simpa [Nat.add_comm] using code_oracleCount n t path .preparation
 
 /-- Each source step makes one ordinary inverse-preparation query. -/
-theorem code_inversePreparationCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.oracle .inversePreparation)
-      ((code E t).resourcePool path) = 2 ^ t - 1 := by
-  simpa using code_oracleCount E t path .inversePreparation
+lemma code_inversePreparationCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.oracle .inversePreparation)
+      ((code n t).resourcePool path) = 2 ^ t - 1 := by
+  simpa using code_oracleCount n t path .inversePreparation
 
 /-- Each source step makes one explicitly granted controlled recognizer query. -/
-theorem code_controlledGoodReflectionCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.oracle .controlledGoodReflection)
-      ((code E t).resourcePool path) = 2 ^ t - 1 := by
-  simpa using code_oracleCount E t path .controlledGoodReflection
+lemma code_controlledGoodReflectionCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.oracle .controlledGoodReflection)
+      ((code n t).resourcePool path) = 2 ^ t - 1 := by
+  simpa using code_oracleCount n t path .controlledGoodReflection
 
 /-- Every actual phase wire contributes one binary Z measurement. -/
-theorem code_measurementCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E) (.measurement (2 : ℕ+))
-      ((code E t).resourcePool path) = t := by
+lemma code_measurementCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n) (.measurement (2 : ℕ+))
+      ((code n t).resourcePool path) = t := by
   rw [code_events]
   rcases n with _ | _ | _ | n <;>
     simp [eventBudget, unitaryBudget, stepBudget, readoutBudget,
@@ -258,11 +262,11 @@ theorem code_measurementCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
       ResourcePool.count_nsmul, ResourcePool.count_singleton]
 
 /-- One packing instruction follows the actual Z-write sequence. -/
-theorem code_packCount {n : Nat} (E : GeneralAmplitudeEstimationInput n)
-    (t : Nat) (path : (code E t).Path) :
-    ResourcePool.count (model := model E)
+lemma code_packCount (n : Nat)
+    (t : Nat) (path : (code n t).Path) :
+    ResourcePool.count (model := model n)
       (.classicalOperation (.nominalEncoding (.packFiniteBits t)))
-      ((code E t).resourcePool path) = 1 := by
+      ((code n t).resourcePool path) = 1 := by
   rw [code_events]
   rcases n with _ | _ | _ | n <;>
     simp [eventBudget, unitaryBudget, stepBudget, readoutBudget,

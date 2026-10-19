@@ -33,6 +33,8 @@ namespace PortFrame
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Arithmetic
 
 /-- One coordinate word at the selected field width. -/
@@ -102,7 +104,7 @@ def liftAuxBit {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
       BinaryLabelEncoding.bool
       (BinaryLabelEncoding.prodRightBit (publicEncoding width) auxEncoding bit))
 
-@[simp] theorem liftAuxBit_get {Aux : Type}
+@[simp] lemma liftAuxBit_get {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (bit : EncodedBit auxEncoding) (state : RawRegisters Aux width) :
     (liftAuxBit auxEncoding width bit).get state = bit.get state.2.1.2 :=
@@ -124,7 +126,7 @@ def liftAuxGates {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
 
 /-- Lifting an auxiliary schedule through the public frame preserves its
 complete ordered primitive-event trace. -/
-theorem liftAuxGates_map_event {Aux : Type}
+lemma liftAuxGates_map_event {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     (liftAuxGates auxEncoding width gates).map (EncodedBit.GateSpec.event .empty) =
@@ -137,7 +139,7 @@ theorem liftAuxGates_map_event {Aux : Type}
 
 /-- Public-frame lifting changes only wire addresses, not the number of
 executed primitive gates. -/
-theorem liftAuxGates_length {Aux : Type}
+lemma liftAuxGates_length {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     (liftAuxGates auxEncoding width gates).length = gates.length := by
@@ -149,7 +151,7 @@ theorem liftAuxGates_length {Aux : Type}
 
 /-- Public-frame lifting preserves the exact Toffoli coordinate of the
 underlying auxiliary schedule. -/
-theorem liftAuxGates_toffoliMultiplicity_sum {Aux : Type}
+lemma liftAuxGates_toffoliMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     ((liftAuxGates auxEncoding width gates).map
@@ -160,7 +162,7 @@ theorem liftAuxGates_toffoliMultiplicity_sum {Aux : Type}
 
 /-- Folding lifted auxiliary gates preserves the public carrier and framing
 bits. -/
-theorem liftAuxGates_stepList {Aux : Type}
+lemma liftAuxGates_stepList {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding))
     (state : RawRegisters Aux width) :
@@ -178,20 +180,21 @@ theorem liftAuxGates_stepList {Aux : Type}
     EncodedBit.GateSpec.stepList_prodRight]
 
 /-- The literal auxiliary gate list realizes its lifted folded action. -/
-theorem liftAuxGates_realizes {Aux : Type}
+lemma liftAuxGates_realizes {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding)) :
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (liftAuxGates auxEncoding width gates))
+        (liftAuxGates auxEncoding width gates)) environment
       (fun state =>
         (state.1, ((state.2.1.1,
           EncodedBit.GateSpec.stepList gates state.2.1.2), state.2.2))) :=
-  EncodedBit.GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
+    (QubitLayout.canonical _) .empty _
     (liftAuxGates_stepList auxEncoding width gates)
 
 /-- Every public bit is physically separated from every arithmetic-suffix bit. -/
-theorem liftPublicBit_liftAuxBit_wire_ne {Aux : Type}
+lemma liftPublicBit_liftAuxBit_wire_ne {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (publicBit : EncodedBit (publicEncoding width))
     (auxBit : EncodedBit auxEncoding) :
@@ -205,7 +208,7 @@ theorem liftPublicBit_liftAuxBit_wire_ne {Aux : Type}
 
 /-- Distinct arithmetic-suffix wires remain distinct after they are lifted
 through the public carrier and both framing bits. -/
-theorem liftAuxBit_wire_ne {Aux : Type}
+lemma liftAuxBit_wire_ne {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     {left right : EncodedBit auxEncoding}
     (hne : left.wire ≠ right.wire) :
@@ -215,26 +218,26 @@ theorem liftAuxBit_wire_ne {Aux : Type}
     (EncodedBit.GateSpec.prodLeftWire_ne BinaryLabelEncoding.bool
       (EncodedBit.GateSpec.prodRightWire_ne (publicEncoding width) hne))
 
-@[simp] theorem wordEncoding_width (width : Nat) :
+@[simp] lemma wordEncoding_width (width : Nat) :
     (wordEncoding width).width = width :=
   rfl
 
-@[simp] theorem pointEncoding_width (width : Nat) :
+@[simp] lemma pointEncoding_width (width : Nat) :
     (pointEncoding width).width = 2 * width := by
   simp [pointEncoding]
   omega
 
-@[simp] theorem publicEncoding_width (width : Nat) :
+@[simp] lemma publicEncoding_width (width : Nat) :
     (publicEncoding width).width = 6 * width := by
   simp [publicEncoding]
   omega
 
-@[simp] theorem coreEncoding_width {Aux : Type}
+@[simp] lemma coreEncoding_width {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     (coreEncoding auxEncoding width).width = 6 * width + auxEncoding.width := by
   simp [coreEncoding]
 
-@[simp] theorem rawEncoding_width {Aux : Type}
+@[simp] lemma rawEncoding_width {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     (rawEncoding auxEncoding width).width =
       6 * width + auxEncoding.width + 2 := by
@@ -246,13 +249,13 @@ def fixedWord (width : Nat) : EncodedBit.Word (wordEncoding width) width where
   bit := fun bit => BinaryLabelEncoding.finIdentityBit width
     (WireAddress.littleEndianWire bit)
 
-@[simp] theorem fixedWord_get (width : Nat) (bit : Fin width)
+@[simp] lemma fixedWord_get (width : Nat) (bit : Fin width)
     (word : Word width) :
     ((fixedWord width).bit bit).get word = word.val.testBit bit.val := by
   simp [fixedWord, wordEncoding, BinaryLabelEncoding.finIdentityBit,
     BinaryLabelEncoding.ofEquivBit]
 
-theorem fixedWord_pairwise_ne (width : Nat) (left right : Fin width)
+lemma fixedWord_pairwise_ne (width : Nat) (left right : Fin width)
     (hne : left ≠ right) :
     ((fixedWord width).bit left).wire ≠
       ((fixedWord width).bit right).wire := by
@@ -337,14 +340,14 @@ def liftAuxPort {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
     ((BlockBank.WordPort.prodRight (publicEncoding width) port).prodLeft
       BinaryLabelEncoding.bool)
 
-@[simp] theorem liftPublicPort_read {Aux : Type}
+@[simp] lemma liftPublicPort_read {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (port : BlockBank.WordPort (publicEncoding width) width)
     (state : RawRegisters Aux width) :
     (liftPublicPort auxEncoding width port).read state = port.read state.2.1.1 :=
   rfl
 
-@[simp] theorem liftAuxPort_read {Aux : Type}
+@[simp] lemma liftAuxPort_read {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width wordWidth : Nat)
     (port : BlockBank.WordPort auxEncoding wordWidth)
     (state : RawRegisters Aux width) :
@@ -352,7 +355,7 @@ def liftAuxPort {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
       port.read state.2.1.2 :=
   rfl
 
-@[simp] theorem liftPublicPort_word_bit {Aux : Type}
+@[simp] lemma liftPublicPort_word_bit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (port : BlockBank.WordPort (publicEncoding width) width)
     (bit : Fin width) :
@@ -360,7 +363,7 @@ def liftAuxPort {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
       liftPublicBit auxEncoding width (port.word.bit bit) :=
   rfl
 
-@[simp] theorem liftAuxPort_word_bit {Aux : Type}
+@[simp] lemma liftAuxPort_word_bit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width wordWidth : Nat)
     (port : BlockBank.WordPort auxEncoding wordWidth)
     (bit : Fin wordWidth) :
@@ -369,7 +372,7 @@ def liftAuxPort {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
   rfl
 
 /-- Public ports and lifted arithmetic ports are physically disjoint. -/
-theorem liftPublicPort_liftAuxPort_wire_ne {Aux : Type}
+lemma liftPublicPort_liftAuxPort_wire_ne {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width wordWidth : Nat)
     (publicPort : BlockBank.WordPort (publicEncoding width) width)
     (auxPort : BlockBank.WordPort auxEncoding wordWidth)
@@ -428,7 +431,7 @@ def controlWorkBit {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
 
 /-- Every lifted public-carrier bit is physically disjoint from the leading
 translation control. -/
-theorem liftPublicBit_wire_ne_controlBit {Aux : Type}
+lemma liftPublicBit_wire_ne_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (bit : EncodedBit (publicEncoding width)) :
     (liftPublicBit auxEncoding width bit).wire ≠
@@ -444,7 +447,7 @@ theorem liftPublicBit_wire_ne_controlBit {Aux : Type}
 
 /-- Every lifted arithmetic-suffix bit is physically disjoint from the leading
 translation control. -/
-theorem liftAuxBit_wire_ne_controlBit {Aux : Type}
+lemma liftAuxBit_wire_ne_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (bit : EncodedBit auxEncoding) :
     (liftAuxBit auxEncoding width bit).wire ≠
@@ -460,7 +463,7 @@ theorem liftAuxBit_wire_ne_controlBit {Aux : Type}
 
 /-- Every lifted public-carrier bit is physically disjoint from the trailing
 clean work bit. -/
-theorem liftPublicBit_wire_ne_controlWorkBit {Aux : Type}
+lemma liftPublicBit_wire_ne_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (bit : EncodedBit (publicEncoding width)) :
     (liftPublicBit auxEncoding width bit).wire ≠
@@ -473,7 +476,7 @@ theorem liftPublicBit_wire_ne_controlWorkBit {Aux : Type}
 
 /-- Every lifted arithmetic-suffix bit is physically disjoint from the trailing
 clean work bit. -/
-theorem liftAuxBit_wire_ne_controlWorkBit {Aux : Type}
+lemma liftAuxBit_wire_ne_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (bit : EncodedBit auxEncoding) :
     (liftAuxBit auxEncoding width bit).wire ≠
@@ -486,7 +489,7 @@ theorem liftAuxBit_wire_ne_controlWorkBit {Aux : Type}
 
 /-- The leading translation control and trailing clean work bit occupy
 different outer product branches. -/
-theorem controlBit_wire_ne_controlWorkBit {Aux : Type}
+lemma controlBit_wire_ne_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     (controlBit auxEncoding width).wire ≠
       (controlWorkBit auxEncoding width).wire := by
@@ -500,7 +503,7 @@ theorem controlBit_wire_ne_controlWorkBit {Aux : Type}
 
 /-- Every gate lifted from the arithmetic suffix is disjoint from the leading
 translation control. -/
-theorem liftAuxGates_bitDisjoint_controlBit {Aux : Type}
+lemma liftAuxGates_bitDisjoint_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding))
     (gate : EncodedBit.GateSpec (rawEncoding auxEncoding width))
@@ -516,7 +519,7 @@ theorem liftAuxGates_bitDisjoint_controlBit {Aux : Type}
 
 /-- Every gate lifted from the arithmetic suffix is disjoint from the trailing
 clean work bit. -/
-theorem liftAuxGates_bitDisjoint_controlWorkBit {Aux : Type}
+lemma liftAuxGates_bitDisjoint_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (gates : List (EncodedBit.GateSpec auxEncoding))
     (gate : EncodedBit.GateSpec (rawEncoding auxEncoding width))
@@ -546,34 +549,34 @@ def cleanRegisters {Aux : Type} (cleanAux : Aux) (width : Nat)
   (control,
     (((mutable, (zeroPoint width, zeroPoint width)), cleanAux), false))
 
-@[simp] theorem cleanRegisters_control {Aux : Type} (cleanAux : Aux)
+@[simp] lemma cleanRegisters_control {Aux : Type} (cleanAux : Aux)
     (width : Nat) (control : Bool) (mutable : PointWords width) :
     (cleanRegisters cleanAux width control mutable).1 = control :=
   rfl
 
-@[simp] theorem cleanRegisters_mutable {Aux : Type} (cleanAux : Aux)
+@[simp] lemma cleanRegisters_mutable {Aux : Type} (cleanAux : Aux)
     (width : Nat) (control : Bool) (mutable : PointWords width) :
     (cleanRegisters cleanAux width control mutable).2.1.1.1 = mutable :=
   rfl
 
-@[simp] theorem cleanRegisters_constant {Aux : Type} (cleanAux : Aux)
+@[simp] lemma cleanRegisters_constant {Aux : Type} (cleanAux : Aux)
     (width : Nat) (control : Bool) (mutable : PointWords width) :
     (cleanRegisters cleanAux width control mutable).2.1.1.2.1 =
       zeroPoint width :=
   rfl
 
-@[simp] theorem cleanRegisters_output {Aux : Type} (cleanAux : Aux)
+@[simp] lemma cleanRegisters_output {Aux : Type} (cleanAux : Aux)
     (width : Nat) (control : Bool) (mutable : PointWords width) :
     (cleanRegisters cleanAux width control mutable).2.1.1.2.2 =
       zeroPoint width :=
   rfl
 
-@[simp] theorem cleanRegisters_aux {Aux : Type} (cleanAux : Aux)
+@[simp] lemma cleanRegisters_aux {Aux : Type} (cleanAux : Aux)
     (width : Nat) (control : Bool) (mutable : PointWords width) :
     (cleanRegisters cleanAux width control mutable).2.1.2 = cleanAux :=
   rfl
 
-@[simp] theorem cleanRegisters_controlWork {Aux : Type} (cleanAux : Aux)
+@[simp] lemma cleanRegisters_controlWork {Aux : Type} (cleanAux : Aux)
     (width : Nat) (control : Bool) (mutable : PointWords width) :
     (cleanRegisters cleanAux width control mutable).2.2 = false :=
   rfl
@@ -583,7 +586,7 @@ def wordDelta {width : Nat} (source target : Word width) : Fin (2 ^ width) :=
   ⟨source.val ^^^ target.val,
     Nat.xor_lt_two_pow source.isLt target.isLt⟩
 
-@[simp] theorem wordDelta_testBit {width : Nat} (source target : Word width)
+@[simp] lemma wordDelta_testBit {width : Nat} (source target : Word width)
     (bit : Fin width) :
     (wordDelta source target).val.testBit bit.val =
       (source.val.testBit bit.val ^^ target.val.testBit bit.val) := by
@@ -593,7 +596,7 @@ def wordDelta {width : Nat} (source target : Word width) : Fin (2 ^ width) :=
 
 /-- Lifting two distinct public-port wires through the common framing layers
 preserves their physical separation. -/
-theorem liftPublicPort_wire_ne {Aux : Type}
+lemma liftPublicPort_wire_ne {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (left right : BlockBank.WordPort (publicEncoding width) width)
     (leftBit rightBit : Fin width)
@@ -607,7 +610,7 @@ theorem liftPublicPort_wire_ne {Aux : Type}
 
 /-- Mutable and output X-coordinate wires occupy different outer product
 branches, for every pair of word indices. -/
-theorem mutableXPublic_outputXPublic_wire_ne (width : Nat)
+lemma mutableXPublic_outputXPublic_wire_ne (width : Nat)
     (left right : Fin width) :
     ((mutableXPublicPort width).word.bit left).wire ≠
       ((outputXPublicPort width).word.bit right).wire := by
@@ -629,7 +632,7 @@ theorem mutableXPublic_outputXPublic_wire_ne (width : Nat)
 
 /-- Mutable and output Y-coordinate wires occupy different outer product
 branches, for every pair of word indices. -/
-theorem mutableYPublic_outputYPublic_wire_ne (width : Nat)
+lemma mutableYPublic_outputYPublic_wire_ne (width : Nat)
     (left right : Fin width) :
     ((mutableYPublicPort width).word.bit left).wire ≠
       ((outputYPublicPort width).word.bit right).wire := by
@@ -651,7 +654,7 @@ theorem mutableYPublic_outputYPublic_wire_ne (width : Nat)
 
 /-- Mutable and output X-coordinate wires remain separated on the complete
 translation carrier. -/
-theorem mutableX_outputX_wire_ne {Aux : Type}
+lemma mutableX_outputX_wire_ne {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (left right : Fin width) :
     ((mutableXPort auxEncoding width).word.bit left).wire ≠
@@ -661,7 +664,7 @@ theorem mutableX_outputX_wire_ne {Aux : Type}
 
 /-- Mutable and output Y-coordinate wires remain separated on the complete
 translation carrier. -/
-theorem mutableY_outputY_wire_ne {Aux : Type}
+lemma mutableY_outputY_wire_ne {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (left right : Fin width) :
     ((mutableYPort auxEncoding width).word.bit left).wire ≠
@@ -669,7 +672,7 @@ theorem mutableY_outputY_wire_ne {Aux : Type}
   liftPublicPort_wire_ne auxEncoding width _ _ left right
     (mutableYPublic_outputYPublic_wire_ne width left right)
 
-private theorem xorConstantGates_bitDisjoint
+private lemma xorConstantGates_bitDisjoint
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (observed : EncodedBit encoding) (target : EncodedBit.Word encoding width)
     (constant : Fin (2 ^ width))
@@ -681,7 +684,7 @@ private theorem xorConstantGates_bitDisjoint
   rcases List.mem_map.mp hgate with ⟨bit, _hbit, rfl⟩
   exact htarget bit
 
-private theorem wordSwapGates_bitDisjoint
+private lemma wordSwapGates_bitDisjoint
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (observed : EncodedBit encoding)
     (left right : EncodedBit.Word encoding width)
@@ -712,7 +715,7 @@ def loadConstantGates {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
 
 /-- Loading a literal point never reads or writes the leading translation
 control. -/
-theorem loadConstantGates_bitDisjoint_controlBit {Aux : Type}
+lemma loadConstantGates_bitDisjoint_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ∀ gate, gate ∈ loadConstantGates auxEncoding width constant →
@@ -732,7 +735,7 @@ theorem loadConstantGates_bitDisjoint_controlBit {Aux : Type}
             ((constantYPublicPort width).word.bit bit)) gate hgate
 
 /-- Loading a literal point never reads or writes the clean control-work bit. -/
-theorem loadConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
+lemma loadConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ∀ gate, gate ∈ loadConstantGates auxEncoding width constant →
@@ -768,17 +771,17 @@ def loadConstantStep {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
   EncodedBit.GateSpec.stepList
     (loadConstantGates auxEncoding width constant)
 
-theorem loadConstant_realizes {Aux : Type}
+lemma loadConstant_realizes {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
-      (loadConstantProgram auxEncoding width constant)
+      (loadConstantProgram auxEncoding width constant) environment
       (loadConstantStep auxEncoding width constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-- A literal constant xor updates one structural word port to a word whose
 bits have the corresponding xor values. -/
-theorem xorConstantStep_eq_set_of_testBit
+lemma xorConstantStep_eq_set_of_testBit
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (port : BlockBank.WordPort encoding width)
     (constant : Fin (2 ^ width)) (state : Data)
@@ -821,7 +824,7 @@ theorem xorConstantStep_eq_set_of_testBit
 
 /-- A controlled literal constant xor updates one structural word port to the
 word whose bits are toggled by the conjunction of the control and constant. -/
-theorem controlledXorConstantStep_eq_set_of_testBit
+lemma controlledXorConstantStep_eq_set_of_testBit
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (port : BlockBank.WordPort encoding width)
     (control : EncodedBit encoding)
@@ -873,7 +876,7 @@ theorem controlledXorConstantStep_eq_set_of_testBit
     _ = port.set state value := by rw [port.set_set]
 
 /-- Loading a literal point updates only the previously clean constant port. -/
-theorem loadConstantStep_at {Aux : Type}
+lemma loadConstantStep_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) (control : Bool)
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
@@ -908,11 +911,11 @@ theorem loadConstantStep_at {Aux : Type}
   rfl
 
 /-- The literal point loader maps the corresponding encoded basis ket. -/
-theorem loadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
+lemma loadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) (control : Bool)
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
-    (loadConstantProgram auxEncoding width constant).applyNormalized
+    (loadConstantProgram auxEncoding width constant).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
             ((rawEncoding auxEncoding width).encode
@@ -922,7 +925,8 @@ theorem loadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
         ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
           ((rawEncoding auxEncoding width).encode
             (control, (((mutable, (constant, output)), aux), controlWork)))) := by
-  rw [(loadConstant_realizes auxEncoding width constant).apply_encoded_ket]
+  rw [(loadConstant_realizes (environment := environment)
+    auxEncoding width constant).apply_encoded_ket]
   rw [loadConstantStep_at auxEncoding width constant control mutable output aux
     controlWork]
 
@@ -939,7 +943,7 @@ def replaceConstantGates {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
 
 /-- Replacing a loaded point never reads or writes the leading translation
 control. -/
-theorem replaceConstantGates_bitDisjoint_controlBit {Aux : Type}
+lemma replaceConstantGates_bitDisjoint_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
     ∀ gate, gate ∈ replaceConstantGates auxEncoding width source target →
@@ -959,7 +963,7 @@ theorem replaceConstantGates_bitDisjoint_controlBit {Aux : Type}
             ((constantYPublicPort width).word.bit bit)) gate hgate
 
 /-- Replacing a loaded point never reads or writes the clean control-work bit. -/
-theorem replaceConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
+lemma replaceConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
     ∀ gate, gate ∈ replaceConstantGates auxEncoding width source target →
@@ -997,16 +1001,16 @@ def replaceConstantStep {Aux : Type}
   EncodedBit.GateSpec.stepList
     (replaceConstantGates auxEncoding width source target)
 
-theorem replaceConstant_realizes {Aux : Type}
+lemma replaceConstant_realizes {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
-      (replaceConstantProgram auxEncoding width source target)
+      (replaceConstantProgram auxEncoding width source target) environment
       (replaceConstantStep auxEncoding width source target) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-- Replacing a loaded literal point updates only the constant port. -/
-theorem replaceConstantStep_at {Aux : Type}
+lemma replaceConstantStep_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) (control : Bool)
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
@@ -1057,11 +1061,11 @@ theorem replaceConstantStep_at {Aux : Type}
   rfl
 
 /-- The literal point replacement maps the corresponding encoded basis ket. -/
-theorem replaceConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
+lemma replaceConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) (control : Bool)
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
-    (replaceConstantProgram auxEncoding width source target).applyNormalized
+    (replaceConstantProgram auxEncoding width source target).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
             ((rawEncoding auxEncoding width).encode
@@ -1070,7 +1074,8 @@ theorem replaceConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
         ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
           ((rawEncoding auxEncoding width).encode
             (control, (((mutable, (target, output)), aux), controlWork)))) := by
-  rw [(replaceConstant_realizes auxEncoding width source target).apply_encoded_ket]
+  rw [(replaceConstant_realizes (environment := environment)
+    auxEncoding width source target).apply_encoded_ket]
   rw [replaceConstantStep_at auxEncoding width source target control mutable
     output aux controlWork]
 
@@ -1082,7 +1087,7 @@ def unloadConstantGates {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
 
 /-- Unloading a literal point never reads or writes the leading translation
 control. -/
-theorem unloadConstantGates_bitDisjoint_controlBit {Aux : Type}
+lemma unloadConstantGates_bitDisjoint_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ∀ gate, gate ∈ unloadConstantGates auxEncoding width constant →
@@ -1093,7 +1098,7 @@ theorem unloadConstantGates_bitDisjoint_controlBit {Aux : Type}
     (List.mem_reverse.mp hgate)
 
 /-- Unloading a literal point never reads or writes the clean control-work bit. -/
-theorem unloadConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
+lemma unloadConstantGates_bitDisjoint_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ∀ gate, gate ∈ unloadConstantGates auxEncoding width constant →
@@ -1121,17 +1126,17 @@ def unloadConstantStep {Aux : Type} (auxEncoding : BinaryLabelEncoding Aux)
   EncodedBit.GateSpec.stepList
     (unloadConstantGates auxEncoding width constant)
 
-theorem unloadConstant_realizes {Aux : Type}
+lemma unloadConstant_realizes {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
-      (unloadConstantProgram auxEncoding width constant)
+      (unloadConstantProgram auxEncoding width constant) environment
       (unloadConstantStep auxEncoding width constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-- Unloading a literal point restores the clean constant port while leaving
 the other raw-register fields unchanged. -/
-theorem unloadConstantStep_at {Aux : Type}
+lemma unloadConstantStep_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) (control : Bool)
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
@@ -1154,11 +1159,11 @@ theorem unloadConstantStep_at {Aux : Type}
   exact hinverse
 
 /-- The literal point unloader maps the corresponding encoded basis ket. -/
-theorem unloadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
+lemma unloadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) (control : Bool)
     (mutable output : PointWords width) (aux : Aux) (controlWork : Bool) :
-    (unloadConstantProgram auxEncoding width constant).applyNormalized
+    (unloadConstantProgram auxEncoding width constant).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
             ((rawEncoding auxEncoding width).encode
@@ -1168,7 +1173,8 @@ theorem unloadConstantProgram_applyNormalized_encoded_ket_at {Aux : Type}
           ((rawEncoding auxEncoding width).encode
             (control,
               (((mutable, (zeroPoint width, output)), aux), controlWork)))) := by
-  rw [(unloadConstant_realizes auxEncoding width constant).apply_encoded_ket]
+  rw [(unloadConstant_realizes (environment := environment)
+    auxEncoding width constant).apply_encoded_ket]
   rw [unloadConstantStep_at auxEncoding width constant control mutable output aux
     controlWork]
 
@@ -1187,7 +1193,7 @@ def swapMutableOutputGates {Aux : Type}
 
 /-- Swapping the mutable and output points never reads or writes the leading
 translation control. -/
-theorem swapMutableOutputGates_bitDisjoint_controlBit {Aux : Type}
+lemma swapMutableOutputGates_bitDisjoint_controlBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     ∀ gate, gate ∈ swapMutableOutputGates auxEncoding width →
       EncodedBit.GateSpec.bitDisjoint (controlBit auxEncoding width) gate := by
@@ -1221,7 +1227,7 @@ theorem swapMutableOutputGates_bitDisjoint_controlBit {Aux : Type}
 
 /-- Swapping the mutable and output points never reads or writes the clean
 control-work bit. -/
-theorem swapMutableOutputGates_bitDisjoint_controlWorkBit {Aux : Type}
+lemma swapMutableOutputGates_bitDisjoint_controlWorkBit {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     ∀ gate, gate ∈ swapMutableOutputGates auxEncoding width →
       EncodedBit.GateSpec.bitDisjoint
@@ -1270,15 +1276,15 @@ def swapMutableOutputStep {Aux : Type}
   EncodedBit.GateSpec.stepList
     (swapMutableOutputGates auxEncoding width)
 
-theorem swapMutableOutput_realizes {Aux : Type}
+lemma swapMutableOutput_realizes {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     UnitaryCircuit.Realizes (rawEncoding auxEncoding width)
-      (swapMutableOutputProgram auxEncoding width)
+      (swapMutableOutputProgram auxEncoding width) environment
       (swapMutableOutputStep auxEncoding width) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty _
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty _
 
 /-- The X-coordinate word swap preserves every other raw-register field. -/
-private theorem swapMutableOutputXStep_at {Aux : Type}
+private lemma swapMutableOutputXStep_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (control : Bool) (mutable constant output : PointWords width)
     (aux : Aux) (controlWork : Bool) :
@@ -1370,7 +1376,7 @@ private theorem swapMutableOutputXStep_at {Aux : Type}
     · exact hcontrolWork
 
 /-- The Y-coordinate word swap preserves every other raw-register field. -/
-private theorem swapMutableOutputYStep_at {Aux : Type}
+private lemma swapMutableOutputYStep_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (control : Bool) (mutable constant output : PointWords width)
     (aux : Aux) (controlWork : Bool) :
@@ -1463,7 +1469,7 @@ private theorem swapMutableOutputYStep_at {Aux : Type}
 
 /-- Swapping the two public point ports leaves the constant port and framing
 fields untouched. -/
-theorem swapMutableOutputStep_at {Aux : Type}
+lemma swapMutableOutputStep_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (control : Bool) (mutable constant output : PointWords width)
     (aux : Aux) (controlWork : Bool) :
@@ -1493,11 +1499,11 @@ theorem swapMutableOutputStep_at {Aux : Type}
       (output.1, mutable.2) constant (mutable.1, output.2) aux controlWork
 
 /-- The mutable/output swap maps the corresponding encoded basis ket. -/
-theorem swapMutableOutputProgram_applyNormalized_encoded_ket_at {Aux : Type}
+lemma swapMutableOutputProgram_applyNormalized_encoded_ket_at {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (control : Bool) (mutable constant output : PointWords width)
     (aux : Aux) (controlWork : Bool) :
-    (swapMutableOutputProgram auxEncoding width).applyNormalized
+    (swapMutableOutputProgram auxEncoding width).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
             ((rawEncoding auxEncoding width).encode
@@ -1506,11 +1512,11 @@ theorem swapMutableOutputProgram_applyNormalized_encoded_ket_at {Aux : Type}
         ((QubitLayout.canonical (rawEncoding auxEncoding width).width).basisEquiv.symm
           ((rawEncoding auxEncoding width).encode
             (control, (((output, (constant, mutable)), aux), controlWork)))) := by
-  rw [(swapMutableOutput_realizes auxEncoding width).apply_encoded_ket]
+  rw [(swapMutableOutput_realizes (environment := environment) auxEncoding width).apply_encoded_ket]
   rw [swapMutableOutputStep_at auxEncoding width control mutable constant output
     aux controlWork]
 
-theorem loadConstantGates_length_le {Aux : Type}
+lemma loadConstantGates_length_le {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     (loadConstantGates auxEncoding width constant).length ≤ 2 * width := by
@@ -1520,7 +1526,7 @@ theorem loadConstantGates_length_le {Aux : Type}
   have hy := EncodedBit.Word.constantOneIndices_length_le constant.2
   omega
 
-theorem replaceConstantGates_length_le {Aux : Type}
+lemma replaceConstantGates_length_le {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
     (replaceConstantGates auxEncoding width source target).length ≤
@@ -1533,14 +1539,14 @@ theorem replaceConstantGates_length_le {Aux : Type}
     (wordDelta source.2 target.2)
   omega
 
-theorem unloadConstantGates_length_le {Aux : Type}
+lemma unloadConstantGates_length_le {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     (unloadConstantGates auxEncoding width constant).length ≤ 2 * width := by
   simpa [unloadConstantGates] using
     loadConstantGates_length_le auxEncoding width constant
 
-theorem swapMutableOutputGates_length {Aux : Type}
+lemma swapMutableOutputGates_length {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     (swapMutableOutputGates auxEncoding width).length = 6 * width := by
   rw [swapMutableOutputGates, List.length_append,
@@ -1548,7 +1554,7 @@ theorem swapMutableOutputGates_length {Aux : Type}
   omega
 
 /-- Loading a classical point contributes no source CNOT gates. -/
-theorem loadConstantGates_cnotMultiplicity_sum {Aux : Type}
+lemma loadConstantGates_cnotMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ((loadConstantGates auxEncoding width constant).map
@@ -1558,7 +1564,7 @@ theorem loadConstantGates_cnotMultiplicity_sum {Aux : Type}
     EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum, Nat.zero_add]
 
 /-- Loading a classical point contributes no source Toffoli gates. -/
-theorem loadConstantGates_toffoliMultiplicity_sum {Aux : Type}
+lemma loadConstantGates_toffoliMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ((loadConstantGates auxEncoding width constant).map
@@ -1568,7 +1574,7 @@ theorem loadConstantGates_toffoliMultiplicity_sum {Aux : Type}
     EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum, Nat.zero_add]
 
 /-- Replacing one classical point contributes no source CNOT gates. -/
-theorem replaceConstantGates_cnotMultiplicity_sum {Aux : Type}
+lemma replaceConstantGates_cnotMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
     ((replaceConstantGates auxEncoding width source target).map
@@ -1578,7 +1584,7 @@ theorem replaceConstantGates_cnotMultiplicity_sum {Aux : Type}
     EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum, Nat.zero_add]
 
 /-- Replacing one classical point contributes no source Toffoli gates. -/
-theorem replaceConstantGates_toffoliMultiplicity_sum {Aux : Type}
+lemma replaceConstantGates_toffoliMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (source target : PointWords width) :
     ((replaceConstantGates auxEncoding width source target).map
@@ -1588,7 +1594,7 @@ theorem replaceConstantGates_toffoliMultiplicity_sum {Aux : Type}
     EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum, Nat.zero_add]
 
 /-- Unloading a classical point contributes no source CNOT gates. -/
-theorem unloadConstantGates_cnotMultiplicity_sum {Aux : Type}
+lemma unloadConstantGates_cnotMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ((unloadConstantGates auxEncoding width constant).map
@@ -1597,7 +1603,7 @@ theorem unloadConstantGates_cnotMultiplicity_sum {Aux : Type}
     loadConstantGates_cnotMultiplicity_sum auxEncoding width constant
 
 /-- Unloading a classical point contributes no source Toffoli gates. -/
-theorem unloadConstantGates_toffoliMultiplicity_sum {Aux : Type}
+lemma unloadConstantGates_toffoliMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat)
     (constant : PointWords width) :
     ((unloadConstantGates auxEncoding width constant).map
@@ -1607,7 +1613,7 @@ theorem unloadConstantGates_toffoliMultiplicity_sum {Aux : Type}
 
 /-- The mutable/output point swap contributes exactly six source CNOTs per
 field bit. -/
-theorem swapMutableOutputGates_cnotMultiplicity_sum {Aux : Type}
+lemma swapMutableOutputGates_cnotMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     ((swapMutableOutputGates auxEncoding width).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 6 * width := by
@@ -1624,7 +1630,7 @@ theorem swapMutableOutputGates_cnotMultiplicity_sum {Aux : Type}
   omega
 
 /-- The mutable/output point swap contributes no source Toffoli gates. -/
-theorem swapMutableOutputGates_toffoliMultiplicity_sum {Aux : Type}
+lemma swapMutableOutputGates_toffoliMultiplicity_sum {Aux : Type}
     (auxEncoding : BinaryLabelEncoding Aux) (width : Nat) :
     ((swapMutableOutputGates auxEncoding width).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by

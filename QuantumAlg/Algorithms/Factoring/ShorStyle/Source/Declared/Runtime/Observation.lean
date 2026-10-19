@@ -37,37 +37,39 @@ abbrev sourceWeight (value : (ParameterShape (modulusBits N)).Value)
     (selectedBase value) outcome).toReal : ℂ)
 
 /-- Real result-cell allocation preserves every earlier structural reference weight. -/
-theorem allocate_reference_input {shape : CShape} (observed : CInputRef base shape)
+lemma allocate_reference_input {shape : CShape} (observed : CInputRef base shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (weight : shape.Value → ℂ) (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((allocate base N input).execute Reference state)
+    ExecutionState.referenceFiberSum ((allocate base N).execute (environment input) Reference state)
       (fun entry _ => weight (entry.1.read (Storage.liftInput base N observed)))
       leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight (entry.1.read observed)) leftRef rightRef := by
-  let retention := Circuit.retain (model := executionModel input) base
+  let retention := Circuit.retain (model := executionModel N) base
     base.canonicalFreshKey (.bits (phaseBits N)) base.canonicalFreshKey_fresh
-  let cells := MeasurementCells.allocate (model := executionModel input)
+  let cells := MeasurementCells.allocate (model := executionModel N)
     (Storage.resultContext base N) 2 (phaseBits N)
-  have sequence := Circuit.referenceFiberSum_execute_seq retention cells state
+  have sequence := Circuit.referenceFiberSum_execute_seq
+    (environment := environment input) retention cells state
     (fun store => weight (store.read (Storage.liftInput base N observed))) leftRef rightRef
   have allocated := MeasurementCells.allocate_referenceFiberSum_input
+    (environment := environment input)
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (observed.underRetained base.canonicalFreshKey (.bits (phaseBits N))
       base.canonicalFreshKey_fresh) 2 (phaseBits N)
-    (retention.execute Reference state) weight leftRef rightRef
-  have retained := Circuit.referenceFiberSum_execute_retain_input
+    (retention.execute (environment input) Reference state) weight leftRef rightRef
+  have retained := Circuit.referenceFiberSum_execute_retain_input (environment := environment input)
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     observed base.canonicalFreshKey (.bits (phaseBits N)) base.canonicalFreshKey_fresh
     state weight leftRef rightRef
   exact sequence.trans (allocated.trans retained)
 
-private theorem observation_liftInput_product {left right : CShape}
+private lemma observation_liftInput_product {left right : CShape}
     (first : CInputRef base left) (second : CInputRef base right) :
     Storage.liftInput base N (.product first second) =
       .product (Storage.liftInput base N first) (Storage.liftInput base N second) := by
@@ -77,27 +79,28 @@ private theorem observation_liftInput_product {left right : CShape}
 variable (sameWires : base.quantumWires = (layout N).wires)
 
 /-- Actual allocation and observation retain original stored data jointly with the Born outcome. -/
-theorem code_outcome_weighted_reference
+lemma code_outcome_weighted_reference
     (parameter : CInputRef base (ParameterShape (modulusBits N)))
     {shape : CShape} (observed : CInputRef base shape) (weight : shape.Value → ℂ)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds base.quantumLayout.zeroLabel state)
     (outcome : Fin (phaseBits N) → Bool) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code base N input sameWires parameter).execute Reference state)
+      ((code base N sameWires parameter).execute (environment input) Reference state)
       (fun entry _ => weight (entry.1.read (Storage.liftInput base N observed)) *
         (if entry.1.read (.storage (Storage.resultRef base N).toCStorageRef) =
           CShape.Value.bits outcome then 1 else 0)) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => weight (entry.1.read observed) *
           sourceWeight N input (entry.1.read parameter) outcome) leftRef rightRef := by
-  let initialized := (allocate base N input).execute Reference state
+  let initialized := (allocate base N).execute (environment input) Reference state
   let readWeight := fun store : Store (Storage.context base N) =>
     weight (store.read (Storage.liftInput base N observed))
-  have initialSeed := allocate_seeded (N := N) (input := input) base state seeded
-  have sequence := Circuit.referenceFiberSum_execute_seq (allocate base N input)
-    (body base N input sameWires parameter) state
+  have initialSeed := allocate_seeded (N := N) (environment := environment input) base state seeded
+  have sequence := Circuit.referenceFiberSum_execute_seq
+    (environment := environment input) (allocate base N)
+    (body base N sameWires parameter) state
     (fun store => readWeight store *
       (if store.read (.storage (Storage.resultRef base N).toCStorageRef) =
         CShape.Value.bits outcome then 1 else 0)) leftRef rightRef
@@ -105,7 +108,7 @@ theorem code_outcome_weighted_reference
     (by
       intro store basis
       exact congrArg weight
-        (measured_packed_liftInput base N input sameWires observed store basis))
+        (measured_packed_liftInput base N sameWires observed store basis))
     initialized initialSeed outcome leftRef rightRef
   have regrouped := BasisSeeded.referenceFiberSum_seed _ initialized initialSeed
     (fun store => readWeight store *

@@ -21,7 +21,7 @@ this bridge after proving that shared controls serialize those occurrences.
 namespace QuantumAlg.DepthExpr
 
 /-- Unit total cost counts exactly the events obtained from the same expression. -/
-theorem unitCost_eq_eventPool_card {model : ExecutionModel}
+lemma unitCost_eq_eventPool_card {model : ExecutionModel}
     (expression : DepthExpr (Resource.Event model)) :
     DepthExpr.costEval (fun _ => (1 : Nat)) expression =
       (DepthExpr.costEval (fun event => ResourcePool.singleton event) expression).card := by

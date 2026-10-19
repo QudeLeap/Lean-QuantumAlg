@@ -26,7 +26,7 @@ namespace QuantumAlg.QubitTwoDesign
 open Matrix
 open scoped ComplexOrder Kronecker Quaternion QuadraticAlgebra
 
-private theorem qubitClifford_commutant_scalar
+private lemma qubitClifford_commutant_scalar
     (M : Matrix (Fin 2) (Fin 2) ℂ)
     (hM : ∀ g, qubitClifford g * M = M * qubitClifford g) :
     ∃ c : ℂ, M = c • (1 : Matrix (Fin 2) (Fin 2) ℂ) := by
@@ -83,20 +83,20 @@ private theorem qubitClifford_commutant_scalar
   fin_cases i <;> fin_cases j <;> simp [e01, e10, e11]
 
 /-- The single-qubit Clifford lift has scalar first moment. -/
-theorem qubitClifford_repTwirl_eq_scalar (O : Matrix (Fin 2) (Fin 2) ℂ) :
+lemma qubitClifford_repTwirl_eq_scalar (O : Matrix (Fin 2) (Fin 2) ℂ) :
     repTwirl qubitClifford O = (O.trace / 2) • (1 : Matrix (Fin 2) (Fin 2) ℂ) :=
   repTwirl_eq_scalar qubitClifford qubitClifford_mul qubitClifford_unitary O
     qubitClifford_commutant_scalar
 
 /-- Traceless observables have zero single-qubit Clifford first moment. -/
-theorem qubitClifford_repTwirl_eq_zero_of_trace_eq_zero
+lemma qubitClifford_repTwirl_eq_zero_of_trace_eq_zero
     (O : Matrix (Fin 2) (Fin 2) ℂ) (htr : O.trace = 0) :
     repTwirl qubitClifford O = 0 :=
   repTwirl_eq_zero_of_trace_eq_zero qubitClifford O
     (qubitClifford_repTwirl_eq_scalar O) htr
 
 /-- The scalar Clifford first moment gives zero averaged loss for traceless observables. -/
-theorem qubitClifford_loss_mean_eq_zero
+lemma qubitClifford_loss_mean_eq_zero
     (ρ O : Matrix (Fin 2) (Fin 2) ℂ) (htr : O.trace = 0) :
     (ρ * repTwirl qubitClifford O).trace = 0 :=
   repTwirl_trace_pairing_eq_zero_of_trace_eq_zero qubitClifford ρ O
@@ -107,18 +107,18 @@ public noncomputable def cliffordLoss (ρ O : Matrix (Fin 2) (Fin 2) ℂ)
     (g : BinaryOctahedral) : ℂ :=
   (ρ * (qubitClifford g * O * (qubitClifford g)ᴴ)).trace
 
-theorem cliffordLoss_mean_eq_trace_repTwirl (ρ O : Matrix (Fin 2) (Fin 2) ℂ) :
+lemma cliffordLoss_mean_eq_trace_repTwirl (ρ O : Matrix (Fin 2) (Fin 2) ℂ) :
     (Fintype.card BinaryOctahedral : ℂ)⁻¹ * ∑ g, cliffordLoss ρ O g =
       (ρ * repTwirl qubitClifford O).trace := by
   unfold cliffordLoss repTwirl
   rw [Matrix.mul_smul, Matrix.trace_smul, Matrix.mul_sum, Matrix.trace_sum, smul_eq_mul]
 
-theorem cliffordLoss_mean_eq_zero_of_trace_eq_zero
+lemma cliffordLoss_mean_eq_zero_of_trace_eq_zero
     (ρ O : Matrix (Fin 2) (Fin 2) ℂ) (htr : O.trace = 0) :
     (Fintype.card BinaryOctahedral : ℂ)⁻¹ * ∑ g, cliffordLoss ρ O g = 0 := by
   rw [cliffordLoss_mean_eq_trace_repTwirl, qubitClifford_loss_mean_eq_zero ρ O htr]
 
-theorem cliffordLoss_centered_eq_uncentered_of_trace_eq_zero
+lemma cliffordLoss_centered_eq_uncentered_of_trace_eq_zero
     (ρ O : Matrix (Fin 2) (Fin 2) ℂ) (htr : O.trace = 0) :
     (Fintype.card BinaryOctahedral : ℂ)⁻¹ *
         ∑ g, (cliffordLoss ρ O g -

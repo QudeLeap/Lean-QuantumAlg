@@ -24,7 +24,7 @@ open Modular.Reduce.Native
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original full multiplication precedes the real loaded-reduction event sequence. -/
@@ -40,7 +40,7 @@ def multiplicationScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool ki
       SpacePool.ofShape (divisionShape (width + width) width)
 
 /-- The original trace survives every real allocation and release exactly. -/
-theorem fieldMulIntoWord_eventTrace (spec : ModulusSpec width)
+lemma fieldMulIntoWord_eventTrace (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (mulIntoWord (model := model) spec left right output).Path) :
@@ -58,7 +58,7 @@ theorem fieldMulIntoWord_eventTrace (spec : ModulusSpec width)
   rfl
 
 /-- Every native resource is projected from this same actual original trace. -/
-theorem mulIntoWord_resourcePool (spec : ModulusSpec width)
+lemma mulIntoWord_resourcePool (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (mulIntoWord (model := model) spec left right output).Path) :
@@ -67,7 +67,7 @@ theorem mulIntoWord_resourcePool (spec : ModulusSpec width)
   congrArg ResourcePool.ofList (fieldMulIntoWord_eventTrace spec left right output path)
 
 /-- The original serial dependency depth includes every actual loader duration. -/
-theorem mulIntoWord_durationDepth (spec : ModulusSpec width)
+lemma mulIntoWord_durationDepth (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (duration : Resource.Event model → Nat)
     (path : (mulIntoWord (model := model) spec left right output).Path) :
@@ -86,7 +86,7 @@ theorem mulIntoWord_durationDepth (spec : ModulusSpec width)
   rfl
 
 /-- All original product and reduction workspaces coexist at the exact resident peak. -/
-theorem mulIntoWord_resident (spec : ModulusSpec width)
+lemma mulIntoWord_resident (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (mulIntoWord (model := model) spec left right output).Path) :
@@ -121,7 +121,7 @@ theorem mulIntoWord_resident (spec : ModulusSpec width)
   ac_rfl
 
 /-- Each of the three original scratch cells keeps its actual auxiliary role. -/
-theorem mulIntoWord_auxiliary (spec : ModulusSpec width)
+lemma mulIntoWord_auxiliary (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width))
     (path : (mulIntoWord (model := model) spec left right output).Path) :
@@ -157,7 +157,7 @@ theorem mulIntoWord_auxiliary (spec : ModulusSpec width)
 
 omit [BitWord.Selected model] in
 /-- The original product and both reduction workspaces occupy this exact number of bits. -/
-theorem multiplicationScratch_classicalBits :
+lemma multiplicationScratch_classicalBits :
     multiplicationScratchSpace model.kind width .classicalBits = 6 * width + 2 := by
   simp [multiplicationScratchSpace, divisionShape, SpacePool.ofShape, CShape.bitWidth]
   omega

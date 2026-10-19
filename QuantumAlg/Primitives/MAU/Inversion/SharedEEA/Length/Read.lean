@@ -44,7 +44,7 @@ def readWord (width : Nat) (field : Field) (key : BitVec width.size)
   | .divisor => word.extractLsb' 0 (region width .divisor key)
 
 /-- Most-significant-first arithmetic reads have the proved literal physical word positions. -/
-theorem readWord_getMsbD (width : Nat) (field : Field) (key : BitVec width.size)
+lemma readWord_getMsbD (width : Nat) (field : Field) (key : BitVec width.size)
     (word : BitVec (width + 3)) (index : Fin (region width field key)) :
     (readWord width field key word).getMsbD index.val =
       word.getMsbD (payloadPosition width field key index).val := by
@@ -73,7 +73,7 @@ theorem readWord_getMsbD (width : Nat) (field : Field) (key : BitVec width.size)
         reversed]
 
 /-- Every actual native payload lens reads the corresponding bit of the complete finite value. -/
-theorem payloadBit_get (width : Nat) (field : Field) (key : BitVec width.size)
+lemma payloadBit_get (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (index : Fin (region width field key)) (state : Registers width) :
     (payloadBit width field key firstWord index).get state =
       (readWord width field key (sourceWord firstWord state)).getMsbD index.val := by
@@ -95,13 +95,13 @@ def payloadValue {width : Nat} (field : Field) (key : BitVec width.size) (firstW
   (readWord width field key (sourceWord firstWord state)).toNat
 
 /-- The physical region read has its own exact finite-width bound, including the empty region. -/
-theorem payloadValue_fits {width : Nat} (field : Field) (key : BitVec width.size)
+lemma payloadValue_fits {width : Nat} (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (state : Registers width) :
     payloadValue field key firstWord state < 2 ^ region width field key :=
   (readWord width field key (sourceWord firstWord state)).isLt
 
 /-- Native leading-position tests read exactly the corresponding natural-number test bits. -/
-theorem payloadBit_testBit (width : Nat) (field : Field) (key : BitVec width.size)
+lemma payloadBit_testBit (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (index : Fin (region width field key)) (state : Registers width) :
     (payloadBit width field key firstWord index).get state =
       (payloadValue field key firstWord state).testBit
@@ -111,7 +111,7 @@ theorem payloadBit_testBit (width : Nat) (field : Field) (key : BitVec width.siz
     BitVec.getLsbD, payloadValue]
 
 /-- Matching all actual boundary-key sources is equality of the retained complete finite word. -/
-theorem boundary_matches_iff (width : Nat) (field : Field) (key : BitVec width.size)
+lemma boundary_matches_iff (width : Nat) (field : Field) (key : BitVec width.size)
     (state : Registers width) :
     (∀ index : Fin width.size,
       (boundaryBit width field index).get state = key.getMsbD index.val) ↔
@@ -126,21 +126,21 @@ theorem boundary_matches_iff (width : Nat) (field : Field) (key : BitVec width.s
     rw [boundaryBit_get, same]
 
 /-- A target length flip preserves the other complete length field used as the boundary key. -/
-theorem boundaryValue_output_flip (width : Nat) (field : Field) (output : Fin width.size)
+lemma boundaryValue_output_flip (width : Nat) (field : Field) (output : Fin width.size)
     (state : Registers width) :
     boundaryValue field ((outputBit width field output).flip state) =
       boundaryValue field state := by
   cases field <;> rfl
 
 /-- A target length flip preserves the complete selected source work word. -/
-theorem sourceWord_output_flip (width : Nat) (field : Field) (firstWord : Bool)
+lemma sourceWord_output_flip (width : Nat) (field : Field) (firstWord : Bool)
     (output : Fin width.size) (state : Registers width) :
     sourceWord firstWord ((outputBit width field output).flip state) =
       sourceWord firstWord state := by
   cases field <;> cases firstWord <;> rfl
 
 /-- Every later actual predicate reads the same complete finite payload after a length flip. -/
-theorem payloadValue_output_flip (width : Nat) (field : Field) (key : BitVec width.size)
+lemma payloadValue_output_flip (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output : Fin width.size) (state : Registers width) :
     payloadValue field key firstWord ((outputBit width field output).flip state) =
       payloadValue field key firstWord state := by

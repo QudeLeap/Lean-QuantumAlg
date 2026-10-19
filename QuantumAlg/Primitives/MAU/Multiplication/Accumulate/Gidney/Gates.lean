@@ -22,7 +22,7 @@ noncomputable section
 
 open EncodedBit GateSpec Nat.FixedWidth
 
-private theorem smallStageGates_step (width : Nat) (small : width ≤ 2)
+private lemma smallStageGates_step (width : Nat) (small : width ≤ 2)
     (selected : Fin width) (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1))
     (state : Registers width) :
     stepList (smallStageGates width small selected modulus constant) state =
@@ -41,7 +41,7 @@ def stageGates : (width : Nat) → Fin width → (modulus : Fin (2 ^ width + 1))
   | extra + 3, selected, modulus, constant => placedStageGates extra selected modulus constant
 
 /-- The full source is retained while its selected bit controls the exact target offset. -/
-theorem gidneyStageGates_step : (width : Nat) → (selected : Fin width) →
+lemma gidneyStageGates_step : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
     (state : Registers width) →
     stepList (stageGates width selected modulus constant) state =
@@ -55,7 +55,7 @@ theorem gidneyStageGates_step : (width : Nat) → (selected : Fin width) →
       gidneyPlacedStageGates_step extra selected modulus constant state
 
 /-- The literal stage preserves every native multiplicity of the actual selected program. -/
-theorem gidneyStageGates_eventCost : (width : Nat) → (selected : Fin width) →
+lemma gidneyStageGates_eventCost : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
     ResourcePool.ofList ((stageGates width selected modulus constant).map (event .empty)) =
       (stageProgram width selected modulus constant).eventCost
@@ -72,7 +72,7 @@ def prefixGates (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat
       stageGates width ⟨index, by omega⟩ modulus (accumulateConstant modulus coefficient index)
 
 /-- Exact arithmetic action of an executed instruction prefix. -/
-theorem gidneyAccumulatePrefixGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulatePrefixGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient count : Nat) (within : count ≤ width) (state : Registers width) :
     stepList (prefixGates width modulus coefficient count within) state =
       prefixOutput modulus coefficient count state := by
@@ -83,7 +83,7 @@ theorem gidneyAccumulatePrefixGates_step (width : Nat) (modulus : Fin (2 ^ width
       rfl
 
 /-- Concatenation retains the resource pool of the original sequential program. -/
-theorem gidneyAccumulatePrefixGates_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulatePrefixGates_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient count : Nat) (within : count ≤ width) :
     ResourcePool.ofList ((prefixGates width modulus coefficient count within).map (event .empty)) =
       (prefixProgram width modulus coefficient count within).eventCost := by
@@ -100,21 +100,21 @@ def gates (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
   prefixGates width modulus coefficient width (Nat.le_refl width)
 
 /-- Exact all-label multiply-accumulate, with complete source preservation. -/
-theorem gidneyAccumulateGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulateGates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (state : Registers width) :
     stepList (gates width modulus coefficient) state =
       prefixOutput modulus coefficient width state :=
   gidneyAccumulatePrefixGates_step width modulus coefficient width (Nat.le_refl width) state
 
 /-- The exposed list has the complete native ledger of the actual accumulator. -/
-theorem gidneyAccumulateGates_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulateGates_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     ResourcePool.ofList ((gates width modulus coefficient).map (event .empty)) =
       (program width modulus coefficient).eventCost :=
   gidneyAccumulatePrefixGates_eventCost width modulus coefficient width (Nat.le_refl width)
 
 /-- The independent all-width bound applies to the actual instruction list. -/
-theorem gidneyAccumulateGates_length_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulateGates_length_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     (gates width modulus coefficient).length ≤ width * stageEventBound width := by
   have count := congrArg Multiset.card (gidneyAccumulateGates_eventCost width modulus coefficient)

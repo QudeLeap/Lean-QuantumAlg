@@ -26,7 +26,7 @@ private def replacementCount : AlgorithmGate.Coordinate → Nat
   | .cnot => 6
   | .singleQubit => 9
 
-private theorem replacement_native_count (oracles : OracleModel)
+private lemma replacement_native_count (oracles : OracleModel)
     (event : Resource.Event (.quantum AlgorithmGate.model oracles))
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
@@ -44,7 +44,7 @@ private theorem replacement_native_count (oracles : OracleModel)
   | preparation dimension => cases coordinate <;> simp [replaceEvent, replacementCount]
   | measurement dimension => cases coordinate <;> simp [replaceEvent, replacementCount]
 
-private theorem expanded_native_count (oracles : OracleModel)
+private lemma expanded_native_count (oracles : OracleModel)
     (pool : ResourcePool (.quantum AlgorithmGate.model oracles))
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
@@ -64,7 +64,7 @@ private theorem expanded_native_count (oracles : OracleModel)
       split_ifs <;> omega
 
 /-- Single-qubit counts include all nine single-qubit gates in each actual Toffoli word. -/
-theorem toffoliExpansion_expanded_singleQubit_count {oracles : OracleModel} {count : Nat}
+lemma toffoliExpansion_expanded_singleQubit_count {oracles : OracleModel} {count : Nat}
     {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit)
       (expand source).eventCost =
@@ -76,7 +76,7 @@ theorem toffoliExpansion_expanded_singleQubit_count {oracles : OracleModel} {cou
   exact expanded_native_count oracles source.eventCost .singleQubit
 
 /-- Every expanded Toffoli adds exactly six CNOTs to the original CNOT occurrences. -/
-theorem toffoliExpansion_expanded_cnot_count {oracles : OracleModel} {count : Nat}
+lemma toffoliExpansion_expanded_cnot_count {oracles : OracleModel} {count : Nat}
     {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .cnot)
       (expand source).eventCost =
@@ -88,7 +88,7 @@ theorem toffoliExpansion_expanded_cnot_count {oracles : OracleModel} {count : Na
   exact expanded_native_count oracles source.eventCost .cnot
 
 /-- No native Toffoli remains anywhere in the substituted construction. -/
-theorem toffoliExpansion_expanded_toffoli_count {oracles : OracleModel} {count : Nat}
+lemma toffoliExpansion_expanded_toffoli_count {oracles : OracleModel} {count : Nat}
     {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles) (.gate .toffoli)
       (expand source).eventCost = 0 := by

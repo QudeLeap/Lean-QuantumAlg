@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original initialization, unpadded active steps and the three raw result copies. -/
@@ -38,7 +38,7 @@ def rawEvents (model : ExecutionModel) [BitWord.Selected model] {width : Nat} (i
     ((PureXGCD.trace input).flatMap (fun _ => activeEvents model width) ++
       rawOutputEvents model width)
 
-private theorem scheduled_eventTrace (cells : Cells ctx (stateShapes width))
+private lemma scheduled_eventTrace (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (scheduledRawBody (model := model) cells input zero outputs).Path) :
@@ -53,7 +53,7 @@ private theorem scheduled_eventTrace (cells : Cells ctx (stateShapes width))
       (copyRawOutputs (model := model) cells outputs).eventTrace path.2.2) = _
   rw [xgcdNativeInitialization_eventTrace, xgcdNativeCopyRawOutputs_eventTrace]
 
-private theorem scheduled_record_execute (cells : Cells ctx (stateShapes width))
+private lemma scheduled_record_execute (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
@@ -62,18 +62,21 @@ private theorem scheduled_record_execute (cells : Cells ctx (stateShapes width))
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
       (Circuit.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
-        (guardedActive (model := model) cells zero)).execute Reference state = state.mapClassical
+        (guardedActive (model := model) cells zero)).execute
+          environment Reference state = state.mapClassical
           (fun entry =>
           let result := record (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scheduledRawBody (model := model) cells input zero outputs).execute Reference state =
+    (scheduledRawBody (model := model) cells input zero outputs).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := scheduledRawRecord (model := model) cells input zero outputs record
           (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
-  apply Circuit.execute_sequenceRecord (initializationBody (model := model) cells input zero)
+  apply Circuit.execute_sequenceRecord
+    (environment := environment) (initializationBody (model := model) cells input zero)
     (.seq (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
       (guardedActive (model := model) cells zero)) (copyRawOutputs (model := model) cells outputs))
     (fun before =>
@@ -90,7 +93,7 @@ private theorem scheduled_record_execute (cells : Cells ctx (stateShapes width))
     refine (xgcdNativeInitialization_execute cells input zero reference initial).trans ?_
     exact ExecutionState.executionState_mapClassical_congr _ rfl
   · intro reference history historyFinite initial
-    exact Circuit.execute_sequenceRecord
+    exact Circuit.execute_sequenceRecord (environment := environment)
       (.iterate (ClassicalAlgorithms.NumberTheory.Euclid.gcdFuel width)
         (guardedActive (model := model) cells zero)) (copyRawOutputs (model := model) cells
           outputs) record
@@ -102,7 +105,7 @@ private theorem scheduled_record_execute (cells : Cells ctx (stateShapes width))
         exact ExecutionState.executionState_mapClassical_congr _ rfl) reference initial
 
 /-- A certified record of the initialized schedule emits exactly the original represented trace. -/
-theorem xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx model.kind}
+lemma xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
     (input : CInputRef outer (.product (.unsignedWord width) (.unsignedWord width)))
@@ -115,7 +118,8 @@ theorem xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx model.kind}
       (state : State ctx Reference (model.HiddenState × History)),
       (scheduledRawBody (model := model) cells (transport.liftInput input) (transport.liftInput
         zero)
-        (outputs.transport transport)).execute Reference state = state.mapClassical (fun entry =>
+        (outputs.transport transport)).execute
+          environment Reference state = state.mapClassical (fun entry =>
           let result := record (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (store : Store ctx × model.HiddenState) (initialized : cells.Initialized store.1)
@@ -128,7 +132,7 @@ theorem xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx model.kind}
       input zero
   have same := Circuit.executionRecord_unique
     (scheduledRawBody (model := model) cells (transport.liftInput input) (transport.liftInput zero)
-      (outputs.transport transport)) record
+      (outputs.transport transport)) environment record
     (scheduledRawRecord (model := model) cells (transport.liftInput input) (transport.liftInput
       zero)
       (outputs.transport transport) loopRecord) equation
@@ -154,7 +158,7 @@ theorem xgcdNativeScheduledRaw_record_eventTrace {outer : RuntimeCtx model.kind}
   rw [loopTrace]
   rfl
 
-private theorem with_raw_state_trace_record
+private lemma with_raw_state_trace_record
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (distinct : outputs.Distinct) :
@@ -162,7 +166,7 @@ private theorem with_raw_state_trace_record
       (model := model) input zero outputs).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withRawState (model := model) input zero outputs).execute Reference state =
+        (withRawState (model := model) input zero outputs).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -171,7 +175,8 @@ private theorem with_raw_state_trace_record
           rawEvents model (GCD.decodeOperands (before.1.read input)) := by
   let Trace (before : Store ctx) (events : List (Resource.Event model)) : Prop :=
     (before.read zero).toNat = 0 → events = rawEvents model (GCD.decodeOperands (before.read input))
-  refine withCells_actualRecord_initialized_trace ctx (stateShapes width)
+  refine withCells_actualRecord_initialized_trace
+    (environment := environment) ctx (stateShapes width)
     (fun cells _ transport _ => scheduledRawBody (model := model) cells
       (transport.liftInput input) (transport.liftInput zero) (outputs.transport transport)) Trace ?_
   intro inner cells cellsDistinct transport separated
@@ -187,7 +192,7 @@ private theorem with_raw_state_trace_record
   exact result
 
 /-- The same selected actual state-scope record retains its exact original schedule events. -/
-theorem xgcdNativeWithRawState_record_eventTrace
+lemma xgcdNativeWithRawState_record_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (distinct : outputs.Distinct)
@@ -195,7 +200,7 @@ theorem xgcdNativeWithRawState_record_eventTrace
       (model := model) input zero outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (withRawState (model := model) input zero outputs).execute Reference state =
+      (withRawState (model := model) input zero outputs).execute environment Reference state =
         state.mapClassical (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
@@ -204,25 +209,25 @@ theorem xgcdNativeWithRawState_record_eventTrace
       rawEvents model (GCD.decodeOperands (store.1.read input)) := by
   obtain ⟨other, otherEquation, trace⟩ := with_raw_state_trace_record input zero outputs distinct
   rw [Circuit.executionRecord_unique (withRawState (model := model) input zero outputs)
-    record other equation otherEquation]
+    environment record other equation otherEquation]
   exact trace store zeroValue
 
 omit [BitWord.Selected model] in
-private theorem lexical_record_trace {inner : RuntimeCtx model.kind}
+private lemma lexical_record_trace {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
     (bodyRecord : Store (inner.addWorkspace key shape fresh) × model.HiddenState →
       (Store (inner.addWorkspace key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (inner.addWorkspace key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := bodyRecord (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (record : Store inner × model.HiddenState → (Store inner × model.HiddenState) ×
       (Circuit.workspace inner key shape fresh body).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State inner Reference (model.HiddenState × History)),
-      (Circuit.workspace inner key shape fresh body).execute Reference state =
+      (Circuit.workspace inner key shape fresh body).execute environment Reference state =
         state.mapClassical (fun entry =>
           let result := record (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store inner ×
@@ -230,19 +235,20 @@ private theorem lexical_record_trace {inner : RuntimeCtx model.kind}
     (Circuit.workspace inner key shape fresh body).eventTrace (record store).2 =
       body.eventTrace (bodyRecord (store.1.pushWorkspace key shape fresh, store.2)).2 := by
   rw [Circuit.executionRecord_unique (Circuit.workspace inner key shape fresh body)
-    record (Circuit.workspaceRecord key shape fresh body bodyRecord) equation
-    (Circuit.execute_workspaceRecord key shape fresh body bodyRecord bodyEquation)]
+    environment record (Circuit.workspaceRecord key shape fresh body bodyRecord) equation
+    (Circuit.execute_workspaceRecord environment key shape fresh body bodyRecord bodyEquation)]
   rfl
 
 /-- The same actual raw-engine record emits the original exact trace with no internal premises. -/
-theorem xgcdNativeRawEngine_record_eventTrace
+lemma xgcdNativeRawEngine_record_eventTrace
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
       := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+      (rawEngine (model := model) input outputs).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×
@@ -270,14 +276,15 @@ theorem xgcdNativeRawEngine_record_eventTrace
   exact inherited.trans traced
 
 /-- Resource accounting is exactly the pool of events from that same certified actual record. -/
-theorem xgcdNativeRawEngine_record_resourcePool
+lemma xgcdNativeRawEngine_record_resourcePool
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (rawEngine (model
       := model) input outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (rawEngine (model := model) input outputs).execute Reference state = state.mapClassical
+      (rawEngine (model := model) input outputs).execute
+        environment Reference state = state.mapClassical
         (fun entry =>
         let result := record (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) (store : Store ctx ×

@@ -28,14 +28,14 @@ def unitProductWord {width : Nat} (modulus : Fin (2 ^ width + 1))
   ⟨((coefficient : ZMod modulus.val).val * input.val) % modulus.val,
     Nat.lt_of_lt_of_le (Nat.mod_lt _ positive) (Nat.le_of_lt_succ modulus.isLt)⟩
 
-theorem unitProductWord_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWord_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) :
     (unitProductWord modulus positive coefficient input).val < modulus.val :=
   Nat.mod_lt _ positive
 
 /-- Zero-seeded accumulation is precisely the independent canonical unit product. -/
-theorem unitProductWord_accumulate_zero {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWord_accumulate_zero {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) :
     accumulateWordPrefix modulus (coefficient : ZMod modulus.val).val input 0 width =
@@ -45,7 +45,7 @@ theorem unitProductWord_accumulate_zero {width : Nat} (modulus : Fin (2 ^ width 
   simpa only [Fin.val_zero, Nat.zero_add, unitProductWord] using h
 
 /-- Applying the inverse unit restores every canonical input, including modulus one. -/
-theorem unitProductWord_inverse {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma unitProductWord_inverse {width : Nat} (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) (valid : input.val < modulus.val) :
     unitProductWord modulus positive coefficient⁻¹
@@ -61,7 +61,7 @@ theorem unitProductWord_inverse {width : Nat} (modulus : Fin (2 ^ width + 1))
   exact values
 
 /-- The inverse accumulation computes the original input from the product and a zero target. -/
-theorem unitProductWord_inverse_accumulate_zero {width : Nat}
+lemma unitProductWord_inverse_accumulate_zero {width : Nat}
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (coefficient : (ZMod modulus.val)ˣ) (input : Fin (2 ^ width))
     (valid : input.val < modulus.val) :
@@ -79,7 +79,7 @@ def unitMultiplicationPairEquiv {width : Nat} (modulus : Fin (2 ^ width + 1))
         ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val width).symm
 
 /-- A zero auxiliary word is returned exactly for every canonical input residue. -/
-theorem unitMultiplicationPairEquiv_clean {width : Nat}
+lemma unitMultiplicationPairEquiv_clean {width : Nat}
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (coefficient : (ZMod modulus.val)ˣ) (input : Fin (2 ^ width))
     (valid : input.val < modulus.val) :

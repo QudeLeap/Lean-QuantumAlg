@@ -28,13 +28,13 @@ variable {kind : ProblemKind} (left right : RuntimeCtx kind)
   (disjoint : RuntimeCtx.StorageDisjoint left right)
 
 include disjoint in
-private theorem layoutDisjoint :
+private lemma layoutDisjoint :
     List.Disjoint left.quantumLayout.identities right.quantumLayout.identities := by
   simpa only [RuntimeCtx.runtimeCtx_quantumLayout_identities] using
     (RuntimeCtx.physicallyDisjoint_iff_listDisjoint left right).mp
       (RuntimeCtx.physicallyDisjoint_of_storageDisjoint disjoint)
 
-private theorem appendWires :
+private lemma appendWires :
     (QuantumLayout.append left.quantumLayout right.quantumLayout
       (layoutDisjoint left right disjoint)).wires =
         (RuntimeCtx.disjointUnion left right disjoint).quantumLayout.wires := by
@@ -61,17 +61,17 @@ public def rightPosition (index : Fin right.systemCount) :
   unionPositionEquiv left right disjoint (.inr index)
 
 /-- Appending a context does not change a left wire's numerical position. -/
-public theorem contextUnion_leftPosition_val (index : Fin left.systemCount) :
+public lemma contextUnion_leftPosition_val (index : Fin left.systemCount) :
     (leftPosition left right disjoint index).val = index.val := by
   rfl
 
 /-- A right wire is offset by the actual number of left physical systems. -/
-public theorem contextUnion_rightPosition_val (index : Fin right.systemCount) :
+public lemma contextUnion_rightPosition_val (index : Fin right.systemCount) :
     (rightPosition left right disjoint index).val = left.systemCount + index.val := by
   rfl
 
 /-- Left positions retain their complete physical wire records. -/
-public theorem contextUnion_left_wire (index : Fin left.systemCount) :
+public lemma contextUnion_left_wire (index : Fin left.systemCount) :
     (RuntimeCtx.disjointUnion left right disjoint).quantumLayout.wire
       (leftPosition left right disjoint index) = left.quantumLayout.wire index := by
   calc
@@ -82,7 +82,7 @@ public theorem contextUnion_left_wire (index : Fin left.systemCount) :
     _ = _ := by simp only [QuantumLayout.append, Fin.append_left]
 
 /-- Right positions retain their complete physical wire records. -/
-public theorem contextUnion_right_wire (index : Fin right.systemCount) :
+public lemma contextUnion_right_wire (index : Fin right.systemCount) :
     (RuntimeCtx.disjointUnion left right disjoint).quantumLayout.wire
       (rightPosition left right disjoint index) = right.quantumLayout.wire index := by
   calc
@@ -93,21 +93,21 @@ public theorem contextUnion_right_wire (index : Fin right.systemCount) :
     _ = _ := by simp only [QuantumLayout.append, Fin.append_right]
 
 /-- The local dimension of each left wire is unchanged. -/
-public theorem contextUnion_left_dimension (index : Fin left.systemCount) :
+public lemma contextUnion_left_dimension (index : Fin left.systemCount) :
     ((RuntimeCtx.disjointUnion left right disjoint).quantumLayout.wire
       (leftPosition left right disjoint index)).dimension =
         (left.quantumLayout.wire index).dimension :=
   congrArg QuantumWire.dimension (contextUnion_left_wire left right disjoint index)
 
 /-- The local dimension of each right wire is unchanged. -/
-public theorem contextUnion_right_dimension (index : Fin right.systemCount) :
+public lemma contextUnion_right_dimension (index : Fin right.systemCount) :
     ((RuntimeCtx.disjointUnion left right disjoint).quantumLayout.wire
       (rightPosition left right disjoint index)).dimension =
         (right.quantumLayout.wire index).dimension :=
   congrArg QuantumWire.dimension (contextUnion_right_wire left right disjoint index)
 
 /-- Distinct sides of a runtime union never designate the same physical position. -/
-public theorem contextUnion_positions_ne (leftIndex : Fin left.systemCount)
+public lemma contextUnion_positions_ne (leftIndex : Fin left.systemCount)
     (rightIndex : Fin right.systemCount) :
     leftPosition left right disjoint leftIndex ≠ rightPosition left right disjoint rightIndex := by
   intro equal
@@ -129,7 +129,7 @@ public def unionBasisEquiv :
       (layoutDisjoint left right disjoint))
 
 /-- Reassembly places precisely the original finite values on the left wires. -/
-public theorem contextUnion_join_left_value (leftBasis : left.register.Index)
+public lemma contextUnion_join_left_value (leftBasis : left.register.Index)
     (rightBasis : right.register.Index) (index : Fin left.systemCount) :
     ((unionBasisEquiv left right disjoint).symm (leftBasis, rightBasis)
       (leftPosition left right disjoint index)).val = (leftBasis index).val := by
@@ -141,7 +141,7 @@ public theorem contextUnion_join_left_value (leftBasis : left.register.Index)
     right.quantumLayout (layoutDisjoint left right disjoint) leftBasis rightBasis index)
 
 /-- Reassembly places precisely the original finite values on the right wires. -/
-public theorem contextUnion_join_right_value (leftBasis : left.register.Index)
+public lemma contextUnion_join_right_value (leftBasis : left.register.Index)
     (rightBasis : right.register.Index) (index : Fin right.systemCount) :
     ((unionBasisEquiv left right disjoint).symm (leftBasis, rightBasis)
       (rightPosition left right disjoint index)).val = (rightBasis index).val := by
@@ -153,7 +153,7 @@ public theorem contextUnion_join_right_value (leftBasis : left.register.Index)
     right.quantumLayout (layoutDisjoint left right disjoint) leftBasis rightBasis index)
 
 /-- Splitting reads exactly the finite value at each actual left position. -/
-public theorem contextUnion_split_left_value
+public lemma contextUnion_split_left_value
     (basis : (RuntimeCtx.disjointUnion left right disjoint).register.Index)
     (index : Fin left.systemCount) :
     (basis (leftPosition left right disjoint index)).val =
@@ -167,7 +167,7 @@ public theorem contextUnion_split_left_value
     (unionBasisEquiv left right disjoint basis).2 index)
 
 /-- Splitting reads exactly the finite value at each actual right position. -/
-public theorem contextUnion_split_right_value
+public lemma contextUnion_split_right_value
     (basis : (RuntimeCtx.disjointUnion left right disjoint).register.Index)
     (index : Fin right.systemCount) :
     (basis (rightPosition left right disjoint index)).val =
@@ -181,7 +181,7 @@ public theorem contextUnion_split_right_value
     (unionBasisEquiv left right disjoint basis).2 index)
 
 /-- The left readout is equality in the correctly transported finite carrier. -/
-public theorem contextUnion_split_left
+public lemma contextUnion_split_left
     (basis : (RuntimeCtx.disjointUnion left right disjoint).register.Index)
     (index : Fin left.systemCount) :
     Fin.cast (congrArg (fun dim : ℕ+ => (dim : Nat))
@@ -192,7 +192,7 @@ public theorem contextUnion_split_left
   exact contextUnion_split_left_value left right disjoint basis index
 
 /-- The right readout is equality in the correctly transported finite carrier. -/
-public theorem contextUnion_split_right
+public lemma contextUnion_split_right
     (basis : (RuntimeCtx.disjointUnion left right disjoint).register.Index)
     (index : Fin right.systemCount) :
     Fin.cast (congrArg (fun dim : ℕ+ => (dim : Nat))

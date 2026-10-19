@@ -22,31 +22,31 @@ namespace QuantumAlg.Gate.ControlledRegisterSwap
 
 noncomputable section
 
-private theorem left_injective (width : Nat) : Function.Injective (left width) := by
+private lemma left_injective (width : Nat) : Function.Injective (left width) := by
   intro first second same
   have equal := congrArg Fin.val same
   change 1 + first.val = 1 + second.val at equal
   exact Fin.ext (by omega)
 
-private theorem right_injective (width : Nat) : Function.Injective (right width) := by
+private lemma right_injective (width : Nat) : Function.Injective (right width) := by
   intro first second same
   have equal := congrArg Fin.val same
   change 1 + width + first.val = 1 + width + second.val at equal
   exact Fin.ext (by omega)
 
-private theorem words_disjoint (width : Nat) (first second : Fin width) :
+private lemma words_disjoint (width : Nat) (first second : Fin width) :
     left width first ≠ right width second := by
   intro same
   have equal := congrArg Fin.val same
   change 1 + first.val = 1 + width + second.val at equal
   omega
 
-private theorem pair_control (width : Nat) (index : Fin width)
+private lemma pair_control (width : Nat) (index : Fin width)
     (basis : Fin (1 + (width + width)) → Fin 2) :
     pairPermutation width index basis (control width) = basis (control width) :=
   ControlledSwap.action_control _ _ _ (control_left width index) (control_right width index) basis
 
-private theorem pair_left (width : Nat) (selected index : Fin width)
+private lemma pair_left (width : Nat) (selected index : Fin width)
     (basis : Fin (1 + (width + width)) → Fin 2) :
     pairPermutation width selected basis (left width index) =
       if basis (control width) = 0 then basis (left width index)
@@ -62,7 +62,7 @@ private theorem pair_left (width : Nat) (selected index : Fin width)
     · rw [if_neg same, Equiv.swap_apply_of_ne_of_ne
         (fun equal => same (left_injective width equal)) (words_disjoint width index selected)]
 
-private theorem pair_right (width : Nat) (selected index : Fin width)
+private lemma pair_right (width : Nat) (selected index : Fin width)
     (basis : Fin (1 + (width + width)) → Fin 2) :
     pairPermutation width selected basis (right width index) =
       if basis (control width) = 0 then basis (right width index)
@@ -80,7 +80,7 @@ private theorem pair_right (width : Nat) (selected index : Fin width)
         (fun equal => same (right_injective width equal))]
 
 /-- Every coordinate of a duplicate-free pair list has its exact original-value action. -/
-theorem sequence_coordinates (width : Nat) (indices : List (Fin width))
+lemma sequence_coordinates (width : Nat) (indices : List (Fin width))
     (unique : indices.Nodup) (basis : Fin (1 + (width + width)) → Fin 2) :
     sequencePermutation width indices basis (control width) = basis (control width) ∧
       ∀ index : Fin width,

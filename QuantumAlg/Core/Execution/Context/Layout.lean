@@ -35,7 +35,7 @@ public def positionsOfEqualWires {leftCount rightCount : Nat}
     (sameWires : left.wires = right.wires) : Fin leftCount ≃ Fin rightCount :=
   finCongr (by simpa only [QuantumLayout.wires_length] using congrArg List.length sameWires)
 
-public theorem wireAtCorrespondingPosition {leftCount rightCount : Nat}
+public lemma wireAtCorrespondingPosition {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (sameWires : left.wires = right.wires) (index : Fin leftCount) :
     right.wire (positionsOfEqualWires left right sameWires index) = left.wire index := by
@@ -56,7 +56,7 @@ public def basisOfEqualWires {leftCount rightCount : Nat}
     finCongr (congrArg (fun wire : QuantumWire => (wire.dimension : Nat))
       (wireAtCorrespondingPosition left right sameWires index).symm)
 
-public theorem basisOfEqualWires_value {leftCount rightCount : Nat}
+public lemma basisOfEqualWires_value {leftCount rightCount : Nat}
     (left : QuantumLayout leftCount) (right : QuantumLayout rightCount)
     (sameWires : left.wires = right.wires) (basis : left.Basis) (index : Fin leftCount) :
     (basisOfEqualWires left right sameWires basis
@@ -79,14 +79,14 @@ namespace RuntimeCtx
 variable {systemCount : Nat}
 
 /-- The context's layout and physical-identity list certify the same disjointness. -/
-theorem addOwnedLayout_layoutDisjoint (ctx : RuntimeCtx .quantum)
+lemma addOwnedLayout_layoutDisjoint (ctx : RuntimeCtx .quantum)
     (layout : QuantumLayout systemCount)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     List.Disjoint layout.identities ctx.quantumLayout.identities := by
   simpa only [RuntimeCtx.runtimeCtx_quantumLayout_identities] using disjoint
 
 /-- Head preparation and context extension contain the same ordered wire records. -/
-theorem addOwnedLayout_wires_eq_append (ctx : RuntimeCtx .quantum) (key : StorageKey)
+lemma addOwnedLayout_wires_eq_append (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (QuantumLayout.append layout ctx.quantumLayout
@@ -111,7 +111,7 @@ def addOwnedLayoutPositionEquiv (ctx : RuntimeCtx .quantum) (key : StorageKey)
   Execution.positionsOfEqualWires _ _ (addOwnedLayout_wires_eq_append ctx key layout fresh disjoint)
 
 /-- Corresponding positions preserve the whole physical wire, including identity and dimension. -/
-theorem addOwnedLayout_wire_preserved (ctx : RuntimeCtx .quantum) (key : StorageKey)
+lemma addOwnedLayout_wire_preserved (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (index : Fin (systemCount + ctx.systemCount)) :
@@ -123,7 +123,7 @@ theorem addOwnedLayout_wire_preserved (ctx : RuntimeCtx .quantum) (key : Storage
     (addOwnedLayout_wires_eq_append ctx key layout fresh disjoint) index
 
 /-- Every corresponding physical position retains its precise finite dimension. -/
-theorem addOwnedLayout_dimension_preserved (ctx : RuntimeCtx .quantum) (key : StorageKey)
+lemma addOwnedLayout_dimension_preserved (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (index : Fin (systemCount + ctx.systemCount)) :
@@ -144,7 +144,7 @@ def addOwnedLayoutBasisEquiv (ctx : RuntimeCtx .quantum) (key : StorageKey)
   Execution.basisOfEqualWires _ _ (addOwnedLayout_wires_eq_append ctx key layout fresh disjoint)
 
 /-- Transport retains the finite value at every corresponding physical position. -/
-theorem addOwnedLayout_basis_value_preserved (ctx : RuntimeCtx .quantum) (key : StorageKey)
+lemma addOwnedLayout_basis_value_preserved (ctx : RuntimeCtx .quantum) (key : StorageKey)
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (basis : (QuantumLayout.append layout ctx.quantumLayout

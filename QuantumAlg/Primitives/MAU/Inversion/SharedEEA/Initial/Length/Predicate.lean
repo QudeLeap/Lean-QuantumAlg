@@ -31,21 +31,23 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InitialLengthPredicate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
 /-- An actual payload bit of Work2, beyond its three physical padding bits. -/
 def payloadBit (width : Nat) (index : Fin width) : EncodedBit (encoding width) :=
   secondWordBit width ⟨3 + index.val, by have bound := index.isLt; omega⟩
 
-theorem payloadBit_get (width : Nat) (index : Fin width) (state : Registers width) :
+lemma payloadBit_get (width : Nat) (index : Fin width) (state : Registers width) :
     (payloadBit width index).get state = state.secondWord.getMsbD (3 + index.val) :=
   secondWordBit_get width _ state
 
-private theorem payloadBit_wire (width : Nat) (index : Fin width) :
+private lemma payloadBit_wire (width : Nat) (index : Fin width) :
     (payloadBit width index).wire.val = width + 3 + (3 + index.val) :=
   secondWordBit_wire width _
 
-private theorem payload_output_ne (width : Nat) (index : Fin width)
+private lemma payload_output_ne (width : Nat) (index : Fin width)
     (output : Fin width.size) :
     (payloadBit width index).wire ≠ (divisorLengthBit width output).wire := by
   intro same
@@ -64,7 +66,7 @@ private instance zeroPrefixDecidable (width count : Nat) (within : count ≤ wid
   inferInstanceAs (Decidable (∀ index : Fin count,
     (payloadBit width ⟨index.val, lt_of_lt_of_le index.isLt within⟩).get state = false))
 
-private theorem zeroPrefix_flip (width count : Nat) (within : count ≤ width)
+private lemma zeroPrefix_flip (width count : Nat) (within : count ≤ width)
     (output : Fin width.size) (state : Registers width) :
     zeroPrefix width count within ((divisorLengthBit width output).flip state) ↔
       zeroPrefix width count within state := by
@@ -128,7 +130,7 @@ def gates (width : Nat) (output : Fin width.size) :
   | tail + 2, within => (longLayout width tail within output).borrowedZeroGates
 
 /-- The literal gates act correctly on the entire register value, including arbitrary work. -/
-theorem gates_step (width count : Nat) (within : count ≤ width) (output : Fin width.size)
+lemma gates_step (width count : Nat) (within : count ≤ width) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width output count within) state =
       if zeroPrefix width count within state then (divisorLengthBit width output).flip state
@@ -172,7 +174,7 @@ private instance firstOneDecidable (width : Nat) (index : Fin width) (state : Re
   inferInstanceAs (Decidable (zeroPrefix width index.val (Nat.le_of_lt index.isLt) state ∧
     (payloadBit width index).get state = true))
 
-private theorem zeroPrefix_succ (width : Nat) (index : Fin width) (state : Registers width) :
+private lemma zeroPrefix_succ (width : Nat) (index : Fin width) (state : Registers width) :
     zeroPrefix width (index.val + 1) index.isLt state ↔
       zeroPrefix width index.val (Nat.le_of_lt index.isLt) state ∧
         (payloadBit width index).get state = false := by
@@ -198,7 +200,7 @@ def firstOneGates (width : Nat) (index : Fin width) (output : Fin width.size) :
     gates width output (index.val + 1) index.isLt
 
 /-- The two literal predicate calls flip only the chosen length bit at the actual leading one. -/
-theorem firstOneGates_step (width : Nat) (index : Fin width) (output : Fin width.size)
+lemma firstOneGates_step (width : Nat) (index : Fin width) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (firstOneGates width index output) state =
       if firstOne width index state then (divisorLengthBit width output).flip state else state := by
@@ -215,14 +217,14 @@ theorem firstOneGates_step (width : Nat) (index : Fin width) (output : Fin width
     simp only [zeroPrefix_succ, earlier, false_and, if_false, firstOne]
 
 /-- The leading-bit predicate is realized by those same elementary native gates. -/
-theorem firstOneGates_realizes (width : Nat) (index : Fin width) (output : Fin width.size) :
+lemma firstOneGates_realizes (width : Nat) (index : Fin width) (output : Fin width.size) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty
-        (firstOneGates width index output))
+        (firstOneGates width index output)) environment
       (fun state => if firstOne width index state
         then (divisorLengthBit width output).flip state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (firstOneGates_step width index output)
+    (firstOneGates_step width index output) environment
 
 end
 

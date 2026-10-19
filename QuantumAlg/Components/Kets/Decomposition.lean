@@ -21,14 +21,14 @@ open NormalizedVector
 noncomputable section
 
 /-- A one-qubit state is its `|0⟩`/`|1⟩` coordinate combination. -/
-theorem single_qubit_vec_decomp (ψ : HilbertVector (Qubits 1)) :
+lemma single_qubit_vec_decomp (ψ : HilbertVector (Qubits 1)) :
     ψ =
       (ψ 0) • (ket0 : HilbertVector (Qubits 1)) + (ψ 1) • (ket1 : HilbertVector (Qubits 1)) := by
   ext i
   fin_cases i <;>
     simp [ket0, ket1, ket_apply, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
 
-theorem single_qubit_decomp (ψ : NormalizedVector (Qubits 1)) :
+lemma single_qubit_decomp (ψ : NormalizedVector (Qubits 1)) :
     (ψ : HilbertVector (Qubits 1)) =
       (ψ 0) • (ket0 : HilbertVector (Qubits 1)) + (ψ 1) • (ket1 : HilbertVector (Qubits 1)) :=
   single_qubit_vec_decomp (ψ : HilbertVector (Qubits 1))

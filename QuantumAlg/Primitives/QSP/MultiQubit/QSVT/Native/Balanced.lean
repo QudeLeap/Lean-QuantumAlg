@@ -27,7 +27,7 @@ exact `L` queries to each projector [GSLW19, BlockHam.tex:883-889].
 namespace QuantumAlg.QSP.MultiQubit.QSVT.Native.Balanced
 noncomputable section
 
-private theorem ancillaBlock_controlledNot {N : Nat}
+private lemma ancillaBlock_controlledNot {N : Nat}
     (P : OrthogonalProjector N) (a b : Fin (2 ^ 1)) :
     ancillaBlock a b
         (OrthogonalProjector.controlledNotOp P :
@@ -42,7 +42,7 @@ private theorem ancillaBlock_controlledNot {N : Nat}
     HilbertOperator.tensor_apply, Matrix.smul_apply, smul_eq_mul]
   rw [hai, hbj]
 
-private theorem ancillaBlock_unitary_mul {N : Nat} (a c : Fin (2 ^ 1))
+private lemma ancillaBlock_unitary_mul {N : Nat} (a c : Fin (2 ^ 1))
     (V W : UnitaryOperator (Qubits (1 + N))) :
     ancillaBlock a c ((V * W : UnitaryOperator (Qubits (1 + N))) :
         HilbertOperator (Qubits (1 + N))) =
@@ -58,7 +58,7 @@ private def blockSum {N : Nat} (V : HilbertOperator (Qubits (1 + N))) :
   ancillaBlock 0 0 V + ancillaBlock 0 1 V +
     ancillaBlock 1 0 V + ancillaBlock 1 1 V
 
-private theorem phasePlusBlock_eq_smul_blockSum {N : Nat}
+private lemma phasePlusBlock_eq_smul_blockSum {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) :
     phasePlusBlock V =
       (NormalizedVector.invSqrt2 * NormalizedVector.invSqrt2) •
@@ -74,7 +74,7 @@ private theorem phasePlusBlock_eq_smul_blockSum {N : Nat}
   unfold blockSum
   module
 
-private theorem controlledNot_row_sum {N : Nat} (P : OrthogonalProjector N)
+private lemma controlledNot_row_sum {N : Nat} (P : OrthogonalProjector N)
     (a : Fin (2 ^ 1)) :
     ancillaBlock a 0
           (OrthogonalProjector.controlledNotOp P : HilbertOperator (Qubits (1 + N))) +
@@ -86,7 +86,7 @@ private theorem controlledNot_row_sum {N : Nat} (P : OrthogonalProjector N)
     simp [Gate.XOp, UnitaryOperator.ofPerm, Matrix.one_apply,
       OrthogonalProjector.complement]
 
-private theorem controlledNot_column_sum {N : Nat} (P : OrthogonalProjector N)
+private lemma controlledNot_column_sum {N : Nat} (P : OrthogonalProjector N)
     (b : Fin (2 ^ 1)) :
     ancillaBlock 0 b
           (OrthogonalProjector.controlledNotOp P : HilbertOperator (Qubits (1 + N))) +
@@ -98,7 +98,7 @@ private theorem controlledNot_column_sum {N : Nat} (P : OrthogonalProjector N)
     simp [Gate.XOp, UnitaryOperator.ofPerm, Matrix.one_apply,
       OrthogonalProjector.complement]
 
-private theorem blockSum_mul_controlledNot {N : Nat}
+private lemma blockSum_mul_controlledNot {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) (P : OrthogonalProjector N) :
     blockSum ((V * OrthogonalProjector.controlledNotOp P :
         UnitaryOperator (Qubits (1 + N))) : HilbertOperator (Qubits (1 + N))) =
@@ -141,7 +141,7 @@ private theorem blockSum_mul_controlledNot {N : Nat}
       rw [controlledNot_row_sum, controlledNot_row_sum]
       simp
 
-private theorem blockSum_controlledNot_mul {N : Nat}
+private lemma blockSum_controlledNot_mul {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) (P : OrthogonalProjector N) :
     blockSum ((OrthogonalProjector.controlledNotOp P * V :
         UnitaryOperator (Qubits (1 + N))) : HilbertOperator (Qubits (1 + N))) =
@@ -184,14 +184,14 @@ private theorem blockSum_controlledNot_mul {N : Nat}
       rw [controlledNot_column_sum, controlledNot_column_sum]
       simp
 
-private theorem phasePlusBlock_mul_controlledNot {N : Nat}
+private lemma phasePlusBlock_mul_controlledNot {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) (P : OrthogonalProjector N) :
     phasePlusBlock (V * OrthogonalProjector.controlledNotOp P) =
       phasePlusBlock V := by
   rw [phasePlusBlock_eq_smul_blockSum, phasePlusBlock_eq_smul_blockSum,
     blockSum_mul_controlledNot]
 
-private theorem phasePlusBlock_controlledNot_mul {N : Nat}
+private lemma phasePlusBlock_controlledNot_mul {N : Nat}
     (V : UnitaryOperator (Qubits (1 + N))) (P : OrthogonalProjector N) :
     phasePlusBlock (OrthogonalProjector.controlledNotOp P * V) =
       phasePlusBlock V := by
@@ -203,38 +203,38 @@ variable {width : Nat} (U : UnitaryOperator (Qubits width))
 
 private def eventPool
     (event : Resource.Event
-      (.quantum AlgorithmGate.model (ProjectedSignal.model U left right allowControlled))) :
+      (.quantum AlgorithmGate.model (ProjectedSignal.model width allowControlled))) :
     ResourcePool
-      (.quantum AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)) :=
+      (.quantum AlgorithmGate.model (ProjectedSignal.model width allowControlled)) :=
   ResourcePool.singleton event
 
 /-- Exact whole-word budget with `L` calls to each projector-controlled NOT. -/
 public def budget (L : Nat) :
     ResourcePool
-      (.quantum AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)) :=
-  ((L + 1) / 2) • eventPool U left right allowControlled
+      (.quantum AlgorithmGate.model (ProjectedSignal.model width allowControlled)) :=
+  ((L + 1) / 2) • eventPool (width := width) allowControlled
       (.oracle (.source .ordinary)) +
-    (L / 2) • eventPool U left right allowControlled (.oracle (.source .inverse)) +
-    L • eventPool U left right allowControlled (.oracle .leftNot) +
-    L • eventPool U left right allowControlled (.oracle .rightNot) +
-    L • eventPool U left right allowControlled (.gate .singleQubit)
+    (L / 2) • eventPool (width := width) allowControlled (.oracle (.source .inverse)) +
+    L • eventPool (width := width) allowControlled (.oracle .leftNot) +
+    L • eventPool (width := width) allowControlled (.oracle .rightNot) +
+    L • eventPool (width := width) allowControlled (.gate .singleQubit)
 
 /-- The balanced budget contains exactly `L` ordinary-or-inverse source calls. -/
-public theorem budget_source_queries (L : Nat) :
+public lemma budget_source_queries (L : Nat) :
     ResourcePool.count
         (model := .quantum AlgorithmGate.model
-          (ProjectedSignal.model U left right allowControlled))
+          (ProjectedSignal.model width allowControlled))
         (.oracle (.source .ordinary))
-        (budget U left right allowControlled L) +
+        (budget (width := width) allowControlled L) +
       ResourcePool.count
         (model := .quantum AlgorithmGate.model
-          (ProjectedSignal.model U left right allowControlled))
+          (ProjectedSignal.model width allowControlled))
         (.oracle (.source .inverse))
-        (budget U left right allowControlled L) = L := by
+        (budget (width := width) allowControlled L) = L := by
   have ordinaryNeInverse :
       (Resource.Event.oracle (.source .ordinary) :
           Resource.Event (.quantum AlgorithmGate.model
-            (ProjectedSignal.model U left right allowControlled))) ≠
+            (ProjectedSignal.model width allowControlled))) ≠
         .oracle (.source .inverse) := by
     intro same
     have coordinate := Resource.Event.oracle.inj same
@@ -245,64 +245,64 @@ public theorem budget_source_queries (L : Nat) :
   omega
 
 /-- The balanced budget contains exactly `L` left-projector calls. -/
-public theorem budget_left_projector_queries (L : Nat) :
+public lemma budget_left_projector_queries (L : Nat) :
     ResourcePool.count
         (model := .quantum AlgorithmGate.model
-          (ProjectedSignal.model U left right allowControlled))
+          (ProjectedSignal.model width allowControlled))
         (.oracle .leftNot)
-        (budget U left right allowControlled L) = L := by
+        (budget (width := width) allowControlled L) = L := by
   simp [budget, eventPool]
 
 /-- The balanced budget contains exactly `L` right-projector calls. -/
-public theorem budget_right_projector_queries (L : Nat) :
+public lemma budget_right_projector_queries (L : Nat) :
     ResourcePool.count
         (model := .quantum AlgorithmGate.model
-          (ProjectedSignal.model U left right allowControlled))
+          (ProjectedSignal.model width allowControlled))
         (.oracle .rightNot)
-        (budget U left right allowControlled L) = L := by
+        (budget (width := width) allowControlled L) = L := by
   simp [budget, eventPool]
 
 /-- Every positive-degree balanced word has one native rotation per phase. -/
-public theorem budget_single_qubit_count (L : Nat) :
+public lemma budget_single_qubit_count (L : Nat) :
     ResourcePool.count
         (model := .quantum AlgorithmGate.model
-          (ProjectedSignal.model U left right allowControlled))
+          (ProjectedSignal.model width allowControlled))
         (.gate .singleQubit)
-        (budget U left right allowControlled L) = L := by
+        (budget (width := width) allowControlled L) = L := by
   simp [budget, eventPool]
 
 private def projectorFlip (useRight : Bool) :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
-  ProjectedSignal.Circuit.projectorFlip AlgorithmGate.model U left right
+  ProjectedSignal.Circuit.projectorFlip AlgorithmGate.model width
     allowControlled useRight
 
 private def rotation (angle : ℝ) :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
   Gate.singleQubitAt (ProjectorPhase.layout width)
-    (ProjectedSignal.model U left right allowControlled) (rotZStdOp (2 * angle))
+    (ProjectedSignal.model width allowControlled) (rotZStdOp (2 * angle))
     (0 : Fin (1 + width)) rfl
 
 /-- The first projector call and rotation of one source phase gadget. -/
 private def phasePrefix (useRight : Bool) (angle : ℝ) :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
-  (projectorFlip U left right allowControlled useRight).seq
-    (rotation U left right allowControlled angle)
+  (projectorFlip (width := width) allowControlled useRight).seq
+    (rotation (width := width) allowControlled angle)
 
-private theorem phasePrefix_events (useRight : Bool) (angle : ℝ) :
-    (phasePrefix U left right allowControlled useRight angle).eventCost =
-      eventPool U left right allowControlled
+private lemma phasePrefix_events (useRight : Bool) (angle : ℝ) :
+    (phasePrefix (width := width) allowControlled useRight angle).eventCost =
+      eventPool (width := width) allowControlled
           (.oracle (if useRight then .rightNot else .leftNot)) +
-        eventPool U left right allowControlled (.gate .singleQubit) := by
+        eventPool (width := width) allowControlled (.gate .singleQubit) := by
   rw [phasePrefix, UnitaryCircuit.seq_eventCost,
     projectorFlip, ProjectedSignal.Circuit.projectorFlip_events]
   unfold rotation eventPool
   rfl
 
-private theorem phasePrefix_depth (useRight : Bool) (angle : ℝ) :
-    (phasePrefix U left right allowControlled useRight angle).evaluatedEventDepth
+private lemma phasePrefix_depth (useRight : Bool) (angle : ℝ) :
+    (phasePrefix (width := width) allowControlled useRight angle).evaluatedEventDepth
         (fun _ => 1) = 2 := by
   rw [phasePrefix, UnitaryCircuit.evaluatedEventDepth_seq,
     projectorFlip, ProjectedSignal.Circuit.projectorFlip_depth]
@@ -310,32 +310,36 @@ private theorem phasePrefix_depth (useRight : Bool) (angle : ℝ) :
   rfl
 
 private def oddCore (angle : ℝ) (tail : List ℝ) :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
-  ((Native.circuit U left right allowControlled tail).seq
-      (Native.signal U left right allowControlled false)).seq
-    (phasePrefix U left right allowControlled false angle)
+  ((Native.circuit (width := width) allowControlled tail).seq
+      (Native.signal (width := width) allowControlled false)).seq
+    (phasePrefix (width := width) allowControlled false angle)
 
 /-- Odd words move the final left query to a right query at the input boundary. -/
 private def oddCircuit (angle : ℝ) (tail : List ℝ) :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
-  (projectorFlip U left right allowControlled true).seq
-    (oddCore U left right allowControlled angle tail)
+  (projectorFlip (width := width) allowControlled true).seq
+    (oddCore (width := width) allowControlled angle tail)
 
-private theorem oddCircuit_matrix (angle : ℝ) (tail : List ℝ) :
-    (oddCircuit U left right allowControlled angle tail).binaryMatrix =
-      (oddCore U left right allowControlled angle tail).binaryMatrix *
+private lemma oddCircuit_matrix (angle : ℝ) (tail : List ℝ) :
+    ((oddCircuit (width := width) allowControlled angle tail).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) =
+      ((oddCore (width := width) allowControlled angle tail).binaryMatrix
+        (ProjectedSignal.interpretation U left right allowControlled)) *
         OrthogonalProjector.controlledNotOp right := by
   rw [oddCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     projectorFlip, ProjectedSignal.Circuit.projectorFlip_matrix]
   simp only [↓reduceIte]
 
-private theorem native_cons_matrix (angle : ℝ) (tail : List ℝ)
+private lemma native_cons_matrix (angle : ℝ) (tail : List ℝ)
     (odd : (tail.length + 1) % 2 ≠ 0) :
-    (Native.circuit U left right allowControlled (angle :: tail)).binaryMatrix =
+    ((Native.circuit (width := width) allowControlled (angle :: tail)).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) =
       OrthogonalProjector.controlledNotOp left *
-        (oddCore U left right allowControlled angle tail).binaryMatrix := by
+        ((oddCore (width := width) allowControlled angle tail).binaryMatrix
+          (ProjectedSignal.interpretation U left right allowControlled)) := by
   simp only [Native.circuit, odd, decide_false, Bool.false_eq_true, ↓reduceIte,
     oddCore, Native.phase, ProjectorPhase.circuit, phasePrefix,
     projectorFlip, rotation,
@@ -343,36 +347,41 @@ private theorem native_cons_matrix (angle : ℝ) (tail : List ℝ)
     ProjectedSignal.Circuit.projectorFlip_matrix]
   rw [mul_assoc]
 
-private theorem oddCircuit_phasePlusBlock (angle : ℝ) (tail : List ℝ)
+private lemma oddCircuit_phasePlusBlock (angle : ℝ) (tail : List ℝ)
     (odd : (tail.length + 1) % 2 ≠ 0) :
-    phasePlusBlock (oddCircuit U left right allowControlled angle tail).binaryMatrix =
+    phasePlusBlock ((oddCircuit (width := width) allowControlled angle tail).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) =
       phasePlusBlock
-        (Native.circuit U left right allowControlled (angle :: tail)).binaryMatrix := by
+        ((Native.circuit (width := width) allowControlled (angle :: tail)).binaryMatrix
+          (ProjectedSignal.interpretation U left right allowControlled)) := by
   rw [oddCircuit_matrix, phasePlusBlock_mul_controlledNot,
     native_cons_matrix U left right allowControlled angle tail odd,
     phasePlusBlock_controlledNot_mul]
 
-private theorem oddCircuit_projectedPhasePlusBlock (angle : ℝ) (tail : List ℝ)
+private lemma oddCircuit_projectedPhasePlusBlock (angle : ℝ) (tail : List ℝ)
     (odd : (tail.length + 1) % 2 ≠ 0)
       (output input : OrthogonalProjector width) :
     projectedPhasePlusBlock output input
-        (oddCircuit U left right allowControlled angle tail).binaryMatrix =
+        ((oddCircuit (width := width) allowControlled angle tail).binaryMatrix
+          (ProjectedSignal.interpretation U left right allowControlled)) =
       projectedPhasePlusBlock output input
-        (Native.circuit U left right allowControlled (angle :: tail)).binaryMatrix := by
+        ((Native.circuit (width := width) allowControlled (angle :: tail)).binaryMatrix
+          (ProjectedSignal.interpretation U left right allowControlled)) := by
   unfold projectedPhasePlusBlock
   rw [oddCircuit_phasePlusBlock U left right allowControlled angle tail odd]
 
-private theorem budget_eq_native_of_even (L : Nat) (even : L % 2 = 0) :
-    budget U left right allowControlled L = Native.budget U left right allowControlled L := by
+private lemma budget_eq_native_of_even (L : Nat) (even : L % 2 = 0) :
+    budget (width := width) allowControlled L
+      = Native.budget (width := width) allowControlled L := by
   have halfUpper : (L + 1) / 2 = L / 2 := by omega
   have twiceHalf : 2 * (L / 2) = L := by omega
   simp only [budget, Native.budget, eventPool, Native.eventPool,
     halfUpper, twiceHalf]
 
-private theorem oddCircuit_events (angle : ℝ) (tail : List ℝ)
+private lemma oddCircuit_events (angle : ℝ) (tail : List ℝ)
     (evenTail : tail.length % 2 = 0) :
-    (oddCircuit U left right allowControlled angle tail).eventCost =
-      budget U left right allowControlled (tail.length + 1) := by
+    (oddCircuit (width := width) allowControlled angle tail).eventCost =
+      budget (width := width) allowControlled (tail.length + 1) := by
   have halfSucc : (tail.length + 1) / 2 = tail.length / 2 := by omega
   have halfSuccSucc : (tail.length + 1 + 1) / 2 = tail.length / 2 + 1 := by omega
   have twiceHalf : 2 * (tail.length / 2) = tail.length := by omega
@@ -384,8 +393,8 @@ private theorem oddCircuit_events (angle : ℝ) (tail : List ℝ)
     one_nsmul, add_nsmul]
   ac_rfl
 
-private theorem oddCircuit_depth (angle : ℝ) (tail : List ℝ) :
-    (oddCircuit U left right allowControlled angle tail).evaluatedEventDepth
+private lemma oddCircuit_depth (angle : ℝ) (tail : List ℝ) :
+    (oddCircuit (width := width) allowControlled angle tail).evaluatedEventDepth
         (fun _ => 1) = 4 * (tail.length + 1) := by
   simp only [oddCircuit, oddCore, UnitaryCircuit.evaluatedEventDepth_seq,
     projectorFlip, ProjectedSignal.Circuit.projectorFlip_depth, Native.circuit_depth,
@@ -394,35 +403,35 @@ private theorem oddCircuit_depth (angle : ℝ) (tail : List ℝ) :
 
 /-- Matching-parity phases admit an actual word with the paper's exact balanced
 projector-query counts, the same projected block, and the same full depth. -/
-theorem exists_real_word {L : Nat} {PRe : Polynomial ℝ}
+lemma exists_real_word {L : Nat} {PRe : Polynomial ℝ}
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (positive : 0 < L) :
     ∃ word : UnitaryCircuit AlgorithmGate.model
-        (ProjectedSignal.model U left right allowControlled) (ProjectorPhase.layout width),
+        (ProjectedSignal.model width allowControlled) (ProjectorPhase.layout width),
       projectedPhasePlusBlock (projectedOutputProjector left right L) right
-          word.binaryMatrix =
+          (word.binaryMatrix (ProjectedSignal.interpretation U left right allowControlled)) =
         singularValuePolynomial right L (realPolynomialToComplex PRe)
           (projectedUnitaryBlock left right U) ∧
-      word.eventCost = budget U left right allowControlled L ∧
+      word.eventCost = budget (width := width) allowControlled L ∧
       word.evaluatedEventDepth (fun _ => 1) = 4 * L := by
   obtain ⟨phases, length, block, events, depth⟩ :=
     Native.exists_native_real_word U left right allowControlled source positive
   by_cases even : L % 2 = 0
-  · refine ⟨Native.circuit U left right allowControlled phases, block, ?_, depth⟩
-    rw [events, ← budget_eq_native_of_even U left right allowControlled L even]
+  · refine ⟨Native.circuit (width := width) allowControlled phases, block, ?_, depth⟩
+    rw [events, ← budget_eq_native_of_even (width := width) allowControlled L even]
   · cases phases with
     | nil => simp at length; omega
     | cons angle tail =>
       have tailLength : tail.length + 1 = L := by simpa using length
       have oddTail : (tail.length + 1) % 2 ≠ 0 := by omega
       have evenTail : tail.length % 2 = 0 := by omega
-      refine ⟨oddCircuit U left right allowControlled angle tail, ?_, ?_, ?_⟩
+      refine ⟨oddCircuit (width := width) allowControlled angle tail, ?_, ?_, ?_⟩
       · rw [oddCircuit_projectedPhasePlusBlock U left right allowControlled
           angle tail oddTail]
         exact block
-      · rw [oddCircuit_events U left right allowControlled angle tail evenTail,
+      · rw [oddCircuit_events (width := width) allowControlled angle tail evenTail,
           tailLength]
-      · rw [oddCircuit_depth U left right allowControlled angle tail, tailLength]
+      · rw [oddCircuit_depth (width := width) allowControlled angle tail, tailLength]
 
 end
 end QuantumAlg.QSP.MultiQubit.QSVT.Native.Balanced

@@ -27,7 +27,7 @@ Native placement of this complete comparison remains a separate refinement.
 
 namespace QuantumAlg.NumberTheory.SharedEEA.DeshiftSourceWindow
 
-private theorem read_zero_quotient {coefficientWidth quotientWidth remainderWidth : Nat}
+private lemma read_zero_quotient {coefficientWidth quotientWidth remainderWidth : Nat}
     (payload : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth)
     (length : Nat) (coefficientFits : coefficientWidth ≤ length)
     (within : length ≤ (coefficientWidth + 1) + (quotientWidth + remainderWidth))
@@ -57,7 +57,7 @@ private theorem read_zero_quotient {coefficientWidth quotientWidth remainderWidt
   exact congrArg (fun value : BitVec length => value.toNat) word
 
 /-- The full completed-phase source window is precisely the original coefficient, zero-extended. -/
-theorem read_completed (state : IterationState) (modulus shift : Nat)
+lemma read_completed (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     (PhysicalWindow.read (CoefficientCapacity.work2CoefficientWidth state modulus - shift)
@@ -78,7 +78,7 @@ theorem read_completed (state : IterationState) (modulus shift : Nat)
     (remainderBelow.trans_le (Nat.pow_le_pow_right Nat.zero_lt_two (by omega)))
 
 /-- Both actual full windows together give the original integer comparison, including equality. -/
-theorem complete_comparison (state : IterationState) (modulus shift : Nat)
+lemma complete_comparison (state : IterationState) (modulus shift : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : shift ≤ state.quotient.size) :
     (PhysicalWindow.read (CoefficientCapacity.work2CoefficientWidth state modulus - shift)

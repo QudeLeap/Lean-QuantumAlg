@@ -24,7 +24,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
 /-- An actual mutable input avoids every differently named mutable destination. -/
-theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
+lemma mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
     (sourceKey : source.key = mutableKey refs saved) (different : saved ≠ written) :
     mutableKey refs written ∉ (writeInput source).storageKeys := by
@@ -36,7 +36,7 @@ theorem mutable_avoids (refs : Refs ctx width) (separation : Separation refs)
 
 omit [BitWord.Selected model] in
 /-- One actual native write retains a distinct original mutable value. -/
-theorem mutable_read_apply (refs : Refs ctx width) (separation : Separation refs)
+lemma mutable_read_apply (refs : Refs ctx width) (separation : Separation refs)
     {inputShape outputShape shape : CShape} (op : ClassicalOp inputShape outputShape ctx ctx)
     (written : MutableCell) (outputKey : op.outputRef.key = mutableKey refs written)
     (source : CWriteRef ctx shape) (saved : MutableCell)
@@ -49,7 +49,7 @@ theorem mutable_read_apply (refs : Refs ctx width) (separation : Separation refs
 
 omit [BitWord.Selected model] in
 /-- One actual native write retains each original candidate or constant source input. -/
-theorem source_read_apply (refs : Refs ctx width) (separation : Separation refs)
+lemma source_read_apply (refs : Refs ctx width) (separation : Separation refs)
     {inputShape outputShape : CShape} (op : ClassicalOp inputShape outputShape ctx ctx)
     (written : MutableCell) (outputKey : op.outputRef.key = mutableKey refs written)
     (source : SourceCell) (store : Store ctx) :
@@ -67,7 +67,7 @@ def SuffixFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
 
 omit [BitWord.Selected model] in
 /-- All seven actual suffix instructions preserve reads outside their five original destinations. -/
-theorem suffixInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
+lemma suffixInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     SuffixFrame refs store (suffixStore refs store) := by
   intro shape other exponent positive below nonnegative accepted
   unfold suffixStore
@@ -80,7 +80,7 @@ theorem suffixInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ exponent]
 
 /-- Every original source word survives actual signed normalization. -/
-theorem normalize_source_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma normalize_source_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (source : SourceCell) :
     (normalizeStep refs store).1.read (sourceInput refs source) =
       store.read (sourceInput refs source) :=
@@ -91,7 +91,7 @@ theorem normalize_source_frame (refs : Refs ctx width) (separation : Separation 
 
 omit [BitWord.Selected model] in
 /-- Actual suffix execution retains the selected original normalized magnitude. -/
-theorem suffix_magnitude_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma suffix_magnitude_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (suffixStore refs store).read (writeInput refs.magnitude) =
       store.read (writeInput refs.magnitude) :=
@@ -104,7 +104,7 @@ theorem suffix_magnitude_frame (refs : Refs ctx width) (separation : Separation 
 
 omit [BitWord.Selected model] in
 /-- Actual suffix execution retains the real sign produced by normalization. -/
-theorem suffix_negative_frame (refs : Refs ctx width) (separation : Separation refs)
+lemma suffix_negative_frame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (suffixStore refs store).read (writeInput refs.negative) =
       store.read (writeInput refs.negative) :=
@@ -121,7 +121,7 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
     (∀ cell, mutableKey refs cell ∉ other.storageKeys) → after.read other = before.read other
 
 /-- Actual direct sign extraction, magnitude selection and range tests preserve all caller reads. -/
-theorem candidateExponentInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
+lemma candidateExponentInto_callerFrame (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (exponentStep refs store).1 := by
   intro shape other avoids
   change (suffixStore refs (normalizeStep refs store).1).read other = _

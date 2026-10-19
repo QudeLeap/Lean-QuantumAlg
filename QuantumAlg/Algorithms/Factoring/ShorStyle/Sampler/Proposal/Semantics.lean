@@ -36,7 +36,7 @@ def comparisonStore (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx w
   (((store.applyOp (extendOp scratch)).applyOp (positiveOp shared scratch)).applyOp
     (belowOp shared scratch)).applyOp (eligibleOp scratch)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The four actual result values form the comparison suffix's native path. -/
@@ -50,17 +50,17 @@ def comparisonStep (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx wi
   (eligible.1, (extended.2, (positive.2, (below.2, eligible.2))))
 
 /-- Recording actual native outcomes leaves the original comparison store equation exact. -/
-theorem proposalComparison_step_store (shared : SharedRefs ctx width)
+lemma proposalComparison_step_store (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (store : Store ctx) :
     (comparisonStep (model := model) shared scratch store).1 =
       comparisonStore shared scratch store := rfl
 
 /-- The actual comparison suffix preserves each complete quantum-reference block. -/
-theorem proposalComparison_execute (shared : SharedRefs ctx width)
+lemma proposalComparison_execute (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (comparisonBody (model := model) shared scratch).execute Reference state =
+    (comparisonBody (model := model) shared scratch).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := comparisonStep (model := model) shared scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -77,11 +77,12 @@ def decodedStep (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin
     (List.ofFn (fun index => PackedSample.proposalRefs sample proposal
       (TerminalDecode.sourceIndex .littleEndian index))) store
 
-private theorem decoded_execute (sample : CInputRef ctx (.bits (count * width)))
+private lemma decoded_execute (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (scratch : ScratchRefs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (TerminalDecode.intoFromBitRefs (model := model) .littleEndian
-      (PackedSample.proposalRefs sample proposal) scratch.candidate).execute Reference state =
+      (PackedSample.proposalRefs sample proposal) scratch.candidate).execute
+        environment Reference state =
       state.mapClassical (fun entry =>
         let result := decodedStep (model := model) sample proposal scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -97,15 +98,17 @@ def prefixStep (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin 
   (compared.1, (decoded.2, compared.2))
 
 /-- Prefix execution follows the actual decoder and comparison updates on every block. -/
-theorem proposalPrefix_execute (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalPrefix_execute (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (prefixBody (model := model) sample proposal shared scratch).execute Reference state =
+    (prefixBody (model := model) sample proposal shared scratch).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := prefixStep (model := model) sample proposal shared scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical _ (comparisonBody (model := model) shared scratch)
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
+    _ (comparisonBody (model := model) shared scratch)
     (fun entry =>
       let result := decodedStep (model := model) sample proposal scratch entry.1
       ((result.1, entry.2), result.2))
@@ -128,15 +131,15 @@ def slotStep (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin co
   (selected.1, (prefixed.2, selected.2))
 
 /-- One real slot composes the exact prefix and first-accepted state equations. -/
-theorem proposalSlot_execute (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalSlot_execute (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (slot (model := model) sample proposal shared scratch).execute Reference state =
+    (slot (model := model) sample proposal shared scratch).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := slotStep (model := model) sample proposal shared scratch entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (prefixBody (model := model) sample proposal shared scratch) _
     (fun entry =>
       let result := prefixStep (model := model) sample proposal shared scratch entry.1
@@ -162,20 +165,21 @@ def foldSteps (sample : CInputRef ctx (.bits (count * width)))
       (later.1, (selected.2, later.2))
 
 /-- Every finite ordered scan has the exact state map of its actual source-addressed slots. -/
-theorem proposalFold_execute (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalFold_execute (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (foldSlots (model := model) sample shared scratch proposals).execute Reference state =
+    (foldSlots (model := model) sample shared scratch proposals).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := foldSteps (model := model) sample shared scratch proposals entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   induction proposals generalizing Reference History with
   | nil =>
-      refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+      refine (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl
   | cons proposal remaining ih =>
-      refine (Circuit.execute_seq_mapClassical
+      refine (Circuit.execute_seq_mapClassical (environment := environment)
         (slot (model := model) sample proposal shared scratch)
         (foldSlots (model := model) sample shared scratch remaining)
         (fun entry =>

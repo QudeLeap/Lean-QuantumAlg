@@ -26,7 +26,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 private def cellKey (ctx : RuntimeCtx kind) (width : Nat) (index : Fin 5) : StorageKey :=
   (internalKeys ctx width).get ⟨index.val, by change index.val < 5; exact index.isLt⟩
 
-private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
+private lemma cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
     (left right : Fin 5) (different : left ≠ right) :
     cellKey ctx width left ≠ cellKey ctx width right := by
   intro same
@@ -34,7 +34,7 @@ private theorem cellKey_ne (ctx : RuntimeCtx kind) (width : Nat)
   exact different (Fin.ext (congrArg Fin.val positions))
 
 /-- Every new checker cell is outside every lifted actual source read. -/
-theorem nativeQuadratic_checkLayout_new_free {shape : CShape}
+lemma nativeQuadratic_checkLayout_new_free {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) (key : StorageKey)
     (internal : key ∈ internalKeys ctx width) :
     key ∉ (underRead input width).storageKeys := by
@@ -43,13 +43,13 @@ theorem nativeQuadratic_checkLayout_new_free {shape : CShape}
   exact List.disjoint_left.mp (nativeQuadratic_checkLayout_disjoint ctx width)
     internal (input.storageKeys_subset_context present)
 
-private theorem source_free {shape : CShape} (input : CInputRef ctx shape)
+private lemma source_free {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (index : Fin 5) :
     cellKey ctx width index ∉ (underRead input width).storageKeys :=
   nativeQuadratic_checkLayout_new_free input width _ (List.get_mem (internalKeys ctx width) _)
 
 /-- The reused original remainder destination lies outside each fresh checker cell. -/
-theorem nativeQuadratic_checkLayout_original_ne {shape : CShape}
+lemma nativeQuadratic_checkLayout_original_ne {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) (key : StorageKey)
     (internal : key ∈ internalKeys ctx width) :
     (underWrite output width).key ≠ key := by
@@ -61,13 +61,13 @@ theorem nativeQuadratic_checkLayout_original_ne {shape : CShape}
   exact List.disjoint_left.mp (nativeQuadratic_checkLayout_disjoint ctx width)
     internal (same ▸ original)
 
-private theorem original_ne {shape : CShape} (output : CWriteRef ctx shape)
+private lemma original_ne {shape : CShape} (output : CWriteRef ctx shape)
     (width : Nat) (index : Fin 5) :
     (underWrite output width).key ≠ cellKey ctx width index :=
   nativeQuadratic_checkLayout_original_ne output width _ (List.get_mem (internalKeys ctx width) _)
 
 /-- The actual lower-candidate interface satisfies every internal check separation fact. -/
-theorem nativeQuadratic_first_check_separated (inputs : Operands ctx width) :
+lemma nativeQuadratic_first_check_separated (inputs : Operands ctx width) :
     Check.Separated (pairRefs inputs).first where
   validModulus := source_free inputs.modulus width 1
   validCandidate := source_free inputs.first width 1
@@ -84,7 +84,7 @@ theorem nativeQuadratic_first_check_separated (inputs : Operands ctx width) :
   dividesValid := cellKey_ne ctx width 2 1 (by decide)
 
 /-- The actual upper-candidate interface independently satisfies the same complete contract. -/
-theorem nativeQuadratic_second_check_separated (inputs : Operands ctx width) :
+lemma nativeQuadratic_second_check_separated (inputs : Operands ctx width) :
     Check.Separated (pairRefs inputs).second where
   validModulus := source_free inputs.modulus width 0
   validCandidate := source_free inputs.second width 0
@@ -101,7 +101,7 @@ theorem nativeQuadratic_second_check_separated (inputs : Operands ctx width) :
   dividesValid := cellKey_ne ctx width 2 0 (by decide)
 
 /-- The two actual persistent validity bits remain distinct until selection consumes them. -/
-theorem nativeQuadratic_checkLayout_valid_distinct (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeQuadratic_checkLayout_valid_distinct (ctx : RuntimeCtx kind) (width : Nat) :
     (firstValid ctx width).key ≠ (secondValid ctx width).key :=
   cellKey_ne ctx width 1 0 (by decide)
 

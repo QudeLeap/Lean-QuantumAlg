@@ -17,16 +17,19 @@ classical writes [dW19, qcnotes.tex:5409,5420].
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
 
 /-- Agreement on the actual measured wires gives equality of the actual finite outcome paths. -/
-theorem measurementBasisPath_eq_of_agree {ctx : RuntimeCtx .quantum}
+lemma measurementBasisPath_eq_of_agree {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) (left right : ctx.register.Index)
     (same : measurementLabelsAgree readouts left right) :
-    measurementBasisPath (gates := gates) (oracles := oracles)
+    measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts left =
-      measurementBasisPath (gates := gates) (oracles := oracles)
+      measurementBasisPath (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts right := by
   induction readouts with
   | nil => rfl
@@ -34,20 +37,25 @@ theorem measurementBasisPath_eq_of_agree {ctx : RuntimeCtx .quantum}
       exact Prod.ext same.1 (induction same.2)
 
 /-- Every actual classical write is unchanged by modifying only unmeasured basis coordinates. -/
-theorem writeMeasurementPath_eq_of_agree {ctx : RuntimeCtx .quantum}
+lemma writeMeasurementPath_eq_of_agree {ctx : RuntimeCtx .quantum}
     (readouts : List (ZReadout ctx)) (store : Execution.Store ctx)
     (left right : ctx.register.Index) (same : measurementLabelsAgree readouts left right) :
-    writeMeasurementPath (gates := gates) (oracles := oracles)
+    writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles) readouts store
-      (measurementBasisPath (gates := gates) (oracles := oracles)
+      (measurementBasisPath (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts left) =
-      writeMeasurementPath (gates := gates) (oracles := oracles)
+      writeMeasurementPath (allowAllocation := allowAllocation)
+        (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := classicalOracles) readouts store
-        (measurementBasisPath (gates := gates) (oracles := oracles)
+        (measurementBasisPath (allowAllocation := allowAllocation)
+          (gates := gates) (oracles := oracles)
           (operations := operations) (classicalOracles := classicalOracles) readouts right) :=
-  congrArg (writeMeasurementPath (gates := gates) (oracles := oracles)
+  congrArg (writeMeasurementPath (allowAllocation := allowAllocation)
+    (gates := gates) (oracles := oracles)
     (operations := operations) (classicalOracles := classicalOracles) readouts store)
-    (measurementBasisPath_eq_of_agree (gates := gates) (oracles := oracles)
+    (measurementBasisPath_eq_of_agree (allowAllocation := allowAllocation)
+      (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       readouts left right same)
 

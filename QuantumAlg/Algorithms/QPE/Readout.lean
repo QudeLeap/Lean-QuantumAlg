@@ -34,23 +34,25 @@ public def qpeReadoutCircuit (oracles : OracleModel) (t : Nat) :=
 /-- Express the executed readout in the original binary basis used by phase analysis. -/
 public def invQFT (t : Nat) : UnitaryOperator (Qubits t) :=
   QuantumFourierTransform.Native.onBinaryLabels (qpeReadoutCircuit .empty t)
+    OracleModel.emptyInterpretation
 
 /-- The complete readout has exactly the original inverse Fourier matrix. -/
-theorem qpeReadout_binary_matrix (t : Nat) : invQFT t = star (QFTOperator t) :=
+lemma qpeReadout_binary_matrix (t : Nat) : invQFT t = star (QFTOperator t) :=
   QuantumFourierTransform.Native.qftNative_inverseCircuit_binaryMatrix .empty t
+    OracleModel.emptyInterpretation
 
 /-- Native counts include every phase and swap expansion and no query. -/
-public theorem qpeReadout_native_event_count (oracles : OracleModel)
+public lemma qpeReadout_native_event_count (oracles : OracleModel)
     (event : Resource.Event (.quantum AlgorithmGate.model oracles)) (t : Nat) :
     ResourcePool.count event (qpeReadoutCircuit oracles t).eventCost =
       (t + 3 * t.choose 2) * (if .gate .singleQubit = event then 1 else 0) +
         (2 * t.choose 2 + 3 * (t / 2)) * (if .gate .cnot = event then 1 else 0) :=
   QuantumFourierTransform.Native.qftNative_inverseCircuit_event_count oracles event t
 
-/-- The complete dependency path retains every native inverse instruction. -/
-public theorem qpeReadout_native_unit_depth (oracles : OracleModel) (t : Nat) :
+/-- Native inverse readout executes the disjoint final SWAPs in parallel. -/
+public lemma qpeReadout_native_unit_depth (oracles : OracleModel) (t : Nat) :
     (qpeReadoutCircuit oracles t).evaluatedEventDepth (fun _ => 1) =
-      t + 5 * t.choose 2 + 3 * (t / 2) :=
+      t + 5 * t.choose 2 + (if t / 2 = 0 then 0 else 3) :=
   QuantumFourierTransform.Native.qftNative_inverseCircuit_unit_depth oracles t
 
 end

@@ -33,7 +33,7 @@ private def pair {prefixWidth suffixWidth : Nat}
     (left : Fin (2 ^ prefixWidth)) (right : Fin (2 ^ suffixWidth)) :=
   (QuantumSignature.qubitsIndexEquiv (prefixWidth + suffixWidth)).symm (prodEquiv (left, right))
 
-private theorem selected_pair {prefixWidth suffixWidth : Nat}
+private lemma selected_pair {prefixWidth suffixWidth : Nat}
     (left : Fin (2 ^ prefixWidth)) (right : Fin (2 ^ suffixWidth)) :
     ((binarySuffixEmbedding prefixWidth suffixWidth).splitBasis (pair left right)).1 =
       (QuantumSignature.qubitsIndexEquiv suffixWidth).symm right := by
@@ -44,7 +44,7 @@ private theorem selected_pair {prefixWidth suffixWidth : Nat}
     (congrArg Fin.val (BinaryBasis.bigEndianEquiv_prod_right
       (leftWidth := prefixWidth) (rightWidth := suffixWidth) left right index))
 
-private theorem prefix_outside (prefixWidth suffixWidth : Nat) (index : Fin prefixWidth) :
+private lemma prefix_outside (prefixWidth suffixWidth : Nat) (index : Fin prefixWidth) :
     Fin.castAdd suffixWidth index ∈ (binarySuffixEmbedding prefixWidth suffixWidth).selectionᶜ := by
   apply Finset.mem_compl.mpr
   intro member
@@ -54,7 +54,7 @@ private theorem prefix_outside (prefixWidth suffixWidth : Nat) (index : Fin pref
   have bound : index.val < prefixWidth := index.isLt
   omega
 
-private theorem outside_prefix (prefixWidth suffixWidth : Nat)
+private lemma outside_prefix (prefixWidth suffixWidth : Nat)
     (position : Fin (prefixWidth + suffixWidth))
     (outside : position ∈ (binarySuffixEmbedding prefixWidth suffixWidth).selectionᶜ) :
     ∃ index : Fin prefixWidth, Fin.castAdd suffixWidth index = position := by
@@ -67,7 +67,7 @@ private theorem outside_prefix (prefixWidth suffixWidth : Nat)
       (Finset.mem_map_of_mem (binarySuffixEmbedding prefixWidth suffixWidth).position
         (Finset.mem_univ index)))
 
-private theorem complement_pair {prefixWidth suffixWidth : Nat}
+private lemma complement_pair {prefixWidth suffixWidth : Nat}
     (left first : Fin (2 ^ prefixWidth)) (right second : Fin (2 ^ suffixWidth)) :
     ((binarySuffixEmbedding prefixWidth suffixWidth).splitBasis (pair left right)).2 =
         ((binarySuffixEmbedding prefixWidth suffixWidth).splitBasis (pair first second)).2 ↔
@@ -99,12 +99,13 @@ private theorem complement_pair {prefixWidth suffixWidth : Nat}
         (leftWidth := prefixWidth) (rightWidth := suffixWidth) left second index)).symm
 
 /-- Suffix placement retains the exact full operator and every original prefix state. -/
-theorem unitaryCircuit_onBinarySuffix_binaryMatrix
+lemma unitaryCircuit_onBinarySuffix_binaryMatrix
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat} (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) :
-    (onBinarySuffix prefixWidth body).binaryMatrix =
-      (1 : UnitaryOperator (Qubits prefixWidth)).tensor body.binaryMatrix := by
+      (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((onBinarySuffix prefixWidth body).binaryMatrix environment) =
+      (1 : UnitaryOperator (Qubits prefixWidth)).tensor (body.binaryMatrix environment) := by
   ext row column
   rcases (prodEquiv (m := prefixWidth) (n := suffixWidth)).surjective row with
     ⟨⟨rowLeft, rowRight⟩, rfl⟩
@@ -112,52 +113,53 @@ theorem unitaryCircuit_onBinarySuffix_binaryMatrix
     ⟨⟨columnLeft, columnRight⟩, rfl⟩
   rw [UnitaryOperator.tensor_apply, Equiv.symm_apply_apply, Equiv.symm_apply_apply]
   change (binarySuffixEmbedding prefixWidth suffixWidth).liftOperator
-    (body.relabel (binarySuffixShift prefixWidth)).matrix
+    ((body.relabel (binarySuffixShift prefixWidth)).matrix environment)
     (pair rowLeft rowRight) (pair columnLeft columnRight) = _
   rw [QuantumLayout.Embedding.liftOperator_entry, selected_pair, selected_pair]
   rw [relabel_matrix]
   have same := complement_pair rowLeft columnLeft rowRight columnRight
-  change body.binaryMatrix rowRight columnRight * (if _ then (1 : ℂ) else 0) =
-    (if rowLeft = columnLeft then 1 else 0) * body.binaryMatrix rowRight columnRight
+  change (body.binaryMatrix environment) rowRight columnRight * (if _ then (1 : ℂ) else 0) =
+    (if rowLeft = columnLeft then 1 else 0) * (body.binaryMatrix environment) rowRight columnRight
   simp only [same, mul_comm]
 
 /-- Suffix placement applies the body to the suffix state and fixes an
 arbitrary normalized prefix state. -/
-theorem unitaryCircuit_onBinarySuffix_apply_tensor
+lemma unitaryCircuit_onBinarySuffix_apply_tensor
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout)
     (prefixState : NormalizedVector (Qubits prefixWidth))
-    (suffix : NormalizedVector (Qubits suffixWidth)) :
-    (onBinarySuffix prefixWidth body).binaryMatrix.apply (prefixState.tensor suffix) =
-      prefixState.tensor (body.binaryMatrix.apply suffix) := by
+    (suffix : NormalizedVector (Qubits suffixWidth)) (environment : oracles.Interpretation) :
+    ((onBinarySuffix prefixWidth body).binaryMatrix environment).apply (prefixState.tensor suffix) =
+      prefixState.tensor ((body.binaryMatrix environment).apply suffix) := by
   rw [unitaryCircuit_onBinarySuffix_binaryMatrix,
     UnitaryOperator.tensor_apply_tensor, UnitaryOperator.one_apply]
 
 /-- Suffix placement fixes an arbitrary raw prefix vector and applies the
 original word to an arbitrary raw suffix vector. -/
-public theorem unitaryCircuit_onBinarySuffix_applyVec_tensor
+public lemma unitaryCircuit_onBinarySuffix_applyVec_tensor
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits suffixWidth).canonicalPlacement.layout)
     (prefixState : HilbertVector (Qubits prefixWidth))
-    (suffix : HilbertVector (Qubits suffixWidth)) :
-    (onBinarySuffix prefixWidth body).binaryMatrix.applyVec
+    (suffix : HilbertVector (Qubits suffixWidth)) (environment : oracles.Interpretation) :
+    ((onBinarySuffix prefixWidth body).binaryMatrix environment).applyVec
         (HilbertVector.tensor prefixState suffix) =
-      HilbertVector.tensor prefixState (body.binaryMatrix.applyVec suffix) := by
+      HilbertVector.tensor prefixState ((body.binaryMatrix environment).applyVec suffix) := by
   rw [unitaryCircuit_onBinarySuffix_binaryMatrix,
     UnitaryOperator.tensor_applyVec_tensor, UnitaryOperator.one_applyVec]
 
 /-- Canonical-layout suffix placement has the same binary tensor operator. -/
-public theorem onCanonicalBinarySuffix_binaryMatrix
+public lemma onCanonicalBinarySuffix_binaryMatrix
     {gates : GateModel} {oracles : OracleModel} {suffixWidth : Nat}
     (prefixWidth : Nat)
-    (body : UnitaryCircuit gates oracles (QubitLayout.canonical suffixWidth).toQuantum) :
-    (onCanonicalBinarySuffix prefixWidth body).binaryMatrix =
-      (1 : UnitaryOperator (Qubits prefixWidth)).tensor body.binaryMatrix := by
-  exact unitaryCircuit_onBinarySuffix_binaryMatrix prefixWidth body
+    (body : UnitaryCircuit gates oracles (QubitLayout.canonical suffixWidth).toQuantum)
+      (environment : oracles.Interpretation) :
+    ((onCanonicalBinarySuffix prefixWidth body).binaryMatrix environment) =
+      (1 : UnitaryOperator (Qubits prefixWidth)).tensor (body.binaryMatrix environment) := by
+  exact unitaryCircuit_onBinarySuffix_binaryMatrix prefixWidth body environment
 
 end
 

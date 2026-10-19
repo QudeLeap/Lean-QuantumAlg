@@ -61,107 +61,125 @@ private instance prepared_borrowedSubsingleton (t n : Nat) :
   change Subsingleton (pre t n).borrowedClassicalShape.Value
   infer_instance
 
-theorem preparationCode_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma preparationCode_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H] (state : State (pre t n) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    (preparationCode P t).BorrowedRestored Reference state
-      ((preparationCode P t).execute Reference state) :=
-  Circuit.borrowedRestored_prepareZero state ⟨0⟩ (phaseRuntimeLayout t)
+    (preparationCode n t).BorrowedRestored Reference state
+      ((preparationCode n t).execute (sourceEnvironment P.unitary) Reference state) :=
+  Circuit.borrowedRestored_prepareZero (environment := sourceEnvironment P.unitary) state ⟨0⟩
+    (phaseRuntimeLayout t)
     (preparationFresh t n) (preparationDisjoint t n)
 
 /-- The promised source input is sufficient for joint restoration by the actual QPE unitary. -/
-theorem nativeProgram_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma nativeProgram_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (preparedContext t n) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (initialPure : state.quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (qpeInput P t)).reindex
         (S := (preparedContext t n).register) (preparedBasisEquiv t n).symm) :
-    (Circuit.unitary (operations := BitWord.model) (classicalOracles := .empty)
-      (nativeProgram P t)).BorrowedRestored
+    (Circuit.unitary (allowAllocation := true) (operations := BitWord.model)
+      (classicalOracles := .empty)
+      (nativeProgram n t)).BorrowedRestored
       Reference state
-      ((Circuit.unitary (operations := BitWord.model) (classicalOracles := .empty)
-      (nativeProgram P t)).execute
-        Reference state) := by
+      ((Circuit.unitary (allowAllocation := true) (operations := BitWord.model)
+        (classicalOracles := .empty)
+      (nativeProgram n t)).execute (sourceEnvironment P.unitary) Reference state) := by
   let : Subsingleton (OwnedBorrowedQubits.context t n).borrowedClassicalShape.Value :=
     prepared_borrowedSubsingleton t n
   let phase := (invQFT t).apply (phaseState t P.phase)
   have finalPure :
-      ((Circuit.unitary (operations := BitWord.model) (classicalOracles := .empty)
-      (nativeProgram P t)).execute
-        Reference state).quantumMarginal.marginalLeft =
+      ((Circuit.unitary (allowAllocation := true) (operations := BitWord.model)
+        (classicalOracles := .empty)
+      (nativeProgram n t)).execute (sourceEnvironment P.unitary) Reference
+        state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (phase.tensor P.eigenstate)).reindex
         (S := (preparedContext t n).register) (preparedBasisEquiv t n).symm := by
-    rw [Circuit.unitary_localDensity, initialPure, nativeProgram_input]
+    rw [Circuit.unitary_localDensity, initialPure]
+    change DensityOperator.applyUnitary
+      ((nativeProgram n t).matrix (UnitarySource.interpretation P.unitary true)) _ = _
+    rw [nativeProgram_input]
     change (DensityOperator.ofPure
-      ((Native.circuit t P.unitary).binaryMatrix.apply (qpeInput P t))).reindex
+      (((Native.circuit t n).binaryMatrix (UnitarySource.interpretation P.unitary true)).apply
+        (qpeInput P t))).reindex
         (S := (preparedContext t n).register) (preparedBasisEquiv t n).symm = _
     rw [qpeCircuit_applyNormalized_input]
   change observeBorrowed Reference _ = observeBorrowed Reference state
   exact OwnedBorrowedQubits.observeBorrowed_pureTensor_eq t n state _
     (NormalizedVector.ket (R := Qubits t) 0) phase P.eigenstate initialPure finalPure
-    (Circuit.unitary_reference_entry (nativeProgram P t) state)
+    (Circuit.unitary_reference_entry (environment := sourceEnvironment P.unitary) (nativeProgram
+      n t) state)
 
-theorem allocationCode_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma allocationCode_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (preparedContext t n) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    (allocationCode P t).BorrowedRestored Reference state
-      ((allocationCode P t).execute Reference state) :=
-  Circuit.borrowedRestored_seq (model := model P) _ _ state
-    (Circuit.borrowedRestored_retain (model := model P) ⟨2⟩ (.bits t) (resultFresh t n) state)
-    (MeasurementCells.allocate_borrowedRestored (model := model P) (resultContext t n) 2 t _)
+    (allocationCode n t).BorrowedRestored Reference state
+      ((allocationCode n t).execute (sourceEnvironment P.unitary) Reference state) :=
+  Circuit.borrowedRestored_seq (environment := sourceEnvironment P.unitary) (model := model n) _
+    _ state
+    (Circuit.borrowedRestored_retain (environment := sourceEnvironment P.unitary) (model :=
+      model n) ⟨2⟩ (.bits t) (resultFresh t n) state)
+    (MeasurementCells.allocate_borrowedRestored (environment := sourceEnvironment P.unitary)
+      (model := model n) (resultContext t n) 2 t _)
 
-theorem beforeMeasurement_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma beforeMeasurement_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H] (state : State (pre t n) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise P t state.quantumMarginal.marginalLeft) :
-    (beforeMeasurement P t).BorrowedRestored Reference state
-      ((beforeMeasurement P t).execute Reference state) :=
-  Circuit.borrowedRestored_seq (model := model P) _ _ state
+    (beforeMeasurement n t).BorrowedRestored Reference state
+      ((beforeMeasurement n t).execute (sourceEnvironment P.unitary) Reference state) :=
+  Circuit.borrowedRestored_seq (environment := sourceEnvironment P.unitary) (model := model n) _
+    _ state
     (preparationCode_borrowedRestored P t state)
-    (Circuit.borrowedRestored_seq (model := model P) _ _ _
+    (Circuit.borrowedRestored_seq (environment := sourceEnvironment P.unitary) (model := model
+      n) _ _ _
       (nativeProgram_borrowedRestored P t _ (preparationCode_localDensity P t state promised))
       (allocationCode_borrowedRestored P t _))
 
-private theorem phaseWire_not_borrowed {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+private lemma phaseWire_not_borrowed (n t : Nat)
     (index : Fin t) :
     phaseWire t n index ∉ (post t n).borrowedSelection := by
   rw [RuntimeCtx.mem_borrowedSelection, phaseWire, MeasurementCells.wireEquiv_preserved,
-    (allocationCode P t).borrowedQuantumWires_preserved]
+    (allocationCode n t).borrowedQuantumWires_preserved]
   change (preparedContext t n).quantumLayout.wire
     (preparedWire t n (Fin.castAdd n index)) ∉ (preparedContext t n).borrowedQuantumWires
   rw [← RuntimeCtx.mem_borrowedSelection]
   exact Finset.mem_compl.mp
     ((OwnedBorrowedQubits.owned_position_iff t n (Fin.castAdd n index)).mpr index.isLt)
 
-private theorem readouts_not_borrowed {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
+private lemma readouts_not_borrowed (n t : Nat) :
     ∀ item ∈ readouts t n, item.wire ∉ (post t n).borrowedSelection := by
   intro item present
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present
-  exact phaseWire_not_borrowed P t index
+  exact phaseWire_not_borrowed n t index
 
-theorem readoutCode_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma readoutCode_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H] (state : State (post t n) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    (readoutCode P t).BorrowedRestored Reference state
-      ((readoutCode P t).execute Reference state) := by
+    (readoutCode n t).BorrowedRestored Reference state
+      ((readoutCode n t).execute (sourceEnvironment P.unitary) Reference state) := by
   let : Subsingleton (post t n).borrowedClassicalShape.Value := by
-    rw [(allocationCode P t).borrowedClassicalShape_preserved]
+    rw [(allocationCode n t).borrowedClassicalShape_preserved]
     exact prepared_borrowedSubsingleton t n
-  exact Circuit.borrowedRestored_seq (model := model P) _ _ state
-    (Circuit.borrowedRestored_measurementSequence_complement
-      (readouts t n) (readouts_not_borrowed P t) state)
-    (Circuit.borrowedRestored_classical (model := model P)
+  exact Circuit.borrowedRestored_seq (environment := sourceEnvironment P.unitary) (model :=
+    model n) _ _ state
+    (Circuit.borrowedRestored_measurementSequence_complement (environment := sourceEnvironment
+      P.unitary)
+      (readouts t n) (readouts_not_borrowed n t) state)
+    (Circuit.borrowedRestored_classical (environment := sourceEnvironment P.unitary) (model :=
+      model n)
       (BitWord.application (packing t n)) _)
 
 /-- Every promised execution restores its complete original borrowed quantum-reference state. -/
-theorem code_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
+lemma code_borrowedRestored {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
     {Reference : Register} {H : Type} [Fintype H] (state : State (pre t n) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (promised : inputPromise P t state.quantumMarginal.marginalLeft) :
-    (code P t).BorrowedRestored Reference state ((code P t).execute Reference state) :=
-  Circuit.borrowedRestored_seq (model := model P) _ _ state
+    (code n t).BorrowedRestored Reference state ((code n t).execute (sourceEnvironment
+      P.unitary) Reference state) :=
+  Circuit.borrowedRestored_seq (environment := sourceEnvironment P.unitary) (model := model n) _
+    _ state
     (beforeMeasurement_borrowedRestored P t state promised)
     (readoutCode_borrowedRestored P t _)
 

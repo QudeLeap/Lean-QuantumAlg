@@ -29,6 +29,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open ShortDLP.CompiledMAU
 open Execution
 
@@ -37,7 +40,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- The actual rounds have the original conditional vector PMF in every reference coordinate. -/
-theorem nativeBatch_rounds_weighted_reference {previousShape : CShape}
+lemma nativeBatch_rounds_weighted_reference {previousShape : CShape}
     (previous : CInputRef (sampledContext base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (readyContext base noQuantum N) Reference
@@ -48,7 +51,7 @@ theorem nativeBatch_rounds_weighted_reference {previousShape : CShape}
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((rounds base noQuantum N).execute Reference state)
+        ((rounds base noQuantum N).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (finalParameter base noQuantum N))
           (entry.1.read (finalInput base noQuantum N previous))
           (entry.1.read (finalResults base noQuantum N)).get) leftRef rightRef =
@@ -73,7 +76,7 @@ theorem nativeBatch_rounds_weighted_reference {previousShape : CShape}
     state seeded weight leftRef rightRef
 
 /-- Complete actual initialization supplies the seed for the same-state sixteen-round identity. -/
-theorem nativeBatch_complete_weighted_reference {previousShape : CShape}
+lemma nativeBatch_complete_weighted_reference {previousShape : CShape}
     (previous : CInputRef (sampledContext base N) previousShape)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
@@ -81,12 +84,12 @@ theorem nativeBatch_complete_weighted_reference {previousShape : CShape}
       (Fin 16 → (CShape.bits (measurementBits N)).Value) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((code base noQuantum N).execute Reference state)
+        ((code base noQuantum N).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (finalParameter base noQuantum N))
           (entry.1.read (finalInput base noQuantum N previous))
           (entry.1.read (finalResults base noQuantum N)).get) leftRef rightRef =
       ExecutionState.referenceFiberSum
-        ((initializeBank base noQuantum N).execute Reference state)
+        ((initializeBank base noQuantum N).execute environment Reference state)
         (fun entry _ => ∑ samples : List.Vector (Fin (measurementBits N) → Bool) 16,
           ((PMF.independentReplicateVector
             ((ShortDLP.measurement (ShortDLP.CompiledMAU.registerParameters
@@ -97,13 +100,14 @@ theorem nativeBatch_complete_weighted_reference {previousShape : CShape}
                   ℂ) * weight (entry.1.read (parameter base noQuantum N))
                     (entry.1.read (readyInput base noQuantum N previous))
                     (fun index => .bits (samples.get index))) leftRef rightRef :=
-  (Circuit.referenceFiberSum_execute_seq (initializeBank base noQuantum N)
+  (Circuit.referenceFiberSum_execute_seq (environment := environment)
+    (initializeBank base noQuantum N)
     (rounds base noQuantum N) state
     (fun store => weight (store.read (finalParameter base noQuantum N))
       (store.read (finalInput base noQuantum N previous))
       (store.read (finalResults base noQuantum N)).get) leftRef rightRef).trans
     (nativeBatch_rounds_weighted_reference base noQuantum N previous
-      ((initializeBank base noQuantum N).execute Reference state)
+      ((initializeBank base noQuantum N).execute environment Reference state)
       (nativeBatch_initializeBank_seedBlocks base noQuantum N state) weight leftRef rightRef)
 
 end

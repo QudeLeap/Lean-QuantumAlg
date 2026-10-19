@@ -77,12 +77,12 @@ public def keys {kind : ProblemKind} {ctx : RuntimeCtx kind} {shapes : List CSha
   | .nil => []
   | .cons head tail => head.ref.toCStorageRef.key :: tail.keys
 
-public theorem workspaceCells_keys_eq_nil {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma workspaceCells_keys_eq_nil {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (cells : Cells ctx []) : cells.keys = [] := by
   cases cells
   rfl
 
-public theorem workspaceCells_keys_eq_cons_head_tail {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma workspaceCells_keys_eq_cons_head_tail {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {shapes : List CShape}
     (cells : Cells ctx (shape :: shapes)) :
     cells.keys = cells.head.ref.toCStorageRef.key :: cells.tail.keys := by
@@ -97,7 +97,7 @@ public def Distinct {kind : ProblemKind} {ctx : RuntimeCtx kind}
   | .cons head tail =>
       tail.AvoidsKey head.ref.toCStorageRef.key ∧ tail.Distinct
 
-public theorem workspaceCells_avoidsKey_not_mem_keys {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma workspaceCells_avoidsKey_not_mem_keys {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes) (key : StorageKey)
     (avoids : cells.AvoidsKey key) : key ∉ cells.keys := by
   induction cells with
@@ -107,7 +107,7 @@ public theorem workspaceCells_avoidsKey_not_mem_keys {kind : ProblemKind} {ctx :
       simp only [keys, List.mem_cons, not_or]
       exact ⟨Ne.symm headAvoids, tailIH tailAvoids⟩
 
-public theorem workspaceCells_distinct_keys_nodup {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma workspaceCells_distinct_keys_nodup {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shapes : List CShape} (cells : Cells ctx shapes)
     (distinct : cells.Distinct) : cells.keys.Nodup := by
   induction cells with

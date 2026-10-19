@@ -28,12 +28,12 @@ def referenceFrame (vector : HilbertVector R) (reference : HilbertVector Referen
     HilbertVector (Register.prod R Reference) :=
   WithLp.toLp 2 (fun label => vector label.1 * reference label.2)
 
-@[simp] theorem referenceFrame_apply (vector : HilbertVector R)
+@[simp] lemma referenceFrame_apply (vector : HilbertVector R)
     (reference : HilbertVector Reference) (label : (Register.prod R Reference).Index) :
     referenceFrame vector reference label = vector label.1 * reference label.2 := rfl
 
 /-- The full finite reference factor has its exact multiplicative norm. -/
-theorem referenceFrame_norm (vector : HilbertVector R) (reference : HilbertVector Reference) :
+lemma referenceFrame_norm (vector : HilbertVector R) (reference : HilbertVector Reference) :
     ‖referenceFrame vector reference‖ = ‖vector‖ * ‖reference‖ := by
   rw [EuclideanSpace.norm_eq, EuclideanSpace.norm_eq, EuclideanSpace.norm_eq,
     ← Real.sqrt_mul (Finset.sum_nonneg fun _ _ => sq_nonneg _)]
@@ -56,7 +56,7 @@ def normalizedReferenceFrame (vector : NormalizedVector R)
     rw [referenceFrame_norm, vector.norm_eq_one, reference.norm_eq_one, one_mul])
 
 /-- The exact actual tensor operator retains an arbitrary coherent reference vector. -/
-theorem referenceFrame_unitary (operator : UnitaryOperator R) (vector : HilbertVector R)
+lemma referenceFrame_unitary (operator : UnitaryOperator R) (vector : HilbertVector R)
     (reference : HilbertVector Reference) :
     (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference)).applyVec
         (referenceFrame vector reference) =
@@ -74,7 +74,7 @@ theorem referenceFrame_unitary (operator : UnitaryOperator R) (vector : HilbertV
   simp [Matrix.one_apply, mul_assoc]
 
 /-- Coherent subtraction retains exactly the same reference state. -/
-theorem referenceFrame_sub (left right : HilbertVector R)
+lemma referenceFrame_sub (left right : HilbertVector R)
     (reference : HilbertVector Reference) :
     referenceFrame (left - right) reference =
       referenceFrame left reference - referenceFrame right reference := by
@@ -83,7 +83,7 @@ theorem referenceFrame_sub (left right : HilbertVector R)
   exact sub_mul _ _ _
 
 /-- Every coordinate of the reference-framed good component comes from the original vector. -/
-theorem referenceFrame_zero (vector : HilbertVector R) (reference : HilbertVector Reference)
+lemma referenceFrame_zero (vector : HilbertVector R) (reference : HilbertVector Reference)
     (label : (Register.prod R Reference).Index) (zero : vector label.1 = 0) :
     referenceFrame vector reference label = 0 := by
   rw [referenceFrame_apply, zero, zero_mul]

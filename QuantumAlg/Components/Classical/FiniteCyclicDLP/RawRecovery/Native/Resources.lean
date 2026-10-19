@@ -47,7 +47,7 @@ def singleRecoveryActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kin
       checkedRecoveryActiveSpace kind width)
 
 /-- All actual single-sample native events fit the original independent arithmetic allowance. -/
-theorem singleIntoResult_pool_le (spec : ModulusSpec width)
+lemma singleIntoResult_pool_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
     (path : (singleIntoResult (model := model) spec input result).Path) :
@@ -72,7 +72,7 @@ theorem singleIntoResult_pool_le (spec : ModulusSpec width)
         (withCheckedSelection_pool_le _ _ _ selected.2)) path
 
 /-- The actual full recovery sequence satisfies the original serial duration bound. -/
-theorem singleIntoResult_depth_le (spec : ModulusSpec width)
+lemma singleIntoResult_depth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width)) (duration : Resource.Event model → Nat)
     (path : (singleIntoResult (model := model) spec input result).Path) :
@@ -89,7 +89,7 @@ theorem singleIntoResult_depth_le (spec : ModulusSpec width)
         (withCheckedSelection_depth_le _ _ _ duration selected.2)) path
 
 /-- Unit durations charge the full original preparation and nine possible recovery instructions. -/
-theorem singleIntoResult_unitDepth_le (spec : ModulusSpec width)
+lemma singleIntoResult_unitDepth_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
     (path : (singleIntoResult (model := model) spec input result).Path) :
@@ -118,7 +118,7 @@ theorem singleIntoResult_unitDepth_le (spec : ModulusSpec width)
       omega) path
 
 /-- Thirteen real preparation cells coexist with the larger successive active-scope allowance. -/
-theorem singleIntoResult_resident_le (spec : ModulusSpec width)
+lemma singleIntoResult_resident_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
     (path : (singleIntoResult (model := model) spec input result).Path) :
@@ -139,7 +139,7 @@ theorem singleIntoResult_resident_le (spec : ModulusSpec width)
           (add_le_add (SpacePool.le_max_right _ _) le_rfl)) path
 
 /-- Actual auxiliary ownership includes every original caller and retained preparation scope. -/
-theorem singleIntoResult_auxiliary_le (spec : ModulusSpec width)
+lemma singleIntoResult_auxiliary_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (result : CWriteRef ctx (OutputShape width))
     (path : (singleIntoResult (model := model) spec input result).Path) :

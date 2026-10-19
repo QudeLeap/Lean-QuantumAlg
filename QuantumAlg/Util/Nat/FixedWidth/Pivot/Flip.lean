@@ -32,18 +32,18 @@ def biFlip (capacity pivot input : Nat) : Nat :=
   if input < pivot then pivot - (input + 1) else capacity + pivot - (input + 1)
 
 /-- Labels below the pivot stay below it. -/
-theorem pivotFlip_lt_of_lt {pivot input : Nat} (h : input < pivot) :
+lemma pivotFlip_lt_of_lt {pivot input : Nat} (h : input < pivot) :
     pivotFlip pivot input < pivot := by
   simp only [pivotFlip, if_pos h]
   omega
 
 /-- Every label at or above the pivot is fixed. -/
-theorem pivotFlip_of_le {pivot input : Nat} (h : pivot ≤ input) :
+lemma pivotFlip_of_le {pivot input : Nat} (h : pivot ≤ input) :
     pivotFlip pivot input = input := by
   simp only [pivotFlip, if_neg (by omega : ¬input < pivot)]
 
 /-- Pivot reflection is an involution on all natural labels. -/
-theorem pivotFlip_involutive (pivot input : Nat) :
+lemma pivotFlip_involutive (pivot input : Nat) :
     pivotFlip pivot (pivotFlip pivot input) = input := by
   by_cases h : input < pivot
   · have hnext : pivot - (input + 1) < pivot := by omega
@@ -52,7 +52,7 @@ theorem pivotFlip_involutive (pivot input : Nat) :
   · simp only [pivotFlip, if_neg h]
 
 /-- A pivot fitting inside the carrier preserves the carrier. -/
-theorem pivotFlip_lt_capacity {capacity pivot input : Nat}
+lemma pivotFlip_lt_capacity {capacity pivot input : Nat}
     (hpivot : pivot ≤ capacity) (hinput : input < capacity) :
     pivotFlip pivot input < capacity := by
   by_cases h : input < pivot
@@ -60,7 +60,7 @@ theorem pivotFlip_lt_capacity {capacity pivot input : Nat}
   · simpa only [pivotFlip, if_neg h] using hinput
 
 /-- The bi-flip preserves both sides of the pivot, including its endpoints. -/
-theorem biFlip_lt_pivot_iff {capacity pivot input : Nat}
+lemma biFlip_lt_pivot_iff {capacity pivot input : Nat}
     (_hpivot : pivot ≤ capacity) (hinput : input < capacity) :
     biFlip capacity pivot input < pivot ↔ input < pivot := by
   by_cases h : input < pivot
@@ -70,7 +70,7 @@ theorem biFlip_lt_pivot_iff {capacity pivot input : Nat}
     omega
 
 /-- The bi-flip stays inside the same finite carrier. -/
-theorem biFlip_lt_capacity {capacity pivot input : Nat}
+lemma biFlip_lt_capacity {capacity pivot input : Nat}
     (hpivot : pivot ≤ capacity) (hinput : input < capacity) :
     biFlip capacity pivot input < capacity := by
   by_cases h : input < pivot
@@ -80,7 +80,7 @@ theorem biFlip_lt_capacity {capacity pivot input : Nat}
     omega
 
 /-- Applying the bi-flip twice restores every in-range label. -/
-theorem biFlip_involutive {capacity pivot input : Nat}
+lemma biFlip_involutive {capacity pivot input : Nat}
     (_hpivot : pivot ≤ capacity) (hinput : input < capacity) :
     biFlip capacity pivot (biFlip capacity pivot input) = input := by
   by_cases h : input < pivot
@@ -92,7 +92,7 @@ theorem biFlip_involutive {capacity pivot input : Nat}
     omega
 
 /-- Subtracting the pivot modulo the capacity and complementing is the bi-flip. -/
-theorem biFlip_eq_complement_sub_mod {capacity pivot input : Nat}
+lemma biFlip_eq_complement_sub_mod {capacity pivot input : Nat}
     (hpivot : pivot ≤ capacity) (hinput : input < capacity) :
     biFlip capacity pivot input =
       capacity - ((input + (capacity - pivot) % capacity) % capacity + 1) := by
@@ -109,7 +109,7 @@ theorem biFlip_eq_complement_sub_mod {capacity pivot input : Nat}
     omega
 
 /-- Three reflections give the canonical offset inside the modulus and fix its complement. -/
-theorem pivotFlip_three_eq_modular_offset {modulus constant input : Nat}
+lemma pivotFlip_three_eq_modular_offset {modulus constant input : Nat}
     (hconstant : constant ≤ modulus) :
     pivotFlip constant (pivotFlip modulus (pivotFlip (modulus - constant) input)) =
       if input < modulus then (input + constant) % modulus else input := by
@@ -141,11 +141,11 @@ theorem pivotFlip_three_eq_modular_offset {modulus constant input : Nat}
     simp only [pivotFlip, if_neg hfirst, if_neg hvalid, if_neg hlast]
 
 /-- Zero modulus has no valid labels and the three-flip extension is identity. -/
-theorem pivotFlip_zero (input : Nat) : pivotFlip 0 input = input := by
+lemma pivotFlip_zero (input : Nat) : pivotFlip 0 input = input := by
   simp only [pivotFlip, Nat.not_lt_zero, if_false]
 
 /-- Modulus one is included: its unique valid label is preserved. -/
-theorem pivotFlip_modulus_one {constant : Nat} (hconstant : constant ≤ 1) :
+lemma pivotFlip_modulus_one {constant : Nat} (hconstant : constant ≤ 1) :
     pivotFlip constant (pivotFlip 1 (pivotFlip (1 - constant) 0)) = 0 := by
   rw [pivotFlip_three_eq_modular_offset hconstant]
   simp [Nat.mod_one]

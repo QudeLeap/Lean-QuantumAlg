@@ -26,7 +26,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Both actual stored samples feed the actual initialized native wide source basis. -/
@@ -43,13 +44,14 @@ def decodeBasisStep (refs : Refs ctx N) (store : Store ctx) :
   (loaded.1, (decoded.2, loaded.2))
 
 /-- Actual wide initialization preserves original history and quantum-reference correlations. -/
-theorem decodeBasisInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma decodeBasisInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (decodeBasisInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (decodeBasisInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := decodeBasisStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (BatchMachine.decodePairInto refs.pair)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (BatchMachine.decodePairInto refs.pair)
     (LatticeBasis.loadBasisInto (m := shortLogBits N) (ell := tradeoffBits N) refs.pair refs.raw)
     (fun before =>
       let actual := BatchMachine.decodePairStep (model := model) refs.pair before.1

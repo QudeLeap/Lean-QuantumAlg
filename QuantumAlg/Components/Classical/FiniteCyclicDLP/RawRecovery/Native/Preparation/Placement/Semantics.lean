@@ -32,11 +32,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- An actual deterministic continuation gives a complete record through all thirteen cells. -/
-theorem withPreparation_hasRecord (spec : ModulusSpec width)
+lemma withPreparation_hasRecord (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (consumer : ∀ {inner : RuntimeCtx model.kind}, PreparationRefs inner width →
       Transport ctx inner → Circuit model inner inner)
@@ -47,7 +47,7 @@ theorem withPreparation_hasRecord (spec : ModulusSpec width)
         (Store inner × model.HiddenState) × (consumer (preparationRefs cells) transport).Path,
         ∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (consumer (preparationRefs cells) transport).execute Reference state =
+          (consumer (preparationRefs cells) transport).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) :
@@ -55,12 +55,12 @@ theorem withPreparation_hasRecord (spec : ModulusSpec width)
       (Store ctx × model.HiddenState) × (withPreparation (model := model) spec input consumer).Path,
       ∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withPreparation (model := model) spec input consumer).execute Reference state =
+        (withPreparation (model := model) spec input consumer).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   unfold withPreparation withCells
-  apply withCellsFrom_hasRecord
+  apply withCellsFrom_hasRecord (environment := environment)
   intro inner cells distinct transport separated
   obtain ⟨step, equation⟩ := consumerRecord cells distinct transport separated
   exact ⟨Circuit.sequenceRecord _ _
@@ -68,7 +68,7 @@ theorem withPreparation_hasRecord (spec : ModulusSpec width)
       let result := preparationStep (model := model) spec (transport.liftInput input)
         (preparationRefs cells) before.1
       ((result.1, before.2), result.2)) step,
-    Circuit.execute_sequenceRecord _ _ _ _
+    Circuit.execute_sequenceRecord (environment := environment) _ _ _ _
       (fun reference {_} _ initial =>
         (preparationBody_execute (model := model) spec (transport.liftInput input)
           (preparationRefs cells) reference initial).trans
@@ -76,7 +76,7 @@ theorem withPreparation_hasRecord (spec : ModulusSpec width)
       equation⟩
 
 /-- Preparation establishes the continuation's original values without any caller initialization. -/
-theorem withPreparation_actualRecord_post (spec : ModulusSpec width)
+lemma withPreparation_actualRecord_post (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (consumer : ∀ {inner : RuntimeCtx model.kind}, PreparationRefs inner width →
       Transport ctx inner → Circuit model inner inner)
@@ -88,7 +88,7 @@ theorem withPreparation_actualRecord_post (spec : ModulusSpec width)
         (Store inner × model.HiddenState) × (consumer (preparationRefs cells) transport).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (consumer (preparationRefs cells) transport).execute Reference state =
+          (consumer (preparationRefs cells) transport).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -104,13 +104,13 @@ theorem withPreparation_actualRecord_post (spec : ModulusSpec width)
       (Store ctx × model.HiddenState) × (withPreparation (model := model) spec input consumer).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withPreparation (model := model) spec input consumer).execute Reference state =
+        (withPreparation (model := model) spec input consumer).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, Post before.1 (step before).1.1 := by
   unfold withPreparation
-  apply withCells_actualRecord_initialized_post
+  apply withCells_actualRecord_initialized_post (environment := environment)
   intro inner cells distinct transport separated
   obtain ⟨step, equation, correct⟩ := consumerContract cells distinct transport separated
   refine ⟨Circuit.sequenceRecord _ _
@@ -118,7 +118,7 @@ theorem withPreparation_actualRecord_post (spec : ModulusSpec width)
       let result := preparationStep (model := model) spec (transport.liftInput input)
         (preparationRefs cells) before.1
       ((result.1, before.2), result.2)) step,
-    Circuit.execute_sequenceRecord _ _ _ _
+    Circuit.execute_sequenceRecord (environment := environment) _ _ _ _
       (fun reference {_} _ initial =>
         (preparationBody_execute (model := model) spec (transport.liftInput input)
           (preparationRefs cells) reference initial).trans

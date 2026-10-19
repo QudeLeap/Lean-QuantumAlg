@@ -28,6 +28,8 @@ namespace Circuit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -72,7 +74,7 @@ fold. -/
 def foldGateLengthBound (tail counterWidth : Nat) : Nat :=
   2 * tail.succ * roundGateLengthBound tail counterWidth
 
-private theorem vZeroDetectorWithComparisonWorkGates_length
+private lemma vZeroDetectorWithComparisonWorkGates_length
     (tail counterWidth : Nat) :
     (vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).length =
       4 * tail.succ + 1 := by
@@ -82,7 +84,7 @@ private theorem vZeroDetectorWithComparisonWorkGates_length
     List.length_reverse]
   omega
 
-private theorem vZeroDetectorWithComparisonWorkGates_xMultiplicity_sum
+private lemma vZeroDetectorWithComparisonWorkGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 2 * tail.succ := by
@@ -91,7 +93,7 @@ private theorem vZeroDetectorWithComparisonWorkGates_xMultiplicity_sum
     vZeroDetectorCopyOutGate, List.sum_ofFn]
   omega
 
-private theorem vZeroDetectorWithComparisonWorkGates_cnotMultiplicity_sum
+private lemma vZeroDetectorWithComparisonWorkGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 3 := by
@@ -99,7 +101,7 @@ private theorem vZeroDetectorWithComparisonWorkGates_cnotMultiplicity_sum
     vZeroDetectorNegateVGates, vZeroDetectorPrefixGates,
     vZeroDetectorCopyOutGate, List.sum_ofFn]
 
-private theorem vZeroDetectorWithComparisonWorkGates_toffoliMultiplicity_sum
+private lemma vZeroDetectorWithComparisonWorkGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((vZeroDetectorWithComparisonWorkGates tail.succ counterWidth).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 * tail := by
@@ -108,7 +110,7 @@ private theorem vZeroDetectorWithComparisonWorkGates_toffoliMultiplicity_sum
     vZeroDetectorCopyOutGate, List.sum_ofFn, Nat.mul_comm]
   omega
 
-private theorem detectorCounterTerminatingCounterModeGates_xMultiplicity_sum
+private lemma detectorCounterTerminatingCounterModeGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterTerminatingCounterModeGates
         tail.succ counterWidth).map
@@ -116,7 +118,7 @@ private theorem detectorCounterTerminatingCounterModeGates_xMultiplicity_sum
   simp [detectorCounterTerminatingCounterModeGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum]
 
-private theorem detectorCounterTerminatingCounterModeGates_cnotMultiplicity_sum
+private lemma detectorCounterTerminatingCounterModeGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterTerminatingCounterModeGates
         tail.succ counterWidth).map
@@ -124,7 +126,7 @@ private theorem detectorCounterTerminatingCounterModeGates_cnotMultiplicity_sum
   simp [detectorCounterTerminatingCounterModeGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum]
 
-private theorem
+private lemma
     detectorCounterTerminatingCounterModeGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterTerminatingCounterModeGates
@@ -134,7 +136,7 @@ private theorem
   simp [detectorCounterTerminatingCounterModeGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_toffoliMultiplicity_sum]
 
-private theorem
+private lemma
     detectorCounterControlledTerminatingCounterModeGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterControlledTerminatingCounterModeGates
@@ -144,7 +146,7 @@ private theorem
   rw [EncodedBit.GateSpec.controlledListWithWorkGates_cnotMultiplicity_sum,
     detectorCounterTerminatingCounterModeGates_xMultiplicity_sum]
 
-private theorem
+private lemma
     detectorCounterControlledTerminatingCounterModeGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterControlledTerminatingCounterModeGates
@@ -152,7 +154,7 @@ private theorem
   unfold detectorCounterControlledTerminatingCounterModeGates
   rw [EncodedBit.GateSpec.controlledListWithWorkGates_xMultiplicity_sum]
 
-private theorem
+private lemma
     detectorCounterControlledTerminatingCounterModeGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterControlledTerminatingCounterModeGates
@@ -165,7 +167,7 @@ private theorem
     detectorCounterTerminatingCounterModeGates_toffoliMultiplicity_sum]
   omega
 
-private theorem detectorCounterVZeroDetectorGates_events_eq_source
+private lemma detectorCounterVZeroDetectorGates_events_eq_source
     (tail counterWidth : Nat) :
     (detectorCounterVZeroDetectorGates tail.succ counterWidth).map
         (EncodedBit.GateSpec.event .empty) =
@@ -176,7 +178,7 @@ private theorem detectorCounterVZeroDetectorGates_events_eq_source
     (counterIncrementWorkEncoding counterWidth)
     (vZeroDetectorWithComparisonWorkGates tail.succ counterWidth)
 
-private theorem detectorCounterVZeroDetectorGates_xMultiplicity_sum
+private lemma detectorCounterVZeroDetectorGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterVZeroDetectorGates tail.succ counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 2 * tail.succ := by
@@ -191,7 +193,7 @@ private theorem detectorCounterVZeroDetectorGates_xMultiplicity_sum
       vZeroDetectorWithComparisonWorkGates_xMultiplicity_sum
         tail counterWidth
 
-private theorem detectorCounterVZeroDetectorGates_cnotMultiplicity_sum
+private lemma detectorCounterVZeroDetectorGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterVZeroDetectorGates tail.succ counterWidth).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 3 := by
@@ -205,7 +207,7 @@ private theorem detectorCounterVZeroDetectorGates_cnotMultiplicity_sum
     _ = 3 := vZeroDetectorWithComparisonWorkGates_cnotMultiplicity_sum
       tail counterWidth
 
-private theorem detectorCounterVZeroDetectorGates_toffoliMultiplicity_sum
+private lemma detectorCounterVZeroDetectorGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterVZeroDetectorGates tail.succ counterWidth).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 * tail := by
@@ -220,7 +222,7 @@ private theorem detectorCounterVZeroDetectorGates_toffoliMultiplicity_sum
       vZeroDetectorWithComparisonWorkGates_toffoliMultiplicity_sum
         tail counterWidth
 
-private theorem
+private lemma
     detectorGatedTerminatingCounterModeWithWorkGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorGatedTerminatingCounterModeWithWorkGates
@@ -232,7 +234,7 @@ private theorem
     detectorCounterControlledTerminatingCounterModeGates_xMultiplicity_sum]
   omega
 
-private theorem
+private lemma
     detectorGatedTerminatingCounterModeWithWorkGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorGatedTerminatingCounterModeWithWorkGates
@@ -242,7 +244,7 @@ private theorem
     detectorCounterVZeroDetectorGates_cnotMultiplicity_sum,
     detectorCounterControlledTerminatingCounterModeGates_cnotMultiplicity_sum]
 
-private theorem
+private lemma
     detectorGatedTerminatingCounterModeWithWorkGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorGatedTerminatingCounterModeWithWorkGates
@@ -254,7 +256,7 @@ private theorem
     detectorCounterControlledTerminatingCounterModeGates_toffoliMultiplicity_sum]
   omega
 
-private theorem fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
+private lemma fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
     (tail counterWidth : Nat) :
     (fullRoundWorkTerminatingStandardLayoutGates tail counterWidth).map
         (EncodedBit.GateSpec.event .empty) =
@@ -266,7 +268,7 @@ private theorem fullRoundWorkTerminatingStandardLayoutGates_events_eq_source
   intro gate _
   exact event_insertMiddleGateSpec (coeffAdderWorkEncoding tail.succ) gate
 
-private theorem
+private lemma
     fullRoundWorkTerminatingStandardLayoutGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((fullRoundWorkTerminatingStandardLayoutGates tail counterWidth).map
@@ -282,7 +284,7 @@ private theorem
       detectorGatedTerminatingCounterModeWithWorkGates_xMultiplicity_sum
         tail counterWidth
 
-private theorem
+private lemma
     fullRoundWorkTerminatingStandardLayoutGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((fullRoundWorkTerminatingStandardLayoutGates tail counterWidth).map
@@ -298,7 +300,7 @@ private theorem
       detectorGatedTerminatingCounterModeWithWorkGates_cnotMultiplicity_sum
         tail counterWidth
 
-private theorem
+private lemma
     fullRoundWorkTerminatingStandardLayoutGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((fullRoundWorkTerminatingStandardLayoutGates tail counterWidth).map
@@ -315,7 +317,7 @@ private theorem
       detectorGatedTerminatingCounterModeWithWorkGates_toffoliMultiplicity_sum
         tail counterWidth
 
-private theorem detectorCounterTerminatingCounterModeGates_length_le
+private lemma detectorCounterTerminatingCounterModeGates_length_le
     (tail counterWidth : Nat) :
     (detectorCounterTerminatingCounterModeGates tail.succ counterWidth).length ≤
       8 * counterWidth + 1 := by
@@ -329,7 +331,7 @@ private theorem detectorCounterTerminatingCounterModeGates_length_le
     List.length_append, List.length_cons, List.length_nil]
   omega
 
-private theorem detectorCounterControlledTerminatingCounterModeGates_length_le
+private lemma detectorCounterControlledTerminatingCounterModeGates_length_le
     (tail counterWidth : Nat) :
     (detectorCounterControlledTerminatingCounterModeGates
       tail counterWidth).length ≤ 24 * counterWidth + 3 := by
@@ -353,7 +355,7 @@ private theorem detectorCounterControlledTerminatingCounterModeGates_length_le
           tail.succ counterWidth (Fin.last tail))
     _ ≤ 24 * counterWidth + 3 := by omega
 
-private theorem
+private lemma
     detectorCounterActiveFalseControlledInactivePaddingGates_length_le
     (tail counterWidth : Nat) :
     (detectorCounterActiveFalseControlledInactivePaddingGates
@@ -394,7 +396,7 @@ private theorem
     List.length_append, List.length_cons, List.length_nil]
   omega
 
-private theorem inactivePaddingGates_length_le (tail counterWidth : Nat) :
+private lemma inactivePaddingGates_length_le (tail counterWidth : Nat) :
     (inactivePaddingGates tail counterWidth).length ≤
       24 * counterWidth + 2 := by
   let detectorGates :
@@ -442,7 +444,7 @@ private theorem inactivePaddingGates_length_le (tail counterWidth : Nat) :
         detectorCounterActiveFalseControlledInactivePaddingGates_length_le
           tail counterWidth
 
-private theorem detectorCounterInactivePaddingGates_xMultiplicity_sum
+private lemma detectorCounterInactivePaddingGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterInactivePaddingGates tail.succ counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
@@ -450,7 +452,7 @@ private theorem detectorCounterInactivePaddingGates_xMultiplicity_sum
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum
       (detectorCounterIncrementLayout tail.succ counterWidth))
 
-private theorem detectorCounterInactivePaddingGates_cnotMultiplicity_sum
+private lemma detectorCounterInactivePaddingGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterInactivePaddingGates tail.succ counterWidth).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * counterWidth := by
@@ -458,7 +460,7 @@ private theorem detectorCounterInactivePaddingGates_cnotMultiplicity_sum
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum
       (detectorCounterIncrementLayout tail.succ counterWidth))
 
-private theorem detectorCounterInactivePaddingGates_toffoliMultiplicity_sum
+private lemma detectorCounterInactivePaddingGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterInactivePaddingGates tail.succ counterWidth).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -467,7 +469,7 @@ private theorem detectorCounterInactivePaddingGates_toffoliMultiplicity_sum
     (PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_toffoliMultiplicity_sum
       (detectorCounterIncrementLayout tail.succ counterWidth))
 
-private theorem
+private lemma
     detectorCounterActiveFalseControlledInactivePaddingGates_xMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterActiveFalseControlledInactivePaddingGates
@@ -479,7 +481,7 @@ private theorem
     EncodedBit.GateSpec.xMultiplicity_x]
   omega
 
-private theorem
+private lemma
     detectorCounterActiveFalseControlledInactivePaddingGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterActiveFalseControlledInactivePaddingGates
@@ -492,7 +494,7 @@ private theorem
     EncodedBit.GateSpec.cnotMultiplicity_x]
   omega
 
-private theorem
+private lemma
     detectorCounterActiveFalseControlledInactivePaddingGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((detectorCounterActiveFalseControlledInactivePaddingGates
@@ -507,7 +509,7 @@ private theorem
     EncodedBit.GateSpec.toffoliMultiplicity_x]
   omega
 
-private theorem inactivePaddingGates_events_eq_source
+private lemma inactivePaddingGates_events_eq_source
     (tail counterWidth : Nat) :
     (inactivePaddingGates tail counterWidth).map (EncodedBit.GateSpec.event .empty) =
       (detectorCounterActiveFalseControlledInactivePaddingGates
@@ -564,7 +566,7 @@ private theorem inactivePaddingGates_events_eq_source
       exact
         event_insertMiddleGateSpec (coeffAdderWorkEncoding tail.succ) gate
 
-private theorem inactivePaddingGates_cnotMultiplicity_sum
+private lemma inactivePaddingGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((inactivePaddingGates tail counterWidth).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -578,7 +580,7 @@ private theorem inactivePaddingGates_cnotMultiplicity_sum
       detectorCounterActiveFalseControlledInactivePaddingGates_cnotMultiplicity_sum
         tail counterWidth
 
-private theorem inactivePaddingGates_toffoliMultiplicity_sum
+private lemma inactivePaddingGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((inactivePaddingGates tail counterWidth).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -593,14 +595,14 @@ private theorem inactivePaddingGates_toffoliMultiplicity_sum
       detectorCounterActiveFalseControlledInactivePaddingGates_toffoliMultiplicity_sum
         tail counterWidth
 
-private theorem detectorCounterVZeroDetectorGates_length
+private lemma detectorCounterVZeroDetectorGates_length
     (tail counterWidth : Nat) :
     (detectorCounterVZeroDetectorGates tail.succ counterWidth).length =
       4 * tail.succ + 1 := by
   simpa only [detectorCounterVZeroDetectorGates, List.length_map] using
     vZeroDetectorWithComparisonWorkGates_length tail counterWidth
 
-private theorem detectorGatedTerminatingCounterModeWithWorkGates_length_le
+private lemma detectorGatedTerminatingCounterModeWithWorkGates_length_le
     (tail counterWidth : Nat) :
     (detectorGatedTerminatingCounterModeWithWorkGates
       tail counterWidth).length ≤
@@ -613,7 +615,7 @@ private theorem detectorGatedTerminatingCounterModeWithWorkGates_length_le
     List.length_append, terminatingRouteGateLengthBound]
   omega
 
-private theorem fullRoundWorkTerminatingStandardLayoutGates_length_le
+private lemma fullRoundWorkTerminatingStandardLayoutGates_length_le
     (tail counterWidth : Nat) :
     (fullRoundWorkTerminatingStandardLayoutGates tail counterWidth).length ≤
       terminatingRouteGateLengthBound tail counterWidth := by
@@ -634,7 +636,7 @@ private theorem fullRoundWorkTerminatingStandardLayoutGates_length_le
       exact detectorGatedTerminatingCounterModeWithWorkGates_length_le
         tail counterWidth
 
-private theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_length_le
+private lemma fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_length_le
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -650,7 +652,7 @@ private theorem fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_length_le
     activeRouteGateLengthBound]
   omega
 
-private theorem liftedActiveOnlyGates_length_le
+private lemma liftedActiveOnlyGates_length_le
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -693,7 +695,7 @@ private theorem liftedActiveOnlyGates_length_le
       exact fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_length_le
         tail counterWidth comparisonIndex historyIndex workIndex
 
-private theorem
+private lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_xMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -707,7 +709,7 @@ private theorem
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_xMultiplicity_sum]
   omega
 
-private theorem
+private lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -721,7 +723,7 @@ private theorem
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_cnotMultiplicity_sum]
   omega
 
-private theorem
+private lemma
     fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
@@ -736,7 +738,7 @@ private theorem
     fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchGates_toffoliMultiplicity_sum]
   omega
 
-private theorem liftedActiveOnlyGates_events_eq_source
+private lemma liftedActiveOnlyGates_events_eq_source
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -785,7 +787,7 @@ private theorem liftedActiveOnlyGates_events_eq_source
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool baseGates)
 
-private theorem liftedActiveOnlyGates_xMultiplicity_sum
+private lemma liftedActiveOnlyGates_xMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -804,7 +806,7 @@ private theorem liftedActiveOnlyGates_xMultiplicity_sum
       fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_xMultiplicity_sum
         tail counterWidth comparisonIndex historyIndex workIndex
 
-private theorem liftedActiveOnlyGates_cnotMultiplicity_sum
+private lemma liftedActiveOnlyGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -823,7 +825,7 @@ private theorem liftedActiveOnlyGates_cnotMultiplicity_sum
       fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_cnotMultiplicity_sum
         tail counterWidth comparisonIndex historyIndex workIndex
 
-private theorem liftedActiveOnlyGates_toffoliMultiplicity_sum
+private lemma liftedActiveOnlyGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -843,7 +845,7 @@ private theorem liftedActiveOnlyGates_toffoliMultiplicity_sum
       fullRoundWorkKaliskiActiveOnlyRoundConcreteGates_toffoliMultiplicity_sum
         tail counterWidth comparisonIndex historyIndex workIndex
 
-private theorem controlledActiveOnlyGates_cnotMultiplicity_sum
+private lemma controlledActiveOnlyGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -854,7 +856,7 @@ private theorem controlledActiveOnlyGates_cnotMultiplicity_sum
   rw [EncodedBit.GateSpec.controlledListWithWorkGates_cnotMultiplicity_sum,
     liftedActiveOnlyGates_xMultiplicity_sum]
 
-private theorem controlledActiveOnlyGates_toffoliMultiplicity_sum
+private lemma controlledActiveOnlyGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -868,7 +870,7 @@ private theorem controlledActiveOnlyGates_toffoliMultiplicity_sum
     liftedActiveOnlyGates_toffoliMultiplicity_sum]
   omega
 
-private theorem controlledActiveOnlyGates_length_le
+private lemma controlledActiveOnlyGates_length_le
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (historyIndex : Fin (2 * tail.succ))
     (workIndex : Fin (counterWidth - 1)) :
@@ -894,7 +896,7 @@ private theorem controlledActiveOnlyGates_length_le
         (workingPathBit_workingControlBit_wire_ne tail counterWidth)
     _ ≤ 3 * activeRouteGateLengthBound tail counterWidth := by omega
 
-private theorem originalActiveLatchGates_length (tail counterWidth : Nat) :
+private lemma originalActiveLatchGates_length (tail counterWidth : Nat) :
     (originalActiveLatchGates tail counterWidth).length = 1 := by
   let baseGates :
       List (EncodedBit.GateSpec
@@ -917,22 +919,22 @@ private theorem originalActiveLatchGates_length (tail counterWidth : Nat) :
       simp only [controlGates, List.length_map]
     _ = 1 := by rfl
 
-private theorem branchResidueCleanupGates_length
+private lemma branchResidueCleanupGates_length
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (branchResidueCleanupGates tail counterWidth roundIndex).length = 6 := by
   rfl
 
-private theorem spillWorkingPathGates_length
+private lemma spillWorkingPathGates_length
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (spillWorkingPathGates tail counterWidth roundIndex).length = 1 := by
   rfl
 
-private theorem resetWorkingPathGates_length
+private lemma resetWorkingPathGates_length
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     (resetWorkingPathGates tail counterWidth roundIndex).length = 1 := by
   rfl
 
-private theorem originalActiveLatchGates_events_eq_source
+private lemma originalActiveLatchGates_events_eq_source
     (tail counterWidth : Nat) :
     (originalActiveLatchGates tail counterWidth).map
         (EncodedBit.GateSpec.event .empty) =
@@ -964,7 +966,7 @@ private theorem originalActiveLatchGates_events_eq_source
         (EncodedBit.GateSpec.map_event_prodLeft
           BinaryLabelEncoding.bool baseGates)
 
-private theorem originalActiveLatchGates_cnotMultiplicity_sum
+private lemma originalActiveLatchGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) :
     ((originalActiveLatchGates tail counterWidth).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
@@ -978,7 +980,7 @@ private theorem originalActiveLatchGates_cnotMultiplicity_sum
       simp [fullRoundPathWorkOriginalActiveLatchGates,
         fullRoundPathWorkOriginalActiveLatchGate]
 
-private theorem originalActiveLatchGates_toffoliMultiplicity_sum
+private lemma originalActiveLatchGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) :
     ((originalActiveLatchGates tail counterWidth).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
@@ -992,44 +994,44 @@ private theorem originalActiveLatchGates_toffoliMultiplicity_sum
       simp [fullRoundPathWorkOriginalActiveLatchGates,
         fullRoundPathWorkOriginalActiveLatchGate]
 
-private theorem branchResidueCleanupGates_cnotMultiplicity_sum
+private lemma branchResidueCleanupGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     ((branchResidueCleanupGates tail counterWidth roundIndex).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 4 := by
   simp [branchResidueCleanupGates]
 
-private theorem branchResidueCleanupGates_toffoliMultiplicity_sum
+private lemma branchResidueCleanupGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     ((branchResidueCleanupGates tail counterWidth roundIndex).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 := by
   simp [branchResidueCleanupGates]
 
-private theorem spillWorkingPathGates_cnotMultiplicity_sum
+private lemma spillWorkingPathGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     ((spillWorkingPathGates tail counterWidth roundIndex).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
   simp [spillWorkingPathGates, spillWorkingPathGate]
 
-private theorem spillWorkingPathGates_toffoliMultiplicity_sum
+private lemma spillWorkingPathGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     ((spillWorkingPathGates tail counterWidth roundIndex).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [spillWorkingPathGates, spillWorkingPathGate]
 
-private theorem resetWorkingPathGates_cnotMultiplicity_sum
+private lemma resetWorkingPathGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     ((resetWorkingPathGates tail counterWidth roundIndex).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
   simp [resetWorkingPathGates, resetWorkingPathGate]
 
-private theorem resetWorkingPathGates_toffoliMultiplicity_sum
+private lemma resetWorkingPathGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (roundIndex : Fin (2 * tail.succ)) :
     ((resetWorkingPathGates tail counterWidth roundIndex).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [resetWorkingPathGates, resetWorkingPathGate]
 
 /-- Exact CNOT coordinate of one physical six-stage round. -/
-theorem roundGates_cnotMultiplicity_sum
+lemma roundGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
@@ -1045,7 +1047,7 @@ theorem roundGates_cnotMultiplicity_sum
   omega
 
 /-- Exact Toffoli coordinate of one physical six-stage round. -/
-theorem roundGates_toffoliMultiplicity_sum
+lemma roundGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
@@ -1063,7 +1065,7 @@ theorem roundGates_toffoliMultiplicity_sum
   omega
 
 /-- Every static round has the declared width-only primitive-leaf bound. -/
-theorem roundGates_length_le
+lemma roundGates_length_le
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
@@ -1113,14 +1115,14 @@ def roundSteps (tail counterWidth : Nat)
   , resetWorkingPathStep tail counterWidth roundIndex ]
 
 /-- Each actual stage circuit realizes the corresponding structured step. -/
-theorem roundSchedules_forall₂_realizes
+lemma roundSchedules_forall₂_realizes
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
     List.Forall₂
       (fun program step =>
-        UnitaryCircuit.Realizes (encoding tail.succ counterWidth) program step)
+        UnitaryCircuit.Realizes (encoding tail.succ counterWidth) program environment step)
       (roundPrograms tail counterWidth comparisonIndex workIndex roundIndex)
       (roundSteps tail counterWidth comparisonIndex workIndex roundIndex) := by
   exact List.Forall₂.cons
@@ -1160,7 +1162,7 @@ def roundStep (tail counterWidth : Nat)
   UnitaryCircuit.Realizes.stepList
     (roundSteps tail counterWidth comparisonIndex workIndex roundIndex)
 
-theorem roundStep_eq_stages
+lemma roundStep_eq_stages
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1178,7 +1180,7 @@ theorem roundStep_eq_stages
 
 /-- The primitive source list for one round has exactly the established
 six-stage semantic action. -/
-theorem roundGates_stepList_eq
+lemma roundGates_stepList_eq
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1199,16 +1201,16 @@ theorem roundGates_stepList_eq
 
 /-- Direct compilation of the one-round primitive source list realizes the
 same semantic action as the established six-stage actual circuit. -/
-theorem roundGates_realizes
+lemma roundGates_realizes
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (roundGates tail counterWidth comparisonIndex workIndex roundIndex))
+        (roundGates tail counterWidth comparisonIndex workIndex roundIndex)) environment
       (roundStep tail counterWidth comparisonIndex workIndex roundIndex) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (roundGates tail counterWidth comparisonIndex workIndex roundIndex)
     (roundGates_stepList_eq tail counterWidth comparisonIndex workIndex
@@ -1216,7 +1218,7 @@ theorem roundGates_realizes
 
 /-- The established actual round circuit has exactly the strict primitive
 event trace of its complete source list. -/
-theorem roundProgram_eventTrace
+lemma roundProgram_eventTrace
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1230,7 +1232,7 @@ theorem roundProgram_eventTrace
     controlledActiveOnlyProgram, branchResidueCleanupProgram,
     spillWorkingPathProgram, resetWorkingPathProgram]
 
-theorem roundStep_eq_structured_of_clean
+lemma roundStep_eq_structured_of_clean
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1258,7 +1260,7 @@ set_option maxHeartbeats 800000 in
 /-- One encoded fixed round reaches the exact clean physical/source boundary.
 The proof dispatches over the six source branches, certifies their raw physical
 residue, and then applies the common reversible cleanup suffix. -/
-theorem roundStep_cleanBoundary
+lemma roundStep_cleanBoundary
     (tail counterWidth modulus : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1395,15 +1397,15 @@ theorem roundStep_cleanBoundary
       comparisonIndex workIndex roundIndex source x hinput hsource hrouted.1
       hrouted.2.1 hrouted.2.2
 
-theorem round_realizes (tail counterWidth : Nat)
+lemma round_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
     UnitaryCircuit.Realizes
       (encoding tail.succ counterWidth)
-      (roundProgram tail counterWidth comparisonIndex workIndex roundIndex)
+      (roundProgram tail counterWidth comparisonIndex workIndex roundIndex) environment
       (roundStep tail counterWidth comparisonIndex workIndex roundIndex) :=
-  UnitaryCircuit.Realizes.appendList
+  UnitaryCircuit.Realizes.appendList (environment := environment)
     (encoding tail.succ counterWidth)
     (QubitLayout.canonical _)
     (roundPrograms tail counterWidth comparisonIndex workIndex roundIndex)
@@ -1413,19 +1415,21 @@ theorem round_realizes (tail counterWidth : Nat)
 
 /-- The established actual round program and the directly compiled primitive
 source list agree on every encoded basis state. -/
-theorem roundProgram_gateList_applyNormalized_eq
+lemma roundProgram_gateList_applyNormalized_eq
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     (roundProgram tail counterWidth comparisonIndex workIndex roundIndex).applyNormalized
+      environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding tail.succ counterWidth).width).basisEquiv.symm
             ((encoding tail.succ counterWidth).encode x))) =
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
         (roundGates tail counterWidth comparisonIndex workIndex roundIndex)).applyNormalized
+          environment
           (NormalizedVector.ket
             ((QubitLayout.canonical
                 (encoding tail.succ counterWidth).width).basisEquiv.symm
@@ -1446,7 +1450,7 @@ def foldPrograms (tail counterWidth : Nat)
   List.ofFn fun roundIndex : Fin (2 * tail.succ) =>
     roundProgram tail counterWidth comparisonIndex workIndex roundIndex
 
-@[simp] theorem foldPrograms_length (tail counterWidth : Nat)
+@[simp] lemma foldPrograms_length (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
   (foldPrograms tail counterWidth comparisonIndex workIndex).length =
@@ -1472,7 +1476,7 @@ def foldGates (tail counterWidth : Nat)
   (List.ofFn fun roundIndex : Fin (2 * tail.succ) => roundIndex).flatMap
     (roundGates tail counterWidth comparisonIndex workIndex)
 
-private theorem flatMap_roundGates_length_le
+private lemma flatMap_roundGates_length_le
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ roundIndices : List (Fin (2 * tail.succ)),
@@ -1505,7 +1509,7 @@ private theorem flatMap_roundGates_length_le
 
 /-- The input-independent fixed fold has the declared width-only
 primitive-leaf bound. -/
-theorem foldGates_length_le (tail counterWidth : Nat)
+lemma foldGates_length_le (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     (foldGates tail counterWidth comparisonIndex workIndex).length ≤
@@ -1515,7 +1519,7 @@ theorem foldGates_length_le (tail counterWidth : Nat)
     (List.ofFn fun roundIndex : Fin (2 * tail.succ) => roundIndex)
   simpa only [foldGates, foldGateLengthBound, List.length_ofFn] using h
 
-private theorem flatMap_roundGates_cnotMultiplicity_sum
+private lemma flatMap_roundGates_cnotMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ roundIndices : List (Fin (2 * tail.succ)),
@@ -1532,7 +1536,7 @@ private theorem flatMap_roundGates_cnotMultiplicity_sum
       rw [Nat.add_mul, Nat.one_mul]
       exact Nat.add_comm _ _
 
-private theorem flatMap_roundGates_toffoliMultiplicity_sum
+private lemma flatMap_roundGates_toffoliMultiplicity_sum
     (tail counterWidth : Nat) (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ roundIndices : List (Fin (2 * tail.succ)),
@@ -1552,7 +1556,7 @@ private theorem flatMap_roundGates_toffoliMultiplicity_sum
       exact Nat.add_comm _ _
 
 /-- Exact CNOT coordinate of the fixed `2(t+1)`-round gate list. -/
-theorem foldGates_cnotMultiplicity_sum (tail counterWidth : Nat)
+lemma foldGates_cnotMultiplicity_sum (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ((foldGates tail counterWidth comparisonIndex workIndex).map
@@ -1564,7 +1568,7 @@ theorem foldGates_cnotMultiplicity_sum (tail counterWidth : Nat)
   simpa only [foldGates, List.length_ofFn] using h
 
 /-- Exact Toffoli coordinate of the fixed `2(t+1)`-round gate list. -/
-theorem foldGates_toffoliMultiplicity_sum (tail counterWidth : Nat)
+lemma foldGates_toffoliMultiplicity_sum (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ((foldGates tail counterWidth comparisonIndex workIndex).map
@@ -1577,7 +1581,7 @@ theorem foldGates_toffoliMultiplicity_sum (tail counterWidth : Nat)
     (List.ofFn fun roundIndex : Fin (2 * tail.succ) => roundIndex)
   simpa only [foldGates, List.length_ofFn] using h
 
-@[simp] theorem foldSteps_length (tail counterWidth : Nat)
+@[simp] lemma foldSteps_length (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
   (foldSteps tail counterWidth comparisonIndex workIndex).length =
@@ -1585,7 +1589,7 @@ theorem foldGates_toffoliMultiplicity_sum (tail counterWidth : Nat)
   simp [foldSteps]
   omega
 
-theorem foldSteps_get (tail counterWidth : Nat)
+lemma foldSteps_get (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ)) :
@@ -1614,16 +1618,16 @@ abbrev FoldRealizesRelation (tail counterWidth : Nat)
     Prop :=
   UnitaryCircuit.Realizes
     (encoding tail.succ counterWidth)
-    program step
+    program environment step
 
 /-- The static program and named semantic schedules agree pointwise through
 the one-round realization theorem. -/
-theorem foldSchedules_forall₂_realizes
+lemma foldSchedules_forall₂_realizes
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     List.Forall₂
-      (FoldRealizesRelation tail counterWidth)
+      (FoldRealizesRelation (environment := environment) tail counterWidth)
       (foldPrograms tail counterWidth comparisonIndex workIndex)
       (foldSteps tail counterWidth comparisonIndex workIndex) := by
   apply List.forall₂_of_length_eq_of_get
@@ -1634,7 +1638,7 @@ theorem foldSchedules_forall₂_realizes
         rw [foldSteps_length] at hstep
         exact hstep⟩
     change
-      FoldRealizesRelation tail counterWidth
+      FoldRealizesRelation (environment := environment) tail counterWidth
         ((List.ofFn
           (fun roundIndex : Fin (2 * tail.succ) =>
             roundProgram tail counterWidth comparisonIndex workIndex
@@ -1658,7 +1662,7 @@ def foldProgram (tail counterWidth : Nat)
     (UnitaryCircuit.identity AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding tail.succ counterWidth).width).toQuantum)
 
-private theorem foldrSeq_roundPrograms_eventTrace
+private lemma foldrSeq_roundPrograms_eventTrace
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -1682,7 +1686,7 @@ private theorem foldrSeq_roundPrograms_eventTrace
 
 /-- The established actual fold circuit has exactly the strict primitive
 event trace of its flattened source list. -/
-theorem foldProgram_eventTrace (tail counterWidth : Nat)
+lemma foldProgram_eventTrace (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     (foldProgram tail counterWidth comparisonIndex workIndex).eventTrace =
@@ -1696,7 +1700,7 @@ theorem foldProgram_eventTrace (tail counterWidth : Nat)
 
 /-- The production fold event pool is therefore exactly the one compiled
 from its flattened primitive source list. -/
-theorem foldProgram_eventCost_eq_gateList (tail counterWidth : Nat)
+lemma foldProgram_eventCost_eq_gateList (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     (foldProgram tail counterWidth comparisonIndex workIndex).eventCost =
@@ -1726,7 +1730,7 @@ def foldStep (tail counterWidth : Nat)
   UnitaryCircuit.Realizes.stepList
     (foldSteps tail counterWidth comparisonIndex workIndex)
 
-private theorem stepList_flatMap_roundGates
+private lemma stepList_flatMap_roundGates
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
@@ -1759,7 +1763,7 @@ private theorem stepList_flatMap_roundGates
 
 /-- The flattened fixed-round primitive source list has exactly the
 established input-independent fold action. -/
-theorem foldStep_eq_gateList (tail counterWidth : Nat)
+lemma foldStep_eq_gateList (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
@@ -1773,14 +1777,14 @@ theorem foldStep_eq_gateList (tail counterWidth : Nat)
 
 /-- Direct compilation of the fixed-round primitive source list realizes the
 same semantic action as the established fold circuit. -/
-theorem foldGates_realizes (tail counterWidth : Nat)
+lemma foldGates_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (foldGates tail counterWidth comparisonIndex workIndex))
+        (foldGates tail counterWidth comparisonIndex workIndex)) environment
       (foldStep tail counterWidth comparisonIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (foldGates tail counterWidth comparisonIndex workIndex)
     (foldStep_eq_gateList tail counterWidth comparisonIndex workIndex)
@@ -1794,14 +1798,14 @@ def foldPrefix (tail counterWidth : Nat)
   UnitaryCircuit.Realizes.stepList
     ((foldSteps tail counterWidth comparisonIndex workIndex).take rounds)
 
-@[simp] theorem foldPrefix_zero (tail counterWidth : Nat)
+@[simp] lemma foldPrefix_zero (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
     foldPrefix tail counterWidth comparisonIndex workIndex 0 x = x := by
   rfl
 
-theorem foldPrefix_succ (tail counterWidth : Nat)
+lemma foldPrefix_succ (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (roundIndex : Fin (2 * tail.succ))
@@ -1825,7 +1829,7 @@ theorem foldPrefix_succ (tail counterWidth : Nat)
       foldSteps_get tail counterWidth comparisonIndex workIndex roundIndex
   rw [hget]
 
-theorem foldPrefix_full (tail counterWidth : Nat)
+lemma foldPrefix_full (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     foldPrefix tail counterWidth comparisonIndex workIndex (2 * tail.succ) =
@@ -1875,7 +1879,7 @@ structure CleanPrefixInvariant (tail counterWidth : Nat)
 
 /-- A clean routed prefix carries all arithmetic side conditions required by
 the next concrete fixed-round step. -/
-theorem cleanPrefixInvariant_arithmeticCertificate
+lemma cleanPrefixInvariant_arithmeticCertificate
     (tail counterWidth : Nat)
     (p input : Word tail.succ)
     (rounds : Nat)
@@ -1931,7 +1935,7 @@ theorem cleanPrefixInvariant_arithmeticCertificate
     (fun _ _ => Nat.ne_of_gt huPos)
 
 /-- Stable accessor for a route slot already consumed by a clean prefix. -/
-theorem routeHistoryBit_eq_originalActive
+lemma routeHistoryBit_eq_originalActive
     (tail counterWidth : Nat) (p input : Word tail.succ)
     (rounds : Nat)
     (x : RegistersWithRouteHistory tail.succ counterWidth)
@@ -1943,7 +1947,7 @@ theorem routeHistoryBit_eq_originalActive
         roundIndex.val).active :=
   inv.route_written roundIndex hconsumed
 
-theorem initial_cleanPrefixInvariant
+lemma initial_cleanPrefixInvariant
     (tail counterWidth : Nat) (p input : Word tail.succ)
     (hpOdd : p.val % 2 = 1) :
     CleanPrefixInvariant tail counterWidth p input 0
@@ -1992,7 +1996,7 @@ set_option maxHeartbeats 800000 in
 -- Prefix induction repeatedly normalizes one full routed round and its invariants.
 /-- Every bounded prefix of the static round ledger is a structured state
 satisfying the exact physical/source prefix invariant. -/
-theorem foldPrefix_cleanInvariant
+lemma foldPrefix_cleanInvariant
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -2144,7 +2148,7 @@ set_option maxHeartbeats 800000 in
 -- Closing the full fold rewrites the bounded prefix into the fixed source endpoint.
 /-- The complete static fold reaches the encoded clean endpoint whose source
 readout is exactly the fixed `2n` Montgomery--Kaliski state. -/
-theorem foldStep_cleanEndpoint_eq_source
+lemma foldStep_cleanEndpoint_eq_source
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -2186,14 +2190,14 @@ theorem foldStep_cleanEndpoint_eq_source
     rw [hfull] at hsource
     simpa only [trace, Trace.ofInput] using hsource
 
-theorem fold_realizes (tail counterWidth : Nat)
+lemma fold_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (encoding tail.succ counterWidth)
-      (foldProgram tail counterWidth comparisonIndex workIndex)
+      (foldProgram tail counterWidth comparisonIndex workIndex) environment
       (foldStep tail counterWidth comparisonIndex workIndex) :=
-  UnitaryCircuit.Realizes.appendList
+  UnitaryCircuit.Realizes.appendList (environment := environment)
     (encoding tail.succ counterWidth)
     (QubitLayout.canonical _)
     (foldPrograms tail counterWidth comparisonIndex workIndex)
@@ -2203,18 +2207,18 @@ theorem fold_realizes (tail counterWidth : Nat)
 
 /-- The established actual fold program and the directly compiled primitive
 source list agree on every encoded basis state. -/
-theorem foldProgram_gateList_applyNormalized_eq
+lemma foldProgram_gateList_applyNormalized_eq
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
-    (foldProgram tail counterWidth comparisonIndex workIndex).applyNormalized
+    (foldProgram tail counterWidth comparisonIndex workIndex).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding tail.succ counterWidth).width).basisEquiv.symm
             ((encoding tail.succ counterWidth).encode x))) =
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (foldGates tail counterWidth comparisonIndex workIndex)).applyNormalized
+        (foldGates tail counterWidth comparisonIndex workIndex)).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical
                 (encoding tail.succ counterWidth).width).basisEquiv.symm
@@ -2234,7 +2238,7 @@ noncomputable def foldInverseStep (tail counterWidth : Nat)
   Function.invFun (foldStep tail counterWidth comparisonIndex workIndex)
 
 /-- The actual fold semantics is surjective on its finite encoded workspace. -/
-theorem foldStep_surjective (tail counterWidth : Nat)
+lemma foldStep_surjective (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     Function.Surjective
@@ -2244,10 +2248,11 @@ theorem foldStep_surjective (tail counterWidth : Nat)
       (encoding tail.succ counterWidth).encode_injective
   Finite.surjective_of_injective
     (UnitaryCircuit.Realizes.injective
-      (fold_realizes tail counterWidth comparisonIndex workIndex))
+      (fold_realizes (environment := OracleModel.emptyInterpretation)
+        tail counterWidth comparisonIndex workIndex))
 
 /-- The selected inverse is a right inverse for the forward fold semantics. -/
-theorem foldStep_compute_rightInverse (tail counterWidth : Nat)
+lemma foldStep_compute_rightInverse (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ x,
@@ -2261,7 +2266,7 @@ theorem foldStep_compute_rightInverse (tail counterWidth : Nat)
     (foldStep_surjective tail counterWidth comparisonIndex workIndex)
 
 /-- Running the selected inverse after the forward fold restores its input. -/
-theorem foldInverseStep_foldStep (tail counterWidth : Nat)
+lemma foldInverseStep_foldStep (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     ∀ x,
@@ -2269,7 +2274,8 @@ theorem foldInverseStep_foldStep (tail counterWidth : Nat)
           (foldStep tail counterWidth comparisonIndex workIndex x) = x := by
   intro x
   apply UnitaryCircuit.Realizes.injective
-    (fold_realizes tail counterWidth comparisonIndex workIndex)
+    (fold_realizes (environment := OracleModel.emptyInterpretation)
+        tail counterWidth comparisonIndex workIndex)
   exact foldStep_compute_rightInverse tail counterWidth comparisonIndex
     workIndex (foldStep tail counterWidth comparisonIndex workIndex x)
 
@@ -2283,28 +2289,30 @@ def foldInverseProgram (tail counterWidth : Nat)
     (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The actual reversed circuit realizes the selected semantic inverse. -/
-theorem foldInverse_realizes (tail counterWidth : Nat)
+lemma foldInverse_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes
       (encoding tail.succ counterWidth)
-      (foldInverseProgram tail counterWidth comparisonIndex workIndex)
+      (foldInverseProgram tail counterWidth comparisonIndex workIndex) environment
       (foldInverseStep tail counterWidth comparisonIndex workIndex) :=
   UnitaryCircuit.Realizes.dagger_of_rightInverse
     (fold_realizes tail counterWidth comparisonIndex workIndex)
     (by
       rw [foldInverseProgram, UnitaryCircuit.dagger_matrix]
+      rw [Subsingleton.elim
+        ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
       exact Unitary.star_eq_inv _)
     (foldStep_compute_rightInverse tail counterWidth comparisonIndex workIndex)
 
 /-- The reversed actual circuit cleans every route-history bit and all other
 work whenever it is applied after the exact forward fold basis action. -/
-theorem foldInverseProgram_cleans_route_history
+lemma foldInverseProgram_cleans_route_history
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
     (x : RegistersWithRouteHistory tail.succ counterWidth) :
-    (foldInverseProgram tail counterWidth comparisonIndex workIndex).applyNormalized
+    (foldInverseProgram tail counterWidth comparisonIndex workIndex).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (encoding tail.succ counterWidth).width).basisEquiv.symm

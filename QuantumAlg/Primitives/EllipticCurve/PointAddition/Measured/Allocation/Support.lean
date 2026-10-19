@@ -23,6 +23,8 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute
 
 /-- Only active supplied affine coordinates carry the original two point exclusions. -/
@@ -34,7 +36,7 @@ def inputAdmissible {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoin
         x.val = P.x.val ∧ y.val = P.y.val ∧ P ≠ Q ∧ P ≠ AffinePoint.negate Q)
 
 /-- Actual initialization derives the internal prepared support from the original input domain. -/
-theorem initialize_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
+lemma initialize_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (before p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
@@ -42,7 +44,8 @@ theorem initialize_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : Aff
       ¬inputAdmissible E Q input.1 → state.quantumMarginal.matrix input input = 0) :
     ∀ output : (Register.prod (after p.size).register Reference).Index,
       ¬admissible E Q ((ContextPermutation.basis (body_entries p.size)).symm output.1) →
-        ((initializeWork p).execute Reference state).quantumMarginal.matrix output output = 0 := by
+        ((initializeWork p).execute environment Reference state).quantumMarginal.matrix output
+          output = 0 := by
   classical
   rintro ⟨basis, reference⟩ outside
   obtain ⟨⟨selector, auxiliary, original⟩, rfl⟩ :=

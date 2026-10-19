@@ -22,7 +22,7 @@ open Execution ClassicalRoutines
 
 noncomputable section
 
-private theorem separated_of_keys {ctx : RuntimeCtx .quantum} {N : Nat}
+private lemma separated_of_keys {ctx : RuntimeCtx .quantum} {N : Nat}
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (scratchCandidate : cells.scratch.key ≠ cells.candidate.key)
@@ -41,7 +41,7 @@ private theorem separated_of_keys {ctx : RuntimeCtx .quantum} {N : Nat}
     all_goals exact fun member => scratchCandidate (List.mem_singleton.mp member)
   exact ⟨selector, candidateAccepted, candidateSelected, resultAccepted, resultSelected⟩
 
-private theorem separated_transfer {ctx post : RuntimeCtx .quantum} {N : Nat}
+private lemma separated_transfer {ctx post : RuntimeCtx .quantum} {N : Nat}
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (later : NativeFactorScan.Cells post N)
@@ -72,7 +72,7 @@ private theorem separated_transfer {ctx post : RuntimeCtx .quantum} {N : Nat}
   · simpa only [output, selected] using separated.resultSelected
 
 /-- One actual complete round preserves all internal selector separation conditions. -/
-theorem Completion.separated (ctx : RuntimeCtx .quantum) (N : Nat)
+lemma Completion.separated (ctx : RuntimeCtx .quantum) (N : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated original result) :
@@ -87,7 +87,7 @@ theorem Completion.separated (ctx : RuntimeCtx .quantum) (N : Nat)
     (Completion.liftWrite_key ctx N result)
 
 /-- Real quantum preparation preserves the producer's own distinct selector identities. -/
-theorem Initialized.separated (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
+lemma Initialized.separated (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (N : Nat) :
     NativeFactorScan.Separated (Initialized.cells base noQuantum N)
       (Initialized.result base noQuantum N) :=
@@ -96,7 +96,7 @@ theorem Initialized.separated (base : RuntimeCtx .quantum) (noQuantum : base.qua
     (Persistent.separated base N) rfl rfl rfl rfl rfl
 
 /-- Every finite actual allocation keeps each original destination's real storage identity. -/
-theorem Finite.liftWrite_key {shape : CShape} (ctx : RuntimeCtx .quantum) (N count : Nat)
+lemma Finite.liftWrite_key {shape : CShape} (ctx : RuntimeCtx .quantum) (N count : Nat)
     (original : CWriteRef ctx shape) :
     (Finite.liftWrite ctx N count original).key = original.key := by
   induction count generalizing ctx with
@@ -106,7 +106,7 @@ theorem Finite.liftWrite_key {shape : CShape} (ctx : RuntimeCtx .quantum) (N cou
         (Completion.liftWrite_key ctx N original)
 
 /-- The arbitrary-count producer discharges all recovery separation from its real allocations. -/
-theorem Finite.separated (ctx : RuntimeCtx .quantum) (N count : Nat)
+lemma Finite.separated (ctx : RuntimeCtx .quantum) (N count : Nat)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated original result) :

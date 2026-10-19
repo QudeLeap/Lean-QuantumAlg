@@ -56,7 +56,7 @@ def popStore (width : Nat) (store : Store (context ctx width)) : Store ctx :=
     ctx.canonicalFreshKey_fresh store1
 
 /-- The actual four-word entry preserves the complete value of every original structural read. -/
-theorem nativeQuadratic_layout_push_read {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeQuadratic_layout_push_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store ctx) :
     (pushStore width store).read (underRead input width) = store.read input := by
   let ref1 : CInputRef (centerCtx ctx width) shape :=
@@ -90,7 +90,7 @@ theorem nativeQuadratic_layout_push_read {shape : CShape} (input : CInputRef ctx
     (.unsignedWord (RSA.quadraticWordWidth width)) ctx.canonicalFreshKey_fresh input)))
 
 /-- Releasing the same words exposes exactly the surviving original structural reads. -/
-theorem nativeQuadratic_layout_pop_read {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeQuadratic_layout_pop_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store (context ctx width)) :
     (popStore width store).read input = store.read (underRead input width) := by
   let ref1 : CInputRef (centerCtx ctx width) shape :=
@@ -127,12 +127,12 @@ theorem nativeQuadratic_layout_pop_read {shape : CShape} (input : CInputRef ctx 
     (firstCtx ctx width).canonicalFreshKey_fresh store ref3)))
 
 /-- Lifting a real original destination through these four scopes retains its physical key. -/
-theorem nativeQuadratic_layout_underWrite_key {shape : CShape}
+lemma nativeQuadratic_layout_underWrite_key {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     (underWrite output width).key = output.key := rfl
 
 /-- The lifted writable position gives the same structural source read beneath all four words. -/
-theorem nativeQuadratic_layout_underWrite_read {shape : CShape}
+lemma nativeQuadratic_layout_underWrite_read {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     CInputRef.storage (underWrite output width).toCStorageRef =
       underRead (.storage output.toCStorageRef) width := rfl

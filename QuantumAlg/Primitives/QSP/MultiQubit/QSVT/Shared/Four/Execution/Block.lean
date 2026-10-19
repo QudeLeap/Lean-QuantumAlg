@@ -18,7 +18,7 @@ blocks. The imaginary branches retain their explicit factor i.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
-private theorem phasePlusBlock_scaled {width : Nat} (scalar : ℂ)
+private lemma phasePlusBlock_scaled {width : Nat} (scalar : ℂ)
     (unit : Complex.normSq scalar = 1) (V : UnitaryOperator (Qubits (1 + width))) :
     phasePlusBlock (phaseScaledOperator scalar unit V) = scalar • phasePlusBlock V := by
   ext row column
@@ -30,18 +30,19 @@ private theorem phasePlusBlock_scaled {width : Nat} (scalar : ℂ)
   intro second _
   ring
 
-private theorem projectedBlock_smul (m n : Nat) (scalar : ℂ)
+private lemma projectedBlock_smul (m n : Nat) (scalar : ℂ)
     (V : HilbertOperator (Qubits (m + n))) :
     projectedBlock m n (scalar • V) = scalar • projectedBlock m n V := rfl
 
 variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n))) (positive : 0 < n)
 
 /-- The executed circuit's output block is the exact weighted sum of its four source branches. -/
-theorem complexWord_projected_block (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
+lemma complexWord_projected_block (phases : List ((ℝ × ℝ) × (ℝ × ℝ)))
     (realAngle imaginaryAngle realConstant imaginaryConstant : ℝ) :
     projectedBlock (1 + (1 + (1 + m))) n
-      (reassociateThree (complexWord U positive phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).binaryMatrix) =
+      (reassociateThree ((complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).binaryMatrix
+          (UnitarySource.interpretation U true true false))) =
       (1 / 4 : ℂ) • projectedBlock m n (phasePlusBlock
         (initializedBranch U positive (phases.map fun a => a.1.1) realConstant)) +
       (1 / 4 : ℂ) • projectedBlock m n (phasePlusBlock

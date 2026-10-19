@@ -83,9 +83,40 @@ public def elementaryToffoliCount : Nat → Nat
   | 3 => 1
   | extra + 4 => gateCount (extra + 3)
 
+/-- The native reflection Toffoli count has an explicit width-by-width formula. -/
+public lemma zeroReflection_elementaryToffoliCount_table (width : Nat) :
+    elementaryToffoliCount width = match width with
+      | 0 | 1 | 2 => 0
+      | 3 => 1
+      | 4 => 4
+      | 5 => 10
+      | extra + 6 => 8 * (extra + 2) := by
+  match width with
+  | 0 | 1 | 2 | 3 | 4 | 5 => decide
+  | extra + 6 =>
+      change gateCount (extra + 5) = 8 * (extra + 2)
+      rw [gateCount_of_five_le (by omega)]
+      omega
+
+/-- The native reflection single-qubit count is explicit at every width. -/
+public lemma zeroReflection_elementarySingleQubitCount_table (width : Nat) :
+    elementarySingleQubitCount width = match width with
+      | 0 => 0
+      | 1 => 1
+      | 2 => 4
+      | 3 => 9
+      | extra + 4 => 2 * (extra + 4) + 3 := by
+  rfl
+
+/-- A native source reflection uses one CNOT exactly at width two. -/
+public lemma zeroReflection_elementaryCNOTCount_table (width : Nat) :
+    elementaryCNOTCount width = if width = 2 then 1 else 0 := by
+  match width with
+  | 0 | 1 | 2 | extra + 3 => simp [elementaryCNOTCount]
+
 namespace Small
 
-theorem program_eventCost (oracles : OracleModel) (width : Nat) (physical : QubitLayout width)
+lemma program_eventCost (oracles : OracleModel) (width : Nat) (physical : QubitLayout width)
     (small : width ≤ 3) :
     (program oracles width physical small).eventCost = elementaryEventPool oracles width := by
   interval_cases width
@@ -97,7 +128,7 @@ theorem program_eventCost (oracles : OracleModel) (width : Nat) (physical : Qubi
       physical oracles (BinaryLabelEncoding.finIdentityBit 3 1)
       (BinaryLabelEncoding.finIdentityBit 3 2) (by decide) (by decide) (by decide)
 
-theorem program_unitDepth (oracles : OracleModel) (width : Nat) (physical : QubitLayout width)
+lemma program_unitDepth (oracles : OracleModel) (width : Nat) (physical : QubitLayout width)
     (small : width ≤ 3) :
     (program oracles width physical small).evaluatedEventDepth (fun _ => 1) =
       elementaryGateCount width := by
@@ -114,7 +145,7 @@ end Small
 
 namespace OneDirty
 
-theorem program_eventCost (oracles : OracleModel) (controls : Nat)
+lemma program_eventCost (oracles : OracleModel) (controls : Nat)
     (physical : QubitLayout (controls + 1 + 1)) (large : 3 ≤ controls) :
     (program oracles controls physical).eventCost = elementaryEventPool oracles (controls + 1) := by
   obtain ⟨extra, rfl⟩ : ∃ extra, controls = extra + 3 := ⟨controls - 3, by omega⟩
@@ -124,7 +155,7 @@ theorem program_eventCost (oracles : OracleModel) (controls : Nat)
   rw [gatePool, if_neg (by omega), if_neg (by omega)] at actual
   exact actual
 
-theorem program_unitDepth (oracles : OracleModel) (controls : Nat)
+lemma program_unitDepth (oracles : OracleModel) (controls : Nat)
     (physical : QubitLayout (controls + 1 + 1)) (large : 3 ≤ controls) :
     (program oracles controls physical).evaluatedEventDepth (fun _ => 1) =
       elementaryGateCount (controls + 1) := by
@@ -137,7 +168,7 @@ theorem program_unitDepth (oracles : OracleModel) (controls : Nat)
 end OneDirty
 
 /-- No opaque subroutine coordinate occurs in the independent elementary reflection budget. -/
-theorem elementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
+lemma elementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
       | .oracle _ => 1 | _ => 0) (elementaryEventPool oracles width) = 0 := by
   match width with
@@ -151,7 +182,7 @@ theorem elementaryEventPool_queryCount (oracles : OracleModel) (width : Nat) :
         mul_zero, add_zero]
 
 /-- Every counted occurrence belongs to the actual elementary gate family. -/
-theorem elementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
+lemma elementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
     ResourcePool.weightedCount (fun event => match event with
       | .gate _ => 1 | _ => 0) (elementaryEventPool oracles width) = elementaryGateCount width := by
   match width with
@@ -165,7 +196,7 @@ theorem elementaryEventPool_gateCount (oracles : OracleModel) (width : Nat) :
       omega
 
 /-- The selected elementary source synthesis has a uniform linear gate bound. -/
-theorem elementaryGateCount_le (width : Nat) : elementaryGateCount width ≤ 10 * width + 9 := by
+lemma elementaryGateCount_le (width : Nat) : elementaryGateCount width ≤ 10 * width + 9 := by
   match width with
   | 0 => decide
   | 1 => decide

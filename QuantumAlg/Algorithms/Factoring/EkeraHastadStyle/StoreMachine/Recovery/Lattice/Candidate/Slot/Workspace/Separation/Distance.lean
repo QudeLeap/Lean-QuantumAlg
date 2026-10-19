@@ -21,7 +21,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {coordinateWidth modulusWidth : Nat}
 
-private theorem distanceMaterializerSeparation
+private lemma distanceMaterializerSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) :
     LatticeOffsetMaterializer.Separation refs.distance.materializer := by
@@ -29,7 +29,7 @@ private theorem distanceMaterializerSeparation
   intro left right equal
   exact MutableCell.offset.inj (separation.mutableKeyInjective equal)
 
-private theorem distanceCandidateSeparation
+private lemma distanceCandidateSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) :
     LatticeShortLogCandidatePoint.Separation refs.distance.candidate := by
@@ -81,7 +81,7 @@ private theorem distanceCandidateSeparation
   · intro left right equal
     exact MutableCell.candidate.inj (separation.mutableKeyInjective equal)
 
-private theorem candidatePoint_avoids
+private lemma candidatePoint_avoids
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) (target : MutableCell)
     (first : MutableCell.candidate .pointFirst ≠ target)
@@ -102,7 +102,7 @@ private theorem candidatePoint_avoids
       exact mutableInput_avoids refs separation refs.distance.candidate.point.third
         (.candidate .pointThird) target rfl third
 
-private theorem distanceSquaredSeparation
+private lemma distanceSquaredSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) :
     LatticeSquaredDistanceMachine.Separation refs.distance.distance := by
@@ -173,7 +173,7 @@ private theorem distanceSquaredSeparation
     ⟨coordinateSeparation .first, coordinateSeparation .second, coordinateSeparation .third⟩⟩
 
 /-- All real component and cross-stage reads satisfy the original distance-prefix separation. -/
-theorem distanceSeparation
+lemma distanceSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) :
     LatticeCandidateDistancePrefix.Separation refs.distance := by
@@ -196,7 +196,7 @@ theorem distanceSeparation
         (by decide) (by decide) (by decide) coordinate⟩
 
 /-- One common physical frame certificate supplies the five actual component separations. -/
-theorem slotSeparation
+lemma slotSeparation
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (separation : FrameSeparation refs) : LatticeCandidateSlotMachine.Separation refs :=
   ⟨distanceSeparation refs separation, nearTargetSeparation refs separation,

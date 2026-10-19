@@ -34,7 +34,7 @@ def rawScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem loop_visited (cells : Cells ctx (stateShapes width))
+private lemma loop_visited (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat)
     (path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path)
     (visited : RuntimeCtx model.kind)
@@ -50,7 +50,7 @@ private theorem loop_visited (cells : Cells ctx (stateShapes width))
     rcases List.mem_ofFn.mp listed with ⟨index, rfl⟩
     exact Or.inr ⟨index, member⟩
 
-private theorem guarded_resident (cells : Cells ctx (stateShapes width))
+private lemma guarded_resident (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (guardedActive (model := model) cells zero).Path) :
     (guardedActive (model := model) cells zero).peakResidentSpace path ≤
@@ -64,7 +64,7 @@ private theorem guarded_resident (cells : Cells ctx (stateShapes width))
         exact le_add_of_nonneg_left zero_le
       · exact xgcdNativeScopedActive_resident cells zero path
 
-private theorem loop_resident (cells : Cells ctx (stateShapes width))
+private lemma loop_resident (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat)
     (path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path) :
     (Circuit.iterate count (guardedActive (model := model) cells zero)).peakResidentSpace path ≤
@@ -77,7 +77,7 @@ private theorem loop_resident (cells : Cells ctx (stateShapes width))
   · exact ((guardedActive (model := model) cells zero).residentSpace_le_peak_of_visited
       (path index) visited member).trans (guarded_resident cells zero (path index))
 
-private theorem initialization_resident (cells : Cells ctx (stateShapes width))
+private lemma initialization_resident (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (initializationBody (model := model) cells input zero).Path) :
@@ -92,7 +92,7 @@ private theorem initialization_resident (cells : Cells ctx (stateShapes width))
     rw [same]
   · exact (initializationBody (model := model) cells input zero).input_residentSpace_le_peak path
 
-private theorem outputs_resident (cells : Cells ctx (stateShapes width))
+private lemma outputs_resident (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (path : (copyRawOutputs (model := model) cells outputs).Path) :
     (copyRawOutputs (model := model) cells outputs).peakResidentSpace path = ctx.residentSpace := by
   apply le_antisymm
@@ -105,7 +105,7 @@ private theorem outputs_resident (cells : Cells ctx (stateShapes width))
   · exact (copyRawOutputs (model := model) cells outputs).input_residentSpace_le_peak path
 
 /-- Every actual scheduled resident peak includes all live scratch and caller entries. -/
-theorem xgcdNativeScheduledRaw_resident_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeScheduledRaw_resident_le (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (scheduledRawBody (model := model) cells input zero outputs).Path) :
@@ -124,7 +124,7 @@ theorem xgcdNativeScheduledRaw_resident_le (cells : Cells ctx (stateShapes width
       ((outputs_resident cells outputs path.2.2).le.trans (le_add_of_nonneg_left zero_le))
 
 /-- The seven real state cells stay live beside the maximum active resident scratch. -/
-theorem xgcdNativeWithRawState_resident_le
+lemma xgcdNativeWithRawState_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (withRawState (model := model) input zero outputs).Path) :
@@ -139,7 +139,7 @@ theorem xgcdNativeWithRawState_resident_le
       xgcdNativeScheduledRaw_resident_le cells _ _ _ selected) path
 
 omit [BitWord.Selected model] in
-private theorem lexical_resident_le {inner : RuntimeCtx model.kind}
+private lemma lexical_resident_le {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
     (additional : SpacePool model.kind)
@@ -155,7 +155,7 @@ private theorem lexical_resident_le {inner : RuntimeCtx model.kind}
       using bound path
 
 /-- The whole raw engine charges its actual zero word and every live resident allocation. -/
-theorem xgcdNativeRawEngine_resident_le
+lemma xgcdNativeRawEngine_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (path : (rawEngine (model := model) input outputs).Path) :
     (rawEngine (model := model) input outputs).peakResidentSpace path ≤
@@ -175,7 +175,7 @@ theorem xgcdNativeRawEngine_resident_le
       (GCD.cellRead (CWriteRef.workspaceHead ctx ctx.canonicalFreshKey (.unsignedWord width)
         ctx.canonicalFreshKey_fresh)) outputs.underZero) path
 
-private theorem guarded_auxiliary (cells : Cells ctx (stateShapes width))
+private lemma guarded_auxiliary (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (guardedActive (model := model) cells zero).Path) :
     (guardedActive (model := model) cells zero).peakAuxiliarySpace path ≤
@@ -189,7 +189,7 @@ private theorem guarded_auxiliary (cells : Cells ctx (stateShapes width))
         exact le_add_of_nonneg_left zero_le
       · exact xgcdNativeScopedActive_auxiliary cells zero path
 
-private theorem loop_auxiliary (cells : Cells ctx (stateShapes width))
+private lemma loop_auxiliary (cells : Cells ctx (stateShapes width))
     (zero : CInputRef ctx (.unsignedWord width)) (count : Nat)
     (path : (Circuit.iterate count (guardedActive (model := model) cells zero)).Path) :
     (Circuit.iterate count (guardedActive (model := model) cells zero)).peakAuxiliarySpace path ≤
@@ -202,7 +202,7 @@ private theorem loop_auxiliary (cells : Cells ctx (stateShapes width))
   · exact ((guardedActive (model := model) cells zero).auxiliarySpace_le_peak_of_visited
       (path index) visited member).trans (guarded_auxiliary cells zero (path index))
 
-private theorem initialization_auxiliary (cells : Cells ctx (stateShapes width))
+private lemma initialization_auxiliary (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width))
     (path : (initializationBody (model := model) cells input zero).Path) :
@@ -217,7 +217,7 @@ private theorem initialization_auxiliary (cells : Cells ctx (stateShapes width))
     rw [same]
   · exact (initializationBody (model := model) cells input zero).input_auxiliarySpace_le_peak path
 
-private theorem outputs_auxiliary (cells : Cells ctx (stateShapes width))
+private lemma outputs_auxiliary (cells : Cells ctx (stateShapes width))
     (outputs : RawOutputs ctx width) (path : (copyRawOutputs (model := model) cells outputs).Path) :
     (copyRawOutputs (model := model) cells outputs).peakAuxiliarySpace path =
       ctx.auxiliarySpace := by
@@ -231,7 +231,7 @@ private theorem outputs_auxiliary (cells : Cells ctx (stateShapes width))
   · exact (copyRawOutputs (model := model) cells outputs).input_auxiliarySpace_le_peak path
 
 /-- Every actual scheduled auxiliary peak includes all live scratch and caller entries. -/
-theorem xgcdNativeScheduledRaw_auxiliary_le (cells : Cells ctx (stateShapes width))
+lemma xgcdNativeScheduledRaw_auxiliary_le (cells : Cells ctx (stateShapes width))
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (scheduledRawBody (model := model) cells input zero outputs).Path) :
@@ -250,7 +250,7 @@ theorem xgcdNativeScheduledRaw_auxiliary_le (cells : Cells ctx (stateShapes widt
       ((outputs_auxiliary cells outputs path.2.2).le.trans (le_add_of_nonneg_left zero_le))
 
 /-- The seven real state cells stay live beside the maximum active auxiliary scratch. -/
-theorem xgcdNativeWithRawState_auxiliary_le
+lemma xgcdNativeWithRawState_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (path : (withRawState (model := model) input zero outputs).Path) :
@@ -265,7 +265,7 @@ theorem xgcdNativeWithRawState_auxiliary_le
       xgcdNativeScheduledRaw_auxiliary_le cells _ _ _ selected) path
 
 omit [BitWord.Selected model] in
-private theorem lexical_auxiliary_le {inner : RuntimeCtx model.kind}
+private lemma lexical_auxiliary_le {inner : RuntimeCtx model.kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ inner.keys)
     (body : Circuit model (inner.addWorkspace key shape fresh) (inner.addWorkspace key shape fresh))
     (additional : SpacePool model.kind)
@@ -281,7 +281,7 @@ private theorem lexical_auxiliary_le {inner : RuntimeCtx model.kind}
       using bound path
 
 /-- The whole raw engine charges its actual zero word and every live auxiliary allocation. -/
-theorem xgcdNativeRawEngine_auxiliary_le
+lemma xgcdNativeRawEngine_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (path : (rawEngine (model := model) input outputs).Path) :
     (rawEngine (model := model) input outputs).peakAuxiliarySpace path ≤
@@ -302,7 +302,7 @@ theorem xgcdNativeRawEngine_auxiliary_le
         ctx.canonicalFreshKey_fresh)) outputs.underZero) path
 
 /-- The original full scratch formula counts the reused coefficient cells only once. -/
-theorem xgcdNativeRawScratch_classicalBits (kind : ProblemKind) (width : Nat) :
+lemma xgcdNativeRawScratch_classicalBits (kind : ProblemKind) (width : Nat) :
     rawScratchSpace kind width .classicalBits =
       5 * width + 7 * PureXGCD.executionCoefficientWidth width + 1 := by
   simp [rawScratchSpace, stateShapes, activeScratchShapes, SpacePool.ofShape, CShape.bitWidth]

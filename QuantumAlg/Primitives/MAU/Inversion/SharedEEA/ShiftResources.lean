@@ -43,14 +43,14 @@ def incrementCount (width : Nat) : Nat :=
 def guardedBound (width : Nat) : Nat :=
   9 * (width + 2) + 3 * incrementCount (2 + width.size) + 10
 
-private theorem trace_count {gates : GateModel} {oracles : OracleModel}
+private lemma trace_count {gates : GateModel} {oracles : OracleModel}
     {count : Nat} {layout : QuantumLayout count}
     (body : UnitaryCircuit gates oracles layout) :
     body.eventTrace.length = body.eventCost.card := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost]
   rfl
 
-private theorem dagger_trace_count {count : Nat} {layout : QuantumLayout count}
+private lemma dagger_trace_count {count : Nat} {layout : QuantumLayout count}
     (body : UnitaryCircuit AlgorithmGate.model .empty layout) :
     (body.dagger (AlgorithmGate.oracleFreeAdjoints .empty)).eventTrace.length =
       body.eventTrace.length := by
@@ -59,7 +59,7 @@ private theorem dagger_trace_count {count : Nat} {layout : QuantumLayout count}
   change (Multiset.map (AlgorithmGate.oracleFreeEvent .empty) body.eventCost).card = _
   exact Multiset.card_map _ _
 
-theorem unitDepth_le_count {gates : GateModel} {oracles : OracleModel}
+lemma unitDepth_le_count {gates : GateModel} {oracles : OracleModel}
     {count : Nat} {layout : QuantumLayout count}
     (body : UnitaryCircuit gates oracles layout) :
     body.evaluatedEventDepth (fun _ => 1) ≤ body.eventCost.card := by
@@ -69,25 +69,25 @@ theorem unitDepth_le_count {gates : GateModel} {oracles : OracleModel}
     _ = _ := (DepthExpr.unitCost_eq_eventPool_card body.eventDepth).trans
       (congrArg Multiset.card (UnitaryCircuit.resourcesFromEventDepth_eq_eventCost body))
 
-private theorem placed_count (extra width : Nat) :
+private lemma placed_count (extra width : Nat) :
     (Addition.HRS.placedIncrementProgram extra width).eventTrace.length = incrementCount width := by
   rw [trace_count, (Addition.HRS.hrsPlacedIncrement_resources extra width (fun _ => 1)).1]
   exact Addition.HRS.hrsControlledBorrowedIncrement_event_count width
 
 /-- The original low quotient incrementer executes every actual HRS occurrence. -/
-theorem low_count (width : Nat) :
+lemma low_count (width : Nat) :
     (LowShiftIncrement.program width).eventTrace.length = incrementCount width.size := by
   rw [LowShiftIncrement.program_eventTrace]
   exact placed_count _ _
 
 /-- The enlarged counter's actual placed HRS count includes both original reused high bits. -/
-theorem clock_count (width : Nat) :
+lemma clock_count (width : Nat) :
     (ExtendedClockIncrement.program width).eventTrace.length =
       incrementCount (2 + width.size) := by
   rw [ExtendedClockIncrement.program_eventTrace]
   exact placed_count _ _
 
-private theorem word_count (width : Nat) :
+private lemma word_count (width : Nat) :
     (Work2PhaseRotation.leftGates width).length = 3 * (width + 2) := by
   have actual := Word.controlledAdjacentShiftLeftGates_length (phase2Bit width)
     (Work2Rotation.word width) (Work2PhaseRotation.separate width)
@@ -96,14 +96,14 @@ private theorem word_count (width : Nat) :
   exact actual.trans (congrArg (fun value => 3 * value) (show width + 3 - 1 = width + 2 by omega))
 
 /-- A forward pair includes the complete controlled word sweep and complete HRS clock update. -/
-theorem left_count (width : Nat) :
+lemma left_count (width : Nat) :
     (ControlledShift.leftProgram width).eventTrace.length =
       3 * (width + 2) + incrementCount (2 + width.size) := by
   rw [ControlledShift.left_eventTrace, List.length_append, List.length_map,
     word_count, clock_count]
 
 /-- The inverse pair retains the same complete occurrence count in the opposite execution order. -/
-theorem right_count (width : Nat) :
+lemma right_count (width : Nat) :
     (ControlledShift.rightProgram width).eventTrace.length =
       3 * (width + 2) + incrementCount (2 + width.size) := by
   have inverseCount :
@@ -117,7 +117,7 @@ theorem right_count (width : Nat) :
     Work2PhaseRotation.rightGates, List.length_reverse, word_count, inverseCount]
 
 /-- Exact counts distinguish the two emitted phase-guard lists without runtime branch discounts. -/
-theorem guarded_count (width : Nat) (selected : Bool) :
+lemma guarded_count (width : Nat) (selected : Bool) :
     (GuardedShift.program width selected).eventTrace.length =
       9 * (width + 2) + 3 * incrementCount (2 + width.size) +
         if selected then 4 else 10 := by
@@ -127,13 +127,13 @@ theorem guarded_count (width : Nat) (selected : Bool) :
   cases selected <;> simp only [Bool.false_eq_true, if_false, if_true] <;> omega
 
 /-- The independent common envelope covers either actual guarded shift fragment. -/
-theorem guarded_trace_le (width : Nat) (selected : Bool) :
+lemma guarded_trace_le (width : Nat) (selected : Bool) :
     (GuardedShift.program width selected).eventTrace.length ≤ guardedBound width := by
   rw [guarded_count, guardedBound]
   cases selected <;> simp only [Bool.false_eq_true, if_false, if_true] <;> omega
 
 /-- The same independent bound covers the actual event pool and its strict unit depth. -/
-theorem guarded_resources (width : Nat) (selected : Bool) :
+lemma guarded_resources (width : Nat) (selected : Bool) :
     (GuardedShift.program width selected).eventCost.card ≤ guardedBound width ∧
       (GuardedShift.program width selected).evaluatedEventDepth (fun _ => 1) ≤
         guardedBound width := by

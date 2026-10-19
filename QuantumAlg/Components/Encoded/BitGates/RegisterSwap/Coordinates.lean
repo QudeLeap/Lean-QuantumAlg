@@ -45,44 +45,44 @@ def leftWord (width : Nat) : EncodedBit.Word (encoding width) width := ⟨leftBi
 
 def rightWord (width : Nat) : EncodedBit.Word (encoding width) width := ⟨rightBit width⟩
 
-theorem control_get (width : Nat) (state : Data width) :
+lemma control_get (width : Nat) (state : Data width) :
     (control width).get state = state.1 := rfl
 
-theorem leftBit_get (width : Nat) (index : Fin width) (state : Data width) :
+lemma leftBit_get (width : Nat) (index : Fin width) (state : Data width) :
     (leftBit width index).get state = (finIdentityBit width index).get state.2.1 := rfl
 
-theorem rightBit_get (width : Nat) (index : Fin width) (state : Data width) :
+lemma rightBit_get (width : Nat) (index : Fin width) (state : Data width) :
     (rightBit width index).get state = (finIdentityBit width index).get state.2.2 := rfl
 
-theorem control_left_ne (width : Nat) (index : Fin width) :
+lemma control_left_ne (width : Nat) (index : Fin width) :
     (control width).wire ≠ (leftBit width index).wire := by
   intro same
   have values := congrArg (fun wire : Fin (encoding width).width => wire.val) same
   change 0 = 1 + index.val at values
   omega
 
-theorem control_right_ne (width : Nat) (index : Fin width) :
+lemma control_right_ne (width : Nat) (index : Fin width) :
     (control width).wire ≠ (rightBit width index).wire := by
   intro same
   have values := congrArg (fun wire : Fin (encoding width).width => wire.val) same
   change 0 = 1 + (width + index.val) at values
   omega
 
-theorem left_right_ne (width : Nat) (left right : Fin width) :
+lemma left_right_ne (width : Nat) (left right : Fin width) :
     (leftBit width left).wire ≠ (rightBit width right).wire := by
   intro same
   have values := congrArg (fun wire : Fin (encoding width).width => wire.val) same
   change 1 + left.val = 1 + (width + right.val) at values
   omega
 
-theorem left_injective (width : Nat) :
+lemma left_injective (width : Nat) :
     Function.Injective (fun index => (leftBit width index).wire) := by
   intro left right same
   have values := congrArg (fun wire : Fin (encoding width).width => wire.val) same
   change 1 + left.val = 1 + right.val at values
   exact Fin.ext (by omega)
 
-theorem right_injective (width : Nat) :
+lemma right_injective (width : Nat) :
     Function.Injective (fun index => (rightBit width index).wire) := by
   intro left right same
   have values := congrArg (fun wire : Fin (encoding width).width => wire.val) same
@@ -90,7 +90,7 @@ theorem right_injective (width : Nat) :
   exact Fin.ext (by omega)
 
 /-- Equality of every actual wire readout identifies the entire original word. -/
-theorem label_eq_of_bits {width : Nat} {left right : Fin (2 ^ width)}
+lemma label_eq_of_bits {width : Nat} {left right : Fin (2 ^ width)}
     (same : ∀ index, (finIdentityBit width index).get left =
       (finIdentityBit width index).get right) : left = right := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq

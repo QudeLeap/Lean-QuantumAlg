@@ -47,7 +47,7 @@ def inPlaceBound (width : Nat) : Nat :=
 /-- The separate XOR interface computes, copies n bits, and reverses the entire computation. -/
 def xorBound (width : Nat) : Nat := 2 * correctedBound width + width
 
-private theorem native_count (modulus : Nat) (nontrivial : 1 < modulus) :
+private lemma native_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (NativeSchedule.program modulus nontrivial).eventCost.card ≤
       InitializationResources.bound modulus.size +
         4 * (2 * modulus.size - 1) * MicrostepResources.bound modulus.size := by
@@ -60,7 +60,7 @@ private theorem native_count (modulus : Nat) (nontrivial : 1 < modulus) :
   change _ + 4 * (2 * modulus.size - 1) * _ ≤ _
   exact Nat.add_le_add initial repeated
 
-private theorem correction_count (modulus : Nat) :
+private lemma correction_count (modulus : Nat) :
     (OutputCorrection.program modulus).eventCost.card ≤
       Addition.Gidney.biFlipEventBound (modulus.size + 3) + 2 := by
   rw [OutputCorrection.program_eventCost, OutputCorrectionFocus.program_event_count]
@@ -68,7 +68,7 @@ private theorem correction_count (modulus : Nat) :
     (FoldSourceProgram.wordWidth modulus) (FoldSourceProgram.reflectionPivot modulus)) 2
 
 /-- The complete corrected native forward meets the width-only event envelope. -/
-theorem corrected_count (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma corrected_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (CorrectedSchedule.program modulus nontrivial).eventCost.card ≤
       correctedBound modulus.size := by
   have native := native_count modulus nontrivial
@@ -81,13 +81,13 @@ theorem corrected_count (modulus : Nat) (nontrivial : 1 < modulus) :
   omega
 
 /-- The corrected forward's actual strict unit depth satisfies the same independent envelope. -/
-theorem corrected_depth (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma corrected_depth (modulus : Nat) (nontrivial : 1 < modulus) :
     (CorrectedSchedule.program modulus nontrivial).evaluatedEventDepth (fun _ => 1) ≤
       correctedBound modulus.size :=
   (ShiftResources.unitDepth_le_count _).trans (corrected_count modulus nontrivial)
 
 /-- The in-place program includes all load, computation, orientation, and unload events. -/
-theorem inPlace_count (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma inPlace_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (InPlaceForward.program modulus nontrivial).eventCost.card ≤ inPlaceBound modulus.size := by
   have load := (InitialPortProgram.program_resources modulus).1
   have corrected := corrected_count modulus nontrivial
@@ -98,13 +98,13 @@ theorem inPlace_count (modulus : Nat) (nontrivial : 1 < modulus) :
   omega
 
 /-- No physical data permutation or history cleanup is omitted from the in-place depth bound. -/
-theorem inPlace_depth (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma inPlace_depth (modulus : Nat) (nontrivial : 1 < modulus) :
     (InPlaceForward.program modulus nontrivial).evaluatedEventDepth (fun _ => 1) ≤
       inPlaceBound modulus.size :=
   (ShiftResources.unitDepth_le_count _).trans (inPlace_count modulus nontrivial)
 
 /-- Replacing the large workspace port does not remove any event from the same complete dagger. -/
-theorem inPlace_dagger_count (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma inPlace_dagger_count (modulus : Nat) (nontrivial : 1 < modulus) :
     ((InPlaceForward.program modulus nontrivial).dagger
       (AlgorithmGate.oracleFreeAdjoints .empty)).eventCost.card ≤
       inPlaceBound modulus.size := by
@@ -115,7 +115,7 @@ theorem inPlace_dagger_count (modulus : Nat) (nontrivial : 1 < modulus) :
   exact inPlace_count modulus nontrivial
 
 /-- The separate clean-XOR inverse charges both full passes and the actual n CNOT copy. -/
-theorem xor_count (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma xor_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (NativeInverse.program modulus nontrivial).eventCost.card ≤ xorBound modulus.size := by
   have corrected := corrected_count modulus nontrivial
   have copy := (OutputCopy.program_serial_resources modulus.size).1
@@ -132,7 +132,7 @@ theorem xor_count (modulus : Nat) (nontrivial : 1 < modulus) :
   omega
 
 /-- The clean-XOR program's strict unit depth is bounded from its same actual event pool. -/
-theorem xor_depth (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma xor_depth (modulus : Nat) (nontrivial : 1 < modulus) :
     (NativeInverse.program modulus nontrivial).evaluatedEventDepth (fun _ => 1) ≤
       xorBound modulus.size :=
   (ShiftResources.unitDepth_le_count _).trans (xor_count modulus nontrivial)

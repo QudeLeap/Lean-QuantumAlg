@@ -73,11 +73,11 @@ def conjState (ψ : PureState (Qubits n)) : PureState (Qubits n) :=
     ψ.system_idx
 
 @[simp]
-theorem conjState_apply (ψ : PureState (Qubits n)) (i : Fin (2 ^ n)) :
+lemma conjState_apply (ψ : PureState (Qubits n)) (i : Fin (2 ^ n)) :
     conjState ψ i = starRingEnd ℂ (ψ i) := rfl
 
 /-- Conjugating both arguments conjugates the inner product. -/
-theorem inner_conjState
+lemma inner_conjState
     (a b : PureState (Qubits n)) :
     inner ℂ (conjState a) (conjState b) = starRingEnd ℂ (inner ℂ a b) := by
   change inner ℂ
@@ -109,14 +109,14 @@ public def quantumKernel (φ : X → PureState (Qubits n)) (x y : X) : ℂ :=
 
 /-- The fidelity kernel is the inner product of the feature vectors
 `φ(·) ⊗ conj φ(·)`. -/
-theorem quantumKernel_eq_inner_featureTensor
+lemma quantumKernel_eq_inner_featureTensor
     (φ : X → PureState (Qubits n)) (x y : X) :
     quantumKernel φ x y = inner ℂ (featureTensor φ x) (featureTensor φ y) := by
   rw [featureTensor, featureTensor, PureState.inner_tensor_tensor,
     PureState.inner_conjState, quantumKernel]
 
 /-- The diagonal kernel value is `1`. -/
-theorem quantumKernel_self (φ : X → PureState (Qubits n)) (x : X) :
+lemma quantumKernel_self (φ : X → PureState (Qubits n)) (x : X) :
     quantumKernel φ x x = 1 := by
   have hself : inner ℂ (φ x) (φ x) = (1 : ℂ) := by
     change inner ℂ
@@ -132,7 +132,7 @@ open scoped ComplexOrder
 /-- **Validity of the quantum kernel.** For any finite family of inputs, the
 fidelity-kernel Gram matrix `K_{ij} = k(xᵢ, xⱼ)` is positive semidefinite, hence
 `k` is a legitimate (positive-semidefinite) kernel. -/
-theorem quantumKernel_gram_posSemidef {ι : Type*} [Finite ι]
+lemma quantumKernel_gram_posSemidef {ι : Type*} [Finite ι]
     (φ : X → PureState (Qubits n)) (x : ι → X) :
     (Matrix.of fun i j => quantumKernel φ (x i) (x j)).PosSemidef := by
   have hK : (Matrix.of fun i j => quantumKernel φ (x i) (x j))
@@ -166,12 +166,12 @@ public theorem main {ι : Type*} [Finite ι] (φ : X → PureState (Qubits n)) (
   quantumKernel_gram_posSemidef φ x
 
 /-- Public supporting theorem: the fidelity kernel is an inner product after tensor lifting. -/
-theorem main_feature_tensor (φ : X → PureState (Qubits n)) (x y : X) :
+lemma main_feature_tensor (φ : X → PureState (Qubits n)) (x y : X) :
     quantumKernel φ x y = inner ℂ (featureTensor φ x) (featureTensor φ y) :=
   quantumKernel_eq_inner_featureTensor φ x y
 
 /-- Public supporting theorem: the diagonal fidelity-kernel value of a pure state is one. -/
-theorem main_self (φ : X → PureState (Qubits n)) (x : X) :
+lemma main_self (φ : X → PureState (Qubits n)) (x : X) :
     quantumKernel φ x x = 1 :=
   quantumKernel_self φ x
 

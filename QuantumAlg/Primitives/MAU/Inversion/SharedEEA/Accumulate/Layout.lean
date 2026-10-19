@@ -43,13 +43,13 @@ def sourceEncoding (width : Nat) :
   BinaryLabelEncoding.prod (Multiplication.Accumulate.Gidney.encoding width)
     (finIdentity (historyWidth width))
 
-theorem accumulateFrame_width (width : Nat) :
+lemma accumulateFrame_width (width : Nat) :
     (frameEncoding width).width = 3 * width + 11 + 4 * width.size := by
   change (SharedEEA.encoding width).width + width = _
   rw [SharedEEA.encoding_width]
   omega
 
-private theorem source_width (width : Nat) :
+private lemma source_width (width : Nat) :
     (sourceEncoding width).width = 3 * width + 11 + 4 * width.size := by
   change (width + width) + historyWidth width = _
   unfold historyWidth
@@ -96,7 +96,7 @@ def wires (width : Nat) : Fin (sourceEncoding width).width ≃ Fin (frameEncodin
   (finCongr (source_width width)).trans
     ((wirePermutation width).trans (finCongr (accumulateFrame_width width).symm))
 
-private theorem frame_total (width : Nat) :
+private lemma frame_total (width : Nat) :
     Function.Surjective (frameEncoding width).encode := by
   intro label
   obtain ⟨⟨shared, target⟩, rfl⟩ :=
@@ -104,7 +104,7 @@ private theorem frame_total (width : Nat) :
   obtain ⟨state, rfl⟩ := SharedEEA.encoding_surjective width shared
   exact ⟨(state, target), rfl⟩
 
-private theorem source_total (width : Nat) :
+private lemma source_total (width : Nat) :
     Function.Surjective (sourceEncoding width).encode := by
   intro label
   obtain ⟨⟨words, history⟩, rfl⟩ :=
@@ -117,10 +117,10 @@ def placement (width : Nat) :
     EncodedBit.FullPlacement (sourceEncoding width) (frameEncoding width) :=
   EncodedBit.FullPlacement.ofWires _ _ (source_total width) (frame_total width) (wires width)
 
-theorem accumulateWires_address (width : Nat) (index : Fin (sourceEncoding width).width) :
+lemma accumulateWires_address (width : Nat) (index : Fin (sourceEncoding width).width) :
     (wires width index).val = address width index.val := rfl
 
-private theorem grouping_bit (width : Nat) (state : Frame width)
+private lemma grouping_bit (width : Nat) (state : Frame width)
     (index : Fin (sourceEncoding width).width) :
     ((sourceEncoding width).encode ((placement width).grouping state)).val.testBit index.rev.val =
       ((frameEncoding width).encode state).val.testBit (wires width index).rev.val := by
@@ -133,7 +133,7 @@ private theorem grouping_bit (width : Nat) (state : Frame width)
   rw [encoded] at actual
   exact actual.symm
 
-private theorem bit_read {Data : Type} {label : BinaryLabelEncoding Data}
+private lemma bit_read {Data : Type} {label : BinaryLabelEncoding Data}
     (bit : EncodedBit label) (state : Data) :
     bit.get state = (label.encode state).val.testBit bit.wire.rev.val := by
   rw [← bit.get_eq]
@@ -141,7 +141,7 @@ private theorem bit_read {Data : Type} {label : BinaryLabelEncoding Data}
   dsimp only [WireAddress.bitIndex, Fin.rev]
   omega
 
-private theorem placed_read (width : Nat) (state : Frame width)
+private lemma placed_read (width : Nat) (state : Frame width)
     (source : EncodedBit (sourceEncoding width)) (target : EncodedBit (frameEncoding width))
     (same : wires width source.wire = target.wire) :
     source.get ((placement width).grouping state) = target.get state := by
@@ -159,7 +159,7 @@ private def targetBit (width : Nat) (index : Fin width) : EncodedBit (sourceEnco
     (prodRightBit (finIdentity width) (finIdentity width) (finIdentityBit width index))
 
 /-- The placed native source is the corrected coefficient in its actual numerical orientation. -/
-theorem accumulateGrouping_source (width : Nat) (state : Frame width) :
+lemma accumulateGrouping_source (width : Nat) (state : Frame width) :
     ((placement width).grouping state).1.1 = OutputCopy.value state.1 := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq
   intro index
@@ -186,7 +186,7 @@ theorem accumulateGrouping_source (width : Nat) (state : Frame width) :
   simpa only [index.isLt, decide_true, Bool.true_and] using actual
 
 /-- The placed native target is the caller's complete separate word. -/
-theorem accumulateGrouping_target (width : Nat) (state : Frame width) :
+lemma accumulateGrouping_target (width : Nat) (state : Frame width) :
     ((placement width).grouping state).1.2 = state.2 := by
   apply Nat.FixedWidth.word_eq_of_testBit_eq
   intro index
@@ -211,14 +211,14 @@ theorem accumulateGrouping_target (width : Nat) (state : Frame width) :
     state.2.val.testBit index.rev.rev.val at actual
   simpa only [Fin.rev_rev] using actual
 
-private theorem address_history_bound (width index : Nat) (bound : index < historyWidth width) :
+private lemma address_history_bound (width index : Nat) (bound : index < historyWidth width) :
     address width (2 * width + index) < 2 * width + 11 + 4 * width.size := by
   unfold historyWidth at bound
   unfold address
   split_ifs <;> omega
 
 /-- Changing only the separate target preserves the entire grouped history, on every frame. -/
-theorem accumulateGrouping_history (width : Nat) (frame : Registers width)
+lemma accumulateGrouping_history (width : Nat) (frame : Registers width)
     (left right : Fin (2 ^ width)) :
     ((placement width).grouping (frame, left)).2 =
       ((placement width).grouping (frame, right)).2 := by

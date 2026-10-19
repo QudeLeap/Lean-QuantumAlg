@@ -59,12 +59,12 @@ def leave (N : Nat) (store : Store (context ctx N)) : Store ctx :=
     (.canonicalResidue (modulusBits N)) ctx.canonicalFreshKey_fresh base
 
 /-- Every original operand keeps its exact value during real scope entry. -/
-theorem enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
+lemma enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
     (enter N store).read (liftInput input) = store.read input := by
   simp only [enter, liftInput, Store.read_pushWorkspace_underWorkspace]
 
 /-- Scope exit reads each surviving original operand from the actual final inner store. -/
-theorem leave_read {shape : CShape} (input : CInputRef ctx shape)
+lemma leave_read {shape : CShape} (input : CInputRef ctx shape)
     (store : Store (context ctx N)) :
     (leave N store).read input = store.read (liftInput input) := by
   simp only [leave, liftInput, Store.read_popWorkspace_underWorkspace]

@@ -43,7 +43,7 @@ def retainedCircuit (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth 
       (CWriteRef.retainedHead ctx key (outputShape phaseBits) fresh))
 
 /-- Retaining the result emits no arithmetic event beyond the independent native allowance. -/
-theorem nativeRecovery_retained_pool_le
+lemma nativeRecovery_retained_pool_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
@@ -53,7 +53,7 @@ theorem nativeRecovery_retained_pool_le
   exact nativeRecovery_into_pool_le spec _ _ _ path.2
 
 /-- The retained option and reused recovery workspace are counted in resident storage. -/
-theorem nativeRecovery_retained_resident_le
+lemma nativeRecovery_retained_resident_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
@@ -71,7 +71,7 @@ theorem nativeRecovery_retained_resident_le
   · exact (nativeRecovery_into_visited_space_le spec _ _ _ path.2 visited recovery).1
 
 /-- The actual result remains auxiliary storage after the temporary fields have been released. -/
-theorem nativeRecovery_retained_auxiliary_le
+lemma nativeRecovery_retained_auxiliary_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
@@ -104,13 +104,14 @@ def retainedStep (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth pha
   (recovered.1, ((), recovered.2))
 
 /-- Every complete density block follows the actual retained store and path. -/
-theorem nativeRecovery_retained_execute
+lemma nativeRecovery_retained_execute
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
+    (key : StorageKey) (fresh : key ∉ ctx.keys) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState
       × History)) :
-    (retainedCircuit (model := model) spec input key fresh).execute Reference state =
+    (retainedCircuit (model := model) spec input key fresh).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((retainedStep (model := model) spec input key fresh entry.1).1,
           (entry.2.1, (entry.2.2, (retainedStep (model := model) spec input key fresh
@@ -122,7 +123,7 @@ theorem nativeRecovery_retained_execute
   exact Subsingleton.elim _ _
 
 /-- The real retained option is precisely the first accepted source denominator, or none. -/
-theorem nativeRecovery_retained_result
+lemma nativeRecovery_retained_result
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (source : ClassicalAlgorithms.OrderRecovery.Input spec)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
@@ -142,17 +143,20 @@ theorem nativeRecovery_retained_result
     rfl
 
 /-- Allocation and native recovery jointly restore all borrowed data with every reference. -/
-theorem nativeRecovery_retained_borrowedRestored
+lemma nativeRecovery_retained_borrowedRestored
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : CInputRef ctx (inputShape modulusWidth phaseBits))
-    (key : StorageKey) (fresh : key ∉ ctx.keys) (Reference : Register)
+    (key : StorageKey) (fresh : key ∉ ctx.keys) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState
       × History)) :
     (retainedCircuit (model := model) spec input key fresh).BorrowedRestored Reference state
-      ((retainedCircuit (model := model) spec input key fresh).execute Reference state) := by
+      ((retainedCircuit (model := model) spec input key fresh).execute
+      environment Reference state) := by
   unfold retainedCircuit
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_retain key (outputShape phaseBits) fresh state
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · exact Circuit.borrowedRestored_retain
+      (environment := environment) key (outputShape phaseBits) fresh state
   · exact nativeRecovery_into_borrowedRestored spec _ _ _ Reference _
 
 end

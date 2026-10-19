@@ -28,7 +28,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual signed nearest division preserves all caller reads outside its six mutable cells. -/
-theorem body_callerFrame (refs : BodyRefs ctx width) (store : Store ctx) :
+lemma body_callerFrame (refs : BodyRefs ctx width) (store : Store ctx) :
     CallerFrame refs store (bodyStep (model := model) refs store).1 := by
   intro shape other avoids
   unfold bodyStep
@@ -43,7 +43,7 @@ theorem body_callerFrame (refs : BodyRefs ctx width) (store : Store ctx) :
       (avoids _ (by simp [mutableKeys]))]
 
 /-- The actual final output represents nearest-integer division of the original signed input. -/
-theorem body_outputRepresents (refs : BodyRefs ctx width) (separation : Separation refs)
+lemma body_outputRepresents (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (widthPositive : 0 < width)
     (denominatorPositive : 0 < (store.read refs.denominator).toNat) :
     RawSignedRepresents ((bodyStep (model := model) refs store).1.read (writeInput refs.output))
@@ -87,7 +87,7 @@ theorem body_outputRepresents (refs : BodyRefs ctx width) (separation : Separati
       exact output
 
 /-- Raw represented inputs specialize the actual-store result to the caller's integer values. -/
-theorem body_outputRepresents_of_raw (refs : BodyRefs ctx width) (separation : Separation refs)
+lemma body_outputRepresents_of_raw (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (numeratorValue : Int) (denominatorValue : Nat)
     (widthPositive : 0 < width) (denominatorPositive : 0 < denominatorValue)
     (numeratorRepresents : RawSignedRepresents (store.read refs.numerator) numeratorValue)

@@ -27,30 +27,27 @@ namespace QuantumAlg.ShortDLP.DeclaredStage
 
 noncomputable section
 
-private abbrev oracle {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) : OracleModel :=
-  declaredModel encoding
+private abbrev oracle (N : Nat) (params : RegisterParameters) : OracleModel :=
+  declaredModel N params
 
 private abbrev layout (params : RegisterParameters) :
     QuantumLayout (totalQubits params) :=
   (QuantumSignature.qubits (totalQubits params)).canonicalPlacement.layout
 
 /-- Both actual exponent registers are prepared in parallel; workspace is untouched. -/
-def prepare {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) :
-    UnitaryCircuit AlgorithmGate.model (oracle encoding) (layout params) :=
-  (Gate.HadamardLayer.circuit (oracle encoding)
+def prepare (N : Nat) (params : RegisterParameters) :
+    UnitaryCircuit AlgorithmGate.model (oracle N params) (layout params) :=
+  (Gate.HadamardLayer.circuit (oracle N params)
     (firstBits params + params.ell)).onBinaryPrefix params.workspaceBits
 
 /-- Preparation uses one parallel dependency layer for nonempty exponent storage. -/
-theorem prepare_unitDepth {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) :
-    (prepare encoding).evaluatedEventDepth (fun _ => 1) =
+lemma prepare_unitDepth (N : Nat) (params : RegisterParameters) :
+    (prepare N params).evaluatedEventDepth (fun _ => 1) =
       if firstBits params + params.ell = 0 then 0 else 1 := by
   rw [prepare, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_unit_depth]
   exact Gate.HadamardLayer.hadamardLayer_circuit_unit_depth _ _
 
-private theorem readout_disjoint (first second : Nat) :
+private lemma readout_disjoint (first second : Nat) :
     Disjoint
       (UnitaryCircuit.binaryPrefixEmbedding first second).selection
       (UnitaryCircuit.binarySuffixEmbedding first second).selection := by
@@ -77,79 +74,75 @@ def readoutPair (oracles : OracleModel) (params : RegisterParameters) :
     (readout_disjoint (firstBits params) params.ell)
 
 /-- The group workspace remains resident through both parallel inverse QFTs. -/
-def readout {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) :
-    UnitaryCircuit AlgorithmGate.model (oracle encoding) (layout params) :=
-  (readoutPair (oracle encoding) params).onBinaryPrefix params.workspaceBits
+def readout (N : Nat) (params : RegisterParameters) :
+    UnitaryCircuit AlgorithmGate.model (oracle N params) (layout params) :=
+  (readoutPair (oracle N params) params).onBinaryPrefix params.workspaceBits
 
 /-- Readout depth is the maximum of the two native inverse-QFT depths. -/
-theorem readout_unitDepth {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) :
-    (readout encoding).evaluatedEventDepth (fun _ => 1) =
+lemma readout_unitDepth (N : Nat) (params : RegisterParameters) :
+    (readout N params).evaluatedEventDepth (fun _ => 1) =
       max
-        ((QuantumFourierTransform.Native.inverseCircuit (oracle encoding)
+        ((QuantumFourierTransform.Native.inverseCircuit (oracle N params)
           (firstBits params)).evaluatedEventDepth (fun _ => 1))
-        ((QuantumFourierTransform.Native.inverseCircuit (oracle encoding)
+        ((QuantumFourierTransform.Native.inverseCircuit (oracle N params)
           params.ell).evaluatedEventDepth (fun _ => 1)) := by
   simp only [readout, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_unit_depth,
     readoutPair, UnitaryCircuit.evaluatedEventDepth_parallel,
     UnitaryCircuit.relabel_evaluatedEventDepth]
 
 /-- The actual prepare, declared-query, parallel-readout construction. -/
-def circuit {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) (g x : (ZMod N)ˣ) :
-    UnitaryCircuit AlgorithmGate.model (oracle encoding) (layout params) :=
-  (prepare encoding).seq
-    ((declaredCircuit AlgorithmGate.model encoding g x).seq (readout encoding))
+def circuit (N : Nat) (params : RegisterParameters) (g x : (ZMod N)ˣ) :
+    UnitaryCircuit AlgorithmGate.model (oracle N params) (layout params) :=
+  (prepare N params).seq
+    ((declaredCircuit AlgorithmGate.model N params g x).seq (readout N params))
 
 /-- The actual stage has the source permutation between its real preparation
 and inverse-Fourier readout, all in the same binary coordinates. -/
-theorem circuit_binaryMatrix {N : Nat} {params : RegisterParameters}
+lemma circuit_binaryMatrix {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits) (g x : (ZMod N)ˣ) :
-    (circuit encoding g x).binaryMatrix =
-      (readout encoding).binaryMatrix *
-        oracleOperator encoding g x * (prepare encoding).binaryMatrix := by
+    ((circuit N params g x).binaryMatrix (declaredInterpretation encoding)) =
+      ((readout N params).binaryMatrix (declaredInterpretation encoding)) *
+        oracleOperator encoding g x * ((prepare N params).binaryMatrix (declaredInterpretation
+          encoding)) := by
   rw [circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     declaredCircuit_binaryMatrix]
 
 /-- The complete event ledger includes the single declared group query. -/
-theorem circuit_eventCost {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) (g x : (ZMod N)ˣ) :
-    (circuit encoding g x).eventCost =
-      (prepare encoding).eventCost +
+lemma circuit_eventCost (N : Nat) (params : RegisterParameters) (g x : (ZMod N)ˣ) :
+    (circuit N params g x).eventCost =
+      (prepare N params).eventCost +
         (ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (oracle encoding))
-          (.oracle .groupOperation) + (readout encoding).eventCost) := by
+          (model := .quantum AlgorithmGate.model (oracle N params))
+          (.oracle .groupOperation) + (readout N params).eventCost) := by
   rw [circuit, UnitaryCircuit.seq_eventCost,
     UnitaryCircuit.seq_eventCost, declaredCircuit_eventCost]
 
 /-- Preparation and both inverse Fourier words have no oracle instruction:
 the complete stage makes exactly its one model-owned group query. -/
-theorem circuit_groupQueryCount {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) (g x : (ZMod N)ˣ) :
+lemma circuit_groupQueryCount (N : Nat) (params : RegisterParameters) (g x : (ZMod N)ˣ) :
     ResourcePool.count
-      (model := .quantum AlgorithmGate.model (oracle encoding))
+      (model := .quantum AlgorithmGate.model (oracle N params))
       (.oracle .groupOperation)
-      (circuit encoding g x).eventCost = 1 := by
+      (circuit N params g x).eventCost = 1 := by
   have preparationCount :
       ResourcePool.count
-        (model := .quantum AlgorithmGate.model (oracle encoding))
+        (model := .quantum AlgorithmGate.model (oracle N params))
         (.oracle .groupOperation)
-        (prepare encoding).eventCost = 0 := by
+        (prepare N params).eventCost = 0 := by
     have cost := congrArg
       (ResourcePool.count
-        (model := .quantum AlgorithmGate.model (oracle encoding))
+        (model := .quantum AlgorithmGate.model (oracle N params))
         (.oracle .groupOperation))
       (Gate.HadamardLayer.hadamardLayer_circuit_eventCost
-        (oracle encoding) (firstBits params + params.ell))
+        (oracle N params) (firstBits params + params.ell))
     rw [prepare, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost]
     exact cost.trans (by simp [ResourcePool.count_nsmul, ResourcePool.count_singleton])
   have readoutCount :
       ResourcePool.count
-        (model := .quantum AlgorithmGate.model (oracle encoding))
+        (model := .quantum AlgorithmGate.model (oracle N params))
         (.oracle .groupOperation)
-        (readout encoding).eventCost = 0 := by
+        (readout N params).eventCost = 0 := by
     rw [readout, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventCost,
       readoutPair, UnitaryCircuit.parallel_eventCost,
       ResourcePool.count_add, UnitaryCircuit.relabel_eventCost,
@@ -161,14 +154,13 @@ theorem circuit_groupQueryCount {N : Nat} {params : RegisterParameters}
   simp [ResourcePool.count_singleton]
 
 /-- One query separates the parallel preparation and parallel inverse readout. -/
-theorem circuit_unitDepth {N : Nat} {params : RegisterParameters}
-    (encoding : UnitEncoding N params.workspaceBits) (g x : (ZMod N)ˣ) :
-    (circuit encoding g x).evaluatedEventDepth (fun _ => 1) =
+lemma circuit_unitDepth (N : Nat) (params : RegisterParameters) (g x : (ZMod N)ˣ) :
+    (circuit N params g x).evaluatedEventDepth (fun _ => 1) =
       (if firstBits params + params.ell = 0 then 0 else 1) + 1 +
         max
-          ((QuantumFourierTransform.Native.inverseCircuit (oracle encoding)
+          ((QuantumFourierTransform.Native.inverseCircuit (oracle N params)
             (firstBits params)).evaluatedEventDepth (fun _ => 1))
-          ((QuantumFourierTransform.Native.inverseCircuit (oracle encoding)
+          ((QuantumFourierTransform.Native.inverseCircuit (oracle N params)
             params.ell).evaluatedEventDepth (fun _ => 1)) := by
   rw [circuit, UnitaryCircuit.evaluatedEventDepth_seq,
     UnitaryCircuit.evaluatedEventDepth_seq, prepare_unitDepth,

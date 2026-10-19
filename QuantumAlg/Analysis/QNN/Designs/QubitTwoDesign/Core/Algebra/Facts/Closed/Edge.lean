@@ -22,7 +22,7 @@ section
 namespace QuantumAlg.QubitTwoDesign.OctNumeratorClosed
 
 /-- Multiplication by an edge-family numerator stays in the doubled numerator set. -/
-theorem edge :
+lemma edge :
     ∀ pair negativeLeft negativeRight b, ∃ c,
       octNumerator (.edge pair negativeLeft negativeRight) * octNumerator b =
         octNumerator c + octNumerator c := by

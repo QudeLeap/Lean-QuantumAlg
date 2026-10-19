@@ -20,7 +20,7 @@ properties, and fresh allocation separates old packages from new packages.
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- Indexed lookup commutes with transport of a heterogeneous package. -/
-theorem workspaceCells_cellAt_transportCells_ref {kind : ProblemKind}
+lemma workspaceCells_cellAt_transportCells_ref {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes)
     (index : Fin shapes.length) :
@@ -34,7 +34,7 @@ theorem workspaceCells_cellAt_transportCells_ref {kind : ProblemKind}
       · exact inductionHypothesis tailIndex
 
 /-- A transported package stays separate from all reads of the original caller. -/
-theorem workspaceCells_transportCells_transportSeparated {kind : ProblemKind}
+lemma workspaceCells_transportCells_transportSeparated {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind} {shapes : List CShape}
     (outerTransport : Transport outer middle)
     (innerTransport : Transport middle inner) (cells : Cells middle shapes)
@@ -53,7 +53,7 @@ theorem workspaceCells_transportCells_transportSeparated {kind : ProblemKind}
       exact separated.1 input
 
 /-- Separation from an immediate caller also covers every earlier caller read. -/
-theorem workspaceCells_transportSeparated_compose {kind : ProblemKind}
+lemma workspaceCells_transportSeparated_compose {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind} {shapes : List CShape}
     (outerTransport : Transport outer middle)
     (innerTransport : Transport middle inner) (cells : Cells inner shapes)
@@ -106,14 +106,14 @@ structure CrossSeparated {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (cellAt left leftIndex).ref.key ≠ (cellAt right rightIndex).ref.key
 
 /-- Physical cross-package separation is symmetric. -/
-theorem CrossSeparated.symm {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma CrossSeparated.symm {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {leftShapes rightShapes : List CShape}
     {left : Cells ctx leftShapes} {right : Cells ctx rightShapes}
     (separated : CrossSeparated left right) : CrossSeparated right left := by
   exact ⟨fun rightIndex leftIndex => (separated.keysNe leftIndex rightIndex).symm⟩
 
 /-- Cross-package separation survives a further structural scope transport. -/
-theorem CrossSeparated.transport {kind : ProblemKind}
+lemma CrossSeparated.transport {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {leftShapes rightShapes : List CShape}
     {left : Cells outer leftShapes} {right : Cells outer rightShapes}
     (separated : CrossSeparated left right) (transport : Transport outer inner) :
@@ -125,7 +125,7 @@ theorem CrossSeparated.transport {kind : ProblemKind}
   exact separated.keysNe leftIndex rightIndex
 
 /-- Caller-read separation of fresh cells separates them from every transported live cell. -/
-theorem crossSeparated_of_nested {kind : ProblemKind}
+lemma crossSeparated_of_nested {kind : ProblemKind}
     {middle inner : RuntimeCtx kind} {leftShapes rightShapes : List CShape}
     (transport : Transport middle inner) (left : Cells middle leftShapes)
     (right : Cells inner rightShapes) (separated : right.TransportSeparated transport) :

@@ -22,7 +22,7 @@ noncomputable section
 
 /-- The second-phase key inventory also separates the first-coordinate
 numerator refresh, which reuses the same physical scratch. -/
-theorem firstNumeratorDotSeparation {kind : ProblemKind}
+lemma firstNumeratorDotSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -56,7 +56,7 @@ theorem firstNumeratorDotSeparation {kind : ProblemKind}
 
 /-- The second-phase key inventory also separates the first-row norm refresh,
 which reuses the same physical scratch. -/
-theorem firstDenominatorNormSeparation {kind : ProblemKind}
+lemma firstDenominatorNormSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -90,7 +90,7 @@ theorem firstDenominatorNormSeparation {kind : ProblemKind}
 
 /-- The shared physical key inventory separates the final rounded-division
 body, whose output reuses the target-second dot cell. -/
-theorem firstDivisionSeparation {kind : ProblemKind}
+lemma firstDivisionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -181,7 +181,7 @@ theorem firstDivisionSeparation {kind : ProblemKind}
   · exact divisionKeyNe .divisionWideDenominator .targetDotSecond (by decide)
   · exact divisionKeyNe .divisionQuotientRemainder .targetDotSecond (by decide)
 
-private theorem firstReduceCoordinateSeparation {kind : ProblemKind}
+private lemma firstReduceCoordinateSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (phaseRefs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation phaseRefs)
@@ -229,7 +229,7 @@ private theorem firstReduceCoordinateSeparation {kind : ProblemKind}
 
 /-- The shared physical key inventory separates the final first-coordinate
 point reduction. -/
-theorem firstReductionSeparation {kind : ProblemKind}
+lemma firstReductionSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}
@@ -293,7 +293,7 @@ theorem firstReductionSeparation {kind : ProblemKind}
   · exact secondWriteInputAvoidsWrite phaseRefs phase refs.target.third
       refs.target.second .targetThird .targetSecond rfl rfl (by decide)
 
-private theorem secondPointInputAvoidsPhaseCell {kind : ProblemKind}
+private lemma secondPointInputAvoidsPhaseCell {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {width : Nat}
     (phaseRefs : LatticeNearestPlaneSecond.Refs ctx width)
     (phase : LatticeNearestPlaneSecond.PhaseSeparation phaseRefs)
@@ -321,7 +321,7 @@ private theorem secondPointInputAvoidsPhaseCell {kind : ProblemKind}
 
 /-- The persistent state and reusable scratch package satisfy the complete
 first-coordinate separation contract. -/
-theorem firstSeparation {kind : ProblemKind}
+lemma firstSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}

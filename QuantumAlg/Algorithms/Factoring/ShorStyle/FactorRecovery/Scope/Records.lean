@@ -46,7 +46,7 @@ def step (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusB
   (leave N selected.1, selected.2)
 
 /-- Actual fresh geometry discharges every internal source-tail write condition. -/
-theorem body_result (source : Input N)
+lemma body_result (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
@@ -75,7 +75,7 @@ theorem body_result (source : Input N)
     baseValue phaseValue
 
 /-- The released actual factor scope returns the source result on the original stored input. -/
-theorem result (source : Input N)
+lemma result (source : Input N)
     (semantic : ClassicalAlgorithms.OrderRecovery.Input (recoverySpec source))
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))

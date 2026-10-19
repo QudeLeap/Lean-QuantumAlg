@@ -27,12 +27,14 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The independent full-reference target is normalized for every certified input state. -/
-theorem resultDensity_normalized {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma resultDensity_normalized {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (Reference : Register) (input : Input (before p.size) Reference) :
     (resultDensity E Q Reference input.state.quantumMarginal).IsNormalized := by
   change (resultDensity E Q Reference input.state.quantumMarginal).mass = 1
@@ -50,7 +52,7 @@ def selectedDensity {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (resultDensity E Q Reference input.state.quantumMarginal)
 
 /-- Selecting the complete physical output preserves the target's normalization. -/
-theorem selectedDensity_normalized {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma selectedDensity_normalized {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (Reference : Register) (input : Input (before p.size) Reference) :
     (selectedDensity E Q Reference input).IsNormalized := by
   change (selectedDensity E Q Reference input).mass = 1
@@ -63,7 +65,7 @@ def requirement {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q :
   .jointReference Finset.univ .unit fun Reference input _ =>
     .mixed (selectedDensity E Q Reference input) (selectedDensity_normalized E Q Reference input)
 
-private theorem requirement_of_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma requirement_of_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) {Reference : Register}
     (input : Input (before p.size) Reference)
     (final : ExecutionState (Store (after p.size))
@@ -85,11 +87,11 @@ private theorem requirement_of_marginal {p : Nat} (E : PrimeFieldShortWeierstras
     simp only [one_smul]
 
 /-- The same complete actual run satisfies the independent state promise on the original domain. -/
-theorem requirement_holds {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma requirement_holds {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register}
     (input : OracleInput ClassicalOracleModel.empty (before p.size) Reference)
     (allowed : valid E Q input.caller.localState) :
-    (requirement E Q).Holds input.caller ((run E Q).finalState Reference input.state) :=
+    (requirement E Q).Holds input.caller ((run E Q).finalState environment Reference input.state) :=
   requirement_of_marginal E Q input.caller _
     ((run_finalState E Q input allowed).trans
       (congrArg (resultDensity E Q Reference) input.oracleInput_caller_quantumMarginal.symm))

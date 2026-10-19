@@ -7,11 +7,12 @@ Authors: QudeLeap Team
 module
 
 import all
+
 QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Recovery.Caller
-import all
-QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Reference
-import all
-QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Slots.Caller
+
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Reference
+
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Slots.Caller
 
 /-!
 # One complete paid EH retry transition
@@ -33,15 +34,15 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- One actual paid later retry applies the canonical first-success update
 to the previous selected value and one fresh complete batch recovery. -/
-theorem next_selected_reference
+lemma next_selected_reference
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((next base noQuantum N input).execute Reference state)
+      ((next base noQuantum N input).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (Optional.selectedValue (selectionRefs base noQuantum N).selection entry.1))
       left right =
@@ -55,12 +56,12 @@ theorem next_selected_reference
   let batch := Batch.Recovery.next (callerContext base N)
     (caller_empty base noQuantum N) N input
   have split := Circuit.referenceFiberSum_execute_seq batch
-    (select base noQuantum N input) state
+    (select base noQuantum N) (sourceEnvironment input) state
     (fun store => weight
       (Optional.selectedValue (selectionRefs base noQuantum N).selection store))
     left right
-  have selected := select_reference base noQuantum N input
-    (batch.execute Reference state) weight left right
+  have selected := select_reference (environment := sourceEnvironment input) base noQuantum N
+    (batch.execute (sourceEnvironment input) Reference state) weight left right
   have recovered := Batch.Recovery.nextRun_caller_reference
     (callerContext base N) (caller_empty base noQuantum N) N input
     (originalSelectionInput base N) state normalized
@@ -68,11 +69,12 @@ theorem next_selected_reference
     left right
   calc
     _ = ExecutionState.referenceFiberSum
-        ((select base noQuantum N input).execute Reference (batch.execute Reference state))
+        ((select base noQuantum N).execute (sourceEnvironment input) Reference (batch.execute
+          (sourceEnvironment input) Reference state))
         (fun entry _ => weight
           (Optional.selectedValue (selectionRefs base noQuantum N).selection entry.1))
         left right := split
-    _ = ExecutionState.referenceFiberSum (batch.execute Reference state)
+    _ = ExecutionState.referenceFiberSum (batch.execute (sourceEnvironment input) Reference state)
         (fun entry _ => weight (Optional.retainValue
           (Optional.selectedValue (selectionRefs base noQuantum N).selection entry.1)
           (entry.1.read (.storage (factorRef base noQuantum N).toCStorageRef))))

@@ -34,7 +34,7 @@ def stateTarget (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []
     input.state.referenceMarginal
 
 /-- The original reference and actual full bank seed form a normalized target. -/
-theorem stateTarget_normalized (base : RuntimeCtx .quantum)
+lemma stateTarget_normalized (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N count : Nat) {Reference : Register}
     (input : Execution.Input base Reference) :
     (stateTarget base noQuantum N count input).IsNormalized :=
@@ -56,12 +56,13 @@ def stateRequirement (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires
           (stateTarget_normalized base noQuantum N count input)))
 
 /-- The same actual complete machine meets the full predetermined joint output requirement. -/
-theorem stateRequirement_holds (base : RuntimeCtx .quantum)
+lemma stateRequirement_holds (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register}
-    (original : OracleInput (executionModel input).classicalOracles base Reference) :
+    (original : OracleInput (executionModel N).classicalOracles base Reference) :
     (stateRequirement base noQuantum N count).Holds original.caller
-      ((run base noQuantum N input count).finalState Reference original.state) :=
+      ((run base noQuantum N input count).finalState (environment input) Reference
+        original.state) :=
   fun value => StatePromise.mixed_fullSelection (context base noQuantum N count).quantumLayout
     Reference (stateTarget base noQuantum N count original.caller)
     (stateTarget_normalized base noQuantum N count original.caller) _

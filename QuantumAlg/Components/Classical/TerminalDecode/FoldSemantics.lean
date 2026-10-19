@@ -40,21 +40,23 @@ def foldStep {model : ExecutionModel} [BitWord.Selected model]
       (later.1, (first.2, later.2))
 
 /-- Actual sequential interpretation preserves the full shared service/reference state. -/
-theorem terminalDecode_fold_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_execute {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (output : CWriteRef ctx (OutputShape width))
-    (inputs : List (CInputRef ctx .bit)) (Reference : Register)
+    (inputs : List (CInputRef ctx .bit)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (foldBitRefs (model := model) output inputs).execute Reference state =
+    (foldBitRefs (model := model) output inputs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := foldStep (model := model) output inputs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   induction inputs generalizing Reference History with
   | nil =>
-      exact (Circuit.execute_id_mapClassical Reference state).trans
+      exact (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   | cons input rest ih =>
-      refine (Circuit.execute_seq_mapClassical (bitRefRoutine (model := model) input output)
+      refine (Circuit.execute_seq_mapClassical
+        (environment := environment) (bitRefRoutine (model := model) input output)
         (foldBitRefs (model := model) output rest)
         (fun before =>
           let result := appendStep (model := model) input output before.1
@@ -71,7 +73,7 @@ theorem terminalDecode_fold_execute {model : ExecutionModel} [BitWord.Selected m
       · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every non-output structural read is preserved through the complete fold. -/
-theorem terminalDecode_fold_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} {observed : CShape} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) (store : Store ctx)
@@ -86,7 +88,7 @@ theorem terminalDecode_fold_read_other {model : ExecutionModel} [BitWord.Selecte
       exact terminalDecode_append_read_other input output store other separate
 
 /-- The actual output word follows the wrapping arithmetic of each executed append. -/
-theorem terminalDecode_fold_read_output {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_fold_read_output {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {width : Nat} (output : CWriteRef ctx (OutputShape width))
     (inputs : List (CInputRef ctx .bit)) (store : Store ctx)
@@ -118,7 +120,7 @@ theorem terminalDecode_fold_read_output {model : ExecutionModel} [BitWord.Select
 
 /-- The whole width removes every initial accumulator contribution and writes exactly
 the source's declared bit-order decoding. Source separation is internal wiring. -/
-theorem terminalDecode_intoFromBitRefs_read_output {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_intoFromBitRefs_read_output {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat} (order : BitOrder)
     (inputs : Fin width → CInputRef ctx .bit)
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx)

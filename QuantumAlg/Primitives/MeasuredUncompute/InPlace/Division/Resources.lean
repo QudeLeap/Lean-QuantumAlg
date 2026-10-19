@@ -62,13 +62,13 @@ def bodyDepth (width : Nat) : Nat :=
     ((VariableGidney.nativeBudget width).card +
       ((1 + 2 * width) +
         ((NativeBudget.inPlace width).card +
-          ((NativeProductCorrection.nativeBudget width).card + 3 * width))))
+          ((NativeProductCorrection.nativeBudget width).card + (if width = 0 then 0 else 3)))))
 
 /-- Zero preparation and fixed X loading precede the measured native body. -/
 def depthBound (width : Nat) : Nat :=
   1 + InputPreparation.auxiliaryWidth width + bodyDepth width
 
-private theorem load_pool (modulus : Nat) :
+private lemma load_pool (modulus : Nat) :
     (InPlacePreparation.loadProgram modulus).eventCost =
       EncodedBit.Word.BasisLoad.xCount (InPlacePreparation.loadConstant modulus) •
         ResourcePool.singleton (model := .quantum AlgorithmGate.model .empty)
@@ -82,7 +82,7 @@ private theorem load_pool (modulus : Nat) :
         (InputPreparation.auxiliaryQubitLayout modulus.size) .empty
         (InPlacePreparation.loadConstant modulus))
 
-private theorem load_depth (modulus : Nat) :
+private lemma load_depth (modulus : Nat) :
     (InPlacePreparation.loadProgram modulus).evaluatedEventDepth (fun _ => 1) ≤
       InputPreparation.auxiliaryWidth modulus.size := by
   have placed : (InPlacePreparation.loadProgram modulus).evaluatedEventDepth (fun _ => 1) =
@@ -96,14 +96,14 @@ private theorem load_depth (modulus : Nat) :
   rw [placed, EncodedBit.Word.BasisLoad.basisLoad_unitDepth]
   exact EncodedBit.Word.BasisLoad.basisLoad_count_le _
 
-private theorem native_pool (width : Nat)
+private lemma native_pool (width : Nat)
     (member : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (path : (NumeratorRuntime.code width member).Path) :
     (NumeratorRuntime.code width member).resourcePool path = member.eventCost := by
   change ResourcePool.ofList (NumeratorRuntime.program width member).eventTrace = _
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, NumeratorRuntime.program_cost]
 
-private theorem forward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
+private lemma forward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
     (NativeEEAFrame.forward modulus prime).eventCost =
       (InPlaceForward.program modulus prime.one_lt).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
@@ -111,7 +111,7 @@ private theorem forward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
     InPlaceForward.inPlaceForward_nativeProgram_trace,
     UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
-private theorem backward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
+private lemma backward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
     (NativeEEAFrame.backward modulus prime).eventCost =
       (InPlaceForward.program modulus prime.one_lt).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
@@ -130,7 +130,7 @@ private theorem backward_cost (modulus : Nat) (prime : Nat.Prime modulus) :
   rw [eventId, Multiset.map_id]
   exact forward_cost modulus prime
 
-private theorem forward_budget (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma forward_budget (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (forward modulus prime).Path) :
     (forward modulus prime).resourcePool path ≤ NativeBudget.inPlace modulus.size := by
   have pool : (forward modulus prime).resourcePool path =
@@ -139,7 +139,7 @@ private theorem forward_budget (modulus : Nat) (prime : Nat.Prime modulus)
   exact (pool.trans (forward_cost modulus prime)).le.trans
     (NativeBudget.inPlace_bound modulus prime.one_lt)
 
-private theorem backward_budget (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma backward_budget (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (backward modulus prime).Path) :
     (backward modulus prime).resourcePool path ≤ NativeBudget.inPlace modulus.size := by
   have pool : (backward modulus prime).resourcePool path =
@@ -148,46 +148,23 @@ private theorem backward_budget (modulus : Nat) (prime : Nat.Prime modulus)
   exact (pool.trans (backward_cost modulus prime)).le.trans
     (NativeBudget.inPlace_bound modulus prime.one_lt)
 
-private theorem product_budget (modulus : Nat) (path : (product modulus).Path) :
+private lemma product_budget (modulus : Nat) (path : (product modulus).Path) :
     (product modulus).resourcePool path ≤ VariableGidney.nativeBudget modulus.size := by
   have pool : (product modulus).resourcePool path =
       (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)).eventCost :=
     native_pool modulus.size _ path
   exact pool.le.trans (NativeProductFrame.nativeProductFrame_budget _ _)
 
-private theorem swap_budget (width : Nat) (path : (swap width).Path) :
+private lemma swap_budget (width : Nat) (path : (swap width).Path) :
     (swap width).resourcePool path ≤
       (3 * width) • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model .empty) (.gate .cnot) := by
   have pool : (swap width).resourcePool path = (FrameSwap.program width).eventCost :=
     native_pool width (FrameSwap.program width) path
-  refine pool.le.trans ?_
-  apply ResourcePool.le_scaled_of_support_card_le
-  · intro focus present
-    change focus ∈ (EncodedBit.GateSpec.programList
-      (QubitLayout.canonical (ProductPlacement.frameEncoding width).width) .empty
-      (EncodedBit.Word.swapGates (FramePorts.accumulator width) (FramePorts.numerator width)
-        (FrameSwap.separation width))).eventCost at present
-    rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
-      EncodedBit.GateSpec.programList_eventTrace] at present
-    have listed : focus ∈ (EncodedBit.Word.swapGates (FramePorts.accumulator width)
-        (FramePorts.numerator width) (FrameSwap.separation width)).map
-          (EncodedBit.GateSpec.event .empty) :=
-      present
-    obtain ⟨gate, member, rfl⟩ := List.mem_map.mp listed
-    have cnot := EncodedBit.Word.swapGates_isCnot (FramePorts.accumulator width)
-      (FramePorts.numerator width) (FrameSwap.separation width) gate member
-    cases gate with
-    | x target => cases cnot
-    | cnot control target distinct =>
-        simp [EncodedBit.GateSpec.event, EncodedBit.GateSpec.primitive,
-          QubitPrimitive.event, QubitPrimitive.nativeToken,
-          AlgorithmGate.model, AlgorithmGate.coordinate, ResourcePool.singleton]
-    | toffoli first second target different separateFirst separateSecond => cases cnot
-  · exact (FrameSwap.frameSwap_event_count width).le
+  exact (pool.trans (FrameSwap.frameSwap_eventCost width)).le
 
 /-- Each real path satisfies the independent coordinatewise native allowance. -/
-theorem body_budget (modulus : Nat) (prime : Nat.Prime modulus)
+lemma body_budget (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (body modulus prime).Path) :
     (body modulus prime).resourcePool path ≤ bodyBudget modulus.size := by
   change ResourcePool.ofList ((forward modulus prime).eventTrace path.1 ++
@@ -206,7 +183,7 @@ theorem body_budget (modulus : Nat) (prime : Nat.Prime modulus)
             (swap_budget modulus.size path.2.2.2.2.2)))))
 
 /-- Allocation retains every zero-preparation and seed-loading event before the body. -/
-theorem eventTrace (modulus : Nat) (prime : Nat.Prime modulus)
+lemma eventTrace (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (code modulus prime).Path) :
     (code modulus prime).eventTrace path =
       ZeroPreparation.eventTrace AlgorithmGate.model .empty
@@ -220,7 +197,7 @@ theorem eventTrace (modulus : Nat) (prime : Nat.Prime modulus)
   rw [InPlacePreparation.circuit_eventTrace, allocation, List.nil_append, List.append_assoc]
 
 /-- The entire actual circuit obeys the independent preparation and native-coordinate budget. -/
-theorem event_budget (modulus : Nat) (prime : Nat.Prime modulus)
+lemma event_budget (modulus : Nat) (prime : Nat.Prime modulus)
   (path : (code modulus prime).Path) :
     (code modulus prime).resourcePool path ≤ events modulus := by
   change ResourcePool.ofList ((code modulus prime).eventTrace path) ≤ _
@@ -243,7 +220,7 @@ theorem event_budget (modulus : Nat) (prime : Nat.Prime modulus)
           (.gate .singleQubit)) + bodyBudget modulus.size
   exact add_le_add le_rfl (body_budget modulus prime path.2.2)
 
-private theorem native_depth (width : Nat)
+private lemma native_depth (width : Nat)
     (member : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (path : (NumeratorRuntime.code width member).Path) :
     (NumeratorRuntime.code width member).depth (fun _ => 1) path ≤
@@ -252,14 +229,14 @@ private theorem native_depth (width : Nat)
   rw [NumeratorReset.placement_depth, native_pool]
   exact ShiftResources.unitDepth_le_count member
 
-private theorem correction_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma correction_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (path : (NumeratorCorrection.code width modulus).Path) :
     (NumeratorCorrection.code width modulus).depth (fun _ => 1) path ≤
       (NativeProductCorrection.nativeBudget width).card :=
   (native_depth width (NumeratorCorrection.member width modulus path.1) path.2).trans
       (Multiset.card_le_card (NumeratorCorrection.code_budget width modulus path))
 
-private theorem body_depth (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma body_depth (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (body modulus prime).Path) :
     (body modulus prime).depth (fun _ => 1) path ≤ bodyDepth modulus.size := by
   have forwardBound := (native_depth modulus.size (NativeEEAFrame.forward modulus prime)
@@ -276,7 +253,8 @@ private theorem body_depth (modulus : Nat) (prime : Nat.Prime modulus)
     path.2.2.2.1).trans (Multiset.card_le_card (backward_budget modulus prime path.2.2.2.1))
   change (backward modulus prime).depth (fun _ => 1) path.2.2.2.1 ≤
     (NativeBudget.inPlace modulus.size).card at backwardBound
-  have swapBound : (swap modulus.size).depth (fun _ => 1) path.2.2.2.2.2 = 3 * modulus.size := by
+  have swapBound : (swap modulus.size).depth (fun _ => 1) path.2.2.2.2.2 =
+      (if modulus.size = 0 then 0 else 3) := by
     change (NumeratorRuntime.program modulus.size
       (FrameSwap.program modulus.size)).evaluatedEventDepth (fun _ => 1) = _
     exact (NumeratorReset.placement_depth modulus.size
@@ -296,7 +274,7 @@ private theorem body_depth (modulus : Nat) (prime : Nat.Prime modulus)
   omega
 
 /-- The same actual circuit obeys the serial bound including preparation and feed-forward. -/
-theorem depth (modulus : Nat) (prime : Nat.Prime modulus)
+lemma depth (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (code modulus prime).Path) :
     (code modulus prime).depth (fun _ => 1) path ≤ depthBound modulus.size := by
   change DepthExpr.depthEval (fun _ => 1)
@@ -317,19 +295,19 @@ theorem depth (modulus : Nat) (prime : Nat.Prime modulus)
   omega
 
 /-- The final context has exactly n finite result bits beside the full original quantum frame. -/
-theorem context_resident (width : Nat) :
+lemma context_resident (width : Nat) :
     (NumeratorMeasurement.context width).residentSpace = space width := by
   rw [NumeratorMeasurement.context_space, InverseResources.after_resident]
   rfl
 
 /-- All live entries have the owned or retained role and contribute to the auxiliary pool too. -/
-theorem context_auxiliary (width : Nat) :
+lemma context_auxiliary (width : Nat) :
     (NumeratorMeasurement.context width).auxiliarySpace = space width := by
   rw [NumeratorMeasurement.context, MeasurementCells.context_auxiliarySpace,
     InverseResources.after_auxiliary]
   rfl
 
-private theorem body_visited (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma body_visited (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (body modulus prime).Path) (frame : RuntimeCtx .quantum)
     (present : frame ∈ (body modulus prime).visitedContexts path) :
     frame = NumeratorMeasurement.context modulus.size := by
@@ -339,20 +317,20 @@ private theorem body_visited (modulus : Nat) (prime : Nat.Prime modulus)
   rw [NumeratorReset.visited] at present
   simpa using present
 
-private theorem after_le_resident (width : Nat) :
+private lemma after_le_resident (width : Nat) :
     (InversePreparation.after width).residentSpace ≤ space width := by
   rw [← context_resident]
   exact MeasurementCells.context_residentSpace_mono (InversePreparation.after width) 2
     (Nat.zero_le width)
 
-private theorem after_le_auxiliary (width : Nat) :
+private lemma after_le_auxiliary (width : Nat) :
     (InversePreparation.after width).auxiliarySpace ≤ space width := by
   rw [← context_auxiliary]
   exact MeasurementCells.context_auxiliarySpace_mono (InversePreparation.after width) 2
     (Nat.zero_le width)
 
 /-- Every actual allocation and execution context fits the independently specified full capacity. -/
-theorem resident (modulus : Nat) (prime : Nat.Prime modulus)
+lemma resident (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (code modulus prime).Path) :
     (code modulus prime).peakResidentSpace path ≤ space modulus.size := by
   refine (Circuit.peakResidentSpace_seq (InPlacePreparation.circuit modulus)
@@ -374,7 +352,7 @@ theorem resident (modulus : Nat) (prime : Nat.Prime modulus)
       rw [body_visited modulus prime path.2.2 frame present, context_resident]
 
 /-- Auxiliary accounting follows the same actual path and includes every retained outcome cell. -/
-theorem auxiliary (modulus : Nat) (prime : Nat.Prime modulus)
+lemma auxiliary (modulus : Nat) (prime : Nat.Prime modulus)
     (path : (code modulus prime).Path) :
     (code modulus prime).peakAuxiliarySpace path ≤ space modulus.size := by
   refine (Circuit.peakAuxiliarySpace_seq (InPlacePreparation.circuit modulus)

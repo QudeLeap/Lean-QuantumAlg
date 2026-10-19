@@ -36,28 +36,28 @@ def eventBound (width : Nat) : Nat :=
   2 * ForwardResources.correctedBound width + width * Gidney.stageEventBound width
 
 /-- Placement and retention preserve every actual middle-program event in order. -/
-theorem accumulateMiddle_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma accumulateMiddle_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (middleProgram width modulus).eventTrace = (Gidney.program width modulus 1).eventTrace := by
   rw [middleProgram, EncodedBit.FullPlacement.place_eventTrace]
   exact UnitaryCircuit.unitaryCircuit_onBinaryPrefix_eventTrace _ _
 
 /-- The placed middle has precisely the existing native accumulator's event pool. -/
-theorem accumulateMiddle_cost (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma accumulateMiddle_cost (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (middleProgram width modulus).eventCost = (Gidney.program width modulus 1).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, accumulateMiddle_trace,
     UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
-private theorem forward_trace (modulus : Nat) (nontrivial : 1 < modulus) :
+private lemma forward_trace (modulus : Nat) (nontrivial : 1 < modulus) :
     (forwardProgram modulus nontrivial).eventTrace =
       (CorrectedSchedule.program modulus nontrivial).eventTrace :=
   UnitaryCircuit.prodLeft_eventTrace (n := modulus.size) _
 
-private theorem forward_cost (modulus : Nat) (nontrivial : 1 < modulus) :
+private lemma forward_cost (modulus : Nat) (nontrivial : 1 < modulus) :
     (forwardProgram modulus nontrivial).eventCost =
       (CorrectedSchedule.program modulus nontrivial).eventCost :=
   UnitaryCircuit.prodLeft_eventCost (n := modulus.size) _
 
-private theorem oracleFreePool_empty
+private lemma oracleFreePool_empty
     (pool : ResourcePool (.quantum AlgorithmGate.model .empty)) :
     AlgorithmGate.oracleFreePool .empty pool = pool := by
   have identity : AlgorithmGate.oracleFreeEvent .empty = id := by
@@ -73,7 +73,7 @@ private theorem oracleFreePool_empty
   rw [identity, Multiset.map_id]
 
 /-- The full actual event trace includes the same corrected forward and its complete reversal. -/
-theorem accumulateProgram_trace (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma accumulateProgram_trace (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventTrace =
       (CorrectedSchedule.program modulus nontrivial).eventTrace ++
         ((Gidney.program modulus.size (fittedModulus modulus) 1).eventTrace ++
@@ -83,7 +83,7 @@ theorem accumulateProgram_trace (modulus : Nat) (nontrivial : 1 < modulus) :
     accumulateMiddle_trace, forward_trace]
 
 /-- Coordinatewise native multiplicities account for the same full compute and uncompute. -/
-theorem accumulateProgram_native_budget (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma accumulateProgram_native_budget (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventCost ≤ nativeBudget modulus.size := by
   rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
     AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost,
@@ -93,7 +93,7 @@ theorem accumulateProgram_native_budget (modulus : Nat) (nontrivial : 1 < modulu
       (NativeBudget.corrected_bound modulus nontrivial))
 
 /-- Actual emitted event cardinality meets the independent two-pass arithmetic envelope. -/
-theorem accumulateProgram_event_count (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma accumulateProgram_event_count (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventCost.card ≤ eventBound modulus.size := by
   rw [program, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
     AlgorithmGate.algorithmGate_oracleFreeAdjoints_eventCost,
@@ -105,12 +105,12 @@ theorem accumulateProgram_event_count (modulus : Nat) (nontrivial : 1 < modulus)
   omega
 
 /-- Strict unit depth is bounded from the same actual event pool, including the full adjoint. -/
-theorem accumulateProgram_depth (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma accumulateProgram_depth (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).evaluatedEventDepth (fun _ => 1) ≤ eventBound modulus.size :=
   (ShiftResources.unitDepth_le_count _).trans (accumulateProgram_event_count modulus nontrivial)
 
 /-- The native circuit occupies the full declared frame and independent target layout. -/
-theorem accumulateProgram_qubit_count (modulus : Nat) :
+lemma accumulateProgram_qubit_count (modulus : Nat) :
     (frameEncoding modulus.size).width =
       3 * modulus.size + 11 + 4 * modulus.size.size :=
   accumulateFrame_width modulus.size

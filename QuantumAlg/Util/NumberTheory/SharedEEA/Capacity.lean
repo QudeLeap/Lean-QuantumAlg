@@ -28,7 +28,7 @@ macro cross-sum. No register is encoded merely by a dimension equality.
 namespace QuantumAlg.NumberTheory.SharedEEA.Capacity
 
 /-- Positive factors whose product is bounded share at most one extra binary digit. -/
-theorem positive_pair_size (left right modulus : Nat)
+lemma positive_pair_size (left right modulus : Nat)
     (leftPositive : 0 < left) (rightPositive : 0 < right)
     (productBound : left * right ≤ modulus) :
     left.size + right.size ≤ modulus.size + 1 := by
@@ -44,7 +44,7 @@ theorem positive_pair_size (left right modulus : Nat)
   omega
 
 /-- Individual bounds cover the source's zero-factor boundary cases as well. -/
-theorem pair_size (left right modulus : Nat)
+lemma pair_size (left right modulus : Nat)
     (leftBound : left ≤ modulus) (rightBound : right ≤ modulus)
     (productBound : left * right ≤ modulus) :
     left.size + right.size ≤ modulus.size + 1 := by
@@ -60,7 +60,7 @@ theorem pair_size (left right modulus : Nat)
         (Nat.pos_of_ne_zero rightZero) productBound
 
 /-- A positive triple costs at most two extra digits beyond its bounded product. -/
-theorem positive_triple_size (first second third modulus : Nat)
+lemma positive_triple_size (first second third modulus : Nat)
     (firstPositive : 0 < first) (secondPositive : 0 < second) (thirdPositive : 0 < third)
     (productBound : first * second * third ≤ modulus) :
     first.size + second.size + third.size ≤ modulus.size + 2 := by
@@ -71,7 +71,7 @@ theorem positive_triple_size (first second third modulus : Nat)
   omega
 
 /-- Replacing zero coordinates by one gives a uniform sufficient triple-capacity condition. -/
-theorem triple_size_of_clamped_product (first second third modulus : Nat)
+lemma triple_size_of_clamped_product (first second third modulus : Nat)
     (productBound : max first 1 * max second 1 * max third 1 ≤ modulus) :
     first.size + second.size + third.size ≤ modulus.size + 2 := by
   have firstPositive : 0 < max first 1 := lt_of_lt_of_le (by decide : 0 < 1) (le_max_right _ _)
@@ -85,7 +85,7 @@ theorem triple_size_of_clamped_product (first second third modulus : Nat)
   omega
 
 /-- Every reachable macro coordinate is bounded by the conserved source modulus. -/
-theorem iteration_fields_le (state : IterationState) (modulus : Nat)
+lemma iteration_fields_le (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.remainder ≤ modulus ∧ state.divisor ≤ modulus ∧
       state.coefficient ≤ modulus ∧ state.previousCoefficient ≤ modulus := by
@@ -101,7 +101,7 @@ theorem iteration_fields_le (state : IterationState) (modulus : Nat)
     coefficientBound, (Nat.le_of_lt valid.previous_lt).trans coefficientBound⟩
 
 /-- Both exact source pair payloads fit within the modulus bit length plus one. -/
-theorem iteration_pair_sizes (state : IterationState) (modulus : Nat)
+lemma iteration_pair_sizes (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.remainder.size + state.coefficient.size ≤ modulus.size + 1 ∧
       state.divisor.size + state.previousCoefficient.size ≤ modulus.size + 1 := by
@@ -113,7 +113,7 @@ theorem iteration_pair_sizes (state : IterationState) (modulus : Nat)
     pair_size _ _ _ divisorBound previousBound products.2⟩
 
 /-- At macro boundaries the prescribed coefficient zero bit fits in the actual source words. -/
-theorem iteration_word_capacity (state : IterationState) (modulus : Nat)
+lemma iteration_word_capacity (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) :
     state.coefficient.size + 1 + state.remainder.size ≤ modulus.size + 3 ∧
       state.previousCoefficient.size + state.divisor.size ≤ modulus.size + 3 := by
@@ -121,7 +121,7 @@ theorem iteration_word_capacity (state : IterationState) (modulus : Nat)
   omega
 
 /-- Every original positive input establishes the shared pair capacities after its actual fold. -/
-theorem folded_pair_sizes (modulus input : Nat)
+lemma folded_pair_sizes (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     let state := IterationState.initial modulus (foldInput modulus input).2
     state.remainder.size + state.coefficient.size ≤ modulus.size + 1 ∧
@@ -130,7 +130,7 @@ theorem folded_pair_sizes (modulus input : Nat)
     (IterationState.initial_balance modulus _)
 
 /-- The terminal zero divisor remains covered after a genuine active macro iteration. -/
-theorem step_pair_sizes (state : IterationState) (modulus : Nat)
+lemma step_pair_sizes (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus) (active : 0 < state.divisor) :
     (IterationState.step state).remainder.size + (IterationState.step state).coefficient.size ≤
         modulus.size + 1 ∧

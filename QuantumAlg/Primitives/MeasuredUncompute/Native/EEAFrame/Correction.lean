@@ -23,6 +23,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeEEAFrame.Correction
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution ProductPlacement EncodedBit GateSpec
 
 /-- A retained finite outcome selects the actual complete-frame correction circuit. -/
@@ -53,11 +55,11 @@ def program (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (member modulus.size (InPlaceArithmetic.modulusWord modulus) active value layout)
 
 /-- Every complete dirty label receives the precise corrected backward action and relative phase. -/
-theorem nativeEEACorrection_ket (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
+lemma nativeEEACorrection_ket (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2)))
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width)
     (state : Frame modulus.size × Bool) :
-    (program modulus prime active value layout).applyVec
+    ((program modulus prime active value layout).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding modulus.size).encode state))).vec =
       phase modulus prime active value state •
@@ -65,9 +67,9 @@ theorem nativeEEACorrection_ket (modulus : Nat) (prime : Nat.Prime modulus) (act
           ((NativeFrameControl.encoding modulus.size).encode
             (step modulus prime active state)))).vec := by
   have backward := congrArg NormalizedVector.vec
-    ((Controlled.nativeEEAControlled_backward_realizes
+    ((Controlled.nativeEEAControlled_backward_realizes (environment := environment)
       modulus prime active layout).apply_encoded_ket state)
-  change (Controlled.backward modulus prime active layout).applyVec
+  change ((Controlled.backward modulus prime active layout).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding modulus.size).encode state))).vec =
       (NormalizedVector.ket (layout.basisEquiv.symm
@@ -78,11 +80,11 @@ theorem nativeEEACorrection_ket (modulus : Nat) (prime : Nat.Prime modulus) (act
   rfl
 
 /-- The unselected complete frame is identity after both EEA and product correction. -/
-theorem nativeEEACorrection_inactive (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
+lemma nativeEEACorrection_inactive (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2)))
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width)
     (state : Frame modulus.size × Bool) (unselected : state.2 ≠ active) :
-    (program modulus prime active value layout).applyVec
+    ((program modulus prime active value layout).applyVec environment)
       (NormalizedVector.ket (layout.basisEquiv.symm
         ((NativeFrameControl.encoding modulus.size).encode state))).vec =
       (NormalizedVector.ket (layout.basisEquiv.symm
@@ -93,12 +95,12 @@ theorem nativeEEACorrection_inactive (modulus : Nat) (prime : Nat.Prime modulus)
     if_neg unselected, one_smul]
 
 /-- Arbitrary reference columns preserve the selected full-frame transition and its exact phase. -/
-theorem nativeEEACorrection_reference (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
+lemma nativeEEACorrection_reference (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2)))
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width)
     (state : Frame modulus.size × Bool) {Reference : Register}
     (row : layout.toQuantum.register.Index) (left right : Reference.Index) :
-    UnitaryOperator.prodTensor (program modulus prime active value layout).matrix
+    UnitaryOperator.prodTensor ((program modulus prime active value layout).matrix environment)
       (1 : UnitaryOperator Reference) (row, left)
       (layout.basisEquiv.symm ((NativeFrameControl.encoding modulus.size).encode state), right) =
       if row = layout.basisEquiv.symm ((NativeFrameControl.encoding modulus.size).encode
@@ -106,9 +108,10 @@ theorem nativeEEACorrection_reference (modulus : Nat) (prime : Nat.Prime modulus
         phase modulus prime active value state else 0 := by
   have column := congrArg
     (fun vector : HilbertVector layout.toQuantum.register => vector row)
-    (nativeEEACorrection_ket modulus prime active value layout state)
+    (nativeEEACorrection_ket (environment := environment) modulus prime active value layout state)
   have matrixColumn := (HilbertOperator.applyVec_ket
-    ((program modulus prime active value layout).matrix : HilbertOperator layout.toQuantum.register)
+    (((program modulus prime active value layout).matrix environment) : HilbertOperator
+      layout.toQuantum.register)
     (layout.basisEquiv.symm ((NativeFrameControl.encoding modulus.size).encode state))
     row).symm.trans column
   rw [UnitaryOperator.prodTensor_apply, matrixColumn]
@@ -123,7 +126,7 @@ theorem nativeEEACorrection_reference (modulus : Nat) (prime : Nat.Prime modulus
         and_true, and_false, mul_one, mul_zero]
 
 /-- Actual EEA and selected correction traces remain in their original execution order. -/
-theorem nativeEEACorrection_trace (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
+lemma nativeEEACorrection_trace (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2)))
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (program modulus prime active value layout).eventTrace =
@@ -134,7 +137,7 @@ theorem nativeEEACorrection_trace (modulus : Nat) (prime : Nat.Prime modulus) (a
   rfl
 
 /-- Resource coordinates come from the actual native EEA and full correction member. -/
-theorem nativeEEACorrection_cost (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
+lemma nativeEEACorrection_cost (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2)))
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (program modulus prime active value layout).eventCost =
@@ -145,7 +148,7 @@ theorem nativeEEACorrection_cost (modulus : Nat) (prime : Nat.Prime modulus) (ac
   rfl
 
 /-- Complete serial depth counts the expanded EEA and each actual selected correction gate. -/
-theorem nativeEEACorrection_depth (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
+lemma nativeEEACorrection_depth (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2)))
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (program modulus prime active value layout).evaluatedEventDepth (fun _ => 1) =

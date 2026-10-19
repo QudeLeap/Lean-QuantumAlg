@@ -72,7 +72,7 @@ def firstStep {model : ExecutionModel} [BitWord.Selected model]
   (reduced.1, (dotted.2, reduced.2))
 
 /-- The selected path has the chronological pure first-phase store. -/
-theorem firstStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma firstStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     (firstStep refs store).1 =
       LatticeArithmetic.pointStore (writeInput refs.division.output)
@@ -82,17 +82,19 @@ theorem firstStep_store {model : ExecutionModel} [BitWord.Selected model]
             (LatticeDotRefresh.refreshStore refs.target refs.basis.first
               (numeratorDotRefs refs) store))).1 := rfl
 
-private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma divisionReduction_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (SignedWord.RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (SignedWord.writeInput refs.division.output)
-        refs.basis.first refs.target refs.reduceProduct)).execute Reference state =
+        refs.basis.first refs.target refs.reduceProduct)).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := divisionReductionStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (SignedWord.RoundedDiv.body refs.division)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (SignedWord.RoundedDiv.body refs.division)
     (LatticeArithmetic.pointReduce (writeInput refs.division.output)
       refs.basis.first refs.target refs.reduceProduct)
     (fun before =>
@@ -110,7 +112,8 @@ private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Sele
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem normReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma normReduction_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
@@ -118,11 +121,11 @@ private theorem normReduction_execute {model : ExecutionModel} [BitWord.Selected
       (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
       (Circuit.seq (SignedWord.RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (SignedWord.writeInput refs.division.output)
-          refs.basis.first refs.target refs.reduceProduct))).execute Reference state =
+          refs.basis.first refs.target refs.reduceProduct))).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := normReductionStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
     (.seq (SignedWord.RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (writeInput refs.division.output)
@@ -142,14 +145,15 @@ private theorem normReduction_execute {model : ExecutionModel} [BitWord.Selected
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual execution preserves the selected hidden state and reference correlations. -/
-theorem firstInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma firstInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (firstInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := firstStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeDotRefresh.refreshInto refs.target refs.basis.first (numeratorDotRefs refs))
     (.seq (LatticeNormRefresh.refreshInto refs.basis.first (denominatorNormRefs refs))
       (.seq (SignedWord.RoundedDiv.body refs.division)

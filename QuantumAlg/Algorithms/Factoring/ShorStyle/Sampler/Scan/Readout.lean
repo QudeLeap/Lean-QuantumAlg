@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- The actual initialized layout and literal loader establish the original scan specification. -/
-theorem samplerScan_from_scope (input : Input N)
+lemma samplerScan_from_scope (input : Input N)
     (sample : CInputRef ctx (.bits (residueSamplingBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))
     (sampled : store.read sample = .bits (PackedSample.storedBits value)) :

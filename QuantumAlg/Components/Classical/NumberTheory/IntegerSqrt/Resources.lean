@@ -25,7 +25,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native operation formula for the original binary-refinement round. -/
@@ -44,7 +45,7 @@ def roundTrace (width : Nat) : List (Resource.Event model) :=
       (.wordUnary .shiftRight width))]
 
 /-- Every actual branch path emits exactly the original six native operations. -/
-theorem roundInto_events (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_events (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     (roundInto (model := model) input refs).eventTrace path = roundTrace (model := model) width :=
       by
@@ -61,32 +62,32 @@ theorem roundInto_events (input : CInputRef ctx (.unsignedWord (width + width)))
   rfl
 
 /-- Native multiplicities come from that same actual path and independent operation formula. -/
-theorem roundInto_resourcePool (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_resourcePool (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     (roundInto (model := model) input refs).resourcePool path = ResourcePool.ofList (roundTrace
       (model := model) width) :=
   congrArg ResourcePool.ofList (roundInto_events input refs path)
 
 /-- Each actual binary-refinement round performs exactly six native instructions. -/
-theorem roundInto_eventCount (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_eventCount (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     ((roundInto (model := model) input refs).eventTrace path).length = 6 := by
   rw [roundInto_events]
   rfl
 
 /-- The exact native unit-duration depth includes all six original dependent operations. -/
-theorem roundInto_depth (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_depth (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     (roundInto (model := model) input refs).depth (fun _ => 1) path = 6 := rfl
 
 /-- The original context stays live through every actual operation, including the selected copy. -/
-theorem roundInto_visited (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_visited (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     (roundInto (model := model) input refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx, ctx]
       := rfl
 
 /-- All original classical entries and quantum dimensions remain counted throughout the round. -/
-theorem roundInto_resident_le (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_resident_le (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     (roundInto (model := model) input refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -95,7 +96,7 @@ theorem roundInto_resident_le (input : CInputRef ctx (.unsignedWord (width + wid
   rw [present]
 
 /-- All original auxiliary roles remain counted through the complete actual round. -/
-theorem roundInto_auxiliary_le (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_auxiliary_le (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (path : (roundInto (model := model) input refs).Path) :
     (roundInto (model := model) input refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
@@ -104,29 +105,29 @@ theorem roundInto_auxiliary_le (input : CInputRef ctx (.unsignedWord (width + wi
   rw [present]
 
 /-- Every actual prefix, selected copy and shift restores borrowed correlations jointly. -/
-theorem roundInto_borrowedRestored (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma roundInto_borrowedRestored (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (roundInto (model := model) input refs).BorrowedRestored Reference state
-      ((roundInto (model := model) input refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
-  · apply Circuit.borrowedRestored_seq
-    · exact Circuit.borrowedRestored_classical
+      ((roundInto (model := model) input refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · apply Circuit.borrowedRestored_seq (environment := environment)
+    · exact Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (addOp refs)) _
-    · apply Circuit.borrowedRestored_seq
-      · exact Circuit.borrowedRestored_classical
+    · apply Circuit.borrowedRestored_seq (environment := environment)
+      · exact Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (squareOp refs)) _
-      · exact Circuit.borrowedRestored_seq _ _ _
-          (Circuit.borrowedRestored_classical
+      · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
+          (Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (compareOp input refs)) _)
-          (Circuit.borrowedRestored_classical
+          (Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (takeOp refs)) _)
-  · apply Circuit.borrowedRestored_seq
-    · apply Circuit.borrowedRestored_branch
+  · apply Circuit.borrowedRestored_seq (environment := environment)
+    · apply Circuit.borrowedRestored_branch (environment := environment)
       intro value _history _ current
-      exact Circuit.borrowedRestored_classical
+      exact Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (rootOp refs value.toBool)) current
-    · exact Circuit.borrowedRestored_classical
+    · exact Circuit.borrowedRestored_classical (environment := environment)
           (BitWord.selectedApplication (execution := model) (halfOp refs)) _
 
 end

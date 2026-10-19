@@ -24,7 +24,7 @@ open ClassicalAlgorithms.Modular
 noncomputable section
 
 /-- Every original three-cell candidate lies below the modulus, including inverse failure. -/
-theorem outputCells_candidate_lt {width : Nat} (spec : ModulusSpec width)
+lemma outputCells_candidate_lt {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) :
     (outputCells spec input).second.first.toNat < spec.modulus := by
   cases selected : outputOf spec input with

@@ -59,13 +59,13 @@ def NativeTraceSupported (width : Nat) (events : List (Resource.Event model)) : 
   ∀ event ∈ events, event ∈ nativeAlphabet width
 
 /-- Concatenation preserves finite support independently in its two components. -/
-theorem nativeTraceSupported_append (left right : List (Resource.Event model)) :
+lemma nativeTraceSupported_append (left right : List (Resource.Event model)) :
     NativeTraceSupported width (left ++ right) ↔
       NativeTraceSupported width left ∧ NativeTraceSupported width right := by
   simp only [NativeTraceSupported, List.mem_append, or_imp, forall_and]
 
 /-- Repeating a fixed instruction formula introduces no new native coordinates. -/
-theorem nativeTraceSupported_replicate (events : List (Resource.Event model))
+lemma nativeTraceSupported_replicate (events : List (Resource.Event model))
     (supported : NativeTraceSupported width events) (count : Nat) :
     NativeTraceSupported width (List.replicate count events).flatten := by
   intro event present
@@ -75,19 +75,19 @@ theorem nativeTraceSupported_replicate (events : List (Resource.Event model))
   exact supported event present
 
 /-- Sign classification stays in the alphabet even for a zero-width word. -/
-theorem signTrace_nativeSupported (width : Nat) :
+lemma signTrace_nativeSupported (width : Nat) :
     NativeTraceSupported width (signTrace (model := model) width) := by
   unfold signTrace
   split <;> simp [NativeTraceSupported, nativeAlphabet, ResourcePool.ofList]
 
 /-- Both magnitude arms have finite native support without a sign assumption. -/
-theorem magnitudeTrace_nativeSupported (width : Nat) (negative : Bool) :
+lemma magnitudeTrace_nativeSupported (width : Nat) (negative : Bool) :
     NativeTraceSupported width (magnitudeTrace (model := model) width negative) := by
   cases negative <;> simp [magnitudeTrace, NativeTraceSupported, nativeAlphabet,
     ResourcePool.ofList]
 
 /-- Every rounded-division formula uses only the independent original and widened coordinates. -/
-theorem roundedDivBodyTrace_nativeSupported (width : Nat)
+lemma roundedDivBodyTrace_nativeSupported (width : Nat)
     (magnitudeNegative correctionNegative restoreNegative : Bool) :
     NativeTraceSupported width
       (RoundedDiv.bodyTrace (model := model) width magnitudeNegative correctionNegative

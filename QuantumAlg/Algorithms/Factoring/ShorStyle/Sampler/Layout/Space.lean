@@ -34,7 +34,7 @@ def stages (ctx : RuntimeCtx kind) (width : Nat) : List (RuntimeCtx kind) :=
     availableCtx ctx width, context ctx width]
 
 /-- All eleven actual cells contribute exactly their encoded widths to resident space. -/
-theorem samplerLayout_residentSpace (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_residentSpace (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).residentSpace = ctx.residentSpace + cellSpace kind width := by
   apply SpacePool.ext
   intro axis
@@ -44,7 +44,7 @@ theorem samplerLayout_residentSpace (ctx : RuntimeCtx kind) (width : Nat) :
       cellSpace, SpacePool.ofShape]; omega
 
 /-- The real cells all have lexical workspace roles and contribute the same auxiliary width. -/
-theorem samplerLayout_auxiliarySpace (ctx : RuntimeCtx kind) (width : Nat) :
+lemma samplerLayout_auxiliarySpace (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).auxiliarySpace = ctx.auxiliarySpace + cellSpace kind width := by
   apply SpacePool.ext
   intro axis
@@ -54,7 +54,7 @@ theorem samplerLayout_auxiliarySpace (ctx : RuntimeCtx kind) (width : Nat) :
       cellSpace, SpacePool.ofShape]; omega
 
 /-- Every actual partial allocation fits the complete layout's resident space. -/
-theorem samplerLayout_stage_resident_le (ctx : RuntimeCtx kind) (width : Nat)
+lemma samplerLayout_stage_resident_le (ctx : RuntimeCtx kind) (width : Nat)
     (visited : RuntimeCtx kind) (present : visited ∈ stages ctx width) :
     visited.residentSpace ≤ (context ctx width).residentSpace := by
   simp only [stages, List.mem_cons, List.not_mem_nil, or_false] at present
@@ -66,7 +66,7 @@ theorem samplerLayout_stage_resident_le (ctx : RuntimeCtx kind) (width : Nat)
         positiveCtx, extendedCtx, candidateCtx, gcdCtx, modulusCtx, SpacePool.ofShape] <;> omega
 
 /-- Every actual partial allocation fits the complete layout's auxiliary space. -/
-theorem samplerLayout_stage_auxiliary_le (ctx : RuntimeCtx kind) (width : Nat)
+lemma samplerLayout_stage_auxiliary_le (ctx : RuntimeCtx kind) (width : Nat)
     (visited : RuntimeCtx kind) (present : visited ∈ stages ctx width) :
     visited.auxiliarySpace ≤ (context ctx width).auxiliarySpace := by
   simp only [stages, List.mem_cons, List.not_mem_nil, or_false] at present

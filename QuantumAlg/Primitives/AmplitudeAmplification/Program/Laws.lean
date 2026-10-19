@@ -40,9 +40,9 @@ def stepOperator {n : Nat} (U : UnitaryOperator (Qubits n))
   U * (ZeroReflection.zeroReflectionOperator n *
     (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good))
 
-theorem preparation_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
+lemma preparation_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (k : Nat) :
-    (preparation U good k).binaryMatrix =
+    (preparation n k).binaryMatrix (interpretation U good) =
       UnitaryOperator.tensor (U)
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [preparation, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
@@ -55,9 +55,9 @@ theorem preparation_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
   exact UnitaryOperator.unitaryOperator_reindex_cancel
     (QuantumSignature.qubitsIndexEquiv n).symm (U)
 
-theorem inversePreparation_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
+lemma inversePreparation_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (k : Nat) :
-    (inversePreparation U good k).binaryMatrix =
+    (inversePreparation n k).binaryMatrix (interpretation U good) =
       UnitaryOperator.tensor (U.dagger)
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [inversePreparation, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
@@ -70,9 +70,9 @@ theorem inversePreparation_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
   exact UnitaryOperator.unitaryOperator_reindex_cancel
     (QuantumSignature.qubitsIndexEquiv n).symm (U.dagger)
 
-theorem goodReflection_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
+lemma goodReflection_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (k : Nat) :
-    (goodReflection U good k).binaryMatrix =
+    (goodReflection n k).binaryMatrix (interpretation U good) =
       UnitaryOperator.tensor (OrthogonalProjector.rankOnePhaseReflectionOp good)
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [goodReflection, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
@@ -86,9 +86,10 @@ theorem goodReflection_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
   exact UnitaryOperator.unitaryOperator_reindex_cancel
     (QuantumSignature.qubitsIndexEquiv n).symm (OrthogonalProjector.rankOnePhaseReflectionOp good)
 
-theorem step_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
+lemma step_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (k : Nat) (nonzero : k ≠ 0) :
-    (step U good k nonzero).binaryMatrix = UnitaryOperator.tensor (stepOperator U good)
+    (step n k nonzero).binaryMatrix (interpretation U good) =
+      UnitaryOperator.tensor (stepOperator U good)
       (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   have combine (suffix : Nat) :
       let initial : HilbertOperator (Qubits n) := U.val
@@ -116,9 +117,9 @@ theorem step_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     ZeroReflection.Workspace.reflection_matrix]
   exact combine (helperWidth n k)
 
-private theorem repeated_step_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
+private lemma repeated_step_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (k : Nat) (nonzero : k ≠ 0) (count : Nat) :
-    (step U good k nonzero).binaryMatrix ^ count =
+    (step n k nonzero).binaryMatrix (interpretation U good) ^ count =
       UnitaryOperator.tensor ((stepOperator U good) ^ count)
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   induction count with
@@ -136,9 +137,10 @@ private theorem repeated_step_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
           (((stepOperator U good) : HilbertOperator (Qubits n)) ^ (count + 1)) 1
       rw [HilbertOperator.tensor_mul_tensor, one_mul, pow_succ]
 
-theorem program_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
+lemma program_matrix {n : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (k : Nat) :
-    (program U good k).binaryMatrix = UnitaryOperator.tensor ((stepOperator U good) ^ k * U)
+    (program n k).binaryMatrix (interpretation U good) =
+      UnitaryOperator.tensor ((stepOperator U good) ^ k * U)
       (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   by_cases zero : k = 0
   · subst k
@@ -167,10 +169,11 @@ def outputVector {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat
   (M.amplifiedState k).tensor (NormalizedVector.ket (R := Qubits (helperWidth n k)) 0)
 
 /-- The actual program produces the original precise state at every angle and iteration count. -/
-theorem program_applyNormalized_input {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
+lemma program_applyNormalized_input {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
     (k : Nat) :
-    (program M.preparation M.good k).binaryMatrix.apply (inputVector n k) = outputVector M k := by
-  change (program M.preparation M.good k).binaryMatrix.apply
+    ((program n k).binaryMatrix (interpretation M.preparation M.good)).apply
+      (inputVector n k) = outputVector M k := by
+  change ((program n k).binaryMatrix (interpretation M.preparation M.good)).apply
     ((NormalizedVector.ket (R := Qubits n) 0).tensor
       (NormalizedVector.ket (R := Qubits (helperWidth n k)) 0)) = _
   rw [program_matrix, UnitaryOperator.tensor_apply_tensor]

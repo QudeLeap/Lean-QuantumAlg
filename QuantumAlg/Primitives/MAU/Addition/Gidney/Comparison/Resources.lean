@@ -30,26 +30,26 @@ def constantOffsetEventBound (width : Nat) : Nat :=
 def comparisonEventBound (width : Nat) : Nat :=
   constantOffsetEventBound (1 + width) + constantOffsetEventBound width + 1
 
-theorem gidneyLowOffset_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
+lemma gidneyLowOffset_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
     (lowOffsetProgram width constant).eventCost =
       (HRS.oneDirtyProgram width constant).eventCost :=
   UnitaryCircuit.onCanonicalBinarySuffix_eventCost 1
     (HRS.oneDirtyProgram width constant)
 
-theorem gidneyLowOffset_depth (width : Nat) (constant : Fin (2 ^ width))
+lemma gidneyLowOffset_depth (width : Nat) (constant : Fin (2 ^ width))
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (lowOffsetProgram width constant).evaluatedEventDepth assign =
       (HRS.oneDirtyProgram width constant).evaluatedEventDepth assign :=
   UnitaryCircuit.onCanonicalBinarySuffix_evaluatedEventDepth 1 assign
     (HRS.oneDirtyProgram width constant)
 
-theorem gidneyFlagFlip_eventCost (width : Nat) :
+lemma gidneyFlagFlip_eventCost (width : Nat) :
     (flagFlipProgram width).eventCost = ResourcePool.singleton
       (.gate .singleQubit : Resource.Event (.quantum AlgorithmGate.model .empty)) :=
   EncodedBit.GateSpec.program_eventCost (.x (flagBit width))
     (QubitLayout.canonical (encoding width).width) .empty
 
-theorem gidneyFlagFlip_depth (width : Nat) :
+lemma gidneyFlagFlip_depth (width : Nat) :
     (flagFlipProgram width).evaluatedEventDepth (fun _ => 1) = 1 := by
   change (EncodedBit.GateSpec.program (.x (flagBit width))
     (QubitLayout.canonical (encoding width).width) .empty).evaluatedEventDepth
@@ -57,7 +57,7 @@ theorem gidneyFlagFlip_depth (width : Nat) :
   simp [UnitaryCircuit.evaluatedEventDepth]
 
 /-- The exact ledger retains the two actual offset ledgers and the one final native X. -/
-theorem gidneyComparison_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparison_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonProgram width pivot).eventCost =
       if pivot.val = 0 then 0 else
         (HRS.oneDirtyProgram (1 + width) (extendedNegatedPivot width pivot.val)).eventCost +
@@ -75,7 +75,7 @@ theorem gidneyComparison_eventCost (width : Nat) (pivot : Fin (2 ^ width + 1)) :
       gidneyFlagFlip_eventCost]
 
 /-- Literal event cardinality, including the independently selected zero-pivot branch. -/
-theorem gidneyComparison_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparison_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonProgram width pivot).eventCost.card =
       if pivot.val = 0 then 0 else
         (HRS.oneDirtyProgram (1 + width) (extendedNegatedPivot width pivot.val)).eventCost.card +
@@ -86,7 +86,7 @@ theorem gidneyComparison_event_count (width : Nat) (pivot : Fin (2 ^ width + 1))
   · simp only [Multiset.card_add, ResourcePool.singleton, Multiset.card_replicate]
 
 /-- This comparison is serial: its actual unit-duration depth equals its event count. -/
-theorem gidneyComparison_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparison_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonProgram width pivot).evaluatedEventDepth (fun _ => 1) =
       (comparisonProgram width pivot).eventCost.card := by
   rw [gidneyComparison_event_count]
@@ -102,7 +102,7 @@ theorem gidneyComparison_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width +
       hpacked, gidneyLowOffset_depth, gidneyFlagFlip_depth, HRS.hrsOneDirty_depth_eq_events]
 
 /-- The actual event count meets the independently stated logarithmic envelope. -/
-theorem gidneyComparison_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparison_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonProgram width pivot).eventCost.card ≤ comparisonEventBound width := by
   rw [gidneyComparison_event_count]
   by_cases hzero : pivot.val = 0
@@ -115,7 +115,7 @@ theorem gidneyComparison_event_count_bound (width : Nat) (pivot : Fin (2 ^ width
     unfold comparisonEventBound constantOffsetEventBound
     omega
 
-theorem gidneyComparison_depth_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparison_depth_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (comparisonProgram width pivot).evaluatedEventDepth (fun _ => 1) ≤
       comparisonEventBound width := by
   rw [gidneyComparison_depth_eq_events]

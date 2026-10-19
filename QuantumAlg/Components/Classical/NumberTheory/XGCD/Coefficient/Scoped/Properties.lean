@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Released lexical scratch leaves the exact modular recurrence in the persistent cells. -/
-theorem xgcdScopedCoefficient_rawSignedRepresents
+lemma xgcdScopedCoefficient_rawSignedRepresents
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width)) (different : first.key ≠ second.key)
     (store : Store ctx) (quotientValue firstValue secondValue : Int)
@@ -53,7 +53,7 @@ theorem xgcdScopedCoefficient_rawSignedRepresents
     exact firstRepresents
 
 /-- In the original signed ranges, the actual parent-store words decode to both coefficients. -/
-theorem xgcdScopedCoefficient_decode
+lemma xgcdScopedCoefficient_decode
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width)) (different : first.key ≠ second.key)
     (store : Store ctx) (quotientValue firstValue secondValue : Int)
@@ -75,7 +75,7 @@ theorem xgcdScopedCoefficient_decode
   exact ⟨rawSignedRepresents_decode_eq _ _ widthPositive represents.1 firstRange,
     rawSignedRepresents_decode_eq _ _ widthPositive represents.2 secondRange⟩
 
-private theorem coefficientUpdateBody_visited
+private lemma coefficientUpdateBody_visited
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientUpdateBody (model := model) quotient first second product updated).Path)
@@ -87,7 +87,7 @@ private theorem coefficientUpdateBody_visited
   change visited ∈ [ctx] ++ ([ctx] ++ ([ctx] ++ [ctx])) at present
   simpa only [List.mem_append, List.mem_singleton, or_self] using present
 
-private theorem coefficientUpdateBody_resident
+private lemma coefficientUpdateBody_resident
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientUpdateBody (model := model) quotient first second product updated).Path) :
@@ -101,7 +101,7 @@ private theorem coefficientUpdateBody_resident
   · exact (coefficientUpdateBody (model := model) quotient first second product
       updated).input_residentSpace_le_peak path
 
-private theorem coefficientUpdateBody_auxiliary
+private lemma coefficientUpdateBody_auxiliary
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (path : (coefficientUpdateBody (model := model) quotient first second product updated).Path) :
@@ -116,7 +116,7 @@ private theorem coefficientUpdateBody_auxiliary
       updated).input_auxiliarySpace_le_peak path
 
 /-- The peak counts both actual temporary words beside every original resident entry. -/
-theorem xgcdScopedCoefficient_resident
+lemma xgcdScopedCoefficient_resident
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (path : (scopedCoefficientUpdate (model := model) quotient first second).Path) :
@@ -148,7 +148,7 @@ theorem xgcdScopedCoefficient_resident
       (SpacePool.max_eq_right outer))
 
 /-- Auxiliary accounting charges the same two actual lexical words until their release. -/
-theorem xgcdScopedCoefficient_auxiliary
+lemma xgcdScopedCoefficient_auxiliary
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (path : (scopedCoefficientUpdate (model := model) quotient first second).Path) :
@@ -180,7 +180,7 @@ theorem xgcdScopedCoefficient_auxiliary
       (SpacePool.max_eq_right outer))
 
 /-- Both scratch scopes retain the four real dependent operations at unit duration. -/
-theorem xgcdScopedCoefficient_unitDepth
+lemma xgcdScopedCoefficient_unitDepth
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (path : (scopedCoefficientUpdate (model := model) quotient first second).Path) :

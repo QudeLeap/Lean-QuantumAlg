@@ -65,24 +65,24 @@ def cnot (oracles : OracleModel) :
     UnitaryCircuit AlgorithmGate.model oracles layout :=
   .native (GateModel.Application.canonical AlgorithmGate.model .cnot)
 
-private theorem parallelPair_unit_depth (oracles : OracleModel)
+private lemma parallelPair_unit_depth (oracles : OracleModel)
     (controlOp targetOp : UnitaryOperator (Qubits 1)) :
     (parallelPair oracles controlOp targetOp).evaluatedEventDepth (fun _ => 1) = 1 := by
   rw [parallelPair, UnitaryCircuit.castLayout_evaluatedEventDepth,
     UnitaryCircuit.tensor_native_evaluatedEventDepth]
   rfl
 
-private theorem targetGate_unit_depth (oracles : OracleModel)
+private lemma targetGate_unit_depth (oracles : OracleModel)
     (operator : UnitaryOperator (Qubits 1)) :
     (targetGate oracles operator).evaluatedEventDepth (fun _ => 1) = 1 := by
   rfl
 
-private theorem controlGate_unit_depth (oracles : OracleModel)
+private lemma controlGate_unit_depth (oracles : OracleModel)
     (operator : UnitaryOperator (Qubits 1)) :
     (controlGate oracles operator).evaluatedEventDepth (fun _ => 1) = 1 := by
   rfl
 
-private theorem cnot_unit_depth (oracles : OracleModel) :
+private lemma cnot_unit_depth (oracles : OracleModel) :
     (cnot oracles).evaluatedEventDepth (fun _ => 1) = 1 := by
   rfl
 
@@ -105,7 +105,7 @@ public def swappedPosition : Fin 2 ↪ Fin 2 where
     fin_cases left <;> fin_cases right <;> simp_all
 
 /-- Both positions of the reversed local placement retain qubit dimension. -/
-public theorem swappedDimensions : ∀ index,
+public lemma swappedDimensions : ∀ index,
     (layout.wire index).dimension = (layout.wire (swappedPosition index)).dimension :=
   fun index => by fin_cases index <;> rfl
 
@@ -125,7 +125,7 @@ public def hadamard (oracles : OracleModel) :
     (body.seq (parallelPair oracles Gate.XOp (rotYOp (-(Real.pi / 4)))))
 
 /-- The rotation word retains every actual native event. -/
-public theorem rotY_eventCost (oracles : OracleModel) (angle : Real) :
+public lemma rotY_eventCost (oracles : OracleModel) (angle : Real) :
     (rotY oracles angle).eventCost =
       4 • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit) +
@@ -138,13 +138,13 @@ public theorem rotY_eventCost (oracles : OracleModel) (angle : Real) :
   abel
 
 /-- The rotation word has five actual dependency layers. -/
-public theorem rotY_unit_depth (oracles : OracleModel) (angle : Real) :
+public lemma rotY_unit_depth (oracles : OracleModel) (angle : Real) :
     (rotY oracles angle).evaluatedEventDepth (fun _ => 1) = 5 := by
   simp [rotY, parallelPair_unit_depth, targetGate_unit_depth,
     controlGate_unit_depth, cnot_unit_depth]
 
 /-- Reorienting the rotation changes no native event multiplicity. -/
-public theorem rotYRight_eventCost (oracles : OracleModel) (angle : Real) :
+public lemma rotYRight_eventCost (oracles : OracleModel) (angle : Real) :
     (rotYRight oracles angle).eventCost =
       4 • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit) +
@@ -153,12 +153,12 @@ public theorem rotYRight_eventCost (oracles : OracleModel) (angle : Real) :
   rw [rotYRight, UnitaryCircuit.placeAt_eventCost, rotY_eventCost]
 
 /-- Reorienting the rotation changes no native dependency depth. -/
-public theorem rotYRight_unit_depth (oracles : OracleModel) (angle : Real) :
+public lemma rotYRight_unit_depth (oracles : OracleModel) (angle : Real) :
     (rotYRight oracles angle).evaluatedEventDepth (fun _ => 1) = 5 := by
   rw [rotYRight, UnitaryCircuit.placeAt_evaluatedEventDepth, rotY_unit_depth]
 
 /-- The Hadamard word retains every actual native event. -/
-public theorem hadamard_eventCost (oracles : OracleModel) :
+public lemma hadamard_eventCost (oracles : OracleModel) :
     (hadamard oracles).eventCost =
       4 • ResourcePool.singleton
         (model := .quantum AlgorithmGate.model oracles) (.gate .singleQubit) +
@@ -169,7 +169,7 @@ public theorem hadamard_eventCost (oracles : OracleModel) :
   abel
 
 /-- The Hadamard word has three actual dependency layers. -/
-public theorem hadamard_unit_depth (oracles : OracleModel) :
+public lemma hadamard_unit_depth (oracles : OracleModel) :
     (hadamard oracles).evaluatedEventDepth (fun _ => 1) = 3 := by
   simp [hadamard, parallelPair_unit_depth, cnot_unit_depth]
 

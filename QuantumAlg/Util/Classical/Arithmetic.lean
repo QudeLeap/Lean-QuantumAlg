@@ -38,19 +38,19 @@ public abbrev Word (width : Nat) := Nat.FixedWidth.Word width
 @[expose] public def modulus (width : Nat) : Nat :=
   2 ^ width
 
-theorem fixedWidthModulus_pos (width : Nat) : 0 < modulus width := by
+lemma fixedWidthModulus_pos (width : Nat) : 0 < modulus width := by
   exact Nat.two_pow_pos width
 
 /-- Canonically truncate a natural number to one fixed-width word. -/
 def wordOfNat (width value : Nat) : Word width :=
   ⟨value % modulus width, Nat.mod_lt value (fixedWidthModulus_pos width)⟩
 
-@[simp] theorem fixedWidthWordOfNat_val (width value : Nat) :
+@[simp] lemma fixedWidthWordOfNat_val (width value : Nat) :
     (wordOfNat width value).val = value % modulus width :=
   rfl
 
 /-- Every word value is in the exact range determined by its width. -/
-theorem fixedWidthWord_lt_modulus {width : Nat} (word : Word width) :
+lemma fixedWidthWord_lt_modulus {width : Nat} (word : Word width) :
     word.val < modulus width := by
   unfold modulus
   exact word.isLt
@@ -90,47 +90,47 @@ def eval {width : Nat} (input : Input width) : Output width where
   low := wordOfNat width (input.left.val + input.right.val)
   carry := decide (modulus width ≤ input.left.val + input.right.val)
 
-theorem addCarry_input_range {width : Nat} (input : Input width) :
+lemma addCarry_input_range {width : Nat} (input : Input width) :
     input.left.val < modulus width ∧ input.right.val < modulus width :=
   ⟨fixedWidthWord_lt_modulus input.left,
     fixedWidthWord_lt_modulus input.right⟩
 
-@[simp] theorem addCarry_valid {width : Nat} (input : Input width) :
+@[simp] lemma addCarry_valid {width : Nat} (input : Input width) :
     valid input :=
   trivial
 
 /-- The mathematical sum fits in one additional bit. -/
-theorem addCarry_sum_lt_double {width : Nat} (input : Input width) :
+lemma addCarry_sum_lt_double {width : Nat} (input : Input width) :
     input.left.val + input.right.val < 2 * modulus width := by
   rcases addCarry_input_range input with ⟨leftRange, rightRange⟩
   omega
 
-theorem addCarry_sum_lt_next_modulus {width : Nat} (input : Input width) :
+lemma addCarry_sum_lt_next_modulus {width : Nat} (input : Input width) :
     input.left.val + input.right.val < modulus (width + 1) := by
   simpa [modulus, pow_succ, Nat.mul_comm] using
     addCarry_sum_lt_double input
 
-@[simp] theorem addCarry_eval_low {width : Nat} (input : Input width) :
+@[simp] lemma addCarry_eval_low {width : Nat} (input : Input width) :
     (eval input).low.val =
       (input.left.val + input.right.val) % modulus width :=
   rfl
 
-@[simp] theorem addCarry_eval_carry {width : Nat} (input : Input width) :
+@[simp] lemma addCarry_eval_carry {width : Nat} (input : Input width) :
     (eval input).carry =
       decide (modulus width ≤ input.left.val + input.right.val) :=
   rfl
 
-theorem addCarry_eval_low_range {width : Nat} (input : Input width) :
+lemma addCarry_eval_low_range {width : Nat} (input : Input width) :
     (eval input).low.val < modulus width :=
   fixedWidthWord_lt_modulus (eval input).low
 
-theorem addCarry_eval_carry_eq_true_iff {width : Nat} (input : Input width) :
+lemma addCarry_eval_carry_eq_true_iff {width : Nat} (input : Input width) :
     (eval input).carry = true ↔
       modulus width ≤ input.left.val + input.right.val := by
   simp [eval]
 
 /-- The low word and carry bit reconstruct the unbounded mathematical sum. -/
-theorem addCarry_eval_reconstruct {width : Nat} (input : Input width) :
+lemma addCarry_eval_reconstruct {width : Nat} (input : Input width) :
     (eval input).low.val + (eval input).carry.toNat * modulus width =
       input.left.val + input.right.val := by
   change
@@ -151,7 +151,7 @@ theorem addCarry_eval_reconstruct {width : Nat} (input : Input width) :
     rw [Nat.mod_eq_of_lt sumRange]
     simp [carry]
 
-theorem addCarry_eval_accepts {width : Nat} (input : Input width) :
+lemma addCarry_eval_accepts {width : Nat} (input : Input width) :
     accepts input (eval input) :=
   ⟨addCarry_eval_reconstruct input, addCarry_eval_carry input⟩
 
@@ -175,7 +175,7 @@ structure Output (width : Nat) where
   borrow : Bool
 deriving DecidableEq
 
-@[ext] theorem Output.ext {width : Nat} {left right : Output width}
+@[ext] lemma Output.ext {width : Nat} {left right : Output width}
     (low : left.low = right.low) (borrow : left.borrow = right.borrow) :
     left = right := by
   cases left
@@ -207,17 +207,17 @@ def eval {width : Nat} (input : Input width) : Output width where
   low := wordOfNat width (difference input)
   borrow := decide (input.left.val < input.right.val)
 
-theorem subBorrow_input_range {width : Nat} (input : Input width) :
+lemma subBorrow_input_range {width : Nat} (input : Input width) :
     input.left.val < modulus width ∧ input.right.val < modulus width :=
   ⟨fixedWidthWord_lt_modulus input.left,
     fixedWidthWord_lt_modulus input.right⟩
 
-@[simp] theorem subBorrow_valid {width : Nat} (input : Input width) :
+@[simp] lemma subBorrow_valid {width : Nat} (input : Input width) :
     valid input :=
   trivial
 
 /-- The selected wrapped-difference representative is itself in range. -/
-theorem subBorrow_difference_lt {width : Nat} (input : Input width) :
+lemma subBorrow_difference_lt {width : Nat} (input : Input width) :
     difference input < modulus width := by
   rcases subBorrow_input_range input with ⟨leftRange, rightRange⟩
   have modulusPositive := fixedWidthModulus_pos width
@@ -229,25 +229,25 @@ theorem subBorrow_difference_lt {width : Nat} (input : Input width) :
     simp only [difference, if_neg borrow]
     omega
 
-@[simp] theorem subBorrow_eval_low {width : Nat} (input : Input width) :
+@[simp] lemma subBorrow_eval_low {width : Nat} (input : Input width) :
     (eval input).low.val = difference input := by
   change difference input % modulus width = difference input
   exact Nat.mod_eq_of_lt (subBorrow_difference_lt input)
 
-@[simp] theorem subBorrow_eval_borrow {width : Nat} (input : Input width) :
+@[simp] lemma subBorrow_eval_borrow {width : Nat} (input : Input width) :
     (eval input).borrow = decide (input.left.val < input.right.val) :=
   rfl
 
-theorem subBorrow_eval_low_range {width : Nat} (input : Input width) :
+lemma subBorrow_eval_low_range {width : Nat} (input : Input width) :
     (eval input).low.val < modulus width :=
   fixedWidthWord_lt_modulus (eval input).low
 
-theorem subBorrow_eval_borrow_eq_true_iff {width : Nat} (input : Input width) :
+lemma subBorrow_eval_borrow_eq_true_iff {width : Nat} (input : Input width) :
     (eval input).borrow = true ↔ input.left.val < input.right.val := by
   simp [eval]
 
 /-- The branch form agrees with ordinary fixed-width modular subtraction. -/
-theorem subBorrow_eval_low_eq_wrapping {width : Nat} (input : Input width) :
+lemma subBorrow_eval_low_eq_wrapping {width : Nat} (input : Input width) :
     (eval input).low.val =
       (input.left.val + modulus width - input.right.val) % modulus width := by
   rw [subBorrow_eval_low]
@@ -272,7 +272,7 @@ theorem subBorrow_eval_low_eq_wrapping {width : Nat} (input : Input width) :
     simp [Nat.mod_eq_of_lt differenceRange]
 
 /-- The low word and borrow bit reconstruct the mathematical subtraction. -/
-theorem subBorrow_eval_reconstruct {width : Nat} (input : Input width) :
+lemma subBorrow_eval_reconstruct {width : Nat} (input : Input width) :
     input.left.val + (eval input).borrow.toNat * modulus width =
       input.right.val + (eval input).low.val := by
   by_cases borrow : input.left.val < input.right.val
@@ -305,7 +305,7 @@ theorem subBorrow_eval_reconstruct {width : Nat} (input : Input width) :
         rw [subBorrow_eval_low]
         simp [difference, borrow]
 
-theorem subBorrow_eval_accepts {width : Nat} (input : Input width) :
+lemma subBorrow_eval_accepts {width : Nat} (input : Input width) :
     accepts input (eval input) :=
   ⟨subBorrow_eval_reconstruct input, subBorrow_eval_borrow input⟩
 
@@ -345,25 +345,25 @@ def eval {leftWidth rightWidth : Nat}
   value := wordOfNat (leftWidth + rightWidth)
     (input.left.val * input.right.val)
 
-theorem mulFull_input_range {leftWidth rightWidth : Nat}
+lemma mulFull_input_range {leftWidth rightWidth : Nat}
     (input : Input leftWidth rightWidth) :
     input.left.val < modulus leftWidth ∧
       input.right.val < modulus rightWidth :=
   ⟨fixedWidthWord_lt_modulus input.left,
     fixedWidthWord_lt_modulus input.right⟩
 
-@[simp] theorem mulFull_valid {leftWidth rightWidth : Nat}
+@[simp] lemma mulFull_valid {leftWidth rightWidth : Nat}
     (input : Input leftWidth rightWidth) : valid input :=
   trivial
 
 /-- The combined output width is large enough for the exact product. -/
-theorem mulFull_math_product_lt {leftWidth rightWidth : Nat}
+lemma mulFull_math_product_lt {leftWidth rightWidth : Nat}
     (input : Input leftWidth rightWidth) :
     input.left.val * input.right.val < modulus (leftWidth + rightWidth) := by
   rw [modulus, pow_add]
   exact Nat.mul_lt_mul_of_lt_of_lt input.left.isLt input.right.isLt
 
-@[simp] theorem mulFull_eval_value {leftWidth rightWidth : Nat}
+@[simp] lemma mulFull_eval_value {leftWidth rightWidth : Nat}
     (input : Input leftWidth rightWidth) :
     (eval input).value.val = input.left.val * input.right.val := by
   change
@@ -371,12 +371,12 @@ theorem mulFull_math_product_lt {leftWidth rightWidth : Nat}
       input.left.val * input.right.val
   exact Nat.mod_eq_of_lt (mulFull_math_product_lt input)
 
-theorem mulFull_eval_range {leftWidth rightWidth : Nat}
+lemma mulFull_eval_range {leftWidth rightWidth : Nat}
     (input : Input leftWidth rightWidth) :
     (eval input).value.val < modulus (leftWidth + rightWidth) :=
   fixedWidthWord_lt_modulus (eval input).value
 
-theorem mulFull_eval_accepts {leftWidth rightWidth : Nat}
+lemma mulFull_eval_accepts {leftWidth rightWidth : Nat}
     (input : Input leftWidth rightWidth) : accepts input (eval input) :=
   mulFull_eval_value input
 
@@ -439,36 +439,36 @@ def eval {numeratorWidth divisorWidth : Nat}
   remainder := wordOfNat divisorWidth
     (input.numerator.val % input.divisor.val)
 
-theorem divRem_input_range {numeratorWidth divisorWidth : Nat}
+lemma divRem_input_range {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) :
     input.numerator.val < modulus numeratorWidth ∧
       input.divisor.val < modulus divisorWidth :=
   ⟨fixedWidthWord_lt_modulus input.numerator,
     fixedWidthWord_lt_modulus input.divisor⟩
 
-theorem divRem_valid_iff {numeratorWidth divisorWidth : Nat}
+lemma divRem_valid_iff {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) :
     valid input ↔ input.divisor.val ≠ 0 :=
   Iff.rfl
 
-theorem divRem_divisor_pos {numeratorWidth divisorWidth : Nat}
+lemma divRem_divisor_pos {numeratorWidth divisorWidth : Nat}
     {input : Input numeratorWidth divisorWidth} (inputValid : valid input) :
     0 < input.divisor.val :=
   Nat.pos_of_ne_zero inputValid
 
-theorem divRem_zero_divisor_not_valid {numeratorWidth divisorWidth : Nat}
+lemma divRem_zero_divisor_not_valid {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth)
     (divisorZero : input.divisor.val = 0) : ¬ valid input := by
   simp [valid, divisorZero]
 
-theorem divRem_zero_divisor_not_accepted {numeratorWidth divisorWidth : Nat}
+lemma divRem_zero_divisor_not_accepted {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth)
     (divisorZero : input.divisor.val = 0)
     (output : Output numeratorWidth divisorWidth) : ¬ accepts input output := by
   intro accepted
   exact (divRem_zero_divisor_not_valid input divisorZero) accepted.1
 
-@[simp] theorem divRem_eval_quotient {numeratorWidth divisorWidth : Nat}
+@[simp] lemma divRem_eval_quotient {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) (inputValid : valid input) :
     (eval input inputValid).quotient.val =
       input.numerator.val / input.divisor.val := by
@@ -479,7 +479,7 @@ theorem divRem_zero_divisor_not_accepted {numeratorWidth divisorWidth : Nat}
     ((Nat.div_le_self input.numerator.val input.divisor.val).trans_lt
       (fixedWidthWord_lt_modulus input.numerator))
 
-@[simp] theorem divRem_eval_remainder {numeratorWidth divisorWidth : Nat}
+@[simp] lemma divRem_eval_remainder {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) (inputValid : valid input) :
     (eval input inputValid).remainder.val =
       input.numerator.val % input.divisor.val := by
@@ -490,7 +490,7 @@ theorem divRem_zero_divisor_not_accepted {numeratorWidth divisorWidth : Nat}
     ((Nat.mod_lt input.numerator.val (divRem_divisor_pos inputValid)).trans
       (fixedWidthWord_lt_modulus input.divisor))
 
-theorem divRem_eval_output_range {numeratorWidth divisorWidth : Nat}
+lemma divRem_eval_output_range {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) (inputValid : valid input) :
     (eval input inputValid).quotient.val < modulus numeratorWidth ∧
       (eval input inputValid).remainder.val < modulus divisorWidth :=
@@ -498,7 +498,7 @@ theorem divRem_eval_output_range {numeratorWidth divisorWidth : Nat}
     fixedWidthWord_lt_modulus (eval input inputValid).remainder⟩
 
 /-- Valid quotient and remainder reconstruct the numerator exactly. -/
-theorem divRem_eval_reconstruct {numeratorWidth divisorWidth : Nat}
+lemma divRem_eval_reconstruct {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) (inputValid : valid input) :
     (eval input inputValid).quotient.val * input.divisor.val +
         (eval input inputValid).remainder.val = input.numerator.val := by
@@ -506,13 +506,13 @@ theorem divRem_eval_reconstruct {numeratorWidth divisorWidth : Nat}
   simpa [Nat.mul_comm] using
     Nat.div_add_mod input.numerator.val input.divisor.val
 
-theorem divRem_eval_remainder_lt {numeratorWidth divisorWidth : Nat}
+lemma divRem_eval_remainder_lt {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) (inputValid : valid input) :
     (eval input inputValid).remainder.val < input.divisor.val := by
   rw [divRem_eval_remainder]
   exact Nat.mod_lt input.numerator.val (divRem_divisor_pos inputValid)
 
-theorem divRem_eval_accepts {numeratorWidth divisorWidth : Nat}
+lemma divRem_eval_accepts {numeratorWidth divisorWidth : Nat}
     (input : Input numeratorWidth divisorWidth) (inputValid : valid input) :
     accepts input (eval input inputValid) :=
   ⟨inputValid, divRem_eval_reconstruct input inputValid,

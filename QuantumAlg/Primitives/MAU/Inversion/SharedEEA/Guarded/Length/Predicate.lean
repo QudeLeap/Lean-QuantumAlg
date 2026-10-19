@@ -29,16 +29,18 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.GuardedLengthPredicate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit LengthCoordinates LengthRead GuardedLengthRead
 
-private theorem source_prefix_get (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma source_prefix_get (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output : Fin width.size)
     (index : Fin (GuardedLengthCoordinates.prefixWidth width)) (state : Registers width) :
     ((GuardedLengthCoordinates.layout width field key firstWord output).source.bit
       (Word.OneDirtyLayout.keyIndex index)).get state =
         (prefixBit width field key firstWord index).get state := rfl
 
-private theorem source_payload_get (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma source_payload_get (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (output : Fin width.size) (index : Fin (region width field key))
     (state : Registers width) :
     ((GuardedLengthCoordinates.layout width field key firstWord output).source.bit
@@ -66,7 +68,7 @@ private theorem source_payload_get (width : Nat) (field : Field) (key : BitVec w
   exact LengthPredicate.source_payload_get width field key firstWord output index state
 
 /-- The real enlarged source pattern reads exactly the guard and the original actual length test. -/
-theorem leading_iff (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma leading_iff (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     (GuardedLengthCoordinates.layout width field key firstWord output).PrefixLeading position
@@ -87,7 +89,7 @@ def gates (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : B
     (expected width key)
 
 /-- The exact complete-state action includes the actual two-field boundary predicate. -/
-theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width field key firstWord position output) state =
@@ -100,7 +102,7 @@ theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firs
   simp only [leading_iff]
 
 /-- The new actual native block is exactly the existing block under the retained real guard. -/
-theorem gates_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width field key firstWord position output) state =
@@ -113,7 +115,7 @@ theorem gates_step_if (width : Nat) (field : Field) (key : BitVec width.size) (f
   · simp only [guarded, false_and, if_false]
 
 /-- Every original block retains the actual guard, permitting exact full-list refinement. -/
-theorem original_guard (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma original_guard (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     Guard (GateSpec.stepList (LengthPredicate.gates width field key firstWord position output)
@@ -124,18 +126,18 @@ theorem original_guard (width : Nat) (field : Field) (key : BitVec width.size) (
   · rfl
 
 /-- Complete native basis action retains all original data, including arbitrary dirty Iter. -/
-theorem gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty
-        (gates width field key firstWord position output))
+        (gates width field key firstWord position output)) environment
       (fun state => if Guard state ∧ LengthPredicate.Selected field key firstWord position state
         then (outputBit width field output).flip state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    _ (gates_step width field key firstWord position output)
+    _ (gates_step width field key firstWord position output) environment
 
 /-- All actual added guard controls and their arbitrary-work cleanup are counted. -/
-theorem gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     (gates width field key firstWord position output).length ≤
       10 * (3 * width.size + (position.val + 1)) + 1 :=

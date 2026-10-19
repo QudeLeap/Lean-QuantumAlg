@@ -69,7 +69,7 @@ def allocate {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (width : Nat
         (.product .bit (.unsignedWord width)) (selectedContext ctx width).canonicalFreshKey_fresh))
 
 /-- The real selector allocation contributes no quantum wire. -/
-theorem nativeOracle_retrySlots_wires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeOracle_retrySlots_wires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := by
   simp only [context, selectedContext, acceptedContext, RuntimeCtx.quantumWires_addRetained]
 

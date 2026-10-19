@@ -79,43 +79,44 @@ public def event (oracles : OracleModel) :
   | .s => .gate .s
   | .t => .gate .t
 
-@[simp] theorem op_h : Letter.h.op = HOp := rfl
-@[simp] theorem op_s : Letter.s.op = SOp := rfl
-@[simp] theorem op_t : Letter.t.op = TOp := rfl
+@[simp] lemma op_h : Letter.h.op = HOp := rfl
+@[simp] lemma op_s : Letter.s.op = SOp := rfl
+@[simp] lemma op_t : Letter.t.op = TOp := rfl
 
-theorem circuit_matrix (oracles : OracleModel) (a : Letter) :
-    (a.circuit oracles).matrix = physicalOperator a.op := by
+lemma circuit_matrix (oracles : OracleModel) {environment : oracles.Interpretation}
+    (a : Letter) :
+    (a.circuit oracles).matrix environment = physicalOperator a.op := by
   cases a
-  · exact (UnitaryCircuit.native_matrix _).trans
+  · exact (UnitaryCircuit.native_matrix environment _).trans
       (GateModel.Application.gateApplication_canonical_operator CliffordTGate.model .hadamard)
-  · exact (UnitaryCircuit.native_matrix _).trans
+  · exact (UnitaryCircuit.native_matrix environment _).trans
       (GateModel.Application.gateApplication_canonical_operator CliffordTGate.model .s)
-  · exact (UnitaryCircuit.native_matrix _).trans
+  · exact (UnitaryCircuit.native_matrix environment _).trans
       (GateModel.Application.gateApplication_canonical_operator CliffordTGate.model .t)
 
-theorem circuit_eventTrace (oracles : OracleModel) (a : Letter) :
+lemma circuit_eventTrace (oracles : OracleModel) (a : Letter) :
     (a.circuit oracles).eventTrace = [a.event oracles] := by cases a <;> rfl
 
-theorem circuit_eventCost (oracles : OracleModel) (a : Letter) :
+lemma circuit_eventCost (oracles : OracleModel) (a : Letter) :
     (a.circuit oracles).eventCost = ResourcePool.singleton (a.event oracles) := by
   cases a <;> rfl
 
-theorem circuit_unit_event_depth (oracles : OracleModel) (a : Letter) :
+lemma circuit_unit_event_depth (oracles : OracleModel) (a : Letter) :
     (a.circuit oracles).evaluatedEventDepth (fun _ => 1) = 1 := by cases a <;> rfl
 
-theorem event_injective (oracles : OracleModel) : Function.Injective (event oracles) := by
+lemma event_injective (oracles : OracleModel) : Function.Injective (event oracles) := by
   intro a b same
   cases a <;> cases b <;> simp_all [event]
 
-theorem event_inj (oracles : OracleModel) (a b : Letter) :
+lemma event_inj (oracles : OracleModel) (a b : Letter) :
     a.event oracles = b.event oracles ↔ a = b := (event_injective oracles).eq_iff
 
-theorem count_event_circuit (oracles : OracleModel) (a b : Letter) :
+lemma count_event_circuit (oracles : OracleModel) (a b : Letter) :
     ResourcePool.count (b.event oracles) (a.circuit oracles).eventCost =
       if a = b then 1 else 0 := by
   simp only [circuit_eventCost, ResourcePool.count_singleton, event_inj]
 
-theorem circuit_tCount (oracles : OracleModel) (a : Letter) :
+lemma circuit_tCount (oracles : OracleModel) (a : Letter) :
     circuitTCount (a.circuit oracles) = if a = .t then 1 else 0 :=
   count_event_circuit oracles a .t
 
@@ -126,21 +127,21 @@ public def evalOp : List Letter → UnitaryOperator (Qubits 1)
   | [] => 1
   | a :: w => evalOp w * a.op
 
-@[simp] theorem evalOp_nil : evalOp [] = 1 := rfl
+@[simp] lemma evalOp_nil : evalOp [] = 1 := rfl
 
-@[simp] theorem evalOp_cons (a : Letter) (w : List Letter) :
+@[simp] lemma evalOp_cons (a : Letter) (w : List Letter) :
     evalOp (a :: w) = evalOp w * a.op := rfl
 
-theorem evalOp_singleton (a : Letter) : evalOp [a] = a.op := by
+lemma evalOp_singleton (a : Letter) : evalOp [a] = a.op := by
   simp
 
 /-- Concatenation composes in time order: `w₁` acts first. -/
-theorem evalOp_append (w₁ w₂ : List Letter) : evalOp (w₁ ++ w₂) = evalOp w₂ * evalOp w₁ := by
+lemma evalOp_append (w₁ w₂ : List Letter) : evalOp (w₁ ++ w₂) = evalOp w₂ * evalOp w₁ := by
   induction w₁ with
   | nil => simp
   | cons a w ih => simp [ih, mul_assoc]
 
-theorem evalOp_replicate (n : Nat) (a : Letter) : evalOp (List.replicate n a) = a.op ^ n := by
+lemma evalOp_replicate (n : Nat) (a : Letter) : evalOp (List.replicate n a) = a.op ^ n := by
   induction n with
   | zero => simp
   | succ n ih => rw [List.replicate_succ, evalOp_cons, ih, pow_succ a.op n]
@@ -151,21 +152,22 @@ public def ofWord (oracles : OracleModel) : List Letter →
   | [] => UnitaryCircuit.identity CliffordTGate.model oracles layout
   | a :: w => (a.circuit oracles).seq (ofWord oracles w)
 
-@[simp] theorem ofWord_nil (oracles : OracleModel) :
+@[simp] lemma ofWord_nil (oracles : OracleModel) :
     ofWord oracles [] = UnitaryCircuit.identity CliffordTGate.model oracles layout := rfl
 
-@[simp] theorem ofWord_cons (oracles : OracleModel) (a : Letter) (w : List Letter) :
+@[simp] lemma ofWord_cons (oracles : OracleModel) (a : Letter) (w : List Letter) :
     ofWord oracles (a :: w) = (a.circuit oracles).seq (ofWord oracles w) := rfl
 
-theorem ofWord_matrix (oracles : OracleModel) (w : List Letter) :
-    (ofWord oracles w).matrix = physicalOperator (evalOp w) := by
+lemma ofWord_matrix (oracles : OracleModel) {environment : oracles.Interpretation}
+    (w : List Letter) :
+    (ofWord oracles w).matrix environment = physicalOperator (evalOp w) := by
   induction w with
   | nil => exact (UnitaryOperator.unitaryOperator_reindex_one _).symm
   | cons a w ih =>
       rw [ofWord_cons, UnitaryCircuit.seq_matrix, ih, Letter.circuit_matrix, evalOp_cons]
       exact (UnitaryOperator.unitaryOperator_reindex_mul _ _ _).symm
 
-theorem ofWord_eventTrace (oracles : OracleModel) (w : List Letter) :
+lemma ofWord_eventTrace (oracles : OracleModel) (w : List Letter) :
     (ofWord oracles w).eventTrace = w.map (Letter.event oracles) := by
   induction w with
   | nil => rfl
@@ -173,12 +175,12 @@ theorem ofWord_eventTrace (oracles : OracleModel) (w : List Letter) :
       rw [ofWord_cons, UnitaryCircuit.seq_eventTrace, Letter.circuit_eventTrace, ih]
       rfl
 
-theorem ofWord_eventCost (oracles : OracleModel) (w : List Letter) :
+lemma ofWord_eventCost (oracles : OracleModel) (w : List Letter) :
     (ofWord oracles w).eventCost = ResourcePool.ofList (w.map (Letter.event oracles)) := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost, ofWord_eventTrace]
 
 /-- Actual target-event multiplicity equals the corresponding source-letter multiplicity. -/
-theorem ofWord_count_event (oracles : OracleModel) (w : List Letter) (b : Letter) :
+lemma ofWord_count_event (oracles : OracleModel) (w : List Letter) (b : Letter) :
     ResourcePool.count (b.event oracles) (ofWord oracles w).eventCost = w.count b := by
   induction w with
   | nil => rfl
@@ -190,10 +192,10 @@ theorem ofWord_count_event (oracles : OracleModel) (w : List Letter) (b : Letter
         simp [add_comm]
       · simp [same]
 
-theorem ofWord_tCount (oracles : OracleModel) (w : List Letter) :
+lemma ofWord_tCount (oracles : OracleModel) (w : List Letter) :
     circuitTCount (ofWord oracles w) = w.count .t := ofWord_count_event oracles w .t
 
-theorem ofWord_unit_event_depth (oracles : OracleModel) (w : List Letter) :
+lemma ofWord_unit_event_depth (oracles : OracleModel) (w : List Letter) :
     (ofWord oracles w).evaluatedEventDepth (fun _ => 1) = w.length := by
   induction w with
   | nil => rfl
@@ -201,7 +203,7 @@ theorem ofWord_unit_event_depth (oracles : OracleModel) (w : List Letter) :
       rw [ofWord_cons, UnitaryCircuit.evaluatedEventDepth_seq,
         Letter.circuit_unit_event_depth, ih, List.length_cons, Nat.add_comm]
 
-theorem ofWord_eventDepth_le (oracles : OracleModel) (w : List Letter) :
+lemma ofWord_eventDepth_le (oracles : OracleModel) (w : List Letter) :
     (ofWord oracles w).evaluatedEventDepth (fun _ => 1) ≤ w.length :=
   (ofWord_unit_event_depth oracles w).le
 
@@ -222,20 +224,21 @@ variable {θ ε : ℝ}
 /-- The actual strict target word has the certificate's unchanged exact-phase error bound. -/
 public def toApproxRealization (c : RotationCertificate θ ε) (oracles : OracleModel) :
     UnitaryCircuit.ApproxRealization CliffordTGate.model oracles layout
-      (physicalOperator (rotZStdOp θ)) ε where
+      (fun _ => physicalOperator (rotZStdOp θ)) ε where
   circuit := ofWord oracles c.word
   error_le := by
+    intro environment
     rw [ofWord_matrix]
     exact (HilbertOperator.opNorm_reindex_sub
       (QuantumSignature.qubitsIndexEquiv 1).symm (evalOp c.word) (rotZStdOp θ)).le.trans c.close
 
-theorem toApproxRealization_circuit (c : RotationCertificate θ ε) (oracles : OracleModel) :
+lemma toApproxRealization_circuit (c : RotationCertificate θ ε) (oracles : OracleModel) :
     (c.toApproxRealization oracles).circuit = ofWord oracles c.word := rfl
 
 /-- Count actual T letters in the certified word. -/
 public def tCount (c : RotationCertificate θ ε) : Nat := c.word.count .t
 
-theorem toApproxRealization_tCount (c : RotationCertificate θ ε) (oracles : OracleModel) :
+lemma toApproxRealization_tCount (c : RotationCertificate θ ε) (oracles : OracleModel) :
     circuitTCount (c.toApproxRealization oracles).circuit = c.tCount :=
   ofWord_tCount oracles c.word
 
@@ -244,7 +247,7 @@ public def weaken (c : RotationCertificate θ ε) {ε' : ℝ} (h : ε ≤ ε') :
   ⟨c.word, c.close.trans h⟩
 
 @[simp]
-theorem weaken_word (c : RotationCertificate θ ε) {ε' : ℝ} (h : ε ≤ ε') :
+lemma weaken_word (c : RotationCertificate θ ε) {ε' : ℝ} (h : ε ≤ ε') :
     (c.weaken h).word = c.word := rfl
 
 /-- An exact word is a zero-error certificate. -/
@@ -252,15 +255,15 @@ public def exact (w : List Letter) (h : evalOp w = rotZStdOp θ) : RotationCerti
   ⟨w, by rw [h, sub_self, HilbertOperator.opNorm_zero]⟩
 
 @[simp]
-theorem exact_word (w : List Letter) (h : evalOp w = rotZStdOp θ) : (exact w h).word = w := rfl
+lemma exact_word (w : List Letter) (h : evalOp w = rotZStdOp θ) : (exact w h).word = w := rfl
 
 /-- A zero-error certificate realizes `rotZStdOp θ` exactly. -/
 public def toExactRealization (c : RotationCertificate θ 0) (oracles : OracleModel) :
     UnitaryCircuit.ExactRealization CliffordTGate.model oracles layout
-      (physicalOperator (rotZStdOp θ)) :=
+      (fun _ => physicalOperator (rotZStdOp θ)) :=
   (c.toApproxRealization oracles).toExact
 
-theorem evalOp_eq_of_zero (c : RotationCertificate θ 0) : evalOp c.word = rotZStdOp θ := by
+lemma evalOp_eq_of_zero (c : RotationCertificate θ 0) : evalOp c.word = rotZStdOp θ := by
   apply Subtype.ext
   have h0 : HilbertOperator.opNorm
       ((evalOp c.word : HilbertOperator (Qubits 1)) - (rotZStdOp θ : HilbertOperator (Qubits 1))) =
@@ -291,10 +294,10 @@ public def RotationCertificate.tPowEight : RotationCertificate 0 0 :=
   RotationCertificate.exact (List.replicate 8 .t)
     (by rw [evalOp_replicate, Letter.op_t, TOp_pow_eight, rotZStdOp_zero])
 
-theorem RotationCertificate.tPowEight_tCount : RotationCertificate.tPowEight.tCount = 8 := by
+lemma RotationCertificate.tPowEight_tCount : RotationCertificate.tPowEight.tCount = 8 := by
   decide
 
-theorem RotationCertificate.sPowFour_tCount : RotationCertificate.sPowFour.tCount = 0 := by
+lemma RotationCertificate.sPowFour_tCount : RotationCertificate.sPowFour.tCount = 0 := by
   decide
 
 end

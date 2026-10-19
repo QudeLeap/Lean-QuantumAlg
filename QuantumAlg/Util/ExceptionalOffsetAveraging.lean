@@ -32,7 +32,7 @@ noncomputable section
 
 variable {G Branch : Type*} [Group G]
 
-private theorem natOfBits_eq_weightedSum {width : Nat}
+private lemma natOfBits_eq_weightedSum {width : Nat}
     (bits : Fin width → Bool) :
     Nat.ofBits bits =
       ∑ bit : Fin width, (bits bit).toNat * 2 ^ bit.val := by
@@ -56,7 +56,7 @@ private theorem natOfBits_eq_weightedSum {width : Nat}
       rw [shifted]
       omega
 
-private theorem foldl_mul_powers {Index : Type*}
+private lemma foldl_mul_powers {Index : Type*}
     (indices : List Index) (base initial : G) (weight : Index → Nat) :
     indices.foldl (fun product index => product * base ^ weight index) initial =
       initial * base ^ (indices.map weight).sum := by
@@ -70,7 +70,7 @@ private theorem foldl_mul_powers {Index : Type*}
 /-- Reading all physical bits from most significant to least significant and
 right-multiplying the corresponding powers produces the represented natural
 power.  The initial accumulator is preserved on the left. -/
-theorem foldl_bigEndianPowers (width : Nat) (base initial : G)
+lemma foldl_bigEndianPowers (width : Nat) (base initial : G)
     (value : Fin (2 ^ width)) :
     (List.finRange width).foldl
         (fun product position =>
@@ -119,7 +119,7 @@ def prefixMultiplier (stepCount : Nat)
       if selected branch step = true then product * addend step else product)
     1
 
-private theorem finRange_take_succ {count : Nat} (step : Fin count) :
+private lemma finRange_take_succ {count : Nat} (step : Fin count) :
     (List.finRange count).take (step.val + 1) =
       (List.finRange count).take step.val ++ [step] := by
   have indexLt : step.val < (List.finRange count).length := by
@@ -131,7 +131,7 @@ private theorem finRange_take_succ {count : Nat} (step : Fin count) :
 
 /-- Extending a valid prefix by one step multiplies by exactly that step's
 addend when it is selected. -/
-theorem prefixMultiplier_succ (stepCount : Nat)
+lemma prefixMultiplier_succ (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) (branch : Branch)
     (processed : Nat) (processedLt : processed < stepCount) :
@@ -166,7 +166,7 @@ def pairedBigEndianAddend (width : Nat) (leftBase rightBase : G)
 
 /-- The complete two-register schedule implements
 `leftBase^a * (rightBase^b)⁻¹` exactly. -/
-theorem prefixMultiplier_pairedBigEndian (width : Nat)
+lemma prefixMultiplier_pairedBigEndian (width : Nat)
     (leftBase rightBase : G)
     (branch : Fin (2 ^ width) × Fin (2 ^ width)) :
     prefixMultiplier (2 * width) (pairedBigEndianSelected width)
@@ -274,7 +274,7 @@ private def rightFiber (offsets : Finset G) (factor target : G) : Finset G := by
   classical
   exact offsets.filter fun offset => offset * factor = target
 
-private theorem filter_mul_right_eq_card_le_one
+private lemma filter_mul_right_eq_card_le_one
     (offsets : Finset G) (factor target : G) :
     (rightFiber offsets factor target).card ≤ 1 := by
   classical
@@ -283,7 +283,7 @@ private theorem filter_mul_right_eq_card_le_one
   simp only [rightFiber, Finset.mem_filter] at leftMember rightMember
   exact mul_right_cancel (leftMember.2.trans rightMember.2.symm)
 
-private theorem badAt_card_le_two (offsets : Finset G) (stepCount : Nat)
+private lemma badAt_card_le_two (offsets : Finset G) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) (branch : Branch)
     (step : Fin stepCount) :
@@ -318,7 +318,7 @@ def badOffsets (offsets : Finset G) (stepCount : Nat)
     ¬ Admissible stepCount selected addend offset branch
 
 /-- Every branch excludes at most two offsets per scheduled step. -/
-theorem badOffsets_card_le_two_mul (offsets : Finset G) (stepCount : Nat)
+lemma badOffsets_card_le_two_mul (offsets : Finset G) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) (branch : Branch) :
     (badOffsets offsets stepCount selected addend branch).card ≤
@@ -367,7 +367,7 @@ def badBranches (branches : Finset Branch) (stepCount : Nat)
   exact branches.filter fun branch =>
     ¬ Admissible stepCount selected addend offset branch
 
-private theorem sum_badBranches_eq_sum_badOffsets
+private lemma sum_badBranches_eq_sum_badOffsets
     (offsets : Finset G) (branches : Finset Branch) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) :
@@ -392,7 +392,7 @@ private theorem sum_badBranches_eq_sum_badOffsets
 /-- Finite averaging selects one fixed offset whose exceptional branch count
 obeys the same two-per-step average bound as uniform randomization.  The
 cross-multiplied form avoids any rounding or division convention. -/
-theorem exists_fixed_offset (offsets : Finset G) (branches : Finset Branch)
+lemma exists_fixed_offset (offsets : Finset G) (branches : Finset Branch)
     (offsetsNonempty : offsets.Nonempty) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) :
@@ -469,7 +469,7 @@ private def rnslBadAt (offsets : Finset G) (stepCount : Nat)
       offset * prefixMultiplier stepCount selected addend branch step.val =
         (addend step * addend step)⁻¹
 
-private theorem rnslBadAt_card_le_three
+private lemma rnslBadAt_card_le_three
     (offsets : Finset G) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) (branch : Branch)
@@ -518,7 +518,7 @@ def rnslBadOffsets (offsets : Finset G) (stepCount : Nat)
 
 /-- The literal straight-line schedule excludes at most three offsets per
 step. -/
-theorem rnslBadOffsets_card_le_three_mul
+lemma rnslBadOffsets_card_le_three_mul
     (offsets : Finset G) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) (branch : Branch) :
@@ -565,7 +565,7 @@ def rnslBadBranches (branches : Finset Branch) (stepCount : Nat)
   exact branches.filter fun branch =>
     ¬ RNSLAdmissible stepCount selected addend offset branch
 
-private theorem sum_rnslBadBranches_eq_sum_rnslBadOffsets
+private lemma sum_rnslBadBranches_eq_sum_rnslBadOffsets
     (offsets : Finset G) (branches : Finset Branch) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)
     (addend : Fin stepCount → G) :
@@ -591,7 +591,7 @@ private theorem sum_rnslBadBranches_eq_sum_rnslBadOffsets
 
 /-- Finite averaging selects one fixed offset with the strict three-per-step
 straight-line bound. -/
-theorem exists_fixed_offset_rnsl
+lemma exists_fixed_offset_rnsl
     (offsets : Finset G) (branches : Finset Branch)
     (offsetsNonempty : offsets.Nonempty) (stepCount : Nat)
     (selected : Branch → Fin stepCount → Bool)

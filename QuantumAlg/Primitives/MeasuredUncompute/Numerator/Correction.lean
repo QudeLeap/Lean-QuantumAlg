@@ -23,10 +23,13 @@ namespace QuantumAlg.MeasuredUncompute.NumeratorCorrection
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA EncodedBit.Word ProductPlacement
 
 /-- The actual complete correction retains all three words and every shared EEA history wire. -/
-theorem correction_physical (width : Nat) (_modulus : Fin (2 ^ width + 1))
+lemma correction_physical (width : Nat) (_modulus : Fin (2 ^ width + 1))
     (_mask : Fin width → Bool) :
     (QubitLayout.canonical (frameEncoding width).width).systemIdx =
       List.range (frameEncoding width).width := by
@@ -45,19 +48,20 @@ def code (width : Nat) (modulus : Fin (2 ^ width + 1)) :
   NumeratorRuntime.selected width (member width modulus)
 
 /-- Each real store block selects its own native member, tensored with the unchanged reference. -/
-theorem code_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma code_reference (width : Nat) (modulus : Fin (2 ^ width + 1))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (NumeratorMeasurement.context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((code width modulus).execute Reference state).quantumMarginal =
+    ((code width modulus).execute environment Reference state).quantumMarginal =
       (state.applyUnitary fun entry => UnitaryOperator.prodTensor
-        (NumeratorRuntime.program width
+        ((NumeratorRuntime.program width
           (member width modulus (entry.1.read (NumeratorMeasurement.input width)))).matrix
+            environment.quantum)
         (1 : UnitaryOperator Reference)).quantumMarginal :=
   NumeratorRuntime.selected_reference width (member width modulus) state
 
 /-- Every executed branch pays for its two actual product passes and selected Z corrections. -/
-theorem code_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma code_budget (width : Nat) (modulus : Fin (2 ^ width + 1))
     (path : (code width modulus).Path) :
     (code width modulus).resourcePool path ≤ NativeProductCorrection.nativeBudget width := by
   change ResourcePool.ofList

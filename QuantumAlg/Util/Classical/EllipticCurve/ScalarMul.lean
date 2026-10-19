@@ -58,19 +58,19 @@ def scalarPrefix {scalarWidth : Nat} (scalar : Word scalarWidth)
   Modular.Pow.exponentPrefix scalar processed
 
 /-- No processed scalar slots represent the natural number zero. -/
-@[simp] theorem scalarPrefix_zero {scalarWidth : Nat} (scalar : Word scalarWidth) :
+@[simp] lemma scalarPrefix_zero {scalarWidth : Nat} (scalar : Word scalarWidth) :
     scalarPrefix scalar 0 = 0 :=
   Modular.Pow.modularPow_exponentPrefix_zero scalar
 
 /-- Processing one scalar slot appends precisely its MSB-first bit. -/
-theorem scalarPrefix_succ {scalarWidth : Nat} (scalar : Word scalarWidth)
+lemma scalarPrefix_succ {scalarWidth : Nat} (scalar : Word scalarWidth)
     (index : Fin scalarWidth) :
     Nat.bit (scalarBit scalar index) (scalarPrefix scalar index.val) =
       scalarPrefix scalar (index.val + 1) :=
   Modular.Pow.modularPow_exponentPrefix_succ scalar index
 
 /-- After every declared scalar slot, the prefix is the stored scalar value. -/
-@[simp] theorem scalarPrefix_final {scalarWidth : Nat} (scalar : Word scalarWidth) :
+@[simp] lemma scalarPrefix_final {scalarWidth : Nat} (scalar : Word scalarWidth) :
     scalarPrefix scalar scalarWidth = scalar.val :=
   Modular.Pow.modularPow_exponentPrefix_final scalar
 
@@ -78,7 +78,7 @@ theorem scalarPrefix_succ {scalarWidth : Nat} (scalar : Word scalarWidth)
 def zeroScalar (scalarWidth : Nat) : Word scalarWidth :=
   ⟨0, Nat.two_pow_pos scalarWidth⟩
 
-@[simp] theorem zeroScalar_val (scalarWidth : Nat) :
+@[simp] lemma zeroScalar_val (scalarWidth : Nat) :
     (zeroScalar scalarWidth).val = 0 :=
   rfl
 
@@ -90,7 +90,7 @@ def oneScalar (scalarWidth : Nat) : Word (scalarWidth + 1) :=
       Nat.two_pow_pos scalarWidth
     omega⟩
 
-@[simp] theorem oneScalar_val (scalarWidth : Nat) :
+@[simp] lemma oneScalar_val (scalarWidth : Nat) :
     (oneScalar scalarWidth).val = 1 :=
   rfl
 
@@ -100,7 +100,7 @@ def powerOfTwoScalar (scalarWidth : Nat) (index : Fin scalarWidth) :
   ⟨2 ^ index.val,
     Nat.pow_lt_pow_right (by decide : 1 < 2) index.isLt⟩
 
-@[simp] theorem powerOfTwoScalar_val (scalarWidth : Nat) (index : Fin scalarWidth) :
+@[simp] lemma powerOfTwoScalar_val (scalarWidth : Nat) (index : Fin scalarWidth) :
     (powerOfTwoScalar scalarWidth index).val = 2 ^ index.val :=
   rfl
 
@@ -111,7 +111,7 @@ def maxScalar (scalarWidth : Nat) : Word scalarWidth :=
       Nat.two_pow_pos scalarWidth
     omega⟩
 
-@[simp] theorem maxScalar_val (scalarWidth : Nat) :
+@[simp] lemma maxScalar_val (scalarWidth : Nat) :
     (maxScalar scalarWidth).val = 2 ^ scalarWidth - 1 :=
   rfl
 
@@ -120,7 +120,7 @@ def leadingZeroScalar {scalarWidth : Nat} (scalar : Word scalarWidth) :
     Word (scalarWidth + 1) :=
   Modular.Pow.leadingZeroExponent scalar
 
-@[simp] theorem leadingZeroScalar_val {scalarWidth : Nat} (scalar : Word scalarWidth) :
+@[simp] lemma leadingZeroScalar_val {scalarWidth : Nat} (scalar : Word scalarWidth) :
     (leadingZeroScalar scalar).val = scalar.val :=
   rfl
 
@@ -139,7 +139,7 @@ def msbStep {width : Nat} (spec : CurveSpec width)
     doubled
 
 /-- The empty scalar prefix starts at the point at infinity. -/
-@[simp] theorem partialEval_zero {width scalarWidth : Nat} (spec : CurveSpec width)
+@[simp] lemma partialEval_zero {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     partialEval spec input 0 = Point.infinity spec := by
   change scalarPrefix input.scalar 0 • input.point = (0 : Point spec)
@@ -147,7 +147,7 @@ def msbStep {width : Nat} (spec : CurveSpec width)
   exact zero_nsmul input.point
 
 /-- One binary group step acts on a natural multiple by appending its bit. -/
-private theorem msbStep_nsmul {width : Nat} (spec : CurveSpec width)
+private lemma msbStep_nsmul {width : Nat} (spec : CurveSpec width)
     (base : Point spec) (accumulatorScalar : Nat) (bit : Bool) :
     msbStep spec base (accumulatorScalar • base) bit =
       Nat.bit bit accumulatorScalar • base := by
@@ -162,7 +162,7 @@ private theorem msbStep_nsmul {width : Nat} (spec : CurveSpec width)
       rw [← two_nsmul, add_nsmul, one_nsmul, mul_nsmul']
 
 /-- Each declared scalar slot advances the accumulator by its total group step. -/
-theorem msbStep_partialEval {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma msbStep_partialEval {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) (index : Fin scalarWidth) :
     msbStep spec input.point (partialEval spec input index.val)
         (scalarBit input.scalar index) =
@@ -176,7 +176,7 @@ theorem msbStep_partialEval {width scalarWidth : Nat} (spec : CurveSpec width)
     (scalarPrefix input.scalar index.val) (scalarBit input.scalar index)
 
 /-- The final prefix acts by the exact stored natural scalar. -/
-theorem partialEval_final {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma partialEval_final {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     partialEval spec input scalarWidth = input.scalar.val • input.point := by
   change scalarPrefix input.scalar scalarWidth • input.point =
@@ -189,38 +189,38 @@ def eval {width scalarWidth : Nat} (spec : CurveSpec width)
   partialEval spec input scalarWidth
 
 /-- The evaluator is the ordinary natural scalar action, with no reduction. -/
-theorem eval_eq_nsmul {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_eq_nsmul {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     eval spec input = input.scalar.val • input.point := by
   change partialEval spec input scalarWidth = input.scalar.val • input.point
   exact partialEval_final spec input
 
-@[simp] theorem scalarMul_valid {width scalarWidth : Nat}
+@[simp] lemma scalarMul_valid {width scalarWidth : Nat}
     {spec : CurveSpec width} (input : Input spec scalarWidth) :
     valid input :=
   trivial
 
 /-- The evaluator satisfies the fixed-width scalar acceptance relation. -/
-theorem eval_accepts {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_accepts {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     accepts input (eval spec input) := by
   change eval spec input = input.scalar.val • input.point
   exact eval_eq_nsmul spec input
 
 /-- Scalar multiplication returns a point with a canonical fixed-width encoding. -/
-theorem eval_isValid {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_isValid {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     Point.IsValid spec (eval spec input) :=
   Point.isValid spec _
 
 /-- The canonical code of a scalar-multiplication output is accepted. -/
-theorem encode_eval_isValid {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma encode_eval_isValid {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     Code.IsValid spec (encode spec (eval spec input)) :=
   encode_isValid spec _
 
 /-- A scalar whose stored value is zero maps every point to infinity. -/
-theorem eval_of_scalar_val_eq_zero {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_of_scalar_val_eq_zero {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) (scalarZero : input.scalar.val = 0) :
     eval spec input = Point.infinity spec := by
   rw [eval_eq_nsmul, scalarZero]
@@ -228,7 +228,7 @@ theorem eval_of_scalar_val_eq_zero {width scalarWidth : Nat} (spec : CurveSpec w
   exact zero_nsmul input.point
 
 /-- The all-zero fixed-width scalar maps every point to infinity. -/
-@[simp] theorem eval_zeroScalar {width scalarWidth : Nat} (spec : CurveSpec width)
+@[simp] lemma eval_zeroScalar {width scalarWidth : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec
         ({ scalar := zeroScalar scalarWidth, point := point } : Input spec scalarWidth) =
@@ -237,7 +237,7 @@ theorem eval_of_scalar_val_eq_zero {width scalarWidth : Nat} (spec : CurveSpec w
   exact zeroScalar_val scalarWidth
 
 /-- The sole zero-width scalar maps every point to infinity. -/
-@[simp] theorem eval_width_zero {width : Nat} (spec : CurveSpec width)
+@[simp] lemma eval_width_zero {width : Nat} (spec : CurveSpec width)
     (input : Input spec 0) :
     eval spec input = Point.infinity spec := by
   apply eval_of_scalar_val_eq_zero
@@ -246,14 +246,14 @@ theorem eval_of_scalar_val_eq_zero {width scalarWidth : Nat} (spec : CurveSpec w
   omega
 
 /-- A scalar whose stored value is one returns the input point. -/
-theorem eval_of_scalar_val_eq_one {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_of_scalar_val_eq_one {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) (scalarOne : input.scalar.val = 1) :
     eval spec input = input.point := by
   rw [eval_eq_nsmul, scalarOne]
   exact one_nsmul input.point
 
 /-- The explicit nonempty-width scalar one returns the input point. -/
-@[simp] theorem eval_oneScalar {width scalarWidth : Nat} (spec : CurveSpec width)
+@[simp] lemma eval_oneScalar {width scalarWidth : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec
         ({ scalar := oneScalar scalarWidth, point := point } : Input spec (scalarWidth + 1)) =
@@ -262,7 +262,7 @@ theorem eval_of_scalar_val_eq_one {width scalarWidth : Nat} (spec : CurveSpec wi
   exact oneScalar_val scalarWidth
 
 /-- Leading zero extension preserves the scalar-multiplication result. -/
-theorem eval_leadingZero {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_leadingZero {width scalarWidth : Nat} (spec : CurveSpec width)
     (input : Input spec scalarWidth) :
     eval spec
         ({ scalar := leadingZeroScalar input.scalar, point := input.point } :
@@ -280,14 +280,14 @@ theorem eval_leadingZero {width scalarWidth : Nat} (spec : CurveSpec width)
       (eval_eq_nsmul spec input).symm
 
 /-- A scalar with a specified one-bit value acts by the corresponding power of two. -/
-theorem eval_of_scalar_val_eq_powerOfTwo {width scalarWidth : Nat}
+lemma eval_of_scalar_val_eq_powerOfTwo {width scalarWidth : Nat}
     (spec : CurveSpec width) (input : Input spec scalarWidth)
     (index : Fin scalarWidth) (scalarPower : input.scalar.val = 2 ^ index.val) :
     eval spec input = 2 ^ index.val • input.point := by
   rw [eval_eq_nsmul, scalarPower]
 
 /-- The explicit one-bit scalar acts by its corresponding power of two. -/
-theorem eval_powerOfTwoScalar {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_powerOfTwoScalar {width scalarWidth : Nat} (spec : CurveSpec width)
     (point : Point spec) (index : Fin scalarWidth) :
     eval spec
         ({ scalar := powerOfTwoScalar scalarWidth index, point := point } :
@@ -297,7 +297,7 @@ theorem eval_powerOfTwoScalar {width scalarWidth : Nat} (spec : CurveSpec width)
   exact powerOfTwoScalar_val scalarWidth index
 
 /-- The maximum fixed-width scalar acts by its exact maximal natural value. -/
-theorem eval_maxScalar {width scalarWidth : Nat} (spec : CurveSpec width)
+lemma eval_maxScalar {width scalarWidth : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec
         ({ scalar := maxScalar scalarWidth, point := point } : Input spec scalarWidth) =
@@ -311,7 +311,7 @@ theorem eval_maxScalar {width scalarWidth : Nat} (spec : CurveSpec width)
       rw [maxScalar_val]
 
 /-- Scalar multiplication maps infinity to infinity at every scalar width. -/
-@[simp] theorem eval_infinity {width scalarWidth : Nat} (spec : CurveSpec width)
+@[simp] lemma eval_infinity {width scalarWidth : Nat} (spec : CurveSpec width)
     (scalar : Word scalarWidth) :
     eval spec
         ({ scalar := scalar, point := Point.infinity spec } : Input spec scalarWidth) =

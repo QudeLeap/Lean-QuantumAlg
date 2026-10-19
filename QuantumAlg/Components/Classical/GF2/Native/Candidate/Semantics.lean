@@ -28,23 +28,26 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
+private lemma operation_execute {input output : CShape} (op : ClassicalOp input output ctx ctx)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (BitWord.instruction (execution := model) op).execute Reference state =
+    (BitWord.instruction (execution := model) op).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := BitWord.instructionStep (execution := model) op entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
-  BitWord.bitWord_instruction_execute (execution := model) op state
+  BitWord.bitWord_instruction_execute (environment := environment) (execution := model) op state
 
 omit [BitWord.Selected model] in
-private theorem idle_execute (Reference : Register) {History : Type} [Fintype History]
+private lemma idle_execute (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.id (model := model) ctx).execute Reference state =
+    (Circuit.id (allowAllocation := true) (model := model) ctx).execute environment Reference state
+      =
       state.mapClassical (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) := by
-  exact (Circuit.execute_id_mapClassical (model := model) Reference state).trans
+  exact (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
+    (model := model) Reference state).trans
     (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- The actual equality result selects the same original column-materialization record. -/
@@ -55,11 +58,12 @@ def candidateCoefficientChoiceStep (candidate : CWriteRef ctx (.unsignedWord wid
   | .bit false => materializePivotColumnStep candidate column store
   | .bit true => (store, ())
 
-private theorem coefficient_execute (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma coefficient_execute (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidateCoefficientChoice (model := model) candidate column value).execute Reference state =
+    (candidateCoefficientChoice (model := model) candidate column value).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((candidateCoefficientChoiceStep candidate column value entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -94,23 +98,25 @@ def candidateRowBodyStep
         (actual.1, ⟨value, actual.2⟩))) store
 
 /-- The selected-row body preserves its full actual store/reference/history transformation. -/
-theorem gf2CandidateRowBody_execute
+lemma gf2CandidateRowBody_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidateRowBody (model := model) matrix free candidate zero work flag row column).execute
+      environment
         Reference state =
       state.mapClassical (fun entry =>
         ((candidateRowBodyStep matrix free candidate zero work flag row column entry.1).1,
           (entry.2.1, (entry.2.2,
             (candidateRowBodyStep matrix free candidate zero work flag row column entry.1).2)))) :=
-  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (operation_execute (candidateMaskOp matrix free work row))
-    (Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+    (Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
       (operation_execute (decisionEqualityOp work zero flag))
-      (fun reference {_} _ current => Circuit.execute_branchStoreRecord (model := model)
+      (fun reference {_} _ current => Circuit.execute_branchStoreRecord
+        (environment := environment) (model := model)
         (.storage flag.toCStorageRef)
         (candidateCoefficientChoice (model := model) candidate column)
         (candidateCoefficientChoiceStep candidate column) (coefficient_execute candidate column)
@@ -132,19 +138,19 @@ def scopedCandidateRowStep
   (Store.popWorkspace (pivotMaskContext ctx width).canonicalFreshKey .bit
     (pivotMaskContext ctx width).canonicalFreshKey_fresh actual.1, actual.2)
 
-private theorem scopedCandidateRow_execute
+private lemma scopedCandidateRow_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (pivotMaskContext ctx width) Reference (model.HiddenState × History)) :
-    (scopedCandidateRow (model := model) matrix free candidate zero row column).execute
+    (scopedCandidateRow (model := model) matrix free candidate zero row column).execute environment
         Reference state =
       state.mapClassical (fun entry =>
         ((scopedCandidateRowStep matrix free candidate zero row column entry.1).1,
           (entry.2.1, (entry.2.2,
             (scopedCandidateRowStep matrix free candidate zero row column entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (gf2CandidateRowBody_execute (model := model) _ _ _ _ _ _ row column) Reference state
 
 /-- The original masked word encloses the actual flag and possible column-mask scopes. -/
@@ -159,19 +165,20 @@ def candidateRowSelectedStep
     ctx.canonicalFreshKey_fresh actual.1, actual.2)
 
 /-- The actual selected row releases all internal cells and preserves every original correlation. -/
-theorem gf2CandidateRowSelected_execute
+lemma gf2CandidateRowSelected_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidateRowSelected (model := model) matrix free candidate zero row column).execute
+      environment
         Reference state =
       state.mapClassical (fun entry =>
         ((candidateRowSelectedStep matrix free candidate zero row column entry.1).1,
           (entry.2.1, (entry.2.2,
             (candidateRowSelectedStep matrix free candidate zero row column entry.1).2)))) :=
-  Circuit.execute_workspaceStoreRecord (model := model) _ _ _ _ _
+  Circuit.execute_workspaceStoreRecord (environment := environment) (model := model) _ _ _ _ _
     (scopedCandidateRow_execute (model := model) matrix free candidate zero row column)
     Reference state
 
@@ -185,13 +192,14 @@ def candidatePivotChoiceStep
   | .bit false => (store, ())
   | .bit true => candidateRowSelectedStep matrix free candidate zero row column store
 
-private theorem pivotChoice_execute
+private lemma pivotChoice_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width) (value : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePivotChoice (model := model) matrix free candidate zero row column value).execute
+      environment
         Reference state =
       state.mapClassical (fun entry =>
         ((candidatePivotChoiceStep matrix free candidate zero row column value entry.1).1,
@@ -218,7 +226,7 @@ def candidatePivotRowStep
   (actual.1, ⟨value, actual.2⟩)
 
 /-- The actual pivot-record branch controls the full original row transformation. -/
-theorem gf2CandidatePivotRow_execute
+lemma gf2CandidatePivotRow_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -226,13 +234,15 @@ theorem gf2CandidatePivotRow_execute
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidatePivotRow (model := model) matrix rows free candidate zero row column).execute
+      environment
         Reference state =
       state.mapClassical (fun entry =>
         ((candidatePivotRowStep matrix rows free candidate zero row column entry.1).1,
           (entry.2.1, (entry.2.2,
             (candidatePivotRowStep matrix rows free candidate zero row column entry.1).2))))
             :=
-  Circuit.execute_branchStoreRecord (model := model) (eliminationBit rows column row)
+  Circuit.execute_branchStoreRecord
+    (environment := environment) (model := model) (eliminationBit rows column row)
     (candidatePivotChoice (model := model) matrix free candidate zero row column)
     (candidatePivotChoiceStep matrix free candidate zero row column)
     (pivotChoice_execute (model := model) matrix free candidate zero row column) Reference state
@@ -252,21 +262,23 @@ def buildCandidateStep
       (fun row => candidatePivotRowStep matrix rows free candidate zero row column))) store
 
 /-- Original copy and both actual traversals preserve every complete input state correlation. -/
-theorem gf2BuildCandidate_execute
+lemma gf2BuildCandidate_execute
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (buildCandidate (model := model) matrix rows free candidate zero).execute Reference state =
+    (buildCandidate (model := model) matrix rows free candidate zero).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((buildCandidateStep matrix rows free candidate zero entry.1).1,
           (entry.2.1, (entry.2.2,
             (buildCandidateStep matrix rows free candidate zero entry.1).2)))) :=
-  Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
+  Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
     (operation_execute (candidateCopyOp free candidate))
-    (Circuit.execute_forRangeStoreRecord (model := model) width _ _ (fun column =>
-      Circuit.execute_forRangeStoreRecord (model := model) rowCount _ _
+    (Circuit.execute_forRangeStoreRecord
+      (environment := environment) (model := model) width _ _ (fun column =>
+      Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) rowCount _ _
         (fun row => gf2CandidatePivotRow_execute (model := model)
           matrix rows free candidate zero row column)))
     Reference state

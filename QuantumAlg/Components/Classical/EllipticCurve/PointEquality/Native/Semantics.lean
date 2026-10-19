@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Record the actual store update of each of the original eight native stages. -/
@@ -60,17 +60,18 @@ def stageRecord (left right : CInputRef ctx (PointShape width)) (scratch : Scrat
   exact Fin.elim0 index
 
 /-- Each recorded stage is its actual complete state interpretation. -/
-theorem stage_execute (left right : CInputRef ctx (PointShape width))
+lemma stage_execute (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit) (index : Fin 8)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (stage (model := model) left right scratch output index).execute Reference state =
+    (stage (model := model) left right scratch output index).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((stageRecord left right scratch output index entry.1).1,
           (entry.2.1, (entry.2.2,
             (stageRecord left right scratch output index entry.1).2)))) := by
   fin_cases index <;>
-    exact BitWord.bitWord_instruction_execute (execution := model) _ state
+    exact BitWord.bitWord_instruction_execute (environment := environment) (execution := model) _
+      state
 
 /-- The actual sequence record retains the real intermediate stores and native paths. -/
 def coreRecord (left right : CInputRef ctx (PointShape width)) (scratch : Scratch ctx width)
@@ -80,15 +81,15 @@ def coreRecord (left right : CInputRef ctx (PointShape width)) (scratch : Scratc
     (stageRecord left right scratch output)
 
 /-- All eight native instructions compose on complete quantum-reference blocks. -/
-theorem core_execute (left right : CInputRef ctx (PointShape width))
+lemma core_execute (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (core (model := model) left right scratch output).execute Reference state =
+    (core (model := model) left right scratch output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((coreRecord left right scratch output entry.1).1,
           (entry.2.1, (entry.2.2, (coreRecord left right scratch output entry.1).2)))) :=
-  Circuit.execute_forRangeStoreRecord (model := model) 8
+  Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) 8
     (stage (model := model) left right scratch output)
     (stageRecord left right scratch output) (stage_execute left right scratch output)
     Reference state
@@ -107,11 +108,11 @@ def scratchStore (left right : CInputRef ctx (PointShape width))
   let store7 := store6.applyOp (coordinateAnd scratch)
   store7
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The complete sequence ends with the actual destination write. -/
-theorem coreRecord_store (left right : CInputRef ctx (PointShape width))
+lemma coreRecord_store (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (output : CWriteRef ctx .bit) (store : Store ctx) :
     (coreRecord left right scratch output store).1 =
       (scratchStore left right scratch store).applyOp (outputAnd scratch output) := by
@@ -130,7 +131,7 @@ structure Separation (left right : CInputRef ctx (PointShape width))
   left : ∀ key ∈ scratch.keys, key ∉ left.storageKeys
   right : ∀ key ∈ scratch.keys, key ∉ right.storageKeys
 
-private theorem scratchStore_preserves (left right : CInputRef ctx (PointShape width))
+private lemma scratchStore_preserves (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape)
     (separated : ∀ key ∈ scratch.keys, key ∉ input.storageKeys) :
@@ -144,31 +145,31 @@ private theorem scratchStore_preserves (left right : CInputRef ctx (PointShape w
   repeat rw [Store.read_applyOp_of_not_mem_storageKeys]
   all_goals first | rfl | exact l | exact r | exact t | exact x | exact y
 
-private theorem read_product (store : Store ctx) {first second : CShape}
+private lemma read_product (store : Store ctx) {first second : CShape}
     (left : CInputRef ctx first) (right : CInputRef ctx second) :
     store.read (.product left right) = .product (store.read left) (store.read right) := rfl
 
-private theorem read_first (store : Store ctx) {first second : CShape}
+private lemma read_first (store : Store ctx) {first second : CShape}
     (input : CInputRef ctx (.product first second)) :
     store.read (.first input) = (store.read input).first := rfl
 
-private theorem read_second (store : Store ctx) {first second : CShape}
+private lemma read_second (store : Store ctx) {first second : CShape}
     (input : CInputRef ctx (.product first second)) :
     store.read (.second input) = (store.read input).second := rfl
 
-private theorem read_written (store : Store ctx) {shape : CShape}
+private lemma read_written (store : Store ctx) {shape : CShape}
     (output : CWriteRef ctx shape) (value : CShape.Value shape) :
     (store.write output value).read (read output) = value :=
   Store.read_write_same store output value
 
-private theorem read_other (store : Store ctx) {first second : CShape}
+private lemma read_other (store : Store ctx) {first second : CShape}
     (output : CWriteRef ctx first) (input : CWriteRef ctx second)
     (value : CShape.Value first) (different : output.key ≠ input.key) :
     (store.write output value).read (read input) = store.read (read input) :=
   Store.read_write_other store output input.toCStorageRef value different
 
 /-- The original native workspace stages compute precisely the full nominal point equality. -/
-theorem scratchStore_comparison (left right : CInputRef ctx (PointShape width))
+lemma scratchStore_comparison (left right : CInputRef ctx (PointShape width))
     (scratch : Scratch ctx width) (separated : Separation left right scratch)
     (store : Store ctx) :
     (outputAnd scratch (scratch.tag)).eval
@@ -216,7 +217,7 @@ theorem scratchStore_comparison (left right : CInputRef ctx (PointShape width))
           Resource.WordBinaryOpcode.eval, CShape.Value.first, CShape.Value.second,
           CShape.Value.toNat, Fin.ext_iff]
 
-private theorem scratchOfCells_keys (cells : Cells ctx (scratchShapes width)) :
+private lemma scratchOfCells_keys (cells : Cells ctx (scratchShapes width)) :
     (scratchOfCells cells).keys = cells.keys := by
   cases cells with
   | cons left rest =>
@@ -232,7 +233,7 @@ private theorem scratchOfCells_keys (cells : Cells ctx (scratchShapes width)) :
             rfl
 
 /-- Real lexical allocation discharges the general core's complete input separation. -/
-theorem scratchOfCells_separation {outer : RuntimeCtx kind}
+lemma scratchOfCells_separation {outer : RuntimeCtx kind}
     (left right : CInputRef outer (PointShape width))
     (cells : Cells ctx (scratchShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -249,7 +250,7 @@ theorem scratchOfCells_separation {outer : RuntimeCtx kind}
     exact Cells.workspaceCells_transportSeparated_avoids_of_mem cells transport separated
       member right
 
-private theorem scratchStore_readsAs {outer : RuntimeCtx kind}
+private lemma scratchStore_readsAs {outer : RuntimeCtx kind}
     (left right : CInputRef outer (PointShape width))
     (cells : Cells ctx (scratchShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) (source : Store outer) (before : Store ctx)
@@ -263,21 +264,22 @@ private theorem scratchStore_readsAs {outer : RuntimeCtx kind}
   rw [scratchOfCells_keys] at member
   exact Cells.workspaceCells_transportSeparated_avoids_of_mem cells transport separated member input
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual allocated comparator changes only its destination in the complete caller store. -/
-theorem compareInto_actualRecord (left right : CInputRef ctx (PointShape width))
+lemma compareInto_actualRecord (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx .bit) :
     ∃ step : Store ctx → Store ctx × (compareInto (model := model) left right output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (compareInto (model := model) left right output).execute Reference state =
+        (compareInto (model := model) left right output).execute environment Reference state =
           state.mapClassical (fun entry =>
             ((step entry.1).1, (entry.2.1, (entry.2.2, (step entry.1).2))))) ∧
       ∀ before : Store ctx, (step before).1 =
         before.write output (.bit (pointEqual (before.read left) (before.read right))) := by
-  apply withCells_actualStoreRecord_post (model := model) ctx (scratchShapes width)
+  apply withCells_actualStoreRecord_post (environment := environment) (model := model) ctx
+    (scratchShapes width)
     (fun cells _ transport _ => core (model := model) (transport.liftInput left)
       (transport.liftInput right) (scratchOfCells cells) (transport.liftWrite output))
     (fun source target => target =
@@ -307,41 +309,45 @@ theorem compareInto_actualRecord (left right : CInputRef ctx (PointShape width))
 /-- The chosen record is certified by the actual comparator's full interpreter equation. -/
 def compareStep (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx .bit) :
     Store ctx → Store ctx × (compareInto (model := model) left right output).Path :=
-  Classical.choose (compareInto_actualRecord left right output)
+  Classical.choose (compareInto_actualRecord (environment := environment) left right output)
 
 /-- Native comparison preserves all quantum-reference blocks and the real finite history. -/
-theorem compareInto_execute (left right : CInputRef ctx (PointShape width))
+lemma compareInto_execute (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (compareInto (model := model) left right output).execute Reference state =
+    (compareInto (model := model) left right output).execute environment Reference state =
       state.mapClassical (fun entry =>
-      ((compareStep left right output entry.1).1,
-        (entry.2.1, (entry.2.2, (compareStep left right output entry.1).2)))) :=
-  (Classical.choose_spec (compareInto_actualRecord left right output)).1 Reference state
+      ((compareStep (environment := environment) left right output entry.1).1,
+        (entry.2.1, (entry.2.2, (compareStep (environment := environment) left right output
+          entry.1).2)))) :=
+  (Classical.choose_spec (compareInto_actualRecord (environment := environment) left right
+    output)).1 Reference state
 
 /-- The returned caller store is its original value with the comparison destination written. -/
-theorem compareStep_store (left right : CInputRef ctx (PointShape width))
+lemma compareStep_store (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx .bit) (before : Store ctx) :
-    (compareStep left right output before).1 =
+    (compareStep (environment := environment) left right output before).1 =
       before.write output (.bit (pointEqual (before.read left) (before.read right))) :=
-  (Classical.choose_spec (compareInto_actualRecord left right output)).2 before
+  (Classical.choose_spec (compareInto_actualRecord (environment := environment) left right
+    output)).2 before
 
 /-- Every initial store receives exactly the original complete point-comparison Boolean. -/
-theorem compareInto_read_output (left right : CInputRef ctx (PointShape width))
+lemma compareInto_read_output (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx .bit) (before : Store ctx) :
-    (compareStep left right output before).1.read (read output) =
+    (compareStep (environment := environment) left right output before).1.read (read output) =
       .bit (pointEqual (before.read left) (before.read right)) := by
   rw [compareStep_store]
   exact Store.read_write_same before output _
 
 /-- On represented points, the actual output bit accepts exactly semantic point equality. -/
-theorem compareInto_accepts_iff (spec : ClassicalAlgorithms.EllipticCurve.CurveSpec width)
+lemma compareInto_accepts_iff (spec : ClassicalAlgorithms.EllipticCurve.CurveSpec width)
     (left right : CInputRef ctx (PointShape width)) (output : CWriteRef ctx .bit)
     (before : Store ctx) (leftPoint rightPoint : Pure.Point spec)
     (leftRep : PointRepresents spec (before.read left) leftPoint)
     (rightRep : PointRepresents spec (before.read right) rightPoint) :
-    (compareStep left right output before).1.read (read output) = .bit true ↔
+    (compareStep (environment := environment) left right output before).1.read (read output) =
+      .bit true ↔
       leftPoint = rightPoint := by
   rw [compareInto_read_output]
   simp only [CShape.Value.bit.injEq, pointEqual_eq_true_iff]
@@ -362,10 +368,11 @@ theorem compareInto_accepts_iff (spec : ClassicalAlgorithms.EllipticCurve.CurveS
     simpa only [encodeCode_decodeCode] using encodedEqual
 
 /-- A structural caller input disjoint from the destination remains bitwise unchanged. -/
-theorem compareInto_preserves_read (left right : CInputRef ctx (PointShape width))
+lemma compareInto_preserves_read (left right : CInputRef ctx (PointShape width))
     (output : CWriteRef ctx .bit) (before : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (separate : output.key ∉ input.storageKeys) :
-    (compareStep left right output before).1.read input = before.read input := by
+    (compareStep (environment := environment) left right output before).1.read input =
+      before.read input := by
   rw [compareStep_store]
   exact Store.read_write_of_not_mem_storageKeys before output _ input separate
 

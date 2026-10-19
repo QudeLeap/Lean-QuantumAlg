@@ -37,30 +37,30 @@ def pivotEventBound (width : Nat) : Nat :=
 /-- Three pivot reflections with a common target and the same two borrowed bits. -/
 def modularOffsetEventBound (width : Nat) : Nat := 3 * pivotEventBound width
 
-theorem gidneyComplement_event_count (width : Nat) :
+lemma gidneyComplement_event_count (width : Nat) :
     (complementProgram width).eventCost.card = width := by
   rw [gidneyComplement_eventCost]
   simp [ResourcePool.ofList]
 
 /-- The native count includes every gate introduced by coherent-control expansion. -/
-theorem gidneyBiFlip_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyBiFlip_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipProgram width pivot).eventCost.card = (biFlipGates width pivot).length :=
   EncodedBit.GateSpec.programList_eventCost_card _ _ _
 
 /-- The literal list executes serially, so unit-duration depth equals its actual gate count. -/
-theorem gidneyBiFlip_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyBiFlip_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipProgram width pivot).evaluatedEventDepth (fun _ => 1) =
       (biFlipProgram width pivot).eventCost.card := by
   rw [biFlipProgram, EncodedBit.GateSpec.programList_evaluatedEventDepth_unit,
     EncodedBit.GateSpec.programList_eventCost_card]
 
-theorem gidneyBiFlip_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyBiFlip_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (biFlipProgram width pivot).eventCost.card ≤ biFlipEventBound width := by
   rw [gidneyBiFlip_event_count]
   exact gidneyBiFlipGates_length_bound width pivot
 
 /-- Exact cardinality of the four actual blocks; the comparison keeps its zero-pivot branch. -/
-theorem gidneyPivot_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyPivot_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width pivot).eventCost.card =
       2 * (biFlipProgram width pivot).eventCost.card +
         2 * (comparisonProgram width pivot).eventCost.card := by
@@ -68,13 +68,13 @@ theorem gidneyPivot_event_count (width : Nat) (pivot : Fin (2 ^ width + 1)) :
   simp only [Multiset.card_add]
   omega
 
-theorem gidneyPivot_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyPivot_depth_eq_events (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width pivot).evaluatedEventDepth (fun _ => 1) =
       (pivotProgram width pivot).eventCost.card := by
   rw [pivotProgram, EncodedBit.GateSpec.programList_evaluatedEventDepth_unit,
     EncodedBit.GateSpec.programList_eventCost_card]
 
-theorem gidneyPivot_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyPivot_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (pivotProgram width pivot).eventCost.card ≤ pivotEventBound width := by
   rw [gidneyPivot_event_count]
   have hb := gidneyBiFlip_event_count_bound width pivot
@@ -83,7 +83,7 @@ theorem gidneyPivot_event_count_bound (width : Nat) (pivot : Fin (2 ^ width + 1)
   omega
 
 /-- The exact modular-offset count is the sum of the three executed pivot counts. -/
-theorem gidneyModularOffset_event_count (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyModularOffset_event_count (width : Nat) (modulus : Fin (2 ^ width + 1))
     (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).eventCost.card =
       (pivotProgram width (offsetFirstPivot modulus constant)).eventCost.card +
@@ -92,7 +92,7 @@ theorem gidneyModularOffset_event_count (width : Nat) (modulus : Fin (2 ^ width 
   rw [gidneyModularOffset_eventCost]
   simp only [Multiset.card_add]
 
-theorem gidneyModularOffset_depth_eq_events (width : Nat)
+lemma gidneyModularOffset_depth_eq_events (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).evaluatedEventDepth (fun _ => 1) =
       (modularOffsetProgram width modulus constant).eventCost.card := by
@@ -100,7 +100,7 @@ theorem gidneyModularOffset_depth_eq_events (width : Nat)
     EncodedBit.GateSpec.programList_eventCost_card]
 
 /-- An independent logarithmic envelope holds for every fitted modulus and constant. -/
-theorem gidneyModularOffset_event_count_bound (width : Nat)
+lemma gidneyModularOffset_event_count_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).eventCost.card ≤
       modularOffsetEventBound width := by
@@ -111,7 +111,7 @@ theorem gidneyModularOffset_event_count_bound (width : Nat)
   unfold modularOffsetEventBound
   omega
 
-theorem gidneyModularOffset_depth_bound (width : Nat)
+lemma gidneyModularOffset_depth_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (modularOffsetProgram width modulus constant).evaluatedEventDepth (fun _ => 1) ≤
       modularOffsetEventBound width := by
@@ -119,7 +119,7 @@ theorem gidneyModularOffset_depth_bound (width : Nat)
   exact gidneyModularOffset_event_count_bound width modulus constant
 
 /-- Expanded numerical envelope; this is an upper bound, not an optimized gate count. -/
-theorem gidneyModularOffsetEventBound_expanded (width : Nat) :
+lemma gidneyModularOffsetEventBound_expanded (width : Nat) :
     modularOffsetEventBound width =
       6 * ((1 + width) * (39 * Nat.clog 2 (1 + width) + 1)) +
         30 * (width * (39 * Nat.clog 2 width + 1)) + 24 * width + 18 := by
@@ -128,7 +128,7 @@ theorem gidneyModularOffsetEventBound_expanded (width : Nat) :
   ring
 
 /-- The actual typed carrier contains the word and exactly two borrowed bits. -/
-theorem gidneyModularOffset_qubit_count (width : Nat)
+lemma gidneyModularOffset_qubit_count (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1)) :
     (encoding width).width = width + 2 ∧
       (QubitLayout.canonical (encoding width).width).systemIdx.length = width + 2 := by

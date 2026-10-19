@@ -19,8 +19,9 @@ namespace QuantumAlg.Gate.Toffoli
 noncomputable section
 
 /-- The complete native parity word is an exact three-bit controlled phase. -/
-theorem toffoliExpansion_phaseWord_matrix (oracles : OracleModel) (angle : ℝ) :
-    ((phaseWord oracles angle).matrix : HilbertOperator layout.register) =
+lemma toffoliExpansion_phaseWord_matrix (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phaseWord oracles angle).matrix environment) : HilbertOperator layout.register) =
       Matrix.diagonal (fun basis =>
         if bits basis 0 = 1 ∧ bits basis 1 = 1 ∧ bits basis 2 = 1 then
           Complex.exp (((4 * angle : ℝ) : ℂ) * Complex.I) else 1) := by

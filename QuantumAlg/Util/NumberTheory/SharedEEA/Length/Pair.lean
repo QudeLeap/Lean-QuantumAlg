@@ -47,21 +47,21 @@ def rewind (first second : BitVec wordWidth) (lengths : BitVec clockWidth × Bit
   (coefficient, divisor)
 
 /-- Reverse-order actual writes restore both arbitrary finite length registers. -/
-theorem rewind_update (first second : BitVec wordWidth)
+lemma rewind_update (first second : BitVec wordWidth)
     (lengths : BitVec clockWidth × BitVec clockWidth) :
     rewind first second (update first second lengths) = lengths := by
   simp only [rewind, update, RemainderLength.remainderUpdate_reverse,
     LengthRefresh.coefficientUpdate_reverse]
 
 /-- The concrete inverse recovers every candidate output pair in the other direction. -/
-theorem update_rewind (first second : BitVec wordWidth)
+lemma update_rewind (first second : BitVec wordWidth)
     (lengths : BitVec clockWidth × BitVec clockWidth) :
     update first second (rewind first second lengths) = lengths := by
   simp only [update, rewind, LengthRefresh.coefficientUpdate_reverse,
     RemainderLength.remainderUpdate_reverse]
 
 /-- Reachable macro exchange supplies the exact two next finite lengths under the actual update. -/
-theorem iteration_update (state : IterationState) (modulus : Nat)
+lemma iteration_update (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     update (PackingBoundary.completedSecondWord state modulus valid conserved active)
@@ -93,7 +93,7 @@ theorem iteration_update (state : IterationState) (modulus : Nat)
       state modulus valid conserved active]
 
 /-- The same physical words recover both exact previous finite lengths from the updated pair. -/
-theorem iteration_rewind (state : IterationState) (modulus : Nat)
+lemma iteration_rewind (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     rewind (PackingBoundary.completedSecondWord state modulus valid conserved active)

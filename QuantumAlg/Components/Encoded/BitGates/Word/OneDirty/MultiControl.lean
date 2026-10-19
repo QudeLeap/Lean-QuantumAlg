@@ -40,9 +40,10 @@ def gates : {controls : Nat} → OneDirtyLayout (encoding := encoding) controls 
 
 variable {controls : Nat} (layout : OneDirtyLayout (encoding := encoding) controls)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- The exact complete encoded action xors the conjunction into the output at every width. -/
-theorem gates_step (state : Data) :
+lemma gates_step (state : Data) :
     GateSpec.stepList layout.gates state =
       if ∀ index, (layout.source.bit index).get state = true
         then layout.output.flip state else state := by
@@ -83,7 +84,7 @@ theorem gates_step (state : Data) :
       | succ controls => exact layout.balancedGates_step (by omega) state
 
 /-- Every other actual encoded wire keeps its complete value, including arbitrary dirty work. -/
-theorem gates_get_of_output_ne (observed : EncodedBit encoding)
+lemma gates_get_of_output_ne (observed : EncodedBit encoding)
     (different : layout.output.wire ≠ observed.wire) (state : Data) :
     observed.get (GateSpec.stepList layout.gates state) = observed.get state := by
   rw [gates_step]
@@ -92,26 +93,28 @@ theorem gates_get_of_output_ne (observed : EncodedBit encoding)
   · rfl
 
 /-- The external borrowed work bit is restored without any initialization premise. -/
-theorem gates_work_restored (state : Data) :
+lemma gates_work_restored (state : Data) :
     layout.work.get (GateSpec.stepList layout.gates state) = layout.work.get state :=
   layout.gates_get_of_output_ne layout.work layout.work_output_ne.symm state
 
 /-- Every original control is restored, including those temporarily borrowed by a subcall. -/
-theorem gates_source_restored (state : Data) (index : Fin controls) :
+lemma gates_source_restored (state : Data) (index : Fin controls) :
     (layout.source.bit index).get (GateSpec.stepList layout.gates state) =
       (layout.source.bit index).get state :=
   layout.gates_get_of_output_ne (layout.source.bit index)
     (layout.source_output_ne index).symm state
 
 /-- The actual elementary circuit realizes the exact all-input multi-control action. -/
-theorem gates_realizes :
+lemma gates_realizes :
     UnitaryCircuit.Realizes encoding (GateSpec.programList physical oracles layout.gates)
+      environment
       (fun state => if ∀ index, (layout.source.bit index).get state = true
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep physical oracles layout.gates layout.gates_step
+  GateSpec.realizesList_congrStep physical oracles (environment := environment) layout.gates
+    layout.gates_step
 
 /-- Below three controls the actual list contains just the corresponding elementary gate. -/
-theorem gates_length_of_small (small : controls < 3) : layout.gates.length = 1 := by
+lemma gates_length_of_small (small : controls < 3) : layout.gates.length = 1 := by
   cases controls with
   | zero => rfl
   | succ controls =>
@@ -123,7 +126,7 @@ theorem gates_length_of_small (small : controls < 3) : layout.gates.length = 1 :
       | succ controls => omega
 
 /-- The larger cases use exactly the two copies of each balanced subcall. -/
-theorem gates_length_of_large (large : 3 ≤ controls) :
+lemma gates_length_of_large (large : 3 ≤ controls) :
     layout.gates.length =
       2 * ((if firstWidth controls - 2 = 0 then 1 else 4 * (firstWidth controls - 2)) +
         (if secondWidth controls - 1 = 0 then 1 else 4 * (secondWidth controls - 1))) := by
@@ -138,7 +141,7 @@ theorem gates_length_of_large (large : 3 ≤ controls) :
       | succ controls => exact layout.balancedGates_length large
 
 /-- Linear length bounds the literal elementary program at all control widths. -/
-theorem gates_length_le : layout.gates.length ≤ 8 * controls + 1 := by
+lemma gates_length_le : layout.gates.length ≤ 8 * controls + 1 := by
   by_cases small : controls < 3
   · rw [gates_length_of_small layout small]
     omega

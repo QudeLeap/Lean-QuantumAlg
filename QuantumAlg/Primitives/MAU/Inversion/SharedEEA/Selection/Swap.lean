@@ -33,16 +33,18 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.SelectionSwap
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NativePredicate SelectionLayout SelectionKey
 
-private theorem control_sign (width : Nat) :
+private lemma control_sign (width : Nat) :
     (controlBit width).wire ≠ (signBit width).wire := by
   intro same
   have values := congrArg Fin.val same
   rw [controlBit_wire, signBit_wire] at values
   omega
 
-private theorem control_word (width : Nat) (index : Fin (width + 3)) :
+private lemma control_word (width : Nat) (index : Fin (width + 3)) :
     (controlBit width).wire ≠ (firstWordBit width index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -50,7 +52,7 @@ private theorem control_word (width : Nat) (index : Fin (width + 3)) :
   have within := index.isLt
   omega
 
-private theorem sign_word (width : Nat) (index : Fin (width + 3)) :
+private lemma sign_word (width : Nat) (index : Fin (width + 3)) :
     (signBit width).wire ≠ (firstWordBit width index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -58,7 +60,7 @@ private theorem sign_word (width : Nat) (index : Fin (width + 3)) :
   have within := index.isLt
   omega
 
-private theorem source_sign (width : Nat) (index : Fin (2 * width.size + 2)) :
+private lemma source_sign (width : Nat) (index : Fin (2 * width.size + 2)) :
     ((layout width).source.bit index).wire ≠ (signBit width).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -68,7 +70,7 @@ private theorem source_sign (width : Nat) (index : Fin (2 * width.size + 2)) :
   unfold physicalIndex at values
   split_ifs at values <;> omega
 
-private theorem word_source (width : Nat) (wordIndex : Fin (width + 3))
+private lemma word_source (width : Nat) (wordIndex : Fin (width + 3))
     (sourceIndex : Fin (2 * width.size + 2)) :
     (firstWordBit width wordIndex).wire ≠ ((layout width).source.bit sourceIndex).wire := by
   intro same
@@ -84,13 +86,13 @@ def exchange (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
   swapStep (signBit width) (firstWordBit width index) (sign_word width index) state
 
 /-- The entire original control is outside both exchanged targets. -/
-theorem exchange_control (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+lemma exchange_control (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     (exchange width index state).control = state.control :=
   swapStep_get_observed_of_swap_ne (signBit width) (firstWordBit width index) (controlBit width)
     (sign_word width index) (control_sign width).symm (control_word width index).symm state
 
 /-- Every bit used to select a key is restored by the canonical target exchange. -/
-theorem exchange_source_get (width : Nat) (index : Fin (width + 3))
+lemma exchange_source_get (width : Nat) (index : Fin (width + 3))
     (sourceIndex : Fin (2 * width.size + 2)) (state : Registers width) :
     ((layout width).source.bit sourceIndex).get (exchange width index state) =
       ((layout width).source.bit sourceIndex).get state :=
@@ -99,25 +101,25 @@ theorem exchange_source_get (width : Nat) (index : Fin (width + 3))
     (source_sign width sourceIndex).symm (word_source width index sourceIndex) state
 
 /-- The actual selected Work1 bit becomes Sign. -/
-theorem exchange_sign (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+lemma exchange_sign (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     (exchange width index state).flags.sign = state.firstWord.getMsbD index.val :=
   (swapStep_get_left (signBit width) (firstWordBit width index) (sign_word width index) state).trans
     (firstWordBit_get width index state)
 
 /-- The original Sign becomes the actual selected Work1 bit. -/
-theorem exchange_wordBit (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+lemma exchange_wordBit (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     (exchange width index state).firstWord.getMsbD index.val = state.flags.sign :=
   (firstWordBit_get width index (exchange width index state)).symm.trans
     (swapStep_get_right (signBit width) (firstWordBit width index) (sign_word width index) state)
 
 /-- Every source equality predicate is unchanged by the selected target exchange. -/
-theorem exchange_condition (width : Nat) (index : Fin (width + 3))
+lemma exchange_condition (width : Nat) (index : Fin (width + 3))
     (expected : SelectionPredicate.Pattern width) (state : Registers width) :
     SelectionPredicate.condition expected (exchange width index state) =
       SelectionPredicate.condition expected state := by
   simp only [SelectionPredicate.condition, SelectionPredicate.Matches, exchange_source_get]
 
-private theorem exchange_xorControl (width : Nat) (index : Fin (width + 3))
+private lemma exchange_xorControl (width : Nat) (index : Fin (width + 3))
     (value : Bool) (state : Registers width) :
     exchange width index (xorControl value state) =
       xorControl value (exchange width index state) := by
@@ -137,7 +139,7 @@ private def targetGates (width : Nat) (index : Fin (width + 3)) :
   EncodedBit.controlledSwapGates (controlBit width) (signBit width) (firstWordBit width index)
     (control_sign width) (control_word width index) (sign_word width index)
 
-private theorem targetGates_step (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+private lemma targetGates_step (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     GateSpec.stepList (targetGates width index) state =
       if state.control then exchange width index state else state :=
   EncodedBit.controlledSwapStep_eq_if (controlBit width) (signBit width) (firstWordBit width index)
@@ -148,7 +150,7 @@ private def selectedStep (width : Nat) (selected : Key width) (index : Fin (widt
   if state.control ^^ SelectionPredicate.condition (pattern selected) state
   then exchange width index state else state
 
-private theorem selectedStep_condition (width : Nat) (selected : Key width)
+private lemma selectedStep_condition (width : Nat) (selected : Key width)
     (index : Fin (width + 3)) (expected : SelectionPredicate.Pattern width)
     (state : Registers width) :
     SelectionPredicate.condition expected (selectedStep width selected index state) =
@@ -158,7 +160,7 @@ private theorem selectedStep_condition (width : Nat) (selected : Key width)
   · exact exchange_condition width index expected state
   · rfl
 
-private theorem target_computed (width : Nat) (selected : Key width) (index : Fin (width + 3))
+private lemma target_computed (width : Nat) (selected : Key width) (index : Fin (width + 3))
     (state : Registers width) :
     GateSpec.stepList (targetGates width index)
         (xorControl (SelectionPredicate.condition (pattern selected) state) state) =
@@ -178,7 +180,7 @@ private def selectedGates (width : Nat) (selected : Key width) (index : Fin (wid
   SelectionPredicate.gates width (pattern selected) ++ targetGates width index ++
     (SelectionPredicate.gates width (pattern selected)).reverse
 
-private theorem selectedGates_step (width : Nat) (selected : Key width)
+private lemma selectedGates_step (width : Nat) (selected : Key width)
     (index : Fin (width + 3)) (state : Registers width) :
     GateSpec.stepList (selectedGates width selected index) state =
       selectedStep width selected index state := by
@@ -196,7 +198,7 @@ def step (width : Nat) (selected : Key width) (state : Registers width) : Regist
   if within : position selected < width + 3 then
     selectedStep width selected ⟨position selected, within⟩ state else state
 
-theorem gates_step (width : Nat) (selected : Key width) (state : Registers width) :
+lemma gates_step (width : Nat) (selected : Key width) (state : Registers width) :
     GateSpec.stepList (gates width selected) state = step width selected state := by
   unfold gates step
   split
@@ -204,7 +206,7 @@ theorem gates_step (width : Nat) (selected : Key width) (state : Registers width
   · rfl
 
 /-- The entire original Ctrl survives each complete selector, not just the successful one. -/
-theorem step_control (width : Nat) (selected : Key width) (state : Registers width) :
+lemma step_control (width : Nat) (selected : Key width) (state : Registers width) :
     (step width selected state).control = state.control := by
   unfold step
   split
@@ -215,7 +217,7 @@ theorem step_control (width : Nat) (selected : Key width) (state : Registers wid
   · rfl
 
 /-- Every other key's equality value is also retained after this complete selector. -/
-theorem step_condition (width : Nat) (selected : Key width)
+lemma step_condition (width : Nat) (selected : Key width)
     (expected : SelectionPredicate.Pattern width) (state : Registers width) :
     SelectionPredicate.condition expected (step width selected state) =
       SelectionPredicate.condition expected state := by
@@ -231,13 +233,14 @@ def program (width : Nat) (selected : Key width) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width selected)
 
 /-- Exact all-label realization of that same complete native list. -/
-theorem program_realizes (width : Nat) (selected : Key width) :
-    UnitaryCircuit.Realizes (encoding width) (program width selected) (step width selected) :=
+lemma program_realizes (width : Nat) (selected : Key width) :
+    UnitaryCircuit.Realizes (encoding width) (program width selected) environment (step width
+      selected) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width selected) (gates_step width selected)
+    (gates width selected) (gates_step width selected) environment
 
 /-- Literal count of both full predicate passes and the three actual swap Toffolis. -/
-theorem gates_length (width : Nat) (selected : Key width) :
+lemma gates_length (width : Nat) (selected : Key width) :
     (gates width selected).length =
       if position selected < width + 3 then
         2 * (SelectionPredicate.gates width (pattern selected)).length + 3 else 0 := by

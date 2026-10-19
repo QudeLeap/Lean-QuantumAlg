@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+import Mathlib.Data.Fintype.BigOperators
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Arithmetic.Schedule
 import all QuantumAlg.Primitives.MAU.Inversion.SharedEEA.Arithmetic.Window.Resources
 
@@ -37,7 +38,7 @@ def selectorBound (width : Nat) (includeSign : Bool) : Nat :=
   20 * ArithmeticSelectionLayout.sourceCount width includeSign + 28 * (width + 3) + 10
 
 /-- The selector trace includes both full pattern computations and the controlled TTK list. -/
-theorem selector_trace_le {width : Nat} (window : Window width) (operation : Operation)
+lemma selector_trace_le {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) :
     (ArithmeticSelector.program window operation coefficient selected).eventTrace.length ≤
       selectorBound width (readsSign operation) := by
@@ -50,7 +51,7 @@ theorem selector_trace_le {width : Nat} (window : Window width) (operation : Ope
   omega
 
 /-- Unit event depth of this strictly sequential selector is its actual emitted event count. -/
-theorem selector_depth_eq_trace {width : Nat} (window : Window width) (operation : Operation)
+lemma selector_depth_eq_trace {width : Nat} (window : Window width) (operation : Operation)
     (coefficient : Bool) (selected : Key width (readsSign operation)) :
     (ArithmeticSelector.program window operation coefficient selected).evaluatedEventDepth
         (fun _ => 1) =
@@ -66,7 +67,7 @@ theorem selector_depth_eq_trace {width : Nat} (window : Window width) (operation
       List.length_append, List.length_map, List.length_reverse, Nat.add_assoc]
 
 /-- Every actual instruction has the same bound, including disabled and invalid-window keys. -/
-theorem instruction_trace_le (width : Nat) (instruction : Instruction)
+lemma instruction_trace_le (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) :
     (ArithmeticInstruction.program width instruction selected).eventTrace.length ≤
       selectorBound width (includeSign instruction) := by
@@ -79,7 +80,7 @@ theorem instruction_trace_le (width : Nat) (instruction : Instruction)
   · exact Nat.zero_le _
 
 /-- The strict depth of each emitted instruction is its actual event trace length. -/
-theorem instruction_depth_eq_trace (width : Nat) (instruction : Instruction)
+lemma instruction_depth_eq_trace (width : Nat) (instruction : Instruction)
     (selected : Key width (includeSign instruction)) :
     (ArithmeticInstruction.program width instruction selected).evaluatedEventDepth (fun _ => 1) =
       (ArithmeticInstruction.program width instruction selected).eventTrace.length := by
@@ -92,19 +93,87 @@ theorem instruction_depth_eq_trace (width : Nat) (instruction : Instruction)
           (coefficient instruction) selected
   · rfl
 
-private theorem list_trace_le (width : Nat) (instruction : Instruction)
+/-- The real first phase coordinate has exactly half of the complete actual keys. -/
+lemma first_key_card (width : Nat) (includeSign : Bool) (value : Bool) :
+    Fintype.card {selected : Key width includeSign // first selected = value} =
+      2 ^ (ArithmeticSelectionLayout.sourceCount width includeSign - 1) := by
+  classical
+  rw [Fintype.card_subtype]
+  change (Finset.univ.filter (fun selected :
+    Fin (ArithmeticSelectionLayout.sourceCount width includeSign) → Bool =>
+      selected (ArithmeticSelectionKey.firstIndex width includeSign) = value)).card = _
+  have counted := Fintype.card_filter_piFinset_const_eq_of_mem
+    (Finset.univ : Finset Bool) (ArithmeticSelectionKey.firstIndex width includeSign)
+    (Finset.mem_univ value)
+  simpa only [Fintype.piFinset_univ, Finset.card_univ, Fintype.card_bool,
+    Fintype.card_fin] using counted
+
+/-- Static rejection never enables an arithmetic body in the opposite real first phase. -/
+lemma enabled_first {width : Nat} (instruction : Instruction)
+    (selected : Key width (includeSign instruction))
+    (active : enabled instruction selected = true) :
+    first selected = ArithmeticInstruction.coefficient instruction := by
+  cases instruction <;> cases phase : first selected <;>
+    simp [enabled, ArithmeticInstruction.phaseEnabled, ArithmeticInstruction.coefficient,
+      phase] at active ⊢
+
+/-- Complete enumeration converts a filtered actual-key list to its subtype cardinality. -/
+lemma keys_filter_length (width : Nat) (includeSign : Bool)
+    (predicate : Key width includeSign → Prop) [DecidablePred predicate] :
+    ((keys width includeSign).filter (fun selected => decide (predicate selected))).length =
+      Fintype.card {selected : Key width includeSign // predicate selected} := by
+  classical
+  have counted := (keys_nodup width includeSign).card_eq_countP (P := predicate)
+  rw [List.countP_eq_length_filter] at counted
+  have complete : (keys width includeSign).toFinset = Finset.univ := by
+    ext selected
+    simp only [List.mem_toFinset, Finset.mem_univ, iff_true]
+    exact key_mem width includeSign selected
+  calc
+    _ = ((keys width includeSign).toFinset.filter predicate).card := counted.symm
+    _ = (Finset.univ.filter predicate).card := by rw [complete]
+    _ = Fintype.card {selected : Key width includeSign // predicate selected} :=
+      (Fintype.card_subtype predicate).symm
+
+/-- The real enumeration retains its original order; only its matching phase is counted. -/
+lemma keys_first_length (width : Nat) (includeSign : Bool) (value : Bool) :
+    ((keys width includeSign).filter
+      (fun selected => decide (first selected = value))).length =
+        2 ^ (ArithmeticSelectionLayout.sourceCount width includeSign - 1) := by
+  rw [keys_filter_length, first_key_card]
+
+/-- An opposite-phase actual key emits the existing empty identity trace. -/
+lemma instruction_trace_eq_nil_of_wrong_first (width : Nat) (instruction : Instruction)
+    (selected : Key width (includeSign instruction))
+    (wrong : first selected ≠ ArithmeticInstruction.coefficient instruction) :
+    (ArithmeticInstruction.program width instruction selected).eventTrace = [] := by
+  have disabled : enabled instruction selected = false := by
+    cases active : enabled instruction selected with
+    | false => rfl
+    | true => exact False.elim (wrong (enabled_first instruction selected active))
+  simp [ArithmeticInstruction.program, disabled, ArithmeticInstruction.identity]
+
+private lemma list_trace_le (width : Nat) (instruction : Instruction)
     (indices : List (Key width (includeSign instruction))) :
     (indices.flatMap fun selected =>
       (ArithmeticInstruction.program width instruction selected).eventTrace).length ≤
-        indices.length * selectorBound width (includeSign instruction) := by
+        (indices.filter (fun selected => decide
+          (first selected = ArithmeticInstruction.coefficient instruction))).length *
+            selectorBound width (includeSign instruction) := by
   induction indices with
   | nil => simp
   | cons selected rest ih =>
-      rw [List.flatMap_cons, List.length_append, List.length_cons, Nat.add_mul, Nat.one_mul]
-      have current := instruction_trace_le width instruction selected
-      omega
+      rw [List.flatMap_cons, List.length_append]
+      by_cases phase : first selected = ArithmeticInstruction.coefficient instruction
+      · simp only [List.filter_cons, decide_eq_true phase, if_true, List.length_cons,
+          Nat.add_mul, Nat.one_mul]
+        have current := instruction_trace_le width instruction selected
+        omega
+      · rw [instruction_trace_eq_nil_of_wrong_first width instruction selected phase]
+        simpa only [List.length_nil, Nat.zero_add, List.filter_cons,
+          decide_eq_false phase, Bool.false_eq_true, if_false] using ih
 
-private theorem list_depth_eq_trace (width : Nat) (instruction : Instruction)
+private lemma list_depth_eq_trace (width : Nat) (instruction : Instruction)
     (indices : List (Key width (includeSign instruction))) :
     (ArithmeticSchedule.listProgram width instruction indices).evaluatedEventDepth (fun _ => 1) =
       (ArithmeticSchedule.listProgram width instruction indices).eventTrace.length := by
@@ -116,39 +185,39 @@ private theorem list_depth_eq_trace (width : Nat) (instruction : Instruction)
         instruction_depth_eq_trace, ih]
 
 /-- The exact revised enumeration counts all four real length words and actual source flags. -/
-theorem selector_count (width : Nat) (instruction : Instruction) :
+lemma selector_count (width : Nat) (instruction : Instruction) :
     (ArithmeticSelectionKey.keys width (includeSign instruction)).length =
       2 ^ (4 * width.size + 2 + if includeSign instruction then 1 else 0) :=
   ArithmeticSchedule.selector_count width instruction
 
 /-- Actual trace size includes every emitted selector and both predicate computations. -/
-theorem program_trace_le (width : Nat) (instruction : Instruction) :
+lemma program_trace_le (width : Nat) (instruction : Instruction) :
     (ArithmeticSchedule.program width instruction).eventTrace.length ≤
-      2 ^ (4 * width.size + 2 + if includeSign instruction then 1 else 0) *
+      2 ^ ((4 * width.size + 2 + if includeSign instruction then 1 else 0) - 1) *
         selectorBound width (includeSign instruction) := by
   rw [ArithmeticSchedule.program_eventTrace]
   have actual := list_trace_le width instruction
     (ArithmeticSelectionKey.keys width (includeSign instruction))
-  rw [selector_count] at actual
+  rw [keys_first_length] at actual
   exact actual
 
 /-- Strict unit duration depth counts the same actual sequential native trace. -/
-theorem program_depth_eq_trace (width : Nat) (instruction : Instruction) :
+lemma program_depth_eq_trace (width : Nat) (instruction : Instruction) :
     (ArithmeticSchedule.program width instruction).evaluatedEventDepth (fun _ => 1) =
       (ArithmeticSchedule.program width instruction).eventTrace.length :=
   list_depth_eq_trace width instruction
     (ArithmeticSelectionKey.keys width (includeSign instruction))
 
 /-- The independent selector envelope therefore bounds the actual complete native depth. -/
-theorem program_depth_le (width : Nat) (instruction : Instruction) :
+lemma program_depth_le (width : Nat) (instruction : Instruction) :
     (ArithmeticSchedule.program width instruction).evaluatedEventDepth (fun _ => 1) ≤
-      2 ^ (4 * width.size + 2 + if includeSign instruction then 1 else 0) *
+      2 ^ ((4 * width.size + 2 + if includeSign instruction then 1 else 0) - 1) *
         selectorBound width (includeSign instruction) := by
   rw [program_depth_eq_trace]
   exact program_trace_le width instruction
 
 /-- The same trace derives the literal resource pool; no independent cost witness is accepted. -/
-theorem program_pool (width : Nat) (instruction : Instruction) :
+lemma program_pool (width : Nat) (instruction : Instruction) :
     (ArithmeticSchedule.program width instruction).eventCost = ResourcePool.ofList
       (ArithmeticSchedule.program width instruction).eventTrace :=
   (UnitaryCircuit.ofList_eventTrace_eq_eventCost _).symm

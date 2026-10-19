@@ -85,17 +85,17 @@ variable {n : ℕ} {gens : Set (Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ)} {b : DL
 noncomputable def str (F : PauliSchurFamily n b) (i : Fin b.dim) : Fin n → Fin 4 :=
   (F.equiv i).1
 
-theorem str_mem (F : PauliSchurFamily n b) (i : Fin b.dim) : F.mem (F.str i) := (F.equiv i).2
+lemma str_mem (F : PauliSchurFamily n b) (i : Fin b.dim) : F.mem (F.str i) := (F.equiv i).2
 
-theorem str_injective (F : PauliSchurFamily n b) {a a' : Fin b.dim}
+lemma str_injective (F : PauliSchurFamily n b) {a a' : Fin b.dim}
     (h : F.str a = F.str a') : a = a' :=
   F.equiv.injective (Subtype.ext h)
 
 /-- Family labels are nonzero (the identity is not in the family). -/
-theorem str_ne (F : PauliSchurFamily n b) (i : Fin b.dim) : F.str i ≠ 0 := fun h =>
+lemma str_ne (F : PauliSchurFamily n b) (i : Fin b.dim) : F.str i ≠ 0 := fun h =>
   F.not_mem_zero (h ▸ F.str_mem i)
 
-theorem str_symm_apply (F : PauliSchurFamily n b) {s : Fin n → Fin 4} (hs : F.mem s) :
+lemma str_symm_apply (F : PauliSchurFamily n b) {s : Fin n → Fin 4} (hs : F.mem s) :
     F.str (F.equiv.symm ⟨s, hs⟩) = s := by
   rw [str, Equiv.apply_symm_apply]
 
@@ -103,7 +103,7 @@ theorem str_symm_apply (F : PauliSchurFamily n b) {s : Fin n → Fin 4} (hs : F.
 
 /-- **The family adjoint matrix in closed form.** `(Sₖ)_{a,i} = ⟪Bₐ, ⁅Bₖ, Bᵢ⁆⟫` is a single
 symplectic term: nonzero only when `σₐ = σₖ ⊕ σᵢ`, with the commutator phase coefficient. -/
-theorem adMatrix_apply (F : PauliSchurFamily n b) (k a i : Fin b.dim) :
+lemma adMatrix_apply (F : PauliSchurFamily n b) (k a i : Fin b.dim) :
     adMatrix b k a i
       = rtNinv n * rtNinv n * rtNinv n *
           (pauliPhase (F.str k) (F.str i) - pauliPhase (F.str i) (F.str k)) *
@@ -119,13 +119,13 @@ theorem adMatrix_apply (F : PauliSchurFamily n b) (k a i : Fin b.dim) :
   · simp [hsupport]
 
 /-- Support of the adjoint matrix: it vanishes unless `σₐ = σₖ ⊕ σᵢ`. -/
-theorem adMatrix_eq_zero (F : PauliSchurFamily n b) {k a i : Fin b.dim}
+lemma adMatrix_eq_zero (F : PauliSchurFamily n b) {k a i : Fin b.dim}
     (h : F.str a ≠ pauliXor (F.str k) (F.str i)) : adMatrix b k a i = 0 := by
   rw [F.adMatrix_apply, if_neg h, mul_zero]
 
 /-- Non-vanishing of the adjoint matrix when the support condition holds and the strings
 anticommute. -/
-theorem adMatrix_ne_zero (F : PauliSchurFamily n b) {k a i : Fin b.dim}
+lemma adMatrix_ne_zero (F : PauliSchurFamily n b) {k a i : Fin b.dim}
     (hsupp : F.str a = pauliXor (F.str k) (F.str i))
     (hanti : pauliOmega (F.str k) (F.str i) = 1) : adMatrix b k a i ≠ 0 := by
   rw [F.adMatrix_apply, if_pos hsupp]
@@ -137,14 +137,14 @@ theorem adMatrix_ne_zero (F : PauliSchurFamily n b) {k a i : Fin b.dim}
   · exact pow_ne_zero n (by norm_num)
 
 /-- Vanishing when the two strings commute (the commutator coefficient is zero). -/
-theorem adMatrix_eq_zero_of_comm (F : PauliSchurFamily n b) {k a i : Fin b.dim}
+lemma adMatrix_eq_zero_of_comm (F : PauliSchurFamily n b) {k a i : Fin b.dim}
     (h : pauliOmega (F.str k) (F.str i) = 0) : adMatrix b k a i = 0 := by
   rw [F.adMatrix_apply, pauliPhase_sub_eq_zero h, mul_zero, zero_mul]
 
 /-! ### The square is diagonal, with a separating symplectic eigenvalue -/
 
 /-- **The square of the adjoint matrix is diagonal** (the single-term Pauli structure). -/
-theorem adMatrix_sq_diagonal (F : PauliSchurFamily n b) (k : Fin b.dim) :
+lemma adMatrix_sq_diagonal (F : PauliSchurFamily n b) (k : Fin b.dim) :
     adMatrix b k * adMatrix b k = Matrix.diagonal (adMu b k) := by
   ext a a'
   rw [Matrix.diagonal_apply]
@@ -159,7 +159,7 @@ theorem adMatrix_sq_diagonal (F : PauliSchurFamily n b) (k : Fin b.dim) :
     · rw [F.adMatrix_eq_zero h1, zero_mul]
 
 /-- **The eigenvalue is zero iff the strings commute.** -/
-theorem mu_eq_zero_iff (F : PauliSchurFamily n b) (k a : Fin b.dim) :
+lemma mu_eq_zero_iff (F : PauliSchurFamily n b) (k a : Fin b.dim) :
     adMu b k a = 0 ↔ pauliOmega (F.str k) (F.str a) = 0 := by
   constructor
   · intro h
@@ -207,7 +207,7 @@ theorem mu_eq_zero_iff (F : PauliSchurFamily n b) (k a : Fin b.dim) :
 
 /-- **Separation**: for distinct indices, some `k` gives distinct eigenvalues. The witness is
 the family's in-set separation string, so it indexes a genuine basis element. -/
-theorem mu_sep (F : PauliSchurFamily n b) {a a' : Fin b.dim} (ha : a ≠ a') :
+lemma mu_sep (F : PauliSchurFamily n b) {a a' : Fin b.dim} (ha : a ≠ a') :
     ∃ k, adMu b k a ≠ adMu b k a' := by
   have hstr : F.str a ≠ F.str a' := fun h => ha (F.str_injective h)
   obtain ⟨s, hssp, hs⟩ := F.sep_witness (F.str_mem a) (F.str_mem a') hstr
@@ -236,7 +236,7 @@ theorem mu_sep (F : PauliSchurFamily n b) {a a' : Fin b.dim} (ha : a ≠ a') :
 
 /-- **The adjoint-support graph on the family is connected**, lifted from the family's
 string-level connectivity through the enumeration. -/
-theorem conn (F : PauliSchurFamily n b) (t : Fin b.dim → ℂ)
+lemma conn (F : PauliSchurFamily n b) (t : Fin b.dim → ℂ)
     (ht : ∀ x y : Fin b.dim, (∃ k, adMatrix b k x y ≠ 0) → t x = t y)
     (x y : Fin b.dim) : t x = t y := by
   classical
@@ -273,7 +273,7 @@ theorem conn (F : PauliSchurFamily n b) (t : Fin b.dim → ℂ)
 /-- **The family Schur identity `(g⊗g)^g = span{C}`**, derived once from the bespoke inputs:
 the hard inclusion feeds the closed-form adjoint machinery into the generic structure-constant
 solver, the easy inclusion is `spanC_le_gTensorGInvariant`. -/
-theorem schur (F : PauliSchurFamily n b) :
+lemma schur (F : PauliSchurFamily n b) :
     gTensorGInvariant b = Submodule.span ℂ {b.casimir} := by
   refine le_antisymm (fun X hX => ?_) (spanC_le_gTensorGInvariant _)
   have hoff : ∀ a a' : Fin b.dim, a ≠ a' → coeffMatrix b X a a' = 0 :=

@@ -58,7 +58,7 @@ public def lcuWalk (V : UnitaryOperator (Qubits a))
 
 /-- Sandwiching a control projector between `V†` and `V` and reading the
 `(0, 0)` entry leaves the squared first-column amplitude. -/
-private theorem lcuProj_sandwich (V : UnitaryOperator (Qubits a))
+private lemma lcuProj_sandwich (V : UnitaryOperator (Qubits a))
     (i : Fin (2 ^ a)) :
     (((V : HilbertOperator (Qubits a)).conjTranspose * lcuProj i *
         (V : HilbertOperator (Qubits a))) 0 0)
@@ -87,7 +87,7 @@ private theorem lcuProj_sandwich (V : UnitaryOperator (Qubits a))
     _ = star (V i 0) * V i 0 := by rw [hsum2]
 
 /-- The metadata-free LCU walk expands into a control-block sum. -/
-theorem lcuWalk_eq_sum (V : UnitaryOperator (Qubits a))
+lemma lcuWalk_eq_sum (V : UnitaryOperator (Qubits a))
     (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
     (lcuWalk V U : HilbertOperator (Qubits (a + n)))
       = ∑ i, HilbertOperator.tensor
@@ -115,7 +115,7 @@ theorem lcuWalk_eq_sum (V : UnitaryOperator (Qubits a))
   simp
 
 /-- The projected LCU block, entry by entry [Lin22, hermfunc.tex:531]. -/
-theorem lcuWalk_projected_entry (V : UnitaryOperator (Qubits a))
+lemma lcuWalk_projected_entry (V : UnitaryOperator (Qubits a))
     (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
     (α : Fin (2 ^ a) → ℝ) (halpha : ∀ i, 0 ≤ α i) (hlam : 0 < lcuNorm α)
     (hV : ∀ i, V i 0 = ((Real.sqrt (α i / lcuNorm α) : ℝ) : ℂ))
@@ -141,7 +141,7 @@ theorem lcuWalk_projected_entry (V : UnitaryOperator (Qubits a))
   ring
 
 /-- **LCU block encoding** [Lin22, hermfunc.tex:531]. -/
-public theorem lcuWalk_exactBlockEncoding (V : UnitaryOperator (Qubits a))
+public lemma lcuWalk_exactBlockEncoding (V : UnitaryOperator (Qubits a))
     (U : Fin (2 ^ a) → UnitaryOperator (Qubits n))
     (α : Fin (2 ^ a) → ℝ) (halpha : ∀ i, 0 ≤ α i) (hlam : 0 < lcuNorm α)
     (hV : ∀ i, V i 0 = ((Real.sqrt (α i / lcuNorm α) : ℝ) : ℂ)) :

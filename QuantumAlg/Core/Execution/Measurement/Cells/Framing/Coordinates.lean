@@ -24,7 +24,7 @@ noncomputable section
 open ContextUnion
 
 /-- Retaining the original cells leaves both physical quantum segments exactly where they were. -/
-theorem framedBasisEquiv_join {kind : ProblemKind} (ctx frame : RuntimeCtx kind)
+lemma framedBasisEquiv_join {kind : ProblemKind} (ctx frame : RuntimeCtx kind)
     (dimension : ℕ+) (count : Nat)
     (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (original : ctx.register.Index) (resident : frame.register.Index) :

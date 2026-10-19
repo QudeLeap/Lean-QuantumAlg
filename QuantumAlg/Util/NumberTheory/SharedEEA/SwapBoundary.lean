@@ -38,20 +38,20 @@ def phase3Position (coefficientLength quotientLength : Nat) : Nat :=
   coefficientLength + quotientLength
 
 /-- The source's post-increment one-based phase-2 index becomes this old-length physical index. -/
-theorem phase2_from_baseline (coefficientLength quotientLength : Nat) :
+lemma phase2_from_baseline (coefficientLength quotientLength : Nat) :
     (coefficientLength + (quotientLength + 1) + 1) - 1 =
       phase2Position coefficientLength quotientLength := by
   unfold phase2Position
   omega
 
 /-- The corrected phase-2 index is the actual beginning of the old packed remainder. -/
-theorem phase2_remainder_start (coefficientLength quotientLength : Nat) :
+lemma phase2_remainder_start (coefficientLength quotientLength : Nat) :
     phase2Position coefficientLength quotientLength = coefficientLength + 1 + quotientLength := by
   unfold phase2Position
   omega
 
 /-- Every actual old remainder bit is located relative to that exact physical boundary. -/
-theorem phase2_reads_old_remainder {coefficientWidth quotientWidth remainderWidth : Nat}
+lemma phase2_reads_old_remainder {coefficientWidth quotientWidth remainderWidth : Nat}
     (payload : WordPacking.Work1Payload coefficientWidth quotientWidth remainderWidth) :
     (WordPacking.packWork1 payload).getMsbD
         (phase2Position coefficientWidth quotientWidth) = payload.remainderBits.getMsbD 0 := by
@@ -59,7 +59,7 @@ theorem phase2_reads_old_remainder {coefficientWidth quotientWidth remainderWidt
   exact WordPacking.packWork1_remainder_bit payload 0
 
 /-- For a nonempty quotient, the phase-3 position is its final actual existing bit. -/
-theorem phase3_last_quotient (coefficientLength quotientLength : Nat)
+lemma phase3_last_quotient (coefficientLength quotientLength : Nat)
     (nonempty : 0 < quotientLength) :
     phase3Position coefficientLength quotientLength =
       coefficientLength + 1 + (quotientLength - 1) := by
@@ -67,23 +67,23 @@ theorem phase3_last_quotient (coefficientLength quotientLength : Nat)
   omega
 
 /-- The optimized literal index is one position before the phase-2 write boundary. -/
-theorem literal_phase2_is_previous (coefficientLength quotientLength : Nat) :
+lemma literal_phase2_is_previous (coefficientLength quotientLength : Nat) :
     phase3Position coefficientLength quotientLength + 1 =
       phase2Position coefficientLength quotientLength := rfl
 
 /-- At the first extracted quotient bit, the uncorrected position is the prescribed separator. -/
-theorem literal_first_reads_separator {coefficientWidth remainderWidth : Nat}
+lemma literal_first_reads_separator {coefficientWidth remainderWidth : Nat}
     (payload : WordPacking.Work1Payload coefficientWidth 0 remainderWidth) :
     (WordPacking.packWork1 payload).getMsbD (coefficientWidth + 0) = false :=
   WordPacking.packWork1_separator payload
 
 /-- The counterexample lies in the original positive-residue domain at the smallest prime. -/
-theorem smallest_initial_admissible :
+lemma smallest_initial_admissible :
     (IterationState.initial 2 (foldInput 2 1).2).Admissible :=
   folded_initial_admissible 2 1 (by decide) (by decide)
 
 /-- The actual first division microstep on that original input is the equality branch. -/
-theorem smallest_actual_microstep :
+lemma smallest_actual_microstep :
     let state := IterationState.initial 2 (foldInput 2 1).2
     Nat.Prime 2 ∧ state.coefficient = 1 ∧
       (DivisionProgress.current state 0).written = 0 ∧
@@ -95,14 +95,14 @@ theorem smallest_actual_microstep :
   decide
 
 /-- The actual signed subtraction selects equality and leaves zero remainder at p=2,x=1. -/
-theorem smallest_signed_instruction :
+lemma smallest_signed_instruction :
     SignedDivision.corrected (2 : BitVec 3) (2 : BitVec 3) = (0 : BitVec 3) ∧
       (SignedDivision.extract (2 : BitVec 3) (2 : BitVec 3)).1 = false ∧
       (SignedDivision.extract (2 : BitVec 3) (2 : BitVec 3)).2 = (4 : BitVec 3) := by
   decide
 
 /-- The complete optimized word differs from the next true packed payload. -/
-theorem smallest_phase2_word_counterexample :
+lemma smallest_phase2_word_counterexample :
     let corrected := WordPacking.packWork1
       (⟨1, 0, 0⟩ : WordPacking.Work1Payload 1 0 3)
     let next := WordPacking.packWork1
@@ -114,7 +114,7 @@ theorem smallest_phase2_word_counterexample :
   decide
 
 /-- The concrete differing bits are exactly zero-based old-length positions one and two. -/
-theorem smallest_positions :
+lemma smallest_positions :
     phase3Position 1 0 = 1 ∧ phase2Position 1 0 = 2 ∧
       (24 : BitVec 5).getMsbD 1 = true ∧ (20 : BitVec 5).getMsbD 1 = false ∧
       (24 : BitVec 5).getMsbD 2 = false ∧ (20 : BitVec 5).getMsbD 2 = true := by

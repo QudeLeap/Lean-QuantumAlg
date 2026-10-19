@@ -29,10 +29,11 @@ namespace QuantumAlg.AmplitudeEstimation.Elementary
 
 noncomputable section
 
-private theorem step_applyVec_tensor {n t : Nat} (U : UnitaryOperator (Qubits n))
+private lemma step_applyVec_tensor {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t)
     (phase : Fin (2 ^ phaseWidth t n)) (target : HilbertVector (Qubits n)) :
-    (step U good stage).binaryMatrix.applyVec
+    ((step n stage).binaryMatrix (AmplitudeAmplificationSource.interpretation U good true
+      true)).applyVec
         (HilbertVector.tensor
           (NormalizedVector.ket (R := Qubits (phaseWidth t n)) phase).vec target) =
       HilbertVector.tensor (NormalizedVector.ket (R := Qubits (phaseWidth t n)) phase).vec
@@ -55,9 +56,10 @@ private theorem step_applyVec_tensor {n t : Nat} (U : UnitaryOperator (Qubits n)
   · simp [UnitaryOperator.mul_applyVec]
 
 /-- The actual source sequence equals control of the complete source product on every state. -/
-theorem step_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
+lemma step_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t) :
-    (step U good stage).binaryMatrix = qpeControlledBitOp (phaseWidth t n)
+    (step n stage).binaryMatrix (AmplitudeAmplificationSource.interpretation U good true true) =
+      qpeControlledBitOp (phaseWidth t n)
       (U * (ZeroReflection.zeroReflectionOperator n *
         (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))
       (extendedStage n stage) := by
@@ -81,9 +83,10 @@ theorem step_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
     congrArg (fun state : HilbertVector (Qubits (totalQubits t n)) => state row) action
 
 /-- Actual stage repetitions multiply the selected exponent by the original binary power. -/
-theorem powerStage_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
+lemma powerStage_matrix {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t) :
-    (powerStage U good stage).binaryMatrix = qpeExponentOp (phaseWidth t n)
+    ((powerStage n stage).binaryMatrix (AmplitudeAmplificationSource.interpretation U good true
+      true)) = qpeExponentOp (phaseWidth t n)
       (U * (ZeroReflection.zeroReflectionOperator n *
         (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))
       (fun phase => 2 ^ stage.val * (phase.val.testBit (extendedStage n stage).val).toNat) := by

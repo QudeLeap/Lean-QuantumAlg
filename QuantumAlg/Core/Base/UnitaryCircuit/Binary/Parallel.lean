@@ -25,7 +25,7 @@ namespace QuantumAlg.UnitaryCircuit
 
 noncomputable section
 
-private theorem binaryPlacements_disjoint (leftWidth rightWidth : Nat) :
+private lemma binaryPlacements_disjoint (leftWidth rightWidth : Nat) :
     Disjoint (binaryPrefixEmbedding leftWidth rightWidth).selection
       (binarySuffixEmbedding leftWidth rightWidth).selection := by
   apply Finset.disjoint_left.mpr
@@ -54,7 +54,7 @@ public def parallelBinary {gates : GateModel} {oracles : OracleModel}
     (binaryPlacements_disjoint leftWidth rightWidth)
 
 /-- Parallel placement preserves both complete event ledgers. -/
-public theorem parallelBinary_eventCost {gates : GateModel} {oracles : OracleModel}
+public lemma parallelBinary_eventCost {gates : GateModel} {oracles : OracleModel}
     {leftWidth rightWidth : Nat}
     (left : UnitaryCircuit gates oracles
       (QuantumSignature.qubits leftWidth).canonicalPlacement.layout)
@@ -64,7 +64,7 @@ public theorem parallelBinary_eventCost {gates : GateModel} {oracles : OracleMod
   rw [parallelBinary, parallel_eventCost, relabel_eventCost]
 
 /-- The two actual disjoint branches take the maximum of their depths. -/
-public theorem parallelBinary_evaluatedEventDepth
+public lemma parallelBinary_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {leftWidth rightWidth : Nat}
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (left : UnitaryCircuit gates oracles

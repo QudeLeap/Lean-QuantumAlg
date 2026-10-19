@@ -26,7 +26,7 @@ noncomputable section
 
 open Execution MeasuredUncompute
 
-private theorem readyBasis_ext (width count : Nat)
+private lemma readyBasis_ext (width count : Nat)
     (first second : (readyContext width count).register.Index)
     (shared : sharedBasis width count first = sharedBasis width count second)
     (indexed : ∀ index, indexedValue width count first index =
@@ -46,7 +46,7 @@ def wordStep {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
   if control = 1 then MeasuredPointAddition.translationWords E Q words else words
 
 /-- The full initialized target step retains all exponents and prepared work around new words. -/
-theorem stepPermutation_initializedReadyBasis {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma stepPermutation_initializedReadyBasis {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (exponent : (exponents p.size count).register.Index) (x y : Fin (2 ^ p.size)) :
     stepPermutation E Q active
@@ -66,7 +66,7 @@ theorem stepPermutation_initializedReadyBasis {p : Nat} (E : PrimeFieldShortWeie
     · rw [initializedReadyBasis_exponent, initializedReadyBasis_exponent]
 
 /-- Actual fixed initialization leaves only the original selected affine-word condition. -/
-theorem stepAdmissible_initialized_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma stepAdmissible_initialized_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (exponent : (exponents p.size count).register.Index) (x y : Fin (2 ^ p.size)) :
     stepAdmissible E Q active
@@ -100,7 +100,7 @@ def wordTrajectory {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
           (wordStep E (points active) (exponent active) words)
 
 /-- The full initialized-basis trajectory is exactly the original finite-word trajectory. -/
-theorem basisTrajectory_initialized_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma basisTrajectory_initialized_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (exponent : (exponents p.size count).register.Index) (order : List (Fin count))
     (x y : Fin (2 ^ p.size)) :
@@ -118,7 +118,7 @@ theorem basisTrajectory_initialized_iff {p : Nat} (E : PrimeFieldShortWeierstras
         (wordStep E (points active) (rangeBasis p.size count exponent active) (x, y)).2
 
 /-- The original-input predicate contains exactly the exposed word conditions at every step. -/
-theorem inputTrajectory_inputLabel_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma inputTrajectory_inputLabel_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (exponent : (exponents p.size count).register.Index) (order : List (Fin count))
     (x y : Fin (2 ^ p.size)) :

@@ -25,7 +25,8 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent native formula of both original common-width scaled preimages. -/
@@ -38,13 +39,13 @@ def targetTrace (m ell width : Nat) (firstNegates secondNegates : Bool) :
   preimagesTrace m ell width ++ LatticeTargetPoint.pointTrace width firstNegates secondNegates
 
 /-- Both actual preimage paths emit precisely the independent resize-and-shift formula. -/
-theorem preimagesInto_events (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path) :
+lemma preimagesInto_events (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path) :
     (preimagesInto refs).eventTrace path = preimagesTrace m ell width :=
   congrArg₂ List.append (Word.PowerOfTwo.Scale.into_events m refs.first.k refs.first.scaled path.1)
     (Word.PowerOfTwo.Scale.into_events m refs.second.k refs.second.scaled path.2)
 
 /-- The complete actual wide-target path emits the independently selected native formula. -/
-theorem loadTargetInto_events (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path) :
+lemma loadTargetInto_events (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path) :
     (loadTargetInto refs).eventTrace path = targetTrace m ell width
       (LatticeTarget.selectedNegation refs.target.first path.2.1.2)
       (LatticeTarget.selectedNegation refs.target.second path.2.2.2) :=
@@ -52,7 +53,7 @@ theorem loadTargetInto_events (refs : Refs ctx m ell width) (path : (loadTargetI
     (LatticeTargetPoint.loadTargetPointInto_events refs.target path.2)
 
 /-- Actual wide-target native multiplicities equal the independent selected instruction formula. -/
-theorem loadTargetInto_resourcePool (refs : Refs ctx m ell width)
+lemma loadTargetInto_resourcePool (refs : Refs ctx m ell width)
     (path : (loadTargetInto refs).Path) :
     (loadTargetInto refs).resourcePool path = ResourcePool.ofList (targetTrace m ell width
       (LatticeTarget.selectedNegation refs.target.first path.2.1.2)
@@ -64,7 +65,7 @@ def eventEnvelope (m ell width : Nat) : ResourcePool model :=
   ResourcePool.ofList (preimagesTrace m ell width) + LatticeTargetPoint.eventEnvelope width
 
 /-- Every actual wide-target pool lies in the independently specified native coordinate envelope. -/
-theorem loadTargetInto_resourcePool_le (refs : Refs ctx m ell width)
+lemma loadTargetInto_resourcePool_le (refs : Refs ctx m ell width)
     (path : (loadTargetInto refs).Path) :
     (loadTargetInto refs).resourcePool path ≤ eventEnvelope m ell width := by
   change ResourcePool.ofList (_ ++ _) ≤ _
@@ -73,7 +74,7 @@ theorem loadTargetInto_resourcePool_le (refs : Refs ctx m ell width)
     (LatticeTargetPoint.loadTargetPointInto_resourcePool_le refs.target path.2)
 
 /-- Actual preimage construction performs exactly two resizes and twice the prescribed shifts. -/
-theorem preimagesInto_eventCount (refs : Refs ctx m ell width)
+lemma preimagesInto_eventCount (refs : Refs ctx m ell width)
     (path : (preimagesInto refs).Path) :
     ((preimagesInto refs).eventTrace path).length = 2 * (m + 1) := by
   have first := Word.PowerOfTwo.Scale.into_eventCount m refs.first.k refs.first.scaled path.1
@@ -85,7 +86,7 @@ theorem preimagesInto_eventCount (refs : Refs ctx m ell width)
   omega
 
 /-- The complete actual wide target uses at most two shifts per bit and sixteen other operations. -/
-theorem loadTargetInto_eventCount_le (refs : Refs ctx m ell width)
+lemma loadTargetInto_eventCount_le (refs : Refs ctx m ell width)
     (path : (loadTargetInto refs).Path) :
     ((loadTargetInto refs).eventTrace path).length ≤ 2 * m + 16 := by
   have preimages := preimagesInto_eventCount refs path.1
@@ -95,7 +96,7 @@ theorem loadTargetInto_eventCount_le (refs : Refs ctx m ell width)
   omega
 
 /-- Unit-duration depth includes both original native preimage sequences. -/
-theorem preimagesInto_depth (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path) :
+lemma preimagesInto_depth (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path) :
     (preimagesInto refs).depth (fun _ => 1) path = 2 * (m + 1) := by
   have first := Word.PowerOfTwo.Scale.into_depth m refs.first.k refs.first.scaled path.1
   have second := Word.PowerOfTwo.Scale.into_depth m refs.second.k refs.second.scaled path.2
@@ -104,7 +105,7 @@ theorem preimagesInto_depth (refs : Refs ctx m ell width) (path : (preimagesInto
   omega
 
 /-- Unit-duration depth includes actual preimages, comparisons and selected arithmetic. -/
-theorem loadTargetInto_depth_le (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path) :
+lemma loadTargetInto_depth_le (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path) :
     (loadTargetInto refs).depth (fun _ => 1) path ≤ 2 * m + 16 := by
   have preimages := preimagesInto_depth refs path.1
   have target := LatticeTargetPoint.loadTargetPointInto_depth_le refs.target path.2
@@ -113,26 +114,27 @@ theorem loadTargetInto_depth_le (refs : Refs ctx m ell width) (path : (loadTarge
   omega
 
 /-- Both actual preimages restore every borrowed system jointly with the external reference. -/
-theorem preimagesInto_borrowedRestored (refs : Refs ctx m ell width) (Reference : Register)
+lemma preimagesInto_borrowedRestored (refs : Refs ctx m ell width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (preimagesInto refs).BorrowedRestored Reference state
-      ((preimagesInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((preimagesInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (Word.PowerOfTwo.Scale.into_borrowedRestored m refs.first.k refs.first.scaled Reference state)
     (Word.PowerOfTwo.Scale.into_borrowedRestored m refs.second.k refs.second.scaled Reference _)
 
 /-- The complete actual wide-target call restores all borrowed-reference correlations. -/
-theorem loadTargetInto_borrowedRestored (refs : Refs ctx m ell width) (Reference : Register)
+lemma loadTargetInto_borrowedRestored (refs : Refs ctx m ell width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetInto refs).BorrowedRestored Reference state
-      ((loadTargetInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (preimagesInto_borrowedRestored refs Reference state)
+      ((loadTargetInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (preimagesInto_borrowedRestored refs Reference state)
     (LatticeTargetPoint.loadTargetPointInto_borrowedRestored refs.target Reference _)
 
 /-- Every original context entry remains live throughout both actual preimages. -/
-theorem preimagesInto_visited (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path)
+lemma preimagesInto_visited (refs : Refs ctx m ell width) (path : (preimagesInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (preimagesInto refs).visitedContexts path) :
     visited = ctx := by
@@ -142,7 +144,7 @@ theorem preimagesInto_visited (refs : Refs ctx m ell width) (path : (preimagesIn
     (Word.PowerOfTwo.Scale.into_visited m refs.second.k refs.second.scaled path.2 visited)
 
 /-- The actual preimage and centering calls retain the entire original supplied context. -/
-theorem loadTargetInto_visited (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path)
+lemma loadTargetInto_visited (refs : Refs ctx m ell width) (path : (loadTargetInto refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadTargetInto refs).visitedContexts path) :
     visited = ctx := by
@@ -151,7 +153,7 @@ theorem loadTargetInto_visited (refs : Refs ctx m ell width) (path : (loadTarget
     (LatticeTargetPoint.loadTargetPointInto_visited refs.target path.2 visited)
 
 /-- Every original resident entry remains counted throughout actual wide-target loading. -/
-theorem loadTargetInto_resident_le (refs : Refs ctx m ell width)
+lemma loadTargetInto_resident_le (refs : Refs ctx m ell width)
     (path : (loadTargetInto refs).Path) :
     (loadTargetInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -159,7 +161,7 @@ theorem loadTargetInto_resident_le (refs : Refs ctx m ell width)
   rw [loadTargetInto_visited refs path visited present]
 
 /-- Every original auxiliary role remains counted throughout actual wide-target loading. -/
-theorem loadTargetInto_auxiliary_le (refs : Refs ctx m ell width)
+lemma loadTargetInto_auxiliary_le (refs : Refs ctx m ell width)
     (path : (loadTargetInto refs).Path) :
     (loadTargetInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

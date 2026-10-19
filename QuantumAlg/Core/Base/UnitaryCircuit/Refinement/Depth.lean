@@ -25,7 +25,7 @@ noncomputable section
 
 variable {sourceGates targetGates : GateModel} {sourceOracles targetOracles : OracleModel}
 
-private theorem realizeSequence_depth
+private lemma realizeSequence_depth
     (implementations : InstructionRealizations sourceGates sourceOracles targetGates targetOracles)
     (sourceDuration : Resource.Event (.quantum sourceGates sourceOracles) → Nat)
     (targetDuration : Resource.Event (.quantum targetGates targetOracles) → Nat)
@@ -69,7 +69,7 @@ private theorem realizeSequence_depth
   | macroCall name body ih => exact ih
 
 /-- Actual replacement words determine the complete dependency depth from their leaf durations. -/
-public theorem refine_evaluatedEventDepth
+public lemma refine_evaluatedEventDepth
     {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit sourceGates sourceOracles layout)
     (implementations : InstructionRealizations sourceGates sourceOracles targetGates targetOracles)

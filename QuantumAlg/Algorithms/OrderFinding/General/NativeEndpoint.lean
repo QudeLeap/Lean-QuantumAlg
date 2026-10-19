@@ -37,7 +37,7 @@ open QuantumAlg.Execution
   (SourceNativeSampling.post t width).canonicalFreshKey
 
 /-- The final result key is absent from all source-sample cells. -/
-public theorem resultFresh (t width : Nat) :
+public lemma resultFresh (t width : Nat) :
     resultKey t width ∉ (SourceNativeSampling.post t width).keys :=
   (SourceNativeSampling.post t width).canonicalFreshKey_fresh
 
@@ -63,35 +63,35 @@ def sampleInput (t width : Nat) : CInputRef (post t width) (.bits t) :=
     (resultKey t width) (outputShape t) (resultFresh t width)
 
 /-- The selected native word program performs finite continued-fraction recovery. -/
-def recoveryCode {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.Framed.model access) (post t width) (post t width) :=
+def recoveryCode {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat) :
+    Circuit (Sampling.Native.Framed.model t width) (post t width) (post t width) :=
   ClassicalRoutines.OrderRecovery.Native.into
-    (model := Sampling.Native.Framed.model access)
-    (recoverySpec hinput access) (baseInput t width)
+    (model := Sampling.Native.Framed.model t width)
+    (⟨spec⟩ : ClassicalAlgorithms.OrderRecovery.Spec width t) (baseInput t width)
     (sampleInput t width) (resultRef t width)
 
 /-- Allocate the output option and then run the actual finite recovery program. -/
-def recoveryStage {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.Framed.model access)
+def recoveryStage {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat) :
+    Circuit (Sampling.Native.Framed.model t width)
       (SourceNativeSampling.post t width) (post t width) :=
-  .seq (.retain (model := Sampling.Native.Framed.model access)
+  .seq (.retain (model := Sampling.Native.Framed.model t width)
     (SourceNativeSampling.post t width) (resultKey t width)
-    (outputShape t) (resultFresh t width)) (recoveryCode hinput access)
+    (outputShape t) (resultFresh t width)) (recoveryCode spec t)
 
 /-- One interpreter executes the source sample and its dependent classical recovery. -/
-def code {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.Framed.model access) (pre width) (post t width) :=
-  .seq (SourceNativeSampling.code access) (recoveryStage hinput access)
+def code {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat) :
+    Circuit (Sampling.Native.Framed.model t width) (pre width) (post t width) :=
+  .seq (SourceNativeSampling.code t width) (recoveryStage spec t)
 
 /-- The final result reads the retained option without discarding live inputs. -/
-def run {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
-    (access : ModExpOracleAccess N x t width) :
-    AlgorithmRun (Sampling.Native.Framed.model access)
+def run {width : Nat}
+    (spec : ClassicalAlgorithms.Modular.ModulusSpec width) (t : Nat) :
+    AlgorithmRun (Sampling.Native.Framed.model t width)
       (pre width) (post t width) (outputShape t) where
-  code := code hinput access
+  code := code spec t
   output := Output.all (post t width)
     (.read (.storage (resultRef t width).toCStorageRef))
 

@@ -24,7 +24,7 @@ open Execution
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem failure_resident (success : CWriteRef ctx .bit)
+private lemma failure_resident (success : CWriteRef ctx .bit)
     (path : (markFailure success).Path) :
     (markFailure success).peakResidentSpace path = ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq
@@ -33,7 +33,7 @@ private theorem failure_resident (success : CWriteRef ctx .bit)
   unfold BitWord.instruction
   rw [Circuit.peakResidentSpace_classical, Circuit.peakResidentSpace_classical, SpacePool.max_self]
 
-private theorem choice_resident (reject : Bool) (success : CWriteRef ctx .bit)
+private lemma choice_resident (reject : Bool) (success : CWriteRef ctx .bit)
     (value : CShape.Value .bit) (path : (decisionChoice reject success value).Path) :
     (decisionChoice reject success value).peakResidentSpace path = ctx.residentSpace := by
   cases value with
@@ -44,7 +44,7 @@ private theorem choice_resident (reject : Bool) (success : CWriteRef ctx .bit)
       · exact SpacePool.max_zero _
       · exact failure_resident success path
 
-private theorem test_resident (reject : Bool)
+private lemma test_resident (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (path : (decisionTest reject left right success flag).Path) :
     (decisionTest reject left right success flag).peakResidentSpace path = ctx.residentSpace := by
@@ -57,7 +57,7 @@ private theorem test_resident (reject : Bool)
   exact (congrArg (SpacePool.max ctx.residentSpace)
     (choice_resident reject success path.2.1 path.2.2)).trans (SpacePool.max_self _)
 
-private theorem uniqueBody_resident (free zero work : CWriteRef ctx (.unsignedWord width))
+private lemma uniqueBody_resident (free zero work : CWriteRef ctx (.unsignedWord width))
     (success flag : CWriteRef ctx .bit) (path : (uniqueFreeBody free zero work success flag).Path) :
     (uniqueFreeBody free zero work success flag).peakResidentSpace path = ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq
@@ -72,7 +72,7 @@ private theorem uniqueBody_resident (free zero work : CWriteRef ctx (.unsignedWo
   simp only [SpacePool.max_self]
 
 /-- Both original decision cells and all caller resident roles are simultaneously present. -/
-theorem gf2UniqueFree_resident (free zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2UniqueFree_resident (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (path : (selectUniqueFree free zero success).Path) :
     (selectUniqueFree free zero success).peakResidentSpace path =
       SpacePool.ofShape .bit + (SpacePool.ofShape (.unsignedWord width) + ctx.residentSpace) := by
@@ -97,7 +97,7 @@ theorem gf2UniqueFree_resident (free zero : CWriteRef ctx (.unsignedWord width))
   omega
 
 /-- Both original decision cells and all caller resident roles are simultaneously present. -/
-theorem gf2CandidateNonzero_resident (candidate zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2CandidateNonzero_resident (candidate zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (path : (checkCandidateNonzero candidate zero success).Path) :
     (checkCandidateNonzero candidate zero success).peakResidentSpace path =
       SpacePool.ofShape .bit + (SpacePool.ofShape (.unsignedWord width) + ctx.residentSpace) := by
@@ -121,7 +121,7 @@ theorem gf2CandidateNonzero_resident (candidate zero : CWriteRef ctx (.unsignedW
       (SpacePool.ofShape (.unsignedWord width) axis + ctx.residentSpace axis)
   omega
 
-private theorem failure_auxiliary (success : CWriteRef ctx .bit)
+private lemma failure_auxiliary (success : CWriteRef ctx .bit)
     (path : (markFailure success).Path) :
     (markFailure success).peakAuxiliarySpace path = ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
@@ -131,7 +131,7 @@ private theorem failure_auxiliary (success : CWriteRef ctx .bit)
   rw [Circuit.peakAuxiliarySpace_classical, Circuit.peakAuxiliarySpace_classical,
     SpacePool.max_self]
 
-private theorem choice_auxiliary (reject : Bool) (success : CWriteRef ctx .bit)
+private lemma choice_auxiliary (reject : Bool) (success : CWriteRef ctx .bit)
     (value : CShape.Value .bit) (path : (decisionChoice reject success value).Path) :
     (decisionChoice reject success value).peakAuxiliarySpace path = ctx.auxiliarySpace := by
   cases value with
@@ -142,7 +142,7 @@ private theorem choice_auxiliary (reject : Bool) (success : CWriteRef ctx .bit)
       · exact SpacePool.max_zero _
       · exact failure_auxiliary success path
 
-private theorem test_auxiliary (reject : Bool)
+private lemma test_auxiliary (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (path : (decisionTest reject left right success flag).Path) :
     (decisionTest reject left right success flag).peakAuxiliarySpace path = ctx.auxiliarySpace := by
@@ -155,7 +155,7 @@ private theorem test_auxiliary (reject : Bool)
   exact (congrArg (SpacePool.max ctx.auxiliarySpace)
     (choice_auxiliary reject success path.2.1 path.2.2)).trans (SpacePool.max_self _)
 
-private theorem uniqueBody_auxiliary (free zero work : CWriteRef ctx (.unsignedWord width))
+private lemma uniqueBody_auxiliary (free zero work : CWriteRef ctx (.unsignedWord width))
     (success flag : CWriteRef ctx .bit) (path : (uniqueFreeBody free zero work success flag).Path) :
     (uniqueFreeBody free zero work success flag).peakAuxiliarySpace path = ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
@@ -170,7 +170,7 @@ private theorem uniqueBody_auxiliary (free zero work : CWriteRef ctx (.unsignedW
   simp only [SpacePool.max_self]
 
 /-- Both original decision cells and all caller auxiliary roles are simultaneously present. -/
-theorem gf2UniqueFree_auxiliary (free zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2UniqueFree_auxiliary (free zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (path : (selectUniqueFree free zero success).Path) :
     (selectUniqueFree free zero success).peakAuxiliarySpace path =
       SpacePool.ofShape .bit + (SpacePool.ofShape (.unsignedWord width) + ctx.auxiliarySpace) := by
@@ -195,7 +195,7 @@ theorem gf2UniqueFree_auxiliary (free zero : CWriteRef ctx (.unsignedWord width)
   omega
 
 /-- Both original decision cells and all caller auxiliary roles are simultaneously present. -/
-theorem gf2CandidateNonzero_auxiliary (candidate zero : CWriteRef ctx (.unsignedWord width))
+lemma gf2CandidateNonzero_auxiliary (candidate zero : CWriteRef ctx (.unsignedWord width))
     (success : CWriteRef ctx .bit) (path : (checkCandidateNonzero candidate zero success).Path) :
     (checkCandidateNonzero candidate zero success).peakAuxiliarySpace path =
       SpacePool.ofShape .bit + (SpacePool.ofShape (.unsignedWord width) + ctx.auxiliarySpace) := by

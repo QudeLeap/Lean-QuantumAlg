@@ -75,7 +75,7 @@ def subtractionDifferenceOp (scratch : SubScratch ctx width) :
     (.product (.first (reductionRead scratch.augmented))
       (reductionRead scratch.right)) scratch.difference
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual modulus loading occurs between both widenings and both arithmetic operations. -/
@@ -125,11 +125,12 @@ def subtractionStageRecord (spec : ModulusSpec width)
   exact Fin.elim0 index
 
 /-- The actual native stages and real first modulus loader retain full reference correlations. -/
-theorem subtractionStage_execute (spec : ModulusSpec width)
+lemma subtractionStage_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (index : Fin 5) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (subtractionStage (model := model) spec left right scratch index).execute Reference state =
+    (subtractionStage (model := model) spec left right scratch index).execute environment
+      Reference state =
       state.mapClassical
       (fun entry => ((subtractionStageRecord spec left right scratch index entry.1).1,
         (entry.2.1, (entry.2.2,
@@ -137,7 +138,8 @@ theorem subtractionStage_execute (spec : ModulusSpec width)
   fin_cases index
   all_goals first
     | exact ConstantWord.constantWord_fold_execute scratch.modulus _ Reference state
-    | exact BitWord.bitWord_instruction_execute (execution := model) _ state
+    | exact BitWord.bitWord_instruction_execute (environment := environment)
+        (execution := model) _ state
 
 /-- The true arithmetic and separately loaded reduction share their actual intermediate store. -/
 def subtractionBodyStep (spec : ModulusSpec width)
@@ -153,18 +155,19 @@ def subtractionBodyStep (spec : ModulusSpec width)
     (reduceIntoWordStep spec (.first (reductionRead scratch.difference)) output)
 
 /-- Both actual modulus loads and the original arithmetic compose on the complete state. -/
-theorem subtractionBody_execute (spec : ModulusSpec width)
+lemma subtractionBody_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (.unsignedWord width)) (scratch : SubScratch ctx width)
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (subtractionBody (model := model) spec left right scratch output).execute Reference state =
+    (subtractionBody (model := model) spec left right scratch output).execute environment
+      Reference state =
       state.mapClassical
       (fun entry => ((subtractionBodyStep spec left right scratch output entry.1).1,
         (entry.2.1, (entry.2.2,
           (subtractionBodyStep spec left right scratch output entry.1).2)))) := by
-  exact Circuit.execute_sequenceStoreRecord (model := model) _ _ _ _
-    (Circuit.execute_forRangeStoreRecord (model := model) 5
+  exact Circuit.execute_sequenceStoreRecord (environment := environment) (model := model) _ _ _ _
+    (Circuit.execute_forRangeStoreRecord (environment := environment) (model := model) 5
       (subtractionStage (model := model) spec left right scratch)
       (subtractionStageRecord spec left right scratch)
       (subtractionStage_execute spec left right scratch))

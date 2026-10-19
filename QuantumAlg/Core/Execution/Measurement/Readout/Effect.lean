@@ -29,6 +29,8 @@ namespace QuantumAlg.Execution.QubitReadouts
 
 noncomputable section
 
+variable {allowAllocation allowLeft allowRight : Bool}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {gates : GateModel} {oracles : OracleModel}
@@ -51,7 +53,7 @@ def eventEffect (wires : Fin width → Fin ctx.systemCount)
     (fun basis => event (fun index => decide ((basis.1 (wires index)).val = 1))) true vector
 
 /-- The event projector pairs with every retained reference coordinate of the input density. -/
-theorem eventEffect_weight (wires : Fin width → Fin ctx.systemCount)
+lemma eventEffect_weight (wires : Fin width → Fin ctx.systemCount)
     (event : (Fin width → Bool) → Bool) (Reference : Register)
     (state : DensityOperator (Register.prod ctx.register Reference)) :
     (eventEffect wires event Reference).weight state =
@@ -68,18 +70,20 @@ theorem eventEffect_weight (wires : Fin width → Fin ctx.systemCount)
   split_ifs <;> rfl
 
 /-- Actual sequential measurement reads only its newly written result cells in the final event. -/
-theorem measurement_eventEffectWeight (wires : Fin width → Fin ctx.systemCount)
+lemma measurement_eventEffectWeight (wires : Fin width → Fin ctx.systemCount)
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (services.HiddenState × History))
     (event : (Fin width → Bool) → Bool) :
     ExecutionState.effectWeight
-      ((Circuit.measurementSequence (gates := gates) (oracles := oracles)
+      ((Circuit.measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles
+        := oracles)
         (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells)).execute
-          Reference state)
+          environment Reference state)
         (fun record => if event (mask (record.1.read (input cells))) = true then
           Effect.one (Register.prod ctx.register Reference)
         else Effect.zero (Register.prod ctx.register Reference)) =
@@ -90,15 +94,17 @@ theorem measurement_eventEffectWeight (wires : Fin width → Fin ctx.systemCount
   rw [ExecutionState.effectWeight_observed_mass,
     Circuit.measurementSequence_observed_mass, eventEffect_weight]
   have written (store : Store ctx) (basis : ctx.register.Index) :
-      mask ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      mask ((Circuit.writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates)
+        (oracles := oracles)
         (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells) store
-        (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+        (Circuit.measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+          := oracles)
         (operations := operations) (classicalOracles := services)
         (readouts wires qubits cells) basis)).read (input cells)) =
       fun index => decide ((basis (wires index)).val = 1) := by
     funext index
-    exact written_mask (gates := gates) (oracles := oracles)
+    exact written_mask (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (services := services)
       wires qubits cells distinct store basis index
   simp only [written, ExecutionState.diagonalSum]
@@ -112,7 +118,7 @@ theorem measurement_eventEffectWeight (wires : Fin width → Fin ctx.systemCount
   split_ifs <;> simp only [one_mul, zero_mul, Finset.sum_const_zero, Matrix.sum_apply]
 
 /-- Equal full quantum marginals give equal readout events despite different old histories. -/
-theorem measurement_eventEffectWeight_eq_of_quantumMarginal_eq
+lemma measurement_eventEffectWeight_eq_of_quantumMarginal_eq
     {leftGates rightGates : GateModel} {leftOracles rightOracles : OracleModel}
     {leftOperations rightOperations : ClassicalOpModel}
     {leftServices rightServices : ClassicalOracleModel}
@@ -120,6 +126,10 @@ theorem measurement_eventEffectWeight_eq_of_quantumMarginal_eq
     (qubits : ∀ index, (ctx.quantumLayout.wire (wires index)).dimension = 2)
     (cells : Fin width → CWriteRef ctx (.finite 2))
     (distinct : Function.Injective fun index => (cells index).key)
+    (leftEnvironment :
+      (ExecutionModel.quantum leftGates leftOracles leftOperations leftServices).Environment)
+    (rightEnvironment :
+      (ExecutionModel.quantum rightGates rightOracles rightOperations rightServices).Environment)
     {Reference : Register} {LeftHistory RightHistory : Type}
     [Fintype LeftHistory] [Fintype RightHistory]
     (left : State ctx Reference (leftServices.HiddenState × LeftHistory))
@@ -127,23 +137,28 @@ theorem measurement_eventEffectWeight_eq_of_quantumMarginal_eq
     (same : left.quantumMarginal = right.quantumMarginal)
     (event : (Fin width → Bool) → Bool) :
     ExecutionState.effectWeight
-      ((Circuit.measurementSequence (gates := leftGates) (oracles := leftOracles)
+      ((Circuit.measurementSequence (allowAllocation := allowLeft) (gates := leftGates) (oracles :=
+        leftOracles)
         (operations := leftOperations) (classicalOracles := leftServices)
-        (readouts wires qubits cells)).execute Reference left)
+        (readouts wires qubits cells)).execute leftEnvironment Reference left)
         (fun record => if event (mask (record.1.read (input cells))) = true then
           Effect.one (Register.prod ctx.register Reference)
         else Effect.zero (Register.prod ctx.register Reference)) =
       ExecutionState.effectWeight
-        ((Circuit.measurementSequence (gates := rightGates) (oracles := rightOracles)
+        ((Circuit.measurementSequence (allowAllocation := allowRight) (gates := rightGates) (oracles
+          := rightOracles)
           (operations := rightOperations) (classicalOracles := rightServices)
-          (readouts wires qubits cells)).execute Reference right)
+          (readouts wires qubits cells)).execute rightEnvironment Reference right)
         (fun record => if event (mask (record.1.read (input cells))) = true then
           Effect.one (Register.prod ctx.register Reference)
         else Effect.zero (Register.prod ctx.register Reference)) := by
-  rw [measurement_eventEffectWeight (gates := leftGates) (oracles := leftOracles)
-      (operations := leftOperations) wires qubits cells distinct left event,
-    measurement_eventEffectWeight (gates := rightGates) (oracles := rightOracles)
-      (operations := rightOperations) wires qubits cells distinct right event, same]
+  rw [measurement_eventEffectWeight (allowAllocation := allowLeft) (gates := leftGates) (oracles :=
+    leftOracles)
+      (operations := leftOperations) wires qubits cells distinct leftEnvironment left event,
+    measurement_eventEffectWeight (allowAllocation := allowRight) (gates := rightGates) (oracles :=
+      rightOracles)
+      (operations := rightOperations) wires qubits cells distinct
+      rightEnvironment right event, same]
 
 end
 

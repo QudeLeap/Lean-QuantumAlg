@@ -29,18 +29,21 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
-private theorem product_bits_eq {shape : CShape} {count : Nat}
+private lemma product_bits_eq {shape : CShape} {count : Nat}
     (left right : shape.Value) (bits outcome : Fin count → Bool) :
     CShape.Value.product left (.bits bits) = CShape.Value.product right (.bits outcome) ↔
       left = right ∧ bits = outcome := by
   simp only [CShape.Value.product.injEq, CShape.Value.bits.injEq]
 
-private theorem weighted_fiber {Basis : Type} [Fintype Basis]
+private lemma weighted_fiber {Basis : Type} [Fintype Basis]
     (predicate : Basis → Prop) (decision : DecidablePred predicate)
     (value : Basis → ℝ) (coefficient : ℂ) :
     (∑ basis : Basis, (@ite ℂ (predicate basis) (decision basis) 1 0) *
@@ -66,7 +69,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- Earlier data and the actual newest outcome retain the source-weighted full reference block. -/
-theorem shortDLP_runtimeRound_joint_outcome_reference {parameterShape observedShape : CShape}
+lemma shortDLP_runtimeRound_joint_outcome_reference {parameterShape observedShape : CShape}
     (parameter : CInputRef ctx parameterShape) (N : Nat)
     (generator target : parameterShape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
@@ -82,7 +85,7 @@ theorem shortDLP_runtimeRound_joint_outcome_reference {parameterShape observedSh
     (leftRef rightRef : Reference.Index) :
     (∑ basis : ctx.register.Index,
       ((ExecutionState.mapClassical
-        ((code m ell width sameWires parameter N generator target cells result).execute
+        ((code m ell width sameWires parameter N generator target cells result).execute environment
           Reference state)
         (fun entry => entry.1.read (.product observed (.storage result.toCStorageRef)))).block
           (.product oldValue (.bits outcome))).matrix (basis, leftRef) (basis, rightRef)) =
@@ -102,7 +105,8 @@ theorem shortDLP_runtimeRound_joint_outcome_reference {parameterShape observedSh
   let weight := fun original : Store ctx => fun basis : ctx.register.Index =>
     if observe (packedBasisStore m ell width sameWires cells result original basis) =
       CShape.Value.product oldValue (.bits outcome) then (1 : ℂ) else 0
-  have measured := shortDLP_runtimeRound_observed_reference_entry m ell width sameWires
+  have measured := shortDLP_runtimeRound_observed_reference_entry (environment := environment)
+    m ell width sameWires
     parameter N generator target cells result state observe
     (CShape.Value.product oldValue (.bits outcome)) leftRef rightRef
   refine measured.trans ((shortDLP_runtimeSelected_source_fiber m ell width sameWires

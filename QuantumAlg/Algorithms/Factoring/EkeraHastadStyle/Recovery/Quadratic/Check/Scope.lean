@@ -27,13 +27,13 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment} {ctx : RuntimeCtx model.kind}
 
 private def StepLaw {current : RuntimeCtx model.kind} (inner : Circuit model current current)
     (update : Store current → Store current × inner.Path) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
     (state : State current Reference (model.HiddenState × History)),
-    inner.execute Reference state = state.mapClassical (fun entry =>
+    inner.execute environment Reference state = state.mapClassical (fun entry =>
       ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2))))
 
 private def scopeUpdate (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -44,15 +44,15 @@ private def scopeUpdate (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx
   let next := update (store.pushWorkspace key shape fresh)
   (Store.popWorkspace key shape fresh next.1, next.2)
 
-private theorem scopeEquation (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
+private lemma scopeEquation (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (inner : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (update : Store (ctx.addWorkspace key shape fresh) →
       Store (ctx.addWorkspace key shape fresh) × inner.Path)
-    (law : StepLaw inner update) :
-    StepLaw (Circuit.workspace ctx key shape fresh inner)
+    (law : StepLaw (environment := environment) inner update) :
+    StepLaw (environment := environment) (Circuit.workspace ctx key shape fresh inner)
       (scopeUpdate key shape fresh inner update) := by
   intro Reference History historyFinite state
-  refine (Circuit.execute_workspace_mapClassical key shape fresh inner
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) key shape fresh inner
     (fun before => let actual := update before.1; ((actual.1, before.2), actual.2))
     (fun reference _history _ initial => law reference initial) Reference state).trans ?_
   congr 1
@@ -73,11 +73,12 @@ private def update4 (width : Nat)
   (Store.popWorkspace (firstCtx ctx width).canonicalFreshKey .bit
     (firstCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation4 (width : Nat)
+private lemma equation4 (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
-    (law : StepLaw inner update) :
-    StepLaw (scoped4 (ctx := ctx) width inner) (update4 (ctx := ctx) width inner update) :=
+    (law : StepLaw (environment := environment) inner update) :
+    StepLaw (environment := environment) (scoped4 (ctx := ctx) width inner) (update4 (ctx := ctx)
+      width inner update) :=
   scopeEquation (firstCtx ctx width).canonicalFreshKey .bit
     (firstCtx ctx width).canonicalFreshKey_fresh
     inner update law
@@ -99,11 +100,12 @@ private def update3 (width : Nat)
   (Store.popWorkspace (dividesCtx ctx width).canonicalFreshKey .bit
     (dividesCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation3 (width : Nat)
+private lemma equation3 (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
-    (law : StepLaw inner update) :
-    StepLaw (scoped3 (ctx := ctx) width inner) (update3 (ctx := ctx) width inner update) :=
+    (law : StepLaw (environment := environment) inner update) :
+    StepLaw (environment := environment) (scoped3 (ctx := ctx) width inner) (update3 (ctx := ctx)
+      width inner update) :=
   scopeEquation (dividesCtx ctx width).canonicalFreshKey .bit
     (dividesCtx ctx width).canonicalFreshKey_fresh
     (scoped4 (ctx := ctx) width inner) (update4 (ctx := ctx) width inner update)
@@ -126,11 +128,12 @@ private def update2 (width : Nat)
   (Store.popWorkspace (upperCtx ctx width).canonicalFreshKey .bit
     (upperCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation2 (width : Nat)
+private lemma equation2 (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
-    (law : StepLaw inner update) :
-    StepLaw (scoped2 (ctx := ctx) width inner) (update2 (ctx := ctx) width inner update) :=
+    (law : StepLaw (environment := environment) inner update) :
+    StepLaw (environment := environment) (scoped2 (ctx := ctx) width inner) (update2 (ctx := ctx)
+      width inner update) :=
   scopeEquation (upperCtx ctx width).canonicalFreshKey .bit
     (upperCtx ctx width).canonicalFreshKey_fresh
     (scoped3 (ctx := ctx) width inner) (update3 (ctx := ctx) width inner update)
@@ -153,11 +156,12 @@ private def update1 (width : Nat)
   (Store.popWorkspace (zeroCtx ctx width).canonicalFreshKey .bit
     (zeroCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation1 (width : Nat)
+private lemma equation1 (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
-    (law : StepLaw inner update) :
-    StepLaw (scoped1 (ctx := ctx) width inner) (update1 (ctx := ctx) width inner update) :=
+    (law : StepLaw (environment := environment) inner update) :
+    StepLaw (environment := environment) (scoped1 (ctx := ctx) width inner) (update1 (ctx := ctx)
+      width inner update) :=
   scopeEquation (zeroCtx ctx width).canonicalFreshKey .bit
     (zeroCtx ctx width).canonicalFreshKey_fresh
     (scoped2 (ctx := ctx) width inner) (update2 (ctx := ctx) width inner update)
@@ -177,11 +181,12 @@ private def update0 (width : Nat)
   (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation0 (width : Nat)
+private lemma equation0 (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
-    (law : StepLaw inner update) :
-    StepLaw (scoped0 (ctx := ctx) width inner) (update0 (ctx := ctx) width inner update) :=
+    (law : StepLaw (environment := environment) inner update) :
+    StepLaw (environment := environment) (scoped0 (ctx := ctx) width inner) (update0 (ctx := ctx)
+      width inner update) :=
   scopeEquation ctx.canonicalFreshKey (.unsignedWord width) ctx.canonicalFreshKey_fresh
     (scoped1 (ctx := ctx) width inner) (update1 (ctx := ctx) width inner update)
     (equation1 (ctx := ctx) width inner update law)
@@ -194,7 +199,7 @@ def scopeStep (width : Nat) (inner : Circuit model (context ctx width) (context 
   update0 width inner update store
 
 /-- The recorded final store is precisely actual entry, inner execution update and release. -/
-theorem nativeQuadratic_checkScopeStep_store (width : Nat)
+lemma nativeQuadratic_checkScopeStep_store (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
     (store : Store ctx) :
@@ -202,16 +207,16 @@ theorem nativeQuadratic_checkScopeStep_store (width : Nat)
       rfl
 
 /-- Actual allocation and release transport the proved complete inner interpreter equation. -/
-theorem nativeQuadratic_checkScopes_execute (width : Nat)
+lemma nativeQuadratic_checkScopes_execute (width : Nat)
     (inner : Circuit model (context ctx width) (context ctx width))
     (update : Store (context ctx width) → Store (context ctx width) × inner.Path)
     (law : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (context ctx width) Reference (model.HiddenState × History)),
-      inner.execute Reference state = state.mapClassical (fun entry =>
+      inner.execute environment Reference state = state.mapClassical (fun entry =>
         ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scopes ctx width inner).execute Reference state = state.mapClassical (fun entry =>
+    (scopes ctx width inner).execute environment Reference state = state.mapClassical (fun entry =>
       ((scopeStep width inner update entry.1).1,
         (entry.2.1, (entry.2.2, (scopeStep width inner update entry.1).2)))) :=
   equation0 width inner update law Reference state

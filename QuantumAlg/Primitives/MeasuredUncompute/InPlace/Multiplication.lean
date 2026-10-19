@@ -82,11 +82,11 @@ def output (width : Nat) :
     Output (NumeratorMeasurement.context width) (.fixedVector width (.finite 2)) :=
   Output.all (NumeratorMeasurement.context width) (.read (NumeratorMeasurement.input width))
 
-theorem output_listing (width : Nat) :
+lemma output_listing (width : Nat) :
     (output width).listing = (NumeratorMeasurement.context width).keys :=
   Output.all_listing _ _
 
-theorem output_read (width : Nat) (store : Store (NumeratorMeasurement.context width)) :
+lemma output_read (width : Nat) (store : Store (NumeratorMeasurement.context width)) :
     (output width).eval store = store.read (NumeratorMeasurement.input width) :=
   Output.all_eval _ _ _
 

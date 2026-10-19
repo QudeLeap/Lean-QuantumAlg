@@ -54,7 +54,7 @@ public def rotZOp (φ : ℝ) : UnitaryOperator (Qubits 1) :=
 
 /-- A Y rotation sends the zero basis vector to its two real-amplitude
 branches. -/
-public theorem rotYOp_applyVec_ket0 (θ : ℝ) :
+public lemma rotYOp_applyVec_ket0 (θ : ℝ) :
     (rotYOp θ).applyVec
         (NormalizedVector.ket0 : HilbertVector (Qubits 1)) =
       (Real.cos (θ / 2) : ℂ) •
@@ -70,7 +70,7 @@ public theorem rotYOp_applyVec_ket0 (θ : ℝ) :
 
 /-- A Y rotation sends the one basis vector to the signed branch
 decomposition used by finite-range preparation. -/
-public theorem rotYOp_applyVec_ket1 (θ : ℝ) :
+public lemma rotYOp_applyVec_ket1 (θ : ℝ) :
     (rotYOp θ).applyVec
         (NormalizedVector.ket1 : HilbertVector (Qubits 1)) =
       (-(Real.sin (θ / 2)) : ℂ) •
@@ -88,7 +88,7 @@ public theorem rotYOp_applyVec_ket1 (θ : ℝ) :
 public def rotZStdOp (φ : ℝ) : UnitaryOperator (Qubits 1) := rotZOp (-(φ / 2))
 
 @[simp]
-theorem rotZStdOp_zero : rotZStdOp 0 = 1 := by
+lemma rotZStdOp_zero : rotZStdOp 0 = 1 := by
   apply Subtype.ext
   ext row column
   fin_cases row <;> fin_cases column <;> simp [rotZStdOp, rotZOp]

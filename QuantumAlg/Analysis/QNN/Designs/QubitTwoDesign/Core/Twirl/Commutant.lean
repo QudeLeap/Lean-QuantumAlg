@@ -27,7 +27,7 @@ open scoped ComplexOrder Kronecker Quaternion QuadraticAlgebra
 def qubitSwap : Matrix (Fin 2 × Fin 2) (Fin 2 × Fin 2) ℂ := fun p q =>
   if p = (q.2, q.1) then 1 else 0
 
-theorem kronecker_self_commute_qubitSwap (U : Matrix (Fin 2) (Fin 2) ℂ) :
+lemma kronecker_self_commute_qubitSwap (U : Matrix (Fin 2) (Fin 2) ℂ) :
     (U ⊗ₖ U) * qubitSwap = qubitSwap * (U ⊗ₖ U) := by
   ext ⟨i, j⟩ ⟨k, l⟩
   simp only [Matrix.mul_apply, qubitSwap]
@@ -35,7 +35,7 @@ theorem kronecker_self_commute_qubitSwap (U : Matrix (Fin 2) (Fin 2) ℂ) :
   fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
     simp [mul_comm] <;> ring
 
-theorem su2_casimir_eq_swap_sub :
+lemma su2_casimir_eq_swap_sub :
     su2HermBasis.casimir = qubitSwap - (1 / 2 : ℂ) • 1 := by
   rw [DLAHermBasis.casimir]
   change (∑ j : Fin 3, su2B j ⊗ₖ su2B j) = qubitSwap - (1 / 2 : ℂ) • 1
@@ -48,7 +48,7 @@ theorem su2_casimir_eq_swap_sub :
       simp [hrt, Complex.I_sq] <;> norm_num
 
 /-- The strict Clifford lift fixes the normalized `su(2)` Casimir pointwise. -/
-theorem qubitClifford_casimir_commute (g : BinaryOctahedral) :
+lemma qubitClifford_casimir_commute (g : BinaryOctahedral) :
     (qubitClifford g ⊗ₖ qubitClifford g) * su2HermBasis.casimir =
       su2HermBasis.casimir * (qubitClifford g ⊗ₖ qubitClifford g) := by
   rw [su2_casimir_eq_swap_sub, Matrix.mul_sub, Matrix.sub_mul,
@@ -67,7 +67,7 @@ def IsDoubledCommutantComplete {N : ℕ} {G : Type*}
 namespace TwirlInternal
 
 /-- Internal normal form shared by the commutant bridge and the concrete basis twirl. -/
-theorem qubitClifford_commutant_normal_form
+lemma qubitClifford_commutant_normal_form
     (M : Matrix (Fin 2 × Fin 2) (Fin 2 × Fin 2) ℂ)
     (hM : ∀ g, (qubitClifford g ⊗ₖ qubitClifford g) * M =
       M * (qubitClifford g ⊗ₖ qubitClifford g)) :
@@ -172,14 +172,14 @@ theorem qubitClifford_commutant_normal_form
 
 end TwirlInternal
 
-theorem one_mem_su2_adCommutantGG :
+lemma one_mem_su2_adCommutantGG :
     (1 : Matrix (Fin 2 × Fin 2) (Fin 2 × Fin 2) ℂ) ∈ adCommutantGG su2HermBasis := by
   rw [adCommutantGG, Submodule.mem_iInf]
   intro j
   rw [LinearMap.mem_ker]
   simp [doubledAd]
 
-theorem qubitSwap_mem_su2_adCommutantGG : qubitSwap ∈ adCommutantGG su2HermBasis := by
+lemma qubitSwap_mem_su2_adCommutantGG : qubitSwap ∈ adCommutantGG su2HermBasis := by
   have hswap : qubitSwap = su2HermBasis.casimir + (1 / 2 : ℂ) • 1 := by
     rw [su2_casimir_eq_swap_sub]
     module
@@ -188,7 +188,7 @@ theorem qubitSwap_mem_su2_adCommutantGG : qubitSwap ∈ adCommutantGG su2HermBas
     ((adCommutantGG su2HermBasis).smul_mem _ one_mem_su2_adCommutantGG)
 
 /-- The strict single-qubit Clifford lift is doubled-commutant complete for `su(2)`. -/
-theorem qubitClifford_isDoubledCommutantComplete :
+lemma qubitClifford_isDoubledCommutantComplete :
     IsDoubledCommutantComplete qubitClifford su2HermBasis := by
   intro M hM
   rw [TwirlInternal.qubitClifford_commutant_normal_form M hM]
@@ -197,7 +197,7 @@ theorem qubitClifford_isDoubledCommutantComplete :
     ((adCommutantGG su2HermBasis).smul_mem _ qubitSwap_mem_su2_adCommutantGG)
 
 /-- Commuting with the finite doubled Clifford action implies Lie-algebra doubled invariance. -/
-theorem qubitClifford_bridge
+lemma qubitClifford_bridge
     (M : Matrix (Fin 2 × Fin 2) (Fin 2 × Fin 2) ℂ)
     (hM : ∀ g, (qubitClifford g ⊗ₖ qubitClifford g) * M =
       M * (qubitClifford g ⊗ₖ qubitClifford g)) :

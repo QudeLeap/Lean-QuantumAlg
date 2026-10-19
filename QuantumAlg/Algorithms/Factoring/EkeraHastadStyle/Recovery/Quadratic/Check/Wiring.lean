@@ -38,7 +38,7 @@ def checkedOperands (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWi
   selection := selector
 
 /-- Actual candidate-cell separation discharges every still-live source/remainder distinction. -/
-theorem nativeQuadratic_checkedOperands_separated
+lemma nativeQuadratic_checkedOperands_separated
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (selector : FirstAccepted.Refs ctx (RSA.quadraticWordWidth width))
     (separated : Separated modulus refs) :
@@ -53,7 +53,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 /-- Actual initialized arithmetic, fresh checker entry and both checks yield the source decisions.
 -/
-theorem nativeQuadratic_loaded_checks_values (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_loaded_checks_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (selector : FirstAccepted.Refs ctx (RSA.quadraticWordWidth width))
     (separated : Separated modulus refs) (store : Store ctx) :

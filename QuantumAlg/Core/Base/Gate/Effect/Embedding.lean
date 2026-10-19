@@ -29,21 +29,21 @@ private def extendVector (embedding : S.Index → R.Index) (vector : HilbertVect
     HilbertVector R :=
   ∑ index, vector index • (NormalizedVector.ket (embedding index) : HilbertVector R)
 
-private theorem extendVector_apply (embedding : S.Index → R.Index) (vector : HilbertVector S)
+private lemma extendVector_apply (embedding : S.Index → R.Index) (vector : HilbertVector S)
     (output : R.Index) :
     extendVector embedding vector output =
       ∑ index, if embedding index = output then vector index else 0 := by
   classical
   simp [extendVector, NormalizedVector.ket_apply, mul_ite, eq_comm]
 
-private theorem norm_extendVector (embedding : S.Index → R.Index)
+private lemma norm_extendVector (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (vector : HilbertVector S) :
     ‖extendVector embedding vector‖ = ‖vector‖ := by
   rw [extendVector, HilbertVector.norm_sum_smul_ket_eq_sqrt_sum_norm_sq
     Finset.univ embedding injective]
   rw [← EuclideanSpace.norm_sq_eq, Real.sqrt_sq (norm_nonneg vector)]
 
-private theorem norm_restrictVector_le (embedding : S.Index → R.Index)
+private lemma norm_restrictVector_le (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (vector : HilbertVector R) :
     ‖WithLp.toLp 2 (fun index => vector (embedding index))‖ ≤ ‖vector‖ := by
   classical
@@ -57,7 +57,7 @@ private theorem norm_restrictVector_le (embedding : S.Index → R.Index)
   nlinarith [norm_nonneg vector,
     norm_nonneg (WithLp.toLp 2 (fun index => vector (embedding index)))]
 
-private theorem submatrix_applyVec (operator : HilbertOperator R)
+private lemma submatrix_applyVec (operator : HilbertOperator R)
     (embedding : S.Index → R.Index) (vector : HilbertVector S) :
     HilbertOperator.applyVec (R := S) (operator.submatrix embedding embedding) vector =
       WithLp.toLp 2 (fun index => operator.applyVec (extendVector embedding vector)
@@ -83,7 +83,7 @@ def compress (embedding : S.Index → R.Index) (injective : Function.Injective e
       ((effect.contractive (extendVector embedding vector)).trans_eq
         (norm_extendVector embedding injective vector))
 
-@[simp] theorem compress_matrix (embedding : S.Index → R.Index)
+@[simp] lemma compress_matrix (embedding : S.Index → R.Index)
     (injective : Function.Injective embedding) (effect : Effect R) :
     (compress embedding injective effect).matrix =
       effect.matrix.submatrix embedding embedding := rfl

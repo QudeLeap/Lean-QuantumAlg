@@ -29,7 +29,7 @@ namespace NumberTheory
 
 /-- For a finite set of primes, the product of the primes is at most one more
 than the set cardinality times the product of their predecessors. -/
-theorem primeProduct_le_card_succ_mul_predProduct
+lemma primeProduct_le_card_succ_mul_predProduct
     (s : Finset Nat) (hprime : ∀ p ∈ s, Nat.Prime p) :
     (∏ p ∈ s, p) ≤
       (s.card + 1) * ∏ p ∈ s, (p - 1) := by
@@ -88,7 +88,7 @@ theorem primeProduct_le_card_succ_mul_predProduct
 
 /-- A positive natural is at most its totient times one plus the number of its
 distinct prime factors. -/
-theorem self_le_totient_mul_card_primeFactors_succ
+lemma self_le_totient_mul_card_primeFactors_succ
     (n : Nat) :
     n ≤ Nat.totient n * (n.primeFactors.card + 1) := by
   let factors := n.primeFactors
@@ -118,7 +118,7 @@ theorem self_le_totient_mul_card_primeFactors_succ
 
 /-- The number of distinct prime factors plus one is at most the binary
 bit-length of a positive natural. -/
-theorem card_primeFactors_succ_le_size (n : Nat) (hn : 0 < n) :
+lemma card_primeFactors_succ_le_size (n : Nat) (hn : 0 < n) :
     n.primeFactors.card + 1 ≤ Nat.size n := by
   have hpow :
       2 ^ n.primeFactors.card ≤ ∏ p ∈ n.primeFactors, p := by
@@ -133,7 +133,7 @@ theorem card_primeFactors_succ_le_size (n : Nat) (hn : 0 < n) :
 
 /-- Elementary binary-size lower bound for Euler's totient:
 `n ≤ φ(n) * bitlength(n)` for every positive natural `n`. -/
-theorem self_le_totient_mul_size (n : Nat) (hn : 0 < n) :
+lemma self_le_totient_mul_size (n : Nat) (hn : 0 < n) :
     n ≤ Nat.totient n * Nat.size n :=
   (self_le_totient_mul_card_primeFactors_succ n).trans
     (Nat.mul_le_mul_left _ (card_primeFactors_succ_le_size n hn))

@@ -69,19 +69,20 @@ def pointStep {model : ExecutionModel} [BitWord.Selected model]
     output.third productLeft productRight second.1
   (third.1, (first.2, (second.2, third.2)))
 
-theorem pointStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma pointStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (pointStep (model := model) left right output productLeft productRight store).1 =
       pointStore left right output productLeft productRight store := rfl
 
 /-- The full interpreter retains every incoming history and quantum-reference block. -/
-theorem pointCrossInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma pointCrossInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pointCrossInto (model := model) left right output productLeft productRight).execute
+    (pointCrossInto (model := model) left right output productLeft productRight).execute environment
       Reference state =
       state.mapClassical (fun entry =>
         let actual := pointStep (model := model) left right output productLeft productRight
@@ -93,7 +94,7 @@ theorem pointCrossInto_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Reads outside the five mutable words are unchanged. -/
-theorem pointCrossInto_callerFrame (left right output : LatticeState.PointRefs ctx width)
+lemma pointCrossInto_callerFrame (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell, mutableKey output productLeft productRight cell ∉ other.storageKeys) :

@@ -36,7 +36,7 @@ def publishedFailureBudget : FailureBudget where
   failureNumerator := 1
   failureDenominator := 100
 
-theorem publishedFailureBudget_wellFormed :
+lemma publishedFailureBudget_wellFormed :
     publishedFailureBudget.WellFormed := by
   constructor <;> norm_num [publishedFailureBudget]
 
@@ -46,7 +46,7 @@ def retryCount : Nat :=
 
 /-- This is the least positive natural count above the exact logarithmic
 calibration exponent for the concrete Born failure rate. -/
-theorem retryCount_is_minimal_calibration {count : Nat}
+lemma retryCount_is_minimal_calibration {count : Nat}
     (hone : 1 ≤ count)
     (hcalibration :
       FailureBudget.retryExponentFor
@@ -62,7 +62,7 @@ theorem retryCount_is_minimal_calibration {count : Nat}
       publishedFailureBudget hone hcalibration
 
 /-- Exact rational form of the fixed public threshold. -/
-theorem publishedThreshold_eq_ninetyNineHundredths :
+lemma publishedThreshold_eq_ninetyNineHundredths :
     FailureBudget.successThreshold publishedFailureBudget =
       ENNReal.ofReal ((99 : Real) / 100) := by
   unfold FailureBudget.successThreshold FailureBudget.value
@@ -72,7 +72,7 @@ theorem publishedThreshold_eq_ninetyNineHundredths :
 
 /-- The one actual circuit uses the explicit order-seven preparation and certified group oracle. -/
 def algorithm (budget : FailureBudget) :=
-  ECDLP.algorithm ecdLPInstance orderExpansion access budget
+  ECDLP.algorithm ecdLPInstance orderExpansion budget
 
 /-- The original small-curve instance with its complete declared resource contract.
 
@@ -96,15 +96,12 @@ def algorithm (budget : FailureBudget) :=
 - Literal preparation follows [SV24, Uniform.tex:640-663].
 -/
 def problem (budget : FailureBudget) (wellFormed : budget.WellFormed) :=
-  ECDLP.problem ecdLPInstance orderExpansion access budget wellFormed
+  ECDLP.problem ecdLPInstance orderExpansion budget wellFormed
 
 /-- Every original well-formed failure budget applies to the actual fixed example. -/
-theorem mainForBudget (budget : FailureBudget) (wellFormed : budget.WellFormed) :
+lemma mainForBudget (budget : FailureBudget) (wellFormed : budget.WellFormed) :
     (algorithm budget).Solves (problem budget wellFormed) :=
-  by
-    rcases ECDLP.main ecdLPInstance orderExpansion access budget wellFormed with
-      ⟨_, correct, _, _, _⟩
-    exact correct
+  (ECDLP.main ecdLPInstance orderExpansion budget wellFormed).1
 
 /-- The actual fixed example meets its original one-percent failure contract. -/
 theorem main : (algorithm publishedFailureBudget).Solves

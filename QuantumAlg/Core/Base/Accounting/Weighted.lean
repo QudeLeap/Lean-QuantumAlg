@@ -25,13 +25,13 @@ public def weightedCount {model : ExecutionModel} (weight : Resource.Event model
     (pool : ResourcePool model) : Nat :=
   (pool.map weight).sum
 
-@[simp] theorem weightedCount_zero {model : ExecutionModel}
+@[simp] lemma weightedCount_zero {model : ExecutionModel}
     (weight : Resource.Event model → Nat) :
     weightedCount weight (0 : ResourcePool model) = 0 := by
   simp [weightedCount]
 
 /-- A ledger has zero total weight when every event it actually contains has zero weight. -/
-theorem weightedCount_eq_zero_of_mem {model : ExecutionModel}
+lemma weightedCount_eq_zero_of_mem {model : ExecutionModel}
     (weight : Resource.Event model → Nat) (pool : ResourcePool model)
     (zero : ∀ event ∈ pool, weight event = 0) : weightedCount weight pool = 0 := by
   revert zero
@@ -46,21 +46,21 @@ theorem weightedCount_eq_zero_of_mem {model : ExecutionModel}
       simpa only [weightedCount, Multiset.map_cons, Multiset.sum_cons,
         eventZero, Nat.zero_add] using ih restZero
 
-@[simp] theorem weightedCount_add {model : ExecutionModel}
+@[simp] lemma weightedCount_add {model : ExecutionModel}
     (weight : Resource.Event model → Nat)
     (left right : ResourcePool model) :
     weightedCount weight (left + right) =
       weightedCount weight left + weightedCount weight right := by
   simp [weightedCount]
 
-@[simp] theorem weightedCount_singleton {model : ExecutionModel}
+@[simp] lemma weightedCount_singleton {model : ExecutionModel}
     (weight : Resource.Event model → Nat)
     (event : Resource.Event model) (multiplicity : Nat) :
     weightedCount weight (ResourcePool.singleton event multiplicity) =
       multiplicity * weight event := by
   simp [weightedCount, ResourcePool.singleton]
 
-@[simp] theorem weightedCount_nsmul {model : ExecutionModel}
+@[simp] lemma weightedCount_nsmul {model : ExecutionModel}
     (weight : Resource.Event model → Nat)
     (multiplicity : Nat) (pool : ResourcePool model) :
     weightedCount weight (multiplicity • pool) =
@@ -71,7 +71,7 @@ theorem weightedCount_eq_zero_of_mem {model : ExecutionModel}
       rw [succ_nsmul, weightedCount_add, ih]
       simp [Nat.succ_mul]
 
-@[simp] theorem weightedCount_ofList {model : ExecutionModel}
+@[simp] lemma weightedCount_ofList {model : ExecutionModel}
     (weight : Resource.Event model → Nat)
     (events : List (Resource.Event model)) :
     weightedCount weight (ResourcePool.ofList events) =

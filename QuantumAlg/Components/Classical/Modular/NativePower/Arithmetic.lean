@@ -22,7 +22,7 @@ instructions; they introduce no additional runtime operation.
 namespace QuantumAlg.ClassicalRoutines.Modular.NativePower
 
 /-- The combined operand width stores the exact product without modular truncation. -/
-theorem nativePower_fullProduct_exact {width : Nat} (left right : CShape.Word width) :
+lemma nativePower_fullProduct_exact {width : Nat} (left right : CShape.Word width) :
     (CShape.mulFull width width (.product left right)).toNat = left.toNat * right.toNat := by
   have fits : left.toNat * right.toNat < 2 ^ (width + width) := by
     rw [pow_add]
@@ -31,7 +31,7 @@ theorem nativePower_fullProduct_exact {width : Nat} (left right : CShape.Word wi
   exact Nat.mod_eq_of_lt fits
 
 /-- With a fitted positive modulus the actual three-operation value is exact modular product. -/
-theorem nativePower_multiplyValue_toNat {width : Nat}
+lemma nativePower_multiplyValue_toNat {width : Nat}
     (left right : CShape.Word width) (modulus : CShape.Word (width + 1))
     (positive : 0 < modulus.toNat) (fits : modulus.toNat ≤ 2 ^ width) :
     (multiplyValue left right modulus).toNat = left.toNat * right.toNat % modulus.toNat := by
@@ -44,7 +44,7 @@ theorem nativePower_multiplyValue_toNat {width : Nat}
     Nat.mod_eq_of_lt (lt_of_lt_of_le remainderBound fits)]
 
 /-- The result is a canonical representative of the actual fitted modulus. -/
-theorem nativePower_multiplyValue_lt {width : Nat}
+lemma nativePower_multiplyValue_lt {width : Nat}
     (left right : CShape.Word width) (modulus : CShape.Word (width + 1))
     (positive : 0 < modulus.toNat) (fits : modulus.toNat ≤ 2 ^ width) :
     (multiplyValue left right modulus).toNat < modulus.toNat := by
@@ -52,7 +52,7 @@ theorem nativePower_multiplyValue_lt {width : Nat}
   exact Nat.mod_lt _ positive
 
 /-- The intrinsic specification's extended word carries the original modulus exactly. -/
-theorem nativePower_multiplyValue_spec {width : Nat}
+lemma nativePower_multiplyValue_spec {width : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec width)
     (left right : CShape.Word width) :
     (multiplyValue left right (.unsignedWord spec.extendedWord)).toNat =

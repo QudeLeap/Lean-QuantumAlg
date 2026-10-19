@@ -49,7 +49,7 @@ def stateRequirement (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires
   Fourier gates, phase readout and packing, recovery, feedback and reset.
 - Both live-space ledgers include the caller, all five persistent heads,
   the owned physical bank, complete retained results and simultaneous scratch.
-- Complete first-cycle dependency depth uses independent event durations and
+- Complete first-cycle quantum time uses the canonical event duration and
   the same complete closed allowance.
 **Success.**
 - The original rational one-attempt threshold for a factor of the unknown
@@ -58,37 +58,33 @@ def stateRequirement (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires
 - [Sho95, source.tex:1124-1169,1183-1245] for actual sampling and recovery.
 - [dW19, qcnotes.tex:2203-2225] for the declared XOR query interpretation.
 -/
-def problem (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N)
-    (duration : Resource.Event (executionModel (Probability.Input.ofSemiprimeModel model)) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (executionModel (Probability.Input.ofSemiprimeModel model)) base
+def problem (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
+    (input : Input N) :
+    Problem (executionModel N) base
       (Iteration.context (bank base noQuantum N) N)
       (.product .bit (.unsignedWord (modulusBits N))) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ value => Round.accepts model value
-  successLB := ⟨Probability.honestAttemptSuccessFloor N,
-    honestFloor_le_one (Probability.Input.ofSemiprimeModel model)⟩
-  states := [stateRequirement base noQuantum N]
+  Witness := NumberTheory.Factoring.SemiprimeFactorModel N
+  valid := fun actual _ _ => actual.quantum =
+    DeclaredSource.interpretation (sourceBounds input) (phaseBits N)
+  initialization := fun _ _ _ => True
+  accepts := fun _ witness _ value => Round.accepts witness value
+  successLB := fun _ _ =>
+    ⟨Probability.honestAttemptSuccessFloor N, honestFloor_le_one input⟩
+  states := fun _ _ => [stateRequirement base noQuantum N]
   resources :=
-    { events := firstEnvelope (Probability.Input.ofSemiprimeModel model)
+    { events := firstEnvelope N
       resident := base.residentSpace + firstAdditionalSpace N
       auxiliary := base.auxiliarySpace + firstAdditionalSpace N }
-  depth :=
-    { duration := duration
-      limit := ResourcePool.weightedCount duration
-        (firstEnvelope (Probability.Input.ofSemiprimeModel model))
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
+  quantumTimeLimit := ResourcePool.weightedCount Resource.Event.quantumDuration
+    (firstEnvelope N)
 
 /-- Genuine initialization and the entire first attempt form one actual computation. -/
-def algorithm (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
-    (model : NumberTheory.Factoring.SemiprimeFactorModel N) :
-    Algorithm (executionModel (Probability.Input.ofSemiprimeModel model)) base
+def algorithm (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
+    (input : Input N) :
+    Algorithm (executionModel N) base
       (Iteration.context (bank base noQuantum N) N)
       (.product .bit (.unsignedWord (modulusBits N))) where
-  run := run base noQuantum N (Probability.Input.ofSemiprimeModel model)
+  run := run base noQuantum N input
 
 end
 

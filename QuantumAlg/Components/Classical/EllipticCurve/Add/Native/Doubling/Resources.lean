@@ -25,7 +25,7 @@ open ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original coefficient loader is charged for its actual public word bits. -/
@@ -70,7 +70,7 @@ def doublingActiveSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
       additionReductionSpace kind width)
       (((affineShapes width).map SpacePool.ofShape).sum + affineActiveSpace kind width))
 
-private theorem doublingStage_pool_le (spec : CurveSpec width)
+private lemma doublingStage_pool_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (index : Fin 7)
@@ -88,7 +88,7 @@ private theorem doublingStage_pool_le (spec : CurveSpec width)
   · exact (addIntoWord_resourcePool _ _ _ _ path).le
   · exact affineInto_pool_le _ _ _ _ _ _ _ path
 
-private theorem doublingBody_pool_le (spec : CurveSpec width)
+private lemma doublingBody_pool_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (doublingBody spec pointX pointY scratch output).Path) :
@@ -99,7 +99,7 @@ private theorem doublingBody_pool_le (spec : CurveSpec width)
     (doublingStageEnvelope model spec)
     (doublingStage_pool_le spec pointX pointY scratch output) path
 
-private theorem doublingStage_depth_le (spec : CurveSpec width)
+private lemma doublingStage_depth_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -119,7 +119,7 @@ private theorem doublingStage_depth_le (spec : CurveSpec width)
   · exact (addIntoWord_durationDepth _ _ _ _ duration path).le
   · exact affineInto_depth_le _ _ _ _ _ _ _ duration path
 
-private theorem doublingBody_depth_le (spec : CurveSpec width)
+private lemma doublingBody_depth_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -132,7 +132,7 @@ private theorem doublingBody_depth_le (spec : CurveSpec width)
     (doublingStage_depth_le spec pointX pointY scratch output
       duration) path
 
-private theorem doublingStage_duration_eventTrace (spec : CurveSpec width)
+private lemma doublingStage_duration_eventTrace (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -159,7 +159,7 @@ private theorem doublingStage_duration_eventTrace (spec : CurveSpec width)
             path).symm)
     | exact affineInto_duration_eventTrace _ _ _ _ _ _ _ duration path
 
-private theorem doublingBody_duration_eventTrace (spec : CurveSpec width)
+private lemma doublingBody_duration_eventTrace (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -173,7 +173,7 @@ private theorem doublingBody_duration_eventTrace (spec : CurveSpec width)
       duration) path
 
 /-- The actual seven-call native ledger satisfies the original distinct-stage allowance. -/
-theorem doublingInto_pool_le (spec : CurveSpec width)
+lemma doublingInto_pool_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (doublingInto spec point output).Path) :
@@ -189,7 +189,7 @@ theorem doublingInto_pool_le (spec : CurveSpec width)
     (fun cells _ transport _ selected => doublingBody_pool_le _ _ _ _ _ selected) path
 
 /-- Every actual path satisfies the original serial duration allowance. -/
-theorem doublingInto_depth_le (spec : CurveSpec width)
+lemma doublingInto_depth_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -206,7 +206,7 @@ theorem doublingInto_depth_le (spec : CurveSpec width)
     (fun cells _ transport _ selected => doublingBody_depth_le _ _ _ _ _ duration selected) path
 
 /-- Actual selected durations equal the same complete original native event trace. -/
-theorem doublingInto_duration_eventTrace (spec : CurveSpec width)
+lemma doublingInto_duration_eventTrace (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (duration : Resource.Event model → Nat)
@@ -225,7 +225,7 @@ theorem doublingInto_duration_eventTrace (spec : CurveSpec width)
     (fun cells _ transport _ selected =>
       doublingBody_duration_eventTrace _ _ _ _ _ duration selected) path
 
-private theorem doublingBody_resident_le (spec : CurveSpec width)
+private lemma doublingBody_resident_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (doublingBody spec pointX pointY scratch output).Path) :
@@ -247,7 +247,7 @@ private theorem doublingBody_resident_le (spec : CurveSpec width)
     | exact (ConstantWord.constantWord_resident_le _ _ selected).trans le_add_self
 
 /-- All six original persistent prefix cells coexist with the largest active arithmetic scope. -/
-theorem doublingInto_resident_le (spec : CurveSpec width)
+lemma doublingInto_resident_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (doublingInto spec point output).Path) :
@@ -263,7 +263,7 @@ theorem doublingInto_resident_le (spec : CurveSpec width)
     (doublingActiveSpace model.kind width)
     (fun cells _ transport _ selected => doublingBody_resident_le _ _ _ _ _ selected) path
 
-private theorem doublingBody_auxiliary_le (spec : CurveSpec width)
+private lemma doublingBody_auxiliary_le (spec : CurveSpec width)
     (pointX pointY : CInputRef ctx (.unsignedWord width))
     (scratch : DoublingScratch ctx width) (output : CWriteRef ctx (PointShape width))
     (path : (doublingBody spec pointX pointY scratch output).Path) :
@@ -285,7 +285,7 @@ private theorem doublingBody_auxiliary_le (spec : CurveSpec width)
     | exact (ConstantWord.constantWord_auxiliary_le _ _ selected).trans le_add_self
 
 /-- All six original persistent prefix cells coexist with the largest active arithmetic scope. -/
-theorem doublingInto_auxiliary_le (spec : CurveSpec width)
+lemma doublingInto_auxiliary_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width))
     (path : (doublingInto spec point output).Path) :

@@ -77,7 +77,7 @@ def terminals : LatticePairRecoveryBatch.Terminals (context base N) N :=
   fun index => liftInput base N (sourceTerminals base N index)
 
 /-- Fresh result storage cannot overlap any structural source read. -/
-theorem result_avoids_input {shape : CShape}
+lemma result_avoids_input {shape : CShape}
     (input : CInputRef (NativeBatchReuse.context base N) shape) :
     (resultRef base N).key ∉ (liftInput base N input).storageKeys :=
   input.fresh_not_mem_storageKeys_underRetained (resultKey base N)
@@ -85,7 +85,7 @@ theorem result_avoids_input {shape : CShape}
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh
 
 /-- Retaining the result preserves the identical actual bank and wire identities. -/
-theorem context_quantumWires :
+lemma context_quantumWires :
     (context base N).quantumWires =
       (NativeBatchReuse.context base N).quantumWires :=
   RuntimeCtx.quantumWires_addRetained (NativeBatchReuse.context base N)
@@ -93,7 +93,7 @@ theorem context_quantumWires :
     (NativeBatchReuse.context base N).canonicalFreshKey_fresh
 
 /-- The continuation retains precisely the caller's original ordered quantum wires. -/
-theorem context_base_wires : (context base N).quantumWires = base.quantumWires :=
+lemma context_base_wires : (context base N).quantumWires = base.quantumWires :=
   (context_quantumWires base N).trans
     ((ShortDLP.CompiledMAU.RuntimeResults.shortDLP_runtimeResults_wires
       (shortLogBits N) (tradeoffBits N) (arithmeticBits N)

@@ -1,6 +1,7 @@
 name = "QuantumAlg"
 defaultTargets = ["QuantumAlg"]
 lintDriver = "batteries/runLinter"
+preferReleaseBuild = true
 
 [leanOptions]
 pp.unicode.fun = true

@@ -77,7 +77,7 @@ private instance prefixLeadingDecidable
   infer_instance
 
 /-- The exact actual pattern reads precisely the fixed key and the first-one condition. -/
-theorem leadingPattern_iff
+lemma leadingPattern_iff
     (layout : OneDirtyLayout (encoding := encoding) (prefixWidth + width))
     (position : Fin width) (expected : Fin prefixWidth → Bool) (state : Data) :
     (layout.leadingLayout position).PatternMatches (leadingPattern position expected) state ↔
@@ -144,7 +144,7 @@ def leadingOneGates (layout : OneDirtyLayout (encoding := encoding) (prefixWidth
   (layout.leadingLayout position).patternGates (leadingPattern position expected)
 
 /-- Exact complete-state action of the emitted prefix/leading-one native gate list. -/
-theorem leadingOneGates_step
+lemma leadingOneGates_step
     (layout : OneDirtyLayout (encoding := encoding) (prefixWidth + width))
     (position : Fin width) (expected : Fin prefixWidth → Bool) (state : Data) :
     GateSpec.stepList (layout.leadingOneGates position expected) state =
@@ -154,19 +154,19 @@ theorem leadingOneGates_step
   simp only [leadingPattern_iff]
 
 /-- The actual native program retains the complete predicate-controlled basis amplitudes. -/
-theorem leadingOneGates_realizes
+lemma leadingOneGates_realizes {environment : OracleModel.empty.Interpretation}
     (layout : OneDirtyLayout (encoding := encoding) (prefixWidth + width))
     (position : Fin width) (expected : Fin prefixWidth → Bool) :
     UnitaryCircuit.Realizes encoding (layout := QubitLayout.canonical encoding.width)
       (GateSpec.programList (QubitLayout.canonical encoding.width) .empty
         (layout.leadingOneGates position expected))
-      (fun state => if layout.PrefixLeading position expected state
+      environment (fun state => if layout.PrefixLeading position expected state
         then layout.output.flip state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical encoding.width) .empty _
-    (layout.leadingOneGates_step position expected)
+    (layout.leadingOneGates_step position expected) environment
 
 /-- Every actual borrowed-work bit returns unchanged, without an initialization condition. -/
-theorem leadingOneGates_work
+lemma leadingOneGates_work
     (layout : OneDirtyLayout (encoding := encoding) (prefixWidth + width))
     (position : Fin width) (expected : Fin prefixWidth → Bool) (state : Data) :
     layout.work.get (GateSpec.stepList (layout.leadingOneGates position expected) state) =
@@ -174,7 +174,7 @@ theorem leadingOneGates_work
   (layout.leadingLayout position).patternGates_work_restored _ state
 
 /-- Count includes all actual negative masks and the complete dirty conjunction cleanup. -/
-theorem leadingOneGates_length_le
+lemma leadingOneGates_length_le
     (layout : OneDirtyLayout (encoding := encoding) (prefixWidth + width))
     (position : Fin width) (expected : Fin prefixWidth → Bool) :
     (layout.leadingOneGates position expected).length ≤

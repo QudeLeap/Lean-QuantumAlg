@@ -32,12 +32,12 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT
 open scoped Matrix.Norms.L2Operator ComplexOrder
 
 @[simp]
-theorem sourceAlternatingPhaseModulation_nil {N : Nat} (U : UnitaryOperator (Qubits N))
+lemma sourceAlternatingPhaseModulation_nil {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) :
     (Native.sourceWord U left right [] : HilbertOperator (Qubits N)) = 1 := rfl
 
 /-- The independent source product composes phase, parity-selected signal and tail. -/
-theorem sourceAlternatingPhaseModulation_cons {N : Nat} (U : UnitaryOperator (Qubits N))
+lemma sourceAlternatingPhaseModulation_cons {N : Nat} (U : UnitaryOperator (Qubits N))
     (left right : OrthogonalProjector N) (φ : ℝ) (phases : List ℝ) :
     (Native.sourceWord U left right (φ :: phases) : HilbertOperator (Qubits N)) =
       (projectorPhaseOp φ (sourcePhaseProjector left right (phases.length + 1)) :
@@ -49,7 +49,7 @@ theorem sourceAlternatingPhaseModulation_cons {N : Nat} (U : UnitaryOperator (Qu
       UnitaryOperator.dagger, Matrix.mul_assoc, even]
 
 @[simp]
-theorem sourceAlternatingPhaseModulation_cons_applyVec {N : Nat}
+lemma sourceAlternatingPhaseModulation_cons_applyVec {N : Nat}
     (U : UnitaryOperator (Qubits N)) (left right : OrthogonalProjector N)
     (φ : ℝ) (phases : List ℝ) (ψ : HilbertVector (Qubits N)) :
     (Native.sourceWord U left right (φ :: phases)).applyVec ψ =
@@ -67,17 +67,17 @@ noncomputable def phaseProduct (phases : List ℝ) : ℂ :=
   (phases.map fun φ => Complex.exp (φ * Complex.I)).prod
 
 @[simp]
-theorem phaseProduct_nil : phaseProduct [] = 1 := rfl
+lemma phaseProduct_nil : phaseProduct [] = 1 := rfl
 
 @[simp]
-theorem phaseProduct_cons (φ : ℝ) (phases : List ℝ) :
+lemma phaseProduct_cons (φ : ℝ) (phases : List ℝ) :
     phaseProduct (φ :: phases) =
       Complex.exp (φ * Complex.I) * phaseProduct phases := by
   simp [phaseProduct]
 
 /-- The `(0,0)` scalar entry of the `W`-convention one-qubit QSP product at
 `x=1` is the product of all scalar phase factors. -/
-theorem qspW_one_zero_zero_eq_phaseProduct (φ₀ : ℝ) (φs : List ℝ) :
+lemma qspW_one_zero_zero_eq_phaseProduct (φ₀ : ℝ) (φs : List ℝ) :
     qspW φ₀ φs 1 0 0 =
       Complex.exp (φ₀ * Complex.I) *
         (φs.map fun φ => Complex.exp (φ * Complex.I)).prod := by
@@ -98,7 +98,7 @@ noncomputable def singularSignalR (x : ℝ) : HilbertOperator (Qubits 1) :=
 
 /-- The source `R(x)` signal block is unitary on its physical singular-value
 domain. -/
-theorem singularSignalR_mem_unitaryGroup {x : ℝ}
+lemma singularSignalR_mem_unitaryGroup {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     singularSignalR x ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   have hs := sq_sqrt_one_sub_sq hx
@@ -122,7 +122,7 @@ noncomputable def singularSignalROperator (x : ℝ)
     (singularSignalR_mem_unitaryGroup hx)
 
 @[simp]
-theorem singularSignalROperator_coe (x : ℝ)
+lemma singularSignalROperator_coe (x : ℝ)
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (singularSignalROperator x hx : HilbertOperator (Qubits 1)) =
       singularSignalR x := rfl
@@ -134,7 +134,7 @@ set_option linter.flexible false in
 `W(x)=i e^{-iπσ_z/4} R(x)e^{-iπσ_z/4}` is the matrix bridge from the
 `W`-convention QSP certificate to the projected-QSVT `R` product
 [GSLW19, BlockHam.tex:514-517]. -/
-theorem signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
+lemma signalW_eq_I_smul_rotZ_mul_singularSignalR_mul_rotZ (x : ℝ) :
     signalW x =
       (Complex.I : ℂ) •
         ((rotZOp (-(Real.pi / 4)) : HilbertOperator (Qubits 1)) *
@@ -219,7 +219,7 @@ noncomputable def singularSignalRProductOperator :
         singularSignalRProductOperator phases x hx
 
 @[simp]
-theorem singularSignalRProductOperator_coe (phases : List ℝ) (x : ℝ)
+lemma singularSignalRProductOperator_coe (phases : List ℝ) (x : ℝ)
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (singularSignalRProductOperator phases x hx :
       HilbertOperator (Qubits 1)) = singularSignalRProduct phases x := by
@@ -229,18 +229,18 @@ theorem singularSignalRProductOperator_coe (phases : List ℝ) (x : ℝ)
       simp [singularSignalRProductOperator, singularSignalRProduct, ih]
 
 @[simp]
-theorem singularSignalRProduct_nil (x : ℝ) :
+lemma singularSignalRProduct_nil (x : ℝ) :
     singularSignalRProduct [] x = 1 := rfl
 
 @[simp]
-theorem singularSignalRProduct_cons (φ : ℝ) (phases : List ℝ) (x : ℝ) :
+lemma singularSignalRProduct_cons (φ : ℝ) (phases : List ℝ) (x : ℝ) :
     singularSignalRProduct (φ :: phases) x =
       (rotZOp φ : HilbertOperator (Qubits 1)) *
         singularSignalR x * singularSignalRProduct phases x := rfl
 
 /-- Appending one source `R`-signal block on the right multiplies the existing
 source product by that block [GSLW19, BlockHam.tex:501-528]. -/
-theorem singularSignalRProduct_append_singleton (phases : List ℝ) (φ x : ℝ) :
+lemma singularSignalRProduct_append_singleton (phases : List ℝ) (φ x : ℝ) :
     singularSignalRProduct (phases ++ [φ]) x =
       singularSignalRProduct phases x *
         ((rotZOp φ : HilbertOperator (Qubits 1)) * singularSignalR x) := by
@@ -250,19 +250,19 @@ theorem singularSignalRProduct_append_singleton (phases : List ℝ) (φ x : ℝ)
   | cons θ phases ih =>
       simp [singularSignalRProduct, ih, mul_assoc]
 
-private theorem rotZ_neg_eq_map_star (φ : ℝ) :
+private lemma rotZ_neg_eq_map_star (φ : ℝ) :
     (rotZOp (-φ) : HilbertOperator (Qubits 1)) =
       ((rotZOp φ : HilbertOperator (Qubits 1)).map (starRingEnd ℂ)) := by
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [rotZOp, conj_exp_I, conj_exp_neg_I]
 
-private theorem singularSignalR_eq_map_star (x : ℝ) :
+private lemma singularSignalR_eq_map_star (x : ℝ) :
     singularSignalR x = (singularSignalR x).map (starRingEnd ℂ) := by
   ext i j
   fin_cases i <;> fin_cases j <;> simp [singularSignalR]
 
-theorem singularSignalRProduct_map_neg_eq_map_star (phases : List ℝ) (x : ℝ) :
+lemma singularSignalRProduct_map_neg_eq_map_star (phases : List ℝ) (x : ℝ) :
     singularSignalRProduct (phases.map fun φ => -φ) x =
       (singularSignalRProduct phases x).map (starRingEnd ℂ) := by
   induction phases with
@@ -274,14 +274,14 @@ theorem singularSignalRProduct_map_neg_eq_map_star (phases : List ℝ) (x : ℝ)
       rw [Matrix.map_mul, Matrix.map_mul]
       rw [← singularSignalR_eq_map_star]
 
-theorem singularSignalRProduct_map_neg_zero_zero (phases : List ℝ) (x : ℝ) :
+lemma singularSignalRProduct_map_neg_zero_zero (phases : List ℝ) (x : ℝ) :
     singularSignalRProduct (phases.map fun φ => -φ) x 0 0 =
       star (singularSignalRProduct phases x 0 0) := by
   rw [singularSignalRProduct_map_neg_eq_map_star]
   rfl
 
 /-- The `rotZOp` multiplication rule at the `HilbertOperator` coercion layer. -/
-theorem rotZ_op_mul (a b : ℝ) :
+lemma rotZ_op_mul (a b : ℝ) :
     (rotZOp a : HilbertOperator (Qubits 1)) *
         (rotZOp b : HilbertOperator (Qubits 1)) =
       (rotZOp (a + b) : HilbertOperator (Qubits 1)) := by
@@ -290,7 +290,7 @@ theorem rotZ_op_mul (a b : ℝ) :
     simp [rotZOp, Matrix.mul_apply, add_mul, Complex.exp_add]
   ring
 
-private theorem matrix_smul_mul_smul_mul (A B C : HilbertOperator (Qubits 1)) (c d : ℂ) :
+private lemma matrix_smul_mul_smul_mul (A B C : HilbertOperator (Qubits 1)) (c d : ℂ) :
     (c • A) * ((d • B) * C) = (c * d) • (A * B * C) := by
   rw [Matrix.smul_mul, Matrix.smul_mul, Matrix.mul_smul, smul_smul]
   simp [mul_assoc]
@@ -299,7 +299,7 @@ private theorem matrix_smul_mul_smul_mul (A B C : HilbertOperator (Qubits 1)) (c
 This is the local matrix identity used in converting `W`-convention QSP
 products into `R`-convention projected-QSVT products
 [GSLW19, BlockHam.tex:514-528]. -/
-private theorem rotZ_singularSignalR_rotZ_reassociate (a b c d x : ℝ) :
+private lemma rotZ_singularSignalR_rotZ_reassociate (a b c d x : ℝ) :
     (rotZOp a : HilbertOperator (Qubits 1)) *
         ((rotZOp b : HilbertOperator (Qubits 1)) * singularSignalR x *
           (rotZOp c : HilbertOperator (Qubits 1))) *
@@ -336,7 +336,7 @@ noncomputable def singularSignalRRawProductOperator (φ₀ : ℝ)
     ((φ₀ - Real.pi / 4) :: init.map (fun φ => φ - Real.pi / 2)) x hx
 
 @[simp]
-theorem singularSignalRRawProductOperator_coe (φ₀ : ℝ)
+lemma singularSignalRRawProductOperator_coe (φ₀ : ℝ)
     (init : List ℝ) (x : ℝ) (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (singularSignalRRawProductOperator φ₀ init x hx :
       HilbertOperator (Qubits 1)) = singularSignalRRawProduct φ₀ init x := by
@@ -348,7 +348,7 @@ set_option linter.flexible false in
 /-- Source `W`-convention QSP products equal the raw `R`-convention projected
 QSVT product, up to the scalar `i^{L}` and the terminal source phase.  This is
 the product form of the phase conversion in [GSLW19, BlockHam.tex:514-528]. -/
-theorem qspW_eq_I_pow_smul_rawProduct_mul_terminal (φ₀ : ℝ)
+lemma qspW_eq_I_pow_smul_rawProduct_mul_terminal (φ₀ : ℝ)
     (init : List ℝ) (last x : ℝ) :
     qspW φ₀ (init ++ [last]) x =
       (Complex.I ^ (init.length + 1)) •
@@ -471,14 +471,14 @@ theorem qspW_eq_I_pow_smul_rawProduct_mul_terminal (φ₀ : ℝ)
 
 /-- Right multiplication by `rotZOp` multiplies the `(0,0)` entry by the positive
 phase. -/
-private theorem mul_rotZ_zero_zero (A : HilbertOperator (Qubits 1)) (θ : ℝ) :
+private lemma mul_rotZ_zero_zero (A : HilbertOperator (Qubits 1)) (θ : ℝ) :
     (A * (rotZOp θ : HilbertOperator (Qubits 1))) 0 0 =
       A 0 0 * Complex.exp ((θ : ℂ) * Complex.I) := by
   simp [rotZOp, Matrix.mul_apply]
 
 /-- The scalar part of the source phase conversion
 [GSLW19, BlockHam.tex:523-528]. -/
-theorem I_pow_mul_terminal_phase (n : Nat) (last : ℝ) :
+lemma I_pow_mul_terminal_phase (n : Nat) (last : ℝ) :
     Complex.I ^ (n + 1) * Complex.exp (((last - Real.pi / 4 : ℝ) : ℂ) * Complex.I) =
       Complex.exp (((last + n * (Real.pi / 2) + Real.pi / 4 : ℝ) : ℂ) *
         Complex.I) := by
@@ -525,7 +525,7 @@ set_option linter.flexible false in
 /-- The `(0,0)` entry of the `W`-convention QSP product equals the raw
 `R`-product entry with the source scalar phase absorbed
 [GSLW19, BlockHam.tex:514-528]. -/
-theorem qspW_zero_zero_eq_rawProduct (φ₀ : ℝ) (init : List ℝ) (last x : ℝ) :
+lemma qspW_zero_zero_eq_rawProduct (φ₀ : ℝ) (init : List ℝ) (last x : ℝ) :
     qspW φ₀ (init ++ [last]) x 0 0 =
       Complex.exp (((last + init.length * (Real.pi / 2) + Real.pi / 4 : ℝ) : ℂ) *
           Complex.I) * singularSignalRRawProduct φ₀ init x 0 0 := by
@@ -563,7 +563,7 @@ theorem qspW_zero_zero_eq_rawProduct (φ₀ : ℝ) (init : List ℝ) (last x : �
 set_option linter.flexible false in
 /-- Changing only the first source `R`-product phase multiplies the `(0,0)`
 entry by the corresponding scalar phase [GSLW19, BlockHam.tex:523-528]. -/
-theorem singularSignalRProduct_first_phase_zero_zero
+lemma singularSignalRProduct_first_phase_zero_zero
     (a b : ℝ) (tail : List ℝ) (x : ℝ) :
     singularSignalRProduct (a :: tail) x 0 0 =
       Complex.exp (((a : ℂ) - (b : ℂ)) * Complex.I) *
@@ -581,7 +581,7 @@ theorem singularSignalRProduct_first_phase_zero_zero
   repeat rw [← mul_assoc]
   rw [h_exp]
 
-theorem phaseProduct_eq_exp_sum (phases : List ℝ) :
+lemma phaseProduct_eq_exp_sum (phases : List ℝ) :
     phaseProduct phases = Complex.exp (((phases.sum : ℝ) : ℂ) * Complex.I) := by
   induction phases with
   | nil =>
@@ -592,7 +592,7 @@ theorem phaseProduct_eq_exp_sum (phases : List ℝ) :
       norm_num
       ring
 
-private theorem list_sum_map_const_add (c : ℝ) (xs : List ℝ) :
+private lemma list_sum_map_const_add (c : ℝ) (xs : List ℝ) :
     (xs.map fun x => c + x).sum = xs.length * c + xs.sum := by
   induction xs with
   | nil =>
@@ -601,7 +601,7 @@ private theorem list_sum_map_const_add (c : ℝ) (xs : List ℝ) :
       simp [ih]
       ring_nf
 
-private theorem list_sum_map_sub_const (c : ℝ) (xs : List ℝ) :
+private lemma list_sum_map_sub_const (c : ℝ) (xs : List ℝ) :
     (xs.map fun x => x - c).sum = xs.sum - xs.length * c := by
   induction xs with
   | nil =>
@@ -616,7 +616,7 @@ namespace SourceUnitSingularBlock
 phase sequence alternates between the right and left singular vectors and
 accumulates the product of the scalar projector phases [GSLW19,
 BlockHam.tex:655-671,738-849]. -/
-theorem sourceAlternating_applyVec_rightVec {N : Nat}
+lemma sourceAlternating_applyVec_rightVec {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     ∀ phases : List ℝ,
@@ -713,7 +713,7 @@ phase sequence has exactly the coordinates of the source `R`-convention QSP
 product.  This is the local block computation used in
 `thm:singValTransformation` before projecting onto the singular-vector
 component [GSLW19, BlockHam.tex:655-735,768-849]. -/
-theorem sourceAlternating_applyVec_rightVec_singularSignalRProduct {N : Nat}
+lemma sourceAlternating_applyVec_rightVec_singularSignalRProduct {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     ∀ phases : List ℝ,
@@ -846,7 +846,7 @@ sequence follows the `R(0)` local product: even lengths return to the right
 singular vector, and odd lengths land in the left-complement vector.  This is
 the zero-singular-value right-sector part of `thm:singValTransformation`
 [GSLW19, BlockHam.tex:599-611,655-716,768-849]. -/
-theorem sourceAlternating_applyVec_rightVec_singularSignalRProduct_zero {N : Nat}
+lemma sourceAlternating_applyVec_rightVec_singularSignalRProduct_zero {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) :
     ∀ phases : List ℝ,

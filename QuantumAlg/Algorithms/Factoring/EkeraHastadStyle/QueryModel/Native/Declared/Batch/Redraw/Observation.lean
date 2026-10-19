@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem liftedSamples_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma liftedSamples_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (width : Nat) (ref : CWriteRef ctx shape) (count : Nat) :
     (Native.Batch.Slots.liftSamples width ref count).key = ref.key := by
   induction count with
@@ -36,7 +36,7 @@ private theorem liftedSamples_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
-private theorem parameter_source_ne :
+private lemma parameter_source_ne :
     (parameterRef base noQuantum N).key ≠
       (sourceRef base noQuantum N).key := by
   intro same
@@ -53,13 +53,13 @@ private theorem parameter_source_ne :
   exact ShorStyle.Canonical.Sampler.Retained.samplerRetained_parameter_key_ne_sample base N
     ((parameterKey.symm.trans same).trans sourceKey)
 
-private theorem redraw_weight (store : Store (context base noQuantum N))
+private lemma redraw_weight (store : Store (context base noQuantum N))
     (value : Fin (2 ^ residueSamplingBits N))
     (weight : (ParameterShape N).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ) :
-    weight ((redrawStep base noQuantum N input store value).1.read
+    weight ((redrawStep base noQuantum N store value).1.read
         (.storage (parameterRef base noQuantum N).toCStorageRef))
-      ((redrawStep base noQuantum N input store value).1.read
+      ((redrawStep base noQuantum N store value).1.read
         (.storage (sourceRef base noQuantum N).toCStorageRef)) =
       weight (parameterValue input value)
         (.bits (ShorStyle.Canonical.Sampler.PackedSample.storedBits value)) := by
@@ -80,17 +80,17 @@ set_option maxHeartbeats 1000000 in
 -- requires more reduction than the default per-declaration heartbeat budget.
 /-- The actual uniform redraw has one common new parameter and source while
 preserving any separated old value and the entire external reference. -/
-theorem redraw_frame_reference {shape : CShape}
+lemma redraw_frame_reference {shape : CShape}
     (observed : CInputRef (context base noQuantum N) shape)
     (separated : RedrawSeparated base noQuantum N observed)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (weight : shape.Value → (ParameterShape N).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((redraw base noQuantum N input).execute Reference state)
+      ((redraw base noQuantum N).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight (entry.1.read observed)
         (entry.1.read (.storage (parameterRef base noQuantum N).toCStorageRef))
         (entry.1.read (.storage (sourceRef base noQuantum N).toCStorageRef)))
@@ -104,22 +104,22 @@ theorem redraw_frame_reference {shape : CShape}
   classical
   let count : ℕ+ := ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩
   let update := fun entry :
-      (Store (context base noQuantum N) × ((model input).HiddenState × History)) ×
+      (Store (context base noQuantum N) × ((model N).HiddenState × History)) ×
         Fin count =>
-    ((redrawStep base noQuantum N input entry.1.1 entry.2).1,
+    ((redrawStep base noQuantum N entry.1.1 entry.2).1,
       (entry.1.2.1, (entry.1.2.2,
-        (redrawStep base noQuantum N input entry.1.1 entry.2).2)))
+        (redrawStep base noQuantum N entry.1.1 entry.2).2)))
   let observe := fun store : Store (context base noQuantum N) =>
     weight (store.read observed)
       (store.read (.storage (parameterRef base noQuantum N).toCStorageRef))
       (store.read (.storage (sourceRef base noQuantum N).toCStorageRef))
   have executed := congrArg
     (fun output : State (context base noQuantum N) Reference
-      ((model input).HiddenState ×
-        (History × (redraw base noQuantum N input).Path)) =>
+      ((model N).HiddenState ×
+        (History × (redraw base noQuantum N).Path)) =>
       ExecutionState.referenceFiberSum output
         (fun entry _ => observe entry.1) leftRef rightRef)
-    (redraw_execute base noQuantum N input Reference state)
+    (redraw_execute (environment := sourceEnvironment input) base noQuantum N Reference state)
   have pushed := ExecutionState.referenceFiberSum_mapClassical
     (decision := inferInstance)
     (uniformChoice state count) update
@@ -133,15 +133,15 @@ theorem redraw_frame_reference {shape : CShape}
       (show (count : ℝ) = ((2 ^ residueSamplingBits N : Nat) : ℝ) from rfl)
   have alignedState :
       ((uniformChoice state ⟨2 ^ residueSamplingBits N, Nat.two_pow_pos _⟩).mapClassical
-        (fun entry => ((redrawStep base noQuantum N input entry.1.1 entry.2).1,
+        (fun entry => ((redrawStep base noQuantum N entry.1.1 entry.2).1,
           (entry.1.2.1, (entry.1.2.2,
-            (redrawStep base noQuantum N input entry.1.1 entry.2).2))))) =
+            (redrawStep base noQuantum N entry.1.1 entry.2).2))))) =
       (uniformChoice state count).mapClassical update := by
     exact ExecutionState.executionState_mapClassical_congr _ rfl
   have aligned := congrArg
     (fun output : State (context base noQuantum N) Reference
-      ((model input).HiddenState ×
-        (History × (redraw base noQuantum N input).Path)) =>
+      ((model N).HiddenState ×
+        (History × (redraw base noQuantum N).Path)) =>
       ExecutionState.referenceFiberSum output
         (fun entry _ => observe entry.1) leftRef rightRef) alignedState
   calc
@@ -157,7 +157,7 @@ theorem redraw_frame_reference {shape : CShape}
     _ = _ := by
       apply congrArg
         (fun read : (Store (context base noQuantum N) ×
-            ((model input).HiddenState × History)) →
+            ((model N).HiddenState × History)) →
             (context base noQuantum N).register.Index → ℂ =>
           ExecutionState.referenceFiberSum state read leftRef rightRef)
       funext entry basis

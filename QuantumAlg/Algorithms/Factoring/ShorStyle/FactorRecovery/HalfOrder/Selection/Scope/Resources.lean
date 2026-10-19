@@ -38,7 +38,7 @@ def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (N : Nat) : 
 def depthBound (N : Nat) : Nat := 28 * (modulusBits N + 1) + 35
 
 /-- The complete actual scope path fits the independent native event ledger. -/
-theorem code_pool_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_pool_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower output).Path) :
     (code (model := model) halfPower output).resourcePool path ≤ eventEnvelope model N := by
@@ -54,7 +54,7 @@ theorem code_pool_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
         (liftWrite output) path.2.2))
 
 /-- The real serial path counts both loaded constants and every possible GCD dependency. -/
-theorem code_unitDepth_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_unitDepth_le (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (path : (code (model := model) halfPower output).Path) :
     (code (model := model) halfPower output).depth (fun _ => 1) path ≤ depthBound N := by

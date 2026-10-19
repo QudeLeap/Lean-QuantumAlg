@@ -18,12 +18,12 @@ retains the original k+1 controls and the single phase ancilla.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.ControlWork
 noncomputable section
 
-private theorem emptySuffix (width : Nat) (label : Fin (2 ^ width)) :
+private lemma emptySuffix (width : Nat) (label : Fin (2 ^ width)) :
     prodEquiv (m := width) (n := 0) (label, 0) = label := by
   apply Fin.ext
   simp [prodEquiv, finProdFinEquiv]
 
-private theorem zeroAncilla_empty (width : Nat) :
+private lemma zeroAncilla_empty (width : Nat) :
     (OrthogonalProjector.zeroAncilla width 0).op = (OrthogonalProjector.zero width).op := by
   ext row column
   change HilbertOperator.tensor (OrthogonalProjector.zero width).op
@@ -36,13 +36,15 @@ private theorem zeroAncilla_empty (width : Nat) :
   simp only [Equiv.symm_apply_apply]
 
 /-- At zero signal width the full native matrix is precisely the original projector phase. -/
-theorem controlWork_zeroWidth_phase_matrix (k : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((phase k 0 oracles angle).binaryMatrix : HilbertOperator (Qubits (1 + ((k + 1) + 0)))) =
+lemma controlWork_zeroWidth_phase_matrix (k : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((phase k 0 oracles angle).binaryMatrix environment) : HilbertOperator (Qubits (1 + ((k + 1)
+      + 0)))) =
       HilbertOperator.tensor (rotZStdOp (-2 * angle) : HilbertOperator (Qubits 1))
         (OrthogonalProjector.zeroAncilla (k + 1) 0).op +
       HilbertOperator.tensor (rotZStdOp (2 * angle) : HilbertOperator (Qubits 1))
         (OrthogonalProjector.complement (OrthogonalProjector.zeroAncilla (k + 1) 0)) := by
-  have diagonal : ((phase k 0 oracles angle).binaryMatrix :
+  have diagonal : (((phase k 0 oracles angle).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (k + 1)))) =
       Matrix.diagonal (fun label => phaseWeight k 0 angle
         ((QuantumSignature.qubitsIndexEquiv (1 + (k + 1))).symm label)) := by

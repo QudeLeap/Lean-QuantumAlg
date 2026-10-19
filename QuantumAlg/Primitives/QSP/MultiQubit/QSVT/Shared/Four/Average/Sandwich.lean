@@ -19,7 +19,7 @@ or initialization assumption is used to identify the native boundary gates.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
-private theorem average_conjugate {width : Nat}
+private lemma average_conjugate {width : Nat}
     (A B W : UnitaryOperator (Qubits width)) :
     Gate.HOp.tensor W * phaseControlledDirectSumOperator A B * Gate.HOp.tensor W =
       binaryAverage (W * A * W) (W * B * W) := by
@@ -40,12 +40,12 @@ private theorem average_conjugate {width : Nat}
   simp only [Matrix.one_mul, Matrix.mul_one]
 
 /-- The actual three-Hadamard boundaries realize the complete four-branch averaging operator. -/
-theorem threeHadamard_fourBranch_operator {width : Nat} (oracles : OracleModel)
-    (A B C D : UnitaryOperator (Qubits (1 + width))) :
-    (Gate.Hadamard.three oracles width).binaryMatrix *
+lemma threeHadamard_fourBranch_operator {width : Nat} (oracles : OracleModel)
+    (A B C D : UnitaryOperator (Qubits (1 + width))) (environment : oracles.Interpretation) :
+    ((Gate.Hadamard.three oracles width).binaryMatrix environment) *
       phaseControlledDirectSumOperator (phaseControlledDirectSumOperator A B)
         (phaseControlledDirectSumOperator C D) *
-      (Gate.Hadamard.three oracles width).binaryMatrix = threeAverage A B C D := by
+      ((Gate.Hadamard.three oracles width).binaryMatrix environment) = threeAverage A B C D := by
   rw [Gate.Hadamard.threeHadamard_matrix, average_conjugate,
     average_conjugate, average_conjugate]
   rfl

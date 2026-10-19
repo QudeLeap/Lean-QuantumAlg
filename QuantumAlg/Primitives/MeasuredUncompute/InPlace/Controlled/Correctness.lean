@@ -7,11 +7,18 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Runtime
+import all QuantumAlg.Core.Execution.Composition.Laws
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Native
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.Controlled.Layout
 import all QuantumAlg.Primitives.MeasuredUncompute.InPlace.BodyState
 import all QuantumAlg.Primitives.MeasuredUncompute.Frame.Swap.Readout
 import all QuantumAlg.Primitives.MeasuredUncompute.Product.Placement
+import all QuantumAlg.Core.Execution.Context.Embedding.Framing
+import all QuantumAlg.Core.Execution.Context.Union.State.Laws
+import all QuantumAlg.Core.Execution.Basis.Seeded
+import all QuantumAlg.Core.Execution.Measured.FeedForward
+import all QuantumAlg.Core.Execution.Composition.Coordinates
+import all QuantumAlg.Core.Execution.Store.History
 
 /-!
 # Complete native columns of controlled measured arithmetic
@@ -28,12 +35,14 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceControlled
 
 noncomputable section
 
-open Execution MAU.Inversion.SharedEEA ProductPlacement ProductReadout
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
+open Execution MAU.Inversion.SharedEEA ProductPlacement ProductReadout ContextEmbedding
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 private def controlLabel (active : Bool) : Fin 2 := if active then 1 else 0
 
-private theorem four_actions {R : Register} {A B C D : HilbertOperator R}
+private lemma four_actions {R : Register} {A B C D : HilbertOperator R}
     {v₀ v₁ v₂ v₃ v₄ : HilbertVector R} {a b c d : ℂ}
     (first : A.applyVec v₀ = a • v₁) (second : B.applyVec v₁ = b • v₂)
     (third : C.applyVec v₂ = c • v₃) (fourth : D.applyVec v₃ = d • v₄) :
@@ -46,16 +55,16 @@ def copyStep (width : Nat) (state : Frame width) : Frame width :=
   EncodedBit.Word.xorIntoStep (FramePorts.numerator width) (FramePorts.accumulator width)
     (fun index => (FramePorts.accumulator_numerator_ne width index index).symm) state
 
-private theorem copy_input (width : Nat) (state : Frame width) :
+private lemma copy_input (width : Nat) (state : Frame width) :
     input width (copyStep width state) = input width state := by
   apply word_ext
   intro index
-  simp only [input, readWord_bit]
+  simp only [ProductReadout.input, readWord_bit]
   exact EncodedBit.Word.xorIntoStep_get_observed_of_target_ne _ _ _
     ((FramePorts.input width).bit index)
     (fun other => (FramePorts.input_separate width index other).1.symm) state
 
-private theorem copy_numerator (width : Nat) (state : Frame width) :
+private lemma copy_numerator (width : Nat) (state : Frame width) :
     numerator width (copyStep width state) = numerator width state := by
   apply word_ext
   intro index
@@ -64,7 +73,7 @@ private theorem copy_numerator (width : Nat) (state : Frame width) :
     ((FramePorts.numerator width).bit index)
     (fun other => FramePorts.accumulator_numerator_ne width other index) state
 
-private theorem copy_accumulator (width : Nat) (state : Frame width)
+private lemma copy_accumulator (width : Nat) (state : Frame width)
     (clean : accumulator width state = 0) :
     accumulator width (copyStep width state) = numerator width state := by
   apply word_ext
@@ -78,7 +87,7 @@ private theorem copy_accumulator (width : Nat) (state : Frame width)
   rw [zero]
   simp
 
-private theorem copy_history (width : Nat) (state : Frame width) :
+private lemma copy_history (width : Nat) (state : Frame width) :
     history width (copyStep width state) = history width state := by
   apply word_ext
   intro index
@@ -99,7 +108,7 @@ private theorem copy_history (width : Nat) (state : Frame width) :
   exact actual
 
 /-- Actual reset after the inactive copy retains every original X and history coordinate. -/
-theorem inactive_reset_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
+lemma inactive_reset_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     ((copyStep modulus.size (InitialPortProgram.inputFrame modulus value, numerator)).1, 0) =
       (WorkspaceReuse.placement modulus.size).grouping.symm
         (InitialPortProgram.inputFrame modulus value, numerator) := by
@@ -120,7 +129,7 @@ theorem inactive_reset_frame (modulus : Nat) (value numerator : Fin (2 ^ modulus
       (copy_history modulus.size original)
 
 /-- The inactive correction reads the saved Y in the actual little-endian measurement order. -/
-theorem inactive_mask_reads (width : Nat) (state : Frame width) (index : Fin width) :
+lemma inactive_mask_reads (width : Nat) (state : Frame width) (index : Fin width) :
     ((inactiveWord width).bit index).get
       ((WorkspaceReuse.placement width).grouping.symm state) =
         (numerator width state).val.testBit index.val := by
@@ -133,23 +142,24 @@ theorem inactive_mask_reads (width : Nat) (state : Frame width) (index : Fin wid
   exact read.symm
 
 /-- The inactive sector's actual native and retained-measurement operator, in emitted order. -/
-def inactiveOperator (width : Nat) (Reference : Register)
+def inactiveOperator (interpretation : OracleModel.empty.Interpretation) (width : Nat)
+  (Reference : Register)
     (stored : Store (NumeratorMeasurement.context width)) :
     HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference) :=
-  (InPlaceDivisionConjugation.native width Reference (FrameSwap.program width) :
+  (InPlaceDivisionConjugation.native interpretation width Reference (FrameSwap.program width) :
       HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference)) *
-    (InPlaceDivisionConjugation.native width Reference
+    (InPlaceDivisionConjugation.native interpretation width Reference
       (inactiveMask width (stored.read (NumeratorMeasurement.input width))) :
       HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference)) *
-    NumeratorResetConjugation.operator width Reference stored *
-    (InPlaceDivisionConjugation.native width Reference (copy width) :
+    NumeratorResetConjugation.operator interpretation width Reference stored *
+    (InPlaceDivisionConjugation.native interpretation width Reference (copy width) :
       HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference))
 
 /-- Every inactive measured column has the same positive amplitude, for arbitrary X and Y. -/
-theorem inactive_operator_ket (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
+lemma inactive_operator_ket (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
     {Reference : Register} (stored : Store (NumeratorMeasurement.context modulus.size))
     (reference : Reference.Index) :
-    (inactiveOperator modulus.size Reference stored).applyVec
+    (inactiveOperator environment.quantum modulus.size Reference stored).applyVec
       (NumeratorFrameBasis.ket modulus.size
         (InitialPortProgram.inputFrame modulus value, numerator) reference).vec =
       WalshHadamard.invSqrtCard modulus.size •
@@ -162,20 +172,24 @@ theorem inactive_operator_ket (modulus : Nat) (value numerator : Fin (2 ^ modulu
     (FramePorts.numerator modulus.size)
     (FramePorts.accumulator modulus.size)
     (fun index => (FramePorts.accumulator_numerator_ne modulus.size index index).symm)
+      environment.quantum
   have copiedNative := copyRealizes.apply_encoded_ket original
-  have copiedAction := NumeratorFrameBasis.native_normalized modulus.size
+  have copiedAction := NumeratorFrameBasis.native_normalized (environment :=
+    environment.quantum) modulus.size
     (copy modulus.size) original copied copiedNative reference
   have numeratorKept : copied.2 = numerator := by
     have actual := copy_numerator modulus.size original
     rw [numerator_eq, numerator_eq] at actual
     exact actual
-  have measured : (NumeratorResetConjugation.operator modulus.size Reference stored).applyVec
+  have measured : (NumeratorResetConjugation.operator environment.quantum modulus.size Reference
+    stored).applyVec
       (NumeratorFrameBasis.ket modulus.size copied reference).vec =
       (WalshHadamard.invSqrtCard modulus.size *
         WalshHadamard.walshSign
           (NumeratorReset.outcome (stored.read (NumeratorMeasurement.input modulus.size)))
           numerator) • (NumeratorFrameBasis.ket modulus.size recovered reference).vec := by
-    have actual := NumeratorBranchAction.operator_ket modulus.size stored
+    have actual := NumeratorBranchAction.operator_ket (environment := environment.quantum)
+      modulus.size stored
       (NumeratorFrameBasis.basis modulus.size copied) reference
     rw [NumeratorFrameBasis.word, NumeratorFrameBasis.replace, numeratorKept] at actual
     rw [inactive_reset_frame modulus value numerator] at actual
@@ -187,7 +201,8 @@ theorem inactive_operator_ket (modulus : Nat) (value numerator : Fin (2 ^ modulu
     funext index
     exact (NumeratorReset.outcome_bit _ index).symm
   have correctionNative :
-      (inactiveMask modulus.size (stored.read (NumeratorMeasurement.input modulus.size))).applyVec
+      ((inactiveMask modulus.size (stored.read (NumeratorMeasurement.input
+        modulus.size))).applyVec environment.quantum)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode recovered))).vec =
@@ -201,20 +216,23 @@ theorem inactive_operator_ket (modulus : Nat) (value numerator : Fin (2 ^ modulu
       (fun index => (inactive_mask_reads modulus.size original index).trans
         (congrArg (fun word : Fin (2 ^ modulus.size) => word.val.testBit index.val)
           (numerator_eq modulus.size original)))
-    have actual := EncodedBit.Word.PhaseCorrection.phaseCorrection_sequence_ket
+    have actual := EncodedBit.Word.PhaseCorrection.phaseCorrection_sequence_ket (environment :=
+      environment.quantum)
       (QubitLayout.canonical _) .empty (inactiveWord modulus.size)
       (EncodedBit.Word.PhaseCorrection.selected (fun index =>
         (NumeratorReset.outcome (stored.read (NumeratorMeasurement.input modulus.size))).val.testBit
           index.val)) recovered
     rw [sign, ← mask] at actual
     exact actual
-  have correctionAction := NumeratorFrameBasis.native_action modulus.size
+  have correctionAction := NumeratorFrameBasis.native_action (environment :=
+    environment.quantum) modulus.size
     (inactiveMask modulus.size (stored.read (NumeratorMeasurement.input modulus.size)))
     recovered recovered
     (WalshHadamard.walshSign
       (NumeratorReset.outcome (stored.read (NumeratorMeasurement.input modulus.size))) numerator)
     correctionNative reference
-  have swapAction := NumeratorFrameBasis.native_normalized modulus.size
+  have swapAction := NumeratorFrameBasis.native_normalized (environment := environment.quantum)
+    modulus.size
     (FrameSwap.program modulus.size) recovered original
     (FrameSwapReadout.program_reused_ket modulus.size original) reference
   have combined := four_actions (copiedAction.trans (one_smul ℂ _).symm) measured correctionAction
@@ -244,7 +262,7 @@ def jointCoordinates (width : Nat) (Reference : Register) :
             ((Equiv.refl Reference.Index).prodCongr (controlBasis width)))).trans
           (Equiv.prodAssoc _ _ _).symm))
 
-theorem jointCoordinates_label (width : Nat) (Reference : Register) (control : Fin 2)
+lemma jointCoordinates_label (width : Nat) (Reference : Register) (control : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index)
     (reference : Reference.Index) :
     jointCoordinates width Reference (label width control original, reference) =
@@ -258,7 +276,7 @@ theorem jointCoordinates_label (width : Nat) (Reference : Register) (control : F
           (original, (controlBasis width).symm control))).2) = _
   rw [Equiv.apply_symm_apply, Equiv.apply_symm_apply]
 
-private theorem label_surjective (width : Nat) (value : (context width).register.Index) :
+private lemma label_surjective (width : Nat) (value : (context width).register.Index) :
     ∃ (control : Fin 2) (original : (NumeratorMeasurement.context width).register.Index),
       label width control original = value := by
   let parts := ContextUnion.unionBasisEquiv _ _ (control_disjoint width) value
@@ -276,7 +294,7 @@ def controlBlocks (width : Nat) (Reference : Register)
   (Matrix.blockDiagonal members).submatrix
     (jointCoordinates width Reference) (jointCoordinates width Reference)
 
-theorem controlBlocks_entry (width : Nat) (Reference : Register)
+lemma controlBlocks_entry (width : Nat) (Reference : Register)
     (members : Fin 2 →
       HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference))
     (rowControl columnControl : Fin 2)
@@ -290,7 +308,7 @@ theorem controlBlocks_entry (width : Nat) (Reference : Register)
     Matrix.blockDiagonal_apply]
 
 /-- Exact matrix multiplication retains all cross-control blocks before any support restriction. -/
-theorem controlBlocks_mul (width : Nat) (Reference : Register)
+lemma controlBlocks_mul (width : Nat) (Reference : Register)
     (left right : Fin 2 →
       HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference)) :
     controlBlocks width Reference left * controlBlocks width Reference right =
@@ -311,7 +329,7 @@ def target (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Pr
       (InPlaceTarget.jointOperator operation modulus prime Reference))
 
 /-- The target is independent arithmetic on control one and complete identity on control zero. -/
-theorem target_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
+lemma target_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register) :
     (target operation modulus prime Reference :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
@@ -331,71 +349,77 @@ private def nativeBasisEquiv (width : Nat) :
     (fun index => finCongr (congrArg (fun dimension : ℕ+ => (dimension : Nat))
       (nativePosition_dimensions width index)))).symm
 
-private theorem nativeBasisEquiv_apply (width : Nat)
+private lemma nativeBasisEquiv_apply (width : Nat)
     (state : (context width).register.Index) :
     nativeBasisEquiv width state = nativeBasis width state := by
   funext index
   apply Fin.ext
   rfl
 
-private theorem native_placed_matrix (width : Nat) (program : NativeCircuit width) :
-    ((runtimeProgram width program).matrix : HilbertOperator (context width).register) =
-      (program.matrix : HilbertOperator (nativeLayout width).toQuantum.register).submatrix
+private lemma native_placed_matrix (width : Nat) (program : NativeCircuit width) :
+    (((runtimeProgram width program).matrix environment.quantum) : HilbertOperator (context
+      width).register) =
+      ((program.matrix environment.quantum) : HilbertOperator (nativeLayout
+        width).toQuantum.register).submatrix
         (nativeBasisEquiv width) (nativeBasisEquiv width) := by
   ext row column
   simpa only [Matrix.submatrix_apply, nativeBasisEquiv_apply] using
     runtimeProgram_matrix width program row column
 
 /-- The actual placed native member acts on the complete joint reference register. -/
-def nativeJoint (width : Nat) (Reference : Register) (program : NativeCircuit width) :
+def nativeJoint (interpretation : OracleModel.empty.Interpretation) (width : Nat) (Reference :
+  Register) (program : NativeCircuit width) :
     UnitaryOperator (Register.prod (context width).register Reference) :=
-  UnitaryOperator.prodTensor (runtimeProgram width program).matrix (1 : UnitaryOperator Reference)
+  UnitaryOperator.prodTensor ((runtimeProgram width program).matrix interpretation) (1 :
+    UnitaryOperator Reference)
 
-private theorem nativeJoint_seq (width : Nat) (Reference : Register)
+private lemma nativeJoint_seq (width : Nat) (Reference : Register)
     (first second : NativeCircuit width) :
-    (nativeJoint width Reference (first.seq second) :
+    (nativeJoint environment.quantum width Reference (first.seq second) :
       HilbertOperator (Register.prod (context width).register Reference)) =
-      (nativeJoint width Reference second :
+      (nativeJoint environment.quantum width Reference second :
         HilbertOperator (Register.prod (context width).register Reference)) *
-      (nativeJoint width Reference first :
+      (nativeJoint environment.quantum width Reference first :
         HilbertOperator (Register.prod (context width).register Reference)) := by
   change Matrix.kronecker
-      ((runtimeProgram width (first.seq second)).matrix :
+      (((runtimeProgram width (first.seq second)).matrix environment.quantum) :
         HilbertOperator (context width).register) (1 : HilbertOperator Reference) =
-    Matrix.kronecker ((runtimeProgram width second).matrix :
+    Matrix.kronecker (((runtimeProgram width second).matrix environment.quantum) :
       HilbertOperator (context width).register) (1 : HilbertOperator Reference) *
-    Matrix.kronecker ((runtimeProgram width first).matrix :
+    Matrix.kronecker (((runtimeProgram width first).matrix environment.quantum) :
       HilbertOperator (context width).register) (1 : HilbertOperator Reference)
   rw [native_placed_matrix, native_placed_matrix, native_placed_matrix,
     UnitaryCircuit.seq_matrix]
   have actual := Matrix.mul_kronecker_mul
-    ((second.matrix : HilbertOperator (nativeLayout width).toQuantum.register).submatrix
+    (((second.matrix environment.quantum) : HilbertOperator (nativeLayout
+      width).toQuantum.register).submatrix
       (nativeBasisEquiv width) (nativeBasisEquiv width))
-    ((first.matrix : HilbertOperator (nativeLayout width).toQuantum.register).submatrix
+    (((first.matrix environment.quantum) : HilbertOperator (nativeLayout
+      width).toQuantum.register).submatrix
       (nativeBasisEquiv width) (nativeBasisEquiv width))
     (1 : HilbertOperator Reference) (1 : HilbertOperator Reference)
   rw [Matrix.submatrix_mul_equiv, Matrix.one_mul] at actual
   exact actual
 
-private theorem realized_binary_entry {Data : Type} (encoding : BinaryLabelEncoding Data)
+private lemma realized_binary_entry {Data : Type} (encoding : BinaryLabelEncoding Data)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical encoding.width).toQuantum) (step : Data → Data)
-    (realized : UnitaryCircuit.Realizes encoding program step)
+    (realized : UnitaryCircuit.Realizes encoding program environment.quantum step)
     (row : Fin (2 ^ encoding.width)) (column : Data) :
-    program.binaryMatrix row (encoding.encode column) =
+    (program.binaryMatrix environment.quantum) row (encoding.encode column) =
       if row = encoding.encode (step column) then 1 else 0 := by
   have action := UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     program (encoding.encode column) (encoding.encode (step column))
     (realized.apply_encoded_ket column)
   have entry := congrArg (fun state => state.vec row) action
-  change program.binaryMatrix.applyVec
+  change (program.binaryMatrix environment.quantum).applyVec
     (NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode column)).vec row =
     NormalizedVector.ket (R := Qubits encoding.width) (encoding.encode (step column)) row at entry
   rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket,
     NormalizedVector.ket_apply] at entry
   exact entry
 
-private theorem encoded_pair_eq (width : Nat)
+private lemma encoded_pair_eq (width : Nat)
     (row : Fin (2 ^ (frameEncoding width).width)) (rowControl : Fin 2)
     (state : Frame width × Bool) :
     prodEquiv (row, rowControl) = (NativeFrameControl.encoding width).encode state ↔
@@ -410,17 +434,20 @@ private theorem encoded_pair_eq (width : Nat)
   · intro same
     exact Prod.ext same.1 same.2
 
-private theorem conditional_matrix (width : Nat) (active : Bool)
+private lemma conditional_matrix (width : Nat) (active : Bool)
     (program : NativeCircuit width)
     (source : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (step : Frame width → Frame width)
     (actual : UnitaryCircuit.Realizes (NativeFrameControl.encoding width) program
+      environment.quantum
       (NativeFrameControl.step width active step))
-    (original : UnitaryCircuit.Realizes (frameEncoding width) source step)
+    (original : UnitaryCircuit.Realizes (frameEncoding width) source environment.quantum step)
     (rowControl columnControl : Fin 2) (row column : Fin (2 ^ (frameEncoding width).width)) :
-    program.binaryMatrix (prodEquiv (row, rowControl)) (prodEquiv (column, columnControl)) =
+    (program.binaryMatrix environment.quantum) (prodEquiv (row, rowControl)) (prodEquiv (column,
+      columnControl)) =
       if rowControl = columnControl then
-        if rowControl = controlLabel active then source.binaryMatrix row column
+        if rowControl = controlLabel active then (source.binaryMatrix environment.quantum) row
+          column
         else if row = column then 1 else 0
       else 0 := by
   obtain ⟨state, rfl⟩ := ProductPlacement.frame_total width column
@@ -433,7 +460,7 @@ private theorem conditional_matrix (width : Nat) (active : Bool)
     (NativeFrameControl.step width active step) actual (prodEquiv (row, rowControl))
     (state, selected)
   have sourceEntry := realized_binary_entry (frameEncoding width) source step original row state
-  change program.binaryMatrix (prodEquiv (row, rowControl))
+  change (program.binaryMatrix environment.quantum) (prodEquiv (row, rowControl))
     (prodEquiv ((frameEncoding width).encode state, controlLabel selected)) = _
       at controlledEntry
   have nativeEntry := controlledEntry.trans
@@ -444,21 +471,23 @@ private theorem conditional_matrix (width : Nat) (active : Bool)
   cases active <;> cases selected <;> fin_cases rowControl <;>
     simp [NativeFrameControl.step, controlLabel]
 
-private theorem controlled_blocks_of_entries (width : Nat) (Reference : Register) (active : Bool)
+private lemma controlled_blocks_of_entries (width : Nat) (Reference : Register) (active : Bool)
     (program : NativeCircuit width)
     (source : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (entries : ∀ (rowControl columnControl : Fin 2)
       (row column : Fin (2 ^ (frameEncoding width).width)),
-      program.binaryMatrix (prodEquiv (row, rowControl)) (prodEquiv (column, columnControl)) =
+      (program.binaryMatrix environment.quantum) (prodEquiv (row, rowControl)) (prodEquiv
+        (column, columnControl)) =
         if rowControl = columnControl then
-          if rowControl = controlLabel active then source.binaryMatrix row column
+          if rowControl = controlLabel active then (source.binaryMatrix environment.quantum) row
+            column
           else if row = column then 1 else 0
         else 0) :
-    (nativeJoint width Reference program :
+    (nativeJoint environment.quantum width Reference program :
       HilbertOperator (Register.prod (context width).register Reference)) =
       controlBlocks width Reference (fun control =>
         if control = controlLabel active then
-          (InPlaceDivisionConjugation.native width Reference source :
+          (InPlaceDivisionConjugation.native environment.quantum width Reference source :
             HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference))
         else 1) := by
   ext ⟨row, rowReference⟩ ⟨column, columnReference⟩
@@ -467,9 +496,9 @@ private theorem controlled_blocks_of_entries (width : Nat) (Reference : Register
   rw [controlBlocks_entry]
   change UnitaryOperator.prodTensor _ _ _ _ = _
   rw [UnitaryOperator.prodTensor_apply]
-  have placed : (runtimeProgram width program).matrix
+  have placed : ((runtimeProgram width program).matrix environment.quantum)
       (label width rowControl originalRow) (label width columnControl originalColumn) =
-      program.binaryMatrix
+      (program.binaryMatrix environment.quantum)
         (prodEquiv (NumeratorMeasurement.frameBasis width originalRow, rowControl))
         (prodEquiv (NumeratorMeasurement.frameBasis width originalColumn, columnControl)) := by
     rw [runtimeProgram_matrix, controlledNativeBasis_label, controlledNativeBasis_label]
@@ -497,33 +526,34 @@ private theorem controlled_blocks_of_entries (width : Nat) (Reference : Register
   · simp only [if_neg sameControl, zero_mul]
 
 /-- The exact all-label action of an emitted member determines both coherent control sectors. -/
-theorem controlled_blocks (width : Nat) (Reference : Register) (active : Bool)
+lemma controlled_blocks (width : Nat) (Reference : Register) (active : Bool)
     (program : NativeCircuit width)
     (source : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (step : Frame width → Frame width)
     (actual : UnitaryCircuit.Realizes (NativeFrameControl.encoding width) program
+      environment.quantum
       (NativeFrameControl.step width active step))
-    (original : UnitaryCircuit.Realizes (frameEncoding width) source step) :
-    (nativeJoint width Reference program :
+    (original : UnitaryCircuit.Realizes (frameEncoding width) source environment.quantum step) :
+    (nativeJoint environment.quantum width Reference program :
       HilbertOperator (Register.prod (context width).register Reference)) =
       controlBlocks width Reference (fun control =>
         if control = controlLabel active then
-          (InPlaceDivisionConjugation.native width Reference source :
+          (InPlaceDivisionConjugation.native environment.quantum width Reference source :
             HilbertOperator (Register.prod (NumeratorMeasurement.context width).register Reference))
         else 1) :=
-  controlled_blocks_of_entries width Reference active program source
+  controlled_blocks_of_entries (environment := environment) width Reference active program source
     (conditional_matrix width active program source step actual original)
 
-private theorem diagonal_binary_entry {Data : Type} (encoding : BinaryLabelEncoding Data)
+private lemma diagonal_binary_entry {Data : Type} (encoding : BinaryLabelEncoding Data)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical encoding.width).toQuantum) (phase : Data → ℂ)
-    (action : ∀ state, program.applyVec
+    (action : ∀ state, (program.applyVec environment.quantum)
       (NormalizedVector.ket ((QubitLayout.canonical encoding.width).basisEquiv.symm
         (encoding.encode state))).vec =
       phase state • (NormalizedVector.ket
         ((QubitLayout.canonical encoding.width).basisEquiv.symm (encoding.encode state))).vec)
     (row : Fin (2 ^ encoding.width)) (column : Data) :
-    program.binaryMatrix row (encoding.encode column) =
+    (program.binaryMatrix environment.quantum) row (encoding.encode column) =
       phase column * (if row = encoding.encode column then 1 else 0) := by
   have entry := congrArg
     (fun vector => vector ((QubitLayout.canonical encoding.width).basisEquiv.symm row))
@@ -533,32 +563,35 @@ private theorem diagonal_binary_entry {Data : Type} (encoding : BinaryLabelEncod
   have same := (QubitLayout.canonical encoding.width).basisEquiv.symm.injective.eq_iff
     (a := row) (b := encoding.encode column)
   erw [UnitaryCircuit.binaryMatrix_eq_reindex, UnitaryOperator.coe_reindex]
-  change program.matrix ((QuantumSignature.qubitsIndexEquiv encoding.width).symm row)
+  change (program.matrix environment.quantum) ((QuantumSignature.qubitsIndexEquiv
+    encoding.width).symm row)
     ((QuantumSignature.qubitsIndexEquiv encoding.width).symm (encoding.encode column)) = _
   have normalized := entry
   simp only [same] at normalized
   simpa only [QubitLayout.basisEquiv] using normalized
 
-private theorem conditional_phase_matrix (width : Nat) (active : Bool)
+private lemma conditional_phase_matrix (width : Nat) (active : Bool)
     (program : NativeCircuit width)
     (source : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (phase : Frame width → ℂ)
-    (actual : ∀ state : Frame width × Bool, program.applyVec
+    (actual : ∀ state : Frame width × Bool, (program.applyVec environment.quantum)
       (NormalizedVector.ket ((nativeLayout width).basisEquiv.symm
         ((NativeFrameControl.encoding width).encode state))).vec =
       (if state.2 = active then phase state.1 else 1) •
         (NormalizedVector.ket ((nativeLayout width).basisEquiv.symm
           ((NativeFrameControl.encoding width).encode state))).vec)
-    (original : ∀ state : Frame width, source.applyVec
+    (original : ∀ state : Frame width, (source.applyVec environment.quantum)
       (NormalizedVector.ket ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
         ((frameEncoding width).encode state))).vec =
       phase state • (NormalizedVector.ket
         ((QubitLayout.canonical (frameEncoding width).width).basisEquiv.symm
           ((frameEncoding width).encode state))).vec)
     (rowControl columnControl : Fin 2) (row column : Fin (2 ^ (frameEncoding width).width)) :
-    program.binaryMatrix (prodEquiv (row, rowControl)) (prodEquiv (column, columnControl)) =
+    (program.binaryMatrix environment.quantum) (prodEquiv (row, rowControl)) (prodEquiv (column,
+      columnControl)) =
       if rowControl = columnControl then
-        if rowControl = controlLabel active then source.binaryMatrix row column
+        if rowControl = controlLabel active then (source.binaryMatrix environment.quantum) row
+          column
         else if row = column then 1 else 0
       else 0 := by
   obtain ⟨state, rfl⟩ := ProductPlacement.frame_total width column
@@ -571,7 +604,7 @@ private theorem conditional_phase_matrix (width : Nat) (active : Bool)
     (fun state => if state.2 = active then phase state.1 else 1) actual
     (prodEquiv (row, rowControl)) (state, selected)
   have sourceEntry := diagonal_binary_entry (frameEncoding width) source phase original row state
-  change program.binaryMatrix (prodEquiv (row, rowControl))
+  change (program.binaryMatrix environment.quantum) (prodEquiv (row, rowControl))
     (prodEquiv ((frameEncoding width).encode state, controlLabel selected)) = _
       at controlledEntry
   have nativeEntry := controlledEntry.trans
@@ -583,18 +616,21 @@ private theorem conditional_phase_matrix (width : Nat) (active : Bool)
   cases active <;> cases selected <;> fin_cases rowControl <;>
     simp [controlLabel]
 
-private theorem native_blocks_of_entries (width : Nat) (Reference : Register)
+private lemma native_blocks_of_entries (width : Nat) (Reference : Register)
     (program : NativeCircuit width)
     (members : Fin 2 → UnitaryCircuit AlgorithmGate.model .empty
       (InverseRuntimeFrame.source width))
     (entries : ∀ (rowControl columnControl : Fin 2)
       (row column : Fin (2 ^ (frameEncoding width).width)),
-      program.binaryMatrix (prodEquiv (row, rowControl)) (prodEquiv (column, columnControl)) =
-        if rowControl = columnControl then (members rowControl).binaryMatrix row column else 0) :
-    (nativeJoint width Reference program :
+      (program.binaryMatrix environment.quantum) (prodEquiv (row, rowControl)) (prodEquiv
+        (column, columnControl)) =
+        if rowControl = columnControl then
+          (members rowControl).binaryMatrix environment.quantum row column
+          else 0) :
+    (nativeJoint environment.quantum width Reference program :
       HilbertOperator (Register.prod (context width).register Reference)) =
       controlBlocks width Reference (fun control =>
-        (InPlaceDivisionConjugation.native width Reference (members control) :
+        (InPlaceDivisionConjugation.native environment.quantum width Reference (members control) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context width).register
             Reference))) := by
   ext ⟨row, rowReference⟩ ⟨column, columnReference⟩
@@ -603,9 +639,9 @@ private theorem native_blocks_of_entries (width : Nat) (Reference : Register)
   rw [controlBlocks_entry]
   change UnitaryOperator.prodTensor _ _ _ _ = _
   rw [UnitaryOperator.prodTensor_apply]
-  have placed : (runtimeProgram width program).matrix
+  have placed : ((runtimeProgram width program).matrix environment.quantum)
       (label width rowControl originalRow) (label width columnControl originalColumn) =
-      program.binaryMatrix
+      (program.binaryMatrix environment.quantum)
         (prodEquiv (NumeratorMeasurement.frameBasis width originalRow, rowControl))
         (prodEquiv (NumeratorMeasurement.frameBasis width originalColumn, columnControl)) := by
     rw [runtimeProgram_matrix, controlledNativeBasis_label, controlledNativeBasis_label]
@@ -619,56 +655,59 @@ private theorem native_blocks_of_entries (width : Nat) (Reference : Register)
         originalRow originalColumn)).symm
   · rw [if_neg sameControl, zero_mul, if_neg sameControl]
 
-private theorem uncontrolled_matrix (width : Nat)
+private lemma uncontrolled_matrix (width : Nat)
     (program : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width))
     (rowControl columnControl : Fin 2) (row column : Fin (2 ^ (frameEncoding width).width)) :
-    (uncontrolled width program).binaryMatrix
+    ((uncontrolled width program).binaryMatrix environment.quantum)
       (prodEquiv (row, rowControl)) (prodEquiv (column, columnControl)) =
-      if rowControl = columnControl then program.binaryMatrix row column else 0 := by
+      if rowControl = columnControl then (program.binaryMatrix environment.quantum) row column
+        else 0 := by
   have placed := UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix
-    (prefixWidth := (OutputCopy.encoding width).width) 1 program
+    (prefixWidth := (OutputCopy.encoding width).width) 1 program environment.quantum
   have entry := congrArg (fun operator : UnitaryOperator (Qubits
     ((OutputCopy.encoding width).width + 1)) =>
       operator (prodEquiv (row, rowControl)) (prodEquiv (column, columnControl))) placed
   refine entry.trans ?_
-  change UnitaryOperator.prodTensor program.binaryMatrix (1 : UnitaryOperator (Qubits 1))
+  change UnitaryOperator.prodTensor (program.binaryMatrix environment.quantum) (1 :
+    UnitaryOperator (Qubits 1))
     ((prodEquiv (m := frameWidth width) (n := 1)).symm (prodEquiv (row, rowControl)))
     ((prodEquiv (m := frameWidth width) (n := 1)).symm (prodEquiv (column, columnControl))) = _
   rw [Equiv.symm_apply_apply, Equiv.symm_apply_apply, UnitaryOperator.prodTensor_apply]
-  change program.binaryMatrix row column *
+  change (program.binaryMatrix environment.quantum) row column *
     (if rowControl = columnControl then (1 : ℂ) else 0) = _
   split <;> simp only [mul_one, mul_zero]
 
 /-- Every unconditional native gate retains the same actual owned control coherently. -/
-theorem uncontrolled_blocks (width : Nat) (Reference : Register)
+lemma uncontrolled_blocks (width : Nat) (Reference : Register)
     (program : UnitaryCircuit AlgorithmGate.model .empty (InverseRuntimeFrame.source width)) :
-    (nativeJoint width Reference (uncontrolled width program) :
+    (nativeJoint environment.quantum width Reference (uncontrolled width program) :
       HilbertOperator (Register.prod (context width).register Reference)) =
       controlBlocks width Reference (fun _ =>
-        (InPlaceDivisionConjugation.native width Reference program :
+        (InPlaceDivisionConjugation.native environment.quantum width Reference program :
           HilbertOperator (Register.prod (NumeratorMeasurement.context width).register
             Reference))) :=
   native_blocks_of_entries width Reference (uncontrolled width program) (fun _ => program)
     (uncontrolled_matrix width program)
 
-private theorem inactive_column (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
+private lemma inactive_column (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
     {Reference : Register} (stored : Store (NumeratorMeasurement.context modulus.size))
     (reference : Reference.Index)
     (row : (Register.prod (NumeratorMeasurement.context modulus.size).register Reference).Index) :
-    inactiveOperator modulus.size Reference stored row
+    inactiveOperator environment.quantum modulus.size Reference stored row
       (InPlaceTarget.preparedBasis modulus value numerator, reference) =
       WalshHadamard.invSqrtCard modulus.size *
         (1 : HilbertOperator
           (Register.prod (NumeratorMeasurement.context modulus.size).register Reference)) row
           (InPlaceTarget.preparedBasis modulus value numerator, reference) := by
-  have actual := inactive_operator_ket modulus value numerator stored reference
+  have actual := inactive_operator_ket (environment := environment) modulus value numerator
+    stored reference
   rw [← InPlaceOperatorAgreement.prepared_vec] at actual
   have entries := congrArg
     (fun vector : HilbertVector
       (Register.prod (NumeratorMeasurement.context modulus.size).register Reference) => vector row)
     actual
   rw [HilbertOperator.applyVec_ket] at entries
-  change inactiveOperator modulus.size Reference stored row
+  change inactiveOperator environment.quantum modulus.size Reference stored row
     (InPlaceTarget.preparedBasis modulus value numerator, reference) =
       WalshHadamard.invSqrtCard modulus.size *
         (NormalizedVector.ket (R := Register.prod
@@ -678,30 +717,33 @@ private theorem inactive_column (modulus : Nat) (value numerator : Fin (2 ^ modu
   exact entries
 
 /-- The original active arithmetic operators, already derived from their actual stored branches. -/
-def activeOperator (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+def activeOperator (interpretation : OracleModel.empty.Interpretation) (operation :
+  InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (Reference : Register) (stored : Store (NumeratorMeasurement.context modulus.size)) :
     HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
       Reference) :=
   match operation with
-  | .multiplication => InPlaceMultiplicationConjugation.operator modulus prime Reference stored
-  | .division => InPlaceDivisionConjugation.operator modulus prime Reference stored
+  | .multiplication => InPlaceMultiplicationConjugation.operator interpretation modulus prime
+    Reference stored
+  | .division => InPlaceDivisionConjugation.operator interpretation modulus prime Reference stored
 
 /-- The two actual measured sectors, with the same complete original stored result. -/
-def branchOperator (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+def branchOperator (interpretation : OracleModel.empty.Interpretation) (operation :
+  InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (Reference : Register) (stored : Store (NumeratorMeasurement.context modulus.size)) :
     HilbertOperator (Register.prod (context modulus.size).register Reference) :=
   controlBlocks modulus.size Reference (fun control => if control = 1 then
-    activeOperator operation modulus prime Reference stored else
-    inactiveOperator modulus.size Reference stored)
+    activeOperator interpretation operation modulus prime Reference stored else
+    inactiveOperator interpretation modulus.size Reference stored)
 
 /-- Every allowed complete column shares one coefficient, including cross-control matrix rows. -/
-theorem prepared_column (operation : InPlaceTarget.Operation) (modulus : Nat)
+lemma prepared_column (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (control : Fin 2) (value numerator : Fin (2 ^ modulus.size))
     (domain : control = 1 → 0 < value.val ∧ value.val < modulus ∧ numerator.val < modulus)
     {Reference : Register} (stored : Store (NumeratorMeasurement.context modulus.size))
     (reference : Reference.Index)
     (row : (Register.prod (context modulus.size).register Reference).Index) :
-    branchOperator operation modulus prime Reference stored row
+    branchOperator environment.quantum operation modulus prime Reference stored row
       (label modulus.size control (InPlaceTarget.preparedBasis modulus value numerator),
         reference) =
       WalshHadamard.invSqrtCard modulus.size *
@@ -760,7 +802,7 @@ def storeCoordinates (width : Nat) :
     congrArg Prod.fst ((ContextUnion.storeEquiv (control_disjoint width)).apply_symm_apply
       (stored, emptyControlStore width))
 
-private theorem history_store_matrix {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma history_store_matrix {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {History NewHistory : Type} [Fintype History] [Fintype NewHistory]
     (state : State ctx Reference History) (map : History → NewHistory) (stored : Store ctx) :
     ((state.mapHistory map).filterClassical (fun entry => entry.1 =
@@ -772,7 +814,7 @@ private theorem history_store_matrix {kind : ProblemKind} {ctx : RuntimeCtx kind
   rw [ExecutionState.executionState_mapClassical_comp]
   rfl
 
-private theorem reindex_marginal {Classical : Type} [Fintype Classical] {R S : Register}
+private lemma reindex_marginal {Classical : Type} [Fintype Classical] {R S : Register}
     (state : ExecutionState Classical R) (coordinates : R.Index ≃ S.Index) :
     (state.reindex coordinates).quantumMarginal = state.quantumMarginal.reindex coordinates := by
   apply DensityOperator.ext
@@ -780,7 +822,7 @@ private theorem reindex_marginal {Classical : Type} [Fintype Classical] {R S : R
   simp only [ExecutionState.quantumMarginal, Matrix.sum_apply,
     ExecutionState.reindex_block_entry, DensityOperator.reindex_entry]
 
-private theorem split_marginal (width : Nat) {Reference : Register} {History : Type}
+private lemma split_marginal (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference History) :
     (ContextUnion.splitState (NumeratorMeasurement.context width) (controlContext width)
       (control_disjoint width) state).quantumMarginal =
@@ -791,7 +833,7 @@ private theorem split_marginal (width : Nat) {Reference : Register} {History : T
 
 /-- Exact framing coordinates retain each entire stored block, including all reference coherences.
 -/
-theorem split_store_matrix (width : Nat) {Reference : Register} {History : Type}
+lemma split_store_matrix (width : Nat) {Reference : Register} {History : Type}
     [Fintype History] (state : State (context width) Reference History) (stored : Store (context
       width)) :
     ((ContextUnion.splitState (NumeratorMeasurement.context width) (controlContext width)
@@ -820,9 +862,11 @@ theorem split_store_matrix (width : Nat) {Reference : Register} {History : Type}
 
 /-- The actual framed H/Z/read/X operator is the original complete reset operator in exact
 coordinates. -/
-def framedResetOperator (width : Nat) (Reference : Register) (stored : Store (context width)) :
+def framedResetOperator (interpretation : OracleModel.empty.Interpretation) (width : Nat)
+  (Reference : Register) (stored : Store (context width)) :
     HilbertOperator (Register.prod (context width).register Reference) :=
-  (NumeratorResetConjugation.operator width (Register.prod (controlContext width).register
+  (NumeratorResetConjugation.operator interpretation width (Register.prod (controlContext
+    width).register
     Reference)
     (storeCoordinates width stored)).submatrix
       (ContextUnion.referenceBasis (NumeratorMeasurement.context width) (controlContext width)
@@ -830,7 +874,7 @@ def framedResetOperator (width : Nat) (Reference : Register) (stored : Store (co
       (ContextUnion.referenceBasis (NumeratorMeasurement.context width) (controlContext width)
         (control_disjoint width) Reference)
 
-private theorem pullback_conjugation {R S : Register} (coordinates : R.Index ≃ S.Index)
+private lemma pullback_conjugation {R S : Register} (coordinates : R.Index ≃ S.Index)
     (before after : HilbertOperator R) (operator : HilbertOperator S)
     (actual : after.submatrix coordinates.symm coordinates.symm =
       operator * before.submatrix coordinates.symm coordinates.symm * operator.conjTranspose) :
@@ -853,40 +897,185 @@ private theorem pullback_conjugation {R S : Register} (coordinates : R.Index ≃
   rw [Matrix.conjTranspose_submatrix,
     Matrix.submatrix_mul_equiv, Matrix.submatrix_mul_equiv]
 
-/-- The real framed H/Z/write/read/X execution has the exact complete stored-block conjugation. -/
-theorem reset_matrix (width : Nat) {Reference : Register} {History : Type} [Fintype History]
-    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History))
-    (stored : Store (context width)) :
-    (((reset width).execute Reference state).filterClassical
+/-- A quantum-only resident frame adds no unobserved classical Store fiber on rejoining. -/
+private lemma join_store_matrix_of_subsingleton_frame {kind : ProblemKind}
+    {localCtx caller : RuntimeCtx kind} (placement : ContextEmbedding localCtx caller)
+    [Subsingleton (Store placement.frame)] {Reference : Register}
+    {History : Type} [Fintype History]
+    (state : State localCtx (placement.frame.register.prod Reference)
+      (Store placement.frame × History)) (stored : Store caller) :
+    ((placement.join state).filterClassical
       (fun entry => entry.1 = stored)).quantumMarginal.matrix =
-      framedResetOperator width Reference stored * state.quantumMarginal.matrix *
-        (framedResetOperator width Reference stored).conjTranspose := by
-  let coordinates := ContextUnion.referenceBasis (NumeratorMeasurement.context width)
-    (controlContext width) (control_disjoint width) Reference
-  let localState := ContextUnion.splitServiceState (NumeratorMeasurement.context width)
-    (controlContext width) (control_disjoint width) state
-  have natural := ContextUnion.frameLocal_execute (NumeratorReset.code width)
-    (reset_local width) (controlContext width) (control_disjoint width) Reference state
-  have block := congrArg
-    (fun result => (result.filterClassical
-      (fun entry => entry.1 = storeCoordinates width stored)).quantumMarginal.matrix) natural
-  simp only [ContextUnion.splitServiceState] at block
-  rw [history_store_matrix, split_store_matrix, history_store_matrix] at block
-  have actual := NumeratorResetConjugation.actual_matrix width localState
-    (storeCoordinates width stored)
-  have localMarginal : localState.quantumMarginal = state.quantumMarginal.reindex coordinates := by
-    dsimp only [localState, ContextUnion.splitServiceState]
-    rw [State.mapHistory_quantumMarginal, split_marginal]
-  rw [NumeratorStoredFibers.source_eq_marginal, localMarginal] at actual
-  have joined := block.trans actual
-  exact pullback_conjugation coordinates state.quantumMarginal.matrix
-    (((reset width).execute Reference state).filterClassical
-      (fun entry => entry.1 = stored)).quantumMarginal.matrix
-    (NumeratorResetConjugation.operator width
-      (Register.prod (controlContext width).register Reference) (storeCoordinates width stored))
-        joined
+      ((state.filterClassical
+        (fun entry => entry.1 = (placement.store stored).1)).quantumMarginal.matrix).submatrix
+          (placement.referenceBasis Reference) (placement.referenceBasis Reference) := by
+  classical
+  have condition (original : Store localCtx × (Store placement.frame × History)) :
+      ((placement.record History).symm original).1 = stored ↔
+        original.1 = (placement.store stored).1 := by
+    change placement.store.symm (original.1, original.2.1) = stored ↔ _
+    constructor
+    · intro same
+      have mapped := congrArg (fun value : Store caller => (placement.store value).1) same
+      exact (congrArg Prod.fst (placement.store.apply_symm_apply _)).symm.trans mapped
+    · intro same
+      apply placement.store.injective
+      exact (placement.store.apply_symm_apply _).trans
+        (Prod.ext same (Subsingleton.elim _ _))
+  rw [← BasisSeeded.store_matrix]
+  unfold ContextEmbedding.join
+  rw [ExecutionState.coordinate_reindex_mapClassical,
+    ExecutionState.executionState_mapClassical_comp]
+  ext row column
+  rw [ExecutionState.reindex_block_entry, ExecutionState.mapClassical_block_matrix]
+  simp only [Matrix.sum_apply, Matrix.ite_apply, Matrix.zero_apply,
+    Matrix.submatrix_apply, ExecutionState.filterClassical_matrix_weighted,
+    ExecutionState.weightedMatrixEntry, Equiv.symm_symm, Function.comp_apply]
+  apply Finset.sum_congr rfl
+  intro original _
+  by_cases same : original.1 = (placement.store stored).1
+  · rw [if_pos ((condition original).mpr same), if_pos same, one_mul]
+  · rw [if_neg (fun actual => same ((condition original).mp actual)), if_neg same, zero_mul]
 
-private theorem reference_label (width : Nat) (Reference : Register) (control : Fin 2)
+/-- The real framed H/Z/write/read/X execution has the exact complete stored-block conjugation. -/
+lemma reset_matrix (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History))
+    (stored : Store (context width))
+    (allowAllocation : Bool := true) :
+    (((reset width allowAllocation).execute environment Reference state).filterClassical
+      (fun entry => entry.1 = stored)).quantumMarginal.matrix =
+      framedResetOperator environment.quantum width Reference stored *
+        state.quantumMarginal.matrix *
+        (framedResetOperator environment.quantum width Reference stored).conjTranspose := by
+  classical
+  let placement := ContextEmbedding.alongUnion (NumeratorMeasurement.context width)
+    (InPlaceControlled.controlContext width) (InPlaceControlled.control_disjoint width)
+  let : Subsingleton (Store placement.frame) := InPlaceControlled.controlStoreSubsingleton width
+  let inputHistory : Store placement.frame × (ClassicalOracleModel.empty.HiddenState × History) →
+      ClassicalOracleModel.empty.HiddenState × (Store placement.frame × History) :=
+    fun history => (history.2.1, (history.1, history.2.2))
+  let localState := (placement.split state).mapHistory inputHistory
+  let localResult : State (NumeratorMeasurement.context width)
+      (placement.frame.register.prod Reference)
+      (ClassicalOracleModel.empty.HiddenState ×
+        ((Store placement.frame × History) × (NumeratorReset.code width false).Path)) :=
+    (NumeratorReset.code width false).execute environment (placement.frame.register.prod
+      Reference) localState
+  let restoreHistory :
+      ClassicalOracleModel.empty.HiddenState ×
+        ((Store placement.frame × History) × (NumeratorReset.code width false).Path) →
+      Store placement.frame ×
+        (ClassicalOracleModel.empty.HiddenState ×
+          (History × (NumeratorReset.code width false).Path)) :=
+    fun history => (history.2.1.1, (history.1, (history.2.1.2, history.2.2)))
+  have inputSame :
+      (placement.split state).mapClassical (fun record =>
+        (record.1, (record.2.2.1, (record.2.1, record.2.2.2)))) = localState := by
+    dsimp only [localState, State.mapHistory]
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
+  have outputSame :
+      ((NumeratorReset.code width false).execute environment (placement.frame.register.prod
+        Reference)
+        localState).mapClassical (fun record =>
+          (record.1, (record.2.2.1.1, (record.2.1, (record.2.2.1.2, record.2.2.2))))) =
+        localResult.mapHistory restoreHistory := by
+    dsimp only [localResult, State.mapHistory]
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
+  let output : State (InPlaceControlled.context width) Reference
+      (ClassicalOracleModel.empty.HiddenState ×
+        (History × (NumeratorReset.code width false).Path)) :=
+    (reset width allowAllocation).execute environment Reference state
+  have executed : output =
+      placement.join (localResult.mapHistory restoreHistory) := by
+    have full := Circuit.circuit_execute_embed (environment := environment) (allowAllocation :=
+      allowAllocation)
+      placement (NumeratorReset.code width false) Reference state
+    refine full.trans (congrArg placement.join ?_)
+    refine (ExecutionState.executionState_mapClassical_congr
+      (second := inferInstanceAs (DecidableEq (Store (NumeratorMeasurement.context width) ×
+        (Store placement.frame ×
+          (ClassicalOracleModel.empty.HiddenState ×
+            (History × (NumeratorReset.code width false).Path))))))
+      _ rfl).trans ?_
+    refine (congrArg (fun input : State (NumeratorMeasurement.context width)
+        (placement.frame.register.prod Reference)
+        (ClassicalOracleModel.empty.HiddenState × (Store placement.frame × History)) =>
+      ((NumeratorReset.code width false).execute environment (placement.frame.register.prod
+        Reference)
+        input).mapClassical
+        (fun record =>
+          (record.1, (record.2.2.1.1, (record.2.1, (record.2.2.1.2, record.2.2.2))))))
+      ?_).trans outputSame
+    exact ExecutionState.executionState_mapClassical_congr _ rfl
+  let coordinates := placement.referenceBasis Reference
+  have joined :
+      (((reset width allowAllocation).execute environment Reference state).filterClassical
+        (fun entry => entry.1 = stored)).quantumMarginal.matrix =
+      ((localResult.filterClassical
+        (fun entry => entry.1 = (placement.store stored).1)).quantumMarginal.matrix).submatrix
+          coordinates coordinates := by
+    have outputMatrix := congrArg (fun result : State (InPlaceControlled.context width) Reference
+        (ClassicalOracleModel.empty.HiddenState ×
+          (History × (NumeratorReset.code width false).Path)) =>
+      (result.filterClassical (fun entry => entry.1 = stored)).quantumMarginal.matrix) executed
+    have joinedMatrix := join_store_matrix_of_subsingleton_frame placement
+      (localResult.mapHistory restoreHistory) stored
+    have historyMatrix := congrArg (fun density : DensityOperator
+        ((NumeratorMeasurement.context width).register.prod
+          (placement.frame.register.prod Reference)) =>
+      density.matrix.submatrix coordinates coordinates)
+      (State.mapHistory_store_marginal localResult restoreHistory ((placement.store stored).1))
+    exact outputMatrix.trans (joinedMatrix.trans historyMatrix)
+  have inverse :
+      ((((reset width allowAllocation).execute environment Reference state).filterClassical
+        (fun entry => entry.1 = stored)).quantumMarginal.matrix).submatrix
+          coordinates.symm coordinates.symm =
+        (localResult.filterClassical
+          (fun entry => entry.1 = (placement.store stored).1)).quantumMarginal.matrix := by
+    rw [joined]
+    ext row column
+    simp only [Matrix.submatrix_apply, Equiv.apply_symm_apply]
+  have localMarginal : localState.quantumMarginal =
+      state.quantumMarginal.reindex coordinates := by
+    let mapped := state.mapClassical
+      (placement.record (ClassicalOracleModel.empty.HiddenState × History))
+    have splitSame : placement.split state = mapped.reindex coordinates := by
+      exact congrArg (fun result : ExecutionState
+          (Store (NumeratorMeasurement.context width) ×
+            (Store placement.frame × (ClassicalOracleModel.empty.HiddenState × History)))
+          ((InPlaceControlled.context width).register.prod Reference) =>
+        result.reindex coordinates) (ExecutionState.executionState_mapClassical_congr state rfl)
+    refine (State.mapHistory_quantumMarginal (placement.split state) inputHistory).trans
+      ((congrArg ExecutionState.quantumMarginal splitSame).trans ?_)
+    exact (InPlaceControlled.reindex_marginal mapped coordinates).trans
+      (congrArg (fun density : DensityOperator
+          ((InPlaceControlled.context width).register.prod Reference) =>
+        density.reindex coordinates)
+        (ExecutionState.mapClassical_quantumMarginal state
+          (placement.record (ClassicalOracleModel.empty.HiddenState × History))))
+  have actual := NumeratorResetConjugation.actual_matrix (environment := environment)
+    width localState
+    ((placement.store stored).1)
+    (allowAllocation := false)
+  rw [NumeratorStoredFibers.source_eq_marginal, localMarginal] at actual
+  have transported := InPlaceControlled.pullback_conjugation coordinates
+    state.quantumMarginal.matrix
+    (((reset width allowAllocation).execute environment Reference state).filterClassical
+      (fun entry => entry.1 = stored)).quantumMarginal.matrix
+    (NumeratorResetConjugation.operator environment.quantum width (placement.frame.register.prod
+      Reference)
+      ((placement.store stored).1)) (inverse.trans actual)
+  have coordinatesSame : coordinates =
+      ContextUnion.referenceBasis (NumeratorMeasurement.context width)
+        (InPlaceControlled.controlContext width) (InPlaceControlled.control_disjoint width)
+        Reference :=
+    alongUnion_referenceBasis _ _ _ Reference
+  have storedSame : (placement.store stored).1 = InPlaceControlled.storeCoordinates width stored :=
+    congrArg (fun stores => (stores stored).1) (alongUnion_store _ _ _)
+  rw [coordinatesSame, storedSame] at transported
+  exact transported
+
+private lemma reference_label (width : Nat) (Reference : Register) (control : Fin 2)
     (original : (NumeratorMeasurement.context width).register.Index)
     (reference : Reference.Index) :
     ContextUnion.referenceBasis (NumeratorMeasurement.context width) (controlContext width)
@@ -901,25 +1090,27 @@ private theorem reference_label (width : Nat) (Reference : Register) (control : 
           (original, (controlBasis width).symm control))).2, reference)) = _
   rw [Equiv.apply_symm_apply]
 
-private theorem original_reset_entry (width : Nat) (Reference : Register)
+private lemma original_reset_entry (width : Nat) (Reference : Register)
     (stored : Store (NumeratorMeasurement.context width))
     (row column : (Register.prod (NumeratorMeasurement.context width).register Reference).Index) :
-    NumeratorResetConjugation.operator width Reference stored row column =
+    NumeratorResetConjugation.operator environment.quantum width Reference stored row column =
       (WalshHadamard.invSqrtCard width *
         WalshHadamard.walshSign
           (NumeratorReset.outcome (stored.read (NumeratorMeasurement.input width)))
           (NumeratorObservation.word width column.1)) *
         if row = (NumeratorBranchAction.replaceWord width column.1 0, column.2) then 1 else 0 := by
-  have actual := NumeratorBranchAction.operator_ket width stored column.1 column.2
+  have actual := NumeratorBranchAction.operator_ket (environment := environment.quantum) width
+    stored column.1 column.2
   have entry := congrArg
     (fun vector : HilbertVector
       (Register.prod (NumeratorMeasurement.context width).register Reference) => vector row) actual
-  change HilbertOperator.applyVec (NumeratorResetConjugation.operator width Reference stored)
+  change HilbertOperator.applyVec (NumeratorResetConjugation.operator environment.quantum width
+    Reference stored)
     (NormalizedVector.ket (R := Register.prod (NumeratorMeasurement.context width).register
       Reference)
       column).vec row = _ at entry
   rw [HilbertOperator.applyVec_ket] at entry
-  change NumeratorResetConjugation.operator width Reference stored row column =
+  change NumeratorResetConjugation.operator environment.quantum width Reference stored row column =
     (WalshHadamard.invSqrtCard width *
       WalshHadamard.walshSign
         (NumeratorReset.outcome (stored.read (NumeratorMeasurement.input width)))
@@ -932,15 +1123,16 @@ private theorem original_reset_entry (width : Nat) (Reference : Register)
 
 /-- The same actual reset acts on both control sectors with every external-reference entry
 retained. -/
-theorem framedReset_blocks (width : Nat) (Reference : Register) (stored : Store (context width)) :
-    framedResetOperator width Reference stored =
+lemma framedReset_blocks (width : Nat) (Reference : Register) (stored : Store (context width)) :
+    framedResetOperator environment.quantum width Reference stored =
       controlBlocks width Reference (fun _ =>
-        NumeratorResetConjugation.operator width Reference (storeCoordinates width stored)) := by
+        NumeratorResetConjugation.operator environment.quantum width Reference (storeCoordinates
+          width stored)) := by
   ext ⟨row, rowReference⟩ ⟨column, columnReference⟩
   obtain ⟨rowControl, originalRow, rfl⟩ := label_surjective width row
   obtain ⟨columnControl, originalColumn, rfl⟩ := label_surjective width column
   rw [controlBlocks_entry]
-  change NumeratorResetConjugation.operator width
+  change NumeratorResetConjugation.operator environment.quantum width
     (Register.prod (controlContext width).register Reference) (storeCoordinates width stored)
       (ContextUnion.referenceBasis _ _ (control_disjoint width) Reference
         (label width rowControl originalRow, rowReference))
@@ -996,7 +1188,7 @@ theorem framedReset_blocks (width : Nat) (Reference : Register) (stored : Store 
   simp only [same, sameOriginal]
   by_cases sameControl : rowControl = columnControl <;> simp [sameControl]
 
-private theorem oppositeBlocks_mul (width : Nat) (Reference : Register)
+private lemma oppositeBlocks_mul (width : Nat) (Reference : Register)
     (active inactive : HilbertOperator
       (Register.prod (NumeratorMeasurement.context width).register Reference)) :
     controlBlocks width Reference (fun control => if control = 0 then inactive else 1) *
@@ -1007,30 +1199,35 @@ private theorem oppositeBlocks_mul (width : Nat) (Reference : Register)
   funext control
   fin_cases control <;> simp
 
-private theorem save_blocks (modulus : Nat) (Reference : Register) :
-    (nativeJoint modulus.size Reference (save modulus) :
+private lemma save_blocks (modulus : Nat) (Reference : Register) :
+    (nativeJoint environment.quantum modulus.size Reference (save modulus) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        (InPlaceDivisionConjugation.native modulus.size Reference
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
           (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)) :
             HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
               Reference))
-        else (InPlaceDivisionConjugation.native modulus.size Reference (copy modulus.size) :
+        else (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference (copy
+          modulus.size) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference))) := by
   have productRealizes := NativeProductFrame.Controlled.nativeProductControlled_realizes
+    (environment := environment.quantum)
     modulus.size (InPlaceArithmetic.modulusWord modulus) (nativeLayout modulus.size)
   have selected := productRealizes.congrStep
     (second := NativeFrameControl.step modulus.size true
       (NativeProductFrame.step modulus.size (InPlaceArithmetic.modulusWord modulus)))
     (fun state => by rcases state with ⟨frame, selected⟩; cases selected <;> rfl)
-  have productBlocks := controlled_blocks modulus.size Reference true _ _ _ selected
+  have productBlocks := controlled_blocks (environment := environment)
+    modulus.size Reference true _ _ _ selected
     (NativeProductFrame.nativeProductFrame_realizes modulus.size
       (InPlaceArithmetic.modulusWord modulus))
-  have copyBlocks := controlled_blocks modulus.size Reference false _ _ _
+  have copyBlocks := controlled_blocks (environment := environment)
+    modulus.size Reference false _ _ _
     (NativeFrameControl.nativeFrameControl_realizes modulus.size false (copyGates modulus.size)
       (nativeLayout modulus.size))
-    (EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty (copyGates modulus.size))
+    (EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty (copyGates modulus.size)
+      environment.quantum)
   simp only [controlLabel, ↓reduceIte] at productBlocks copyBlocks
   exact (nativeJoint_seq modulus.size Reference
     (NativeProductFrame.Controlled.program modulus.size (InPlaceArithmetic.modulusWord modulus)
@@ -1039,11 +1236,12 @@ private theorem save_blocks (modulus : Nat) (Reference : Register) :
       ((congrArg₂ (fun left right => left * right) copyBlocks productBlocks).trans
         (oppositeBlocks_mul _ _ _ _))
 
-private theorem forward_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Reference : Register) :
-    (nativeJoint modulus.size Reference (forward modulus prime) :
+private lemma forward_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Reference : Register) :
+    (nativeJoint environment.quantum modulus.size Reference (forward modulus prime) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        (InPlaceDivisionConjugation.native modulus.size Reference (NativeEEAFrame.forward
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
+          (NativeEEAFrame.forward
           modulus prime) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference))
@@ -1054,11 +1252,12 @@ private theorem forward_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Refe
       (nativeLayout modulus.size))
     (NativeEEAFrame.nativeEEAFrame_forward_realizes modulus prime))
 
-private theorem backward_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Reference : Register) :
-    (nativeJoint modulus.size Reference (backward modulus prime) :
+private lemma backward_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Reference : Register) :
+    (nativeJoint environment.quantum modulus.size Reference (backward modulus prime) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        (InPlaceDivisionConjugation.native modulus.size Reference (NativeEEAFrame.backward
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
+          (NativeEEAFrame.backward
           modulus prime) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference))
@@ -1069,11 +1268,12 @@ private theorem backward_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Ref
       (nativeLayout modulus.size))
     (NativeEEAFrame.nativeEEAFrame_backward_realizes modulus prime))
 
-private theorem reused_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Reference : Register) :
-    (nativeJoint modulus.size Reference (reusedForward modulus prime) :
+private lemma reused_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Reference : Register) :
+    (nativeJoint environment.quantum modulus.size Reference (reusedForward modulus prime) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        (InPlaceDivisionConjugation.native modulus.size Reference (NativeReusedEEA.forward
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
+          (NativeReusedEEA.forward
           modulus prime) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference))
@@ -1084,83 +1284,93 @@ private theorem reused_blocks (modulus : Nat) (prime : Nat.Prime modulus) (Refer
       (nativeLayout modulus.size))
     (NativeReusedEEA.nativeReusedEEA_forward_realizes modulus prime))
 
-private theorem swap_blocks (width : Nat) (Reference : Register) :
-    (nativeJoint width Reference (swap width) :
+private lemma swap_blocks (width : Nat) (Reference : Register) :
+    (nativeJoint environment.quantum width Reference (swap width) :
       HilbertOperator (Register.prod (context width).register Reference)) =
       controlBlocks width Reference (fun _ =>
-        (InPlaceDivisionConjugation.native width Reference (FrameSwap.program width) :
+        (InPlaceDivisionConjugation.native environment.quantum width Reference
+          (FrameSwap.program width) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context width).register
             Reference))) :=
   uncontrolled_blocks _ _ _
 
-private def activeBefore (operation : InPlaceTarget.Operation) (modulus : Nat)
+private def activeBefore (interpretation : OracleModel.empty.Interpretation) (operation :
+  InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register) :
     HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
       Reference) :=
   match operation with
-  | .multiplication => InPlaceDivisionConjugation.native modulus.size Reference
+  | .multiplication => InPlaceDivisionConjugation.native interpretation modulus.size Reference
       (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus))
   | .division =>
-      (InPlaceDivisionConjugation.native modulus.size Reference
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
         (NativeProductFrame.program modulus.size (InPlaceArithmetic.modulusWord modulus)) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference)) *
-      (InPlaceDivisionConjugation.native modulus.size Reference (NativeEEAFrame.forward modulus
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
+        (NativeEEAFrame.forward modulus
         prime) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference))
 
-private def activeAfter (operation : InPlaceTarget.Operation) (modulus : Nat)
+private def activeAfter (interpretation : OracleModel.empty.Interpretation) (operation :
+  InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2))) :
     HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
       Reference) :=
   match operation with
   | .division =>
-      (InPlaceDivisionConjugation.native modulus.size Reference (FrameSwap.program modulus.size) :
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
+        (FrameSwap.program modulus.size) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference)) *
-      (InPlaceDivisionConjugation.native modulus.size Reference
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
         (NumeratorCorrection.member modulus.size (InPlaceArithmetic.modulusWord modulus) value) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference)) *
-      (InPlaceDivisionConjugation.native modulus.size Reference (NativeEEAFrame.backward modulus
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
+        (NativeEEAFrame.backward modulus
         prime) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference))
   | .multiplication =>
-      (InPlaceDivisionConjugation.native modulus.size Reference (FrameSwap.program modulus.size) :
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
+        (FrameSwap.program modulus.size) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference)) *
-      (InPlaceDivisionConjugation.native modulus.size Reference (NativeEEAFrame.backward modulus
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
+        (NativeEEAFrame.backward modulus
         prime) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference)) *
-      (InPlaceDivisionConjugation.native modulus.size Reference
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
         (NumeratorCorrection.member modulus.size (InPlaceArithmetic.modulusWord modulus) value) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference)) *
-      (InPlaceDivisionConjugation.native modulus.size Reference (NativeReusedEEA.forward modulus
+      (InPlaceDivisionConjugation.native interpretation modulus.size Reference
+        (NativeReusedEEA.forward modulus
         prime) :
         HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
           Reference))
 
-private theorem beforeReset_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
+private lemma beforeReset_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register) :
-    (nativeJoint modulus.size Reference (beforeReset operation modulus prime) :
+    (nativeJoint environment.quantum modulus.size Reference (beforeReset operation modulus prime) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        activeBefore operation modulus prime Reference else
-        (InPlaceDivisionConjugation.native modulus.size Reference (copy modulus.size) :
+        activeBefore environment.quantum operation modulus prime Reference else
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference (copy
+          modulus.size) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference))) := by
   cases operation
-  · exact save_blocks modulus Reference
-  · change (nativeJoint modulus.size Reference
+  · exact save_blocks (environment := environment) modulus Reference
+  · change (nativeJoint environment.quantum modulus.size Reference
       ((forward modulus prime).seq (save modulus)) :
         HilbertOperator (Register.prod (context modulus.size).register Reference)) = _
     rw [nativeJoint_seq, forward_blocks]
-    have saveBlocks := save_blocks modulus Reference
+    have saveBlocks := save_blocks (environment := environment) modulus Reference
     rw [saveBlocks, controlBlocks_mul]
     apply congrArg (controlBlocks modulus.size Reference)
     funext control
@@ -1169,7 +1379,7 @@ private theorem beforeReset_blocks (operation : InPlaceTarget.Operation) (modulu
       rfl
     · rw [if_neg active, if_neg active, if_neg active, Matrix.mul_one]
 
-private theorem liftedInactiveWord_sign (width : Nat) (state : Frame width × Bool)
+private lemma liftedInactiveWord_sign (width : Nat) (state : Frame width × Bool)
     (indices : List (Fin width)) :
     EncodedBit.Word.PhaseCorrection.sign (liftedInactiveWord width) state indices =
       EncodedBit.Word.PhaseCorrection.sign (inactiveWord width) state.1 indices := by
@@ -1179,21 +1389,22 @@ private theorem liftedInactiveWord_sign (width : Nat) (state : Frame width × Bo
       rw [EncodedBit.Word.PhaseCorrection.sign, EncodedBit.Word.PhaseCorrection.sign, ih]
       rfl
 
-private theorem correction_blocks (modulus : Nat) (Reference : Register)
+private lemma correction_blocks (modulus : Nat) (Reference : Register)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2))) :
-    (nativeJoint modulus.size Reference (correction modulus value) :
+    (nativeJoint environment.quantum modulus.size Reference (correction modulus value) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        (InPlaceDivisionConjugation.native modulus.size Reference
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
           (NumeratorCorrection.member modulus.size (InPlaceArithmetic.modulusWord modulus) value) :
             HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
               Reference))
-        else (InPlaceDivisionConjugation.native modulus.size Reference
+        else (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
           (inactiveMask modulus.size value) :
             HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
               Reference))) := by
   let mask := QubitReadouts.mask value
-  have activeBlocks := controlled_blocks_of_entries modulus.size Reference true
+  have activeBlocks := controlled_blocks_of_entries (environment := environment) modulus.size
+    Reference true
     (ReusedProduct.Controlled.program modulus.size (InPlaceArithmetic.modulusWord modulus) true
       mask (nativeLayout modulus.size))
     (NumeratorCorrection.member modulus.size (InPlaceArithmetic.modulusWord modulus) value)
@@ -1208,10 +1419,12 @@ private theorem correction_blocks (modulus : Nat) (Reference : Register)
         (ReusedProduct.measuredWord modulus.size) mask))
   have inactiveAction (state : Frame modulus.size × Bool) :=
     EncodedBit.Word.PhaseCorrection.Controlled.controlledPhaseCorrection_sequence_ket
+      (environment := environment.quantum)
       (nativeLayout modulus.size) .empty (NativeFrameControl.control modulus.size)
       (liftedInactiveWord modulus.size) (inactive_separated modulus.size) false
       (EncodedBit.Word.PhaseCorrection.selected mask) state
-  have inactiveBlocks := controlled_blocks_of_entries modulus.size Reference false
+  have inactiveBlocks := controlled_blocks_of_entries (environment := environment) modulus.size
+    Reference false
     (inactiveCorrection modulus.size value) (inactiveMask modulus.size value)
     (conditional_phase_matrix modulus.size false _ _
       (fun state => EncodedBit.Word.PhaseCorrection.sign (inactiveWord modulus.size) state
@@ -1220,7 +1433,8 @@ private theorem correction_blocks (modulus : Nat) (Reference : Register)
         have action := inactiveAction state
         rw [liftedInactiveWord_sign] at action
         exact action)
-      (EncodedBit.Word.PhaseCorrection.phaseCorrection_sequence_ket (QubitLayout.canonical _)
+      (EncodedBit.Word.PhaseCorrection.phaseCorrection_sequence_ket (environment :=
+        environment.quantum) (QubitLayout.canonical _)
         .empty (inactiveWord modulus.size) (EncodedBit.Word.PhaseCorrection.selected mask)))
   simp only [controlLabel, ↓reduceIte] at activeBlocks inactiveBlocks
   exact (nativeJoint_seq modulus.size Reference
@@ -1229,21 +1443,23 @@ private theorem correction_blocks (modulus : Nat) (Reference : Register)
       ((congrArg₂ (fun left right => left * right) inactiveBlocks activeBlocks).trans
         (oppositeBlocks_mul _ _ _ _))
 
-private theorem suffix_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
+private lemma suffix_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register)
     (value : CShape.Value (.fixedVector modulus.size (.finite 2))) :
-    (nativeJoint modulus.size Reference (suffix operation modulus prime value) :
+    (nativeJoint environment.quantum modulus.size Reference (suffix operation modulus prime value) :
       HilbertOperator (Register.prod (context modulus.size).register Reference)) =
       controlBlocks modulus.size Reference (fun control => if control = 1 then
-        activeAfter operation modulus prime Reference value else
-        (InPlaceDivisionConjugation.native modulus.size Reference (FrameSwap.program modulus.size) :
+        activeAfter environment.quantum operation modulus prime Reference value else
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
+          (FrameSwap.program modulus.size) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference)) *
-        (InPlaceDivisionConjugation.native modulus.size Reference (inactiveMask modulus.size
+        (InPlaceDivisionConjugation.native environment.quantum modulus.size Reference
+          (inactiveMask modulus.size
           value) :
           HilbertOperator (Register.prod (NumeratorMeasurement.context modulus.size).register
             Reference))) := by
-  have correctionBlocks := correction_blocks modulus Reference value
+  have correctionBlocks := correction_blocks (environment := environment) modulus Reference value
   cases operation <;>
     simp only [suffix, nativeJoint_seq, backward_blocks, reused_blocks,
       swap_blocks, correctionBlocks, controlBlocks_mul]
@@ -1255,61 +1471,78 @@ private theorem suffix_blocks (operation : InPlaceTarget.Operation) (modulus : N
         Matrix.mul_assoc]
 
 /-- The matrix chain consists of the actual prefix, real framed reset and actual stored suffix. -/
-def actualOperator (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
+def actualOperator (interpretation : OracleModel.empty.Interpretation) (operation :
+  InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime modulus)
     (Reference : Register) (stored : Store (context modulus.size)) :
     HilbertOperator (Register.prod (context modulus.size).register Reference) :=
-  (nativeJoint modulus.size Reference
+  (nativeJoint interpretation modulus.size Reference
     (suffix operation modulus prime (stored.read (resultInput modulus.size))) :
     HilbertOperator (Register.prod (context modulus.size).register Reference)) *
-    framedResetOperator modulus.size Reference stored *
-    (nativeJoint modulus.size Reference (beforeReset operation modulus prime) :
+    framedResetOperator interpretation modulus.size Reference stored *
+    (nativeJoint interpretation modulus.size Reference (beforeReset operation modulus prime) :
       HilbertOperator (Register.prod (context modulus.size).register Reference))
 
-private theorem nativeCode_marginal (width : Nat) (Reference : Register)
+private lemma nativeCode_marginal (width : Nat) (Reference : Register)
     (program : NativeCircuit width)
     {History : Type} [Fintype History]
-    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History)) :
-    ((nativeCode width program).execute Reference state).quantumMarginal =
-      DensityOperator.applyUnitary (nativeJoint width Reference program) state.quantumMarginal :=
-  Circuit.unitary_jointDensity (runtimeProgram width program) state
+    (state : State (context width) Reference (ClassicalOracleModel.empty.HiddenState × History))
+    (allowAllocation : Bool := true) :
+    ((nativeCode width program allowAllocation).execute environment Reference
+      state).quantumMarginal =
+      DensityOperator.applyUnitary (nativeJoint environment.quantum width Reference program)
+        state.quantumMarginal :=
+  Circuit.unitary_jointDensity environment (allowAllocation := allowAllocation) (runtimeProgram
+    width program)
+    state
 
 /-- Every complete stored block is derived from the actual Circuit interpreter in its emitted
 order. -/
-theorem body_matrix (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime
+lemma body_matrix (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime
     modulus)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context
-      modulus.size)) :
-    (((body operation modulus prime).execute Reference state).filterClassical
+      modulus.size))
+    (allowAllocation : Bool := true) :
+    (((body operation modulus prime allowAllocation).execute environment Reference
+      state).filterClassical
       (fun entry => entry.1 = stored)).quantumMarginal.matrix =
-      actualOperator operation modulus prime Reference stored * state.quantumMarginal.matrix *
-        (actualOperator operation modulus prime Reference stored).conjTranspose := by
-  let prefixCode := nativeCode modulus.size (beforeReset operation modulus prime)
-  let measured := reset modulus.size
-  let selected := selectedSuffix operation modulus prime
-  have first := Circuit.seq_store_marginal prefixCode (.seq measured selected) state stored
+      actualOperator environment.quantum operation modulus prime Reference stored *
+        state.quantumMarginal.matrix *
+        (actualOperator environment.quantum operation modulus prime Reference
+          stored).conjTranspose := by
+  let prefixCode := nativeCode modulus.size (beforeReset operation modulus prime) allowAllocation
+  let measured := reset modulus.size allowAllocation
+  let selected := selectedSuffix operation modulus prime allowAllocation
+  have first := Circuit.seq_store_marginal prefixCode (.seq measured selected) environment state
+    stored
   refine (congrArg DensityOperator.matrix first).trans ?_
-  have second := Circuit.seq_store_marginal measured selected
-    (prefixCode.execute Reference state) stored
+  have second := Circuit.seq_store_marginal measured selected environment
+    (prefixCode.execute environment Reference state) stored
   refine (congrArg DensityOperator.matrix second).trans ?_
-  refine (Circuit.selectedUnitary_store_matrix (resultInput modulus.size)
-    (fun value => runtimeProgram modulus.size (suffix operation modulus prime value))
-    (measured.execute Reference (prefixCode.execute Reference state)) stored).trans ?_
+  refine (Circuit.selectedUnitary_store_matrix (allowAllocation := allowAllocation) (resultInput
+    modulus.size)
+    (fun value => runtimeProgram modulus.size (suffix operation modulus prime value)) environment
+    (measured.execute environment Reference (prefixCode.execute environment Reference state))
+      stored).trans ?_
   dsimp only [measured, prefixCode]
-  have measuredBlock := reset_matrix modulus.size
-    ((nativeCode modulus.size (beforeReset operation modulus prime)).execute Reference state)
+  have measuredBlock := reset_matrix (environment := environment) (allowAllocation :=
+    allowAllocation) modulus.size
+    ((nativeCode modulus.size (beforeReset operation modulus prime) allowAllocation).execute
+      environment Reference state)
     stored
   rw [DensityOperator.applyUnitary_matrix]
-  erw [measuredBlock, nativeCode_marginal, DensityOperator.applyUnitary_matrix]
+  erw [measuredBlock, nativeCode_marginal (allowAllocation := allowAllocation),
+    DensityOperator.applyUnitary_matrix]
   simp only [actualOperator, nativeJoint, Matrix.conjTranspose_mul, Matrix.mul_assoc]
 
 /-- Actual matrix composition identifies both coherent sectors with the already proved column
 chains. -/
-theorem actualOperator_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
+lemma actualOperator_blocks (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register) (stored : Store (context modulus.size)) :
-    actualOperator operation modulus prime Reference stored =
-      branchOperator operation modulus prime Reference (storeCoordinates modulus.size stored) := by
+    actualOperator environment.quantum operation modulus prime Reference stored =
+      branchOperator environment.quantum operation modulus prime Reference (storeCoordinates
+        modulus.size stored) := by
   have storedRead : stored.read (resultInput modulus.size) =
       (storeCoordinates modulus.size stored).read (NumeratorMeasurement.input modulus.size) :=
     resultInput_read modulus.size stored
@@ -1325,27 +1558,30 @@ theorem actualOperator_blocks (operation : InPlaceTarget.Operation) (modulus : N
       InPlaceDivisionConjugation.native, InPlaceMultiplicationConjugation.native, Matrix.mul_assoc]
   · simp only [if_neg active, inactiveOperator]
 
-private theorem coefficient_normalized (width : Nat) :
+private lemma coefficient_normalized (width : Nat) :
     (Fintype.card (Store (context width)) : ℂ) *
       (WalshHadamard.invSqrtCard width * star (WalshHadamard.invSqrtCard width)) = 1 := by
   rw [Fintype.card_congr (storeCoordinates width)]
   exact NumeratorBranchSum.coefficient_normalized width
 
 /-- The actual body preserves arbitrary mixed and entangled control/reference coherences. -/
-theorem body_density (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime
+lemma body_density (operation : InPlaceTarget.Operation) (modulus : Nat) (prime : Nat.Prime
     modulus)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ original : (Register.prod (context modulus.size).register Reference).Index,
-      ¬admissible modulus original.1 → state.quantumMarginal.matrix original original = 0) :
-    ((body operation modulus prime).execute Reference state).quantumMarginal =
+      ¬admissible modulus original.1 → state.quantumMarginal.matrix original original = 0)
+    (allowAllocation : Bool := true) :
+    ((body operation modulus prime allowAllocation).execute environment Reference
+      state).quantumMarginal =
       DensityOperator.applyUnitary (target operation modulus prime Reference)
         state.quantumMarginal := by
   apply DensityOperator.ext
   apply full_matrix_of_stored_columns state.quantumMarginal _
     (fun original => admissible modulus original.1) (target operation modulus prime Reference)
-    (actualOperator operation modulus prime Reference) (WalshHadamard.invSqrtCard modulus.size)
+    (actualOperator environment.quantum operation modulus prime Reference)
+      (WalshHadamard.invSqrtCard modulus.size)
     (coefficient_normalized modulus.size) support
   · intro stored original allowed row
     obtain ⟨original, reference⟩ := original
@@ -1354,7 +1590,7 @@ theorem body_density (operation : InPlaceTarget.Operation) (modulus : Nat) (prim
     exact prepared_column operation modulus prime control value numerator domain
       (storeCoordinates modulus.size stored) reference row
   · intro stored
-    exact body_matrix operation modulus prime state stored
+    exact body_matrix (allowAllocation := allowAllocation) operation modulus prime state stored
 
 end
 

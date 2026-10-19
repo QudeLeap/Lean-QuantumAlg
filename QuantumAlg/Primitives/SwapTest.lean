@@ -8,3 +8,4 @@ module
 
 public import QuantumAlg.Primitives.SwapTest.Basic
 public import QuantumAlg.Primitives.SwapTest.Endpoint
+public import QuantumAlg.Primitives.SwapTest.Endpoint.Results

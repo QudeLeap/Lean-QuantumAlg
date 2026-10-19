@@ -51,7 +51,7 @@ def step (state : State) : State := ⟨2 * state.scale, state.places + 1⟩
 def rewind (state : State) : State := ⟨state.scale / 2, state.places - 1⟩
 
 /-- Each actual alignment shift preserves enough state for its exact inverse. -/
-theorem rewind_step (state : State) : rewind (step state) = state := by
+lemma rewind_step (state : State) : rewind (step state) = state := by
   apply State.ext
   · exact Nat.mul_div_right state.scale (by decide : 0 < 2)
   · change (state.places + 1) - 1 = state.places
@@ -70,7 +70,7 @@ def rewindRun : Nat → State → State
   | count + 1, state => rewind (rewindRun count state)
 
 /-- The scale and source length coordinate remain related by their exact power of two. -/
-theorem run_scale (dividend divisor fuel : Nat) (state : State)
+lemma run_scale (dividend divisor fuel : Nat) (state : State)
     (consistent : state.scale = 2 ^ state.places) :
     (run dividend divisor fuel state).scale = 2 ^ (run dividend divisor fuel state).places := by
   induction fuel generalizing state with
@@ -85,7 +85,7 @@ theorem run_scale (dividend divisor fuel : Nat) (state : State)
       omega
 
 /-- The retained counter measures actual shifts and never exceeds the supplied fuel. -/
-theorem run_places (dividend divisor fuel : Nat) (state : State) :
+lemma run_places (dividend divisor fuel : Nat) (state : State) :
     state.places ≤ (run dividend divisor fuel state).places ∧
       (run dividend divisor fuel state).places ≤ state.places + fuel := by
   induction fuel generalizing state with
@@ -101,7 +101,7 @@ theorem run_places (dividend divisor fuel : Nat) (state : State) :
       omega
 
 /-- Adequate independent doubling fuel guarantees the actual strict stopping comparison. -/
-theorem run_stops (dividend divisor fuel : Nat) (state : State)
+lemma run_stops (dividend divisor fuel : Nat) (state : State)
     (enough : dividend < 2 ^ fuel * state.scale * divisor) :
     dividend < (run dividend divisor fuel state).scale * divisor := by
   induction fuel generalizing state with
@@ -117,7 +117,7 @@ theorem run_stops (dividend divisor fuel : Nat) (state : State)
         _ = _ := by rw [Nat.pow_succ]; ring
 
 /-- Every performed doubling was required by the preceding source comparison. -/
-theorem run_previous_fits (dividend divisor fuel : Nat) (state : State)
+lemma run_previous_fits (dividend divisor fuel : Nat) (state : State)
     (previous : state.places = 0 ∨ state.scale / 2 * divisor ≤ dividend) :
     (run dividend divisor fuel state).places = 0 ∨
       (run dividend divisor fuel state).scale / 2 * divisor ≤ dividend := by
@@ -134,7 +134,7 @@ theorem run_previous_fits (dividend divisor fuel : Nat) (state : State)
       omega
 
 /-- The actual counter displacement reverses exactly the shifts that were performed. -/
-theorem rewindRun_run (dividend divisor fuel : Nat) (state : State) :
+lemma rewindRun_run (dividend divisor fuel : Nat) (state : State) :
     rewindRun ((run dividend divisor fuel state).places - state.places)
       (run dividend divisor fuel state) = state := by
   induction fuel generalizing state with
@@ -160,12 +160,12 @@ def align (dividend divisor : Nat) : State :=
   run dividend divisor dividend.size initial
 
 /-- Actual first-phase output has the exact power-of-two scale recorded by its counter. -/
-theorem align_scale (dividend divisor : Nat) :
+lemma align_scale (dividend divisor : Nat) :
     (align dividend divisor).scale = 2 ^ (align dividend divisor).places :=
   run_scale dividend divisor dividend.size initial rfl
 
 /-- A positive divisor suffices for the actual source alignment loop to stop. -/
-theorem align_stops (dividend divisor : Nat) (positive : 0 < divisor) :
+lemma align_stops (dividend divisor : Nat) (positive : 0 < divisor) :
     dividend < (align dividend divisor).scale * divisor := by
   change dividend < (run dividend divisor dividend.size initial).scale * divisor
   apply run_stops
@@ -176,27 +176,27 @@ theorem align_stops (dividend divisor : Nat) (positive : 0 < divisor) :
     _ = _ := by rw [Nat.mul_one]
 
 /-- The actual first phase performs at most the dividend bit length many shifts. -/
-theorem align_places_le (dividend divisor : Nat) :
+lemma align_places_le (dividend divisor : Nat) :
     (align dividend divisor).places ≤ dividend.size := by
   unfold align
   simpa only [initial, Nat.zero_add] using
     (run_places dividend divisor dividend.size initial).2
 
 /-- Unless no shift was needed, the immediately preceding scale still fit the dividend. -/
-theorem align_previous_fits (dividend divisor : Nat) :
+lemma align_previous_fits (dividend divisor : Nat) :
     (align dividend divisor).places = 0 ∨
       (align dividend divisor).scale / 2 * divisor ≤ dividend :=
   run_previous_fits dividend divisor dividend.size initial (Or.inl rfl)
 
 /-- The actual retained shift counter reverses the complete first-phase alignment. -/
-theorem align_reversible (dividend divisor : Nat) :
+lemma align_reversible (dividend divisor : Nat) :
     rewindRun (align dividend divisor).places (align dividend divisor) = initial := by
   unfold align
   simpa only [initial, Nat.sub_zero] using
     rewindRun_run dividend divisor dividend.size initial
 
 /-- The quotient bit length is a proved description of the actual alignment count. -/
-theorem align_places_eq_quotient_size (dividend divisor : Nat) (positive : 0 < divisor) :
+lemma align_places_eq_quotient_size (dividend divisor : Nat) (positive : 0 < divisor) :
     (align dividend divisor).places = (dividend / divisor).size := by
   have scale := align_scale dividend divisor
   have upper := align_stops dividend divisor positive
@@ -235,19 +235,19 @@ def divide (dividend divisor : Nat) : DivisionPhase.State :=
   DivisionPhase.divide divisor dividend aligned.scale aligned.places
 
 /-- Actual alignment eliminates the internal entry conditions of quotient extraction. -/
-theorem divide_quotient (dividend divisor : Nat) (positive : 0 < divisor) :
+lemma divide_quotient (dividend divisor : Nat) (positive : 0 < divisor) :
     (divide dividend divisor).quotientPrefix = dividend / divisor :=
   DivisionPhase.divide_quotient divisor dividend _ _
     (align_scale dividend divisor) (align_stops dividend divisor positive)
 
 /-- The actual first two phases produce the ordinary Euclidean remainder. -/
-theorem divide_remainder (dividend divisor : Nat) (positive : 0 < divisor) :
+lemma divide_remainder (dividend divisor : Nat) (positive : 0 < divisor) :
     (divide dividend divisor).remainder = dividend % divisor :=
   DivisionPhase.divide_remainder divisor dividend _ _
     (align_scale dividend divisor) (align_stops dividend divisor positive)
 
 /-- The actual first three arithmetic phases agree with the complete EEA macro coordinates. -/
-theorem division_coefficient_coordinates (state : IterationState) (active : 0 < state.divisor) :
+lemma division_coefficient_coordinates (state : IterationState) (active : 0 < state.divisor) :
     (divide state.remainder state.divisor).remainder = (IterationState.step state).divisor ∧
       (CoefficientPhase.finish state.coefficient
         (DivisionPhase.coefficientStart state (divide state.remainder state.divisor))).value =
@@ -256,7 +256,7 @@ theorem division_coefficient_coordinates (state : IterationState) (active : 0 < 
     (align_scale state.remainder state.divisor) (align_stops state.remainder state.divisor active)
 
 /-- The original positive-residue domain reaches the actual macro result after folding. -/
-theorem folded_coordinates (modulus input : Nat)
+lemma folded_coordinates (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     let state := IterationState.initial modulus (foldInput modulus input).2
     (divide state.remainder state.divisor).remainder = (IterationState.step state).divisor ∧
@@ -267,7 +267,7 @@ theorem folded_coordinates (modulus input : Nat)
     (foldInput_positive_half modulus input positive bounded).1
 
 /-- The smallest input actually doubles twice before the equality-boundary division step. -/
-theorem smallest_input_alignment :
+lemma smallest_input_alignment :
     align 2 1 = ⟨4, 2⟩ ∧ divide 2 1 = ⟨0, 2, 1, 2⟩ ∧
       align 0 1 = ⟨1, 0⟩ := by
   decide

@@ -24,7 +24,7 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Only initialization or one complete addition has an active internal scope at a time. -/
@@ -32,7 +32,7 @@ def scalarScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.max (((Add.Native.infinityShapes width).map SpacePool.ofShape).sum)
     (Add.Native.additionScratchSpace kind width)
 
-private theorem scalarBitArm_resident_le (spec : CurveSpec width)
+private lemma scalarBitArm_resident_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).peakResidentSpace path ≤
@@ -45,7 +45,7 @@ private theorem scalarBitArm_resident_le (spec : CurveSpec width)
         exact fun axis => Nat.le_add_left _ _
       · exact Add.Native.addInto_resident_le spec _ point accumulator path
 
-private theorem scalarSlot_resident_le (spec : CurveSpec width)
+private lemma scalarSlot_resident_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (path : (scalarSlot spec bits point accumulator index).Path) :
@@ -59,7 +59,7 @@ private theorem scalarSlot_resident_le (spec : CurveSpec width)
     (scalarBitArm_resident_le spec point accumulator path.2.1 path.2.2)
 
 /-- Every actual scalar scope is covered with the entire original resident context. -/
-theorem scalarInto_resident_le (spec : CurveSpec width)
+lemma scalarInto_resident_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :
@@ -76,7 +76,7 @@ theorem scalarInto_resident_le (spec : CurveSpec width)
       path.2).trans (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The real retained point remains charged alongside the complete resident scope allowance. -/
-theorem scalarRetained_resident_le (spec : CurveSpec width)
+lemma scalarRetained_resident_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (scalarRetained spec bits point key fresh).Path) :
@@ -104,7 +104,7 @@ theorem scalarRetained_resident_le (spec : CurveSpec width)
       (scalarInto_resident_le spec _ _ _ path.2)
   simpa only [RuntimeCtx.residentSpace_addRetained, add_assoc] using budget
 
-private theorem scalarBitArm_auxiliary_le (spec : CurveSpec width)
+private lemma scalarBitArm_auxiliary_le (spec : CurveSpec width)
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (value : CShape.Value .bit) (path : (scalarBitArm spec point accumulator value).Path) :
     (scalarBitArm spec point accumulator value).peakAuxiliarySpace path ≤
@@ -117,7 +117,7 @@ private theorem scalarBitArm_auxiliary_le (spec : CurveSpec width)
         exact fun axis => Nat.le_add_left _ _
       · exact Add.Native.addInto_auxiliary_le spec _ point accumulator path
 
-private theorem scalarSlot_auxiliary_le (spec : CurveSpec width)
+private lemma scalarSlot_auxiliary_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (index : Fin scalarWidth) (path : (scalarSlot spec bits point accumulator index).Path) :
@@ -131,7 +131,7 @@ private theorem scalarSlot_auxiliary_le (spec : CurveSpec width)
     (scalarBitArm_auxiliary_le spec point accumulator path.2.1 path.2.2)
 
 /-- Every actual scalar scope is covered with the entire original auxiliary context. -/
-theorem scalarInto_auxiliary_le (spec : CurveSpec width)
+lemma scalarInto_auxiliary_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (accumulator : CWriteRef ctx (PointShape width))
     (path : (scalarInto spec bits point accumulator).Path) :
@@ -148,7 +148,7 @@ theorem scalarInto_auxiliary_le (spec : CurveSpec width)
       path.2).trans (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The real retained point remains charged alongside the complete auxiliary scope allowance. -/
-theorem scalarRetained_auxiliary_le (spec : CurveSpec width)
+lemma scalarRetained_auxiliary_le (spec : CurveSpec width)
     (bits : CInputRef ctx (.fixedVector scalarWidth .bit))
     (point : CInputRef ctx (PointShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (scalarRetained spec bits point key fresh).Path) :

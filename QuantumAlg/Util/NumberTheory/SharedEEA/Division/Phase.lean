@@ -64,7 +64,7 @@ def rewind (divisor : Nat) (state : State) : State :=
     state.quotientPrefix / 2, 2 * state.scale, state.written - 1⟩
 
 /-- The lowest written quotient digit is exactly the source's weak subtraction comparison. -/
-theorem step_digit (divisor : Nat) (state : State) :
+lemma step_digit (divisor : Nat) (state : State) :
     (step divisor state).quotientPrefix % 2 =
       if state.scale / 2 * divisor ≤ state.remainder then 1 else 0 := by
   change (2 * state.quotientPrefix +
@@ -76,7 +76,7 @@ theorem step_digit (divisor : Nat) (state : State) :
     omega
 
 /-- The coefficient phase will read precisely the actual bit written by this subtraction. -/
-theorem step_lowBit (divisor : Nat) (state : State) :
+lemma step_lowBit (divisor : Nat) (state : State) :
     CoefficientPhase.lowBit (step divisor state).quotientPrefix =
       decide (state.scale / 2 * divisor ≤ state.remainder) := by
   unfold CoefficientPhase.lowBit
@@ -84,7 +84,7 @@ theorem step_lowBit (divisor : Nat) (state : State) :
   by_cases subtract : state.scale / 2 * divisor ≤ state.remainder <;> simp [subtract]
 
 /-- Removing the written bit recovers the exact old quotient prefix. -/
-theorem step_prefix_div (divisor : Nat) (state : State) :
+lemma step_prefix_div (divisor : Nat) (state : State) :
     (step divisor state).quotientPrefix / 2 = state.quotientPrefix := by
   change (2 * state.quotientPrefix +
     (if state.scale / 2 * divisor ≤ state.remainder then 1 else 0)) / 2 = _
@@ -95,7 +95,7 @@ theorem step_prefix_div (divisor : Nat) (state : State) :
     omega
 
 /-- The actual phase-two step has a left inverse whenever its scale admits the right shift. -/
-theorem rewind_step (divisor : Nat) (state : State)
+lemma rewind_step (divisor : Nat) (state : State)
     (evenScale : 2 * (state.scale / 2) = state.scale) :
     rewind divisor (step divisor state) = state := by
   apply State.ext
@@ -116,7 +116,7 @@ theorem rewind_step (divisor : Nat) (state : State)
     omega
 
 /-- No valid source microstates are merged by quotient-bit extraction. -/
-theorem step_injective {divisor : Nat} {left right : State}
+lemma step_injective {divisor : Nat} {left right : State}
     (leftEven : 2 * (left.scale / 2) = left.scale)
     (rightEven : 2 * (right.scale / 2) = right.scale)
     (same : step divisor left = step divisor right) : left = right := by
@@ -130,7 +130,7 @@ def total (divisor : Nat) (state : State) : Nat :=
   state.remainder + state.quotientPrefix * state.scale * divisor
 
 /-- Conditional subtraction and actual quotient-bit writing conserve the exact dividend. -/
-theorem step_total (divisor : Nat) (state : State)
+lemma step_total (divisor : Nat) (state : State)
     (evenScale : 2 * (state.scale / 2) = state.scale) :
     total divisor (step divisor state) = total divisor state := by
   by_cases subtract : state.scale / 2 * divisor ≤ state.remainder
@@ -157,7 +157,7 @@ def Below (divisor : Nat) (state : State) : Prop :=
   state.remainder < state.scale * divisor
 
 /-- The weak comparison produces the strict remainder bound at the next binary place. -/
-theorem step_below (divisor : Nat) (state : State)
+lemma step_below (divisor : Nat) (state : State)
     (evenScale : 2 * (state.scale / 2) = state.scale) (below : Below divisor state) :
     Below divisor (step divisor state) := by
   have previousBound : state.remainder < 2 * (state.scale / 2 * divisor) := by
@@ -175,14 +175,14 @@ theorem step_below (divisor : Nat) (state : State)
   · simp only [if_neg subtract]
     omega
 
-private theorem power_scale_shift (divisor places : Nat) (state : State)
+private lemma power_scale_shift (divisor places : Nat) (state : State)
     (scale : state.scale = 2 ^ (places + 1)) :
     (step divisor state).scale = 2 ^ places := by
   change state.scale / 2 = 2 ^ places
   rw [scale, Nat.pow_succ]
   exact Nat.mul_div_left _ (by decide : 0 < 2)
 
-private theorem power_scale_even (places : Nat) (state : State)
+private lemma power_scale_even (places : Nat) (state : State)
     (scale : state.scale = 2 ^ (places + 1)) :
     2 * (state.scale / 2) = state.scale := by
   rw [scale, Nat.pow_succ, Nat.mul_div_left _ (by decide : 0 < 2)]
@@ -199,7 +199,7 @@ def rewindRun (divisor : Nat) : Nat → State → State
   | count + 1, state => rewind divisor (rewindRun divisor count state)
 
 /-- The complete phase's final scale is one, after exactly its actual alignment count. -/
-theorem run_scale (divisor places : Nat) (state : State) (scale : state.scale = 2 ^ places) :
+lemma run_scale (divisor places : Nat) (state : State) (scale : state.scale = 2 ^ places) :
     (run divisor places state).scale = 1 := by
   induction places generalizing state with
   | zero => simpa only [run, Nat.pow_zero] using scale
@@ -207,7 +207,7 @@ theorem run_scale (divisor places : Nat) (state : State) (scale : state.scale = 
     exact inductionHypothesis (step divisor state) (power_scale_shift divisor places state scale)
 
 /-- The actual quotient-length coordinate records every performed microstep. -/
-theorem run_written (divisor places : Nat) (state : State) :
+lemma run_written (divisor places : Nat) (state : State) :
     (run divisor places state).written = state.written + places := by
   induction places generalizing state with
   | zero => simp [run]
@@ -218,7 +218,7 @@ theorem run_written (divisor places : Nat) (state : State) :
     omega
 
 /-- All actual division steps preserve the original dividend. -/
-theorem run_total (divisor places : Nat) (state : State) (scale : state.scale = 2 ^ places) :
+lemma run_total (divisor places : Nat) (state : State) (scale : state.scale = 2 ^ places) :
     total divisor (run divisor places state) = total divisor state := by
   induction places generalizing state with
   | zero => rfl
@@ -228,7 +228,7 @@ theorem run_total (divisor places : Nat) (state : State) (scale : state.scale = 
         (step_total divisor state (power_scale_even places state scale))
 
 /-- The phase's final remainder satisfies the ordinary Euclidean remainder range. -/
-theorem run_below (divisor places : Nat) (state : State)
+lemma run_below (divisor places : Nat) (state : State)
     (scale : state.scale = 2 ^ places) (below : Below divisor state) :
     Below divisor (run divisor places state) := by
   induction places generalizing state with
@@ -238,7 +238,7 @@ theorem run_below (divisor places : Nat) (state : State)
       (step_below divisor state (power_scale_even places state scale) below)
 
 /-- The entire actual phase has a left inverse, without discarding its quotient or lengths. -/
-theorem rewindRun_run (divisor places : Nat) (state : State)
+lemma rewindRun_run (divisor places : Nat) (state : State)
     (scale : state.scale = 2 ^ places) :
     rewindRun divisor places (run divisor places state) = state := by
   induction places generalizing state with
@@ -257,7 +257,7 @@ def divide (divisor dividend scale places : Nat) : State :=
   run divisor places (start dividend scale)
 
 /-- Final division data satisfy the exact dividend decomposition and remainder bound. -/
-theorem divide_spec (divisor dividend scale places : Nat)
+lemma divide_spec (divisor dividend scale places : Nat)
     (aligned : scale = 2 ^ places) (upper : dividend < scale * divisor) :
     (divide divisor dividend scale places).remainder +
         (divide divisor dividend scale places).quotientPrefix * divisor = dividend ∧
@@ -276,7 +276,7 @@ theorem divide_spec (divisor dividend scale places : Nat)
     And.intro conserved finalBound
 
 /-- The actual written prefix is exactly the Euclidean quotient. -/
-theorem divide_quotient (divisor dividend scale places : Nat)
+lemma divide_quotient (divisor dividend scale places : Nat)
     (aligned : scale = 2 ^ places) (upper : dividend < scale * divisor) :
     (divide divisor dividend scale places).quotientPrefix = dividend / divisor := by
   obtain ⟨decomposition, remainderBound⟩ := divide_spec divisor dividend scale places aligned upper
@@ -291,7 +291,7 @@ theorem divide_quotient (divisor dividend scale places : Nat)
       _ = ((divide divisor dividend scale places).quotientPrefix + 1) * divisor := by ring
 
 /-- The conditionally subtracted result is exactly the Euclidean remainder. -/
-theorem divide_remainder (divisor dividend scale places : Nat)
+lemma divide_remainder (divisor dividend scale places : Nat)
     (aligned : scale = 2 ^ places) (upper : dividend < scale * divisor) :
     (divide divisor dividend scale places).remainder = dividend % divisor := by
   obtain ⟨decomposition, remainderBound⟩ := divide_spec divisor dividend scale places aligned upper
@@ -302,7 +302,7 @@ theorem divide_remainder (divisor dividend scale places : Nat)
     _ = dividend % divisor := congrArg (fun value : Nat => value % divisor) decomposition
 
 /-- The source's written-bit length retains the exact count needed to reverse the whole phase. -/
-theorem divide_reversible (divisor dividend scale places : Nat) (aligned : scale = 2 ^ places) :
+lemma divide_reversible (divisor dividend scale places : Nat) (aligned : scale = 2 ^ places) :
     rewindRun divisor (divide divisor dividend scale places).written
         (divide divisor dividend scale places) = start dividend scale := by
   have written := run_written divisor places (start dividend scale)
@@ -315,7 +315,7 @@ def coefficientStart (state : IterationState) (division : State) : CoefficientPh
   ⟨state.previousCoefficient, division.quotientPrefix, 1⟩
 
 /-- The actual division output initializes exactly the coefficient phase of the same macro step. -/
-theorem coefficientStart_divide (state : IterationState) (scale places : Nat)
+lemma coefficientStart_divide (state : IterationState) (scale places : Nat)
     (aligned : scale = 2 ^ places) (upper : state.remainder < scale * state.divisor) :
     coefficientStart state (divide state.divisor state.remainder scale places) =
       CoefficientPhase.start state := by
@@ -325,7 +325,7 @@ theorem coefficientStart_divide (state : IterationState) (scale places : Nat)
   · rfl
 
 /-- Both complete actual arithmetic phases produce the two updated macro-step coordinates. -/
-theorem division_coefficient_coordinates (state : IterationState) (scale places : Nat)
+lemma division_coefficient_coordinates (state : IterationState) (scale places : Nat)
     (aligned : scale = 2 ^ places) (upper : state.remainder < scale * state.divisor) :
     let division := divide state.divisor state.remainder scale places
     division.remainder = (IterationState.step state).divisor ∧
@@ -337,7 +337,7 @@ theorem division_coefficient_coordinates (state : IterationState) (scale places 
     exact CoefficientPhase.finish_start_coefficient state
 
 /-- The smallest valid input writes the equality-boundary high bit, then the final zero bit. -/
-theorem smallest_input_two_microsteps :
+lemma smallest_input_two_microsteps :
     step 1 (start 2 4) = ⟨0, 1, 2, 1⟩ ∧
       divide 1 2 4 2 = ⟨0, 2, 1, 2⟩ ∧
       coefficientStart (IterationState.initial 2 1) (divide 1 2 4 2) = ⟨0, 2, 1⟩ := by

@@ -42,41 +42,41 @@ def reciprocalConj (z : ℂ) : ℂ :=
   (starRingEnd ℂ z)⁻¹
 
 /-- The inverse-conjugate map preserves nonzero roots. -/
-theorem reciprocalConj_ne_zero {z : ℂ} (hz : z ≠ 0) :
+lemma reciprocalConj_ne_zero {z : ℂ} (hz : z ≠ 0) :
     reciprocalConj z ≠ 0 := by
   exact inv_ne_zero (by simpa [star_ne_zero] using hz)
 
 /-- The inverse-conjugate map is an involution. -/
-theorem reciprocalConj_involutive (z : ℂ) :
+lemma reciprocalConj_involutive (z : ℂ) :
     reciprocalConj (reciprocalConj z) = z := by
   simp [reciprocalConj]
 
 /-- The inverse-conjugate map is injective. -/
-theorem reciprocalConj_injective : Function.Injective reciprocalConj := by
+lemma reciprocalConj_injective : Function.Injective reciprocalConj := by
   intro z w h
   rw [← reciprocalConj_involutive z, h, reciprocalConj_involutive w]
 
 /-- The inverse-conjugate map inverts the squared norm. -/
-theorem normSq_reciprocalConj (z : ℂ) :
+lemma normSq_reciprocalConj (z : ℂ) :
     Complex.normSq (reciprocalConj z) = (Complex.normSq z)⁻¹ := by
   simp [reciprocalConj, Complex.normSq_conj]
 
 /-- Inverse-conjugation sends roots outside the unit circle inside it. -/
-theorem normSq_reciprocalConj_lt_one_of_one_lt_normSq {z : ℂ}
+lemma normSq_reciprocalConj_lt_one_of_one_lt_normSq {z : ℂ}
     (h : 1 < Complex.normSq z) :
     Complex.normSq (reciprocalConj z) < 1 := by
   rw [normSq_reciprocalConj]
   exact inv_lt_one_of_one_lt₀ h
 
 /-- Inverse-conjugation sends nonzero roots inside the unit circle outside it. -/
-theorem one_lt_normSq_reciprocalConj_of_normSq_lt_one {z : ℂ}
+lemma one_lt_normSq_reciprocalConj_of_normSq_lt_one {z : ℂ}
     (hz : z ≠ 0) (h : Complex.normSq z < 1) :
     1 < Complex.normSq (reciprocalConj z) := by
   rw [normSq_reciprocalConj]
   exact (one_lt_inv₀ (Complex.normSq_pos.mpr hz)).mpr h
 
 /-- Nonzero points fixed by inverse-conjugation lie on the unit circle. -/
-theorem normSq_eq_one_of_reciprocalConj_eq_self {z : ℂ} (hz : z ≠ 0)
+lemma normSq_eq_one_of_reciprocalConj_eq_self {z : ℂ} (hz : z ≠ 0)
     (h : reciprocalConj z = z) :
     Complex.normSq z = 1 := by
   have hnorm := congrArg Complex.normSq h
@@ -91,7 +91,7 @@ theorem normSq_eq_one_of_reciprocalConj_eq_self {z : ℂ} (hz : z ≠ 0)
   nlinarith [Complex.normSq_nonneg z]
 
 /-- Nonzero unit-circle points are fixed by inverse-conjugation. -/
-theorem reciprocalConj_eq_self_of_normSq_eq_one {z : ℂ}
+lemma reciprocalConj_eq_self_of_normSq_eq_one {z : ℂ}
     (h : Complex.normSq z = 1) :
     reciprocalConj z = z := by
   have hmul : starRingEnd ℂ z * z = 1 := by
@@ -103,7 +103,7 @@ theorem reciprocalConj_eq_self_of_normSq_eq_one {z : ℂ}
   exact inv_eq_of_mul_eq_one_right hmul
 
 /-- Off-unit-circle nonzero roots form distinct inverse-conjugate pairs. -/
-theorem reciprocalConj_ne_self_of_normSq_ne_one {z : ℂ} (hz : z ≠ 0)
+lemma reciprocalConj_ne_self_of_normSq_ne_one {z : ℂ} (hz : z ≠ 0)
     (hunit : Complex.normSq z ≠ 1) :
     reciprocalConj z ≠ z := by
   intro h
@@ -112,7 +112,7 @@ theorem reciprocalConj_ne_self_of_normSq_ne_one {z : ℂ} (hz : z ≠ 0)
 /-- Linear-factor form of Wang's identity
 `e^{ix/2} - ξ = -e^{ix/2}ξ(e^{-ix/2} - 1/ξ)`, written as a reflected
 polynomial identity [WZYW23, arxiv_v3.tex:2249-2251]. -/
-theorem reflect_X_sub_C_conj (z : ℂ) (hz : z ≠ 0) :
+lemma reflect_X_sub_C_conj (z : ℂ) (hz : z ≠ 0) :
     ((X : ℂ[X]) - C (starRingEnd ℂ z)).reflect 1 =
       C (-(starRingEnd ℂ z)) * (X - C (reciprocalConj z)) := by
   rw [Polynomial.reflect_sub, Polynomial.reflect_one_X, Polynomial.reflect_C]
@@ -130,7 +130,7 @@ the corresponding power of the inverse-conjugate root factor.  This is the
 multiplicity-level version of Wang's linear identity
 `e^{ix/2}-ξ = -e^{ix/2}ξ(e^{-ix/2}-1/ξ*)`
 [WZYW23, arxiv_v3.tex:2249-2251]. -/
-theorem reflect_conjP_X_sub_C_pow (z : ℂ) (m : ℕ) (hz0 : z ≠ 0) :
+lemma reflect_conjP_X_sub_C_pow (z : ℂ) (m : ℕ) (hz0 : z ≠ 0) :
     (conjP (((X : ℂ[X]) - C z) ^ m)).reflect m =
       C ((-(starRingEnd ℂ z)) ^ m) * ((X : ℂ[X]) - C (reciprocalConj z)) ^ m := by
   rw [conjP_pow]
@@ -166,7 +166,7 @@ theorem reflect_conjP_X_sub_C_pow (z : ℂ) (m : ℕ) (hz0 : z ≠ 0) :
 
 /-- Coefficient conjugation on a product of linear root factors conjugates the
 listed roots. -/
-theorem conjP_multiset_prod_X_sub_C (roots : Multiset ℂ) :
+lemma conjP_multiset_prod_X_sub_C (roots : Multiset ℂ) :
     conjP ((roots.map fun z => (X : ℂ[X]) - C z).prod) =
       (roots.map fun z => (X : ℂ[X]) - C (starRingEnd ℂ z)).prod := by
   induction roots using Multiset.induction_on with
@@ -181,7 +181,7 @@ theorem conjP_multiset_prod_X_sub_C (roots : Multiset ℂ) :
 multiset.  This is the product form of the step from
 `e^{ix/2}-ξ` to `e^{-ix/2}-1/ξ` in the Laurent-complement proof
 [WZYW23, arxiv_v3.tex:2249-2251]. -/
-theorem reflect_conjP_multiset_prod_X_sub_C (roots : Multiset ℂ)
+lemma reflect_conjP_multiset_prod_X_sub_C (roots : Multiset ℂ)
     (hroots0 : ∀ z ∈ roots, z ≠ 0) :
     (conjP ((roots.map fun z => (X : ℂ[X]) - C z).prod)).reflect roots.card =
       C ((roots.map fun z => -(starRingEnd ℂ z)).prod) *
@@ -213,7 +213,7 @@ theorem reflect_conjP_multiset_prod_X_sub_C (roots : Multiset ℂ)
       ring
 
 /-- Coefficient conjugation commutes with reflection. -/
-theorem conjP_reflect (F : ℂ[X]) (L : ℕ) :
+lemma conjP_reflect (F : ℂ[X]) (L : ℕ) :
     conjP (F.reflect L) = (conjP F).reflect L := by
   ext k
   simp [conjP_coeff, Polynomial.coeff_reflect]
@@ -242,7 +242,7 @@ def sourceRootProduct (scale : ℂ) (roots : Multiset ℂ) : ℂ[X] :=
   C scale * (roots.map fun z => X - C z).prod
 
 /-- Wang's selected-root product with unit source scale is nonzero. -/
-theorem sourceRootProduct_one_ne_zero (roots : Multiset ℂ) :
+lemma sourceRootProduct_one_ne_zero (roots : Multiset ℂ) :
     sourceRootProduct 1 roots ≠ 0 := by
   classical
   rw [sourceRootProduct]
@@ -256,7 +256,7 @@ theorem sourceRootProduct_one_ne_zero (roots : Multiset ℂ) :
 product.  This is the algebraic bookkeeping used when Wang's construction
 chooses one root from each nonzero reciprocal-conjugate pair and leaves zero
 roots as Laurent-budget padding [WZYW23, arxiv_v3.tex:2237-2257]. -/
-theorem sourceRootProduct_zero_nonzero_filter (scale : ℂ) (roots : Multiset ℂ) :
+lemma sourceRootProduct_zero_nonzero_filter (scale : ℂ) (roots : Multiset ℂ) :
     sourceRootProduct scale roots =
       X ^ roots.count 0 *
         sourceRootProduct scale (roots.filter fun z : ℂ => z ≠ 0) := by
@@ -302,7 +302,7 @@ theorem sourceRootProduct_zero_nonzero_filter (scale : ℂ) (roots : Multiset �
 
 /-- Root-product factorization with the zero-root padding expressed as root
 multiplicity. -/
-theorem sourceRootProduct_roots_zero_nonzero_filter (R : ℂ[X]) :
+lemma sourceRootProduct_roots_zero_nonzero_filter (R : ℂ[X]) :
     sourceRootProduct R.leadingCoeff R.roots =
       X ^ R.rootMultiplicity 0 *
         sourceRootProduct R.leadingCoeff (R.roots.filter fun z : ℂ => z ≠ 0) := by
@@ -310,7 +310,7 @@ theorem sourceRootProduct_roots_zero_nonzero_filter (R : ℂ[X]) :
 
 /-- The nonzero-root submultiset contains exactly the degree minus the
 zero-root multiplicity. -/
-theorem roots_filter_ne_zero_card (R : ℂ[X]) :
+lemma roots_filter_ne_zero_card (R : ℂ[X]) :
     (R.roots.filter fun z : ℂ => z ≠ 0).card =
       R.natDegree - R.rootMultiplicity 0 := by
   classical
@@ -339,7 +339,7 @@ theorem roots_filter_ne_zero_card (R : ℂ[X]) :
 over the selected roots and their reciprocal-conjugates.  This is the algebraic
 bridge from Wang's selected half of the roots to the Laurent square-root
 certificate [WZYW23, arxiv_v3.tex:2249-2257]. -/
-theorem normPolynomial_sourceRootProduct (scale : ℂ) (roots : Multiset ℂ)
+lemma normPolynomial_sourceRootProduct (scale : ℂ) (roots : Multiset ℂ)
     (hroots0 : ∀ z ∈ roots, z ≠ 0) :
     normPolynomial roots.card (sourceRootProduct scale roots) =
       sourceRootProduct
@@ -461,7 +461,7 @@ def HasComplement (L : ℕ) (A : ℂ[X]) : Prop :=
   Nonempty (Complement.Laurent.ComplementCertificate L A)
 
 /-- The zero target has a Laurent complement. -/
-theorem hasComplement_zero (L : ℕ) :
+lemma hasComplement_zero (L : ℕ) :
     HasComplement L (0 : ℂ[X]) :=
   ⟨Complement.Laurent.ComplementCertificate.ofZeroTarget L⟩
 
@@ -472,7 +472,7 @@ abbrev HasComplement (L : ℕ) (A : ℂ[X]) : Prop :=
   Witness.HasComplement L A
 
 /-- Compatibility name for the staged zero-target Laurent complement witness. -/
-theorem hasComplement_zero (L : ℕ) :
+lemma hasComplement_zero (L : ℕ) :
     HasComplement L (0 : ℂ[X]) :=
   Witness.hasComplement_zero L
 
@@ -485,7 +485,7 @@ abbrev BoundedComplementProblem :=
 
 /-- Extract one point on each side of a real point from a neighborhood
 eventuality. -/
-theorem exists_left_right_of_eventually_nhds' {s : ℝ} {p : ℝ → Prop}
+lemma exists_left_right_of_eventually_nhds' {s : ℝ} {p : ℝ → Prop}
     (hp : ∀ᶠ x in nhds s, p x) :
     ∃ x y, x < s ∧ s < y ∧ p x ∧ p y := by
   rcases Metric.eventually_nhds_iff.mp hp with ⟨ε, hε, hball⟩
@@ -515,7 +515,7 @@ theorem exists_left_right_of_eventually_nhds' {s : ℝ} {p : ℝ → Prop}
 isolated zero in a local factorization.  This is the real-analysis core of the
 unit-circle root multiplicity step in Wang's Laurent-complement proof
 [WZYW23, arxiv_v3.tex:2241-2257]. -/
-theorem even_of_eventually_nonnegative_local_pow {s : ℝ} {m : ℕ}
+lemma even_of_eventually_nonnegative_local_pow {s : ℝ} {m : ℕ}
     {f q : ℝ → ℝ}
     (hnonneg : ∀ᶠ t in nhds s, 0 ≤ f t)
     (hfactor : ∀ᶠ t in nhds s, f t = (t - s) ^ m * q t)
@@ -565,7 +565,7 @@ When a complex local factorization is real-valued near the root and its real
 part is nonnegative, the order is even.  This matches the local shape of
 Wang's unit-circle residual after parametrizing the circle
 [WZYW23, arxiv_v3.tex:2241-2257]. -/
-theorem even_of_eventually_nonnegative_local_complex_pow {s : ℝ} {m : ℕ}
+lemma even_of_eventually_nonnegative_local_complex_pow {s : ℝ} {m : ℕ}
     {f q : ℝ → ℂ}
     (hnonneg : ∀ᶠ t in nhds s, 0 ≤ (f t).re)
     (hfactor :
@@ -592,7 +592,7 @@ the needed real-valuedness of the local factor from the fact that the product
 `f` is real-valued near the root.  This is the local analytic step behind the
 unit-circle root multiplicity argument in Wang's Laurent-complement proof
 [WZYW23, arxiv_v3.tex:2241-2257]. -/
-theorem even_of_eventually_nonnegative_realvalued_local_complex_pow {s : ℝ} {m : ℕ}
+lemma even_of_eventually_nonnegative_realvalued_local_complex_pow {s : ℝ} {m : ℕ}
     {f q : ℝ → ℂ}
     (hnonneg : ∀ᶠ t in nhds s, 0 ≤ (f t).re)
     (hf_real : ∀ᶠ t in nhds s, (f t).im = 0)
@@ -662,7 +662,7 @@ noncomputable def circleParamSlope (s : ℝ) : ℝ → ℂ :=
 
 /-- Local factorization of the unit-circle parametrization:
 `exp(it)-exp(is)=(t-s)·circleParamSlope s t`. -/
-theorem circleParam_sub_eq (s t : ℝ) :
+lemma circleParam_sub_eq (s t : ℝ) :
     Complex.exp ((t : ℂ) * Complex.I) - Complex.exp ((s : ℂ) * Complex.I) =
       ((t - s : ℝ) : ℂ) * circleParamSlope s t := by
   have h :=
@@ -670,7 +670,7 @@ theorem circleParam_sub_eq (s t : ℝ) :
   simpa [circleParamSlope, smul_eq_mul, sub_eq_add_neg, mul_comm] using h.symm
 
 /-- The unit-circle parametrization is differentiable over `ℝ`. -/
-theorem differentiableAt_circleParam (s : ℝ) :
+lemma differentiableAt_circleParam (s : ℝ) :
     DifferentiableAt ℝ (fun t : ℝ => Complex.exp ((t : ℂ) * Complex.I)) s := by
   have hcast : HasDerivAt (fun t : ℝ => (t : ℂ)) (1 : ℂ) s := by
     simpa using (hasDerivAt_id s).ofReal_comp
@@ -679,14 +679,14 @@ theorem differentiableAt_circleParam (s : ℝ) :
   exact harg.cexp.differentiableAt
 
 /-- The local slope of `t ↦ exp(it)` is continuous at the base phase. -/
-theorem continuousAt_circleParamSlope (s : ℝ) :
+lemma continuousAt_circleParamSlope (s : ℝ) :
     ContinuousAt (circleParamSlope s) s := by
   exact (continuousAt_dslope_same (f := fun t : ℝ =>
     Complex.exp ((t : ℂ) * Complex.I)) (a := s)).2
       (differentiableAt_circleParam s)
 
 /-- The local unit-circle slope at the base phase is nonzero. -/
-theorem circleParamSlope_self_ne_zero (s : ℝ) :
+lemma circleParamSlope_self_ne_zero (s : ℝ) :
     circleParamSlope s s ≠ 0 := by
   have hcast : HasDerivAt (fun t : ℝ => (t : ℂ)) (1 : ℂ) s := by
     simpa using (hasDerivAt_id s).ofReal_comp
@@ -702,7 +702,7 @@ theorem circleParamSlope_self_ne_zero (s : ℝ) :
 
 /-- The Wang root-product square root has degree at most its selected root
 count. -/
-theorem sourceRootProduct_natDegree_le {L : ℕ} {scale : ℂ}
+lemma sourceRootProduct_natDegree_le {L : ℕ} {scale : ℂ}
     {roots : Multiset ℂ} (hroots : roots.card ≤ L) :
     (sourceRootProduct scale roots).natDegree ≤ L := by
   calc
@@ -717,7 +717,7 @@ theorem sourceRootProduct_natDegree_le {L : ℕ} {scale : ℂ}
 some unit-circle phase.  The proof samples the `L+1` roots of unity: otherwise
 they would all be ordinary polynomial roots, impossible for degree at most `L`.
 -/
-theorem exists_phase_lEval_ne_zero_of_natDegree_le {L : ℕ} {F : ℂ[X]}
+lemma exists_phase_lEval_ne_zero_of_natDegree_le {L : ℕ} {F : ℂ[X]}
     (hF0 : F ≠ 0) (hdegree : F.natDegree ≤ L) :
     ∃ x : ℝ, lEval L F x ≠ 0 := by
   classical
@@ -758,7 +758,7 @@ theorem exists_phase_lEval_ne_zero_of_natDegree_le {L : ℕ} {F : ℂ[X]}
 
 /-- The Wang selected-root product has a nonzero Laurent value at some
 unit-circle phase, provided it uses at most the available Laurent budget. -/
-theorem exists_phase_lEval_sourceRootProduct_ne_zero {L : ℕ}
+lemma exists_phase_lEval_sourceRootProduct_ne_zero {L : ℕ}
     {roots : Multiset ℂ} (hroots : roots.card ≤ L) :
     ∃ x : ℝ, lEval L (sourceRootProduct 1 roots) x ≠ 0 :=
   exists_phase_lEval_ne_zero_of_natDegree_le
@@ -772,7 +772,7 @@ budget, the remaining budget contributes the zero-root padding `X^(L-card)`.
 This is the algebraic form needed for the degenerate bounded cases in Wang's
 Laurent-complement proof, e.g. when the residual is a pure power of `X`
 [WZYW23, arxiv_v3.tex:2237-2274]. -/
-theorem normPolynomial_sourceRootProduct_budget (scale : ℂ) (roots : Multiset ℂ)
+lemma normPolynomial_sourceRootProduct_budget (scale : ℂ) (roots : Multiset ℂ)
     (hroots0 : ∀ z ∈ roots, z ≠ 0) {L : ℕ} (hcard : roots.card ≤ L) :
     normPolynomial L (sourceRootProduct scale roots) =
       X ^ (L - roots.card) *
@@ -890,7 +890,7 @@ def PaddedReciprocalConjRootSelection.ofSelectedRoots {L : ℕ} {R : ℂ[X]}
 /-- The full root-product factorization has exactly `natDegree R` root factors.
 This is the bookkeeping needed before selecting one root from each
 reciprocal-conjugate pair in Wang's proof [WZYW23, arxiv_v3.tex:2241-2248]. -/
-theorem fullRootProductFactorization_roots_card (R : ℂ[X]) :
+lemma fullRootProductFactorization_roots_card (R : ℂ[X]) :
     (fullRootProductFactorization R).roots.card = R.natDegree := by
   exact IsAlgClosed.card_roots_eq_natDegree (p := R)
 
@@ -901,14 +901,14 @@ def residualPolynomialFullRootProductFactorization (L : ℕ) (F : ℂ[X]) :
   fullRootProductFactorization (residualPolynomial L F)
 
 /-- Cardinality form specialized to the residual polynomial. -/
-theorem residualPolynomialFullRootProductFactorization_roots_card (L : ℕ)
+lemma residualPolynomialFullRootProductFactorization_roots_card (L : ℕ)
     (F : ℂ[X]) :
     (residualPolynomialFullRootProductFactorization L F).roots.card =
       (residualPolynomial L F).natDegree := by
   exact fullRootProductFactorization_roots_card (residualPolynomial L F)
 
 /-- `normPolynomial` evaluates to the squared absolute value of `lEval`. -/
-theorem lEval_normPolynomial {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
+lemma lEval_normPolynomial {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
     lEval (2 * L) (normPolynomial L F) x =
       lEval L F x * starRingEnd ℂ (lEval L F x) := by
   simpa [normPolynomial] using (lEval_mul_conj (L := L) (F := F) hF x).symm
@@ -916,7 +916,7 @@ theorem lEval_normPolynomial {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x 
 /-- `normPolynomial` is self-adjoint under coefficient conjugation and
 reflection.  This is the algebraic source of the reciprocal-conjugate root
 pairing in the Laurent complement proof [WZYW23, arxiv_v3.tex:2237-2274]. -/
-theorem normPolynomial_conjP_reflect {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
+lemma normPolynomial_conjP_reflect {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
     (conjP (normPolynomial L F)).reflect (2 * L) = normPolynomial L F := by
   have hFc : (conjP F).natDegree ≤ L :=
     le_trans Polynomial.natDegree_map_le hF
@@ -934,7 +934,7 @@ theorem normPolynomial_conjP_reflect {L : ℕ} {F : ℂ[X]} (hF : F.natDegree �
 /-- The residual `1-|F|²` is self-adjoint under coefficient conjugation and
 reflection, matching the root-pair symmetry used in Wang's Laurent-complement
 proof [WZYW23, arxiv_v3.tex:2237-2274]. -/
-theorem residualPolynomial_conjP_reflect {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
+lemma residualPolynomial_conjP_reflect {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
     (conjP (residualPolynomial L F)).reflect (2 * L) = residualPolynomial L F := by
   rw [residualPolynomial, conjP_sub, conjP_pow, conjP_X]
   rw [reflect_sub, normPolynomial_conjP_reflect hF]
@@ -946,7 +946,7 @@ theorem residualPolynomial_conjP_reflect {L : ℕ} {F : ℂ[X]} (hF : F.natDegre
   rw [hXmid]
 
 /-- The residual polynomial has degree at most its reflected Laurent budget. -/
-theorem residualPolynomial_natDegree_le {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
+lemma residualPolynomial_natDegree_le {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
     (residualPolynomial L F).natDegree ≤ 2 * L := by
   have hnormDegree : (normPolynomial L F).natDegree ≤ 2 * L := by
     have hFc : (conjP F).natDegree ≤ L :=
@@ -974,7 +974,7 @@ theorem residualPolynomial_natDegree_le {L : ℕ} {F : ℂ[X]} (hF : F.natDegree
 /-- A nonzero Laurent self-adjoint polynomial has exactly the zero-root padding
 forced by its reflected budget.  This is the bookkeeping behind the missing
 high-degree terms in Wang's root-product proof [WZYW23, arxiv_v3.tex:2241-2257]. -/
-theorem rootMultiplicity_zero_eq_budget_sub_natDegree_of_conjP_reflect
+lemma rootMultiplicity_zero_eq_budget_sub_natDegree_of_conjP_reflect
     {N : ℕ} {R : ℂ[X]} (hRdeg : R.natDegree ≤ N)
     (hself : (conjP R).reflect N = R) (hR0 : R ≠ 0) :
     R.rootMultiplicity 0 = N - R.natDegree := by
@@ -1008,7 +1008,7 @@ theorem rootMultiplicity_zero_eq_budget_sub_natDegree_of_conjP_reflect
 
 /-- The residual polynomial's zero-root multiplicity is exactly the reflected
 budget slack. -/
-theorem residualPolynomial_rootMultiplicity_zero_eq_budget_sub_natDegree
+lemma residualPolynomial_rootMultiplicity_zero_eq_budget_sub_natDegree
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
     (hres0 : residualPolynomial L F ≠ 0) :
     (residualPolynomial L F).rootMultiplicity 0 =
@@ -1019,7 +1019,7 @@ theorem residualPolynomial_rootMultiplicity_zero_eq_budget_sub_natDegree
 /-- Roots of a self-adjoint Laurent polynomial are closed under reciprocal
 conjugation.  This is the Lean form of Wang's inverse-conjugate root pairing
 for the residual polynomial [WZYW23, arxiv_v3.tex:2241-2248]. -/
-theorem eval_reciprocal_conj_eq_zero_of_conjP_reflect
+lemma eval_reciprocal_conj_eq_zero_of_conjP_reflect
     {N : ℕ} {R : ℂ[X]} (hR : R.natDegree ≤ N)
     (hself : (conjP R).reflect N = R) {z : ℂ}
     (hz0 : z ≠ 0) (hz : R.eval z = 0) :
@@ -1045,7 +1045,7 @@ theorem eval_reciprocal_conj_eq_zero_of_conjP_reflect
           rw [hz, map_zero, mul_zero]
 
 /-- Root-set form of `eval_reciprocal_conj_eq_zero_of_conjP_reflect`. -/
-theorem mem_roots_reciprocal_conj_of_conjP_reflect
+lemma mem_roots_reciprocal_conj_of_conjP_reflect
     {N : ℕ} {R : ℂ[X]} (hR : R.natDegree ≤ N)
     (hself : (conjP R).reflect N = R) (hR0 : R ≠ 0) {z : ℂ}
     (hz0 : z ≠ 0) (hz : z ∈ R.roots) :
@@ -1056,7 +1056,7 @@ theorem mem_roots_reciprocal_conj_of_conjP_reflect
 
 /-- Nonzero roots of a self-adjoint Laurent polynomial are equivalent under
 the inverse-conjugate pairing. -/
-theorem mem_roots_reciprocal_conj_iff_of_conjP_reflect
+lemma mem_roots_reciprocal_conj_iff_of_conjP_reflect
     {N : ℕ} {R : ℂ[X]} (hR : R.natDegree ≤ N)
     (hself : (conjP R).reflect N = R) (hR0 : R ≠ 0) {z : ℂ}
     (hz0 : z ≠ 0) :
@@ -1073,7 +1073,7 @@ theorem mem_roots_reciprocal_conj_iff_of_conjP_reflect
 inverse-conjugate root.  This is the multiplicity form of Wang's root-pairing
 identity `e^{ix/2}-ξ = -e^{ix/2}ξ(e^{-ix/2}-1/ξ*)`
 [WZYW23, arxiv_v3.tex:2249-2251]. -/
-theorem reflect_conjP_rootMultiplicity
+lemma reflect_conjP_rootMultiplicity
     {P : ℂ[X]} {N : ℕ} (hPdeg : P.natDegree ≤ N) (hP0 : P ≠ 0)
     {z : ℂ} (hz0 : z ≠ 0) :
     ((conjP P).reflect N).rootMultiplicity (reciprocalConj z) =
@@ -1178,7 +1178,7 @@ theorem reflect_conjP_rootMultiplicity
 /-- Self-adjoint Laurent polynomials have equal reciprocal-conjugate root
 multiplicities.  This is the multiplicity-strengthened form of Wang's
 inverse-conjugate root pairing [WZYW23, arxiv_v3.tex:2241-2248]. -/
-theorem rootMultiplicity_reciprocalConj_eq_of_conjP_reflect
+lemma rootMultiplicity_reciprocalConj_eq_of_conjP_reflect
     {N : ℕ} {R : ℂ[X]} (hR : R.natDegree ≤ N)
     (hself : (conjP R).reflect N = R) (hR0 : R ≠ 0) {z : ℂ}
     (hz0 : z ≠ 0) :
@@ -1193,7 +1193,7 @@ theorem rootMultiplicity_reciprocalConj_eq_of_conjP_reflect
 of nonzero roots is invariant under Wang's inverse-conjugate pairing.  This
 isolates the finite multiset bookkeeping needed after the multiplicity proof
 for [WZYW23, arxiv_v3.tex:2241-2248]. -/
-theorem nonzero_roots_map_reciprocalConj_eq_of_rootMultiplicity_eq
+lemma nonzero_roots_map_reciprocalConj_eq_of_rootMultiplicity_eq
     (R : ℂ[X])
     (hmult : ∀ z : ℂ, z ≠ 0 →
       R.rootMultiplicity (reciprocalConj z) = R.rootMultiplicity z) :
@@ -1241,7 +1241,7 @@ theorem nonzero_roots_map_reciprocalConj_eq_of_rootMultiplicity_eq
 
 /-- The residual roots used by Wang's Laurent complement proof are closed under
 `z ↦ 1 / z*` [WZYW23, arxiv_v3.tex:2241-2248]. -/
-theorem residualPolynomial_eval_reciprocal_conj_eq_zero
+lemma residualPolynomial_eval_reciprocal_conj_eq_zero
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) {z : ℂ}
     (hz0 : z ≠ 0) (hz : (residualPolynomial L F).eval z = 0) :
     (residualPolynomial L F).eval (reciprocalConj z) = 0 := by
@@ -1272,7 +1272,7 @@ theorem residualPolynomial_eval_reciprocal_conj_eq_zero
     (residualPolynomial_conjP_reflect hF) hz0 hz
 
 /-- Root-set form of `residualPolynomial_eval_reciprocal_conj_eq_zero`. -/
-theorem residualPolynomial_mem_roots_reciprocal_conj
+lemma residualPolynomial_mem_roots_reciprocal_conj
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
     (hres0 : residualPolynomial L F ≠ 0) {z : ℂ}
     (hz0 : z ≠ 0) (hz : z ∈ (residualPolynomial L F).roots) :
@@ -1282,7 +1282,7 @@ theorem residualPolynomial_mem_roots_reciprocal_conj
       ((Polynomial.mem_roots hres0).mp hz))
 
 /-- Nonzero residual roots are equivalent under inverse-conjugation. -/
-theorem residualPolynomial_mem_roots_reciprocal_conj_iff
+lemma residualPolynomial_mem_roots_reciprocal_conj_iff
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
     (hres0 : residualPolynomial L F ≠ 0) {z : ℂ}
     (hz0 : z ≠ 0) :
@@ -1298,7 +1298,7 @@ theorem residualPolynomial_mem_roots_reciprocal_conj_iff
 
 /-- Residual root multiplicities are invariant under Wang's inverse-conjugate
 root pairing [WZYW23, arxiv_v3.tex:2241-2251]. -/
-theorem residualPolynomial_rootMultiplicity_reciprocalConj_eq
+lemma residualPolynomial_rootMultiplicity_reciprocalConj_eq
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) {z : ℂ}
     (hz0 : z ≠ 0) :
     (residualPolynomial L F).rootMultiplicity (reciprocalConj z) =
@@ -1311,7 +1311,7 @@ theorem residualPolynomial_rootMultiplicity_reciprocalConj_eq
 
 /-- The nonzero residual roots, counted with multiplicity, are invariant under
 Wang's inverse-conjugate root pairing [WZYW23, arxiv_v3.tex:2241-2251]. -/
-theorem residualPolynomial_nonzero_roots_map_reciprocalConj_eq
+lemma residualPolynomial_nonzero_roots_map_reciprocalConj_eq
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) :
     (((residualPolynomial L F).roots.filter fun z : ℂ => z ≠ 0).map reciprocalConj) =
       ((residualPolynomial L F).roots.filter fun z : ℂ => z ≠ 0) :=
@@ -1322,7 +1322,7 @@ theorem residualPolynomial_nonzero_roots_map_reciprocalConj_eq
 
 /-- Count form of reciprocal-conjugate invariance for the nonzero residual
 roots. -/
-theorem residualPolynomial_nonzero_roots_count_reciprocalConj_eq
+lemma residualPolynomial_nonzero_roots_count_reciprocalConj_eq
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) {z : ℂ} (hz0 : z ≠ 0) :
     (((residualPolynomial L F).roots.filter fun w : ℂ => w ≠ 0).count (reciprocalConj z)) =
       (((residualPolynomial L F).roots.filter fun w : ℂ => w ≠ 0).count z) := by
@@ -1349,7 +1349,7 @@ def selectedReciprocalConjRoots (s : Multiset ℂ) : Multiset ℂ :=
       fun z => Multiset.replicate (s.count z / 2) z)
 
 /-- The canonical half-root selection never includes the zero root. -/
-theorem selectedReciprocalConjRoots_nonzero {s : Multiset ℂ} {z : ℂ}
+lemma selectedReciprocalConjRoots_nonzero {s : Multiset ℂ} {z : ℂ}
     (hz : z ∈ selectedReciprocalConjRoots s) :
     z ≠ 0 := by
   rw [selectedReciprocalConjRoots, Multiset.mem_add] at hz
@@ -1360,7 +1360,7 @@ theorem selectedReciprocalConjRoots_nonzero {s : Multiset ℂ} {z : ℂ}
     exact (Multiset.mem_filter.mp (Multiset.mem_dedup.mp hw)).2.1
 
 /-- The scalar product over selected Wang roots is nonzero. -/
-theorem selectedReciprocalConjRoots_neg_conj_prod_ne_zero (s : Multiset ℂ) :
+lemma selectedReciprocalConjRoots_neg_conj_prod_ne_zero (s : Multiset ℂ) :
     ((selectedReciprocalConjRoots s).map
       (fun z => -(starRingEnd ℂ z))).prod ≠ 0 := by
   apply Multiset.prod_ne_zero
@@ -1378,14 +1378,14 @@ noncomputable def sourceScalarQuotient (R : ℂ[X]) : ℂ :=
       (fun z => -(starRingEnd ℂ z))).prod
 
 /-- The selected-root denominator in Wang's source scalar quotient is nonzero. -/
-theorem sourceScalarQuotient_denominator_ne_zero (R : ℂ[X]) :
+lemma sourceScalarQuotient_denominator_ne_zero (R : ℂ[X]) :
     ((selectedReciprocalConjRoots (R.roots.filter fun z : ℂ => z ≠ 0)).map
       (fun z => -(starRingEnd ℂ z))).prod ≠ 0 :=
   selectedReciprocalConjRoots_neg_conj_prod_ne_zero
     (R.roots.filter fun z : ℂ => z ≠ 0)
 
 /-- Sum a single nonzero `if` branch over a nodup multiset. -/
-theorem Multiset.sum_map_if_eq_of_nodup {α : Type*} [DecidableEq α]
+lemma Multiset.sum_map_if_eq_of_nodup {α : Type*} [DecidableEq α]
     (s : Multiset α) (hs : s.Nodup) (a : α) (f : α → ℕ) :
     (s.map fun x => if x = a then f x else 0).sum =
       if a ∈ s then f a else 0 := by
@@ -1409,7 +1409,7 @@ theorem Multiset.sum_map_if_eq_of_nodup {α : Type*} [DecidableEq α]
 /-- Unit-circle roots are selected with half of their multiplicity.  The
 evenness of these multiplicities is proved separately from boundedness of the
 residual on the unit circle. -/
-theorem selectedReciprocalConjRoots_count_of_normSq_eq_one
+lemma selectedReciprocalConjRoots_count_of_normSq_eq_one
     (s : Multiset ℂ) {z : ℂ} (hunit : Complex.normSq z = 1) :
     (selectedReciprocalConjRoots s).count z = s.count z / 2 := by
   classical
@@ -1445,7 +1445,7 @@ theorem selectedReciprocalConjRoots_count_of_normSq_eq_one
 
 /-- Nonzero roots strictly inside the unit circle are selected with full
 multiplicity. -/
-theorem selectedReciprocalConjRoots_count_of_normSq_lt_one
+lemma selectedReciprocalConjRoots_count_of_normSq_lt_one
     (s : Multiset ℂ) {z : ℂ} (hz0 : z ≠ 0) (hinside : Complex.normSq z < 1) :
     (selectedReciprocalConjRoots s).count z = s.count z := by
   classical
@@ -1470,7 +1470,7 @@ theorem selectedReciprocalConjRoots_count_of_normSq_lt_one
 
 /-- Roots strictly outside the unit circle are not selected directly; they are
 supplied by reciprocal-conjugating the selected inside roots. -/
-theorem selectedReciprocalConjRoots_count_of_one_lt_normSq
+lemma selectedReciprocalConjRoots_count_of_one_lt_normSq
     (s : Multiset ℂ) {z : ℂ} (houtside : 1 < Complex.normSq z) :
     (selectedReciprocalConjRoots s).count z = 0 := by
   classical
@@ -1502,7 +1502,7 @@ theorem selectedReciprocalConjRoots_count_of_one_lt_normSq
 /-- Count form of Wang's selected root pairing away from zero.  Once unit-circle
 roots are known to have even multiplicity, the selected roots and their
 inverse-conjugates recover every nonzero root with multiplicity. -/
-theorem selectedReciprocalConjRoots_add_map_count_eq
+lemma selectedReciprocalConjRoots_add_map_count_eq
     (s : Multiset ℂ)
     (hmult : ∀ z : ℂ, z ≠ 0 → s.count (reciprocalConj z) = s.count z)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 → Even (s.count z))
@@ -1549,7 +1549,7 @@ theorem selectedReciprocalConjRoots_add_map_count_eq
       rw [zero_add, hmult z hz0]
 
 /-- Multiset form of Wang's nonzero reciprocal-conjugate root selection. -/
-theorem selectedReciprocalConjRoots_add_map_eq_nonzero_filter
+lemma selectedReciprocalConjRoots_add_map_eq_nonzero_filter
     (s : Multiset ℂ)
     (hmult : ∀ z : ℂ, z ≠ 0 → s.count (reciprocalConj z) = s.count z)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 → Even (s.count z)) :
@@ -1576,7 +1576,7 @@ theorem selectedReciprocalConjRoots_add_map_eq_nonzero_filter
 
 /-- Selected residual roots recover the nonzero residual roots, once the
 unit-circle residual multiplicities are known to be even. -/
-theorem residualPolynomial_selected_roots_add_map_eq_nonzero_roots
+lemma residualPolynomial_selected_roots_add_map_eq_nonzero_roots
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 →
       Even ((residualPolynomial L F).roots.count z)) :
@@ -1662,7 +1662,7 @@ multiple of the selected root product's reflected-conjugate norm.  The scalar
 is exactly `sourceScalarQuotient`; proving that it is a nonnegative real is the
 last scalar step before taking the square root in
 [WZYW23, arxiv_v3.tex:2249-2257]. -/
-theorem residualPolynomial_eq_sourceScalarQuotient_mul_normPolynomial_selected
+lemma residualPolynomial_eq_sourceScalarQuotient_mul_normPolynomial_selected
     {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
     (hres0 : residualPolynomial L F ≠ 0)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 →
@@ -1741,7 +1741,7 @@ theorem residualPolynomial_eq_sourceScalarQuotient_mul_normPolynomial_selected
 
 /-- On the unit circle, the residual polynomial evaluates to `1-|F|²`
 [WZYW23, arxiv_v3.tex:2260-2274]. -/
-theorem lEval_residualPolynomial {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
+lemma lEval_residualPolynomial {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
     (x : ℝ) :
     lEval (2 * L) (residualPolynomial L F) x =
       1 - lEval L F x * starRingEnd ℂ (lEval L F x) := by
@@ -1749,7 +1749,7 @@ theorem lEval_residualPolynomial {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L)
 
 /-- The residual value is the real number `1-‖F(e^{ix})‖²`, under the Laurent
 encoding. -/
-theorem lEval_residualPolynomial_eq_ofReal {L : ℕ} {F : ℂ[X]}
+lemma lEval_residualPolynomial_eq_ofReal {L : ℕ} {F : ℂ[X]}
     (hF : F.natDegree ≤ L) (x : ℝ) :
     lEval (2 * L) (residualPolynomial L F) x =
       ((1 - ‖lEval L F x‖ ^ 2 : ℝ) : ℂ) := by
@@ -1759,7 +1759,7 @@ theorem lEval_residualPolynomial_eq_ofReal {L : ℕ} {F : ℂ[X]}
 /-- A bounded Laurent polynomial has nonnegative residual values on the unit
 circle, the entry point for the root-factor construction in
 [WZYW23, arxiv_v3.tex:2260-2274]. -/
-theorem BoundedComplementProblem.residual_nonnegative {L : ℕ} {F : ℂ[X]}
+lemma BoundedComplementProblem.residual_nonnegative {L : ℕ} {F : ℂ[X]}
     (h : BoundedComplementProblem L F) (x : ℝ) :
     0 ≤ (lEval (2 * L) (residualPolynomial L F) x).re := by
   have hsq : ‖lEval L F x‖ ^ 2 ≤ (1 : ℝ) ^ 2 :=
@@ -1770,7 +1770,7 @@ theorem BoundedComplementProblem.residual_nonnegative {L : ℕ} {F : ℂ[X]}
   nlinarith
 
 /-- The residual values are real on the unit circle. -/
-theorem lEval_residualPolynomial_im {L : ℕ} {F : ℂ[X]}
+lemma lEval_residualPolynomial_im {L : ℕ} {F : ℂ[X]}
     (hF : F.natDegree ≤ L) (x : ℝ) :
     (lEval (2 * L) (residualPolynomial L F) x).im = 0 := by
   rw [lEval_residualPolynomial_eq_ofReal hF x]
@@ -1781,7 +1781,7 @@ if the selected root product is nonzero at one unit-circle point, then the
 source scalar quotient is a nonnegative real number.  The remaining global
 existence obligation is only to choose such a point outside the finite selected
 root set [WZYW23, arxiv_v3.tex:2249-2257]. -/
-theorem BoundedComplementProblem.sourceScalarQuotient_real_nonnegative_of_eval_ne_zero
+lemma BoundedComplementProblem.sourceScalarQuotient_real_nonnegative_of_eval_ne_zero
     {L : ℕ} {F : ℂ[X]} (h : BoundedComplementProblem L F)
     (hres0 : residualPolynomial L F ≠ 0)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 →
@@ -1882,7 +1882,7 @@ multiplicity.  This is the local sign-change argument in Wang's
 Laurent-complement proof: after parametrizing the unit circle by
 `z = exp(ix)`, an odd-order zero would force the real nonnegative residual
 `1-|F|²` to change sign [WZYW23, arxiv_v3.tex:2241-2257]. -/
-theorem BoundedComplementProblem.residual_unitCircle_roots_even
+lemma BoundedComplementProblem.residual_unitCircle_roots_even
     {L : ℕ} {F : ℂ[X]} (h : BoundedComplementProblem L F)
     (hres0 : residualPolynomial L F ≠ 0) {z : ℂ}
     (_hz0 : z ≠ 0) (hunit : Complex.normSq z = 1) :
@@ -1983,7 +1983,7 @@ theorem BoundedComplementProblem.residual_unitCircle_roots_even
 source scalar quotient.  The proof combines the unit-circle even-multiplicity
 argument with a roots-of-unity sampling point outside the selected finite root
 set [WZYW23, arxiv_v3.tex:2241-2274]. -/
-theorem BoundedComplementProblem.sourceScalarQuotient_real_nonnegative
+lemma BoundedComplementProblem.sourceScalarQuotient_real_nonnegative
     {L : ℕ} {F : ℂ[X]} (h : BoundedComplementProblem L F)
     (hres0 : residualPolynomial L F ≠ 0) :
     (sourceScalarQuotient (residualPolynomial L F)).im = 0 ∧
@@ -2033,13 +2033,13 @@ theorem BoundedComplementProblem.sourceScalarQuotient_real_nonnegative
 
 /-- A complement certificate is exactly the polynomial normalization identity
 needed by the YZZYZ/QSP pair condition. -/
-theorem ComplementCertificate.polynomial_normalization {L : ℕ} {A : ℂ[X]}
+lemma ComplementCertificate.polynomial_normalization {L : ℕ} {A : ℂ[X]}
     (h : ComplementCertificate L A) :
     A * (conjP A).reflect L + h.complement * (conjP h.complement).reflect L = X ^ L := by
   simpa [normPolynomial] using h.normalization
 
 /-- Pointwise circle normalization obtained from a complement certificate. -/
-theorem ComplementCertificate.circle_normalization {L : ℕ} {A : ℂ[X]}
+lemma ComplementCertificate.circle_normalization {L : ℕ} {A : ℂ[X]}
     (h : ComplementCertificate L A) (hA : A.natDegree ≤ L) (x : ℝ) :
     lEval L A x * starRingEnd ℂ (lEval L A x)
       + lEval L h.complement x * starRingEnd ℂ (lEval L h.complement x) = 1 := by
@@ -2082,7 +2082,7 @@ def ComplementCertificate.ofResidualEqZero {L : ℕ} {A : ℂ[X]}
 /-- A square-root factorization of `1-|A|²` is enough to solve the bounded
 complement problem.  The remaining Wang appendix work is exactly to build this
 square root from `BoundedComplementProblem` by root classification. -/
-theorem hasComplement_ofSquareRoot {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_ofSquareRoot {L : ℕ} {A : ℂ[X]}
     (hroot : SquareRootCertificate L (residualPolynomial L A)) :
     HasComplement L A :=
   ⟨ComplementCertificate.ofSquareRoot hroot⟩
@@ -2090,14 +2090,14 @@ theorem hasComplement_ofSquareRoot {L : ℕ} {A : ℂ[X]}
 /-- A Wang root-product square-root certificate solves the Laurent complement
 problem.  The remaining nontrivial source work is to build this certificate by
 reciprocal-conjugate root pairing [WZYW23, arxiv_v3.tex:2241-2257]. -/
-theorem hasComplement_of_sourceSquareRoot {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_sourceSquareRoot {L : ℕ} {A : ℂ[X]}
     (hroot : SourceSquareRootCertificate L (residualPolynomial L A)) :
     HasComplement L A :=
   hasComplement_ofSquareRoot hroot.toSquareRootCertificate
 
 /-- Wang's reciprocal-conjugate root selection is enough to solve the Laurent
 complement problem [WZYW23, arxiv_v3.tex:2249-2274]. -/
-theorem hasComplement_of_reciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_reciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
     (hroot : ReciprocalConjRootSelection L (residualPolynomial L A)) :
     HasComplement L A :=
   hasComplement_of_sourceSquareRoot hroot.toSourceSquareRootCertificate
@@ -2105,7 +2105,7 @@ theorem hasComplement_of_reciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
 /-- A padded reciprocal-conjugate root selection is enough to solve the Laurent
 complement problem, including zero-root padding cases [WZYW23,
 arxiv_v3.tex:2237-2274]. -/
-theorem hasComplement_of_paddedReciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_paddedReciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
     (hroot : PaddedReciprocalConjRootSelection L (residualPolynomial L A)) :
     HasComplement L A :=
   hasComplement_of_sourceSquareRoot hroot.toSourceSquareRootCertificate
@@ -2115,7 +2115,7 @@ classification facts are supplied: unit-circle roots have even multiplicity,
 and the source scalar has a square-root choice.  This packages the completed
 algebraic part of the Laurent-complement proof [WZYW23,
 arxiv_v3.tex:2237-2274]. -/
-theorem BoundedComplementProblem.hasComplement_of_unitCircleEven_and_scale
+lemma BoundedComplementProblem.hasComplement_of_unitCircleEven_and_scale
     {L : ℕ} {F : ℂ[X]} (h : BoundedComplementProblem L F)
     (hres0 : residualPolynomial L F ≠ 0)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 →
@@ -2136,7 +2136,7 @@ theorem BoundedComplementProblem.hasComplement_of_unitCircleEven_and_scale
 /-- Bounded Laurent data has a complement once unit-circle root multiplicities
 are even and Wang's source scalar quotient is known to be a nonnegative real
 number [WZYW23, arxiv_v3.tex:2253-2257]. -/
-theorem BoundedComplementProblem.hasComplement_of_unitCircleEven_and_scalarQuotient
+lemma BoundedComplementProblem.hasComplement_of_unitCircleEven_and_scalarQuotient
     {L : ℕ} {F : ℂ[X]} (h : BoundedComplementProblem L F)
     (hres0 : residualPolynomial L F ≠ 0)
     (hunit_even : ∀ z : ℂ, z ≠ 0 → Complex.normSq z = 1 →
@@ -2163,7 +2163,7 @@ end Complement.Laurent
 namespace Complement.Laurent.Witness
 
 /-- Staged witness name for the square-root route to a Laurent complement. -/
-theorem hasComplement_ofSquareRoot {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_ofSquareRoot {L : ℕ} {A : ℂ[X]}
     (hroot : Complement.Laurent.SquareRootCertificate L
       (Complement.Laurent.residualPolynomial L A)) :
     HasComplement L A :=
@@ -2171,14 +2171,14 @@ theorem hasComplement_ofSquareRoot {L : ℕ} {A : ℂ[X]}
 
 /-- Staged witness name for the source root-product route to a Laurent
 complement. -/
-theorem hasComplement_of_sourceSquareRoot {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_sourceSquareRoot {L : ℕ} {A : ℂ[X]}
     (hroot : Complement.Laurent.SourceSquareRootCertificate L
       (Complement.Laurent.residualPolynomial L A)) :
     HasComplement L A :=
   Complement.Laurent.hasComplement_of_sourceSquareRoot hroot
 
 /-- Staged witness name for the reciprocal-conjugate root-selection route. -/
-theorem hasComplement_of_reciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_reciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
     (hroot : Complement.Laurent.ReciprocalConjRootSelection L
       (Complement.Laurent.residualPolynomial L A)) :
     HasComplement L A :=
@@ -2186,14 +2186,14 @@ theorem hasComplement_of_reciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
 
 /-- Staged witness name for the padded reciprocal-conjugate root-selection
 route. -/
-theorem hasComplement_of_paddedReciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_paddedReciprocalConjRootSelection {L : ℕ} {A : ℂ[X]}
     (hroot : Complement.Laurent.PaddedReciprocalConjRootSelection L
       (Complement.Laurent.residualPolynomial L A)) :
     HasComplement L A :=
   Complement.Laurent.hasComplement_of_paddedReciprocalConjRootSelection hroot
 
 /-- Staged witness name for the zero-residual Laurent complement branch. -/
-theorem hasComplement_of_residual_eq_zero {L : ℕ} {A : ℂ[X]}
+lemma hasComplement_of_residual_eq_zero {L : ℕ} {A : ℂ[X]}
     (hres : Complement.Laurent.residualPolynomial L A = 0) :
     HasComplement L A :=
   ⟨Complement.Laurent.ComplementCertificate.ofResidualEqZero hres⟩

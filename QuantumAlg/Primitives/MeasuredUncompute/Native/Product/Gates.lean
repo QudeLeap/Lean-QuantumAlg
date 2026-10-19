@@ -37,7 +37,7 @@ def gates (width : Nat) (modulus : Fin (2 ^ width + 1)) :
   (sourceGates width modulus).map (placement width).placeGate
 
 /-- Exact whole-frame action, including all retained history positions. -/
-theorem nativeProductFrame_gates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma nativeProductFrame_gates_step (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Frame width) : stepList (gates width modulus) state = step width modulus state := by
   have lifted := stepList_prodLeft (left := VariableGidney.encoding width)
     (BinaryLabelEncoding.finIdentity (historyWidth width))
@@ -51,7 +51,7 @@ theorem nativeProductFrame_gates_step (width : Nat) (modulus : Fin (2 ^ width + 
         original))
 
 /-- Literal lifting and full placement keep the original ordered native trace. -/
-theorem nativeProductFrame_gates_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
+lemma nativeProductFrame_gates_trace (width : Nat) (modulus : Fin (2 ^ width + 1)) :
     (gates width modulus).map (event .empty) = (program width modulus).eventTrace := by
   have placed : (gates width modulus).map (event .empty) =
       (sourceGates width modulus).map (event .empty) := by
@@ -68,7 +68,7 @@ theorem nativeProductFrame_gates_trace (width : Nat) (modulus : Fin (2 ^ width +
       (nativeProductFrame_trace width modulus).symm))
 
 /-- The original independent product bound is unchanged by the physical gate placement. -/
-theorem nativeProductFrame_gates_length_bound (width : Nat)
+lemma nativeProductFrame_gates_length_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) :
     (gates width modulus).length ≤ VariableGidney.eventBound width := by
   have placed : (gates width modulus).length = (sourceGates width modulus).length :=

@@ -22,14 +22,14 @@ section
 
 namespace QuantumAlg.QubitTwoDesign
 
-private theorem factsSqrtTwoRat_add_self_injective {a b : SqrtTwoRat}
+private lemma factsSqrtTwoRat_add_self_injective {a b : SqrtTwoRat}
     (h : a + a = b + b) : a = b := by
   apply sqrtTwoEval_injective
   have h' := congrArg sqrtTwoEval h
   rw [map_add, map_add] at h'
   linarith
 
-private theorem factsExact_add_self_injective {x y : ExactQuaternion}
+private lemma factsExact_add_self_injective {x y : ExactQuaternion}
     (h : x + x = y + y) : x = y := by
   apply QuaternionAlgebra.ext <;> apply factsSqrtTwoRat_add_self_injective
   · exact congrArg QuaternionAlgebra.re h
@@ -38,18 +38,18 @@ private theorem factsExact_add_self_injective {x y : ExactQuaternion}
   · exact congrArg QuaternionAlgebra.imK h
 
 /-- The exact list has `48` elements. -/
-theorem binaryOctahedral_card : Fintype.card BinaryOctahedral = 48 := by
+lemma binaryOctahedral_card : Fintype.card BinaryOctahedral = 48 := by
   decide
 
 /-- Distinct codes represent distinct exact quaternions. -/
-theorem binaryOctahedralQuaternion_injective :
+lemma binaryOctahedralQuaternion_injective :
     Function.Injective binaryOctahedralQuaternion := by
   intro a b hab
   apply octNumerator_injective
   apply octToExact_injective
   rw [octToExact_octNumerator, octToExact_octNumerator, hab]
 
-theorem binaryOctahedralQuaternion_normSq (a : BinaryOctahedral) :
+lemma binaryOctahedralQuaternion_normSq (a : BinaryOctahedral) :
     Quaternion.normSq (binaryOctahedralQuaternion a) = 1 := by
   have hquad : (2 : SqrtTwoRat) ^ 2 * Quaternion.normSq (binaryOctahedralQuaternion a) = 4 := by
     rw [← Quaternion.normSq_smul, two_smul, ← octToExact_octNumerator, normSq_octToExact,
@@ -61,7 +61,7 @@ theorem binaryOctahedralQuaternion_normSq (a : BinaryOctahedral) :
   norm_num at h4 ⊢
   linarith [h4]
 
-theorem binaryOctahedralQuaternion_closed (a b : BinaryOctahedral) :
+lemma binaryOctahedralQuaternion_closed (a b : BinaryOctahedral) :
     ∃ c, binaryOctahedralQuaternion c =
       binaryOctahedralQuaternion a * binaryOctahedralQuaternion b := by
   obtain ⟨c, hc⟩ := octNumerator_closed a b
@@ -77,7 +77,7 @@ theorem binaryOctahedralQuaternion_closed (a b : BinaryOctahedral) :
   apply factsExact_add_self_injective
   rw [← key]; noncomm_ring
 
-theorem binaryOctahedralQuaternion_star_closed (a : BinaryOctahedral) :
+lemma binaryOctahedralQuaternion_star_closed (a : BinaryOctahedral) :
     ∃ b, binaryOctahedralQuaternion b = star (binaryOctahedralQuaternion a) := by
   obtain ⟨b, hb⟩ := octNumerator_star_closed a
   refine ⟨b, ?_⟩

@@ -28,7 +28,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A map of real stores groups exactly their old complete density blocks. -/
-theorem mapStore_block_matrix {C D H K : Type}
+lemma mapStore_block_matrix {C D H K : Type}
     [Fintype C] [Fintype D] [Fintype H] [Fintype K] {R : Register}
     (state : ExecutionState (C × H) R) (storeMap : C → D) (historyMap : C × H → K)
     (result : D) :
@@ -44,7 +44,7 @@ theorem mapStore_block_matrix {C D H K : Type}
     (first.trans second.symm)
 
 /-- An actual uniform choice and store update retain each old block with its genuine coefficient. -/
-theorem sampledMap_store_matrix {C D H K : Type}
+lemma sampledMap_store_matrix {C D H K : Type}
     [Fintype C] [Fintype D] [Fintype H] [Fintype K] {R : Register}
     (state : ExecutionState (C × H) R) (count : ℕ+)
     (storeMap : C → Fin count → D) (historyMap : (C × H) × Fin count → K) (result : D) :

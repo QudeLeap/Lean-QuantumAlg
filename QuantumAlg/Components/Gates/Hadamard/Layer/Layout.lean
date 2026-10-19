@@ -29,12 +29,12 @@ public def lastLayout (width : Nat) : QuantumLayout 1 :=
   QuantumLayout.uniform 1 2 (fun _ => width) (fun _ _ _ => Subsingleton.elim _ _)
 
 /-- The final physical system has qubit dimension. -/
-public theorem hadamardLayer_last_dimension (width : Nat) :
+public lemma hadamardLayer_last_dimension (width : Nat) :
     ((lastLayout width).wire 0).dimension = 2 := by
   rfl
 
 /-- The new final qubit is disjoint from all prefix systems. -/
-public theorem hadamardLayer_layout_disjoint (width : Nat) :
+public lemma hadamardLayer_layout_disjoint (width : Nat) :
     List.Disjoint (layout width).identities (lastLayout width).identities := by
   apply List.disjoint_left.mpr
   intro identity inPrefix inLast
@@ -44,7 +44,7 @@ public theorem hadamardLayer_layout_disjoint (width : Nat) :
   change width = identity at lastSame
   omega
 
-private theorem layout_eq_of_wire_eq {count : Nat} (first second : QuantumLayout count)
+private lemma layout_eq_of_wire_eq {count : Nat} (first second : QuantumLayout count)
     (same : first.wire = second.wire) : first = second := by
   cases first
   cases second
@@ -52,7 +52,7 @@ private theorem layout_eq_of_wire_eq {count : Nat} (first second : QuantumLayout
   rfl
 
 /-- Appending the original prefix and final physical qubit changes no layout information. -/
-public theorem hadamardLayer_layout_append (width : Nat) :
+public lemma hadamardLayer_layout_append (width : Nat) :
     QuantumLayout.append (layout width) (lastLayout width)
       (hadamardLayer_layout_disjoint width) = layout (width + 1) := by
   apply layout_eq_of_wire_eq

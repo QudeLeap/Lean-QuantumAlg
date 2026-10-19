@@ -30,7 +30,7 @@ open PaddingClock
 variable {width : Nat}
 
 /-- The three existing physical regions reassemble the exact full first word. -/
-theorem reassemble (word : BitVec (width + 3)) :
+lemma reassemble (word : BitVec (width + 3)) :
     ((main word ++ high word) ++ last word) = word := by
   have actual := congrArg Prod.fst (join_split (word, (0#0 : BitVec 0)))
   simpa only [join, split, BitVec.extractLsb'_append_eq_left] using actual
@@ -40,35 +40,35 @@ def mainMask (value : BitVec width) : BitVec (width + 3) :=
   (value ++ 0#2) ++ 0#1
 
 /-- Main-mask projection is the exact untruncated supplied finite value. -/
-theorem main_mainMask (value : BitVec width) : main (mainMask value) = value := by
+lemma main_mainMask (value : BitVec width) : main (mainMask value) = value := by
   simp only [mainMask, main, BitVec.extractLsb'_append_eq_left]
 
 /-- Both retained high clock positions have zero mask bits. -/
-theorem high_mainMask (value : BitVec width) : high (mainMask value) = 0#2 := by
+lemma high_mainMask (value : BitVec width) : high (mainMask value) = 0#2 := by
   simp only [mainMask, high, BitVec.extractLsb'_append_eq_left,
     BitVec.extractLsb'_append_eq_right]
 
 /-- The separate last physical bit also has zero main-mask coefficient. -/
-theorem last_mainMask (value : BitVec width) : last (mainMask value) = 0#1 := by
+lemma last_mainMask (value : BitVec width) : last (mainMask value) = 0#1 := by
   simp only [mainMask, last, BitVec.extractLsb'_append_eq_right]
 
 /-- Full finite XOR induces the same XOR on the complete main region. -/
-theorem main_xor (left right : BitVec (width + 3)) :
+lemma main_xor (left right : BitVec (width + 3)) :
     main (left ^^^ right) = main left ^^^ main right := by
   simp only [main, BitVec.extractLsb'_xor]
 
 /-- Full finite XOR induces the same XOR on the two exact retained positions. -/
-theorem high_xor (left right : BitVec (width + 3)) :
+lemma high_xor (left right : BitVec (width + 3)) :
     high (left ^^^ right) = high left ^^^ high right := by
   simp only [high, BitVec.extractLsb'_xor]
 
 /-- Full finite XOR induces the same XOR on the separate final bit. -/
-theorem last_xor (left right : BitVec (width + 3)) :
+lemma last_xor (left right : BitVec (width + 3)) :
     last (left ^^^ right) = last left ^^^ last right := by
   simp only [last, BitVec.extractLsb'_xor]
 
 /-- Main-mask unloading clears exactly the main value and preserves the other physical regions. -/
-theorem unload_main (word : BitVec (width + 3)) :
+lemma unload_main (word : BitVec (width + 3)) :
     main (word ^^^ mainMask (main word)) = 0#width ∧
       high (word ^^^ mainMask (main word)) = high word ∧
       last (word ^^^ mainMask (main word)) = last word := by
@@ -76,12 +76,12 @@ theorem unload_main (word : BitVec (width + 3)) :
     high_mainMask, last_mainMask, BitVec.xor_self, BitVec.xor_zero, and_self]
 
 /-- A second application of the same real constant mask restores the entire initial word. -/
-theorem reload_main (word : BitVec (width + 3)) :
+lemma reload_main (word : BitVec (width + 3)) :
     (word ^^^ mainMask (main word)) ^^^ mainMask (main word) = word := by
   rw [BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero]
 
 /-- Matching main and final values clear both complete regions while retaining all high bits. -/
-theorem unload_terminal (modulus : Nat) (word : BitVec (modulus.size + 3))
+lemma unload_terminal (modulus : Nat) (word : BitVec (modulus.size + 3))
     (sameMain : main word = main (TerminalPadding.terminalWord modulus))
     (sameLast : last word = last (TerminalPadding.terminalWord modulus)) :
     word ^^^ TerminalPadding.terminalWord modulus =
@@ -98,7 +98,7 @@ theorem unload_terminal (modulus : Nat) (word : BitVec (modulus.size + 3))
     (by rw [zeroMain, retained, zeroLast])
 
 /-- Each of the first n physical positions is the same actual bit of the main projection. -/
-theorem main_bit (word : BitVec (width + 3)) (index : Nat) (within : index < width) :
+lemma main_bit (word : BitVec (width + 3)) (index : Nat) (within : index < width) :
     word.getMsbD index = (main word).getMsbD index := by
   calc
     _ = (((main word ++ high word) ++ last word)).getMsbD index :=

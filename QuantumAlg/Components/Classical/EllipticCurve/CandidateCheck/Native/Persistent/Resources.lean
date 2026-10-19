@@ -33,7 +33,7 @@ def persistentCellSpace (kind : ProblemKind) (width scalarWidth : Nat) : SpacePo
       SpacePool.ofShape (.unsignedWord scalarWidth) + SpacePool.ofShape .bit
 
 /-- The actual final resident pool contains exactly seven new cells and the caller pool. -/
-theorem persistentCtx_residentSpace (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma persistentCtx_residentSpace (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (persistentCtx ctx width scalarWidth).residentSpace =
       persistentCellSpace kind width scalarWidth + ctx.residentSpace := by
   simp only [persistentCtx, retainedCtx, acceptedCtx, persistentBaseCtx, persistentCandidateCtx,
@@ -41,7 +41,7 @@ theorem persistentCtx_residentSpace (ctx : RuntimeCtx kind) (width scalarWidth :
     RuntimeCtx.residentSpace_addRetained, persistentCellSpace, add_assoc]
 
 /-- The actual final auxiliary pool contains exactly seven new cells and the caller pool. -/
-theorem persistentCtx_auxiliarySpace (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma persistentCtx_auxiliarySpace (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (persistentCtx ctx width scalarWidth).auxiliarySpace =
       persistentCellSpace kind width scalarWidth + ctx.auxiliarySpace := by
   simp only [persistentCtx, retainedCtx, acceptedCtx, persistentBaseCtx, persistentCandidateCtx,
@@ -49,25 +49,25 @@ theorem persistentCtx_auxiliarySpace (ctx : RuntimeCtx kind) (width scalarWidth 
     RuntimeCtx.auxiliarySpace_addRetained, persistentCellSpace, add_assoc]
 
 /-- Literal retention of the seven cells emits no native operation events. -/
-theorem retainPersistent_eventTrace {model : ExecutionModel}
+lemma retainPersistent_eventTrace {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).eventTrace path = [] := rfl
 
 /-- The actual event multiset of the one-time allocation is empty. -/
-theorem retainPersistent_resourcePool {model : ExecutionModel}
+lemma retainPersistent_resourcePool {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).resourcePool path = 0 := rfl
 
 /-- The actual allocation dependency duration is zero for every native duration model. -/
-theorem retainPersistent_depth {model : ExecutionModel}
+lemma retainPersistent_depth {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (duration : Resource.Event model → Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).depth duration path = 0 := rfl
 
-private theorem persistentPeak_le {s0 s1 s2 s3 s4 s5 s6 s7 : SpacePool kind}
+private lemma persistentPeak_le {s0 s1 s2 s3 s4 s5 s6 s7 : SpacePool kind}
     (h0 : s0 ≤ s1) (h1 : s1 ≤ s2) (h2 : s2 ≤ s3) (h3 : s3 ≤ s4)
     (h4 : s4 ≤ s5) (h5 : s5 ≤ s6) (h6 : s6 ≤ s7) :
     SpacePool.max s0 (SpacePool.max s1 (SpacePool.max s1 (SpacePool.max s2 (SpacePool.max s2
@@ -87,7 +87,7 @@ private theorem persistentPeak_le {s0 s1 s2 s3 s4 s5 s6 s7 : SpacePool kind}
     (SpacePool.max_le h6 (le_rfl)))))))))))))
 
 /-- The exact resident peak is the complete final context, including all original entries. -/
-theorem retainPersistent_resident {model : ExecutionModel}
+lemma retainPersistent_resident {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).peakResidentSpace path =
@@ -121,7 +121,7 @@ theorem retainPersistent_resident {model : ExecutionModel}
       width scalarWidth).residentSpace from le_add_self)
 
 /-- The exact auxiliary peak is the complete final context, including all original entries. -/
-theorem retainPersistent_auxiliary {model : ExecutionModel}
+lemma retainPersistent_auxiliary {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (path : (retainPersistent ctx width scalarWidth).Path) :
     (retainPersistent ctx width scalarWidth).peakAuxiliarySpace path =

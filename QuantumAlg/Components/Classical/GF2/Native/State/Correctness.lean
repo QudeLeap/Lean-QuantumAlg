@@ -30,6 +30,7 @@ open Execution ClassicalWorkspace
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {model : ExecutionModel} [BitWord.Selected model]
+  {environment : model.Environment}
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 /-- Original big-endian row decoding and optional polynomial recovery encoding. -/
@@ -42,20 +43,20 @@ def gf2RecoveryValue (values : CShape.Value (.fixedVector rowCount (.bits width)
   | some word => .optionSome (.unsignedWord word)
 
 /-- Actual initialized allocation returns one exact recovery write and the same full record. -/
-theorem gf2WithState_actualRecord_correct
+lemma gf2WithState_actualRecord_correct
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (output : CWriteRef ctx (.option (.unsignedWord width))) :
     ∃ record : Store ctx × model.HiddenState →
         (Store ctx × model.HiddenState) × (withState input output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withState (model := model) input output).execute Reference state =
+        (withState (model := model) input output).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
         (record before).1.1 = before.1.write output (gf2RecoveryValue (before.1.read input)) := by
-  apply withCells_actualRecord_initialized_post ctx (stateShapes rowCount width)
+  apply withCells_actualRecord_initialized_post environment ctx (stateShapes rowCount width)
     (fun cells _ transport _ => stateBody input output cells transport)
     (fun before after => after = before.write output (gf2RecoveryValue (before.read input)))
   intro inner cells distinct transport separated

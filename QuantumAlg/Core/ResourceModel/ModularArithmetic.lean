@@ -57,23 +57,23 @@ def requiresPlaceholder (status : ResourceFormulaStatus) : Bool :=
   !status.admissibleAsExactResource
 
 @[simp]
-theorem exactCount_admissible :
+lemma exactCount_admissible :
     admissibleAsExactResource exactCount = true := rfl
 
 @[simp]
-theorem explicitUpperBound_admissible :
+lemma explicitUpperBound_admissible :
     admissibleAsExactResource explicitUpperBound = true := rfl
 
 @[simp]
-theorem sourceBackedEstimate_requiresPlaceholder :
+lemma sourceBackedEstimate_requiresPlaceholder :
     requiresPlaceholder sourceBackedEstimate = true := rfl
 
 @[simp]
-theorem asymptoticOnly_requiresPlaceholder :
+lemma asymptoticOnly_requiresPlaceholder :
     requiresPlaceholder asymptoticOnly = true := rfl
 
 @[simp]
-theorem unsupported_requiresPlaceholder :
+lemma unsupported_requiresPlaceholder :
     requiresPlaceholder unsupported = true := rfl
 
 end ResourceFormulaStatus
@@ -210,38 +210,38 @@ def unsupportedFor (dimension : ModularArithmeticResourceDimension) : SourceReso
   profileField? := dimension.profileField?
   placeholderReason? := some .unsupportedBySource
 
-private theorem canInstantiateExactTarget_iff (decision : SourceResourceDecision) :
+private lemma canInstantiateExactTarget_iff (decision : SourceResourceDecision) :
     decision.canInstantiateExactTarget = true ↔
       decision.status.admissibleAsExactResource = true ∧
         decision.profileField?.isSome = true := by
   simp [canInstantiateExactTarget]
 
 @[simp]
-theorem exactFor_canInstantiate_of_field
+lemma exactFor_canInstantiate_of_field
     (dimension : ModularArithmeticResourceDimension) (field : ModularArithmeticProfileField)
     (hfield : dimension.profileField? = some field) :
     (exactFor dimension).canInstantiateExactTarget = true := by
   simp [canInstantiateExactTarget, exactFor, hfield]
 
 @[simp]
-theorem upperBoundFor_canInstantiate_of_field
+lemma upperBoundFor_canInstantiate_of_field
     (dimension : ModularArithmeticResourceDimension) (field : ModularArithmeticProfileField)
     (hfield : dimension.profileField? = some field) :
     (upperBoundFor dimension).canInstantiateExactTarget = true := by
   simp [canInstantiateExactTarget, upperBoundFor, hfield]
 
 @[simp]
-theorem estimateFor_needsPlaceholder (dimension : ModularArithmeticResourceDimension) :
+lemma estimateFor_needsPlaceholder (dimension : ModularArithmeticResourceDimension) :
     (estimateFor dimension).needsPlaceholder = true := by
   rfl
 
 @[simp]
-theorem asymptoticFor_needsPlaceholder (dimension : ModularArithmeticResourceDimension) :
+lemma asymptoticFor_needsPlaceholder (dimension : ModularArithmeticResourceDimension) :
     (asymptoticFor dimension).needsPlaceholder = true := by
   rfl
 
 @[simp]
-theorem unsupportedFor_needsPlaceholder (dimension : ModularArithmeticResourceDimension) :
+lemma unsupportedFor_needsPlaceholder (dimension : ModularArithmeticResourceDimension) :
     (unsupportedFor dimension).needsPlaceholder = true := by
   rfl
 
@@ -270,7 +270,7 @@ def knownModularArithmeticSourceDecision
   | .gidneyEkera2019Abstract, .toffoliDepth => .estimateFor dimension
   | _, _ => .unsupportedFor dimension
 
-private theorem known_estimate_needsPlaceholder
+private lemma known_estimate_needsPlaceholder
     (source : ModularArithmeticSourceModel)
     (dimension : ModularArithmeticResourceDimension)
     (hstatus : (knownModularArithmeticSourceDecision source dimension).status =
@@ -280,7 +280,7 @@ private theorem known_estimate_needsPlaceholder
   rw [hstatus]
   rfl
 
-private theorem known_asymptotic_needsPlaceholder
+private lemma known_asymptotic_needsPlaceholder
     (source : ModularArithmeticSourceModel)
     (dimension : ModularArithmeticResourceDimension)
     (hstatus : (knownModularArithmeticSourceDecision source dimension).status =

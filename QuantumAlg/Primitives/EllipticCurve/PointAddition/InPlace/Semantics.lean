@@ -39,7 +39,7 @@ def radixUnit (p fieldWidth : Nat) (hpOdd : Odd p) : (ZMod p)ˣ :=
   ZMod.unitOfCoprime (2 ^ fieldWidth)
     (Nat.Coprime.pow_left fieldWidth hpOdd.coprime_two_left)
 
-@[simp] theorem radixUnit_coe (p fieldWidth : Nat) (hpOdd : Odd p) :
+@[simp] lemma radixUnit_coe (p fieldWidth : Nat) (hpOdd : Odd p) :
     (radixUnit p fieldWidth hpOdd : ZMod p) = 2 ^ fieldWidth := by
   simp [radixUnit, ZMod.coe_unitOfCoprime]
 
@@ -51,7 +51,7 @@ def montgomeryWord (fieldTail p : Nat) (hpPos : 0 < p)
     ⟨(2 ^ fieldTail.succ * value.val) % p,
       (Nat.mod_lt _ hpPos).trans hp⟩
 
-theorem montgomeryWord_cast
+lemma montgomeryWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (value : ZMod p) :
     ((montgomeryWord fieldTail p hpPos hp value).val : ZMod p) =
@@ -63,14 +63,14 @@ theorem montgomeryWord_cast
   push_cast
   simp
 
-theorem montgomeryWord_lt
+lemma montgomeryWord_lt
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (value : ZMod p) :
     (montgomeryWord fieldTail p hpPos hp value).val < p := by
   exact Nat.mod_lt _ hpPos
 
 /-- The inverse-radix fold is the multiplicative inverse of `2^rounds`. -/
-theorem inverseRadixUnit_mul_pow
+lemma inverseRadixUnit_mul_pow
     (p : Nat) (hpOdd : Odd p) :
     ∀ rounds : Nat,
       (MontgomeryMultiplication.inverseRadixUnit p hpOdd rounds : ZMod p) *
@@ -101,7 +101,7 @@ theorem inverseRadixUnit_mul_pow
         _ = 1 := by simp
 
 /-- The schedule's closed product word denotes one Montgomery product. -/
-theorem productWord_cast
+lemma productWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (multiplier coefficient : Word fieldTail.succ)
@@ -142,7 +142,7 @@ theorem productWord_cast
 /-- The compact inversion word is the literal squared-radix scaled inverse.
 The full-width hypothesis is the range condition used by its correction
 schedule. -/
-theorem inversionOutput_cast
+lemma inversionOutput_cast
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -167,7 +167,7 @@ theorem inversionOutput_cast
 
 /-- A compact inversion fed a Montgomery word returns the Montgomery word of
 the field inverse. -/
-theorem inversionOutput_montgomery_cast
+lemma inversionOutput_montgomery_cast
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -224,7 +224,7 @@ theorem inversionOutput_montgomery_cast
 
 /-- Multiplying two Montgomery words emits the Montgomery encoding of their
 field product. -/
-theorem productWord_montgomery_cast
+lemma productWord_montgomery_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (left right : ZMod p) :
@@ -254,7 +254,7 @@ theorem productWord_montgomery_cast
 
 /-- Two canonical field words are equal when their residue-field casts agree.
 -/
-theorem word_eq_of_cast_eq
+lemma word_eq_of_cast_eq
     {fieldWidth p : Nat}
     (left right : Word fieldWidth)
     (hleft : left.val < p) (hright : right.val < p)
@@ -266,7 +266,7 @@ theorem word_eq_of_cast_eq
     values
 
 /-- Modular subtraction preserves Montgomery encoding. -/
-theorem modularDifferenceWord_montgomery
+lemma modularDifferenceWord_montgomery
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (left right : ZMod p) :
     CompactCorrection.modularDifferenceWord fieldTail p hpPos hp
@@ -283,7 +283,7 @@ theorem modularDifferenceWord_montgomery
   · exact montgomeryWord_lt fieldTail p hpPos hp right
 
 /-- Modular addition preserves Montgomery encoding. -/
-theorem modularSumFixedWord_montgomery
+lemma modularSumFixedWord_montgomery
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (left right : ZMod p) :
     CompactCorrection.modularSumFixedWord fieldTail p hpPos hp
@@ -299,7 +299,7 @@ theorem modularSumFixedWord_montgomery
   ring
 
 /-- The closed schedule product preserves Montgomery encoding. -/
-theorem productWord_montgomery
+lemma productWord_montgomery
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (left right : ZMod p) :
@@ -317,7 +317,7 @@ theorem productWord_montgomery
 
 /-- The closed schedule inversion preserves Montgomery encoding on nonzero
 field inputs. -/
-theorem inversionOutput_montgomery
+lemma inversionOutput_montgomery
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -336,7 +336,7 @@ theorem inversionOutput_montgomery
     hcapacity hwidth hcounterWidth hpOdd hfull value hvalue).trans
     (montgomeryWord_cast fieldTail p hpPos hp value⁻¹).symm
 
-@[simp] theorem montgomeryWord_zero
+@[simp] lemma montgomeryWord_zero
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) :
     montgomeryWord fieldTail p hpPos hp 0 = 0 := by
@@ -344,7 +344,7 @@ theorem inversionOutput_montgomery
   simp [montgomeryWord]
 
 /-- A nonzero residue has a positive canonical Montgomery word. -/
-theorem montgomeryWord_positive
+lemma montgomeryWord_positive
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     [Fact p.Prime] (value : ZMod p) (hvalue : value ≠ 0) :
@@ -362,7 +362,7 @@ theorem montgomeryWord_positive
   exact castNe (by simp [wordZero])
 
 /-- A nonzero residue has a Montgomery word coprime to the prime modulus. -/
-theorem montgomeryWord_coprime
+lemma montgomeryWord_coprime
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     [Fact p.Prime] (value : ZMod p) (hvalue : value ≠ 0) :
@@ -390,28 +390,28 @@ def montgomeryInput
   x2 := montgomeryWord fieldTail p hpPos hp x2
   y2 := montgomeryWord fieldTail p hpPos hp y2
 
-@[simp] theorem montgomeryInput_control
+@[simp] lemma montgomeryInput_control
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (control : Bool)
     (x1 y1 x2 y2 : ZMod p) :
     (montgomeryInput fieldTail p hpPos hp control x1 y1 x2 y2).control =
       control := rfl
 
-@[simp] theorem montgomeryInput_x2
+@[simp] lemma montgomeryInput_x2
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (control : Bool)
     (x1 y1 x2 y2 : ZMod p) :
     (montgomeryInput fieldTail p hpPos hp control x1 y1 x2 y2).x2 =
       montgomeryWord fieldTail p hpPos hp x2 := rfl
 
-@[simp] theorem montgomeryInput_y2
+@[simp] lemma montgomeryInput_y2
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (control : Bool)
     (x1 y1 x2 y2 : ZMod p) :
     (montgomeryInput fieldTail p hpPos hp control x1 y1 x2 y2).y2 =
       montgomeryWord fieldTail p hpPos hp y2 := rfl
 
-theorem montgomeryInput_xAfterSubtract
+lemma montgomeryInput_xAfterSubtract
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (control : Bool)
     (x1 y1 x2 y2 : ZMod p) :
@@ -419,7 +419,7 @@ theorem montgomeryInput_xAfterSubtract
         p hpPos hp = montgomeryWord fieldTail p hpPos hp (x1 - x2) := by
   exact modularDifferenceWord_montgomery fieldTail p hpPos hp x1 x2
 
-theorem montgomeryInput_yAfterSelectedSubtract
+lemma montgomeryInput_yAfterSelectedSubtract
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (control : Bool)
     (x1 y1 x2 y2 : ZMod p) :
@@ -431,7 +431,7 @@ theorem montgomeryInput_yAfterSelectedSubtract
     simp [montgomeryInput, Schedule.Input.yAfterSelectedSubtract,
       selectedNumerator, modularDifferenceWord_montgomery]
 
-theorem montgomeryInput_firstInverse
+lemma montgomeryInput_firstInverse
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -448,7 +448,7 @@ theorem montgomeryInput_firstInverse
   exact inversionOutput_montgomery fieldTail counterTail p hpPos hp hfit
     hcapacity hwidth hcounterWidth hpOdd hfull (x1 - x2) hfirst
 
-theorem montgomeryInput_slope
+lemma montgomeryInput_slope
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -468,7 +468,7 @@ theorem montgomeryInput_slope
     productWord_montgomery fieldTail p hpPos hp hpOdd]
   rfl
 
-theorem tripleConstant_montgomery
+lemma tripleConstant_montgomery
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (x : ZMod p) :
     Schedule.tripleConstant fieldTail p hpPos hp
@@ -479,7 +479,7 @@ theorem tripleConstant_montgomery
   congr 1
   ring
 
-theorem montgomeryInput_secondDenominator
+lemma montgomeryInput_secondDenominator
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -520,7 +520,7 @@ theorem montgomeryInput_secondDenominator
         modularSumFixedWord_montgomery]
       rfl
 
-theorem montgomeryInput_cleanCertificate
+lemma montgomeryInput_cleanCertificate
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -587,7 +587,7 @@ theorem montgomeryInput_cleanCertificate
 
 /-- Both public output words carry the field values selected by the control
 bit, while every auxiliary register is covered by the clean certificate. -/
-theorem montgomeryInput_outputs
+lemma montgomeryInput_outputs
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)

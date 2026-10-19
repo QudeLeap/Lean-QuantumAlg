@@ -25,11 +25,11 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 
-private theorem carryXorIdentity (a b c z : Bool) :
+private lemma carryXorIdentity (a b c z : Bool) :
     ((z ^^ a) ^^ ((b ^^ a) && (a ^^ c))) = (z ^^ Bool.carry a b c) := by
   cases a <;> cases b <;> cases c <;> cases z <;> rfl
 
-private theorem reverseCarryXorIdentity (a b c z : Bool) :
+private lemma reverseCarryXorIdentity (a b c z : Bool) :
     ((z ^^ Bool.carry a b c) ^^ ((b ^^ a) && (a ^^ c))) = (z ^^ a) := by
   cases a <;> cases b <;> cases c <;> cases z <;> rfl
 
@@ -40,7 +40,7 @@ def carryGate (right left next : EncodedBit encoding)
   .toffoli right left next hrl hrn hln
 
 /-- One TTK carry Toffoli replaces the stored input xor by the next carry xor. -/
-theorem ttkCarryGate_target
+lemma ttkCarryGate_target
     (right left next : EncodedBit encoding)
     (hrl : right.wire ≠ left.wire) (hrn : right.wire ≠ next.wire)
     (hln : left.wire ≠ next.wire) (state : Data) (a b c z : Bool)
@@ -54,7 +54,7 @@ theorem ttkCarryGate_target
   exact carryXorIdentity a b c z
 
 /-- The same Toffoli reverses the operand-encoded carry, for arbitrary bits. -/
-theorem ttkCarryGate_reverse_target
+lemma ttkCarryGate_reverse_target
     (right left next : EncodedBit encoding)
     (hrl : right.wire ≠ left.wire) (hrn : right.wire ≠ next.wire)
     (hln : left.wire ≠ next.wire) (state : Data) (a b c z : Bool)
@@ -68,7 +68,7 @@ theorem ttkCarryGate_reverse_target
   exact reverseCarryXorIdentity a b c z
 
 /-- A carry Toffoli preserves its two controls exactly. -/
-theorem ttkCarryGate_controls
+lemma ttkCarryGate_controls
     (right left next : EncodedBit encoding)
     (hrl : right.wire ≠ left.wire) (hrn : right.wire ≠ next.wire)
     (hln : left.wire ≠ next.wire) (state : Data) :
@@ -84,7 +84,7 @@ theorem ttkCarryGate_controls
 
 /-- The reverse sweep changes the right operand's xor from its addend to its
 incoming carry; it uses the carry already stored in the left operand bit. -/
-theorem ttkSumExtraction_target
+lemma ttkSumExtraction_target
     (left right : EncodedBit encoding) (hlr : left.wire ≠ right.wire)
     (state : Data) (a b c : Bool)
     (hl : left.get state = (a ^^ c))

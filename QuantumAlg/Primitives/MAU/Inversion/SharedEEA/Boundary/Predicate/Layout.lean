@@ -33,7 +33,7 @@ open EncodedBit
 def sourceCount (width : Nat) (withHigh : Bool) : Nat :=
   3 * width.size + if withHigh then 2 else 0
 
-private theorem sourceCount_bound (width : Nat) (withHigh : Bool) :
+private lemma sourceCount_bound (width : Nat) (withHigh : Bool) :
     sourceCount width withHigh ≤ 3 * width.size + 2 := by
   cases withHigh <;> simp [sourceCount]
 
@@ -51,7 +51,7 @@ def sourceBit (width : Nat) (withHigh : Bool) (index : Fin (sourceCount width wi
     omega⟩
 
 /-- Literal original wire positions of the selected source, including the true Work1 high bits. -/
-theorem sourceBit_wire (width : Nat) (withHigh : Bool)
+lemma sourceBit_wire (width : Nat) (withHigh : Bool)
     (index : Fin (sourceCount width withHigh)) :
     (sourceBit width withHigh index).wire.val =
       if index.val < width.size then 2 * (width + 3) + width.size + index.val
@@ -72,7 +72,7 @@ theorem sourceBit_wire (width : Nat) (withHigh : Bool)
           dif_neg divisor, if_neg divisor, paddingBit_wire]
 
 /-- All actual source positions are distinct, even at zero-length field boundaries. -/
-theorem sourceBit_injective (width : Nat) (withHigh : Bool) :
+lemma sourceBit_injective (width : Nat) (withHigh : Bool) :
     Function.Injective (fun index => (sourceBit width withHigh index).wire) := by
   intro left right same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -84,7 +84,7 @@ theorem sourceBit_injective (width : Nat) (withHigh : Bool) :
   split_ifs at values <;> omega
 
 /-- Every actual source lies before the original phase, Sign, Iter, and Ctrl coordinates. -/
-theorem sourceBit_before_flags (width : Nat) (withHigh : Bool)
+lemma sourceBit_before_flags (width : Nat) (withHigh : Bool)
     (index : Fin (sourceCount width withHigh)) :
     (sourceBit width withHigh index).wire.val < 2 * (width + 3) + 4 * width.size := by
   rw [sourceBit_wire]
@@ -121,7 +121,7 @@ def layout (width : Nat) (withHigh : Bool) :
     omega
 
 /-- Exact actual quantum values of all original boundary sources in their specified order. -/
-theorem sourceBit_get (width : Nat) (withHigh : Bool)
+lemma sourceBit_get (width : Nat) (withHigh : Bool)
     (index : Fin (sourceCount width withHigh)) (state : Registers width) :
     (sourceBit width withHigh index).get state =
       if index.val < width.size then state.quotientLength.getMsbD index.val

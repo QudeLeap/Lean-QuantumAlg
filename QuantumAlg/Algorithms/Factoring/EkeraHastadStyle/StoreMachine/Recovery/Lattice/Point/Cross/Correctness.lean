@@ -33,7 +33,7 @@ private def sourceValue (left right : NumberTheory.IntegerPoint3) : SourceCell â
   | .rightSecond => right.2.1
   | .rightThird => right.2.2
 
-private theorem source_representations (left right : LatticeState.PointRefs ctx width)
+private lemma source_representations (left right : LatticeState.PointRefs ctx width)
     (store : Store ctx) (leftValue rightValue : NumberTheory.IntegerPoint3)
     (leftRep : LatticeArithmetic.PointRawRepresents store left leftValue)
     (rightRep : LatticeArithmetic.PointRawRepresents store right rightValue) (source : SourceCell) :
@@ -47,7 +47,7 @@ private theorem source_representations (left right : LatticeState.PointRefs ctx 
   | rightSecond => exact rightRep.2.1
   | rightThird => exact rightRep.2.2
 
-private theorem mutable_avoids (left right output : LatticeState.PointRefs ctx width)
+private lemma mutable_avoids (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
     (separation : PointCrossSeparation left right output productLeft productRight)
     (readCell writeCell : MutableCell) (different : writeCell â‰  readCell) :
@@ -56,7 +56,7 @@ private theorem mutable_avoids (left right output : LatticeState.PointRefs ctx w
   simp only [CInputRef.storageKeys, List.mem_singleton]
   exact fun equal => different (separation.mutableInjective equal)
 
-private theorem coordinate_sources_preserved (left right output : LatticeState.PointRefs ctx width)
+private lemma coordinate_sources_preserved (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
     (separation : PointCrossSeparation left right output productLeft productRight)
     (a b c d : CInputRef ctx (.unsignedWord width)) (cell : MutableCell) (store : Store ctx)
@@ -69,7 +69,7 @@ private theorem coordinate_sources_preserved (left right output : LatticeState.P
     (separation.sourceAvoidsMutable source .productLeft)
     (separation.sourceAvoidsMutable source .productRight)
 
-private theorem coordinate_mutable_preserved (left right output : LatticeState.PointRefs ctx width)
+private lemma coordinate_mutable_preserved (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
     (separation : PointCrossSeparation left right output productLeft productRight)
     (a b c d : CInputRef ctx (.unsignedWord width)) (cell readCell : MutableCell)
@@ -85,7 +85,7 @@ private theorem coordinate_mutable_preserved (left right output : LatticeState.P
     (mutable_avoids _ _ _ _ _ separation _ _ notRight)
 
 /-- The nine actual native writes produce the original integer cross product modulo the width. -/
-theorem pointCrossInto_correct (left right output : LatticeState.PointRefs ctx width)
+lemma pointCrossInto_correct (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
     (separation : PointCrossSeparation left right output productLeft productRight)
     (store : Store ctx) (leftValue rightValue : NumberTheory.IntegerPoint3)
@@ -158,7 +158,7 @@ theorem pointCrossInto_correct (left right output : LatticeState.PointRefs ctx w
     exact secondResult
 
 /-- All six source reads survive the full actual cross-product circuit. -/
-theorem pointCrossInto_sources (left right output : LatticeState.PointRefs ctx width)
+lemma pointCrossInto_sources (left right output : LatticeState.PointRefs ctx width)
     (productLeft productRight : CWriteRef ctx (.unsignedWord width))
     (separation : PointCrossSeparation left right output productLeft productRight)
     (store : Store ctx) (source : SourceCell) :

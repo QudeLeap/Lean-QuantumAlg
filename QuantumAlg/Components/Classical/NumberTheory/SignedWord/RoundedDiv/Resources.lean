@@ -39,7 +39,7 @@ def bodyTrace (width : Nat) (magnitudeNegative correctionNegative restoreNegativ
       (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
 
 /-- Every actual path charges exactly the instructions selected by its three recorded flags. -/
-theorem body_events (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
+lemma body_events (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
     (body (model := model) refs).eventTrace path = bodyTrace (model := model) width
       path.1.1.2.1.toBool
       path.2.1.2.1.1.toBool path.2.2.2.2.1.toBool := by
@@ -70,7 +70,7 @@ theorem body_events (refs : BodyRefs ctx width) (path : (body (model := model) r
             List.map_cons, List.map_nil]
 
 /-- The actual store path uses the original numerator's sign in all three native selections. -/
-theorem body_actualEvents (refs : BodyRefs ctx width) (separation : Separation refs)
+lemma body_actualEvents (refs : BodyRefs ctx width) (separation : Separation refs)
     (store : Store ctx) (widthPositive : 0 < width) :
     (body (model := model) refs).eventTrace (bodyStep (model := model) refs store).2 =
       bodyTrace (model := model) width (rawIsNegative (store.read refs.numerator))
@@ -109,7 +109,7 @@ theorem body_actualEvents (refs : BodyRefs ctx width) (separation : Separation r
   rw [rawWord_classifySign_correct, roundingSign, finishSign]
 
 /-- The actual ordered trace has at most thirteen native instructions on every path. -/
-theorem body_eventCount_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
+lemma body_eventCount_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
     ((body (model := model) refs).eventTrace path).length ≤ 13 := by
   rw [body_events]
   simp only [bodyTrace, signTrace, magnitudeTrace, List.length_append,
@@ -118,7 +118,7 @@ theorem body_eventCount_le (refs : BodyRefs ctx width) (path : (body (model := m
     simp only [List.length_cons, List.length_nil] <;> decide
 
 /-- Unit native durations preserve every sequential dependency and total at most thirteen. -/
-theorem body_depth_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
+lemma body_depth_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
     (body (model := model) refs).depth (fun _ => 1) path ≤ 13 := by
   have normalizationBound := SignedWord.normalizeMagnitude_depth_le (model := model) refs.numerator
     refs.negative refs.magnitude path.1.1
@@ -136,7 +136,7 @@ theorem body_depth_le (refs : BodyRefs ctx width) (path : (body (model := model)
               BitWord.instruction, Circuit.eventDepth, DepthExpr.depthEval] at * <;> omega
 
 /-- Every visited context is the original complete caller context. -/
-theorem body_visited (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path)
+lemma body_visited (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (body (model := model)
       refs).visitedContexts path) :
     visited = ctx := by
@@ -158,14 +158,14 @@ theorem body_visited (refs : BodyRefs ctx width) (path : (body (model := model) 
               or_false, or_self] using present
 
 /-- Resident space includes every original classical cell and quantum system. -/
-theorem body_resident_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
+lemma body_resident_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
     (body (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [body_visited refs path visited present]
 
 /-- No auxiliary allocation is added to the caller-supplied scratch and quantum context. -/
-theorem body_auxiliary_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
+lemma body_auxiliary_le (refs : BodyRefs ctx width) (path : (body (model := model) refs).Path) :
     (body (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

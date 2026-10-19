@@ -37,12 +37,12 @@ private def divideMass {R : Register} (state : DensityOperator R) (count : ℕ+)
       _ = (count : ℝ)⁻¹ := mul_one _
       _ ≤ 1 := inv_le_one_of_one_le₀ (by exact_mod_cast count.pos)
 
-private theorem divideMass_mass {R : Register} (state : DensityOperator R) (count : ℕ+) :
+private lemma divideMass_mass {R : Register} (state : DensityOperator R) (count : ℕ+) :
     (divideMass state count).mass = (count : ℝ)⁻¹ * state.mass := by
   simp only [DensityOperator.mass, divideMass, Matrix.trace_smul,
     Complex.smul_re, smul_eq_mul]
 
-private theorem sum_divideMass_mass {R : Register}
+private lemma sum_divideMass_mass {R : Register}
     (state : DensityOperator R) (count : ℕ+) :
     ∑ _value : Fin count, (divideMass state count).mass = state.mass := by
   have positive : (0 : ℝ) < count := by exact_mod_cast count.pos
@@ -60,13 +60,13 @@ def uniformChoice {C : Type} [Fintype C] {R : Register}
     exact state.total_le_one
 
 /-- Each joint outcome retains exactly one equal fraction of its original quantum block. -/
-theorem uniformChoice_block_matrix {C : Type} [Fintype C] {R : Register}
+lemma uniformChoice_block_matrix {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (count : ℕ+) (value : C) (outcome : Fin count) :
     ((uniformChoice state count).block (value, outcome)).matrix =
       ((count : ℝ)⁻¹) • (state.block value).matrix := rfl
 
 /-- The classical random choice preserves total execution probability. -/
-theorem uniformChoice_mass {C : Type} [Fintype C] {R : Register}
+lemma uniformChoice_mass {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (count : ℕ+) :
     (uniformChoice state count).mass = state.mass := by
   change (∑ result : C × Fin count, (divideMass (state.block result.1) count).mass) = _

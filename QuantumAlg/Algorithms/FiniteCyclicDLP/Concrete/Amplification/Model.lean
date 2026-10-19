@@ -49,7 +49,7 @@ def sourceFailureBudget (P : KnownOrderProblem G) : FailureBudget where
   failureNumerator := successDenominator P - successNumerator P
   failureDenominator := successDenominator P
 
-theorem successNumerator_lt_successDenominator (P : KnownOrderProblem G) :
+lemma successNumerator_lt_successDenominator (P : KnownOrderProblem G) :
     successNumerator P < successDenominator P := by
   have htotient : Nat.totient P.order ≤ P.order := Nat.totient_le P.order
   have horder : P.order ≤ fourierModulus P := order_le_fourierModulus P
@@ -61,7 +61,7 @@ theorem successNumerator_lt_successDenominator (P : KnownOrderProblem G) :
 
 /-- For prime order `r`, the general selected-tail floor is exactly
 `r(r-1)/(4q²)`. -/
-theorem attemptFloor_eq_primeOrder (P : KnownOrderProblem G)
+lemma attemptFloor_eq_primeOrder (P : KnownOrderProblem G)
     (hprime : P.order.Prime) :
     attemptFloor P =
       ((P.order * (P.order - 1) : Nat) : Real) / successDenominator P := by
@@ -69,7 +69,7 @@ theorem attemptFloor_eq_primeOrder (P : KnownOrderProblem G)
 
 /-- At prime order, the concrete selected-family failure complement is the
 shared parameterized `r,q` budget. -/
-theorem sourceFailureBudget_eq_primeOrder (P : KnownOrderProblem G)
+lemma sourceFailureBudget_eq_primeOrder (P : KnownOrderProblem G)
     (hprime : P.order.Prime) :
     sourceFailureBudget P =
       PrimeOrderTailBound.sourceFailureBudget
@@ -81,7 +81,7 @@ theorem sourceFailureBudget_eq_primeOrder (P : KnownOrderProblem G)
 
 /-- The concrete selected-family floor is exactly the advertised positive
 rational. -/
-theorem selectedOutcomeFamilyLowerBound_eq_ofReal_attemptFloor
+lemma selectedOutcomeFamilyLowerBound_eq_ofReal_attemptFloor
     (P : KnownOrderProblem G) :
     FiniteCyclicDLP.Probability.selectedOutcomeFamilyLowerBound P =
       ENNReal.ofReal (attemptFloor P) := by
@@ -98,7 +98,7 @@ theorem selectedOutcomeFamilyLowerBound_eq_ofReal_attemptFloor
   norm_num
   ring
 
-theorem sourceFailureBudget_strictlyWellFormed
+lemma sourceFailureBudget_strictlyWellFormed
     (P : KnownOrderProblem G) :
     (sourceFailureBudget P).StrictlyWellFormed := by
   have hden : 0 < successDenominator P := by
@@ -124,7 +124,7 @@ theorem sourceFailureBudget_strictlyWellFormed
   · simp only [sourceFailureBudget]
     omega
 
-theorem sourceFailureBudget_value (P : KnownOrderProblem G) :
+lemma sourceFailureBudget_value (P : KnownOrderProblem G) :
     (sourceFailureBudget P).value = 1 - attemptFloor P := by
   have hle : successNumerator P ≤ successDenominator P :=
     (successNumerator_lt_successDenominator P).le
@@ -137,7 +137,7 @@ theorem sourceFailureBudget_value (P : KnownOrderProblem G) :
 
 /-- The actual concrete floor has exactly the failure complement used for
 retry calibration. -/
-theorem one_sub_selectedOutcomeFamilyLowerBound_eq_sourceFailure
+lemma one_sub_selectedOutcomeFamilyLowerBound_eq_sourceFailure
     (P : KnownOrderProblem G) :
     1 - FiniteCyclicDLP.Probability.selectedOutcomeFamilyLowerBound P =
       ENNReal.ofReal (sourceFailureBudget P).value := by
@@ -155,7 +155,7 @@ def retryCountForBudget (P : KnownOrderProblem G)
 
 /-- Prime-order concrete endpoints consume the shared `r,q,eta` retry count
 without an endpoint-specific calibration. -/
-theorem retryCountForBudget_eq_primeOrder (P : KnownOrderProblem G)
+lemma retryCountForBudget_eq_primeOrder (P : KnownOrderProblem G)
     (budget : FailureBudget) (hprime : P.order.Prime) :
     retryCountForBudget P budget =
       PrimeOrderTailBound.retryCount
@@ -163,7 +163,7 @@ theorem retryCountForBudget_eq_primeOrder (P : KnownOrderProblem G)
   unfold retryCountForBudget PrimeOrderTailBound.retryCount
   rw [sourceFailureBudget_eq_primeOrder P hprime]
 
-theorem retryFailurePower_le_budget (P : KnownOrderProblem G)
+lemma retryFailurePower_le_budget (P : KnownOrderProblem G)
     (budget : FailureBudget) (hbudget : budget.WellFormed) :
     (ENNReal.ofReal (sourceFailureBudget P).value) ^
         retryCountForBudget P budget ≤
@@ -173,7 +173,7 @@ theorem retryFailurePower_le_budget (P : KnownOrderProblem G)
       (sourceFailureBudget P) budget
       (sourceFailureBudget_strictlyWellFormed P) hbudget
 
-theorem successThreshold_le_one_sub_retryFailurePower
+lemma successThreshold_le_one_sub_retryFailurePower
     (P : KnownOrderProblem G) (budget : FailureBudget)
     (hbudget : budget.WellFormed) :
     FailureBudget.successThreshold budget ≤

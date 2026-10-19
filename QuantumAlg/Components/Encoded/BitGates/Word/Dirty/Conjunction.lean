@@ -29,7 +29,7 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {tail : Nat}
 variable (layout : ZeroTestLayout (encoding := encoding) tail)
 
-private theorem prefix_succ_step (index : Fin tail) (state : Data) :
+private lemma prefix_succ_step (index : Fin tail) (state : Data) :
     andStagePrefixStep layout (index.val + 1) state =
       (andGateAt layout index).step (andStagePrefixStep layout index.val state) := by
   have bound : index.val < (andStageIndices (tail := tail)).length := by
@@ -46,7 +46,7 @@ private theorem prefix_succ_step (index : Fin tail) (state : Data) :
   rfl
 
 /-- The actual next gate xors its conjunction into the original, unrestricted work bit. -/
-theorem dirtyAndPrefix_work (index : Fin tail) (state : Data) :
+lemma dirtyAndPrefix_work (index : Fin tail) (state : Data) :
     (layout.work.bit index).get (andStagePrefixStep layout (index.val + 1) state) =
       ((layout.work.bit index).get state ^^
         ((chainControlA layout index).get (andStagePrefixStep layout index.val state) &&
@@ -54,7 +54,7 @@ theorem dirtyAndPrefix_work (index : Fin tail) (state : Data) :
   rw [prefix_succ_step, andGateAt_get_work, andStagePrefixStep_get_work_before]
 
 /-- The complete chain retains the actual incoming value in each work-bit recurrence. -/
-theorem dirtyAndChain_work (index : Fin tail) (state : Data) :
+lemma dirtyAndChain_work (index : Fin tail) (state : Data) :
     (layout.work.bit index).get (andStageIndexStep layout state) =
       ((layout.work.bit index).get state ^^
         ((chainControlA layout index).get (andStageIndexStep layout state) &&
@@ -63,7 +63,7 @@ theorem dirtyAndChain_work (index : Fin tail) (state : Data) :
     chainControlA_get_prefix_eq_indexStep, chainControlB_get_prefix_eq_indexStep]
 
 /-- A literal compute-flip-inverse list restores every encoded coordinate except its output. -/
-theorem dirtyConjunction_sandwich (compute : List (GateSpec encoding))
+lemma dirtyConjunction_sandwich (compute : List (GateSpec encoding))
     (disjoint : ∀ gate, gate ∈ compute → GateSpec.bitDisjoint layout.output gate)
     (state : Data) :
     GateSpec.stepList (compute ++ [finalGate layout] ++ compute.reverse) state =

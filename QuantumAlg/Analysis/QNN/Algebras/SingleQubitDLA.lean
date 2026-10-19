@@ -57,15 +57,15 @@ variable {n : ℕ}
 /-- The single-site Pauli label: the Pauli `a` on qubit `j`, identity on every other qubit. -/
 def siteP (j : Fin n) (a : Fin 4) : Fin n → Fin 4 := Function.update 0 j a
 
-@[simp] theorem siteP_same (j : Fin n) (a : Fin 4) : siteP j a j = a := by
+@[simp] lemma siteP_same (j : Fin n) (a : Fin 4) : siteP j a j = a := by
   simp [siteP]
 
-theorem siteP_ne {j l : Fin n} (a : Fin 4) (h : l ≠ j) : siteP j a l = 0 := by
+lemma siteP_ne {j l : Fin n} (a : Fin 4) (h : l ≠ j) : siteP j a l = 0 := by
   simp only [siteP, Function.update_of_ne h, Pi.zero_apply]
 
 /-- If two single-qubit Paulis multiply to `ph · σ_c`, then the single-site Pauli strings
 multiply to `ph · P_{siteP j c}` (the other legs are `I·I = I`). -/
-theorem pauliStr_siteP_mul (j : Fin n) {a b c : Fin 4} {ph : ℂ}
+lemma pauliStr_siteP_mul (j : Fin n) {a b c : Fin 4} {ph : ℂ}
     (h : pauli1 a * pauli1 b = ph • pauli1 c) :
     pauliStr (siteP j a) * pauliStr (siteP j b) = ph • pauliStr (siteP j c) := by
   ext i k
@@ -87,27 +87,27 @@ theorem pauliStr_siteP_mul (j : Fin n) {a b c : Fin 4} {ph : ℂ}
 
 /-! ### The single-qubit Pauli products `σ_a σ_b = ±i σ_c` -/
 
-theorem pauli1_mul_12 : pauli1 1 * pauli1 2 = Complex.I • pauli1 3 := by
+lemma pauli1_mul_12 : pauli1 1 * pauli1 2 = Complex.I • pauli1 3 := by
   ext a b; fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ]
 
-theorem pauli1_mul_21 : pauli1 2 * pauli1 1 = (-Complex.I) • pauli1 3 := by
+lemma pauli1_mul_21 : pauli1 2 * pauli1 1 = (-Complex.I) • pauli1 3 := by
   ext a b; fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ]
 
-theorem pauli1_mul_23 : pauli1 2 * pauli1 3 = Complex.I • pauli1 1 := by
+lemma pauli1_mul_23 : pauli1 2 * pauli1 3 = Complex.I • pauli1 1 := by
   ext a b; fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ]
 
-theorem pauli1_mul_32 : pauli1 3 * pauli1 2 = (-Complex.I) • pauli1 1 := by
+lemma pauli1_mul_32 : pauli1 3 * pauli1 2 = (-Complex.I) • pauli1 1 := by
   ext a b; fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ]
 
-theorem pauli1_mul_31 : pauli1 3 * pauli1 1 = Complex.I • pauli1 2 := by
+lemma pauli1_mul_31 : pauli1 3 * pauli1 1 = Complex.I • pauli1 2 := by
   ext a b; fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ]
 
-theorem pauli1_mul_13 : pauli1 1 * pauli1 3 = (-Complex.I) • pauli1 2 := by
+lemma pauli1_mul_13 : pauli1 1 * pauli1 3 = (-Complex.I) • pauli1 2 := by
   ext a b; fin_cases a <;> fin_cases b <;>
     simp [pauli1, pauliX, pauliY, pauliZ]
 
@@ -116,24 +116,24 @@ theorem pauli1_mul_13 : pauli1 1 * pauli1 3 = (-Complex.I) • pauli1 2 := by
 attribute [local instance 100] LieRing.ofAssociativeRing
 
 /-- Lift a single-site Pauli-string product to the `Fin (2ⁿ)` matrices. -/
-theorem pauliMat_siteP_mul (j : Fin n) {a b c : Fin 4} {ph : ℂ}
+lemma pauliMat_siteP_mul (j : Fin n) {a b c : Fin 4} {ph : ℂ}
     (h : pauli1 a * pauli1 b = ph • pauli1 c) :
     pauliMat (siteP j a) * pauliMat (siteP j b) = ph • pauliMat (siteP j c) := by
   rw [pauliMat, pauliMat, pauliMat, Matrix.submatrix_mul_equiv, pauliStr_siteP_mul j h]
   ext p q
   simp [Matrix.submatrix_apply, Matrix.smul_apply]
 
-theorem pauliMat_bracket_12 (j : Fin n) :
+lemma pauliMat_bracket_12 (j : Fin n) :
     ⁅pauliMat (siteP j 1), pauliMat (siteP j 2)⁆ = (2 * Complex.I) • pauliMat (siteP j 3) := by
   rw [Ring.lie_def, pauliMat_siteP_mul j pauli1_mul_12, pauliMat_siteP_mul j pauli1_mul_21,
     ← sub_smul, show Complex.I - -Complex.I = 2 * Complex.I from by ring]
 
-theorem pauliMat_bracket_23 (j : Fin n) :
+lemma pauliMat_bracket_23 (j : Fin n) :
     ⁅pauliMat (siteP j 2), pauliMat (siteP j 3)⁆ = (2 * Complex.I) • pauliMat (siteP j 1) := by
   rw [Ring.lie_def, pauliMat_siteP_mul j pauli1_mul_23, pauliMat_siteP_mul j pauli1_mul_32,
     ← sub_smul, show Complex.I - -Complex.I = 2 * Complex.I from by ring]
 
-theorem pauliMat_bracket_31 (j : Fin n) :
+lemma pauliMat_bracket_31 (j : Fin n) :
     ⁅pauliMat (siteP j 3), pauliMat (siteP j 1)⁆ = (2 * Complex.I) • pauliMat (siteP j 2) := by
   rw [Ring.lie_def, pauliMat_siteP_mul j pauli1_mul_31, pauliMat_siteP_mul j pauli1_mul_13,
     ← sub_smul, show Complex.I - -Complex.I = 2 * Complex.I from by ring]
@@ -149,12 +149,12 @@ public noncomputable def embGens (j : Fin n) : Set (Matrix (Fin (2 ^ n)) (Fin (2
   {Complex.I • pauliMat (siteP j 1), Complex.I • pauliMat (siteP j 2),
     Complex.I • pauliMat (siteP j 3)}
 
-theorem pauliMat1_mem_embSet (j : Fin n) : pauliMat (siteP j 1) ∈ embSet j := by simp [embSet]
-theorem pauliMat2_mem_embSet (j : Fin n) : pauliMat (siteP j 2) ∈ embSet j := by simp [embSet]
-theorem pauliMat3_mem_embSet (j : Fin n) : pauliMat (siteP j 3) ∈ embSet j := by simp [embSet]
+lemma pauliMat1_mem_embSet (j : Fin n) : pauliMat (siteP j 1) ∈ embSet j := by simp [embSet]
+lemma pauliMat2_mem_embSet (j : Fin n) : pauliMat (siteP j 2) ∈ embSet j := by simp [embSet]
+lemma pauliMat3_mem_embSet (j : Fin n) : pauliMat (siteP j 3) ∈ embSet j := by simp [embSet]
 
 /-- The bracket of two qubit-`j` `su(2)` generators lands in `span {Xⱼ, Yⱼ, Zⱼ}`. -/
-theorem emb_lie_mem_span (j : Fin n) ⦃x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ⦄
+lemma emb_lie_mem_span (j : Fin n) ⦃x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ⦄
     (hx : x ∈ Submodule.span ℂ (embSet j)) (hy : y ∈ Submodule.span ℂ (embSet j)) :
     ⁅x, y⁆ ∈ Submodule.span ℂ (embSet j) := by
   induction hx using Submodule.span_induction with
@@ -189,7 +189,7 @@ noncomputable def embLie (j : Fin n) : LieSubalgebra ℂ (Matrix (Fin (2 ^ n)) (
   toSubmodule := Submodule.span ℂ (embSet j)
   lie_mem' := fun hx hy => emb_lie_mem_span j hx hy
 
-theorem embGens_subset_embLie (j : Fin n) : embGens j ⊆ (embLie j : Set _) := by
+lemma embGens_subset_embLie (j : Fin n) : embGens j ⊆ (embLie j : Set _) := by
   intro a ha
   simp only [embGens, Set.mem_insert_iff, Set.mem_singleton_iff] at ha
   have hmem : ∀ P ∈ embSet j, Complex.I • P ∈ embLie j := fun P hP =>
@@ -200,7 +200,7 @@ theorem embGens_subset_embLie (j : Fin n) : embGens j ⊆ (embLie j : Set _) := 
   · exact hmem _ (pauliMat3_mem_embSet j)
 
 /-- The dynamical Lie algebra of `{iXⱼ, iYⱼ, iZⱼ}` is, as a submodule, `span {Xⱼ, Yⱼ, Zⱼ}`. -/
-theorem emb_dla_toSubmodule (j : Fin n) :
+lemma emb_dla_toSubmodule (j : Fin n) :
     (dynamicalLieAlgebra (embGens j)).toSubmodule = Submodule.span ℂ (embSet j) := by
   apply le_antisymm
   · intro x hx
@@ -227,13 +227,13 @@ theorem emb_dla_toSubmodule (j : Fin n) :
 noncomputable def embB (j : Fin n) (i : Fin 3) : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   rtNinv n • pauliMat (siteP j i.succ)
 
-theorem siteP_inj (j : Fin n) {x y : Fin 4} (h : siteP j x = siteP j y) : x = y := by
+lemma siteP_inj (j : Fin n) {x y : Fin 4} (h : siteP j x = siteP j y) : x = y := by
   have := congrFun h j; rwa [siteP_same, siteP_same] at this
 
-theorem embB_isHermitian (j : Fin n) (i : Fin 3) : (embB j i)ᴴ = embB j i := by
+lemma embB_isHermitian (j : Fin n) (i : Fin 3) : (embB j i)ᴴ = embB j i := by
   rw [embB, Matrix.conjTranspose_smul, rtNinv_conj, pauliMat_isHermitian]
 
-theorem embB_ortho (j : Fin n) (i k : Fin 3) :
+lemma embB_ortho (j : Fin n) (i k : Fin 3) :
     hsInner (embB j i) (embB j k) = if i = k then 1 else 0 := by
   rw [embB, embB, hsInner_smul_left, hsInner_smul_right, starRingEnd_apply, rtNinv_conj,
     ← mul_assoc, rtNinv_mul_self, pauliMat_hsInner]
@@ -242,7 +242,7 @@ theorem embB_ortho (j : Fin n) (i k : Fin 3) :
     rw [if_pos rfl, if_pos rfl, one_div, inv_mul_cancel₀ (pow_ne_zero n (two_ne_zero))]
   · rw [if_neg hik, if_neg (fun h => hik (Fin.succ_injective 3 (siteP_inj j h))), mul_zero]
 
-theorem emb_range_span (j : Fin n) :
+lemma emb_range_span (j : Fin n) :
     Submodule.span ℂ (Set.range (embB j)) = Submodule.span ℂ (embSet j) := by
   have hrt : rtNinv n ≠ 0 := by
     intro h; have hm := rtNinv_mul_self n; rw [h, mul_zero] at hm
@@ -280,32 +280,32 @@ noncomputable def su2EmbHermBasis (j : Fin n) : DLAHermBasis (embGens j) where
   ortho := embB_ortho j
   span_eq := by rw [emb_range_span, emb_dla_toSubmodule]
 
-@[simp] theorem su2EmbHermBasis_dim (j : Fin n) : (su2EmbHermBasis j).dim = 3 := rfl
+@[simp] lemma su2EmbHermBasis_dim (j : Fin n) : (su2EmbHermBasis j).dim = 3 := rfl
 
-@[simp] theorem su2EmbHermBasis_B (j : Fin n) : (su2EmbHermBasis j).B = embB j := rfl
+@[simp] lemma su2EmbHermBasis_B (j : Fin n) : (su2EmbHermBasis j).B = embB j := rfl
 
-theorem su2EmbHermBasis_dim_pos (j : Fin n) : 0 < (su2EmbHermBasis j).dim := by
+lemma su2EmbHermBasis_dim_pos (j : Fin n) : 0 < (su2EmbHermBasis j).dim := by
   rw [su2EmbHermBasis_dim]; norm_num
 
-theorem embB_zero (j : Fin n) : embB j 0 = rtNinv n • pauliMat (siteP j 1) := rfl
+lemma embB_zero (j : Fin n) : embB j 0 = rtNinv n • pauliMat (siteP j 1) := rfl
 
 /-! ### Cross-ideal orthogonality of `g = su(2)^{⊕n}` -/
 
-theorem siteP_ne_cross {i j : Fin n} (hij : i ≠ j) {x y : Fin 4} (hx : x ≠ 0) :
+lemma siteP_ne_cross {i j : Fin n} (hij : i ≠ j) {x y : Fin 4} (hx : x ≠ 0) :
     siteP i x ≠ siteP j y := by
   intro hcontra
   have hval := congrFun hcontra i
   rw [siteP_same, siteP_ne y hij] at hval
   exact hx hval
 
-theorem emb_cross_ortho {i j : Fin n} (hij : i ≠ j) (a b : Fin 3) :
+lemma emb_cross_ortho {i j : Fin n} (hij : i ≠ j) (a b : Fin 3) :
     hsInner ((su2EmbHermBasis i).B a) ((su2EmbHermBasis j).B b) = 0 := by
   change hsInner (embB i a) (embB j b) = 0
   rw [embB, embB, hsInner_smul_left, hsInner_smul_right, pauliMat_hsInner,
     if_neg (siteP_ne_cross hij (Fin.succ_ne_zero a)), mul_zero, mul_zero]
 
 /-- Pauli labels on distinct sites have zero symplectic pairing. -/
-theorem pauliOmega_siteP_cross {i j : Fin n} (hij : i ≠ j) (a b : Fin 4) :
+lemma pauliOmega_siteP_cross {i j : Fin n} (hij : i ≠ j) (a b : Fin 4) :
     pauliOmega (siteP i a) (siteP j b) = 0 := by
   rw [pauliOmega]
   refine Finset.sum_eq_zero fun k _ => ?_
@@ -315,20 +315,20 @@ theorem pauliOmega_siteP_cross {i j : Fin n} (hij : i ≠ j) (a b : Fin 4) :
   · rw [siteP_ne a hki, omega4_zero_left]
 
 /-- Pauli matrices supported on distinct sites commute. -/
-theorem pauliMat_siteP_cross_lie_zero {i j : Fin n} (hij : i ≠ j) (a b : Fin 4) :
+lemma pauliMat_siteP_cross_lie_zero {i j : Fin n} (hij : i ≠ j) (a b : Fin 4) :
     ⁅pauliMat (siteP i a), pauliMat (siteP j b)⁆ = 0 := by
   rw [pauliMat_bracket_closed, pauliPhase_sub_eq_zero (pauliOmega_siteP_cross hij a b),
     zero_smul]
 
 /-- Embedded normalized single-site basis elements on distinct sites commute. -/
-theorem embB_cross_lie_zero {i j : Fin n} (hij : i ≠ j) (a b : Fin 3) :
+lemma embB_cross_lie_zero {i j : Fin n} (hij : i ≠ j) (a b : Fin 3) :
     ⁅embB i a, embB j b⁆ = 0 := by
   rw [embB, embB, smul_lie, lie_smul, pauliMat_siteP_cross_lie_zero hij,
     smul_zero]
   simp
 
 /-- The bracket of two elements from site spans lands in the join of all site spans. -/
-theorem emb_span_pair_lie_mem_iSup (i j : Fin n)
+lemma emb_span_pair_lie_mem_iSup (i j : Fin n)
     {x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
     (hx : x ∈ Submodule.span ℂ (embSet i)) (hy : y ∈ Submodule.span ℂ (embSet j)) :
     ⁅x, y⁆ ∈ ⨆ k : Fin n, Submodule.span ℂ (embSet k) := by
@@ -363,7 +363,7 @@ theorem emb_span_pair_lie_mem_iSup (i j : Fin n)
       exact Submodule.smul_mem _ _ ha
 
 /-- The joined single-site spans are closed under the matrix commutator. -/
-theorem emb_iSup_lie_mem {x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
+lemma emb_iSup_lie_mem {x y : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ}
     (hx : x ∈ ⨆ j : Fin n, Submodule.span ℂ (embSet j))
     (hy : y ∈ ⨆ j : Fin n, Submodule.span ℂ (embSet j)) :
     ⁅x, y⁆ ∈ ⨆ j : Fin n, Submodule.span ℂ (embSet j) := by
@@ -417,21 +417,21 @@ public theorem emb_iSup_span_eq_iUnion_dla (n : Nat) :
 /-- Cyclic structure constant of the embedded normalized `su(2)` basis on qubit `j`:
 `⁅Bₖ, Bᵢ⁆ = (2i/√(2ⁿ)) • Bₗ` for the positive cyclic `(k, i, l)`. The scalar
 `f = 2 i · rtNinv n` is carried opaque (only `f ≠ 0` matters downstream). -/
-theorem embB_lie_01 (j : Fin n) :
+lemma embB_lie_01 (j : Fin n) :
     ⁅embB j 0, embB j 1⁆ = (2 * Complex.I * rtNinv n) • embB j 2 := by
   change ⁅rtNinv n • pauliMat (siteP j 1), rtNinv n • pauliMat (siteP j 2)⁆
     = (2 * Complex.I * rtNinv n) • (rtNinv n • pauliMat (siteP j 3))
   rw [smul_lie, lie_smul, pauliMat_bracket_12, smul_smul, smul_smul, smul_smul]
   congr 1; ring
 
-theorem embB_lie_12 (j : Fin n) :
+lemma embB_lie_12 (j : Fin n) :
     ⁅embB j 1, embB j 2⁆ = (2 * Complex.I * rtNinv n) • embB j 0 := by
   change ⁅rtNinv n • pauliMat (siteP j 2), rtNinv n • pauliMat (siteP j 3)⁆
     = (2 * Complex.I * rtNinv n) • (rtNinv n • pauliMat (siteP j 1))
   rw [smul_lie, lie_smul, pauliMat_bracket_23, smul_smul, smul_smul, smul_smul]
   congr 1; ring
 
-theorem embB_lie_20 (j : Fin n) :
+lemma embB_lie_20 (j : Fin n) :
     ⁅embB j 2, embB j 0⁆ = (2 * Complex.I * rtNinv n) • embB j 1 := by
   change ⁅rtNinv n • pauliMat (siteP j 3), rtNinv n • pauliMat (siteP j 1)⁆
     = (2 * Complex.I * rtNinv n) • (rtNinv n • pauliMat (siteP j 2))
@@ -439,27 +439,27 @@ theorem embB_lie_20 (j : Fin n) :
   congr 1; ring
 
 /-- Anti-cyclic embedded brackets, by skew-symmetry. -/
-theorem embB_lie_10 (j : Fin n) :
+lemma embB_lie_10 (j : Fin n) :
     ⁅embB j 1, embB j 0⁆ = (-(2 * Complex.I * rtNinv n)) • embB j 2 := by
   rw [neg_smul, ← embB_lie_01]; exact (lie_skew (embB j 1) (embB j 0)).symm
 
-theorem embB_lie_21 (j : Fin n) :
+lemma embB_lie_21 (j : Fin n) :
     ⁅embB j 2, embB j 1⁆ = (-(2 * Complex.I * rtNinv n)) • embB j 0 := by
   rw [neg_smul, ← embB_lie_12]; exact (lie_skew (embB j 2) (embB j 1)).symm
 
-theorem embB_lie_02 (j : Fin n) :
+lemma embB_lie_02 (j : Fin n) :
     ⁅embB j 0, embB j 2⁆ = (-(2 * Complex.I * rtNinv n)) • embB j 1 := by
   rw [neg_smul, ← embB_lie_20]; exact (lie_skew (embB j 0) (embB j 2)).symm
 
 /-- The embedded `su(2)` structure constant is nonzero. -/
-theorem emb_f_ne_zero : (2 * Complex.I * rtNinv n) ≠ 0 :=
+lemma emb_f_ne_zero : (2 * Complex.I * rtNinv n) ≠ 0 :=
   mul_ne_zero (mul_ne_zero two_ne_zero Complex.I_ne_zero) (rtNinv_ne_zero n)
 
 /-- **Per-ideal Schur one-dimensionality `(gⱼ⊗gⱼ)^{gⱼ} = span{Cⱼ}` for the embedded qubit-`j`
 `su(2)` (discharge of H2).** Mirrors `su2HermBasis_schur`: the doubled-action invariance equations
 (`doubledAd_pairing`) force the `3×3` coefficient matrix `cᵢₗ = ⟪Bᵢ⊗ₖBₗ, X⟫` to be a scalar `λ·I`,
 whence `X = λ·Cⱼ`. No abstract Schur lemma is used. -/
-theorem su2EmbHermBasis_schur (j : Fin n) :
+lemma su2EmbHermBasis_schur (j : Fin n) :
     gTensorGInvariant (su2EmbHermBasis j)
       = Submodule.span ℂ {(su2EmbHermBasis j).casimir} := by
   refine le_antisymm ?_ (spanC_le_gTensorGInvariant (su2EmbHermBasis j))
@@ -547,7 +547,7 @@ theorem su2EmbHermBasis_schur (j : Fin n) :
 public noncomputable def localObs (hn : 0 < n) : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   pauliMat (siteP ⟨0, hn⟩ 1)
 
-theorem localObs_herm (hn : 0 < n) : (localObs hn)ᴴ = localObs hn := pauliMat_isHermitian _
+lemma localObs_herm (hn : 0 < n) : (localObs hn)ᴴ = localObs hn := pauliMat_isHermitian _
 
 /-- The initial state `ρ = |0⟩⟨0|^{⊗n}`, the all-zeros computational-basis projector (the `(0,0)`
 matrix unit, written through the register reindexing to match `pauliMat`). -/
@@ -555,20 +555,20 @@ public noncomputable def localState : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   (Matrix.single (0 : Fin n → Fin 2) 0 1).submatrix
     finFunctionFinEquiv.symm finFunctionFinEquiv.symm
 
-theorem localState_herm : (localState (n := n))ᴴ = localState := by
+lemma localState_herm : (localState (n := n))ᴴ = localState := by
   unfold localState
   rw [Matrix.conjTranspose_submatrix, Matrix.conjTranspose_single, star_one]
 
 /-! ### Per-ideal `g`-purities for the local case -/
 
-theorem hrtNormSq (n : ℕ) : (Complex.normSq (rtNinv n) : ℂ) = (2 ^ n : ℂ)⁻¹ := by
+lemma hrtNormSq (n : ℕ) : (Complex.normSq (rtNinv n) : ℂ) = (2 ^ n : ℂ)⁻¹ := by
   rw [← Complex.mul_conj, starRingEnd_apply, rtNinv_conj, rtNinv_mul_self, one_div]
 
-theorem hrtNormSqInv (n : ℕ) : (Complex.normSq ((rtNinv n)⁻¹) : ℂ) = (2 ^ n : ℂ) := by
+lemma hrtNormSqInv (n : ℕ) : (Complex.normSq ((rtNinv n)⁻¹) : ℂ) = (2 ^ n : ℂ) := by
   rw [Complex.normSq_inv, Complex.ofReal_inv, hrtNormSq, inv_inv]
 
 /-- `g`-purity of the `g`-purity of a scalar multiple: `P_g(c·H) = |c|² P_g(H)`. -/
-theorem gPurity_smul {N : ℕ} {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
+lemma gPurity_smul {N : ℕ} {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DLAHermBasis gens)
     (c : ℂ) (H : Matrix (Fin N) (Fin N) ℂ) :
     b.gPurity (c • H) = (Complex.normSq c : ℂ) * b.gPurity H := by
   simp only [DLAHermBasis.gPurity]
@@ -577,35 +577,35 @@ theorem gPurity_smul {N : ℕ} {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b : DL
   rw [hsInner_smul_right, Complex.normSq_mul, Complex.ofReal_mul]
 
 /-- `⟪M, |0⟩⟨0|⟫ = conj(M₀₀)` (over the register index). -/
-theorem hsInner_single_one {ι : Type*} [Fintype ι] [DecidableEq ι] (M : Matrix ι ι ℂ) (i j : ι) :
+lemma hsInner_single_one {ι : Type*} [Fintype ι] [DecidableEq ι] (M : Matrix ι ι ℂ) (i j : ι) :
     hsInner M (Matrix.single i j 1) = (starRingEnd ℂ) (M i j) := by
   rw [hsInner, Matrix.trace_mul_comm, Matrix.trace_single_mul, one_smul, Matrix.conjTranspose_apply,
     starRingEnd_apply]
 
 /-- The reindexing preserves the Hilbert–Schmidt inner product. -/
-theorem hsInner_submatrix_ffe (A B : Matrix (Fin n → Fin 2) (Fin n → Fin 2) ℂ) :
+lemma hsInner_submatrix_ffe (A B : Matrix (Fin n → Fin 2) (Fin n → Fin 2) ℂ) :
     hsInner (A.submatrix finFunctionFinEquiv.symm finFunctionFinEquiv.symm)
         (B.submatrix finFunctionFinEquiv.symm finFunctionFinEquiv.symm) = hsInner A B := by
   rw [hsInner, Matrix.conjTranspose_submatrix, Matrix.submatrix_mul_equiv, trace_submatrix_ffe,
     ← hsInner]
 
-theorem hsInner_pauliMat_localState (σ : Fin n → Fin 4) :
+lemma hsInner_pauliMat_localState (σ : Fin n → Fin 4) :
     hsInner (pauliMat σ) localState = (starRingEnd ℂ) (∏ l, pauli1 (σ l) 0 0) := by
   rw [pauliMat, localState, hsInner_submatrix_ffe, hsInner_single_one, pauliStr, Matrix.of_apply]
   simp only [Pi.zero_apply]
 
-theorem prod_pauli1_siteP_00 (j : Fin n) (a : Fin 4) :
+lemma prod_pauli1_siteP_00 (j : Fin n) (a : Fin 4) :
     (∏ l, pauli1 (siteP j a l) 0 0) = pauli1 a 0 0 := by
   rw [← Finset.mul_prod_erase Finset.univ (fun l => pauli1 (siteP j a l) 0 0) (Finset.mem_univ j),
     siteP_same]
   rw [Finset.prod_eq_one fun l hl => ?_, mul_one]
   rw [siteP_ne a (Finset.ne_of_mem_erase hl), pauli1_zero, Matrix.one_apply_eq]
 
-theorem pauli1_succ_00 (a : Fin 3) : pauli1 a.succ 0 0 = if a = 2 then (1 : ℂ) else 0 := by
+lemma pauli1_succ_00 (a : Fin 3) : pauli1 a.succ 0 0 = if a = 2 then (1 : ℂ) else 0 := by
   fin_cases a <;> simp [pauli1, pauliX, pauliY, pauliZ]
 
 /-- The `g`-purity over a qubit-`j` `su(2)` ideal, expanded as an explicit 3-term sum. -/
-theorem gPurity_su2Emb (j : Fin n) (H : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) :
+lemma gPurity_su2Emb (j : Fin n) (H : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) :
     (su2EmbHermBasis j).gPurity H
       = (Complex.normSq (hsInner (embB j 0) H) : ℂ)
         + (Complex.normSq (hsInner (embB j 1) H) : ℂ)
@@ -614,7 +614,7 @@ theorem gPurity_su2Emb (j : Fin n) (H : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) 
       = ∑ i : Fin 3, (Complex.normSq (hsInner (embB j i) H) : ℂ) from rfl, Fin.sum_univ_three]
 
 /-- `P_{g₀}(X₀) = 2ⁿ` (the distinguished ideal carries the local observable). -/
-theorem gPurity_localObs_diag (hn : 0 < n) :
+lemma gPurity_localObs_diag (hn : 0 < n) :
     (su2EmbHermBasis (⟨0, hn⟩ : Fin n)).gPurity (localObs hn) = (2 ^ n : ℂ) := by
   have hO : localObs hn = (rtNinv n)⁻¹ • embB (⟨0, hn⟩ : Fin n) 0 := by
     rw [embB_zero, localObs, smul_smul, inv_mul_cancel₀ (rtNinv_ne_zero n), one_smul]
@@ -622,7 +622,7 @@ theorem gPurity_localObs_diag (hn : 0 < n) :
     hrtNormSqInv]
 
 /-- `P_{gⱼ}(X₀) = 0` for `j ≠ 0` (the local observable is orthogonal to the other ideals). -/
-theorem gPurity_localObs_offdiag (hn : 0 < n) (j : Fin n) (hj : j ≠ ⟨0, hn⟩) :
+lemma gPurity_localObs_offdiag (hn : 0 < n) (j : Fin n) (hj : j ≠ ⟨0, hn⟩) :
     (su2EmbHermBasis j).gPurity (localObs hn) = 0 := by
   have h0 : ∀ a : Fin 3, hsInner (embB j a) (localObs hn) = 0 := fun a => by
     rw [embB, localObs, hsInner_smul_left, pauliMat_hsInner,
@@ -631,7 +631,7 @@ theorem gPurity_localObs_offdiag (hn : 0 < n) (j : Fin n) (hj : j ≠ ⟨0, hn�
   simp
 
 /-- `P_{gⱼ}(ρ) = 2⁻ⁿ` for every ideal `j` (only the `Zⱼ` component of `ρ` survives). -/
-theorem gPurity_localState (j : Fin n) :
+lemma gPurity_localState (j : Fin n) :
     (su2EmbHermBasis j).gPurity localState = (2 ^ n : ℂ)⁻¹ := by
   have hterm : ∀ a : Fin 3,
       (Complex.normSq (hsInner (embB j a) localState) : ℂ)
@@ -662,7 +662,7 @@ public noncomputable def rLocal (hn : 0 < n) :
 family with the *local* observable `O = X₀` is exactly `1/3`, independent of the qubit count `n`
 [RBS+23, Arxiv_Final.tex:838-840], derived from `RagoneReductive.totalVariance_eq`: the per-ideal
 sum collapses to the single `j = 0` term `P_{g₀}(ρ)·P_{g₀}(O)/3 = (2⁻ⁿ·2ⁿ)/3 = 1/3`. -/
-theorem localObs_totalVariance_eq (hn : 0 < n) :
+lemma localObs_totalVariance_eq (hn : 0 < n) :
     (rLocal hn).variance = 1 / 3 := by
   have key : ((rLocal hn).variance : ℂ) = 1 / 3 := by
     rw [(rLocal hn).totalVariance_eq localState_herm (localObs_herm hn)

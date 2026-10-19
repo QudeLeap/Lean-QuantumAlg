@@ -90,7 +90,7 @@ def selectedPipelineSchedule : PipelineSchedule where
   stages := inverseMultiplyAddUncomputeStages
   roles := unitDenominatorRegisterRoles
 
-@[simp] theorem selectedPipelineSchedule_stages :
+@[simp] lemma selectedPipelineSchedule_stages :
     selectedPipelineSchedule.stages = inverseMultiplyAddUncomputeStages :=
   rfl
 
@@ -216,38 +216,38 @@ def run {N : Nat} (u : (ZMod N)ˣ) (v z : ZMod N) : PipelineState N :=
       (multiplyQuotient
         (computeInverse (initial u v z))))
 
-@[simp] theorem run_denominator {N : Nat}
+@[simp] lemma run_denominator {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).denominator = u :=
   rfl
 
-@[simp] theorem run_numerator {N : Nat}
+@[simp] lemma run_numerator {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).numerator = v :=
   rfl
 
-@[simp] theorem run_target {N : Nat}
+@[simp] lemma run_target {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).target = z + quotientResidue u v :=
   rfl
 
-@[simp] theorem run_inverseScratch {N : Nat}
+@[simp] lemma run_inverseScratch {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).inverseScratch = 0 :=
   rfl
 
-@[simp] theorem run_quotientScratch {N : Nat}
+@[simp] lemma run_quotientScratch {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).quotientScratch = 0 :=
   rfl
 
-@[simp] theorem run_flag {N : Nat}
+@[simp] lemma run_flag {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).flag = false :=
   rfl
 
 /-- Final-value theorem for the selected coarse division pipeline. -/
-theorem run_final {N : Nat} (u : (ZMod N)ˣ) (v z : ZMod N) :
+lemma run_final {N : Nat} (u : (ZMod N)ˣ) (v z : ZMod N) :
     run u v z =
       { denominator := u
         numerator := v
@@ -259,7 +259,7 @@ theorem run_final {N : Nat} (u : (ZMod N)ˣ) (v z : ZMod N) :
 
 /-- The selected pipeline agrees with the endpoint permutation after forgetting
 the internal scratch registers. -/
-theorem run_toData_eq_addQuotientIntoTarget {N : Nat}
+lemma run_toData_eq_addQuotientIntoTarget {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     (run u v z).toData =
       ({ denominator := u, numerator := v, target := z, flag := false } :
@@ -288,24 +288,24 @@ def Invariant {N : Nat} (u : (ZMod N)ˣ) (v z : ZMod N) :
       s.denominator = u ∧ s.numerator = v ∧ s.target = z + quotientResidue u v ∧
         s.inverseScratch = 0 ∧ s.quotientScratch = 0 ∧ s.flag = false
 
-@[simp] theorem initial_invariant {N : Nat}
+@[simp] lemma initial_invariant {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     Invariant u v z PipelinePhase.initial (initial u v z) := by
   simp [Invariant, initial]
 
-@[simp] theorem computeInverse_invariant {N : Nat}
+@[simp] lemma computeInverse_invariant {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     Invariant u v z PipelinePhase.inverseComputed
       (computeInverse (initial u v z)) := by
   simp [Invariant, initial, computeInverse]
 
-@[simp] theorem multiplyQuotient_invariant {N : Nat}
+@[simp] lemma multiplyQuotient_invariant {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     Invariant u v z PipelinePhase.quotientComputed
       (multiplyQuotient (computeInverse (initial u v z))) := by
   simp [Invariant, quotientResidue, initial, computeInverse, multiplyQuotient]
 
-@[simp] theorem addQuotientToTarget_invariant {N : Nat}
+@[simp] lemma addQuotientToTarget_invariant {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     Invariant u v z PipelinePhase.targetUpdated
       (addQuotientToTarget
@@ -313,14 +313,14 @@ def Invariant {N : Nat} (u : (ZMod N)ˣ) (v z : ZMod N) :
   simp [Invariant, quotientResidue, initial, computeInverse, multiplyQuotient,
     addQuotientToTarget]
 
-@[simp] theorem run_invariant {N : Nat}
+@[simp] lemma run_invariant {N : Nat}
     (u : (ZMod N)ˣ) (v z : ZMod N) :
     Invariant u v z PipelinePhase.scratchUncomputed (run u v z) := by
   simp [Invariant, quotientResidue, run, initial, computeInverse,
     multiplyQuotient, addQuotientToTarget, uncomputeScratch]
 
 /-- The final invariant implies the quotient value and clean scratch registers. -/
-theorem final_value_of_invariant {N : Nat}
+lemma final_value_of_invariant {N : Nat}
     {u : (ZMod N)ˣ} {v z : ZMod N} {s : PipelineState N}
     (h : Invariant u v z PipelinePhase.scratchUncomputed s) :
     s.target = z + quotientResidue u v ∧

@@ -40,13 +40,13 @@ def exponentWidth (I : DomainParameters.PublicKeyInstance) : Nat :=
     (PrimeFieldShortWeierstrass.ECDLP.Canonical.problem (ecdlpInstance I))
 
 /-- The parameterized order-width construction instantiates to 260. -/
-theorem exponentWidth_eq_260 (I : DomainParameters.PublicKeyInstance) :
+lemma exponentWidth_eq_260 (I : DomainParameters.PublicKeyInstance) :
     exponentWidth I = 260 := by
   change Nat.clog 2 (12 * DomainParameters.subgroupOrder) = 260
   exact FiniteCyclicDLP.PrimeOrderTailBound.P256.exponentRegisterWidth_eq_260
 
 /-- Every finite affine point represents a nonidentity group point. -/
-theorem affinePoint_toGroupPoint_ne_one
+lemma affinePoint_toGroupPoint_ne_one
     {p : Nat} {E : PrimeFieldShortWeierstrass p}
     (point : AffinePoint E) : point.toGroupPoint ≠ 1 := by
   intro equality
@@ -56,7 +56,7 @@ theorem affinePoint_toGroupPoint_ne_one
     point.nonsingular underlying
 
 /-- A nonidentity group point has a canonical finite affine representative. -/
-theorem exists_affineRepresentative
+lemma exists_affineRepresentative
     {p : Nat} {E : PrimeFieldShortWeierstrass p}
     (point : GroupPoint E) (nonidentity : point ≠ 1) :
     ∃ representative : AffinePoint E,
@@ -75,27 +75,27 @@ def affineRepresentative
   Classical.choose (exists_affineRepresentative point nonidentity)
 
 /-- The selected affine representative denotes the original group point. -/
-@[simp] theorem affineRepresentative_toGroupPoint
+@[simp] lemma affineRepresentative_toGroupPoint
     {p : Nat} {E : PrimeFieldShortWeierstrass p}
     (point : GroupPoint E) (nonidentity : point ≠ 1) :
     (affineRepresentative point nonidentity).toGroupPoint = point :=
   Classical.choose_spec (exists_affineRepresentative point nonidentity)
 
 /-- The base point has the advertised prime order. -/
-theorem basePoint_orderOf (I : DomainParameters.PublicKeyInstance) :
+lemma basePoint_orderOf (I : DomainParameters.PublicKeyInstance) :
     orderOf (ecdlpInstance I).basePoint.toGroupPoint =
       DomainParameters.subgroupOrder :=
   I.subgroupCert.subgroupOrder_eq_orderOf.symm
 
 /-- The public target is a nonidentity group point because its stored
 representation is affine. -/
-theorem targetPoint_ne_one (I : DomainParameters.PublicKeyInstance) :
+lemma targetPoint_ne_one (I : DomainParameters.PublicKeyInstance) :
     (ecdlpInstance I).targetPoint.toGroupPoint ≠ 1 :=
   affinePoint_toGroupPoint_ne_one I.publicKey
 
 /-- Any nonidentity element of the advertised prime-order subgroup has the
 same order as the generator. -/
-theorem targetPoint_orderOf (I : DomainParameters.PublicKeyInstance) :
+lemma targetPoint_orderOf (I : DomainParameters.PublicKeyInstance) :
     orderOf (ecdlpInstance I).targetPoint.toGroupPoint =
       DomainParameters.subgroupOrder := by
   rcases I.publicKey_mem_span with ⟨scalar, scalarSpec⟩
@@ -114,7 +114,7 @@ theorem targetPoint_orderOf (I : DomainParameters.PublicKeyInstance) :
   · exact orderPrime
 
 /-- A power of two cannot be divisible by the odd P-256 subgroup prime. -/
-theorem powerOfTwo_ne_one_of_order_eq
+lemma powerOfTwo_ne_one_of_order_eq
     {G : Type*} [Group G] (I : DomainParameters.PublicKeyInstance) (point : G)
     (pointOrder : orderOf point = DomainParameters.subgroupOrder)
     (bit : Nat) : point ^ (2 ^ bit) ≠ 1 := by
@@ -147,7 +147,7 @@ def addendGroup (I : DomainParameters.PublicKeyInstance)
 
 /-- Every scheduled addend is nonidentity, so it has an affine circuit
 representation. -/
-theorem addendGroup_ne_one (I : DomainParameters.PublicKeyInstance)
+lemma addendGroup_ne_one (I : DomainParameters.PublicKeyInstance)
     (index : Fin (2 * exponentWidth I)) :
     addendGroup I index ≠ 1 := by
   unfold addendGroup
@@ -163,7 +163,7 @@ def addend (I : DomainParameters.PublicKeyInstance)
   affineRepresentative (addendGroup I index) (addendGroup_ne_one I index)
 
 /-- The affine schedule denotes the intended big-endian group powers. -/
-@[simp] theorem addend_toGroupPoint (I : DomainParameters.PublicKeyInstance)
+@[simp] lemma addend_toGroupPoint (I : DomainParameters.PublicKeyInstance)
     (index : Fin (2 * exponentWidth I)) :
     (addend I index).toGroupPoint = addendGroup I index :=
   affineRepresentative_toGroupPoint _ _

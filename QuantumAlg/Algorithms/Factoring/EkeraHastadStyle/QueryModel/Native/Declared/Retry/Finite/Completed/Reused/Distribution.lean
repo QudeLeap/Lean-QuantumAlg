@@ -22,19 +22,49 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem outputDistribution_eq_finalState_read
+private lemma outputDistribution_eq_finalState_read
     {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (run : AlgorithmRun model pre post shape) {Reference : Register}
+    (run : AlgorithmRun model pre post shape) (environment : model.Environment)
+    {Reference : Register}
     (original : Execution.OracleInput model.classicalOracles pre Reference) :
-    run.outputDistribution original =
-      ((run.finalState Reference original.state).toPMF
-        ((run.finalState_mass Reference original.state).trans original.normalized)).map
+    run.outputDistribution environment original =
+      ((run.finalState environment Reference original.state).toPMF
+        ((run.finalState_mass environment Reference original.state).trans
+          original.normalized)).map
         run.output.eval := by
-  change ((run.execute Reference original.state).toPMF
-      (run.execute_normalized original)).map (fun record => run.output.eval record.1) = _
+  change ((run.execute environment Reference original.state).toPMF
+      (run.execute_normalized environment original)).map
+      (fun record => run.output.eval record.1) = _
   unfold AlgorithmRun.finalState
   rw [ExecutionState.toPMF_mapClassical, PMF.map_comp]
   rfl
+
+
+/-- An input-dependent final-store law follows from its full reference kernel. -/
+private lemma finalState_distribution_of_reference
+    {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
+    (run : AlgorithmRun model pre post shape) (environment : model.Environment)
+    {Reference : Register}
+    (original : Execution.OracleInput model.classicalOracles pre Reference)
+    {Outcome : Type} [Finite Outcome]
+    (read : Execution.Store post → Outcome)
+    (kernel : (Execution.Store pre ×
+      (model.HiddenState × Execution.Store pre)) → PMF Outcome)
+    (observed : ∀ value (left right : Reference.Index),
+      ExecutionState.referenceFiberSum
+        (run.finalState environment Reference original.state)
+        (fun store _ => if read store = value then 1 else 0) left right =
+      ExecutionState.referenceFiberSum
+        (original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))
+        (fun entry _ => ((kernel entry value).toReal : ℂ)) left right) :
+    ((run.finalState environment Reference original.state).toPMF
+      ((run.finalState_mass environment Reference original.state).trans
+          original.normalized)).map read =
+    ((original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))).toPMF
+      (original.state.mapClassical_normalized original.normalized
+        (fun entry => (entry.1, (entry.2, entry.1))))).bind kernel := by
+  exact ExecutionState.toPMF_map_eq_bind_of_referenceFiberSum _ _ _ _ read kernel observed
+
 
 end
 
@@ -54,13 +84,14 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The real next-batch output state has the full conditional reference law,
 with path histories projected away only after the paid factor readout. -/
-theorem nextCompletedRun_finalState_reference {Reference : Register}
-    (original : OracleInput (model input).classicalOracles
+lemma nextCompletedRun_finalState_reference {Reference : Register}
+    (original : OracleInput (model N).classicalOracles
       (Retry.context base noQuantum N) Reference)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((nextCompletedRun base noQuantum N input).finalState Reference original.state)
+      ((nextCompletedRun base noQuantum N input).finalState (sourceEnvironment input) Reference
+        original.state)
       (fun store _ => weight
         (store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)))
       left right =
@@ -78,12 +109,14 @@ theorem nextCompletedRun_finalState_reference {Reference : Register}
       (fun entry => (entry.1, (entry.2, entry.1)))
   calc
     _ = ExecutionState.referenceFiberSum
-          ((nextCompletedCode base noQuantum N input).execute Reference entered)
+          ((nextCompletedCode base noQuantum N input).execute (sourceEnvironment input)
+            Reference entered)
           (fun entry _ => weight
             (entry.1.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)))
           left right := by
             change ExecutionState.referenceFiberSum
-              (((nextCompletedCode base noQuantum N input).execute Reference entered).mapClassical
+              (((nextCompletedCode base noQuantum N input).execute (sourceEnvironment input)
+                Reference entered).mapClassical
                 Prod.fst)
               (fun store _ => weight
                 (store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)))
@@ -94,7 +127,7 @@ theorem nextCompletedRun_finalState_reference {Reference : Register}
 
 /-- An indicator of the retained value turns the recovered source's complex
 weight formula into the point mass of its actual PMF pushforward. -/
-private theorem source_retained_point
+private lemma source_retained_point
     (selected value : (LatticeBatchRecoveryOutput.OutputShape N).Value) :
     (∑ output : (Batch.resultShape N).Value,
       ((Batch.sourceDistribution input output).toReal : ℂ) *
@@ -115,11 +148,13 @@ private theorem source_retained_point
 
 /-- At the actual final store, one complete reused batch is the incoming
 classical distribution bound to the independent recovered batch source. -/
-theorem nextCompletedRun_finalState_distribution {Reference : Register}
-    (original : OracleInput (model input).classicalOracles
+lemma nextCompletedRun_finalState_distribution {Reference : Register}
+    (original : OracleInput (model N).classicalOracles
       (Retry.context base noQuantum N) Reference) :
-    (((nextCompletedRun base noQuantum N input).finalState Reference original.state).toPMF
-      (((nextCompletedRun base noQuantum N input).finalState_mass Reference original.state).trans
+    (((nextCompletedRun base noQuantum N input).finalState (sourceEnvironment input) Reference
+      original.state).toPMF
+      (((nextCompletedRun base noQuantum N input).finalState_mass (sourceEnvironment input)
+        Reference original.state).trans
         original.normalized)).map
       (fun store => store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)) =
     ((original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))).toPMF
@@ -130,49 +165,44 @@ theorem nextCompletedRun_finalState_distribution {Reference : Register}
           (Optional.retainValue
             (Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection
               entry.1))) := by
-  let entered := original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
-  have enteredNormalized : entered.IsNormalized :=
-    original.state.mapClassical_normalized original.normalized
-      (fun entry => (entry.1, (entry.2, entry.1)))
-  let final := (nextCompletedRun base noQuantum N input).finalState Reference original.state
-  have finalNormalized : final.IsNormalized :=
-    ((nextCompletedRun base noQuantum N input).finalState_mass Reference original.state).trans
-      original.normalized
-  let source : PMF (LatticeBatchRecoveryOutput.OutputShape N).Value :=
-    (sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue
-  let selected (entry : Store (Retry.context base noQuantum N) ×
-      ((model input).HiddenState × Store (Retry.context base noQuantum N))) :=
-    Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection entry.1
-  let read (store : Store (Retry.context base noQuantum N)) :=
-    store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)
-  let kernel (entry : Store (Retry.context base noQuantum N) ×
-      ((model input).HiddenState × Store (Retry.context base noQuantum N))) :=
-    source.map (Optional.retainValue (selected entry))
-  change (final.toPMF finalNormalized).map read = (entered.toPMF enteredNormalized).bind kernel
-  apply ExecutionState.toPMF_map_eq_bind_of_referenceFiberSum
-    entered final enteredNormalized finalNormalized read kernel
+  apply AlgorithmRun.finalState_distribution_of_reference
+    (nextCompletedRun base noQuantum N input) (sourceEnvironment input) original
+    (fun store => store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef))
+    (fun entry =>
+      ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue).map
+        (Optional.retainValue
+          (Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection entry.1)))
   intro value left right
   calc
-    ExecutionState.referenceFiberSum final
-        (fun store _ => if read store = value then 1 else 0) left right =
-      ExecutionState.referenceFiberSum entered
+    _ = ExecutionState.referenceFiberSum
+        (original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))
         (fun entry _ => ∑ output : (Batch.resultShape N).Value,
           ((Batch.sourceDistribution input output).toReal : ℂ) *
-            (if Optional.retainValue (selected entry)
+            (if Optional.retainValue
+              (Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection entry.1)
               (Batch.SourceRecovery.packedValue output) = value then 1 else 0))
-          left right :=
-        nextCompletedRun_finalState_reference base noQuantum N input original
-          (fun factor => if factor = value then 1 else 0) left right
-    _ = ExecutionState.referenceFiberSum entered
-        (fun entry _ => ((kernel entry value).toReal : ℂ)) left right := by
-          simp only [source_retained_point, kernel, source]
+        left right :=
+      nextCompletedRun_finalState_reference base noQuantum N input original
+        (fun factor => if factor = value then 1 else 0) left right
+    _ = _ := by
+      apply congrArg
+        (fun observed : (Store (Retry.context base noQuantum N) ×
+            ((model N).HiddenState × Store (Retry.context base noQuantum N))) →
+              (Retry.context base noQuantum N).register.Index → ℂ =>
+          ExecutionState.referenceFiberSum
+            (original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))
+            observed left right)
+      funext entry basis
+      exact source_retained_point N input
+        (Optional.selectedValue (Retry.selectionRefs base noQuantum N).selection entry.1) value
 
 /-- The next batch's public factor output is the incoming caller/service PMF
 bound to the independent recovered source with the old selector retained. -/
-theorem nextCompletedRun_outputDistribution {Reference : Register}
-    (original : OracleInput (model input).classicalOracles
+lemma nextCompletedRun_outputDistribution {Reference : Register}
+    (original : OracleInput (model N).classicalOracles
       (Retry.context base noQuantum N) Reference) :
-    (nextCompletedRun base noQuantum N input).outputDistribution original =
+    (nextCompletedRun base noQuantum N input).outputDistribution (sourceEnvironment input)
+      original =
       (original.state.toPMF original.normalized).bind (fun entry =>
         ((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue).map
           (Optional.retainValue
@@ -182,13 +212,15 @@ theorem nextCompletedRun_outputDistribution {Reference : Register}
   let read (store : Store (Retry.context base noQuantum N)) :=
     store.read (.storage (Retry.factorRef base noQuantum N).toCStorageRef)
   calc
-    run.outputDistribution original =
-        ((run.finalState Reference original.state).toPMF
-          ((run.finalState_mass Reference original.state).trans original.normalized)).map
+    run.outputDistribution (sourceEnvironment input) original =
+        ((run.finalState (sourceEnvironment input) Reference original.state).toPMF
+          ((run.finalState_mass (sourceEnvironment input) Reference original.state).trans
+            original.normalized)).map
           run.output.eval :=
-      AlgorithmRun.outputDistribution_eq_finalState_read run original
-    _ = ((run.finalState Reference original.state).toPMF
-          ((run.finalState_mass Reference original.state).trans original.normalized)).map
+      AlgorithmRun.outputDistribution_eq_finalState_read run (sourceEnvironment input) original
+    _ = ((run.finalState (sourceEnvironment input) Reference original.state).toPMF
+          ((run.finalState_mass (sourceEnvironment input) Reference original.state).trans
+            original.normalized)).map
           read := by rfl
     _ = ((original.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))).toPMF
           (original.state.mapClassical_normalized original.normalized

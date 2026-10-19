@@ -38,20 +38,20 @@ def xorPerm (f : Fin (2 ^ n) -> Bool) :
   right_inv p := by by_cases h : f p.1 <;> simp [h]
 
 @[simp]
-theorem xorPerm_apply (f : Fin (2 ^ n) -> Bool) (p : Fin (2 ^ n) × Fin (2 ^ 1)) :
+lemma xorPerm_apply (f : Fin (2 ^ n) -> Bool) (p : Fin (2 ^ n) × Fin (2 ^ 1)) :
     xorPerm f p = (p.1, if f p.1 then p.2.rev else p.2) :=
   rfl
 
 /-- The XOR oracle is an involution. -/
 @[simp]
-theorem xorPerm_symm (f : Fin (2 ^ n) -> Bool) : (xorPerm f).symm = xorPerm f :=
+lemma xorPerm_symm (f : Fin (2 ^ n) -> Bool) : (xorPerm f).symm = xorPerm f :=
   rfl
 
 /-- The metadata-free XOR (bit-flip) oracle of `f`. -/
 public def xorOracleOp (f : Fin (2 ^ n) -> Bool) : UnitaryOperator (Qubits (n + 1)) :=
   UnitaryOperator.ofPerm (prodEquiv.permCongr (xorPerm f))
 
-theorem xorOracleOp_apply (f : Fin (2 ^ n) -> Bool)
+lemma xorOracleOp_apply (f : Fin (2 ^ n) -> Bool)
     (ψ : HilbertVector (Qubits (n + 1))) (i : Fin (2 ^ (n + 1))) :
     (xorOracleOp f).applyVec ψ i =
       ψ (prodEquiv (xorPerm f (prodEquiv.symm i))) := by
@@ -59,7 +59,7 @@ theorem xorOracleOp_apply (f : Fin (2 ^ n) -> Bool)
 
 /-- Action on normalized basis kets: `U_f |x⟩|b⟩ = |x⟩|b ⊕ f(x)⟩`. -/
 @[simp]
-theorem xorOracleOp_apply_ket (f : Fin (2 ^ n) -> Bool) (x : Fin (2 ^ n))
+lemma xorOracleOp_apply_ket (f : Fin (2 ^ n) -> Bool) (x : Fin (2 ^ n))
     (b : Fin (2 ^ 1)) :
     (xorOracleOp f).apply
         (NormalizedVector.ket (R := Qubits (n + 1)) (prodEquiv (x, b))) =
@@ -71,7 +71,7 @@ theorem xorOracleOp_apply_ket (f : Fin (2 ^ n) -> Bool) (x : Fin (2 ^ n))
   rw [Equiv.symm_apply_apply, xorPerm_symm, xorPerm_apply]
 
 /-- On a `|+⟩` target the metadata-free XOR oracle acts trivially. -/
-theorem xorOracleOp_apply_tensor_ketPlus (f : Fin (2 ^ n) -> Bool)
+lemma xorOracleOp_apply_tensor_ketPlus (f : Fin (2 ^ n) -> Bool)
     (x : Fin (2 ^ n)) :
     (xorOracleOp f).apply
         ((NormalizedVector.ket x).tensor NormalizedVector.ketPlus) =

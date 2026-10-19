@@ -33,7 +33,7 @@ variable {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
 /-- Copying into a clean concrete word reconstructs the source value.  The
 bitwise extensionality argument is kept generic in `width`, so fixed-width
 clients do not have to elaborate it after specializing to a large word. -/
-theorem xorIntoStep_readWord_of_clean
+lemma xorIntoStep_readWord_of_clean
     (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
     (read : Data → Nat.FixedWidth.Word width)
@@ -59,7 +59,7 @@ theorem xorIntoStep_readWord_of_clean
 /-- Reconstruct a complete state after copying a source word into a clean
 target.  Clients separately expose the target value and the frame erased by
 that value, avoiding normalization of the concrete word-copy fold. -/
-theorem xorIntoStep_eq_set_of_clean
+lemma xorIntoStep_eq_set_of_clean
     {Frame : Type}
     (source target : Word encoding width)
     (hdisjoint : ∀ bit, (source.bit bit).wire ≠ (target.bit bit).wire)

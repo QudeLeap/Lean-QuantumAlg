@@ -33,7 +33,7 @@ open scoped ComplexOrder Kronecker
 
 noncomputable section
 
-private theorem prependedProduct_trace {R S : Register}
+private lemma prependedProduct_trace {R S : Register}
     (state : DensityOperator R) (prepared : NormalizedVector S) :
     ((DensityOperator.ofPure prepared).matrix ⊗ₖ state.matrix).trace = state.matrix.trace := by
   have normalized : (DensityOperator.ofPure prepared).matrix.trace = 1 :=
@@ -48,7 +48,7 @@ private def prependPrepared {R S : Register}
   trace_le_one :=
     (congrArg Complex.re (prependedProduct_trace state prepared)).le.trans state.trace_le_one
 
-private theorem prependPrepared_mass {R S : Register}
+private lemma prependPrepared_mass {R S : Register}
     (state : DensityOperator R) (prepared : NormalizedVector S) :
     (prependPrepared state prepared).mass = state.mass :=
   congrArg Complex.re (prependedProduct_trace state prepared)
@@ -69,7 +69,7 @@ def prepareContextBasisEquiv (ctx : RuntimeCtx .quantum) (Reference : Register)
           (Equiv.refl Reference.Index))
 
 /-- The reference coordinate is unchanged by the complete physical allocation bridge. -/
-theorem prepareContextBasisEquiv_reference (ctx : RuntimeCtx .quantum) (Reference : Register)
+lemma prepareContextBasisEquiv_reference (ctx : RuntimeCtx .quantum) (Reference : Register)
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (newBasis : layout.register.Index) (oldBasis : ctx.register.Index)
@@ -78,7 +78,7 @@ theorem prepareContextBasisEquiv_reference (ctx : RuntimeCtx .quantum) (Referenc
       (newBasis, (oldBasis, referenceBasis))).2 = referenceBasis := rfl
 
 /-- The context coordinate uses the exact newly prepended and old physical wire labels. -/
-theorem prepareContextBasisEquiv_context (ctx : RuntimeCtx .quantum) (Reference : Register)
+lemma prepareContextBasisEquiv_context (ctx : RuntimeCtx .quantum) (Reference : Register)
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (newBasis : layout.register.Index) (oldBasis : ctx.register.Index)
@@ -108,7 +108,7 @@ def prepareContext (state : ExecutionState C (Register.prod ctx.register Referen
     exact state.total_le_one
 
 /-- Physical preparation preserves each old classical branch's probability. -/
-theorem prepareContext_block_mass
+lemma prepareContext_block_mass
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -122,7 +122,7 @@ theorem prepareContext_block_mass
       (prependPrepared_mass (state.block value) prepared)
 
 /-- Physical preparation preserves the complete execution mass for any reference. -/
-theorem prepareContext_mass (state : ExecutionState C (Register.prod ctx.register Reference))
+lemma prepareContext_mass (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (prepared : NormalizedVector layout.register) :
@@ -130,7 +130,7 @@ theorem prepareContext_mass (state : ExecutionState C (Register.prod ctx.registe
   simp only [ExecutionState.mass, prepareContext_block_mass]
 
 /-- Exact joint entries retain all old context-reference coherences in each classical block. -/
-theorem prepareContext_joined_entry
+lemma prepareContext_joined_entry
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -157,7 +157,7 @@ theorem prepareContext_joined_entry
 
 /-- Summing only the newly prepared labels recovers every matrix entry of the
 entire old context and external reference, separately in each classical block. -/
-theorem prepareContext_old_block_marginal
+lemma prepareContext_old_block_marginal
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)

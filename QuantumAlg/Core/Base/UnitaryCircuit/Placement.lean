@@ -38,7 +38,7 @@ private def addressPermutation : Equiv.Perm Nat :=
     (fun index => (target.wire (position index)).identity)
     source.identityInjective (target.identityInjective.comp position.injective))
 
-private theorem addressPermutation_apply (index : Fin small) :
+private lemma addressPermutation_apply (index : Fin small) :
     addressPermutation source target position (source.wire index).identity =
       (target.wire (position index)).identity :=
   Classical.choose_spec (Equiv.Perm.exists_extending_pair
@@ -78,13 +78,13 @@ in the source word's argument order. -/
   fun index => Fin.cast (congrArg Subtype.val (dimensions index).symm)
     (basis (position index))
 
-@[simp] public theorem basisAt_val (basis : target.Basis) (index : Fin small) :
+@[simp] public lemma basisAt_val (basis : target.Basis) (index : Fin small) :
     (basisAt source target position dimensions basis index).val =
       (basis (position index)).val := rfl
 
 /-- When the selected positions cover the ambient layout, an embedded
 operator entry is the source entry read in the supplied position order. -/
-public theorem operatorAt_entry_of_surjective
+public lemma operatorAt_entry_of_surjective
     (onto : Function.Surjective position)
     (operator : UnitaryOperator source.register) (row column : target.Basis) :
     operatorAt source target position dimensions operator row column =
@@ -131,7 +131,7 @@ public def vectorAt
 
 /-- A placed operator acts only on the selected vector and fixes an arbitrary
 vector on every unselected physical system. -/
-public theorem operatorAt_applyVec_vectorAt
+public lemma operatorAt_applyVec_vectorAt
     (operator : UnitaryOperator source.register)
     (selected : HilbertVector source.register)
     (complement : HilbertVector
@@ -150,45 +150,47 @@ public def placeAt (body : UnitaryCircuit gates oracles source) :
     (relocatedPlacement source target position dimensions)
 
 /-- Placement preserves the full operator, including phase and all spectator coherences. -/
-public theorem placeAt_matrix (body : UnitaryCircuit gates oracles source) :
-    (placeAt source target position dimensions body).matrix =
-      operatorAt source target position dimensions body.matrix := by
+public lemma placeAt_matrix (body : UnitaryCircuit gates oracles source) (environment :
+  oracles.Interpretation) :
+    ((placeAt source target position dimensions body).matrix environment) =
+      operatorAt source target position dimensions (body.matrix environment) := by
   rw [placeAt, embed_matrix, relabel_matrix]
   rfl
 
 /-- A placed native word acts only on its selected vector and fixes an
 arbitrary vector on the exact physical complement. -/
-public theorem placeAt_applyVec_vectorAt
+public lemma placeAt_applyVec_vectorAt
     (body : UnitaryCircuit gates oracles source)
     (selected : HilbertVector source.register)
     (complement : HilbertVector
-      (target.complementRegister (Finset.univ.map position))) :
-    (placeAt source target position dimensions body).matrix.applyVec
+      (target.complementRegister (Finset.univ.map position))) (environment :
+        oracles.Interpretation) :
+    ((placeAt source target position dimensions body).matrix environment).applyVec
         (vectorAt source target position dimensions selected complement) =
       vectorAt source target position dimensions
-        (body.matrix.applyVec selected) complement := by
+        ((body.matrix environment).applyVec selected) complement := by
   rw [placeAt_matrix]
   exact operatorAt_applyVec_vectorAt source target position dimensions
-    body.matrix selected complement
+    (body.matrix environment) selected complement
 
 /-- Physical placement retains the exact native occurrence order. -/
-public theorem placeAt_eventTrace (body : UnitaryCircuit gates oracles source) :
+public lemma placeAt_eventTrace (body : UnitaryCircuit gates oracles source) :
     (placeAt source target position dimensions body).eventTrace = body.eventTrace := by
   rw [placeAt, embed_eventTrace, relabel_eventTrace]
 
 /-- Physical placement retains the exact native-event ledger of the original word. -/
-public theorem placeAt_eventCost (body : UnitaryCircuit gates oracles source) :
+public lemma placeAt_eventCost (body : UnitaryCircuit gates oracles source) :
     (placeAt source target position dimensions body).eventCost = body.eventCost := by
   rw [← ofList_eventTrace_eq_eventCost, placeAt_eventTrace,
     ofList_eventTrace_eq_eventCost]
 
 /-- Physical placement retains the complete dependency expression of the original word. -/
-public theorem placeAt_eventDepth (body : UnitaryCircuit gates oracles source) :
+public lemma placeAt_eventDepth (body : UnitaryCircuit gates oracles source) :
     (placeAt source target position dimensions body).eventDepth = body.eventDepth := by
   rw [placeAt, embed_eventDepth, relabel_eventDepth]
 
 /-- Physical placement retains every evaluated dependency depth of the original word. -/
-public theorem placeAt_evaluatedEventDepth
+public lemma placeAt_evaluatedEventDepth
     (duration : Resource.Event (.quantum gates oracles) → Nat)
     (body : UnitaryCircuit gates oracles source) :
     (placeAt source target position dimensions body).evaluatedEventDepth duration =
@@ -197,12 +199,14 @@ public theorem placeAt_evaluatedEventDepth
   rw [placeAt_eventDepth]
 
 /-- Realize the independently placed target using the complete relocated native word. -/
-public def placeRealization {operator : UnitaryOperator source.register}
+public def placeRealization {operator : oracles.Interpretation → UnitaryOperator source.register}
     (realized : ExactRealization gates oracles source operator) :
-    ExactRealization gates oracles target (operatorAt source target position dimensions operator)
-      where
+    ExactRealization gates oracles target (fun environment => operatorAt source target position
+      dimensions (operator environment)) where
   circuit := placeAt source target position dimensions realized.circuit
-  matrix_eq := by rw [placeAt_matrix, realized.matrix_eq]
+  matrix_eq := by
+    intro environment
+    rw [placeAt_matrix, realized.matrix_eq]
 
 end
 

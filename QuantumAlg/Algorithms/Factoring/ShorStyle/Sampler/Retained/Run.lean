@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
 
 /-- The actual retained circuit with its complete live-key Output. -/
 def run (ctx : RuntimeCtx model.kind) (N : Nat) :
@@ -34,22 +34,22 @@ def run (ctx : RuntimeCtx model.kind) (N : Nat) :
   { code := circuit (model := model) ctx N, output := output ctx N }
 
 /-- Entering the actual run records the initial store solely as mathematical history. -/
-theorem samplerRetained_run_enter (ctx : RuntimeCtx model.kind) (N : Nat) (Reference : Register)
+lemma samplerRetained_run_enter (ctx : RuntimeCtx model.kind) (N : Nat) (Reference : Register)
     (state : ExecutionState (Store ctx × model.HiddenState)
       (Register.prod ctx.register Reference)) :
-    (run (model := model) ctx N).execute Reference state =
-      (circuit (model := model) ctx N).execute Reference
+    (run (model := model) ctx N).execute environment Reference state =
+      (circuit (model := model) ctx N).execute environment Reference
         (state.mapClassical (fun value => (value.1, (value.2, value.1)))) := by
   unfold AlgorithmRun.execute
   apply congrArg (fun initial : State ctx Reference (model.HiddenState × Store ctx) =>
-    (circuit (model := model) ctx N).execute Reference initial)
+    (circuit (model := model) ctx N).execute environment Reference initial)
   congr 1
 
 /-- The actual complete execution distribution retains the original caller store and source law. -/
-theorem samplerRetained_run_distribution (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetained_run_distribution (ctx : RuntimeCtx model.kind) {N : Nat}
     (specification : Input N) {Reference : Register}
         (input : Execution.OracleInput model.classicalOracles ctx Reference) :
-    (run (model := model) ctx N).executionDistribution input =
+    (run (model := model) ctx N).executionDistribution environment input =
       (input.state.toPMF input.normalized).bind (fun original =>
         (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
           (fun value => (resultStore specification original.1 value,
@@ -58,8 +58,8 @@ theorem samplerRetained_run_distribution (ctx : RuntimeCtx model.kind) {N : Nat}
     input.state.mapClassical (fun value => (value.1, (value.2, value.1)))
   have enteredNormalized := input.state.mapClassical_normalized input.normalized
     (fun value => (value.1, (value.2, value.1)))
-  have actual : (run (model := model) ctx N).executionDistribution input =
-      ((circuit (model := model) ctx N).execute Reference entered).toPMF
+  have actual : (run (model := model) ctx N).executionDistribution environment input =
+      ((circuit (model := model) ctx N).execute environment Reference entered).toPMF
         (samplerRetained_normalized (model := model)
             ctx N Reference entered enteredNormalized) := by
     apply PMF.ext
@@ -68,11 +68,13 @@ theorem samplerRetained_run_distribution (ctx : RuntimeCtx model.kind) {N : Nat}
       (fun final : ExecutionState (run (model := model) ctx N).Record
           (Register.prod (context ctx N).register Reference) =>
         ENNReal.ofReal (final.block record).mass)
-      (samplerRetained_run_enter (model := model) ctx N Reference input.state)
-    exact (ExecutionState.toPMF_apply ((run (model := model) ctx N).execute Reference input.state)
-      ((run (model := model) ctx N).execute_normalized input) record).trans
+      (samplerRetained_run_enter (environment := environment)
+        (model := model) ctx N Reference input.state)
+    exact (ExecutionState.toPMF_apply ((run (model := model) ctx N).execute
+      environment Reference input.state)
+      ((run (model := model) ctx N).execute_normalized environment input) record).trans
         (sameMass.trans (ExecutionState.toPMF_apply
-          ((circuit (model := model) ctx N).execute Reference entered)
+          ((circuit (model := model) ctx N).execute environment Reference entered)
           (samplerRetained_normalized (model := model)
               ctx N Reference entered enteredNormalized) record).symm)
   refine actual.trans ((samplerRetained_toPMF ctx specification Reference entered
@@ -89,15 +91,16 @@ theorem samplerRetained_run_distribution (ctx : RuntimeCtx model.kind) {N : Nat}
     (fun value => (value.1, (value.2, value.1))) finish)
 
 /-- The actual run's structural Output has the exact independent uniform source distribution. -/
-theorem samplerRetained_run_outputDistribution (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetained_run_outputDistribution (ctx : RuntimeCtx model.kind) {N : Nat}
     (specification : Input N) {Reference : Register}
         (input : Execution.OracleInput model.classicalOracles ctx Reference) :
-    (run (model := model) ctx N).outputDistribution input =
+    (run (model := model) ctx N).outputDistribution environment input =
       (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
         (outputValue specification) := by
   have mapped := congrArg (fun distribution : PMF (run (model := model) ctx N).Record =>
     distribution.map (fun record => (output ctx N).eval record.1))
-      (samplerRetained_run_distribution (model := model) ctx specification input)
+      (samplerRetained_run_distribution (environment := environment)
+        (model := model) ctx specification input)
   refine mapped.trans ((PMF.map_bind (input.state.toPMF input.normalized)
     (fun original => (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
       (fun value => (resultStore specification original.1 value,
@@ -120,16 +123,16 @@ theorem samplerRetained_run_outputDistribution (ctx : RuntimeCtx model.kind) {N 
   exact PMF.bind_const _ _
 
 /-- The actual run preserves the complete quantum-reference matrix after summing histories. -/
-theorem samplerRetained_run_quantumMarginal (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetained_run_quantumMarginal (ctx : RuntimeCtx model.kind) {N : Nat}
     (specification : Input N) (Reference : Register)
     (state : ExecutionState (Store ctx × model.HiddenState)
       (Register.prod ctx.register Reference)) :
     ((run (model := model)
-        ctx N).finalState Reference state).quantumMarginal = state.quantumMarginal := by
+        ctx N).finalState environment Reference state).quantumMarginal = state.quantumMarginal := by
   have entered := congrArg
     (fun final : ExecutionState (run (model := model) ctx N).Record
         (Register.prod (context ctx N).register Reference) => final.quantumMarginal)
-    (samplerRetained_run_enter (model := model) ctx N Reference state)
+    (samplerRetained_run_enter (environment := environment) (model := model) ctx N Reference state)
   exact (ExecutionState.mapClassical_quantumMarginal _ Prod.fst).trans
     (entered.trans ((samplerRetained_quantumMarginal ctx specification Reference
       (state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans

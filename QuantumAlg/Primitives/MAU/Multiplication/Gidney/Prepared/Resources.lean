@@ -32,7 +32,7 @@ def preparedNativeBudget (width : Nat) :
   ZeroPreparation.eventCost AlgorithmGate.model .empty (auxiliaryLayout width) +
     nativeBudget width
 
-private theorem auxiliary_space (width : Nat) :
+private lemma auxiliary_space (width : Nat) :
     SpacePool.ofQuantumLayout (auxiliaryLayout width) = space width := by
   funext axis
   cases axis with
@@ -40,7 +40,7 @@ private theorem auxiliary_space (width : Nat) :
   | quantumSystems dimension =>
       exact (auxiliaryQubitLayout width).toQuantumLayout_dimensionCount dimension
 
-private theorem two_word_space (width : Nat) : space width + space width = space (2 * width) := by
+private lemma two_word_space (width : Nat) : space width + space width = space (2 * width) := by
   funext axis
   cases axis with
   | classicalBits => rfl
@@ -50,7 +50,7 @@ private theorem two_word_space (width : Nat) : space width + space width = space
           if (2 : ℕ+) = dimension then 2 * width else 0
       split_ifs <;> omega
 
-private theorem input_space_le (width : Nat) : space width ≤ space (2 * width) := by
+private lemma input_space_le (width : Nat) : space width ≤ space (2 * width) := by
   intro axis
   cases axis with
   | classicalBits => exact Nat.le_refl 0
@@ -59,18 +59,18 @@ private theorem input_space_le (width : Nat) : space width ≤ space (2 * width)
         if (2 : ℕ+) = dimension then 2 * width else 0
       split_ifs <;> omega
 
-theorem gidneyPreparedContext_resident (width : Nat) :
+lemma gidneyPreparedContext_resident (width : Nat) :
     (preparedContext width).residentSpace = space (2 * width) := by
   rw [preparedContext, RuntimeCtx.residentSpace_addOwnedLayout, auxiliary_space,
     ownedQubits_resident, two_word_space]
 
-theorem gidneyPreparedContext_auxiliary (width : Nat) :
+lemma gidneyPreparedContext_auxiliary (width : Nat) :
     (preparedContext width).auxiliarySpace = space (2 * width) := by
   rw [preparedContext, RuntimeCtx.auxiliarySpace_addOwnedLayout, auxiliary_space,
     ownedQubits_auxiliary, two_word_space]
 
 /-- The actual preparation and gate trace satisfy the independent coordinatewise pool. -/
-theorem gidneyPreparedCode_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedCode_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (path : (preparedCode width modulus coefficient).Path) :
     (preparedCode width modulus coefficient).resourcePool path ≤ preparedNativeBudget width := by
   change ResourcePool.ofList
@@ -82,7 +82,7 @@ theorem gidneyPreparedCode_native_bound (width : Nat) (modulus : Fin (2 ^ width 
     (le_refl (ZeroPreparation.eventCost AlgorithmGate.model .empty (auxiliaryLayout width)))
     (gidneyUnitMultiplication_native_bound width modulus coefficient)
 
-theorem gidneyPreparedCode_resident_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedCode_resident_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (path : (preparedCode width modulus coefficient).Path) :
     (preparedCode width modulus coefficient).peakResidentSpace path ≤ space (2 * width) := by
   intro axis
@@ -93,7 +93,7 @@ theorem gidneyPreparedCode_resident_bound (width : Nat) (modulus : Fin (2 ^ widt
   exact Nat.max_le.mpr ⟨input_space_le width axis,
     Nat.max_le.mpr ⟨le_rfl, Nat.max_le.mpr ⟨le_rfl, Nat.zero_le _⟩⟩⟩
 
-theorem gidneyPreparedCode_auxiliary_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedCode_auxiliary_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (path : (preparedCode width modulus coefficient).Path) :
     (preparedCode width modulus coefficient).peakAuxiliarySpace path ≤ space (2 * width) := by
   intro axis
@@ -105,7 +105,7 @@ theorem gidneyPreparedCode_auxiliary_bound (width : Nat) (modulus : Fin (2 ^ wid
     Nat.max_le.mpr ⟨le_rfl, Nat.max_le.mpr ⟨le_rfl, Nat.zero_le _⟩⟩⟩
 
 /-- The actual serial depth includes one preparation layer when the word is nonempty. -/
-theorem gidneyPreparedCode_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyPreparedCode_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (path : (preparedCode width modulus coefficient).Path) :
     (preparedCode width modulus coefficient).depth (fun _ => 1) path ≤ 1 + eventBound width := by
   change DepthExpr.depthEval (fun _ => 1)

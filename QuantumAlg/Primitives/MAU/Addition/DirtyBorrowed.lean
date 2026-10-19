@@ -48,7 +48,7 @@ def straightforwardEncoding (n : Nat) :
 
 /-- The R.0 implementation uses exactly `n+1` target qubits and `n` borrowed
 dirty qubits. -/
-theorem straightforwardEncoding_width (n : Nat) :
+lemma straightforwardEncoding_width (n : Nat) :
     (straightforwardEncoding n).width = 2 * n + 1 := by
   simp [straightforwardEncoding,
     PlainAdder.Schedule.PowerOfTwo.wordEncoding,
@@ -64,7 +64,7 @@ def straightforwardLabelEquiv (n : Nat) :
       (PlainAdder.Schedule.PowerOfTwo.wordLabelEquiv n.succ)
       (Equiv.refl (StraightforwardDirty n))).trans prodEquiv
 
-@[simp] theorem straightforwardEncoding_encode (n : Nat)
+@[simp] lemma straightforwardEncoding_encode (n : Nat)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (straightforwardEncoding n).encode state =
       straightforwardLabelEquiv n state :=
@@ -87,14 +87,14 @@ def straightforwardDirtyBit (n : Nat) (bit : Fin n) :
     (BinaryLabelEncoding.finIdentity n)
     (BinaryLabelEncoding.finIdentityBit n (WireAddress.littleEndianWire bit))
 
-@[simp] theorem straightforwardTargetBit_get (n : Nat) (bit : Fin n.succ)
+@[simp] lemma straightforwardTargetBit_get (n : Nat) (bit : Fin n.succ)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (straightforwardTargetBit n bit).get state =
       state.1.val.testBit bit.val := by
   simp [straightforwardTargetBit, BinaryLabelEncoding.prodLeftBit,
     PlainAdder.Schedule.PowerOfTwo.wordBit_get]
 
-@[simp] theorem straightforwardDirtyBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma straightforwardDirtyBit_get (n : Nat) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (straightforwardDirtyBit n bit).get state =
       state.2.val.testBit bit.val := by
@@ -109,7 +109,7 @@ def straightforwardCarryToggle (n : Nat)
 
 /-- A propagated carry through `count` low bits only observes input bits below
 `count`. -/
-theorem natAddCarry_congr_left_of_testBit_eq_lt
+lemma natAddCarry_congr_left_of_testBit_eq_lt
     (left first second count : Nat)
     (hbits : ∀ bit, bit < count → first.testBit bit = second.testBit bit) :
     Nat.BinaryArithmetic.natAddCarry first left count =
@@ -121,7 +121,7 @@ theorem natAddCarry_congr_left_of_testBit_eq_lt
       rw [hbits count (Nat.lt_succ_self count)]
       rw [ih (fun bit hbit => hbits bit (hbit.trans (Nat.lt_succ_self count)))]
 
-theorem straightforwardTargetBit_wire_ne
+lemma straightforwardTargetBit_wire_ne
     (n : Nat) {left right : Fin n.succ} (hne : left ≠ right) :
     (straightforwardTargetBit n left).wire ≠
       (straightforwardTargetBit n right).wire := by
@@ -130,7 +130,7 @@ theorem straightforwardTargetBit_wire_ne
   intro hwire
   exact hne (WireAddress.bitIndex_injective hwire)
 
-theorem straightforwardWordBit_wire_ne
+lemma straightforwardWordBit_wire_ne
     (width : Nat) {left right : Fin width} (hne : left ≠ right) :
     (PlainAdder.Schedule.PowerOfTwo.wordBit width left).wire ≠
       (PlainAdder.Schedule.PowerOfTwo.wordBit width right).wire := by
@@ -139,7 +139,7 @@ theorem straightforwardWordBit_wire_ne
   intro hwire
   exact hne (WireAddress.bitIndex_injective hwire)
 
-theorem straightforwardDirtyBit_wire_ne
+lemma straightforwardDirtyBit_wire_ne
     (n : Nat) {left right : Fin n} (hne : left ≠ right) :
     (straightforwardDirtyBit n left).wire ≠
       (straightforwardDirtyBit n right).wire := by
@@ -149,7 +149,7 @@ theorem straightforwardDirtyBit_wire_ne
   intro hwire
   exact hne (WireAddress.bitIndex_injective hwire)
 
-theorem straightforwardTargetBit_wire_ne_dirtyBit
+lemma straightforwardTargetBit_wire_ne_dirtyBit
     (n : Nat) (target : Fin n.succ) (dirty : Fin n) :
     (straightforwardTargetBit n target).wire ≠
       (straightforwardDirtyBit n dirty).wire := by
@@ -218,7 +218,7 @@ decreasing_by omega
 
 /-- The carry-toggle network only borrows target bits as controls; every
 temporary target flip is undone before the network returns. -/
-@[simp] theorem straightforwardCarryGates_fst (n : Nat)
+@[simp] lemma straightforwardCarryGates_fst (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (EncodedBit.GateSpec.stepList
@@ -328,7 +328,7 @@ decreasing_by
 /-- The selected dirty bit is toggled by exactly the classical carry and is
 independent of every dirty input value.  Lower dirty bits may also be toggled
 by this prefix; the enclosing output block later reverses the whole prefix. -/
-theorem straightforwardCarryGates_currentDirty_get_of_higher (n : Nat)
+lemma straightforwardCarryGates_currentDirty_get_of_higher (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n)
     (hhigher : ∀ (lower upper : Fin n), lower.val < upper.val →
@@ -610,7 +610,7 @@ decreasing_by
 /-- A carry prefix never writes a dirty bit above its selected carry output.
 This is the separation fact used when the enclosing recurrence reads the
 unknown higher dirty value on both sides of a lower carry computation. -/
-theorem straightforwardCarryGates_higherDirty_get (n : Nat)
+lemma straightforwardCarryGates_higherDirty_get (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit observed : Fin n)
     (hlt : bit.val < observed.val)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
@@ -739,7 +739,7 @@ decreasing_by
   all_goals exact Nat.lt_succ_self index
 
 /-- The selected dirty bit is toggled by exactly the propagated carry. -/
-theorem straightforwardCarryGates_currentDirty_get (n : Nat)
+lemma straightforwardCarryGates_currentDirty_get (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (straightforwardDirtyBit n bit).get
@@ -753,7 +753,7 @@ theorem straightforwardCarryGates_currentDirty_get (n : Nat)
 
 /-- Every gate in a carry prefix is disjoint from any strictly higher target
 bit.  In particular, the prefix commutes with flipping its output bit. -/
-theorem straightforwardCarryGates_forall_bitDisjoint_target_of_lt (n : Nat)
+lemma straightforwardCarryGates_forall_bitDisjoint_target_of_lt (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (observed : Fin n.succ) (hlt : bit.val < observed.val) :
     (straightforwardCarryGates n constant bit).Forall
@@ -860,7 +860,7 @@ def straightforwardOutputBitGates (n : Nat)
 /-- One compute-copy-uncompute output block cancels the unknown initial dirty
 bit and writes exactly the propagated carry together with the known constant
 bit.  The whole data value is restored apart from that one target flip. -/
-theorem straightforwardOutputBitGates_step (n : Nat)
+lemma straightforwardOutputBitGates_step (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     EncodedBit.GateSpec.stepList
@@ -921,7 +921,7 @@ theorem straightforwardOutputBitGates_step (n : Nat)
       hdirtyTargetFlip, EncodedBit.flip_flip]
 
 /-- An output block restores the complete borrowed dirty register. -/
-theorem straightforwardOutputBitGates_snd (n : Nat)
+lemma straightforwardOutputBitGates_snd (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (EncodedBit.GateSpec.stepList
@@ -933,7 +933,7 @@ theorem straightforwardOutputBitGates_snd (n : Nat)
 
 /-- An output block changes no target readout except its selected output bit;
 that bit is the xor of its input, the propagated carry, and the constant. -/
-theorem straightforwardOutputBitGates_fst_testBit (n : Nat)
+lemma straightforwardOutputBitGates_fst_testBit (n : Nat)
     (constant : PlainAdder.Word n.succ) (bit : Fin n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n)
     (observed : Fin n.succ) :
@@ -987,7 +987,7 @@ def straightforwardHighGates (n : Nat)
 
 /-- A fixed-width addition output bit depends only on input bits at or below
 that position. -/
-theorem word_add_testBit_congr_left_of_testBit_eq_le (width : Nat)
+lemma word_add_testBit_congr_left_of_testBit_eq_le (width : Nat)
     (constant first second : PlainAdder.Word width) (observed : Fin width)
     (hbits : ∀ bit, bit ≤ observed.val →
       first.val.testBit bit = second.val.testBit bit) :
@@ -1004,7 +1004,7 @@ theorem word_add_testBit_congr_left_of_testBit_eq_le (width : Nat)
     second.val observed.val (fun bit hbit => hbits bit (Nat.le_of_lt hbit))]
 
 /-- The recursive high-to-low sweep restores the borrowed dirty register. -/
-theorem straightforwardHighGates_snd (n : Nat)
+lemma straightforwardHighGates_snd (n : Nat)
     (constant : PlainAdder.Word n.succ) (count : Nat) (hcount : count ≤ n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (EncodedBit.GateSpec.stepList
@@ -1022,7 +1022,7 @@ theorem straightforwardHighGates_snd (n : Nat)
 /-- After processing `count` non-low output bits, precisely target bits
 `1, ..., count` agree with addition by the constant; every other target bit
 still agrees with the input. -/
-theorem straightforwardHighGates_fst_testBit (n : Nat)
+lemma straightforwardHighGates_fst_testBit (n : Nat)
     (constant : PlainAdder.Word n.succ) (count : Nat) (hcount : count ≤ n)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n)
     (observed : Fin n.succ) :
@@ -1104,7 +1104,7 @@ def straightforwardLowGates (n : Nat)
     []
 
 /-- The low-bit layer preserves the complete borrowed dirty register. -/
-theorem straightforwardLowGates_snd (n : Nat)
+lemma straightforwardLowGates_snd (n : Nat)
     (constant : PlainAdder.Word n.succ)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     (EncodedBit.GateSpec.stepList
@@ -1113,7 +1113,7 @@ theorem straightforwardLowGates_snd (n : Nat)
   split <;> rfl
 
 /-- Exact target-bit readout after the final low-bit layer. -/
-theorem straightforwardLowGates_fst_testBit (n : Nat)
+lemma straightforwardLowGates_fst_testBit (n : Nat)
     (constant : PlainAdder.Word n.succ)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n)
     (observed : Fin n.succ) :
@@ -1199,7 +1199,7 @@ def highXClosedForm {width : Nat}
         constantBitMultiplicity constant (count + 1) +
         highXClosedForm constant count
 
-theorem straightforwardCarryGates_toffoliMultiplicity_sum
+lemma straightforwardCarryGates_toffoliMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) (bit : Fin n) :
     ((straightforwardCarryGates n constant bit).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 * bit.val := by
@@ -1220,7 +1220,7 @@ theorem straightforwardCarryGates_toffoliMultiplicity_sum
 termination_by bit.val
 decreasing_by omega
 
-theorem straightforwardCarryGates_cnotMultiplicity_sum
+lemma straightforwardCarryGates_cnotMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) (bit : Fin n) :
     ((straightforwardCarryGates n constant bit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -1245,7 +1245,7 @@ theorem straightforwardCarryGates_cnotMultiplicity_sum
 termination_by bit.val
 decreasing_by omega
 
-theorem straightforwardCarryGates_xMultiplicity_sum
+lemma straightforwardCarryGates_xMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) (bit : Fin n) :
     ((straightforwardCarryGates n constant bit).map
         EncodedBit.GateSpec.xMultiplicity).sum =
@@ -1268,7 +1268,7 @@ theorem straightforwardCarryGates_xMultiplicity_sum
 termination_by bit.val
 decreasing_by omega
 
-theorem straightforwardOutputBitGates_toffoliMultiplicity_sum
+lemma straightforwardOutputBitGates_toffoliMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) (bit : Fin n) :
     ((straightforwardOutputBitGates n constant bit).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 4 * bit.val := by
@@ -1280,7 +1280,7 @@ theorem straightforwardOutputBitGates_toffoliMultiplicity_sum
       straightforwardCarryGates_toffoliMultiplicity_sum, hc]
     omega
 
-theorem straightforwardOutputBitGates_cnotMultiplicity_sum
+lemma straightforwardOutputBitGates_cnotMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) (bit : Fin n) :
     ((straightforwardOutputBitGates n constant bit).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -1293,7 +1293,7 @@ theorem straightforwardOutputBitGates_cnotMultiplicity_sum
       straightforwardCarryGates_cnotMultiplicity_sum, hc]
     omega
 
-theorem straightforwardOutputBitGates_xMultiplicity_sum
+lemma straightforwardOutputBitGates_xMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) (bit : Fin n) :
     ((straightforwardOutputBitGates n constant bit).map
         EncodedBit.GateSpec.xMultiplicity).sum =
@@ -1309,7 +1309,7 @@ theorem straightforwardOutputBitGates_xMultiplicity_sum
       constantBitMultiplicity, hc]
     omega
 
-theorem straightforwardHighGates_toffoliMultiplicity_sum
+lemma straightforwardHighGates_toffoliMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ)
     (count : Nat) (hcount : count ≤ n) :
     ((straightforwardHighGates n constant count hcount).map
@@ -1328,7 +1328,7 @@ theorem straightforwardHighGates_toffoliMultiplicity_sum
       | zero => simp
       | succ count => simp; ring
 
-theorem straightforwardHighGates_cnotMultiplicity_sum
+lemma straightforwardHighGates_cnotMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ)
     (count : Nat) (hcount : count ≤ n) :
     ((straightforwardHighGates n constant count hcount).map
@@ -1343,7 +1343,7 @@ theorem straightforwardHighGates_cnotMultiplicity_sum
       simp [highCnotClosedForm,
         straightforwardOutputBitGates_cnotMultiplicity_sum, ih (by omega)]
 
-theorem straightforwardHighGates_xMultiplicity_sum
+lemma straightforwardHighGates_xMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ)
     (count : Nat) (hcount : count ≤ n) :
     ((straightforwardHighGates n constant count hcount).map
@@ -1359,7 +1359,7 @@ theorem straightforwardHighGates_xMultiplicity_sum
         straightforwardOutputBitGates_xMultiplicity_sum, ih (by omega)]
 
 /-- Exact Toffoli coordinate of the concrete R.0 schedule. -/
-theorem straightforwardGates_toffoliMultiplicity_sum
+lemma straightforwardGates_toffoliMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) :
     ((straightforwardGates n constant).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -1373,7 +1373,7 @@ theorem straightforwardGates_toffoliMultiplicity_sum
       straightforwardLowGates, hc]
 
 /-- Exact constant-pattern-dependent CNOT coordinate of the R.0 schedule. -/
-theorem straightforwardGates_cnotMultiplicity_sum
+lemma straightforwardGates_cnotMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) :
     ((straightforwardGates n constant).map
         EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -1387,7 +1387,7 @@ theorem straightforwardGates_cnotMultiplicity_sum
       straightforwardLowGates, hc]
 
 /-- Exact constant-pattern-dependent X coordinate of the R.0 schedule. -/
-theorem straightforwardGates_xMultiplicity_sum
+lemma straightforwardGates_xMultiplicity_sum
     (n : Nat) (constant : PlainAdder.Word n.succ) :
     ((straightforwardGates n constant).map
         EncodedBit.GateSpec.xMultiplicity).sum =
@@ -1402,7 +1402,7 @@ theorem straightforwardGates_xMultiplicity_sum
 
 /-- The complete literal HRS schedule is exact fixed-width addition on the
 target and the identity on every borrowed dirty basis label. -/
-theorem straightforwardGates_step (n : Nat)
+lemma straightforwardGates_step (n : Nat)
     (constant : PlainAdder.Word n.succ)
     (state : PlainAdder.Word n.succ × StraightforwardDirty n) :
     EncodedBit.GateSpec.stepList (straightforwardGates n constant) state =
@@ -1445,7 +1445,7 @@ def straightforwardProgram (n : Nat) (constant : PlainAdder.Word n.succ) :
     (straightforwardGates n constant)
 
 /-- Exact Toffoli count of the actual compiled R.0 program. -/
-theorem straightforwardProgram_toffoli_count_eq
+lemma straightforwardProgram_toffoli_count_eq
     (n : Nat) (constant : PlainAdder.Word n.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
         (straightforwardProgram n constant).eventCost =
@@ -1455,7 +1455,7 @@ theorem straightforwardProgram_toffoli_count_eq
   exact straightforwardGates_toffoliMultiplicity_sum n constant
 
 /-- Exact CNOT count of the actual compiled R.0 program. -/
-theorem straightforwardProgram_cnot_count_eq
+lemma straightforwardProgram_cnot_count_eq
     (n : Nat) (constant : PlainAdder.Word n.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
         (straightforwardProgram n constant).eventCost =
@@ -1465,7 +1465,7 @@ theorem straightforwardProgram_cnot_count_eq
   exact straightforwardGates_cnotMultiplicity_sum n constant
 
 /-- Exact X count of the actual compiled R.0 program. -/
-theorem straightforwardProgram_x_count_eq
+lemma straightforwardProgram_x_count_eq
     (n : Nat) (constant : PlainAdder.Word n.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
         (straightforwardProgram n constant).eventCost =
@@ -1476,21 +1476,23 @@ theorem straightforwardProgram_x_count_eq
 
 /-- The actual straight-forward HRS program realizes its literal folded
 encoded-bit schedule. -/
-theorem straightforwardProgram_realizesFoldedStep (n : Nat)
+lemma straightforwardProgram_realizesFoldedStep (n : Nat)
+    {environment : OracleModel.empty.Interpretation}
     (constant : PlainAdder.Word n.succ) :
     UnitaryCircuit.Realizes (straightforwardEncoding n)
-      (straightforwardProgram n constant)
+      (straightforwardProgram n constant) environment
       (EncodedBit.GateSpec.stepList (straightforwardGates n constant)) :=
   EncodedBit.GateSpec.realizesList
     (QubitLayout.canonical (straightforwardEncoding n).width) .empty
-    (straightforwardGates n constant)
+    (straightforwardGates n constant) environment
 
 /-- The flat physical program realizes exact addition while restoring every
 dirty basis label. -/
-theorem straightforwardProgram_realizes (n : Nat)
+lemma straightforwardProgram_realizes (n : Nat)
+    {environment : OracleModel.empty.Interpretation}
     (constant : PlainAdder.Word n.succ) :
     UnitaryCircuit.Realizes (straightforwardEncoding n)
-      (straightforwardProgram n constant)
+      (straightforwardProgram n constant) environment
       (fun state => (state.1 + constant, state.2)) :=
   UnitaryCircuit.Realizes.congrStep
     (straightforwardProgram_realizesFoldedStep n constant)

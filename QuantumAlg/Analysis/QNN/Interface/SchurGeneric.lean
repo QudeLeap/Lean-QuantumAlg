@@ -38,13 +38,13 @@ attribute [local instance 100] LieRing.ofAssociativeRing
 variable {N : ℕ} {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
 
 /-- The Hilbert–Schmidt inner product is zero against `0` on the right. -/
-theorem hsInner_zero_right {m : Type*} [Fintype m] (A : Matrix m m ℂ) : hsInner A 0 = 0 := by
+lemma hsInner_zero_right {m : Type*} [Fintype m] (A : Matrix m m ℂ) : hsInner A 0 = 0 := by
   simp [hsInner]
 
 /-- **Leibniz rule for the doubled adjoint action on a Kronecker product.** The coproduct action
 `doubledAd a = ⁅a⊗ₖ1 + 1⊗ₖa, ·⁆` differentiates across the tensor:
 `doubledAd a (u ⊗ₖ v) = ⁅a, u⁆ ⊗ₖ v + u ⊗ₖ ⁅a, v⁆`. -/
-theorem doubledAd_kron (a u v : Matrix (Fin N) (Fin N) ℂ) :
+lemma doubledAd_kron (a u v : Matrix (Fin N) (Fin N) ℂ) :
     doubledAd a (u ⊗ₖ v) = ⁅a, u⁆ ⊗ₖ v + u ⊗ₖ ⁅a, v⁆ := by
   simp only [doubledAd, LinearMap.sub_apply, LinearMap.mulLeft_apply, LinearMap.mulRight_apply]
   rw [add_mul, mul_add, ← Matrix.mul_kronecker_mul, ← Matrix.mul_kronecker_mul,
@@ -53,7 +53,7 @@ theorem doubledAd_kron (a u v : Matrix (Fin N) (Fin N) ℂ) :
   abel
 
 /-- **The doubled basis `Bᵢ ⊗ₖ Bⱼ` is Hilbert–Schmidt orthonormal.** -/
-theorem hsInner_kron_basis (b : DLAHermBasis gens) (p q : Fin b.dim × Fin b.dim) :
+lemma hsInner_kron_basis (b : DLAHermBasis gens) (p q : Fin b.dim × Fin b.dim) :
     hsInner (b.B p.1 ⊗ₖ b.B p.2) (b.B q.1 ⊗ₖ b.B q.2) = if p = q then 1 else 0 := by
   rw [hsInner_kronecker, b.ortho, b.ortho]
   by_cases h : p = q
@@ -64,7 +64,7 @@ theorem hsInner_kron_basis (b : DLAHermBasis gens) (p q : Fin b.dim × Fin b.dim
     · rw [if_neg h2, mul_zero]
 
 /-- **The HS projection onto `g ⊗ g` fixes `g ⊗ g`** (coefficient self-consistency). -/
-theorem projGG_eq_self_of_mem (b : DLAHermBasis gens)
+lemma projGG_eq_self_of_mem (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorG b) :
     projGG b X = X := by
   rw [gTensorG] at hX
@@ -84,7 +84,7 @@ theorem projGG_eq_self_of_mem (b : DLAHermBasis gens)
 
 /-- **Coefficient extraction in `g ⊗ g`.** Every `X ∈ g ⊗ g` is its own Hilbert–Schmidt expansion
 in the orthonormal family `Bᵢ ⊗ₖ Bⱼ`. -/
-theorem gTensorG_coord (b : DLAHermBasis gens)
+lemma gTensorG_coord (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorG b) :
     X = ∑ i : Fin b.dim, ∑ j : Fin b.dim,
       hsInner (b.B i ⊗ₖ b.B j) X • (b.B i ⊗ₖ b.B j) := by
@@ -93,7 +93,7 @@ theorem gTensorG_coord (b : DLAHermBasis gens)
 
 /-- **The easy half: `span{C} ≤ (g⊗g)^g`.** The Casimir is in the invariant subspace
 (`casimir_mem_gTensorGInvariant`), hence so is its span. -/
-theorem spanC_le_gTensorGInvariant (b : DLAHermBasis gens) :
+lemma spanC_le_gTensorGInvariant (b : DLAHermBasis gens) :
     Submodule.span ℂ {b.casimir} ≤ gTensorGInvariant b :=
   Submodule.span_le.mpr (Set.singleton_subset_iff.mpr (casimir_mem_gTensorGInvariant b))
 
@@ -103,7 +103,7 @@ of structure-constant contractions:
 `⟪Bₐ⊗ₖBᵦ, doubledAd Bₖ X⟫ = ∑ᵢ sₖᵢₐ cᵢᵦ + ∑ⱼ sₖⱼᵦ cₐⱼ`, where `sₖᵢₐ = ⟪Bₐ, ⁅Bₖ,Bᵢ⁆⟫`. Combined with
 `doubledAd Bₖ X = 0` this is the scalar invariance equation forcing `c` to commute with the adjoint
 action. -/
-theorem doubledAd_pairing (b : DLAHermBasis gens)
+lemma doubledAd_pairing (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorG b)
     (k a bb : Fin b.dim) :
     hsInner (b.B a ⊗ₖ b.B bb) (doubledAd (b.B k) X)
@@ -133,14 +133,14 @@ noncomputable def coeffMatrix (b : DLAHermBasis gens)
   Matrix.of fun a c => hsInner (b.B a ⊗ₖ b.B c) X
 
 /-- Each adjoint matrix is antisymmetric (the Hilbert–Schmidt form is ad-invariant). -/
-theorem adMatrix_antisymm (b : DLAHermBasis gens) (k a i : Fin b.dim) :
+lemma adMatrix_antisymm (b : DLAHermBasis gens) (k a i : Fin b.dim) :
     adMatrix b k a i = - adMatrix b k i a := by
   simp only [adMatrix, Matrix.of_apply]
   exact hsInner_bracket_antisymm b k i a
 
 /-- **Step 0 — the coefficient matrix of an invariant tensor commutes with every adjoint matrix.**
 For `X ∈ (g⊗g)^g`, `Sₖ · C = C · Sₖ`, i.e. `C` is an endomorphism of the adjoint module. -/
-theorem gTensorGInvariant_commute (b : DLAHermBasis gens)
+lemma gTensorGInvariant_commute (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorGInvariant b) (k : Fin b.dim) :
     adMatrix b k * coeffMatrix b X = coeffMatrix b X * adMatrix b k := by
   have hmem : X ∈ gTensorG b := hX.2
@@ -168,7 +168,7 @@ that separate every pair of distinct indices, the coefficient matrix of an invar
 diagonal. (`adMatrix bₖ ²` is diagonal because the Pauli bracket is single-term;
 `μ k` depends only on
 the symplectic pairing, which is non-degenerate — so it separates.) -/
-theorem coeffMatrix_offdiag_zero (b : DLAHermBasis gens)
+lemma coeffMatrix_offdiag_zero (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorGInvariant b)
     (μ : Fin b.dim → Fin b.dim → ℂ)
     (hdiag : ∀ k, adMatrix b k * adMatrix b k = Matrix.diagonal (μ k))
@@ -189,7 +189,7 @@ theorem coeffMatrix_offdiag_zero (b : DLAHermBasis gens)
 all diagonal entries
 equal, because `adMatrix bₖ x y ≠ 0` forces `C x x = C y y` and the adjoint-support graph is
 connected (`hconn`). -/
-theorem coeffMatrix_diag_const (b : DLAHermBasis gens)
+lemma coeffMatrix_diag_const (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorGInvariant b)
     (hoff : ∀ a a' : Fin b.dim, a ≠ a' → coeffMatrix b X a a' = 0)
     (hconn : ∀ t : Fin b.dim → ℂ,
@@ -215,7 +215,7 @@ theorem coeffMatrix_diag_const (b : DLAHermBasis gens)
 /-- **Step 4 — assembly.** A diagonal, constant-on-the-diagonal invariant tensor
 is a multiple of the
 Casimir, hence the hard inclusion `(g⊗g)^g ≤ span{C}`. -/
-theorem gTensorGInvariant_le_spanC (b : DLAHermBasis gens)
+lemma gTensorGInvariant_le_spanC (b : DLAHermBasis gens)
     {X : Matrix (Fin N × Fin N) (Fin N × Fin N) ℂ} (hX : X ∈ gTensorGInvariant b)
     (hoff : ∀ a a' : Fin b.dim, a ≠ a' → coeffMatrix b X a a' = 0)
     (hconst : ∀ a a' : Fin b.dim, coeffMatrix b X a a = coeffMatrix b X a' a') :

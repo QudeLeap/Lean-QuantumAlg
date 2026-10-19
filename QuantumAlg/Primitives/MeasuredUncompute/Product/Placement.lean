@@ -47,20 +47,20 @@ def sourceEncoding (width : Nat) :
   BinaryLabelEncoding.prod (VariableGidney.encoding width)
     (BinaryLabelEncoding.finIdentity (historyWidth width))
 
-theorem frame_width (width : Nat) :
+lemma frame_width (width : Nat) :
     (frameEncoding width).width = ProductWires.width width (tailWidth width) := by
   change (SharedEEA.encoding width).width + width = _
   rw [SharedEEA.encoding_width]
   unfold ProductWires.width tailWidth
   omega
 
-theorem source_width (width : Nat) :
+lemma source_width (width : Nat) :
     (sourceEncoding width).width = ProductWires.width width (tailWidth width) := by
   change (width + (width + width)) + historyWidth width = _
   unfold ProductWires.width historyWidth
   omega
 
-private theorem frame_total (width : Nat) :
+private lemma frame_total (width : Nat) :
     Function.Surjective (frameEncoding width).encode := by
   intro label
   obtain ⟨⟨shared, numerator⟩, rfl⟩ :=
@@ -68,7 +68,7 @@ private theorem frame_total (width : Nat) :
   obtain ⟨state, rfl⟩ := SharedEEA.encoding_surjective width shared
   exact ⟨(state, numerator), rfl⟩
 
-private theorem source_total (width : Nat) :
+private lemma source_total (width : Nat) :
     Function.Surjective (sourceEncoding width).encode := by
   intro label
   obtain ⟨⟨product, retained⟩, rfl⟩ :=
@@ -88,11 +88,11 @@ def placement (width : Nat) :
   EncodedBit.FullPlacement.ofWires _ _ (source_total width) (frame_total width) (wires width)
 
 /-- Each grouped source position names precisely its proved physical product port. -/
-theorem wires_address (width : Nat) (index : Fin (sourceEncoding width).width) :
+lemma wires_address (width : Nat) (index : Fin (sourceEncoding width).width) :
     (wires width index).val = ProductWires.address width (tailWidth width) index.val := rfl
 
 /-- Every source bit reads the actual original target-frame wire, for arbitrary complete fields. -/
-theorem grouping_bit (width : Nat) (state : Frame width)
+lemma grouping_bit (width : Nat) (state : Frame width)
     (index : Fin (sourceEncoding width).width) :
     ((sourceEncoding width).encode ((placement width).grouping state)).val.testBit index.rev.val =
       ((frameEncoding width).encode state).val.testBit (wires width index).rev.val := by

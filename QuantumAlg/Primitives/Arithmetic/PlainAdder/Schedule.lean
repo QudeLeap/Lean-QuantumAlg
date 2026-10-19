@@ -37,6 +37,8 @@ namespace Schedule
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.BinaryArithmetic
 
 variable {Carrier : Type} {encoding : BinaryLabelEncoding Carrier}
@@ -47,7 +49,7 @@ def concatStages (stages : List (List (EncodedBit.GateSpec encoding))) :
   stages.foldr (fun gates rest => gates ++ rest) []
 
 /-- Concatenating stages preserves the sum of their physical gate counts. -/
-@[simp] theorem length_concatStages
+@[simp] lemma length_concatStages
     (stages : List (List (EncodedBit.GateSpec encoding))) :
     (concatStages stages).length = (stages.map List.length).sum := by
   induction stages with
@@ -59,7 +61,7 @@ def concatStages (stages : List (List (EncodedBit.GateSpec encoding))) :
       simp [ih]
 
 /-- Concatenating stages preserves every additive gate-list coordinate. -/
-theorem sum_map_concatStages
+lemma sum_map_concatStages
     (multiplicity : EncodedBit.GateSpec encoding → Nat)
     (stages : List (List (EncodedBit.GateSpec encoding))) :
     ((concatStages stages).map multiplicity).sum =
@@ -74,7 +76,7 @@ theorem sum_map_concatStages
       rw [List.map_append, List.sum_append, ih]
 
 /-- Membership in concatenated stages is membership in one component stage. -/
-theorem mem_concatStages
+lemma mem_concatStages
     {stages : List (List (EncodedBit.GateSpec encoding))}
     {gate : EncodedBit.GateSpec encoding} :
     gate ∈ concatStages stages ↔
@@ -103,7 +105,7 @@ theorem mem_concatStages
 
 /-- The semantic action of concatenated stages is the left-to-right fold of
 the individual stage actions. -/
-theorem stepList_concatStages
+lemma stepList_concatStages
     (stages : List (List (EncodedBit.GateSpec encoding))) (x : Carrier) :
     EncodedBit.GateSpec.stepList (concatStages stages) x =
       stages.foldl
@@ -181,9 +183,9 @@ def step : Carrier -> Carrier :=
 
 /-- The folded schedule shell is realized by the same base-gate program object
 whose resource profile is later projected. -/
-theorem realizes :
-    UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+lemma realizes :
+    UnitaryCircuit.Realizes encoding (program layout) environment (step layout) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (gates layout)
 
 /-- Package this folded schedule as a plain-adder structured witness once a
@@ -195,8 +197,8 @@ def toStructuredWitness
     StructuredWitness n where
   encoding := encoding
   program := program layout
-  realizes := by
-    simpa [program, hstep] using realizes layout
+  realizes := fun environment => by
+    simpa [program, hstep] using realizes (environment := environment) layout
 
 end SingleCarryLayout
 
@@ -249,7 +251,7 @@ def lowIndex (j : Fin (n - 1)) : Fin n :=
     omega⟩
 
 /-- The low-word index keeps the same numeric value as its carry-work index. -/
-@[simp] theorem lowIndex_val (j : Fin (n - 1)) :
+@[simp] lemma lowIndex_val (j : Fin (n - 1)) :
     (lowIndex j).val = j.val :=
   rfl
 
@@ -260,7 +262,7 @@ def previousWorkIndex (j : Fin (n - 1)) (_h : j.val ≠ 0) : Fin (n - 1) :=
     have hj := j.isLt
     omega⟩
 
-@[simp] theorem previousWorkIndex_val (j : Fin (n - 1))
+@[simp] lemma previousWorkIndex_val (j : Fin (n - 1))
     (h : j.val ≠ 0) :
     (previousWorkIndex j h).val = j.val - 1 :=
   rfl
@@ -271,7 +273,7 @@ def carryInput (j : Fin (n - 1)) : EncodedBit encoding :=
   if h : j.val = 0 then layout.carryIn
   else layout.workCarry.bit (previousWorkIndex j h)
 
-theorem left_carryInput_ne (j : Fin (n - 1)) :
+lemma left_carryInput_ne (j : Fin (n - 1)) :
     (layout.left.bit (lowIndex j)).wire ≠ (carryInput layout j).wire := by
   unfold carryInput
   by_cases h : j.val = 0
@@ -279,7 +281,7 @@ theorem left_carryInput_ne (j : Fin (n - 1)) :
   · simpa [h] using
       layout.leftWork_ne (lowIndex j) (previousWorkIndex j h)
 
-theorem right_carryInput_ne (j : Fin (n - 1)) :
+lemma right_carryInput_ne (j : Fin (n - 1)) :
     (layout.right.bit (lowIndex j)).wire ≠ (carryInput layout j).wire := by
   unfold carryInput
   by_cases h : j.val = 0
@@ -287,7 +289,7 @@ theorem right_carryInput_ne (j : Fin (n - 1)) :
   · simpa [h] using
       layout.rightWork_ne (lowIndex j) (previousWorkIndex j h)
 
-theorem carryInput_work_ne (j : Fin (n - 1)) :
+lemma carryInput_work_ne (j : Fin (n - 1)) :
     (carryInput layout j).wire ≠ (layout.workCarry.bit j).wire := by
   unfold carryInput
   by_cases h : j.val = 0
@@ -306,7 +308,7 @@ def carryBeforeSum (i : Fin n) : EncodedBit encoding :=
     have hi := i.isLt
     omega⟩
 
-theorem carryBeforeSum_right_ne (i : Fin n) :
+lemma carryBeforeSum_right_ne (i : Fin n) :
     (carryBeforeSum layout i).wire ≠ (layout.right.bit i).wire := by
   unfold carryBeforeSum
   by_cases h : i.val = 0
@@ -332,7 +334,7 @@ def carryOutGatesAt (j : Fin (n - 1)) :
 
 /-- The local carry-work stage at index `j` writes the full-adder carry into a
 clean temporary carry wire. -/
-theorem carryOutGatesAt_get_workCarry_clean (j : Fin (n - 1)) (x : Carrier)
+lemma carryOutGatesAt_get_workCarry_clean (j : Fin (n - 1)) (x : Carrier)
     (hclean : (layout.workCarry.bit j).get x = false) :
     (layout.workCarry.bit j).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
@@ -349,7 +351,7 @@ theorem carryOutGatesAt_get_workCarry_clean (j : Fin (n - 1)) (x : Carrier)
       (carryInput_work_ne layout j) x hclean
 
 /-- The local carry-work stage preserves the selected left readout. -/
-theorem carryOutGatesAt_get_left (j : Fin (n - 1)) (x : Carrier) :
+lemma carryOutGatesAt_get_left (j : Fin (n - 1)) (x : Carrier) :
     (layout.left.bit (lowIndex j)).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
       (layout.left.bit (lowIndex j)).get x := by
@@ -363,7 +365,7 @@ theorem carryOutGatesAt_get_left (j : Fin (n - 1)) (x : Carrier) :
       (carryInput_work_ne layout j) x
 
 /-- The local carry-work stage preserves the selected right readout. -/
-theorem carryOutGatesAt_get_right (j : Fin (n - 1)) (x : Carrier) :
+lemma carryOutGatesAt_get_right (j : Fin (n - 1)) (x : Carrier) :
     (layout.right.bit (lowIndex j)).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
       (layout.right.bit (lowIndex j)).get x := by
@@ -377,7 +379,7 @@ theorem carryOutGatesAt_get_right (j : Fin (n - 1)) (x : Carrier) :
       (carryInput_work_ne layout j) x
 
 /-- The local carry-work stage preserves its carry-input readout. -/
-theorem carryOutGatesAt_get_carryInput (j : Fin (n - 1)) (x : Carrier) :
+lemma carryOutGatesAt_get_carryInput (j : Fin (n - 1)) (x : Carrier) :
     (carryInput layout j).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
       (carryInput layout j).get x := by
@@ -391,7 +393,7 @@ theorem carryOutGatesAt_get_carryInput (j : Fin (n - 1)) (x : Carrier) :
       (carryInput_work_ne layout j) x
 
 /-- A local carry-work stage preserves every other temporary carry readout. -/
-theorem carryOutGatesAt_get_workCarry_of_ne
+lemma carryOutGatesAt_get_workCarry_of_ne
     (j k : Fin (n - 1)) (hne : j ≠ k) (x : Carrier) :
     (layout.workCarry.bit k).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
@@ -406,7 +408,7 @@ theorem carryOutGatesAt_get_workCarry_of_ne
       (carryInput_work_ne layout j) (layout.workWork_ne j k hne) x
 
 /-- A local carry-work stage preserves every left readout. -/
-theorem carryOutGatesAt_get_left_any
+lemma carryOutGatesAt_get_left_any
     (j : Fin (n - 1)) (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
@@ -421,7 +423,7 @@ theorem carryOutGatesAt_get_left_any
       (carryInput_work_ne layout j) (Ne.symm (layout.leftWork_ne i j)) x
 
 /-- A local carry-work stage preserves every right readout. -/
-theorem carryOutGatesAt_get_right_any
+lemma carryOutGatesAt_get_right_any
     (j : Fin (n - 1)) (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
@@ -436,7 +438,7 @@ theorem carryOutGatesAt_get_right_any
       (carryInput_work_ne layout j) (Ne.symm (layout.rightWork_ne i j)) x
 
 /-- A local carry-work stage preserves the data carry-in readout. -/
-theorem carryOutGatesAt_get_dataCarry (j : Fin (n - 1)) (x : Carrier) :
+lemma carryOutGatesAt_get_dataCarry (j : Fin (n - 1)) (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x) =
       layout.carryIn.get x := by
@@ -451,7 +453,7 @@ theorem carryOutGatesAt_get_dataCarry (j : Fin (n - 1)) (x : Carrier) :
 
 /-- A local carry-work stage preserves any readout whose wire is not the
 selected work-carry output wire. -/
-theorem carryOutGatesAt_get_of_work_ne
+lemma carryOutGatesAt_get_of_work_ne
     (j : Fin (n - 1)) (observed : EncodedBit encoding)
     (hne : (layout.workCarry.bit j).wire ≠ observed.wire) (x : Carrier) :
     observed.get
@@ -483,7 +485,7 @@ def carryOutCleanupGatesAt (j : Fin (n - 1)) :
 
 /-- The reverse local carry block clears the selected work carry when that
 work bit stores the full-adder carry for the still-preserved controls. -/
-theorem carryOutCleanupGatesAt_get_workCarry_computed
+lemma carryOutCleanupGatesAt_get_workCarry_computed
     (j : Fin (n - 1)) (x : Carrier)
     (hcomputed : (layout.workCarry.bit j).get x =
       Bool.carry ((layout.left.bit (lowIndex j)).get x)
@@ -502,7 +504,7 @@ theorem carryOutCleanupGatesAt_get_workCarry_computed
       (carryInput_work_ne layout j) x hcomputed
 
 /-- A local carry cleanup block preserves every left readout. -/
-theorem carryOutCleanupGatesAt_get_left_any
+lemma carryOutCleanupGatesAt_get_left_any
     (j : Fin (n - 1)) (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList
@@ -518,7 +520,7 @@ theorem carryOutCleanupGatesAt_get_left_any
       (carryInput_work_ne layout j) (Ne.symm (layout.leftWork_ne i j)) x
 
 /-- A local carry cleanup block preserves every right readout. -/
-theorem carryOutCleanupGatesAt_get_right_any
+lemma carryOutCleanupGatesAt_get_right_any
     (j : Fin (n - 1)) (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList
@@ -534,7 +536,7 @@ theorem carryOutCleanupGatesAt_get_right_any
       (carryInput_work_ne layout j) (Ne.symm (layout.rightWork_ne i j)) x
 
 /-- A local carry cleanup block preserves the data carry-in readout. -/
-theorem carryOutCleanupGatesAt_get_dataCarry
+lemma carryOutCleanupGatesAt_get_dataCarry
     (j : Fin (n - 1)) (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList
@@ -550,7 +552,7 @@ theorem carryOutCleanupGatesAt_get_dataCarry
       (carryInput_work_ne layout j) (Ne.symm (layout.carryInWork_ne j)) x
 
 /-- A local carry cleanup block preserves every other temporary carry readout. -/
-theorem carryOutCleanupGatesAt_get_workCarry_of_ne
+lemma carryOutCleanupGatesAt_get_workCarry_of_ne
     (j k : Fin (n - 1)) (hne : j ≠ k) (x : Carrier) :
     (layout.workCarry.bit k).get
         (EncodedBit.GateSpec.stepList
@@ -567,7 +569,7 @@ theorem carryOutCleanupGatesAt_get_workCarry_of_ne
 
 /-- A local carry cleanup block preserves any readout whose wire is not the
 selected work-carry output wire. -/
-theorem carryOutCleanupGatesAt_get_of_work_ne
+lemma carryOutCleanupGatesAt_get_of_work_ne
     (j : Fin (n - 1)) (observed : EncodedBit encoding)
     (hne : (layout.workCarry.bit j).wire ≠ observed.wire) (x : Carrier) :
     observed.get
@@ -610,7 +612,7 @@ def carryStagePrefixStep (t : Nat) : Carrier -> Carrier :=
 
 /-- Any fold of local carry-output stages preserves a work bit whose index is
 absent from the folded stage list. -/
-theorem foldl_carryOutGatesAt_get_workCarry_of_forall_ne
+lemma foldl_carryOutGatesAt_get_workCarry_of_forall_ne
     (indices : List (Fin (n - 1))) (k : Fin (n - 1))
     (hne : forall j, j ∈ indices -> j ≠ k) (x : Carrier) :
     (layout.workCarry.bit k).get
@@ -637,7 +639,7 @@ theorem foldl_carryOutGatesAt_get_workCarry_of_forall_ne
 
 /-- Any fold of local carry-output stages preserves an observed readout whose
 wire is distinct from every folded work-carry target. -/
-theorem foldl_carryOutGatesAt_get_observed_of_work_ne
+lemma foldl_carryOutGatesAt_get_observed_of_work_ne
     (indices : List (Fin (n - 1))) (observed : EncodedBit encoding)
     (hne : forall j, j ∈ indices ->
       (layout.workCarry.bit j).wire ≠ observed.wire) (x : Carrier) :
@@ -664,7 +666,7 @@ theorem foldl_carryOutGatesAt_get_observed_of_work_ne
         exact hne i (by simp [hi])
 
 /-- Any fold of local carry-output stages preserves every left readout. -/
-theorem foldl_carryOutGatesAt_get_left
+lemma foldl_carryOutGatesAt_get_left
     (indices : List (Fin (n - 1))) (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (indices.foldl
@@ -686,7 +688,7 @@ theorem foldl_carryOutGatesAt_get_left
       exact carryOutGatesAt_get_left_any layout j i x
 
 /-- Any fold of local carry-output stages preserves every right readout. -/
-theorem foldl_carryOutGatesAt_get_right
+lemma foldl_carryOutGatesAt_get_right
     (indices : List (Fin (n - 1))) (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (indices.foldl
@@ -708,7 +710,7 @@ theorem foldl_carryOutGatesAt_get_right
       exact carryOutGatesAt_get_right_any layout j i x
 
 /-- Any fold of local carry-output stages preserves the data carry-in readout. -/
-theorem foldl_carryOutGatesAt_get_dataCarry
+lemma foldl_carryOutGatesAt_get_dataCarry
     (indices : List (Fin (n - 1))) (x : Carrier) :
     layout.carryIn.get
         (indices.foldl
@@ -729,11 +731,11 @@ theorem foldl_carryOutGatesAt_get_dataCarry
       rw [ih]
       exact carryOutGatesAt_get_dataCarry layout j x
 
-@[simp] theorem carryStageIndices_length :
+@[simp] lemma carryStageIndices_length :
     (carryStageIndices (n := n)).length = n - 1 := by
   simp [carryStageIndices]
 
-theorem carryStageIndices_getElem_val {i : Nat}
+lemma carryStageIndices_getElem_val {i : Nat}
     (hi : i < (carryStageIndices (n := n)).length) :
     ((carryStageIndices (n := n))[i]'hi).val = i := by
   simp [carryStageIndices]
@@ -741,7 +743,7 @@ theorem carryStageIndices_getElem_val {i : Nat}
 /-- Every member of the first `j.val` carry-stage indices is strictly before
 `j`.  This is the order fact needed to know that stage `j` has not touched its
 own clean work bit before the `j`-th local carry write. -/
-theorem carryStageIndices_mem_take_val_lt {j k : Fin (n - 1)}
+lemma carryStageIndices_mem_take_val_lt {j k : Fin (n - 1)}
     (hmem : k ∈ (carryStageIndices (n := n)).take j.val) :
     k.val < j.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -762,7 +764,7 @@ theorem carryStageIndices_mem_take_val_lt {j k : Fin (n - 1)}
   omega
 
 /-- Every member of the suffix after index `j` is strictly after `j`. -/
-theorem carryStageIndices_mem_drop_succ_val_gt {j k : Fin (n - 1)}
+lemma carryStageIndices_mem_drop_succ_val_gt {j k : Fin (n - 1)}
     (hmem : k ∈ (carryStageIndices (n := n)).drop (j.val + 1)) :
     j.val < k.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -779,7 +781,7 @@ theorem carryStageIndices_mem_drop_succ_val_gt {j k : Fin (n - 1)}
     exact carryStageIndices_getElem_val (n := n) hiOrig
   omega
 
-theorem carryStagePrefixStep_get_left
+lemma carryStagePrefixStep_get_left
     (t : Nat) (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get (carryStagePrefixStep layout t x) =
       (layout.left.bit i).get x := by
@@ -787,7 +789,7 @@ theorem carryStagePrefixStep_get_left
   exact foldl_carryOutGatesAt_get_left layout
     ((carryStageIndices (n := n)).take t) i x
 
-theorem carryStagePrefixStep_get_right
+lemma carryStagePrefixStep_get_right
     (t : Nat) (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (carryStagePrefixStep layout t x) =
       (layout.right.bit i).get x := by
@@ -795,7 +797,7 @@ theorem carryStagePrefixStep_get_right
   exact foldl_carryOutGatesAt_get_right layout
     ((carryStageIndices (n := n)).take t) i x
 
-theorem carryStagePrefixStep_get_dataCarry
+lemma carryStagePrefixStep_get_dataCarry
     (t : Nat) (x : Carrier) :
     layout.carryIn.get (carryStagePrefixStep layout t x) =
       layout.carryIn.get x := by
@@ -803,7 +805,7 @@ theorem carryStagePrefixStep_get_dataCarry
   exact foldl_carryOutGatesAt_get_dataCarry layout
     ((carryStageIndices (n := n)).take t) x
 
-theorem carryStagePrefixStep_get_workCarry_before
+lemma carryStagePrefixStep_get_workCarry_before
     (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get (carryStagePrefixStep layout j.val x) =
       (layout.workCarry.bit j).get x := by
@@ -822,7 +824,7 @@ theorem carryStagePrefixStep_get_workCarry_before
 local full-adder carry for that stage, assuming the work register was initially
 clean.  This is the ordered-prefix form of the VBE forward carry pass
 [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryStagePrefixStep_get_workCarry_current
+lemma carryStagePrefixStep_get_workCarry_current
     (j : Fin (n - 1)) (x : Carrier)
     (hclean : forall k, (layout.workCarry.bit k).get x = false) :
     (layout.workCarry.bit j).get
@@ -872,7 +874,7 @@ theorem carryStagePrefixStep_get_workCarry_current
   simpa [List.foldl] using hlocal
 
 /-- The suffix after stage `j` does not modify work bit `j`. -/
-theorem carryStageIndexStep_get_workCarry_from_prefix
+lemma carryStageIndexStep_get_workCarry_from_prefix
     (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get (carryStageIndexStep layout x) =
       (layout.workCarry.bit j).get
@@ -897,7 +899,7 @@ theorem carryStageIndexStep_get_workCarry_from_prefix
 carry-input at the prefix time.  This is the ordered forward-pass recurrence
 needed before the final word-level adder invariant [VBE95,
 9511018.tex:237-264,596-618]. -/
-theorem carryStageIndexStep_get_workCarry_prefix_recurrence
+lemma carryStageIndexStep_get_workCarry_prefix_recurrence
     (j : Fin (n - 1)) (x : Carrier)
     (hclean : forall k, (layout.workCarry.bit k).get x = false) :
     (layout.workCarry.bit j).get (carryStageIndexStep layout x) =
@@ -910,7 +912,7 @@ theorem carryStageIndexStep_get_workCarry_prefix_recurrence
 
 /-- The carry input used at stage `j` has the same readout at the prefix time
 and after the full forward carry pass. -/
-theorem carryStagePrefixStep_carryInput_eq_indexStep
+lemma carryStagePrefixStep_carryInput_eq_indexStep
     (j : Fin (n - 1)) (x : Carrier) :
     (carryInput layout j).get (carryStagePrefixStep layout j.val x) =
       (carryInput layout j).get (carryStageIndexStep layout x) := by
@@ -937,7 +939,7 @@ theorem carryStagePrefixStep_carryInput_eq_indexStep
 resource and correctness object is still the same ordered gate list; this
 theorem identifies the work-bit value it computes [VBE95,
 9511018.tex:237-264,596-618]. -/
-theorem carryStageIndexStep_get_workCarry_recurrence
+lemma carryStageIndexStep_get_workCarry_recurrence
     (j : Fin (n - 1)) (x : Carrier)
     (hclean : forall k, (layout.workCarry.bit k).get x = false) :
     (layout.workCarry.bit j).get (carryStageIndexStep layout x) =
@@ -950,7 +952,7 @@ theorem carryStageIndexStep_get_workCarry_recurrence
 
 /-- Folded semantic action of the forward carry-work stage as a fold over its
 local carry stages. -/
-theorem carryStage_stepList_eq_fold (x : Carrier) :
+lemma carryStage_stepList_eq_fold (x : Carrier) :
     EncodedBit.GateSpec.stepList (carryStage layout) x =
       (carryStageStages layout).foldl
         (fun y gates => EncodedBit.GateSpec.stepList gates y) x := by
@@ -958,7 +960,7 @@ theorem carryStage_stepList_eq_fold (x : Carrier) :
 
 /-- Folded semantic action of the forward carry-work stage as a fold over the
 stage indices. -/
-theorem carryStage_stepList_eq_indexStep (x : Carrier) :
+lemma carryStage_stepList_eq_indexStep (x : Carrier) :
     EncodedBit.GateSpec.stepList (carryStage layout) x =
       carryStageIndexStep layout x := by
   rw [carryStage_stepList_eq_fold]
@@ -972,7 +974,7 @@ theorem carryStage_stepList_eq_indexStep (x : Carrier) :
       exact ih (EncodedBit.GateSpec.stepList (carryOutGatesAt layout j) x)
 
 /-- The complete forward carry-work stage preserves every left readout. -/
-theorem carryStageIndexStep_get_left (i : Fin n) (x : Carrier) :
+lemma carryStageIndexStep_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get (carryStageIndexStep layout x) =
       (layout.left.bit i).get x := by
   unfold carryStageIndexStep carryStageIndices
@@ -992,7 +994,7 @@ theorem carryStageIndexStep_get_left (i : Fin n) (x : Carrier) :
       exact carryOutGatesAt_get_left_any layout j i x
 
 /-- The complete forward carry-work stage preserves every right readout. -/
-theorem carryStageIndexStep_get_right (i : Fin n) (x : Carrier) :
+lemma carryStageIndexStep_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (carryStageIndexStep layout x) =
       (layout.right.bit i).get x := by
   unfold carryStageIndexStep carryStageIndices
@@ -1012,7 +1014,7 @@ theorem carryStageIndexStep_get_right (i : Fin n) (x : Carrier) :
       exact carryOutGatesAt_get_right_any layout j i x
 
 /-- The complete forward carry-work stage preserves the data carry-in readout. -/
-theorem carryStageIndexStep_get_dataCarry (x : Carrier) :
+lemma carryStageIndexStep_get_dataCarry (x : Carrier) :
     layout.carryIn.get (carryStageIndexStep layout x) =
       layout.carryIn.get x := by
   unfold carryStageIndexStep carryStageIndices
@@ -1033,7 +1035,7 @@ theorem carryStageIndexStep_get_dataCarry (x : Carrier) :
 
 /-- The complete forward carry-work stage preserves an observed readout whose
 wire is distinct from every work-carry target. -/
-theorem carryStageIndexStep_get_observed_of_work_ne
+lemma carryStageIndexStep_get_observed_of_work_ne
     (observed : EncodedBit encoding)
     (hne : ∀ j : Fin (n - 1),
       (layout.workCarry.bit j).wire ≠ observed.wire)
@@ -1045,7 +1047,7 @@ theorem carryStageIndexStep_get_observed_of_work_ne
     (by intro j _; exact hne j) x
 
 /-- The complete forward carry-work gate list preserves every left readout. -/
-theorem carryStage_get_left (i : Fin n) (x : Carrier) :
+lemma carryStage_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (carryStage layout) x) =
       (layout.left.bit i).get x := by
@@ -1053,7 +1055,7 @@ theorem carryStage_get_left (i : Fin n) (x : Carrier) :
   exact carryStageIndexStep_get_left layout i x
 
 /-- The complete forward carry-work gate list preserves every right readout. -/
-theorem carryStage_get_right (i : Fin n) (x : Carrier) :
+lemma carryStage_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (carryStage layout) x) =
       (layout.right.bit i).get x := by
@@ -1062,7 +1064,7 @@ theorem carryStage_get_right (i : Fin n) (x : Carrier) :
 
 /-- The complete forward carry-work gate list preserves the data carry-in
 readout. -/
-theorem carryStage_get_dataCarry (x : Carrier) :
+lemma carryStage_get_dataCarry (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (carryStage layout) x) =
       layout.carryIn.get x := by
@@ -1071,7 +1073,7 @@ theorem carryStage_get_dataCarry (x : Carrier) :
 
 /-- The complete forward carry-work gate list preserves an observed readout
 whose wire is distinct from every work-carry target. -/
-theorem carryStage_get_observed_of_work_ne
+lemma carryStage_get_observed_of_work_ne
     (observed : EncodedBit encoding)
     (hne : ∀ j : Fin (n - 1),
       (layout.workCarry.bit j).wire ≠ observed.wire)
@@ -1089,7 +1091,7 @@ def sumGatesAt (i : Fin n) : List (EncodedBit.GateSpec encoding) :=
 
 /-- A local sum stage xors the selected left and carry readouts into the
 selected right/target readout. -/
-theorem sumGatesAt_get_right (i : Fin n) (x : Carrier) :
+lemma sumGatesAt_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
@@ -1100,7 +1102,7 @@ theorem sumGatesAt_get_right (i : Fin n) (x : Carrier) :
       (layout.leftRight_ne i i) (carryBeforeSum_right_ne layout i) x
 
 /-- A local sum stage preserves the selected left readout. -/
-theorem sumGatesAt_get_left (i : Fin n) (x : Carrier) :
+lemma sumGatesAt_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
       (layout.left.bit i).get x := by
@@ -1110,7 +1112,7 @@ theorem sumGatesAt_get_left (i : Fin n) (x : Carrier) :
       (layout.leftRight_ne i i) (carryBeforeSum_right_ne layout i) x
 
 /-- A local sum stage preserves its carry readout. -/
-theorem sumGatesAt_get_carryBeforeSum (i : Fin n) (x : Carrier) :
+lemma sumGatesAt_get_carryBeforeSum (i : Fin n) (x : Carrier) :
     (carryBeforeSum layout i).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
       (carryBeforeSum layout i).get x := by
@@ -1120,7 +1122,7 @@ theorem sumGatesAt_get_carryBeforeSum (i : Fin n) (x : Carrier) :
       (layout.leftRight_ne i i) (carryBeforeSum_right_ne layout i) x
 
 /-- A local sum stage preserves every left readout. -/
-theorem sumGatesAt_get_left_any (i j : Fin n) (x : Carrier) :
+lemma sumGatesAt_get_left_any (i j : Fin n) (x : Carrier) :
     (layout.left.bit j).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
       (layout.left.bit j).get x := by
@@ -1132,7 +1134,7 @@ theorem sumGatesAt_get_left_any (i j : Fin n) (x : Carrier) :
       (Ne.symm (layout.leftRight_ne j i)) x
 
 /-- A local sum stage preserves every other right readout. -/
-theorem sumGatesAt_get_right_of_ne
+lemma sumGatesAt_get_right_of_ne
     (i j : Fin n) (hne : i ≠ j) (x : Carrier) :
     (layout.right.bit j).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
@@ -1145,7 +1147,7 @@ theorem sumGatesAt_get_right_of_ne
       (layout.rightRight_ne i j hne) x
 
 /-- A local sum stage preserves the data carry-in readout. -/
-theorem sumGatesAt_get_dataCarry (i : Fin n) (x : Carrier) :
+lemma sumGatesAt_get_dataCarry (i : Fin n) (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
       layout.carryIn.get x := by
@@ -1156,7 +1158,7 @@ theorem sumGatesAt_get_dataCarry (i : Fin n) (x : Carrier) :
       (carryBeforeSum_right_ne layout i) (layout.rightCarryIn_ne i) x
 
 /-- A local sum stage preserves every temporary carry-work readout. -/
-theorem sumGatesAt_get_workCarry
+lemma sumGatesAt_get_workCarry
     (i : Fin n) (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
@@ -1169,7 +1171,7 @@ theorem sumGatesAt_get_workCarry
 
 /-- A local sum stage preserves any observed readout whose wire is not the
 selected right/target wire. -/
-theorem sumGatesAt_get_observed_of_right_ne
+lemma sumGatesAt_get_observed_of_right_ne
     (i : Fin n) (observed : EncodedBit encoding)
     (hne : (layout.right.bit i).wire ≠ observed.wire) (x : Carrier) :
     observed.get (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
@@ -1182,7 +1184,7 @@ theorem sumGatesAt_get_observed_of_right_ne
 
 /-- A local sum stage preserves the carry-input readout used by any carry-work
 stage. -/
-theorem sumGatesAt_get_carryInput
+lemma sumGatesAt_get_carryInput
     (i : Fin n) (j : Fin (n - 1)) (x : Carrier) :
     (carryInput layout j).get
         (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x) =
@@ -1219,7 +1221,7 @@ def sumStagePrefixStep (t : Nat) : Carrier -> Carrier :=
 
 /-- Any fold of local sum stages preserves a right bit whose index is absent
 from the folded stage list. -/
-theorem foldl_sumGatesAt_get_right_of_forall_ne
+lemma foldl_sumGatesAt_get_right_of_forall_ne
     (indices : List (Fin n)) (i : Fin n)
     (hne : forall j, j ∈ indices -> j ≠ i) (x : Carrier) :
     (layout.right.bit i).get
@@ -1245,7 +1247,7 @@ theorem foldl_sumGatesAt_get_right_of_forall_ne
 
 /-- Any fold of local sum stages preserves an observed readout whose wire is
 distinct from every folded right/target wire. -/
-theorem foldl_sumGatesAt_get_observed_of_right_ne
+lemma foldl_sumGatesAt_get_observed_of_right_ne
     (indices : List (Fin n)) (observed : EncodedBit encoding)
     (hne : forall i, i ∈ indices ->
       (layout.right.bit i).wire ≠ observed.wire) (x : Carrier) :
@@ -1271,18 +1273,18 @@ theorem foldl_sumGatesAt_get_observed_of_right_ne
       · intro j hj
         exact hne j (by simp [hj])
 
-@[simp] theorem sumStageIndices_length :
+@[simp] lemma sumStageIndices_length :
     (sumStageIndices (n := n)).length = n := by
   simp [sumStageIndices]
 
-theorem sumStageIndices_getElem_val {i : Nat}
+lemma sumStageIndices_getElem_val {i : Nat}
     (hi : i < (sumStageIndices (n := n)).length) :
     ((sumStageIndices (n := n))[i]'hi).val = i := by
   simp [sumStageIndices]
 
 /-- Every member of the first `i.val` sum-stage indices is strictly before
 `i`, so it has not targeted right bit `i`. -/
-theorem sumStageIndices_mem_take_val_lt {i j : Fin n}
+lemma sumStageIndices_mem_take_val_lt {i j : Fin n}
     (hmem : j ∈ (sumStageIndices (n := n)).take i.val) :
     j.val < i.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -1303,7 +1305,7 @@ theorem sumStageIndices_mem_take_val_lt {i j : Fin n}
   omega
 
 /-- Every member of the suffix after index `i` is strictly after `i`. -/
-theorem sumStageIndices_mem_drop_succ_val_gt {i j : Fin n}
+lemma sumStageIndices_mem_drop_succ_val_gt {i j : Fin n}
     (hmem : j ∈ (sumStageIndices (n := n)).drop (i.val + 1)) :
     i.val < j.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -1321,7 +1323,7 @@ theorem sumStageIndices_mem_drop_succ_val_gt {i j : Fin n}
   omega
 
 /-- The prefix before sum stage `i` preserves right bit `i`. -/
-theorem sumStagePrefixStep_get_right_before (i : Fin n) (x : Carrier) :
+lemma sumStagePrefixStep_get_right_before (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (sumStagePrefixStep layout i.val x) =
       (layout.right.bit i).get x := by
   unfold sumStagePrefixStep
@@ -1335,7 +1337,7 @@ theorem sumStagePrefixStep_get_right_before (i : Fin n) (x : Carrier) :
       omega)
     x
 
-theorem sumStagePrefixStep_get_left
+lemma sumStagePrefixStep_get_left
     (t : Nat) (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get (sumStagePrefixStep layout t x) =
       (layout.left.bit i).get x := by
@@ -1354,7 +1356,7 @@ theorem sumStagePrefixStep_get_left
       rw [ih]
       exact sumGatesAt_get_left_any layout j i x
 
-theorem sumStagePrefixStep_get_dataCarry
+lemma sumStagePrefixStep_get_dataCarry
     (t : Nat) (x : Carrier) :
     layout.carryIn.get (sumStagePrefixStep layout t x) =
       layout.carryIn.get x := by
@@ -1373,7 +1375,7 @@ theorem sumStagePrefixStep_get_dataCarry
       rw [ih]
       exact sumGatesAt_get_dataCarry layout j x
 
-theorem sumStagePrefixStep_get_workCarry
+lemma sumStagePrefixStep_get_workCarry
     (t : Nat) (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get (sumStagePrefixStep layout t x) =
       (layout.workCarry.bit j).get x := by
@@ -1392,7 +1394,7 @@ theorem sumStagePrefixStep_get_workCarry
       rw [ih]
       exact sumGatesAt_get_workCarry layout i j x
 
-theorem sumStagePrefixStep_get_carryBeforeSum
+lemma sumStagePrefixStep_get_carryBeforeSum
     (t : Nat) (i : Fin n) (x : Carrier) :
     (carryBeforeSum layout i).get (sumStagePrefixStep layout t x) =
       (carryBeforeSum layout i).get x := by
@@ -1403,7 +1405,7 @@ theorem sumStagePrefixStep_get_carryBeforeSum
 
 /-- After the prefix ending at sum stage `i`, right bit `i` stores the local
 xor-sum of its original right bit, left bit, and selected carry bit. -/
-theorem sumStagePrefixStep_get_right_current (i : Fin n) (x : Carrier) :
+lemma sumStagePrefixStep_get_right_current (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (sumStagePrefixStep layout (i.val + 1) x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
         (carryBeforeSum layout i).get x) := by
@@ -1439,7 +1441,7 @@ theorem sumStagePrefixStep_get_right_current (i : Fin n) (x : Carrier) :
   simpa [List.foldl] using hlocal
 
 /-- The suffix after sum stage `i` does not modify right bit `i`. -/
-theorem sumStageIndexStep_get_right_from_prefix
+lemma sumStageIndexStep_get_right_from_prefix
     (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (sumStageIndexStep layout x) =
       (layout.right.bit i).get
@@ -1461,7 +1463,7 @@ theorem sumStageIndexStep_get_right_from_prefix
         (sumGatesAt layout i) y) x)
 
 /-- Closed-form readout of each target bit after the complete sum stage. -/
-theorem sumStageIndexStep_get_right (i : Fin n) (x : Carrier) :
+lemma sumStageIndexStep_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (sumStageIndexStep layout x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
         (carryBeforeSum layout i).get x) := by
@@ -1469,14 +1471,14 @@ theorem sumStageIndexStep_get_right (i : Fin n) (x : Carrier) :
   exact sumStagePrefixStep_get_right_current layout i x
 
 /-- Folded semantic action of the sum stage as a fold over its local stages. -/
-theorem sumStage_stepList_eq_fold (x : Carrier) :
+lemma sumStage_stepList_eq_fold (x : Carrier) :
     EncodedBit.GateSpec.stepList (sumStage layout) x =
       (sumStageStages layout).foldl
         (fun y gates => EncodedBit.GateSpec.stepList gates y) x := by
   exact stepList_concatStages (sumStageStages layout) x
 
 /-- Folded semantic action of the sum stage as a fold over the stage indices. -/
-theorem sumStage_stepList_eq_indexStep (x : Carrier) :
+lemma sumStage_stepList_eq_indexStep (x : Carrier) :
     EncodedBit.GateSpec.stepList (sumStage layout) x =
       sumStageIndexStep layout x := by
   rw [sumStage_stepList_eq_fold]
@@ -1490,7 +1492,7 @@ theorem sumStage_stepList_eq_indexStep (x : Carrier) :
       exact ih (EncodedBit.GateSpec.stepList (sumGatesAt layout i) x)
 
 /-- The complete sum stage preserves every left readout. -/
-theorem sumStageIndexStep_get_left (i : Fin n) (x : Carrier) :
+lemma sumStageIndexStep_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get (sumStageIndexStep layout x) =
       (layout.left.bit i).get x := by
   unfold sumStageIndexStep sumStageIndices
@@ -1510,7 +1512,7 @@ theorem sumStageIndexStep_get_left (i : Fin n) (x : Carrier) :
       exact sumGatesAt_get_left_any layout j i x
 
 /-- The complete sum stage preserves the data carry-in readout. -/
-theorem sumStageIndexStep_get_dataCarry (x : Carrier) :
+lemma sumStageIndexStep_get_dataCarry (x : Carrier) :
     layout.carryIn.get (sumStageIndexStep layout x) =
       layout.carryIn.get x := by
   unfold sumStageIndexStep sumStageIndices
@@ -1530,7 +1532,7 @@ theorem sumStageIndexStep_get_dataCarry (x : Carrier) :
       exact sumGatesAt_get_dataCarry layout j x
 
 /-- The complete sum stage preserves every temporary carry-work readout. -/
-theorem sumStageIndexStep_get_workCarry (j : Fin (n - 1)) (x : Carrier) :
+lemma sumStageIndexStep_get_workCarry (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get (sumStageIndexStep layout x) =
       (layout.workCarry.bit j).get x := by
   unfold sumStageIndexStep sumStageIndices
@@ -1550,7 +1552,7 @@ theorem sumStageIndexStep_get_workCarry (j : Fin (n - 1)) (x : Carrier) :
       exact sumGatesAt_get_workCarry layout i j x
 
 /-- The complete sum gate list preserves every left readout. -/
-theorem sumStage_get_left (i : Fin n) (x : Carrier) :
+lemma sumStage_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (sumStage layout) x) =
       (layout.left.bit i).get x := by
@@ -1558,7 +1560,7 @@ theorem sumStage_get_left (i : Fin n) (x : Carrier) :
   exact sumStageIndexStep_get_left layout i x
 
 /-- The complete sum gate list preserves the data carry-in readout. -/
-theorem sumStage_get_dataCarry (x : Carrier) :
+lemma sumStage_get_dataCarry (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (sumStage layout) x) =
       layout.carryIn.get x := by
@@ -1566,7 +1568,7 @@ theorem sumStage_get_dataCarry (x : Carrier) :
   exact sumStageIndexStep_get_dataCarry layout x
 
 /-- The complete sum gate list preserves every temporary carry-work readout. -/
-theorem sumStage_get_workCarry (j : Fin (n - 1)) (x : Carrier) :
+lemma sumStage_get_workCarry (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get
         (EncodedBit.GateSpec.stepList (sumStage layout) x) =
       (layout.workCarry.bit j).get x := by
@@ -1580,13 +1582,13 @@ def cleanupWorkIndex (i : Fin n) (_h : i.val ≠ 0) : Fin (n - 1) :=
     have hi : i.val < n := i.isLt
     omega⟩
 
-@[simp] theorem cleanupWorkIndex_val (i : Fin n) (h : i.val ≠ 0) :
+@[simp] lemma cleanupWorkIndex_val (i : Fin n) (h : i.val ≠ 0) :
     (cleanupWorkIndex i h).val = i.val - 1 :=
   rfl
 
 /-- The low word position whose carry is cleared after summing a nonzero
 position is strictly below that summed position. -/
-theorem cleanupWorkIndex_lowIndex_ne (i : Fin n) (h : i.val ≠ 0) :
+lemma cleanupWorkIndex_lowIndex_ne (i : Fin n) (h : i.val ≠ 0) :
     i ≠ lowIndex (cleanupWorkIndex i h) := by
   intro heq
   have hv := congrArg Fin.val heq
@@ -1599,15 +1601,15 @@ def cleanupTargetIndex (j : Fin (n - 1)) : Fin n :=
     have hj := j.isLt
     omega⟩
 
-@[simp] theorem cleanupTargetIndex_val (j : Fin (n - 1)) :
+@[simp] lemma cleanupTargetIndex_val (j : Fin (n - 1)) :
     (cleanupTargetIndex j).val = j.val + 1 :=
   rfl
 
-theorem cleanupTargetIndex_ne_zero (j : Fin (n - 1)) :
+lemma cleanupTargetIndex_ne_zero (j : Fin (n - 1)) :
     (cleanupTargetIndex j).val ≠ 0 := by
   simp [cleanupTargetIndex]
 
-theorem cleanupWorkIndex_cleanupTargetIndex (j : Fin (n - 1)) :
+lemma cleanupWorkIndex_cleanupTargetIndex (j : Fin (n - 1)) :
     cleanupWorkIndex (cleanupTargetIndex j)
         (cleanupTargetIndex_ne_zero (n := n) j) = j := by
   apply Fin.ext
@@ -1625,7 +1627,7 @@ def cleanupSumGatesAt (i : Fin n) : List (EncodedBit.GateSpec encoding) :=
       (cleanupWorkIndex i h)
 
 /-- A local cleanup-aware sum stage preserves every left readout. -/
-theorem cleanupSumGatesAt_get_left_any
+lemma cleanupSumGatesAt_get_left_any
     (i j : Fin n) (x : Carrier) :
     (layout.left.bit j).get
         (EncodedBit.GateSpec.stepList (cleanupSumGatesAt layout i) x) =
@@ -1637,7 +1639,7 @@ theorem cleanupSumGatesAt_get_left_any
       carryOutCleanupGatesAt_get_left_any, sumGatesAt_get_left_any]
 
 /-- A local cleanup-aware sum stage preserves the data carry-in readout. -/
-theorem cleanupSumGatesAt_get_dataCarry
+lemma cleanupSumGatesAt_get_dataCarry
     (i : Fin n) (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (cleanupSumGatesAt layout i) x) =
@@ -1650,7 +1652,7 @@ theorem cleanupSumGatesAt_get_dataCarry
 
 /-- A local cleanup-aware sum stage writes the selected target bit exactly as
 the corresponding local sum stage does. -/
-theorem cleanupSumGatesAt_get_right
+lemma cleanupSumGatesAt_get_right
     (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (cleanupSumGatesAt layout i) x) =
@@ -1663,7 +1665,7 @@ theorem cleanupSumGatesAt_get_right
       carryOutCleanupGatesAt_get_right_any, sumGatesAt_get_right]
 
 /-- A local cleanup-aware sum stage preserves every non-target right readout. -/
-theorem cleanupSumGatesAt_get_right_of_ne
+lemma cleanupSumGatesAt_get_right_of_ne
     (i j : Fin n) (hne : i ≠ j) (x : Carrier) :
     (layout.right.bit j).get
         (EncodedBit.GateSpec.stepList (cleanupSumGatesAt layout i) x) =
@@ -1677,7 +1679,7 @@ theorem cleanupSumGatesAt_get_right_of_ne
 
 /-- A local cleanup-aware sum stage preserves a temporary carry readout that is
 not the one cleared by this stage. -/
-theorem cleanupSumGatesAt_get_workCarry_of_ne
+lemma cleanupSumGatesAt_get_workCarry_of_ne
     (i : Fin n) (k : Fin (n - 1))
     (hne : ∀ h : i.val ≠ 0, cleanupWorkIndex i h ≠ k) (x : Carrier) :
     (layout.workCarry.bit k).get
@@ -1692,7 +1694,7 @@ theorem cleanupSumGatesAt_get_workCarry_of_ne
 
 /-- A local cleanup-aware sum stage preserves an observed readout whose wire is
 neither the selected right/target wire nor any work-carry cleanup target. -/
-theorem cleanupSumGatesAt_get_observed_of_right_work_ne
+lemma cleanupSumGatesAt_get_observed_of_right_work_ne
     (i : Fin n) (observed : EncodedBit encoding)
     (hright : (layout.right.bit i).wire ≠ observed.wire)
     (hwork : ∀ j : Fin (n - 1),
@@ -1713,7 +1715,7 @@ theorem cleanupSumGatesAt_get_observed_of_right_work_ne
 
 /-- If the preceding temporary carry still stores the full-adder carry for its
 unchanged controls, the local cleanup-aware stage clears that carry. -/
-theorem cleanupSumGatesAt_get_cleanupWorkCarry_computed
+lemma cleanupSumGatesAt_get_cleanupWorkCarry_computed
     (i : Fin n) (h : i.val ≠ 0) (x : Carrier)
     (hcomputed :
       (layout.workCarry.bit (cleanupWorkIndex i h)).get x =
@@ -1775,7 +1777,7 @@ def cleanupSumStagePrefixStep (t : Nat) : Carrier -> Carrier :=
 
 /-- Any fold of local cleanup-aware sum stages preserves a right bit whose
 index is absent from the folded stage list. -/
-theorem foldl_cleanupSumGatesAt_get_right_of_forall_ne
+lemma foldl_cleanupSumGatesAt_get_right_of_forall_ne
     (indices : List (Fin n)) (i : Fin n)
     (hne : forall j, j ∈ indices -> j ≠ i) (x : Carrier) :
     (layout.right.bit i).get
@@ -1803,7 +1805,7 @@ theorem foldl_cleanupSumGatesAt_get_right_of_forall_ne
 
 /-- Any fold of local cleanup-aware sum stages preserves a work-carry bit when
 no folded stage clears that bit. -/
-theorem foldl_cleanupSumGatesAt_get_workCarry_of_forall_ne
+lemma foldl_cleanupSumGatesAt_get_workCarry_of_forall_ne
     (indices : List (Fin n)) (k : Fin (n - 1))
     (hne : ∀ i, i ∈ indices ->
       ∀ h : i.val ≠ 0, cleanupWorkIndex i h ≠ k)
@@ -1834,7 +1836,7 @@ theorem foldl_cleanupSumGatesAt_get_workCarry_of_forall_ne
 /-- Any fold of cleanup-aware sum stages preserves an observed readout whose
 wire is distinct from every folded right/target wire and every work-carry
 cleanup target. -/
-theorem foldl_cleanupSumGatesAt_get_observed_of_right_work_ne
+lemma foldl_cleanupSumGatesAt_get_observed_of_right_work_ne
     (indices : List (Fin n)) (observed : EncodedBit encoding)
     (hright : forall i, i ∈ indices ->
       (layout.right.bit i).wire ≠ observed.wire)
@@ -1864,11 +1866,11 @@ theorem foldl_cleanupSumGatesAt_get_observed_of_right_work_ne
       · intro j hj
         exact hright j (by simp [hj])
 
-@[simp] theorem cleanupSumStageIndices_length :
+@[simp] lemma cleanupSumStageIndices_length :
     (cleanupSumStageIndices (n := n)).length = n := by
   simp [cleanupSumStageIndices]
 
-theorem cleanupSumStageIndices_getElem_val {i : Nat}
+lemma cleanupSumStageIndices_getElem_val {i : Nat}
     (hi : i < (cleanupSumStageIndices (n := n)).length) :
     ((cleanupSumStageIndices (n := n))[i]'hi).val = n - 1 - i := by
   simp [cleanupSumStageIndices, sumStageIndices]
@@ -1877,7 +1879,7 @@ theorem cleanupSumStageIndices_getElem_val {i : Nat}
 def cleanupSumStagePosition (i : Fin n) : Nat :=
   n - 1 - i.val
 
-theorem cleanupSumStagePosition_lt_length (i : Fin n) :
+lemma cleanupSumStagePosition_lt_length (i : Fin n) :
     cleanupSumStagePosition i <
       (cleanupSumStageIndices (n := n)).length := by
   rw [cleanupSumStageIndices_length]
@@ -1885,7 +1887,7 @@ theorem cleanupSumStagePosition_lt_length (i : Fin n) :
   have hi := i.isLt
   omega
 
-theorem cleanupSumStageIndices_get_position (i : Fin n)
+lemma cleanupSumStageIndices_get_position (i : Fin n)
     (hpos :
       cleanupSumStagePosition i <
         (cleanupSumStageIndices (n := n)).length) :
@@ -1901,7 +1903,7 @@ theorem cleanupSumStageIndices_get_position (i : Fin n)
 
 /-- Every member before target `i` in the decreasing cleanup-aware pass is a
 higher word position. -/
-theorem cleanupSumStageIndices_mem_take_position_val_gt {i j : Fin n}
+lemma cleanupSumStageIndices_mem_take_position_val_gt {i j : Fin n}
     (hmem : j ∈ (cleanupSumStageIndices (n := n)).take
       (cleanupSumStagePosition i)) :
     i.val < j.val := by
@@ -1928,7 +1930,7 @@ theorem cleanupSumStageIndices_mem_take_position_val_gt {i j : Fin n}
 
 /-- Every member after target `i` in the decreasing cleanup-aware pass is a
 lower word position. -/
-theorem cleanupSumStageIndices_mem_drop_succ_position_val_lt
+lemma cleanupSumStageIndices_mem_drop_succ_position_val_lt
     {i j : Fin n}
     (hmem : j ∈ (cleanupSumStageIndices (n := n)).drop
       (cleanupSumStagePosition i + 1)) :
@@ -1961,7 +1963,7 @@ theorem cleanupSumStageIndices_mem_drop_succ_position_val_lt
   omega
 
 /-- A prefix of the cleanup-aware sum stage preserves every left readout. -/
-theorem cleanupSumStagePrefixStep_get_left
+lemma cleanupSumStagePrefixStep_get_left
     (t : Nat) (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get (cleanupSumStagePrefixStep layout t x) =
       (layout.left.bit i).get x := by
@@ -1983,7 +1985,7 @@ theorem cleanupSumStagePrefixStep_get_left
       exact cleanupSumGatesAt_get_left_any layout j i x
 
 /-- A prefix of the cleanup-aware sum stage preserves the data carry-in readout. -/
-theorem cleanupSumStagePrefixStep_get_dataCarry
+lemma cleanupSumStagePrefixStep_get_dataCarry
     (t : Nat) (x : Carrier) :
     layout.carryIn.get (cleanupSumStagePrefixStep layout t x) =
       layout.carryIn.get x := by
@@ -2006,7 +2008,7 @@ theorem cleanupSumStagePrefixStep_get_dataCarry
 
 /-- A prefix of the cleanup-aware sum stage preserves a temporary carry readout
 when no stage in the prefix clears that carry. -/
-theorem cleanupSumStagePrefixStep_get_workCarry_of_forall_ne
+lemma cleanupSumStagePrefixStep_get_workCarry_of_forall_ne
     (t : Nat) (k : Fin (n - 1))
     (hne : ∀ i, i ∈ (cleanupSumStageIndices (n := n)).take t ->
       ∀ h : i.val ≠ 0, cleanupWorkIndex i h ≠ k)
@@ -2019,7 +2021,7 @@ theorem cleanupSumStagePrefixStep_get_workCarry_of_forall_ne
     ((cleanupSumStageIndices (n := n)).take t) k hne x
 
 /-- The prefix before summing target `i` preserves right bit `i`. -/
-theorem cleanupSumStagePrefixStep_get_right_before
+lemma cleanupSumStagePrefixStep_get_right_before
     (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (cleanupSumStagePrefixStep layout (cleanupSumStagePosition i) x) =
@@ -2039,7 +2041,7 @@ theorem cleanupSumStagePrefixStep_get_right_before
 
 /-- The prefix before summing target `i` preserves the carry selected for
 that target. -/
-theorem cleanupSumStagePrefixStep_get_carryBeforeSum_before
+lemma cleanupSumStagePrefixStep_get_carryBeforeSum_before
     (i : Fin n) (x : Carrier) :
     (carryBeforeSum layout i).get
         (cleanupSumStagePrefixStep layout (cleanupSumStagePosition i) x) =
@@ -2062,7 +2064,7 @@ theorem cleanupSumStagePrefixStep_get_carryBeforeSum_before
       x
 
 /-- The prefix before target `i` preserves every lower right readout. -/
-theorem cleanupSumStagePrefixStep_get_right_before_of_lt
+lemma cleanupSumStagePrefixStep_get_right_before_of_lt
     (i j : Fin n) (hjlt : j.val < i.val) (x : Carrier) :
     (layout.right.bit j).get
         (cleanupSumStagePrefixStep layout (cleanupSumStagePosition i) x) =
@@ -2081,7 +2083,7 @@ theorem cleanupSumStagePrefixStep_get_right_before_of_lt
     x
 
 /-- The prefix before target `i` preserves every lower temporary carry readout. -/
-theorem cleanupSumStagePrefixStep_get_workCarry_before_of_lt
+lemma cleanupSumStagePrefixStep_get_workCarry_before_of_lt
     (i : Fin n) (k : Fin (n - 1)) (hklt : k.val < i.val)
     (x : Carrier) :
     (layout.workCarry.bit k).get
@@ -2102,7 +2104,7 @@ theorem cleanupSumStagePrefixStep_get_workCarry_before_of_lt
 
 /-- The prefix before the cleanup target for work carry `j` preserves that work
 carry. -/
-theorem cleanupSumStagePrefixStep_get_workCarry_before_cleanupTarget
+lemma cleanupSumStagePrefixStep_get_workCarry_before_cleanupTarget
     (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get
         (cleanupSumStagePrefixStep layout
@@ -2113,7 +2115,7 @@ theorem cleanupSumStagePrefixStep_get_workCarry_before_cleanupTarget
 
 /-- The prefix before the cleanup target for work carry `j` preserves the
 right-control bit used to compute that work carry. -/
-theorem cleanupSumStagePrefixStep_get_right_lowIndex_before_cleanupTarget
+lemma cleanupSumStagePrefixStep_get_right_lowIndex_before_cleanupTarget
     (j : Fin (n - 1)) (x : Carrier) :
     (layout.right.bit (lowIndex j)).get
         (cleanupSumStagePrefixStep layout
@@ -2126,7 +2128,7 @@ theorem cleanupSumStagePrefixStep_get_right_lowIndex_before_cleanupTarget
 
 /-- The prefix before the cleanup target for work carry `j` preserves the
 carry-input control used to compute that work carry. -/
-theorem cleanupSumStagePrefixStep_get_carryInput_before_cleanupTarget
+lemma cleanupSumStagePrefixStep_get_carryInput_before_cleanupTarget
     (j : Fin (n - 1)) (x : Carrier) :
     (carryInput layout j).get
         (cleanupSumStagePrefixStep layout
@@ -2145,7 +2147,7 @@ theorem cleanupSumStagePrefixStep_get_carryInput_before_cleanupTarget
 
 /-- After the cleanup-aware prefix ending at target `i`, right bit `i` stores
 the local xor-sum of its original right bit, left bit, and selected carry bit. -/
-theorem cleanupSumStagePrefixStep_get_right_current
+lemma cleanupSumStagePrefixStep_get_right_current
     (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (cleanupSumStagePrefixStep layout
@@ -2190,7 +2192,7 @@ theorem cleanupSumStagePrefixStep_get_right_current
   simpa [List.foldl] using hlocal
 
 /-- The cleanup-aware suffix after target `i` does not modify right bit `i`. -/
-theorem cleanupSumStageIndexStep_get_right_from_prefix
+lemma cleanupSumStageIndexStep_get_right_from_prefix
     (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (cleanupSumStageIndexStep layout x) =
       (layout.right.bit i).get
@@ -2218,7 +2220,7 @@ theorem cleanupSumStageIndexStep_get_right_from_prefix
 
 /-- Closed-form readout of each target bit after the complete cleanup-aware
 sum stage. -/
-theorem cleanupSumStageIndexStep_get_right
+lemma cleanupSumStageIndexStep_get_right
     (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get (cleanupSumStageIndexStep layout x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
@@ -2229,7 +2231,7 @@ theorem cleanupSumStageIndexStep_get_right
 /-- If the prefix before `cleanupTargetIndex j` still presents work carry `j`
 as the computed local full-adder carry, the prefix including that target clears
 work carry `j`. -/
-theorem cleanupSumStagePrefixStep_get_workCarry_cleanupTarget_computed
+lemma cleanupSumStagePrefixStep_get_workCarry_cleanupTarget_computed
     (j : Fin (n - 1)) (x : Carrier)
     (hcomputed :
       (layout.workCarry.bit j).get
@@ -2290,7 +2292,7 @@ theorem cleanupSumStagePrefixStep_get_workCarry_cleanupTarget_computed
 
 /-- If work carry `j` is computed at the start of the cleanup-aware sum pass,
 then the prefix including its cleanup target clears it. -/
-theorem cleanupSumStagePrefixStep_get_workCarry_cleanupTarget_of_computed
+lemma cleanupSumStagePrefixStep_get_workCarry_cleanupTarget_of_computed
     (j : Fin (n - 1)) (x : Carrier)
     (hcomputed :
       (layout.workCarry.bit j).get x =
@@ -2311,7 +2313,7 @@ theorem cleanupSumStagePrefixStep_get_workCarry_cleanupTarget_of_computed
 
 /-- After the cleanup target for work carry `j`, the remaining lower target
 stages do not modify work carry `j`. -/
-theorem cleanupSumStageIndexStep_get_workCarry_from_cleanupTarget
+lemma cleanupSumStageIndexStep_get_workCarry_from_cleanupTarget
     (j : Fin (n - 1)) (x : Carrier) :
     (layout.workCarry.bit j).get (cleanupSumStageIndexStep layout x) =
       (layout.workCarry.bit j).get
@@ -2343,7 +2345,7 @@ theorem cleanupSumStageIndexStep_get_workCarry_from_cleanupTarget
 
 /-- The complete cleanup-aware sum stage clears work carry `j` when that work
 carry is a computed local full-adder carry at the start of the cleanup pass. -/
-theorem cleanupSumStageIndexStep_get_workCarry_clean_of_computed
+lemma cleanupSumStageIndexStep_get_workCarry_clean_of_computed
     (j : Fin (n - 1)) (x : Carrier)
     (hcomputed :
       (layout.workCarry.bit j).get x =
@@ -2359,7 +2361,7 @@ theorem cleanupSumStageIndexStep_get_workCarry_clean_of_computed
 
 /-- Folded semantic action of the cleanup-aware sum stage as a fold over its
 local stages. -/
-theorem cleanupSumStage_stepList_eq_fold (x : Carrier) :
+lemma cleanupSumStage_stepList_eq_fold (x : Carrier) :
     EncodedBit.GateSpec.stepList (cleanupSumStage layout) x =
       (cleanupSumStageStages layout).foldl
         (fun y gates => EncodedBit.GateSpec.stepList gates y) x := by
@@ -2367,7 +2369,7 @@ theorem cleanupSumStage_stepList_eq_fold (x : Carrier) :
 
 /-- Folded semantic action of the cleanup-aware sum stage as a fold over the
 stage indices. -/
-theorem cleanupSumStage_stepList_eq_indexStep (x : Carrier) :
+lemma cleanupSumStage_stepList_eq_indexStep (x : Carrier) :
     EncodedBit.GateSpec.stepList (cleanupSumStage layout) x =
       cleanupSumStageIndexStep layout x := by
   rw [cleanupSumStage_stepList_eq_fold]
@@ -2381,7 +2383,7 @@ theorem cleanupSumStage_stepList_eq_indexStep (x : Carrier) :
       exact ih (EncodedBit.GateSpec.stepList (cleanupSumGatesAt layout i) x)
 
 /-- The complete cleanup-aware sum stage preserves every left readout. -/
-theorem cleanupSumStageIndexStep_get_left
+lemma cleanupSumStageIndexStep_get_left
     (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get (cleanupSumStageIndexStep layout x) =
       (layout.left.bit i).get x := by
@@ -2403,7 +2405,7 @@ theorem cleanupSumStageIndexStep_get_left
       exact cleanupSumGatesAt_get_left_any layout j i x
 
 /-- The complete cleanup-aware sum stage preserves the data carry-in readout. -/
-theorem cleanupSumStageIndexStep_get_dataCarry
+lemma cleanupSumStageIndexStep_get_dataCarry
     (x : Carrier) :
     layout.carryIn.get (cleanupSumStageIndexStep layout x) =
       layout.carryIn.get x := by
@@ -2426,7 +2428,7 @@ theorem cleanupSumStageIndexStep_get_dataCarry
 
 /-- The complete cleanup-aware sum stage preserves an observed readout whose
 wire is distinct from every right/target wire and every work-carry target. -/
-theorem cleanupSumStageIndexStep_get_observed_of_right_work_ne
+lemma cleanupSumStageIndexStep_get_observed_of_right_work_ne
     (observed : EncodedBit encoding)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
     (hwork : ∀ j : Fin (n - 1),
@@ -2439,7 +2441,7 @@ theorem cleanupSumStageIndexStep_get_observed_of_right_work_ne
     (by intro i _; exact hright i) hwork x
 
 /-- The complete cleanup-aware sum gate list preserves every left readout. -/
-theorem cleanupSumStage_get_left (i : Fin n) (x : Carrier) :
+lemma cleanupSumStage_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (cleanupSumStage layout) x) =
       (layout.left.bit i).get x := by
@@ -2448,7 +2450,7 @@ theorem cleanupSumStage_get_left (i : Fin n) (x : Carrier) :
 
 /-- The complete cleanup-aware sum gate list preserves the data carry-in
 readout. -/
-theorem cleanupSumStage_get_dataCarry (x : Carrier) :
+lemma cleanupSumStage_get_dataCarry (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (cleanupSumStage layout) x) =
       layout.carryIn.get x := by
@@ -2458,7 +2460,7 @@ theorem cleanupSumStage_get_dataCarry (x : Carrier) :
 /-- The complete cleanup-aware sum gate list preserves an observed readout
 whose wire is distinct from every right/target wire and every work-carry
 target. -/
-theorem cleanupSumStage_get_observed_of_right_work_ne
+lemma cleanupSumStage_get_observed_of_right_work_ne
     (observed : EncodedBit encoding)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
     (hwork : ∀ j : Fin (n - 1),
@@ -2472,7 +2474,7 @@ theorem cleanupSumStage_get_observed_of_right_work_ne
 
 /-- Closed-form readout of each target bit after the complete cleanup-aware
 sum gate list. -/
-theorem cleanupSumStage_get_right (i : Fin n) (x : Carrier) :
+lemma cleanupSumStage_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (cleanupSumStage layout) x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
@@ -2488,31 +2490,31 @@ def cleanCarrySumGates : List (EncodedBit.GateSpec encoding) :=
   carryStage layout ++ cleanupSumStage layout
 
 /-- Each local carry-output block consists of three Toffoli gates. -/
-@[simp] theorem carryOutGatesAt_length (j : Fin (n - 1)) :
+@[simp] lemma carryOutGatesAt_length (j : Fin (n - 1)) :
     (carryOutGatesAt layout j).length = 3 := by
   simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
 
 /-- Each reverse carry cleanup block consists of the same three gates. -/
-@[simp] theorem carryOutCleanupGatesAt_length (j : Fin (n - 1)) :
+@[simp] lemma carryOutCleanupGatesAt_length (j : Fin (n - 1)) :
     (carryOutCleanupGatesAt layout j).length = 3 := by
   simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
     BitSlice.Encoded.carryOutGates]
 
 /-- Each local sum block consists of two CNOT gates. -/
-@[simp] theorem sumGatesAt_length (i : Fin n) :
+@[simp] lemma sumGatesAt_length (i : Fin n) :
     (sumGatesAt layout i).length = 2 := by
   simp [sumGatesAt, BitSlice.Encoded.sumGates]
 
 /-- A cleanup-aware sum block uses at most two sum gates and three carry
 cleanup gates. -/
-theorem cleanupSumGatesAt_length_le_five (i : Fin n) :
+lemma cleanupSumGatesAt_length_le_five (i : Fin n) :
     (cleanupSumGatesAt layout i).length ≤ 5 := by
   unfold cleanupSumGatesAt
   split <;> simp
 
 /-- The increasing carry pass uses exactly three gates per temporary carry
 wire. -/
-theorem carryStage_length :
+lemma carryStage_length :
     (carryStage layout).length = 3 * (n - 1) := by
   rw [carryStage, length_concatStages]
   unfold carryStageStages
@@ -2524,7 +2526,7 @@ theorem carryStage_length :
   simp_rw [carryOutGatesAt_length]
   simp [carryStageIndices, Function.comp_def, Nat.mul_comm]
 
-private theorem sum_stage_lengths_le
+private lemma sum_stage_lengths_le
     (indices : List (Fin n)) :
     (indices.map fun i => (cleanupSumGatesAt layout i).length).sum ≤
       5 * indices.length := by
@@ -2536,7 +2538,7 @@ private theorem sum_stage_lengths_le
       omega
 
 /-- The decreasing sum-and-cleanup pass uses at most five gates per data bit. -/
-theorem cleanupSumStage_length_le :
+lemma cleanupSumStage_length_le :
     (cleanupSumStage layout).length ≤ 5 * n := by
   rw [cleanupSumStage, length_concatStages]
   unfold cleanupSumStageStages
@@ -2550,86 +2552,86 @@ theorem cleanupSumStage_length_le :
 
 /-- The canonical clean carry/sum schedule has at most eight physical
 X/CNOT/Toffoli leaves per data bit. -/
-theorem cleanCarrySumGates_length_le :
+lemma cleanCarrySumGates_length_le :
     (cleanCarrySumGates layout).length ≤ 8 * n := by
   rw [cleanCarrySumGates, List.length_append, carryStage_length]
   have hcleanup := cleanupSumStage_length_le layout
   omega
 
-@[simp] theorem carryOutGatesAt_toffoliMultiplicity_sum
+@[simp] lemma carryOutGatesAt_toffoliMultiplicity_sum
     (j : Fin (n - 1)) :
     ((carryOutGatesAt layout j).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
   simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
 
-@[simp] theorem carryOutGatesAt_cnotMultiplicity_sum
+@[simp] lemma carryOutGatesAt_cnotMultiplicity_sum
     (j : Fin (n - 1)) :
     ((carryOutGatesAt layout j).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
 
-@[simp] theorem carryOutGatesAt_xMultiplicity_sum
+@[simp] lemma carryOutGatesAt_xMultiplicity_sum
     (j : Fin (n - 1)) :
     ((carryOutGatesAt layout j).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp [carryOutGatesAt, BitSlice.Encoded.carryOutGates]
 
-@[simp] theorem sumGatesAt_toffoliMultiplicity_sum (i : Fin n) :
+@[simp] lemma sumGatesAt_toffoliMultiplicity_sum (i : Fin n) :
     ((sumGatesAt layout i).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [sumGatesAt, BitSlice.Encoded.sumGates]
 
-@[simp] theorem sumGatesAt_cnotMultiplicity_sum (i : Fin n) :
+@[simp] lemma sumGatesAt_cnotMultiplicity_sum (i : Fin n) :
     ((sumGatesAt layout i).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 2 := by
   simp [sumGatesAt, BitSlice.Encoded.sumGates]
 
-@[simp] theorem sumGatesAt_xMultiplicity_sum (i : Fin n) :
+@[simp] lemma sumGatesAt_xMultiplicity_sum (i : Fin n) :
     ((sumGatesAt layout i).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp [sumGatesAt, BitSlice.Encoded.sumGates]
 
-@[simp] theorem carryOutCleanupGatesAt_toffoliMultiplicity_sum
+@[simp] lemma carryOutCleanupGatesAt_toffoliMultiplicity_sum
     (j : Fin (n - 1)) :
     ((carryOutCleanupGatesAt layout j).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
   simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
     BitSlice.Encoded.carryOutGates]
 
-@[simp] theorem carryOutCleanupGatesAt_cnotMultiplicity_sum
+@[simp] lemma carryOutCleanupGatesAt_cnotMultiplicity_sum
     (j : Fin (n - 1)) :
     ((carryOutCleanupGatesAt layout j).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
     BitSlice.Encoded.carryOutGates]
 
-@[simp] theorem carryOutCleanupGatesAt_xMultiplicity_sum
+@[simp] lemma carryOutCleanupGatesAt_xMultiplicity_sum
     (j : Fin (n - 1)) :
     ((carryOutCleanupGatesAt layout j).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp [carryOutCleanupGatesAt, BitSlice.Encoded.carryOutCleanupGates,
     BitSlice.Encoded.carryOutGates]
 
-theorem cleanupSumGatesAt_toffoliMultiplicity_sum (i : Fin n) :
+lemma cleanupSumGatesAt_toffoliMultiplicity_sum (i : Fin n) :
     ((cleanupSumGatesAt layout i).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       if i.val = 0 then 0 else 3 := by
   unfold cleanupSumGatesAt
   split <;> simp_all
 
-@[simp] theorem cleanupSumGatesAt_cnotMultiplicity_sum (i : Fin n) :
+@[simp] lemma cleanupSumGatesAt_cnotMultiplicity_sum (i : Fin n) :
     ((cleanupSumGatesAt layout i).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 2 := by
   unfold cleanupSumGatesAt
   split <;> simp_all
 
-@[simp] theorem cleanupSumGatesAt_xMultiplicity_sum (i : Fin n) :
+@[simp] lemma cleanupSumGatesAt_xMultiplicity_sum (i : Fin n) :
     ((cleanupSumGatesAt layout i).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   unfold cleanupSumGatesAt
   split <;> simp_all
 
-private theorem fin_nonzero_three_sum (n : Nat) :
+private lemma fin_nonzero_three_sum (n : Nat) :
     (∑ i : Fin n, if i.val = 0 then 0 else 3) = 3 * (n - 1) := by
   cases n with
   | zero => simp
@@ -2639,7 +2641,7 @@ private theorem fin_nonzero_three_sum (n : Nat) :
 
 /-- The exact clean-carry adder schedule contains six Toffolis per temporary
 carry wire: three in the forward carry pass and three in reverse cleanup. -/
-theorem cleanCarrySumGates_toffoliMultiplicity_sum :
+lemma cleanCarrySumGates_toffoliMultiplicity_sum :
     ((cleanCarrySumGates layout).map
         EncodedBit.GateSpec.toffoliMultiplicity).sum =
       6 * (n - 1) := by
@@ -2668,7 +2670,7 @@ theorem cleanCarrySumGates_toffoliMultiplicity_sum :
   omega
 
 /-- The exact clean-carry adder schedule has two CNOT sum gates per data bit. -/
-theorem cleanCarrySumGates_cnotMultiplicity_sum :
+lemma cleanCarrySumGates_cnotMultiplicity_sum :
     ((cleanCarrySumGates layout).map
         EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
   rw [cleanCarrySumGates, List.map_append, List.sum_append]
@@ -2694,7 +2696,7 @@ theorem cleanCarrySumGates_cnotMultiplicity_sum :
   rw [hcarry, hcleanup, Nat.zero_add]
 
 /-- The clean-carry adder schedule contains no X gates. -/
-theorem cleanCarrySumGates_xMultiplicity_sum :
+lemma cleanCarrySumGates_xMultiplicity_sum :
     ((cleanCarrySumGates layout).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   rw [cleanCarrySumGates, List.map_append, List.sum_append]
@@ -2721,7 +2723,7 @@ theorem cleanCarrySumGates_xMultiplicity_sum :
 
 /-- Exact physical length of the canonical clean-carry schedule.  The formula
 is valid also at width zero and avoids a separate positivity side condition. -/
-theorem cleanCarrySumGates_length :
+lemma cleanCarrySumGates_length :
     (cleanCarrySumGates layout).length = 6 * (n - 1) + 2 * n := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
     cleanCarrySumGates_xMultiplicity_sum,
@@ -2731,7 +2733,7 @@ theorem cleanCarrySumGates_length :
 
 /-- A carry input is disjoint from an observed bit when both the data carry and
 all temporary carry-work bits are disjoint from it. -/
-theorem carryInput_wire_ne_of_observed
+lemma carryInput_wire_ne_of_observed
     (observed : EncodedBit encoding)
     (hcarryIn : layout.carryIn.wire ≠ observed.wire)
     (hwork : ∀ j : Fin (n - 1),
@@ -2745,7 +2747,7 @@ theorem carryInput_wire_ne_of_observed
 
 /-- A carry-before-sum bit is disjoint from an observed bit when both the data
 carry and all temporary carry-work bits are disjoint from it. -/
-theorem carryBeforeSum_wire_ne_of_observed
+lemma carryBeforeSum_wire_ne_of_observed
     (observed : EncodedBit encoding)
     (hcarryIn : layout.carryIn.wire ≠ observed.wire)
     (hwork : ∀ j : Fin (n - 1),
@@ -2761,7 +2763,7 @@ theorem carryBeforeSum_wire_ne_of_observed
 
 /-- One local carry-work stage is disjoint from an observed bit when every
 layout wire it may read or write is disjoint from that observed bit. -/
-theorem carryOutGatesAt_bitDisjoint
+lemma carryOutGatesAt_bitDisjoint
     (j : Fin (n - 1)) (observed : EncodedBit encoding)
     (hleft : ∀ i : Fin n, (layout.left.bit i).wire ≠ observed.wire)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
@@ -2786,7 +2788,7 @@ theorem carryOutGatesAt_bitDisjoint
 
 /-- One local reverse carry-cleanup stage is disjoint from an observed bit when
 every layout wire it may read or write is disjoint from that observed bit. -/
-theorem carryOutCleanupGatesAt_bitDisjoint
+lemma carryOutCleanupGatesAt_bitDisjoint
     (j : Fin (n - 1)) (observed : EncodedBit encoding)
     (hleft : ∀ i : Fin n, (layout.left.bit i).wire ≠ observed.wire)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
@@ -2811,7 +2813,7 @@ theorem carryOutCleanupGatesAt_bitDisjoint
 
 /-- One local sum stage is disjoint from an observed bit when every layout wire
 it may read or write is disjoint from that observed bit. -/
-theorem sumGatesAt_bitDisjoint
+lemma sumGatesAt_bitDisjoint
     (i : Fin n) (observed : EncodedBit encoding)
     (hleft : ∀ k : Fin n, (layout.left.bit k).wire ≠ observed.wire)
     (hright : ∀ k : Fin n, (layout.right.bit k).wire ≠ observed.wire)
@@ -2830,7 +2832,7 @@ theorem sumGatesAt_bitDisjoint
 
 /-- One cleanup-aware local sum stage is disjoint from an observed bit when
 every layout wire it may read or write is disjoint from that observed bit. -/
-theorem cleanupSumGatesAt_bitDisjoint
+lemma cleanupSumGatesAt_bitDisjoint
     (i : Fin n) (observed : EncodedBit encoding)
     (hleft : ∀ k : Fin n, (layout.left.bit k).wire ≠ observed.wire)
     (hright : ∀ k : Fin n, (layout.right.bit k).wire ≠ observed.wire)
@@ -2853,7 +2855,7 @@ theorem cleanupSumGatesAt_bitDisjoint
 
 /-- The forward carry stage is disjoint from an observed bit when every layout
 wire it may read or write is disjoint from that observed bit. -/
-theorem carryStage_bitDisjoint
+lemma carryStage_bitDisjoint
     (observed : EncodedBit encoding)
     (hleft : ∀ i : Fin n, (layout.left.bit i).wire ≠ observed.wire)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
@@ -2872,7 +2874,7 @@ theorem carryStage_bitDisjoint
 
 /-- The cleanup-aware sum stage is disjoint from an observed bit when every
 layout wire it may read or write is disjoint from that observed bit. -/
-theorem cleanupSumStage_bitDisjoint
+lemma cleanupSumStage_bitDisjoint
     (observed : EncodedBit encoding)
     (hleft : ∀ i : Fin n, (layout.left.bit i).wire ≠ observed.wire)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
@@ -2891,7 +2893,7 @@ theorem cleanupSumStage_bitDisjoint
 
 /-- The cleanup-aware carry/sum gate list is disjoint from an observed bit when
 every layout wire it may read or write is disjoint from that observed bit. -/
-theorem cleanCarrySumGates_bitDisjoint
+lemma cleanCarrySumGates_bitDisjoint
     (observed : EncodedBit encoding)
     (hleft : ∀ i : Fin n, (layout.left.bit i).wire ≠ observed.wire)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
@@ -2921,14 +2923,14 @@ def cleanCarrySumStep : Carrier -> Carrier :=
 
 /-- Folded semantic action of the cleanup-aware carry/sum schedule, exposed as
 the forward carry fold followed by the cleanup-aware sum fold. -/
-theorem cleanCarrySum_stepList_eq_indexStep (x : Carrier) :
+lemma cleanCarrySum_stepList_eq_indexStep (x : Carrier) :
     EncodedBit.GateSpec.stepList (cleanCarrySumGates layout) x =
       cleanupSumStageIndexStep layout (carryStageIndexStep layout x) := by
   rw [cleanCarrySumGates, EncodedBit.GateSpec.stepList_append]
   rw [carryStage_stepList_eq_indexStep, cleanupSumStage_stepList_eq_indexStep]
 
 /-- The folded cleanup-aware carry/sum gate list preserves every left readout. -/
-theorem cleanCarrySumGates_get_left (i : Fin n) (x : Carrier) :
+lemma cleanCarrySumGates_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (cleanCarrySumGates layout) x) =
       (layout.left.bit i).get x := by
@@ -2937,7 +2939,7 @@ theorem cleanCarrySumGates_get_left (i : Fin n) (x : Carrier) :
 
 /-- The folded cleanup-aware carry/sum gate list preserves the data carry-in
 readout. -/
-theorem cleanCarrySumGates_get_dataCarry (x : Carrier) :
+lemma cleanCarrySumGates_get_dataCarry (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (cleanCarrySumGates layout) x) =
       layout.carryIn.get x := by
@@ -2948,7 +2950,7 @@ theorem cleanCarrySumGates_get_dataCarry (x : Carrier) :
 readout whose wire is distinct from every right/target wire and every
 temporary carry-work target.  This is useful when the VBE adder is embedded
 beside untouched auxiliary fields [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem cleanCarrySumGates_get_observed_of_right_work_ne
+lemma cleanCarrySumGates_get_observed_of_right_work_ne
     (observed : EncodedBit encoding)
     (hright : ∀ i : Fin n, (layout.right.bit i).wire ≠ observed.wire)
     (hwork : ∀ j : Fin (n - 1),
@@ -2965,7 +2967,7 @@ theorem cleanCarrySumGates_get_observed_of_right_work_ne
 /-- The folded cleanup-aware carry/sum gate list writes each target bit as the
 original target bit xored with the preserved left bit and the carry selected
 after the forward carry pass. -/
-theorem cleanCarrySumGates_get_right (i : Fin n) (x : Carrier) :
+lemma cleanCarrySumGates_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (cleanCarrySumGates layout) x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
@@ -2977,7 +2979,7 @@ theorem cleanCarrySumGates_get_right (i : Fin n) (x : Carrier) :
 
 /-- The folded cleanup-aware carry/sum gate list restores every temporary
 carry-work readout to false, provided the input work register is clean. -/
-theorem cleanCarrySumGates_get_workCarry_clean
+lemma cleanCarrySumGates_get_workCarry_clean
     (j : Fin (n - 1)) (x : Carrier)
     (hclean : ∀ k : Fin (n - 1), (layout.workCarry.bit k).get x = false) :
     (layout.workCarry.bit j).get
@@ -2994,7 +2996,7 @@ theorem cleanCarrySumGates_get_workCarry_clean
 clean temporary carry-work.  Since the forward schedule is a finite permutation
 that maps the clean-work subset into itself, its inverse maps that subset into
 itself as well. -/
-theorem cleanCarrySumGates_reverse_get_workCarry_clean
+lemma cleanCarrySumGates_reverse_get_workCarry_clean
     (j : Fin (n - 1)) (x : Carrier)
     (hclean : ∀ k : Fin (n - 1), (layout.workCarry.bit k).get x = false) :
     (layout.workCarry.bit j).get
@@ -3025,10 +3027,10 @@ theorem cleanCarrySumGates_reverse_get_workCarry_clean
 
 /-- The cleanup-aware carry/sum schedule realizes its folded bit-lens action
 with the same base-gate program object used for resources. -/
-theorem cleanCarrySum_realizes :
+lemma cleanCarrySum_realizes :
     UnitaryCircuit.Realizes encoding
-      (cleanCarrySumProgram layout) (cleanCarrySumStep layout) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      (cleanCarrySumProgram layout) environment (cleanCarrySumStep layout) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (cleanCarrySumGates layout)
 
 /-- Folded carry/sum gate list for the carry-work layout.  This leaves the
@@ -3040,7 +3042,7 @@ def carryAndSumGates : List (EncodedBit.GateSpec encoding) :=
   carryStage layout ++ sumStage layout
 
 /-- The folded dirty-work carry/sum gate list preserves every left readout. -/
-theorem carryAndSumGates_get_left (i : Fin n) (x : Carrier) :
+lemma carryAndSumGates_get_left (i : Fin n) (x : Carrier) :
     (layout.left.bit i).get
         (EncodedBit.GateSpec.stepList (carryAndSumGates layout) x) =
       (layout.left.bit i).get x := by
@@ -3049,7 +3051,7 @@ theorem carryAndSumGates_get_left (i : Fin n) (x : Carrier) :
 
 /-- The folded dirty-work carry/sum gate list preserves the data carry-in
 readout. -/
-theorem carryAndSumGates_get_dataCarry (x : Carrier) :
+lemma carryAndSumGates_get_dataCarry (x : Carrier) :
     layout.carryIn.get
         (EncodedBit.GateSpec.stepList (carryAndSumGates layout) x) =
       layout.carryIn.get x := by
@@ -3059,7 +3061,7 @@ theorem carryAndSumGates_get_dataCarry (x : Carrier) :
 /-- The folded dirty-work carry/sum gate list writes each target bit as the
 original target bit xored with the preserved left bit and the carry selected
 after the forward carry pass. -/
-theorem carryAndSumGates_get_right (i : Fin n) (x : Carrier) :
+lemma carryAndSumGates_get_right (i : Fin n) (x : Carrier) :
     (layout.right.bit i).get
         (EncodedBit.GateSpec.stepList (carryAndSumGates layout) x) =
       (((layout.right.bit i).get x ^^ (layout.left.bit i).get x) ^^
@@ -3083,9 +3085,9 @@ def step : Carrier -> Carrier :=
 
 /-- The dirty-work carry/sum schedule realizes its folded bit-lens action with
 the same base-gate program object used for resources. -/
-theorem realizes :
-    UnitaryCircuit.Realizes encoding (program layout) (step layout) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+lemma realizes :
+    UnitaryCircuit.Realizes encoding (program layout) environment (step layout) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (carryAndSumGates layout)
 
 end CarryWorkLayout
@@ -3119,7 +3121,7 @@ def wordBit (n : Nat) (bit : Fin n) : EncodedBit (wordEncoding n) :=
   BinaryLabelEncoding.ofEquivBit (wordLabelEquiv n)
     (WireAddress.littleEndianWire bit)
 
-@[simp] theorem wordBit_get (n : Nat) (bit : Fin n) (x : Word n) :
+@[simp] lemma wordBit_get (n : Nat) (bit : Fin n) (x : Word n) :
     (wordBit n bit).get x =
       x.val.testBit bit.val := by
   change
@@ -3130,7 +3132,7 @@ def wordBit (n : Nat) (bit : Fin n) : EncodedBit (wordEncoding n) :=
   rfl
 
 /-- Two power-of-two words are equal when all in-range value bits agree. -/
-theorem word_eq_of_testBit_eq {n : Nat} {a b : Word n}
+lemma word_eq_of_testBit_eq {n : Nat} {a b : Word n}
     (h : forall i : Fin n, a.val.testBit i.val = b.val.testBit i.val) :
     a = b := by
   have hval : a.val = b.val := by
@@ -3159,7 +3161,7 @@ theorem word_eq_of_testBit_eq {n : Nat} {a b : Word n}
 
 /-- Low `n` bits of a `ZMod (2^n)` addition are the low `n` bits of the
 corresponding natural-number addition. -/
-theorem word_add_val_testBit (n : Nat) (a b : Word n) (i : Fin n) :
+lemma word_add_val_testBit (n : Nat) (a b : Word n) (i : Fin n) :
     (a + b).val.testBit i.val = (a.val + b.val).testBit i.val := by
   rw [ZMod.val_add]
   rw [Nat.testBit_mod_two_pow]
@@ -3169,7 +3171,7 @@ theorem word_add_val_testBit (n : Nat) (a b : Word n) (i : Fin n) :
 addition.  The carry is stated in `left,right` order to match the VBE carry
 stage even though the target endpoint is `right + left` [VBE95,
 9511018.tex:591-618]. -/
-theorem word_add_val_testBit_eq_xor3
+lemma word_add_val_testBit_eq_xor3
     (n : Nat) (left right : Word n) (i : Fin n) :
     (right + left).val.testBit i.val =
       ((right.val.testBit i.val ^^ left.val.testBit i.val) ^^
@@ -3198,7 +3200,7 @@ def dataEncoding (n : Nat) : BinaryLabelEncoding (Data n) :=
     (BinaryLabelEncoding.prod (wordEncoding n) BinaryLabelEncoding.bool)).relabel
       (dataTupleEquiv n)
 
-@[simp] theorem dataEncoding_width (n : Nat) :
+@[simp] lemma dataEncoding_width (n : Nat) :
     (dataEncoding n).width = n + (n + 1) := by
   rfl
 
@@ -3241,25 +3243,25 @@ def carryBit (n : Nat) : EncodedBit (dataEncoding n) :=
     (BinaryLabelEncoding.prodRightBit (wordEncoding n) BinaryLabelEncoding.bool
       BinaryLabelEncoding.boolBit)).relabel (dataTupleEquiv n)
 
-@[simp] theorem leftBit_get (n : Nat) (wire : Fin n) (x : Data n) :
+@[simp] lemma leftBit_get (n : Nat) (wire : Fin n) (x : Data n) :
     (leftBit n wire).get x = (wordBit n wire).get x.left :=
   rfl
 
-@[simp] theorem rightBit_get (n : Nat) (wire : Fin n) (x : Data n) :
+@[simp] lemma rightBit_get (n : Nat) (wire : Fin n) (x : Data n) :
     (rightBit n wire).get x = (wordBit n wire).get x.right :=
   rfl
 
-@[simp] theorem carryBit_get (n : Nat) (x : Data n) :
+@[simp] lemma carryBit_get (n : Nat) (x : Data n) :
     (carryBit n).get x = x.carry :=
   rfl
 
-theorem leftBit_get_testBit
+lemma leftBit_get_testBit
     (n : Nat) (bit : Fin n) (x : Data n) :
     (leftBit n bit).get x =
       x.left.val.testBit bit.val := by
   simp
 
-theorem rightBit_get_testBit
+lemma rightBit_get_testBit
     (n : Nat) (bit : Fin n) (x : Data n) :
     (rightBit n bit).get x =
       x.right.val.testBit bit.val := by
@@ -3289,41 +3291,41 @@ def carryWorkBit (n : Nat) (bit : Fin (n - 1)) :
   BinaryLabelEncoding.prodRightBit (dataEncoding n) (carryWorkEncoding n)
     (BinaryLabelEncoding.finIdentityBit (n - 1) bit)
 
-@[simp] theorem withCarryWorkLeftBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkLeftBit_get (n : Nat) (bit : Fin n)
     (x : Data n) (work : CarryWork n) :
     (withCarryWorkLeftBit n bit).get (x, work) =
       (leftBit n bit).get x :=
   rfl
 
-@[simp] theorem withCarryWorkLeftBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkLeftBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data n × CarryWork n) :
     (withCarryWorkLeftBit n bit).get x =
       (leftBit n bit).get x.1 :=
   rfl
 
-@[simp] theorem withCarryWorkRightBit_get (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkRightBit_get (n : Nat) (bit : Fin n)
     (x : Data n) (work : CarryWork n) :
     (withCarryWorkRightBit n bit).get (x, work) =
       (rightBit n bit).get x :=
   rfl
 
-@[simp] theorem withCarryWorkRightBit_get_fst (n : Nat) (bit : Fin n)
+@[simp] lemma withCarryWorkRightBit_get_fst (n : Nat) (bit : Fin n)
     (x : Data n × CarryWork n) :
     (withCarryWorkRightBit n bit).get x =
       (rightBit n bit).get x.1 :=
   rfl
 
-theorem withCarryWorkCarryBit_get (n : Nat)
+lemma withCarryWorkCarryBit_get (n : Nat)
     (x : Data n) (work : CarryWork n) :
     (withCarryWorkCarryBit n).get (x, work) = x.carry := by
   rfl
 
-@[simp] theorem withCarryWorkCarryBit_get_fst (n : Nat)
+@[simp] lemma withCarryWorkCarryBit_get_fst (n : Nat)
     (x : Data n × CarryWork n) :
     (withCarryWorkCarryBit n).get x = x.1.carry := by
   rfl
 
-@[simp] theorem finIdentityBit_get_zero (width : Nat) (bit : Fin width) :
+@[simp] lemma finIdentityBit_get_zero (width : Nat) (bit : Fin width) :
     (BinaryLabelEncoding.finIdentityBit width bit).get
         (0 : Fin (2 ^ width)) = false := by
   simp [BinaryLabelEncoding.finIdentityBit,
@@ -3331,7 +3333,7 @@ theorem withCarryWorkCarryBit_get (n : Nat)
 
 /-- A raw identity-encoded register is zero if every addressed bit reads
 `false`. -/
-theorem finIdentity_eq_zero_of_get_false {width : Nat} (x : Fin (2 ^ width))
+lemma finIdentity_eq_zero_of_get_false {width : Nat} (x : Fin (2 ^ width))
     (h : ∀ bit : Fin width,
       (BinaryLabelEncoding.finIdentityBit width bit).get x = false) :
     x = 0 := by
@@ -3350,7 +3352,7 @@ theorem finIdentity_eq_zero_of_get_false {width : Nat} (x : Fin (2 ^ width))
       Nat.testBit_lt_two_pow (lt_of_lt_of_le x.isLt hpow)
     simp [hx]
 
-@[simp] theorem carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
+@[simp] lemma carryWorkBit_get_clean (n : Nat) (bit : Fin (n - 1))
     (x : Data n) :
     (carryWorkBit n bit).get (x, cleanCarryWork n) = false := by
   change
@@ -3373,40 +3375,40 @@ def carryWorkWord (n : Nat) :
     EncodedBit.Word (dataWithCarryWorkEncoding n) (n - 1) where
   bit := carryWorkBit n
 
-@[simp] theorem leftBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma leftBit_wire_val (n : Nat) (bit : Fin n) :
     ((leftBit n bit).wire).val = n - 1 - bit.val := by
   rfl
 
-@[simp] theorem rightBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma rightBit_wire_val (n : Nat) (bit : Fin n) :
     ((rightBit n bit).wire).val = n + (n - 1 - bit.val) := by
   rfl
 
-@[simp] theorem carryBit_wire_val (n : Nat) :
+@[simp] lemma carryBit_wire_val (n : Nat) :
     ((carryBit n).wire).val = n + n := by
   rfl
 
-@[simp] theorem carryWorkEncoding_width (n : Nat) :
+@[simp] lemma carryWorkEncoding_width (n : Nat) :
     (carryWorkEncoding n).width = n - 1 := by
   rfl
 
-@[simp] theorem dataWithCarryWorkEncoding_width (n : Nat) :
+@[simp] lemma dataWithCarryWorkEncoding_width (n : Nat) :
     (dataWithCarryWorkEncoding n).width =
       (dataEncoding n).width + (n - 1) := by
   rfl
 
-@[simp] theorem withCarryWorkLeftBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkLeftBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkLeftBit n bit).wire).val = n - 1 - bit.val := by
   rfl
 
-@[simp] theorem withCarryWorkRightBit_wire_val (n : Nat) (bit : Fin n) :
+@[simp] lemma withCarryWorkRightBit_wire_val (n : Nat) (bit : Fin n) :
     ((withCarryWorkRightBit n bit).wire).val = n + (n - 1 - bit.val) := by
   rfl
 
-@[simp] theorem withCarryWorkCarryBit_wire_val (n : Nat) :
+@[simp] lemma withCarryWorkCarryBit_wire_val (n : Nat) :
     ((withCarryWorkCarryBit n).wire).val = n + n := by
   rfl
 
-@[simp] theorem carryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
+@[simp] lemma carryWorkBit_wire_val (n : Nat) (bit : Fin (n - 1)) :
     ((carryWorkBit n bit).wire).val = (dataEncoding n).width + bit.val := by
   rfl
 
@@ -3531,7 +3533,7 @@ def carryWorkLayout (n : Nat) :
     simp only [carryWorkBit_wire_val] at hv
     omega
 
-@[simp] theorem carryWorkLayout_carryInput_get_clean
+@[simp] lemma carryWorkLayout_carryInput_get_clean
     (n : Nat) (j : Fin (n - 1)) (x : Data n) :
     (CarryWorkLayout.carryInput (carryWorkLayout n) j).get
         (x, cleanCarryWork n) =
@@ -3545,7 +3547,7 @@ def carryWorkLayout (n : Nat) :
 carry into its selected work bit.  This is the first concrete recurrence hook
 for the later word-level carry invariant in the VBE carry-work schedule
 [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryWorkLayout_carryOutGatesAt_get_workCarry_clean
+lemma carryWorkLayout_carryOutGatesAt_get_workCarry_clean
     (n : Nat) (j : Fin (n - 1)) (x : Data n) :
     (carryWorkBit n j).get
         (EncodedBit.GateSpec.stepList
@@ -3566,7 +3568,7 @@ theorem carryWorkLayout_carryOutGatesAt_get_workCarry_clean
     withCarryWorkRightWord] using h
 
 /-- Canonical clean-work recurrence for the full forward carry stage. -/
-theorem carryWorkLayout_carryStageIndexStep_get_workCarry_recurrence
+lemma carryWorkLayout_carryStageIndexStep_get_workCarry_recurrence
     (n : Nat) (j : Fin (n - 1)) (x : Data n) :
     (carryWorkBit n j).get
         (CarryWorkLayout.carryStageIndexStep (carryWorkLayout n)
@@ -3588,7 +3590,7 @@ theorem carryWorkLayout_carryStageIndexStep_get_workCarry_recurrence
 
 /-- Canonical clean-work forward-carry recurrence in little-endian `testBit`
 form. -/
-theorem carryWorkLayout_carryStageIndexStep_get_workCarry_recurrence_testBit
+lemma carryWorkLayout_carryStageIndexStep_get_workCarry_recurrence_testBit
     (n : Nat) (j : Fin (n - 1)) (x : Data n) :
     (carryWorkBit n j).get
         (CarryWorkLayout.carryStageIndexStep (carryWorkLayout n)
@@ -3606,7 +3608,7 @@ theorem carryWorkLayout_carryStageIndexStep_get_workCarry_recurrence_testBit
 addition carry in work bit `j`.  This closes the ordered carry recurrence for
 the VBE-style forward pass, but does not assert that the dirty work has been
 uncomputed [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryWorkLayout_carryStageIndexStep_get_workCarry_natAddCarry
+lemma carryWorkLayout_carryStageIndexStep_get_workCarry_natAddCarry
     (n : Nat) (j : Fin (n - 1)) (x : Data n)
     (hcarry : x.CarryClean) :
     (carryWorkBit n j).get
@@ -3659,7 +3661,7 @@ theorem carryWorkLayout_carryStageIndexStep_get_workCarry_natAddCarry
 
 /-- The carry selected before summing target bit `i` is exactly the propagated
 natural addition carry at `i` for clean input carry/work. -/
-theorem carryWorkLayout_carryBeforeSum_get_natAddCarry
+lemma carryWorkLayout_carryBeforeSum_get_natAddCarry
     (n : Nat) (i : Fin n) (x : Data n) (hcarry : x.CarryClean) :
     (CarryWorkLayout.carryBeforeSum (carryWorkLayout n) i).get
         (CarryWorkLayout.carryStageIndexStep (carryWorkLayout n)
@@ -3696,7 +3698,7 @@ theorem carryWorkLayout_carryBeforeSum_get_natAddCarry
 /-- Canonical clean-work target-bit formula for the folded dirty carry/sum
 stage.  This is still a bit-level statement; the remaining endpoint proof must
 assemble these bit equations into the `ZMod (2^n)` word equality. -/
-theorem carryWorkLayout_carryAndSumGates_get_right
+lemma carryWorkLayout_carryAndSumGates_get_right
     (n : Nat) (i : Fin n) (x : Data n) :
     (rightBit n i).get
         (Prod.fst
@@ -3715,7 +3717,7 @@ theorem carryWorkLayout_carryAndSumGates_get_right
     withCarryWorkRightWord] using h
 
 /-- Canonical clean-work target-bit formula in little-endian `testBit` form. -/
-theorem carryWorkLayout_carryAndSumGates_get_right_testBit
+lemma carryWorkLayout_carryAndSumGates_get_right_testBit
     (n : Nat) (i : Fin n) (x : Data n) :
     (Prod.fst
         (EncodedBit.GateSpec.stepList
@@ -3731,7 +3733,7 @@ theorem carryWorkLayout_carryAndSumGates_get_right_testBit
 the correct target-word bit of `Data.addIntoRight`.  This theorem identifies
 the right-word endpoint only; it deliberately does not claim carry-work cleanup
 [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem carryWorkLayout_carryAndSumGates_get_right_addIntoRight_testBit
+lemma carryWorkLayout_carryAndSumGates_get_right_addIntoRight_testBit
     (n : Nat) (i : Fin n) (x : Data n) (hcarry : x.CarryClean) :
     (Prod.fst
         (EncodedBit.GateSpec.stepList
@@ -3748,7 +3750,7 @@ theorem carryWorkLayout_carryAndSumGates_get_right_addIntoRight_testBit
 stage, obtained by assembling the per-bit formula.  Work cleanup remains a
 separate obligation for the full VBE schedule [VBE95,
 9511018.tex:237-264,591-618]. -/
-theorem carryWorkLayout_carryAndSumGates_get_right_addIntoRight
+lemma carryWorkLayout_carryAndSumGates_get_right_addIntoRight
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
     (Prod.fst
         (EncodedBit.GateSpec.stepList
@@ -3761,7 +3763,7 @@ theorem carryWorkLayout_carryAndSumGates_get_right_addIntoRight
     n i x hcarry
 
 /-- The dirty forward carry plus sum stage preserves the left/source word. -/
-theorem carryWorkLayout_carryAndSumGates_get_left_word
+lemma carryWorkLayout_carryAndSumGates_get_left_word
     (n : Nat) (x : Data n) :
     (Prod.fst
         (EncodedBit.GateSpec.stepList
@@ -3775,7 +3777,7 @@ theorem carryWorkLayout_carryAndSumGates_get_left_word
   simpa [carryWorkLayout, carryWorkWord, withCarryWorkLeftWord] using h
 
 /-- The dirty forward carry plus sum stage preserves the data carry flag. -/
-theorem carryWorkLayout_carryAndSumGates_get_dataCarry
+lemma carryWorkLayout_carryAndSumGates_get_dataCarry
     (n : Nat) (x : Data n) :
     (Prod.fst
         (EncodedBit.GateSpec.stepList
@@ -3790,7 +3792,7 @@ theorem carryWorkLayout_carryAndSumGates_get_dataCarry
 right target has been updated as a plain adder and the source/carry data fields
 are preserved; the temporary carry work may still be dirty [VBE95,
 9511018.tex:237-264,591-618]. -/
-theorem carryWorkLayout_carryAndSumGates_get_data_addIntoRight
+lemma carryWorkLayout_carryAndSumGates_get_data_addIntoRight
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
     Prod.fst
         (EncodedBit.GateSpec.stepList
@@ -3839,14 +3841,14 @@ def carryWorkCleanCarrySumStep (n : Nat) :
 
 /-- The canonical cleanup-aware carry-work schedule realizes its folded
 bit-lens action with the same base-gate program object used for resources. -/
-theorem carryWorkCleanCarrySum_realizes (n : Nat) :
+lemma carryWorkCleanCarrySum_realizes (n : Nat) :
     UnitaryCircuit.Realizes (dataWithCarryWorkEncoding n)
-      (carryWorkCleanCarrySumProgram n) (carryWorkCleanCarrySumStep n) :=
+      (carryWorkCleanCarrySumProgram n) environment (carryWorkCleanCarrySumStep n) :=
   CarryWorkLayout.cleanCarrySum_realizes (carryWorkLayout n)
 
 /-- The canonical cleanup-aware carry-work schedule preserves the left/source
 word [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryWorkCleanCarrySumStep_get_left_word
+lemma carryWorkCleanCarrySumStep_get_left_word
     (n : Nat) (x : Data n) (work : CarryWork n) :
     (Prod.fst (carryWorkCleanCarrySumStep n (x, work))).left =
       x.left := by
@@ -3859,7 +3861,7 @@ theorem carryWorkCleanCarrySumStep_get_left_word
 
 /-- The canonical cleanup-aware carry-work schedule preserves the data carry
 flag [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryWorkCleanCarrySumStep_get_dataCarry
+lemma carryWorkCleanCarrySumStep_get_dataCarry
     (n : Nat) (x : Data n) (work : CarryWork n) :
     (Prod.fst (carryWorkCleanCarrySumStep n (x, work))).carry =
       x.carry := by
@@ -3870,7 +3872,7 @@ theorem carryWorkCleanCarrySumStep_get_dataCarry
 
 /-- Canonical cleanup-aware target-bit formula for the concrete carry-work
 schedule [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryWorkCleanCarrySumStep_get_right
+lemma carryWorkCleanCarrySumStep_get_right
     (n : Nat) (i : Fin n) (x : Data n) :
     (rightBit n i).get
         (Prod.fst (carryWorkCleanCarrySumStep n
@@ -3889,7 +3891,7 @@ theorem carryWorkCleanCarrySumStep_get_right
 
 /-- Canonical cleanup-aware target-bit formula in little-endian `testBit`
 form [VBE95, 9511018.tex:237-264,596-618]. -/
-theorem carryWorkCleanCarrySumStep_get_right_testBit
+lemma carryWorkCleanCarrySumStep_get_right_testBit
     (n : Nat) (i : Fin n) (x : Data n) :
     (Prod.fst
         (carryWorkCleanCarrySumStep n
@@ -3904,7 +3906,7 @@ theorem carryWorkCleanCarrySumStep_get_right_testBit
 correct target-word bit of `Data.addIntoRight`.  This theorem identifies the
 right-word endpoint only; work cleanup remains a separate invariant [VBE95,
 9511018.tex:237-264,591-618]. -/
-theorem carryWorkCleanCarrySumStep_get_right_addIntoRight_testBit
+lemma carryWorkCleanCarrySumStep_get_right_addIntoRight_testBit
     (n : Nat) (i : Fin n) (x : Data n) (hcarry : x.CarryClean) :
     (Prod.fst
         (carryWorkCleanCarrySumStep n
@@ -3919,7 +3921,7 @@ theorem carryWorkCleanCarrySumStep_get_right_addIntoRight_testBit
 /-- Word-level right-target endpoint for the cleanup-aware carry/sum schedule.
 Work cleanup remains a separate invariant for the final structured witness
 [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem carryWorkCleanCarrySumStep_get_right_addIntoRight
+lemma carryWorkCleanCarrySumStep_get_right_addIntoRight
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
     (Prod.fst
         (carryWorkCleanCarrySumStep n
@@ -3934,7 +3936,7 @@ theorem carryWorkCleanCarrySumStep_get_right_addIntoRight
 register has been updated as a plain adder and source/carry data fields are
 preserved; the all-zero work cleanup is still proved separately [VBE95,
 9511018.tex:237-264,591-618]. -/
-theorem carryWorkCleanCarrySumStep_get_data_addIntoRight
+lemma carryWorkCleanCarrySumStep_get_data_addIntoRight
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
     Prod.fst
         (carryWorkCleanCarrySumStep n
@@ -3961,7 +3963,7 @@ theorem carryWorkCleanCarrySumStep_get_data_addIntoRight
 /-- The canonical cleanup-aware carry/sum schedule clears each temporary carry
 work bit when started from the clean work register [VBE95,
 9511018.tex:237-264,591-618]. -/
-theorem carryWorkCleanCarrySumStep_get_workCarry_clean
+lemma carryWorkCleanCarrySumStep_get_workCarry_clean
     (n : Nat) (j : Fin (n - 1)) (x : Data n) :
     (carryWorkBit n j).get
         (carryWorkCleanCarrySumStep n (x, cleanCarryWork n)) =
@@ -3977,7 +3979,7 @@ theorem carryWorkCleanCarrySumStep_get_workCarry_clean
 /-- The canonical cleanup-aware carry/sum schedule restores the whole temporary
 carry-work register to the all-zero label [VBE95,
 9511018.tex:237-264,591-618]. -/
-theorem carryWorkCleanCarrySumStep_get_work_clean
+lemma carryWorkCleanCarrySumStep_get_work_clean
     (n : Nat) (x : Data n) :
     Prod.snd
         (carryWorkCleanCarrySumStep n (x, cleanCarryWork n)) =
@@ -3990,7 +3992,7 @@ theorem carryWorkCleanCarrySumStep_get_work_clean
 /-- Full clean endpoint for the canonical cleanup-aware carry-work schedule:
 on clean carry and clean work inputs, the data register is `addIntoRight` and
 the work register is restored to zero [VBE95, 9511018.tex:237-264,591-618]. -/
-theorem carryWorkCleanCarrySumStep_cleanEndpoint
+lemma carryWorkCleanCarrySumStep_cleanEndpoint
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
     carryWorkCleanCarrySumStep n (x, cleanCarryWork n) =
       (x.addIntoRight, cleanCarryWork n) := by
@@ -4014,8 +4016,8 @@ def step (n : Nat) : Data n -> Data n :=
 
 /-- The canonical single-carry schedule shell realizes its folded bit-lens
 action with the same base-gate program object. -/
-theorem realizes (n : Nat) :
-    UnitaryCircuit.Realizes (dataEncoding n) (program n) (step n) :=
+lemma realizes (n : Nat) :
+    UnitaryCircuit.Realizes (dataEncoding n) (program n) environment (step n) :=
   SingleCarryLayout.realizes (singleCarryLayout n)
 
 /-- Package any proved canonical data-plus-carry-work gate list as the clean
@@ -4035,8 +4037,9 @@ def structuredWithCarryWorkWitness (n : Nat)
   cleanWork := cleanCarryWork n
   step := EncodedBit.GateSpec.stepList gates
   program := EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty gates
-  realizes :=
-    EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty gates
+  realizes := fun environment =>
+    EncodedBit.GateSpec.realizesList (environment := environment)
+      (QubitLayout.canonical _) .empty gates
   cleanEndpoint := hclean
 
 /-- Structured clean-work plain-adder witness built from the canonical
@@ -4094,9 +4097,9 @@ def carryWorkEventGateCount (n : Nat)
 
 /-- The canonical circuit realizes clean plain addition while intrinsically
 preserving normalization. -/
-theorem carryWorkCircuit_applyNormalized_clean_ket
+lemma carryWorkCircuit_applyNormalized_clean_ket
     (n : Nat) (x : Data n) (hcarry : x.CarryClean) :
-    (carryWorkCircuit n).applyNormalized
+    (carryWorkCircuit n).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (dataWithCarryWorkEncoding n).width).basisEquiv.symm
@@ -4113,7 +4116,7 @@ theorem carryWorkCircuit_applyNormalized_clean_ket
 
 /-- Linearizing the canonical carry-work event depth recovers its exact strict
 event pool. -/
-theorem carryWorkCircuit_resourcesFromEventDepth_eq_eventCost (n : Nat) :
+lemma carryWorkCircuit_resourcesFromEventDepth_eq_eventCost (n : Nat) :
     (carryWorkCircuit n).resourcesFromEventDepth =
       (carryWorkCircuit n).eventCost :=
   StructuredWithWorkWitness.resourcesFromEventDepth_eq_eventCost

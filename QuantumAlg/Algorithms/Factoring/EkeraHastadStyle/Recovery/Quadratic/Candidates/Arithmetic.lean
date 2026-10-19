@@ -32,7 +32,7 @@ open ClassicalRoutines.NumberTheory
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem op_read_cell {input output observed : CShape}
+private lemma op_read_cell {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
     (store.applyOp op).read (.storage other.toCStorageRef) =
@@ -42,7 +42,7 @@ private theorem op_read_cell {input output observed : CShape}
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Both actually materialized words are precisely the original source candidate pair. -/
-theorem nativeQuadratic_candidates_read (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_read (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (separated : Separated modulus refs) (store : Store ctx) :
     (((candidatesStep (model := model) input modulus refs store).1.read (.storage

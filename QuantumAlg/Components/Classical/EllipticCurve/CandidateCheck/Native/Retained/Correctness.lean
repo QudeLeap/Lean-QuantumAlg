@@ -27,7 +27,8 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width scalarWidth : Nat}
 
 /-- The retained actual acceptance is the original target equation and both actual success flags. -/
-theorem retainedStep_accepts_iff {model : ExecutionModel} [BitWord.Selected model]
+lemma retainedStep_accepts_iff {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
@@ -38,13 +39,15 @@ theorem retainedStep_accepts_iff {model : ExecutionModel} [BitWord.Selected mode
     (candidateValue : before.read candidate = .unsignedWord scalar)
     (baseRep : PointRepresents spec (before.read base) basePoint)
     (targetRep : PointRepresents spec (before.read target) targetPoint) :
-    ((retainedStep spec candidate base target inverseSuccess reconstruction
+    ((retainedStep (environment := environment) spec candidate base target inverseSuccess
+      reconstruction
       (before, hidden)).1.1.read
         (.storage (retainedAccepted ctx width).toCStorageRef)).toBool = true ↔
       scalar.val • basePoint = targetPoint ∧
         (before.read inverseSuccess).toBool = true ∧
         (before.read reconstruction).toBool = true := by
-  have actual := verifyStep_accepts_iff spec (retainedInput width candidate)
+  have actual := verifyStep_accepts_iff (environment := environment)
+    spec (retainedInput width candidate)
     (retainedInput width base) (retainedInput width target) (retainedInput width inverseSuccess)
     (retainedInput width reconstruction) (retainedScalar ctx width) (retainedAccepted ctx width)
     (retainedInitialStore width before) hidden scalar basePoint targetPoint

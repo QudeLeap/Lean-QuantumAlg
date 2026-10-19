@@ -29,16 +29,16 @@ variable {n : Nat}
 public def invSqrtCard (n : ℕ) : ℂ := (Real.sqrt ((2 ^ n : ℕ) : ℝ) : ℂ)⁻¹
 
 @[simp]
-public theorem star_invSqrtCard (n : ℕ) : star (invSqrtCard n) = invSqrtCard n := by
+public lemma star_invSqrtCard (n : ℕ) : star (invSqrtCard n) = invSqrtCard n := by
   rw [invSqrtCard, star_inv₀, Complex.star_def, Complex.conj_ofReal]
 
 @[simp]
-public theorem norm_invSqrtCard (n : ℕ) :
+public lemma norm_invSqrtCard (n : ℕ) :
     ‖invSqrtCard n‖ = (Real.sqrt ((2 ^ n : ℕ) : ℝ))⁻¹ := by
   rw [invSqrtCard, norm_inv, Complex.norm_real,
     Real.norm_of_nonneg (Real.sqrt_nonneg _)]
 
-public theorem norm_sq_invSqrtCard (n : ℕ) :
+public lemma norm_sq_invSqrtCard (n : ℕ) :
     ‖invSqrtCard n‖ ^ 2 = (((2 ^ n : ℕ) : ℝ)⁻¹) := by
   rw [norm_invSqrtCard, inv_pow, Real.sq_sqrt (by positivity : (0 : ℝ) ≤ ((2 ^ n : ℕ) : ℝ))]
 
@@ -55,12 +55,12 @@ public def uniformState (n : ℕ) : NormalizedVector (Qubits n) :=
         norm_num
       rw [hsum, Real.sqrt_one])
 
-private theorem uniformState_apply_internal (x : Fin (2 ^ n)) :
+private lemma uniformState_apply_internal (x : Fin (2 ^ n)) :
     uniformState n x = invSqrtCard n :=
   rfl
 
 @[simp]
-public theorem uniformState_apply (x : Fin (2 ^ n)) : uniformState n x = invSqrtCard n :=
+public lemma uniformState_apply (x : Fin (2 ^ n)) : uniformState n x = invSqrtCard n :=
   uniformState_apply_internal x
 
 end

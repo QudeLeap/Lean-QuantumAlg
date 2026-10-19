@@ -37,7 +37,7 @@ open QuantumAlg.Execution
 
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
-private theorem packedRead (t width : Nat)
+private lemma packedRead (t width : Nat)
     (store : Store (post ctx noQuantum t width)) :
     (store.applyOp (packing ctx noQuantum t width)).read
       (.storage (resultRef ctx noQuantum t width).toCStorageRef) =
@@ -45,7 +45,7 @@ private theorem packedRead (t width : Nat)
         (store.read (MeasurementCells.input (resultContext ctx noQuantum t width) 2 t)) :=
   Store.read_applyOp_output store (packing ctx noQuantum t width)
 
-private theorem selectedPackedRead (t width : Nat)
+private lemma selectedPackedRead (t width : Nat)
     (store : Store (post ctx noQuantum t width)) :
     (store.write (BitWord.application (packing ctx noQuantum t width)).output
       ((packing ctx noQuantum t width).eval
@@ -58,13 +58,14 @@ private theorem selectedPackedRead (t width : Nat)
   exact packedRead ctx noQuantum t width store
 
 /-- Actual Z writes and packing preserve exactly the source Born fiber mass. -/
-theorem readoutCode_block_mass {N x t width : Nat}
+lemma readoutCode_block_mass {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (post ctx noQuantum t width) Reference
-      ((model access).HiddenState × H))
+      ((model t width).HiddenState × H))
     (output : CShape.Value (.bits t)) :
-    ((((readoutCode ctx noQuantum access).execute Reference state).mapClassical
+    ((((readoutCode ctx noQuantum t width).execute (Sampling.Native.environment access) Reference
+      state).mapClassical
       (fun value => value.1.read
         (.storage (resultRef ctx noQuantum t width).toCStorageRef))).block output).mass =
       (∑ basis : (post ctx noQuantum t width).register.Index,
@@ -76,7 +77,7 @@ theorem readoutCode_block_mass {N x t width : Nat}
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
   rw [Circuit.execute_classical_mapClassical
-    (model := model access)
+    (model := model t width) (environment := Sampling.Native.environment access)
     (BitWord.application (packing ctx noQuantum t width))
     (packing ctx noQuantum t width).eval
     (BitWord.bitWord_application_evaluate (packing ctx noQuantum t width)) Reference]
@@ -97,7 +98,7 @@ theorem readoutCode_block_mass {N x t width : Nat}
       intro basis _
       split <;> simp only [one_mul, zero_mul]
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
@@ -105,12 +106,13 @@ private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (Complex.normSq_eq_norm_sq (state basis))
 
 /-- The selected sampler's final output mass is the source coherent Born fiber. -/
-theorem code_block_mass {N x t width : Nat}
+lemma code_block_mass {N x t width : Nat}
     (access : ModExpOracleAccess N x t width)
     {Reference : Register} {H : Type} [Fintype H]
-    (state : State ctx Reference ((model access).HiddenState × H))
+    (state : State ctx Reference ((model t width).HiddenState × H))
     (normalized : state.IsNormalized) (output : CShape.Value (.bits t)) :
-    ((((code ctx noQuantum access).execute Reference state).mapClassical
+    ((((code ctx noQuantum t width).execute (Sampling.Native.environment access) Reference
+      state).mapClassical
       (fun value => value.1.read
         (.storage (resultRef ctx noQuantum t width).toCStorageRef))).block output).mass =
       ∑ basis : Fin (2 ^ (t + width)),
@@ -121,14 +123,15 @@ theorem code_block_mass {N x t width : Nat}
         if CShape.Value.bits ((OrderFinding.Native.measurement t width).readout
           (outputBasisEquiv ctx noQuantum t width basis)) = output
           then
-          ((beforeMeasurement ctx noQuantum access).execute
+          ((beforeMeasurement ctx noQuantum t width).execute (Sampling.Native.environment access)
             Reference state).quantumMarginal.marginalLeft.matrix
             basis basis else 0).re := by
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
           readoutCode_block_mass ctx noQuantum access
-            ((beforeMeasurement ctx noQuantum access).execute Reference state) output
+            ((beforeMeasurement ctx noQuantum t width).execute (Sampling.Native.environment
+              access) Reference state) output
     _ = (∑ basis : Fin (2 ^ (t + width)),
         if CShape.Value.bits ((OrderFinding.Native.measurement t width).readout basis) = output
           then (DensityOperator.ofPure (OrderFinding.Native.evolvedVector access)).matrix

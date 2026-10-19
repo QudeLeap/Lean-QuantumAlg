@@ -25,10 +25,10 @@ open Execution
 noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
-  (input : Input N)
+
 
 /-- Allocate the single actual bank by preparing every declared system in zero. -/
-def prepare : Circuit (executionModel input) base (bankContext base noQuantum N) :=
+def prepare : Circuit (executionModel N) base (bankContext base noQuantum N) :=
   .prepareZero base base.canonicalFreshKey (layout N) base.canonicalFreshKey_fresh
     (allocationDisjoint base noQuantum N)
 
@@ -37,29 +37,29 @@ def context : RuntimeCtx .quantum :=
   Iteration.context (bankContext base noQuantum N) N
 
 /-- The first source sample follows the same real initial bank preparation. -/
-def code : Circuit (executionModel input) base (context base noQuantum N) :=
-  .seq (prepare base noQuantum N input)
-    (Iteration.code (bankContext base noQuantum N) N input
+def code : Circuit (executionModel N) base (context base noQuantum N) :=
+  .seq (prepare base noQuantum N)
+    (Iteration.code (bankContext base noQuantum N) N
       (bankContext_wires base noQuantum N))
 
 /-- All later classical storage leaves this same bank's complete wire list unchanged. -/
-theorem quantumWires :
+lemma quantumWires :
     (context base noQuantum N).quantumWires = (layout N).wires :=
   (Iteration.quantumWires (bankContext base noQuantum N) N).trans
     (bankContext_wires base noQuantum N)
 
 /-- The source result is read from actual storage and includes the early-factor parameter. -/
-def run : AlgorithmRun (executionModel input) base (context base noQuantum N)
+def run : AlgorithmRun (executionModel N) base (context base noQuantum N)
     (Iteration.resultShape N) where
-  code := code base noQuantum N input
+  code := code base noQuantum N
   output := Output.all (context base noQuantum N)
     (.read (.product (Iteration.sampleInput (bankContext base noQuantum N) N)
       (.product (Iteration.parameterInput (bankContext base noQuantum N) N)
         (Iteration.phaseInput (bankContext base noQuantum N) N))))
 
 /-- The actual source result retains the full caller, bank and result manifest. -/
-theorem output_listing :
-    (run base noQuantum N input).output.listing = (context base noQuantum N).keys := rfl
+lemma output_listing :
+    (run base noQuantum N).output.listing = (context base noQuantum N).keys := rfl
 
 end
 

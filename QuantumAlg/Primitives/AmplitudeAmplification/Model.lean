@@ -57,7 +57,7 @@ def amplitudeAmplificationState (θ : ℝ) (k : ℕ) : NormalizedVector (Qubits 
         Real.cos_sq_add_sin_sq (amplitudeAmplificationAngle θ k))
 
 @[simp]
-theorem amplitudeAmplificationState_coe (θ : ℝ) (k : ℕ) :
+lemma amplitudeAmplificationState_coe (θ : ℝ) (k : ℕ) :
     (amplitudeAmplificationState θ k : HilbertVector (Qubits 1)) =
       ((Real.cos (amplitudeAmplificationAngle θ k) : ℂ) •
           (ket0 : HilbertVector (Qubits 1))) +
@@ -70,7 +70,7 @@ def amplitudeAmplificationStep (θ : ℝ) : UnitaryOperator (Qubits 1) :=
   rotYOp (4 * θ)
 
 /-- One amplification step increases the good/bad-plane angle by `2θ`. -/
-private theorem amplitudeAmplificationStep_apply_state_coe (θ : ℝ) (k : ℕ) :
+private lemma amplitudeAmplificationStep_apply_state_coe (θ : ℝ) (k : ℕ) :
     HilbertOperator.applyVec
         (amplitudeAmplificationStep θ : HilbertOperator (Qubits 1))
         (amplitudeAmplificationState θ k : HilbertVector (Qubits 1)) =
@@ -98,7 +98,7 @@ private theorem amplitudeAmplificationStep_apply_state_coe (θ : ℝ) (k : ℕ) 
     ring_nf
 
 /-- One amplification step preserves normalization in its public type. -/
-theorem amplitudeAmplificationStep_apply_state (θ : ℝ) (k : ℕ) :
+lemma amplitudeAmplificationStep_apply_state (θ : ℝ) (k : ℕ) :
     (amplitudeAmplificationStep θ).apply
         (amplitudeAmplificationState θ k) =
       amplitudeAmplificationState θ (k + 1) := by
@@ -109,7 +109,7 @@ theorem amplitudeAmplificationStep_apply_state (θ : ℝ) (k : ℕ) :
 
 /-- Iterating the abstract amplification rotation gives the standard closed
 form. -/
-private theorem amplitudeAmplificationStep_pow_apply_coe (θ : ℝ) (k : ℕ) :
+private lemma amplitudeAmplificationStep_pow_apply_coe (θ : ℝ) (k : ℕ) :
     HilbertOperator.applyVec
         ((amplitudeAmplificationStep θ : HilbertOperator (Qubits 1)) ^ k)
         (amplitudeAmplificationState θ 0 : HilbertVector (Qubits 1)) =
@@ -122,7 +122,7 @@ private theorem amplitudeAmplificationStep_pow_apply_coe (θ : ℝ) (k : ℕ) :
         amplitudeAmplificationStep_apply_state_coe]
 
 /-- Iterated amplification preserves normalization in its public type. -/
-theorem amplitudeAmplificationStep_pow_apply (θ : ℝ) (k : ℕ) :
+lemma amplitudeAmplificationStep_pow_apply (θ : ℝ) (k : ℕ) :
     ((amplitudeAmplificationStep θ) ^ k).apply
         (amplitudeAmplificationState θ 0) =
       amplitudeAmplificationState θ k := by
@@ -168,7 +168,7 @@ def zeroKet {n : Nat} (_M : IntrinsicAmplitudeAmplificationModel n) :
     NormalizedVector (Qubits n) :=
   NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n))
 
-theorem planeState_norm_eq_one {n : Nat}
+lemma planeState_norm_eq_one {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     ‖((Real.sin α : ℂ) • (M.good : HilbertVector (Qubits n))) +
         ((Real.cos α : ℂ) • (M.bad : HilbertVector (Qubits n)))‖ = 1 := by
@@ -203,7 +203,7 @@ def stateAt {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) (α : ℝ) :
     (planeState_norm_eq_one M α)
 
 @[simp]
-theorem stateAt_coe {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
+lemma stateAt_coe {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
     (α : ℝ) :
     (M.stateAt α : HilbertVector (Qubits n)) =
       ((Real.sin α : ℂ) • (M.good : HilbertVector (Qubits n))) +
@@ -215,18 +215,18 @@ public def amplifiedState {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
   M.stateAt (amplitudeAmplificationAngle M.θ k)
 
 @[simp]
-theorem amplifiedState_coe {n : Nat}
+lemma amplifiedState_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (k : Nat) :
     (M.amplifiedState k : HilbertVector (Qubits n)) =
       (M.stateAt (amplitudeAmplificationAngle M.θ k) :
         HilbertVector (Qubits n)) := rfl
 
-theorem bad_good_inner {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
+lemma bad_good_inner {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
     inner ℂ (M.bad : HilbertVector (Qubits n))
       (M.good : HilbertVector (Qubits n)) = 0 :=
   inner_eq_zero_symm.mp M.good_bad_inner
 
-private theorem prepared_eq_amplifiedState_zero_coe {n : Nat}
+private lemma prepared_eq_amplifiedState_zero_coe {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     M.preparation.applyVec (M.zeroKet : HilbertVector (Qubits n)) =
       (M.amplifiedState 0 : HilbertVector (Qubits n)) := by
@@ -234,7 +234,7 @@ private theorem prepared_eq_amplifiedState_zero_coe {n : Nat}
   simp [amplifiedState, stateAt, amplitudeAmplificationAngle]
 
 /-- Source preparation produces the normalized initial amplification state. -/
-theorem prepared_eq_amplifiedState_zero {n : Nat}
+lemma prepared_eq_amplifiedState_zero {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     M.preparation.apply M.zeroKet = M.amplifiedState 0 := by
   apply NormalizedVector.ext
@@ -242,7 +242,7 @@ theorem prepared_eq_amplifiedState_zero {n : Nat}
   exact congrArg (fun ψ : HilbertVector (Qubits n) => ψ i)
     (prepared_eq_amplifiedState_zero_coe M)
 
-private theorem eigenPlaneVec_norm_eq_one {n : Nat}
+private lemma eigenPlaneVec_norm_eq_one {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) (z : ℂ) (hz : ‖z‖ = 1) :
     ‖invSqrt2 •
         ((M.good : HilbertVector (Qubits n)) +
@@ -291,21 +291,21 @@ def eigenMinus {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
     exact eigenPlaneVec_norm_eq_one M (-Complex.I) (by simp))
 
 @[simp]
-theorem eigenPlus_coe {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
+lemma eigenPlus_coe {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
     (M.eigenPlus : HilbertVector (Qubits n)) =
       invSqrt2 •
         ((M.good : HilbertVector (Qubits n)) +
           Complex.I • (M.bad : HilbertVector (Qubits n))) := rfl
 
 @[simp]
-theorem eigenMinus_coe {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
+lemma eigenMinus_coe {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n) :
     (M.eigenMinus : HilbertVector (Qubits n)) =
       invSqrt2 •
         ((M.good : HilbertVector (Qubits n)) +
           (-Complex.I) • (M.bad : HilbertVector (Qubits n))) := rfl
 
 /-- The two intrinsic phase eigenstates are orthogonal. -/
-theorem eigenPlus_inner_eigenMinus {n : Nat}
+lemma eigenPlus_inner_eigenMinus {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     inner ℂ (M.eigenPlus : HilbertVector (Qubits n))
       (M.eigenMinus : HilbertVector (Qubits n)) = 0 := by
@@ -329,7 +329,7 @@ theorem eigenPlus_inner_eigenMinus {n : Nat}
   norm_num
 
 /-- Orthogonality in the reverse inner-product order. -/
-theorem eigenMinus_inner_eigenPlus {n : Nat}
+lemma eigenMinus_inner_eigenPlus {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     inner ℂ (M.eigenMinus : HilbertVector (Qubits n))
       (M.eigenPlus : HilbertVector (Qubits n)) = 0 :=
@@ -346,7 +346,7 @@ def eigenMinusCoefficient {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
     ((Real.sin M.θ : ℂ) + (Real.cos M.θ : ℂ) * Complex.I)
 
 /-- The positive-phase component has probability weight `1/2`. -/
-theorem eigenPlusCoefficient_normSq {n : Nat}
+lemma eigenPlusCoefficient_normSq {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     Complex.normSq M.eigenPlusCoefficient = (1 : Real) / 2 := by
   have hinv : Complex.normSq invSqrt2 = (2 : Real)⁻¹ := by
@@ -364,7 +364,7 @@ theorem eigenPlusCoefficient_normSq {n : Nat}
   norm_num
 
 /-- The negative-phase component has probability weight `1/2`. -/
-theorem eigenMinusCoefficient_normSq {n : Nat}
+lemma eigenMinusCoefficient_normSq {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     Complex.normSq M.eigenMinusCoefficient = (1 : Real) / 2 := by
   have hinv : Complex.normSq invSqrt2 = (2 : Real)⁻¹ := by
@@ -377,7 +377,7 @@ theorem eigenMinusCoefficient_normSq {n : Nat}
 
 /-- The prepared state is an equal-weight superposition of the two intrinsic
 eigenstates, with phases determined by the initial angle. -/
-theorem intrinsicPreparedState_eigen_decomposition {n : Nat}
+lemma intrinsicPreparedState_eigen_decomposition {n : Nat}
     (M : IntrinsicAmplitudeAmplificationModel n) :
     M.preparation.applyVec (M.zeroKet : HilbertVector (Qubits n)) =
       M.eigenPlusCoefficient • (M.eigenPlus : HilbertVector (Qubits n)) +

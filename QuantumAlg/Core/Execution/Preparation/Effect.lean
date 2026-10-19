@@ -34,7 +34,7 @@ def basisPreparationEmbedding (key : StorageKey) (layout : QuantumLayout count)
     (preparation.value, original)
 
 /-- The fresh value leaves every old quantum/reference coordinate distinguishable. -/
-theorem basisPreparationEmbedding_injective (key : StorageKey) (layout : QuantumLayout count)
+lemma basisPreparationEmbedding_injective (key : StorageKey) (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout) :
     Function.Injective (basisPreparationEmbedding (Reference := Reference)
@@ -44,7 +44,7 @@ theorem basisPreparationEmbedding_injective (key : StorageKey) (layout : Quantum
     ((prepareContextBasisEquiv ctx Reference key layout fresh disjoint).injective equality)
 
 /-- Trace pairing with the actual prepared density is its compressed old-system effect. -/
-theorem weight_preparedDensity (key : StorageKey) (layout : QuantumLayout count)
+lemma weight_preparedDensity (key : StorageKey) (layout : QuantumLayout count)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout)
     (state : DensityOperator (Register.prod ctx.register Reference))
@@ -74,7 +74,7 @@ theorem weight_preparedDensity (key : StorageKey) (layout : QuantumLayout count)
 namespace State
 
 /-- The actual preparation pulls observations through its precise basis and Store embedding. -/
-theorem effectWeight_prepare {H : Type} [Fintype H] (state : State ctx Reference H)
+lemma effectWeight_prepare {H : Type} [Fintype H] (state : State ctx Reference H)
     (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (preparation : BasisPreparation layout)

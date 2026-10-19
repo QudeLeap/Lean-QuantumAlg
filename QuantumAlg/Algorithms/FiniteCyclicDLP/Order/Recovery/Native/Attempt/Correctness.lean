@@ -42,9 +42,11 @@ open Execution
 universe u
 
 variable {G : Type u} [Group G] [Fintype G]
+variable {oracles : OracleModel}
+variable {quantumEnvironment : oracles.Interpretation}
 
 omit [Fintype G] in
-private theorem preparation_rawSample (P : KnownOrderProblem G)
+private lemma preparation_rawSample (P : KnownOrderProblem G)
     (outcome : TerminalZMeasure.Outcome (OrderExecution.sampleWidth P)) :
     ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native.preparationInput
         (OrderEndpoint.rawSample P outcome) = .bits outcome := by
@@ -58,7 +60,7 @@ private theorem preparation_rawSample (P : KnownOrderProblem G)
 
 omit [Fintype G] in
 /-- A selected source outcome writes the canonical bounded secret word. -/
-public theorem attemptCandidateValue_selected (P : KnownOrderProblem G)
+public lemma attemptCandidateValue_selected (P : KnownOrderProblem G)
     (secret : Canonical.Probability.SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (modulus : spec.modulus = P.order) :
@@ -81,7 +83,7 @@ public theorem attemptCandidateValue_selected (P : KnownOrderProblem G)
 
 omit [Fintype G] in
 /-- The raw flags and the declared group equation both accept a selected outcome. -/
-public theorem attemptAcceptedValue_selected (P : KnownOrderProblem G)
+public lemma attemptAcceptedValue_selected (P : KnownOrderProblem G)
     (secret : Canonical.Probability.SecretInput P) (unit : (ZMod P.order)ˣ)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (modulus : spec.modulus = P.order) :
@@ -113,7 +115,7 @@ private def attemptKeys {ctx : RuntimeCtx .quantum} {width : Nat}
   [refs.acceptedCandidate.key, refs.rawAccepted.key, refs.powerEqualsTarget.key,
     refs.reconstruction.key, refs.candidate.key, refs.inverseSuccess.key]
 
-private theorem attemptKeys_cells {ctx : RuntimeCtx .quantum} {width : Nat}
+private lemma attemptKeys_cells {ctx : RuntimeCtx .quantum} {width : Nat}
     (cells : ClassicalWorkspace.Cells ctx (attemptShapes width)) :
     attemptKeys (attemptRefs cells) = cells.keys := by
   cases cells with
@@ -129,7 +131,7 @@ private theorem attemptKeys_cells {ctx : RuntimeCtx .quantum} {width : Nat}
                       cases rest with
                       | cons inverse rest => cases rest; rfl
 
-private theorem raw_reads {ctx : RuntimeCtx .quantum} {width : Nat}
+private lemma raw_reads {ctx : RuntimeCtx .quantum} {width : Nat}
     (refs : AttemptRefs ctx width) (distinct : (attemptKeys refs).Nodup)
     (before : Execution.Store ctx)
     (raw : CShape.Value (.product .bit
@@ -160,37 +162,39 @@ private theorem raw_reads {ctx : RuntimeCtx .quantum} {width : Nat}
       refs.candidate.toCStorageRef _ reconstructionCandidate,
       Execution.Store.read_write_same]
 
-private theorem acceptanceRecord_preserves_read {ctx : RuntimeCtx .quantum} {width : Nat}
+private lemma acceptanceRecord_preserves_read {ctx : RuntimeCtx .quantum} {width : Nat}
     (P : KnownOrderProblem G) (refs : AttemptRefs ctx width)
-    (entry : Execution.Store ctx × (OrderExecution.model P).HiddenState)
+    (entry : Execution.Store ctx × (recoveryModel P oracles).HiddenState)
     {shape : CShape} (other : CInputRef ctx shape)
     (rawFree : refs.rawAccepted.key ∉ other.storageKeys)
     (acceptedFree : refs.acceptedCandidate.key ∉ other.storageKeys) :
-    (acceptanceRecord P refs entry).1.1.read other = entry.1.read other := by
+    (acceptanceRecord (oracles := oracles) P refs entry).1.1.read other = entry.1.read other := by
   rw [acceptanceRecord_store]
   exact (Execution.Store.read_applyOp_of_not_mem_storageKeys _
     (candidateAcceptanceOp refs) other acceptedFree).trans
       (Execution.Store.read_applyOp_of_not_mem_storageKeys _
         (rawAcceptanceOp refs) other rawFree)
 
-private theorem verificationRecord_preserves_read {ctx : RuntimeCtx .quantum} {width : Nat}
+private lemma verificationRecord_preserves_read {ctx : RuntimeCtx .quantum} {width : Nat}
     (P : KnownOrderProblem G) (candidate : CInputRef ctx (.unsignedWord width))
     (refs : AttemptRefs ctx width)
-    (entry : Execution.Store ctx × (OrderExecution.model P).HiddenState)
+    (entry : Execution.Store ctx × (recoveryModel P oracles).HiddenState)
     {shape : CShape} (other : CInputRef ctx shape)
     (powerFree : refs.powerEqualsTarget.key ∉ other.storageKeys)
     (rawFree : refs.rawAccepted.key ∉ other.storageKeys)
     (acceptedFree : refs.acceptedCandidate.key ∉ other.storageKeys) :
-    (verificationRecord P candidate refs entry).1.1.read other = entry.1.read other := by
-  exact (acceptanceRecord_preserves_read P refs
-    (powerCheckRecord P candidate refs.powerEqualsTarget entry).1 other
+    (verificationRecord (oracles := oracles) P candidate refs entry).1.1.read other =
+      entry.1.read other := by
+  exact (acceptanceRecord_preserves_read (oracles := oracles) P refs
+    (powerCheckRecord (oracles := oracles) P candidate refs.powerEqualsTarget entry).1 other
     rawFree acceptedFree).trans
-      (powerCheckRecord_preserves_read P candidate refs.powerEqualsTarget entry other powerFree)
+      (powerCheckRecord_preserves_read (oracles := oracles) P candidate refs.powerEqualsTarget
+        entry other powerFree)
 
 /-- Actual allocation, raw recovery and hidden group verification supply the exact
 candidate and acceptance values to one caller continuation. The state equation
 and value relation describe the same chronological record. -/
-public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
+public lemma withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
     (P : KnownOrderProblem G)
     (spec : ClassicalAlgorithms.Modular.ModulusSpec (OrderPreparation.width P))
     (input : CInputRef ctx
@@ -198,7 +202,7 @@ public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
     (body : ∀ {inner : RuntimeCtx .quantum},
       CInputRef inner (.unsignedWord (OrderPreparation.width P)) →
       CInputRef inner .bit → ClassicalWorkspace.Transport ctx inner →
-        Circuit (OrderExecution.model P) inner inner)
+        Circuit (recoveryModel P oracles) inner inner)
     (Post : Execution.Store ctx → Execution.Store ctx →
       CShape.Value (.unsignedWord (OrderPreparation.width P)) → Bool → Prop)
     (bodyContract : ∀ {inner : RuntimeCtx .quantum}
@@ -209,38 +213,41 @@ public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
         key ∉ (transport.liftInput observed).storageKeys) →
       (∀ key ∈ accepted.storageKeys, ∀ {shape : CShape} (observed : CInputRef ctx shape),
         key ∉ (transport.liftInput observed).storageKeys) →
-      ∃ step : Execution.Store inner × (OrderExecution.model P).HiddenState →
-          (Execution.Store inner × (OrderExecution.model P).HiddenState) ×
+      ∃ step : Execution.Store inner × (recoveryModel P oracles).HiddenState →
+          (Execution.Store inner × (recoveryModel P oracles).HiddenState) ×
             (body candidate accepted transport).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
-          (state : State inner Reference ((OrderExecution.model P).HiddenState × History)),
-          (body candidate accepted transport).execute Reference state =
+          (state : State inner Reference ((recoveryModel P oracles).HiddenState × History)),
+          (body candidate accepted transport).execute
+            (recoveryEnvironment P quantumEnvironment) Reference state =
             mapClassicalExplicit state (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
-        ∀ before : Execution.Store inner × (OrderExecution.model P).HiddenState,
+        ∀ before : Execution.Store inner × (recoveryModel P oracles).HiddenState,
           Post (transport.restrict before.1) (transport.restrict (step before).1.1)
             (before.1.read candidate) (before.1.read accepted).toBool) :
-    ∃ step : Execution.Store ctx × (OrderExecution.model P).HiddenState →
-        (Execution.Store ctx × (OrderExecution.model P).HiddenState) ×
-          (withAttempt P spec input body).Path,
+    ∃ step : Execution.Store ctx × (recoveryModel P oracles).HiddenState →
+        (Execution.Store ctx × (recoveryModel P oracles).HiddenState) ×
+          (withAttempt (oracles := oracles) P spec input body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
-        (state : State ctx Reference ((OrderExecution.model P).HiddenState × History)),
-        (withAttempt P spec input body).execute Reference state =
+        (state : State ctx Reference ((recoveryModel P oracles).HiddenState × History)),
+        (withAttempt (oracles := oracles) P spec input body).execute
+          (recoveryEnvironment P quantumEnvironment) Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
-      ∀ before : Execution.Store ctx × (OrderExecution.model P).HiddenState,
+      ∀ before : Execution.Store ctx × (recoveryModel P oracles).HiddenState,
         Post before.1 (step before).1.1
           (attemptCandidateValue spec (before.1.read input))
           (attemptAcceptedValue P spec (before.1.read input)) := by
   classical
   obtain ⟨step, equation, correct⟩ :=
     ClassicalWorkspace.withCells_actualRecord_initialized_restricted_post
-      (model := OrderExecution.model P) ctx
+      (environment := recoveryEnvironment P quantumEnvironment)
+      (model := recoveryModel P oracles) ctx
       (attemptShapes (OrderPreparation.width P))
       (fun cells _ transport _ =>
-        attemptBody P spec (transport.liftInput input) (attemptRefs cells)
+        attemptBody (oracles := oracles) P spec (transport.liftInput input) (attemptRefs cells)
           (fun candidate accepted => body candidate accepted transport))
       (fun before after => Post before after
         (attemptCandidateValue spec (before.read input))
@@ -275,22 +282,23 @@ public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
             exact free refs.acceptedCandidate.key (by simp [attemptKeys]) observed)
         obtain ⟨rawStep, rawEquation, rawValues⟩ :=
           ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native.singleIntoCells_actualRecord
-            (model := OrderExecution.model P) spec (transport.liftInput input)
+            (environment := recoveryEnvironment P quantumEnvironment)
+            (model := recoveryModel P oracles) spec (transport.liftInput input)
             refs.inverseSuccess refs.candidate refs.reconstruction
         let continued := body candidate accepted transport
         let tailStep := Circuit.sequenceRecord
-          (powerCheck P candidate refs.powerEqualsTarget)
-          (.seq (acceptanceSuffix P refs) continued)
-          (powerCheckRecord P candidate refs.powerEqualsTarget)
-          (Circuit.sequenceRecord (acceptanceSuffix P refs) continued
-            (acceptanceRecord P refs) bodyStep)
+          (powerCheck (oracles := oracles) P candidate refs.powerEqualsTarget)
+          (.seq (acceptanceSuffix (oracles := oracles) P refs) continued)
+          (powerCheckRecord (oracles := oracles) P candidate refs.powerEqualsTarget)
+          (Circuit.sequenceRecord (acceptanceSuffix (oracles := oracles) P refs) continued
+            (acceptanceRecord (oracles := oracles) P refs) bodyStep)
         have rawEquationExplicit :
             ∀ (Reference : Register) {History : Type} [Fintype History]
-              (state : State inner Reference ((OrderExecution.model P).HiddenState × History)),
+              (state : State inner Reference ((recoveryModel P oracles).HiddenState × History)),
               (ClassicalRoutines.FiniteCyclicDLP.RawRecovery.Native.singleIntoCells
-                (model := OrderExecution.model P) spec (transport.liftInput input)
+                (model := recoveryModel P oracles) spec (transport.liftInput input)
                 refs.inverseSuccess refs.candidate refs.reconstruction).execute
-                  Reference state =
+                  (recoveryEnvironment P quantumEnvironment) Reference state =
                 mapClassicalExplicit state (fun entry =>
                   let result := rawStep (entry.1, entry.2.1)
                   (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
@@ -298,22 +306,25 @@ public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
           simpa only [mapClassicalExplicit] using rawEquation Reference state
         have powerEquationExplicit :
             ∀ (Reference : Register) {History : Type} [Fintype History]
-              (state : State inner Reference ((OrderExecution.model P).HiddenState × History)),
-              (powerCheck P candidate refs.powerEqualsTarget).execute Reference state =
+              (state : State inner Reference ((recoveryModel P oracles).HiddenState × History)),
+              (powerCheck (oracles := oracles) P candidate refs.powerEqualsTarget).execute
+                (recoveryEnvironment P quantumEnvironment) Reference state =
                 mapClassicalExplicit state (fun entry =>
-                  let result := powerCheckRecord P candidate refs.powerEqualsTarget
+                  let result := powerCheckRecord (oracles := oracles) P candidate
+                    refs.powerEqualsTarget
                     (entry.1, entry.2.1)
                   (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
           intro Reference History _ state
-          exact (powerCheck_execute P candidate refs.powerEqualsTarget Reference state).trans
+          exact (powerCheck_execute (oracles := oracles) P candidate refs.powerEqualsTarget
+            Reference state).trans
             (mapClassicalExplicit_eq state _).symm
         have composedEquation :=
-          execute_sequenceRecord_explicit (model := OrderExecution.model P) _ _ _ _
+          execute_sequenceRecord_explicit (model := recoveryModel P oracles) _ _ _ _
             rawEquationExplicit
-            (execute_sequenceRecord_explicit (model := OrderExecution.model P) _ _ _ _
+            (execute_sequenceRecord_explicit (model := recoveryModel P oracles) _ _ _ _
               powerEquationExplicit
-              (execute_sequenceRecord_explicit (model := OrderExecution.model P) _ _ _ _
-                (acceptanceSuffix_execute P refs) bodyEquation))
+              (execute_sequenceRecord_explicit (model := recoveryModel P oracles) _ _ _ _
+                (acceptanceSuffix_execute (oracles := oracles) P refs) bodyEquation))
         refine ⟨Circuit.sequenceRecord _ _ rawStep tailStep, ?_, ?_⟩
         · intro Reference History _ state
           exact (composedEquation Reference state).trans
@@ -339,17 +350,20 @@ public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
               (free _ (by simp [attemptKeys]) other)
               (free _ (by simp [attemptKeys]) other)).trans
                 (transport.workspaceTransport_restrict_readsAs before.1 other)
-          let checked := powerCheckRecord P candidate refs.powerEqualsTarget (rawStep before).1
-          let verified := acceptanceRecord P refs checked.1
+          let checked := powerCheckRecord (oracles := oracles) P candidate
+            refs.powerEqualsTarget (rawStep before).1
+          let verified := acceptanceRecord (oracles := oracles) P refs checked.1
           have verifiedOuter : transport.ReadsAs (transport.restrict before.1) verified.1.1 := by
             intro shape other
-            exact (verificationRecord_preserves_read P candidate refs (rawStep before).1
+            exact (verificationRecord_preserves_read (oracles := oracles) P candidate refs
+              (rawStep before).1
               (transport.liftInput other)
               (free _ (by simp [attemptKeys]) other)
               (free _ (by simp [attemptKeys]) other)
               (free _ (by simp [attemptKeys]) other)).trans (rawOuter other)
           have candidateSame : verified.1.1.read candidate = raw.second.first := by
-            exact (verificationRecord_preserves_read P candidate refs (rawStep before).1 candidate
+            exact (verificationRecord_preserves_read (oracles := oracles) P candidate refs
+              (rawStep before).1 candidate
               (by
                 simp only [candidate, CInputRef.storageKeys, List.mem_singleton]
                 intro same
@@ -365,7 +379,8 @@ public theorem withAttempt_actualRecord_correct {ctx : RuntimeCtx .quantum}
           have acceptedValue : verified.1.1.read accepted =
               .bit (((raw.first.toBool && raw.second.second.toBool) &&
                 decide (P.generator ^ raw.second.first.toNat = P.target))) := by
-            have value := verificationRecord_value P candidate refs (rawStep before).1
+            have value := verificationRecord_value (oracles := oracles) P candidate refs
+              (rawStep before).1
               (by
                 simp only [candidate, CInputRef.storageKeys, List.mem_singleton]
                 intro same

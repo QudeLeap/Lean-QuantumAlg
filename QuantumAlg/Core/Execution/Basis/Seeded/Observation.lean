@@ -27,7 +27,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace ExecutionState
 
 /-- Weighted finite indicator fibers are exactly the weight of the actual observation. -/
-theorem referenceFiberSum_observation_fibers {C Outcome : Type}
+lemma referenceFiberSum_observation_fibers {C Outcome : Type}
     [Fintype C] [Fintype Outcome] {R Reference : Register}
     (state : ExecutionState C (Register.prod R Reference))
     (observe : C → R.Index → Outcome) (weight : Outcome → ℂ)
@@ -54,7 +54,7 @@ end ExecutionState
 namespace Execution.BasisSeeded
 
 /-- Actual complete-store weights need only the seed entry of each store-reference block. -/
-theorem referenceFiberSum_seed {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma referenceFiberSum_seed {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (seed : ctx.register.Index) {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) (seeded : Holds seed state)
     (weight : Store ctx → ℂ) (leftRef rightRef : Reference.Index) :

@@ -37,14 +37,14 @@ def run {model : ExecutionModel} [BitWord.Selected model]
     (.read (resultRef ctx width key fresh))
 
 /-- No original entry or retained result is omitted from the complete output. -/
-theorem terminalDecode_run_output_listing {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_run_output_listing {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys) :
     (run (model := model) ctx width order input key fresh).output.listing =
       (ResultCtx ctx width key fresh).keys := rfl
 
 /-- The retained allocation leaves the literal two-coordinate decoder budget unchanged. -/
-theorem terminalDecode_routine_pool_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_routine_pool_le {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (routine (model := model) ctx width order input key fresh).Path) :
@@ -56,7 +56,7 @@ theorem terminalDecode_routine_pool_le {model : ExecutionModel} [BitWord.Selecte
   exact terminalDecode_intoFromBitRefs_pool_le order _ _ path.2
 
 /-- Every path has at most the stated fixed-width shift-and-increment duration. -/
-theorem terminalDecode_routine_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_routine_depth_le {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (duration : Resource.Event model → Nat)
@@ -70,7 +70,7 @@ theorem terminalDecode_routine_depth_le {model : ExecutionModel} [BitWord.Select
   rw [Nat.zero_add]
   exact terminalDecode_intoFromBitRefs_depth_le order _ _ duration path.2
 
-private theorem routine_visited_cases {model : ExecutionModel} [BitWord.Selected model]
+private lemma routine_visited_cases {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (routine (model := model) ctx width order input key fresh).Path)
@@ -91,7 +91,7 @@ private theorem routine_visited_cases {model : ExecutionModel} [BitWord.Selected
       path.2 visited decoding)
 
 /-- Resident storage is bounded by the complete context including the new retained word. -/
-theorem terminalDecode_routine_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_routine_resident_le {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (routine (model := model) ctx width order input key fresh).Path) :
@@ -109,7 +109,7 @@ theorem terminalDecode_routine_resident_le {model : ExecutionModel} [BitWord.Sel
   · exact extended ▸ le_rfl
 
 /-- The retained word is included in the actual auxiliary peak bound. -/
-theorem terminalDecode_routine_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma terminalDecode_routine_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (width : Nat) (order : BitOrder)
     (input : CInputRef ctx (InputShape width)) (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (routine (model := model) ctx width order input key fresh).Path) :

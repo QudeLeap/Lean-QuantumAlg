@@ -23,12 +23,13 @@ noncomputable section
 
 /-- Placing the declared stage on the original bank preserves every complex
 matrix entry in the source's binary basis. -/
-theorem declaredMember_binaryMatrix_entry {ctx : RuntimeCtx .quantum} (N : Nat)
-    (sameWires : ctx.quantumWires = (Native.layout N).wires) (input : Input N)
+lemma declaredMember_binaryMatrix_entry {ctx : RuntimeCtx .quantum} (N : Nat)
+    (sameWires : ctx.quantumWires = (Native.layout N).wires)
+    (interpretation : (ShortDLP.declaredModel N (Native.parameters N)).Interpretation)
     (parameter : (ParameterShape N).Value) (row column : ctx.register.Index) :
-    (Native.declaredMember N sameWires input parameter).matrix row column =
-      (ShortDLP.DeclaredStage.circuit (Native.encoding input)
-        (parameterUnit parameter) (parameterTarget parameter)).binaryMatrix
+    (Native.declaredMember N sameWires parameter).matrix interpretation row column =
+      (ShortDLP.DeclaredStage.circuit N (Native.parameters N)
+        (parameterUnit parameter) (parameterTarget parameter)).binaryMatrix interpretation
           (Native.basisEquiv N sameWires row)
           (Native.basisEquiv N sameWires column) := by
   rw [← Native.declaredBasisEquiv_eq_basisEquiv N sameWires]
@@ -38,8 +39,8 @@ theorem declaredMember_binaryMatrix_entry {ctx : RuntimeCtx .quantum} (N : Nat)
     Matrix.reindex_apply, Matrix.submatrix_apply]
   exact congrArg₂
     (fun left right =>
-      (ShortDLP.DeclaredStage.circuit (Native.encoding input)
-        (parameterUnit parameter) (parameterTarget parameter)).matrix left right)
+      (ShortDLP.DeclaredStage.circuit N (Native.parameters N)
+        (parameterUnit parameter) (parameterTarget parameter)).matrix interpretation left right)
     (by simp only [Native.declaredBasisEquiv, Equiv.trans_apply,
         Equiv.symm_apply_apply])
     (by simp only [Native.declaredBasisEquiv, Equiv.trans_apply,

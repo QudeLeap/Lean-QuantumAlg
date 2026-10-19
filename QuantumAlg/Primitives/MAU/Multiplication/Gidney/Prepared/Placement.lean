@@ -29,7 +29,7 @@ open Execution.OwnedQubits Accumulate.Gidney
 private def inputQubitLayout (width : Nat) : QubitLayout width :=
   QubitLayout.canonical width
 
-private theorem auxiliary_input_disjoint (width : Nat) :
+private lemma auxiliary_input_disjoint (width : Nat) :
     List.Disjoint (auxiliaryQubitLayout width).systemIdx
       (inputQubitLayout width).systemIdx := by
   apply List.disjoint_left.mpr
@@ -41,7 +41,7 @@ private theorem auxiliary_input_disjoint (width : Nat) :
   change inputWire.val = physical at inputEq
   omega
 
-private theorem toQuantum_append_wires {leftCount rightCount : Nat}
+private lemma toQuantum_append_wires {leftCount rightCount : Nat}
     (left : QubitLayout leftCount) (right : QubitLayout rightCount)
     (disjoint : List.Disjoint left.systemIdx right.systemIdx) :
     (QubitLayout.append left right disjoint).toQuantum.wires =
@@ -71,7 +71,7 @@ def preparedQubitLayout (width : Nat) : QubitLayout (encoding width).width :=
 def preparedSourceLayout (width : Nat) : QuantumLayout (encoding width).width :=
   (preparedQubitLayout width).toQuantum
 
-theorem preparedSourceLayout_wires (width : Nat) :
+lemma preparedSourceLayout_wires (width : Nat) :
     (preparedSourceLayout width).wires = (preparedContext width).quantumLayout.wires := by
   unfold preparedContext
   rw [← RuntimeCtx.addOwnedLayout_wires_eq_append
@@ -121,7 +121,7 @@ def wordSwapPosition (width : Nat) :
     unfold wordSwapPositionValue at values
     split_ifs at values <;> omega
 
-theorem wordSwapPosition_dimensions (width : Nat)
+lemma wordSwapPosition_dimensions (width : Nat)
     (index : Fin (encoding width).width) :
     ((QubitLayout.canonical (encoding width).width).toQuantum.wire index).dimension =
       ((preparedSourceLayout width).wire (wordSwapPosition width index)).dimension := by
@@ -136,13 +136,13 @@ def placedMultiplier (width : Nat) (modulus : Fin (2 ^ width + 1))
     (preparedSourceLayout width) (wordSwapPosition width)
     (wordSwapPosition_dimensions width) (program width modulus coefficient)
 
-theorem placedMultiplier_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma placedMultiplier_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     (placedMultiplier width modulus coefficient).eventCost =
       (program width modulus coefficient).eventCost :=
   UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 
-theorem placedMultiplier_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma placedMultiplier_depth (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     (placedMultiplier width modulus coefficient).evaluatedEventDepth (fun _ => 1) =
       (program width modulus coefficient).evaluatedEventDepth (fun _ => 1) :=

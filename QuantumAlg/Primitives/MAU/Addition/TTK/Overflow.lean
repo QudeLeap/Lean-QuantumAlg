@@ -22,14 +22,16 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 open Nat.BinaryArithmetic
 
-private theorem stepList_singleton {Data : Type} {E : BinaryLabelEncoding Data}
+private lemma stepList_singleton {Data : Type} {E : BinaryLabelEncoding Data}
     (gate : EncodedBit.GateSpec E) (s : Data) :
     stepList [gate] s = gate.step s := rfl
 
-private theorem overflow_step_zero (s : OverflowRegisters 0) :
+private lemma overflow_step_zero (s : OverflowRegisters 0) :
     stepList (overflowGates 0) s = overflowOutput s := by
   have ha : s.1.1.val = 0 := by
     have h := s.1.1.isLt
@@ -48,7 +50,7 @@ private theorem overflow_step_zero (s : OverflowRegisters 0) :
   · change s.2 = (s.2 ^^ decide (2 ^ 0 ≤ s.1.1.val + s.1.2.val))
     rw [ha, hb]; simp
 
-private theorem overflow_step_one (s : OverflowRegisters 1) :
+private lemma overflow_step_one (s : OverflowRegisters 1) :
     stepList (overflowGates 1) s = overflowOutput s := by
   have hlow : stepList (finalXorGates 1) s.1 = lowOutput s.1 := by
     simpa [lowRippleGates, preXorGates, descendingXorGates, carryGates,
@@ -63,7 +65,7 @@ private theorem overflow_step_one (s : OverflowRegisters 1) :
     simp only [natAddCarry]
     cases s.1.1.val.testBit 0 <;> cases s.1.2.val.testBit 0 <;> rfl
 
-private theorem overflow_step_succ_succ (n : Nat) (s : OverflowRegisters (n + 2)) :
+private lemma overflow_step_succ_succ (n : Nat) (s : OverflowRegisters (n + 2)) :
     stepList (overflowGates (n + 2)) s = overflowOutput s := by
   let middle := stepList (carryGates (n + 2))
     (stepList (descendingXorGates (n + 2)) (stepList (preXorGates (n + 2)) s.1))
@@ -111,7 +113,7 @@ private theorem overflow_step_succ_succ (n : Nat) (s : OverflowRegisters (n + 2)
 
 /-- The literal overflow gate list computes the low sum and xors the final carry
 into an arbitrary initial output bit, at every word width. -/
-theorem ttkOverflow_step (n : Nat) (s : OverflowRegisters n) :
+lemma ttkOverflow_step (n : Nat) (s : OverflowRegisters n) :
     stepList (overflowGates n) s = overflowOutput s := by
   cases n with
   | zero => exact overflow_step_zero s
@@ -122,10 +124,10 @@ theorem ttkOverflow_step (n : Nat) (s : OverflowRegisters n) :
 
 /-- The compiled circuit realizes addition on exactly the two operands and its
 explicit overflow output, with no clean-output or workspace assumption. -/
-theorem ttkOverflow_realizes_addition (n : Nat) :
-    UnitaryCircuit.Realizes (overflowEncoding n) (overflowProgram n) overflowOutput :=
+lemma ttkOverflow_realizes_addition (n : Nat) :
+    UnitaryCircuit.Realizes (overflowEncoding n) (overflowProgram n) environment overflowOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (overflowGates n) (ttkOverflow_step n)
+    (overflowGates n) (ttkOverflow_step n) environment
 
 end
 

@@ -25,10 +25,12 @@ namespace QuantumAlg.MAU.Division.SharedEEA
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA Inversion.SharedEEA
 
 /-- Word quotient addition is the original residue action for every positive modulus. -/
-theorem divisionOutput_unit (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma divisionOutput_unit (modulus : Nat) (modulusPositive : 0 < modulus)
     (denominator : (ZMod modulus)ˣ) (numerator target : ZMod modulus) :
     output modulus modulusPositive (Accumulate.residueWord modulus modulusPositive denominator).val
         (Accumulate.residueWord modulus modulusPositive numerator)
@@ -53,10 +55,10 @@ def dataFrame (modulus : Nat) (modulusPositive : 0 < modulus) (value : Data modu
     Accumulate.residueWord modulus modulusPositive value.target), value.flag)
 
 /-- Native quotient accumulation realizes the original data map and restores every EEA field. -/
-theorem divisionProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
+lemma divisionProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
     (value : Data modulus) :
     (UnitaryCircuit.onBinaryPrefix BinaryLabelEncoding.bool.width
-      (program modulus nontrivial)).applyNormalized
+      (program modulus nontrivial)).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (BinaryLabelEncoding.prod (frameEncoding modulus.size)
@@ -71,6 +73,7 @@ theorem divisionProgram_data (modulus : Nat) (nontrivial : 1 < modulus)
             BinaryLabelEncoding.bool).encode
               (dataFrame modulus (by omega) value.addQuotientIntoTarget))) := by
   have actual := UnitaryCircuit.Realizes.onBinaryPrefix_applyNormalized_encoded_ket_of_eq
+    (environment := environment)
     (frameEncoding modulus.size) BinaryLabelEncoding.bool (program modulus nontrivial)
     _ _ value.flag
     (divisionProgram_unit modulus nontrivial value.denominator value.numerator value.target)

@@ -25,6 +25,8 @@ namespace QuantumAlg.MAU.Division.SharedEEA
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 open Inversion.SharedEEA
 
@@ -41,11 +43,11 @@ def output (modulus : Nat) (modulusPositive : 0 < modulus) (input : Nat)
     (Nat.mod_lt _ modulusPositive).trans (Nat.lt_size_self modulus)⟩
 
 /-- Restore every EEA field and accumulate the quotient into any canonical target. -/
-theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input numerator target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (frameKet modulus.size
           ((frameEncoding modulus.size).encode
             (InitialFrame.initial modulus input, numerator, target))) =
@@ -57,7 +59,7 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
   let computed := CorrectedSchedule.result modulus input.val positive bounded
   let result := output modulus (by omega) input.val numerator target
   have forward (value : Fin (2 ^ modulus.size)) :
-      (forwardProgram modulus nontrivial).applyNormalized
+      (forwardProgram modulus nontrivial).applyNormalized environment
           (frameKet modulus.size
             ((frameEncoding modulus.size).encode (initial, numerator, value))) =
         frameKet modulus.size
@@ -69,7 +71,7 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
       (CorrectedSchedule.program modulus nontrivial) initial computed (numerator, value)
       (CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded)
   have accumulated :
-      (middleProgram modulus.size (Accumulate.fittedModulus modulus)).applyNormalized
+      (middleProgram modulus.size (Accumulate.fittedModulus modulus)).applyNormalized environment
           (frameKet modulus.size
             ((frameEncoding modulus.size).encode (computed, numerator, target))) =
         frameKet modulus.size
@@ -92,29 +94,33 @@ theorem divisionProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     rw [fields]
   have restored :
       ((forwardProgram modulus nontrivial).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment
           (frameKet modulus.size
             ((frameEncoding modulus.size).encode (computed, numerator, result))) =
         frameKet modulus.size ((frameEncoding modulus.size).encode (initial, numerator, result)) :=
     (congrArg (fun state => ((forwardProgram modulus nontrivial).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state)
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment state)
       (forward result)).symm.trans
       (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
         (forwardProgram modulus nontrivial)
         ((forwardProgram modulus nontrivial).dagger
           (AlgorithmGate.oracleFreeAdjoints .empty))
-        (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _)
+        (by
+          rw [UnitaryCircuit.dagger_matrix,
+            Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+              environment]
+          exact Unitary.star_eq_inv _)
         (frameKet modulus.size ((frameEncoding modulus.size).encode (initial, numerator, result))))
   exact UnitaryCircuit.applyNormalized_seq_of_eq (forward target)
     (UnitaryCircuit.applyNormalized_seq_of_eq accumulated restored)
 
 /-- Original units, arbitrary numerators and targets require no additional residue promises. -/
-theorem divisionProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
+lemma divisionProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
     (input : (ZMod modulus)ˣ) (numerator target : ZMod modulus) :
     let inputWord := Accumulate.residueWord modulus (by omega) (input : ZMod modulus)
     let numeratorWord := Accumulate.residueWord modulus (by omega) numerator
     let targetWord := Accumulate.residueWord modulus (by omega) target
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (frameKet modulus.size
           ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord,
             numeratorWord, targetWord))) =
@@ -128,12 +134,13 @@ theorem divisionProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
     (ZMod.val_lt target)
 
 /-- Arbitrary supplied encoded fields, including a live flag, survive with the full frame. -/
-theorem divisionProgram_reference {Reference : Type} (reference : BinaryLabelEncoding Reference)
+lemma divisionProgram_reference {Reference : Type} (reference : BinaryLabelEncoding Reference)
     (modulus : Nat) (nontrivial : 1 < modulus)
     (input numerator target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) (retained : Reference) :
     (UnitaryCircuit.onBinaryPrefix reference.width (program modulus nontrivial)).applyNormalized
+      environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).width).basisEquiv.symm

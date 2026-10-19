@@ -70,7 +70,8 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Execute the two actual centered-coordinate loaders in their original order. -/
@@ -86,13 +87,14 @@ def targetPointStep (refs : Refs ctx width) (store : Store ctx) :
   (second.1, (first.2, second.2))
 
 /-- Both actual coordinate calls retain every state block and incoming history. -/
-theorem loadTargetPointInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma loadTargetPointInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loadTargetPointInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (loadTargetPointInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := targetPointStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeTarget.centeredTargetInto refs.first) (LatticeTarget.centeredTargetInto refs.second)
     (fun before =>
       let actual := LatticeTarget.centeredTargetStep (model := model) refs.first before.1

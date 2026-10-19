@@ -69,7 +69,7 @@ def qpeGatePower {n : Nat} (U : UnitaryOperator (Qubits n)) (m : Nat) :
 eigenvalue raised to the same power. This is stated at the raw-vector layer
 because `lam • u` is not itself a `NormalizedVector` without a modulus-one
 proof for `lam`. -/
-theorem qpeGatePower_applyVec_eigenstate {n : Nat}
+lemma qpeGatePower_applyVec_eigenstate {n : Nat}
     {U : UnitaryOperator (Qubits n)} {u : NormalizedVector (Qubits n)}
     {lam : Complex}
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
@@ -93,7 +93,7 @@ theorem qpeGatePower_applyVec_eigenstate {n : Nat}
 controls `U^{2^s}`. On `|+> ⊗ |u>` with eigenvalue `exp(2*pi*i*phi)`, the
 controlled power leaves `|u>` fixed and writes the relative phase
 `exp(2*pi*i*phi*2^s)` onto the `|1>` branch. -/
-theorem controlled_pow_kickback {n : Nat} (U : UnitaryOperator (Qubits n))
+lemma controlled_pow_kickback {n : Nat} (U : UnitaryOperator (Qubits n))
     (u : NormalizedVector (Qubits n)) (φ : Real)
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       Complex.exp (2 * Real.pi * φ * Complex.I) • (u : HilbertVector (Qubits n))) (s : Nat) :
@@ -152,7 +152,7 @@ def QPEControlledPowerKickbacks {n : Nat} (P : QPEEigenstateInput n) : Prop :=
               * invSqrt2) • ket1 : HilbertVector (Qubits 1)))
         (P.eigenstate : HilbertVector (Qubits n))
 
-theorem qpe_eigenstate_controlled_power_kickbacks {n : Nat}
+lemma qpe_eigenstate_controlled_power_kickbacks {n : Nat}
     (P : QPEEigenstateInput n) :
     QPEControlledPowerKickbacks P := by
   intro s
@@ -160,7 +160,7 @@ theorem qpe_eigenstate_controlled_power_kickbacks {n : Nat}
 
 /-! ### Phase superposition and the Fourier bridge -/
 
-private theorem qpe_norm_sq_invSqrtN (t : Nat) :
+private lemma qpe_norm_sq_invSqrtN (t : Nat) :
     ‖invSqrtN t‖ ^ 2 = (((2 ^ t : Nat) : Real)⁻¹) := by
   rw [norm_invSqrtN, inv_pow,
     Real.sq_sqrt (by positivity : (0 : Real) ≤ (2 : Real) ^ t)]
@@ -194,13 +194,13 @@ def phaseState (t : Nat) (φ : Real) : NormalizedVector (Qubits t) :=
       rw [hsum, Real.sqrt_one])
 
 @[simp]
-theorem phaseState_coe (t : Nat) (φ : Real) :
+lemma phaseState_coe (t : Nat) (φ : Real) :
     ((phaseState t φ : NormalizedVector (Qubits t)) : HilbertVector (Qubits t)) =
       WithLp.toLp 2 (fun k : Fin (2 ^ t) =>
         invSqrtN t * Complex.exp (2 * Real.pi * φ * k.val * Complex.I)) := rfl
 
 @[simp]
-theorem phaseState_apply (t : Nat) (φ : Real) (k : Fin (2 ^ t)) :
+lemma phaseState_apply (t : Nat) (φ : Real) (k : Fin (2 ^ t)) :
     phaseState t φ k =
       invSqrtN t * Complex.exp (2 * Real.pi * φ * k.val * Complex.I) :=
   rfl
@@ -215,7 +215,7 @@ def phaseRegisterGeometricAmplitude (t : Nat) (φ : Real) (j : Fin (2 ^ t)) : �
 
 /-- Dyadic/Fourier bridge: when the eigenphase is `j / 2^t`, the QPE phase
 superposition is exactly `QFT t |j>`. -/
-theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
+lemma phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
     phaseState t ((j.val : Real) / (2 : Real) ^ t) =
       (QFTOperator t).apply (NormalizedVector.ket (R := Qubits t) j) := by
   apply NormalizedVector.ext
@@ -231,7 +231,7 @@ theorem phaseState_eq_qftApplyKet (t : Nat) (j : Fin (2 ^ t)) :
 
 /-! ### Inverse-QFT readout -/
 
-theorem invQFT_phaseState_term_eq (t : Nat) (φ : Real)
+lemma invQFT_phaseState_term_eq (t : Nat) (φ : Real)
     (j k : Fin (2 ^ t)) :
     star (invSqrtN t * ω t ^ (k.val * j.val)) *
         (invSqrtN t * Complex.exp (2 * Real.pi * φ * k.val * Complex.I)) =
@@ -263,7 +263,7 @@ theorem invQFT_phaseState_term_eq (t : Nat) (φ : Real)
 
 /-- Inverse QFT converts a QPE phase state into the standard geometric-sum
 amplitude formula. -/
-theorem invQFT_phaseState_apply_geometricSum (t : Nat) (φ : Real)
+lemma invQFT_phaseState_apply_geometricSum (t : Nat) (φ : Real)
     (j : Fin (2 ^ t)) :
     (invQFT t).apply (phaseState t φ) j =
       phaseRegisterGeometricAmplitude t φ j := by
@@ -289,7 +289,7 @@ theorem invQFT_phaseState_apply_geometricSum (t : Nat) (φ : Real)
       rw [Finset.mul_sum]
 
 /-- The inverse-QFT readout preserves normalization in its public contract. -/
-theorem qpe_readoutNormalized (t : Nat) (j : Fin (2 ^ t)) :
+lemma qpe_readoutNormalized (t : Nat) (j : Fin (2 ^ t)) :
     (invQFT t).apply ((QFTOperator t).apply
       (NormalizedVector.ket (R := Qubits t) j)) =
       NormalizedVector.ket (R := Qubits t) j := by
@@ -309,7 +309,7 @@ theorem qpe_readoutNormalized (t : Nat) (j : Fin (2 ^ t)) :
 /-- Exact quantum phase estimation. If the eigenphase is the dyadic rational
 `phi = j / 2^t`, then applying inverse QFT to the QPE phase superposition returns
 the computational-basis vector `|j>` exactly. -/
-theorem QuantumPhaseEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t))
+lemma QuantumPhaseEstimation.main_exact_dyadic (t : Nat) (j : Fin (2 ^ t))
     (φ : Real) (hphi : φ = (j.val : Real) / (2 : Real) ^ t) :
     (invQFT t).apply (phaseState t φ) =
       NormalizedVector.ket (R := Qubits t) j := by
@@ -323,7 +323,7 @@ def qpeBasisProbability {t : Nat} (state : NormalizedVector (Qubits t))
   ‖state outcome‖ ^ 2
 
 /-- The exact readout has deterministic basis outcome `j`. -/
-theorem QuantumPhaseEstimation.main_exact_probability_one (t : Nat) (j : Fin (2 ^ t))
+lemma QuantumPhaseEstimation.main_exact_probability_one (t : Nat) (j : Fin (2 ^ t))
     (φ : Real) (_hphi : φ = (j.val : Real) / (2 : Real) ^ t) :
     qpeBasisProbability
         (NormalizedVector.ket (R := Qubits t) j) j = 1 := by

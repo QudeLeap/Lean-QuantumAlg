@@ -45,7 +45,7 @@ def oracleFiberIndex (params : RegisterParameters) (secret : Nat)
 
 /-- For a fixed second-register index, the canonical integer-fiber index
 determines the first-register index uniquely. -/
-theorem oracleFiberIndex_injective_first
+lemma oracleFiberIndex_injective_first
     (params : RegisterParameters) (secret : Nat)
     (b : Fin (2 ^ params.ell)) :
     Function.Injective (fun a : Fin (2 ^ firstBits params) =>
@@ -62,7 +62,7 @@ def oracleFiberSpan (params : RegisterParameters) (secret : Nat) : Nat :=
 
 /-- A short logarithm `secret < 2^m` makes the complete integer-exponent
 interval no longer than twice the first Fourier-register cardinality. -/
-theorem oracleFiberSpan_le_two_mul_firstRegister
+lemma oracleFiberSpan_le_two_mul_firstRegister
     (params : RegisterParameters) (secret : Nat)
     (hsecret : secret < 2 ^ params.m) :
     oracleFiberSpan params secret ≤ 2 * 2 ^ firstBits params := by
@@ -85,7 +85,7 @@ def oracleExponentAtIndex (params : RegisterParameters) (secret : Nat)
   (index.val : Int) - (oracleFiberOffset params secret : Int)
 
 /-- Canonical source-interval indices encode distinct integer exponents. -/
-theorem oracleExponentAtIndex_injective
+lemma oracleExponentAtIndex_injective
     (params : RegisterParameters) (secret : Nat) :
     Function.Injective (oracleExponentAtIndex params secret) := by
   intro left right h
@@ -93,7 +93,7 @@ theorem oracleExponentAtIndex_injective
   unfold oracleExponentAtIndex at h
   omega
 
-theorem oracleExponent_add_lowerOffset
+lemma oracleExponent_add_lowerOffset
     (params : RegisterParameters) (secret : Nat)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell)) :
     oracleExponent secret a.val b.val +
@@ -113,7 +113,7 @@ theorem oracleExponent_add_lowerOffset
   push_cast
   omega
 
-theorem oracleFiberIndex_lt_span
+lemma oracleFiberIndex_lt_span
     (params : RegisterParameters) (secret : Nat)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell)) :
     oracleFiberIndex params secret a b < oracleFiberSpan params secret := by
@@ -127,7 +127,7 @@ theorem oracleFiberIndex_lt_span
 
 /-- The canonical interval index of an actual oracle input decodes back to its
 integer exponent. -/
-theorem oracleExponentAtIndex_oracleFiberIndex
+lemma oracleExponentAtIndex_oracleFiberIndex
     (params : RegisterParameters) (secret : Nat)
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell)) :
     oracleExponentAtIndex params secret
@@ -143,7 +143,7 @@ theorem oracleExponentAtIndex_oracleFiberIndex
 
 /-- Any canonical interval exponent and any actual oracle exponent differ by
 strictly less than the full interval span. -/
-theorem oracleExponentAtIndex_sub_abs_lt_span
+lemma oracleExponentAtIndex_sub_abs_lt_span
     (params : RegisterParameters) (secret : Nat)
     (index : Fin (oracleFiberSpan params secret))
     (a : Fin (2 ^ firstBits params)) (b : Fin (2 ^ params.ell)) :
@@ -163,7 +163,7 @@ theorem oracleExponentAtIndex_sub_abs_lt_span
 
 /-- Two distinct canonical interval exponents differ by strictly less than the
 full interval span. -/
-theorem oracleExponentAtIndex_sub_abs_lt_span_index
+lemma oracleExponentAtIndex_sub_abs_lt_span_index
     (params : RegisterParameters) (secret : Nat)
     (left right : Fin (oracleFiberSpan params secret)) :
     |oracleExponentAtIndex params secret left -
@@ -176,7 +176,7 @@ theorem oracleExponentAtIndex_sub_abs_lt_span_index
   unfold oracleExponentAtIndex
   simpa only [sub_sub_sub_cancel_right] using hfinite
 
-theorem oracleExponent_sub_abs_lt_span
+lemma oracleExponent_sub_abs_lt_span
     (params : RegisterParameters) (secret : Nat)
     (leftA : Fin (2 ^ firstBits params))
     (leftB : Fin (2 ^ params.ell))
@@ -195,7 +195,7 @@ theorem oracleExponent_sub_abs_lt_span
 /-- When the target is `g^secret`, the queried group value is the integer
 power `g^(a-b*secret)`.  This is the exponent fiber used by the source
 probability distribution [E23, arxiv-v5.tex:228-245]. -/
-theorem oracleValue_eq_zpow_of_target {N : Nat} (g x : (ZMod N)ˣ)
+lemma oracleValue_eq_zpow_of_target {N : Nat} (g x : (ZMod N)ˣ)
     (secret a b : Nat) (htarget : x = g ^ secret) :
     oracleValue g x a b = g ^ oracleExponent secret a b := by
   rw [oracleValue, htarget, ← pow_mul]
@@ -208,7 +208,7 @@ theorem oracleValue_eq_zpow_of_target {N : Nat} (g x : (ZMod N)ˣ)
 
 /-- Under the source's local no-wrap condition, equality of two queried group
 values is exactly equality of their integer exponent fibers. -/
-theorem oracleValue_eq_oracleValue_iff_exponent_eq_of_abs_sub_lt_orderOf
+lemma oracleValue_eq_oracleValue_iff_exponent_eq_of_abs_sub_lt_orderOf
     {N : Nat} (g x : (ZMod N)ˣ) (secret leftA leftB rightA rightB : Nat)
     (htarget : x = g ^ secret)
     (hsmall :
@@ -223,7 +223,7 @@ theorem oracleValue_eq_oracleValue_iff_exponent_eq_of_abs_sub_lt_orderOf
 
 /-- Under the source order bound, a canonical interval power `g^e` equals an
 actual queried value exactly when their integer exponents agree. -/
-theorem zpow_at_index_eq_oracleValue_iff_exponent_eq_of_span_le_orderOf
+lemma zpow_at_index_eq_oracleValue_iff_exponent_eq_of_span_le_orderOf
     {N : Nat} {params : RegisterParameters}
     (g x : (ZMod N)ˣ) (secret : Nat)
     (index : Fin (oracleFiberSpan params secret))
@@ -241,7 +241,7 @@ theorem zpow_at_index_eq_oracleValue_iff_exponent_eq_of_span_le_orderOf
 
 /-- The source order lower bound makes every workspace fiber collision-free
 over the complete exponent-register box [E23, arxiv-v5.tex:244-245]. -/
-theorem oracleValue_eq_oracleValue_iff_exponent_eq_of_span_le_orderOf
+lemma oracleValue_eq_oracleValue_iff_exponent_eq_of_span_le_orderOf
     {N : Nat} {params : RegisterParameters}
     (g x : (ZMod N)ˣ) (secret : Nat)
     (leftA : Fin (2 ^ firstBits params))
@@ -266,7 +266,7 @@ def encodeUnit {N : Nat} {params : RegisterParameters}
   encoding.encode value
 
 /-- Canonical workspace encoding does not identify distinct units. -/
-theorem encodeUnit_injective {N : Nat} {params : RegisterParameters}
+lemma encodeUnit_injective {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits) :
     Function.Injective (encodeUnit encoding) :=
   encoding.encode_injective
@@ -299,7 +299,7 @@ def oraclePerm {N : Nat} {params : RegisterParameters}
     ext <;> simp [oracleTarget, Nat.xor_assoc]
 
 @[simp]
-theorem oraclePerm_symm {N : Nat} {params : RegisterParameters}
+lemma oraclePerm_symm {N : Nat} {params : RegisterParameters}
     (encoding : UnitEncoding N params.workspaceBits)
     (g x : (ZMod N)ˣ) :
     (oraclePerm encoding g x).symm = oraclePerm encoding g x :=

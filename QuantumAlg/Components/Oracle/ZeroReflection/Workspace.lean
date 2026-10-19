@@ -38,13 +38,13 @@ noncomputable section
 /-- The actual source register and its selected work suffix. -/
 @[implicit_reducible, expose] public def totalQubits (n k : Nat) : Nat := n + helperWidth n k
 
-theorem helperWidth_zero_iterations (n : Nat) : helperWidth n 0 = 0 := by
+lemma helperWidth_zero_iterations (n : Nat) : helperWidth n 0 = 0 := by
   simp [helperWidth]
 
-theorem helperWidth_small (n k : Nat) (small : n ≤ 3) : helperWidth n k = 0 := by
+lemma helperWidth_small (n k : Nat) (small : n ≤ 3) : helperWidth n k = 0 := by
   simp [helperWidth, small]
 
-theorem helperWidth_large (n k : Nat) (nonzero : k ≠ 0) (large : ¬n ≤ 3) :
+lemma helperWidth_large (n k : Nat) (nonzero : k ≠ 0) (large : ¬n ≤ 3) :
     helperWidth n k = 1 := by
   simp [helperWidth, nonzero, large]
 
@@ -56,24 +56,25 @@ private def castCircuit (oracles : OracleModel) {left right : Nat} (same : left 
     (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
     UnitaryCircuit AlgorithmGate.model oracles (physical right).toQuantum := same ▸ body
 
-private theorem castCircuit_matrix (oracles : OracleModel) {left right : Nat}
+private lemma castCircuit_matrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} {left right : Nat}
     (same : left = right)
     (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
-    (castCircuit oracles same body).binaryMatrix =
+    ((castCircuit oracles same body).binaryMatrix environment) =
       UnitaryOperator.reindex (finCongr (congrArg (fun width => 2 ^ width) same))
-        body.binaryMatrix := by
+        (body.binaryMatrix environment) := by
   cases same
   apply Subtype.ext
   rfl
 
-private theorem castCircuit_eventCost (oracles : OracleModel) {left right : Nat}
+private lemma castCircuit_eventCost (oracles : OracleModel) {left right : Nat}
     (same : left = right)
     (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
     (castCircuit oracles same body).eventCost = body.eventCost := by
   cases same
   rfl
 
-private theorem castCircuit_unitDepth (oracles : OracleModel) {left right : Nat}
+private lemma castCircuit_unitDepth (oracles : OracleModel) {left right : Nat}
     (same : left = right)
     (body : UnitaryCircuit AlgorithmGate.model oracles (physical left).toQuantum) :
     (castCircuit oracles same body).evaluatedEventDepth (fun _ => 1) =
@@ -98,8 +99,9 @@ def reflection (oracles : OracleModel) : (n k : Nat) → k ≠ 0 →
           (OneDirty.program oracles n (physical (n + 1 + 1)))
 
 /-- Full matrix equality preserves the entire arbitrary work suffix and its correlations. -/
-theorem reflection_matrix (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
-    (reflection oracles n k nonzero).binaryMatrix =
+lemma reflection_matrix (oracles : OracleModel)
+    {environment : oracles.Interpretation} (n k : Nat) (nonzero : k ≠ 0) :
+    ((reflection oracles n k nonzero).binaryMatrix environment) =
       UnitaryOperator.tensor (zeroReflectionOperator n)
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   cases n with
@@ -107,16 +109,19 @@ theorem reflection_matrix (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0
       rw [reflection, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
       exact congrArg (fun operator => operator.tensor
         (1 : UnitaryOperator (Qubits (helperWidth 0 k))))
-        (Small.program_matrix oracles 0 (physical 0) (by omega))
+        (Small.program_matrix oracles (environment := environment) 0 (physical 0) (by omega))
   | succ n =>
       by_cases small : n + 1 ≤ 3
       · rw [reflection, dif_pos small, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
         exact congrArg (fun operator => operator.tensor
           (1 : UnitaryOperator (Qubits (helperWidth (n + 1) k))))
-          (Small.program_matrix oracles (n + 1) (physical (n + 1)) small)
+          (Small.program_matrix oracles
+            (environment := environment) (n + 1) (physical (n + 1)) small)
       · rw [reflection, dif_neg small, castCircuit_matrix]
-        have actual := OneDirty.program_matrix oracles n (physical (n + 1 + 1))
-        change (OneDirty.program oracles n (physical (n + 1 + 1))).binaryMatrix = _ at actual
+        have actual := OneDirty.program_matrix oracles
+          (environment := environment) n (physical (n + 1 + 1))
+        change (OneDirty.program oracles n (physical (n + 1 + 1))).binaryMatrix
+          environment = _ at actual
         rw [actual]
         have transport (suffix : Nat) (same : 1 = suffix) :
             UnitaryOperator.reindex
@@ -133,7 +138,7 @@ theorem reflection_matrix (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0
           (helperWidth_large (n + 1) k nonzero small).symm
 
 /-- Actual native multiplicities agree with the independently stated source-width budget. -/
-theorem reflection_eventCost (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
+lemma reflection_eventCost (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
     (reflection oracles n k nonzero).eventCost = elementaryEventPool oracles n := by
   cases n with
   | zero =>
@@ -147,7 +152,7 @@ theorem reflection_eventCost (oracles : OracleModel) (n k : Nat) (nonzero : k �
         exact OneDirty.program_eventCost oracles n (physical (n + 1 + 1)) (by omega)
 
 /-- The complete native sequence retains its independently bounded dependency depth. -/
-theorem reflection_unitDepth (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
+lemma reflection_unitDepth (oracles : OracleModel) (n k : Nat) (nonzero : k ≠ 0) :
     (reflection oracles n k nonzero).evaluatedEventDepth (fun _ => 1) =
       elementaryGateCount n := by
   cases n with

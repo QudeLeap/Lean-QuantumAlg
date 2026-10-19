@@ -85,7 +85,7 @@ structure CandidateCallerAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     ((Layout.cellRef cells .secondCandidate).toCStorageRef.key ∉ other.storageKeys)
 
 /-- Two distinct named physical cells avoid each other's storage key. -/
-private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (left right : Layout.Cell) (different : left ≠ right) :
     (Layout.cellRef cells right).toCStorageRef.key ∉
@@ -105,19 +105,19 @@ private def roundCell : IntegerSqrt.Cell → Layout.Cell
   | .take => .sqrtTake
 
 /-- The round-cell map is injective. -/
-private theorem roundCell_injective : Function.Injective roundCell := by
+private lemma roundCell_injective : Function.Injective roundCell := by
   intro left right equal
   cases left <;> cases right <;> simp [roundCell] at equal ⊢
 
 /-- Integer-square-root semantic keys are exactly the named physical keys. -/
-private theorem roundKey_eq {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma roundKey_eq {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (cell : IntegerSqrt.Cell) :
     IntegerSqrt.writeKey (QuadraticScratchViews.sqrtRoundRefs cells) cell =
       (Layout.cellRef cells (roundCell cell)).toCStorageRef.key := by
   cases cell <;> rfl
 
 /-- Distinct physical cells supply the integer-square-root round contract. -/
-private theorem roundSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma roundSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct) :
     IntegerSqrt.Separation
       (NatSqrt.wideInput (QuadraticScratchViews.sqrtRefs cells))
@@ -133,7 +133,7 @@ private theorem roundSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     simpa only [roundKey_eq] using equal
 
 /-- Distinct physical cells supply the natural-square-root contract. -/
-private theorem sqrtSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma sqrtSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct) :
     NatSqrt.Separation (QuadraticScratchViews.sqrtRefs cells) := by
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
@@ -150,7 +150,7 @@ private theorem sqrtSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
   · exact roundSeparation cells distinct
 
 /-- Four physical key inequalities provide a complete pre-square-root caller frame. -/
-private theorem prefixFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma prefixFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (source : Layout.Cell) (center : source ≠ .center) (square : source ≠ .centerSquare)
@@ -163,7 +163,7 @@ private theorem prefixFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Na
     cellAvoids cells distinct source .subtractOutput output⟩
 
 /-- Named physical exclusions provide the complete square-root caller frame. -/
-private theorem sqrtFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma sqrtFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (source : Layout.Cell) (wideInput : source ≠ .sqrtWideInput)
@@ -179,7 +179,7 @@ private theorem sqrtFrame {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   exact cellAvoids cells distinct source (roundCell cell) (round cell)
 
 /-- Physical distinctness supplies the complete quadratic-prefix separation. -/
-private theorem prefixSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma prefixSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (shortAvoids : ShortLogAvoids cells shortLog) :
@@ -212,7 +212,7 @@ private theorem prefixSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (fun cell => by cases cell <;> decide) (by decide)
 
 /-- The full candidate generator follows from one compact physical contract. -/
-theorem candidateSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma candidateSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (shortAvoids : ShortLogAvoids cells shortLog) :
@@ -233,7 +233,7 @@ theorem candidateSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
       cellAvoids cells distinct .firstLessThan .firstOutput (by decide)⟩
 
 /-- The physical footprint projects to the generator's caller-frame contract. -/
-theorem candidateCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma candidateCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     {shape : CShape} (other : CInputRef ctx shape)

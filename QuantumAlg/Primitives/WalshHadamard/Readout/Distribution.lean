@@ -35,9 +35,9 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 open QuantumAlg.Execution
 
 /-- The actual complete run has the original mathematical query-readout distribution. -/
-theorem outputDistribution_eq {n : Nat} (f : WalshHadamard.Oracle n)
+lemma outputDistribution_eq {n : Nat} (f : WalshHadamard.Oracle n)
     {Reference : Register} (input : OracleInput ClassicalOracleModel.empty pre Reference) :
-    (run f).outputDistribution input =
+    ((run n).outputDistribution (environment f)) input =
       ((measurement n).outcomePMF
         (evolvedState f)).map
           CShape.Value.bits := by
@@ -45,13 +45,13 @@ theorem outputDistribution_eq {n : Nat} (f : WalshHadamard.Oracle n)
   intro output
   have actual := congrArg (fun distribution : PMF (CShape.Value (.bits n)) =>
       distribution output)
-    (ExecutionState.toPMF_mapClassical ((run f).execute Reference input.state)
-      ((run f).execute_normalized input) (run f).result)
+    (ExecutionState.toPMF_mapClassical ((run n).execute (environment f) Reference input.state)
+      (((run n).execute_normalized (environment f)) input) (run n).result)
   simp only [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution]
   refine actual.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code f).execute Reference
+    (((code n).execute (environment f) Reference
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read (.storage (resultRef n).toCStorageRef))
       |>.block output).mass) = _

@@ -24,31 +24,32 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem execute_preservingServiceSequence
+private lemma execute_preservingServiceSequence
     (first second : Circuit model ctx ctx)
     (firstStep : Store ctx → Store ctx × first.Path)
     (secondStep : Store ctx → Store ctx × second.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      first.execute Reference state = state.mapClassical (fun entry =>
+      first.execute environment Reference state = state.mapClassical (fun entry =>
         let result := firstStep entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      second.execute Reference state = state.mapClassical (fun entry =>
+      second.execute environment Reference state = state.mapClassical (fun entry =>
         let result := secondStep entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq first second).execute Reference state = state.mapClassical (fun entry =>
+    (Circuit.seq first second).execute
+      environment Reference state = state.mapClassical (fun entry =>
       let head := firstStep entry.1
       let tail := secondStep head.1
       (tail.1, (entry.2.1, (entry.2.2, (head.2, tail.2))))) := by
-  refine (Circuit.execute_seq_mapClassical first second
+  refine (Circuit.execute_seq_mapClassical (environment := environment) first second
     (fun before => let result := firstStep before.1; ((result.1, before.2), result.2))
     (fun before => let result := secondStep before.1; ((result.1, before.2), result.2))
     ?_ ?_ Reference state).trans ?_
@@ -61,11 +62,11 @@ private theorem execute_preservingServiceSequence
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual decoding and splitting preserve the complete service/reference record. -/
-theorem preparationDecode_execute
+lemma preparationDecode_execute
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (preparationDecode (model := model) input refs).execute Reference state =
+    (preparationDecode (model := model) input refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := preparationDecodeStep (model := model) input refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -75,10 +76,10 @@ theorem preparationDecode_execute
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The modulus loader and single denominator seed retain all service/reference correlations. -/
-theorem preparationConstants_execute (spec : ModulusSpec width)
+lemma preparationConstants_execute (spec : ModulusSpec width)
     (refs : PreparationRefs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (preparationConstants (model := model) spec refs).execute Reference state =
+    (preparationConstants (model := model) spec refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := preparationConstantsStep (model := model) spec refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -89,10 +90,10 @@ theorem preparationConstants_execute (spec : ModulusSpec width)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both actual scaling triples share their scratch and record all six native outputs. -/
-theorem preparationScale_execute (refs : PreparationRefs ctx width)
+lemma preparationScale_execute (refs : PreparationRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (preparationScale (model := model) refs).execute Reference state =
+    (preparationScale (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := preparationScaleStep (model := model) refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
@@ -101,26 +102,26 @@ theorem preparationScale_execute (refs : PreparationRefs ctx width)
     refs.product refs.division refs.left refs.right Reference state
 
 /-- The actual narrowed modulus and equality result determine the real final native branch. -/
-theorem preparationFinalize_execute (refs : PreparationRefs ctx width)
+lemma preparationFinalize_execute (refs : PreparationRefs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (preparationFinalize (model := model) refs).execute Reference state =
+    (preparationFinalize (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := preparationFinalizeStep (model := model) refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
   refine (execute_preservingServiceSequence _ _ _ _
     (fun _ {_} _ initial => BitWord.bitWord_instruction_execute
-      (execution := model) refs.narrowOp initial)
+      (environment := environment) (execution := model) refs.narrowOp initial)
     (negateBody_execute (model := model) (scaleRead refs.modulus) (scaleRead refs.right)
       (scaleRead refs.zero) refs.negationFlag refs.negatedRight) Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete original prefix retains all shared state and actual chronological paths. -/
-theorem preparationBody_execute (spec : ModulusSpec width)
+lemma preparationBody_execute (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (refs : PreparationRefs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (preparationBody (model := model) spec input refs).execute Reference state =
+    (preparationBody (model := model) spec input refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := preparationStep (model := model) spec input refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by

@@ -46,7 +46,7 @@ public def independentReplicateVector {Sample : Type} (distribution : PMF Sample
         (independentReplicateVector distribution count).map
           (List.Vector.cons sample)
 
-public theorem independentReplicateVector_toList {Sample : Type}
+public lemma independentReplicateVector_toList {Sample : Type}
     (distribution : PMF Sample) (count : Nat) :
     (independentReplicateVector distribution count).map List.Vector.toList =
       independentReplicate distribution count := by
@@ -73,7 +73,7 @@ public theorem independentReplicateVector_toList {Sample : Type}
         _ = (independentReplicate distribution count).map
               (List.cons sample) := by rw [ih]
 
-public theorem independentReplicateVector_map_toList {Sample Target : Type}
+public lemma independentReplicateVector_map_toList {Sample Target : Type}
     (distribution : PMF Sample) (count : Nat)
     (projection : List Sample → Target) :
     (independentReplicateVector distribution count).map
@@ -81,7 +81,7 @@ public theorem independentReplicateVector_map_toList {Sample Target : Type}
       (independentReplicate distribution count).map projection := by
   rw [← PMF.map_comp, independentReplicateVector_toList]
 
-public theorem independentReplicateVector_map {Sample Target : Type}
+public lemma independentReplicateVector_map {Sample Target : Type}
     (distribution : PMF Sample) (projection : Sample → Target) :
     ∀ count,
       (independentReplicateVector distribution count).map
@@ -114,7 +114,7 @@ public theorem independentReplicateVector_map {Sample Target : Type}
           rw [independentReplicateVector_map distribution projection count]
 
 /-- An injective relabeling preserves the point mass of every source atom. -/
-public theorem map_apply_of_injective {Sample Target : Type}
+public lemma map_apply_of_injective {Sample Target : Type}
     (distribution : PMF Sample) (embedding : Sample → Target)
     (hinjective : Function.Injective embedding) (sample : Sample) :
     (distribution.map embedding) (embedding sample) = distribution sample := by
@@ -136,17 +136,17 @@ noncomputable def EventCount {Sample : Type} (event : Sample → Prop)
   classical
   exact (samples.filter event).length
 
-@[simp] theorem eventCount_nil {Sample : Type} (event : Sample → Prop) :
+@[simp] lemma eventCount_nil {Sample : Type} (event : Sample → Prop) :
     EventCount event [] = 0 := by
   simp [EventCount]
 
-theorem eventCount_cons_of_true {Sample : Type} (event : Sample → Prop)
+lemma eventCount_cons_of_true {Sample : Type} (event : Sample → Prop)
     (sample : Sample) (samples : List Sample) (hsample : event sample) :
     EventCount event (sample :: samples) = EventCount event samples + 1 := by
   classical
   simp [EventCount, hsample]
 
-theorem eventCount_cons_of_false {Sample : Type} (event : Sample → Prop)
+lemma eventCount_cons_of_false {Sample : Type} (event : Sample → Prop)
     (sample : Sample) (samples : List Sample) (hsample : ¬ event sample) :
     EventCount event (sample :: samples) = EventCount event samples := by
   classical
@@ -163,7 +163,7 @@ def independentPair {Sample : Type} (distribution : PMF Sample) :
   distribution.bind fun first => distribution.map fun second => (first, second)
 
 /-- Point mass of two independent draws on an arbitrary sample space. -/
-theorem independentPair_apply {Sample : Type}
+lemma independentPair_apply {Sample : Type}
     (distribution : PMF Sample) (pair : Sample × Sample) :
     independentPair distribution pair =
       distribution pair.1 * distribution pair.2 := by
@@ -182,7 +182,7 @@ theorem independentPair_apply {Sample : Type}
     exact congrArg Prod.snd heq
 
 /-- Point mass of two independent draws on a finite sample space. -/
-theorem independentPair_apply_fintype {Sample : Type} [Finite Sample]
+lemma independentPair_apply_fintype {Sample : Type} [Finite Sample]
     (distribution : PMF Sample) (pair : Sample × Sample) :
     independentPair distribution pair =
       distribution pair.1 * distribution pair.2 := by
@@ -202,7 +202,7 @@ theorem independentPair_apply_fintype {Sample : Type} [Finite Sample]
   · simp
 
 /-- Exact integral form of a relation event under two independent draws. -/
-theorem independentPair_eventProbability_eq {Sample : Type}
+lemma independentPair_eventProbability_eq {Sample : Type}
     (distribution : PMF Sample) (relation : Sample × Sample → Prop) :
     (independentPair distribution).toOuterMeasure {pair | relation pair} =
       ∑' first, distribution first *
@@ -218,7 +218,7 @@ theorem independentPair_eventProbability_eq {Sample : Type}
 
 /-- Mapping both coordinates of an independent pair is the independent pair
 of the mapped distribution. -/
-theorem independentPair_map {Sample Target : Type}
+lemma independentPair_map {Sample Target : Type}
     (distribution : PMF Sample) (projection : Sample → Target) :
     (independentPair distribution).map
         (fun pair => (projection pair.1, projection pair.2)) =
@@ -230,7 +230,7 @@ def HasPair {Sample : Type} (relation : Sample × Sample → Prop)
     (samples : List Sample) : Prop :=
   ∃ pair ∈ samples.unorderedPairs, relation pair
 
-theorem hasPair_cons {Sample : Type} (relation : Sample × Sample → Prop)
+lemma hasPair_cons {Sample : Type} (relation : Sample × Sample → Prop)
     (head : Sample) (tail : List Sample) :
     HasPair relation (head :: tail) ↔
       ContainsEvent (fun second => relation (head, second)) tail ∨
@@ -252,7 +252,7 @@ theorem hasPair_cons {Sample : Type} (relation : Sample × Sample → Prop)
 
 /-- At least two event occurrences determine an unordered transcript pair
 whose two coordinates both satisfy the event. -/
-theorem hasPair_sameEvent_of_atLeastTwo {Sample : Type}
+lemma hasPair_sameEvent_of_atLeastTwo {Sample : Type}
     (event : Sample → Prop) (samples : List Sample)
     (htwo : AtLeastTwoEvents event samples) :
     HasPair (fun pair => event pair.1 ∧ event pair.2) samples := by
@@ -283,7 +283,7 @@ theorem hasPair_sameEvent_of_atLeastTwo {Sample : Type}
 
 /-- Relabeling every entry of an iid transcript is the iid transcript of the
 relabelled one-draw distribution. -/
-theorem independentReplicate_map {Sample Target : Type}
+lemma independentReplicate_map {Sample Target : Type}
     (distribution : PMF Sample) (projection : Sample → Target) : ∀ count,
     (independentReplicate distribution count).map (List.map projection) =
       independentReplicate (distribution.map projection) count
@@ -311,7 +311,7 @@ theorem independentReplicate_map {Sample Target : Type}
 
 /-- The probability that both coordinates of an independent pair satisfy one
 event is the square of the one-draw event mass. -/
-theorem independentPair_sameEventProbability_eq {Sample : Type}
+lemma independentPair_sameEventProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) :
     (independentPair distribution).toOuterMeasure
         {pair | event pair.1 ∧ event pair.2} =
@@ -351,7 +351,7 @@ theorem independentPair_sameEventProbability_eq {Sample : Type}
           congr 1
 
 /-- Point mass of two independent draws from the finite uniform PMF. -/
-theorem independentPair_uniformOfFintype_apply (Sample : Type)
+lemma independentPair_uniformOfFintype_apply (Sample : Type)
     [Fintype Sample] [Nonempty Sample] (pair : Sample × Sample) :
     independentPair (PMF.uniformOfFintype Sample) pair =
       (Fintype.card Sample : ENNReal)⁻¹ *
@@ -371,7 +371,7 @@ theorem independentPair_uniformOfFintype_apply (Sample : Type)
   · simp
 
 /-- Exact mass of a finite event under two independent finite-uniform draws. -/
-theorem independentPair_uniformOfFintype_finset (Sample : Type)
+lemma independentPair_uniformOfFintype_finset (Sample : Type)
     [Fintype Sample] [Nonempty Sample]
     (event : Finset (Sample × Sample)) :
     (independentPair (PMF.uniformOfFintype Sample)).toOuterMeasure event =
@@ -384,7 +384,7 @@ theorem independentPair_uniformOfFintype_finset (Sample : Type)
 
 /-- Every element of a supported independent-retry transcript belongs to the
 support of the one-attempt distribution. -/
-theorem independentReplicate_support_forall {Sample : Type}
+lemma independentReplicate_support_forall {Sample : Type}
     (distribution : PMF Sample) (count : Nat) {samples : List Sample}
     (hsupport : samples ∈ (independentReplicate distribution count).support) :
     ∀ sample ∈ samples, sample ∈ distribution.support := by
@@ -407,7 +407,7 @@ theorem independentReplicate_support_forall {Sample : Type}
 
 /-- Every supported transcript of `count` independent draws has exactly
 `count` entries. -/
-theorem independentReplicate_support_length {Sample : Type}
+lemma independentReplicate_support_length {Sample : Type}
     (distribution : PMF Sample) (count : Nat) {samples : List Sample}
     (hsupport : samples ∈ (independentReplicate distribution count).support) :
     samples.length = count := by
@@ -426,7 +426,7 @@ theorem independentReplicate_support_length {Sample : Type}
 
 /-- A bind inherits a conditional event floor from every nonexceptional input
 branch, weighted by the input mass outside the exceptional event. -/
-theorem bind_eventProbability_ge_goodMass_mul
+lemma bind_eventProbability_ge_goodMass_mul
     {Input Output : Type} (distribution : PMF Input)
     (kernel : Input → PMF Output) (exceptional : Input → Prop)
     (event : Output → Prop) (floor : ENNReal)
@@ -463,7 +463,7 @@ theorem bind_eventProbability_ge_goodMass_mul
 /-- A union-bound lower success estimate is no larger than the product of two
 independent complement estimates.  This form is useful when one failure event
 is outside a retry loop and the other is amplified inside it. -/
-theorem one_sub_add_le_mul_one_sub (firstFailure secondFailure : ENNReal) :
+lemma one_sub_add_le_mul_one_sub (firstFailure secondFailure : ENNReal) :
     1 - (firstFailure + secondFailure) ≤
       (1 - firstFailure) * (1 - secondFailure) := by
   rw [tsub_add_eq_tsub_tsub]
@@ -482,7 +482,7 @@ theorem one_sub_add_le_mul_one_sub (firstFailure secondFailure : ENNReal) :
 
 /-- The probability that one PMF satisfies an event is one minus the
 probability of its complement. -/
-theorem eventProbability_eq_one_sub_complement {Sample : Type}
+lemma eventProbability_eq_one_sub_complement {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) :
     distribution.toOuterMeasure {sample | event sample} =
       1 - distribution.toOuterMeasure {sample | ¬ event sample} := by
@@ -503,7 +503,7 @@ theorem eventProbability_eq_one_sub_complement {Sample : Type}
 /-- A finite union of events under a PMF has mass at most the sum of the
 individual event masses. This uses outer-measure subadditivity, so it needs
 no measurability assumptions on the events. -/
-theorem toOuterMeasure_exists_le_sum {Sample Index : Type}
+lemma toOuterMeasure_exists_le_sum {Sample Index : Type}
     [Fintype Index] (distribution : PMF Sample)
     (event : Index → Sample → Prop) :
     distribution.toOuterMeasure {sample | ∃ index, event index sample} ≤
@@ -514,7 +514,7 @@ theorem toOuterMeasure_exists_le_sum {Sample Index : Type}
       (fun index => {sample | event index sample}))
 
 /-- Union bound for seeing an event in a fixed number of independent draws. -/
-theorem independentReplicate_containsEventProbability_le {Sample : Type}
+lemma independentReplicate_containsEventProbability_le {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | ContainsEvent event samples} ≤
@@ -597,7 +597,7 @@ theorem independentReplicate_containsEventProbability_le {Sample : Type}
 
 /-- Pair-union bound for a fixed number of independent draws.  Every
 unordered position pair has the same `independentPair` marginal. -/
-theorem independentReplicate_hasPairProbability_le {Sample : Type}
+lemma independentReplicate_hasPairProbability_le {Sample : Type}
     (distribution : PMF Sample) (relation : Sample × Sample → Prop)
     (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
@@ -691,7 +691,7 @@ theorem independentReplicate_hasPairProbability_le {Sample : Type}
           ring
 
 /-- Exact failure probability for a fixed number of independent samples. -/
-theorem independentReplicate_failureProbability_eq {Sample : Type}
+lemma independentReplicate_failureProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | ¬ ContainsEvent event samples} =
@@ -754,7 +754,7 @@ theorem independentReplicate_failureProbability_eq {Sample : Type}
 
 /-- The mass of fixed-count independent sample vectors whose every coordinate
 satisfies an event is the corresponding one-draw event mass to that count. -/
-theorem independentReplicateVector_allEventProbability_eq {Sample : Type}
+lemma independentReplicateVector_allEventProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicateVector distribution count).toOuterMeasure
         {samples | ∀ sample ∈ samples.toList, event sample} =
@@ -783,7 +783,7 @@ theorem independentReplicateVector_allEventProbability_eq {Sample : Type}
 
 /-- Exact probability that an independent transcript contains no occurrence
 of the selected event. -/
-theorem independentReplicate_zeroEventProbability_eq {Sample : Type}
+lemma independentReplicate_zeroEventProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | EventCount event samples = 0} =
@@ -796,7 +796,7 @@ theorem independentReplicate_zeroEventProbability_eq {Sample : Type}
 
 /-- Exact probability that an independent transcript contains exactly one
 occurrence of the selected event. -/
-theorem independentReplicate_exactlyOneProbability_eq {Sample : Type}
+lemma independentReplicate_exactlyOneProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | EventCount event samples = 1} =
@@ -893,7 +893,7 @@ theorem independentReplicate_exactlyOneProbability_eq {Sample : Type}
 
 /-- Exact probability that an independent transcript contains fewer than two
 occurrences of the selected event. -/
-theorem independentReplicate_lessThanTwoProbability_eq {Sample : Type}
+lemma independentReplicate_lessThanTwoProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | ¬ AtLeastTwoEvents event samples} =
@@ -927,7 +927,7 @@ theorem independentReplicate_lessThanTwoProbability_eq {Sample : Type}
 
 /-- Exact probability that an independent transcript contains at least two
 occurrences of the selected event. -/
-theorem independentReplicate_atLeastTwoProbability_eq {Sample : Type}
+lemma independentReplicate_atLeastTwoProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | AtLeastTwoEvents event samples} =
@@ -942,7 +942,7 @@ theorem independentReplicate_atLeastTwoProbability_eq {Sample : Type}
   rw [independentReplicate_lessThanTwoProbability_eq]
 
 /-- Exact success probability for a fixed number of independent samples. -/
-theorem independentReplicate_successProbability_eq {Sample : Type}
+lemma independentReplicate_successProbability_eq {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat) :
     (independentReplicate distribution count).toOuterMeasure
         {samples | ContainsEvent event samples} =
@@ -968,7 +968,7 @@ theorem independentReplicate_successProbability_eq {Sample : Type}
 
 /-- Independent repetition amplifies a one-attempt success floor to any target
 below the corresponding geometric failure bound. -/
-public theorem independentReplicate_successProbability_ge {Sample : Type}
+public lemma independentReplicate_successProbability_ge {Sample : Type}
     (distribution : PMF Sample) (event : Sample → Prop) (count : Nat)
     (attemptFloor target : ENNReal)
     (hattempt : attemptFloor ≤

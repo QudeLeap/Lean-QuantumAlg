@@ -6,7 +6,8 @@ Authors: QudeLeap Team
 
 module
 
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Observation
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Observation
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Outcome
 import all QuantumAlg.Core.Execution.Measurement.Cells.Frame
 
@@ -25,9 +26,9 @@ open Execution
 noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
 
-private theorem copiedValue_packing (store : Store (context base noQuantum N)) :
+private lemma copiedValue_packing (store : Store (context base noQuantum N)) :
     copiedValue base noQuantum N
       (store.applyOp (Declared.packing (storageContext base N)
         (storage_empty base noQuantum N) N)) =
@@ -41,7 +42,7 @@ private theorem copiedValue_packing (store : Store (context base noQuantum N)) :
           (storage_empty base noQuantum N) N)
         2 (measurementBits N) index).toCStorageRef) _ _ _
 
-private theorem copiedValue_result (store : Store (context base noQuantum N)) :
+private lemma copiedValue_result (store : Store (context base noQuantum N)) :
     copiedValue base noQuantum N store =
       (store.applyOp (Declared.packing (storageContext base N)
         (storage_empty base noQuantum N) N)).read
@@ -53,7 +54,7 @@ private theorem copiedValue_result (store : Store (context base noQuantum N)) :
 
 /-- Packing the real measurement cells gives the same word in the working
 result cell and in the second pack's source read. -/
-theorem copiedValue_packed_result (store : Store (context base noQuantum N)) :
+lemma copiedValue_packed_result (store : Store (context base noQuantum N)) :
     copiedValue base noQuantum N
       (store.applyOp (Declared.packing (storageContext base N)
         (storage_empty base noQuantum N) N)) =
@@ -66,12 +67,12 @@ theorem copiedValue_packed_result (store : Store (context base noQuantum N)) :
 
 /-- The actual stored sample slot contains exactly the short-DLP readout
 of the same physical exponent measurement. -/
-theorem copied_outcome (index : Fin 16)
+lemma copied_outcome (index : Fin 16)
     (store : Store (context base noQuantum N))
     (basis : (context base noQuantum N).register.Index) :
-    (copyStep base noQuantum N input index
+    (copyStep base noQuantum N index
       ((Declared.measuredStore (storageContext base N)
-        (storage_empty base noQuantum N) N input store basis).applyOp
+        (storage_empty base noQuantum N) N store basis).applyOp
           (Declared.packing (storageContext base N)
             (storage_empty base noQuantum N) N))).1.read
       (.storage (terminalRef base noQuantum N index).toCStorageRef) =
@@ -81,16 +82,16 @@ theorem copied_outcome (index : Fin 16)
             (storage_empty base noQuantum N) N) basis)) := by
   let measured : Store (context base noQuantum N) :=
     Declared.measuredStore (storageContext base N)
-    (storage_empty base noQuantum N) N input store basis
+    (storage_empty base noQuantum N) N store basis
   let packed : Store (context base noQuantum N) := measured.applyOp
     (Declared.packing (storageContext base N) (storage_empty base noQuantum N) N)
-  change (copyStep base noQuantum N input index packed).1.read
+  change (copyStep base noQuantum N index packed).1.read
     (.storage (terminalRef base noQuantum N index).toCStorageRef) = _
-  rw [copy_read base noQuantum N input index packed]
+  rw [copy_read base noQuantum N index packed]
   rw [copiedValue_packing base noQuantum N measured]
   rw [copiedValue_result base noQuantum N measured]
   exact Declared.packed_output (storageContext base N)
-    (storage_empty base noQuantum N) N input store basis
+    (storage_empty base noQuantum N) N store basis
 
 end
 

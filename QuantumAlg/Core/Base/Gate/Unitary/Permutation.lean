@@ -26,18 +26,18 @@ noncomputable section
 variable {R S : Register}
 
 /-- A permutation matrix compares the image of the row with the column. -/
-public theorem ofPerm_entry (permutation : Equiv.Perm R.Index) (row column : R.Index) :
+public lemma ofPerm_entry (permutation : Equiv.Perm R.Index) (row column : R.Index) :
     ofPerm permutation row column = if permutation row = column then 1 else 0 := by
   simp [ofPerm, Equiv.toPEquiv_apply]
 
 /-- Operator multiplication reverses the row-permutation composition order. -/
-public theorem ofPerm_mul (first second : Equiv.Perm R.Index) :
+public lemma ofPerm_mul (first second : Equiv.Perm R.Index) :
     ofPerm first * ofPerm second = ofPerm (second * first) := by
   apply Subtype.ext
   exact (Matrix.permMatrix_mul second first).symm
 
 /-- Transporting a permutation operator conjugates its row permutation by the same equivalence. -/
-public theorem reindex_ofPerm (equivalence : R.Index ≃ S.Index)
+public lemma reindex_ofPerm (equivalence : R.Index ≃ S.Index)
     (permutation : Equiv.Perm R.Index) :
     reindex equivalence (ofPerm permutation) =
       ofPerm ((equivalence.symm.trans permutation).trans equivalence) := by

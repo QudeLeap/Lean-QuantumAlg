@@ -27,9 +27,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+  (environment :
+    (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
 
 /-- Allocating real finite cells preserves all earlier structural-input reference weights. -/
-theorem allocate_referenceFiberSum_input {ctx : RuntimeCtx .quantum} {inputShape : CShape}
+lemma allocate_referenceFiberSum_input {ctx : RuntimeCtx .quantum} {inputShape : CShape}
     (input : CInputRef ctx inputShape) (dimension : ℕ+) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
@@ -37,7 +39,7 @@ theorem allocate_referenceFiberSum_input {ctx : RuntimeCtx .quantum} {inputShape
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
         ((allocate (model := .quantum gates oracles operations classicalOracles)
-          ctx dimension count).execute Reference state)
+          ctx dimension count).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (liftInput dimension input count)))
         leftRef rightRef =
       ExecutionState.referenceFiberSum state (fun entry _ => weight (entry.1.read input))
@@ -49,7 +51,7 @@ theorem allocate_referenceFiberSum_input {ctx : RuntimeCtx .quantum} {inputShape
             (classicalOracles.HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum output
             (fun entry _ => weight (entry.1.read input)) leftRef rightRef)
-        (Circuit.execute_id_mapClassical
+        (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
           (model := .quantum gates oracles operations classicalOracles) Reference state)
       exact executed.trans (ExecutionState.referenceFiberSum_mapClassical state
         (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
@@ -62,14 +64,15 @@ theorem allocate_referenceFiberSum_input {ctx : RuntimeCtx .quantum} {inputShape
       let retention := Circuit.retain
         (model := .quantum gates oracles operations classicalOracles)
         middle middle.canonicalFreshKey (.finite dimension) middle.canonicalFreshKey_fresh
-      have sequence := Circuit.referenceFiberSum_execute_seq allocationPrefix retention state
+      have sequence := Circuit.referenceFiberSum_execute_seq
+        (environment := environment) allocationPrefix retention state
         (fun store => weight (store.read (priorInput.underRetained middle.canonicalFreshKey
           (.finite dimension) middle.canonicalFreshKey_fresh))) leftRef rightRef
-      have retained := Circuit.referenceFiberSum_execute_retain_input
+      have retained := Circuit.referenceFiberSum_execute_retain_input (environment := environment)
         (gates := gates) (oracles := oracles) (operations := operations)
         (classicalOracles := classicalOracles) priorInput middle.canonicalFreshKey
         (.finite dimension) middle.canonicalFreshKey_fresh
-        (allocationPrefix.execute Reference state) weight leftRef rightRef
+        (allocationPrefix.execute environment Reference state) weight leftRef rightRef
       exact sequence.trans (retained.trans induction)
 
 end

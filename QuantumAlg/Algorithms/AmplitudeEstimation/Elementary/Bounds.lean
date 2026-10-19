@@ -28,7 +28,7 @@ namespace QuantumAlg.AmplitudeEstimation.Elementary
 noncomputable section
 
 /-- The actual independent elementary count has the source's linear-plus-quadratic form. -/
-theorem unitaryGateCount_le (t n : Nat) :
+lemma unitaryGateCount_le (t n : Nat) :
     unitaryGateCount t n ≤ 13 * n * (2 ^ t - 1) + 5 * t + 5 * t ^ 2 := by
   have reflected : ZeroReflection.controlledElementaryGateCount n ≤ 13 * n := by
     cases n with
@@ -45,7 +45,7 @@ theorem unitaryGateCount_le (t n : Nat) :
   nlinarith
 
 /-- The original selected phase width uses fewer than four pi over epsilon eta source powers. -/
-theorem selected_power_lt {eps η : Real}
+lemma selected_power_lt {eps η : Real}
     (positivePrecision : 0 < eps) (precisionAtMostOne : eps ≤ 1)
     (positiveFailure : 0 < η) (failureAtMostOne : η ≤ 1) :
     (2 : Real) ^ selectedPhaseQubits eps η < 4 * Real.pi / (eps * η) := by

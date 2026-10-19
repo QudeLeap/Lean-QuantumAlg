@@ -24,7 +24,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {numeratorWidth divisorWidth : Nat}
 
 /-- The actual native division stores the exact natural remainder for a nonzero divisor. -/
-theorem divide_remainder (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx)
+lemma divide_remainder (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx)
     (nonzero : (store.read refs.divisor).toNat ≠ 0) :
     ((store.applyOp (divideOp refs)).read (remainderInput refs)).toNat =
       (store.read refs.numerator).toNat % (store.read refs.divisor).toNat := by
@@ -36,7 +36,7 @@ theorem divide_remainder (refs : Refs ctx numeratorWidth divisorWidth) (store : 
     (.product (store.read refs.numerator) (store.read refs.divisor)) nonzero
 
 /-- Native equality writes the comparison of the real remainder and supplied zero reads. -/
-theorem check_accepted (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
+lemma check_accepted (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
     ((store.applyOp (checkOp refs)).read (writeInput refs.accepted)).toBool =
       decide ((store.read (remainderInput refs)).toNat = (store.read refs.zero).toNat) := by
   change ((store.applyOp (checkOp refs)).read
@@ -47,7 +47,7 @@ theorem check_accepted (refs : Refs ctx numeratorWidth divisorWidth) (store : St
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Both actual writes preserve every caller read outside their keys, for all numerical inputs. -/
-theorem into_callerFrame (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
+lemma into_callerFrame (refs : Refs ctx numeratorWidth divisorWidth) (store : Store ctx) :
     CallerFrame refs store (step (model := model) refs store).1 := by
   intro shape other avoidsDivision avoidsAccepted
   change (((store.applyOp (divideOp refs)).applyOp (checkOp refs)).read other) = _
@@ -55,13 +55,13 @@ theorem into_callerFrame (refs : Refs ctx numeratorWidth divisorWidth) (store : 
     (Store.read_applyOp_of_not_mem_storageKeys store (divideOp refs) other avoidsDivision)
 
 /-- The original supplied zero input is preserved as a complete structural value. -/
-theorem into_zero_preserved (refs : Refs ctx numeratorWidth divisorWidth)
+lemma into_zero_preserved (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx) :
     (step (model := model) refs store).1.read refs.zero = store.read refs.zero :=
   into_callerFrame refs store refs.zero separation.zeroAvoidsDivision separation.zeroAvoidsAccepted
 
 /-- The actual comparison write preserves the exact natural remainder computed by division. -/
-theorem into_remainder (refs : Refs ctx numeratorWidth divisorWidth)
+lemma into_remainder (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx)
     (nonzero : (store.read refs.divisor).toNat ≠ 0) :
     ((step (model := model) refs store).1.read (remainderInput refs)).toNat =
@@ -73,7 +73,7 @@ theorem into_remainder (refs : Refs ctx numeratorWidth divisorWidth)
   exact divide_remainder refs store nonzero
 
 /-- The actual acceptance bit is exactly the original natural divisibility predicate. -/
-theorem into_accepted (refs : Refs ctx numeratorWidth divisorWidth)
+lemma into_accepted (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions store refs) :
     ((step (model := model) refs store).1.read (writeInput refs.accepted)).toBool =
@@ -85,7 +85,7 @@ theorem into_accepted (refs : Refs ctx numeratorWidth divisorWidth)
       separation.zeroAvoidsDivision, initial.2]
 
 /-- The actual record meets the complete contract on the unchanged original numerical domain. -/
-theorem into_correct (refs : Refs ctx numeratorWidth divisorWidth)
+lemma into_correct (refs : Refs ctx numeratorWidth divisorWidth)
     (separation : Separation refs) (store : Store ctx)
     (initial : InitialConditions store refs) : Relation refs store (step (model := model) refs
       store).1 :=

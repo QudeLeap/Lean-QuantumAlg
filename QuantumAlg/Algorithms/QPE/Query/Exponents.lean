@@ -34,7 +34,7 @@ def stageExponentFold {t : Nat} (stages : List (Fin t))
     (fun accumulated stage a => stageExponent stage a + accumulated a)
     initial
 
-theorem stageExponentFold_apply {t : Nat} (stages : List (Fin t))
+lemma stageExponentFold_apply {t : Nat} (stages : List (Fin t))
     (initial : Fin (2 ^ t) → Nat) (a : Fin (2 ^ t)) :
     stageExponentFold stages initial a =
       initial a + (stages.map (fun stage => stageExponent stage a)).sum := by
@@ -47,7 +47,7 @@ theorem stageExponentFold_apply {t : Nat} (stages : List (Fin t))
       rw [ih]
       simp [Nat.add_assoc, Nat.add_comm]
 
-theorem stageExponentFold_all {t : Nat} (a : Fin (2 ^ t)) :
+lemma stageExponentFold_all {t : Nat} (a : Fin (2 ^ t)) :
     stageExponentFold (List.ofFn fun stage : Fin t => stage)
         (fun _ => 0) a = a.val := by
   rw [stageExponentFold_apply]

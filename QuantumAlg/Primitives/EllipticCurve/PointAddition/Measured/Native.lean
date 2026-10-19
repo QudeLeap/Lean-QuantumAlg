@@ -28,6 +28,8 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MeasuredUncompute MAU.Inversion EncodedBit GateSpec BinaryLabelEncoding
 
 /-- The complete physical frame, including both actual control coordinates. -/
@@ -95,7 +97,7 @@ private def wordWires (total width start : Nat) (separate : width ≤ start)
     unfold wordAddress
     split_ifs <;> omega
 
-private theorem total_width (width : Nat) :
+private lemma total_width (width : Nat) :
     (encoding width).width = 3 * width + 4 * width.size + 13 := by
   change ((ProductPlacement.frameEncoding width).width + 1) + 1 = _
   rw [ProductPlacement.frame_width]
@@ -110,20 +112,20 @@ private def retainedWidth (width : Nat) (control : OffsetControl) : Nat :=
     (BinaryLabelEncoding.prod (MAU.Addition.Gidney.encoding width)
       (BinaryLabelEncoding.finIdentity (retainedWidth width control)))
 
-private theorem offset_width (width : Nat) (control : OffsetControl) :
+private lemma offset_width (width : Nat) (control : OffsetControl) :
     (offsetEncoding width control).width = (encoding width).width := by
   change controlWidth control + ((1 + (width + 1)) + retainedWidth width control) = _
   unfold retainedWidth
   rw [total_width]
   cases control <;> simp only [controlWidth] <;> omega
 
-private theorem bool_total : Function.Surjective BinaryLabelEncoding.bool.encode := by
+private lemma bool_total : Function.Surjective BinaryLabelEncoding.bool.encode := by
   intro value
   fin_cases value
   · exact ⟨false, rfl⟩
   · exact ⟨true, rfl⟩
 
-private theorem prod_total {Left Right : Type} (left : BinaryLabelEncoding Left)
+private lemma prod_total {Left Right : Type} (left : BinaryLabelEncoding Left)
     (right : BinaryLabelEncoding Right) (leftTotal : Function.Surjective left.encode)
     (rightTotal : Function.Surjective right.encode) :
     Function.Surjective (BinaryLabelEncoding.prod left right).encode := by
@@ -134,10 +136,10 @@ private theorem prod_total {Left Right : Type} (left : BinaryLabelEncoding Left)
   obtain ⟨rightState, rfl⟩ := rightTotal rightValue
   exact ⟨(leftState, rightState), rfl⟩
 
-private theorem raw_total (width : Nat) : Function.Surjective (encoding width).encode :=
+private lemma raw_total (width : Nat) : Function.Surjective (encoding width).encode :=
   prod_total _ _ (prod_total _ _ (ProductPlacement.frame_total width) bool_total) bool_total
 
-private theorem offset_total (width : Nat) (control : OffsetControl) :
+private lemma offset_total (width : Nat) (control : OffsetControl) :
     Function.Surjective (offsetEncoding width control).encode :=
   prod_total _ _ Function.surjective_id
     (prod_total _ _ (prod_total _ _ bool_total
@@ -184,10 +186,10 @@ private def offsetPlacement (width : Nat) (control : OffsetControl)
   EncodedBit.FullPlacement.ofWires _ _ (offset_total width control) (raw_total width)
     (arithmeticWires width control coordinate)
 
-private theorem rawBit_wire (width : Nat) (index : Fin (finIdentity width).width) :
+private lemma rawBit_wire (width : Nat) (index : Fin (finIdentity width).width) :
     (finIdentityBit width index).wire = index := rfl
 
-private theorem boolBit_wire (index : Fin BinaryLabelEncoding.bool.width) :
+private lemma boolBit_wire (index : Fin BinaryLabelEncoding.bool.width) :
     BinaryLabelEncoding.boolBit.wire = index := by
   change (0 : Fin 1) = index
   exact Subsingleton.elim _ _
@@ -197,7 +199,7 @@ private def gidneyBits (width : Nat) :
       EncodedBit (MAU.Addition.Gidney.encoding width) :=
   productBit (fun _ => boolBit) (productBit (finIdentityBit width) (fun _ => boolBit))
 
-private theorem gidneyBits_wire (width : Nat)
+private lemma gidneyBits_wire (width : Nat)
     (index : Fin (MAU.Addition.Gidney.encoding width).width) :
     (gidneyBits width index).wire = index :=
   productBit_wire (left := BinaryLabelEncoding.bool)
@@ -211,7 +213,7 @@ private def arithmeticBits (width : Nat) (control : OffsetControl) :=
     (right := finIdentity (retainedWidth width control))
     (gidneyBits width) (finIdentityBit (retainedWidth width control))
 
-private theorem arithmeticBits_wire (width : Nat) (control : OffsetControl)
+private lemma arithmeticBits_wire (width : Nat) (control : OffsetControl)
     (index : Fin ((MAU.Addition.Gidney.encoding width).prod
       (finIdentity (retainedWidth width control))).width) :
     (arithmeticBits width control index).wire = index :=
@@ -219,7 +221,7 @@ private theorem arithmeticBits_wire (width : Nat) (control : OffsetControl)
     (right := finIdentity (retainedWidth width control))
     _ _ (gidneyBits_wire width) (rawBit_wire (retainedWidth width control)) index
 
-private theorem arithmetic_capacity (width : Nat) (control : OffsetControl) :
+private lemma arithmetic_capacity (width : Nat) (control : OffsetControl) :
     4 ≤ (MAU.Addition.Gidney.encoding width).width + retainedWidth width control := by
   change 4 ≤ 1 + (width + 1) + retainedWidth width control
   unfold retainedWidth
@@ -248,14 +250,14 @@ def placedArithmetic (width : Nat) (control : OffsetControl) (coordinate : Coord
     (placedArithmeticGates width control coordinate source)
 
 /-- Placement preserves the exact expanded instruction order. -/
-theorem placedArithmetic_trace (width : Nat) (control : OffsetControl)
+lemma placedArithmetic_trace (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (source : List (GateSpec (MAU.Addition.Gidney.encoding width))) :
     (placedArithmetic width control coordinate source).eventTrace =
       (arithmeticControlGates width control source).map (event .empty) :=
   FullPlacement.placeGates_eventTrace _ _ _ _
 
 /-- All-label native action follows the complete grouping and restores all retained bits. -/
-theorem pointPlacedArithmetic_gates_step (width : Nat) (control : OffsetControl)
+lemma pointPlacedArithmetic_gates_step (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (source : List (GateSpec (MAU.Addition.Gidney.encoding width)))
     (sourceStep : MAU.Addition.Gidney.Registers width → MAU.Addition.Gidney.Registers width)
     (runs : ∀ state, stepList source state = sourceStep state) (state : Raw width) :
@@ -270,15 +272,16 @@ theorem pointPlacedArithmetic_gates_step (width : Nat) (control : OffsetControl)
   simp only [stepList_prodLeft, runs]
 
 /-- Exact phase and arbitrary dirty restoration use the original FullPlacement without a premise. -/
-theorem pointPlacedArithmetic_realizes (width : Nat) (control : OffsetControl)
+lemma pointPlacedArithmetic_realizes (width : Nat) (control : OffsetControl)
     (coordinate : Coordinate) (source : List (GateSpec (MAU.Addition.Gidney.encoding width)))
     (sourceStep : MAU.Addition.Gidney.Registers width → MAU.Addition.Gidney.Registers width)
     (runs : ∀ state, stepList source state = sourceStep state) :
     UnitaryCircuit.Realizes (encoding width) (placedArithmetic width control coordinate source)
+      environment
       ((offsetPlacement width control coordinate).step
         (fun grouped => (grouped.1, if grouped.1 = activeValue control then
           (sourceStep grouped.2.1, grouped.2.2) else grouped.2))) :=
-  realizesList_congrStep _ _ _
+  realizesList_congrStep (environment := environment) _ _ _
     (pointPlacedArithmetic_gates_step width control coordinate source sourceStep runs)
 
 private def fittedConstant (modulus : Nat) (constant : Fin (modulus + 1)) :
@@ -318,7 +321,7 @@ private def selectorBit (width : Nat) : EncodedBit (encoding width) :=
     (BinaryLabelEncoding.prod (ProductPlacement.frameEncoding width) BinaryLabelEncoding.bool)
     BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit
 
-private theorem controls_separate (width : Nat) :
+private lemma controls_separate (width : Nat) :
     (controlBit width).wire ≠ (selectorBit width).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -343,7 +346,7 @@ private def frameWord (width : Nat)
     (BinaryLabelEncoding.prodLeftBit (ProductPlacement.frameEncoding width)
       BinaryLabelEncoding.bool (word.bit index))⟩
 
-private theorem copy_separate (width : Nat) (index : Fin width) :
+private lemma copy_separate (width : Nat) (index : Fin width) :
     ((frameWord width (FramePorts.numerator width)).bit index).wire ≠
       ((frameWord width (FramePorts.accumulator width)).bit index).wire := by
   intro same
@@ -365,7 +368,7 @@ def squareCopy (width : Nat) : NativeCircuit width :=
   BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity 1)
     (BinaryLabelEncoding.prod (ProductPlacement.frameEncoding width) BinaryLabelEncoding.bool)
 
-private theorem square_width (width : Nat) :
+private lemma square_width (width : Nat) :
     (squareEncoding width).width = (encoding width).width := by
   change 1 + ((ProductPlacement.frameEncoding width).width + 1) =
     ((ProductPlacement.frameEncoding width).width + 1) + 1
@@ -381,7 +384,7 @@ private def squarePlacement (width : Nat) :
       ((controlWires width .supplied).trans
         ((coordinateWires width .x).trans (coordinateWires width .y))))
 
-private theorem square_capacity (width : Nat) :
+private lemma square_capacity (width : Nat) :
     4 ≤ (NativeFrameControl.encoding width).width := by
   change 4 ≤ (ProductPlacement.frameEncoding width).width + 1
   rw [ProductPlacement.frame_width]
@@ -469,19 +472,19 @@ def afterMultiplication {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Pri
   programList (QubitLayout.canonical _) .empty (afterMultiplicationGates E Q)
 
 /-- The complete pre-division trace is the literal controlled native word. -/
-theorem beforeDivision_trace {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+lemma beforeDivision_trace {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) :
     (beforeDivision Q).eventTrace = (beforeDivisionGates Q).map (event .empty) :=
   programList_eventTrace _ _ _
 
 /-- The complete middle trace includes both physical C/N exchange and selector computation. -/
-theorem beforeMultiplication_trace {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+lemma beforeMultiplication_trace {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     (Q : AffinePoint E) :
     (beforeMultiplication Q).eventTrace = (beforeMultiplicationGates Q).map (event .empty) :=
   programList_eventTrace _ _ _
 
 /-- Cleanup preserves the exact reversed selector instruction order. -/
-theorem afterMultiplication_trace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma afterMultiplication_trace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) :
     (afterMultiplication E Q).eventTrace = (afterMultiplicationGates E Q).map (event .empty) :=
   programList_eventTrace _ _ _

@@ -31,7 +31,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- The real nominal unpack feeds the existing selector's actual path. -/
@@ -73,11 +74,11 @@ def step (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
   (packed.1, (cleared.2, (scanned.2, packed.2)))
 
 /-- Actual execution retains the complete store, hidden service and history. -/
-theorem selection_execute (cells : Cells ctx N)
+lemma selection_execute (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (selection (model := model) cells result).execute Reference state =
+    (selection (model := model) cells result).execute environment Reference state =
       state.mapClassical (fun entry =>
           let actual := selectionStep (model := model) cells result entry.1
           (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -89,11 +90,11 @@ theorem selection_execute (cells : Cells ctx N)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual execution retains the complete store, hidden service and history. -/
-theorem visit_execute (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
+lemma visit_execute (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (visit (model := model) source inputs cells result).execute Reference state =
+    (visit (model := model) source inputs cells result).execute environment Reference state =
       state.mapClassical (fun entry =>
           let actual := visitStep (model := model) source inputs cells result entry.1
           (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -104,24 +105,24 @@ theorem visit_execute (source : Input N) (inputs : Inputs ctx N) (cells : Cells 
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual execution retains the complete store, hidden service and history. -/
-theorem scan_execute (source : Input N) (cells : Cells ctx N)
+lemma scan_execute (source : Input N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (inputs : List (Inputs ctx N)) :
     ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (scan (model := model) source cells result inputs).execute Reference state =
+      (scan (model := model) source cells result inputs).execute environment Reference state =
         state.mapClassical (fun entry =>
           let actual := scanStep (model := model) source cells result inputs entry.1
           (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   induction inputs with
   | nil =>
       intro Reference History _ state
-      exact (Circuit.execute_id_mapClassical Reference state).trans
+      exact (Circuit.execute_id_mapClassical (environment := environment) Reference state).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   | cons inputs rest ih =>
       intro Reference History _ state
       change (Circuit.seq (visit (model := model) source inputs cells result)
-        (scan (model := model) source cells result rest)).execute Reference state = _
+        (scan (model := model) source cells result rest)).execute environment Reference state = _
       rw [Circuit.execute_seq, ih, visit_execute]
       simp only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def]
@@ -135,13 +136,13 @@ private def scanPackStep (source : Input N) (inputs : List (Inputs ctx N)) (cell
   let packed := BitWord.instructionStep (execution := model) (packOp cells result) scanned.1
   (packed.1, (scanned.2, packed.2))
 
-private theorem scanPack_execute (source : Input N) (inputs : List (Inputs ctx N))
+private lemma scanPack_execute (source : Input N) (inputs : List (Inputs ctx N))
     (cells : Cells ctx N) (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (scan (model := model) source cells result inputs) (BitWord.instruction (execution
       := model) (packOp cells result))).execute
-      Reference state = state.mapClassical (fun entry =>
+        environment Reference state = state.mapClassical (fun entry =>
           let actual := scanPackStep (model := model) source inputs cells result entry.1
           (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   rw [Circuit.execute_seq, BitWord.bitWord_instruction_execute, scan_execute]
@@ -150,11 +151,11 @@ private theorem scanPack_execute (source : Input N) (inputs : List (Inputs ctx N
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual execution retains the complete store, hidden service and history. -/
-theorem code_execute (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
+lemma code_execute (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) source inputs cells result).execute Reference state =
+    (code (model := model) source inputs cells result).execute environment Reference state =
       state.mapClassical (fun entry =>
           let actual := step (model := model) source inputs cells result entry.1
           (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by

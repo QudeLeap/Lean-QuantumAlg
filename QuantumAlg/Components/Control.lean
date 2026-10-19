@@ -52,7 +52,7 @@ namespace HilbertOperator
 @[expose] public def proj1 : HilbertOperator (Qubits 1) := !![(0 : ℂ), 0; 0, 1]
 
 @[simp]
-theorem proj0_applyVec_ket0 :
+lemma proj0_applyVec_ket0 :
     applyVec proj0 (ket0 : HilbertVector (Qubits 1)) =
       (ket0 : HilbertVector (Qubits 1)) := by
   ext i
@@ -60,21 +60,21 @@ theorem proj0_applyVec_ket0 :
   fin_cases i <;> simp [proj0]
 
 @[simp]
-theorem proj0_applyVec_ket1 :
+lemma proj0_applyVec_ket1 :
     applyVec proj0 (ket1 : HilbertVector (Qubits 1)) = 0 := by
   ext i
   rw [ket1, HilbertOperator.applyVec_ket]
   fin_cases i <;> simp [proj0]
 
 @[simp]
-theorem proj1_applyVec_ket0 :
+lemma proj1_applyVec_ket0 :
     applyVec proj1 (ket0 : HilbertVector (Qubits 1)) = 0 := by
   ext i
   rw [ket0, HilbertOperator.applyVec_ket]
   fin_cases i <;> simp [proj1]
 
 @[simp]
-theorem proj1_applyVec_ket1 :
+lemma proj1_applyVec_ket1 :
     applyVec proj1 (ket1 : HilbertVector (Qubits 1)) =
       (ket1 : HilbertVector (Qubits 1)) := by
   ext i
@@ -101,7 +101,7 @@ public def controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
     (controlled (Qubits 1) (0 : Fin (2 ^ 1)) U)
 
 /-- Raw block-matrix view of a leading control active on `|1>`. -/
-theorem coe_controlledQubits (U : UnitaryOperator (Qubits n)) :
+lemma coe_controlledQubits (U : UnitaryOperator (Qubits n)) :
     ((controlledQubits U : UnitaryOperator (Qubits (1 + n))) :
       HilbertOperator (Qubits (1 + n))) =
       HilbertOperator.tensor HilbertOperator.proj0
@@ -138,7 +138,7 @@ theorem coe_controlledQubits (U : UnitaryOperator (Qubits n)) :
     simp [HilbertOperator.proj0, HilbertOperator.proj1, Matrix.one_apply]
 
 /-- Raw block-matrix view of a leading control active on `|0>`. -/
-public theorem coe_controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
+public lemma coe_controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
     ((controlledQubitsOnZero U : UnitaryOperator (Qubits (1 + n))) :
       HilbertOperator (Qubits (1 + n))) =
       HilbertOperator.tensor HilbertOperator.proj0
@@ -176,7 +176,7 @@ public theorem coe_controlledQubitsOnZero (U : UnitaryOperator (Qubits n)) :
 
 /-- On the `|0>` branch a leading `|1>`-controlled operator is the identity. -/
 @[simp]
-theorem controlledQubits_applyVec_ket0_tensor
+lemma controlledQubits_applyVec_ket0_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (controlledQubits U).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) ψ) =
@@ -195,7 +195,7 @@ theorem controlledQubits_applyVec_ket0_tensor
 
 /-- On the `|1>` branch a leading `|1>`-controlled operator applies `U`. -/
 @[simp]
-theorem controlledQubits_applyVec_ket1_tensor
+lemma controlledQubits_applyVec_ket1_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (controlledQubits U).applyVec
         (HilbertVector.tensor (ket1 : HilbertVector (Qubits 1)) ψ) =
@@ -214,7 +214,7 @@ theorem controlledQubits_applyVec_ket1_tensor
 
 /-- On the `|0>` branch a zero-controlled operator applies `U`. -/
 @[simp]
-public theorem controlledQubitsOnZero_applyVec_ket0_tensor
+public lemma controlledQubitsOnZero_applyVec_ket0_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (controlledQubitsOnZero U).applyVec
         (HilbertVector.tensor (ket0 : HilbertVector (Qubits 1)) ψ) =
@@ -233,7 +233,7 @@ public theorem controlledQubitsOnZero_applyVec_ket0_tensor
 
 /-- On the `|1>` branch a zero-controlled operator is the identity. -/
 @[simp]
-public theorem controlledQubitsOnZero_applyVec_ket1_tensor
+public lemma controlledQubitsOnZero_applyVec_ket1_tensor
     (U : UnitaryOperator (Qubits n)) (ψ : HilbertVector (Qubits n)) :
     (controlledQubitsOnZero U).applyVec
         (HilbertVector.tensor (ket1 : HilbertVector (Qubits 1)) ψ) =

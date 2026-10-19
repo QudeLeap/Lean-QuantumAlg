@@ -104,7 +104,7 @@ public def outputOf {width : Nat} (spec : ModulusSpec width)
 
 /-- The raw terminal model has no externally supplied inverse, rounding, or
 classical callback: all three are fixed by `outputOf`. -/
-public theorem outputOf_checked_inverse {width : Nat} (spec : ModulusSpec width)
+public lemma outputOf_checked_inverse {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) :
     outputOf spec input =
       match ClassicalAlgorithms.NumberTheory.TryInv.eval spec
@@ -114,7 +114,7 @@ public theorem outputOf_checked_inverse {width : Nat} (spec : ModulusSpec width)
           (helperInput spec (normalize spec input) inverse) ) := by
   rfl
 
-private theorem outputOf_some_elim {width : Nat} (spec : ModulusSpec width)
+private lemma outputOf_some_elim {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) (output : FiniteCyclicDLP.Output spec)
     (selected : outputOf spec input = some output) :
     ∃ inverse,
@@ -146,7 +146,7 @@ the candidate and independent reconstruction bit of the shared typed core. -/
       (.product (CShape.wordOfNat width output.candidate.val) (.bit output.verified))
 
 /-- Expand the public three-cell result on an unsuccessful pure recovery. -/
-theorem outputCells_of_outputOf_none {width : Nat} (spec : ModulusSpec width)
+lemma outputCells_of_outputOf_none {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width))
     (failure : outputOf spec input = none) :
     outputCells spec input =
@@ -156,7 +156,7 @@ theorem outputCells_of_outputOf_none {width : Nat} (spec : ModulusSpec width)
   rw [failure]
 
 /-- Expand the public three-cell result on a successful pure recovery. -/
-theorem outputCells_of_outputOf_some {width : Nat} (spec : ModulusSpec width)
+lemma outputCells_of_outputOf_some {width : Nat} (spec : ModulusSpec width)
     (input : CShape.Value (InputShape width)) (output : FiniteCyclicDLP.Output spec)
     (success : outputOf spec input = some output) :
     outputCells spec input =

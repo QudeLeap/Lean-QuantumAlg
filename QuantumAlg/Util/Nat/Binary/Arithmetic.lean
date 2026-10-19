@@ -29,11 +29,11 @@ def natAddCarry (a b : Nat) : Nat -> Bool
   | 0 => false
   | i + 1 => Bool.carry (a.testBit i) (b.testBit i) (natAddCarry a b i)
 
-theorem bool_carry_comm (a b c : Bool) :
+lemma bool_carry_comm (a b c : Bool) :
     Bool.carry a b c = Bool.carry b a c := by
   cases a <;> cases b <;> cases c <;> rfl
 
-theorem natAddCarry_comm (a b i : Nat) :
+lemma natAddCarry_comm (a b i : Nat) :
     natAddCarry a b i = natAddCarry b a i := by
   induction i with
   | zero =>
@@ -43,7 +43,7 @@ theorem natAddCarry_comm (a b i : Nat) :
 
 /-- One-step numeric identity for adding two `Nat.bit` decompositions plus an
 incoming carry bit. -/
-theorem bit_add_bit (a b c : Bool) (ah bh : Nat) :
+lemma bit_add_bit (a b c : Bool) (ah bh : Nat) :
     Nat.bit a ah + Nat.bit b bh + c.toNat =
       Nat.bit ((a ^^ b) ^^ c) (ah + bh + (Bool.carry a b c).toNat) := by
   cases a <;> cases b <;> cases c <;>
@@ -51,7 +51,7 @@ theorem bit_add_bit (a b c : Bool) (ah bh : Nat) :
 
 /-- Shifting away the first `i` bits of `a + b` leaves the shifted addends plus
 the carry propagated through the low `i` bits. -/
-theorem shifted_add_decomp (a b i : Nat) :
+lemma shifted_add_decomp (a b i : Nat) :
     (a + b) >>> i = (a >>> i) + (b >>> i) + (natAddCarry a b i).toNat := by
   induction i with
   | zero =>
@@ -75,7 +75,7 @@ theorem shifted_add_decomp (a b i : Nat) :
 
 /-- For two `n`-bit naturals, the propagated carry out of bit `n-1` is
 exactly the overflow predicate for their sum. -/
-theorem natAddCarry_eq_decide_two_pow_le {a b n : Nat}
+lemma natAddCarry_eq_decide_two_pow_le {a b n : Nat}
     (ha : a < 2 ^ n) (hb : b < 2 ^ n) :
     natAddCarry a b n = decide (2 ^ n ≤ a + b) := by
   have haShift : a >>> n = 0 := by
@@ -105,7 +105,7 @@ theorem natAddCarry_eq_decide_two_pow_le {a b n : Nat}
       contradiction)
 
 /-- Low-bit addition formula with an explicit incoming carry bit. -/
-theorem testBit_zero_add_with_carry (a b : Nat) (c : Bool) :
+lemma testBit_zero_add_with_carry (a b : Nat) (c : Bool) :
     (a + b + c.toNat).testBit 0 = ((a.testBit 0 ^^ b.testBit 0) ^^ c) := by
   have ha : Nat.bit (a.testBit 0) (a >>> 1) = a :=
     Nat.bit_testBit_zero_shiftRight_one a
@@ -118,7 +118,7 @@ theorem testBit_zero_add_with_carry (a b : Nat) (c : Bool) :
 
 /-- Each bit of `a + b` is the xor of the two input bits and the propagated
 incoming carry at that bit. -/
-theorem testBit_add_eq_xor3 (a b i : Nat) :
+lemma testBit_add_eq_xor3 (a b i : Nat) :
     (a + b).testBit i = ((a.testBit i ^^ b.testBit i) ^^ natAddCarry a b i) := by
   rw [show (a + b).testBit i = ((a + b) >>> i).testBit 0 by
     rw [Nat.testBit_shiftRight]
@@ -128,7 +128,7 @@ theorem testBit_add_eq_xor3 (a b i : Nat) :
   simp
 
 /-- A natural below `2^(n+1)` whose bit `n` is clear is below `2^n`. -/
-theorem lt_two_pow_of_lt_two_pow_succ_testBit_false
+lemma lt_two_pow_of_lt_two_pow_succ_testBit_false
     {x n : Nat} (hlt : x < 2 ^ (n + 1))
     (hbit : x.testBit n = false) :
     x < 2 ^ n := by
@@ -146,13 +146,13 @@ theorem lt_two_pow_of_lt_two_pow_succ_testBit_false
   exact Nat.mod_lt x (Nat.two_pow_pos n)
 
 /-- Increment toggles the least-significant bit. -/
-theorem testBit_zero_add_one (a : Nat) :
+lemma testBit_zero_add_one (a : Nat) :
     (a + 1).testBit 0 = !a.testBit 0 := by
   have h := testBit_add_eq_xor3 a 1 0
   simpa [natAddCarry] using h
 
 /-- Increment toggles bit one exactly when bit zero is set. -/
-theorem testBit_one_add_one (a : Nat) :
+lemma testBit_one_add_one (a : Nat) :
     (a + 1).testBit 1 = (a.testBit 1 ^^ a.testBit 0) := by
   have h := testBit_add_eq_xor3 a 1 1
   have honeZero : Nat.testBit 1 0 = true := by decide
@@ -163,7 +163,7 @@ theorem testBit_one_add_one (a : Nat) :
     simpa [natAddCarry, Bool.carry, hzero, honeZero] using h
 
 /-- Increment toggles bit two exactly when both lower bits are set. -/
-theorem testBit_two_add_one (a : Nat) :
+lemma testBit_two_add_one (a : Nat) :
     (a + 1).testBit 2 =
       (a.testBit 2 ^^ (a.testBit 0 && a.testBit 1)) := by
   have h := testBit_add_eq_xor3 a 1 2
@@ -176,7 +176,7 @@ theorem testBit_two_add_one (a : Nat) :
     simpa [natAddCarry, Bool.carry, hzero, hone, honeZero, honeOne] using h
 
 /-- Doubling and halving cancel on an even natural. -/
-theorem two_mul_div_two_of_mod_two_eq_zero
+lemma two_mul_div_two_of_mod_two_eq_zero
     (x : Nat) (h : x % 2 = 0) :
     2 * (x / 2) = x := by
   have hdvd : 2 ∣ x := Nat.dvd_of_mod_eq_zero h
@@ -184,13 +184,13 @@ theorem two_mul_div_two_of_mod_two_eq_zero
 
 /-- The difference of two odd naturals is even when the subtraction is
 nontruncated. -/
-theorem sub_mod_two_eq_zero_of_mod_two_ne_zero
+lemma sub_mod_two_eq_zero_of_mod_two_ne_zero
     {a b : Nat} (hle : b ≤ a) (ha : a % 2 ≠ 0) (hb : b % 2 ≠ 0) :
     (a - b) % 2 = 0 := by
   omega
 
 /-- A set low bit implies an odd natural. -/
-theorem mod_two_ne_zero_of_testBit_zero_true
+lemma mod_two_ne_zero_of_testBit_zero_true
     (x : Nat) (h : x.testBit 0 = true) :
     x % 2 ≠ 0 := by
   have hone : x % 2 = 1 := by
@@ -198,7 +198,7 @@ theorem mod_two_ne_zero_of_testBit_zero_true
   omega
 
 /-- A cleared low bit implies an even natural. -/
-theorem mod_two_eq_zero_of_testBit_zero_false
+lemma mod_two_eq_zero_of_testBit_zero_false
     (x : Nat) (h : x.testBit 0 = false) :
     x % 2 = 0 := by
   have hlt : x % 2 < 2 := Nat.mod_lt _ (by decide)
@@ -211,7 +211,7 @@ theorem mod_two_eq_zero_of_testBit_zero_false
     contradiction
 
 /-- A set low bit implies a nonzero natural. -/
-theorem ne_zero_of_testBit_zero_true
+lemma ne_zero_of_testBit_zero_true
     (x : Nat) (h : x.testBit 0 = true) :
     x ≠ 0 := by
   intro hzero

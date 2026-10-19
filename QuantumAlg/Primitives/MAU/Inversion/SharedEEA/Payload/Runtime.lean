@@ -25,6 +25,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.PayloadRuntime
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
+variable {runtimeEnvironment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution PayloadPreparation
 
 /-- The actual native body on the entire prepared physical frame. -/
@@ -34,19 +39,19 @@ def program (width payloadWidth : Nat)
     UnitaryCircuit AlgorithmGate.model .empty (after width payloadWidth).quantumLayout :=
   PayloadRuntimeFrame.program width payloadWidth body
 
-theorem payloadRuntime_program_eventTrace (width payloadWidth : Nat)
+lemma payloadRuntime_program_eventTrace (width payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source width payloadWidth)) :
     (program width payloadWidth body).eventTrace = body.eventTrace :=
   PayloadRuntimeFrame.program_eventTrace width payloadWidth body
 
-theorem payloadRuntime_program_eventCost (width payloadWidth : Nat)
+lemma payloadRuntime_program_eventCost (width payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source width payloadWidth)) :
     (program width payloadWidth body).eventCost = body.eventCost :=
   PayloadRuntimeFrame.program_eventCost width payloadWidth body
 
-theorem payloadRuntime_program_depth (width payloadWidth : Nat)
+lemma payloadRuntime_program_depth (width payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source width payloadWidth))
     (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
@@ -58,11 +63,11 @@ theorem payloadRuntime_program_depth (width payloadWidth : Nat)
     (PayloadRuntimeFrame.position_dimensions width payloadWidth) duration body
 
 /-- The native basis action is preserved at every physical coordinate. -/
-theorem payloadRuntime_program_apply_ket (width payloadWidth : Nat)
+lemma payloadRuntime_program_apply_ket (width payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source width payloadWidth))
     (input output : (PayloadRuntimeFrame.source width payloadWidth).Basis)
-    (action : body.applyNormalized (NormalizedVector.ket input) =
+    (action : body.applyNormalized environment (NormalizedVector.ket input) =
       NormalizedVector.ket output)
     (targetInput targetOutput : (after width payloadWidth).register.Index)
     (inputSelected : UnitaryCircuit.selectedInput
@@ -75,7 +80,8 @@ theorem payloadRuntime_program_apply_ket (width payloadWidth : Nat)
       (after width payloadWidth).quantumLayout
       (PayloadRuntimeFrame.position width payloadWidth)
       (PayloadRuntimeFrame.position_dimensions width payloadWidth) targetOutput = output) :
-    (program width payloadWidth body).applyNormalized (NormalizedVector.ket targetInput) =
+    (program width payloadWidth body).applyNormalized environment (NormalizedVector.ket
+      targetInput) =
       NormalizedVector.ket targetOutput :=
   PayloadRuntimeFrame.program_apply_ket width payloadWidth body input output action
     targetInput targetOutput inputSelected outputSelected
@@ -90,16 +96,17 @@ def circuit (width payloadWidth : Nat)
 
 variable {Reference : Register} {H : Type} [Fintype H]
 
-theorem payloadRuntime_circuit_block_matrix (width payloadWidth : Nat)
+lemma payloadRuntime_circuit_block_matrix (width payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source width payloadWidth))
     (state : State (after width payloadWidth) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
     (store : Store (after width payloadWidth))
     (hidden : ClassicalOracleModel.empty.HiddenState) (history : H) :
-    (((circuit width payloadWidth body).execute Reference state).block
+    (((circuit width payloadWidth body).execute runtimeEnvironment Reference state).block
       (store, (hidden, (history, ())))).matrix =
-      let operator := UnitaryOperator.prodTensor (program width payloadWidth body).matrix
+      let operator := UnitaryOperator.prodTensor ((program width payloadWidth body).matrix
+        runtimeEnvironment.quantum)
         (1 : UnitaryOperator Reference)
       (operator : HilbertOperator ((after width payloadWidth).register.prod Reference)) *
         (state.block (store, (hidden, history))).matrix *
@@ -116,7 +123,7 @@ def code (modulus payloadWidth : Nat)
   (PayloadPreparation.circuit modulus payloadWidth).seq
     (circuit modulus.size payloadWidth body)
 
-theorem payloadRuntime_code_eventTrace (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_eventTrace (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (path : (code modulus payloadWidth body).Path) :
@@ -130,7 +137,7 @@ theorem payloadRuntime_code_eventTrace (modulus payloadWidth : Nat)
   rw [PayloadPreparation.payloadPreparation_circuit_eventTrace,
     payloadRuntime_program_eventTrace]
 
-theorem payloadRuntime_code_resourcePool (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_resourcePool (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (path : (code modulus payloadWidth body).Path) :
@@ -145,7 +152,7 @@ theorem payloadRuntime_code_resourcePool (modulus payloadWidth : Nat)
     UnitaryCircuit.ofList_eventTrace_eq_eventCost]
   rfl
 
-theorem payloadRuntime_code_depth (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_depth (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
@@ -163,7 +170,7 @@ theorem payloadRuntime_code_depth (modulus payloadWidth : Nat)
     (program modulus.size payloadWidth body).evaluatedEventDepth duration = _
   rw [payloadRuntime_program_depth]
 
-theorem payloadRuntime_code_visitedContexts (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_visitedContexts (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (path : (code modulus payloadWidth body).Path) :
@@ -171,7 +178,7 @@ theorem payloadRuntime_code_visitedContexts (modulus payloadWidth : Nat)
       [before modulus.size payloadWidth, after modulus.size payloadWidth,
         after modulus.size payloadWidth, after modulus.size payloadWidth] := rfl
 
-private theorem input_le (width payloadWidth : Nat) :
+private lemma input_le (width payloadWidth : Nat) :
     OwnedQubits.space (width + payloadWidth) ≤
       OwnedQubits.space (frameEncoding width payloadWidth).width := by
   have count : width + payloadWidth ≤ (frameEncoding width payloadWidth).width := by
@@ -187,7 +194,7 @@ private theorem input_le (width payloadWidth : Nat) :
       · exact count
       · exact le_rfl
 
-theorem payloadRuntime_code_resident (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_resident (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (path : (code modulus payloadWidth body).Path) :
@@ -200,7 +207,7 @@ theorem payloadRuntime_code_resident (modulus payloadWidth : Nat)
     payloadPreparation_before_resident]
   exact SpacePool.max_le (input_le modulus.size payloadWidth) le_rfl
 
-theorem payloadRuntime_code_auxiliary (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_auxiliary (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (path : (code modulus payloadWidth body).Path) :
@@ -213,16 +220,17 @@ theorem payloadRuntime_code_auxiliary (modulus payloadWidth : Nat)
     payloadPreparation_before_auxiliary]
   exact SpacePool.max_le (input_le modulus.size payloadWidth) le_rfl
 
-theorem payloadRuntime_code_quantumMarginal (modulus payloadWidth : Nat)
+lemma payloadRuntime_code_quantumMarginal (modulus payloadWidth : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (PayloadRuntimeFrame.source modulus.size payloadWidth))
     (state : State (before modulus.size payloadWidth) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((code modulus payloadWidth body).execute Reference state).quantumMarginal =
+    ((code modulus payloadWidth body).execute runtimeEnvironment Reference state).quantumMarginal =
       DensityOperator.applyUnitary
-        (UnitaryOperator.prodTensor (program modulus.size payloadWidth body).matrix
+        (UnitaryOperator.prodTensor ((program modulus.size payloadWidth body).matrix
+          runtimeEnvironment.quantum)
           (1 : UnitaryOperator Reference))
-        ((PayloadPreparation.circuit modulus payloadWidth).execute
+        ((PayloadPreparation.circuit modulus payloadWidth).execute runtimeEnvironment
           Reference state).quantumMarginal := by
   rw [code, Circuit.execute_seq, State.mapHistory_quantumMarginal, circuit,
     Circuit.unitary_jointDensity]

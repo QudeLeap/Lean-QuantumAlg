@@ -28,6 +28,9 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -43,11 +46,11 @@ abbrev HasSeedBlocks (N : Nat) {Reference : Register} {History : Type} [Fintype 
     (CompiledMAU.reloadLabel m ell width N)) state
 
 /-- The actual reset/reload establishes the internal seed invariant on every complete store. -/
-theorem shortDLP_runtimeResetReload_seedBlocks (N : Nat)
+lemma shortDLP_runtimeResetReload_seedBlocks (N : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     HasSeedBlocks m ell width sameWires N
-      ((resetReload m ell width sameWires N).execute Reference state) :=
+      ((resetReload m ell width sameWires N).execute environment Reference state) :=
   BasisSeeded.of_entries ((RuntimePlacement.basisEquiv m ell width sameWires).symm
     (CompiledMAU.reloadLabel m ell width N)) _
     (fun original leftRef rightRef => ∑ basis : ctx.register.Index,
@@ -56,19 +59,20 @@ theorem shortDLP_runtimeResetReload_seedBlocks (N : Nat)
     (shortDLP_runtimeResetReload_store_entry m ell width sameWires N state)
 
 /-- Each complete actual round reestablishes the seed, regardless of its incoming state. -/
-theorem shortDLP_runtimeRound_seedBlocks {shape : CShape}
+lemma shortDLP_runtimeRound_seedBlocks {shape : CShape}
     (parameter : CInputRef ctx shape) (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     HasSeedBlocks m ell width sameWires N
-      ((code m ell width sameWires parameter N generator target cells result).execute
+      ((code m ell width sameWires parameter N generator target cells result).execute environment
         Reference state) :=
   BasisSeeded.of_entries ((RuntimePlacement.basisEquiv m ell width sameWires).symm
     (CompiledMAU.reloadLabel m ell width N)) _
     (fun original leftRef rightRef => ExecutionState.referenceFiberSum
-      ((selected m ell width sameWires parameter N generator target).execute Reference state)
+      ((selected m ell width sameWires parameter N generator target).execute
+        environment Reference state)
       (fun entry basis =>
         if packedBasisStore m ell width sameWires cells result entry.1 basis = original
         then 1 else 0) leftRef rightRef)
@@ -76,7 +80,7 @@ theorem shortDLP_runtimeRound_seedBlocks {shape : CShape}
       generator target cells result state)
 
 /-- The seed entry is exactly the complete reference block after summing the local bank. -/
-theorem shortDLP_runtimeSeedBlocks_reference_entry (N : Nat)
+lemma shortDLP_runtimeSeedBlocks_reference_entry (N : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference History) (seeded : HasSeedBlocks m ell width sameWires N state)
     (original : Store ctx) (leftRef rightRef : Reference.Index) :

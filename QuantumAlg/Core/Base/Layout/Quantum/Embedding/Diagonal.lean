@@ -25,7 +25,7 @@ noncomputable section
 variable {small large : Nat} {source : QuantumLayout small} {target : QuantumLayout large}
 
 /-- A diagonal operator stays diagonal under physical embedding, with its exact selected phase. -/
-public theorem embedding_liftOperator_diagonal (placement : Embedding source target)
+public lemma embedding_liftOperator_diagonal (placement : Embedding source target)
     (operator : UnitaryOperator source.register) (weight : source.Basis → Complex)
     (diagonal : (operator : HilbertOperator source.register) = Matrix.diagonal weight) :
     (placement.liftOperator operator : HilbertOperator target.register) =

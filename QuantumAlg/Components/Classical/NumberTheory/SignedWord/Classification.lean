@@ -48,7 +48,8 @@ def clearSignOp (negative : CWriteRef ctx .bit) :
     ClassicalOp (.product .bit .bit) .bit ctx ctx :=
   .bit .xor ctx (.product (writeInput negative) (writeInput negative)) negative
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- A single native instruction classifies every raw width, including zero. -/
 def classifySign (raw : CInputRef ctx (.unsignedWord width))
@@ -75,18 +76,18 @@ def signPath (raw : CInputRef ctx (.unsignedWord width))
       (signBitOp raw negative (Nat.succ_pos width)) store).2
 
 /-- The actual sign write retains complete prior history and shared service state. -/
-theorem classifySign_execute (raw : CInputRef ctx (.unsignedWord width))
+lemma classifySign_execute (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (classifySign (model := model) raw negative).execute Reference state =
+    (classifySign (model := model) raw negative).execute environment Reference state =
       state.mapClassical (fun entry =>
         (signStore raw negative entry.1,
           (entry.2.1, (entry.2.2, signPath (model := model) raw negative entry.1)))) := by
   cases width
-  all_goals exact BitWord.bitWord_instruction_execute _ state
+  all_goals exact BitWord.bitWord_instruction_execute (environment := environment) _ state
 
 /-- The stored flag is exactly the raw sign, with no initialized-scratch premise. -/
-theorem rawWord_classifySign_correct {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma rawWord_classifySign_correct {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (store : Store ctx) :
     ((signStore raw negative store).read (writeInput negative)).toBool =
@@ -111,7 +112,7 @@ theorem rawWord_classifySign_correct {kind : ProblemKind} {ctx : RuntimeCtx kind
       exact rawIsNegative_eq_signBit (store.read raw)
 
 /-- Sign classification changes only its actual writable flag. -/
-theorem classifySign_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma classifySign_callerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (separate : negative.key ∉ other.storageKeys) :
@@ -124,7 +125,7 @@ def signTrace (width : Nat) : List (Resource.Event model) :=
     (.bit (if 0 < width then .copy else .xor)))]
 
 /-- Every actual sign path records one native bit instruction. -/
-theorem classifySign_events (raw : CInputRef ctx (.unsignedWord width))
+lemma classifySign_events (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (path : (classifySign (model := model) raw negative).Path) :
     (classifySign (model := model) raw negative).eventTrace path = signTrace (model := model)
       width := by
@@ -143,12 +144,12 @@ theorem classifySign_events (raw : CInputRef ctx (.unsignedWord width))
       rfl
 
 /-- The real sign write restores all borrowed values and their external correlations. -/
-theorem classifySign_borrowedRestored (raw : CInputRef ctx (.unsignedWord width))
+lemma classifySign_borrowedRestored (raw : CInputRef ctx (.unsignedWord width))
     (negative : CWriteRef ctx .bit) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (classifySign (model := model) raw negative).BorrowedRestored Reference state
-      ((classifySign (model := model) raw negative).execute Reference state) := by
-  cases width <;> exact Circuit.borrowedRestored_classical _ state
+      ((classifySign (model := model) raw negative).execute environment Reference state) := by
+  cases width <;> exact Circuit.borrowedRestored_classical (environment := environment) _ state
 
 /-- The positive arm copies the raw operand into the actual magnitude cell. -/
 def magnitudeCopyOp {kind : ProblemKind} {ctx : RuntimeCtx kind}
@@ -170,7 +171,8 @@ def magnitudeIncrementOp {kind : ProblemKind} {ctx : RuntimeCtx kind}
     ClassicalOp (.unsignedWord width) (.unsignedWord width) ctx ctx :=
   .wordUnary .increment width ctx (writeInput work) work
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- The two actual closed instruction sequences selected by the stored flag. -/
 def magnitudeArm (raw : CInputRef ctx (.unsignedWord width))
@@ -205,33 +207,34 @@ def magnitudeStep (raw : CInputRef ctx (.unsignedWord width))
   let chosen := magnitudeArmStep (model := model) raw work (store.read negative) store
   (chosen.1, ⟨store.read negative, chosen.2⟩)
 
-private theorem magnitudeArm_execute (raw : CInputRef ctx (.unsignedWord width))
+private lemma magnitudeArm_execute (raw : CInputRef ctx (.unsignedWord width))
     (work : CWriteRef ctx (.unsignedWord width)) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (magnitudeArm (model := model) raw work flag).execute Reference state =
+    (magnitudeArm (model := model) raw work flag).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := magnitudeArmStep (model := model) raw work flag entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
       cases flag
-      · exact BitWord.bitWord_instruction_execute _ state
+      · exact BitWord.bitWord_instruction_execute (environment := environment) _ state
       · simp only [magnitudeArm, magnitudeArmStep, Circuit.execute_seq,
           BitWord.bitWord_instruction_execute, State.mapHistory,
           ExecutionState.executionState_mapClassical_comp, Function.comp_def]
         exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Stored-result selection retains complete incoming history, service and reference blocks. -/
-theorem selectMagnitude_execute (raw : CInputRef ctx (.unsignedWord width))
+lemma selectMagnitude_execute (raw : CInputRef ctx (.unsignedWord width))
     (negative : CInputRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (selectMagnitude (model := model) raw negative work).execute Reference state =
+    (selectMagnitude (model := model) raw negative work).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := magnitudeStep (model := model) raw negative work entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical negative (magnitudeArm (model := model) raw work)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) negative (magnitudeArm (model := model) raw work)
     (fun flag before =>
       let actual := magnitudeArmStep (model := model) raw work flag before.1
       ((actual.1, before.2), actual.2))
@@ -240,7 +243,7 @@ theorem selectMagnitude_execute (raw : CInputRef ctx (.unsignedWord width))
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- An actual selected magnitude arm writes the exact unsigned magnitude. -/
-theorem rawWord_selectMagnitude_correct (raw : CInputRef ctx (.unsignedWord width))
+lemma rawWord_selectMagnitude_correct (raw : CInputRef ctx (.unsignedWord width))
     (negative : CInputRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx)
     (correctSign : (store.read negative).toBool = rawIsNegative (store.read raw)) :
@@ -272,7 +275,7 @@ theorem rawWord_selectMagnitude_correct (raw : CInputRef ctx (.unsignedWord widt
         exact complementIncrement_toNat (store.read raw) (rawIsNegative_true_toNat_pos _ sign)
 
 /-- Every actual arm preserves reads outside the magnitude cell, even when inputs alias it. -/
-theorem selectMagnitude_callerFrame (raw : CInputRef ctx (.unsignedWord width))
+lemma selectMagnitude_callerFrame (raw : CInputRef ctx (.unsignedWord width))
     (negative : CInputRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : work.key ∉ other.storageKeys) :
@@ -298,7 +301,7 @@ def magnitudeTrace (width : Nat) (negative : Bool) :
       (.wordUnary .copy width))]
 
 /-- The actual path charges only the selected arm's one or two native instructions. -/
-theorem selectMagnitude_events (raw : CInputRef ctx (.unsignedWord width))
+lemma selectMagnitude_events (raw : CInputRef ctx (.unsignedWord width))
     (negative : CInputRef ctx .bit) (work : CWriteRef ctx (.unsignedWord width))
     (path : (selectMagnitude (model := model) raw negative work).Path) :
     (selectMagnitude (model := model) raw negative work).eventTrace path = magnitudeTrace (model

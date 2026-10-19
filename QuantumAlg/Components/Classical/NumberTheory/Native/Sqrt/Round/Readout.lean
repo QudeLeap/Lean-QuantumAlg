@@ -26,7 +26,7 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual candidate addition has exactly the declared word modulus. -/
-theorem nativeSqrt_add_read (refs : RoundRefs ctx width) (store : Store ctx) :
+lemma nativeSqrt_add_read (refs : RoundRefs ctx width) (store : Store ctx) :
     ((store.applyOp (addOp refs)).read (.storage refs.candidate.toCStorageRef)).toNat =
       ((store.read (.storage refs.root.toCStorageRef)).toNat +
         (store.read (.storage refs.half.toCStorageRef)).toNat) % 2 ^ width := by
@@ -36,7 +36,7 @@ theorem nativeSqrt_add_read (refs : RoundRefs ctx width) (store : Store ctx) :
   rfl
 
 /-- The actual twice-width square equals the untruncated mathematical product. -/
-theorem nativeSqrt_square_read (refs : RoundRefs ctx width) (store : Store ctx) :
+lemma nativeSqrt_square_read (refs : RoundRefs ctx width) (store : Store ctx) :
     ((store.applyOp (squareOp refs)).read (.storage refs.square.toCStorageRef)).toNat =
       (store.read (.storage refs.candidate.toCStorageRef)).toNat *
         (store.read (.storage refs.candidate.toCStorageRef)).toNat := by
@@ -46,7 +46,7 @@ theorem nativeSqrt_square_read (refs : RoundRefs ctx width) (store : Store ctx) 
   exact ClassicalOp.eval_mulFull_exact width width ctx _ refs.square _
 
 /-- The strict comparison is the actual stored Boolean controlling the copy. -/
-theorem nativeSqrt_compare_read (input : CInputRef ctx (.unsignedWord (width + width)))
+lemma nativeSqrt_compare_read (input : CInputRef ctx (.unsignedWord (width + width)))
     (refs : RoundRefs ctx width) (store : Store ctx) :
     ((store.applyOp (compareOp input refs)).read (.storage refs.tooLarge.toCStorageRef)).toBool =
       decide ((store.read input).toNat <
@@ -57,7 +57,7 @@ theorem nativeSqrt_compare_read (input : CInputRef ctx (.unsignedWord (width + w
   rfl
 
 /-- The selected copy stores the entire tested candidate in the actual root cell. -/
-theorem nativeSqrt_copy_read (refs : RoundRefs ctx width) (store : Store ctx) :
+lemma nativeSqrt_copy_read (refs : RoundRefs ctx width) (store : Store ctx) :
     ((store.applyOp (copyOp refs)).read (.storage refs.root.toCStorageRef)).toNat =
       (store.read (.storage refs.candidate.toCStorageRef)).toNat := by
   change ((store.applyOp (copyOp refs)).read
@@ -66,7 +66,7 @@ theorem nativeSqrt_copy_read (refs : RoundRefs ctx width) (store : Store ctx) :
   rfl
 
 /-- The next actual binary increment is the old increment divided by two, without truncation. -/
-theorem nativeSqrt_shift_read (refs : RoundRefs ctx width) (store : Store ctx) :
+lemma nativeSqrt_shift_read (refs : RoundRefs ctx width) (store : Store ctx) :
     ((store.applyOp (shiftOp refs)).read (.storage refs.half.toCStorageRef)).toNat =
       (store.read (.storage refs.half.toCStorageRef)).toNat / 2 := by
   change ((store.applyOp (shiftOp refs)).read
@@ -79,7 +79,7 @@ theorem nativeSqrt_shift_read (refs : RoundRefs ctx width) (store : Store ctx) :
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Both actual branches expose the root chosen by the real comparison result. -/
-theorem nativeSqrt_select_read (refs : RoundRefs ctx width) (store : Store ctx) :
+lemma nativeSqrt_select_read (refs : RoundRefs ctx width) (store : Store ctx) :
     ((selectStep (model := model) refs store).1.read (.storage refs.root.toCStorageRef)).toNat =
       if (store.read (.storage refs.tooLarge.toCStorageRef)).toBool then
         (store.read (.storage refs.root.toCStorageRef)).toNat

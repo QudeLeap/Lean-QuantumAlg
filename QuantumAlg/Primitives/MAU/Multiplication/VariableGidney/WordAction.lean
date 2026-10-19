@@ -45,7 +45,7 @@ public def wordVariableOperator (width : Nat) (modulus : Fin (2 ^ width + 1)) :
   UnitaryOperator.ofPerm (labelAction width modulus).symm
 
 /-- The mathematical operator has the exact all-label arithmetic action and unit phase. -/
-theorem wordVariableOperator_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma wordVariableOperator_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) :
     (wordVariableOperator width modulus).apply
         (NormalizedVector.ket (wordLabelEquiv width (first, second, target))) =

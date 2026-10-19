@@ -29,7 +29,7 @@ open MeasuredUncompute Execution
 def indexedKey (width index : Nat) : StorageKey :=
   ⟨(InPlaceControlled.controlKey width).id + index⟩
 
-private theorem indexedKey_injective (width : Nat) : Function.Injective (indexedKey width) := by
+private lemma indexedKey_injective (width : Nat) : Function.Injective (indexedKey width) := by
   intro first second same
   exact Nat.add_left_cancel (congrArg StorageKey.id same)
 
@@ -38,7 +38,7 @@ def indexedLayout (width index : Nat) : QuantumLayout 1 :=
   QuantumLayout.uniform 1 2 (fun _ => InPlaceControlled.frameWidth width + index)
     (fun _ _ _ => Subsingleton.elim _ _)
 
-private theorem indexedLayout_wires (width index : Nat) :
+private lemma indexedLayout_wires (width index : Nat) :
     (indexedLayout width index).wires = [⟨InPlaceControlled.frameWidth width + index, 2⟩] := by
   simp only [indexedLayout, QuantumLayout.uniform, QuantumLayout.wires, List.ofFn_const]
   rfl
@@ -47,7 +47,7 @@ private theorem indexedLayout_wires (width index : Nat) :
 def indexedEntry (width index : Nat) : RuntimeEntry .quantum :=
   .ownedLayout (indexedKey width index) (indexedLayout width index)
 
-private theorem indexed_wires (width : Nat) (indices : List Nat) :
+private lemma indexed_wires (width : Nat) (indices : List Nat) :
     (indices.map (indexedEntry width)).flatMap RuntimeEntry.quantumWires =
       indices.map (fun index => QuantumWire.mk (InPlaceControlled.frameWidth width + index) 2) := by
   induction indices with
@@ -70,13 +70,13 @@ private theorem indexed_wires (width : Nat) (indices : List Nat) :
       (fun _ _ same => Nat.add_left_cancel same)).mpr distinct
 
 /-- Every prescribed indexed storage identity is present in its original order. -/
-theorem indexedContext_keys (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
+lemma indexedContext_keys (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     (indexedContext width indices distinct).keys = indices.map (indexedKey width) := by
   simp only [RuntimeCtx.keys, List.map_map, indexedEntry, RuntimeEntry.key,
     Function.comp_def]
 
 /-- Every prescribed physical system is present once, in its original indexed order. -/
-theorem indexedContext_physical (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
+lemma indexedContext_physical (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     (indexedContext width indices distinct).physicalIdx =
       indices.map (fun index => InPlaceControlled.frameWidth width + index) := by
   change ((indices.map (indexedEntry width)).flatMap RuntimeEntry.quantumWires).map
@@ -85,7 +85,7 @@ theorem indexedContext_physical (width : Nat) (indices : List Nat) (distinct : i
   rfl
 
 /-- None of the indexed systems or keys overlaps any original arithmetic or result-cell entry. -/
-theorem indexedContext_disjoint (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
+lemma indexedContext_disjoint (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     RuntimeCtx.StorageDisjoint (NumeratorMeasurement.context width)
       (indexedContext width indices distinct) := by
   constructor

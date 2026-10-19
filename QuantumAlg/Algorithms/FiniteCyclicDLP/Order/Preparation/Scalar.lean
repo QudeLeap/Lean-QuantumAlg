@@ -36,23 +36,23 @@ private def clampedEll (expansion : OrderExpansion N) (index : Nat) : Nat :=
     change min index (expansion.count - 1) < expansion.count
     omega⟩
 
-private theorem clampedEll_monotone (expansion : OrderExpansion N) :
+private lemma clampedEll_monotone (expansion : OrderExpansion N) :
     Monotone (clampedEll expansion) := by
   intro left right hleft
   apply expansion.ell_strict.monotone
   change min left expansion.gaps ≤ min right expansion.gaps
   exact min_le_min hleft le_rfl
 
-private theorem clampedEll_zero (expansion : OrderExpansion N) :
+private lemma clampedEll_zero (expansion : OrderExpansion N) :
     clampedEll expansion 0 = expansion.first := by
   simp [clampedEll, OrderExpansion.first]
 
-private theorem clampedEll_last (expansion : OrderExpansion N) :
+private lemma clampedEll_last (expansion : OrderExpansion N) :
     clampedEll expansion expansion.gaps = expansion.last := by
   simp [clampedEll, OrderExpansion.last, OrderExpansion.gaps]
 
 /-- The real gaps of an arbitrary order telescope to the span of its set bits. -/
-public theorem orderPreparation_gapWidths_sum (expansion : OrderExpansion N) :
+public lemma orderPreparation_gapWidths_sum (expansion : OrderExpansion N) :
     ∑ gap : Fin expansion.gaps, gapWidth expansion gap =
       expansion.last - expansion.first := by
   rw [Finset.sum_fin_eq_sum_range]
@@ -73,7 +73,7 @@ public theorem orderPreparation_gapWidths_sum (expansion : OrderExpansion N) :
       rw [clampedEll_last, clampedEll_zero]
 
 /-- Strict binary gaps use at least one bit position each. -/
-public theorem orderPreparation_gaps_le_span (expansion : OrderExpansion N) :
+public lemma orderPreparation_gaps_le_span (expansion : OrderExpansion N) :
     expansion.gaps ≤ expansion.last - expansion.first := by
   rw [← orderPreparation_gapWidths_sum expansion]
   calc
@@ -85,14 +85,14 @@ public theorem orderPreparation_gaps_le_span (expansion : OrderExpansion N) :
       have strict := ell_left_lt_right expansion gap
       omega
 
-private theorem first_le_last (expansion : OrderExpansion N) :
+private lemma first_le_last (expansion : OrderExpansion N) :
     expansion.first ≤ expansion.last := by
   unfold OrderExpansion.first OrderExpansion.last
   apply expansion.ell_strict.monotone
   change 0 ≤ expansion.count - 1
   omega
 
-private theorem oneQubitControls_le (expansion : OrderExpansion N) :
+private lemma oneQubitControls_le (expansion : OrderExpansion N) :
     (∑ gap : Fin expansion.gaps, if gap.val = 0 then 1 else 4) ≤
       4 * expansion.gaps := by
   calc
@@ -102,7 +102,7 @@ private theorem oneQubitControls_le (expansion : OrderExpansion N) :
       split <;> omega
     _ = 4 * expansion.gaps := by simp [mul_comm]
 
-private theorem cnotControls_le (expansion : OrderExpansion N) :
+private lemma cnotControls_le (expansion : OrderExpansion N) :
     (∑ gap : Fin expansion.gaps, if gap.val = 0 then 0 else 2) ≤
       2 * expansion.gaps := by
   calc
@@ -112,7 +112,7 @@ private theorem cnotControls_le (expansion : OrderExpansion N) :
       split <;> omega
     _ = 2 * expansion.gaps := by simp [mul_comm]
 
-private theorem depthControls_le (expansion : OrderExpansion N) :
+private lemma depthControls_le (expansion : OrderExpansion N) :
     (∑ gap : Fin expansion.gaps, if gap.val = 0 then 1 else 5) ≤
       5 * expansion.gaps := by
   calc
@@ -123,7 +123,7 @@ private theorem depthControls_le (expansion : OrderExpansion N) :
     _ = 5 * expansion.gaps := by simp [mul_comm]
 
 /-- Actual native one-qubit count is bounded before specializing the order. -/
-public theorem orderPreparation_singleQubitCount_le (expansion : OrderExpansion N) :
+public lemma orderPreparation_singleQubitCount_le (expansion : OrderExpansion N) :
     singleQubitCount expansion ≤ expansion.singleQubitBound := by
   have controls := oneQubitControls_le expansion
   have span := orderPreparation_gapWidths_sum expansion
@@ -133,7 +133,7 @@ public theorem orderPreparation_singleQubitCount_le (expansion : OrderExpansion 
   omega
 
 /-- Actual native CNOT count is bounded before specializing the order. -/
-public theorem orderPreparation_cnotCount_le (expansion : OrderExpansion N) :
+public lemma orderPreparation_cnotCount_le (expansion : OrderExpansion N) :
     cnotCount expansion ≤ expansion.cnotBound := by
   have controls := cnotControls_le expansion
   have span := orderPreparation_gapWidths_sum expansion
@@ -142,7 +142,7 @@ public theorem orderPreparation_cnotCount_le (expansion : OrderExpansion N) :
   omega
 
 /-- Actual preparation depth retains its complete sequential gap dependence. -/
-public theorem orderPreparation_unitDepth_le (expansion : OrderExpansion N) :
+public lemma orderPreparation_unitDepth_le (expansion : OrderExpansion N) :
     unitDepth expansion ≤ expansion.depthBound := by
   have controls := depthControls_le expansion
   have span := orderPreparation_gapWidths_sum expansion
@@ -152,7 +152,7 @@ public theorem orderPreparation_unitDepth_le (expansion : OrderExpansion N) :
   split <;> omega
 
 /-- A width certificate bounds all set-bit gaps without expanding them. -/
-public theorem orderPreparation_scalarBounds_of_last_lt
+public lemma orderPreparation_scalarBounds_of_last_lt
     (expansion : OrderExpansion N) (width : Nat) (last_lt : expansion.last < width) :
     singleQubitCount expansion ≤ 11 * width ∧
       cnotCount expansion ≤ 3 * width ∧
@@ -172,7 +172,7 @@ public theorem orderPreparation_scalarBounds_of_last_lt
   · omega
 
 /-- Actual preparation costs depend only on the symbolic reviewed register width. -/
-public theorem orderPreparation_scalarBounds
+public lemma orderPreparation_scalarBounds
     {G : Type*} [Group G] (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     singleQubitCount expansion ≤ 11 * width P ∧

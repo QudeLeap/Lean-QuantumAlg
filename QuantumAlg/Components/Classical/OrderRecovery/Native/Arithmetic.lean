@@ -23,7 +23,7 @@ namespace QuantumAlg.ClassicalRoutines.OrderRecovery.Native
 open Execution
 
 /-- A quotient cannot overflow the original numerator width. -/
-theorem nativeCursorDivision_first_exact {width : Nat}
+lemma nativeCursorDivision_first_exact {width : Nat}
     (numerator denominator : CShape.Word width) :
     (CShape.divRem width width (.product numerator denominator)).first.toNat =
       numerator.toNat / denominator.toNat := by
@@ -31,7 +31,7 @@ theorem nativeCursorDivision_first_exact {width : Nat}
   exact Nat.mod_eq_of_lt ((Nat.div_le_self _ _).trans_lt numerator.toNat_lt)
 
 /-- A total remainder also fits that width, including the interpreter's zero-divisor case. -/
-theorem nativeCursorDivision_second_exact {width : Nat}
+lemma nativeCursorDivision_second_exact {width : Nat}
     (numerator denominator : CShape.Word width) :
     (CShape.divRem width width (.product numerator denominator)).second.toNat =
       numerator.toNat % denominator.toNat := by
@@ -39,7 +39,7 @@ theorem nativeCursorDivision_second_exact {width : Nat}
   exact Nat.mod_eq_of_lt ((Nat.mod_le _ _).trans_lt numerator.toNat_lt)
 
 /-- The actual multiply and addition implement precisely one wrapped continuant recurrence. -/
-theorem nativeContinuant_value_toNat {width : Nat}
+lemma nativeContinuant_value_toNat {width : Nat}
     (quotient previous older : CShape.Word width) :
     (continuantValue quotient previous older).toNat =
       (quotient.toNat * previous.toNat + older.toNat) % 2 ^ width := by
@@ -47,7 +47,7 @@ theorem nativeContinuant_value_toNat {width : Nat}
   exact Nat.mod_add_mod _ _ _
 
 /-- A source-proved fitted continuant is represented without truncation by those same operations. -/
-theorem nativeContinuant_value_exact {width : Nat}
+lemma nativeContinuant_value_exact {width : Nat}
     (quotient previous older : CShape.Word width)
     (fits : quotient.toNat * previous.toNat + older.toNat < 2 ^ width) :
     (continuantValue quotient previous older).toNat =
@@ -56,7 +56,7 @@ theorem nativeContinuant_value_exact {width : Nat}
   exact Nat.mod_eq_of_lt fits
 
 /-- The stored quotient and predecessors materialize the same source cursor candidate. -/
-theorem nativeCandidatePrefix_cursor {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeCandidatePrefix_cursor {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
     (numerator denominator previous older : CInputRef ctx (.unsignedWord width))
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))

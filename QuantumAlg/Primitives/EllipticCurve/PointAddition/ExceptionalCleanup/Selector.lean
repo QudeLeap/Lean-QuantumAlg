@@ -31,6 +31,8 @@ open Nat.FixedWidth
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : Arithmetic.VariableModularMul.Parameters]
 
 /-- The source position of a mutable-X bit in the widened zero-test word. -/
@@ -46,25 +48,25 @@ private def paddingLeftSourceIndex : Fin (params.width + 2) :=
 private def paddingRightSourceIndex : Fin (params.width + 2) :=
   Fin.last (params.width + 1)
 
-private theorem sourceWord_bit_mutable (bit : Fin params.width) :
+private lemma sourceWord_bit_mutable (bit : Fin params.width) :
     (Layout.sourceWord (params := params)).bit
         (mutableSourceIndex (params := params) bit) =
       (Layout.mutableXWord (params := params)).bit bit := by
   simp [Layout.sourceWord, mutableSourceIndex]
 
-private theorem sourceWord_bit_paddingLeft :
+private lemma sourceWord_bit_paddingLeft :
     (Layout.sourceWord (params := params)).bit
         (paddingLeftSourceIndex (params := params)) =
       Layout.paddingLeftBit (params := params) := by
   simp [Layout.sourceWord, paddingLeftSourceIndex]
 
-private theorem sourceWord_bit_paddingRight :
+private lemma sourceWord_bit_paddingRight :
     (Layout.sourceWord (params := params)).bit
         (paddingRightSourceIndex (params := params)) =
       Layout.paddingRightBit (params := params) := by
   simp [Layout.sourceWord, paddingRightSourceIndex]
 
-private theorem mutableSourceIndex_ne_paddingLeftSourceIndex
+private lemma mutableSourceIndex_ne_paddingLeftSourceIndex
     (bit : Fin params.width) :
     mutableSourceIndex (params := params) bit ≠
       paddingLeftSourceIndex (params := params) := by
@@ -73,7 +75,7 @@ private theorem mutableSourceIndex_ne_paddingLeftSourceIndex
   dsimp [mutableSourceIndex, paddingLeftSourceIndex] at hval
   omega
 
-private theorem mutableSourceIndex_ne_paddingRightSourceIndex
+private lemma mutableSourceIndex_ne_paddingRightSourceIndex
     (bit : Fin params.width) :
     mutableSourceIndex (params := params) bit ≠
       paddingRightSourceIndex (params := params) := by
@@ -82,14 +84,14 @@ private theorem mutableSourceIndex_ne_paddingRightSourceIndex
   dsimp [mutableSourceIndex, paddingRightSourceIndex] at hval
   omega
 
-private theorem mutableXWord_wire_ne_selectorBit (bit : Fin params.width) :
+private lemma mutableXWord_wire_ne_selectorBit (bit : Fin params.width) :
     ((Layout.mutableXWord (params := params)).bit bit).wire ≠
       (Layout.selectorBit (params := params)).wire := by
   simpa only [sourceWord_bit_mutable] using
     Layout.sourceWord_wire_ne_selectorBit (params := params)
       (mutableSourceIndex (params := params) bit)
 
-private theorem mutableXWord_wire_ne_zeroWorkBit
+private lemma mutableXWord_wire_ne_zeroWorkBit
     (source work : Fin params.width) :
     ((Layout.mutableXWord (params := params)).bit source).wire ≠
       (Layout.zeroWorkBit (params := params) work).wire := by
@@ -97,7 +99,7 @@ private theorem mutableXWord_wire_ne_zeroWorkBit
     Layout.sourceWord_wire_ne_zeroWorkWord (params := params)
       (mutableSourceIndex (params := params) source) work
 
-private theorem mutableXWord_wire_ne_paddingLeftBit
+private lemma mutableXWord_wire_ne_paddingLeftBit
     (bit : Fin params.width) :
     ((Layout.mutableXWord (params := params)).bit bit).wire ≠
       (Layout.paddingLeftBit (params := params)).wire := by
@@ -107,7 +109,7 @@ private theorem mutableXWord_wire_ne_paddingLeftBit
       (paddingLeftSourceIndex (params := params))
       (mutableSourceIndex_ne_paddingLeftSourceIndex (params := params) bit)
 
-private theorem mutableXWord_wire_ne_paddingRightBit
+private lemma mutableXWord_wire_ne_paddingRightBit
     (bit : Fin params.width) :
     ((Layout.mutableXWord (params := params)).bit bit).wire ≠
       (Layout.paddingRightBit (params := params)).wire := by
@@ -118,7 +120,7 @@ private theorem mutableXWord_wire_ne_paddingRightBit
       (mutableSourceIndex_ne_paddingRightSourceIndex (params := params) bit)
 
 omit params in
-private theorem xorConstantGates_bitDisjoint
+private lemma xorConstantGates_bitDisjoint
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (observed : EncodedBit encoding) (target : EncodedBit.Word encoding width)
     (constant : Fin (2 ^ width))
@@ -131,7 +133,7 @@ private theorem xorConstantGates_bitDisjoint
   exact htarget bit
 
 omit params in
-private theorem zeroTestGates_bitDisjoint_observed
+private lemma zeroTestGates_bitDisjoint_observed
     {Data : Type} {encoding : BinaryLabelEncoding Data} {tail : Nat}
     (layout : EncodedBit.Word.ZeroTestLayout (encoding := encoding) tail)
     (observed : EncodedBit encoding)
@@ -220,7 +222,7 @@ def compareGates (constant : Fin (2 ^ params.width)) :
 /-- An external observed bit that is disjoint from the widened source word,
 selector output, and zero-test work word is disjoint from the complete
 comparison schedule. -/
-theorem compareGates_bitDisjoint_observed
+lemma compareGates_bitDisjoint_observed
     (constant : Fin (2 ^ params.width))
     (observed : EncodedBit (Layout.rawEncoding (params := params)))
     (hsource : ∀ source,
@@ -251,7 +253,7 @@ theorem compareGates_bitDisjoint_observed
 
 /-- The full comparison schedule is disjoint from the public translation
 control. -/
-theorem compareGates_bitDisjoint_controlBit
+lemma compareGates_bitDisjoint_controlBit
     (constant : Fin (2 ^ params.width)) :
     ∀ gate, gate ∈ compareGates (params := params) constant →
       EncodedBit.GateSpec.bitDisjoint Layout.controlBit gate := by
@@ -262,7 +264,7 @@ theorem compareGates_bitDisjoint_controlBit
 
 /-- The full comparison schedule is disjoint from the clean work bit of the
 outer public-control decomposition. -/
-theorem compareGates_bitDisjoint_controlWorkBit
+lemma compareGates_bitDisjoint_controlWorkBit
     (constant : Fin (2 ^ params.width)) :
     ∀ gate, gate ∈ compareGates (params := params) constant →
       EncodedBit.GateSpec.bitDisjoint Layout.controlWorkBit gate := by
@@ -272,7 +274,7 @@ theorem compareGates_bitDisjoint_controlWorkBit
     Layout.zeroWorkBit_wire_ne_controlWorkBit
 
 /-- Exact leaf count of the reversible comparison schedule. -/
-theorem compareGates_length (constant : Fin (2 ^ params.width)) :
+lemma compareGates_length (constant : Fin (2 ^ params.width)) :
     (compareGates (params := params) constant).length =
       2 * (EncodedBit.Word.constantOneIndices constant).length +
         4 * params.width + 5 := by
@@ -283,7 +285,7 @@ theorem compareGates_length (constant : Fin (2 ^ params.width)) :
   omega
 
 /-- Exact X coordinate of the reversible comparison schedule. -/
-theorem compareGates_xMultiplicity_sum
+lemma compareGates_xMultiplicity_sum
     (constant : Fin (2 ^ params.width)) :
     ((compareGates (params := params) constant).map
       EncodedBit.GateSpec.xMultiplicity).sum =
@@ -296,7 +298,7 @@ theorem compareGates_xMultiplicity_sum
   omega
 
 /-- The reversible comparison schedule contains no CNOT leaves. -/
-theorem compareGates_cnotMultiplicity_sum
+lemma compareGates_cnotMultiplicity_sum
     (constant : Fin (2 ^ params.width)) :
     ((compareGates (params := params) constant).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -306,7 +308,7 @@ theorem compareGates_cnotMultiplicity_sum
     EncodedBit.Word.ZeroTestLayout.gates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate of the reversible comparison schedule. -/
-theorem compareGates_toffoliMultiplicity_sum
+lemma compareGates_toffoliMultiplicity_sum
     (constant : Fin (2 ^ params.width)) :
     ((compareGates (params := params) constant).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -317,7 +319,7 @@ theorem compareGates_toffoliMultiplicity_sum
     EncodedBit.Word.ZeroTestLayout.gates_toffoliMultiplicity_sum]
 
 /-- Closed width-only leaf bound for one reversible comparison. -/
-theorem compareGates_length_le (constant : Fin (2 ^ params.width)) :
+lemma compareGates_length_le (constant : Fin (2 ^ params.width)) :
     (compareGates (params := params) constant).length ≤
       6 * params.width + 5 := by
   rw [compareGates_length]
@@ -325,7 +327,7 @@ theorem compareGates_length_le (constant : Fin (2 ^ params.width)) :
   omega
 
 /-- Closed width-only X-coordinate bound for one reversible comparison. -/
-theorem compareGates_xMultiplicity_sum_le
+lemma compareGates_xMultiplicity_sum_le
     (constant : Fin (2 ^ params.width)) :
     ((compareGates (params := params) constant).map
       EncodedBit.GateSpec.xMultiplicity).sum ≤
@@ -348,14 +350,14 @@ def compareProgram (constant : Fin (2 ^ params.width)) :
     (compareGates (params := params) constant)
 
 /-- The selector circuit realizes its exact literal gate-list action. -/
-theorem compareProgram_realizes (constant : Fin (2 ^ params.width)) :
+lemma compareProgram_realizes (constant : Fin (2 ^ params.width)) :
     UnitaryCircuit.Realizes (Layout.rawEncoding (params := params))
-      (compareProgram (params := params) constant)
+      (compareProgram (params := params) constant) environment
       (compareStep (params := params) constant) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compareGates (params := params) constant)
 
-private theorem compareStep_eq_schedule
+private lemma compareStep_eq_schedule
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters) :
     compareStep (params := params) constant state =
       unloadStep (params := params) constant
@@ -366,7 +368,7 @@ private theorem compareStep_eq_schedule
     EncodedBit.GateSpec.stepList_append]
   rfl
 
-private theorem forwardStep_get_zeroWork
+private lemma forwardStep_get_zeroWork
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (work : Fin params.width) :
     (Layout.zeroWorkBit (params := params) work).get
@@ -379,7 +381,7 @@ private theorem forwardStep_get_zeroWork
     (fun source => mutableXWord_wire_ne_zeroWorkBit (params := params)
       source work) state
 
-private theorem forwardStep_get_paddingLeft
+private lemma forwardStep_get_paddingLeft
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters) :
     (Layout.paddingLeftBit (params := params)).get
         (forwardStep (params := params) constant state) =
@@ -391,7 +393,7 @@ private theorem forwardStep_get_paddingLeft
     (fun bit => mutableXWord_wire_ne_paddingLeftBit (params := params) bit)
     state
 
-private theorem forwardStep_get_paddingRight
+private lemma forwardStep_get_paddingRight
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters) :
     (Layout.paddingRightBit (params := params)).get
         (forwardStep (params := params) constant state) =
@@ -403,13 +405,13 @@ private theorem forwardStep_get_paddingRight
     (fun bit => mutableXWord_wire_ne_paddingRightBit (params := params) bit)
     state
 
-private theorem mutableXWord_get (bit : Fin params.width)
+private lemma mutableXWord_get (bit : Fin params.width)
     (state : Layout.RawRegisters) :
     ((Layout.mutableXWord (params := params)).bit bit).get state =
       ((Layout.mutableXPort (params := params)).read state).val.testBit bit.val := by
   exact (Layout.mutableXPort (params := params)).get_bit bit state
 
-private theorem source_zero_iff_mutableX_eq
+private lemma source_zero_iff_mutableX_eq
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hpaddingLeft : (Layout.paddingLeftBit (params := params)).get state = false)
     (hpaddingRight : (Layout.paddingRightBit (params := params)).get state = false) :
@@ -460,7 +462,7 @@ private theorem source_zero_iff_mutableX_eq
         rw [mutableXWord_get, hmatch]
         simp
 
-private theorem zeroTestControl_eq_decide_source_zero
+private lemma zeroTestControl_eq_decide_source_zero
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hclean : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get
@@ -503,7 +505,7 @@ private theorem zeroTestControl_eq_decide_source_zero
     rw [hfalse]
     simp [hzero]
 
-private theorem zeroTestControl_eq_mutableX_eq
+private lemma zeroTestControl_eq_mutableX_eq
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hzeroWork : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get state = false)
@@ -533,7 +535,7 @@ private theorem zeroTestControl_eq_mutableX_eq
       exact source_zero_iff_mutableX_eq (params := params) constant state
         hpaddingLeft hpaddingRight
 
-private theorem unloadStep_selectorBit_flip
+private lemma unloadStep_selectorBit_flip
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters) :
     unloadStep (params := params) constant
         ((Layout.selectorBit (params := params)).flip state) =
@@ -549,7 +551,7 @@ private theorem unloadStep_selectorBit_flip
   exact List.mem_reverse.mp (by
     simpa only [EncodedBit.Word.xorConstantUnloadGates] using hgate)
 
-private theorem unloadStep_after_forwardStep
+private lemma unloadStep_after_forwardStep
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters) :
     unloadStep (params := params) constant
         (forwardStep (params := params) constant state) = state := by
@@ -560,7 +562,7 @@ private theorem unloadStep_after_forwardStep
 /-- With a clean zero-test workspace and padding, the exact selector schedule
 preserves the entire carrier except for xoring the equality predicate into its
 dedicated selector bit. -/
-theorem compareStep_eq_selectorFlip
+lemma compareStep_eq_selectorFlip
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hzeroWork : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get state = false)
@@ -593,7 +595,7 @@ theorem compareStep_eq_selectorFlip
     rw [if_neg hmatch]
 
 /-- Every non-selector bit is preserved by the clean comparison endpoint. -/
-theorem compareStep_get_of_selector_ne
+lemma compareStep_get_of_selector_ne
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hzeroWork : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get state = false)
@@ -612,7 +614,7 @@ theorem compareStep_get_of_selector_ne
   · rfl
 
 /-- The mutable X word is restored exactly by the clean comparison endpoint. -/
-theorem compareStep_mutableX_read
+lemma compareStep_mutableX_read
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hzeroWork : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get state = false)
@@ -633,7 +635,7 @@ theorem compareStep_mutableX_read
 
 /-- The selector output is xored with equality of mutable X and the fixed
 comparison constant. -/
-theorem compareStep_selector_get
+lemma compareStep_selector_get
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hzeroWork : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get state = false)
@@ -654,7 +656,7 @@ theorem compareStep_selector_get
 /-- Clean endpoint frame statement for use by the exceptional cleanup branch.
 The mutable X word, both source padding bits, and every zero-test work bit are
 restored; only the dedicated selector bit receives the equality xor. -/
-theorem compareStep_cleanEndpoint
+lemma compareStep_cleanEndpoint
     (constant : Fin (2 ^ params.width)) (state : Layout.RawRegisters)
     (hzeroWork : ∀ work,
       (Layout.zeroWorkBit (params := params) work).get state = false)

@@ -35,7 +35,7 @@ public def basisAction {n : Nat} (primitive : QubitPrimitive n)
   | .toffoli first second target _ _ _ =>
       Function.update basis target (basis first * basis second + basis target)
 
-private theorem complement_avoids {n : Nat} (layout : QubitLayout n)
+private lemma complement_avoids {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n)
     (outside : QuantumLayout.SelectedPosition
       (nativeApplication layout primitive).embedding.selectionᶜ)
@@ -49,7 +49,7 @@ private theorem complement_avoids {n : Nat} (layout : QubitLayout n)
   exact Finset.mem_map_of_mem _ (Finset.mem_univ _)
 
 /-- The exact physical permutation agrees with the original ordered binary action. -/
-public theorem nativeAmbientPermutation_apply {n : Nat} (layout : QubitLayout n)
+public lemma nativeAmbientPermutation_apply {n : Nat} (layout : QubitLayout n)
     (primitive : QubitPrimitive n) (basis : Fin n → Fin 2) :
     nativeAmbientPermutation layout primitive basis = basisAction primitive basis := by
   apply ((nativeApplication layout primitive).liftPermutation_eq_iff

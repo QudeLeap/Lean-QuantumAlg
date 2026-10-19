@@ -25,7 +25,7 @@ noncomputable section
 
 open MeasuredUncompute Execution
 
-private theorem indexedEntry_resident (width index : Nat) :
+private lemma indexedEntry_resident (width index : Nat) :
     (indexedEntry width index).residentSpace = OwnedQubits.space 1 := by
   funext axis
   cases axis with
@@ -33,11 +33,11 @@ private theorem indexedEntry_resident (width index : Nat) :
   | quantumSystems dimension =>
       exact QuantumLayout.dimensionCount_uniform 1 2 dimension _ _
 
-private theorem indexedEntry_auxiliary (width index : Nat) :
+private lemma indexedEntry_auxiliary (width index : Nat) :
     (indexedEntry width index).auxiliarySpace = OwnedQubits.space 1 :=
   indexedEntry_resident width index
 
-private theorem indexed_foldSpace (width : Nat) (indices : List Nat)
+private lemma indexed_foldSpace (width : Nat) (indices : List Nat)
     (project : RuntimeEntry .quantum → SpacePool .quantum)
     (entrySpace : ∀ index, project (indexedEntry width index) = OwnedQubits.space 1) :
     (indices.map (indexedEntry width)).foldr (fun entry total => project entry + total) 0 =
@@ -58,12 +58,12 @@ private theorem indexed_foldSpace (width : Nat) (indices : List Nat)
           split_ifs <;> omega
 
 /-- The exact number of listed indexed qubits is charged at the native resident coordinate. -/
-theorem indexedContext_resident (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
+lemma indexedContext_resident (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     (indexedContext width indices distinct).residentSpace = OwnedQubits.space indices.length :=
   indexed_foldSpace width indices RuntimeEntry.residentSpace (indexedEntry_resident width)
 
 /-- Every listed indexed qubit retains its actual owned auxiliary role. -/
-theorem indexedContext_auxiliary (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
+lemma indexedContext_auxiliary (width : Nat) (indices : List Nat) (distinct : indices.Nodup) :
     (indexedContext width indices distinct).auxiliarySpace = OwnedQubits.space indices.length :=
   indexed_foldSpace width indices RuntimeEntry.auxiliarySpace (indexedEntry_auxiliary width)
 
@@ -73,20 +73,20 @@ def readySpace (width count : Nat) : SpacePool .quantum :=
     OwnedQubits.space (3 * width + 4 * width.size + 12 + count)
 
 /-- The common actual context charges every original and indexed resident system exactly once. -/
-theorem readyContext_resident (width count : Nat) :
+lemma readyContext_resident (width count : Nat) :
     (readyContext width count).residentSpace =
       (NumeratorMeasurement.context width).residentSpace + OwnedQubits.space (count + 1) := by
   rw [readyContext, RuntimeCtx.residentSpace_disjointUnion, indexedContext_resident,
     List.length_range]
 
 /-- The common actual auxiliary count retains the roles of every original and indexed entry. -/
-theorem readyContext_auxiliary (width count : Nat) :
+lemma readyContext_auxiliary (width count : Nat) :
     (readyContext width count).auxiliarySpace =
       (NumeratorMeasurement.context width).auxiliarySpace + OwnedQubits.space (count + 1) := by
   rw [readyContext, RuntimeCtx.auxiliarySpace_disjointUnion, indexedContext_auxiliary,
     List.length_range]
 
-private theorem ready_space_sum (width count : Nat) :
+private lemma ready_space_sum (width count : Nat) :
     InPlaceDivisionResources.space width + OwnedQubits.space (count + 1) =
       readySpace width count := by
   rw [InPlaceDivisionResources.space, add_assoc, ← InPlaceControlled.ownedSpace_add]
@@ -96,13 +96,13 @@ private theorem ready_space_sum (width count : Nat) :
   rfl
 
 /-- The complete actual resident context meets the independent explicit common-space formula. -/
-theorem readyContext_resident_exact (width count : Nat) :
+lemma readyContext_resident_exact (width count : Nat) :
     (readyContext width count).residentSpace = readySpace width count := by
   rw [readyContext_resident, InPlaceDivisionResources.context_resident]
   exact ready_space_sum width count
 
 /-- The actual auxiliary context meets the same explicit formula from its original owned roles. -/
-theorem readyContext_auxiliary_exact (width count : Nat) :
+lemma readyContext_auxiliary_exact (width count : Nat) :
     (readyContext width count).auxiliarySpace = readySpace width count := by
   rw [readyContext_auxiliary, InPlaceDivisionResources.context_auxiliary]
   exact ready_space_sum width count

@@ -30,7 +30,7 @@ namespace RoundState
 /-! ## Binary-size potential -/
 
 /-- Halving a positive natural strictly lowers its binary size. -/
-theorem size_div_two_lt (value : Nat) (hvalue : 0 < value) :
+lemma size_div_two_lt (value : Nat) (hvalue : 0 < value) :
     Nat.size (value / 2) < Nat.size value := by
   induction value using Nat.binaryRec' with
   | zero =>
@@ -45,7 +45,7 @@ def roundPotential (st : RoundState) : Nat :=
   Nat.size st.u + Nat.size st.v
 
 /-- The `uEven` update strictly lowers the binary-size potential. -/
-theorem applyBranch_uEven_roundPotential_lt (st : RoundState)
+lemma applyBranch_uEven_roundPotential_lt (st : RoundState)
     (hu : 0 < st.u) :
     roundPotential (applyBranch Branch.uEven st) < roundPotential st := by
   have hsize : Nat.size (st.u / 2) < Nat.size st.u := size_div_two_lt st.u hu
@@ -53,7 +53,7 @@ theorem applyBranch_uEven_roundPotential_lt (st : RoundState)
   omega
 
 /-- The `vEven` update strictly lowers the binary-size potential. -/
-theorem applyBranch_vEven_roundPotential_lt (st : RoundState)
+lemma applyBranch_vEven_roundPotential_lt (st : RoundState)
     (hv : 0 < st.v) :
     roundPotential (applyBranch Branch.vEven st) < roundPotential st := by
   have hsize : Nat.size (st.v / 2) < Nat.size st.v := size_div_two_lt st.v hv
@@ -61,7 +61,7 @@ theorem applyBranch_vEven_roundPotential_lt (st : RoundState)
   omega
 
 /-- The `uGreater` update strictly lowers the binary-size potential. -/
-theorem applyBranch_uGreater_roundPotential_lt (st : RoundState)
+lemma applyBranch_uGreater_roundPotential_lt (st : RoundState)
     (hlt : st.v < st.u) :
     roundPotential (applyBranch Branch.uGreater st) < roundPotential st := by
   have hdiffPos : 0 < st.u - st.v := Nat.sub_pos_of_lt hlt
@@ -75,7 +75,7 @@ theorem applyBranch_uGreater_roundPotential_lt (st : RoundState)
   omega
 
 /-- The `vLe` update strictly lowers the binary-size potential. -/
-theorem applyBranch_vLe_roundPotential_lt (st : RoundState)
+lemma applyBranch_vLe_roundPotential_lt (st : RoundState)
     (hv : 0 < st.v) :
     roundPotential (applyBranch Branch.vLe st) < roundPotential st := by
   have hdiv : (st.v - st.u) / 2 ≤ st.v / 2 :=
@@ -89,7 +89,7 @@ theorem applyBranch_vLe_roundPotential_lt (st : RoundState)
   omega
 
 /-- A nonterminal active round strictly lowers the binary-size potential. -/
-theorem roundPotential_lt_of_active_nonzero (st : RoundState)
+lemma roundPotential_lt_of_active_nonzero (st : RoundState)
     (hactive : st.active = true) (hv0 : st.v ≠ 0) (hu : 0 < st.u) :
     roundPotential (round st) < roundPotential st := by
   by_cases huEven : st.u % 2 = 0
@@ -107,7 +107,7 @@ theorem roundPotential_lt_of_active_nonzero (st : RoundState)
 /-! ## Positivity and terminal-state persistence -/
 
 /-- Every source round preserves positivity of the `u` word. -/
-theorem round_u_pos_of_pos (st : RoundState) (huPos : 0 < st.u) :
+lemma round_u_pos_of_pos (st : RoundState) (huPos : 0 < st.u) :
     0 < (round st).u := by
   cases hactive : st.active
   · rw [round_inactive st hactive]
@@ -138,7 +138,7 @@ theorem round_u_pos_of_pos (st : RoundState) (huPos : 0 < st.u) :
             simpa [applyBranch] using huPos
 
 /-- Positivity of the `u` word persists through any fixed number of rounds. -/
-theorem runRounds_u_pos_of_pos (rounds : Nat) (st : RoundState)
+lemma runRounds_u_pos_of_pos (rounds : Nat) (st : RoundState)
     (huPos : 0 < st.u) :
     0 < (runRounds rounds st).u := by
   induction rounds generalizing st with
@@ -149,7 +149,7 @@ theorem runRounds_u_pos_of_pos (rounds : Nat) (st : RoundState)
       exact round_u_pos_of_pos (runRounds rounds st) (ih st huPos)
 
 /-- Once the source `v` word is zero, one further round leaves it zero. -/
-theorem round_v_eq_zero_of_v_eq_zero (st : RoundState) (hv : st.v = 0) :
+lemma round_v_eq_zero_of_v_eq_zero (st : RoundState) (hv : st.v = 0) :
     (round st).v = 0 := by
   cases hactive : st.active
   · rw [round_inactive st hactive]
@@ -158,7 +158,7 @@ theorem round_v_eq_zero_of_v_eq_zero (st : RoundState) (hv : st.v = 0) :
     simpa using hv
 
 /-- Once the source `v` word is zero, every remaining fixed round preserves it. -/
-theorem runRounds_v_eq_zero_of_v_eq_zero (rounds : Nat) (st : RoundState)
+lemma runRounds_v_eq_zero_of_v_eq_zero (rounds : Nat) (st : RoundState)
     (hv : st.v = 0) :
     (runRounds rounds st).v = 0 := by
   induction rounds generalizing st with
@@ -170,7 +170,7 @@ theorem runRounds_v_eq_zero_of_v_eq_zero (rounds : Nat) (st : RoundState)
 
 /-- Splitting the fixed-round iterator at a prefix produces the corresponding
 suffix iterator on the prefix state. -/
-theorem runRounds_add (initialRounds suffix : Nat) (st : RoundState) :
+lemma runRounds_add (initialRounds suffix : Nat) (st : RoundState) :
     runRounds (initialRounds + suffix) st =
       runRounds suffix (runRounds initialRounds st) := by
   induction suffix generalizing st with
@@ -192,7 +192,7 @@ theorem runRounds_add (initialRounds suffix : Nat) (st : RoundState) :
 
 /-- If every earlier prefix still has nonzero `v`, then the active flag remains
 set at the indicated prefix. -/
-theorem runRounds_active_of_all_prefix_v_ne_zero (rounds : Nat) (st : RoundState)
+lemma runRounds_active_of_all_prefix_v_ne_zero (rounds : Nat) (st : RoundState)
     (hactive : st.active = true)
     (hzero : ∀ index < rounds, (runRounds index st).v ≠ 0) :
     (runRounds rounds st).active = true := by
@@ -209,7 +209,7 @@ theorem runRounds_active_of_all_prefix_v_ne_zero (rounds : Nat) (st : RoundState
 
 /-- Before termination, each elapsed round can be charged against one unit of
 the initial binary-size potential. -/
-theorem roundPotential_add_rounds_le_of_all_prefix_v_ne_zero
+lemma roundPotential_add_rounds_le_of_all_prefix_v_ne_zero
     (rounds : Nat) (st : RoundState) (huPos : 0 < st.u)
     (hactive : st.active = true)
     (hzero : ∀ index < rounds, (runRounds index st).v ≠ 0) :
@@ -240,7 +240,7 @@ theorem roundPotential_add_rounds_le_of_all_prefix_v_ne_zero
 
 /-- An active binary-GCD state with positive `u` reaches `v = 0` within its
 binary-size potential. -/
-theorem exists_runRounds_v_eq_zero_of_active (st : RoundState)
+lemma exists_runRounds_v_eq_zero_of_active (st : RoundState)
     (huPos : 0 < st.u) (hactive : st.active = true) :
     ∃ rounds ≤ roundPotential st, (runRounds rounds st).v = 0 := by
   by_contra htermination
@@ -262,7 +262,7 @@ theorem exists_runRounds_v_eq_zero_of_active (st : RoundState)
 
 /-- A `2n` fixed schedule reaches the terminal `v = 0` state whenever the
 initial binary-size potential fits in its round budget. -/
-theorem fixedRoundState_v_eq_zero_of_size_budget (n p x : Nat)
+lemma fixedRoundState_v_eq_zero_of_size_budget (n p x : Nat)
     (hp : 0 < p) (hbudget : Nat.size p + Nat.size x ≤ 2 * n) :
     (fixedRoundState n p x).v = 0 := by
   have htermination :
@@ -282,7 +282,7 @@ theorem fixedRoundState_v_eq_zero_of_size_budget (n p x : Nat)
 
 /-- Any positive suffix after `v` has reached zero leaves the source in
 inactive padding mode. -/
-theorem runRounds_active_eq_false_of_pos_of_v_eq_zero
+lemma runRounds_active_eq_false_of_pos_of_v_eq_zero
     (rounds : Nat) (st : RoundState) (hrounds : 0 < rounds)
     (hv : st.v = 0) :
     (runRounds rounds st).active = false := by
@@ -298,7 +298,7 @@ theorem runRounds_active_eq_false_of_pos_of_v_eq_zero
 /-- A positive-`u` active state reaches `v = 0` strictly before exhausting
 its binary-size potential.  The remaining unit is supplied by the positive
 terminal `u` word. -/
-theorem exists_runRounds_v_eq_zero_before_roundPotential
+lemma exists_runRounds_v_eq_zero_before_roundPotential
     (st : RoundState) (huPos : 0 < st.u) (hactive : st.active = true) :
     ∃ rounds < roundPotential st, (runRounds rounds st).v = 0 := by
   have hbounded := exists_runRounds_v_eq_zero_of_active st huPos hactive
@@ -327,7 +327,7 @@ theorem exists_runRounds_v_eq_zero_before_roundPotential
 
 /-- The standard `2n` schedule contains at least one post-termination round,
 so its terminal mode flag is clean. -/
-theorem fixedRoundState_active_eq_false_of_size_budget
+lemma fixedRoundState_active_eq_false_of_size_budget
     (n p x : Nat) (hp : 0 < p)
     (hbudget : Nat.size p + Nat.size x ≤ 2 * n) :
     (fixedRoundState n p x).active = false := by
@@ -347,7 +347,7 @@ theorem fixedRoundState_active_eq_false_of_size_budget
 
 /-- Equivalently, the fixed schedule has entered the positive padding-count
 range once the binary-size budget is available. -/
-theorem fixedRoundState_paddingSteps_pos_of_size_budget
+lemma fixedRoundState_paddingSteps_pos_of_size_budget
     (n p x : Nat) (hp : 0 < p)
     (hbudget : Nat.size p + Nat.size x ≤ 2 * n) :
     0 < (fixedRoundState n p x).paddingSteps := by
@@ -363,7 +363,7 @@ theorem fixedRoundState_paddingSteps_pos_of_size_budget
 /-! ## Coprimality and the fixed endpoint -/
 
 /-- The `uEven` branch preserves coprimality of the binary-GCD pair. -/
-theorem applyBranch_uEven_coprime (st : RoundState) (huEven : st.u % 2 = 0)
+lemma applyBranch_uEven_coprime (st : RoundState) (huEven : st.u % 2 = 0)
     (hcoprime : Nat.Coprime st.u st.v) :
     Nat.Coprime (applyBranch Branch.uEven st).u (applyBranch Branch.uEven st).v := by
   have hhalf : 2 * (st.u / 2) = st.u :=
@@ -375,7 +375,7 @@ theorem applyBranch_uEven_coprime (st : RoundState) (huEven : st.u % 2 = 0)
   exact Nat.Coprime.of_dvd_left hdiv hcoprime
 
 /-- The `vEven` branch preserves coprimality of the binary-GCD pair. -/
-theorem applyBranch_vEven_coprime (st : RoundState) (hvEven : st.v % 2 = 0)
+lemma applyBranch_vEven_coprime (st : RoundState) (hvEven : st.v % 2 = 0)
     (hcoprime : Nat.Coprime st.u st.v) :
     Nat.Coprime (applyBranch Branch.vEven st).u (applyBranch Branch.vEven st).v := by
   have hhalf : 2 * (st.v / 2) = st.v :=
@@ -387,7 +387,7 @@ theorem applyBranch_vEven_coprime (st : RoundState) (hvEven : st.v % 2 = 0)
   exact Nat.Coprime.of_dvd_right hdiv hcoprime
 
 /-- The `uGreater` branch preserves coprimality of the binary-GCD pair. -/
-theorem applyBranch_uGreater_coprime (st : RoundState)
+lemma applyBranch_uGreater_coprime (st : RoundState)
     (huEven : st.u % 2 ≠ 0) (hvEven : st.v % 2 ≠ 0) (hlt : st.v < st.u)
     (hcoprime : Nat.Coprime st.u st.v) :
     Nat.Coprime (applyBranch Branch.uGreater st).u
@@ -406,7 +406,7 @@ theorem applyBranch_uGreater_coprime (st : RoundState)
   exact Nat.Coprime.of_dvd_left hdiv hsubCoprime
 
 /-- The `vLe` branch preserves coprimality of the binary-GCD pair. -/
-theorem applyBranch_vLe_coprime (st : RoundState)
+lemma applyBranch_vLe_coprime (st : RoundState)
     (huEven : st.u % 2 ≠ 0) (hvEven : st.v % 2 ≠ 0) (hlt : ¬ st.v < st.u)
     (hcoprime : Nat.Coprime st.u st.v) :
     Nat.Coprime (applyBranch Branch.vLe st).u (applyBranch Branch.vLe st).v := by
@@ -424,7 +424,7 @@ theorem applyBranch_vLe_coprime (st : RoundState)
   exact Nat.Coprime.of_dvd_right hdiv hsubCoprime
 
 /-- One source round preserves coprimality of the binary-GCD pair. -/
-theorem round_coprime (st : RoundState) (hcoprime : Nat.Coprime st.u st.v) :
+lemma round_coprime (st : RoundState) (hcoprime : Nat.Coprime st.u st.v) :
     Nat.Coprime (round st).u (round st).v := by
   cases hactive : st.active
   · rw [round_inactive st hactive]
@@ -445,7 +445,7 @@ theorem round_coprime (st : RoundState) (hcoprime : Nat.Coprime st.u st.v) :
             exact applyBranch_vLe_coprime st huEven hvEven hlt hcoprime
 
 /-- Coprimality persists through all fixed rounds. -/
-theorem runRounds_coprime (rounds : Nat) (st : RoundState)
+lemma runRounds_coprime (rounds : Nat) (st : RoundState)
     (hcoprime : Nat.Coprime st.u st.v) :
     Nat.Coprime (runRounds rounds st).u (runRounds rounds st).v := by
   induction rounds generalizing st with
@@ -456,7 +456,7 @@ theorem runRounds_coprime (rounds : Nat) (st : RoundState)
 
 /-- Under the binary-size round budget, a positive coprime input finishes with
 `u = 1`. -/
-theorem fixedRoundState_u_eq_one_of_coprime (n p x : Nat)
+lemma fixedRoundState_u_eq_one_of_coprime (n p x : Nat)
     (hp : 0 < p) (hbudget : Nat.size p + Nat.size x ≤ 2 * n)
     (hcoprime : Nat.Coprime p x) :
     (fixedRoundState n p x).u = 1 := by
@@ -472,7 +472,7 @@ theorem fixedRoundState_u_eq_one_of_coprime (n p x : Nat)
   exact (fixedRoundState n p x).u.coprime_zero_right.mp hfinish
 
 /-- Width-form wrapper for the fixed binary-GCD endpoint theorem. -/
-theorem fixedRoundState_u_eq_one_of_coprime_of_lt_two_pow (n p x : Nat)
+lemma fixedRoundState_u_eq_one_of_coprime_of_lt_two_pow (n p x : Nat)
     (hp : 0 < p) (hpWidth : p < 2 ^ n) (hxWidth : x < 2 ^ n)
     (hcoprime : Nat.Coprime p x) :
     (fixedRoundState n p x).u = 1 := by
@@ -489,12 +489,12 @@ unchanged. -/
 def coefficientGrowthInvariant (st : RoundState) : Prop :=
   st.rCoeff ≤ 2 ^ st.kaliskiSteps ∧ st.sCoeff ≤ 2 ^ st.kaliskiSteps
 
-theorem initial_coefficientGrowthInvariant (p x : Nat) :
+lemma initial_coefficientGrowthInvariant (p x : Nat) :
     coefficientGrowthInvariant (initial p x) := by
   simp [coefficientGrowthInvariant, initial]
 
 /-- One active branch preserves the coefficient-growth bound. -/
-theorem applyBranch_coefficientGrowthInvariant (branch : Branch) (st : RoundState)
+lemma applyBranch_coefficientGrowthInvariant (branch : Branch) (st : RoundState)
     (hinv : coefficientGrowthInvariant st) :
     coefficientGrowthInvariant (applyBranch branch st) := by
   rcases hinv with ⟨hr, hs⟩
@@ -503,7 +503,7 @@ theorem applyBranch_coefficientGrowthInvariant (branch : Branch) (st : RoundStat
     omega
 
 /-- One fixed source round preserves the coefficient-growth bound. -/
-theorem round_coefficientGrowthInvariant (st : RoundState)
+lemma round_coefficientGrowthInvariant (st : RoundState)
     (hinv : coefficientGrowthInvariant st) :
     coefficientGrowthInvariant (round st) := by
   cases hactive : st.active
@@ -516,7 +516,7 @@ theorem round_coefficientGrowthInvariant (st : RoundState)
       exact applyBranch_coefficientGrowthInvariant (selectBranch st) st hinv
 
 /-- The coefficient-growth bound persists through an arbitrary fixed prefix. -/
-theorem runRounds_coefficientGrowthInvariant (rounds : Nat) (st : RoundState)
+lemma runRounds_coefficientGrowthInvariant (rounds : Nat) (st : RoundState)
     (hinv : coefficientGrowthInvariant st) :
     coefficientGrowthInvariant (runRounds rounds st) := by
   induction rounds generalizing st with
@@ -527,13 +527,13 @@ theorem runRounds_coefficientGrowthInvariant (rounds : Nat) (st : RoundState)
 
 /-- At a terminal normalized binary-GCD state, the surviving `s` coefficient
 is exactly the modulus. -/
-theorem sCoeff_eq_modulus_of_terminal (p : Nat) (st : RoundState)
+lemma sCoeff_eq_modulus_of_terminal (p : Nat) (st : RoundState)
     (hinv : BezoutInvariant p st) (hv : st.v = 0) (hu : st.u = 1) :
     st.sCoeff = p := by
   simpa [BezoutInvariant, bezoutValue, hv, hu] using hinv
 
 /-- Fixed-round specialization of `sCoeff_eq_modulus_of_terminal`. -/
-theorem fixedRoundState_sCoeff_eq_modulus_of_terminal (n p x : Nat)
+lemma fixedRoundState_sCoeff_eq_modulus_of_terminal (n p x : Nat)
     (hv : (fixedRoundState n p x).v = 0)
     (hu : (fixedRoundState n p x).u = 1) :
     (fixedRoundState n p x).sCoeff = p :=
@@ -542,7 +542,7 @@ theorem fixedRoundState_sCoeff_eq_modulus_of_terminal (n p x : Nat)
 
 /-- A strict full-width modulus forces at least one active Kaliski update per
 word bit before the fixed `2n` schedule can enter padding mode. -/
-theorem fixedRoundState_paddingSteps_le_width_of_strict_full_width
+lemma fixedRoundState_paddingSteps_le_width_of_strict_full_width
     (n p x : Nat) (hp : 0 < p)
     (hpWidth : p < 2 ^ n) (hxWidth : x < 2 ^ n)
     (hcoprime : Nat.Coprime p x) (hfull : 2 ^ (n - 1) < p) :
@@ -577,7 +577,7 @@ theorem fixedRoundState_paddingSteps_le_width_of_strict_full_width
 
 /-- For an odd full-width modulus, the weak lower bit-length bound is enough
 to obtain the strict form needed by the compact correction counter. -/
-theorem fixedRoundState_paddingSteps_le_width_of_full_width_odd
+lemma fixedRoundState_paddingSteps_le_width_of_full_width_odd
     (n p x : Nat) (hp : 0 < p)
     (hpWidth : p < 2 ^ n) (hx : 0 < x) (hxWidth : x < 2 ^ n)
     (hcoprime : Nat.Coprime p x) (hfull : 2 ^ (n - 1) ≤ p) (hodd : Odd p) :

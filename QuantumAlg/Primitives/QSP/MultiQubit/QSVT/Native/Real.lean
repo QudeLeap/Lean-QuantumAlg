@@ -35,8 +35,9 @@ variable {width : Nat} (U : UnitaryOperator (Qubits width))
   (left right : OrthogonalProjector width) (allowControlled : Bool)
 
 /-- The actual alternating circuit is the intrinsic direct sum of its source branches. -/
-theorem circuit_source_operator (phases : List ℝ) :
-    (circuit U left right allowControlled phases).binaryMatrix =
+lemma circuit_source_operator (phases : List ℝ) :
+    ((circuit (width := width) allowControlled phases).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) =
       phaseControlledDirectSumOperator (sourceWord U left right phases)
         (sourceWord U left right (negPhases phases)) := by
   apply Subtype.ext
@@ -44,15 +45,16 @@ theorem circuit_source_operator (phases : List ℝ) :
   rfl
 
 /-- The actual circuit's plus-state block averages the two original source words. -/
-theorem circuit_plus_block (phases : List ℝ) :
-    phasePlusBlock (circuit U left right allowControlled phases).binaryMatrix =
+lemma circuit_plus_block (phases : List ℝ) :
+    phasePlusBlock ((circuit (width := width) allowControlled phases).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) =
       (1 / 2 : ℂ) • (sourceWord U left right phases : HilbertOperator (Qubits width)) +
         (1 / 2 : ℂ) •
           (sourceWord U left right (negPhases phases) : HilbertOperator (Qubits width)) := by
   rw [circuit_source_operator, phasePlusBlock_phaseControlledDirectSum]
 
 /-- Two source polynomial equalities transfer to the same executed circuit. -/
-theorem circuit_real_correctness (L : Nat) (P Pneg Preal : Polynomial ℂ)
+lemma circuit_real_correctness (L : Nat) (P Pneg Preal : Polynomial ℂ)
     (phases : List ℝ)
     (hpos : SourceProjectedQSVTBlockCorrectness U left right L P phases)
     (hneg : SourceProjectedQSVTBlockCorrectness U left right L Pneg (negPhases phases))
@@ -62,7 +64,8 @@ theorem circuit_real_correctness (L : Nat) (P Pneg Preal : Polynomial ℂ)
           singularValuePolynomial right L Pneg (projectedUnitaryBlock left right U) =
         singularValuePolynomial right L Preal (projectedUnitaryBlock left right U)) :
     projectedPhasePlusBlock (projectedOutputProjector left right L) right
-      (circuit U left right allowControlled phases).binaryMatrix =
+      ((circuit (width := width) allowControlled phases).binaryMatrix
+        (ProjectedSignal.interpretation U left right allowControlled)) =
         singularValuePolynomial right L Preal (projectedUnitaryBlock left right U) := by
   unfold projectedPhasePlusBlock
   rw [circuit_plus_block, Matrix.mul_add, Matrix.add_mul]
@@ -72,23 +75,26 @@ theorem circuit_real_correctness (L : Nat) (P Pneg Preal : Polynomial ℂ)
 
 /-- A genuine native Hadamard on the phase wire, preserving the entire suffix. -/
 def hadamard :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
   Gate.singleQubitAt (ProjectorPhase.layout width)
-    (ProjectedSignal.model U left right allowControlled) Gate.HOp (0 : Fin (1 + width)) rfl
+    (ProjectedSignal.model width allowControlled) Gate.HOp (0 : Fin (1 + width)) rfl
 
 /-- Prepare and unprepare the plus phase state using two actual native gates. -/
 def zeroBlockCircuit (phases : List ℝ) :
-    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model U left right allowControlled)
+    UnitaryCircuit AlgorithmGate.model (ProjectedSignal.model width allowControlled)
       (ProjectorPhase.layout width) :=
-  ((hadamard U left right allowControlled).seq
-    (circuit U left right allowControlled phases)).seq (hadamard U left right allowControlled)
+  ((hadamard (width := width) allowControlled).seq
+    (circuit (width := width) allowControlled phases)).seq (hadamard (width := width)
+      allowControlled)
 
 /-- The zero-block circuit has precisely the source Hadamard-conjugated operator. -/
-theorem zeroBlockCircuit_matrix (phases : List ℝ) :
-    (zeroBlockCircuit U left right allowControlled phases).binaryMatrix =
+lemma zeroBlockCircuit_matrix (phases : List ℝ) :
+    ((zeroBlockCircuit (width := width) allowControlled phases).binaryMatrix
+      (ProjectedSignal.interpretation U left right allowControlled)) =
       phaseHadamardWrapperOperator
-        (circuit U left right allowControlled phases).binaryMatrix := by
+        ((circuit (width := width) allowControlled phases).binaryMatrix
+          (ProjectedSignal.interpretation U left right allowControlled)) := by
   rw [zeroBlockCircuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq]
   simp only [hadamard, Gate.singleQubitAt_first_binaryMatrix]
@@ -96,25 +102,25 @@ theorem zeroBlockCircuit_matrix (phases : List ℝ) :
   exact (Matrix.mul_assoc _ _ _).symm
 
 /-- The two boundary Hadamards contribute two native events to the same circuit. -/
-theorem zeroBlockCircuit_events (phases : List ℝ) :
-    (zeroBlockCircuit U left right allowControlled phases).eventCost =
-      (circuit U left right allowControlled phases).eventCost +
+lemma zeroBlockCircuit_events (phases : List ℝ) :
+    (zeroBlockCircuit (width := width) allowControlled phases).eventCost =
+      (circuit (width := width) allowControlled phases).eventCost +
         2 • ResourcePool.singleton
           (model := .quantum AlgorithmGate.model
-            (ProjectedSignal.model U left right allowControlled)) (.gate .singleQubit) := by
+            (ProjectedSignal.model width allowControlled)) (.gate .singleQubit) := by
   change (ResourcePool.singleton (model := .quantum AlgorithmGate.model
-      (ProjectedSignal.model U left right allowControlled)) (.gate .singleQubit) +
-    (circuit U left right allowControlled phases).eventCost) +
+      (ProjectedSignal.model width allowControlled)) (.gate .singleQubit) +
+    (circuit (width := width) allowControlled phases).eventCost) +
       ResourcePool.singleton (model := .quantum AlgorithmGate.model
-        (ProjectedSignal.model U left right allowControlled)) (.gate .singleQubit) = _
+        (ProjectedSignal.model width allowControlled)) (.gate .singleQubit) = _
   rw [two_smul]
   ac_rfl
 
 /-- The sequential zero-block implementation has exact dependency depth 4L+2. -/
-theorem zeroBlockCircuit_depth (phases : List ℝ) :
-    (zeroBlockCircuit U left right allowControlled phases).evaluatedEventDepth (fun _ => 1) =
+lemma zeroBlockCircuit_depth (phases : List ℝ) :
+    (zeroBlockCircuit (width := width) allowControlled phases).evaluatedEventDepth (fun _ => 1) =
       4 * phases.length + 2 := by
-  change (1 + (circuit U left right allowControlled phases).evaluatedEventDepth
+  change (1 + (circuit (width := width) allowControlled phases).evaluatedEventDepth
     (fun _ => 1)) + 1 = _
   rw [circuit_depth]
   omega

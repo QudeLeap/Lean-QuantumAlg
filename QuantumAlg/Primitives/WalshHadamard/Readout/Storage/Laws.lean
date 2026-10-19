@@ -36,14 +36,14 @@ open QuantumAlg.Execution
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
 
-private theorem transported_key {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
+private lemma transported_key {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) :
     (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same) ref).key =
       ref.key := by
   cases same
   rfl
 
-private theorem transported_read_value {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
+private lemma transported_read_value {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) (store : Store ctx) :
     (store.read (.storage
       (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same)
@@ -51,18 +51,18 @@ private theorem transported_read_value {ctx : RuntimeCtx .quantum} {actual inten
   cases same
   rfl
 
-theorem queryReadout_key (n : Nat) (index : Fin n) :
+lemma queryReadout_key (n : Nat) (index : Fin n) :
     (queryReadout n index).output.key =
       (MeasurementCells.reference (resultContext n) 2 n index).key :=
   transported_key (queryWire_dimension n index) _
 
-theorem queryReadout_read_value (n : Nat) (index : Fin n) (store : Store (post n)) :
+lemma queryReadout_read_value (n : Nat) (index : Fin n) (store : Store (post n)) :
     (store.read (.storage (queryReadout n index).output.toCStorageRef)).toFin.val =
       (store.read (.storage
         (MeasurementCells.reference (resultContext n) 2 n index).toCStorageRef)).toFin.val :=
   transported_read_value (queryWire_dimension n index) _ store
 
-theorem readouts_keys_nodup (n : Nat) :
+lemma readouts_keys_nodup (n : Nat) :
     ((readouts n).map (fun item => item.output.key)).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -71,16 +71,17 @@ theorem readouts_keys_nodup (n : Nat) :
   exact (queryReadout_key n left).symm.trans (same.trans (queryReadout_key n right))
 
 /-- The typed actual measurement writes the original finite value into its own retained cell. -/
-theorem measuredCell_value (n : Nat) (store : Store (post n))
+lemma measuredCell_value (n : Nat) (store : Store (post n))
     (basis : (post n).register.Index) (index : Fin n) :
-    ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    ((Circuit.writeMeasurementPath (allowAllocation := true) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) (readouts n) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) (readouts n) basis)).read
         (.storage
           (MeasurementCells.reference (resultContext n) 2 n index).toCStorageRef)).toFin.val =
       (basis (queryWire n index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read (gates := gates) (oracles := oracles)
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
+    (gates := gates) (oracles := oracles)
     (operations := operations) (services := services) (readouts n) (readouts_keys_nodup n)
     (queryReadout n index) (List.mem_ofFn.mpr ⟨index, rfl⟩) store basis
   have numeric := congrArg (fun value => value.toFin.val) actual
@@ -88,7 +89,7 @@ theorem measuredCell_value (n : Nat) (store : Store (post n))
   exact numeric
 
 /-- The decoded old binary basis has exactly the same query-wire values. -/
-theorem queryWire_value (n : Nat) (basis : (post n).register.Index) (index : Fin n) :
+lemma queryWire_value (n : Nat) (basis : (post n).register.Index) (index : Fin n) :
     (basis (queryWire n index)).val =
       ((layout n).binaryIndexEquiv.symm (outputBasisEquiv n basis) index.castSucc).val := by
   let oldBasis := (MeasurementCells.basisEquiv (resultContext n) 2 n).symm basis
@@ -107,12 +108,12 @@ theorem queryWire_value (n : Nat) (basis : (post n).register.Index) (index : Fin
   rw [Equiv.symm_apply_apply]
   exact cells.trans prepared
 
-private theorem finiteBit_encoding (value : Fin 2) :
+private lemma finiteBit_encoding (value : Fin 2) :
     decide (value.val = 1) = finTwoEquiv value := by
   fin_cases value <;> rfl
 
 /-- Boolean packing uses the same big-endian wire order as the mathematical readout. -/
-theorem queryWire_bit (n : Nat) (basis : (post n).register.Index) (index : Fin n) :
+lemma queryWire_bit (n : Nat) (basis : (post n).register.Index) (index : Fin n) :
     decide ((basis (queryWire n index)).val = 1) =
       (measurement n).readout (outputBasisEquiv n basis) index := by
   calc
@@ -133,18 +134,19 @@ theorem queryWire_bit (n : Nat) (basis : (post n).register.Index) (index : Fin n
 
 /-- The real packing opcode converts the actual retained outcomes into
 the original query readout. -/
-theorem packing_measured_value (n : Nat) (store : Store (post n))
+lemma packing_measured_value (n : Nat) (store : Store (post n))
     (basis : (post n).register.Index) :
-    (packing n).eval ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    (packing n).eval ((Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) (readouts n) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) (readouts n) basis)).read
         (MeasurementCells.input (resultContext n) 2 n)) =
       CShape.Value.bits ((measurement n).readout (outputBasisEquiv n basis)) := by
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    (((Circuit.writeMeasurementPath (allowAllocation := true) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) (readouts n) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services) (readouts n) basis)).read
         (.storage
           (MeasurementCells.reference (resultContext n) 2 n index).toCStorageRef)).toFin.val =

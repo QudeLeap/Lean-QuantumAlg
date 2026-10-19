@@ -31,6 +31,10 @@ public def multiplierSingle (width : Nat) : Nat :=
 /-- The same multiplier also charges its actual three-CNOT word exchanges. -/
 public def multiplierCnot (width : Nat) : Nat := multiplierSingle width + 3 * width
 
+/-- The serial multiplier allowance has the same independent arithmetic expression. -/
+lemma multiplierTime_eq (width : Nat) :
+    MAU.Multiplication.Gidney.eventBound width = multiplierCnot width := rfl
+
 /-- Total cardinality of the independent three-coordinate multiplier allowance. -/
 public def multiplierEvents (width : Nat) : Nat := 3 * multiplierSingle width + 3 * width
 
@@ -62,9 +66,32 @@ public def pointEvents (width : Nat) : Nat :=
     5 * MAU.Addition.Gidney.pivotEventBound width +
     10 * MAU.Addition.Gidney.comparisonEventBound width + 28 * width + 18
 
+/-- The measured addition retains parallel Hadamards in its serial quantum-time allowance. -/
+public def pointDepth (width : Nat) : Nat :=
+  20 * ForwardResources.inPlaceBound width +
+    27 * MAU.Multiplication.VariableGidney.eventBound width +
+    41 * MAU.Addition.Gidney.modularOffsetEventBound width +
+    5 * MAU.Addition.Gidney.pivotEventBound width +
+    10 * MAU.Addition.Gidney.comparisonEventBound width + 26 * width + 20
+
+/-- The independent scalar formula is the existing measured-addition depth allowance. -/
+lemma pointDepth_eq (width : Nat) :
+    PrimeFieldShortWeierstrass.MeasuredPointAddition.depthBound width = pointDepth width :=
+  PrimeFieldShortWeierstrass.MeasuredPointAddition.measuredPointAddition_depthBound_eq width
+
 /-- Every physical system of the original complete terminal context is a qubit. -/
 public def qubits (fieldWidth sampleWidth : Nat) : Nat :=
   3 * fieldWidth + 4 * fieldWidth.size + 12 + 2 * sampleWidth
+
+/-- The actual streaming bank reuses one memory wire and one control wire. -/
+public def streamingQubits (fieldWidth : Nat) : Nat :=
+  3 * fieldWidth + 4 * fieldWidth.size + 14
+
+/-- Every reset and converted sampling round contributes this independent quantum time. -/
+public def quantumTime (fieldWidth sampleWidth count : Nat) : Nat :=
+  count * (streamingQubits fieldWidth +
+    (4 * multiplierCnot fieldWidth +
+      2 * sampleWidth * (pointDepth fieldWidth + 2 * sampleWidth + 13)))
 
 /-- The fixed load acts on no more than the independently sized auxiliary word. -/
 public def loadBits (fieldWidth : Nat) : Nat := fieldWidth + 4 * fieldWidth.size + 11
@@ -105,7 +132,7 @@ public def roundEvents (fieldWidth sampleWidth : Nat) : Nat :=
 public def recoveryEvents (coordinateWidth sampleWidth : Nat) : Nat :=
   42 * sampleWidth + sampleWidth * (248 * coordinateWidth + 644) + 119
 
-/-- Whole-run serial ceiling, separate from maximum complete-cycle depth. -/
+/-- Independent complete-run event-count ceiling, also bounding quantum computation time. -/
 public def wholeRunEvents (fieldWidth coordinateWidth sampleWidth count : Nat) : Nat :=
   initializationEvents fieldWidth + count *
     (roundEvents fieldWidth sampleWidth + recoveryEvents coordinateWidth sampleWidth) + 1
@@ -128,11 +155,5 @@ public def residentBits (fieldWidth coordinateWidth sampleWidth : Nat) : Nat :=
 public def auxiliaryBits (fieldWidth coordinateWidth sampleWidth : Nat) : Nat :=
   scratchBits coordinateWidth sampleWidth +
     2 * coordinateWidth + 4 * sampleWidth + fieldWidth + 5
-
-/-- One initialization, one checked round, a real following reset and final packing.
-This common ceiling also admits the actual zero- and one-attempt plans. -/
-public def maximumCycleDepth (fieldWidth coordinateWidth sampleWidth : Nat) : Nat :=
-  initializationEvents fieldWidth + roundEvents fieldWidth sampleWidth +
-    recoveryEvents coordinateWidth sampleWidth + 2 * qubits fieldWidth sampleWidth + 1
 
 end QuantumAlg.EllipticCurve.LogicalResources.Scalar

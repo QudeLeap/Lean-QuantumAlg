@@ -67,7 +67,7 @@ structure Outcome {N m ell : Nat} {kind : ProblemKind} {ctx : RuntimeCtx kind}
     CallerFrameAvoids refs other → after.read other = before.read other
 
 /-- Equality of the actual named external reads transports the original semantic entry invariant. -/
-theorem initialConditions_transport {N m ell : Nat} {kind : ProblemKind}
+lemma initialConditions_transport {N m ell : Nat} {kind : ProblemKind}
     {ctx : RuntimeCtx kind} (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (refs : LatticeCandidateSlotMachine.Refs ctx

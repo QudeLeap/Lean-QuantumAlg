@@ -19,7 +19,8 @@ open ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {coordinateWidth modulusWidth : Nat}
 
 /-- Independent sum of the original per-offset instruction allowances. -/
@@ -40,7 +41,7 @@ def offsetsDepthBound (coordinateWidth modulusWidth : Nat) :
         offsetsDepthBound coordinateWidth modulusWidth tail
 
 /-- Every actual finite scan fits the independent sum of the original slot allowances. -/
-theorem scanOffsetsInto_pool_le (spec : ModulusSpec modulusWidth)
+lemma scanOffsetsInto_pool_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).resourcePool path ≤
@@ -54,7 +55,7 @@ theorem scanOffsetsInto_pool_le (spec : ModulusSpec modulusWidth)
       spec offset refs path.1) (inductionHypothesis path.2)
 
 /-- The actual finite scan counts every sequential initialization and selected check dependency. -/
-theorem scanOffsetsInto_depth_le (spec : ModulusSpec modulusWidth)
+lemma scanOffsetsInto_depth_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).depth (fun _ => 1) path ≤
@@ -66,24 +67,25 @@ theorem scanOffsetsInto_depth_le (spec : ModulusSpec modulusWidth)
       spec offset refs path.1) (inductionHypothesis path.2)
 
 /-- Each actual scan restores all borrowed correlations after every original candidate slot. -/
-theorem scanOffsetsInto_borrowedRestored (spec : ModulusSpec modulusWidth)
+lemma scanOffsetsInto_borrowedRestored (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (scanOffsetsInto spec refs items).BorrowedRestored Reference state
-      ((scanOffsetsInto spec refs items).execute Reference state) := by
+      ((scanOffsetsInto spec refs items).execute environment Reference state) := by
   induction items generalizing History with
   | nil =>
-    exact Circuit.borrowedRestored_id (model := model) (ctx := ctx) state
+    exact Circuit.borrowedRestored_id
+      (environment := environment) (model := model) (ctx := ctx) state
   | cons offset tail inductionHypothesis =>
-    exact Circuit.borrowedRestored_seq _ _ state
+    exact Circuit.borrowedRestored_seq (environment := environment) _ _ state
       (LatticeCandidateSlotMachine.candidateSlotInto_borrowedRestored spec offset refs
         Reference state)
       (inductionHypothesis _)
 
 /-- The actual finite scan reuses one power scope while counting all original resident storage. -/
-theorem scanOffsetsInto_resident_le (spec : ModulusSpec modulusWidth)
+lemma scanOffsetsInto_resident_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).peakResidentSpace path ≤ ctx.residentSpace +
@@ -103,7 +105,7 @@ theorem scanOffsetsInto_resident_le (spec : ModulusSpec modulusWidth)
       spec offset refs path.1) (inductionHypothesis path.2)
 
 /-- The actual finite scan reuses one power scope while counting all original auxiliary storage. -/
-theorem scanOffsetsInto_auxiliary_le (spec : ModulusSpec modulusWidth)
+lemma scanOffsetsInto_auxiliary_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (items : List NumberTheory.IntegerPoint3) (path : (scanOffsetsInto spec refs items).Path) :
     (scanOffsetsInto spec refs items).peakAuxiliarySpace path ≤ ctx.auxiliarySpace +
@@ -132,7 +134,7 @@ def scanDepthBound (coordinateWidth modulusWidth : Nat) : Nat :=
   offsetsDepthBound coordinateWidth modulusWidth offsets.toList
 
 /-- The actual canonical scan meets its independent native-operation budget. -/
-theorem scanInto_pool_le (spec : ModulusSpec modulusWidth)
+lemma scanInto_pool_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (path : (scanInto spec refs).Path) :
     (scanInto spec refs).resourcePool path ≤ scanEventEnvelope model coordinateWidth
@@ -140,7 +142,7 @@ theorem scanInto_pool_le (spec : ModulusSpec modulusWidth)
   scanOffsetsInto_pool_le spec refs offsets.toList path
 
 /-- The actual canonical scan meets its independent chronological depth bound. -/
-theorem scanInto_depth_le (spec : ModulusSpec modulusWidth)
+lemma scanInto_depth_le (spec : ModulusSpec modulusWidth)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
     (path : (scanInto spec refs).Path) :
     (scanInto spec refs).depth (fun _ => 1) path ≤ scanDepthBound coordinateWidth modulusWidth :=

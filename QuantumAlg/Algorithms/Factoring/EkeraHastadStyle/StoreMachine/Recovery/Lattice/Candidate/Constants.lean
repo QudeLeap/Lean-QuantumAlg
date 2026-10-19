@@ -40,7 +40,8 @@ structure Separation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
   zeroAvoidsUpper :
     refs.upperBound.key ∉ (writeInput refs.zero).storageKeys
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Clear the original zero cell, then self-initialize and load the original upper bound. -/
@@ -59,13 +60,13 @@ def loadStep (m : Nat) (refs : Refs ctx width) (store : Store ctx) :
   (upper.1, (cleared.2, upper.2))
 
 /-- The complete actual constant initializer retains all original execution-state blocks. -/
-theorem loadInto_execute (m : Nat) (refs : Refs ctx width) (Reference : Register)
+lemma loadInto_execute (m : Nat) (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loadInto m refs).execute Reference state = state.mapClassical (fun entry =>
+    (loadInto m refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := loadStep m refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model)
       (ClassicalRoutines.Word.PowerOfTwo.clearOp refs.zero))
     (ClassicalRoutines.Word.PowerOfTwo.into m refs.upperBound)
@@ -76,7 +77,8 @@ theorem loadInto_execute (m : Nat) (refs : Refs ctx width) (Reference : Register
     (fun before =>
       let actual := ClassicalRoutines.Word.PowerOfTwo.step m refs.upperBound before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (fun reference _history _ current =>
       ClassicalRoutines.Word.PowerOfTwo.into_execute m refs.upperBound reference current)
     Reference state).trans ?_
@@ -89,7 +91,7 @@ def CallerFrame (refs : Refs ctx width) (before after : Store ctx) : Prop :=
       after.read other = before.read other
 
 /-- Both actual initialization phases preserve every read outside the original two cells. -/
-theorem loadInto_callerFrame (m : Nat) (refs : Refs ctx width) (store : Store ctx) :
+lemma loadInto_callerFrame (m : Nat) (refs : Refs ctx width) (store : Store ctx) :
     CallerFrame refs store (loadStep m refs store).1 := by
   intro shape other zero upper
   change (ClassicalRoutines.Word.PowerOfTwo.step m refs.upperBound
@@ -104,7 +106,7 @@ structure Outcome (m : Nat) (refs : Refs ctx width) (before after : Store ctx) :
   callerFrame : CallerFrame refs before after
 
 /-- Actual native initialization materializes both original constants from arbitrary storage. -/
-theorem loadInto_correct (m : Nat) (refs : Refs ctx width) (separation : Separation refs)
+lemma loadInto_correct (m : Nat) (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) : Outcome m refs store (loadStep m refs store).1 := by
   refine ⟨?_, ?_, loadInto_callerFrame m refs store⟩
   · change RawSignedRepresents ((ClassicalRoutines.Word.PowerOfTwo.step m refs.upperBound

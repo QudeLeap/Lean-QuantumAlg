@@ -22,7 +22,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Both actual shared initializers preserve every read outside their original destinations. -/
-theorem sharedInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma sharedInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (constants : AvoidsConstantWrites refs other) (setup : AvoidsSetupWrites refs other) :
     (sharedStep input refs store).1.read other = store.read other := by
@@ -32,7 +32,7 @@ theorem sharedInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : St
       other constants.1 constants.2)
 
 /-- The actual complete pair prefix preserves each caller read outside its three footprints. -/
-theorem pairCandidatePrefix_callerFrame (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_callerFrame (input : Input N) (refs : Refs ctx N)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : CallerFrameAvoids refs other) :
     (prefixStep input refs store).1.read other = store.read other := by

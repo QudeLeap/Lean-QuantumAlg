@@ -40,6 +40,8 @@ namespace QuantumAlg
 
 namespace MAU.MultiplicationGate
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ModularMultiplicationDomain
 
 /-- Register whose basis labels are the selected unit-group carrier. -/
@@ -58,7 +60,7 @@ def multiplicationOp {N n : ℕ} (D : ModularMultiplicationDomain N n)
 
 /-- Basis action of the modular multiplication gate:
 `U_a |x> = |a*x>`. -/
-theorem multiplicationOp_apply_ket {N n : ℕ}
+lemma multiplicationOp_apply_ket {N n : ℕ}
     (D : ModularMultiplicationDomain N n) (a x : UnitCarrier D) :
     (multiplicationOp D a).apply
         (NormalizedVector.ket (R := unitRegister D) x) =
@@ -68,7 +70,7 @@ theorem multiplicationOp_apply_ket {N n : ℕ}
     NormalizedVector.ket (R := unitRegister D) (D.multiplyUnit a x)
   simp [multiplyUnit]
 
-theorem multiplicationOp_applyVec {N n : ℕ}
+lemma multiplicationOp_applyVec {N n : ℕ}
     (D : ModularMultiplicationDomain N n) (a : UnitCarrier D)
     (ψ : HilbertVector (unitRegister D)) (x : UnitCarrier D) :
     (multiplicationOp D a).applyVec ψ x =
@@ -97,8 +99,8 @@ structure EncodedCircuitRealization {N n : ℕ}
     (encoding.width)).toQuantum
   /-- The exact program maps every clean input to the clean encoding of
   multiplication by `a`. -/
-  applyNormalized_clean : ∀ x,
-    program.applyNormalized
+  applyNormalized_clean : ∀ (environment : OracleModel.empty.Interpretation) x,
+    program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical encoding.width).basisEquiv.symm
             (encoding.encode (cleanEmbedding x)))) =
@@ -122,10 +124,10 @@ def cleanEncoding (realization : EncodedCircuitRealization D a) :
     exact realization.encoding.encode_injective hxy
 
 /-- Direct semantic realization on the clean unit-carrier encoding. -/
-theorem cleanRealizes (realization : EncodedCircuitRealization D a) :
-    UnitaryCircuit.Realizes realization.cleanEncoding realization.program
+lemma cleanRealizes (realization : EncodedCircuitRealization D a) :
+    UnitaryCircuit.Realizes realization.cleanEncoding realization.program environment
       (D.multiplyUnit a) where
-  apply_encoded_ket := realization.applyNormalized_clean
+  apply_encoded_ket := realization.applyNormalized_clean environment
 
 /-- Typed circuit folded from the exact physical base-gate program. -/
 def circuit (realization : EncodedCircuitRealization D a) :
@@ -180,21 +182,21 @@ def qubitCount (realization : EncodedCircuitRealization D a) : Nat :=
   realization.encoding.width
 
 /-- Normalized clean-subspace endpoint of the exact physical circuit. -/
-theorem applyNormalized_clean_ket
+lemma applyNormalized_clean_ket
     (realization : EncodedCircuitRealization D a) (x : UnitCarrier D) :
-    realization.circuit.applyNormalized
+    realization.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical realization.encoding.width).basisEquiv.symm
             (realization.cleanEncoding.encode x))) =
       NormalizedVector.ket
         ((QubitLayout.canonical realization.encoding.width).basisEquiv.symm
           (realization.cleanEncoding.encode (D.multiplyUnit a x))) :=
-  realization.cleanRealizes.apply_encoded_ket x
+  (realization.cleanRealizes (environment := environment)).apply_encoded_ket x
 
 
 
 /-- Linearizing physical event depth recovers the exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost
+lemma resourcesFromEventDepth_eq_eventCost
     (realization : EncodedCircuitRealization D a) :
     realization.circuit.resourcesFromEventDepth = realization.circuit.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost realization.circuit

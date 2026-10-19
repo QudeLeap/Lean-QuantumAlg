@@ -35,7 +35,7 @@ namespace BornWeight
 
 /-- The difference of two scalar Born weights is controlled by the amplitude
 distance times the sum of the amplitude norms. -/
-theorem abs_norm_sq_sub_norm_sq_le (left right : ℂ) :
+lemma abs_norm_sq_sub_norm_sq_le (left right : ℂ) :
     |‖left‖ ^ 2 - ‖right‖ ^ 2| ≤
       ‖left - right‖ * (‖left‖ + ‖right‖) := by
   calc
@@ -52,7 +52,7 @@ theorem abs_norm_sq_sub_norm_sq_le (left right : ℂ) :
 
 /-- The full `L¹` difference of the computational-basis Born weights of two
 normalized vectors is at most twice their `L²` distance. -/
-theorem sum_abs_norm_sq_sub_norm_sq_le_two_mul_norm_sub
+lemma sum_abs_norm_sq_sub_norm_sq_le_two_mul_norm_sub
     {R : Register} (left right : NormalizedVector R) :
     ∑ index : R.Index, |‖left index‖ ^ 2 - ‖right index‖ ^ 2| ≤
       2 * ‖(left : HilbertVector R) - (right : HilbertVector R)‖ := by
@@ -96,7 +96,7 @@ end BornWeight
 namespace QubitLayout
 
 /-- Real-valued expansion of the probability of an arbitrary basis event. -/
-theorem basisPMF_toOuterMeasure_toReal {qubitCount : Nat}
+lemma basisPMF_toOuterMeasure_toReal {qubitCount : Nat}
     {layout : QubitLayout qubitCount} (state : QubitLayout.State layout)
     (event : Set (Fin (2 ^ qubitCount))) :
     ((QubitLayout.basisPMF state).toOuterMeasure event).toReal =
@@ -118,7 +118,7 @@ theorem basisPMF_toOuterMeasure_toReal {qubitCount : Nat}
 /-- Every computational-basis event for `left` has probability at most the
 same event for `right` plus twice the distance between their normalized state
 vectors. -/
-theorem basisPMF_toOuterMeasure_le_add_normError {qubitCount : Nat}
+lemma basisPMF_toOuterMeasure_le_add_normError {qubitCount : Nat}
     {layout : QubitLayout qubitCount} (left right : QubitLayout.State layout)
     (event : Set (Fin (2 ^ qubitCount))) :
     (QubitLayout.basisPMF left).toOuterMeasure event ≤
@@ -182,7 +182,7 @@ namespace TerminalZMeasure
 
 /-- A terminal event is exactly the corresponding preimage event in the
 computational basis. -/
-theorem outcomePMF_toOuterMeasure_eq_basis_preimage
+lemma outcomePMF_toOuterMeasure_eq_basis_preimage
     {totalQubits measuredQubits : Nat} {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
     (state : QubitLayout.State layout)
@@ -196,7 +196,7 @@ theorem outcomePMF_toOuterMeasure_eq_basis_preimage
 
 /-- Every terminal Born event for `left` has probability at most the same
 event for `right` plus twice the distance between their normalized vectors. -/
-theorem outcomePMF_toOuterMeasure_le_add_normError
+lemma outcomePMF_toOuterMeasure_le_add_normError
     {totalQubits measuredQubits : Nat} {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
     (left right : QubitLayout.State layout)
@@ -212,7 +212,7 @@ theorem outcomePMF_toOuterMeasure_le_add_normError
 
 /-- A supplied state-distance bound can be substituted into the terminal Born
 event estimate. -/
-theorem outcomePMF_toOuterMeasure_le_add_of_norm_sub_le
+lemma outcomePMF_toOuterMeasure_le_add_of_norm_sub_le
     {totalQubits measuredQubits : Nat} {layout : QubitLayout totalQubits}
     (measurement : TerminalZMeasure layout measuredQubits)
     (left right : QubitLayout.State layout)

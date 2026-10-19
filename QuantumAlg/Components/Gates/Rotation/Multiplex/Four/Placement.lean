@@ -35,9 +35,9 @@ def onPrefix (oracles : OracleModel) (width : Nat) (a00 a01 a10 a11 : ℝ) :
     (prefixPositions width) (fun _ => rfl) (circuit oracles a00 a01 a10 a11)
 
 /-- The entire physical matrix is diagonal with the supplied coherent angle choice. -/
-theorem fourRotation_prefix_matrix (oracles : OracleModel) (width : Nat)
-    (a00 a01 a10 a11 : ℝ) :
-    ((onPrefix oracles width a00 a01 a10 a11).matrix :
+lemma fourRotation_prefix_matrix (oracles : OracleModel) (width : Nat)
+    (a00 a01 a10 a11 : ℝ) (environment : oracles.Interpretation) :
+    (((onPrefix oracles width a00 a01 a10 a11).matrix environment) :
       HilbertOperator
         (QuantumSignature.qubits (1 + (1 + (1 + width)))).canonicalPlacement.layout.register) =
       Matrix.diagonal (fun basis => weight
@@ -47,10 +47,11 @@ theorem fourRotation_prefix_matrix (oracles : OracleModel) (width : Nat)
         (basis (prefixPositions width 2))) := by
   rw [onPrefix, UnitaryCircuit.placeAt_matrix]
   exact UnitaryCircuit.operatorAt_diagonal layout _ (prefixPositions width) (fun _ => rfl)
-    (circuit oracles a00 a01 a10 a11).matrix _ (fourRotation_matrix oracles a00 a01 a10 a11)
+    ((circuit oracles a00 a01 a10 a11).matrix environment) _ (fourRotation_matrix oracles a00 a01
+      a10 a11 environment)
 
 /-- Placement preserves all four rotations and six CNOTs without source queries. -/
-theorem fourRotation_prefix_eventTrace (oracles : OracleModel) (width : Nat)
+lemma fourRotation_prefix_eventTrace (oracles : OracleModel) (width : Nat)
     (a00 a01 a10 a11 : ℝ) :
     (onPrefix oracles width a00 a01 a10 a11).eventTrace =
       [.gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot, .gate .cnot,
@@ -58,7 +59,7 @@ theorem fourRotation_prefix_eventTrace (oracles : OracleModel) (width : Nat)
   rw [onPrefix, UnitaryCircuit.placeAt_eventTrace, fourRotation_eventTrace]
 
 /-- The unchanged source suffix adds no operation to the ten-step native word. -/
-theorem fourRotation_prefix_depth (oracles : OracleModel) (width : Nat)
+lemma fourRotation_prefix_depth (oracles : OracleModel) (width : Nat)
     (a00 a01 a10 a11 : ℝ) :
     (onPrefix oracles width a00 a01 a10 a11).evaluatedEventDepth (fun _ => 1) = 10 := by
   change DepthExpr.depthEval (fun _ => 1) (onPrefix oracles width a00 a01 a10 a11).eventDepth = 10

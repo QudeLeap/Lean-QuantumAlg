@@ -24,12 +24,12 @@ namespace QuantumAlg
 noncomputable section
 
 /-- Reverse the `n` significant bits of a computational-basis label. -/
-def qftReverseBits (n : Nat) (label : Fin (2 ^ n)) : Fin (2 ^ n) :=
+@[expose] public def qftReverseBits (n : Nat) (label : Fin (2 ^ n)) : Fin (2 ^ n) :=
   ⟨Nat.ofBits (fun bit : Fin n => label.val.testBit (Fin.rev bit).val),
     Nat.ofBits_lt_two_pow _⟩
 
 @[simp]
-theorem qftReverseBits_testBit (n : Nat) (label : Fin (2 ^ n))
+lemma qftReverseBits_testBit (n : Nat) (label : Fin (2 ^ n))
     (bit : Fin n) :
     (qftReverseBits n label).val.testBit bit.val =
       label.val.testBit (Fin.rev bit).val := by
@@ -37,7 +37,7 @@ theorem qftReverseBits_testBit (n : Nat) (label : Fin (2 ^ n))
   rw [Nat.testBit_ofBits_lt]
 
 @[simp]
-theorem qftReverseBits_involutive (n : Nat) (label : Fin (2 ^ n)) :
+lemma qftReverseBits_involutive (n : Nat) (label : Fin (2 ^ n)) :
     qftReverseBits n (qftReverseBits n label) = label := by
   apply Fin.val_injective
   change Nat.ofBits
@@ -61,18 +61,18 @@ def qftReverseBitsPerm (n : Nat) : Equiv.Perm (Fin (2 ^ n)) where
 
 /-- Big-endian splitting of an `(n+1)`-qubit basis label into its leading bit
 and lower `n`-bit tail. -/
-def qftPairEquiv (n : Nat) :
+@[expose] public def qftPairEquiv (n : Nat) :
     Fin 2 × Fin (2 ^ n) ≃ Fin (2 ^ (n + 1)) :=
   (prodEquiv (m := 1) (n := n)).trans
     (finCongr (by rw [Nat.add_comm 1 n]))
 
 @[simp]
-theorem qftPairEquiv_apply_val (n : Nat) (head : Fin 2)
+lemma qftPairEquiv_apply_val (n : Nat) (head : Fin 2)
     (tail : Fin (2 ^ n)) :
     (qftPairEquiv n (head, tail)).val = tail.val + 2 ^ n * head.val :=
   rfl
 
-theorem qftPairEquiv_testBit_high (n : Nat) (head : Fin 2)
+lemma qftPairEquiv_testBit_high (n : Nat) (head : Fin 2)
     (tail : Fin (2 ^ n)) :
     (qftPairEquiv n (head, tail)).val.testBit n = decide (head = 1) := by
   rw [qftPairEquiv_apply_val]
@@ -81,13 +81,13 @@ theorem qftPairEquiv_testBit_high (n : Nat) (head : Fin 2)
   · simp
   · simp
 
-theorem qftPairEquiv_mod_tail (n : Nat) (head : Fin 2)
+lemma qftPairEquiv_mod_tail (n : Nat) (head : Fin 2)
     (tail : Fin (2 ^ n)) :
     (qftPairEquiv n (head, tail)).val % 2 ^ n = tail.val := by
   rw [qftPairEquiv_apply_val, Nat.add_mul_mod_self_left]
   exact Nat.mod_eq_of_lt tail.isLt
 
-theorem qftPairEquiv_testBit_low (n : Nat) (head : Fin 2)
+lemma qftPairEquiv_testBit_low (n : Nat) (head : Fin 2)
     (tail : Fin (2 ^ n)) (bit : Fin n) :
     (qftPairEquiv n (head, tail)).val.testBit bit.val =
       tail.val.testBit bit.val := by
@@ -97,7 +97,7 @@ theorem qftPairEquiv_testBit_low (n : Nat) (head : Fin 2)
 
 /-- Bit reversal moves the leading bit to the least-significant position and
 recursively reverses the lower label. -/
-theorem qftReverseBits_pair (n : Nat) (head : Fin 2)
+lemma qftReverseBits_pair (n : Nat) (head : Fin 2)
     (tail : Fin (2 ^ n)) :
     (qftReverseBits (n + 1) (qftPairEquiv n (head, tail))).val =
       2 * (qftReverseBits n tail).val + head.val := by

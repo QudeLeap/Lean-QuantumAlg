@@ -37,16 +37,18 @@ open Execution
 open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 attribute [local instance] Classical.decEq Classical.propDecidable
-attribute [local irreducible] underPersistent retainPersistent
+attribute [local irreducible] sampleUnderPersistent retainPersistent
 
-private theorem allocation_selected_initialized {model : ExecutionModel}
+private lemma allocation_selected_initialized {model : ExecutionModel}
+    {environment : model.Environment}
     {origin ctx : RuntimeCtx model.kind} (setup : Circuit model origin ctx)
     {width scalar : Nat} (curve : ClassicalAlgorithms.EllipticCurve.CurveSpec width)
     (modulus : ClassicalAlgorithms.Modular.ModulusSpec scalar)
     (basePoint targetPoint : ClassicalAlgorithms.EllipticCurve.Point curve)
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State origin Reference (model.HiddenState × History)) :
-    storeSupported ((setup.seq (retainPersistent ctx width scalar)).execute Reference initial)
+    storeSupported ((setup.seq (retainPersistent ctx width scalar)).execute environment Reference
+      initial)
       (fun store => selectedInvariant curve modulus basePoint targetPoint (selectedPair store)) :=
   by
   refine (storeSupported_seq setup (retainPersistent ctx width scalar) initial
@@ -54,7 +56,7 @@ private theorem allocation_selected_initialized {model : ExecutionModel}
       (selectedPair store))).mpr ?_
   intro entry present
   have latches := retainPersistent_latches_supported width scalar
-    (setup.execute Reference initial) entry present
+    (setup.execute environment Reference initial) entry present
   constructor
   · change (entry.1.read (.storage (persistentSelected ctx width scalar).toCStorageRef)).toNat < _
     rw [latches.2]
@@ -65,76 +67,82 @@ private theorem allocation_selected_initialized {model : ExecutionModel}
 
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 
-private theorem code_supported_correct (I : ECDLPInstance E) (A : Access I)
+private lemma code_supported_correct (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
     (secretInput : FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I))
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State (Sampling.pre I) Reference
-      ((Sampling.executionModel I A).HiddenState × History))
+      ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ entry, 0 < (initial.block entry).mass → entry.1 = Runtime.Context.inputStore I) :
-    storeSupported ((code I A expansion nontrivial count).execute Reference initial)
+    storeSupported ((code I expansion nontrivial count).execute (Sampling.sourceEnvironment I A)
+      Reference initial)
       (fun store => ∀ value, store.read
         (batchResultRead (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)) =
           .optionSome value → value.toNat = secretInput.secret.val) := by
   let ctx := Sampling.Reuse.context I
   let width := fieldWidth E
   let scalar := scalarWidth I
-  let setup := Sampling.Reuse.initialCode I A
-  let allocation : Circuit (Sampling.executionModel I A) ctx (persistentCtx ctx width scalar) :=
-    retainPersistent (model := Sampling.executionModel I A) ctx width scalar
-  let body := sampledAttempts (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+  let setup := Sampling.Reuse.initialCode I
+  let allocation : Circuit (Sampling.executionModel I) ctx (persistentCtx ctx width scalar) :=
+    retainPersistent (model := Sampling.executionModel I) ctx width scalar
+  let body := sampledAttempts (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
-  let packing : Circuit (Sampling.executionModel I A)
+  let packing : Circuit (Sampling.executionModel I)
       (persistentCtx ctx width scalar) (batchResultCtx ctx width scalar) :=
-    packBatchResult (model := Sampling.executionModel I A) ctx width scalar
+    packBatchResult (model := Sampling.executionModel I) ctx width scalar
   let invariant := fun store : Store (persistentCtx ctx width scalar) =>
     (store.read (.storage (persistentSelected ctx width scalar).toCStorageRef)).toNat <
         (modulus I nontrivial).modulus ∧
       ((store.read (.storage (persistentAccepted ctx width scalar).toCStorageRef)).toBool = true →
         (store.read (.storage (persistentSelected ctx width scalar).toCStorageRef)).toNat •
           I.basePoint.toMathlib = I.targetPoint.toMathlib)
-  have allocated : storeSupported ((setup.seq allocation).execute Reference initial) invariant := by
+  have allocated : storeSupported ((setup.seq allocation).execute (Sampling.sourceEnvironment I A)
+    Reference initial) invariant := by
     exact allocation_selected_initialized setup (curve E) (modulus I nontrivial)
       I.basePoint.toMathlib I.targetPoint.toMathlib initial
-  have checked : storeSupported (((setup.seq allocation).seq body).execute Reference initial)
+  have checked : storeSupported (((setup.seq allocation).seq body).execute
+    (Sampling.sourceEnvironment I A) Reference initial)
       invariant := by
-    exact sampledAttempts_supported_validity_on_prefix (Sampling.Reuse.code I A expansion)
-      (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+    exact sampledAttempts_supported_validity_on_prefix
+      (Sampling.Reuse.code (allowAllocation := false) I expansion)
+      count (curve E) (modulus I nontrivial)
       (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
       I.basePoint.toMathlib I.targetPoint.toMathlib initial
       (fun priorCode => ecdlpRecovery_prefix_represents I A initial admitted priorCode)
       (setup.seq allocation) allocated
-  have regrouped : storeSupported ((setup.seq (allocation.seq body)).execute Reference initial)
+  have regrouped : storeSupported ((setup.seq (allocation.seq body)).execute
+    (Sampling.sourceEnvironment I A) Reference initial)
       invariant := (storeSupported_seq_assoc setup allocation body initial invariant).mpr checked
   let property := fun store : Store (batchResultCtx ctx width scalar) =>
     ∀ value, store.read (batchResultRead ctx width scalar) = .optionSome value →
       value.toNat = secretInput.secret.val
   change storeSupported ((setup.seq ((allocation.seq body).seq packing)).execute
-    Reference initial) property
+    (Sampling.sourceEnvironment I A) Reference initial) property
   refine (storeSupported_seq_assoc setup (allocation.seq body) packing initial property).mpr ?_
   refine (storeSupported_seq (setup.seq (allocation.seq body)) packing initial property).mpr ?_
   intro entry present value output
   exact packBatchResult_supported_property (fun selected => selected.toNat = secretInput.secret.val)
-    ((setup.seq (allocation.seq body)).execute Reference initial)
+    ((setup.seq (allocation.seq body)).execute (Sampling.sourceEnvironment I A) Reference initial)
     (fun original positive accepted =>
       (bounded_scalar_target_iff I secretInput _ (regrouped original positive).1).mp
         ((regrouped original positive).2 accepted)) entry present value output
 
 /-- Every positive complete record carries only the original canonical secret in its real option. -/
-public theorem ecdlpRecovery_run_supported_correct (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_run_supported_correct (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
     (secretInput : FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I))
     {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState)
-    (record : (run I A expansion nontrivial count).Record)
-    (positive : 0 < (((run I A expansion nontrivial count).execute Reference original.state).block
+    (record : (run I expansion nontrivial count).Record)
+    (positive : 0 < (((run I expansion nontrivial count).execute (Sampling.sourceEnvironment I A)
+      Reference original.state).block
       record).mass) (value : (CShape.unsignedWord (scalarWidth I)).Value)
-    (output : (run I A expansion nontrivial count).result record = .optionSome value) :
+    (output : (run I expansion nontrivial count).result record = .optionSome value) :
     value.toNat = secretInput.secret.val := by
   let initial := original.state.mapClassical (fun value => (value.1, (value.2, value.1)))
   have admitted : ∀ entry, 0 < (initial.block entry).mass →
@@ -149,25 +157,29 @@ public theorem ecdlpRecovery_run_supported_correct (I : ECDLPInstance E) (A : Ac
     record positive value output
 
 /-- A supported actual optional output is the canonical secret, for every finite run count. -/
-public theorem ecdlpRecovery_run_output_correct (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_run_output_correct (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
     (secretInput : FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I))
     {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState)
     (value : (CShape.unsignedWord (scalarWidth I)).Value)
     (supported : .optionSome value ∈
-      ((run I A expansion nontrivial count).outputDistribution original).support) :
+      ((run I expansion nontrivial count).outputDistribution (Sampling.sourceEnvironment I A)
+        original).support) :
     value.toNat = secretInput.secret.val := by
   obtain ⟨record, present, output⟩ := (PMF.mem_support_map_iff
-    (run I A expansion nontrivial count).result
-    ((run I A expansion nontrivial count).executionDistribution original) (.optionSome value)).mp
+    (run I expansion nontrivial count).result
+    ((run I expansion nontrivial count).executionDistribution (Sampling.sourceEnvironment I A)
+      original) (.optionSome value)).mp
       supported
   have positive := (ExecutionState.mem_support_toPMF_iff
-    ((run I A expansion nontrivial count).execute Reference original.state)
-    ((run I A expansion nontrivial count).execute_normalized original) record).mp present
+    ((run I expansion nontrivial count).execute (Sampling.sourceEnvironment I A) Reference
+      original.state)
+    ((run I expansion nontrivial count).execute_normalized (Sampling.sourceEnvironment I A)
+      original) record).mp present
   exact ecdlpRecovery_run_supported_correct I A expansion nontrivial count secretInput
     original valid record positive value output
 

@@ -29,13 +29,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.GuardedLengthRefresh
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit LengthCoordinates GuardedLengthRead
 
 /-- The four actual original source reads in their prescribed sequential order. -/
 def blocks : List (Field × Bool) :=
   [(.coefficient, false), (.coefficient, true), (.divisor, true), (.divisor, false)]
 
-private theorem original_list (width : Nat) :
+private lemma original_list (width : Nat) :
     (blocks.flatMap fun block => LengthSchedule.gates width block.1 block.2) =
       LengthRefresh.gates width := by
   simp only [blocks, List.flatMap_cons, List.flatMap_nil, LengthRefresh.gates,
@@ -46,7 +48,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
   blocks.flatMap fun block => GuardedLengthWrite.gates width block.1 block.2
 
 /-- Refinement of the four emitted actual lists retains the source's complete ordered update. -/
-theorem gates_step_if (width : Nat) (state : Registers width) :
+lemma gates_step_if (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state =
       if Guard state then GateSpec.stepList (LengthRefresh.gates width) state else state := by
   have compared := GateSpec.stepList_flatMap_if Guard
@@ -57,15 +59,15 @@ theorem gates_step_if (width : Nat) (state : Registers width) :
   simpa only [gates, original_list] using compared
 
 /-- Complete actual frame correctness is the independently proved finite update under its guard. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state =
       if Guard state then LengthRefresh.step state else state := by
   rw [gates_step_if, LengthRefresh.gates_step]
 
-private theorem guard_rewind {width : Nat} (state : Registers width) :
+private lemma guard_rewind {width : Nat} (state : Registers width) :
     Guard (LengthRefresh.rewind state) ↔ Guard state := Iff.rfl
 
-private theorem step_rewind {width : Nat} (state : Registers width) :
+private lemma step_rewind {width : Nat} (state : Registers width) :
     LengthRefresh.step (LengthRefresh.rewind state) = state := by
   change LengthRefresh.withLengths state
     (QuantumAlg.NumberTheory.SharedEEA.LengthPair.update state.firstWord state.secondWord
@@ -75,7 +77,7 @@ private theorem step_rewind {width : Nat} (state : Registers width) :
   rfl
 
 /-- The same actual native list in reverse implements the complete guarded finite inverse. -/
-theorem gates_reverse_step (width : Nat) (state : Registers width) :
+lemma gates_reverse_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width).reverse state =
       if Guard state then LengthRefresh.rewind state else state := by
   let previous := if Guard state then LengthRefresh.rewind state else state
@@ -91,18 +93,18 @@ theorem gates_reverse_step (width : Nat) (state : Registers width) :
     _ = previous := GateSpec.stepList_reverse_stepList _ _
 
 /-- All complete original register values return under actual forward/inverse composition. -/
-theorem reverse_after_forward (width : Nat) (state : Registers width) :
+lemma reverse_after_forward (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width).reverse (GateSpec.stepList (gates width) state) = state :=
   GateSpec.stepList_reverse_stepList _ _
 
 /-- Original Ctrl is untouched; no clean-control premise is imposed on this actual length kernel. -/
-theorem gates_control (width : Nat) (state : Registers width) :
+lemma gates_control (width : Nat) (state : Registers width) :
     (GateSpec.stepList (gates width) state).control = state.control := by
   rw [gates_step]
   split <;> rfl
 
 /-- The original arbitrary Iter value used by the actual dirty-work lists is restored exactly. -/
-theorem gates_iteration (width : Nat) (state : Registers width) :
+lemma gates_iteration (width : Nat) (state : Registers width) :
     (GateSpec.stepList (gates width) state).flags.iteration = state.flags.iteration := by
   rw [gates_step]
   split <;> rfl
@@ -113,13 +115,13 @@ def program (width : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Complete basis-vector action preserves every untouched coordinate and relative amplitude. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width)
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment
       (fun state => if Guard state then LengthRefresh.step state else state) :=
-  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _ (gates_step width)
+  GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _ (gates_step width) environment
 
 /-- Every actual native guard and cleanup event remains in the ordered trace. -/
-theorem program_eventTrace (width : Nat) :
+lemma program_eventTrace (width : Nat) :
     (program width).eventTrace = (gates width).map (GateSpec.event .empty) :=
   GateSpec.programList_eventTrace (QubitLayout.canonical _) .empty _
 

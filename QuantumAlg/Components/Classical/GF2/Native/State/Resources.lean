@@ -34,7 +34,7 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
   (output : CWriteRef ctx (.option (.unsignedWord width)))
 
 /-- All seven real lexical scopes retain the original complete native event allowance. -/
-theorem gf2WithState_pool_le (path : (withState input output).Path) :
+lemma gf2WithState_pool_le (path : (withState input output).Path) :
     (withState input output).resourcePool path ≤ intoEnvelope model rowCount width := by
   apply ClassicalWorkspace.withCellsFrom_pool_le (Transport.id ctx)
     (stateShapes rowCount width)
@@ -47,7 +47,7 @@ theorem gf2WithState_pool_le (path : (withState input output).Path) :
     (transport.liftWrite output) current
 
 /-- Actual initialization and release retain all original arbitrary event durations. -/
-theorem gf2WithState_depth_le (duration : Resource.Event model → Nat)
+lemma gf2WithState_depth_le (duration : Resource.Event model → Nat)
     (path : (withState input output).Path) :
     (withState input output).depth duration path ≤ intoDepthLimit rowCount width duration := by
   apply ClassicalWorkspace.withCellsFrom_depth_le (Transport.id ctx)
@@ -61,7 +61,7 @@ theorem gf2WithState_depth_le (duration : Resource.Event model → Nat)
     (transport.liftWrite output) duration current
 
 /-- The actual lexical scopes preserve the exact same-path serial event-duration equation. -/
-theorem gf2WithState_duration_eventTrace (duration : Resource.Event model → Nat)
+lemma gf2WithState_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (withState input output).Path) :
     (withState input output).depth duration path =
       (((withState input output).eventTrace path).map duration).sum := by
@@ -80,7 +80,7 @@ theorem gf2WithState_duration_eventTrace (duration : Resource.Event model → Na
   exact equation path
 
 /-- Every actual instruction remains charged after the original seven cells are released. -/
-theorem gf2WithState_eventCount_le (path : (withState input output).Path) :
+lemma gf2WithState_eventCount_le (path : (withState input output).Path) :
     ((withState input output).eventTrace path).length ≤
       intoDepthLimit (model := model) rowCount width (fun _ => 1) := by
   have bound := gf2WithState_depth_le input output (fun _ => 1) path
@@ -88,7 +88,7 @@ theorem gf2WithState_eventCount_le (path : (withState input output).Path) :
   simpa only [List.map_const', List.sum_replicate, smul_eq_mul, Nat.mul_one] using bound
 
 /-- All seven real cells and the active body scratch count toward the full resident peak. -/
-theorem gf2WithState_resident_le (path : (withState input output).Path) :
+lemma gf2WithState_resident_le (path : (withState input output).Path) :
     (withState input output).peakResidentSpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
         intoScratchSpace model rowCount width + ctx.residentSpace := by
@@ -103,7 +103,7 @@ theorem gf2WithState_resident_le (path : (withState input output).Path) :
     (transport.liftWrite output) current
 
 /-- All seven live workspace cells are charged once with the full caller auxiliary context. -/
-theorem gf2WithState_auxiliary_le (path : (withState input output).Path) :
+lemma gf2WithState_auxiliary_le (path : (withState input output).Path) :
     (withState input output).peakAuxiliarySpace path ≤
       ((stateShapes rowCount width).map SpacePool.ofShape).sum +
         intoScratchSpace model rowCount width + ctx.auxiliarySpace := by

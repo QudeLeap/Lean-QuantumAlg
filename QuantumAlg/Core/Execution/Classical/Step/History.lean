@@ -31,7 +31,7 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
   {H K : Type} [Fintype H] [Fintype K]
 
 /-- Native execution is independent of how the prior mathematical history is grouped. -/
-theorem mapHistory_nativeStep {model : ClassicalOpModel} (application : model.Application ctx)
+lemma mapHistory_nativeStep {model : ClassicalOpModel} (application : model.Application ctx)
     (state : State ctx Reference H) (update : H → K) :
     nativeStep application (state.mapHistory update) =
       (nativeStep application state).mapHistory (fun record => (update record.1, record.2)) := by
@@ -43,10 +43,12 @@ theorem mapHistory_nativeStep {model : ClassicalOpModel} (application : model.Ap
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Grouping history never groups, resets or reinitializes the query's persistent state. -/
-theorem mapHistory_queryStep {model : ClassicalOracleModel} (application : model.Application ctx)
+lemma mapHistory_queryStep {model : ClassicalOracleModel}
+    (environment : model.Interpretation) (application : model.Application ctx)
     (state : State ctx Reference (model.HiddenState × H)) (update : H → K) :
-    queryStep application (state.mapHistory (fun record => (record.1, update record.2))) =
-      (queryStep application state).mapHistory
+    queryStep environment application
+      (state.mapHistory (fun record => (record.1, update record.2))) =
+      (queryStep environment application state).mapHistory
         (fun record => (record.1, (update record.2.1, record.2.2))) := by
   dsimp only [queryStep, mapHistory]
   rw [kernelChoice_mapClassical (afterMap := inferInstance)]

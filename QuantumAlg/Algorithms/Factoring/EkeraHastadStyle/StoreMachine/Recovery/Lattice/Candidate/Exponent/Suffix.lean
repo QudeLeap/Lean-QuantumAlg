@@ -34,7 +34,7 @@ structure SuffixOutcome (refs : Refs ctx width) (store : Store ctx)
 
 omit [BitWord.Selected model] in
 /-- Actual stored values determine every original suffix check and the final acceptance bit. -/
-theorem suffixInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma suffixInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (magnitude upper : Nat) (negative : Bool)
     (magnitudeValue : (store.read (writeInput refs.magnitude)).toNat = magnitude)
     (negativeValue : (store.read (writeInput refs.negative)).toBool = negative)

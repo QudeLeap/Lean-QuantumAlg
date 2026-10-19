@@ -27,7 +27,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {modulusWidth phaseBits : Nat}
 
 /-- The natural candidate projection loses no information from an optional finite word. -/
-theorem nativeRecovery_output_candidate_injective :
+lemma nativeRecovery_output_candidate_injective :
     Function.Injective (fun output : CShape.Value (outputShape phaseBits) =>
       (decodeOutput output).map (fun word => word.val)) := by
   intro first second same
@@ -48,7 +48,7 @@ theorem nativeRecovery_output_candidate_injective :
                     (CShape.Value.unsignedWord word)) (Fin.ext (Option.some.inj same))
 
 /-- The real output write contains the closed packing of the actual tag and payload reads. -/
-theorem nativeRecovery_pack_read
+lemma nativeRecovery_pack_read
     (output : CWriteRef ctx (outputShape phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1))) :
     (store.applyOp (packRecoveredOp output)).read
@@ -60,7 +60,7 @@ theorem nativeRecovery_pack_read
   exact Store.read_applyOp_output store (packRecoveredOp output)
 
 /-- Projecting the actual packed output yields precisely the actual selected-candidate reads. -/
-theorem nativeRecovery_pack_candidate
+lemma nativeRecovery_pack_candidate
     (output : CWriteRef ctx (outputShape phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1))) :
     (decodeOutput ((store.applyOp (packRecoveredOp output)).read
@@ -75,7 +75,7 @@ theorem nativeRecovery_pack_candidate
       | unsignedWord word => cases tag <;> rfl
 
 /-- A proved actual selection determines the exact original typed source result. -/
-theorem nativeRecovery_pack_source_result
+lemma nativeRecovery_pack_source_result
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (output : CWriteRef ctx (outputShape phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1)))

@@ -26,7 +26,7 @@ structure Initialized {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   state : cells.state.Initialized store
 
 /-- Actual read agreement preserves initialization of all three transported packages. -/
-theorem Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind} {N : Nat}
+lemma Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind} {N : Nat}
     {source : Store outer} {before : Store inner} {cells : Cells outer N}
     (initial : Initialized source cells) (transport : Transport outer inner)
     (reads : transport.ReadsAs source before) :

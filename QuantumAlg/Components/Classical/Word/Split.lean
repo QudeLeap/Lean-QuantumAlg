@@ -66,7 +66,7 @@ def highOp (refs : Refs ctx highWidth lowWidth) :
 
 end Descriptor
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width highWidth lowWidth : Nat}
 
 /-- Perform the prescribed number of native shifts on the actual working word. -/
@@ -79,10 +79,10 @@ def shiftStep (count : Nat) (work : CWriteRef ctx (.unsignedWord width)) (store 
   BitWord.repeatStep (execution := model) (shiftOp work) count store
 
 /-- The actual shifts retain shared service state and every original quantum-reference block. -/
-theorem shiftInto_execute (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_execute (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (shiftInto (model := model) count work).execute Reference state =
+    (shiftInto (model := model) count work).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := shiftStep (model := model) count work entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
@@ -101,14 +101,14 @@ def tailStep (refs : Refs ctx highWidth lowWidth) (store : Store ctx) :
   (last.1, (first.2, last.2))
 
 /-- Actual shifts and the final output write compose on the complete state and service record. -/
-theorem tailInto_execute (refs : Refs ctx highWidth lowWidth) (Reference : Register)
+lemma tailInto_execute (refs : Refs ctx highWidth lowWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (tailInto (model := model) refs).execute Reference state =
+    (tailInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := tailStep (model := model) refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (shiftInto (model := model) lowWidth refs.work)
     (BitWord.instruction (execution := model) (highOp refs))
     (fun before =>
@@ -121,7 +121,8 @@ theorem tailInto_execute (refs : Refs ctx highWidth lowWidth) (Reference : Regis
     exact (shiftInto_execute (model := model) lowWidth refs.work reference state).trans
       (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ state
-    exact (BitWord.bitWord_instruction_execute (execution := model) (highOp refs) state).trans
+    exact (BitWord.bitWord_instruction_execute
+      (environment := environment) (execution := model) (highOp refs) state).trans
       (ExecutionState.executionState_mapClassical_congr _ rfl)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
@@ -137,14 +138,14 @@ def splitStep (refs : Refs ctx highWidth lowWidth) (store : Store ctx) :
   (tail.1, (first.2, tail.2))
 
 /-- Actual low extraction, shifts and high extraction preserve all original state correlations. -/
-theorem splitInto_execute (refs : Refs ctx highWidth lowWidth) (Reference : Register)
+lemma splitInto_execute (refs : Refs ctx highWidth lowWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (splitInto (model := model) refs).execute Reference state =
+    (splitInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := splitStep (model := model) refs entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (lowOp refs)) (tailInto (model := model) refs)
     (fun before =>
       let result := BitWord.instructionStep (execution := model) (lowOp refs) before.1
@@ -153,7 +154,8 @@ theorem splitInto_execute (refs : Refs ctx highWidth lowWidth) (Reference : Regi
       let result := tailStep (model := model) refs before.1
       ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ state
-    exact (BitWord.bitWord_instruction_execute (execution := model) (lowOp refs) state).trans
+    exact (BitWord.bitWord_instruction_execute
+      (environment := environment) (execution := model) (lowOp refs) state).trans
       (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ state
     exact (tailInto_execute (model := model) refs reference state).trans

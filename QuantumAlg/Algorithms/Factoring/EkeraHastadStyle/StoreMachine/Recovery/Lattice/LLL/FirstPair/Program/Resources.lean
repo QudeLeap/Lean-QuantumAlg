@@ -61,7 +61,7 @@ def firstPairTrace {model : ExecutionModel} [BitWord.Selected model] (width : Na
     (ClassicalRoutines.Comparison.Doubled.comparisonTrace (model := model) width ++
       if passes then [] else LatticeSwap.pointSwapTrace (model := model) width)
 
-private theorem select_events {model : ExecutionModel} [BitWord.Selected model]
+private lemma select_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (selectInto (model := model) refs).Path) :
     (selectInto (model := model) refs).eventTrace path =
@@ -77,7 +77,7 @@ private theorem select_events {model : ExecutionModel} [BitWord.Selected model]
     · rfl
 
 /-- Every actual path emits exactly the independently specified native instruction sequence. -/
-theorem firstPairInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path) :
     (firstPairInto (model := model) refs).eventTrace path =
@@ -90,7 +90,7 @@ theorem firstPairInto_events {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- Actual native multiplicity is counted from that same independent instruction formula. -/
-theorem firstPairInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path) :
     (firstPairInto (model := model) refs).resourcePool path =
@@ -100,7 +100,7 @@ theorem firstPairInto_resourcePool {model : ExecutionModel} [BitWord.Selected mo
   change ResourcePool.ofList ((firstPairInto (model := model) refs).eventTrace path) = _
   rw [firstPairInto_events]
 
-private theorem select_count {model : ExecutionModel} [BitWord.Selected model]
+private lemma select_count {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (selectInto (model := model) refs).Path) :
     ((selectInto (model := model) refs).eventTrace path).length ≤ 9 := by
@@ -108,7 +108,7 @@ private theorem select_count {model : ExecutionModel} [BitWord.Selected model]
   split <;> simp [LatticeSwap.pointSwapTrace]
 
 /-- At most 36 actual native instructions execute, including a failed-test row exchange. -/
-theorem firstPairInto_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_eventCount_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path) :
     ((firstPairInto (model := model) refs).eventTrace path).length ≤ 36 := by
@@ -120,7 +120,7 @@ theorem firstPairInto_eventCount_le {model : ExecutionModel} [BitWord.Selected m
     (6 + 5) + (3 + ((selectInto (model := model) refs).eventTrace path.2.2).length) ≤ 36
   omega
 
-private theorem select_depth {model : ExecutionModel} [BitWord.Selected model]
+private lemma select_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (selectInto (model := model) refs).Path) :
     (selectInto (model := model) refs).depth (fun _ => 1) path ≤ 9 := by
@@ -134,7 +134,7 @@ private theorem select_depth {model : ExecutionModel} [BitWord.Selected model]
       omega
 
 /-- Unit-duration serial depth retains all dependencies and is at most 36. -/
-theorem firstPairInto_depth_le {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_depth_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path) :
     (firstPairInto (model := model) refs).depth (fun _ => 1) path ≤ 36 := by
@@ -144,40 +144,43 @@ theorem firstPairInto_depth_le {model : ExecutionModel} [BitWord.Selected model]
     (6 + 5) + (3 + (selectInto (model := model) refs).depth (fun _ => 1) path.2.2) ≤ 36
   omega
 
-private theorem select_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+private lemma select_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (selectInto (model := model) refs).BorrowedRestored Reference state
-      ((selectInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_branch _ _ Reference _ state
+      ((selectInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_branch (environment := environment) _ _ Reference _ state
   intro flag History _ state
   cases flag with
   | bit flag =>
     cases flag
     · exact LatticeSwap.pointSwap_borrowedRestored _ _ _ Reference state
-    · exact Circuit.borrowedRestored_id (model := model) (ctx := ctx) state
+    · exact Circuit.borrowedRestored_id
+        (environment := environment) (model := model) (ctx := ctx) state
 
 /-- Complete actual execution restores borrowed correlations jointly with external references. -/
-theorem firstPairInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (firstPairInto (model := model) refs).BorrowedRestored Reference state
-      ((firstPairInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((firstPairInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
     (reductionPrefixInto (model := model) refs) (lovaszBranchInto (model := model) refs)
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
       (RoundedDiv.body (model := model) refs.division) (reduceRefreshInto (model := model) refs)
     · exact RoundedDiv.body_borrowedRestored refs.division Reference state
-    · exact Circuit.borrowedRestored_seq _ _ _
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
         (LatticeArithmetic.pointReduce_borrowedRestored _ _ _ _ Reference _)
         (LatticeNormRefresh.refreshInto_borrowedRestored _ _ Reference _)
-  · exact Circuit.borrowedRestored_seq _ _ _
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (LatticeLovasz.firstLovaszInto_borrowedRestored _ _ Reference _)
       (select_borrowedRestored refs Reference _)
 
-private theorem select_visited {model : ExecutionModel} [BitWord.Selected model]
+private lemma select_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (selectInto (model := model) refs).Path)
     (visited : RuntimeCtx model.kind)
@@ -193,7 +196,7 @@ private theorem select_visited {model : ExecutionModel} [BitWord.Selected model]
       exact List.mem_singleton.mp present
 
 /-- Every actual phase retains the complete supplied live context. -/
-theorem firstPairInto_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path)
     (visited : RuntimeCtx model.kind)
@@ -212,7 +215,7 @@ theorem firstPairInto_visited {model : ExecutionModel} [BitWord.Selected model]
   · exact select_visited refs path.2.2 visited selected
 
 /-- Resident accounting includes all supplied classical cells and quantum systems. -/
-theorem firstPairInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path) :
     (firstPairInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -221,7 +224,7 @@ theorem firstPairInto_resident_le {model : ExecutionModel} [BitWord.Selected mod
   rw [firstPairInto_visited refs path visited present]
 
 /-- Auxiliary accounting retains the original roles and counts scratch throughout execution. -/
-theorem firstPairInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (firstPairInto (model := model) refs).Path) :
     (firstPairInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by

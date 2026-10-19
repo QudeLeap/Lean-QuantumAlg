@@ -28,7 +28,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Three copied finished-state fields are exactly the original deterministic XGCD values. -/
-theorem xgcdNativeRawOutputs_finalState_values (outputs : RawOutputs ctx width)
+lemma xgcdNativeRawOutputs_finalState_values (outputs : RawOutputs ctx width)
     (store : Store ctx) (input : PureXGCD.Input width)
     (gcdValue : (store.read (GCD.cellRead outputs.gcd)).toNat =
       (PureXGCD.finalState input).second)
@@ -51,7 +51,7 @@ theorem xgcdNativeRawOutputs_finalState_values (outputs : RawOutputs ctx width)
         (NumberTheory.XGCD.xgcdEval_rightCoefficient_toInt input).symm)
 
 /-- Actual raw result reads satisfy GCD, Bezout and both original public signed intervals. -/
-theorem xgcdNativeRawOutputs_finalState_correct (outputs : RawOutputs ctx width)
+lemma xgcdNativeRawOutputs_finalState_correct (outputs : RawOutputs ctx width)
     (store : Store ctx) (input : PureXGCD.Input width)
     (gcdValue : (store.read (GCD.cellRead outputs.gcd)).toNat =
       (PureXGCD.finalState input).second)
@@ -75,7 +75,7 @@ theorem xgcdNativeRawOutputs_finalState_correct (outputs : RawOutputs ctx width)
   exact PureXGCD.xgcdEval_accepts input
 
 /-- A public result with these actual raw read-values satisfies the original acceptance relation. -/
-theorem xgcdNativeRawOutputs_accepts (outputs : RawOutputs ctx width)
+lemma xgcdNativeRawOutputs_accepts (outputs : RawOutputs ctx width)
     (store : Store ctx) (input : PureXGCD.Input width)
     (gcdValue : (store.read (GCD.cellRead outputs.gcd)).toNat =
       (PureXGCD.finalState input).second)

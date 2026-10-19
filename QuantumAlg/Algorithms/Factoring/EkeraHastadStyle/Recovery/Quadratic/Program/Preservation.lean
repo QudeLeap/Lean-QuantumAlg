@@ -26,67 +26,68 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 open Execution
 open ClassicalRoutines
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width resultWidth : Nat}
+variable {model : ExecutionModel}
+    {environment : model.Environment} {ctx : RuntimeCtx model.kind} {width resultWidth : Nat}
 
-private theorem check_scopes_restore (width : Nat)
+private lemma check_scopes_restore (width : Nat)
     (inner : Circuit model (CheckLayout.context ctx width) (CheckLayout.context ctx width))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
       (state : State (CheckLayout.context ctx width) Reference (model.HiddenState × History)),
-      inner.BorrowedRestored Reference state (inner.execute Reference state))
+      inner.BorrowedRestored Reference state (inner.execute environment Reference state))
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (CheckLayout.scopes ctx width inner).BorrowedRestored Reference state
-      ((CheckLayout.scopes ctx width inner).execute Reference state) := by
+      ((CheckLayout.scopes ctx width inner).execute environment Reference state) := by
   unfold CheckLayout.scopes
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history0 finite0 entered0
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history1 finite1 entered1
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history2 finite2 entered2
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history3 finite3 entered3
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history4 finite4 entered4
   exact restores entered4
 
-private theorem candidate_scopes_restore (width : Nat)
+private lemma candidate_scopes_restore (width : Nat)
     (inner : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
       (state : State (Layout.context ctx width) Reference (model.HiddenState × History)),
-      inner.BorrowedRestored Reference state (inner.execute Reference state))
+      inner.BorrowedRestored Reference state (inner.execute environment Reference state))
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (Layout.scopes ctx width inner).BorrowedRestored Reference state
-      ((Layout.scopes ctx width inner).execute Reference state) := by
+      ((Layout.scopes ctx width inner).execute environment Reference state) := by
   unfold Layout.scopes
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history0 finite0 entered0
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history1 finite1 entered1
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history2 finite2 entered2
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history3 finite3 entered3
   exact restores entered3
 
-private theorem selection_scopes_restore (width : Nat)
+private lemma selection_scopes_restore (width : Nat)
     (inner : Circuit model (SelectionLayout.context ctx width) (SelectionLayout.context ctx width))
     (Reference : Register)
     (restores : ∀ {History : Type} [Fintype History]
       (state : State (SelectionLayout.context ctx width) Reference (model.HiddenState × History)),
-      inner.BorrowedRestored Reference state (inner.execute Reference state))
+      inner.BorrowedRestored Reference state (inner.execute environment Reference state))
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (SelectionLayout.scopes ctx width inner).BorrowedRestored Reference state
-      ((SelectionLayout.scopes ctx width inner).execute Reference state) := by
+      ((SelectionLayout.scopes ctx width inner).execute environment Reference state) := by
   unfold SelectionLayout.scopes
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history0 finite0 entered0
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history1 finite1 entered1
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history2 finite2 entered2
-  apply Circuit.borrowedRestored_workspace
+  apply Circuit.borrowedRestored_workspace (environment := environment)
   intro history3 finite3 entered3
   exact restores entered3
 
@@ -94,15 +95,15 @@ variable [BitWord.Selected model]
 
 /-- Both complete checks, local selection and actual final conversion restore the borrowed state.
 -/
-theorem nativeQuadratic_checkedBody_borrowedRestored
+lemma nativeQuadratic_checkedBody_borrowedRestored
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (LocalLayout.context ctx width) Reference (model.HiddenState × History)) :
     (checkedBody (model := model) modulus original).BorrowedRestored Reference state
-      ((checkedBody (model := model) modulus original).execute Reference state) := by
+      ((checkedBody (model := model) modulus original).execute environment Reference state) := by
   let pair := LocalLayout.pairRefs modulus
-  exact Circuit.borrowedRestored_seq (Pair.code (model := model) pair)
+  exact Circuit.borrowedRestored_seq (environment := environment) (Pair.code (model := model) pair)
     (NarrowSelection.code (model := model) (FirstAccepted.cellRead pair.selection.accepted)
       (FirstAccepted.cellRead pair.selection.selected) (LocalLayout.persistentRefs original width))
     state (nativeQuadratic_pair_borrowedRestored pair Reference state)
@@ -113,7 +114,7 @@ theorem nativeQuadratic_checkedBody_borrowedRestored
 
 /-- Actual candidate arithmetic and the five checker scopes preserve the complete borrowed state.
 -/
-theorem nativeQuadratic_candidateBody_borrowedRestored
+lemma nativeQuadratic_candidateBody_borrowedRestored
     (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
@@ -121,8 +122,9 @@ theorem nativeQuadratic_candidateBody_borrowedRestored
     (state : State (LocalLayout.candidateContext ctx width) Reference
       (model.HiddenState × History)) :
     (candidateBody (model := model) input modulus original).BorrowedRestored Reference state
-      ((candidateBody (model := model) input modulus original).execute Reference state) := by
-  exact Circuit.borrowedRestored_seq
+      ((candidateBody (model := model) input modulus original).execute environment
+        Reference state) := by
+  exact Circuit.borrowedRestored_seq (environment := environment)
     (Initialized.code (model := model) (LocalLayout.arithmeticRead input width)
       (LocalLayout.arithmeticRead modulus width) (LocalLayout.arithmeticRefs ctx width))
     (CheckLayout.scopes (LocalLayout.candidateContext ctx width) (RSA.quadraticWordWidth width)
@@ -135,12 +137,12 @@ theorem nativeQuadratic_candidateBody_borrowedRestored
       (nativeQuadratic_checkedBody_borrowedRestored modulus original Reference) _)
 
 /-- The complete actual quadratic program restores every arbitrary borrowed joint interface. -/
-theorem nativeQuadratic_program_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_borrowedRestored (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (program (model := model) input modulus original).BorrowedRestored Reference state
-      ((program (model := model) input modulus original).execute Reference state) := by
+      ((program (model := model) input modulus original).execute environment Reference state) := by
   apply selection_scopes_restore
   intro history historyFinite entered
   exact candidate_scopes_restore width

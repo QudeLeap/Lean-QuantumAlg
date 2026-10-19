@@ -69,16 +69,16 @@ public noncomputable def operator {model : GateModel} (gate : Occurrence model) 
   UnitaryOperator.reindex gate.placement.indexEquiv.symm (model.operator gate.token)
 
 /-- Every native occurrence has exactly the semantics fixed by its model. -/
-public theorem operator_from_token {model : GateModel} (gate : Occurrence model) :
+public lemma operator_from_token {model : GateModel} (gate : Occurrence model) :
     gate.operator =
       UnitaryOperator.reindex gate.placement.indexEquiv.symm (model.operator gate.token) := rfl
 
 /-- A native coordinate cannot be chosen independently from its gate token. -/
-@[simp] public theorem coordinate_from_token {model : GateModel} (gate : Occurrence model) :
+@[simp] public lemma coordinate_from_token {model : GateModel} (gate : Occurrence model) :
     gate.coordinate = model.coordinate gate.token := rfl
 
 /-- Every physical system named by the occurrence is distinct. -/
-public theorem physical_systems_distinct {model : GateModel} (gate : Occurrence model) :
+public lemma physical_systems_distinct {model : GateModel} (gate : Occurrence model) :
     gate.placement.layout.identities.Nodup := gate.placement.layout.identities_nodup
 
 end Occurrence

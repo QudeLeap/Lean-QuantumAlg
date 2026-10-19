@@ -32,7 +32,7 @@ noncomputable section
 open NumberTheory.SharedEEA
 
 /-- The actual zero-shift block clears both phase bits on the complete unrotated deshift frame. -/
-theorem zero_shift_frame (state : IterationState) (modulus : Nat)
+lemma zero_shift_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     ZeroShiftControl.step (DeshiftPhaseFrame.frame state modulus 0 valid conserved active
@@ -79,7 +79,7 @@ theorem zero_shift_frame (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- Actual swap, both length updates, and Iter complement reach the next full macro frame. -/
-theorem native_frame (state : IterationState) (modulus : Nat)
+lemma native_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (iteration : Bool) :
@@ -89,7 +89,7 @@ theorem native_frame (state : IterationState) (modulus : Nat)
   TerminalBoundaryFrame.native_frame state modulus valid conserved coprime active iteration
 
 /-- Both final native blocks restore the macro flags and advance the complete physical payload. -/
-theorem deshift_tail_frame (state : IterationState) (modulus : Nat)
+lemma deshift_tail_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (iteration : Bool) :

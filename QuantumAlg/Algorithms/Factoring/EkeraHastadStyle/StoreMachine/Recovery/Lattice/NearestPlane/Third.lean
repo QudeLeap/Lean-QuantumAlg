@@ -83,17 +83,19 @@ def thirdStep {model : ExecutionModel} [BitWord.Selected model]
   let reduced := thirdNormalizeStep refs metrics.1
   (reduced.1, (metrics.2, reduced.2))
 
-private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma divisionReduction_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (writeInput refs.division.output)
-        refs.basis.third refs.target refs.reduceProduct)).execute Reference state =
+        refs.basis.third refs.target refs.reduceProduct)).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := divisionReductionStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (RoundedDiv.body refs.division)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (RoundedDiv.body refs.division)
     (LatticeArithmetic.pointReduce (writeInput refs.division.output)
       refs.basis.third refs.target refs.reduceProduct)
     (fun before =>
@@ -110,18 +112,19 @@ private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Sele
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem signReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma signReduction_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (numeratorSignInto refs)
       (Circuit.seq (RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (writeInput refs.division.output)
-          refs.basis.third refs.target refs.reduceProduct))).execute Reference state =
+          refs.basis.third refs.target refs.reduceProduct))).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := signReductionStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (numeratorSignInto refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (numeratorSignInto refs)
     (.seq (RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (writeInput refs.division.output)
         refs.basis.third refs.target refs.reduceProduct))
@@ -137,14 +140,15 @@ private theorem signReduction_execute {model : ExecutionModel} [BitWord.Selected
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The normalization suffix preserves the selected hidden state and reference correlations. -/
-theorem thirdNormalizeInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdNormalizeInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (thirdNormalizeInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (thirdNormalizeInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := thirdNormalizeStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (normalizeMagnitude (writeInput refs.denominator)
       refs.division.negative refs.denominatorMagnitude)
     (.seq (numeratorSignInto refs)
@@ -166,14 +170,15 @@ theorem thirdNormalizeInto_execute {model : ExecutionModel} [BitWord.Selected mo
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete third-phase execution records all selected branches and incoming correlations. -/
-theorem thirdInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (thirdInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (thirdInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := thirdStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (thirdMetricPrefixInto refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (thirdMetricPrefixInto refs)
     (thirdNormalizeInto refs)
     (fun before =>
       let actual := metricPrefixStep refs before.1

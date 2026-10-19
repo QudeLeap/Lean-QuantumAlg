@@ -31,35 +31,49 @@ open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- The same actual finite run establishes all prescribed clauses, including zero rounds. -/
-public theorem ecdlpRecovery_whole_solves (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_whole_solves (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (nontrivial : 2 ≤ (problem I).order) (count : Nat)
-    (duration : Resource.Event (Sampling.executionModel I A) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    (wholeAlgorithm I A expansion nontrivial count).Solves
-      (wholeProblem I A expansion nontrivial count duration unitQueries) := by
+    (nontrivial : 2 ≤ (problem I).order) (count : Nat) :
+    (wholeAlgorithm I expansion nontrivial count).Solves
+      (wholeProblem I expansion nontrivial count) := by
   constructor
-  · intro Reference original valid _initialized
-    exact ecdlpRecovery_run_success I A expansion nontrivial count original valid
-  · intro Reference original _valid _initialized requirement present
+  · intro environment witness Reference original valid _initialized
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    have originalValid := valid.2
+    exact ecdlpRecovery_run_success I A expansion nontrivial count original originalValid
+  · intro environment witness Reference original valid _initialized requirement present
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
     have same : requirement = wholeStateRequirement I := List.mem_singleton.mp present
     subst requirement
     exact AlgorithmRun.stateRequirement_of_reinitializedAt
-      (run I A expansion nontrivial count) (wholeZeroSeed I)
+      (run I expansion nontrivial count) (Sampling.sourceEnvironment I A) (wholeZeroSeed I)
       (ecdlpRecovery_code_reinitializedAt I A expansion nontrivial count)
       (.read (batchResultRead (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I))) original
-  · intro Reference original _valid _initialized
+  · intro environment witness Reference original valid _initialized
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
     exact ecdlpRecovery_run_restoresBorrowed I A expansion nontrivial count original
-  · intro _Reference _original _valid _initialized path _supported
-    exact ecdlpRecovery_code_events_le I A expansion nontrivial count path
-  · intro _Reference _original _valid _initialized path _supported
-    exact ecdlpRecovery_code_resident_le I A expansion nontrivial count path
-  · intro _Reference _original _valid _initialized path _supported
-    exact ecdlpRecovery_code_auxiliary_le I A expansion nontrivial count path
-  · intro _Reference _original _valid _initialized path _supported
-    exact Circuit.depth_le_weightedCount_of_pool_le (code I A expansion nontrivial count) duration
-      (eventBudget I A expansion nontrivial count) path
-      (ecdlpRecovery_code_events_le I A expansion nontrivial count path)
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact ecdlpRecovery_code_events_le I expansion nontrivial count path
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact ecdlpRecovery_code_resident_le I expansion nontrivial count path
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact ecdlpRecovery_code_auxiliary_le I expansion nontrivial count path
+  · intro environment witness _Reference _original valid _initialized path _supported
+    obtain ⟨A, rfl⟩ := (Sampling.admissible_iff_sourceEnvironment I environment).mp
+      valid.1
+    exact Circuit.depth_le_weightedCount_of_pool_le (code I expansion nontrivial count)
+      Resource.Event.quantumDuration
+      (eventBudget I expansion nontrivial count) path
+      (ecdlpRecovery_code_events_le I expansion nontrivial count path)
 
 end
 

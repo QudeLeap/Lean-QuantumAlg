@@ -22,7 +22,7 @@ namespace QuantumAlg.EncodedBit
 
 noncomputable section
 
-private theorem toffoli_if {Data : Type} {label : BinaryLabelEncoding Data}
+private lemma toffoli_if {Data : Type} {label : BinaryLabelEncoding Data}
     (control source target : EncodedBit label) (state : Data) :
     toffoliStep control source target state =
       if control.get state then cnotStep source target state else state := by
@@ -30,7 +30,7 @@ private theorem toffoli_if {Data : Type} {label : BinaryLabelEncoding Data}
   cases control.get state <;> cases source.get state <;> rfl
 
 /-- The complete three-Toffoli action selects the corresponding three-CNOT swap. -/
-theorem controlledSwapStep_eq_if {Data : Type} {label : BinaryLabelEncoding Data}
+lemma controlledSwapStep_eq_if {Data : Type} {label : BinaryLabelEncoding Data}
     (control left right : EncodedBit label)
     (cl : control.wire ≠ left.wire) (cr : control.wire ≠ right.wire)
     (lr : left.wire ≠ right.wire) (state : Data) :

@@ -33,7 +33,7 @@ noncomputable section
 open ArithmeticWindowRegisters CoefficientWindowLaws
 open NumberTheory.SharedEEA
 
-private theorem replace_eq_of_suffix {wordWidth length : Nat}
+private lemma replace_eq_of_suffix {wordWidth length : Nat}
     (before after : BitVec wordWidth) (fits : length ≤ wordWidth)
     (same : after.extractLsb' 0 (wordWidth - length) =
       before.extractLsb' 0 (wordWidth - length)) :
@@ -45,7 +45,7 @@ private theorem replace_eq_of_suffix {wordWidth length : Nat}
       unfold PhysicalWindow.replace
       rw [same]
 
-private theorem secondWord_suffix {width length : Nat} (fits : length ≤ width + 3)
+private lemma secondWord_suffix {width length : Nat} (fits : length ≤ width + 3)
     (before after : Registers width)
     (same :
       (CoefficientWindowOrientation.grouping
@@ -62,7 +62,7 @@ private theorem secondWord_suffix {width length : Nat} (fits : length ≤ width 
     (suffix.trans (wordEquiv_below window before.secondWord))
 
 /-- Every actual coefficient arithmetic mode updates whole Work2 by exact physical replacement. -/
-theorem step_secondWord {width length : Nat} (fits : length ≤ width + 3)
+lemma step_secondWord {width length : Nat} (fits : length ≤ width + 3)
     (operation : ArithmeticWindowProgram.Operation) (state : Registers width) :
     let window := CoefficientWindowOrientation.coefficientWindow width length fits
     (CoefficientWindowProgram.step window operation state).secondWord =
@@ -75,7 +75,7 @@ theorem step_secondWord {width length : Nat} (fits : length ≤ width + 3)
       (step_complement window operation state))
 
 /-- The complete source block writes the signed instruction's low word into original Work2. -/
-theorem source_secondWord {width : Nat} (state : Registers width)
+lemma source_secondWord {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     let window := CoefficientWindowOrientation.coefficientWindow width
@@ -105,7 +105,7 @@ theorem source_secondWord {width : Nat} (state : Registers width)
     (congrArg (fun word => PhysicalWindow.replace state.secondWord word fits) low)
 
 /-- The actual emitted program has that same whole-word result on internally prepared frames. -/
-theorem native_secondWord (width : Nat) (state : Registers width)
+lemma native_secondWord (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false) (fits : state.coefficientLength.toNat + 1 ≤ width + 3) :
     let window := CoefficientWindowOrientation.coefficientWindow width

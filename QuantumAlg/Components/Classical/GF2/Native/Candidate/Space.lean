@@ -24,7 +24,7 @@ open Execution
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem coefficient_resident (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma coefficient_resident (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit)
     (path : (candidateCoefficientChoice candidate column value).Path) :
     (candidateCoefficientChoice candidate column value).peakResidentSpace path ≤
@@ -35,7 +35,7 @@ private theorem coefficient_resident (candidate : CWriteRef ctx (.unsignedWord w
       · exact gf2MaterializePivotColumn_resident_le candidate column path
       · exact (SpacePool.max_zero _).le.trans (fun _axis => Nat.le_add_left _ _)
 
-private theorem rowBody_resident
+private lemma rowBody_resident
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
@@ -56,7 +56,7 @@ private theorem rowBody_resident
     (coefficient_resident candidate column path.2.2.1 path.2.2.2))
 
 /-- A selected row charges both original outer cells and the possible inner column mask. -/
-theorem gf2CandidateRowSelected_resident_le
+lemma gf2CandidateRowSelected_resident_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width)
@@ -86,7 +86,7 @@ theorem gf2CandidateRowSelected_resident_le
     omega
 
 /-- The actual pivot-record branch adds no workspace outside the original selected-row scopes. -/
-theorem gf2CandidatePivotRow_resident_le
+lemma gf2CandidatePivotRow_resident_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -109,7 +109,7 @@ theorem gf2CandidatePivotRow_resident_le
       · exact gf2CandidateRowSelected_resident_le matrix free candidate zero row column path
 
 /-- Both actual traversals reuse the original scopes without multiplying live workspace. -/
-theorem gf2BuildCandidate_resident_le
+lemma gf2BuildCandidate_resident_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -137,7 +137,7 @@ theorem gf2BuildCandidate_resident_le
   exact Circuit.forRange_resident_le rowCount _ _ entry
     (fun row => gf2CandidatePivotRow_resident_le matrix rows free candidate zero row column) current
 
-private theorem coefficient_auxiliary (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma coefficient_auxiliary (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit)
     (path : (candidateCoefficientChoice candidate column value).Path) :
     (candidateCoefficientChoice candidate column value).peakAuxiliarySpace path ≤
@@ -148,7 +148,7 @@ private theorem coefficient_auxiliary (candidate : CWriteRef ctx (.unsignedWord 
       · exact gf2MaterializePivotColumn_auxiliary_le candidate column path
       · exact (SpacePool.max_zero _).le.trans (fun _axis => Nat.le_add_left _ _)
 
-private theorem rowBody_auxiliary
+private lemma rowBody_auxiliary
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
@@ -169,7 +169,7 @@ private theorem rowBody_auxiliary
     (coefficient_auxiliary candidate column path.2.2.1 path.2.2.2))
 
 /-- A selected row charges both original outer cells and the possible inner column mask. -/
-theorem gf2CandidateRowSelected_auxiliary_le
+lemma gf2CandidateRowSelected_auxiliary_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
     (row : Fin rowCount) (column : Fin width)
@@ -199,7 +199,7 @@ theorem gf2CandidateRowSelected_auxiliary_le
     omega
 
 /-- The actual pivot-record branch adds no workspace outside the original selected-row scopes. -/
-theorem gf2CandidatePivotRow_auxiliary_le
+lemma gf2CandidatePivotRow_auxiliary_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -222,7 +222,7 @@ theorem gf2CandidatePivotRow_auxiliary_le
       · exact gf2CandidateRowSelected_auxiliary_le matrix free candidate zero row column path
 
 /-- Both actual traversals reuse the original scopes without multiplying live workspace. -/
-theorem gf2BuildCandidate_auxiliary_le
+lemma gf2BuildCandidate_auxiliary_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))

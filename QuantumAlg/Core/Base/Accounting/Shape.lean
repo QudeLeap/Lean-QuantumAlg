@@ -71,30 +71,30 @@ public def bitWidth : CShape → Nat
   | .unitResidue modulusWidth => modulusWidth
   | .ellipticCurvePoint fieldWidth => 1 + 2 * fieldWidth
 
-@[simp] theorem bitWidth_unit : bitWidth .unit = 0 := rfl
-@[simp] theorem bitWidth_bit : bitWidth .bit = 1 := rfl
-@[simp] theorem bitWidth_finite (cardinality : ℕ+) :
+@[simp] lemma bitWidth_unit : bitWidth .unit = 0 := rfl
+@[simp] lemma bitWidth_bit : bitWidth .bit = 1 := rfl
+@[simp] lemma bitWidth_finite (cardinality : ℕ+) :
     bitWidth (.finite cardinality) = Nat.clog 2 cardinality := rfl
-@[simp] theorem bitWidth_bits (count : Nat) : bitWidth (.bits count) = count := rfl
-@[simp] theorem bitWidth_unsignedWord (width : Nat) :
+@[simp] lemma bitWidth_bits (count : Nat) : bitWidth (.bits count) = count := rfl
+@[simp] lemma bitWidth_unsignedWord (width : Nat) :
     bitWidth (.unsignedWord width) = width := rfl
-@[simp] theorem bitWidth_boundedSignedWord (width : Nat) :
+@[simp] lemma bitWidth_boundedSignedWord (width : Nat) :
     bitWidth (.boundedSignedWord width) = width := rfl
-@[simp] theorem bitWidth_option (payload : CShape) :
+@[simp] lemma bitWidth_option (payload : CShape) :
     bitWidth (.option payload) = 1 + payload.bitWidth := rfl
-@[simp] theorem bitWidth_product (left right : CShape) :
+@[simp] lemma bitWidth_product (left right : CShape) :
     bitWidth (.product left right) = left.bitWidth + right.bitWidth := rfl
-@[simp] theorem bitWidth_fixedVector (length : Nat) (element : CShape) :
+@[simp] lemma bitWidth_fixedVector (length : Nat) (element : CShape) :
     bitWidth (.fixedVector length element) = length * element.bitWidth := rfl
-@[simp] theorem bitWidth_canonicalResidue (modulusWidth : Nat) :
+@[simp] lemma bitWidth_canonicalResidue (modulusWidth : Nat) :
     bitWidth (.canonicalResidue modulusWidth) = modulusWidth := rfl
-@[simp] theorem bitWidth_unitResidue (modulusWidth : Nat) :
+@[simp] lemma bitWidth_unitResidue (modulusWidth : Nat) :
     bitWidth (.unitResidue modulusWidth) = modulusWidth := rfl
-@[simp] theorem bitWidth_ellipticCurvePoint (fieldWidth : Nat) :
+@[simp] lemma bitWidth_ellipticCurvePoint (fieldWidth : Nat) :
     bitWidth (.ellipticCurvePoint fieldWidth) = 1 + 2 * fieldWidth := rfl
 
 /-- The binary storage width can encode every admitted finite value. -/
-public theorem finite_capacity (cardinality : ℕ+) :
+public lemma finite_capacity (cardinality : ℕ+) :
     (cardinality : Nat) ≤ 2 ^ bitWidth (.finite cardinality) :=
   Nat.le_pow_clog (by decide : 1 < (2 : Nat)) cardinality
 
@@ -105,11 +105,11 @@ public def encodeFinite (cardinality : ℕ+) (value : Fin cardinality) :
     Fin (2 ^ bitWidth (.finite cardinality)) :=
   ⟨value.val, lt_of_lt_of_le value.isLt (finite_capacity cardinality)⟩
 
-@[simp] theorem encodeFinite_val (cardinality : ℕ+) (value : Fin cardinality) :
+@[simp] lemma encodeFinite_val (cardinality : ℕ+) (value : Fin cardinality) :
     (encodeFinite cardinality value).val = value.val := rfl
 
 /-- Binary encoding preserves distinct finite classical outcomes. -/
-public theorem encodeFinite_injective (cardinality : ℕ+) :
+public lemma encodeFinite_injective (cardinality : ℕ+) :
     Function.Injective (encodeFinite cardinality) := by
   intro left right equal
   apply Fin.ext
@@ -123,12 +123,12 @@ public def decodeFinite (cardinality : ℕ+)
     Option (Fin cardinality) :=
   if valid : encoding.val < cardinality then some ⟨encoding.val, valid⟩ else none
 
-@[simp] theorem decodeFinite_encodeFinite (cardinality : ℕ+) (value : Fin cardinality) :
+@[simp] lemma decodeFinite_encodeFinite (cardinality : ℕ+) (value : Fin cardinality) :
     decodeFinite cardinality (encodeFinite cardinality value) = some value := by
   simp [decodeFinite, encodeFinite, value.isLt]
 
 /-- Unused binary patterns are rejected rather than reduced modulo the domain. -/
-theorem decodeFinite_eq_none (cardinality : ℕ+)
+lemma decodeFinite_eq_none (cardinality : ℕ+)
     (encoding : Fin (2 ^ bitWidth (.finite cardinality)))
     (invalid : (cardinality : Nat) ≤ encoding.val) :
     decodeFinite cardinality encoding = none := by
@@ -136,7 +136,7 @@ theorem decodeFinite_eq_none (cardinality : ℕ+)
 
 /-- Every injective fixed-width binary encoding needs at least the canonical
 ceiling-logarithm width. This is a classical storage statement. -/
-public theorem finite_bitWidth_minimal (cardinality : ℕ+) (width : Nat)
+public lemma finite_bitWidth_minimal (cardinality : ℕ+) (width : Nat)
     (encoding : Fin cardinality → Fin (2 ^ width))
     (injective : Function.Injective encoding) :
     bitWidth (.finite cardinality) ≤ width := by

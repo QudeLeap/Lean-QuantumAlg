@@ -24,7 +24,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 
 omit [BitWord.Selected model] in
 /-- Distinct original mutable names give actual structural separation of their cells. -/
-theorem mutable_avoids (refs : Refs ctx N) (separation : Separation refs)
+lemma mutable_avoids (refs : Refs ctx N) (separation : Separation refs)
     {shape : CShape} (source : CWriteRef ctx shape) (saved written : MutableCell)
     (sourceKey : source.key = mutableKey refs saved) (different : saved ≠ written) :
     mutableKey refs written ∉ (writeInput source).storageKeys := by
@@ -35,14 +35,14 @@ theorem mutable_avoids (refs : Refs ctx N) (separation : Separation refs)
   exact different (separation.mutableKeyInjective equal.symm)
 
 /-- Actual modulus loading preserves every other original structural input. -/
-theorem modulusInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+lemma modulusInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.modulus.key ∉ other.storageKeys) :
     (modulusStep refs store).1.read other = store.read other :=
   ClassicalRoutines.ConstantWord.constantWord_fold_read_other refs.modulus _ other avoids store
 
 /-- Actual target-exponent loading preserves every other original structural input. -/
-theorem exponentInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+lemma exponentInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.targetExponent.key ∉ other.storageKeys) :
     (exponentStep refs store).1.read other = store.read other :=
@@ -50,7 +50,7 @@ theorem exponentInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     refs.targetExponent _ other avoids store
 
 /-- The actual three preparation stages retain all reads outside their original destinations. -/
-theorem prepareInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+lemma prepareInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (generator : refs.generator.key ∉ other.storageKeys)
     (modulus : refs.modulus.key ∉ other.storageKeys)
@@ -61,7 +61,7 @@ theorem prepareInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
       (Store.read_applyOp_of_not_mem_storageKeys store (packOp refs) other generator))
 
 /-- Actual target powering preserves all original inputs outside its visible result cell. -/
-theorem powerInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
+lemma powerInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.targetPower.key ∉ other.storageKeys) :
     (powerStep input refs store).1.read other = store.read other :=
@@ -69,7 +69,7 @@ theorem powerInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Sto
     (writeInput refs.generator) (writeInput refs.targetExponent) refs.targetPower store other avoids
 
 /-- The full actual setup preserves every caller read outside the four original shared outputs. -/
-theorem setupInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
+lemma setupInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Store ctx) :
     CallerFrame refs store (setupStep input refs store).1 := by
   intro shape other avoids
   exact (powerInto_callerFrame input refs _ other (avoids .targetPower)).trans
@@ -77,14 +77,14 @@ theorem setupInto_callerFrame (input : Input N) (refs : Refs ctx N) (store : Sto
       (avoids .targetExponent))
 
 /-- The retained sampler parameter is preserved by every actual shared-setup stage. -/
-theorem setupInto_parameter_frame (input : Input N) (refs : Refs ctx N)
+lemma setupInto_parameter_frame (input : Input N) (refs : Refs ctx N)
     (separation : Separation refs) (store : Store ctx) :
     (setupStep input refs store).1.read refs.parameter = store.read refs.parameter :=
   setupInto_callerFrame input refs store refs.parameter separation.parameterAvoidsMutable
 
 omit [BitWord.Selected model] in
 /-- The actual stored parameter's first projection always is the original base input. -/
-theorem parameterBaseInput_read (refs : Refs ctx N) (store : Store ctx) :
+lemma parameterBaseInput_read (refs : Refs ctx N) (store : Store ctx) :
     store.read (parameterBaseInput refs) = (store.read refs.parameter).first := rfl
 
 end

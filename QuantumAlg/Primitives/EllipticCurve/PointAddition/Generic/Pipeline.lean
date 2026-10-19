@@ -56,14 +56,14 @@ def controlBit : EncodedBit rawEncoding :=
 def controlWorkBit : EncodedBit rawEncoding :=
   PointAddition.PortFrame.controlWorkBit auxEncoding params.width
 
-theorem controlBit_wire_ne_controlWorkBit :
+lemma controlBit_wire_ne_controlWorkBit :
     controlBit.wire ≠ controlWorkBit.wire := by
   exact PointAddition.PortFrame.controlBit_wire_ne_controlWorkBit
     auxEncoding params.width
 
 /-- Exact width of the retained three-point frame and direct arithmetic
 workspace. -/
-theorem rawEncoding_width_exact :
+lemma rawEncoding_width_exact :
     rawEncoding.width =
       Arithmetic.ModularInversion.physicalWidthFor params.width +
         19 * params.width + 9 := by
@@ -94,14 +94,14 @@ def resultPoint (P : GenericPointAddition.Input E Q) : AffinePoint E :=
   genericAddPoint E P.1 Q P.2
 
 /-- The public point materialized by the pipeline is the generic group-law sum. -/
-theorem resultPoint_group_law_mathlib
+lemma resultPoint_group_law_mathlib
     (P : GenericPointAddition.Input E Q) :
     P.1.toMathlib + Q.toMathlib = (resultPoint P).toMathlib := by
   simpa [resultPoint, AffinePoint.toMathlib] using
     genericAdd_group_law_mathlib E P.1 Q P.2
 
 /-- A valid generic subtraction by the fixed point recovers the input point. -/
-theorem reverseResultPoint_eq
+lemma reverseResultPoint_eq
     (P : GenericPointAddition.Input E Q)
     (hreverse : GenericAddDomain (resultPoint P) (AffinePoint.negate Q)) :
     resultPoint (Q := AffinePoint.negate Q)
@@ -138,7 +138,7 @@ private def scratchWords (P : GenericPointAddition.Input E Q) :
     Arithmetic.ModularDivision.residueWord
       (ParameterizedPointAddition.yScratch P))
 
-private theorem scratchWords_eq_resultWords
+private lemma scratchWords_eq_resultWords
     (P : GenericPointAddition.Input E Q) :
     scratchWords P = resultWords P := by
   simp only [scratchWords, resultWords, resultPoint, pointWords,
@@ -171,7 +171,7 @@ private def auxToPublicStep
       (DirectSchedule.public_aux_cross_ne target source bit bit).symm)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem auxToPublicGates_stepList
+private lemma auxToPublicGates_stepList
     (source : Arithmetic.BlockBank.WordPort auxEncoding params.width)
     (target : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
@@ -181,7 +181,7 @@ private theorem auxToPublicGates_stepList
   rfl
 
 omit [Fact params.modulus.val.Prime] in
-private theorem auxToPublicStep_eq_set_of_clean
+private lemma auxToPublicStep_eq_set_of_clean
     (source : Arithmetic.BlockBank.WordPort auxEncoding params.width)
     (target : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width)
@@ -212,13 +212,13 @@ private def outputCopyStep : RawRegisters → RawRegisters := fun state =>
       (PointAddition.PortFrame.outputXPublicPort params.width) state)
 
 omit [Fact params.modulus.val.Prime] in
-@[simp] private theorem outputCopyGates_length :
+@[simp] private lemma outputCopyGates_length :
     outputCopyGates.length = 2 * params.width := by
   simp [outputCopyGates, auxToPublicGates]
   omega
 
 omit [Fact params.modulus.val.Prime] in
-private theorem outputCopyGates_cnotMultiplicity_sum :
+private lemma outputCopyGates_cnotMultiplicity_sum :
     (outputCopyGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       2 * params.width := by
   simp only [outputCopyGates, List.map_append, List.sum_append,
@@ -227,7 +227,7 @@ private theorem outputCopyGates_cnotMultiplicity_sum :
   omega
 
 omit [Fact params.modulus.val.Prime] in
-private theorem outputCopyGates_toffoliMultiplicity_sum :
+private lemma outputCopyGates_toffoliMultiplicity_sum :
     (outputCopyGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp only [outputCopyGates, List.map_append, List.sum_append,
     auxToPublicGates,
@@ -235,13 +235,13 @@ private theorem outputCopyGates_toffoliMultiplicity_sum :
     Nat.zero_add]
 
 omit [Fact params.modulus.val.Prime] in
-private theorem outputCopyGates_stepList (state : RawRegisters) :
+private lemma outputCopyGates_stepList (state : RawRegisters) :
     EncodedBit.GateSpec.stepList outputCopyGates state = outputCopyStep state := by
   rw [outputCopyGates, EncodedBit.GateSpec.stepList_append,
     auxToPublicGates_stepList, auxToPublicGates_stepList]
   rfl
 
-private theorem xPort_read_computed
+private lemma xPort_read_computed
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     (DirectSchedule.liftAuxPort
@@ -258,7 +258,7 @@ private theorem xPort_read_computed
     DirectSchedule.xCoordinateData_accumulator]
   rfl
 
-private theorem yPort_read_computed
+private lemma yPort_read_computed
     (output : PointAddition.PortFrame.PointWords params.width)
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     (DirectSchedule.liftAuxPort
@@ -275,7 +275,7 @@ private theorem yPort_read_computed
     DirectSchedule.yCoordinateData_accumulator]
   exact ParameterizedPointAddition.Workspace.yThinPort.read_set _ _
 
-private theorem outputCopyTransitionX (control : Bool)
+private lemma outputCopyTransitionX (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     auxToPublicStep ParameterizedPointAddition.Workspace.xPort
         (PointAddition.PortFrame.outputXPublicPort params.width)
@@ -289,7 +289,7 @@ private theorem outputCopyTransitionX (control : Bool)
   · exact xPort_read_computed _ control P
   · rfl
 
-private theorem outputCopyTransitionY (control : Bool)
+private lemma outputCopyTransitionY (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     auxToPublicStep ParameterizedPointAddition.Workspace.yPort
         (PointAddition.PortFrame.outputYPublicPort params.width)
@@ -302,7 +302,7 @@ private theorem outputCopyTransitionY (control : Bool)
   · exact yPort_read_computed _ control P
   · rfl
 
-private theorem outputCopyStep_computed (control : Bool)
+private lemma outputCopyStep_computed (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     outputCopyStep
         (DirectSchedule.computedRegistersAt
@@ -324,7 +324,7 @@ def additionGates : List (EncodedBit.GateSpec rawEncoding) :=
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact primitive-leaf count of the clean direct addition schedule. -/
-theorem additionGates_length :
+lemma additionGates_length :
     additionGates.length =
       76 * params.width + 20 +
         10 * (ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -347,7 +347,7 @@ def additionGateLengthBound : Nat :=
   additionGateLengthBoundFor params.width
 
 omit [Fact params.modulus.val.Prime] in
-theorem additionGates_length_le :
+lemma additionGates_length_le :
     additionGates.length ≤ additionGateLengthBound := by
   have hselected :=
     ParameterizedPointAddition.Workspace.selectedAdditionGates_length_le
@@ -374,7 +374,7 @@ theorem additionGates_length_le :
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact CNOT coordinate of the clean direct addition schedule. -/
-theorem additionGates_cnotMultiplicity_sum :
+lemma additionGates_cnotMultiplicity_sum :
     (additionGates.map EncodedBit.GateSpec.cnotMultiplicity).sum =
       76 * params.width +
         10 * ((ParameterizedPointAddition.Workspace.selectedAdditionGates
@@ -392,7 +392,7 @@ theorem additionGates_cnotMultiplicity_sum :
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact Toffoli coordinate of the clean direct addition schedule. -/
-theorem additionGates_toffoliMultiplicity_sum :
+lemma additionGates_toffoliMultiplicity_sum :
     (additionGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       10 * ((ParameterizedPointAddition.Workspace.selectedAdditionGates
         ParameterizedPointAddition.Workspace.selectedAdditionBit).map
@@ -429,7 +429,7 @@ def additionToffoliBound : Nat :=
   additionToffoliBoundFor params.width
 
 omit [Fact params.modulus.val.Prime] in
-theorem additionGates_cnotMultiplicity_sum_le :
+lemma additionGates_cnotMultiplicity_sum_le :
     (additionGates.map EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       additionCnotBound := by
   have hselected :=
@@ -457,7 +457,7 @@ theorem additionGates_cnotMultiplicity_sum_le :
   omega
 
 omit [Fact params.modulus.val.Prime] in
-theorem additionGates_toffoliMultiplicity_sum_le :
+lemma additionGates_toffoliMultiplicity_sum_le :
     (additionGates.map EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       additionToffoliBound := by
   have hselected :=
@@ -488,7 +488,7 @@ private def AllBitDisjoint (observed : EncodedBit rawEncoding)
   ∀ gate, gate ∈ gates → EncodedBit.GateSpec.bitDisjoint observed gate
 
 omit [Fact params.modulus.val.Prime] in
-private theorem AllBitDisjoint.append
+private lemma AllBitDisjoint.append
     {observed : EncodedBit rawEncoding}
     {left right : List (EncodedBit.GateSpec rawEncoding)}
     (hleft : AllBitDisjoint observed left)
@@ -498,7 +498,7 @@ private theorem AllBitDisjoint.append
   exact (List.mem_append.mp hgate).elim (hleft gate) (hright gate)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem AllBitDisjoint.reverse
+private lemma AllBitDisjoint.reverse
     {observed : EncodedBit rawEncoding}
     {gates : List (EncodedBit.GateSpec rawEncoding)}
     (hgates : AllBitDisjoint observed gates) :
@@ -507,7 +507,7 @@ private theorem AllBitDisjoint.reverse
   exact hgates gate (List.mem_reverse.mp hgate)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem xorIntoGates_bitDisjoint {width : Nat}
+private lemma xorIntoGates_bitDisjoint {width : Nat}
     (observed : EncodedBit rawEncoding)
     (source target : EncodedBit.Word rawEncoding width)
     (hcross : ∀ bit, (source.bit bit).wire ≠ (target.bit bit).wire)
@@ -521,7 +521,7 @@ private theorem xorIntoGates_bitDisjoint {width : Nat}
   exact ⟨hsource bit, htarget bit⟩
 
 omit [Fact params.modulus.val.Prime] in
-private theorem auxToPublicGates_bitDisjoint_controlBit
+private lemma auxToPublicGates_bitDisjoint_controlBit
     (source : Arithmetic.BlockBank.WordPort auxEncoding params.width)
     (target : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width) :
@@ -535,7 +535,7 @@ private theorem auxToPublicGates_bitDisjoint_controlBit
       auxEncoding params.width (target.word.bit bit)) gate hgate
 
 omit [Fact params.modulus.val.Prime] in
-private theorem auxToPublicGates_bitDisjoint_controlWorkBit
+private lemma auxToPublicGates_bitDisjoint_controlWorkBit
     (source : Arithmetic.BlockBank.WordPort auxEncoding params.width)
     (target : Arithmetic.BlockBank.WordPort
       (PointAddition.PortFrame.publicEncoding params.width) params.width) :
@@ -549,7 +549,7 @@ private theorem auxToPublicGates_bitDisjoint_controlWorkBit
       auxEncoding params.width (target.word.bit bit)) gate hgate
 
 omit [Fact params.modulus.val.Prime] in
-private theorem outputCopyGates_bitDisjoint_controlBit :
+private lemma outputCopyGates_bitDisjoint_controlBit :
     AllBitDisjoint controlBit outputCopyGates := by
   unfold outputCopyGates
   exact AllBitDisjoint.append
@@ -557,7 +557,7 @@ private theorem outputCopyGates_bitDisjoint_controlBit :
     (auxToPublicGates_bitDisjoint_controlBit _ _)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem outputCopyGates_bitDisjoint_controlWorkBit :
+private lemma outputCopyGates_bitDisjoint_controlWorkBit :
     AllBitDisjoint controlWorkBit outputCopyGates := by
   unfold outputCopyGates
   exact AllBitDisjoint.append
@@ -566,7 +566,7 @@ private theorem outputCopyGates_bitDisjoint_controlWorkBit :
 
 omit [Fact params.modulus.val.Prime] in
 /-- The leading public control is disjoint from every direct addition gate. -/
-theorem additionGates_bitDisjoint_controlBit :
+lemma additionGates_bitDisjoint_controlBit :
     ∀ gate, gate ∈ additionGates →
       EncodedBit.GateSpec.bitDisjoint controlBit gate := by
   change AllBitDisjoint controlBit additionGates
@@ -580,7 +580,7 @@ theorem additionGates_bitDisjoint_controlBit :
 
 omit [Fact params.modulus.val.Prime] in
 /-- The clean control-work bit is disjoint from every direct addition gate. -/
-theorem additionGates_bitDisjoint_controlWorkBit :
+lemma additionGates_bitDisjoint_controlWorkBit :
     ∀ gate, gate ∈ additionGates →
       EncodedBit.GateSpec.bitDisjoint controlWorkBit gate := by
   change AllBitDisjoint controlWorkBit additionGates
@@ -594,7 +594,7 @@ theorem additionGates_bitDisjoint_controlWorkBit :
 
 /-- The direct schedule writes the affine result and restores its sole
 arithmetic workspace to the input-independent blank state. -/
-theorem additionGates_clean (control : Bool)
+lemma additionGates_clean (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList additionGates
         (preloadInputRegistersAt
@@ -624,7 +624,7 @@ theorem additionGates_clean (control : Bool)
   rfl
 
 /-- Reversing the clean schedule clears its result and restores the input. -/
-theorem additionGates_reverse_clean (control : Bool)
+lemma additionGates_reverse_clean (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList additionGates.reverse
         (preloadInputRegistersAt (resultWords P) control P) =
@@ -660,7 +660,7 @@ def translationPrefixGates
 
 /-- The common prefix materializes `P+Q`, keeps `P` in the output port, loads
 `-Q`, and leaves the direct workspace clean. -/
-theorem translationPrefixGates_clean
+lemma translationPrefixGates_clean
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList
         (translationPrefixGates (pointWords Q)

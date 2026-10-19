@@ -40,7 +40,7 @@ public def ofPositions (model : OracleModel) (query : model.Query)
   embedding := { position := position, wire_eq := fun _ => rfl }
 
 /-- The placement constructor retains the exact declared instance. -/
-public theorem queryApplication_ofPositions_instance
+public lemma queryApplication_ofPositions_instance
     (model : OracleModel) (query : model.Query)
     {count : Nat} (layout : QuantumLayout count)
     (position : Fin (model.signature query).systemCount ↪ Fin count)
@@ -49,7 +49,7 @@ public theorem queryApplication_ofPositions_instance
     (ofPositions model query layout position dimensions).occurrence.query = query := rfl
 
 /-- The original instance fixes the emitted coordinate after actual placement. -/
-public theorem queryApplication_ofPositions_coordinate
+public lemma queryApplication_ofPositions_coordinate
     (model : OracleModel) (query : model.Query)
     {count : Nat} (layout : QuantumLayout count)
     (position : Fin (model.signature query).systemCount ↪ Fin count)
@@ -66,19 +66,20 @@ public def onPlacement (model : OracleModel) (query : model.Query)
   embedding := { position := Function.Embedding.refl _, wire_eq := fun _ => rfl }
 
 /-- Whole-placement execution retains the exact declaration-owned query coordinate. -/
-public theorem queryApplication_onPlacement_coordinate (model : OracleModel) (query : model.Query)
+public lemma queryApplication_onPlacement_coordinate (model : OracleModel) (query : model.Query)
     (placement : (model.signature query).Placement) :
     (onPlacement model query placement).coordinate = model.coordinate query := rfl
 
 /-- Using every physical wire adds no complementary state or extra operator action. -/
-public theorem queryApplication_onPlacement_operator (model : OracleModel) (query : model.Query)
+public lemma queryApplication_onPlacement_operator (model : OracleModel)
+    (environment : Interpretation model) (query : model.Query)
     (placement : (model.signature query).Placement) :
-    (onPlacement model query placement).operator =
-      (⟨query, placement⟩ : Occurrence model).operator := by
+    (onPlacement model query placement).operator environment =
+      (⟨query, placement⟩ : Occurrence model).operator environment := by
   let embedding : QuantumLayout.Embedding placement.layout placement.layout :=
     { position := Function.Embedding.refl _, wire_eq := fun _ => rfl }
   let operator : UnitaryOperator placement.layout.register :=
-    (⟨query, placement⟩ : Occurrence model).operator
+    (⟨query, placement⟩ : Occurrence model).operator environment
   change embedding.liftOperator operator = operator
   apply Subtype.ext
   funext row column

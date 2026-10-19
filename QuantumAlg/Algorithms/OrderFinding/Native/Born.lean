@@ -39,7 +39,7 @@ public def zeroInput (t width : Nat) : NormalizedVector (Qubits (t + width)) :=
 public def evolvedVector {N x t width : Nat}
     (access : ModExpOracleAccess N x t width) :
     NormalizedVector (Qubits (t + width)) :=
-  (circuit access).binaryMatrix.apply (zeroInput t width)
+  ((circuit t width).binaryMatrix (interpretation access)).apply (zeroInput t width)
 
 /-- The native vector with the source's canonical physical-placement metadata. -/
 def evolvedState {N x t width : Nat}

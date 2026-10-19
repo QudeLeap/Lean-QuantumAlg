@@ -29,7 +29,7 @@ noncomputable section
 open Execution ShortDLP.CompiledMAU
 
 /-- The first bank pays for every zero preparation and every literal seed-loading X. -/
-theorem eventEnvelope_succ (N count : Nat) :
+lemma eventEnvelope_succ (N count : Nat) :
     eventEnvelope N (count + 1) =
       (ShortDLP.totalQubits
         (ShortDLP.CompiledMAU.registerParameters
@@ -46,7 +46,7 @@ theorem eventEnvelope_succ (N count : Nat) :
   ac_rfl
 
 /-- Additive observations retain the separately charged zero preparations and seed X gates. -/
-theorem eventEnvelope_weighted_succ (N count : Nat)
+lemma eventEnvelope_weighted_succ (N count : Nat)
     (weight : Resource.Event RuntimeRound.model → Nat) :
     ResourcePool.weightedCount weight (eventEnvelope N (count + 1)) =
       ShortDLP.totalQubits
@@ -77,7 +77,7 @@ def eventCountBound (N : Nat) : Nat → Nat
       reloadXCount (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N + 1
 
 /-- Its scalar cardinality pays for each initial zero and X, followed by the one final pack. -/
-theorem eventEnvelope_card (N totalRounds : Nat) :
+lemma eventEnvelope_card (N totalRounds : Nat) :
     (eventEnvelope N totalRounds).card = eventCountBound N totalRounds := by
   cases totalRounds with
   | zero => rfl
@@ -92,14 +92,14 @@ theorem eventEnvelope_card (N totalRounds : Nat) :
         eventCountBound, modulusBits]
       ring
 
-private theorem weighted_mono (weight : Resource.Event RuntimeRound.model → Nat)
+private lemma weighted_mono (weight : Resource.Event RuntimeRound.model → Nat)
     {left right : ResourcePool RuntimeRound.model} (bounded : left ≤ right) :
     ResourcePool.weightedCount weight left ≤ ResourcePool.weightedCount weight right := by
   obtain ⟨rest, rfl⟩ := Multiset.le_iff_exists_add.mp bounded
   rw [ResourcePool.weightedCount_add]
   exact Nat.le_add_right _ _
 
-private theorem selector_classicalWeight (N length : Nat) :
+private lemma selector_classicalWeight (N length : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (NativeRetrySelection.selectionEnvelope N length) = 3 * length + 1 := by
   simp [NativeRetrySelection.selectionEnvelope,
@@ -117,7 +117,7 @@ def classicalOperationBound (N : Nat) : Nat → Nat
         (NativeBatchReuseRecovery.eventEnvelope N) + 3 * (count + 1) + 1
 
 /-- All repeated classical instructions and the selector contribute their literal unit weights. -/
-theorem eventEnvelope_classicalWeight (N totalRounds : Nat) :
+lemma eventEnvelope_classicalWeight (N totalRounds : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (eventEnvelope N totalRounds) = classicalOperationBound N totalRounds := by
   cases totalRounds with
@@ -127,7 +127,7 @@ theorem eventEnvelope_classicalWeight (N totalRounds : Nat) :
       simp only [Resource.Event.classicalOperationWeight, Nat.mul_zero, Nat.zero_add]
       exact (Nat.add_assoc _ _ _).symm
 
-private theorem reloadLabel_zero_or_power (m ell width N : Nat) :
+private lemma reloadLabel_zero_or_power (m ell width N : Nat) :
     (reloadLabel m ell width N).val = 0 ∨
       (reloadLabel m ell width N).val = 2 ^ width := by
   simp only [reloadLabel, ShortDLP.tripleIndex, UnitaryCircuit.prodEquiv_value,
@@ -150,7 +150,7 @@ private theorem reloadLabel_zero_or_power (m ell width N : Nat) :
   · simp [cleanWorkspace, positive, zeroWorkspace]
 
 /-- The source identity seed has at most one set bit, including the total fallback branches. -/
-theorem seedReload_count_le_one (m ell width N : Nat) :
+lemma seedReload_count_le_one (m ell width N : Nat) :
     reloadXCount m ell width N ≤ 1 := by
   rw [reloadXCount, ← List.toFinset_card_of_nodup
     (EncodedBit.Word.constantOneIndices_nodup (reloadLabel m ell width N))]
@@ -167,7 +167,7 @@ theorem seedReload_count_le_one (m ell width N : Nat) :
     exact (of_decide_eq_true leftBit).symm.trans (of_decide_eq_true rightBit)
 
 /-- Every EH parameter choice has two nonempty exponent registers in its complete bank. -/
-theorem bank_qubits_ge_three (N : Nat) :
+lemma bank_qubits_ge_three (N : Nat) :
     3 ≤ ShortDLP.totalQubits
       (ShortDLP.CompiledMAU.registerParameters
         (shortLogBits N) (tradeoffBits N) (arithmeticBits N)) := by
@@ -178,7 +178,7 @@ theorem bank_qubits_ge_three (N : Nat) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The scalar native-event allowance bounds each path of the same complete actual run. -/
-theorem run_eventCount_le_scalar (specification : Input N) (totalRounds : Nat)
+lemma run_eventCount_le_scalar (specification : Input N) (totalRounds : Nat)
     (path : (run base noQuantum specification totalRounds).code.Path) :
     ((run base noQuantum specification totalRounds).code.eventTrace path).length ≤
       eventCountBound N totalRounds :=
@@ -186,7 +186,7 @@ theorem run_eventCount_le_scalar (specification : Input N) (totalRounds : Nat)
     (eventEnvelope_card N totalRounds)
 
 /-- The literal classical operations on the same actual path obey the independent scalar formula. -/
-theorem run_classicalOperation_le (specification : Input N) (totalRounds : Nat)
+lemma run_classicalOperation_le (specification : Input N) (totalRounds : Nat)
     (path : (run base noQuantum specification totalRounds).code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((run base noQuantum specification totalRounds).code.resourcePool path) ≤

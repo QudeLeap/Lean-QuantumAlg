@@ -23,11 +23,13 @@ namespace QuantumAlg.UnitaryCircuit
 noncomputable section
 
 /-- The matrix of actual repetitions is the same power in binary coordinates. -/
-public theorem unitaryCircuit_binaryMatrix_iterate {gates : GateModel} {oracles : OracleModel}
+public lemma unitaryCircuit_binaryMatrix_iterate {gates : GateModel} {oracles : OracleModel}
     {width : Nat} (repetitions : Nat)
     (body : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits width).canonicalPlacement.layout) :
-    (iterate repetitions body).binaryMatrix = body.binaryMatrix ^ repetitions := by
+      (QuantumSignature.qubits width).canonicalPlacement.layout) (environment :
+        oracles.Interpretation) :
+    ((iterate repetitions body).binaryMatrix environment) = (body.binaryMatrix environment) ^
+      repetitions := by
   unfold binaryMatrix
   rw [iterate_matrix]
   induction repetitions with

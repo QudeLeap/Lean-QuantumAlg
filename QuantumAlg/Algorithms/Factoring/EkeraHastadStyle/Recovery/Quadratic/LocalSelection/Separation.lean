@@ -22,7 +22,7 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRecovery.Quadrat
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem old_ne_candidate {shape : CShape}
+private lemma old_ne_candidate {shape : CShape}
     (output : CWriteRef ctx shape) (key : StorageKey)
     (internal : key ∈ Layout.internalKeys ctx width) :
     (Layout.underWrite output width).key ≠ key := by
@@ -35,7 +35,7 @@ private theorem old_ne_candidate {shape : CShape}
   exact List.disjoint_left.mp (Layout.nativeQuadratic_layout_disjoint ctx width)
     internal (sameOriginal ▸ original)
 
-private theorem candidate_free {shape : CShape}
+private lemma candidate_free {shape : CShape}
     (output : CWriteRef (selectionContext ctx width) shape) :
     (Layout.underWrite output width).key ∉
         (CInputRef.storage (arithmeticRefs ctx width).first.toCStorageRef).storageKeys ∧
@@ -53,7 +53,7 @@ private def selectorKey (ctx : RuntimeCtx kind) (width : Nat) (index : Fin 4) : 
   (SelectionLayout.internalKeys ctx (RSA.quadraticWordWidth width)).get
     ⟨index.val, by change index.val < 4; exact index.isLt⟩
 
-private theorem selectorKey_ne (ctx : RuntimeCtx kind) (width : Nat)
+private lemma selectorKey_ne (ctx : RuntimeCtx kind) (width : Nat)
     (left right : Fin 4) (different : left ≠ right) :
     selectorKey ctx width left ≠ selectorKey ctx width right := by
   intro same
@@ -63,7 +63,7 @@ private theorem selectorKey_ne (ctx : RuntimeCtx kind) (width : Nat)
   exact different (Fin.ext (congrArg Fin.val positions))
 
 /-- Actual candidate allocation discharges all operand distinctions used by the real checks. -/
-theorem nativeQuadratic_local_operands_separated
+lemma nativeQuadratic_local_operands_separated
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) :
     CheckLayout.OperandsSeparated (operands modulus) :=
   nativeQuadratic_checkedOperands_separated (arithmeticRead modulus width)
@@ -72,7 +72,7 @@ theorem nativeQuadratic_local_operands_separated
       (SelectionLayout.underRead modulus (RSA.quadraticWordWidth width)))
 
 /-- Actual local selector and candidate scope positions discharge every selector live range. -/
-theorem nativeQuadratic_local_selector_separated
+lemma nativeQuadratic_local_selector_separated
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) :
     CheckLayout.SelectorSeparated (operands modulus) where
   candidateFree := by

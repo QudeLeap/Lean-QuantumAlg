@@ -27,14 +27,15 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Scratch initialization and the four original comparison instructions preserve the full state. -/
-theorem prepareInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma prepareInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (prepareInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (prepareInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := prepareStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [prepareInto, prepareStep, Circuit.execute_seq,
@@ -43,10 +44,10 @@ theorem prepareInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual complement and increment compose on the original full incoming execution state. -/
-theorem negateInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma negateInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (negateInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (negateInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := negateStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [negateInto, negateStep, Circuit.execute_seq,
@@ -55,26 +56,27 @@ theorem negateInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Either actual half-comparison arm preserves the original reference correlations and history. -/
-theorem halfArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit) (Reference : Register)
+lemma halfArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (halfArm refs flag).execute Reference state = state.mapClassical (fun entry =>
+    (halfArm refs flag).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := halfArmStep refs flag entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
     cases flag
-    · exact BitWord.bitWord_instruction_execute _ state
+    · exact BitWord.bitWord_instruction_execute (environment := environment) _ state
     · exact negateInto_execute refs Reference state
 
 /-- The actual stored half-comparison value selects the arithmetic executed in the full state. -/
-theorem halfInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma halfInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (halfInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (halfInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := halfStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (writeInput refs.belowHalf)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (writeInput refs.belowHalf)
     (halfArm refs)
     (fun flag before =>
       let actual := halfArmStep refs flag before.1
@@ -84,26 +86,26 @@ theorem halfInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Either actual zero-test arm retains the complete original quantum-reference state. -/
-theorem finishArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit) (Reference : Register)
+lemma finishArm_execute (refs : Refs ctx width) (flag : CShape.Value .bit) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (finishArm refs flag).execute Reference state = state.mapClassical (fun entry =>
+    (finishArm refs flag).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := finishArmStep refs flag entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
     cases flag
     · exact halfInto_execute refs Reference state
-    · exact BitWord.bitWord_instruction_execute _ state
+    · exact BitWord.bitWord_instruction_execute (environment := environment) _ state
 
 /-- The actual stored zero-test value selects the arithmetic executed in the full state. -/
-theorem finishInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma finishInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (finishInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (finishInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := finishStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (writeInput refs.isZero)
+  refine (Circuit.execute_branch_mapClassical (environment := environment) (writeInput refs.isZero)
     (finishArm refs)
     (fun flag before =>
       let actual := finishArmStep refs flag before.1
@@ -113,13 +115,14 @@ theorem finishInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual stored comparisons feed the complete selected arithmetic in the original full state. -/
-theorem centeredTargetInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma centeredTargetInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (centeredTargetInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (centeredTargetInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := centeredTargetStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (prepareInto refs) (finishInto refs)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (prepareInto refs) (finishInto refs)
     (fun before =>
       let actual := prepareStep refs before.1
       ((actual.1, before.2), actual.2))

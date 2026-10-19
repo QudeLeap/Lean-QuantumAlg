@@ -34,20 +34,22 @@ def spectatorPositions (width : Nat) : Fin (1 + width) ↪ Fin (1 + (1 + width))
     split_ifs at values <;> omega
 
 /-- Actual controlled forward or expanded conditional inverse on the original physical wires. -/
-def withSpectator {width : Nat} (U : UnitaryOperator (Qubits width)) (useInverse : Bool) :
-    UnitaryCircuit AlgorithmGate.model (model U true true false) (layout (1 + width)) :=
+def withSpectator (width : Nat) (useInverse : Bool) :
+    UnitaryCircuit AlgorithmGate.model (model width true true false) (layout (1 + width)) :=
   UnitaryCircuit.placeAt (layout width) (layout (1 + width)) (spectatorPositions width)
-    (fun _ => rfl) (if useInverse then inverse U else controlled U)
+    (fun _ => rfl) (if useInverse then inverse width else controlled width)
 
-private theorem physical_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
+private lemma physical_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
     (useInverse : Bool) :
-    (if useInverse then inverse U else controlled U).matrix =
+    ((if useInverse then inverse width else controlled width).matrix
+      (interpretation U true true false)) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
         (UnitaryOperator.controlledQubits (if useInverse then U⁻¹ else U)) := by
-  have binary : (if useInverse then inverse U else controlled U).binaryMatrix =
+  have binary : ((if useInverse then inverse width else controlled width).binaryMatrix
+    (interpretation U true true false)) =
       UnitaryOperator.controlledQubits (if useInverse then U⁻¹ else U) := by
     cases useInverse
-    · exact controlled_matrix U
+    · exact controlled_matrix width U
     · exact inverse_matrix U
   have transported := congrArg
     (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm) binary
@@ -55,9 +57,9 @@ private theorem physical_matrix {width : Nat} (U : UnitaryOperator (Qubits width
     (QuantumSignature.qubitsIndexEquiv (1 + width)) _).symm.trans transported
 
 /-- Full matrix semantics preserves every phase-wire state and arbitrary source correlations. -/
-theorem withSpectator_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma withSpectator_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
     (useInverse : Bool) :
-    (withSpectator U useInverse).matrix =
+    ((withSpectator width useInverse).matrix (interpretation U true true false)) =
       UnitaryCircuit.operatorAt (layout width) (layout (1 + width)) (spectatorPositions width)
         (fun _ => rfl)
         (UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (1 + width)).symm
@@ -65,24 +67,24 @@ theorem withSpectator_matrix {width : Nat} (U : UnitaryOperator (Qubits width))
   rw [withSpectator, UnitaryCircuit.placeAt_matrix, physical_matrix]
 
 /-- The intervening physical spectator does not add a query or erase an actual native event. -/
-theorem withSpectator_events {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma withSpectator_events (width : Nat)
     (useInverse : Bool) :
-    (withSpectator U useInverse).eventCost =
-      (if useInverse then inverse U else controlled U).eventCost := by
+    (withSpectator width useInverse).eventCost =
+      (if useInverse then inverse width else controlled width).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
     withSpectator, UnitaryCircuit.placeAt_eventTrace,
     UnitaryCircuit.ofList_eventTrace_eq_eventCost]
 
 /-- The actual dependency chain remains one step for forward control and four for inverse. -/
-theorem withSpectator_depth {width : Nat} (U : UnitaryOperator (Qubits width))
+lemma withSpectator_depth (width : Nat)
     (useInverse : Bool) :
-    (withSpectator U useInverse).evaluatedEventDepth (fun _ => 1) =
+    (withSpectator width useInverse).evaluatedEventDepth (fun _ => 1) =
       if useInverse then 4 else 1 := by
-  change DepthExpr.depthEval (fun _ => 1) (withSpectator U useInverse).eventDepth = _
+  change DepthExpr.depthEval (fun _ => 1) (withSpectator width useInverse).eventDepth = _
   rw [withSpectator, UnitaryCircuit.placeAt_eventDepth]
   cases useInverse
   · rfl
-  · exact inverse_depth U
+  · exact inverse_depth width
 
 end
 end QuantumAlg.UnitarySource.Conditional

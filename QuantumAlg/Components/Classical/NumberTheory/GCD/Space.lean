@@ -34,7 +34,7 @@ def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (5 * width + 1))
 
 omit [BitWord.Selected model] in
-private theorem workspace_visited {key : StorageKey} {shape : CShape}
+private lemma workspace_visited {key : StorageKey} {shape : CShape}
     {fresh : key ∉ ctx.keys}
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (path : (Circuit.workspace ctx key shape fresh body).Path)
@@ -50,7 +50,7 @@ private theorem workspace_visited {key : StorageKey} {shape : CShape}
   · exact inner visited member
   · exact same.symm ▸ parent
 
-private theorem guarded_visited (first second : CWriteRef ctx (.unsignedWord width))
+private lemma guarded_visited (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (path : (guardedRemainder (model := model) first second zero active).Path) (visited :
       RuntimeCtx model.kind)
@@ -70,7 +70,7 @@ private theorem guarded_visited (first second : CWriteRef ctx (.unsignedWord wid
           · exact Or.inr (List.eq_of_mem_replicate inner)
           · exact Or.inl (List.mem_singleton.mp original)
 
-private theorem loop_visited (first second : CWriteRef ctx (.unsignedWord width))
+private lemma loop_visited (first second : CWriteRef ctx (.unsignedWord width))
     (zero : CInputRef ctx (.unsignedWord width)) (active : CWriteRef ctx .bit)
     (count : Nat) (path : (Circuit.iterate count (guardedRemainder (model := model) first second
       zero active)).Path)
@@ -88,7 +88,7 @@ private theorem loop_visited (first second : CWriteRef ctx (.unsignedWord width)
     rcases List.mem_ofFn.mp listed with ⟨index, rfl⟩
     exact guarded_visited first second zero active (path index) visited member
 
-private theorem scheduled_visited (input : CInputRef ctx (operandShape width))
+private lemma scheduled_visited (input : CInputRef ctx (operandShape width))
     (first second : CWriteRef ctx (.unsignedWord width))
     (active : CWriteRef ctx .bit) (result : CWriteRef ctx (.unsignedWord width))
     (path : (scheduledBody (model := model) input first second active result).Path) (visited :
@@ -107,7 +107,7 @@ private theorem scheduled_visited (input : CInputRef ctx (operandShape width))
   · exact loop_visited first second (cellRead result) active _ path.2.1 visited inner
   · exact Or.inl original
 
-private theorem lexical_visited (input : CInputRef ctx (operandShape width))
+private lemma lexical_visited (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width))
     (path : (lexicalBody (model := model) input result).Path) (property : RuntimeCtx model.kind →
       Prop)
@@ -132,7 +132,7 @@ private theorem lexical_visited (input : CInputRef ctx (operandShape width))
     visited present
 
 /-- Every real context belongs to the six actual allocation stages of this circuit. -/
-theorem gcdRetained_visited (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_visited (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) (visited : RuntimeCtx
       model.kind)
@@ -157,7 +157,7 @@ theorem gcdRetained_visited (input : CInputRef ctx (operandShape width))
       visited execution
 
 /-- Resident capacity counts the result, two state words, condition and temporary division pair. -/
-theorem gcdRetained_resident_le (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_resident_le (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
     (retainedCircuit (model := model) input key fresh).peakResidentSpace path ≤
@@ -174,7 +174,7 @@ theorem gcdRetained_resident_le (input : CInputRef ctx (operandShape width))
         operandShape, SpacePool.ofShape] <;> omega
 
 /-- The same actual allocations all count as auxiliary storage, including the retained result. -/
-theorem gcdRetained_auxiliary_le (input : CInputRef ctx (operandShape width))
+lemma gcdRetained_auxiliary_le (input : CInputRef ctx (operandShape width))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
     (retainedCircuit (model := model) input key fresh).peakAuxiliarySpace path ≤
@@ -195,7 +195,7 @@ def lexicalAdditionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :
   SpacePool.ofShape (.bits (4 * width + 1))
 
 /-- The lexical GCD counts all live work while its caller already owns the result cell. -/
-theorem gcdLexical_resident_le (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_resident_le (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (path : (lexicalBody (model := model) input
       result).Path) :
     (lexicalBody (model := model) input result).peakResidentSpace path ≤
@@ -212,7 +212,7 @@ theorem gcdLexical_resident_le (input : CInputRef ctx (operandShape width))
         operandShape, SpacePool.ofShape] <;> omega
 
 /-- All actual lexical GCD work contributes to the same additional auxiliary allowance. -/
-theorem gcdLexical_auxiliary_le (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_auxiliary_le (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (path : (lexicalBody (model := model) input
       result).Path) :
     (lexicalBody (model := model) input result).peakAuxiliarySpace path ≤

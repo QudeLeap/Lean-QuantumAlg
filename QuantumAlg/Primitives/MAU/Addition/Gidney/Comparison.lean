@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 /-- Actual HRS low-word offset, leaving the leading flag untouched. -/
@@ -31,8 +33,8 @@ def lowOffsetProgram (width : Nat) (constant : Fin (2 ^ width)) :
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   UnitaryCircuit.onCanonicalBinarySuffix 1 (HRS.oneDirtyProgram width constant)
 
-theorem gidneyLowOffset_realizes (width : Nat) (constant : Fin (2 ^ width)) :
-    UnitaryCircuit.Realizes (encoding width) (lowOffsetProgram width constant)
+lemma gidneyLowOffset_realizes (width : Nat) (constant : Fin (2 ^ width)) :
+    UnitaryCircuit.Realizes (encoding width) (lowOffsetProgram width constant) environment
       (lowOffsetOutput constant) :=
   (UnitaryCircuit.Realizes.onBinarySuffix (left := BinaryLabelEncoding.bool)
     (HRS.hrsOneDirty_realizes width constant)).congrStep (fun _ => rfl)
@@ -43,10 +45,10 @@ def flagFlipProgram (width : Nat) :
       (QubitLayout.canonical (encoding width).width).toQuantum :=
   program (.x (flagBit width)) (QubitLayout.canonical (encoding width).width) .empty
 
-theorem gidneyFlagFlip_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (flagFlipProgram width) flagFlipOutput :=
+lemma gidneyFlagFlip_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (flagFlipProgram width) environment flagFlipOutput :=
   (realizes (QubitLayout.canonical (encoding width).width) .empty
-    (.x (flagBit width))).congrStep (fun _ => rfl)
+    (.x (flagBit width)) environment).congrStep (fun _ => rfl)
 
 /-- Zero-event declaration of all existing systems, with no additional wire or gate. -/
 def identityProgram (width : Nat) :
@@ -55,10 +57,10 @@ def identityProgram (width : Nat) :
   UnitaryCircuit.identity AlgorithmGate.model .empty
     (QubitLayout.canonical (encoding width).width).toQuantum
 
-theorem gidneyIdentity_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (identityProgram width) id :=
+lemma gidneyIdentity_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (identityProgram width) environment id :=
   UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
-    (encoding width) (QubitLayout.canonical (encoding width).width)
+    (encoding width) (QubitLayout.canonical (encoding width).width) environment
 
 /-- Three actual arithmetic blocks, before the zero-event complete-layout declaration. -/
 def positiveComparisonProgram (width pivot : Nat) :
@@ -74,9 +76,9 @@ def comparisonProgram (width : Nat) (pivot : Fin (2 ^ width + 1)) :
   if pivot.val = 0 then identityProgram width
   else positiveComparisonProgram width pivot.val
 
-theorem gidneyPositiveComparison_realizes (width pivot : Nat)
+lemma gidneyPositiveComparison_realizes (width pivot : Nat)
     (hpositive : 0 < pivot) (hpivot : pivot ≤ 2 ^ width) :
-    UnitaryCircuit.Realizes (encoding width) (positiveComparisonProgram width pivot)
+    UnitaryCircuit.Realizes (encoding width) (positiveComparisonProgram width pivot) environment
       (comparisonOutput pivot) :=
   (((gidneyPackedOffset_realizes width (extendedNegatedPivot width pivot)).seq
       (gidneyLowOffset_realizes width (pivotWord width pivot))).seq
@@ -84,8 +86,8 @@ theorem gidneyPositiveComparison_realizes (width pivot : Nat)
       (gidneyComparison_positive_steps width pivot hpositive hpivot)
 
 /-- Every joint basis label has exactly the comparison action, without relative phase. -/
-theorem gidneyComparison_realizes (width : Nat) (pivot : Fin (2 ^ width + 1)) :
-    UnitaryCircuit.Realizes (encoding width) (comparisonProgram width pivot)
+lemma gidneyComparison_realizes (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+    UnitaryCircuit.Realizes (encoding width) (comparisonProgram width pivot) environment
       (comparisonOutput pivot.val) := by
   by_cases hzero : pivot.val = 0
   · rw [comparisonProgram, if_pos hzero]
@@ -97,18 +99,18 @@ theorem gidneyComparison_realizes (width : Nat) (pivot : Fin (2 ^ width + 1)) :
       (by have := pivot.isLt; omega)
 
 /-- The complete comparison interface is the target word and its two arbitrary bits. -/
-theorem gidneyComparison_interface (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+lemma gidneyComparison_interface (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     (encoding width).width = width + 2 ∧
       (QubitLayout.canonical (encoding width).width).systemIdx =
         List.range (width + 2) := by
   exact gidneyPackedOffset_interface width (extendedNegatedPivot width pivot.val)
 
 /-- The exact endpoint also preserves every joint correlation with an encoded reference. -/
-theorem gidneyComparison_realizes_with_reference {Reference : Type}
+lemma gidneyComparison_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
       (layout := QubitLayout.canonical ((encoding width).width + reference.width))
-      (UnitaryCircuit.onBinaryPrefix reference.width (comparisonProgram width pivot))
+      (UnitaryCircuit.onBinaryPrefix reference.width (comparisonProgram width pivot)) environment
       (fun state => (comparisonOutput pivot.val state.1, state.2)) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
     (gidneyComparison_realizes width pivot)

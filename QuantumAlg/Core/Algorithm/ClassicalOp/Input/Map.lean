@@ -33,7 +33,7 @@ namespace QuantumAlg.CInputRef
   | .wordBitGet input index => .wordBitGet (mapStorage lift input) index
 
 /-- Mapping storage leaves identically preserves the complete input expression. -/
-public theorem input_mapStorage_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma input_mapStorage_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape) :
     mapStorage (fun ref => ref) input = input := by
   induction input with
@@ -47,7 +47,7 @@ public theorem input_mapStorage_id {kind : ProblemKind} {ctx : RuntimeCtx kind}
   | wordBitGet input index ih => exact congrArg (fun source => wordBitGet source index) ih
 
 /-- Structural mapping respects composition of the typed storage maps. -/
-public theorem input_mapStorage_compose {kind : ProblemKind}
+public lemma input_mapStorage_compose {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind}
     (first : ∀ {shape : CShape}, CStorageRef outer shape → CStorageRef middle shape)
     (second : ∀ {shape : CShape}, CStorageRef middle shape → CStorageRef inner shape)
@@ -65,7 +65,7 @@ public theorem input_mapStorage_compose {kind : ProblemKind}
   | wordBitGet input index ih => exact congrArg (fun source => wordBitGet source index) ih
 
 /-- The existing lexical workspace lift is the structural map of its storage lift. -/
-public theorem input_mapStorage_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
+public lemma input_mapStorage_underWorkspace {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (workspaceShape : CShape) (fresh : key ∉ ctx.keys) :
     mapStorage (fun ref => ref.underWorkspace key workspaceShape fresh) input =

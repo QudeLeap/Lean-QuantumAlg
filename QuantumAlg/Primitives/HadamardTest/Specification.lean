@@ -29,7 +29,7 @@ namespace QuantumAlg.HadamardTest
 noncomputable section
 
 /-- The original source input, with no promise about the external reference. -/
-def inputPromise {width : Nat} (input : NormalizedVector (Qubits width))
+public def inputPromise {width : Nat} (input : NormalizedVector (Qubits width))
     (state : DensityOperator (pre width).register) : Prop :=
   ∀ row column, state.matrix row column =
     input.vec (inputBasisEquiv width row) * star (input.vec (inputBasisEquiv width column))
@@ -39,12 +39,12 @@ public def probabilityZero {width : Nat} (unitary : UnitaryOperator (Qubits widt
     (input : NormalizedVector (Qubits width)) : Real :=
   (1 + (inner ℂ input.vec (unitary.applyVec input.vec)).re) / 2
 
-theorem probabilityZero_nonneg {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma probabilityZero_nonneg {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) : 0 ≤ probabilityZero unitary input := by
   rw [probabilityZero, ← hadamardTest_probQubit0_zero (U := unitary) input]
   exact NormalizedVector.probQubit0_nonneg _ _
 
-theorem probabilityZero_le_one {width : Nat} (unitary : UnitaryOperator (Qubits width))
+lemma probabilityZero_le_one {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) : probabilityZero unitary input ≤ 1 := by
   have nonnegative := NormalizedVector.probQubit0_nonneg
     ((hadamardTest unitary).apply (NormalizedVector.ket0.tensor input)) 1
@@ -52,61 +52,26 @@ theorem probabilityZero_le_one {width : Nat} (unitary : UnitaryOperator (Qubits 
   dsimp only [probabilityZero]
   linarith
 
-def successLB {width : Nat} (unitary : UnitaryOperator (Qubits width))
+/-- The original exact outcome probability, certified as a probability lower bound. -/
+public def successLB {width : Nat} (unitary : UnitaryOperator (Qubits width))
     (input : NormalizedVector (Qubits width)) : ProbabilityLowerBound where
   value := ENNReal.ofReal (probabilityZero unitary input)
   le_one := ENNReal.ofReal_le_one.mpr (probabilityZero_le_one unitary input)
 
 /-- One prepared control, two literal Hadamards, one controlled query, and one actual Z write. -/
-def eventBudget {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    ResourcePool (model unitary) :=
-  ResourcePool.singleton (model := model unitary) (.preparation (2 : ℕ+)) +
-    (2 • ResourcePool.singleton (model := model unitary)
+public def eventBudget (width : Nat) :
+    ResourcePool (model width) :=
+  ResourcePool.singleton (model := model width) (.preparation (2 : ℕ+)) +
+    (2 • ResourcePool.singleton (model := model width)
         (.gate AlgorithmGate.Coordinate.singleQubit) +
-      ResourcePool.singleton (model := model unitary)
+      ResourcePool.singleton (model := model width)
         (.oracle UnitarySource.Coordinate.controlled)) +
-    ResourcePool.singleton (model := model unitary) (.measurement (2 : ℕ+))
+    ResourcePool.singleton (model := model width) (.measurement (2 : ℕ+))
 
 /-- All owned quantum systems and the one actual binary result remain resident. -/
-def spaceBudget (width : Nat) : SpacePool .quantum
+public def spaceBudget (width : Nat) : SpacePool .quantum
   | .classicalBits => 1
   | .quantumSystems dimension => if (2 : ℕ+) = dimension then 1 + width else 0
-
-/-- Native Hadamard test on the original normalized input.
-
-**Input.** A supplied normalized $n$-qubit vector and controlled access to its
-source unitary. The original word is owned because the test may change it.
-Every normalized external extension of the promised local state is allowed.
-**Output.** The actual binary Z outcome in a finite classical cell, together
-with the entire original word and the internally prepared control qubit.
-**Resource budget.** One control preparation, two Hadamards, one controlled
-source query and one Z measurement; unit-event depth at most five. Resident
-and owned auxiliary capacities are $n+1$ qubits and one classical bit. Exactly
-one quantum system is newly allocated.
-**Success.** The stored zero outcome has probability
-$(1+\operatorname{Re}\langle\psi|U|\psi\rangle)/2$. All borrowed observations
-and the external reference are restored jointly; measured quantum systems
-remain live without an additional state promise.
-**Source.** The controlled-unitary construction and real-overlap outcome in
-[AJL06, qf2.tex:625-645]. The explicit native ledger follows that same circuit.
--/
-public def problem {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (input : NormalizedVector (Qubits width)) :
-    Problem (model unitary) (pre width) (post width) (.finite 2) where
-  valid := fun state => inputPromise input state.quantumMarginal
-  initialization := fun _ => True
-  accepts := fun _initial result => result = .finite 0
-  successLB := successLB unitary input
-  states := []
-  resources :=
-    { events := eventBudget unitary
-      resident := spaceBudget width
-      auxiliary := spaceBudget width }
-  depth :=
-    { duration := fun _ => 1
-      limit := 5
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
 
 end
 

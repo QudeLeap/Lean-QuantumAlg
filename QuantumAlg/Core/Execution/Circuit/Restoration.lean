@@ -7,6 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Owned.CircuitRestoration
+import all QuantumAlg.Core.Execution.Borrowed.Parallel
 
 /-!
 # Complete borrowed restoration for actual circuits on owned quantum systems
@@ -27,7 +28,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem transported_history {kind : ProblemKind} {pre post : RuntimeCtx kind}
+private lemma transported_history {kind : ProblemKind} {pre post : RuntimeCtx kind}
     (Reference : Register) (sameShape : post.borrowedClassicalShape = pre.borrowedClassicalShape)
     (sameRegister : post.borrowedQuantumLayout.register = pre.borrowedQuantumLayout.register)
     {History Next : Type} [Fintype History] [Fintype Next]
@@ -39,30 +40,33 @@ private theorem transported_history {kind : ProblemKind} {pre post : RuntimeCtx 
     (observeBorrowed_mapHistory state update)
 
 /-- Actual stored-value dispatch restores the entire borrowed interface of its selected fibers. -/
-theorem borrowedRestored_branch {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
+lemma borrowedRestored_branch {model : ExecutionModel}
+    (environment : model.Environment) {pre post : RuntimeCtx model.kind}
+    {allowAllocation : Bool} {shape : CShape} (input : CInputRef pre shape)
+    (body : shape.Value → Circuit model pre post allowAllocation)
     (Reference : Register)
     (restores : ∀ value {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History)),
-      (body value).BorrowedRestored Reference state ((body value).execute Reference state))
+      (body value).BorrowedRestored Reference state
+        ((body value).execute environment Reference state))
     {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History)) :
     (Circuit.branch input body).BorrowedRestored Reference state
-      ((Circuit.branch input body).execute Reference state) := by
+      ((Circuit.branch input body).execute environment Reference state) := by
   let selected := state.selectClassical (fun entry => entry.1.read input)
   let family : shape.Value → State post Reference
       (model.HiddenState × (History × (Circuit.branch input body).Path)) :=
-    fun value => ((body value).execute Reference (selected value)).mapHistory
+    fun value => ((body value).execute environment Reference (selected value)).mapHistory
       (fun history => (history.1, (history.2.1, ⟨value, history.2.2⟩)))
   have total : ∑ value, (family value).mass ≤ 1 := by
     simp only [family, State.mapHistory_mass, execute_mass]
     exact state.sum_selectClassical_mass_le_one (fun entry => entry.1.read input)
-  have actual : (Circuit.branch input body).execute Reference state =
+  have actual : (Circuit.branch input body).execute environment Reference state =
       ExecutionState.finiteSum family total := by
     apply ExecutionState.ext
     intro result
     apply DensityOperator.ext
-    exact execute_branch_block_matrix input body state result
+    exact execute_branch_block_matrix environment input body state result
   have selectedTotal : ∑ value, (selected value).mass ≤ 1 :=
     state.sum_selectClassical_mass_le_one (fun entry => entry.1.read input)
   have each : ∀ value,
@@ -74,7 +78,7 @@ theorem borrowedRestored_branch {model : ExecutionModel} {pre post : RuntimeCtx 
     have mapped := transported_history Reference
       (Circuit.branch input body).borrowedClassicalShape_preserved
       (Circuit.branch input body).borrowedRegister_preserved
-      ((body value).execute Reference (selected value))
+      ((body value).execute environment Reference (selected value))
       (fun history => (history.1, (history.2.1,
         (⟨value, history.2.2⟩ : (Circuit.branch input body).Path))))
     exact mapped.trans (restores value (selected value))
@@ -93,55 +97,100 @@ theorem borrowedRestored_branch {model : ExecutionModel} {pre post : RuntimeCtx 
       congrArg (observeBorrowed Reference)
         (ExecutionState.finiteSum_selectClassical state (fun entry => entry.1.read input))
 
+private lemma embedding_noBorrowedQuantum {kind : ProblemKind}
+    {localCtx caller : RuntimeCtx kind} (placement : ContextEmbedding localCtx caller)
+    (noBorrowedQuantum : caller.borrowedQuantumWires = []) :
+    localCtx.borrowedQuantumWires = [] := by
+  have permuted := placement.contextEmbedding_borrowedQuantumWires_perm
+  rw [noBorrowedQuantum] at permuted
+  exact List.map_eq_nil_iff.mp (List.append_eq_nil_iff.mp permuted.eq_nil).1
+
 /-- Actual owned-system execution restores all borrowed classical-reference correlations. -/
-theorem borrowedRestored_of_noBorrowedQuantum {model : ExecutionModel}
-    {pre post : RuntimeCtx model.kind} (code : Circuit model pre post) :
+lemma borrowedRestored_of_noBorrowedQuantum {model : ExecutionModel}
+    {pre post : RuntimeCtx model.kind} {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation) (environment : model.Environment) :
     ∀ (_noBorrowedQuantum : pre.borrowedQuantumWires = []) (Reference : Register)
       {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History)),
-      code.BorrowedRestored Reference state (code.execute Reference state) := by
+      code.BorrowedRestored Reference state (code.execute environment Reference state) := by
   induction code with
-  | @id selected ctx =>
+  | id ctx =>
       intro _ Reference History _ state
-      exact borrowedRestored_id (model := selected) (ctx := ctx)
+      exact borrowedRestored_id (environment := environment) (ctx := ctx)
         (Reference := Reference) (H := History) state
   | classical op =>
       intro _ Reference History _ state
-      exact borrowedRestored_classical op state
+      exact borrowedRestored_classical (environment := environment) op state
   | classicalQuery application =>
       intro _ Reference History _ state
-      exact borrowedRestored_classicalQuery application state
+      exact borrowedRestored_classicalQuery (environment := environment) application state
   | unitary program =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_unitary_classicalReference noBorrowedQuantum program state
+      exact borrowedRestored_unitary_classicalReference
+        (environment := environment) noBorrowedQuantum program state
   | measureZ wire output =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_measureZ_classicalReference noBorrowedQuantum ⟨wire, output⟩ state
+      exact borrowedRestored_measureZ_classicalReference
+        (environment := environment) noBorrowedQuantum ⟨wire, output⟩ state
   | retain ctx key shape fresh =>
       intro _ Reference History _ state
-      exact borrowedRestored_retain key shape fresh state
+      exact borrowedRestored_retain (environment := environment) key shape fresh state
   | prepareZero ctx key layout fresh disjoint =>
       intro _ Reference History _ state
-      exact borrowedRestored_prepareZero state key layout fresh disjoint
+      exact borrowedRestored_prepareZero
+        (environment := environment) state key layout fresh disjoint
   | seq first second firstIH secondIH =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_seq first second state
-        (firstIH noBorrowedQuantum Reference state)
-        (secondIH (first.borrowedQuantumWires_preserved.trans noBorrowedQuantum) Reference _)
+      exact borrowedRestored_seq (environment := environment) first second state
+        (firstIH environment noBorrowedQuantum Reference state)
+        (secondIH environment (first.borrowedQuantumWires_preserved.trans
+          noBorrowedQuantum) Reference _)
   | branch input body bodyIH =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_branch input body Reference
-        (fun value {_} _ initial => bodyIH value noBorrowedQuantum Reference initial) state
+      exact borrowedRestored_branch (environment := environment) input body Reference
+        (fun value {_} _ initial => bodyIH value environment
+          noBorrowedQuantum Reference initial) state
   | iterate count body bodyIH =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_iterate body Reference
-        (fun {_} _ initial => bodyIH noBorrowedQuantum Reference initial) count state
+      exact borrowedRestored_iterate (environment := environment) body Reference
+        (fun {_} _ initial => bodyIH environment noBorrowedQuantum Reference initial) count state
   | workspace ctx key shape fresh body bodyIH =>
       intro noBorrowedQuantum Reference History _ state
-      exact borrowedRestored_workspace key shape fresh body Reference
-        (fun {_} _ initial => bodyIH
+      exact borrowedRestored_workspace (environment := environment) key shape fresh body Reference
+        (fun {_} _ initial => bodyIH environment
           ((ctx.borrowedQuantumWires_addWorkspace key shape fresh).trans noBorrowedQuantum)
           Reference initial) state
+  | embed placement body bodyIH =>
+      intro noBorrowedQuantum Reference History _ state
+      exact borrowedRestored_embed (environment := environment) placement body
+        (fun ref {_} _ initial => bodyIH environment
+          (embedding_noBorrowedQuantum placement noBorrowedQuantum) ref initial)
+        Reference state
+  | parallelClassical join separate first second firstIH secondIH =>
+      intro noBorrowedQuantum Reference History _ state
+      exact borrowedRestored_parallelClassical
+        (environment := environment) join separate first second
+        (fun ref {_} _ initial => firstIH
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩
+          (embedding_noBorrowedQuantum
+            (ContextEmbedding.alongUnion _ _ separate) noBorrowedQuantum) ref initial)
+        (fun ref {_} _ initial => secondIH
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩
+          (embedding_noBorrowedQuantum
+            (ContextEmbedding.alongUnionRight _ _ separate) noBorrowedQuantum) ref initial)
+        Reference state
+  | parallelQuantum join separate first second firstIH secondIH =>
+      intro noBorrowedQuantum Reference History _ state
+      exact borrowedRestored_parallelQuantum (environment := environment) join separate first second
+        (fun ref {_} _ initial => firstIH
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩
+          (embedding_noBorrowedQuantum
+            (ContextEmbedding.alongUnion _ _ separate) noBorrowedQuantum) ref initial)
+        (fun ref {_} _ initial => secondIH
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩
+          (embedding_noBorrowedQuantum
+            (ContextEmbedding.alongUnionRight _ _ separate) noBorrowedQuantum) ref initial)
+        Reference state
 
 end
 

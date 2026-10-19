@@ -7,11 +7,12 @@ Authors: QudeLeap Team
 module
 
 import all
+
 QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Recovery.Caller
-import all
-QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Slots.Probability
-import all
-QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Reference
+
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Slots.Probability
+
+import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Retry.Reference
 
 /-!
 # First physical EH retry and initialized selector
@@ -33,14 +34,14 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The first actual allocated batch, recovery and selection has exactly the
 complete source law, with the initially empty selector accepting its result. -/
-theorem first_selected_reference
+lemma first_selected_reference
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((model input).HiddenState × History))
+    (state : State base Reference ((model N).HiddenState × History))
     (normalized : state.IsNormalized)
     (weight : (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (left right : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((first base noQuantum N input).execute Reference state)
+      ((first base noQuantum N input).execute (sourceEnvironment input) Reference state)
       (fun entry _ => weight
         (Optional.selectedValue (selectionRefs base noQuantum N).selection entry.1))
       left right =
@@ -49,31 +50,34 @@ theorem first_selected_reference
         ((Batch.sourceDistribution input output).toReal : ℂ) *
           weight (Batch.SourceRecovery.packedValue output))
       left right := by
-  let allocate := Native.Retry.Slots.allocate (model := model input) base (modulusBits N)
+  let allocate := Native.Retry.Slots.allocate (model := model N) base (modulusBits N)
   let recovery := Batch.Recovery.first (callerContext base N)
     (caller_empty base noQuantum N) N input
-  let entered := allocate.execute Reference state
-  let recoveredState := recovery.execute Reference entered
+  let entered := allocate.execute (sourceEnvironment input) Reference state
+  let recoveredState := recovery.execute (sourceEnvironment input) Reference entered
   let observe := fun store : Store (context base noQuantum N) =>
     weight (Optional.selectedValue (selectionRefs base noQuantum N).selection store)
-  have selected := select_reference base noQuantum N input recoveredState
+  have selected := select_reference (environment := sourceEnvironment input) base noQuantum N
+    recoveredState
     weight left right
   have recovered := Batch.Recovery.run_caller_reference
     (callerContext base N) (caller_empty base noQuantum N) N input
     (originalSelectionInput base N) entered
-    ((allocate.execute_mass Reference state).trans normalized)
+    ((allocate.execute_mass (sourceEnvironment input) Reference state).trans normalized)
     (fun old factor => weight (Optional.retainValue (CShape.packOption old) factor))
     left right
   rw [caller_selectionInput base noQuantum N] at recovered
-  have initialized := allocation_selected_reference base N input state
+  have initialized := allocation_selected_reference (environment := sourceEnvironment input) base N
+    state
     (fun previous => ∑ output : (Batch.resultShape N).Value,
       ((Batch.sourceDistribution input output).toReal : ℂ) *
         weight (Optional.retainValue previous (Batch.SourceRecovery.packedValue output)))
     left right
   have result := (Circuit.referenceFiberSum_execute_seq allocate
-    (recovery.seq (select base noQuantum N input)) state observe left right).trans
-      ((Circuit.referenceFiberSum_execute_seq recovery (select base noQuantum N input)
-        entered observe left right).trans
+    (recovery.seq (select base noQuantum N)) (sourceEnvironment input) state observe left
+      right).trans
+      ((Circuit.referenceFiberSum_execute_seq recovery (select base noQuantum N)
+        (sourceEnvironment input) entered observe left right).trans
         (selected.trans (recovered.trans initialized)))
   refine result.trans ?_
   apply congrArg

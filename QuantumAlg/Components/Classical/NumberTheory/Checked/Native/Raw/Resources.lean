@@ -28,11 +28,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original resize followed by the unchanged independent raw-engine event envelope. -/
-theorem withWidenedXgcd_pool_le (denominator : CInputRef ctx (.unsignedWord width))
+lemma withWidenedXgcd_pool_le (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (path : (withWidenedXgcd (model := model) denominator modulus outputs).Path) :
@@ -55,7 +55,7 @@ theorem withWidenedXgcd_pool_le (denominator : CInputRef ctx (.unsignedWord widt
   exact add_le_add_right (xgcdNativeRawEngine_pool_le _ _ path.2) _
 
 /-- The one real resize adds its duration to the original raw-engine schedule bound. -/
-theorem withWidenedXgcd_depth_le (denominator : CInputRef ctx (.unsignedWord width))
+lemma withWidenedXgcd_depth_le (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1)) (duration : Resource.Event model → Nat)
     (path : (withWidenedXgcd (model := model) denominator modulus outputs).Path) :
@@ -78,7 +78,7 @@ theorem withWidenedXgcd_depth_le (denominator : CInputRef ctx (.unsignedWord wid
   exact Nat.add_le_add_left (xgcdNativeRawEngine_depth_le _ _ duration path.2) _
 
 /-- Every actual selected path remains serial, with duration exactly its own native event sum. -/
-theorem withWidenedXgcd_duration_eventTrace
+lemma withWidenedXgcd_duration_eventTrace
     (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1)) (duration : Resource.Event model → Nat)
@@ -110,7 +110,7 @@ theorem withWidenedXgcd_duration_eventTrace
     (xgcdNativeRawEngine_duration_eventTrace _ _ duration path.2)
 
 /-- The actual resident bound includes the widened denominator throughout the complete raw run. -/
-theorem withWidenedXgcd_resident_le (denominator : CInputRef ctx (.unsignedWord width))
+lemma withWidenedXgcd_resident_le (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (path : (withWidenedXgcd (model := model) denominator modulus outputs).Path) :
@@ -140,7 +140,7 @@ theorem withWidenedXgcd_resident_le (denominator : CInputRef ctx (.unsignedWord 
     add_assoc, add_comm, add_left_comm] using body
 
 /-- The auxiliary bound charges the same actual denominator and raw-engine workspaces. -/
-theorem withWidenedXgcd_auxiliary_le (denominator : CInputRef ctx (.unsignedWord width))
+lemma withWidenedXgcd_auxiliary_le (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1))
     (path : (withWidenedXgcd (model := model) denominator modulus outputs).Path) :
@@ -170,14 +170,15 @@ theorem withWidenedXgcd_auxiliary_le (denominator : CInputRef ctx (.unsignedWord
     add_assoc, add_comm, add_left_comm] using body
 
 /-- The same certified actual record emits the original unpadded widened-XGCD trace. -/
-theorem withWidenedXgcd_record_eventTrace (denominator : CInputRef ctx (.unsignedWord width))
+lemma withWidenedXgcd_record_eventTrace (denominator : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (outputs : RawOutputs ctx (width + 1)) (distinct : outputs.Distinct)
     (record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × (withWidenedXgcd
       (model := model) denominator modulus outputs).Path)
     (equation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      (withWidenedXgcd (model := model) denominator modulus outputs).execute Reference state =
+      (withWidenedXgcd (model := model) denominator modulus outputs).execute
+        environment Reference state =
         state.mapClassical (fun entry =>
           let result := record (entry.1, entry.2.1)
           (result.1.1, (result.1.2, (entry.2.2, result.2)))))
@@ -205,20 +206,22 @@ theorem withWidenedXgcd_record_eventTrace (denominator : CInputRef ctx (.unsigne
   let bodyRecord := Circuit.sequenceRecord first second firstRecord rawRecord
   have bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (widenedXgcdCtx ctx width) Reference (model.HiddenState × History)),
-      (Circuit.seq first second).execute Reference state = state.mapClassical (fun entry =>
+      (Circuit.seq first second).execute
+        environment Reference state = state.mapClassical (fun entry =>
         let result := bodyRecord (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
     intro reference history historyFinite state
-    exact Circuit.execute_sequenceRecord first second firstRecord rawRecord (by
+    exact Circuit.execute_sequenceRecord
+      (environment := environment) first second firstRecord rawRecord (by
       intro reference history historyFinite state
-      refine (BitWord.bitWord_instruction_execute (execution := model)
+      refine (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
         (widenedDenominatorOp (transport.liftInput denominator) widened) state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl) rawEquation reference state
   let outerRecord := Circuit.workspaceRecord ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh (Circuit.seq first second) bodyRecord
   have same := Circuit.executionRecord_unique (withWidenedXgcd (model := model) denominator
-    modulus outputs)
-    record outerRecord equation (Circuit.execute_workspaceRecord _ _ _
+    modulus outputs) environment
+    record outerRecord equation (Circuit.execute_workspaceRecord environment _ _ _
       (Circuit.seq first second) bodyRecord bodyEquation)
   rw [same]
   let entered := store.1.pushWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))

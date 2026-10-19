@@ -6,9 +6,9 @@ Authors: QudeLeap Team
 
 module
 
-public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Cycle
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Time
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.ClassicalSpace
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Cycle
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Time
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.ClassicalSpace
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.QuantumSpace
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Events
@@ -32,51 +32,48 @@ noncomputable section
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Independent resource observations on one path of the complete original-input computation. -/
-@[expose] public def SevenCoordinateBounds (I : ECDLPInstance E) (A : Access I)
+@[expose] public def SevenCoordinateBounds (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order)
-    (budget : Factoring.FailureBudget) (wellFormed : budget.WellFormed)
-    (cycles : Algorithm.CycleSolves (calibratedWholeAlgorithm I A expansion nontrivial budget)
-      (calibratedCycleProblem I A expansion nontrivial budget wellFormed))
-    (path : (calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.Path) : Prop :=
+    (budget : Factoring.FailureBudget)
+    (path : (calibratedWholeAlgorithm I expansion nontrivial budget).run.code.Path) : Prop :=
   (∀ dimension : ℕ+,
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.peakResidentSpace path
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.peakResidentSpace path
         (.quantumSystems dimension) ≤
       if 2 = dimension then Scalar.qubits (fieldWidth E) (scalarWidth I) else 0) ∧
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.peakAuxiliarySpace path
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.peakAuxiliarySpace path
         (.quantumSystems dimension) ≤
       if 2 = dimension then Scalar.qubits (fieldWidth E) (scalarWidth I) else 0)) ∧
-  ResourcePool.count (model := Sampling.executionModel I A) (.gate .toffoli)
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.resourcePool path) ≤ 0 ∧
-  ResourcePool.count (model := Sampling.executionModel I A) (.gate .cnot)
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.resourcePool path) ≤
+  ResourcePool.count (model := Sampling.executionModel I) (.gate .toffoli)
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.resourcePool path) ≤ 0 ∧
+  ResourcePool.count (model := Sampling.executionModel I) (.gate .cnot)
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.resourcePool path) ≤
       retryCountForBudget I budget * Scalar.roundCnot (scalarWidth I) ∧
-  ResourcePool.count (model := Sampling.executionModel I A) (.gate .singleQubit)
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.resourcePool path) ≤
+  ResourcePool.count (model := Sampling.executionModel I) (.gate .singleQubit)
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.resourcePool path) ≤
       retryCountForBudget I budget * Scalar.roundSingleQubit (fieldWidth E) (scalarWidth I) ∧
-  cycles.maximumCycleDepth (fun _ => 1) path ≤
-    Scalar.maximumCycleDepth (fieldWidth E) (scalarWidth I) ∧
-  (((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.peakResidentSpace path
+  (calibratedWholeAlgorithm I expansion nontrivial budget).quantumTime path ≤
+    Scalar.wholeRunEvents (fieldWidth E) (scalarWidth I) (retryCountForBudget I budget) ∧
+  (((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.peakResidentSpace path
       .classicalBits ≤ Scalar.residentBits (fieldWidth E) (scalarWidth I)) ∧
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.peakAuxiliarySpace path
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.peakAuxiliarySpace path
       .classicalBits ≤ Scalar.auxiliaryBits (fieldWidth E) (scalarWidth I))) ∧
   ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-    ((calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.resourcePool path) ≤
+    ((calibratedWholeAlgorithm I expansion nontrivial budget).run.code.resourcePool path) ≤
       retryCountForBudget I budget * Scalar.recoveryEvents (fieldWidth E) (scalarWidth I) + 1
 
 /-- All seven scalar bounds observe the same original calibrated complete-cycle execution. -/
-public theorem calibrated_sevenCoordinates (I : ECDLPInstance E) (A : Access I)
+public lemma calibrated_sevenCoordinates (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order)
-    (budget : Factoring.FailureBudget) (wellFormed : budget.WellFormed)
-    (path : (calibratedWholeAlgorithm I A expansion nontrivial budget).run.code.Path) :
-    SevenCoordinateBounds I A expansion nontrivial budget wellFormed
-      (calibratedCycleCertificate I A expansion nontrivial budget wellFormed) path := by
-  have pool := ecdlpRecovery_code_events_le I A expansion nontrivial
+    (budget : Factoring.FailureBudget)
+    (path : (calibratedWholeAlgorithm I expansion nontrivial budget).run.code.Path) :
+    SevenCoordinateBounds I expansion nontrivial budget path := by
+  have pool := ecdlpRecovery_code_events_le I expansion nontrivial
     (retryCountForBudget I budget) path
-  have resident := ecdlpRecovery_code_resident_le I A expansion nontrivial
+  have resident := ecdlpRecovery_code_resident_le I expansion nontrivial
     (retryCountForBudget I budget) path
-  have auxiliary := ecdlpRecovery_code_auxiliary_le I A expansion nontrivial
+  have auxiliary := ecdlpRecovery_code_auxiliary_le I expansion nontrivial
     (retryCountForBudget I budget) path
   unfold SevenCoordinateBounds
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
@@ -85,20 +82,21 @@ public theorem calibrated_sevenCoordinates (I : ECDLPInstance E) (A : Access I)
     rw [original_qubits_scalar] at quantum
     exact ⟨(resident (.quantumSystems dimension)).trans_eq quantum.1,
       (auxiliary (.quantumSystems dimension)).trans_eq quantum.2⟩
-  · have ceiling := whole_budget_gate_scalar I A expansion nontrivial
+  · have ceiling := whole_budget_gate_scalar I expansion nontrivial
       (retryCountForBudget I budget) .toffoli
     exact ((ResourcePool.le_iff_count.mp pool) (.gate .toffoli)).trans
       (ceiling.trans_eq (Nat.mul_zero _))
   · exact ((ResourcePool.le_iff_count.mp pool) (.gate .cnot)).trans
-      (whole_budget_gate_scalar I A expansion nontrivial (retryCountForBudget I budget) .cnot)
+      (whole_budget_gate_scalar I expansion nontrivial (retryCountForBudget I budget) .cnot)
   · exact ((ResourcePool.le_iff_count.mp pool) (.gate .singleQubit)).trans
-      (whole_budget_gate_scalar I A expansion nontrivial
+      (whole_budget_gate_scalar I expansion nontrivial
         (retryCountForBudget I budget) .singleQubit)
-  · exact calibrated_maximumCycleDepth_scalar I A expansion nontrivial budget wellFormed path
+  · exact (Circuit.quantumTime_le_unitDepth _ _).trans
+      (calibrated_wholeRunDepth_scalar I expansion nontrivial budget path)
   · exact ⟨(resident .classicalBits).trans (whole_memory_classical_scalar I).1,
       (auxiliary .classicalBits).trans (whole_memory_classical_scalar I).2⟩
   · exact (ResourcePool.weightedCount_mono Resource.Event.classicalOperationWeight pool).trans
-      (whole_budget_classical_scalar I A expansion nontrivial (retryCountForBudget I budget))
+      (whole_budget_classical_scalar I expansion nontrivial (retryCountForBudget I budget))
 
 end
 

@@ -30,7 +30,7 @@ def centeredValue (a modulus : Nat) : Int :=
     (modulus : Int) - a
 
 /-- The centered raw routine agrees with the pure short-log target coordinate. -/
-theorem centeredValue_eq_shortLogTargetCoordinate (m ell : Nat)
+lemma centeredValue_eq_shortLogTargetCoordinate (m ell : Nat)
     (sample : RSA.ShortLogSample m ell) :
     centeredValue (2 ^ m * sample.2.val) (2 ^ (ell + m)) =
       RSA.shortLogTargetCoordinate m ell sample := by

@@ -32,7 +32,7 @@ public def lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) : ℂ :=
 
 /-- Convert the centered Laurent evaluation back to ordinary polynomial
 evaluation on the unit circle. -/
-theorem eval_exp_eq_exp_mul_lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) :
+lemma eval_exp_eq_exp_mul_lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) :
     F.eval (Complex.exp ((x : ℂ) * Complex.I)) =
       Complex.exp (((L * x / 2 : ℝ) : ℂ) * Complex.I) * lEval L F x := by
   rw [lEval]
@@ -51,7 +51,7 @@ theorem eval_exp_eq_exp_mul_lEval (L : ℕ) (F : ℂ[X]) (x : ℝ) :
 
 /-- Ordinary polynomial zeros on the unit circle are exactly zeros of the
 centered Laurent evaluation. -/
-theorem eval_exp_eq_zero_iff_lEval_eq_zero (L : ℕ) (F : ℂ[X]) (x : ℝ) :
+lemma eval_exp_eq_zero_iff_lEval_eq_zero (L : ℕ) (F : ℂ[X]) (x : ℝ) :
     F.eval (Complex.exp ((x : ℂ) * Complex.I)) = 0 ↔ lEval L F x = 0 := by
   rw [eval_exp_eq_exp_mul_lEval]
   constructor
@@ -64,7 +64,7 @@ theorem eval_exp_eq_zero_iff_lEval_eq_zero (L : ℕ) (F : ℂ[X]) (x : ℝ) :
     rw [hl, mul_zero]
 
 /-- A complex number with squared norm `1` has a real unit-circle phase. -/
-theorem exists_phase_of_normSq_eq_one {z : ℂ} (hz : Complex.normSq z = 1) :
+lemma exists_phase_of_normSq_eq_one {z : ℂ} (hz : Complex.normSq z = 1) :
     ∃ x : ℝ, Complex.exp ((x : ℂ) * Complex.I) = z := by
   have hsq : ‖z‖ ^ 2 = (1 : ℝ) ^ 2 := by
     simpa [Complex.normSq_eq_norm_sq] using hz
@@ -76,29 +76,29 @@ theorem exists_phase_of_normSq_eq_one {z : ℂ} (hz : Complex.normSq z = 1) :
 
 /-- Root form of `eval_exp_eq_zero_iff_lEval_eq_zero` for an arbitrary
 unit-circle point. -/
-theorem exists_phase_lEval_eq_zero_of_eval_eq_zero {L : ℕ} {F : ℂ[X]} {z : ℂ}
+lemma exists_phase_lEval_eq_zero_of_eval_eq_zero {L : ℕ} {F : ℂ[X]} {z : ℂ}
     (hunit : Complex.normSq z = 1) (hroot : F.eval z = 0) :
     ∃ x : ℝ, Complex.exp ((x : ℂ) * Complex.I) = z ∧ lEval L F x = 0 := by
   rcases exists_phase_of_normSq_eq_one hunit with ⟨x, rfl⟩
   exact ⟨x, rfl, (eval_exp_eq_zero_iff_lEval_eq_zero L F x).mp hroot⟩
 
-theorem lEval_C_mul (L : ℕ) (c : ℂ) (F : ℂ[X]) (x : ℝ) :
+lemma lEval_C_mul (L : ℕ) (c : ℂ) (F : ℂ[X]) (x : ℝ) :
     lEval L (C c * F) x = c * lEval L F x := by
   rw [lEval, lEval, Polynomial.eval_mul, Polynomial.eval_C]
   ring
 
-theorem lEval_add (L : ℕ) (F G : ℂ[X]) (x : ℝ) :
+lemma lEval_add (L : ℕ) (F G : ℂ[X]) (x : ℝ) :
     lEval L (F + G) x = lEval L F x + lEval L G x := by
   rw [lEval, lEval, lEval, Polynomial.eval_add]
   ring
 
-theorem lEval_sub (L : ℕ) (F G : ℂ[X]) (x : ℝ) :
+lemma lEval_sub (L : ℕ) (F G : ℂ[X]) (x : ℝ) :
     lEval L (F - G) x = lEval L F x - lEval L G x := by
   rw [lEval, lEval, lEval, Polynomial.eval_sub]
   ring
 
 /-- Raising the parity budget multiplies the encoded value by `e^{-ix/2}`. -/
-theorem lEval_succ (L : ℕ) (F : ℂ[X]) (x : ℝ) :
+lemma lEval_succ (L : ℕ) (F : ℂ[X]) (x : ℝ) :
     lEval (L + 1) F x
       = Complex.exp (-(((x / 2 : ℝ) : ℂ) * Complex.I)) * lEval L F x := by
   rw [lEval, lEval, ← mul_assoc, ← Complex.exp_add]
@@ -107,7 +107,7 @@ theorem lEval_succ (L : ℕ) (F : ℂ[X]) (x : ℝ) :
   ring
 
 /-- Raising the budget while multiplying by `X` multiplies by `e^{ix/2}`. -/
-theorem lEval_succ_X_mul (L : ℕ) (F : ℂ[X]) (x : ℝ) :
+lemma lEval_succ_X_mul (L : ℕ) (F : ℂ[X]) (x : ℝ) :
     lEval (L + 1) (X * F) x
       = Complex.exp (((x / 2 : ℝ) : ℂ) * Complex.I) * lEval L F x := by
   rw [lEval, lEval, Polynomial.eval_mul, Polynomial.eval_X, ← mul_assoc,
@@ -117,13 +117,13 @@ theorem lEval_succ_X_mul (L : ℕ) (F : ℂ[X]) (x : ℝ) :
   ring
 
 /-- The encoded value of a constant at budget `0`. -/
-theorem lEval_zero_C (c : ℂ) (x : ℝ) : lEval 0 (C c) x = c := by
+lemma lEval_zero_C (c : ℂ) (x : ℝ) : lEval 0 (C c) x = c := by
   rw [lEval, Polynomial.eval_C]
   norm_num
 
 /-- The centered monomial evaluates to `1` under the doubled Laurent budget:
 `e^{-i(2L)x/2}(e^{ix})^L = 1`. -/
-theorem lEval_two_mul_X_pow (L : ℕ) (x : ℝ) :
+lemma lEval_two_mul_X_pow (L : ℕ) (x : ℝ) :
     lEval (2 * L) (X ^ L : ℂ[X]) x = 1 := by
   rw [lEval, Polynomial.eval_pow, Polynomial.eval_X, ← Complex.exp_nat_mul,
     ← Complex.exp_add]
@@ -135,7 +135,7 @@ theorem lEval_two_mul_X_pow (L : ℕ) (x : ℝ) :
   rw [harg, Complex.exp_zero]
 
 /-- Conjugating the encoded value reflects the conjugated coefficients. -/
-theorem conj_lEval {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
+lemma conj_lEval {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
     starRingEnd ℂ (lEval L F x) = lEval L ((conjP F).reflect L) x := by
   have hw : Complex.exp ((x : ℂ) * Complex.I) ≠ 0 := Complex.exp_ne_zero _
   have hFc : (conjP F).natDegree ≤ L :=
@@ -152,7 +152,7 @@ theorem conj_lEval {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
 /-- The conjugate-pair product under `lEval`, encoded as one Laurent
 polynomial at the doubled degree budget.  This is the quantum-free algebraic
 identity behind the normalization equations for trigonometric QSP and QPP. -/
-theorem lEval_mul_conj {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
+lemma lEval_mul_conj {L : ℕ} {F : ℂ[X]} (hF : F.natDegree ≤ L) (x : ℝ) :
     lEval L F x * starRingEnd ℂ (lEval L F x)
       = lEval (2 * L) (F * (conjP F).reflect L) x := by
   rw [conj_lEval hF x]

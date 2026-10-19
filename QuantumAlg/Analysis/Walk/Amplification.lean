@@ -43,12 +43,12 @@ public def searchAngle {n : ℕ} (M : Finset (Fin (2 ^ n))) : ℝ :=
 section AAProperties
 variable (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^ n)))
 
-theorem outerProductOp_applyVec (ψ φ : HilbertVector (Qubits (n + n))) :
+lemma outerProductOp_applyVec (ψ φ : HilbertVector (Qubits (n + n))) :
     HilbertOperator.applyVec (outerProductOp ψ) φ = inner ℂ ψ φ • ψ := by
   ext i
   simp [HilbertOperator.applyVec_apply, outerProductOp, Matrix.of_apply, PiLp.inner_apply,
     Finset.mul_sum, mul_comm, mul_left_comm, smul_eq_mul]
-theorem markedProjectorOp_applyVec_edgeBasis_single (x y : Fin (2 ^ n)) :
+lemma markedProjectorOp_applyVec_edgeBasis_single (x y : Fin (2 ^ n)) :
     HilbertOperator.applyVec
       (HilbertOperator.tensor (OrthogonalProjector.basisOp x) (1 : HilbertOperator (Qubits n)))
       ((edgeBasis P y : HilbertVector (Qubits (n + n))))
@@ -67,7 +67,7 @@ theorem markedProjectorOp_applyVec_edgeBasis_single (x y : Fin (2 ^ n)) :
   · subst y; simp [h_proj, HilbertOperator.one_applyVec]
   · simp [h_proj, HilbertOperator.one_applyVec, hxy]
 
-theorem markedProjectorOp_applyVec_edgeBasis (x : Fin (2 ^ n)) :
+lemma markedProjectorOp_applyVec_edgeBasis (x : Fin (2 ^ n)) :
     HilbertOperator.applyVec (markedProjectorOp M) ((edgeBasis P x : HilbertVector (Qubits (n +
       n)))) =
       if x ∈ M then (edgeBasis P x : HilbertVector (Qubits (n + n))) else 0 := by
@@ -98,7 +98,7 @@ theorem markedProjectorOp_applyVec_edgeBasis (x : Fin (2 ^ n)) :
         · have hinsert : x ∉ insert y M := by simp [hyx, hxM]
           simp [hyx', hxM, hinsert]
 
-theorem markedProjectorOp_applyVec_edgeBasis'
+lemma markedProjectorOp_applyVec_edgeBasis'
     (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (x : Fin (2 ^ n)) (hx : x ∉ M) :
     HilbertOperator.applyVec (markedProjectorOp M) ((edgeBasis P x : HilbertVector (Qubits (n +
       n)))) = 0 := by
@@ -116,7 +116,7 @@ private lemma map_sum_edgeBasis (A : HilbertOperator (Qubits (n + n))) (s : Fins
   | insert x s hx ih =>
       rw [Finset.sum_insert hx, HilbertOperator.applyVec_add, ih, Finset.sum_insert hx]
 
-theorem refBglobalOp_applyVec_badState (_hM_proper : M ≠ Finset.univ) :
+lemma refBglobalOp_applyVec_badState (_hM_proper : M ≠ Finset.univ) :
     HilbertOperator.applyVec ((refBglobalOp M : HilbertOperator (Qubits (n + n)))) (badState P
       M) = badState P M := by
   rw [refBglobalOp_coe, HilbertOperator.sub_applyVec, HilbertOperator.one_applyVec,
@@ -132,7 +132,7 @@ theorem refBglobalOp_applyVec_badState (_hM_proper : M ≠ Finset.univ) :
     rw [hsum, smul_zero]
   rw [hzero]; simp
 
-theorem refBglobalOp_applyVec_goodState (_hM_nonempty : M.Nonempty) :
+lemma refBglobalOp_applyVec_goodState (_hM_nonempty : M.Nonempty) :
     HilbertOperator.applyVec ((refBglobalOp M : HilbertOperator (Qubits (n + n)))) (goodState P
       M) = -(goodState P M) := by
   rw [refBglobalOp_coe, HilbertOperator.sub_applyVec, HilbertOperator.one_applyVec,
@@ -152,7 +152,7 @@ theorem refBglobalOp_applyVec_goodState (_hM_nonempty : M.Nonempty) :
     _ = (-1 : ℂ) • goodState P M := by ring_nf
     _ = -goodState P M := by simp
 
-public theorem uniformEdgeState_inner_goodState_eq_sin (hM_nonempty : M.Nonempty) :
+public lemma uniformEdgeState_inner_goodState_eq_sin (hM_nonempty : M.Nonempty) :
     inner ℂ ((uniformEdgeState P : HilbertVector (Qubits (n + n)))) (goodState P M) = Real.sin
       (searchAngle M) := by
   have hε : markedFraction M ≤ 1 := by
@@ -165,7 +165,7 @@ public theorem uniformEdgeState_inner_goodState_eq_sin (hM_nonempty : M.Nonempty
   rw [searchAngle, Real.sin_arcsin (by linarith) h_le_one, markedFraction]
   exact uniformEdgeState_inner_goodState P M hM_nonempty
 
-public theorem uniformEdgeState_inner_badState_eq_cos (hM_proper : M ≠ Finset.univ) :
+public lemma uniformEdgeState_inner_badState_eq_cos (hM_proper : M ≠ Finset.univ) :
     inner ℂ ((uniformEdgeState P : HilbertVector (Qubits (n + n)))) (badState P M) = Real.cos
       (searchAngle M) := by
   rw [uniformEdgeState_inner_badState P M hM_proper]
@@ -177,7 +177,7 @@ public theorem uniformEdgeState_inner_badState_eq_cos (hM_proper : M ≠ Finset.
   congr 1
   field_simp
 
-public theorem uniformEdgeState_decompose (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) :
+public lemma uniformEdgeState_decompose (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) :
     ((uniformEdgeState P : HilbertVector (Qubits (n + n))) : HilbertVector (Qubits (n + n))) =
       (Real.sin (searchAngle M) : ℂ) • (goodState P M : HilbertVector (Qubits (n + n))) +
       (Real.cos (searchAngle M) : ℂ) • (badState P M : HilbertVector (Qubits (n + n))) := by
@@ -286,7 +286,7 @@ public theorem uniformEdgeState_decompose (hM_nonempty : M.Nonempty) (hM_proper 
           x ∈ (Finset.univ \ M), ((edgeBasis P x : HilbertVector (Qubits (n + n)))).ofLp i))) :=
             by ring
 
-theorem idealAA_iterate_applyVec_on_B (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) :
+lemma idealAA_iterate_applyVec_on_B (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) :
     HilbertOperator.applyVec ((idealRefUOp P : HilbertOperator (Qubits (n + n))) * (refBglobalOp M
       : HilbertOperator (Qubits (n + n)))) (badState P M)
       = (Real.cos (2 * searchAngle M) : ℂ) • (badState P M : HilbertVector (Qubits (n + n))) +
@@ -306,7 +306,7 @@ theorem idealAA_iterate_applyVec_on_B (hM_nonempty : M.Nonempty) (hM_proper : M 
   simp [smul_add, smul_smul, mul_comm, mul_left_comm, hsin2, hcos2, sub_eq_add_neg, add_smul, sq,
   add_comm, add_left_comm, add_assoc]
 
-theorem idealAA_iterate_applyVec_on_G (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) :
+lemma idealAA_iterate_applyVec_on_G (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) :
     HilbertOperator.applyVec ((idealRefUOp P : HilbertOperator (Qubits (n + n))) * (refBglobalOp M
       : HilbertOperator (Qubits (n + n)))) (goodState P M)
       = (Real.cos (2 * searchAngle M) : ℂ) • (goodState P M : HilbertVector (Qubits (n + n))) -
@@ -331,7 +331,7 @@ theorem idealAA_iterate_applyVec_on_G (hM_nonempty : M.Nonempty) (hM_proper : M 
   simp [smul_add, smul_smul, mul_comm, mul_left_comm, hsin2, hcos2', sq, sub_eq_add_neg, add_smul,
   add_comm, add_left_comm, add_assoc]
 
-public theorem idealAA_k_iterates (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) (k : ℕ) :
+public lemma idealAA_k_iterates (hM_nonempty : M.Nonempty) (hM_proper : M ≠ Finset.univ) (k : ℕ) :
     ((idealRefUOp P * refBglobalOp M) ^ k).applyVec (uniformEdgeState P)
       = (Real.cos (((2 * (k : ℝ) + 1) * searchAngle M)) : ℂ) •
           (badState P M : HilbertVector (Qubits (n + n))) +
@@ -363,7 +363,7 @@ public theorem idealAA_k_iterates (hM_nonempty : M.Nonempty) (hM_proper : M ≠ 
       push_cast
       module
 
-public theorem idealAA_success_probability (hM_nonempty : M.Nonempty) (hM_proper : M ≠
+public lemma idealAA_success_probability (hM_nonempty : M.Nonempty) (hM_proper : M ≠
   Finset.univ) (k :
 ℕ) :
     let finalState := ((idealRefUOp P * refBglobalOp M) ^ k).applyVec (uniformEdgeState P)

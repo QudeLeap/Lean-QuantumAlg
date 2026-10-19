@@ -46,7 +46,7 @@ public def phaseGateOnZeroOp (θ : ℝ) : UnitaryOperator (Qubits 1) :=
           exp_I_mul_exp_neg_I])
 
 /-- The original one-branch phase operator is diagonal with its exact complex phase. -/
-public theorem phaseGateOp_diagonal (angle : Real) :
+public lemma phaseGateOp_diagonal (angle : Real) :
     (phaseGateOp angle : HilbertOperator (Qubits 1)) =
       Matrix.diagonal (fun bit => if bit = 0 then 1 else
         Complex.exp ((angle : Complex) * Complex.I)) := by
@@ -54,7 +54,7 @@ public theorem phaseGateOp_diagonal (angle : Real) :
   fin_cases row <;> fin_cases column <;> rfl
 
 /-- The original zero-branch phase operator carries its exact phase on the zero branch. -/
-public theorem phaseGateOnZeroOp_diagonal (angle : Real) :
+public lemma phaseGateOnZeroOp_diagonal (angle : Real) :
     (phaseGateOnZeroOp angle : HilbertOperator (Qubits 1)) =
       Matrix.diagonal (fun bit => if bit = 0 then
         Complex.exp ((angle : Complex) * Complex.I) else 1) := by

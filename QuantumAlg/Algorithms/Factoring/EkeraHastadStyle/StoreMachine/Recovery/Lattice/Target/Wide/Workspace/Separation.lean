@@ -124,7 +124,7 @@ structure FrameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (LatticeState.coordinateInput refs.target.point.third).storageKeys
 
 /-- Different named mutable cells have different storage identities. -/
-theorem FrameSeparation.mutableKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma FrameSeparation.mutableKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {m ell width : Nat} {refs : LatticeWideTargetMachine.Refs ctx m ell width}
     (separation : FrameSeparation refs) {left right : Scratch.Cell}
     (different : left ≠ right) : mutableKey refs left ≠ mutableKey refs right := by
@@ -132,7 +132,7 @@ theorem FrameSeparation.mutableKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kin
   exact different (separation.mutableKeyInjective equal)
 
 /-- One earlier source avoids one named mutable scratch cell. -/
-theorem FrameSeparation.externalAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma FrameSeparation.externalAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {m ell width : Nat} {refs : LatticeWideTargetMachine.Refs ctx m ell width}
     (separation : FrameSeparation refs) (source : ExternalSourceCell)
     (target : Scratch.Cell) :
@@ -140,7 +140,7 @@ theorem FrameSeparation.externalAvoids {kind : ProblemKind} {ctx : RuntimeCtx ki
   separation.externalAvoidsMutable source target
 
 /-- Exact key projection of one mutable view through the physical inventory. -/
-theorem mutableKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma mutableKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : State.Cells ctx N) (scratch : Scratch.Cells ctx N)
     (pair : BatchMachine.PairRefs ctx N) (cell : Scratch.Cell) :
     mutableKey (LatticeWideTargetWorkspaceViews.targetRefs state scratch pair) cell =
@@ -155,17 +155,17 @@ def ExternalAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   ∀ source cell,
     (Scratch.cellRef scratch cell).key ∉ (externalSourceInput refs source).storageKeys
 
-private theorem storage_read_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storage_read_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
 
-private theorem storage_read_key_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storage_read_key_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (avoids : key ∉ (CInputRef.storage source).storageKeys) : source.key ≠ key := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using avoids
 
-private theorem stateKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma stateKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : State.Cells ctx N) (distinct : state.Distinct)
     (left right : State.Cell) (different : left ≠ right) :
     (LatticePairStateWorkspaceLayout.cellRef state left).toCStorageRef.key ≠
@@ -175,7 +175,7 @@ private theorem stateKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (LatticePairStateWorkspaceLayout.cellRef_key_injective state distinct equal)
 
 /-- The two physical inventories supply the compact target frame contract. -/
-theorem frameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma frameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (state : State.Cells ctx N) (stateDistinct : state.Distinct)
     (scratch : Scratch.Cells ctx N) (scratchDistinct : scratch.Distinct)
     (pair : BatchMachine.PairRefs ctx N)
@@ -224,7 +224,7 @@ theorem frameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
         (LatticePairStateWorkspaceLayout.cellRef state .targetSecond).toCStorageRef.key
     exact stateKey_ne state stateDistinct .targetThird .targetSecond (by decide)
 
-private theorem firstTargetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma firstTargetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {m ell width : Nat} (refs : LatticeWideTargetMachine.Refs ctx m ell width)
     (separation : FrameSeparation refs) :
     LatticeTarget.Separation refs.target.first := by
@@ -308,7 +308,7 @@ private theorem firstTargetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kin
     apply storage_read_not_mem
     exact avoided.symm
 
-private theorem secondTargetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma secondTargetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {m ell width : Nat} (refs : LatticeWideTargetMachine.Refs ctx m ell width)
     (separation : FrameSeparation refs) :
     LatticeTarget.Separation refs.target.second := by
@@ -392,7 +392,7 @@ private theorem secondTargetSeparation {kind : ProblemKind} {ctx : RuntimeCtx ki
     apply storage_read_not_mem
     exact avoided.symm
 
-private theorem targetPointSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma targetPointSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {m ell width : Nat} (refs : LatticeWideTargetMachine.Refs ctx m ell width)
     (separation : FrameSeparation refs) :
     LatticeTargetPoint.Separation refs.target := by
@@ -528,7 +528,7 @@ private theorem targetPointSeparation {kind : ProblemKind} {ctx : RuntimeCtx kin
         separation.externalAvoids .third .secondBelowHalf
 
 /-- Physical target storage supplies the full wide-target separation package. -/
-theorem targetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma targetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {m ell width : Nat} (refs : LatticeWideTargetMachine.Refs ctx m ell width)
     (separation : FrameSeparation refs) :
     LatticeWideTargetMachine.Separation refs := by

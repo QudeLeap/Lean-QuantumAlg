@@ -31,7 +31,7 @@ noncomputable section
 
 /-- The public word width of an exact same-bit RSA modulus is exactly twice
 the prime width. -/
-theorem modulus_clog_eq_two_mul {b : Nat} (pair : RSAKeyPairBits b)
+lemma modulus_clog_eq_two_mul {b : Nat} (pair : RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     Nat.clog 2 pair.modulus = 2 * b := by
   apply HasExactBitLength.clog_two_eq_of_odd (by omega) pair.modulus_bits
@@ -39,7 +39,7 @@ theorem modulus_clog_eq_two_mul {b : Nat} (pair : RSAKeyPairBits b)
 
 /-- The binary digit count of an exact same-bit RSA modulus is exactly twice
 the prime width. -/
-theorem modulus_size_eq_two_mul {b : Nat} (pair : RSAKeyPairBits b)
+lemma modulus_size_eq_two_mul {b : Nat} (pair : RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     Nat.size pair.modulus = 2 * b := by
   apply le_antisymm
@@ -77,7 +77,7 @@ noncomputable def badResidueUnit {b : Nat} (pair : RSAKeyPairBits b)
   have hbad := (Finset.mem_filter.mp candidate.property).2
   exact ZMod.unitOfCoprime candidate.val.val (Classical.choose hbad.2)
 
-@[simp] theorem badResidueUnit_coe {b : Nat} (pair : RSAKeyPairBits b)
+@[simp] lemma badResidueUnit_coe {b : Nat} (pair : RSAKeyPairBits b)
     (tailBits wordWidth : Nat)
     (candidate : ↑(badResidueCandidates pair tailBits wordWidth)) :
     ((badResidueUnit pair tailBits wordWidth candidate :
@@ -87,7 +87,7 @@ noncomputable def badResidueUnit {b : Nat} (pair : RSAKeyPairBits b)
 
 /-- The canonical unit of an exceptional proposal satisfies the same
 coordinate-order predicate. -/
-theorem badResidueUnit_bad {b : Nat} (pair : RSAKeyPairBits b)
+lemma badResidueUnit_bad {b : Nat} (pair : RSAKeyPairBits b)
     (tailBits wordWidth : Nat)
     (candidate : ↑(badResidueCandidates pair tailBits wordWidth)) :
     CoordinateOrderBad pair tailBits
@@ -100,7 +100,7 @@ theorem badResidueUnit_bad {b : Nat} (pair : RSAKeyPairBits b)
 /-- Distinct eligible natural representatives give distinct units, so the
 number of exceptional proposal words is at most the number of exceptional
 public units. -/
-theorem badResidueCandidates_card_le_badUnits_card
+lemma badResidueCandidates_card_le_badUnits_card
     {b : Nat} (pair : RSAKeyPairBits b) (tailBits wordWidth : Nat) :
     (badResidueCandidates pair tailBits wordWidth).card ≤
       (badUnits pair tailBits).card := by
@@ -138,7 +138,7 @@ theorem badResidueCandidates_card_le_badUnits_card
   exact Finset.card_le_card_of_injective hinjective
 
 /-- The exceptional-unit carrier fits inside one exact-width proposal word. -/
-theorem badUnits_card_le_wordSpace {b : Nat} (pair : RSAKeyPairBits b)
+lemma badUnits_card_le_wordSpace {b : Nat} (pair : RSAKeyPairBits b)
     (tailBits : Nat) :
     (badUnits pair tailBits).card ≤ 2 ^ (2 * b) := by
   let _ : NeZero pair.modulus :=
@@ -153,7 +153,7 @@ theorem badUnits_card_le_wordSpace {b : Nat} (pair : RSAKeyPairBits b)
 /-- At the exact `2b`-bit word width, rejected values occupy at most the
 fraction `513/1024`.  The slack covers both zero and the unused interval above
 the odd modulus while retaining a small rational denominator. -/
-theorem rejectedResidueFraction_le
+lemma rejectedResidueFraction_le
     {b : Nat} (pair : RSAKeyPairBits b) (hb : 512 ≤ b) :
     ((rejectedResidueCandidates pair.modulus (2 * b)).card : Real) /
         ((2 ^ (2 * b) : Nat) : Real) ≤ 513 / 1024 := by
@@ -200,7 +200,7 @@ theorem rejectedResidueFraction_le
 
 /-- Measuring exceptional representatives against the full proposal-word
 space can only decrease their fraction relative to the exact unit group. -/
-theorem badUnitsFraction_le_generatorBadFraction
+lemma badUnitsFraction_le_generatorBadFraction
     {b : Nat} (pair : RSAKeyPairBits b) (tailBits : Nat) :
     ((badUnits pair tailBits).card : Real) /
         ((2 ^ (2 * b) : Nat) : Real) ≤
@@ -237,7 +237,7 @@ theorem badUnitsFraction_le_generatorBadFraction
       rfl
 
 /-- Exact count of packed proposal vectors rejected in every coordinate. -/
-theorem allProposalsRejected_card
+lemma allProposalsRejected_card
     (modulus wordWidth wordCount : Nat) :
     ((Finset.univ : Finset (Fin (2 ^ (wordCount * wordWidth)))).filter
       fun bits => ∀ index,
@@ -249,7 +249,7 @@ theorem allProposalsRejected_card
 
 /-- Union bound for packed proposal vectors containing at least one
 exceptional unit representative. -/
-theorem someBadResidueCandidate_card_le
+lemma someBadResidueCandidate_card_le
     {b : Nat} (pair : RSAKeyPairBits b) (tailBits wordWidth wordCount : Nat) :
     ((Finset.univ : Finset (Fin (2 ^ (wordCount * wordWidth)))).filter
       fun bits => ∃ index,
@@ -302,7 +302,7 @@ noncomputable def samplerExceptionalWords {b : Nat}
 
 /-- The cardinality of the conservative sampler exceptional event is bounded
 by the exact all-rejected count plus the exceptional-coordinate union bound. -/
-theorem samplerExceptional_card_le
+lemma samplerExceptional_card_le
     {b : Nat} (pair : RSAKeyPairBits b) (tailBits wordWidth wordCount : Nat) :
     (samplerExceptionalWords pair tailBits wordWidth wordCount).card ≤
       (rejectedResidueCandidates pair.modulus wordWidth).card ^ wordCount +
@@ -365,7 +365,7 @@ noncomputable def samplerExceptionalFraction {b : Nat}
 /-- The actual uniform-bit sampler failure is bounded by the sixteenth power
 of the single-word rejection bound plus sixteen times the exact bad-unit
 fraction. -/
-theorem samplerExceptionalFraction_le_exact
+lemma samplerExceptionalFraction_le_exact
     {b : Nat} (pair : RSAKeyPairBits b) (hb : 512 ≤ b) :
     samplerExceptionalFraction pair ≤
       (513 / 1024 : Real) ^ 16 +
@@ -411,7 +411,7 @@ noncomputable def samplerFailureBound (b : Nat) : Real :=
   (513 / 1024 : Real) ^ 16 + 16 * generatorFailureBound b
 
 /-- Effective-width bound used by the public retry calibration. -/
-theorem samplerFailureBound_le_effective {b : Nat}
+lemma samplerFailureBound_le_effective {b : Nat}
     (hb : GeneratorOrder.effectiveCutoffBits ≤ b) :
     samplerFailureBound b ≤ (513 / 1024 : Real) ^ 16 + 1 / 8 := by
   unfold samplerFailureBound
@@ -424,7 +424,7 @@ theorem samplerFailureBound_le_effective {b : Nat}
 
 /-- Every exact same-bit RSA key in the effective range satisfies the common
 fixed-width sampler bound. -/
-theorem samplerExceptionalFraction_lt_samplerFailureBound
+lemma samplerExceptionalFraction_lt_samplerFailureBound
     {b : Nat} (pair : RSAKeyPairBits b) (hb : 512 ≤ b) :
     samplerExceptionalFraction pair < samplerFailureBound b := by
   calc
@@ -440,7 +440,7 @@ theorem samplerExceptionalFraction_lt_samplerFailureBound
 
 /-- The exact exceptional fraction is the actual event mass under the
 uniform random-bit source consumed by the executable sampler. -/
-theorem uniformBits_samplerExceptionalMass_eq_at
+lemma uniformBits_samplerExceptionalMass_eq_at
     {b : Nat} (pair : RSAKeyPairBits b)
     (tailBits wordWidth wordCount : Nat) :
     (PMF.uniformOfFintype
@@ -458,7 +458,7 @@ theorem uniformBits_samplerExceptionalMass_eq_at
   rfl
 
 /-- Exact sixteen-word specialization used by the same-bit RSA analysis. -/
-theorem uniformBits_samplerExceptionalMass_eq
+lemma uniformBits_samplerExceptionalMass_eq
     {b : Nat} (pair : RSAKeyPairBits b) :
     (PMF.uniformOfFintype (Fin (2 ^ (16 * (2 * b))))).toOuterMeasure
         {bits | SamplerExceptional pair (b / 64) (2 * b) 16 bits} =
@@ -468,7 +468,7 @@ theorem uniformBits_samplerExceptionalMass_eq
 
 /-- Exact selector rejection is equivalent to membership in the all-rejected
 word-vector event. -/
-theorem firstValidResidue_eq_none_iff_allProposalsRejected
+lemma firstValidResidue_eq_none_iff_allProposalsRejected
     (modulus wordWidth wordCount : Nat)
     (bits : Fin (2 ^ (wordCount * wordWidth))) :
     firstValidResidue
@@ -482,7 +482,7 @@ theorem firstValidResidue_eq_none_iff_allProposalsRejected
 /-- For a nonexceptional key, every actual sampler branch with no early gcd
 factor and insufficient short-DLP order lies in the finite exceptional event.
 The proof follows the first selected proposal of the executable sampler. -/
-theorem preparedOrderFailure_implies_samplerExceptional
+lemma preparedOrderFailure_implies_samplerExceptional
     {b wordWidth wordCount : Nat} (pair : RSAKeyPairBits b)
     (hb : effectiveCutoffBits ≤ b)
     (hkey : Nat.gcd (pair.p - 1) (pair.q - 1) < 2 ^ gcdLossBits b)

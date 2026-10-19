@@ -82,37 +82,37 @@ def subInverseFromTarget {N : ℕ} (x : Data N) : Data N where
   target := x.target - inverseResidue x.input
   flag := x.flag
 
-@[simp] theorem addInverseIntoTarget_input {N : ℕ} (x : Data N) :
+@[simp] lemma addInverseIntoTarget_input {N : ℕ} (x : Data N) :
     x.addInverseIntoTarget.input = x.input :=
   rfl
 
-@[simp] theorem addInverseIntoTarget_target {N : ℕ} (x : Data N) :
+@[simp] lemma addInverseIntoTarget_target {N : ℕ} (x : Data N) :
     x.addInverseIntoTarget.target = x.target + inverseResidue x.input :=
   rfl
 
-@[simp] theorem addInverseIntoTarget_flag {N : ℕ} (x : Data N) :
+@[simp] lemma addInverseIntoTarget_flag {N : ℕ} (x : Data N) :
     x.addInverseIntoTarget.flag = x.flag :=
   rfl
 
-@[simp] theorem subInverseFromTarget_input {N : ℕ} (x : Data N) :
+@[simp] lemma subInverseFromTarget_input {N : ℕ} (x : Data N) :
     x.subInverseFromTarget.input = x.input :=
   rfl
 
-@[simp] theorem subInverseFromTarget_target {N : ℕ} (x : Data N) :
+@[simp] lemma subInverseFromTarget_target {N : ℕ} (x : Data N) :
     x.subInverseFromTarget.target = x.target - inverseResidue x.input :=
   rfl
 
-@[simp] theorem subInverseFromTarget_flag {N : ℕ} (x : Data N) :
+@[simp] lemma subInverseFromTarget_flag {N : ℕ} (x : Data N) :
     x.subInverseFromTarget.flag = x.flag :=
   rfl
 
 /-- Clean temporary flags remain clean after modular inversion. -/
-theorem addInverseIntoTarget_preserves_clean {N : ℕ} (x : Data N)
+lemma addInverseIntoTarget_preserves_clean {N : ℕ} (x : Data N)
     (h : x.FlagClean) : x.addInverseIntoTarget.FlagClean :=
   h
 
 /-- Clean temporary flags remain clean after inverse modular inversion. -/
-theorem subInverseFromTarget_preserves_clean {N : ℕ} (x : Data N)
+lemma subInverseFromTarget_preserves_clean {N : ℕ} (x : Data N)
     (h : x.FlagClean) : x.subInverseFromTarget.FlagClean :=
   h
 
@@ -129,7 +129,7 @@ def invEquiv (N : ℕ) : Equiv.Perm (Data N) where
     cases x
     simp [addInverseIntoTarget, subInverseFromTarget]
 
-@[simp] theorem invEquiv_apply {N : ℕ} (x : Data N) :
+@[simp] lemma invEquiv_apply {N : ℕ} (x : Data N) :
     invEquiv N x = x.addInverseIntoTarget :=
   rfl
 
@@ -137,12 +137,12 @@ def invEquiv (N : ℕ) : Equiv.Perm (Data N) where
 def withWorkEquiv (N : ℕ) (Work : Type) : Equiv.Perm (Data N × Work) :=
   Equiv.prodCongr (invEquiv N) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {N : ℕ} {Work : Type} (x : Data N) (w : Work) :
+@[simp] lemma withWorkEquiv_apply {N : ℕ} {Work : Type} (x : Data N) (w : Work) :
     withWorkEquiv N Work (x, w) = (x.addInverseIntoTarget, w) :=
   rfl
 
 /-- The inversion map leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
+lemma withWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
     WorkRegister.Preserves (Data := Data N) (Work := Work) (withWorkEquiv N Work) := by
   intro x
   cases x

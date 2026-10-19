@@ -92,7 +92,7 @@ def fixedFuelTrace (fuel width : Nat) (decisions : Fin fuel → StepDecisions) :
   (List.ofFn (fun index => stepTrace width (decisions index))).flatten
 
 /-- Actual first-phase latch events equal their independent conditional-write formula. -/
-theorem firstAdvanceInto_events (refs : Refs ctx width)
+lemma firstAdvanceInto_events (refs : Refs ctx width)
     (path : (firstAdvanceInto (model := model) refs).Path) :
     (firstAdvanceInto (model := model) refs).eventTrace path =
       firstAdvanceTrace path.1.toBool := by
@@ -104,7 +104,7 @@ theorem firstAdvanceInto_events (refs : Refs ctx width)
     · exact LatticePhaseControl.transitionInto_events refs.machine .firstPass path
 
 /-- Actual second-phase latch events equal their independent selected-write formula. -/
-theorem secondAdvanceInto_events (refs : Refs ctx width)
+lemma secondAdvanceInto_events (refs : Refs ctx width)
     (path : (secondAdvanceInto (model := model) refs).Path) :
     (secondAdvanceInto (model := model) refs).eventTrace path =
       secondAdvanceTrace path.1.toBool := by
@@ -116,7 +116,7 @@ theorem secondAdvanceInto_events (refs : Refs ctx width)
     · exact LatticePhaseControl.transitionInto_events refs.machine .secondPass path
 
 /-- The complete actual first driver emits the independent formula at its recorded decisions. -/
-theorem firstStepInto_events (refs : Refs ctx width)
+lemma firstStepInto_events (refs : Refs ctx width)
     (path : (firstStepInto (model := model) refs).Path) :
     (firstStepInto (model := model) refs).eventTrace path =
       stepTrace width (firstDecisions refs path) := by
@@ -126,7 +126,7 @@ theorem firstStepInto_events (refs : Refs ctx width)
   rfl
 
 /-- The complete actual second driver emits the independent formula at its recorded decisions. -/
-theorem secondStepInto_events (refs : Refs ctx width)
+lemma secondStepInto_events (refs : Refs ctx width)
     (path : (secondStepInto (model := model) refs).Path) :
     (secondStepInto (model := model) refs).eventTrace path =
       stepTrace width (secondDecisions refs path) := by
@@ -136,7 +136,7 @@ theorem secondStepInto_events (refs : Refs ctx width)
   rfl
 
 /-- The actual selected nonterminal arm emits its corresponding independent step formula. -/
-theorem nonDoneStepInto_events (refs : Refs ctx width)
+lemma nonDoneStepInto_events (refs : Refs ctx width)
     (path : (nonDoneStepInto (model := model) refs).Path) :
     (nonDoneStepInto (model := model) refs).eventTrace path =
       stepTrace width (nonDoneDecisions refs path) := by
@@ -148,7 +148,7 @@ theorem nonDoneStepInto_events (refs : Refs ctx width)
     · exact secondStepInto_events refs path
 
 /-- Every actual iteration emits exactly the independent formula at its recorded decisions. -/
-theorem stepInto_events (refs : Refs ctx width)
+lemma stepInto_events (refs : Refs ctx width)
     (path : (stepInto (model := model) refs).Path) :
     (stepInto (model := model) refs).eventTrace path =
       stepTrace width (stepDecisions refs path) := by
@@ -160,14 +160,14 @@ theorem stepInto_events (refs : Refs ctx width)
     · rfl
 
 /-- Native multiplicities of one actual iteration come from the independent instruction formula. -/
-theorem stepInto_resourcePool (refs : Refs ctx width)
+lemma stepInto_resourcePool (refs : Refs ctx width)
     (path : (stepInto (model := model) refs).Path) :
     (stepInto (model := model) refs).resourcePool path =
       ResourcePool.ofList (stepTrace width (stepDecisions refs path)) :=
   congrArg ResourcePool.ofList (stepInto_events refs path)
 
 /-- Every actual run emits chronological independent step formulas at its own decisions. -/
-theorem fixedFuelInto_events (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_events (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) :
     (fixedFuelInto (model := model) fuel refs).eventTrace path =
       fixedFuelTrace fuel width (fun index => stepDecisions refs (path index)) := by
@@ -176,7 +176,7 @@ theorem fixedFuelInto_events (fuel : Nat) (refs : Refs ctx width)
   simp only [stepInto_events, fixedFuelTrace]
 
 /-- The actual complete resource pool equals the independently specified native multiplicities. -/
-theorem fixedFuelInto_resourcePool (fuel : Nat) (refs : Refs ctx width)
+lemma fixedFuelInto_resourcePool (fuel : Nat) (refs : Refs ctx width)
     (path : (fixedFuelInto (model := model) fuel refs).Path) :
     (fixedFuelInto (model := model) fuel refs).resourcePool path = ResourcePool.ofList
       (fixedFuelTrace fuel width (fun index => stepDecisions refs (path index))) :=

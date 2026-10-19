@@ -31,7 +31,7 @@ structure PhysicalSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : N
   stateScratch : ClassicalWorkspace.CrossSeparated state scratch
 
 /-- A structural read of one cell avoids every different physical key. -/
-private theorem storageRead_avoids_of_key_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_avoids_of_key_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CWriteRef ctx shape} {target : StorageKey}
     (different : source.key ≠ target) :
     target ∉ (CInputRef.storage source.toCStorageRef).storageKeys := by
@@ -63,12 +63,12 @@ def basisCell : LatticeMetricMachine.BasisCell →
   | .thirdThird => .basis33
 
 /-- The semantic Gram-cell projection is injective. -/
-theorem metricCell_injective : Function.Injective metricCell := by
+lemma metricCell_injective : Function.Injective metricCell := by
   intro left right equal
   cases left <;> cases right <;> simp [metricCell] at equal ⊢
 
 /-- Metric keys are exactly their named physical scratch keys. -/
-theorem metricKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma metricKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N)
     (cell : LatticeMetricMachine.MetricCell) :
     LatticeMetricMachine.metricCellKey
@@ -79,7 +79,7 @@ theorem metricKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The state basis and seven-cell Gram view satisfy the metric machine's
 complete physical separation contract. -/
-theorem metricSeparation {kind : ProblemKind}
+lemma metricSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -102,7 +102,7 @@ theorem metricSeparation {kind : ProblemKind}
 
 /-- The same persistent package supplies the fixed-fuel machine's eleven-cell
 injectivity invariant. -/
-theorem machineSeparated {kind : ProblemKind}
+lemma machineSeparated {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -128,7 +128,7 @@ def driverKey {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- Local distinctness and the state-to-LLL cross certificate make the unified
 driver key projection injective. -/
-theorem driverKey_injective {kind : ProblemKind}
+lemma driverKey_injective {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -190,12 +190,12 @@ def firstTransitionCell : LatticeFirstPairMachine.TransitionCell → DriverCell
   | .swapScratch => .inr .swapScratch
 
 /-- The first-phase semantic cell projection is injective. -/
-theorem firstTransitionCell_injective : Function.Injective firstTransitionCell := by
+lemma firstTransitionCell_injective : Function.Injective firstTransitionCell := by
   intro left right equal
   cases left <;> cases right <;> simp [firstTransitionCell] at equal ⊢
 
 /-- First-pair semantic keys are their unified physical driver keys. -/
-theorem firstCellKey_eq_driverKey {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma firstCellKey_eq_driverKey {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N)
     (cell : LatticeFirstPairMachine.TransitionCell) :
@@ -206,7 +206,7 @@ theorem firstCellKey_eq_driverKey {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The physical state and scratch packages supply first-phase global key
 separation. -/
-theorem firstPhaseSeparation {kind : ProblemKind}
+lemma firstPhaseSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -296,14 +296,14 @@ def secondTransitionCellInverse : DriverCell →
   | .inr .reduceProduct => some .reduceProduct
   | _ => none
 
-private theorem secondTransitionCellInverse_apply
+private lemma secondTransitionCellInverse_apply
     (cell : LatticeSecondPairMachine.TransitionCell) :
     secondTransitionCellInverse (secondTransitionCell cell) = some cell := by
   cases cell <;> try rfl
   case division32 cell => cases cell <;> rfl
   case division31 cell => cases cell <;> rfl
 
-theorem secondTransitionCell_injective :
+lemma secondTransitionCell_injective :
     Function.Injective secondTransitionCell := by
   intro left right equal
   have mapped := congrArg secondTransitionCellInverse equal
@@ -312,7 +312,7 @@ theorem secondTransitionCell_injective :
   exact Option.some.inj mapped
 
 /-- Second-prefix semantic keys are their unified physical driver keys. -/
-theorem secondCellKey_eq_driverKey {kind : ProblemKind}
+lemma secondCellKey_eq_driverKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N)
@@ -326,7 +326,7 @@ theorem secondCellKey_eq_driverKey {kind : ProblemKind}
   case division31 cell => cases cell <;> rfl
 
 /-- The physical packages supply second-prefix global key separation. -/
-theorem secondPhaseSeparation {kind : ProblemKind}
+lemma secondPhaseSeparation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}
@@ -388,7 +388,7 @@ def secondFullCellInverse (cell : DriverCell) :
       | .inr .swapScratch => some .swapScratch
       | _ => none
 
-private theorem secondFullCellInverse_apply
+private lemma secondFullCellInverse_apply
     (cell : LatticeSecondPairFullMachine.Cell) :
     secondFullCellInverse (secondFullCell cell) = some cell := by
   cases cell with
@@ -414,13 +414,13 @@ private theorem secondFullCellInverse_apply
   | swapScratch => rfl
 
 /-- The complete second-pair semantic cell projection is injective. -/
-theorem secondFullCell_injective : Function.Injective secondFullCell := by
+lemma secondFullCell_injective : Function.Injective secondFullCell := by
   intro left right equal
   have mapped := congrArg secondFullCellInverse equal
   rw [secondFullCellInverse_apply, secondFullCellInverse_apply] at mapped
   exact Option.some.inj mapped
 
-private theorem secondPhase_ne_secondFullCell
+private lemma secondPhase_ne_secondFullCell
     (cell : LatticeSecondPairFullMachine.Cell) :
     (Sum.inl .secondPhase : DriverCell) ≠ secondFullCell cell := by
   intro equal
@@ -429,7 +429,7 @@ private theorem secondPhase_ne_secondFullCell
   change (none : Option LatticeSecondPairFullMachine.Cell) = some cell at mapped
   cases mapped
 
-private theorem done_ne_secondFullCell
+private lemma done_ne_secondFullCell
     (cell : LatticeSecondPairFullMachine.Cell) :
     (Sum.inl .done : DriverCell) ≠ secondFullCell cell := by
   intro equal
@@ -439,7 +439,7 @@ private theorem done_ne_secondFullCell
   cases mapped
 
 /-- Complete second-pair semantic keys are their unified physical keys. -/
-theorem secondFullCellKey_eq_driverKey {kind : ProblemKind}
+lemma secondFullCellKey_eq_driverKey {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     (state : LatticePairStateWorkspaceLayout.Cells ctx N)
     (scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N)
@@ -469,7 +469,7 @@ theorem secondFullCellKey_eq_driverKey {kind : ProblemKind}
 
 /-- The complete physical packages make the second-pair key projection
 injective. -/
-theorem secondFullKeyInjective {kind : ProblemKind}
+lemma secondFullKeyInjective {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeFixedFuelScratchWorkspaceLayout.Cells ctx N}

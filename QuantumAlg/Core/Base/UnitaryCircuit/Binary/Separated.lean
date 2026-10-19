@@ -58,7 +58,7 @@ public def binarySeparatedVec {width : Nat}
 
 /-- Tensor form of a separated vector whose two active wires are themselves
 given as an ordered tensor. -/
-public theorem binarySeparatedVec_tensor {width : Nat}
+public lemma binarySeparatedVec_tensor {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (prefixState : HilbertVector (Qubits left.val))
     (first second : HilbertVector (Qubits 1))
@@ -76,7 +76,7 @@ public theorem binarySeparatedVec_tensor {width : Nat}
 
 /-- Tensor form of separated-vector assembly with source factor widths
 transported to the exact physical leading, middle and suffix widths. -/
-public theorem binarySeparatedVec_tensor_transport {width : Nat}
+public lemma binarySeparatedVec_tensor_transport {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     {prefixWidth middleWidth suffixWidth : Nat}
     (prefixSame : prefixWidth = left.val)
@@ -123,7 +123,7 @@ public def binarySeparatedBasisLabel {width : Nat}
             (prodEquiv (m := 1) (n := right.val - left.val - 1)
               (first, middle), second)), suffix))
 
-private theorem tensor_ket_vec {leftWidth rightWidth : Nat}
+private lemma tensor_ket_vec {leftWidth rightWidth : Nat}
     (left : Fin (2 ^ leftWidth)) (right : Fin (2 ^ rightWidth)) :
     HilbertVector.tensor
         (NormalizedVector.ket (R := Qubits leftWidth) left :
@@ -145,7 +145,7 @@ private theorem tensor_ket_vec {leftWidth rightWidth : Nat}
 
 /-- A separated tensor of computational kets is the raw computational ket at
 its concrete five-field binary label. -/
-public theorem binarySeparatedVec_tensor_ket {width : Nat}
+public lemma binarySeparatedVec_tensor_ket {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (leading : Fin (2 ^ left.val)) (first : Fin (2 ^ 1))
     (middle : Fin (2 ^ (right.val - left.val - 1)))
@@ -174,7 +174,7 @@ public theorem binarySeparatedVec_tensor_ket {width : Nat}
 
 /-- Reading the first explicit one-qubit field of a separated label is the
 physical bit at its left wire. -/
-public theorem binarySeparatedBasisLabel_testBit_first {width : Nat}
+public lemma binarySeparatedBasisLabel_testBit_first {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (leading : Fin (2 ^ left.val)) (first : Fin (2 ^ 1))
     (middle : Fin (2 ^ (right.val - left.val - 1)))
@@ -230,7 +230,7 @@ public theorem binarySeparatedBasisLabel_testBit_first {width : Nat}
 
 /-- Reading the second explicit one-qubit field of a separated label is the
 physical bit at its right wire. -/
-public theorem binarySeparatedBasisLabel_testBit_second {width : Nat}
+public lemma binarySeparatedBasisLabel_testBit_second {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (leading : Fin (2 ^ left.val)) (first : Fin (2 ^ 1))
     (middle : Fin (2 ^ (right.val - left.val - 1)))
@@ -274,7 +274,7 @@ public theorem binarySeparatedBasisLabel_testBit_second {width : Nat}
 
 /-- Every canonical binary address has a unique-shaped five-field split at
 the two separated wires. -/
-public theorem exists_binarySeparatedBasisLabel {width : Nat}
+public lemma exists_binarySeparatedBasisLabel {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (index : Fin (2 ^ width)) :
     ∃ (leading : Fin (2 ^ left.val)) (first : Fin (2 ^ 1))
@@ -320,7 +320,7 @@ public theorem exists_binarySeparatedBasisLabel {width : Nat}
   exact castQubitWidthIndex_symm same index
 
 /-- Separated-vector assembly is linear in its active two-wire state. -/
-public theorem binarySeparatedVec_add_active {width : Nat}
+public lemma binarySeparatedVec_add_active {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (prefixState : HilbertVector (Qubits left.val))
     (first second : HilbertVector (Qubits 2))
@@ -336,7 +336,7 @@ public theorem binarySeparatedVec_add_active {width : Nat}
 
 /-- Separated-vector assembly is linear in scalar multiples of its active
 two-wire state. -/
-public theorem binarySeparatedVec_smul_active {width : Nat}
+public lemma binarySeparatedVec_smul_active {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (prefixState : HilbertVector (Qubits left.val))
     (scalar : ℂ) (active : HilbertVector (Qubits 2))
@@ -351,7 +351,7 @@ public theorem binarySeparatedVec_smul_active {width : Nat}
 
 /-- Separated placement applies the supplied word only to the two active
 wires and fixes all three surrounding raw-vector fields. -/
-public theorem unitaryCircuit_onBinarySeparated_applyVec
+public lemma unitaryCircuit_onBinarySeparated_applyVec
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (body : UnitaryCircuit gates oracles
@@ -359,11 +359,12 @@ public theorem unitaryCircuit_onBinarySeparated_applyVec
     (prefixState : HilbertVector (Qubits left.val))
     (active : HilbertVector (Qubits 2))
     (middle : HilbertVector (Qubits (right.val - left.val - 1)))
-    (suffix : HilbertVector (Qubits (width - right.val - 1))) :
-    (onBinarySeparated left right before body).binaryMatrix.applyVec
+    (suffix : HilbertVector (Qubits (width - right.val - 1))) (environment :
+      oracles.Interpretation) :
+    ((onBinarySeparated left right before body).binaryMatrix environment).applyVec
         (binarySeparatedVec left right before prefixState active middle suffix) =
       binarySeparatedVec left right before prefixState
-        (body.binaryMatrix.applyVec active) middle suffix := by
+        ((body.binaryMatrix environment).applyVec active) middle suffix := by
   unfold onBinarySeparated binarySeparatedVec
   rw [castQubitWidth_binaryMatrix_applyVec,
     unitaryCircuit_onBinaryPrefix_applyVec_tensor,
@@ -371,7 +372,7 @@ public theorem unitaryCircuit_onBinarySeparated_applyVec
     unitaryCircuit_onBinaryMiddle_applyVec]
 
 /-- Binary-coordinate spelling of separated-wire vector action. -/
-public theorem onBinarySeparated_applyBinaryVec
+public lemma onBinarySeparated_applyBinaryVec
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (body : UnitaryCircuit gates oracles
@@ -379,29 +380,31 @@ public theorem onBinarySeparated_applyBinaryVec
     (prefixState : HilbertVector (Qubits left.val))
     (active : HilbertVector (Qubits 2))
     (middle : HilbertVector (Qubits (right.val - left.val - 1)))
-    (suffix : HilbertVector (Qubits (width - right.val - 1))) :
-    (onBinarySeparated left right before body).applyBinaryVec
+    (suffix : HilbertVector (Qubits (width - right.val - 1))) (environment :
+      oracles.Interpretation) :
+    ((onBinarySeparated left right before body).applyBinaryVec environment)
         (binarySeparatedVec left right before prefixState active middle suffix) =
       binarySeparatedVec left right before prefixState
-        (body.applyBinaryVec active) middle suffix := by
+        ((body.applyBinaryVec environment) active) middle suffix := by
   exact unitaryCircuit_onBinarySeparated_applyVec left right before body
-    prefixState active middle suffix
+    prefixState active middle suffix environment
 
 /-- A separated-wire circuit fixes any raw state whose nonzero computational
 basis support is fixed by its two-wire body. -/
-public theorem unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_support
+public lemma unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_support
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (body : UnitaryCircuit gates oracles
       (QuantumSignature.qubits 2).canonicalPlacement.layout)
     (state : HilbertVector (Qubits width))
+    (environment : oracles.Interpretation)
     (bodyFixes : ∀ (leading : Fin (2 ^ left.val)) (first : Fin (2 ^ 1))
       (middle : Fin (2 ^ (right.val - left.val - 1)))
       (second : Fin (2 ^ 1))
       (suffix : Fin (2 ^ (width - right.val - 1))),
       state (binarySeparatedBasisLabel left right before
         leading first middle second suffix) ≠ 0 →
-      body.binaryMatrix.applyVec
+      (body.binaryMatrix environment).applyVec
           (HilbertVector.tensor
             (NormalizedVector.ket (R := Qubits 1) first :
               HilbertVector (Qubits 1))
@@ -412,7 +415,7 @@ public theorem unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_suppor
             HilbertVector (Qubits 1))
           (NormalizedVector.ket (R := Qubits 1) second :
             HilbertVector (Qubits 1))) :
-    (onBinarySeparated left right before body).applyBinaryVec state = state := by
+    ((onBinarySeparated left right before body).applyBinaryVec environment) state = state := by
   classical
   let program := onBinarySeparated left right before body
   have stateExpansion :
@@ -422,20 +425,20 @@ public theorem unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_suppor
             HilbertVector (Qubits width)) :=
     (HilbertVector.sum_amplitude_smul_ket state).symm
   calc
-    program.applyBinaryVec state = program.applyBinaryVec
+    (program.applyBinaryVec environment) state = (program.applyBinaryVec environment)
         (∑ index : Fin (2 ^ width),
           state index •
             (NormalizedVector.ket (R := Qubits width) index :
               HilbertVector (Qubits width))) := by
-          exact congrArg program.applyBinaryVec stateExpansion
-    _ = ∑ index : Fin (2 ^ width), program.applyBinaryVec
+          exact congrArg (program.applyBinaryVec environment) stateExpansion
+    _ = ∑ index : Fin (2 ^ width), (program.applyBinaryVec environment)
           (state index •
             (NormalizedVector.ket (R := Qubits width) index :
               HilbertVector (Qubits width))) := by
           unfold UnitaryCircuit.applyBinaryVec
           exact HilbertOperator.applyVec_sum
-            (program.binaryMatrix : HilbertOperator (Qubits width)) _
-    _ = ∑ index : Fin (2 ^ width), state index • program.applyBinaryVec
+            ((program.binaryMatrix environment) : HilbertOperator (Qubits width)) _
+    _ = ∑ index : Fin (2 ^ width), state index • (program.applyBinaryVec environment)
           (NormalizedVector.ket (R := Qubits width) index :
             HilbertVector (Qubits width)) := by
           apply Finset.sum_congr rfl
@@ -455,7 +458,7 @@ public theorem unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_suppor
           · simp [zero]
           · have separated := binarySeparatedVec_tensor_ket left right before
               leading first middle second suffix
-            have fixed : program.applyBinaryVec
+            have fixed : (program.applyBinaryVec environment)
                 (NormalizedVector.ket (R := Qubits width)
                   (binarySeparatedBasisLabel left right before
                     leading first middle second suffix) :
@@ -477,7 +480,7 @@ public theorem unitaryCircuit_onBinarySeparated_applyVec_eq_self_of_basis_suppor
     _ = state := HilbertVector.sum_amplitude_smul_ket state
 
 /-- Separated placement preserves the complete ordered native-event trace. -/
-public theorem unitaryCircuit_onBinarySeparated_eventTrace
+public lemma unitaryCircuit_onBinarySeparated_eventTrace
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (body : UnitaryCircuit gates oracles
@@ -489,7 +492,7 @@ public theorem unitaryCircuit_onBinarySeparated_eventTrace
     unitaryCircuit_onBinaryMiddle_eventTrace]
 
 /-- Separated placement preserves the exact native and oracle event pool. -/
-public theorem unitaryCircuit_onBinarySeparated_eventCost
+public lemma unitaryCircuit_onBinarySeparated_eventCost
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (body : UnitaryCircuit gates oracles
@@ -502,7 +505,7 @@ public theorem unitaryCircuit_onBinarySeparated_eventCost
 
 /-- Separated placement preserves dependency depth under every duration
 assignment. -/
-public theorem unitaryCircuit_onBinarySeparated_evaluatedEventDepth
+public lemma unitaryCircuit_onBinarySeparated_evaluatedEventDepth
     {gates : GateModel} {oracles : OracleModel} {width : Nat}
     (left right : Fin width) (before : left.val < right.val)
     (body : UnitaryCircuit gates oracles

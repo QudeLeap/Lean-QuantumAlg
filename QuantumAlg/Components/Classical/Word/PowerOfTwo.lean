@@ -54,7 +54,7 @@ def shiftStore (count : Nat) (output : CWriteRef ctx (.unsignedWord width)) (sto
     Store ctx := (fun current => current.applyOp (shiftOp output))^[count] store
 
 /-- Native self-XOR writes zero independently of the incoming word, including width zero. -/
-theorem clear_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+lemma clear_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((store.applyOp (clearOp output)).read (.storage output.toCStorageRef)).toNat = 0 := by
   simp only [Store.applyOp, clearOp, ClassicalOp.outputRef, Store.read_write_same,
     ClassicalOp.inputRef, ClassicalOp.eval_wordBinary]
@@ -63,19 +63,19 @@ theorem clear_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store
   rw [Nat.xor_self, Nat.zero_mod]
 
 /-- One actual native left shift doubles the original low-word value modulo the supplied width. -/
-theorem shift_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+lemma shift_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((store.applyOp (shiftOp output)).read (.storage output.toCStorageRef)).toNat =
       (2 * (store.read (.storage output.toCStorageRef)).toNat) % 2 ^ width := by
   simp only [Store.applyOp, shiftOp, ClassicalOp.outputRef, Store.read_write_same,
     ClassicalOp.inputRef, ClassicalOp.eval_wordUnary]
   rfl
 
-private theorem mod_mul (a b modulus : Nat) :
+private lemma mod_mul (a b modulus : Nat) :
     (a % modulus * b) % modulus = (a * b) % modulus :=
   (Nat.mod_modEq a modulus).mul (Nat.ModEq.refl b)
 
 /-- The actual repeated shifts multiply by the exact requested power modulo the word width. -/
-theorem shiftInto_read (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_read (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     ((shiftStore count output store).read (.storage output.toCStorageRef)).toNat =
       ((store.read (.storage output.toCStorageRef)).toNat * 2 ^ count) % 2 ^ width := by
@@ -89,7 +89,7 @@ theorem shiftInto_read (count : Nat) (output : CWriteRef ctx (.unsignedWord widt
     ring
 
 /-- Every actual native shift retains all structural reads outside the original output word. -/
-theorem shiftInto_callerFrame (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_callerFrame (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : output.key ∉ other.storageKeys) :
     (shiftStore count output store).read other = store.read other := by
@@ -102,7 +102,7 @@ theorem shiftInto_callerFrame (count : Nat) (output : CWriteRef ctx (.unsignedWo
 
 end Descriptor
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The prescribed number of actual selected native one-bit left shifts. -/
@@ -139,20 +139,20 @@ def step (count : Nat) (output : CWriteRef ctx (.unsignedWord width)) (store : S
   (shifted.1, (seeded.2, shifted.2))
 
 /-- Native repeated shifts retain the service state and every quantum-reference block. -/
-theorem shiftInto_execute (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_execute (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (shiftInto (model := model) count output).execute Reference state =
+    (shiftInto (model := model) count output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := shiftStep (model := model) count output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
   BitWord.bitWord_repeatInstruction_execute (execution := model) (shiftOp output) count state
 
 /-- Actual native initialization preserves the complete incoming service and reference state. -/
-theorem seedInto_execute (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+lemma seedInto_execute (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (seedInto (model := model) output).execute Reference state =
+    (seedInto (model := model) output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := seedStep (model := model) output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -161,14 +161,14 @@ theorem seedInto_execute (output : CWriteRef ctx (.unsignedWord width)) (Referen
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The complete loader preserves all original service, quantum and reference correlations. -/
-theorem into_execute (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_execute (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) count output).execute Reference state =
+    (into (model := model) count output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (model := model) count output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (seedInto (model := model) output) (shiftInto (model := model) count output)
     (fun before =>
       let result := seedStep (model := model) output before.1
@@ -185,7 +185,7 @@ theorem into_execute (count : Nat) (output : CWriteRef ctx (.unsignedWord width)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual native initialization writes the exact low-word encoding of one. -/
-theorem seed_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
+lemma seed_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((seedStep (model := model) output store).1.read (.storage output.toCStorageRef)).toNat =
       1 % 2 ^ width := by
   change (((store.applyOp (clearOp output)).applyOp (incrementOp output)).read
@@ -197,7 +197,7 @@ theorem seed_read (output : CWriteRef ctx (.unsignedWord width)) (store : Store 
   rw [clear_read, Nat.zero_add]
 
 /-- Arbitrary initial words load precisely the low-word encoding of the prescribed power of two. -/
-theorem into_read (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_read (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     ((step (model := model) count output store).1.read (.storage output.toCStorageRef)).toNat =
       2 ^ count % 2 ^ width := by
@@ -206,7 +206,7 @@ theorem into_read (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
   rw [shiftInto_read, seed_read, mod_mul, Nat.one_mul]
 
 /-- Initialization and every actual native shift preserve the complete nonoutput caller frame. -/
-theorem into_callerFrame (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_callerFrame (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : output.key ∉ other.storageKeys) :
     (step (model := model) count output store).1.read other = store.read other := by

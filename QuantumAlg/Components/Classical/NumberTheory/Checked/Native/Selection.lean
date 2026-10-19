@@ -49,7 +49,8 @@ def checkedCoefficientSelection {model : ExecutionModel} [BitWord.Selected model
     (.branch (decisionRead success) (checkedCoefficientChoice (model := model) raw modulus inverse))
 
 /-- Each real branch has a complete execution record with exact success and failure behavior. -/
-theorem checkedCoefficientChoice_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma checkedCoefficientChoice_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -59,7 +60,8 @@ theorem checkedCoefficientChoice_actualRecord {model : ExecutionModel} [BitWord.
       (checkedCoefficientChoice (model := model) raw modulus inverse value).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (checkedCoefficientChoice (model := model) raw modulus inverse value).execute Reference
+        (checkedCoefficientChoice (model := model) raw modulus inverse value).execute
+          environment Reference
           state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
@@ -76,7 +78,8 @@ theorem checkedCoefficientChoice_actualRecord {model : ExecutionModel} [BitWord.
       cases value
       · refine ⟨fun before => (before, ()), ?_, ?_⟩
         · intro reference history historyFinite state
-          refine (Circuit.execute_id_mapClassical reference state).trans ?_
+          refine (Circuit.execute_id_mapClassical
+            (environment := environment) reference state).trans ?_
           exact ExecutionState.executionState_mapClassical_congr _ rfl
         · intro before
           exact ⟨fun _ _ => rfl, by simp [CShape.Value.toBool], fun _ => rfl⟩
@@ -88,7 +91,7 @@ theorem checkedCoefficientChoice_actualRecord {model : ExecutionModel} [BitWord.
         exact ⟨(correct before).1, fun _ => (correct before).2, by simp [CShape.Value.toBool]⟩
 
 /-- Nominal bit and word destinations necessarily have distinct actual storage identities. -/
-theorem checkedCoefficient_status_inverse_distinct (success : CWriteRef ctx .bit)
+lemma checkedCoefficient_status_inverse_distinct (success : CWriteRef ctx .bit)
     (inverse : CWriteRef ctx (.unsignedWord width)) : inverse.key ≠ success.key := by
   intro same
   have shapes := CStorageRef.storageRef_shape_eq_of_key inverse.toCStorageRef
@@ -96,7 +99,8 @@ theorem checkedCoefficient_status_inverse_distinct (success : CWriteRef ctx .bit
   cases shapes
 
 /-- The actual decision and selected coefficient preserve full state and both original outcomes. -/
-theorem checkedCoefficientSelection_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma checkedCoefficientSelection_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (gcd : CInputRef ctx (.unsignedWord (width + 1)))
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
@@ -109,7 +113,7 @@ theorem checkedCoefficientSelection_actualRecord {model : ExecutionModel} [BitWo
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
         (checkedCoefficientSelection (model := model) gcd raw modulus success inverse).execute
-          Reference state =
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -139,7 +143,8 @@ theorem checkedCoefficientSelection_actualRecord {model : ExecutionModel} [BitWo
       let result := withUnitDecisionStep (model := model) gcd success before.1
       ((result.1, before.2), result.2)) branchRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    refine (Circuit.execute_sequenceRecord (withUnitDecision (model := model) gcd success) branch
+    refine (Circuit.execute_sequenceRecord
+      (environment := environment) (withUnitDecision (model := model) gcd success) branch
       (fun before =>
         let result := withUnitDecisionStep (model := model) gcd success before.1
         ((result.1, before.2), result.2)) branchRecord ?_ ?_ reference state).trans ?_
@@ -147,7 +152,7 @@ theorem checkedCoefficientSelection_actualRecord {model : ExecutionModel} [BitWo
       exact (withUnitDecision_execute (model := model) gcd success reference initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
     · intro reference history _ initial
-      exact (Circuit.execute_branch_mapClassical (decisionRead success)
+      exact (Circuit.execute_branch_mapClassical (environment := environment) (decisionRead success)
         (checkedCoefficientChoice (model := model) raw modulus inverse) choiceRecord choiceEquation
           reference initial).trans (ExecutionState.executionState_mapClassical_congr _ rfl)
     · exact ExecutionState.executionState_mapClassical_congr _ rfl

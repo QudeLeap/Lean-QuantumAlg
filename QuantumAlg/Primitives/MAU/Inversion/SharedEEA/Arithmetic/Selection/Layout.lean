@@ -37,7 +37,7 @@ open EncodedBit
 def sourceCount (width : Nat) (includeSign : Bool) : Nat :=
   4 * width.size + 2 + if includeSign then 1 else 0
 
-private theorem sourceCount_bound (width : Nat) (includeSign : Bool) :
+private lemma sourceCount_bound (width : Nat) (includeSign : Bool) :
     sourceCount width includeSign ≤ 4 * width.size + 3 := by
   cases includeSign <;> simp [sourceCount]
 
@@ -59,7 +59,7 @@ def sourceBit (width : Nat) (includeSign : Bool)
 def physicalIndex (width index : Nat) : Nat := 2 * (width + 3) + index
 
 /-- Each selector source lens occupies exactly its stated original physical coordinate. -/
-theorem sourceBit_wire (width : Nat) (includeSign : Bool)
+lemma sourceBit_wire (width : Nat) (includeSign : Bool)
     (index : Fin (sourceCount width includeSign)) :
     (sourceBit width includeSign index).wire.val = physicalIndex width index.val := by
   have within := index.isLt
@@ -95,7 +95,7 @@ theorem sourceBit_wire (width : Nat) (includeSign : Bool)
               omega
 
 /-- Every source read uses actual length and phase values, including their leading zeros. -/
-theorem sourceBit_get (width : Nat) (includeSign : Bool)
+lemma sourceBit_get (width : Nat) (includeSign : Bool)
     (index : Fin (sourceCount width includeSign)) (state : Registers width) :
     (sourceBit width includeSign index).get state =
       if index.val < width.size then state.coefficientLength.getMsbD index.val
@@ -119,7 +119,7 @@ theorem sourceBit_get (width : Nat) (includeSign : Bool)
           · rfl
           · split <;> rfl
 
-private theorem source_injective (width : Nat) (includeSign : Bool) :
+private lemma source_injective (width : Nat) (includeSign : Bool) :
     Function.Injective
       (fun index : Fin (sourceCount width includeSign) =>
         (sourceBit width includeSign index).wire) := by
@@ -130,7 +130,7 @@ private theorem source_injective (width : Nat) (includeSign : Bool) :
   unfold physicalIndex at values
   omega
 
-private theorem source_before_work (width : Nat) (includeSign : Bool)
+private lemma source_before_work (width : Nat) (includeSign : Bool)
     (index : Fin (sourceCount width includeSign)) :
     (sourceBit width includeSign index).wire.val < (iterationBit width).wire.val := by
   rw [sourceBit_wire, iterationBit_wire]
@@ -139,7 +139,7 @@ private theorem source_before_work (width : Nat) (includeSign : Bool)
   unfold physicalIndex
   omega
 
-private theorem work_before_output (width : Nat) :
+private lemma work_before_output (width : Nat) :
     (iterationBit width).wire.val < (controlBit width).wire.val := by
   rw [iterationBit_wire, controlBit_wire]
   omega
@@ -166,11 +166,11 @@ def layout (width : Nat) (includeSign : Bool) :
       (congrArg (fun wire : Fin (encoding width).width => wire.val) same)
 
 /-- The actual equality output is the existing source Ctrl field. -/
-theorem layout_output_get (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma layout_output_get (width : Nat) (includeSign : Bool) (state : Registers width) :
     (layout width includeSign).output.get state = state.control := rfl
 
 /-- The sole arbitrary predicate work bit is the existing iteration-parity field. -/
-theorem layout_work_get (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma layout_work_get (width : Nat) (includeSign : Bool) (state : Registers width) :
     (layout width includeSign).work.get state = state.flags.iteration := rfl
 
 end

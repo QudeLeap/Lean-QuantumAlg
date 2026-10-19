@@ -44,7 +44,7 @@ def storeStep (one : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) : 
   (store.applyOp (clearOp one)).applyOp (incrementOp one)
 
 /-- Self-XOR clears every previous value, including the unique word of width zero. -/
-theorem nativeQuadratic_check_clear_read (one : CWriteRef ctx (.unsignedWord width))
+lemma nativeQuadratic_check_clear_read (one : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     ((store.applyOp (clearOp one)).read (.storage one.toCStorageRef)).toNat = 0 := by
   have actual := congrArg CShape.Value.toNat (Store.read_applyOp_output store (clearOp one))
@@ -54,7 +54,7 @@ theorem nativeQuadratic_check_clear_read (one : CWriteRef ctx (.unsignedWord wid
   simpa only [Nat.xor_self, Nat.zero_mod] using actual
 
 /-- The actual initialized word is one reduced by the exact declared width. -/
-theorem nativeQuadratic_check_one_read (one : CWriteRef ctx (.unsignedWord width))
+lemma nativeQuadratic_check_one_read (one : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     ((storeStep one store).read (.storage one.toCStorageRef)).toNat = 1 % 2 ^ width := by
   let cleared := store.applyOp (clearOp one)
@@ -66,7 +66,7 @@ theorem nativeQuadratic_check_one_read (one : CWriteRef ctx (.unsignedWord width
     (nativeQuadratic_check_clear_read one store))
 
 /-- Initializing the reused center preserves every other actual structural input completely. -/
-theorem nativeQuadratic_check_one_read_other (one : CWriteRef ctx (.unsignedWord width))
+lemma nativeQuadratic_check_one_read_other (one : CWriteRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape)
     (different : one.key ∉ other.storageKeys) (store : Store ctx) :
     (storeStep one store).read other = store.read other :=
@@ -78,7 +78,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual two-instruction initialization, independent of the word's previous value. -/
 def code (one : CWriteRef ctx (.unsignedWord width)) : Circuit model ctx ctx :=
@@ -93,10 +94,11 @@ def step (one : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
   (incremented.1, (cleared.2, incremented.2))
 
 /-- The two real writes preserve the incoming complete quantum-reference matrix blocks. -/
-theorem nativeQuadratic_check_one_execute (one : CWriteRef ctx (.unsignedWord width))
+lemma nativeQuadratic_check_one_execute (one : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) one).execute Reference state = state.mapClassical (fun entry =>
+    (code (model := model) one).execute environment
+      Reference state = state.mapClassical (fun entry =>
       ((step (model := model) one entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) one entry.1).2)))) := by
   simp only [code, Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
@@ -104,13 +106,15 @@ theorem nativeQuadratic_check_one_execute (one : CWriteRef ctx (.unsignedWord wi
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Both intrinsically writable native operations restore every borrowed joint state. -/
-theorem nativeQuadratic_check_one_borrowedRestored
+lemma nativeQuadratic_check_one_borrowedRestored
     (one : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (code (model := model) one).BorrowedRestored Reference state
-      ((code (model := model) one).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
-    (Circuit.borrowedRestored_classical _ state) (Circuit.borrowedRestored_classical _ _)
+      ((code (model := model) one).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
+    (Circuit.borrowedRestored_classical
+      (environment := environment) _ state) (Circuit.borrowedRestored_classical (environment :=
+      environment) _ _)
 
 end
 

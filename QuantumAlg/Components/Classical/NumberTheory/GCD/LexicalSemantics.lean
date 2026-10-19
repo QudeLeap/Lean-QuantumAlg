@@ -39,11 +39,12 @@ def lexicalStep (input : CInputRef ctx (operandShape width))
   (popLoopStore width final.1, final.2)
 
 /-- All three lexical scopes compose on the original complete quantum-reference register. -/
-theorem gcdLexical_execute (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_execute (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width))
+    {environment : model.Environment}
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (lexicalBody (model := model) input result).execute Reference state =
+    (lexicalBody (model := model) input result).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := lexicalStep (model := model) input result entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -70,15 +71,17 @@ theorem gcdLexical_execute (input : CInputRef ctx (operandShape width))
       (currentCtx ctx width).canonicalFreshKey_fresh)
     (Store.popWorkspace (currentCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (currentCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord width) ctx.canonicalFreshKey_fresh middle
     (fun before => let next := middleUpdate before.1; ((next.1, before.2), next.2))
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
-  · exact Circuit.execute_workspace_mapClassical (currentCtx ctx width).canonicalFreshKey
+  · exact Circuit.execute_workspace_mapClassical
+      (environment := environment) (currentCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (currentCtx ctx width).canonicalFreshKey_fresh inner
       (fun before => let next := innerUpdate before.1; ((next.1, before.2), next.2))
       (fun reference {_} _ initial =>
-        Circuit.execute_workspace_mapClassical (previousCtx ctx width).canonicalFreshKey
+        Circuit.execute_workspace_mapClassical
+          (environment := environment) (previousCtx ctx width).canonicalFreshKey
           .bit (previousCtx ctx width).canonicalFreshKey_fresh scheduled
           (fun before => let next := scheduledUpdate before.1; ((next.1, before.2), next.2))
           (fun reference history _ state =>
@@ -90,7 +93,7 @@ theorem gcdLexical_execute (input : CInputRef ctx (operandShape width))
   · congr 1
 
 /-- The automatically separated lexical state returns the original operands' exact GCD word. -/
-theorem gcdLexical_read_result (input : CInputRef ctx (operandShape width))
+lemma gcdLexical_read_result (input : CInputRef ctx (operandShape width))
     (result : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     (zeroValue : (store.read (cellRead result)).toNat = 0) :
     ((lexicalStep (model := model) input result store).1).read (cellRead result) =

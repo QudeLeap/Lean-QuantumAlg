@@ -19,7 +19,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Kernel reduction over the four sign choices and 48 right factors needs this local budget.
 /-- Multiplication by edge-pair 0 numerators stays in the doubled numerator set. -/
-theorem pair0 :
+lemma pair0 :
     ∀ negativeLeft negativeRight b, ∃ c,
       octNumerator (.edge (0 : Fin 6) negativeLeft negativeRight) * octNumerator b =
         octNumerator c + octNumerator c := by decide

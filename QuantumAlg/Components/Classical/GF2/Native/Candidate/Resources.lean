@@ -61,7 +61,7 @@ def candidateDepthLimit (rowCount width : Nat) (duration : Resource.Event model 
   duration (candidateOperationEvent (model := model) (.wordUnary .copy width)) +
     ∑ column : Fin width, ∑ _row : Fin rowCount, candidateRowDepthLimit width column duration
 
-private theorem coefficient_events (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma coefficient_events (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit)
     (path : (candidateCoefficientChoice candidate column value).Path) :
     (candidateCoefficientChoice candidate column value).eventTrace path =
@@ -72,7 +72,7 @@ private theorem coefficient_events (candidate : CWriteRef ctx (.unsignedWord wid
       · exact gf2MaterializePivotColumn_events candidate column path
       · rfl
 
-private theorem coefficient_duration (candidate : CWriteRef ctx (.unsignedWord width))
+private lemma coefficient_duration (candidate : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (value : CShape.Value .bit) (duration : Resource.Event model → Nat)
     (path : (candidateCoefficientChoice candidate column value).Path) :
     (candidateCoefficientChoice candidate column value).depth duration path =
@@ -84,7 +84,7 @@ private theorem coefficient_duration (candidate : CWriteRef ctx (.unsignedWord w
       · rfl
 
 /-- Both real unconditional operations precede exactly the selected coefficient events. -/
-theorem gf2CandidateRowBody_events
+lemma gf2CandidateRowBody_events
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
@@ -111,7 +111,7 @@ theorem gf2CandidateRowBody_events
     (coefficient_events candidate column path.2.2.1 path.2.2.2)
 
 /-- The selected-row body has the exact duration sum of its actual emitted event trace. -/
-theorem gf2CandidateRowBody_duration_eventTrace
+lemma gf2CandidateRowBody_duration_eventTrace
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
@@ -151,7 +151,7 @@ theorem gf2CandidateRowBody_duration_eventTrace
   simp only [List.map_append, List.sum_append, List.map_cons, List.map_nil,
     List.sum_cons, List.sum_nil, Nat.add_zero, Nat.add_assoc]
 
-private theorem rowBody_pool_le
+private lemma rowBody_pool_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
@@ -188,7 +188,7 @@ private theorem rowBody_pool_le
       · change (0 : ResourcePool model) ≤ _
         exact zero_le
 
-private theorem rowBody_depth_le
+private lemma rowBody_depth_le
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (free candidate zero work : CWriteRef ctx (.unsignedWord width))
     (flag : CWriteRef ctx .bit) (row : Fin rowCount) (column : Fin width)
@@ -226,7 +226,7 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (free candidate zero : CWriteRef ctx (.unsignedWord width))
 
 /-- The actual pivot bit selects a real row contribution within its original native allowance. -/
-theorem gf2CandidatePivotRow_pool_le (row : Fin rowCount) (column : Fin width)
+lemma gf2CandidatePivotRow_pool_le (row : Fin rowCount) (column : Fin width)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).resourcePool path ≤
       candidateRowEnvelope (model := model) width column := by
@@ -239,7 +239,7 @@ theorem gf2CandidatePivotRow_pool_le (row : Fin rowCount) (column : Fin width)
       · exact rowBody_pool_le _ _ _ _ _ _ row column path
 
 /-- Both outer scopes preserve the original duration allowance selected by the actual pivot bit. -/
-theorem gf2CandidatePivotRow_depth_le (row : Fin rowCount) (column : Fin width)
+lemma gf2CandidatePivotRow_depth_le (row : Fin rowCount) (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).depth duration path ≤
@@ -252,7 +252,7 @@ theorem gf2CandidatePivotRow_depth_le (row : Fin rowCount) (column : Fin width)
       · exact rowBody_depth_le _ _ _ _ _ _ row column duration path
 
 /-- Every pivot-record branch preserves the exact serial sum of its actual emitted events. -/
-theorem gf2CandidatePivotRow_duration_eventTrace (row : Fin rowCount) (column : Fin width)
+lemma gf2CandidatePivotRow_duration_eventTrace (row : Fin rowCount) (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).depth duration path =
@@ -266,7 +266,7 @@ theorem gf2CandidatePivotRow_duration_eventTrace (row : Fin rowCount) (column : 
       · exact gf2CandidateRowBody_duration_eventTrace _ _ _ _ _ _ row column duration path
 
 /-- The actual free-mask copy and every original column-major invocation remain charged. -/
-theorem gf2BuildCandidate_pool_le (path : (buildCandidate matrix rows free candidate zero).Path) :
+lemma gf2BuildCandidate_pool_le (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).resourcePool path ≤
       candidateEnvelope (model := model) rowCount width := by
   change (Circuit.seq (BitWord.instruction (execution := model)
@@ -292,7 +292,7 @@ theorem gf2BuildCandidate_pool_le (path : (buildCandidate matrix rows free candi
     (fun row => gf2CandidatePivotRow_pool_le matrix rows free candidate zero row column) current
 
 /-- Both original nested loops retain each column's actual one-hot-loader duration allowance. -/
-theorem gf2BuildCandidate_depth_le (duration : Resource.Event model → Nat)
+lemma gf2BuildCandidate_depth_le (duration : Resource.Event model → Nat)
     (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).depth duration path ≤
       candidateDepthLimit rowCount width duration := by
@@ -318,7 +318,7 @@ theorem gf2BuildCandidate_depth_le (duration : Resource.Event model → Nat)
     current
 
 /-- The complete candidate construction retains exact same-path serial event durations. -/
-theorem gf2BuildCandidate_duration_eventTrace (duration : Resource.Event model → Nat)
+lemma gf2BuildCandidate_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).depth duration path =
       (((buildCandidate matrix rows free candidate zero).eventTrace path).map duration).sum := by
@@ -359,7 +359,7 @@ theorem gf2BuildCandidate_duration_eventTrace (duration : Resource.Event model �
     List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- A column can charge only its original fixed-width mask, comparison and one-hot instructions. -/
-theorem gf2CandidatePivotRow_unit_depth_le (row : Fin rowCount) (column : Fin width)
+lemma gf2CandidatePivotRow_unit_depth_le (row : Fin rowCount) (column : Fin width)
     (path : (candidatePivotRow matrix rows free candidate zero row column).Path) :
     (candidatePivotRow matrix rows free candidate zero row column).depth (fun _ => 1) path ≤
       width + 4 := by
@@ -370,7 +370,7 @@ theorem gf2CandidatePivotRow_unit_depth_le (row : Fin rowCount) (column : Fin wi
   omega
 
 /-- A safe all-path count retains the initial copy even when either traversal is empty. -/
-theorem gf2BuildCandidate_unit_depth_le
+lemma gf2BuildCandidate_unit_depth_le
     (path : (buildCandidate matrix rows free candidate zero).Path) :
     (buildCandidate matrix rows free candidate zero).depth (fun _ => 1) path ≤
       1 + width * (rowCount * (width + 4)) := by

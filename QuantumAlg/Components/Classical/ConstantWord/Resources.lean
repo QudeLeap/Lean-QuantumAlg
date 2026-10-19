@@ -48,7 +48,7 @@ def envelope (model : ExecutionModel) [BitWord.Selected model] (width : Nat) : R
   ResourcePool.scale width (bitEnvelope model width)
 
 /-- The literal source bit determines the actual emitted native event list. -/
-theorem constantWord_append_eventTrace (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_append_eventTrace (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (path : (append (model := model) output bit).Path) :
     (append (model := model) output bit).eventTrace path =
       [shiftEvent model width] ++ if bit then [incrementEvent model width] else [] := by
@@ -65,7 +65,7 @@ theorem constantWord_append_eventTrace (output : CWriteRef ctx (.unsignedWord wi
       rfl
 
 /-- Either literal bit fits the independent two-coordinate allowance. -/
-theorem constantWord_append_pool_le (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_append_pool_le (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (path : (append (model := model) output bit).Path) :
     (append (model := model) output bit).resourcePool path ≤ bitEnvelope model width := by
   change ResourcePool.ofList ((append (model := model) output bit).eventTrace path) ≤ _
@@ -76,7 +76,7 @@ theorem constantWord_append_pool_le (output : CWriteRef ctx (.unsignedWord width
   · exact le_rfl
 
 /-- The actual list fold fits one independent bit allowance per compiled list element. -/
-theorem constantWord_fold_pool_le (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_fold_pool_le (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) : ∀ path : (fold (model := model) output bits).Path,
     (fold (model := model) output bits).resourcePool path ≤
       ResourcePool.scale bits.length (bitEnvelope model width) := by
@@ -91,14 +91,14 @@ theorem constantWord_fold_pool_le (output : CWriteRef ctx (.unsignedWord width))
       exact add_le_add (constantWord_append_pool_le output bit path.1) (ih path.2)
 
 /-- The literal whole-word program satisfies its independent native-coordinate budget. -/
-theorem constantWord_pool_le (output : CWriteRef ctx (.unsignedWord width)) (constant : Nat)
+lemma constantWord_pool_le (output : CWriteRef ctx (.unsignedWord width)) (constant : Nat)
     (path : (circuit (model := model) output constant).Path) :
     (circuit (model := model) output constant).resourcePool path ≤ envelope model width := by
   simpa only [circuit, envelope, List.length_ofFn] using
     constantWord_fold_pool_le output (List.ofFn (constantBits width constant)) path
 
 /-- Each actual bit has the duration of its shift and selected increment only. -/
-theorem constantWord_append_depth (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_append_depth (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (duration : Resource.Event model → Nat)
     (path : (append (model := model) output bit).Path) :
     (append (model := model) output bit).depth duration path =
@@ -117,7 +117,7 @@ theorem constantWord_append_depth (output : CWriteRef ctx (.unsignedWord width))
       rfl
 
 /-- The real serial fold has the sum of at most one shift and increment duration per bit. -/
-theorem constantWord_fold_depth_le (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_fold_depth_le (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) (duration : Resource.Event model → Nat) :
     ∀ path : (fold (model := model) output bits).Path,
       (fold (model := model) output bits).depth duration path ≤ bits.length *
@@ -134,7 +134,7 @@ theorem constantWord_fold_depth_le (output : CWriteRef ctx (.unsignedWord width)
       cases bit <;> simp only [Bool.false_eq_true, if_false, if_true] <;> omega
 
 /-- Width-many actual bits give the explicit whole-word native duration bound. -/
-theorem constantWord_depth_le (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_depth_le (output : CWriteRef ctx (.unsignedWord width))
     (constant : Nat) (duration : Resource.Event model → Nat)
     (path : (circuit (model := model) output constant).Path) :
     (circuit (model := model) output constant).depth duration path ≤ width *
@@ -143,13 +143,13 @@ theorem constantWord_depth_le (output : CWriteRef ctx (.unsignedWord width))
     constantWord_fold_depth_le output (List.ofFn (constantBits width constant)) duration path
 
 /-- No literal compiled bit allocates a new cell. -/
-theorem constantWord_append_visited (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_append_visited (output : CWriteRef ctx (.unsignedWord width))
     (bit : Bool) (path : (append (model := model) output bit).Path) :
     (append (model := model) output bit).visitedContexts path = [ctx, ctx] := by
   cases bit <;> rfl
 
 /-- Every context visited by the complete literal fold is the original live context. -/
-theorem constantWord_fold_visited (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_fold_visited (output : CWriteRef ctx (.unsignedWord width))
     (bits : List Bool) : ∀ (path : (fold (model := model) output bits).Path)
       (visited : RuntimeCtx model.kind),
     visited ∈ (fold (model := model) output bits).visitedContexts path → visited = ctx := by
@@ -165,7 +165,7 @@ theorem constantWord_fold_visited (output : CWriteRef ctx (.unsignedWord width))
       · exact ih path.2 visited later
 
 /-- Loading a known word needs only the resident storage already present. -/
-theorem constantWord_resident_le (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_resident_le (output : CWriteRef ctx (.unsignedWord width))
     (constant : Nat) (path : (circuit (model := model) output constant).Path) :
     (circuit (model := model) output constant).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -173,7 +173,7 @@ theorem constantWord_resident_le (output : CWriteRef ctx (.unsignedWord width))
   exact (constantWord_fold_visited output _ path visited present) ▸ le_rfl
 
 /-- The auxiliary peak needs no storage beyond existing scopes. -/
-theorem constantWord_auxiliary_le (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_auxiliary_le (output : CWriteRef ctx (.unsignedWord width))
     (constant : Nat) (path : (circuit (model := model) output constant).Path) :
     (circuit (model := model) output constant).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

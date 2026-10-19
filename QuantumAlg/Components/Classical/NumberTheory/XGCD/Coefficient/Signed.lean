@@ -32,7 +32,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The actual two output words retain the original modular signed recurrence. -/
-theorem xgcdCoefficientUpdate_rawSignedRepresents
+lemma xgcdCoefficientUpdate_rawSignedRepresents
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (firstSecond : first.key ≠ second.key)
@@ -58,7 +58,7 @@ theorem xgcdCoefficientUpdate_rawSignedRepresents
     exact firstRepresents
 
 /-- Signed-range results decode exactly from the actual updated coefficient cells. -/
-theorem xgcdCoefficientUpdate_decode
+lemma xgcdCoefficientUpdate_decode
     (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (firstSecond : first.key ≠ second.key)

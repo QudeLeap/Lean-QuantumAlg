@@ -35,7 +35,7 @@ noncomputable section
 
 open ArithmeticWindowRegisters RemainderPhaseFrame NumberTheory.SharedEEA
 
-private theorem next_count_fits (state : IterationState) (modulus count : Nat)
+private lemma next_count_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places) :
     count + 1 < 2 ^ modulus.size.size :=
@@ -58,7 +58,7 @@ def nextFrame (state : IterationState) (modulus count : Nat)
     quotientLength := BitVec.ofNatLT (count + 1)
       (next_count_fits state modulus count valid conserved beforeEnd) }
 
-private theorem native_firstWord (state : IterationState) (modulus count : Nat)
+private lemma native_firstWord (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -76,7 +76,7 @@ private theorem native_firstWord (state : IterationState) (modulus count : Nat)
     valid conserved active beforeEnd iteration
 
 /-- Exact complete-state refinement of the existing native arithmetic and quotient programs. -/
-theorem native_frame (state : IterationState) (modulus count : Nat)
+lemma native_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -131,7 +131,7 @@ theorem native_frame (state : IterationState) (modulus count : Nat)
         retained)
   · exact (SignQuotient.step_control modulus.size middle).trans fields.2.2.2.2
 
-private theorem next_quotient_nonzero (state : IterationState) (modulus count : Nat)
+private lemma next_quotient_nonzero (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -144,7 +144,7 @@ private theorem next_quotient_nonzero (state : IterationState) (modulus count : 
   omega
 
 /-- The rest of the same actual microstep preserves this full frame except its two phase bits. -/
-theorem native_tail_frame (state : IterationState) (modulus count : Nat)
+lemma native_tail_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)

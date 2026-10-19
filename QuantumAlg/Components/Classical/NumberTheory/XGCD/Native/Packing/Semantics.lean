@@ -39,7 +39,7 @@ def packedRawValue (gcd : CShape.Word width)
       (CShape.wordResize (coefficientWidth width) right)))
 
 /-- The actual body preserves all reads outside its three scratch cells and final output. -/
-theorem xgcdNativePackingBody_read_other (outputs : RawOutputs ctx width)
+lemma xgcdNativePackingBody_read_other (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) (store : Store ctx)
@@ -64,7 +64,7 @@ theorem xgcdNativePackingBody_read_other (outputs : RawOutputs ctx width)
         (GCD.cellRead outputs.leftCoefficient) raw) other rawFree]
 
 /-- Original protected source reads make the five actual operations return the packed raw value. -/
-theorem xgcdNativePackingBody_result (outputs : RawOutputs ctx width)
+lemma xgcdNativePackingBody_result (outputs : RawOutputs ctx width)
     (raw : CWriteRef ctx (.unsignedWord (coefficientWidth width)))
     (left right : CWriteRef ctx (SignedShape (coefficientWidth width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) (store : Store ctx)

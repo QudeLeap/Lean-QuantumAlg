@@ -65,11 +65,11 @@ def fourierToChebyshevBasis (d : ℕ) (A : ℂ[X]) : ℂ[X] :=
     C (fourierChebyshevCoeff d A k) * Polynomial.Chebyshev.T ℂ (k : ℤ)
 
 @[simp]
-theorem chebyshevModeToFourier_zero (d : ℕ) :
+lemma chebyshevModeToFourier_zero (d : ℕ) :
     chebyshevModeToFourier d 0 = X ^ d := by
   simp [chebyshevModeToFourier]
 
-theorem chebyshevModeToFourier_pos {d k : ℕ} (hk : k ≠ 0) :
+lemma chebyshevModeToFourier_pos {d k : ℕ} (hk : k ≠ 0) :
     chebyshevModeToFourier d k =
       C ((2 : ℂ)⁻¹) * (X ^ (d + k) + X ^ (d - k)) := by
   simp [chebyshevModeToFourier, hk]
@@ -137,7 +137,7 @@ attribute [nolint simpNF] ChebyshevFourierTranslationData.mk.injEq
 attribute [nolint simpNF] ChebyshevFourierTranslationData.mk.sizeOf_spec
 
 /-- The explicit Chebyshev-Fourier pointwise normalization equivalence. -/
-theorem chebyshev_fourier_pointwise_normalization_iff {d : ℕ}
+lemma chebyshev_fourier_pointwise_normalization_iff {d : ℕ}
     {P Q A B : ℂ[X]}
     (hP : ∀ θ : ℝ, lEval (2 * d) A θ = P.eval (Real.cos θ : ℂ))
     (hQ : ∀ θ : ℝ, lEval (2 * d) B θ =
@@ -182,27 +182,27 @@ theorem chebyshev_fourier_pointwise_normalization_iff {d : ℕ}
     exact hθ
 
 /-- Projection from translation data to the proved normalization equivalence. -/
-theorem ChebyshevFourierTranslationData.normalization_equiv {d : ℕ}
+lemma ChebyshevFourierTranslationData.normalization_equiv {d : ℕ}
     {P Q A B : ℂ[X]} (h : ChebyshevFourierTranslationData d P Q A B) :
     FourierCircleNormalization (2 * d) A B ↔ ChebyshevCosNormalization P Q :=
   chebyshev_fourier_pointwise_normalization_iff h.evalP h.evalQ
 
 /-- Projection for the concrete Chebyshev-to-Fourier translation map. -/
-theorem chebyshevToFourierPoly_eval (d : ℕ) (coeff : ℕ → ℂ) :
+lemma chebyshevToFourierPoly_eval (d : ℕ) (coeff : ℕ → ℂ) :
     chebyshevToFourierPoly d coeff =
       ∑ k ∈ Finset.range (d + 1),
         C (coeff k) * ChebyshevFourierBridge.chebyshevModeToFourier d k :=
   rfl
 
 /-- Projection for the sine-weighted off-diagonal Chebyshev-to-Fourier map. -/
-theorem chebyshevSineToFourierPoly_eval (d : ℕ) (coeff : ℕ → ℂ) :
+lemma chebyshevSineToFourierPoly_eval (d : ℕ) (coeff : ℕ → ℂ) :
     chebyshevSineToFourierPoly d coeff =
       ∑ k ∈ Finset.range d,
         C (coeff k) * ChebyshevFourierBridge.chebyshevSineModeToFourier d k :=
   rfl
 
 /-- Projection for the concrete Fourier-to-Chebyshev coefficient extraction. -/
-theorem fourierToChebyshevPoly_eval (d : ℕ) (A : ℂ[X]) :
+lemma fourierToChebyshevPoly_eval (d : ℕ) (A : ℂ[X]) :
     fourierToChebyshevPoly d A =
       ∑ k ∈ Finset.range (d + 1),
         C (ChebyshevFourierBridge.fourierChebyshevCoeff d A k) *

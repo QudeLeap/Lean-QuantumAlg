@@ -40,19 +40,19 @@ public def projectedOutputProjector {N : Nat} (left right : OrthogonalProjector 
     OrthogonalProjector N :=
   if L % 2 = 0 then right else left
 
-theorem projectedOutputProjector_eq_alternatingProjector {N : Nat}
+lemma projectedOutputProjector_eq_alternatingProjector {N : Nat}
     (left right : OrthogonalProjector N) (L : ℕ) :
     projectedOutputProjector left right L = alternatingProjector right left L := by
   by_cases hL : L % 2 = 0 <;> simp [projectedOutputProjector, alternatingProjector, hL]
 
 @[simp]
-theorem projectedOutputProjector_of_even {N : Nat}
+lemma projectedOutputProjector_of_even {N : Nat}
     (left right : OrthogonalProjector N) {L : ℕ} (hL : L % 2 = 0) :
     projectedOutputProjector left right L = right := by
   simp [projectedOutputProjector, hL]
 
 @[simp]
-theorem projectedOutputProjector_of_odd {N : Nat}
+lemma projectedOutputProjector_of_odd {N : Nat}
     (left right : OrthogonalProjector N) {L : ℕ} (hL : L % 2 ≠ 0) :
     projectedOutputProjector left right L = left := by
   simp [projectedOutputProjector, hL]
@@ -101,7 +101,7 @@ noncomputable def projectedUnitaryBlockRightPerpCandidate {N : Nat}
       (U.dagger.applyVec pair.leftVec)
 
 /-- The left-complement candidate is supported on `I - \widetildeΠ`. -/
-theorem projectedUnitaryBlockLeftPerpCandidate_support {N : Nat}
+lemma projectedUnitaryBlockLeftPerpCandidate_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -115,7 +115,7 @@ theorem projectedUnitaryBlockLeftPerpCandidate_support {N : Nat}
   rw [← HilbertOperator.mul_applyVec, OrthogonalProjector.complement_sq]
 
 /-- The right-complement candidate is supported on `I - Π`. -/
-theorem projectedUnitaryBlockRightPerpCandidate_support {N : Nat}
+lemma projectedUnitaryBlockRightPerpCandidate_support {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -130,7 +130,7 @@ theorem projectedUnitaryBlockRightPerpCandidate_support {N : Nat}
 
 /-- Under the genuine two-dimensional-sector hypothesis, the left-complement
 candidate is a unit vector. -/
-theorem projectedUnitaryBlockLeftPerpCandidate_norm_eq_one {N : Nat}
+lemma projectedUnitaryBlockLeftPerpCandidate_norm_eq_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -169,7 +169,7 @@ theorem projectedUnitaryBlockLeftPerpCandidate_norm_eq_one {N : Nat}
 
 /-- Under the genuine two-dimensional-sector hypothesis, the right-complement
 candidate is a unit vector. -/
-theorem projectedUnitaryBlockRightPerpCandidate_norm_eq_one {N : Nat}
+lemma projectedUnitaryBlockRightPerpCandidate_norm_eq_one {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -241,7 +241,7 @@ noncomputable def projectedUnitaryBlockRightPerp {N : Nat}
 /-- In the `0 < σ < 1` sector, `U |v⟩` splits into its projected singular
 component and normalized left-complement component [GSLW19,
 BlockHam.tex:655-716]. -/
-theorem projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
+lemma projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -314,7 +314,7 @@ theorem projectedUnitaryBlock_U_rightVec_decomposition {N : Nat}
 /-- In the `0 < σ < 1` sector, `U† |w⟩` splits into its projected singular
 component and normalized right-complement component [GSLW19,
 BlockHam.tex:655-716]. -/
-theorem projectedUnitaryBlock_Udag_leftVec_decomposition {N : Nat}
+lemma projectedUnitaryBlock_Udag_leftVec_decomposition {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -392,7 +392,7 @@ theorem projectedUnitaryBlock_Udag_leftVec_decomposition {N : Nat}
 /-- In the `0 < σ < 1` sector, `U` maps the right-complement vector to the
 second row of the source two-by-two singular block [GSLW19,
 BlockHam.tex:655-716]. -/
-theorem projectedUnitaryBlock_U_rightPerp_decomposition {N : Nat}
+lemma projectedUnitaryBlock_U_rightPerp_decomposition {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -506,7 +506,7 @@ theorem projectedUnitaryBlock_U_rightPerp_decomposition {N : Nat}
 /-- In the `0 < σ < 1` sector, `U†` maps the left-complement vector to the
 second column of the source two-by-two singular block [GSLW19,
 BlockHam.tex:655-716]. -/
-theorem projectedUnitaryBlock_Udag_leftPerp_decomposition {N : Nat}
+lemma projectedUnitaryBlock_Udag_leftPerp_decomposition {N : Nat}
     (left right : OrthogonalProjector N) (U : UnitaryOperator (Qubits N))
     (i : (Qubits N).Index)
     (hlambda :
@@ -659,7 +659,7 @@ structure SourceTwoDimensionalSingularBlock {N : Nat} (U : UnitaryOperator (Qubi
 
 namespace SourceTwoDimensionalSingularBlock
 
-theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U) block.rightVec =
@@ -675,7 +675,7 @@ theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (
       left block.left_perp_support]
   simp
 
-theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
@@ -696,7 +696,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
 /-- On a nontrivial source two-dimensional singular block, the Gram operator has
 eigenvalue `σ^2` on the right singular vector [GSLW19, BlockHam.tex:655-735,
 747-764]. -/
-theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     HilbertOperator.applyVec
@@ -709,7 +709,7 @@ theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     smul_smul]
   ring_nf
 
-theorem evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
+lemma evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
@@ -727,7 +727,7 @@ theorem evenSingularValuePolynomial_applyVec_rightVec {N L : Nat}
     evenSquareQuotient_eval_sq_of_hasParity hL hP,
     HilbertOperator.applyVec_smul, block.right_support]
 
-theorem oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
+lemma oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
@@ -747,7 +747,7 @@ theorem oddSingularValuePolynomial_applyVec_rightVec {N L : Nat}
   rw [← hodd]
   ring_nf
 
-theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
@@ -758,7 +758,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
   unfold singularValuePolynomial
   simp [hL, evenSingularValuePolynomial_applyVec_rightVec block P hL hP]
 
-theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
@@ -770,41 +770,41 @@ theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
   have hnot : ¬ L % 2 = 0 := by omega
   simp [hnot, oddSingularValuePolynomial_applyVec_rightVec block P hL hP]
 
-theorem sigma_mem_unitInterval {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma sigma_mem_unitInterval {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) :
     block.σ ∈ Set.Icc (-1 : ℝ) 1 :=
   ⟨le_trans (by norm_num) (le_of_lt block.sigma_pos), le_of_lt block.sigma_lt_one⟩
 
-theorem right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
       Complex.exp (φ * Complex.I) • block.rightVec :=
   projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ right block.right_support
 
-theorem right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
       Complex.exp (-(φ * Complex.I)) • block.rightPerp :=
   projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ right block.right_perp_support
 
-theorem left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
       Complex.exp (φ * Complex.I) • block.leftVec :=
   projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ left block.left_support
 
-theorem left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
       Complex.exp (-(φ * Complex.I)) • block.leftPerp :=
   projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ left block.left_perp_support
 
-theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -814,7 +814,7 @@ theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_right
 
-theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -824,7 +824,7 @@ theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   simpa [neg_smul] using block.U_rightPerp
 
-theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -834,7 +834,7 @@ theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_pos hremaining]
   exact block.Udag_left
 
-theorem even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceTwoDimensionalSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -902,21 +902,21 @@ structure SourceUnitSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N))
 
 namespace SourceUnitSingularBlock
 
-theorem right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
       Complex.exp (φ * Complex.I) • block.rightVec :=
   projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ right block.right_support
 
-theorem left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
       Complex.exp (φ * Complex.I) • block.leftVec :=
   projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ left block.left_support
 
-theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U) block.rightVec =
@@ -926,7 +926,7 @@ theorem projectedUnitaryBlock_applyVec_rightVec {N : Nat} {U : UnitaryOperator (
   change HilbertOperator.applyVec left.op (U.applyVec block.rightVec) = block.leftVec
   rw [block.U_right, block.left_support]
 
-theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
+lemma projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     HilbertOperator.applyVec (projectedUnitaryBlock left right U).conjTranspose
@@ -939,7 +939,7 @@ theorem projectedUnitaryBlock_conjTranspose_applyVec_leftVec {N : Nat}
     block.rightVec
   rw [block.Udag_left, block.right_support]
 
-theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) :
     HilbertOperator.applyVec
@@ -951,7 +951,7 @@ theorem gram_applyVec_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     block.projectedUnitaryBlock_conjTranspose_applyVec_leftVec]
   simp
 
-theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 0) (hP : HasParity P L) :
@@ -973,7 +973,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_even {N L : Nat}
     simpa using heven
   rw [heven1]
 
-theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
+lemma singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
     {U : UnitaryOperator (Qubits N)} {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right)
     (P : Polynomial Complex) (hL : L % 2 = 1) (hP : HasParity P L) :
@@ -994,7 +994,7 @@ theorem singularValuePolynomial_applyVec_rightVec_of_odd {N L : Nat}
   rw [← hodd]
   ring_nf
 
-theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1002,7 +1002,7 @@ theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_right
 
-theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceUnitSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1128,21 +1128,21 @@ structure SourceRightKernelSingularBlock {N : Nat} (U : UnitaryOperator (Qubits 
 
 namespace SourceRightKernelSingularBlock
 
-theorem right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma right_phase_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightVec =
       Complex.exp (φ * Complex.I) • block.rightVec :=
   projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ right block.right_support
 
-theorem left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
       Complex.exp (-(φ * Complex.I)) • block.leftPerp :=
   projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ left block.left_perp_support
 
-theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1150,7 +1150,7 @@ theorem odd_signal_on_rightVec {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_right
 
-theorem even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceRightKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1179,21 +1179,21 @@ structure SourceLeftKernelSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N
 
 namespace SourceLeftKernelSingularBlock
 
-theorem right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
       Complex.exp (-(φ * Complex.I)) • block.rightPerp :=
   projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ right block.right_perp_support
 
-theorem left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma left_phase_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftVec =
       Complex.exp (φ * Complex.I) • block.leftVec :=
   projectorPhaseOp_applyVec_of_projector_applyVec_eq_self φ left block.left_support
 
-theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1201,7 +1201,7 @@ theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_rightPerp
 
-theorem even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma even_signal_on_leftVec {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceLeftKernelSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :
@@ -1292,21 +1292,21 @@ structure SourceComplementSingularBlock {N : Nat} (U : UnitaryOperator (Qubits N
 
 namespace SourceComplementSingularBlock
 
-theorem right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma right_phase_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ right) block.rightPerp =
       Complex.exp (-(φ * Complex.I)) • block.rightPerp :=
   projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ right block.right_perp_support
 
-theorem left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma left_phase_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right) (φ : ℝ) :
     HilbertOperator.applyVec (projectorPhaseOp φ left) block.leftPerp =
       Complex.exp (-(φ * Complex.I)) • block.leftPerp :=
   projectorPhaseOp_applyVec_of_complement_applyVec_eq_self φ left block.left_perp_support
 
-theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 ≠ 0) :
@@ -1314,7 +1314,7 @@ theorem odd_signal_on_rightPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
   rw [sourcePhaseSignal, if_neg hremaining]
   exact block.U_rightPerp
 
-theorem even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
+lemma even_signal_on_leftPerp {N : Nat} {U : UnitaryOperator (Qubits N)}
     {left right : OrthogonalProjector N}
     (block : SourceComplementSingularBlock U left right) {remaining : ℕ}
     (hremaining : remaining % 2 = 0) :

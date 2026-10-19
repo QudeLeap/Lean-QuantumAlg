@@ -34,8 +34,9 @@ private instance sequenceCorrectionDimensionNeZero (dimension : ℕ+) : NeZero (
 public def resetWireToBasis (wire : Fin ctx.systemCount)
     (realizations : Realizations gates oracles ctx.quantumLayout wire)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    (value : Fin (ctx.quantumLayout.wire wire).dimension) :
-    Circuit (.quantum gates oracles) ctx ctx :=
+    (value : Fin (ctx.quantumLayout.wire wire).dimension)
+    (allowAllocation : Bool := true) :
+    Circuit (.quantum gates oracles) ctx ctx allowAllocation :=
   (Circuit.measureZ wire output).seq
     (.branch (.storage output.toCStorageRef) (fun outcome =>
       .unitary (realizations (value - outcome.toFin)).circuit))
@@ -45,17 +46,21 @@ public def resetToBasisOn
     (implementations : ∀ wire, Realizations gates oracles ctx.quantumLayout wire)
     (count : Nat) (wires : Fin count → Fin ctx.systemCount)
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    (label : ctx.quantumLayout.Basis) : Circuit (.quantum gates oracles) ctx ctx :=
+    (label : ctx.quantumLayout.Basis) (allowAllocation : Bool := true) :
+    Circuit (.quantum gates oracles) ctx ctx allowAllocation :=
   Circuit.forRange count (fun index =>
-    resetWireToBasis (wires index) (implementations (wires index))
+    resetWireToBasis (allowAllocation := allowAllocation) (wires index)
+      (implementations (wires index))
       (outputs (wires index)) (label (wires index)))
 
 /-- Reset and seed every existing physical system once, in its original finite-index order. -/
 public def resetToBasis
     (implementations : ∀ wire, Realizations gates oracles ctx.quantumLayout wire)
     (outputs : ∀ wire, CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
-    (label : ctx.quantumLayout.Basis) : Circuit (.quantum gates oracles) ctx ctx :=
-  resetToBasisOn implementations ctx.systemCount id outputs label
+    (label : ctx.quantumLayout.Basis) (allowAllocation : Bool := true) :
+    Circuit (.quantum gates oracles) ctx ctx allowAllocation :=
+  resetToBasisOn (allowAllocation := allowAllocation) implementations ctx.systemCount id outputs
+      label
 
 end
 

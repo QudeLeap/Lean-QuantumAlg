@@ -37,7 +37,7 @@ def eventEnvelope (model : ExecutionModel) [BitWord.Selected model] (successor :
         ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution :=
           model) (.wordBinary .bitXor (width + 1)))))
 
-private theorem trim_pool_le (output : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma trim_pool_le (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (trim (model := model) output).Path) :
     (trim (model := model) output).resourcePool path ≤
       ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
@@ -53,7 +53,7 @@ private theorem trim_pool_le (output : CWriteRef ctx (.unsignedWord (width + 1))
         rw [BitWord.bitWord_instruction_eventTrace]
         exact le_rfl
 
-private theorem tail_pool_le (successor : Bool)
+private lemma tail_pool_le (successor : Bool)
     (output : CWriteRef ctx (.unsignedWord (width + 1))) (path : (tail (model := model) successor
       output).Path) :
     (tail (model := model) successor output).resourcePool path ≤
@@ -78,7 +78,7 @@ private theorem tail_pool_le (successor : Bool)
     exact (add_zero _).symm.le
 
 /-- Every actual path fits the direction's independent native coordinate allowance. -/
-theorem code_pool_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma code_pool_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (code (model := model) successor input output).Path) :
     (code (model := model) successor input output).resourcePool path ≤ eventEnvelope model
@@ -87,7 +87,7 @@ theorem code_pool_le (successor : Bool) (input : CInputRef ctx (.unsignedWord wi
   rw [code_eventTrace, ResourcePool.ofList_cons]
   exact add_le_add le_rfl (tail_pool_le successor output path.2)
 
-private theorem trim_unitDepth_le (output : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma trim_unitDepth_le (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (trim (model := model) output).Path) : (trim (model := model) output).depth (fun _ =>
       1) path ≤ 1 := by
   rcases path with ⟨value, path⟩
@@ -98,7 +98,7 @@ private theorem trim_unitDepth_le (output : CWriteRef ctx (.unsignedWord (width 
       · exact le_rfl
 
 /-- The genuine successor has two serial events and the predecessor has at most three. -/
-theorem code_unitDepth_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma code_unitDepth_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (code (model := model) successor input output).Path) :
     (code (model := model) successor input output).depth (fun _ => 1) path ≤ if successor then 2
@@ -109,7 +109,7 @@ theorem code_unitDepth_le (successor : Bool) (input : CInputRef ctx (.unsignedWo
     omega
   · exact le_rfl
 
-private theorem trim_visited (output : CWriteRef ctx (.unsignedWord (width + 1)))
+private lemma trim_visited (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (trim (model := model) output).Path) : (trim (model := model) output).visitedContexts
       path = [ctx] := by
   rcases path with ⟨value, path⟩
@@ -117,7 +117,7 @@ private theorem trim_visited (output : CWriteRef ctx (.unsignedWord (width + 1))
   | bit value => cases value <;> rfl
 
 /-- Every actually visited context is the original context, including the selected trim arm. -/
-theorem code_visited (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma code_visited (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (code (model := model) successor input output).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (code (model := model) successor input output).visitedContexts path) :
@@ -132,7 +132,7 @@ theorem code_visited (successor : Bool) (input : CInputRef ctx (.unsignedWord wi
     simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using present
 
 /-- Adjacent arithmetic uses only the resident cells already present in its real input context. -/
-theorem code_resident_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma code_resident_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (code (model := model) successor input output).Path) :
     (code (model := model) successor input output).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -141,7 +141,7 @@ theorem code_resident_le (successor : Bool) (input : CInputRef ctx (.unsignedWor
   exact (code_visited successor input output path visited present) ▸ le_rfl
 
 /-- The same actual trace introduces no auxiliary cells beyond its original frame. -/
-theorem code_auxiliary_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
+lemma code_auxiliary_le (successor : Bool) (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (code (model := model) successor input output).Path) :
     (code (model := model) successor input output).peakAuxiliarySpace path ≤ ctx.auxiliarySpace :=

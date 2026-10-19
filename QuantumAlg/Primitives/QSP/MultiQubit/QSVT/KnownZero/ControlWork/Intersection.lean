@@ -19,7 +19,7 @@ on precisely the required branch. Its two masks leave all controls intact.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.ControlWork
 noncomputable section
 
-private theorem last_involutive (k n : Nat) : Function.Involutive (lastPermutation k n) := by
+private lemma last_involutive (k n : Nat) : Function.Involutive (lastPermutation k n) := by
   intro basis
   apply bits_injective k n
   rw [lastPermutation_bits, lastPermutation_bits]
@@ -34,7 +34,7 @@ private theorem last_involutive (k n : Nat) : Function.Involutive (lastPermutati
     · simp [distinct, zero]
   · simp [Function.update_apply, phase]
 
-private theorem controlLabel_last (k n : Nat)
+private lemma controlLabel_last (k n : Nat)
     (basis : (layout k n).Basis) :
     controlLabel k n (bits k n (lastPermutation k n basis)) =
       controlLabel k n (bits k n basis) := by
@@ -55,7 +55,7 @@ def intersectionWeight (k n : Nat) (angle : ℝ)
     (if controlLabel k n (bits k n basis) = 0 ∧ bits k n basis (lastControl k n) = 0
       then angle else 0) (bits k n basis 0)
 
-private theorem half_weights (k n : Nat) (angle : ℝ)
+private lemma half_weights (k n : Nat) (angle : ℝ)
     (basis : (layout k n).Basis) :
     firstWeight k n (-(angle / 2)) (lastPermutation k n basis) *
       firstWeight k n (angle / 2) basis = intersectionWeight k n angle basis := by
@@ -72,8 +72,10 @@ private theorem half_weights (k n : Nat) (angle : ℝ)
       congr 1 <;> ring_nf <;> simp
 
 /-- The full actual intersection word is diagonal with exactly the all-controls-zero phase. -/
-theorem controlWork_intersectionRotation_matrix (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((intersectionRotation k n oracles angle).matrix : HilbertOperator (layout k n).register) =
+lemma controlWork_intersectionRotation_matrix (k n : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((intersectionRotation k n oracles angle).matrix environment) : HilbertOperator (layout k
+      n).register) =
       Matrix.diagonal (intersectionWeight k n angle) := by
   simp only [intersectionRotation, UnitaryCircuit.seq_matrix, Submonoid.coe_mul,
     controlWork_lastFlip_matrix, controlWork_firstRotation_diagonal]

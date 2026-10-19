@@ -30,13 +30,13 @@ coordinate; phase/sign flag restoration is a separate obligation.
 
 namespace QuantumAlg.NumberTheory.SharedEEA.DivisionProgress
 
-private theorem half_power (count remaining : Nat) :
+private lemma half_power (count remaining : Nat) :
     2 ^ ((count + 1) + remaining) / 2 = 2 ^ (count + remaining) := by
   rw [show (count + 1) + remaining = (count + remaining) + 1 by omega, Nat.pow_succ]
   exact Nat.mul_div_left _ (by decide : 0 < 2)
 
 /-- A genuine partial division run preserves its full arithmetic and reversible invariants. -/
-theorem run_invariants (divisor count remaining : Nat) (state : DivisionPhase.State)
+lemma run_invariants (divisor count remaining : Nat) (state : DivisionPhase.State)
     (scale : state.scale = 2 ^ (count + remaining))
     (below : DivisionPhase.Below divisor state) :
     (DivisionPhase.run divisor count state).scale = 2 ^ remaining ∧
@@ -74,14 +74,14 @@ def current (state : IterationState) (count : Nat) : DivisionPhase.State :=
     (DivisionPhase.start state.remainder (Alignment.align state.remainder state.divisor).scale)
 
 /-- Every performed extraction increments the source's actual quotient-length coordinate. -/
-theorem current_written (state : IterationState) (count : Nat) :
+lemma current_written (state : IterationState) (count : Nat) :
     (current state count).written = count := by
   simpa only [current, DivisionPhase.start, Nat.zero_add] using
     DivisionPhase.run_written state.divisor count
       (DivisionPhase.start state.remainder (Alignment.align state.remainder state.divisor).scale)
 
 /-- Actual alignment supplies all invariants at each genuine intermediate division position. -/
-theorem current_invariants (state : IterationState) (count : Nat)
+lemma current_invariants (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
     (current state count).scale =
@@ -113,7 +113,7 @@ theorem current_invariants (state : IterationState) (count : Nat)
     exact reversed
 
 /-- The actual prefix equals the high quotient bits at the current remaining scale. -/
-theorem current_prefix (state : IterationState) (count : Nat)
+lemma current_prefix (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
     (current state count).quotientPrefix =
@@ -144,7 +144,7 @@ theorem current_prefix (state : IterationState) (count : Nat)
     _ = _ := by rw [scale]; rfl
 
 /-- No leading zero is counted: actual phase-two quotient length is its effective bit length. -/
-theorem current_prefix_size (state : IterationState) (count : Nat)
+lemma current_prefix_size (state : IterationState) (count : Nat)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
     (current state count).quotientPrefix.size = (current state count).written := by
@@ -155,7 +155,7 @@ theorem current_prefix_size (state : IterationState) (count : Nat)
   omega
 
 /-- The remaining physical shift and the written quotient length sum to the actual alignment. -/
-theorem current_lengths (state : IterationState) (count : Nat)
+lemma current_lengths (state : IterationState) (count : Nat)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
     ((Alignment.align state.remainder state.divisor).places - count) +
         (current state count).written = (Alignment.align state.remainder state.divisor).places := by
@@ -163,13 +163,13 @@ theorem current_lengths (state : IterationState) (count : Nat)
   omega
 
 /-- Executing all actual aligned places is exactly the already proved first-two-phase result. -/
-theorem current_end (state : IterationState) :
+lemma current_end (state : IterationState) :
     current state (Alignment.align state.remainder state.divisor).places =
       Alignment.divide state.remainder state.divisor := by
   rfl
 
 /-- The zero-bit starting state and the equality-boundary first digit are both real states. -/
-theorem smallest_input_prefixes :
+lemma smallest_input_prefixes :
     current (IterationState.initial 2 1) 0 = ⟨2, 0, 4, 0⟩ ∧
       current (IterationState.initial 2 1) 1 = ⟨0, 1, 2, 1⟩ ∧
       current (IterationState.initial 2 1) 2 = ⟨0, 2, 1, 2⟩ := by

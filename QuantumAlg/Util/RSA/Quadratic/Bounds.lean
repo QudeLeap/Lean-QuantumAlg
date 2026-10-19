@@ -27,20 +27,20 @@ namespace QuantumAlg.RSA
 def quadraticWordWidth (width : Nat) : Nat := (width + 1) + (width + 1)
 
 /-- Adding the source's one to a represented logarithm cannot exceed the next binary endpoint. -/
-theorem quadraticCenter_le_wordEndpoint {width logarithm : Nat}
+lemma quadraticCenter_le_wordEndpoint {width logarithm : Nat}
     (represented : logarithm < 2 ^ width) : quadraticCenter logarithm ≤ 2 ^ width := by
   unfold quadraticCenter
   omega
 
 /-- The widened center is exact at every logarithm width. -/
-theorem quadraticCenter_lt_wordCapacity {width logarithm : Nat}
+lemma quadraticCenter_lt_wordCapacity {width logarithm : Nat}
     (represented : logarithm < 2 ^ width) :
     quadraticCenter logarithm < 2 ^ quadraticWordWidth width :=
   (quadraticCenter_le_wordEndpoint represented).trans_lt
     (Nat.pow_lt_pow_right (by decide) (by unfold quadraticWordWidth; omega))
 
 /-- The full center square fits the actual work word without discarding any high bit. -/
-theorem quadraticSquare_lt_wordCapacity {width logarithm : Nat}
+lemma quadraticSquare_lt_wordCapacity {width logarithm : Nat}
     (represented : logarithm < 2 ^ width) :
     quadraticCenter logarithm ^ 2 < 2 ^ quadraticWordWidth width := by
   have bounded : quadraticCenter logarithm ^ 2 ≤ 2 ^ (width + width) := by
@@ -51,26 +51,26 @@ theorem quadraticSquare_lt_wordCapacity {width logarithm : Nat}
     (Nat.pow_lt_pow_right (by decide) (by unfold quadraticWordWidth; omega))
 
 /-- Source truncation on a negative discriminant still fits the same real work word. -/
-theorem quadraticDiscriminant_lt_wordCapacity {width logarithm : Nat} (modulus : Nat)
+lemma quadraticDiscriminant_lt_wordCapacity {width logarithm : Nat} (modulus : Nat)
     (represented : logarithm < 2 ^ width) :
     quadraticDiscriminant modulus logarithm < 2 ^ quadraticWordWidth width :=
   (Nat.sub_le _ _).trans_lt (quadraticSquare_lt_wordCapacity represented)
 
 /-- The source square root never exceeds the center, including a discriminant truncated to zero. -/
-theorem quadraticRoot_le_center (modulus logarithm : Nat) :
+lemma quadraticRoot_le_center (modulus logarithm : Nat) :
     Nat.sqrt (quadraticDiscriminant modulus logarithm) ≤ quadraticCenter logarithm := by
   have monotone := Nat.sqrt_le_sqrt (Nat.sub_le (quadraticCenter logarithm ^ 2) modulus)
   simpa only [Nat.sqrt_eq', quadraticDiscriminant] using monotone
 
 /-- The source's lower candidate fits the same actual work capacity. -/
-theorem quadraticFirst_lt_wordCapacity {width logarithm : Nat} (modulus : Nat)
+lemma quadraticFirst_lt_wordCapacity {width logarithm : Nat} (modulus : Nat)
     (represented : logarithm < 2 ^ width) :
     quadraticCenter logarithm - Nat.sqrt (quadraticDiscriminant modulus logarithm) <
       2 ^ quadraticWordWidth width :=
   (Nat.sub_le _ _).trans_lt (quadraticCenter_lt_wordCapacity represented)
 
 /-- The source's upper candidate also fits, including the largest represented logarithm. -/
-theorem quadraticSecond_lt_wordCapacity {width logarithm : Nat} (modulus : Nat)
+lemma quadraticSecond_lt_wordCapacity {width logarithm : Nat} (modulus : Nat)
     (represented : logarithm < 2 ^ width) :
     quadraticCenter logarithm + Nat.sqrt (quadraticDiscriminant modulus logarithm) <
       2 ^ quadraticWordWidth width := by

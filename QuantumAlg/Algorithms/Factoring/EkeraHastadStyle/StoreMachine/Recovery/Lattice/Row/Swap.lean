@@ -50,19 +50,20 @@ def pointSwapStep {model : ExecutionModel} [BitWord.Selected model]
   let third := coordinateSwapStep (model := model) left.third right.third scratch second.1
   (third.1, (first.2, (second.2, third.2)))
 
-theorem pointSwapStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwapStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (pointSwapStep (model := model) left right scratch store).1 =
       pointSwapStore left right scratch store := rfl
 
 /-- Full actual execution preserves history and all quantum-reference blocks. -/
-theorem pointSwap_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma pointSwap_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pointSwap (model := model) left right scratch).execute Reference state =
+    (pointSwap (model := model) left right scratch).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := pointSwapStep (model := model) left right scratch entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -72,7 +73,7 @@ theorem pointSwap_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Any caller read outside the full seven-cell actual footprint is preserved. -/
-theorem pointSwap_callerFrame (left right : LatticeState.PointRefs ctx width)
+lemma pointSwap_callerFrame (left right : LatticeState.PointRefs ctx width)
     (scratch : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell, pointSwapCellKey left right scratch cell ∉ other.storageKeys) :

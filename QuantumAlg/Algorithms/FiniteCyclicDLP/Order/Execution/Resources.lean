@@ -49,7 +49,7 @@ public def eventBudget (P : KnownOrderProblem G) (expansion : OrderExpansion P.o
 public def unitDepth (P : KnownOrderProblem G) (expansion : OrderExpansion P.order) : Nat :=
   1 + OrderPreparation.unitDepth expansion + 1 +
     (OrderPreparation.width P + 5 * (OrderPreparation.width P).choose 2 +
-      3 * (OrderPreparation.width P / 2)) + sampleWidth P
+      (if OrderPreparation.width P / 2 = 0 then 0 else 3)) + sampleWidth P
 
 /-- Exact event ledger of the canonical all-positive-order cycle. -/
 public def canonicalEventBudget (P : KnownOrderProblem G) : ResourcePool (model P) :=
@@ -75,29 +75,29 @@ public def quantumFootprint (P : KnownOrderProblem G) : QuantumFootprint where
   groupSystems := 1
   groupDimension := OrderOracle.workspaceDimension G
 
-private theorem readouts_length (P : KnownOrderProblem G) :
+private lemma readouts_length (P : KnownOrderProblem G) :
     (readouts P).length = sampleWidth P := by
   simp [readouts]
 
-private theorem readouts_qubits (P : KnownOrderProblem G)
+private lemma readouts_qubits (P : KnownOrderProblem G)
     (item : ZReadout (post P)) (present : item ∈ readouts P) :
     ((post P).quantumLayout.wire item.wire).dimension = 2 := by
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present
   exact exponent_dimension P index
 
-private theorem allocation_trace (P : KnownOrderProblem G)
+private lemma allocation_trace (P : KnownOrderProblem G)
     (path : (allocationCode P).Path) : (allocationCode P).eventTrace path = [] :=
   MeasurementCells.allocate_eventTrace (model := model P) (bankContext P) 2
     (sampleWidth P) path
 
-private theorem preparation_pool (P : KnownOrderProblem G)
+private lemma preparation_pool (P : KnownOrderProblem G)
     (path : (preparationCode P).Path) :
     ResourcePool.ofList ((preparationCode P).eventTrace path) =
       ZeroPreparation.eventCost AlgorithmGate.model (OrderOracle.model P)
         (OrderOracle.layout P) BitWord.model (ClassicalFiniteGroupOracle.model G) := by
   rfl
 
-private theorem program_pool (P : KnownOrderProblem G)
+private lemma program_pool (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     ResourcePool.ofList
       ((nativeProgram P expansion).eventTrace BitWord.model
@@ -107,11 +107,12 @@ private theorem program_pool (P : KnownOrderProblem G)
   exact UnitaryCircuit.ofList_eventTrace_eq_eventCost
     (nativeProgram P expansion) BitWord.model (ClassicalFiniteGroupOracle.model G)
 
-private theorem measurement_pool (P : KnownOrderProblem G)
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model)
+private lemma measurement_pool (P : KnownOrderProblem G)
+    (path : (Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
       (oracles := OrderOracle.model P) (operations := BitWord.model)
       (classicalOracles := ClassicalFiniteGroupOracle.model G) (readouts P)).Path) :
-    ResourcePool.ofList ((Circuit.measurementSequence (gates := AlgorithmGate.model)
+    ResourcePool.ofList ((Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model)
       (oracles := OrderOracle.model P) (operations := BitWord.model)
       (classicalOracles := ClassicalFiniteGroupOracle.model G)
       (readouts P)).eventTrace path) =
@@ -123,7 +124,7 @@ private theorem measurement_pool (P : KnownOrderProblem G)
   rfl
 
 /-- Every interpreter path has exactly the independently exposed complete ledger. -/
-public theorem code_events (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
+public lemma code_events (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
     (path : (code P expansion).Path) :
     (code P expansion).resourcePool path = eventBudget P expansion := by
   simp only [Circuit.resourcePool, code, beforeMeasurement, readoutCode,
@@ -134,25 +135,25 @@ public theorem code_events (P : KnownOrderProblem G) (expansion : OrderExpansion
   abel
 
 /-- Every path of the canonical cycle has its exact canonical ledger. -/
-public theorem canonicalCode_events (P : KnownOrderProblem G)
+public lemma canonicalCode_events (P : KnownOrderProblem G)
     (path : (canonicalCode P).Path) :
     (canonicalCode P).resourcePool path = canonicalEventBudget P := by
   exact code_events P (canonicalExpansion P) path
 
-private theorem program_depth (P : KnownOrderProblem G)
+private lemma program_depth (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) :
     DepthExpr.depthEval (fun _ => 1)
       ((nativeProgram P expansion).eventDepth BitWord.model
         (ClassicalFiniteGroupOracle.model G)) =
       OrderPreparation.unitDepth expansion + 1 +
         (OrderPreparation.width P + 5 * (OrderPreparation.width P).choose 2 +
-          3 * (OrderPreparation.width P / 2)) := by
+          (if OrderPreparation.width P / 2 = 0 then 0 else 3)) := by
   rw [nativeProgram_eventDepth,
     UnitaryCircuit.unitaryCircuit_unit_depth_classical_context,
     OrderCircuit.circuit_unit_depth,
     OrderPreparation.Native.circuit_unit_depth]
 
-private theorem preparation_code_depth (P : KnownOrderProblem G)
+private lemma preparation_code_depth (P : KnownOrderProblem G)
     (path : (preparationCode P).Path) :
     (preparationCode P).depth (fun _ => 1) path = 1 := by
   unfold preparationCode
@@ -164,14 +165,14 @@ private theorem preparation_code_depth (P : KnownOrderProblem G)
     (ClassicalFiniteGroupOracle.model G)]
   simp
 
-private theorem allocation_code_depth (P : KnownOrderProblem G)
+private lemma allocation_code_depth (P : KnownOrderProblem G)
     (path : (allocationCode P).Path) :
     (allocationCode P).depth (fun _ => 1) path = 0 := by
   unfold allocationCode
   exact MeasurementCells.allocate_depth (model := model P)
     (bankContext P) 2 (sampleWidth P) (fun _ => 1) path
 
-private theorem unitary_code_depth (P : KnownOrderProblem G)
+private lemma unitary_code_depth (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order)
     (path : (Circuit.unitary (nativeProgram P expansion) :
       Circuit (model P) (post P) (post P)).Path) :
@@ -179,14 +180,14 @@ private theorem unitary_code_depth (P : KnownOrderProblem G)
       Circuit (model P) (post P) (post P)).depth (fun _ => 1) path =
         OrderPreparation.unitDepth expansion + 1 +
           (OrderPreparation.width P + 5 * (OrderPreparation.width P).choose 2 +
-            3 * (OrderPreparation.width P / 2)) := by
+            (if OrderPreparation.width P / 2 = 0 then 0 else 3)) := by
   change DepthExpr.depthEval (fun _ => 1)
       ((nativeProgram P expansion).eventDepth BitWord.model
         (ClassicalFiniteGroupOracle.model G)) = _
   exact program_depth P expansion
 
 /-- Exact maximal circuit depth of one full preparation-to-measurement cycle. -/
-public theorem code_depth (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
+public lemma code_depth (P : KnownOrderProblem G) (expansion : OrderExpansion P.order)
     (path : (code P expansion).Path) :
     (code P expansion).depth (fun _ => 1) path = unitDepth P expansion := by
   unfold code beforeMeasurement readoutCode at path ⊢
@@ -199,13 +200,13 @@ public theorem code_depth (P : KnownOrderProblem G) (expansion : OrderExpansion 
   omega
 
 /-- Every path of the canonical cycle has its exact canonical depth. -/
-public theorem canonicalCode_depth (P : KnownOrderProblem G)
+public lemma canonicalCode_depth (P : KnownOrderProblem G)
     (path : (canonicalCode P).Path) :
     (canonicalCode P).depth (fun _ => 1) path = canonicalUnitDepth P := by
   exact code_depth P (canonicalExpansion P) path
 
 /-- The final live context contains the bank and exactly all raw measurement cells. -/
-public theorem post_residentSpace (P : KnownOrderProblem G) :
+public lemma post_residentSpace (P : KnownOrderProblem G) :
     (post P).residentSpace =
       sampleWidth P • SpacePool.ofShape (.finite 2) +
         SpacePool.ofQuantumLayout (OrderOracle.layout P) := by

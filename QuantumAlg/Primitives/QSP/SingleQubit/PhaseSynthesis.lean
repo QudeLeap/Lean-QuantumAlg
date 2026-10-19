@@ -47,7 +47,7 @@ noncomputable def squareTarget (PRe : ℝ[X]) : ℝ[X] :=
 
 /-- The boundedness hypothesis makes `1 - P_re^2` nonnegative on `[-1,1]`,
 matching the input condition of [GSLW19, BlockHam.tex:436-438]. -/
-theorem squareTarget_nonnegative {d : ℕ} {PRe : ℝ[X]}
+lemma squareTarget_nonnegative {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe) :
     Complement.Interval.NonnegativeOnUnitInterval (squareTarget PRe) := by
   simpa [squareTarget] using
@@ -55,7 +55,7 @@ theorem squareTarget_nonnegative {d : ℕ} {PRe : ℝ[X]}
 
 /-- Degree input for the interval-square theorem: if `deg(P_re) <= d`, then
 `deg(1 - P_re^2) <= 2d` [GSLW19, BlockHam.tex:436-438,544-557]. -/
-theorem squareTarget_natDegree_le {d : ℕ} {PRe : ℝ[X]}
+lemma squareTarget_natDegree_le {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe) :
     (squareTarget PRe).natDegree ≤ 2 * d := by
   unfold squareTarget
@@ -68,7 +68,7 @@ theorem squareTarget_natDegree_le {d : ℕ} {PRe : ℝ[X]}
 
 /-- Parity input for the interval-square theorem: `1 - P_re^2` is even
 whenever `P_re` has a fixed parity [GSLW19, BlockHam.tex:436-438,544-557]. -/
-theorem squareTarget_even {d : ℕ} {PRe : ℝ[X]}
+lemma squareTarget_even {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe) :
     Complement.Interval.HasRealParity (squareTarget PRe) 0 := by
   unfold squareTarget
@@ -77,7 +77,7 @@ theorem squareTarget_even {d : ℕ} {PRe : ℝ[X]}
 
 /-- Package the real-polynomial QSP hypotheses as the exact input of the
 interval-square decomposition theorem [GSLW19, BlockHam.tex:436-438,544-557]. -/
-theorem squareTarget_sourceHypotheses {d : ℕ} {PRe : ℝ[X]}
+lemma squareTarget_sourceHypotheses {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe) :
     Complement.Interval.SourceHypotheses (squareTarget PRe) d where
   degree_le := squareTarget_natDegree_le hP
@@ -100,7 +100,7 @@ structure ComplexIntervalBoundedMatchingParity (d : ℕ) (P : ℂ[X]) where
 
 /-- Real-polynomial parity is preserved by the coefficient embedding
 `ℝ[X] -> ℂ[X]`. -/
-theorem hasParity_realPolynomialToComplex {PRe : ℝ[X]} {p : ℕ}
+lemma hasParity_realPolynomialToComplex {PRe : ℝ[X]} {p : ℕ}
     (hP : Complement.Interval.HasRealParity PRe p) :
     HasParity (realPolynomialToComplex PRe) p := by
   intro k hk
@@ -109,14 +109,14 @@ theorem hasParity_realPolynomialToComplex {PRe : ℝ[X]} {p : ℕ}
 
 /-- Degree bounds for real polynomials transfer to the complex coefficient
 embedding used by the QSP completion. -/
-theorem degree_realPolynomialToComplex_le {PRe : ℝ[X]} {d : ℕ}
+lemma degree_realPolynomialToComplex_le {PRe : ℝ[X]} {d : ℕ}
     (hdeg : PRe.natDegree ≤ d) :
     (realPolynomialToComplex PRe).degree ≤ d := by
   rw [realPolynomialToComplex_degree]
   exact Polynomial.degree_le_of_natDegree_le hdeg
 
 /-- The embedded real polynomial has the requested real part on real inputs. -/
-theorem realPolynomialToComplex_real_part_matches (PRe : ℝ[X]) :
+lemma realPolynomialToComplex_real_part_matches (PRe : ℝ[X]) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
       ((realPolynomialToComplex PRe).eval (x : ℂ)).re = PRe.eval x := by
   intro x _hx
@@ -124,7 +124,7 @@ theorem realPolynomialToComplex_real_part_matches (PRe : ℝ[X]) :
   simp
 
 /-- The coefficientwise even part has real parity zero. -/
-theorem hasRealParity_realPolynomialEvenPart (P : ℝ[X]) :
+lemma hasRealParity_realPolynomialEvenPart (P : ℝ[X]) :
     Complement.Interval.HasRealParity (realPolynomialEvenPart P) 0 := by
   intro n hn
   rw [realPolynomialEvenPart_coeff] at hn
@@ -133,7 +133,7 @@ theorem hasRealParity_realPolynomialEvenPart (P : ℝ[X]) :
   · simp [h] at hn
 
 /-- The coefficientwise odd part has real parity one. -/
-theorem hasRealParity_realPolynomialOddPart (P : ℝ[X]) :
+lemma hasRealParity_realPolynomialOddPart (P : ℝ[X]) :
     Complement.Interval.HasRealParity (realPolynomialOddPart P) 1 := by
   intro n hn
   rw [realPolynomialOddPart_coeff] at hn
@@ -142,7 +142,7 @@ theorem hasRealParity_realPolynomialOddPart (P : ℝ[X]) :
   · simp [h] at hn
 
 /-- Multiplying a real polynomial by a scalar preserves its coefficient parity. -/
-theorem hasRealParity_smul (c : ℝ) {P : ℝ[X]} {d : ℕ}
+lemma hasRealParity_smul (c : ℝ) {P : ℝ[X]} {d : ℕ}
     (hP : Complement.Interval.HasRealParity P d) :
     Complement.Interval.HasRealParity (c • P) d := by
   intro n hn
@@ -154,7 +154,7 @@ theorem hasRealParity_smul (c : ℝ) {P : ℝ[X]} {d : ℕ}
 /-- If `|P(x)| <= 1/2` on the unit interval, then `2 * even(P)` is bounded by
 one there.  This is the normalized even branch of the arbitrary-parity split
 in `thm:arbParity` [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem two_smul_realPolynomialEvenPart_boundedByOne_of_boundedByHalf
+lemma two_smul_realPolynomialEvenPart_boundedByOne_of_boundedByHalf
     (P : ℝ[X])
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ (1 / 2 : ℝ)) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
@@ -179,7 +179,7 @@ theorem two_smul_realPolynomialEvenPart_boundedByOne_of_boundedByHalf
 /-- If `|P(x)| <= 1/2` on the unit interval, then `2 * odd(P)` is bounded by
 one there.  This is the normalized odd branch of the arbitrary-parity split in
 `thm:arbParity` [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem two_smul_realPolynomialOddPart_boundedByOne_of_boundedByHalf
+lemma two_smul_realPolynomialOddPart_boundedByOne_of_boundedByHalf
     (P : ℝ[X])
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ (1 / 2 : ℝ)) :
     ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 →
@@ -204,7 +204,7 @@ theorem two_smul_realPolynomialOddPart_boundedByOne_of_boundedByHalf
 
 /-- Real part of a norm-bounded complex polynomial, restricted to its even
 coefficient part, supplies the real matching-parity QSP hypotheses. -/
-theorem realBoundedMatchingParity_realEvenPart_of_normSq_le {d : ℕ} (P : ℂ[X])
+lemma realBoundedMatchingParity_realEvenPart_of_normSq_le {d : ℕ} (P : ℂ[X])
     (hdegree : P.natDegree ≤ d) (hd : d % 2 = 0)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity d
@@ -221,7 +221,7 @@ theorem realBoundedMatchingParity_realEvenPart_of_normSq_le {d : ℕ} (P : ℂ[X
 
 /-- Real part of a norm-bounded complex polynomial, restricted to its odd
 coefficient part, supplies the real matching-parity QSP hypotheses. -/
-theorem realBoundedMatchingParity_realOddPart_of_normSq_le {d : ℕ} (P : ℂ[X])
+lemma realBoundedMatchingParity_realOddPart_of_normSq_le {d : ℕ} (P : ℂ[X])
     (hdegree : P.natDegree ≤ d) (hd : d % 2 = 1)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity d
@@ -238,7 +238,7 @@ theorem realBoundedMatchingParity_realOddPart_of_normSq_le {d : ℕ} (P : ℂ[X]
 
 /-- Imaginary part of a norm-bounded complex polynomial, restricted to its even
 coefficient part, supplies the real matching-parity QSP hypotheses. -/
-theorem realBoundedMatchingParity_imagEvenPart_of_normSq_le {d : ℕ} (P : ℂ[X])
+lemma realBoundedMatchingParity_imagEvenPart_of_normSq_le {d : ℕ} (P : ℂ[X])
     (hdegree : P.natDegree ≤ d) (hd : d % 2 = 0)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity d
@@ -255,7 +255,7 @@ theorem realBoundedMatchingParity_imagEvenPart_of_normSq_le {d : ℕ} (P : ℂ[X
 
 /-- Imaginary part of a norm-bounded complex polynomial, restricted to its odd
 coefficient part, supplies the real matching-parity QSP hypotheses. -/
-theorem realBoundedMatchingParity_imagOddPart_of_normSq_le {d : ℕ} (P : ℂ[X])
+lemma realBoundedMatchingParity_imagOddPart_of_normSq_le {d : ℕ} (P : ℂ[X])
     (hdegree : P.natDegree ≤ d) (hd : d % 2 = 1)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity d
@@ -273,7 +273,7 @@ theorem realBoundedMatchingParity_imagOddPart_of_normSq_le {d : ℕ} (P : ℂ[X]
 /-- If the ambient degree bound is odd, the even real part drops to degree
 `L-1`, which matches the even-parity branch used in `thm:arbParity`
 [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem realBoundedMatchingParity_realEvenPart_of_normSq_le_pred_of_odd_bound
+lemma realBoundedMatchingParity_realEvenPart_of_normSq_le_pred_of_odd_bound
     {L : ℕ} (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLodd : L % 2 = 1)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (L - 1)
@@ -293,7 +293,7 @@ theorem realBoundedMatchingParity_realEvenPart_of_normSq_le_pred_of_odd_bound
 /-- If the ambient degree bound is odd, the even imaginary part drops to degree
 `L-1`, matching the even-parity branch used in the complex-polynomial note
 after `thm:arbParity` [GSLW19, BlockHam.tex:1952]. -/
-theorem realBoundedMatchingParity_imagEvenPart_of_normSq_le_pred_of_odd_bound
+lemma realBoundedMatchingParity_imagEvenPart_of_normSq_le_pred_of_odd_bound
     {L : ℕ} (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLodd : L % 2 = 1)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (L - 1)
@@ -313,7 +313,7 @@ theorem realBoundedMatchingParity_imagEvenPart_of_normSq_le_pred_of_odd_bound
 /-- If the ambient degree bound is positive and even, the odd real part drops
 to degree `L-1`, which matches the odd-parity branch used in `thm:arbParity`
 [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem realBoundedMatchingParity_realOddPart_of_normSq_le_pred_of_even_bound
+lemma realBoundedMatchingParity_realOddPart_of_normSq_le_pred_of_even_bound
     {L : ℕ} (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLpos : 0 < L)
     (hLeven : L % 2 = 0)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
@@ -334,7 +334,7 @@ theorem realBoundedMatchingParity_realOddPart_of_normSq_le_pred_of_even_bound
 /-- If the ambient degree bound is positive and even, the odd imaginary part
 drops to degree `L-1`, matching the odd-parity branch used in the
 complex-polynomial note after `thm:arbParity` [GSLW19, BlockHam.tex:1952]. -/
-theorem realBoundedMatchingParity_imagOddPart_of_normSq_le_pred_of_even_bound
+lemma realBoundedMatchingParity_imagOddPart_of_normSq_le_pred_of_even_bound
     {L : ℕ} (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLpos : 0 < L)
     (hLeven : L % 2 = 0)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
@@ -362,21 +362,21 @@ public def evenBranchDegree (L : ℕ) : ℕ :=
 public def oddBranchDegree (L : ℕ) : ℕ :=
   if L % 2 = 1 then L else L - 1
 
-theorem evenBranchDegree_le (L : ℕ) : evenBranchDegree L ≤ L := by
+lemma evenBranchDegree_le (L : ℕ) : evenBranchDegree L ≤ L := by
   unfold evenBranchDegree
   split <;> omega
 
-theorem oddBranchDegree_le (L : ℕ) : oddBranchDegree L ≤ L := by
+lemma oddBranchDegree_le (L : ℕ) : oddBranchDegree L ≤ L := by
   unfold oddBranchDegree
   split <;> omega
 
-theorem evenBranchDegree_mod_two (L : ℕ) : evenBranchDegree L % 2 = 0 := by
+lemma evenBranchDegree_mod_two (L : ℕ) : evenBranchDegree L % 2 = 0 := by
   unfold evenBranchDegree
   split
   · assumption
   · omega
 
-theorem oddBranchDegree_mod_two {L : ℕ} (hLpos : 0 < L) :
+lemma oddBranchDegree_mod_two {L : ℕ} (hLpos : 0 < L) :
     oddBranchDegree L % 2 = 1 := by
   unfold oddBranchDegree
   split
@@ -384,7 +384,7 @@ theorem oddBranchDegree_mod_two {L : ℕ} (hLpos : 0 < L) :
   · omega
 
 /-- Uniform constructor for the even real branch in the arbitrary-parity split. -/
-theorem realBoundedMatchingParity_realEvenPart_branch_of_normSq_le {L : ℕ}
+lemma realBoundedMatchingParity_realEvenPart_branch_of_normSq_le {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (evenBranchDegree L)
@@ -401,7 +401,7 @@ theorem realBoundedMatchingParity_realEvenPart_branch_of_normSq_le {L : ℕ}
 
 /-- Uniform constructor for the even imaginary branch in the arbitrary-parity
 complex split. -/
-theorem realBoundedMatchingParity_imagEvenPart_branch_of_normSq_le {L : ℕ}
+lemma realBoundedMatchingParity_imagEvenPart_branch_of_normSq_le {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (evenBranchDegree L)
@@ -418,7 +418,7 @@ theorem realBoundedMatchingParity_imagEvenPart_branch_of_normSq_le {L : ℕ}
 
 /-- Uniform constructor for the odd real branch in the arbitrary-parity split,
 away from the constant-polynomial edge case. -/
-theorem realBoundedMatchingParity_realOddPart_branch_of_normSq_le {L : ℕ}
+lemma realBoundedMatchingParity_realOddPart_branch_of_normSq_le {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLpos : 0 < L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (oddBranchDegree L)
@@ -435,7 +435,7 @@ theorem realBoundedMatchingParity_realOddPart_branch_of_normSq_le {L : ℕ}
 
 /-- Uniform constructor for the odd imaginary branch in the arbitrary-parity
 complex split, away from the constant-polynomial edge case. -/
-theorem realBoundedMatchingParity_imagOddPart_branch_of_normSq_le {L : ℕ}
+lemma realBoundedMatchingParity_imagOddPart_branch_of_normSq_le {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLpos : 0 < L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (oddBranchDegree L)
@@ -452,7 +452,7 @@ theorem realBoundedMatchingParity_imagOddPart_branch_of_normSq_le {L : ℕ}
 
 /-- Uniform constructor for the odd real branch, including the constant
 ambient-degree edge case where the odd branch is the zero polynomial. -/
-theorem realBoundedMatchingParity_realOddPart_branch_of_normSq_le_including_constant {L : ℕ}
+lemma realBoundedMatchingParity_realOddPart_branch_of_normSq_le_including_constant {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (oddBranchDegree L)
@@ -484,7 +484,7 @@ theorem realBoundedMatchingParity_realOddPart_branch_of_normSq_le_including_cons
 
 /-- Uniform constructor for the odd imaginary branch, including the constant
 ambient-degree edge case where the odd branch is the zero polynomial. -/
-theorem realBoundedMatchingParity_imagOddPart_branch_of_normSq_le_including_constant {L : ℕ}
+lemma realBoundedMatchingParity_imagOddPart_branch_of_normSq_le_including_constant {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     RealBoundedMatchingParity (oddBranchDegree L)
@@ -516,7 +516,7 @@ theorem realBoundedMatchingParity_imagOddPart_branch_of_normSq_le_including_cons
 
 /-- The complex even branch of a norm-bounded polynomial supplies complex
 matching-parity hypotheses. -/
-theorem complexIntervalBoundedMatchingParity_evenPart_of_normSq_le {d : ℕ} (P : ℂ[X])
+lemma complexIntervalBoundedMatchingParity_evenPart_of_normSq_le {d : ℕ} (P : ℂ[X])
     (hdegree : P.natDegree ≤ d) (hd : d % 2 = 0)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ComplexIntervalBoundedMatchingParity d (complexPolynomialEvenPart P) where
@@ -526,7 +526,7 @@ theorem complexIntervalBoundedMatchingParity_evenPart_of_normSq_le {d : ℕ} (P 
 
 /-- The complex odd branch of a norm-bounded polynomial supplies complex
 matching-parity hypotheses. -/
-theorem complexIntervalBoundedMatchingParity_oddPart_of_normSq_le {d : ℕ} (P : ℂ[X])
+lemma complexIntervalBoundedMatchingParity_oddPart_of_normSq_le {d : ℕ} (P : ℂ[X])
     (hdegree : P.natDegree ≤ d) (hd : d % 2 = 1)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ComplexIntervalBoundedMatchingParity d (complexPolynomialOddPart P) where
@@ -536,7 +536,7 @@ theorem complexIntervalBoundedMatchingParity_oddPart_of_normSq_le {d : ℕ} (P :
 
 /-- If the ambient degree bound is odd, the complex even branch drops to
 degree `L - 1`. -/
-theorem complexIntervalBoundedMatchingParity_evenPart_of_normSq_le_pred_of_odd_bound
+lemma complexIntervalBoundedMatchingParity_evenPart_of_normSq_le_pred_of_odd_bound
     {L : ℕ} (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLodd : L % 2 = 1)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ComplexIntervalBoundedMatchingParity (L - 1) (complexPolynomialEvenPart P) where
@@ -548,7 +548,7 @@ theorem complexIntervalBoundedMatchingParity_evenPart_of_normSq_le_pred_of_odd_b
 
 /-- If the ambient degree bound is positive and even, the complex odd branch
 drops to degree `L - 1`. -/
-theorem complexIntervalBoundedMatchingParity_oddPart_of_normSq_le_pred_of_even_bound
+lemma complexIntervalBoundedMatchingParity_oddPart_of_normSq_le_pred_of_even_bound
     {L : ℕ} (P : ℂ[X]) (hdegree : P.natDegree ≤ L) (hLpos : 0 < L)
     (hLeven : L % 2 = 0)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
@@ -561,7 +561,7 @@ theorem complexIntervalBoundedMatchingParity_oddPart_of_normSq_le_pred_of_even_b
 
 /-- Uniform constructor for the complex even branch in the arbitrary-parity
 split. -/
-theorem complexIntervalBoundedMatchingParity_evenPart_branch_of_normSq_le {L : ℕ}
+lemma complexIntervalBoundedMatchingParity_evenPart_branch_of_normSq_le {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ComplexIntervalBoundedMatchingParity (evenBranchDegree L) (complexPolynomialEvenPart P) := by
@@ -577,7 +577,7 @@ theorem complexIntervalBoundedMatchingParity_evenPart_branch_of_normSq_le {L : �
 
 /-- Uniform constructor for the complex odd branch, including the
 constant-polynomial edge case where the odd branch is zero. -/
-theorem complexIntervalBoundedMatchingParity_oddPart_branch_of_normSq_le {L : ℕ}
+lemma complexIntervalBoundedMatchingParity_oddPart_branch_of_normSq_le {L : ℕ}
     (P : ℂ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → Complex.normSq (P.eval (x : ℂ)) ≤ 1) :
     ComplexIntervalBoundedMatchingParity (oddBranchDegree L) (complexPolynomialOddPart P) := by
@@ -611,7 +611,7 @@ theorem complexIntervalBoundedMatchingParity_oddPart_branch_of_normSq_le {L : �
 /-- The normalized even branch `2 * even(P)` supplies the real matching-parity
 QSP hypotheses in the real arbitrary-parity reduction of `thm:arbParity`
 [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem realBoundedMatchingParity_twoEvenPart_branch_of_boundedByHalf {L : ℕ}
+lemma realBoundedMatchingParity_twoEvenPart_branch_of_boundedByHalf {L : ℕ}
     (P : ℝ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ (1 / 2 : ℝ)) :
     RealBoundedMatchingParity (evenBranchDegree L)
@@ -636,7 +636,7 @@ theorem realBoundedMatchingParity_twoEvenPart_branch_of_boundedByHalf {L : ℕ}
 /-- The normalized odd branch `2 * odd(P)` supplies the real matching-parity
 QSP hypotheses in the real arbitrary-parity reduction of `thm:arbParity`, away
 from the constant-polynomial edge case [GSLW19, BlockHam.tex:1936-1951]. -/
-theorem realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf {L : ℕ}
+lemma realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf {L : ℕ}
     (P : ℝ[X]) (hdegree : P.natDegree ≤ L) (hLpos : 0 < L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ (1 / 2 : ℝ)) :
     RealBoundedMatchingParity (oddBranchDegree L)
@@ -660,7 +660,7 @@ theorem realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf {L : ℕ}
 
 /-- The normalized odd branch, including the constant edge case where the odd
 branch is zero. -/
-theorem realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf_including_constant
+lemma realBoundedMatchingParity_twoOddPart_branch_of_boundedByHalf_including_constant
     {L : ℕ} (P : ℝ[X]) (hdegree : P.natDegree ≤ L)
     (hbound : ∀ x : ℝ, x ∈ Set.Icc (-1 : ℝ) 1 → |P.eval x| ≤ (1 / 2 : ℝ)) :
     RealBoundedMatchingParity (oddBranchDegree L)
@@ -705,7 +705,7 @@ noncomputable def IntervalSquareCompletionData.toIntervalCertificate {d : ℕ} {
 
 /-- The interval-square data gives the pointwise normalization used to build
 the complex QSP completion [GSLW19, BlockHam.tex:475-480,544-557]. -/
-theorem IntervalSquareCompletionData.normalization_on_interval {d : ℕ} {PRe : ℝ[X]}
+lemma IntervalSquareCompletionData.normalization_on_interval {d : ℕ} {PRe : ℝ[X]}
     (h : IntervalSquareCompletionData d PRe) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (((PRe.eval x) ^ 2 : ℝ) : ℂ) +
@@ -732,7 +732,7 @@ noncomputable def completedComplementPolynomial (CRe : ℝ[X]) : ℂ[X] :=
 coefficient-conjugate recovers the original real polynomial.  This is the
 polynomial identity used when `cor:matchingParity` averages `U_Φ` and
 `U_{-Φ}` [GSLW19, BlockHam.tex:851-887]. -/
-theorem completedSignalPolynomial_average_conjP (PRe B : ℝ[X]) :
+lemma completedSignalPolynomial_average_conjP (PRe B : ℝ[X]) :
     (1 / 2 : ℂ) • completedSignalPolynomial PRe B +
         (1 / 2 : ℂ) • conjP (completedSignalPolynomial PRe B) =
       realPolynomialToComplex PRe := by
@@ -754,7 +754,7 @@ theorem completedSignalPolynomial_average_conjP (PRe B : ℝ[X]) :
 /-- The source square certificate gives the polynomial normalization
 `P P* + (1-X^2) Q Q* = 1` for `P = P_re+iB` and `Q=iC`
 [GSLW19, BlockHam.tex:433-435,475-480]. -/
-theorem completedPolynomials_norm {PRe : ℝ[X]}
+lemma completedPolynomials_norm {PRe : ℝ[X]}
     (h : Complement.Interval.Certificate (1 - PRe ^ 2)) :
     completedSignalPolynomial PRe h.B * conjP (completedSignalPolynomial PRe h.B) +
         (1 - X ^ 2) *
@@ -797,7 +797,7 @@ theorem completedPolynomials_norm {PRe : ℝ[X]}
 /-- The interval-square completion data supplies the full reflection-QSP pair
 conditions for `P := P_re+iB` and `Q := iC`, following the construction in
 [GSLW19, BlockHam.tex:433-435,544-557]. -/
-theorem isQSPPair_of_intervalSquareCompletionData {d : ℕ} {PRe : ℝ[X]}
+lemma isQSPPair_of_intervalSquareCompletionData {d : ℕ} {PRe : ℝ[X]}
     (h : IntervalSquareCompletionData d PRe) :
     IsQSPPair d
       (completedSignalPolynomial PRe h.squareCertificate.B)
@@ -933,7 +933,7 @@ structure PhaseCertificate (d : ℕ) (P Q : ℂ[X]) where
 /-- The top-left scalar entry delivered by a phase certificate.  This is the
 entry read in each singular-value invariant block of the QSVT proof
 [GSLW19, BlockHam.tex:768-800]. -/
-theorem PhaseCertificate.qspW_zero_zero {d : ℕ} {P Q : ℂ[X]}
+lemma PhaseCertificate.qspW_zero_zero {d : ℕ} {P Q : ℂ[X]}
     (certificate : PhaseCertificate d P Q) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     qspW certificate.φ₀ certificate.φs x 0 0 = P.eval (x : ℂ) := by
@@ -943,7 +943,7 @@ theorem PhaseCertificate.qspW_zero_zero {d : ℕ} {P Q : ℂ[X]}
 /-- A positive-degree source phase certificate has a final phase slot.  The
 projected-QSVT local block proof peels off that final phase exactly as in the
 source phased-sequence calculation [GSLW19, BlockHam.tex:768-800]. -/
-theorem PhaseCertificate.exists_init_last_of_pos {d : ℕ} {P Q : ℂ[X]}
+lemma PhaseCertificate.exists_init_last_of_pos {d : ℕ} {P Q : ℂ[X]}
     (certificate : PhaseCertificate d P Q) (hd : 0 < d) :
     ∃ init : List ℝ, ∃ last : ℝ, certificate.φs = init ++ [last] := by
   rcases certificate.φs.eq_nil_or_concat with hnil | ⟨init, last, hsplit⟩
@@ -954,7 +954,7 @@ theorem PhaseCertificate.exists_init_last_of_pos {d : ℕ} {P Q : ℂ[X]}
 
 /-- A completion certificate gives an actual reflection-QSP phase certificate
 by the existing no-sorry characterization theorem. -/
-theorem phaseCertificate_of_completion {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_completion {d : ℕ} {PRe : ℝ[X]}
     (completion : RealPolynomialCompletion d PRe) :
     Nonempty (PhaseCertificate d completion.P completion.Q) := by
   rcases (ReflectionBasedQuantumSignalProcessing.main_wx d completion.P completion.Q).mp
@@ -962,7 +962,7 @@ theorem phaseCertificate_of_completion {d : ℕ} {PRe : ℝ[X]}
   exact ⟨⟨φ₀, φs, hlen, hrealizes⟩⟩
 
 /-- A source-aligned real-polynomial completion gives a phase certificate. -/
-theorem phaseCertificate_of_realBoundedCompletion {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_realBoundedCompletion {d : ℕ} {PRe : ℝ[X]}
     (h : RealBoundedCompletion d PRe) :
     Nonempty (PhaseCertificate d h.completion.P h.completion.Q) :=
   phaseCertificate_of_completion h.completion
@@ -979,7 +979,7 @@ structure RealBoundedPhaseCertificate (d : ℕ) (PRe : ℝ[X]) where
 /-- For a real-bounded phase certificate, the real part of the scalar `qspW`
 top-left entry is the original real polynomial on `[-1,1]`
 [GSLW19, BlockHam.tex:544-557]. -/
-theorem RealBoundedPhaseCertificate.qspW_zero_zero_re {d : ℕ} {PRe : ℝ[X]}
+lemma RealBoundedPhaseCertificate.qspW_zero_zero_re {d : ℕ} {PRe : ℝ[X]}
     (h : RealBoundedPhaseCertificate d PRe) {x : ℝ}
     (hx : x ∈ Set.Icc (-1 : ℝ) 1) :
     (qspW h.certificate.φ₀ h.certificate.φs x 0 0).re = PRe.eval x := by
@@ -988,7 +988,7 @@ theorem RealBoundedPhaseCertificate.qspW_zero_zero_re {d : ℕ} {PRe : ℝ[X]}
 
 /-- Turn the real bounded completion record into the phase-certificate record
 used by projected QSVT. -/
-theorem realBoundedPhaseCertificate_of_completion {d : ℕ} {PRe : ℝ[X]}
+lemma realBoundedPhaseCertificate_of_completion {d : ℕ} {PRe : ℝ[X]}
     (h : RealBoundedCompletion d PRe) :
     Nonempty (RealBoundedPhaseCertificate d PRe) := by
   rcases phaseCertificate_of_realBoundedCompletion h with ⟨certificate⟩
@@ -996,7 +996,7 @@ theorem realBoundedPhaseCertificate_of_completion {d : ℕ} {PRe : ℝ[X]}
 
 /-- Interval-square completion data gives a concrete reflection-QSP phase
 certificate through the same source path [GSLW19, BlockHam.tex:544-557]. -/
-theorem phaseCertificate_of_intervalSquareCompletionData {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_intervalSquareCompletionData {d : ℕ} {PRe : ℝ[X]}
     (h : IntervalSquareCompletionData d PRe) :
     Nonempty (PhaseCertificate d
       (completedSignalPolynomial PRe h.squareCertificate.B)
@@ -1010,7 +1010,7 @@ given the source hypotheses of real QSP and the degree/parity square
 certificate for `1 - P_re^2`, the reflection-QSP phase certificate follows.
 This isolates the remaining Gilyén Lemma-6-to-Corollary-10 existence work from
 the downstream QSVT proof path [GSLW19, BlockHam.tex:436-480,544-557]. -/
-theorem phaseCertificate_of_degreeParityCertificate {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_degreeParityCertificate {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe)
     (cert : Complement.Interval.DegreeParityCertificate (1 - PRe ^ 2) d) :
     Nonempty (PhaseCertificate d
@@ -1022,7 +1022,7 @@ theorem phaseCertificate_of_degreeParityCertificate {d : ℕ} {PRe : ℝ[X]}
 /-- Source root-class product decompositions are the exact remaining
 input needed for the real-polynomial QSP corollary [GSLW19,
 BlockHam.tex:436-480,544-557]. -/
-theorem phaseCertificate_of_degreeParityProductDecomposition {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_degreeParityProductDecomposition {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe)
     (decomp :
       Complement.Interval.DegreeParityProductDecomposition (1 - PRe ^ 2) d) :
@@ -1035,7 +1035,7 @@ theorem phaseCertificate_of_degreeParityProductDecomposition {d : ℕ} {PRe : �
 /-- A source root-class factorization gives the reflection-QSP phase
 certificate used downstream by projected QSVT [GSLW19, BlockHam.tex:436-480,
 544-557]. -/
-theorem phaseCertificate_of_sourceRootClassFactorization {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_sourceRootClassFactorization {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe)
     (roots :
       Complement.Interval.SourceRootClassFactorization (1 - PRe ^ 2) d) :
@@ -1049,7 +1049,7 @@ with the source square target attached to the real-polynomial hypotheses.  This
 is the form downstream projected QSVT uses after the interval-square theorem
 constructs the source root-class factorization [GSLW19, BlockHam.tex:436-480,
 544-557]. -/
-theorem phaseCertificate_of_realBoundedRootFactorization {d : ℕ} {PRe : ℝ[X]}
+lemma phaseCertificate_of_realBoundedRootFactorization {d : ℕ} {PRe : ℝ[X]}
     (hP : RealBoundedMatchingParity d PRe)
     (roots :
       Complement.Interval.SourceRootClassFactorization
@@ -1063,7 +1063,7 @@ theorem phaseCertificate_of_realBoundedRootFactorization {d : ℕ} {PRe : ℝ[X]
 /-- Source root-class factorization for the square target gives the full
 real-bounded phase-certificate package consumed by projected QSVT [GSLW19,
 BlockHam.tex:436-480,544-557]. -/
-theorem realBoundedPhaseCertificate_of_sourceRootClassFactorization
+lemma realBoundedPhaseCertificate_of_sourceRootClassFactorization
     {d : ℕ} {PRe : ℝ[X]} (hP : RealBoundedMatchingParity d PRe)
     (roots :
       Complement.Interval.SourceRootClassFactorization
@@ -1091,7 +1091,7 @@ noncomputable def chooseRealBoundedPhaseCertificateOfSourceRootClassFactorizatio
 /-- A completed source root-coverage package gives the real-bounded phase
 certificate consumed by projected QSVT [GSLW19, BlockHam.tex:436-480,
 544-557]. -/
-theorem realBoundedPhaseCertificate_of_sourceRootClassCoverage
+lemma realBoundedPhaseCertificate_of_sourceRootClassCoverage
     {d : ℕ} {PRe : ℝ[X]} (hP : RealBoundedMatchingParity d PRe)
     {data :
       Complement.Interval.SourceRootProductData
@@ -1117,7 +1117,7 @@ noncomputable def chooseRealBoundedPhaseCertificateOfSourceRootClassCoverage
 real-bounded phase certificate: unit padding supplies the remaining degree.
 This is the final handoff shape for the source root-class construction in
 [GSLW19, BlockHam.tex:469-480,544-557]. -/
-theorem realBoundedPhaseCertificate_of_sourceRootProductAndDegreeLe
+lemma realBoundedPhaseCertificate_of_sourceRootProductAndDegreeLe
     {d : ℕ} {PRe : ℝ[X]} (hP : RealBoundedMatchingParity d PRe)
     {data :
       Complement.Interval.SourceRootProductData
@@ -1178,7 +1178,7 @@ noncomputable def chooseRealBoundedPhaseCertificateOfSourceRootProductAndDegreeL
 /-- Final handoff from the canonical source data of `1 - P_re^2`: once the
 source proof supplies the product identity and degree bound, the real-polynomial
 phase certificate follows [GSLW19, BlockHam.tex:436-480,544-557]. -/
-theorem realBoundedPhaseCertificate_ofSquareTargetProductAndDegreeLe
+lemma realBoundedPhaseCertificate_ofSquareTargetProductAndDegreeLe
     {d : ℕ} {PRe : ℝ[X]} (hP : RealBoundedMatchingParity d PRe)
     (constant : ℝ) (constant_nonnegative : 0 ≤ constant) :
     let data :=
@@ -1214,7 +1214,7 @@ to the real-polynomial QSP phase certificate.  This is the compact
 Lemma-6-through-Corollary-10 interface: the root-class factorization is now
 constructed internally from the source hypotheses of `1 - P_re^2`
 [GSLW19, BlockHam.tex:436-480,544-557]. -/
-theorem realBoundedPhaseCertificate_of_sourceHypotheses
+lemma realBoundedPhaseCertificate_of_sourceHypotheses
     {d : ℕ} {PRe : ℝ[X]} (hP : RealBoundedMatchingParity d PRe) :
     Nonempty (RealBoundedPhaseCertificate d PRe) :=
   realBoundedPhaseCertificate_of_sourceRootClassFactorization hP

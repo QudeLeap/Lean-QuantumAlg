@@ -40,11 +40,11 @@ public def physicalTarget (operator : UnitaryOperator (Qubits width)) :
 **Resource budget.** Supplied native event and depth limits, and the declared register width.
 **Success.** Exact joint-state action, retaining correlations with any external reference.
 **Source.** The canonical binary view of physical qubit execution. -/
-public def problem (operator : UnitaryOperator (Qubits width))
+public def problem (operator : oracles.Interpretation → UnitaryOperator (Qubits width))
     (events : ResourcePool (.quantum gates oracles)) (limit : Nat) :
     Problem (.quantum gates oracles) (Owned.context (layout width))
       (Owned.context (layout width)) .unit :=
-  Owned.problem (physicalTarget operator) events limit
+  Owned.problem (fun environment => physicalTarget (operator environment)) events limit
 
 /-- The same actual circuit run on its complete owned physical interface. -/
 public def algorithm (word : UnitaryCircuit gates oracles (layout width)) :
@@ -53,16 +53,18 @@ public def algorithm (word : UnitaryCircuit gates oracles (layout width)) :
   Owned.algorithm word
 
 /-- A binary-matrix construction theorem certifies the complete owned execution. -/
-public theorem main (operator : UnitaryOperator (Qubits width))
+public theorem main (operator : oracles.Interpretation → UnitaryOperator (Qubits width))
     (events : ResourcePool (.quantum gates oracles)) (limit : Nat)
     (word : UnitaryCircuit gates oracles (layout width))
-    (same : word.binaryMatrix = operator) (cost : word.eventCost ≤ events)
+    (same : ∀ environment, word.binaryMatrix environment
+      = operator environment) (cost : word.eventCost ≤ events)
     (depth : word.evaluatedEventDepth (fun _ => 1) ≤ limit) :
     Algorithm.Solves (algorithm word) (problem operator events limit) := by
   apply Owned.main _ _ _ word _ cost depth
-  rw [← same]
+  intro environment
+  rw [← same environment]
   exact (UnitaryOperator.unitaryOperator_reindex_cancel
-    (QuantumSignature.qubitsIndexEquiv width) word.matrix).symm
+    (QuantumSignature.qubitsIndexEquiv width) (word.matrix environment)).symm
 
 end
 end QuantumAlg.UnitaryExecution.Owned.Binary

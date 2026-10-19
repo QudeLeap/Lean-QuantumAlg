@@ -149,7 +149,7 @@ def code (source : Input N) (inputs : List (Inputs ctx N))
 end Selected
 
 /-- These four scopes preserve the original bank's exact physical wire list. -/
-theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
+lemma quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := rfl
 
 /-- The actual fresh keys, in their final live-context order. -/
@@ -158,11 +158,11 @@ def scratchKeys (ctx : RuntimeCtx kind) (N : Nat) : List StorageKey :=
     (acceptedRef ctx N).key, (candidateRef ctx N).key]
 
 /-- No pre-existing entry was moved or replaced by the four genuine heads. -/
-theorem context_keys (ctx : RuntimeCtx kind) (N : Nat) :
+lemma context_keys (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).keys = scratchKeys ctx N ++ ctx.keys := rfl
 
 /-- The actual context's certificate distinguishes all four scratch storage identities. -/
-theorem scratchKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
+lemma scratchKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
     (scratchKeys ctx N).Nodup := by
   have actual : (scratchKeys ctx N ++ ctx.keys).Nodup := by
     rw [← context_keys]
@@ -170,22 +170,22 @@ theorem scratchKeys_nodup (ctx : RuntimeCtx kind) (N : Nat) :
   exact (List.nodup_append.mp actual).1
 
 /-- Distinct real allocation positions are distinct write destinations. -/
-theorem scratchKeys_ne (ctx : RuntimeCtx kind) (N : Nat) (first second : Fin 4)
+lemma scratchKeys_ne (ctx : RuntimeCtx kind) (N : Nat) (first second : Fin 4)
     (different : first ≠ second) :
     (scratchKeys ctx N).get first ≠ (scratchKeys ctx N).get second :=
   fun same => different ((scratchKeys_nodup ctx N).injective_get same)
 
 /-- Lifting preserves the exact original structural read support. -/
-theorem liftInput_keys {shape : CShape} (input : CInputRef ctx shape) :
+lemma liftInput_keys {shape : CShape} (input : CInputRef ctx shape) :
     (liftInput (N := N) input).storageKeys = input.storageKeys := by
   simp only [liftInput, CInputRef.storageKeys_underWorkspace]
 
 /-- The real result write still designates its original physical cell. -/
-theorem liftWrite_key {shape : CShape} (output : CWriteRef ctx shape) :
+lemma liftWrite_key {shape : CShape} (output : CWriteRef ctx shape) :
     (liftWrite (N := N) output).key = output.key := rfl
 
 /-- All original structural operands avoid every actual selector workspace write. -/
-theorem scratchKeys_input_separate {shape : CShape} (input : CInputRef ctx shape)
+lemma scratchKeys_input_separate {shape : CShape} (input : CInputRef ctx shape)
     (key : StorageKey) (scratch : key ∈ scratchKeys ctx N) :
     key ∉ (liftInput (N := N) input).storageKeys := by
   have actual : (scratchKeys ctx N ++ ctx.keys).Nodup := by
@@ -196,7 +196,7 @@ theorem scratchKeys_input_separate {shape : CShape} (input : CInputRef ctx shape
   exact actual.disjoint scratch (CInputRef.storageKeys_subset_context input present)
 
 /-- The physical cells satisfy the existing selector's entire internal separation contract. -/
-theorem selector_separated (ctx : RuntimeCtx kind) (N : Nat) :
+lemma selector_separated (ctx : RuntimeCtx kind) (N : Nat) :
     FirstAccepted.Separated (selectorInputs (cells ctx N)) (selectorRefs (cells ctx N)) := by
   have scratchCandidate := scratchKeys_ne ctx N 0 3 (by decide)
   have scratchAccepted := scratchKeys_ne ctx N 0 2 (by decide)

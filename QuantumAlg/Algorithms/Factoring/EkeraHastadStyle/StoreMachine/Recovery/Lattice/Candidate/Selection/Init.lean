@@ -21,7 +21,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original actual self-XOR clears only the persistent accepted latch. -/
@@ -38,16 +39,16 @@ def clearStep (refs : Refs ctx width) (store : Store ctx) :
   BitWord.instructionStep (execution := model) (clearOp refs) store
 
 /-- Actual latch initialization retains all incoming histories and quantum-reference blocks. -/
-theorem clearAcceptedInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma clearAcceptedInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (clearAcceptedInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (clearAcceptedInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := clearStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
-  BitWord.bitWord_instruction_execute (clearOp refs) state
+  BitWord.bitWord_instruction_execute (environment := environment) (clearOp refs) state
 
 /-- The original accepted latch becomes false from every actual incoming value. -/
-theorem clearAcceptedInto_correct (refs : Refs ctx width) (store : Store ctx) :
+lemma clearAcceptedInto_correct (refs : Refs ctx width) (store : Store ctx) :
     (clearStep refs store).1.read (writeInput refs.accepted) = .bit false := by
   refine (Store.read_applyOp_output store (clearOp refs)).trans ?_
   change Resource.BitOpcode.eval .xor
@@ -56,7 +57,7 @@ theorem clearAcceptedInto_correct (refs : Refs ctx width) (store : Store ctx) :
   | bit value => cases value <;> rfl
 
 /-- Actual initialization retains every caller read outside the persistent accepted cell. -/
-theorem clearAcceptedInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma clearAcceptedInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : refs.accepted.key ∉ other.storageKeys) :
     (clearStep refs store).1.read other = store.read other :=
@@ -69,7 +70,7 @@ def clearAcceptedEventEnvelope (model : ExecutionModel) [BitWord.Selected model]
     (BitWord.selectedCoordinate (execution := model) (.bit .xor)))
 
 /-- Every actual initialization path emits exactly its original one-XOR native pool. -/
-theorem clearAcceptedInto_resourcePool (refs : Refs ctx width)
+lemma clearAcceptedInto_resourcePool (refs : Refs ctx width)
     (path : (clearAcceptedInto refs).Path) :
     (clearAcceptedInto refs).resourcePool path = clearAcceptedEventEnvelope model := by
   change (BitWord.instruction (execution := model) (clearOp refs)).Path at path
@@ -81,23 +82,23 @@ theorem clearAcceptedInto_resourcePool (refs : Refs ctx width)
   rfl
 
 /-- The actual original initialization consumes exactly one native unit duration. -/
-theorem clearAcceptedInto_depth (refs : Refs ctx width) (path : (clearAcceptedInto refs).Path) :
+lemma clearAcceptedInto_depth (refs : Refs ctx width) (path : (clearAcceptedInto refs).Path) :
     (clearAcceptedInto refs).depth (fun _ => 1) path = 1 := by
   change (BitWord.instruction (execution := model) (clearOp refs)).Path at path
   change (BitWord.instruction (execution := model) (clearOp refs)).depth (fun _ => 1) path = 1
   rw [BitWord.bitWord_instruction_depth]
 
 /-- Actual latch initialization restores every borrowed correlation with arbitrary references. -/
-theorem clearAcceptedInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma clearAcceptedInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (clearAcceptedInto refs).BorrowedRestored Reference state
-      ((clearAcceptedInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_classical (model := model)
+      ((clearAcceptedInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_classical (environment := environment) (model := model)
     (BitWord.selectedApplication (execution := model) (clearOp refs)) state
 
 /-- Original resident storage remains counted during the actual initialization instruction. -/
-theorem clearAcceptedInto_resident_le (refs : Refs ctx width)
+lemma clearAcceptedInto_resident_le (refs : Refs ctx width)
     (path : (clearAcceptedInto refs).Path) :
     (clearAcceptedInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -106,7 +107,7 @@ theorem clearAcceptedInto_resident_le (refs : Refs ctx width)
   rw [List.mem_singleton.mp present]
 
 /-- Original auxiliary roles remain counted, with no added selector work bit. -/
-theorem clearAcceptedInto_auxiliary_le (refs : Refs ctx width)
+lemma clearAcceptedInto_auxiliary_le (refs : Refs ctx width)
     (path : (clearAcceptedInto refs).Path) :
     (clearAcceptedInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

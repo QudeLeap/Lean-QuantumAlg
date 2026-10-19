@@ -39,7 +39,7 @@ def gf2OutputPackEvent (model : ExecutionModel) [BitWord.Selected model]
   gf2OperationEvent (model := model) (.nominalEncoding (.packOption width))
 
 /-- The actual final instruction emits exactly its original optional encoding event. -/
-theorem gf2PackOutput_events (success : CWriteRef ctx .bit)
+lemma gf2PackOutput_events (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (packOutput success candidate output).Path) :
@@ -50,7 +50,7 @@ theorem gf2PackOutput_events (success : CWriteRef ctx .bit)
   rfl
 
 /-- The final pack contributes precisely its selected singleton resource. -/
-theorem gf2PackOutput_pool_le (success : CWriteRef ctx .bit)
+lemma gf2PackOutput_pool_le (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (path : (packOutput success candidate output).Path) :
@@ -61,7 +61,7 @@ theorem gf2PackOutput_pool_le (success : CWriteRef ctx .bit)
   exact le_rfl
 
 /-- The final pack is charged once by every selected duration assignment. -/
-theorem gf2PackOutput_depth (success : CWriteRef ctx .bit)
+lemma gf2PackOutput_depth (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (duration : Resource.Event model → Nat)
@@ -75,7 +75,7 @@ theorem gf2PackOutput_depth (success : CWriteRef ctx .bit)
   rfl
 
 /-- The final pack's duration is the sum of its actual singleton event trace. -/
-theorem gf2PackOutput_duration_eventTrace (success : CWriteRef ctx .bit)
+lemma gf2PackOutput_duration_eventTrace (success : CWriteRef ctx .bit)
     (candidate : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.option (.unsignedWord width)))
     (duration : Resource.Event model → Nat)
@@ -86,7 +86,7 @@ theorem gf2PackOutput_duration_eventTrace (success : CWriteRef ctx .bit)
   simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- A selected native leaf contributes its selected singleton resource. -/
-private theorem instruction_pool_le {inputShape outputShape : CShape}
+private lemma instruction_pool_le {inputShape outputShape : CShape}
     (op : ClassicalOp inputShape outputShape ctx ctx)
     (path : (BitWord.instruction (execution := model) op).Path) :
     (BitWord.instruction (execution := model) op).resourcePool path ≤
@@ -96,7 +96,7 @@ private theorem instruction_pool_le {inputShape outputShape : CShape}
   exact le_rfl
 
 /-- A selected native leaf contributes its selected event duration once. -/
-private theorem instruction_depth_le {inputShape outputShape : CShape}
+private lemma instruction_depth_le {inputShape outputShape : CShape}
     (op : ClassicalOp inputShape outputShape ctx ctx)
     (duration : Resource.Event model → Nat)
     (path : (BitWord.instruction (execution := model) op).Path) :
@@ -106,7 +106,7 @@ private theorem instruction_depth_le {inputShape outputShape : CShape}
   exact le_rfl
 
 /-- A selected native leaf has the same duration as its singleton trace. -/
-private theorem instruction_duration {inputShape outputShape : CShape}
+private lemma instruction_duration {inputShape outputShape : CShape}
     (op : ClassicalOp inputShape outputShape ctx ctx)
     (duration : Resource.Event model → Nat)
     (path : (BitWord.instruction (execution := model) op).Path) :
@@ -142,7 +142,7 @@ def intoDepthLimit (rowCount width : Nat) (duration : Resource.Event model → N
     width))))))))
 
 omit [BitWord.Selected model] in
-private theorem when_pool_le (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+private lemma when_pool_le (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (budget : ResourcePool model) (bound : ∀ path, body.resourcePool path ≤ budget)
     (path : (whenSuccessful success body).Path) :
     (whenSuccessful success body).resourcePool path ≤ budget := by
@@ -155,7 +155,7 @@ private theorem when_pool_le (success : CWriteRef ctx .bit) (body : Circuit mode
       · exact bound path
 
 omit [BitWord.Selected model] in
-private theorem when_depth_le (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+private lemma when_depth_le (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (duration : Resource.Event model → Nat) (budget : Nat)
     (bound : ∀ path, body.depth duration path ≤ budget)
     (path : (whenSuccessful success body).Path) :
@@ -168,7 +168,7 @@ private theorem when_depth_le (success : CWriteRef ctx .bit) (body : Circuit mod
       · exact bound path
 
 omit [BitWord.Selected model] in
-private theorem when_duration (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
+private lemma when_duration (success : CWriteRef ctx .bit) (body : Circuit model ctx ctx)
     (duration : Resource.Event model → Nat)
     (equation : ∀ path, body.depth duration path = ((body.eventTrace path).map duration).sum)
     (path : (whenSuccessful success body).Path) :
@@ -183,7 +183,7 @@ private theorem when_duration (success : CWriteRef ctx .bit) (body : Circuit mod
       · exact equation path
 
 omit [BitWord.Selected model] in
-private theorem serial_pool_le (first second : Circuit model ctx ctx)
+private lemma serial_pool_le (first second : Circuit model ctx ctx)
     (leftBudget rightBudget : ResourcePool model)
     (left : ∀ path, first.resourcePool path ≤ leftBudget)
     (right : ∀ path, second.resourcePool path ≤ rightBudget)
@@ -194,7 +194,7 @@ private theorem serial_pool_le (first second : Circuit model ctx ctx)
   exact add_le_add (left path.1) (right path.2)
 
 omit [BitWord.Selected model] in
-private theorem serial_depth_le (first second : Circuit model ctx ctx)
+private lemma serial_depth_le (first second : Circuit model ctx ctx)
     (duration : Resource.Event model → Nat) (leftBudget rightBudget : Nat)
     (left : ∀ path, first.depth duration path ≤ leftBudget)
     (right : ∀ path, second.depth duration path ≤ rightBudget)
@@ -203,7 +203,7 @@ private theorem serial_depth_le (first second : Circuit model ctx ctx)
   Nat.add_le_add (left path.1) (right path.2)
 
 omit [BitWord.Selected model] in
-private theorem serial_duration (first second : Circuit model ctx ctx)
+private lemma serial_duration (first second : Circuit model ctx ctx)
     (duration : Resource.Event model → Nat)
     (left : ∀ path, first.depth duration path = ((first.eventTrace path).map duration).sum)
     (right : ∀ path, second.depth duration path = ((second.eventTrace path).map duration).sum)
@@ -224,7 +224,7 @@ variable (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
   (success : CWriteRef ctx .bit) (output : CWriteRef ctx (.option (.unsignedWord width)))
 
 /-- The original complete circuit charges all native stages and its final actual packing. -/
-theorem gf2Into_pool_le
+lemma gf2Into_pool_le
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).resourcePool path ≤
       intoEnvelope model rowCount width :=
@@ -242,7 +242,7 @@ theorem gf2Into_pool_le
   (gf2PackOutput_pool_le success candidate output)))))))) path
 
 /-- The complete original dependency order retains every actual event-duration allowance. -/
-theorem gf2Into_depth_le (duration : Resource.Event model → Nat)
+lemma gf2Into_depth_le (duration : Resource.Event model → Nat)
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).depth duration path ≤
       intoDepthLimit rowCount width duration :=
@@ -261,7 +261,7 @@ theorem gf2Into_depth_le (duration : Resource.Event model → Nat)
   (fun current => (gf2PackOutput_depth success candidate output duration current).le)))))))) path
 
 /-- Exact duration is the sum of the events emitted by that same complete actual path. -/
-theorem gf2Into_duration_eventTrace (duration : Resource.Event model → Nat)
+lemma gf2Into_duration_eventTrace (duration : Resource.Event model → Nat)
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     (into input matrix used rows columns candidate zero success output).depth duration path =
       (((into input matrix used rows columns candidate zero success output).eventTrace path).map
@@ -282,7 +282,7 @@ theorem gf2Into_duration_eventTrace (duration : Resource.Event model → Nat)
   (gf2PackOutput_duration_eventTrace success candidate output duration)))))))) path
 
 /-- The actual native instruction count is bounded by the original unit-duration stage sum. -/
-theorem gf2Into_eventCount_le
+lemma gf2Into_eventCount_le
     (path : (into input matrix used rows columns candidate zero success output).Path) :
     ((into input matrix used rows columns candidate zero success output).eventTrace path).length ≤
       intoDepthLimit (model := model) rowCount width (fun _ => 1) := by

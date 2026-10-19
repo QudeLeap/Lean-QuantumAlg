@@ -29,19 +29,20 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A real retained allocation composes with a proved actual deterministic body record. -/
-theorem execute_retain_seq_mapClassical {model : ExecutionModel}
+lemma execute_retain_seq_mapClassical {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addRetained key shape fresh) (ctx.addRetained key shape fresh))
+    (environment : model.Environment)
     (step : Store (ctx.addRetained key shape fresh) × model.HiddenState →
       (Store (ctx.addRetained key shape fresh) × model.HiddenState) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (ctx.addRetained key shape fresh) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         let result := step (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.seq (.retain ctx key shape fresh) body).execute Reference state =
+    (Circuit.seq (.retain ctx key shape fresh) body).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (entry.1.pushRetained key shape fresh, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, ((), result.2))))) := by

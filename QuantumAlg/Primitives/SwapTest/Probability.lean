@@ -33,11 +33,12 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open Execution
 
-theorem code_one_mass {width : Nat} (left right : NormalizedVector (Qubits width))
+lemma code_one_mass (actual : model.Environment) {width : Nat} (left right : NormalizedVector
+    (Qubits width))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (pre width) Reference (ClassicalOracleModel.empty.HiddenState × History))
     (promised : inputPromise left right state.quantumMarginal.marginalLeft) :
-    ((((code width).execute Reference state).mapClassical
+    ((((code width).execute actual Reference state).mapClassical
       (fun value => value.1.read
         (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))).block
       (.finite 1)).mass = probabilityOne left right := by
@@ -45,11 +46,11 @@ theorem code_one_mass {width : Nat} (left right : NormalizedVector (Qubits width
       (ClassicalOracleModel.empty.HiddenState × (History × (code width).Path))) : Real :=
     ((output.mapClassical (fun value => value.1.read
       (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))).block (.finite 1)).mass
-  have transfer := congrArg observed (code_execute width state)
+  have transfer := congrArg observed (code_execute width actual state)
   have mass := transfer.trans
     (HadamardTest.code_block_mass (swapRegistersOp width) (left.tensor right)
       state promised (.finite 1))
-  change observed ((code width).execute Reference state) = _
+  change observed ((code width).execute actual Reference state) = _
   rw [mass]
   let evolved := HadamardTest.evolvedState (swapRegistersOp width) (left.tensor right)
   let fiber (basis : Fin (2 ^ (1 + (width + width)))) : Real :=
@@ -75,45 +76,48 @@ theorem code_one_mass {width : Nat} (left right : NormalizedVector (Qubits width
         (congrArg (fun value : Real => (1 - value) / 2) (re_inner_swapRegisters left right))
 
 /-- The complete run reads its actual binary cell with exactly the source probability. -/
-theorem outputDistribution_one {width : Nat} (left right : NormalizedVector (Qubits width))
+lemma outputDistribution_one (actual : model.Environment) {width : Nat} (left right :
+    NormalizedVector (Qubits width))
     {Reference : Register} (input : OracleInput .empty (pre width) Reference)
     (promised : inputPromise left right input.caller.localState.quantumMarginal) :
-    (run width).outputDistribution input (.finite 1) =
+    (run width).outputDistribution actual input (.finite 1) =
       ENNReal.ofReal (probabilityOne left right) := by
-  have actual := congrArg (fun distribution : PMF (CShape.Value (.finite 2)) =>
+  have measured := congrArg (fun distribution : PMF (CShape.Value (.finite 2)) =>
       distribution (.finite 1))
-    (ExecutionState.toPMF_mapClassical ((run width).execute Reference input.state)
-      ((run width).execute_normalized input) (run width).result)
+    (ExecutionState.toPMF_mapClassical ((run width).execute actual Reference input.state)
+      ((run width).execute_normalized actual input) (run width).result)
   simp only [AlgorithmRun.outputDistribution, AlgorithmRun.executionDistribution]
-  refine actual.symm.trans ?_
+  refine measured.symm.trans ?_
   rw [ExecutionState.toPMF_apply]
   change ENNReal.ofReal
-    (((code width).execute Reference
+    (((code width).execute actual Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
       |>.mapClassical (fun value => value.1.read
         (.storage (HadamardTest.resultRef (width + width)).toCStorageRef))
       |>.block (.finite 1)).mass) = _
   apply congrArg ENNReal.ofReal
-  apply code_one_mass left right
+  apply code_one_mass actual left right
   rw [ExecutionState.mapClassical_quantumMarginal,
     ← OracleInput.oracleInput_caller_quantumMarginal input, ← Input.localState_quantumMarginal]
   exact promised
 
 /-- The relational success event is the same exact measured one-result probability. -/
-theorem actual_success {width : Nat} (left right : NormalizedVector (Qubits width))
+lemma actual_success (actual : model.Environment) {width : Nat} (left right : NormalizedVector
+    (Qubits width))
     {Reference : Register} (input : OracleInput .empty (pre width) Reference)
     (promised : inputPromise left right input.caller.localState.quantumMarginal) :
     ENNReal.ofReal (probabilityOne left right) =
-      ((run width).relationalDistribution input).toOuterMeasure {pair | pair.2 = .finite 1} := by
+      ((run width).relationalDistribution actual input).toOuterMeasure {pair | pair.2
+        = .finite 1} := by
   have projection :
-      ((run width).relationalDistribution input).toOuterMeasure {pair | pair.2 = .finite 1} =
-        ((run width).outputDistribution input).toOuterMeasure
+      ((run width).relationalDistribution actual input).toOuterMeasure {pair | pair.2 = .finite 1} =
+        ((run width).outputDistribution actual input).toOuterMeasure
           {CShape.Value.finite (cardinality := 2) (1 : Fin 2)} := by
     simp only [AlgorithmRun.relationalDistribution, AlgorithmRun.outputDistribution,
       PMF.toOuterMeasure_map_apply]
     rfl
   rw [projection, PMF.toOuterMeasure_apply_singleton]
-  exact (outputDistribution_one left right input promised).symm
+  exact (outputDistribution_one actual left right input promised).symm
 
 end
 

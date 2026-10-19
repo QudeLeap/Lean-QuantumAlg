@@ -24,14 +24,14 @@ namespace QuantumAlg.UnitaryOperator
 noncomputable section
 
 /-- Taking the adjoint commutes with a bijective relabelling of basis states. -/
-public theorem unitaryOperator_reindex_star {R S : Register}
+public lemma unitaryOperator_reindex_star {R S : Register}
     (equivalence : R.Index ≃ S.Index) (operator : UnitaryOperator R) :
     reindex equivalence (star operator) = star (reindex equivalence operator) := by
   apply Subtype.ext
   rfl
 
 /-- The adjoint of a tensor product acts by the adjoint on each factor. -/
-public theorem unitaryOperator_prodTensor_star {R S : Register}
+public lemma unitaryOperator_prodTensor_star {R S : Register}
     (left : UnitaryOperator R) (right : UnitaryOperator S) :
     prodTensor (star left) (star right) = star (prodTensor left right) := by
   apply Subtype.ext

@@ -29,9 +29,11 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceOperatorAgreement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement
 
-private theorem prepared_vec (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
+private lemma prepared_vec (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
     {Reference : Register} (reference : Reference.Index) :
     (NormalizedVector.ket (R := Register.prod (context modulus.size).register Reference)
       (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec =
@@ -44,14 +46,14 @@ private theorem prepared_vec (modulus : Nat) (value numerator : Fin (2 ^ modulus
         (basis, reference)).vec) label
 
 /-- Each actual division branch is the independent reference target with its exact amplitude. -/
-theorem division_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (reference : Reference.Index) :
     HilbertOperator.applyVec
-      (InPlaceDivisionConjugation.operator modulus prime Reference stored)
+      (InPlaceDivisionConjugation.operator environment modulus prime Reference stored)
       (NormalizedVector.ket (R := Register.prod (context modulus.size).register Reference)
         (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec =
       WalshHadamard.invSqrtCard modulus.size •
@@ -60,7 +62,7 @@ theorem division_ket (modulus : Nat) (prime : Nat.Prime modulus)
             (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec := by
   have actual := (congrArg
     (HilbertOperator.applyVec
-      (InPlaceDivisionConjugation.operator modulus prime Reference stored))
+      (InPlaceDivisionConjugation.operator environment modulus prime Reference stored))
     (prepared_vec modulus value numerator reference)).trans
       (InPlaceDivisionBasis.operator_ket modulus prime value numerator
         positive bounded numeratorBound stored reference)
@@ -79,24 +81,24 @@ theorem division_ket (modulus : Nat) (prime : Nat.Prime modulus)
       WalshHadamard.invSqrtCard modulus.size • vector) (result.trans target.symm))
 
 /-- Every division column retains arbitrary output and input reference coordinates exactly. -/
-theorem division_column (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_column (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (reference : Reference.Index)
     (row : (Register.prod (context modulus.size).register Reference).Index) :
-    InPlaceDivisionConjugation.operator modulus prime Reference stored row
+    InPlaceDivisionConjugation.operator environment modulus prime Reference stored row
       (InPlaceTarget.preparedBasis modulus value numerator, reference) =
       WalshHadamard.invSqrtCard modulus.size *
         InPlaceTarget.jointOperator .division modulus prime Reference row
           (InPlaceTarget.preparedBasis modulus value numerator, reference) := by
   have values := congrArg
     (fun vector : HilbertVector (Register.prod (context modulus.size).register Reference) =>
-      vector row) (division_ket modulus prime value numerator
+      vector row) (division_ket (environment := environment) modulus prime value numerator
         positive bounded numeratorBound stored reference)
   change HilbertOperator.applyVec
-    (InPlaceDivisionConjugation.operator modulus prime Reference stored)
+    (InPlaceDivisionConjugation.operator environment modulus prime Reference stored)
     (NormalizedVector.ket (R := Register.prod (context modulus.size).register Reference)
       (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec row =
     WalshHadamard.invSqrtCard modulus.size * HilbertOperator.applyVec
@@ -108,14 +110,14 @@ theorem division_column (modulus : Nat) (prime : Nat.Prime modulus)
   exact values
 
 /-- Each actual multiplication branch is the independent target with its measured amplitude. -/
-theorem multiplication_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (reference : Reference.Index) :
     HilbertOperator.applyVec
-      (InPlaceMultiplicationConjugation.operator modulus prime Reference stored)
+      (InPlaceMultiplicationConjugation.operator environment modulus prime Reference stored)
       (NormalizedVector.ket (R := Register.prod (context modulus.size).register Reference)
         (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec =
       WalshHadamard.invSqrtCard modulus.size •
@@ -124,7 +126,7 @@ theorem multiplication_ket (modulus : Nat) (prime : Nat.Prime modulus)
             (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec := by
   have actual := (congrArg
     (HilbertOperator.applyVec
-      (InPlaceMultiplicationConjugation.operator modulus prime Reference stored))
+      (InPlaceMultiplicationConjugation.operator environment modulus prime Reference stored))
     (prepared_vec modulus value numerator reference)).trans
       (InPlaceMultiplicationBasis.operator_ket modulus prime value numerator
         positive bounded numeratorBound stored reference)
@@ -143,24 +145,24 @@ theorem multiplication_ket (modulus : Nat) (prime : Nat.Prime modulus)
       WalshHadamard.invSqrtCard modulus.size • vector) (result.trans target.symm))
 
 /-- Every multiplication column retains both reference indices, including off-diagonal entries. -/
-theorem multiplication_column (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_column (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (reference : Reference.Index)
     (row : (Register.prod (context modulus.size).register Reference).Index) :
-    InPlaceMultiplicationConjugation.operator modulus prime Reference stored row
+    InPlaceMultiplicationConjugation.operator environment modulus prime Reference stored row
       (InPlaceTarget.preparedBasis modulus value numerator, reference) =
       WalshHadamard.invSqrtCard modulus.size *
         InPlaceTarget.jointOperator .multiplication modulus prime Reference row
           (InPlaceTarget.preparedBasis modulus value numerator, reference) := by
   have values := congrArg
     (fun vector : HilbertVector (Register.prod (context modulus.size).register Reference) =>
-      vector row) (multiplication_ket modulus prime value numerator
+      vector row) (multiplication_ket (environment := environment) modulus prime value numerator
         positive bounded numeratorBound stored reference)
   change HilbertOperator.applyVec
-    (InPlaceMultiplicationConjugation.operator modulus prime Reference stored)
+    (InPlaceMultiplicationConjugation.operator environment modulus prime Reference stored)
     (NormalizedVector.ket (R := Register.prod (context modulus.size).register Reference)
       (InPlaceTarget.preparedBasis modulus value numerator, reference)).vec row =
     WalshHadamard.invSqrtCard modulus.size * HilbertOperator.applyVec

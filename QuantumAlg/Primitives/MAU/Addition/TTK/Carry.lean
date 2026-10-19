@@ -30,7 +30,7 @@ private def carrySource {n : Nat} (i : Fin (n - 1)) : Fin n :=
 private def carryTarget {n : Nat} (i : Fin (n - 1)) : Fin n :=
   ⟨i.val + 1, by omega⟩
 
-private theorem carrySource_ne_target {n : Nat} (i : Fin (n - 1)) :
+private lemma carrySource_ne_target {n : Nat} (i : Fin (n - 1)) :
     carrySource i ≠ carryTarget i := by
   intro h
   have hval := congrArg Fin.val h
@@ -57,7 +57,7 @@ private def carryInvariant (n : Nat) (original : Registers n)
     if i.val = 0 then original.2.val.testBit i.val
     else (original.2.val.testBit i.val ^^ original.1.val.testBit i.val))
 
-private theorem carryInvariant_target (n : Nat) (original s : Registers n)
+private lemma carryInvariant_target (n : Nat) (original s : Registers n)
     (k : Fin (n - 1)) (hs : carryInvariant n original k.val s) :
     (leftBit n (carryTarget k)).get ((carrySweepGate k).step s) =
       (original.1.val.testBit (k.val + 1) ^^
@@ -104,7 +104,7 @@ private theorem carryInvariant_target (n : Nat) (original s : Registers n)
       (original.1.val.testBit (k.val + 1)) hright hsource htarget
     simpa only [carryGate, carrySweepGate, carrySource, carryTarget, natAddCarry] using h
 
-private theorem carryInvariant_step (n : Nat) (original s : Registers n)
+private lemma carryInvariant_step (n : Nat) (original s : Registers n)
     (k : Fin (n - 1)) (hs : carryInvariant n original k.val s) :
     carryInvariant n original (k.val + 1) ((carrySweepGate k).step s) := by
   constructor
@@ -142,7 +142,7 @@ private theorem carryInvariant_step (n : Nat) (original s : Registers n)
 
 /-- Stage three stores each canonical incoming carry in its addend bit.
 The right operand retains the stage-one XOR pattern. -/
-theorem ttkCarrySweep (n : Nat) (original s : Registers n)
+lemma ttkCarrySweep (n : Nat) (original s : Registers n)
     (hleft : ∀ i : Fin n, (leftBit n i).get s =
       if 2 ≤ i.val then
         (original.1.val.testBit i.val ^^ original.1.val.testBit (i.val - 1))

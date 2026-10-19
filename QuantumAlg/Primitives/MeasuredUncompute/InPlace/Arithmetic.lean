@@ -30,6 +30,8 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceArithmetic
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement ProductReadout MAU.Inversion SharedEEA
 open NumberTheory.SharedEEA
 
@@ -37,15 +39,15 @@ open NumberTheory.SharedEEA
 def modulusWord (modulus : Nat) : Fin (2 ^ modulus.size + 1) :=
   ⟨modulus, (Nat.lt_size_self modulus).trans (Nat.lt_succ_self _)⟩
 
-private theorem input_pair (width : Nat) (state : Registers width)
+private lemma input_pair (width : Nat) (state : Registers width)
     (left right : Fin (2 ^ width)) :
     input width (state, left) = input width (state, right) := rfl
 
-private theorem accumulator_pair (width : Nat) (state : Registers width)
+private lemma accumulator_pair (width : Nat) (state : Registers width)
     (left right : Fin (2 ^ width)) :
     accumulator width (state, left) = accumulator width (state, right) := rfl
 
-private theorem history_before_numerator (width : Nat) (index : Fin (historyWidth width)) :
+private lemma history_before_numerator (width : Nat) (index : Fin (historyWidth width)) :
     (historyWire width index).val < (encoding width).width := by
   have bound := index.isLt
   rw [encoding_width]
@@ -53,7 +55,7 @@ private theorem history_before_numerator (width : Nat) (index : Fin (historyWidt
   unfold historyWidth tailWidth at bound
   split_ifs <;> omega
 
-private theorem history_pair (width : Nat) (state : Registers width)
+private lemma history_pair (width : Nat) (state : Registers width)
     (left right : Fin (2 ^ width)) :
     history width (state, left) = history width (state, right) := by
   apply word_ext
@@ -72,7 +74,7 @@ private theorem history_pair (width : Nat) (state : Registers width)
     (prodEquiv_testBit_left ((encoding width).encode state) right shared.rev).symm
 
 /-- The physical X read of the original fixed entry is precisely its arbitrary supplied input. -/
-theorem initial_input (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
+lemma initial_input (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     input modulus.size (InitialPortProgram.inputFrame modulus value, numerator) = value := by
   apply word_ext
   intro index
@@ -82,7 +84,7 @@ theorem initial_input (modulus : Nat) (value numerator : Fin (2 ^ modulus.size))
   exact actual
 
 /-- The original A port is actually zero before its separately charged fixed constant load. -/
-theorem initial_accumulator (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
+lemma initial_accumulator (modulus : Nat) (value numerator : Fin (2 ^ modulus.size)) :
     accumulator modulus.size (InitialPortProgram.inputFrame modulus value, numerator) = 0 := by
   apply word_ext
   intro index
@@ -91,7 +93,7 @@ theorem initial_accumulator (modulus : Nat) (value numerator : Fin (2 ^ modulus.
   simp only [Fin.val_zero, Nat.zero_testBit]
 
 /-- The full forward result's physical X value is the independently specified residue inverse. -/
-theorem forward_input (modulus : Nat) (prime : Nat.Prime modulus)
+lemma forward_input (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     input modulus.size (InPlaceForward.result modulus value.val positive bounded, numerator) =
@@ -110,7 +112,7 @@ theorem forward_input (modulus : Nat) (prime : Nat.Prime modulus)
   exact source.trans (CanonicalInverse.source_eq_word modulus value.val coprime positive bounded)
 
 /-- The complete forward gate proof discharges clean A internally on the original prime domain. -/
-theorem forward_accumulator (modulus : Nat) (prime : Nat.Prime modulus)
+lemma forward_accumulator (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     accumulator modulus.size
@@ -123,7 +125,7 @@ theorem forward_accumulator (modulus : Nat) (prime : Nat.Prime modulus)
   simp only [Fin.val_zero, Nat.zero_testBit]
 
 /-- The actual native product writes the canonical inverse times Y into the existing A port. -/
-theorem product_quotient (modulus : Nat) (prime : Nat.Prime modulus)
+lemma product_quotient (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     (accumulator modulus.size (NativeProductFrame.step modulus.size (modulusWord modulus)
@@ -141,7 +143,7 @@ theorem product_quotient (modulus : Nat) (prime : Nat.Prime modulus)
   have nativeModulus : (modulusWord modulus).val = modulus := rfl
   simpa only [Fin.val_zero, Nat.zero_add, nativeModulus] using actual
 
-private theorem zero_accumulator_reset (width : Nat) (modulus : Fin (2 ^ width + 1))
+private lemma zero_accumulator_reset (width : Nat) (modulus : Fin (2 ^ width + 1))
     (state : Registers width) (numerator : Fin (2 ^ width))
     (clean : accumulator width (state, numerator) = 0) :
     let multiplied := NativeProductFrame.step width modulus (state, numerator)
@@ -165,7 +167,7 @@ private theorem zero_accumulator_reset (width : Nat) (modulus : Fin (2 ^ width +
         (history_pair width state numerator (accumulator width multiplied)))
 
 /-- Reset Y gives exactly the same adjoint's required complete frame, including the full Γ. -/
-theorem reset_for_backward (modulus : Nat) (prime : Nat.Prime modulus)
+lemma reset_for_backward (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     let completed := InPlaceForward.result modulus value.val positive bounded
@@ -178,13 +180,13 @@ theorem reset_for_backward (modulus : Nat) (prime : Nat.Prime modulus)
 
 /-- The actual reused EEA adjoint restores X and fixed small state,
 while retaining the saved quotient. -/
-theorem backward_reset_ket (modulus : Nat) (prime : Nat.Prime modulus)
+lemma backward_reset_ket (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus) :
     let completed := InPlaceForward.result modulus value.val positive bounded
     let multiplied := NativeProductFrame.step modulus.size (modulusWord modulus)
       (completed, numerator)
-    (NativeEEAFrame.backward modulus prime).applyNormalized
+    ((NativeEEAFrame.backward modulus prime).applyNormalized environment)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode (multiplied.1, 0)))) =

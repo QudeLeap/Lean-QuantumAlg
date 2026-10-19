@@ -36,7 +36,7 @@ def payloadEquiv (width : Nat) : (Fin (2 ^ width) × Bool) ≃ Fin (2 ^ (width +
   (Equiv.prodCongr (Equiv.refl _) finTwoEquiv.symm).trans (prodEquiv (m := width) (n := 1))
 
 /-- The mathematical flag uses the same zero/one label as its actual physical encoding. -/
-theorem accumulatePayload_encode (width : Nat) (value : Fin (2 ^ width) × Bool) :
+lemma accumulatePayload_encode (width : Nat) (value : Fin (2 ^ width) × Bool) :
     payloadEquiv width value =
       (BinaryLabelEncoding.prod (BinaryLabelEncoding.finIdentity width)
         BinaryLabelEncoding.bool).encode value := by
@@ -50,7 +50,7 @@ def inputBasisEquiv (width : Nat) :
     (Equiv.prodCongr (Equiv.refl _) (payloadEquiv width).symm)
 
 /-- Repacking the decoded target and flag recovers the identical original payload word. -/
-theorem accumulatePayload_input (width : Nat) (old : (before width).register.Index) :
+lemma accumulatePayload_input (width : Nat) (old : (before width).register.Index) :
     payloadEquiv width (inputBasisEquiv width old).2 =
       (PayloadPreparation.inputBasisEquiv width (width + 1) old).2 :=
   (payloadEquiv width).apply_symm_apply _
@@ -60,7 +60,7 @@ def nativeEncoding (width : Nat) : BinaryLabelEncoding (Accumulate.Frame width �
   BinaryLabelEncoding.prod (Accumulate.frameEncoding width) BinaryLabelEncoding.bool
 
 /-- Both binary associations occupy precisely the same full set of native wire positions. -/
-theorem accumulatePayload_width (width : Nat) :
+lemma accumulatePayload_width (width : Nat) :
     (nativeEncoding width).width = (PayloadPreparation.frameEncoding width (width + 1)).width := by
   change ((encoding width).width + width) + 1 = (encoding width).width + (width + 1)
   omega
@@ -72,7 +72,7 @@ def nativeLabelEquiv (width : Nat) :
   finCongr (congrArg (fun count => 2 ^ count) (accumulatePayload_width width))
 
 /-- The regrouped full frame and payload encode exactly the same value on every physical wire. -/
-theorem accumulatePayload_native_encode (width : Nat) (frame : Registers width)
+lemma accumulatePayload_native_encode (width : Nat) (frame : Registers width)
     (target : Fin (2 ^ width)) (flag : Bool) :
     nativeLabelEquiv width ((nativeEncoding width).encode ((frame, target), flag)) =
       (PayloadPreparation.frameEncoding width (width + 1)).encode
@@ -89,7 +89,7 @@ theorem accumulatePayload_native_encode (width : Nat) (frame : Registers width)
     ring
 
 /-- One actual fixed preparation gives the complete source initial frame and unchanged data. -/
-theorem accumulatePayload_prepared_initial (modulus : Nat)
+lemma accumulatePayload_prepared_initial (modulus : Nat)
     (old : (before modulus.size).register.Index) :
     PayloadAssembly.basisEquiv modulus.size (modulus.size + 1)
         (PayloadPreparation.assembly modulus.size (modulus.size + 1)

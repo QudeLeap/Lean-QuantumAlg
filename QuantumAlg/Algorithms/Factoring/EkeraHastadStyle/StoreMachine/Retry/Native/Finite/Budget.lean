@@ -25,36 +25,31 @@ noncomputable section
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The same factoring contract with independently supplied space and serial-depth ceilings. -/
-@[expose] public def budgetedProblem (model : GoodKeyModel N) (count : Nat)
+@[expose] public def budgetedProblem (N : Nat) (count : Nat)
     (space : SpacePool .quantum) (serialDepth : Nat) :
     Problem (.quantum AlgorithmGate.model .empty BitWord.model) base
       (context base noQuantum N count) (LatticeBatchRecoveryOutput.OutputShape N) :=
-  { fixedRoundProblem base noQuantum model count with
+  { fixedRoundProblem base noQuantum N count with
     resources :=
       { events := eventEnvelope N count
         resident := base.residentSpace + space
         auxiliary := base.auxiliarySpace + space }
-    depth :=
-      { duration := fun _ => 1
-        limit := serialDepth
-        classicalQuery_unit := fun _ => rfl
-        quantumQuery_unit := fun _ => rfl } }
+    quantumTimeLimit := serialDepth }
 
 /-- Independent scalar comparisons suffice for the full same-execution specification. -/
-theorem algorithm_solves_budgeted (model : GoodKeyModel N) (count : Nat)
+lemma algorithm_solves_budgeted (specification : Input N) (count : Nat)
     (space : SpacePool .quantum) (serialDepth : Nat)
     (spaceBound : additionalSpace N count ≤ space)
     (depthBound : NativeFiniteRetry.depthBound N count ≤ serialDepth) :
-    Algorithm.Solves (algorithm base noQuantum model.input count)
-      (budgetedProblem base noQuantum model count space serialDepth) := by
+    Algorithm.Solves (algorithm base noQuantum specification count)
+      (budgetedProblem base noQuantum N count space serialDepth) := by
   apply Algorithm.Solves.enlargeBudgets
-    (algorithm_solves_fixedRound base noQuantum model count)
-    (budgetedProblem base noQuantum model count space serialDepth).resources
-    (budgetedProblem base noQuantum model count space serialDepth).depth
+    (algorithm_solves_fixedRound base noQuantum specification count)
+    (budgetedProblem base noQuantum N count space serialDepth).resources
+    (budgetedProblem base noQuantum N count space serialDepth).quantumTimeLimit
   · exact le_rfl
   · exact fun axis => Nat.add_le_add_left (spaceBound axis) _
   · exact fun axis => Nat.add_le_add_left (spaceBound axis) _
-  · rfl
   · exact depthBound
 
 end

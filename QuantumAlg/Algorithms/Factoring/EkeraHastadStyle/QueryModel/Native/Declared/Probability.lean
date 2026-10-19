@@ -26,14 +26,14 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem source_weight (amplitude coefficient : ℂ) :
+private lemma source_weight (amplitude coefficient : ℂ) :
     amplitude * coefficient * star amplitude = ((‖amplitude‖ ^ 2 : ℝ) : ℂ) * coefficient := by
   calc
     _ = (amplitude * star amplitude) * coefficient := by ring
     _ = _ := congrArg (fun value : ℂ => value * coefficient)
       (by simpa only [Complex.star_def, Complex.ofReal_pow] using Complex.mul_conj' amplitude)
 
-private theorem bits_indicator (width : Nat) (left right : Fin width → Bool) :
+private lemma bits_indicator (width : Nat) (left right : Fin width → Bool) :
     (if CShape.Value.bits left = CShape.Value.bits right then (1 : ℂ) else 0) =
       if left = right then 1 else 0 := by
   by_cases same : left = right
@@ -47,31 +47,32 @@ private theorem bits_indicator (width : Nat) (left right : Fin width → Bool) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 -- Measurement and packing transport the reference fiber through the actual stores.
-private theorem measured_packed_reference (input : Input N)
+private lemma measured_packed_reference {environment : (model N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (observe : Store (Native.context base noQuantum N) → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      (((Circuit.measurementSequence (gates := AlgorithmGate.model)
-        (oracles := ShortDLP.declaredModel (Native.encoding input))
+      (((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+        (oracles := ShortDLP.declaredModel N (Native.parameters N))
         (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
         (readouts base noQuantum N)).seq
-        (.classical (BitWord.application (packing base noQuantum N)))).execute Reference state)
+        (.classical (BitWord.application (packing base noQuantum N)))).execute environment
+          Reference state)
       (fun entry _ => observe entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry basis => observe
-          ((measuredStore base noQuantum N input entry.1 basis).applyOp
+          ((measuredStore base noQuantum N entry.1 basis).applyOp
             (packing base noQuantum N))) leftRef rightRef := by
   rw [Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.referenceFiberSum_mapClassical]
   rw [packing_execute]
   simp only [ExecutionState.referenceFiberSum_mapClassical]
-  exact Circuit.measurementSequence_referenceFiberSum
+  exact Circuit.measurementSequence_referenceFiberSum (environment := environment)
     (readouts base noQuantum N) state _ leftRef rightRef
 
-private theorem weighted_fiber {Basis : Type} [Fintype Basis]
+private lemma weighted_fiber {Basis : Type} [Fintype Basis]
     (predicate : Basis → Prop) (decision : DecidablePred predicate)
     (value : Basis → ℝ) (coefficient : ℂ) :
     (∑ basis : Basis, (@ite ℂ (predicate basis) (decision basis) 1 0) *
@@ -95,19 +96,19 @@ private theorem weighted_fiber {Basis : Type} [Fintype Basis]
 
 /-- The actual selected, measured and packed outcome has its conditional Born law
 jointly with any classical weight preserved by measurement and packing. -/
-theorem body_outcome_weighted_reference (input : Input N)
+lemma body_outcome_weighted_reference (input : Input N)
     (parameter : CInputRef base (ParameterShape N))
     (readWeight : Store (Native.context base noQuantum N) → ℂ)
     (readWeight_stable : ∀ store basis,
-      readWeight ((measuredStore base noQuantum N input store basis).applyOp
+      readWeight ((measuredStore base noQuantum N store basis).applyOp
         (packing base noQuantum N)) = readWeight store)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (seeded : BasisSeeded.Holds (Native.context base noQuantum N).quantumLayout.zeroLabel state)
     (outcome : Fin (measurementBits N) → Bool) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((body base noQuantum N input parameter).execute Reference state)
+      ((body base noQuantum N parameter).execute (sourceEnvironment input) Reference state)
       (fun entry _ => readWeight entry.1 *
         (if entry.1.read (.storage (Native.resultRef base noQuantum N).toCStorageRef) =
           CShape.Value.bits outcome then 1 else 0)) leftRef rightRef =
@@ -124,15 +125,17 @@ theorem body_outcome_weighted_reference (input : Input N)
     readWeight store *
       (if store.read (.storage (Native.resultRef base noQuantum N).toCStorageRef) =
         CShape.Value.bits outcome then (1 : ℂ) else 0)
-  have first := Circuit.referenceFiberSum_execute_seq (selected base noQuantum N input parameter)
-    ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := ShortDLP.declaredModel (Native.encoding input))
+  have first := Circuit.referenceFiberSum_execute_seq (environment := (sourceEnvironment
+    input)) (selected base noQuantum N parameter)
+    ((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+      (oracles := ShortDLP.declaredModel N (Native.parameters N))
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts base noQuantum N)).seq
       (.classical (BitWord.application (packing base noQuantum N)))) state observed
         leftRef rightRef
-  refine first.trans ((measured_packed_reference base noQuantum N input
-    ((selected base noQuantum N input parameter).execute Reference state)
+  refine first.trans ((measured_packed_reference base noQuantum N (environment :=
+    sourceEnvironment input)
+    ((selected base noQuantum N parameter).execute (sourceEnvironment input) Reference state)
     observed leftRef rightRef).trans ?_)
   let bornWeight := fun original : Store (Native.context base noQuantum N) =>
     fun basis : (Native.context base noQuantum N).register.Index =>
@@ -143,9 +146,9 @@ theorem body_outcome_weighted_reference (input : Input N)
       then (1 : ℂ) else 0)
   have actualWeight (store : Store (Native.context base noQuantum N))
       (basis : (Native.context base noQuantum N).register.Index) :
-      observed ((measuredStore base noQuantum N input store basis).applyOp
+      observed ((measuredStore base noQuantum N store basis).applyOp
           (packing base noQuantum N)) = bornWeight store basis := by
-    have packed := packed_output base noQuantum N input store basis
+    have packed := packed_output base noQuantum N store basis
     have indicator := congrArg
       (fun value : (CShape.bits (measurementBits N)).Value =>
         if value = CShape.Value.bits outcome then (1 : ℂ) else 0) packed
@@ -167,7 +170,8 @@ theorem body_outcome_weighted_reference (input : Input N)
       ((Native.context base noQuantum N).quantumLayout.zeroLabel, rightRef)
   have terms :
       (∑ basis : (Native.context base noQuantum N).register.Index, bornWeight original basis *
-        (((selected base noQuantum N input parameter).execute Reference state).filterClassical
+        (((selected base noQuantum N parameter).execute (sourceEnvironment input) Reference
+          state).filterClassical
           (fun entry => entry.1 = original)).quantumMarginal.matrix
             (basis, leftRef) (basis, rightRef)) =
       ∑ basis : (Native.context base noQuantum N).register.Index, bornWeight original basis *
@@ -216,15 +220,15 @@ theorem body_outcome_weighted_reference (input : Input N)
     _ = _ := by ring
 
 /-- The ordinary conditional Born law is the unit-weight case. -/
-theorem body_outcome_reference (input : Input N)
+lemma body_outcome_reference (input : Input N)
     (parameter : CInputRef base (ParameterShape N))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (seeded : BasisSeeded.Holds (Native.context base noQuantum N).quantumLayout.zeroLabel state)
     (outcome : Fin (measurementBits N) → Bool) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((body base noQuantum N input parameter).execute Reference state)
+      ((body base noQuantum N parameter).execute (sourceEnvironment input) Reference state)
       (fun entry _ => if entry.1.read (.storage (Native.resultRef base noQuantum N).toCStorageRef) =
         CShape.Value.bits outcome then 1 else 0) leftRef rightRef =
       ∑ original : Store (Native.context base noQuantum N),
@@ -242,44 +246,44 @@ theorem body_outcome_reference (input : Input N)
 
 /-- Two store observations agreeing after each actual measurement and pack
 have identical reference fibers after the declared body. -/
-theorem body_reference_congr (input : Input N)
+lemma body_reference_congr {environment : (model N).Environment}
     (parameter : CInputRef base (ParameterShape N))
     (left right : Store (Native.context base noQuantum N) → ℂ)
     (agree : ∀ store basis,
-      left ((measuredStore base noQuantum N input store basis).applyOp
+      left ((measuredStore base noQuantum N store basis).applyOp
         (packing base noQuantum N)) =
-      right ((measuredStore base noQuantum N input store basis).applyOp
+      right ((measuredStore base noQuantum N store basis).applyOp
         (packing base noQuantum N)))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Native.context base noQuantum N) Reference
-      ((model input).HiddenState × History))
+      ((model N).HiddenState × History))
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((body base noQuantum N input parameter).execute Reference state)
+      ((body base noQuantum N parameter).execute environment Reference state)
       (fun entry _ => left entry.1) leftRef rightRef =
     ExecutionState.referenceFiberSum
-      ((body base noQuantum N input parameter).execute Reference state)
+      ((body base noQuantum N parameter).execute environment Reference state)
       (fun entry _ => right entry.1) leftRef rightRef := by
-  let previous := (selected base noQuantum N input parameter).execute Reference state
-  let tail := ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+  let previous := (selected base noQuantum N parameter).execute environment Reference state
+  let tail := ((Circuit.measurementSequence (allowAllocation := true) (gates := AlgorithmGate.model)
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (readouts base noQuantum N)).seq
     (.classical (BitWord.application (packing base noQuantum N))))
-  have leftSeq := Circuit.referenceFiberSum_execute_seq
-    (selected base noQuantum N input parameter) tail state left leftRef rightRef
-  have rightSeq := Circuit.referenceFiberSum_execute_seq
-    (selected base noQuantum N input parameter) tail state right leftRef rightRef
-  have leftMeasured := measured_packed_reference base noQuantum N input
+  have leftSeq := Circuit.referenceFiberSum_execute_seq (environment := environment)
+    (selected base noQuantum N parameter) tail state left leftRef rightRef
+  have rightSeq := Circuit.referenceFiberSum_execute_seq (environment := environment)
+    (selected base noQuantum N parameter) tail state right leftRef rightRef
+  have leftMeasured := measured_packed_reference base noQuantum N (environment := environment)
     previous left leftRef rightRef
-  have rightMeasured := measured_packed_reference base noQuantum N input
+  have rightMeasured := measured_packed_reference base noQuantum N (environment := environment)
     previous right leftRef rightRef
   calc
     _ = ExecutionState.referenceFiberSum previous
-      (fun entry basis => left ((measuredStore base noQuantum N input entry.1 basis).applyOp
+      (fun entry basis => left ((measuredStore base noQuantum N entry.1 basis).applyOp
         (packing base noQuantum N))) leftRef rightRef := leftSeq.trans leftMeasured
     _ = ExecutionState.referenceFiberSum previous
-      (fun entry basis => right ((measuredStore base noQuantum N input entry.1 basis).applyOp
+      (fun entry basis => right ((measuredStore base noQuantum N entry.1 basis).applyOp
         (packing base noQuantum N))) leftRef rightRef := by
           apply congrArg (fun observe =>
             ExecutionState.referenceFiberSum previous observe leftRef rightRef)

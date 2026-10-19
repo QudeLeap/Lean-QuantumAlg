@@ -39,17 +39,17 @@ public def selectedWire (layout : QuantumLayout systemCount)
   layout.wire index.val
 
 /-- A selected wire has the same physical identity as its original position. -/
-public theorem selectedWire_identity (layout : QuantumLayout systemCount)
+public lemma selectedWire_identity (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (index : SelectedPosition selection) :
     (layout.selectedWire selection index).identity = (layout.wire index.val).identity := rfl
 
 /-- A selected wire keeps its actual local dimension. -/
-public theorem selectedWire_dimension (layout : QuantumLayout systemCount)
+public lemma selectedWire_dimension (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (index : SelectedPosition selection) :
     (layout.selectedWire selection index).dimension = (layout.wire index.val).dimension := rfl
 
 /-- Restriction cannot introduce repeated physical identities. -/
-public theorem selectedWire_identity_injective (layout : QuantumLayout systemCount)
+public lemma selectedWire_identity_injective (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) :
     Function.Injective (fun index => (layout.selectedWire selection index).identity) := by
   intro left right sameIdentity
@@ -102,14 +102,14 @@ public def joinSelectedBasis (layout : QuantumLayout systemCount)
     else complement ⟨index, Finset.mem_compl.mpr member⟩
 
 /-- Reassembly restores the full finite value at every selected physical wire. -/
-public theorem joinSelectedBasis_selected_value (layout : QuantumLayout systemCount)
+public lemma joinSelectedBasis_selected_value (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (selected : layout.SelectedBasis selection)
     (complement : layout.ComplementBasis selection) (index : SelectedPosition selection) :
     layout.joinSelectedBasis selection selected complement index.val = selected index := by
   simp only [joinSelectedBasis, dif_pos index.property]
 
 /-- Reassembly restores the full finite value at every complementary wire. -/
-public theorem joinSelectedBasis_complement_value (layout : QuantumLayout systemCount)
+public lemma joinSelectedBasis_complement_value (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (selected : layout.SelectedBasis selection)
     (complement : layout.ComplementBasis selection)
     (index : SelectedPosition selectionᶜ) :
@@ -136,7 +136,7 @@ public def selectionBasisEquiv (layout : QuantumLayout systemCount)
       exact layout.joinSelectedBasis_complement_value selection basis.1 basis.2 index
 
 /-- Splitting reassembled coordinates recovers both subsystem labels exactly. -/
-public theorem selectionBasisEquiv_join (layout : QuantumLayout systemCount)
+public lemma selectionBasisEquiv_join (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (selected : layout.SelectedBasis selection)
     (complement : layout.ComplementBasis selection) :
     layout.selectionBasisEquiv selection
@@ -144,7 +144,7 @@ public theorem selectionBasisEquiv_join (layout : QuantumLayout systemCount)
   (layout.selectionBasisEquiv selection).apply_symm_apply (selected, complement)
 
 /-- Restricting and reassembling retains every coordinate of the original label. -/
-public theorem joinSelectedBasis_restrict (layout : QuantumLayout systemCount)
+public lemma joinSelectedBasis_restrict (layout : QuantumLayout systemCount)
     (selection : Finset (Fin systemCount)) (basis : layout.Basis) :
     layout.joinSelectedBasis selection (layout.restrictSelectedBasis selection basis)
       (layout.restrictComplementBasis selection basis) = basis :=

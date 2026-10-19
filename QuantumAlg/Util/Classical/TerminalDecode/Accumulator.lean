@@ -20,13 +20,13 @@ no initial-zero assumption is needed.
 namespace QuantumAlg.ClassicalAlgorithms.TerminalDecode
 
 /-- Reducing the accumulator before one append does not change its final residue. -/
-theorem terminalAppend_mod (modulus accumulator : Nat) (bit : Bool) :
+lemma terminalAppend_mod (modulus accumulator : Nat) (bit : Bool) :
     appendBit (accumulator % modulus) bit % modulus =
       appendBit accumulator bit % modulus := by
   simp only [appendBit, Nat.add_mod, Nat.mul_mod, Nat.mod_mod]
 
 /-- A wrapping append fold agrees with reducing the corresponding natural fold once. -/
-theorem terminalAccumulator_mod (modulus : Nat) (bits : List Bool) (initial : Nat) :
+lemma terminalAccumulator_mod (modulus : Nat) (bits : List Bool) (initial : Nat) :
     bits.foldl (fun value bit => appendBit value bit % modulus) (initial % modulus) =
       bits.foldl appendBit initial % modulus := by
   induction bits generalizing initial with
@@ -36,7 +36,7 @@ theorem terminalAccumulator_mod (modulus : Nat) (bits : List Bool) (initial : Na
       exact ih (appendBit initial bit)
 
 /-- Every source bit doubles the entire previous accumulator contribution. -/
-theorem terminalAccumulator_initial_contribution (bits : List Bool) (initial : Nat) :
+lemma terminalAccumulator_initial_contribution (bits : List Bool) (initial : Nat) :
     bits.foldl appendBit initial =
       initial * 2 ^ bits.length + bits.foldl appendBit 0 := by
   induction bits generalizing initial with
@@ -48,7 +48,7 @@ theorem terminalAccumulator_initial_contribution (bits : List Bool) (initial : N
       ring
 
 /-- The actual list order is the existing pure head-recursive accumulator order. -/
-theorem terminalAccumulator_ofFn {width : Nat} (bits : Fin width → Bool) (initial : Nat) :
+lemma terminalAccumulator_ofFn {width : Nat} (bits : Fin width → Bool) (initial : Nat) :
     (List.ofFn bits).foldl appendBit initial = accumulatorFold width initial bits := by
   induction width generalizing initial with
   | zero => rfl
@@ -57,7 +57,7 @@ theorem terminalAccumulator_ofFn {width : Nat} (bits : Fin width → Bool) (init
       exact ih (bits ∘ Fin.succ) (appendBit initial (bits 0))
 
 /-- Exactly one target-width fold eliminates every initial accumulator residue. -/
-theorem terminalAccumulator_width_result {width : Nat}
+lemma terminalAccumulator_width_result {width : Nat}
     (bits : Fin width → Bool) (initial : Nat) :
     (List.ofFn bits).foldl (fun value bit => appendBit value bit % 2 ^ width)
         (initial % 2 ^ width) = Nat.ofBits (bits ∘ Fin.rev) := by
@@ -69,7 +69,7 @@ theorem terminalAccumulator_width_result {width : Nat}
   exact Nat.mod_eq_of_lt (Nat.ofBits_lt_two_pow _)
 
 /-- Both source bit orders produce their exact original bounded decode from any accumulator. -/
-theorem terminalAccumulator_decodes {width : Nat} (input : Input width) (initial : Nat) :
+lemma terminalAccumulator_decodes {width : Nat} (input : Input width) (initial : Nat) :
     (List.ofFn (accumulatorBits input.order input.bits)).foldl
         (fun value bit => appendBit value bit % 2 ^ width) (initial % 2 ^ width) =
       decodeNat input := by

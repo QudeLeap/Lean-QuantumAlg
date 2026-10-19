@@ -23,23 +23,23 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
 
 /-- Independent agreement of the retained random sample and its complete mathematical parameter. -/
 def correctOutput {N : Nat} (specification : Input N) (result : (outputShape N).Value) : Prop :=
   ∃ value : Fin (2 ^ residueSamplingBits N), result = outputValue specification value
 
 /-- The actual initial store and complete structural result have the unchanged joint source law. -/
-theorem samplerRetained_run_relationalDistribution (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetained_run_relationalDistribution (ctx : RuntimeCtx model.kind) {N : Nat}
     (specification : Input N) {Reference : Register}
     (input : Execution.OracleInput model.classicalOracles ctx Reference) :
-    (run (model := model) ctx N).relationalDistribution input =
+    (run (model := model) ctx N).relationalDistribution environment input =
       (input.state.toPMF input.normalized).bind (fun original =>
         (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
           (fun value => (original.1, outputValue specification value))) := by
   have mapped := congrArg (fun distribution : PMF (run (model := model) ctx N).Record =>
     distribution.map (fun record => (record.2.2.1, (output ctx N).eval record.1)))
-      (samplerRetained_run_distribution ctx specification input)
+      (samplerRetained_run_distribution (environment := environment) ctx specification input)
   refine mapped.trans ((PMF.map_bind (input.state.toPMF input.normalized)
     (fun original => (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
       (fun value => (resultStore specification original.1 value,
@@ -55,10 +55,11 @@ theorem samplerRetained_run_relationalDistribution (ctx : RuntimeCtx model.kind)
     (samplerRetained_output_resultStore ctx specification original.1 value)
 
 /-- Every actual sampled result satisfies exact preparation, for arbitrary incoming correlations. -/
-theorem samplerRetained_success (ctx : RuntimeCtx model.kind) {N : Nat}
+lemma samplerRetained_success (ctx : RuntimeCtx model.kind) {N : Nat}
     (specification : Input N) {Reference : Register}
     (input : Execution.OracleInput model.classicalOracles ctx Reference) :
-    (1 : ENNReal) ≤ ((run (model := model) ctx N).relationalDistribution input).toOuterMeasure
+    (1 : ENNReal) ≤ ((run (model := model) ctx N).relationalDistribution
+      environment input).toOuterMeasure
       {pair | correctOutput specification pair.2} := by
   rw [samplerRetained_run_relationalDistribution ctx specification input]
   apply le_of_eq

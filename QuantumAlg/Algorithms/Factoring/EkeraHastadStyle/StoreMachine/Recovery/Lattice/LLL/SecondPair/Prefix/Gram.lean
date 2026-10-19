@@ -26,7 +26,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual dot refresh retains every original basis row. -/
-theorem refresh21_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma refresh21_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -39,7 +39,7 @@ theorem refresh21_basis (refs : Refs ctx width) (separation : Separation refs)
   cases cell <;> decide
 
 /-- Actual dot refresh retains every original basis row. -/
-theorem refresh32_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma refresh32_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -57,14 +57,14 @@ def refreshedDotsStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :
     (LatticeDotRefresh.refreshStore refs.basis.second refs.basis.first (refreshG21Refs refs) store)
 
 /-- All three original rows survive both actual dot refreshes. -/
-theorem refreshedDots_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma refreshedDots_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents (refreshedDotsStore refs store) refs.basis basis :=
   refresh32_basis refs separation _ basis (refresh21_basis refs separation store basis rep)
 
 /-- Every other Gram word remains exactly unchanged by the two actual refreshes. -/
-theorem refreshedDots_metric (refs : Refs ctx width) (separation : Separation refs)
+lemma refreshedDots_metric (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (cell : LatticeMetricMachine.MetricCell)
     (not21 : cell ≠ .g21) (not32 : cell ≠ .g32) :
     (refreshedDotsStore refs store).read (writeInput (LatticeMetricMachine.metricCellRef
@@ -86,7 +86,7 @@ def inputValues (basis : NumberTheory.IntegerBasis3) : LatticeSecondReductionInp
   | .g32 => NumberTheory.integerPointDot basis.third basis.second
 
 /-- Two actual refreshes and the three original retained entries provide all five Gram operands. -/
-theorem refreshedDots_values (refs : Refs ctx width) (separation : Separation refs)
+lemma refreshedDots_values (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (initial : Initial refs store basis) :
     LatticeSecondReductionInputs.InputsRepresents (reductionInputs refs)
       (refreshedDotsStore refs store) (inputValues basis) := by
@@ -122,7 +122,7 @@ theorem refreshedDots_values (refs : Refs ctx width) (separation : Separation re
   | g32 => exact secondDot
 
 /-- Actual arithmetic of both division inputs preserves the entire original represented basis. -/
-theorem inputs_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma inputs_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -134,7 +134,7 @@ theorem inputs_basis (refs : Refs ctx width) (separation : Separation refs)
   cases cell <;> decide
 
 /-- The actual division input store contains the original basis and both Gram expressions. -/
-theorem refreshInputs_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInputs_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (initial : Initial refs store basis) :
     LatticeMetricMachine.BasisRawRepresents

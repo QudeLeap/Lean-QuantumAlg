@@ -34,7 +34,7 @@ def selected (width value : Nat) (index : Fin width) : Prop :=
     value.testBit (width - 1 - index.val) = true
 
 /-- The selected position is exactly the finite word's ordinary binary length. -/
-theorem selected_iff_size (width value : Nat) (fits : value < 2 ^ width) (index : Fin width) :
+lemma selected_iff_size (width value : Nat) (fits : value < 2 ^ width) (index : Fin width) :
     selected width value index ↔ value.size = width - index.val := by
   have indexBound := index.isLt
   let exponent := width - 1 - index.val
@@ -76,7 +76,7 @@ theorem selected_iff_size (width value : Nat) (fits : value < 2 ^ width) (index 
         simpa only [sizeExact] using bound
 
 /-- There is at most one leading-one position, also for zero-valued inputs. -/
-theorem selected_unique (width value : Nat) (fits : value < 2 ^ width)
+lemma selected_unique (width value : Nat) (fits : value < 2 ^ width)
     (left right : Fin width) (leftSelected : selected width value left)
     (rightSelected : selected width value right) : left = right := by
   have first := (selected_iff_size width value fits left).mp leftSelected
@@ -93,7 +93,7 @@ def index (width value : Nat) (fits : value < 2 ^ width) (positive : 0 < value) 
     have lengthPositive := Nat.size_pos.mpr positive
     omega⟩
 
-theorem index_selected (width value : Nat) (fits : value < 2 ^ width) (positive : 0 < value) :
+lemma index_selected (width value : Nat) (fits : value < 2 ^ width) (positive : 0 < value) :
     selected width value (index width value fits positive) := by
   apply (selected_iff_size width value fits _).mpr
   change value.size = width - (width - value.size)
@@ -101,19 +101,19 @@ theorem index_selected (width value : Nat) (fits : value < 2 ^ width) (positive 
   omega
 
 /-- Zero has no leading one; it therefore writes no length bit in the position-based circuit. -/
-theorem zero_not_selected (width : Nat) (position : Fin width) :
+lemma zero_not_selected (width : Nat) (position : Fin width) :
     ¬selected width 0 position := by
   intro chosen
   have impossible := chosen.2
   simp only [Nat.zero_testBit, Bool.false_eq_true] at impossible
 
 /-- The exact ordinary binary length fits in the source's existing finite length field. -/
-theorem encoded_length_fits (width value : Nat) (fits : value < 2 ^ width) :
+lemma encoded_length_fits (width value : Nat) (fits : value < 2 ^ width) :
     value.size < 2 ^ width.size :=
   (Nat.size_le.mpr fits).trans_lt (Nat.lt_size_self width)
 
 /-- The displayed source order would retain length five after folding sixteen to one. -/
-theorem folded_seventeen_sixteen_lengths :
+lemma folded_seventeen_sixteen_lengths :
     0 < (16 : Nat) ∧ 16 < 17 ∧ 17 / 2 < 16 ∧
       (16 : Nat).size = 5 ∧ ((17 : Nat) - 16).size = 1 := by
   decide

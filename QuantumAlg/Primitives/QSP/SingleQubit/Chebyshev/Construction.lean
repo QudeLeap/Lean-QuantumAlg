@@ -45,8 +45,9 @@ private def one (name : String) (operator : UnitaryOperator (Qubits 1)) :
     UnitaryCircuit AlgorithmGate.model .empty layout :=
   .macroCall name (Gate.singleQubitAt layout .empty operator (0 : Fin 1) rfl)
 
-private theorem one_matrix (name : String) (operator : UnitaryOperator (Qubits 1)) :
-    (one name operator).binaryMatrix = operator := by
+private lemma one_matrix (name : String) (operator : UnitaryOperator (Qubits 1))
+    (environment : OracleModel.empty.Interpretation) :
+    ((one name operator).binaryMatrix environment) = operator := by
   exact Gate.singleQubitAt_singleton_binaryMatrix .empty operator
 
 private def step (x φ : Real) (hx : x ∈ Set.Icc (-1 : Real) 1) :
@@ -65,12 +66,14 @@ public def operator (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) : UnitaryOperator (Qubits 1) :=
   qspOUnitary φ₀ φs x hx
 
-private theorem fold_matrix (phases : List Real) (x : Real)
+private lemma fold_matrix (phases : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1)
-    (start : UnitaryCircuit AlgorithmGate.model .empty layout) :
-    (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).binaryMatrix =
+    (start : UnitaryCircuit AlgorithmGate.model .empty layout)
+      (environment : OracleModel.empty.Interpretation) :
+    ((phases.foldl (fun accumulated φ
+      => (step x φ hx).seq accumulated) start).binaryMatrix environment) =
       phases.foldl (fun accumulated φ => accumulated * (qspSignalOOp x hx * rotZOp φ))
-        start.binaryMatrix := by
+        (start.binaryMatrix environment) := by
   induction phases generalizing start with
   | nil => rfl
   | cons φ tail ih =>
@@ -78,13 +81,13 @@ private theorem fold_matrix (phases : List Real) (x : Real)
       rw [ih]
       simp only [UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, step, one_matrix]
 
-theorem circuit_matrix (φ₀ : Real) (φs : List Real) (x : Real)
-    (hx : x ∈ Set.Icc (-1 : Real) 1) :
-    (circuit φ₀ φs x hx).binaryMatrix = operator φ₀ φs x hx := by
+lemma circuit_matrix (φ₀ : Real) (φs : List Real) (x : Real)
+    (hx : x ∈ Set.Icc (-1 : Real) 1) (environment : OracleModel.empty.Interpretation) :
+    ((circuit φ₀ φs x hx).binaryMatrix environment) = operator φ₀ φs x hx := by
   rw [circuit, fold_matrix, one_matrix]
   rfl
 
-private theorem fold_events (phases : List Real) (x : Real)
+private lemma fold_events (phases : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1)
     (start : UnitaryCircuit AlgorithmGate.model .empty layout) :
     (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).eventCost =
@@ -100,18 +103,18 @@ private theorem fold_events (phases : List Real) (x : Real)
       simp only [Nat.mul_one, two_nsmul]
       ac_rfl
 
-theorem circuit_events (φ₀ : Real) (φs : List Real) (x : Real)
+lemma circuit_events (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) :
     (circuit φ₀ φs x hx).eventCost = eventBudget φs.length := by
   rw [circuit, fold_events]
   simp [one, eventBudget, add_nsmul]
 
-private theorem one_macro (name focus : String) (operator : UnitaryOperator (Qubits 1)) :
+private lemma one_macro (name focus : String) (operator : UnitaryOperator (Qubits 1)) :
     (one name operator).macroCount focus = if name = focus then 1 else 0 := by
   rw [one, UnitaryCircuit.macroCount_macroCall]
   rfl
 
-private theorem fold_macro (phases : List Real) (x : Real)
+private lemma fold_macro (phases : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1)
     (start : UnitaryCircuit AlgorithmGate.model .empty layout) (focus : String) :
     (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).macroCount focus =
@@ -126,13 +129,13 @@ private theorem fold_macro (phases : List Real) (x : Real)
       omega
 
 /-- Source factors are descriptive observations of this same expanded native word. -/
-public theorem circuit_macro_counts (φ₀ : Real) (φs : List Real) (x : Real)
+public lemma circuit_macro_counts (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) :
     (circuit φ₀ φs x hx).macroCount "qsp-signal" = φs.length ∧
       (circuit φ₀ φs x hx).macroCount "processing-rotation" = φs.length + 1 := by
   simp [circuit, fold_macro, one_macro]
 
-private theorem fold_depth (phases : List Real) (x : Real)
+private lemma fold_depth (phases : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1)
     (start : UnitaryCircuit AlgorithmGate.model .empty layout) :
     (phases.foldl (fun accumulated φ => (step x φ hx).seq accumulated) start).evaluatedEventDepth
@@ -145,7 +148,7 @@ private theorem fold_depth (phases : List Real) (x : Real)
       change 2 * tail.length + (2 + _) = _
       omega
 
-theorem circuit_depth (φ₀ : Real) (φs : List Real) (x : Real)
+lemma circuit_depth (φ₀ : Real) (φs : List Real) (x : Real)
     (hx : x ∈ Set.Icc (-1 : Real) 1) :
     (circuit φ₀ φs x hx).evaluatedEventDepth (fun _ => 1) = 2 * φs.length + 1 :=
   fold_depth φs x hx _

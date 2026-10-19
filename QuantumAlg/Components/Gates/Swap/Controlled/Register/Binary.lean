@@ -31,7 +31,7 @@ private def decoded (width : Nat) (value : Fin 2) (first second : Fin (2 ^ width
   (QuantumSignature.qubitsIndexEquiv (1 + (width + width))).symm
     (prodEquiv (value, prodEquiv (first, second)))
 
-private theorem decoded_control (width : Nat) (value : Fin 2)
+private lemma decoded_control (width : Nat) (value : Fin 2)
     (first second : Fin (2 ^ width)) :
     decoded width value first second (control width) = value := by
   have actual := BinaryBasis.bigEndianEquiv_prod_left
@@ -40,7 +40,7 @@ private theorem decoded_control (width : Nat) (value : Fin 2)
     fin_cases value <;> rfl
   exact actual.trans single
 
-private theorem decoded_left (width : Nat) (value : Fin 2)
+private lemma decoded_left (width : Nat) (value : Fin 2)
     (first second : Fin (2 ^ width)) (index : Fin width) :
     decoded width value first second (left width index) =
       (QuantumSignature.qubitsIndexEquiv width).symm first index := by
@@ -49,7 +49,7 @@ private theorem decoded_left (width : Nat) (value : Fin 2)
     (Fin.castAdd width index)
   exact outer.trans (BinaryBasis.bigEndianEquiv_prod_left first second index)
 
-private theorem decoded_right (width : Nat) (value : Fin 2)
+private lemma decoded_right (width : Nat) (value : Fin 2)
     (first second : Fin (2 ^ width)) (index : Fin width) :
     decoded width value first second (right width index) =
       (QuantumSignature.qubitsIndexEquiv width).symm second index := by
@@ -63,7 +63,7 @@ private theorem decoded_right (width : Nat) (value : Fin 2)
     (Fin.natAdd width index)).trans
       (BinaryBasis.bigEndianEquiv_prod_right first second index)
 
-private theorem coordinates_ext (width : Nat) (first second : Fin (1 + (width + width)) → Fin 2)
+private lemma coordinates_ext (width : Nat) (first second : Fin (1 + (width + width)) → Fin 2)
     (sameControl : first (control width) = second (control width))
     (sameLeft : ∀ index, first (left width index) = second (left width index))
     (sameRight : ∀ index, first (right width index) = second (right width index)) :
@@ -90,7 +90,7 @@ private theorem coordinates_ext (width : Nat) (first second : Fin (1 + (width + 
       exact sameRight index
 
 /-- The complete native row permutation exchanges exactly the two original binary words. -/
-theorem complete_decoded (width : Nat) (value : Fin 2) (first second : Fin (2 ^ width)) :
+lemma complete_decoded (width : Nat) (value : Fin 2) (first second : Fin (2 ^ width)) :
     sequencePermutation width (List.finRange width) (decoded width value first second) =
       if value = 0 then decoded width value first second else decoded width value second first := by
   have action := sequence_coordinates width (List.finRange width) (List.nodup_finRange width)

@@ -19,7 +19,7 @@ unmatched head phase, while all four tails share their source query slots.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.SharedFour
 noncomputable section
 
-private theorem pack_lists (A B C D : List ℝ) (hB : B.length = A.length)
+private lemma pack_lists (A B C D : List ℝ) (hB : B.length = A.length)
     (hC : C.length = A.length) (hD : D.length = A.length) :
     let phases := (A.zip B).zip (C.zip D)
     phases.map (fun a => a.1.1) = A ∧ phases.map (fun a => a.1.2) = B ∧
@@ -44,7 +44,7 @@ private theorem pack_lists (A B C D : List ℝ) (hB : B.length = A.length)
   · simp only [List.length_zip, same, min_self, cd, hC]
 
 /-- Four independently specified source words are realized by one actual shared native execution. -/
-theorem exists_complexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
+lemma exists_complexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
     (positive : 0 < n) (realShort realLong imaginaryShort imaginaryLong : List ℝ)
     (realLength : realLong.length = realShort.length + 1)
     (imaginaryShortLength : imaginaryShort.length = realShort.length)
@@ -52,8 +52,9 @@ theorem exists_complexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubits (m
     (realConstant imaginaryConstant : ℝ) :
     ∃ phases : List ((ℝ × ℝ) × (ℝ × ℝ)), ∃ realAngle imaginaryAngle : ℝ,
       phases.length = realShort.length ∧
-      (complexWord U positive phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).binaryMatrix =
+      ((complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).binaryMatrix
+          (UnitarySource.interpretation U true true false)) =
         threeAverage
           (initializedBranch U positive realShort realConstant)
           (initializedBranch U positive realLong 1)
@@ -61,8 +62,9 @@ theorem exists_complexWord_for_lists {m n : Nat} (U : UnitaryOperator (Qubits (m
             (initializedBranch U positive imaginaryShort imaginaryConstant))
           (phaseScaledOperator Complex.I complex_normSq_I
             (initializedBranch U positive imaginaryLong 1)) ∧
-      (complexWord U positive phases realAngle imaginaryAngle
-        realConstant imaginaryConstant).eventCost = complexBudget U realShort.length := by
+      (complexWord (m := m) (n := n) positive phases realAngle imaginaryAngle
+        realConstant imaginaryConstant).eventCost
+          = complexBudget (m := m) (n := n) realShort.length := by
   cases realLong with
   | nil => simp at realLength
   | cons realHead realTail =>

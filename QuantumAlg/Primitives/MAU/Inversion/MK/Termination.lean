@@ -28,6 +28,8 @@ namespace Compact
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- The compact active flag used as the leading source bit of the termination
@@ -50,7 +52,7 @@ def activeVZeroSourceVIndex {tail : Nat} (bit : Fin (tail + 2))
     have hlt := bit.isLt
     omega⟩
 
-@[simp] theorem activeVZeroSourceVIndex_val {tail : Nat}
+@[simp] lemma activeVZeroSourceVIndex_val {tail : Nat}
     (bit : Fin (tail + 2)) (hbit : bit.val ≠ 0) :
     (activeVZeroSourceVIndex bit hbit).val = bit.val - 1 :=
   rfl
@@ -63,12 +65,12 @@ def activeVZeroSourceBit (tail counterWidth : Nat) (bit : Fin (tail + 2)) :
   else activeVZeroVBit tail counterWidth
     (activeVZeroSourceVIndex bit hbit)
 
-@[simp] theorem activeVZeroSourceBit_zero (tail counterWidth : Nat) :
+@[simp] lemma activeVZeroSourceBit_zero (tail counterWidth : Nat) :
     activeVZeroSourceBit tail counterWidth (0 : Fin (tail + 2)) =
       activeVZeroActiveBit tail counterWidth := by
   simp [activeVZeroSourceBit]
 
-@[simp] theorem activeVZeroSourceBit_succ
+@[simp] lemma activeVZeroSourceBit_succ
     (tail counterWidth : Nat) (bit : Fin tail.succ) :
     activeVZeroSourceBit tail counterWidth bit.succ =
       activeVZeroVBit tail counterWidth bit := by
@@ -91,13 +93,13 @@ def activeVZeroWorkWord (tail counterWidth : Nat) :
     EncodedBit.Word (encoding tail.succ counterWidth) tail where
   bit := activeVZeroWorkBit tail counterWidth
 
-@[simp] theorem activeVZeroActiveBit_get
+@[simp] lemma activeVZeroActiveBit_get
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (activeVZeroActiveBit tail counterWidth).get x = x.core.active := by
   simpa [activeVZeroActiveBit] using
     RegisterBits.activeBit_get tail.succ counterWidth x.core
 
-@[simp] theorem activeVZeroVBit_get
+@[simp] lemma activeVZeroVBit_get
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail.succ counterWidth) :
     (activeVZeroVBit tail counterWidth bit).get x =
@@ -106,7 +108,7 @@ def activeVZeroWorkWord (tail counterWidth : Nat) :
   exact RegisterBits.vValueBit_get tail.succ counterWidth bit x.core
 
 /-- The active source wire is distinct from each `v` source wire. -/
-theorem activeVZeroActiveBit_vBit_wire_ne
+lemma activeVZeroActiveBit_vBit_wire_ne
     (tail counterWidth : Nat) (bit : Fin tail.succ) :
     (activeVZeroActiveBit tail counterWidth).wire ≠
       (activeVZeroVBit tail counterWidth bit).wire := by
@@ -117,7 +119,7 @@ theorem activeVZeroActiveBit_vBit_wire_ne
         (WireAddress.littleEndianWire bit))
 
 /-- The outer active X is disjoint from every borrowed carry-prefix bit. -/
-theorem activeVZeroActiveBit_workBit_wire_ne
+lemma activeVZeroActiveBit_workBit_wire_ne
     (tail counterWidth : Nat) (work : Fin tail) :
     (activeVZeroActiveBit tail counterWidth).wire ≠
       (activeVZeroWorkBit tail counterWidth work).wire := by
@@ -126,7 +128,7 @@ theorem activeVZeroActiveBit_workBit_wire_ne
       (RegisterBits.activeBit tail.succ counterWidth) work.castSucc
 
 /-- Distinct `v` source indices select distinct compact wires. -/
-theorem activeVZeroVBit_wire_ne
+lemma activeVZeroVBit_wire_ne
     (tail counterWidth : Nat) {left right : Fin tail.succ} (hne : left ≠ right) :
     (activeVZeroVBit tail counterWidth left).wire ≠
       (activeVZeroVBit tail counterWidth right).wire := by
@@ -138,7 +140,7 @@ theorem activeVZeroVBit_wire_ne
         (littleEndianWire_ne hne))
 
 /-- Distinct source positions of `[active, v]` select distinct wires. -/
-theorem activeVZeroSourceBit_wire_ne
+lemma activeVZeroSourceBit_wire_ne
     (tail counterWidth : Nat) {left right : Fin (tail + 2)} (hne : left ≠ right) :
     (activeVZeroSourceBit tail counterWidth left).wire ≠
       (activeVZeroSourceBit tail counterWidth right).wire := by
@@ -181,7 +183,7 @@ theorem activeVZeroSourceBit_wire_ne
       omega
 
 /-- Every source wire is disjoint from the control-xor output. -/
-theorem activeVZeroSourceBit_controlBit_wire_ne
+lemma activeVZeroSourceBit_controlBit_wire_ne
     (tail counterWidth : Nat) (source : Fin (tail + 2)) :
     (activeVZeroSourceBit tail counterWidth source).wire ≠
       (controlBit tail.succ counterWidth).wire := by
@@ -204,7 +206,7 @@ theorem activeVZeroSourceBit_controlBit_wire_ne
         (sharedControlBit tail.succ counterWidth)
 
 /-- Every source wire is disjoint from every borrowed carry-prefix bit. -/
-theorem activeVZeroSourceBit_workBit_wire_ne
+lemma activeVZeroSourceBit_workBit_wire_ne
     (tail counterWidth : Nat) (source : Fin (tail + 2)) (work : Fin tail) :
     (activeVZeroSourceBit tail counterWidth source).wire ≠
       (activeVZeroWorkBit tail counterWidth work).wire := by
@@ -225,7 +227,7 @@ theorem activeVZeroSourceBit_workBit_wire_ne
           (activeVZeroSourceVIndex source hsource)) work.castSucc
 
 /-- Distinct borrowed carry-prefix positions remain distinct in the VBE bank. -/
-theorem activeVZeroWorkBit_wire_ne
+lemma activeVZeroWorkBit_wire_ne
     (tail counterWidth : Nat) {left right : Fin tail} (hne : left ≠ right) :
     (activeVZeroWorkBit tail counterWidth left).wire ≠
       (activeVZeroWorkBit tail counterWidth right).wire := by
@@ -235,7 +237,7 @@ theorem activeVZeroWorkBit_wire_ne
   exact (Fin.castSucc_injective tail) hcast
 
 /-- Every borrowed carry-prefix wire is disjoint from the control output. -/
-theorem activeVZeroWorkBit_controlBit_wire_ne
+lemma activeVZeroWorkBit_controlBit_wire_ne
     (tail counterWidth : Nat) (work : Fin tail) :
     (activeVZeroWorkBit tail counterWidth work).wire ≠
       (controlBit tail.succ counterWidth).wire := by
@@ -282,7 +284,7 @@ def activeVZeroGates (tail counterWidth : Nat) :
 
 /-- Every source bit of the active-`v=0` detector is disjoint from every
 public target bit. -/
-theorem activeVZeroSourceBit_targetValueBit_wire_ne
+lemma activeVZeroSourceBit_targetValueBit_wire_ne
     (tail counterWidth : Nat) (source : Fin (tail + 2))
     (target : Fin tail.succ) :
     (activeVZeroSourceBit tail counterWidth source).wire ≠
@@ -303,7 +305,7 @@ theorem activeVZeroSourceBit_targetValueBit_wire_ne
 
 /-- Every borrowed VBE work bit of the active-`v=0` detector is disjoint from
 every public target bit. -/
-theorem activeVZeroWorkBit_targetValueBit_wire_ne
+lemma activeVZeroWorkBit_targetValueBit_wire_ne
     (tail counterWidth : Nat) (work : Fin tail) (target : Fin tail.succ) :
     (activeVZeroWorkBit tail counterWidth work).wire ≠
       (targetValueBit tail.succ counterWidth target).wire := by
@@ -313,7 +315,7 @@ theorem activeVZeroWorkBit_targetValueBit_wire_ne
       (WireAddress.littleEndianWire target)
 
 /-- The active-`v=0` detector control is disjoint from every public target bit. -/
-theorem controlBit_targetValueBit_wire_ne
+lemma controlBit_targetValueBit_wire_ne
     (n counterWidth : Nat) (target : Fin n) :
     (controlBit n counterWidth).wire ≠
       (targetValueBit n counterWidth target).wire := by
@@ -323,7 +325,7 @@ theorem controlBit_targetValueBit_wire_ne
       (WireAddress.littleEndianWire target)
 
 /-- The active source bit is disjoint from every public target bit. -/
-theorem activeVZeroActiveBit_targetValueBit_wire_ne
+lemma activeVZeroActiveBit_targetValueBit_wire_ne
     (tail counterWidth : Nat) (target : Fin tail.succ) :
     (activeVZeroActiveBit tail counterWidth).wire ≠
       (targetValueBit tail.succ counterWidth target).wire := by
@@ -333,7 +335,7 @@ theorem activeVZeroActiveBit_targetValueBit_wire_ne
       (WireAddress.littleEndianWire target)
 
 /-- The active-`v=0` detector never reads or writes a public target bit. -/
-theorem activeVZeroGates_bitDisjoint_target
+lemma activeVZeroGates_bitDisjoint_target
     (tail counterWidth : Nat) (target : Fin tail.succ) :
     ∀ gate, gate ∈ activeVZeroGates tail counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -374,15 +376,15 @@ def activeVZeroStep (tail counterWidth : Nat) :
   EncodedBit.GateSpec.stepList (activeVZeroGates tail counterWidth)
 
 /-- The compiled detector realizes its exact folded bit-lens action. -/
-theorem activeVZero_realizes (tail counterWidth : Nat) :
+lemma activeVZero_realizes (tail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding tail.succ counterWidth)
-      (activeVZeroProgram tail counterWidth)
+      (activeVZeroProgram tail counterWidth) environment
       (activeVZeroStep tail counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (activeVZeroGates tail counterWidth)
 
 /-- Exact X coordinate: two outer active X gates plus the clean zero test. -/
-theorem activeVZeroGates_xMultiplicity_sum (tail counterWidth : Nat) :
+lemma activeVZeroGates_xMultiplicity_sum (tail counterWidth : Nat) :
     ((activeVZeroGates tail counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 * tail + 6 := by
   simp [activeVZeroGates, activeVZeroActiveGate,
@@ -390,21 +392,21 @@ theorem activeVZeroGates_xMultiplicity_sum (tail counterWidth : Nat) :
   omega
 
 /-- The active-`v=0` detector contains no CNOT leaves. -/
-theorem activeVZeroGates_cnotMultiplicity_sum (tail counterWidth : Nat) :
+lemma activeVZeroGates_cnotMultiplicity_sum (tail counterWidth : Nat) :
     ((activeVZeroGates tail counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   simp [activeVZeroGates, activeVZeroActiveGate,
     EncodedBit.Word.ZeroTestLayout.gates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate inherited from the `tail`-work-bit zero test. -/
-theorem activeVZeroGates_toffoliMultiplicity_sum (tail counterWidth : Nat) :
+lemma activeVZeroGates_toffoliMultiplicity_sum (tail counterWidth : Nat) :
     ((activeVZeroGates tail counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 * tail + 1 := by
   simp [activeVZeroGates, activeVZeroActiveGate,
     EncodedBit.Word.ZeroTestLayout.gates_toffoliMultiplicity_sum]
 
 /-- Exact primitive-gate length of the active-`v=0` detector. -/
-theorem activeVZeroGates_length (tail counterWidth : Nat) :
+lemma activeVZeroGates_length (tail counterWidth : Nat) :
     (activeVZeroGates tail counterWidth).length = 4 * tail + 7 := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
     activeVZeroGates_xMultiplicity_sum,
@@ -413,7 +415,7 @@ theorem activeVZeroGates_length (tail counterWidth : Nat) :
   omega
 
 /-- The compiled detector retains its exact X count. -/
-theorem activeVZeroProgram_x_count (tail counterWidth : Nat) :
+lemma activeVZeroProgram_x_count (tail counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (activeVZeroProgram tail counterWidth).eventCost = 2 * tail + 6 := by
@@ -422,7 +424,7 @@ theorem activeVZeroProgram_x_count (tail counterWidth : Nat) :
     activeVZeroGates_xMultiplicity_sum]
 
 /-- The compiled detector retains its exact zero CNOT count. -/
-theorem activeVZeroProgram_cnot_count (tail counterWidth : Nat) :
+lemma activeVZeroProgram_cnot_count (tail counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (activeVZeroProgram tail counterWidth).eventCost = 0 := by
@@ -431,7 +433,7 @@ theorem activeVZeroProgram_cnot_count (tail counterWidth : Nat) :
     activeVZeroGates_cnotMultiplicity_sum]
 
 /-- The compiled detector retains its exact Toffoli count. -/
-theorem activeVZeroProgram_toffoli_count (tail counterWidth : Nat) :
+lemma activeVZeroProgram_toffoli_count (tail counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
         (activeVZeroProgram tail counterWidth).eventCost = 2 * tail + 1 := by
@@ -441,7 +443,7 @@ theorem activeVZeroProgram_toffoli_count (tail counterWidth : Nat) :
 
 /-- A clean VBE coefficient-adder object makes every borrowed conjunction
 work bit clean, including naturally the empty `tail = 0` prefix. -/
-theorem activeVZeroWorkBit_get_of_coefficientAdder_clean
+lemma activeVZeroWorkBit_get_of_coefficientAdder_clean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ)
     (bit : Fin tail) :
@@ -453,7 +455,7 @@ theorem activeVZeroWorkBit_get_of_coefficientAdder_clean
     bit.castSucc
 
 /-- The leading active X leaves the borrowed VBE carry prefix clean. -/
-theorem activeVZeroWorkBit_get_activeFlip_of_coefficientAdder_clean
+lemma activeVZeroWorkBit_get_activeFlip_of_coefficientAdder_clean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ)
     (bit : Fin tail) :
@@ -469,7 +471,7 @@ theorem activeVZeroWorkBit_get_activeFlip_of_coefficientAdder_clean
 /-- Symbolic, non-enumerative characterization of the zero-test source after
 the leading active X: it is all false exactly on an active state with `v = 0`.
 -/
-theorem activeVZeroSource_all_false_after_activeFlip_iff
+lemma activeVZeroSource_all_false_after_activeFlip_iff
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (∀ source, ((activeVZeroSourceWord tail counterWidth).bit source).get
         ((activeVZeroActiveBit tail counterWidth).flip x) = false) ↔
@@ -516,7 +518,7 @@ theorem activeVZeroSource_all_false_after_activeFlip_iff
       simp [activeVZeroVBit_get, hvzero]
 
 /-- Expose the outer X--zero-test--X decomposition of the folded step. -/
-theorem activeVZeroStep_decompose
+lemma activeVZeroStep_decompose
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     activeVZeroStep tail counterWidth x =
       (activeVZeroActiveBit tail counterWidth).flip
@@ -529,7 +531,7 @@ theorem activeVZeroStep_decompose
 
 /-- With a clean VBE bank, the generic zero-test final control is exactly the
 compact active-`v=0` predicate. -/
-theorem activeVZeroFinalControl_eq_predicate
+lemma activeVZeroFinalControl_eq_predicate
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ) :
     EncodedBit.Word.ZeroTestLayout.finalControl
@@ -594,7 +596,7 @@ theorem activeVZeroFinalControl_eq_predicate
 /-- Full-state clean endpoint: the actual physical detector leaves every
 compact field untouched except for xoring the active-`v=0` predicate into the
 shared control bit. -/
-theorem activeVZeroStep_eq_controlConditional
+lemma activeVZeroStep_eq_controlConditional
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ) :
     activeVZeroStep tail counterWidth x =
@@ -615,7 +617,7 @@ theorem activeVZeroStep_eq_controlConditional
     exact EncodedBit.flip_flip (activeVZeroActiveBit tail counterWidth) x
 
 /-- Control readout form of the full-state endpoint. -/
-theorem activeVZeroStep_controlBit_get
+lemma activeVZeroStep_controlBit_get
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ) :
     (controlBit tail.succ counterWidth).get
@@ -633,7 +635,7 @@ theorem activeVZeroStep_controlBit_get
 
 /-- If the shared control bit is clean at entry, the endpoint stores precisely
 the active-`v=0` termination predicate there. -/
-theorem activeVZeroStep_control_clean
+lemma activeVZeroStep_control_clean
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ)
     (hcontrol : x.shared.control = false) :
@@ -647,7 +649,7 @@ theorem activeVZeroStep_control_clean
 
 /-- The encoded shared-control flip is exactly the record update that toggles
 only that one compact field. -/
-theorem activeVZeroControlBit_flip_eq_update
+lemma activeVZeroControlBit_flip_eq_update
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth) :
     (controlBit tail.succ counterWidth).flip x =
       { x with shared := { x.shared with control := !x.shared.control } } := by
@@ -656,7 +658,7 @@ theorem activeVZeroControlBit_flip_eq_update
 /-- Explicit frame form of the clean endpoint.  The core contains both the
 original `active` flag and `v`; the unchanged coefficient-adder object contains
 the carry-in and every borrowed VBE work bit. -/
-theorem activeVZeroStep_cleanEndpoint
+lemma activeVZeroStep_cleanEndpoint
     (tail counterWidth : Nat) (x : Registers tail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork tail.succ) :
     (activeVZeroStep tail counterWidth x).core = x.core ∧
@@ -724,7 +726,7 @@ def terminationRoutePrefixGates (fieldTail counterWidth : Nat) :
 
 /-- The compact route-path workspace bit is disjoint from every public target
 bit. -/
-theorem pathBit_targetValueBit_wire_ne
+lemma pathBit_targetValueBit_wire_ne
     (n counterWidth : Nat) (target : Fin n) :
     (pathBit n counterWidth).wire ≠
       (targetValueBit n counterWidth target).wire := by
@@ -735,7 +737,7 @@ theorem pathBit_targetValueBit_wire_ne
 
 /-- The compact termination-route prefix never reads or writes a public target
 bit. -/
-theorem terminationRoutePrefixGates_bitDisjoint_target
+lemma terminationRoutePrefixGates_bitDisjoint_target
     (fieldTail counterWidth : Nat) (target : Fin fieldTail.succ) :
     ∀ gate, gate ∈ terminationRoutePrefixGates fieldTail counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -778,15 +780,15 @@ def terminationRoutePrefixProgram (fieldTail counterWidth : Nat) :
 
 /-- The physical route-prefix circuit realizes exactly its folded bit-lens
 action. -/
-theorem terminationRoutePrefix_realizes (fieldTail counterWidth : Nat) :
+lemma terminationRoutePrefix_realizes (fieldTail counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding fieldTail.succ counterWidth)
-      (terminationRoutePrefixProgram fieldTail counterWidth)
+      (terminationRoutePrefixProgram fieldTail counterWidth) environment
       (terminationRoutePrefixStep fieldTail counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (terminationRoutePrefixGates fieldTail counterWidth)
 
 /-- The route prefix adds no X leaves to the active-`v=0` detector. -/
-theorem terminationRoutePrefixGates_xMultiplicity_sum
+lemma terminationRoutePrefixGates_xMultiplicity_sum
     (fieldTail counterWidth : Nat) :
     ((terminationRoutePrefixGates fieldTail counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 * fieldTail + 6 := by
@@ -796,7 +798,7 @@ theorem terminationRoutePrefixGates_xMultiplicity_sum
     activeVZeroGates_xMultiplicity_sum]
 
 /-- The route prefix adds exactly its three explicit CNOT leaves. -/
-theorem terminationRoutePrefixGates_cnotMultiplicity_sum
+lemma terminationRoutePrefixGates_cnotMultiplicity_sum
     (fieldTail counterWidth : Nat) :
     ((terminationRoutePrefixGates fieldTail counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 3 := by
@@ -806,7 +808,7 @@ theorem terminationRoutePrefixGates_cnotMultiplicity_sum
     activeVZeroGates_cnotMultiplicity_sum]
 
 /-- The route prefix retains the detector's Toffoli coordinate. -/
-theorem terminationRoutePrefixGates_toffoliMultiplicity_sum
+lemma terminationRoutePrefixGates_toffoliMultiplicity_sum
     (fieldTail counterWidth : Nat) :
     ((terminationRoutePrefixGates fieldTail counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 * fieldTail + 1 := by
@@ -816,7 +818,7 @@ theorem terminationRoutePrefixGates_toffoliMultiplicity_sum
     activeVZeroGates_toffoliMultiplicity_sum]
 
 /-- Exact primitive-gate length of the compact termination-route prefix. -/
-theorem terminationRoutePrefixGates_length (fieldTail counterWidth : Nat) :
+lemma terminationRoutePrefixGates_length (fieldTail counterWidth : Nat) :
     (terminationRoutePrefixGates fieldTail counterWidth).length =
       4 * fieldTail + 10 := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
@@ -826,7 +828,7 @@ theorem terminationRoutePrefixGates_length (fieldTail counterWidth : Nat) :
   omega
 
 /-- The compiled route prefix retains its exact X count. -/
-theorem terminationRoutePrefixProgram_x_count (fieldTail counterWidth : Nat) :
+lemma terminationRoutePrefixProgram_x_count (fieldTail counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (terminationRoutePrefixProgram fieldTail counterWidth).eventCost =
@@ -837,7 +839,7 @@ theorem terminationRoutePrefixProgram_x_count (fieldTail counterWidth : Nat) :
 
 /-- The compiled route prefix has the detector CNOT count plus three route
 leaves. -/
-theorem terminationRoutePrefixProgram_cnot_count (fieldTail counterWidth : Nat) :
+lemma terminationRoutePrefixProgram_cnot_count (fieldTail counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (terminationRoutePrefixProgram fieldTail counterWidth).eventCost = 3 := by
@@ -846,7 +848,7 @@ theorem terminationRoutePrefixProgram_cnot_count (fieldTail counterWidth : Nat) 
     terminationRoutePrefixGates_cnotMultiplicity_sum]
 
 /-- The compiled route prefix retains its exact Toffoli count. -/
-theorem terminationRoutePrefixProgram_toffoli_count
+lemma terminationRoutePrefixProgram_toffoli_count
     (fieldTail counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
@@ -857,21 +859,21 @@ theorem terminationRoutePrefixProgram_toffoli_count
     terminationRoutePrefixGates_toffoliMultiplicity_sum]
 
 /-- The encoded shared-path flip is the corresponding named-workspace update. -/
-theorem terminationRoutePrefixPathBit_flip_eq_update
+lemma terminationRoutePrefixPathBit_flip_eq_update
     (fieldTail counterWidth : Nat) (x : Registers fieldTail.succ counterWidth) :
     (pathBit fieldTail.succ counterWidth).flip x =
       { x with shared := { x.shared with path := !x.shared.path } } := by
   rfl
 
 /-- The encoded active-bit flip is the corresponding named-core update. -/
-theorem terminationRoutePrefixActiveBit_flip_eq_update
+lemma terminationRoutePrefixActiveBit_flip_eq_update
     (fieldTail counterWidth : Nat) (x : Registers fieldTail.succ counterWidth) :
     (activeVZeroActiveBit fieldTail counterWidth).flip x =
       { x with core := { x.core with active := !x.core.active } } := by
   rfl
 
 /-- On a clean path bit, the opening CNOT stores the original active flag. -/
-theorem terminationRoutePrefixActivePathStep_clean
+lemma terminationRoutePrefixActivePathStep_clean
     (fieldTail counterWidth : Nat) (x : Registers fieldTail.succ counterWidth)
     (hpath : x.shared.path = false) :
     (terminationRoutePrefixActivePathGate fieldTail counterWidth).step x =
@@ -893,7 +895,7 @@ theorem terminationRoutePrefixActivePathStep_clean
 
 /-- Expose the literal latch--detector--two-CNOT decomposition of the folded
 route-prefix step. -/
-theorem terminationRoutePrefixStep_decompose
+lemma terminationRoutePrefixStep_decompose
     (fieldTail counterWidth : Nat) (x : Registers fieldTail.succ counterWidth) :
     terminationRoutePrefixStep fieldTail counterWidth x =
       (terminationRoutePrefixControlPathGate fieldTail counterWidth).step
@@ -909,7 +911,7 @@ theorem terminationRoutePrefixStep_decompose
 record endpoint.  Every field not named by this update is preserved by
 definition, including the VBE bank, correction counter, target, and all core
 fields other than `active`. -/
-theorem terminationRoutePrefixStep_cleanEndpoint
+lemma terminationRoutePrefixStep_cleanEndpoint
     (fieldTail counterWidth : Nat) (x : Registers fieldTail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork fieldTail.succ)
     (hpath : x.shared.path = false) (hcontrol : x.shared.control = false) :
@@ -947,7 +949,7 @@ theorem terminationRoutePrefixStep_cleanEndpoint
 /-- Explicit clean-boundary frame for the compact termination route.  In
 particular, the VBE coefficient-adder bank, correction counter, target, and
 every non-active core field are preserved. -/
-theorem terminationRoutePrefixStep_cleanFrame
+lemma terminationRoutePrefixStep_cleanFrame
     (fieldTail counterWidth : Nat) (x : Registers fieldTail.succ counterWidth)
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork fieldTail.succ)
     (hpath : x.shared.path = false) (hcontrol : x.shared.control = false) :
@@ -991,7 +993,7 @@ private def positiveCounterOneConstant (tail : Nat) : Fin (2 ^ (tail + 2)) :=
   ⟨1, by
     exact Nat.one_lt_two_pow (by omega)⟩
 
-@[simp] private theorem positiveCounterOneConstant_val (tail : Nat) :
+@[simp] private lemma positiveCounterOneConstant_val (tail : Nat) :
     (positiveCounterOneConstant tail).val = 1 :=
   rfl
 
@@ -1011,21 +1013,21 @@ private def positiveCounterOneWorkWord (n tail : Nat) (htail : tail ≤ n) :
     EncodedBit.Word (encoding n (tail + 2)) tail where
   bit := positiveCounterOneWorkBit n tail htail
 
-private theorem positiveCounterOneWord_bit_wire_ne
+private lemma positiveCounterOneWord_bit_wire_ne
     (n tail : Nat) {left right : Fin (tail + 2)} (hne : left ≠ right) :
     ((positiveCounterOneWord n tail).bit left).wire ≠
       ((positiveCounterOneWord n tail).bit right).wire := by
   simpa [positiveCounterOneWord, paddingCounterValueWord] using
     paddingCounterValueBit_wire_ne n tail.succ hne
 
-private theorem positiveCounterOneWord_controlBit_wire_ne
+private lemma positiveCounterOneWord_controlBit_wire_ne
     (n tail : Nat) (bit : Fin (tail + 2)) :
     ((positiveCounterOneWord n tail).bit bit).wire ≠
       (controlBit n (tail + 2)).wire := by
   simpa [positiveCounterOneWord, paddingCounterValueWord] using
     (controlBit_paddingCounterValueBit_wire_ne n tail.succ bit).symm
 
-private theorem positiveCounterOneWord_workBit_wire_ne
+private lemma positiveCounterOneWord_workBit_wire_ne
     (n tail : Nat) (htail : tail ≤ n) (source : Fin (tail + 2))
     (work : Fin tail) :
     ((positiveCounterOneWord n tail).bit source).wire ≠
@@ -1037,7 +1039,7 @@ private theorem positiveCounterOneWord_workBit_wire_ne
         (WireAddress.littleEndianWire source))
       (sharedCoefficientCarryWorkBit n (tail + 2) (Fin.castLE htail work))
 
-private theorem positiveCounterOneWorkBit_wire_ne
+private lemma positiveCounterOneWorkBit_wire_ne
     (n tail : Nat) (htail : tail ≤ n) {left right : Fin tail} (hne : left ≠ right) :
     (positiveCounterOneWorkBit n tail htail left).wire ≠
       (positiveCounterOneWorkBit n tail htail right).wire := by
@@ -1046,7 +1048,7 @@ private theorem positiveCounterOneWorkBit_wire_ne
   apply hne
   exact (Fin.castLE_injective htail) hcast
 
-private theorem positiveCounterOneWorkBit_controlBit_wire_ne
+private lemma positiveCounterOneWorkBit_controlBit_wire_ne
     (n tail : Nat) (htail : tail ≤ n) (work : Fin tail) :
     (positiveCounterOneWorkBit n tail htail work).wire ≠
       (controlBit n (tail + 2)).wire := by
@@ -1088,7 +1090,7 @@ def counterOneGates (n tail : Nat) (htail : tail ≤ n) :
 
 /-- The compact counter-one detector never reads or writes a public target
 bit. -/
-theorem counterOneGates_bitDisjoint_target
+lemma counterOneGates_bitDisjoint_target
     (n tail : Nat) (htail : tail ≤ n) (target : Fin n) :
     ∀ gate, gate ∈ counterOneGates n tail htail →
       EncodedBit.GateSpec.bitDisjoint (targetValueBit n (tail + 2) target) gate := by
@@ -1141,13 +1143,13 @@ def counterOneStep (n tail : Nat) (htail : tail ≤ n) :
   EncodedBit.GateSpec.stepList (counterOneGates n tail htail)
 
 /-- The compiled detector realizes exactly its literal gate-list step. -/
-theorem counterOne_realizes (n tail : Nat) (htail : tail ≤ n) :
+lemma counterOne_realizes (n tail : Nat) (htail : tail ≤ n) :
     UnitaryCircuit.Realizes (encoding n (tail + 2))
-      (counterOneProgram n tail htail) (counterOneStep n tail htail) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      (counterOneProgram n tail htail) environment (counterOneStep n tail htail) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (counterOneGates n tail htail)
 
-private theorem positiveCounterOneConstant_oneIndices_length (tail : Nat) :
+private lemma positiveCounterOneConstant_oneIndices_length (tail : Nat) :
     (EncodedBit.Word.constantOneIndices (positiveCounterOneConstant tail)).length = 1 := by
   suffices h : Nat.testBit 1 1 = false ∧
       ∀ bit : Fin tail, Nat.testBit 1 (bit.val + 1 + 1) = false by
@@ -1158,7 +1160,7 @@ private theorem positiveCounterOneConstant_oneIndices_length (tail : Nat) :
     exact Nat.testBit_lt_two_pow (Nat.one_lt_two_pow (by omega))
 
 /-- Exact X coordinate: the literal-one load/unload and the clean zero test. -/
-theorem counterOneGates_xMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
+lemma counterOneGates_xMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
     ((counterOneGates n tail htail).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 * tail + 6 := by
   simp [counterOneGates, EncodedBit.Word.xorConstantGates_xMultiplicity_sum,
@@ -1168,7 +1170,7 @@ theorem counterOneGates_xMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
   omega
 
 /-- The counter-one detector contains no CNOT leaves. -/
-theorem counterOneGates_cnotMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
+lemma counterOneGates_cnotMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
     ((counterOneGates n tail htail).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   simp [counterOneGates, EncodedBit.Word.xorConstantGates_cnotMultiplicity_sum,
@@ -1176,7 +1178,7 @@ theorem counterOneGates_cnotMultiplicity_sum (n tail : Nat) (htail : tail ≤ n)
     EncodedBit.Word.ZeroTestLayout.gates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate inherited from the clean zero test. -/
-theorem counterOneGates_toffoliMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
+lemma counterOneGates_toffoliMultiplicity_sum (n tail : Nat) (htail : tail ≤ n) :
     ((counterOneGates n tail htail).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 2 * tail + 1 := by
   simp [counterOneGates, EncodedBit.Word.xorConstantGates_toffoliMultiplicity_sum,
@@ -1184,7 +1186,7 @@ theorem counterOneGates_toffoliMultiplicity_sum (n tail : Nat) (htail : tail ≤
     EncodedBit.Word.ZeroTestLayout.gates_toffoliMultiplicity_sum]
 
 /-- Exact primitive-gate length of the compact counter-one detector. -/
-theorem counterOneGates_length (n tail : Nat) (htail : tail ≤ n) :
+lemma counterOneGates_length (n tail : Nat) (htail : tail ≤ n) :
     (counterOneGates n tail htail).length = 4 * tail + 7 := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
     counterOneGates_xMultiplicity_sum,
@@ -1194,7 +1196,7 @@ theorem counterOneGates_length (n tail : Nat) (htail : tail ≤ n) :
 
 /-- Xoring the literal one into the counter makes the tested word all zero
 exactly when the original compact counter is one. -/
-private theorem positiveCounterOneWord_all_false_after_load_iff
+private lemma positiveCounterOneWord_all_false_after_load_iff
     (n tail : Nat) (x : Registers n (tail + 2)) :
     (∀ bit, ((positiveCounterOneWord n tail).bit bit).get
       (EncodedBit.Word.xorConstantStep (positiveCounterOneWord n tail)
@@ -1246,7 +1248,7 @@ private theorem positiveCounterOneWord_all_false_after_load_iff
     exact Bool.xor_self _
 
 /-- The literal-one load does not disturb the borrowed VBE carry prefix. -/
-private theorem positiveCounterOneWorkBit_get_after_load_of_coefficientAdder_clean
+private lemma positiveCounterOneWorkBit_get_after_load_of_coefficientAdder_clean
     (n tail : Nat) (htail : tail ≤ n) (x : Registers n (tail + 2))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n)
     (bit : Fin tail) :
@@ -1266,7 +1268,7 @@ private theorem positiveCounterOneWorkBit_get_after_load_of_coefficientAdder_cle
 
 /-- The zero-test final control after loading one is precisely the
 counter-equals-one predicate. -/
-private theorem positiveCounterOneFinalControl_eq_predicate
+private lemma positiveCounterOneFinalControl_eq_predicate
     (n tail : Nat) (htail : tail ≤ n) (x : Registers n (tail + 2))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n) :
     EncodedBit.Word.ZeroTestLayout.finalControl
@@ -1323,7 +1325,7 @@ private theorem positiveCounterOneFinalControl_eq_predicate
         positiveCounterOneWord_all_false_after_load_iff n tail x)
 
 /-- Expose the literal-one-load, zero-test, literal-one-unload decomposition. -/
-private theorem counterOneStep_decompose
+private lemma counterOneStep_decompose
     (n tail : Nat) (htail : tail ≤ n) (x : Registers n (tail + 2)) :
     counterOneStep n tail htail x =
       EncodedBit.Word.xorConstantUnloadStep (positiveCounterOneWord n tail)
@@ -1336,7 +1338,7 @@ private theorem counterOneStep_decompose
     EncodedBit.GateSpec.stepList_append]
   rfl
 
-private theorem positiveCounterOneUnload_control_flip_comm
+private lemma positiveCounterOneUnload_control_flip_comm
     (n tail : Nat) (x : Registers n (tail + 2)) :
     EncodedBit.Word.xorConstantUnloadStep (positiveCounterOneWord n tail)
       (positiveCounterOneConstant tail) ((controlBit n (tail + 2)).flip x) =
@@ -1359,7 +1361,7 @@ private theorem positiveCounterOneUnload_control_flip_comm
 /-- Full-state clean endpoint: the compact detector restores the counter and
 the entire borrowed carry prefix, and xors only the counter-equals-one
 predicate into the shared control bit. -/
-theorem counterOneStep_eq_controlConditional
+lemma counterOneStep_eq_controlConditional
     (n tail : Nat) (htail : tail ≤ n) (x : Registers n (tail + 2))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork n) :
     counterOneStep n tail htail x =
@@ -1397,7 +1399,7 @@ def terminationHandoffGates (fieldTail counterTail : Nat)
 
 /-- The complete compact termination handoff never reads or writes a public
 target bit. -/
-theorem terminationHandoffGates_bitDisjoint_target
+lemma terminationHandoffGates_bitDisjoint_target
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ)
     (target : Fin fieldTail.succ) :
     ∀ gate, gate ∈ terminationHandoffGates fieldTail counterTail hfit →
@@ -1432,12 +1434,12 @@ def terminationHandoffStep (fieldTail counterTail : Nat)
     (terminationHandoffGates fieldTail counterTail hfit)
 
 /-- The physical handoff program realizes its literal gate-list action. -/
-theorem terminationHandoff_realizes (fieldTail counterTail : Nat)
+lemma terminationHandoff_realizes (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ) :
     UnitaryCircuit.Realizes (encoding fieldTail.succ (counterTail + 2))
-      (terminationHandoffProgram fieldTail counterTail hfit)
+      (terminationHandoffProgram fieldTail counterTail hfit) environment
       (terminationHandoffStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (terminationHandoffGates fieldTail counterTail hfit)
 
 /-- Reverse gate order for exact reversible handoff cleanup. -/
@@ -1464,17 +1466,17 @@ def terminationHandoffReverseStep (fieldTail counterTail : Nat)
     (terminationHandoffReverseGates fieldTail counterTail hfit)
 
 /-- The reverse physical program realizes its literal reverse gate action. -/
-theorem terminationHandoffReverse_realizes (fieldTail counterTail : Nat)
+lemma terminationHandoffReverse_realizes (fieldTail counterTail : Nat)
     (hfit : counterTail.succ ≤ fieldTail.succ) :
     UnitaryCircuit.Realizes (encoding fieldTail.succ (counterTail + 2))
-      (terminationHandoffReverseProgram fieldTail counterTail hfit)
+      (terminationHandoffReverseProgram fieldTail counterTail hfit) environment
       (terminationHandoffReverseStep fieldTail counterTail hfit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (terminationHandoffReverseGates fieldTail counterTail hfit)
 
 /-- Running the reverse handoff after the forward handoff restores every
 register exactly. -/
-theorem terminationHandoffReverseStep_after_terminationHandoffStep
+lemma terminationHandoffReverseStep_after_terminationHandoffStep
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ)
     (x : Registers fieldTail.succ (counterTail + 2)) :
     terminationHandoffReverseStep fieldTail counterTail hfit
@@ -1483,7 +1485,7 @@ theorem terminationHandoffReverseStep_after_terminationHandoffStep
     (terminationHandoffGates fieldTail counterTail hfit) x
 
 /-- The forward handoff also restores every state after its reverse action. -/
-theorem terminationHandoffStep_after_terminationHandoffReverseStep
+lemma terminationHandoffStep_after_terminationHandoffReverseStep
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ)
     (x : Registers fieldTail.succ (counterTail + 2)) :
     terminationHandoffStep fieldTail counterTail hfit
@@ -1497,7 +1499,7 @@ theorem terminationHandoffStep_after_terminationHandoffReverseStep
       (terminationHandoffGates fieldTail counterTail hfit).reverse x)
 
 /-- Exact X coordinate of the complete compact termination handoff. -/
-theorem terminationHandoffGates_xMultiplicity_sum
+lemma terminationHandoffGates_xMultiplicity_sum
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     ((terminationHandoffGates fieldTail counterTail hfit).map
       EncodedBit.GateSpec.xMultiplicity).sum =
@@ -1509,7 +1511,7 @@ theorem terminationHandoffGates_xMultiplicity_sum
   omega
 
 /-- Exact CNOT coordinate of the complete compact termination handoff. -/
-theorem terminationHandoffGates_cnotMultiplicity_sum
+lemma terminationHandoffGates_cnotMultiplicity_sum
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     ((terminationHandoffGates fieldTail counterTail hfit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * counterTail + 7 := by
@@ -1520,7 +1522,7 @@ theorem terminationHandoffGates_cnotMultiplicity_sum
   omega
 
 /-- Exact Toffoli coordinate of the complete compact termination handoff. -/
-theorem terminationHandoffGates_toffoliMultiplicity_sum
+lemma terminationHandoffGates_toffoliMultiplicity_sum
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     ((terminationHandoffGates fieldTail counterTail hfit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -1532,7 +1534,7 @@ theorem terminationHandoffGates_toffoliMultiplicity_sum
   omega
 
 /-- Exact primitive-gate length of the complete compact termination handoff. -/
-theorem terminationHandoffGates_length
+lemma terminationHandoffGates_length
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     (terminationHandoffGates fieldTail counterTail hfit).length =
       4 * fieldTail + 12 * counterTail + 29 := by
@@ -1543,7 +1545,7 @@ theorem terminationHandoffGates_length
   omega
 
 /-- The compiled handoff retains its exact X coordinate. -/
-theorem terminationHandoffProgram_x_count
+lemma terminationHandoffProgram_x_count
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
@@ -1554,7 +1556,7 @@ theorem terminationHandoffProgram_x_count
     terminationHandoffGates_xMultiplicity_sum]
 
 /-- The compiled handoff retains its exact CNOT coordinate. -/
-theorem terminationHandoffProgram_cnot_count
+lemma terminationHandoffProgram_cnot_count
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
@@ -1565,7 +1567,7 @@ theorem terminationHandoffProgram_cnot_count
     terminationHandoffGates_cnotMultiplicity_sum]
 
 /-- The compiled handoff retains its exact Toffoli coordinate. -/
-theorem terminationHandoffProgram_toffoli_count
+lemma terminationHandoffProgram_toffoli_count
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
@@ -1576,7 +1578,7 @@ theorem terminationHandoffProgram_toffoli_count
     terminationHandoffGates_toffoliMultiplicity_sum]
 
 /-- Expose the route-prefix, inactive-increment, counter-one decomposition. -/
-theorem terminationHandoffStep_decompose
+lemma terminationHandoffStep_decompose
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ)
     (x : Registers fieldTail.succ (counterTail + 2)) :
     terminationHandoffStep fieldTail counterTail hfit x =
@@ -1592,7 +1594,7 @@ theorem terminationHandoffStep_decompose
 /-- At a clean compact endpoint, the handoff exposes its full record update.
 The inactive counter addition is symbolic so its fixed-width interpretation is
 preserved exactly. -/
-theorem terminationHandoffStep_cleanEndpoint
+lemma terminationHandoffStep_cleanEndpoint
     (fieldTail counterTail : Nat) (hfit : counterTail.succ ≤ fieldTail.succ)
     (x : Registers fieldTail.succ (counterTail + 2))
     (hcoeff : x.shared.coefficientAdder = cleanCoeffAdderWork fieldTail.succ)
@@ -1690,14 +1692,14 @@ def counterOneWidthOneProgram (n : Nat) :
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (counterOneWidthOneGates n)
 
-theorem counterOneWidthOne_realizes (n : Nat) :
+lemma counterOneWidthOne_realizes (n : Nat) :
     UnitaryCircuit.Realizes (encoding n 1)
-      (counterOneWidthOneProgram n) (counterOneWidthOneStep n) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+      (counterOneWidthOneProgram n) environment (counterOneWidthOneStep n) :=
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (counterOneWidthOneGates n)
 
 /-- The width-one boundary xors its sole counter bit directly into control. -/
-theorem counterOneWidthOneStep_controlBit_get
+lemma counterOneWidthOneStep_controlBit_get
     (n : Nat) (x : Registers n 1) :
     (controlBit n 1).get (counterOneWidthOneStep n x) =
       ((controlBit n 1).get x ^^
@@ -1709,22 +1711,22 @@ theorem counterOneWidthOneStep_controlBit_get
   exact EncodedBit.cnotStep_get_target
     (paddingCounterValueBit n 0 0) (controlBit n 1) x
 
-theorem counterOneWidthOneGates_xMultiplicity_sum (n : Nat) :
+lemma counterOneWidthOneGates_xMultiplicity_sum (n : Nat) :
     ((counterOneWidthOneGates n).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp [counterOneWidthOneGates]
 
-theorem counterOneWidthOneGates_cnotMultiplicity_sum (n : Nat) :
+lemma counterOneWidthOneGates_cnotMultiplicity_sum (n : Nat) :
     ((counterOneWidthOneGates n).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
   simp [counterOneWidthOneGates]
 
-theorem counterOneWidthOneGates_toffoliMultiplicity_sum (n : Nat) :
+lemma counterOneWidthOneGates_toffoliMultiplicity_sum (n : Nat) :
     ((counterOneWidthOneGates n).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   simp [counterOneWidthOneGates]
 
-theorem counterOneWidthOneGates_length (n : Nat) :
+lemma counterOneWidthOneGates_length (n : Nat) :
     (counterOneWidthOneGates n).length = 1 := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
     counterOneWidthOneGates_xMultiplicity_sum,

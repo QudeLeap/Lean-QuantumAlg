@@ -38,14 +38,14 @@ def smallestWrap : TerminalTail.Frame 5 2 :=
   TerminalTail.repeatPrefix 4 (TerminalTail.start (9 : BitVec 5) (16 : BitVec 5) true)
 
 /-- At overflow exchange, the actual old read length disagrees with the retained old register. -/
-theorem old_read_length_mismatch :
+lemma old_read_length_mismatch :
     (PhysicalWindow.read 5 smallestWrap.secondWord).toNat.size = 5 ∧
       (2 : BitVec 2).toNat = 2 ∧
       (PhysicalWindow.read 5 smallestWrap.secondWord).toNat.size ≠ (2 : BitVec 2).toNat := by
   decide
 
 /-- Actual serial XOR refresh at the overflow exchange does not produce the new read length. -/
-theorem refreshed_length_mismatch :
+lemma refreshed_length_mismatch :
     let refreshed := LengthPair.update smallestWrap.firstWord smallestWrap.secondWord
       ((2 : BitVec 2), (0 : BitVec 2))
     refreshed.1.toNat = 1 ∧ refreshed.2.toNat = 1 ∧
@@ -54,7 +54,7 @@ theorem refreshed_length_mismatch :
   decide
 
 /-- The actual mismatched length values still retain the information required by inverse writes. -/
-theorem overflow_refresh_reversible :
+lemma overflow_refresh_reversible :
     LengthPair.rewind smallestWrap.firstWord smallestWrap.secondWord
         (LengthPair.update smallestWrap.firstWord smallestWrap.secondWord
           ((2 : BitVec 2), (0 : BitVec 2))) = ((2 : BitVec 2), (0 : BitVec 2)) :=

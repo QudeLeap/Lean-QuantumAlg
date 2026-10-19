@@ -45,14 +45,14 @@ def IsTrigPolynomialVec (v : (Fin N → ℝ) → (Fin d → ℂ)) : Prop :=
   ∀ m, ∃ f : TrigPolynomial N, ∀ x, v x m = f.eval x
 
 /-- Any constant vector is a trigonometric-polynomial vector (single zero frequency). -/
-theorem isTrigPolynomialVec_const (w : Fin d → ℂ) :
+lemma isTrigPolynomialVec_const (w : Fin d → ℂ) :
     IsTrigPolynomialVec (fun _ : Fin N → ℝ => w) := by
   intro m
   refine ⟨⟨{0}, fun _ => w m⟩, fun x => ?_⟩
   simp [TrigPolynomial.eval, freqDot]
 
 /-- Left-multiplication by a constant matrix preserves `IsTrigPolynomialVec`. -/
-theorem IsTrigPolynomialVec.constMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (hv : IsTrigPolynomialVec v)
+lemma IsTrigPolynomialVec.constMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (hv : IsTrigPolynomialVec v)
     (M : Matrix (Fin d) (Fin d) ℂ) : IsTrigPolynomialVec (fun x => M *ᵥ v x) := by
   intro m
   choose f hf using hv
@@ -62,7 +62,7 @@ theorem IsTrigPolynomialVec.constMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (
   exact Finset.sum_congr rfl (fun j _ => by rw [TrigPolynomial.eval_smul, ← hf j x])
 
 /-- Left-multiplication by a diagonal phase gate preserves `IsTrigPolynomialVec`. -/
-theorem IsTrigPolynomialVec.phaseMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (hv : IsTrigPolynomialVec v)
+lemma IsTrigPolynomialVec.phaseMul {v : (Fin N → ℝ) → (Fin d → ℂ)} (hv : IsTrigPolynomialVec v)
     (lam : Fin d → ℝ) (k : Fin N) :
     IsTrigPolynomialVec (fun x => diagPhaseGate lam (x k) *ᵥ v x) := by
   intro m
@@ -89,7 +89,7 @@ public noncomputable def featState (W : Fin (N + 1) → Matrix (Fin d) (Fin d) �
       else featState W lam ψ j x
 
 /-- Every layer of the feature state is a trigonometric-polynomial vector. -/
-theorem isTrigPolynomialVec_featState
+lemma isTrigPolynomialVec_featState
     (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (j : ℕ) : IsTrigPolynomialVec (featState W lam ψ j) := by
   induction j with
@@ -115,7 +115,7 @@ zero-frequency term. -/
 noncomputable def tpVecConst (w : Fin d → ℂ) : Fin d → TrigPolynomial N :=
   fun m => ⟨{0}, fun _ => w m⟩
 
-theorem tpVecConst_eval (w : Fin d → ℂ) (m : Fin d) (x : Fin N → ℝ) :
+lemma tpVecConst_eval (w : Fin d → ℂ) (m : Fin d) (x : Fin N → ℝ) :
     (tpVecConst w m).eval x = w m := by simp [tpVecConst, TrigPolynomial.eval, freqDot]
 
 /-- Apply a constant matrix to a vector of trigonometric polynomials. -/
@@ -123,7 +123,7 @@ noncomputable def tpVecConstMul (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → 
     Fin d → TrigPolynomial N :=
   fun m => TrigPolynomial.sum Finset.univ (fun j => (V j).smul (M m j))
 
-theorem tpVecConstMul_eval
+lemma tpVecConstMul_eval
     (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → TrigPolynomial N) (m : Fin d)
     (x : Fin N → ℝ) : (tpVecConstMul M V m).eval x = ∑ j, M m j * (V j).eval x := by
   simp only [tpVecConstMul, TrigPolynomial.eval_sum, TrigPolynomial.eval_smul]
@@ -133,7 +133,7 @@ noncomputable def tpVecPhase (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → Tr
     Fin d → TrigPolynomial N :=
   fun m => (V m).expMul (-(lam m) • Pi.single k (1 : ℝ))
 
-theorem tpVecPhase_eval (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → TrigPolynomial N) (m : Fin d)
+lemma tpVecPhase_eval (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → TrigPolynomial N) (m : Fin d)
     (x : Fin N → ℝ) :
     (tpVecPhase lam k V m).eval x
       = Complex.exp (-Complex.I * ((x k * lam m : ℝ) : ℂ)) * (V m).eval x := by
@@ -151,7 +151,7 @@ noncomputable def featCompC (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (la
         tpVecConstMul (W ⟨j + 1, by omega⟩) (tpVecPhase lam ⟨j, h⟩ (featCompC W lam ψ j))
       else featCompC W lam ψ j
 
-theorem featState_eq_featCompC (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma featState_eq_featCompC (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (j : ℕ) :
     ∀ (x : Fin N → ℝ) (m : Fin d), featState W lam ψ j x m = (featCompC W lam ψ j m).eval x := by
   induction j with
@@ -195,22 +195,22 @@ noncomputable def featComp (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam
     (ψ : Fin d → ℂ) (m : Fin d) : TrigPolynomial N :=
   featCompC W lam ψ N m
 
-theorem featComp_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma featComp_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (m : Fin d) (x : Fin N → ℝ) :
     featState W lam ψ N x m = (featComp W lam ψ m).eval x :=
   featState_eq_featCompC W lam ψ N x m
 
 /-! ### Feature-component frequency invariant -/
 
-theorem tpVecConst_freqs (w : Fin d → ℂ) (m : Fin d) :
+lemma tpVecConst_freqs (w : Fin d → ℂ) (m : Fin d) :
     (tpVecConst w m).freqs = ({0} : Finset (Fin N → ℝ)) := rfl
 
-theorem tpVecConstMul_freqs
+lemma tpVecConstMul_freqs
     (M : Matrix (Fin d) (Fin d) ℂ) (V : Fin d → TrigPolynomial N) (m : Fin d) :
     (tpVecConstMul M V m).freqs = Finset.univ.biUnion (fun j => (V j).freqs) := by
   simp only [tpVecConstMul, TrigPolynomial.sum_freqs, TrigPolynomial.smul_freqs]
 
-theorem tpVecPhase_freqs (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → TrigPolynomial N) (m : Fin d) :
+lemma tpVecPhase_freqs (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → TrigPolynomial N) (m : Fin d) :
     (tpVecPhase lam k V m).freqs
       = (V m).freqs.image (fun ω => ω + -(lam m) • Pi.single k (1 : ℝ)) := by
   simp only [tpVecPhase, TrigPolynomial.expMul_freqs]
@@ -218,7 +218,7 @@ theorem tpVecPhase_freqs (lam : Fin d → ℝ) (k : Fin N) (V : Fin d → TrigPo
 /-- After `j` layers, every feature-component frequency is `-λ_μ` on coordinates `< j` and
 `0` on coordinates `≥ j`. Since each input is encoded exactly once, at `j = N` every
 coordinate is a negated eigenvalue. -/
-theorem featCompC_layer (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma featCompC_layer (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) :
     ∀ (j : ℕ) (m : Fin d) (ω : Fin N → ℝ), ω ∈ (featCompC W lam ψ j m).freqs →
       ∀ a : Fin N, ((a : ℕ) < j → ∃ μ, ω a = -lam μ) ∧ (j ≤ (a : ℕ) → ω a = 0) := by
@@ -272,7 +272,7 @@ theorem featCompC_layer (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : 
 
 /-- At the full circuit (`j = N`), every feature-component frequency coordinate is a
 negated eigenvalue. -/
-theorem featComp_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma featComp_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (m : Fin d) (ω : Fin N → ℝ) (hω : ω ∈ (featComp W lam ψ m).freqs)
     (a : Fin N) : ∃ μ, ω a = -lam μ :=
   (featCompC_layer W lam ψ N m ω hω a).1 a.isLt
@@ -285,7 +285,7 @@ noncomputable def overlapES (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (la
       ((featComp W lam ψ m).conj.embedR (m := N)).mul
         ((featComp W lam ψ m).embedL (n := N)))
 
-theorem overlapES_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma overlapES_eval (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (x x' : Fin N → ℝ) :
     (overlapES W lam ψ).eval (Fin.append x x')
       = ∑ m, (starRingEnd ℂ) (featState W lam ψ N x' m) * featState W lam ψ N x m := by
@@ -320,7 +320,7 @@ public theorem QuantumKernelFourier.main
 /-- **Reality condition** [Sch21, main.tex:360]. The kernel's Fourier coefficients are
 conjugate-symmetric under frequency negation, which is exactly what makes the kernel
 real-valued. -/
-theorem fourier_real (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma fourier_real (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (ω : Fin (N + N) → ℝ) :
     (kernelES W lam ψ).coeffAt ω = (starRingEnd ℂ) ((kernelES W lam ψ).coeffAt (-ω)) := by
   have hk : ∀ z, (kernelES W lam ψ).eval z
@@ -336,7 +336,7 @@ theorem fourier_real (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin
 
 /-- Every overlap frequency is a negated eigenvalue on the first block and an eigenvalue on
 the second block. -/
-theorem overlapES_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma overlapES_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (σ : Fin (N + N) → ℝ) (hσ : σ ∈ (overlapES W lam ψ).freqs) :
     (∀ a : Fin N, ∃ μ, σ (Fin.castAdd N a) = -lam μ) ∧
     (∀ a : Fin N, ∃ ν, σ (Fin.natAdd N a) = lam ν) := by
@@ -364,7 +364,7 @@ theorem overlapES_freq (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : F
 /-- **Integer-spectrum corollary** [Sch21, main.tex:368]. If every eigenvalue difference is
 an integer, every kernel frequency has integer coordinates — the kernel is a genuine
 multidimensional Fourier series. -/
-theorem fourier_integer_spectrum (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
+lemma fourier_integer_spectrum (W : Fin (N + 1) → Matrix (Fin d) (Fin d) ℂ) (lam : Fin d → ℝ)
     (ψ : Fin d → ℂ) (hint : ∀ i j : Fin d, ∃ z : ℤ, lam i - lam j = z)
     (σ : Fin (N + N) → ℝ) (hσ : σ ∈ (kernelES W lam ψ).freqs) (a : Fin (N + N)) :
     ∃ z : ℤ, σ a = z := by
@@ -403,7 +403,7 @@ noncomputable def pauliXPsi : Fin 2 → ℂ :=
 noncomputable def pauliXW : Fin 2 → Matrix (Fin 2) (Fin 2) ℂ := ![1, 1]
 
 /-- The single-qubit cosine-encoding feature state is `(e^{ix/2}/√2, e^{-ix/2}/√2)`. -/
-theorem pauliX_featState (x : ℝ) :
+lemma pauliX_featState (x : ℝ) :
     featState pauliXW pauliXSpectrum pauliXPsi 1 ![x]
       = ![(((Real.sqrt 2)⁻¹ : ℝ) : ℂ) * Complex.exp (Complex.I * ↑(x / 2)),
           (((Real.sqrt 2)⁻¹ : ℝ) : ℂ) * Complex.exp (-(Complex.I * ↑(x / 2)))] := by
@@ -421,7 +421,7 @@ theorem pauliX_featState (x : ℝ) :
 
 /-- **Non-vacuity witness** [Sch21, main.tex:931]. The single-qubit cosine-encoding quantum
 kernel equals the squared-cosine kernel `cos²((x-x')/2)`. -/
-theorem pauliX_kernel_eq_cos_sq (x x' : ℝ) :
+lemma pauliX_kernel_eq_cos_sq (x x' : ℝ) :
     Complex.normSq (∑ m, (starRingEnd ℂ) (featState pauliXW pauliXSpectrum pauliXPsi 1 ![x'] m)
         * featState pauliXW pauliXSpectrum pauliXPsi 1 ![x] m)
       = Real.cos ((x - x') / 2) ^ 2 := by

@@ -53,7 +53,7 @@ def adjacentRightIndex (width : Nat) (i : Fin (width - 1)) : Fin width :=
   ⟨i.val + 1, by omega⟩
 
 /-- Adjacent endpoints are distinct. -/
-theorem adjacentLeftIndex_ne_adjacentRightIndex
+lemma adjacentLeftIndex_ne_adjacentRightIndex
     (width : Nat) (i : Fin (width - 1)) :
     adjacentLeftIndex width i ≠ adjacentRightIndex width i := by
   intro h
@@ -69,13 +69,13 @@ def xorIntoGates (source target : Word encoding width)
   List.ofFn fun i => GateSpec.cnot (source.bit i) (target.bit i) (hdisjoint i)
 
 /-- A literal word xor contains one CNOT per word bit. -/
-@[simp] theorem xorIntoGates_length (source target : Word encoding width)
+@[simp] lemma xorIntoGates_length (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     (xorIntoGates source target hdisjoint).length = width := by
   simp [xorIntoGates]
 
 /-- A literal word xor contains exactly one CNOT per word bit. -/
-@[simp] theorem xorIntoGates_cnotMultiplicity_sum
+@[simp] lemma xorIntoGates_cnotMultiplicity_sum
     (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     ((xorIntoGates source target hdisjoint).map
@@ -83,7 +83,7 @@ def xorIntoGates (source target : Word encoding width)
   simp [xorIntoGates, List.sum_ofFn]
 
 /-- A literal word xor contains no Toffoli gate. -/
-theorem xorIntoGates_toffoliMultiplicity_sum
+lemma xorIntoGates_toffoliMultiplicity_sum
     (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     ((xorIntoGates source target hdisjoint).map
@@ -109,7 +109,7 @@ def xorIntoStep (source target : Word encoding width)
 
 /-- A word-xor fold preserves every projection preserved by each target-bit
 flip. -/
-theorem xorIntoStep_preserves_projection
+lemma xorIntoStep_preserves_projection
     {Projection : Type} (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
     (project : Data → Projection)
@@ -123,19 +123,23 @@ theorem xorIntoStep_preserves_projection
   exact hpreserve bit
 
 /-- The bitwise xor-into program realizes its folded semantic action. -/
-theorem xorInto_realizes (source target : Word encoding width)
-    (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
+lemma xorInto_realizes (source target : Word encoding width)
+    (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
-      (xorIntoProgram physical oracles source target hdisjoint)
+      (xorIntoProgram physical oracles source target hdisjoint) environment
       (xorIntoStep source target hdisjoint) :=
-  GateSpec.realizesList physical oracles (xorIntoGates source target hdisjoint)
+  GateSpec.realizesList
+    (environment := environment) physical oracles (xorIntoGates source target hdisjoint)
 
 /-- Direct realization proof for bitwise xor into another encoded word. -/
-theorem xorIntoWitness (source target : Word encoding width)
-    (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
+lemma xorIntoWitness (source target : Word encoding width)
+    (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding (xorIntoProgram physical oracles source target hdisjoint)
+      environment
       (xorIntoStep source target hdisjoint) :=
-  xorInto_realizes physical oracles source target hdisjoint
+  xorInto_realizes (environment := environment) physical oracles source target hdisjoint
 
 /-- Folded semantic action for word xor over an explicit list of indices. -/
 def xorIntoIndicesStep (source target : Word encoding width)
@@ -146,7 +150,7 @@ def xorIntoIndicesStep (source target : Word encoding width)
 
 /-- The concrete `List.ofFn` word-xor gate list agrees with the indexed fold
 semantics. -/
-theorem xorIntoStep_eq_indicesStep (source target : Word encoding width)
+lemma xorIntoStep_eq_indicesStep (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
     xorIntoStep source target hdisjoint =
       xorIntoIndicesStep source target (List.ofFn fun i : Fin width => i) := by
@@ -172,7 +176,7 @@ theorem xorIntoStep_eq_indicesStep (source target : Word encoding width)
 
 /-- A word-xor fold preserves any observed readout whose wire is distinct from
 every folded target bit. -/
-theorem xorIntoIndicesStep_get_observed_of_target_ne
+lemma xorIntoIndicesStep_get_observed_of_target_ne
     (source target : Word encoding width) (indices : List (Fin width))
     (observed : EncodedBit encoding)
     (hne : ∀ i, i ∈ indices -> (target.bit i).wire ≠ observed.wire)
@@ -198,7 +202,7 @@ theorem xorIntoIndicesStep_get_observed_of_target_ne
 
 /-- A word-xor fold toggles a target bit exactly when its index is present in
 the folded index list. -/
-theorem xorIntoIndicesStep_get_target
+lemma xorIntoIndicesStep_get_target
     (source target : Word encoding width) (indices : List (Fin width))
     (hnodup : indices.Nodup) (i : Fin width)
     (htargetTarget :
@@ -266,7 +270,7 @@ theorem xorIntoIndicesStep_get_target
 
 /-- The complete word-xor fold preserves an observed readout whose wire is
 distinct from every target bit. -/
-theorem xorIntoStep_get_observed_of_target_ne
+lemma xorIntoStep_get_observed_of_target_ne
     (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
     (observed : EncodedBit encoding)
@@ -282,7 +286,7 @@ theorem xorIntoStep_get_observed_of_target_ne
 
 /-- The complete word-xor fold toggles each target bit by the corresponding
 source bit. -/
-theorem xorIntoStep_get_target
+lemma xorIntoStep_get_target
     (source target : Word encoding width)
     (hdisjoint : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
     (i : Fin width)

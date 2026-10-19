@@ -19,7 +19,7 @@ vector, including the empty word.
 namespace QuantumAlg.BinaryBasis
 
 /-- Decoding the zero label yields zero at every actual coordinate. -/
-theorem bigEndianEquiv_symm_zero (width : Nat) :
+lemma bigEndianEquiv_symm_zero (width : Nat) :
     (bigEndianEquiv width).symm (0 : Fin (2 ^ width)) = (fun _ : Fin width => (0 : Fin 2)) := by
   funext index
   rw [bigEndianEquiv_symm_value]
@@ -27,7 +27,7 @@ theorem bigEndianEquiv_symm_zero (width : Nat) :
   simp [finTwoEquiv]
 
 /-- Encoding the all-zero word yields the original integer label zero. -/
-theorem bigEndianEquiv_zero (width : Nat) :
+lemma bigEndianEquiv_zero (width : Nat) :
     bigEndianEquiv width (fun _ : Fin width => (0 : Fin 2)) = (0 : Fin (2 ^ width)) := by
   rw [← bigEndianEquiv_symm_zero, Equiv.apply_symm_apply]
 

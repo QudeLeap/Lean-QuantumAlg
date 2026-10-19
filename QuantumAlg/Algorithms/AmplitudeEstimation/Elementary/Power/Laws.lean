@@ -27,9 +27,10 @@ noncomputable section
 
 open QuantumPhaseEstimation.Native (stageExponent stageExponentFold stageExponentFold_all)
 
-private theorem powerStage_matrix_original {n t : Nat} (U : UnitaryOperator (Qubits n))
+private lemma powerStage_matrix_original {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stage : Fin t) :
-    (powerStage U good stage).binaryMatrix = qpeExponentOp (phaseWidth t n)
+    ((powerStage n stage).binaryMatrix (AmplitudeAmplificationSource.interpretation U good true
+      true)) = qpeExponentOp (phaseWidth t n)
       (U * (ZeroReflection.zeroReflectionOperator n *
         (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))
       (fun phase => stageExponent stage (originalPhase t n phase)) := by
@@ -38,10 +39,11 @@ private theorem powerStage_matrix_original {n t : Nat} (U : UnitaryOperator (Qub
   funext phase
   exact extendedStage_exponent n stage phase
 
-private theorem stageMatrixFold {n t : Nat} (U : UnitaryOperator (Qubits n))
+private lemma stageMatrixFold {n t : Nat} (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) (stages : List (Fin t))
     (initial : Fin (2 ^ t) → Nat) :
-    (stages.map (fun stage => (powerStage U good stage).binaryMatrix)).foldl
+    (stages.map (fun stage => ((powerStage n stage).binaryMatrix
+      (AmplitudeAmplificationSource.interpretation U good true true)))).foldl
         (fun (accumulated next : UnitaryOperator (Qubits (totalQubits t n))) => next * accumulated)
         (qpeExponentOp (phaseWidth t n)
           (U * (ZeroReflection.zeroReflectionOperator n *
@@ -58,9 +60,10 @@ private theorem stageMatrixFold {n t : Nat} (U : UnitaryOperator (Qubits n))
       exact ih (fun phase => stageExponent stage phase + initial phase)
 
 /-- The full actual ladder applies precisely the source power indexed by the original phase. -/
-theorem ladder_matrix {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
+lemma ladder_matrix {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
     (good : NormalizedVector (Qubits n)) :
-    (ladder t U good).binaryMatrix = qpeExponentOp (phaseWidth t n)
+    ((ladder n t).binaryMatrix (AmplitudeAmplificationSource.interpretation U good true true)) =
+      qpeExponentOp (phaseWidth t n)
       (U * (ZeroReflection.zeroReflectionOperator n *
         (U.dagger * OrthogonalProjector.rankOnePhaseReflectionOp good)))
       (fun phase => (originalPhase t n phase).val) := by
@@ -71,11 +74,14 @@ theorem ladder_matrix {n : Nat} (t : Nat) (U : UnitaryOperator (Qubits n))
   rw [show (1 : UnitaryOperator (Qubits (totalQubits t n))) =
       qpeExponentOp (phaseWidth t n) source (fun _ => 0) from
         (qpeExponentOp_zero (phaseWidth t n) source).symm]
-  rw [show List.ofFn (fun stage : Fin t => (powerStage U good stage).binaryMatrix) =
+  rw [show List.ofFn (fun stage : Fin t => ((powerStage n stage).binaryMatrix
+    (AmplitudeAmplificationSource.interpretation U good true true))) =
       (List.ofFn fun stage : Fin t => stage).map
-        (fun stage => (powerStage U good stage).binaryMatrix) by
+        (fun stage => ((powerStage n stage).binaryMatrix
+          (AmplitudeAmplificationSource.interpretation U good true true))) by
     exact List.ofFn_comp' (fun stage : Fin t => stage)
-      (fun stage => (powerStage U good stage).binaryMatrix)]
+      (fun stage => ((powerStage n stage).binaryMatrix (AmplitudeAmplificationSource.interpretation
+        U good true true)))]
   calc
     _ = qpeExponentOp (phaseWidth t n) source
         (fun phase => stageExponentFold (List.ofFn fun stage : Fin t => stage)

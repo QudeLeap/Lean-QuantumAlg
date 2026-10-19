@@ -30,7 +30,7 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.CoefficientExchange
 
 noncomputable section
 
-private theorem selected_source (width : Nat) (state : Registers width)
+private lemma selected_source (width : Nat) (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :
     SelectionSchedule.sourceStep width state = SelectionSwap.exchange width
@@ -40,7 +40,7 @@ private theorem selected_source (width : Nat) (state : Registers width)
     second, Bool.true_xor, Bool.not_false]
 
 /-- The actual phase-three quotient program subtracts one from the retained finite length. -/
-theorem source_quotientLength (width : Nat) (state : Registers width)
+lemma source_quotientLength (width : Nat) (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :
     (SignQuotient.sourceStep width state).quotientLength = state.quotientLength - 1 := by
@@ -60,7 +60,7 @@ theorem source_quotientLength (width : Nat) (state : Registers width)
     if_true, retained.2.1]
 
 /-- The actual selected original quotient coordinate becomes Sign before coefficient arithmetic. -/
-theorem source_sign (width : Nat) (state : Registers width)
+lemma source_sign (width : Nat) (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :
     (SignQuotient.sourceStep width state).flags.sign =
@@ -71,7 +71,7 @@ theorem source_sign (width : Nat) (state : Registers width)
     ⟨state.coefficientLength.toNat + state.quotientLength.toNat, within⟩ state
 
 /-- The old Sign is placed above the entire original remainder when its field expands by one bit. -/
-theorem source_low (width : Nat) (state : Registers width)
+lemma source_low (width : Nat) (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :
     let position := state.coefficientLength.toNat + state.quotientLength.toNat
@@ -84,7 +84,7 @@ theorem source_low (width : Nat) (state : Registers width)
     ⟨state.coefficientLength.toNat + state.quotientLength.toNat, within⟩ state
 
 /-- Every actual coefficient, separator, and remaining higher quotient bit is retained. -/
-theorem source_prefix (width : Nat) (state : Registers width)
+lemma source_prefix (width : Nat) (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :
     let position := state.coefficientLength.toNat + state.quotientLength.toNat
@@ -98,7 +98,7 @@ theorem source_prefix (width : Nat) (state : Registers width)
     ⟨state.coefficientLength.toNat + state.quotientLength.toNat, within⟩ state
 
 /-- The actual source consumes only its quotient bit and length, preserving every other field. -/
-theorem source_retained (width : Nat) (state : Registers width)
+lemma source_retained (width : Nat) (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :
     (SignQuotient.sourceStep width state).secondWord = state.secondWord ∧
@@ -122,7 +122,7 @@ theorem source_retained (width : Nat) (state : Registers width)
     SelectionSwap.exchange_control width selected state⟩
 
 /-- Native initialized control executes this real quotient-bit read and finite decrement jointly. -/
-theorem native_sign_and_length (width : Nat) (state : Registers width)
+lemma native_sign_and_length (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat < width + 3) :

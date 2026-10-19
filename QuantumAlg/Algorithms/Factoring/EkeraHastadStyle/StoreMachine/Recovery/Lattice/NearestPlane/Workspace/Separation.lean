@@ -24,7 +24,7 @@ noncomputable section
 
 /-- The persistent pair state and one reusable nearest-plane scratch package
 satisfy the complete three-stage separation contract. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat}
     {state : LatticePairStateWorkspaceLayout.Cells ctx N}
     {scratch : LatticeNearestPlaneScratchWorkspaceLayout.Cells ctx N}

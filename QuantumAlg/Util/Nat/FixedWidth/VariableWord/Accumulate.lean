@@ -35,7 +35,7 @@ def variableWordPrefix {width : Nat} (modulus : Fin (2 ^ width + 1))
   | count + 1 => variableWordStep modulus first second
       (variableWordPrefix modulus first second target count) count
 
-theorem variableWordStep_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableWordStep_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) (index : Nat)
     (valid : target.val < modulus.val) :
     (variableWordStep modulus first second target index).val < modulus.val := by
@@ -44,7 +44,7 @@ theorem variableWordStep_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
   · exact accumulateWordPrefix_valid modulus (2 ^ index) second target valid width
   · exact valid
 
-theorem variableWordPrefix_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableWordPrefix_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) (count : Nat)
     (valid : target.val < modulus.val) :
     (variableWordPrefix modulus first second target count).val < modulus.val := by
@@ -53,7 +53,7 @@ theorem variableWordPrefix_valid {width : Nat} (modulus : Fin (2 ^ width + 1))
   | succ count inductionHypothesis =>
       exact variableWordStep_valid modulus first second _ count inductionHypothesis
 
-theorem variableWordPrefix_val {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableWordPrefix_val {width : Nat} (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) (count : Nat)
     (valid : target.val < modulus.val) :
     (variableWordPrefix modulus first second target count).val =
@@ -74,7 +74,7 @@ theorem variableWordPrefix_val {width : Nat} (modulus : Fin (2 ^ width + 1))
           ← inductionHypothesis, Nat.mod_eq_of_lt canonical]
 
 /-- The full bit-pair sum is the modular product of the two original inputs. -/
-theorem variableWordPrefix_full {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableWordPrefix_full {width : Nat} (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) (valid : target.val < modulus.val) :
     (variableWordPrefix modulus first second target width).val =
       (target.val + first.val * second.val) % modulus.val := by
@@ -82,7 +82,7 @@ theorem variableWordPrefix_full {width : Nat} (modulus : Fin (2 ^ width + 1))
     accumulateSelected_eq_add_mul_mod_of_lt_two_pow first.isLt, Nat.mul_comm second.val]
 
 /-- All noncanonical target labels are fixed, independently of both inputs. -/
-theorem variableWordPrefix_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
+lemma variableWordPrefix_outside {width : Nat} (modulus : Fin (2 ^ width + 1))
     (first second target : Fin (2 ^ width)) (count : Nat)
     (outside : modulus.val ≤ target.val) :
     variableWordPrefix modulus first second target count = target := by

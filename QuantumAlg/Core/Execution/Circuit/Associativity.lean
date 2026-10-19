@@ -25,11 +25,11 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel}
+variable {model : ExecutionModel} {allowAllocation : Bool}
   {pre middle₁ middle₂ post : RuntimeCtx model.kind}
-  (first : Circuit model pre middle₁)
-  (middle : Circuit model middle₁ middle₂)
-  (last : Circuit model middle₂ post)
+  (first : Circuit model pre middle₁ allowAllocation)
+  (middle : Circuit model middle₁ middle₂ allowAllocation)
+  (last : Circuit model middle₂ post allowAllocation)
 
 /-- Reassociate only the complete path record of three unchanged sections. -/
 def seqAssocPath : ((first.seq middle).seq last).Path ≃
@@ -44,7 +44,7 @@ def seqAssocHistory {H : Type} :
     (history.2.1, (seqAssocPath first middle last).symm history.2.2))
 
 /-- The chronological native-event list is unchanged under reassociation. -/
-theorem seqAssoc_eventTrace
+lemma seqAssoc_eventTrace
     (path : ((first.seq middle).seq last).Path) :
     ((first.seq middle).seq last).eventTrace path =
       (first.seq (middle.seq last)).eventTrace
@@ -53,7 +53,7 @@ theorem seqAssoc_eventTrace
   simp [seqAssocPath, Equiv.prodAssoc, Circuit.eventTrace, List.append_assoc]
 
 /-- Reassociation preserves the actual visited contexts and their order. -/
-theorem seqAssoc_visitedContexts
+lemma seqAssoc_visitedContexts
     (path : ((first.seq middle).seq last).Path) :
     ((first.seq middle).seq last).visitedContexts path =
       (first.seq (middle.seq last)).visitedContexts
@@ -62,7 +62,7 @@ theorem seqAssoc_visitedContexts
   simp [seqAssocPath, Equiv.prodAssoc, Circuit.visitedContexts, List.append_assoc]
 
 /-- The same path has the same chronological dependency depth. -/
-theorem seqAssoc_depth
+lemma seqAssoc_depth
     (duration : Resource.Event model → Nat)
     (path : ((first.seq middle).seq last).Path) :
     ((first.seq middle).seq last).depth duration path =
@@ -75,7 +75,7 @@ theorem seqAssoc_depth
   exact Nat.add_assoc _ _ _
 
 /-- No resident storage is lost when a cycle boundary changes parentheses. -/
-theorem seqAssoc_peakResidentSpace
+lemma seqAssoc_peakResidentSpace
     (path : ((first.seq middle).seq last).Path) :
     ((first.seq middle).seq last).peakResidentSpace path =
       (first.seq (middle.seq last)).peakResidentSpace
@@ -84,7 +84,7 @@ theorem seqAssoc_peakResidentSpace
   rw [seqAssoc_visitedContexts first middle last path]
 
 /-- The auxiliary peak is likewise unchanged on every actual path. -/
-theorem seqAssoc_peakAuxiliarySpace
+lemma seqAssoc_peakAuxiliarySpace
     (path : ((first.seq middle).seq last).Path) :
     ((first.seq middle).seq last).peakAuxiliarySpace path =
       (first.seq (middle.seq last)).peakAuxiliarySpace
@@ -94,15 +94,16 @@ theorem seqAssoc_peakAuxiliarySpace
 
 /-- The complete weighted output state, including store, service, reference
 and every path outcome, changes only by the explicit path reassociation. -/
-theorem seqAssoc_execute (Reference : Register)
+lemma seqAssoc_execute (environment : model.Environment) (Reference : Register)
     {H : Type} [Fintype H]
     (state : State pre Reference (model.HiddenState × H)) :
-    ((first.seq middle).seq last).execute Reference state =
-      ((first.seq (middle.seq last)).execute Reference state).mapHistory
+    ((first.seq middle).seq last).execute environment Reference state =
+      ((first.seq (middle.seq last)).execute environment Reference state).mapHistory
         (seqAssocHistory first middle last) := by
   simp only [Circuit.execute_seq]
-  let intermediate := middle.execute Reference (first.execute Reference state)
-  have natural := Circuit.execute_mapHistory last Reference intermediate
+  let intermediate :=
+    middle.execute environment Reference (first.execute environment Reference state)
+  have natural := Circuit.execute_mapHistory last environment Reference intermediate
     (fun history : (H × first.Path) × middle.Path =>
       (history.1.1, (history.1.2, history.2)))
   rw [natural]
@@ -113,12 +114,12 @@ theorem seqAssoc_execute (Reference : Register)
 bijection of mathematical path records. The certificate retains exact native
 events, chronological depth, and both live-space peaks on every path. -/
 structure OperationalEquiv {pre post : RuntimeCtx model.kind}
-    (source target : Circuit model pre post) where
+    (source target : Circuit model pre post allowAllocation) where
   path : source.Path ≃ target.Path
-  execute : ∀ (Reference : Register) {H : Type} [Fintype H]
+  execute : ∀ (environment : model.Environment) (Reference : Register) {H : Type} [Fintype H]
       (state : State pre Reference (model.HiddenState × H)),
-      source.execute Reference state =
-        (target.execute Reference state).mapHistory
+      source.execute environment Reference state =
+        (target.execute environment Reference state).mapHistory
           (fun history => (history.1, (history.2.1, path.symm history.2.2)))
   events : ∀ sourcePath : source.Path,
     source.eventTrace sourcePath = target.eventTrace (path sourcePath)
@@ -135,8 +136,8 @@ def seqAssocOperationalEquiv :
       (first.seq (middle.seq last)) where
   path := seqAssocPath first middle last
   execute := by
-    intro Reference H _ state
-    exact seqAssoc_execute first middle last Reference state
+    intro environment Reference H _ state
+    exact seqAssoc_execute first middle last environment Reference state
   events := seqAssoc_eventTrace first middle last
   depth := seqAssoc_depth first middle last
   resident := seqAssoc_peakResidentSpace first middle last

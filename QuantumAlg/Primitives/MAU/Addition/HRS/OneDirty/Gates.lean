@@ -21,6 +21,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec
 
 /-- The bridge and both children, joined on the original word and dirty bit. -/
@@ -34,7 +36,7 @@ def recursiveStepGates (width : Nat) (constant : Fin (2 ^ width))
       highChildGates (lowWidth width) (highWidth width) highGates)
 
 /-- Exact recursive child additions imply exact full-word addition for the literal list. -/
-theorem hrsRecursiveStepGates_step (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsRecursiveStepGates_step (width : Nat) (constant : Fin (2 ^ width))
     (lowGates : List (GateSpec (oneDirtyEncoding (lowWidth width))))
     (highGates : List (GateSpec (oneDirtyEncoding (highWidth width))))
     (lowAction : ∀ state, stepList lowGates state =
@@ -52,7 +54,7 @@ theorem hrsRecursiveStepGates_step (width : Nat) (constant : Fin (2 ^ width))
   · rfl
 
 /-- The ordered events are precisely the original bridge followed by the two children. -/
-theorem hrsRecursiveStepGates_events (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsRecursiveStepGates_events (width : Nat) (constant : Fin (2 ^ width))
     (lowGates : List (GateSpec (oneDirtyEncoding (lowWidth width))))
     (highGates : List (GateSpec (oneDirtyEncoding (highWidth width)))) :
     (recursiveStepGates width constant lowGates highGates).map (event .empty) =
@@ -80,7 +82,7 @@ decreasing_by
     | exact (hrsSplit_decreases width two).2
 
 /-- Exact all-input addition, including restoration of the arbitrary dirty value. -/
-theorem hrsOneDirtyGates_step (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsOneDirtyGates_step (width : Nat) (constant : Fin (2 ^ width))
     (state : OneDirtyRegisters width) :
     stepList (oneDirtyGates width constant) state = oneDirtyOutput constant state := by
   induction width using Nat.strong_induction_on with
@@ -95,7 +97,7 @@ theorem hrsOneDirtyGates_step (width : Nat) (constant : Fin (2 ^ width))
           (ih (highWidth width) decrease.2 ((splitWord width) constant).2) state
 
 /-- The explicit instructions retain every native multiplicity of the HRS source program. -/
-theorem hrsOneDirtyGates_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirtyGates_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
     ResourcePool.ofList ((oneDirtyGates width constant).map (event .empty)) =
       (oneDirtyProgram width constant).eventCost := by
   induction width using Nat.strong_induction_on with
@@ -112,24 +114,24 @@ theorem hrsOneDirtyGates_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
         rw [hrsRecursiveStep_eventCost]
 
 /-- The original native gate count is exactly the length of the exposed list. -/
-theorem hrsOneDirtyGates_length (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirtyGates_length (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyGates width constant).length = (oneDirtyProgram width constant).eventCost.card := by
   rw [← hrsOneDirtyGates_eventCost]
   simp [ResourcePool.ofList]
 
 /-- The actual literal gate count satisfies the independent logarithmic HRS envelope. -/
-theorem hrsOneDirtyGates_length_bound (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirtyGates_length_bound (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyGates width constant).length ≤ width * (39 * Nat.clog 2 width + 1) := by
   rw [hrsOneDirtyGates_length]
   exact hrsOneDirty_event_count_bound width constant
 
 /-- The explicit native program implements the exact original word/dirty contract. -/
-theorem hrsOneDirtyGates_realizes (width : Nat) (constant : Fin (2 ^ width))
-    (oracles : OracleModel) :
+lemma hrsOneDirtyGates_realizes (width : Nat) (constant : Fin (2 ^ width))
+    (oracles : OracleModel) {environment : oracles.Interpretation} :
     UnitaryCircuit.Realizes (oneDirtyEncoding width)
-      (programList (QubitLayout.canonical _) oracles (oneDirtyGates width constant))
+      (programList (QubitLayout.canonical _) oracles (oneDirtyGates width constant)) environment
       (oneDirtyOutput constant) :=
-  realizesList_congrStep _ _ _ (hrsOneDirtyGates_step width constant)
+  realizesList_congrStep _ _ _ (hrsOneDirtyGates_step width constant) environment
 
 end
 

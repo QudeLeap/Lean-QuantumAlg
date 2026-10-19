@@ -72,7 +72,7 @@ def code (successor : Bool) (halfPower : CInputRef ctx (.unsignedWord (modulusBi
       (body (model := model) successor halfPower output))
 
 /-- The GCD path contains its real initialization instruction and the expanded Euclidean trace. -/
-theorem gcdTail_eventTrace (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
+lemma gcdTail_eventTrace (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     (path : (gcdTail (model := model) output).Path) :
     (gcdTail (model := model) output).eventTrace path =
       Resource.Event.classicalOperation (BitWord.selectedCoordinate (execution := model)

@@ -35,13 +35,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
-
-private def samplerDepth (model : ExecutionModel) (N : Nat) : DepthBudget model where
-  duration := fun _ => 1
-  limit := 44 * modulusBits N + 161
-  classicalQuery_unit := fun _ => rfl
-  quantumQuery_unit := fun _ => rfl
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
 
 /-- Independent exact preparation by the complete finite residue sampler.
 
@@ -71,16 +65,17 @@ private def samplerDepth (model : ExecutionModel) (N : Nat) : DepthBudget model 
 -/
 public def problem (ctx : RuntimeCtx model.kind) (N : Nat) (nontrivial : 1 < N) :
     Problem model ctx (context ctx N) (outputShape N) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ result => correctOutput ⟨nontrivial⟩ result
-  successLB := ⟨1, le_rfl⟩
-  states := [requirement ctx N]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ result => correctOutput ⟨nontrivial⟩ result
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [requirement ctx N]
   resources :=
     { events := nativeEnvelope model N
       resident := ctx.residentSpace + additionalSpace model.kind (modulusBits N)
       auxiliary := ctx.auxiliarySpace + additionalSpace model.kind (modulusBits N) }
-  depth := samplerDepth model N
+  quantumTimeLimit := 44 * modulusBits N + 161
 
 /-- Execute the actual retained sampler and read its complete live-key Output. -/
 public def algorithm (ctx : RuntimeCtx model.kind) (N : Nat) :
@@ -88,43 +83,44 @@ public def algorithm (ctx : RuntimeCtx model.kind) (N : Nat) :
   run := run (model := model) ctx N
 
 /-- The complete manifest lists every actual final live key. -/
-public theorem samplerNative_output_listing (ctx : RuntimeCtx model.kind) (N : Nat) :
+public lemma samplerNative_output_listing (ctx : RuntimeCtx model.kind) (N : Nat) :
     (algorithm (model := model) ctx N).run.output.listing = (context ctx N).keys := (rfl)
 
 omit [BitWord.Selected model] in
 /-- Classical retention preserves every actual incoming quantum wire and its dimension. -/
-public theorem samplerNative_quantumWires {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :
+public lemma samplerNative_quantumWires {kind : ProblemKind} (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := (rfl)
 
 /-- The independent resident allowance includes all live caller entries and classical work. -/
-public theorem samplerNative_resident_budget (ctx : RuntimeCtx model.kind) (N : Nat)
+public lemma samplerNative_resident_budget (ctx : RuntimeCtx model.kind) (N : Nat)
     (nontrivial : 1 < N) :
     (problem (model := model) ctx N nontrivial).resources.resident .classicalBits =
       ctx.residentSpace .classicalBits + (27 * Nat.clog 2 N + 15) := (rfl)
 
 /-- The actual public algorithm has the exact original independent source distribution. -/
-public theorem samplerNative_outputDistribution (ctx : RuntimeCtx model.kind) (N : Nat)
+public lemma samplerNative_outputDistribution (ctx : RuntimeCtx model.kind) (N : Nat)
     (nontrivial : 1 < N) {Reference : Register}
         (input : Execution.OracleInput model.classicalOracles ctx Reference) :
-    (algorithm (model := model) ctx N).outputDistribution input =
+    (algorithm (model := model) ctx N).outputDistribution environment input =
       (PMF.uniformOfFintype (Fin (2 ^ residueSamplingBits N))).map
         (outputValue ⟨nontrivial⟩) :=
   samplerRetained_run_outputDistribution ctx ⟨nontrivial⟩ input
 
 /-- The same native run meets exact preparation, full-state and independent resource obligations. -/
 public theorem main (ctx : RuntimeCtx model.kind) (N : Nat) (nontrivial : 1 < N) :
-    ∃ candidate, Algorithm.Solves candidate (problem (model := model) ctx N nontrivial) := by
+    ∃ candidate : Algorithm model ctx (context ctx N) (outputShape N),
+      candidate.Solves (problem (model := model) ctx N nontrivial) := by
   refine ⟨algorithm (model := model) ctx N, ?_⟩
   constructor
-  · intro Reference input _valid _initialization
-    exact samplerRetained_success ctx ⟨nontrivial⟩ input
-  · intro Reference input _valid _initialization promised present
+  · intro environment _witness Reference input _valid _initialization
+    exact samplerRetained_success (environment := environment) ctx ⟨nontrivial⟩ input
+  · intro environment _witness Reference input _valid _initialization promised present
     change promised ∈ [requirement ctx N] at present
     obtain rfl := List.mem_singleton.mp present
-    exact samplerRetainedRequirement_holds ctx ⟨nontrivial⟩ input
-  · intro Reference input _valid _initialization
+    exact samplerRetainedRequirement_holds (environment := environment) ctx ⟨nontrivial⟩ input
+  · intro environment _witness Reference input _valid _initialization
     change Execution.observeBorrowedAfter (circuit (model := model) ctx N) Reference
-      ((circuit (model := model) ctx N).execute Reference
+      ((circuit (model := model) ctx N).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
       Execution.observeBorrowed Reference input.state
     refine (samplerRetained_borrowedRestored ctx N Reference
@@ -133,13 +129,14 @@ public theorem main (ctx : RuntimeCtx model.kind) (N : Nat) (nontrivial : 1 < N)
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
     apply congrArg (Execution.observeBorrowed Reference)
     exact mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact samplerRetained_pool_le ctx N path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact samplerRetained_resident_le ctx N path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact samplerRetained_auxiliary_le ctx N path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact samplerRetained_unit_depth_le ctx N path
 
 end

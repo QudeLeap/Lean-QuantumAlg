@@ -46,13 +46,13 @@ def liftInput {shape : CShape} (input : CInputRef source shape) :
     source.canonicalFreshKey_fresh
 
 /-- Fresh selected-result storage lies outside every original structural read. -/
-theorem result_avoids_input {shape : CShape} (input : CInputRef source shape) :
+lemma result_avoids_input {shape : CShape} (input : CInputRef source shape) :
     (resultRef source N).key ∉ (liftInput source N input).storageKeys :=
   input.fresh_not_mem_storageKeys_underRetained (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
 
 /-- Selection keeps the identical ordered quantum-wire identities. -/
-theorem context_quantumWires : (context source N).quantumWires = source.quantumWires :=
+lemma context_quantumWires : (context source N).quantumWires = source.quantumWires :=
   RuntimeCtx.quantumWires_addRetained source (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
 

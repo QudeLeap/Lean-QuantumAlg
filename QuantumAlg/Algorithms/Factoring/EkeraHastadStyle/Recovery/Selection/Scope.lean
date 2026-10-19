@@ -60,7 +60,7 @@ def popStore (width : Nat) (store : Store (context ctx width)) : Store ctx :=
   Store.popWorkspace ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh first
 
 /-- Entering these actual scopes preserves every original structural input value. -/
-theorem nativeRecovery_selection_push_read {shape : CShape}
+lemma nativeRecovery_selection_push_read {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) (store : Store ctx) :
     (pushStore width store).read (underRead input width) = store.read input := by
   let first : Store (acceptedCtx ctx) :=
@@ -89,7 +89,7 @@ theorem nativeRecovery_selection_push_read {shape : CShape}
           ctx.canonicalFreshKey_fresh input)))
 
 /-- Exiting these actual scopes exposes exactly the surviving original entries. -/
-theorem nativeRecovery_selection_pop_read {shape : CShape}
+lemma nativeRecovery_selection_pop_read {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) (store : Store (context ctx width)) :
     (popStore width store).read input = store.read (underRead input width) := by
   let third : Store (availableCtx ctx width) :=
@@ -119,17 +119,17 @@ theorem nativeRecovery_selection_pop_read {shape : CShape}
           .bit (availableCtx ctx width).canonicalFreshKey_fresh store thirdRead)))
 
 /-- The real newly allocated acceptance flag is false. -/
-theorem nativeRecovery_selection_push_accepted (width : Nat) (store : Store ctx) :
+lemma nativeRecovery_selection_push_accepted (width : Nat) (store : Store ctx) :
     (pushStore width store).read (FirstAccepted.cellRead (accepted ctx width)) =
       CShape.Value.bit false := rfl
 
 /-- The real newly allocated selected word is zero at its exact declared width. -/
-theorem nativeRecovery_selection_push_selected (width : Nat) (store : Store ctx) :
+lemma nativeRecovery_selection_push_selected (width : Nat) (store : Store ctx) :
     (pushStore width store).read (FirstAccepted.cellRead (selected ctx width)) =
       CShape.wordOfNat width 0 := rfl
 
 /-- The complete original parameter survives the actual selector allocation unchanged. -/
-theorem nativeRecovery_selection_push_parameter {N : Nat}
+lemma nativeRecovery_selection_push_parameter {N : Nat}
     (original : Inputs ctx N) (store : Store ctx) :
     (pushStore (modulusBits N) store).read (inputs original).parameter =
       store.read original.parameter :=
@@ -141,7 +141,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Fresh scope entry and actual selection give the original early-factor flag and payload. -/
-theorem nativeRecovery_selection_early_entry {N : Nat}
+lemma nativeRecovery_selection_early_entry {N : Nat}
     (original : Inputs ctx N) (store : Store ctx) :
     let final := (earlyStep (inputs original) (refs ctx (modulusBits N))
       (pushStore (modulusBits N) store)).1

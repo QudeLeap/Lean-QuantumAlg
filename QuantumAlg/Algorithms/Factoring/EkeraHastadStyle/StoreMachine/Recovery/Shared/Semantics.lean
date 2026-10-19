@@ -35,7 +35,7 @@ structure Initialized {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
   quadratic : quadratic.Initialized store
 
 /-- Actual read agreement preserves initialization of both transported packages. -/
-theorem Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind} {N : Nat}
+lemma Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kind} {N : Nat}
     {source : Store outer} {before : Store inner} {shared : Shared.Cells outer N}
     {quadratic : Quadratic.Cells outer N} (initial : Initialized source shared quadratic)
     (transport : Transport outer inner) (reads : transport.ReadsAs source before) :
@@ -46,7 +46,8 @@ theorem Initialized.transport {kind : ProblemKind} {outer inner : RuntimeCtx kin
     transport quadratic reads initial.quadratic
 
 /-- Both real allocations establish initialization and the actual returned caller postcondition. -/
-theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
+lemma withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
+    {environment : model.Environment}
     (ctx : RuntimeCtx model.kind) {N : Nat}
     (parameter : CInputRef ctx (ParameterShape N))
     (body : ∀ {inner : RuntimeCtx model.kind}
@@ -73,7 +74,8 @@ theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
           (body shared sharedDistinct quadratic quadraticDistinct transport
-            sharedSeparated quadraticSeparated cross initialization).execute Reference state =
+            sharedSeparated quadraticSeparated cross initialization).execute environment
+              Reference state =
               state.mapClassical (fun entry =>
                 let actual := step (entry.1, entry.2.1)
                 (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
@@ -84,15 +86,15 @@ theorem withWorkspaces_actualRecord_initialized_post {model : ExecutionModel}
       (Store ctx × model.HiddenState) × (withWorkspaces ctx parameter body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withWorkspaces ctx parameter body).execute Reference state =
+        (withWorkspaces ctx parameter body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let actual := step (entry.1, entry.2.1)
             (actual.1.1, (actual.1.2, (entry.2.2, actual.2))))) ∧
       ∀ before : Store ctx × model.HiddenState, Post before.1 (step before).1.1 := by
   unfold withWorkspaces
-  apply withCells_actualRecord_initialized_restricted_post _ _ _ Post
+  apply withCells_actualRecord_initialized_restricted_post (environment := environment) _ _ _ Post
   intro sharedCtx shared sharedDistinct rootTransport sharedSeparated
-  apply withCells_actualRecord_initialized_restricted_post _ _ _
+  apply withCells_actualRecord_initialized_restricted_post (environment := environment) _ _ _
     (fun before after => shared.Initialized before →
       Post (rootTransport.restrict before) (rootTransport.restrict after))
   intro quadraticCtx quadratic quadraticDistinct innerTransport quadraticSeparated

@@ -25,11 +25,13 @@ namespace Framing
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem split_marginal (left right : RuntimeCtx .quantum)
+private lemma split_marginal (left right : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint left right) {Reference : Register}
     {Hidden H : Type} [Fintype Hidden] [Fintype H]
     (original : State (left.disjointUnion right separate) Reference (Hidden × H)) :
@@ -62,7 +64,7 @@ def target {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
       Reference).symm (Placement.target E Q keys physical (Register.prod frame.register Reference))
 
 /-- The same actual framed point body proves the full independent point action on its domain. -/
-theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     (frame : RuntimeCtx .quantum)
     (separate : RuntimeCtx.StorageDisjoint (Placement.context p.size keys physical) frame)
@@ -72,8 +74,10 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (support : ∀ input :
       (Register.prod (context p.size keys physical frame separate).register Reference).Index,
       ¬admissible E Q keys physical frame separate input.1 →
-        original.quantumMarginal.matrix input input = 0) :
-    ((body E Q keys physical frame separate).execute Reference original).quantumMarginal =
+        original.quantumMarginal.matrix input input = 0)
+    (allowAllocation : Bool := true) :
+    ((body E Q keys physical frame separate allowAllocation).execute environment Reference
+      original).quantumMarginal =
       DensityOperator.applyUnitary (target E Q keys physical frame separate Reference)
         original.quantumMarginal := by
   let coordinates := ContextUnion.referenceBasis
@@ -99,12 +103,14 @@ theorem body_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
           (coordinates.symm input).1).1)
     rw [returns]
     exact outside
-  have execution := body_execute E Q keys physical frame separate original
+  have execution := body_execute (environment := environment) E Q keys physical frame separate
+    original allowAllocation
   have marginal := congrArg (fun result => result.quantumMarginal) execution
   have collapsed := marginal.trans (State.mapHistory_quantumMarginal
-    ((Placement.body E Q keys physical).execute (Register.prod frame.register Reference) splitInput)
+    ((Placement.body E Q keys physical false).execute environment
+      (Register.prod frame.register Reference) splitInput)
     _)
-  rw [Placement.body_density E Q keys physical splitInput splitSupport,
+  rw [Placement.body_density E Q keys physical splitInput splitSupport false,
     split_marginal, split_marginal] at collapsed
   have result := congrArg (fun density => density.reindex coordinates.symm) collapsed
   rw [DensityOperator.applyUnitary_reindex, DensityOperator.reindex_trans,

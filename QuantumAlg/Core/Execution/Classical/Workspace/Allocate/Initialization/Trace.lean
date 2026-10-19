@@ -16,7 +16,8 @@ namespace QuantumAlg.Execution.ClassicalWorkspace
 noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 /-- Initialized actual body traces remain the traces of their actual enclosing lexical record. -/
-theorem withCellsFrom_actualRecord_initialized_trace {model : ExecutionModel}
+lemma withCellsFrom_actualRecord_initialized_trace {model : ExecutionModel}
+    (environment : model.Environment)
     {outer ctx : RuntimeCtx model.kind} (transport : Transport outer ctx) (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
       (innerTransport : Transport outer inner) → cells.TransportSeparated innerTransport →
@@ -29,7 +30,7 @@ theorem withCellsFrom_actualRecord_initialized_trace {model : ExecutionModel}
         (Store inner × model.HiddenState) × (body cells distinct innerTransport separated).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct innerTransport separated).execute Reference state =
+          (body cells distinct innerTransport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -41,7 +42,7 @@ theorem withCellsFrom_actualRecord_initialized_trace {model : ExecutionModel}
       (Store ctx × model.HiddenState) × (withCellsFrom transport shapes body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCellsFrom transport shapes body).execute Reference state =
+        (withCellsFrom transport shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -74,13 +75,14 @@ theorem withCellsFrom_actualRecord_initialized_trace {model : ExecutionModel}
       obtain ⟨step, equation, correct⟩ := bodyContract allCells allDistinct
         (innerTransport.underWorkspace key shape fresh) allSeparated
       refine ⟨Circuit.workspaceRecord key shape fresh _ step,
-        Circuit.execute_workspaceRecord key shape fresh _ step equation, ?_⟩
+        Circuit.execute_workspaceRecord environment key shape fresh _ step equation, ?_⟩
       intro source before reads initialized
       exact correct source (before.1.pushWorkspace key shape fresh, before.2)
         (innerTransport.workspaceTransport_readsAs_pushWorkspace key shape fresh reads)
         (Cells.workspaceCells_initialized_extend cells before.1 key shape fresh initialized)
 /-- Direct actual allocation establishes the internal premises of a caller-indexed trace law. -/
-theorem withCells_actualRecord_initialized_trace {model : ExecutionModel}
+lemma withCells_actualRecord_initialized_trace {model : ExecutionModel}
+    (environment : model.Environment)
     (ctx : RuntimeCtx model.kind)
     (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →
@@ -94,7 +96,7 @@ theorem withCells_actualRecord_initialized_trace {model : ExecutionModel}
         (Store inner × model.HiddenState) × (body cells distinct transport separated).Path,
         (∀ (Reference : Register) {History : Type} [Fintype History]
           (state : State inner Reference (model.HiddenState × History)),
-          (body cells distinct transport separated).execute Reference state =
+          (body cells distinct transport separated).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := step (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -106,14 +108,15 @@ theorem withCells_actualRecord_initialized_trace {model : ExecutionModel}
       (Store ctx × model.HiddenState) × (withCells ctx shapes body).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withCells ctx shapes body).execute Reference state =
+        (withCells ctx shapes body).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := step (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
         Trace before.1 ((withCells ctx shapes body).eventTrace (step before).2) := by
   obtain ⟨step, equation, correct⟩ :=
-    withCellsFrom_actualRecord_initialized_trace (Transport.id ctx) shapes body Trace bodyContract
+    withCellsFrom_actualRecord_initialized_trace environment (Transport.id ctx)
+      shapes body Trace bodyContract
   exact ⟨step, equation, fun before => correct before.1 before
     (Transport.workspaceTransport_readsAs_id before.1)⟩
 end

@@ -29,7 +29,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
     (bitWidth : Nat) (nonempty : Nonempty (RSA.RSAKeyPairBits bitWidth))
-    (totalRounds : Nat) {Reference : Register}
+    (totalRounds : Nat) (environment : RuntimeRound.model.Environment) {Reference : Register}
     (inputs : RSA.RSAKeyPairBits bitWidth →
       Execution.OracleInput RuntimeRound.model.classicalOracles base Reference)
 
@@ -38,11 +38,12 @@ The arbitrary input family permits correlations between keys and initial states.
 def outputDistribution : PMF (Nat × Nat × Option Nat) :=
   (RSA.RSAKeyGenBits bitWidth nonempty).bind fun pair =>
     ((NativeFiniteRetry.run base noQuantum (inputOfKeyPair pair) totalRounds).outputDistribution
-      (inputs pair)).map fun output => (pair.p, pair.q, NativeRetrySelection.decodeFactor output)
+      environment (inputs pair)).map fun output =>
+        (pair.p, pair.q, NativeRetrySelection.decodeFactor output)
 
 /-- The actual key average has the original finite first-success law in every key branch. -/
-theorem outputDistribution_eq :
-    outputDistribution base noQuantum bitWidth nonempty totalRounds inputs =
+lemma outputDistribution_eq :
+    outputDistribution base noQuantum bitWidth nonempty totalRounds environment inputs =
       (RSA.RSAKeyGenBits bitWidth nonempty).bind fun pair =>
         (Optional.Distribution.selectedDistribution
           ((sampledBatchOutputPMF (inputOfKeyPair pair)).map
@@ -54,9 +55,10 @@ theorem outputDistribution_eq :
   rw [NativeFiniteRetry.run_outputDistribution]
 
 /-- A supported populated observation is one of the primes generated in that same key branch. -/
-theorem outputDistribution_some_sound {p q factor : Nat}
+lemma outputDistribution_some_sound {p q factor : Nat}
     (member : (p, q, some factor) ∈
-      (outputDistribution base noQuantum bitWidth nonempty totalRounds inputs).support) :
+      (outputDistribution base noQuantum bitWidth nonempty
+        totalRounds environment inputs).support) :
     factor = p ∨ factor = q := by
   rw [outputDistribution, PMF.mem_support_bind_iff] at member
   rcases member with ⟨pair, _pairMember, outputMember⟩
@@ -74,7 +76,8 @@ theorem outputDistribution_some_sound {p q factor : Nat}
   | optionNone => cases factorEq
   | optionSome word =>
       have valueEq : word.toNat = factor := Option.some.inj factorEq
-      have sound := NativeFiniteRetry.run_some_sound base noQuantum (inputOfKeyPair pair)
+      have sound := NativeFiniteRetry.run_some_sound (environment := environment)
+        base noQuantum (inputOfKeyPair pair)
         totalRounds (inputs pair) word outputMember
       have declared := (semiprimeOfKeyPair pair).nontrivial_factor_eq_declared
         sound.1 sound.2.1 sound.2.2

@@ -28,7 +28,7 @@ open FiniteCyclicDLP.RawRecovery.Native
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Independent allowances retain raw recovery, actual verification and the original selector. -/
@@ -62,7 +62,7 @@ variable (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (accepted : CWriteRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord scalarWidth))
 
 /-- The actual attempt concatenates the same recorded raw, verification and selection traces. -/
-theorem attemptInto_eventTrace
+lemma attemptInto_eventTrace
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -77,7 +77,7 @@ theorem attemptInto_eventTrace
           accepted selected).eventTrace path.2 := rfl
 
 /-- The same actual native pool decomposes into the three serial circuit groups. -/
-theorem attemptInto_resourcePool
+lemma attemptInto_resourcePool
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -95,7 +95,7 @@ theorem attemptInto_resourcePool
   rfl
 
 /-- Every actual path retains all original native operation allowances in their serial sum. -/
-theorem attemptInto_pool_le
+lemma attemptInto_pool_le
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -108,7 +108,7 @@ theorem attemptInto_pool_le
     (FirstAccepted.withSelection_pool_le _ accepted selected path.2)
 
 /-- Actual dependency depth is the serial sum on exactly the same three recorded paths. -/
-theorem attemptInto_depth (duration : Resource.Event model → Nat)
+lemma attemptInto_depth (duration : Resource.Event model → Nat)
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -123,7 +123,7 @@ theorem attemptInto_depth (duration : Resource.Event model → Nat)
           accepted selected).depth duration path.2 := rfl
 
 /-- Arbitrary native duration allowances retain the original six-stage dependency order. -/
-theorem attemptInto_depth_le (duration : Resource.Event model → Nat)
+lemma attemptInto_depth_le (duration : Resource.Event model → Nat)
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -137,7 +137,7 @@ theorem attemptInto_depth_le (duration : Resource.Event model → Nat)
     (FirstAccepted.withSelection_depth_le _ accepted selected duration path.2)
 
 /-- The resident bound takes the maximum of three successive scratch scopes beside the caller. -/
-theorem attemptInto_resident_le
+lemma attemptInto_resident_le
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
@@ -155,7 +155,7 @@ theorem attemptInto_resident_le
       (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The auxiliary bound charges the same actual scope maximum and existing caller workspace. -/
-theorem attemptInto_auxiliary_le
+lemma attemptInto_auxiliary_le
     (path : (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction
       scalarResult targetAccepted accepted selected).Path) :
     (attemptInto curve modulus sample base target inverseSuccess candidate reconstruction

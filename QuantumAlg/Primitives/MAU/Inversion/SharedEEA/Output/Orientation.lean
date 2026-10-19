@@ -47,7 +47,7 @@ def indexEquiv (width : Nat) :
   (PreparedFrame.registerLabelEquiv width).symm.trans
     ((grouping width).symm.trans (PreparedFrame.registerLabelEquiv width))
 
-theorem indexEquiv_encode (width : Nat) (state : Registers width) :
+lemma indexEquiv_encode (width : Nat) (state : Registers width) :
     indexEquiv width ((encoding width).encode (grouping width state)) =
       (encoding width).encode state := by
   change PreparedFrame.registerLabelEquiv width ((grouping width).symm
@@ -63,14 +63,14 @@ def physicalIndex (width index : Nat) : Nat :=
   else index
 
 /-- Work1 and every retained field after Work2 retain their actual physical coordinates. -/
-theorem physicalIndex_outside (width index : Nat)
+lemma physicalIndex_outside (width index : Nat)
     (outside : index < width + 3 ∨ 2 * (width + 3) ≤ index) :
     physicalIndex width index = index := by
   have excluded : ¬(width + 3 ≤ index ∧ index < 2 * (width + 3)) := by omega
   exact if_neg excluded
 
 /-- Each arithmetic Work2 address is placed at precisely its reversed original wire. -/
-theorem physicalIndex_word (width : Nat) (index : Fin (width + 3)) :
+lemma physicalIndex_word (width : Nat) (index : Fin (width + 3)) :
     physicalIndex width (secondWordBit width index).wire.val =
       (secondWordBit width index.rev).wire.val := by
   rw [secondWordBit_wire, secondWordBit_wire]
@@ -82,7 +82,7 @@ theorem physicalIndex_word (width : Nat) (index : Fin (width + 3)) :
   omega
 
 /-- The same logical Work2 bit reads the reversed original physical wire. -/
-theorem grouping_word_bit (width : Nat) (index : Fin (width + 3))
+lemma grouping_word_bit (width : Nat) (index : Fin (width + 3))
     (state : Registers width) :
     (secondWordBit width index).get (grouping width state) =
       (secondWordBit width index.rev).get state := by
@@ -96,7 +96,7 @@ theorem grouping_word_bit (width : Nat) (index : Fin (width + 3))
   simp only [index.rev.isLt, decide_true, Bool.true_and, position]
 
 /-- Every complete complementary field retains its exact input value under the grouping. -/
-theorem grouping_retained (width : Nat) (state : Registers width) :
+lemma grouping_retained (width : Nat) (state : Registers width) :
     (grouping width state).firstWord = state.firstWord ∧
       (grouping width state).coefficientLength = state.coefficientLength ∧
       (grouping width state).quotientLength = state.quotientLength ∧
@@ -106,7 +106,7 @@ theorem grouping_retained (width : Nat) (state : Registers width) :
       (grouping width state).control = state.control := by
   exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
-private theorem physicalIndex_injective (width : Nat) :
+private lemma physicalIndex_injective (width : Nat) :
     Function.Injective
       (fun index : Fin (encoding width).width => physicalIndex width index.val) := by
   intro left right same
@@ -115,7 +115,7 @@ private theorem physicalIndex_injective (width : Nat) :
   dsimp only at same
   split at same <;> split at same <;> omega
 
-private theorem physicalIndex_within (width : Nat) (index : Fin (encoding width).width) :
+private lemma physicalIndex_within (width : Nat) (index : Fin (encoding width).width) :
     physicalIndex width index.val < (encoding width).width := by
   have bound := index.isLt
   have complete := encoding_width width
@@ -126,7 +126,7 @@ private def wireMap (width : Nat) :
     Fin (encoding width).width → Fin (encoding width).width := fun index =>
   ⟨physicalIndex width index.val, physicalIndex_within width index⟩
 
-private theorem wireMap_injective (width : Nat) : Function.Injective (wireMap width) := by
+private lemma wireMap_injective (width : Nat) : Function.Injective (wireMap width) := by
   intro left right same
   exact physicalIndex_injective width (congrArg Fin.val same)
 
@@ -141,7 +141,7 @@ def placement (width : Nat) : EncodedBit.FullPlacement (encoding width) (encodin
   EncodedBit.FullPlacement.ofWires (encoding width) (encoding width)
     (encoding_surjective width) (encoding_surjective width) (wireEquiv width)
 
-private theorem placement_bit (width : Nat) (state : Registers width)
+private lemma placement_bit (width : Nat) (state : Registers width)
     (index : Fin (encoding width).width) :
     ((encoding width).encode ((placement width).grouping state)).val.testBit index.rev.val =
       ((encoding width).encode state).val.testBit (wireEquiv width index).rev.val := by
@@ -154,7 +154,7 @@ private theorem placement_bit (width : Nat) (state : Registers width)
   rw [encoded] at actual
   exact actual.symm
 
-private theorem bit_read (width : Nat) (bit : EncodedBit (encoding width))
+private lemma bit_read (width : Nat) (bit : EncodedBit (encoding width))
     (state : Registers width) :
     bit.get state = ((encoding width).encode state).val.testBit bit.wire.rev.val := by
   rw [← bit.get_eq]
@@ -162,7 +162,7 @@ private theorem bit_read (width : Nat) (bit : EncodedBit (encoding width))
   dsimp only [WireAddress.bitIndex, Fin.rev]
   omega
 
-private theorem placed_read (width : Nat) (state : Registers width)
+private lemma placed_read (width : Nat) (state : Registers width)
     (source target : EncodedBit (encoding width))
     (same : wireEquiv width source.wire = target.wire) :
     source.get ((placement width).grouping state) = target.get state := by
@@ -171,7 +171,7 @@ private theorem placed_read (width : Nat) (state : Registers width)
     (congrArg (fun wire : Fin (encoding width).width =>
       ((encoding width).encode state).val.testBit wire.rev.val) same)
 
-private theorem retained_read (width : Nat) (state : Registers width)
+private lemma retained_read (width : Nat) (state : Registers width)
     (bit : EncodedBit (encoding width))
     (outside : bit.wire.val < width + 3 ∨ 2 * (width + 3) ≤ bit.wire.val) :
     bit.get ((placement width).grouping state) = bit.get state := by
@@ -181,7 +181,7 @@ private theorem retained_read (width : Nat) (state : Registers width)
   exact physicalIndex_outside width bit.wire.val outside
 
 /-- The field grouping induced by the physical wire permutation is exactly Work2 reversal. -/
-theorem placement_grouping (width : Nat) (state : Registers width) :
+lemma placement_grouping (width : Nat) (state : Registers width) :
     (placement width).grouping state = grouping width state := by
   apply Registers.ext_fields
   · apply BitVec.eq_of_getMsbD_eq
@@ -256,7 +256,7 @@ theorem placement_grouping (width : Nat) (state : Registers width) :
     exact actual
 
 /-- The full physical placement has the same exact source-level regrouping equivalence. -/
-theorem placement_grouping_eq (width : Nat) :
+lemma placement_grouping_eq (width : Nat) :
     (placement width).grouping = grouping width := by
   apply Equiv.ext
   exact placement_grouping width

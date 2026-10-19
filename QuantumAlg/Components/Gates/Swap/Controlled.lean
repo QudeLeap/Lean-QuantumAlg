@@ -39,7 +39,7 @@ public def permutation : Equiv.Perm layout.Basis :=
     (QuantumSignature.qubitsIndexEquiv 3).symm
 
 /-- The false control preserves both targets; the true control exchanges them. -/
-public theorem controlledSwap_permutation_triple (control left right : Fin 2) :
+public lemma controlledSwap_permutation_triple (control left right : Fin 2) :
     permutation ![control, left, right] =
       if control = 0 then ![control, left, right] else ![control, right, left] := by
   fin_cases control <;> fin_cases left <;> fin_cases right
@@ -57,7 +57,7 @@ private abbrev outer : GateModel.Application AlgorithmGate.model layout :=
 private def outerPermutation : Equiv.Perm layout.Basis :=
   outer.liftPermutation AlgorithmGate.cnotPermutation
 
-private theorem outer_triple (control left right : Fin 2) :
+private lemma outer_triple (control left right : Fin 2) :
     outerPermutation ![control, left, right] = ![control, right + left, right] := by
   apply (outer.liftPermutation_eq_iff AlgorithmGate.cnotPermutation _ _).mpr
   constructor
@@ -83,7 +83,7 @@ private theorem outer_triple (control left right : Fin 2) :
     rw [untouched]
     rfl
 
-private theorem native_permutation_word :
+private lemma native_permutation_word :
     (outerPermutation.trans AlgorithmGate.toffoliPermutation).trans outerPermutation =
       permutation := by
   have triple (control left right : Fin 2) :
@@ -108,8 +108,9 @@ public def circuit (oracles : OracleModel) : UnitaryCircuit AlgorithmGate.model 
       boundary)
 
 /-- Every native operation contributes its own exact phase-preserving permutation. -/
-public theorem controlledSwap_circuit_matrix (oracles : OracleModel) :
-    (circuit oracles).matrix = operator := by
+public lemma controlledSwap_circuit_matrix (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    ((circuit oracles).matrix environment) = operator := by
   simp only [circuit, UnitaryCircuit.macroCall_matrix, UnitaryCircuit.seq_matrix,
     UnitaryCircuit.native_matrix, GateModel.Application.gateApplication_canonical_operator,
     AlgorithmGate.toffoli_operator_ofPerm,
@@ -119,16 +120,16 @@ public theorem controlledSwap_circuit_matrix (oracles : OracleModel) :
 
 /-- Exact realization supplied by the actual native expansion. -/
 public def realization (oracles : OracleModel) :
-    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout operator where
+    UnitaryCircuit.ExactRealization AlgorithmGate.model oracles layout (fun _ => operator) where
   circuit := circuit oracles
   matrix_eq := controlledSwap_circuit_matrix oracles
 
 /-- The three-instruction expansion has two CNOT occurrences and one Toffoli occurrence. -/
-public theorem controlledSwap_circuit_events (oracles : OracleModel) :
+public lemma controlledSwap_circuit_events (oracles : OracleModel) :
     (circuit oracles).eventTrace = [.gate .cnot, .gate .toffoli, .gate .cnot] := by rfl
 
 /-- Shared physical targets make the actual native word three sequential steps. -/
-public theorem controlledSwap_circuit_unit_depth (oracles : OracleModel) :
+public lemma controlledSwap_circuit_unit_depth (oracles : OracleModel) :
     (circuit oracles).evaluatedEventDepth (fun _ => 1) = 3 := by rfl
 
 end

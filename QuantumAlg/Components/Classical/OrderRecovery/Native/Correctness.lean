@@ -30,7 +30,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- The actual complete scoped routine writes exactly the original source's optional word. -/
-theorem nativeRecovery_into_result
+lemma nativeRecovery_into_result
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits))
@@ -55,7 +55,7 @@ theorem nativeRecovery_into_result
     (nativeRecovery_scan_selection spec input base sample store baseValue sampleValue)
 
 /-- Decoding the actual final stored option returns the original recovery result. -/
-theorem nativeRecovery_into_decoded_result
+lemma nativeRecovery_into_decoded_result
     (spec : Spec modulusWidth phaseBits) (input : Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits))

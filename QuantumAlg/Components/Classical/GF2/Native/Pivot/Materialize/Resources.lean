@@ -42,7 +42,7 @@ def pivotColumnTrace (width : Nat) (column : Fin width) :
   Word.PowerOfTwo.powerTrace (model := model) width (width - 1 - column.val) ++
     [pivotMaterializeEvent (model := model) (.wordBinary .bitOr width)]
 
-private theorem power_duration (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+private lemma power_duration (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (duration : Resource.Event model → Nat)
     (path : (Word.PowerOfTwo.into (model := model) count output).Path) :
     (Word.PowerOfTwo.into (model := model) count output).depth duration path =
@@ -85,7 +85,7 @@ private theorem power_duration (count : Nat) (output : CWriteRef ctx (.unsignedW
     Word.PowerOfTwo.shiftTrace, Nat.add_assoc]
 
 /-- Actual row-mask paths emit exactly the original row-record instructions. -/
-theorem gf2PivotRowBody_events (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2PivotRowBody_events (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (path : (pivotRowBody used rows mask pivot column).Path) :
@@ -108,7 +108,7 @@ theorem gf2PivotRowBody_events (used : CWriteRef ctx (.unsignedWord rowCount))
     (Word.PowerOfTwo.into_events _ mask path.1)
 
 /-- Every duration is charged in the original row-materialization order. -/
-theorem gf2PivotRowBody_depth (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2PivotRowBody_depth (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (duration : Resource.Event model → Nat)
@@ -135,7 +135,7 @@ theorem gf2PivotRowBody_depth (used : CWriteRef ctx (.unsignedWord rowCount))
     List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- Actual column-mask paths emit exactly the original loader and column OR. -/
-theorem gf2PivotColumnBody_events (output mask : CWriteRef ctx (.unsignedWord width))
+lemma gf2PivotColumnBody_events (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).eventTrace path =
       pivotColumnTrace (model := model) width column := by
@@ -152,7 +152,7 @@ theorem gf2PivotColumnBody_events (output mask : CWriteRef ctx (.unsignedWord wi
     (Word.PowerOfTwo.into_events _ mask path.1)
 
 /-- Column-materialization depth is the duration sum of those exact original instructions. -/
-theorem gf2PivotColumnBody_depth (output mask : CWriteRef ctx (.unsignedWord width))
+lemma gf2PivotColumnBody_depth (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).depth duration path =
@@ -173,7 +173,7 @@ theorem gf2PivotColumnBody_depth (output mask : CWriteRef ctx (.unsignedWord wid
     List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- Row lexical allocation and release do not replace or add any native instruction. -/
-theorem gf2MaterializePivotRow_events (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_events (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (materializePivotRow used rows pivot column).Path) :
@@ -182,7 +182,7 @@ theorem gf2MaterializePivotRow_events (used : CWriteRef ctx (.unsignedWord rowCo
   gf2PivotRowBody_events _ _ _ pivot column path
 
 /-- The complete row scope retains the exact original duration sum. -/
-theorem gf2MaterializePivotRow_depth (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_depth (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (materializePivotRow used rows pivot column).Path) :
@@ -191,21 +191,21 @@ theorem gf2MaterializePivotRow_depth (used : CWriteRef ctx (.unsignedWord rowCou
   gf2PivotRowBody_depth _ _ _ pivot column duration path
 
 /-- Column allocation and release preserve the exact original instruction sequence. -/
-theorem gf2MaterializePivotColumn_events (output : CWriteRef ctx (.unsignedWord width))
+lemma gf2MaterializePivotColumn_events (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (materializePivotColumn output column).Path) :
     (materializePivotColumn output column).eventTrace path =
       pivotColumnTrace (model := model) width column :=
   gf2PivotColumnBody_events _ _ column path
 
 /-- The complete column scope retains the exact original duration sum. -/
-theorem gf2MaterializePivotColumn_depth (output : CWriteRef ctx (.unsignedWord width))
+lemma gf2MaterializePivotColumn_depth (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (materializePivotColumn output column).Path) :
     (materializePivotColumn output column).depth duration path =
       ((pivotColumnTrace (model := model) width column).map duration).sum :=
   gf2PivotColumnBody_depth _ _ column duration path
 
-private theorem pivotRowBody_resident (used : CWriteRef ctx (.unsignedWord rowCount))
+private lemma pivotRowBody_resident (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (path : (pivotRowBody used rows mask pivot column).Path) :
@@ -221,7 +221,7 @@ private theorem pivotRowBody_resident (used : CWriteRef ctx (.unsignedWord rowCo
   exact SpacePool.max_le (Word.PowerOfTwo.into_resident_le _ mask path.1)
     (SpacePool.max_le le_rfl le_rfl)
 
-private theorem pivotColumnBody_resident (output mask : CWriteRef ctx (.unsignedWord width))
+private lemma pivotColumnBody_resident (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).peakResidentSpace path ≤ ctx.residentSpace := by
   refine (Circuit.peakResidentSpace_seq
@@ -232,7 +232,7 @@ private theorem pivotColumnBody_resident (output mask : CWriteRef ctx (.unsigned
   exact SpacePool.max_le (Word.PowerOfTwo.into_resident_le _ mask path.1) le_rfl
 
 /-- The real row-mask scope adds only one row word to all original resident storage. -/
-theorem gf2MaterializePivotRow_resident_le (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_resident_le (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (materializePivotRow used rows pivot column).Path) :
@@ -244,7 +244,7 @@ theorem gf2MaterializePivotRow_resident_le (used : CWriteRef ctx (.unsignedWord 
     (pivotRowBody_resident _ _ _ pivot column path)
 
 /-- The separate column-mask scope adds one column word to the full resident context. -/
-theorem gf2MaterializePivotColumn_resident_le (output : CWriteRef ctx (.unsignedWord width))
+lemma gf2MaterializePivotColumn_resident_le (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (materializePivotColumn output column).Path) :
     (materializePivotColumn output column).peakResidentSpace path ≤
       SpacePool.ofShape (.unsignedWord width) + ctx.residentSpace := by
@@ -253,7 +253,7 @@ theorem gf2MaterializePivotColumn_resident_le (output : CWriteRef ctx (.unsigned
   exact SpacePool.max_le (fun _axis => Nat.le_add_left _ _)
     (pivotColumnBody_resident _ _ column path)
 
-private theorem pivotRowBody_auxiliary (used : CWriteRef ctx (.unsignedWord rowCount))
+private lemma pivotRowBody_auxiliary (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (path : (pivotRowBody used rows mask pivot column).Path) :
@@ -269,7 +269,7 @@ private theorem pivotRowBody_auxiliary (used : CWriteRef ctx (.unsignedWord rowC
   exact SpacePool.max_le (Word.PowerOfTwo.into_auxiliary_le _ mask path.1)
     (SpacePool.max_le le_rfl le_rfl)
 
-private theorem pivotColumnBody_auxiliary (output mask : CWriteRef ctx (.unsignedWord width))
+private lemma pivotColumnBody_auxiliary (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (pivotColumnBody output mask column).Path) :
     (pivotColumnBody output mask column).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq
@@ -280,7 +280,7 @@ private theorem pivotColumnBody_auxiliary (output mask : CWriteRef ctx (.unsigne
   exact SpacePool.max_le (Word.PowerOfTwo.into_auxiliary_le _ mask path.1) le_rfl
 
 /-- The real row-mask scope adds only one row word to all original auxiliary storage. -/
-theorem gf2MaterializePivotRow_auxiliary_le (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_auxiliary_le (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width)
     (path : (materializePivotRow used rows pivot column).Path) :
@@ -292,7 +292,7 @@ theorem gf2MaterializePivotRow_auxiliary_le (used : CWriteRef ctx (.unsignedWord
     (pivotRowBody_auxiliary _ _ _ pivot column path)
 
 /-- The separate column-mask scope adds one column word to the full auxiliary context. -/
-theorem gf2MaterializePivotColumn_auxiliary_le (output : CWriteRef ctx (.unsignedWord width))
+lemma gf2MaterializePivotColumn_auxiliary_le (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (path : (materializePivotColumn output column).Path) :
     (materializePivotColumn output column).peakAuxiliarySpace path ≤
       SpacePool.ofShape (.unsignedWord width) + ctx.auxiliarySpace := by

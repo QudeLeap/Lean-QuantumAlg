@@ -27,12 +27,12 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The compilation-time increment at a nonempty width is its highest binary place. -/
-theorem nativeSqrt_initialHalf_succ (remaining : Nat) :
+lemma nativeSqrt_initialHalf_succ (remaining : Nat) :
     initialHalf (remaining + 1) = 2 ^ remaining := by
   simp [initialHalf]
 
 /-- One actual right shift produces the next compilation-time increment, including the last bit. -/
-theorem nativeSqrt_initialHalf_div (remaining : Nat) :
+lemma nativeSqrt_initialHalf_div (remaining : Nat) :
     2 ^ remaining / 2 = initialHalf remaining := by
   cases remaining with
   | zero => rfl
@@ -53,10 +53,11 @@ structure LoopInvariant (input : CInputRef ctx (.unsignedWord (width + width)))
   /-- The actual increment cell contains the next binary place. -/
   half : (store.read (.storage refs.half.toCStorageRef)).toNat = initialHalf remaining
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- One real round preserves the complete internal invariant with one fewer remaining bit. -/
-theorem nativeSqrt_round_invariant
+lemma nativeSqrt_round_invariant
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (original remaining : Nat) (store : Store ctx)
     (ready : LoopInvariant input refs original (remaining + 1) store) :
@@ -94,11 +95,12 @@ def iteratedRoundStep (input : CInputRef ctx (.unsignedWord (width + width)))
     fun index => (step ((fun current => (step current).1)^[index.val] store)).2)
 
 /-- The real iteration preserves complete incoming quantum-reference blocks and actual paths. -/
-theorem nativeSqrt_iteration_execute
+lemma nativeSqrt_iteration_execute
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (count : Nat) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (Circuit.iterate count (round (model := model) input refs)).execute Reference state =
+    (Circuit.iterate count (round (model := model) input refs)).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         ((iteratedRoundStep (model := model) input refs count entry.1).1,
           (entry.2.1, (entry.2.2, (iteratedRoundStep (model := model) input refs count
@@ -114,7 +116,8 @@ theorem nativeSqrt_iteration_execute
     | zero => rfl
     | succ steps inductionHypothesis =>
         rw [Function.iterate_succ_apply', Function.iterate_succ_apply', inductionHypothesis]
-  refine (Circuit.execute_iterate_mapClassical (round (model := model) input refs) jointStep
+  refine (Circuit.execute_iterate_mapClassical
+    (environment := environment) (round (model := model) input refs) jointStep
     (fun reference _history _ current => nativeSqrt_round_execute input refs reference current)
     count Reference state).trans ?_
   apply ExecutionState.executionState_mapClassical_congr
@@ -122,7 +125,7 @@ theorem nativeSqrt_iteration_execute
   simp only [iteratedRoundStep, iterateJoint, jointStep]
 
 /-- Exhausting the actual remaining rounds leaves exactly the natural square root. -/
-theorem nativeSqrt_iteration_root
+lemma nativeSqrt_iteration_root
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (separated : Separated input refs) (original remaining : Nat) (store : Store ctx)
     (ready : LoopInvariant input refs original remaining store) :
@@ -140,7 +143,7 @@ theorem nativeSqrt_iteration_root
           ready)
 
 /-- Repetition retains every original structural value outside the five actual write keys. -/
-theorem nativeSqrt_iteration_read_unchanged
+lemma nativeSqrt_iteration_read_unchanged
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     {shape : CShape} (other : CInputRef ctx shape)
     (separate : ∀ key ∈ writeKeys refs, key ∉ other.storageKeys)

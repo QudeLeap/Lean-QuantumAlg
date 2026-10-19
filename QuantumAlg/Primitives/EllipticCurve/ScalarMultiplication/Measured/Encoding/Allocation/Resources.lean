@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Enc
 import all
   QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Encoding.Cascade.Resources
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Space
+import all QuantumAlg.Core.Execution.Composition.Resources
 
 /-!
 # Complete original-input resources with charged coordinate conversion
@@ -31,77 +32,84 @@ open Execution MeasuredUncompute
 /-- Actual converted execution paths correspond exactly across the allocated entry permutation. -/
 def placedConvertedPathEquiv {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
-    (coefficient : (ZMod p)ˣ) :
-    (convertedCascade E points order coefficient).Path ≃
-      (placedConvertedCascade E points order coefficient).Path :=
-  ContextPermutation.localPathEquiv (convertedCascade E points order coefficient)
-    (convertedCascade_isLocal E points order coefficient)
-    (Allocation.after p.size count) (Allocation.body_entries p.size count)
+    (coefficient : (ZMod p)ˣ) (allowAllocation : Bool := true) :
+    (convertedCascade E points order coefficient false).Path ≃
+      (placedConvertedCascade E points order coefficient allowAllocation).Path :=
+  Equiv.refl _
 
 /-- Post-allocation placement preserves the exact chronological conversion and measured trace. -/
-theorem placedConvertedCascade_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_eventTrace {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
-    (path : (convertedCascade E points order coefficient).Path) :
-    (placedConvertedCascade E points order coefficient).eventTrace
-        (placedConvertedPathEquiv E points order coefficient path) =
-      (convertedCascade E points order coefficient).eventTrace path :=
-  ContextPermutation.localCircuit_eventTrace _ _ _ _ path
+    (path : (convertedCascade E points order coefficient false).Path) :
+    (placedConvertedCascade E points order coefficient allowAllocation).eventTrace
+        (placedConvertedPathEquiv E points order coefficient allowAllocation path) =
+      (convertedCascade E points order coefficient false).eventTrace path := rfl
 
 /-- Every native event-duration assignment is preserved by the actual entry permutation. -/
-theorem placedConvertedCascade_depth_exact {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_depth_exact {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
     (duration : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat)
-    (path : (convertedCascade E points order coefficient).Path) :
-    (placedConvertedCascade E points order coefficient).depth duration
-        (placedConvertedPathEquiv E points order coefficient path) =
-      (convertedCascade E points order coefficient).depth duration path :=
-  ContextPermutation.localCircuit_depth _ _ _ _ duration path
+    (path : (convertedCascade E points order coefficient false).Path) :
+    (placedConvertedCascade E points order coefficient allowAllocation).depth duration
+        (placedConvertedPathEquiv E points order coefficient allowAllocation path) =
+      (convertedCascade E points order coefficient false).depth duration path := rfl
 
 /-- The placed code charges every actual conversion and every prescribed measured point call. -/
-theorem placedConvertedCascade_budget {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_budget {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
-    (path : (placedConvertedCascade E points order coefficient).Path) :
-    (placedConvertedCascade E points order coefficient).resourcePool path ≤
+    (path : (placedConvertedCascade E points order coefficient allowAllocation).Path) :
+    (placedConvertedCascade E points order coefficient allowAllocation).resourcePool path ≤
       ResourcePool.scale 4 (MAU.Multiplication.Gidney.nativeBudget p.size) +
         ResourcePool.scale order.length (MeasuredPointAddition.events p.size) := by
-  obtain ⟨original, rfl⟩ := (placedConvertedPathEquiv E points order coefficient).surjective path
-  exact (ContextPermutation.localCircuit_resourcePool _ _ _ _ original).le.trans
-    (convertedCascade_budget E points order coefficient original)
+  exact (Circuit.resourcePool_embed (allowAllocation := allowAllocation)
+    (ContextEmbedding.alongPermutation (Allocation.body_entries p.size count))
+    (convertedCascade E points order coefficient false) path).le.trans
+      (convertedCascade_budget (allowAllocation := false) E points order coefficient path)
 
 /-- Four conversions and all point calls retain their independent serial depth envelope. -/
-theorem placedConvertedCascade_depth {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_depth {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
-    (path : (placedConvertedCascade E points order coefficient).Path) :
-    (placedConvertedCascade E points order coefficient).depth (fun _ => 1) path ≤
+    (path : (placedConvertedCascade E points order coefficient allowAllocation).Path) :
+    (placedConvertedCascade E points order coefficient allowAllocation).depth (fun _ => 1) path ≤
       4 * MAU.Multiplication.Gidney.eventBound p.size +
         order.length * MeasuredPointAddition.depthBound p.size := by
-  obtain ⟨original, rfl⟩ := (placedConvertedPathEquiv E points order coefficient).surjective path
-  have depth := placedConvertedCascade_depth_exact E points order coefficient (fun _ => 1) original
-  exact depth.le.trans (convertedCascade_depth E points order coefficient original)
+  exact convertedCascade_depth (allowAllocation := false) E points order coefficient path
 
 /-- Actual placement retains the original complete resident capacity and all supplied exponents. -/
-theorem placedConvertedCascade_resident {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_resident {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
-    (path : (placedConvertedCascade E points order coefficient).Path) :
-    (placedConvertedCascade E points order coefficient).peakResidentSpace path =
+    (path : (placedConvertedCascade E points order coefficient allowAllocation).Path) :
+    (placedConvertedCascade E points order coefficient allowAllocation).peakResidentSpace path =
       readySpace p.size count :=
-  (ContextPermutation.localCircuit_peakResidentSpace _ _ _ path).trans
-    (readyContext_resident_exact p.size count)
+  (Circuit.peakResidentSpace_embed (allowAllocation := allowAllocation)
+    (ContextEmbedding.alongPermutation (Allocation.body_entries p.size count))
+    (convertedCascade E points order coefficient false) path).trans
+      ((ContextPermutation.resident_space (Allocation.body_entries p.size count)).symm.trans
+        (readyContext_resident_exact p.size count))
 
 /-- Actual placement retains the original auxiliary ownership roles, including every result cell. -/
-theorem placedConvertedCascade_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_auxiliary {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
-    (path : (placedConvertedCascade E points order coefficient).Path) :
-    (placedConvertedCascade E points order coefficient).peakAuxiliarySpace path =
+    (path : (placedConvertedCascade E points order coefficient allowAllocation).Path) :
+    (placedConvertedCascade E points order coefficient allowAllocation).peakAuxiliarySpace path =
       readySpace p.size count :=
-  (ContextPermutation.localCircuit_peakAuxiliarySpace _ _ _ path).trans
-    (readyContext_auxiliary_exact p.size count)
+  (Circuit.peakAuxiliarySpace_embed (allowAllocation := allowAllocation)
+    (ContextEmbedding.alongPermutation (Allocation.body_entries p.size count))
+    (convertedCascade E points order coefficient false) path).trans
+      ((ContextPermutation.auxiliary_space (Allocation.body_entries p.size count)).symm.trans
+        (readyContext_auxiliary_exact p.size count))
 
 /-- Actual input-determined preparation, four conversions and every point call. -/
 def convertedEventBudget (modulus count calls : Nat) :
@@ -111,7 +119,7 @@ def convertedEventBudget (modulus count calls : Nat) :
         ResourcePool.scale calls (MeasuredPointAddition.events modulus.size))
 
 /-- Every complete path includes all preparation events and converted point calls. -/
-theorem convertedCircuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma convertedCircuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (path : (convertedCircuit E points order coefficient).Path) :
     (convertedCircuit E points order coefficient).resourcePool path ≤
@@ -120,10 +128,10 @@ theorem convertedCircuit_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fa
     (placedConvertedCascade E points order coefficient).eventTrace path.2) ≤ _
   rw [ResourcePool.ofList_append, Allocation.initialize_eventTrace]
   exact ResourcePool.add_mono le_rfl
-    (placedConvertedCascade_budget E points order coefficient path.2)
+    (placedConvertedCascade_budget (allowAllocation := true) E points order coefficient path.2)
 
 /-- The full serial depth includes all preparation and X-load dependencies. -/
-theorem convertedCircuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma convertedCircuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (path : (convertedCircuit E points order coefficient).Path) :
     (convertedCircuit E points order coefficient).depth (fun _ => 1) path ≤
@@ -134,28 +142,28 @@ theorem convertedCircuit_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fac
   change (Allocation.initializeWork p count).depth (fun _ => 1) path.1 +
     (placedConvertedCascade E points order coefficient).depth (fun _ => 1) path.2 ≤ _
   exact Nat.add_le_add (Allocation.initialize_depth p count (fun _ => 1) path.1)
-    (placedConvertedCascade_depth E points order coefficient path.2)
+    (placedConvertedCascade_depth (allowAllocation := true) E points order coefficient path.2)
 
 /-- Actual initialization and converted execution reach only the same complete resident peak. -/
-theorem convertedCircuit_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma convertedCircuit_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (path : (convertedCircuit E points order coefficient).Path) :
     (convertedCircuit E points order coefficient).peakResidentSpace path =
       readySpace p.size count := by
   refine (Circuit.peakResidentSpace_seq (Allocation.initializeWork p count)
     (placedConvertedCascade E points order coefficient) path).trans ?_
-  rw [Allocation.initialize_resident, placedConvertedCascade_resident]
+  rw [Allocation.initialize_resident, placedConvertedCascade_resident (allowAllocation := true)]
   exact SpacePool.max_eq_right le_rfl
 
 /-- Both preparations and every later call share the same exact fixed-role auxiliary peak. -/
-theorem convertedCircuit_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma convertedCircuit_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) (path : (convertedCircuit E points order coefficient).Path) :
     (convertedCircuit E points order coefficient).peakAuxiliarySpace path =
       readySpace p.size count := by
   refine (Circuit.peakAuxiliarySpace_seq (Allocation.initializeWork p count)
     (placedConvertedCascade E points order coefficient) path).trans ?_
-  rw [Allocation.initialize_auxiliary, placedConvertedCascade_auxiliary]
+  rw [Allocation.initialize_auxiliary, placedConvertedCascade_auxiliary (allowAllocation := true)]
   exact SpacePool.max_eq_right le_rfl
 
 end

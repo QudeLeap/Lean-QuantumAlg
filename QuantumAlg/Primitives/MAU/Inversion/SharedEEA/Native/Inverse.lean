@@ -33,6 +33,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeInverse
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- The complete actual forward computation acts before the separate original-width XOR target. -/
@@ -49,7 +51,7 @@ def program (modulus : Nat) (nontrivial : 1 < modulus) :
     ((OutputCopy.program modulus.size).seq
       ((forwardProgram modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
-private theorem copied_value (modulus input : Nat)
+private lemma copied_value (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     OutputCopy.value (CorrectedSchedule.result modulus input positive bounded) =
       InverseOutput.word modulus input positive bounded := by
@@ -66,11 +68,11 @@ def output (modulus input : Nat) (positive : 0 < input) (bounded : input < modul
     Nat.xor_lt_two_pow target.isLt (InverseOutput.word modulus input positive bounded).isLt⟩
 
 /-- The exact actual circuit restores the entire initial frame and retains only the XOR output. -/
-theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val)
     (bounded : input.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
             ((OutputCopy.encoding modulus.size).encode
@@ -84,7 +86,7 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
   let computed := CorrectedSchedule.result modulus input.val positive bounded
   let toggled := output modulus input.val positive bounded target
   have forward (value : Fin (2 ^ modulus.size)) :
-      (forwardProgram modulus nontrivial).applyNormalized
+      (forwardProgram modulus nontrivial).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
               ((OutputCopy.encoding modulus.size).encode (initial, value)))) =
@@ -96,7 +98,7 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
       (CorrectedSchedule.program modulus nontrivial) initial computed value
       (CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded)
   have copied :
-      (OutputCopy.program modulus.size).applyNormalized
+      (OutputCopy.program modulus.size).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
               ((OutputCopy.encoding modulus.size).encode (computed, target)))) =
@@ -115,7 +117,7 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     rw [fields]
   have restored :
       ((forwardProgram modulus nontrivial).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
               ((OutputCopy.encoding modulus.size).encode (computed, toggled)))) =
@@ -123,12 +125,14 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
           ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
             ((OutputCopy.encoding modulus.size).encode (initial, toggled))) :=
     (congrArg (fun state => ((forwardProgram modulus nontrivial).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state)
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment state)
       (forward toggled)).symm.trans
       (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
         (forwardProgram modulus nontrivial)
         ((forwardProgram modulus nontrivial).dagger (AlgorithmGate.oracleFreeAdjoints .empty))
-        (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _)
+        (by rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]; exact Unitary.star_eq_inv _)
         (NormalizedVector.ket
           ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
             ((OutputCopy.encoding modulus.size).encode (initial, toggled)))))
@@ -136,10 +140,10 @@ theorem program_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (UnitaryCircuit.applyNormalized_seq_of_eq copied restored)
 
 /-- Zero output yields the mathematical inverse while every original compute field is restored. -/
-theorem program_initial_zero (modulus : Nat) (nontrivial : 1 < modulus)
+lemma program_initial_zero (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (OutputCopy.encoding modulus.size).width).basisEquiv.symm
             ((OutputCopy.encoding modulus.size).encode
@@ -149,7 +153,8 @@ theorem program_initial_zero (modulus : Nat) (nontrivial : 1 < modulus)
           ((OutputCopy.encoding modulus.size).encode
             (InitialFrame.initial modulus input,
               InverseOutput.word modulus input.val positive bounded))) := by
-  have actual := program_initial modulus nontrivial input 0 coprime positive bounded
+  have actual := program_initial
+    (environment := environment) modulus nontrivial input 0 coprime positive bounded
   have zero : output modulus input.val positive bounded 0 =
       InverseOutput.word modulus input.val positive bounded := by
     apply Fin.ext
@@ -158,7 +163,7 @@ theorem program_initial_zero (modulus : Nat) (nontrivial : 1 < modulus)
   exact actual
 
 /-- The emitted native trace includes the complete inverse, with no dropped history operations. -/
-theorem program_eventTrace (modulus : Nat) (nontrivial : 1 < modulus) :
+lemma program_eventTrace (modulus : Nat) (nontrivial : 1 < modulus) :
     (program modulus nontrivial).eventTrace =
       (CorrectedSchedule.program modulus nontrivial).eventTrace ++
         ((OutputCopy.program modulus.size).eventTrace ++

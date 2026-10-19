@@ -42,7 +42,7 @@ structure SlotSeparated (sample : CInputRef ctx (.bits (count * width)))
   prefixAccepted : ∀ key ∈ prefixKeys scratch, key ≠ shared.selector.accepted.key
   prefixSelected : ∀ key ∈ prefixKeys scratch, key ≠ shared.selector.selected.key
 
-private theorem word_eq_of_toNat_eq (actual : CShape.Value (.unsignedWord width))
+private lemma word_eq_of_toNat_eq (actual : CShape.Value (.unsignedWord width))
     (expected : Fin (2 ^ width)) (same : actual.toNat = expected.val) :
     actual = .unsignedWord expected := by
   cases actual with
@@ -54,7 +54,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The prefix returns the full source candidate word and its exact interval predicate. -/
-theorem proposalPrefix_values
+lemma proposalPrefix_values
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (separated : SlotSeparated sample shared scratch) (store : Store ctx)
@@ -85,7 +85,7 @@ theorem proposalPrefix_values
   exact candidate.trans (word_eq_of_toNat_eq _ _ decodedValue)
 
 /-- One actual slot latches the first eligible source proposal and preserves an earlier choice. -/
-theorem proposalSlot_latches
+lemma proposalSlot_latches
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (separated : SlotSeparated sample shared scratch) (store : Store ctx)

@@ -22,6 +22,8 @@ retain every complete quantum-reference block.
 
 namespace QuantumAlg.AlgorithmRun
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 open Execution
@@ -30,20 +32,21 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- An actual run's final-Store effect weight equals the same circuit's
 effect weight on the unit-history input, without changing the physical run. -/
-theorem storedEffectWeight_eq_code_skip
+lemma storedEffectWeight_eq_code_skip
     {model : ExecutionModel} {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (run : AlgorithmRun model pre post shape) {Reference : Register}
+    (run : AlgorithmRun model pre post shape allowAllocation)
+    (environment : model.Environment) {Reference : Register}
     (input : OracleInput model.classicalOracles pre Reference)
     (effects : Store post → Effect (post.register.prod Reference)) :
-    (run.execute Reference input.state).effectWeight (fun record => effects record.1) =
-      ((run.code.execute Reference (State.skip input.state)).effectWeight
+    (run.execute environment Reference input.state).effectWeight (fun record => effects record.1) =
+      ((run.code.execute environment Reference (State.skip input.state)).effectWeight
         (fun record => effects record.1)) := by
   let recorded : State pre Reference (model.HiddenState × Store pre) :=
     input.state.mapClassical (fun value => (value.1, (value.2, value.1)))
-  have runEq : run.execute Reference input.state =
-      run.code.execute Reference recorded := by
+  have runEq : run.execute environment Reference input.state =
+      run.code.execute environment Reference recorded := by
     unfold AlgorithmRun.execute
-    exact congrArg (run.code.execute Reference)
+    exact congrArg (run.code.execute environment Reference)
       (ExecutionState.executionState_mapClassical_congr_decision input.state
         (fun value => (value.1, (value.2, value.1)))
         (fun value => (value.1, (value.2, value.1))) (by intro; rfl) _ _)
@@ -57,19 +60,19 @@ theorem storedEffectWeight_eq_code_skip
       (fun value => (value.1, (value.2, ())))
       (fun value => (value.1, (value.2, ()))) (by intro; rfl) _ _
   calc
-    (run.execute Reference input.state).effectWeight (fun record => effects record.1) =
-        (run.code.execute Reference recorded).effectWeight
+    (run.execute environment Reference input.state).effectWeight (fun record => effects record.1) =
+        (run.code.execute environment Reference recorded).effectWeight
           (fun record => effects record.1) := by rw [runEq]
-    _ = ((run.code.execute Reference recorded).mapHistory
+    _ = ((run.code.execute environment Reference recorded).mapHistory
           (fun history => (history.1, ((), history.2.2)))).effectWeight
             (fun record => effects record.1) := by
       rw [State.effectWeight_mapHistory]
-    _ = (run.code.execute Reference
+    _ = (run.code.execute environment Reference
           (recorded.mapHistory (fun history => (history.1, ())))).effectWeight
             (fun record => effects record.1) := by
-      erw [Circuit.execute_mapHistory run.code Reference recorded
+      erw [Circuit.execute_mapHistory run.code environment Reference recorded
         (fun _ : Store pre => ())]
-    _ = (run.code.execute Reference (State.skip input.state)).effectWeight
+    _ = (run.code.execute environment Reference (State.skip input.state)).effectWeight
           (fun record => effects record.1) := by rw [enteredEq]
 
 end

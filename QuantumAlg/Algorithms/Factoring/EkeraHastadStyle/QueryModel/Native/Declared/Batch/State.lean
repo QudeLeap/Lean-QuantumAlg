@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem sampleKeys {kind : ProblemKind} (ctx : RuntimeCtx kind)
+private lemma sampleKeys {kind : ProblemKind} (ctx : RuntimeCtx kind)
     (width count : Nat) :
     Function.Injective (fun index =>
       (Native.Batch.Slots.sampleRef ctx width count index).key) := by
@@ -59,17 +59,19 @@ private theorem sampleKeys {kind : ProblemKind} (ctx : RuntimeCtx kind)
 attribute [local irreducible] Native.Batch.Slots.samples
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
+
+variable {environment : (model N).Environment}
 
 /-- Structural placement beneath the bank preserves the sample-slot key. -/
-theorem underBank_key {shape : CShape}
+lemma underBank_key {shape : CShape}
     (ref : CWriteRef (storageContext base N) shape) :
     (underBank base noQuantum N ref).key = ref.key := by
   unfold underBank
   exact MeasurementCells.liftWrite_key 2 _ (measurementBits N)
 
 /-- All sixteen actual terminal sample cells have different keys. -/
-theorem terminal_keys :
+lemma terminal_keys :
     Function.Injective (fun index => (terminalRef base noQuantum N index).key) := by
   intro left right same
   have oldKeys := (underBank_key base noQuantum N
@@ -92,46 +94,46 @@ def copiedValue (store : Store (context base noQuantum N)) :
 
 /-- The paid bit pack overwrites one persistent sample cell. -/
 def copyStep (index : Fin 16) (store : Store (context base noQuantum N)) :
-    Store (context base noQuantum N) × (copy base noQuantum N input index).Path :=
-  BitWord.instructionStep (execution := model input)
+    Store (context base noQuantum N) × (copy base noQuantum N index).Path :=
+  BitWord.instructionStep (execution := model N)
     (copyOp base noQuantum N index) store
 
 /-- The complete copy execution preserves all quantum-reference blocks. -/
-theorem copy_execute (index : Fin 16) (Reference : Register)
+lemma copy_execute (index : Fin 16) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
-      ((model input).HiddenState × History)) :
-    (copy base noQuantum N input index).execute Reference state =
+      ((model N).HiddenState × History)) :
+    (copy base noQuantum N index).execute environment Reference state =
       state.mapClassical (fun entry =>
-        ((copyStep base noQuantum N input index entry.1).1,
+        ((copyStep base noQuantum N index entry.1).1,
           (entry.2.1, (entry.2.2,
-            (copyStep base noQuantum N input index entry.1).2)))) := by
-  exact BitWord.bitWord_instruction_execute (execution := model input)
+            (copyStep base noQuantum N index entry.1).2)))) := by
+  exact BitWord.bitWord_instruction_execute (environment := environment) (execution := model N)
     (copyOp base noQuantum N index) state
 
 /-- Reading the destination after the pack returns the actual measured bits. -/
-theorem copy_read (index : Fin 16)
+lemma copy_read (index : Fin 16)
     (store : Store (context base noQuantum N)) :
-    (copyStep base noQuantum N input index store).1.read
+    (copyStep base noQuantum N index store).1.read
       (.storage (terminalRef base noQuantum N index).toCStorageRef) =
         copiedValue base noQuantum N store :=
   Store.read_applyOp_output store (copyOp base noQuantum N index)
 
 /-- The copy leaves every other sample slot unchanged. -/
-theorem copy_other (written observed : Fin 16) (different : written ≠ observed)
+lemma copy_other (written observed : Fin 16) (different : written ≠ observed)
     (store : Store (context base noQuantum N)) :
-    (copyStep base noQuantum N input written store).1.read
+    (copyStep base noQuantum N written store).1.read
       (.storage (terminalRef base noQuantum N observed).toCStorageRef) =
         store.read (.storage (terminalRef base noQuantum N observed).toCStorageRef) :=
   Store.read_write_other store _ _ _
     (fun same => different (terminal_keys base noQuantum N same))
 
 /-- Any structural read outside the destination cell is preserved. -/
-theorem copy_frame {shape : CShape} (written : Fin 16)
+lemma copy_frame {shape : CShape} (written : Fin 16)
     (observed : CInputRef (context base noQuantum N) shape)
     (separate : (terminalRef base noQuantum N written).key ∉ observed.storageKeys)
     (store : Store (context base noQuantum N)) :
-    (copyStep base noQuantum N input written store).1.read observed =
+    (copyStep base noQuantum N written store).1.read observed =
       store.read observed :=
   Store.read_applyOp_of_not_mem_storageKeys store
     (copyOp base noQuantum N written) observed separate

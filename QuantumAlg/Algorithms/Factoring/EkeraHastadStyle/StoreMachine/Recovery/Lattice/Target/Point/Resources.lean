@@ -24,7 +24,8 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent native formula of the two selected centered-coordinate calls. -/
@@ -32,7 +33,7 @@ def pointTrace (width : Nat) (firstNegates secondNegates : Bool) : List (Resourc
   LatticeTarget.centeredTrace width firstNegates ++ LatticeTarget.centeredTrace width secondNegates
 
 /-- Every actual two-coordinate path emits the exact independent native formula. -/
-theorem loadTargetPointInto_events (refs : Refs ctx width)
+lemma loadTargetPointInto_events (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     (loadTargetPointInto refs).eventTrace path = pointTrace width
       (LatticeTarget.selectedNegation refs.first path.1.2)
@@ -41,7 +42,7 @@ theorem loadTargetPointInto_events (refs : Refs ctx width)
     (LatticeTarget.centeredTargetInto_events refs.second path.2)
 
 /-- Actual two-coordinate multiplicities equal the independently selected native formula. -/
-theorem loadTargetPointInto_resourcePool (refs : Refs ctx width)
+lemma loadTargetPointInto_resourcePool (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     (loadTargetPointInto refs).resourcePool path = ResourcePool.ofList (pointTrace width
       (LatticeTarget.selectedNegation refs.first path.1.2)
@@ -53,7 +54,7 @@ def eventEnvelope (width : Nat) : ResourcePool model :=
   LatticeTarget.eventEnvelope width + LatticeTarget.eventEnvelope width
 
 /-- Every actual target-point pool lies in the independent two-coordinate envelope. -/
-theorem loadTargetPointInto_resourcePool_le (refs : Refs ctx width)
+lemma loadTargetPointInto_resourcePool_le (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     (loadTargetPointInto refs).resourcePool path ≤ eventEnvelope width := by
   change ResourcePool.ofList (_ ++ _) ≤ _
@@ -62,7 +63,7 @@ theorem loadTargetPointInto_resourcePool_le (refs : Refs ctx width)
     (LatticeTarget.centeredTargetInto_resourcePool_le refs.second path.2)
 
 /-- Both actual coordinate calls execute at most fourteen native operations. -/
-theorem loadTargetPointInto_eventCount_le (refs : Refs ctx width)
+lemma loadTargetPointInto_eventCount_le (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     ((loadTargetPointInto refs).eventTrace path).length ≤ 14 := by
   have first := LatticeTarget.centeredTargetInto_eventCount_le refs.first path.1
@@ -72,7 +73,7 @@ theorem loadTargetPointInto_eventCount_le (refs : Refs ctx width)
   omega
 
 /-- Chronological unit-duration depth includes both actual comparison and arithmetic calls. -/
-theorem loadTargetPointInto_depth_le (refs : Refs ctx width)
+lemma loadTargetPointInto_depth_le (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     (loadTargetPointInto refs).depth (fun _ => 1) path ≤ 14 := by
   have first := LatticeTarget.centeredTargetInto_depth_le refs.first path.1
@@ -82,17 +83,17 @@ theorem loadTargetPointInto_depth_le (refs : Refs ctx width)
   omega
 
 /-- Both actual coordinate calls preserve every original borrowed-reference correlation. -/
-theorem loadTargetPointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma loadTargetPointInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (loadTargetPointInto refs).BorrowedRestored Reference state
-      ((loadTargetPointInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((loadTargetPointInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (LatticeTarget.centeredTargetInto_borrowedRestored refs.first Reference state)
     (LatticeTarget.centeredTargetInto_borrowedRestored refs.second Reference _)
 
 /-- Both actual coordinate calls retain exactly the original complete context. -/
-theorem loadTargetPointInto_visited (refs : Refs ctx width)
+lemma loadTargetPointInto_visited (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (loadTargetPointInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ (_ ++ _) at present
@@ -101,7 +102,7 @@ theorem loadTargetPointInto_visited (refs : Refs ctx width)
     (LatticeTarget.centeredTargetInto_visited refs.second path.2 visited)
 
 /-- All original resident storage remains counted through both actual coordinate calls. -/
-theorem loadTargetPointInto_resident_le (refs : Refs ctx width)
+lemma loadTargetPointInto_resident_le (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     (loadTargetPointInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -109,7 +110,7 @@ theorem loadTargetPointInto_resident_le (refs : Refs ctx width)
   rw [loadTargetPointInto_visited refs path visited present]
 
 /-- All original auxiliary roles remain counted throughout the actual target-point loading. -/
-theorem loadTargetPointInto_auxiliary_le (refs : Refs ctx width)
+lemma loadTargetPointInto_auxiliary_le (refs : Refs ctx width)
     (path : (loadTargetPointInto refs).Path) :
     (loadTargetPointInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

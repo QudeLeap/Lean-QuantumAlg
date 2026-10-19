@@ -35,7 +35,7 @@ structure GuardSeparation (cells : Cells ctx N) : Prop where
   activeZero : cells.active.key ≠ cells.zero.key
   positiveActive : cells.positive.key ≠ cells.active.key
 
-private theorem and_toBool (left right : CShape.Value .bit) :
+private lemma and_toBool (left right : CShape.Value .bit) :
     (Resource.BitOpcode.eval .and (.product left right)).toBool =
       (left.toBool && right.toBool) := by
   cases left
@@ -43,7 +43,7 @@ private theorem and_toBool (left right : CShape.Value .bit) :
   rfl
 
 /-- The actual final guard bit is the conjunction of the original three stored decisions. -/
-theorem guard_result (cells : Cells ctx N) (store : Store ctx)
+lemma guard_result (cells : Cells ctx N) (store : Store ctx)
     (separate : GuardSeparation cells) :
     ((guardStore cells store).read (activeRead cells)).toBool =
       ((decide (Even (store.read (orderRead cells)).toNat) &&
@@ -113,7 +113,7 @@ theorem guard_result (cells : Cells ctx N) (store : Store ctx)
   rw [and_toBool, combinedValue, combinedExpanded]
 
 /-- A true stored guard means exactly original acceptance and a positive even recovered order. -/
-theorem guard_accepts (cells : Cells ctx N) (store : Store ctx)
+lemma guard_accepts (cells : Cells ctx N) (store : Store ctx)
     (separate : GuardSeparation cells) :
     ((guardStore cells store).read (activeRead cells)).toBool = true ↔
       (store.read (expandedRead cells)).first.toBool = true ∧

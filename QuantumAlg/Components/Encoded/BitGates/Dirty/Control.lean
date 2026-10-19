@@ -52,7 +52,7 @@ private def threeControlLayout (control first second target work : EncodedBit en
     fin_cases index <;> simp_all [threeBits]
   work_output_ne := wt
 
-private theorem threeBits_all (control first second : EncodedBit encoding) (state : Data) :
+private lemma threeBits_all (control first second : EncodedBit encoding) (state : Data) :
     (∀ index, ((threeBits control first second).bit index).get state = true) ↔
       control.get state = true ∧ first.get state = true ∧ second.get state = true := by
   constructor
@@ -78,7 +78,7 @@ def withDirtyControl (control work : EncodedBit encoding) (gate : GateSpec encod
         hwork.1 hwork.2.1 hwork.2.2.symm).gates
 
 /-- Exact complete action for arbitrary work, with no additional initialization premise. -/
-theorem withDirtyControl_step (control work : EncodedBit encoding) (gate : GateSpec encoding)
+lemma withDirtyControl_step (control work : EncodedBit encoding) (gate : GateSpec encoding)
     (hcontrol : bitDisjoint control gate) (hwork : bitDisjoint work gate)
     (different : control.wire ≠ work.wire) (state : Data) :
     stepList (withDirtyControl control work gate hcontrol hwork different) state =
@@ -106,7 +106,7 @@ def dirtyControlCount : GateSpec encoding → Nat
   | .toffoli _ _ _ _ _ _ => 4
 
 /-- Three controls use exactly four Toffolis in the already constructed dirty-bit list. -/
-theorem withDirtyControl_length (control work : EncodedBit encoding) (gate : GateSpec encoding)
+lemma withDirtyControl_length (control work : EncodedBit encoding) (gate : GateSpec encoding)
     (hcontrol : bitDisjoint control gate) (hwork : bitDisjoint work gate)
     (different : control.wire ≠ work.wire) :
     (withDirtyControl control work gate hcontrol hwork different).length =
@@ -133,7 +133,7 @@ def listWithDirtyControl (control work : EncodedBit encoding) :
         (fun next present => hwork next (by simp [present])) different
 
 /-- The whole actual list performs precisely the original list selected by the retained control. -/
-theorem listWithDirtyControl_step (control work : EncodedBit encoding)
+lemma listWithDirtyControl_step (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -154,7 +154,7 @@ theorem listWithDirtyControl_step (control work : EncodedBit encoding)
       · rw [if_neg selected, ih, if_neg selected, if_neg selected]
 
 /-- Arbitrary borrowed work is restored by the entire actual controlled program. -/
-theorem listWithDirtyControl_work (control work : EncodedBit encoding)
+lemma listWithDirtyControl_work (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -167,7 +167,7 @@ theorem listWithDirtyControl_work (control work : EncodedBit encoding)
   · rfl
 
 /-- The selecting control keeps its exact value on every input. -/
-theorem listWithDirtyControl_control (control work : EncodedBit encoding)
+lemma listWithDirtyControl_control (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -181,7 +181,7 @@ theorem listWithDirtyControl_control (control work : EncodedBit encoding)
   · rfl
 
 /-- Exact elementary length of this implementation, derived from its emitted gate list. -/
-theorem listWithDirtyControl_length (control work : EncodedBit encoding)
+lemma listWithDirtyControl_length (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -195,7 +195,7 @@ theorem listWithDirtyControl_length (control work : EncodedBit encoding)
       rfl
 
 /-- A single dirty-control lowering emits no physical X instruction. -/
-private theorem withDirtyControl_xMultiplicity_sum (control work : EncodedBit encoding)
+private lemma withDirtyControl_xMultiplicity_sum (control work : EncodedBit encoding)
     (gate : GateSpec encoding) (hcontrol : bitDisjoint control gate)
     (hwork : bitDisjoint work gate) (different : control.wire ≠ work.wire) :
     ((withDirtyControl control work gate hcontrol hwork different).map
@@ -214,7 +214,7 @@ private theorem withDirtyControl_xMultiplicity_sum (control work : EncodedBit en
       rfl
 
 /-- One source X becomes one CNOT; other source coordinates emit no CNOT. -/
-private theorem withDirtyControl_cnotMultiplicity_sum (control work : EncodedBit encoding)
+private lemma withDirtyControl_cnotMultiplicity_sum (control work : EncodedBit encoding)
     (gate : GateSpec encoding) (hcontrol : bitDisjoint control gate)
     (hwork : bitDisjoint work gate) (different : control.wire ≠ work.wire) :
     ((withDirtyControl control work gate hcontrol hwork different).map
@@ -233,7 +233,7 @@ private theorem withDirtyControl_cnotMultiplicity_sum (control work : EncodedBit
       rfl
 
 /-- One source CNOT becomes one Toffoli and one source Toffoli becomes four. -/
-private theorem withDirtyControl_toffoliMultiplicity_sum (control work : EncodedBit encoding)
+private lemma withDirtyControl_toffoliMultiplicity_sum (control work : EncodedBit encoding)
     (gate : GateSpec encoding) (hcontrol : bitDisjoint control gate)
     (hwork : bitDisjoint work gate) (different : control.wire ≠ work.wire) :
     ((withDirtyControl control work gate hcontrol hwork different).map
@@ -253,7 +253,7 @@ private theorem withDirtyControl_toffoliMultiplicity_sum (control work : Encoded
       rfl
 
 /-- A dirty-work control lift contains no physical X instruction. -/
-theorem listWithDirtyControl_xMultiplicity_sum (control work : EncodedBit encoding)
+lemma listWithDirtyControl_xMultiplicity_sum (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -271,7 +271,7 @@ theorem listWithDirtyControl_xMultiplicity_sum (control work : EncodedBit encodi
 
 /-- Source X instructions become CNOTs; no other source coordinate emits a
 CNOT under the dirty-work control lowering. -/
-theorem listWithDirtyControl_cnotMultiplicity_sum (control work : EncodedBit encoding)
+lemma listWithDirtyControl_cnotMultiplicity_sum (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -290,7 +290,7 @@ theorem listWithDirtyControl_cnotMultiplicity_sum (control work : EncodedBit enc
 
 /-- Exact Toffoli coordinate of a dirty-work control lift: source CNOTs
 become one Toffoli and source Toffolis become four Toffolis. -/
-theorem listWithDirtyControl_toffoliMultiplicity_sum (control work : EncodedBit encoding)
+lemma listWithDirtyControl_toffoliMultiplicity_sum (control work : EncodedBit encoding)
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
@@ -338,7 +338,7 @@ def listWithDirtyControlBy (control : EncodedBit encoding) :
 
 /-- Gate-local dirty work gives the same complete conditional action as the
 original source list, for every initial value of every selected work bit. -/
-theorem listWithDirtyControlBy_step (control : EncodedBit encoding)
+lemma listWithDirtyControlBy_step (control : EncodedBit encoding)
     (plans : List (DirtyControlPlan control)) (state : Data) :
     stepList (listWithDirtyControlBy control plans) state =
       if control.get state then stepList (plannedSourceGates control plans) state else state := by
@@ -356,7 +356,7 @@ theorem listWithDirtyControlBy_step (control : EncodedBit encoding)
       · rw [if_neg selected, ih, if_neg selected, if_neg selected]
 
 /-- Exact elementary length with gate-local work selection. -/
-theorem listWithDirtyControlBy_length (control : EncodedBit encoding)
+lemma listWithDirtyControlBy_length (control : EncodedBit encoding)
     (plans : List (DirtyControlPlan control)) :
     (listWithDirtyControlBy control plans).length =
       ((plannedSourceGates control plans).map dirtyControlCount).sum := by
@@ -367,7 +367,7 @@ theorem listWithDirtyControlBy_length (control : EncodedBit encoding)
         plannedSourceGates, ih]
 
 /-- Gate-local dirty-work control emits no physical X instruction. -/
-theorem listWithDirtyControlBy_xMultiplicity_sum (control : EncodedBit encoding)
+lemma listWithDirtyControlBy_xMultiplicity_sum (control : EncodedBit encoding)
     (plans : List (DirtyControlPlan control)) :
     ((listWithDirtyControlBy control plans).map xMultiplicity).sum = 0 := by
   induction plans with
@@ -378,7 +378,7 @@ theorem listWithDirtyControlBy_xMultiplicity_sum (control : EncodedBit encoding)
 
 /-- Source X instructions become exactly the CNOT instructions of the
 gate-local dirty-work control lowering. -/
-theorem listWithDirtyControlBy_cnotMultiplicity_sum (control : EncodedBit encoding)
+lemma listWithDirtyControlBy_cnotMultiplicity_sum (control : EncodedBit encoding)
     (plans : List (DirtyControlPlan control)) :
     ((listWithDirtyControlBy control plans).map cnotMultiplicity).sum =
       ((plannedSourceGates control plans).map xMultiplicity).sum := by
@@ -391,7 +391,7 @@ theorem listWithDirtyControlBy_cnotMultiplicity_sum (control : EncodedBit encodi
 
 /-- Source CNOTs become one Toffoli and source Toffolis become four Toffolis
 under gate-local dirty-work control. -/
-theorem listWithDirtyControlBy_toffoliMultiplicity_sum (control : EncodedBit encoding)
+lemma listWithDirtyControlBy_toffoliMultiplicity_sum (control : EncodedBit encoding)
     (plans : List (DirtyControlPlan control)) :
     ((listWithDirtyControlBy control plans).map toffoliMultiplicity).sum =
       ((plannedSourceGates control plans).map cnotMultiplicity).sum +
@@ -405,29 +405,31 @@ theorem listWithDirtyControlBy_toffoliMultiplicity_sum (control : EncodedBit enc
       omega
 
 /-- Compile gate-local dirty control into an actual native program. -/
-theorem listWithDirtyControlBy_realizes (control : EncodedBit encoding)
+lemma listWithDirtyControlBy_realizes (control : EncodedBit encoding)
     (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (plans : List (DirtyControlPlan control)) :
     UnitaryCircuit.Realizes (layout := layout) encoding
-      (programList layout oracles (listWithDirtyControlBy control plans))
+      (programList layout oracles (listWithDirtyControlBy control plans)) environment
       (fun state => if control.get state then
         stepList (plannedSourceGates control plans) state else state) :=
   realizesList_congrStep layout oracles _
-    (listWithDirtyControlBy_step control plans)
+    (listWithDirtyControlBy_step control plans) environment
 
 /-- The actual compiled native program has the same complete conditional action. -/
-theorem listWithDirtyControl_realizes (control work : EncodedBit encoding)
+lemma listWithDirtyControl_realizes (control work : EncodedBit encoding)
     (layout : QubitLayout encoding.width) (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (gates : List (GateSpec encoding))
     (hcontrol : ∀ gate, gate ∈ gates → bitDisjoint control gate)
     (hwork : ∀ gate, gate ∈ gates → bitDisjoint work gate)
     (different : control.wire ≠ work.wire) :
     UnitaryCircuit.Realizes (layout := layout) encoding
       (programList layout oracles
-        (listWithDirtyControl control work gates hcontrol hwork different))
+        (listWithDirtyControl control work gates hcontrol hwork different)) environment
       (fun state => if control.get state then stepList gates state else state) :=
   realizesList_congrStep layout oracles _
-    (listWithDirtyControl_step control work gates hcontrol hwork different)
+    (listWithDirtyControl_step control work gates hcontrol hwork different) environment
 
 end
 

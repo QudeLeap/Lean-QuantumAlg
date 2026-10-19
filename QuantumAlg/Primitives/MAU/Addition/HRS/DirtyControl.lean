@@ -42,7 +42,7 @@ def dirtyControlledToffoliGates (control a b target work : EncodedBit encoding)
 
 /-- The literal lowering has exact triple-control action and restores the
 borrowed wire, including its coherence with every other input. -/
-theorem hrsDirtyControlledToffoli_step (control a b target work : EncodedBit encoding)
+lemma hrsDirtyControlledToffoli_step (control a b target work : EncodedBit encoding)
     (hca : control.wire ≠ a.wire) (hcw : control.wire ≠ work.wire)
     (haw : a.wire ≠ work.wire) (hbw : b.wire ≠ work.wire)
     (hbt : b.wire ≠ target.wire) (hwt : work.wire ≠ target.wire)
@@ -75,7 +75,7 @@ theorem hrsDirtyControlledToffoli_step (control a b target work : EncodedBit enc
   cases control.get state <;> cases a.get state <;> cases b.get state <;> rfl
 
 /-- A lowered controlled Toffoli contains exactly four native Toffoli leaves. -/
-theorem hrsDirtyControlledToffoli_weight (control a b target work : EncodedBit encoding)
+lemma hrsDirtyControlledToffoli_weight (control a b target work : EncodedBit encoding)
     (hca : control.wire ≠ a.wire) (hcw : control.wire ≠ work.wire)
     (haw : a.wire ≠ work.wire) (hbw : b.wire ≠ work.wire)
     (hbt : b.wire ≠ target.wire) (hwt : work.wire ≠ target.wire)
@@ -88,7 +88,7 @@ theorem hrsDirtyControlledToffoli_weight (control a b target work : EncodedBit e
   omega
 
 /-- Three distinct operand wires require at least two bits in each equal-width word. -/
-theorem hrsTwoLe_of_toffoli (n : Nat) (a b target : EncodedBit (TTK.encoding n))
+lemma hrsTwoLe_of_toffoli (n : Nat) (a b target : EncodedBit (TTK.encoding n))
     (hab : a.wire ≠ b.wire) (hat : a.wire ≠ target.wire)
     (hbt : b.wire ≠ target.wire) : 2 ≤ n := by
   have ha := a.wire.isLt
@@ -115,7 +115,7 @@ def spareOperandBit (n : Nat) (hn : 2 ≤ n) (a b target : EncodedBit (TTK.encod
   else right1
 
 /-- Four distinct existing candidate wires cannot all be occupied by three gate wires. -/
-theorem hrsSpareOperandBit_disjoint (n : Nat) (hn : 2 ≤ n)
+lemma hrsSpareOperandBit_disjoint (n : Nat) (hn : 2 ≤ n)
     (a b target : EncodedBit (TTK.encoding n)) :
     (spareOperandBit n hn a b target).wire ≠ a.wire ∧
       (spareOperandBit n hn a b target).wire ≠ b.wire ∧

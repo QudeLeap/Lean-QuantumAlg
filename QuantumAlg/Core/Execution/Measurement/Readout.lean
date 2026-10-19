@@ -26,6 +26,8 @@ distribution.
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
 
@@ -34,20 +36,22 @@ open Execution
 variable {ctx : RuntimeCtx .quantum}
 
 /-- A sequence of actual measurement writes preserves any cell whose key it never writes. -/
-theorem writeMeasurementPath_read_unwritten (readouts : List (ZReadout ctx))
+lemma writeMeasurementPath_read_unwritten (readouts : List (ZReadout ctx))
     {shape : CShape} (observed : CStorageRef ctx shape)
     (different : ∀ item ∈ readouts, item.output.key ≠ observed.key)
-    (store : Store ctx) (path : (measurementSequence (gates := gates) (oracles := oracles)
+    (store : Store ctx) (path : (measurementSequence (allowAllocation := allowAllocation) (gates :=
+      gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services)
       readouts).Path) :
-    (writeMeasurementPath (gates := gates) (oracles := oracles)
+    (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) readouts store path).read
       (.storage observed) =
       store.read (.storage observed) := by
   induction readouts generalizing store with
   | nil => rfl
   | cons head tail ih =>
-      change (writeMeasurementPath (gates := gates) (oracles := oracles)
+      change (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
       (operations := operations) (classicalOracles := services) tail
         (store.write head.output (.finite path.1)) path.2).read (.storage observed) = _
       rw [ih (fun item present => different item (.tail head present))]
@@ -55,13 +59,14 @@ theorem writeMeasurementPath_read_unwritten (readouts : List (ZReadout ctx))
         (different head (.head _))
 
 /-- Distinct actual result cells retain the exact values measured from their named wires. -/
-theorem writeMeasurementBasis_read (readouts : List (ZReadout ctx))
+lemma writeMeasurementBasis_read (readouts : List (ZReadout ctx))
     (distinct : (readouts.map (fun item => item.output.key)).Nodup)
     (observed : ZReadout ctx) (present : observed ∈ readouts)
     (store : Store ctx) (basis : ctx.register.Index) :
-    (writeMeasurementPath (gates := gates) (oracles := oracles)
+    (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services) readouts store
-      (measurementBasisPath (gates := gates) (oracles := oracles)
+      (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
       (operations := operations) (classicalOracles := services) readouts basis)).read
       (.storage observed.output.toCStorageRef) = .finite (basis observed.wire) := by
   induction readouts generalizing store with
@@ -71,13 +76,15 @@ theorem writeMeasurementBasis_read (readouts : List (ZReadout ctx))
       obtain ⟨freshHead, distinctTail⟩ := List.nodup_cons.mp distinct
       rcases List.mem_cons.mp present with same | inTail
       · subst observed
-        change (writeMeasurementPath (gates := gates) (oracles := oracles)
+        change (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+          := oracles)
       (operations := operations) (classicalOracles := services) tail
           (store.write head.output (.finite (basis head.wire)))
-          (measurementBasisPath (gates := gates) (oracles := oracles)
+          (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
       (operations := operations) (classicalOracles := services) tail basis)).read (.storage
             head.output.toCStorageRef) = _
-        rw [writeMeasurementPath_read_unwritten
+        rw [writeMeasurementPath_read_unwritten (allowAllocation := allowAllocation)
           (gates := gates) (oracles := oracles)
           (operations := operations) (services := services) tail head.output.toCStorageRef
           (fun item member same => freshHead (List.mem_map.mpr ⟨item, member, same⟩))]
@@ -91,7 +98,7 @@ namespace QuantumAlg.ExecutionState
 noncomputable section
 
 /-- A diagonal observation of local wires sums every actual classical and reference block. -/
-theorem diagonalSum_localMarginal {C : Type} [Fintype C] {R Reference : Register}
+lemma diagonalSum_localMarginal {C : Type} [Fintype C] {R Reference : Register}
     (state : ExecutionState C (Register.prod R Reference)) (weight : R.Index → ℂ) :
     diagonalSum state (fun _ basis => weight basis.1) =
       ∑ basis : R.Index,
@@ -121,7 +128,7 @@ namespace QuantumAlg.DensityOperator
 noncomputable section
 
 /-- Relabeling actual local coordinates beside the reference commutes with tracing the reference. -/
-public theorem reindex_prod_marginalLeft {R S Reference : Register}
+public lemma reindex_prod_marginalLeft {R S Reference : Register}
     (state : DensityOperator (Register.prod R Reference)) (basisEquiv : R.Index ≃ S.Index) :
     (state.reindex (S := Register.prod S Reference)
       (basisEquiv.prodCongr (Equiv.refl Reference.Index))).marginalLeft =

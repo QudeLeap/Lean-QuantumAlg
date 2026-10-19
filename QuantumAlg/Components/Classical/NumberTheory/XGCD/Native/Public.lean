@@ -37,7 +37,7 @@ def publicRawOutputs (cells : Cells ctx (publicRawShapes width)) : RawOutputs ct
   rightCoefficient := cells.head.ref
 
 /-- Fresh actual raw-result cells provide all output distinctness required by the shared engine. -/
-theorem xgcdNativePublicRawOutputs_distinct (cells : Cells ctx (publicRawShapes width))
+lemma xgcdNativePublicRawOutputs_distinct (cells : Cells ctx (publicRawShapes width))
     (distinct : cells.Distinct) : (publicRawOutputs cells).Distinct := by
   cases cells with
   | cons right rest =>

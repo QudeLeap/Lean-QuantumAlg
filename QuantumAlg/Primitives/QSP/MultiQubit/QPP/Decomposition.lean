@@ -48,12 +48,12 @@ def QPP.hermitianImagPart {R : Register}
     (U : HilbertOperator R) : HilbertOperator R :=
   Complex.I • (U.conjTranspose - U)
 
-theorem QPP.hermitianRealPart_isHermitian {R : Register}
+lemma QPP.hermitianRealPart_isHermitian {R : Register}
     (U : HilbertOperator R) :
     (QPP.hermitianRealPart U).IsHermitian := by
   simpa [QPP.hermitianRealPart] using Matrix.isHermitian_add_transpose_self U
 
-theorem QPP.hermitianImagPart_isHermitian {R : Register}
+lemma QPP.hermitianImagPart_isHermitian {R : Register}
     (U : HilbertOperator R) :
     (QPP.hermitianImagPart U).IsHermitian := by
   rw [Matrix.IsHermitian.ext_iff]
@@ -61,7 +61,7 @@ theorem QPP.hermitianImagPart_isHermitian {R : Register}
   simp [QPP.hermitianImagPart]
   ring_nf
 
-theorem QPP.hermitianParts_commute_of_unitary {R : Register}
+lemma QPP.hermitianParts_commute_of_unitary {R : Register}
     (U : UnitaryOperator R) :
     Commute
       (QPP.hermitianRealPart (U : HilbertOperator R))
@@ -81,7 +81,7 @@ theorem QPP.hermitianParts_commute_of_unitary {R : Register}
     hstar_mul, hmul_star]
   ring
 
-theorem QPP.commute_toEuclideanLin_of_matrix_commute
+lemma QPP.commute_toEuclideanLin_of_matrix_commute
     {ι : Type} [Fintype ι] [DecidableEq ι] {A B : Matrix ι ι ℂ}
     (h : Commute A B) :
     Commute (Matrix.toEuclideanLin A) (Matrix.toEuclideanLin B) := by
@@ -100,7 +100,7 @@ def QPP.jointEigenSubspace {R : Register} (U : UnitaryOperator R)
     eigenspace (Matrix.toEuclideanLin (QPP.hermitianImagPart (U : HilbertOperator R)))
       (i.2 : ℂ)
 
-theorem QPP.jointEigenOrthogonalFamily {R : Register}
+lemma QPP.jointEigenOrthogonalFamily {R : Register}
     (U : UnitaryOperator R) :
     OrthogonalFamily ℂ
       (fun i =>
@@ -122,7 +122,7 @@ theorem QPP.jointEigenOrthogonalFamily {R : Register}
         (QPP.hermitianImagPart_isHermitian (U : HilbertOperator R))
     exact hsym.orthogonalFamily_eigenspaces'.pairwise hsecond hv.2 w hw.2
 
-theorem QPP.jointEigen_iSup_eq_top {R : Register}
+lemma QPP.jointEigen_iSup_eq_top {R : Register}
     (U : UnitaryOperator R) :
     (iSup (QPP.jointEigenSubspace U)) = ⊤ := by
   classical
@@ -181,7 +181,7 @@ theorem QPP.jointEigen_iSup_eq_top {R : Register}
     exact bot_le
 
 /-- The joint eigenspaces form an internal direct-sum decomposition. -/
-theorem QPP.jointEigenInternal {R : Register}
+lemma QPP.jointEigenInternal {R : Register}
     (U : UnitaryOperator R) :
     DirectSum.IsInternal (QPP.jointEigenSubspace U) := by
   classical
@@ -214,7 +214,7 @@ def QPP.jointEigenvalue (U : UnitaryOperator (Qubits n))
   (((QPP.jointEigenIndex U j).1 : ℂ) +
     Complex.I * ((QPP.jointEigenIndex U j).2 : ℂ)) / 2
 
-theorem QPP.applyVec_eq_hermitianParts (U : UnitaryOperator (Qubits n))
+lemma QPP.applyVec_eq_hermitianParts (U : UnitaryOperator (Qubits n))
     (ψ : HilbertVector (Qubits n)) :
     U.applyVec ψ =
       ((2 : ℂ)⁻¹) •
@@ -239,7 +239,7 @@ theorem QPP.applyVec_eq_hermitianParts (U : UnitaryOperator (Qubits n))
   rw [HilbertOperator.smul_applyVec, HilbertOperator.add_applyVec]
   simp [HilbertOperator.smul_applyVec]
 
-theorem QPP.jointEigenBasis_gate_eigen
+lemma QPP.jointEigenBasis_gate_eigen
     (U : UnitaryOperator (Qubits n)) (j : Fin (2 ^ n)) :
     U.applyVec (QPP.jointEigenBasis U j) =
       QPP.jointEigenvalue U j • QPP.jointEigenBasis U j := by
@@ -271,7 +271,7 @@ theorem QPP.jointEigenBasis_gate_eigen
   simp [QPP.jointEigenvalue, PiLp.smul_apply, PiLp.add_apply]
   ring
 
-theorem QPP.jointEigenvalue_norm_eq_one
+lemma QPP.jointEigenvalue_norm_eq_one
     (U : UnitaryOperator (Qubits n)) (j : Fin (2 ^ n)) :
     ‖QPP.jointEigenvalue U j‖ = 1 := by
   have hnorm :=
@@ -306,14 +306,14 @@ def pure (decomp : QPP.PhaseDecomposition (n := n) U)
     (decomp.basis.orthonormal.norm_eq_one j)
 
 @[simp]
-theorem pure_coe (decomp : QPP.PhaseDecomposition (n := n) U)
+lemma pure_coe (decomp : QPP.PhaseDecomposition (n := n) U)
     (j : Fin (2 ^ n)) :
     ((decomp.pure j : NormalizedVector (Qubits n)) : HilbertVector (Qubits n)) =
       decomp.basis j :=
   rfl
 
 /-- Eigenphase equation for the normalized pure-state wrapper. -/
-theorem eigen_pure (decomp : QPP.PhaseDecomposition (n := n) U)
+lemma eigen_pure (decomp : QPP.PhaseDecomposition (n := n) U)
     (j : Fin (2 ^ n)) :
     U.applyVec (decomp.pure j : HilbertVector (Qubits n)) =
       Complex.exp ((decomp.phase j : ℂ) * Complex.I) •
@@ -336,7 +336,7 @@ noncomputable def QPP.phaseDecomposition (U : UnitaryOperator (Qubits n)) :
       (QPP.jointEigenvalue_norm_eq_one U j)]
 
 /-- An eigenstate of a unitary operator is an eigenstate of every power. -/
-theorem QPP.gate_applyVec_pow_eigenstate {U : UnitaryOperator (Qubits n)}
+lemma QPP.gate_applyVec_pow_eigenstate {U : UnitaryOperator (Qubits n)}
     {u : NormalizedVector (Qubits n)} {lam : ℂ}
     (hu : U.applyVec (u : HilbertVector (Qubits n)) =
       lam • (u : HilbertVector (Qubits n))) (m : ℕ) :

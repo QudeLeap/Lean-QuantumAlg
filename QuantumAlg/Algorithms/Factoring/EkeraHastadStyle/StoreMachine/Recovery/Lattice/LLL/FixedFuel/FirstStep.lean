@@ -28,7 +28,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The original invariant supplies exactly the actual first-pair input readings. -/
-theorem first_initial (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
+lemma first_initial (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
     (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
     LatticeFirstPairMachine.Initial refs.first store state.basis := by
@@ -46,7 +46,7 @@ theorem first_initial (refs : Refs ctx width) (input : NumberTheory.IntegerBasis
     exact rawSignedRepresents_toNat_eq_of_lt _ norm invariant.stepFits.firstNormFits
 
 /-- Full rank and the original scalar range obligations satisfy the first-pair numeric domain. -/
-theorem first_fits (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
+lemma first_fits (refs : Refs ctx width) (input : NumberTheory.IntegerBasis3)
     (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) :
     LatticeFirstPairMachine.Fits width state.basis :=
@@ -58,7 +58,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual first-pair writes preserve both original phase bits. -/
-theorem first_pair_phase (refs : Refs ctx width) (separation : Separation refs)
+lemma first_pair_phase (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (phase : NumberTheory.LLLPhase3)
     (rep : refs.machine.PhaseRepresents store phase) :
     refs.machine.PhaseRepresents
@@ -70,7 +70,7 @@ theorem first_pair_phase (refs : Refs ctx width) (separation : Separation refs)
       (fun cell _ => separation.doneFirst cell)) rep
 
 /-- The actual stored first Lovasz result updates its phase while preserving the selected basis. -/
-theorem first_advance_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma first_advance_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (passes : Bool)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
     (phase : refs.machine.PhaseRepresents store .first)
@@ -97,7 +97,7 @@ theorem first_advance_correct (refs : Refs ctx width) (separation : Separation r
           store phase⟩
 
 /-- The complete actual first driver arm preserves the original mathematical LLL invariant. -/
-theorem firstStepInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma firstStepInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (input : NumberTheory.IntegerBasis3) (store : Store ctx) (state : NumberTheory.LLLState3)
     (invariant : StoreInvariant refs input store state) (phase : state.phase = .first) :
     StoreInvariant refs input (firstStep (model := model) refs store).1

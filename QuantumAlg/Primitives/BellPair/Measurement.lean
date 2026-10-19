@@ -37,32 +37,32 @@ def firstZ : TerminalZMeasure qubitLayout 1 :=
 def bothZ : TerminalZMeasure qubitLayout 2 :=
   zMeasure qubitLayout
 
-private theorem firstZeroFiber :
+private lemma firstZeroFiber :
     Finset.univ.filter (fun basis : Fin (2 ^ 2) =>
       firstZ.readout basis = ![false]) = {0, 1} := by
   decide
 
-private theorem firstOneFiber :
+private lemma firstOneFiber :
     Finset.univ.filter (fun basis : Fin (2 ^ 2) =>
       firstZ.readout basis = ![true]) = {2, 3} := by
   decide
 
-private theorem bothZeroFiber :
+private lemma bothZeroFiber :
     Finset.univ.filter (fun basis : Fin (2 ^ 2) =>
       bothZ.readout basis = ![false, false]) = {0} := by
   decide
 
-private theorem bothOneFiber :
+private lemma bothOneFiber :
     Finset.univ.filter (fun basis : Fin (2 ^ 2) =>
       bothZ.readout basis = ![true, true]) = {3} := by
   decide
 
-private theorem bothMismatchFiber :
+private lemma bothMismatchFiber :
     Finset.univ.filter (fun basis : Fin (2 ^ 2) =>
       bothZ.readout basis = ![false, true]) = {1} := by
   decide
 
-private theorem invSqrt2_enorm_sq :
+private lemma invSqrt2_enorm_sq :
     ‖NormalizedVector.invSqrt2‖ₑ ^ 2 = (2 : ENNReal)⁻¹ := by
   calc
     ‖NormalizedVector.invSqrt2‖ₑ ^ 2 =
@@ -76,31 +76,31 @@ private theorem invSqrt2_enorm_sq :
       simp
 
 /-- The first Bell wire has a fair zero outcome, despite the joint correlation. -/
-theorem first_zero_probability :
+lemma first_zero_probability :
     firstZ.outcomePMF placedBell ![false] = (2 : ENNReal)⁻¹ := by
   rw [TerminalZMeasure.outcomePMF_apply, firstZeroFiber]
   simp [placedBell, bell_coe, NormalizedVector.ket_apply, invSqrt2_enorm_sq]
 
 /-- The first Bell wire has a fair one outcome. -/
-theorem first_one_probability :
+lemma first_one_probability :
     firstZ.outcomePMF placedBell ![true] = (2 : ENNReal)⁻¹ := by
   rw [TerminalZMeasure.outcomePMF_apply, firstOneFiber]
   simp [placedBell, bell_coe, NormalizedVector.ket_apply, invSqrt2_enorm_sq]
 
 /-- The full Bell readout gives `00` with probability one half. -/
-theorem both_zero_probability :
+lemma both_zero_probability :
     bothZ.outcomePMF placedBell ![false, false] = (2 : ENNReal)⁻¹ := by
   rw [TerminalZMeasure.outcomePMF_apply, bothZeroFiber]
   simp [placedBell, bell_coe, NormalizedVector.ket_apply, invSqrt2_enorm_sq]
 
 /-- The full Bell readout gives `11` with probability one half. -/
-theorem both_one_probability :
+lemma both_one_probability :
     bothZ.outcomePMF placedBell ![true, true] = (2 : ENNReal)⁻¹ := by
   rw [TerminalZMeasure.outcomePMF_apply, bothOneFiber]
   simp [placedBell, bell_coe, NormalizedVector.ket_apply, invSqrt2_enorm_sq]
 
 /-- A mismatched Bell result is impossible even though each marginal is fair. -/
-theorem both_mismatch_probability :
+lemma both_mismatch_probability :
     bothZ.outcomePMF placedBell ![false, true] = 0 := by
   rw [TerminalZMeasure.outcomePMF_apply, bothMismatchFiber]
   simp [placedBell, bell_coe, NormalizedVector.ket_apply]
@@ -112,7 +112,7 @@ def firstWireReadout {Reference : Register}
 
 /-- Two actual Z updates of the same wire cannot record different results,
 for any initial joint state with an arbitrary external reference. -/
-theorem repeated_first_wire_flip_zero {Reference : Register}
+lemma repeated_first_wire_flip_zero {Reference : Register}
     (ρ : DensityOperator (Register.prod (Qubits 2) Reference))
     (first second : Bool) (different : second ≠ first) :
     (((ExecutionState.ofValue () ρ).measureZ firstWireReadout).measureZ

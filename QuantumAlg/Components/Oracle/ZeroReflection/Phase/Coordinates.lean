@@ -49,24 +49,24 @@ def phaseBit (phases controls : Nat) (index : Fin phases) :
     (BinaryLabelEncoding.finIdentity (controls + 1))
     (BinaryLabelEncoding.finIdentityBit phases index)
 
-theorem sourceBit_wire_val (phases controls : Nat) (index : Fin (controls + 1)) :
+lemma sourceBit_wire_val (phases controls : Nat) (index : Fin (controls + 1)) :
     (sourceBit phases controls index).wire.val = phases + index.val := rfl
 
-theorem phaseBit_wire_val (phases controls : Nat) (index : Fin phases) :
+lemma phaseBit_wire_val (phases controls : Nat) (index : Fin phases) :
     (phaseBit phases controls index).wire.val = index.val := rfl
 
-theorem sourceBit_get (phases controls : Nat) (index : Fin (controls + 1))
+lemma sourceBit_get (phases controls : Nat) (index : Fin (controls + 1))
     (state : Data phases controls) :
     (sourceBit phases controls index).get state =
       (BinaryLabelEncoding.finIdentityBit (controls + 1) index).get state.2 := rfl
 
-theorem phaseBit_get (phases controls : Nat) (index : Fin phases)
+lemma phaseBit_get (phases controls : Nat) (index : Fin phases)
     (state : Data phases controls) :
     (phaseBit phases controls index).get state =
       (BinaryLabelEncoding.finIdentityBit phases index).get state.1 := rfl
 
 /-- Every original phase wire is physically distinct from every original source wire. -/
-theorem phaseBit_ne_sourceBit (phases controls : Nat) (phase : Fin phases)
+lemma phaseBit_ne_sourceBit (phases controls : Nat) (phase : Fin phases)
     (source : Fin (controls + 1)) :
     (phaseBit phases controls phase).wire ≠ (sourceBit phases controls source).wire := by
   intro same
@@ -94,7 +94,7 @@ def layout (phases controls : Nat) (work : Fin phases) :
   work_output_ne := phaseBit_ne_sourceBit phases controls work 0
 
 /-- The source-zero predicate reads only the original source label. -/
-theorem reflectedZero_iff (phases controls : Nat) (work : Fin phases)
+lemma reflectedZero_iff (phases controls : Nat) (work : Fin phases)
     (state : Data phases controls) :
     (layout phases controls work).reflectedZero state ↔ state.2 = 0 := by
   rw [← BinaryLabelEncoding.finIdentity_all_zero_iff (controls + 1) state.2]
@@ -108,19 +108,19 @@ theorem reflectedZero_iff (phases controls : Nat) (work : Fin phases)
     exact ⟨fun index => allBits index.succ, allBits 0⟩
 
 /-- The selected external control is distinct from all source controls. -/
-theorem control_source_ne (phases controls : Nat) (control work : Fin phases)
+lemma control_source_ne (phases controls : Nat) (control work : Fin phases)
     (index : Fin controls) :
     (phaseBit phases controls control).wire ≠
       ((layout phases controls work).source.bit index).wire :=
   phaseBit_ne_sourceBit phases controls control index.succ
 
 /-- The selected control is distinct from the source phase target. -/
-theorem control_output_ne (phases controls : Nat) (control work : Fin phases) :
+lemma control_output_ne (phases controls : Nat) (control work : Fin phases) :
     (phaseBit phases controls control).wire ≠ (layout phases controls work).output.wire :=
   phaseBit_ne_sourceBit phases controls control 0
 
 /-- Distinct original phase positions stay distinct when used as control and work. -/
-theorem control_work_ne (phases controls : Nat) (control work : Fin phases)
+lemma control_work_ne (phases controls : Nat) (control work : Fin phases)
     (different : control ≠ work) :
     (phaseBit phases controls control).wire ≠ (layout phases controls work).work.wire := by
   intro same

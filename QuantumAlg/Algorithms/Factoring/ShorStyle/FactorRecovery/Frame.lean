@@ -45,7 +45,7 @@ structure FrameFree (cells : Cells ctx N)
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem reduce_read_other (source : Input N) (cells : Cells ctx N)
+private lemma reduce_read_other (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (reduceStep (model := model) source cells output store).1.read other = store.read other :=
@@ -55,7 +55,7 @@ private theorem reduce_read_other (source : Input N) (cells : Cells ctx N)
     (NativeHalfPower.read_other (model := model) source (.storage cells.base.toCStorageRef)
       (orderRead cells) cells.halfPower other free.halfPower store)
 
-private theorem checkedArm_read_other (source : Input N) (cells : Cells ctx N)
+private lemma checkedArm_read_other (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other)
     (value : CShape.Value .bit) (store : Store ctx) :
@@ -68,7 +68,7 @@ private theorem checkedArm_read_other (source : Input N) (cells : Cells ctx N)
           (packOutputOp cells output) other free.output
       · exact reduce_read_other (model := model) source cells output other free store
 
-private theorem checked_read_other (source : Input N) (cells : Cells ctx N)
+private lemma checked_read_other (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (checkedStep (model := model) source cells output store).1.read other = store.read other :=
@@ -76,7 +76,7 @@ private theorem checked_read_other (source : Input N) (cells : Cells ctx N)
     ((guardStore cells store).read (activeRead cells)) (guardStore cells store)).trans
     (guard_read_other cells other free.zero free.active free.positive store)
 
-private theorem dispatchArm_read_other (source : Input N)
+private lemma dispatchArm_read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other)
@@ -90,7 +90,7 @@ private theorem dispatchArm_read_other (source : Input N)
       · exact Store.read_applyOp_of_not_mem_storageKeys store
           (packEarlyOp parameter output) other free.output
 
-private theorem dispatch_read_other (source : Input N)
+private lemma dispatch_read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
@@ -99,7 +99,7 @@ private theorem dispatch_read_other (source : Input N)
   dispatchArm_read_other (model := model) source parameter cells output other free
     (store.read (.first (.second parameter))) store
 
-private theorem recovered_read_other (source : Input N)
+private lemma recovered_read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -118,7 +118,7 @@ private theorem recovered_read_other (source : Input N)
         (Store.read_applyOp_of_not_mem_storageKeys store
           (packBaseOp parameter cells) other free.base)))
 
-private theorem even_read_other (cells : Cells ctx N)
+private lemma even_read_other (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells output other) (store : Store ctx) :
     (evenStep (model := model) cells output store).1.read other = store.read other := by
@@ -135,7 +135,7 @@ private theorem even_read_other (cells : Cells ctx N)
           other free.active)))
 
 /-- Every actual modulus and stored-data branch preserves the complete original read frame. -/
-theorem read_other (source : Input N)
+lemma read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

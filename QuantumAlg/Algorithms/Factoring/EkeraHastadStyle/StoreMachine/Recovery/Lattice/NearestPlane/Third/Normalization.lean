@@ -35,7 +35,7 @@ def signedInputsStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
     refs.division.negative refs.denominatorMagnitude store).1).1
 
 /-- Actual normalization changes only the flag, magnitude and numerator words. -/
-theorem signedInputsStore_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma signedInputsStore_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (notFlag : refs.division.negative.key ∉ other.storageKeys)
     (notMagnitude : refs.denominatorMagnitude.key ∉ other.storageKeys)
@@ -46,7 +46,7 @@ theorem signedInputsStore_callerFrame (refs : Refs ctx width) (store : Store ctx
     normalizeMagnitude_callerFrame _ _ _ _ other notFlag notMagnitude]
 
 /-- Actual inputs represent the corrected numerator and positive denominator magnitude. -/
-theorem signedInputsStore_correct (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma signedInputsStore_correct (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (store : Store ctx) (numerator denominator : Int)
     (fits : NormalizeFits width numerator denominator)
     (numeratorRep : RawSignedRepresents (store.read (writeInput refs.numerator)) numerator)

@@ -32,9 +32,9 @@ noncomputable section
 
 open Execution
 
-private theorem readout_event {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
+private lemma readout_event (width : Nat) :
     Circuit.zEvent (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (oracles := UnitarySource.model width true) (operations := .empty)
       (classicalOracles := .empty)
       ((post width).quantumLayout.wire (readout width).wire).dimension =
       .measurement (2 : ℕ+) := by
@@ -42,19 +42,19 @@ private theorem readout_event {width : Nat} (unitary : UnitaryOperator (Qubits w
   rfl
 
 /-- Every actual path has exactly the complete independently specified native ledger. -/
-theorem code_events {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (path : (code unitary).Path) :
-    (code unitary).resourcePool path = eventBudget unitary := by
+lemma code_events (width : Nat)
+    (path : (code width).Path) :
+    (code width).resourcePool path = eventBudget width := by
   change ResourcePool.ofList
-    ((ZeroPreparation.eventTrace AlgorithmGate.model (UnitarySource.model unitary true)
+    ((ZeroPreparation.eventTrace AlgorithmGate.model (UnitarySource.model width true)
       (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout ++
-      ((nativeProgram unitary).eventTrace ++ [])) ++
+      ((nativeProgram width).eventTrace ++ [])) ++
       [Circuit.zEvent (gates := AlgorithmGate.model)
-      (oracles := UnitarySource.model unitary true) (operations := .empty)
+      (oracles := UnitarySource.model width true) (operations := .empty)
       (classicalOracles := .empty)
         ((post width).quantumLayout.wire (readout width).wire).dimension]) = _
   rw [ZeroPreparation.zeroPreparation_uniform_trace AlgorithmGate.model
-    (UnitarySource.model unitary true) (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout
+    (UnitarySource.model width true) (OwnedQubitPrefix.prefixLayout 1).toQuantumLayout
     2 (fun _ => rfl), List.append_nil,
     ResourcePool.ofList_append, ResourcePool.ofList_append,
     UnitaryCircuit.ofList_eventTrace_eq_eventCost, nativeProgram,
@@ -62,16 +62,16 @@ theorem code_events {width : Nat} (unitary : UnitaryOperator (Qubits width))
     readout_event]
   rfl
 
-private theorem program_depth_le {width : Nat} (unitary : UnitaryOperator (Qubits width)) :
-    (nativeProgram unitary).evaluatedEventDepth (fun _ => 1) ≤ 3 :=
-  le_of_eq (Native.hadamardTestNative_unit_depth unitary)
+private lemma program_depth_le (width : Nat) :
+    (nativeProgram width).evaluatedEventDepth (fun _ => 1) ≤ 3 :=
+  le_of_eq (Native.hadamardTestNative_unit_depth width)
 
 /-- The actual dependency depth fits five unit-duration native operations. -/
-theorem code_depth {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (path : (code unitary).Path) : (code unitary).depth (fun _ => 1) path ≤ 5 := by
-  change (1 + ((nativeProgram unitary).evaluatedEventDepth (fun _ => 1) + 0)) +
+lemma code_depth (width : Nat)
+    (path : (code width).Path) : (code width).depth (fun _ => 1) path ≤ 5 := by
+  change (1 + ((nativeProgram width).evaluatedEventDepth (fun _ => 1) + 0)) +
     (1 + 0) ≤ 5
-  have bounded := program_depth_le unitary
+  have bounded := program_depth_le width
   omega
 
 end

@@ -31,7 +31,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The complete mathematical store contains the actual source bits in its retained sample cell. -/
-theorem samplerRetained_resultStore_sample (input : Input N) (store : Store ctx)
+lemma samplerRetained_resultStore_sample (input : Input N) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N)) :
     (resultStore input store value).read (FirstAccepted.cellRead (sampleRef ctx N)) =
       .bits (PackedSample.storedBits value) := by
@@ -44,21 +44,22 @@ theorem samplerRetained_resultStore_sample (input : Input N) (store : Store ctx)
     (Store.read_write_same (pushStore N store) (sampleRef ctx N) _)
 
 /-- The retained parameter and source bits originate from the identical actual random draw. -/
-theorem samplerRetained_resultStore_parameter (input : Input N) (store : Store ctx)
+lemma samplerRetained_resultStore_parameter (input : Input N) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N)) :
     (resultStore input store value).read (FirstAccepted.cellRead (parameterRef ctx N)) =
       parameterValue input value :=
   Store.read_write_same _ (parameterRef ctx N) (parameterValue input value)
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual retained sampling transports any complete-store weight to its genuine uniform source. -/
-theorem samplerRetained_reference (input : Input N)
+lemma samplerRetained_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) (weight : Store (context ctx N) → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute Reference state)
+    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute
+      environment Reference state)
         (fun entry _ => weight entry.1) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => ∑ value : Fin (2 ^ residueSamplingBits N),
@@ -68,10 +69,10 @@ theorem samplerRetained_reference (input : Input N)
   let update := fun entry : (Store ctx × (model.HiddenState × History)) × Fin count =>
     (resultStore input entry.1.1 entry.2,
       (entry.1.2.1, (entry.1.2.2, resultPath (model := model) ctx N entry.1.1 entry.2)))
-  have executionLaw : (circuit (model := model) ctx N).execute Reference state =
+  have executionLaw : (circuit (model := model) ctx N).execute environment Reference state =
       @ExecutionState.mapClassical _ _ _ _ (Register.prod ctx.register Reference)
         (Classical.decEq _) (uniformChoice state count) update := by
-    refine (samplerRetained_execute ctx input Reference state).trans ?_
+    refine (samplerRetained_execute (environment := environment) ctx input Reference state).trans ?_
     exact mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
   have executed := congrArg
     (fun output : State (context ctx N) Reference
@@ -99,13 +100,14 @@ theorem samplerRetained_reference (input : Input N)
     (fun scalar : ℂ => scalar * weight (resultStore input entry.1 value)) coefficient
 
 /-- Joint parameter/sample weights preserve the full reference operator of the same source draw. -/
-theorem samplerRetained_parameter_sample_reference (input : Input N)
+lemma samplerRetained_parameter_sample_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (weight : (ParameterShape (modulusBits N)).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute Reference state)
+    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute
+      environment Reference state)
         (fun entry _ => weight
           (entry.1.read (FirstAccepted.cellRead (parameterRef ctx N)))
           (entry.1.read (FirstAccepted.cellRead (sampleRef ctx N)))) leftRef rightRef =

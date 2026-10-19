@@ -25,7 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {width : Nat} {model : ExecutionModel} [BitWord.Selected model]
+variable {width : Nat} {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Independent chronological formula for the six quotient signs and final Lovasz decision. -/
@@ -41,7 +42,7 @@ def secondPairTrace (width : Nat)
         LatticeSecondLovaszBranch.branchTrace (model := model) width passes))
 
 /-- Every actual full path emits exactly the independent formula at its own recorded decisions. -/
-theorem secondPairInto_events (refs : Refs ctx width)
+lemma secondPairInto_events (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path) :
     (secondPairInto (model := model) refs).eventTrace path =
       secondPairTrace (model := model) width
@@ -55,7 +56,7 @@ theorem secondPairInto_events (refs : Refs ctx width)
   rfl
 
 /-- The complete native resource pool equals the independent formula at the actual decisions. -/
-theorem secondPairInto_resourcePool (refs : Refs ctx width)
+lemma secondPairInto_resourcePool (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path) :
     (secondPairInto (model := model) refs).resourcePool path =
       ResourcePool.ofList (secondPairTrace (model := model) width
@@ -66,7 +67,7 @@ theorem secondPairInto_resourcePool (refs : Refs ctx width)
   rw [secondPairInto_events]
 
 /-- Every actual complete second-pair path executes at most 99 native classical operations. -/
-theorem secondPairInto_eventCount_le (refs : Refs ctx width)
+lemma secondPairInto_eventCount_le (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path) :
     ((secondPairInto (model := model) refs).eventTrace path).length ≤ 99 := by
   have first := LatticeSecondPairMachine.secondPairPrefixInto_eventCount_le refs.machine path.1.1
@@ -83,7 +84,7 @@ theorem secondPairInto_eventCount_le (refs : Refs ctx width)
   omega
 
 /-- Unit-duration serial depth includes the dependencies between all five actual phases. -/
-theorem secondPairInto_depth_le (refs : Refs ctx width)
+lemma secondPairInto_depth_le (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path) :
     (secondPairInto (model := model) refs).depth (fun _ => 1) path ≤ 99 := by
   have first := LatticeSecondPairMachine.secondPairPrefixInto_depth_le refs.machine path.1.1
@@ -99,27 +100,27 @@ theorem secondPairInto_depth_le (refs : Refs ctx width)
   omega
 
 /-- Actual complete execution restores borrowed correlations jointly with every reference. -/
-theorem secondPairInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma secondPairInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (secondPairInto (model := model) refs).BorrowedRestored Reference state
-      ((secondPairInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((secondPairInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
     (sizeReductionInto (model := model) refs) (areaBranchInto (model := model) refs)
-  · exact Circuit.borrowedRestored_seq _ _ state
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ state
       (LatticeSecondPairMachine.secondPairPrefixInto_borrowedRestored refs.machine Reference state)
       (LatticeSecondPairPostReduction.postReductionInto_borrowedRestored refs.post Reference _)
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
       (LatticeAreaRefresh.refreshInto (model := model)
         refs.machine.basis.first refs.machine.basis.second
         refs.area12)
       (area13BranchInto (model := model) refs)
     · exact LatticeAreaRefresh.refreshInto_borrowedRestored _ _ _ Reference _
-    · exact Circuit.borrowedRestored_seq _ _ _
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
         (LatticeAreaRefresh.refreshInto_borrowedRestored _ _ _ Reference _)
         (LatticeSecondLovaszBranch.branchInto_borrowedRestored refs.branch Reference _)
 
 /-- Every phase and actual selected arm uses the complete supplied context. -/
-theorem secondPairInto_visited (refs : Refs ctx width)
+lemma secondPairInto_visited (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (secondPairInto (model := model) refs).visitedContexts path) :
@@ -134,7 +135,7 @@ theorem secondPairInto_visited (refs : Refs ctx width)
   · exact LatticeSecondLovaszBranch.branchInto_visited refs.branch path.2.2.2 visited branch
 
 /-- Resident accounting includes all supplied quantum dimensions and actual classical cells. -/
-theorem secondPairInto_resident_le (refs : Refs ctx width)
+lemma secondPairInto_resident_le (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path) :
     (secondPairInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -142,7 +143,7 @@ theorem secondPairInto_resident_le (refs : Refs ctx width)
   rw [secondPairInto_visited refs path visited present]
 
 /-- Auxiliary accounting retains the supplied roles throughout every actual phase. -/
-theorem secondPairInto_auxiliary_le (refs : Refs ctx width)
+lemma secondPairInto_auxiliary_le (refs : Refs ctx width)
     (path : (secondPairInto (model := model) refs).Path) :
     (secondPairInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

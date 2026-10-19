@@ -31,15 +31,15 @@ def unorderedPairs : List α → List (α × α)
   | [] => []
   | head :: tail => tail.map (head, ·) ++ unorderedPairs tail
 
-@[simp] theorem unorderedPairs_nil : unorderedPairs ([] : List α) = [] := rfl
+@[simp] lemma unorderedPairs_nil : unorderedPairs ([] : List α) = [] := rfl
 
-@[simp] theorem unorderedPairs_cons (head : α) (tail : List α) :
+@[simp] lemma unorderedPairs_cons (head : α) (tail : List α) :
     unorderedPairs (head :: tail) =
       tail.map (head, ·) ++ unorderedPairs tail :=
   rfl
 
 /-- The enumerator contains exactly one entry for every two-element subset. -/
-theorem length_unorderedPairs (values : List α) :
+lemma length_unorderedPairs (values : List α) :
     values.unorderedPairs.length = values.length.choose 2 := by
   induction values with
   | nil => rfl
@@ -49,7 +49,7 @@ theorem length_unorderedPairs (values : List α) :
 
 /-- Mapping values before pair enumeration is the same as mapping both
 components of every canonical unordered pair. -/
-theorem unorderedPairs_map {β : Type*} (values : List α) (f : α → β) :
+lemma unorderedPairs_map {β : Type*} (values : List α) (f : α → β) :
     (values.map f).unorderedPairs =
       values.unorderedPairs.map fun pair => (f pair.1, f pair.2) := by
   induction values with
@@ -72,12 +72,12 @@ def unorderedPairs (values : List.Vector α n) :
     simpa using List.length_unorderedPairs values.toList⟩
 
 /-- Forgetting the length index recovers the canonical list enumerator. -/
-@[simp] theorem toList_unorderedPairs (values : List.Vector α n) :
+@[simp] lemma toList_unorderedPairs (values : List.Vector α n) :
     values.unorderedPairs.toList = values.toList.unorderedPairs :=
   rfl
 
 /-- The fixed-length enumerator preserves the list-level map/pair law. -/
-theorem toList_unorderedPairs_map {β : Type*}
+lemma toList_unorderedPairs_map {β : Type*}
     (values : List.Vector α n) (f : α → β) :
     (values.map f).unorderedPairs.toList =
       values.unorderedPairs.toList.map fun pair => (f pair.1, f pair.2) := by
@@ -91,7 +91,7 @@ variable {α : Type*} [Fintype α] [DecidableEq α]
 
 /-- Exact count of fixed-length words whose every coordinate lies in a finite
 set. -/
-theorem card_filter_pi_forall_mem (s : Finset α) (n : Nat) :
+lemma card_filter_pi_forall_mem (s : Finset α) (n : Nat) :
     ((Finset.univ : Finset (Fin n → α)).filter fun words =>
       ∀ index, words index ∈ s).card = s.card ^ n := by
   have heq :
@@ -104,7 +104,7 @@ theorem card_filter_pi_forall_mem (s : Finset α) (n : Nat) :
 
 /-- Union bound for fixed-length words with at least one coordinate in a
 finite exceptional set. -/
-theorem card_filter_pi_exists_mem_le (s : Finset α) (n : Nat) :
+lemma card_filter_pi_exists_mem_le (s : Finset α) (n : Nat) :
     ((Finset.univ : Finset (Fin n → α)).filter fun words =>
       ∃ index, words index ∈ s).card ≤
         n * s.card * Fintype.card α ^ (n - 1) := by

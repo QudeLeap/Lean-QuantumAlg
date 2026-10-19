@@ -30,7 +30,7 @@ noncomputable section
 def periodicSinSq (phase : ℝ) : ℝ :=
   Real.sin (Real.pi * phase) ^ 2
 
-private theorem abs_sin_sq_sub_sin_sq_le (x y : ℝ) :
+private lemma abs_sin_sq_sub_sin_sq_le (x y : ℝ) :
     |Real.sin x ^ 2 - Real.sin y ^ 2| ≤ |x - y| := by
   have hfactor :
       Real.sin x ^ 2 - Real.sin y ^ 2 =
@@ -53,13 +53,13 @@ private theorem abs_sin_sq_sub_sin_sq_le (x y : ℝ) :
     _ ≤ |x - y| := Real.abs_sin_le_abs
 
 /-- Opposite phase representatives decode to the same probability. -/
-theorem periodicSinSq_neg (phase : ℝ) :
+lemma periodicSinSq_neg (phase : ℝ) :
     periodicSinSq (-phase) = periodicSinSq phase := by
   simp [periodicSinSq]
 
 /-- Shifting a phase representative by an integer does not change its decoded
 probability. -/
-theorem periodicSinSq_add_int (phase : ℝ) (z : ℤ) :
+lemma periodicSinSq_add_int (phase : ℝ) (z : ℤ) :
     periodicSinSq (phase + (z : ℝ)) = periodicSinSq phase := by
   rw [periodicSinSq, periodicSinSq]
   rw [show Real.pi * (phase + (z : ℝ)) =
@@ -76,7 +76,7 @@ theorem periodicSinSq_add_int (phase : ℝ) (z : ℤ) :
 
 /-- The decoded sine-square probability is `π`-Lipschitz with respect to
 periodic phase distance on `UnitAddCircle`. -/
-theorem periodicSinSq_sub_le_circleNorm (x y : ℝ) :
+lemma periodicSinSq_sub_le_circleNorm (x y : ℝ) :
     |periodicSinSq x - periodicSinSq y| ≤
       Real.pi * ‖((x - y : ℝ) : UnitAddCircle)‖ := by
   rw [UnitAddCircle.norm_eq]
@@ -98,7 +98,7 @@ theorem periodicSinSq_sub_le_circleNorm (x y : ℝ) :
 /-- An estimate close to either of the two opposite eigenphases decodes to the
 same sine-square probability, with additive error controlled by the periodic
 phase distance. -/
-theorem periodicSinSq_error_of_signed_phase
+lemma periodicSinSq_error_of_signed_phase
     (phase estimate eps : ℝ)
     (hphase :
       ‖((estimate - phase : ℝ) : UnitAddCircle)‖ ≤ eps ∨

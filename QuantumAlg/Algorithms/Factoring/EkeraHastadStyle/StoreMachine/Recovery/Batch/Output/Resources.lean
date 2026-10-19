@@ -17,7 +17,8 @@ open ClassicalRoutines
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Independent chronological native formula for both literal output operations. -/
@@ -32,7 +33,7 @@ def events (N : Nat) : List (Resource.Event model) :=
 def eventEnvelope (N : Nat) : ResourcePool model := ResourcePool.ofList (events N)
 
 /-- Every actual path executes exactly the native resize and native optional encoding. -/
-theorem into_events (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_events (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).eventTrace path = events N := by
   change (BitWord.instruction (execution := model) (resizeOp refs)).eventTrace path.1 ++
     (BitWord.instruction (execution := model) (packOp refs)).eventTrace path.2 = _
@@ -40,58 +41,59 @@ theorem into_events (refs : Refs ctx N) (path : (into refs).Path) :
   rfl
 
 /-- Actual native multiplicities equal the independent two-instruction formula. -/
-theorem into_resourcePool (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_resourcePool (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).resourcePool path = eventEnvelope N := by
   change ResourcePool.ofList ((into refs).eventTrace path) = _
   rw [into_events]
   rfl
 
 /-- Every actual native coordinate meets the independent output allowance. -/
-theorem into_pool_le (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_pool_le (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).resourcePool path ≤ eventEnvelope N := (into_resourcePool refs path).le
 
 /-- Output production pays for both actual native operations. -/
-theorem into_eventCount (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_eventCount (refs : Refs ctx N) (path : (into refs).Path) :
     ((into refs).eventTrace path).length = 2 := rfl
 
 /-- The payload resize precedes optional result packing in the dependency depth. -/
-theorem into_depth (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_depth (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path = 2 := rfl
 
 /-- Every path meets the independent two-operation sequential depth allowance. -/
-theorem into_depth_le (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_depth_le (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).depth (fun _ => 1) path ≤ 2 := (into_depth refs path).le
 
 /-- Both actual writes retain the caller's entire live context. -/
-theorem into_visited (refs : Refs ctx N) (path : (into refs).Path)
+lemma into_visited (refs : Refs ctx N) (path : (into refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (into refs).visitedContexts path) :
     visited = ctx := by
   change visited ∈ [ctx] ++ [ctx] at present
   simpa using present
 
 /-- All caller cells and quantum dimensions remain resident through output packing. -/
-theorem into_resident_le (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_resident_le (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Every existing workspace role is included throughout actual output packing. -/
-theorem into_auxiliary_le (refs : Refs ctx N) (path : (into refs).Path) :
+lemma into_auxiliary_le (refs : Refs ctx N) (path : (into refs).Path) :
     (into refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present
   rw [into_visited refs path visited present]
 
 /-- Both native writes jointly restore borrowed storage with arbitrary external references. -/
-theorem into_borrowedRestored (refs : Refs ctx N) (Reference : Register)
+lemma into_borrowedRestored (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into refs).BorrowedRestored Reference state ((into refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical
+    (into refs).BorrowedRestored
+      Reference state ((into refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · exact Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (resizeOp refs)) _
-  · exact Circuit.borrowedRestored_classical
+  · exact Circuit.borrowedRestored_classical (environment := environment)
       (BitWord.selectedApplication (execution := model) (packOp refs)) _
 
 end

@@ -59,7 +59,7 @@ instance (p : Nat) : Decidable (WheelCandidate p) := by
   infer_instance
 
 /-- Prime numbers belong to the elementary wheel candidate set. -/
-theorem prime_wheelCandidate {p : Nat} (hp : p.Prime) : WheelCandidate p := by
+lemma prime_wheelCandidate {p : Nat} (hp : p.Prime) : WheelCandidate p := by
   unfold WheelCandidate
   refine ⟨hp.two_le, ?_⟩
   by_cases hp2 : p = 2
@@ -97,7 +97,7 @@ set_option maxRecDepth 100000 in
 /-- The wheel superset below `512` consumes 276 correction bits.  This is an
 intentional 16-bit overestimate of the exact prime sum, avoiding any trusted
 prime-table enumeration. -/
-theorem sum_wheelCandidate_nine_corrections :
+lemma sum_wheelCandidate_nine_corrections :
     ∑ p ∈ (Finset.range 512).filter WheelCandidate,
       primePowerNineCorrectionBits p = 276 := by
   decide

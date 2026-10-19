@@ -37,12 +37,12 @@ def circuit (oracles : OracleModel) (zeroAngle oneAngle : ℝ) :
   ((average.seq cnot).seq difference).seq cnot
 
 /-- Coherent selection retains all four actual native events. -/
-theorem circuit_eventTrace (oracles : OracleModel) (zeroAngle oneAngle : ℝ) :
+lemma circuit_eventTrace (oracles : OracleModel) (zeroAngle oneAngle : ℝ) :
     (circuit oracles zeroAngle oneAngle).eventTrace =
       [.gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot] := rfl
 
 /-- Both native rotations and both CNOTs contribute to the same dependency chain. -/
-theorem circuit_depth (oracles : OracleModel) (zeroAngle oneAngle : ℝ) :
+lemma circuit_depth (oracles : OracleModel) (zeroAngle oneAngle : ℝ) :
     (circuit oracles zeroAngle oneAngle).evaluatedEventDepth (fun _ => 1) = 4 := rfl
 
 end

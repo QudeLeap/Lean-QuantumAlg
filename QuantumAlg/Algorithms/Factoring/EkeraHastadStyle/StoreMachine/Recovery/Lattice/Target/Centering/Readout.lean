@@ -39,7 +39,7 @@ def halfStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   (modulusStore refs store).applyOp (Word.Split.shiftOp refs.scratch)
 
 /-- The actual native equality bit compares the actual values read by that instruction. -/
-theorem zero_read (refs : Refs ctx width) (store : Store ctx) :
+lemma zero_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (zeroOp refs)).read (writeInput refs.isZero)).toBool =
       decide ((store.read refs.a).toNat = (store.read (writeInput refs.scratch)).toNat) := by
   simp only [Store.applyOp, zeroOp, ClassicalOp.outputRef, Store.read_write_same,
@@ -47,7 +47,7 @@ theorem zero_read (refs : Refs ctx width) (store : Store ctx) :
   rfl
 
 /-- Actual native copying retains the complete modulus word it reads. -/
-theorem copy_read (refs : Refs ctx width) (store : Store ctx) :
+lemma copy_read (refs : Refs ctx width) (store : Store ctx) :
     (store.applyOp (copyOp refs)).read (writeInput refs.scratch) = store.read refs.modulus := by
   simp only [Store.applyOp, copyOp, ClassicalOp.outputRef, Store.read_write_same,
     ClassicalOp.inputRef, ClassicalOp.eval_wordUnary]
@@ -55,7 +55,7 @@ theorem copy_read (refs : Refs ctx width) (store : Store ctx) :
   rfl
 
 /-- The actual native less-than bit compares the actual source and scratch values it reads. -/
-theorem below_read (refs : Refs ctx width) (store : Store ctx) :
+lemma below_read (refs : Refs ctx width) (store : Store ctx) :
     ((store.applyOp (belowOp refs)).read (writeInput refs.belowHalf)).toBool =
       decide ((store.read refs.a).toNat < (store.read (writeInput refs.scratch)).toNat) := by
   simp only [Store.applyOp, belowOp, ClassicalOp.outputRef, Store.read_write_same,
@@ -63,7 +63,7 @@ theorem below_read (refs : Refs ctx width) (store : Store ctx) :
   rfl
 
 /-- Clearing and actual zero comparison retain every read outside scratch and the zero flag. -/
-theorem zeroTest_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma zeroTest_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (scratch : refs.scratch.key ∉ other.storageKeys)
     (zero : refs.isZero.key ∉ other.storageKeys) :
     (zeroTestStore refs store).read other = store.read other := by
@@ -73,7 +73,7 @@ theorem zeroTest_callerFrame (refs : Refs ctx width) (store : Store ctx)
       other scratch]
 
 /-- Actual clearing, zero testing, copying and halving retain the complete outside frame. -/
-theorem halfStore_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma halfStore_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (scratch : refs.scratch.key ∉ other.storageKeys)
     (zero : refs.isZero.key ∉ other.storageKeys) :
     (halfStore refs store).read other = store.read other := by
@@ -83,7 +83,7 @@ theorem halfStore_callerFrame (refs : Refs ctx width) (store : Store ctx)
     zeroTest_callerFrame refs store other scratch zero]
 
 /-- The actual zero comparison reads the original source and an explicitly cleared scratch word. -/
-theorem zeroTest_isZero (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
+lemma zeroTest_isZero (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
     ((zeroTestStore refs store).read (writeInput refs.isZero)).toBool =
       decide ((store.read refs.a).toNat = 0) := by
   change (((store.applyOp (Word.PowerOfTwo.clearOp refs.scratch)).applyOp (zeroOp refs)).read
@@ -93,7 +93,7 @@ theorem zeroTest_isZero (refs : Refs ctx width) (separation : Separation refs) (
       refs.a separation.aAvoidsScratch]
 
 /-- Actual halving produces precisely half of the original incoming modulus. -/
-theorem halfStore_scratch (refs : Refs ctx width) (separation : Separation refs)
+lemma halfStore_scratch (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     ((halfStore refs store).read (writeInput refs.scratch)).toNat =
       (store.read refs.modulus).toNat / 2 := by
@@ -106,7 +106,7 @@ theorem halfStore_scratch (refs : Refs ctx width) (separation : Separation refs)
     separation.modulusAvoidsScratch separation.modulusAvoidsIsZero]
 
 /-- The actual prepared scratch retains the original half modulus through the final comparison. -/
-theorem prepare_scratch (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
+lemma prepare_scratch (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
     ((prepareStore refs store).read (writeInput refs.scratch)).toNat =
       (store.read refs.modulus).toNat / 2 := by
   change (((halfStore refs store).applyOp (belowOp refs)).read (writeInput refs.scratch)).toNat = _
@@ -115,7 +115,7 @@ theorem prepare_scratch (refs : Refs ctx width) (separation : Separation refs) (
     halfStore_scratch refs separation store]
 
 /-- Actual preparation retains the original zero test through copying, halving and comparison. -/
-theorem prepare_isZero (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
+lemma prepare_isZero (refs : Refs ctx width) (separation : Separation refs) (store : Store ctx) :
     ((prepareStore refs store).read (writeInput refs.isZero)).toBool =
       decide ((store.read refs.a).toNat = 0) := by
   change (((halfStore refs store).applyOp (belowOp refs)).read (writeInput refs.isZero)).toBool = _
@@ -127,7 +127,7 @@ theorem prepare_isZero (refs : Refs ctx width) (separation : Separation refs) (s
     zeroTest_isZero refs separation store]
 
 /-- Actual preparation stores the exact original source-versus-half-modulus comparison. -/
-theorem prepare_belowHalf (refs : Refs ctx width) (separation : Separation refs)
+lemma prepare_belowHalf (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     ((prepareStore refs store).read (writeInput refs.belowHalf)).toBool =
       decide ((store.read refs.a).toNat < (store.read refs.modulus).toNat / 2) := by
@@ -137,7 +137,7 @@ theorem prepare_belowHalf (refs : Refs ctx width) (separation : Separation refs)
     halfStore_callerFrame refs store refs.a separation.aAvoidsScratch separation.aAvoidsIsZero]
 
 /-- Actual comparison preparation retains every read outside its three original write identities. -/
-theorem prepare_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma prepare_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (scratch : refs.scratch.key ∉ other.storageKeys)
     (zero : refs.isZero.key ∉ other.storageKeys) (below : refs.belowHalf.key ∉ other.storageKeys) :
     (prepareStore refs store).read other = store.read other := by

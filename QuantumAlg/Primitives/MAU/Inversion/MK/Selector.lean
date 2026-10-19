@@ -27,6 +27,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -265,17 +267,17 @@ def comparisonBorrowOutStep
 
 /-- The Kaliski comparison borrow-output slice is a concrete base-gate
 realization over the register-plus-comparison-work encoding. -/
-theorem comparisonBorrowOut_realizes
+lemma comparisonBorrowOut_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (comparisonBorrowOutProgram n counterWidth bit)
+      (comparisonBorrowOutProgram n counterWidth bit) environment
       (comparisonBorrowOutStep n counterWidth bit) :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowOut_realizesAt
     (comparisonBorrowLayout n counterWidth) bit
 
 /-- On clean comparison work, one Kaliski comparison borrow slice writes the
 local subtract-borrow recurrence into its selected work bit. -/
-theorem comparisonBorrowOutStep_get_work_clean
+lemma comparisonBorrowOutStep_get_work_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hclean :
@@ -296,7 +298,7 @@ theorem comparisonBorrowOutStep_get_work_clean
         (comparisonBorrowLayout n counterWidth) bit x hclean
 
 /-- One Kaliski comparison borrow slice preserves the selected `u` input bit. -/
-theorem comparisonBorrowOutStep_get_uBit
+lemma comparisonBorrowOutStep_get_uBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftRegisterBitToComparisonWork n counterWidth
@@ -311,7 +313,7 @@ theorem comparisonBorrowOutStep_get_uBit
         (comparisonBorrowLayout n counterWidth) bit x
 
 /-- One Kaliski comparison borrow slice preserves the selected `v` input bit. -/
-theorem comparisonBorrowOutStep_get_vBit
+lemma comparisonBorrowOutStep_get_vBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftRegisterBitToComparisonWork n counterWidth
@@ -352,9 +354,9 @@ def comparisonBorrowStageStep (n counterWidth : Nat) :
 
 /-- The folded Kaliski comparison borrow-chain pass is a concrete base-gate
 realization over the register-plus-comparison-work encoding. -/
-theorem comparisonBorrowStage_realizes (n counterWidth : Nat) :
+lemma comparisonBorrowStage_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (comparisonBorrowStageProgram n counterWidth)
+      (comparisonBorrowStageProgram n counterWidth) environment
       (comparisonBorrowStageStep n counterWidth) :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowStage_realizes
     (comparisonBorrowLayout n counterWidth)
@@ -385,9 +387,9 @@ def comparisonBorrowStageVUStep (n counterWidth : Nat) :
 
 /-- The folded `v - u` comparison borrow-chain pass is a concrete base-gate
 realization over the register-plus-comparison-work encoding. -/
-theorem comparisonBorrowStageVU_realizes (n counterWidth : Nat) :
+lemma comparisonBorrowStageVU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (comparisonBorrowStageVUProgram n counterWidth)
+      (comparisonBorrowStageVUProgram n counterWidth) environment
       (comparisonBorrowStageVUStep n counterWidth) :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowStage_realizes
     (comparisonBorrowLayoutVU n counterWidth)
@@ -419,16 +421,16 @@ def uGreaterBorrowStageStep (n counterWidth : Nat) :
 
 /-- The cleanup-compatible `uGreater` borrow pass is a concrete base-gate
 realization over the register-plus-comparison-work encoding. -/
-theorem uGreaterBorrowStage_realizes (n counterWidth : Nat) :
+lemma uGreaterBorrowStage_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (uGreaterBorrowStageProgram n counterWidth)
+      (uGreaterBorrowStageProgram n counterWidth) environment
       (uGreaterBorrowStageStep n counterWidth) :=
   QuantumAlg.Comparator.BorrowWorkLayout.borrowStage_realizes
     (uGreaterBorrowLayout n counterWidth)
 
 /-- The cleanup-compatible `uGreater` borrow gate list neither reads nor writes
 the lifted comparison bit. -/
-theorem uGreaterBorrowStageGates_bitDisjoint_compare
+lemma uGreaterBorrowStageGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ uGreaterBorrowStageGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (liftedCompareBit n counterWidth)
@@ -464,7 +466,7 @@ theorem uGreaterBorrowStageGates_bitDisjoint_compare
 
 /-- The folded gate-list action agrees with the ordered index-step action for
 the Kaliski comparison borrow-chain pass. -/
-theorem comparisonBorrowStageStep_eq_indexStep
+lemma comparisonBorrowStageStep_eq_indexStep
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     comparisonBorrowStageStep n counterWidth x =
       QuantumAlg.Comparator.BorrowWorkLayout.borrowStageIndexStep
@@ -475,7 +477,7 @@ theorem comparisonBorrowStageStep_eq_indexStep
 
 /-- The folded `v - u` gate-list action agrees with the ordered index-step
 action for the Kaliski comparison borrow-chain pass. -/
-theorem comparisonBorrowStageVUStep_eq_indexStep
+lemma comparisonBorrowStageVUStep_eq_indexStep
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     comparisonBorrowStageVUStep n counterWidth x =
       QuantumAlg.Comparator.BorrowWorkLayout.borrowStageIndexStep
@@ -486,7 +488,7 @@ theorem comparisonBorrowStageVUStep_eq_indexStep
 
 /-- The cleanup-compatible `uGreater` borrow gate-list action agrees with the
 ordered index-step action. -/
-theorem uGreaterBorrowStageStep_eq_indexStep
+lemma uGreaterBorrowStageStep_eq_indexStep
     (n counterWidth : Nat) (x : RegistersWithComparisonWork n counterWidth) :
     uGreaterBorrowStageStep n counterWidth x =
       QuantumAlg.Comparator.BorrowWorkLayout.borrowStageIndexStep
@@ -499,7 +501,7 @@ theorem uGreaterBorrowStageStep_eq_indexStep
 bit.  This is the bit-level invariant for the concrete `u - v` borrow-chain
 object; the word-level branch condition is a separate theorem [RNSL17,
 ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageStep_get_work_recurrence
+lemma comparisonBorrowStageStep_get_work_recurrence
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hclean :
@@ -529,7 +531,7 @@ theorem comparisonBorrowStageStep_get_work_recurrence
 recurrence over the `u - v` value bits.  The same folded base-gate object is
 used for resources and for this correctness invariant [RNSL17,
 ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageStep_get_work_natSubBorrow
+lemma comparisonBorrowStageStep_get_work_natSubBorrow
     (n counterWidth : Nat) (borrow0 : Bool) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hclean :
@@ -568,7 +570,7 @@ theorem comparisonBorrowStageStep_get_work_natSubBorrow
 /-- Clean-initial-borrow specialization for the folded Kaliski comparison pass:
 each work bit stores the natural borrow propagated through the low value bits of
 `u - v` [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageStep_get_work_natBorrow_clean
+lemma comparisonBorrowStageStep_get_work_natBorrow_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hcompare : x.compare = false) :
@@ -592,7 +594,7 @@ theorem comparisonBorrowStageStep_get_work_natBorrow_clean
 characterizes its gate-level borrow-work bit as the ordinary `u < v` predicate;
 the selector that routes a branch condition into `compare` is a separate circuit
 obligation [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageStep_get_final_work_decide_u_lt_v_clean
+lemma comparisonBorrowStageStep_get_final_work_decide_u_lt_v_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hcompare : x.compare = false)
@@ -614,7 +616,7 @@ theorem comparisonBorrowStageStep_get_final_work_decide_u_lt_v_clean
 /-- The folded `v - u` Kaliski comparison borrow-chain computes the pure
 subtract-borrow recurrence over the value bits.  This is the gate-level core of
 the `uGreater` selector condition [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageVUStep_get_work_natSubBorrow
+lemma comparisonBorrowStageVUStep_get_work_natSubBorrow
     (n counterWidth : Nat) (borrow0 : Bool) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hclean :
@@ -653,7 +655,7 @@ theorem comparisonBorrowStageVUStep_get_work_natSubBorrow
 /-- Clean-initial-borrow specialization for the folded `v - u` comparison pass:
 each work bit stores the natural borrow propagated through the low value bits of
 `v - u` [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageVUStep_get_work_natBorrow_clean
+lemma comparisonBorrowStageVUStep_get_work_natBorrow_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hcompare : x.compare = false) :
@@ -677,7 +679,7 @@ theorem comparisonBorrowStageVUStep_get_work_natBorrow_clean
 characterizes its gate-level borrow-work bit as the `uGreater` predicate
 `v < u`; routing that predicate into `compare` remains a separate selector
 circuit obligation [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem comparisonBorrowStageVUStep_get_final_work_decide_v_lt_u_clean
+lemma comparisonBorrowStageVUStep_get_final_work_decide_v_lt_u_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hcompare : x.compare = false)
@@ -699,7 +701,7 @@ theorem comparisonBorrowStageVUStep_get_final_work_decide_v_lt_u_clean
 /-- The cleanup-compatible `uGreater` borrow pass computes the pure
 subtract-borrow recurrence over the `v - u` value bits, using `scratchA` as the
 independent initial-borrow input [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem uGreaterBorrowStageStep_get_work_natSubBorrow
+lemma uGreaterBorrowStageStep_get_work_natSubBorrow
     (n counterWidth : Nat) (borrow0 : Bool) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth)
     (hclean :
@@ -737,7 +739,7 @@ theorem uGreaterBorrowStageStep_get_work_natSubBorrow
 
 /-- Clean-initial-scratchA specialization for the cleanup-compatible
 `uGreater` borrow pass. -/
-theorem uGreaterBorrowStageStep_get_work_natBorrow_clean
+lemma uGreaterBorrowStageStep_get_work_natBorrow_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false) :
@@ -759,7 +761,7 @@ theorem uGreaterBorrowStageStep_get_work_natBorrow_clean
 
 /-- At the final borrow position, the cleanup-compatible `uGreater` borrow pass
 characterizes its gate-level work bit as `v < u`. -/
-theorem uGreaterBorrowStageStep_get_final_work_decide_v_lt_u_clean
+lemma uGreaterBorrowStageStep_get_final_work_decide_v_lt_u_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false)
@@ -780,7 +782,7 @@ theorem uGreaterBorrowStageStep_get_final_work_decide_v_lt_u_clean
 
 /-- The cleanup-compatible `uGreater` borrow pass preserves `compare`, because
 `compare` is not used as the initial borrow and is never a work target. -/
-theorem uGreaterBorrowStageStep_get_compare
+lemma uGreaterBorrowStageStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -806,7 +808,7 @@ theorem uGreaterBorrowStageStep_get_compare
 
 /-- The cleanup-compatible `uGreater` borrow pass preserves any observed
 readout whose wire is neither a `v`-word target nor a comparison-work target. -/
-theorem uGreaterBorrowStageStep_get_of_minuend_work_ne
+lemma uGreaterBorrowStageStep_get_of_minuend_work_ne
     (n counterWidth : Nat)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -833,7 +835,7 @@ theorem uGreaterBorrowStageStep_get_of_minuend_work_ne
 
 /-- The folded `v - u` comparison borrow-chain preserves the external
 comparison ancilla used as its clean initial borrow. -/
-theorem comparisonBorrowStageVUStep_get_compare
+lemma comparisonBorrowStageVUStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -874,16 +876,16 @@ def comparisonWorkToCompareStep
   EncodedBit.GateSpec.step (comparisonWorkToCompareGate n counterWidth bit)
 
 /-- The work-to-compare CNOT is a concrete base-gate realization. -/
-theorem comparisonWorkToCompare_realizes
+lemma comparisonWorkToCompare_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (comparisonWorkToCompareProgram n counterWidth bit)
+      (comparisonWorkToCompareProgram n counterWidth bit) environment
       (comparisonWorkToCompareStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (comparisonWorkToCompareGate n counterWidth bit)
 
 /-- The work-to-compare CNOT toggles `compare` by the selected borrow-work bit. -/
-theorem comparisonWorkToCompareStep_get_compare
+lemma comparisonWorkToCompareStep_get_compare
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -898,7 +900,7 @@ theorem comparisonWorkToCompareStep_get_compare
 
 /-- The work-to-compare CNOT preserves any observed readout whose wire is not
 the lifted comparison target. -/
-theorem comparisonWorkToCompareStep_get_of_compare_ne
+lemma comparisonWorkToCompareStep_get_of_compare_ne
     (n counterWidth : Nat) (bit : Fin n)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -942,17 +944,17 @@ def uGreaterCompareComputeStep
 
 /-- The forward `uGreater` compare-compute slice is a concrete base-gate
 realization over the register-plus-comparison-work encoding. -/
-theorem uGreaterCompareCompute_realizes
+lemma uGreaterCompareCompute_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (uGreaterCompareComputeProgram n counterWidth bit)
+      (uGreaterCompareComputeProgram n counterWidth bit) environment
       (uGreaterCompareComputeStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uGreaterCompareComputeGates n counterWidth bit)
 
 /-- On clean comparison work and a clean comparison ancilla, the forward
 compare-compute slice writes the `uGreater` predicate `v < u` into `compare`. -/
-theorem uGreaterCompareComputeStep_get_compare_clean
+lemma uGreaterCompareComputeStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hcompare : x.compare = false)
@@ -1015,18 +1017,18 @@ def uGreaterScratchACompareComputeStep
 
 /-- The cleanup-compatible forward `uGreater` compare-compute slice is a
 concrete base-gate realization. -/
-theorem uGreaterScratchACompareCompute_realizes
+lemma uGreaterScratchACompareCompute_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (uGreaterScratchACompareComputeProgram n counterWidth bit)
+      (uGreaterScratchACompareComputeProgram n counterWidth bit) environment
       (uGreaterScratchACompareComputeStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uGreaterScratchACompareComputeGates n counterWidth bit)
 
 /-- On clean comparison work, clean `scratchA`, and clean `compare`, the
 cleanup-compatible forward compute slice writes the `uGreater` predicate
 `v < u` into `compare`. -/
-theorem uGreaterScratchACompareComputeStep_get_compare_clean
+lemma uGreaterScratchACompareComputeStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false)
@@ -1067,7 +1069,7 @@ def uGreaterBorrowStageReverseStep (n counterWidth : Nat) :
 /-- The reverse cleanup-compatible `uGreater` borrow pass preserves `compare`.
 This follows from the forward pass preserving `compare` and the generic
 gate-list reverse-inverse theorem. -/
-theorem uGreaterBorrowStageReverseStep_get_compare
+lemma uGreaterBorrowStageReverseStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedCompareBit n counterWidth).get
@@ -1093,7 +1095,7 @@ theorem uGreaterBorrowStageReverseStep_get_compare
 
 /-- The reverse cleanup-compatible `uGreater` borrow pass commutes with flipping
 the comparison bit, because the borrow pass neither reads nor writes that bit. -/
-theorem uGreaterBorrowStageReverseStep_flip_compare_comm
+lemma uGreaterBorrowStageReverseStep_flip_compare_comm
     (n counterWidth : Nat)
     (x : RegistersWithComparisonWork n counterWidth) :
     uGreaterBorrowStageReverseStep n counterWidth
@@ -1114,7 +1116,7 @@ theorem uGreaterBorrowStageReverseStep_flip_compare_comm
 /-- The reverse cleanup-compatible `uGreater` borrow pass preserves any
 observed readout whose wire is neither a `v`-word target nor a comparison-work
 target. -/
-theorem uGreaterBorrowStageReverseStep_get_of_minuend_work_ne
+lemma uGreaterBorrowStageReverseStep_get_of_minuend_work_ne
     (n counterWidth : Nat)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -1174,16 +1176,16 @@ def uGreaterScratchACompareSelectorStep
 
 /-- The full `uGreater` comparison selector gate list is a concrete base-gate
 realization over the register-plus-comparison-work encoding. -/
-theorem uGreaterScratchACompareSelector_realizes
+lemma uGreaterScratchACompareSelector_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (registersWithComparisonWorkEncoding n counterWidth)
-      (uGreaterScratchACompareSelectorProgram n counterWidth bit)
+      (uGreaterScratchACompareSelectorProgram n counterWidth bit) environment
       (uGreaterScratchACompareSelectorStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uGreaterScratchACompareSelectorGates n counterWidth bit)
 
 /-- Exact physical length of the cleanup-compatible comparison selector. -/
-theorem uGreaterScratchACompareSelectorGates_length
+lemma uGreaterScratchACompareSelectorGates_length
     (n counterWidth : Nat) (bit : Fin n) :
     (uGreaterScratchACompareSelectorGates n counterWidth bit).length =
       10 * n + 1 := by
@@ -1194,7 +1196,7 @@ theorem uGreaterScratchACompareSelectorGates_length
   omega
 
 /-- Exact X coordinate of the cleanup-compatible comparison selector. -/
-theorem uGreaterScratchACompareSelectorGates_xMultiplicity_sum
+lemma uGreaterScratchACompareSelectorGates_xMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((uGreaterScratchACompareSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.xMultiplicity).sum = 4 * n := by
@@ -1208,7 +1210,7 @@ theorem uGreaterScratchACompareSelectorGates_xMultiplicity_sum
   omega
 
 /-- Exact CNOT coordinate of the cleanup-compatible comparison selector. -/
-theorem uGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
+lemma uGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((uGreaterScratchACompareSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
@@ -1222,7 +1224,7 @@ theorem uGreaterScratchACompareSelectorGates_cnotMultiplicity_sum
   rfl
 
 /-- Exact Toffoli coordinate of the cleanup-compatible comparison selector. -/
-theorem uGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
+lemma uGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((uGreaterScratchACompareSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -1238,7 +1240,7 @@ theorem uGreaterScratchACompareSelectorGates_toffoliMultiplicity_sum
 /-- The cleanup-compatible forward `uGreater` compare-compute slice preserves
 any observed readout whose wire is not the comparison target, any `v`-word
 borrow target, or any comparison-work target. -/
-theorem uGreaterScratchACompareComputeStep_get_of_preserved
+lemma uGreaterScratchACompareComputeStep_get_of_preserved
     (n counterWidth : Nat) (bit : Fin n)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -1267,7 +1269,7 @@ theorem uGreaterScratchACompareComputeStep_get_of_preserved
 /-- The full compute-copy-reverse `uGreater` comparison selector preserves any
 observed readout whose wire is not the comparison target, any `v`-word borrow
 target, or any comparison-work target. -/
-theorem uGreaterScratchACompareSelectorStep_get_of_preserved
+lemma uGreaterScratchACompareSelectorStep_get_of_preserved
     (n counterWidth : Nat) (bit : Fin n)
     (observed :
       EncodedBit (registersWithComparisonWorkEncoding n counterWidth))
@@ -1296,7 +1298,7 @@ theorem uGreaterScratchACompareSelectorStep_get_of_preserved
 /-- The full compute-copy-reverse `uGreater` comparison selector restores every
 comparison-work carry bit.  The middle work-to-compare CNOT only targets
 `compare`, and the reverse borrow pass commutes with that compare flip. -/
-theorem uGreaterScratchACompareSelectorStep_get_comparisonCarry
+lemma uGreaterScratchACompareSelectorStep_get_comparisonCarry
     (n counterWidth : Nat) (bit workBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedComparisonCarryBit n counterWidth workBit).get
@@ -1341,7 +1343,7 @@ theorem uGreaterScratchACompareSelectorStep_get_comparisonCarry
 `compare` equal to the `uGreater` predicate `v < u`.  This theorem is about the
 condition bit; comparison-work restoration is proved by the companion theorem
 above [RNSL17, ECDLP.tex:399-421,468-475]. -/
-theorem uGreaterScratchACompareSelectorStep_get_compare_clean
+lemma uGreaterScratchACompareSelectorStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hscratchA : x.scratchA = false)
@@ -1366,7 +1368,7 @@ theorem uGreaterScratchACompareSelectorStep_get_compare_clean
       x hscratchA hcompare hfinal
 
 /-- The full `uGreater` comparison selector preserves the active flag. -/
-theorem uGreaterScratchACompareSelectorStep_get_active
+lemma uGreaterScratchACompareSelectorStep_get_active
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedActiveBit n counterWidth).get
@@ -1395,7 +1397,7 @@ theorem uGreaterScratchACompareSelectorStep_get_active
     x
 
 /-- The full `uGreater` comparison selector preserves the second scratch bit. -/
-theorem uGreaterScratchACompareSelectorStep_get_scratchB
+lemma uGreaterScratchACompareSelectorStep_get_scratchB
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchBBit n counterWidth).get
@@ -1425,7 +1427,7 @@ theorem uGreaterScratchACompareSelectorStep_get_scratchB
 
 /-- The full `uGreater` comparison selector restores the first scratch bit
 used as the cleanup-compatible borrow input. -/
-theorem uGreaterScratchACompareSelectorStep_get_scratchA
+lemma uGreaterScratchACompareSelectorStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedScratchABit n counterWidth).get
@@ -1455,7 +1457,7 @@ theorem uGreaterScratchACompareSelectorStep_get_scratchA
 
 /-- The full `uGreater` comparison selector preserves the selected `u`
 register bit. -/
-theorem uGreaterScratchACompareSelectorStep_get_uBit
+lemma uGreaterScratchACompareSelectorStep_get_uBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     (liftedUBit n counterWidth bit).get
@@ -1481,7 +1483,7 @@ theorem uGreaterScratchACompareSelectorStep_get_uBit
 
 /-- The full `uGreater` comparison selector preserves every little-endian `u`
 value bit. -/
-theorem uGreaterScratchACompareSelectorStep_get_uWordBit
+lemma uGreaterScratchACompareSelectorStep_get_uWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedUWord n counterWidth).bit targetBit).get
@@ -1503,7 +1505,7 @@ theorem uGreaterScratchACompareSelectorStep_get_uWordBit
 
 /-- The full `uGreater` comparison selector restores every little-endian `v`
 value bit after the borrow compute-copy-uncompute path. -/
-theorem uGreaterScratchACompareSelectorStep_get_vWordBit
+lemma uGreaterScratchACompareSelectorStep_get_vWordBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedVWord n counterWidth).bit targetBit).get
@@ -1547,7 +1549,7 @@ theorem uGreaterScratchACompareSelectorStep_get_vWordBit
 
 /-- The full `uGreater` comparison selector preserves every little-endian `s`
 coefficient value bit. -/
-theorem uGreaterScratchACompareSelectorStep_get_sCoeffValueWordBit
+lemma uGreaterScratchACompareSelectorStep_get_sCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedSCoeffValueWord n counterWidth).bit targetBit).get
@@ -1570,7 +1572,7 @@ theorem uGreaterScratchACompareSelectorStep_get_sCoeffValueWordBit
 
 /-- The full `uGreater` comparison selector preserves every little-endian `r`
 coefficient value bit. -/
-theorem uGreaterScratchACompareSelectorStep_get_rCoeffValueWordBit
+lemma uGreaterScratchACompareSelectorStep_get_rCoeffValueWordBit
     (n counterWidth : Nat) (selectorBit : Fin n) (targetBit : Fin (n + 1))
     (x : RegistersWithComparisonWork n counterWidth) :
     ((liftedRCoeffValueWord n counterWidth).bit targetBit).get
@@ -1593,7 +1595,7 @@ theorem uGreaterScratchACompareSelectorStep_get_rCoeffValueWordBit
 
 /-- The full `uGreater` comparison selector preserves every stored
 branch-history bit. -/
-theorem uGreaterScratchACompareSelectorStep_get_historyBit
+lemma uGreaterScratchACompareSelectorStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin n)
     (historyIndex : Fin (2 * n))
     (x : RegistersWithComparisonWork n counterWidth) :
@@ -1638,16 +1640,16 @@ def initialRegisters (n counterWidth : Nat) (p x : Word n) :
   active := true
   counter := 0
 
-@[simp] theorem initialRegisters_history (n counterWidth : Nat) (p x : Word n) :
+@[simp] lemma initialRegisters_history (n counterWidth : Nat) (p x : Word n) :
     (initialRegisters n counterWidth p x).history = 0 :=
   rfl
 
-@[simp] theorem initialRegisters_active (n counterWidth : Nat) (p x : Word n) :
+@[simp] lemma initialRegisters_active (n counterWidth : Nat) (p x : Word n) :
     (initialRegisters n counterWidth p x).active = true :=
   rfl
 
 /-- Every branch-history slot is initially clean in the finite register seed. -/
-theorem initialRegisters_historyBit_get
+lemma initialRegisters_historyBit_get
     (n counterWidth : Nat) (p x : Word n)
     (historyIndex : Fin (2 * n)) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -1680,15 +1682,15 @@ def activeFlagToggleStep (n counterWidth : Nat) :
 
 /-- The active-flag X atom is a concrete encoded-bit base-gate realization over
 the Montgomery--Kaliski register layout. -/
-theorem activeFlagToggle_realizes (n counterWidth : Nat) :
+lemma activeFlagToggle_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (activeFlagToggleProgram n counterWidth)
+      (activeFlagToggleProgram n counterWidth) environment
       (activeFlagToggleStep n counterWidth) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (activeFlagToggleGate n counterWidth)
 
 /-- The active-flag X atom toggles the active bit. -/
-theorem activeFlagToggleStep_get_active
+lemma activeFlagToggleStep_get_active
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
         (activeFlagToggleStep n counterWidth x) =
@@ -1698,7 +1700,7 @@ theorem activeFlagToggleStep_get_active
       EncodedBit.get_flip_self (RegisterBits.activeBit n counterWidth) x
 
 /-- On an active state, the active-flag X atom clears the active flag. -/
-theorem activeFlagToggleStep_get_active_of_active
+lemma activeFlagToggleStep_get_active_of_active
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hactive : (RegisterBits.activeBit n counterWidth).get x = true) :
     (RegisterBits.activeBit n counterWidth).get
@@ -1707,7 +1709,7 @@ theorem activeFlagToggleStep_get_active_of_active
   rfl
 
 /-- The active-flag X atom preserves every padding-counter bit. -/
-theorem activeFlagToggleStep_get_counterBit
+lemma activeFlagToggleStep_get_counterBit
     (n counterWidth : Nat) (bit : Fin counterWidth)
     (x : Registers n counterWidth) :
     (RegisterBits.counterBit n counterWidth bit).get
@@ -1721,7 +1723,7 @@ theorem activeFlagToggleStep_get_counterBit
         (RegisterBits.active_counter_wire_ne n counterWidth bit) x
 
 /-- The active-flag X atom preserves the padding counter field. -/
-theorem activeFlagToggleStep_counter
+lemma activeFlagToggleStep_counter
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).counter = x.counter := by
   apply word_eq_of_testBit_eq
@@ -1730,14 +1732,14 @@ theorem activeFlagToggleStep_counter
     (WireAddress.littleEndianWire bit) x
 
 /-- The active-flag X atom toggles the concrete active field. -/
-theorem activeFlagToggleStep_active
+lemma activeFlagToggleStep_active
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).active = !x.active := by
   simpa [RegisterBits.activeBit_get] using
     activeFlagToggleStep_get_active n counterWidth x
 
 /-- On an active concrete state, the active-flag X atom clears the active field. -/
-theorem activeFlagToggleStep_active_of_active
+lemma activeFlagToggleStep_active_of_active
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hactive : x.active = true) :
     (activeFlagToggleStep n counterWidth x).active = false := by
@@ -1745,7 +1747,7 @@ theorem activeFlagToggleStep_active_of_active
   rfl
 
 /-- The active-flag X atom preserves the `u` word. -/
-theorem activeFlagToggleStep_u
+lemma activeFlagToggleStep_u
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).u = x.u := by
   apply word_eq_of_testBit_eq
@@ -1759,7 +1761,7 @@ theorem activeFlagToggleStep_u
           (WireAddress.littleEndianWire bit)) x
 
 /-- The active-flag X atom preserves the `v` word. -/
-theorem activeFlagToggleStep_v
+lemma activeFlagToggleStep_v
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).v = x.v := by
   apply word_eq_of_testBit_eq
@@ -1773,7 +1775,7 @@ theorem activeFlagToggleStep_v
           (WireAddress.littleEndianWire bit)) x
 
 /-- The active-flag X atom preserves the `s` coefficient word. -/
-theorem activeFlagToggleStep_sCoeff
+lemma activeFlagToggleStep_sCoeff
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).sCoeff = x.sCoeff := by
   apply word_eq_of_testBit_eq
@@ -1787,7 +1789,7 @@ theorem activeFlagToggleStep_sCoeff
           (WireAddress.littleEndianWire bit)) x
 
 /-- The active-flag X atom preserves the `r` coefficient word. -/
-theorem activeFlagToggleStep_rCoeff
+lemma activeFlagToggleStep_rCoeff
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).rCoeff = x.rCoeff := by
   apply word_eq_of_testBit_eq
@@ -1801,7 +1803,7 @@ theorem activeFlagToggleStep_rCoeff
           (WireAddress.littleEndianWire bit)) x
 
 /-- The active-flag X atom preserves the comparison ancilla. -/
-theorem activeFlagToggleStep_compare
+lemma activeFlagToggleStep_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).compare = x.compare := by
   simpa [activeFlagToggleStep, activeFlagToggleGate,
@@ -1812,7 +1814,7 @@ theorem activeFlagToggleStep_compare
         (RegisterBits.active_compare_wire_ne n counterWidth) x
 
 /-- The active-flag X atom preserves the first scratch bit. -/
-theorem activeFlagToggleStep_scratchA
+lemma activeFlagToggleStep_scratchA
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).scratchA = x.scratchA := by
   simpa [activeFlagToggleStep, activeFlagToggleGate,
@@ -1823,7 +1825,7 @@ theorem activeFlagToggleStep_scratchA
         (RegisterBits.active_scratchA_wire_ne n counterWidth) x
 
 /-- The active-flag X atom preserves the second scratch bit. -/
-theorem activeFlagToggleStep_scratchB
+lemma activeFlagToggleStep_scratchB
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).scratchB = x.scratchB := by
   simpa [activeFlagToggleStep, activeFlagToggleGate,
@@ -1834,7 +1836,7 @@ theorem activeFlagToggleStep_scratchB
         (RegisterBits.active_scratchB_wire_ne n counterWidth) x
 
 /-- The active-flag X atom preserves the branch-history word. -/
-theorem activeFlagToggleStep_history
+lemma activeFlagToggleStep_history
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (activeFlagToggleStep n counterWidth x).history = x.history := by
   apply word_eq_of_testBit_eq
@@ -1875,10 +1877,10 @@ def counterWorkActiveFlagToggleProgram (n counterWidth : Nat) :
     (activeFlagToggleProgram n counterWidth)
 
 /-- The lifted active-flag toggle realizes its product-lifted semantic action. -/
-theorem counterWorkActiveFlagToggle_realizes (n counterWidth : Nat) :
+lemma counterWorkActiveFlagToggle_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCounterIncrementWorkEncoding n counterWidth)
-      (counterWorkActiveFlagToggleProgram n counterWidth)
+      (counterWorkActiveFlagToggleProgram n counterWidth) environment
       (counterWorkActiveFlagToggleStep n counterWidth) := by
   unfold counterWorkActiveFlagToggleProgram counterWorkActiveFlagToggleStep
     liftRegisterStepToCounterIncrementWork
@@ -1906,10 +1908,10 @@ def terminatingCounterModeWithWorkStep (n counterWidth : Nat) :
 
 /-- The terminating counter-mode program realizes the composed flag-clear and
 padding-counter increment action. -/
-theorem terminatingCounterModeWithWork_realizes (n counterWidth : Nat) :
+lemma terminatingCounterModeWithWork_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCounterIncrementWorkEncoding n counterWidth)
-      (terminatingCounterModeWithWorkProgram n counterWidth)
+      (terminatingCounterModeWithWorkProgram n counterWidth) environment
       (terminatingCounterModeWithWorkStep n counterWidth) := by
   unfold terminatingCounterModeWithWorkProgram
     terminatingCounterModeWithWorkStep
@@ -1922,7 +1924,7 @@ theorem terminatingCounterModeWithWork_realizes (n counterWidth : Nat) :
 /-- On clean counter-increment work and an active input, the terminating
 counter-mode wrapper clears `active`, increments the padding counter, and
 restores its work object. -/
-theorem terminatingCounterModeWithWorkStep_cleanEndpoint
+lemma terminatingCounterModeWithWorkStep_cleanEndpoint
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hactive : x.active = true) :
     terminatingCounterModeWithWorkStep n counterWidth
@@ -1965,15 +1967,15 @@ def counterLowToggleStep (n tail : Nat) :
 
 /-- The counter-low X atom is a concrete encoded-bit base-gate realization over
 the Montgomery--Kaliski register layout. -/
-theorem counterLowToggle_realizes (n tail : Nat) :
+lemma counterLowToggle_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ)
-      (counterLowToggleProgram n tail)
+      (counterLowToggleProgram n tail) environment
       (counterLowToggleStep n tail) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (counterLowToggleGate n tail)
 
 /-- The counter-low X atom toggles the low padding-counter bit. -/
-theorem counterLowToggleStep_get_counterBit_zero
+lemma counterLowToggleStep_get_counterBit_zero
     (n tail : Nat) (x : Registers n tail.succ) :
     (RegisterBits.counterBit n tail.succ
         (WireAddress.littleEndianWire (0 : Fin tail.succ))).get
@@ -1988,7 +1990,7 @@ theorem counterLowToggleStep_get_counterBit_zero
 
 /-- The counter-low X atom makes the low padding-counter bit agree with the low
 bit of the width-preserving counter increment. -/
-theorem counterLowToggleStep_get_counterBit_zero_eq_wordIncrement
+lemma counterLowToggleStep_get_counterBit_zero_eq_wordIncrement
     (n tail : Nat) (x : Registers n tail.succ) :
     (RegisterBits.counterBit n tail.succ
         (WireAddress.littleEndianWire (0 : Fin tail.succ))).get
@@ -1998,7 +2000,7 @@ theorem counterLowToggleStep_get_counterBit_zero_eq_wordIncrement
   simp [RegisterBits.counterBit_get]
 
 /-- The counter-low X atom preserves every non-low padding-counter value bit. -/
-theorem counterLowToggleStep_get_counterBit_succ
+lemma counterLowToggleStep_get_counterBit_succ
     (n tail : Nat) (bit : Fin tail) (x : Registers n tail.succ) :
     (RegisterBits.counterBit n tail.succ
         (WireAddress.littleEndianWire bit.succ)).get
@@ -2020,7 +2022,7 @@ theorem counterLowToggleStep_get_counterBit_succ
           (0 : Fin tail.succ) bit.succ hne) x
 
 /-- The counter-low X atom preserves the active flag readout. -/
-theorem counterLowToggleStep_get_active
+lemma counterLowToggleStep_get_active
     (n tail : Nat) (x : Registers n tail.succ) :
     (RegisterBits.activeBit n tail.succ).get
         (counterLowToggleStep n tail x) =
@@ -2035,14 +2037,14 @@ theorem counterLowToggleStep_get_active
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the concrete active field. -/
-theorem counterLowToggleStep_active
+lemma counterLowToggleStep_active
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).active = x.active := by
   simpa [RegisterBits.activeBit_get] using
     counterLowToggleStep_get_active n tail x
 
 /-- The counter-low X atom preserves the `u` word. -/
-theorem counterLowToggleStep_u
+lemma counterLowToggleStep_u
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).u = x.u := by
   apply word_eq_of_testBit_eq
@@ -2058,7 +2060,7 @@ theorem counterLowToggleStep_u
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the `v` word. -/
-theorem counterLowToggleStep_v
+lemma counterLowToggleStep_v
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).v = x.v := by
   apply word_eq_of_testBit_eq
@@ -2074,7 +2076,7 @@ theorem counterLowToggleStep_v
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the `s` coefficient word. -/
-theorem counterLowToggleStep_sCoeff
+lemma counterLowToggleStep_sCoeff
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).sCoeff = x.sCoeff := by
   apply word_eq_of_testBit_eq
@@ -2090,7 +2092,7 @@ theorem counterLowToggleStep_sCoeff
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the `r` coefficient word. -/
-theorem counterLowToggleStep_rCoeff
+lemma counterLowToggleStep_rCoeff
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).rCoeff = x.rCoeff := by
   apply word_eq_of_testBit_eq
@@ -2106,7 +2108,7 @@ theorem counterLowToggleStep_rCoeff
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the comparison ancilla. -/
-theorem counterLowToggleStep_compare
+lemma counterLowToggleStep_compare
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).compare = x.compare := by
   simpa [counterLowToggleStep, counterLowToggleGate,
@@ -2119,7 +2121,7 @@ theorem counterLowToggleStep_compare
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the first scratch bit. -/
-theorem counterLowToggleStep_scratchA
+lemma counterLowToggleStep_scratchA
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).scratchA = x.scratchA := by
   simpa [counterLowToggleStep, counterLowToggleGate,
@@ -2132,7 +2134,7 @@ theorem counterLowToggleStep_scratchA
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the second scratch bit. -/
-theorem counterLowToggleStep_scratchB
+lemma counterLowToggleStep_scratchB
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).scratchB = x.scratchB := by
   simpa [counterLowToggleStep, counterLowToggleGate,
@@ -2145,7 +2147,7 @@ theorem counterLowToggleStep_scratchB
           (WireAddress.littleEndianWire (0 : Fin tail.succ)))) x
 
 /-- The counter-low X atom preserves the branch-history word. -/
-theorem counterLowToggleStep_history
+lemma counterLowToggleStep_history
     (n tail : Nat) (x : Registers n tail.succ) :
     (counterLowToggleStep n tail x).history = x.history := by
   apply word_eq_of_testBit_eq
@@ -2193,16 +2195,16 @@ def counterLowCarryStep (n tail : Nat) :
 
 /-- The low-carry CNOT atom is a concrete encoded-bit base-gate realization
 over the Montgomery--Kaliski register layout. -/
-theorem counterLowCarry_realizes (n tail : Nat) :
+lemma counterLowCarry_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ)
-      (counterLowCarryProgram n tail)
+      (counterLowCarryProgram n tail) environment
       (counterLowCarryStep n tail) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (counterLowCarryGate n tail)
 
 /-- The low-carry CNOT atom toggles the second-lowest counter value bit exactly
 when the low counter value bit is set. -/
-theorem counterLowCarryStep_get_counterBit_one
+lemma counterLowCarryStep_get_counterBit_one
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ
         (WireAddress.littleEndianWire (1 : Fin tail.succ.succ))).get
@@ -2220,7 +2222,7 @@ theorem counterLowCarryStep_get_counterBit_one
           (WireAddress.littleEndianWire (1 : Fin tail.succ.succ))) x
 
 /-- The low-carry CNOT atom preserves the low counter value bit. -/
-theorem counterLowCarryStep_get_counterBit_zero
+lemma counterLowCarryStep_get_counterBit_zero
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ
         (WireAddress.littleEndianWire (0 : Fin tail.succ.succ))).get
@@ -2265,16 +2267,16 @@ def counterTwoLowIncrementStep (n tail : Nat) :
 
 /-- The two-low-bit increment prefix is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem counterTwoLowIncrement_realizes (n tail : Nat) :
+lemma counterTwoLowIncrement_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ)
-      (counterTwoLowIncrementProgram n tail)
+      (counterTwoLowIncrementProgram n tail) environment
       (counterTwoLowIncrementStep n tail) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (counterTwoLowIncrementGates n tail)
 
 /-- The two-low-bit prefix makes the low counter bit agree with the
 width-preserving counter increment. -/
-theorem counterTwoLowIncrementStep_get_counterBit_zero_eq_wordIncrement
+lemma counterTwoLowIncrementStep_get_counterBit_zero_eq_wordIncrement
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ
         (WireAddress.littleEndianWire (0 : Fin tail.succ.succ))).get
@@ -2293,7 +2295,7 @@ theorem counterTwoLowIncrementStep_get_counterBit_zero_eq_wordIncrement
 
 /-- The two-low-bit prefix makes the second-lowest counter bit agree with the
 width-preserving counter increment. -/
-theorem counterTwoLowIncrementStep_get_counterBit_one_eq_wordIncrement
+lemma counterTwoLowIncrementStep_get_counterBit_one_eq_wordIncrement
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ
         (WireAddress.littleEndianWire (1 : Fin tail.succ.succ))).get
@@ -2387,11 +2389,11 @@ def counterBitTwoCarryPrefixStep (n tail : Nat) :
 
 /-- The carry-into-bit-two prefix is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem counterBitTwoCarryPrefix_realizes (n tail : Nat) :
+lemma counterBitTwoCarryPrefix_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ.succ)
-      (counterBitTwoCarryPrefixProgram n tail)
+      (counterBitTwoCarryPrefixProgram n tail) environment
       (counterBitTwoCarryPrefixStep n tail) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (counterBitTwoCarryPrefixGates n tail)
 
 /-- Gate list for the three-low-bit prefix of the padding-counter incrementer.
@@ -2417,15 +2419,15 @@ def counterThreeLowIncrementStep (n tail : Nat) :
 
 /-- The three-low-bit increment prefix is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem counterThreeLowIncrement_realizes (n tail : Nat) :
+lemma counterThreeLowIncrement_realizes (n tail : Nat) :
     UnitaryCircuit.Realizes (registerEncoding n tail.succ.succ.succ)
-      (counterThreeLowIncrementProgram n tail)
+      (counterThreeLowIncrementProgram n tail) environment
       (counterThreeLowIncrementStep n tail) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (counterThreeLowIncrementGates n tail)
 
 /-- The low-carry CNOT atom preserves the first scratch bit readout. -/
-theorem counterLowCarryStep_get_scratchA
+lemma counterLowCarryStep_get_scratchA
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (RegisterBits.scratchABit n tail.succ.succ).get
         (counterLowCarryStep n tail x) =
@@ -2442,7 +2444,7 @@ theorem counterLowCarryStep_get_scratchA
           (WireAddress.littleEndianWire (1 : Fin tail.succ.succ)))) x
 
 /-- The low-carry CNOT atom preserves the concrete first scratch field. -/
-theorem counterLowCarryStep_scratchA
+lemma counterLowCarryStep_scratchA
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (counterLowCarryStep n tail x).scratchA = x.scratchA := by
   simpa [RegisterBits.scratchABit_get] using
@@ -2450,7 +2452,7 @@ theorem counterLowCarryStep_scratchA
 
 /-- The two-low-bit increment prefix preserves the third-lowest counter bit
 when the counter has at least three bits. -/
-theorem counterTwoLowIncrementStep_get_counterBit_two
+lemma counterTwoLowIncrementStep_get_counterBit_two
     (n tail : Nat) (x : Registers n tail.succ.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ.succ
         (WireAddress.littleEndianWire (2 : Fin tail.succ.succ.succ))).get
@@ -2505,7 +2507,7 @@ theorem counterTwoLowIncrementStep_get_counterBit_two
 
 /-- The two-low-bit increment prefix preserves the concrete first scratch
 field. -/
-theorem counterTwoLowIncrementStep_scratchA
+lemma counterTwoLowIncrementStep_scratchA
     (n tail : Nat) (x : Registers n tail.succ.succ) :
     (counterTwoLowIncrementStep n tail x).scratchA = x.scratchA := by
   rw [counterTwoLowIncrementStep, counterTwoLowIncrementGates]
@@ -2516,7 +2518,7 @@ theorem counterTwoLowIncrementStep_scratchA
   exact counterLowCarryStep_scratchA n tail x
 
 /-- The carry-into-bit-two prefix preserves the low counter bit. -/
-theorem counterBitTwoCarryPrefixStep_get_counterBit_zero
+lemma counterBitTwoCarryPrefixStep_get_counterBit_zero
     (n tail : Nat) (x : Registers n tail.succ.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ.succ
         (WireAddress.littleEndianWire (0 : Fin tail.succ.succ.succ))).get
@@ -2560,7 +2562,7 @@ theorem counterBitTwoCarryPrefixStep_get_counterBit_zero
     hscratchBit0]
 
 /-- The carry-into-bit-two prefix preserves the second-lowest counter bit. -/
-theorem counterBitTwoCarryPrefixStep_get_counterBit_one
+lemma counterBitTwoCarryPrefixStep_get_counterBit_one
     (n tail : Nat) (x : Registers n tail.succ.succ.succ) :
     (RegisterBits.counterBit n tail.succ.succ.succ
         (WireAddress.littleEndianWire (1 : Fin tail.succ.succ.succ))).get
@@ -2604,7 +2606,7 @@ theorem counterBitTwoCarryPrefixStep_get_counterBit_one
     hscratchBit1]
 
 /-- The carry-into-bit-two prefix restores the first scratch bit. -/
-theorem counterBitTwoCarryPrefixStep_get_scratchA
+lemma counterBitTwoCarryPrefixStep_get_scratchA
     (n tail : Nat) (x : Registers n tail.succ.succ.succ) :
     (RegisterBits.scratchABit n tail.succ.succ.succ).get
         (counterBitTwoCarryPrefixStep n tail x) =
@@ -2685,7 +2687,7 @@ theorem counterBitTwoCarryPrefixStep_get_scratchA
   cases scratch.get x <;> cases bit0.get x <;> cases bit1.get x <;> simp
 
 /-- The carry-into-bit-two prefix restores the concrete first scratch field. -/
-theorem counterBitTwoCarryPrefixStep_scratchA
+lemma counterBitTwoCarryPrefixStep_scratchA
     (n tail : Nat) (x : Registers n tail.succ.succ.succ) :
     (counterBitTwoCarryPrefixStep n tail x).scratchA = x.scratchA := by
   simpa [RegisterBits.scratchABit_get] using
@@ -2693,7 +2695,7 @@ theorem counterBitTwoCarryPrefixStep_scratchA
 
 /-- On a clean scratch input, the carry-into-bit-two prefix toggles bit two
 exactly when the two lower counter bits are both set. -/
-theorem counterBitTwoCarryPrefixStep_get_counterBit_two_clean
+lemma counterBitTwoCarryPrefixStep_get_counterBit_two_clean
     (n tail : Nat) (x : Registers n tail.succ.succ.succ)
     (hscratchA :
       (RegisterBits.scratchABit n tail.succ.succ.succ).get x = false) :
@@ -2744,7 +2746,7 @@ theorem counterBitTwoCarryPrefixStep_get_counterBit_two_clean
 
 /-- The three-low-bit prefix makes the low counter bit agree with the
 width-preserving counter increment. -/
-theorem counterThreeLowIncrementStep_get_counterBit_zero_eq_wordIncrement
+lemma counterThreeLowIncrementStep_get_counterBit_zero_eq_wordIncrement
     (n tail : Nat) (x : Registers n tail.succ.succ.succ)
     (_hscratchA : x.scratchA = false) :
     (RegisterBits.counterBit n tail.succ.succ.succ
@@ -2766,7 +2768,7 @@ theorem counterThreeLowIncrementStep_get_counterBit_zero_eq_wordIncrement
 
 /-- The three-low-bit prefix makes the second-lowest counter bit agree with the
 width-preserving counter increment. -/
-theorem counterThreeLowIncrementStep_get_counterBit_one_eq_wordIncrement
+lemma counterThreeLowIncrementStep_get_counterBit_one_eq_wordIncrement
     (n tail : Nat) (x : Registers n tail.succ.succ.succ)
     (_hscratchA : x.scratchA = false) :
     (RegisterBits.counterBit n tail.succ.succ.succ
@@ -2790,7 +2792,7 @@ theorem counterThreeLowIncrementStep_get_counterBit_one_eq_wordIncrement
 
 /-- On a clean scratch input, the three-low-bit prefix makes the third-lowest
 counter bit agree with the width-preserving counter increment. -/
-theorem counterThreeLowIncrementStep_get_counterBit_two_eq_wordIncrement
+lemma counterThreeLowIncrementStep_get_counterBit_two_eq_wordIncrement
     (n tail : Nat) (x : Registers n tail.succ.succ.succ)
     (hscratchA : x.scratchA = false) :
     (RegisterBits.counterBit n tail.succ.succ.succ
@@ -2815,7 +2817,7 @@ theorem counterThreeLowIncrementStep_get_counterBit_two_eq_wordIncrement
 
 /-- The three-low-bit increment prefix preserves the concrete first scratch
 field. -/
-theorem counterThreeLowIncrementStep_scratchA
+lemma counterThreeLowIncrementStep_scratchA
     (n tail : Nat) (x : Registers n tail.succ.succ.succ) :
     (counterThreeLowIncrementStep n tail x).scratchA = x.scratchA := by
   rw [counterThreeLowIncrementStep, counterThreeLowIncrementGates,
@@ -2833,7 +2835,7 @@ def vZeroGuard (n counterWidth : Nat) (x : Registers n counterWidth) : Prop :=
   forall bit : Fin n, (RegisterBits.vValueBit n counterWidth bit).get x = false
 
 /-- The concrete `v`-zero bit guard implies the source-level `v = 0` fact. -/
-theorem v_zero_of_vZeroGuard
+lemma v_zero_of_vZeroGuard
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hguard : vZeroGuard n counterWidth x) :
     x.v.val = 0 := by
@@ -2844,7 +2846,7 @@ theorem v_zero_of_vZeroGuard
   exact congrArg Fin.val hv
 
 /-- A source-level `v = 0` fact supplies the concrete bit-level guard. -/
-theorem vZeroGuard_of_v_zero
+lemma vZeroGuard_of_v_zero
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hv : x.v.val = 0) :
     vZeroGuard n counterWidth x := by
@@ -2877,16 +2879,16 @@ def activeToHistoryStep (n counterWidth : Nat) (bit : Fin (2 * n)) :
 
 /-- The active-to-history CNOT atom is a concrete encoded-bit base-gate
 realization over the Montgomery--Kaliski register layout. -/
-theorem activeToHistory_realizes (n counterWidth : Nat) (bit : Fin (2 * n)) :
+lemma activeToHistory_realizes (n counterWidth : Nat) (bit : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (activeToHistoryProgram n counterWidth bit)
+      (activeToHistoryProgram n counterWidth bit) environment
       (activeToHistoryStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (activeToHistoryGate n counterWidth bit)
 
 /-- The active-to-history atom toggles the selected history bit exactly when
 the active flag is set. -/
-theorem activeToHistoryStep_get_historyBit
+lemma activeToHistoryStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth bit).get
@@ -2900,7 +2902,7 @@ theorem activeToHistoryStep_get_historyBit
         (RegisterBits.historyBit n counterWidth bit) x
 
 /-- The active-to-history atom preserves the active flag. -/
-theorem activeToHistoryStep_get_active
+lemma activeToHistoryStep_get_active
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -2947,17 +2949,17 @@ def activeScratchBToHistoryStep
 
 /-- The active/scratchB-to-history Toffoli atom is a concrete encoded-bit
 base-gate realization over the Montgomery--Kaliski register layout. -/
-theorem activeScratchBToHistory_realizes
+lemma activeScratchBToHistory_realizes
     (n counterWidth : Nat) (bit : Fin (2 * n)) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (activeScratchBToHistoryProgram n counterWidth bit)
+      (activeScratchBToHistoryProgram n counterWidth bit) environment
       (activeScratchBToHistoryStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizes (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizes (environment := environment) (QubitLayout.canonical _) .empty
     (activeScratchBToHistoryGate n counterWidth bit)
 
 /-- The active/scratchB-to-history atom toggles the selected history bit exactly
 when both the active flag and second scratch bit are set. -/
-theorem activeScratchBToHistoryStep_get_historyBit
+lemma activeScratchBToHistoryStep_get_historyBit
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth bit).get
@@ -2973,7 +2975,7 @@ theorem activeScratchBToHistoryStep_get_historyBit
         (RegisterBits.historyBit n counterWidth bit) x
 
 /-- The active/scratchB-to-history atom preserves the active flag. -/
-theorem activeScratchBToHistoryStep_get_active
+lemma activeScratchBToHistoryStep_get_active
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -2989,7 +2991,7 @@ theorem activeScratchBToHistoryStep_get_active
         (Ne.symm (RegisterBits.active_history_wire_ne n counterWidth bit)) x
 
 /-- The active/scratchB-to-history atom preserves the second scratch bit. -/
-theorem activeScratchBToHistoryStep_get_scratchB
+lemma activeScratchBToHistoryStep_get_scratchB
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.scratchBBit n counterWidth).get
@@ -3005,7 +3007,7 @@ theorem activeScratchBToHistoryStep_get_scratchB
         (Ne.symm (RegisterBits.scratchB_history_wire_ne n counterWidth bit)) x
 
 /-- The active/scratchB-to-history atom preserves the comparison bit. -/
-theorem activeScratchBToHistoryStep_get_compare
+lemma activeScratchBToHistoryStep_get_compare
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.compareBit n counterWidth).get
@@ -3022,7 +3024,7 @@ theorem activeScratchBToHistoryStep_get_compare
 
 /-- The active/scratchB-to-history atom preserves any supplied condition bit
 that is disjoint from the selected history target. -/
-theorem activeScratchBToHistoryStep_get_condition
+lemma activeScratchBToHistoryStep_get_condition
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hconditionHistory :
@@ -3039,7 +3041,7 @@ theorem activeScratchBToHistoryStep_get_condition
         condition (Ne.symm hconditionHistory) x
 
 /-- The active/scratchB-to-history atom preserves the first scratch bit. -/
-theorem activeScratchBToHistoryStep_get_scratchA
+lemma activeScratchBToHistoryStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
@@ -3056,7 +3058,7 @@ theorem activeScratchBToHistoryStep_get_scratchA
 
 /-- The active/scratchB-to-history atom preserves any observed bit disjoint
 from the selected history target. -/
-theorem activeScratchBToHistoryStep_get_of_history_ne
+lemma activeScratchBToHistoryStep_get_of_history_ne
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hhistory :
@@ -3075,7 +3077,7 @@ theorem activeScratchBToHistoryStep_get_of_history_ne
 
 /-- The active/scratchB-to-history atom preserves every history slot except
 the selected target slot. -/
-theorem activeScratchBToHistoryStep_get_historyBit_of_ne
+lemma activeScratchBToHistoryStep_get_historyBit_of_ne
     (n counterWidth : Nat) (target observed : Fin (2 * n))
     (hne : target ≠ observed) (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth observed).get
@@ -3086,7 +3088,7 @@ theorem activeScratchBToHistoryStep_get_historyBit_of_ne
     (RegisterBits.history_history_wire_ne n counterWidth hne) x
 
 /-- The active/scratchB-to-history atom preserves every `u` bit. -/
-theorem activeScratchBToHistoryStep_get_uBit
+lemma activeScratchBToHistoryStep_get_uBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.uBit n counterWidth bit).get
@@ -3103,7 +3105,7 @@ theorem activeScratchBToHistoryStep_get_uBit
           historyIndex)) x
 
 /-- The active/scratchB-to-history atom preserves every `v` bit. -/
-theorem activeScratchBToHistoryStep_get_vBit
+lemma activeScratchBToHistoryStep_get_vBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n)) (bit : Fin n)
     (x : Registers n counterWidth) :
     (RegisterBits.vBit n counterWidth bit).get
@@ -3149,7 +3151,7 @@ def fromCoeffWorkSignals
 
 /-- The coefficient-work selector signals are exactly the lifted low `u`, low
 `v`, and comparison readout bits used by the branch selector. -/
-theorem fromCoeffWorkSignals_eq_from_branch_bits
+lemma fromCoeffWorkSignals_eq_from_branch_bits
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     fromCoeffWorkSignals tail.succ counterWidth x =
@@ -3164,7 +3166,7 @@ theorem fromCoeffWorkSignals_eq_from_branch_bits
 
 /-- The selected branch's auxiliary code bit, expressed directly in terms of
 the coefficient-work readouts used by the circuit-facing selector. -/
-theorem fromCoeffWorkSignals_auxBit_eq_branch_bits
+lemma fromCoeffWorkSignals_auxBit_eq_branch_bits
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     (fromCoeffWorkSignals tail.succ counterWidth x).auxBit =
@@ -3178,7 +3180,7 @@ theorem fromCoeffWorkSignals_auxBit_eq_branch_bits
 
 /-- The selected branch's history code bit, expressed directly in terms of the
 coefficient-work readouts used by the circuit-facing selector. -/
-theorem fromCoeffWorkSignals_historyBit_eq_branch_bits
+lemma fromCoeffWorkSignals_historyBit_eq_branch_bits
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     (fromCoeffWorkSignals tail.succ counterWidth x).historyBit =
@@ -3192,7 +3194,7 @@ theorem fromCoeffWorkSignals_historyBit_eq_branch_bits
 
 /-- The selected two-bit branch code, expressed directly in terms of the
 coefficient-work readouts used by the circuit-facing selector. -/
-theorem fromCoeffWorkSignals_code_eq_branch_bits
+lemma fromCoeffWorkSignals_code_eq_branch_bits
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     code (fromCoeffWorkSignals tail.succ counterWidth x) =
@@ -3212,7 +3214,7 @@ theorem fromCoeffWorkSignals_code_eq_branch_bits
 /-- The selected branch's auxiliary code bit, expressed as disjoint selector
 terms over the coefficient-work readouts used by the circuit-facing selector.
 -/
-theorem fromCoeffWorkSignals_auxBit_eq_branch_bits_disjoint
+lemma fromCoeffWorkSignals_auxBit_eq_branch_bits_disjoint
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     (fromCoeffWorkSignals tail.succ counterWidth x).auxBit =
@@ -3229,7 +3231,7 @@ theorem fromCoeffWorkSignals_auxBit_eq_branch_bits_disjoint
 /-- The selected branch's history code bit, expressed as disjoint selector
 terms over the coefficient-work readouts used by the circuit-facing selector.
 -/
-theorem fromCoeffWorkSignals_historyBit_eq_branch_bits_disjoint
+lemma fromCoeffWorkSignals_historyBit_eq_branch_bits_disjoint
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     (fromCoeffWorkSignals tail.succ counterWidth x).historyBit =
@@ -3247,7 +3249,7 @@ theorem fromCoeffWorkSignals_historyBit_eq_branch_bits_disjoint
 
 /-- The selected two-bit branch code, expressed as disjoint selector terms over
 the coefficient-work readouts used by the circuit-facing selector. -/
-theorem fromCoeffWorkSignals_code_eq_branch_bits_disjoint
+lemma fromCoeffWorkSignals_code_eq_branch_bits_disjoint
     (tail counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork tail.succ counterWidth) :
     code (fromCoeffWorkSignals tail.succ counterWidth x) =
@@ -3279,6 +3281,8 @@ namespace MAU.Inversion
 namespace MK
 
 noncomputable section
+
+variable {environment : OracleModel.empty.Interpretation}
 
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
@@ -3325,18 +3329,18 @@ def activeBranchCodeToScratchStep
 
 /-- The active-guarded branch-code staging program is a concrete encoded-bit
 base-gate realization over the Montgomery--Kaliski register layout. -/
-theorem activeBranchCodeToScratch_realizes
+lemma activeBranchCodeToScratch_realizes
     (n counterWidth : Nat) (branch : Branch) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
-      (activeBranchCodeToScratchProgram n counterWidth branch)
+      (activeBranchCodeToScratchProgram n counterWidth branch) environment
       (activeBranchCodeToScratchStep n counterWidth branch) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (activeBranchCodeToScratchGates n counterWidth branch)
 
 /-- Active-guarded branch-code staging toggles scratchA exactly when the active
 flag and the source auxiliary branch-code bit are set
 [RNSL17, ECDLP.tex:471]. -/
-theorem activeBranchCodeToScratchStep_get_scratchA
+lemma activeBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat) (branch : Branch)
     (x : Registers n counterWidth) :
     (RegisterBits.scratchABit n counterWidth).get
@@ -3373,7 +3377,7 @@ theorem activeBranchCodeToScratchStep_get_scratchA
 /-- Active-guarded branch-code staging toggles scratchB exactly when the active
 flag and the source history branch-code bit are set
 [RNSL17, ECDLP.tex:471]. -/
-theorem activeBranchCodeToScratchStep_get_scratchB
+lemma activeBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat) (branch : Branch)
     (x : Registers n counterWidth) :
     (RegisterBits.scratchBBit n counterWidth).get
@@ -3410,7 +3414,7 @@ theorem activeBranchCodeToScratchStep_get_scratchB
         Branch.auxBit, Branch.historyBit, EncodedBit.GateSpec.stepList]
 
 /-- Active-guarded branch-code staging preserves the active flag. -/
-theorem activeBranchCodeToScratchStep_get_active
+lemma activeBranchCodeToScratchStep_get_active
     (n counterWidth : Nat) (branch : Branch)
     (x : Registers n counterWidth) :
     (RegisterBits.activeBit n counterWidth).get
@@ -3444,7 +3448,7 @@ theorem activeBranchCodeToScratchStep_get_active
         Branch.auxBit, Branch.historyBit, EncodedBit.GateSpec.stepList]
 
 /-- Active-guarded branch-code staging preserves each stored history bit. -/
-theorem activeBranchCodeToScratchStep_get_historyBit
+lemma activeBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat) (branch : Branch) (historyIndex : Fin (2 * n))
     (x : Registers n counterWidth) :
     (RegisterBits.historyBit n counterWidth historyIndex).get
@@ -3482,7 +3486,7 @@ theorem activeBranchCodeToScratchStep_get_historyBit
 
 /-- Active-guarded branch-code staging preserves any observed bit disjoint from
 the two scratch-code targets. -/
-theorem activeBranchCodeToScratchStep_get_of_scratch_ne
+lemma activeBranchCodeToScratchStep_get_of_scratch_ne
     (n counterWidth : Nat) (branch : Branch)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hscratchA :
@@ -3592,7 +3596,7 @@ def activeConditionBranchCodeToScratchStep
 /-- The active-and-condition-guarded branch-code staging program is a concrete
 encoded-bit base-gate realization over the Montgomery--Kaliski register
 layout. -/
-theorem activeConditionBranchCodeToScratch_realizes
+lemma activeConditionBranchCodeToScratch_realizes
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3604,10 +3608,10 @@ theorem activeConditionBranchCodeToScratch_realizes
     (branch : Branch) :
     UnitaryCircuit.Realizes (registerEncoding n counterWidth)
       (activeConditionBranchCodeToScratchProgram n counterWidth condition
-        hactiveCondition hconditionScratchA hconditionScratchB branch)
+        hactiveCondition hconditionScratchA hconditionScratchB branch) environment
       (activeConditionBranchCodeToScratchStep n counterWidth condition
         hactiveCondition hconditionScratchA hconditionScratchB branch) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (activeConditionBranchCodeToScratchGates n counterWidth condition
       hactiveCondition hconditionScratchA hconditionScratchB branch)
 
@@ -3615,7 +3619,7 @@ theorem activeConditionBranchCodeToScratch_realizes
 when the active flag, supplied condition, and source auxiliary code bit are set
 [RNSL17, ECDLP.tex:471].
 -/
-theorem activeConditionBranchCodeToScratchStep_get_scratchA
+lemma activeConditionBranchCodeToScratchStep_get_scratchA
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3668,7 +3672,7 @@ theorem activeConditionBranchCodeToScratchStep_get_scratchA
 when the active flag, supplied condition, and source history code bit are set
 [RNSL17, ECDLP.tex:471].
 -/
-theorem activeConditionBranchCodeToScratchStep_get_scratchB
+lemma activeConditionBranchCodeToScratchStep_get_scratchB
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3721,7 +3725,7 @@ theorem activeConditionBranchCodeToScratchStep_get_scratchB
 
 /-- Active-and-condition-guarded branch-code staging preserves the active flag.
 -/
-theorem activeConditionBranchCodeToScratchStep_get_active
+lemma activeConditionBranchCodeToScratchStep_get_active
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3771,7 +3775,7 @@ theorem activeConditionBranchCodeToScratchStep_get_active
 
 /-- Active-and-condition-guarded branch-code staging preserves the supplied
 condition bit. -/
-theorem activeConditionBranchCodeToScratchStep_get_condition
+lemma activeConditionBranchCodeToScratchStep_get_condition
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3818,7 +3822,7 @@ theorem activeConditionBranchCodeToScratchStep_get_condition
         Branch.historyBit, EncodedBit.GateSpec.stepList]
 
 /-- Active-and-condition-guarded branch-code staging preserves every `u` bit. -/
-theorem activeConditionBranchCodeToScratchStep_get_uBit
+lemma activeConditionBranchCodeToScratchStep_get_uBit
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3868,7 +3872,7 @@ theorem activeConditionBranchCodeToScratchStep_get_uBit
         Branch.historyBit, EncodedBit.GateSpec.stepList]
 
 /-- Active-and-condition-guarded branch-code staging preserves every `v` bit. -/
-theorem activeConditionBranchCodeToScratchStep_get_vBit
+lemma activeConditionBranchCodeToScratchStep_get_vBit
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3919,7 +3923,7 @@ theorem activeConditionBranchCodeToScratchStep_get_vBit
 
 /-- Active-and-condition-guarded branch-code staging preserves every stored
 branch-history bit. -/
-theorem activeConditionBranchCodeToScratchStep_get_historyBit
+lemma activeConditionBranchCodeToScratchStep_get_historyBit
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -3968,7 +3972,7 @@ theorem activeConditionBranchCodeToScratchStep_get_historyBit
 
 /-- Active-and-condition-guarded branch-code staging preserves any observed bit
 disjoint from the two scratch-code targets. -/
-theorem activeConditionBranchCodeToScratchStep_get_of_scratch_ne
+lemma activeConditionBranchCodeToScratchStep_get_of_scratch_ne
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4020,7 +4024,7 @@ theorem activeConditionBranchCodeToScratchStep_get_of_scratch_ne
         activeConditionBranchCodeToScratchGates, Branch.auxBit,
         Branch.historyBit, EncodedBit.GateSpec.stepList]
 
-theorem activeConditionBranchCodeToScratchReverseStep_get_historyBit
+lemma activeConditionBranchCodeToScratchReverseStep_get_historyBit
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4074,7 +4078,7 @@ theorem activeConditionBranchCodeToScratchReverseStep_get_historyBit
 /-- Reversing active-and-condition-guarded branch-code staging toggles scratchA
 by the same source auxiliary code bit used by the forward staging slice
 [RNSL17, ECDLP.tex:471]. -/
-theorem activeConditionBranchCodeToScratchReverseStep_get_scratchA
+lemma activeConditionBranchCodeToScratchReverseStep_get_scratchA
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4129,7 +4133,7 @@ theorem activeConditionBranchCodeToScratchReverseStep_get_scratchA
 /-- Reversing active-and-condition-guarded branch-code staging toggles scratchB
 by the same source history code bit used by the forward staging slice
 [RNSL17, ECDLP.tex:471]. -/
-theorem activeConditionBranchCodeToScratchReverseStep_get_scratchB
+lemma activeConditionBranchCodeToScratchReverseStep_get_scratchB
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4177,7 +4181,7 @@ theorem activeConditionBranchCodeToScratchReverseStep_get_scratchB
 
 /-- Reversing active-and-condition-guarded branch-code staging preserves the
 active flag. -/
-theorem activeConditionBranchCodeToScratchReverseStep_get_active
+lemma activeConditionBranchCodeToScratchReverseStep_get_active
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4226,7 +4230,7 @@ theorem activeConditionBranchCodeToScratchReverseStep_get_active
 
 /-- Reversing active-and-condition-guarded branch-code staging preserves the
 supplied branch-condition bit. -/
-theorem activeConditionBranchCodeToScratchReverseStep_get_condition
+lemma activeConditionBranchCodeToScratchReverseStep_get_condition
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4273,7 +4277,7 @@ theorem activeConditionBranchCodeToScratchReverseStep_get_condition
 
 /-- Reversing active-and-condition-guarded branch-code staging preserves any
 observed bit disjoint from the two scratch-code targets. -/
-theorem activeConditionBranchCodeToScratchReverseStep_get_of_scratch_ne
+lemma activeConditionBranchCodeToScratchReverseStep_get_of_scratch_ne
     (n counterWidth : Nat)
     (condition : EncodedBit (registerEncoding n counterWidth))
     (hactiveCondition :
@@ -4402,7 +4406,7 @@ def uGreaterBorrowReverseStep (n counterWidth : Nat) :
 
 /-- The concrete forward gate-list action agrees with the generic ordered
 borrow recurrence. -/
-theorem uGreaterBorrowStep_eq_indexStep
+lemma uGreaterBorrowStep_eq_indexStep
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     uGreaterBorrowStep n counterWidth x =
       QuantumAlg.Comparator.BorrowWorkLayout.borrowStageIndexStep
@@ -4411,7 +4415,7 @@ theorem uGreaterBorrowStep_eq_indexStep
     (uGreaterBorrowLayout n counterWidth) x
 
 /-- The compact forward borrow pass preserves the core comparison bit. -/
-theorem uGreaterBorrowStep_get_compare
+lemma uGreaterBorrowStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get
         (uGreaterBorrowStep n counterWidth x) =
@@ -4429,7 +4433,7 @@ theorem uGreaterBorrowStep_get_compare
 
 /-- The compact borrow pass preserves any observation outside its `v` targets
 and the borrowed VBE carry word. -/
-theorem uGreaterBorrowStep_get_of_minuend_work_ne
+lemma uGreaterBorrowStep_get_of_minuend_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hminuend : ∀ j : Fin n,
@@ -4452,7 +4456,7 @@ theorem uGreaterBorrowStep_get_of_minuend_work_ne
 
 /-- On clean shared work, the final borrowed VBE carry bit is exactly the
 `v<u` predicate needed by the odd-odd branch. -/
-theorem uGreaterBorrowStep_get_final_work_clean
+lemma uGreaterBorrowStep_get_final_work_clean
     (n counterWidth : Nat) (bit : Fin n)
     (core : MK.Registers n counterWidth) (target : Word n)
     (hscratchA : core.scratchA = false)
@@ -4497,7 +4501,7 @@ theorem uGreaterBorrowStep_get_final_work_clean
 /-- General clean-bank form of the final compact borrow theorem.  Other
 reusable fields may already hold routing data; only the borrowed VBE word and
 the initial-borrow bit need to be clean. -/
-theorem uGreaterBorrowStep_get_final_work_of_clean_bank
+lemma uGreaterBorrowStep_get_final_work_of_clean_bank
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -4580,16 +4584,16 @@ def uGreaterSelectorStep
 
 /-- The compact selector is realized by the same native gate list used for
 its resource ledger. -/
-theorem uGreaterSelector_realizes
+lemma uGreaterSelector_realizes
     (n counterWidth : Nat) (bit : Fin n) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (uGreaterSelectorProgram n counterWidth bit)
+      (uGreaterSelectorProgram n counterWidth bit) environment
       (uGreaterSelectorStep n counterWidth bit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (uGreaterSelectorGates n counterWidth bit)
 
 /-- The compute-copy-uncompute comparator selector is self-inverse. -/
-theorem uGreaterSelectorStep_self
+lemma uGreaterSelectorStep_self
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     uGreaterSelectorStep n counterWidth bit
@@ -4604,7 +4608,7 @@ theorem uGreaterSelectorStep_self
     EncodedBit.GateSpec.stepList_reverse_stepList gates x
 
 /-- Reversing the borrow pass preserves the comparison flag. -/
-theorem uGreaterBorrowReverseStep_get_compare
+lemma uGreaterBorrowReverseStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get
         (uGreaterBorrowReverseStep n counterWidth x) =
@@ -4627,7 +4631,7 @@ theorem uGreaterBorrowReverseStep_get_compare
 
 /-- The reverse compact borrow pass has the same preservation boundary as the
 forward pass. -/
-theorem uGreaterBorrowReverseStep_get_of_minuend_work_ne
+lemma uGreaterBorrowReverseStep_get_of_minuend_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hminuend : ∀ j : Fin n,
@@ -4656,7 +4660,7 @@ theorem uGreaterBorrowReverseStep_get_of_minuend_work_ne
 /-- The compact compute-copy-uncompute selector preserves every observation
 outside the comparison target, the temporary `v` targets, and the borrowed
 VBE carry word. -/
-theorem uGreaterSelectorStep_get_of_preserved
+lemma uGreaterSelectorStep_get_of_preserved
     (n counterWidth : Nat) (bit : Fin n)
     (observed : EncodedBit (encoding n counterWidth))
     (hcompare : (compareBit n counterWidth).wire ≠ observed.wire)
@@ -4685,7 +4689,7 @@ theorem uGreaterSelectorStep_get_of_preserved
     n counterWidth observed hminuend hwork x
 
 /-- The forward compact borrow gates do not touch the comparison flag. -/
-theorem uGreaterBorrowGates_bitDisjoint_compare
+lemma uGreaterBorrowGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     forall gate, gate ∈ uGreaterBorrowGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (compareBit n counterWidth) gate := by
@@ -4705,7 +4709,7 @@ theorem uGreaterBorrowGates_bitDisjoint_compare
 
 /-- The compact borrow pass uses only core and shared-work wires, hence it is
 disjoint from every caller-owned target bit. -/
-theorem uGreaterBorrowGates_bitDisjoint_target
+lemma uGreaterBorrowGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ uGreaterBorrowGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -4733,7 +4737,7 @@ theorem uGreaterBorrowGates_bitDisjoint_target
 
 /-- The compute-copy-uncompute compact comparison selector never reads or
 writes the public target word. -/
-theorem uGreaterSelectorGates_bitDisjoint_target
+lemma uGreaterSelectorGates_bitDisjoint_target
     (n counterWidth : Nat) (bit targetIndex : Fin n) :
     ∀ gate, gate ∈ uGreaterSelectorGates n counterWidth bit →
       EncodedBit.GateSpec.bitDisjoint
@@ -4754,7 +4758,7 @@ theorem uGreaterSelectorGates_bitDisjoint_target
 
 /-- Reverse borrow cleanup commutes with flipping the untouched comparison
 flag. -/
-theorem uGreaterBorrowReverseStep_flip_compare_comm
+lemma uGreaterBorrowReverseStep_flip_compare_comm
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     uGreaterBorrowReverseStep n counterWidth
         ((compareBit n counterWidth).flip x) =
@@ -4768,7 +4772,7 @@ theorem uGreaterBorrowReverseStep_flip_compare_comm
 /-- The compute-copy-uncompute selector restores every borrowed VBE carry bit.
 This is the central clean-bank guarantee allowing the following coefficient
 adder to reuse the same physical work object. -/
-theorem uGreaterSelectorStep_get_coefficientCarryWorkBit
+lemma uGreaterSelectorStep_get_coefficientCarryWorkBit
     (n counterWidth : Nat) (bit workBit : Fin n)
     (x : Registers n counterWidth) :
     (coefficientCarryWorkBit n counterWidth workBit).get
@@ -4807,7 +4811,7 @@ theorem uGreaterSelectorStep_get_coefficientCarryWorkBit
     exact congrArg work.get hreverse_forward
 
 /-- The forward compact borrow pass preserves the VBE carry-in bit. -/
-theorem uGreaterBorrowStep_get_coefficientCarryInBit
+lemma uGreaterBorrowStep_get_coefficientCarryInBit
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (coefficientCarryInBit n counterWidth).get
         (uGreaterBorrowStep n counterWidth x) =
@@ -4824,7 +4828,7 @@ theorem uGreaterBorrowStep_get_coefficientCarryInBit
           n counterWidth j)) x
 
 /-- The reverse compact borrow pass preserves the VBE carry-in bit. -/
-theorem uGreaterBorrowReverseStep_get_coefficientCarryInBit
+lemma uGreaterBorrowReverseStep_get_coefficientCarryInBit
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (coefficientCarryInBit n counterWidth).get
         (uGreaterBorrowReverseStep n counterWidth x) =
@@ -4846,7 +4850,7 @@ theorem uGreaterBorrowReverseStep_get_coefficientCarryInBit
   exact hpres.symm
 
 /-- The full compact selector preserves the VBE carry-in bit. -/
-theorem uGreaterSelectorStep_get_coefficientCarryInBit
+lemma uGreaterSelectorStep_get_coefficientCarryInBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth) :
     (coefficientCarryInBit n counterWidth).get
@@ -4873,7 +4877,7 @@ theorem uGreaterSelectorStep_get_coefficientCarryInBit
 
 /-- Starting with clean shared work, the compact selector restores the entire
 VBE coefficient-adder work object, not only its temporary word. -/
-theorem uGreaterSelectorStep_coefficientAdder_clean
+lemma uGreaterSelectorStep_coefficientAdder_clean
     (n counterWidth : Nat) (bit : Fin n)
     (core : MK.Registers n counterWidth) (target : Word n) :
     (uGreaterSelectorStep n counterWidth bit
@@ -4901,7 +4905,7 @@ theorem uGreaterSelectorStep_coefficientAdder_clean
 
 /-- On a clean compact boundary, the selector leaves `compare` equal to the
 mathematical `u>v` predicate while restoring its borrowed VBE bank. -/
-theorem uGreaterSelectorStep_get_compare_clean
+lemma uGreaterSelectorStep_get_compare_clean
     (n counterWidth : Nat) (bit : Fin n)
     (core : MK.Registers n counterWidth) (target : Word n)
     (hscratchA : core.scratchA = false)
@@ -4942,7 +4946,7 @@ theorem uGreaterSelectorStep_get_compare_clean
 
 /-- With a clean borrowed VBE word, the compact selector xors the mathematical
 `u>v` predicate into an arbitrary pre-existing comparison bit. -/
-theorem uGreaterSelectorStep_get_compare_of_clean_bank
+lemma uGreaterSelectorStep_get_compare_of_clean_bank
     (n counterWidth : Nat) (bit : Fin n)
     (x : Registers n counterWidth)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -4971,7 +4975,7 @@ theorem uGreaterSelectorStep_get_compare_of_clean_bank
 
 /-- The VBE-work reuse changes no comparator gates: it only changes which
 clean physical word supplies the borrow bits. -/
-theorem uGreaterSelectorGates_length
+lemma uGreaterSelectorGates_length
     (n counterWidth : Nat) (bit : Fin n) :
     (uGreaterSelectorGates n counterWidth bit).length = 10 * n + 1 := by
   simp [uGreaterSelectorGates, uGreaterBorrowGates,
@@ -4980,7 +4984,7 @@ theorem uGreaterSelectorGates_length
   omega
 
 /-- Exact X coordinate of the compact comparison selector. -/
-theorem uGreaterSelectorGates_xMultiplicity_sum
+lemma uGreaterSelectorGates_xMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((uGreaterSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.xMultiplicity).sum = 4 * n := by
@@ -4990,7 +4994,7 @@ theorem uGreaterSelectorGates_xMultiplicity_sum
   omega
 
 /-- Exact CNOT coordinate of the compact comparison selector. -/
-theorem uGreaterSelectorGates_cnotMultiplicity_sum
+lemma uGreaterSelectorGates_cnotMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((uGreaterSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 1 := by
@@ -4999,7 +5003,7 @@ theorem uGreaterSelectorGates_cnotMultiplicity_sum
     QuantumAlg.Comparator.BorrowWorkLayout.borrowStage_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate of the compact comparison selector. -/
-theorem uGreaterSelectorGates_toffoliMultiplicity_sum
+lemma uGreaterSelectorGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) (bit : Fin n) :
     ((uGreaterSelectorGates n counterWidth bit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -5009,7 +5013,7 @@ theorem uGreaterSelectorGates_toffoliMultiplicity_sum
   omega
 
 /-- The compact selector preserves the shared path bit. -/
-theorem uGreaterSelectorStep_get_path
+lemma uGreaterSelectorStep_get_path
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (pathBit n counterWidth).get
         (uGreaterSelectorStep n counterWidth bit x) =
@@ -5031,7 +5035,7 @@ theorem uGreaterSelectorStep_get_path
       n counterWidth j).symm) x
 
 /-- The compact selector preserves the shared clean control bit. -/
-theorem uGreaterSelectorStep_get_control
+lemma uGreaterSelectorStep_get_control
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (controlBit n counterWidth).get
         (uGreaterSelectorStep n counterWidth bit x) =
@@ -5053,7 +5057,7 @@ theorem uGreaterSelectorStep_get_control
       n counterWidth j).symm) x
 
 /-- The compact selector restores its clean initial-borrow bit. -/
-theorem uGreaterSelectorStep_get_scratchA
+lemma uGreaterSelectorStep_get_scratchA
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (scratchABit n counterWidth).get
         (uGreaterSelectorStep n counterWidth bit x) =
@@ -5077,7 +5081,7 @@ theorem uGreaterSelectorStep_get_scratchA
           (RegisterBits.scratchABit n counterWidth) j).symm) x
 
 /-- The compact selector preserves the active-round bit. -/
-theorem uGreaterSelectorStep_get_active
+lemma uGreaterSelectorStep_get_active
     (n counterWidth : Nat) (bit : Fin n) (x : Registers n counterWidth) :
     (activeBit n counterWidth).get
         (uGreaterSelectorStep n counterWidth bit x) =
@@ -5101,7 +5105,7 @@ theorem uGreaterSelectorStep_get_active
           (RegisterBits.activeBit n counterWidth) j).symm) x
 
 /-- The compact selector preserves every `u` value bit. -/
-theorem uGreaterSelectorStep_get_uValueBit
+lemma uGreaterSelectorStep_get_uValueBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : Registers n counterWidth) :
     ((uValueWord n counterWidth).bit targetBit).get
@@ -5129,7 +5133,7 @@ theorem uGreaterSelectorStep_get_uValueBit
           (RegisterBits.uValueBit n counterWidth targetBit) j).symm) x
 
 /-- The compute-copy-uncompute selector restores every `v` value bit. -/
-theorem uGreaterSelectorStep_get_vValueBit
+lemma uGreaterSelectorStep_get_vValueBit
     (n counterWidth : Nat) (selectorBit targetBit : Fin n)
     (x : Registers n counterWidth) :
     ((vValueWord n counterWidth).bit targetBit).get
@@ -5166,7 +5170,7 @@ theorem uGreaterSelectorStep_get_vValueBit
   · rw [if_neg hcopy]
     exact congrArg source.get hreverse_forward
 
-theorem uGreaterSelectorStep_core_u
+lemma uGreaterSelectorStep_core_u
     (n counterWidth : Nat) (selectorBit : Fin n)
     (x : Registers n counterWidth) :
     (uGreaterSelectorStep n counterWidth selectorBit x).core.u = x.core.u := by
@@ -5175,7 +5179,7 @@ theorem uGreaterSelectorStep_core_u
   simpa only [uValueWord_get] using
     uGreaterSelectorStep_get_uValueBit n counterWidth selectorBit targetBit x
 
-theorem uGreaterSelectorStep_core_v
+lemma uGreaterSelectorStep_core_v
     (n counterWidth : Nat) (selectorBit : Fin n)
     (x : Registers n counterWidth) :
     (uGreaterSelectorStep n counterWidth selectorBit x).core.v = x.core.v := by
@@ -5212,7 +5216,7 @@ def oddPairPathGate (n counterWidth : Nat) (low : Fin n) :
           (RegisterBits.vValueBit n counterWidth low)
           (sharedPathBit n counterWidth))
 
-theorem oddPairPathGate_bitDisjoint_active
+lemma oddPairPathGate_bitDisjoint_active
     (n counterWidth : Nat) (low : Fin n) :
     EncodedBit.GateSpec.bitDisjoint (activeBit n counterWidth)
       (oddPairPathGate n counterWidth low) := by
@@ -5232,7 +5236,7 @@ theorem oddPairPathGate_bitDisjoint_active
         (RegisterBits.activeBit n counterWidth)
         (sharedPathBit n counterWidth)).symm
 
-theorem oddPairPathGate_bitDisjoint_control
+lemma oddPairPathGate_bitDisjoint_control
     (n counterWidth : Nat) (low : Fin n) :
     EncodedBit.GateSpec.bitDisjoint (controlBit n counterWidth)
       (oddPairPathGate n counterWidth low) := by
@@ -5266,7 +5270,7 @@ def activeOddPathGates (n counterWidth : Nat) (low : Fin n) :
 
 /-- The masked odd-pair path computation is disjoint from every public target
 bit. -/
-theorem activeOddPathGates_bitDisjoint_target
+lemma activeOddPathGates_bitDisjoint_target
     (n counterWidth : Nat) (low targetIndex : Fin n) :
     ∀ gate, gate ∈ activeOddPathGates n counterWidth low →
       EncodedBit.GateSpec.bitDisjoint
@@ -5307,7 +5311,7 @@ def activeOddPathProgram (n counterWidth : Nat) (low : Fin n) :
 
 /-- With a true active flag, clean shared control, and a non-odd input pair,
 the masked odd-path computation is the identity. -/
-theorem activeOddPathStep_eq_self_of_pair_false
+lemma activeOddPathStep_eq_self_of_pair_false
     (n counterWidth : Nat) (low : Fin n)
     (x : Registers n counterWidth)
     (hactive : (activeBit n counterWidth).get x = true)
@@ -5339,12 +5343,12 @@ theorem activeOddPathStep_eq_self_of_pair_false
   rw [hpair] at htrue
   contradiction
 
-theorem activeOddPath_realizes
+lemma activeOddPath_realizes
     (n counterWidth : Nat) (low : Fin n) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (activeOddPathProgram n counterWidth low)
+      (activeOddPathProgram n counterWidth low) environment
       (activeOddPathStep n counterWidth low) := by
-  exact EncodedBit.GateSpec.controlledWithWorkWitness
+  exact EncodedBit.GateSpec.controlledWithWorkWitness (environment := environment)
     (QubitLayout.canonical _) .empty
     (activeBit n counterWidth) (controlBit n counterWidth)
     (oddPairPathGate n counterWidth low)
@@ -5356,34 +5360,34 @@ theorem activeOddPath_realizes
           (RegisterBits.activeBit n counterWidth)
           (sharedControlBit n counterWidth))
 
-@[simp] theorem activeOddPathGates_length
+@[simp] lemma activeOddPathGates_length
     (n counterWidth : Nat) (low : Fin n) :
     (activeOddPathGates n counterWidth low).length = 3 := by
   simp [activeOddPathGates, oddPairPathGate,
     EncodedBit.GateSpec.controlledWithWorkGates]
 
-@[simp] theorem activeOddPathGates_xMultiplicity_sum
+@[simp] lemma activeOddPathGates_xMultiplicity_sum
     (n counterWidth : Nat) (low : Fin n) :
     ((activeOddPathGates n counterWidth low).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp [activeOddPathGates, oddPairPathGate,
     EncodedBit.GateSpec.controlledWithWorkGates]
 
-@[simp] theorem activeOddPathGates_cnotMultiplicity_sum
+@[simp] lemma activeOddPathGates_cnotMultiplicity_sum
     (n counterWidth : Nat) (low : Fin n) :
     ((activeOddPathGates n counterWidth low).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   simp [activeOddPathGates, oddPairPathGate,
     EncodedBit.GateSpec.controlledWithWorkGates]
 
-@[simp] theorem activeOddPathGates_toffoliMultiplicity_sum
+@[simp] lemma activeOddPathGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) (low : Fin n) :
     ((activeOddPathGates n counterWidth low).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
   simp [activeOddPathGates, oddPairPathGate,
     EncodedBit.GateSpec.controlledWithWorkGates]
 
-theorem activeOddPathStep_get_path_of_clean_control
+lemma activeOddPathStep_get_path_of_clean_control
     (n counterWidth : Nat) (low : Fin n) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     (pathBit n counterWidth).get (activeOddPathStep n counterWidth low x) =
@@ -5422,7 +5426,7 @@ theorem activeOddPathStep_get_path_of_clean_control
       simpa only [activeBit_get] using hactiveFalse
     simp [hactiveField]
 
-theorem activeOddPathStep_get_control_of_clean
+lemma activeOddPathStep_get_control_of_clean
     (n counterWidth : Nat) (low : Fin n) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     (controlBit n counterWidth).get
@@ -5457,7 +5461,7 @@ theorem activeOddPathStep_get_control_of_clean
 
 /-- With clean reusable control work, active-odd staging changes only the path
 bit. -/
-theorem activeOddPathStep_get_of_path_ne
+lemma activeOddPathStep_get_of_path_ne
     (n counterWidth : Nat) (low : Fin n)
     (observed : EncodedBit (encoding n counterWidth))
     (hpath : (pathBit n counterWidth).wire ≠ observed.wire)
@@ -5491,7 +5495,7 @@ theorem activeOddPathStep_get_of_path_ne
       (oddPairPathGate_bitDisjoint_control n counterWidth low) _ x
         hactiveFalse)
 
-theorem activeOddPathStep_core_u
+lemma activeOddPathStep_core_u
     (n counterWidth : Nat) (low : Fin n) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     (activeOddPathStep n counterWidth low x).core.u = x.core.u := by
@@ -5507,7 +5511,7 @@ theorem activeOddPathStep_core_u
     x hcontrol
   simpa only [uValueWord_get] using h
 
-theorem activeOddPathStep_core_v
+lemma activeOddPathStep_core_v
     (n counterWidth : Nat) (low : Fin n) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     (activeOddPathStep n counterWidth low x).core.v = x.core.v := by
@@ -5553,7 +5557,7 @@ def activeOddCompareCopyGate (n counterWidth : Nat) :
           (RegisterBits.compareBit n counterWidth)
           (sharedControlBit n counterWidth)).symm)
 
-theorem activeOddCompareStoreStep_get_control
+lemma activeOddCompareStoreStep_get_control
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (controlBit n counterWidth).get
         (EncodedBit.GateSpec.step
@@ -5563,7 +5567,7 @@ theorem activeOddCompareStoreStep_get_control
           (compareBit n counterWidth).get x)) := by
   exact EncodedBit.toffoliStep_get_target _ _ _ x
 
-theorem activeOddCompareStoreStep_get_of_control_ne
+lemma activeOddCompareStoreStep_get_of_control_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hne : (controlBit n counterWidth).wire ≠ observed.wire)
@@ -5573,7 +5577,7 @@ theorem activeOddCompareStoreStep_get_of_control_ne
           (activeOddCompareStoreGate n counterWidth) x) = observed.get x := by
   exact EncodedBit.toffoliStep_get_of_target_ne _ _ _ observed hne x
 
-theorem activeOddCompareStoreStep_core_u
+lemma activeOddCompareStoreStep_core_u
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (EncodedBit.GateSpec.step
       (activeOddCompareStoreGate n counterWidth) x).core.u = x.core.u := by
@@ -5588,7 +5592,7 @@ theorem activeOddCompareStoreStep_core_u
           (sharedControlBit n counterWidth)).symm) x
   simpa only [uValueWord_get] using h
 
-theorem activeOddCompareStoreStep_core_v
+lemma activeOddCompareStoreStep_core_v
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (EncodedBit.GateSpec.step
       (activeOddCompareStoreGate n counterWidth) x).core.v = x.core.v := by
@@ -5603,7 +5607,7 @@ theorem activeOddCompareStoreStep_core_v
           (sharedControlBit n counterWidth)).symm) x
   simpa only [vValueWord_get] using h
 
-theorem activeOddCompareCopyStep_get_compare
+lemma activeOddCompareCopyStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get
         (EncodedBit.GateSpec.step
@@ -5612,7 +5616,7 @@ theorem activeOddCompareCopyStep_get_compare
         (controlBit n counterWidth).get x) := by
   exact EncodedBit.cnotStep_get_target _ _ x
 
-theorem activeOddCompareCopyStep_get_of_compare_ne
+lemma activeOddCompareCopyStep_get_of_compare_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hne : (compareBit n counterWidth).wire ≠ observed.wire)
@@ -5622,7 +5626,7 @@ theorem activeOddCompareCopyStep_get_of_compare_ne
           (activeOddCompareCopyGate n counterWidth) x) = observed.get x := by
   exact EncodedBit.cnotStep_get_of_target_ne _ _ observed hne x
 
-theorem activeOddCompareStoreStep_eq_self_of_path_false
+lemma activeOddCompareStoreStep_eq_self_of_path_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hpath : (pathBit n counterWidth).get x = false) :
     EncodedBit.GateSpec.step
@@ -5635,7 +5639,7 @@ theorem activeOddCompareStoreStep_eq_self_of_path_false
   rw [if_neg]
   simp [hpathCore]
 
-theorem activeOddCompareCopyStep_eq_self_of_control_false
+lemma activeOddCompareCopyStep_eq_self_of_control_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     EncodedBit.GateSpec.step
@@ -5666,7 +5670,7 @@ def activeOddUGreaterSelectorGates
 
 /-- The complete masked odd selector stays within the compact core/shared
 carrier and is disjoint from each public target bit. -/
-theorem activeOddUGreaterSelectorGates_bitDisjoint_target
+lemma activeOddUGreaterSelectorGates_bitDisjoint_target
     (n counterWidth : Nat) (low finalBit targetIndex : Fin n) :
     ∀ gate,
       gate ∈ activeOddUGreaterSelectorGates n counterWidth low finalBit →
@@ -5723,15 +5727,15 @@ def activeOddUGreaterSelectorProgram
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeOddUGreaterSelectorGates n counterWidth low finalBit)
 
-theorem activeOddUGreaterSelector_realizes
+lemma activeOddUGreaterSelector_realizes
     (n counterWidth : Nat) (low finalBit : Fin n) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (activeOddUGreaterSelectorProgram n counterWidth low finalBit)
+      (activeOddUGreaterSelectorProgram n counterWidth low finalBit) environment
       (activeOddUGreaterSelectorStep n counterWidth low finalBit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (activeOddUGreaterSelectorGates n counterWidth low finalBit)
 
-theorem activeOddUGreaterSelectorStep_eq_stages
+lemma activeOddUGreaterSelectorStep_eq_stages
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth) :
     activeOddUGreaterSelectorStep n counterWidth low finalBit x =
@@ -5748,7 +5752,7 @@ theorem activeOddUGreaterSelectorStep_eq_stages
 
 /-- If the selected low pair is not odd, the masked comparison selector is
 the identity on a clean path/control boundary. -/
-theorem activeOddUGreaterSelectorStep_eq_self_of_pair_false
+lemma activeOddUGreaterSelectorStep_eq_self_of_pair_false
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth)
     (hactive : (activeBit n counterWidth).get x = true)
@@ -5795,7 +5799,7 @@ theorem activeOddUGreaterSelectorStep_eq_self_of_pair_false
 /-- An inactive clean route bypasses the complete masked comparison
 selector.  The first controlled odd-pair stage is disabled by `active`; the
 two unconditional comparison passes then cancel exactly. -/
-theorem activeOddUGreaterSelectorStep_eq_self_of_active_false
+lemma activeOddUGreaterSelectorStep_eq_self_of_active_false
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth)
     (hactive : (activeBit n counterWidth).get x = false)
@@ -5849,7 +5853,7 @@ theorem activeOddUGreaterSelectorStep_eq_self_of_active_false
 
 /-- The active odd selector preserves every observation outside its four
 logical targets and the temporary borrow word. -/
-theorem activeOddUGreaterSelectorStep_get_of_preserved
+lemma activeOddUGreaterSelectorStep_get_of_preserved
     (n counterWidth : Nat) (low finalBit : Fin n)
     (observed : EncodedBit (encoding n counterWidth))
     (hpath : (pathBit n counterWidth).wire ≠ observed.wire)
@@ -5880,7 +5884,7 @@ theorem activeOddUGreaterSelectorStep_get_of_preserved
 
 /-- The complete masked selector restores the `v` word after its two
 comparison passes. -/
-theorem activeOddUGreaterSelectorStep_core_v
+lemma activeOddUGreaterSelectorStep_core_v
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
@@ -5923,7 +5927,7 @@ theorem activeOddUGreaterSelectorStep_core_v
 
 /-- Apart from installing the masked comparison result, the complete selector
 preserves the Montgomery--Kaliski core exactly. -/
-theorem activeOddUGreaterSelectorStep_core_eq_setCompare
+lemma activeOddUGreaterSelectorStep_core_eq_setCompare
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
@@ -6065,7 +6069,7 @@ structure ActiveOddUGreaterSelectorCleanEndpoint
 
 /-- On a clean routing/comparison boundary, the literal masked selector reaches
 its complete reusable-work endpoint. -/
-theorem activeOddUGreaterSelectorStep_cleanEndpoint
+lemma activeOddUGreaterSelectorStep_cleanEndpoint
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth)
     (hpath : (pathBit n counterWidth).get x = false)
@@ -6402,7 +6406,7 @@ theorem activeOddUGreaterSelectorStep_cleanEndpoint
     exact hclearedWork bit
 
 /-- The comparison projection of the complete clean selector endpoint. -/
-theorem activeOddUGreaterSelectorStep_get_compare_clean
+lemma activeOddUGreaterSelectorStep_get_compare_clean
     (n counterWidth : Nat) (low finalBit : Fin n)
     (x : Registers n counterWidth)
     (hpath : (pathBit n counterWidth).get x = false)
@@ -6423,7 +6427,7 @@ theorem activeOddUGreaterSelectorStep_get_compare_clean
   (activeOddUGreaterSelectorStep_cleanEndpoint n counterWidth low finalBit x
     hpath hcontrol hcompare hscratchA hscratchB hcarryIn hwork hfinal).compare
 
-theorem activeOddUGreaterSelectorGates_length
+lemma activeOddUGreaterSelectorGates_length
     (n counterWidth : Nat) (low finalBit : Fin n) :
     (activeOddUGreaterSelectorGates n counterWidth low finalBit).length =
       20 * n + 8 := by
@@ -6432,7 +6436,7 @@ theorem activeOddUGreaterSelectorGates_length
     uGreaterSelectorGates_length]
   omega
 
-theorem activeOddUGreaterSelectorGates_xMultiplicity_sum
+lemma activeOddUGreaterSelectorGates_xMultiplicity_sum
     (n counterWidth : Nat) (low finalBit : Fin n) :
     ((activeOddUGreaterSelectorGates n counterWidth low finalBit).map
       EncodedBit.GateSpec.xMultiplicity).sum = 8 * n := by
@@ -6441,7 +6445,7 @@ theorem activeOddUGreaterSelectorGates_xMultiplicity_sum
     uGreaterSelectorGates_xMultiplicity_sum]
   omega
 
-theorem activeOddUGreaterSelectorGates_cnotMultiplicity_sum
+lemma activeOddUGreaterSelectorGates_cnotMultiplicity_sum
     (n counterWidth : Nat) (low finalBit : Fin n) :
     ((activeOddUGreaterSelectorGates n counterWidth low finalBit).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 3 := by
@@ -6449,7 +6453,7 @@ theorem activeOddUGreaterSelectorGates_cnotMultiplicity_sum
     activeOddCompareCopyGate,
     uGreaterSelectorGates_cnotMultiplicity_sum]
 
-theorem activeOddUGreaterSelectorGates_toffoliMultiplicity_sum
+lemma activeOddUGreaterSelectorGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) (low finalBit : Fin n) :
     ((activeOddUGreaterSelectorGates n counterWidth low finalBit).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 12 * n + 5 := by

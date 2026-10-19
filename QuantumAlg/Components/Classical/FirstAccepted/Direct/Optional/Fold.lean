@@ -39,7 +39,8 @@ structure Avoids (refs : Optional.Refs ctx width) {shape : CShape}
 def InputsSeparated (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) : Prop := ∀ index, Avoids refs (inputs index)
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Increasing finite indices determine the actual optional-unpack and selection sequence. -/
 def into (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
@@ -57,14 +58,14 @@ def step (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
       ((actual.1, before.2), actual.2)) entry
 
 /-- Every actual iteration retains arbitrary references and the persistent service record. -/
-theorem into_execute (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
+lemma into_execute (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) inputs refs).execute Reference state =
+    (into (model := model) inputs refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := step (model := model) inputs refs (entry.1, entry.2.1)
         (actual.1.1, (actual.1.2, (entry.2.2, actual.2)))) :=
-  Circuit.execute_forRangeRecord count
+  Circuit.execute_forRangeRecord (environment := environment) count
     (fun index => Optional.into (model := model) (inputs index) refs)
     (fun index before =>
       let actual := Optional.step (model := model) (inputs index) refs before.1
@@ -73,7 +74,7 @@ theorem into_execute (inputs : Fin count → CInputRef ctx (.option (.unsignedWo
       Optional.into_execute (inputs index) refs reference state) Reference state
 
 /-- Every caller read outside the three destinations survives the complete actual loop. -/
-theorem into_callerFrame (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
+lemma into_callerFrame (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) (entry : Store ctx × model.HiddenState) {shape : CShape}
     (other : CInputRef ctx shape) (avoids : Avoids refs other) :
     (step (model := model) inputs refs entry).1.1.read other = entry.1.read other := by
@@ -87,7 +88,7 @@ theorem into_callerFrame (inputs : Fin count → CInputRef ctx (.option (.unsign
           avoids.accepted avoids.selected avoids.unpacked)
 
 /-- Selection is exactly the first-success fold of the original chronological source values. -/
-theorem into_correct (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
+lemma into_correct (inputs : Fin count → CInputRef ctx (.option (.unsignedWord width)))
     (refs : Optional.Refs ctx width) (separated : Optional.Separation refs)
     (sources : InputsSeparated inputs refs) (entry : Store ctx × model.HiddenState) :
     Optional.selectedValue refs.selection (step (model := model) inputs refs entry).1.1 =

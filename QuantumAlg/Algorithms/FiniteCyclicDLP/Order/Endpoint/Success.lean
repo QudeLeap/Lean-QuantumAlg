@@ -32,7 +32,7 @@ variable {G : Type u} [Group G] [Fintype G]
 
 /-- The independent endpoint law returns the advertised discrete logarithm
 with probability at least two thirds for every positive order. -/
-public theorem outputLaw_success (P : KnownOrderProblem G)
+public lemma outputLaw_success (P : KnownOrderProblem G)
     (secret : FiniteCyclicDLP.Input P) :
     ENNReal.ofReal ((2 : Real) / 3) ≤
       outputLaw P
@@ -70,20 +70,21 @@ public theorem outputLaw_success (P : KnownOrderProblem G)
 
 /-- Once the actual batch has its trace-derived independent law, the complete
 run meets the same two-thirds threshold without any extra runtime promise. -/
-public theorem run_success_of_batch (P : KnownOrderProblem G)
+public lemma run_success_of_batch (P : KnownOrderProblem G)
     (secret : FiniteCyclicDLP.Input P)
     {Reference : Register}
     (input : OracleInput (OrderExecution.model P).classicalOracles
       OrderExecution.pre Reference)
     (batchLaw :
       ((OrderBatch.run P (sampleCount P)
-        (OrderExecution.canonicalExpansion P)).outputDistribution input).map
+        (OrderExecution.canonicalExpansion P)).outputDistribution
+          (OrderExecution.sourceEnvironment P) input).map
           (OrderBatch.observedVector P (sampleCount P)) =
         PMF.independentReplicateVector
           (OrderBornBridge.outcomePMF P (OrderExecution.canonicalExpansion P))
           (sampleCount P)) :
     ENNReal.ofReal ((2 : Real) / 3) ≤
-      (run P).outputDistribution input
+      (run P).outputDistribution (OrderExecution.sourceEnvironment P) input
         (.optionSome
           (CShape.wordOfNat (OrderPreparation.width P) secret.secret.val)) := by
   rw [run_outputDistribution_of_batch P input batchLaw]
@@ -91,13 +92,13 @@ public theorem run_success_of_batch (P : KnownOrderProblem G)
 
 /-- The actual all-positive-order finite-cyclic DLP run succeeds with
 probability at least two thirds. -/
-public theorem run_success (P : KnownOrderProblem G)
+public lemma run_success (P : KnownOrderProblem G)
     (secret : FiniteCyclicDLP.Input P)
     {Reference : Register}
     (input : OracleInput (OrderExecution.model P).classicalOracles
       OrderExecution.pre Reference) :
     ENNReal.ofReal ((2 : Real) / 3) ≤
-      (run P).outputDistribution input
+      (run P).outputDistribution (OrderExecution.sourceEnvironment P) input
         (.optionSome
           (CShape.wordOfNat (OrderPreparation.width P) secret.secret.val)) := by
   rw [run_outputDistribution P input]

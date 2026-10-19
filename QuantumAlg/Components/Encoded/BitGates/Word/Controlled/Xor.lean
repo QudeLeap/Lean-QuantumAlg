@@ -43,7 +43,7 @@ def controlledXorIntoGates (control : EncodedBit encoding)
       (hcontrolSource i) (hcontrolTarget i) (hsourceTarget i)
 
 /-- A literal controlled word xor contains one Toffoli per word bit. -/
-@[simp] theorem controlledXorIntoGates_length (control : EncodedBit encoding)
+@[simp] lemma controlledXorIntoGates_length (control : EncodedBit encoding)
     (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -54,7 +54,7 @@ def controlledXorIntoGates (control : EncodedBit encoding)
 
 /-- The exact Toffoli coordinate of a literal controlled word xor is its
 word width. -/
-theorem controlledXorIntoGates_toffoliMultiplicity_sum
+lemma controlledXorIntoGates_toffoliMultiplicity_sum
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -116,7 +116,7 @@ def controlledXorIntoIndicesStep (control : EncodedBit encoding)
 
 /-- The concrete `List.ofFn` controlled-xor gate list agrees with the indexed
 fold semantics. -/
-theorem controlledXorIntoStep_eq_indicesStep (control : EncodedBit encoding)
+lemma controlledXorIntoStep_eq_indicesStep (control : EncodedBit encoding)
     (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -148,7 +148,7 @@ theorem controlledXorIntoStep_eq_indicesStep (control : EncodedBit encoding)
 
 /-- A false shared control makes the complete physical controlled-word xor
 act as the identity. -/
-theorem controlledXorIntoStep_of_control_false
+lemma controlledXorIntoStep_of_control_false
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -173,7 +173,7 @@ theorem controlledXorIntoStep_of_control_false
 
 /-- A controlled word-xor fold preserves any observed readout whose wire is
 distinct from every folded target bit. -/
-theorem controlledXorIntoIndicesStep_get_observed_of_target_ne
+lemma controlledXorIntoIndicesStep_get_observed_of_target_ne
     (control : EncodedBit encoding) (source target : Word encoding width)
     (indices : List (Fin width)) (observed : EncodedBit encoding)
     (hne : ∀ i, i ∈ indices -> (target.bit i).wire ≠ observed.wire)
@@ -202,7 +202,7 @@ theorem controlledXorIntoIndicesStep_get_observed_of_target_ne
 present in the folded index list.  The extra hypotheses state that target wires
 are independent of this observed target, the shared control, and the matching
 source bit throughout the fold. -/
-theorem controlledXorIntoIndicesStep_get_target
+lemma controlledXorIntoIndicesStep_get_target
     (control : EncodedBit encoding) (source target : Word encoding width)
     (indices : List (Fin width)) (hnodup : indices.Nodup)
     (i : Fin width)
@@ -285,7 +285,7 @@ present in the folded index list.  This variant only requires the target-wire
 separation hypotheses for indices actually present in the folded list, which
 is useful for filtered arithmetic networks whose target word is only injective
 on the selected index set. -/
-theorem controlledXorIntoIndicesStep_get_target_of_mem
+lemma controlledXorIntoIndicesStep_get_target_of_mem
     (control : EncodedBit encoding) (source target : Word encoding width)
     (indices : List (Fin width)) (hnodup : indices.Nodup)
     (i : Fin width)
@@ -372,7 +372,7 @@ theorem controlledXorIntoIndicesStep_get_target_of_mem
 
 /-- The complete controlled word-xor fold preserves an observed readout whose
 wire is distinct from every target bit. -/
-theorem controlledXorIntoStep_get_observed_of_target_ne
+lemma controlledXorIntoStep_get_observed_of_target_ne
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -392,7 +392,7 @@ theorem controlledXorIntoStep_get_observed_of_target_ne
 
 /-- The complete controlled word-xor fold toggles each target bit by the
 corresponding controlled source bit. -/
-theorem controlledXorIntoStep_get_target
+lemma controlledXorIntoStep_get_target
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -420,7 +420,7 @@ theorem controlledXorIntoStep_get_target
 
 /-- The reversed controlled word-xor gate list agrees with the indexed fold
 over the reversed index list. -/
-theorem controlledXorIntoGates_reverse_stepList_eq_indicesStep
+lemma controlledXorIntoGates_reverse_stepList_eq_indicesStep
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -455,7 +455,7 @@ theorem controlledXorIntoGates_reverse_stepList_eq_indicesStep
 
 /-- The reversed controlled word-xor gate list preserves any observed readout
 whose wire is distinct from every target bit. -/
-theorem controlledXorIntoGates_reverse_get_observed_of_target_ne
+lemma controlledXorIntoGates_reverse_get_observed_of_target_ne
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -478,7 +478,7 @@ theorem controlledXorIntoGates_reverse_get_observed_of_target_ne
 
 /-- The reversed controlled word-xor gate list toggles each target bit by the
 corresponding controlled source bit. -/
-theorem controlledXorIntoGates_reverse_get_target
+lemma controlledXorIntoGates_reverse_get_target
     (control : EncodedBit encoding) (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
@@ -508,32 +508,34 @@ theorem controlledXorIntoGates_reverse_get_target
       htargetTarget htargetControl htargetSource x
 
 /-- The controlled bitwise xor program realizes its folded semantic action. -/
-theorem controlledXorInto_realizes (control : EncodedBit encoding)
+lemma controlledXorInto_realizes (control : EncodedBit encoding)
     (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
-    (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
+    (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (controlledXorIntoProgram physical oracles control source target
-        hcontrolSource hcontrolTarget hsourceTarget)
+        hcontrolSource hcontrolTarget hsourceTarget) environment
       (controlledXorIntoStep control source target
         hcontrolSource hcontrolTarget hsourceTarget) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList (environment := environment) physical oracles
     (controlledXorIntoGates control source target
       hcontrolSource hcontrolTarget hsourceTarget)
 
 /-- Direct realization proof for controlled bitwise xor into another word. -/
-theorem controlledXorIntoWitness (control : EncodedBit encoding)
+lemma controlledXorIntoWitness (control : EncodedBit encoding)
     (source target : Word encoding width)
     (hcontrolSource : ∀ i, control.wire ≠ (source.bit i).wire)
     (hcontrolTarget : ∀ i, control.wire ≠ (target.bit i).wire)
-    (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire) :
+    (hsourceTarget : ∀ i, (source.bit i).wire ≠ (target.bit i).wire)
+      (environment : oracles.Interpretation) :
     UnitaryCircuit.Realizes encoding
       (controlledXorIntoProgram physical oracles control source target
-        hcontrolSource hcontrolTarget hsourceTarget)
+        hcontrolSource hcontrolTarget hsourceTarget) environment
       (controlledXorIntoStep control source target
         hcontrolSource hcontrolTarget hsourceTarget) :=
-  controlledXorInto_realizes physical oracles control source target
+  controlledXorInto_realizes (environment := environment) physical oracles control source target
     hcontrolSource hcontrolTarget hsourceTarget
 
 end Word

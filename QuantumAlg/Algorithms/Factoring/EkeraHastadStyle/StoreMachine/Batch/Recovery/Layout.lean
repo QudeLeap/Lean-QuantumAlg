@@ -72,7 +72,7 @@ def terminals : LatticePairRecoveryBatch.Terminals (context base noQuantum N) N 
   fun index => liftInput base noQuantum N (sourceTerminals base noQuantum N index)
 
 /-- Fresh result storage cannot overlap any structural source read. -/
-theorem result_avoids_input {shape : CShape}
+lemma result_avoids_input {shape : CShape}
     (input : CInputRef (NativeBatch.context base noQuantum N) shape) :
     (resultRef base noQuantum N).key ∉ (liftInput base noQuantum N input).storageKeys :=
   input.fresh_not_mem_storageKeys_underRetained (resultKey base noQuantum N)
@@ -80,7 +80,7 @@ theorem result_avoids_input {shape : CShape}
     (NativeBatch.context base noQuantum N).canonicalFreshKey_fresh
 
 /-- Retaining the result preserves the identical actual bank and wire identities. -/
-theorem context_quantumWires :
+lemma context_quantumWires :
     (context base noQuantum N).quantumWires =
       (NativeBatch.context base noQuantum N).quantumWires :=
   RuntimeCtx.quantumWires_addRetained (NativeBatch.context base noQuantum N)

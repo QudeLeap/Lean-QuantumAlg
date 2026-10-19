@@ -45,14 +45,14 @@ structure ComparisonSeparated (shared : SharedRefs ctx width)
   extendedModulus : scratch.extended.key ∉ shared.modulus.storageKeys
   positiveModulus : scratch.positive.key ∉ shared.modulus.storageKeys
 
-private theorem preserves_cell {input output observed : CShape}
+private lemma preserves_cell {input output observed : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx observed)
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
     (store.applyOp op).read (FirstAccepted.cellRead other) =
       store.read (FirstAccepted.cellRead other) :=
   Store.read_write_other store op.outputRef other.toCStorageRef _ different
 
-private theorem extended_read (scratch : ScratchRefs ctx width) (store : Store ctx) :
+private lemma extended_read (scratch : ScratchRefs ctx width) (store : Store ctx) :
     ((store.applyOp (extendOp scratch)).read (FirstAccepted.cellRead scratch.extended)).toNat =
       (store.read (FirstAccepted.cellRead scratch.candidate)).toNat := by
   have fits := CShape.Value.toNat_lt (store.read (FirstAccepted.cellRead scratch.candidate))
@@ -66,7 +66,7 @@ private theorem extended_read (scratch : ScratchRefs ctx width) (store : Store c
       (ClassicalOp.eval_wordResize_exact width (width + 1) ctx
         (FirstAccepted.cellRead scratch.candidate) scratch.extended _ widened)
 
-private theorem positive_read (shared : SharedRefs ctx width)
+private lemma positive_read (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (store : Store ctx) :
     ((store.applyOp (positiveOp shared scratch)).read
       (FirstAccepted.cellRead scratch.positive)).toBool =
@@ -74,7 +74,7 @@ private theorem positive_read (shared : SharedRefs ctx width)
           (store.read (FirstAccepted.cellRead scratch.extended)).toNat) :=
   congrArg CShape.Value.toBool (Store.read_applyOp_output store (positiveOp shared scratch))
 
-private theorem below_read (shared : SharedRefs ctx width)
+private lemma below_read (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (store : Store ctx) :
     ((store.applyOp (belowOp shared scratch)).read
       (FirstAccepted.cellRead scratch.belowModulus)).toBool =
@@ -82,7 +82,7 @@ private theorem below_read (shared : SharedRefs ctx width)
           (store.read shared.modulus).toNat) :=
   congrArg CShape.Value.toBool (Store.read_applyOp_output store (belowOp shared scratch))
 
-private theorem eligible_read (scratch : ScratchRefs ctx width) (store : Store ctx) :
+private lemma eligible_read (scratch : ScratchRefs ctx width) (store : Store ctx) :
     ((store.applyOp (eligibleOp scratch)).read
       (FirstAccepted.cellRead scratch.eligible)).toBool =
         ((store.read (FirstAccepted.cellRead scratch.positive)).toBool &&
@@ -102,7 +102,7 @@ private theorem eligible_read (scratch : ScratchRefs ctx width) (store : Store c
           exact actual
 
 /-- Four actual comparison instructions preserve the complete candidate word. -/
-theorem proposalComparison_candidate (shared : SharedRefs ctx width)
+lemma proposalComparison_candidate (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (separated : ComparisonSeparated shared scratch)
     (store : Store ctx) :
     (comparisonStore shared scratch store).read (FirstAccepted.cellRead scratch.candidate) =
@@ -115,7 +115,7 @@ theorem proposalComparison_candidate (shared : SharedRefs ctx width)
           (preserves_cell (extendOp scratch) scratch.candidate separated.extendedCandidate store)))
 
 /-- The final widened word contains exactly the original candidate's natural value. -/
-theorem proposalComparison_extended (shared : SharedRefs ctx width)
+lemma proposalComparison_extended (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (separated : ComparisonSeparated shared scratch)
     (store : Store ctx) :
     ((comparisonStore shared scratch store).read
@@ -128,7 +128,7 @@ theorem proposalComparison_extended (shared : SharedRefs ctx width)
   exact extended_read scratch store
 
 /-- The actual eligibility bit decides the strict interval between the original endpoints. -/
-theorem proposalComparison_eligible (shared : SharedRefs ctx width)
+lemma proposalComparison_eligible (shared : SharedRefs ctx width)
     (scratch : ScratchRefs ctx width) (separated : ComparisonSeparated shared scratch)
     (store : Store ctx) :
     ((comparisonStore shared scratch store).read

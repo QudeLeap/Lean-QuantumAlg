@@ -21,14 +21,14 @@ namespace QuantumAlg.ExecutionState
 
 noncomputable section
 
-private theorem mapClassical_block_matrix_proof {C D : Type} [Fintype C] [Fintype D]
+private lemma mapClassical_block_matrix_proof {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register} (state : ExecutionState C R) (update : C → D)
     (result : D) :
     ((state.mapClassical update).block result).matrix =
       ∑ entry : C, if update entry = result then (state.block entry).matrix else 0 := rfl
 
 /-- Every output matrix is the sum of exactly its complete input fiber. -/
-public theorem mapClassical_block_matrix {C D : Type} [Fintype C] [Fintype D]
+public lemma mapClassical_block_matrix {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register} (state : ExecutionState C R) (update : C → D)
     (result : D) :
     ((state.mapClassical update).block result).matrix =
@@ -36,7 +36,7 @@ public theorem mapClassical_block_matrix {C D : Type} [Fintype C] [Fintype D]
   mapClassical_block_matrix_proof state update result
 
 /-- Equal record functions yield equal states for any equality-decision implementations. -/
-public theorem executionState_mapClassical_congr {C D : Type} [Fintype C] [Fintype D]
+public lemma executionState_mapClassical_congr {C D : Type} [Fintype C] [Fintype D]
     {R : Register} {first second : DecidableEq D} (state : ExecutionState C R)
     {f g : C → D} (agree : f = g) :
     @mapClassical C D _ _ R first state f = @mapClassical C D _ _ R second state g := by
@@ -45,7 +45,7 @@ public theorem executionState_mapClassical_congr {C D : Type} [Fintype C] [Finty
   rfl
 
 /-- Composition is independent of the equality decisions used at either output boundary. -/
-public theorem executionState_mapClassical_comp_instances
+public lemma executionState_mapClassical_comp_instances
     {C D E : Type} [Fintype C] [Fintype D] [Fintype E]
     {R : Register} {middle : DecidableEq D} {last result : DecidableEq E}
     (state : ExecutionState C R) (first : C → D) (second : D → E) :

@@ -24,29 +24,30 @@ open NumberTheory.XGCD.Native NumberTheory.Checked.Native
 open NumberTheory.Checked.SignedReduction.Native
 open FiniteCyclicDLP.RawRecovery.Native Field.Native Add.Native
 
-variable {model : ExecutionModel} [BitWord.Selected model] {width scalarWidth : Nat}
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
+  {width scalarWidth : Nat}
 
-private theorem list_unit {α : Type} (events : List α) :
+private lemma list_unit {α : Type} (events : List α) :
     (events.map (fun _ => (1 : Nat))).sum = events.length := by simp
 
 omit [BitWord.Selected model] in
-private theorem max_card (left right : ResourcePool model) :
+private lemma max_card (left right : ResourcePool model) :
     max left.card right.card ≤ (ResourcePool.max left right).card :=
   max_le (Multiset.card_le_card (ResourcePool.le_max_left left right))
     (Multiset.card_le_card (ResourcePool.le_max_right left right))
 
 omit [BitWord.Selected model] in
-private theorem combine_card {left right : Nat} (first second : ResourcePool model)
+private lemma combine_card {left right : Nat} (first second : ResourcePool model)
     (firstBound : left ≤ first.card) (secondBound : right ≤ second.card) :
     max left right ≤ (ResourcePool.max first second).card :=
   (max_le_max firstBound secondBound).trans (max_card first second)
 
-private theorem raw_unit (width : Nat) :
+private lemma raw_unit (width : Nat) :
     rawDepthLimit width (fun _ : Resource.Event model => 1) =
       (rawEnvelope model width).card :=
   (xgcdNativeRawDepthLimit_unit model width).trans (rawEnvelope_card model width).symm
 
-private theorem signed_unit (width : Nat) :
+private lemma signed_unit (width : Nat) :
     signedReductionDepthLimit width (fun _ : Resource.Event model => 1) ≤
       (signedReductionEnvelope model width).card := by
   have magnitude := max_card
@@ -60,7 +61,7 @@ private theorem signed_unit (width : Nat) :
     Multiset.card_add, ResourcePool.ofList, Multiset.coe_card]
   omega
 
-private theorem coefficient_unit (spec : ModulusSpec width) :
+private lemma coefficient_unit (spec : ModulusSpec width) :
     coefficientDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (coefficientEnvelope model spec).card := by
   have raw := raw_unit (model := model) (width + 1)
@@ -69,7 +70,7 @@ private theorem coefficient_unit (spec : ModulusSpec width) :
     ResourcePool.ofList, Multiset.coe_card, List.length_cons, List.length_nil]
   omega
 
-private theorem affine_unit (spec : ModulusSpec width) :
+private lemma affine_unit (spec : ModulusSpec width) :
     affineDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (affineEnvelope model spec).card := by
   have coefficient := coefficient_unit (model := model) spec
@@ -79,7 +80,7 @@ private theorem affine_unit (spec : ModulusSpec width) :
     List.length_cons, List.length_nil]
   omega
 
-private theorem generic_unit (spec : ModulusSpec width) :
+private lemma generic_unit (spec : ModulusSpec width) :
     genericDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (genericEnvelope model spec).card := by
   have affine := affine_unit (model := model) spec
@@ -87,7 +88,7 @@ private theorem generic_unit (spec : ModulusSpec width) :
     ResourcePool.ofList, Multiset.coe_card]
   omega
 
-private theorem doubling_unit (spec : CurveSpec width) :
+private lemma doubling_unit (spec : CurveSpec width) :
     doublingDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (doublingEnvelope model spec).card := by
   have affine := affine_unit (model := model) spec.field
@@ -97,7 +98,7 @@ private theorem doubling_unit (spec : CurveSpec width) :
     ResourcePool.ofList, Multiset.coe_card]
   omega
 
-private theorem addition_arm_unit (spec : CurveSpec width) (selected : Case) :
+private lemma addition_arm_unit (spec : CurveSpec width) (selected : Case) :
     additionArmDepthLimit spec (fun _ : Resource.Event model => 1) selected ≤
       (additionArmEnvelope model spec selected).card := by
   cases selected with
@@ -107,7 +108,7 @@ private theorem addition_arm_unit (spec : CurveSpec width) (selected : Case) :
   | leftInfinity => exact Nat.le_refl _
   | rightInfinity => exact Nat.le_refl _
 
-private theorem addition_unit (spec : CurveSpec width) :
+private lemma addition_unit (spec : CurveSpec width) :
     additionDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (additionEnvelope model spec).card := by
   have branch : caseMaximum Nat.max
@@ -126,7 +127,7 @@ private theorem addition_unit (spec : CurveSpec width) :
     ResourcePool.ofList, Multiset.coe_card]
   exact Nat.add_le_add_left branch _
 
-private theorem scalar_unit (spec : CurveSpec width) (count : Nat) :
+private lemma scalar_unit (spec : CurveSpec width) (count : Nat) :
     ScalarMul.Native.scalarDepthLimit spec count (fun _ : Resource.Event model => 1) ≤
       (ScalarMul.Native.scalarEnvelope model spec count).card := by
   have addition := addition_unit (model := model) spec
@@ -135,7 +136,7 @@ private theorem scalar_unit (spec : CurveSpec width) (count : Nat) :
     ResourcePool.ofList, Multiset.coe_card]
   exact Nat.add_le_add_left (Nat.mul_le_mul_left count (Nat.add_le_add addition addition)) _
 
-private theorem verification_unit (spec : CurveSpec width) (count : Nat) :
+private lemma verification_unit (spec : CurveSpec width) (count : Nat) :
     verificationDepthLimit spec count (fun _ : Resource.Event model => 1) ≤
       (verificationEnvelope model spec count).card := by
   have scalar := scalar_unit (model := model) spec count
@@ -146,7 +147,7 @@ private theorem verification_unit (spec : CurveSpec width) (count : Nat) :
     List.length_cons, List.length_nil]
   omega
 
-private theorem checked_unit (spec : ModulusSpec width) :
+private lemma checked_unit (spec : ModulusSpec width) :
     checkedInverseDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (checkedInverseEnvelope model spec).card := by
   have raw := raw_unit (model := model) (width + 1)
@@ -157,7 +158,7 @@ private theorem checked_unit (spec : ModulusSpec width) :
     checkedDecisionEvents, List.length_cons, List.length_nil]
   omega
 
-private theorem preparation_unit (spec : ModulusSpec width) :
+private lemma preparation_unit (spec : ModulusSpec width) :
     preparationDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (preparationEnvelope model spec).card := by
   have selected := Multiset.card_le_card (ResourcePool.le_max_left
@@ -172,11 +173,11 @@ private theorem preparation_unit (spec : ModulusSpec width) :
     List.length_cons, List.length_nil]
   omega
 
-private theorem selected_unit (width : Nat) :
+private lemma selected_unit (width : Nat) :
     selectedExposureDepthLimit width (fun _ : Resource.Event model => 1) =
       (ResourcePool.ofList (selectedExposureEvents model width true)).card := rfl
 
-private theorem exposure_unit (spec : ModulusSpec width) :
+private lemma exposure_unit (spec : ModulusSpec width) :
     singleExposureDepthLimit spec (fun _ : Resource.Event model => 1) ≤
       (singleExposureEnvelope model spec).card := by
   have preparation := preparation_unit (model := model) spec
@@ -187,7 +188,7 @@ private theorem exposure_unit (spec : ModulusSpec width) :
   omega
 
 /-- Unit durations of the original attempt allowance are bounded by that same native pool. -/
-theorem attemptDepthLimit_unit_le_card (curve : CurveSpec width)
+lemma attemptDepthLimit_unit_le_card (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth) :
     attemptDepthLimit curve modulus (fun _ : Resource.Event model => 1) ≤
       (attemptEnvelope model curve modulus).card := by
@@ -199,7 +200,7 @@ theorem attemptDepthLimit_unit_le_card (curve : CurveSpec width)
   omega
 
 /-- The complete serial unit-duration allowance retains the original numerical ceiling. -/
-theorem attemptDepthLimit_unit_le (curve : CurveSpec width)
+lemma attemptDepthLimit_unit_le (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth) :
     attemptDepthLimit curve modulus (fun _ : Resource.Event model => 1) ≤
       42 * scalarWidth + scalarWidth * (248 * width + 644) + 119 :=

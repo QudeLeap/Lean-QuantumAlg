@@ -7,6 +7,8 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Core.Base.Depth.Expr
+public import QuantumAlg.Core.Base.Depth.Transform
+public import QuantumAlg.Core.Base.Accounting.Event.Composition
 public import QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Execution.Circuit
 import all QuantumAlg.Core.Base.Depth.Expr
@@ -28,6 +30,8 @@ proof references and mathematical path records do not allocate runtime entries.
 
 namespace QuantumAlg.Circuit
 
+variable {allowAllocation : Bool}
+
 /-- The built-in Z measurement coordinate is fixed by the measured wire's dimension. -/
 @[expose] public def zEvent {gates : GateModel} {oracles : OracleModel}
     (dimension : ℕ+)
@@ -36,8 +40,9 @@ namespace QuantumAlg.Circuit
     Resource.Event (.quantum gates oracles operations classicalOracles) := .measurement dimension
 
 /-- Ordered native operations on the path returned by the circuit interpreter. -/
-@[expose] public def eventTrace {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
-    (code : Circuit model pre post) → code.Path → List (Resource.Event model)
+@[expose] public def eventTrace {allowAllocation : Bool}
+    {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
+    (code : Circuit model pre post allowAllocation) → code.Path → List (Resource.Event model)
   | .id _, _ => []
   | .classical (model := model) application, _ =>
       [.classicalOperation (model.classicalOperations.coordinate application.token)]
@@ -57,16 +62,27 @@ namespace QuantumAlg.Circuit
   | .iterate count body, path =>
       (List.ofFn (fun index : Fin count => body.eventTrace (path index))).flatten
   | .workspace _ _ _ _ body, path => body.eventTrace path
+  | .embed _ body, path => body.eventTrace path
+  | .parallelClassical (operations := operations) join _ first second, path =>
+      (first.eventTrace path.1).map (Resource.Event.serviceClassicalLeft join operations) ++
+        (second.eventTrace path.2).map (Resource.Event.serviceClassicalRight join operations)
+  | .parallelQuantum (gates := gates) (oracles := oracles) (operations := operations)
+      join _ first second, path =>
+      (first.eventTrace path.1).map (Resource.Event.serviceQuantumLeft join gates oracles
+          operations) ++
+        (second.eventTrace path.2).map
+          (Resource.Event.serviceQuantumRight join gates oracles operations)
 
 /-- Exact native event multiplicities, obtained by forgetting only the trace's order. -/
 public def resourcePool {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (path : code.Path) : ResourcePool model :=
+    (code : Circuit model pre post allowAllocation) (path : code.Path) : ResourcePool model :=
   ResourcePool.ofList (code.eventTrace path)
 
 /-- One native event coordinate is counted on the actual paths of both sequential components. -/
-public theorem resourcePool_count_seq {model : ExecutionModel}
+public lemma resourcePool_count_seq {model : ExecutionModel}
     {pre mid post : RuntimeCtx model.kind}
-    (first : Circuit model pre mid) (second : Circuit model mid post)
+    (first : Circuit model pre mid allowAllocation) (second : Circuit model mid post
+        allowAllocation)
     (event : Resource.Event model) (path : (first.seq second).Path) :
     ResourcePool.count event ((first.seq second).resourcePool path) =
       ResourcePool.count event (first.resourcePool path.1) +
@@ -76,8 +92,9 @@ public theorem resourcePool_count_seq {model : ExecutionModel}
   exact ResourcePool.count_add _ _ _
 
 /-- The exact contexts visited by the selected instruction bodies. -/
-public def visitedContexts {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
-    (code : Circuit model pre post) → code.Path → List (RuntimeCtx model.kind)
+public def visitedContexts {allowAllocation : Bool}
+    {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
+    (code : Circuit model pre post allowAllocation) → code.Path → List (RuntimeCtx model.kind)
   | .id ctx, _ => [ctx]
   | .classical (ctx := ctx) _, _ => [ctx]
   | .classicalQuery (ctx := ctx) _, _ => [ctx]
@@ -92,6 +109,11 @@ public def visitedContexts {model : ExecutionModel} {pre post : RuntimeCtx model
   | .iterate (ctx := ctx) count body, path =>
       ctx :: (List.ofFn (fun index : Fin count => body.visitedContexts (path index))).flatten
   | .workspace ctx _ _ _ body, path => ctx :: body.visitedContexts path ++ [ctx]
+  | .embed (caller := caller) _ _, _ => [caller]
+  | .parallelClassical (left := left) (right := right) _ separate _ _, _ =>
+      [left.disjointUnion right separate]
+  | .parallelQuantum (left := left) (right := right) _ separate _ _, _ =>
+      [left.disjointUnion right separate]
 
 private def peak {kind : ProblemKind} (projection : RuntimeCtx kind → SpacePool kind)
     (contexts : List (RuntimeCtx kind)) : SpacePool kind :=
@@ -99,17 +121,18 @@ private def peak {kind : ProblemKind} (projection : RuntimeCtx kind → SpacePoo
 
 /-- Resident peak includes every live system and classical cell on the actual path. -/
 public def peakResidentSpace {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (path : code.Path) : SpacePool model.kind :=
+    (code : Circuit model pre post allowAllocation) (path : code.Path) : SpacePool model.kind :=
   peak RuntimeCtx.residentSpace (code.visitedContexts path)
 
 /-- Auxiliary peak follows the roles of those same actual live entries. -/
 public def peakAuxiliarySpace {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (path : code.Path) : SpacePool model.kind :=
+    (code : Circuit model pre post allowAllocation) (path : code.Path) : SpacePool model.kind :=
   peak RuntimeCtx.auxiliarySpace (code.visitedContexts path)
 
 /-- Native event dependencies of the same executed path, including classical feed-forward. -/
-public def eventDepth {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
-    (code : Circuit model pre post) → code.Path → DepthExpr (Resource.Event model)
+public def eventDepth {allowAllocation : Bool}
+    {model : ExecutionModel} {pre post : RuntimeCtx model.kind} :
+    (code : Circuit model pre post allowAllocation) → code.Path → DepthExpr (Resource.Event model)
   | .id _, _ => .id
   | .classical (model := model) application, _ =>
       .atom (.classicalOperation (model.classicalOperations.coordinate application.token))
@@ -129,23 +152,40 @@ public def eventDepth {model : ExecutionModel} {pre post : RuntimeCtx model.kind
   | .iterate count body, path =>
       .indexedProduct "circuit-iteration" count .id (fun index => body.eventDepth (path index))
   | .workspace _ _ _ _ body, path => body.eventDepth path
+  | .embed _ body, path => body.eventDepth path
+  | .parallelClassical (operations := operations) join _ first second, path =>
+      .tensor
+        (DepthExpr.mapSchedule false (Resource.Event.serviceClassicalLeft join operations)
+          (first.eventDepth path.1))
+        (DepthExpr.mapSchedule false (Resource.Event.serviceClassicalRight join operations)
+          (second.eventDepth path.2))
+  | .parallelQuantum (gates := gates) (oracles := oracles) (operations := operations)
+      join _ first second, path =>
+      .tensor
+        (DepthExpr.mapSchedule false
+          (Resource.Event.serviceQuantumLeft join gates oracles operations) (first.eventDepth
+              path.1))
+        (DepthExpr.mapSchedule false
+          (Resource.Event.serviceQuantumRight join gates oracles operations) (second.eventDepth
+              path.2))
 
 /-- Evaluate path depth under the independent specification's native event durations. -/
 public def depth {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (duration : Resource.Event model → Nat)
+    (code : Circuit model pre post allowAllocation) (duration : Resource.Event model → Nat)
     (path : code.Path) : Nat :=
   DepthExpr.depthEval duration (code.eventDepth path)
 
 /-- Conditional execution charges precisely the body indexed by its recorded read. -/
-theorem eventTrace_branch {model : ExecutionModel}
+lemma eventTrace_branch {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
+    (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post allowAllocation)
     (value : shape.Value) (path : (body value).Path) :
     (Circuit.branch input body).eventTrace ⟨value, path⟩ = (body value).eventTrace path := rfl
 
 /-- Sequential depth retains the dependence between successive executed bodies. -/
-theorem depth_seq {model : ExecutionModel} {pre mid post : RuntimeCtx model.kind}
-    (first : Circuit model pre mid) (second : Circuit model mid post)
+lemma depth_seq {model : ExecutionModel} {pre mid post : RuntimeCtx model.kind}
+    (first : Circuit model pre mid allowAllocation) (second : Circuit model mid post
+        allowAllocation)
     (duration : Resource.Event model → Nat) (left : first.Path) (right : second.Path) :
     (Circuit.seq first second).depth duration (left, right) =
       first.depth duration left + second.depth duration right := rfl

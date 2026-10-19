@@ -109,7 +109,7 @@ def mutableCell : Layout.Cell → LatticeCandidateSlotFrames.MutableCell
   | .shortSelected => .selection .selected
 
 /-- The physical-to-semantic map is a left inverse of the semantic map. -/
-theorem mutableCell_physicalCell (cell : LatticeCandidateSlotFrames.MutableCell) :
+lemma mutableCell_physicalCell (cell : LatticeCandidateSlotFrames.MutableCell) :
     mutableCell (physicalCell cell) = cell := by
   cases cell with
   | offset cell => cases cell <;> rfl
@@ -122,11 +122,11 @@ theorem mutableCell_physicalCell (cell : LatticeCandidateSlotFrames.MutableCell)
       selectorIntermediate | selectorEligible => rfl
 
 /-- Named semantic mutable cells map injectively to physical cells. -/
-theorem physicalCell_injective : Function.Injective physicalCell :=
+lemma physicalCell_injective : Function.Injective physicalCell :=
   Function.LeftInverse.injective mutableCell_physicalCell
 
 /-- Exact key projection of one semantic cell through the component views. -/
-theorem mutableKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma mutableKey_eq_cellRef {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (pair : LatticePairNearestPlaneSavedTarget.Refs ctx N)
     (roles : LatticeCandidateSlotWorkspaceViews.NearestOutputRoles pair)
@@ -157,7 +157,7 @@ def ExternalAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
       (LatticeCandidateSlotFrames.externalSourceInput refs source).storageKeys
 
 /-- Physical distinctness and earlier-input avoidance supply unified frames. -/
-theorem frameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+lemma frameSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (pair : LatticePairNearestPlaneSavedTarget.Refs ctx N)
     (roles : LatticeCandidateSlotWorkspaceViews.NearestOutputRoles pair)

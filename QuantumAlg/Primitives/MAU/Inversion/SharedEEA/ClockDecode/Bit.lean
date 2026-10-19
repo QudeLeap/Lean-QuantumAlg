@@ -30,9 +30,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ClockDecodeBit
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit PredicateLayout
 
-private theorem separate (width : Nat) (clock : Fin (width.size + 2))
+private lemma separate (width : Nat) (clock : Fin (width.size + 2))
     (index : Fin (width + 3)) :
     (clockBit width clock).wire ≠ ((Work2Rotation.word width).bit index).wire := by
   intro same
@@ -44,14 +46,14 @@ private theorem separate (width : Nat) (clock : Fin (width.size + 2))
   split_ifs at values <;> omega
 
 /-- Every selecting bit reads its actual original high or low clock coordinate. -/
-theorem control_get (width : Nat) (clock : Fin (width.size + 2)) (state : Registers width) :
+lemma control_get (width : Nat) (clock : Fin (width.size + 2)) (state : Registers width) :
     (clockBit width clock).get state =
       if clock.val < 2 then
         (NumberTheory.SharedEEA.PaddingClock.high state.firstWord).getMsbD clock.val
       else state.shift.getMsbD (clock.val - 2) :=
   extendedClock_source_get width clock state
 
-private theorem control_setWord (width : Nat) (clock : Fin (width.size + 2))
+private lemma control_setWord (width : Nat) (clock : Fin (width.size + 2))
     (word : BitVec (width + 3)) (state : Registers width) :
     (clockBit width clock).get { state with secondWord := word } =
       (clockBit width clock).get state := by
@@ -66,7 +68,7 @@ private def leftGates (width : Nat) (clock : Fin (width.size + 2)) :
 def gates (width : Nat) (clock : Fin (width.size + 2)) : List (GateSpec (encoding width)) :=
   (leftGates width clock).reverse
 
-private theorem left_conditional (width : Nat) (clock : Fin (width.size + 2))
+private lemma left_conditional (width : Nat) (clock : Fin (width.size + 2))
     (state : Registers width) :
     GateSpec.stepList (leftGates width clock) state =
       if (clockBit width clock).get state then GateSpec.stepList (Work2Rotation.leftGates width)
@@ -94,7 +96,7 @@ private theorem left_conditional (width : Nat) (clock : Fin (width.size + 2))
     rw [retained]
 
 /-- The literal decoder gate list rotates right only on the actual selected clock value. -/
-theorem gates_step (width : Nat) (clock : Fin (width.size + 2)) (state : Registers width) :
+lemma gates_step (width : Nat) (clock : Fin (width.size + 2)) (state : Registers width) :
     GateSpec.stepList (gates width clock) state =
       if (clockBit width clock).get state then
         { state with secondWord := state.secondWord.rotateRight 1 } else state := by
@@ -122,7 +124,7 @@ theorem gates_step (width : Nat) (clock : Fin (width.size + 2)) (state : Registe
       rw [Work2Rotation.right_step]
 
 /-- Every selecting clock bit, including both high positions, is retained exactly. -/
-theorem gates_clockBit (width : Nat) (clock observed : Fin (width.size + 2))
+lemma gates_clockBit (width : Nat) (clock observed : Fin (width.size + 2))
     (state : Registers width) :
     (clockBit width observed).get (GateSpec.stepList (gates width clock) state) =
       (clockBit width observed).get state := by
@@ -138,26 +140,26 @@ def program (width : Nat) (clock : Fin (width.size + 2)) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width clock)
 
 /-- Exact complete-frame basis semantics retains all relative amplitudes and history values. -/
-theorem program_realizes (width : Nat) (clock : Fin (width.size + 2)) :
-    UnitaryCircuit.Realizes (encoding width) (program width clock)
+lemma program_realizes (width : Nat) (clock : Fin (width.size + 2)) :
+    UnitaryCircuit.Realizes (encoding width) (program width clock) environment
       (fun state => if (clockBit width clock).get state then
         { state with secondWord := state.secondWord.rotateRight 1 } else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (gates_step width clock)
+    (gates_step width clock) environment
 
 /-- The actual trace contains every emitted adjacent-swap Toffoli on every input. -/
-theorem program_eventTrace (width : Nat) (clock : Fin (width.size + 2)) :
+lemma program_eventTrace (width : Nat) (clock : Fin (width.size + 2)) :
     (program width clock).eventTrace = (gates width clock).map (GateSpec.event .empty) :=
   GateSpec.programList_eventTrace (QubitLayout.canonical _) .empty _
 
 /-- The physical one-bit-controlled inverse sweep has exactly three gates per adjacent pair. -/
-theorem gates_length (width : Nat) (clock : Fin (width.size + 2)) :
+lemma gates_length (width : Nat) (clock : Fin (width.size + 2)) :
     (gates width clock).length = 3 * (width + 2) := by
   rw [gates, List.length_reverse, leftGates, Word.controlledAdjacentShiftLeftGates_length]
   omega
 
 /-- The literal one-bit-controlled decoder sweep has this exact strict unit depth. -/
-theorem program_unitDepth (width : Nat) (clock : Fin (width.size + 2)) :
+lemma program_unitDepth (width : Nat) (clock : Fin (width.size + 2)) :
     (program width clock).evaluatedEventDepth (fun _ => 1) = 3 * (width + 2) := by
   rw [program, GateSpec.programList_evaluatedEventDepth_unit, gates_length]
 

@@ -87,7 +87,7 @@ the complete family layout. -/
     ((bankEmbedding P slot).splitBasis basis).1
 
 /-- Restriction reads exactly the corresponding physical value of the selected bank. -/
-public theorem bankBasis_value (P : KnownOrderProblem G) {count : Nat}
+public lemma bankBasis_value (P : KnownOrderProblem G) {count : Nat}
     (slot : Fin count) (basis : (layout P count).Basis) (index : Fin (bankSize P)) :
     (bankBasis P slot basis index).val =
       (basis (finProdFinEquiv (slot, index))).val := by
@@ -96,7 +96,7 @@ public theorem bankBasis_value (P : KnownOrderProblem G) {count : Nat}
     (bankEmbedding P slot) basis index
 
 /-- Every selected bank sees the zero label of the complete fresh family as its own zero. -/
-public theorem bankBasis_zero (P : KnownOrderProblem G) {count : Nat} (slot : Fin count) :
+public lemma bankBasis_zero (P : KnownOrderProblem G) {count : Nat} (slot : Fin count) :
     bankBasis P slot (layout P count).zeroLabel = (OrderOracle.layout P).zeroLabel := by
   funext index
   apply Fin.ext
@@ -104,7 +104,7 @@ public theorem bankBasis_zero (P : KnownOrderProblem G) {count : Nat} (slot : Fi
   rfl
 
 /-- Different bank slots occupy disjoint physical selections. -/
-public theorem bankEmbedding_disjoint (P : KnownOrderProblem G) {count : Nat}
+public lemma bankEmbedding_disjoint (P : KnownOrderProblem G) {count : Nat}
     {left right : Fin count} (different : left ≠ right) :
     Disjoint (bankEmbedding P left).selection (bankEmbedding P right).selection := by
   rw [Finset.disjoint_left]
@@ -142,7 +142,7 @@ public theorem bankEmbedding_disjoint (P : KnownOrderProblem G) {count : Nat}
       rfl
 
 /-- The prefix and final bank use disjoint positions of the enlarged family. -/
-public theorem prefix_last_disjoint (P : KnownOrderProblem G) (count : Nat) :
+public lemma prefix_last_disjoint (P : KnownOrderProblem G) (count : Nat) :
     Disjoint (prefixEmbedding P count).selection
       (bankEmbedding P (lastSlot count)).selection := by
   rw [Finset.disjoint_left]
@@ -157,7 +157,7 @@ public theorem prefix_last_disjoint (P : KnownOrderProblem G) (count : Nat) :
   omega
 
 /-- The final bank is exactly the complement of the prefix family. -/
-public theorem prefix_last_partition (P : KnownOrderProblem G) (count : Nat) :
+public lemma prefix_last_partition (P : KnownOrderProblem G) (count : Nat) :
     (bankEmbedding P (lastSlot count)).selection =
       (prefixEmbedding P count).selectionᶜ := by
   apply Finset.eq_of_subset_of_card_le
@@ -188,7 +188,7 @@ disjoint complete banks. -/
         (bankEmbedding P (lastSlot count)) (prefix_last_disjoint P count)
 
 /-- The empty caller context shares no physical identity with the complete bank family. -/
-public theorem bankDisjoint (P : KnownOrderProblem G) (count : Nat) :
+public lemma bankDisjoint (P : KnownOrderProblem G) (count : Nat) :
     List.Disjoint (layout P count).identities OrderExecution.pre.physicalIdx := by
   rw [OrderExecution.pre, RuntimeCtx.runtimeCtx_empty_physicalIdx]
   exact List.disjoint_nil_right _
@@ -204,17 +204,17 @@ public theorem bankDisjoint (P : KnownOrderProblem G) (count : Nat) :
   MeasurementCells.context (bankContext P count) 2 (count * OrderExecution.sampleWidth P)
 
 /-- Adding all banks to the empty context preserves their exact wire order. -/
-public theorem bankContext_wires (P : KnownOrderProblem G) (count : Nat) :
+public lemma bankContext_wires (P : KnownOrderProblem G) (count : Nat) :
     (bankContext P count).quantumWires = (layout P count).wires := by
   change (layout P count).wires ++ ([] : List QuantumWire) = _
   rw [List.append_nil]
 
 /-- Retaining the measurements changes no bank wire. -/
-public theorem post_wires (P : KnownOrderProblem G) (count : Nat) :
+public lemma post_wires (P : KnownOrderProblem G) (count : Nat) :
     (post P count).quantumWires = (layout P count).wires := by
   rw [post, MeasurementCells.context_quantumWires, bankContext_wires]
 
-public theorem sourceWires (P : KnownOrderProblem G) (count : Nat) :
+public lemma sourceWires (P : KnownOrderProblem G) (count : Nat) :
     (layout P count).wires = (post P count).quantumLayout.wires :=
   ((RuntimeCtx.quantumLayout_wires (post P count)).trans (post_wires P count)).symm
 
@@ -226,14 +226,14 @@ public def basisEquiv (P : KnownOrderProblem G) (count : Nat) :
 
 /-- Reversing the public runtime-to-source correspondence recovers the
 equal-wire transport used by the native family circuit. -/
-public theorem basisEquiv_symm (P : KnownOrderProblem G) (count : Nat) :
+public lemma basisEquiv_symm (P : KnownOrderProblem G) (count : Nat) :
     (basisEquiv P count).symm =
       Execution.basisOfEqualWires (layout P count) (post P count).quantumLayout
         (sourceWires P count) := by
   rfl
 
 /-- The complete basis correspondence changes only dependent coordinate types. -/
-public theorem basisEquiv_wire_value (P : KnownOrderProblem G) (count : Nat)
+public lemma basisEquiv_wire_value (P : KnownOrderProblem G) (count : Nat)
     (basis : (post P count).register.Index) (index : Fin (count * bankSize P)) :
     (basis (Execution.positionsOfEqualWires (layout P count)
       (post P count).quantumLayout (sourceWires P count) index)).val =
@@ -262,7 +262,7 @@ public def bankPosition (P : KnownOrderProblem G) {count : Nat}
     (sourceWires P count) (finProdFinEquiv (slot, index))
 
 /-- Runtime bank restriction reads the exact value at every corresponding wire. -/
-public theorem outputBankBasis_value (P : KnownOrderProblem G) {count : Nat}
+public lemma outputBankBasis_value (P : KnownOrderProblem G) {count : Nat}
     (slot : Fin count) (basis : (post P count).register.Index)
     (index : Fin (bankSize P)) :
     (outputBankBasis P slot basis index).val =
@@ -292,7 +292,7 @@ public theorem outputBankBasis_value (P : KnownOrderProblem G) {count : Nat}
     (count * OrderExecution.sampleWidth P) (cellIndex P slot index)
 
 /-- The selected bank position is an actual qubit. -/
-public theorem exponent_dimension (P : KnownOrderProblem G) {count : Nat}
+public lemma exponent_dimension (P : KnownOrderProblem G) {count : Nat}
     (slot : Fin count) (index : Fin (OrderExecution.sampleWidth P)) :
     ((post P count).quantumLayout.wire
       (bankPosition P slot (exponentPosition P index))).dimension = 2 := by

@@ -105,7 +105,7 @@ def allocate {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat) :
       (samples ctx (measurementBits N) 16).canonicalFreshKey_fresh)
 
 /-- Real sample retention does not change the caller's quantum wires. -/
-theorem nativeOracle_sampleSlots_wires (ctx : RuntimeCtx kind) (width count : Nat) :
+lemma nativeOracle_sampleSlots_wires (ctx : RuntimeCtx kind) (width count : Nat) :
     (samples ctx width count).quantumWires = ctx.quantumWires := by
   induction count with
   | zero => rfl
@@ -113,7 +113,7 @@ theorem nativeOracle_sampleSlots_wires (ctx : RuntimeCtx kind) (width count : Na
       simpa only [samples, RuntimeCtx.quantumWires_addRetained] using ih
 
 /-- The full fixed batch storage contributes no quantum system. -/
-theorem nativeOracle_batchSlots_wires (ctx : RuntimeCtx kind) (N : Nat) :
+lemma nativeOracle_batchSlots_wires (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := by
   rw [context, RuntimeCtx.quantumWires_addRetained]
   exact nativeOracle_sampleSlots_wires ctx (measurementBits N) 16

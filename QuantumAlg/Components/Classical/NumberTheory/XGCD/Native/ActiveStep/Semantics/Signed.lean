@@ -26,7 +26,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem rawSignedRepresents_decoded
+private lemma rawSignedRepresents_decoded
     (word : CShape.Word (PureXGCD.executionCoefficientWidth width)) :
     RawSignedRepresents word (decodeRawSignedWord word) := by
   have actual := ofInt_rawSignedRepresents (PureXGCD.executionCoefficientWidth width)
@@ -34,14 +34,14 @@ private theorem rawSignedRepresents_decoded
   simpa only [decodeRawSignedWord, BoundedSigned.ofInt_toInt, BoundedSigned.encode_decode,
     fixedWidthEncode_decode_word] using actual
 
-private theorem divisionQuotient_value (first second : CShape.Word width) :
+private lemma divisionQuotient_value (first second : CShape.Word width) :
     (CShape.divRem width width (.product second first)).first.toNat =
       second.toNat / first.toNat := by
   change (second.toNat / first.toNat) % CShape.wordModulus width = _
   exact Nat.mod_eq_of_lt ((Nat.div_le_self _ _).trans_lt second.toNat_lt)
 
 /-- All four actual coefficient words represent the original total mathematical step. -/
-theorem xgcdNativeActiveBody_rawSignedRepresents
+lemma xgcdNativeActiveBody_rawSignedRepresents
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (scratch : Cells ctx (activeScratchShapes width)) (scratchDistinct : scratch.Distinct)
     (cross : CrossSeparated cells scratch) (zero : CInputRef ctx (.unsignedWord width))
@@ -95,7 +95,7 @@ theorem xgcdNativeActiveBody_rawSignedRepresents
       (store.read (GCD.cellRead (firstRightCell cells)))
 
 /-- In the original ranges, actual storage decodes to the original total XGCD step. -/
-theorem xgcdNativeActiveBody_state
+lemma xgcdNativeActiveBody_state
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (scratch : Cells ctx (activeScratchShapes width)) (scratchDistinct : scratch.Distinct)
     (cross : CrossSeparated cells scratch) (zero : CInputRef ctx (.unsignedWord width))
@@ -134,7 +134,7 @@ theorem xgcdNativeActiveBody_state
   rfl
 
 /-- The refreshed actual activity bit agrees with the actual leading remainder. -/
-theorem xgcdNativeActiveBody_activity
+lemma xgcdNativeActiveBody_activity
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (scratch : Cells ctx (activeScratchShapes width)) (scratchDistinct : scratch.Distinct)
     (cross : CrossSeparated cells scratch) (zero : CInputRef ctx (.unsignedWord width))

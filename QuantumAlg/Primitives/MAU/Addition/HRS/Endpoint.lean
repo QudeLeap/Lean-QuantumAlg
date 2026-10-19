@@ -42,6 +42,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {interpretation : OracleModel.empty.Interpretation}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open Execution.OwnedBorrowedQubits
@@ -50,7 +52,7 @@ private def nativeOperator (width : Nat) (constant : Fin (2 ^ width)) :
     UnitaryOperator (context width 1).register :=
   wordOperator width 1 (wordTranslation width constant.val)
 
-private theorem supplied_wires (width : Nat) :
+private lemma supplied_wires (width : Nat) :
     (QubitLayout.canonical (oneDirtyEncoding width).width).toQuantum.wires =
       (context width 1).quantumLayout.wires := by
   rw [show (oneDirtyEncoding width).width = width + 1 by rfl]
@@ -77,31 +79,32 @@ private def sourceContextEquiv (width : Nat) :
 
 set_option maxHeartbeats 500000 in
 -- Reducing the transported basis equivalence requires unfolding both canonical layouts.
-private theorem sourceContextEquiv_eq (width : Nat) :
+private lemma sourceContextEquiv_eq (width : Nat) :
     sourceContextEquiv width = (basisEquiv width 1).symm := by
   rfl
 
 set_option maxHeartbeats 1000000 in
 -- Reindex cancellation expands the source circuit's full matrix equality.
-private theorem sourceProgram_matrix (width : Nat) (constant : Fin (2 ^ width)) :
-    (oneDirtyProgram width constant).matrix =
+private lemma sourceProgram_matrix (width : Nat) (constant : Fin (2 ^ width)) :
+    ((oneDirtyProgram width constant).matrix interpretation) =
       UnitaryOperator.reindex
         (QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv.symm
         (oneDirtyOperator width constant) := by
-  have actual := hrsOneDirty_matrix width constant
+  have actual := hrsOneDirty_matrix (environment := interpretation) width constant
   change UnitaryOperator.reindex
       (QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv
-      (oneDirtyProgram width constant).matrix = oneDirtyOperator width constant at actual
+      ((oneDirtyProgram width constant).matrix interpretation) =
+        oneDirtyOperator width constant at actual
   rw [← actual]
   exact (UnitaryOperator.unitaryOperator_reindex_cancel
     (QubitLayout.canonical (oneDirtyEncoding width).width).basisEquiv
-    (oneDirtyProgram width constant).matrix).symm
+    ((oneDirtyProgram width constant).matrix interpretation)).symm
 
 set_option maxHeartbeats 1500000 in
 -- Composing the two layout transports normalizes a proof-dependent basis equivalence.
-private theorem nativeProgram_matrix (width : Nat) (constant : Fin (2 ^ width)) :
-    (nativeProgram width constant).matrix = nativeOperator width constant := by
-  change (nativeProgram width constant).matrix =
+private lemma nativeProgram_matrix (width : Nat) (constant : Fin (2 ^ width)) :
+    ((nativeProgram width constant).matrix interpretation) = nativeOperator width constant := by
+  change ((nativeProgram width constant).matrix interpretation) =
     UnitaryOperator.reindex (wordBinaryEquiv width 1).symm
       (oneDirtyOperator width constant)
   rw [← basisEquiv_eq_wordBinaryEquiv width 1]
@@ -161,20 +164,17 @@ formulas are bounds proved for this actual recursive construction.
 public def problem (width : Nat) (constant : Fin (2 ^ width)) :
     Problem (.quantum AlgorithmGate.model .empty)
       (context width 1) (context width 1) .unit where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [StateRequirement.unitary (nativeOperator width constant)]
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [StateRequirement.unitary (nativeOperator width constant)]
   resources :=
     { events := nativeBudget width
       resident := space (width + 1)
       auxiliary := space width }
-  depth :=
-    { duration := fun _ => 1
-      limit := width * (39 * Nat.clog 2 width + 1)
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := width * (39 * Nat.clog 2 width + 1)
 
 /-- Execute the actual adder and retain both the owned word and borrowed bit in complete Output. -/
 public def algorithm (width : Nat) (constant : Fin (2 ^ width)) :
@@ -183,18 +183,18 @@ public def algorithm (width : Nat) (constant : Fin (2 ^ width)) :
   run := { code := code width constant, output := Output.all (context width 1) .unit }
 
 /-- The public execution explicitly retains every owned and borrowed live entry. -/
-public theorem hrsOneDirty_output_listing (width : Nat) (constant : Fin (2 ^ width)) :
+public lemma hrsOneDirty_output_listing (width : Nat) (constant : Fin (2 ^ width)) :
     (algorithm width constant).run.output.listing = (context width 1).keys := (rfl)
 
 /-- The independent resident budget counts the supplied word and the one borrowed qubit. -/
-public theorem hrsOneDirty_resident_budget (width : Nat) (constant : Fin (2 ^ width)) :
+public lemma hrsOneDirty_resident_budget (width : Nat) (constant : Fin (2 ^ width)) :
     (problem width constant).resources.resident = space (width + 1) := (rfl)
 
 /-- Only the supplied owned word contributes to the owned auxiliary budget. -/
-public theorem hrsOneDirty_auxiliary_budget (width : Nat) (constant : Fin (2 ^ width)) :
+public lemma hrsOneDirty_auxiliary_budget (width : Nat) (constant : Fin (2 ^ width)) :
     (problem width constant).resources.auxiliary = space width := (rfl)
 
-private theorem actual_events (width : Nat) (constant : Fin (2 ^ width))
+private lemma actual_events (width : Nat) (constant : Fin (2 ^ width))
     (path : (code width constant).Path) :
     (code width constant).resourcePool path ≤ nativeBudget width := by
   change ResourcePool.ofList (nativeProgram width constant).eventTrace ≤ _
@@ -207,27 +207,31 @@ private theorem actual_events (width : Nat) (constant : Fin (2 ^ width))
   rw [UnitaryCircuit.ofList_eventTrace_eq_eventCost, cost]
   exact hrsOneDirty_native_bound width constant
 
-private theorem actual_restoration (width : Nat) (constant : Fin (2 ^ width))
+private lemma actual_restoration
+    (environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment)
+    (width : Nat) (constant : Fin (2 ^ width))
     {Reference : Register} {H : Type} [Fintype H]
     (state : Execution.State (context width 1) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
     (code width constant).BorrowedRestored Reference state
-      ((code width constant).execute Reference state) := by
+      ((code width constant).execute environment Reference state) := by
   apply Circuit.borrowedRestored_unitary_complement
-    (nativeProgram width constant)
+    (nativeProgram width constant) environment
     (complementaryOperator width 1 (wordTranslation width constant.val))
   rw [nativeProgram_matrix]
   exact wordOperator_complement width 1 (wordTranslation width constant.val)
 
-private theorem actual_run_restoration (width : Nat) (constant : Fin (2 ^ width))
+private lemma actual_run_restoration
+    (environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment)
+    (width : Nat) (constant : Fin (2 ^ width))
     {Reference : Register}
     (input : Execution.OracleInput .empty (context width 1) Reference) :
-    (algorithm width constant).run.RestoresBorrowed input := by
+    (algorithm width constant).run.RestoresBorrowed environment input := by
   change Execution.observeBorrowedAfter (code width constant) Reference
-      ((code width constant).execute Reference
+      ((code width constant).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
     Execution.observeBorrowed Reference input.state
-  refine (actual_restoration width constant
+  refine (actual_restoration environment width constant
     (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
   refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
     (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
@@ -237,35 +241,37 @@ private theorem actual_run_restoration (width : Nat) (constant : Fin (2 ^ width)
 
 /-- The actual one-dirty adder meets its independent state, restoration and resource contract. -/
 public theorem main (width : Nat) (constant : Fin (2 ^ width)) :
-    ∃ candidate, Algorithm.Solves candidate (problem width constant) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate (problem width constant) := by
   refine ⟨algorithm width constant, ?_⟩
   constructor
-  · intro Reference input _valid _initialized
+  · intro _environment _witness Reference input _valid _initialized
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input _valid _initialized requirement present
+  · intro environment _witness Reference input _valid _initialized requirement present
     have same : requirement = StateRequirement.unitary (nativeOperator width constant) :=
       List.mem_singleton.mp present
     subst requirement
-    exact StateRequirement.unitary_holds (nativeOperator width constant)
-      (nativeProgram width constant) (nativeProgram_matrix width constant)
+    exact StateRequirement.unitary_holds environment (nativeOperator width constant)
+      (nativeProgram width constant)
+      (nativeProgram_matrix (interpretation := environment.quantum) width constant)
       (Output.all (context width 1) .unit) input
-  · intro Reference input _valid _initialized
-    exact actual_run_restoration width constant input
-  · intro _Reference _input _valid _initialized path _supported
+  · intro environment _witness Reference input _valid _initialized
+    exact actual_run_restoration environment width constant input
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
     exact actual_events width constant path
-  · intro _Reference _input _valid _initialized path _supported axis
+  · intro _environment _witness _Reference _input _valid _initialized path _supported axis
     change Nat.max ((context width 1).residentSpace axis) 0 ≤ space (width + 1) axis
     rw [context_resident]
     exact le_of_eq (Nat.max_zero _)
-  · intro _Reference _input _valid _initialized path _supported axis
+  · intro _environment _witness _Reference _input _valid _initialized path _supported axis
     change Nat.max ((context width 1).auxiliarySpace axis) 0 ≤ space width axis
     rw [context_auxiliary]
     exact le_of_eq (Nat.max_zero _)
-  · intro _Reference _input _valid _initialized path _supported
+  · intro _environment _witness _Reference _input _valid _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     change DepthExpr.depthEval (fun _ => 1)
       ((nativeProgram width constant).eventDepth .empty .empty) ≤ _
     rw [nativeProgram, Execution.unitaryOfEqualWires_depth,

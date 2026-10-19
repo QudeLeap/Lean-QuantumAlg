@@ -47,7 +47,7 @@ structure AcceptedSeparated (shared : Proposal.SharedRefs ctx width)
   candidateFlag : scratch.candidate.key ≠ scratch.eligible.key
   unitFlag : shared.selector.selected.key ≠ scratch.eligible.key
 
-private theorem cell_free {shape : CShape} (other : CWriteRef ctx shape)
+private lemma cell_free {shape : CShape} (other : CWriteRef ctx shape)
     (key : StorageKey) (different : key ≠ other.key) :
     key ∉ (FirstAccepted.cellRead other).storageKeys := by
   simpa only [FirstAccepted.cellRead, CInputRef.storageKeys, List.mem_singleton] using different
@@ -55,7 +55,7 @@ private theorem cell_free {shape : CShape} (other : CWriteRef ctx shape)
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
-private theorem preserved_cell (shared : Proposal.SharedRefs ctx width)
+private lemma preserved_cell (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     {shape : CShape} (other : CWriteRef ctx shape)
@@ -73,7 +73,7 @@ private theorem preserved_cell (shared : Proposal.SharedRefs ctx width)
         (cell_free other _ extendedOther) (cell_free other _ gcdOther) store)
 
 /-- Exact complete fields obtained from the actual accepted GCD and stored result branch. -/
-theorem decisionAccepted_fields (shared : Proposal.SharedRefs ctx width)
+lemma decisionAccepted_fields (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (separated : AcceptedSeparated shared scratch gcdResult) (store : Store ctx)

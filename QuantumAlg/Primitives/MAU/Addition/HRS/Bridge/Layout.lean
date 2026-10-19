@@ -38,7 +38,7 @@ def bridgeEncoding (low high : Nat) :
   (prod (prod (finIdentity high) (finIdentity low)) bool).relabel
     (bridgeGrouping low high)
 
-theorem hrsBridgeEncoding_width (low high : Nat) :
+lemma hrsBridgeEncoding_width (low high : Nat) :
     (bridgeEncoding low high).width = low + high + 1 := by
   change high + low + 1 = low + high + 1
   omega
@@ -62,43 +62,43 @@ def bridgeDirtyBit (low high : Nat) : EncodedBit (bridgeEncoding low high) :=
   (prodRightBit (prod (finIdentity high) (finIdentity low)) bool boolBit).relabel
     (bridgeGrouping low high)
 
-theorem hrsBridgeLowBit_get (low high : Nat) (bit : Fin low)
+lemma hrsBridgeLowBit_get (low high : Nat) (bit : Fin low)
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
     (bridgeLowBit low high bit).get state = state.1.1.val.testBit bit.val := by
   change state.1.1.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-theorem hrsBridgeHighBit_get (low high : Nat) (bit : Fin high)
+lemma hrsBridgeHighBit_get (low high : Nat) (bit : Fin high)
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
     (bridgeHighBit low high bit).get state = state.1.2.val.testBit bit.val := by
   change state.1.2.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-theorem hrsBridgeDirtyBit_get (low high : Nat)
+lemma hrsBridgeDirtyBit_get (low high : Nat)
     (state : BridgeRegisters (Fin (2 ^ low)) high) :
     (bridgeDirtyBit low high).get state = state.2 := rfl
 
-theorem hrsBridgeLowBit_wire (low high : Nat) (bit : Fin low) :
+lemma hrsBridgeLowBit_wire (low high : Nat) (bit : Fin low) :
     (bridgeLowBit low high bit).wire.val = high + (low - 1 - bit.val) := rfl
 
-theorem hrsBridgeHighBit_wire (low high : Nat) (bit : Fin high) :
+lemma hrsBridgeHighBit_wire (low high : Nat) (bit : Fin high) :
     (bridgeHighBit low high bit).wire.val = high - 1 - bit.val := rfl
 
-theorem hrsBridgeDirtyBit_wire (low high : Nat) :
+lemma hrsBridgeDirtyBit_wire (low high : Nat) :
     (bridgeDirtyBit low high).wire.val = low + high := by
   change high + low = low + high
   omega
 
-theorem hrsBridgeLowHigh_disjoint (low high : Nat) (a : Fin low) (b : Fin high) :
+lemma hrsBridgeLowHigh_disjoint (low high : Nat) (a : Fin low) (b : Fin high) :
     (bridgeLowBit low high a).wire ≠ (bridgeHighBit low high b).wire := by
   intro h
   have hval := congrArg Fin.val h
   rw [hrsBridgeLowBit_wire, hrsBridgeHighBit_wire] at hval
   omega
 
-theorem hrsBridgeHighHigh_disjoint (low high : Nat) (a b : Fin high) (hne : a ≠ b) :
+lemma hrsBridgeHighHigh_disjoint (low high : Nat) (a b : Fin high) (hne : a ≠ b) :
     (bridgeHighBit low high a).wire ≠ (bridgeHighBit low high b).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -107,7 +107,7 @@ theorem hrsBridgeHighHigh_disjoint (low high : Nat) (a b : Fin high) (hne : a �
   apply Fin.ext
   omega
 
-theorem hrsBridgeHighDirty_disjoint (low high : Nat) (bit : Fin high) :
+lemma hrsBridgeHighDirty_disjoint (low high : Nat) (bit : Fin high) :
     (bridgeHighBit low high bit).wire ≠ (bridgeDirtyBit low high).wire := by
   intro h
   have hval := congrArg Fin.val h

@@ -30,6 +30,9 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceRequirement
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA InversePreparation
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -46,7 +49,7 @@ def selectedDensity (operation : InPlaceTarget.Operation) (modulus : Nat)
     (InPlaceTarget.density operation modulus prime Reference input.state.quantumMarginal)
 
 /-- The independent full-system observation is normalized on every certified joint input. -/
-theorem selectedDensity_normalized (operation : InPlaceTarget.Operation) (modulus : Nat)
+lemma selectedDensity_normalized (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) (Reference : Register)
     (input : Input (before modulus.size) Reference) :
     (selectedDensity operation modulus prime Reference input).IsNormalized := by
@@ -63,7 +66,7 @@ def requirement (operation : InPlaceTarget.Operation) (modulus : Nat)
       (selectedDensity_normalized operation modulus prime Reference input)
 
 /-- Exact full-state agreement supplies the complete promise through its actual unit observation. -/
-theorem holds_of_quantumMarginal (operation : InPlaceTarget.Operation) (modulus : Nat)
+lemma holds_of_quantumMarginal (operation : InPlaceTarget.Operation) (modulus : Nat)
     (prime : Nat.Prime modulus) {Reference : Register}
     (input : Input (before modulus.size) Reference)
     (final : ExecutionState (Store (NumeratorMeasurement.context modulus.size))
@@ -87,26 +90,28 @@ theorem holds_of_quantumMarginal (operation : InPlaceTarget.Operation) (modulus 
     simp only [one_smul]
 
 /-- The complete mixed-state requirement holds for the actual division run and any full output. -/
-theorem division_holds (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_holds (modulus : Nat) (prime : Nat.Prime modulus)
     {shape : CShape} (output : Output (NumeratorMeasurement.context modulus.size) shape)
     {Reference : Register} (input : OracleInput .empty (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.caller.localState) :
     (requirement .division modulus prime).Holds input.caller
       (({ code := InPlaceDivision.code modulus prime, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-          (NumeratorMeasurement.context modulus.size) shape).finalState Reference input.state) :=
+          (NumeratorMeasurement.context modulus.size) shape).finalState environment Reference
+            input.state) :=
   holds_of_quantumMarginal .division modulus prime input.caller _
     (InPlaceState.division_finalState modulus prime output input valid)
 
 /-- Actual multiplication meets the full reference-aware requirement after summing real outcomes. -/
-theorem multiplication_holds (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_holds (modulus : Nat) (prime : Nat.Prime modulus)
     {shape : CShape} (output : Output (NumeratorMeasurement.context modulus.size) shape)
     {Reference : Register} (input : OracleInput .empty (before modulus.size) Reference)
     (valid : InPlaceDomain.valid modulus input.caller.localState) :
     (requirement .multiplication modulus prime).Holds input.caller
       (({ code := InPlaceMultiplication.code modulus prime, output := output } :
         AlgorithmRun (.quantum AlgorithmGate.model .empty) (before modulus.size)
-          (NumeratorMeasurement.context modulus.size) shape).finalState Reference input.state) :=
+          (NumeratorMeasurement.context modulus.size) shape).finalState environment Reference
+            input.state) :=
   holds_of_quantumMarginal .multiplication modulus prime input.caller _
     (InPlaceState.multiplication_finalState modulus prime output input valid)
 

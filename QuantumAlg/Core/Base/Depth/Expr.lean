@@ -118,60 +118,60 @@ public def depthEval (assign : U → ℕ) : DepthExpr U → ℕ
   | .indexedProduct _ _ start step =>
       depthEval assign start + ∑ j, depthEval assign (step j)
 
-@[simp] theorem costEval_id (assign : U → M) : costEval assign .id = 0 := rfl
+@[simp] lemma costEval_id (assign : U → M) : costEval assign .id = 0 := rfl
 
-@[simp] theorem costEval_atom (assign : U → M) (u : U) :
+@[simp] lemma costEval_atom (assign : U → M) (u : U) :
     costEval assign (.atom u) = assign u := rfl
 
-@[simp] theorem costEval_seq (assign : U → M) (l r : DepthExpr U) :
+@[simp] lemma costEval_seq (assign : U → M) (l r : DepthExpr U) :
     costEval assign (.seq l r) = costEval assign l + costEval assign r := rfl
 
-@[simp] theorem costEval_tensor (assign : U → M) (l r : DepthExpr U) :
+@[simp] lemma costEval_tensor (assign : U → M) (l r : DepthExpr U) :
     costEval assign (.tensor l r) = costEval assign l + costEval assign r := rfl
 
-@[simp] theorem costEval_inverse (assign : U → M) (b : DepthExpr U) :
+@[simp] lemma costEval_inverse (assign : U → M) (b : DepthExpr U) :
     costEval assign (.inverse b) = costEval assign b := rfl
 
-@[simp] theorem costEval_controlled (assign : U → M) (controlLabel : String)
+@[simp] lemma costEval_controlled (assign : U → M) (controlLabel : String)
     (b : DepthExpr U) :
     costEval assign (.controlled controlLabel b) = costEval assign b := rfl
 
-@[simp] theorem costEval_iterate (assign : U → M) (count : Nat) (b : DepthExpr U) :
+@[simp] lemma costEval_iterate (assign : U → M) (count : Nat) (b : DepthExpr U) :
     costEval assign (.iterate count b) = count • costEval assign b := rfl
 
-@[simp] theorem costEval_indexedProduct (assign : U → M) (label : String)
+@[simp] lemma costEval_indexedProduct (assign : U → M) (label : String)
     (count : Nat) (start : DepthExpr U) (step : Fin count → DepthExpr U) :
     costEval assign (.indexedProduct label count start step) =
       costEval assign start + ∑ j, costEval assign (step j) := rfl
 
-@[simp] theorem depthEval_id (assign : U → ℕ) : depthEval assign .id = 0 := rfl
+@[simp] lemma depthEval_id (assign : U → ℕ) : depthEval assign .id = 0 := rfl
 
-@[simp] theorem depthEval_atom (assign : U → ℕ) (u : U) :
+@[simp] lemma depthEval_atom (assign : U → ℕ) (u : U) :
     depthEval assign (.atom u) = assign u := rfl
 
-@[simp] theorem depthEval_seq (assign : U → ℕ) (l r : DepthExpr U) :
+@[simp] lemma depthEval_seq (assign : U → ℕ) (l r : DepthExpr U) :
     depthEval assign (.seq l r) = depthEval assign l + depthEval assign r := rfl
 
-@[simp] theorem depthEval_tensor (assign : U → ℕ) (l r : DepthExpr U) :
+@[simp] lemma depthEval_tensor (assign : U → ℕ) (l r : DepthExpr U) :
     depthEval assign (.tensor l r) = max (depthEval assign l) (depthEval assign r) := rfl
 
-@[simp] theorem depthEval_inverse (assign : U → ℕ) (b : DepthExpr U) :
+@[simp] lemma depthEval_inverse (assign : U → ℕ) (b : DepthExpr U) :
     depthEval assign (.inverse b) = depthEval assign b := rfl
 
-@[simp] theorem depthEval_controlled (assign : U → ℕ) (controlLabel : String)
+@[simp] lemma depthEval_controlled (assign : U → ℕ) (controlLabel : String)
     (b : DepthExpr U) :
     depthEval assign (.controlled controlLabel b) = depthEval assign b := rfl
 
-@[simp] theorem depthEval_iterate (assign : U → ℕ) (count : Nat) (b : DepthExpr U) :
+@[simp] lemma depthEval_iterate (assign : U → ℕ) (count : Nat) (b : DepthExpr U) :
     depthEval assign (.iterate count b) = count * depthEval assign b := rfl
 
-@[simp] theorem depthEval_indexedProduct (assign : U → ℕ) (label : String)
+@[simp] lemma depthEval_indexedProduct (assign : U → ℕ) (label : String)
     (count : Nat) (start : DepthExpr U) (step : Fin count → DepthExpr U) :
     depthEval assign (.indexedProduct label count start step) =
       depthEval assign start + ∑ j, depthEval assign (step j) := rfl
 
 /-- Max-plus depth is monotone in every atomic-unit assignment. -/
-theorem depthEval_mono {assign₁ assign₂ : U → ℕ}
+lemma depthEval_mono {assign₁ assign₂ : U → ℕ}
     (assignmentLe : ∀ unit, assign₁ unit ≤ assign₂ unit)
     (expression : DepthExpr U) :
     depthEval assign₁ expression ≤ depthEval assign₂ expression := by
@@ -197,11 +197,11 @@ weight `1` and every other unit weight `0`. -/
 def indicator [DecidableEq U] (focus : U) : U → ℕ :=
   fun u => if u = focus then 1 else 0
 
-@[simp] theorem indicator_self [DecidableEq U] (focus : U) :
+@[simp] lemma indicator_self [DecidableEq U] (focus : U) :
     indicator focus focus = 1 := by
   simp [indicator]
 
-theorem indicator_of_ne [DecidableEq U] {u focus : U} (h : u ≠ focus) :
+lemma indicator_of_ne [DecidableEq U] {u focus : U} (h : u ≠ focus) :
     indicator focus u = 0 := by
   simp [indicator, h]
 
@@ -211,18 +211,18 @@ all other units discounted. -/
 def queryDepthEval [DecidableEq U] (focus : U) (e : DepthExpr U) : ℕ :=
   depthEval (indicator focus) e
 
-@[simp] theorem queryDepthEval_atom_self [DecidableEq U] (focus : U) :
+@[simp] lemma queryDepthEval_atom_self [DecidableEq U] (focus : U) :
     queryDepthEval focus (.atom focus) = 1 := by
   simp [queryDepthEval]
 
-theorem queryDepthEval_atom_of_ne [DecidableEq U] {u focus : U} (h : u ≠ focus) :
+lemma queryDepthEval_atom_of_ne [DecidableEq U] {u focus : U} (h : u ≠ focus) :
     queryDepthEval focus (.atom u) = 0 := by
   simp [queryDepthEval, indicator, h]
 
 /-- The max-plus depth never exceeds the linear cost under the same weight:
 parallel composition can only shorten the critical path relative to the total
 work. -/
-theorem depthEval_le_costEval (assign : U → ℕ) (e : DepthExpr U) :
+lemma depthEval_le_costEval (assign : U → ℕ) (e : DepthExpr U) :
     depthEval assign e ≤ costEval assign e := by
   induction e with
   | id => simp

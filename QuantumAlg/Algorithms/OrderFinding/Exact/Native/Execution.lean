@@ -27,10 +27,10 @@ noncomputable section
 
 open QuantumAlg.Execution
 
-private theorem samplePreNoQuantum_internal : Sampling.Native.pre.quantumWires = [] := rfl
+private lemma samplePreNoQuantum_internal : Sampling.Native.pre.quantumWires = [] := rfl
 
 /-- The source sample starts with no live quantum wires. -/
-public theorem samplePreNoQuantum : Sampling.Native.pre.quantumWires = [] :=
+public lemma samplePreNoQuantum : Sampling.Native.pre.quantumWires = [] :=
   samplePreNoQuantum_internal
 
 /-- The source sampler instantiated on the empty classical frame. -/
@@ -38,23 +38,21 @@ public theorem samplePreNoQuantum : Sampling.Native.pre.quantumWires = [] :=
   Sampling.Native.Framed.post Sampling.Native.pre samplePreNoQuantum t width
 
 /-- The actual source sampler keeps its canonical lexical storage keys. -/
-public def sampleCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.model access) Sampling.Native.pre (samplePost t width) :=
-  Sampling.Native.Framed.code Sampling.Native.pre samplePreNoQuantum access
+public def sampleCode (t width : Nat) :
+    Circuit (Sampling.Native.model t width) Sampling.Native.pre (samplePost t width) :=
+  Sampling.Native.Framed.code Sampling.Native.pre samplePreNoQuantum t width
 
 /-- The same source sampler whose Born output law is proved. -/
-@[expose, reducible] public def sampleRun {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    AlgorithmRun (Sampling.Native.model access)
+@[expose, reducible] public def sampleRun (t width : Nat) :
+    AlgorithmRun (Sampling.Native.model t width)
       Sampling.Native.pre (samplePost t width) (.bits t) :=
-  Sampling.Native.Framed.run Sampling.Native.pre samplePreNoQuantum access
+  Sampling.Native.Framed.run Sampling.Native.pre samplePreNoQuantum t width
 
 /-- One fresh word follows the complete native sample. -/
 public def resultKey (t width : Nat) : StorageKey :=
   (samplePost t width).canonicalFreshKey
 
-public theorem resultFresh (t width : Nat) :
+public lemma resultFresh (t width : Nat) :
     resultKey t width ∉ (samplePost t width).keys :=
   (samplePost t width).canonicalFreshKey_fresh
 
@@ -70,26 +68,23 @@ def sampleInput (t width : Nat) :
     Sampling.Native.pre samplePreNoQuantum t width).toCStorageRef
 
 /-- The finite decoder writes its unsigned result into the fresh retained cell. -/
-def decoderCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.model access)
+def decoderCode (t width : Nat) :
+    Circuit (Sampling.Native.model t width)
       (samplePost t width) (post t width) :=
-  ClassicalRoutines.TerminalDecode.routine (model := Sampling.Native.model access)
+  ClassicalRoutines.TerminalDecode.routine (model := Sampling.Native.model t width)
     (samplePost t width) t .bigEndian (sampleInput t width)
     (resultKey t width) (resultFresh t width)
 
 /-- Actual sampling followed by the stored-bit decoder. -/
-def code {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (Sampling.Native.model access) Sampling.Native.pre (post t width) :=
-  .seq (sampleCode access) (decoderCode access)
+def code (t width : Nat) :
+    Circuit (Sampling.Native.model t width) Sampling.Native.pre (post t width) :=
+  .seq (sampleCode t width) (decoderCode t width)
 
 /-- Read the retained unsigned word and list every live entry. -/
-def run {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    AlgorithmRun (Sampling.Native.model access)
+def run (t width : Nat) :
+    AlgorithmRun (Sampling.Native.model t width)
       Sampling.Native.pre (post t width) (.unsignedWord t) where
-  code := code access
+  code := code t width
   output := Output.all (post t width)
     (.read (ClassicalRoutines.TerminalDecode.resultRef
       (samplePost t width) t (resultKey t width) (resultFresh t width)))

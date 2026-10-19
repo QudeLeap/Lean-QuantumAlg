@@ -28,7 +28,7 @@ def phaseOutcome (t : Nat) (value : Fin (2 ^ t)) : TerminalZMeasure.Outcome t :=
   fun outputIndex => value.val.testBit (t - 1 - outputIndex.val)
 
 /-- Big-endian decoding recovers the original phase label. -/
-theorem fullRegisterIndex_phaseOutcome (t : Nat) (value : Fin (2 ^ t)) :
+lemma fullRegisterIndex_phaseOutcome (t : Nat) (value : Fin (2 ^ t)) :
     ClassicalAlgorithms.TerminalDecode.fullRegisterIndex
       (phaseOutcome t value) = value := by
   apply Fin.val_injective
@@ -48,7 +48,7 @@ theorem fullRegisterIndex_phaseOutcome (t : Nat) (value : Fin (2 ^ t)) :
 
 /-! ## Terminal-measurement fibers -/
 
-theorem phaseOutcome_injective (t : Nat) :
+lemma phaseOutcome_injective (t : Nat) :
     Function.Injective (phaseOutcome t) := by
   intro left right h
   apply Fin.ext
@@ -67,13 +67,13 @@ theorem phaseOutcome_injective (t : Nat) :
     rw [Nat.testBit_eq_false_of_lt (left.isLt.trans_le hpow),
       Nat.testBit_eq_false_of_lt (right.isLt.trans_le hpow)]
 
-theorem phaseOutcome_bijective (t : Nat) :
+lemma phaseOutcome_bijective (t : Nat) :
     Function.Bijective (phaseOutcome t) := by
   apply (Fintype.bijective_iff_injective_and_card (phaseOutcome t)).2
   refine ⟨phaseOutcome_injective t, ?_⟩
   simp
 
-@[simp] theorem sourceMeasurement_readout_prod {t m : Nat}
+@[simp] lemma sourceMeasurement_readout_prod {t m : Nat}
     (c : Fin (2 ^ t)) (y : Fin (2 ^ m)) :
     (measurement t m).readout (prodEquiv (c, y)) =
       phaseOutcome t c := by
@@ -89,7 +89,7 @@ theorem phaseOutcome_bijective (t : Nat) :
   exact prodEquiv_testBit_left c y
     ⟨t - 1 - outputIndex.val, by omega⟩
 
-theorem sourceMeasurement_readout_eq_outcome_iff {t m : Nat}
+lemma sourceMeasurement_readout_eq_outcome_iff {t m : Nat}
     (basis : Fin (2 ^ (t + m))) (c : Fin (2 ^ t)) :
     (measurement t m).readout basis = phaseOutcome t c ↔
       (prodEquiv.symm basis).1 = c := by
@@ -113,11 +113,11 @@ def sourceFiberEmbedding {t m : Nat} (c : Fin (2 ^ t)) :
     cases prodEquiv.injective h
     rfl
 
-@[simp] theorem sourceFiberEmbedding_apply {t m : Nat}
+@[simp] lemma sourceFiberEmbedding_apply {t m : Nat}
     (c : Fin (2 ^ t)) (y : Fin (2 ^ m)) :
     sourceFiberEmbedding c y = prodEquiv (c, y) := rfl
 
-theorem sourceMeasurement_fiber {t m : Nat} (c : Fin (2 ^ t)) :
+lemma sourceMeasurement_fiber {t m : Nat} (c : Fin (2 ^ t)) :
     Finset.univ.filter
         (fun basis : Fin (2 ^ (t + m)) =>
           (measurement t m).readout basis = phaseOutcome t c) =

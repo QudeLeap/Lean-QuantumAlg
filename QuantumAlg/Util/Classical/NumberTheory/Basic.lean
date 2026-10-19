@@ -70,7 +70,7 @@ def decode {width : Nat} (encoding : Word width) : BoundedSigned width :=
 def ofInt (width : Nat) (value : Int) : BoundedSigned width :=
   ⟨BitVec.ofInt width value⟩
 
-@[ext] theorem ext {width : Nat} {left right : BoundedSigned width}
+@[ext] lemma ext {width : Nat} {left right : BoundedSigned width}
     (bits : left.bits = right.bits) : left = right := by
   cases left
   cases right
@@ -78,58 +78,58 @@ def ofInt (width : Nat) (value : Int) : BoundedSigned width :=
   rfl
 
 /-- Decoding and re-encoding preserves every raw word, including width zero. -/
-@[simp] theorem encode_decode {width : Nat} (encoding : Word width) :
+@[simp] lemma encode_decode {width : Nat} (encoding : Word width) :
     encode (decode encoding) = encoding := by
   rfl
 
 /-- Encoding and decoding preserves every bounded signed value. -/
-@[simp] theorem decode_encode {width : Nat} (value : BoundedSigned width) :
+@[simp] lemma decode_encode {width : Nat} (value : BoundedSigned width) :
     decode (encode value) = value := by
   apply ext
   exact BitVec.ofFin_toFin value.bits
 
 /-- The raw natural payload of the signed encoding is unchanged. -/
-@[simp] theorem encode_val {width : Nat} (value : BoundedSigned width) :
+@[simp] lemma encode_val {width : Nat} (value : BoundedSigned width) :
     value.encode.val = value.bits.toNat :=
   rfl
 
 /-- Decoding a Core-compatible raw word uses `BitVec`'s two's-complement
 interpretation. -/
-@[simp] theorem toInt_decode {width : Nat} (encoding : Word width) :
+@[simp] lemma toInt_decode {width : Nat} (encoding : Word width) :
     (decode encoding).toInt = Int.bmod encoding.val (2 ^ width) := by
   simp [decode, toInt]
 
 /-- Integer construction stores the ordinary fixed-width modular encoding. -/
-theorem encode_ofInt_val (width : Nat) (value : Int) :
+lemma encode_ofInt_val (width : Nat) (value : Int) :
     (BitVec.ofInt width value).toNat =
       (value % (2 ^ width : Int)).toNat := by
   simp
 
 /-- Reading an integer construction gives its balanced modular representative. -/
-@[simp] theorem toInt_ofInt (width : Nat) (value : Int) :
+@[simp] lemma toInt_ofInt (width : Nat) (value : Int) :
     (ofInt width value).toInt = value.bmod (2 ^ width) := by
   change (BitVec.ofInt width value).toInt = value.bmod (2 ^ width)
   exact BitVec.toInt_ofInt (n := width) value
 
 /-- Re-encoding the represented integer preserves the exact signed word. -/
-@[simp] theorem ofInt_toInt {width : Nat} (value : BoundedSigned width) :
+@[simp] lemma ofInt_toInt {width : Nat} (value : BoundedSigned width) :
     ofInt width value.toInt = value := by
   apply ext
   exact BitVec.ofInt_toInt
 
 /-- Every signed word satisfies the lower two's-complement boundary. -/
-theorem lowerBound {width : Nat} (value : BoundedSigned width) :
+lemma lowerBound {width : Nat} (value : BoundedSigned width) :
     -(2 ^ (width - 1) : Int) ≤ value.toInt := by
   exact BitVec.le_toInt value.bits
 
 /-- Every signed word satisfies the strict upper two's-complement boundary. -/
-theorem upperBound {width : Nat} (value : BoundedSigned width) :
+lemma upperBound {width : Nat} (value : BoundedSigned width) :
     value.toInt < (2 ^ (width - 1) : Int) := by
   exact BitVec.toInt_lt
 
 /-- An integer already in the nonempty-width signed range survives encoding
 without wraparound. -/
-theorem toInt_ofInt_eq_self {width : Nat} (widthPositive : 0 < width)
+lemma toInt_ofInt_eq_self {width : Nat} (widthPositive : 0 < width)
     {value : Int} (lower : -(2 ^ (width - 1) : Int) ≤ value)
     (upper : value < (2 ^ (width - 1) : Int)) :
     (ofInt width value).toInt = value := by
@@ -144,14 +144,14 @@ words.  Any active remainder is below this value and strictly decreases. -/
 def euclidFuel (width : Nat) : Nat :=
   modulus width
 
-@[simp] theorem euclidFuel_eq_two_pow (width : Nat) :
+@[simp] lemma euclidFuel_eq_two_pow (width : Nat) :
     euclidFuel width = 2 ^ width :=
   rfl
 
-theorem euclidFuel_pos (width : Nat) : 0 < euclidFuel width := by
+lemma euclidFuel_pos (width : Nat) : 0 < euclidFuel width := by
   exact fixedWidthModulus_pos width
 
-theorem word_val_lt_euclidFuel {width : Nat} (word : Word width) :
+lemma word_val_lt_euclidFuel {width : Nat} (word : Word width) :
     word.val < euclidFuel width := by
   exact fixedWidthWord_lt_modulus word
 
@@ -173,11 +173,11 @@ coefficient magnitude. -/
 public def coefficientWidth (width : Nat) : Nat :=
   Nat.size (xgcdCoefficientBound width) + 2
 
-theorem coefficientWidth_pos (width : Nat) : 0 < coefficientWidth width := by
+lemma coefficientWidth_pos (width : Nat) : 0 < coefficientWidth width := by
   simp [coefficientWidth]
 
 /-- The finite-domain maximum bounds the first selected Bezout coefficient. -/
-theorem gcdA_natAbs_le_xgcdCoefficientBound {width : Nat}
+lemma gcdA_natAbs_le_xgcdCoefficientBound {width : Nat}
     (left right : Word width) :
     (Nat.gcdA left.val right.val).natAbs ≤
       xgcdCoefficientBound width := by
@@ -194,7 +194,7 @@ theorem gcdA_natAbs_le_xgcdCoefficientBound {width : Nat}
         (Finset.mem_univ (left, right))
 
 /-- The finite-domain maximum bounds the second selected Bezout coefficient. -/
-theorem gcdB_natAbs_le_xgcdCoefficientBound {width : Nat}
+lemma gcdB_natAbs_le_xgcdCoefficientBound {width : Nat}
     (left right : Word width) :
     (Nat.gcdB left.val right.val).natAbs ≤
       xgcdCoefficientBound width := by
@@ -212,7 +212,7 @@ theorem gcdB_natAbs_le_xgcdCoefficientBound {width : Nat}
 
 /-- The public coefficient width has strictly more positive signed capacity
 than the maximum selected coefficient magnitude. -/
-theorem xgcdCoefficientBound_lt_signedCapacity (width : Nat) :
+lemma xgcdCoefficientBound_lt_signedCapacity (width : Nat) :
     xgcdCoefficientBound width <
       2 ^ (coefficientWidth width - 1) := by
   have bound_lt_size :
@@ -227,7 +227,7 @@ theorem xgcdCoefficientBound_lt_signedCapacity (width : Nat) :
 
 /-- Any integer below the finite XGCD magnitude bound lies in the public
 two's-complement coefficient range. -/
-theorem int_in_coefficientRange_of_natAbs_le {width : Nat} {value : Int}
+lemma int_in_coefficientRange_of_natAbs_le {width : Nat} {value : Int}
     (magnitude : value.natAbs ≤ xgcdCoefficientBound width) :
     -(2 ^ (coefficientWidth width - 1) : Int) ≤ value ∧
       value < (2 ^ (coefficientWidth width - 1) : Int) := by
@@ -266,7 +266,7 @@ theorem int_in_coefficientRange_of_natAbs_le {width : Nat} {value : Int}
 
 /-- Every first Mathlib XGCD coefficient for same-width words is represented
 exactly at `coefficientWidth`. -/
-theorem gcdA_toInt_ofInt_coefficientWidth {width : Nat}
+lemma gcdA_toInt_ofInt_coefficientWidth {width : Nat}
     (left right : Word width) :
     (BoundedSigned.ofInt (coefficientWidth width)
         (Nat.gcdA left.val right.val)).toInt =
@@ -279,7 +279,7 @@ theorem gcdA_toInt_ofInt_coefficientWidth {width : Nat}
 
 /-- Every second Mathlib XGCD coefficient for same-width words is represented
 exactly at `coefficientWidth`. -/
-theorem gcdB_toInt_ofInt_coefficientWidth {width : Nat}
+lemma gcdB_toInt_ofInt_coefficientWidth {width : Nat}
     (left right : Word width) :
     (BoundedSigned.ofInt (coefficientWidth width)
         (Nat.gcdB left.val right.val)).toInt =

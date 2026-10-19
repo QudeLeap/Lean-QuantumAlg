@@ -33,7 +33,7 @@ def distanceScaleStore {model : ExecutionModel} [BitWord.Selected model]
       offset refs.distance store).1).1
 
 /-- All caller reads outside the original two-stage footprint survive actual execution. -/
-theorem distanceScaleStore_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma distanceScaleStore_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     {coordinateWidth modulusWidth : Nat} (offset : NumberTheory.IntegerPoint3)
     (refs : LatticeCandidateSlotMachine.Refs ctx coordinateWidth modulusWidth)
@@ -62,7 +62,7 @@ structure DistanceScaleFacts {N m ell : Nat} {kind : ProblemKind}
     LatticeCandidateSlotMachine.selectedOption refs.selector.selection before
 
 /-- Actual distance and range instructions establish the original source checks and next input. -/
-theorem distanceScaleStore_correct {N m ell : Nat} {model : ExecutionModel}
+lemma distanceScaleStore_correct {N m ell : Nat} {model : ExecutionModel}
     [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (input : Input N) (generator : (ZMod N)ˣ)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)

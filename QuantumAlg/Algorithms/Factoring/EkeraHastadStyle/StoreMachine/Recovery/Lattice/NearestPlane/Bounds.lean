@@ -53,7 +53,7 @@ structure ShortLogFits (N m ell : Nat)
 
 /-- The short-log operand-width ledger provides every pure fixed-width
 nearest-plane fit for the reduced source basis. -/
-theorem shortLogFits (N m ell : Nat)
+lemma shortLogFits (N m ell : Nat)
     (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell) :
     ShortLogFits N m ell samples := by
   let basis := (RSA.shortLogRecoveryTrace m ell samples).output

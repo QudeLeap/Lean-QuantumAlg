@@ -26,7 +26,7 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- All declared iterations contribute their original independent native allowance. -/
@@ -40,7 +40,7 @@ variable (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (base target : CInputRef ctx (PointShape width))
 
 /-- The actual loop pool keeps the original full allowance for every declared attempt. -/
-theorem repeatedAttempts_pool_le
+lemma repeatedAttempts_pool_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).resourcePool path ≤
       repeatedAttemptsEnvelope model curve modulus count := by
@@ -50,7 +50,7 @@ theorem repeatedAttempts_pool_le
     (fun _ iteration => attemptInto_pool_le curve modulus _ _ _ _ _ _ _ _ _ _ iteration) path
 
 /-- Counting the same native pool includes every actual event on this path. -/
-theorem repeatedAttempts_eventCount_le
+lemma repeatedAttempts_eventCount_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     ((repeatedAttempts curve modulus samples base target).eventTrace path).length ≤
       count * (attemptEnvelope model curve modulus).card := by
@@ -60,7 +60,7 @@ theorem repeatedAttempts_eventCount_le
     repeatedAttemptsEnvelope, ResourcePool.scale, Multiset.card_nsmul, smul_eq_mul] using bounded
 
 /-- Arbitrary event durations retain the serial order of every actual attempt. -/
-theorem repeatedAttempts_depth_le (duration : Resource.Event model → Nat)
+lemma repeatedAttempts_depth_le (duration : Resource.Event model → Nat)
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).depth duration path ≤
       count * attemptDepthLimit curve modulus duration := by
@@ -73,7 +73,7 @@ theorem repeatedAttempts_depth_le (duration : Resource.Event model → Nat)
   exact bounded
 
 /-- All persistent cells and original caller residents are charged once beside reused scratch. -/
-theorem repeatedAttempts_resident_le
+lemma repeatedAttempts_resident_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).peakResidentSpace path ≤
       attemptScratchSpace model.kind width scalarWidth +
@@ -84,7 +84,7 @@ theorem repeatedAttempts_resident_le
     (fun _ iteration => attemptInto_resident_le curve modulus _ _ _ _ _ _ _ _ _ _ iteration) path
 
 /-- Original auxiliary roles and the same persistent destinations remain live across the loop. -/
-theorem repeatedAttempts_auxiliary_le
+lemma repeatedAttempts_auxiliary_le
     (path : (repeatedAttempts curve modulus samples base target).Path) :
     (repeatedAttempts curve modulus samples base target).peakAuxiliarySpace path ≤
       attemptScratchSpace model.kind width scalarWidth +

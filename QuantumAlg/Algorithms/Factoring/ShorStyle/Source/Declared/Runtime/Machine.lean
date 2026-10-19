@@ -31,8 +31,8 @@ def context : RuntimeCtx .quantum :=
   Finite.context (Initialized.bank base noQuantum N) N count
 
 /-- Genuine initialization feeds the actual complete finite tail and its sole paid pack. -/
-def code : Circuit (executionModel input) base (context base noQuantum N count) :=
-  (Initialized.ready base noQuantum N input).seq
+def code : Circuit (executionModel N) base (context base noQuantum N count) :=
+  (Initialized.ready base noQuantum N).seq
     (Finite.code (Initialized.bank base noQuantum N) N input
       (Initialized.bank_wires base noQuantum N) count
       (Initialized.cells base noQuantum N) (Initialized.result base noQuantum N))
@@ -44,25 +44,25 @@ def result : CWriteRef (context base noQuantum N count)
     (Initialized.result base noQuantum N)
 
 /-- Read the real packed factor while preserving the full live classical manifest. -/
-def run : AlgorithmRun (executionModel input) base (context base noQuantum N count)
+def run : AlgorithmRun (executionModel N) base (context base noQuantum N count)
     (.option (.unsignedWord (modulusBits N))) where
   code := code base noQuantum N input count
   output := Output.all (context base noQuantum N count)
     (.read (.storage (result base noQuantum N count).toCStorageRef))
 
 /-- The producer's final output lists every live original and retained source entry. -/
-theorem output_listing :
+lemma output_listing :
     (run base noQuantum N input count).output.listing =
       (context base noQuantum N count).keys := rfl
 
 /-- Every count retains precisely the same declared physical bank, without replacement. -/
-theorem quantumWires :
+lemma quantumWires :
     (context base noQuantum N count).quantumWires = (layout N).wires :=
   (Finite.quantumWires (Initialized.bank base noQuantum N) N count).trans
     (Initialized.bank_wires base noQuantum N)
 
 /-- The concrete producer internally supplies every actual selector separation condition. -/
-theorem separated :
+lemma separated :
     NativeFactorScan.Separated
       (Finite.cells (Initialized.bank base noQuantum N) N count
         (Initialized.cells base noQuantum N)) (result base noQuantum N count) :=
@@ -70,20 +70,22 @@ theorem separated :
     (Initialized.cells base noQuantum N) (Initialized.result base noQuantum N)
     (Initialized.separated base noQuantum N)
 
+variable {environment : (executionModel N).Environment}
+
 /-- Actual initialization, arbitrary complete repetition and final packing finish in zero. -/
-theorem code_seeded {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History)) :
+lemma code_seeded {Reference : Register} {History : Type} [Fintype History]
+    (state : State base Reference ((executionModel N).HiddenState × History)) :
     BasisSeeded.Holds (context base noQuantum N count).quantumLayout.zeroLabel
-      ((code base noQuantum N input count).execute Reference state) :=
-  BasisSeeded.seq (Initialized.ready base noQuantum N input)
+      ((code base noQuantum N input count).execute environment Reference state) :=
+  BasisSeeded.seq (environment := environment) (Initialized.ready base noQuantum N)
     (Finite.code (Initialized.bank base noQuantum N) N input
       (Initialized.bank_wires base noQuantum N) count
       (Initialized.cells base noQuantum N) (Initialized.result base noQuantum N)) _ state
     (Finite.code_seeded (Initialized.bank base noQuantum N) N input
       (Initialized.bank_wires base noQuantum N) count
       (Initialized.cells base noQuantum N) (Initialized.result base noQuantum N)
-      ((Initialized.ready base noQuantum N input).execute Reference state)
-      (Initialized.ready_seeded base noQuantum N input state))
+      ((Initialized.ready base noQuantum N).execute environment Reference state)
+      (Initialized.ready_seeded base noQuantum N state))
 
 end
 

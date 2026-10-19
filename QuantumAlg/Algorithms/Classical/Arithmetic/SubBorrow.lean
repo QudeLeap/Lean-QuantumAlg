@@ -56,7 +56,7 @@ public abbrev outputShape (width : Nat) : CShape :=
 @[reducible] public def inputContext (width : Nat) : RuntimeCtx .classical :=
   RuntimeCtx.empty.addBorrowedInput ⟨0⟩ (inputShape width) (by decide)
 
-private theorem resultFresh (width : Nat) :
+private lemma resultFresh (width : Nat) :
     (⟨1⟩ : StorageKey) ∉ (inputContext width).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
@@ -114,24 +114,21 @@ correlations with any external reference are restored.
 **Source.** Reverse arithmetic in [VBE95, 9511018.tex:267-282]. The native
 classical instruction bound does not describe the paper's quantum gate count.
 -/
-public def problem (width : Nat) :
+@[expose] public def problem (width : Nat) :
     Problem (.classical BitWord.model .empty) (inputContext width) (outputContext width)
       (outputShape width) where
-  valid := fun _ => True
-  initialization := fun _ => True
-  accepts := accepts width
-  successLB := ⟨1, le_rfl⟩
-  states := []
+  Witness := Unit
+  valid := fun _ _ _ => True
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ => accepts width
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => []
   resources :=
     { events := ResourcePool.singleton (model := .classical BitWord.model .empty)
         (.classicalOperation (.subBorrow width))
       resident := fun .classicalBits => 3 * width + 1
       auxiliary := fun .classicalBits => width + 1 }
-  depth :=
-    { duration := fun _ => 1
-      limit := 1
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+  quantumTimeLimit := 0
 
 /-- Allocate the result, subtract the actual operands, and list every live key. -/
 public def algorithm (width : Nat) :
@@ -145,7 +142,7 @@ private def finalStore (width : Nat) (store : Execution.Store (inputContext widt
     Execution.Store (outputContext width) :=
   (store.pushRetained ⟨1⟩ (outputShape width) (resultFresh width)).applyOp (subBorrowOp width)
 
-private theorem finalStore_result (width : Nat) (store : Execution.Store (inputContext width)) :
+private lemma finalStore_result (width : Nat) (store : Execution.Store (inputContext width)) :
     (finalStore width store).read (resultRead width) =
       CShape.subBorrow width (store.read (inputRef width)) := by
   change ((store.pushRetained ⟨1⟩ (outputShape width) (resultFresh width)).applyOp
@@ -156,7 +153,7 @@ private theorem finalStore_result (width : Nat) (store : Execution.Store (inputC
       ((inputRef width).underRetained ⟨1⟩ (outputShape width) (resultFresh width))) = _
   rw [Execution.Store.read_pushRetained_underRetained]
 
-private theorem subBorrow_arithmetic (width : Nat) (input : (inputShape width).Value) :
+private lemma subBorrow_arithmetic (width : Nat) (input : (inputShape width).Value) :
     let output := CShape.subBorrow width input
     input.first.toNat + output.second.toBool.toNat * 2 ^ width =
         input.second.toNat + output.first.toNat ∧
@@ -177,13 +174,13 @@ private theorem subBorrow_arithmetic (width : Nat) (input : (inputShape width).V
                 exact reconstruct
               · rfl
 
-private theorem finalStore_accepts (width : Nat) (store : Execution.Store (inputContext width)) :
+private lemma finalStore_accepts (width : Nat) (store : Execution.Store (inputContext width)) :
     accepts width store ((finalStore width store).read (resultRead width)) := by
   unfold accepts
   rw [finalStore_result]
   exact subBorrow_arithmetic width (store.read (inputRef width))
 
-private theorem actual_events (width : Nat) (path : (code width).Path) :
+private lemma actual_events (width : Nat) (path : (code width).Path) :
     (code width).resourcePool path =
       ResourcePool.singleton (model := .classical BitWord.model .empty) (.classicalOperation
         (.subBorrow width)) := by
@@ -191,7 +188,7 @@ private theorem actual_events (width : Nat) (path : (code width).Path) :
     (.subBorrow width)] = _
   simp
 
-private theorem actual_resident (width : Nat) (path : (code width).Path) :
+private lemma actual_resident (width : Nat) (path : (code width).Path) :
     (code width).peakResidentSpace path ≤
       (fun .classicalBits => 3 * width + 1 : SpacePool .classical) := by
   intro axis
@@ -202,7 +199,7 @@ private theorem actual_resident (width : Nat) (path : (code width).Path) :
   simp only [Nat.max_zero, Nat.max_self]
   exact max_le (by omega) (by omega)
 
-private theorem actual_auxiliary (width : Nat) (path : (code width).Path) :
+private lemma actual_auxiliary (width : Nat) (path : (code width).Path) :
     (code width).peakAuxiliarySpace path ≤
       (fun .classicalBits => width + 1 : SpacePool .classical) := by
   intro axis
@@ -218,30 +215,37 @@ private def finalRecord (width : Nat)
     (execution := .classical BitWord.model .empty) (subBorrowOp width) retained
   (result.1, (entry.2, (entry.1, ((), result.2))))
 
-private theorem execution_eq_map (width : Nat) (Reference : Register)
+private lemma execution_eq_map (width : Nat)
+    (environment : (ExecutionModel.classical BitWord.model .empty).Environment)
+    (Reference : Register)
     (state : ExecutionState
       (Execution.Store (inputContext width) × ClassicalOracleModel.empty.HiddenState)
       (Register.prod (inputContext width).register Reference)) :
-    (algorithm width).run.execute Reference state = state.mapClassical (finalRecord width) := by
+    (algorithm width).run.execute environment Reference state =
+      state.mapClassical (finalRecord width) := by
   simp only [algorithm, AlgorithmRun.execute, code, Circuit.execute_seq,
     Circuit.execute_retain, BitWord.bitWord_instruction_execute,
     Execution.State.mapHistory, ExecutionState.executionState_mapClassical_comp,
     Function.comp_def]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem relational_distribution (width : Nat) {Reference : Register}
+private lemma relational_distribution (width : Nat)
+    (environment : (ExecutionModel.classical BitWord.model .empty).Environment)
+    {Reference : Register}
     (input : Execution.OracleInput .empty (inputContext width) Reference) :
-    (algorithm width).relationalDistribution input =
+    (algorithm width).relationalDistribution environment input =
       (input.state.toPMF input.normalized).map
         (fun entry => (entry.1, (finalStore width entry.1).read (resultRead width))) := by
   apply AlgorithmRun.relationalDistribution_eq_map_of_block_mass
-    (algorithm width).run input (finalRecord width)
+    (algorithm width).run environment input (finalRecord width)
   intro record
   rw [execution_eq_map]
 
-private theorem success_probability (width : Nat) {Reference : Register}
+private lemma success_probability (width : Nat)
+    (environment : (ExecutionModel.classical BitWord.model .empty).Environment)
+    {Reference : Register}
     (input : Execution.OracleInput .empty (inputContext width) Reference) :
-    (1 : ENNReal) ≤ ((algorithm width).relationalDistribution input).toOuterMeasure
+    (1 : ENNReal) ≤ ((algorithm width).relationalDistribution environment input).toOuterMeasure
       {pair | accepts width pair.1 pair.2} := by
   rw [relational_distribution]
   apply le_of_eq
@@ -251,33 +255,35 @@ private theorem success_probability (width : Nat) {Reference : Register}
   obtain ⟨store, _inputSupported, rfl⟩ := (PMF.mem_support_map_iff _ _ _).mp supported
   exact finalStore_accepts width store.1
 
-private theorem restores_borrowed (width : Nat) {Reference : Register}
+private lemma restores_borrowed (width : Nat)
+    (environment : (ExecutionModel.classical BitWord.model .empty).Environment)
+    {Reference : Register}
     (input : Execution.OracleInput .empty (inputContext width) Reference) :
-    (algorithm width).run.RestoresBorrowed input := by
+    (algorithm width).run.RestoresBorrowed environment input := by
   apply AlgorithmRun.restoresBorrowed_of_circuit
   intro reference history _ state
   exact Circuit.borrowedRestored_of_noBorrowedQuantum
-    (code width) (by rfl) reference state
+    (code width) environment (by rfl) reference state
 
 /-- The concrete native subtraction run solves the independent arithmetic and storage contract. -/
-public theorem main (width : Nat) : ∃ candidate, Algorithm.Solves candidate (problem width) := by
+public theorem main (width : Nat) :
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate (problem width) := by
   refine ⟨algorithm width, ?_⟩
   constructor
-  · intro Reference input _valid _initialization
-    exact success_probability width input
-  · intro _Reference _input _valid _initialization _requirement impossible
+  · intro environment _witness Reference input _valid _initialization
+    exact success_probability width environment input
+  · intro _environment _witness _Reference _input _valid _initialization _requirement impossible
     cases impossible
-  · intro Reference input _valid _initialization
-    exact restores_borrowed width input
-  · intro _Reference _input _valid _initialization path _supported
+  · intro environment _witness Reference input _valid _initialization
+    exact restores_borrowed width environment input
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact le_of_eq (actual_events width path)
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact actual_resident width path
-  · intro _Reference _input _valid _initialization path _supported
+  · intro _environment _witness _Reference _input _valid _initialization path _supported
     exact actual_auxiliary width path
-  · intro _Reference _input _valid _initialization _path _supported
-    change 0 + 1 ≤ 1
-    omega
+  · intro _environment _witness _Reference _input _valid _initialization _path _supported
+    exact le_of_eq (Circuit.quantumTime_classicalModel _ _)
 
 end
 

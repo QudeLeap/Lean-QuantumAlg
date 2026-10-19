@@ -89,10 +89,11 @@ def advanceCursorStep (cells : CursorCells ctx width)
   (fifth.1, (first.2, (second.2, (third.2, (fourth.2, fifth.2)))))
 
 /-- Each full classical/quantum/reference block follows the actual cursor instructions. -/
-theorem nativeCursor_advance_execute (cells : CursorCells ctx width)
-    (remainder zero : CInputRef ctx (.unsignedWord width)) (Reference : Register)
+lemma nativeCursor_advance_execute (cells : CursorCells ctx width)
+    (remainder zero : CInputRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (advanceCursor (model := model) cells remainder zero).execute Reference state =
+    (advanceCursor (model := model) cells remainder zero).execute environment Reference state =
       state.mapClassical (fun entry =>
         (advanceCursorStore cells remainder zero entry.1,
           (entry.2.1, (entry.2.2,
@@ -103,7 +104,7 @@ theorem nativeCursor_advance_execute (cells : CursorCells ctx width)
   exact Subsingleton.elim _ _
 
 /-- The actual rejected-candidate trace has four word copies and one comparison. -/
-theorem nativeCursor_advance_eventTrace (cells : CursorCells ctx width)
+lemma nativeCursor_advance_eventTrace (cells : CursorCells ctx width)
     (remainder zero : CInputRef ctx (.unsignedWord width))
     (path : (advanceCursor (model := model) cells remainder zero).Path) :
     (advanceCursor (model := model) cells remainder zero).eventTrace path =
@@ -121,7 +122,7 @@ theorem nativeCursor_advance_eventTrace (cells : CursorCells ctx width)
   rfl
 
 /-- All five actual cursor-update instructions are sequentially dependent. -/
-theorem nativeCursor_advance_unitDepth (cells : CursorCells ctx width)
+lemma nativeCursor_advance_unitDepth (cells : CursorCells ctx width)
     (remainder zero : CInputRef ctx (.unsignedWord width))
     (path : (advanceCursor (model := model) cells remainder zero).Path) :
     (advanceCursor (model := model) cells remainder zero).depth (fun _ => 1) path = 5 := by
@@ -129,7 +130,7 @@ theorem nativeCursor_advance_unitDepth (cells : CursorCells ctx width)
   simp only [advanceCursor, Circuit.depth_seq, BitWord.bitWord_instruction_depth]
 
 /-- Cursor writes preserve the entire real borrowed classical value. -/
-theorem nativeCursor_advance_borrowed_values {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeCursor_advance_borrowed_values {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (cells : CursorCells ctx width)
     (remainder zero : CInputRef ctx (.unsignedWord width)) (store : Store ctx) :
     (advanceCursorStore cells remainder zero store).readBorrowedClassical =
@@ -165,11 +166,12 @@ def acceptCursorStep (candidate : CInputRef ctx (.unsignedWord width))
   (third.1, (first.2, (second.2, third.2)))
 
 /-- Acceptance acts on each complete density block through its actual three writes. -/
-theorem nativeCursor_accept_execute (candidate : CInputRef ctx (.unsignedWord width))
+lemma nativeCursor_accept_execute (candidate : CInputRef ctx (.unsignedWord width))
     (valid : CInputRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
-    (accepted active : CWriteRef ctx .bit) (Reference : Register)
+    (accepted active : CWriteRef ctx .bit) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (acceptCursor (model := model) candidate valid selected accepted active).execute
+    (acceptCursor (model := model) candidate valid selected accepted active).execute environment
       Reference state =
       state.mapClassical (fun entry =>
         (acceptCursorStore candidate valid selected accepted active entry.1,
@@ -182,7 +184,7 @@ theorem nativeCursor_accept_execute (candidate : CInputRef ctx (.unsignedWord wi
   exact Subsingleton.elim _ _
 
 /-- The actual accepted-candidate trace retains its word copy, bit copy and negation. -/
-theorem nativeCursor_accept_eventTrace (candidate : CInputRef ctx (.unsignedWord width))
+lemma nativeCursor_accept_eventTrace (candidate : CInputRef ctx (.unsignedWord width))
     (valid : CInputRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (accepted active : CWriteRef ctx .bit)
     (path : (acceptCursor (model := model) candidate valid selected accepted active).Path) :
@@ -197,7 +199,7 @@ theorem nativeCursor_accept_eventTrace (candidate : CInputRef ctx (.unsignedWord
   rfl
 
 /-- Acceptance has the exact unit depth of its three actual dependent operations. -/
-theorem nativeCursor_accept_unitDepth (candidate : CInputRef ctx (.unsignedWord width))
+lemma nativeCursor_accept_unitDepth (candidate : CInputRef ctx (.unsignedWord width))
     (valid : CInputRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (accepted active : CWriteRef ctx .bit)
     (path : (acceptCursor (model := model) candidate valid selected accepted active).Path) :
@@ -207,7 +209,7 @@ theorem nativeCursor_accept_unitDepth (candidate : CInputRef ctx (.unsignedWord 
   simp only [acceptCursor, Circuit.depth_seq, BitWord.bitWord_instruction_depth]
 
 /-- Acceptance preserves the complete actual borrowed classical value. -/
-theorem nativeCursor_accept_borrowed_values {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeCursor_accept_borrowed_values {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (candidate : CInputRef ctx (.unsignedWord width))
     (valid : CInputRef ctx .bit) (selected : CWriteRef ctx (.unsignedWord width))
     (accepted active : CWriteRef ctx .bit) (store : Store ctx) :

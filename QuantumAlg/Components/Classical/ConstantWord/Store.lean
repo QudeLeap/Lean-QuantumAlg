@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The real width-many shift and increment sequence changes exactly its actual target word. -/
-theorem constantWord_fold_store (output : CWriteRef ctx (.unsignedWord width))
+lemma constantWord_fold_store (output : CWriteRef ctx (.unsignedWord width))
     (constant : Nat) (store : Store ctx) :
     (foldStep (model := model) output (List.ofFn (constantBits width constant)) store).1 =
       store.write output (CShape.wordOfNat width constant) := by

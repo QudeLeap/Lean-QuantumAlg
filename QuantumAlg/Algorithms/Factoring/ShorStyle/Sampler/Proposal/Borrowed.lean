@@ -29,7 +29,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width count : Nat}
 
 /-- Each real decoded prefix preserves all borrowed classical values. -/
-theorem proposalPrefix_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalPrefix_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (store : Store ctx) :
     (prefixStep (model := model) sample proposal shared scratch store).1.readBorrowedClassical =
@@ -40,7 +40,7 @@ theorem proposalPrefix_borrowed_values (sample : CInputRef ctx (.bits (count * w
     scratch.candidate _ store
 
 /-- The actual first-accepted writes preserve the same complete borrowed values. -/
-theorem proposalSlot_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalSlot_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
     (proposal : Fin count) (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (store : Store ctx) :
     (slotStep (model := model) sample proposal shared scratch store).1.readBorrowedClassical =
@@ -50,7 +50,7 @@ theorem proposalSlot_borrowed_values (sample : CInputRef ctx (.bits (count * wid
       (proposalPrefix_borrowed_values sample proposal shared scratch store)
 
 /-- Every finite actual scan preserves borrowed values in the original proposal order. -/
-theorem proposalFold_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
+lemma proposalFold_borrowed_values (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (proposals : List (Fin count)) (store : Store ctx) :
     (foldSteps (model := model) sample shared scratch proposals store).1.readBorrowedClassical =

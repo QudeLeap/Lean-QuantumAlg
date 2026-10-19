@@ -24,6 +24,8 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
 /-- Execute the first in-bounds source-bit stages in their actual sequential order. -/
@@ -41,15 +43,15 @@ def prefixOutput {width : Nat} (modulus : Fin (2 ^ width + 1)) (coefficient coun
     (state : Registers width) : Registers width :=
   (state.1, accumulateWordPrefix modulus coefficient state.1 state.2 count)
 
-theorem gidneyAccumulatePrefix_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulatePrefix_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient count : Nat) (within : count ≤ width) :
     UnitaryCircuit.Realizes (encoding width)
-      (prefixProgram width modulus coefficient count within)
+      (prefixProgram width modulus coefficient count within) environment
       (prefixOutput modulus coefficient count) := by
   induction count with
   | zero =>
       apply (UnitaryCircuit.Realizes.identityAt AlgorithmGate.model .empty
-        (encoding width) (QubitLayout.canonical (encoding width).width)).congrStep
+        (encoding width) (QubitLayout.canonical (encoding width).width) environment).congrStep
       rintro ⟨source, target⟩
       rfl
   | succ index ih =>
@@ -60,7 +62,7 @@ theorem gidneyAccumulatePrefix_realizes (width : Nat) (modulus : Fin (2 ^ width 
       rfl
 
 /-- The circuit-facing independent event envelope is linear in the number of scanned bits. -/
-theorem gidneyAccumulatePrefix_event_count_bound (width : Nat)
+lemma gidneyAccumulatePrefix_event_count_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus coefficient count within).eventCost.card ≤
       count * stageEventBound width := by
@@ -85,32 +87,32 @@ def program (width : Nat) (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
   prefixProgram width modulus coefficient width (Nat.le_refl width)
 
 /-- Exact all-label coherent action of the actual complete multiply-accumulate program. -/
-theorem gidneyAccumulate_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_realizes (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient)
+    UnitaryCircuit.Realizes (encoding width) (program width modulus coefficient) environment
       (prefixOutput modulus coefficient width) :=
   gidneyAccumulatePrefix_realizes width modulus coefficient width (Nat.le_refl width)
 
 /-- The complete carrier is the original source and target, with no external borrowed bit. -/
-theorem gidneyAccumulate_interface (width : Nat) :
+lemma gidneyAccumulate_interface (width : Nat) :
     (encoding width).width = 2 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx = List.range (2 * width) :=
   gidneyStage_interface width
 
 /-- Complete source preservation is part of the independent output on every label. -/
-theorem gidneyAccumulate_source (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_source (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (state : Registers width) :
     (prefixOutput modulus coefficient width state).1 = state.1 := rfl
 
 /-- On canonical accumulators, the exact output is `y + a*x mod N` for every source word. -/
-theorem gidneyAccumulate_valid (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_valid (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (state : Registers width) (valid : state.2.val < modulus.val) :
     (prefixOutput modulus coefficient width state).2.val =
       (state.2.val + coefficient * state.1.val) % modulus.val :=
   accumulateWordPrefix_full modulus coefficient state.1 state.2 valid
 
 /-- The exact extension fixes all noncanonical accumulator labels and preserves the source. -/
-theorem gidneyAccumulate_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (state : Registers width) (outside : modulus.val ≤ state.2.val) :
     prefixOutput modulus coefficient width state = state := by
   rcases state with ⟨source, target⟩
@@ -118,18 +120,19 @@ theorem gidneyAccumulate_outside (width : Nat) (modulus : Fin (2 ^ width + 1))
     (accumulateWordPrefix_outside modulus coefficient source target outside width)
 
 /-- The actual full program meets the independently stated numerical event envelope. -/
-theorem gidneyAccumulate_event_count_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_event_count_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     (program width modulus coefficient).eventCost.card ≤ width * stageEventBound width :=
   gidneyAccumulatePrefix_event_count_bound width modulus coefficient width (Nat.le_refl width)
 
 /-- External encoded references are preserved jointly by the exact two-word circuit. -/
-theorem gidneyAccumulate_realizes_with_reference {Reference : Type}
+lemma gidneyAccumulate_realizes_with_reference {Reference : Type}
     (reference : BinaryLabelEncoding Reference) (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : Nat) :
     UnitaryCircuit.Realizes (BinaryLabelEncoding.prod (encoding width) reference)
       (layout := QubitLayout.canonical ((encoding width).width + reference.width))
       (UnitaryCircuit.onBinaryPrefix reference.width (program width modulus coefficient))
+      environment
       (fun state => (prefixOutput modulus coefficient width state.1, state.2)) :=
   UnitaryCircuit.Realizes.onBinaryPrefix (right := reference)
     (gidneyAccumulate_realizes width modulus coefficient)

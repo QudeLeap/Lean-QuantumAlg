@@ -23,21 +23,23 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.Execution
 noncomputable section
 
 /-- Regrouping one transformation ancilla realizes the existing binary block convention. -/
-theorem regroup_one_binaryMatrix {gates : GateModel} {oracles : OracleModel} {m n : Nat}
+lemma regroup_one_binaryMatrix {gates : GateModel} {oracles : OracleModel} {m n : Nat}
     (word : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits (1 + (m + n))).canonicalPlacement.layout) :
-    (word.castQubitWidth (Nat.add_assoc 1 m n).symm).binaryMatrix =
-      reassociatePhaseAncillaOperator (m := m) (n := n) word.binaryMatrix := by
+      (QuantumSignature.qubits (1 + (m + n))).canonicalPlacement.layout)
+        (environment : oracles.Interpretation) :
+    ((word.castQubitWidth (Nat.add_assoc 1 m n).symm).binaryMatrix environment) =
+      reassociatePhaseAncillaOperator (m := m) (n := n) (word.binaryMatrix environment) := by
   rw [UnitaryCircuit.castQubitWidth_binaryMatrix]
   rfl
 
 /-- Regrouping three transformation ancillas realizes the shared-branch block convention. -/
-theorem regroup_three_binaryMatrix {gates : GateModel} {oracles : OracleModel} {m n : Nat}
+lemma regroup_three_binaryMatrix {gates : GateModel} {oracles : OracleModel} {m n : Nat}
     (word : UnitaryCircuit gates oracles
-      (QuantumSignature.qubits (1 + (1 + (1 + (m + n))))).canonicalPlacement.layout) :
-    (word.castQubitWidth
-      (show 1 + (1 + (1 + (m + n))) = (1 + (1 + (1 + m))) + n by omega)).binaryMatrix =
-      SharedFour.reassociateThree (m := m) (n := n) word.binaryMatrix := by
+      (QuantumSignature.qubits (1 + (1 + (1 + (m + n))))).canonicalPlacement.layout)
+        (environment : oracles.Interpretation) :
+    ((word.castQubitWidth
+      (show 1 + (1 + (1 + (m + n))) = (1 + (1 + (1 + m))) + n by omega)).binaryMatrix environment) =
+      SharedFour.reassociateThree (m := m) (n := n) (word.binaryMatrix environment) := by
   rw [UnitaryCircuit.castQubitWidth_binaryMatrix]
   rfl
 

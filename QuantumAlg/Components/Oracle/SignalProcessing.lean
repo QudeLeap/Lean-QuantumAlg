@@ -76,7 +76,7 @@ def projectorPhaseOp {N : Nat} (φ : ℝ)
     exact hsum)
 
 @[simp]
-theorem coe_projectorPhaseOp {N : Nat} (φ : ℝ)
+lemma coe_projectorPhaseOp {N : Nat} (φ : ℝ)
     (P : OrthogonalProjector N) :
     (projectorPhaseOp φ P : HilbertOperator (Qubits N)) =
       Complex.exp (φ * Complex.I) • P.op +
@@ -84,7 +84,7 @@ theorem coe_projectorPhaseOp {N : Nat} (φ : ℝ)
   rfl
 
 /-- On the projector image, the source projector phase acts by `e^{i phi}`. -/
-theorem projectorPhaseOp_applyVec_of_projector_applyVec_eq_self {N : Nat}
+lemma projectorPhaseOp_applyVec_of_projector_applyVec_eq_self {N : Nat}
     (φ : ℝ) (P : OrthogonalProjector N) {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec P.op ψ = ψ) :
     HilbertOperator.applyVec (projectorPhaseOp φ P) ψ =
@@ -100,7 +100,7 @@ theorem projectorPhaseOp_applyVec_of_projector_applyVec_eq_self {N : Nat}
 
 /-- On the projector complement, the source projector phase acts by
 `e^{-i phi}`. -/
-theorem projectorPhaseOp_applyVec_of_complement_applyVec_eq_self {N : Nat}
+lemma projectorPhaseOp_applyVec_of_complement_applyVec_eq_self {N : Nat}
     (φ : ℝ) (P : OrthogonalProjector N) {ψ : HilbertVector (Qubits N)}
     (hpsi : HilbertOperator.applyVec (OrthogonalProjector.complement P) ψ = ψ) :
     HilbertOperator.applyVec (projectorPhaseOp φ P) ψ =
@@ -135,7 +135,7 @@ def phaseScaledOperator {R : Register} (ζ : ℂ)
     exact Matrix.mem_unitaryGroup_iff.mp V.property)
 
 @[simp]
-theorem phaseScaledOperator_coe {R : Register} (ζ : ℂ)
+lemma phaseScaledOperator_coe {R : Register} (ζ : ℂ)
     (hζ : Complex.normSq ζ = 1) (V : UnitaryOperator R) :
     ((phaseScaledOperator ζ hζ V : UnitaryOperator R) : HilbertOperator R) =
       phaseScaledOperatorRaw ζ V :=
@@ -165,7 +165,7 @@ def scalarDilationOp (p : ℂ) : HilbertOperator (Qubits 1) :=
     -((Real.sqrt (1 - Complex.normSq p) : ℝ) : ℂ), star p]
 
 /-- The scalar dilation is unitary under the contraction side condition. -/
-theorem scalarDilationOp_mem_unitaryGroup (p : ℂ)
+lemma scalarDilationOp_mem_unitaryGroup (p : ℂ)
     (hp : Complex.normSq p <= 1) :
     scalarDilationOp p ∈ Matrix.unitaryGroup (Fin (2 ^ 1)) ℂ := by
   rw [Matrix.mem_unitaryGroup_iff]
@@ -190,7 +190,7 @@ theorem scalarDilationOp_mem_unitaryGroup (p : ℂ)
       Complex.normSq_eq_conj_mul_self]
 
 @[simp]
-theorem scalarDilationOp_block_entry (p : ℂ) : scalarDilationOp p 0 0 = p := by
+lemma scalarDilationOp_block_entry (p : ℂ) : scalarDilationOp p 0 0 = p := by
   simp [scalarDilationOp]
 
 /-- Certified scalar dilation under the contraction side condition. -/
@@ -200,7 +200,7 @@ def scalarDilationOperator (p : ℂ)
     (scalarDilationOp_mem_unitaryGroup p hp)
 
 @[simp]
-theorem scalarDilationOperator_block_entry (p : ℂ)
+lemma scalarDilationOperator_block_entry (p : ℂ)
     (hp : Complex.normSq p <= 1) :
     (scalarDilationOperator p hp : HilbertOperator (Qubits 1)) 0 0 = p := by
   simp [scalarDilationOperator, scalarDilationOp]
@@ -212,7 +212,7 @@ def diagonalScalarDilationOp {ι : Type*} [DecidableEq ι]
     if r.2 = s.2 then scalarDilationOp (p r.2) r.1 s.1 else 0
 
 /-- A direct sum of scalar contraction dilations is unitary. -/
-theorem diagonalScalarDilationOp_mem_unitaryGroup {ι : Type*}
+lemma diagonalScalarDilationOp_mem_unitaryGroup {ι : Type*}
     [Fintype ι] [DecidableEq ι]
     (p : ι → ℂ) (hp : ∀ i, Complex.normSq (p i) <= 1) :
     diagonalScalarDilationOp p ∈
@@ -277,7 +277,7 @@ theorem diagonalScalarDilationOp_mem_unitaryGroup {ι : Type*}
         rw [Matrix.of_apply, if_neg hyr, zero_mul]
 
 /-- Reindexing both axes by one equivalence preserves unitarity. -/
-theorem reindex_mem_unitaryGroup {ι κ : Type*}
+lemma reindex_mem_unitaryGroup {ι κ : Type*}
     [Fintype ι] [DecidableEq ι] [Fintype κ] [DecidableEq κ]
     (e : ι ≃ κ) (M : Matrix ι ι ℂ)
     (hM : M ∈ Matrix.unitaryGroup ι ℂ) :
@@ -292,7 +292,7 @@ def diagonalScalarDilationQubitOp {n : Nat}
   Matrix.reindex (prodEquiv (m := 1) (n := n))
     (prodEquiv (m := 1) (n := n)) (diagonalScalarDilationOp p)
 
-theorem diagonalScalarDilationQubitOp_mem_unitaryGroup {n : Nat}
+lemma diagonalScalarDilationQubitOp_mem_unitaryGroup {n : Nat}
     (p : Fin (2 ^ n) → ℂ) (hp : ∀ i, Complex.normSq (p i) <= 1) :
     diagonalScalarDilationQubitOp p ∈
       Matrix.unitaryGroup (Fin (2 ^ (1 + n))) ℂ :=
@@ -307,7 +307,7 @@ def diagonalScalarDilationOperator {n : Nat}
     (diagonalScalarDilationQubitOp_mem_unitaryGroup p hp)
 
 /-- The top-left block of the qubit-indexed direct sum is diagonal. -/
-theorem diagonalScalarDilationOperator_projectedBlock {n : Nat}
+lemma diagonalScalarDilationOperator_projectedBlock {n : Nat}
     (p : Fin (2 ^ n) → ℂ) (hp : ∀ i, Complex.normSq (p i) <= 1) :
     projectedBlock 1 n
         (diagonalScalarDilationOperator p hp :
@@ -318,7 +318,7 @@ theorem diagonalScalarDilationOperator_projectedBlock {n : Nat}
     diagonalScalarDilationQubitOp
   simp [diagonalScalarDilationOp, Matrix.diagonal]
 
-theorem diagonalScalarDilationOperator_exactBlockEncoding {n : Nat}
+lemma diagonalScalarDilationOperator_exactBlockEncoding {n : Nat}
     (p : Fin (2 ^ n) → ℂ) (hp : ∀ i, Complex.normSq (p i) <= 1) :
     ExactBlockEncoding 1 n
       (diagonalScalarDilationOperator p hp) (Matrix.diagonal p) := by

@@ -32,7 +32,7 @@ noncomputable section
 
 /-- The public operand envelope lies strictly below the positive signed
 capacity of the common coordinate word. -/
-theorem operandWidthBound_lt_signedCapacity (N m ell : Nat) :
+lemma operandWidthBound_lt_signedCapacity (N m ell : Nat) :
     RSA.ShortLogWidths.operandWidthBound N m ell <
       2 ^ (RSA.ShortLogWidths.coordinateWidth N m ell - 1) := by
   let bound := RSA.ShortLogWidths.operandWidthBound N m ell
@@ -50,7 +50,7 @@ theorem operandWidthBound_lt_signedCapacity (N m ell : Nat) :
 
 /-- Every integer below the shared operand-magnitude ledger has an exact
 two's-complement representation in the common coordinate word. -/
-theorem signedRepresentable_of_natAbs_le_operandWidthBound
+lemma signedRepresentable_of_natAbs_le_operandWidthBound
     {N m ell : Nat} {value : Int}
     (valueBound : value.natAbs ≤ RSA.ShortLogWidths.operandWidthBound N m ell) :
     XGCD.signedRepresentable (RSA.ShortLogWidths.coordinateWidth N m ell) value := by
@@ -92,7 +92,7 @@ theorem signedRepresentable_of_natAbs_le_operandWidthBound
 
 /-- Every natural below the shared operand-magnitude ledger fits in the
 common unsigned coordinate word. -/
-theorem nat_lt_wordModulus_of_le_operandWidthBound
+lemma nat_lt_wordModulus_of_le_operandWidthBound
     {N m ell value : Nat}
     (valueBound : value ≤ RSA.ShortLogWidths.operandWidthBound N m ell) :
     value < CShape.wordModulus (RSA.ShortLogWidths.coordinateWidth N m ell) := by
@@ -106,7 +106,7 @@ theorem nat_lt_wordModulus_of_le_operandWidthBound
 
 /-- A signed operand whose binary width is below the shared ledger has an
 exact two's-complement representation in the common coordinate word. -/
-theorem signedRepresentable_of_size_le_operandWidthBound
+lemma signedRepresentable_of_size_le_operandWidthBound
     {N m ell : Nat} {value : Int}
     (valueWidth : Nat.size value.natAbs ≤
       RSA.ShortLogWidths.operandWidthBound N m ell) :
@@ -155,7 +155,7 @@ theorem signedRepresentable_of_size_le_operandWidthBound
 
 /-- An unsigned operand whose binary width is below the shared ledger fits
 strictly in the common coordinate word. -/
-theorem nat_lt_wordModulus_of_size_le_operandWidthBound
+lemma nat_lt_wordModulus_of_size_le_operandWidthBound
     {N m ell value : Nat}
     (valueWidth : Nat.size value ≤ RSA.ShortLogWidths.operandWidthBound N m ell) :
     value < CShape.wordModulus (RSA.ShortLogWidths.coordinateWidth N m ell) := by

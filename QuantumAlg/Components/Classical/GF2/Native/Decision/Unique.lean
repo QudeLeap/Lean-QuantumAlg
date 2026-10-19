@@ -26,7 +26,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem test_read_word (reject : Bool)
+private lemma test_read_word (reject : Bool)
     (left right : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (store : Store ctx) {size : Nat} (word : CWriteRef ctx (.unsignedWord size)) :
     (decisionTestStep reject left right success flag store).1.read
@@ -36,7 +36,7 @@ private theorem test_read_word (reject : Bool)
     (avoids flag word (shapes_ne flag word (by intro same; cases same)))
 
 omit [BitWord.Selected model] in
-private theorem masked_read_other
+private lemma masked_read_other
     (free work : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : work.key ∉ other.storageKeys) :
     ((store.applyOp (decisionDecrementOp free work)).applyOp
@@ -45,7 +45,7 @@ private theorem masked_read_other
     Store.read_applyOp_of_not_mem_storageKeys _ (decisionDecrementOp free work) other separate]
 
 /-- The real two decisions retain success exactly when both original word tests hold. -/
-theorem gf2UniqueFreeBody_success
+lemma gf2UniqueFreeBody_success
     (free zero work : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (workFree : work.key ≠ free.key) (workZero : work.key ≠ zero.key)
     (flagSuccess : flag.key ≠ success.key) (store : Store ctx) :
@@ -96,7 +96,7 @@ theorem gf2UniqueFreeBody_success
   simp
 
 /-- Only the real work word, success bit and equality latch can change a structural read. -/
-theorem gf2UniqueFreeBody_read_other
+lemma gf2UniqueFreeBody_read_other
     (free zero work : CWriteRef ctx (.unsignedWord width)) (success flag : CWriteRef ctx .bit)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (workFree : work.key ∉ other.storageKeys)

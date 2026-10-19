@@ -29,77 +29,82 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 local instance (proposition : Prop) : Decidable proposition := Classical.propDecidable proposition
 
 private abbrev measurementCode (base : RuntimeCtx .quantum)
-    (N : Nat) (input : Input N) (sameWires : base.quantumWires = (layout N).wires) :
-    Circuit (executionModel input) (Storage.context base N)
+    (N : Nat) (sameWires : base.quantumWires = (layout N).wires) :
+    Circuit (executionModel N) (Storage.context base N)
       (Storage.context base N) :=
   Circuit.measurementSequence (readouts base N sameWires)
 
 /-- The physical path produced by the declared phase readouts on one basis label. -/
 abbrev basisPath (base : RuntimeCtx .quantum)
-    (N : Nat) (input : Input N) (sameWires : base.quantumWires = (layout N).wires)
+    (N : Nat) (sameWires : base.quantumWires = (layout N).wires)
     (basis : (Storage.context base N).register.Index) :
-    (measurementCode base N input sameWires).Path :=
+    (measurementCode base N sameWires).Path :=
   Circuit.measurementBasisPath
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model)
     (classicalOracles := ClassicalOracleModel.empty)
     (readouts base N sameWires) basis
 
 /-- The complete store after actual phase-cell writes on one basis label. -/
 abbrev measuredStore (base : RuntimeCtx .quantum)
-    (N : Nat) (input : Input N) (sameWires : base.quantumWires = (layout N).wires)
+    (N : Nat) (sameWires : base.quantumWires = (layout N).wires)
     (store : Store (Storage.context base N))
     (basis : (Storage.context base N).register.Index) :
     Store (Storage.context base N) :=
   Circuit.writeMeasurementPath
     (gates := AlgorithmGate.model)
-    (oracles := DeclaredSource.model (sourceBounds input) (phaseBits N))
+    (oracles := DeclaredSource.model (modulusBits N) (phaseBits N))
     (operations := BitWord.model)
     (classicalOracles := ClassicalOracleModel.empty)
-    (readouts base N sameWires) store (basisPath base N input sameWires basis)
+    (readouts base N sameWires) store (basisPath base N sameWires basis)
 
 /-- Actual phase measurements suppress only matrix entries with unequal
 measured labels; the store, reference, and history remain in the weight. -/
-theorem readouts_weighted_entry (base : RuntimeCtx .quantum)
-    (N : Nat) (input : Input N) (sameWires : base.quantumWires = (layout N).wires)
+lemma readouts_weighted_entry (base : RuntimeCtx .quantum)
+    (N : Nat)
+    {environment : (executionModel N).Environment}
+    (sameWires : base.quantumWires = (layout N).wires)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (weight : Store (Storage.context base N) ×
-      ((executionModel input).HiddenState ×
-        (History × (measurementCode base N input sameWires).Path)) → ℂ)
+      ((executionModel N).HiddenState ×
+        (History × (measurementCode base N sameWires).Path)) → ℂ)
     (left right : (Storage.context base N).register.Index)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.weightedMatrixEntry
-      ((measurementCode base N input sameWires).execute Reference state)
+      ((measurementCode base N sameWires).execute environment Reference state)
       weight (left, leftRef) (right, rightRef) =
       if Circuit.measurementLabelsAgree (readouts base N sameWires) left right then
         ExecutionState.weightedMatrixEntry state
           (fun entry => weight
-            (measuredStore base N input sameWires entry.1 left,
+            (measuredStore base N sameWires entry.1 left,
               (entry.2.1, (entry.2.2,
-                basisPath base N input sameWires left))))
+                basisPath base N sameWires left))))
           (left, leftRef) (right, rightRef)
       else 0 := by
-  exact Circuit.measurementSequence_weightedMatrixEntry
+  exact Circuit.measurementSequence_weightedMatrixEntry (environment := environment)
     (readouts base N sameWires) state weight left right leftRef rightRef
 
 /-- The declared paid packing instruction executes its original deterministic
 store update and records the packed word after the prior history. -/
-theorem packing_execute (base : RuntimeCtx .quantum)
-    (N : Nat) (input : Input N)
+lemma packing_execute (base : RuntimeCtx .quantum)
+    (N : Nat)
+    {environment : (executionModel N).Environment}
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History)) :
-    (Circuit.classical (model := executionModel input)
-      (BitWord.application (packing base N))).execute Reference state =
+      ((executionModel N).HiddenState × History)) :
+    (Circuit.classical (allowAllocation := true) (model := executionModel N)
+      (BitWord.application (packing base N))).execute environment Reference state =
         state.mapClassical (fun entry =>
           let result := (packing base N).eval
             (entry.1.read (BitWord.application (packing base N)).input)
           (entry.1.write (BitWord.application (packing base N)).output result,
             (entry.2.1, (entry.2.2, result)))) := by
-  exact Circuit.execute_classical_mapClassical (model := executionModel input)
+  exact Circuit.execute_classical_mapClassical (environment := environment)
+    (allowAllocation := true)
+    (model := executionModel N)
     (BitWord.application (packing base N))
     (packing base N).eval
     (BitWord.bitWord_application_evaluate (packing base N))
@@ -107,31 +112,33 @@ theorem packing_execute (base : RuntimeCtx .quantum)
 
 /-- The complete selected, measured, and packed body retains each original
 reference matrix entry and its hidden state and history. -/
-theorem body_weighted_entry (base : RuntimeCtx .quantum)
-    (N : Nat) (input : Input N) (sameWires : base.quantumWires = (layout N).wires)
+lemma body_weighted_entry (base : RuntimeCtx .quantum)
+    (N : Nat)
+    {environment : (executionModel N).Environment}
+    (sameWires : base.quantumWires = (layout N).wires)
     (parameter : CInputRef base (ParameterShape (modulusBits N)))
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (Storage.context base N) Reference
-      ((executionModel input).HiddenState × History))
+      ((executionModel N).HiddenState × History))
     (weight : Store (Storage.context base N) ×
-      ((executionModel input).HiddenState ×
-        (History × (body base N input sameWires parameter).Path)) → ℂ)
+      ((executionModel N).HiddenState ×
+        (History × (body base N sameWires parameter).Path)) → ℂ)
     (left right : (Storage.context base N).register.Index)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.weightedMatrixEntry
-      ((body base N input sameWires parameter).execute Reference state)
+      ((body base N sameWires parameter).execute environment Reference state)
       weight (left, leftRef) (right, rightRef) =
       if Circuit.measurementLabelsAgree (readouts base N sameWires) left right then
         ExecutionState.weightedMatrixEntry
-          ((selected base N input sameWires parameter).execute Reference state)
+          ((selected base N sameWires parameter).execute environment Reference state)
           (fun entry =>
-            let measured := measuredStore base N input sameWires entry.1 left
+            let measured := measuredStore base N sameWires entry.1 left
             let packed := (packing base N).eval
               (measured.read (packing base N).inputRef)
             weight
               (measured.applyOp (packing base N),
                 (entry.2.1, (entry.2.2.1,
-                  (entry.2.2.2, (basisPath base N input sameWires left, packed))))))
+                  (entry.2.2.2, (basisPath base N sameWires left, packed))))))
           (left, leftRef) (right, rightRef)
       else 0 := by
   dsimp +instances only [body] at weight ⊢
@@ -139,10 +146,10 @@ theorem body_weighted_entry (base : RuntimeCtx .quantum)
   simp only [State.mapHistory, ExecutionState.weightedMatrixEntry_mapClassical]
   rw [Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.weightedMatrixEntry_mapClassical]
-  rw [packing_execute base N input]
+  rw [packing_execute base N]
   simp only [ExecutionState.weightedMatrixEntry_mapClassical]
-  exact readouts_weighted_entry base N input sameWires
-    ((selected base N input sameWires parameter).execute Reference state)
+  exact readouts_weighted_entry base N sameWires
+    ((selected base N sameWires parameter).execute environment Reference state)
     _ left right leftRef rightRef
 
 end

@@ -38,13 +38,13 @@ def RawOutputs.MatchesState (outputs : RawOutputs ctx width) (store : Store ctx)
       expected.secondRightCoefficient
 
 /-- Structural transport retains the original distinct destination identities. -/
-theorem xgcdNativeRawOutputs_distinct_transport {outer : RuntimeCtx kind}
+lemma xgcdNativeRawOutputs_distinct_transport {outer : RuntimeCtx kind}
     (outputs : RawOutputs outer width) (transport : Transport outer ctx)
     (distinct : outputs.Distinct) : (outputs.transport transport).Distinct := by
   simpa only [RawOutputs.Distinct, RawOutputs.transport, transport.liftWrite_key] using distinct
 
 /-- Caller agreement transfers all three decoded actual outputs across lexical boundaries. -/
-theorem xgcdNativeRawOutputs_matches_transport {outer : RuntimeCtx kind}
+lemma xgcdNativeRawOutputs_matches_transport {outer : RuntimeCtx kind}
     (outputs : RawOutputs outer width) (transport : Transport outer ctx)
     (source : Store outer) (after : Store ctx) (reads : transport.ReadsAs source after)
     (expected : PureXGCD.State) :
@@ -85,7 +85,8 @@ def scheduledRawRecord {model : ExecutionModel} [BitWord.Selected model]
         ((result.1, before.2), result.2)))
 
 /-- One actual record supplies full execution, caller framing and the original decoded result. -/
-theorem xgcdNativeScheduledRaw_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScheduledRaw_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {outer : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport)
@@ -100,7 +101,7 @@ theorem xgcdNativeScheduledRaw_actualRecord {model : ExecutionModel} [BitWord.Se
         (state : State ctx Reference (model.HiddenState × History)),
         (scheduledRawBody (model := model) cells (transport.liftInput input)
           (transport.liftInput zero)
-          (outputs.transport transport)).execute Reference state =
+          (outputs.transport transport)).execute environment Reference state =
             state.mapClassical (fun entry =>
               let result := record (entry.1, entry.2.1)
               (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -129,7 +130,7 @@ theorem xgcdNativeScheduledRaw_actualRecord {model : ExecutionModel} [BitWord.Se
   refine ⟨scheduledRawRecord (model := model) cells liftedInput liftedZero liftedOutputs loopRecord,
     ?_, ?_⟩
   · intro reference history historyFinite state
-    apply Circuit.execute_sequenceRecord
+    apply Circuit.execute_sequenceRecord (environment := environment)
       (initializationBody (model := model) cells liftedInput liftedZero)
       (.seq loop (copyRawOutputs (model := model) cells liftedOutputs))
       (fun before =>
@@ -142,7 +143,7 @@ theorem xgcdNativeScheduledRaw_actualRecord {model : ExecutionModel} [BitWord.Se
         cells liftedInput liftedZero reference state).trans ?_
       exact ExecutionState.executionState_mapClassical_congr _ rfl
     · intro reference history historyFinite state
-      exact Circuit.execute_sequenceRecord loop
+      exact Circuit.execute_sequenceRecord (environment := environment) loop
         (copyRawOutputs (model := model) cells liftedOutputs)
         loopRecord copyRecord loopEquation (by
           intro reference history historyFinite state

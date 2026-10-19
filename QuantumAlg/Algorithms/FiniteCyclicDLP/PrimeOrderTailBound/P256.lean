@@ -46,7 +46,7 @@ def analysisFailureBudget : FailureBudget where
   failureDenominator := 200000
 
 /-- The auxiliary analysis target is a well-formed rational failure budget. -/
-theorem analysisFailureBudget_wellFormed : analysisFailureBudget.WellFormed := by
+lemma analysisFailureBudget_wellFormed : analysisFailureBudget.WellFormed := by
   constructor <;> norm_num [analysisFailureBudget]
 
 /-- Oversampled exponent-register width derived from the P-256 subgroup order. -/
@@ -55,7 +55,7 @@ def exponentRegisterWidth : Nat :=
 
 set_option exponentiation.threshold 260 in
 /-- The derived exponent-register width is 260 bits. -/
-theorem exponentRegisterWidth_eq_260 : exponentRegisterWidth = 260 := by
+lemma exponentRegisterWidth_eq_260 : exponentRegisterWidth = 260 := by
   change Nat.clog 2 (12 * subgroupOrder) = 260
   have h260 : (260 : Nat) = 13 * 20 := by norm_num
   have h259 : (259 : Nat) = 12 * 20 + 19 := by norm_num
@@ -72,7 +72,7 @@ theorem exponentRegisterWidth_eq_260 : exponentRegisterWidth = 260 := by
 
 /-- The analysis failure target and the exceptional reserve add to the public
 one-percent failure target. -/
-theorem analysisFailure_plus_exceptionalReserve_eq_publicFailure :
+lemma analysisFailure_plus_exceptionalReserve_eq_publicFailure :
     analysisFailureBudget.value + (1 : Real) / 200000 =
       failureBudget.value := by
   norm_num [analysisFailureBudget, failureBudget, FailureBudget.value]
@@ -85,20 +85,20 @@ private def successRatio : Real :=
 private def ratioLower : Real := 9775171 / 10000000000
 private def ratioUpper : Real := 9775172 / 10000000000
 
-private theorem fourierModulus_eq : fourierModulus =
+private lemma fourierModulus_eq : fourierModulus =
     1852673427797059126777135760139006525652319754650249024631321344126610074238976 := by
   unfold fourierModulus
   rw [show (260 : Nat) = 13 * 20 by norm_num, pow_mul]
   norm_num
 
-private theorem successNumerator_eq :
+private lemma successNumerator_eq :
     subgroupOrder * (subgroupOrder - 1) =
       (13407 * 10 ^ 75 +
         807923699100001122556707991011683539144782337215714197757520644865594255592) * 10 ^ 75 +
         654912056572412765196683019333485218014587891634852103160196180551312563792 := by
   norm_num [subgroupOrder]
 
-private theorem successDenominator_eq :
+private lemma successDenominator_eq :
     4 * fourierModulus ^ 2 =
       (13729595 * 10 ^ 75 +
         320261219429963801598162786434538870600286610818788926918371086366795312104) * 10 ^ 75 +
@@ -106,22 +106,22 @@ private theorem successDenominator_eq :
   rw [fourierModulus_eq]
   norm_num
 
-private theorem failureNumerator_eq :
+private lemma failureNumerator_eq :
     4 * fourierModulus ^ 2 - subgroupOrder * (subgroupOrder - 1) =
       (13716187 * 10 ^ 75 +
         512337520329962679041454795422855331455504273603074729160850441501201056511) * 10 ^ 75 +
         590207224750496344757909603449476498059656084364581184464951876030917550512 := by
   norm_num [successDenominator_eq, successNumerator_eq]
 
-private theorem successRatio_lower : ratioLower ≤ successRatio := by
+private lemma successRatio_lower : ratioLower ≤ successRatio := by
   rw [successRatio, failureNumerator_eq, successNumerator_eq]
   norm_num [ratioLower]
 
-private theorem successRatio_upper : successRatio ≤ ratioUpper := by
+private lemma successRatio_upper : successRatio ≤ ratioUpper := by
   rw [successRatio, failureNumerator_eq, successNumerator_eq]
   norm_num [ratioUpper]
 
-private theorem sourceRatio_eq_one_add_successRatio :
+private lemma sourceRatio_eq_one_add_successRatio :
     (((4 * fourierModulus ^ 2 : Nat) : Real) /
         ((4 * fourierModulus ^ 2 -
           subgroupOrder * (subgroupOrder - 1) : Nat) : Real)) =
@@ -131,7 +131,7 @@ private theorem sourceRatio_eq_one_add_successRatio :
   rw [failureNumerator_eq, successNumerator_eq]
   norm_num
 
-private theorem log_one_add_successRatio_bounds :
+private lemma log_one_add_successRatio_bounds :
     ratioLower - ratioUpper ^ 2 / 2 -
         ratioUpper ^ 3 / (3 * (1 - ratioUpper)) ≤
       Real.log (1 + successRatio) ∧
@@ -182,7 +182,7 @@ private theorem log_one_add_successRatio_bounds :
   · apply hlogUpper.trans
     linarith [successRatio_upper, hxSquareLower, herror]
 
-private theorem sourceLog_pos :
+private lemma sourceLog_pos :
     0 < Real.log
       (((4 * fourierModulus ^ 2 : Nat) : Real) /
         ((4 * fourierModulus ^ 2 -
@@ -195,7 +195,7 @@ private theorem sourceLog_pos :
 
 /-- The shared prime-order tail bound calibrates the one-percent P-256
 instantiation to exactly 4,714 repetitions. -/
-theorem retryCount_eq_4714 :
+lemma retryCount_eq_4714 :
     retryCount subgroupOrder fourierModulus failureBudget = 4714 := by
   have hlogBounds := log_one_add_successRatio_bounds
   have hlogFloor := hlogBounds.1
@@ -268,7 +268,7 @@ theorem retryCount_eq_4714 :
   · simpa [failureBudget] using hupper
 
 /-- The auxiliary analysis target retains the calibrated 4,714 repetitions. -/
-theorem analysisRetryCount_eq_4714 :
+lemma analysisRetryCount_eq_4714 :
     retryCount subgroupOrder fourierModulus analysisFailureBudget = 4714 := by
   have hlogBounds := log_one_add_successRatio_bounds
   have hlogFloor := hlogBounds.1

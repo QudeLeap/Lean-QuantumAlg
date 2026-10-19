@@ -94,7 +94,7 @@ public def toffoliAt (oracles : OracleModel) (controlA controlB target : Fin cou
     controlsDistinct firstDistinct secondDistinct firstQubit secondQubit targetQubit)
 
 /-- Every supplied one-qubit operator contributes exactly one native one-qubit event. -/
-@[simp] public theorem singleQubitAt_eventCost
+@[simp] public lemma singleQubitAt_eventCost
     (oracles : OracleModel) (operator : UnitaryOperator (Qubits 1))
     (target : Fin count) (qubit : (layout.wire target).dimension = 2) :
     (singleQubitAt layout oracles operator target qubit).eventCost =
@@ -103,7 +103,7 @@ public def toffoliAt (oracles : OracleModel) (controlA controlB target : Fin cou
   rfl
 
 /-- A placed CNOT contributes exactly its own default-model coordinate. -/
-@[simp] public theorem cnotAt_eventCost (oracles : OracleModel)
+@[simp] public lemma cnotAt_eventCost (oracles : OracleModel)
     (control target : Fin count) (distinct : control ≠ target)
     (controlQubit : (layout.wire control).dimension = 2)
     (targetQubit : (layout.wire target).dimension = 2) :
@@ -113,7 +113,7 @@ public def toffoliAt (oracles : OracleModel) (controlA controlB target : Fin cou
   rfl
 
 /-- A placed Toffoli contributes exactly its own default-model coordinate. -/
-@[simp] public theorem toffoliAt_eventCost (oracles : OracleModel)
+@[simp] public lemma toffoliAt_eventCost (oracles : OracleModel)
     (controlA controlB target : Fin count) (controlsDistinct : controlA ≠ controlB)
     (firstDistinct : controlA ≠ target) (secondDistinct : controlB ≠ target)
     (firstQubit : (layout.wire controlA).dimension = 2)

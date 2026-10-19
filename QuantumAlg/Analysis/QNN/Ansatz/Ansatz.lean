@@ -55,7 +55,7 @@ noncomputable def rotGen (H : Matrix m m ℂ) (θ : ℝ) : Matrix m m ℂ :=
 
 /-- **Closed form of the rotation gate for an involution.** If `H * H = 1` then
 `rotGen H θ = cos(θ/2)·1 - i sin(θ/2)·H`. Proved from the Banach-algebra involution exponential. -/
-theorem rotGen_eq {H : Matrix m m ℂ} (hH : H * H = 1) (θ : ℝ) :
+lemma rotGen_eq {H : Matrix m m ℂ} (hH : H * H = 1) (θ : ℝ) :
     rotGen H θ
       = (Real.cos (θ / 2) : ℂ) • (1 : Matrix m m ℂ)
         + (-(Complex.I * (Real.sin (θ / 2) : ℂ))) • H := by
@@ -75,7 +75,7 @@ theorem rotGen_eq {H : Matrix m m ℂ} (hH : H * H = 1) (θ : ℝ) :
 /-- **The rotation gate is unitary** (for any Hermitian `H`): `R_H(θ)† R_H(θ) = 1`.
 Proved by the exponential group law: `(exp(-i(θ/2)H))† = exp(i(θ/2)H)`, and the two factors
 commute (both are scalar multiples of `H`), so the product is `exp(0) = 1`. -/
-theorem rotGen_unitary {H : Matrix m m ℂ} (hHerm : Hᴴ = H) (θ : ℝ) :
+lemma rotGen_unitary {H : Matrix m m ℂ} (hHerm : Hᴴ = H) (θ : ℝ) :
     (rotGen H θ)ᴴ * rotGen H θ = 1 := by
   simp only [rotGen]
   rw [← Matrix.exp_conjTranspose, conjTranspose_smul, hHerm]
@@ -97,7 +97,7 @@ omit [DecidableEq m] in
 /-- **Conjugation of the state by a matrix.** `⟨ψ| Aᴴ X A |ψ⟩ = ⟨Aψ| X |Aψ⟩`. The right-hand side is
 `expval` of `X` in the transformed state `A *ᵥ ψ`. Used to peel the gates after coordinate `k` off a
 multi-gate cost. -/
-theorem expval_sandwich (ψ : m → ℂ) (A X : Matrix m m ℂ) :
+lemma expval_sandwich (ψ : m → ℂ) (A X : Matrix m m ℂ) :
     expval ψ (Aᴴ * X * A) = expval (A *ᵥ ψ) X := by
   rw [expval_def, expval_def, star_mulVec, mulVec_mulVec, ← dotProduct_mulVec, mulVec_mulVec,
     Matrix.mul_assoc]
@@ -111,7 +111,7 @@ noncomputable def sandwichCost (ψ : m → ℂ) (O H : Matrix m m ℂ) (θ : ℝ
 
 /-- **The conjugate (transpose) of the rotation gate for a Hermitian involution.** For Hermitian `H`
 with `H * H = 1`, `R_H(θ)† = cos(θ/2)·1 + i sin(θ/2)·H` (the sign on the `H`-term flips). -/
-theorem rotGen_conjTranspose_eq {H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : Hᴴ = H) (θ : ℝ) :
+lemma rotGen_conjTranspose_eq {H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : Hᴴ = H) (θ : ℝ) :
     (rotGen H θ)ᴴ
       = (Real.cos (θ / 2) : ℂ) • (1 : Matrix m m ℂ)
         + (Complex.I * (Real.sin (θ / 2) : ℂ)) • H := by
@@ -125,7 +125,7 @@ theorem rotGen_conjTranspose_eq {H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : H
 
 /-- **The closed form of the sandwiched observable.** For a Hermitian involution `H`,
 `R_H(θ)† O R_H(θ) = cos²(θ/2)·O + sin²(θ/2)·(H O H) + i·cos(θ/2)·sin(θ/2)·(H O − O H)`. -/
-theorem rotGen_sandwich_expand {O H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : Hᴴ = H) (θ : ℝ) :
+lemma rotGen_sandwich_expand {O H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : Hᴴ = H) (θ : ℝ) :
     (rotGen H θ)ᴴ * O * rotGen H θ
       = ((Real.cos (θ / 2) : ℂ) ^ 2) • O
         + ((Real.sin (θ / 2) : ℂ) ^ 2) • (H * O * H)
@@ -144,7 +144,7 @@ theorem rotGen_sandwich_expand {O H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : 
 Hermitian involution generator `H` and a Hermitian observable `O`,
 `⟨ψ| R_H(θ)† O R_H(θ) |ψ⟩ = a + b cos θ + c sin θ` with explicit `(a,b,c)`. Proved from the closed
 form of the gate (`rotGen_eq`) and the reality of the relevant expectation values. -/
-theorem sandwichCost_trig {ψ : m → ℂ} {O H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : Hᴴ = H)
+lemma sandwichCost_trig {ψ : m → ℂ} {O H : Matrix m m ℂ} (hH : H * H = 1) (hHerm : Hᴴ = H)
     (hO : Oᴴ = O) :
     ∃ a b c : ℝ, ∀ θ, sandwichCost ψ O H θ = a + b * Real.cos θ + c * Real.sin θ := by
   -- The three real expectation values that appear.
@@ -234,7 +234,7 @@ noncomputable def ansatzR {M : ℕ} (H : Fin M → Matrix m m ℂ) (θ : Fin M �
 /-- **Updating only coordinate `k` is `List.set` on the gate list.** The gate list of
 `update θ k t` agrees with that of `θ` except at position `k`, where the gate is `rotGen (H k) t`.
 -/
-theorem ofFn_rotGen_update {M : ℕ} (H : Fin M → Matrix m m ℂ) (θ : Fin M → ℝ) (k : Fin M) (t : ℝ) :
+lemma ofFn_rotGen_update {M : ℕ} (H : Fin M → Matrix m m ℂ) (θ : Fin M → ℝ) (k : Fin M) (t : ℝ) :
     List.ofFn (fun j : Fin M => rotGen (H j) ((Function.update θ k t) j))
       = (List.ofFn (fun j : Fin M => rotGen (H j) (θ j))).set (k : ℕ) (rotGen (H k) t) := by
   apply List.ext_getElem
@@ -256,7 +256,7 @@ sandwich cost.** Splitting the ordered gate product at index `k`, the gates befo
 `t`-independent factors `Lmat = ansatzL`, `Rmat = ansatzR`; peeling `Rmat` onto
 the state and folding
 `Lmatᴴ O Lmat` into the observable gives exactly `sandwichCost` of the `k`-th gate. -/
-theorem cost_update_eq_sandwich {M : ℕ} {ψ : m → ℂ} {O : Matrix m m ℂ} {H : Fin M → Matrix m m ℂ}
+lemma cost_update_eq_sandwich {M : ℕ} {ψ : m → ℂ} {O : Matrix m m ℂ} {H : Fin M → Matrix m m ℂ}
     (θ : Fin M → ℝ) (k : Fin M) (t : ℝ) :
     cost ψ O H (Function.update θ k t)
       = sandwichCost (ansatzR H θ k *ᵥ ψ)
@@ -290,7 +290,7 @@ all coordinates but the
 `k`-th, the cost `t ↦ C(update θ k t)` is a frequency-1 trigonometric polynomial. This is the
 per-coordinate reduction `cost_update_eq_sandwich` fed into the single-gate result
 `sandwichCost_trig`, using that `Lmatᴴ O Lmat` is Hermitian when `O` is. -/
-theorem cost_trig {M : ℕ} {ψ : m → ℂ} {O : Matrix m m ℂ} {H : Fin M → Matrix m m ℂ}
+lemma cost_trig {M : ℕ} {ψ : m → ℂ} {O : Matrix m m ℂ} {H : Fin M → Matrix m m ℂ}
     (hH : ∀ k, (H k) * (H k) = 1) (hHerm : ∀ k, (H k)ᴴ = H k) (hO : Oᴴ = O) (θ : Fin M → ℝ)
     (k : Fin M) :
     ∃ a b c : ℝ, ∀ t, cost ψ O H (Function.update θ k t) = a + b * Real.cos t + c * Real.sin t := by
@@ -341,7 +341,7 @@ derivative of the multi-gate cost equals the parameter-shift estimate
 the Task-C frequency-1 form into the existing `ParamShiftModel.parameter_shift`;
 the derivative is of
 the `ℝ → ℝ` trigonometric cost, *not* a Fréchet derivative of the matrix exponential. -/
-theorem parameter_shift {M : ℕ} {ψ : m → ℂ} {O : Matrix m m ℂ} {H : Fin M → Matrix m m ℂ}
+lemma parameter_shift {M : ℕ} {ψ : m → ℂ} {O : Matrix m m ℂ} {H : Fin M → Matrix m m ℂ}
     (hH : ∀ k, (H k) * (H k) = 1) (hHerm : ∀ k, (H k)ᴴ = H k) (hO : Oᴴ = O) (θ : Fin M → ℝ)
     (k : Fin M) :
     deriv (fun t => cost ψ O H (Function.update θ k t)) (θ k) = psrEstimate ψ O H θ k :=
@@ -375,7 +375,7 @@ skew-Hermitian generators of an `su(2ⁿ)`-type dynamical Lie algebra — any st
 observable `O`, the exact `k`-th partial derivative of the variational cost
 equals the parameter-shift
 estimate. Non-vacuous instantiation of `MultiGateAnsatz.main` on real quantum generators. -/
-theorem pauliAnsatz_parameter_shift {n M : ℕ} (ψ : Fin (2 ^ n) → ℂ)
+lemma pauliAnsatz_parameter_shift {n M : ℕ} (ψ : Fin (2 ^ n) → ℂ)
     (O : Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ) (hO : Oᴴ = O)
     (s : Fin M → (Fin n → Fin 4)) (θ : Fin M → ℝ) (k : Fin M) :
     deriv (fun t => cost ψ O (fun j => pauliMat (s j)) (Function.update θ k t)) (θ k)

@@ -48,7 +48,7 @@ def tupleInput (ctx : RuntimeCtx .quantum) (N : Nat) :
   .product (Iteration.sampleInput ctx N)
     (.product (Iteration.parameterInput ctx N) (Iteration.phaseInput ctx N))
 
-private theorem sourceValue_phase_weight {N : Nat} (input : Input N)
+private lemma sourceValue_phase_weight {N : Nat} (input : Input N)
     (bits : Fin (residueSamplingBits N) → Bool)
     (parameter : (ParameterShape (modulusBits N)).Value) (phase : Fin (phaseBits N) → Bool) :
     (∑ sample : Fin (2 ^ residueSamplingBits N),
@@ -80,15 +80,15 @@ private theorem sourceValue_phase_weight {N : Nat} (input : Input N)
       matching, false_and, if_false, zero_mul, Finset.sum_const_zero]
 
 /-- The full actual tuple has the original encoded point weight, with every reference entry. -/
-theorem iteration_tuple_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma iteration_tuple_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     {shape : CShape} (observed : CInputRef ctx shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (value : (sourceTupleShape N).Value) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((Iteration.code ctx N input sameWires).execute Reference state)
+      ((Iteration.code ctx N sameWires).execute (environment input) Reference state)
       (fun entry _ => if entry.1.read (tupleInput ctx N) = value then 1 else 0)
       leftRef rightRef =
       ExecutionState.referenceFiberSum state
@@ -130,7 +130,8 @@ theorem iteration_tuple_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input :
             exact coefficient
           refine Eq.trans ?_ (actual.trans sampled)
           apply congrArg (fun observe => ExecutionState.referenceFiberSum
-            ((Iteration.code ctx N input sameWires).execute Reference state) observe leftRef
+            ((Iteration.code ctx N sameWires).execute
+              (environment input) Reference state) observe leftRef
               rightRef)
           funext entry basis
           change
@@ -152,42 +153,44 @@ theorem iteration_tuple_reference (ctx : RuntimeCtx .quantum) (N : Nat) (input :
                 and_false, if_false, mul_zero]
 
 /-- The PMF is extracted from the same actual trace and full stored tuple. -/
-theorem iteration_tuple_toPMF (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma iteration_tuple_toPMF (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     {shape : CShape} (observed : CInputRef ctx shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized) :
-    (((Iteration.code ctx N input sameWires).execute Reference state).toPMF
-      (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans normalized)).map
+    (((Iteration.code ctx N sameWires).execute (environment input) Reference state).toPMF
+      (((Iteration.code ctx N sameWires).execute_mass
+        (environment input) Reference state).trans normalized)).map
         (fun entry => entry.1.read (tupleInput ctx N)) =
           (sourceOutcomePMF input).map (sourceValue input) := by
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum state
-    ((Iteration.code ctx N input sameWires).execute Reference state) normalized
-    (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans normalized)
+    ((Iteration.code ctx N sameWires).execute (environment input) Reference state) normalized
+    (((Iteration.code ctx N sameWires).execute_mass
+      (environment input) Reference state).trans normalized)
   intro value leftRef rightRef
   exact iteration_tuple_reference ctx N input sameWires observed state seeded value leftRef rightRef
 
 /-- Every supported actual record internally supplies one complete original source tuple. -/
-theorem iteration_supported_source (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma iteration_supported_source (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     {shape : CShape} (observed : CInputRef ctx shape)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized)
     (record : Store (Iteration.context ctx N) ×
-      ((executionModel input).HiddenState × (History × (Iteration.code ctx N input
+      ((executionModel N).HiddenState × (History × (Iteration.code ctx N
         sameWires).Path)))
     (supported : record ∈
-      (((Iteration.code ctx N input sameWires).execute Reference state).toPMF
-        (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans
+      (((Iteration.code ctx N sameWires).execute (environment input) Reference state).toPMF
+        (((Iteration.code ctx N sameWires).execute_mass (environment input) Reference state).trans
           normalized)).support) :
     ∃ outcome : SourceOutcome N, record.1.read (tupleInput ctx N) = sourceValue input outcome := by
   have actual : record.1.read (tupleInput ctx N) ∈
-      ((((Iteration.code ctx N input sameWires).execute Reference state).toPMF
-        (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans
+      ((((Iteration.code ctx N sameWires).execute (environment input) Reference state).toPMF
+        (((Iteration.code ctx N sameWires).execute_mass (environment input) Reference state).trans
           normalized)).map
           (fun entry => entry.1.read (tupleInput ctx N))).support :=
     (PMF.mem_support_map_iff _ _ _).mpr ⟨record, supported, rfl⟩
@@ -196,22 +199,22 @@ theorem iteration_supported_source (ctx : RuntimeCtx .quantum) (N : Nat) (input 
   exact ⟨outcome, encoded.symm⟩
 
 /-- Supported actual sampling supplies the original recovery inputs without a caller certificate. -/
-theorem iteration_supported_feedback (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+lemma iteration_supported_feedback (ctx : RuntimeCtx .quantum) (N : Nat) (input : Input N)
     (sameWires : ctx.quantumWires = (layout N).wires)
     (original : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (separated : NativeFactorScan.Separated (Completion.cells ctx N original)
       (Completion.liftWrite ctx N result))
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State ctx Reference ((executionModel input).HiddenState × History))
+    (state : State ctx Reference ((executionModel N).HiddenState × History))
     (seeded : BasisSeeded.Holds ctx.quantumLayout.zeroLabel state)
     (normalized : state.IsNormalized)
     (record : Store (Iteration.context ctx N) ×
-      ((executionModel input).HiddenState × (History × (Iteration.code ctx N input
+      ((executionModel N).HiddenState × (History × (Iteration.code ctx N
         sameWires).Path)))
     (supported : record ∈
-      (((Iteration.code ctx N input sameWires).execute Reference state).toPMF
-        (((Iteration.code ctx N input sameWires).execute_mass Reference state).trans
+      (((Iteration.code ctx N sameWires).execute (environment input) Reference state).toPMF
+        (((Iteration.code ctx N sameWires).execute_mass (environment input) Reference state).trans
           normalized)).support) :
     ∃ outcome : SourceOutcome N,
       record.1.read (tupleInput ctx N) = sourceValue input outcome ∧

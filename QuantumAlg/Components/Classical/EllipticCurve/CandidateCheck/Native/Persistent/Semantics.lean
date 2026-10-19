@@ -26,7 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
+variable {model : ExecutionModel} {environment : model.Environment} {ctx : RuntimeCtx
+  model.kind} {width scalarWidth : Nat}
 
 /-- Apply precisely the actual seven-cell allocation record to every incoming state block. -/
 def persistentAllocationState (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
@@ -38,12 +39,12 @@ def persistentAllocationState (ctx : RuntimeCtx model.kind) (width scalarWidth :
     ((persistentAllocationStep width scalarWidth entry.1).1,
       (entry.2.1, (entry.2.2, (persistentAllocationStep width scalarWidth entry.1).2))))
 
-private theorem retain2_execute (ctx : RuntimeCtx model.kind) (s0 s1 : CShape)
+private lemma retain2_execute (ctx : RuntimeCtx model.kind) (s0 s1 : CShape)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     let c1 := ctx.addRetained ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh
     (Circuit.seq (.retain ctx ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh) (.retain c1
-      c1.canonicalFreshKey s1 c1.canonicalFreshKey_fresh)).execute Reference state =
+      c1.canonicalFreshKey s1 c1.canonicalFreshKey_fresh)).execute environment Reference state =
       state.mapClassical (fun entry => (((entry.1).pushRetained ctx.canonicalFreshKey s0
       ctx.canonicalFreshKey_fresh).pushRetained c1.canonicalFreshKey s1
       c1.canonicalFreshKey_fresh, (entry.2.1, (entry.2.2, ((), ()))))) := by
@@ -52,14 +53,14 @@ private theorem retain2_execute (ctx : RuntimeCtx model.kind) (s0 s1 : CShape)
   simp only [State.mapHistory]
   exact three_maps_eq _ _ _ _ state _ _ _
 
-private theorem retain3_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 : CShape)
+private lemma retain3_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 : CShape)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     let c1 := ctx.addRetained ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh
     let c2 := c1.addRetained c1.canonicalFreshKey s1 c1.canonicalFreshKey_fresh
     (Circuit.seq (.retain ctx ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh) (Circuit.seq
       (.retain c1 c1.canonicalFreshKey s1 c1.canonicalFreshKey_fresh) (.retain c2
-      c2.canonicalFreshKey s2 c2.canonicalFreshKey_fresh))).execute Reference state =
+      c2.canonicalFreshKey s2 c2.canonicalFreshKey_fresh))).execute environment Reference state =
       state.mapClassical (fun entry => ((((entry.1).pushRetained ctx.canonicalFreshKey s0
       ctx.canonicalFreshKey_fresh).pushRetained c1.canonicalFreshKey s1
       c1.canonicalFreshKey_fresh).pushRetained c2.canonicalFreshKey s2
@@ -69,7 +70,7 @@ private theorem retain3_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 : CShape
   simp only [State.mapHistory]
   exact three_maps_eq _ _ _ _ state _ _ _
 
-private theorem retain4_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 : CShape)
+private lemma retain4_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 : CShape)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     let c1 := ctx.addRetained ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh
@@ -78,7 +79,7 @@ private theorem retain4_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 : CSh
     (Circuit.seq (.retain ctx ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh) (Circuit.seq
       (.retain c1 c1.canonicalFreshKey s1 c1.canonicalFreshKey_fresh) (Circuit.seq (.retain c2
       c2.canonicalFreshKey s2 c2.canonicalFreshKey_fresh) (.retain c3 c3.canonicalFreshKey s3
-      c3.canonicalFreshKey_fresh)))).execute Reference state =
+      c3.canonicalFreshKey_fresh)))).execute environment Reference state =
       state.mapClassical (fun entry => (((((entry.1).pushRetained ctx.canonicalFreshKey s0
       ctx.canonicalFreshKey_fresh).pushRetained c1.canonicalFreshKey s1
       c1.canonicalFreshKey_fresh).pushRetained c2.canonicalFreshKey s2
@@ -89,7 +90,7 @@ private theorem retain4_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 : CSh
   simp only [State.mapHistory]
   exact three_maps_eq _ _ _ _ state _ _ _
 
-private theorem retain5_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 s4 : CShape)
+private lemma retain5_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 s4 : CShape)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     let c1 := ctx.addRetained ctx.canonicalFreshKey s0 ctx.canonicalFreshKey_fresh
@@ -100,7 +101,7 @@ private theorem retain5_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 s4 : 
       (.retain c1 c1.canonicalFreshKey s1 c1.canonicalFreshKey_fresh) (Circuit.seq (.retain c2
       c2.canonicalFreshKey s2 c2.canonicalFreshKey_fresh) (Circuit.seq (.retain c3
       c3.canonicalFreshKey s3 c3.canonicalFreshKey_fresh) (.retain c4 c4.canonicalFreshKey s4
-      c4.canonicalFreshKey_fresh))))).execute Reference state =
+      c4.canonicalFreshKey_fresh))))).execute environment Reference state =
       state.mapClassical (fun entry => ((((((entry.1).pushRetained ctx.canonicalFreshKey s0
       ctx.canonicalFreshKey_fresh).pushRetained c1.canonicalFreshKey s1
       c1.canonicalFreshKey_fresh).pushRetained c2.canonicalFreshKey s2
@@ -113,10 +114,10 @@ private theorem retain5_execute (ctx : RuntimeCtx model.kind) (s0 s1 s2 s3 s4 : 
   simp only [State.mapHistory]
   exact three_maps_eq _ _ _ _ state _ _ _
 
-private theorem persistentPrefix_execute (ctx : RuntimeCtx model.kind) (scalarWidth : Nat)
+private lemma persistentPrefix_execute (ctx : RuntimeCtx model.kind) (scalarWidth : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (retainPersistentPrefix ctx scalarWidth).execute Reference state =
+    (retainPersistentPrefix ctx scalarWidth).execute environment Reference state =
       state.mapClassical (fun entry => ((((((entry.1).pushRetained ctx.canonicalFreshKey .bit
       ctx.canonicalFreshKey_fresh).pushRetained (persistentLatchCtx ctx).canonicalFreshKey
       (.unsignedWord scalarWidth)
@@ -131,7 +132,7 @@ private theorem persistentPrefix_execute (ctx : RuntimeCtx model.kind) (scalarWi
   exact retain5_execute ctx .bit (.unsignedWord scalarWidth) .bit
     (.unsignedWord scalarWidth) .bit Reference state
 
-private theorem persistentTwoMaps_eq {A B C : Type}
+private lemma persistentTwoMaps_eq {A B C : Type}
     [Fintype A] [Fintype B] [Fintype C] {R : Register}
     (firstDecision : DecidableEq B) (secondDecision finalDecision : DecidableEq C)
     (state : ExecutionState A R) (first : A → B) (second : B → C) :
@@ -144,10 +145,10 @@ private theorem persistentTwoMaps_eq {A B C : Type}
   exact (Circuit.mapClassical_canonicalDecision secondDecision state _).trans
     (Circuit.mapClassical_canonicalDecision finalDecision state _).symm
 
-private theorem retainedHistory_execute (ctx : RuntimeCtx model.kind) (width : Nat)
+private lemma retainedHistory_execute (ctx : RuntimeCtx model.kind) (width : Nat)
     (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
     (state : State ctx Reference (model.HiddenState × (H × K))) :
-    ((retainOutputs ctx width).execute Reference state).mapHistory
+    ((retainOutputs ctx width).execute environment Reference state).mapHistory
       (fun history => (history.1, (history.2.1.1, (history.2.1.2, history.2.2)))) =
         state.mapClassical (fun entry =>
           (retainedInitialStore width entry.1,
@@ -156,25 +157,28 @@ private theorem retainedHistory_execute (ctx : RuntimeCtx model.kind) (width : N
   simp only [State.mapHistory]
   exact persistentTwoMaps_eq _ _ _ state _ _
 
-private theorem retainedPair_after (pre middle : RuntimeCtx model.kind) (width : Nat)
+private lemma retainedPair_after (pre middle : RuntimeCtx model.kind) (width : Nat)
     (first : Circuit model pre middle) (Reference : Register) {History : Type} [Fintype History]
     (state : State pre Reference (model.HiddenState × History)) :
-    (Circuit.seq first (retainOutputs middle width)).execute Reference state =
-      (first.execute Reference state).mapClassical (fun entry =>
+    (Circuit.seq first (retainOutputs middle width)).execute environment Reference state =
+      (first.execute environment Reference state).mapClassical (fun entry =>
         (retainedInitialStore width entry.1,
           (entry.2.1, (entry.2.2.1, (entry.2.2.2, ((), ())))))) := by
-  have combined := Circuit.execute_seq first (retainOutputs middle width) state
+  have combined := Circuit.execute_seq (environment := environment)
+    first (retainOutputs middle width) state
   exact combined.trans (retainedHistory_execute middle width Reference
-    (H := History) (K := first.Path) (first.execute Reference state))
+    (H := History) (K := first.Path) (first.execute environment Reference state))
 
 /-- The complete actual allocator preserves arbitrary incoming quantum-reference correlations. -/
-theorem retainPersistent_execute (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
+lemma retainPersistent_execute (ctx : RuntimeCtx model.kind) (width scalarWidth : Nat)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (retainPersistent ctx width scalarWidth).execute Reference state =
+    (retainPersistent ctx width scalarWidth).execute environment Reference state =
       persistentAllocationState ctx width scalarWidth Reference state := by
-  have earlier := persistentPrefix_execute ctx scalarWidth Reference state
-  have whole := retainedPair_after ctx (persistentBaseCtx ctx scalarWidth) width
+  have earlier := persistentPrefix_execute (environment := environment)
+    ctx scalarWidth Reference state
+  have whole := retainedPair_after (environment := environment)
+    ctx (persistentBaseCtx ctx scalarWidth) width
     (retainPersistentPrefix ctx scalarWidth) Reference state
   conv at whole =>
     rhs

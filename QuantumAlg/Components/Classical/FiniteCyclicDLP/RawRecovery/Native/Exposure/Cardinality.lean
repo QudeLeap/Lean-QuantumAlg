@@ -25,7 +25,7 @@ variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx mod
   Nat}
 
 /-- The original coordinatewise final-negation allowance has at most five instructions. -/
-theorem preparationFinalEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
+lemma preparationFinalEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (width
   : Nat) :
     (preparationFinalEnvelope model width).card ≤ 5 := by
   have branches := Multiset.card_le_card (Multiset.union_le_add
@@ -38,7 +38,7 @@ theorem preparationFinalEnvelope_card_le (model : ExecutionModel) [BitWord.Selec
   omega
 
 /-- All original preparation phases fit a width-linear actual instruction allowance. -/
-theorem preparationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (spec :
+lemma preparationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (spec :
   ModulusSpec width) :
     (preparationEnvelope model spec).card ≤ 8 * width + 17 := by
   have loaded := ConstantWord.constantLoader_length_le model (width + 1) spec.modulus
@@ -53,13 +53,13 @@ theorem preparationEnvelope_card_le (model : ExecutionModel) [BitWord.Selected m
   omega
 
 /-- The real selected recovery emits its eight operations and three original caller copies. -/
-theorem selectedExposureEvents_length (model : ExecutionModel) [BitWord.Selected model] (width :
+lemma selectedExposureEvents_length (model : ExecutionModel) [BitWord.Selected model] (width :
   Nat) (selected : Bool) :
     (selectedExposureEvents model width selected).length = if selected then 11 else 3 := by
   cases selected <;> rfl
 
 /-- The actual complete raw-recovery allowance retains the original numerical ceiling. -/
-theorem singleExposureEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (spec :
+lemma singleExposureEnvelope_card_le (model : ExecutionModel) [BitWord.Selected model] (spec :
   ModulusSpec width) :
     (singleExposureEnvelope model spec).card ≤ 42 * width + 103 := by
   have preparation := preparationEnvelope_card_le model spec
@@ -70,7 +70,7 @@ theorem singleExposureEnvelope_card_le (model : ExecutionModel) [BitWord.Selecte
   omega
 
 /-- Every actual three-cell recovery trace obeys that same original numerical ceiling. -/
-theorem singleIntoCells_eventCount_le (spec : ModulusSpec width)
+lemma singleIntoCells_eventCount_le (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (inverseSuccess : CWriteRef ctx .bit) (candidate : CWriteRef ctx (.unsignedWord width))
     (reconstruction : CWriteRef ctx .bit)

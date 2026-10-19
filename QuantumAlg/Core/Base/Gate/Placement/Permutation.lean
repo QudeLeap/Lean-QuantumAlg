@@ -45,7 +45,7 @@ public def liftPermutation (application : Application model layout)
     application.basisEquiv.symm
 
 /-- Equality after the lifted action checks both local outputs and the whole complement. -/
-public theorem liftPermutation_eq_iff (application : Application model layout)
+public lemma liftPermutation_eq_iff (application : Application model layout)
     (permutation : Equiv.Perm (model.signature application.occurrence.token).Basis)
     (row column : layout.Basis) :
     application.liftPermutation permutation row = column ↔
@@ -57,7 +57,7 @@ public theorem liftPermutation_eq_iff (application : Application model layout)
   simp only [Prod.ext_iff]
 
 /-- An exact permutation interpretation of the actual token determines its full ambient operator. -/
-public theorem operator_ofPerm (application : Application model layout)
+public lemma operator_ofPerm (application : Application model layout)
     (permutation : Equiv.Perm (model.signature application.occurrence.token).Basis)
     (semantics : model.operator application.occurrence.token =
       UnitaryOperator.ofPerm permutation) :

@@ -71,12 +71,12 @@ def step (source : Input N) (inputs : List (Inputs ctx N))
 end Selected
 
 /-- The four real allocations preserve every original structural input value. -/
-theorem enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
+lemma enter_read {shape : CShape} (input : CInputRef ctx shape) (store : Store ctx) :
     (enter N store).read (liftInput input) = store.read input := by
   simp only [enter, liftInput, Store.read_pushWorkspace_underWorkspace]
 
 /-- The actual release reads each surviving original operand from the inner final store. -/
-theorem leave_read {shape : CShape} (input : CInputRef ctx shape)
+lemma leave_read {shape : CShape} (input : CInputRef ctx shape)
     (store : Store (context ctx N)) :
     (leave N store).read input = store.read (liftInput input) := by
   simp only [leave, liftInput, Store.read_popWorkspace_underWorkspace]

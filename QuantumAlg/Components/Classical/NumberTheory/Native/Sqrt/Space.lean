@@ -34,7 +34,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Both real comparison branches operate on the same existing context. -/
-theorem nativeSqrt_select_visited (refs : RoundRefs ctx width) (path : (select (model := model)
+lemma nativeSqrt_select_visited (refs : RoundRefs ctx width) (path : (select (model := model)
   refs).Path) :
     (select (model := model) refs).visitedContexts path = [ctx] := by
   rcases path with ⟨value, path⟩
@@ -42,7 +42,7 @@ theorem nativeSqrt_select_visited (refs : RoundRefs ctx width) (path : (select (
   | bit flag => cases flag <;> rfl
 
 /-- A round's five instruction positions allocate no additional live cell. -/
-theorem nativeSqrt_round_visited
+lemma nativeSqrt_round_visited
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (path : (round (model := model) input refs).Path) :
     (round (model := model) input refs).visitedContexts path = [ctx, ctx, ctx, ctx, ctx] := by
@@ -52,7 +52,7 @@ theorem nativeSqrt_round_visited
   rfl
 
 /-- Every actual iteration visits only its original live context. -/
-theorem nativeSqrt_iteration_visited
+lemma nativeSqrt_iteration_visited
     (input : CInputRef ctx (.unsignedWord (width + width))) (refs : RoundRefs ctx width)
     (count : Nat) (path : (Circuit.iterate count (round (model := model) input refs)).Path)
     (visited : RuntimeCtx model.kind)
@@ -69,7 +69,7 @@ theorem nativeSqrt_iteration_visited
     simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using member
 
 /-- The entire initialized body stays within the already allocated six-cell context. -/
-theorem nativeSqrt_body_visited (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_body_visited (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (body (model := model) input
       output).Path)
     (visited : RuntimeCtx model.kind)
@@ -93,7 +93,7 @@ private def scopeContexts {kind : ProblemKind} (ctx : RuntimeCtx kind) (width : 
     candidateContext ctx width, squareContext ctx width]
 
 -- Isolate the literal list law from the body's dependent execution path.
-private theorem into_trace (input : CInputRef ctx (.unsignedWord width))
+private lemma into_trace (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path) :
     (into (model := model) input output).visitedContexts path = scopeContexts ctx width ++
@@ -109,7 +109,7 @@ private theorem into_trace (input : CInputRef ctx (.unsignedWord width))
     List.append_assoc, List.cons_append, List.nil_append]
 
 /-- The actual scope visits only its six allocation stages and their original parent. -/
-theorem nativeSqrt_into_visited (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_visited (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (into (model := model) input
@@ -126,7 +126,7 @@ theorem nativeSqrt_into_visited (input : CInputRef ctx (.unsignedWord width))
     · exact List.mem_append_left _ (List.mem_reverse.mp released)
 
 /-- The resident peak counts every actual lexical cell and preserves all quantum coordinates. -/
-theorem nativeSqrt_into_resident_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_resident_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path) :
     (into (model := model) input output).peakResidentSpace path ≤
@@ -143,7 +143,7 @@ theorem nativeSqrt_into_resident_le (input : CInputRef ctx (.unsignedWord width)
         candidateContext, squareContext, context, SpacePool.ofShape] <;> omega
 
 /-- Every simultaneously live scratch cell contributes to the actual auxiliary peak. -/
-theorem nativeSqrt_into_auxiliary_le (input : CInputRef ctx (.unsignedWord width))
+lemma nativeSqrt_into_auxiliary_le (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (path : (into (model := model) input
       output).Path) :
     (into (model := model) input output).peakAuxiliarySpace path ≤

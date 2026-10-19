@@ -250,7 +250,7 @@ def code (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusB
 end Selected
 
 /-- The whole actual factor scope preserves the exact previously allocated quantum bank. -/
-theorem quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
+lemma quantumWires (ctx : RuntimeCtx kind) (N : Nat) :
     (context ctx N).quantumWires = ctx.quantumWires := rfl
 
 end

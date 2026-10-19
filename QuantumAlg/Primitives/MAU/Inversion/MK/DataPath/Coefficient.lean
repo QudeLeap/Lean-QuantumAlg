@@ -26,6 +26,8 @@ namespace MK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open Nat.BinaryArithmetic
 open NumberTheory.BinaryGCD
@@ -108,14 +110,14 @@ def coefficientAddRIntoSGates (n counterWidth : Nat) :
     (coefficientAddRIntoSLayout n counterWidth)
 
 /-- Exact physical length of the `r`-into-`s` coefficient adder. -/
-theorem coefficientAddRIntoSGates_length (n counterWidth : Nat) :
+lemma coefficientAddRIntoSGates_length (n counterWidth : Nat) :
     (coefficientAddRIntoSGates n counterWidth).length = 8 * n + 2 := by
   simp only [coefficientAddRIntoSGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_length]
   omega
 
 /-- The `r`-into-`s` coefficient adder has no X leaf. -/
-theorem coefficientAddRIntoSGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma coefficientAddRIntoSGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((coefficientAddRIntoSGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simpa only [coefficientAddRIntoSGates] using
@@ -123,7 +125,7 @@ theorem coefficientAddRIntoSGates_xMultiplicity_sum (n counterWidth : Nat) :
       (coefficientAddRIntoSLayout n counterWidth))
 
 /-- Exact CNOT coordinate of the `r`-into-`s` coefficient adder. -/
-theorem coefficientAddRIntoSGates_cnotMultiplicity_sum
+lemma coefficientAddRIntoSGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddRIntoSGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (n + 1) := by
@@ -132,7 +134,7 @@ theorem coefficientAddRIntoSGates_cnotMultiplicity_sum
       (coefficientAddRIntoSLayout n counterWidth))
 
 /-- Exact Toffoli coordinate of the `r`-into-`s` coefficient adder. -/
-theorem coefficientAddRIntoSGates_toffoliMultiplicity_sum
+lemma coefficientAddRIntoSGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddRIntoSGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -157,16 +159,16 @@ def coefficientAddRIntoSStep (n counterWidth : Nat) :
 
 /-- The `r`-into-`s` coefficient adder realizes its folded bit-lens action with
 the same base-gate object used for resource accounting. -/
-theorem coefficientAddRIntoS_realizes (n counterWidth : Nat) :
+lemma coefficientAddRIntoS_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coefficientAddRIntoSProgram n counterWidth)
+      (coefficientAddRIntoSProgram n counterWidth) environment
       (coefficientAddRIntoSStep n counterWidth) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes
     (coefficientAddRIntoSLayout n counterWidth)
 
 /-- The `r`-into-`s` coefficient adder preserves every `r` coefficient bit. -/
-theorem coefficientAddRIntoSStep_get_rCoeffWordBit
+lemma coefficientAddRIntoSStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -179,7 +181,7 @@ theorem coefficientAddRIntoSStep_get_rCoeffWordBit
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- The `r`-into-`s` coefficient adder preserves its dedicated carry-in flag. -/
-theorem coefficientAddRIntoSStep_get_carryIn
+lemma coefficientAddRIntoSStep_get_carryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -193,7 +195,7 @@ theorem coefficientAddRIntoSStep_get_carryIn
 
 /-- Gate-list target-bit formula for adding `r` into `s`; the arithmetic
 endpoint follows from the same carry-work invariant in the reusable VBE adder. -/
-theorem coefficientAddRIntoSStep_get_sCoeffWordBit
+lemma coefficientAddRIntoSStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -213,7 +215,7 @@ theorem coefficientAddRIntoSStep_get_sCoeffWordBit
 
 /-- On clean coefficient carry/work inputs, the `r`-into-`s` carry stage
 computes the propagated natural addition carry. -/
-theorem coefficientAddRIntoS_carryStage_get_workCarry_natAddCarry
+lemma coefficientAddRIntoS_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat) (j : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -291,7 +293,7 @@ theorem coefficientAddRIntoS_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before the `r`-into-`s` target sum is the propagated
 natural addition carry on clean coefficient carry/work inputs. -/
-theorem coefficientAddRIntoS_carryBeforeSum_get_natAddCarry
+lemma coefficientAddRIntoS_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -335,7 +337,7 @@ theorem coefficientAddRIntoS_carryBeforeSum_get_natAddCarry
 
 /-- On clean coefficient carry/work inputs, the `r`-into-`s` adder writes the
 target `s` coefficient word as `s + r`. -/
-theorem coefficientAddRIntoSStep_get_sCoeff_add_testBit_of_clean
+lemma coefficientAddRIntoSStep_get_sCoeff_add_testBit_of_clean
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -372,7 +374,7 @@ theorem coefficientAddRIntoSStep_get_sCoeff_add_testBit_of_clean
       simpa [Bool.xor_assoc] using hadd
 
 /-- Word-level clean-input endpoint for the `r`-into-`s` coefficient adder. -/
-theorem coefficientAddRIntoSStep_get_sCoeff_add_of_clean
+lemma coefficientAddRIntoSStep_get_sCoeff_add_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -389,7 +391,7 @@ theorem coefficientAddRIntoSStep_get_sCoeff_add_of_clean
 
 /-- On clean coefficient-adder work inputs, the `r`-into-`s` adder restores each
 temporary carry-work bit to false. -/
-theorem coefficientAddRIntoSStep_get_carryWork_clean
+lemma coefficientAddRIntoSStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hclean :
@@ -406,7 +408,7 @@ theorem coefficientAddRIntoSStep_get_carryWork_clean
 
 /-- The `r`-into-`s` coefficient adder preserves any observed readout whose
 wire is disjoint from every `s` target bit and every temporary carry-work bit. -/
-theorem coefficientAddRIntoSStep_get_observed_of_right_work_ne
+lemma coefficientAddRIntoSStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (registersWithCoeffAdderWorkEncoding n counterWidth))
     (hright :
@@ -435,7 +437,7 @@ theorem coefficientAddRIntoSStep_get_observed_of_right_work_ne
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- The `r`-into-`s` coefficient adder preserves the comparison ancilla. -/
-theorem coefficientAddRIntoSStep_get_compare
+lemma coefficientAddRIntoSStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -459,7 +461,7 @@ theorem coefficientAddRIntoSStep_get_compare
       x
 
 /-- The `r`-into-`s` coefficient adder preserves the active flag. -/
-theorem coefficientAddRIntoSStep_get_active
+lemma coefficientAddRIntoSStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -486,7 +488,7 @@ theorem coefficientAddRIntoSStep_get_active
 
 /-- The `r`-into-`s` coefficient adder preserves every stored branch-history
 bit. -/
-theorem coefficientAddRIntoSStep_get_historyBit
+lemma coefficientAddRIntoSStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -512,7 +514,7 @@ theorem coefficientAddRIntoSStep_get_historyBit
       x
 
 /-- The `r`-into-`s` coefficient adder preserves the first scratch bit. -/
-theorem coefficientAddRIntoSStep_get_scratchA
+lemma coefficientAddRIntoSStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -537,7 +539,7 @@ theorem coefficientAddRIntoSStep_get_scratchA
       x
 
 /-- The `r`-into-`s` coefficient adder preserves the second scratch bit. -/
-theorem coefficientAddRIntoSStep_get_scratchB
+lemma coefficientAddRIntoSStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -563,7 +565,7 @@ theorem coefficientAddRIntoSStep_get_scratchB
 
 /-- The `r`-into-`s` coefficient adder preserves every comparison-work carry
 bit. -/
-theorem coefficientAddRIntoSStep_get_comparisonCarry
+lemma coefficientAddRIntoSStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -587,7 +589,7 @@ theorem coefficientAddRIntoSStep_get_comparisonCarry
       x
 
 /-- The `r`-into-`s` coefficient adder preserves every `u` value bit. -/
-theorem coefficientAddRIntoSStep_get_uWordBit
+lemma coefficientAddRIntoSStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -611,7 +613,7 @@ theorem coefficientAddRIntoSStep_get_uWordBit
       x
 
 /-- The `r`-into-`s` coefficient adder preserves every `v` value bit. -/
-theorem coefficientAddRIntoSStep_get_vWordBit
+lemma coefficientAddRIntoSStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -708,14 +710,14 @@ def coefficientAddSIntoRGates (n counterWidth : Nat) :
     (coefficientAddSIntoRLayout n counterWidth)
 
 /-- Exact physical length of the `s`-into-`r` coefficient adder. -/
-theorem coefficientAddSIntoRGates_length (n counterWidth : Nat) :
+lemma coefficientAddSIntoRGates_length (n counterWidth : Nat) :
     (coefficientAddSIntoRGates n counterWidth).length = 8 * n + 2 := by
   simp only [coefficientAddSIntoRGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_length]
   omega
 
 /-- The `s`-into-`r` coefficient adder has no X leaf. -/
-theorem coefficientAddSIntoRGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma coefficientAddSIntoRGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((coefficientAddSIntoRGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simpa only [coefficientAddSIntoRGates] using
@@ -723,7 +725,7 @@ theorem coefficientAddSIntoRGates_xMultiplicity_sum (n counterWidth : Nat) :
       (coefficientAddSIntoRLayout n counterWidth))
 
 /-- Exact CNOT coordinate of the `s`-into-`r` coefficient adder. -/
-theorem coefficientAddSIntoRGates_cnotMultiplicity_sum
+lemma coefficientAddSIntoRGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddSIntoRGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (n + 1) := by
@@ -732,7 +734,7 @@ theorem coefficientAddSIntoRGates_cnotMultiplicity_sum
       (coefficientAddSIntoRLayout n counterWidth))
 
 /-- Exact Toffoli coordinate of the `s`-into-`r` coefficient adder. -/
-theorem coefficientAddSIntoRGates_toffoliMultiplicity_sum
+lemma coefficientAddSIntoRGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddSIntoRGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -757,16 +759,16 @@ def coefficientAddSIntoRStep (n counterWidth : Nat) :
 
 /-- The `s`-into-`r` coefficient adder realizes its folded bit-lens action with
 the same base-gate object used for resource accounting. -/
-theorem coefficientAddSIntoR_realizes (n counterWidth : Nat) :
+lemma coefficientAddSIntoR_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coefficientAddSIntoRProgram n counterWidth)
+      (coefficientAddSIntoRProgram n counterWidth) environment
       (coefficientAddSIntoRStep n counterWidth) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes
     (coefficientAddSIntoRLayout n counterWidth)
 
 /-- The `s`-into-`r` coefficient adder preserves every `s` coefficient bit. -/
-theorem coefficientAddSIntoRStep_get_sCoeffWordBit
+lemma coefficientAddSIntoRStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -779,7 +781,7 @@ theorem coefficientAddSIntoRStep_get_sCoeffWordBit
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- The `s`-into-`r` coefficient adder preserves its dedicated carry-in flag. -/
-theorem coefficientAddSIntoRStep_get_carryIn
+lemma coefficientAddSIntoRStep_get_carryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -793,7 +795,7 @@ theorem coefficientAddSIntoRStep_get_carryIn
 
 /-- Gate-list target-bit formula for adding `s` into `r`; the arithmetic
 endpoint follows from the same carry-work invariant in the reusable VBE adder. -/
-theorem coefficientAddSIntoRStep_get_rCoeffWordBit
+lemma coefficientAddSIntoRStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -813,7 +815,7 @@ theorem coefficientAddSIntoRStep_get_rCoeffWordBit
 
 /-- On clean coefficient carry/work inputs, the `s`-into-`r` carry stage
 computes the propagated natural addition carry. -/
-theorem coefficientAddSIntoR_carryStage_get_workCarry_natAddCarry
+lemma coefficientAddSIntoR_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat) (j : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -891,7 +893,7 @@ theorem coefficientAddSIntoR_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before the `s`-into-`r` target sum is the propagated
 natural addition carry on clean coefficient carry/work inputs. -/
-theorem coefficientAddSIntoR_carryBeforeSum_get_natAddCarry
+lemma coefficientAddSIntoR_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -935,7 +937,7 @@ theorem coefficientAddSIntoR_carryBeforeSum_get_natAddCarry
 
 /-- On clean coefficient carry/work inputs, the `s`-into-`r` adder writes the
 target `r` coefficient word as `r + s`. -/
-theorem coefficientAddSIntoRStep_get_rCoeff_add_testBit_of_clean
+lemma coefficientAddSIntoRStep_get_rCoeff_add_testBit_of_clean
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -972,7 +974,7 @@ theorem coefficientAddSIntoRStep_get_rCoeff_add_testBit_of_clean
       simpa [Bool.xor_assoc] using hadd
 
 /-- Word-level clean-input endpoint for the `s`-into-`r` coefficient adder. -/
-theorem coefficientAddSIntoRStep_get_rCoeff_add_of_clean
+lemma coefficientAddSIntoRStep_get_rCoeff_add_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -989,7 +991,7 @@ theorem coefficientAddSIntoRStep_get_rCoeff_add_of_clean
 
 /-- On clean coefficient-adder work inputs, the `s`-into-`r` adder restores each
 temporary carry-work bit to false. -/
-theorem coefficientAddSIntoRStep_get_carryWork_clean
+lemma coefficientAddSIntoRStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hclean :
@@ -1006,7 +1008,7 @@ theorem coefficientAddSIntoRStep_get_carryWork_clean
 
 /-- The `s`-into-`r` coefficient adder preserves any observed readout whose
 wire is disjoint from every `r` target bit and every temporary carry-work bit. -/
-theorem coefficientAddSIntoRStep_get_observed_of_right_work_ne
+lemma coefficientAddSIntoRStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (registersWithCoeffAdderWorkEncoding n counterWidth))
     (hright :
@@ -1035,7 +1037,7 @@ theorem coefficientAddSIntoRStep_get_observed_of_right_work_ne
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- The `s`-into-`r` coefficient adder preserves the comparison ancilla. -/
-theorem coefficientAddSIntoRStep_get_compare
+lemma coefficientAddSIntoRStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -1059,7 +1061,7 @@ theorem coefficientAddSIntoRStep_get_compare
       x
 
 /-- The `s`-into-`r` coefficient adder preserves the active flag. -/
-theorem coefficientAddSIntoRStep_get_active
+lemma coefficientAddSIntoRStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -1086,7 +1088,7 @@ theorem coefficientAddSIntoRStep_get_active
 
 /-- The `s`-into-`r` coefficient adder preserves every stored branch-history
 bit. -/
-theorem coefficientAddSIntoRStep_get_historyBit
+lemma coefficientAddSIntoRStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -1112,7 +1114,7 @@ theorem coefficientAddSIntoRStep_get_historyBit
       x
 
 /-- The `s`-into-`r` coefficient adder preserves the first scratch bit. -/
-theorem coefficientAddSIntoRStep_get_scratchA
+lemma coefficientAddSIntoRStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -1137,7 +1139,7 @@ theorem coefficientAddSIntoRStep_get_scratchA
       x
 
 /-- The `s`-into-`r` coefficient adder preserves the second scratch bit. -/
-theorem coefficientAddSIntoRStep_get_scratchB
+lemma coefficientAddSIntoRStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -1163,7 +1165,7 @@ theorem coefficientAddSIntoRStep_get_scratchB
 
 /-- The `s`-into-`r` coefficient adder preserves every comparison-work carry
 bit. -/
-theorem coefficientAddSIntoRStep_get_comparisonCarry
+lemma coefficientAddSIntoRStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -1187,7 +1189,7 @@ theorem coefficientAddSIntoRStep_get_comparisonCarry
       x
 
 /-- The `s`-into-`r` coefficient adder preserves every `u` value bit. -/
-theorem coefficientAddSIntoRStep_get_uWordBit
+lemma coefficientAddSIntoRStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -1211,7 +1213,7 @@ theorem coefficientAddSIntoRStep_get_uWordBit
       x
 
 /-- The `s`-into-`r` coefficient adder preserves every `v` value bit. -/
-theorem coefficientAddSIntoRStep_get_vWordBit
+lemma coefficientAddSIntoRStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -1237,7 +1239,7 @@ theorem coefficientAddSIntoRStep_get_vWordBit
 /-! ## Compare-selected coefficient-add data paths -/
 
 /-- The `r`-into-`s` coefficient-add gate list is disjoint from compare. -/
-theorem coefficientAddRIntoSGates_bitDisjoint_compare
+lemma coefficientAddRIntoSGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddRIntoSGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -1284,7 +1286,7 @@ theorem coefficientAddRIntoSGates_bitDisjoint_compare
 
 /-- The `r`-into-`s` coefficient-add gate list is disjoint from `scratchA`,
 which can serve as the clean control-work bit for coefficient-add wrappers. -/
-theorem coefficientAddRIntoSGates_bitDisjoint_scratchA
+lemma coefficientAddRIntoSGates_bitDisjoint_scratchA
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddRIntoSGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -1322,7 +1324,7 @@ theorem coefficientAddRIntoSGates_bitDisjoint_scratchA
                 (coeffAdderCarryWorkBit n j)))
 
 /-- The `s`-into-`r` coefficient-add gate list is disjoint from compare. -/
-theorem coefficientAddSIntoRGates_bitDisjoint_compare
+lemma coefficientAddSIntoRGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddSIntoRGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -1369,7 +1371,7 @@ theorem coefficientAddSIntoRGates_bitDisjoint_compare
 
 /-- The `s`-into-`r` coefficient-add gate list is disjoint from `scratchA`,
 which can serve as the clean control-work bit for coefficient-add wrappers. -/
-theorem coefficientAddSIntoRGates_bitDisjoint_scratchA
+lemma coefficientAddSIntoRGates_bitDisjoint_scratchA
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddSIntoRGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -1443,17 +1445,17 @@ def coeffWorkCompareFalseControlledAddRIntoSProgram
     (coeffWorkCompareFalseControlledAddRIntoSGates n counterWidth)
 
 /-- The compare-false-controlled `s := s + r` circuit realizes its step. -/
-theorem coeffWorkCompareFalseControlledAddRIntoS_realizes
+lemma coeffWorkCompareFalseControlledAddRIntoS_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareFalseControlledAddRIntoSProgram n counterWidth)
+      (coeffWorkCompareFalseControlledAddRIntoSProgram n counterWidth) environment
       (coeffWorkCompareFalseControlledAddRIntoSStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkCompareFalseControlledAddRIntoSGates n counterWidth)
 
 /-- If compare is false and `scratchA` is clean, the compare-false wrapper acts
 like the concrete `s := s + r` coefficient add. -/
-theorem
+lemma
     coeffWorkCompareFalseControlledAddRIntoSStep_eq_addRIntoS_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -1531,7 +1533,7 @@ theorem
 
 /-- If compare is true, the compare-false-controlled `s := s + r` coefficient
 add is a no-op. -/
-theorem coeffWorkCompareFalseControlledAddRIntoSStep_eq_self_of_compare_true
+lemma coeffWorkCompareFalseControlledAddRIntoSStep_eq_self_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true) :
     coeffWorkCompareFalseControlledAddRIntoSStep n counterWidth x = x := by
@@ -1617,17 +1619,17 @@ def coeffWorkCompareControlledAddSIntoRProgram
     (coeffWorkCompareControlledAddSIntoRGates n counterWidth)
 
 /-- The compare-controlled `r := r + s` circuit realizes its step. -/
-theorem coeffWorkCompareControlledAddSIntoR_realizes
+lemma coeffWorkCompareControlledAddSIntoR_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareControlledAddSIntoRProgram n counterWidth)
+      (coeffWorkCompareControlledAddSIntoRProgram n counterWidth) environment
       (coeffWorkCompareControlledAddSIntoRStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkCompareControlledAddSIntoRGates n counterWidth)
 
 /-- If compare is false, the compare-controlled `r := r + s` coefficient add
 is a no-op. -/
-theorem coeffWorkCompareControlledAddSIntoRStep_eq_self_of_compare_false
+lemma coeffWorkCompareControlledAddSIntoRStep_eq_self_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false) :
     coeffWorkCompareControlledAddSIntoRStep n counterWidth x = x := by
@@ -1649,7 +1651,7 @@ theorem coeffWorkCompareControlledAddSIntoRStep_eq_self_of_compare_false
 
 /-- If compare is true and `scratchA` is clean, the compare-controlled wrapper
 acts like the concrete `r := r + s` coefficient add. -/
-theorem coeffWorkCompareControlledAddSIntoRStep_eq_addSIntoR_of_compare_true
+lemma coeffWorkCompareControlledAddSIntoRStep_eq_addSIntoR_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
     (hwork : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -1702,7 +1704,7 @@ def coeffWorkCompareSelectedCoefficientAddStep (n counterWidth : Nat) :
 
 /-- The explicit compare-selected coefficient-add gate list has the same
 folded semantics as the sequential selected coefficient-add step. -/
-theorem coeffWorkCompareSelectedCoefficientAddStep_eq_gateList
+lemma coeffWorkCompareSelectedCoefficientAddStep_eq_gateList
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     EncodedBit.GateSpec.stepList
         (coeffWorkCompareSelectedCoefficientAddGates n counterWidth) x =
@@ -1713,20 +1715,20 @@ theorem coeffWorkCompareSelectedCoefficientAddStep_eq_gateList
 
 /-- The compare-selected coefficient-add gate list realizes the sequential
 selected coefficient-add step. -/
-theorem coeffWorkCompareSelectedCoefficientAdd_realizes
+lemma coeffWorkCompareSelectedCoefficientAdd_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareSelectedCoefficientAddProgram n counterWidth)
+      (coeffWorkCompareSelectedCoefficientAddProgram n counterWidth) environment
       (coeffWorkCompareSelectedCoefficientAddStep n counterWidth) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedCoefficientAddGates n counterWidth)
     (coeffWorkCompareSelectedCoefficientAddStep_eq_gateList n counterWidth)
 
 /-- If compare is true and `scratchA` is clean, the selected coefficient-add
 atom reduces to `r := r + s`. -/
-theorem
+lemma
     coeffWorkCompareSelectedCoefficientAddStep_eq_addSIntoR_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -1753,7 +1755,7 @@ theorem
 
 /-- If compare is false and `scratchA` is clean, the selected coefficient-add
 atom reduces to `s := s + r`. -/
-theorem
+lemma
     coeffWorkCompareSelectedCoefficientAddStep_eq_addRIntoS_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -1892,11 +1894,11 @@ def coeffWorkAddVIntoUProgram (n counterWidth : Nat) :
     (coeffWorkAddVIntoUGates n counterWidth)
 
 /-- The concrete source-register adder circuit realizes `u := u + v`. -/
-theorem coeffWorkAddVIntoU_realizes (n counterWidth : Nat) :
+lemma coeffWorkAddVIntoU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkAddVIntoUProgram n counterWidth)
+      (coeffWorkAddVIntoUProgram n counterWidth) environment
       (coeffWorkAddVIntoUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkAddVIntoUGates n counterWidth)
 
 /-- Reverse gate list used as the concrete source-register subtract path
@@ -1907,7 +1909,7 @@ def coeffWorkSubVFromUGates (n counterWidth : Nat) :
   (coeffWorkAddVIntoUGates n counterWidth).reverse
 
 /-- Exact physical length of the `u := u - v` source-register path. -/
-theorem coeffWorkSubVFromUGates_length (n counterWidth : Nat) :
+lemma coeffWorkSubVFromUGates_length (n counterWidth : Nat) :
     (coeffWorkSubVFromUGates n counterWidth).length =
       6 * (n - 1) + 2 * n := by
   simpa only [coeffWorkSubVFromUGates, coeffWorkAddVIntoUGates,
@@ -1916,7 +1918,7 @@ theorem coeffWorkSubVFromUGates_length (n counterWidth : Nat) :
       (coeffWorkAddVIntoULayout n counterWidth))
 
 /-- The `u := u - v` source-register path has no X leaf. -/
-theorem coeffWorkSubVFromUGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma coeffWorkSubVFromUGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((coeffWorkSubVFromUGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp only [coeffWorkSubVFromUGates, coeffWorkAddVIntoUGates,
@@ -1924,7 +1926,7 @@ theorem coeffWorkSubVFromUGates_xMultiplicity_sum (n counterWidth : Nat) :
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum]
 
 /-- Exact CNOT coordinate of the `u := u - v` source-register path. -/
-theorem coeffWorkSubVFromUGates_cnotMultiplicity_sum
+lemma coeffWorkSubVFromUGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkSubVFromUGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
@@ -1933,7 +1935,7 @@ theorem coeffWorkSubVFromUGates_cnotMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate of the `u := u - v` source-register path. -/
-theorem coeffWorkSubVFromUGates_toffoliMultiplicity_sum
+lemma coeffWorkSubVFromUGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkSubVFromUGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * (n - 1) := by
@@ -1956,16 +1958,16 @@ def coeffWorkSubVFromUProgram (n counterWidth : Nat) :
     (coeffWorkSubVFromUGates n counterWidth)
 
 /-- The concrete source-register subtract circuit realizes `u := u - v`. -/
-theorem coeffWorkSubVFromU_realizes (n counterWidth : Nat) :
+lemma coeffWorkSubVFromU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkSubVFromUProgram n counterWidth)
+      (coeffWorkSubVFromUProgram n counterWidth) environment
       (coeffWorkSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkSubVFromUGates n counterWidth)
 
 /-- The concrete `u := u - v` source-subtract gate list is disjoint from the
 staged compare bit. -/
-theorem coeffWorkSubVFromUGates_bitDisjoint_compare
+lemma coeffWorkSubVFromUGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coeffWorkSubVFromUGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -2009,7 +2011,7 @@ theorem coeffWorkSubVFromUGates_bitDisjoint_compare
 /-- The concrete `u := u - v` source-subtract gate list is disjoint from the
 dedicated coefficient-adder carry-in bit, which can therefore serve as the
 extra clean control-work bit for this source-subtract-only wrapper. -/
-theorem coeffWorkSubVFromUGates_bitDisjoint_coeffCarryIn
+lemma coeffWorkSubVFromUGates_bitDisjoint_coeffCarryIn
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coeffWorkSubVFromUGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -2090,17 +2092,17 @@ def coeffWorkCompareControlledSubVFromUProgram
     (coeffWorkCompareControlledSubVFromUGates n counterWidth)
 
 /-- The compare-controlled `u := u - v` circuit realizes its step. -/
-theorem coeffWorkCompareControlledSubVFromU_realizes
+lemma coeffWorkCompareControlledSubVFromU_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareControlledSubVFromUProgram n counterWidth)
+      (coeffWorkCompareControlledSubVFromUProgram n counterWidth) environment
       (coeffWorkCompareControlledSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkCompareControlledSubVFromUGates n counterWidth)
 
 /-- If compare is false, the compare-controlled `u := u - v` source subtract is
 a no-op. -/
-theorem coeffWorkCompareControlledSubVFromUStep_eq_self_of_compare_false
+lemma coeffWorkCompareControlledSubVFromUStep_eq_self_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false) :
     coeffWorkCompareControlledSubVFromUStep n counterWidth x = x := by
@@ -2123,7 +2125,7 @@ theorem coeffWorkCompareControlledSubVFromUStep_eq_self_of_compare_false
 /-- If compare is true and the dedicated coefficient carry-in is clean, the
 compare-controlled wrapper acts like the concrete `u := u - v` source-subtract
 path. -/
-theorem coeffWorkCompareControlledSubVFromUStep_eq_subVFromU_of_compare_true
+lemma coeffWorkCompareControlledSubVFromUStep_eq_subVFromU_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
     (hwork : (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -2145,7 +2147,7 @@ theorem coeffWorkCompareControlledSubVFromUStep_eq_subVFromU_of_compare_true
             (coeffAdderCarryInWorkBit n))
       x hcompare hwork
 
-theorem coeffWorkSubVFromUStep_comp_addVIntoU
+lemma coeffWorkSubVFromUStep_comp_addVIntoU
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     coeffWorkSubVFromUStep n counterWidth
         (coeffWorkAddVIntoUStep n counterWidth x) =
@@ -2153,7 +2155,7 @@ theorem coeffWorkSubVFromUStep_comp_addVIntoU
   exact EncodedBit.GateSpec.stepList_reverse_stepList
     (coeffWorkAddVIntoUGates n counterWidth) x
 
-theorem coeffWorkAddVIntoUStep_comp_subVFromU
+lemma coeffWorkAddVIntoUStep_comp_subVFromU
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     coeffWorkAddVIntoUStep n counterWidth
         (coeffWorkSubVFromUStep n counterWidth x) =
@@ -2165,7 +2167,7 @@ theorem coeffWorkAddVIntoUStep_comp_subVFromU
     coeffWorkSubVFromUGates] using h
 
 /-- The forward `v`-into-`u` adder preserves the scratchA carry-in bit. -/
-theorem coeffWorkAddVIntoUStep_get_scratchA
+lemma coeffWorkAddVIntoUStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -2180,7 +2182,7 @@ theorem coeffWorkAddVIntoUStep_get_scratchA
 /-- The forward `v`-into-`u` source adder preserves any observed readout whose
 wire is disjoint from every `u` target bit and every comparison-prefix
 carry-work bit. -/
-theorem coeffWorkAddVIntoUStep_get_observed_of_right_work_ne
+lemma coeffWorkAddVIntoUStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (observed :
       EncodedBit (registersWithCoeffAdderWorkEncoding n counterWidth))
@@ -2201,7 +2203,7 @@ theorem coeffWorkAddVIntoUStep_get_observed_of_right_work_ne
     coeffWorkAddVIntoULayout] using h
 
 /-- The forward `v`-into-`u` source adder preserves the active flag. -/
-theorem coeffWorkAddVIntoUStep_get_active
+lemma coeffWorkAddVIntoUStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -2228,7 +2230,7 @@ theorem coeffWorkAddVIntoUStep_get_active
       x
 
 /-- The forward `v`-into-`u` source adder preserves the comparison ancilla. -/
-theorem coeffWorkAddVIntoUStep_get_compare
+lemma coeffWorkAddVIntoUStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -2257,7 +2259,7 @@ theorem coeffWorkAddVIntoUStep_get_compare
 
 /-- The forward `v`-into-`u` source adder preserves every stored
 branch-history bit. -/
-theorem coeffWorkAddVIntoUStep_get_historyBit
+lemma coeffWorkAddVIntoUStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -2291,7 +2293,7 @@ theorem coeffWorkAddVIntoUStep_get_historyBit
       x
 
 /-- The forward `v`-into-`u` source adder preserves the second scratch bit. -/
-theorem coeffWorkAddVIntoUStep_get_scratchB
+lemma coeffWorkAddVIntoUStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -2321,7 +2323,7 @@ theorem coeffWorkAddVIntoUStep_get_scratchB
 
 /-- If the input scratchA carry-in is clean, the reverse `u := u - v` path
 also lands on clean scratchA. -/
-theorem coeffWorkSubVFromUStep_get_scratchA_clean
+lemma coeffWorkSubVFromUStep_get_scratchA_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -2344,7 +2346,7 @@ theorem coeffWorkSubVFromUStep_get_scratchA_clean
     _ = false := hcarry
 
 /-- The concrete `u := u - v` reverse-adder path preserves the active flag. -/
-theorem coeffWorkSubVFromUStep_get_active
+lemma coeffWorkSubVFromUStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -2366,7 +2368,7 @@ theorem coeffWorkSubVFromUStep_get_active
 
 /-- The concrete `u := u - v` reverse-adder path preserves the comparison
 ancilla. -/
-theorem coeffWorkSubVFromUStep_get_compare
+lemma coeffWorkSubVFromUStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -2388,7 +2390,7 @@ theorem coeffWorkSubVFromUStep_get_compare
 
 /-- The concrete `u := u - v` reverse-adder path preserves every stored
 branch-history bit. -/
-theorem coeffWorkSubVFromUStep_get_historyBit
+lemma coeffWorkSubVFromUStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -2410,7 +2412,7 @@ theorem coeffWorkSubVFromUStep_get_historyBit
 
 /-- The concrete `u := u - v` reverse-adder path preserves the second scratch
 bit. -/
-theorem coeffWorkSubVFromUStep_get_scratchB
+lemma coeffWorkSubVFromUStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -2431,7 +2433,7 @@ theorem coeffWorkSubVFromUStep_get_scratchB
       rw [hcancel]
 
 /-- The forward `v`-into-`u` adder preserves every source `v` bit. -/
-theorem coeffWorkAddVIntoUStep_get_vWordBit
+lemma coeffWorkAddVIntoUStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -2444,7 +2446,7 @@ theorem coeffWorkAddVIntoUStep_get_vWordBit
     coeffWorkAddVIntoULayout] using h
 
 /-- The forward `v`-into-`u` adder preserves every `s` coefficient value bit. -/
-theorem coeffWorkAddVIntoUStep_get_sCoeffValueBit
+lemma coeffWorkAddVIntoUStep_get_sCoeffValueBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -2466,7 +2468,7 @@ theorem coeffWorkAddVIntoUStep_get_sCoeffValueBit
     coeffWorkAddVIntoULayout] using h
 
 /-- The forward `v`-into-`u` adder preserves every `r` coefficient value bit. -/
-theorem coeffWorkAddVIntoUStep_get_rCoeffValueBit
+lemma coeffWorkAddVIntoUStep_get_rCoeffValueBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -2489,7 +2491,7 @@ theorem coeffWorkAddVIntoUStep_get_rCoeffValueBit
 
 /-- The forward `v`-into-`u` adder preserves the dedicated coefficient-adder
 carry-in flag. -/
-theorem coeffWorkAddVIntoUStep_get_coeffCarryIn
+lemma coeffWorkAddVIntoUStep_get_coeffCarryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -2513,7 +2515,7 @@ theorem coeffWorkAddVIntoUStep_get_coeffCarryIn
 
 /-- The forward `v`-into-`u` adder preserves every dedicated coefficient-adder
 carry-work bit. -/
-theorem coeffWorkAddVIntoUStep_get_coeffCarryWorkBit
+lemma coeffWorkAddVIntoUStep_get_coeffCarryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -2538,7 +2540,7 @@ theorem coeffWorkAddVIntoUStep_get_coeffCarryWorkBit
 
 /-- On clean comparison-prefix work inputs, the forward `v`-into-`u` adder
 restores every comparison-prefix carry-work bit. -/
-theorem coeffWorkAddVIntoUStep_get_comparisonCarryPrefix_clean
+lemma coeffWorkAddVIntoUStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hwork :
@@ -2556,7 +2558,7 @@ theorem coeffWorkAddVIntoUStep_get_comparisonCarryPrefix_clean
 
 /-- On clean comparison-prefix work inputs, the concrete reverse `u := u - v`
 path also lands on clean comparison-prefix carry-work bits. -/
-theorem coeffWorkSubVFromUStep_get_comparisonCarryPrefix_clean
+lemma coeffWorkSubVFromUStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hwork :
@@ -2574,7 +2576,7 @@ theorem coeffWorkSubVFromUStep_get_comparisonCarryPrefix_clean
 
 /-- On clean carry/work inputs, the forward `v`-into-`u` carry stage computes
 the propagated natural addition carry. -/
-theorem coeffWorkAddVIntoU_carryStage_get_workCarry_natAddCarry
+lemma coeffWorkAddVIntoU_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat) (j : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -2653,7 +2655,7 @@ theorem coeffWorkAddVIntoU_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before the `v`-into-`u` target sum is the propagated
 natural addition carry on clean carry/work inputs. -/
-theorem coeffWorkAddVIntoU_carryBeforeSum_get_natAddCarry
+lemma coeffWorkAddVIntoU_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -2696,7 +2698,7 @@ theorem coeffWorkAddVIntoU_carryBeforeSum_get_natAddCarry
 
 /-- On clean carry/work inputs, the forward `v`-into-`u` adder writes the
 target `u` word as `u + v`. -/
-theorem coeffWorkAddVIntoUStep_get_u_add_testBit_of_clean
+lemma coeffWorkAddVIntoUStep_get_u_add_testBit_of_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -2730,7 +2732,7 @@ theorem coeffWorkAddVIntoUStep_get_u_add_testBit_of_clean
       simpa [Bool.xor_assoc] using hadd
 
 /-- Word-level clean-input endpoint for the forward `v`-into-`u` data path. -/
-theorem coeffWorkAddVIntoUStep_get_u_add_of_clean
+lemma coeffWorkAddVIntoUStep_get_u_add_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -2747,7 +2749,7 @@ theorem coeffWorkAddVIntoUStep_get_u_add_of_clean
 
 /-- The concrete `u := u - v` reverse-adder path preserves every source `v`
 bit. -/
-theorem coeffWorkSubVFromUStep_get_vWordBit
+lemma coeffWorkSubVFromUStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -2769,7 +2771,7 @@ theorem coeffWorkSubVFromUStep_get_vWordBit
 
 /-- The concrete `u := u - v` reverse-adder path preserves the source `v`
 word. -/
-theorem coeffWorkSubVFromUStep_get_v
+lemma coeffWorkSubVFromUStep_get_v
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubVFromUStep n counterWidth x).1.1.v =
@@ -2781,7 +2783,7 @@ theorem coeffWorkSubVFromUStep_get_v
 
 /-- The concrete `u := u - v` reverse-adder path preserves the `s`
 coefficient word. -/
-theorem coeffWorkSubVFromUStep_get_sCoeff
+lemma coeffWorkSubVFromUStep_get_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubVFromUStep n counterWidth x).1.1.sCoeff =
@@ -2804,7 +2806,7 @@ theorem coeffWorkSubVFromUStep_get_sCoeff
 
 /-- The concrete `u := u - v` reverse-adder path preserves the `r`
 coefficient word. -/
-theorem coeffWorkSubVFromUStep_get_rCoeff
+lemma coeffWorkSubVFromUStep_get_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubVFromUStep n counterWidth x).1.1.rCoeff =
@@ -2827,7 +2829,7 @@ theorem coeffWorkSubVFromUStep_get_rCoeff
 
 /-- The concrete `u := u - v` reverse-adder path preserves the dedicated
 coefficient-adder carry-in flag. -/
-theorem coeffWorkSubVFromUStep_get_coeffCarryIn
+lemma coeffWorkSubVFromUStep_get_coeffCarryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -2849,7 +2851,7 @@ theorem coeffWorkSubVFromUStep_get_coeffCarryIn
 
 /-- The concrete `u := u - v` reverse-adder path preserves every dedicated
 coefficient-adder carry-work bit. -/
-theorem coeffWorkSubVFromUStep_get_coeffCarryWorkBit
+lemma coeffWorkSubVFromUStep_get_coeffCarryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -2871,7 +2873,7 @@ theorem coeffWorkSubVFromUStep_get_coeffCarryWorkBit
 
 /-- If the reverse `u := u - v` path lands on clean carry/work, its target
 word is the width-preserving subtraction endpoint. -/
-theorem coeffWorkSubVFromUStep_get_u_sub_of_output_clean
+lemma coeffWorkSubVFromUStep_get_u_sub_of_output_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry :
@@ -2903,7 +2905,7 @@ theorem coeffWorkSubVFromUStep_get_u_sub_of_output_clean
 
 /-- Clean-input target arithmetic endpoint for the concrete `u := u - v`
 reverse-adder path. -/
-theorem coeffWorkSubVFromUStep_get_u_sub_of_clean
+lemma coeffWorkSubVFromUStep_get_u_sub_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -2943,11 +2945,11 @@ def coeffWorkAddUIntoVProgram (n counterWidth : Nat) :
     (coeffWorkAddUIntoVGates n counterWidth)
 
 /-- The concrete source-register adder circuit realizes `v := v + u`. -/
-theorem coeffWorkAddUIntoV_realizes (n counterWidth : Nat) :
+lemma coeffWorkAddUIntoV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkAddUIntoVProgram n counterWidth)
+      (coeffWorkAddUIntoVProgram n counterWidth) environment
       (coeffWorkAddUIntoVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkAddUIntoVGates n counterWidth)
 
 /-- Reverse gate list used as the concrete source-register subtract path
@@ -2958,7 +2960,7 @@ def coeffWorkSubUFromVGates (n counterWidth : Nat) :
   (coeffWorkAddUIntoVGates n counterWidth).reverse
 
 /-- Exact physical length of the `v := v - u` source-register path. -/
-theorem coeffWorkSubUFromVGates_length (n counterWidth : Nat) :
+lemma coeffWorkSubUFromVGates_length (n counterWidth : Nat) :
     (coeffWorkSubUFromVGates n counterWidth).length =
       6 * (n - 1) + 2 * n := by
   simpa only [coeffWorkSubUFromVGates, coeffWorkAddUIntoVGates,
@@ -2967,7 +2969,7 @@ theorem coeffWorkSubUFromVGates_length (n counterWidth : Nat) :
       (coeffWorkAddUIntoVLayout n counterWidth))
 
 /-- The `v := v - u` source-register path has no X leaf. -/
-theorem coeffWorkSubUFromVGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma coeffWorkSubUFromVGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((coeffWorkSubUFromVGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simp only [coeffWorkSubUFromVGates, coeffWorkAddUIntoVGates,
@@ -2975,7 +2977,7 @@ theorem coeffWorkSubUFromVGates_xMultiplicity_sum (n counterWidth : Nat) :
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_xMultiplicity_sum]
 
 /-- Exact CNOT coordinate of the `v := v - u` source-register path. -/
-theorem coeffWorkSubUFromVGates_cnotMultiplicity_sum
+lemma coeffWorkSubUFromVGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkSubUFromVGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
@@ -2984,7 +2986,7 @@ theorem coeffWorkSubUFromVGates_cnotMultiplicity_sum
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_cnotMultiplicity_sum]
 
 /-- Exact Toffoli coordinate of the `v := v - u` source-register path. -/
-theorem coeffWorkSubUFromVGates_toffoliMultiplicity_sum
+lemma coeffWorkSubUFromVGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkSubUFromVGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * (n - 1) := by
@@ -3007,16 +3009,16 @@ def coeffWorkSubUFromVProgram (n counterWidth : Nat) :
     (coeffWorkSubUFromVGates n counterWidth)
 
 /-- The concrete source-register subtract circuit realizes `v := v - u`. -/
-theorem coeffWorkSubUFromV_realizes (n counterWidth : Nat) :
+lemma coeffWorkSubUFromV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkSubUFromVProgram n counterWidth)
+      (coeffWorkSubUFromVProgram n counterWidth) environment
       (coeffWorkSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkSubUFromVGates n counterWidth)
 
 /-- The concrete `v := v - u` source-subtract gate list is disjoint from the
 staged compare bit. -/
-theorem coeffWorkSubUFromVGates_bitDisjoint_compare
+lemma coeffWorkSubUFromVGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coeffWorkSubUFromVGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -3060,7 +3062,7 @@ theorem coeffWorkSubUFromVGates_bitDisjoint_compare
 /-- The concrete `v := v - u` source-subtract gate list is disjoint from the
 dedicated coefficient-adder carry-in bit, which can therefore serve as the
 extra clean control-work bit for this source-subtract-only wrapper. -/
-theorem coeffWorkSubUFromVGates_bitDisjoint_coeffCarryIn
+lemma coeffWorkSubUFromVGates_bitDisjoint_coeffCarryIn
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coeffWorkSubUFromVGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -3143,17 +3145,17 @@ def coeffWorkCompareFalseControlledSubUFromVProgram
     (coeffWorkCompareFalseControlledSubUFromVGates n counterWidth)
 
 /-- The compare-false-controlled `v := v - u` circuit realizes its step. -/
-theorem coeffWorkCompareFalseControlledSubUFromV_realizes
+lemma coeffWorkCompareFalseControlledSubUFromV_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareFalseControlledSubUFromVProgram n counterWidth)
+      (coeffWorkCompareFalseControlledSubUFromVProgram n counterWidth) environment
       (coeffWorkCompareFalseControlledSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coeffWorkCompareFalseControlledSubUFromVGates n counterWidth)
 
 /-- If compare is false and the dedicated coefficient carry-in is clean, the
 compare-false wrapper acts like the concrete `v := v - u` source-subtract path. -/
-theorem coeffWorkCompareFalseControlledSubUFromVStep_eq_subUFromV_of_compare_false
+lemma coeffWorkCompareFalseControlledSubUFromVStep_eq_subUFromV_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
     (hwork : (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -3228,7 +3230,7 @@ theorem coeffWorkCompareFalseControlledSubUFromVStep_eq_subUFromV_of_compare_fal
 
 /-- If compare is true, the compare-false-controlled `v := v - u` source
 subtract is a no-op. -/
-theorem coeffWorkCompareFalseControlledSubUFromVStep_eq_self_of_compare_true
+lemma coeffWorkCompareFalseControlledSubUFromVStep_eq_self_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true) :
     coeffWorkCompareFalseControlledSubUFromVStep n counterWidth x = x := by
@@ -3312,7 +3314,7 @@ def coeffWorkCompareSelectedSourceSubtractStep (n counterWidth : Nat) :
 
 /-- The explicit compare-selected source-subtract gate list has the same
 folded semantics as the sequential selected source-subtract step. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_eq_gateList
+lemma coeffWorkCompareSelectedSourceSubtractStep_eq_gateList
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     EncodedBit.GateSpec.stepList
         (coeffWorkCompareSelectedSourceSubtractGates n counterWidth) x =
@@ -3323,20 +3325,20 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_eq_gateList
 
 /-- The compare-selected source-subtract gate list realizes the sequential
 selected source-subtract step. -/
-theorem coeffWorkCompareSelectedSourceSubtract_realizes
+lemma coeffWorkCompareSelectedSourceSubtract_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareSelectedSourceSubtractProgram n counterWidth)
+      (coeffWorkCompareSelectedSourceSubtractProgram n counterWidth) environment
       (coeffWorkCompareSelectedSourceSubtractStep n counterWidth) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedSourceSubtractGates n counterWidth)
     (coeffWorkCompareSelectedSourceSubtractStep_eq_gateList n counterWidth)
 
 /-- If compare is true and the dedicated clean work bit is clean, the
 compare-selected source-subtract atom reduces to `u := u - v`. -/
-theorem
+lemma
     coeffWorkCompareSelectedSourceSubtractStep_eq_subVFromU_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -3363,7 +3365,7 @@ theorem
 
 /-- If compare is false and the dedicated clean work bit is clean, the
 compare-selected source-subtract atom reduces to `v := v - u`. -/
-theorem
+lemma
     coeffWorkCompareSelectedSourceSubtractStep_eq_subUFromV_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -3382,7 +3384,7 @@ theorem
 
 /-- Under compare=true, clean control-work, and clean source-adder inputs, the
 compare-selected source-subtract atom writes `u := u - v`. -/
-theorem
+lemma
     coeffWorkCompareSelectedSourceSubtractStep_get_u_sub_of_compare_true_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -3401,7 +3403,7 @@ theorem
   exact coeffWorkSubVFromUStep_get_u_sub_of_clean
     n counterWidth x hcarry hsourceWork
 
-theorem coeffWorkSubUFromVStep_comp_addUIntoV
+lemma coeffWorkSubUFromVStep_comp_addUIntoV
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     coeffWorkSubUFromVStep n counterWidth
         (coeffWorkAddUIntoVStep n counterWidth x) =
@@ -3409,7 +3411,7 @@ theorem coeffWorkSubUFromVStep_comp_addUIntoV
   exact EncodedBit.GateSpec.stepList_reverse_stepList
     (coeffWorkAddUIntoVGates n counterWidth) x
 
-theorem coeffWorkAddUIntoVStep_comp_subUFromV
+lemma coeffWorkAddUIntoVStep_comp_subUFromV
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     coeffWorkAddUIntoVStep n counterWidth
         (coeffWorkSubUFromVStep n counterWidth x) =
@@ -3421,7 +3423,7 @@ theorem coeffWorkAddUIntoVStep_comp_subUFromV
     coeffWorkSubUFromVGates] using h
 
 /-- The forward `u`-into-`v` adder preserves the scratchA carry-in bit. -/
-theorem coeffWorkAddUIntoVStep_get_scratchA
+lemma coeffWorkAddUIntoVStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -3436,7 +3438,7 @@ theorem coeffWorkAddUIntoVStep_get_scratchA
 /-- The forward `u`-into-`v` source adder preserves any observed readout whose
 wire is disjoint from every `v` target bit and every comparison-prefix
 carry-work bit. -/
-theorem coeffWorkAddUIntoVStep_get_observed_of_right_work_ne
+lemma coeffWorkAddUIntoVStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (observed :
       EncodedBit (registersWithCoeffAdderWorkEncoding n counterWidth))
@@ -3457,7 +3459,7 @@ theorem coeffWorkAddUIntoVStep_get_observed_of_right_work_ne
     coeffWorkAddUIntoVLayout] using h
 
 /-- The forward `u`-into-`v` source adder preserves the active flag. -/
-theorem coeffWorkAddUIntoVStep_get_active
+lemma coeffWorkAddUIntoVStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -3484,7 +3486,7 @@ theorem coeffWorkAddUIntoVStep_get_active
       x
 
 /-- The forward `u`-into-`v` source adder preserves the comparison ancilla. -/
-theorem coeffWorkAddUIntoVStep_get_compare
+lemma coeffWorkAddUIntoVStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -3513,7 +3515,7 @@ theorem coeffWorkAddUIntoVStep_get_compare
 
 /-- The forward `u`-into-`v` source adder preserves every stored
 branch-history bit. -/
-theorem coeffWorkAddUIntoVStep_get_historyBit
+lemma coeffWorkAddUIntoVStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -3547,7 +3549,7 @@ theorem coeffWorkAddUIntoVStep_get_historyBit
       x
 
 /-- The forward `u`-into-`v` source adder preserves the second scratch bit. -/
-theorem coeffWorkAddUIntoVStep_get_scratchB
+lemma coeffWorkAddUIntoVStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -3577,7 +3579,7 @@ theorem coeffWorkAddUIntoVStep_get_scratchB
 
 /-- If the input scratchA carry-in is clean, the reverse `v := v - u` path
 also lands on clean scratchA. -/
-theorem coeffWorkSubUFromVStep_get_scratchA_clean
+lemma coeffWorkSubUFromVStep_get_scratchA_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -3600,7 +3602,7 @@ theorem coeffWorkSubUFromVStep_get_scratchA_clean
     _ = false := hcarry
 
 /-- The concrete `v := v - u` reverse-adder path preserves the active flag. -/
-theorem coeffWorkSubUFromVStep_get_active
+lemma coeffWorkSubUFromVStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -3622,7 +3624,7 @@ theorem coeffWorkSubUFromVStep_get_active
 
 /-- The concrete `v := v - u` reverse-adder path preserves the comparison
 ancilla. -/
-theorem coeffWorkSubUFromVStep_get_compare
+lemma coeffWorkSubUFromVStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -3644,7 +3646,7 @@ theorem coeffWorkSubUFromVStep_get_compare
 
 /-- The concrete `v := v - u` reverse-adder path preserves every stored
 branch-history bit. -/
-theorem coeffWorkSubUFromVStep_get_historyBit
+lemma coeffWorkSubUFromVStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -3666,7 +3668,7 @@ theorem coeffWorkSubUFromVStep_get_historyBit
 
 /-- The concrete `v := v - u` reverse-adder path preserves the second scratch
 bit. -/
-theorem coeffWorkSubUFromVStep_get_scratchB
+lemma coeffWorkSubUFromVStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -3687,7 +3689,7 @@ theorem coeffWorkSubUFromVStep_get_scratchB
       rw [hcancel]
 
 /-- The forward `u`-into-`v` adder preserves every source `u` bit. -/
-theorem coeffWorkAddUIntoVStep_get_uWordBit
+lemma coeffWorkAddUIntoVStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -3700,7 +3702,7 @@ theorem coeffWorkAddUIntoVStep_get_uWordBit
     coeffWorkAddUIntoVLayout] using h
 
 /-- The forward `u`-into-`v` adder preserves every `s` coefficient value bit. -/
-theorem coeffWorkAddUIntoVStep_get_sCoeffValueBit
+lemma coeffWorkAddUIntoVStep_get_sCoeffValueBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -3722,7 +3724,7 @@ theorem coeffWorkAddUIntoVStep_get_sCoeffValueBit
     coeffWorkAddUIntoVLayout] using h
 
 /-- The forward `u`-into-`v` adder preserves every `r` coefficient value bit. -/
-theorem coeffWorkAddUIntoVStep_get_rCoeffValueBit
+lemma coeffWorkAddUIntoVStep_get_rCoeffValueBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -3745,7 +3747,7 @@ theorem coeffWorkAddUIntoVStep_get_rCoeffValueBit
 
 /-- The forward `u`-into-`v` adder preserves the dedicated coefficient-adder
 carry-in flag. -/
-theorem coeffWorkAddUIntoVStep_get_coeffCarryIn
+lemma coeffWorkAddUIntoVStep_get_coeffCarryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -3769,7 +3771,7 @@ theorem coeffWorkAddUIntoVStep_get_coeffCarryIn
 
 /-- The forward `u`-into-`v` adder preserves every dedicated coefficient-adder
 carry-work bit. -/
-theorem coeffWorkAddUIntoVStep_get_coeffCarryWorkBit
+lemma coeffWorkAddUIntoVStep_get_coeffCarryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -3794,7 +3796,7 @@ theorem coeffWorkAddUIntoVStep_get_coeffCarryWorkBit
 
 /-- On clean comparison-prefix work inputs, the forward `u`-into-`v` adder
 restores every comparison-prefix carry-work bit. -/
-theorem coeffWorkAddUIntoVStep_get_comparisonCarryPrefix_clean
+lemma coeffWorkAddUIntoVStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hwork :
@@ -3812,7 +3814,7 @@ theorem coeffWorkAddUIntoVStep_get_comparisonCarryPrefix_clean
 
 /-- On clean comparison-prefix work inputs, the concrete reverse `v := v - u`
 path also lands on clean comparison-prefix carry-work bits. -/
-theorem coeffWorkSubUFromVStep_get_comparisonCarryPrefix_clean
+lemma coeffWorkSubUFromVStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hwork :
@@ -3830,7 +3832,7 @@ theorem coeffWorkSubUFromVStep_get_comparisonCarryPrefix_clean
 
 /-- The forward `v`-into-`u` source adder preserves the final comparison
 carry, which lies outside its comparison-prefix carry workspace. -/
-theorem coeffWorkAddVIntoUStep_get_finalComparisonCarry
+lemma coeffWorkAddVIntoUStep_get_finalComparisonCarry
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hfinal : finalBit.val + 1 = n) :
@@ -3854,7 +3856,7 @@ theorem coeffWorkAddVIntoUStep_get_finalComparisonCarry
 
 /-- The reverse `u := u - v` source adder likewise preserves the final
 comparison carry. -/
-theorem coeffWorkSubVFromUStep_get_finalComparisonCarry
+lemma coeffWorkSubVFromUStep_get_finalComparisonCarry
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hfinal : finalBit.val + 1 = n) :
@@ -3876,7 +3878,7 @@ theorem coeffWorkSubVFromUStep_get_finalComparisonCarry
 
 /-- The forward `u`-into-`v` source adder preserves the final comparison
 carry, which lies outside its comparison-prefix carry workspace. -/
-theorem coeffWorkAddUIntoVStep_get_finalComparisonCarry
+lemma coeffWorkAddUIntoVStep_get_finalComparisonCarry
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hfinal : finalBit.val + 1 = n) :
@@ -3900,7 +3902,7 @@ theorem coeffWorkAddUIntoVStep_get_finalComparisonCarry
 
 /-- The reverse `v := v - u` source adder likewise preserves the final
 comparison carry. -/
-theorem coeffWorkSubUFromVStep_get_finalComparisonCarry
+lemma coeffWorkSubUFromVStep_get_finalComparisonCarry
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hfinal : finalBit.val + 1 = n) :
@@ -3922,7 +3924,7 @@ theorem coeffWorkSubUFromVStep_get_finalComparisonCarry
 
 /-- On clean carry/work inputs, the forward `u`-into-`v` carry stage computes
 the propagated natural addition carry. -/
-theorem coeffWorkAddUIntoV_carryStage_get_workCarry_natAddCarry
+lemma coeffWorkAddUIntoV_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat) (j : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4001,7 +4003,7 @@ theorem coeffWorkAddUIntoV_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before the `u`-into-`v` target sum is the propagated
 natural addition carry on clean carry/work inputs. -/
-theorem coeffWorkAddUIntoV_carryBeforeSum_get_natAddCarry
+lemma coeffWorkAddUIntoV_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4045,7 +4047,7 @@ theorem coeffWorkAddUIntoV_carryBeforeSum_get_natAddCarry
 
 /-- On clean carry/work inputs, the forward `u`-into-`v` adder writes the
 target `v` word as `v + u`. -/
-theorem coeffWorkAddUIntoVStep_get_v_add_testBit_of_clean
+lemma coeffWorkAddUIntoVStep_get_v_add_testBit_of_clean
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4079,7 +4081,7 @@ theorem coeffWorkAddUIntoVStep_get_v_add_testBit_of_clean
       simpa [Bool.xor_assoc] using hadd
 
 /-- Word-level clean-input endpoint for the forward `u`-into-`v` data path. -/
-theorem coeffWorkAddUIntoVStep_get_v_add_of_clean
+lemma coeffWorkAddUIntoVStep_get_v_add_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4096,7 +4098,7 @@ theorem coeffWorkAddUIntoVStep_get_v_add_of_clean
 
 /-- The concrete `v := v - u` reverse-adder path preserves every source `u`
 bit. -/
-theorem coeffWorkSubUFromVStep_get_uWordBit
+lemma coeffWorkSubUFromVStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -4118,7 +4120,7 @@ theorem coeffWorkSubUFromVStep_get_uWordBit
 
 /-- The concrete `v := v - u` reverse-adder path preserves the source `u`
 word. -/
-theorem coeffWorkSubUFromVStep_get_u
+lemma coeffWorkSubUFromVStep_get_u
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubUFromVStep n counterWidth x).1.1.u =
@@ -4130,7 +4132,7 @@ theorem coeffWorkSubUFromVStep_get_u
 
 /-- The concrete `v := v - u` reverse-adder path preserves the `s`
 coefficient word. -/
-theorem coeffWorkSubUFromVStep_get_sCoeff
+lemma coeffWorkSubUFromVStep_get_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubUFromVStep n counterWidth x).1.1.sCoeff =
@@ -4153,7 +4155,7 @@ theorem coeffWorkSubUFromVStep_get_sCoeff
 
 /-- The concrete `v := v - u` reverse-adder path preserves the `r`
 coefficient word. -/
-theorem coeffWorkSubUFromVStep_get_rCoeff
+lemma coeffWorkSubUFromVStep_get_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubUFromVStep n counterWidth x).1.1.rCoeff =
@@ -4176,7 +4178,7 @@ theorem coeffWorkSubUFromVStep_get_rCoeff
 
 /-- The concrete `v := v - u` reverse-adder path preserves the dedicated
 coefficient-adder carry-in flag. -/
-theorem coeffWorkSubUFromVStep_get_coeffCarryIn
+lemma coeffWorkSubUFromVStep_get_coeffCarryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -4198,7 +4200,7 @@ theorem coeffWorkSubUFromVStep_get_coeffCarryIn
 
 /-- The concrete `v := v - u` reverse-adder path preserves every dedicated
 coefficient-adder carry-work bit. -/
-theorem coeffWorkSubUFromVStep_get_coeffCarryWorkBit
+lemma coeffWorkSubUFromVStep_get_coeffCarryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit workBit).get
@@ -4220,7 +4222,7 @@ theorem coeffWorkSubUFromVStep_get_coeffCarryWorkBit
 
 /-- If the reverse `v := v - u` path lands on clean carry/work, its target
 word is the width-preserving subtraction endpoint. -/
-theorem coeffWorkSubUFromVStep_get_v_sub_of_output_clean
+lemma coeffWorkSubUFromVStep_get_v_sub_of_output_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry :
@@ -4252,7 +4254,7 @@ theorem coeffWorkSubUFromVStep_get_v_sub_of_output_clean
 
 /-- Clean-input target arithmetic endpoint for the concrete `v := v - u`
 reverse-adder path. -/
-theorem coeffWorkSubUFromVStep_get_v_sub_of_clean
+lemma coeffWorkSubUFromVStep_get_v_sub_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -4271,7 +4273,7 @@ theorem coeffWorkSubUFromVStep_get_v_sub_of_clean
 
 /-- Under compare=false, clean control-work, and clean source-adder inputs, the
 compare-selected source-subtract atom writes `v := v - u`. -/
-theorem
+lemma
     coeffWorkCompareSelectedSourceSubtractStep_get_v_sub_of_compare_false_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -4292,7 +4294,7 @@ theorem
 
 /-- On clean control-work and clean source-adder carry input, the
 compare-selected source-subtract atom restores scratchA. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_scratchA_clean
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_scratchA_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -4320,7 +4322,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_scratchA_clean
 /-- On clean control-work and clean comparison-prefix inputs, the
 compare-selected source-subtract atom restores each comparison-prefix carry
 bit. -/
-theorem
+lemma
     coeffWorkCompareSelectedSourceSubtractStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4352,7 +4354,7 @@ theorem
 
 /-- On clean control-work, the compare-selected source-subtract atom preserves
 the active flag. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_active
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_active
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -4376,7 +4378,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_active
 
 /-- On clean control-work, the compare-selected source-subtract atom preserves
 the compare readout. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_compare
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_compare
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -4400,7 +4402,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_compare
 
 /-- On clean control-work, the compare-selected source-subtract atom preserves
 every stored branch-history bit. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_historyBit
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
@@ -4427,7 +4429,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_historyBit
 
 /-- On clean control-work, the compare-selected source-subtract atom preserves
 the second scratch bit. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_scratchB
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_scratchB
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -4451,7 +4453,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_scratchB
 
 /-- On clean control-work, the compare-selected source-subtract atom preserves
 the dedicated coefficient-adder carry-in bit. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryIn
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryIn
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -4475,7 +4477,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryIn
 
 /-- On clean control-work, the compare-selected source-subtract atom restores
 the dedicated coefficient-adder carry-in bit. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryIn_clean
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryIn_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false) :
@@ -4488,7 +4490,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryIn_clean
 
 /-- On clean control-work, the compare-selected source-subtract atom preserves
 each dedicated coefficient-adder carry-work bit. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryWorkBit
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryWorkBit
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
@@ -4516,7 +4518,7 @@ theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryWorkBit
 /-- On clean control-work and clean coefficient-adder work inputs, the
 compare-selected source-subtract atom restores each dedicated coefficient-adder
 carry-work bit. -/
-theorem coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryWorkBit_clean
+lemma coeffWorkCompareSelectedSourceSubtractStep_get_coeffCarryWorkBit_clean
     (n counterWidth : Nat) (workBit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
@@ -4551,9 +4553,9 @@ def coeffWorkSubVFromUThenAddSIntoRStep (n counterWidth : Nat) :
 
 /-- The sequential circuit realizes source subtraction `u := u - v` followed
 by the coefficient update `r := r + s`. -/
-theorem coeffWorkSubVFromUThenAddSIntoR_realizes (n counterWidth : Nat) :
+lemma coeffWorkSubVFromUThenAddSIntoR_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkSubVFromUThenAddSIntoRProgram n counterWidth)
+      (coeffWorkSubVFromUThenAddSIntoRProgram n counterWidth) environment
       (coeffWorkSubVFromUThenAddSIntoRStep n counterWidth) := by
   unfold coeffWorkSubVFromUThenAddSIntoRProgram
     coeffWorkSubVFromUThenAddSIntoRStep
@@ -4582,9 +4584,9 @@ def coeffWorkSubUFromVThenAddRIntoSStep (n counterWidth : Nat) :
 
 /-- The sequential circuit realizes source subtraction `v := v - u` followed
 by the coefficient update `s := s + r`. -/
-theorem coeffWorkSubUFromVThenAddRIntoS_realizes (n counterWidth : Nat) :
+lemma coeffWorkSubUFromVThenAddRIntoS_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkSubUFromVThenAddRIntoSProgram n counterWidth)
+      (coeffWorkSubUFromVThenAddRIntoSProgram n counterWidth) environment
       (coeffWorkSubUFromVThenAddRIntoSStep n counterWidth) := by
   unfold coeffWorkSubUFromVThenAddRIntoSProgram
     coeffWorkSubUFromVThenAddRIntoSStep
@@ -4623,7 +4625,7 @@ def coeffWorkCompareSelectedOddDataPathStep (n counterWidth : Nat) :
 
 /-- The explicit compare-selected odd data-path gate list has the same folded
 semantics as the sequential selected odd data-path step. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_eq_gateList
+lemma coeffWorkCompareSelectedOddDataPathStep_eq_gateList
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth) :
     EncodedBit.GateSpec.stepList
         (coeffWorkCompareSelectedOddDataPathGates n counterWidth) x =
@@ -4636,19 +4638,19 @@ theorem coeffWorkCompareSelectedOddDataPathStep_eq_gateList
 
 /-- The compare-selected odd data-path gate list realizes the sequential
 selected odd data-path step. -/
-theorem coeffWorkCompareSelectedOddDataPath_realizes
+lemma coeffWorkCompareSelectedOddDataPath_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareSelectedOddDataPathProgram n counterWidth)
+      (coeffWorkCompareSelectedOddDataPathProgram n counterWidth) environment
       (coeffWorkCompareSelectedOddDataPathStep n counterWidth) := by
-  exact EncodedBit.GateSpec.realizesList_congrStep
+  exact EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (coeffWorkCompareSelectedOddDataPathGates n counterWidth)
     (coeffWorkCompareSelectedOddDataPathStep_eq_gateList n counterWidth)
 
 /-- Exact physical length of the compare-selected odd data path. -/
-theorem coeffWorkCompareSelectedOddDataPathGates_length
+lemma coeffWorkCompareSelectedOddDataPathGates_length
     (n counterWidth : Nat) :
     (coeffWorkCompareSelectedOddDataPathGates n counterWidth).length =
       36 * (n - 1) + 44 * n + 8 := by
@@ -4672,7 +4674,7 @@ theorem coeffWorkCompareSelectedOddDataPathGates_length
   omega
 
 /-- Exact X coordinate of the compare-selected odd data path. -/
-theorem coeffWorkCompareSelectedOddDataPathGates_xMultiplicity_sum
+lemma coeffWorkCompareSelectedOddDataPathGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkCompareSelectedOddDataPathGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 4 := by
@@ -4689,7 +4691,7 @@ theorem coeffWorkCompareSelectedOddDataPathGates_xMultiplicity_sum
   rfl
 
 /-- The compare-selected odd data path contains no CNOT leaf. -/
-theorem coeffWorkCompareSelectedOddDataPathGates_cnotMultiplicity_sum
+lemma coeffWorkCompareSelectedOddDataPathGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkCompareSelectedOddDataPathGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -4710,7 +4712,7 @@ theorem coeffWorkCompareSelectedOddDataPathGates_cnotMultiplicity_sum
   rfl
 
 /-- Exact Toffoli coordinate of the compare-selected odd data path. -/
-theorem coeffWorkCompareSelectedOddDataPathGates_toffoliMultiplicity_sum
+lemma coeffWorkCompareSelectedOddDataPathGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coeffWorkCompareSelectedOddDataPathGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -4738,7 +4740,7 @@ theorem coeffWorkCompareSelectedOddDataPathGates_toffoliMultiplicity_sum
 
 /-- If compare is true and the selected source-subtract control/work inputs are
 clean, the compare-selected odd data path reduces to `u := u - v; r := r + s`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_eq_subVFromUThenAddSIntoR_of_compare_true
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -4774,7 +4776,7 @@ theorem
 
 /-- If compare is false and the selected source-subtract control/work inputs are
 clean, the compare-selected odd data path reduces to `v := v - u; s := s + r`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_eq_subUFromVThenAddRIntoS_of_compare_false
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -4808,7 +4810,7 @@ theorem
       n counterWidth x hcompare hcontrolWork]
   rfl
 
-private theorem
+private lemma
     coeffWorkCompareSelectedOddDataPathStep_get_counterValueBit_clean
     (n counterWidth : Nat) (counterBit : Fin counterWidth)
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -4944,7 +4946,7 @@ private theorem
 
 /-- The selected odd data path preserves the complete physical padding counter
 when its reusable control bits start clean. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_counter_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_counter_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
@@ -4962,7 +4964,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_counter_clean
 
 /-- If the staged comparison readout is valid and `v < u`, the selected odd
 data path reduces to the `uGreater` data path `u := u - v; r := r + s`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_eq_subVFromUThenAddSIntoR_of_compare_valid_lt
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -4984,7 +4986,7 @@ theorem
 /-- If the staged comparison readout is valid and `v < u` is false, the
 selected odd data path reduces to the `vLe` data path `v := v - u; s := s + r`.
 -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_eq_subUFromVThenAddRIntoS_of_compare_valid_not_lt
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5005,7 +5007,7 @@ theorem
 
 /-- The `u := u - v; r := r + s` atom lands on clean scratchA when the input
 scratchA carry-in is clean. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_scratchA_clean
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_scratchA_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -5018,7 +5020,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_scratchA_clean
 
 /-- The `v := v - u; s := s + r` atom lands on clean scratchA when the input
 scratchA carry-in is clean. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_scratchA_clean
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_scratchA_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false) :
@@ -5030,7 +5032,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_scratchA_clean
   exact coeffWorkSubUFromVStep_get_scratchA_clean n counterWidth x hcarry
 
 /-- The `u := u - v; r := r + s` atom preserves the active flag. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_active
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -5041,7 +5043,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_active
   exact coeffWorkSubVFromUStep_get_active n counterWidth x
 
 /-- The `u := u - v; r := r + s` atom preserves the comparison ancilla. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_compare
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -5052,7 +5054,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_compare
   exact coeffWorkSubVFromUStep_get_compare n counterWidth x
 
 /-- The `v := v - u; s := s + r` atom preserves the active flag. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_active
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -5063,7 +5065,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_active
   exact coeffWorkSubUFromVStep_get_active n counterWidth x
 
 /-- The `v := v - u; s := s + r` atom preserves the comparison ancilla. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_compare
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -5075,7 +5077,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_compare
 
 /-- The `u := u - v; r := r + s` atom preserves every stored branch-history
 bit. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_historyBit
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -5087,7 +5089,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_historyBit
 
 /-- The `v := v - u; s := s + r` atom preserves every stored branch-history
 bit. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_historyBit
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -5098,7 +5100,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_historyBit
   exact coeffWorkSubUFromVStep_get_historyBit n counterWidth historyIndex x
 
 /-- The `u := u - v; r := r + s` atom preserves the second scratch bit. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_scratchB
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -5109,7 +5111,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_scratchB
   exact coeffWorkSubVFromUStep_get_scratchB n counterWidth x
 
 /-- The `v := v - u; s := s + r` atom preserves the second scratch bit. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_scratchB
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -5121,7 +5123,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_scratchB
 
 /-- The `u := u - v; r := r + s` atom preserves the untouched `v` source
 word. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_v
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_v
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubVFromUThenAddSIntoRStep n counterWidth x).1.1.v =
@@ -5140,7 +5142,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_v
 
 /-- The `v := v - u; s := s + r` atom preserves the untouched `u` source
 word. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_u
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_u
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubUFromVThenAddRIntoSStep n counterWidth x).1.1.u =
@@ -5159,7 +5161,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_u
 
 /-- The `u := u - v; r := r + s` atom preserves the dedicated coefficient-
 adder carry-in bit. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_coeffCarryIn
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_coeffCarryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -5171,7 +5173,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_coeffCarryIn
 
 /-- The `v := v - u; s := s + r` atom preserves the dedicated coefficient-
 adder carry-in bit. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_coeffCarryIn
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_coeffCarryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -5183,7 +5185,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_coeffCarryIn
 
 /-- On clean coefficient-adder work inputs, the `u := u - v; r := r + s` atom
 restores each temporary coefficient-adder carry-work bit to false. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_carryWork_clean
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hclean :
@@ -5201,7 +5203,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_carryWork_clean
 
 /-- On clean coefficient-adder work inputs, the `v := v - u; s := s + r` atom
 restores each temporary coefficient-adder carry-work bit to false. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_carryWork_clean
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hclean :
@@ -5219,7 +5221,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_carryWork_clean
 
 /-- The `r := r + s` coefficient update preserves each comparison-prefix
 carry-work bit after the `u := u - v` source subtraction. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderComparisonCarryPrefixWord n counterWidth).bit bit).get
@@ -5234,7 +5236,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix
 
 /-- The `u := u - v; r := r + s` atom restores each comparison-prefix carry-work
 bit when the input comparison-prefix work is clean. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix_clean
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hwork :
@@ -5250,7 +5252,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_comparisonCarryPrefix_clean
 
 /-- The `s := s + r` coefficient update preserves each comparison-prefix
 carry-work bit after the `v := v - u` source subtraction. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderComparisonCarryPrefixWord n counterWidth).bit bit).get
@@ -5265,7 +5267,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix
 
 /-- The `v := v - u; s := s + r` atom restores each comparison-prefix carry-work
 bit when the input comparison-prefix work is clean. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix_clean
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hwork :
@@ -5281,7 +5283,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_comparisonCarryPrefix_clean
 
 /-- The complete `u := u - v; r := r + s` odd data-path atom preserves the
 final comparison carry. -/
-theorem
+lemma
     coeffWorkSubVFromUThenAddSIntoRStep_get_finalComparisonCarry
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -5296,7 +5298,7 @@ theorem
 
 /-- The complete `v := v - u; s := s + r` odd data-path atom preserves the
 final comparison carry. -/
-theorem
+lemma
     coeffWorkSubUFromVThenAddRIntoSStep_get_finalComparisonCarry
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -5311,7 +5313,7 @@ theorem
 
 /-- The `u := u - v; r := r + s` atom keeps the source-subtract arithmetic
 endpoint for `u` on clean source-adder carry/work inputs. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_u_sub_of_clean
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_u_sub_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -5337,7 +5339,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_u_sub_of_clean
 
 /-- The `u := u - v; r := r + s` atom preserves the untouched `s`
 coefficient. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_sCoeff
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_sCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubVFromUThenAddSIntoRStep n counterWidth x).1.1.sCoeff =
@@ -5359,7 +5361,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_sCoeff
 
 /-- The `u := u - v; r := r + s` atom writes the coefficient target `r` as
 `r + s` on clean coefficient-adder carry/work inputs. -/
-theorem coeffWorkSubVFromUThenAddSIntoRStep_get_rCoeff_add_of_clean
+lemma coeffWorkSubVFromUThenAddSIntoRStep_get_rCoeff_add_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -5397,7 +5399,7 @@ theorem coeffWorkSubVFromUThenAddSIntoRStep_get_rCoeff_add_of_clean
 
 /-- The `v := v - u; s := s + r` atom keeps the source-subtract arithmetic
 endpoint for `v` on clean source-adder carry/work inputs. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_v_sub_of_clean
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_v_sub_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (coeffAdderScratchABit n counterWidth).get x = false)
@@ -5423,7 +5425,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_v_sub_of_clean
 
 /-- The `v := v - u; s := s + r` atom preserves the untouched `r`
 coefficient. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_rCoeff
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_rCoeff
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkSubUFromVThenAddRIntoSStep n counterWidth x).1.1.rCoeff =
@@ -5445,7 +5447,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_rCoeff
 
 /-- The `v := v - u; s := s + r` atom writes the coefficient target `s` as
 `s + r` on clean coefficient-adder carry/work inputs. -/
-theorem coeffWorkSubUFromVThenAddRIntoSStep_get_sCoeff_add_of_clean
+lemma coeffWorkSubUFromVThenAddRIntoSStep_get_sCoeff_add_of_clean
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcarry : (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -5483,7 +5485,7 @@ theorem coeffWorkSubUFromVThenAddRIntoSStep_get_sCoeff_add_of_clean
 
 /-- Under compare=true and clean source-subtract inputs, the selected odd data
 path writes `u := u - v`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_u_sub_of_compare_true_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -5504,7 +5506,7 @@ theorem
 
 /-- Under a valid staged comparison with `v < u`, the selected odd data path
 writes `u := u - v`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_u_sub_of_compare_valid_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5529,7 +5531,7 @@ theorem
 
 /-- Under compare=true, clean selected-control inputs, and clean coefficient-
 adder work, the selected odd data path writes `r := r + s`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -5550,7 +5552,7 @@ theorem
 
 /-- Under a valid staged comparison with `v < u` and clean coefficient-adder
 work, the selected odd data path writes `r := r + s`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_rCoeff_add_of_compare_valid_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5575,7 +5577,7 @@ theorem
 
 /-- Under compare=false and clean source-subtract inputs, the selected odd data
 path writes `v := v - u`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_v_sub_of_compare_false_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -5596,7 +5598,7 @@ theorem
 
 /-- Under a valid staged comparison with `v < u` false, the selected odd data
 path writes `v := v - u`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_v_sub_of_compare_valid_not_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5621,7 +5623,7 @@ theorem
 
 /-- Under compare=true and clean selected-control inputs, the selected odd data
 path preserves the untouched `v` source word. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_v_of_compare_true_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_v_of_compare_true_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
     (hcontrolWork :
@@ -5636,7 +5638,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_v_of_compare_true_clean
 
 /-- Under a valid staged comparison with `v < u`, the selected odd data path
 preserves the untouched `v` source word. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_v_of_compare_valid_lt_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_v_of_compare_valid_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
       (coeffAdderCompareBit n counterWidth).get x =
@@ -5656,7 +5658,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_v_of_compare_valid_lt_clean
 
 /-- Under compare=true and clean selected-control inputs, the selected odd data
 path preserves the untouched `s` coefficient word. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_sCoeff_of_compare_true_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = true)
@@ -5672,7 +5674,7 @@ theorem
 
 /-- Under a valid staged comparison with `v < u`, the selected odd data path
 preserves the untouched `s` coefficient word. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_sCoeff_of_compare_valid_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5693,7 +5695,7 @@ theorem
 
 /-- Under compare=false and clean selected-control inputs, the selected odd
 data path preserves the untouched `u` source word. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_u_of_compare_false_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_u_of_compare_false_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
     (hcontrolWork :
@@ -5708,7 +5710,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_u_of_compare_false_clean
 
 /-- Under a valid staged comparison with `v < u` false, the selected odd data
 path preserves the untouched `u` source word. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_u_of_compare_valid_not_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5729,7 +5731,7 @@ theorem
 
 /-- Under compare=false and clean selected-control inputs, the selected odd
 data path preserves the untouched `r` coefficient word. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_rCoeff_of_compare_false_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -5745,7 +5747,7 @@ theorem
 
 /-- Under a valid staged comparison with `v < u` false, the selected odd data
 path preserves the untouched `r` coefficient word. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_rCoeff_of_compare_valid_not_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5766,7 +5768,7 @@ theorem
 
 /-- Under compare=false, clean selected-control inputs, and clean coefficient-
 adder work, the selected odd data path writes `s := s + r`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_sCoeff_add_of_compare_false_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompare : (coeffAdderCompareBit n counterWidth).get x = false)
@@ -5787,7 +5789,7 @@ theorem
 
 /-- Under a valid staged comparison with `v < u` false and clean coefficient-
 adder work, the selected odd data path writes `s := s + r`. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_sCoeff_add_of_compare_valid_not_lt_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcompareValid :
@@ -5812,7 +5814,7 @@ theorem
 
 /-- On clean selected-control inputs, the selected odd data path restores
 scratchA. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_scratchA_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_scratchA_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -5839,7 +5841,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_scratchA_clean
 
 /-- On clean selected-control inputs and clean source-subtract work inputs, the
 selected odd data path restores each comparison-prefix carry bit. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_comparisonCarryPrefix_clean
     (n counterWidth : Nat) (bit : Fin (n - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -5874,7 +5876,7 @@ theorem
 /-- On clean selected-control inputs, the selected odd data path preserves a
 clean final comparison carry.  This closes the one comparison-work bit not
 covered by the source adders' prefix workspace. -/
-theorem
+lemma
     coeffWorkCompareSelectedOddDataPathStep_get_finalComparisonCarry_clean
     (n counterWidth : Nat) (finalBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth)
@@ -5908,7 +5910,7 @@ theorem
 
 /-- On clean selected-control inputs, the selected odd data path preserves the
 active flag. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_active
+lemma coeffWorkCompareSelectedOddDataPathStep_get_active
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -5933,7 +5935,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_active
 
 /-- On clean selected-control inputs, the selected odd data path preserves the
 compare readout. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_compare
+lemma coeffWorkCompareSelectedOddDataPathStep_get_compare
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -5958,7 +5960,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_compare
 
 /-- On clean selected-control inputs, the selected odd data path preserves
 every stored branch-history bit. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_historyBit
+lemma coeffWorkCompareSelectedOddDataPathStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
@@ -5986,7 +5988,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_historyBit
 
 /-- On clean selected-control inputs, the selected odd data path preserves the
 second scratch bit. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_scratchB
+lemma coeffWorkCompareSelectedOddDataPathStep_get_scratchB
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -6013,7 +6015,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_scratchB
 
 /-- On clean selected-control inputs, the selected odd data path preserves the
 dedicated coefficient-adder carry-in bit. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_coeffCarryIn
+lemma coeffWorkCompareSelectedOddDataPathStep_get_coeffCarryIn
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -6042,7 +6044,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_coeffCarryIn
 
 /-- On clean selected-control inputs, the selected odd data path restores the
 dedicated coefficient-adder carry-in bit. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_coeffCarryIn_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_coeffCarryIn_clean
     (n counterWidth : Nat) (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
       (liftedCoeffAdderCarryInBit n counterWidth).get x = false)
@@ -6057,7 +6059,7 @@ theorem coeffWorkCompareSelectedOddDataPathStep_get_coeffCarryIn_clean
 /-- On clean selected-control inputs and clean coefficient-adder work inputs,
 the selected odd data path restores each dedicated coefficient-adder carry-work
 bit. -/
-theorem coeffWorkCompareSelectedOddDataPathStep_get_carryWork_clean
+lemma coeffWorkCompareSelectedOddDataPathStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hcontrolWork :
@@ -6114,7 +6116,7 @@ def liftComparisonWorkProgramToCoeffAdderWork
 
 /-- Lifting an actual comparison-work circuit preserves its semantic action
 while leaving the coefficient-adder work object unchanged. -/
-theorem liftComparisonWorkProgramToCoeffAdderWork_realizes
+lemma liftComparisonWorkProgramToCoeffAdderWork_realizes
     (n counterWidth : Nat)
     {program : UnitaryCircuit AlgorithmGate.model .empty
         (QubitLayout.canonical
@@ -6123,9 +6125,9 @@ theorem liftComparisonWorkProgramToCoeffAdderWork_realizes
       RegistersWithComparisonWork n counterWidth ->
         RegistersWithComparisonWork n counterWidth}
     (h : UnitaryCircuit.Realizes
-      (registersWithComparisonWorkEncoding n counterWidth) program step) :
+      (registersWithComparisonWorkEncoding n counterWidth) program environment step) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (liftComparisonWorkProgramToCoeffAdderWork n counterWidth program)
+      (liftComparisonWorkProgramToCoeffAdderWork n counterWidth program) environment
       (liftComparisonWorkStepToCoeffAdderWork n counterWidth step) := by
   exact UnitaryCircuit.Realizes.onBinaryPrefix
     (right := coeffAdderWorkEncoding n) h
@@ -6148,9 +6150,9 @@ def coeffWorkCompareControlledUVSwapStep (n counterWidth : Nat) :
     (compareControlledUVSwapStep n counterWidth)
 
 /-- The lifted comparison-controlled `u`/`v` swap circuit realizes its step. -/
-theorem coeffWorkCompareControlledUVSwap_realizes (n counterWidth : Nat) :
+lemma coeffWorkCompareControlledUVSwap_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareControlledUVSwapProgram n counterWidth)
+      (coeffWorkCompareControlledUVSwapProgram n counterWidth) environment
       (coeffWorkCompareControlledUVSwapStep n counterWidth) := by
   exact liftComparisonWorkProgramToCoeffAdderWork_realizes n counterWidth
     (compareControlledUVSwap_realizes n counterWidth)
@@ -6173,9 +6175,9 @@ def coeffWorkCompareControlledRSSwapStep (n counterWidth : Nat) :
     (compareControlledRSSwapStep n counterWidth)
 
 /-- The lifted comparison-controlled `r`/`s` swap circuit realizes its step. -/
-theorem coeffWorkCompareControlledRSSwap_realizes (n counterWidth : Nat) :
+lemma coeffWorkCompareControlledRSSwap_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareControlledRSSwapProgram n counterWidth)
+      (coeffWorkCompareControlledRSSwapProgram n counterWidth) environment
       (coeffWorkCompareControlledRSSwapStep n counterWidth) := by
   exact liftComparisonWorkProgramToCoeffAdderWork_realizes n counterWidth
     (compareControlledRSSwap_realizes n counterWidth)
@@ -6202,9 +6204,9 @@ def coeffWorkCompareControlledSwapsStep (n counterWidth : Nat) :
       (coeffWorkCompareControlledUVSwapStep n counterWidth x)
 
 /-- The sequential lifted swap circuit realizes both controlled swaps. -/
-theorem coeffWorkCompareControlledSwaps_realizes (n counterWidth : Nat) :
+lemma coeffWorkCompareControlledSwaps_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkCompareControlledSwapsProgram n counterWidth)
+      (coeffWorkCompareControlledSwapsProgram n counterWidth) environment
       (coeffWorkCompareControlledSwapsStep n counterWidth) := by
   unfold coeffWorkCompareControlledSwapsProgram
     coeffWorkCompareControlledSwapsStep
@@ -6215,14 +6217,14 @@ theorem coeffWorkCompareControlledSwaps_realizes (n counterWidth : Nat) :
     (coeffWorkCompareControlledRSSwap_realizes n counterWidth)
 
 /-- The lifted `u`/`v` swap preserves the coefficient-adder work object. -/
-theorem coeffWorkCompareControlledUVSwapStep_get_coeffAdderWork
+lemma coeffWorkCompareControlledUVSwapStep_get_coeffAdderWork
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkCompareControlledUVSwapStep n counterWidth x).2 = x.2 := by
   rfl
 
 /-- The lifted `r`/`s` swap preserves the coefficient-adder work object. -/
-theorem coeffWorkCompareControlledRSSwapStep_get_coeffAdderWork
+lemma coeffWorkCompareControlledRSSwapStep_get_coeffAdderWork
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkCompareControlledRSSwapStep n counterWidth x).2 = x.2 := by
@@ -6230,7 +6232,7 @@ theorem coeffWorkCompareControlledRSSwapStep_get_coeffAdderWork
 
 /-- The lifted paired swap sequence preserves the coefficient-adder work
 object. -/
-theorem coeffWorkCompareControlledSwapsStep_get_coeffAdderWork
+lemma coeffWorkCompareControlledSwapsStep_get_coeffAdderWork
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffWorkCompareControlledSwapsStep n counterWidth x).2 = x.2 := by
@@ -6238,7 +6240,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_coeffAdderWork
 
 /-- The lifted paired swap sequence preserves the coefficient-adder carry-in
 flag. -/
-theorem coeffWorkCompareControlledSwapsStep_get_carryIn
+lemma coeffWorkCompareControlledSwapsStep_get_carryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -6248,7 +6250,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_carryIn
 
 /-- The lifted paired swap sequence preserves each coefficient-adder temporary
 carry-work bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_carryWorkBit
+lemma coeffWorkCompareControlledSwapsStep_get_carryWorkBit
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((liftedCoeffAdderCarryWorkWord n counterWidth).bit bit).get
@@ -6257,7 +6259,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_carryWorkBit
   rfl
 
 /-- The lifted paired swap sequence preserves the comparison ancilla. -/
-theorem coeffWorkCompareControlledSwapsStep_get_compare
+lemma coeffWorkCompareControlledSwapsStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -6272,7 +6274,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_compare
     using compareControlledUVRSSwapStep_get_compare n counterWidth x.1
 
 /-- The lifted paired swap sequence preserves the active flag. -/
-theorem coeffWorkCompareControlledSwapsStep_get_active
+lemma coeffWorkCompareControlledSwapsStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -6288,7 +6290,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_active
 
 /-- The lifted paired swap sequence preserves every stored branch-history
 bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_historyBit
+lemma coeffWorkCompareControlledSwapsStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -6304,7 +6306,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_historyBit
       n counterWidth historyIndex x.1
 
 /-- The lifted paired swap sequence preserves the first scratch bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_scratchA
+lemma coeffWorkCompareControlledSwapsStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -6319,7 +6321,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_scratchA
     using compareControlledUVRSSwapStep_get_scratchA n counterWidth x.1
 
 /-- The lifted paired swap sequence preserves the second scratch bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_scratchB
+lemma coeffWorkCompareControlledSwapsStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -6335,7 +6337,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_scratchB
 
 /-- The lifted paired swap sequence preserves every comparison-work carry
 bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_comparisonCarry
+lemma coeffWorkCompareControlledSwapsStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -6353,7 +6355,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_comparisonCarry
 
 /-- The lifted paired swap sends the selected `v` value bit to `u` when
 compare is set, and otherwise preserves the selected `u` value bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_uWordBit
+lemma coeffWorkCompareControlledSwapsStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -6376,7 +6378,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_uWordBit
 
 /-- The lifted paired swap sends the selected `u` value bit to `v` when
 compare is set, and otherwise preserves the selected `v` value bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_vWordBit
+lemma coeffWorkCompareControlledSwapsStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -6399,7 +6401,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_vWordBit
 
 /-- The lifted paired swap sends the selected `s` coefficient bit to `r` when
 compare is set, and otherwise preserves the selected `r` coefficient bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_rCoeffWordBit
+lemma coeffWorkCompareControlledSwapsStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffWord n counterWidth).bit bit).get
@@ -6422,7 +6424,7 @@ theorem coeffWorkCompareControlledSwapsStep_get_rCoeffWordBit
 
 /-- The lifted paired swap sends the selected `r` coefficient bit to `s` when
 compare is set, and otherwise preserves the selected `s` coefficient bit. -/
-theorem coeffWorkCompareControlledSwapsStep_get_sCoeffWordBit
+lemma coeffWorkCompareControlledSwapsStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffWord n counterWidth).bit bit).get
@@ -6468,9 +6470,9 @@ def coeffWorkSwapsThenAddRIntoSStep (n counterWidth : Nat) :
       (coeffWorkCompareControlledSwapsStep n counterWidth x)
 
 /-- The swap-selected `r`-into-`s` circuit realizes its sequential step. -/
-theorem coeffWorkSwapsThenAddRIntoS_realizes (n counterWidth : Nat) :
+lemma coeffWorkSwapsThenAddRIntoS_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkSwapsThenAddRIntoSProgram n counterWidth)
+      (coeffWorkSwapsThenAddRIntoSProgram n counterWidth) environment
       (coeffWorkSwapsThenAddRIntoSStep n counterWidth) := by
   unfold coeffWorkSwapsThenAddRIntoSProgram
     coeffWorkSwapsThenAddRIntoSStep
@@ -6482,7 +6484,7 @@ theorem coeffWorkSwapsThenAddRIntoS_realizes (n counterWidth : Nat) :
 
 /-- In the swap-selected `r`-into-`s` coefficient-add scaffold, the source
 `r` bit is the post-swap `r` bit. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_rCoeffWordBit
+lemma coeffWorkSwapsThenAddRIntoSStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -6503,7 +6505,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_rCoeffWordBit
 
 /-- Gate-list target-bit formula for the swap-selected `r`-into-`s`
 coefficient-add scaffold. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_sCoeffWordBit
+lemma coeffWorkSwapsThenAddRIntoSStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -6525,7 +6527,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_sCoeffWordBit
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the
 comparison ancilla. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_compare
+lemma coeffWorkSwapsThenAddRIntoSStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -6537,7 +6539,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_compare
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the
 active flag. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_active
+lemma coeffWorkSwapsThenAddRIntoSStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -6549,7 +6551,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_active
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves every
 stored branch-history bit. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_historyBit
+lemma coeffWorkSwapsThenAddRIntoSStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -6561,7 +6563,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_historyBit
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the first
 scratch bit. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_scratchA
+lemma coeffWorkSwapsThenAddRIntoSStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -6573,7 +6575,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_scratchA
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the second
 scratch bit. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_scratchB
+lemma coeffWorkSwapsThenAddRIntoSStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -6585,7 +6587,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_scratchB
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves every
 comparison-work carry bit. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_comparisonCarry
+lemma coeffWorkSwapsThenAddRIntoSStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -6597,7 +6599,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_comparisonCarry
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the
 post-swap `u` value bit formula. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_uWordBit
+lemma coeffWorkSwapsThenAddRIntoSStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -6612,7 +6614,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_uWordBit
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the
 post-swap `v` value bit formula. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_vWordBit
+lemma coeffWorkSwapsThenAddRIntoSStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -6627,7 +6629,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_vWordBit
 
 /-- The swap-selected `r`-into-`s` coefficient-add scaffold preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_carryIn
+lemma coeffWorkSwapsThenAddRIntoSStep_get_carryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -6639,7 +6641,7 @@ theorem coeffWorkSwapsThenAddRIntoSStep_get_carryIn
 
 /-- On clean coefficient-adder work inputs, the swap-selected `r`-into-`s`
 coefficient-add scaffold restores each temporary carry-work bit to false. -/
-theorem coeffWorkSwapsThenAddRIntoSStep_get_carryWork_clean
+lemma coeffWorkSwapsThenAddRIntoSStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hclean :
@@ -6678,9 +6680,9 @@ def coeffWorkSwapsThenAddSIntoRStep (n counterWidth : Nat) :
       (coeffWorkCompareControlledSwapsStep n counterWidth x)
 
 /-- The swap-selected `s`-into-`r` circuit realizes its sequential step. -/
-theorem coeffWorkSwapsThenAddSIntoR_realizes (n counterWidth : Nat) :
+lemma coeffWorkSwapsThenAddSIntoR_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (registersWithCoeffAdderWorkEncoding n counterWidth)
-      (coeffWorkSwapsThenAddSIntoRProgram n counterWidth)
+      (coeffWorkSwapsThenAddSIntoRProgram n counterWidth) environment
       (coeffWorkSwapsThenAddSIntoRStep n counterWidth) := by
   unfold coeffWorkSwapsThenAddSIntoRProgram
     coeffWorkSwapsThenAddSIntoRStep
@@ -6692,7 +6694,7 @@ theorem coeffWorkSwapsThenAddSIntoR_realizes (n counterWidth : Nat) :
 
 /-- In the swap-selected `s`-into-`r` coefficient-add scaffold, the source
 `s` bit is the post-swap `s` bit. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_sCoeffWordBit
+lemma coeffWorkSwapsThenAddSIntoRStep_get_sCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderSCoeffValueWord n counterWidth).bit bit).get
@@ -6713,7 +6715,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_sCoeffWordBit
 
 /-- Gate-list target-bit formula for the swap-selected `s`-into-`r`
 coefficient-add scaffold. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_rCoeffWordBit
+lemma coeffWorkSwapsThenAddSIntoRStep_get_rCoeffWordBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderRCoeffValueWord n counterWidth).bit bit).get
@@ -6735,7 +6737,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_rCoeffWordBit
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the
 comparison ancilla. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_compare
+lemma coeffWorkSwapsThenAddSIntoRStep_get_compare
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderCompareBit n counterWidth).get
@@ -6747,7 +6749,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_compare
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the
 active flag. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_active
+lemma coeffWorkSwapsThenAddSIntoRStep_get_active
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderActiveBit n counterWidth).get
@@ -6759,7 +6761,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_active
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves every
 stored branch-history bit. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_historyBit
+lemma coeffWorkSwapsThenAddSIntoRStep_get_historyBit
     (n counterWidth : Nat) (historyIndex : Fin (2 * n))
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderHistoryBit n counterWidth historyIndex).get
@@ -6771,7 +6773,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_historyBit
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the first
 scratch bit. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_scratchA
+lemma coeffWorkSwapsThenAddSIntoRStep_get_scratchA
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchABit n counterWidth).get
@@ -6783,7 +6785,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_scratchA
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the second
 scratch bit. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_scratchB
+lemma coeffWorkSwapsThenAddSIntoRStep_get_scratchB
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderScratchBBit n counterWidth).get
@@ -6795,7 +6797,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_scratchB
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves every
 comparison-work carry bit. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_comparisonCarry
+lemma coeffWorkSwapsThenAddSIntoRStep_get_comparisonCarry
     (n counterWidth : Nat) (workBit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (coeffAdderComparisonCarryBit n counterWidth workBit).get
@@ -6807,7 +6809,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_comparisonCarry
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the
 post-swap `u` value bit formula. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_uWordBit
+lemma coeffWorkSwapsThenAddSIntoRStep_get_uWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderUWord n counterWidth).bit bit).get
@@ -6822,7 +6824,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_uWordBit
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the
 post-swap `v` value bit formula. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_vWordBit
+lemma coeffWorkSwapsThenAddSIntoRStep_get_vWordBit
     (n counterWidth : Nat) (bit : Fin n)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     ((coeffAdderVWord n counterWidth).bit bit).get
@@ -6837,7 +6839,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_vWordBit
 
 /-- The swap-selected `s`-into-`r` coefficient-add scaffold preserves the
 dedicated coefficient-adder carry-in flag. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_carryIn
+lemma coeffWorkSwapsThenAddSIntoRStep_get_carryIn
     (n counterWidth : Nat)
     (x : RegistersWithCoeffAdderWork n counterWidth) :
     (liftedCoeffAdderCarryInBit n counterWidth).get
@@ -6849,7 +6851,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_carryIn
 
 /-- On clean coefficient-adder work inputs, the swap-selected `s`-into-`r`
 coefficient-add scaffold restores each temporary carry-work bit to false. -/
-theorem coeffWorkSwapsThenAddSIntoRStep_get_carryWork_clean
+lemma coeffWorkSwapsThenAddSIntoRStep_get_carryWork_clean
     (n counterWidth : Nat) (bit : Fin ((n + 1) - 1))
     (x : RegistersWithCoeffAdderWork n counterWidth)
     (hclean :
@@ -6865,7 +6867,7 @@ theorem coeffWorkSwapsThenAddSIntoRStep_get_carryWork_clean
   rw [coeffWorkCompareControlledSwapsStep_get_carryWorkBit]
   exact hclean k
 
-theorem controlledAdjacentShiftLeftStep_get_observed_of_word_ne
+lemma controlledAdjacentShiftLeftStep_get_observed_of_word_ne
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control observed : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -6895,7 +6897,7 @@ theorem controlledAdjacentShiftLeftStep_get_observed_of_word_ne
     exact EncodedBit.get_flip_of_wire_ne _ _
       (hobserved (EncodedBit.Word.adjacentRightIndex width i)) y
 
-theorem controlledAdjacentShiftRightStep_get_observed_of_word_ne
+lemma controlledAdjacentShiftRightStep_get_observed_of_word_ne
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control observed : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -6931,7 +6933,7 @@ theorem controlledAdjacentShiftRightStep_get_observed_of_word_ne
     exact EncodedBit.get_flip_of_wire_ne _ _
       (hobserved (EncodedBit.Word.adjacentRightIndex width i)) y
 
-theorem adjacentShiftLeftStep_get_observed_of_word_ne
+lemma adjacentShiftLeftStep_get_observed_of_word_ne
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (observed : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -6958,7 +6960,7 @@ theorem adjacentShiftLeftStep_get_observed_of_word_ne
     exact EncodedBit.get_flip_of_wire_ne _ _
       (hobserved (EncodedBit.Word.adjacentRightIndex width i)) y
 
-theorem adjacentShiftRightStep_get_observed_of_word_ne
+lemma adjacentShiftRightStep_get_observed_of_word_ne
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (observed : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -6990,7 +6992,7 @@ theorem adjacentShiftRightStep_get_observed_of_word_ne
     exact EncodedBit.get_flip_of_wire_ne _ _
       (hobserved (EncodedBit.Word.adjacentRightIndex width i)) y
 
-private theorem controlledSwapStep_eq_self_of_control_false
+private lemma controlledSwapStep_eq_self_of_control_false
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
@@ -7004,7 +7006,7 @@ private theorem controlledSwapStep_eq_self_of_control_false
   simp [EncodedBit.GateSpec.stepList, EncodedBit.GateSpec.step,
     EncodedBit.toffoliStep, hcontrol]
 
-private theorem controlledSwapStep_eq_swapStep_of_control_true
+private lemma controlledSwapStep_eq_swapStep_of_control_true
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
@@ -7034,7 +7036,7 @@ private theorem controlledSwapStep_eq_swapStep_of_control_true
       EncodedBit.get_flip_of_wire_ne,
       Ne.symm hleftRight, EncodedBit.flip_flip, EncodedBit.flip_comm]
 
-private theorem controlledSwapStep_eq_of_control_get_eq
+private lemma controlledSwapStep_eq_of_control_get_eq
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (controlA controlB left right : EncodedBit encoding)
     (hAleft : controlA.wire ≠ left.wire)
@@ -7064,7 +7066,7 @@ private theorem controlledSwapStep_eq_of_control_get_eq
     rw [controlledSwapStep_eq_self_of_control_false
       controlB left right hBleft hBright hleftRight x hcB]
 
-private theorem controlledAdjacentSwapIndexListStep_eq_of_control_get_eq
+private lemma controlledAdjacentSwapIndexListStep_eq_of_control_get_eq
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (controlA controlB : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7182,7 +7184,7 @@ private theorem controlledAdjacentSwapIndexListStep_eq_of_control_get_eq
                 hcontrolB hword i) x) := by
             rw [hhead]
 
-private theorem controlledAdjacentSwapIndexListStep_eq_self_of_control_false
+private lemma controlledAdjacentSwapIndexListStep_eq_self_of_control_false
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7222,7 +7224,7 @@ private theorem controlledAdjacentSwapIndexListStep_eq_self_of_control_false
       rw [hhead]
       exact ih x hcontrolFalse
 
-theorem controlledAdjacentShiftLeftStep_eq_self_of_control_false
+lemma controlledAdjacentShiftLeftStep_eq_self_of_control_false
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7239,7 +7241,7 @@ theorem controlledAdjacentShiftLeftStep_eq_self_of_control_false
     control word hcontrol hword (List.ofFn fun i : Fin (width - 1) => i) x
     hcontrolFalse
 
-theorem controlledAdjacentShiftRightStep_eq_self_of_control_false
+lemma controlledAdjacentShiftRightStep_eq_self_of_control_false
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7271,7 +7273,7 @@ theorem controlledAdjacentShiftRightStep_eq_self_of_control_false
   rw [hleftSelf] at hinv
   exact hinv
 
-private theorem controlledAdjacentSwapIndexListStep_eq_adjacentSwapIndexListStep_of_control_true
+private lemma controlledAdjacentSwapIndexListStep_eq_adjacentSwapIndexListStep_of_control_true
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7364,7 +7366,7 @@ private theorem controlledAdjacentSwapIndexListStep_eq_adjacentSwapIndexListStep
               (EncodedBit.Word.adjacentSwapGates word hword i) x) := by
             rw [hhead]
 
-theorem controlledAdjacentShiftLeftStep_eq_adjacentShiftLeftStep_of_control_true
+lemma controlledAdjacentShiftLeftStep_eq_adjacentShiftLeftStep_of_control_true
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7384,7 +7386,7 @@ theorem controlledAdjacentShiftLeftStep_eq_adjacentShiftLeftStep_of_control_true
       control word hcontrol hword (List.ofFn fun i : Fin (width - 1) => i) x
       hcontrolTrue
 
-theorem controlledAdjacentShiftRightStep_eq_adjacentShiftRightStep_of_control_true
+lemma controlledAdjacentShiftRightStep_eq_adjacentShiftRightStep_of_control_true
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7431,7 +7433,7 @@ theorem controlledAdjacentShiftRightStep_eq_adjacentShiftRightStep_of_control_tr
     _ = EncodedBit.Word.adjacentShiftRightStep word hword x := by
         rw [hleftControlled]
 
-theorem controlledAdjacentShiftLeftStep_eq_of_control_get_eq
+lemma controlledAdjacentShiftLeftStep_eq_of_control_get_eq
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (controlA controlB : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7450,7 +7452,7 @@ theorem controlledAdjacentShiftLeftStep_eq_of_control_get_eq
     controlA controlB word hcontrolA hcontrolB hword
     (List.ofFn fun i : Fin (width - 1) => i) x hcontrols
 
-private theorem controlledAdjacentSwapGates_reverse
+private lemma controlledAdjacentSwapGates_reverse
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7464,7 +7466,7 @@ private theorem controlledAdjacentSwapGates_reverse
   simp [EncodedBit.Word.controlledAdjacentSwapGates,
     EncodedBit.controlledSwapGates]
 
-theorem controlledAdjacentShiftRightStep_eq_of_control_get_eq
+lemma controlledAdjacentShiftRightStep_eq_of_control_get_eq
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (controlA controlB : EncodedBit encoding)
     (word : EncodedBit.Word encoding width)
@@ -7528,13 +7530,13 @@ def sCoeffValueWord (n counterWidth : Nat) :
     EncodedBit.Word (encoding n counterWidth) (n + 1) where
   bit := sCoeffValueBit n counterWidth
 
-@[simp] theorem rCoeffValueBit_get (n counterWidth : Nat)
+@[simp] lemma rCoeffValueBit_get (n counterWidth : Nat)
     (bit : Fin (n + 1)) (x : Registers n counterWidth) :
     (rCoeffValueBit n counterWidth bit).get x =
       x.core.rCoeff.val.testBit bit.val := by
   simp [rCoeffValueBit]
 
-@[simp] theorem sCoeffValueBit_get (n counterWidth : Nat)
+@[simp] lemma sCoeffValueBit_get (n counterWidth : Nat)
     (bit : Fin (n + 1)) (x : Registers n counterWidth) :
     (sCoeffValueBit n counterWidth bit).get x =
       x.core.sCoeff.val.testBit bit.val := by
@@ -7548,14 +7550,14 @@ def coefficientAddCleanInput (n counterWidth : Nat)
   shared := cleanSharedWork n counterWidth
   target := target
 
-theorem coefficientCarryInBit_get_coefficientAddCleanInput
+lemma coefficientCarryInBit_get_coefficientAddCleanInput
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientCarryInBit n counterWidth).get
         (coefficientAddCleanInput n counterWidth core target) = false := by
   simp [coefficientAddCleanInput, cleanSharedWork, cleanCoeffAdderWork]
 
-theorem coefficientCarryWorkBit_get_coefficientAddCleanInput
+lemma coefficientCarryWorkBit_get_coefficientAddCleanInput
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (bit : Fin n) :
     (coefficientCarryWorkBit n counterWidth bit).get
@@ -7688,7 +7690,7 @@ def coefficientAddSIntoRGates (n counterWidth : Nat) :
     (coefficientAddSIntoRLayout n counterWidth)
 
 /-- The compact `r`-into-`s` adder contains no X gates. -/
-theorem coefficientAddRIntoSGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma coefficientAddRIntoSGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((coefficientAddRIntoSGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simpa only [coefficientAddRIntoSGates] using
@@ -7696,7 +7698,7 @@ theorem coefficientAddRIntoSGates_xMultiplicity_sum (n counterWidth : Nat) :
       (coefficientAddRIntoSLayout n counterWidth))
 
 /-- The compact `r`-into-`s` adder has the exact CNOT coordinate. -/
-theorem coefficientAddRIntoSGates_cnotMultiplicity_sum
+lemma coefficientAddRIntoSGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddRIntoSGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (n + 1) := by
@@ -7705,7 +7707,7 @@ theorem coefficientAddRIntoSGates_cnotMultiplicity_sum
       (coefficientAddRIntoSLayout n counterWidth))
 
 /-- The compact `r`-into-`s` adder has the exact Toffoli coordinate. -/
-theorem coefficientAddRIntoSGates_toffoliMultiplicity_sum
+lemma coefficientAddRIntoSGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddRIntoSGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -7714,14 +7716,14 @@ theorem coefficientAddRIntoSGates_toffoliMultiplicity_sum
       (coefficientAddRIntoSLayout n counterWidth))
 
 /-- The compact `r`-into-`s` schedule has exact physical length. -/
-theorem coefficientAddRIntoSGates_length (n counterWidth : Nat) :
+lemma coefficientAddRIntoSGates_length (n counterWidth : Nat) :
     (coefficientAddRIntoSGates n counterWidth).length = 8 * n + 2 := by
   simp only [coefficientAddRIntoSGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_length]
   omega
 
 /-- The compact `s`-into-`r` adder contains no X gates. -/
-theorem coefficientAddSIntoRGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma coefficientAddSIntoRGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((coefficientAddSIntoRGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simpa only [coefficientAddSIntoRGates] using
@@ -7729,7 +7731,7 @@ theorem coefficientAddSIntoRGates_xMultiplicity_sum (n counterWidth : Nat) :
       (coefficientAddSIntoRLayout n counterWidth))
 
 /-- The compact `s`-into-`r` adder has the exact CNOT coordinate. -/
-theorem coefficientAddSIntoRGates_cnotMultiplicity_sum
+lemma coefficientAddSIntoRGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddSIntoRGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * (n + 1) := by
@@ -7738,7 +7740,7 @@ theorem coefficientAddSIntoRGates_cnotMultiplicity_sum
       (coefficientAddSIntoRLayout n counterWidth))
 
 /-- The compact `s`-into-`r` adder has the exact Toffoli coordinate. -/
-theorem coefficientAddSIntoRGates_toffoliMultiplicity_sum
+lemma coefficientAddSIntoRGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((coefficientAddSIntoRGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * n := by
@@ -7747,7 +7749,7 @@ theorem coefficientAddSIntoRGates_toffoliMultiplicity_sum
       (coefficientAddSIntoRLayout n counterWidth))
 
 /-- The compact `s`-into-`r` schedule has exact physical length. -/
-theorem coefficientAddSIntoRGates_length (n counterWidth : Nat) :
+lemma coefficientAddSIntoRGates_length (n counterWidth : Nat) :
     (coefficientAddSIntoRGates n counterWidth).length = 8 * n + 2 := by
   simp only [coefficientAddSIntoRGates,
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_length]
@@ -7782,23 +7784,23 @@ def coefficientAddSIntoRStep (n counterWidth : Nat) :
     (coefficientAddSIntoRLayout n counterWidth)
 
 /-- The compact `r`-into-`s` program realizes its actual gate-list step. -/
-theorem coefficientAddRIntoS_realizes (n counterWidth : Nat) :
+lemma coefficientAddRIntoS_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (coefficientAddRIntoSProgram n counterWidth)
+      (coefficientAddRIntoSProgram n counterWidth) environment
       (coefficientAddRIntoSStep n counterWidth) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes
     (coefficientAddRIntoSLayout n counterWidth)
 
 /-- The compact `s`-into-`r` program realizes its actual gate-list step. -/
-theorem coefficientAddSIntoR_realizes (n counterWidth : Nat) :
+lemma coefficientAddSIntoR_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (coefficientAddSIntoRProgram n counterWidth)
+      (coefficientAddSIntoRProgram n counterWidth) environment
       (coefficientAddSIntoRStep n counterWidth) :=
   PlainAdder.Schedule.CarryWorkLayout.cleanCarrySum_realizes
     (coefficientAddSIntoRLayout n counterWidth)
 
 /-- The compiled compact `r`-into-`s` program retains its exact X count. -/
-theorem coefficientAddRIntoSProgram_x_count (n counterWidth : Nat) :
+lemma coefficientAddRIntoSProgram_x_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (coefficientAddRIntoSProgram n counterWidth).eventCost = 0 := by
@@ -7810,7 +7812,7 @@ theorem coefficientAddRIntoSProgram_x_count (n counterWidth : Nat) :
     coefficientAddRIntoSGates_xMultiplicity_sum]
 
 /-- The compiled compact `r`-into-`s` program retains its exact CNOT count. -/
-theorem coefficientAddRIntoSProgram_cnot_count (n counterWidth : Nat) :
+lemma coefficientAddRIntoSProgram_cnot_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (coefficientAddRIntoSProgram n counterWidth).eventCost =
@@ -7823,7 +7825,7 @@ theorem coefficientAddRIntoSProgram_cnot_count (n counterWidth : Nat) :
     coefficientAddRIntoSGates_cnotMultiplicity_sum]
 
 /-- The compiled compact `r`-into-`s` program retains its exact Toffoli count. -/
-theorem coefficientAddRIntoSProgram_toffoli_count (n counterWidth : Nat) :
+lemma coefficientAddRIntoSProgram_toffoli_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
         (coefficientAddRIntoSProgram n counterWidth).eventCost = 6 * n := by
@@ -7835,7 +7837,7 @@ theorem coefficientAddRIntoSProgram_toffoli_count (n counterWidth : Nat) :
     coefficientAddRIntoSGates_toffoliMultiplicity_sum]
 
 /-- The compiled compact `s`-into-`r` program retains its exact X count. -/
-theorem coefficientAddSIntoRProgram_x_count (n counterWidth : Nat) :
+lemma coefficientAddSIntoRProgram_x_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (coefficientAddSIntoRProgram n counterWidth).eventCost = 0 := by
@@ -7847,7 +7849,7 @@ theorem coefficientAddSIntoRProgram_x_count (n counterWidth : Nat) :
     coefficientAddSIntoRGates_xMultiplicity_sum]
 
 /-- The compiled compact `s`-into-`r` program retains its exact CNOT count. -/
-theorem coefficientAddSIntoRProgram_cnot_count (n counterWidth : Nat) :
+lemma coefficientAddSIntoRProgram_cnot_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (coefficientAddSIntoRProgram n counterWidth).eventCost =
@@ -7860,7 +7862,7 @@ theorem coefficientAddSIntoRProgram_cnot_count (n counterWidth : Nat) :
     coefficientAddSIntoRGates_cnotMultiplicity_sum]
 
 /-- The compiled compact `s`-into-`r` program retains its exact Toffoli count. -/
-theorem coefficientAddSIntoRProgram_toffoli_count (n counterWidth : Nat) :
+lemma coefficientAddSIntoRProgram_toffoli_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
         (coefficientAddSIntoRProgram n counterWidth).eventCost = 6 * n := by
@@ -7875,7 +7877,7 @@ theorem coefficientAddSIntoRProgram_toffoli_count (n counterWidth : Nat) :
 
 /-- The generic clean-carry schedule preserves any observation outside its
 right/target word and borrowed carry bank. -/
-private theorem coefficientAddStep_get_observed_of_right_work_ne
+private lemma coefficientAddStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -7895,7 +7897,7 @@ private theorem coefficientAddStep_get_observed_of_right_work_ne
 
 /-- On clean borrowed carry work, an arbitrary compact coefficient layout
 computes the natural carry propagated from its specified left and right words. -/
-private theorem coefficientAdd_carryStage_get_workCarry_natAddCarry
+private lemma coefficientAdd_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -7985,7 +7987,7 @@ private theorem coefficientAdd_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before an arbitrary compact coefficient target bit is
 the natural addition carry when the borrowed bank is clean. -/
-private theorem coefficientAdd_carryBeforeSum_get_natAddCarry
+private lemma coefficientAdd_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -8028,7 +8030,7 @@ private theorem coefficientAdd_carryBeforeSum_get_natAddCarry
 
 /-- The generic compact VBE step writes its right word as its old right word
 plus its preserved left word on clean carry input. -/
-private theorem coefficientAdd_cleanStep_get_right_add_testBit_of_clean
+private lemma coefficientAdd_cleanStep_get_right_add_testBit_of_clean
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -8067,7 +8069,7 @@ private theorem coefficientAdd_cleanStep_get_right_add_testBit_of_clean
 
 /-- The compact `r`-into-`s` step preserves every observation disjoint from
 the `s` target word and the borrowed VBE carry bank. -/
-theorem coefficientAddRIntoSStep_get_observed_of_right_work_ne
+lemma coefficientAddRIntoSStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hright : ∀ bit : Fin (n + 1),
@@ -8091,7 +8093,7 @@ theorem coefficientAddRIntoSStep_get_observed_of_right_work_ne
 
 /-- The compact `s`-into-`r` step preserves every observation disjoint from
 the `r` target word and the borrowed VBE carry bank. -/
-theorem coefficientAddSIntoRStep_get_observed_of_right_work_ne
+lemma coefficientAddSIntoRStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hright : ∀ bit : Fin (n + 1),
@@ -8115,7 +8117,7 @@ theorem coefficientAddSIntoRStep_get_observed_of_right_work_ne
 
 /-- The `r` source coefficient is preserved by the compact `r`-into-`s`
 adder. -/
-theorem coefficientAddRIntoSStep_get_rCoeffValueBit
+lemma coefficientAddRIntoSStep_get_rCoeffValueBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (rCoeffValueBit n counterWidth bit).get
@@ -8129,7 +8131,7 @@ theorem coefficientAddRIntoSStep_get_rCoeffValueBit
 
 /-- The `s` source coefficient is preserved by the compact `s`-into-`r`
 adder. -/
-theorem coefficientAddSIntoRStep_get_sCoeffValueBit
+lemma coefficientAddSIntoRStep_get_sCoeffValueBit
     (n counterWidth : Nat) (bit : Fin (n + 1))
     (x : Registers n counterWidth) :
     (sCoeffValueBit n counterWidth bit).get
@@ -8143,7 +8145,7 @@ theorem coefficientAddSIntoRStep_get_sCoeffValueBit
 
 /-- On a clean compact workspace, `r` is added into `s` bitwise modulo
 `2^(n+1)`. -/
-theorem coefficientAddRIntoSStep_get_sCoeff_add_testBit_of_clean
+lemma coefficientAddRIntoSStep_get_sCoeff_add_testBit_of_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (bit : Fin (n + 1)) :
     (coefficientAddRIntoSStep n counterWidth
@@ -8189,7 +8191,7 @@ theorem coefficientAddRIntoSStep_get_sCoeff_add_testBit_of_clean
 
 /-- On a clean compact workspace, `s` is added into `r` bitwise modulo
 `2^(n+1)`. -/
-theorem coefficientAddSIntoRStep_get_rCoeff_add_testBit_of_clean
+lemma coefficientAddSIntoRStep_get_rCoeff_add_testBit_of_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (bit : Fin (n + 1)) :
     (coefficientAddSIntoRStep n counterWidth
@@ -8234,7 +8236,7 @@ theorem coefficientAddSIntoRStep_get_rCoeff_add_testBit_of_clean
         rCoeffValueWord] using h
 
 /-- Word-level clean endpoint for compact `r`-into-`s` coefficient addition. -/
-theorem coefficientAddRIntoSStep_sCoeff_of_clean
+lemma coefficientAddRIntoSStep_sCoeff_of_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddRIntoSStep n counterWidth
@@ -8246,7 +8248,7 @@ theorem coefficientAddRIntoSStep_sCoeff_of_clean
     n counterWidth core target bit
 
 /-- Word-level clean endpoint for compact `s`-into-`r` coefficient addition. -/
-theorem coefficientAddSIntoRStep_rCoeff_of_clean
+lemma coefficientAddSIntoRStep_rCoeff_of_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddSIntoRStep n counterWidth
@@ -8258,7 +8260,7 @@ theorem coefficientAddSIntoRStep_rCoeff_of_clean
     n counterWidth core target bit
 
 /-- The source word remains unchanged at the compact `r`-into-`s` endpoint. -/
-theorem coefficientAddRIntoSStep_rCoeff_of_clean
+lemma coefficientAddRIntoSStep_rCoeff_of_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddRIntoSStep n counterWidth
@@ -8281,7 +8283,7 @@ theorem coefficientAddRIntoSStep_rCoeff_of_clean
       rCoeffValueBit_get n counterWidth bit input
 
 /-- The source word remains unchanged at the compact `s`-into-`r` endpoint. -/
-theorem coefficientAddSIntoRStep_sCoeff_of_clean
+lemma coefficientAddSIntoRStep_sCoeff_of_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddSIntoRStep n counterWidth
@@ -8305,7 +8307,7 @@ theorem coefficientAddSIntoRStep_sCoeff_of_clean
 
 /-- The generic compact clean-carry step restores the whole VBE carry object
 when its carry-in and work lenses are the shared compact bank. -/
-private theorem coefficientAddStep_coefficientAdder_cleanEndpoint
+private lemma coefficientAddStep_coefficientAdder_cleanEndpoint
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -8359,7 +8361,7 @@ private theorem coefficientAddStep_coefficientAdder_cleanEndpoint
 /-- A compact coefficient addition restores an arbitrary initially clean VBE
 carry object.  This form is used after routing has changed other shared fields
 without changing the reusable carry bank. -/
-private theorem coefficientAddStep_coefficientAdder_cleanEndpoint_of_clean
+private lemma coefficientAddStep_coefficientAdder_cleanEndpoint_of_clean
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -8408,7 +8410,7 @@ private theorem coefficientAddStep_coefficientAdder_cleanEndpoint_of_clean
 /-- The generic compact clean-carry step returns the complete named shared
 workspace to its clean value once its target word is disjoint from the three
 non-VBE shared fields. -/
-private theorem coefficientAddStep_shared_cleanEndpoint
+private lemma coefficientAddStep_shared_cleanEndpoint
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -8485,7 +8487,7 @@ private theorem coefficientAddStep_shared_cleanEndpoint
 
 /-- The generic compact clean-carry step leaves the public target word
 unchanged when its target and work wires are disjoint from it. -/
-private theorem coefficientAddStep_target_cleanEndpoint
+private lemma coefficientAddStep_target_cleanEndpoint
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) (n + 1))
@@ -8514,7 +8516,7 @@ private theorem coefficientAddStep_target_cleanEndpoint
 
 /-- The `r`-into-`s` compact coefficient addition restores the complete shared
 bank, including the carry-in and every VBE carry bit. -/
-theorem coefficientAddRIntoSStep_shared_cleanEndpoint
+lemma coefficientAddRIntoSStep_shared_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddRIntoSStep n counterWidth
@@ -8550,7 +8552,7 @@ theorem coefficientAddRIntoSStep_shared_cleanEndpoint
 
 /-- The `s`-into-`r` compact coefficient addition restores the complete shared
 bank, including the carry-in and every VBE carry bit. -/
-theorem coefficientAddSIntoRStep_shared_cleanEndpoint
+lemma coefficientAddSIntoRStep_shared_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddSIntoRStep n counterWidth
@@ -8586,7 +8588,7 @@ theorem coefficientAddSIntoRStep_shared_cleanEndpoint
 
 /-- The compact `r`-into-`s` addition restores an arbitrary clean reusable
 VBE carry bank, independently of the other shared routing fields. -/
-theorem coefficientAddRIntoSStep_coefficientAdder_cleanEndpoint_of_clean
+lemma coefficientAddRIntoSStep_coefficientAdder_cleanEndpoint_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin n,
@@ -8600,7 +8602,7 @@ theorem coefficientAddRIntoSStep_coefficientAdder_cleanEndpoint_of_clean
 
 /-- The compact `s`-into-`r` addition restores an arbitrary clean reusable
 VBE carry bank, independently of the other shared routing fields. -/
-theorem coefficientAddSIntoRStep_coefficientAdder_cleanEndpoint_of_clean
+lemma coefficientAddSIntoRStep_coefficientAdder_cleanEndpoint_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin n,
@@ -8614,7 +8616,7 @@ theorem coefficientAddSIntoRStep_coefficientAdder_cleanEndpoint_of_clean
 
 /-- The compact `r`-into-`s` coefficient addition leaves the public target
 word unchanged. -/
-theorem coefficientAddRIntoSStep_target_cleanEndpoint
+lemma coefficientAddRIntoSStep_target_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddRIntoSStep n counterWidth
@@ -8634,7 +8636,7 @@ theorem coefficientAddRIntoSStep_target_cleanEndpoint
 
 /-- The compact `s`-into-`r` coefficient addition leaves the public target
 word unchanged. -/
-theorem coefficientAddSIntoRStep_target_cleanEndpoint
+lemma coefficientAddSIntoRStep_target_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (coefficientAddSIntoRStep n counterWidth
@@ -8879,23 +8881,23 @@ def sourceSubUFromVProgram (n counterWidth : Nat) :
     (sourceSubUFromVGates n counterWidth)
 
 /-- The compact `u := u - v` program realizes the reverse physical schedule. -/
-theorem sourceSubVFromU_realizes (n counterWidth : Nat) :
+lemma sourceSubVFromU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (sourceSubVFromUProgram n counterWidth)
+      (sourceSubVFromUProgram n counterWidth) environment
       (sourceSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (sourceSubVFromUGates n counterWidth)
 
 /-- The compact `v := v - u` program realizes the reverse physical schedule. -/
-theorem sourceSubUFromV_realizes (n counterWidth : Nat) :
+lemma sourceSubUFromV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (sourceSubUFromVProgram n counterWidth)
+      (sourceSubUFromVProgram n counterWidth) environment
       (sourceSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (sourceSubUFromVGates n counterWidth)
 
 /-- Exact X coordinate of either compact source-add schedule. -/
-private theorem sourceAddGates_xMultiplicity_sum
+private lemma sourceAddGates_xMultiplicity_sum
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n) :
@@ -8905,7 +8907,7 @@ private theorem sourceAddGates_xMultiplicity_sum
     layout
 
 /-- Exact CNOT coordinate of either compact source-add schedule. -/
-private theorem sourceAddGates_cnotMultiplicity_sum
+private lemma sourceAddGates_cnotMultiplicity_sum
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n) :
@@ -8915,7 +8917,7 @@ private theorem sourceAddGates_cnotMultiplicity_sum
     layout
 
 /-- Exact Toffoli coordinate of either compact source-add schedule. -/
-private theorem sourceAddGates_toffoliMultiplicity_sum
+private lemma sourceAddGates_toffoliMultiplicity_sum
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n) :
@@ -8925,7 +8927,7 @@ private theorem sourceAddGates_toffoliMultiplicity_sum
     layout
 
 /-- Exact physical length of either compact source-add schedule. -/
-private theorem sourceAddGates_length
+private lemma sourceAddGates_length
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n) :
@@ -8934,7 +8936,7 @@ private theorem sourceAddGates_length
   exact PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_length layout
 
 /-- The compact `u := u - v` source schedule has no X gates. -/
-theorem sourceSubVFromUGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma sourceSubVFromUGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((sourceSubVFromUGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simpa only [sourceSubVFromUGates, sourceAddVIntoUGates,
@@ -8943,7 +8945,7 @@ theorem sourceSubVFromUGates_xMultiplicity_sum (n counterWidth : Nat) :
       (sourceAddVIntoULayout n counterWidth)
 
 /-- The compact `u := u - v` source schedule has exact CNOT count. -/
-theorem sourceSubVFromUGates_cnotMultiplicity_sum (n counterWidth : Nat) :
+lemma sourceSubVFromUGates_cnotMultiplicity_sum (n counterWidth : Nat) :
     ((sourceSubVFromUGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
   simpa only [sourceSubVFromUGates, sourceAddVIntoUGates,
@@ -8952,7 +8954,7 @@ theorem sourceSubVFromUGates_cnotMultiplicity_sum (n counterWidth : Nat) :
       (sourceAddVIntoULayout n counterWidth)
 
 /-- The compact `u := u - v` source schedule has exact Toffoli count. -/
-theorem sourceSubVFromUGates_toffoliMultiplicity_sum
+lemma sourceSubVFromUGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((sourceSubVFromUGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * (n - 1) := by
@@ -8962,7 +8964,7 @@ theorem sourceSubVFromUGates_toffoliMultiplicity_sum
       (sourceAddVIntoULayout n counterWidth)
 
 /-- The compact `u := u - v` source schedule has exact physical length. -/
-theorem sourceSubVFromUGates_length (n counterWidth : Nat) :
+lemma sourceSubVFromUGates_length (n counterWidth : Nat) :
     (sourceSubVFromUGates n counterWidth).length = 6 * (n - 1) + 2 * n := by
   simpa only [sourceSubVFromUGates, sourceAddVIntoUGates,
     List.length_reverse] using
@@ -8970,7 +8972,7 @@ theorem sourceSubVFromUGates_length (n counterWidth : Nat) :
       (sourceAddVIntoULayout n counterWidth)
 
 /-- The compact `v := v - u` source schedule has no X gates. -/
-theorem sourceSubUFromVGates_xMultiplicity_sum (n counterWidth : Nat) :
+lemma sourceSubUFromVGates_xMultiplicity_sum (n counterWidth : Nat) :
     ((sourceSubUFromVGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   simpa only [sourceSubUFromVGates, sourceAddUIntoVGates,
@@ -8979,7 +8981,7 @@ theorem sourceSubUFromVGates_xMultiplicity_sum (n counterWidth : Nat) :
       (sourceAddUIntoVLayout n counterWidth)
 
 /-- The compact `v := v - u` source schedule has exact CNOT count. -/
-theorem sourceSubUFromVGates_cnotMultiplicity_sum (n counterWidth : Nat) :
+lemma sourceSubUFromVGates_cnotMultiplicity_sum (n counterWidth : Nat) :
     ((sourceSubUFromVGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 2 * n := by
   simpa only [sourceSubUFromVGates, sourceAddUIntoVGates,
@@ -8988,7 +8990,7 @@ theorem sourceSubUFromVGates_cnotMultiplicity_sum (n counterWidth : Nat) :
       (sourceAddUIntoVLayout n counterWidth)
 
 /-- The compact `v := v - u` source schedule has exact Toffoli count. -/
-theorem sourceSubUFromVGates_toffoliMultiplicity_sum
+lemma sourceSubUFromVGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((sourceSubUFromVGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 6 * (n - 1) := by
@@ -8998,7 +9000,7 @@ theorem sourceSubUFromVGates_toffoliMultiplicity_sum
       (sourceAddUIntoVLayout n counterWidth)
 
 /-- The compact `v := v - u` source schedule has exact physical length. -/
-theorem sourceSubUFromVGates_length (n counterWidth : Nat) :
+lemma sourceSubUFromVGates_length (n counterWidth : Nat) :
     (sourceSubUFromVGates n counterWidth).length = 6 * (n - 1) + 2 * n := by
   simpa only [sourceSubUFromVGates, sourceAddUIntoVGates,
     List.length_reverse] using
@@ -9006,7 +9008,7 @@ theorem sourceSubUFromVGates_length (n counterWidth : Nat) :
       (sourceAddUIntoVLayout n counterWidth)
 
 /-- The compiled `u := u - v` circuit retains the exact X count. -/
-theorem sourceSubVFromUProgram_x_count (n counterWidth : Nat) :
+lemma sourceSubVFromUProgram_x_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (sourceSubVFromUProgram n counterWidth).eventCost = 0 := by
@@ -9018,7 +9020,7 @@ theorem sourceSubVFromUProgram_x_count (n counterWidth : Nat) :
     sourceSubVFromUGates_xMultiplicity_sum]
 
 /-- The compiled `u := u - v` circuit retains the exact CNOT count. -/
-theorem sourceSubVFromUProgram_cnot_count (n counterWidth : Nat) :
+lemma sourceSubVFromUProgram_cnot_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (sourceSubVFromUProgram n counterWidth).eventCost = 2 * n := by
@@ -9030,7 +9032,7 @@ theorem sourceSubVFromUProgram_cnot_count (n counterWidth : Nat) :
     sourceSubVFromUGates_cnotMultiplicity_sum]
 
 /-- The compiled `u := u - v` circuit retains the exact Toffoli count. -/
-theorem sourceSubVFromUProgram_toffoli_count (n counterWidth : Nat) :
+lemma sourceSubVFromUProgram_toffoli_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
         (sourceSubVFromUProgram n counterWidth).eventCost = 6 * (n - 1) := by
@@ -9042,7 +9044,7 @@ theorem sourceSubVFromUProgram_toffoli_count (n counterWidth : Nat) :
     sourceSubVFromUGates_toffoliMultiplicity_sum]
 
 /-- The compiled `v := v - u` circuit retains the exact X count. -/
-theorem sourceSubUFromVProgram_x_count (n counterWidth : Nat) :
+lemma sourceSubUFromVProgram_x_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.singleQubit)
         (sourceSubUFromVProgram n counterWidth).eventCost = 0 := by
@@ -9054,7 +9056,7 @@ theorem sourceSubUFromVProgram_x_count (n counterWidth : Nat) :
     sourceSubUFromVGates_xMultiplicity_sum]
 
 /-- The compiled `v := v - u` circuit retains the exact CNOT count. -/
-theorem sourceSubUFromVProgram_cnot_count (n counterWidth : Nat) :
+lemma sourceSubUFromVProgram_cnot_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.cnot)
         (sourceSubUFromVProgram n counterWidth).eventCost = 2 * n := by
@@ -9066,7 +9068,7 @@ theorem sourceSubUFromVProgram_cnot_count (n counterWidth : Nat) :
     sourceSubUFromVGates_cnotMultiplicity_sum]
 
 /-- The compiled `v := v - u` circuit retains the exact Toffoli count. -/
-theorem sourceSubUFromVProgram_toffoli_count (n counterWidth : Nat) :
+lemma sourceSubUFromVProgram_toffoli_count (n counterWidth : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate AlgorithmGate.Coordinate.toffoli)
         (sourceSubUFromVProgram n counterWidth).eventCost = 6 * (n - 1) := by
@@ -9082,7 +9084,7 @@ theorem sourceSubUFromVProgram_toffoli_count (n counterWidth : Nat) :
 /-- On clean borrowed carry work, an arbitrary compact source-add layout
 computes the natural carry propagated from its specified source and target
 words. -/
-private theorem sourceAdd_carryStage_get_workCarry_natAddCarry
+private lemma sourceAdd_carryStage_get_workCarry_natAddCarry
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9177,7 +9179,7 @@ private theorem sourceAdd_carryStage_get_workCarry_natAddCarry
 
 /-- The carry selected before an arbitrary compact source-add target bit is
 the natural addition carry when the borrowed scratch/carry prefix is clean. -/
-private theorem sourceAdd_carryBeforeSum_get_natAddCarry
+private lemma sourceAdd_carryBeforeSum_get_natAddCarry
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9219,7 +9221,7 @@ private theorem sourceAdd_carryBeforeSum_get_natAddCarry
     rw [hworkCarry, hworkSucc]
 
 /-- A clean compact source-add writes its target word as target plus source. -/
-private theorem sourceAdd_cleanStep_get_right_add_testBit_of_clean
+private lemma sourceAdd_cleanStep_get_right_add_testBit_of_clean
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9258,7 +9260,7 @@ private theorem sourceAdd_cleanStep_get_right_add_testBit_of_clean
       simpa [Bool.xor_assoc] using hadd
 
 /-- The reverse of a compact source-add preserves the left/source readout. -/
-private theorem sourceSubStep_get_left
+private lemma sourceSubStep_get_left
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9289,7 +9291,7 @@ private theorem sourceSubStep_get_left
         (fun y => (layout.left.bit bit).get y) hcancel
 
 /-- The reverse of a compact source-add preserves its scratch carry-in. -/
-private theorem sourceSubStep_get_carryIn
+private lemma sourceSubStep_get_carryIn
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9322,7 +9324,7 @@ private theorem sourceSubStep_get_carryIn
 
 /-- The reverse of a compact source-add also restores a clean borrowed VBE
 carry-prefix. -/
-private theorem sourceSubStep_get_workCarry_clean
+private lemma sourceSubStep_get_workCarry_clean
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9339,7 +9341,7 @@ private theorem sourceSubStep_get_workCarry_clean
 
 /-- An observation outside a compact source-add target and borrowed VBE prefix
 is preserved even when the schedule is run in reverse. -/
-private theorem sourceSubStep_get_observed_of_right_work_ne
+private lemma sourceSubStep_get_observed_of_right_work_ne
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9377,7 +9379,7 @@ private theorem sourceSubStep_get_observed_of_right_work_ne
 
 /-- An observation disjoint from the `u` target word and borrowed prefix is
 preserved by the compact source subtraction `u := u - v`. -/
-private theorem sourceSubVFromUStep_get_observed_of_u_work_ne
+private lemma sourceSubVFromUStep_get_observed_of_u_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hright : ∀ bit : Fin n,
@@ -9401,7 +9403,7 @@ private theorem sourceSubVFromUStep_get_observed_of_u_work_ne
 
 /-- An observation disjoint from the `v` target word and borrowed prefix is
 preserved by the compact source subtraction `v := v - u`. -/
-private theorem sourceSubUFromVStep_get_observed_of_v_work_ne
+private lemma sourceSubUFromVStep_get_observed_of_v_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hright : ∀ bit : Fin n,
@@ -9425,7 +9427,7 @@ private theorem sourceSubUFromVStep_get_observed_of_v_work_ne
 
 /-- A clean compact shared workspace makes every borrowed source-subtract
 carry-prefix bit clean. -/
-private theorem sourceCarryWorkPrefixBit_get_cleanInput
+private lemma sourceCarryWorkPrefixBit_get_cleanInput
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (bit : Fin (n - 1)) :
     (sourceCarryWorkPrefixBit n counterWidth bit).get
@@ -9439,7 +9441,7 @@ private theorem sourceCarryWorkPrefixBit_get_cleanInput
 /-- Reversing an `n`-bit source adder restores the whole reusable VBE object.
 The source schedule touches only the first `n-1` work cells; the proof treats
 the remaining cell as a physically disjoint observation. -/
-private theorem sourceSubStep_coefficientAdder_cleanEndpoint
+private lemma sourceSubStep_coefficientAdder_cleanEndpoint
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9506,7 +9508,7 @@ private theorem sourceSubStep_coefficientAdder_cleanEndpoint
 /-- Reversing an `n`-bit source adder restores an arbitrary clean reusable
 VBE object.  Unlike the constructor-specialized lemma above, this form can be
 used after a selector has changed only routing and comparison bits. -/
-private theorem sourceSubStep_coefficientAdder_cleanEndpoint_of_clean
+private lemma sourceSubStep_coefficientAdder_cleanEndpoint_of_clean
     (n counterWidth : Nat)
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding n counterWidth) n)
@@ -9570,7 +9572,7 @@ private theorem sourceSubStep_coefficientAdder_cleanEndpoint_of_clean
         omega
 
 /-- The compact `u := u-v` source path restores any clean VBE bank. -/
-theorem sourceSubVFromUStep_coefficientAdder_cleanEndpoint_of_clean
+lemma sourceSubVFromUStep_coefficientAdder_cleanEndpoint_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin n,
@@ -9596,7 +9598,7 @@ theorem sourceSubVFromUStep_coefficientAdder_cleanEndpoint_of_clean
             (RegisterBits.uValueBit n counterWidth rightBit) workBit)
 
 /-- The compact `v := v-u` source path restores any clean VBE bank. -/
-theorem sourceSubUFromVStep_coefficientAdder_cleanEndpoint_of_clean
+lemma sourceSubUFromVStep_coefficientAdder_cleanEndpoint_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin n,
@@ -9622,7 +9624,7 @@ theorem sourceSubUFromVStep_coefficientAdder_cleanEndpoint_of_clean
             (RegisterBits.vValueBit n counterWidth rightBit) workBit)
 
 /-- The compact `u := u-v` source path restores the complete VBE bank. -/
-theorem sourceSubVFromUStep_coefficientAdder_cleanEndpoint
+lemma sourceSubVFromUStep_coefficientAdder_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (sourceSubVFromUStep n counterWidth
@@ -9647,7 +9649,7 @@ theorem sourceSubVFromUStep_coefficientAdder_cleanEndpoint
             (RegisterBits.uValueBit n counterWidth rightBit) workBit)
 
 /-- The compact `v := v-u` source path restores the complete VBE bank. -/
-theorem sourceSubUFromVStep_coefficientAdder_cleanEndpoint
+lemma sourceSubUFromVStep_coefficientAdder_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (sourceSubUFromVStep n counterWidth
@@ -9673,7 +9675,7 @@ theorem sourceSubUFromVStep_coefficientAdder_cleanEndpoint
 
 /-- On a clean scratch/carry prefix, the forward compact `v`-into-`u` adder
 writes `u` as `u + v`. -/
-theorem sourceAddVIntoUStep_get_u_add_of_clean
+lemma sourceAddVIntoUStep_get_u_add_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hscratch : (scratchABit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin (n - 1),
@@ -9715,7 +9717,7 @@ theorem sourceAddVIntoUStep_get_u_add_of_clean
 
 /-- On a clean scratch/carry prefix, the forward compact `u`-into-`v` adder
 writes `v` as `v + u`. -/
-theorem sourceAddUIntoVStep_get_v_add_of_clean
+lemma sourceAddUIntoVStep_get_v_add_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hscratch : (scratchABit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin (n - 1),
@@ -9756,7 +9758,7 @@ theorem sourceAddUIntoVStep_get_v_add_of_clean
         PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumStep] using h
 
 /-- The reverse compact `v`-into-`u` path preserves the source word `v`. -/
-theorem sourceSubVFromUStep_get_v
+lemma sourceSubVFromUStep_get_v
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (sourceSubVFromUStep n counterWidth x).core.v = x.core.v := by
   apply word_eq_of_testBit_eq
@@ -9777,7 +9779,7 @@ theorem sourceSubVFromUStep_get_v
       vValueWord_get n counterWidth bit x
 
 /-- The reverse compact `u`-into-`v` path preserves the source word `u`. -/
-theorem sourceSubUFromVStep_get_u
+lemma sourceSubUFromVStep_get_u
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (sourceSubUFromVStep n counterWidth x).core.u = x.core.u := by
   apply word_eq_of_testBit_eq
@@ -9798,7 +9800,7 @@ theorem sourceSubUFromVStep_get_u
       uValueWord_get n counterWidth bit x
 
 /-- Both reverse compact source paths preserve the core scratch carry bit. -/
-theorem sourceSubVFromUStep_get_scratchA
+lemma sourceSubVFromUStep_get_scratchA
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (sourceSubVFromUStep n counterWidth x).core.scratchA = x.core.scratchA := by
   have h := sourceSubStep_get_carryIn n counterWidth
@@ -9812,7 +9814,7 @@ theorem sourceSubVFromUStep_get_scratchA
   simpa only [scratchABit_get] using hgetter
 
 /-- Both reverse compact source paths preserve the core scratch carry bit. -/
-theorem sourceSubUFromVStep_get_scratchA
+lemma sourceSubUFromVStep_get_scratchA
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (sourceSubUFromVStep n counterWidth x).core.scratchA = x.core.scratchA := by
   have h := sourceSubStep_get_carryIn n counterWidth
@@ -9826,7 +9828,7 @@ theorem sourceSubUFromVStep_get_scratchA
   simpa only [scratchABit_get] using hgetter
 
 /-- Forward and reverse compact `v`-into-`u` schedules are inverse. -/
-theorem sourceSubVFromUStep_comp_addVIntoU
+lemma sourceSubVFromUStep_comp_addVIntoU
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     sourceSubVFromUStep n counterWidth
         (sourceAddVIntoUStep n counterWidth x) = x := by
@@ -9834,7 +9836,7 @@ theorem sourceSubVFromUStep_comp_addVIntoU
     (sourceAddVIntoUGates n counterWidth) x
 
 /-- Forward and reverse compact `v`-into-`u` schedules are inverse. -/
-theorem sourceAddVIntoUStep_comp_subVFromU
+lemma sourceAddVIntoUStep_comp_subVFromU
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     sourceAddVIntoUStep n counterWidth
         (sourceSubVFromUStep n counterWidth x) = x := by
@@ -9844,7 +9846,7 @@ theorem sourceAddVIntoUStep_comp_subVFromU
     sourceSubVFromUGates] using h
 
 /-- Forward and reverse compact `u`-into-`v` schedules are inverse. -/
-theorem sourceSubUFromVStep_comp_addUIntoV
+lemma sourceSubUFromVStep_comp_addUIntoV
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     sourceSubUFromVStep n counterWidth
         (sourceAddUIntoVStep n counterWidth x) = x := by
@@ -9852,7 +9854,7 @@ theorem sourceSubUFromVStep_comp_addUIntoV
     (sourceAddUIntoVGates n counterWidth) x
 
 /-- Forward and reverse compact `u`-into-`v` schedules are inverse. -/
-theorem sourceAddUIntoVStep_comp_subUFromV
+lemma sourceAddUIntoVStep_comp_subUFromV
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     sourceAddUIntoVStep n counterWidth
         (sourceSubUFromVStep n counterWidth x) = x := by
@@ -9863,7 +9865,7 @@ theorem sourceAddUIntoVStep_comp_subUFromV
 
 /-- With clean scratch and borrowed VBE prefix, the physical reverse of
 `u := u + v` implements `u := u - v`. -/
-theorem sourceSubVFromUStep_get_u_sub_of_clean
+lemma sourceSubVFromUStep_get_u_sub_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hscratch : (scratchABit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin (n - 1),
@@ -9905,7 +9907,7 @@ theorem sourceSubVFromUStep_get_u_sub_of_clean
 
 /-- With clean scratch and borrowed VBE prefix, the physical reverse of
 `v := v + u` implements `v := v - u`. -/
-theorem sourceSubUFromVStep_get_v_sub_of_clean
+lemma sourceSubUFromVStep_get_v_sub_of_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hscratch : (scratchABit n counterWidth).get x = false)
     (hwork : ∀ bit : Fin (n - 1),
@@ -9948,7 +9950,7 @@ theorem sourceSubUFromVStep_get_v_sub_of_clean
 /-- Every core readout disjoint from the `u` target word is preserved by the
 compact source subtraction `u := u - v`.  The source-subtract carry prefix is
 in shared workspace, so a core readout is automatically disjoint from it. -/
-theorem sourceSubVFromUStep_get_coreBit_of_disjoint
+lemma sourceSubVFromUStep_get_coreBit_of_disjoint
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hright : ∀ bit : Fin n,
@@ -9975,7 +9977,7 @@ theorem sourceSubVFromUStep_get_coreBit_of_disjoint
 
 /-- Every core readout disjoint from the `v` target word is preserved by the
 compact source subtraction `v := v - u`. -/
-theorem sourceSubUFromVStep_get_coreBit_of_disjoint
+lemma sourceSubUFromVStep_get_coreBit_of_disjoint
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hright : ∀ bit : Fin n,
@@ -10003,7 +10005,7 @@ theorem sourceSubUFromVStep_get_coreBit_of_disjoint
 /-- Clean-work word endpoint for compact `u := u - v`.  The clean shared
 workspace supplies the borrowed VBE prefix; `scratchA` remains an explicit
 core precondition because it is the schedule carry-in. -/
-theorem sourceSubVFromUStep_u_cleanEndpoint
+lemma sourceSubVFromUStep_u_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (hscratch : core.scratchA = false) :
     (sourceSubVFromUStep n counterWidth
@@ -10016,7 +10018,7 @@ theorem sourceSubVFromUStep_u_cleanEndpoint
     (sourceCarryWorkPrefixBit_get_cleanInput n counterWidth core target)
 
 /-- Clean-work word endpoint for compact `v := v - u`. -/
-theorem sourceSubUFromVStep_v_cleanEndpoint
+lemma sourceSubUFromVStep_v_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (hscratch : core.scratchA = false) :
     (sourceSubUFromVStep n counterWidth
@@ -10029,7 +10031,7 @@ theorem sourceSubUFromVStep_v_cleanEndpoint
     (sourceCarryWorkPrefixBit_get_cleanInput n counterWidth core target)
 
 /-- Clean-work source endpoint for compact `u := u - v`. -/
-theorem sourceSubVFromUStep_v_cleanEndpoint
+lemma sourceSubVFromUStep_v_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (sourceSubVFromUStep n counterWidth
@@ -10038,7 +10040,7 @@ theorem sourceSubVFromUStep_v_cleanEndpoint
     (coefficientAddCleanInput n counterWidth core target)
 
 /-- Clean-work source endpoint for compact `v := v - u`. -/
-theorem sourceSubUFromVStep_u_cleanEndpoint
+lemma sourceSubUFromVStep_u_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (sourceSubUFromVStep n counterWidth
@@ -10048,7 +10050,7 @@ theorem sourceSubUFromVStep_u_cleanEndpoint
 
 /-- The compact source subtraction `u := u - v` leaves the public target
 word untouched. -/
-theorem sourceSubVFromUStep_target_cleanEndpoint
+lemma sourceSubVFromUStep_target_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (sourceSubVFromUStep n counterWidth
@@ -10080,7 +10082,7 @@ theorem sourceSubVFromUStep_target_cleanEndpoint
 
 /-- The compact source subtraction `v := v - u` leaves the public target
 word untouched. -/
-theorem sourceSubUFromVStep_target_cleanEndpoint
+lemma sourceSubUFromVStep_target_cleanEndpoint
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) :
     (sourceSubUFromVStep n counterWidth
@@ -10132,7 +10134,7 @@ private def compareFalseControlledListWithWorkGates
 
 /-- A negative-control wrapper executes its source list when the dispatch bit
 is false and its clean auxiliary work bit is false. -/
-private theorem
+private lemma
     compareFalseControlledListWithWorkStep_eq_stepList_of_control_false
     {n counterWidth : Nat}
     (control work : EncodedBit (encoding n counterWidth))
@@ -10182,7 +10184,7 @@ private theorem
     EncodedBit.flip_flip]
 
 /-- A negative-control wrapper is a no-op when its dispatch bit is true. -/
-private theorem
+private lemma
     compareFalseControlledListWithWorkStep_eq_self_of_control_true
     {n counterWidth : Nat}
     (control work : EncodedBit (encoding n counterWidth))
@@ -10221,7 +10223,7 @@ private theorem
 
 /-- The reverse `u := u - v` gate list is disjoint from the comparison
 dispatch bit. -/
-theorem sourceSubVFromUGates_bitDisjoint_compare
+lemma sourceSubVFromUGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ sourceSubVFromUGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (compareBit n counterWidth) gate := by
@@ -10256,7 +10258,7 @@ theorem sourceSubVFromUGates_bitDisjoint_compare
 
 /-- The reverse `u := u - v` gate list is disjoint from `scratchB`, the
 separate clean work bit used to control it. -/
-theorem sourceSubVFromUGates_bitDisjoint_scratchB
+lemma sourceSubVFromUGates_bitDisjoint_scratchB
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ sourceSubVFromUGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (scratchBBit n counterWidth) gate := by
@@ -10291,7 +10293,7 @@ theorem sourceSubVFromUGates_bitDisjoint_scratchB
 
 /-- The reverse `v := v - u` gate list is disjoint from the comparison
 dispatch bit. -/
-theorem sourceSubUFromVGates_bitDisjoint_compare
+lemma sourceSubUFromVGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ sourceSubUFromVGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (compareBit n counterWidth) gate := by
@@ -10326,7 +10328,7 @@ theorem sourceSubUFromVGates_bitDisjoint_compare
 
 /-- The reverse `v := v - u` gate list is disjoint from `scratchB`, the
 separate clean work bit used to control it. -/
-theorem sourceSubUFromVGates_bitDisjoint_scratchB
+lemma sourceSubUFromVGates_bitDisjoint_scratchB
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ sourceSubUFromVGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (scratchBBit n counterWidth) gate := by
@@ -10361,7 +10363,7 @@ theorem sourceSubUFromVGates_bitDisjoint_scratchB
 
 /-- The reverse compact source subtraction `u := u-v` stays within the
 core/shared carrier and is disjoint from every public target bit. -/
-theorem sourceSubVFromUGates_bitDisjoint_target
+lemma sourceSubVFromUGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ sourceSubVFromUGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -10394,7 +10396,7 @@ theorem sourceSubVFromUGates_bitDisjoint_target
 
 /-- The reverse compact source subtraction `v := v-u` stays within the
 core/shared carrier and is disjoint from every public target bit. -/
-theorem sourceSubUFromVGates_bitDisjoint_target
+lemma sourceSubUFromVGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ sourceSubUFromVGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -10474,24 +10476,24 @@ def compareFalseControlledSubUFromVProgram (n counterWidth : Nat) :
     (compareFalseControlledSubUFromVGates n counterWidth)
 
 /-- The compare-controlled `u := u - v` circuit realizes its folded step. -/
-theorem compareControlledSubVFromU_realizes (n counterWidth : Nat) :
+lemma compareControlledSubVFromU_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareControlledSubVFromUProgram n counterWidth)
+      (compareControlledSubVFromUProgram n counterWidth) environment
       (compareControlledSubVFromUStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compareControlledSubVFromUGates n counterWidth)
 
 /-- The compare-false-controlled `v := v - u` circuit realizes its folded
 step. -/
-theorem compareFalseControlledSubUFromV_realizes (n counterWidth : Nat) :
+lemma compareFalseControlledSubUFromV_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareFalseControlledSubUFromVProgram n counterWidth)
+      (compareFalseControlledSubUFromVProgram n counterWidth) environment
       (compareFalseControlledSubUFromVStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compareFalseControlledSubUFromVGates n counterWidth)
 
 /-- A false compare bit disables the `u := u - v` source wrapper. -/
-theorem compareControlledSubVFromUStep_eq_self_of_compare_false
+lemma compareControlledSubVFromUStep_eq_self_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false) :
     compareControlledSubVFromUStep n counterWidth x = x := by
@@ -10505,7 +10507,7 @@ theorem compareControlledSubVFromUStep_eq_self_of_compare_false
       (compareBit_scratchBBit_wire_ne n counterWidth) x hcompare
 
 /-- A true compare bit and clean `scratchB` activate `u := u - v`. -/
-theorem compareControlledSubVFromUStep_eq_subVFromU_of_compare_true
+lemma compareControlledSubVFromUStep_eq_subVFromU_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hwork : (scratchBBit n counterWidth).get x = false) :
@@ -10521,7 +10523,7 @@ theorem compareControlledSubVFromUStep_eq_subVFromU_of_compare_true
       (compareBit_scratchBBit_wire_ne n counterWidth) x hcompare hwork
 
 /-- A false compare bit and clean `scratchB` activate `v := v - u`. -/
-theorem compareFalseControlledSubUFromVStep_eq_subUFromV_of_compare_false
+lemma compareFalseControlledSubUFromVStep_eq_subUFromV_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hwork : (scratchBBit n counterWidth).get x = false) :
@@ -10537,7 +10539,7 @@ theorem compareFalseControlledSubUFromVStep_eq_subUFromV_of_compare_false
       (compareBit_scratchBBit_wire_ne n counterWidth) x hcompare hwork
 
 /-- A true compare bit disables the negative-control `v := v - u` wrapper. -/
-theorem compareFalseControlledSubUFromVStep_eq_self_of_compare_true
+lemma compareFalseControlledSubUFromVStep_eq_self_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true) :
     compareFalseControlledSubUFromVStep n counterWidth x = x := by
@@ -10552,7 +10554,7 @@ theorem compareFalseControlledSubUFromVStep_eq_self_of_compare_true
 
 /-- The reverse source path `u := u - v` preserves the comparison dispatch
 bit. -/
-theorem sourceSubVFromUStep_get_compare
+lemma sourceSubVFromUStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get (sourceSubVFromUStep n counterWidth x) =
       (compareBit n counterWidth).get x := by
@@ -10566,7 +10568,7 @@ theorem sourceSubVFromUStep_get_compare
 
 /-- The reverse source path `v := v - u` preserves the comparison dispatch
 bit. -/
-theorem sourceSubUFromVStep_get_compare
+lemma sourceSubUFromVStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get (sourceSubUFromVStep n counterWidth x) =
       (compareBit n counterWidth).get x := by
@@ -10580,7 +10582,7 @@ theorem sourceSubUFromVStep_get_compare
 
 /-- The reverse source path `u := u - v` preserves the shared masked-route
 control bit. -/
-theorem sourceSubVFromUStep_get_control
+lemma sourceSubVFromUStep_get_control
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (controlBit n counterWidth).get (sourceSubVFromUStep n counterWidth x) =
       (controlBit n counterWidth).get x := by
@@ -10598,7 +10600,7 @@ theorem sourceSubVFromUStep_get_control
 
 /-- The reverse source path `v := v - u` preserves the shared masked-route
 control bit. -/
-theorem sourceSubUFromVStep_get_control
+lemma sourceSubUFromVStep_get_control
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (controlBit n counterWidth).get (sourceSubUFromVStep n counterWidth x) =
       (controlBit n counterWidth).get x := by
@@ -10615,7 +10617,7 @@ theorem sourceSubUFromVStep_get_control
           (sourceCarryWorkPrefixIndex n bit)).symm) x
 
 /-- The reverse source path `v := v - u` preserves the shared route bit. -/
-theorem sourceSubUFromVStep_get_path
+lemma sourceSubUFromVStep_get_path
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (pathBit n counterWidth).get (sourceSubUFromVStep n counterWidth x) =
       (pathBit n counterWidth).get x := by
@@ -10632,7 +10634,7 @@ theorem sourceSubUFromVStep_get_path
           (sourceCarryWorkPrefixIndex n bit)).symm) x
 
 /-- The reverse source path `u := u - v` preserves the shared route bit. -/
-theorem sourceSubVFromUStep_get_path
+lemma sourceSubVFromUStep_get_path
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (pathBit n counterWidth).get (sourceSubVFromUStep n counterWidth x) =
       (pathBit n counterWidth).get x := by
@@ -10671,7 +10673,7 @@ def compareSelectedSourceSubtractStep (n counterWidth : Nat) :
 
 /-- The explicit selected-source gate list has the sequential selected-source
 semantics. -/
-theorem compareSelectedSourceSubtractStep_eq_gateList
+lemma compareSelectedSourceSubtractStep_eq_gateList
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     EncodedBit.GateSpec.stepList
         (compareSelectedSourceSubtractGates n counterWidth) x =
@@ -10682,18 +10684,18 @@ theorem compareSelectedSourceSubtractStep_eq_gateList
 
 /-- The compare-selected compact source-subtraction circuit realizes its
 folded step. -/
-theorem compareSelectedSourceSubtract_realizes (n counterWidth : Nat) :
+lemma compareSelectedSourceSubtract_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareSelectedSourceSubtractProgram n counterWidth)
+      (compareSelectedSourceSubtractProgram n counterWidth) environment
       (compareSelectedSourceSubtractStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (compareSelectedSourceSubtractGates n counterWidth)
     (compareSelectedSourceSubtractStep_eq_gateList n counterWidth)
 
 /-- Under compare=true and clean `scratchB`, selected subtraction reduces to
 the existing compact `u := u - v` schedule. -/
-theorem compareSelectedSourceSubtractStep_eq_subVFromU_of_compare_true
+lemma compareSelectedSourceSubtractStep_eq_subVFromU_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hwork : (scratchBBit n counterWidth).get x = false) :
@@ -10716,7 +10718,7 @@ theorem compareSelectedSourceSubtractStep_eq_subVFromU_of_compare_true
 
 /-- Under compare=false and clean `scratchB`, selected subtraction reduces to
 the existing compact `v := v - u` schedule. -/
-theorem compareSelectedSourceSubtractStep_eq_subUFromV_of_compare_false
+lemma compareSelectedSourceSubtractStep_eq_subUFromV_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hwork : (scratchBBit n counterWidth).get x = false) :
@@ -10730,7 +10732,7 @@ theorem compareSelectedSourceSubtractStep_eq_subUFromV_of_compare_false
     n counterWidth x hcompare hwork
 
 /-- Clean compact endpoint for the compare=true selected source branch. -/
-theorem compareSelectedSourceSubtractStep_u_cleanEndpoint_of_compare_true
+lemma compareSelectedSourceSubtractStep_u_cleanEndpoint_of_compare_true
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (hcompare : core.compare = true)
     (hscratchA : core.scratchA = false) (hscratchB : core.scratchB = false) :
@@ -10745,7 +10747,7 @@ theorem compareSelectedSourceSubtractStep_u_cleanEndpoint_of_compare_true
   · simpa only [scratchBBit_get, coefficientAddCleanInput] using hscratchB
 
 /-- Clean compact endpoint for the compare=false selected source branch. -/
-theorem compareSelectedSourceSubtractStep_v_cleanEndpoint_of_compare_false
+lemma compareSelectedSourceSubtractStep_v_cleanEndpoint_of_compare_false
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (hcompare : core.compare = false)
     (hscratchA : core.scratchA = false) (hscratchB : core.scratchB = false) :
@@ -10760,7 +10762,7 @@ theorem compareSelectedSourceSubtractStep_v_cleanEndpoint_of_compare_false
   · simpa only [scratchBBit_get, coefficientAddCleanInput] using hscratchB
 
 /-- Exact physical length of compare-selected compact source subtraction. -/
-theorem compareSelectedSourceSubtractGates_length
+lemma compareSelectedSourceSubtractGates_length
     (n counterWidth : Nat) :
     (compareSelectedSourceSubtractGates n counterWidth).length =
       36 * (n - 1) + 4 * n + 2 := by
@@ -10776,7 +10778,7 @@ theorem compareSelectedSourceSubtractGates_length
   omega
 
 /-- Compare-selected compact source subtraction contains exactly two X gates. -/
-theorem compareSelectedSourceSubtractGates_xMultiplicity_sum
+lemma compareSelectedSourceSubtractGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedSourceSubtractGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
@@ -10789,7 +10791,7 @@ theorem compareSelectedSourceSubtractGates_xMultiplicity_sum
   rfl
 
 /-- Compare-selected compact source subtraction contains no CNOT leaves. -/
-theorem compareSelectedSourceSubtractGates_cnotMultiplicity_sum
+lemma compareSelectedSourceSubtractGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedSourceSubtractGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -10804,7 +10806,7 @@ theorem compareSelectedSourceSubtractGates_cnotMultiplicity_sum
   rfl
 
 /-- Exact Toffoli coordinate of compare-selected compact source subtraction. -/
-theorem compareSelectedSourceSubtractGates_toffoliMultiplicity_sum
+lemma compareSelectedSourceSubtractGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedSourceSubtractGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -10824,7 +10826,7 @@ theorem compareSelectedSourceSubtractGates_toffoliMultiplicity_sum
 
 /-- Reversing the selected-source gate list is a right inverse of its folded
 compact step. -/
-theorem compareSelectedSourceSubtractStep_reverse_identity
+lemma compareSelectedSourceSubtractStep_reverse_identity
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     EncodedBit.GateSpec.stepList
         (compareSelectedSourceSubtractGates n counterWidth).reverse
@@ -10836,7 +10838,7 @@ theorem compareSelectedSourceSubtractStep_reverse_identity
 /-! ## Compact compare-selected coefficient addition -/
 
 /-- The compact `r`-into-`s` gate list is disjoint from the comparison bit. -/
-theorem coefficientAddRIntoSGates_bitDisjoint_compare
+lemma coefficientAddRIntoSGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddRIntoSGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (compareBit n counterWidth) gate := by
@@ -10867,7 +10869,7 @@ theorem coefficientAddRIntoSGates_bitDisjoint_compare
           (sharedCoefficientCarryWorkBit n counterWidth j)).symm)
 
 /-- The compact `r`-into-`s` gate list is disjoint from clean `scratchA`. -/
-theorem coefficientAddRIntoSGates_bitDisjoint_scratchA
+lemma coefficientAddRIntoSGates_bitDisjoint_scratchA
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddRIntoSGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (scratchABit n counterWidth) gate := by
@@ -10898,7 +10900,7 @@ theorem coefficientAddRIntoSGates_bitDisjoint_scratchA
           (sharedCoefficientCarryWorkBit n counterWidth j)).symm)
 
 /-- The compact `s`-into-`r` gate list is disjoint from the comparison bit. -/
-theorem coefficientAddSIntoRGates_bitDisjoint_compare
+lemma coefficientAddSIntoRGates_bitDisjoint_compare
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddSIntoRGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (compareBit n counterWidth) gate := by
@@ -10929,7 +10931,7 @@ theorem coefficientAddSIntoRGates_bitDisjoint_compare
           (sharedCoefficientCarryWorkBit n counterWidth j)).symm)
 
 /-- The compact `s`-into-`r` gate list is disjoint from clean `scratchA`. -/
-theorem coefficientAddSIntoRGates_bitDisjoint_scratchA
+lemma coefficientAddSIntoRGates_bitDisjoint_scratchA
     (n counterWidth : Nat) :
     ∀ gate, gate ∈ coefficientAddSIntoRGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (scratchABit n counterWidth) gate := by
@@ -10961,7 +10963,7 @@ theorem coefficientAddSIntoRGates_bitDisjoint_scratchA
 
 /-- The compact coefficient adder `s := s+r` is disjoint from every public
 target bit. -/
-theorem coefficientAddRIntoSGates_bitDisjoint_target
+lemma coefficientAddRIntoSGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ coefficientAddRIntoSGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -10991,7 +10993,7 @@ theorem coefficientAddRIntoSGates_bitDisjoint_target
 
 /-- The compact coefficient adder `r := r+s` is disjoint from every public
 target bit. -/
-theorem coefficientAddSIntoRGates_bitDisjoint_target
+lemma coefficientAddSIntoRGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ coefficientAddSIntoRGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -11062,21 +11064,21 @@ def compareFalseControlledAddRIntoSProgram (n counterWidth : Nat) :
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (compareFalseControlledAddRIntoSGates n counterWidth)
 
-theorem compareControlledAddSIntoR_realizes (n counterWidth : Nat) :
+lemma compareControlledAddSIntoR_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareControlledAddSIntoRProgram n counterWidth)
+      (compareControlledAddSIntoRProgram n counterWidth) environment
       (compareControlledAddSIntoRStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compareControlledAddSIntoRGates n counterWidth)
 
-theorem compareFalseControlledAddRIntoS_realizes (n counterWidth : Nat) :
+lemma compareFalseControlledAddRIntoS_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareFalseControlledAddRIntoSProgram n counterWidth)
+      (compareFalseControlledAddRIntoSProgram n counterWidth) environment
       (compareFalseControlledAddRIntoSStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compareFalseControlledAddRIntoSGates n counterWidth)
 
-theorem compareControlledAddSIntoRStep_eq_self_of_compare_false
+lemma compareControlledAddSIntoRStep_eq_self_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false) :
     compareControlledAddSIntoRStep n counterWidth x = x := by
@@ -11089,7 +11091,7 @@ theorem compareControlledAddSIntoRStep_eq_self_of_compare_false
       (coefficientAddSIntoRGates_bitDisjoint_scratchA n counterWidth)
       (compareBit_scratchABit_wire_ne n counterWidth) x hcompare
 
-theorem compareControlledAddSIntoRStep_eq_addSIntoR_of_compare_true
+lemma compareControlledAddSIntoRStep_eq_addSIntoR_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hwork : (scratchABit n counterWidth).get x = false) :
@@ -11106,7 +11108,7 @@ theorem compareControlledAddSIntoRStep_eq_addSIntoR_of_compare_true
       (coefficientAddSIntoRGates_bitDisjoint_scratchA n counterWidth)
       (compareBit_scratchABit_wire_ne n counterWidth) x hcompare hwork
 
-theorem compareFalseControlledAddRIntoSStep_eq_addRIntoS_of_compare_false
+lemma compareFalseControlledAddRIntoSStep_eq_addRIntoS_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hwork : (scratchABit n counterWidth).get x = false) :
@@ -11123,7 +11125,7 @@ theorem compareFalseControlledAddRIntoSStep_eq_addRIntoS_of_compare_false
       (coefficientAddRIntoSGates_bitDisjoint_scratchA n counterWidth)
       (compareBit_scratchABit_wire_ne n counterWidth) x hcompare hwork
 
-theorem compareFalseControlledAddRIntoSStep_eq_self_of_compare_true
+lemma compareFalseControlledAddRIntoSStep_eq_self_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true) :
     compareFalseControlledAddRIntoSStep n counterWidth x = x := by
@@ -11136,7 +11138,7 @@ theorem compareFalseControlledAddRIntoSStep_eq_self_of_compare_true
       (coefficientAddRIntoSGates_bitDisjoint_scratchA n counterWidth)
       (compareBit_scratchABit_wire_ne n counterWidth) x hcompare
 
-theorem coefficientAddRIntoSStep_get_compare
+lemma coefficientAddRIntoSStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get (coefficientAddRIntoSStep n counterWidth x) =
       (compareBit n counterWidth).get x := by
@@ -11153,7 +11155,7 @@ theorem coefficientAddRIntoSStep_get_compare
           (RegisterBits.compareBit n counterWidth)
           (sharedCoefficientCarryWorkBit n counterWidth bit)).symm) x
 
-theorem coefficientAddSIntoRStep_get_compare
+lemma coefficientAddSIntoRStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get (coefficientAddSIntoRStep n counterWidth x) =
       (compareBit n counterWidth).get x := by
@@ -11172,7 +11174,7 @@ theorem coefficientAddSIntoRStep_get_compare
 
 /-- The compact `s`-into-`r` addition preserves the shared masked-route
 control bit. -/
-theorem coefficientAddSIntoRStep_get_control
+lemma coefficientAddSIntoRStep_get_control
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (controlBit n counterWidth).get
         (coefficientAddSIntoRStep n counterWidth x) =
@@ -11190,7 +11192,7 @@ theorem coefficientAddSIntoRStep_get_control
           n counterWidth bit).symm) x
 
 /-- The compact `r`-into-`s` addition preserves the shared route bit. -/
-theorem coefficientAddRIntoSStep_get_path
+lemma coefficientAddRIntoSStep_get_path
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (pathBit n counterWidth).get
         (coefficientAddRIntoSStep n counterWidth x) =
@@ -11207,7 +11209,7 @@ theorem coefficientAddRIntoSStep_get_path
         (pathBit_coefficientCarryWorkBit_wire_ne n counterWidth bit).symm) x
 
 /-- The compact `s`-into-`r` addition preserves the shared route bit. -/
-theorem coefficientAddSIntoRStep_get_path
+lemma coefficientAddSIntoRStep_get_path
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (pathBit n counterWidth).get
         (coefficientAddSIntoRStep n counterWidth x) =
@@ -11241,7 +11243,7 @@ def compareSelectedCoefficientAddStep (n counterWidth : Nat) :
   fun x => compareFalseControlledAddRIntoSStep n counterWidth
     (compareControlledAddSIntoRStep n counterWidth x)
 
-theorem compareSelectedCoefficientAddStep_eq_gateList
+lemma compareSelectedCoefficientAddStep_eq_gateList
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     EncodedBit.GateSpec.stepList
         (compareSelectedCoefficientAddGates n counterWidth) x =
@@ -11250,16 +11252,16 @@ theorem compareSelectedCoefficientAddStep_eq_gateList
     EncodedBit.GateSpec.stepList_append]
   rfl
 
-theorem compareSelectedCoefficientAdd_realizes (n counterWidth : Nat) :
+lemma compareSelectedCoefficientAdd_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareSelectedCoefficientAddProgram n counterWidth)
+      (compareSelectedCoefficientAddProgram n counterWidth) environment
       (compareSelectedCoefficientAddStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (compareSelectedCoefficientAddGates n counterWidth)
     (compareSelectedCoefficientAddStep_eq_gateList n counterWidth)
 
-theorem compareSelectedCoefficientAddStep_eq_addSIntoR_of_compare_true
+lemma compareSelectedCoefficientAddStep_eq_addSIntoR_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hwork : (scratchABit n counterWidth).get x = false) :
@@ -11278,7 +11280,7 @@ theorem compareSelectedCoefficientAddStep_eq_addSIntoR_of_compare_true
     hcompareFirst]
   exact hfirst
 
-theorem compareSelectedCoefficientAddStep_eq_addRIntoS_of_compare_false
+lemma compareSelectedCoefficientAddStep_eq_addRIntoS_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hwork : (scratchABit n counterWidth).get x = false) :
@@ -11290,7 +11292,7 @@ theorem compareSelectedCoefficientAddStep_eq_addRIntoS_of_compare_false
   exact compareFalseControlledAddRIntoSStep_eq_addRIntoS_of_compare_false
     n counterWidth x hcompare hwork
 
-theorem compareSelectedCoefficientAddGates_length (n counterWidth : Nat) :
+lemma compareSelectedCoefficientAddGates_length (n counterWidth : Nat) :
     (compareSelectedCoefficientAddGates n counterWidth).length = 40 * n + 6 := by
   simp only [compareSelectedCoefficientAddGates,
     compareControlledAddSIntoRGates, compareFalseControlledAddRIntoSGates,
@@ -11303,7 +11305,7 @@ theorem compareSelectedCoefficientAddGates_length (n counterWidth : Nat) :
     coefficientAddRIntoSGates_toffoliMultiplicity_sum]
   omega
 
-theorem compareSelectedCoefficientAddGates_xMultiplicity_sum
+lemma compareSelectedCoefficientAddGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedCoefficientAddGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
@@ -11314,7 +11316,7 @@ theorem compareSelectedCoefficientAddGates_xMultiplicity_sum
     EncodedBit.GateSpec.controlledListWithWorkGates_xMultiplicity_sum]
   rfl
 
-theorem compareSelectedCoefficientAddGates_cnotMultiplicity_sum
+lemma compareSelectedCoefficientAddGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedCoefficientAddGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -11327,7 +11329,7 @@ theorem compareSelectedCoefficientAddGates_cnotMultiplicity_sum
     coefficientAddRIntoSGates_xMultiplicity_sum]
   rfl
 
-theorem compareSelectedCoefficientAddGates_toffoliMultiplicity_sum
+lemma compareSelectedCoefficientAddGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedCoefficientAddGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 40 * n + 4 := by
@@ -11343,7 +11345,7 @@ theorem compareSelectedCoefficientAddGates_toffoliMultiplicity_sum
     EncodedBit.GateSpec.toffoliMultiplicity_x]
   omega
 
-theorem compareSelectedCoefficientAddStep_reverse_identity
+lemma compareSelectedCoefficientAddStep_reverse_identity
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     EncodedBit.GateSpec.stepList
         (compareSelectedCoefficientAddGates n counterWidth).reverse
@@ -11371,7 +11373,7 @@ def compareSelectedOddDataPathStep (n counterWidth : Nat) :
   fun x => compareSelectedCoefficientAddStep n counterWidth
     (compareSelectedSourceSubtractStep n counterWidth x)
 
-theorem compareSelectedOddDataPathStep_eq_gateList
+lemma compareSelectedOddDataPathStep_eq_gateList
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     EncodedBit.GateSpec.stepList
         (compareSelectedOddDataPathGates n counterWidth) x =
@@ -11382,16 +11384,16 @@ theorem compareSelectedOddDataPathStep_eq_gateList
     compareSelectedCoefficientAddStep_eq_gateList]
   rfl
 
-theorem compareSelectedOddDataPath_realizes (n counterWidth : Nat) :
+lemma compareSelectedOddDataPath_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (compareSelectedOddDataPathProgram n counterWidth)
+      (compareSelectedOddDataPathProgram n counterWidth) environment
       (compareSelectedOddDataPathStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList_congrStep
+  EncodedBit.GateSpec.realizesList_congrStep (environment := environment)
     (QubitLayout.canonical _) .empty
     (compareSelectedOddDataPathGates n counterWidth)
     (compareSelectedOddDataPathStep_eq_gateList n counterWidth)
 
-theorem compareSelectedOddDataPathStep_eq_true_branch
+lemma compareSelectedOddDataPathStep_eq_true_branch
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11408,7 +11410,7 @@ theorem compareSelectedOddDataPathStep_eq_true_branch
   · simpa only [scratchABit_get] using
       (sourceSubVFromUStep_get_scratchA n counterWidth x).trans hscratchA
 
-theorem compareSelectedOddDataPathStep_eq_false_branch
+lemma compareSelectedOddDataPathStep_eq_false_branch
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11428,7 +11430,7 @@ theorem compareSelectedOddDataPathStep_eq_false_branch
 /-- Either selected odd data path returns the sole VBE carry bank to its clean
 value.  The source subtraction and coefficient addition reuse the same bank
 sequentially; no second carry object is assumed. -/
-theorem compareSelectedOddDataPathStep_coefficientAdder_cleanEndpoint
+lemma compareSelectedOddDataPathStep_coefficientAdder_cleanEndpoint
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hscratchA : (scratchABit n counterWidth).get x = false)
     (hscratchB : (scratchBBit n counterWidth).get x = false)
@@ -11469,7 +11471,7 @@ theorem compareSelectedOddDataPathStep_coefficientAdder_cleanEndpoint
 
 /-- The complete selected odd data path preserves every observation outside
 the four arithmetic data words and the sole reusable VBE carry bank. -/
-theorem compareSelectedOddDataPathStep_get_observed_of_words_work_ne
+lemma compareSelectedOddDataPathStep_get_observed_of_words_work_ne
     (n counterWidth : Nat)
     (observed : EncodedBit (encoding n counterWidth))
     (hu : ∀ bit : Fin n,
@@ -11509,7 +11511,7 @@ theorem compareSelectedOddDataPathStep_get_observed_of_words_work_ne
 
 /-- A core readout outside `r` is preserved by the compact `s`-into-`r`
 coefficient adder. -/
-theorem coefficientAddSIntoRStep_get_coreBit_of_disjoint
+lemma coefficientAddSIntoRStep_get_coreBit_of_disjoint
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hright : ∀ bit : Fin (n + 1),
@@ -11530,7 +11532,7 @@ theorem coefficientAddSIntoRStep_get_coreBit_of_disjoint
 
 /-- A core readout outside `s` is preserved by the compact `r`-into-`s`
 coefficient adder. -/
-theorem coefficientAddRIntoSStep_get_coreBit_of_disjoint
+lemma coefficientAddRIntoSStep_get_coreBit_of_disjoint
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hright : ∀ bit : Fin (n + 1),
@@ -11551,7 +11553,7 @@ theorem coefficientAddRIntoSStep_get_coreBit_of_disjoint
 
 /-- On the compare-true odd branch, every core bit outside the updated `u`
 and `r` words is physically preserved. -/
-theorem compareSelectedOddDataPathStep_get_coreBit_of_compare_true
+lemma compareSelectedOddDataPathStep_get_coreBit_of_compare_true
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hu : ∀ bit : Fin n,
@@ -11573,7 +11575,7 @@ theorem compareSelectedOddDataPathStep_get_coreBit_of_compare_true
 
 /-- On the compare-false odd branch, every core bit outside the updated `v`
 and `s` words is physically preserved. -/
-theorem compareSelectedOddDataPathStep_get_coreBit_of_compare_false
+lemma compareSelectedOddDataPathStep_get_coreBit_of_compare_false
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hv : ∀ bit : Fin n,
@@ -11595,7 +11597,7 @@ theorem compareSelectedOddDataPathStep_get_coreBit_of_compare_false
 
 /-- A core observation disjoint from both possible update pairs is preserved
 by the selected odd data path on a clean scratch boundary. -/
-theorem compareSelectedOddDataPathStep_get_coreBit_of_disjoint_clean
+lemma compareSelectedOddDataPathStep_get_coreBit_of_disjoint_clean
     (n counterWidth : Nat)
     (observed : EncodedBit (registerEncoding n counterWidth))
     (hu : ∀ bit : Fin n,
@@ -11619,7 +11621,7 @@ theorem compareSelectedOddDataPathStep_get_coreBit_of_disjoint_clean
 
 /-- The selected odd data path preserves the shared route bit on the clean
 scratch boundary used by the round circuit. -/
-theorem compareSelectedOddDataPathStep_get_path_clean
+lemma compareSelectedOddDataPathStep_get_path_clean
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hscratchA : (scratchABit n counterWidth).get x = false)
     (hscratchB : (scratchBBit n counterWidth).get x = false) :
@@ -11638,7 +11640,7 @@ theorem compareSelectedOddDataPathStep_get_path_clean
 
 /-- On any clean reusable-work boundary, the selected `uGreater` odd path
 writes `r := r+s` bitwise. -/
-theorem compareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_cleanWork
+lemma compareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_cleanWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (bit : Fin (n + 1))
     (hcompare : (compareBit n counterWidth).get x = true)
@@ -11715,7 +11717,7 @@ theorem compareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_cleanWork
 
 /-- On any clean reusable-work boundary, the selected `vLe` odd path writes
 `s := s+r` bitwise. -/
-theorem compareSelectedOddDataPathStep_get_sCoeff_add_of_compare_false_cleanWork
+lemma compareSelectedOddDataPathStep_get_sCoeff_add_of_compare_false_cleanWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (bit : Fin (n + 1))
     (hcompare : (compareBit n counterWidth).get x = false)
@@ -11792,7 +11794,7 @@ theorem compareSelectedOddDataPathStep_get_sCoeff_add_of_compare_false_cleanWork
 
 /-- On an arbitrary compact carrier, the selected `vLe` odd arithmetic leaves
 `r` unchanged. -/
-theorem compareSelectedOddDataPathStep_get_rCoeff_of_compare_false
+lemma compareSelectedOddDataPathStep_get_rCoeff_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (bit : Fin (n + 1))
     (hcompare : (compareBit n counterWidth).get x = false)
@@ -11829,7 +11831,7 @@ theorem compareSelectedOddDataPathStep_get_rCoeff_of_compare_false
       RegisterBits.rCoeffValueBit_get n counterWidth bit x.core
 
 /-- The selected compare-true odd path writes `u := u-v` as a complete word. -/
-theorem compareSelectedOddDataPathStep_core_u_of_compare_true_cleanWork
+lemma compareSelectedOddDataPathStep_core_u_of_compare_true_cleanWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11865,7 +11867,7 @@ theorem compareSelectedOddDataPathStep_core_u_of_compare_true_cleanWork
             hwork (sourceCarryWorkPrefixIndex n workBit))
 
 /-- The selected compare-true odd path preserves the complete `v` word. -/
-theorem compareSelectedOddDataPathStep_core_v_of_compare_true
+lemma compareSelectedOddDataPathStep_core_v_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11889,7 +11891,7 @@ theorem compareSelectedOddDataPathStep_core_v_of_compare_true
   simpa only [RegisterBits.vValueBit_get] using h
 
 /-- The selected compare-true odd path writes `r := r+s` as a complete word. -/
-theorem compareSelectedOddDataPathStep_core_rCoeff_of_compare_true_cleanWork
+lemma compareSelectedOddDataPathStep_core_rCoeff_of_compare_true_cleanWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11905,7 +11907,7 @@ theorem compareSelectedOddDataPathStep_core_rCoeff_of_compare_true_cleanWork
     n counterWidth x bit hcompare hscratchA hscratchB hcarry hwork
 
 /-- The selected compare-true odd path preserves the complete `s` word. -/
-theorem compareSelectedOddDataPathStep_core_sCoeff_of_compare_true
+lemma compareSelectedOddDataPathStep_core_sCoeff_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11930,7 +11932,7 @@ theorem compareSelectedOddDataPathStep_core_sCoeff_of_compare_true
   simpa only [RegisterBits.sCoeffValueBit_get] using h
 
 /-- The selected compare-false odd path preserves the complete `u` word. -/
-theorem compareSelectedOddDataPathStep_core_u_of_compare_false
+lemma compareSelectedOddDataPathStep_core_u_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11954,7 +11956,7 @@ theorem compareSelectedOddDataPathStep_core_u_of_compare_false
   simpa only [RegisterBits.uValueBit_get] using h
 
 /-- The selected compare-false odd path writes `v := v-u` as a complete word. -/
-theorem compareSelectedOddDataPathStep_core_v_of_compare_false_cleanWork
+lemma compareSelectedOddDataPathStep_core_v_of_compare_false_cleanWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -11990,7 +11992,7 @@ theorem compareSelectedOddDataPathStep_core_v_of_compare_false_cleanWork
             hwork (sourceCarryWorkPrefixIndex n workBit))
 
 /-- The selected compare-false odd path preserves the complete `r` word. -/
-theorem compareSelectedOddDataPathStep_core_rCoeff_of_compare_false
+lemma compareSelectedOddDataPathStep_core_rCoeff_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -12003,7 +12005,7 @@ theorem compareSelectedOddDataPathStep_core_rCoeff_of_compare_false
     n counterWidth x bit hcompare hscratchA hscratchB
 
 /-- The selected compare-false odd path writes `s := s+r` as a complete word. -/
-theorem compareSelectedOddDataPathStep_core_sCoeff_of_compare_false_cleanWork
+lemma compareSelectedOddDataPathStep_core_sCoeff_of_compare_false_cleanWork
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hscratchA : (scratchABit n counterWidth).get x = false)
@@ -12021,7 +12023,7 @@ theorem compareSelectedOddDataPathStep_core_sCoeff_of_compare_false_cleanWork
 /-- On a clean compact boundary, the selected `uGreater` odd path writes
 `r := r+s` bitwise.  The source subtraction restores the sole VBE bank before
 the coefficient addition reuses it. -/
-theorem compareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_clean
+lemma compareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (bit : Fin (n + 1))
     (hcompare : core.compare = true)
@@ -12097,7 +12099,7 @@ theorem compareSelectedOddDataPathStep_get_rCoeff_add_of_compare_true_clean
 
 /-- On a clean compact boundary, the selected `vLe` odd arithmetic leaves
 `r` unchanged before the shared shift dispatcher doubles it. -/
-theorem compareSelectedOddDataPathStep_get_rCoeff_of_compare_false_clean
+lemma compareSelectedOddDataPathStep_get_rCoeff_of_compare_false_clean
     (n counterWidth : Nat) (core : MK.Registers n counterWidth)
     (target : Word n) (bit : Fin (n + 1))
     (hcompare : core.compare = false)
@@ -12137,7 +12139,7 @@ theorem compareSelectedOddDataPathStep_get_rCoeff_of_compare_false_clean
     _ = core.rCoeff.val.testBit bit.val :=
       RegisterBits.rCoeffValueBit_get n counterWidth bit core
 
-theorem compareSelectedOddDataPathGates_length (n counterWidth : Nat) :
+lemma compareSelectedOddDataPathGates_length (n counterWidth : Nat) :
     (compareSelectedOddDataPathGates n counterWidth).length =
       36 * (n - 1) + 44 * n + 8 := by
   simp only [compareSelectedOddDataPathGates, List.length_append,
@@ -12145,7 +12147,7 @@ theorem compareSelectedOddDataPathGates_length (n counterWidth : Nat) :
     compareSelectedCoefficientAddGates_length]
   omega
 
-theorem compareSelectedOddDataPathGates_xMultiplicity_sum
+lemma compareSelectedOddDataPathGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedOddDataPathGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 4 := by
@@ -12153,7 +12155,7 @@ theorem compareSelectedOddDataPathGates_xMultiplicity_sum
     compareSelectedSourceSubtractGates_xMultiplicity_sum,
     compareSelectedCoefficientAddGates_xMultiplicity_sum]
 
-theorem compareSelectedOddDataPathGates_cnotMultiplicity_sum
+lemma compareSelectedOddDataPathGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedOddDataPathGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -12161,7 +12163,7 @@ theorem compareSelectedOddDataPathGates_cnotMultiplicity_sum
     compareSelectedSourceSubtractGates_cnotMultiplicity_sum,
     compareSelectedCoefficientAddGates_cnotMultiplicity_sum]
 
-theorem compareSelectedOddDataPathGates_toffoliMultiplicity_sum
+lemma compareSelectedOddDataPathGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((compareSelectedOddDataPathGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -12171,7 +12173,7 @@ theorem compareSelectedOddDataPathGates_toffoliMultiplicity_sum
     compareSelectedCoefficientAddGates_toffoliMultiplicity_sum]
   omega
 
-theorem compareSelectedOddDataPathStep_reverse_identity
+lemma compareSelectedOddDataPathStep_reverse_identity
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     EncodedBit.GateSpec.stepList
         (compareSelectedOddDataPathGates n counterWidth).reverse
@@ -12184,7 +12186,7 @@ theorem compareSelectedOddDataPathStep_reverse_identity
 
 /-- The reverse `v := v-u` gate list is disjoint from the shared control bit
 used to retain the masked `vLe` predicate. -/
-theorem sourceSubUFromVGates_bitDisjoint_control
+lemma sourceSubUFromVGates_bitDisjoint_control
     (n counterWidth : Nat) :
     forall gate, gate ∈ sourceSubUFromVGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (controlBit n counterWidth) gate := by
@@ -12219,7 +12221,7 @@ theorem sourceSubUFromVGates_bitDisjoint_control
 
 /-- The compact `r`-into-`s` addition is disjoint from the shared control bit
 used to retain the masked `vLe` predicate. -/
-theorem coefficientAddRIntoSGates_bitDisjoint_control
+lemma coefficientAddRIntoSGates_bitDisjoint_control
     (n counterWidth : Nat) :
     forall gate, gate ∈ coefficientAddRIntoSGates n counterWidth ->
       EncodedBit.GateSpec.bitDisjoint (controlBit n counterWidth) gate := by
@@ -12264,7 +12266,7 @@ def controlControlledSubUFromVStep (n counterWidth : Nat) :
   EncodedBit.GateSpec.stepList
     (controlControlledSubUFromVGates n counterWidth)
 
-theorem controlControlledSubUFromVStep_eq_self_of_control_false
+lemma controlControlledSubUFromVStep_eq_self_of_control_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     controlControlledSubUFromVStep n counterWidth x = x := by
@@ -12282,7 +12284,7 @@ theorem controlControlledSubUFromVStep_eq_self_of_control_false
             (sharedControlBit n counterWidth)).symm)
       x hcontrol
 
-theorem controlControlledSubUFromVStep_eq_sub_of_control_true
+lemma controlControlledSubUFromVStep_eq_sub_of_control_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = true)
     (hwork : (scratchBBit n counterWidth).get x = false) :
@@ -12322,7 +12324,7 @@ def controlControlledAddRIntoSStep (n counterWidth : Nat) :
   EncodedBit.GateSpec.stepList
     (controlControlledAddRIntoSGates n counterWidth)
 
-theorem controlControlledAddRIntoSStep_eq_self_of_control_false
+lemma controlControlledAddRIntoSStep_eq_self_of_control_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = false) :
     controlControlledAddRIntoSStep n counterWidth x = x := by
@@ -12340,7 +12342,7 @@ theorem controlControlledAddRIntoSStep_eq_self_of_control_false
             (sharedControlBit n counterWidth)).symm)
       x hcontrol
 
-theorem controlControlledAddRIntoSStep_eq_add_of_control_true
+lemma controlControlledAddRIntoSStep_eq_add_of_control_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcontrol : (controlBit n counterWidth).get x = true)
     (hwork : (scratchABit n counterWidth).get x = false) :
@@ -12384,7 +12386,7 @@ def activeOddVLeControlGates (n counterWidth : Nat) :
 
 /-- Compare-controlled source subtraction is disjoint from every public
 target bit. -/
-theorem compareControlledSubVFromUGates_bitDisjoint_target
+lemma compareControlledSubVFromUGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ compareControlledSubVFromUGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -12399,7 +12401,7 @@ theorem compareControlledSubVFromUGates_bitDisjoint_target
 
 /-- Shared-control source subtraction is disjoint from every public target
 bit. -/
-theorem controlControlledSubUFromVGates_bitDisjoint_target
+lemma controlControlledSubUFromVGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ controlControlledSubUFromVGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -12414,7 +12416,7 @@ theorem controlControlledSubUFromVGates_bitDisjoint_target
 
 /-- Compare-controlled coefficient addition is disjoint from every public
 target bit. -/
-theorem compareControlledAddSIntoRGates_bitDisjoint_target
+lemma compareControlledAddSIntoRGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ compareControlledAddSIntoRGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -12430,7 +12432,7 @@ theorem compareControlledAddSIntoRGates_bitDisjoint_target
 
 /-- Shared-control coefficient addition is disjoint from every public target
 bit. -/
-theorem controlControlledAddRIntoSGates_bitDisjoint_target
+lemma controlControlledAddRIntoSGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ controlControlledAddRIntoSGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -12446,7 +12448,7 @@ theorem controlControlledAddRIntoSGates_bitDisjoint_target
 
 /-- The temporary masked-vLe control computation is disjoint from every
 public target bit. -/
-theorem activeOddVLeControlGates_bitDisjoint_target
+lemma activeOddVLeControlGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ activeOddVLeControlGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -12471,7 +12473,7 @@ def activeOddVLeControlStep (n counterWidth : Nat) :
     Registers n counterWidth -> Registers n counterWidth :=
   EncodedBit.GateSpec.stepList (activeOddVLeControlGates n counterWidth)
 
-theorem activeOddVLeControlStep_get_control
+lemma activeOddVLeControlStep_get_control
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (controlBit n counterWidth).get
         (activeOddVLeControlStep n counterWidth x) =
@@ -12502,7 +12504,7 @@ theorem activeOddVLeControlStep_get_control
     EncodedBit.get_flip_self]
   cases (compareBit n counterWidth).get x <;> rfl
 
-theorem activeOddVLeControlStep_get_compare
+lemma activeOddVLeControlStep_get_compare
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     (compareBit n counterWidth).get
         (activeOddVLeControlStep n counterWidth x) =
@@ -12523,7 +12525,7 @@ theorem activeOddVLeControlStep_get_compare
     EncodedBit.get_flip_self]
   cases (compareBit n counterWidth).get x <;> rfl
 
-theorem activeOddVLeControlStep_eq_self_of_predicate_false
+lemma activeOddVLeControlStep_eq_self_of_predicate_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hpredicate :
       ((pathBit n counterWidth).get x &&
@@ -12554,7 +12556,7 @@ theorem activeOddVLeControlStep_eq_self_of_predicate_false
   rw [if_neg hcondition]
   exact EncodedBit.flip_flip (compareBit n counterWidth) x
 
-theorem activeOddVLeControlStep_eq_controlFlip_of_predicate_true
+lemma activeOddVLeControlStep_eq_controlFlip_of_predicate_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hpredicate :
       ((pathBit n counterWidth).get x &&
@@ -12602,7 +12604,7 @@ def activeOddSelectedDataPathGates (n counterWidth : Nat) :
 
 /-- The complete active-odd arithmetic path stays within core/shared work and
 is disjoint from every public target bit. -/
-theorem activeOddSelectedDataPathGates_bitDisjoint_target
+lemma activeOddSelectedDataPathGates_bitDisjoint_target
     (n counterWidth : Nat) (targetIndex : Fin n) :
     ∀ gate, gate ∈ activeOddSelectedDataPathGates n counterWidth →
       EncodedBit.GateSpec.bitDisjoint
@@ -12639,14 +12641,14 @@ def activeOddSelectedDataPathProgram (n counterWidth : Nat) :
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (activeOddSelectedDataPathGates n counterWidth)
 
-theorem activeOddSelectedDataPath_realizes (n counterWidth : Nat) :
+lemma activeOddSelectedDataPath_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (encoding n counterWidth)
-      (activeOddSelectedDataPathProgram n counterWidth)
+      (activeOddSelectedDataPathProgram n counterWidth) environment
       (activeOddSelectedDataPathStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (activeOddSelectedDataPathGates n counterWidth)
 
-theorem activeOddSelectedDataPathStep_eq_stages
+lemma activeOddSelectedDataPathStep_eq_stages
     (n counterWidth : Nat) (x : Registers n counterWidth) :
     activeOddSelectedDataPathStep n counterWidth x =
       activeOddVLeControlStep n counterWidth
@@ -12662,7 +12664,7 @@ theorem activeOddSelectedDataPathStep_eq_stages
 /-- If no masked odd route is selected, the complete odd data path is the
 identity.  This is the contract used by both even branches and inactive
 padding rounds. -/
-theorem activeOddSelectedDataPathStep_eq_self_of_path_false
+lemma activeOddSelectedDataPathStep_eq_self_of_path_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hpath : (pathBit n counterWidth).get x = false)
@@ -12689,7 +12691,7 @@ theorem activeOddSelectedDataPathStep_eq_self_of_path_false
 
 /-- On a clean `compare=true` boundary, the masked active-odd data path is
 exactly the already-certified compare-selected `uGreater` path. -/
-theorem activeOddSelectedDataPathStep_eq_compareSelected_of_compare_true
+lemma activeOddSelectedDataPathStep_eq_compareSelected_of_compare_true
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = true)
     (hcontrol : (controlBit n counterWidth).get x = false)
@@ -12750,7 +12752,7 @@ theorem activeOddSelectedDataPathStep_eq_compareSelected_of_compare_true
 /-- On a clean `compare=false` odd boundary, the temporary shared control bit
 selects `vLe`, commutes through its arithmetic, and is then erased.  The
 result is exactly the already-certified compare-selected `vLe` path. -/
-theorem activeOddSelectedDataPathStep_eq_compareSelected_of_compare_false
+lemma activeOddSelectedDataPathStep_eq_compareSelected_of_compare_false
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hcompare : (compareBit n counterWidth).get x = false)
     (hpath : (pathBit n counterWidth).get x = true)
@@ -12877,7 +12879,7 @@ theorem activeOddSelectedDataPathStep_eq_compareSelected_of_compare_false
 /-- On a clean selected odd boundary, the masked native data path is exactly
 the established compare-selected odd data path, independently of the
 comparison result. -/
-theorem activeOddSelectedDataPathStep_eq_compareSelected
+lemma activeOddSelectedDataPathStep_eq_compareSelected
     (n counterWidth : Nat) (x : Registers n counterWidth)
     (hpath : (pathBit n counterWidth).get x = true)
     (hcontrol : (controlBit n counterWidth).get x = false)
@@ -12891,30 +12893,30 @@ theorem activeOddSelectedDataPathStep_eq_compareSelected
   · exact activeOddSelectedDataPathStep_eq_compareSelected_of_compare_true
       n counterWidth x hcompare hcontrol hscratchA hscratchB
 
-@[simp] theorem activeOddVLeControlGates_length
+@[simp] lemma activeOddVLeControlGates_length
     (n counterWidth : Nat) :
     (activeOddVLeControlGates n counterWidth).length = 3 := by
   rfl
 
-@[simp] theorem activeOddVLeControlGates_xMultiplicity_sum
+@[simp] lemma activeOddVLeControlGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((activeOddVLeControlGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
   rfl
 
-@[simp] theorem activeOddVLeControlGates_cnotMultiplicity_sum
+@[simp] lemma activeOddVLeControlGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((activeOddVLeControlGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   rfl
 
-@[simp] theorem activeOddVLeControlGates_toffoliMultiplicity_sum
+@[simp] lemma activeOddVLeControlGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((activeOddVLeControlGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 1 := by
   rfl
 
-theorem activeOddSelectedDataPathGates_length (n counterWidth : Nat) :
+lemma activeOddSelectedDataPathGates_length (n counterWidth : Nat) :
     (activeOddSelectedDataPathGates n counterWidth).length =
       36 * (n - 1) + 44 * n + 10 := by
   simp only [activeOddSelectedDataPathGates, List.length_append,
@@ -12930,7 +12932,7 @@ theorem activeOddSelectedDataPathGates_length (n counterWidth : Nat) :
     coefficientAddRIntoSGates_toffoliMultiplicity_sum]
   omega
 
-theorem activeOddSelectedDataPathGates_xMultiplicity_sum
+lemma activeOddSelectedDataPathGates_xMultiplicity_sum
     (n counterWidth : Nat) :
     ((activeOddSelectedDataPathGates n counterWidth).map
       EncodedBit.GateSpec.xMultiplicity).sum = 4 := by
@@ -12940,7 +12942,7 @@ theorem activeOddSelectedDataPathGates_xMultiplicity_sum
     compareControlledAddSIntoRGates, controlControlledAddRIntoSGates,
     EncodedBit.GateSpec.controlledListWithWorkGates_xMultiplicity_sum]
 
-theorem activeOddSelectedDataPathGates_cnotMultiplicity_sum
+lemma activeOddSelectedDataPathGates_cnotMultiplicity_sum
     (n counterWidth : Nat) :
     ((activeOddSelectedDataPathGates n counterWidth).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
@@ -12954,7 +12956,7 @@ theorem activeOddSelectedDataPathGates_cnotMultiplicity_sum
     coefficientAddSIntoRGates_xMultiplicity_sum,
     coefficientAddRIntoSGates_xMultiplicity_sum]
 
-theorem activeOddSelectedDataPathGates_toffoliMultiplicity_sum
+lemma activeOddSelectedDataPathGates_toffoliMultiplicity_sum
     (n counterWidth : Nat) :
     ((activeOddSelectedDataPathGates n counterWidth).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =

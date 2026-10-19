@@ -30,7 +30,7 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem mapClassical_single {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma mapClassical_single {C D : Type} [Fintype C] [Fintype D] {R : Register}
     (sourceDecision : DecidableEq C) (outputDecision : DecidableEq D)
     (value : C) (density : DensityOperator R) (update : C → D) :
     (@ExecutionState.ofValue C _ R sourceDecision value density).mapClassical update =
@@ -52,15 +52,16 @@ private theorem mapClassical_single {C D : Type} [Fintype C] [Fintype D] {R : Re
 
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+  (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
 
-private theorem execute_single_history {pre post : RuntimeCtx .quantum}
+private lemma execute_single_history {pre post : RuntimeCtx .quantum}
     (code : Circuit (.quantum gates oracles operations services) pre post) (Reference : Register)
     {H : Type} [Fintype H]
     (store : Store pre) (hidden : services.HiddenState) (history : H)
     (density : DensityOperator (pre.register.prod Reference)) :
-    (code.execute Reference (ExecutionState.ofValue (store, (hidden, history))
+    (code.execute environment Reference (ExecutionState.ofValue (store, (hidden, history))
       density)).quantumMarginal =
-      (code.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+      (code.execute environment Reference (ExecutionState.ofValue (store, (hidden, ()))
         density)).quantumMarginal := by
   have same :
       State.mapHistory (ctx := pre) (ExecutionState.ofValue (store, (hidden, ())) density)
@@ -74,12 +75,12 @@ private theorem execute_single_history {pre post : RuntimeCtx .quantum}
       (fun record => (record.1, (record.2.1, history))) using 1 <;> congr 2 <;>
       exact Subsingleton.elim _ _
   rw [← same]
-  erw [execute_mapHistory code Reference
+  erw [execute_mapHistory code environment Reference
     (ExecutionState.ofValue (store, (hidden, ())) density) (fun _ : Unit => history),
     State.mapHistory_quantumMarginal]
 
 /-- A fixed local basis extends uniform actual pure-input bounds to every original mixed block. -/
-theorem observedWeight_lower_of_fixedBasis {pre post : RuntimeCtx .quantum}
+lemma observedWeight_lower_of_fixedBasis {pre post : RuntimeCtx .quantum}
     (code : Circuit (.quantum gates oracles operations services) pre post) (Reference : Register)
     (observed : Effect (post.register.prod Reference)) (label : pre.register.Index)
     (input : NormalizedVector Reference → NormalizedVector (pre.register.prod Reference))
@@ -90,20 +91,21 @@ theorem observedWeight_lower_of_fixedBasis {pre post : RuntimeCtx .quantum}
     (bound : ∀ (store : Store pre) (hidden : services.HiddenState)
       (reference : NormalizedVector Reference),
       lower ≤ observed.weight
-        ((code.execute Reference (ExecutionState.ofValue (store, (hidden, ()))
+        ((code.execute environment Reference (ExecutionState.ofValue (store, (hidden, ()))
           (DensityOperator.ofPure (input reference)))).quantumMarginal))
     {H : Type} [Fintype H] (state : State pre Reference (services.HiddenState × H))
     (support : ∀ basis : (pre.register.prod Reference).Index, basis.1 ≠ label →
       state.quantumMarginal.matrix basis basis = 0) :
-    state.mass * lower ≤ observed.weight (code.execute Reference state).quantumMarginal := by
-  have actual := code.effectWeight_execute Reference state (fun _ => observed)
+    state.mass * lower ≤ observed.weight (code.execute
+          environment Reference state).quantumMarginal := by
+  have actual := code.effectWeight_execute environment Reference state (fun _ => observed)
   rw [ExecutionState.effectWeight_constant] at actual
   rw [actual]
   unfold ExecutionState.mass ExecutionState.effectWeight
   rw [Finset.sum_mul]
   apply Finset.sum_le_sum
   intro record _
-  let pulled := code.effectPullback Reference (fun _ => observed) record
+  let pulled := code.effectPullback environment Reference (fun _ => observed) record
   apply Effect.mass_mul_le_weight_of_basis_factor pulled (state.block record) label lower
   · intro left right refLeft refRight
     by_cases sameLeft : left = label
@@ -124,13 +126,13 @@ theorem observedWeight_lower_of_fixedBasis {pre post : RuntimeCtx .quantum}
   · intro reference
     rw [Effect.basisSliceEffect_weight_of_pure pulled label reference (input reference)
       (represented reference)]
-    have actualPure := code.effectWeight_execute Reference
+    have actualPure := code.effectWeight_execute environment Reference
       (ExecutionState.ofValue record (DensityOperator.ofPure (input reference))) (fun _ => observed)
     rw [ExecutionState.effectWeight_constant, ExecutionState.effectWeight_ofValue_decision]
       at actualPure
-    change lower ≤ (code.effectPullback Reference (fun _ => observed) record).weight _
+    change lower ≤ (code.effectPullback environment Reference (fun _ => observed) record).weight _
     rw [← actualPure]
-    erw [execute_single_history code Reference record.1 record.2.1 record.2.2
+    erw [execute_single_history environment code Reference record.1 record.2.1 record.2.2
       (DensityOperator.ofPure (input reference))]
     exact bound record.1 record.2.1 reference
 

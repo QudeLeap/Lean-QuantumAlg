@@ -58,7 +58,7 @@ def affineScratch (cells : Cells ctx (affineShapes width)) : AffineScratch ctx w
   yOutput := (cellAt cells ⟨1, by change 1 < 9; decide⟩).ref
   tag := (cellAt cells ⟨0, by change 0 < 9; decide⟩).ref
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Every original total arithmetic call occurs in its original chronological position. -/

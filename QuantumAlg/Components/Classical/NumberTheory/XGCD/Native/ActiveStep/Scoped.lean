@@ -29,7 +29,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem stateFree_transport {inner : RuntimeCtx kind}
+private lemma stateFree_transport {inner : RuntimeCtx kind}
     (transport : Transport ctx inner) (cells : Cells ctx (stateShapes width))
     {shape : CShape} (input : CInputRef ctx shape)
     (free : ∀ index : Fin (stateShapes width).length,
@@ -43,7 +43,8 @@ private theorem stateFree_transport {inner : RuntimeCtx kind}
   exact free index
 
 /-- One actual scoped record supplies execution, caller framing, signed state and activity. -/
-theorem xgcdNativeScopedActive_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma xgcdNativeScopedActive_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (cells : Cells ctx (stateShapes width)) (distinct : cells.Distinct)
     (zero : CInputRef ctx (.unsignedWord width))
@@ -52,7 +53,7 @@ theorem xgcdNativeScopedActive_actualRecord {model : ExecutionModel} [BitWord.Se
       (model := model) cells zero).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (scopedActive (model := model) cells zero).execute Reference state =
+        (scopedActive (model := model) cells zero).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -84,7 +85,7 @@ theorem xgcdNativeScopedActive_actualRecord {model : ExecutionModel} [BitWord.Se
     ((before.read zero).toNat = 0 →
       (after.read (GCD.cellRead (activeCell cells))).toBool =
         decide ((storedState cells after).first ≠ 0))
-  refine withCells_actualRecord_post ctx (activeScratchShapes width)
+  refine withCells_actualRecord_post (environment := environment) ctx (activeScratchShapes width)
     (fun scratch _ transport _ =>
       activeBody (model := model) (transportCells transport cells) scratch (transport.liftInput
         zero)) Post ?_

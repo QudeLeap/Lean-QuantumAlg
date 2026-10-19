@@ -27,7 +27,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem rowBody_read_other (used : CWriteRef ctx (.unsignedWord rowCount))
+private lemma rowBody_read_other (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (mask : CWriteRef ctx (.unsignedWord rowCount)) (pivot : Fin rowCount)
     (column : Fin width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
@@ -41,7 +41,7 @@ private theorem rowBody_read_other (used : CWriteRef ctx (.unsignedWord rowCount
     Store.read_applyOp_of_not_mem_storageKeys _ (pivotOrOp used mask) other usedFree]
   exact Word.PowerOfTwo.into_callerFrame _ mask store other maskFree
 
-private theorem columnBody_read_other (output mask : CWriteRef ctx (.unsignedWord width))
+private lemma columnBody_read_other (output mask : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (outputFree : output.key ∉ other.storageKeys) (maskFree : mask.key ∉ other.storageKeys) :
     (pivotColumnBodyStep output mask column store).1.read other = store.read other := by
@@ -51,7 +51,7 @@ private theorem columnBody_read_other (output mask : CWriteRef ctx (.unsignedWor
   exact Word.PowerOfTwo.into_callerFrame _ mask store other maskFree
 
 omit [BitWord.Selected model] in
-private theorem mask_fresh {shape : CShape} (other : CInputRef ctx shape) (maskWidth : Nat) :
+private lemma mask_fresh {shape : CShape} (other : CInputRef ctx shape) (maskWidth : Nat) :
     (pivotMaskCell ctx maskWidth).key ∉
       (other.underWorkspace ctx.canonicalFreshKey (.unsignedWord maskWidth)
         ctx.canonicalFreshKey_fresh).storageKeys := by
@@ -59,7 +59,7 @@ private theorem mask_fresh {shape : CShape} (other : CInputRef ctx shape) (maskW
   exact fun present => ctx.canonicalFreshKey_fresh (other.storageKeys_subset_context present)
 
 /-- The actual row-mask scope preserves every caller read outside its two real destinations. -/
-theorem gf2MaterializePivotRow_read_other (used : CWriteRef ctx (.unsignedWord rowCount))
+lemma gf2MaterializePivotRow_read_other (used : CWriteRef ctx (.unsignedWord rowCount))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -78,7 +78,7 @@ theorem gf2MaterializePivotRow_read_other (used : CWriteRef ctx (.unsignedWord r
   · exact Store.read_pushWorkspace_underWorkspace store _ _ _ other
 
 /-- The actual column-mask scope preserves every caller read outside its real OR destination. -/
-theorem gf2MaterializePivotColumn_read_other (output : CWriteRef ctx (.unsignedWord width))
+lemma gf2MaterializePivotColumn_read_other (output : CWriteRef ctx (.unsignedWord width))
     (column : Fin width) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (outputFree : output.key ∉ other.storageKeys) :
     (materializePivotColumnStep output column store).1.read other = store.read other := by

@@ -57,20 +57,20 @@ private def powerWord (exponentWidth width : Nat) :
     EncodedBit.Word (nativeEncoding exponentWidth width) width where
   bit := powerBit exponentWidth width
 
-private theorem littleEndianWire_ne {width : Nat} {left right : Fin width}
+private lemma littleEndianWire_ne {width : Nat} {left right : Fin width}
     (different : left ≠ right) :
     WireAddress.littleEndianWire left ≠ WireAddress.littleEndianWire right := by
   intro same
   exact different (WireAddress.bitIndex_injective same)
 
-@[simp] private theorem powerBit_get (exponentWidth width : Nat) (bit : Fin width)
+@[simp] private lemma powerBit_get (exponentWidth width : Nat) (bit : Fin width)
     (state : NativeRegisters exponentWidth width) :
     (powerBit exponentWidth width bit).get state = state.1.1.val.testBit bit.val := by
   change state.1.1.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem xorConstant_preserves_projection {exponentWidth width : Nat} {α : Type}
+private lemma xorConstant_preserves_projection {exponentWidth width : Nat} {α : Type}
     (word : EncodedBit.Word (nativeEncoding exponentWidth width) width)
     (project : NativeRegisters exponentWidth width → α)
     (preserved : ∀ bit state,
@@ -97,7 +97,7 @@ def xorPower {exponentWidth width : Nat}
   ((⟨state.1.1.val ^^^ value.val, Nat.xor_lt_two_pow state.1.1.isLt value.isLt⟩,
       state.1.2), state.2)
 
-private theorem power_bit_ne (exponentWidth width : Nat)
+private lemma power_bit_ne (exponentWidth width : Nat)
     (left right : Fin width) (different : left ≠ right) :
     (powerBit exponentWidth width left).wire ≠
       (powerBit exponentWidth width right).wire :=
@@ -107,7 +107,7 @@ private theorem power_bit_ne (exponentWidth width : Nat)
         change WireAddress.littleEndianWire left ≠ WireAddress.littleEndianWire right
         exact littleEndianWire_ne different))
 
-private theorem xorPower_eq_step (exponentWidth width : Nat)
+private lemma xorPower_eq_step (exponentWidth width : Nat)
     (value : Fin (2 ^ width)) (state : NativeRegisters exponentWidth width) :
     xorPower state value =
       EncodedBit.Word.xorConstantStep (powerWord exponentWidth width) value state := by
@@ -132,7 +132,7 @@ private theorem xorPower_eq_step (exponentWidth width : Nat)
       Prod.snd (fun _ _ => rfl) value state).symm
 
 /-- The actual identity loader is exactly the independent first-word XOR. -/
-theorem identityLoadGates_step (exponentWidth width : Nat)
+lemma identityLoadGates_step (exponentWidth width : Nat)
     (modulus : Fin (2 ^ width + 1)) (positive : 0 < modulus.val)
     (state : NativeRegisters exponentWidth width) :
     stepList (identityLoadGates exponentWidth width modulus positive) state =

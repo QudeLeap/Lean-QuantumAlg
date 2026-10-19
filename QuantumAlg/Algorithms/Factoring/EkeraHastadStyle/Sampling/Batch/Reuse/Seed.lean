@@ -24,10 +24,13 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuse
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 /-- A fresh actual sampler preserves the existing bank in every complete store-reference block. -/
-theorem nativeBatchReuse_sampler_seedBlocks {ctx : RuntimeCtx .quantum} {N : Nat}
+lemma nativeBatchReuse_sampler_seedBlocks {ctx : RuntimeCtx .quantum} {N : Nat}
     (input : Input N)
     (sameWires : ctx.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
@@ -38,7 +41,7 @@ theorem nativeBatchReuse_sampler_seedBlocks {ctx : RuntimeCtx .quantum} {N : Nat
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       ((ShorStyle.Canonical.Sampler.Retained.samplerNative_quantumWires ctx N).trans sameWires) N
       ((ShorStyle.Canonical.Sampler.Retained.circuit
-        (model := RuntimeRound.model) ctx N).execute Reference state) :=
+        (model := RuntimeRound.model) ctx N).execute environment Reference state) :=
   ShorStyle.Canonical.Sampler.Retained.samplerRetained_seeded
     (model := RuntimeRound.model) input.samplerInput _ state seeded
 

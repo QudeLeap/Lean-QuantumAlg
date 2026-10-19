@@ -79,19 +79,20 @@ def refreshStep {model : ExecutionModel} [BitWord.Selected model]
     (writeInput left.third) (writeInput right.third) refs.dot refs.product second.1
   (third.1, (first.2, (second.2, third.2)))
 
-theorem refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (store : Store ctx) :
     (refreshStep (model := model) left right refs store).1 =
       refreshStore left right refs store := rfl
 
 /-- The complete actual refresh execution preserves history and quantum-reference blocks. -/
-theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (refreshInto (model := model) left right refs).execute Reference state =
+    (refreshInto (model := model) left right refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := refreshStep (model := model) left right refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -102,7 +103,7 @@ theorem refreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Only the caller's dot and product cells are changed by the actual refresh. -/
-theorem refreshInto_callerFrame (left right : LatticeState.PointRefs ctx width)
+lemma refreshInto_callerFrame (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoidsDot : refs.dot.key ∉ other.storageKeys)
@@ -114,7 +115,7 @@ theorem refreshInto_callerFrame (left right : LatticeState.PointRefs ctx width)
     Store.read_applyOp_of_not_mem_storageKeys _ _ _ avoidsDot]
 
 /-- Actual dot refresh preserves both points and represents their exact integer dot product. -/
-theorem refreshInto_correct (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
+lemma refreshInto_correct (left right : LatticeState.PointRefs ctx width) (refs : Refs ctx width)
     (separation : Separation left right refs) (store : Store ctx)
     (leftValue rightValue : NumberTheory.IntegerPoint3)
     (leftRep : LatticeArithmetic.PointRawRepresents store left leftValue)
@@ -158,20 +159,21 @@ theorem refreshInto_correct (left right : LatticeState.PointRefs ctx width) (ref
     leftValue rightValue leftRep rightRep⟩
 
 /-- The actual dot refresh restores all borrowed correlations without a state-output premise. -/
-theorem refreshInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (refreshInto (model := model) left right refs).BorrowedRestored Reference state
-      ((refreshInto (model := model) left right refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
-  · exact Circuit.borrowedRestored_classical _ state
-  · exact Circuit.borrowedRestored_seq _ _ _
+      ((refreshInto (model := model) left right refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
+  · exact Circuit.borrowedRestored_classical (environment := environment) _ state
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (LatticeDot.coordinateAccumulate_borrowedRestored _ _ _ _ Reference _)
       (LatticeDot.coordinateAccumulate_borrowedRestored _ _ _ _ Reference _)
 
 /-- Five actual selected instructions overwrite and accumulate the dot product. -/
-theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
     (refreshInto (model := model) left right refs).eventTrace path =
@@ -191,21 +193,21 @@ theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- All five native operations remain sequentially dependent. -/
-theorem refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
     (path : (refreshInto (model := model) left right refs).Path) :
     (refreshInto (model := model) left right refs).depth (fun _ => 1) path = 5 := rfl
 
 /-- The refresh visits only the complete original live context. -/
-theorem refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) left right refs).Path) :
     (refreshInto (model := model) left right refs).visitedContexts path =
       [ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- Resident space includes all original quantum systems and the two existing cells. -/
-theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
     (path : (refreshInto (model := model) left right refs).Path) :
@@ -219,7 +221,7 @@ theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model
   exact le_rfl
 
 /-- Auxiliary accounting uses the same supplied roles, with no temporary allocation. -/
-theorem refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right : LatticeState.PointRefs ctx width)
     (refs : Refs ctx width)
     (path : (refreshInto (model := model) left right refs).Path) :

@@ -29,7 +29,7 @@ private def divisionCells : List PhaseCell :=
   [.divisionMagnitude, .divisionNegative, .divisionWideNumerator,
     .divisionWideDenominator, .divisionQuotientRemainder, .divisionOutput]
 
-private theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
+private lemma division_frame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape) (source : PhaseCell)
@@ -46,7 +46,7 @@ private theorem division_frame {model : ExecutionModel} [BitWord.Selected model]
   simpa only [List.mem_singleton, sourceKey] using
     separation.phaseCellKey_ne cell source (fun equal => outside (equal ▸ cellMember))
 
-private theorem point_of_frames {before after : Store ctx}
+private lemma point_of_frames {before after : Store ctx}
     (refs : LatticeState.PointRefs ctx width) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents before refs value)
     (first : after.read (writeInput refs.first) = before.read (writeInput refs.first))
@@ -59,7 +59,7 @@ private theorem point_of_frames {before after : Store ctx}
   · rw [third]; exact rep.2.2
 
 /-- The actual stored coefficient and residual satisfy the original second-phase contract. -/
-theorem secondInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma secondInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3) (target : NumberTheory.IntegerPoint3)
     (initial : Initial store refs basis target) (fits : Fits width basis target) :

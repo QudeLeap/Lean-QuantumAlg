@@ -18,7 +18,7 @@ set_option maxRecDepth 100000 in
 set_option maxHeartbeats 4000000 in
 -- Kernel reduction covers four suffix signs and 48 right factors in this bounded shard.
 /-- Half numerators with a `00` sign prefix stay in the doubled numerator set. -/
-theorem prefix00 :
+lemma prefix00 :
     ∀ negative2 negative3 b, ∃ c,
       octNumerator (.half ![false, false, negative2, negative3]) * octNumerator b =
         octNumerator c + octNumerator c := by decide

@@ -28,6 +28,8 @@ namespace QuantumAlg.MeasuredUncompute.StoredWordReset
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.Word
 
 /-- The selected reset is exactly the inverse of the literal set-bit X sequence. -/
@@ -38,37 +40,41 @@ def program {width : Nat} (physical : QubitLayout width)
     (AlgorithmGate.oracleFreeAdjoints .empty)
 
 /-- The branch's measured word becomes zero with its exact phase preserved. -/
-theorem storedWordReset_ket {width : Nat} (physical : QubitLayout width)
+lemma storedWordReset_ket {width : Nat} (physical : QubitLayout width)
     (outcome : Fin (2 ^ width)) :
-    (program physical outcome).applyNormalized
+    ((program physical outcome).applyNormalized environment)
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm outcome)) =
       NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm 0) := by
-  have inverseEq : (program physical outcome).matrix =
-      (BasisLoad.program physical .empty outcome).matrix⁻¹ := by
+  have inverseEq : ((program physical outcome).matrix environment) =
+      ((BasisLoad.program physical .empty outcome).matrix environment)⁻¹ := by
     rw [program, UnitaryCircuit.dagger_matrix]
+    rw [Subsingleton.elim
+      ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
     exact Unitary.star_eq_inv _
-  have forward := BasisLoad.basisLoad_apply_zero physical .empty outcome
+  have forward := BasisLoad.basisLoad_apply_zero (environment := environment) physical .empty
+    outcome
   rw [← forward]
   exact UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
     (BasisLoad.program physical .empty outcome) (program physical outcome) inverseEq _
 
 /-- The same branch preserves each full reference amplitude, rather than only its marginal. -/
-theorem storedWordReset_reference_entry {width : Nat} (physical : QubitLayout width)
+lemma storedWordReset_reference_entry {width : Nat} (physical : QubitLayout width)
     (outcome : Fin (2 ^ width))
     (row : physical.toQuantum.register.Index)
     {Reference : Register} (left right : Reference.Index) :
-    UnitaryOperator.prodTensor (program physical outcome).matrix
+    UnitaryOperator.prodTensor ((program physical outcome).matrix environment)
         (1 : UnitaryOperator Reference)
         (row, left) (physical.basisEquiv.symm outcome, right) =
       if row = physical.basisEquiv.symm 0 ∧ left = right then 1 else 0 := by
   have column := congrArg
     (fun vector : NormalizedVector physical.toQuantum.register => vector row)
-    (storedWordReset_ket physical outcome)
+    (storedWordReset_ket (environment := environment) physical outcome)
   have matrixColumn :=
     (HilbertOperator.applyVec_ket
-      ((program physical outcome).matrix : HilbertOperator physical.toQuantum.register)
+      (((program physical outcome).matrix environment) : HilbertOperator
+        physical.toQuantum.register)
       (physical.basisEquiv.symm outcome) row).symm.trans column
   rw [UnitaryOperator.prodTensor_apply, matrixColumn, NormalizedVector.ket_apply]
   change (if row = physical.basisEquiv.symm 0 then (1 : ℂ) else 0) *
@@ -77,36 +83,38 @@ theorem storedWordReset_reference_entry {width : Nat} (physical : QubitLayout wi
     by_cases reference : left = right <;> simp [zero, reference]
 
 /-- Canonical binary coordinates of the same executed native inverse sequence. -/
-def binaryProgram {width : Nat} (outcome : Fin (2 ^ width)) :
+def binaryProgram (environment : OracleModel.empty.Interpretation) {width : Nat} (outcome : Fin (2 ^
+  width)) :
     UnitaryOperator (Qubits width) :=
-  (program (QubitLayout.canonical width) outcome).binaryMatrix
+  ((program (QubitLayout.canonical width) outcome).binaryMatrix environment)
 
 /-- The binary-coordinate reset sends the observed word to zero with exact phase. -/
-theorem storedWordReset_binary_ket {width : Nat} (outcome : Fin (2 ^ width)) :
-    (binaryProgram outcome).apply (NormalizedVector.ket (R := Qubits width) outcome) =
+lemma storedWordReset_binary_ket {width : Nat} (outcome : Fin (2 ^ width)) :
+    (binaryProgram environment outcome).apply (NormalizedVector.ket (R := Qubits width) outcome) =
       NormalizedVector.ket (R := Qubits width) 0 :=
   UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     (program (QubitLayout.canonical width) outcome) outcome 0
     (storedWordReset_ket (QubitLayout.canonical width) outcome)
 
 /-- The canonical view preserves each external-reference matrix entry. -/
-theorem storedWordReset_binary_reference_entry {width : Nat}
+lemma storedWordReset_binary_reference_entry {width : Nat}
     (outcome row : Fin (2 ^ width)) {Reference : Register}
     (left right : Reference.Index) :
-    UnitaryOperator.prodTensor (binaryProgram outcome) (1 : UnitaryOperator Reference)
+    UnitaryOperator.prodTensor (binaryProgram environment outcome) (1 : UnitaryOperator Reference)
         (row, left) (outcome, right) =
       if row = 0 ∧ left = right then 1 else 0 := by
   have column := congrArg (fun vector : NormalizedVector (Qubits width) => vector row)
-    (storedWordReset_binary_ket outcome)
+    (storedWordReset_binary_ket (environment := environment) outcome)
   have matrixColumn :=
-    (HilbertOperator.applyVec_ket (binaryProgram outcome : HilbertOperator (Qubits width))
+    (HilbertOperator.applyVec_ket (binaryProgram environment outcome : HilbertOperator (Qubits
+      width))
       outcome row).symm.trans column
   rw [UnitaryOperator.prodTensor_apply, matrixColumn, NormalizedVector.ket_apply]
   change (if row = 0 then (1 : ℂ) else 0) * (if left = right then 1 else 0) = _
   by_cases zero : row = 0 <;> by_cases reference : left = right <;> simp [zero, reference]
 
 /-- Each selected X remains charged in the actual inverse sequence. -/
-theorem storedWordReset_events {width : Nat} (physical : QubitLayout width)
+lemma storedWordReset_events {width : Nat} (physical : QubitLayout width)
     (outcome : Fin (2 ^ width)) :
     (program physical outcome).eventCost =
       BasisLoad.xCount outcome •
@@ -120,7 +128,7 @@ theorem storedWordReset_events {width : Nat} (physical : QubitLayout width)
   simp [Multiset.map_nsmul, AlgorithmGate.oracleFreeEvent]
 
 /-- The branch depth is the actual number of selected X gates, including the zero branch. -/
-theorem storedWordReset_depth {width : Nat} (physical : QubitLayout width)
+lemma storedWordReset_depth {width : Nat} (physical : QubitLayout width)
     (outcome : Fin (2 ^ width)) :
     (program physical outcome).evaluatedEventDepth (fun _ => 1) =
       BasisLoad.xCount outcome := by

@@ -73,7 +73,7 @@ def splitRefs (decoded : CWriteRef ctx (.unsignedWord (width + width))) :
     Word.Split.Refs (splitCtx ctx width) width width :=
   ⟨writeUnderSplit decoded width, splitLeftCell ctx width, splitRightCell ctx width⟩
 
-private theorem existing_write_ne_fresh {shape : CShape} (output : CWriteRef ctx shape) :
+private lemma existing_write_ne_fresh {shape : CShape} (output : CWriteRef ctx shape) :
     output.key ≠ ctx.canonicalFreshKey := by
   intro same
   apply ctx.canonicalFreshKey_fresh
@@ -81,7 +81,7 @@ private theorem existing_write_ne_fresh {shape : CShape} (output : CWriteRef ctx
   exact List.mem_map_of_mem output.toCStorageRef.present
 
 /-- Actual lexical allocation proves every separation condition internally. -/
-theorem splitRefs_separation (decoded : CWriteRef ctx (.unsignedWord (width + width))) :
+lemma splitRefs_separation (decoded : CWriteRef ctx (.unsignedWord (width + width))) :
     Word.Split.Separation (splitRefs decoded) := by
   constructor
   · exact existing_write_ne_fresh (decoded.underWorkspace ctx.canonicalFreshKey
@@ -97,7 +97,7 @@ def enterSplit (store : Store ctx) (width : Nat) : Store (splitCtx ctx width) :=
       (.unsignedWord width) (splitLeftCtx ctx width).canonicalFreshKey_fresh
 
 /-- Both scope entries preserve the actual original combined-width decoded value. -/
-theorem enterSplit_read (store : Store ctx) {shape : CShape}
+lemma enterSplit_read (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (enterSplit store width).read (underSplit input width) = store.read input :=
   (Store.read_pushWorkspace_underWorkspace
@@ -111,7 +111,7 @@ theorem enterSplit_read (store : Store ctx) {shape : CShape}
 
 end Placement
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The original native split is placed on the original word and both fresh results. -/
@@ -134,10 +134,10 @@ def withSplit (decoded : CWriteRef ctx (.unsignedWord (width + width)))
       (.seq (splitPlaced (model := model) decoded) consumer))
 
 /-- Exact execution retains the shared service, complete reference blocks and actual path. -/
-theorem splitPlaced_execute (decoded : CWriteRef ctx (.unsignedWord (width + width)))
+lemma splitPlaced_execute (decoded : CWriteRef ctx (.unsignedWord (width + width)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State (splitCtx ctx width) Reference (model.HiddenState × History)) :
-    (splitPlaced (model := model) decoded).execute Reference state =
+    (splitPlaced (model := model) decoded).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := splitPlacedStep (model := model) decoded entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
@@ -145,7 +145,7 @@ theorem splitPlaced_execute (decoded : CWriteRef ctx (.unsignedWord (width + wid
     (ExecutionState.executionState_mapClassical_congr _ rfl)
 
 /-- The actual two result words are the original quotient and remainder for any inner store. -/
-theorem splitPlaced_values (decoded : CWriteRef ctx (.unsignedWord (width + width)))
+lemma splitPlaced_values (decoded : CWriteRef ctx (.unsignedWord (width + width)))
     (store : Store (splitCtx ctx width)) :
     ((splitPlacedStep (model := model) decoded store).1.read
       (.storage (splitLeftCell ctx width).toCStorageRef)).toNat =
@@ -159,7 +159,7 @@ theorem splitPlaced_values (decoded : CWriteRef ctx (.unsignedWord (width + widt
       (splitRefs_separation decoded) store⟩
 
 /-- The original decoded-terminal representation gives exactly the original two raw frequencies. -/
-theorem splitPlaced_original_values (decoded : CWriteRef ctx (.unsignedWord (width + width)))
+lemma splitPlaced_original_values (decoded : CWriteRef ctx (.unsignedWord (width + width)))
     (store : Store ctx) (input : CShape.Value (RawRecovery.InputShape width))
     (represents : (store.read (.storage decoded.toCStorageRef)).toNat = decodedTerminal input) :
     ((splitPlacedStep (model := model) decoded (enterSplit store width)).1.read
@@ -173,7 +173,7 @@ theorem splitPlaced_original_values (decoded : CWriteRef ctx (.unsignedWord (wid
     values.2.trans (congrArg (fun value => value % 2 ^ width) original)⟩
 
 /-- The enclosing lexical split emits exactly the original split operations before its consumer. -/
-theorem withSplit_eventTrace (decoded : CWriteRef ctx (.unsignedWord (width + width)))
+lemma withSplit_eventTrace (decoded : CWriteRef ctx (.unsignedWord (width + width)))
     (consumer : Circuit model (splitCtx ctx width) (splitCtx ctx width))
     (path : (withSplit (model := model) decoded consumer).Path) :
     (withSplit (model := model) decoded consumer).eventTrace path =
@@ -182,7 +182,7 @@ theorem withSplit_eventTrace (decoded : CWriteRef ctx (.unsignedWord (width + wi
     (Word.Split.splitInto_events (model := model) (splitRefs decoded) path.1)
 
 /-- Native multiplicities come from the original split instructions and the real consumer. -/
-theorem withSplit_resourcePool (decoded : CWriteRef ctx (.unsignedWord (width + width)))
+lemma withSplit_resourcePool (decoded : CWriteRef ctx (.unsignedWord (width + width)))
     (consumer : Circuit model (splitCtx ctx width) (splitCtx ctx width))
     (path : (withSplit (model := model) decoded consumer).Path) :
     (withSplit (model := model) decoded consumer).resourcePool path =
@@ -192,7 +192,7 @@ theorem withSplit_resourcePool (decoded : CWriteRef ctx (.unsignedWord (width + 
     (ResourcePool.ofList_append _ _)
 
 /-- The original two resizes and right shifts precede every dependent consumer instruction. -/
-theorem withSplit_depth (decoded : CWriteRef ctx (.unsignedWord (width + width)))
+lemma withSplit_depth (decoded : CWriteRef ctx (.unsignedWord (width + width)))
     (consumer : Circuit model (splitCtx ctx width) (splitCtx ctx width))
     (path : (withSplit (model := model) decoded consumer).Path) :
     (withSplit (model := model) decoded consumer).depth (fun _ => 1) path =

@@ -24,10 +24,12 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Accumulate
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- Read the complete corrected inverse using the physical Work2 orientation. -/
-theorem accumulateCorrected_value (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma accumulateCorrected_value (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     OutputCopy.value (CorrectedSchedule.result modulus input positive bounded) =
       CanonicalInverse.word modulus (positive.trans bounded) input := by
@@ -47,11 +49,11 @@ def output (modulus : Nat) (modulusPositive : 0 < modulus) (input : Nat)
     (Nat.mod_lt _ modulusPositive).trans (Nat.lt_size_self modulus)⟩
 
 /-- The actual program restores every initial EEA field and adds into any canonical target. -/
-theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
+lemma accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     (input target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) :
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode (InitialFrame.initial modulus input, target)))) =
@@ -63,7 +65,7 @@ theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
   let computed := CorrectedSchedule.result modulus input.val positive bounded
   let result := output modulus (by omega) input.val target
   have forward (value : Fin (2 ^ modulus.size)) :
-      (forwardProgram modulus nontrivial).applyNormalized
+      (forwardProgram modulus nontrivial).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
               ((frameEncoding modulus.size).encode (initial, value)))) =
@@ -75,7 +77,7 @@ theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
       (CorrectedSchedule.program modulus nontrivial) initial computed value
       (CorrectedSchedule.program_initial modulus nontrivial input coprime positive bounded)
   have accumulated :
-      (middleProgram modulus.size (fittedModulus modulus)).applyNormalized
+      (middleProgram modulus.size (fittedModulus modulus)).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
               ((frameEncoding modulus.size).encode (computed, target)))) =
@@ -96,7 +98,7 @@ theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
     rw [fields]
   have restored :
       ((forwardProgram modulus nontrivial).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
               ((frameEncoding modulus.size).encode (computed, result)))) =
@@ -104,13 +106,15 @@ theorem accumulateProgram_initial (modulus : Nat) (nontrivial : 1 < modulus)
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode (initial, result))) :=
     (congrArg (fun state => ((forwardProgram modulus nontrivial).dagger
-        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized state)
+        (AlgorithmGate.oracleFreeAdjoints .empty)).applyNormalized environment state)
       (forward result)).symm.trans
       (UnitaryCircuit.Realizes.dagger_applyNormalized_applyNormalized
         (forwardProgram modulus nontrivial)
         ((forwardProgram modulus nontrivial).dagger
           (AlgorithmGate.oracleFreeAdjoints .empty))
-        (by rw [UnitaryCircuit.dagger_matrix]; exact Unitary.star_eq_inv _)
+        (by rw [UnitaryCircuit.dagger_matrix,
+      Subsingleton.elim ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment)
+        environment]; exact Unitary.star_eq_inv _)
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode (initial, result)))))
@@ -124,11 +128,11 @@ def residueWord (modulus : Nat) (modulusPositive : 0 < modulus) (value : ZMod mo
   exact ⟨value.val, (ZMod.val_lt value).trans (Nat.lt_size_self modulus)⟩
 
 /-- Original units and arbitrary modular targets require no additional residue or width promises. -/
-theorem accumulateProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
+lemma accumulateProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
     (input : (ZMod modulus)ˣ) (target : ZMod modulus) :
     let inputWord := residueWord modulus (by omega) (input : ZMod modulus)
     let targetWord := residueWord modulus (by omega) target
-    (program modulus nontrivial).applyNormalized
+    (program modulus nontrivial).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode (InitialFrame.initial modulus inputWord,
@@ -144,12 +148,13 @@ theorem accumulateProgram_unit (modulus : Nat) (nontrivial : 1 < modulus)
     (ZMod.val_lt target)
 
 /-- Arbitrary supplied encoded fields, including a live flag, survive with the full frame. -/
-theorem accumulateProgram_reference {Reference : Type} (reference : BinaryLabelEncoding Reference)
+lemma accumulateProgram_reference {Reference : Type} (reference : BinaryLabelEncoding Reference)
     (modulus : Nat) (nontrivial : 1 < modulus)
     (input target : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus)
     (targetBounded : target.val < modulus) (retained : Reference) :
     (UnitaryCircuit.onBinaryPrefix reference.width (program modulus nontrivial)).applyNormalized
+      environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
             (BinaryLabelEncoding.prod (frameEncoding modulus.size) reference).width).basisEquiv.symm

@@ -30,14 +30,15 @@ namespace QuantumAlg.UnitaryCircuit.Realizes
 noncomputable section
 
 variable {gates : GateModel} {oracles : OracleModel}
+variable {environment : oracles.Interpretation}
 
-public theorem applyNormalized_encoded_ket_of_binaryMatrix_eq {width : Nat}
+public lemma applyNormalized_encoded_ket_of_binaryMatrix_eq {width : Nat}
     (program : UnitaryCircuit gates oracles
       (QubitLayout.canonical width).toQuantum)
     (input output : Fin (2 ^ width))
-    (h : program.binaryMatrix.apply (NormalizedVector.ket input) =
+    (h : (program.binaryMatrix environment).apply (NormalizedVector.ket input) =
       NormalizedVector.ket output) :
-    program.applyNormalized
+    program.applyNormalized environment
         (NormalizedVector.ket ((QubitLayout.canonical width).basisEquiv.symm input)) =
       NormalizedVector.ket
         ((QubitLayout.canonical width).basisEquiv.symm output) := by
@@ -46,13 +47,13 @@ public theorem applyNormalized_encoded_ket_of_binaryMatrix_eq {width : Nat}
   have hindex := congrArg
     (fun state : NormalizedVector (Qubits width) =>
       state ((QubitLayout.canonical width).basisEquiv physicalIndex)) h
-  change program.binaryMatrix.applyVec
+  change (program.binaryMatrix environment).applyVec
       (NormalizedVector.ket input).vec
         ((QubitLayout.canonical width).basisEquiv physicalIndex) =
     NormalizedVector.ket output
       ((QubitLayout.canonical width).basisEquiv physicalIndex) at hindex
   rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket] at hindex
-  change program.applyVec
+  change program.applyVec environment
       (NormalizedVector.ket
         ((QubitLayout.canonical width).basisEquiv.symm input)).vec
         physicalIndex =
@@ -67,16 +68,16 @@ public theorem applyNormalized_encoded_ket_of_binaryMatrix_eq {width : Nat}
       Equiv.eq_symm_apply]
   all_goals rfl
 
-public theorem binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+public lemma binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     {width : Nat}
     (program : UnitaryCircuit gates oracles
       (QubitLayout.canonical width).toQuantum)
     (input output : Fin (2 ^ width))
-    (h : program.applyNormalized
+    (h : program.applyNormalized environment
         (NormalizedVector.ket ((QubitLayout.canonical width).basisEquiv.symm input)) =
       NormalizedVector.ket
         ((QubitLayout.canonical width).basisEquiv.symm output)) :
-    program.binaryMatrix.apply (NormalizedVector.ket input) =
+    (program.binaryMatrix environment).apply (NormalizedVector.ket input) =
       NormalizedVector.ket output := by
   apply NormalizedVector.ext
   intro binaryIndex
@@ -84,7 +85,7 @@ public theorem binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     (fun state : NormalizedVector
         (QubitLayout.canonical width).toQuantum.register =>
       state ((QubitLayout.canonical width).basisEquiv.symm binaryIndex)) h
-  change program.applyVec
+  change program.applyVec environment
       (NormalizedVector.ket
         ((QubitLayout.canonical width).basisEquiv.symm input)).vec
         ((QubitLayout.canonical width).basisEquiv.symm binaryIndex) =
@@ -93,7 +94,7 @@ public theorem binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
         ((QubitLayout.canonical width).basisEquiv.symm binaryIndex) at hindex
   rw [UnitaryCircuit.applyVec, UnitaryOperator.applyVec,
     HilbertOperator.applyVec_ket] at hindex
-  change program.binaryMatrix.applyVec
+  change (program.binaryMatrix environment).applyVec
       (NormalizedVector.ket input).vec binaryIndex =
     NormalizedVector.ket output binaryIndex
   rw [UnitaryOperator.applyVec, HilbertOperator.applyVec_ket]
@@ -104,12 +105,12 @@ public theorem binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
   all_goals rfl
 
 /-- Transport only the semantic labels of an actual-circuit realization. -/
-theorem relabel {Data Other : Type} {encoding : BinaryLabelEncoding Data}
+lemma relabel {Data Other : Type} {encoding : BinaryLabelEncoding Data}
     {layout : QubitLayout encoding.width}
     {program : UnitaryCircuit gates oracles layout.toQuantum}
     {step : Data → Data} (equivalence : Other ≃ Data)
-    (h : UnitaryCircuit.Realizes encoding program step) :
-    UnitaryCircuit.Realizes (encoding.relabel equivalence) program
+    (h : UnitaryCircuit.Realizes encoding program environment step) :
+    UnitaryCircuit.Realizes (encoding.relabel equivalence) program environment
       (fun x => equivalence.symm (step (equivalence x))) where
   apply_encoded_ket := by
     intro x
@@ -118,29 +119,29 @@ theorem relabel {Data Other : Type} {encoding : BinaryLabelEncoding Data}
 
 /-- Execute a realized program on the left binary field while preserving the
 complete existing right field. -/
-theorem onBinaryPrefix {Left Right : Type}
+lemma onBinaryPrefix {Left Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     {program : UnitaryCircuit gates oracles
       (QubitLayout.canonical left.width).toQuantum} {step : Left → Left}
-    (h : UnitaryCircuit.Realizes left program step) :
+    (h : UnitaryCircuit.Realizes left program environment step) :
     UnitaryCircuit.Realizes
       (layout := QubitLayout.canonical (left.width + right.width))
       (BinaryLabelEncoding.prod left right)
-      (UnitaryCircuit.onBinaryPrefix right.width program)
+      (UnitaryCircuit.onBinaryPrefix right.width program) environment
       (fun x : Left × Right => (step x.1, x.2)) where
   apply_encoded_ket := by
     intro x
     apply applyNormalized_encoded_ket_of_binaryMatrix_eq
     rcases x with ⟨l, r⟩
     change
-      (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix.apply
+      ((UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix environment).apply
           (NormalizedVector.ket (prodEquiv (left.encode l, right.encode r))) =
         NormalizedVector.ket
           (prodEquiv (left.encode (step l), right.encode r))
     rw [← NormalizedVector.tensor_ket,
-      show (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix =
-        program.binaryMatrix.tensor (1 : UnitaryOperator (Qubits right.width)) from
-        UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix right.width program,
+      show ((UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix environment) =
+        (program.binaryMatrix environment).tensor (1 : UnitaryOperator (Qubits right.width)) from
+        UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix right.width program environment,
       UnitaryOperator.tensor_apply_tensor]
     have hleft := h.apply_encoded_ket l
     have hleft := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
@@ -157,19 +158,19 @@ theorem onBinaryPrefix {Left Right : Type}
 
 /-- Lift one proved left-field basis endpoint while preserving a selected
 encoded value in the complete existing right field. -/
-theorem onBinaryPrefix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
+lemma onBinaryPrefix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (program : UnitaryCircuit gates oracles
       (QubitLayout.canonical left.width).toQuantum)
     (input output : Left) (rightValue : Right)
-    (h : program.applyNormalized
+    (h : program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical left.width).basisEquiv.symm
             (left.encode input))) =
       NormalizedVector.ket
         ((QubitLayout.canonical left.width).basisEquiv.symm
           (left.encode output))) :
-    (UnitaryCircuit.onBinaryPrefix right.width program).applyNormalized
+    (UnitaryCircuit.onBinaryPrefix right.width program).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (left.width + right.width)).basisEquiv.symm
             ((BinaryLabelEncoding.prod left right).encode (input, rightValue)))) =
@@ -178,14 +179,14 @@ theorem onBinaryPrefix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
           ((BinaryLabelEncoding.prod left right).encode (output, rightValue))) := by
   apply applyNormalized_encoded_ket_of_binaryMatrix_eq
   change
-    (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix.apply
+    ((UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix environment).apply
         (NormalizedVector.ket (prodEquiv (left.encode input, right.encode rightValue))) =
       NormalizedVector.ket
         (prodEquiv (left.encode output, right.encode rightValue))
   rw [← NormalizedVector.tensor_ket,
-    show (UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix =
-      program.binaryMatrix.tensor (1 : UnitaryOperator (Qubits right.width)) from
-      UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix right.width program,
+    show ((UnitaryCircuit.onBinaryPrefix right.width program).binaryMatrix environment) =
+      (program.binaryMatrix environment).tensor (1 : UnitaryOperator (Qubits right.width)) from
+      UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix right.width program environment,
     UnitaryOperator.tensor_apply_tensor]
   have hleft := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     program (left.encode input) (left.encode output) h
@@ -201,29 +202,29 @@ theorem onBinaryPrefix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
 
 /-- Execute a realized program on the right binary field while preserving the
 complete existing left field. -/
-theorem onBinarySuffix {Left Right : Type}
+lemma onBinarySuffix {Left Right : Type}
     {left : BinaryLabelEncoding Left} {right : BinaryLabelEncoding Right}
     {program : UnitaryCircuit gates oracles
       (QubitLayout.canonical right.width).toQuantum} {step : Right → Right}
-    (h : UnitaryCircuit.Realizes right program step) :
+    (h : UnitaryCircuit.Realizes right program environment step) :
     UnitaryCircuit.Realizes
       (layout := QubitLayout.canonical (left.width + right.width))
       (BinaryLabelEncoding.prod left right)
-      (UnitaryCircuit.onCanonicalBinarySuffix left.width program)
+      (UnitaryCircuit.onCanonicalBinarySuffix left.width program) environment
       (fun x : Left × Right => (x.1, step x.2)) where
   apply_encoded_ket := by
     intro x
     apply applyNormalized_encoded_ket_of_binaryMatrix_eq
     rcases x with ⟨l, r⟩
     change
-      (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix.apply
+      ((UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix environment).apply
           (NormalizedVector.ket (prodEquiv (left.encode l, right.encode r))) =
         NormalizedVector.ket
           (prodEquiv (left.encode l, right.encode (step r)))
     rw [← NormalizedVector.tensor_ket,
-      show (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix =
-        (1 : UnitaryOperator (Qubits left.width)).tensor program.binaryMatrix from
-        UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix left.width program,
+      show ((UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix environment) =
+        (1 : UnitaryOperator (Qubits left.width)).tensor (program.binaryMatrix environment) from
+        UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix left.width program environment,
       UnitaryOperator.tensor_apply_tensor]
     have hright := h.apply_encoded_ket r
     have hright := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
@@ -240,19 +241,19 @@ theorem onBinarySuffix {Left Right : Type}
 
 /-- Lift one proved right-field basis endpoint while preserving a selected
 encoded value in the complete existing left field. -/
-theorem onBinarySuffix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
+lemma onBinarySuffix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
     (left : BinaryLabelEncoding Left) (right : BinaryLabelEncoding Right)
     (program : UnitaryCircuit gates oracles
       (QubitLayout.canonical right.width).toQuantum)
     (leftValue : Left) (input output : Right)
-    (h : program.applyNormalized
+    (h : program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical right.width).basisEquiv.symm
             (right.encode input))) =
       NormalizedVector.ket
         ((QubitLayout.canonical right.width).basisEquiv.symm
           (right.encode output))) :
-    (UnitaryCircuit.onCanonicalBinarySuffix left.width program).applyNormalized
+    (UnitaryCircuit.onCanonicalBinarySuffix left.width program).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (left.width + right.width)).basisEquiv.symm
             ((BinaryLabelEncoding.prod left right).encode (leftValue, input)))) =
@@ -261,14 +262,14 @@ theorem onBinarySuffix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
           ((BinaryLabelEncoding.prod left right).encode (leftValue, output))) := by
   apply applyNormalized_encoded_ket_of_binaryMatrix_eq
   change
-    (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix.apply
+    ((UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix environment).apply
         (NormalizedVector.ket (prodEquiv (left.encode leftValue, right.encode input))) =
       NormalizedVector.ket
         (prodEquiv (left.encode leftValue, right.encode output))
   rw [← NormalizedVector.tensor_ket,
-    show (UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix =
-      (1 : UnitaryOperator (Qubits left.width)).tensor program.binaryMatrix from
-      UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix left.width program,
+    show ((UnitaryCircuit.onCanonicalBinarySuffix left.width program).binaryMatrix environment) =
+      (1 : UnitaryOperator (Qubits left.width)).tensor (program.binaryMatrix environment) from
+      UnitaryCircuit.onCanonicalBinarySuffix_binaryMatrix left.width program environment,
     UnitaryOperator.tensor_apply_tensor]
   have hright := binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
     program (right.encode input) (right.encode output) h
@@ -284,7 +285,7 @@ theorem onBinarySuffix_applyNormalized_encoded_ket_of_eq {Left Right : Type}
 
 /-- Execute a realized update of the existing outer binary fields while
 preserving the complete middle field. -/
-theorem onBinaryMiddle {Left Middle Right : Type}
+lemma onBinaryMiddle {Left Middle Right : Type}
     {left : BinaryLabelEncoding Left}
     {middle : BinaryLabelEncoding Middle}
     {right : BinaryLabelEncoding Right}
@@ -292,12 +293,12 @@ theorem onBinaryMiddle {Left Middle Right : Type}
       (QubitLayout.canonical (left.width + right.width)).toQuantum}
     {step : Left × Right → Left × Right}
     (h : UnitaryCircuit.Realizes (BinaryLabelEncoding.prod left right)
-      program step) :
+      program environment step) :
     UnitaryCircuit.Realizes
       (layout := QubitLayout.canonical
         (left.width + middle.width + right.width))
       (BinaryLabelEncoding.prod (BinaryLabelEncoding.prod left middle) right)
-      (UnitaryCircuit.onBinaryMiddle middle.width program)
+      (UnitaryCircuit.onBinaryMiddle middle.width program) environment
       (fun x : (Left × Middle) × Right =>
         let y := step (x.1.1, x.2)
         ((y.1, x.1.2), y.2)) where
@@ -308,7 +309,7 @@ theorem onBinaryMiddle {Left Middle Right : Type}
       ⟨outputLeft, outputRight⟩
     apply applyNormalized_encoded_ket_of_binaryMatrix_eq
     change
-      (UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix.apply
+      ((UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix environment).apply
           (NormalizedVector.ket
             (prodEquiv
               (prodEquiv (left.encode leftValue, middle.encode middleValue),
@@ -325,7 +326,7 @@ theorem onBinaryMiddle {Left Middle Right : Type}
       rowLeftMiddle with ⟨⟨rowLeft, rowMiddle⟩, rfl⟩
     change
       HilbertOperator.applyVec
-          ((UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix :
+          (((UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix environment) :
             HilbertOperator (Qubits (left.width + middle.width + right.width)))
           ((NormalizedVector.ket
               (prodEquiv
@@ -344,18 +345,18 @@ theorem onBinaryMiddle {Left Middle Right : Type}
           (prodEquiv (prodEquiv (rowLeft, rowMiddle), rowRight))
     rw [HilbertOperator.applyVec_ket]
     have middleEntry :
-        (UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix
+        ((UnitaryCircuit.onBinaryMiddle middle.width program).binaryMatrix environment)
             (prodEquiv (prodEquiv (rowLeft, rowMiddle), rowRight))
             (prodEquiv
               (prodEquiv (left.encode leftValue, middle.encode middleValue),
                 right.encode rightValue)) =
-          program.binaryMatrix
+          (program.binaryMatrix environment)
               (prodEquiv (rowLeft, rowRight))
               (prodEquiv (left.encode leftValue, right.encode rightValue)) *
             (if rowMiddle = middle.encode middleValue then 1 else 0) := by
       exact unitaryCircuit_onBinaryMiddle_binaryMatrix_entry program
         rowLeft (left.encode leftValue) rowMiddle (middle.encode middleValue)
-        rowRight (right.encode rightValue)
+        rowRight (right.encode rightValue) environment
     rw [middleEntry]
     have outerAction := h.apply_encoded_ket (leftValue, rightValue)
     rw [outputEquation] at outerAction
@@ -365,7 +366,7 @@ theorem onBinaryMiddle {Left Middle Right : Type}
       (prodEquiv (left.encode outputLeft, right.encode outputRight))
       outerAction
     have outerEntry :
-        program.binaryMatrix (prodEquiv (rowLeft, rowRight))
+        (program.binaryMatrix environment) (prodEquiv (rowLeft, rowRight))
             (prodEquiv (left.encode leftValue, right.encode rightValue)) =
           (NormalizedVector.ket
             (prodEquiv (left.encode outputLeft, right.encode outputRight)) :
@@ -376,7 +377,7 @@ theorem onBinaryMiddle {Left Middle Right : Type}
           state (prodEquiv (rowLeft, rowRight))) outerBinary
       change
         HilbertOperator.applyVec
-            (program.binaryMatrix :
+            ((program.binaryMatrix environment) :
               HilbertOperator (Qubits (left.width + right.width)))
             ((NormalizedVector.ket
                 (prodEquiv (left.encode leftValue, right.encode rightValue)) :

@@ -14,8 +14,9 @@ import all QuantumAlg.Core.Base.Gate.Unitary.Reindex
 /-!
 # The fixed declared ECDLP query model
 
-The original intrinsic operator and signature belong to this model. An actual
-query chooses only its placement; no controlled or inverse grant is added.
+The public instance fixes the query signature. Its source operator belongs to
+a separate interpretation. An actual query chooses only its placement; no
+controlled or inverse grant is added.
 -/
 
 namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ECDLP.Canonical.QueryModel
@@ -29,17 +30,21 @@ public inductive Coordinate where
   | groupAction
   deriving DecidableEq
 
-/-- Fix the original operator and the complete identity-inclusive signature once. -/
+/-- The public instance fixes the complete identity-inclusive query signature. -/
 @[expose, implicit_reducible]
-public def model (I : ECDLPInstance E) (A : Access I) : OracleModel where
+public def model (I : ECDLPInstance E) : OracleModel where
   Query := Unit
   Coordinate := Coordinate
   coordinateDecidableEq := inferInstance
   signature _ := QuantumSignature.qubits (Layout.totalQubits I)
+  coordinate _ := .groupAction
+
+/-- A legal source operator interprets the fixed query signature. -/
+@[expose] public def interpretation (I : ECDLPInstance E) (A : Access I) :
+    (model I).Interpretation where
   operator _ :=
     UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (Layout.totalQubits I)).symm
       A.operator
-  coordinate _ := .groupAction
 
 /-- Canonical physical qubits of both exponents and the existing point bank. -/
 public abbrev layout (I : ECDLPInstance E) : QuantumLayout (Layout.totalQubits I) :=

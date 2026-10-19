@@ -37,7 +37,7 @@ def pullbackUnitary (operator : UnitaryOperator R) (effect : Effect R) : Effect 
     exact (effect.contractive (operator.applyVec vector)).trans_eq (operator.norm_applyVec vector)
 
 /-- Unitary pullback has the exact trace weight of the actual density conjugation. -/
-theorem weight_pullbackUnitary (operator : UnitaryOperator R) (effect : Effect R)
+lemma weight_pullbackUnitary (operator : UnitaryOperator R) (effect : Effect R)
     (state : DensityOperator R) :
     (pullbackUnitary operator effect).weight state =
       effect.weight (DensityOperator.applyUnitary operator state) := by

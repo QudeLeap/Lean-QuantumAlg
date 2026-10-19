@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.DeutschJozsa.Endpoint.Execution
+import all QuantumAlg.Algorithms.DeutschJozsa.Endpoint.Execution
+
 public import QuantumAlg.Algorithms.DeutschJozsa.Specification
 public import QuantumAlg.Core.Algorithm.Solves
 import all QuantumAlg.Primitives.WalshHadamard.Readout.Context
@@ -42,59 +45,78 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- The public input contract admits exactly the original constant-or-balanced promise. -/
-public theorem problem_valid_iff {n : Nat} (f : WalshHadamard.Oracle n)
-    (state : ExecutionState (Execution.Store pre) pre.register) :
-    (problem f).valid state ↔ Promise f := Iff.rfl
+/-- Independent complete Deutsch-Jozsa decision contract.
 
-/-- The actual result is accepted precisely when its all-zero test decides constancy. -/
-public theorem problem_accepts_bits_iff {n : Nat} (f : WalshHadamard.Oracle n)
-    (initial : Execution.Store pre) (outcome : Fin n → Bool) :
-    (problem f).accepts initial (.bits outcome) ↔
-      ((outcome = fun _ => false) ↔ IsConstant f) := by
-  have zeroOutcome : allZeroOutcome n = (fun _ : Fin n => false) := by
-    funext index
-    exact Nat.zero_testBit (n - 1 - index.val)
-  change ((outcome = allZeroOutcome n) ↔ IsConstant f) ↔ _
-  rw [zeroOutcome]
-
-/-- The actual internally prepared circuit, with n real Z writes and complete live Output. -/
-public def algorithm {n : Nat} (f : WalshHadamard.Oracle n) :
-    Algorithm (model f) pre (post n) (.bits n) where
-  run := run f
+**Input.** For every natural width n, an oracle on all 2^n binary inputs,
+promised constant or balanced. The runtime input is the original borrowed
+unit cell, with no supplied quantum systems. Every normalized external
+reference extension of this local input is admitted.
+**Output.** The actual n-bit measured query result is zero exactly when the
+oracle is constant. All n+1 prepared quantum systems, n finite binary result
+cells, the final n-bit string, and the borrowed unit remain in complete Output.
+The target quantum system is not measured or released. At n = 0 the result is
+the unique empty bit string and there are zero measurement instructions.
+**Resource budget.** Fixed zero preparation of all n+1 qubits, followed by
+one target X and 2n+1 Hadamards, charged as 2n+2 native single-qubit gates.
+One declared n-input XOR-oracle call, n binary Z measurements,
+and one width-tagged finite-bit packing operation. Resident and auxiliary
+space are at most n+1 dimension-two systems and 2n classical bits, with zero
+systems of other dimensions. Unit-event depth is at most
+1+(if n=0 then 3 else 4)+n+1; packing still executes at n=0.
+**Success.** Probability one under the original promise, with mandatory joint
+restoration of the borrowed input and arbitrary external reference.
+**Source.** The promise, phase-query construction, signed amplitude and exact
+decision in [dW19, qcnotes.tex:1179,1193,1245,1251,1253,1255]; the single XOR
+query with its target factor in [CEMM98, cemm6.tex:326,342,379,403]. The native
+execution additionally accounts for its actual preparation, measurement
+storage and final classical packing instructions.
+-/
+@[expose] public def problem (n : Nat) :
+    Problem (model n) pre (post n) (.bits n) where
+  Witness := WalshHadamard.Oracle n
+  valid := fun actual f _ => actual.quantum = XorOracle.interpretation f ∧ Promise f
+  initialization := fun _ _ _ => True
+  accepts := fun _ f => accepts f
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => []
+  resources := { events := eventBudget n, resident := spaceBudget n, auxiliary := spaceBudget n }
+  quantumTimeLimit := depthBudget n
 
 /-- For every width, including zero, the native execution solves the original promise problem
 with probability one and the independently stated complete resource bounds. -/
-public theorem main {n : Nat} (f : WalshHadamard.Oracle n) :
-    ∃ candidate : Algorithm (model f) pre (post n) (.bits n),
-      Algorithm.Solves candidate (problem f) := by
-  refine ⟨algorithm f, ?_⟩
+public theorem main (n : Nat) :
+    ∃ candidate : Algorithm (model n) pre (post n) (.bits n),
+      Algorithm.Solves candidate (problem n) := by
+  refine ⟨algorithm n, ?_⟩
   constructor
-  · intro Reference input promised _initialized
-    exact le_of_eq (actual_success f promised input).symm
-  · intro _Reference _input _promised _initialized requirement present
+  · intro actual f Reference input valid _initialized
+    have same := environment_eq_of_quantum f actual valid.1
+    subst actual
+    exact le_of_eq (actual_success f valid.2 input).symm
+  · intro _actual _f _Reference _input _promised _initialized requirement present
     exact False.elim (List.not_mem_nil present)
-  · intro Reference input _promised _initialized
-    have restored := code_borrowedRestored f
+  · intro actual _f Reference input _valid _initialized
+    have restored := code_borrowedRestored n actual
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
     have history := Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
-    change (code f).BorrowedRestored Reference input.state
-      ((code f).execute Reference
+    change (code n).BorrowedRestored Reference input.state
+      ((code n).execute actual Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
     unfold Circuit.BorrowedRestored at restored ⊢
     rw [restored]
     refine Eq.trans ?_ history
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
-  · intro _Reference _input _promised _initialized path _supported
-    exact le_of_eq (code_events f path)
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_residentSpace f path
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_auxiliarySpace f path
-  · intro _Reference _input _promised _initialized path _supported
-    exact le_of_eq (code_depth f path)
+  · intro _actual _f _Reference _input _promised _initialized path _supported
+    exact le_of_eq (code_events n path)
+  · intro _actual _f _Reference _input _promised _initialized path _supported
+    exact code_residentSpace n path
+  · intro _actual _f _Reference _input _promised _initialized path _supported
+    exact code_auxiliarySpace n path
+  · intro _actual _f _Reference _input _promised _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
+    exact le_of_eq (code_depth n path)
 
 end
 

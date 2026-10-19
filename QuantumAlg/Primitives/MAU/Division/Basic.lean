@@ -80,47 +80,47 @@ def subQuotientFromTarget {N : ℕ} (x : Data N) : Data N where
   target := x.target - quotientResidue x.denominator x.numerator
   flag := x.flag
 
-@[simp] theorem addQuotientIntoTarget_denominator {N : ℕ} (x : Data N) :
+@[simp] lemma addQuotientIntoTarget_denominator {N : ℕ} (x : Data N) :
     x.addQuotientIntoTarget.denominator = x.denominator :=
   rfl
 
-@[simp] theorem addQuotientIntoTarget_numerator {N : ℕ} (x : Data N) :
+@[simp] lemma addQuotientIntoTarget_numerator {N : ℕ} (x : Data N) :
     x.addQuotientIntoTarget.numerator = x.numerator :=
   rfl
 
-@[simp] theorem addQuotientIntoTarget_target {N : ℕ} (x : Data N) :
+@[simp] lemma addQuotientIntoTarget_target {N : ℕ} (x : Data N) :
     x.addQuotientIntoTarget.target =
       x.target + quotientResidue x.denominator x.numerator :=
   rfl
 
-@[simp] theorem addQuotientIntoTarget_flag {N : ℕ} (x : Data N) :
+@[simp] lemma addQuotientIntoTarget_flag {N : ℕ} (x : Data N) :
     x.addQuotientIntoTarget.flag = x.flag :=
   rfl
 
-@[simp] theorem subQuotientFromTarget_denominator {N : ℕ} (x : Data N) :
+@[simp] lemma subQuotientFromTarget_denominator {N : ℕ} (x : Data N) :
     x.subQuotientFromTarget.denominator = x.denominator :=
   rfl
 
-@[simp] theorem subQuotientFromTarget_numerator {N : ℕ} (x : Data N) :
+@[simp] lemma subQuotientFromTarget_numerator {N : ℕ} (x : Data N) :
     x.subQuotientFromTarget.numerator = x.numerator :=
   rfl
 
-@[simp] theorem subQuotientFromTarget_target {N : ℕ} (x : Data N) :
+@[simp] lemma subQuotientFromTarget_target {N : ℕ} (x : Data N) :
     x.subQuotientFromTarget.target =
       x.target - quotientResidue x.denominator x.numerator :=
   rfl
 
-@[simp] theorem subQuotientFromTarget_flag {N : ℕ} (x : Data N) :
+@[simp] lemma subQuotientFromTarget_flag {N : ℕ} (x : Data N) :
     x.subQuotientFromTarget.flag = x.flag :=
   rfl
 
 /-- Clean temporary flags remain clean after modular division. -/
-theorem addQuotientIntoTarget_preserves_clean {N : ℕ} (x : Data N)
+lemma addQuotientIntoTarget_preserves_clean {N : ℕ} (x : Data N)
     (h : x.FlagClean) : x.addQuotientIntoTarget.FlagClean :=
   h
 
 /-- Clean temporary flags remain clean after inverse modular division. -/
-theorem subQuotientFromTarget_preserves_clean {N : ℕ} (x : Data N)
+lemma subQuotientFromTarget_preserves_clean {N : ℕ} (x : Data N)
     (h : x.FlagClean) : x.subQuotientFromTarget.FlagClean :=
   h
 
@@ -137,7 +137,7 @@ def divEquiv (N : ℕ) : Equiv.Perm (Data N) where
     cases x
     simp [addQuotientIntoTarget, subQuotientFromTarget]
 
-@[simp] theorem divEquiv_apply {N : ℕ} (x : Data N) :
+@[simp] lemma divEquiv_apply {N : ℕ} (x : Data N) :
     divEquiv N x = x.addQuotientIntoTarget :=
   rfl
 
@@ -145,12 +145,12 @@ def divEquiv (N : ℕ) : Equiv.Perm (Data N) where
 def withWorkEquiv (N : ℕ) (Work : Type) : Equiv.Perm (Data N × Work) :=
   Equiv.prodCongr (divEquiv N) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {N : ℕ} {Work : Type} (x : Data N) (w : Work) :
+@[simp] lemma withWorkEquiv_apply {N : ℕ} {Work : Type} (x : Data N) (w : Work) :
     withWorkEquiv N Work (x, w) = (x.addQuotientIntoTarget, w) :=
   rfl
 
 /-- The division map leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
+lemma withWorkEquiv_preserves_work {N : ℕ} {Work : Type} :
     WorkRegister.Preserves (Data := Data N) (Work := Work) (withWorkEquiv N Work) := by
   intro x
   cases x

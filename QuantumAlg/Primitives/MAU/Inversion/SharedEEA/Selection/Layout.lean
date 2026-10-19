@@ -42,7 +42,7 @@ def physicalIndex (width index : Nat) : Nat :=
   if index < 2 * width.size then 2 * (width + 3) + index
   else 2 * (width + 3) + 2 * width.size + index
 
-theorem sourceBit_wire (width : Nat) (index : Fin (2 * width.size + 2)) :
+lemma sourceBit_wire (width : Nat) (index : Fin (2 * width.size + 2)) :
     (sourceBit width index).wire.val = physicalIndex width index.val := by
   have within := index.isLt
   unfold sourceBit
@@ -69,7 +69,7 @@ theorem sourceBit_wire (width : Nat) (index : Fin (2 * width.size + 2)) :
         omega
 
 /-- The selector reads the complete actual finite length values and original phase fields. -/
-theorem sourceBit_get (width : Nat) (index : Fin (2 * width.size + 2))
+lemma sourceBit_get (width : Nat) (index : Fin (2 * width.size + 2))
     (state : Registers width) :
     (sourceBit width index).get state =
       if index.val < width.size then state.coefficientLength.getMsbD index.val
@@ -82,7 +82,7 @@ theorem sourceBit_get (width : Nat) (index : Fin (2 * width.size + 2))
     · exact quotientLengthBit_get width _ state
     · split <;> rfl
 
-private theorem source_injective (width : Nat) :
+private lemma source_injective (width : Nat) :
     Function.Injective (fun index : Fin (2 * width.size + 2) => (sourceBit width index).wire) := by
   intro left right same
   apply Fin.ext
@@ -93,7 +93,7 @@ private theorem source_injective (width : Nat) :
   split_ifs at values <;> omega
 
 /-- The required arbitrary-work chain fits inside the original Work2 without new systems. -/
-theorem work_capacity (width : Nat) : 2 * width.size ≤ width + 3 := by
+lemma work_capacity (width : Nat) : 2 * width.size ≤ width + 3 := by
   have original := PredicateLayout.pair_work_capacity width
   omega
 
@@ -117,17 +117,17 @@ def layout (width : Nat) : Word.ZeroTestLayout (encoding := encoding width) (2 *
       split_ifs <;> omega)
 
 /-- The native layout's source is exactly the declared two-length/two-phase readout. -/
-theorem layout_source_get (width : Nat) (index : Fin (2 * width.size + 2))
+lemma layout_source_get (width : Nat) (index : Fin (2 * width.size + 2))
     (state : Registers width) :
     ((layout width).source.bit index).get state = (sourceBit width index).get state := rfl
 
 /-- Every arbitrary work position is an actual original Work2 position. -/
-theorem layout_work_get (width : Nat) (index : Fin (2 * width.size)) (state : Registers width) :
+lemma layout_work_get (width : Nat) (index : Fin (2 * width.size)) (state : Registers width) :
     ((layout width).work.bit index).get state = state.secondWord.getMsbD index.val :=
   PredicateLayout.workBit_get width _ (work_capacity width) index state
 
 /-- The xor output is the existing Ctrl field and introduces no additional register. -/
-theorem layout_output_get (width : Nat) (state : Registers width) :
+lemma layout_output_get (width : Nat) (state : Registers width) :
     (layout width).output.get state = state.control := rfl
 
 end

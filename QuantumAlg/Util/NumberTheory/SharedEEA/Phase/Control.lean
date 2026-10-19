@@ -55,7 +55,7 @@ def rewind (quotientEmpty divisorActive shiftZero : Bool) (flags : Flags) : Flag
     if quotientEmpty && shiftZero then !flags.iteration else flags.iteration⟩
 
 /-- The actual sequential control update retains enough information for its exact inverse. -/
-theorem rewind_update (quotientEmpty divisorActive shiftZero : Bool) (flags : Flags) :
+lemma rewind_update (quotientEmpty divisorActive shiftZero : Bool) (flags : Flags) :
     rewind quotientEmpty divisorActive shiftZero
       (update quotientEmpty divisorActive shiftZero flags) = flags := by
   rcases flags with ⟨first, second, sign, iteration⟩
@@ -63,7 +63,7 @@ theorem rewind_update (quotientEmpty divisorActive shiftZero : Bool) (flags : Fl
     cases first <;> cases second <;> cases sign <;> cases iteration <;> decide
 
 /-- The reverse assignments restore arbitrary updated control states in the other direction. -/
-theorem update_rewind (quotientEmpty divisorActive shiftZero : Bool) (flags : Flags) :
+lemma update_rewind (quotientEmpty divisorActive shiftZero : Bool) (flags : Flags) :
     update quotientEmpty divisorActive shiftZero
       (rewind quotientEmpty divisorActive shiftZero flags) = flags := by
   rcases flags with ⟨first, second, sign, iteration⟩
@@ -71,7 +71,7 @@ theorem update_rewind (quotientEmpty divisorActive shiftZero : Bool) (flags : Fl
     cases first <;> cases second <;> cases sign <;> cases iteration <;> decide
 
 /-- No sign or phase information is discarded by the actual control assignments. -/
-theorem update_injective (quotientEmpty divisorActive shiftZero : Bool) :
+lemma update_injective (quotientEmpty divisorActive shiftZero : Bool) :
     Function.Injective (update quotientEmpty divisorActive shiftZero) := by
   intro left right same
   calc
@@ -84,37 +84,37 @@ theorem update_injective (quotientEmpty divisorActive shiftZero : Bool) :
     _ = right := rewind_update quotientEmpty divisorActive shiftZero right
 
 /-- The actual alignment comparison selects continued alignment or division and clears its sign. -/
-theorem alignment_transition (comparison iteration : Bool) :
+lemma alignment_transition (comparison iteration : Bool) :
     update true true false ⟨false, false, comparison, iteration⟩ =
       ⟨false, comparison, false, iteration⟩ := by
   cases comparison <;> cases iteration <;> decide
 
 /-- A genuine internal division step preserves its phase and cleared arithmetic sign. -/
-theorem division_transition (iteration : Bool) :
+lemma division_transition (iteration : Bool) :
     update false true false ⟨false, true, false, iteration⟩ =
       ⟨false, true, false, iteration⟩ := by
   cases iteration <;> decide
 
 /-- Zero remaining shift moves completed quotient extraction into coefficient extraction. -/
-theorem division_finish (iteration : Bool) :
+lemma division_finish (iteration : Bool) :
     update false true true ⟨false, true, false, iteration⟩ =
       ⟨true, false, false, iteration⟩ := by
   cases iteration <;> decide
 
 /-- A genuine internal coefficient step preserves its phase and cleared arithmetic sign. -/
-theorem coefficient_transition (iteration : Bool) :
+lemma coefficient_transition (iteration : Bool) :
     update false true false ⟨true, false, false, iteration⟩ =
       ⟨true, false, false, iteration⟩ := by
   cases iteration <;> decide
 
 /-- Exhausting the quotient enters phase four with the source's actual sign bit equal to one. -/
-theorem coefficient_finish (iteration : Bool) :
+lemma coefficient_finish (iteration : Bool) :
     update true true false ⟨true, false, false, iteration⟩ =
       ⟨true, true, true, iteration⟩ := by
   cases iteration <;> decide
 
 /-- Each fourth-phase comparison reaches sign one before this update, which then clears it. -/
-theorem deshift_transition (shiftZero iteration : Bool) :
+lemma deshift_transition (shiftZero iteration : Bool) :
     update true true shiftZero ⟨true, true, true, iteration⟩ =
       ⟨!shiftZero, !shiftZero, false, if shiftZero then !iteration else iteration⟩ := by
   cases shiftZero <;> cases iteration <;> decide

@@ -32,7 +32,7 @@ def fieldWords {p : Nat} {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
   (fieldWord P.x, fieldWord P.y)
 
 /-- On its original active domain the independent word step is the affine selected update. -/
-theorem wordStep_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma wordStep_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (control : Bool) (P : AffinePoint E)
     (allowed : control = true → P ≠ Q ∧ P ≠ AffinePoint.negate Q) :
     wordStep E Q (BinaryLabelEncoding.bool.encode control) (fieldWords P) =
@@ -51,7 +51,7 @@ theorem wordStep_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p
       rfl
 
 /-- Every admissible original affine path establishes the actual word trajectory condition. -/
-theorem wordTrajectory_of_affine {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma wordTrajectory_of_affine {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (order : List (Fin count)) (initial : AffinePoint E)
     (allowed : AffineTrajectory.admissible E points controls order initial) :
@@ -69,7 +69,7 @@ theorem wordTrajectory_of_affine {p : Nat} (E : PrimeFieldShortWeierstrass p) [F
         exact ih _ allowed.2
 
 /-- The ordered word fold is exactly the independent affine path in ordinary coordinates. -/
-theorem wordFold_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma wordFold_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (order : List (Fin count)) (initial : AffinePoint E)
     (allowed : AffineTrajectory.admissible E points controls order initial) :
@@ -85,7 +85,7 @@ theorem wordFold_fieldWords {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p
       exact ih _ allowed.2
 
 /-- Original affine admissibility suffices for the complete initialized input condition. -/
-theorem inputTrajectory_of_affine {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma inputTrajectory_of_affine {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (exponent : (exponents p.size count).register.Index)
     (encoded : rangeBasis p.size count exponent =

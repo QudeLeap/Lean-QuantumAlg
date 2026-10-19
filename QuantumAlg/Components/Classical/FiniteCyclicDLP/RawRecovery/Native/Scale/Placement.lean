@@ -109,7 +109,7 @@ def leaveScale (store : Store (scaleCtx ctx width)) : Store ctx :=
 
 end Placement
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original denominator loading: one increment and exactly the raw width's shifts. -/
@@ -126,14 +126,14 @@ def scaleSeedStep (denominator : CWriteRef ctx (.unsignedWord (width + 1))) (sto
   (shifted.1, (first.2, shifted.2))
 
 /-- The real loader preserves the persistent service and all quantum-reference blocks. -/
-theorem scaleSeed_execute (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+lemma scaleSeed_execute (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scaleSeed (model := model) denominator).execute Reference state =
+    (scaleSeed (model := model) denominator).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := scaleSeedStep (model := model) denominator entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (Word.PowerOfTwo.incrementOp denominator))
     (Word.PowerOfTwo.shiftInto (model := model) width denominator)
     (fun before =>
@@ -144,7 +144,8 @@ theorem scaleSeed_execute (denominator : CWriteRef ctx (.unsignedWord (width + 1
       let result := Word.PowerOfTwo.shiftStep (model := model) width denominator before.1
       ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ initial
-    exact (BitWord.bitWord_instruction_execute (execution := model)
+    exact (BitWord.bitWord_instruction_execute (environment := environment)
+      (execution := model)
       (Word.PowerOfTwo.incrementOp denominator) initial).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ initial
@@ -153,7 +154,7 @@ theorem scaleSeed_execute (denominator : CWriteRef ctx (.unsignedWord (width + 1
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Scope initialization supplies this local zero premise; no old caller cell is constrained. -/
-theorem scaleSeed_zero_value (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+lemma scaleSeed_zero_value (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (store : Store ctx) (initial : (store.read (scaleRead denominator)).toNat = 0) :
     ((scaleSeedStep (model := model) denominator store).1.read (scaleRead denominator)).toNat =
       2 ^ width := by
@@ -173,7 +174,7 @@ theorem scaleSeed_zero_value (denominator : CWriteRef ctx (.unsignedWord (width 
     increment).trans (by rw [Nat.one_mul, Nat.mod_eq_of_lt capacity]))
 
 /-- Loading the denominator preserves every structural read outside that actual scratch cell. -/
-theorem scaleSeed_read_other (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
+lemma scaleSeed_read_other (denominator : CWriteRef ctx (.unsignedWord (width + 1)))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (separate : denominator.key ∉ other.storageKeys) :
     (scaleSeedStep (model := model) denominator store).1.read other = store.read other :=

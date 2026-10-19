@@ -32,7 +32,7 @@ noncomputable section
 
 open EncodedBit LengthCoordinates
 
-private theorem control_source_ne (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma control_source_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (index : Fin (width.size + region width field key)) :
     (controlBit width).wire ≠ (sourceBit width field key firstWord index).wire := by
   intro same
@@ -46,7 +46,7 @@ private theorem control_source_ne (width : Nat) (field : Field) (key : BitVec wi
       ⟨index.val - width.size, by have within := index.isLt; omega⟩
     omega
 
-private theorem control_output_ne (width : Nat) (field : Field) (output : Fin width.size) :
+private lemma control_output_ne (width : Nat) (field : Field) (output : Fin width.size) :
     (controlBit width).wire ≠ (outputBit width field output).wire := by
   intro same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -54,7 +54,7 @@ private theorem control_output_ne (width : Nat) (field : Field) (output : Fin wi
   cases field <;> simp only [outputBit, coefficientLengthBit_wire,
     divisorLengthBit_wire, controlBit_wire] at values <;> omega
 
-private theorem control_work_ne (width : Nat) :
+private lemma control_work_ne (width : Nat) :
     (controlBit width).wire ≠ (iterationBit width).wire := by
   intro same
   have values := congrArg (fun index : Fin (encoding width).width => index.val) same
@@ -62,7 +62,7 @@ private theorem control_work_ne (width : Nat) :
   omega
 
 /-- The candidate's real existing prefix sources are physically separate from original Ctrl. -/
-theorem leading_source_ne (width : Nat) (field : Field) (key : BitVec width.size)
+lemma leading_source_ne (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (output : Fin width.size)
     (index : Fin (width.size + (position.val + 1))) :
     (controlBit width).wire ≠
@@ -79,7 +79,7 @@ def gates (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : B
     (Word.OneDirtyLayout.leadingPattern position (fun index => key.getMsbD index.val))
 
 /-- Actual complete-frame execution tests retained Ctrl and the true current leading-one value. -/
-theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width field key firstWord position output) state =
@@ -99,7 +99,7 @@ theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firs
     LengthPredicate.leading_iff, selectedOutput] using actual
 
 /-- The same actual candidate is the retained-control refinement of the existing length writer. -/
-theorem gates_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step_if (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     GateSpec.stepList (gates width field key firstWord position output) state =
@@ -109,7 +109,7 @@ theorem gates_step_if (width : Nat) (field : Field) (key : BitVec width.size) (f
   rw [gates_step, LengthPredicate.gates_step]
 
 /-- Each original candidate preserves the selecting Ctrl, even when its length target changes. -/
-theorem original_control (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma original_control (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     (GateSpec.stepList (LengthPredicate.gates width field key firstWord position output)
@@ -121,7 +121,7 @@ theorem original_control (width : Nat) (field : Field) (key : BitVec width.size)
   · rfl
 
 /-- Original arbitrary Iter is restored by every emitted controlled candidate. -/
-theorem gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size)
     (state : Registers width) :
     (GateSpec.stepList (gates width field key firstWord position output) state).flags.iteration =
@@ -132,7 +132,7 @@ theorem gates_iteration (width : Nat) (field : Field) (key : BitVec width.size) 
     (Word.OneDirtyLayout.leadingPattern position (fun index => key.getMsbD index.val)) state
 
 /-- Count every actual source bit, including Ctrl, both masks, and dirty Iter cleanup. -/
-theorem gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     (gates width field key firstWord position output).length ≤
       10 * (width.size + (position.val + 1) + 1) + 1 :=
@@ -143,7 +143,7 @@ theorem gates_length_le (width : Nat) (field : Field) (key : BitVec width.size) 
     (Word.OneDirtyLayout.leadingPattern position (fun index => key.getMsbD index.val))
 
 /-- Actual unit depth is the emitted candidate's elementary length. -/
-theorem gates_unitDepth (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_unitDepth (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (position : Fin (region width field key)) (output : Fin width.size) :
     (GateSpec.programList (QubitLayout.canonical _) .empty
       (gates width field key firstWord position output)).evaluatedEventDepth

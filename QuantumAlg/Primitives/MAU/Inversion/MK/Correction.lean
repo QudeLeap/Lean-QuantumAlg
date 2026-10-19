@@ -29,6 +29,8 @@ namespace Correction
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open MK.Circuit
 open Nat.FixedWidth
@@ -104,7 +106,7 @@ def runtimePseudoResidueWord (tail counterWidth : Nat)
   ((MK.Circuit.dataRegisters
       tail counterWidth fixed).rCoeff.val : Nat)
 
-@[simp] theorem runtimePseudoResidueWord_val
+@[simp] lemma runtimePseudoResidueWord_val
     (tail counterWidth : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth) :
@@ -172,7 +174,7 @@ def liftTargetBit (tail counterWidth : Nat)
 /-- A bit in the left product slice is separated from every bit in the right
 slice.  Keeping this lemma shallow avoids unfolding either component's
 encoding when closing disjointness obligations. -/
-private theorem prodLeftBit_prodRightBit_wire_ne
+private lemma prodLeftBit_prodRightBit_wire_ne
     {Left Right : Type} (left : BinaryLabelEncoding Left)
     (right : BinaryLabelEncoding Right)
     (leftBit : EncodedBit left) (rightBit : EncodedBit right) :
@@ -188,7 +190,7 @@ private theorem prodLeftBit_prodRightBit_wire_ne
   omega
 
 /-- Lifting two separated right-product bits preserves their separation. -/
-private theorem prodRightBit_wire_ne
+private lemma prodRightBit_wire_ne
     {Left Right : Type} (left : BinaryLabelEncoding Left)
     (right : BinaryLabelEncoding Right)
     {first second : EncodedBit right}
@@ -205,7 +207,7 @@ private theorem prodRightBit_wire_ne
 
 /-- Lifting two separated fixed-register bits through the two enclosing left
 products preserves their separation. -/
-private theorem liftFixedBit_wire_ne
+private lemma liftFixedBit_wire_ne
     (tail counterWidth : Nat)
     {first second : EncodedBit
       (MK.Circuit.encoding tail.succ counterWidth)}
@@ -217,7 +219,7 @@ private theorem liftFixedBit_wire_ne
       (MAU.Multiplication.VBECircuit.encoding tail.succ) hne)
 
 /-- The internal Kaliski coefficient-state lift preserves distinct wires. -/
-private theorem liftMKCoeffStateBit_wire_ne
+private lemma liftMKCoeffStateBit_wire_ne
     (tail counterWidth : Nat)
     {first second : EncodedBit
       (registersWithCoeffAdderWorkEncoding tail.succ counterWidth)}
@@ -235,7 +237,7 @@ private theorem liftMKCoeffStateBit_wire_ne
 
 /-- Lifting two separated VBE-workspace bits through the enclosing products
 preserves their separation. -/
-private theorem liftWorkBit_wire_ne
+private lemma liftWorkBit_wire_ne
     (tail counterWidth : Nat)
     {first second : EncodedBit
       (MAU.Multiplication.VBECircuit.encoding tail.succ)}
@@ -249,7 +251,7 @@ private theorem liftWorkBit_wire_ne
 
 /-- Lifting two separated public-target bits through the outer right product
 preserves their separation. -/
-private theorem liftTargetBit_wire_ne
+private lemma liftTargetBit_wire_ne
     (tail counterWidth : Nat)
     {first second : EncodedBit (wordEncoding tail.succ)}
     (hne : first.wire ≠ second.wire) :
@@ -327,7 +329,7 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
   liftFixedBit tail counterWidth
     (MK.Circuit.workingControlBit tail counterWidth)
 
-@[simp] theorem pseudoResidueWord_get
+@[simp] lemma pseudoResidueWord_get
     (tail counterWidth : Nat) (bit : Fin (tail.succ + 1))
     (x : Registers tail counterWidth) :
     ((pseudoResidueWord tail counterWidth).bit bit).get x =
@@ -339,7 +341,7 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
   exact coeffAdderRCoeffValueWord_get_testBit
     tail.succ counterWidth bit x.1.1.1.1.1.1
 
-@[simp] theorem paddingCounterBit_get
+@[simp] lemma paddingCounterBit_get
     (tail counterWidth : Nat) (bit : Fin counterWidth)
     (x : Registers tail counterWidth) :
     (paddingCounterBit tail counterWidth bit).get x =
@@ -351,12 +353,12 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
   exact coeffAdderCounterValueBit_get
     tail.succ counterWidth bit x.1.1.1.1.1.1
 
-@[simp] theorem correctionControlWorkBit_get
+@[simp] lemma correctionControlWorkBit_get
     (tail counterWidth : Nat) (x : Registers tail counterWidth) :
     (correctionControlWorkBit tail counterWidth).get x = x.1.1.1.2 := by
   rfl
 
-@[simp] theorem reductionTargetLowWord_get
+@[simp] lemma reductionTargetLowWord_get
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail counterWidth) :
     ((reductionTargetLowWord tail counterWidth).bit bit).get x =
@@ -369,7 +371,7 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
   exact MAU.Multiplication.Accumulate.VBECircuit.targetBit_get
     tail.succ _ x.1.2
 
-@[simp] theorem correctionValueWord_get
+@[simp] lemma correctionValueWord_get
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail counterWidth) :
     ((correctionValueWord tail counterWidth).bit bit).get x =
@@ -380,7 +382,7 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
   exact MAU.Multiplication.Accumulate.VBECircuit.multiplicandBit_get
     tail.succ bit x.1.2
 
-@[simp] theorem targetAddSourceLowWord_get
+@[simp] lemma targetAddSourceLowWord_get
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail counterWidth) :
     ((targetAddSourceLowWord tail counterWidth).bit bit).get x =
@@ -393,7 +395,7 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
   exact MAU.Multiplication.Accumulate.VBECircuit.activeSourceBit_get
     tail.succ _ x.1.2
 
-@[simp] theorem publicTargetWord_get
+@[simp] lemma publicTargetWord_get
     (tail counterWidth : Nat) (bit : Fin tail.succ)
     (x : Registers tail counterWidth) :
     ((publicTargetWord tail counterWidth).bit bit).get x =
@@ -405,7 +407,7 @@ def correctionControlWorkBit (tail counterWidth : Nat) :
 
 /-! ## Cross-register copies and program lifting -/
 
-theorem pseudoResidue_reductionTarget_ne
+lemma pseudoResidue_reductionTarget_ne
     (tail counterWidth : Nat) :
     ∀ bit,
       ((pseudoResidueWord tail counterWidth).bit bit).wire ≠
@@ -422,7 +424,7 @@ theorem pseudoResidue_reductionTarget_ne
   simpa only [pseudoResidueWord, reductionTargetWord, liftFixedBit,
     liftWorkBit, encoding] using houter
 
-theorem pseudoResidue_reductionTarget_cross_ne
+lemma pseudoResidue_reductionTarget_cross_ne
     (tail counterWidth : Nat) :
     ∀ sourceBit targetBit,
       ((pseudoResidueWord tail counterWidth).bit sourceBit).wire ≠
@@ -439,7 +441,7 @@ theorem pseudoResidue_reductionTarget_cross_ne
   simpa only [pseudoResidueWord, reductionTargetWord, liftFixedBit,
     liftWorkBit, encoding] using houter
 
-theorem reductionTarget_pairwise_ne (tail counterWidth : Nat) :
+lemma reductionTarget_pairwise_ne (tail counterWidth : Nat) :
     ∀ i j, i ≠ j ->
       ((reductionTargetWord tail counterWidth).bit i).wire ≠
         ((reductionTargetWord tail counterWidth).bit j).wire := by
@@ -455,7 +457,7 @@ theorem reductionTarget_pairwise_ne (tail counterWidth : Nat) :
   simp only [MAU.Addition.VBECircuit.targetBit_wire_val] at hv
   omega
 
-theorem reductionTargetLow_correctionValue_ne
+lemma reductionTargetLow_correctionValue_ne
     (tail counterWidth : Nat) :
     ∀ bit,
       ((reductionTargetLowWord tail counterWidth).bit bit).wire ≠
@@ -483,7 +485,7 @@ theorem reductionTargetLow_correctionValue_ne
   simpa only [reductionTargetLowWord, correctionValueWord, liftWorkBit,
     encoding, targetIndex] using houter
 
-theorem reductionTargetLow_correctionValue_cross_ne
+lemma reductionTargetLow_correctionValue_cross_ne
     (tail counterWidth : Nat) :
     ∀ targetBit valueBit,
       ((reductionTargetLowWord tail counterWidth).bit targetBit).wire ≠
@@ -505,7 +507,7 @@ theorem reductionTargetLow_correctionValue_cross_ne
         (MAU.Addition.VBECircuit.targetBit tail.succ targetIndex))
   exact liftWorkBit_wire_ne tail counterWidth hworkspace
 
-theorem correctionValue_targetAddSourceLow_ne
+lemma correctionValue_targetAddSourceLow_ne
     (tail counterWidth : Nat) :
     ∀ bit,
       ((correctionValueWord tail counterWidth).bit bit).wire ≠
@@ -533,7 +535,7 @@ theorem correctionValue_targetAddSourceLow_ne
   simpa only [correctionValueWord, targetAddSourceLowWord, liftWorkBit,
     encoding, sourceIndex] using houter
 
-theorem correctionValue_targetAddSourceLow_cross_ne
+lemma correctionValue_targetAddSourceLow_cross_ne
     (tail counterWidth : Nat) :
     ∀ valueBit sourceBit,
       ((correctionValueWord tail counterWidth).bit valueBit).wire ≠
@@ -554,7 +556,7 @@ theorem correctionValue_targetAddSourceLow_cross_ne
       (MAU.Addition.VBECircuit.activeSourceBit tail.succ sourceIndex)
   exact liftWorkBit_wire_ne tail counterWidth hworkspace
 
-theorem publicTarget_reductionTargetLow_ne
+lemma publicTarget_reductionTargetLow_ne
     (tail counterWidth : Nat) :
     ∀ bit,
       ((publicTargetWord tail counterWidth).bit bit).wire ≠
@@ -580,7 +582,7 @@ theorem publicTarget_reductionTargetLow_ne
   simpa only [publicTargetWord, reductionTargetLowWord, liftTargetBit,
     liftWorkBit, encoding, targetIndex, workBit] using Ne.symm houter
 
-theorem publicTarget_reductionTargetLow_cross_ne
+lemma publicTarget_reductionTargetLow_cross_ne
     (tail counterWidth : Nat) :
     ∀ publicBit workBit,
       ((publicTargetWord tail counterWidth).bit publicBit).wire ≠
@@ -605,7 +607,7 @@ theorem publicTarget_reductionTargetLow_cross_ne
   simpa only [publicTargetWord, reductionTargetLowWord, liftTargetBit,
     liftWorkBit, encoding, targetIndex, innerWorkBit] using Ne.symm houter
 
-theorem publicTarget_reductionTargetHigh_ne
+lemma publicTarget_reductionTargetHigh_ne
     (tail counterWidth : Nat) :
     ∀ publicBit,
       ((publicTargetWord tail counterWidth).bit publicBit).wire ≠
@@ -628,7 +630,7 @@ theorem publicTarget_reductionTargetHigh_ne
     liftWorkBit, encoding, innerWorkBit,
     MAU.Multiplication.Accumulate.VBECircuit.targetWord] using Ne.symm houter
 
-theorem reductionTargetLow_reductionTargetHigh_ne
+lemma reductionTargetLow_reductionTargetHigh_ne
     (tail counterWidth : Nat) :
     ∀ lowBit,
       ((reductionTargetLowWord tail counterWidth).bit lowBit).wire ≠
@@ -648,7 +650,7 @@ theorem reductionTargetLow_reductionTargetHigh_ne
     reductionTarget_pairwise_ne tail counterWidth lowIndex
       (Fin.last tail.succ) hne
 
-theorem pseudoResidue_pairwise_ne (tail counterWidth : Nat) :
+lemma pseudoResidue_pairwise_ne (tail counterWidth : Nat) :
     ∀ i j, i ≠ j ->
       ((pseudoResidueWord tail counterWidth).bit i).wire ≠
         ((pseudoResidueWord tail counterWidth).bit j).wire := by
@@ -658,7 +660,7 @@ theorem pseudoResidue_pairwise_ne (tail counterWidth : Nat) :
     (coeffAdderRCoeffValueWordBit_coeffAdderRCoeffValueWordBit_wire_ne
       tail.succ counterWidth i j hij)
 
-theorem reductionTargetLow_pairwise_ne (tail counterWidth : Nat) :
+lemma reductionTargetLow_pairwise_ne (tail counterWidth : Nat) :
     ∀ i j, i ≠ j ->
       ((reductionTargetLowWord tail counterWidth).bit i).wire ≠
         ((reductionTargetLowWord tail counterWidth).bit j).wire := by
@@ -670,7 +672,7 @@ theorem reductionTargetLow_pairwise_ne (tail counterWidth : Nat) :
       MAU.Multiplication.VBECircuit.accumulator_pairwise_ne
         tail.succ i j hij
 
-theorem correctionValue_pairwise_ne (tail counterWidth : Nat) :
+lemma correctionValue_pairwise_ne (tail counterWidth : Nat) :
     ∀ i j, i ≠ j ->
       ((correctionValueWord tail counterWidth).bit i).wire ≠
         ((correctionValueWord tail counterWidth).bit j).wire := by
@@ -679,7 +681,7 @@ theorem correctionValue_pairwise_ne (tail counterWidth : Nat) :
     (MAU.Multiplication.VBECircuit.multiplicand_pairwise_ne
       tail.succ i j hij)
 
-theorem targetAddSourceLow_pairwise_ne (tail counterWidth : Nat) :
+lemma targetAddSourceLow_pairwise_ne (tail counterWidth : Nat) :
     ∀ i j, i ≠ j ->
       ((targetAddSourceLowWord tail counterWidth).bit i).wire ≠
         ((targetAddSourceLowWord tail counterWidth).bit j).wire := by
@@ -704,7 +706,7 @@ theorem targetAddSourceLow_pairwise_ne (tail counterWidth : Nat) :
     MAU.Multiplication.Accumulate.VBECircuit.activeSource_pairwise_ne
       tail.succ i' j' hij'
 
-theorem targetAddSourceLow_targetAddSourceHigh_ne
+lemma targetAddSourceLow_targetAddSourceHigh_ne
     (tail counterWidth : Nat) :
     ∀ lowBit,
       ((targetAddSourceLowWord tail counterWidth).bit lowBit).wire ≠
@@ -725,7 +727,7 @@ theorem targetAddSourceLow_targetAddSourceHigh_ne
     MAU.Multiplication.Accumulate.VBECircuit.activeSource_pairwise_ne
       tail.succ lowIndex (Fin.last tail.succ) hne
 
-theorem publicTarget_pairwise_ne (tail counterWidth : Nat) :
+lemma publicTarget_pairwise_ne (tail counterWidth : Nat) :
     ∀ i j, i ≠ j ->
       ((publicTargetWord tail counterWidth).bit i).wire ≠
         ((publicTargetWord tail counterWidth).bit j).wire := by
@@ -739,7 +741,7 @@ theorem publicTarget_pairwise_ne (tail counterWidth : Nat) :
 /-- A word-xor fold preserves any projection preserved by every target-bit
 flip.  This packages the unchanged-register side conditions used by the two
 cross-register copies below. -/
-private theorem xorIntoStep_preserves_projection
+private lemma xorIntoStep_preserves_projection
     {Data Projection : Type} {wordWidth : Nat}
     {dataEncoding : BinaryLabelEncoding Data}
     (source target : EncodedBit.Word dataEncoding wordWidth)
@@ -757,7 +759,7 @@ private theorem xorIntoStep_preserves_projection
 
 /-- A word-swap fold preserves a projection preserved by flips in both swapped
 words. -/
-private theorem swapStep_preserves_projection
+private lemma swapStep_preserves_projection
     {Data Projection : Type} {wordWidth : Nat}
     {dataEncoding : BinaryLabelEncoding Data}
     (left right : EncodedBit.Word dataEncoding wordWidth)
@@ -828,7 +830,7 @@ def liftFixedGates (tail counterWidth : Nat)
     (EncodedBit.GateSpec.prodLeft (wordEncoding tail.succ))
 
 /-- Lifting the complete fixed-round payload preserves its folded action. -/
-private theorem liftFixedGates_stepList (tail counterWidth : Nat)
+private lemma liftFixedGates_stepList (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MK.Circuit.encoding tail.succ counterWidth)))
     (x : Registers tail counterWidth) :
@@ -856,7 +858,7 @@ def liftWorkGates (tail counterWidth : Nat)
 
 /-- Lifting the complete VBE payload gate list has exactly the lifted VBE
 semantic action; no payload segment is selected or omitted. -/
-private theorem liftWorkGates_stepList (tail counterWidth : Nat)
+private lemma liftWorkGates_stepList (tail counterWidth : Nat)
     (gates : List (EncodedBit.GateSpec
       (MAU.Multiplication.VBECircuit.encoding tail.succ)))
     (x : Registers tail counterWidth) :
@@ -888,7 +890,7 @@ def liftedWorkModularAddStep (tail counterWidth p : Nat) :
 
 /-- The lifted VBE modular-add payload agrees with the established workspace
 semantic action. -/
-theorem liftedWorkModularAddStep_eq_liftWorkStep
+lemma liftedWorkModularAddStep_eq_liftWorkStep
     (tail counterWidth p : Nat) (x : Registers tail counterWidth) :
     liftedWorkModularAddStep tail counterWidth p x =
       liftWorkStep tail counterWidth
@@ -911,16 +913,16 @@ theorem liftedWorkModularAddStep_eq_liftWorkStep
       tail.succ p x.1.2)
 
 /-- Realization transport for a fixed-register actual circuit. -/
-theorem liftFixed_realizes (tail counterWidth : Nat)
+lemma liftFixed_realizes (tail counterWidth : Nat)
     {program : UnitaryCircuit AlgorithmGate.model .empty
         (QubitLayout.canonical
           (MK.Circuit.encoding tail.succ counterWidth).width).toQuantum}
     {step : MK.Circuit.RegistersWithRouteHistory tail.succ counterWidth ->
       MK.Circuit.RegistersWithRouteHistory tail.succ counterWidth}
     (h : UnitaryCircuit.Realizes (MK.Circuit.encoding tail.succ counterWidth)
-      program step) :
+      program environment step) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (liftFixedProgram tail counterWidth program)
+      (liftFixedProgram tail counterWidth program) environment
       (liftFixedStep tail counterWidth step) :=
   UnitaryCircuit.Realizes.onBinaryPrefix
     (right := wordEncoding tail.succ)
@@ -928,16 +930,16 @@ theorem liftFixed_realizes (tail counterWidth : Nat)
       (right := MAU.Multiplication.VBECircuit.encoding tail.succ) h)
 
 /-- Realization transport for a VBE-workspace actual circuit. -/
-theorem liftWork_realizes (tail counterWidth : Nat)
+lemma liftWork_realizes (tail counterWidth : Nat)
     {program : UnitaryCircuit AlgorithmGate.model .empty
         (QubitLayout.canonical
           (MAU.Multiplication.VBECircuit.encoding tail.succ).width).toQuantum}
     {step : MAU.Multiplication.VBECircuit.Registers tail.succ ->
       MAU.Multiplication.VBECircuit.Registers tail.succ}
     (h : UnitaryCircuit.Realizes
-      (MAU.Multiplication.VBECircuit.encoding tail.succ) program step) :
+      (MAU.Multiplication.VBECircuit.encoding tail.succ) program environment step) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (liftWorkProgram tail counterWidth program)
+      (liftWorkProgram tail counterWidth program) environment
       (liftWorkStep tail counterWidth step) :=
   UnitaryCircuit.Realizes.onBinaryPrefix
     (right := wordEncoding tail.succ)
@@ -971,7 +973,7 @@ def fixedComputeStep (tail counterWidth : Nat)
     (fixedComputeGates tail counterWidth comparisonIndex workIndex)
 
 /-- The lifted fixed-round gate list agrees with the established fold action. -/
-theorem fixedComputeStep_eq_liftFixedStep
+lemma fixedComputeStep_eq_liftFixedStep
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -993,13 +995,13 @@ theorem fixedComputeStep_eq_liftFixedStep
       tail counterWidth comparisonIndex workIndex x.1.1)
 
 /-- The fixed-round actual circuit realizes its complete gate list. -/
-theorem fixedCompute_realizes (tail counterWidth : Nat)
+lemma fixedCompute_realizes (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1)) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (fixedComputeProgram tail counterWidth comparisonIndex workIndex)
+      (fixedComputeProgram tail counterWidth comparisonIndex workIndex) environment
       (fixedComputeStep tail counterWidth comparisonIndex workIndex) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (fixedComputeGates tail counterWidth comparisonIndex workIndex)
 
 /-- The lifted fixed-round program reaches one physical clean endpoint that
@@ -1007,7 +1009,7 @@ is independent of the shared VBE workspace and public target.  The endpoint
 retains both the physical prefix invariant and its exact source-state
 readout, so the correction ledger can consume the runtime registers and then
 reverse this same compute program. -/
-theorem fixedComputeProgram_cleanEndpoint
+lemma fixedComputeProgram_cleanEndpoint
     (tail counterWidth : Nat)
     (comparisonIndex : Fin tail.succ)
     (workIndex : Fin (counterWidth - 1))
@@ -1056,7 +1058,7 @@ theorem fixedComputeProgram_cleanEndpoint
 
 /-! ## Runtime pseudo-residue reduction -/
 
-private theorem copyPseudoResidueStep_cleanEndpoint
+private lemma copyPseudoResidueStep_cleanEndpoint
     (tail counterWidth p : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth)
@@ -1210,7 +1212,7 @@ private theorem copyPseudoResidueStep_cleanEndpoint
         hactive, htarget, hcarry, hparked, hcarryWork, hflag]
   · exact hpublic
 
-private theorem copyReducedStep_cleanEndpoint
+private lemma copyReducedStep_cleanEndpoint
     (tail counterWidth p : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth)
@@ -1357,17 +1359,17 @@ def rawPseudoResidueLoadStep (tail counterWidth p : Nat) :
     (rawPseudoResidueLoadGates tail counterWidth p)
 
 /-- The actual raw-loader circuit realizes the gate schedule it compiles. -/
-theorem rawPseudoResidueLoad_realizes (tail counterWidth p : Nat) :
+lemma rawPseudoResidueLoad_realizes (tail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (rawPseudoResidueLoadProgram tail counterWidth p)
+      (rawPseudoResidueLoadProgram tail counterWidth p) environment
       (rawPseudoResidueLoadStep tail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (rawPseudoResidueLoadGates tail counterWidth p)
 
 /-- The static raw loader reduces the complete runtime coefficient once,
 copies its canonical residue into correction scratch, and restores the VBE
 arithmetic workspace exactly. -/
-theorem rawPseudoResidueLoadProgram_cleanEndpoint
+lemma rawPseudoResidueLoadProgram_cleanEndpoint
     (tail counterWidth p : Nat)
     (hpPos : 0 < p) (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -1597,7 +1599,7 @@ def liftedUnitMultiplicationStep
 
 /-- The lifted multiplication gate schedule agrees with the established
 workspace action. -/
-theorem liftedUnitMultiplicationStep_eq_liftWorkStep
+lemma liftedUnitMultiplicationStep_eq_liftWorkStep
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ)
     (x : Registers tail counterWidth) :
     liftedUnitMultiplicationStep tail counterWidth p unit x =
@@ -1620,17 +1622,17 @@ theorem liftedUnitMultiplicationStep_eq_liftWorkStep
       tail.succ p unit x.1.2)
 
 /-- The lifted actual multiplication circuit realizes its complete gate list. -/
-theorem liftedUnitMultiplication_realizes
+lemma liftedUnitMultiplication_realizes
     (tail counterWidth p : Nat) (unit : (ZMod p)ˣ) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (liftedUnitMultiplicationProgram tail counterWidth p unit)
+      (liftedUnitMultiplicationProgram tail counterWidth p unit) environment
       (liftedUnitMultiplicationStep tail counterWidth p unit) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (liftedUnitMultiplicationGates tail counterWidth p unit)
 
 /-- A lifted unit-multiplication payload updates only the correction value and
 returns the complete shared VBE workspace clean. -/
-theorem liftedUnitMultiplicationProgram_cleanEndpoint
+lemma liftedUnitMultiplicationProgram_cleanEndpoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ) (unit : (ZMod p)ˣ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -1666,7 +1668,7 @@ theorem liftedUnitMultiplicationProgram_cleanEndpoint
 
 /-- Every gate in a lifted complete VBE payload is disjoint from every
 fixed-round bit. -/
-theorem liftWorkGates_bitDisjoint_liftFixedBit
+lemma liftWorkGates_bitDisjoint_liftFixedBit
     (tail counterWidth : Nat)
     (fixedBit : EncodedBit
       (MK.Circuit.encoding tail.succ counterWidth))
@@ -1703,7 +1705,7 @@ theorem liftWorkGates_bitDisjoint_liftFixedBit
       (MAU.Multiplication.VBECircuit.encoding tail.succ)
       fixedBit sourceGate)
 
-theorem paddingCounter_controlWork_ne
+lemma paddingCounter_controlWork_ne
     (tail counterWidth : Nat) (bit : Fin counterWidth) :
     (paddingCounterBit tail counterWidth bit).wire ≠
       (correctionControlWorkBit tail counterWidth).wire := by
@@ -1747,7 +1749,7 @@ theorem paddingCounter_controlWork_ne
 
 /-- The shared control-decomposition work bit is clean at every certified
 fixed-round workspace boundary. -/
-theorem correctionControlWorkBit_get_false_of_clean
+lemma correctionControlWorkBit_get_false_of_clean
     (tail counterWidth : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth)
@@ -1766,7 +1768,7 @@ def selectedCounterUnitAt
     (p : Nat) (hpOdd : Odd p) (counter bit : Nat) : (ZMod p)ˣ :=
   if counter.testBit bit then counterBitUnit p hpOdd bit else 1
 
-private theorem selectedCounterUnitAt_eq_pow_selectedBitWeight
+private lemma selectedCounterUnitAt_eq_pow_selectedBitWeight
     (p : Nat) (hpOdd : Odd p) (counter bit : Nat) :
     selectedCounterUnitAt p hpOdd counter bit =
       (twoUnit p hpOdd) ^
@@ -1775,7 +1777,7 @@ private theorem selectedCounterUnitAt_eq_pow_selectedBitWeight
     simp [selectedCounterUnitAt, counterBitUnit,
       Nat.FixedWidth.ModularAccumulate.selectedBitWeight, hbit]
 
-private theorem selectedCounterUnits_prod_eq_pow_selectedLowWeight
+private lemma selectedCounterUnits_prod_eq_pow_selectedLowWeight
     (p : Nat) (hpOdd : Odd p) (counter width : Nat) :
     (List.ofFn fun bit : Fin width =>
       selectedCounterUnitAt p hpOdd counter bit.val).prod =
@@ -1798,7 +1800,7 @@ private theorem selectedCounterUnits_prod_eq_pow_selectedLowWeight
       rw [← pow_add]
       rfl
 
-private theorem selectedCounterUnits_prod_eq_pow
+private lemma selectedCounterUnits_prod_eq_pow
     (p : Nat) (hpOdd : Odd p) (counter width : Nat)
     (hcounter : counter < 2 ^ width) :
     (List.ofFn fun bit : Fin width =>
@@ -1818,7 +1820,7 @@ def counterCorrectionBitPayloadGates
     (MAU.Multiplication.VBECircuit.multiplicationGates tail.succ p
       (counterBitUnit p hpOdd bit.val))
 
-private theorem counterCorrectionBitPayload_stepList
+private lemma counterCorrectionBitPayload_stepList
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) (x : Registers tail counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -1841,7 +1843,7 @@ private theorem counterCorrectionBitPayload_stepList
       tail.succ p (counterBitUnit p hpOdd bit.val) x.1.2)
 
 /-- Every physical counter-control wire is disjoint from its lifted payload. -/
-theorem counterCorrectionBitPayload_controlDisjoint
+lemma counterCorrectionBitPayload_controlDisjoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ∀ gate,
@@ -1857,7 +1859,7 @@ theorem counterCorrectionBitPayload_controlDisjoint
         (counterBitUnit p hpOdd bit.val))
 
 /-- The dedicated clean control-work wire is disjoint from the lifted payload. -/
-theorem counterCorrectionBitPayload_workDisjoint
+lemma counterCorrectionBitPayload_workDisjoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     ∀ gate,
@@ -1914,15 +1916,15 @@ def counterCorrectionBitStep
     (paddingCounter_controlWork_ne tail counterWidth bit)
 
 /-- The exact controlled gate list realizes its semantic action. -/
-theorem counterCorrectionBit_realizes
+lemma counterCorrectionBit_realizes
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bit : Fin counterWidth) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (counterCorrectionBitProgram tail counterWidth p hpOdd bit)
+      (counterCorrectionBitProgram tail counterWidth p hpOdd bit) environment
       (counterCorrectionBitStep tail counterWidth p hpOdd bit) := by
   simpa only [counterCorrectionBitProgram, counterCorrectionBitGates,
     counterCorrectionBitStep] using
-    EncodedBit.GateSpec.controlledListWithWorkWitness
+    EncodedBit.GateSpec.controlledListWithWorkWitness (environment := environment)
       (QubitLayout.canonical _) .empty
       (paddingCounterBit tail counterWidth bit)
       (correctionControlWorkBit tail counterWidth)
@@ -1935,7 +1937,7 @@ theorem counterCorrectionBit_realizes
 
 /-- One physical counter bit either preserves the clean correction boundary or
 applies its statically assigned power-of-two unit. -/
-private theorem counterCorrectionBitProgram_cleanEndpoint
+private lemma counterCorrectionBitProgram_cleanEndpoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -2007,7 +2009,7 @@ private theorem counterCorrectionBitProgram_cleanEndpoint
       tail counterWidth p hpOdd hpBound
       (counterBitUnit p hpOdd bit.val) fixed value target
 
-private theorem counterCorrectionList_cleanEndpoint
+private lemma counterCorrectionList_cleanEndpoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -2067,7 +2069,7 @@ def counterCorrectionGates
 
 /-- Flattening the per-bit controlled payloads preserves their execution
 order and semantic action. -/
-private theorem counterCorrectionGates_stepList
+private lemma counterCorrectionGates_stepList
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (bits : List (Fin counterWidth)) (x : Registers tail counterWidth) :
     EncodedBit.GateSpec.stepList
@@ -2107,17 +2109,17 @@ def counterCorrectionStep
     (counterCorrectionGates tail counterWidth p hpOdd)
 
 /-- The actual counter-controlled circuit realizes its complete gate list. -/
-theorem counterCorrection_realizes
+lemma counterCorrection_realizes
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (counterCorrectionProgram tail counterWidth p hpOdd)
+      (counterCorrectionProgram tail counterWidth p hpOdd) environment
       (counterCorrectionStep tail counterWidth p hpOdd) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (counterCorrectionGates tail counterWidth p hpOdd)
 
 /-- The complete counter-controlled program multiplies the clean correction
 value by `2^k`, where `k` is read directly from the physical runtime counter. -/
-theorem counterCorrection_cleanEndpoint
+lemma counterCorrection_cleanEndpoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -2196,16 +2198,16 @@ def signCorrectionStep (tail counterWidth p : Nat) :
     (signCorrectionGates tail counterWidth p)
 
 /-- The actual static sign-correction circuit realizes its complete gate list. -/
-theorem signCorrection_realizes (tail counterWidth p : Nat) :
+lemma signCorrection_realizes (tail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (signCorrectionProgram tail counterWidth p)
+      (signCorrectionProgram tail counterWidth p) environment
       (signCorrectionStep tail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (signCorrectionGates tail counterWidth p)
 
 /-- The static sign segment negates the correction value and returns every VBE
 work register clean. -/
-theorem signCorrectionProgram_cleanEndpoint
+lemma signCorrectionProgram_cleanEndpoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -2248,17 +2250,17 @@ def correctionComputeStep
     (correctionComputeGates tail counterWidth p hpOdd)
 
 /-- The actual correction-compute circuit realizes its complete gate list. -/
-theorem correctionCompute_realizes
+lemma correctionCompute_realizes
     (tail counterWidth p : Nat) (hpOdd : Odd p) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (correctionComputeProgram tail counterWidth p hpOdd)
+      (correctionComputeProgram tail counterWidth p hpOdd) environment
       (correctionComputeStep tail counterWidth p hpOdd) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (correctionComputeGates tail counterWidth p hpOdd)
 
 /-- The correction-compute gate list executes its three constituent stages in
 their physical order. -/
-private theorem correctionComputeStep_eq_stages
+private lemma correctionComputeStep_eq_stages
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (x : Registers tail counterWidth) :
     correctionComputeStep tail counterWidth p hpOdd x =
@@ -2278,7 +2280,7 @@ private theorem correctionComputeStep_eq_stages
 
 /-- The three static correction segments produce the sign-adjusted runtime
 residue and return the complete shared VBE workspace clean. -/
-theorem correctionCompute_cleanEndpoint
+lemma correctionCompute_cleanEndpoint
     (tail counterWidth p : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -2304,7 +2306,7 @@ theorem correctionCompute_cleanEndpoint
 /-- A logarithmic counter does not wrap the physical padding count when the
 input is positive: at least one of the `2n` rounds is an active Kaliski update,
 so strictly fewer than `2n` rounds increment the counter. -/
-theorem fixedRoundPaddingSteps_lt_counterCapacity
+lemma fixedRoundPaddingSteps_lt_counterCapacity
     (tail counterWidth p input : Nat)
     (hinput : 0 < input)
     (hcapacity : 2 * tail.succ ≤ 2 ^ counterWidth) :
@@ -2317,7 +2319,7 @@ theorem fixedRoundPaddingSteps_lt_counterCapacity
 
 /-- The physical counter and coefficient readout agree with the registered
 source trace once the no-wrap capacity condition is discharged. -/
-theorem correctionCompute_correctedResidue
+lemma correctionCompute_correctedResidue
     (tail counterWidth p input : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth)
@@ -2359,7 +2361,7 @@ theorem correctionCompute_correctedResidue
 
 /-- Full source-facing correction endpoint.  This theorem is a rewrite of the
 physical program result, not a trace-selected program construction. -/
-theorem correctionCompute_signedResidue
+lemma correctionCompute_signedResidue
     (tail counterWidth p input : Nat) (hpOdd : Odd p)
     (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory
@@ -2411,7 +2413,7 @@ theorem correctionCompute_signedResidue
 
 /-! ## Staged target transfer -/
 
-private theorem swapTargetStep_cleanEndpoint
+private lemma swapTargetStep_cleanEndpoint
     (tail counterWidth p : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth)
@@ -2619,7 +2621,7 @@ private theorem swapTargetStep_cleanEndpoint
         hactive, htarget, hcarry, hparked, hcarryWork, hflag]
   · exact hpublic
 
-private theorem copySourceStep_cleanEndpoint
+private lemma copySourceStep_cleanEndpoint
     (tail counterWidth p : Nat)
     (fixed : MK.Circuit.RegistersWithRouteHistory
       tail.succ counterWidth)
@@ -2855,16 +2857,16 @@ def stagedTargetAddStep (tail counterWidth p : Nat) :
     (stagedTargetAddGates tail counterWidth p)
 
 /-- The actual staged target-add circuit realizes its complete gate list. -/
-theorem stagedTargetAdd_realizes (tail counterWidth p : Nat) :
+lemma stagedTargetAdd_realizes (tail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (encoding tail counterWidth)
-      (stagedTargetAddProgram tail counterWidth p)
+      (stagedTargetAddProgram tail counterWidth p) environment
       (stagedTargetAddStep tail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (stagedTargetAddGates tail counterWidth p)
 
 /-- The staged transfer adds correction scratch into the public target while
 restoring the complete VBE workspace and leaving correction scratch intact. -/
-theorem stagedTargetAddProgram_cleanEndpoint
+lemma stagedTargetAddProgram_cleanEndpoint
     (tail counterWidth p : Nat)
     (hpPos : 0 < p) (hpBound : p < 2 ^ tail.succ)
     (fixed : MK.Circuit.RegistersWithRouteHistory

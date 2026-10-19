@@ -44,7 +44,7 @@ def gateWidthBound (m ell width : Nat) : AlgorithmGate.Coordinate → Nat
   | .singleQubit => memberGateBound m ell width .singleQubit +
       2 * totalQubits (registerParameters m ell width)
 
-private theorem exponentiation_gate_le (bits width N : Nat)
+private lemma exponentiation_gate_le (bits width N : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate coordinate) (exponentiationEventEnvelope bits width N) ≤
@@ -62,7 +62,7 @@ private theorem exponentiation_gate_le (bits width N : Nat)
   · exact Nat.zero_le _
 
 /-- Each independent member coordinate keeps its own width cap and exact Fourier contribution. -/
-theorem member_envelope_gate_le (m ell width N : Nat)
+lemma member_envelope_gate_le (m ell width N : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate coordinate) (compiledCircuitEventEnvelope m ell width N) ≤
@@ -76,7 +76,7 @@ theorem member_envelope_gate_le (m ell width N : Nat)
   cases coordinate <;> simp [memberGateBound, arithmeticGateBound] at ⊢
   all_goals omega
 
-private theorem member_context_gate (m ell width N : Nat)
+private lemma member_context_gate (m ell width N : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := model) (.gate coordinate)
         (compiledCircuitEventEnvelopeInClassicalContext m ell width N BitWord.model .empty) =
@@ -86,7 +86,7 @@ private theorem member_context_gate (m ell width N : Nat)
     (compiledCircuitEventEnvelope m ell width N)
 
 /-- The complete round allowance obeys all three independently specified gate formulas. -/
-theorem eventEnvelope_gate_le (m ell width N : Nat)
+lemma eventEnvelope_gate_le (m ell width N : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := model) (.gate coordinate) (eventEnvelope m ell width N) ≤
       gateWidthBound m ell width coordinate := by
@@ -106,7 +106,7 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (result : CWriteRef ctx (.bits (resultBits m ell width)))
 
 /-- Every actual native round path satisfies each separate gate-coordinate ceiling. -/
-theorem shortDLP_runtimeRound_gate_le
+lemma shortDLP_runtimeRound_gate_le
     (path : (code m ell width sameWires parameter N generator target cells result).Path)
     (coordinate : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := model) (.gate coordinate)

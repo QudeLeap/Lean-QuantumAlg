@@ -38,25 +38,25 @@ private abbrev Supported {count : Nat} {layout : QuantumLayout count}
     (body : UnitaryCircuit AlgorithmGate.model .empty layout) : Prop :=
   ∀ focus ∈ body.eventCost, focus ∈ Addition.Gidney.offsetAlphabet
 
-private theorem base_mem (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
+private lemma base_mem (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ GateSpec.primitiveAlphabet) :
     focus ∈ Addition.Gidney.offsetAlphabet :=
   present
 
-private theorem gates_supported {Data : Type} {label : BinaryLabelEncoding Data}
+private lemma gates_supported {Data : Type} {label : BinaryLabelEncoding Data}
     (gates : List (GateSpec label)) :
     Supported (GateSpec.programList (QubitLayout.canonical _) .empty gates) :=
   fun focus present => base_mem focus
     (GateSpec.programList_native_support (QubitLayout.canonical _) gates focus present)
 
-private theorem seq_supported {count : Nat} {layout : QuantumLayout count}
+private lemma seq_supported {count : Nat} {layout : QuantumLayout count}
     (left right : UnitaryCircuit AlgorithmGate.model .empty layout)
     (first : Supported left) (second : Supported right) : Supported (left.seq right) := by
   intro focus present
   rw [UnitaryCircuit.seq_eventCost] at present
   exact (Multiset.mem_add.mp present).elim (first focus) (second focus)
 
-private theorem dagger_supported {count : Nat} {layout : QuantumLayout count}
+private lemma dagger_supported {count : Nat} {layout : QuantumLayout count}
     (body : UnitaryCircuit AlgorithmGate.model .empty layout)
     (supported : Supported body) :
     Supported (body.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) := by
@@ -75,13 +75,13 @@ private theorem dagger_supported {count : Nat} {layout : QuantumLayout count}
   rw [identical, Multiset.map_id] at present
   exact supported focus present
 
-private theorem identity_supported {count : Nat} (layout : QuantumLayout count) :
+private lemma identity_supported {count : Nat} (layout : QuantumLayout count) :
     Supported (UnitaryCircuit.identity AlgorithmGate.model .empty layout) := by
   intro focus present
   rw [UnitaryCircuit.identity_eventCost] at present
   simp at present
 
-private theorem iterate_supported {count : Nat} {layout : QuantumLayout count}
+private lemma iterate_supported {count : Nat} {layout : QuantumLayout count}
     (body : UnitaryCircuit AlgorithmGate.model .empty layout)
     (supported : Supported body) (count : Nat) : Supported (UnitaryCircuit.iterate count body) := by
   have multiples : ∀ count : Nat, ∀ focus ∈ count • body.eventCost,
@@ -95,7 +95,7 @@ private theorem iterate_supported {count : Nat} {layout : QuantumLayout count}
       exact (Multiset.mem_add.mp present).elim (inductionHypothesis focus) (supported focus)
   exact multiples count
 
-private theorem trace_supported {countA countB : Nat}
+private lemma trace_supported {countA countB : Nat}
     {layoutA : QuantumLayout countA} {layoutB : QuantumLayout countB}
     (body : UnitaryCircuit AlgorithmGate.model .empty layoutA)
     (source : UnitaryCircuit AlgorithmGate.model .empty layoutB)
@@ -106,34 +106,34 @@ private theorem trace_supported {countA countB : Nat}
     UnitaryCircuit.ofList_eventTrace_eq_eventCost] at present
   exact supported focus present
 
-private theorem placed_increment (extra width : Nat) :
+private lemma placed_increment (extra width : Nat) :
     Supported (Addition.HRS.placedIncrementProgram extra width) := by
   intro focus present
   rw [(Addition.HRS.hrsPlacedIncrement_resources extra width (fun _ => 1)).1] at present
   exact gates_supported (Addition.HRS.controlledBorrowedIncrementGates width) focus present
 
-private theorem clock (width : Nat) : Supported (ExtendedClockIncrement.program width) :=
+private lemma clock (width : Nat) : Supported (ExtendedClockIncrement.program width) :=
   trace_supported _ _ (ExtendedClockIncrement.program_eventTrace width) (placed_increment _ _)
 
-private theorem low (width : Nat) : Supported (LowShiftIncrement.program width) :=
+private lemma low (width : Nat) : Supported (LowShiftIncrement.program width) :=
   trace_supported _ _ (LowShiftIncrement.program_eventTrace width) (placed_increment _ _)
 
-private theorem control_place (width : Nat)
+private lemma control_place (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical (encoding width).width).toQuantum)
     (supported : Supported body) :
     Supported (ControlPlacement.place width body) :=
   trace_supported _ _ (ControlPlacement.place_eventTrace width body) supported
 
-private theorem left_pair (width : Nat) : Supported (ControlledShift.leftProgram width) :=
+private lemma left_pair (width : Nat) : Supported (ControlledShift.leftProgram width) :=
   seq_supported _ _ (control_place width _ (gates_supported _))
     (control_place width _ (clock width))
 
-private theorem right_pair (width : Nat) : Supported (ControlledShift.rightProgram width) :=
+private lemma right_pair (width : Nat) : Supported (ControlledShift.rightProgram width) :=
   seq_supported _ _ (control_place width _ (gates_supported _))
     (dagger_supported _ (control_place width _ (clock width)))
 
-private theorem guarded (width : Nat) (selected : Bool) :
+private lemma guarded (width : Nat) (selected : Bool) :
     Supported (GuardedShift.program width selected) := by
   have first : Supported (GuardedShift.firstProgram width selected) :=
     seq_supported _ _ (gates_supported _)
@@ -144,7 +144,7 @@ private theorem guarded (width : Nat) (selected : Bool) :
         (gates_supported _))
   exact seq_supported _ _ first last
 
-private theorem selector_body {width : Nat} (window : ArithmeticWindowRegisters.Window width)
+private lemma selector_body {width : Nat} (window : ArithmeticWindowRegisters.Window width)
     (operation : ArithmeticWindowProgram.Operation) (coefficient : Bool) :
     Supported (ArithmeticSelector.controlledBody window operation coefficient) := by
   cases coefficient with
@@ -157,7 +157,7 @@ private theorem selector_body {width : Nat} (window : ArithmeticWindowRegisters.
       ((CoefficientWindowProgram.controlledProgram_eventTrace window operation).trans
         (GateSpec.programList_eventTrace _ .empty _).symm) (gates_supported _)
 
-private theorem selector {width : Nat} (window : ArithmeticWindowRegisters.Window width)
+private lemma selector {width : Nat} (window : ArithmeticWindowRegisters.Window width)
     (operation : ArithmeticWindowProgram.Operation) (coefficient : Bool)
     (selected : ArithmeticSelectionKey.Key width
       (ArithmeticWindowPreservation.readsSign operation)) :
@@ -165,7 +165,7 @@ private theorem selector {width : Nat} (window : ArithmeticWindowRegisters.Windo
   seq_supported _ _ (gates_supported _)
     (seq_supported _ _ (selector_body window operation coefficient) (gates_supported _))
 
-private theorem instruction (width : Nat) (instruction : ArithmeticInstruction.Instruction)
+private lemma instruction (width : Nat) (instruction : ArithmeticInstruction.Instruction)
     (selected : ArithmeticSelectionKey.Key width (ArithmeticInstruction.includeSign instruction)) :
     Supported (ArithmeticInstruction.program width instruction selected) := by
   unfold ArithmeticInstruction.program
@@ -175,7 +175,7 @@ private theorem instruction (width : Nat) (instruction : ArithmeticInstruction.I
     | some window => exact selector window _ _ selected
   · exact identity_supported _
 
-private theorem arithmetic_list (width : Nat) (instruction : ArithmeticInstruction.Instruction)
+private lemma arithmetic_list (width : Nat) (instruction : ArithmeticInstruction.Instruction)
     (indices : List (ArithmeticSelectionKey.Key width
       (ArithmeticInstruction.includeSign instruction))) :
     Supported (ArithmeticSchedule.listProgram width instruction indices) := by
@@ -185,25 +185,25 @@ private theorem arithmetic_list (width : Nat) (instruction : ArithmeticInstructi
     exact seq_supported _ _ (NativeSupport.instruction width instruction selected)
       inductionHypothesis
 
-private theorem arithmetic (width : Nat) (instruction : ArithmeticInstruction.Instruction) :
+private lemma arithmetic (width : Nat) (instruction : ArithmeticInstruction.Instruction) :
     Supported (ArithmeticSchedule.program width instruction) := arithmetic_list width instruction _
 
-private theorem remainder (width : Nat) : Supported (ArithmeticBlocks.remainderProgram width) :=
+private lemma remainder (width : Nat) : Supported (ArithmeticBlocks.remainderProgram width) :=
   seq_supported _ _ (arithmetic width .remainderSubtract)
     (seq_supported _ _ (gates_supported _) (arithmetic width .remainderAddback))
 
-private theorem coefficient (width : Nat) : Supported (ArithmeticBlocks.coefficientProgram width) :=
+private lemma coefficient (width : Nat) : Supported (ArithmeticBlocks.coefficientProgram width) :=
   seq_supported _ _ (arithmetic width .coefficientSubtract)
     (seq_supported _ _ (gates_supported _) (arithmetic width .coefficientAdd))
 
-private theorem quotient (width : Nat) : Supported (PhaseQuotient.program width) := by
+private lemma quotient (width : Nat) : Supported (PhaseQuotient.program width) := by
   have increment : Supported (QuotientIncrement.program width) :=
     trace_supported _ _ (QuotientIncrement.program_eventTrace width) (low width)
   have body : Supported (PhaseQuotient.bodyProgram width) :=
     seq_supported _ _ (gates_supported _) (seq_supported _ _ increment (gates_supported _))
   exact seq_supported _ _ (gates_supported _) (seq_supported _ _ body (gates_supported _))
 
-private theorem signQuotient (width : Nat) : Supported (SignQuotient.program width) :=
+private lemma signQuotient (width : Nat) : Supported (SignQuotient.program width) :=
   seq_supported _ _ (gates_supported _)
     (trace_supported _ _ (PhaseQuotient.phaseQuotient_nativeProgram_trace width) (quotient width))
 
@@ -211,14 +211,14 @@ private theorem signQuotient (width : Nat) : Supported (SignQuotient.program wid
 attribute [local irreducible] NativeMicrostep.gates
 
 /-- The complete eight-block microstep emits only the independently declared native coordinates. -/
-theorem microstep (width : Nat) (enough : 2 ≤ width.size)
+lemma microstep (width : Nat) (enough : 2 ≤ width.size)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (NativeMicrostep.program width enough).eventCost) :
     focus ∈ Addition.Gidney.offsetAlphabet := by
   unfold NativeMicrostep.program at present
   exact gates_supported (label := encoding width) (NativeMicrostep.gates width enough) focus present
 
-private theorem flag (width : Nat) : Supported (Addition.Gidney.flagFlipProgram width) := by
+private lemma flag (width : Nat) : Supported (Addition.Gidney.flagFlipProgram width) := by
   intro focus present
   rw [Addition.Gidney.gidneyFlagFlip_eventCost] at present
   have same : focus = .gate .singleQubit := by
@@ -227,44 +227,44 @@ private theorem flag (width : Nat) : Supported (Addition.Gidney.flagFlipProgram 
   apply base_mem
   simp [GateSpec.primitiveAlphabet, ResourcePool.ofList]
 
-private theorem comparison (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+private lemma comparison (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     Supported (Addition.Gidney.comparisonProgram width pivot) :=
   fun focus present => base_mem focus
     (Addition.Gidney.gidneyComparison_native_support width pivot focus present)
 
-private theorem reflection (width : Nat) (pivot : Fin (2 ^ width + 1)) :
+private lemma reflection (width : Nat) (pivot : Fin (2 ^ width + 1)) :
     Supported (Addition.Gidney.biFlipProgram width pivot) :=
   fun focus present =>
     Addition.Gidney.gidneyBiFlip_native_support width pivot focus present
 
-private theorem fold_source (modulus : Nat) : Supported (FoldSourceProgram.program modulus) :=
+private lemma fold_source (modulus : Nat) : Supported (FoldSourceProgram.program modulus) :=
   seq_supported _ _ (seq_supported _ _ (comparison _ _) (flag _)) (reflection _ _)
 
-private theorem initial (modulus : Nat) : Supported (InitialFrame.program modulus) :=
+private lemma initial (modulus : Nat) : Supported (InitialFrame.program modulus) :=
   seq_supported _ _
     (trace_supported _ _ ((FoldProgram.foldProgram_nativeProgram_trace modulus).trans
       (FoldProgram.program_eventTrace modulus)) (fold_source modulus))
     (gates_supported _)
 
-private theorem native (modulus : Nat) (nontrivial : 1 < modulus) :
+private lemma native (modulus : Nat) (nontrivial : 1 < modulus) :
     Supported (NativeSchedule.program modulus nontrivial) :=
   seq_supported _ _ (initial modulus)
     (iterate_supported _ (microstep modulus.size
       (PredicateLayout.modulus_length_width modulus nontrivial)) _)
 
-private theorem decoder_list (width : Nat) (indices : List (Fin (width.size + 2))) :
+private lemma decoder_list (width : Nat) (indices : List (Fin (width.size + 2))) :
     Supported (ClockDecode.sequence width indices) := by
   induction indices with
   | nil => exact gates_supported _
   | cons index rest inductionHypothesis =>
     exact seq_supported _ _ (iterate_supported _ (gates_supported _) _) inductionHypothesis
 
-private theorem correction (modulus : Nat) : Supported (OutputCorrection.program modulus) :=
+private lemma correction (modulus : Nat) : Supported (OutputCorrection.program modulus) :=
   trace_supported _ _ (OutputCorrection.program_eventTrace modulus)
     (seq_supported _ _ (seq_supported _ _ (flag _) (reflection _ _)) (flag _))
 
 /-- The actual forward, decoder, and parity correction preserve this finite event support. -/
-theorem corrected (modulus : Nat) (nontrivial : 1 < modulus)
+lemma corrected (modulus : Nat) (nontrivial : 1 < modulus)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (CorrectedSchedule.program modulus nontrivial).eventCost) :
     focus ∈ Addition.Gidney.offsetAlphabet :=
@@ -273,7 +273,7 @@ theorem corrected (modulus : Nat) (nontrivial : 1 < modulus)
       (correction modulus)) focus present
 
 /-- Real loading and output-port gates add no native coordinate outside the same alphabet. -/
-theorem inPlace (modulus : Nat) (nontrivial : 1 < modulus)
+lemma inPlace (modulus : Nat) (nontrivial : 1 < modulus)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (InPlaceForward.program modulus nontrivial).eventCost) :
     focus ∈ Addition.Gidney.offsetAlphabet :=
@@ -281,7 +281,7 @@ theorem inPlace (modulus : Nat) (nontrivial : 1 < modulus)
     (seq_supported _ _ (corrected modulus nontrivial) (gates_supported _)) focus present
 
 /-- The same full dagger retains all coordinates, including the cleanup of retained history. -/
-theorem inPlace_dagger (modulus : Nat) (nontrivial : 1 < modulus)
+lemma inPlace_dagger (modulus : Nat) (nontrivial : 1 < modulus)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ ((InPlaceForward.program modulus nontrivial).dagger
       (AlgorithmGate.oracleFreeAdjoints .empty)).eventCost) :
@@ -289,7 +289,7 @@ theorem inPlace_dagger (modulus : Nat) (nontrivial : 1 < modulus)
   dagger_supported _ (inPlace modulus nontrivial) focus present
 
 /-- The standalone XOR interface additionally emits the actual copy and the entire same dagger. -/
-theorem xor (modulus : Nat) (nontrivial : 1 < modulus)
+lemma xor (modulus : Nat) (nontrivial : 1 < modulus)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (NativeInverse.program modulus nontrivial).eventCost) :
     focus ∈ Addition.Gidney.offsetAlphabet := by

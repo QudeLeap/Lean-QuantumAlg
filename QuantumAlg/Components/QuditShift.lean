@@ -58,7 +58,7 @@ public def operator (layout : QuantumLayout systemCount) (wire : Fin systemCount
   UnitaryOperator.ofPerm (R := layout.register) (labelShift layout wire amount).symm
 
 /-- Exact basis action on the complete heterogeneous register. -/
-theorem operator_apply_ket (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma operator_apply_ket (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (amount : Fin (layout.wire wire).dimension) (basis : layout.Basis) :
     (operator layout wire amount).apply (NormalizedVector.ket basis) =
       NormalizedVector.ket (R := layout.register)
@@ -67,7 +67,7 @@ theorem operator_apply_ket (layout : QuantumLayout systemCount) (wire : Fin syst
     (labelShift layout wire amount).symm basis
 
 /-- Public basis action of the finite-dimensional shift operator. -/
-public theorem quditShift_operator_apply_ket (layout : QuantumLayout systemCount)
+public lemma quditShift_operator_apply_ket (layout : QuantumLayout systemCount)
     (wire : Fin systemCount) (amount : Fin (layout.wire wire).dimension) (basis : layout.Basis) :
     (operator layout wire amount).apply (NormalizedVector.ket basis) =
       NormalizedVector.ket (R := layout.register)
@@ -75,14 +75,14 @@ public theorem quditShift_operator_apply_ket (layout : QuantumLayout systemCount
   operator_apply_ket layout wire amount basis
 
 /-- The selected wire is updated by addition in its own finite basis. -/
-theorem shifted_selected_value (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma shifted_selected_value (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (amount : Fin (layout.wire wire).dimension) (basis : layout.Basis) :
     (Function.update basis wire (basis wire + amount)) wire = basis wire + amount := by
   simp
 
 /-- Every unselected physical system keeps its original basis value,
 independently of its dimension. -/
-theorem shifted_other_value (layout : QuantumLayout systemCount) (wire : Fin systemCount)
+lemma shifted_other_value (layout : QuantumLayout systemCount) (wire : Fin systemCount)
     (amount : Fin (layout.wire wire).dimension) (basis : layout.Basis)
     (other : Fin systemCount) (different : other ≠ wire) :
     (Function.update basis wire (basis wire + amount)) other = basis other := by

@@ -19,6 +19,8 @@ the corresponding run law while preserving the actual hidden service state.
 
 namespace QuantumAlg.AlgorithmRun
 
+variable {allowAllocation : Bool}
+
 noncomputable section
 
 open Execution
@@ -26,14 +28,15 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A circuit law for every incoming history also restores the complete caller observation. -/
-theorem restoresBorrowed_of_circuit {model : ExecutionModel}
+lemma restoresBorrowed_of_circuit {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind} {shape : CShape}
-    (run : AlgorithmRun model pre post shape)
+    (run : AlgorithmRun model pre post shape allowAllocation)
+    (environment : model.Environment)
     (restores : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State pre Reference (model.HiddenState × History)),
-      run.code.BorrowedRestored Reference state (run.code.execute Reference state))
+      run.code.BorrowedRestored Reference state (run.code.execute environment Reference state))
     {Reference : Register} (input : OracleInput model.classicalOracles pre Reference) :
-    run.RestoresBorrowed input := by
+    run.RestoresBorrowed environment input := by
   have actual := restores Reference
     (input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1))))
   refine actual.trans ?_

@@ -22,6 +22,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 open ShortDLP.CompiledMAU
 
@@ -30,12 +33,12 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The actual complete Output has the source PMF's finite weight in each full reference entry. -/
-theorem nativeBatch_output_weighted_reference (input : Input N)
+lemma nativeBatch_output_weighted_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (weight : (resultShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base noQuantum N).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base noQuantum N).execute environment Reference state)
         (fun entry _ => weight ((run base noQuantum N).output.eval entry.1)) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun _ _ => ∑ output : (resultShape N).Value,
@@ -48,12 +51,12 @@ theorem nativeBatch_output_weighted_reference (input : Input N)
       (nativeBatch_sourceDistribution_weighted input weight).symm)
 
 /-- Each real output fiber has the exact original source point mass in every reference entry. -/
-theorem nativeBatch_output_indicator_reference (input : Input N)
+lemma nativeBatch_output_indicator_reference (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (selected : (resultShape N).Value)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((code base noQuantum N).execute Reference state)
+    ExecutionState.referenceFiberSum ((code base noQuantum N).execute environment Reference state)
         (fun entry _ => if (run base noQuantum N).output.eval entry.1 = selected then 1 else 0)
         leftRef rightRef =
       ExecutionState.referenceFiberSum state

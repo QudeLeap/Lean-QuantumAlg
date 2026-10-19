@@ -29,26 +29,27 @@ open QuantumAlg.Execution
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
 /-- Packing the actually written cells yields the original phase outcome. -/
-theorem packing_measured_value (t width : Nat)
+lemma packing_measured_value (t width : Nat)
     (store : Store (post ctx noQuantum t width))
     (basis : (post ctx noQuantum t width).register.Index)
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel} :
     (packing ctx noQuantum t width).eval
-      ((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+      ((Circuit.writeMeasurementPath (allowAllocation := true) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
         (readouts ctx noQuantum t width) store
-        (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+        (Circuit.measurementBasisPath (allowAllocation := true)
+          (gates := gates) (oracles := oracles)
           (operations := operations) (classicalOracles := services)
           (readouts ctx noQuantum t width) basis)).read
           (MeasurementCells.input (resultContext ctx noQuantum t width) 2 t)) =
       CShape.Value.bits ((OrderFinding.Native.measurement t width).readout
         (outputBasisEquiv ctx noQuantum t width basis)) := by
   change CShape.Value.bits (fun index => decide
-    (((Circuit.writeMeasurementPath (gates := gates) (oracles := oracles)
+    (((Circuit.writeMeasurementPath (allowAllocation := true) (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := services)
       (readouts ctx noQuantum t width) store
-      (Circuit.measurementBasisPath (gates := gates) (oracles := oracles)
+      (Circuit.measurementBasisPath (allowAllocation := true) (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
         (readouts ctx noQuantum t width) basis)).read
         (.storage

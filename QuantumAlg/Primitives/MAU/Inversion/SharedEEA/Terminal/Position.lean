@@ -46,33 +46,33 @@ def frame {width : Nat} (initial : Registers width) (count : Nat) : Registers wi
     shift := (pair initial count).2 }
 
 /-- The actual split reads the entire finite count and precisely the original complement. -/
-theorem pair_split {width : Nat} (initial : Registers width) (count : Nat) :
+lemma pair_split {width : Nat} (initial : Registers width) (count : Nat) :
     PaddingClock.split (pair initial count) =
       ((PaddingClock.main initial.firstWord, PaddingClock.last initial.firstWord),
         BitVec.ofNat (2 + width.size) count) :=
   PaddingClock.split_join _
 
 /-- The actual full clock contains all displacement bits, even when its low field is zero. -/
-theorem frame_clock {width : Nat} (initial : Registers width) (count : Nat) :
+lemma frame_clock {width : Nat} (initial : Registers width) (count : Nat) :
     clock (frame initial count) = BitVec.ofNat (2 + width.size) count :=
   congrArg Prod.snd (pair_split initial count)
 
 /-- Before complete wrap, the actual physical clock's natural value is exactly the displacement. -/
-theorem frame_clock_value {width : Nat} (initial : Registers width) (count : Nat)
+lemma frame_clock_value {width : Nat} (initial : Registers width) (count : Nat)
     (within : count < 2 ^ (2 + width.size)) :
     (clock (frame initial count)).toNat = count := by
   rw [frame_clock]
   exact Nat.mod_eq_of_lt within
 
 /-- The physical main Work1 and final bit are unchanged, rather than merely equal in dimension. -/
-theorem frame_untouched {width : Nat} (initial : Registers width) (count : Nat) :
+lemma frame_untouched {width : Nat} (initial : Registers width) (count : Nat) :
     PaddingClock.main (frame initial count).firstWord = PaddingClock.main initial.firstWord ∧
       PaddingClock.last (frame initial count).firstWord = PaddingClock.last initial.firstWord := by
   have actual := congrArg Prod.fst (pair_split initial count)
   exact ⟨congrArg Prod.fst actual, congrArg Prod.snd actual⟩
 
 /-- Every original finite length, control, and history coordinate is fixed in the position. -/
-theorem frame_retained {width : Nat} (initial : Registers width) (count : Nat) :
+lemma frame_retained {width : Nat} (initial : Registers width) (count : Nat) :
     (frame initial count).coefficientLength = initial.coefficientLength ∧
       (frame initial count).quotientLength = initial.quotientLength ∧
       (frame initial count).divisorLength = initial.divisorLength ∧
@@ -81,7 +81,7 @@ theorem frame_retained {width : Nat} (initial : Registers width) (count : Nat) :
   ⟨rfl, rfl, rfl, rfl, rfl⟩
 
 /-- The original terminal zero clock makes the zero position exactly the complete initial frame. -/
-theorem frame_zero {width : Nat} (initial : Registers width) (zero : clock initial = 0) :
+lemma frame_zero {width : Nat} (initial : Registers width) (zero : clock initial = 0) :
     frame initial 0 = initial := by
   have coordinates :
       ((PaddingClock.main initial.firstWord, PaddingClock.last initial.firstWord),
@@ -97,20 +97,20 @@ theorem frame_zero {width : Nat} (initial : Registers width) (zero : clock initi
   rw [same, TerminalTail.rotateLeft_zero]
 
 /-- One actual combined increment advances precisely these physical coordinates. -/
-theorem pair_increment {width : Nat} (initial : Registers width) (count : Nat) :
+lemma pair_increment {width : Nat} (initial : Registers width) (count : Nat) :
     PaddingClock.increment (pair initial count) = pair initial (count + 1) := by
   unfold PaddingClock.increment
   rw [pair_split, TerminalTail.increment_ofNat]
   rfl
 
 /-- The complete physical clock cannot vanish at a positive position before its first wrap. -/
-theorem frame_clock_nonzero {width : Nat} (initial : Registers width) (count : Nat)
+lemma frame_clock_nonzero {width : Nat} (initial : Registers width) (count : Nat)
     (positive : 0 < count) (within : count < 2 ^ (2 + width.size)) :
     clock (frame initial count) ≠ 0 := by
   rw [frame_clock]
   exact TerminalTail.ofNat_nonzero count positive within
 
-private theorem clock_zero_of_fields {width : Nat} (state : Registers width)
+private lemma clock_zero_of_fields {width : Nat} (state : Registers width)
     (low : state.shift = 0) (high : PaddingClock.high state.firstWord = 0) : clock state = 0 := by
   change PaddingClock.high state.firstWord ++ state.shift = 0
   rw [high, low]
@@ -119,7 +119,7 @@ private theorem clock_zero_of_fields {width : Nat} (state : Registers width)
   simp only [Nat.zero_shiftLeft, Nat.zero_or]
 
 /-- The actual new phase-zero predicate is false at every positive complete-clock position. -/
-theorem phase_condition_false {width : Nat} (initial : Registers width) (count : Nat)
+lemma phase_condition_false {width : Nat} (initial : Registers width) (count : Nat)
     (finished : initial.divisorLength = 0)
     (positive : 0 < count) (within : count < 2 ^ (2 + width.size)) :
     TerminalPredicate.condition (frame initial count) = false := by
@@ -131,7 +131,7 @@ theorem phase_condition_false {width : Nat} (initial : Registers width) (count :
     (clock_zero_of_fields (frame initial count) low high)
 
 /-- The actual boundary also stays false, without requiring a nonzero low counter. -/
-theorem boundary_condition_false {width : Nat} (initial : Registers width) (count : Nat)
+lemma boundary_condition_false {width : Nat} (initial : Registers width) (count : Nat)
     (finished : initial.divisorLength = 0)
     (positive : 0 < count) (within : count < 2 ^ (2 + width.size)) :
     BoundaryPredicate.condition (frame initial count) = false := by
@@ -143,7 +143,7 @@ theorem boundary_condition_false {width : Nat} (initial : Registers width) (coun
     (clock_zero_of_fields (frame initial count) low high)
 
 /-- Actual right rotation by the retained complete count recovers every Work2 bit. -/
-theorem decode_word {width : Nat} (initial : Registers width) (count : Nat)
+lemma decode_word {width : Nat} (initial : Registers width) (count : Nat)
     (within : count < 2 ^ (2 + width.size)) :
     (frame initial count).secondWord.rotateRight (clock (frame initial count)).toNat =
       initial.secondWord := by

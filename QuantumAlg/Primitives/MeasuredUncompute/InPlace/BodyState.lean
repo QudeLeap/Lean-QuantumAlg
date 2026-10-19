@@ -31,16 +31,19 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceBodyState
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MAU.Inversion.SharedEEA NumeratorMeasurement
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem division_columns (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma division_columns (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (basis : (Register.prod (context modulus.size).register Reference).Index)
     (allowed : InPlacePreparedSupport.admissible modulus basis.1)
     (row : (Register.prod (context modulus.size).register Reference).Index) :
-    InPlaceDivisionConjugation.operator modulus prime Reference stored row basis =
+    InPlaceDivisionConjugation.operator environment.quantum modulus prime Reference stored row
+      basis =
       WalshHadamard.invSqrtCard modulus.size *
         InPlaceTarget.jointOperator .division modulus prime Reference row basis := by
   obtain ⟨initial, reference⟩ := basis
@@ -51,12 +54,13 @@ private theorem division_columns (modulus : Nat) (prime : Nat.Prime modulus)
   exact InPlaceOperatorAgreement.division_column modulus prime value numerator
     positive bounded numeratorBound stored reference row
 
-private theorem multiplication_columns (modulus : Nat) (prime : Nat.Prime modulus)
+private lemma multiplication_columns (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} (stored : Store (context modulus.size))
     (basis : (Register.prod (context modulus.size).register Reference).Index)
     (allowed : InPlacePreparedSupport.admissible modulus basis.1)
     (row : (Register.prod (context modulus.size).register Reference).Index) :
-    InPlaceMultiplicationConjugation.operator modulus prime Reference stored row basis =
+    InPlaceMultiplicationConjugation.operator environment.quantum modulus prime Reference stored
+      row basis =
       WalshHadamard.invSqrtCard modulus.size *
         InPlaceTarget.jointOperator .multiplication modulus prime Reference row basis := by
   obtain ⟨initial, reference⟩ := basis
@@ -68,38 +72,40 @@ private theorem multiplication_columns (modulus : Nat) (prime : Nat.Prime modulu
     positive bounded numeratorBound stored reference row
 
 /-- Actual division gives the exact independent full joint target on the prepared support. -/
-theorem division_density (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_density (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ basis : (Register.prod (context modulus.size).register Reference).Index,
       ¬InPlacePreparedSupport.admissible modulus basis.1 →
         state.quantumMarginal.matrix basis basis = 0) :
-    ((InPlaceDivision.body modulus prime).execute Reference state).quantumMarginal =
+    ((InPlaceDivision.body modulus prime).execute environment Reference state).quantumMarginal =
       DensityOperator.applyUnitary (InPlaceTarget.jointOperator .division modulus prime Reference)
         state.quantumMarginal := by
   apply DensityOperator.ext
   apply full_matrix_of_stored_columns state.quantumMarginal _
     (fun basis => InPlacePreparedSupport.admissible modulus basis.1)
     (InPlaceTarget.jointOperator .division modulus prime Reference)
-    (InPlaceDivisionConjugation.operator modulus prime Reference)
+    (InPlaceDivisionConjugation.operator environment.quantum modulus prime Reference)
     (WalshHadamard.invSqrtCard modulus.size)
     (NumeratorBranchSum.coefficient_normalized modulus.size) support
     (division_columns modulus prime)
   intro stored
-  have actual := InPlaceDivisionConjugation.body_matrix modulus prime state stored
+  have actual := InPlaceDivisionConjugation.body_matrix (environment := environment) modulus
+    prime state stored
   rw [NumeratorStoredFibers.source_eq_marginal] at actual
   exact actual
 
 /-- Actual multiplication gives the same strong full-state result for its independent product. -/
-theorem multiplication_density (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_density (modulus : Nat) (prime : Nat.Prime modulus)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context modulus.size) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
     (support : ∀ basis : (Register.prod (context modulus.size).register Reference).Index,
       ¬InPlacePreparedSupport.admissible modulus basis.1 →
         state.quantumMarginal.matrix basis basis = 0) :
-    ((InPlaceMultiplication.body modulus prime).execute Reference state).quantumMarginal =
+    ((InPlaceMultiplication.body modulus prime).execute environment Reference
+      state).quantumMarginal =
       DensityOperator.applyUnitary
         (InPlaceTarget.jointOperator .multiplication modulus prime Reference)
         state.quantumMarginal := by
@@ -107,12 +113,13 @@ theorem multiplication_density (modulus : Nat) (prime : Nat.Prime modulus)
   apply full_matrix_of_stored_columns state.quantumMarginal _
     (fun basis => InPlacePreparedSupport.admissible modulus basis.1)
     (InPlaceTarget.jointOperator .multiplication modulus prime Reference)
-    (InPlaceMultiplicationConjugation.operator modulus prime Reference)
+    (InPlaceMultiplicationConjugation.operator environment.quantum modulus prime Reference)
     (WalshHadamard.invSqrtCard modulus.size)
     (NumeratorBranchSum.coefficient_normalized modulus.size) support
     (multiplication_columns modulus prime)
   intro stored
-  have actual := InPlaceMultiplicationConjugation.body_matrix modulus prime state stored
+  have actual := InPlaceMultiplicationConjugation.body_matrix (environment := environment)
+    modulus prime state stored
   rw [NumeratorStoredFibers.source_eq_marginal] at actual
   exact actual
 

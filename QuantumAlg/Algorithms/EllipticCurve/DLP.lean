@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.Real
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.Real.Results
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.SevenCoordinates
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Peripheral
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.SevenCoordinates
@@ -13,12 +15,12 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Scalar.Pe
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Calibrated
 
 /-!
-# Original-input declared ECDLP with complete physical cycles and scalar resources
+# Original-input declared ECDLP with complete execution and scalar resources
 
 The one named algorithm allocates its own bank, executes every original native
 sampling and checked-recovery round, and packs the retained optional result once.
 Its ordinary public theorem includes calibrated success, complete final state,
-borrowed restoration, actual physical cycles and all seven scalar resources.
+borrowed restoration, actual quantum time and all seven scalar resources.
 -/
 
 namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ECDLP
@@ -53,9 +55,8 @@ physical resets are charged in every round. For $c(u)=(u+1)(2(u+1)+1)+3$,
 put $B=max(25t+9c(t)+16,27f+9c(f)+15)$. Resident storage is bounded by $W$
 qubits and $B+6f+4t+8$ classical bits; auxiliary storage by $W$ qubits and
 $B+2f+4t+6$ classical bits. Other quantum dimensions have zero allowance.
-Assign every native event unit duration. Maximum complete-cycle depth is at
-most $W+S+D+1+M+C+1$, independently of $k$. Separate chronological full-run
-depth is at most $W+k(S+D+1+M+C)+1$.
+Quantum time is at most $W+k(S+D+1+M+C)+1$. The same conservative
+allowance also bounds chronological depth when every native event costs one.
 **Success.** The accepted event has probability at least $1-eta$ for every
 admitted normalized input and arbitrary reference extension. Success, full
 state, restoration and every resource observation belong to the same run.
@@ -65,47 +66,37 @@ Native event allowances are proved from the actual implementation, not asserted
 as constants supplied by these papers.
 -/
 public abbrev problem (I : ECDLPInstance E)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) (A : Canonical.Access I)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (budget : Factoring.FailureBudget) (wellFormed : budget.WellFormed) :
-    Problem (Sampling.executionModel I A) (Sampling.pre I) (Recovery.post I)
+    Problem (Sampling.executionModel I) (Sampling.pre I) (Recovery.post I)
       (.option (.unsignedWord (scalarWidth I))) :=
-  calibratedWholeProblem I A expansion I.subgroupOrder_prime.two_le budget wellFormed
+  calibratedWholeProblem I expansion I.subgroupOrder_prime.two_le budget wellFormed
 
 /-- The original public budget selects the complete actual run; no execution witness is supplied. -/
 public abbrev algorithm (I : ECDLPInstance E)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) (A : Canonical.Access I)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (budget : Factoring.FailureBudget) :
-    Algorithm (Sampling.executionModel I A) (Sampling.pre I) (Recovery.post I)
+    Algorithm (Sampling.executionModel I) (Sampling.pre I) (Recovery.post I)
       (.option (.unsignedWord (scalarWidth I))) :=
-  calibratedWholeAlgorithm I A expansion I.subgroupOrder_prime.two_le budget
+  calibratedWholeAlgorithm I expansion I.subgroupOrder_prime.two_le budget
 
-/-- The same independent original-input outcome carries its actual complete finite cycle plan. -/
-public abbrev completeCycleProblem (I : ECDLPInstance E)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) (A : Canonical.Access I)
-    (budget : Factoring.FailureBudget) (wellFormed : budget.WellFormed) :=
-  calibratedCycleProblem I A expansion I.subgroupOrder_prime.two_le budget wellFormed
-
-/-- One complete original ECDLP theorem includes success, state, cycles and all scalar resources. -/
+/-- One complete original ECDLP theorem includes success, state and all scalar resources. -/
 public theorem main (I : ECDLPInstance E)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) (A : Canonical.Access I)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (budget : Factoring.FailureBudget) (wellFormed : budget.WellFormed) :
-    ∃ cycles : Algorithm.CycleSolves (algorithm I expansion A budget)
-        (completeCycleProblem I expansion A budget wellFormed),
-      (algorithm I expansion A budget).Solves (problem I expansion A budget wellFormed) ∧
-        (∀ path : (algorithm I expansion A budget).run.code.Path,
-          SevenCoordinateBounds I A expansion I.subgroupOrder_prime.two_le budget wellFormed
-            cycles path) ∧
-        (∀ path : (algorithm I expansion A budget).run.code.Path,
-          PeripheralBounds I A expansion I.subgroupOrder_prime.two_le budget path) ∧
-        (∀ path : (algorithm I expansion A budget).run.code.Path,
-          (algorithm I expansion A budget).run.code.depth (fun _ => 1) path ≤
+    (algorithm I expansion budget).Solves (problem I expansion budget wellFormed) ∧
+        (∀ path : (algorithm I expansion budget).run.code.Path,
+          SevenCoordinateBounds I expansion I.subgroupOrder_prime.two_le budget path) ∧
+        (∀ path : (algorithm I expansion budget).run.code.Path,
+          PeripheralBounds I expansion I.subgroupOrder_prime.two_le budget path) ∧
+        (∀ path : (algorithm I expansion budget).run.code.Path,
+          (algorithm I expansion budget).run.code.depth (fun _ => 1) path ≤
             Scalar.wholeRunEvents (fieldWidth E) (scalarWidth I)
               (Canonical.retryCountForBudget I budget)) :=
-  ⟨calibratedCycleCertificate I A expansion I.subgroupOrder_prime.two_le budget wellFormed,
-    calibratedWholeAlgorithm_solves I A expansion I.subgroupOrder_prime.two_le budget wellFormed,
-    calibrated_sevenCoordinates I A expansion I.subgroupOrder_prime.two_le budget wellFormed,
-    calibrated_peripheralBounds I A expansion I.subgroupOrder_prime.two_le budget,
-    calibrated_wholeRunDepth_scalar I A expansion I.subgroupOrder_prime.two_le budget⟩
+  ⟨calibratedWholeAlgorithm_solves I expansion I.subgroupOrder_prime.two_le budget wellFormed,
+    calibrated_sevenCoordinates I expansion I.subgroupOrder_prime.two_le budget,
+    calibrated_peripheralBounds I expansion I.subgroupOrder_prime.two_le budget,
+    calibrated_wholeRunDepth_scalar I expansion I.subgroupOrder_prime.two_le budget⟩
 
 end
 

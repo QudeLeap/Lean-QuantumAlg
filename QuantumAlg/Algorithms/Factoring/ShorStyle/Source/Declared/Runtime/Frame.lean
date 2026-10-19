@@ -23,10 +23,10 @@ open Execution
 
 noncomputable section
 
-variable (base : RuntimeCtx .quantum) (N : Nat) (input : Input N)
+variable (base : RuntimeCtx .quantum) (N : Nat)
   (sameWires : base.quantumWires = (layout N).wires)
 
-private theorem frame_readout_key (index : Fin (phaseBits N)) :
+private lemma frame_readout_key (index : Fin (phaseBits N)) :
     (readout base N sameWires index).output.key =
       (Storage.cells base N index).key :=
   FiniteReadout.transported_key
@@ -36,7 +36,7 @@ private theorem frame_readout_key (index : Fin (phaseBits N)) :
 
 /-- The selected physical phase measurement and paid packing retain an
 old structural read outside their measurement cells and working result. -/
-theorem measured_packed_frame {shape : CShape}
+lemma measured_packed_frame {shape : CShape}
     (observed : CInputRef (Storage.context base N) shape)
     (measuredSeparate : ∀ index : Fin (phaseBits N),
       (Storage.cells base N index).key ∉ observed.storageKeys)
@@ -44,7 +44,7 @@ theorem measured_packed_frame {shape : CShape}
       (Storage.resultRef base N).key ∉ observed.storageKeys)
     (store : Store (Storage.context base N))
     (basis : (Storage.context base N).register.Index) :
-    ((measuredStore base N input sameWires store basis).applyOp
+    ((measuredStore base N sameWires store basis).applyOp
       (packing base N)).read observed = store.read observed := by
   refine (Store.read_applyOp_of_not_mem_storageKeys _
     (packing base N) observed workingSeparate).trans ?_
@@ -55,13 +55,13 @@ theorem measured_packed_frame {shape : CShape}
   exact measuredSeparate index
 
 /-- Newly allocated measurement destinations cannot overwrite an original structural input. -/
-theorem measured_packed_liftInput {shape : CShape} (observed : CInputRef base shape)
+lemma measured_packed_liftInput {shape : CShape} (observed : CInputRef base shape)
     (store : Store (Storage.context base N))
     (basis : (Storage.context base N).register.Index) :
-    ((measuredStore base N input sameWires store basis).applyOp
+    ((measuredStore base N sameWires store basis).applyOp
       (packing base N)).read (Storage.liftInput base N observed) =
         store.read (Storage.liftInput base N observed) := by
-  apply measured_packed_frame base N input sameWires
+  apply measured_packed_frame base N sameWires
   · intro index
     exact MeasurementCells.reference_not_mem_liftInput 2
       (observed.underRetained base.canonicalFreshKey (.bits (phaseBits N))

@@ -35,13 +35,14 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Conjugate the actual restored-dirty multi-control X by two target Hadamards. -/
 def phaseProgram : UnitaryCircuit AlgorithmGate.model oracles physical.toQuantum :=
   layout.output.conjugateHadamard physical oracles
     (GateSpec.programList physical oracles layout.gates)
 
-private theorem allControls_output_flip (state : Data) :
+private lemma allControls_output_flip (state : Data) :
     (∀ index, (layout.source.bit index).get (layout.output.flip state) = true) ↔
       ∀ index, (layout.source.bit index).get state = true := by
   apply forall_congr'
@@ -49,8 +50,8 @@ private theorem allControls_output_flip (state : Data) :
   rw [get_flip_of_wire_ne layout.output (layout.source.bit index)
     (layout.source_output_ne index).symm]
 
-private theorem gates_applyVec (state : Data) :
-    (GateSpec.programList physical oracles layout.gates).applyVec
+private lemma gates_applyVec (state : Data) :
+    (GateSpec.programList physical oracles layout.gates).applyVec environment
         (ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       if ∀ index, (layout.source.bit index).get state = true then
@@ -59,8 +60,8 @@ private theorem gates_applyVec (state : Data) :
       else (ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec := by
   have actual := congrArg NormalizedVector.vec
-    ((layout.gates_realizes physical oracles).apply_encoded_ket state)
-  change (GateSpec.programList physical oracles layout.gates).applyVec
+    ((layout.gates_realizes physical oracles (environment := environment)).apply_encoded_ket state)
+  change (GateSpec.programList physical oracles layout.gates).applyVec environment
       (ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm (encoding.encode state))).vec =
     (ket (R := physical.toQuantum.register)
@@ -72,8 +73,8 @@ private theorem gates_applyVec (state : Data) :
   · simpa only [if_neg active] using actual
 
 /-- Exact diagonal action on every encoded input, without a cleanliness premise. -/
-theorem phaseProgram_applyVec_encoded_ket (state : Data) :
-    (layout.phaseProgram physical oracles).applyVec
+lemma phaseProgram_applyVec_encoded_ket (state : Data) :
+    (layout.phaseProgram physical oracles).applyVec environment
         (ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       if (∀ index, (layout.source.bit index).get state = true) ∧
@@ -82,13 +83,13 @@ theorem phaseProgram_applyVec_encoded_ket (state : Data) :
           (physical.basisEquiv.symm (encoding.encode state))).vec
       else (ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec :=
-  layout.output.conjugateHadamard_applyVec_encoded_ket physical oracles
+  layout.output.conjugateHadamard_applyVec_encoded_ket physical oracles (environment := environment)
     (GateSpec.programList physical oracles layout.gates)
     (fun state => ∀ index, (layout.source.bit index).get state = true)
     layout.allControls_output_flip (layout.gates_applyVec physical oracles) state
 
 /-- The actual trace contains the two Hadamards and the exact elementary MCX list. -/
-theorem phaseProgram_eventTrace :
+lemma phaseProgram_eventTrace :
     (layout.phaseProgram physical oracles).eventTrace =
       [.gate .singleQubit] ++ layout.gates.map (GateSpec.event oracles) ++
         [.gate .singleQubit] := by
@@ -96,14 +97,14 @@ theorem phaseProgram_eventTrace :
     GateSpec.programList_eventTrace]
 
 /-- The phase bridge adds precisely two gates to the actual MCX list. -/
-theorem phaseProgram_eventTrace_length :
+lemma phaseProgram_eventTrace_length :
     (layout.phaseProgram physical oracles).eventTrace.length = layout.gates.length + 2 := by
   rw [phaseProgram_eventTrace]
   simp only [List.length_append, List.length_singleton, List.length_map]
   omega
 
 /-- The same literal phase circuit has linear event length. -/
-theorem phaseProgram_eventTrace_length_le :
+lemma phaseProgram_eventTrace_length_le :
     (layout.phaseProgram physical oracles).eventTrace.length ≤ 8 * controls + 3 := by
   rw [phaseProgram_eventTrace_length]
   have actual := layout.gates_length_le

@@ -25,7 +25,7 @@ open scoped ComplexOrder
 variable {R : Register}
 
 /-- A certified positive observable has nonnegative weight on every represented density. -/
-theorem weight_nonneg (effect : Effect R) (state : DensityOperator R) :
+lemma weight_nonneg (effect : Effect R) (state : DensityOperator R) :
     0 ≤ effect.weight state := by
   have pure (input : NormalizedVector R) :
       0 ≤ effect.weight (DensityOperator.ofPure input) := by
@@ -35,7 +35,7 @@ theorem weight_nonneg (effect : Effect R) (state : DensityOperator R) :
   simpa only [mul_zero] using mass_mul_le_weight_of_pure effect 0 pure state
 
 /-- No certified event carries more weight than the same input branch's actual mass. -/
-theorem weight_le_mass (effect : Effect R) (state : DensityOperator R) :
+lemma weight_le_mass (effect : Effect R) (state : DensityOperator R) :
     effect.weight state ≤ state.mass := by
   have pure (input : NormalizedVector R) :
       effect.weight (DensityOperator.ofPure input) ≤ 1 := by

@@ -31,7 +31,7 @@ noncomputable section
 
 /-- A good unit's true order makes the pure left gcd branch return a declared
 semiprime factor. -/
-theorem factorFromOrderValue_returns_declared_of_goodBase {N : Nat}
+lemma factorFromOrderValue_returns_declared_of_goodBase {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (odd : ¬ Even N) (unit : (ZMod N)ˣ)
     (good :
@@ -69,7 +69,7 @@ theorem factorFromOrderValue_returns_declared_of_goodBase {N : Nat}
 /-- For an even semiprime, the public shortcut factor is one of the declared
 prime factors.  This is intentionally local to the typed canonical boundary
 and is proved from the semiprime model itself. -/
-theorem two_eq_declaredFactor_of_even {N : Nat}
+lemma two_eq_declaredFactor_of_even {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (even : Even N) :
     2 = model.leftFactor ∨ 2 = model.rightFactor :=
   model.nontrivial_factor_eq_declared (even_iff_two_dvd.mp even)
@@ -78,7 +78,7 @@ theorem two_eq_declaredFactor_of_even {N : Nat}
 /-- The machine-facing pure output has the same total even-modulus shortcut:
 the sampled parameter and terminal recovery latch are irrelevant once the
 public modulus itself exposes factor two. -/
-theorem outputOf_eq_some_two_of_even {N : Nat}
+lemma outputOf_eq_some_two_of_even {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (even : Even N)
     (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (orderAccepted : Bool)
@@ -89,7 +89,7 @@ theorem outputOf_eq_some_two_of_even {N : Nat}
 /-- On an even semiprime every pure machine-facing attempt returns the
 declared factor two, independently of its sampled parameter and terminal
 measurement. -/
-theorem outputOf_even_declared {N : Nat}
+lemma outputOf_even_declared {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (even : Even N)
     (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (orderAccepted : Bool)
@@ -106,7 +106,7 @@ noncomputable def trueOrderWord {N : Nat} (_input : Input N) (unit : (ZMod N)ˣ)
   ClassicalAlgorithms.OrderRecovery.candidateWord
     (phaseBits N) (orderOf unit)
 
-private theorem trueOrderWord_fits {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
+private lemma trueOrderWord_fits {N : Nat} (input : Input N) (unit : (ZMod N)ˣ) :
     orderOf unit < 2 ^ (phaseBits N + 1) := by
   have orderLt : orderOf unit < N :=
     OrderFinding.input_order_lt_modulus
@@ -121,7 +121,7 @@ private theorem trueOrderWord_fits {N : Nat} (input : Input N) (unit : (ZMod N)�
       exact Nat.pow_lt_pow_right (by decide)
         (Nat.lt_succ_self (phaseBits N))
 
-@[simp] theorem trueOrderWord_val {N : Nat} (input : Input N)
+@[simp] lemma trueOrderWord_val {N : Nat} (input : Input N)
     (unit : (ZMod N)ˣ) : (trueOrderWord input unit).val = orderOf unit := by
   unfold trueOrderWord
   exact ClassicalAlgorithms.OrderRecovery.candidateWord_val_of_lt
@@ -129,7 +129,7 @@ private theorem trueOrderWord_fits {N : Nat} (input : Input N) (unit : (ZMod N)�
 
 /-- On an odd semiprime, a counted good unit and its accepted true order make
 the machine-facing pure relation return a declared factor. -/
-theorem outputOf_unitParameter_trueOrder_declared {N : Nat}
+lemma outputOf_unitParameter_trueOrder_declared {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (odd : ¬ Even N) (unit : (ZMod N)ˣ)
     (good :
@@ -156,7 +156,7 @@ theorem outputOf_unitParameter_trueOrder_declared {N : Nat}
     exact odd modulusEven
 
 /-- Any encoded success from the ordinary half-order route is sound. -/
-theorem outputOf_some_sound_of_noEarly {N : Nat} (_input : Input N)
+lemma outputOf_some_sound_of_noEarly {N : Nat} (_input : Input N)
     (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (noEarly : parameter.second.first.toBool = false)
     (orderAccepted : Bool)
@@ -179,7 +179,7 @@ theorem outputOf_some_sound_of_noEarly {N : Nat} (_input : Input N)
 
 /-- Every successful output computed from the actual sampler parameter is a
 nontrivial factor of the public modulus. -/
-theorem outputOf_parameterValue_some_sound {N : Nat} (input : Input N)
+lemma outputOf_parameterValue_some_sound {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (orderAccepted : Bool)
     (order : ClassicalAlgorithms.Word (phaseBits N + 1))
@@ -216,7 +216,7 @@ theorem outputOf_parameterValue_some_sound {N : Nat} (input : Input N)
 
 /-- The optional order value supplied by the seam preserves the ordinary
 sampler-parameter soundness guarantee on every successful factor result. -/
-theorem outputOfRecovered_parameterValue_some_sound {N : Nat} (input : Input N)
+lemma outputOfRecovered_parameterValue_some_sound {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N))
     (recovered :
       ClassicalAlgorithms.OrderRecovery.Output (modulusBits N) (phaseBits N))
@@ -234,7 +234,7 @@ theorem outputOfRecovered_parameterValue_some_sound {N : Nat} (input : Input N)
 
 /-- The even-modulus shortcut remains total after the optional order
 result is exposed: no sampler or terminal value can bypass factor two. -/
-theorem outputOfRecovered_eq_some_two_of_even {N : Nat}
+lemma outputOfRecovered_eq_some_two_of_even {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (even : Even N)
     (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (recovered :
@@ -264,7 +264,7 @@ recovery result select a declared semiprime factor.  Even moduli use their
 total factor-two route; the odd case invokes the source-certified
 continued-fraction recovery bridge and then the ordinary half-order gcd
 theorem. -/
-theorem outputOfRecovered_unitOutcome_declared {N : Nat}
+lemma outputOfRecovered_unitOutcome_declared {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (outcome : SourceOutcome N) (unit : (ZMod N)ˣ)
     (unitMember : unit ∈ model.goodEventUnits)
@@ -327,7 +327,7 @@ theorem outputOfRecovered_unitOutcome_declared {N : Nat}
 
 /-- A counted source-good outcome supplies a concrete unit witness for the
 previous recovery theorem. -/
-theorem outputOfRecovered_goodAttemptOutcome_declared {N : Nat}
+lemma outputOfRecovered_goodAttemptOutcome_declared {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (outcome : SourceOutcome N)
     (good : Probability.GoodAttemptOutcome model outcome) :

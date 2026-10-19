@@ -38,11 +38,12 @@ def program (oracles : OracleModel) (phases controls : Nat)
     (control_work_ne phases controls control work different)
 
 /-- Exact full-register action preserves every phase value on both control branches. -/
-theorem program_applyVec_pair (oracles : OracleModel) (phases controls : Nat)
+lemma program_applyVec_pair (oracles : OracleModel) {environment : oracles.Interpretation}
+    (phases controls : Nat)
     (physical : QubitLayout (phases + (controls + 1))) (control work : Fin phases)
     (different : control ≠ work) (phase : Fin (2 ^ phases))
     (source : Fin (2 ^ (controls + 1))) :
-    (program oracles phases controls physical control work different).applyVec
+    (program oracles phases controls physical control work different).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (prodEquiv (phase, source)))).vec =
       if (BinaryLabelEncoding.finIdentityBit phases control).get phase then
@@ -56,12 +57,12 @@ theorem program_applyVec_pair (oracles : OracleModel) (phases controls : Nat)
   have encoded : (encoding phases controls).encode (phase, source) =
       prodEquiv (phase, source) := rfl
   have actual := (layout phases controls work).controlledZeroReflectionProgram_applyVec_encoded_ket
-      physical oracles
+      physical oracles (environment := environment)
     (phaseBit phases controls control)
     (control_source_ne phases controls control work)
     (control_output_ne phases controls control work)
     (control_work_ne phases controls control work different) (phase, source)
-  change (program oracles phases controls physical control work different).applyVec
+  change (program oracles phases controls physical control work different).applyVec environment
       (NormalizedVector.ket (R := physical.toQuantum.register)
         (physical.basisEquiv.symm ((encoding phases controls).encode (phase, source)))).vec =
     (if (phaseBit phases controls control).get (phase, source) then
@@ -75,7 +76,7 @@ theorem program_applyVec_pair (oracles : OracleModel) (phases controls : Nat)
   simpa only [reflectedZero_iff, phaseBit_get, encoded] using actual
 
 /-- The actual elementary event trace has a linear source-width bound with no extra wire. -/
-theorem program_eventTrace_length_le (oracles : OracleModel) (phases controls : Nat)
+lemma program_eventTrace_length_le (oracles : OracleModel) (phases controls : Nat)
     (physical : QubitLayout (phases + (controls + 1))) (control work : Fin phases)
     (different : control ≠ work) :
     (program oracles phases controls physical control work different).eventTrace.length ≤

@@ -21,7 +21,7 @@ with no execution, resource or normalization assumptions.
 namespace QuantumAlg.HilbertOperator
 
 /-- Six exact vector actions compose in matrix order, retaining every complex scalar. -/
-theorem applyVec_six {R : Register} {A B C D E F : HilbertOperator R}
+lemma applyVec_six {R : Register} {A B C D E F : HilbertOperator R}
     {v₀ v₁ v₂ v₃ v₄ v₅ v₆ : HilbertVector R} {a b c d e f : ℂ}
     (first : applyVec A v₀ = a • v₁) (second : applyVec B v₁ = b • v₂)
     (third : applyVec C v₂ = c • v₃) (fourth : applyVec D v₃ = d • v₄)

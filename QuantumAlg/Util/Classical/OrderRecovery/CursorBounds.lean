@@ -20,21 +20,21 @@ strictly below the widened word capacity.
 namespace QuantumAlg.ClassicalAlgorithms.OrderRecovery
 
 /-- The head of any active raw cursor is one of that cursor's actual candidates. -/
-theorem euclideanCursor_candidate_mem_of_active (cursor : EuclideanContinuantCursor)
+lemma euclideanCursor_candidate_mem_of_active (cursor : EuclideanContinuantCursor)
     (active : cursor.denominator ≠ 0) :
     cursor.candidate.denominator ∈ cursor.actualCandidates := by
   rw [EuclideanContinuantCursor.actualCandidates_cons_of_active cursor active]
   exact List.mem_cons_self
 
 /-- Advancing once leaves a suffix of exactly the same actual raw candidate path. -/
-theorem euclideanCursor_advance_candidates_subset (cursor : EuclideanContinuantCursor)
+lemma euclideanCursor_advance_candidates_subset (cursor : EuclideanContinuantCursor)
     (active : cursor.denominator ≠ 0) :
     cursor.advance.actualCandidates ⊆ cursor.actualCandidates := by
   rw [EuclideanContinuantCursor.actualCandidates_cons_of_active cursor active]
   exact List.subset_cons_self _ _
 
 /-- Every candidate remaining after fixed fuel belongs to the original finite source trace. -/
-theorem dyadicCursor_remaining_candidates_subset {phaseBits : Nat}
+lemma dyadicCursor_remaining_candidates_subset {phaseBits : Nat}
     (numerator : Word phaseBits) (processed : Nat) :
     ((EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).advanceN
       processed).actualCandidates ⊆ finiteCandidates numerator := by
@@ -43,7 +43,7 @@ theorem dyadicCursor_remaining_candidates_subset {phaseBits : Nat}
   exact List.drop_subset _ _
 
 /-- The next active candidate at every position is still an original source convergent. -/
-theorem dyadicCursor_candidate_mem_of_active {phaseBits : Nat}
+lemma dyadicCursor_candidate_mem_of_active {phaseBits : Nat}
     (numerator : Word phaseBits) (processed : Nat)
     (active : ((EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).advanceN
       processed).denominator ≠ 0) :
@@ -53,7 +53,7 @@ theorem dyadicCursor_candidate_mem_of_active {phaseBits : Nat}
     (euclideanCursor_candidate_mem_of_active _ active)
 
 /-- Every active source cursor whose remaining path is genuine has a fitted next candidate. -/
-theorem dyadicCursor_candidate_fits_of_remaining {phaseBits : Nat}
+lemma dyadicCursor_candidate_fits_of_remaining {phaseBits : Nat}
     (numerator : Word phaseBits) (cursor : EuclideanContinuantCursor)
     (remaining : cursor.actualCandidates ⊆ finiteCandidates numerator)
     (active : cursor.denominator ≠ 0) :
@@ -65,7 +65,7 @@ theorem dyadicCursor_candidate_fits_of_remaining {phaseBits : Nat}
   omega
 
 /-- The widened word never truncates a candidate on the actual initialized finite path. -/
-theorem dyadicCursor_candidate_fits_of_active {phaseBits : Nat}
+lemma dyadicCursor_candidate_fits_of_active {phaseBits : Nat}
     (numerator : Word phaseBits) (processed : Nat)
     (active : ((EuclideanContinuantCursor.initial numerator.val (2 ^ phaseBits)).advanceN
       processed).denominator ≠ 0) :

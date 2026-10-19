@@ -34,7 +34,7 @@ namespace TropicalDepth
 
 variable {U : Type}
 
-@[ext] theorem ext {left right : TropicalDepth U}
+@[ext] lemma ext {left right : TropicalDepth U}
     (h : ∀ assign, left.eval assign = right.eval assign) : left = right := by
   cases left
   cases right
@@ -64,63 +64,63 @@ def scale (count : Nat) (value : TropicalDepth U) : TropicalDepth U :=
 def evalAt (assign : U → Nat) (value : TropicalDepth U) : Nat :=
   value.eval assign
 
-theorem seq_assoc (left middle right : TropicalDepth U) :
+lemma seq_assoc (left middle right : TropicalDepth U) :
     seq (seq left middle) right = seq left (seq middle right) := by
   apply ext
   intro assign
   exact Nat.add_assoc _ _ _
 
-theorem seq_comm (left right : TropicalDepth U) : seq left right = seq right left := by
+lemma seq_comm (left right : TropicalDepth U) : seq left right = seq right left := by
   apply ext
   intro assign
   exact Nat.add_comm _ _
 
-@[simp] theorem seq_zero_left (value : TropicalDepth U) : seq zero value = value := by
+@[simp] lemma seq_zero_left (value : TropicalDepth U) : seq zero value = value := by
   apply ext
   intro assign
   exact Nat.zero_add _
 
-@[simp] theorem seq_zero_right (value : TropicalDepth U) : seq value zero = value := by
+@[simp] lemma seq_zero_right (value : TropicalDepth U) : seq value zero = value := by
   apply ext
   intro assign
   exact Nat.add_zero _
 
-theorem parallel_assoc (left middle right : TropicalDepth U) :
+lemma parallel_assoc (left middle right : TropicalDepth U) :
     parallel (parallel left middle) right = parallel left (parallel middle right) := by
   apply ext
   intro assign
   exact Nat.max_assoc _ _ _
 
-theorem parallel_comm (left right : TropicalDepth U) :
+lemma parallel_comm (left right : TropicalDepth U) :
     parallel left right = parallel right left := by
   apply ext
   intro assign
   exact Nat.max_comm _ _
 
-@[simp] theorem parallel_idem (value : TropicalDepth U) : parallel value value = value := by
+@[simp] lemma parallel_idem (value : TropicalDepth U) : parallel value value = value := by
   apply ext
   intro assign
   exact Nat.max_self _
 
-@[simp] theorem parallel_zero_left (value : TropicalDepth U) : parallel zero value = value := by
+@[simp] lemma parallel_zero_left (value : TropicalDepth U) : parallel zero value = value := by
   apply ext
   intro assign
   exact Nat.max_eq_right (Nat.zero_le _)
 
-@[simp] theorem parallel_zero_right (value : TropicalDepth U) : parallel value zero = value := by
+@[simp] lemma parallel_zero_right (value : TropicalDepth U) : parallel value zero = value := by
   apply ext
   intro assign
   exact Nat.max_eq_left (Nat.zero_le _)
 
 /-- Sequential addition distributes over a parallel maximum on the right. -/
-theorem seq_parallel_distrib_left (left middle right : TropicalDepth U) :
+lemma seq_parallel_distrib_left (left middle right : TropicalDepth U) :
     seq left (parallel middle right) = parallel (seq left middle) (seq left right) := by
   apply ext
   intro assign
   exact add_max _ _ _
 
 /-- Sequential addition distributes over a parallel maximum on the left. -/
-theorem seq_parallel_distrib_right (left middle right : TropicalDepth U) :
+lemma seq_parallel_distrib_right (left middle right : TropicalDepth U) :
     seq (parallel left middle) right = parallel (seq left right) (seq middle right) := by
   apply ext
   intro assign
@@ -130,60 +130,60 @@ theorem seq_parallel_distrib_right (left middle right : TropicalDepth U) :
 def ofDepthExpr (expression : DepthExpr U) : TropicalDepth U :=
   ⟨fun assign => DepthExpr.depthEval assign expression⟩
 
-@[simp] theorem ofDepthExpr_id : ofDepthExpr (DepthExpr.id : DepthExpr U) = zero := by
+@[simp] lemma ofDepthExpr_id : ofDepthExpr (DepthExpr.id : DepthExpr U) = zero := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem ofDepthExpr_atom (unit : U) : ofDepthExpr (.atom unit) = atom unit := by
+@[simp] lemma ofDepthExpr_atom (unit : U) : ofDepthExpr (.atom unit) = atom unit := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem ofDepthExpr_seq (left right : DepthExpr U) :
+@[simp] lemma ofDepthExpr_seq (left right : DepthExpr U) :
     ofDepthExpr (.seq left right) = seq (ofDepthExpr left) (ofDepthExpr right) := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem ofDepthExpr_tensor (left right : DepthExpr U) :
+@[simp] lemma ofDepthExpr_tensor (left right : DepthExpr U) :
     ofDepthExpr (.tensor left right) = parallel (ofDepthExpr left) (ofDepthExpr right) := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem ofDepthExpr_inverse (body : DepthExpr U) :
+@[simp] lemma ofDepthExpr_inverse (body : DepthExpr U) :
     ofDepthExpr (.inverse body) = ofDepthExpr body := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem ofDepthExpr_controlled (label : String) (body : DepthExpr U) :
+@[simp] lemma ofDepthExpr_controlled (label : String) (body : DepthExpr U) :
     ofDepthExpr (.controlled label body) = ofDepthExpr body := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem ofDepthExpr_iterate (count : Nat) (body : DepthExpr U) :
+@[simp] lemma ofDepthExpr_iterate (count : Nat) (body : DepthExpr U) :
     ofDepthExpr (.iterate count body) = scale count (ofDepthExpr body) := by
   apply ext
   intro _
   rfl
 
-@[simp] theorem evalAt_zero (assign : U → Nat) : evalAt assign zero = 0 := rfl
+@[simp] lemma evalAt_zero (assign : U → Nat) : evalAt assign zero = 0 := rfl
 
-@[simp] theorem evalAt_atom (assign : U → Nat) (unit : U) :
+@[simp] lemma evalAt_atom (assign : U → Nat) (unit : U) :
     evalAt assign (atom unit) = assign unit := rfl
 
-@[simp] theorem evalAt_seq (assign : U → Nat) (left right : TropicalDepth U) :
+@[simp] lemma evalAt_seq (assign : U → Nat) (left right : TropicalDepth U) :
     evalAt assign (seq left right) = evalAt assign left + evalAt assign right := rfl
 
-@[simp] theorem evalAt_parallel (assign : U → Nat) (left right : TropicalDepth U) :
+@[simp] lemma evalAt_parallel (assign : U → Nat) (left right : TropicalDepth U) :
     evalAt assign (parallel left right) = max (evalAt assign left) (evalAt assign right) := rfl
 
 /-- Embedding and then specializing is exactly the existing fixed-model depth
 evaluation, so `evalAt` is the required homomorphism to a chosen model. -/
-theorem evalAt_ofDepthExpr (assign : U → Nat) (expression : DepthExpr U) :
+lemma evalAt_ofDepthExpr (assign : U → Nat) (expression : DepthExpr U) :
     evalAt assign (ofDepthExpr expression) = DepthExpr.depthEval assign expression := rfl
 
 end TropicalDepth

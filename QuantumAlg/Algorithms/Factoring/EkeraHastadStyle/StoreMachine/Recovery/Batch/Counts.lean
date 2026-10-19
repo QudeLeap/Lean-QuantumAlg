@@ -41,7 +41,7 @@ def eventCountBound (modulusWidth m ell coordinateWidth : Nat) : Nat :=
       modularSetupCardBound modulusWidth + candidateScanCardBound modulusWidth coordinateWidth +
       quadraticGuardedCardBound coordinateWidth))
 
-private theorem decoder_card (N : Nat) :
+private lemma decoder_card (N : Nat) :
     (BatchMachine.eventEnvelope (model := model) N).card =
       2 * measurementBits N + tradeoffBits N + 3 := by
   simp [BatchMachine.eventEnvelope, TerminalDecode.envelope, TerminalDecode.bitEnvelope,
@@ -50,7 +50,7 @@ private theorem decoder_card (N : Nat) :
     ResourcePool.ofList, ResourcePool.scale, ResourcePool.singleton]
   omega
 
-private theorem basis_card (N m ell width : Nat) :
+private lemma basis_card (N m ell width : Nat) :
     (LatticeBasis.basisEventEnvelope (model := model) N m ell width).card =
       2 * (ell + m) + 8 := by
   simp [LatticeBasis.basisEventEnvelope, LatticeBasis.basisTrace, LatticeLoading.firstRowTrace,
@@ -58,7 +58,7 @@ private theorem basis_card (N m ell width : Nat) :
     ResourcePool.ofList]
   omega
 
-private theorem target_card (m ell width : Nat) :
+private lemma target_card (m ell width : Nat) :
     (LatticeWideTargetMachine.eventEnvelope (model := model) m ell width).card =
       2 * m + 18 := by
   simp [LatticeWideTargetMachine.eventEnvelope, LatticeWideTargetMachine.preimagesTrace,
@@ -67,7 +67,7 @@ private theorem target_card (m ell width : Nat) :
     LatticeTarget.arithmeticTrace, ResourcePool.ofList]
   omega
 
-private theorem initialized_card (fuel width : Nat) :
+private lemma initialized_card (fuel width : Nat) :
     (LatticeWideLllMachine.initializedEventEnvelope (model := model) fuel width).card =
       32 + 2210 * fuel := by
   rw [LatticeWideLllMachine.initializedEventEnvelope_eq]
@@ -76,7 +76,7 @@ private theorem initialized_card (fuel width : Nat) :
     ClassicalRoutines.NumberTheory.SignedWord.nativeAlphabet, ResourcePool.ofList]
   omega
 
-private theorem nearest_card (N : Nat) :
+private lemma nearest_card (N : Nat) :
     (LatticePairNearestPlaneSavedTarget.eventEnvelope (model := model) N).card =
       nearestPlaneEnvelopeBound (shortLogBits N) (tradeoffBits N) := by
   have measurementEq : measurementBits N = shortLogBits N + 2 * tradeoffBits N := by
@@ -92,7 +92,7 @@ private theorem nearest_card (N : Nat) :
     nearestPlaneEnvelopeBound]
   omega
 
-private theorem candidate_card_le (N : Nat) :
+private lemma candidate_card_le (N : Nat) :
     (LatticePairCandidateRecovery.recoveryEventEnvelope (model := model) N).card ≤
       nearestPlaneEnvelopeBound (shortLogBits N) (tradeoffBits N) + (shortLogBits N + 3) +
         modularSetupCardBound (modulusBits N) +
@@ -112,7 +112,7 @@ private theorem candidate_card_le (N : Nat) :
   rw [constants]
   exact (Nat.add_le_add_left scan _).trans_eq (by simp only [Nat.add_assoc])
 
-private theorem reusable_card_le (N : Nat) :
+private lemma reusable_card_le (N : Nat) :
     (LatticePairReusableRecovery.eventEnvelope (model := model) N).card ≤
       13 + (nearestPlaneEnvelopeBound (shortLogBits N) (tradeoffBits N) +
         (shortLogBits N + 3) + modularSetupCardBound (modulusBits N) +
@@ -129,7 +129,7 @@ private theorem reusable_card_le (N : Nat) :
   exact Nat.add_le_add_left (Nat.add_le_add candidate quadratic) 13
 
 /-- Cardinality of the complete independent native pool obeys the closed width ceiling. -/
-theorem eventEnvelope_card_le (N : Nat) :
+lemma eventEnvelope_card_le (N : Nat) :
     (eventEnvelope (model := model) N).card ≤
       eventCountBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
         (LatticePairCandidateRecovery.Width N) := by
@@ -150,7 +150,7 @@ theorem eventEnvelope_card_le (N : Nat) :
   omega
 
 omit [BitWord.Selected model] in
-private theorem classicalWeight_le_card (pool : ResourcePool model) :
+private lemma classicalWeight_le_card (pool : ResourcePool model) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight pool ≤ pool.card := by
   induction pool using Multiset.induction_on with
   | empty => simp [ResourcePool.weightedCount]
@@ -162,7 +162,7 @@ private theorem classicalWeight_le_card (pool : ResourcePool model) :
       omega
 
 /-- Canonical classical-operation weight is bounded by the complete native event ceiling. -/
-theorem eventEnvelope_classicalWeight_le (N : Nat) :
+lemma eventEnvelope_classicalWeight_le (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (eventEnvelope (model := model) N) ≤
       eventCountBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
@@ -172,7 +172,7 @@ theorem eventEnvelope_classicalWeight_le (N : Nat) :
 variable {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Each complete allocated path inherits the independent ceiling from its actual native pool. -/
-theorem into_eventCount_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_eventCount_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :
@@ -183,7 +183,7 @@ theorem into_eventCount_le (input : Input N) (parameter : CInputRef ctx (Paramet
     (eventEnvelope_card_le N)
 
 /-- Every literal classical operation is charged on that same complete allocated path. -/
-theorem into_classicalWeight_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
+lemma into_classicalWeight_le (input : Input N) (parameter : CInputRef ctx (ParameterShape N))
     (terminals : LatticePairRecoveryBatch.Terminals ctx N)
     (result : CWriteRef ctx (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (into ctx input parameter terminals result).Path) :

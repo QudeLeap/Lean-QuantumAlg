@@ -92,7 +92,7 @@ def pushStore {ctx : RuntimeCtx kind} (dimension : ℕ+) :
         (context ctx dimension count).canonicalFreshKey_fresh
 
 /-- No quantum wire is added, removed, reordered, or assigned a new dimension. -/
-theorem context_quantumWires (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
+lemma context_quantumWires (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
     (context ctx dimension count).quantumWires = ctx.quantumWires := by
   induction count with
   | zero => rfl
@@ -100,12 +100,12 @@ theorem context_quantumWires (ctx : RuntimeCtx kind) (dimension : ℕ+) (count :
       simpa only [context, RuntimeCtx.quantumWires_addRetained] using ih
 
 /-- Classical allocation preserves the complete list of physical quantum identities. -/
-theorem context_physicalIdx (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
+lemma context_physicalIdx (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
     (context ctx dimension count).physicalIdx = ctx.physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, context_quantumWires]
 
 /-- Every cell contributes its real finite encoding capacity to resident space. -/
-theorem context_residentSpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
+lemma context_residentSpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
     (context ctx dimension count).residentSpace =
       count • SpacePool.ofShape (.finite dimension) + ctx.residentSpace := by
   induction count with
@@ -115,7 +115,7 @@ theorem context_residentSpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count 
       ac_rfl
 
 /-- The same retained cells also contribute to auxiliary space. -/
-theorem context_auxiliarySpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
+lemma context_auxiliarySpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
     (context ctx dimension count).auxiliarySpace =
       count • SpacePool.ofShape (.finite dimension) + ctx.auxiliarySpace := by
   induction count with
@@ -125,7 +125,7 @@ theorem context_auxiliarySpace (ctx : RuntimeCtx kind) (dimension : ℕ+) (count
       ac_rfl
 
 /-- Retained cell allocation itself emits no native operation. -/
-theorem allocate_eventTrace {model : ExecutionModel}
+lemma allocate_eventTrace {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     (path : (allocate (model := model) ctx dimension count).Path) :
     (allocate (model := model) ctx dimension count).eventTrace path = [] := by
@@ -136,7 +136,7 @@ theorem allocate_eventTrace {model : ExecutionModel}
       rw [ih, List.append_nil]
 
 /-- Cell allocation contributes no event duration, while still allocating real storage. -/
-theorem allocate_depth {model : ExecutionModel}
+lemma allocate_depth {model : ExecutionModel}
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     (duration : Resource.Event model → Nat)
     (path : (allocate (model := model) ctx dimension count).Path) :
@@ -148,7 +148,7 @@ theorem allocate_depth {model : ExecutionModel}
       rw [ih, Nat.add_zero]
 
 /-- Each newly allocated cell initially reads its declared finite zero encoding. -/
-theorem read_pushStore_reference {ctx : RuntimeCtx kind} (dimension : ℕ+) (count : Nat)
+lemma read_pushStore_reference {ctx : RuntimeCtx kind} (dimension : ℕ+) (count : Nat)
     (store : Store ctx) (index : Fin count) :
     (pushStore dimension count store).read
       (.storage (reference ctx dimension count index).toCStorageRef) =
@@ -161,7 +161,7 @@ theorem read_pushStore_reference {ctx : RuntimeCtx kind} (dimension : ℕ+) (cou
       · exact ih previous
 
 /-- Allocation preserves every value in the older writable reference. -/
-theorem read_pushStore_liftWrite {ctx : RuntimeCtx kind} {shape : CShape}
+lemma read_pushStore_liftWrite {ctx : RuntimeCtx kind} {shape : CShape}
     (dimension : ℕ+) (count : Nat) (store : Store ctx) (ref : CWriteRef ctx shape) :
     (pushStore dimension count store).read
       (.storage (liftWrite dimension ref count).toCStorageRef) =

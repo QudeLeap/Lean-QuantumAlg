@@ -23,14 +23,14 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.OracleModel
 
 noncomputable section
 
-private theorem tradeoffWidth_le_self_of_effective {b : Nat}
+private lemma tradeoffWidth_le_self_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.tradeoffWidth b ≤ b := by
   unfold RSA.GeneratorOrder.effectiveCutoffBits at effective
   unfold Canonical.PublicResourceBounds.tradeoffWidth
   omega
 
-private theorem qftEventBound_le_three_mul_sq (bits : Nat) :
+private lemma qftEventBound_le_three_mul_sq (bits : Nat) :
     Canonical.PublicResourceBounds.qftEventBound bits ≤ 3 * bits ^ 2 := by
   by_cases zeroBits : bits = 0
   · subst bits
@@ -47,7 +47,7 @@ private theorem qftEventBound_le_three_mul_sq (bits : Nat) :
   simp only [pow_two]
   omega
 
-private theorem coordinateWidth_le_of_effective {b : Nat}
+private lemma coordinateWidth_le_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.coordinateWidth b ≤ 2 ^ 24 * b := by
   have ellLe := tradeoffWidth_le_self_of_effective effective
@@ -57,7 +57,7 @@ private theorem coordinateWidth_le_of_effective {b : Nat}
   norm_num only
   omega
 
-private theorem clog_le_sixteenth {b n : Nat} (wide : 512 ≤ b)
+private lemma clog_le_sixteenth {b n : Nat} (wide : 512 ≤ b)
     (bounded : n ≤ 2 * b + 1) : 16 * Nat.clog 2 n ≤ b := by
   have growth : ∀ k : Nat, 32 ≤ k → 32 * k + 31 ≤ 2 ^ k := by
     intro k hk
@@ -71,7 +71,7 @@ private theorem clog_le_sixteenth {b n : Nat} (wide : 512 ≤ b)
   have logarithm : Nat.clog 2 n ≤ b / 16 := Nat.clog_le_of_le_pow capacity
   omega
 
-private theorem offsetEventBound_le_square {b width : Nat} (wide : 512 ≤ b)
+private lemma offsetEventBound_le_square {b width : Nat} (wide : 512 ≤ b)
     (bounded : width ≤ 2 * b + 1) :
     MAU.Addition.Gidney.constantOffsetEventBound width ≤ 9 * b ^ 2 := by
   have logarithm := clog_le_sixteenth wide bounded
@@ -81,7 +81,7 @@ private theorem offsetEventBound_le_square {b width : Nat} (wide : 512 ≤ b)
     _ ≤ (3 * b) * (3 * b) := Nat.mul_le_mul (by omega) factor
     _ = 9 * b ^ 2 := by ring
 
-private theorem nativeQftBound_le_nine_sq (bits : Nat) :
+private lemma nativeQftBound_le_nine_sq (bits : Nat) :
     ShortDLP.CompiledMAU.qftPrimitiveBound bits ≤ 9 * bits ^ 2 := by
   by_cases zero : bits = 0
   · subst bits
@@ -96,7 +96,7 @@ private theorem nativeQftBound_le_nine_sq (bits : Nat) :
   unfold ShortDLP.CompiledMAU.qftPrimitiveBound
   omega
 
-private theorem stageBound_le_square {b : Nat} (wide : 512 ≤ b) :
+private lemma stageBound_le_square {b : Nat} (wide : 512 ≤ b) :
     MAU.Multiplication.Accumulate.Gidney.stageEventBound (2 * b) ≤ 2 ^ 11 * b ^ 2 := by
   have offset := offsetEventBound_le_square wide (show 2 * b ≤ 2 * b + 1 by omega)
   have extended := offsetEventBound_le_square wide (show 1 + 2 * b ≤ 2 * b + 1 by omega)
@@ -115,7 +115,7 @@ private theorem stageBound_le_square {b : Nat} (wide : 512 ≤ b) :
     _ ≤ 120 * (9 * b ^ 2) + 24 * (9 * b ^ 2) + 192 * b + 72 := by omega
     _ ≤ 2 ^ 11 * b ^ 2 := by norm_num only; omega
 
-private theorem multiplicationBound_le_cube {b : Nat} (wide : 512 ≤ b) :
+private lemma multiplicationBound_le_cube {b : Nat} (wide : 512 ≤ b) :
     MAU.Multiplication.Gidney.eventBound (2 * b) ≤ 2 ^ 14 * b ^ 3 := by
   have stageLe := stageBound_le_square wide
   have positive : 1 ≤ b := by omega
@@ -129,7 +129,7 @@ private theorem multiplicationBound_le_cube {b : Nat} (wide : 512 ≤ b) :
     _ = 8192 * b ^ 3 + 6 * b := by norm_num only; ring
     _ ≤ 2 ^ 14 * b ^ 3 := by norm_num only; omega
 
-private theorem exponentiationBound_le_cube {b : Nat} (wide : 512 ≤ b) (bits : Nat) :
+private lemma exponentiationBound_le_cube {b : Nat} (wide : 512 ≤ b) (bits : Nat) :
     ShortDLP.CompiledMAU.exponentiationPrimitiveWidthBound bits (2 * b) ≤
       2 ^ 18 * bits * b ^ 3 := by
   have multiplicationLe := multiplicationBound_le_cube wide
@@ -143,7 +143,7 @@ private theorem exponentiationBound_le_cube {b : Nat} (wide : 512 ≤ b) (bits :
     _ ≤ (2 ^ 18) * (bits * b ^ 3) := Nat.mul_le_mul_right _ (by norm_num only)
     _ = _ := by ring
 
-private theorem groupActionBound_le_quartic {b : Nat}
+private lemma groupActionBound_le_quartic {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     ShortDLP.CompiledMAU.groupActionPrimitiveWidthBound
       (b + 1) (Canonical.PublicResourceBounds.tradeoffWidth b) (2 * b) ≤
@@ -163,7 +163,7 @@ private theorem groupActionBound_le_quartic {b : Nat}
     _ ≤ (2 ^ 18 * b ^ 3) * (4 * b) := Nat.mul_le_mul_left _ combinedWidth
     _ = _ := by norm_num only; ring
 
-private theorem memberEventBound_le_quartic_of_effective {b : Nat}
+private lemma memberEventBound_le_quartic_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.memberEventBound b ≤ 2 ^ 21 * b ^ 4 := by
   have wide : 512 ≤ b := by
@@ -221,7 +221,7 @@ private theorem memberEventBound_le_quartic_of_effective {b : Nat}
     _ ≤ 2 ^ 20 * b ^ 4 + 2 ^ 20 * b ^ 4 := combined
     _ = _ := by norm_num only; ring
 
-private theorem modularSetupEventBound_le_of_effective {b : Nat}
+private lemma modularSetupEventBound_le_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.modularSetupEventBound b ≤
       2 ^ 6 * b ^ 2 := by
@@ -232,7 +232,7 @@ private theorem modularSetupEventBound_le_of_effective {b : Nat}
   norm_num only
   nlinarith
 
-private theorem nearestPlaneEventBound_le_of_effective {b : Nat}
+private lemma nearestPlaneEventBound_le_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.nearestPlaneEventBound b ≤
       2 ^ 13 * b := by
@@ -242,7 +242,7 @@ private theorem nearestPlaneEventBound_le_of_effective {b : Nat}
   norm_num only
   nlinarith
 
-private theorem candidateScanEventBound_le_of_effective {b : Nat}
+private lemma candidateScanEventBound_le_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.candidateScanEventBound b ≤
       2 ^ 48 * b ^ 2 := by
@@ -270,7 +270,7 @@ private theorem candidateScanEventBound_le_of_effective {b : Nat}
   norm_num only at scaledLe ⊢
   nlinarith
 
-private theorem quadraticEventBound_le_of_effective {b : Nat}
+private lemma quadraticEventBound_le_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.quadraticEventBound b ≤
       2 ^ 29 * b := by
@@ -282,7 +282,7 @@ private theorem quadraticEventBound_le_of_effective {b : Nat}
   norm_num only at coordinateLe ⊢
   nlinarith
 
-private theorem recoveryEventBound_le_of_effective {b : Nat}
+private lemma recoveryEventBound_le_of_effective {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.recoveryEventBound b ≤
       2 ^ 57 * b ^ 2 := by
@@ -309,7 +309,7 @@ private theorem recoveryEventBound_le_of_effective {b : Nat}
   norm_num only at modularLe scaledLe ⊢
   omega
 
-private theorem quadratic_bound_to_quartic {b events : Nat} (wide : 512 ≤ b)
+private lemma quadratic_bound_to_quartic {b events : Nat} (wide : 512 ≤ b)
     (bounded : events ≤ 2 ^ 57 * b ^ 2) : events ≤ 2 ^ 39 * b ^ 4 := by
   have widthSquareAtLeast : 2 ^ 18 ≤ b ^ 2 := by
     have square := Nat.mul_le_mul wide wide
@@ -322,7 +322,7 @@ private theorem quadratic_bound_to_quartic {b events : Nat} (wide : 512 ≤ b)
       Nat.mul_le_mul_left (2 ^ 39 * b ^ 2) widthSquareAtLeast
     _ = 2 ^ 39 * b ^ 4 := by ring
 
-private theorem complete_batch_scalar_bound {b member recovery ell : Nat} (wide : 512 ≤ b)
+private lemma complete_batch_scalar_bound {b member recovery ell : Nat} (wide : 512 ≤ b)
     (memberLe : member ≤ 2 ^ 21 * b ^ 4) (recoveryLe : recovery ≤ 2 ^ 57 * b ^ 2)
     (ellLe : ell ≤ b) :
     88 * b + 180 + 16 * (member + b + 2 + 2 * ell) + recovery ≤ 2 ^ 54 * b ^ 4 := by
@@ -345,7 +345,7 @@ private theorem complete_batch_scalar_bound {b member recovery ell : Nat} (wide 
 
 /-- In the analytically effective same-bit range, the historical scalar batch
 expression has a width-only quartic bound. -/
-theorem batchEventBound_le_twoPow54_quartic {b : Nat}
+lemma batchEventBound_le_twoPow54_quartic {b : Nat}
     (effective : RSA.GeneratorOrder.effectiveCutoffBits ≤ b) :
     Canonical.PublicResourceBounds.batchEventBound b ≤ 2 ^ 54 * b ^ 4 := by
   have wide : 512 ≤ b := by

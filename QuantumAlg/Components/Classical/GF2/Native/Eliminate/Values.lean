@@ -28,14 +28,14 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem nativeXor_value (left right : ClassicalAlgorithms.Word width) :
+private lemma nativeXor_value (left right : ClassicalAlgorithms.Word width) :
     CShape.wordBitXor width (.unsignedWord left) (.unsignedWord right) =
       .unsignedWord (ClassicalAlgorithms.GF2.rowXor left right) := by
   apply congrArg CShape.Value.unsignedWord
   apply Fin.ext
   exact Nat.mod_eq_of_lt (Nat.xor_lt_two_pow left.isLt right.isLt)
 
-private theorem encodedRows_xor (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
+private lemma encodedRows_xor (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
     (pivot target : Fin rowCount) :
     CShape.vectorRowXor (.fixedVector (fun row => .unsignedWord (samples row))) pivot target =
       .fixedVector (fun row => .unsignedWord
@@ -49,7 +49,7 @@ private theorem encodedRows_xor (samples : ClassicalAlgorithms.GF2.Samples rowCo
       nativeXor_value (samples target) (samples pivot)
   · simp only [Function.update_of_ne selected, CShape.Value.get]
 
-private theorem eliminateStep_update (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
+private lemma eliminateStep_update (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
     (pivot target : Fin rowCount) (column : Fin width) :
     ClassicalAlgorithms.GF2.eliminateStep pivot column samples target =
       Function.update samples target
@@ -64,7 +64,7 @@ private theorem eliminateStep_update (samples : ClassicalAlgorithms.GF2.Samples 
 
 omit [BitWord.Selected model] in
 /-- The actual stored pivot-column test is the original pure MSB-first bit. -/
-theorem gf2EliminationBit_of_rows
+lemma gf2EliminationBit_of_rows
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (target : Fin rowCount) (column : Fin width) (store : Store ctx)
     (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
@@ -76,7 +76,7 @@ theorem gf2EliminationBit_of_rows
   exact (ClassicalAlgorithms.GF2.testBit_machine_coordinate (samples target) column).symm
 
 /-- One actual target record writes precisely the original independent row update. -/
-theorem gf2EliminateTarget_read_matrix
+lemma gf2EliminateTarget_read_matrix
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot target : Fin rowCount) (column : Fin width) (store : Store ctx)
     (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
@@ -104,13 +104,13 @@ private def eliminatedPrefix (samples : ClassicalAlgorithms.GF2.Samples rowCount
   fun row => if row.val < count then
     ClassicalAlgorithms.GF2.eliminateRow pivot column samples row else samples row
 
-private theorem eliminatedPrefix_pivot
+private lemma eliminatedPrefix_pivot
     (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
     (pivot : Fin rowCount) (column : Fin width) (count : Nat) :
     eliminatedPrefix samples pivot column count pivot = samples pivot := by
   simp [eliminatedPrefix, ClassicalAlgorithms.GF2.eliminateRow]
 
-private theorem eliminatedPrefix_update
+private lemma eliminatedPrefix_update
     (samples : ClassicalAlgorithms.GF2.Samples rowCount width)
     (pivot target : Fin rowCount) (column : Fin width) :
     Function.update (eliminatedPrefix samples pivot column target.val) target
@@ -143,7 +143,7 @@ private theorem eliminatedPrefix_update
     simp only [same]
 
 /-- The actual chronological target traversal returns exactly the original elimination matrix. -/
-theorem gf2EliminateWithPivot_read_matrix
+lemma gf2EliminateWithPivot_read_matrix
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (pivot : Fin rowCount) (column : Fin width) (store : Store ctx)
     (samples : ClassicalAlgorithms.GF2.Samples rowCount width)

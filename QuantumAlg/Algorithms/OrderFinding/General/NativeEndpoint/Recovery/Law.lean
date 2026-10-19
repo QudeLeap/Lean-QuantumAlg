@@ -34,13 +34,13 @@ def recoveredValue {N x r t width : Nat}
         (recoverySpec hinput access) (semanticInput hinput access bits))
 
 /-- The actual finite tail reads the base and sample stored by the same run. -/
-theorem recoveryStep_output {N x r t width : Nat}
+lemma recoveryStep_output {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r)
     (access : ModExpOracleAccess N x t width)
     (store : Store (SourceNativeSampling.post t width))
     (baseValue : store.read (SourceNativeSampling.baseRef t width) =
       encodedBase hinput access) :
-    (recoveryStep hinput access store).1.read
+    (recoveryStep (modulusSpec hinput access) t store).1.read
       (.storage (resultRef t width).toCStorageRef) =
       recoveredValue hinput access
         (store.read (SourceNativeSampling.sampleRef t width)) := by

@@ -37,7 +37,7 @@ structure Outcome (refs : Refs ctx width) (exponentBits : Nat) (candidate : Int)
   callerFrame : CallerFrame refs before after
 
 /-- The actual stored sign selects the magnitude used by the original strict candidate tests. -/
-theorem candidateExponentInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma candidateExponentInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (exponentBits : Nat) (candidate : Int)
     (initial : InitialConditions store refs exponentBits candidate) :
     Outcome refs exponentBits candidate store (exponentStep refs store).1 := by

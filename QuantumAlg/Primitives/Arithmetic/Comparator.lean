@@ -26,6 +26,8 @@ namespace Comparator
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable {Carrier : Type} {encoding : BinaryLabelEncoding Carrier}
 
 /-- Boolean borrow sequence for natural-number subtraction, ordered from least
@@ -41,14 +43,14 @@ def natBorrow (a b : Nat) : Nat -> Bool :=
   natSubBorrow a b false
 
 /-- Low-bit decomposition for the next power-of-two prefix. -/
-theorem mod_two_pow_succ_decomp (x i : Nat) :
+lemma mod_two_pow_succ_decomp (x i : Nat) :
     x % 2 ^ (i + 1) =
       x % 2 ^ i + (x.testBit i).toNat * 2 ^ i := by
   rw [Nat.mod_pow_succ, Nat.toNat_testBit, Nat.mul_comm]
 
 /-- The clean subtract-borrow recurrence computes comparison of the low `n`
 bits of the two natural numbers. -/
-theorem natBorrow_eq_decide_mod_lt (a b n : Nat) :
+lemma natBorrow_eq_decide_mod_lt (a b n : Nat) :
     natBorrow a b n = decide (a % 2 ^ n < b % 2 ^ n) := by
   induction n with
   | zero =>
@@ -72,7 +74,7 @@ theorem natBorrow_eq_decide_mod_lt (a b n : Nat) :
 
 /-- Within an `n`-bit range, the clean subtract-borrow endpoint is the ordinary
 natural-number comparison. -/
-theorem natBorrow_eq_decide_lt_of_lt_two_pow
+lemma natBorrow_eq_decide_lt_of_lt_two_pow
     {a b n : Nat} (ha : a < 2 ^ n) (hb : b < 2 ^ n) :
     natBorrow a b n = decide (a < b) := by
   rw [natBorrow_eq_decide_mod_lt]
@@ -83,7 +85,7 @@ def concatStages (stages : List (List (EncodedBit.GateSpec encoding))) :
     List (EncodedBit.GateSpec encoding) :=
   stages.foldr (fun gates rest => gates ++ rest) []
 
-private theorem sum_map_concatStages
+private lemma sum_map_concatStages
     (multiplicity : EncodedBit.GateSpec encoding → Nat)
     (stages : List (List (EncodedBit.GateSpec encoding))) :
     ((concatStages stages).map multiplicity).sum =
@@ -99,7 +101,7 @@ private theorem sum_map_concatStages
 
 /-- The semantic action of concatenated stages is the left-to-right fold of
 the individual stage actions. -/
-theorem stepList_concatStages
+lemma stepList_concatStages
     (stages : List (List (EncodedBit.GateSpec encoding))) (x : Carrier) :
     EncodedBit.GateSpec.stepList (concatStages stages) x =
       stages.foldl
@@ -118,7 +120,7 @@ theorem stepList_concatStages
 
 /-- If every stage is disjoint from an observed bit, then the concatenated
 stage list is disjoint from that observed bit. -/
-theorem concatStages_bitDisjoint
+lemma concatStages_bitDisjoint
     (stages : List (List (EncodedBit.GateSpec encoding)))
     (observed : EncodedBit encoding)
     (h :
@@ -184,7 +186,7 @@ def previousWorkIndex (j : Fin n) (_h : j.val ≠ 0) : Fin n :=
     have hj := j.isLt
     omega⟩
 
-@[simp] theorem previousWorkIndex_val (j : Fin n) (h : j.val ≠ 0) :
+@[simp] lemma previousWorkIndex_val (j : Fin n) (h : j.val ≠ 0) :
     (previousWorkIndex j h).val = j.val - 1 :=
   rfl
 
@@ -193,21 +195,21 @@ def borrowInput (j : Fin n) : EncodedBit encoding :=
   if h : j.val = 0 then layout.initialBorrow
   else layout.workBorrow.bit (previousWorkIndex j h)
 
-theorem minuend_borrowInput_ne (j : Fin n) :
+lemma minuend_borrowInput_ne (j : Fin n) :
     (layout.minuend.bit j).wire ≠ (borrowInput layout j).wire := by
   unfold borrowInput
   by_cases h : j.val = 0
   · simpa [h] using layout.minuendInitialBorrow_ne j
   · simpa [h] using layout.minuendWork_ne j (previousWorkIndex j h)
 
-theorem subtrahend_borrowInput_ne (j : Fin n) :
+lemma subtrahend_borrowInput_ne (j : Fin n) :
     (layout.subtrahend.bit j).wire ≠ (borrowInput layout j).wire := by
   unfold borrowInput
   by_cases h : j.val = 0
   · simpa [h] using layout.subtrahendInitialBorrow_ne j
   · simpa [h] using layout.subtrahendWork_ne j (previousWorkIndex j h)
 
-theorem borrowInput_work_ne (j : Fin n) :
+lemma borrowInput_work_ne (j : Fin n) :
     (borrowInput layout j).wire ≠ (layout.workBorrow.bit j).wire := by
   unfold borrowInput
   by_cases h : j.val = 0
@@ -233,31 +235,31 @@ def borrowOutGatesAt (j : Fin n) :
     (borrowInput_work_ne layout j)
 
 /-- One scheduled borrow slice contains five physical leaves. -/
-@[simp] theorem borrowOutGatesAt_length (j : Fin n) :
+@[simp] lemma borrowOutGatesAt_length (j : Fin n) :
     (borrowOutGatesAt layout j).length = 5 := by
   simp [borrowOutGatesAt]
 
 /-- Exact X coordinate of one scheduled borrow slice. -/
-@[simp] theorem borrowOutGatesAt_xMultiplicity_sum (j : Fin n) :
+@[simp] lemma borrowOutGatesAt_xMultiplicity_sum (j : Fin n) :
     ((borrowOutGatesAt layout j).map
       EncodedBit.GateSpec.xMultiplicity).sum = 2 := by
   simp [borrowOutGatesAt]
 
 /-- A scheduled borrow slice contains no CNOT gate. -/
-@[simp] theorem borrowOutGatesAt_cnotMultiplicity_sum (j : Fin n) :
+@[simp] lemma borrowOutGatesAt_cnotMultiplicity_sum (j : Fin n) :
     ((borrowOutGatesAt layout j).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   simp [borrowOutGatesAt]
 
 /-- Exact Toffoli coordinate of one scheduled borrow slice. -/
-@[simp] theorem borrowOutGatesAt_toffoliMultiplicity_sum (j : Fin n) :
+@[simp] lemma borrowOutGatesAt_toffoliMultiplicity_sum (j : Fin n) :
     ((borrowOutGatesAt layout j).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 3 := by
   simp [borrowOutGatesAt]
 
 /-- A local borrow-output stage is disjoint from an observed bit when all of
 its participating wires are disjoint from that bit. -/
-theorem borrowOutGatesAt_bitDisjoint
+lemma borrowOutGatesAt_bitDisjoint
     (j : Fin n) (observed : EncodedBit encoding)
     (hminuend : (layout.minuend.bit j).wire ≠ observed.wire)
     (hsubtrahend : (layout.subtrahend.bit j).wire ≠ observed.wire)
@@ -288,13 +290,13 @@ def borrowOutProgramAt (j : Fin n) :
 def borrowOutStepAt (j : Fin n) : Carrier → Carrier :=
   EncodedBit.GateSpec.stepList (borrowOutGatesAt layout j)
 
-theorem borrowOut_realizesAt (j : Fin n) :
-    UnitaryCircuit.Realizes encoding (borrowOutProgramAt layout j)
+lemma borrowOut_realizesAt (j : Fin n) :
+    UnitaryCircuit.Realizes encoding (borrowOutProgramAt layout j) environment
       (borrowOutStepAt layout j) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (borrowOutGatesAt layout j)
 
-theorem borrowOutGatesAt_get_workBorrow_clean
+lemma borrowOutGatesAt_get_workBorrow_clean
     (j : Fin n) (x : Carrier)
     (hclean : (layout.workBorrow.bit j).get x = false) :
     (layout.workBorrow.bit j).get
@@ -313,7 +315,7 @@ theorem borrowOutGatesAt_get_workBorrow_clean
       (layout.subtrahendWork_ne j j)
       (borrowInput_work_ne layout j) x hclean
 
-theorem borrowOutGatesAt_get_minuend
+lemma borrowOutGatesAt_get_minuend
     (j : Fin n) (x : Carrier) :
     (layout.minuend.bit j).get (borrowOutStepAt layout j x) =
       (layout.minuend.bit j).get x := by
@@ -328,7 +330,7 @@ theorem borrowOutGatesAt_get_minuend
       (layout.subtrahendWork_ne j j)
       (borrowInput_work_ne layout j) x
 
-theorem borrowOutGatesAt_get_subtrahend
+lemma borrowOutGatesAt_get_subtrahend
     (j : Fin n) (x : Carrier) :
     (layout.subtrahend.bit j).get (borrowOutStepAt layout j x) =
       (layout.subtrahend.bit j).get x := by
@@ -343,7 +345,7 @@ theorem borrowOutGatesAt_get_subtrahend
       (layout.subtrahendWork_ne j j)
       (borrowInput_work_ne layout j) x
 
-theorem borrowOutGatesAt_get_borrowInput
+lemma borrowOutGatesAt_get_borrowInput
     (j : Fin n) (x : Carrier) :
     (borrowInput layout j).get (borrowOutStepAt layout j x) =
       (borrowInput layout j).get x := by
@@ -360,7 +362,7 @@ theorem borrowOutGatesAt_get_borrowInput
 
 /-- A local borrow-output stage preserves any readout whose wire is distinct
 from the stage's temporary minuend flip and work-borrow output. -/
-theorem borrowOutGatesAt_get_of_minuend_work_ne
+lemma borrowOutGatesAt_get_of_minuend_work_ne
     (j : Fin n) (observed : EncodedBit encoding)
     (hminuend : (layout.minuend.bit j).wire ≠ observed.wire)
     (hwork : (layout.workBorrow.bit j).wire ≠ observed.wire) (x : Carrier) :
@@ -379,7 +381,7 @@ theorem borrowOutGatesAt_get_of_minuend_work_ne
         hminuend hwork x
 
 /-- A local borrow-output stage preserves any other work-borrow bit. -/
-theorem borrowOutGatesAt_get_workBorrow_of_ne
+lemma borrowOutGatesAt_get_workBorrow_of_ne
     (j k : Fin n) (hne : j ≠ k) (x : Carrier) :
     (layout.workBorrow.bit k).get (borrowOutStepAt layout j x) =
       (layout.workBorrow.bit k).get x := by
@@ -388,7 +390,7 @@ theorem borrowOutGatesAt_get_workBorrow_of_ne
     (layout.workWork_ne j k hne) x
 
 /-- A local borrow-output stage preserves every minuend readout. -/
-theorem borrowOutGatesAt_get_minuend_any
+lemma borrowOutGatesAt_get_minuend_any
     (j i : Fin n) (x : Carrier) :
     (layout.minuend.bit i).get (borrowOutStepAt layout j x) =
       (layout.minuend.bit i).get x := by
@@ -399,7 +401,7 @@ theorem borrowOutGatesAt_get_minuend_any
       (Ne.symm (layout.minuendWork_ne i j)) x
 
 /-- A local borrow-output stage preserves every subtrahend readout. -/
-theorem borrowOutGatesAt_get_subtrahend_any
+lemma borrowOutGatesAt_get_subtrahend_any
     (j i : Fin n) (x : Carrier) :
     (layout.subtrahend.bit i).get (borrowOutStepAt layout j x) =
       (layout.subtrahend.bit i).get x := by
@@ -408,7 +410,7 @@ theorem borrowOutGatesAt_get_subtrahend_any
     (Ne.symm (layout.subtrahendWork_ne i j)) x
 
 /-- A local borrow-output stage preserves the external initial-borrow readout. -/
-theorem borrowOutGatesAt_get_initialBorrow
+lemma borrowOutGatesAt_get_initialBorrow
     (j : Fin n) (x : Carrier) :
     layout.initialBorrow.get (borrowOutStepAt layout j x) =
       layout.initialBorrow.get x := by
@@ -429,7 +431,7 @@ def borrowStage : List (EncodedBit.GateSpec encoding) :=
   concatStages (borrowStageStages layout)
 
 /-- Exact X coordinate of the complete forward borrow stage. -/
-theorem borrowStage_xMultiplicity_sum :
+lemma borrowStage_xMultiplicity_sum :
     ((borrowStage layout).map EncodedBit.GateSpec.xMultiplicity).sum =
       2 * n := by
   rw [borrowStage, sum_map_concatStages]
@@ -437,14 +439,14 @@ theorem borrowStage_xMultiplicity_sum :
   simp [Function.comp_def, Nat.mul_comm]
 
 /-- The complete forward borrow stage contains no CNOT gate. -/
-theorem borrowStage_cnotMultiplicity_sum :
+lemma borrowStage_cnotMultiplicity_sum :
     ((borrowStage layout).map EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   rw [borrowStage, sum_map_concatStages]
   unfold borrowStageStages borrowStageIndices
   simp [Function.comp_def]
 
 /-- Exact Toffoli coordinate of the complete forward borrow stage. -/
-theorem borrowStage_toffoliMultiplicity_sum :
+lemma borrowStage_toffoliMultiplicity_sum :
     ((borrowStage layout).map EncodedBit.GateSpec.toffoliMultiplicity).sum =
       3 * n := by
   rw [borrowStage, sum_map_concatStages]
@@ -452,7 +454,7 @@ theorem borrowStage_toffoliMultiplicity_sum :
   simp [Function.comp_def, Nat.mul_comm]
 
 /-- Exact physical length of the complete forward borrow stage. -/
-theorem borrowStage_length :
+lemma borrowStage_length :
     (borrowStage layout).length = 5 * n := by
   rw [EncodedBit.GateSpec.length_eq_multiplicity_sums,
     borrowStage_xMultiplicity_sum, borrowStage_cnotMultiplicity_sum,
@@ -462,7 +464,7 @@ theorem borrowStage_length :
 /-- The folded borrow-stage gate list is disjoint from an observed bit when the
 minuend, subtrahend, initial-borrow, and work-borrow wires are all disjoint
 from that bit. -/
-theorem borrowStage_bitDisjoint
+lemma borrowStage_bitDisjoint
     (observed : EncodedBit encoding)
     (hminuend : ∀ j : Fin n, (layout.minuend.bit j).wire ≠ observed.wire)
     (hsubtrahend :
@@ -510,15 +512,15 @@ def borrowStageStep : Carrier -> Carrier :=
   EncodedBit.GateSpec.stepList (borrowStage layout)
 
 /-- The folded forward borrow stage is a concrete base-gate realization. -/
-theorem borrowStage_realizes :
-    UnitaryCircuit.Realizes encoding (borrowStageProgram layout)
+lemma borrowStage_realizes :
+    UnitaryCircuit.Realizes encoding (borrowStageProgram layout) environment
       (borrowStageStep layout) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (borrowStage layout)
 
 /-- Folded semantic action of the forward borrow stage as a fold over its
 local stage actions. -/
-theorem borrowStage_stepList_eq_fold (x : Carrier) :
+lemma borrowStage_stepList_eq_fold (x : Carrier) :
     EncodedBit.GateSpec.stepList (borrowStage layout) x =
       (borrowStageStages layout).foldl
         (fun y gates => EncodedBit.GateSpec.stepList gates y) x := by
@@ -526,7 +528,7 @@ theorem borrowStage_stepList_eq_fold (x : Carrier) :
 
 /-- Folded semantic action of the forward borrow stage as a fold over the
 stage indices. -/
-theorem borrowStage_stepList_eq_indexStep (x : Carrier) :
+lemma borrowStage_stepList_eq_indexStep (x : Carrier) :
     borrowStageStep layout x = borrowStageIndexStep layout x := by
   rw [borrowStageStep, borrowStage_stepList_eq_fold]
   unfold borrowStageStages borrowStageIndexStep borrowOutStepAt
@@ -540,7 +542,7 @@ theorem borrowStage_stepList_eq_indexStep (x : Carrier) :
 
 /-- Any fold of local borrow-output stages preserves a work bit whose index is
 absent from the folded stage list. -/
-theorem foldl_borrowOutGatesAt_get_workBorrow_of_forall_ne
+lemma foldl_borrowOutGatesAt_get_workBorrow_of_forall_ne
     (indices : List (Fin n)) (k : Fin n)
     (hne : forall j, j ∈ indices -> j ≠ k) (x : Carrier) :
     (layout.workBorrow.bit k).get
@@ -562,7 +564,7 @@ theorem foldl_borrowOutGatesAt_get_workBorrow_of_forall_ne
         exact hne i (by simp [hi])
 
 /-- Any fold of local borrow-output stages preserves every minuend readout. -/
-theorem foldl_borrowOutGatesAt_get_minuend
+lemma foldl_borrowOutGatesAt_get_minuend
     (indices : List (Fin n)) (i : Fin n) (x : Carrier) :
     (layout.minuend.bit i).get
         (indices.foldl (fun y j => borrowOutStepAt layout j y) x) =
@@ -580,7 +582,7 @@ theorem foldl_borrowOutGatesAt_get_minuend
       exact borrowOutGatesAt_get_minuend_any layout j i x
 
 /-- Any fold of local borrow-output stages preserves every subtrahend readout. -/
-theorem foldl_borrowOutGatesAt_get_subtrahend
+lemma foldl_borrowOutGatesAt_get_subtrahend
     (indices : List (Fin n)) (i : Fin n) (x : Carrier) :
     (layout.subtrahend.bit i).get
         (indices.foldl (fun y j => borrowOutStepAt layout j y) x) =
@@ -598,7 +600,7 @@ theorem foldl_borrowOutGatesAt_get_subtrahend
       exact borrowOutGatesAt_get_subtrahend_any layout j i x
 
 /-- Any fold of local borrow-output stages preserves the initial-borrow readout. -/
-theorem foldl_borrowOutGatesAt_get_initialBorrow
+lemma foldl_borrowOutGatesAt_get_initialBorrow
     (indices : List (Fin n)) (x : Carrier) :
     layout.initialBorrow.get
         (indices.foldl (fun y j => borrowOutStepAt layout j y) x) =
@@ -617,7 +619,7 @@ theorem foldl_borrowOutGatesAt_get_initialBorrow
 
 /-- Any fold of local borrow-output stages preserves an observed readout whose
 wire is never a stage minuend target or work-borrow target. -/
-theorem foldl_borrowOutGatesAt_get_of_minuend_work_ne
+lemma foldl_borrowOutGatesAt_get_of_minuend_work_ne
     (indices : List (Fin n)) (observed : EncodedBit encoding)
     (hminuend :
       forall j, j ∈ indices → (layout.minuend.bit j).wire ≠ observed.wire)
@@ -644,18 +646,18 @@ theorem foldl_borrowOutGatesAt_get_of_minuend_work_ne
       · intro i hi
         exact hwork i (by simp [hi])
 
-@[simp] theorem borrowStageIndices_length :
+@[simp] lemma borrowStageIndices_length :
     (borrowStageIndices (n := n)).length = n := by
   simp [borrowStageIndices]
 
-theorem borrowStageIndices_getElem_val {i : Nat}
+lemma borrowStageIndices_getElem_val {i : Nat}
     (hi : i < (borrowStageIndices (n := n)).length) :
     ((borrowStageIndices (n := n))[i]'hi).val = i := by
   simp [borrowStageIndices]
 
 /-- Every member of the first `j.val` borrow-stage indices is strictly before
 `j`. -/
-theorem borrowStageIndices_mem_take_val_lt {j k : Fin n}
+lemma borrowStageIndices_mem_take_val_lt {j k : Fin n}
     (hmem : k ∈ (borrowStageIndices (n := n)).take j.val) :
     k.val < j.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -675,7 +677,7 @@ theorem borrowStageIndices_mem_take_val_lt {j k : Fin n}
   omega
 
 /-- Every member of the suffix after index `j` is strictly after `j`. -/
-theorem borrowStageIndices_mem_drop_succ_val_gt {j k : Fin n}
+lemma borrowStageIndices_mem_drop_succ_val_gt {j k : Fin n}
     (hmem : k ∈ (borrowStageIndices (n := n)).drop (j.val + 1)) :
     j.val < k.val := by
   rw [List.mem_iff_getElem] at hmem
@@ -692,7 +694,7 @@ theorem borrowStageIndices_mem_drop_succ_val_gt {j k : Fin n}
     exact borrowStageIndices_getElem_val (n := n) hiOrig
   omega
 
-theorem borrowStagePrefixStep_get_minuend
+lemma borrowStagePrefixStep_get_minuend
     (t : Nat) (i : Fin n) (x : Carrier) :
     (layout.minuend.bit i).get (borrowStagePrefixStep layout t x) =
       (layout.minuend.bit i).get x := by
@@ -700,7 +702,7 @@ theorem borrowStagePrefixStep_get_minuend
   exact foldl_borrowOutGatesAt_get_minuend layout
     ((borrowStageIndices (n := n)).take t) i x
 
-theorem borrowStagePrefixStep_get_subtrahend
+lemma borrowStagePrefixStep_get_subtrahend
     (t : Nat) (i : Fin n) (x : Carrier) :
     (layout.subtrahend.bit i).get (borrowStagePrefixStep layout t x) =
       (layout.subtrahend.bit i).get x := by
@@ -708,7 +710,7 @@ theorem borrowStagePrefixStep_get_subtrahend
   exact foldl_borrowOutGatesAt_get_subtrahend layout
     ((borrowStageIndices (n := n)).take t) i x
 
-theorem borrowStagePrefixStep_get_initialBorrow
+lemma borrowStagePrefixStep_get_initialBorrow
     (t : Nat) (x : Carrier) :
     layout.initialBorrow.get (borrowStagePrefixStep layout t x) =
       layout.initialBorrow.get x := by
@@ -716,7 +718,7 @@ theorem borrowStagePrefixStep_get_initialBorrow
   exact foldl_borrowOutGatesAt_get_initialBorrow layout
     ((borrowStageIndices (n := n)).take t) x
 
-theorem borrowStagePrefixStep_get_workBorrow_before
+lemma borrowStagePrefixStep_get_workBorrow_before
     (j : Fin n) (x : Carrier) :
     (layout.workBorrow.bit j).get (borrowStagePrefixStep layout j.val x) =
       (layout.workBorrow.bit j).get x := by
@@ -734,7 +736,7 @@ theorem borrowStagePrefixStep_get_workBorrow_before
 /-- After the prefix ending at stage `j`, the selected work bit stores the
 local subtract-borrow recurrence for that stage, assuming the work register was
 initially clean. -/
-theorem borrowStagePrefixStep_get_workBorrow_current
+lemma borrowStagePrefixStep_get_workBorrow_current
     (j : Fin n) (x : Carrier)
     (hclean : forall k, (layout.workBorrow.bit k).get x = false) :
     (layout.workBorrow.bit j).get
@@ -783,7 +785,7 @@ theorem borrowStagePrefixStep_get_workBorrow_current
   simpa [List.foldl] using hlocal
 
 /-- The suffix after stage `j` does not modify work bit `j`. -/
-theorem borrowStageIndexStep_get_workBorrow_from_prefix
+lemma borrowStageIndexStep_get_workBorrow_from_prefix
     (j : Fin n) (x : Carrier) :
     (layout.workBorrow.bit j).get (borrowStageIndexStep layout x) =
       (layout.workBorrow.bit j).get
@@ -805,7 +807,7 @@ theorem borrowStageIndexStep_get_workBorrow_from_prefix
 
 /-- Full forward borrow-stage readout for work bit `j`, stated with the
 borrow input at the prefix time. -/
-theorem borrowStageIndexStep_get_workBorrow_prefix_recurrence
+lemma borrowStageIndexStep_get_workBorrow_prefix_recurrence
     (j : Fin n) (x : Carrier)
     (hclean : forall k, (layout.workBorrow.bit k).get x = false) :
     (layout.workBorrow.bit j).get (borrowStageIndexStep layout x) =
@@ -816,7 +818,7 @@ theorem borrowStageIndexStep_get_workBorrow_prefix_recurrence
   rw [borrowStageIndexStep_get_workBorrow_from_prefix]
   exact borrowStagePrefixStep_get_workBorrow_current layout j x hclean
 
-theorem borrowStageIndexStep_get_initialBorrow (x : Carrier) :
+lemma borrowStageIndexStep_get_initialBorrow (x : Carrier) :
     layout.initialBorrow.get (borrowStageIndexStep layout x) =
       layout.initialBorrow.get x := by
   unfold borrowStageIndexStep
@@ -825,7 +827,7 @@ theorem borrowStageIndexStep_get_initialBorrow (x : Carrier) :
 
 /-- The full forward borrow stage preserves an observed readout whose wire is
 never a minuend target or work-borrow target. -/
-theorem borrowStageIndexStep_get_of_minuend_work_ne
+lemma borrowStageIndexStep_get_of_minuend_work_ne
     (observed : EncodedBit encoding)
     (hminuend :
       forall j : Fin n, (layout.minuend.bit j).wire ≠ observed.wire)
@@ -846,7 +848,7 @@ theorem borrowStageIndexStep_get_of_minuend_work_ne
 
 /-- The borrow input used at stage `j` has the same readout at the prefix time
 and after the full forward borrow pass. -/
-theorem borrowStagePrefixStep_borrowInput_eq_indexStep
+lemma borrowStagePrefixStep_borrowInput_eq_indexStep
     (j : Fin n) (x : Carrier) :
     (borrowInput layout j).get (borrowStagePrefixStep layout j.val x) =
       (borrowInput layout j).get (borrowStageIndexStep layout x) := by
@@ -866,7 +868,7 @@ theorem borrowStagePrefixStep_borrowInput_eq_indexStep
 
 /-- Full forward borrow-stage recurrence for each temporary borrow bit.  The
 resource and correctness object is still the same ordered gate list. -/
-theorem borrowStageIndexStep_get_workBorrow_recurrence
+lemma borrowStageIndexStep_get_workBorrow_recurrence
     (j : Fin n) (x : Carrier)
     (hclean : forall k, (layout.workBorrow.bit k).get x = false) :
     (layout.workBorrow.bit j).get (borrowStageIndexStep layout x) =
@@ -878,7 +880,7 @@ theorem borrowStageIndexStep_get_workBorrow_recurrence
 
 /-- On clean borrow work, the folded gate-list action computes the pure natural
 subtract-borrow recurrence for the selected bit. -/
-theorem borrowStageIndexStep_get_workBorrow_natSubBorrow
+lemma borrowStageIndexStep_get_workBorrow_natSubBorrow
     (a b : Nat) (borrow0 : Bool) (j : Fin n) (x : Carrier)
     (hclean : forall k, (layout.workBorrow.bit k).get x = false)
     (hinitial : layout.initialBorrow.get x = borrow0)
@@ -929,7 +931,7 @@ theorem borrowStageIndexStep_get_workBorrow_natSubBorrow
   exact hmain j.val j rfl
 
 /-- Clean-initial-borrow specialization of the natural subtract-borrow bridge. -/
-theorem borrowStageIndexStep_get_workBorrow_natBorrow
+lemma borrowStageIndexStep_get_workBorrow_natBorrow
     (a b : Nat) (j : Fin n) (x : Carrier)
     (hclean : forall k, (layout.workBorrow.bit k).get x = false)
     (hinitial : layout.initialBorrow.get x = false)

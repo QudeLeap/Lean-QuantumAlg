@@ -30,6 +30,8 @@ namespace Resources
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open MAU.Inversion
 open MAU.Inversion.MK
@@ -50,7 +52,7 @@ def pointAdditionGateBound (fieldWidth counterTail : Nat) : Nat :=
   6272 * fieldWidth ^ 2 + 3669 * fieldWidth +
     368 * fieldWidth * counterTail + 528
 
-theorem normalizeGates_length_le
+lemma normalizeGates_length_le
     (fieldWidth counterWidth p : Nat) (hp : p < 2 ^ fieldWidth) :
     (MontgomeryOperations.normalizeGates fieldWidth counterWidth p hp).length ≤
       2 * fieldWidth + 1 := by
@@ -63,7 +65,7 @@ theorem normalizeGates_length_le
     EncodedBit.Word.xorConstantGates_length]
   omega
 
-theorem inverseScaleGates_length_le
+lemma inverseScaleGates_length_le
     (fieldTail counterWidth p rounds : Nat) :
     (MontgomeryMultiplication.inverseScaleGates fieldTail counterWidth p
       rounds).length ≤ rounds * (57 * fieldTail.succ + 22) := by
@@ -81,7 +83,7 @@ theorem inverseScaleGates_length_le
         _ = (rounds + 1) * (57 * fieldTail.succ + 22) := by
           rw [Nat.add_mul, one_mul, Nat.add_comm]
 
-theorem selectedAddGates_length_le
+lemma selectedAddGates_length_le
     (fieldTail counterWidth p : Nat) (bit : Fin fieldTail.succ) :
     (MontgomeryMultiplication.selectedAddGates fieldTail counterWidth p
       bit).length ≤ 3 * (56 * fieldTail.succ + 15) := by
@@ -109,7 +111,7 @@ theorem selectedAddGates_length_le
         (CompactCorrection.targetUpdateGates_length_le fieldTail
           counterWidth p)
 
-theorem roundGates_length_le
+lemma roundGates_length_le
     (fieldTail counterWidth p : Nat) (bit : Fin fieldTail.succ) :
     (MontgomeryMultiplication.roundGates fieldTail counterWidth p bit).length ≤
       225 * fieldTail.succ + 67 := by
@@ -125,7 +127,7 @@ theorem roundGates_length_le
   rw [hlift]
   omega
 
-theorem roundsGates_length_le
+lemma roundsGates_length_le
     (fieldTail counterWidth p : Nat) :
     ∀ bits,
       (MontgomeryMultiplication.roundsGates fieldTail counterWidth p
@@ -143,7 +145,7 @@ theorem roundsGates_length_le
         _ = (rest.length + 1) * (225 * fieldTail.succ + 67) := by
           rw [Nat.add_mul, one_mul, Nat.add_comm]
 
-theorem multiplicationGates_length_le
+lemma multiplicationGates_length_le
     (fieldTail counterWidth p : Nat) :
     (MontgomeryMultiplication.gates fieldTail counterWidth p).length ≤
       multiplicationGateBound fieldTail.succ := by
@@ -163,7 +165,7 @@ theorem multiplicationGates_length_le
   unfold multiplicationGateBound
   nlinarith
 
-theorem constantXPrefixGates_length_le
+lemma constantXPrefixGates_length_le
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     (ModularOperations.constantXPrefixGates fieldTail counterWidth p hp
@@ -177,7 +179,7 @@ theorem constantXPrefixGates_length_le
     EncodedBit.Word.xorConstantGates_length]
   omega
 
-theorem constantXGates_length_le
+lemma constantXGates_length_le
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     (ModularOperations.subtractConstantXGates fieldTail counterWidth p hp
@@ -192,7 +194,7 @@ theorem constantXGates_length_le
     simp [ModularOperations.subtractConstantXGates,
       ModularOperations.addConstantXGates] <;> omega
 
-theorem controlledTargetUpdateGates_length_le
+lemma controlledTargetUpdateGates_length_le
     (fieldTail counterWidth p : Nat) :
     (ControlledOperations.controlledTargetSubtractGates fieldTail counterWidth
       p).length ≤ 3 * (56 * fieldTail.succ + 15) ∧
@@ -228,7 +230,7 @@ theorem controlledTargetUpdateGates_length_le
               (CompactCorrection.targetUpdateGates_length_le fieldTail
                 counterWidth p))
 
-theorem controlledCoordinateGates_length_le
+lemma controlledCoordinateGates_length_le
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ)
     (constant : Word fieldTail.succ) :
     (ControlledOperations.subtractConstantXGates fieldTail counterWidth p hp
@@ -277,7 +279,7 @@ theorem controlledCoordinateGates_length_le
   rw [hswap]
   omega
 
-theorem multiplicationOperationGates_length_le
+lemma multiplicationOperationGates_length_le
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     (MontgomeryOperations.t0IntoLambdaGates fieldTail counterWidth p hp).length ≤
         2 * multiplicationGateBound fieldTail.succ + 15 * fieldTail.succ + 2 ∧
@@ -328,7 +330,7 @@ theorem multiplicationOperationGates_length_le
   · rw [MontgomeryOperations.squareLambdaGates_length]
     omega
 
-theorem controlledNegateXGates_length_le
+lemma controlledNegateXGates_length_le
     (fieldTail counterWidth p : Nat) (hp : p < 2 ^ fieldTail.succ) :
     (ControlledOperations.negateXGates fieldTail counterWidth p hp).length ≤
       137 * fieldTail.succ + 34 := by
@@ -373,7 +375,7 @@ theorem controlledNegateXGates_length_le
   omega
 
 /-- The literal seventeen-stage ledger obeys its closed native-leaf bound. -/
-theorem gates_length_le
+lemma gates_length_le
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -427,7 +429,7 @@ def program
 /-- The literal native program maps a certified clean encoded basis state to
 the cleaned seventeen-stage endpoint.  This is the semantic bridge for the
 same circuit whose resources are counted below. -/
-theorem program_applyNormalized_clean_ket
+lemma program_applyNormalized_clean_ket
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -438,7 +440,7 @@ theorem program_applyNormalized_clean_ket
     (certificate : Schedule.CleanCertificate fieldTail counterTail p hpPos hp
       hfit data) :
     (program fieldTail counterTail p hpPos hp hfit hcapacity hwidth
-        data.x2 data.y2).applyNormalized
+        data.x2 data.y2).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (Layout.encoding fieldTail.succ (counterTail + 2)).width).basisEquiv.symm
@@ -454,8 +456,8 @@ theorem program_applyNormalized_clean_ket
               (data.outputY counterTail p hpPos hp hfit) 0 ⟨p, hp⟩
               (data.outputX counterTail p hpPos hp hfit) 0))) := by
   have semantic :=
-    (Schedule.realizes fieldTail counterTail p hpPos hp hfit hcapacity hwidth
-      data.x2 data.y2).apply_encoded_ket
+    (Schedule.realizes (environment := environment) fieldTail counterTail p hpPos hp hfit
+      hcapacity hwidth data.x2 data.y2).apply_encoded_ket
       (MontgomeryOperations.cleanState fieldTail.succ (counterTail + 2)
         data.control data.y1 0 ⟨p, hp⟩ data.x1 0)
   rw [Schedule.step_cleanEndpoint fieldTail counterTail p hpPos hp hfit
@@ -463,7 +465,7 @@ theorem program_applyNormalized_clean_ket
   exact semantic
 
 /-- Same-circuit Toffoli ceiling obtained from the literal native list. -/
-theorem program_toffoli_count_le
+lemma program_toffoli_count_le
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)
@@ -488,7 +490,7 @@ theorem program_toffoli_count_le
       x2 y2)
 
 /-- Strict sequential unit-depth obeys the same native-leaf closed form. -/
-theorem program_unitDepth_le
+lemma program_unitDepth_le
     (fieldTail counterTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (hfit : counterTail.succ ≤ fieldTail.succ)

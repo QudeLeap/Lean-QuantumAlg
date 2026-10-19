@@ -25,17 +25,22 @@ namespace QuantumAlg.QuantumFourierTransform.Native
 
 noncomputable section
 
-public theorem qftNative_inverseCircuit_binaryMatrix (oracles : OracleModel) (n : Nat) :
-    onBinaryLabels (inverseCircuit oracles n) = star (QFTOperator n) := by
+public lemma qftNative_inverseCircuit_binaryMatrix (oracles : OracleModel) (n : Nat)
+    (environment : oracles.Interpretation) :
+    onBinaryLabels (inverseCircuit oracles n) environment = star (QFTOperator n) := by
   unfold onBinaryLabels
-  rw [qftNative_inverseCircuit_matrix, UnitaryOperator.unitaryOperator_reindex_star]
-  exact congrArg star (qftNative_circuit_binaryMatrix .empty n)
+  rw [qftNative_inverseCircuit_matrix (environment := environment),
+    UnitaryOperator.unitaryOperator_reindex_star]
+  exact congrArg star (qftNative_circuit_binaryMatrix .empty n
+    ((AlgorithmGate.oracleFreeAdjoints oracles).interpretation environment))
 
-public theorem qftNative_inverseCircuit_physicalMatrix (oracles : OracleModel) (n : Nat) :
-    (inverseCircuit oracles n).matrix =
+public lemma qftNative_inverseCircuit_physicalMatrix (oracles : OracleModel) (n : Nat)
+    (environment : oracles.Interpretation) :
+    ((inverseCircuit oracles n).matrix environment) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv n).symm
         (star (QFTOperator n)) := by
-  rw [qftNative_inverseCircuit_matrix, qftNative_circuit_physicalMatrix,
+  rw [qftNative_inverseCircuit_matrix (environment := environment),
+    qftNative_circuit_physicalMatrix,
     UnitaryOperator.unitaryOperator_reindex_star]
 
 end

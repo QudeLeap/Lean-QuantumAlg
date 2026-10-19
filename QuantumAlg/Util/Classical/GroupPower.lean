@@ -61,7 +61,7 @@ def scanExponent : Nat → List Bool → Nat
       scanExponent (2 * exponent + bitNat bit) remaining
 
 /-- Closed form for the exponent accumulated by a remaining bit suffix. -/
-theorem scanExponent_eq (exponent : Nat) (bits : List Bool) :
+lemma scanExponent_eq (exponent : Nat) (bits : List Bool) :
     scanExponent exponent bits =
       exponent * 2 ^ bits.length + msbValue bits := by
   induction bits generalizing exponent with
@@ -84,7 +84,7 @@ def step (A : Access G) (base : G) (accumulator : A.Code)
   if bit then A.multiply squared (A.encode base) else squared
 
 /-- One tail step advances exponent `a` to `2a + bit`. -/
-theorem step_encode (A : Access G) (base : G) (exponent : Nat)
+lemma step_encode (A : Access G) (base : G) (exponent : Nat)
     (bit : Bool) :
     step A base (A.encode (base ^ exponent)) bit =
       A.encode (base ^ (2 * exponent + bitNat bit)) := by
@@ -117,7 +117,7 @@ def scan (A : Access G) (base : G) : A.Code → List Bool → A.Code
       scan A base (step A base accumulator bit) remaining
 
 /-- The encoded scan follows its arithmetic exponent recurrence exactly. -/
-theorem scan_encode (A : Access G) (base : G) (exponent : Nat)
+lemma scan_encode (A : Access G) (base : G) (exponent : Nat)
     (bits : List Bool) :
     scan A base (A.encode (base ^ exponent)) bits =
       A.encode (base ^ scanExponent exponent bits) := by
@@ -135,7 +135,7 @@ def run (A : Access G) (base : G) : List Bool → A.Code
       scan A base (initialAccumulator A base leading) remaining
 
 /-- The MSB-first run returns the code of the candidate group power. -/
-theorem run_eq_encode_pow (A : Access G) (base : G) (candidate : List Bool) :
+lemma run_eq_encode_pow (A : Access G) (base : G) (candidate : List Bool) :
     run A base candidate = A.encode (base ^ msbValue candidate) := by
   cases candidate with
   | nil => simp [run, msbValue]
@@ -148,7 +148,7 @@ theorem run_eq_encode_pow (A : Access G) (base : G) (candidate : List Bool) :
 
 /-- Removing the skipped leading bit leaves one fewer tail position, with
 truncated subtraction covering the empty candidate. -/
-theorem tail_length_eq_length_sub_one (candidate : List Bool) :
+lemma tail_length_eq_length_sub_one (candidate : List Bool) :
     candidate.tail.length = candidate.length - 1 := by
   cases candidate <;> simp
 

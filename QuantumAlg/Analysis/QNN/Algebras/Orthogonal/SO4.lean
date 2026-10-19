@@ -56,11 +56,11 @@ hypothesis is decidable for the concrete strings (`fin_cases <;> decide`). -/
 /-- The remaining index of `Fin 3` distinct from both `i` and `j` (junk if `i = j`). -/
 def thirdIdx (i j : Fin 3) : Fin 3 := 3 - i - j
 
-theorem thirdIdx_ne_left {i j : Fin 3} (h : i ≠ j) : thirdIdx i j ≠ i := by
+lemma thirdIdx_ne_left {i j : Fin 3} (h : i ≠ j) : thirdIdx i j ≠ i := by
   revert h
   fin_cases i <;> fin_cases j <;> decide
 
-theorem thirdIdx_ne_right {i j : Fin 3} (h : i ≠ j) : thirdIdx i j ≠ j := by
+lemma thirdIdx_ne_right {i j : Fin 3} (h : i ≠ j) : thirdIdx i j ≠ j := by
   revert h
   fin_cases i <;> fin_cases j <;> decide
 
@@ -90,10 +90,10 @@ noncomputable def triB (i : Fin 3) : Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ :=
 def triGens : Set (Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ) :=
   {A | ∃ i : Fin 3, A = Complex.I • pauliMat (T.t i)}
 
-theorem triB_isHermitian (i : Fin 3) : (T.triB i)ᴴ = T.triB i := by
+lemma triB_isHermitian (i : Fin 3) : (T.triB i)ᴴ = T.triB i := by
   rw [triB, conjTranspose_smul, rtNinv_conj, pauliMat_isHermitian]
 
-theorem triB_ortho (i j : Fin 3) : hsInner (T.triB i) (T.triB j) = if i = j then 1 else 0 := by
+lemma triB_ortho (i j : Fin 3) : hsInner (T.triB i) (T.triB j) = if i = j then 1 else 0 := by
   rw [triB, triB, hsInner_smul_left, hsInner_smul_right, starRingEnd_apply,
     rtNinv_conj, ← mul_assoc, rtNinv_mul_self, pauliMat_hsInner]
   by_cases h : i = j
@@ -108,11 +108,11 @@ theorem triB_ortho (i j : Fin 3) : hsInner (T.triB i) (T.triB j) = if i = j then
 def triSet : Set (Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ) :=
   {pauliMat (T.t 0), pauliMat (T.t 1), pauliMat (T.t 2)}
 
-theorem pauliMat_mem_triSet (i : Fin 3) : pauliMat (T.t i) ∈ T.triSet := by
+lemma pauliMat_mem_triSet (i : Fin 3) : pauliMat (T.t i) ∈ T.triSet := by
   fin_cases i <;> simp [triSet]
 
 /-- The bracket of two triangle Pauli matrices lands in the span of the triangle set. -/
-theorem tri_lie_mem_span ⦃x y : Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ⦄
+lemma tri_lie_mem_span ⦃x y : Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ⦄
     (hx : x ∈ Submodule.span ℂ T.triSet) (hy : y ∈ Submodule.span ℂ T.triSet) :
     ⁅x, y⁆ ∈ Submodule.span ℂ T.triSet := by
   induction hx using Submodule.span_induction with
@@ -144,13 +144,13 @@ def triLie : LieSubalgebra ℂ (Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ) where
   toSubmodule := Submodule.span ℂ T.triSet
   lie_mem' := fun hx hy => T.tri_lie_mem_span hx hy
 
-theorem triGens_subset_triLie :
+lemma triGens_subset_triLie :
     T.triGens ⊆ (T.triLie : Set (Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ)) := by
   rintro a ⟨i, rfl⟩
   change Complex.I • pauliMat (T.t i) ∈ Submodule.span ℂ T.triSet
   exact Submodule.smul_mem _ _ (Submodule.subset_span (T.pauliMat_mem_triSet i))
 
-theorem tri_dla_toSubmodule :
+lemma tri_dla_toSubmodule :
     (dynamicalLieAlgebra T.triGens).toSubmodule = Submodule.span ℂ T.triSet := by
   apply le_antisymm
   · intro x hx
@@ -171,7 +171,7 @@ theorem tri_dla_toSubmodule :
     · exact hkey 1
     · exact hkey 2
 
-theorem tri_range_span : Submodule.span ℂ (Set.range T.triB) = Submodule.span ℂ T.triSet := by
+lemma tri_range_span : Submodule.span ℂ (Set.range T.triB) = Submodule.span ℂ T.triSet := by
   have hrt : rtNinv m ≠ 0 := rtNinv_ne_zero m
   have key : ∀ P : Matrix (Fin (2 ^ m)) (Fin (2 ^ m)) ℂ, (rtNinv m)⁻¹ • (rtNinv m • P) = P :=
     fun P => by rw [smul_smul, inv_mul_cancel₀ hrt, one_smul]
@@ -200,17 +200,17 @@ noncomputable def basis : DLAHermBasis T.triGens where
   ortho := T.triB_ortho
   span_eq := by rw [T.tri_range_span, T.tri_dla_toSubmodule]
 
-@[simp] theorem basis_dim : T.basis.dim = 3 := rfl
+@[simp] lemma basis_dim : T.basis.dim = 3 := rfl
 
-theorem basis_B (i : Fin 3) : T.basis.B i = T.triB i := rfl
+lemma basis_B (i : Fin 3) : T.basis.B i = T.triB i := rfl
 
-theorem basis_dim_pos : 0 < T.basis.dim := by rw [basis_dim]; norm_num
+lemma basis_dim_pos : 0 < T.basis.dim := by rw [basis_dim]; norm_num
 
 /-! #### The triangle adjoint matrix in closed form -/
 
 /-- **The triangle adjoint matrix in closed form.** `(Sₖ)_{a,i} = ⟪Bₐ, ⁅Bₖ, Bᵢ⁆⟫` is a single
 symplectic term: nonzero only when `t a = t k ⊕ t i`, with the commutator phase coefficient. -/
-theorem adMatrix_triB_apply (k a i : Fin 3) :
+lemma adMatrix_triB_apply (k a i : Fin 3) :
     adMatrix T.basis k a i
       = rtNinv m * rtNinv m * rtNinv m *
           (pauliPhase (T.t k) (T.t i) - pauliPhase (T.t i) (T.t k)) *
@@ -222,11 +222,11 @@ theorem adMatrix_triB_apply (k a i : Fin 3) :
     pauliMat_hsInner]
   ring
 
-theorem adMatrix_triB_eq_zero {k a i : Fin 3} (h : T.t a ≠ pauliXor (T.t k) (T.t i)) :
+lemma adMatrix_triB_eq_zero {k a i : Fin 3} (h : T.t a ≠ pauliXor (T.t k) (T.t i)) :
     adMatrix T.basis k a i = 0 := by
   rw [adMatrix_triB_apply, if_neg h, mul_zero]
 
-theorem adMatrix_triB_ne_zero {k a i : Fin 3}
+lemma adMatrix_triB_ne_zero {k a i : Fin 3}
     (hsupp : T.t a = pauliXor (T.t k) (T.t i))
     (hanti : pauliOmega (T.t k) (T.t i) = 1) : adMatrix T.basis k a i ≠ 0 := by
   rw [adMatrix_triB_apply, if_pos hsupp]
@@ -237,7 +237,7 @@ theorem adMatrix_triB_ne_zero {k a i : Fin 3}
   · exact pauliPhase_sub_ne_zero hanti
   · exact pow_ne_zero m (by norm_num)
 
-theorem adMatrix_triB_eq_zero_of_comm {k a i : Fin 3}
+lemma adMatrix_triB_eq_zero_of_comm {k a i : Fin 3}
     (h : pauliOmega (T.t k) (T.t i) = 0) : adMatrix T.basis k a i = 0 := by
   rw [adMatrix_triB_apply, pauliPhase_sub_eq_zero h, mul_zero, zero_mul]
 
@@ -248,7 +248,7 @@ noncomputable def muTri (k a : Fin 3) : ℂ :=
   (adMatrix T.basis k * adMatrix T.basis k) a a
 
 /-- **The square of the triangle adjoint matrix is diagonal.** -/
-theorem adMatrix_triB_sq_diagonal (k : Fin 3) :
+lemma adMatrix_triB_sq_diagonal (k : Fin 3) :
     adMatrix T.basis k * adMatrix T.basis k = Matrix.diagonal (T.muTri k) := by
   ext a a'
   by_cases ha : a = a'
@@ -264,7 +264,7 @@ theorem adMatrix_triB_sq_diagonal (k : Fin 3) :
 
 /-- **The triangle eigenvalue is zero iff the strings commute.** For the anchor `a = k`,
 `μ k k = 0` (self-commute); for `a ≠ k`, `μ k a ≠ 0` (pairwise anticommute). -/
-theorem muTri_eq_zero_iff (k a : Fin 3) :
+lemma muTri_eq_zero_iff (k a : Fin 3) :
     T.muTri k a = 0 ↔ pauliOmega (T.t k) (T.t a) = 0 := by
   constructor
   · intro h
@@ -311,7 +311,7 @@ theorem muTri_eq_zero_iff (k a : Fin 3) :
 
 /-- **Separation.** For distinct triangle indices, `k = a` gives distinct eigenvalues:
 `μ a a = 0` but `μ a a' ≠ 0` (a and a' anticommute). -/
-theorem muTri_sep {a a' : Fin 3} (ha : a ≠ a') : ∃ k, T.muTri k a ≠ T.muTri k a' := by
+lemma muTri_sep {a a' : Fin 3} (ha : a ≠ a') : ∃ k, T.muTri k a ≠ T.muTri k a' := by
   refine ⟨a, ?_⟩
   have hka : T.muTri a a = 0 := (T.muTri_eq_zero_iff a a).mpr (by rw [pauliOmega_self_zero])
   have hka' : T.muTri a a' ≠ 0 :=
@@ -321,7 +321,7 @@ theorem muTri_sep {a a' : Fin 3} (ha : a ≠ a') : ∃ k, T.muTri k a ≠ T.muTr
 /-- **Connectivity.** The complete graph `K₃` on the triangle is connected, so any function constant
 along adjoint edges is globally constant. For `x ≠ y`, the edge is witnessed at `k = thirdIdx x y`
 (`t x = t k ⊕ t y` by closure, and `t k`, `t y` anticommute). -/
-theorem triB_conn (f : Fin 3 → ℂ)
+lemma triB_conn (f : Fin 3 → ℂ)
     (hf : ∀ x y : Fin 3, (∃ k, adMatrix T.basis k x y ≠ 0) → f x = f y)
     (x y : Fin 3) : f x = f y := by
   by_cases hxy : x = y
@@ -341,7 +341,7 @@ theorem triB_conn (f : Fin 3 → ℂ)
 `so(4)` is simple (`≅ su(2)`), so the hard inclusion `(g⊗g)^g ≤ span{C}` is genuinely
 proved from the triangle's anticommutation (separation) and product-closure (connectivity) via
 the generic structure-constant solver. -/
-theorem basis_schur :
+lemma basis_schur :
     gTensorGInvariant T.basis = Submodule.span ℂ {T.basis.casimir} := by
   refine le_antisymm (fun X hX => ?_) (spanC_le_gTensorGInvariant _)
   have hoff : ∀ a a' : Fin T.basis.dim, a ≠ a' → coeffMatrix T.basis X a a' = 0 :=
@@ -352,7 +352,7 @@ theorem basis_schur :
 
 /-- **Cross-orthogonality of two disjoint triangles.** If every label of `T` differs from every
 label of `T'`, their normalized Hermitian bases are Hilbert–Schmidt orthogonal. -/
-theorem basis_cross_ortho {T' : PauliTriangle m} (hdis : ∀ i j, T.t i ≠ T'.t j)
+lemma basis_cross_ortho {T' : PauliTriangle m} (hdis : ∀ i j, T.t i ≠ T'.t j)
     (a b : Fin 3) : hsInner (T.basis.B a) (T'.basis.B b) = 0 := by
   rw [basis_B, basis_B, triB, triB, hsInner_smul_left, hsInner_smul_right, pauliMat_hsInner,
     if_neg (hdis a b), mul_zero, mul_zero]
@@ -386,21 +386,21 @@ noncomputable def so4Basis : (j : Fin 2) → DLAHermBasis (so4Gens j) :=
   Fin.cons (α := fun j => DLAHermBasis (so4Gens j)) so4A.basis
     (Fin.cons (α := fun j => DLAHermBasis (so4Gens j.succ)) so4B.basis (fun x => x.elim0))
 
-@[simp] theorem so4Basis_zero : so4Basis 0 = so4A.basis := rfl
+@[simp] lemma so4Basis_zero : so4Basis 0 = so4A.basis := rfl
 
-@[simp] theorem so4Basis_one : so4Basis 1 = so4B.basis := rfl
+@[simp] lemma so4Basis_one : so4Basis 1 = so4B.basis := rfl
 
 /-- Every `A`-label differs from every `B`-label. -/
-theorem so4AB_disjoint (i j : Fin 3) : so4A.t i ≠ so4B.t j := by
+lemma so4AB_disjoint (i j : Fin 3) : so4A.t i ≠ so4B.t j := by
   fin_cases i <;> fin_cases j <;> decide
 
 /-- Every `B`-label differs from every `A`-label. -/
-theorem so4BA_disjoint (i j : Fin 3) : so4B.t i ≠ so4A.t j := by
+lemma so4BA_disjoint (i j : Fin 3) : so4B.t i ≠ so4A.t j := by
   fin_cases i <;> fin_cases j <;> decide
 
 /-- The two ideals `A`, `B` are mutually Hilbert–Schmidt orthogonal (their strings are all
 distinct). -/
-theorem so4_cross_ortho : ∀ (i j : Fin 2), i ≠ j →
+lemma so4_cross_ortho : ∀ (i j : Fin 2), i ≠ j →
     ∀ (a : Fin (so4Basis i).dim) (b : Fin (so4Basis j).dim),
       hsInner ((so4Basis i).B a) ((so4Basis j).B b) = 0 := by
   intro i j hij a b
@@ -419,7 +419,7 @@ def so4Ai0 : Fin so4A.basis.dim := ⟨0, so4A.basis_dim_pos⟩
 ideal `A` (a normalized odd-`#Y` Pauli matrix, hence Hermitian), used for both slots. -/
 public noncomputable def so4Obs : Matrix (Fin (2 ^ 2)) (Fin (2 ^ 2)) ℂ := so4A.basis.B so4Ai0
 
-theorem so4Obs_isHermitian : so4Obsᴴ = so4Obs := so4A.basis.herm so4Ai0
+lemma so4Obs_isHermitian : so4Obsᴴ = so4Obs := so4A.basis.herm so4Ai0
 
 /-- **The reductive `so(4)` bundle** `g = A ⊕ B`. The two per-ideal Schur identities are genuinely
 proved (`PauliTriangle.basis_schur`); the diagonal second moment discharges the per-ideal diagonal

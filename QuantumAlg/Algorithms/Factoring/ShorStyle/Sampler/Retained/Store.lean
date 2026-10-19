@@ -43,7 +43,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual sampled path produces exactly the independent complete store update. -/
-theorem samplerRetained_outcome_store (input : Input N) (store : Store (context ctx N))
+lemma samplerRetained_outcome_store (input : Input N) (store : Store (context ctx N))
     (value : Fin (2 ^ residueSamplingBits N)) :
     (outcomeStep (model := model) ctx N store value).1 = outputStore input store value :=
   Program.samplerProgram_store (model := model) input (FirstAccepted.cellRead (sampleRef ctx N))
@@ -51,7 +51,7 @@ theorem samplerRetained_outcome_store (input : Input N) (store : Store (context 
     value (Store.read_write_same store (sampleRef ctx N) _)
 
 /-- The actual allocations and native sampled path have the prescribed complete store result. -/
-theorem samplerRetained_result_store (input : Input N) (store : Store ctx)
+lemma samplerRetained_result_store (input : Input N) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N)) :
     (outcomeStep (model := model) ctx N (pushStore N store) value).1 =
       resultStore input store value :=

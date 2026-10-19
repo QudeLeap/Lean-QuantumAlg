@@ -63,46 +63,46 @@ def borrowedClassicalCells (ctx : RuntimeCtx kind) : List (StorageKey × CShape)
 def borrowedClassicalShape (ctx : RuntimeCtx kind) : CShape :=
   borrowedCellShape ctx.borrowedClassicalCells
 
-@[simp] theorem borrowedClassicalCells_empty :
+@[simp] lemma borrowedClassicalCells_empty :
     (RuntimeCtx.empty : RuntimeCtx kind).borrowedClassicalCells = [] := rfl
 
 /-- Supplying another borrowed input extends, rather than hides, the borrowed interface. -/
-@[simp] theorem borrowedClassicalCells_addBorrowedInput (ctx : RuntimeCtx kind)
+@[simp] lemma borrowedClassicalCells_addBorrowedInput (ctx : RuntimeCtx kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (ctx.addBorrowedInput key shape fresh).borrowedClassicalCells =
       (key, shape) :: ctx.borrowedClassicalCells := rfl
 
 /-- Lexical work storage does not enter the borrowed classical interface. -/
-@[simp] theorem borrowedClassicalCells_addWorkspace (ctx : RuntimeCtx kind)
+@[simp] lemma borrowedClassicalCells_addWorkspace (ctx : RuntimeCtx kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (ctx.addWorkspace key shape fresh).borrowedClassicalCells = ctx.borrowedClassicalCells := rfl
 
 /-- Retained result storage does not enter the borrowed classical interface. -/
-@[simp] theorem borrowedClassicalCells_addRetained (ctx : RuntimeCtx kind)
+@[simp] lemma borrowedClassicalCells_addRetained (ctx : RuntimeCtx kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (ctx.addRetained key shape fresh).borrowedClassicalCells = ctx.borrowedClassicalCells := rfl
 
 /-- Dedicated output storage does not retag any borrowed classical cell. -/
-@[simp] theorem borrowedClassicalCells_addFinalOutput (ctx : RuntimeCtx kind)
+@[simp] lemma borrowedClassicalCells_addFinalOutput (ctx : RuntimeCtx kind)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (ctx.addFinalOutput key shape fresh).borrowedClassicalCells = ctx.borrowedClassicalCells := rfl
 
 /-- Borrowed quantum systems add no classical value to this interface. -/
-@[simp] theorem borrowedClassicalCells_addBorrowedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma borrowedClassicalCells_addBorrowedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addBorrowedLayout key layout fresh disjoint).borrowedClassicalCells =
       ctx.borrowedClassicalCells := rfl
 
 /-- Freshly owned systems add no borrowed classical cell. -/
-@[simp] theorem borrowedClassicalCells_addOwnedLayout (ctx : RuntimeCtx .quantum)
+@[simp] lemma borrowedClassicalCells_addOwnedLayout (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (ctx.addOwnedLayout key layout fresh disjoint).borrowedClassicalCells =
       ctx.borrowedClassicalCells := rfl
 
 /-- An owned bank contributes only its quantum presence marker to the store. -/
-@[simp] theorem borrowedClassicalCells_addOwnedCopies (ctx : RuntimeCtx .quantum)
+@[simp] lemma borrowedClassicalCells_addOwnedCopies (ctx : RuntimeCtx .quantum)
     (key : StorageKey) {copyCount systemsPerCopy : Nat}
     (bank : OwnedCopyBank copyCount systemsPerCopy) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint bank.identities ctx.physicalIdx) :
@@ -110,7 +110,7 @@ def borrowedClassicalShape (ctx : RuntimeCtx kind) : CShape :=
       ctx.borrowedClassicalCells := rfl
 
 /-- Equal ordered borrowed cells have the very same structural value shape. -/
-theorem borrowedClassicalShape_eq {pre post : RuntimeCtx kind}
+lemma borrowedClassicalShape_eq {pre post : RuntimeCtx kind}
     (same : pre.borrowedClassicalCells = post.borrowedClassicalCells) :
     pre.borrowedClassicalShape = post.borrowedClassicalShape :=
   congrArg borrowedCellShape same
@@ -142,7 +142,7 @@ private def readBorrowedCells {kind : ProblemKind} (entries : List (RuntimeEntry
         (readBorrowedCells (kind := kind) tail values.2)
 termination_by structural entries
 
-private theorem readBorrowedCells_write {kind : ProblemKind}
+private lemma readBorrowedCells_write {kind : ProblemKind}
     {key : StorageKey} {role : StorageRole} {shape : CShape}
     {entries : List (RuntimeEntry kind)} (cells : Cells entries)
     (slot : RuntimeEntrySlot (.storage key role shape) entries)
@@ -169,40 +169,40 @@ def readBorrowedClassical (store : Store ctx) : ctx.borrowedClassicalShape.Value
   readBorrowedCells ctx.entries store.cells
 
 /-- A typed writable cell can never overwrite any part of the borrowed input. -/
-theorem readBorrowedClassical_write {shape : CShape} (store : Store ctx)
+lemma readBorrowedClassical_write {shape : CShape} (store : Store ctx)
     (output : CWriteRef ctx shape) (value : shape.Value) :
     (store.write output value).readBorrowedClassical = store.readBorrowedClassical :=
   readBorrowedCells_write store.cells output.slot value output.writable
 
 /-- Every closed classical instruction retains the entire borrowed classical value. -/
-theorem readBorrowedClassical_applyOp {input output : CShape} (store : Store ctx)
+lemma readBorrowedClassical_applyOp {input output : CShape} (store : Store ctx)
     (op : ClassicalOp input output ctx ctx) :
     (store.applyOp op).readBorrowedClassical = store.readBorrowedClassical :=
   store.readBorrowedClassical_write op.outputRef _
 
-@[simp] theorem readBorrowedClassical_empty :
+@[simp] lemma readBorrowedClassical_empty :
     (Store.empty (kind := kind)).readBorrowedClassical = .unit := rfl
 
 /-- Allocating fresh lexical storage preserves all actual borrowed values. -/
-theorem readBorrowedClassical_pushWorkspace (store : Store ctx)
+lemma readBorrowedClassical_pushWorkspace (store : Store ctx)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (store.pushWorkspace key shape fresh).readBorrowedClassical =
       store.readBorrowedClassical := rfl
 
 /-- Releasing the lexical head preserves the complete remaining borrowed readout. -/
-theorem readBorrowedClassical_popWorkspace (key : StorageKey) (shape : CShape)
+lemma readBorrowedClassical_popWorkspace (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys) (store : Store (ctx.addWorkspace key shape fresh)) :
     (Store.popWorkspace key shape fresh store).readBorrowedClassical =
       store.readBorrowedClassical := rfl
 
 /-- Keeping a new result cell changes no actual borrowed value. -/
-theorem readBorrowedClassical_pushRetained (store : Store ctx)
+lemma readBorrowedClassical_pushRetained (store : Store ctx)
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys) :
     (store.pushRetained key shape fresh).readBorrowedClassical =
       store.readBorrowedClassical := rfl
 
 /-- Quantum preparation adds a presence marker and keeps every borrowed classical value. -/
-theorem readBorrowedClassical_pushOwnedLayout {ctx : RuntimeCtx .quantum} (store : Store ctx)
+lemma readBorrowedClassical_pushOwnedLayout {ctx : RuntimeCtx .quantum} (store : Store ctx)
     (key : StorageKey) {systemCount : Nat} (layout : QuantumLayout systemCount)
     (fresh : key ∉ ctx.keys) (disjoint : List.Disjoint layout.identities ctx.physicalIdx) :
     (store.pushOwnedLayout key layout fresh disjoint).readBorrowedClassical =
@@ -214,11 +214,15 @@ end Execution
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 /-- The circuit preserves all borrowed classical cell identities and their ordered shapes. -/
-theorem borrowedClassicalCells_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) : post.borrowedClassicalCells = pre.borrowedClassicalCells := by
+lemma borrowedClassicalCells_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post allowAllocation) : post.borrowedClassicalCells =
+        pre.borrowedClassicalCells := by
   induction code with
-  | id | classical | classicalQuery | unitary | measureZ | iterate | workspace => rfl
+  | id | classical | classicalQuery | unitary | measureZ | iterate | workspace
+  | embed | parallelClassical | parallelQuantum => rfl
   | retain ctx key shape fresh => exact ctx.borrowedClassicalCells_addRetained key shape fresh
   | prepareZero ctx key layout fresh disjoint =>
       exact ctx.borrowedClassicalCells_addOwnedLayout key layout fresh disjoint
@@ -226,13 +230,14 @@ theorem borrowedClassicalCells_preserved {model : ExecutionModel} {pre post : Ru
   | branch input body bodyIH => exact bodyIH (CShape.initialValue _)
 
 /-- The borrowed classical observation has one common shape before and after execution. -/
-theorem borrowedClassicalShape_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) : post.borrowedClassicalShape = pre.borrowedClassicalShape :=
+lemma borrowedClassicalShape_preserved {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    (code : Circuit model pre post allowAllocation) : post.borrowedClassicalShape =
+        pre.borrowedClassicalShape :=
   RuntimeCtx.borrowedClassicalShape_eq code.borrowedClassicalCells_preserved
 
 /-- Compare the same borrowed classical values across the circuit's exact shape equality. -/
 def borrowedClassicalValueTransport {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) :
+    (code : Circuit model pre post allowAllocation) :
     post.borrowedClassicalShape.Value ≃ pre.borrowedClassicalShape.Value :=
   Equiv.cast (congrArg CShape.Value code.borrowedClassicalShape_preserved)
 

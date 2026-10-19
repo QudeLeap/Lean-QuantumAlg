@@ -55,7 +55,7 @@ public def XOp : UnitaryOperator (Qubits 1) :=
 
 /-- The canonical addressed-X operator specializes to the named one-qubit
 Pauli-X operator. -/
-theorem qubitPrimitive_x_operator :
+lemma qubitPrimitive_x_operator :
     (QubitPrimitive.operator (.x 0 : QubitPrimitive 1)) = XOp := by
   unfold QubitPrimitive.operator XOp
   apply congrArg (UnitaryOperator.ofPerm (R := Qubits 1))
@@ -86,7 +86,7 @@ def ZOp : UnitaryOperator (Qubits 1) :=
 
 /-- The canonical addressed-CNOT operator specializes to the named two-qubit
 controlled-NOT operator. -/
-theorem qubitPrimitive_cnot_operator :
+lemma qubitPrimitive_cnot_operator :
     (QubitPrimitive.operator (.cnot 0 1 (by decide) : QubitPrimitive 2)) = CNOTOp := by
   unfold QubitPrimitive.operator CNOTOp
   apply congrArg (UnitaryOperator.ofPerm (R := Qubits 2))
@@ -94,7 +94,7 @@ theorem qubitPrimitive_cnot_operator :
   fin_cases label <;> decide
 
 /-- `e^{iπ/4} · e^{iπ/4} = i`. -/
-theorem exp_pi_div_four_mul_I_mul_self :
+lemma exp_pi_div_four_mul_I_mul_self :
     Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) *
         Complex.exp ((Real.pi : ℂ) / 4 * Complex.I) = Complex.I := by
   rw [← Complex.exp_add]
@@ -105,7 +105,7 @@ theorem exp_pi_div_four_mul_I_mul_self :
   exact Complex.exp_pi_div_two_mul_I
 
 /-- The one-branch phase matrix `diag(1, e^{iφ})` is unitary. -/
-theorem phaseDiag_mem_unitaryGroup (φ : ℝ) :
+lemma phaseDiag_mem_unitaryGroup (φ : ℝ) :
     (!![1, 0; 0, Complex.exp ((φ : ℝ) * Complex.I)] : HilbertOperator (Qubits 1)) ∈
       Matrix.unitaryGroup (Qubits 1).Index ℂ := by
   rw [Matrix.mem_unitaryGroup_iff]
@@ -131,21 +131,21 @@ public def TOp : UnitaryOperator (Qubits 1) :=
 
 /-! ### Clifford+T generator algebra -/
 
-theorem ZOp_mul_ZOp : ZOp * ZOp = 1 := by
+lemma ZOp_mul_ZOp : ZOp * ZOp = 1 := by
   apply Subtype.ext
   change ((ZOp : HilbertOperator (Qubits 1)) * (ZOp : HilbertOperator (Qubits 1))) =
     (1 : HilbertOperator (Qubits 1))
   ext i j
   fin_cases i <;> fin_cases j <;> simp [ZOp, Matrix.mul_apply]
 
-theorem SOp_mul_SOp : SOp * SOp = ZOp := by
+lemma SOp_mul_SOp : SOp * SOp = ZOp := by
   apply Subtype.ext
   change ((SOp : HilbertOperator (Qubits 1)) * (SOp : HilbertOperator (Qubits 1))) =
     (ZOp : HilbertOperator (Qubits 1))
   ext i j
   fin_cases i <;> fin_cases j <;> simp [SOp, ZOp, Matrix.mul_apply]
 
-theorem TOp_mul_TOp : TOp * TOp = SOp := by
+lemma TOp_mul_TOp : TOp * TOp = SOp := by
   apply Subtype.ext
   change ((TOp : HilbertOperator (Qubits 1)) * (TOp : HilbertOperator (Qubits 1))) =
     (SOp : HilbertOperator (Qubits 1))
@@ -153,14 +153,14 @@ theorem TOp_mul_TOp : TOp * TOp = SOp := by
   fin_cases i <;> fin_cases j <;>
     simp [TOp, SOp, Matrix.mul_apply, exp_pi_div_four_mul_I_mul_self]
 
-theorem SOp_pow_four : SOp ^ 4 = 1 := by
+lemma SOp_pow_four : SOp ^ 4 = 1 := by
   rw [show (4 : ℕ) = 2 + 2 from rfl, pow_add, sq, SOp_mul_SOp, ZOp_mul_ZOp]
 
-theorem TOp_pow_eight : TOp ^ 8 = 1 := by
+lemma TOp_pow_eight : TOp ^ 8 = 1 := by
   rw [show (8 : ℕ) = 2 * 4 from rfl, pow_mul, sq, TOp_mul_TOp, SOp_pow_four]
 
 /-- `S† = S³`, so the adjoint has an exact word over `{S}`. -/
-theorem star_SOp : star SOp = SOp ^ 3 := by
+lemma star_SOp : star SOp = SOp ^ 3 := by
   rw [Unitary.star_eq_inv]
   symm
   apply eq_inv_of_mul_eq_one_left
@@ -168,7 +168,7 @@ theorem star_SOp : star SOp = SOp ^ 3 := by
   exact SOp_pow_four
 
 /-- `T† = T⁷`. -/
-theorem star_TOp : star TOp = TOp ^ 7 := by
+lemma star_TOp : star TOp = TOp ^ 7 := by
   rw [Unitary.star_eq_inv]
   symm
   apply eq_inv_of_mul_eq_one_left
@@ -176,7 +176,7 @@ theorem star_TOp : star TOp = TOp ^ 7 := by
   exact TOp_pow_eight
 
 /-- `T† = T · S³`, so the adjoint has an exact word over `{S, T}` with one `T`. -/
-theorem star_TOp_eq_TOp_mul_SOp_pow_three : star TOp = TOp * SOp ^ 3 := by
+lemma star_TOp_eq_TOp_mul_SOp_pow_three : star TOp = TOp * SOp ^ 3 := by
   rw [star_TOp, show (7 : ℕ) = 1 + 2 * 3 from rfl, pow_add, pow_one TOp, pow_mul, sq,
     TOp_mul_TOp]
 

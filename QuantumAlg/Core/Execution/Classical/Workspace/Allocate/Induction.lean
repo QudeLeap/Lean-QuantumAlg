@@ -19,7 +19,7 @@ the motive exposes exactly the caller references available in each scope.
 namespace QuantumAlg.Execution.ClassicalWorkspace
 
 /-- Lift a body property through the allocator's actual nested workspace instructions. -/
-theorem withCellsFrom_property {model : ExecutionModel}
+lemma withCellsFrom_property {model : ExecutionModel}
     {outer ctx : RuntimeCtx model.kind} (transport : Transport outer ctx)
     (shapes : List CShape)
     (body : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner shapes), cells.Distinct →

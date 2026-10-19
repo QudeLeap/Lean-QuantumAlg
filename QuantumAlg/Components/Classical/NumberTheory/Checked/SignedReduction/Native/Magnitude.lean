@@ -87,12 +87,13 @@ def signedMagnitudeStep {model : ExecutionModel} [BitWord.Selected model]
   (chosen.1, ⟨value, chosen.2⟩)
 
 /-- Both literal branches preserve complete quantum-reference blocks and the original history. -/
-theorem magnitudeChoice_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma magnitudeChoice_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (value : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (magnitudeChoice (model := model) raw work value).execute Reference state =
+    (magnitudeChoice (model := model) raw work value).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((magnitudeChoiceStep (model := model) raw work value entry.1).1,
         (entry.2.1, (entry.2.2, (magnitudeChoiceStep (model := model) raw work value
@@ -101,31 +102,33 @@ theorem magnitudeChoice_execute {model : ExecutionModel} [BitWord.Selected model
   | bit value =>
       cases value
       · change (BitWord.instruction (execution := model) (magnitudeCopyOp raw work)).execute
-          Reference state = _
-        exact (BitWord.bitWord_instruction_execute (execution := model)
+          environment Reference state = _
+        exact (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
           (magnitudeCopyOp raw work) state).trans
             (ExecutionState.executionState_mapClassical_congr _ rfl)
       · change (Circuit.seq
           (BitWord.instruction (execution := model) (magnitudeCopyOp raw work))
           (.seq (BitWord.instruction (execution := model) (signUnaryOp .complement work))
             (BitWord.instruction (execution := model) (signUnaryOp .increment work)))).execute
-              Reference state = _
+              environment Reference state = _
         simp only [Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
           ExecutionState.executionState_mapClassical_comp, Function.comp_def]
         exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual stored-bit branch preserves the full reference-correlated execution state. -/
-theorem signedMagnitude_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (signedMagnitude (model := model) raw work negative).execute Reference state =
+    (signedMagnitude (model := model) raw work negative).execute environment Reference state =
       state.mapClassical (fun entry =>
       ((signedMagnitudeStep (model := model) raw work negative entry.1).1,
         (entry.2.1, (entry.2.2, (signedMagnitudeStep (model := model) raw work negative
           entry.1).2)))) := by
-  refine (Circuit.execute_branch_mapClassical negative (magnitudeChoice (model := model) raw work)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) negative (magnitudeChoice (model := model) raw work)
     (fun value before =>
       let result := magnitudeChoiceStep (model := model) raw work value before.1
       ((result.1, before.2), result.2)) ?_ Reference state).trans ?_
@@ -141,7 +144,7 @@ def magnitudeWord (raw : CShape.Word (signedWidth width)) (negative : Bool) :
     (Resource.WordUnaryOpcode.eval .complement (signedWidth width) raw) else raw
 
 /-- The actual chosen output equals its exact fixed-width word for arbitrary original stores. -/
-theorem magnitudeChoice_value {model : ExecutionModel} [BitWord.Selected model]
+lemma magnitudeChoice_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (value : CShape.Value .bit)
     (store : Store ctx) :
@@ -168,7 +171,7 @@ theorem magnitudeChoice_value {model : ExecutionModel} [BitWord.Selected model]
         rfl
 
 /-- Correct classification yields the original mathematical magnitude. -/
-theorem magnitudeWord_original_toNat (raw : CShape.Word (signedWidth width)) :
+lemma magnitudeWord_original_toNat (raw : CShape.Word (signedWidth width)) :
     (magnitudeWord raw (rawIsNegative raw)).toNat = rawMagnitude raw := by
   unfold magnitudeWord rawMagnitude
   by_cases negative : rawIsNegative raw = true
@@ -177,7 +180,7 @@ theorem magnitudeWord_original_toNat (raw : CShape.Word (signedWidth width)) :
   · simp only [negative, Bool.false_eq_true, if_false]
 
 /-- The actual selector yields the original magnitude after its preceding classification. -/
-theorem signedMagnitude_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_original_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
@@ -191,7 +194,7 @@ theorem signedMagnitude_original_value {model : ExecutionModel} [BitWord.Selecte
   rw [magnitudeChoice_value, classified, magnitudeWord_original_toNat]
 
 /-- Every actual branch preserves all reads outside its one work-word destination. -/
-theorem magnitudeChoice_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma magnitudeChoice_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (value : CShape.Value .bit)
     {shape : CShape} (other : CInputRef ctx shape) (separate : work.key ∉ other.storageKeys)
@@ -212,7 +215,7 @@ theorem magnitudeChoice_read_other {model : ExecutionModel} [BitWord.Selected mo
           Store.read_applyOp_of_not_mem_storageKeys _ (magnitudeCopyOp raw work) other separate]
 
 /-- The stored sign and all caller reads remain available after magnitude selection. -/
-theorem signedMagnitude_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     {shape : CShape} (other : CInputRef ctx shape) (separate : work.key ∉ other.storageKeys)
@@ -236,7 +239,7 @@ def signedMagnitudeEvents (model : ExecutionModel) [BitWord.Selected model] (wid
       (.wordUnary .copy (signedWidth width)))]
 
 /-- The actual selected path emits precisely the original magnitude instructions. -/
-theorem signedMagnitude_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (path : (signedMagnitude (model := model) raw work negative).Path) :
@@ -264,7 +267,7 @@ theorem signedMagnitude_eventTrace {model : ExecutionModel} [BitWord.Selected mo
         rfl
 
 /-- The resource pool is obtained from the same selected true event trace. -/
-theorem signedMagnitude_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (path : (signedMagnitude (model := model) raw work negative).Path) :
@@ -273,7 +276,7 @@ theorem signedMagnitude_resourcePool {model : ExecutionModel} [BitWord.Selected 
   congrArg ResourcePool.ofList (signedMagnitude_eventTrace raw work negative path)
 
 /-- Arbitrary native durations charge the selected sequential operations exactly. -/
-theorem signedMagnitude_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (duration : Resource.Event model → Nat)
@@ -301,7 +304,7 @@ theorem signedMagnitude_durationDepth {model : ExecutionModel} [BitWord.Selected
         rfl
 
 /-- The original branch has depth three on a negative sign and one otherwise. -/
-theorem signedMagnitude_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (path : (signedMagnitude (model := model) raw work negative).Path) :
@@ -312,7 +315,7 @@ theorem signedMagnitude_depth {model : ExecutionModel} [BitWord.Selected model]
   | bit value => cases value <;> rfl
 
 /-- Both magnitude branches retain exactly the actual resident context. -/
-theorem signedMagnitude_resident {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (path : (signedMagnitude (model := model) raw work negative).Path) :
@@ -329,7 +332,7 @@ theorem signedMagnitude_resident {model : ExecutionModel} [BitWord.Selected mode
         simp only [SpacePool.max_zero, SpacePool.max_self]
 
 /-- Both magnitude branches retain exactly the actual auxiliary context. -/
-theorem signedMagnitude_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+lemma signedMagnitude_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (work : CWriteRef ctx (.unsignedWord (signedWidth width))) (negative : CInputRef ctx .bit)
     (path : (signedMagnitude (model := model) raw work negative).Path) :

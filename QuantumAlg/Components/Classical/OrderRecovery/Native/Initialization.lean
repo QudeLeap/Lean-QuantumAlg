@@ -113,13 +113,15 @@ def initializeScanStep {model : ExecutionModel} [BitWord.Selected model]
   (active.1, (decoded.2, (loaded.2, (older.2, (one.2, active.2)))))
 
 /-- The one actual interpreter executes exactly those initialization records on every full block. -/
-theorem nativeRecovery_initialize_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeRecovery_initialize_execute {model : ExecutionModel} [BitWord.Selected model]
     (ctx : RuntimeCtx model.kind) (modulusWidth phaseBits : Nat)
-    (sample : CInputRef ctx (.bits phaseBits)) (Reference : Register)
+    (sample : CInputRef ctx (.bits phaseBits)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (recoveryContext ctx modulusWidth (phaseBits + 1))
       Reference (model.HiddenState × History)) :
-    (initializeScan (model := model) ctx modulusWidth phaseBits sample).execute Reference state =
+    (initializeScan (model := model) ctx modulusWidth phaseBits sample).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         ((initializeScanStep (model := model) ctx modulusWidth phaseBits sample entry.1).1,
           (entry.2.1, (entry.2.2,

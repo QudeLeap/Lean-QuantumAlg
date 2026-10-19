@@ -26,14 +26,14 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.OracleModel.Native.Dec
 
 noncomputable section
 
-private theorem member_toffoli_zero {N : Nat} (input : Input N) :
-    ResourcePool.count (model := model input) (.gate AlgorithmGate.Coordinate.toffoli)
-      (memberEventBudget input) = 0 := by
+private lemma member_toffoli_zero (N : Nat) :
+    ResourcePool.count (model := model N) (.gate AlgorithmGate.Coordinate.toffoli)
+      (memberEventBudget N) = 0 := by
   have prepared := UnitaryCircuit.unitaryCircuit_event_count_classical_context
-    (ShortDLP.DeclaredStage.prepare (Native.encoding input))
+    (ShortDLP.DeclaredStage.prepare N (Native.parameters N))
     BitWord.model .empty (.gate AlgorithmGate.Coordinate.toffoli)
   have readout := UnitaryCircuit.unitaryCircuit_event_count_classical_context
-    (ShortDLP.DeclaredStage.readout (Native.encoding input))
+    (ShortDLP.DeclaredStage.readout N (Native.parameters N))
     BitWord.model .empty (.gate AlgorithmGate.Coordinate.toffoli)
   rw [memberEventBudget]
   simp only [ResourcePool.count_add]
@@ -43,57 +43,57 @@ private theorem member_toffoli_zero {N : Nat} (input : Input N) :
     ShortDLP.DeclaredStage.declaredStage_readout_nativeCount]
   have hadamardCost := congrArg
     (ResourcePool.count (model := .quantum AlgorithmGate.model
-      (ShortDLP.DeclaredStage.oracle (Native.encoding input)))
+      (ShortDLP.declaredModel N (Native.parameters N)))
       (.gate .toffoli))
     (Gate.HadamardLayer.hadamardLayer_circuit_eventCost
-      (ShortDLP.DeclaredStage.oracle (Native.encoding input))
+      (ShortDLP.declaredModel N (Native.parameters N))
       (ShortDLP.firstBits (Native.parameters N) + (Native.parameters N).ell))
   rw [hadamardCost]
   simp
 
-theorem member_singleQubit_count {N : Nat} (input : Input N) :
-    ResourcePool.count (model := model input) (.gate AlgorithmGate.Coordinate.singleQubit)
-      (memberEventBudget input) =
-        ShortDLP.DeclaredStage.sourceMacroCount (Native.encoding input) "hadamard" +
+lemma member_singleQubit_count (N : Nat) :
+    ResourcePool.count (model := model N) (.gate AlgorithmGate.Coordinate.singleQubit)
+      (memberEventBudget N) =
+        ShortDLP.DeclaredStage.sourceMacroCount N (Native.parameters N) "hadamard" +
           3 * ShortDLP.DeclaredStage.sourceMacroCount
-            (Native.encoding input) "controlled-phase" := by
+            N (Native.parameters N) "controlled-phase" := by
   have word := UnitaryCircuit.unitaryCircuit_event_count_classical_context
-    (ShortDLP.DeclaredStage.circuit (Native.encoding input) 1 1)
+    (ShortDLP.DeclaredStage.circuit N (Native.parameters N) 1 1)
     BitWord.model .empty (.gate AlgorithmGate.Coordinate.singleQubit)
   have exactWord := word.trans
     (ShortDLP.DeclaredStage.declaredStage_singleQubit_eq_sourceMacros
-      (Native.encoding input) 1 1)
-  change ResourcePool.count (model := model input) (.gate .singleQubit)
-    ((ShortDLP.DeclaredStage.prepare (Native.encoding input)).eventCost BitWord.model .empty +
-      (ResourcePool.singleton (model := model input) (.oracle .groupOperation) +
-        (ShortDLP.DeclaredStage.readout (Native.encoding input)).eventCost
+      N (Native.parameters N) 1 1)
+  change ResourcePool.count (model := model N) (.gate .singleQubit)
+    ((ShortDLP.DeclaredStage.prepare N (Native.parameters N)).eventCost BitWord.model .empty +
+      (ResourcePool.singleton (model := model N) (.oracle .groupOperation) +
+        (ShortDLP.DeclaredStage.readout N (Native.parameters N)).eventCost
           BitWord.model .empty)) = _ at exactWord
   simp only [memberEventBudget, ResourcePool.count_add]
   simpa using exactWord
 
-theorem member_cnot_count {N : Nat} (input : Input N) :
-    ResourcePool.count (model := model input) (.gate AlgorithmGate.Coordinate.cnot)
-      (memberEventBudget input) =
+lemma member_cnot_count (N : Nat) :
+    ResourcePool.count (model := model N) (.gate AlgorithmGate.Coordinate.cnot)
+      (memberEventBudget N) =
         2 * ShortDLP.DeclaredStage.sourceMacroCount
-          (Native.encoding input) "controlled-phase" +
-        3 * ShortDLP.DeclaredStage.sourceMacroCount (Native.encoding input) "swap" := by
+          N (Native.parameters N) "controlled-phase" +
+        3 * ShortDLP.DeclaredStage.sourceMacroCount N (Native.parameters N) "swap" := by
   have word := UnitaryCircuit.unitaryCircuit_event_count_classical_context
-    (ShortDLP.DeclaredStage.circuit (Native.encoding input) 1 1)
+    (ShortDLP.DeclaredStage.circuit N (Native.parameters N) 1 1)
     BitWord.model .empty (.gate AlgorithmGate.Coordinate.cnot)
   have exactWord := word.trans
     (ShortDLP.DeclaredStage.declaredStage_cnot_eq_sourceMacros
-      (Native.encoding input) 1 1)
-  change ResourcePool.count (model := model input) (.gate .cnot)
-    ((ShortDLP.DeclaredStage.prepare (Native.encoding input)).eventCost BitWord.model .empty +
-      (ResourcePool.singleton (model := model input) (.oracle .groupOperation) +
-        (ShortDLP.DeclaredStage.readout (Native.encoding input)).eventCost
+      N (Native.parameters N) 1 1)
+  change ResourcePool.count (model := model N) (.gate .cnot)
+    ((ShortDLP.DeclaredStage.prepare N (Native.parameters N)).eventCost BitWord.model .empty +
+      (ResourcePool.singleton (model := model N) (.oracle .groupOperation) +
+        (ShortDLP.DeclaredStage.readout N (Native.parameters N)).eventCost
           BitWord.model .empty)) = _ at exactWord
   simp only [memberEventBudget, ResourcePool.count_add]
   simpa using exactWord
 
-private theorem reset_gate_count {N : Nat} (input : Input N)
+private lemma reset_gate_count (N : Nat)
     (coordinate : AlgorithmGate.Coordinate) :
-    ResourcePool.count (model := model input) (.gate coordinate) (resetEventBudget input) =
+    ResourcePool.count (model := model N) (.gate coordinate) (resetEventBudget N) =
       ShortDLP.totalQubits (Native.parameters N) *
         (if coordinate = .singleQubit then 1 else 0) := by
   cases coordinate <;>
@@ -102,19 +102,19 @@ private theorem reset_gate_count {N : Nat} (input : Input N)
 /-- Each completed member contributes its actual expanded gate ledger. The
 independent budget reserves sixteen first-batch resets and seventeen for each
 further batch, including the terminal physical reset. -/
-theorem completedEventBudget_gate_count {N : Nat} (input : Input N)
+lemma completedEventBudget_gate_count (N : Nat)
     (laterCount : Nat) (coordinate : AlgorithmGate.Coordinate) :
-    ResourcePool.count (model := model input) (.gate coordinate)
-      (Retry.Finite.Cleanup.completedEventBudget N input laterCount) =
+    ResourcePool.count (model := model N) (.gate coordinate)
+      (Retry.Finite.Cleanup.completedEventBudget N laterCount) =
       16 * (laterCount + 1) *
-        ResourcePool.count (model := model input) (.gate coordinate)
-          (memberEventBudget input) +
+        ResourcePool.count (model := model N) (.gate coordinate)
+          (memberEventBudget N) +
       (16 + 17 * laterCount) * ShortDLP.totalQubits (Native.parameters N) *
         (if coordinate = .singleQubit then 1 else 0) := by
   have sourceZero := declared_source_count_eq_zero
-    (model := model input) (.gate coordinate) (fun _ => by simp) N
+    (model := model N) (.gate coordinate) (fun _ => by simp) N
   have recoveryZero := declared_recovery_count_eq_zero
-    (model := model input) (.gate coordinate) (fun _ => by simp) N
+    (model := model N) (.gate coordinate) (fun _ => by simp) N
   cases coordinate <;>
     simp [Retry.Finite.Cleanup.completedEventBudget,
       Retry.Finite.Cleanup.eventBudget,
@@ -133,15 +133,15 @@ theorem completedEventBudget_gate_count {N : Nat} (input : Input N)
 
 /-- The independent completed-event allowance has no peripheral Toffoli
 coordinate, including the actual source, recovery, packing and reset tails. -/
-theorem completedEventBudget_toffoli_zero {N : Nat} (input : Input N)
+lemma completedEventBudget_toffoli_zero (N : Nat)
     (laterCount : Nat) :
-    ResourcePool.count (model := model input) (.gate AlgorithmGate.Coordinate.toffoli)
-      (Retry.Finite.Cleanup.completedEventBudget N input laterCount) = 0 := by
+    ResourcePool.count (model := model N) (.gate AlgorithmGate.Coordinate.toffoli)
+      (Retry.Finite.Cleanup.completedEventBudget N laterCount) = 0 := by
   have sourceZero := declared_source_count_eq_zero
-    (model := model input) (.gate AlgorithmGate.Coordinate.toffoli)
+    (model := model N) (.gate AlgorithmGate.Coordinate.toffoli)
     (fun _ => by simp) N
   have recoveryZero := declared_recovery_count_eq_zero
-    (model := model input) (.gate AlgorithmGate.Coordinate.toffoli)
+    (model := model N) (.gate AlgorithmGate.Coordinate.toffoli)
     (fun _ => by simp) N
   simp [Retry.Finite.Cleanup.completedEventBudget,
     Retry.Finite.Cleanup.eventBudget,
@@ -171,9 +171,9 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : 
 
 /-- No path of the actual all-count completed candidate calls a peripheral
 Toffoli gate; the declared group oracle is counted separately. -/
-public theorem completedAlgorithm_toffoli_count (input : Input N) (count : Nat)
+public lemma completedAlgorithm_toffoli_count (input : Input N) (count : Nat)
     (path : (completedAlgorithm base noQuantum input count).run.code.Path) :
-    ResourcePool.count (model := model input) (.gate AlgorithmGate.Coordinate.toffoli)
+    ResourcePool.count (model := model N) (.gate AlgorithmGate.Coordinate.toffoli)
       ((completedAlgorithm base noQuantum input count).run.code.resourcePool path) = 0 := by
   cases count with
   | zero => rfl
@@ -183,18 +183,18 @@ public theorem completedAlgorithm_toffoli_count (input : Input N) (count : Nat)
       have countBound := ResourcePool.le_iff_count.mp bounded
         (.gate AlgorithmGate.Coordinate.toffoli)
       exact Nat.eq_zero_of_le_zero
-        ((completedEventBudget_toffoli_zero input laterCount) ▸ countBound)
+        ((completedEventBudget_toffoli_zero N laterCount) ▸ countBound)
 
 /-- Every positive completed path is bounded by the actual member gate ledger
 and the independently paid first and later physical resets. -/
-theorem completedAlgorithm_gate_count_le_positive (input : Input N) (count : Nat)
+lemma completedAlgorithm_gate_count_le_positive (input : Input N) (count : Nat)
     (positive : 0 < count) (coordinate : AlgorithmGate.Coordinate)
     (path : (completedAlgorithm base noQuantum input count).run.code.Path) :
-    ResourcePool.count (model := model input) (.gate coordinate)
+    ResourcePool.count (model := model N) (.gate coordinate)
       ((completedAlgorithm base noQuantum input count).run.code.resourcePool path) ≤
       16 * count *
-        ResourcePool.count (model := model input) (.gate coordinate)
-          (memberEventBudget input) +
+        ResourcePool.count (model := model N) (.gate coordinate)
+          (memberEventBudget N) +
       (16 + 17 * Nat.pred count) * ShortDLP.totalQubits (Native.parameters N) *
         (if coordinate = .singleQubit then 1 else 0) := by
   cases count with
@@ -204,7 +204,7 @@ theorem completedAlgorithm_gate_count_le_positive (input : Input N) (count : Nat
         base noQuantum input laterCount path
       have countBound := ResourcePool.le_iff_count.mp bounded (.gate coordinate)
       simpa only [completedAlgorithm, Nat.pred_succ] using
-        countBound.trans_eq (completedEventBudget_gate_count input laterCount coordinate)
+        countBound.trans_eq (completedEventBudget_gate_count N laterCount coordinate)
 
 end
 

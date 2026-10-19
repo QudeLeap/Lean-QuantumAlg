@@ -50,13 +50,13 @@ public def carrierEquiv : Fin (cardinality G) ≃ G :=
 /-- Interpret hidden oracle state as its mathematical group value. -/
 @[expose] public def decode (state : Fin (cardinality G)) : G := carrierEquiv G state
 
-@[simp] public theorem decode_encode (value : G) : decode G (encode G value) = value :=
+@[simp] public lemma decode_encode (value : G) : decode G (encode G value) = value :=
   (carrierEquiv G).apply_symm_apply value
 
-@[simp] public theorem encode_decode (state : Fin (cardinality G)) :
+@[simp] public lemma encode_decode (state : Fin (cardinality G)) :
     encode G (decode G state) = state := (carrierEquiv G).symm_apply_apply state
 
-@[simp] public theorem encode_inj {left right : G} :
+@[simp] public lemma encode_inj {left right : G} :
     encode G left = encode G right ↔ left = right :=
   (carrierEquiv G).symm.injective.eq_iff
 
@@ -117,53 +117,59 @@ public def equalResult (left right : Fin (cardinality G)) : Bool :=
 /-- Stateful deterministic access to a representation-independent finite-group
 accumulator. -/
 @[expose, implicit_reducible]
-public def model : ClassicalOracleModel where
-  Query := Query (cardinality G)
-  Coordinate := Coordinate
-  coordinateDecidableEq := inferInstance
-  HiddenState := Fin (cardinality G)
-  stateFintype := inferInstance
-  inputShape := queryInputShape G
-  outputShape := queryOutputShape G
+public def model : ClassicalOracleModel :=
+  .service
+    { Query := Query (cardinality G)
+      Coordinate := Coordinate
+      coordinateDecidableEq := inferInstance
+      HiddenState := Fin (cardinality G)
+      stateFintype := inferInstance
+      inputShape := queryInputShape G
+      outputShape := queryOutputShape G
+      coordinate := queryCoordinate G }
+
+/-- The source group supplies one fixed transition law, independent of its persistent state. -/
+@[expose] public def interpretation : (model G).Interpretation where
   transition := transition G
-  coordinate := queryCoordinate G
 
-public theorem transition_reset (state : (model G).HiddenState)
+public lemma transition_reset (state : (model G).HiddenState)
     (input : CShape.Value ((model G).inputShape .reset)) :
-    (model G).transition .reset state input = PMF.pure (encode G 1, .bit false) := rfl
+    (model G).transition (interpretation G) .reset state input =
+      PMF.pure (encode G 1, .bit false) := rfl
 
-public theorem transition_square (state : (model G).HiddenState)
+public lemma transition_square (state : (model G).HiddenState)
     (input : CShape.Value ((model G).inputShape .square)) :
-    (model G).transition .square state input =
+    (model G).transition (interpretation G) .square state input =
       PMF.pure (encode G (decode G state * decode G state), .bit false) := rfl
 
-public theorem transition_multiplyRight (right : Fin (cardinality G))
+public lemma transition_multiplyRight (right : Fin (cardinality G))
     (state : (model G).HiddenState)
     (input : CShape.Value ((model G).inputShape (.multiplyRight right))) :
-    (model G).transition (.multiplyRight right) state input =
+    (model G).transition (interpretation G) (.multiplyRight right) state input =
       PMF.pure (encode G (decode G state * decode G right), .bit false) := rfl
 
 /-- Multiplication by a declaration-owned group element, without exposing its
 finite hidden-state label to callers. -/
-public theorem transition_multiplyRightQuery (right : G)
+public lemma transition_multiplyRightQuery (right : G)
     (state : (model G).HiddenState)
     (input : CShape.Value ((model G).inputShape (multiplyRightQuery G right))) :
-    (model G).transition (multiplyRightQuery G right) state input =
+    (model G).transition (interpretation G) (multiplyRightQuery G right) state input =
       PMF.pure (encode G (decode G state * right), .bit false) := by
-  simp only [model, transition, decode, multiplyRightQuery, Equiv.apply_symm_apply]
+  change transition G (multiplyRightQuery G right) state input = _
+  simp only [transition, decode, multiplyRightQuery, Equiv.apply_symm_apply]
 
-public theorem transition_equals (right : Fin (cardinality G))
+public lemma transition_equals (right : Fin (cardinality G))
     (state : (model G).HiddenState)
     (input : CShape.Value ((model G).inputShape (.equals right))) :
-    (model G).transition (.equals right) state input =
+    (model G).transition (interpretation G) (.equals right) state input =
       PMF.pure (state, .bit (equalResult G state right)) := rfl
 
 /-- Equality with a declaration-owned group element, stated at the public
 group-value boundary rather than at the hidden finite-label boundary. -/
-public theorem transition_equalsQuery (right : G)
+public lemma transition_equalsQuery (right : G)
     (state : (model G).HiddenState)
     (input : CShape.Value ((model G).inputShape (equalsQuery G right))) :
-    (model G).transition (equalsQuery G right) state input =
+    (model G).transition (interpretation G) (equalsQuery G right) state input =
       PMF.pure (state, .bit (equalResult G state (encode G right))) := by
   exact transition_equals G (encode G right) state input
 

@@ -23,12 +23,14 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InputRuntimePlacement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution InputPreparation
 
 private def source (width : Nat) : QuantumLayout (encoding width).width :=
   (QubitLayout.canonical (encoding width).width).toQuantum
 
-private theorem source_contained (width : Nat) :
+private lemma source_contained (width : Nat) :
     (source width).identities ⊆ (after width).quantumLayout.identities := by
   rw [RuntimeCtx.runtimeCtx_quantumLayout_identities]
   change (QubitLayout.canonical (encoding width).width).systemIdx ⊆
@@ -42,23 +44,23 @@ def position (width : Nat) :
   QuantumLayout.positionOfIdentity (source width) (after width).quantumLayout
     (source_contained width)
 
-theorem position_identity (width : Nat) (index : Fin (encoding width).width) :
+lemma position_identity (width : Nat) (index : Fin (encoding width).width) :
     ((after width).quantumLayout.wire (position width index)).identity = index.val := by
   exact QuantumLayout.positionOfIdentity_identity (source width)
     (after width).quantumLayout (source_contained width) index
 
-private theorem before_count (width : Nat) : (before width).systemCount = width := by
+private lemma before_count (width : Nat) : (before width).systemCount = width := by
   change ((inputLayout width).wires ++ []).length = width
   simp
 
-private theorem after_count (width : Nat) :
+private lemma after_count (width : Nat) :
     (after width).systemCount = auxiliaryWidth width + width := by
   change ((auxiliaryLayout width).wires ++ (before width).quantumWires).length = _
   rw [List.length_append, QuantumLayout.wires_length]
   exact congrArg (auxiliaryWidth width + ·) (before_count width)
 
 /-- The physical identity map covers the complete live input frame. -/
-theorem position_surjective (width : Nat) : Function.Surjective (position width) := by
+lemma position_surjective (width : Nat) : Function.Surjective (position width) := by
   have sameCount : (encoding width).width = (after width).systemCount := by
     rw [after_count]
     have complete := complete_width width
@@ -74,7 +76,7 @@ theorem position_surjective (width : Nat) : Function.Surjective (position width)
     Finite.surjective_of_injective injective (Fin.cast sameCount.symm target)
   exact ⟨selected, Fin.cast_injective sameCount.symm same⟩
 
-private theorem before_wires (width : Nat) :
+private lemma before_wires (width : Nat) :
     (inputLayout width).wires = (before width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change (inputLayout width).wires = (inputLayout width).wires ++ []
@@ -84,7 +86,7 @@ private def oldPosition (width : Nat) : Fin width ≃ Fin (before width).systemC
   positionsOfEqualWires (inputLayout width) (before width).quantumLayout
     (before_wires width)
 
-private theorem oldPosition_identity (width : Nat) (index : Fin width) :
+private lemma oldPosition_identity (width : Nat) (index : Fin width) :
     ((before width).quantumLayout.wire (oldPosition width index)).identity =
       prefixWidth width + index.val := by
   have same := wireAtCorrespondingPosition (inputLayout width)
@@ -92,7 +94,7 @@ private theorem oldPosition_identity (width : Nat) (index : Fin width) :
   exact congrArg QuantumWire.identity same
 
 /-- A source auxiliary position selects the actual freshly allocated wire. -/
-theorem position_auxiliary (width : Nat) (index : Fin (auxiliaryWidth width)) :
+lemma position_auxiliary (width : Nat) (index : Fin (auxiliaryWidth width)) :
     position width (InputAssembly.auxiliaryPosition width index) =
       PreparationBorrowed.fullPositionEquiv (before width) auxiliaryKey
         (auxiliaryLayout width) (auxiliary_fresh width) (auxiliary_disjoint width)
@@ -111,7 +113,7 @@ theorem position_auxiliary (width : Nat) (index : Fin (auxiliaryWidth width)) :
   exact (congrArg QuantumWire.identity same).symm
 
 /-- A source input position selects the same previously supplied physical wire. -/
-theorem position_input (width : Nat) (index : Fin width) :
+lemma position_input (width : Nat) (index : Fin width) :
     position width (InputAssembly.inputPosition width index) =
       PreparationBorrowed.fullPositionEquiv (before width) auxiliaryKey
         (auxiliaryLayout width) (auxiliary_fresh width) (auxiliary_disjoint width)
@@ -130,7 +132,7 @@ theorem position_input (width : Nat) (index : Fin width) :
   exact (oldPosition_identity width index).symm.trans
     (congrArg QuantumWire.identity same).symm
 
-private theorem after_dimension (width : Nat) (index : Fin (after width).systemCount) :
+private lemma after_dimension (width : Nat) (index : Fin (after width).systemCount) :
     ((after width).quantumLayout.wire index).dimension = 2 := by
   have member : ((after width).quantumLayout.wire index) ∈
       (after width).quantumWires := by
@@ -153,14 +155,14 @@ private theorem after_dimension (width : Nat) (index : Fin (after width).systemC
     rw [← same]
     rfl
 
-theorem position_dimensions (width : Nat) (index : Fin (encoding width).width) :
+lemma position_dimensions (width : Nat) (index : Fin (encoding width).width) :
     ((source width).wire index).dimension =
       ((after width).quantumLayout.wire (position width index)).dimension := by
   rw [after_dimension]
   rfl
 
 /-- The placed source reads each fresh auxiliary coordinate without relabeling it. -/
-theorem selected_auxiliary (width : Nat)
+lemma selected_auxiliary (width : Nat)
     (fresh : (auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin (auxiliaryWidth width)) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
@@ -175,7 +177,7 @@ theorem selected_auxiliary (width : Nat)
     fresh old index
 
 /-- The placed source reads every unchanged original input coordinate. -/
-theorem selected_input (width : Nat)
+lemma selected_input (width : Nat)
     (fresh : (auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) (index : Fin width) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
@@ -190,7 +192,7 @@ theorem selected_input (width : Nat)
     (auxiliaryLayout width) (auxiliary_fresh width) (auxiliary_disjoint width)
     fresh old (oldPosition width index)
 
-private theorem old_value_bit (width : Nat)
+private lemma old_value_bit (width : Nat)
     (old : (before width).register.Index) (index : Fin width) :
     (old (oldPosition width index)).val =
       (finTwoEquiv.symm ((inputBasisEquiv width old).val.testBit index.rev.val)).val := by
@@ -218,7 +220,7 @@ def selectedWord (width : Nat) (basis : (after width).register.Index) :
     (UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
       (position width) (position_dimensions width) basis)
 
-private theorem selectedWord_bit (width : Nat) (basis : (after width).register.Index)
+private lemma selectedWord_bit (width : Nat) (basis : (after width).register.Index)
     (index : Fin (encoding width).width) :
     (selectedWord width basis).val.testBit index.rev.val =
       finTwoEquiv (UnitaryCircuit.selectedInput (source width)
@@ -228,7 +230,7 @@ private theorem selectedWord_bit (width : Nat) (basis : (after width).register.I
 
 /-- Physical position selection agrees with the independently assembled source label
 for every auxiliary value and every original input, including dirty inputs. -/
-theorem selectedWord_assembly (width : Nat)
+lemma selectedWord_assembly (width : Nat)
     (fresh : (auxiliaryLayout width).register.Index)
     (old : (before width).register.Index) :
     selectedWord width (InputAssembly.assembly width (fresh, old)) =
@@ -279,7 +281,7 @@ theorem selectedWord_assembly (width : Nat)
       exact congrArg finTwoEquiv
         (Fin.ext (selected_auxiliary width fresh old auxiliary))
 
-theorem selectedWord_eq_basisEquiv (width : Nat)
+lemma selectedWord_eq_basisEquiv (width : Nat)
     (basis : (after width).register.Index) :
     selectedWord width basis = InputAssembly.basisEquiv width basis := by
   let pair := (InputAssembly.assembly width).symm basis
@@ -288,7 +290,7 @@ theorem selectedWord_eq_basisEquiv (width : Nat)
   rw [← assembled]
   exact selectedWord_assembly width pair.1 pair.2
 
-theorem selectedBasis_eq_basisEquiv (width : Nat)
+lemma selectedBasis_eq_basisEquiv (width : Nat)
     (basis : (after width).register.Index) :
     UnitaryCircuit.selectedInput (source width) (after width).quantumLayout
       (position width) (position_dimensions width) basis =
@@ -305,21 +307,21 @@ def program (width : Nat)
   UnitaryCircuit.placeAt (source width) (after width).quantumLayout
     (position width) (position_dimensions width) body
 
-theorem program_eventTrace (width : Nat)
+lemma program_eventTrace (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width)) :
     (program width body).eventTrace = body.eventTrace :=
   UnitaryCircuit.placeAt_eventTrace _ _ _ _ _
 
-theorem program_eventCost (width : Nat)
+lemma program_eventCost (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width)) :
     (program width body).eventCost = body.eventCost :=
   UnitaryCircuit.placeAt_eventCost _ _ _ _ _
 
 /-- A complete native basis action remains exact after its identity-derived placement. -/
-theorem program_apply_ket (width : Nat)
+lemma program_apply_ket (width : Nat)
     (body : UnitaryCircuit AlgorithmGate.model .empty (source width))
     (input output : (source width).Basis)
-    (actual : body.applyNormalized (NormalizedVector.ket input) =
+    (actual : body.applyNormalized environment (NormalizedVector.ket input) =
       NormalizedVector.ket output)
     (targetInput targetOutput : (after width).register.Index)
     (inputSelected : UnitaryCircuit.selectedInput (source width)
@@ -328,11 +330,11 @@ theorem program_apply_ket (width : Nat)
     (outputSelected : UnitaryCircuit.selectedInput (source width)
       (after width).quantumLayout (position width) (position_dimensions width)
       targetOutput = output) :
-    (program width body).applyNormalized (NormalizedVector.ket targetInput) =
+    (program width body).applyNormalized environment (NormalizedVector.ket targetInput) =
       NormalizedVector.ket targetOutput := by
   apply UnitaryCircuit.placeAt_applyNormalized_ket_of_eq
     (source width) (after width).quantumLayout (position width)
-    (position_dimensions width) body input output actual targetInput targetOutput
+    (position_dimensions width) body environment input output actual targetInput targetOutput
     inputSelected outputSelected
   funext index
   obtain ⟨sourceIndex, same⟩ := position_surjective width index.val

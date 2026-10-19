@@ -31,7 +31,7 @@ variable (dimensions : ∀ index,
   (source.wire index).dimension = (target.wire (position index)).dimension)
 
 /-- A placed diagonal target reads exactly the selected ambient coordinates. -/
-public theorem operatorAt_diagonal (operator : UnitaryOperator source.register)
+public lemma operatorAt_diagonal (operator : UnitaryOperator source.register)
     (weight : source.Basis → Complex)
     (diagonal : (operator : HilbertOperator source.register) = Matrix.diagonal weight) :
     (operatorAt source target position dimensions operator : HilbertOperator target.register) =

@@ -26,20 +26,20 @@ not claims that computing a residue from an unbounded integer has zero cost.
 namespace QuantumAlg.OrderFinding
 
 /-- The bounded natural representative retains the original signed residue. -/
-public theorem orderFinding_signedResidue_cast {N : Nat} (positive : 0 < N) (x : Int) :
+public lemma orderFinding_signedResidue_cast {N : Nat} (positive : 0 < N) (x : Int) :
     (((x : ZMod N).val : Nat) : ZMod N) = (x : ZMod N) := by
   have : NeZero N := ⟨Nat.ne_of_gt positive⟩
   exact ZMod.natCast_zmod_val (x : ZMod N)
 
 /-- Every exponent in the declared query has the original signed modular power. -/
-public theorem orderFinding_signedResidue_power {N : Nat} (positive : 0 < N)
+public lemma orderFinding_signedResidue_power {N : Nat} (positive : 0 < N)
     (x : Int) (exponent : Nat) :
     (x : ZMod N).val ^ exponent % N = ((x : ZMod N) ^ exponent).val := by
   rw [← ZMod.val_natCast N ((x : ZMod N).val ^ exponent), Nat.cast_pow,
     orderFinding_signedResidue_cast positive x]
 
 /-- Coprimality of an arbitrary signed base survives canonical representation. -/
-public theorem orderFinding_signedResidue_coprime {N : Nat} (positive : 0 < N)
+public lemma orderFinding_signedResidue_coprime {N : Nat} (positive : 0 < N)
     (x : Int) (coprime : Nat.Coprime x.natAbs N) :
     Nat.Coprime (x : ZMod N).val N := by
   have integerCoprime : IsCoprime x (N : Int) :=
@@ -53,7 +53,7 @@ public theorem orderFinding_signedResidue_coprime {N : Nat} (positive : 0 < N)
 
 /-- The original signed source-order premises give the existing bounded-base
 input, with the identical least positive order. -/
-public theorem orderFinding_input_of_signedBase {N r : Nat} (modulus : 2 ≤ N)
+public lemma orderFinding_input_of_signedBase {N r : Nat} (modulus : 2 ≤ N)
     (x : Int) (coprime : Nat.Coprime x.natAbs N) (orderPositive : 0 < r)
     (returnsOne : (x : ZMod N) ^ r = 1)
     (minimal : ∀ m : Nat, 0 < m → (x : ZMod N) ^ m = 1 → r ≤ m) :

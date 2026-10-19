@@ -30,7 +30,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {width resultWidth : Nat}
 
 /-- The actual eight outer scopes retain the already recorded candidate and checking path. -/
@@ -45,11 +46,11 @@ def programStep (input : CInputRef ctx (.unsignedWord width))
       (candidateBodyStep input modulus original)) store
 
 /-- Complete execution is the same actual scoped store update, including its true path. -/
-theorem nativeQuadratic_program_execute (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_program_execute (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (program input modulus original).execute Reference state =
+    (program input modulus original).execute environment Reference state =
       state.mapClassical (fun entry => ((programStep input modulus original entry.1).1,
         (entry.2.1, (entry.2.2, (programStep input modulus original entry.1).2)))) :=
   SelectionLayout.nativeRecovery_selectionScopes_execute (RSA.quadraticWordWidth width)
@@ -63,7 +64,7 @@ theorem nativeQuadratic_program_execute (input : CInputRef ctx (.unsignedWord wi
 
 set_option maxHeartbeats 800000 in -- Align store projections through eight actual lexical scopes.
 /-- Scope release exposes the surviving original store after the actual candidate body. -/
-theorem nativeQuadratic_programStep_store (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_programStep_store (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) (store : Store ctx) :
     (programStep input modulus original store).1 =
@@ -83,7 +84,7 @@ theorem nativeQuadratic_programStep_store (input : CInputRef ctx (.unsignedWord 
 
 set_option maxHeartbeats 800000 in -- Match original read positions across the same eight scopes.
 /-- Every surviving original read is exactly the corresponding read before outer scope release. -/
-theorem nativeQuadratic_programStep_read (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_programStep_read (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (original : FirstAccepted.Refs ctx resultWidth) {shape : CShape}
     (other : CInputRef ctx shape) (store : Store ctx) :

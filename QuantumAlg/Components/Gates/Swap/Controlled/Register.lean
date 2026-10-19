@@ -38,21 +38,21 @@ def left (width : Nat) (index : Fin width) : Fin (1 + (width + width)) :=
 def right (width : Nat) (index : Fin width) : Fin (1 + (width + width)) :=
   ⟨1 + width + index.val, by omega⟩
 
-private theorem control_left (width : Nat) (index : Fin width) :
+private lemma control_left (width : Nat) (index : Fin width) :
     control width ≠ left width index := by
   intro same
   have := congrArg Fin.val same
   change 0 = 1 + index.val at this
   omega
 
-private theorem control_right (width : Nat) (index : Fin width) :
+private lemma control_right (width : Nat) (index : Fin width) :
     control width ≠ right width index := by
   intro same
   have := congrArg Fin.val same
   change 0 = 1 + width + index.val at this
   omega
 
-private theorem left_right (width : Nat) (index : Fin width) :
+private lemma left_right (width : Nat) (index : Fin width) :
     left width index ≠ right width index := by
   intro same
   have := congrArg Fin.val same
@@ -71,10 +71,11 @@ def pairPermutation (width : Nat) (index : Fin width) : Equiv.Perm (layout width
   ControlledSwap.qubitPermutation (control width) (left width index) (right width index)
     (control_left width index) (control_right width index)
 
-theorem pair_matrix (oracles : OracleModel) (width : Nat) (index : Fin width) :
-    (pairCircuit oracles width index).matrix =
+lemma pair_matrix (oracles : OracleModel) (width : Nat) (index : Fin width)
+    (environment : oracles.Interpretation) :
+    ((pairCircuit oracles width index).matrix environment) =
       UnitaryOperator.ofPerm (pairPermutation width index) :=
-  ControlledSwap.controlledSwap_qubits_matrix _ _ _ _ _ _ oracles
+  ControlledSwap.controlledSwap_qubits_matrix _ _ _ _ _ _ oracles environment
 
 /-- Sequential native words retain their common control dependency. -/
 def sequence (oracles : OracleModel) (width : Nat) : List (Fin width) →
@@ -88,8 +89,9 @@ def sequencePermutation (width : Nat) : List (Fin width) → Equiv.Perm (layout 
   | index :: rest => (sequencePermutation width rest).trans (pairPermutation width index)
 
 /-- Exact full matrix, prior to simplifying the complete all-position exchange. -/
-theorem sequence_matrix (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
-    (sequence oracles width indices).matrix =
+lemma sequence_matrix (oracles : OracleModel) (width : Nat) (indices : List (Fin width))
+    (environment : oracles.Interpretation) :
+    ((sequence oracles width indices).matrix environment) =
       UnitaryOperator.ofPerm (sequencePermutation width indices) := by
   induction indices with
   | nil =>
@@ -103,7 +105,7 @@ theorem sequence_matrix (oracles : OracleModel) (width : Nat) (indices : List (F
       rfl
 
 /-- The trace records every actual CNOT and Toffoli, including repetitions. -/
-theorem sequence_events (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
+lemma sequence_events (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
     (sequence oracles width indices).eventTrace =
       indices.flatMap (fun _ => [.gate .cnot, .gate .toffoli, .gate .cnot]) := by
   induction indices with
@@ -114,7 +116,7 @@ theorem sequence_events (oracles : OracleModel) (width : Nat) (indices : List (F
       rfl
 
 /-- Every pair has three sequential gates; every pair shares the original control. -/
-theorem sequence_depth (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
+lemma sequence_depth (oracles : OracleModel) (width : Nat) (indices : List (Fin width)) :
     (sequence oracles width indices).evaluatedEventDepth (fun _ => 1) = 3 * indices.length := by
   induction indices with
   | nil => rfl
@@ -129,14 +131,14 @@ public def circuit (oracles : OracleModel) (width : Nat) :
   .macroCall "controlled-register-swap" (sequence oracles width (List.finRange width))
 
 /-- The zero-width case performs no native instruction. -/
-public theorem controlledRegisterSwap_zero_events (oracles : OracleModel) :
+public lemma controlledRegisterSwap_zero_events (oracles : OracleModel) :
     (circuit oracles 0).eventTrace = [] := by
   rw [circuit, UnitaryCircuit.macroCall_eventTrace]
   change (sequence oracles 0 []).eventTrace = []
   rw [sequence, UnitaryCircuit.identity_eventTrace]
 
 /-- The actual shared-control word has exactly three steps per target pair. -/
-public theorem controlledRegisterSwap_unit_depth (oracles : OracleModel) (width : Nat) :
+public lemma controlledRegisterSwap_unit_depth (oracles : OracleModel) (width : Nat) :
     (circuit oracles width).evaluatedEventDepth (fun _ => 1) = 3 * width := by
   change (sequence oracles width (List.finRange width)).evaluatedEventDepth (fun _ => 1) = _
   rw [sequence_depth, List.length_finRange]

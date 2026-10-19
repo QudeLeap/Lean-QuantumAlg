@@ -33,7 +33,7 @@ open QuantumAlg.ZeroReflection.Workspace
 /-- No quantum or classical runtime input is supplied. -/
 @[reducible] public def pre : RuntimeCtx .quantum := RuntimeCtx.empty
 
-theorem pre_systemCount : pre.systemCount = 0 := rfl
+lemma pre_systemCount : pre.systemCount = 0 := rfl
 
 /-- Consecutive physical systems in source-then-helper order. -/
 def qubitLayout (n k : Nat) : QubitLayout (totalQubits n k) :=
@@ -43,9 +43,9 @@ def qubitLayout (n k : Nat) : QubitLayout (totalQubits n k) :=
 def runtimeLayout (n k : Nat) : QuantumLayout (totalQubits n k) :=
   (qubitLayout n k).toQuantumLayout
 
-theorem preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
+lemma preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
 
-theorem preparationDisjoint (n k : Nat) :
+lemma preparationDisjoint (n k : Nat) :
     List.Disjoint (runtimeLayout n k).identities pre.physicalIdx :=
   List.disjoint_nil_right _
 
@@ -53,12 +53,12 @@ theorem preparationDisjoint (n k : Nat) :
 @[implicit_reducible] public def post (n k : Nat) : RuntimeCtx .quantum :=
   pre.addOwnedLayout ⟨0⟩ (runtimeLayout n k) preparationFresh (preparationDisjoint n k)
 
-theorem post_quantumWires (n k : Nat) :
+lemma post_quantumWires (n k : Nat) :
     (post n k).quantumWires = (runtimeLayout n k).wires := by
   change (runtimeLayout n k).wires ++ [] = _
   exact List.append_nil _
 
-theorem post_physicalIdx (n k : Nat) :
+lemma post_physicalIdx (n k : Nat) :
     (post n k).physicalIdx = List.range (totalQubits n k) := by
   rw [RuntimeCtx.physicalIdx, post_quantumWires]
   change (List.ofFn fun index : Fin (totalQubits n k) =>
@@ -68,7 +68,7 @@ theorem post_physicalIdx (n k : Nat) :
   simp [qubitLayout, QubitLayout.systemIdx, List.ofFn_eq_pmap]
 
 /-- The native canonical word and runtime context contain exactly the same ordered wire records. -/
-theorem post_canonical_wires (n k : Nat) :
+lemma post_canonical_wires (n k : Nat) :
     (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout.wires =
       (post n k).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, post_quantumWires]
@@ -93,7 +93,7 @@ def inputPreparation (n k : Nat) : BasisPreparation (runtimeLayout n k) :=
 def preparedInput (n k : Nat) : NormalizedVector (Qubits (totalQubits n k)) :=
   NormalizedVector.ket (R := Qubits (totalQubits n k)) 0
 
-theorem inputPreparation_density (n k : Nat) :
+lemma inputPreparation_density (n k : Nat) :
     (DensityOperator.ofPure (inputPreparation n k).normalized).reindex
       (S := (post n k).register) (preparedLayoutEquiv n k) =
         (DensityOperator.ofPure (preparedInput n k)).reindex

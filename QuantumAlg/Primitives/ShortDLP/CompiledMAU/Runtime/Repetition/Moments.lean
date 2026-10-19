@@ -32,11 +32,14 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRepetition
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem liftInput_product (m ell width : Nat) {ctx : RuntimeCtx .quantum}
+private lemma liftInput_product (m ell width : Nat) {ctx : RuntimeCtx .quantum}
     {left right : CShape} (first : CInputRef ctx left) (second : CInputRef ctx right)
     (count : Nat) :
     RuntimeResults.liftInput m ell width (.product first second) count =
@@ -51,7 +54,7 @@ private theorem liftInput_product (m ell width : Nat) {ctx : RuntimeCtx .quantum
         (second.underRetained ctx.canonicalFreshKey
           (.bits (RuntimeRound.resultBits m ell width)) ctx.canonicalFreshKey_fresh)
 
-private theorem weighted_empty {Sample : Type} [Fintype Sample]
+private lemma weighted_empty {Sample : Type} [Fintype Sample]
     (distribution : PMF Sample) (weight : List.Vector Sample 0 → ℂ) :
     (∑ samples : List.Vector Sample 0,
       ((PMF.independentReplicateVector distribution 0 samples).toReal : ℂ) * weight samples) =
@@ -70,7 +73,7 @@ private theorem weighted_empty {Sample : Type} [Fintype Sample]
       ENNReal.toReal_one, Complex.ofReal_one, one_mul])
 
 /-- Finite joint weights of real repeated results follow the original independent vector PMF. -/
-theorem shortDLP_runtimeRepetition_weighted_reference
+lemma shortDLP_runtimeRepetition_weighted_reference
     {parameterShape : CShape} (m ell width N : Nat)
     (generator target : parameterShape.Value → (ZMod N)ˣ) :
     ∀ (count : Nat) {previousShape : CShape} (ctx : RuntimeCtx .quantum)
@@ -88,6 +91,7 @@ theorem shortDLP_runtimeRepetition_weighted_reference
         (leftRef rightRef : Reference.Index),
       ExecutionState.referenceFiberSum
           ((code m ell width N generator target ctx sameWires parameter cells count).execute
+            environment
             Reference state)
           (fun entry _ => weight
             (entry.1.read (RuntimeResults.liftInput m ell width parameter count))
@@ -113,7 +117,9 @@ theorem shortDLP_runtimeRepetition_weighted_reference
         weight (store.read parameter) (store.read previous)
           (store.read (RuntimeResults.input m ell width ctx 0)).get
       have identityLaw :
-          ExecutionState.referenceFiberSum ((Circuit.id (model := RuntimeRound.model) ctx).execute
+          ExecutionState.referenceFiberSum
+            ((Circuit.id (allowAllocation := true) (model := RuntimeRound.model) ctx).execute
+              environment
               Reference state)
               (fun entry _ => initialWeight entry.1) leftRef rightRef =
             ExecutionState.referenceFiberSum state
@@ -122,7 +128,8 @@ theorem shortDLP_runtimeRepetition_weighted_reference
           (fun output : State ctx Reference (RuntimeRound.model.HiddenState × (History × Unit)) =>
             ExecutionState.referenceFiberSum output
               (fun entry _ => initialWeight entry.1) leftRef rightRef)
-          (Circuit.execute_id_mapClassical (model := RuntimeRound.model) Reference state)
+          (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
+            (model := RuntimeRound.model) Reference state)
         exact executed.trans (ExecutionState.referenceFiberSum_mapClassical state
           (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
           (fun entry _ => initialWeight entry.1) leftRef rightRef)
@@ -156,8 +163,8 @@ theorem shortDLP_runtimeRepetition_weighted_reference
       let round := RuntimeRound.code m ell width nextWires nextParameter N generator target
         nextCells head
       let tail := code m ell width N generator target next nextWires nextParameter nextCells count
-      let retained := retain.execute Reference state
-      let rounded := round.execute Reference retained
+      let retained := retain.execute environment Reference state
+      let rounded := round.execute environment Reference retained
       let source := fun value : parameterShape.Value =>
         (ShortDLP.measurement (registerParameters m ell width)).outcomePMF
           (CompiledMAU.evolvedState m ell width N (generator value) (target value))
@@ -190,9 +197,11 @@ theorem shortDLP_runtimeRepetition_weighted_reference
           · have live := CInputRef.storageKeys_subset_context
               (.storage (cells index).toCStorageRef) (List.mem_singleton.mpr rfl)
             exact ctx.canonicalFreshKey_fresh ((List.mem_singleton.mp freshKey) ▸ live)
-      have retainedSeed := RuntimeRound.shortDLP_runtimeSeedBlocks_retain m ell width sameWires N
+      have retainedSeed := RuntimeRound.shortDLP_runtimeSeedBlocks_retain
+        (environment := environment) m ell width sameWires N
         ctx.canonicalFreshKey bits ctx.canonicalFreshKey_fresh state seeded
-      have roundSeed := RuntimeRound.shortDLP_runtimeRound_seedBlocks m ell width nextWires
+      have roundSeed := RuntimeRound.shortDLP_runtimeRound_seedBlocks
+        (environment := environment) m ell width nextWires
         nextParameter N generator target nextCells head retained
       have tailLaw := induction next nextWires nextParameter previousWithHead nextCells distinct
         tailSeparate rounded roundSeed tailWeight leftRef rightRef
@@ -226,11 +235,13 @@ theorem shortDLP_runtimeRepetition_weighted_reference
               (tailStore.read (RuntimeResults.liftInput m ell width nextParameter count))
               earlier (tailStore.read (RuntimeResults.input m ell width next count)).get)
           pairValue.symm)
-      have sequences := (Circuit.referenceFiberSum_execute_seq retain (.seq round tail) state
+      have sequences := (Circuit.referenceFiberSum_execute_seq (environment := environment)
+        retain (.seq round tail) state
         finalWeight leftRef rightRef).trans
-        (Circuit.referenceFiberSum_execute_seq round tail retained finalWeight leftRef rightRef)
+        (Circuit.referenceFiberSum_execute_seq (environment := environment)
+          round tail retained finalWeight leftRef rightRef)
       refine sequences.trans (Eq.trans (b := ExecutionState.referenceFiberSum
-        (tail.execute Reference rounded)
+        (tail.execute environment Reference rounded)
         (fun entry _ => tailWeight
           (entry.1.read (RuntimeResults.liftInput m ell width nextParameter count))
           (entry.1.read (RuntimeResults.liftInput m ell width previousWithHead count))
@@ -241,7 +252,7 @@ theorem shortDLP_runtimeRepetition_weighted_reference
               (RuntimeRound.model.HiddenState ×
                 (((History × retain.Path) × round.Path) × tail.Path))) →
               (RuntimeResults.context m ell width ctx (count + 1)).register.Index → ℂ =>
-            ExecutionState.referenceFiberSum (tail.execute Reference rounded)
+            ExecutionState.referenceFiberSum (tail.execute environment Reference rounded)
               observe leftRef rightRef)
           (funext fun entry => funext fun _ => finalRead entry.1)
       · refine tailLaw.trans ?_
@@ -252,7 +263,8 @@ theorem shortDLP_runtimeRepetition_weighted_reference
                 weight earlier.first earlier.second
                   (Fin.cons outcome (fun index => .bits (samples.get index)))
         have roundLaw := RuntimeRound.shortDLP_runtimeRound_weighted_outcome_reference
-          m ell width nextWires nextParameter nextPrevious N generator target nextCells head
+          (environment := environment)
+            m ell width nextWires nextParameter nextPrevious N generator target nextCells head
           distinct nextSeparate headSeparate retained retainedSeed roundWeight leftRef rightRef
         refine roundLaw.trans ?_
         let earlierWeight := fun earlier : (CShape.product parameterShape previousShape).Value =>
@@ -260,7 +272,8 @@ theorem shortDLP_runtimeRepetition_weighted_reference
             ((PMF.independentReplicateVector
               (source earlier.first) (count + 1) samples).toReal : ℂ) *
               weight earlier.first earlier.second (fun index => .bits (samples.get index))
-        have retainedLaw := Circuit.referenceFiberSum_execute_retain_input
+        have retainedLaw := Circuit.referenceFiberSum_execute_retain_input (environment :=
+          environment)
           (gates := AlgorithmGate.model) (oracles := .empty)
           (operations := BitWord.model) (classicalOracles := .empty)
           (.product parameter previous) ctx.canonicalFreshKey bits ctx.canonicalFreshKey_fresh

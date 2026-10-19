@@ -28,7 +28,7 @@ open Execution
 
 attribute [local instance] Classical.decEq
 
-variable {execution : ExecutionModel} [Selected execution]
+variable {execution : ExecutionModel} {environment : execution.Environment} [Selected execution]
   {ctx : RuntimeCtx execution.kind} {input output : CShape}
 
 /-- The actual finite repetition of one selected native leaf. -/
@@ -44,7 +44,7 @@ public def repeatStep (op : ClassicalOp input output ctx ctx) (count : Nat) (sto
     fun index : Fin count => (instructionStep (execution := execution) op
       ((fun current => current.applyOp op)^[index.val] store)).2)
 
-private theorem iterate_keep_right {A B : Type} (step : A → A) (count : Nat)
+private lemma iterate_keep_right {A B : Type} (step : A → A) (count : Nat)
     (left : A) (right : B) :
     (fun entry : A × B => (step entry.1, entry.2))^[count] (left, right) =
       (step^[count] left, right) := by
@@ -54,19 +54,21 @@ private theorem iterate_keep_right {A B : Type} (step : A → A) (count : Nat)
       simpa only [Function.iterate_succ_apply] using ih (step left)
 
 /-- Real native repetition preserves the complete service and reference state with all outputs. -/
-public theorem bitWord_repeatInstruction_execute (op : ClassicalOp input output ctx ctx)
+public lemma bitWord_repeatInstruction_execute (op : ClassicalOp input output ctx ctx)
     (count : Nat) {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (execution.HiddenState × History)) :
-    (repeatInstruction (execution := execution) op count).execute Reference state =
+    (repeatInstruction (execution := execution) op count).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := repeatStep (execution := execution) op count entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_iterate_mapClassical (instruction (execution := execution) op)
+  refine (Circuit.execute_iterate_mapClassical
+    (environment := environment) (instruction (execution := execution) op)
     (fun before =>
       let result := instructionStep (execution := execution) op before.1
       ((result.1, before.2), result.2)) ?_ count Reference state).trans ?_
   · intro reference history _ input
-    exact (bitWord_instruction_execute (execution := execution) op input).trans
+    exact (bitWord_instruction_execute
+      (environment := environment) (execution := execution) op input).trans
       (ExecutionState.executionState_mapClassical_congr _ rfl)
   · apply ExecutionState.executionState_mapClassical_congr
     funext entry

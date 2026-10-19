@@ -26,7 +26,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 namespace ExecutionState
 
-private theorem mapped_value_mass {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma mapped_value_mass {C D : Type} [Fintype C] [Fintype D] {R : Register}
     [DecidableEq C] [DecidableEq D]
     (source : C) (density : DensityOperator R) (update : C → D) (target : D) :
     (((ofValue source density).mapClassical update).block target).mass =
@@ -41,7 +41,7 @@ private theorem mapped_value_mass {C D : Type} [Fintype C] [Fintype D] {R : Regi
 
 end ExecutionState
 
-private theorem maps_unique {C D : Type} [Fintype C] [Fintype D] {R : Register}
+private lemma maps_unique {C D : Type} [Fintype C] [Fintype D] {R : Register}
     [DecidableEq D]
     (density : DensityOperator R) (normalized : density.mass = 1) (first second : C → D)
     (equation : ∀ state : ExecutionState C R,
@@ -62,17 +62,17 @@ namespace Circuit
 open Execution
 
 /-- Complete equations for the same actual interpreter determine both store and path uniquely. -/
-theorem executionRecord_unique {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-    (code : Circuit model ctx ctx)
+lemma executionRecord_unique {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    (code : Circuit model ctx ctx) (environment : model.Environment)
     (first second : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) × code.Path)
     (firstEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      code.execute Reference state = state.mapClassical (fun entry =>
+      code.execute environment Reference state = state.mapClassical (fun entry =>
         let result := first (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))))
     (secondEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      code.execute Reference state = state.mapClassical (fun entry =>
+      code.execute environment Reference state = state.mapClassical (fun entry =>
         let result := second (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2))))) : first = second := by
   let density : DensityOperator (Register.prod ctx.register (Qubits 0)) :=

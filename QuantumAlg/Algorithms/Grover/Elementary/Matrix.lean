@@ -34,21 +34,23 @@ def sourceStep {n : Nat} (marked : Fin (2 ^ n) → Bool) : UnitaryOperator (Qubi
   (WalshHadamard.hadamardLayerOperator n * ZeroReflection.zeroReflectionOperator n) *
     star (WalshHadamard.hadamardLayerOperator n) * phaseOracleOp marked
 
-theorem hadamards_binaryMatrix (queries : OracleModel) (n k : Nat) :
-    (hadamards queries n k).binaryMatrix =
+lemma hadamards_binaryMatrix (queries : OracleModel)
+    {environment : queries.Interpretation} (n k : Nat) :
+    ((hadamards queries n k).binaryMatrix environment) =
       (WalshHadamard.hadamardLayerOperator n).tensor
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [hadamards, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   exact congrArg (fun operator : UnitaryOperator (Qubits n) =>
     operator.tensor (1 : UnitaryOperator (Qubits (helperWidth n k))))
-    (WalshHadamard.Native.native_binary_matrix queries n)
+    (WalshHadamard.Native.native_binary_matrix queries n environment)
 
-theorem inverseHadamards_binaryMatrix (queries : OracleModel) (n k : Nat) :
-    (inverseHadamards queries n k).binaryMatrix =
+lemma inverseHadamards_binaryMatrix (queries : OracleModel)
+    {environment : queries.Interpretation} (n k : Nat) :
+    ((inverseHadamards queries n k).binaryMatrix environment) =
       (star (WalshHadamard.hadamardLayerOperator n)).tensor
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
-  have inverse : (inverseHadamards queries n k).binaryMatrix =
-      star (hadamards .empty n k).binaryMatrix := by
+  have inverse : ((inverseHadamards queries n k).binaryMatrix environment) =
+      star ((hadamards .empty n k).binaryMatrix OracleModel.emptyInterpretation) := by
     rw [inverseHadamards, UnitaryCircuit.binaryMatrix, UnitaryCircuit.dagger_matrix,
       UnitaryOperator.unitaryOperator_reindex_star]
     rfl
@@ -61,8 +63,8 @@ theorem inverseHadamards_binaryMatrix (queries : OracleModel) (n k : Nat) :
         (WalshHadamard.hadamardLayerOperator n : HilbertOperator (Qubits n)).conjTranspose 1
   rw [HilbertOperator.conjTranspose_tensor, Matrix.conjTranspose_one]
 
-theorem oracle_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (oracle marked k).binaryMatrix = (phaseOracleOp marked).tensor
+lemma oracle_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ((oracle n k).binaryMatrix (interpretation marked)) = (phaseOracleOp marked).tensor
       (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [oracle, UnitaryCircuit.unitaryCircuit_onBinaryPrefix_binaryMatrix]
   apply congrArg (fun operator : UnitaryOperator (Qubits n) =>
@@ -74,9 +76,9 @@ theorem oracle_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) 
   exact UnitaryOperator.unitaryOperator_reindex_cancel
     (QuantumSignature.qubitsIndexEquiv n).symm (phaseOracleOp marked)
 
-theorem step_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool)
+lemma step_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool)
     (k : Nat) (nonzero : k ≠ 0) :
-    (step marked k nonzero).binaryMatrix = (sourceStep marked).tensor
+    ((step n k nonzero).binaryMatrix (interpretation marked)) = (sourceStep marked).tensor
       (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [step, diffusion, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
@@ -104,9 +106,10 @@ theorem step_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool)
   simp only [mul_assoc]
 
 
-private theorem repeated_step_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool)
+private lemma repeated_step_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool)
     (k : Nat) (nonzero : k ≠ 0) (count : Nat) :
-    (step marked k nonzero).binaryMatrix ^ count = (sourceStep marked ^ count).tensor
+    ((step n k nonzero).binaryMatrix (interpretation marked)) ^ count =
+      (sourceStep marked ^ count).tensor
       (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   induction count with
   | zero =>
@@ -124,8 +127,8 @@ private theorem repeated_step_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → B
       rw [HilbertOperator.tensor_mul_tensor, one_mul, pow_succ]
 
 /-- Exact native execution equals the complete original source product at every k. -/
-theorem circuit_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (circuit marked k).binaryMatrix =
+lemma circuit_binaryMatrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ((circuit n k).binaryMatrix (interpretation marked)) =
       (sourceStep marked ^ k * WalshHadamard.hadamardLayerOperator n).tensor
         (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   by_cases zero : k = 0

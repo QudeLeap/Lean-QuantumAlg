@@ -43,7 +43,7 @@ public def ExpConcentrated (X : ℕ → ℝ) (μ : ℝ) : Prop :=
 
 /-- An exponentially concentrated quantity converges to its concentration value:
 the landscape becomes exponentially flat. -/
-theorem ExpConcentrated.tendsto {X : ℕ → ℝ} {μ : ℝ} (h : ExpConcentrated X μ) :
+lemma ExpConcentrated.tendsto {X : ℕ → ℝ} {μ : ℝ} (h : ExpConcentrated X μ) :
     Filter.Tendsto X Filter.atTop (nhds μ) := by
   obtain ⟨b, hb, C, _, hbnd⟩ := h
   have key : Filter.Tendsto (fun n => C / b ^ n) Filter.atTop (nhds 0) := by
@@ -63,7 +63,7 @@ size). -/
 public def HasBarrenPlateau (variance : ℕ → ℝ) : Prop := ExpConcentrated variance 0
 
 /-- Under a barren plateau the variance vanishes in the large-system limit. -/
-theorem HasBarrenPlateau.variance_tendsto_zero {variance : ℕ → ℝ}
+lemma HasBarrenPlateau.variance_tendsto_zero {variance : ℕ → ℝ}
     (h : HasBarrenPlateau variance) :
     Filter.Tendsto variance Filter.atTop (nhds 0) :=
   h.tendsto
@@ -88,12 +88,12 @@ structure CostDependentBP where
   local_lb : ∀ n : ℕ, 0 < n → c / (n : ℝ) ≤ localVariance n
 
 /-- The global cost's gradient vanishes (barren plateau). -/
-theorem CostDependentBP.global_tendsto_zero (M : CostDependentBP) :
+lemma CostDependentBP.global_tendsto_zero (M : CostDependentBP) :
     Filter.Tendsto M.globalVariance Filter.atTop (nhds 0) :=
   M.global_bp.variance_tendsto_zero
 
 /-- The local cost's gradient variance stays strictly positive (trainable). -/
-theorem CostDependentBP.local_pos (M : CostDependentBP) {n : ℕ} (hn : 0 < n) :
+lemma CostDependentBP.local_pos (M : CostDependentBP) {n : ℕ} (hn : 0 < n) :
     0 < M.localVariance n :=
   lt_of_lt_of_le (div_pos M.c_pos (Nat.cast_pos.mpr hn)) (M.local_lb n hn)
 
@@ -112,7 +112,7 @@ built on the probabilistic engine `QuantumAlg.ExpConcentratedProb`. -/
 def KernelConcentration (kernel : ℕ → ℝ) (κ₀ : ℝ) : Prop := ExpConcentrated kernel κ₀
 
 /-- A concentrated kernel converges to its concentration value. -/
-theorem KernelConcentration.tendsto {kernel : ℕ → ℝ} {κ₀ : ℝ}
+lemma KernelConcentration.tendsto {kernel : ℕ → ℝ} {κ₀ : ℝ}
     (h : KernelConcentration kernel κ₀) :
     Filter.Tendsto kernel Filter.atTop (nhds κ₀) :=
   ExpConcentrated.tendsto h
@@ -140,7 +140,7 @@ structure GeometricQMLTrainable where
 
 /-- A geometric/equivariant model with polynomial dynamical Lie algebra has strictly
 positive (not exponentially vanishing) gradient variance: it is trainable. -/
-theorem GeometricQMLTrainable.variance_pos (M : GeometricQMLTrainable) {n : ℕ}
+lemma GeometricQMLTrainable.variance_pos (M : GeometricQMLTrainable) {n : ℕ}
     (hn : 0 < n) : 0 < M.variance n :=
   lt_of_lt_of_le (div_pos M.c_pos (pow_pos (Nat.cast_pos.mpr hn) M.deg))
     (M.variance_lb n hn)

@@ -22,9 +22,9 @@ noncomputable section
 /-- The original empty input to the exact-order sample. -/
 @[reducible] public def pre : RuntimeCtx .quantum := RuntimeCtx.empty
 
-private theorem pre_quantumWires_eq : pre.quantumWires = [] := rfl
+private lemma pre_quantumWires_eq : pre.quantumWires = [] := rfl
 
-public theorem pre_quantumWires : pre.quantumWires = [] := pre_quantumWires_eq
+public lemma pre_quantumWires : pre.quantumWires = [] := pre_quantumWires_eq
 
 end
 

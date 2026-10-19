@@ -30,7 +30,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- The chronological stores and true paths of all seven actual candidate stages. -/
@@ -51,11 +51,12 @@ def candidatesStep (input : CInputRef ctx (.unsignedWord width))
   (upper.1, (widened.2, (centered.2, (squared.2, (reduced.2, (rooted.2, (lower.2, upper.2)))))))
 
 /-- The actual candidate program preserves every complete incoming quantum-reference block. -/
-theorem nativeQuadratic_candidates_execute (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_candidates_execute (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width)))
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidates (model := model) input modulus refs).execute Reference state = state.mapClassical
+    (candidates (model := model) input modulus refs).execute environment
+      Reference state = state.mapClassical
       (fun entry =>
       ((candidatesStep (model := model) input modulus refs entry.1).1,
         (entry.2.1, (entry.2.2, (candidatesStep (model := model) input modulus refs entry.1).2))))

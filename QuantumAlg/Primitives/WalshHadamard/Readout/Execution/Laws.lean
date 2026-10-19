@@ -44,10 +44,11 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-theorem allocationCode_localDensity {n : Nat} (function : WalshHadamard.Oracle n)
+lemma allocationCode_localDensity {n : Nat} (function : WalshHadamard.Oracle n)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (preparedContext n) Reference (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((allocationCode function).execute Reference state).quantumMarginal.marginalLeft =
+    ((allocationCode n).execute (environment function)
+      Reference state).quantumMarginal.marginalLeft =
       state.quantumMarginal.marginalLeft.reindex (S := (post n).register)
         (MeasurementCells.basisEquiv (resultContext n) 2 n) := by
   rw [allocationCode, Circuit.execute_seq, State.mapHistory_quantumMarginal]
@@ -59,17 +60,17 @@ theorem allocationCode_localDensity {n : Nat} (function : WalshHadamard.Oracle n
         simpa only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal,
           State.retain_quantumMarginal] using
           congrArg (DensityOperator.marginalLeft (R := (post n).register) (S := Reference))
-            (MeasurementCells.allocate_quantumMarginal (model := model function)
+            (MeasurementCells.allocate_quantumMarginal (model := model n) (environment function)
               (resultContext n) 2 n
-              ((Circuit.retain (model := model function) (preparedContext n)
-                ⟨2⟩ (.bits n) (resultFresh n)).execute
+              (((Circuit.retain (model := model n) (preparedContext n)
+                ⟨2⟩ (.bits n) (resultFresh n)).execute (environment function))
                 Reference state))
     _ = _ := by
       rw [MeasurementCells.jointBasisEquiv, DensityOperator.reindex_prod_marginalLeft,
         State.retain_quantumMarginal]
 
-private theorem program_input {n : Nat} (f : WalshHadamard.Oracle n) :
-    DensityOperator.applyUnitary (program f).matrix
+private lemma program_input {n : Nat} (f : WalshHadamard.Oracle n) :
+    DensityOperator.applyUnitary ((program n).matrix (XorOracle.interpretation f))
       ((DensityOperator.ofPure (NormalizedVector.ket (R := Qubits (n + 1)) 0)).reindex
         (S := (preparedContext n).register) (preparedBasisEquiv n).symm) =
       (DensityOperator.ofPure (WalshHadamard.finalJointState f)).reindex
@@ -78,23 +79,26 @@ private theorem program_input {n : Nat} (f : WalshHadamard.Oracle n) :
     ← DensityOperator.ofPure_apply, Native.walshNative_zeroInputProgram_apply_zero]
 
 /-- The actual preparation and circuit produce the original final vector before the real Z reads. -/
-theorem beforeMeasurement_localDensity {n : Nat} (f : WalshHadamard.Oracle n)
+lemma beforeMeasurement_localDensity {n : Nat} (f : WalshHadamard.Oracle n)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) :
-    ((beforeMeasurement f).execute Reference state).quantumMarginal.marginalLeft =
+    ((beforeMeasurement n).execute (environment f) Reference state).quantumMarginal.marginalLeft =
       (DensityOperator.ofPure (WalshHadamard.finalJointState f)).reindex
         (S := (post n).register) (outputBasisEquiv n).symm := by
   have prepared :
-      ((preparationCode f).execute Reference state).quantumMarginal.marginalLeft =
+      ((preparationCode n).execute (environment f) Reference state).quantumMarginal.marginalLeft =
         (DensityOperator.ofPure (NormalizedVector.ket (R := Qubits (n + 1)) 0)).reindex
           (S := (preparedContext n).register) (preparedBasisEquiv n).symm :=
-    (Circuit.prepareZero_empty_local_density state ⟨1⟩ (runtimeLayout n)
+    (Circuit.prepareZero_empty_local_density (environment f) state ⟨1⟩ (runtimeLayout n)
       preparationFresh (preparationDisjoint n) pre_systemCount normalized).trans
         (inputPreparation_density n)
   rw [beforeMeasurement, Circuit.execute_seq, State.mapHistory_quantumMarginal,
     Circuit.execute_seq, State.mapHistory_quantumMarginal, allocationCode_localDensity,
-    Circuit.unitary_localDensity, prepared, program_input, DensityOperator.reindex_trans]
+    Circuit.unitary_localDensity, prepared]
+  change (DensityOperator.applyUnitary ((program n).matrix (XorOracle.interpretation f))
+    _).reindex _ = _
+  rw [program_input, DensityOperator.reindex_trans]
   rfl
 
 end

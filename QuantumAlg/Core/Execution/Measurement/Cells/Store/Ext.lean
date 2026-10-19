@@ -20,7 +20,7 @@ their quantum state [dW19, qcnotes.tex:5381,5394,5405].
 namespace QuantumAlg.Execution.MeasurementCells
 
 /-- All newly retained finite-cell reads determine the complete store over a unique old store. -/
-theorem store_eq_of_reference_reads {kind : ProblemKind} (ctx : RuntimeCtx kind)
+lemma store_eq_of_reference_reads {kind : ProblemKind} (ctx : RuntimeCtx kind)
     [Subsingleton (Store ctx)] (dimension : ℕ+) (count : Nat)
     (first second : Store (context ctx dimension count))
     (same : ∀ index : Fin count,

@@ -33,7 +33,7 @@ def prefixKeys (refs : Refs ctx width) : List StorageKey :=
     refs.denominator.key]
 
 /-- The actual metric prefix preserves every read outside its complete written footprint. -/
-theorem secondPrefixInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma secondPrefixInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ key ∈ prefixKeys refs, key ∉ other.storageKeys) :
     (secondPrefixStore refs store).read other = store.read other := by
@@ -64,7 +64,7 @@ def mutableKeys (refs : Refs ctx width) : List StorageKey :=
       [refs.reduceProduct.key, refs.target.first.key, refs.target.second.key, refs.target.third.key]
 
 /-- Complete caller frame of the actual second-coordinate interpreter. -/
-theorem secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma secondInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ key ∈ mutableKeys refs, key ∉ other.storageKeys) :

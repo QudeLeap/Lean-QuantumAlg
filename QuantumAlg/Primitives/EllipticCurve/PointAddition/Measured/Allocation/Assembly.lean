@@ -36,7 +36,7 @@ def inputLabel (width : Nat) (control : Fin 2) (x y : Fin (2 ^ width)) :
         (InPlaceControlled.controlBasis width).symm control)
 
 /-- Every supplied basis has exactly those original word and control coordinates. -/
-theorem inputLabel_surjective (width : Nat) (original : (before width).register.Index) :
+lemma inputLabel_surjective (width : Nat) (original : (before width).register.Index) :
     ∃ (control : Fin 2) (x y : Fin (2 ^ width)), original = inputLabel width control x y := by
   obtain ⟨⟨old, control⟩, rfl⟩ :=
     (unionBasisEquiv (InversePreparation.before width) (InPlaceControlled.controlContext width)
@@ -82,7 +82,7 @@ def initializedAssembly (modulus : Nat) :
     (cellsAssembly modulus.size))).trans (selectorAssembly modulus.size)
 
 /-- Actual work preparation retains both original words and the supplied control coordinates. -/
-theorem auxiliaryAssembly_input (modulus : Nat) (control : Fin 2)
+lemma auxiliaryAssembly_input (modulus : Nat) (control : Fin 2)
     (x y : Fin (2 ^ modulus.size)) :
     auxiliaryAssembly modulus ((InPlacePreparation.preparation modulus).value,
       inputLabel modulus.size control x y) =
@@ -99,7 +99,7 @@ theorem auxiliaryAssembly_input (modulus : Nat) (control : Fin 2)
     (auxiliary_disjoint_control modulus.size) _ _ _
 
 /-- Retaining the original cells keeps all arithmetic and coherent-control basis values. -/
-theorem cellsAssembly_input (width : Nat) (control : Fin 2)
+lemma cellsAssembly_input (width : Nat) (control : Fin 2)
     (original : (InversePreparation.after width).register.Index) :
     cellsAssembly width
       ((unionBasisEquiv (InversePreparation.after width) (InPlaceControlled.controlContext width)
@@ -113,7 +113,7 @@ theorem cellsAssembly_input (width : Nat) (control : Fin 2)
     ((InPlaceControlled.controlBasis width).symm control)
 
 /-- Fixed preparation and retained cells establish the original complete A=0 arithmetic frame. -/
-theorem auxiliary_cells_input (modulus : Nat) (control : Fin 2)
+lemma auxiliary_cells_input (modulus : Nat) (control : Fin 2)
     (x y : Fin (2 ^ modulus.size)) :
     cellsAssembly modulus.size
       (auxiliaryAssembly modulus ((InPlacePreparation.preparation modulus).value,
@@ -124,7 +124,7 @@ theorem auxiliary_cells_input (modulus : Nat) (control : Fin 2)
     (InversePreparation.assembly modulus.size ((InPlacePreparation.preparation modulus).value,
       (InversePreparation.inputBasisEquiv modulus.size).symm (x, y)))
 
-private theorem selector_zero_coordinates (width : Nat) :
+private lemma selector_zero_coordinates (width : Nat) :
     basisOfEqualWires (selectorLayout width) (selectorContext width).quantumLayout
       (selector_wires width) (BasisPreparation.zero (selectorLayout width)).value =
         (selectorBasis width).symm 0 := by
@@ -145,7 +145,7 @@ private theorem selector_zero_coordinates (width : Nat) :
     ((selectorQubitLayout width).binaryIndexEquiv.apply_symm_apply 0)
 
 /-- The actual zero preparation is the body's same physical internal zero selector. -/
-theorem selector_zero_input (width : Nat)
+lemma selector_zero_input (width : Nat)
     (original : (InPlaceControlled.context width).register.Index) :
     selectorAssembly width ((BasisPreparation.zero (selectorLayout width)).value, original) =
       ContextPermutation.basis (body_entries width)
@@ -159,7 +159,7 @@ theorem selector_zero_input (width : Nat)
   exact actual.symm
 
 /-- Both actual fixed preparations establish exactly the prepared support used by the body. -/
-theorem initializedAssembly_input (modulus : Nat) (control : Fin 2)
+lemma initializedAssembly_input (modulus : Nat) (control : Fin 2)
     (x y : Fin (2 ^ modulus.size)) :
     initializedAssembly modulus
       ((BasisPreparation.zero (selectorLayout modulus.size)).value,

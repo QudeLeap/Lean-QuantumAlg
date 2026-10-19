@@ -34,7 +34,7 @@ def powerSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (8 * width + 2))
 
 /-- Every actual visited context is one of the six concrete lexical allocation stages. -/
-theorem nativePower_into_visited (spec : ModulusSpec width)
+lemma nativePower_into_visited (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -77,7 +77,7 @@ theorem nativePower_into_visited (spec : ModulusSpec width)
   · simp
 
 /-- Resident peak counts all original entries and the actual simultaneous lexical scratch. -/
-theorem nativePower_into_resident_le (spec : ModulusSpec width)
+lemma nativePower_into_resident_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -96,7 +96,7 @@ theorem nativePower_into_resident_le (spec : ModulusSpec width)
       divisionShape, SpacePool.ofShape] <;> omega
 
 /-- The actual added bits are all auxiliary while every original storage role is retained. -/
-theorem nativePower_into_auxiliary_le (spec : ModulusSpec width)
+lemma nativePower_into_auxiliary_le (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width))

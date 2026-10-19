@@ -26,7 +26,7 @@ open ClassicalRoutines
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem result_visited (shared : Proposal.SharedRefs ctx width)
+private lemma result_visited (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (chooseResult (model := model)
@@ -42,7 +42,7 @@ private theorem result_visited (shared : Proposal.SharedRefs ctx width)
         change visited ∈ [ctx, ctx] at present
         simpa only [List.mem_cons, List.not_mem_nil, or_false, or_self] using present
 
-private theorem accepted_visited (shared : Proposal.SharedRefs ctx width)
+private lemma accepted_visited (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (property : RuntimeCtx model.kind → Prop) (base : property ctx)
@@ -72,7 +72,7 @@ private theorem accepted_visited (shared : Proposal.SharedRefs ctx width)
   · exact (result_visited (model := model)
       shared scratch gcdResult path.2.2.2.2 visited selected).symm ▸ base
 
-private theorem decision_visited (shared : Proposal.SharedRefs ctx width)
+private lemma decision_visited (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
@@ -110,7 +110,7 @@ private theorem decision_visited (shared : Proposal.SharedRefs ctx width)
   · exact same.symm ▸ base
 
 /-- The complete selected decision needs only the lexical Euclidean resident allowance. -/
-theorem decision_resident_le (shared : Proposal.SharedRefs ctx width)
+lemma decision_resident_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
@@ -127,7 +127,7 @@ theorem decision_resident_le (shared : Proposal.SharedRefs ctx width)
         (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult reduced)
 
 /-- The same real path counts every live Euclidean cell in its auxiliary allowance. -/
-theorem decision_auxiliary_le (shared : Proposal.SharedRefs ctx width)
+lemma decision_auxiliary_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))

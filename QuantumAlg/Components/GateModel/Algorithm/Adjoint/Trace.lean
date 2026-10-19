@@ -17,7 +17,7 @@ namespace QuantumAlg.AlgorithmGate
 noncomputable section
 
 /-- Every inverse default instruction retains its native coordinate in reversed execution order. -/
-public theorem oracleFreeAdjoints_eventTrace {count : Nat} {layout : QuantumLayout count}
+public lemma oracleFreeAdjoints_eventTrace {count : Nat} {layout : QuantumLayout count}
     (circuit : UnitaryCircuit model .empty layout) :
     (circuit.dagger (oracleFreeAdjoints .empty)).eventTrace = circuit.eventTrace.reverse := by
   apply UnitaryCircuit.dagger_eventTrace_of_singletons

@@ -30,13 +30,15 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ControlledLengthRefresh
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit LengthCoordinates
 
 /-- The actual four ordered field/word reads of the source length refresh. -/
 def blocks : List (Field × Bool) :=
   [(.coefficient, false), (.coefficient, true), (.divisor, true), (.divisor, false)]
 
-private theorem original_list (width : Nat) :
+private lemma original_list (width : Nat) :
     (blocks.flatMap fun block => LengthSchedule.gates width block.1 block.2) =
       LengthRefresh.gates width := by
   simp only [blocks, List.flatMap_cons, List.flatMap_nil, LengthRefresh.gates,
@@ -47,7 +49,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
   blocks.flatMap fun block => ControlledLengthWrite.gates width block.1 block.2
 
 /-- The same complete emitted native list performs the whole original refresh under real Ctrl. -/
-theorem gates_step_if (width : Nat) (state : Registers width) :
+lemma gates_step_if (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state =
       if state.control then GateSpec.stepList (LengthRefresh.gates width) state else state := by
   have compared := GateSpec.stepList_flatMap_if
@@ -60,12 +62,12 @@ theorem gates_step_if (width : Nat) (state : Registers width) :
   simpa only [gates, original_list] using compared
 
 /-- Complete native-frame semantics is the independent finite LengthPair update under Ctrl. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state =
       if state.control then LengthRefresh.step state else state := by
   rw [gates_step_if, LengthRefresh.gates_step]
 
-private theorem step_rewind {width : Nat} (state : Registers width) :
+private lemma step_rewind {width : Nat} (state : Registers width) :
     LengthRefresh.step (LengthRefresh.rewind state) = state := by
   change LengthRefresh.withLengths state
     (QuantumAlg.NumberTheory.SharedEEA.LengthPair.update state.firstWord state.secondWord
@@ -75,7 +77,7 @@ private theorem step_rewind {width : Nat} (state : Registers width) :
   rfl
 
 /-- The actual reverse gate list restores the divisor and then the coefficient boundary. -/
-theorem gates_reverse_step (width : Nat) (state : Registers width) :
+lemma gates_reverse_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width).reverse state =
       if state.control then LengthRefresh.rewind state else state := by
   let previous := if state.control then LengthRefresh.rewind state else state
@@ -94,7 +96,7 @@ theorem gates_reverse_step (width : Nat) (state : Registers width) :
     _ = previous := GateSpec.stepList_reverse_stepList (gates width) previous
 
 /-- All fields besides the two length outputs are retained, including arbitrary Iter. -/
-theorem gates_retained (width : Nat) (state : Registers width) :
+lemma gates_retained (width : Nat) (state : Registers width) :
     let result := GateSpec.stepList (gates width) state
     result.firstWord = state.firstWord ∧ result.secondWord = state.secondWord ∧
       result.quotientLength = state.quotientLength ∧ result.shift = state.shift ∧
@@ -110,19 +112,19 @@ def program (width : Nat) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- Exact basis realization includes arbitrary incoming Ctrl, source values, and dirty Iter. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width)
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment
       (fun state => if state.control then LengthRefresh.step state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width) (gates_step width)
+    (gates width) (gates_step width) environment
 
 /-- Every emitted candidate remains in the actual event trace, independently of its input. -/
-theorem program_eventTrace (width : Nat) :
+lemma program_eventTrace (width : Nat) :
     (program width).eventTrace = (gates width).map (GateSpec.event .empty) := by
   rw [program, GateSpec.programList_eventTrace]
 
 /-- Strict unit duration includes the actual four complete candidate schedules. -/
-theorem program_unitDepth (width : Nat) :
+lemma program_unitDepth (width : Nat) :
     (program width).evaluatedEventDepth (fun _ => 1) = (gates width).length :=
   GateSpec.programList_evaluatedEventDepth_unit (QubitLayout.canonical _) .empty _
 

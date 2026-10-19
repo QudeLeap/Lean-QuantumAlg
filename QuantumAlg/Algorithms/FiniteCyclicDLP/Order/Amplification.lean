@@ -32,7 +32,7 @@ universe u
 
 variable {G : Type u} [Group G] [Fintype G]
 
-private theorem selected_probability (P : KnownOrderProblem G)
+private lemma selected_probability (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (secret : FiniteCyclicDLP.Input P) :
     Probability.selectedOutcomeFamilyLowerBound P ≤
       (OrderBornBridge.outcomePMF P expansion).toOuterMeasure
@@ -56,7 +56,7 @@ private theorem selected_probability (P : KnownOrderProblem G)
 
 /-- The original conservative retry count gives selected recoverable data with
 probability at least two thirds for every positive finite cyclic order. -/
-public theorem selected_vector_probability (P : KnownOrderProblem G)
+public lemma selected_vector_probability (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (secret : FiniteCyclicDLP.Input P) :
     ENNReal.ofReal ((2 : Real) / 3) ≤
       (PMF.independentReplicateVector (OrderBornBridge.outcomePMF P expansion)

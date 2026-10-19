@@ -23,7 +23,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- One actual modular subtraction writes the selected difference coordinate. -/
@@ -54,14 +55,15 @@ def differenceStep (refs : Refs ctx width) (store : Store ctx) :
   (third.1, (first.2, (second.2, third.2)))
 
 /-- Native execution leaves the same store as the original three writes. -/
-theorem differenceStep_store (refs : Refs ctx width) (store : Store ctx) :
+lemma differenceStep_store (refs : Refs ctx width) (store : Store ctx) :
     (differenceStep refs store).1 = differenceStore refs store := rfl
 
 /-- All three actual writes preserve histories and quantum-reference correlations. -/
-theorem pointDifferenceInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma pointDifferenceInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pointDifferenceInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (pointDifferenceInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := differenceStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [pointDifferenceInto, Circuit.execute_seq,
@@ -71,7 +73,7 @@ theorem pointDifferenceInto_execute (refs : Refs ctx width) (Reference : Registe
 
 omit [BitWord.Selected model] in
 /-- The actual subtraction preserves every caller read outside its three output cells. -/
-theorem pointDifferenceInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma pointDifferenceInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell, differenceKey refs cell ∉ other.storageKeys) :
     (differenceStore refs store).read other = store.read other := by

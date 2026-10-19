@@ -47,13 +47,13 @@ def filterClassical (state : ExecutionState C R) (predicate : C → Prop)
     · exact (state.block value).mass_nonneg
 
 /-- Selection acts on complete quantum blocks, not on individual amplitudes. -/
-@[simp] theorem filterClassical_block (state : ExecutionState C R)
+@[simp] lemma filterClassical_block (state : ExecutionState C R)
     (predicate : C → Prop) [DecidablePred predicate] (value : C) :
     (state.filterClassical predicate).block value =
       if predicate value then state.block value else DensityOperator.zero R := rfl
 
 /-- The mass of a selected state is the sum of exactly its selected blocks. -/
-theorem filterClassical_mass (state : ExecutionState C R)
+lemma filterClassical_mass (state : ExecutionState C R)
     (predicate : C → Prop) [DecidablePred predicate] :
     (state.filterClassical predicate).mass =
       ∑ value, if predicate value then (state.block value).mass else 0 := by
@@ -61,7 +61,7 @@ theorem filterClassical_mass (state : ExecutionState C R)
     DensityOperator.zero_mass]
 
 /-- Classical selection cannot increase probability mass. -/
-theorem filterClassical_mass_le (state : ExecutionState C R)
+lemma filterClassical_mass_le (state : ExecutionState C R)
     (predicate : C → Prop) [DecidablePred predicate] :
     (state.filterClassical predicate).mass ≤ state.mass := by
   rw [filterClassical_mass]
@@ -72,14 +72,14 @@ theorem filterClassical_mass_le (state : ExecutionState C R)
   · exact (state.block value).mass_nonneg
 
 /-- Keeping every classical block is the identity. -/
-@[simp] theorem filterClassical_true (state : ExecutionState C R) :
+@[simp] lemma filterClassical_true (state : ExecutionState C R) :
     state.filterClassical (fun _ => True) = state := by
   apply ext
   intro value
   simp only [filterClassical_block, if_true]
 
 /-- Keeping no classical block gives the zero state. -/
-@[simp] theorem filterClassical_false (state : ExecutionState C R) :
+@[simp] lemma filterClassical_false (state : ExecutionState C R) :
     state.filterClassical (fun _ => False) = zero := by
   apply ext
   intro value
@@ -92,19 +92,19 @@ def selectClassical [DecidableEq D] (state : ExecutionState C R)
   state.filterClassical (fun value => read value = selected)
 
 /-- A branch retains a block exactly when its stored value selects that branch. -/
-@[simp] theorem selectClassical_block [DecidableEq D] (state : ExecutionState C R)
+@[simp] lemma selectClassical_block [DecidableEq D] (state : ExecutionState C R)
     (read : C → D) (selected : D) (value : C) :
     (state.selectClassical read selected).block value =
       if read value = selected then state.block value else DensityOperator.zero R := rfl
 
 /-- A branch inconsistent with a classical read has the zero quantum block. -/
-theorem selectClassical_block_eq_zero [DecidableEq D] (state : ExecutionState C R)
+lemma selectClassical_block_eq_zero [DecidableEq D] (state : ExecutionState C R)
     (read : C → D) (selected : D) (value : C) (different : read value ≠ selected) :
     (state.selectClassical read selected).block value = DensityOperator.zero R := by
   simp only [selectClassical_block, different, if_false]
 
 /-- Every nonzero branch block is consistent with the actual classical read. -/
-theorem selectClassical_read_eq_of_block_ne_zero [DecidableEq D]
+lemma selectClassical_read_eq_of_block_ne_zero [DecidableEq D]
     (state : ExecutionState C R) (read : C → D) (selected : D) (value : C)
     (nonzero : (state.selectClassical read selected).block value ≠ DensityOperator.zero R) :
     read value = selected := by
@@ -112,14 +112,14 @@ theorem selectClassical_read_eq_of_block_ne_zero [DecidableEq D]
   exact nonzero (state.selectClassical_block_eq_zero read selected value different)
 
 /-- The selected branch's probability is read from its retained blocks. -/
-theorem selectClassical_mass [DecidableEq D] (state : ExecutionState C R)
+lemma selectClassical_mass [DecidableEq D] (state : ExecutionState C R)
     (read : C → D) (selected : D) :
     (state.selectClassical read selected).mass =
       ∑ value, if read value = selected then (state.block value).mass else 0 :=
   filterClassical_mass state (fun value => read value = selected)
 
 /-- Distinct read results partition the original probability mass exactly. -/
-theorem sum_selectClassical_mass [Fintype D] [DecidableEq D] (state : ExecutionState C R)
+lemma sum_selectClassical_mass [Fintype D] [DecidableEq D] (state : ExecutionState C R)
     (read : C → D) :
     ∑ selected, (state.selectClassical read selected).mass = state.mass := by
   simp only [selectClassical_mass]
@@ -127,7 +127,7 @@ theorem sum_selectClassical_mass [Fintype D] [DecidableEq D] (state : ExecutionS
   simp only [Finset.sum_ite_eq, Finset.mem_univ, if_true, mass]
 
 /-- The complete family of selected branches has admissible total mass. -/
-theorem sum_selectClassical_mass_le_one [Fintype D] [DecidableEq D] (state : ExecutionState C R)
+lemma sum_selectClassical_mass_le_one [Fintype D] [DecidableEq D] (state : ExecutionState C R)
     (read : C → D) :
     ∑ selected, (state.selectClassical read selected).mass ≤ 1 := by
   rw [sum_selectClassical_mass]
@@ -154,13 +154,13 @@ def finiteSum (states : I → ExecutionState C R)
     exact total
 
 /-- Every matrix entry of a finite sum is the sum of the original blocks. -/
-@[simp] theorem finiteSum_block_matrix (states : I → ExecutionState C R)
+@[simp] lemma finiteSum_block_matrix (states : I → ExecutionState C R)
     (total : ∑ index, (states index).mass ≤ 1) (value : C) :
     ((finiteSum states total).block value).matrix =
       ∑ index, ((states index).block value).matrix := rfl
 
 /-- A finite sum retains the exact combined probability of each classical block. -/
-theorem finiteSum_block_mass (states : I → ExecutionState C R)
+lemma finiteSum_block_mass (states : I → ExecutionState C R)
     (total : ∑ index, (states index).mass ≤ 1) (value : C) :
     ((finiteSum states total).block value).mass =
       ∑ index, ((states index).block value).mass := by
@@ -168,7 +168,7 @@ theorem finiteSum_block_mass (states : I → ExecutionState C R)
     Complex.re_sum]
 
 /-- Total probability mass is additive for an admissible finite sum. -/
-theorem finiteSum_mass (states : I → ExecutionState C R)
+lemma finiteSum_mass (states : I → ExecutionState C R)
     (total : ∑ index, (states index).mass ≤ 1) :
     (finiteSum states total).mass = ∑ index, (states index).mass := by
   simp only [mass, finiteSum_block_mass]
@@ -176,7 +176,7 @@ theorem finiteSum_mass (states : I → ExecutionState C R)
 
 /-- Splitting by the actual read value and summing all branches reconstructs
 the complete original state, including every quantum off-diagonal entry. -/
-theorem finiteSum_selectClassical [Fintype D] [DecidableEq D] (state : ExecutionState C R)
+lemma finiteSum_selectClassical [Fintype D] [DecidableEq D] (state : ExecutionState C R)
     (read : C → D) :
     finiteSum (state.selectClassical read)
         (state.sum_selectClassical_mass_le_one read) = state := by

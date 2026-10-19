@@ -99,7 +99,7 @@ def primeDivisorCorrectionBits (p : Nat) : Nat :=
   if p < 256 then smallPrimeDivisorCorrectionBits p else 0
 
 /-- Elementary exponential estimate used for primes at least `256`. -/
-theorem add_one_le_two_pow (a : Nat) : a + 1 ≤ 2 ^ a := by
+lemma add_one_le_two_pow (a : Nat) : a + 1 ≤ 2 ^ a := by
   induction a with
   | zero => simp
   | succ a ih =>
@@ -110,7 +110,7 @@ theorem add_one_le_two_pow (a : Nat) : a + 1 ≤ 2 ^ a := by
 
 /-- Once `a ≥ 11`, increasing the exponent multiplies `(a+1)^8` by at most
 two. -/
-theorem add_two_pow_eight_le_two_mul_add_one_pow_eight
+lemma add_two_pow_eight_le_two_mul_add_one_pow_eight
     {a : Nat} (ha : 11 ≤ a) :
     (a + 2) ^ 8 ≤ 2 * (a + 1) ^ 8 := by
   have hlinear : 12 * (a + 2) ≤ 13 * (a + 1) := by omega
@@ -130,7 +130,7 @@ theorem add_two_pow_eight_le_two_mul_add_one_pow_eight
 
 /-- Checking the first twelve exponents is enough for every prime at least
 two, because the local ratio grows by at most two while `p^a` grows by `p`. -/
-theorem prime_power_divisor_bound_of_first_twelve
+lemma prime_power_divisor_bound_of_first_twelve
     {p correction : Nat} (hp : 2 ≤ p)
     (hsmall : ∀ a < 12,
       (a + 1) ^ 8 ≤ 2 ^ correction * p ^ a) :
@@ -164,14 +164,14 @@ set_option maxHeartbeats 8000000 in
 -- Kernel reduction checks all 54 small primes and twelve exponents at once.
 set_option maxRecDepth 100000 in
 /-- Kernel-checked finite part of the small-prime correction certificate. -/
-theorem small_prime_power_divisor_table :
+lemma small_prime_power_divisor_table :
     ∀ p ∈ Nat.primesBelow 256, ∀ a ∈ Finset.range 12,
       (a + 1) ^ 8 ≤
         2 ^ primeDivisorCorrectionBits p * p ^ a := by
   decide
 
 /-- Every prime power satisfies its entry in the correction table. -/
-theorem prime_power_divisor_bound
+lemma prime_power_divisor_bound
     {p : Nat} (hp : p.Prime) (a : Nat) :
     (a + 1) ^ 8 ≤
       2 ^ primeDivisorCorrectionBits p * p ^ a := by
@@ -197,13 +197,13 @@ set_option maxHeartbeats 8000000 in
 -- Kernel reduction enumerates `Nat.primesBelow 256` and sums the table.
 set_option maxRecDepth 100000 in
 /-- The complete small-prime table consumes 153 correction bits. -/
-theorem sum_small_prime_divisor_corrections :
+lemma sum_small_prime_divisor_corrections :
     ∑ p ∈ Nat.primesBelow 256, primeDivisorCorrectionBits p = 153 := by
   decide
 
 /-- The correction budget over the prime factors of any integer is at most
 the complete 153-bit small-prime table. -/
-theorem sum_primeFactor_divisor_corrections_le (n : Nat) :
+lemma sum_primeFactor_divisor_corrections_le (n : Nat) :
     ∑ p ∈ n.primeFactors, primeDivisorCorrectionBits p ≤ 153 := by
   let smallFactors := n.primeFactors.filter (fun p => p < 256)
   have hsum :
@@ -231,7 +231,7 @@ the prime, but its sum over the distinct prime factors must be bounded by
 
 The eighth power is chosen because the same-bit RSA application needs a
 uniform divisor estimate of size `n^(1/8)` up to an explicit constant. -/
-theorem card_divisors_pow_eight_le_of_local
+lemma card_divisors_pow_eight_le_of_local
     {n : Nat} (hn : n ≠ 0)
     (correction : Nat → Nat) (totalCorrection : Nat)
     (hlocal : ∀ p ∈ n.primeFactors,
@@ -258,7 +258,7 @@ theorem card_divisors_pow_eight_le_of_local
         (Nat.pow_le_pow_right (by decide : 0 < 2) hcorrection)
 
 /-- Global explicit divisor-count certificate. -/
-theorem card_divisors_pow_eight_le {n : Nat} (hn : n ≠ 0) :
+lemma card_divisors_pow_eight_le {n : Nat} (hn : n ≠ 0) :
     n.divisors.card ^ 8 ≤ 2 ^ 153 * n := by
   apply card_divisors_pow_eight_le_of_local hn
     primeDivisorCorrectionBits 153
@@ -271,7 +271,7 @@ theorem card_divisors_pow_eight_le {n : Nat} (hn : n ≠ 0) :
 
 /-- Once `a ≥ 12`, increasing the exponent multiplies `(a+1)^9` by at
 most two. -/
-theorem add_two_pow_nine_le_two_mul_add_one_pow_nine
+lemma add_two_pow_nine_le_two_mul_add_one_pow_nine
     {a : Nat} (ha : 12 ≤ a) :
     (a + 2) ^ 9 ≤ 2 * (a + 1) ^ 9 := by
   have hlinear : 13 * (a + 2) ≤ 14 * (a + 1) := by omega
@@ -291,7 +291,7 @@ theorem add_two_pow_nine_le_two_mul_add_one_pow_nine
 
 /-- The first thirteen exponents determine the ninth-power bound for all
 exponents. -/
-theorem prime_power_nine_bound_of_first_thirteen
+lemma prime_power_nine_bound_of_first_thirteen
     {p correction : Nat} (hp : 2 ≤ p)
     (hsmall : ∀ a < 13,
       (a + 1) ^ 9 ≤ 2 ^ correction * p ^ a) :
@@ -323,7 +323,7 @@ theorem prime_power_nine_bound_of_first_thirteen
 
 /-- A finite check at the least base of one correction interval controls
 every larger base in that interval. -/
-theorem prime_power_nine_bound_from_lower
+lemma prime_power_nine_bound_from_lower
     {p lower correction : Nat} (hp : 2 ≤ p) (hlower : lower ≤ p)
     (hcorrection : primePowerNineCorrectionBits p = correction)
     (hsmall : ∀ a < 13,
@@ -339,44 +339,44 @@ theorem prime_power_nine_bound_from_lower
 one interval.  Keeping them separate produces small kernel proof terms and
 lets the general theorem use monotonicity in the prime base. -/
 
-theorem prime_power_nine_threshold_two :
+lemma prime_power_nine_threshold_two :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 22 * 2 ^ a := by decide
 
-theorem prime_power_nine_threshold_three :
+lemma prime_power_nine_threshold_three :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 16 * 3 ^ a := by decide
 
-theorem prime_power_nine_threshold_five :
+lemma prime_power_nine_threshold_five :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 12 * 5 ^ a := by decide
 
-theorem prime_power_nine_threshold_seven :
+lemma prime_power_nine_threshold_seven :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 10 * 7 ^ a := by decide
 
-theorem prime_power_nine_threshold_eleven :
+lemma prime_power_nine_threshold_eleven :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 8 * 11 ^ a := by decide
 
-theorem prime_power_nine_threshold_thirteen :
+lemma prime_power_nine_threshold_thirteen :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 7 * 13 ^ a := by decide
 
-theorem prime_power_nine_threshold_nineteen :
+lemma prime_power_nine_threshold_nineteen :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 6 * 19 ^ a := by decide
 
-theorem prime_power_nine_threshold_twentyNine :
+lemma prime_power_nine_threshold_twentyNine :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 5 * 29 ^ a := by decide
 
-theorem prime_power_nine_threshold_thirtySeven :
+lemma prime_power_nine_threshold_thirtySeven :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 4 * 37 ^ a := by decide
 
-theorem prime_power_nine_threshold_sixtySeven :
+lemma prime_power_nine_threshold_sixtySeven :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 3 * 67 ^ a := by decide
 
-theorem prime_power_nine_threshold_oneThirtyOne :
+lemma prime_power_nine_threshold_oneThirtyOne :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 2 * 131 ^ a := by decide
 
-theorem prime_power_nine_threshold_twoFiftySeven :
+lemma prime_power_nine_threshold_twoFiftySeven :
     ∀ a < 13, (a + 1) ^ 9 ≤ 2 ^ 1 * 257 ^ a := by decide
 
 /-- Every prime power satisfies the ninth-power correction table. -/
-theorem prime_power_nine_bound
+lemma prime_power_nine_bound
     {p : Nat} (hp : p.Prime) (a : Nat) :
     (a + 1) ^ 9 ≤ 2 ^ primePowerNineCorrectionBits p * p ^ a := by
   by_cases hlarge : 512 ≤ p
@@ -472,7 +472,7 @@ theorem prime_power_nine_bound
 
 /-- The ninth-power correction budget over any integer's prime factors is at
 most 276 bits. -/
-theorem sum_primeFactor_nine_corrections_le (n : Nat) :
+lemma sum_primeFactor_nine_corrections_le (n : Nat) :
     ∑ p ∈ n.primeFactors, primePowerNineCorrectionBits p ≤ 276 := by
   let smallFactors := n.primeFactors.filter (fun p => p < 512)
   have hsum :
@@ -506,7 +506,7 @@ theorem sum_primeFactor_nine_corrections_le (n : Nat) :
     prime_wheelCandidate (Nat.prime_of_mem_primeFactors hpParts.1)⟩
 
 /-- Local ninth-power bounds multiply to a global divisor-count bound. -/
-theorem card_divisors_pow_nine_le_of_local
+lemma card_divisors_pow_nine_le_of_local
     {n : Nat} (hn : n ≠ 0)
     (correction : Nat → Nat) (totalCorrection : Nat)
     (hlocal : ∀ p ∈ n.primeFactors,
@@ -532,7 +532,7 @@ theorem card_divisors_pow_nine_le_of_local
         (Nat.pow_le_pow_right (by decide : 0 < 2) hcorrection)
 
 /-- Sharper global explicit divisor-count certificate. -/
-theorem card_divisors_pow_nine_le {n : Nat} (hn : n ≠ 0) :
+lemma card_divisors_pow_nine_le {n : Nat} (hn : n ≠ 0) :
     n.divisors.card ^ 9 ≤ 2 ^ 276 * n := by
   apply card_divisors_pow_nine_le_of_local hn
     primePowerNineCorrectionBits 276
@@ -548,7 +548,7 @@ def divisorCountBoundBits (bits : Nat) : Nat :=
 
 /-- Every positive integer below `2^bits` has strictly fewer than
 `2^divisorCountBoundBits bits` divisors. -/
-theorem card_divisors_lt_two_pow_divisorCountBoundBits
+lemma card_divisors_lt_two_pow_divisorCountBoundBits
     {n bits : Nat} (hn : n ≠ 0) (hnLt : n < 2 ^ bits) :
     n.divisors.card < 2 ^ divisorCountBoundBits bits := by
   have hceil :

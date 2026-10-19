@@ -45,7 +45,7 @@ def activeMicrosteps : Nat → IterationState → Nat
       PhaseComposition.microsteps state + activeMicrosteps fuel (PhaseComposition.boundary state)
 
 /-- Actual phase counts coincide with the proved quotient weight after exact projection. -/
-theorem activeMicrosteps_eq_weight (fuel : Nat) (state : IterationState) :
+lemma activeMicrosteps_eq_weight (fuel : Nat) (state : IterationState) :
     activeMicrosteps fuel state = 4 * QuotientTrajectory.weight fuel state := by
   induction fuel generalizing state with
   | zero => rfl
@@ -63,12 +63,12 @@ def foldedMicrosteps (modulus input : Nat) : Nat :=
     (IterationState.initial modulus (foldInput modulus input).2)
 
 /-- The genuine composed counts equal the mathematical weight used by the independent schedule. -/
-theorem foldedMicrosteps_eq_phaseWeight (modulus input : Nat) :
+lemma foldedMicrosteps_eq_phaseWeight (modulus input : Nat) :
     foldedMicrosteps modulus input = QuotientSchedule.phaseWeight modulus input :=
   activeMicrosteps_eq_weight _ _
 
 /-- The complete original domain internally supplies both deterministic active count bounds. -/
-theorem foldedMicrosteps_bounds (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma foldedMicrosteps_bounds (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     4 * modulus.size ≤ foldedMicrosteps modulus input ∧
       foldedMicrosteps modulus input ≤ QuotientSchedule.schedule modulus.size := by
@@ -76,7 +76,7 @@ theorem foldedMicrosteps_bounds (modulus input : Nat) (coprime : Nat.Coprime inp
   exact QuotientSchedule.phase_weight_bounds modulus input coprime positive bounded
 
 /-- The real active phase count plus its remaining terminal count equals the fixed schedule. -/
-theorem active_add_padding (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma active_add_padding (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     foldedMicrosteps modulus input + QuotientSchedule.padding modulus input =
       QuotientSchedule.schedule modulus.size := by
@@ -85,7 +85,7 @@ theorem active_add_padding (modulus input : Nat) (coprime : Nat.Coprime input mo
   omega
 
 /-- Remaining scheduled steps after the actual phase calls fit the two-bit counter extension. -/
-theorem remaining_fits_extended_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma remaining_fits_extended_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     QuotientSchedule.schedule modulus.size - foldedMicrosteps modulus input <
       2 ^ (modulus.size.size + 2) := by
@@ -93,7 +93,7 @@ theorem remaining_fits_extended_clock (modulus input : Nat) (coprime : Nat.Copri
   exact QuotientSchedule.padding_fits_extended_clock modulus input coprime positive bounded
 
 /-- The remaining scheduled steps retain the actual full terminal frame, with rotation and count. -/
-theorem remaining_terminal_position {wordWidth : Nat}
+lemma remaining_terminal_position {wordWidth : Nat}
     (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus)
     (first second : BitVec wordWidth) (iteration : Bool) :
@@ -108,7 +108,7 @@ theorem remaining_terminal_position {wordWidth : Nat}
     first second iteration
 
 /-- The actual retained counter decodes the complete word after precisely those remaining steps. -/
-theorem remaining_terminal_decode {wordWidth : Nat}
+lemma remaining_terminal_decode {wordWidth : Nat}
     (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus)
     (first second : BitVec wordWidth) (iteration : Bool) :

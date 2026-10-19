@@ -418,7 +418,7 @@ private lemma sum_sub_one_eq (M : ℕ) :
       ring_nf
 
 /-- Accumulated finite-product error from exponential growth and local defect bounds. -/
-theorem ordered_product_error_bound
+lemma ordered_product_error_bound
     {d : ℕ}
     (M : ℕ)
     (H F : ℕ → Matrix (Fin d) (Fin d) ℂ)

@@ -27,12 +27,15 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeRetryChain
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 variable {N : Nat}
 
 /-- The complete actual suffix preserves the seed in every complete final store-reference block. -/
-theorem suffix_seedBlocks (input : Input N) (count : Nat) (start : RuntimeCtx .quantum)
+lemma suffix_seedBlocks (input : Input N) (count : Nat) (start : RuntimeCtx .quantum)
     (wires : start.quantumWires =
       (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
     (originalCells : Fin (measurementBits N) → CWriteRef start (.finite 2))
@@ -42,7 +45,7 @@ theorem suffix_seedBlocks (input : Input N) (count : Nat) (start : RuntimeCtx .q
       wires N state) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       ((suffixWires N start count).trans wires) N
-      ((suffixCode input start wires originalCells count).execute Reference state) := by
+      ((suffixCode input start wires originalCells count).execute environment Reference state) := by
   induction count generalizing start History with
   | zero =>
       exact BasisSeeded.mapHistory _ state.skip
@@ -54,10 +57,12 @@ theorem suffix_seedBlocks (input : Input N) (count : Nat) (start : RuntimeCtx .q
       let nextCells := fun index => reuseWrite N (originalCells index)
       let first := NativeBatchReuseRecovery.code start wires originalCells input
       let rest := suffixCode input next nextWires nextCells count
-      have advanced := NativeBatchReuseRecovery.code_seedBlocks start wires originalCells
+      have advanced := NativeBatchReuseRecovery.code_seedBlocks (environment := environment)
+        start wires originalCells
         input state seeded
-      have continued := induction next nextWires nextCells (first.execute Reference state) advanced
-      exact BasisSeeded.seq first rest
+      have continued := induction next nextWires nextCells (first.execute
+        environment Reference state) advanced
+      exact BasisSeeded.seq (environment := environment) first rest
         ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
           ((suffixWires N next count).trans nextWires)).symm
           (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state continued
@@ -65,17 +70,19 @@ theorem suffix_seedBlocks (input : Input N) (count : Nat) (start : RuntimeCtx .q
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- The actual chain establishes its final complete seed without a caller seed premise. -/
-theorem code_seedBlocks (input : Input N) (count : Nat)
+lemma code_seedBlocks (input : Input N) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     RuntimeRound.HasSeedBlocks (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
       (sameWires base noQuantum N count) N
-      ((code base noQuantum input count).execute Reference state) := by
-  have first := NativeBatchRecovery.code_seedBlocks base noQuantum input state
-  have continued := suffix_seedBlocks input count (NativeBatchRecovery.context base noQuantum N)
+      ((code base noQuantum input count).execute environment Reference state) := by
+  have first := NativeBatchRecovery.code_seedBlocks (environment := environment)
+    base noQuantum input state
+  have continued := suffix_seedBlocks (environment := environment)
+    input count (NativeBatchRecovery.context base noQuantum N)
     (firstWires base noQuantum N) (firstCells base noQuantum N)
-    ((NativeBatchRecovery.code base noQuantum input).execute Reference state) first
-  exact BasisSeeded.seq (NativeBatchRecovery.code base noQuantum input)
+    ((NativeBatchRecovery.code base noQuantum input).execute environment Reference state) first
+  exact BasisSeeded.seq (environment := environment) (NativeBatchRecovery.code base noQuantum input)
     (suffixCode input (NativeBatchRecovery.context base noQuantum N)
       (firstWires base noQuantum N) (firstCells base noQuantum N) count)
     ((RuntimePlacement.basisEquiv (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -83,7 +90,7 @@ theorem code_seedBlocks (input : Input N) (count : Nat)
       (reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)) state continued
 
 /-- All final quantum storage belongs to the one actual owned first-batch bank. -/
-theorem context_noBorrowedQuantum (input : Input N) (count : Nat) :
+lemma context_noBorrowedQuantum (input : Input N) (count : Nat) :
     (context base noQuantum N count).borrowedQuantumWires = [] := by
   have empty : base.borrowedQuantumWires = [] := by
     have subset := base.borrowedQuantumWires_sublist
@@ -92,16 +99,16 @@ theorem context_noBorrowedQuantum (input : Input N) (count : Nat) :
   exact (code base noQuantum input count).borrowedQuantumWires_preserved.trans empty
 
 /-- The complete actual chain restores every borrowed classical-reference correlation. -/
-theorem code_borrowedRestored (input : Input N) (count : Nat) (Reference : Register)
+lemma code_borrowedRestored (input : Input N) (count : Nat) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     (code base noQuantum input count).BorrowedRestored Reference state
-      ((code base noQuantum input count).execute Reference state) := by
+      ((code base noQuantum input count).execute environment Reference state) := by
   have empty : base.borrowedQuantumWires = [] := by
     have subset := base.borrowedQuantumWires_sublist
     rw [noQuantum] at subset
     exact List.sublist_nil.mp subset
-  exact Circuit.borrowedRestored_of_noBorrowedQuantum
+  exact Circuit.borrowedRestored_of_noBorrowedQuantum (environment := environment)
     (code base noQuantum input count) empty Reference state
 
 end

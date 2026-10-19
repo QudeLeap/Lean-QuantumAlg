@@ -31,7 +31,7 @@ noncomputable section
 
 open EncodedBit ArithmeticWindowRegisters ArithmeticWindowLaws
 
-private theorem arithmetic_secondWord {width : Nat} (selected : Window width)
+private lemma arithmetic_secondWord {width : Nat} (selected : Window width)
     (operation : ArithmeticWindowProgram.Operation) (state : Registers width) :
     (ArithmeticWindowProgram.step selected operation state).secondWord = state.secondWord := by
   have outside := congrArg (fun value : Complement selected => value.2.1)
@@ -48,7 +48,7 @@ private theorem arithmetic_secondWord {width : Nat} (selected : Window width)
       (congrArg (fun pair : BitVec selected.above × BitVec selected.below => pair.2) outside))
 
 /-- Actual signed subtraction, Sign complement, and conditional add-back retain all of Work2. -/
-theorem source_secondWord {width : Nat} (state : Registers width)
+lemma source_secondWord {width : Nat} (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
       width + 3) :
@@ -63,7 +63,7 @@ theorem source_secondWord {width : Nat} (state : Registers width)
     rfl
 
 /-- The emitted native remainder program returns the whole original source word. -/
-theorem native_secondWord (width : Nat) (state : Registers width)
+lemma native_secondWord (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤
@@ -72,7 +72,7 @@ theorem native_secondWord (width : Nat) (state : Registers width)
   rw [ArithmeticBlocks.remainderStep_eq_source width state clean]
   exact source_secondWord state first second fits
 
-private theorem exchange_length (width : Nat) (selected : Fin (width + 3))
+private lemma exchange_length (width : Nat) (selected : Fin (width + 3))
     (field : PredicateLayout.LengthField) (state : Registers width) :
     PredicateLayout.lengthValue field (SelectionSwap.exchange width selected state) =
       PredicateLayout.lengthValue field state := by
@@ -99,7 +99,7 @@ private theorem exchange_length (width : Nat) (selected : Fin (width + 3))
       observed (SelectionSwap.sign_word width selected) signDifferent targetDifferent state).trans
         (PredicateLayout.lengthBit_get width field ⟨bit, within⟩ state))
 
-private theorem exchange_iteration (width : Nat) (selected : Fin (width + 3))
+private lemma exchange_iteration (width : Nat) (selected : Fin (width + 3))
     (state : Registers width) :
     (SelectionSwap.exchange width selected state).flags.iteration = state.flags.iteration := by
   have signDifferent : (signBit width).wire ≠ (iterationBit width).wire := by
@@ -118,7 +118,7 @@ private theorem exchange_iteration (width : Nat) (selected : Fin (width + 3))
     signDifferent targetDifferent state
 
 /-- Actual phase-two Sign exchange and quotient increment retain divisor, shift, and Iter. -/
-theorem source_extra (width : Nat) (state : Registers width)
+lemma source_extra (width : Nat) (state : Registers width)
     (first : state.flags.first = false) (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
     (SignQuotient.sourceStep width state).divisorLength = state.divisorLength ∧
@@ -132,7 +132,7 @@ theorem source_extra (width : Nat) (state : Registers width)
     exchange_length width selected .shift state, exchange_iteration width selected state⟩
 
 /-- The actual native selector and quotient program preserve the same complete retained fields. -/
-theorem native_extra (width : Nat) (state : Registers width)
+lemma native_extra (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true)
     (within : state.coefficientLength.toNat + state.quotientLength.toNat + 1 < width + 3) :
@@ -143,7 +143,7 @@ theorem native_extra (width : Nat) (state : Registers width)
   exact source_extra width state first second within
 
 /-- Arithmetic and the complete subsequent selector return all original Work2 coordinates. -/
-theorem division_secondWord (width : Nat) (state : Registers width)
+lemma division_secondWord (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = true)
     (fits : state.coefficientLength.toNat + state.quotientLength.toNat + 1 + state.shift.toNat ≤

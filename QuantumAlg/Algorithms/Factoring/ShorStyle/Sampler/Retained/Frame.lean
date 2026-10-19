@@ -35,14 +35,14 @@ def liftInput {shape : CShape} (input : CInputRef ctx shape) : CInputRef (contex
       (ParameterShape (modulusBits N)) (sampleContext ctx N).canonicalFreshKey_fresh
 
 /-- The actual initialized store extension preserves every earlier input value. -/
-theorem pushStore_read_liftInput {shape : CShape} (store : Store ctx)
+lemma pushStore_read_liftInput {shape : CShape} (store : Store ctx)
     (input : CInputRef ctx shape) :
     (pushStore N store).read (liftInput (N := N) input) = store.read input :=
   (Store.read_pushRetained_underRetained _ _ _ _ _).trans
     (Store.read_pushRetained_underRetained _ _ _ _ _)
 
 /-- The source sampler's actual complete result store leaves all earlier input cells intact. -/
-theorem resultStore_read_liftInput (source : Input N) {shape : CShape}
+lemma resultStore_read_liftInput (source : Input N) {shape : CShape}
     (store : Store ctx) (sample : Fin (2 ^ residueSamplingBits N))
     (input : CInputRef ctx shape) :
     (resultStore source store sample).read (liftInput (N := N) input) = store.read input := by
@@ -67,17 +67,18 @@ theorem resultStore_read_liftInput (source : Input N) {shape : CShape}
       (.bits (PackedSample.storedBits sample)) (liftInput (N := N) input) sampleSeparate).trans
       (pushStore_read_liftInput store input))
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The real uniform sample and parameter retain the joint earlier-input reference weights. -/
-theorem samplerRetained_reference_input (source : Input N) {shape : CShape}
+lemma samplerRetained_reference_input (source : Input N) {shape : CShape}
     (input : CInputRef ctx shape) {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (weight : shape.Value → (ParameterShape (modulusBits N)).Value →
       (CShape.bits (residueSamplingBits N)).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
-    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute Reference state)
+    ExecutionState.referenceFiberSum ((circuit (model := model) ctx N).execute
+      environment Reference state)
         (fun entry _ => weight (entry.1.read (liftInput (N := N) input))
           (entry.1.read (FirstAccepted.cellRead (parameterRef ctx N)))
           (entry.1.read (FirstAccepted.cellRead (sampleRef ctx N)))) leftRef rightRef =

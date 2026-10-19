@@ -30,11 +30,11 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-private theorem input_keys {shape : CShape} (input : CInputRef ctx shape) :
+private lemma input_keys {shape : CShape} (input : CInputRef ctx shape) :
     (liftInput (N := N) input).storageKeys = input.storageKeys := by
   simp only [liftInput, CInputRef.storageKeys_underWorkspace]
 
-private theorem input_separation {shape : CShape} (input : CInputRef ctx shape) :
+private lemma input_separation {shape : CShape} (input : CInputRef ctx shape) :
     (adjacentRef ctx N).key ∉ (liftInput (N := N) input).storageKeys ∧
       (modulusRef ctx N).key ∉ (liftInput (N := N) input).storageKeys := by
   constructor
@@ -52,7 +52,7 @@ private theorem input_separation {shape : CShape} (input : CInputRef ctx shape) 
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem gcdTail_read_other
+private lemma gcdTail_read_other
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     {shape : CShape} (other : CInputRef (context ctx N) shape)
     (separate : (liftWrite (N := N) output).key ∉ other.storageKeys)
@@ -63,7 +63,7 @@ private theorem gcdTail_read_other
     (Store.read_applyOp_of_not_mem_storageKeys store (clearOp output) other separate)
 
 /-- Every pre-existing structural read outside the GCD destination survives its actual body. -/
-theorem body_read_other (successor : Bool)
+lemma body_read_other (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -87,7 +87,7 @@ theorem body_read_other (successor : Bool)
         (liftInput other) separated.1 store))
 
 /-- Releasing the two genuine operand cells leaves all other original reads unchanged. -/
-theorem read_other (successor : Bool)
+lemma read_other (successor : Bool)
     (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.unsignedWord (modulusBits N + 1)))
     {shape : CShape} (other : CInputRef ctx shape)

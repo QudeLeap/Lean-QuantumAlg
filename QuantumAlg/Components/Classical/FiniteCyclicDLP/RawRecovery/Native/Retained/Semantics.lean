@@ -27,11 +27,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Actual result retention and complete recovery have the exact original optional output. -/
-theorem retainedCircuit_actualRecord (spec : ModulusSpec width)
+lemma retainedCircuit_actualRecord (spec : ModulusSpec width)
     (input : CInputRef ctx (.fixedVector (width + width) (.finite 2)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) :
     ∃ record : Store ctx × model.HiddenState →
@@ -39,7 +39,8 @@ theorem retainedCircuit_actualRecord (spec : ModulusSpec width)
           := model) spec input key fresh).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (retainedCircuit (model := model) spec input key fresh).execute Reference state =
+        (retainedCircuit (model := model) spec input key fresh).execute
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -57,7 +58,8 @@ theorem retainedCircuit_actualRecord (spec : ModulusSpec width)
     (final.1, ((), final.2))
   refine ⟨record, ?_, ?_⟩
   · intro reference history historyFinite state
-    refine (Circuit.execute_retain_seq_mapClassical ctx key (OutputShape width) fresh
+    refine (Circuit.execute_retain_seq_mapClassical
+      (environment := environment) ctx key (OutputShape width) fresh
       (singleIntoResult (model := model) spec lifted output) bodyRecord bodyEquation reference
         state).trans ?_
     exact ExecutionState.executionState_mapClassical_congr _ rfl

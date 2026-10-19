@@ -29,20 +29,20 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
 omit [BitWord.Selected model] in
-private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
+private lemma avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 omit [BitWord.Selected model] in
-private theorem bit_word_ne (bit : CWriteRef ctx .bit)
+private lemma bit_word_ne (bit : CWriteRef ctx .bit)
     (word : CWriteRef ctx (.unsignedWord width)) : bit.key ≠ word.key := by
   intro same
   have impossible := CStorageRef.storageRef_shape_eq_of_key bit.toCStorageRef
     word.toCStorageRef same
   cases impossible
 
-private theorem choice_success (success : CWriteRef ctx .bit)
+private lemma choice_success (success : CWriteRef ctx .bit)
     (value : CShape.Value .bit) (store : Store ctx) :
     ((decisionChoiceStep true success value store).1.read
       (.storage success.toCStorageRef)).toBool =
@@ -51,7 +51,7 @@ private theorem choice_success (success : CWriteRef ctx .bit)
   | bit value =>
     cases value <;> simp [decisionChoiceStep, gf2MarkFailure_success, CShape.Value.toBool]
 
-private theorem choice_read (success : CWriteRef ctx .bit)
+private lemma choice_read (success : CWriteRef ctx .bit)
     (value : CShape.Value .bit) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (separate : success.key ∉ other.storageKeys) :
     (decisionChoiceStep true success value store).1.read other = store.read other := by
@@ -62,7 +62,7 @@ private theorem choice_read (success : CWriteRef ctx .bit)
     · exact gf2MarkFailure_read_other success store other separate
 
 omit [BitWord.Selected model] in
-private theorem clear_value (parity : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma clear_value (parity : CWriteRef ctx .bit) (store : Store ctx) :
     (store.applyOp (pivotClearOp parity)).read (.storage parity.toCStorageRef) = .bit false := by
   refine (Store.read_applyOp_output store (pivotClearOp parity)).trans ?_
   change Resource.BitOpcode.eval .xor (.product (store.read (.storage parity.toCStorageRef))
@@ -70,7 +70,7 @@ private theorem clear_value (parity : CWriteRef ctx .bit) (store : Store ctx) :
   cases store.read (.storage parity.toCStorageRef) with
   | bit value => cases value <;> rfl
 
-private theorem row_body_success
+private lemma row_body_success
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount) (store : Store ctx)
@@ -123,7 +123,7 @@ private theorem row_body_success
     completed).1.read (.storage success.toCStorageRef)).toBool = _
   rw [choice_success, successSame, test]
 
-private theorem row_body_read
+private lemma row_body_read
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width))
     (success parity product : CWriteRef ctx .bit) (row : Fin rowCount) (store : Store ctx)
@@ -151,13 +151,13 @@ private def entered (store : Store ctx) : Store (pivotSearchContext ctx) :=
     (pivotSinkContext ctx).canonicalFreshKey .bit (pivotSinkContext ctx).canonicalFreshKey_fresh
 
 omit [BitWord.Selected model] in
-private theorem entered_read (store : Store ctx) {shape : CShape}
+private lemma entered_read (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) : (entered store).read (lifted input) = store.read input := by
   unfold entered lifted
   rw [Store.read_pushWorkspace_underWorkspace, Store.read_pushWorkspace_underWorkspace]
 
 omit [BitWord.Selected model] in
-private theorem exited_read (store : Store (pivotSearchContext ctx)) {shape : CShape}
+private lemma exited_read (store : Store (pivotSearchContext ctx)) {shape : CShape}
     (input : CInputRef ctx shape) :
     (Store.popWorkspace ctx.canonicalFreshKey .bit ctx.canonicalFreshKey_fresh
       (Store.popWorkspace (pivotSinkContext ctx).canonicalFreshKey .bit
@@ -167,7 +167,7 @@ private theorem exited_read (store : Store (pivotSearchContext ctx)) {shape : CS
   rfl
 
 omit [BitWord.Selected model] in
-private theorem product_fresh {shape : CShape} (input : CInputRef ctx shape) :
+private lemma product_fresh {shape : CShape} (input : CInputRef ctx shape) :
     (pivotLatch (pivotSinkContext ctx)).key ∉ (lifted input).storageKeys := by
   unfold lifted
   rw [CInputRef.storageKeys_underWorkspace]
@@ -176,14 +176,14 @@ private theorem product_fresh {shape : CShape} (input : CInputRef ctx shape) :
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
 omit [BitWord.Selected model] in
-private theorem parity_fresh {shape : CShape} (input : CInputRef ctx shape) :
+private lemma parity_fresh {shape : CShape} (input : CInputRef ctx shape) :
     (validationParity ctx).key ∉ (lifted input).storageKeys := by
   unfold lifted
   rw [CInputRef.storageKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
 omit [BitWord.Selected model] in
-private theorem product_separate :
+private lemma product_separate :
     (pivotLatch (pivotSinkContext ctx)).key ≠ (validationParity ctx).key := by
   have fresh := (pivotSinkContext ctx).canonicalFreshKey_fresh
   intro same
@@ -194,7 +194,7 @@ private theorem product_separate :
     (by simp [CInputRef.storageKeys])
 
 omit [BitWord.Selected model] in
-private theorem parity_success (success : CWriteRef ctx .bit) :
+private lemma parity_success (success : CWriteRef ctx .bit) :
     (validationParity ctx).key ≠ (pivotSearchWrite success).key := by
   have fresh := parity_fresh (.storage success.toCStorageRef)
   change _ ∉ [success.key] at fresh
@@ -202,7 +202,7 @@ private theorem parity_success (success : CWriteRef ctx .bit) :
     CStorageRef.underWorkspace] using fresh
 
 omit [BitWord.Selected model] in
-private theorem product_success (success : CWriteRef ctx .bit) :
+private lemma product_success (success : CWriteRef ctx .bit) :
     (pivotLatch (pivotSinkContext ctx)).key ≠ (pivotSearchWrite success).key := by
   have fresh := product_fresh (.storage success.toCStorageRef)
   change _ ∉ [success.key] at fresh
@@ -210,7 +210,7 @@ private theorem product_success (success : CWriteRef ctx .bit) :
     CStorageRef.underWorkspace] using fresh
 
 /-- Both actual fresh scopes return success exactly for the original sample equation. -/
-theorem gf2ValidationRow_success
+lemma gf2ValidationRow_success
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (store : Store ctx) :
@@ -251,7 +251,7 @@ theorem gf2ValidationRow_success
   rw [scopedSuccess]
 
 /-- Both original row scopes preserve every caller read outside the original success cell. -/
-theorem gf2ValidationRow_read_other
+lemma gf2ValidationRow_read_other
     (input : CInputRef ctx (.fixedVector rowCount (.bits width)))
     (candidate : CWriteRef ctx (.unsignedWord width)) (success : CWriteRef ctx .bit)
     (row : Fin rowCount) (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)

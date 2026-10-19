@@ -42,7 +42,7 @@ structure FrameFree (cells : Cells ctx N)
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual unpack and latch selection preserve every structural read outside their writes. -/
-theorem selection_read_other (cells : Cells ctx N)
+lemma selection_read_other (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells result other) (store : Store ctx) :
     (selectionStep (model := model) cells result store).1.read other = store.read other :=
@@ -53,7 +53,7 @@ theorem selection_read_other (cells : Cells ctx N)
     (Store.read_applyOp_of_not_mem_storageKeys store (unpackOp cells result) other free.candidate)
 
 /-- A real full recovery visit preserves the original sampled input frame. -/
-theorem visit_read_other (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
+lemma visit_read_other (source : Input N) (inputs : Inputs ctx N) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells result other) (store : Store ctx) :
     (visitStep (model := model) source inputs cells result store).1.read other = store.read other
@@ -66,7 +66,7 @@ theorem visit_read_other (source : Input N) (inputs : Inputs ctx N) (cells : Cel
       result other free.result store)
 
 /-- The entire actual ordered scan preserves every original operand outside its five writes. -/
-theorem scan_read_other (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
+lemma scan_read_other (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells result other) (store : Store ctx) :
     (scanStep (model := model) source cells result inputs store).1.read other = store.read other :=
@@ -78,7 +78,7 @@ theorem scan_read_other (source : Input N) (inputs : List (Inputs ctx N)) (cells
         (visit_read_other source inputs cells result other free store)
 
 /-- Initialization and the final option write obey the same complete original-frame guarantee. -/
-theorem read_other (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
+lemma read_other (source : Input N) (inputs : List (Inputs ctx N)) (cells : Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (free : FrameFree cells result other) (store : Store ctx) :
     (step (model := model) source inputs cells result store).1.read other = store.read other :=

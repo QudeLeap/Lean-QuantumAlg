@@ -20,8 +20,9 @@ namespace QuantumAlg.Gate.Toffoli
 noncomputable section
 
 /-- The native middle word is exactly controlled-controlled Z in the original binary order. -/
-theorem toffoliExpansion_phaseWord_binary (oracles : OracleModel) :
-    ((phaseWord oracles (Real.pi / 4)).binaryMatrix : HilbertOperator (Qubits 3)) =
+lemma toffoliExpansion_phaseWord_binary (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    (((phaseWord oracles (Real.pi / 4)).binaryMatrix environment) : HilbertOperator (Qubits 3)) =
       Matrix.diagonal (fun label => if label = (7 : (Qubits 3).Index) then (-1 : ℂ) else 1) := by
   rw [UnitaryCircuit.binaryMatrix, UnitaryOperator.coe_reindex,
     toffoliExpansion_phaseWord_matrix]
@@ -34,10 +35,11 @@ theorem toffoliExpansion_phaseWord_binary (oracles : OracleModel) :
   fin_cases label <;> rfl
 
 /-- Both boundary Hadamards act on the original target, with its two controls untouched. -/
-theorem toffoliExpansion_hadamard_binary (oracles : OracleModel) :
-    (Gate.singleQubitAt layout oracles Gate.HOp (2 : Fin 3) rfl).binaryMatrix =
+lemma toffoliExpansion_hadamard_binary (oracles : OracleModel)
+    (environment : oracles.Interpretation) :
+    ((Gate.singleQubitAt layout oracles Gate.HOp (2 : Fin 3) rfl).binaryMatrix environment) =
       (1 : UnitaryOperator (Qubits 2)).tensor Gate.HOp :=
-  Gate.singleQubitAt_last_binaryMatrix oracles 2 Gate.HOp
+  Gate.singleQubitAt_last_binaryMatrix oracles 2 Gate.HOp environment
 
 end
 end QuantumAlg.Gate.Toffoli

@@ -28,12 +28,12 @@ open ClassicalRoutines
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
-private theorem cellRead_underWorkspace {shape : CShape} (output : CWriteRef ctx shape)
+private lemma cellRead_underWorkspace {shape : CShape} (output : CWriteRef ctx shape)
     (key : StorageKey) (cellShape : CShape) (fresh : key ∉ ctx.keys) :
     (FirstAccepted.cellRead output).underWorkspace key cellShape fresh =
       FirstAccepted.cellRead (output.underWorkspace key cellShape fresh) := rfl
 
-private theorem underRead_cellRead {shape : CShape} (output : CWriteRef ctx shape)
+private lemma underRead_cellRead {shape : CShape} (output : CWriteRef ctx shape)
     (width : Nat) :
     Layout.underRead (FirstAccepted.cellRead output) width =
       FirstAccepted.cellRead (Layout.underWrite output width) := by
@@ -180,7 +180,7 @@ private theorem underRead_cellRead {shape : CShape} (output : CWriteRef ctx shap
         (Layout.availableCtx ctx width).canonicalFreshKey_fresh)
   exact agreed11
 
-private theorem pop_output_read {shape : CShape} (output : CWriteRef ctx shape)
+private lemma pop_output_read {shape : CShape} (output : CWriteRef ctx shape)
     (width : Nat) (store : Store (Layout.context ctx width)) :
     (Layout.popStore width store).read (FirstAccepted.cellRead output) =
       store.read (FirstAccepted.cellRead (Layout.underWrite output width)) :=
@@ -191,7 +191,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The actual initialized inner instruction sequence writes the source value. -/
-theorem samplerInner_from_scope_read (input : Input N)
+lemma samplerInner_from_scope_read (input : Input N)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))
@@ -208,7 +208,7 @@ theorem samplerInner_from_scope_read (input : Input N)
     (Scan.samplerScan_from_scope_zero (model := model) sample store)
 
 /-- Releasing the eleven real scopes preserves the complete parameter written for the caller. -/
-theorem samplerProgram_read (input : Input N)
+lemma samplerProgram_read (input : Input N)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (store : Store ctx)
     (value : Fin (2 ^ residueSamplingBits N))

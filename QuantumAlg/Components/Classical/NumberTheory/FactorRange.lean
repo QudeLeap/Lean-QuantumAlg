@@ -53,7 +53,8 @@ def combineOp (refs : Refs ctx width) : ClassicalOp (.product .bit .bit) .bit ct
 def storeStep (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
   ((store.applyOp (lowerOp refs)).applyOp (upperOp refs)).applyOp (combineOp refs)
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment}
+  [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Execute both stored-word comparisons and materialize their actual conjunction. -/
 def code (refs : Refs ctx width) : Circuit model ctx ctx :=
@@ -70,13 +71,14 @@ def executionStep (refs : Refs ctx width) (store : Store ctx) :
   (combined.1, (lower.2, (upper.2, combined.2)))
 
 /-- The actual native record has the original chronological comparison store. -/
-theorem executionStep_store (refs : Refs ctx width) (store : Store ctx) :
+lemma executionStep_store (refs : Refs ctx width) (store : Store ctx) :
     (executionStep (model := model) refs store).1 = storeStep refs store := rfl
 
 /-- The same three native writes preserve all history, service and quantum-reference blocks. -/
-theorem code_execute (refs : Refs ctx width) (Reference : Register)
+lemma code_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (code (model := model) refs).execute environment Reference state =
+      state.mapClassical (fun entry =>
       let actual := executionStep (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [code, executionStep, Circuit.execute_seq, BitWord.bitWord_instruction_execute,
@@ -86,7 +88,7 @@ theorem code_execute (refs : Refs ctx width) (Reference : Register)
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The stored result is precisely the two comparisons on the original actual operand values. -/
-theorem result (refs : Refs ctx width) (store : Store ctx)
+lemma result (refs : Refs ctx width) (store : Store ctx)
     (lowerFree : refs.lower.key ∉ (CInputRef.product refs.candidate refs.modulus).storageKeys)
     (distinct : refs.upper.key ≠ refs.lower.key) :
     ((storeStep refs store).read (.storage refs.lower.toCStorageRef)).toBool =
@@ -115,7 +117,7 @@ theorem result (refs : Refs ctx width) (store : Store ctx)
   rfl
 
 /-- No structural operand outside the two genuine written bits changes its stored value. -/
-theorem read_other (refs : Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
+lemma read_other (refs : Refs ctx width) {shape : CShape} (other : CInputRef ctx shape)
     (lowerFree : refs.lower.key ∉ other.storageKeys)
     (upperFree : refs.upper.key ∉ other.storageKeys) (store : Store ctx) :
     (storeStep refs store).read other = store.read other :=

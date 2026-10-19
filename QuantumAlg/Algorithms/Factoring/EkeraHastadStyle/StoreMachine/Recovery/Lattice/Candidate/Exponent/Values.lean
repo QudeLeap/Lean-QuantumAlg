@@ -33,14 +33,14 @@ instance exponentInRangeDecidable (exponentBits : Nat) (value : Int) :
   infer_instance
 
 /-- Exact unsigned readout gives the corresponding raw signed modular representation. -/
-theorem rawSignedRepresents_of_toNat {width : Nat} (raw : CShape.Word width)
+lemma rawSignedRepresents_of_toNat {width : Nat} (raw : CShape.Word width)
     (value : Nat) (rawValue : raw.toNat = value) :
     RawSignedRepresents raw (value : Int) := by
   unfold RawSignedRepresents Int.ModEq
   rw [rawValue]
 
 /-- Decode a represented signed raw word into its sign Boolean and magnitude. -/
-theorem rawSignedSignMagnitude {width : Nat} (widthPositive : 0 < width)
+lemma rawSignedSignMagnitude {width : Nat} (widthPositive : 0 < width)
     (raw : CShape.Word width) (value : Int) (represented : RawSignedRepresents raw value)
     (range : ClassicalAlgorithms.NumberTheory.XGCD.signedRepresentable width value) :
     rawIsNegative raw = decide (value < 0) ∧ rawMagnitude raw = value.natAbs := by
@@ -93,7 +93,7 @@ theorem rawSignedSignMagnitude {width : Nat} (widthPositive : 0 < width)
     · exact_mod_cast magnitudeInt
 
 /-- Boolean negation of a negative signed value is the nonnegative test. -/
-theorem notNegativeBit (value : Int) :
+lemma notNegativeBit (value : Int) :
     (!decide (value < 0)) = decide (0 ≤ value) := by
   by_cases negative : value < 0
   · have notNonnegative : ¬ 0 ≤ value := by omega
@@ -102,7 +102,7 @@ theorem notNegativeBit (value : Int) :
     simp [negative, nonnegative]
 
 /-- The literal three Boolean checks are exactly the strict signed range test. -/
-theorem candidateRangeBit (exponentBits : Nat) (value : Int) :
+lemma candidateRangeBit (exponentBits : Nat) (value : Int) :
     ((decide (value.natAbs ≠ 0) &&
       decide (value.natAbs < 2 ^ exponentBits)) &&
         decide (0 ≤ value)) =
@@ -135,13 +135,13 @@ theorem candidateRangeBit (exponentBits : Nat) (value : Int) :
       simp [nonnegative, positive, magnitudeNonzero, magnitudeBelow]
 
 /-- Boolean decoding commutes with the closed bit-negation opcode. -/
-theorem bitNotEval_toBool (input : CShape.Value .bit) :
+lemma bitNotEval_toBool (input : CShape.Value .bit) :
     (Resource.BitOpcode.eval .not input).toBool = !input.toBool := by
   cases input
   rfl
 
 /-- Boolean decoding commutes with the closed bit-conjunction opcode. -/
-theorem bitAndEval_toBool (left right : CShape.Value .bit) :
+lemma bitAndEval_toBool (left right : CShape.Value .bit) :
     (Resource.BitOpcode.eval .and (.product left right)).toBool =
       (left.toBool && right.toBool) := by
   cases left with

@@ -68,7 +68,7 @@ def run {shape : CShape} (m ell width N : Nat)
     (.read (RuntimeResults.input m ell width ctx count))
 
 /-- The zero-round boundary is the real identity circuit on the original context. -/
-theorem shortDLP_runtimeRepetition_zero {shape : CShape} (m ell width N : Nat)
+lemma shortDLP_runtimeRepetition_zero {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
@@ -78,7 +78,7 @@ theorem shortDLP_runtimeRepetition_zero {shape : CShape} (m ell width N : Nat)
       .id (model := RuntimeRound.model) ctx := rfl
 
 /-- Repetition leaves the exact same ordered physical bank in the complete output. -/
-theorem shortDLP_runtimeRepetition_wires (m ell width : Nat)
+lemma shortDLP_runtimeRepetition_wires (m ell width : Nat)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires) (count : Nat) :
     (RuntimeResults.context m ell width ctx count).quantumWires =
@@ -86,7 +86,7 @@ theorem shortDLP_runtimeRepetition_wires (m ell width : Nat)
   (RuntimeResults.shortDLP_runtimeResults_wires m ell width ctx count).trans sameWires
 
 /-- Every actual live result, parameter, finite cell and quantum bank entry is listed. -/
-theorem shortDLP_runtimeRepetition_output_listing {shape : CShape} (m ell width N : Nat)
+lemma shortDLP_runtimeRepetition_output_listing {shape : CShape} (m ell width N : Nat)
     (generator target : shape.Value → (ZMod N)ˣ)
     (ctx : RuntimeCtx .quantum)
     (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)

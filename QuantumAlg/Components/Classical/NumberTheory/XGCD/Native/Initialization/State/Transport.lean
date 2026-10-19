@@ -26,7 +26,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {outer inner : RuntimeCtx kind} {width : Nat}
 
-private theorem transported_read (transport : Transport outer inner)
+private lemma transported_read (transport : Transport outer inner)
     (cells : Cells outer (stateShapes width)) (before : Store outer) (after : Store inner)
     (reads : transport.ReadsAs before after) (index : Fin (stateShapes width).length) :
     after.read (GCD.cellRead (cellAt (transportCells transport cells) index).ref) =
@@ -35,7 +35,7 @@ private theorem transported_read (transport : Transport outer inner)
   exact reads (GCD.cellRead (cellAt cells index).ref)
 
 /-- Structural transport preserves the decoded six-field state of the actual live cells. -/
-theorem xgcdNativeState_transport (transport : Transport outer inner)
+lemma xgcdNativeState_transport (transport : Transport outer inner)
     (cells : Cells outer (stateShapes width)) (before : Store outer) (after : Store inner)
     (reads : transport.ReadsAs before after) :
     storedState (transportCells transport cells) after = storedState cells before := by
@@ -61,7 +61,7 @@ theorem xgcdNativeState_transport (transport : Transport outer inner)
   rw [first, second, firstLeft, firstRight, secondLeft, secondRight]
 
 /-- The actual activity read is preserved through the same structural scope transport. -/
-theorem xgcdNativeState_activity_transport (transport : Transport outer inner)
+lemma xgcdNativeState_activity_transport (transport : Transport outer inner)
     (cells : Cells outer (stateShapes width)) (before : Store outer) (after : Store inner)
     (reads : transport.ReadsAs before after) :
     after.read (GCD.cellRead (activeCell (transportCells transport cells))) =

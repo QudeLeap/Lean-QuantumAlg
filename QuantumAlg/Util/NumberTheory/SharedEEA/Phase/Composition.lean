@@ -49,14 +49,14 @@ def coefficientOutput (state : IterationState) : CoefficientPhase.State :=
 def retainedShift (state : IterationState) : Nat := (coefficientOutput state).scale.size - 1
 
 /-- Actual extracted bits initialize the same coefficient arithmetic as the macro specification. -/
-theorem coefficientInput_eq_start (state : IterationState) (active : 0 < state.divisor) :
+lemma coefficientInput_eq_start (state : IterationState) (active : 0 < state.divisor) :
     coefficientInput state = CoefficientPhase.start state :=
   DivisionPhase.coefficientStart_divide state _ _
     (Alignment.align_scale state.remainder state.divisor)
     (Alignment.align_stops state.remainder state.divisor active)
 
 /-- The real written-bit coordinate counts exactly the division steps that followed alignment. -/
-theorem division_written (state : IterationState) :
+lemma division_written (state : IterationState) :
     (Alignment.divide state.remainder state.divisor).written =
       (Alignment.align state.remainder state.divisor).places := by
   change (DivisionPhase.run state.divisor
@@ -70,21 +70,21 @@ theorem division_written (state : IterationState) :
         (Alignment.align state.remainder state.divisor).scale)
 
 /-- The actual quotient passed to phase three has the preceding phase's actual shift count. -/
-theorem coefficientInput_size (state : IterationState) (active : 0 < state.divisor) :
+lemma coefficientInput_size (state : IterationState) (active : 0 < state.divisor) :
     (coefficientInput state).remaining.size =
       (Alignment.align state.remainder state.divisor).places := by
   rw [coefficientInput_eq_start state active]
   exact (Alignment.align_places_eq_quotient_size state.remainder state.divisor active).symm
 
 /-- The third phase executes exactly the recorded alignment count on the actual extracted bits. -/
-theorem coefficientOutput_run (state : IterationState) (active : 0 < state.divisor) :
+lemma coefficientOutput_run (state : IterationState) (active : 0 < state.divisor) :
     coefficientOutput state = CoefficientPhase.run state.coefficient
       (Alignment.align state.remainder state.divisor).places (coefficientInput state) := by
   unfold coefficientOutput CoefficientPhase.finish
   rw [coefficientInput_size state active]
 
 /-- The actual third-phase scale records every consumed quotient bit. -/
-theorem coefficientOutput_scale (state : IterationState) (active : 0 < state.divisor) :
+lemma coefficientOutput_scale (state : IterationState) (active : 0 < state.divisor) :
     (coefficientOutput state).scale =
       2 ^ (Alignment.align state.remainder state.divisor).places := by
   rw [coefficientOutput_run state active, CoefficientPhase.run_scale]
@@ -92,7 +92,7 @@ theorem coefficientOutput_scale (state : IterationState) (active : 0 < state.div
   exact Nat.mul_one _
 
 /-- Reading the actual retained scale recovers precisely the fourth phase's required shift count. -/
-theorem retainedShift_eq_places (state : IterationState) (active : 0 < state.divisor) :
+lemma retainedShift_eq_places (state : IterationState) (active : 0 < state.divisor) :
     retainedShift state = (Alignment.align state.remainder state.divisor).places := by
   rw [retainedShift, coefficientOutput_scale state active, Nat.size_pow, Nat.add_sub_cancel]
 
@@ -103,7 +103,7 @@ def microsteps (state : IterationState) : Nat :=
     (coefficientInput state).remaining.size + retainedShift state
 
 /-- The four arithmetic/word phase calls account for four times the actual quotient bit length. -/
-theorem microsteps_eq_quotient (state : IterationState) (active : 0 < state.divisor) :
+lemma microsteps_eq_quotient (state : IterationState) (active : 0 < state.divisor) :
     microsteps state = 4 * state.quotient.size := by
   rw [microsteps, division_written, coefficientInput_size state active,
     retainedShift_eq_places state active,
@@ -117,7 +117,7 @@ def boundary (state : IterationState) : IterationState :=
     (coefficientOutput state).value, state.coefficient⟩
 
 /-- The composed arithmetic outputs are exactly the entire next macro state. -/
-theorem boundary_eq_step (state : IterationState) (active : 0 < state.divisor) :
+lemma boundary_eq_step (state : IterationState) (active : 0 < state.divisor) :
     boundary state = IterationState.step state := by
   have coordinates := Alignment.division_coefficient_coordinates state active
   exact congrArg₂ (fun remainder coefficient : Nat =>
@@ -125,13 +125,13 @@ theorem boundary_eq_step (state : IterationState) (active : 0 < state.divisor) :
     coordinates.1 coordinates.2
 
 /-- The output macro coordinates recover all four original coordinates on the original domain. -/
-theorem boundary_rewind (state : IterationState) (valid : state.Admissible)
+lemma boundary_rewind (state : IterationState) (valid : state.Admissible)
     (active : 0 < state.divisor) : IterationState.rewind (boundary state) = state := by
   rw [boundary_eq_step state active]
   exact IterationState.rewind_step state valid.coefficient_pos valid.previous_lt
 
 /-- The real retained count reverses every coefficient microstep, recovering the extracted bits. -/
-theorem coefficient_rewind (state : IterationState) (valid : state.Admissible)
+lemma coefficient_rewind (state : IterationState) (valid : state.Admissible)
     (active : 0 < state.divisor) :
     CoefficientPhase.rewindRun state.coefficient (retainedShift state)
       (coefficientOutput state) = coefficientInput state := by
@@ -141,7 +141,7 @@ theorem coefficient_rewind (state : IterationState) (valid : state.Admissible)
   exact CoefficientPhase.start_below state valid
 
 /-- The actual third-phase value is precisely the input used by the established fourth phase. -/
-theorem coefficientOutput_value (state : IterationState) (active : 0 < state.divisor) :
+lemma coefficientOutput_value (state : IterationState) (active : 0 < state.divisor) :
     (coefficientOutput state).value = Deshift.phaseValue state := by
   rw [coefficientOutput_run state active, coefficientInput_eq_start state active]
   rfl
@@ -156,7 +156,7 @@ def deshiftOutput (state : IterationState) (modulus : Nat)
       (CoefficientCapacity.work2Payload state modulus (retainedShift state) valid conserved active))
 
 /-- All actual fourth-phase shifts finish with the exact word and every source control bit. -/
-theorem deshiftOutput_spec (state : IterationState) (modulus : Nat)
+lemma deshiftOutput_spec (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     deshiftOutput state modulus valid conserved active iteration =
@@ -167,7 +167,7 @@ theorem deshiftOutput_spec (state : IterationState) (modulus : Nat)
   rw [retainedShift_eq_places state active, coefficientOutput_value state active]
   exact Deshift.finish_from_coefficient state modulus valid conserved active iteration
 
-private theorem unrotated {coefficientWidth remainderWidth : Nat}
+private lemma unrotated {coefficientWidth remainderWidth : Nat}
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth) :
     WordRotation.packRotatedWork2 0 payload = WordPacking.packWork2 payload := by
   apply BitVec.eq_of_getMsbD_eq
@@ -176,7 +176,7 @@ private theorem unrotated {coefficientWidth remainderWidth : Nat}
     Nat.mod_eq_of_lt within, within, decide_true, Bool.true_and]
 
 /-- The entire actually deshifted word equals the exact packed boundary word before exchange. -/
-theorem deshiftOutput_word (state : IterationState) (modulus : Nat)
+lemma deshiftOutput_word (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (deshiftOutput state modulus valid conserved active iteration).word.cast
@@ -191,7 +191,7 @@ theorem deshiftOutput_word (state : IterationState) (modulus : Nat)
   rfl
 
 /-- The actual deshift result participates in the literal exchange into both next packed words. -/
-theorem exchanged_words (state : IterationState) (modulus : Nat)
+lemma exchanged_words (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (PackingBoundary.completedFirstWord state modulus valid conserved,
@@ -207,7 +207,7 @@ theorem exchanged_words (state : IterationState) (modulus : Nat)
   exact PackingBoundary.completed_exchange state modulus valid conserved active
 
 /-- Every actual retained phase count fits both finite counter widths without a caller bound. -/
-theorem retainedShift_counter_values (state : IterationState) (modulus : Nat)
+lemma retainedShift_counter_values (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) :
     (BitVec.ofNat modulus.size.size (retainedShift state)).toNat = retainedShift state ∧

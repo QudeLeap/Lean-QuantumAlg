@@ -22,6 +22,8 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Transport a sealed circuit across a proved equality of qubit counts.  This
 does not permute wires: both the source and target are the same flat physical
 bit string, with only the parenthesization of `Nat` addition changed. -/
@@ -34,7 +36,7 @@ def castProgram {sourceWidth targetWidth : Nat}
   hwidth ▸ program
 
 /-- Width transport preserves the strict event pool. -/
-@[simp] theorem castProgram_eventCost {sourceWidth targetWidth : Nat}
+@[simp] lemma castProgram_eventCost {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical sourceWidth).toQuantum) :
@@ -43,7 +45,7 @@ def castProgram {sourceWidth targetWidth : Nat}
   rfl
 
 /-- Width transport preserves the strict event critical path. -/
-@[simp] theorem castProgram_eventDepth {sourceWidth targetWidth : Nat}
+@[simp] lemma castProgram_eventDepth {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical sourceWidth).toQuantum) :
@@ -52,7 +54,7 @@ def castProgram {sourceWidth targetWidth : Nat}
   rfl
 
 /-- Width transport retains the exact native and query event sequence. -/
-@[simp] theorem castProgram_eventTrace {sourceWidth targetWidth : Nat}
+@[simp] lemma castProgram_eventTrace {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical sourceWidth).toQuantum) :
@@ -67,16 +69,16 @@ def castLabel {sourceWidth targetWidth : Nat}
   Fin.cast (congrArg (fun width => 2 ^ width) hwidth) label
 
 /-- Width transport preserves a proved computational-basis action. -/
-theorem applyNormalized_castProgram {sourceWidth targetWidth : Nat}
+lemma applyNormalized_castProgram {sourceWidth targetWidth : Nat}
     (hwidth : sourceWidth = targetWidth)
     (program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical sourceWidth).toQuantum)
     (input output : Fin (2 ^ sourceWidth))
-    (happly : program.applyNormalized (NormalizedVector.ket
+    (happly : program.applyNormalized environment (NormalizedVector.ket
       ((QubitLayout.canonical sourceWidth).basisEquiv.symm input)) =
       NormalizedVector.ket
         ((QubitLayout.canonical sourceWidth).basisEquiv.symm output)) :
-    (castProgram hwidth program).applyNormalized
+    (castProgram hwidth program).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical targetWidth).basisEquiv.symm
             (castLabel hwidth input))) =
@@ -95,7 +97,7 @@ def reassociateLabel (left middle right : Nat) :
 
 /-- Any proof of the associativity equality transports the right-associated
 and left-associated three-field encodings to the same flat physical label. -/
-theorem castLabel_prodEquiv
+lemma castLabel_prodEquiv
     {left middle right : Nat}
     (hwidth : left + (middle + right) = left + middle + right)
     (leftLabel : Fin (2 ^ left)) (middleLabel : Fin (2 ^ middle))
@@ -108,7 +110,7 @@ theorem castLabel_prodEquiv
     Nat.mul_assoc, Nat.mul_comm, Nat.add_assoc]
 
 /-- The canonical reassociation proof preserves the three-field basis label. -/
-theorem reassociateLabel_prodEquiv
+lemma reassociateLabel_prodEquiv
     {left middle right : Nat}
     (leftLabel : Fin (2 ^ left)) (middleLabel : Fin (2 ^ middle))
     (rightLabel : Fin (2 ^ right)) :

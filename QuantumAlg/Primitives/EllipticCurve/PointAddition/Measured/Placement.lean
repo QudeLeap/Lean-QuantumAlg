@@ -7,7 +7,7 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.EllipticCurve.PointAddition.Measured.Resources
-import all QuantumAlg.Core.Execution.Context.Relabeling.Local.Resources
+import all QuantumAlg.Core.Execution.Composition.Resources
 
 /-!
 # Physical placement of the actual measured point-addition body
@@ -31,89 +31,121 @@ open Execution
 
 /-- The same actual measured body with every native address and storage operand mapped. -/
 def body {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat) :
+    (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
+    (allowAllocation : Bool := true) :
     Circuit (.quantum AlgorithmGate.model .empty)
-      (context p.size keys physical) (context p.size keys physical) :=
-  ContextRelabeling.localCircuit (MeasuredPointAddition.body E Q)
-    (MeasuredPointAddition.body_isLocal E Q) keys physical
+      (context p.size keys physical) (context p.size keys physical) allowAllocation :=
+  Circuit.embed (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size)
+    keys physical) (MeasuredPointAddition.body E Q false)
 
 /-- Each finite path corresponds to the original actual outcomes and selected branches. -/
 def pathEquiv {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat) :
-    (MeasuredPointAddition.body E Q).Path ≃ (body E Q keys physical).Path :=
-  ContextRelabeling.localPathEquiv (MeasuredPointAddition.body E Q)
-    (MeasuredPointAddition.body_isLocal E Q) keys physical
-
-/-- Placement keeps the body in the original allocation-free circuit fragment. -/
-theorem body_isLocal {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
-    (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat) :
-    (body E Q keys physical).IsLocal :=
-  ContextRelabeling.localCircuit_isLocal _ (MeasuredPointAddition.body_isLocal E Q) keys physical
+    (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
+    (allowAllocation : Bool := true) :
+    (MeasuredPointAddition.body E Q false).Path ≃
+      (body E Q keys physical allowAllocation).Path :=
+  Equiv.refl _
 
 /-- The full physical list is exactly the image of every original live system. -/
-theorem context_physical (width : Nat) (keys : StorageKey ↪ StorageKey)
+lemma context_physical (width : Nat) (keys : StorageKey ↪ StorageKey)
     (physical : Nat ↪ Nat) :
     (context width keys physical).physicalIdx =
       (MeasuredPointAddition.context width).physicalIdx.map physical :=
   RuntimeCtx.relabel_physicalIdx _ keys physical
 
 /-- Complete original roles retain the same independently prescribed resident space. -/
-theorem context_resident (width : Nat) (keys : StorageKey ↪ StorageKey)
+lemma context_resident (width : Nat) (keys : StorageKey ↪ StorageKey)
     (physical : Nat ↪ Nat) :
     (context width keys physical).residentSpace = MeasuredPointAddition.space width :=
   (RuntimeCtx.relabel_residentSpace _ keys physical).trans
     (MeasuredPointAddition.context_resident width)
 
 /-- Auxiliary space retains all original owned roles, including both quantum controls. -/
-theorem context_auxiliary (width : Nat) (keys : StorageKey ↪ StorageKey)
+lemma context_auxiliary (width : Nat) (keys : StorageKey ↪ StorageKey)
     (physical : Nat ↪ Nat) :
     (context width keys physical).auxiliarySpace = MeasuredPointAddition.space width :=
   (RuntimeCtx.relabel_auxiliarySpace _ keys physical).trans
     (MeasuredPointAddition.context_auxiliary width)
 
+attribute [local irreducible] MeasuredPointAddition.body
+
 /-- Every ordered native event survives physical placement of the actual measured instructions. -/
-theorem body_eventTrace {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_eventTrace {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-    (path : (MeasuredPointAddition.body E Q).Path) :
-    (body E Q keys physical).eventTrace (pathEquiv E Q keys physical path) =
-      (MeasuredPointAddition.body E Q).eventTrace path :=
-  ContextRelabeling.localCircuit_eventTrace _ (MeasuredPointAddition.body_isLocal E Q)
-    keys physical path
+    (path : (MeasuredPointAddition.body E Q false).Path) :
+    (body E Q keys physical allowAllocation).eventTrace
+      (pathEquiv E Q keys physical allowAllocation path) =
+      (MeasuredPointAddition.body E Q false).eventTrace path :=
+  rfl
 
 /-- Actual emitted resources obey the original independent point-addition budget on every path. -/
-theorem body_budget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_budget {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-    (path : (body E Q keys physical).Path) :
-    (body E Q keys physical).resourcePool path ≤ MeasuredPointAddition.events p.size := by
-  obtain ⟨original, rfl⟩ := (pathEquiv E Q keys physical).surjective path
-  exact (ContextRelabeling.localCircuit_resourcePool _ (MeasuredPointAddition.body_isLocal E Q)
-    keys physical original).le.trans (MeasuredPointAddition.body_budget E Q original)
+    (path : (body E Q keys physical allowAllocation).Path) :
+    (body E Q keys physical allowAllocation).resourcePool path ≤
+      MeasuredPointAddition.events p.size := by
+  change (Circuit.embed (model := .quantum AlgorithmGate.model .empty)
+    (allowAllocation := allowAllocation)
+    (caller := context p.size keys physical)
+    (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size) keys physical)
+    (MeasuredPointAddition.body E Q false)).resourcePool path ≤ _
+  exact (Circuit.resourcePool_embed (model := .quantum AlgorithmGate.model .empty)
+    (allowAllocation := allowAllocation)
+    (caller := context p.size keys physical)
+    (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size) keys physical)
+    (MeasuredPointAddition.body E Q false) path).le.trans
+      (MeasuredPointAddition.body_budget (allowAllocation := false) E Q path)
 
 /-- The real placed path keeps the original complete serial native depth bound. -/
-theorem body_depth {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_depth {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-    (path : (body E Q keys physical).Path) :
-    (body E Q keys physical).depth (fun _ => 1) path ≤
+    (path : (body E Q keys physical allowAllocation).Path) :
+    (body E Q keys physical allowAllocation).depth (fun _ => 1) path ≤
       MeasuredPointAddition.depthBound p.size := by
-  obtain ⟨original, rfl⟩ := (pathEquiv E Q keys physical).surjective path
-  exact (ContextRelabeling.localCircuit_depth _ (MeasuredPointAddition.body_isLocal E Q)
-    keys physical (fun _ => 1) original).le.trans (MeasuredPointAddition.body_depth E Q original)
+  change (MeasuredPointAddition.body E Q false).depth (fun _ => 1) path ≤
+    MeasuredPointAddition.depthBound p.size
+  exact MeasuredPointAddition.body_depth (allowAllocation := false) E Q path
 
 /-- Every original field, work, control and measurement coordinate remains charged at the peak. -/
-theorem body_resident {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_resident {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-    (path : (body E Q keys physical).Path) :
-    (body E Q keys physical).peakResidentSpace path = MeasuredPointAddition.space p.size :=
-  (ContextRelabeling.localCircuit_peakResidentSpace _ (MeasuredPointAddition.body_isLocal E Q)
-    keys physical path).trans (MeasuredPointAddition.context_resident p.size)
+    (path : (body E Q keys physical allowAllocation).Path) :
+    (body E Q keys physical allowAllocation).peakResidentSpace path =
+      MeasuredPointAddition.space p.size := by
+  change (Circuit.embed (model := .quantum AlgorithmGate.model .empty)
+    (allowAllocation := allowAllocation)
+    (caller := context p.size keys physical)
+    (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size) keys physical)
+    (MeasuredPointAddition.body E Q false)).peakResidentSpace path = _
+  exact (Circuit.peakResidentSpace_embed (model := .quantum AlgorithmGate.model .empty)
+    (allowAllocation := allowAllocation)
+    (caller := context p.size keys physical)
+    (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size) keys physical)
+    (MeasuredPointAddition.body E Q false) path).trans
+      (context_resident p.size keys physical)
 
 /-- Auxiliary peaks use the same original complete ownership roles on every actual path. -/
-theorem body_auxiliary {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma body_auxiliary {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
-    (path : (body E Q keys physical).Path) :
-    (body E Q keys physical).peakAuxiliarySpace path = MeasuredPointAddition.space p.size :=
-  (ContextRelabeling.localCircuit_peakAuxiliarySpace _ (MeasuredPointAddition.body_isLocal E Q)
-    keys physical path).trans (MeasuredPointAddition.context_auxiliary p.size)
+    (path : (body E Q keys physical allowAllocation).Path) :
+    (body E Q keys physical allowAllocation).peakAuxiliarySpace path =
+      MeasuredPointAddition.space p.size := by
+  change (Circuit.embed (model := .quantum AlgorithmGate.model .empty)
+    (allowAllocation := allowAllocation)
+    (caller := context p.size keys physical)
+    (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size) keys physical)
+    (MeasuredPointAddition.body E Q false)).peakAuxiliarySpace path = _
+  exact (Circuit.peakAuxiliarySpace_embed (model := .quantum AlgorithmGate.model .empty)
+    (allowAllocation := allowAllocation)
+    (caller := context p.size keys physical)
+    (ContextEmbedding.alongRelabeling (MeasuredPointAddition.context p.size) keys physical)
+    (MeasuredPointAddition.body E Q false) path).trans
+      (context_auxiliary p.size keys physical)
 
 end
 

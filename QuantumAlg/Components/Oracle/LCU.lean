@@ -31,28 +31,32 @@ public inductive Query where
   | select
   deriving DecidableEq
 
-/-- Fix the preparation and full SELECT family at the Problem boundary. -/
+/-- The public source widths fix the three query signatures and coordinates. -/
 @[expose, implicit_reducible]
-public def model {a n : Nat} (V : UnitaryOperator (Qubits a))
-    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) : OracleModel where
+public def model (a n : Nat) : OracleModel where
   Query := Query
   Coordinate := Query
   coordinateDecidableEq := inferInstance
   signature query := match query with
     | .prepare | .unprepare => QuantumSignature.qubits a
     | .select => QuantumSignature.qubits (a + n)
+  coordinate query := query
+
+/-- Source operators interpret the fixed preparation and SELECT interface. -/
+public def interpretation {a n : Nat} (V : UnitaryOperator (Qubits a))
+    (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) : (model a n).Interpretation where
   operator query := match query with
-    | .prepare => (UnitarySource.model V false true).operator .ordinary
-    | .unprepare => (UnitarySource.model V false true).operator (.inverse rfl)
+    | .prepare =>
+        UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv a).symm V
+    | .unprepare =>
+        UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv a).symm V⁻¹
     | .select =>
         UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv (a + n)).symm
           (lcuSelectOp U)
-  coordinate query := query
 
 /-- Inverse preparation is counted independently from forward preparation. -/
-public theorem lcuOracle_preparation_coordinates_distinct {a n : Nat}
-    (V : UnitaryOperator (Qubits a)) (U : Fin (2 ^ a) → UnitaryOperator (Qubits n)) :
-    (model V U).coordinate .prepare ≠ (model V U).coordinate .unprepare := by
+public lemma lcuOracle_preparation_coordinates_distinct (a n : Nat) :
+    (model a n).coordinate .prepare ≠ (model a n).coordinate .unprepare := by
   change Query.prepare ≠ Query.unprepare
   decide
 

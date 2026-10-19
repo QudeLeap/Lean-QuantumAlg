@@ -30,7 +30,7 @@ def nativeAlphabet : ResourcePool (.quantum AlgorithmGate.model .empty) :=
 def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.model .empty) :=
   (width * stageEventBound width) • nativeAlphabet
 
-theorem gidneyCanonicalStage_native_support (extra : Nat)
+lemma gidneyCanonicalStage_native_support (extra : Nat)
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (canonicalProgram extra modulus constant).eventCost) :
@@ -38,7 +38,7 @@ theorem gidneyCanonicalStage_native_support (extra : Nat)
   EncodedBit.GateSpec.programList_native_support _
     (canonicalGates extra modulus constant) focus present
 
-theorem gidneyPlacedStage_native_support (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyPlacedStage_native_support (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (placedStageProgram extra selected modulus constant).eventCost) :
@@ -46,7 +46,7 @@ theorem gidneyPlacedStage_native_support (extra : Nat) (selected : Fin (extra + 
   rw [(gidneyPlacedStage_resources extra selected modulus constant (fun _ => 1)).1] at present
   exact gidneyCanonicalStage_native_support extra modulus constant focus present
 
-theorem gidneySmallStage_native_support (width : Nat) (small : width ≤ 2)
+lemma gidneySmallStage_native_support (width : Nat) (small : width ≤ 2)
     (selected : Fin width) (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (smallStageProgram width small selected modulus constant).eventCost) :
@@ -54,7 +54,7 @@ theorem gidneySmallStage_native_support (width : Nat) (small : width ≤ 2)
   EncodedBit.GateSpec.programList_native_support _
     (smallStageGates width small selected modulus constant) focus present
 
-theorem gidneyStage_native_support (width : Nat) (selected : Fin width)
+lemma gidneyStage_native_support (width : Nat) (selected : Fin width)
     (modulus : Fin (2 ^ width + 1)) (constant : Fin (modulus.val + 1))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (stageProgram width selected modulus constant).eventCost) :
@@ -70,7 +70,7 @@ theorem gidneyStage_native_support (width : Nat) (selected : Fin width)
   simp only [stageProgram] at present
   exact gidneyPlacedStage_native_support extra selected modulus constant focus present
 
-theorem gidneyAccumulatePrefix_native_support (width : Nat)
+lemma gidneyAccumulatePrefix_native_support (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (prefixProgram width modulus coefficient count within).eventCost) :
@@ -90,7 +90,7 @@ theorem gidneyAccumulatePrefix_native_support (width : Nat)
           (Nat.FixedWidth.accumulateConstant modulus coefficient index) focus current
 
 /-- Every actual event belongs to the explicit three-coordinate alphabet. -/
-theorem gidneyAccumulate_native_support (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_native_support (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) (focus : Resource.Event (.quantum AlgorithmGate.model .empty))
     (present : focus ∈ (program width modulus coefficient).eventCost) :
     focus ∈ nativeAlphabet :=
@@ -98,7 +98,7 @@ theorem gidneyAccumulate_native_support (width : Nat) (modulus : Fin (2 ^ width 
     (Nat.le_refl width) focus present
 
 /-- The complete actual circuit meets the independent finite native-resource budget. -/
-theorem gidneyAccumulate_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     (program width modulus coefficient).eventCost ≤ nativeBudget width :=
   ResourcePool.le_scaled_of_support_card_le _ _ _

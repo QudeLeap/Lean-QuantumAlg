@@ -35,7 +35,7 @@ def selectHistory (state : State ctx Reference H) (read : H → D) (value : D) :
   state.selectClassical (fun record => read record.2) value
 
 /-- A history map selects precisely the original histories in the requested output fiber. -/
-theorem selectHistory_mapHistory (state : State ctx Reference H) (update : H → K)
+lemma selectHistory_mapHistory (state : State ctx Reference H) (update : H → K)
     (read : K → D) (value : D) :
     (state.mapHistory update).selectHistory read value =
       (state.selectHistory (read ∘ update) value).mapHistory update :=
@@ -43,7 +43,7 @@ theorem selectHistory_mapHistory (state : State ctx Reference H) (update : H →
     (fun record => (record.1, update record.2)) (fun record => read record.2) value
 
 /-- The unique deterministic path preserves each complete earlier-history fiber. -/
-theorem selectHistory_skip (state : State ctx Reference H) (read : H → D) (value : D) :
+lemma selectHistory_skip (state : State ctx Reference H) (read : H → D) (value : D) :
     state.skip.selectHistory (fun record => read record.1) value =
       (state.selectHistory read value).skip :=
   selectHistory_mapHistory state (fun history => (history, ()))
@@ -54,7 +54,7 @@ section Quantum
 variable {ctx : RuntimeCtx .quantum}
 
 /-- Actual unitary execution retains the original-history selection exactly. -/
-theorem selectHistory_unitary (state : State ctx Reference H)
+lemma selectHistory_unitary (state : State ctx Reference H)
     (program : UnitaryOperator ctx.register) (read : H → D) (value : D) :
     (state.unitary program).selectHistory (fun record => read record.1) value =
       (state.selectHistory read value).unitary program := by
@@ -64,7 +64,7 @@ theorem selectHistory_unitary (state : State ctx Reference H)
   rfl
 
 /-- Actual Z measurement and its real store write preserve every earlier-history fiber. -/
-theorem selectHistory_measureZ (state : State ctx Reference H)
+lemma selectHistory_measureZ (state : State ctx Reference H)
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (read : H → D) (value : D) :

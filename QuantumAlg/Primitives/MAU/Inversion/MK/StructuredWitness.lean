@@ -29,18 +29,20 @@ namespace StructuredWitness
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open NumberTheory.BinaryGCD
 open StageState.PowerOfTwoTargetAdd
 
 
 /-- Raw-vector companion of a normalized actual-circuit realization. -/
-private theorem applyVec_encoded_ket_of_realizes {Data : Type}
+private lemma applyVec_encoded_ket_of_realizes {Data : Type}
     {encoding : BinaryLabelEncoding Data}
     {program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical encoding.width).toQuantum} {step : Data -> Data}
-    (h : UnitaryCircuit.Realizes encoding program step) (x : Data) :
-    UnitaryCircuit.applyVec program
+    (h : UnitaryCircuit.Realizes encoding program environment step) (x : Data) :
+    UnitaryCircuit.applyVec program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical encoding.width).basisEquiv.symm
             (encoding.encode x)) : HilbertVector
@@ -49,14 +51,15 @@ private theorem applyVec_encoded_ket_of_realizes {Data : Type}
         ((QubitLayout.canonical encoding.width).basisEquiv.symm
           (encoding.encode (step x))) : HilbertVector
             (QubitLayout.canonical encoding.width).toQuantum.register) := by
-  simpa only [UnitaryCircuit.applyNormalized, UnitaryCircuit.applyVec,
-    UnitaryOperator.apply_coe] using
-    congrArg
-      (fun ψ : NormalizedVector
-          (QubitLayout.canonical encoding.width).toQuantum.register =>
-        (ψ : HilbertVector
-          (QubitLayout.canonical encoding.width).toQuantum.register))
-      (h.apply_encoded_ket x)
+  change
+    (program.applyNormalized environment
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode x)))).vec =
+      (NormalizedVector.ket
+        ((QubitLayout.canonical encoding.width).basisEquiv.symm
+          (encoding.encode (step x)))).vec
+  exact congrArg NormalizedVector.vec (h.apply_encoded_ket x)
 
 /-- Staged inversion state with both VBE target-add carry work and the finite
 Montgomery--Kaliski compute workspace.  The extra workspace is the RNSL17
@@ -93,15 +96,15 @@ def stageWithWorkspaceTargetAddProgram (n counterWidth : Nat) :
     (stageWithWorkProgram n)
 
 /-- The lifted target-add program realizes the full-workspace target update. -/
-theorem stageWithWorkspaceTargetAdd_realizes (n counterWidth : Nat) :
+lemma stageWithWorkspaceTargetAdd_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-      (stageWithWorkspaceTargetAddProgram n counterWidth)
+      (stageWithWorkspaceTargetAddProgram n counterWidth) environment
       (addScratchToTargetWithWorkspace n counterWidth) :=
   UnitaryCircuit.Realizes.onBinaryPrefix
     (right := MK.registersWithComparisonWorkEncoding n counterWidth)
     (stageWithWork_realizes n)
 
-@[simp] theorem stageWithWorkspaceEncoding_width (n counterWidth : Nat) :
+@[simp] lemma stageWithWorkspaceEncoding_width (n counterWidth : Nat) :
     (stageWithWorkspaceEncoding n counterWidth).width =
       (stageWithWorkEncoding n).width +
         (MK.registersWithComparisonWorkEncoding
@@ -116,7 +119,7 @@ def stageWithWorkspaceKaliskiStep {n counterWidth : Nat}
     StageWithWorkspace n counterWidth -> StageWithWorkspace n counterWidth :=
   fun x => (x.1, step x.2)
 
-@[simp] theorem stageWithWorkspaceKaliskiStep_left
+@[simp] lemma stageWithWorkspaceKaliskiStep_left
     {n counterWidth : Nat}
     (step : MK.RegistersWithComparisonWork n counterWidth ->
       MK.RegistersWithComparisonWork n counterWidth)
@@ -125,7 +128,7 @@ def stageWithWorkspaceKaliskiStep {n counterWidth : Nat}
   cases x
   rfl
 
-@[simp] theorem stageWithWorkspaceKaliskiStep_right
+@[simp] lemma stageWithWorkspaceKaliskiStep_right
     {n counterWidth : Nat}
     (step : MK.RegistersWithComparisonWork n counterWidth ->
       MK.RegistersWithComparisonWork n counterWidth)
@@ -144,15 +147,15 @@ def stageWithWorkspaceKaliskiProgram {n counterWidth : Nat}
   UnitaryCircuit.onBinarySuffix (stageWithWorkEncoding n).width program
 
 /-- Semantic realization of a lifted Montgomery--Kaliski workspace program. -/
-theorem stageWithWorkspaceKaliski_realizes {n counterWidth : Nat}
+lemma stageWithWorkspaceKaliski_realizes {n counterWidth : Nat}
     {step : MK.RegistersWithComparisonWork n counterWidth ->
       MK.RegistersWithComparisonWork n counterWidth}
     {program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       ((MK.registersWithComparisonWorkEncoding n counterWidth).width)).toQuantum}
     (h : UnitaryCircuit.Realizes
-      (MK.registersWithComparisonWorkEncoding n counterWidth) program step) :
+      (MK.registersWithComparisonWorkEncoding n counterWidth) program environment step) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-      (stageWithWorkspaceKaliskiProgram program)
+      (stageWithWorkspaceKaliskiProgram program) environment
       (stageWithWorkspaceKaliskiStep step) :=
   UnitaryCircuit.Realizes.onBinarySuffix (left := stageWithWorkEncoding n) h
 
@@ -176,13 +179,13 @@ def uEvenBranchHistoryWithWorkspaceProgram
       n counterWidth bit historyIndex)
 
 /-- Realization of the lifted `uEven` branch-history program. -/
-theorem uEvenBranchHistoryWithWorkspace_realizes
+lemma uEvenBranchHistoryWithWorkspace_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-      (uEvenBranchHistoryWithWorkspaceProgram n counterWidth bit historyIndex)
+      (uEvenBranchHistoryWithWorkspaceProgram n counterWidth bit historyIndex) environment
       (uEvenBranchHistoryWithWorkspaceStep n counterWidth bit historyIndex) :=
   stageWithWorkspaceKaliski_realizes
-    (MK.liftedUEvenBranchHistoryWrite_realizes
+    (MK.liftedUEvenBranchHistoryWrite_realizes (environment := environment)
       n counterWidth bit historyIndex)
 
 /-- Full-workspace semantic step for the `vEven` branch-history write, lifted
@@ -207,16 +210,16 @@ def vEvenBranchHistoryWithWorkspaceProgram
       n counterWidth uIndex vIndex historyIndex)
 
 /-- Realization of the lifted `vEven` branch-history program. -/
-theorem vEvenBranchHistoryWithWorkspace_realizes
+lemma vEvenBranchHistoryWithWorkspace_realizes
     (n counterWidth : Nat) (uIndex vIndex : Fin n)
     (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
       (vEvenBranchHistoryWithWorkspaceProgram
-        n counterWidth uIndex vIndex historyIndex)
+        n counterWidth uIndex vIndex historyIndex) environment
       (vEvenBranchHistoryWithWorkspaceStep
         n counterWidth uIndex vIndex historyIndex) :=
   stageWithWorkspaceKaliski_realizes
-    (MK.liftedVEvenBranchHistoryWrite_realizes
+    (MK.liftedVEvenBranchHistoryWrite_realizes (environment := environment)
       n counterWidth uIndex vIndex historyIndex)
 
 /-- Full-workspace semantic step for the `uGreater` selector/history-write
@@ -238,15 +241,15 @@ def uGreaterSelectorBranchHistoryWithWorkspaceProgram
       n counterWidth bit historyIndex)
 
 /-- Realization of the lifted `uGreater` selector/history-write program. -/
-theorem uGreaterSelectorBranchHistoryWithWorkspace_realizes
+lemma uGreaterSelectorBranchHistoryWithWorkspace_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
       (uGreaterSelectorBranchHistoryWithWorkspaceProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (uGreaterSelectorBranchHistoryWithWorkspaceStep
         n counterWidth bit historyIndex) :=
   stageWithWorkspaceKaliski_realizes
-    (MK.uGreaterSelectorBranchHistoryWrite_realizes
+    (MK.uGreaterSelectorBranchHistoryWrite_realizes (environment := environment)
       n counterWidth bit historyIndex)
 
 /-- Full-workspace semantic step for the `vLe` selector/history-write slice,
@@ -268,22 +271,22 @@ def vLeSelectorBranchHistoryWithWorkspaceProgram
       n counterWidth bit historyIndex)
 
 /-- Realization of the lifted `vLe` selector/history-write program. -/
-theorem vLeSelectorBranchHistoryWithWorkspace_realizes
+lemma vLeSelectorBranchHistoryWithWorkspace_realizes
     (n counterWidth : Nat) (bit : Fin n) (historyIndex : Fin (2 * n)) :
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
       (vLeSelectorBranchHistoryWithWorkspaceProgram
-        n counterWidth bit historyIndex)
+        n counterWidth bit historyIndex) environment
       (vLeSelectorBranchHistoryWithWorkspaceStep
         n counterWidth bit historyIndex) :=
   stageWithWorkspaceKaliski_realizes
-    (MK.vLeSelectorBranchHistoryWrite_realizes
+    (MK.vLeSelectorBranchHistoryWrite_realizes (environment := environment)
       n counterWidth bit historyIndex)
 
 
 
 /-- Clean endpoint for the target-add leg after lifting it over the finite
 Montgomery--Kaliski compute workspace. -/
-theorem addScratchToTargetWithWorkspace_cleanEndpoint
+lemma addScratchToTargetWithWorkspace_cleanEndpoint
     (n counterWidth : Nat) (s : StageState (2 ^ n))
     (hflag : s.flag = false)
     (workspace :
@@ -295,7 +298,7 @@ theorem addScratchToTargetWithWorkspace_cleanEndpoint
 
 /-- The target-add leg preserves the Montgomery--Kaliski register/comparison
 workspace pointwise. -/
-theorem addScratchToTargetWithWorkspace_preservesWorkspace
+lemma addScratchToTargetWithWorkspace_preservesWorkspace
     (n counterWidth : Nat) (x : StageWithWorkspace n counterWidth) :
     (addScratchToTargetWithWorkspace n counterWidth x).2 = x.2 := by
   cases x
@@ -333,16 +336,16 @@ def stageWithFullRoundWorkspaceTargetAddProgram (n counterWidth : Nat) :
     (stageWithWorkProgram n)
 
 /-- Realization of the lifted full-round-workspace target-add program. -/
-theorem stageWithFullRoundWorkspaceTargetAdd_realizes
+lemma stageWithFullRoundWorkspaceTargetAdd_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (stageWithFullRoundWorkspaceEncoding n counterWidth)
-      (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth)
+      (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth) environment
       (addScratchToTargetWithFullRoundWorkspace n counterWidth) :=
   UnitaryCircuit.Realizes.onBinaryPrefix
     (right := MK.registersWithFullRoundWorkEncoding n counterWidth)
     (stageWithWork_realizes n)
 
-@[simp] theorem stageWithFullRoundWorkspaceEncoding_width
+@[simp] lemma stageWithFullRoundWorkspaceEncoding_width
     (n counterWidth : Nat) :
     (stageWithFullRoundWorkspaceEncoding n counterWidth).width =
       (stageWithWorkEncoding n).width +
@@ -359,7 +362,7 @@ def stageWithFullRoundWorkspaceKaliskiStep {n counterWidth : Nat}
       StageWithFullRoundWorkspace n counterWidth :=
   fun x => (x.1, step x.2)
 
-@[simp] theorem stageWithFullRoundWorkspaceKaliskiStep_left
+@[simp] lemma stageWithFullRoundWorkspaceKaliskiStep_left
     {n counterWidth : Nat}
     (step : MK.RegistersWithFullRoundWork n counterWidth ->
       MK.RegistersWithFullRoundWork n counterWidth)
@@ -368,7 +371,7 @@ def stageWithFullRoundWorkspaceKaliskiStep {n counterWidth : Nat}
   cases x
   rfl
 
-@[simp] theorem stageWithFullRoundWorkspaceKaliskiStep_right
+@[simp] lemma stageWithFullRoundWorkspaceKaliskiStep_right
     {n counterWidth : Nat}
     (step : MK.RegistersWithFullRoundWork n counterWidth ->
       MK.RegistersWithFullRoundWork n counterWidth)
@@ -387,21 +390,21 @@ def stageWithFullRoundWorkspaceKaliskiProgram {n counterWidth : Nat}
   UnitaryCircuit.onBinarySuffix (stageWithWorkEncoding n).width program
 
 /-- Realization of a lifted Montgomery--Kaliski full-workspace program. -/
-theorem stageWithFullRoundWorkspaceKaliski_realizes {n counterWidth : Nat}
+lemma stageWithFullRoundWorkspaceKaliski_realizes {n counterWidth : Nat}
     {step : MK.RegistersWithFullRoundWork n counterWidth ->
       MK.RegistersWithFullRoundWork n counterWidth}
     {program : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       ((MK.registersWithFullRoundWorkEncoding n counterWidth).width)).toQuantum}
     (h : UnitaryCircuit.Realizes
-      (MK.registersWithFullRoundWorkEncoding n counterWidth) program step) :
+      (MK.registersWithFullRoundWorkEncoding n counterWidth) program environment step) :
     UnitaryCircuit.Realizes (stageWithFullRoundWorkspaceEncoding n counterWidth)
-      (stageWithFullRoundWorkspaceKaliskiProgram program)
+      (stageWithFullRoundWorkspaceKaliskiProgram program) environment
       (stageWithFullRoundWorkspaceKaliskiStep step) :=
   UnitaryCircuit.Realizes.onBinarySuffix (left := stageWithWorkEncoding n) h
 
 /-- Clean endpoint for the target-add leg after lifting it over the full
 fixed-round workspace. -/
-theorem addScratchToTargetWithFullRoundWorkspace_cleanEndpoint
+lemma addScratchToTargetWithFullRoundWorkspace_cleanEndpoint
     (n counterWidth : Nat) (s : StageState (2 ^ n))
     (hflag : s.flag = false)
     (workspace :
@@ -414,7 +417,7 @@ theorem addScratchToTargetWithFullRoundWorkspace_cleanEndpoint
 
 /-- The target-add leg preserves the full Montgomery--Kaliski fixed-round
 workspace pointwise. -/
-theorem addScratchToTargetWithFullRoundWorkspace_preservesWorkspace
+lemma addScratchToTargetWithFullRoundWorkspace_preservesWorkspace
     (n counterWidth : Nat)
     (x : StageWithFullRoundWorkspace n counterWidth) :
     (addScratchToTargetWithFullRoundWorkspace n counterWidth x).2 = x.2 := by
@@ -456,18 +459,18 @@ def stageWithFullRoundPathControlWorkspaceTargetAddProgram
     (stageWithWorkProgram n)
 
 /-- Realization of the lifted path/control-workspace target-add program. -/
-theorem stageWithFullRoundPathControlWorkspaceTargetAdd_realizes
+lemma stageWithFullRoundPathControlWorkspaceTargetAdd_realizes
     (n counterWidth : Nat) :
     UnitaryCircuit.Realizes
       (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-      (stageWithFullRoundPathControlWorkspaceTargetAddProgram n counterWidth)
+      (stageWithFullRoundPathControlWorkspaceTargetAddProgram n counterWidth) environment
       (addScratchToTargetWithFullRoundPathControlWorkspace n counterWidth) :=
   UnitaryCircuit.Realizes.onBinaryPrefix
     (right := MK.registersWithFullRoundPathControlWorkEncoding
       n counterWidth)
     (stageWithWork_realizes n)
 
-@[simp] theorem stageWithFullRoundPathControlWorkspaceEncoding_width
+@[simp] lemma stageWithFullRoundPathControlWorkspaceEncoding_width
     (n counterWidth : Nat) :
     (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width =
       (stageWithWorkEncoding n).width +
@@ -488,7 +491,7 @@ def stageWithFullRoundPathControlWorkspaceKaliskiStep
       StageWithFullRoundPathControlWorkspace n counterWidth :=
   fun x => (x.1, step x.2)
 
-@[simp] theorem stageWithFullRoundPathControlWorkspaceKaliskiStep_left
+@[simp] lemma stageWithFullRoundPathControlWorkspaceKaliskiStep_left
     {n counterWidth : Nat}
     (step :
       MK.RegistersWithFullRoundPathControlWork
@@ -500,7 +503,7 @@ def stageWithFullRoundPathControlWorkspaceKaliskiStep
   cases x
   rfl
 
-@[simp] theorem stageWithFullRoundPathControlWorkspaceKaliskiStep_right
+@[simp] lemma stageWithFullRoundPathControlWorkspaceKaliskiStep_right
     {n counterWidth : Nat}
     (step :
       MK.RegistersWithFullRoundPathControlWork
@@ -525,7 +528,7 @@ def stageWithFullRoundPathControlWorkspaceKaliskiProgram
   UnitaryCircuit.onBinarySuffix (stageWithWorkEncoding n).width program
 
 /-- Realization of a lifted path/control Montgomery--Kaliski program. -/
-theorem stageWithFullRoundPathControlWorkspaceKaliski_realizes
+lemma stageWithFullRoundPathControlWorkspaceKaliski_realizes
     {n counterWidth : Nat}
     {step :
       MK.RegistersWithFullRoundPathControlWork
@@ -537,16 +540,16 @@ theorem stageWithFullRoundPathControlWorkspaceKaliski_realizes
         n counterWidth).width)).toQuantum}
     (h : UnitaryCircuit.Realizes
       (MK.registersWithFullRoundPathControlWorkEncoding n counterWidth)
-      program step) :
+      program environment step) :
     UnitaryCircuit.Realizes
       (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-      (stageWithFullRoundPathControlWorkspaceKaliskiProgram program)
+      (stageWithFullRoundPathControlWorkspaceKaliskiProgram program) environment
       (stageWithFullRoundPathControlWorkspaceKaliskiStep step) :=
   UnitaryCircuit.Realizes.onBinarySuffix (left := stageWithWorkEncoding n) h
 
 /-- Clean endpoint for the target-add leg after lifting it over the
 path/control fixed-round workspace. -/
-theorem addScratchToTargetWithFullRoundPathControlWorkspace_cleanEndpoint
+lemma addScratchToTargetWithFullRoundPathControlWorkspace_cleanEndpoint
     (n counterWidth : Nat) (s : StageState (2 ^ n))
     (hflag : s.flag = false)
     (workspace :
@@ -559,7 +562,7 @@ theorem addScratchToTargetWithFullRoundPathControlWorkspace_cleanEndpoint
 
 /-- The target-add leg preserves the path/control fixed-round workspace
 pointwise. -/
-theorem addScratchToTargetWithFullRoundPathControlWorkspace_preservesWorkspace
+lemma addScratchToTargetWithFullRoundPathControlWorkspace_preservesWorkspace
     (n counterWidth : Nat)
     (x : StageWithFullRoundPathControlWorkspace n counterWidth) :
     (addScratchToTargetWithFullRoundPathControlWorkspace n counterWidth x).2 =
@@ -599,9 +602,9 @@ structure DecomposedStageWithWorkspaceWitness (n counterWidth : Nat) where
     UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((stageWithWorkspaceEncoding n
       counterWidth).width)).toQuantum
   /-- Correctness of the compute program on full workspace labels. -/
-  computeRealizes :
+  computeRealizes : ∀ environment : OracleModel.empty.Interpretation,
     UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-      computeProgram computeStep
+      computeProgram environment computeStep
   /-- The supplied uncompute semantic action is a right inverse of compute. -/
   compute_rightInverse : ∀ x, computeStep (uncomputeStep x) = x
 
@@ -625,27 +628,30 @@ def program {n counterWidth : Nat}
 
 /-- The decomposed full-workspace program realizes the selected
 compute/add/uncompute semantic update. -/
-theorem realizes {n counterWidth : Nat}
+lemma realizes {n counterWidth : Nat}
     (w : DecomposedStageWithWorkspaceWitness n counterWidth) :
-    UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth) w.program
+    UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth) w.program environment
       w.step := by
   have htarget :
       UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-        (stageWithWorkspaceTargetAddProgram n counterWidth)
+        (stageWithWorkspaceTargetAddProgram n counterWidth) environment
         (addScratchToTargetWithWorkspace n counterWidth) :=
     stageWithWorkspaceTargetAdd_realizes n counterWidth
   have huncompute :
       UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.uncomputeStep :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          environment w.uncomputeStep :=
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.computeRealizes environment)
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       w.compute_rightInverse
   have htail :
       UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
         (UnitaryCircuit.seq (stageWithWorkspaceTargetAddProgram n counterWidth)
-          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : StageWithWorkspace n counterWidth =>
           w.uncomputeStep (addScratchToTargetWithWorkspace n counterWidth x)) :=
     UnitaryCircuit.Realizes.seq
@@ -654,31 +660,32 @@ theorem realizes {n counterWidth : Nat}
       htarget huncompute
   have hfull :
       UnitaryCircuit.Realizes (stageWithWorkspaceEncoding n counterWidth)
-        w.program w.step :=
+        w.program environment w.step :=
     UnitaryCircuit.Realizes.seq
       (firstStep := w.computeStep)
       (secondStep := fun x : StageWithWorkspace n counterWidth =>
         w.uncomputeStep (addScratchToTargetWithWorkspace n counterWidth x))
-      w.computeRealizes htail
+      (w.computeRealizes environment) htail
   simpa [program, step, reversibleScheduleStepWithWorkspace] using hfull
 
 /-- Running the reversed compute semantics after the compute leg restores the
 full semantic workspace.  The proof uses injectivity of the realized base-gate
 program, so the cleanup fact stays tied to the same concrete program that
 supplies correctness and resource accounting. -/
-theorem compute_leftInverse {n counterWidth : Nat}
+lemma compute_leftInverse {n counterWidth : Nat}
     (w : DecomposedStageWithWorkspaceWitness n counterWidth) :
     ∀ x, w.uncomputeStep (w.computeStep x) = x := by
   intro x
-  have hinj := UnitaryCircuit.Realizes.injective w.computeRealizes
+  have hinj := UnitaryCircuit.Realizes.injective
+    (w.computeRealizes OracleModel.emptyInterpretation)
   apply hinj
   exact w.compute_rightInverse (w.computeStep x)
 
 /-- Encoded-basis correctness for all full-workspace staged inversion labels. -/
-theorem apply_ket {n counterWidth : Nat}
+lemma apply_ket {n counterWidth : Nat}
     (w : DecomposedStageWithWorkspaceWitness n counterWidth)
     (x : StageWithWorkspace n counterWidth) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (stageWithWorkspaceEncoding n counterWidth).width).basisEquiv.symm
@@ -731,10 +738,10 @@ structure DecomposedStageWithFullRoundWorkspaceWitness
     UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       ((stageWithFullRoundWorkspaceEncoding n counterWidth).width)).toQuantum
   /-- Correctness of the compute program on full workspace labels. -/
-  computeRealizes :
+  computeRealizes : ∀ environment : OracleModel.empty.Interpretation,
     UnitaryCircuit.Realizes
       (stageWithFullRoundWorkspaceEncoding n counterWidth)
-      computeProgram computeStep
+      computeProgram environment computeStep
   /-- The supplied uncompute semantic action is a right inverse of compute. -/
   compute_rightInverse : ∀ x, computeStep (uncomputeStep x) = x
 
@@ -750,16 +757,16 @@ def ofKaliski {n counterWidth : Nat}
         MK.RegistersWithFullRoundWork n counterWidth}
     (computeProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       ((MK.registersWithFullRoundWorkEncoding n counterWidth).width)).toQuantum)
-    (computeRealizes : UnitaryCircuit.Realizes
+    (computeRealizes : ∀ environment : OracleModel.empty.Interpretation, UnitaryCircuit.Realizes
       (MK.registersWithFullRoundWorkEncoding n counterWidth)
-      computeProgram computeStep)
+      computeProgram environment computeStep)
     (hright : ∀ x, computeStep (uncomputeStep x) = x) :
     DecomposedStageWithFullRoundWorkspaceWitness n counterWidth where
   computeStep := stageWithFullRoundWorkspaceKaliskiStep computeStep
   uncomputeStep := stageWithFullRoundWorkspaceKaliskiStep uncomputeStep
   computeProgram := stageWithFullRoundWorkspaceKaliskiProgram computeProgram
-  computeRealizes :=
-    stageWithFullRoundWorkspaceKaliski_realizes computeRealizes
+  computeRealizes := fun environment =>
+    stageWithFullRoundWorkspaceKaliski_realizes (computeRealizes environment)
   compute_rightInverse := by
     intro x
     cases x
@@ -785,8 +792,9 @@ def ofKaliskiActiveBranch {n counterWidth : Nat}
   ofKaliski
     (MK.fullRoundWorkKaliskiActiveBranchRoundProgram
       n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
-    (MK.fullRoundWorkKaliskiActiveBranchRound_realizes
-      n counterWidth uIndex vIndex comparisonIndex historyIndex branch)
+    (fun environment => (MK.fullRoundWorkKaliskiActiveBranchRound_realizes
+      (environment := environment)
+      n counterWidth uIndex vIndex comparisonIndex historyIndex branch))
     hright
 
 /-- Package the terminating counter-mode full-round witness as the compute leg
@@ -806,8 +814,9 @@ def ofKaliskiTerminating {tail counterWidth : Nat}
   ofKaliski
     (MK.fullRoundWorkTerminatingStandardLayoutProgram
       tail counterWidth)
-    (MK.fullRoundWorkTerminatingStandardLayout_realizes
-      tail counterWidth)
+    (fun environment => (MK.fullRoundWorkTerminatingStandardLayout_realizes
+      (environment := environment)
+      tail counterWidth))
     hright
 
 /-- Package the inactive padding full-round witness as the compute leg of the
@@ -826,8 +835,8 @@ def ofKaliskiInactivePadding {tail counterWidth : Nat}
   ofKaliski
     (MK.fullRoundWorkInactivePaddingProgram
       tail counterWidth)
-    (MK.fullRoundWorkInactivePadding_realizes
-      tail counterWidth)
+    (fun environment => (MK.fullRoundWorkInactivePadding_realizes (environment := environment)
+      tail counterWidth))
     hright
 
 /-- Package the selected branch-code/history/aux-shift full-round dispatch as
@@ -850,8 +859,9 @@ def ofKaliskiSelectedBranchCodeDispatch
   ofKaliski
     (MK.fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatchProgram
       tail counterWidth tempIndex historyIndex)
-    (MK.fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
-      tail counterWidth tempIndex historyIndex)
+    (fun environment => (MK.fullRoundWorkSelectedBranchCodeThenHistoryThenAuxShiftDispatch_realizes
+      (environment := environment)
+      tail counterWidth tempIndex historyIndex))
     hright
 
 /-- Package the compare-conditioned carried odd dispatch as the compute leg of
@@ -874,8 +884,9 @@ def ofKaliskiCompareCarriedDispatch
   ofKaliski
     (MK.fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatchProgram
       tail counterWidth comparisonIndex historyIndex)
-    (MK.fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatch_realizes
-      tail counterWidth comparisonIndex historyIndex)
+    (fun environment =>
+      MK.fullRoundWorkCompareSelectorSelectedOddThenCompareCarriedDispatch_realizes
+      (environment := environment) tail counterWidth comparisonIndex historyIndex)
     hright
 
 /-- Package the odd-odd latch-then-body full-round dispatch as the compute leg
@@ -893,8 +904,8 @@ def ofKaliskiOddOddLatchThenBody
   ofKaliski
     (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
-    (fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
-      tail counterWidth comparisonIndex historyIndex workIndex)
+    (fun environment => fullRoundWorkOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
+      (environment := environment) tail counterWidth comparisonIndex historyIndex workIndex)
     (fullRoundWorkOddOddLatchThenBody_compute_rightInverse
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -912,8 +923,8 @@ def ofKaliskiActiveOddOddLatchThenBody
   ofKaliski
     (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatchProgram
       tail counterWidth comparisonIndex historyIndex workIndex)
-    (fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
-      tail counterWidth comparisonIndex historyIndex workIndex)
+    (fun environment => fullRoundWorkActiveOddOddLatchThenSelectedOrCompareCarriedDispatch_realizes
+      (environment := environment) tail counterWidth comparisonIndex historyIndex workIndex)
     (fullRoundWorkActiveOddOddLatchThenBody_compute_rightInverse
       tail counterWidth comparisonIndex historyIndex workIndex)
 
@@ -938,24 +949,27 @@ def program {n counterWidth : Nat}
 
 /-- The decomposed full-round-workspace program realizes the selected
 compute/add/uncompute semantic update. -/
-theorem realizes {n counterWidth : Nat}
+lemma realizes {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundWorkspaceWitness n counterWidth) :
     UnitaryCircuit.Realizes
       (stageWithFullRoundWorkspaceEncoding n counterWidth)
-      w.program w.step := by
+      w.program environment w.step := by
   have htarget :
       UnitaryCircuit.Realizes
         (stageWithFullRoundWorkspaceEncoding n counterWidth)
-        (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth)
+        (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth) environment
         (addScratchToTargetWithFullRoundWorkspace n counterWidth) :=
     stageWithFullRoundWorkspaceTargetAdd_realizes n counterWidth
   have huncompute :
       UnitaryCircuit.Realizes
         (stageWithFullRoundWorkspaceEncoding n counterWidth)
-        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.uncomputeStep :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          environment w.uncomputeStep :=
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.computeRealizes environment)
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       w.compute_rightInverse
   have htail :
@@ -963,7 +977,7 @@ theorem realizes {n counterWidth : Nat}
         (stageWithFullRoundWorkspaceEncoding n counterWidth)
         (UnitaryCircuit.seq
           (stageWithFullRoundWorkspaceTargetAddProgram n counterWidth)
-          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : StageWithFullRoundWorkspace n counterWidth =>
           w.uncomputeStep
             (addScratchToTargetWithFullRoundWorkspace n counterWidth x)) :=
@@ -974,33 +988,34 @@ theorem realizes {n counterWidth : Nat}
   have hfull :
       UnitaryCircuit.Realizes
         (stageWithFullRoundWorkspaceEncoding n counterWidth)
-        w.program w.step :=
+        w.program environment w.step :=
     UnitaryCircuit.Realizes.seq
       (firstStep := w.computeStep)
       (secondStep := fun x : StageWithFullRoundWorkspace n counterWidth =>
         w.uncomputeStep
           (addScratchToTargetWithFullRoundWorkspace n counterWidth x))
-      w.computeRealizes htail
+      (w.computeRealizes environment) htail
   simpa [program, step, reversibleScheduleStepWithFullRoundWorkspace] using
     hfull
 
 /-- Running the reversed compute semantics after the compute leg restores the
 full fixed-round workspace.  This derives the forward cleanup projection from
 the realized reversible program plus the supplied semantic right inverse. -/
-theorem compute_leftInverse {n counterWidth : Nat}
+lemma compute_leftInverse {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundWorkspaceWitness n counterWidth) :
     ∀ x, w.uncomputeStep (w.computeStep x) = x := by
   intro x
-  have hinj := UnitaryCircuit.Realizes.injective w.computeRealizes
+  have hinj := UnitaryCircuit.Realizes.injective
+    (w.computeRealizes OracleModel.emptyInterpretation)
   apply hinj
   exact w.compute_rightInverse (w.computeStep x)
 
 /-- Encoded-basis correctness for all full-round-workspace staged inversion
 labels. -/
-theorem apply_ket {n counterWidth : Nat}
+lemma apply_ket {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundWorkspaceWitness n counterWidth)
     (x : StageWithFullRoundWorkspace n counterWidth) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (stageWithFullRoundWorkspaceEncoding n
@@ -1059,10 +1074,10 @@ structure DecomposedStageWithFullRoundPathControlWorkspaceWitness
     UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       ((stageWithFullRoundPathControlWorkspaceEncoding n counterWidth).width)).toQuantum
   /-- Correctness of the compute program on path/control workspace labels. -/
-  computeRealizes :
+  computeRealizes : ∀ environment : OracleModel.empty.Interpretation,
     UnitaryCircuit.Realizes
       (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-      computeProgram computeStep
+      computeProgram environment computeStep
   /-- The supplied uncompute semantic action is a right inverse of compute. -/
   compute_rightInverse : ∀ x, computeStep (uncomputeStep x) = x
 
@@ -1079,9 +1094,9 @@ def ofKaliski {n counterWidth : Nat}
     (computeProgram : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
       ((MK.registersWithFullRoundPathControlWorkEncoding
         n counterWidth).width)).toQuantum)
-    (computeRealizes : UnitaryCircuit.Realizes
+    (computeRealizes : ∀ environment : OracleModel.empty.Interpretation, UnitaryCircuit.Realizes
       (MK.registersWithFullRoundPathControlWorkEncoding n counterWidth)
-      computeProgram computeStep)
+      computeProgram environment computeStep)
     (hright : ∀ x, computeStep (uncomputeStep x) = x) :
     DecomposedStageWithFullRoundPathControlWorkspaceWitness
       n counterWidth where
@@ -1091,8 +1106,8 @@ def ofKaliski {n counterWidth : Nat}
     stageWithFullRoundPathControlWorkspaceKaliskiStep uncomputeStep
   computeProgram :=
     stageWithFullRoundPathControlWorkspaceKaliskiProgram computeProgram
-  computeRealizes :=
-    stageWithFullRoundPathControlWorkspaceKaliski_realizes computeRealizes
+  computeRealizes := fun environment =>
+    stageWithFullRoundPathControlWorkspaceKaliski_realizes (computeRealizes environment)
   compute_rightInverse := by
     intro x
     cases x
@@ -1121,8 +1136,8 @@ def ofKaliskiFixedRoundPathControl
   ofKaliski
     (MK.fixedRoundPathControlWorkKaliskiRoundFoldProgram
       tail counterWidth comparisonIndex workIndex)
-    (MK.fixedRoundPathControlWorkKaliskiRoundFold_realizes
-      tail counterWidth comparisonIndex workIndex)
+    (fun environment => MK.fixedRoundPathControlWorkKaliskiRoundFold_realizes
+      (environment := environment) tail counterWidth comparisonIndex workIndex)
     hright
 
 /-- Package the folded fixed-round path/control route using the semantic
@@ -1164,17 +1179,17 @@ def program {n counterWidth : Nat}
 
 /-- The decomposed path/control workspace program realizes the selected
 compute/add/uncompute semantic update. -/
-theorem realizes {n counterWidth : Nat}
+lemma realizes {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundPathControlWorkspaceWitness
       n counterWidth) :
     UnitaryCircuit.Realizes
       (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-      w.program w.step := by
+      w.program environment w.step := by
   have htarget :
       UnitaryCircuit.Realizes
         (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
         (stageWithFullRoundPathControlWorkspaceTargetAddProgram
-          n counterWidth)
+          n counterWidth) environment
         (addScratchToTargetWithFullRoundPathControlWorkspace
           n counterWidth) :=
     stageWithFullRoundPathControlWorkspaceTargetAdd_realizes
@@ -1182,10 +1197,13 @@ theorem realizes {n counterWidth : Nat}
   have huncompute :
       UnitaryCircuit.Realizes
         (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) w.uncomputeStep :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+          environment w.uncomputeStep :=
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.computeRealizes environment)
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       w.compute_rightInverse
   have htail :
@@ -1194,7 +1212,7 @@ theorem realizes {n counterWidth : Nat}
         (UnitaryCircuit.seq
           (stageWithFullRoundPathControlWorkspaceTargetAddProgram
             n counterWidth)
-          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : StageWithFullRoundPathControlWorkspace n counterWidth =>
           w.uncomputeStep
             (addScratchToTargetWithFullRoundPathControlWorkspace
@@ -1207,7 +1225,7 @@ theorem realizes {n counterWidth : Nat}
   have hfull :
       UnitaryCircuit.Realizes
         (stageWithFullRoundPathControlWorkspaceEncoding n counterWidth)
-        w.program w.step :=
+        w.program environment w.step :=
     UnitaryCircuit.Realizes.seq
       (firstStep := w.computeStep)
       (secondStep :=
@@ -1215,28 +1233,29 @@ theorem realizes {n counterWidth : Nat}
           w.uncomputeStep
             (addScratchToTargetWithFullRoundPathControlWorkspace
               n counterWidth x))
-      w.computeRealizes htail
+      (w.computeRealizes environment) htail
   simpa [program, step,
     reversibleScheduleStepWithFullRoundPathControlWorkspace] using hfull
 
 /-- Running the reversed compute semantics after the path/control compute leg
 restores the full staged workspace. -/
-theorem compute_leftInverse {n counterWidth : Nat}
+lemma compute_leftInverse {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundPathControlWorkspaceWitness
       n counterWidth) :
     ∀ x, w.uncomputeStep (w.computeStep x) = x := by
   intro x
-  have hinj := UnitaryCircuit.Realizes.injective w.computeRealizes
+  have hinj := UnitaryCircuit.Realizes.injective
+    (w.computeRealizes OracleModel.emptyInterpretation)
   apply hinj
   exact w.compute_rightInverse (w.computeStep x)
 
 /-- Encoded-basis correctness for all path/control full-workspace staged
 inversion labels. -/
-theorem apply_ket {n counterWidth : Nat}
+lemma apply_ket {n counterWidth : Nat}
     (w : DecomposedStageWithFullRoundPathControlWorkspaceWitness
       n counterWidth)
     (x : StageWithFullRoundPathControlWorkspace n counterWidth) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (stageWithFullRoundPathControlWorkspaceEncoding

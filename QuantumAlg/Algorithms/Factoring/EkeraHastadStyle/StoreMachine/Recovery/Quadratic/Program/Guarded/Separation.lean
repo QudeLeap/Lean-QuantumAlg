@@ -59,7 +59,7 @@ structure ShortSelectionSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (FirstAccepted.cellRead selection.selected).storageKeys
 
 /-- Distinct named quadratic cells avoid each other's storage key. -/
-private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
+private lemma cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
     (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (left right : Layout.Cell) (different : left ≠ right) :
     (Layout.cellRef cells right).toCStorageRef.key ∉
@@ -70,7 +70,7 @@ private theorem cellAvoids {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat
     (QuadraticScratchLayout.cellRef_key_injective cells distinct equal.symm)
 
 /-- Physical distinctness supplies the four-word reset separation. -/
-private theorem resetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma resetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (factorSelection : FirstAccepted.Refs ctx
@@ -85,7 +85,7 @@ private theorem resetSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     cellAvoids cells distinct .sqrtHalf .sqrtOutput (by decide)⟩
 
 /-- Four pointwise avoidances project to the reset caller-frame contract. -/
-private theorem resetCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma resetCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (factorSelection : FirstAccepted.Refs ctx
@@ -100,7 +100,7 @@ private theorem resetCallerFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
   ⟨wide, root, half, output⟩
 
 /-- One persistent quadratic constant is framed by the reset. -/
-private theorem constantResetFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma constantResetFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (factorSelection : FirstAccepted.Refs ctx
@@ -118,7 +118,7 @@ private theorem constantResetFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (cellAvoids cells distinct _ .sqrtOutput (by decide))
 
 /-- One persistent factor-selector cell is framed by the reset. -/
-private theorem factorResetFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma factorResetFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (factorSelection : FirstAccepted.Refs ctx
@@ -136,7 +136,7 @@ private theorem factorResetFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (separation.avoidsQuadratic factor .sqrtOutput)
 
 /-- Full guarded separation follows from the three physical certificates. -/
-theorem guardedSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma guardedSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} (cells : Layout.Cells ctx N) (distinct : cells.Distinct)
     (shortSelection : FirstAccepted.Direct.Refs ctx
       (QuadraticScratchLayout.ShortWidth N))

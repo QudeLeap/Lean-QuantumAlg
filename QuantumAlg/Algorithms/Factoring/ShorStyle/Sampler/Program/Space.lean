@@ -35,7 +35,7 @@ def additionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   SpacePool.ofShape (.bits (9 * width + 14))
 
 /-- Loading and scanning reuse exactly the already present resident context. -/
-theorem samplerScan_resident_le (N : Nat)
+lemma samplerScan_resident_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (path : (Scan.circuit (model := model) N sample).Path) :
     (Scan.circuit (model := model) N sample).peakResidentSpace path ≤
@@ -50,7 +50,7 @@ theorem samplerScan_resident_le (N : Nat)
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2)
 
 /-- The actual loader and scan add no auxiliary storage beyond their existing cells. -/
-theorem samplerScan_auxiliary_le (N : Nat)
+lemma samplerScan_auxiliary_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (path : (Scan.circuit (model := model) N sample).Path) :
     (Scan.circuit (model := model) N sample).peakAuxiliarySpace path ≤
@@ -65,7 +65,7 @@ theorem samplerScan_auxiliary_le (N : Nat)
       (Layout.shared ctx (modulusBits N)) (Layout.scratch ctx (modulusBits N)) path.2)
 
 /-- The complete inner resident peak adds only the real selected Euclidean work. -/
-theorem samplerInner_resident_le (N : Nat)
+lemma samplerInner_resident_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (inner (model := model) N sample output).Path) :
@@ -84,7 +84,7 @@ theorem samplerInner_resident_le (N : Nat)
       (Layout.underWrite output (modulusBits N)) path.2
 
 /-- The complete inner auxiliary peak includes every actually allocated Euclidean cell. -/
-theorem samplerInner_auxiliary_le (N : Nat)
+lemma samplerInner_auxiliary_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (inner (model := model) N sample output).Path) :
@@ -102,7 +102,7 @@ theorem samplerInner_auxiliary_le (N : Nat)
       (Layout.scratch ctx (modulusBits N)) (Layout.gcdResultCell ctx (modulusBits N))
       (Layout.underWrite output (modulusBits N)) path.2
 
-private theorem resident_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat) :
+private lemma resident_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat) :
     (Layout.context ctx width).residentSpace +
       NumberTheory.GCD.lexicalAdditionalSpace kind (width + 1) =
         ctx.residentSpace + additionalSpace kind width := by
@@ -113,7 +113,7 @@ private theorem resident_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (wi
     simp [Layout.cellSpace, NumberTheory.GCD.lexicalAdditionalSpace,
       additionalSpace, SpacePool.ofShape]; omega
 
-private theorem auxiliary_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat) :
+private lemma auxiliary_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (width : Nat) :
     (Layout.context ctx width).auxiliarySpace +
       NumberTheory.GCD.lexicalAdditionalSpace kind (width + 1) =
         ctx.auxiliarySpace + additionalSpace kind width := by
@@ -125,7 +125,7 @@ private theorem auxiliary_budget {kind : ProblemKind} {ctx : RuntimeCtx kind} (w
       additionalSpace, SpacePool.ofShape]; omega
 
 /-- The actual scoped program has the complete independent additional resident allowance. -/
-theorem samplerProgram_resident_le (N : Nat)
+lemma samplerProgram_resident_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (circuit (model := model) N sample output).Path) :
@@ -137,7 +137,7 @@ theorem samplerProgram_resident_le (N : Nat)
       (resident_budget (ctx := ctx) (modulusBits N))
 
 /-- The same path accounts for all live workspace roles throughout entry, body and release. -/
-theorem samplerProgram_auxiliary_le (N : Nat)
+lemma samplerProgram_auxiliary_le (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N)))
     (path : (circuit (model := model) N sample output).Path) :

@@ -22,7 +22,7 @@ suffix. This is only a matrix projection of the placed four-gate circuit.
 namespace QuantumAlg.Gate.Rotation.Multiplex
 noncomputable section
 
-private theorem firstDecoded (width : Nat) (selector phase : Fin 2)
+private lemma firstDecoded (width : Nat) (selector phase : Fin 2)
     (rest : Fin (2 ^ width)) :
     (QuantumSignature.qubitsIndexEquiv (1 + (1 + width))).symm
       (prodEquiv (selector, prodEquiv (phase, rest))) (0 : Fin (1 + (1 + width))) =
@@ -33,7 +33,7 @@ private theorem firstDecoded (width : Nat) (selector phase : Fin 2)
     fin_cases selector <;> rfl
   exact original.trans first
 
-private theorem secondDecoded (width : Nat) (selector phase : Fin 2)
+private lemma secondDecoded (width : Nat) (selector phase : Fin 2)
     (rest : Fin (2 ^ width)) :
     (QuantumSignature.qubitsIndexEquiv (1 + (1 + width))).symm
       (prodEquiv (selector, prodEquiv (phase, rest)))
@@ -54,7 +54,7 @@ private def binaryWeight (width : Nat) (zeroAngle oneAngle : ℝ)
     (Fin.natAdd 1 (0 : Fin (1 + width)))
   weight (if control = 0 then zeroAngle else oneAngle) phase
 
-private theorem binaryWeight_triple (width : Nat) (zeroAngle oneAngle : ℝ)
+private lemma binaryWeight_triple (width : Nat) (zeroAngle oneAngle : ℝ)
     (selector phase : Fin 2) (source : Fin (2 ^ width)) :
     binaryWeight width zeroAngle oneAngle (prodEquiv (selector, prodEquiv (phase, source))) =
       weight (if selector = 0 then zeroAngle else oneAngle) phase :=
@@ -63,14 +63,14 @@ private theorem binaryWeight_triple (width : Nat) (zeroAngle oneAngle : ℝ)
     (firstDecoded width selector phase source) (secondDecoded width selector phase source)
 
 /-- Exact selector block decomposition of the placed word on the whole original source suffix. -/
-theorem circuitAt_prefix_binaryMatrix (oracles : OracleModel) (width : Nat)
-    (zeroAngle oneAngle : ℝ) :
-    ((circuitAt (width := 1 + (1 + width)) 0 (Fin.natAdd 1 (0 : Fin (1 + width))) (by
+lemma circuitAt_prefix_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (zeroAngle oneAngle : ℝ) (environment : oracles.Interpretation) :
+    (((circuitAt (width := 1 + (1 + width)) 0 (Fin.natAdd 1 (0 : Fin (1 + width))) (by
       intro same
       have values := congrArg Fin.val same
       change 0 = 1 + 0 at values
       omega)
-      oracles zeroAngle oneAngle).binaryMatrix :
+      oracles zeroAngle oneAngle).binaryMatrix environment) :
         HilbertOperator (Qubits (1 + (1 + width)))) =
       HilbertOperator.tensor HilbertOperator.proj0
         (HilbertOperator.tensor (rotZStdOp zeroAngle : HilbertOperator (Qubits 1))
@@ -79,11 +79,11 @@ theorem circuitAt_prefix_binaryMatrix (oracles : OracleModel) (width : Nat)
         (HilbertOperator.tensor (rotZStdOp oneAngle : HilbertOperator (Qubits 1))
           (1 : HilbertOperator (Qubits width))) := by
   have diagonal :
-      ((circuitAt (width := 1 + (1 + width)) 0 (Fin.natAdd 1 (0 : Fin (1 + width))) (by
+      (((circuitAt (width := 1 + (1 + width)) 0 (Fin.natAdd 1 (0 : Fin (1 + width))) (by
         intro same
         have values := congrArg Fin.val same
         change 0 = 1 + 0 at values
-        omega) oracles zeroAngle oneAngle).binaryMatrix :
+        omega) oracles zeroAngle oneAngle).binaryMatrix environment) :
           HilbertOperator (Qubits (1 + (1 + width)))) =
         Matrix.diagonal (binaryWeight width zeroAngle oneAngle) := by
     rw [UnitaryCircuit.binaryMatrix, UnitaryOperator.coe_reindex, circuitAt_matrix]

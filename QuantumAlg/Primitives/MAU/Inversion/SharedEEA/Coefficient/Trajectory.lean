@@ -32,7 +32,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA
 
-private theorem count_fits (state : IterationState) (modulus count : Nat)
+private lemma count_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (within : count ≤ state.quotient.size) : count < 2 ^ modulus.size.size :=
   (within.trans (CoefficientPhaseFrame.quotient_size_le state modulus valid conserved)).trans_lt
@@ -61,7 +61,7 @@ def phaseFrame (state : IterationState) (modulus count : Nat)
     decide (count = state.quotient.size), iteration⟩
   control := false
 
-private theorem frame_eq_consume (state : IterationState) (modulus count : Nat)
+private lemma frame_eq_consume (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     phaseFrame state modulus count valid conserved active beforeEnd.le iteration =
@@ -71,7 +71,7 @@ private theorem frame_eq_consume (state : IterationState) (modulus count : Nat)
   rw [decide_eq_false (Nat.ne_of_lt beforeEnd)]
   rfl
 
-private theorem next_eq_frame (state : IterationState) (modulus count : Nat)
+private lemma next_eq_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     let expected := CoefficientAdvance.nextFrame state modulus count
@@ -105,7 +105,7 @@ private theorem next_eq_frame (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The same complete native microstep advances the phase frame at every active position. -/
-theorem microstep_frame (state : IterationState) (modulus count : Nat)
+lemma microstep_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     NativeMicrostep.step modulus.size
@@ -117,7 +117,7 @@ theorem microstep_frame (state : IterationState) (modulus count : Nat)
   exact next_eq_frame state modulus count valid conserved active beforeEnd iteration
 
 /-- Every bounded iteration of the actual native program has the complete specified frame. -/
-theorem iterate_frame (state : IterationState) (modulus count : Nat)
+lemma iterate_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (within : count ≤ state.quotient.size) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[count]
@@ -135,7 +135,7 @@ theorem iterate_frame (state : IterationState) (modulus count : Nat)
       exact microstep_frame state modulus count valid conserved active (by omega) iteration
 
 /-- Exact quotient consumption reaches the actual phase-four entry, including its Sign one. -/
-theorem finish_frame (state : IterationState) (modulus : Nat)
+lemma finish_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[state.quotient.size]
@@ -144,7 +144,7 @@ theorem finish_frame (state : IterationState) (modulus : Nat)
   iterate_frame state modulus _ valid conserved active le_rfl iteration
 
 /-- The full coefficient phase leaves no quotient, but retains the exact shift and entry flags. -/
-theorem finish_fields (state : IterationState) (modulus : Nat)
+lemma finish_fields (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     let result := (NativeMicrostep.step modulus.size)^[state.quotient.size]

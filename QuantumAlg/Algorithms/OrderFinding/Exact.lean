@@ -9,6 +9,8 @@ module
 public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Endpoint
 public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Projections
 public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Counts
+public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Canonical
+public import QuantumAlg.Algorithms.OrderFinding.Exact.Native.Results
 
 public import QuantumAlg.Algorithms.OrderFinding.Native.Macros
 public import QuantumAlg.Util.Order.Finding.Signed

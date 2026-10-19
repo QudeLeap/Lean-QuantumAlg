@@ -33,42 +33,39 @@ open QuantumAlg.Execution
 public def depthBudget (t width : Nat) : Nat :=
   (if t + width = 0 then 0 else 1) +
     ((if t = 0 then 0 else 1) + 1 +
-      (t + 5 * t.choose 2 + 3 * (t / 2))) + t + 1
+      (t + 5 * t.choose 2 + (if t / 2 = 0 then 0 else 3))) + t + 1
 
-private theorem preparation_depth {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
+private lemma preparation_depth (t width : Nat) :
     DepthExpr.depthEval (fun _ => 1)
       (ZeroPreparation.eventDepth AlgorithmGate.model
-        (OrderFinding.Native.sourceModel access)
+        (OrderFinding.Native.sourceModel t width)
         (runtimeLayout t width) BitWord.model .empty) =
       if t + width = 0 then 0 else 1 :=
   ZeroPreparation.zeroPreparation_unit_depth AlgorithmGate.model
-    (OrderFinding.Native.sourceModel access) (runtimeLayout t width)
+    (OrderFinding.Native.sourceModel t width) (runtimeLayout t width)
     BitWord.model .empty
 
-private theorem program_depth {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
+private lemma program_depth (t width : Nat) :
     DepthExpr.depthEval (fun _ => 1)
-      ((nativeProgram access).eventDepth BitWord.model .empty) =
+      ((nativeProgram t width).eventDepth BitWord.model .empty) =
       (if t = 0 then 0 else 1) + 1 +
-        (t + 5 * t.choose 2 + 3 * (t / 2)) := by
+        (t + 5 * t.choose 2 + (if t / 2 = 0 then 0 else 3)) := by
   rw [UnitaryCircuit.unitaryCircuit_unit_depth_classical_context]
-  change (OrderFinding.Native.circuit access).evaluatedEventDepth (fun _ => 1) = _
-  exact OrderFinding.Native.circuit_unit_depth access
+  change (OrderFinding.Native.circuit t width).evaluatedEventDepth (fun _ => 1) = _
+  exact OrderFinding.Native.circuit_unit_depth t width
 
 /-- Every complete path has the independently stated unit-event depth. -/
-public theorem code_depth {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (path : (code access).Path) :
-    (code access).depth (fun _ => 1) path = depthBudget t width := by
+public lemma code_depth (t width : Nat) (path : (code t width).Path) :
+    (code t width).depth (fun _ => 1) path = depthBudget t width := by
   change (DepthExpr.depthEval (fun _ => 1)
       (ZeroPreparation.eventDepth AlgorithmGate.model
-        (OrderFinding.Native.sourceModel access)
+        (OrderFinding.Native.sourceModel t width)
         (runtimeLayout t width) BitWord.model .empty) +
-    (DepthExpr.depthEval (fun _ => 1) ((nativeProgram access).eventDepth BitWord.model .empty) +
-      (0 + (MeasurementCells.allocate (model := model access)
+    (DepthExpr.depthEval (fun _ => 1) ((nativeProgram t width).eventDepth BitWord.model .empty) +
+      (0 + (MeasurementCells.allocate (model := model t width)
         (resultContext t width) 2 t).depth (fun _ => 1) path.1.2.2.2))) +
     ((Circuit.measurementSequence (gates := AlgorithmGate.model)
-      (oracles := OrderFinding.Native.sourceModel access)
+      (oracles := OrderFinding.Native.sourceModel t width)
       (operations := BitWord.model) (classicalOracles := .empty)
       (readouts t width)).depth (fun _ => 1) path.2.1 + 1) = _
   rw [preparation_depth, program_depth, MeasurementCells.allocate_depth,

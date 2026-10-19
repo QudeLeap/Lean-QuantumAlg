@@ -32,12 +32,14 @@ attribute [local instance] Classical.decEq Classical.propDecidable
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- The real writes selected by one full basis label, retaining every other storage key. -/
-@[expose] public def writtenStore (I : ECDLPInstance E) (A : Access I)
+@[expose] public def writtenStore (I : ECDLPInstance E)
     (stored : Store (post I)) (basis : (post I).register.Index) : Store (post I) :=
-  Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := model I A)
+  Circuit.writeMeasurementPath (allowAllocation := true)
+    (gates := AlgorithmGate.model) (oracles := model I)
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (readouts I) stored
-    (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := model I A)
+    (Circuit.measurementBasisPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := model I)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts I) basis)
 
@@ -47,7 +49,7 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
   ∀ index : Fin (sampleWidth I),
     left (exponentPosition I index) = right (exponentPosition I index)
 
-private theorem labelsAgree_iff (ctx : RuntimeCtx .quantum) (items : List (ZReadout ctx))
+private lemma labelsAgree_iff (ctx : RuntimeCtx .quantum) (items : List (ZReadout ctx))
     (left right : ctx.register.Index) :
     Circuit.measurementLabelsAgree items left right ↔
       ∀ item ∈ items, left item.wire = right item.wire := by
@@ -55,7 +57,7 @@ private theorem labelsAgree_iff (ctx : RuntimeCtx .quantum) (items : List (ZRead
   | nil => simp [Circuit.measurementLabelsAgree]
   | cons head tail ih => simp [Circuit.measurementLabelsAgree, ih]
 
-private theorem readouts_agree (I : ECDLPInstance E)
+private lemma readouts_agree (I : ECDLPInstance E)
     (left right : (post I).register.Index) :
     Circuit.measurementLabelsAgree (readouts I) left right ↔ readoutsAgree I left right := by
   rw [labelsAgree_iff]
@@ -67,17 +69,17 @@ private theorem readouts_agree (I : ECDLPInstance E)
     exact agrees index
 
 /-- A scalar observation of the original state, selecting the actual complete-store write fiber. -/
-public def readoutEntry (I : ECDLPInstance E) (A : Access I)
+public def readoutEntry (I : ECDLPInstance E)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (post I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (post I) Reference ((executionModel I).HiddenState × History))
     (stored : Store (post I)) (left right : (post I).register.Index)
     (leftRef rightRef : Reference.Index) : ℂ :=
   ExecutionState.weightedMatrixEntry state
-    (fun original => if writtenStore I A original.1 left = stored then 1 else 0)
+    (fun original => if writtenStore I original.1 left = stored then 1 else 0)
     (left, leftRef) (right, rightRef)
 
 /-- Every measured exponent qubit writes its own distinct retained cell. -/
-public theorem readouts_nodup (I : ECDLPInstance E) :
+public lemma readouts_nodup (I : ECDLPInstance E) :
     ((readouts I).map fun item => item.output.key).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -87,18 +89,21 @@ public theorem readouts_nodup (I : ECDLPInstance E) :
   exact MeasurementCells.reference_key_injective (bankContext I) 2 (sampleWidth I) same
 
 /-- The actual sequential writes retain the exact value of each original exponent qubit. -/
-public theorem measured_cell (I : ECDLPInstance E) (A : Access I)
+public lemma measured_cell (I : ECDLPInstance E)
     (stored : Store (post I)) (basis : (post I).register.Index)
     (index : Fin (sampleWidth I)) :
-    ((Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := model I A)
+    ((Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := model I)
       (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
       (readouts I) stored
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := model I A)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := model I)
         (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
         (readouts I) basis)).read (.storage (cell I index).toCStorageRef)).toFin.val =
       (basis (exponentPosition I index)).val := by
-  have actual := Circuit.writeMeasurementBasis_read (gates := AlgorithmGate.model)
-    (oracles := model I A) (operations := BitWord.model) (services := ClassicalOracleModel.empty)
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
+    (gates := AlgorithmGate.model)
+    (oracles := model I) (operations := BitWord.model) (services := ClassicalOracleModel.empty)
     (readouts I) (readouts_nodup I) (readout I index)
     (List.mem_ofFn.mpr ⟨index, rfl⟩) stored basis
   have numeric := congrArg (fun value => value.toFin.val) actual
@@ -107,20 +112,21 @@ public theorem measured_cell (I : ECDLPInstance E) (A : Access I)
   exact numeric
 
 /-- Each final complete store has exactly its actual quantum-reference measurement fiber. -/
-public theorem readoutCode_store_entry (I : ECDLPInstance E) (A : Access I)
+public lemma readoutCode_store_entry (I : ECDLPInstance E) (A : Access I)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State (post I) Reference ((executionModel I A).HiddenState × History))
+    (state : State (post I) Reference ((executionModel I).HiddenState × History))
     (stored : Store (post I)) (left right : (post I).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((readoutCode I A).execute Reference state).mapClassical
+    ((((readoutCode I).execute (sourceEnvironment I A) Reference state).mapClassical
       (fun record => record.1)).block stored).matrix
         (left, leftRef) (right, rightRef) =
       if readoutsAgree I left right then
-        readoutEntry I A state stored left right leftRef rightRef
+        readoutEntry I state stored left right leftRef rightRef
       else 0 := by
   rw [BasisSeeded.store_matrix]
-  have actual := Circuit.measurementSequence_store_matrix_entry
-    (gates := AlgorithmGate.model) (oracles := model I A)
+  have actual := Circuit.measurementSequence_store_matrix_entry (allowAllocation := true)
+    (environment := sourceEnvironment I A)
+    (gates := AlgorithmGate.model) (oracles := model I)
     (operations := BitWord.model) (classicalOracles := ClassicalOracleModel.empty)
     (readouts I) state stored left right leftRef rightRef
   rw [readouts_agree] at actual

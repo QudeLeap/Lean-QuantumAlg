@@ -19,7 +19,7 @@ contains two one-qubit gates and two CNOTs, with no access to the source.
 namespace QuantumAlg.QSP.MultiQubit.QSVT.Shared
 noncomputable section
 
-private theorem rotation_scale (angle : ℝ) : rotZStdOp (-2 * angle) = rotZOp angle := by
+private lemma rotation_scale (angle : ℝ) : rotZStdOp (-2 * angle) = rotZOp angle := by
   unfold rotZStdOp
   congr 1
   ring
@@ -35,11 +35,12 @@ def selectedInitial (oracles : OracleModel) (width : Nat) (zero one : ℝ) :
     omega) oracles (-2 * Real.arccos zero) (-2 * Real.arccos one)
 
 /-- The full matrix has exactly the two independently specified constant branches. -/
-theorem selectedInitial_matrix (oracles : OracleModel) (width : Nat) (zero one : ℝ) :
-    ((selectedInitial oracles width zero one).binaryMatrix :
+lemma selectedInitial_matrix (oracles : OracleModel) (width : Nat) (zero one : ℝ)
+    (environment : oracles.Interpretation) :
+    (((selectedInitial oracles width zero one).binaryMatrix environment) :
       HilbertOperator (Qubits (1 + (1 + width)))) =
-      Native.branchMatrix (constantInitial oracles width zero).binaryMatrix
-        (constantInitial oracles width one).binaryMatrix := by
+      Native.branchMatrix ((constantInitial oracles width zero).binaryMatrix environment)
+        ((constantInitial oracles width one).binaryMatrix environment) := by
   rw [selectedInitial, Gate.Rotation.Multiplex.circuitAt_prefix_binaryMatrix,
     rotation_scale, rotation_scale]
   simp only [constantInitial, Gate.singleQubitAt_first_binaryMatrix, Native.branchMatrix,
@@ -47,13 +48,13 @@ theorem selectedInitial_matrix (oracles : OracleModel) (width : Nat) (zero one :
   rfl
 
 /-- All four native events remain visible even when one supplied constant equals one. -/
-theorem selectedInitial_eventTrace (oracles : OracleModel) (width : Nat) (zero one : ℝ) :
+lemma selectedInitial_eventTrace (oracles : OracleModel) (width : Nat) (zero one : ℝ) :
     (selectedInitial oracles width zero one).eventTrace =
       [.gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot] := by
   rw [selectedInitial, Gate.Rotation.Multiplex.circuitAt_eventTrace]
 
 /-- Query-free initialization still occupies four actual native dependency steps. -/
-theorem selectedInitial_depth (oracles : OracleModel) (width : Nat) (zero one : ℝ) :
+lemma selectedInitial_depth (oracles : OracleModel) (width : Nat) (zero one : ℝ) :
     (selectedInitial oracles width zero one).evaluatedEventDepth (fun _ => 1) = 4 := by
   rw [selectedInitial, Gate.Rotation.Multiplex.circuitAt_depth]
 

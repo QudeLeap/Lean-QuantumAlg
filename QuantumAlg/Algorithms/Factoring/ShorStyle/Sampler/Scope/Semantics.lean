@@ -26,15 +26,16 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel} {environment : model.Environment} {ctx : RuntimeCtx model.kind}
 
 -- This private predicate only packages the existing full interpreter equation.
 -- Keeping it closed while composing scopes avoids expanding path instances at each layer.
-private def ExecutesBy {ctx : RuntimeCtx model.kind} (code : Circuit model ctx ctx)
+private def ExecutesBy (environment : model.Environment) {ctx : RuntimeCtx model.kind}
+    (code : Circuit model ctx ctx)
     (update : Store ctx → Store ctx × code.Path) : Prop :=
   ∀ (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)),
-    code.execute Reference state = state.mapClassical (fun entry =>
+    code.execute environment Reference state = state.mapClassical (fun entry =>
       ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2))))
 
 private def workspaceUpdate (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
@@ -45,16 +46,16 @@ private def workspaceUpdate (key : StorageKey) (shape : CShape) (fresh : key ∉
   let next := update (store.pushWorkspace key shape fresh)
   (Store.popWorkspace key shape fresh next.1, next.2)
 
-private theorem workspace_executesBy (key : StorageKey) (shape : CShape)
+private lemma workspace_executesBy (key : StorageKey) (shape : CShape)
     (fresh : key ∉ ctx.keys)
     (body : Circuit model (ctx.addWorkspace key shape fresh) (ctx.addWorkspace key shape fresh))
     (update : Store (ctx.addWorkspace key shape fresh) →
       Store (ctx.addWorkspace key shape fresh) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (Circuit.workspace ctx key shape fresh body)
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (Circuit.workspace ctx key shape fresh body)
       (workspaceUpdate key shape fresh body update) := by
   intro Reference History historyFinite state
-  refine (Circuit.execute_workspace_mapClassical key shape fresh body
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) key shape fresh body
     (fun entry =>
       let result := update entry.1
       ((result.1, entry.2), result.2))
@@ -81,11 +82,12 @@ private def update10 (width : Nat)
   (Store.popWorkspace (Layout.availableCtx ctx width).canonicalFreshKey .bit
     (Layout.availableCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation10 (width : Nat)
+private lemma equation10 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body10 (ctx := ctx) width body) (update10 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body10 (ctx := ctx) width body)
+      (update10 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.availableCtx ctx width).canonicalFreshKey
     .bit (Layout.availableCtx ctx width).canonicalFreshKey_fresh
     body update
@@ -109,11 +111,12 @@ private def update9 (width : Nat)
   (Store.popWorkspace (Layout.selectedCtx ctx width).canonicalFreshKey .bit
     (Layout.selectedCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation9 (width : Nat)
+private lemma equation9 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body9 (ctx := ctx) width body) (update9 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body9 (ctx := ctx) width body)
+      (update9 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.selectedCtx ctx width).canonicalFreshKey
     .bit (Layout.selectedCtx ctx width).canonicalFreshKey_fresh
     (body10 (ctx := ctx) width body) (update10 (ctx := ctx) width body update)
@@ -137,11 +140,12 @@ private def update8 (width : Nat)
   (Store.popWorkspace (Layout.acceptedCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (Layout.acceptedCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation8 (width : Nat)
+private lemma equation8 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body8 (ctx := ctx) width body) (update8 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body8 (ctx := ctx) width body)
+      (update8 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.acceptedCtx ctx width).canonicalFreshKey
     (.unsignedWord width) (Layout.acceptedCtx ctx width).canonicalFreshKey_fresh
     (body9 (ctx := ctx) width body) (update9 (ctx := ctx) width body update)
@@ -165,11 +169,12 @@ private def update7 (width : Nat)
   (Store.popWorkspace (Layout.eligibleCtx ctx width).canonicalFreshKey .bit
     (Layout.eligibleCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation7 (width : Nat)
+private lemma equation7 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body7 (ctx := ctx) width body) (update7 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body7 (ctx := ctx) width body)
+      (update7 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.eligibleCtx ctx width).canonicalFreshKey
     .bit (Layout.eligibleCtx ctx width).canonicalFreshKey_fresh
     (body8 (ctx := ctx) width body) (update8 (ctx := ctx) width body update)
@@ -193,11 +198,12 @@ private def update6 (width : Nat)
   (Store.popWorkspace (Layout.belowCtx ctx width).canonicalFreshKey .bit
     (Layout.belowCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation6 (width : Nat)
+private lemma equation6 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body6 (ctx := ctx) width body) (update6 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body6 (ctx := ctx) width body)
+      (update6 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.belowCtx ctx width).canonicalFreshKey
     .bit (Layout.belowCtx ctx width).canonicalFreshKey_fresh
     (body7 (ctx := ctx) width body) (update7 (ctx := ctx) width body update)
@@ -221,11 +227,12 @@ private def update5 (width : Nat)
   (Store.popWorkspace (Layout.positiveCtx ctx width).canonicalFreshKey .bit
     (Layout.positiveCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation5 (width : Nat)
+private lemma equation5 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body5 (ctx := ctx) width body) (update5 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body5 (ctx := ctx) width body)
+      (update5 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.positiveCtx ctx width).canonicalFreshKey
     .bit (Layout.positiveCtx ctx width).canonicalFreshKey_fresh
     (body6 (ctx := ctx) width body) (update6 (ctx := ctx) width body update)
@@ -249,11 +256,12 @@ private def update4 (width : Nat)
   (Store.popWorkspace (Layout.extendedCtx ctx width).canonicalFreshKey .bit
     (Layout.extendedCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation4 (width : Nat)
+private lemma equation4 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body4 (ctx := ctx) width body) (update4 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body4 (ctx := ctx) width body)
+      (update4 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.extendedCtx ctx width).canonicalFreshKey
     .bit (Layout.extendedCtx ctx width).canonicalFreshKey_fresh
     (body5 (ctx := ctx) width body) (update5 (ctx := ctx) width body update)
@@ -278,11 +286,12 @@ private def update3 (width : Nat)
   (Store.popWorkspace (Layout.candidateCtx ctx width).canonicalFreshKey (.unsignedWord (width + 1))
     (Layout.candidateCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation3 (width : Nat)
+private lemma equation3 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body3 (ctx := ctx) width body) (update3 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body3 (ctx := ctx) width body)
+      (update3 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.candidateCtx ctx width).canonicalFreshKey
     (.unsignedWord (width + 1)) (Layout.candidateCtx ctx width).canonicalFreshKey_fresh
     (body4 (ctx := ctx) width body) (update4 (ctx := ctx) width body update)
@@ -306,11 +315,12 @@ private def update2 (width : Nat)
   (Store.popWorkspace (Layout.gcdCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (Layout.gcdCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation2 (width : Nat)
+private lemma equation2 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body2 (ctx := ctx) width body) (update2 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body2 (ctx := ctx) width body)
+      (update2 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.gcdCtx ctx width).canonicalFreshKey
     (.unsignedWord width) (Layout.gcdCtx ctx width).canonicalFreshKey_fresh
     (body3 (ctx := ctx) width body) (update3 (ctx := ctx) width body update)
@@ -334,11 +344,12 @@ private def update1 (width : Nat)
   (Store.popWorkspace (Layout.modulusCtx ctx width).canonicalFreshKey (.unsignedWord (width + 1))
     (Layout.modulusCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation1 (width : Nat)
+private lemma equation1 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body1 (ctx := ctx) width body) (update1 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body1 (ctx := ctx) width body)
+      (update1 (ctx := ctx) width body update) := by
   exact workspace_executesBy (Layout.modulusCtx ctx width).canonicalFreshKey
     (.unsignedWord (width + 1)) (Layout.modulusCtx ctx width).canonicalFreshKey_fresh
     (body2 (ctx := ctx) width body) (update2 (ctx := ctx) width body update)
@@ -361,11 +372,12 @@ private def update0 (width : Nat)
   (Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh next.1, next.2)
 
-private theorem equation0 (width : Nat)
+private lemma equation0 (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
-    (bodyEquation : ExecutesBy body update) :
-    ExecutesBy (body0 (ctx := ctx) width body) (update0 (ctx := ctx) width body update) := by
+    (bodyEquation : ExecutesBy environment body update) :
+    ExecutesBy environment (body0 (ctx := ctx) width body)
+      (update0 (ctx := ctx) width body update) := by
   exact workspace_executesBy ctx.canonicalFreshKey
     (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh
     (body1 (ctx := ctx) width body) (update1 (ctx := ctx) width body update)
@@ -384,7 +396,7 @@ private def pop10 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.availableCtx ctx width).canonicalFreshKey .bit
     (Layout.availableCtx ctx width).canonicalFreshKey_fresh store
 
-private theorem update10_store (width : Nat)
+private lemma update10_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.availableCtx ctx width)) :
@@ -404,7 +416,7 @@ private def pop9 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.selectedCtx ctx width).canonicalFreshKey .bit
     (Layout.selectedCtx ctx width).canonicalFreshKey_fresh (pop10 (ctx := ctx) width store)
 
-private theorem update9_store (width : Nat)
+private lemma update9_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.selectedCtx ctx width)) :
@@ -430,7 +442,7 @@ private def pop8 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.acceptedCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (Layout.acceptedCtx ctx width).canonicalFreshKey_fresh (pop9 (ctx := ctx) width store)
 
-private theorem update8_store (width : Nat)
+private lemma update8_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.acceptedCtx ctx width)) :
@@ -456,7 +468,7 @@ private def pop7 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.eligibleCtx ctx width).canonicalFreshKey .bit
     (Layout.eligibleCtx ctx width).canonicalFreshKey_fresh (pop8 (ctx := ctx) width store)
 
-private theorem update7_store (width : Nat)
+private lemma update7_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.eligibleCtx ctx width)) :
@@ -482,7 +494,7 @@ private def pop6 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.belowCtx ctx width).canonicalFreshKey .bit
     (Layout.belowCtx ctx width).canonicalFreshKey_fresh (pop7 (ctx := ctx) width store)
 
-private theorem update6_store (width : Nat)
+private lemma update6_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.belowCtx ctx width)) :
@@ -508,7 +520,7 @@ private def pop5 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.positiveCtx ctx width).canonicalFreshKey .bit
     (Layout.positiveCtx ctx width).canonicalFreshKey_fresh (pop6 (ctx := ctx) width store)
 
-private theorem update5_store (width : Nat)
+private lemma update5_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.positiveCtx ctx width)) :
@@ -534,7 +546,7 @@ private def pop4 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.extendedCtx ctx width).canonicalFreshKey .bit
     (Layout.extendedCtx ctx width).canonicalFreshKey_fresh (pop5 (ctx := ctx) width store)
 
-private theorem update4_store (width : Nat)
+private lemma update4_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.extendedCtx ctx width)) :
@@ -560,7 +572,7 @@ private def pop3 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.candidateCtx ctx width).canonicalFreshKey (.unsignedWord (width + 1))
     (Layout.candidateCtx ctx width).canonicalFreshKey_fresh (pop4 (ctx := ctx) width store)
 
-private theorem update3_store (width : Nat)
+private lemma update3_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.candidateCtx ctx width)) :
@@ -587,7 +599,7 @@ private def pop2 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.gcdCtx ctx width).canonicalFreshKey (.unsignedWord width)
     (Layout.gcdCtx ctx width).canonicalFreshKey_fresh (pop3 (ctx := ctx) width store)
 
-private theorem update2_store (width : Nat)
+private lemma update2_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.gcdCtx ctx width)) :
@@ -613,7 +625,7 @@ private def pop1 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace (Layout.modulusCtx ctx width).canonicalFreshKey (.unsignedWord (width + 1))
     (Layout.modulusCtx ctx width).canonicalFreshKey_fresh (pop2 (ctx := ctx) width store)
 
-private theorem update1_store (width : Nat)
+private lemma update1_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store (Layout.modulusCtx ctx width)) :
@@ -638,7 +650,7 @@ private def pop0 {kind : ProblemKind} {ctx : RuntimeCtx kind}
   Store.popWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
     ctx.canonicalFreshKey_fresh (pop1 (ctx := ctx) width store)
 
-private theorem update0_store (width : Nat)
+private lemma update0_store (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store ctx) :
@@ -652,15 +664,15 @@ private theorem update0_store (width : Nat)
         (store.pushWorkspace ctx.canonicalFreshKey
           (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh))
 
-private theorem push0_layout {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma push0_layout {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (width : Nat) (store : Store ctx) :
     push0 (ctx := ctx) width store = Layout.pushStore width store := rfl
 
-private theorem pop0_layout {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma pop0_layout {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (width : Nat) (store : Store (Layout.context ctx width)) :
     pop0 (ctx := ctx) width store = Layout.popStore width store := rfl
 
-private theorem update0_layout (width : Nat)
+private lemma update0_layout (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (store : Store ctx) :
@@ -670,20 +682,21 @@ private theorem update0_layout (width : Nat)
   simpa only [push0_layout, pop0_layout] using update0_store (ctx := ctx) width body update store
 
 /-- The eleven actual scopes compose a proved inner update on the complete caller state. -/
-theorem samplerScopes_execute (width : Nat)
+lemma samplerScopes_execute (width : Nat)
     (body : Circuit model (Layout.context ctx width) (Layout.context ctx width))
     (update : Store (Layout.context ctx width) → Store (Layout.context ctx width) × body.Path)
     (bodyEquation : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State (Layout.context ctx width) Reference (model.HiddenState × History)),
-      body.execute Reference state = state.mapClassical (fun entry =>
+      body.execute environment Reference state = state.mapClassical (fun entry =>
         ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scopes ctx width body).execute Reference state =
+    (scopes ctx width body).execute environment Reference state =
       state.mapClassical (fun entry =>
         (Layout.popStore width (update (Layout.pushStore width entry.1)).1,
           (entry.2.1, (entry.2.2, (update (Layout.pushStore width entry.1)).2)))) := by
-  have bodyLaw : ExecutesBy (scopes ctx width body) (update0 (ctx := ctx) width body update) :=
+  have bodyLaw : ExecutesBy environment (scopes ctx width body)
+    (update0 (ctx := ctx) width body update) :=
     equation0 (ctx := ctx) width body update bodyEquation
   refine (bodyLaw Reference state).trans ?_
   apply ExecutionState.executionState_mapClassical_congr
@@ -695,11 +708,11 @@ theorem samplerScopes_execute (width : Nat)
 variable [BitWord.Selected model]
 
 /-- Actual scoped residue preparation executes its exact caller-store and instruction-path map. -/
-theorem samplerProgram_execute (N : Nat)
+lemma samplerProgram_execute (N : Nat)
     (sample : CInputRef ctx (.bits (residueSamplingBits N)))
     (output : CWriteRef ctx (ParameterShape (modulusBits N))) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (circuit (model := model) N sample output).execute Reference state =
+    (circuit (model := model) N sample output).execute environment Reference state =
       state.mapClassical (fun entry => ((step (model := model) N sample output entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) N sample output entry.1).2)))) := by
   refine (samplerScopes_execute (modulusBits N) (inner (model := model) N sample output)

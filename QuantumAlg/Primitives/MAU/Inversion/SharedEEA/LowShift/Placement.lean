@@ -37,7 +37,7 @@ def remainderEncoding (width : Nat) : BinaryLabelEncoding (Remainder width) :=
     (BinaryLabelEncoding.prod (lengthPairEncoding width)
       (BinaryLabelEncoding.prod (wordEncoding width.size) flagEncoding))
 
-private theorem remainder_surjective (width : Nat) :
+private lemma remainder_surjective (width : Nat) :
     Function.Surjective (remainderEncoding width).encode :=
   prod_surjective _ _ (word_surjective _) (prod_surjective _ _
     (prod_surjective _ _ (word_surjective _) (word_surjective _))
@@ -45,7 +45,7 @@ private theorem remainder_surjective (width : Nat) :
       (prod_surjective _ _ (prod_surjective _ _ bool_surjective bool_surjective)
         (prod_surjective _ _ bool_surjective bool_surjective))))
 
-private theorem focus_surjective (width : Nat) :
+private lemma focus_surjective (width : Nat) :
     Function.Surjective (Addition.HRS.bridgeEncoding (width + 3) width.size).encode := by
   have raw : Function.Surjective
       (BinaryLabelEncoding.prod
@@ -90,7 +90,7 @@ def indexEquiv (width : Nat) :
     ((grouping width).symm.trans (registerLabelEquiv width))
 
 /-- The complete explicit grouping is exactly the basis transport, for every field value. -/
-theorem indexEquiv_encode (width : Nat) (state : Registers width) :
+lemma indexEquiv_encode (width : Nat) (state : Registers width) :
     indexEquiv width ((groupedEncoding width).encode (grouping width state)) =
       (encoding width).encode state := by
   change registerLabelEquiv width ((grouping width).symm
@@ -99,7 +99,7 @@ theorem indexEquiv_encode (width : Nat) (state : Registers width) :
   rw [Equiv.symm_apply_apply, Equiv.symm_apply_apply]
 
 /-- Complete grouped carrier width: HRS shift, borrowed Work1, Phase2, then all spectators. -/
-theorem grouped_width (width : Nat) :
+lemma grouped_width (width : Nat) :
     (groupedEncoding width).width =
       (width.size + (width + 3) + 1) + ((width + 3) + 3 * width.size + 4) := by
   change (width.size + (width + 3) + 1) +
@@ -122,7 +122,7 @@ def physicalIndex (width index : Nat) : Nat :=
     LowShiftRegisters.physicalIndex width index
   else complementPhysicalIndex width (index - (width.size + (width + 3) + 1))
 
-private theorem focus_injective (width : Nat) :
+private lemma focus_injective (width : Nat) :
     Function.Injective (fun index : Fin (width.size + (width + 3) + 1) =>
       LowShiftRegisters.physicalIndex width index.val) := by
   intro left right same
@@ -134,7 +134,7 @@ private theorem focus_injective (width : Nat) :
   unfold LowShiftRegisters.physicalIndex at same
   split_ifs at same <;> omega
 
-private theorem complement_injective (width : Nat) :
+private lemma complement_injective (width : Nat) :
     Function.Injective (fun index : Fin ((width + 3) + 3 * width.size + 4) =>
       complementPhysicalIndex width index.val) := by
   intro left right same
@@ -145,7 +145,7 @@ private theorem complement_injective (width : Nat) :
   unfold complementPhysicalIndex at same
   split_ifs at same <;> omega
 
-private theorem focus_ne_complement (width : Nat)
+private lemma focus_ne_complement (width : Nat)
     (focus : Fin (width.size + (width + 3) + 1))
     (rest : Fin ((width + 3) + 3 * width.size + 4)) :
     LowShiftRegisters.physicalIndex width focus.val ≠
@@ -157,7 +157,7 @@ private theorem focus_ne_complement (width : Nat)
   split_ifs at same <;> omega
 
 /-- The full map never aliases an HRS or spectator wire. -/
-theorem physicalIndex_injective (width : Nat) :
+lemma physicalIndex_injective (width : Nat) :
     Function.Injective
       (fun index : Fin (groupedEncoding width).width => physicalIndex width index.val) := by
   intro left right same
@@ -193,7 +193,7 @@ theorem physicalIndex_injective (width : Nat) :
       omega
 
 /-- Every mapped bit stays within the complete original frame. -/
-theorem physicalIndex_within (width : Nat) (index : Fin (groupedEncoding width).width) :
+lemma physicalIndex_within (width : Nat) (index : Fin (groupedEncoding width).width) :
     physicalIndex width index.val < (encoding width).width := by
   rw [encoding_width]
   have bound : index.val <
@@ -207,12 +207,12 @@ def wireMap (width : Nat) :
     Fin (groupedEncoding width).width → Fin (encoding width).width :=
   fun index => ⟨physicalIndex width index.val, physicalIndex_within width index⟩
 
-theorem wireMap_injective (width : Nat) : Function.Injective (wireMap width) := by
+lemma wireMap_injective (width : Nat) : Function.Injective (wireMap width) := by
   intro left right same
   exact physicalIndex_injective width (congrArg Fin.val same)
 
 /-- Equal-width injectivity covers every original source coordinate. -/
-theorem wireMap_surjective (width : Nat) : Function.Surjective (wireMap width) := by
+lemma wireMap_surjective (width : Nat) : Function.Surjective (wireMap width) := by
   have sameWidth : (groupedEncoding width).width = (encoding width).width := by
     rw [grouped_width, encoding_width]
     omega
@@ -234,7 +234,7 @@ def wireEquiv (width : Nat) :
     ⟨wireMap_injective width, wireMap_surjective width⟩
 
 /-- Native HRS addresses are retained as physical source addresses. -/
-theorem physicalIndex_focus (width : Nat)
+lemma physicalIndex_focus (width : Nat)
     (index : Fin (width.size + (width + 3) + 1)) :
     physicalIndex width index.val = LowShiftRegisters.physicalIndex width index.val :=
   if_pos index.isLt
@@ -246,7 +246,7 @@ def placement (width : Nat) :
     (prod_surjective _ _ (focus_surjective width) (remainder_surjective width))
     (encoding_surjective width) (wireEquiv width)
 
-private theorem placed_read (width : Nat) (state : Registers width)
+private lemma placed_read (width : Nat) (state : Registers width)
     (source : EncodedBit (groupedEncoding width))
     (target : EncodedBit (encoding width))
     (same : wireEquiv width source.wire = target.wire) :
@@ -261,7 +261,7 @@ private def shiftFocusBit (width : Nat) (index : Fin width.size) :
   BinaryLabelEncoding.prodLeftBit _ _
     (Addition.HRS.bridgeHighBit (width + 3) width.size index.rev)
 
-private theorem shiftFocusBit_wire (width : Nat) (index : Fin width.size) :
+private lemma shiftFocusBit_wire (width : Nat) (index : Fin width.size) :
     (shiftFocusBit width index).wire.val = index.val := by
   change (Addition.HRS.bridgeHighBit (width + 3) width.size index.rev).wire.val = _
   rw [Addition.HRS.hrsBridgeHighBit_wire, Fin.val_rev]
@@ -269,7 +269,7 @@ private theorem shiftFocusBit_wire (width : Nat) (index : Fin width.size) :
   omega
 
 /-- The target bit is read at its original shift address. -/
-theorem placement_shift_bit (width : Nat) (index : Fin width.size)
+lemma placement_shift_bit (width : Nat) (index : Fin width.size)
     (state : Registers width) :
     (Addition.HRS.bridgeHighBit (width + 3) width.size index.rev).get
       ((placement width).grouping state).1 =
@@ -293,7 +293,7 @@ private def workFocusBit (width : Nat) (index : Fin (width + 3)) :
   BinaryLabelEncoding.prodLeftBit _ _
     (Addition.HRS.bridgeLowBit (width + 3) width.size index.rev)
 
-private theorem workFocusBit_wire (width : Nat) (index : Fin (width + 3)) :
+private lemma workFocusBit_wire (width : Nat) (index : Fin (width + 3)) :
     (workFocusBit width index).wire.val = width.size + index.val := by
   change (Addition.HRS.bridgeLowBit (width + 3) width.size index.rev).wire.val = _
   rw [Addition.HRS.hrsBridgeLowBit_wire, Fin.val_rev]
@@ -301,7 +301,7 @@ private theorem workFocusBit_wire (width : Nat) (index : Fin (width + 3)) :
   omega
 
 /-- The borrowed bit is read at its original Work1 address. -/
-theorem placement_work_bit (width : Nat) (index : Fin (width + 3))
+lemma placement_work_bit (width : Nat) (index : Fin (width + 3))
     (state : Registers width) :
     (Addition.HRS.bridgeLowBit (width + 3) width.size index.rev).get
       ((placement width).grouping state).1 =
@@ -324,7 +324,7 @@ private def phaseFocusBit (width : Nat) : EncodedBit (groupedEncoding width) :=
   BinaryLabelEncoding.prodLeftBit _ _
     (Addition.HRS.bridgeDirtyBit (width + 3) width.size)
 
-theorem placement_phase2 (width : Nat) (state : Registers width) :
+lemma placement_phase2 (width : Nat) (state : Registers width) :
     ((placement width).grouping state).1.2 = state.flags.second := by
   have same : wireEquiv width (phaseFocusBit width).wire = (phase2Bit width).wire := by
     apply Fin.ext
@@ -338,7 +338,7 @@ theorem placement_phase2 (width : Nat) (state : Registers width) :
   simpa only [phase2Bit_get] using actual
 
 /-- Every physical borrowed Work1 bit agrees with the registered source grouping. -/
-theorem placement_grouping_work (width : Nat) (state : Registers width) :
+lemma placement_grouping_work (width : Nat) (state : Registers width) :
     ((placement width).grouping state).1.1.1 = (grouping width state).1.1.1 := by
   apply (BinaryBasis.bigEndianEquiv (width + 3)).symm.injective
   funext index
@@ -351,7 +351,7 @@ theorem placement_grouping_work (width : Nat) (state : Registers width) :
   exact actual.trans expected.symm
 
 /-- Every physical low-shift target bit agrees with the registered source grouping. -/
-theorem placement_grouping_shift (width : Nat) (state : Registers width) :
+lemma placement_grouping_shift (width : Nat) (state : Registers width) :
     ((placement width).grouping state).1.1.2 = (grouping width state).1.1.2 := by
   apply (BinaryBasis.bigEndianEquiv width.size).symm.injective
   funext index
@@ -369,12 +369,12 @@ private def work2Bit (width : Nat) (index : Fin (width + 3)) :
   BinaryLabelEncoding.prodRightBit _ _
     (BinaryLabelEncoding.prodLeftBit _ _ (wordBit index))
 
-private theorem work2Bit_wire (width : Nat) (index : Fin (width + 3)) :
+private lemma work2Bit_wire (width : Nat) (index : Fin (width + 3)) :
     (work2Bit width index).wire.val =
       width.size + (width + 3) + 1 + index.val := by
   rfl
 
-theorem placement_work2_bit (width : Nat) (index : Fin (width + 3))
+lemma placement_work2_bit (width : Nat) (index : Fin (width + 3))
     (state : Registers width) :
     (wordBit index).get ((placement width).grouping state).2.1 =
       (secondWordBit width index).get state := by
@@ -392,7 +392,7 @@ theorem placement_work2_bit (width : Nat) (index : Fin (width + 3))
   exact placed_read width state (work2Bit width index) (secondWordBit width index) same
 
 /-- The complete wire-derived grouping retains exactly Work2. -/
-theorem placement_grouping_work2 (width : Nat) (state : Registers width) :
+lemma placement_grouping_work2 (width : Nat) (state : Registers width) :
     ((placement width).grouping state).2.1 = (grouping width state).2.1 := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -414,12 +414,12 @@ private def coefficientBit (width : Nat) (index : Fin width.size) :
     (BinaryLabelEncoding.prodLeftBit (wordEncoding width.size) (wordEncoding width.size)
       (wordBit index))
 
-private theorem coefficientBit_wire (width : Nat) (index : Fin width.size) :
+private lemma coefficientBit_wire (width : Nat) (index : Fin width.size) :
     (coefficientBit width index).wire.val =
       width.size + (width + 3) + 1 + (width + 3 + index.val) := by
   rfl
 
-theorem placement_coefficient_bit (width : Nat) (index : Fin width.size)
+lemma placement_coefficient_bit (width : Nat) (index : Fin width.size)
     (state : Registers width) :
     (wordBit index).get ((placement width).grouping state).2.2.1.1 =
       (coefficientLengthBit width index).get state := by
@@ -445,14 +445,14 @@ private def quotientBit (width : Nat) (index : Fin width.size) :
     (BinaryLabelEncoding.prodRightBit (wordEncoding width.size) (wordEncoding width.size)
       (wordBit index))
 
-private theorem quotientBit_wire (width : Nat) (index : Fin width.size) :
+private lemma quotientBit_wire (width : Nat) (index : Fin width.size) :
     (quotientBit width index).wire.val =
       width.size + (width + 3) + 1 + (width + 3 + width.size + index.val) := by
   change (width.size + (width + 3) + 1) +
     ((width + 3) + (width.size + index.val)) = _
   omega
 
-theorem placement_quotient_bit (width : Nat) (index : Fin width.size)
+lemma placement_quotient_bit (width : Nat) (index : Fin width.size)
     (state : Registers width) :
     (wordBit index).get ((placement width).grouping state).2.2.1.2 =
       (quotientLengthBit width index).get state := by
@@ -480,14 +480,14 @@ private def divisorBit (width : Nat) (index : Fin width.size) :
         (BinaryLabelEncoding.prodLeftBit (wordEncoding width.size) flagEncoding
           (wordBit index))))
 
-private theorem divisorBit_wire (width : Nat) (index : Fin width.size) :
+private lemma divisorBit_wire (width : Nat) (index : Fin width.size) :
     (divisorBit width index).wire.val =
       width.size + (width + 3) + 1 + (width + 3 + 2 * width.size + index.val) := by
   change (width.size + (width + 3) + 1) +
     ((width + 3) + ((width.size + width.size) + index.val)) = _
   omega
 
-theorem placement_divisor_bit (width : Nat) (index : Fin width.size)
+lemma placement_divisor_bit (width : Nat) (index : Fin width.size)
     (state : Registers width) :
     (wordBit index).get ((placement width).grouping state).2.2.2.1 =
       (divisorLengthBit width index).get state := by
@@ -507,7 +507,7 @@ theorem placement_divisor_bit (width : Nat) (index : Fin width.size)
   exact placed_read width state (divisorBit width index)
     (divisorLengthBit width index) same
 
-theorem placement_grouping_lengths (width : Nat) (state : Registers width) :
+lemma placement_grouping_lengths (width : Nat) (state : Registers width) :
     ((placement width).grouping state).2.2.1 = (grouping width state).2.2.1 ∧
       ((placement width).grouping state).2.2.2.1 = (grouping width state).2.2.2.1 := by
   constructor
@@ -539,7 +539,7 @@ private def retainedFlagBit (width : Nat) (bit : EncodedBit flagEncoding) :
       (BinaryLabelEncoding.prodRightBit _ _
         (BinaryLabelEncoding.prodRightBit (wordEncoding width.size) flagEncoding bit)))
 
-private theorem retainedFlagBit_wire (width : Nat) (bit : EncodedBit flagEncoding) :
+private lemma retainedFlagBit_wire (width : Nat) (bit : EncodedBit flagEncoding) :
     (retainedFlagBit width bit).wire.val = width.size + (width + 3) + 1 +
       ((width + 3) + 3 * width.size + bit.wire.val) := by
   change (width.size + (width + 3) + 1) +
@@ -547,7 +547,7 @@ private theorem retainedFlagBit_wire (width : Nat) (bit : EncodedBit flagEncodin
       (width.size + bit.wire.val))) = _
   omega
 
-private theorem retainedFlagBit_physical (width : Nat) (bit : EncodedBit flagEncoding) :
+private lemma retainedFlagBit_physical (width : Nat) (bit : EncodedBit flagEncoding) :
     physicalIndex width (retainedFlagBit width bit).wire.val =
       if bit.wire.val = 0 then 2 * (width + 3) + 4 * width.size
       else 2 * (width + 3) + 4 * width.size + 1 + bit.wire.val := by
@@ -568,7 +568,7 @@ private def firstFlagBit (width : Nat) : EncodedBit (groupedEncoding width) :=
       (BinaryLabelEncoding.prodLeftBit BinaryLabelEncoding.bool BinaryLabelEncoding.bool
         BinaryLabelEncoding.boolBit))
 
-theorem placement_phase1 (width : Nat) (state : Registers width) :
+lemma placement_phase1 (width : Nat) (state : Registers width) :
     ((placement width).grouping state).2.2.2.2.1.1 = state.flags.first := by
   have same : wireEquiv width (firstFlagBit width).wire = (phase1Bit width).wire := by
     apply Fin.ext
@@ -587,7 +587,7 @@ private def signFlagBit (width : Nat) : EncodedBit (groupedEncoding width) :=
       (BinaryLabelEncoding.prodRightBit BinaryLabelEncoding.bool BinaryLabelEncoding.bool
         BinaryLabelEncoding.boolBit))
 
-theorem placement_sign (width : Nat) (state : Registers width) :
+lemma placement_sign (width : Nat) (state : Registers width) :
     ((placement width).grouping state).2.2.2.2.1.2 = state.flags.sign := by
   have same : wireEquiv width (signFlagBit width).wire = (signBit width).wire := by
     apply Fin.ext
@@ -606,7 +606,7 @@ private def iterationFlagBit (width : Nat) : EncodedBit (groupedEncoding width) 
       (BinaryLabelEncoding.prodLeftBit BinaryLabelEncoding.bool BinaryLabelEncoding.bool
         BinaryLabelEncoding.boolBit))
 
-theorem placement_iteration (width : Nat) (state : Registers width) :
+lemma placement_iteration (width : Nat) (state : Registers width) :
     ((placement width).grouping state).2.2.2.2.2.1 = state.flags.iteration := by
   have same : wireEquiv width (iterationFlagBit width).wire =
       (iterationBit width).wire := by
@@ -627,7 +627,7 @@ private def controlFlagBit (width : Nat) : EncodedBit (groupedEncoding width) :=
       (BinaryLabelEncoding.prodRightBit BinaryLabelEncoding.bool BinaryLabelEncoding.bool
         BinaryLabelEncoding.boolBit))
 
-theorem placement_control (width : Nat) (state : Registers width) :
+lemma placement_control (width : Nat) (state : Registers width) :
     ((placement width).grouping state).2.2.2.2.2.2 = state.control := by
   have same : wireEquiv width (controlFlagBit width).wire = (controlBit width).wire := by
     apply Fin.ext
@@ -641,7 +641,7 @@ theorem placement_control (width : Nat) (state : Registers width) :
   simpa only [controlBit_get] using actual
 
 /-- The strict wire placement agrees with every registered source field. -/
-theorem placement_grouping (width : Nat) (state : Registers width) :
+lemma placement_grouping (width : Nat) (state : Registers width) :
     (placement width).grouping state = grouping width state := by
   apply Prod.ext
   · apply Prod.ext
@@ -663,7 +663,7 @@ theorem placement_grouping (width : Nat) (state : Registers width) :
             · exact placement_iteration width state
             · exact placement_control width state
 
-theorem placement_grouping_eq (width : Nat) :
+lemma placement_grouping_eq (width : Nat) :
     (placement width).grouping = grouping width := by
   apply Equiv.ext
   exact placement_grouping width

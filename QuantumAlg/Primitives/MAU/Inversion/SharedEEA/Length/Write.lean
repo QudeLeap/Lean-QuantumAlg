@@ -30,6 +30,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.LengthWrite
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit LengthCoordinates LengthRead
 
 /-- The existing length field in the native constant-XOR API's least-significant-first order. -/
@@ -45,7 +47,7 @@ def positionConstant (width : Nat) (field : Field) (key : BitVec width.size)
     (position : Fin (region width field key)) : Fin (2 ^ width.size) :=
   constant width (region width field key - position.val)
 
-private theorem constant_preserves_reads (width : Nat) (field : Field) (firstWord : Bool)
+private lemma constant_preserves_reads (width : Nat) (field : Field) (firstWord : Bool)
     (value : Fin (2 ^ width.size)) (state : Registers width) :
     (boundaryValue field (Word.xorConstantStep (target width field) value state),
       sourceWord firstWord (Word.xorConstantStep (target width field) value state)) =
@@ -62,7 +64,7 @@ private theorem constant_preserves_reads (width : Nat) (field : Field) (firstWor
       rw [ih, boundaryValue_output_flip, sourceWord_output_flip]
 
 /-- The constant write preserves the entire retained boundary word used by later candidates. -/
-theorem constant_preserves_boundary (width : Nat) (field : Field)
+lemma constant_preserves_boundary (width : Nat) (field : Field)
     (value : Fin (2 ^ width.size)) (state : Registers width) :
     boundaryValue field (Word.xorConstantStep (target width field) value state) =
       boundaryValue field state :=
@@ -70,7 +72,7 @@ theorem constant_preserves_boundary (width : Nat) (field : Field)
     (constant_preserves_reads width field false value state)
 
 /-- The constant write preserves the complete actual work word, including every outside bit. -/
-theorem constant_preserves_sourceWord (width : Nat) (field : Field) (firstWord : Bool)
+lemma constant_preserves_sourceWord (width : Nat) (field : Field) (firstWord : Bool)
     (value : Fin (2 ^ width.size)) (state : Registers width) :
     sourceWord firstWord (Word.xorConstantStep (target width field) value state) =
       sourceWord firstWord state :=
@@ -78,7 +80,7 @@ theorem constant_preserves_sourceWord (width : Nat) (field : Field) (firstWord :
     (constant_preserves_reads width field firstWord value state)
 
 /-- The exact arithmetic read used by every later candidate is retained. -/
-theorem constant_preserves_payload (width : Nat) (field : Field) (key : BitVec width.size)
+lemma constant_preserves_payload (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (value : Fin (2 ^ width.size)) (state : Registers width) :
     payloadValue field key firstWord (Word.xorConstantStep (target width field) value state) =
       payloadValue field key firstWord state := by
@@ -91,7 +93,7 @@ def positionGates (width : Nat) (field : Field) (key : BitVec width.size) (first
   (Word.constantOneIndices (positionConstant width field key position)).flatMap fun bit =>
     LengthPredicate.gates width field key firstWord position bit
 
-private theorem position_indices_step (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma position_indices_step (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key))
     (bits : List (Fin width.size)) (state : Registers width) :
     GateSpec.stepList (bits.flatMap fun bit =>
@@ -110,7 +112,7 @@ private theorem position_indices_step (width : Nat) (field : Field) (key : BitVe
         rw [if_neg selected]
 
 /-- One candidate has a complete-register conditional finite constant-XOR action. -/
-theorem positionGates_step (width : Nat) (field : Field) (key : BitVec width.size)
+lemma positionGates_step (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (position : Fin (region width field key)) (state : Registers width) :
     GateSpec.stepList (positionGates width field key firstWord position) state =
       if LengthPredicate.Selected field key firstWord position state
@@ -124,7 +126,7 @@ def gates (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : B
   (List.ofFn fun position : Fin (region width field key) => position).flatMap
     (positionGates width field key firstWord)
 
-private theorem unmatched_indices_step (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma unmatched_indices_step (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (indices : List (Fin (region width field key))) (state : Registers width)
     (unmatched : boundaryValue field state ≠ key) :
     GateSpec.stepList (indices.flatMap (positionGates width field key firstWord)) state =
@@ -138,7 +140,7 @@ private theorem unmatched_indices_step (width : Nat) (field : Field) (key : BitV
       rw [if_neg absent]
       exact ih
 
-private theorem indices_step (width : Nat) (field : Field) (key : BitVec width.size)
+private lemma indices_step (width : Nat) (field : Field) (key : BitVec width.size)
     (firstWord : Bool) (value : Nat) (indices : List (Fin (region width field key)))
     (distinct : indices.Nodup) (state : Registers width) (matched : boundaryValue field state = key)
     (input : (payloadValue field key firstWord state).size = value) :
@@ -192,13 +194,13 @@ private theorem indices_step (width : Nat) (field : Field) (key : BitVec width.s
             exact ⟨index, List.mem_cons_of_mem head present, chosen⟩
         simp only [selection]
 
-private theorem xor_zero (width : Nat) (field : Field) (state : Registers width) :
+private lemma xor_zero (width : Nat) (field : Field) (state : Registers width) :
     Word.xorConstantStep (target width field) (constant width 0) state = state := by
   simp [Word.xorConstantStep, Word.xorConstantGates, Word.constantOneIndices,
     constant, GateSpec.stepList]
 
 /-- The complete emitted circuit reads and writes the actual finite length at a matching key. -/
-theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (state : Registers width) :
     GateSpec.stepList (gates width field key firstWord) state =
       if boundaryValue field state = key
@@ -234,14 +236,15 @@ theorem gates_step (width : Nat) (field : Field) (key : BitVec width.size) (firs
     exact unmatched_indices_step width field key firstWord _ state matched
 
 /-- Exact complete-state realization of the same emitted elementary gate list. -/
-theorem gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
+lemma gates_realizes (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool) :
     UnitaryCircuit.Realizes (encoding width)
       (GateSpec.programList (QubitLayout.canonical _) .empty (gates width field key firstWord))
+        environment
       (fun state => if boundaryValue field state = key
         then Word.xorConstantStep (target width field)
           (constant width (payloadValue field key firstWord state).size) state else state) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width field key firstWord) (gates_step width field key firstWord)
+    (gates width field key firstWord) (gates_step width field key firstWord) environment
 
 end
 

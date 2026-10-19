@@ -27,7 +27,7 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
 
-theorem controlledTwoWireZeroReflection_eventCost (control first second : EncodedBit encoding)
+lemma controlledTwoWireZeroReflection_eventCost (control first second : EncodedBit encoding)
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) :
@@ -50,7 +50,7 @@ theorem controlledTwoWireZeroReflection_eventCost (control first second : Encode
   simp only [Multiset.count_add, Multiset.count_nsmul]
   ring
 
-theorem controlledTwoWireZeroReflection_unitDepth (control first second : EncodedBit encoding)
+lemma controlledTwoWireZeroReflection_unitDepth (control first second : EncodedBit encoding)
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) :
@@ -69,7 +69,7 @@ variable (outputNe : control.wire ≠ layout.output.wire)
 variable (workNe : control.wire ≠ layout.work.wire)
 
 /-- Complement only the reflected source, and charge the final Z on the actual control. -/
-theorem controlledZeroReflectionProgram_eventCost :
+lemma controlledZeroReflectionProgram_eventCost :
     (layout.controlledZeroReflectionProgram physical oracles control
       sourceNe outputNe workNe).eventCost =
       (2 * (controls + 1) + 3) •
@@ -84,7 +84,7 @@ theorem controlledZeroReflectionProgram_eventCost :
   ring
 
 /-- The controlled elementary sequence has exactly its independently counted gate depth. -/
-theorem controlledZeroReflectionProgram_unitDepth :
+lemma controlledZeroReflectionProgram_unitDepth :
     (layout.controlledZeroReflectionProgram physical oracles control
       sourceNe outputNe workNe).evaluatedEventDepth
       (fun _ => 1) = 2 * (controls + 1) + gateCount (controls + 1) + 3 := by

@@ -20,7 +20,7 @@ factor without truncation. No execution or resource object is introduced.
 namespace QuantumAlg.RSA
 
 /-- The original result is selected by the same two Boolean divisor tests used by native checks. -/
-theorem recoverFactorFromShortLog_eq_decisions (modulus logarithm : Nat) :
+lemma recoverFactorFromShortLog_eq_decisions (modulus logarithm : Nat) :
     let source := quadraticFactorCandidates modulus logarithm
     let firstValid := decide (1 < source.1 ∧ source.1 < modulus ∧ modulus % source.1 = 0)
     let secondValid := decide (1 < source.2 ∧ source.2 < modulus ∧ modulus % source.2 = 0)
@@ -30,7 +30,7 @@ theorem recoverFactorFromShortLog_eq_decisions (modulus logarithm : Nat) :
   rw [quadraticFactorCandidates_eq, recoverFactorFromShortLog_eq]
 
 /-- The original source factor is unchanged by conversion to any word containing the modulus. -/
-theorem recoverFactorFromShortLog_map_mod (modulus logarithm width : Nat)
+lemma recoverFactorFromShortLog_map_mod (modulus logarithm width : Nat)
     (capacity : modulus ≤ 2 ^ width) :
     (recoverFactorFromShortLog modulus logarithm).map (fun factor => factor % 2 ^ width) =
       recoverFactorFromShortLog modulus logarithm := by

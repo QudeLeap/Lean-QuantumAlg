@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem prepareContext_empty_outside {ctx : RuntimeCtx .quantum} {Reference : Register}
+private lemma prepareContext_empty_outside {ctx : RuntimeCtx .quantum} {Reference : Register}
     {C : Type} [Fintype C] {systemCount : Nat}
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
@@ -72,13 +72,14 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- The real zero preparation establishes its physical basis seed in every complete
 stored block, with the persistent service state and reference retained. -/
-theorem prepareZero_empty_seeded
+lemma prepareZero_empty_seeded
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
     {ctx : RuntimeCtx .quantum} {systemCount : Nat}
     (key : StorageKey) (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
     (empty : ctx.systemCount = 0)
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (services.HiddenState × History)) :
     BasisSeeded.Holds
@@ -86,7 +87,7 @@ theorem prepareZero_empty_seeded
         (BasisPreparation.zero layout).value)
       ((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
-        ctx key layout fresh disjoint).execute Reference state) := by
+        ctx key layout fresh disjoint).execute environment Reference state) := by
   let preparation := BasisPreparation.zero layout
   let seed := preparedEmptyBasisEquiv ctx key layout fresh disjoint empty preparation.value
   let prepared := prepareContext state key layout fresh disjoint preparation.normalized
@@ -110,7 +111,7 @@ theorem prepareZero_empty_seeded
         ((output.mapClassical (fun entry => entry.1)).block finalStore).matrix)
       (execute_prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
-        state key layout fresh disjoint)
+        environment state key layout fresh disjoint)
     rw [reshaped] at executed
     have composed := congrArg
       (fun output : ExecutionState (Store (ctx.addOwnedLayout key layout fresh disjoint))
@@ -120,7 +121,7 @@ theorem prepareZero_empty_seeded
     have actual := (BasisSeeded.store_matrix
       ((Circuit.prepareZero (gates := gates) (oracles := oracles)
         (operations := operations) (classicalOracles := services)
-        ctx key layout fresh disjoint).execute Reference state)
+        ctx key layout fresh disjoint).execute environment Reference state)
       finalStore).symm.trans (executed.trans composed)
     refine (congrArg
       (fun matrix : HilbertOperator

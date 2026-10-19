@@ -48,7 +48,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 open QuantumAlg.Execution
 
-private theorem packedRead (n k : Nat) (store : Store (post n k)) :
+private lemma packedRead (n k : Nat) (store : Store (post n k)) :
     (store.write (BitWord.application (packing n k)).output
       ((packing n k).eval (store.read (BitWord.application (packing n k)).input))).read
         (.storage (resultRef n k).toCStorageRef) =
@@ -56,11 +56,11 @@ private theorem packedRead (n k : Nat) (store : Store (post n k)) :
   Store.read_applyOp_output store (packing n k)
 
 /-- The actual measured and packed output has precisely the corresponding initial diagonal fiber. -/
-theorem readoutCode_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
+lemma readoutCode_block_mass (n k : Nat) (actual : (model n).Environment)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (post n k) Reference (ClassicalOracleModel.empty.HiddenState × H))
     (output : CShape.Value (.bits n)) :
-    ((((readoutCode marked k).execute Reference state).mapClassical
+    ((((readoutCode n k).execute actual Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef n k).toCStorageRef))).block output).mass =
       (∑ basis : (post n k).register.Index,
         if CShape.Value.bits ((zMeasure (layout n)).readout (outputSource n k basis)) = output
@@ -70,7 +70,8 @@ theorem readoutCode_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Na
   apply congrArg Complex.re
   rw [readoutCode, Circuit.execute_seq]
   simp only [State.mapHistory, ExecutionState.diagonalSum_mapClassical]
-  rw [Circuit.execute_classical_mapClassical (model := model marked)
+  rw [Circuit.execute_classical_mapClassical (model := model n)
+    (environment := actual)
     (BitWord.application (packing n k))
     (packing n k).eval (BitWord.bitWord_application_evaluate (packing n k))]
   simp only [ExecutionState.diagonalSum_mapClassical]
@@ -88,14 +89,14 @@ theorem readoutCode_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Na
       intro basis _
       split <;> simp only [one_mul, zero_mul]
 
-private theorem pure_diagonal_re {R : Register} (state : NormalizedVector R)
+private lemma pure_diagonal_re {R : Register} (state : NormalizedVector R)
     (basis : R.Index) :
     ((DensityOperator.ofPure state).matrix basis basis).re = ‖state basis‖ ^ 2 := by
   rw [DensityOperator.ofPure_matrix]
   exact (congrArg Complex.re (Complex.mul_conj (state basis))).trans
     (Complex.normSq_eq_norm_sq (state basis))
 
-private theorem evolved_product_diagonal {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
+private lemma evolved_product_diagonal {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
     (source : Fin (2 ^ n)) (work : Fin (2 ^ (helperWidth n k))) :
     ((DensityOperator.ofPure (Elementary.evolvedVector marked k)).matrix
       (prodEquiv (source, work)) (prodEquiv (source, work))).re =
@@ -111,11 +112,11 @@ private theorem evolved_product_diagonal {n : Nat} (marked : Fin (2 ^ n) → Boo
 
 /-- Every final output-block mass is the original query-readout Born fiber,
 derived from actual elementary gates and measured source wires, with the work wire retained. -/
-theorem code_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
+lemma code_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State pre Reference (ClassicalOracleModel.empty.HiddenState × H))
     (normalized : state.IsNormalized) (output : CShape.Value (.bits n)) :
-    ((((code marked k).execute Reference state).mapClassical
+    ((((code n k).execute (environment marked) Reference state).mapClassical
       (fun value => value.1.read (.storage (resultRef n k).toCStorageRef))).block output).mass =
       ∑ basis : Fin (2 ^ n),
         if CShape.Value.bits ((zMeasure (layout n)).readout basis) = output then
@@ -124,13 +125,14 @@ theorem code_block_mass {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat)
     _ = (∑ basis : (post n k).register.Index,
         if CShape.Value.bits ((zMeasure (layout n)).readout (outputSource n k basis)) = output
           then
-          ((beforeMeasurement marked k).execute Reference state).quantumMarginal.marginalLeft.matrix
+          ((beforeMeasurement n k).execute
+          (environment marked) Reference state).quantumMarginal.marginalLeft.matrix
             basis basis else 0).re := by
       rw [code, Circuit.execute_seq]
       simpa only [State.mapHistory, ExecutionState.executionState_mapClassical_comp,
         Function.comp_def] using
-          readoutCode_block_mass marked k
-            ((beforeMeasurement marked k).execute Reference state) output
+          readoutCode_block_mass n k (environment marked)
+            ((beforeMeasurement n k).execute (environment marked) Reference state) output
     _ = (∑ basis : Fin (2 ^ (totalQubits n k)),
         if CShape.Value.bits ((zMeasure (layout n)).readout
             (((prodEquiv (m := n) (n := helperWidth n k)).symm basis).1)) = output

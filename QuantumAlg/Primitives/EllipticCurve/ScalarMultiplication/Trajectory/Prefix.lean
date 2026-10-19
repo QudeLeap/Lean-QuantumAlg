@@ -25,7 +25,7 @@ noncomputable section
 
 open GenericPointAddition.InPlace
 
-private theorem path_append {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma path_append {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (first second : List (Fin count)) (initial : AffinePoint E) :
     path E points controls (first ++ second) initial =
@@ -36,7 +36,7 @@ private theorem path_append {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p
       simpa only [List.cons_append, path] using
         ih (nextPoint E (points active) (controls active) initial)
 
-private theorem admissible_append {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma admissible_append {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (first second : List (Fin count)) (initial : AffinePoint E) :
     admissible E points controls (first ++ second) initial ↔
@@ -47,7 +47,7 @@ private theorem admissible_append {p : Nat} (E : PrimeFieldShortWeierstrass p) [
   | cons active remaining ih =>
       simp only [List.cons_append, admissible, path, ih, and_assoc]
 
-private theorem finRange_take_succ {count : Nat} (index : Fin count) :
+private lemma finRange_take_succ {count : Nat} (index : Fin count) :
     (List.finRange count).take (index.val + 1) =
       (List.finRange count).take index.val ++ [index] := by
   have within : index.val < (List.finRange count).length := by
@@ -63,7 +63,7 @@ def pointPrefix {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (initial : AffinePoint E) (processed : Nat) : AffinePoint E :=
   path E points controls ((List.finRange count).take processed) initial
 
-private theorem pointPrefix_succ {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+private lemma pointPrefix_succ {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (initial : AffinePoint E) (index : Fin count) :
     pointPrefix E points controls initial (index.val + 1) =
@@ -72,7 +72,7 @@ private theorem pointPrefix_succ {p : Nat} (E : PrimeFieldShortWeierstrass p) [F
   rw [pointPrefix, finRange_take_succ, path_append]
   rfl
 
-private theorem prefix_admissible_and_group {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma prefix_admissible_and_group {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (controls : Fin count → Bool) (initial : AffinePoint E)
     (good : ExceptionalOffsetAveraging.Admissible count
@@ -117,7 +117,7 @@ private theorem prefix_admissible_and_group {p : Nat} (E : PrimeFieldShortWeiers
         split_ifs <;> simp only [mul_assoc, index]
 
 /-- Each admissible affine prefix denotes the original offset times the selected group prefix. -/
-theorem pointPrefix_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma pointPrefix_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (controls : Fin count → Bool)
     (initial : AffinePoint E)
     (good : ExceptionalOffsetAveraging.Admissible count
@@ -130,7 +130,7 @@ theorem pointPrefix_toGroupPoint {p : Nat} (E : PrimeFieldShortWeierstrass p) [F
   (prefix_admissible_and_group E points controls initial good processed within).2
 
 /-- The original group-offset domain supplies every active affine exclusion in execution order. -/
-theorem admissible_finRange_of_group {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma admissible_finRange_of_group {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (controls : Fin count → Bool) (initial : AffinePoint E)
     (good : ExceptionalOffsetAveraging.Admissible count
@@ -141,7 +141,7 @@ theorem admissible_finRange_of_group {p : Nat} (E : PrimeFieldShortWeierstrass p
   simpa only [List.take_of_length_le (Nat.le_of_eq List.length_finRange)] using actual
 
 /-- The original stricter good set implies the same affine trajectory without changing that set. -/
-theorem admissible_finRange_of_strict {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma admissible_finRange_of_strict {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (controls : Fin count → Bool) (initial : AffinePoint E)
     (strict : ExceptionalOffsetAveraging.RNSLAdmissible count

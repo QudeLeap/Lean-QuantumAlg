@@ -25,7 +25,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 /-- The actual two-write store and physical packaging path. -/
@@ -37,11 +38,11 @@ def packStep (cells : Cells ctx N)
   (packed.1, (resized.2, packed.2))
 
 /-- The actual payload resize and nominal pack preserve every full quantum-reference block. -/
-theorem pack_execute (cells : Cells ctx N)
+lemma pack_execute (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pack (model := model) cells output).execute Reference state =
+    (pack (model := model) cells output).execute environment Reference state =
       state.mapClassical (fun entry => ((packStep (model := model) cells output entry.1).1,
         (entry.2.1, (entry.2.2, (packStep (model := model) cells output entry.1).2)))) := by
   simp only [pack, Circuit.execute_seq, BitWord.bitWord_instruction_execute, State.mapHistory,
@@ -50,7 +51,7 @@ theorem pack_execute (cells : Cells ctx N)
   exact Subsingleton.elim _ _
 
 /-- The written option contains the actual previous comparison tag and resized candidate word. -/
-theorem pack_result (cells : Cells ctx N)
+lemma pack_result (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (separate : cells.payload.key ≠ cells.lower.key) :
     (packStep (model := model) cells output store).1.read (.storage output.toCStorageRef) =
@@ -70,7 +71,7 @@ theorem pack_result (cells : Cells ctx N)
   exact congrArg CShape.packOption (congrArg₂ CShape.Value.product tagSame payload)
 
 /-- Packaging changes no structural read outside the actual payload and option cells. -/
-theorem pack_read_other (cells : Cells ctx N)
+lemma pack_read_other (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {shape : CShape} (other : CInputRef ctx shape)
     (payloadFree : cells.payload.key ∉ other.storageKeys)

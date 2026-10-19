@@ -28,15 +28,16 @@ namespace QuantumAlg.QSP.MultiQubit.QSVT.Native
 noncomputable section
 
 /-- A positive-degree real source certificate gives correctness of the actual native word. -/
-theorem circuit_of_real_certificate {width L : Nat} {PRe : Polynomial ℝ}
+lemma circuit_of_real_certificate {width L : Nat} {PRe : Polynomial ℝ}
     (U : UnitaryOperator (Qubits width)) (left right : OrthogonalProjector width)
     (allowControlled : Bool)
     (certificate : ReflectionQSPPhaseSynthesis.RealBoundedPhaseCertificate L PRe)
     (positive : 0 < L) :
     projectedPhasePlusBlock (projectedOutputProjector left right L) right
-      (circuit U left right allowControlled
+      ((circuit (width := width) allowControlled
         (projectedPhasesFromQSPCertificate
-          certificate.certificate.φ₀ certificate.certificate.φs)).binaryMatrix =
+          certificate.certificate.φ₀ certificate.certificate.φs)).binaryMatrix
+            (ProjectedSignal.interpretation U left right allowControlled)) =
       singularValuePolynomial right L (realPolynomialToComplex PRe)
         (projectedUnitaryBlock left right U) := by
   obtain ⟨init, last, split⟩ := certificate.certificate.exists_init_last_of_pos positive
@@ -56,19 +57,20 @@ theorem circuit_of_real_certificate {width L : Nat} {PRe : Polynomial ℝ}
       certificate.completion.average_conj_eq)
 
 /-- Original source hypotheses yield one phase list with correctness, exact events and depth. -/
-theorem exists_native_real_word {width L : Nat} {PRe : Polynomial ℝ}
+lemma exists_native_real_word {width L : Nat} {PRe : Polynomial ℝ}
     (U : UnitaryOperator (Qubits width)) (left right : OrthogonalProjector width)
     (allowControlled : Bool)
     (source : ReflectionQSPPhaseSynthesis.RealBoundedMatchingParity L PRe)
     (positive : 0 < L) :
     ∃ phases : List ℝ, phases.length = L ∧
       projectedPhasePlusBlock (projectedOutputProjector left right L) right
-        (circuit U left right allowControlled phases).binaryMatrix =
+        ((circuit (width := width) allowControlled phases).binaryMatrix
+          (ProjectedSignal.interpretation U left right allowControlled)) =
           singularValuePolynomial right L (realPolynomialToComplex PRe)
             (projectedUnitaryBlock left right U) ∧
-      (circuit U left right allowControlled phases).eventCost =
-        budget U left right allowControlled L ∧
-      (circuit U left right allowControlled phases).evaluatedEventDepth (fun _ => 1) =
+      (circuit (width := width) allowControlled phases).eventCost =
+        budget (width := width) allowControlled L ∧
+      (circuit (width := width) allowControlled phases).evaluatedEventDepth (fun _ => 1) =
         4 * L := by
   let certificate :=
     ReflectionQSPPhaseSynthesis.chooseRealBoundedPhaseCertificateOfSourceHypotheses source

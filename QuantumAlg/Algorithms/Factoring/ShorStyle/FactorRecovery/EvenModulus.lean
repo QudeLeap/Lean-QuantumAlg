@@ -29,7 +29,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat}
 
 /-- The actual two flag writes set true regardless of the original stored Boolean. -/
-theorem even_flag (cells : Cells ctx N) (store : Store ctx) :
+lemma even_flag (cells : Cells ctx N) (store : Store ctx) :
     ((store.applyOp (clearActiveOp cells)).applyOp (setActiveOp cells)).read (activeRead cells) =
       .bit true := by
   have cleared : (store.applyOp (clearActiveOp cells)).read (activeRead cells) = .bit false := by
@@ -81,7 +81,7 @@ def evenStep (cells : Cells ctx N)
   (selected.1, (cleared.2, selected.2))
 
 /-- The real exceptional branch writes exactly the source factor two, without truncation. -/
-theorem even_result (source : Input N) (cells : Cells ctx N)
+lemma even_result (source : Input N) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
     (larger : 2 < N) (separate : cells.halfPower.key ≠ cells.active.key) :
     (evenStep (model := model) cells output store).1.read (.storage output.toCStorageRef) =

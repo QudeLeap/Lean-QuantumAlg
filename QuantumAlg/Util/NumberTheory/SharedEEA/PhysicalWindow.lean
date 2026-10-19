@@ -40,7 +40,7 @@ def replace (word : BitVec wordWidth) (replacement : BitVec windowWidth)
   (replacement.reverse ++ word.extractLsb' 0 (wordWidth - windowWidth)).cast (by omega)
 
 /-- Each arithmetic window bit is exactly its physical left-to-right source bit. -/
-theorem read_bit (word : BitVec wordWidth) (fits : windowWidth ≤ wordWidth)
+lemma read_bit (word : BitVec wordWidth) (fits : windowWidth ≤ wordWidth)
     (index : Nat) (within : index < windowWidth) :
     (read windowWidth word).getLsbD index = word.getMsbD index := by
   have joined : wordWidth - windowWidth + windowWidth = wordWidth := by omega
@@ -50,7 +50,7 @@ theorem read_bit (word : BitVec wordWidth) (fits : windowWidth ≤ wordWidth)
     sourceWithin, sourceIndex, decide_true, Bool.true_and]
 
 /-- Every replaced or retained physical bit follows the exact region boundary. -/
-theorem replace_bit (word : BitVec wordWidth) (replacement : BitVec windowWidth)
+lemma replace_bit (word : BitVec wordWidth) (replacement : BitVec windowWidth)
     (fits : windowWidth ≤ wordWidth) (index : Nat) (within : index < wordWidth) :
     (replace word replacement fits).getMsbD index =
       if index < windowWidth then replacement.getLsbD index else word.getMsbD index := by
@@ -68,14 +68,14 @@ theorem replace_bit (word : BitVec wordWidth) (replacement : BitVec windowWidth)
       decide_true, Bool.true_and, if_neg inWindow]
 
 /-- Every physical suffix bit, including wrapped low coefficient bits, is preserved exactly. -/
-theorem replace_outside (word : BitVec wordWidth) (replacement : BitVec windowWidth)
+lemma replace_outside (word : BitVec wordWidth) (replacement : BitVec windowWidth)
     (fits : windowWidth ≤ wordWidth) (index : Nat)
     (outside : windowWidth ≤ index) (within : index < wordWidth) :
     (replace word replacement fits).getMsbD index = word.getMsbD index := by
   rw [replace_bit word replacement fits index within, if_neg (Nat.not_lt.mpr outside)]
 
 /-- Reading the replaced physical region recovers the complete arithmetic replacement word. -/
-theorem read_replace (word : BitVec wordWidth) (replacement : BitVec windowWidth)
+lemma read_replace (word : BitVec wordWidth) (replacement : BitVec windowWidth)
     (fits : windowWidth ≤ wordWidth) :
     read windowWidth (replace word replacement fits) = replacement := by
   apply BitVec.eq_of_getLsbD_eq
@@ -84,7 +84,7 @@ theorem read_replace (word : BitVec wordWidth) (replacement : BitVec windowWidth
     replace_bit word replacement fits index (within.trans_le fits), if_pos within]
 
 /-- Replacing a physical region by its own extracted bits preserves the entire word. -/
-theorem replace_read (word : BitVec wordWidth) (fits : windowWidth ≤ wordWidth) :
+lemma replace_read (word : BitVec wordWidth) (fits : windowWidth ≤ wordWidth) :
     replace word (read windowWidth word) fits = word := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -94,7 +94,7 @@ theorem replace_read (word : BitVec wordWidth) (fits : windowWidth ≤ wordWidth
   · rw [if_neg inWindow]
 
 /-- The actual rotated physical window is exactly the prescribed coefficient bit slice. -/
-theorem read_rotated (shift : Nat)
+lemma read_rotated (shift : Nat)
     (payload : WordPacking.Work2Payload coefficientWidth remainderWidth)
     (fits : shift + windowWidth ≤ coefficientWidth) :
     read windowWidth (WordRotation.packRotatedWork2 shift payload) =
@@ -110,7 +110,7 @@ theorem read_rotated (shift : Nat)
     if_neg (Nat.not_le_of_lt coefficientWithin), BitVec.getLsbD_extractLsb', within]
 
 /-- No selected bits is a genuine empty window, and replacing it preserves the physical word. -/
-theorem replace_empty (word : BitVec wordWidth) :
+lemma replace_empty (word : BitVec wordWidth) :
     replace word (0 : BitVec 0) (Nat.zero_le _) = word := by
   have emptyRead : read 0 word = (0 : BitVec 0) := BitVec.of_length_zero
   rw [← emptyRead]

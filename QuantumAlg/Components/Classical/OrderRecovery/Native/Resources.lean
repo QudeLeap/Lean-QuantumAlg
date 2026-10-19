@@ -25,7 +25,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth width phaseBits : Nat}
 
 /-- Either stored validation result fits the same coordinatewise selection budget. -/
-theorem nativeRecovery_selection_pool_le (cells : ScanCells ctx modulusWidth width)
+lemma nativeRecovery_selection_pool_le (cells : ScanCells ctx modulusWidth width)
     (remainder : CInputRef ctx (.unsignedWord width))
     (path : (selectCandidate (model := model) cells remainder).Path) :
     (selectCandidate (model := model) cells remainder).resourcePool path ≤
@@ -50,7 +50,7 @@ theorem nativeRecovery_selection_pool_le (cells : ScanCells ctx modulusWidth wid
         exact ResourcePool.le_max_right _ _
 
 /-- Actual division and validation compose with the selected cursor update. -/
-theorem nativeRecovery_visit_pool_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_visit_pool_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
@@ -74,7 +74,7 @@ theorem nativeRecovery_visit_pool_le (spec : ModulusSpec modulusWidth)
     (nativeRecovery_selection_pool_le cells (.second (cellRead division)) path.2.2))
 
 /-- The lexical division pair adds no event beyond its real visit. -/
-theorem nativeRecovery_activeVisit_pool_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_activeVisit_pool_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (path : (activeVisit (model := model) spec base cells).Path) :
@@ -87,7 +87,7 @@ theorem nativeRecovery_activeVisit_pool_le (spec : ModulusSpec modulusWidth)
       ctx.canonicalFreshKey_fresh) (scanDivisionCell ctx width) path
 
 /-- A real inactive slot emits nothing; an active slot uses one visit allowance. -/
-theorem nativeRecovery_slot_pool_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_slot_pool_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (path : (scanSlot (model := model) spec base cells).Path) :
@@ -101,7 +101,7 @@ theorem nativeRecovery_slot_pool_le (spec : ModulusSpec modulusWidth)
       · exact nativeRecovery_activeVisit_pool_le spec base cells path
 
 /-- Actual finite iteration consumes at most one independent allowance per slot. -/
-theorem nativeRecovery_scan_pool_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_scan_pool_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (count : Nat) :
     ∀ path : (scan (model := model) spec base cells count).Path,
@@ -118,7 +118,7 @@ theorem nativeRecovery_scan_pool_le (spec : ModulusSpec modulusWidth)
         (ih (fun index => path index.succ))
 
 /-- The actual padded decoder, constant loader and three initialization writes fit their ledger. -/
-theorem nativeRecovery_initialization_pool_le (sample : CInputRef ctx (.bits phaseBits))
+lemma nativeRecovery_initialization_pool_le (sample : CInputRef ctx (.bits phaseBits))
     (path : (initializeScan (model := model) ctx modulusWidth phaseBits sample).Path) :
     (initializeScan (model := model) ctx modulusWidth phaseBits sample).resourcePool path ≤
       initializationEnvelope model modulusWidth (phaseBits + 1) := by
@@ -146,7 +146,7 @@ theorem nativeRecovery_initialization_pool_le (sample : CInputRef ctx (.bits pha
       path.2.1) le_rfl)
 
 /-- The complete native body satisfies the fixed source-width budget on every path. -/
-theorem nativeRecovery_body_pool_le
+lemma nativeRecovery_body_pool_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))
@@ -172,7 +172,7 @@ theorem nativeRecovery_body_pool_le
       (ClassicalAlgorithms.OrderRecovery.finiteCandidateFuel phaseBits) path.2.1) le_rfl)
 
 /-- Matching scopes add no hidden native event to the complete actual recovery program. -/
-theorem nativeRecovery_into_pool_le
+lemma nativeRecovery_into_pool_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))

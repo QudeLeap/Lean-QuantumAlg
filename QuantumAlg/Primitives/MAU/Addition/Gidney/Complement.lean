@@ -22,6 +22,8 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 open EncodedBit.GateSpec
 
@@ -35,13 +37,13 @@ private def complementWord (width : Nat) : EncodedBit.Word (finIdentity width) w
 private def allOnes (width : Nat) : Fin (2 ^ width) :=
   ⟨2 ^ width - 1, by have := Nat.two_pow_pos width; omega⟩
 
-private theorem complementBit_get (width : Nat) (bit : Fin width)
+private lemma complementBit_get (width : Nat) (bit : Fin width)
     (input : Fin (2 ^ width)) :
     (complementBit width bit).get input = input.val.testBit bit.val := by
   change input.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem complementBit_disjoint (width : Nat) (left right : Fin width)
+private lemma complementBit_disjoint (width : Nat) (left right : Fin width)
     (hne : left ≠ right) :
     (complementBit width left).wire ≠ (complementBit width right).wire := by
   intro h
@@ -51,7 +53,7 @@ private theorem complementBit_disjoint (width : Nat) (left right : Fin width)
   apply Fin.ext
   omega
 
-private theorem allOnes_testBit (width : Nat) (bit : Fin width) :
+private lemma allOnes_testBit (width : Nat) (bit : Fin width) :
     (allOnes width).val.testBit bit.val = true := by
   simp [allOnes, bit.isLt]
 
@@ -65,7 +67,7 @@ def complementProgram (width : Nat) :
       (QubitLayout.canonical width).toQuantum :=
   programList (QubitLayout.canonical width) .empty (complementGates width)
 
-private theorem complementGates_eq_xorConstant (width : Nat) :
+private lemma complementGates_eq_xorConstant (width : Nat) :
     complementGates width =
       EncodedBit.Word.xorConstantGates (complementWord width) (allOnes width) := by
   have hbits : (fun bit : Fin width => (allOnes width).val.testBit bit.val) =
@@ -75,7 +77,7 @@ private theorem complementGates_eq_xorConstant (width : Nat) :
   simp only [EncodedBit.Word.xorConstantGates, EncodedBit.Word.constantOneIndices, hbits]
   simp [complementGates, complementWord, Function.comp_def]
 
-theorem gidneyComplement_step (width : Nat) (input : Fin (2 ^ width)) :
+lemma gidneyComplement_step (width : Nat) (input : Fin (2 ^ width)) :
     stepList (complementGates width) input = HRS.complementWord input := by
   rw [complementGates_eq_xorConstant]
   change EncodedBit.Word.xorConstantStep (complementWord width) (allOnes width) input = _
@@ -89,14 +91,15 @@ theorem gidneyComplement_step (width : Nat) (input : Fin (2 ^ width)) :
   rw [complementBit_get, complementBit_get, allOnes_testBit] at h
   simpa only [HRS.hrsComplementWord_testBit, Bool.xor_true] using h
 
-theorem gidneyComplement_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (finIdentity width) (complementProgram width) HRS.complementWord := by
+lemma gidneyComplement_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (finIdentity width) (complementProgram width)
+      environment HRS.complementWord := by
   unfold complementProgram
   exact realizesList_congrStep (QubitLayout.canonical width) .empty
-    (complementGates width) (gidneyComplement_step width)
+    (complementGates width) (gidneyComplement_step width) environment
 
 /-- Every event is an actual X, one for each target bit. -/
-theorem gidneyComplement_eventCost (width : Nat) :
+lemma gidneyComplement_eventCost (width : Nat) :
     (complementProgram width).eventCost = ResourcePool.ofList
       (List.replicate width
         (Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) .singleQubit)) := by
@@ -115,7 +118,7 @@ theorem gidneyComplement_eventCost (width : Nat) :
     exact nativeX bit]
   exact List.ofFn_const width _
 
-theorem gidneyComplement_depth (width : Nat) :
+lemma gidneyComplement_depth (width : Nat) :
     (complementProgram width).evaluatedEventDepth (fun _ => 1) = width := by
   rw [complementProgram, programList_evaluatedEventDepth_unit]
   simp [complementGates]

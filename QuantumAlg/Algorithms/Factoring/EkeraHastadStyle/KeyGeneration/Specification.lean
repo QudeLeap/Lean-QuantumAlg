@@ -42,7 +42,7 @@ def semiprimeOfKeyPair {b : Nat} (pair : RSA.RSAKeyPairBits b) :
 
 /-- Every theorem-side key gives the same N-only executable assumption; its
 factors remain absent from the runtime input. -/
-public theorem inputOfKeyPair {b : Nat} (pair : RSA.RSAKeyPairBits b) :
+public lemma inputOfKeyPair {b : Nat} (pair : RSA.RSAKeyPairBits b) :
     Input pair.modulus where
   modulus_gt_one := by
     unfold RSA.RSAKeyPairBits.modulus
@@ -74,19 +74,19 @@ def semiprime {N : Nat} (model : GoodKeyModel N) :
   exact semiprimeOfKeyPair model.pair
 
 /-- The proof-side model supplies the public-modulus executable assumption. -/
-public theorem input {N : Nat} (model : GoodKeyModel N) : Input N where
+public lemma input {N : Nat} (model : GoodKeyModel N) : Input N where
   modulus_gt_one := by
     rw [model.modulus_eq, RSA.RSAKeyPairBits.modulus]
     have left := model.pair.p_prime.two_le
     have right := model.pair.q_prime.two_le
     nlinarith
 
-@[simp] theorem semiprime_leftFactor {N : Nat} (model : GoodKeyModel N) :
+@[simp] lemma semiprime_leftFactor {N : Nat} (model : GoodKeyModel N) :
     model.semiprime.leftFactor = model.pair.p := by
   rcases model with ⟨_bitWidth, pair, rfl, _effective, _keyGood⟩
   rfl
 
-@[simp] theorem semiprime_rightFactor {N : Nat} (model : GoodKeyModel N) :
+@[simp] lemma semiprime_rightFactor {N : Nat} (model : GoodKeyModel N) :
     model.semiprime.rightFactor = model.pair.q := by
   rcases model with ⟨_bitWidth, pair, rfl, _effective, _keyGood⟩
   rfl

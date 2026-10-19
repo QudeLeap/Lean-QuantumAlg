@@ -28,7 +28,7 @@ noncomputable section
 
 open Execution
 
-private theorem context_spaces (width : Nat) (frame : RuntimeCtx .quantum)
+private lemma context_spaces (width : Nat) (frame : RuntimeCtx .quantum)
     (present : frame ∈ [pre width, prepared width, post width]) :
     frame.residentSpace ≤ spaceBudget width ∧ frame.auxiliarySpace ≤ spaceBudget width := by
   simp only [List.mem_cons, List.not_mem_nil, or_false] at present
@@ -50,9 +50,9 @@ private theorem context_spaces (width : Nat) (frame : RuntimeCtx .quantum)
           QubitLayout.toQuantumLayout_dimensionCount, spaceBudget]
         split <;> omega
 
-private theorem visited_spaces {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (path : (code unitary).Path) (frame : RuntimeCtx .quantum)
-    (present : frame ∈ (code unitary).visitedContexts path) :
+private lemma visited_spaces (width : Nat)
+    (path : (code width).Path) (frame : RuntimeCtx .quantum)
+    (present : frame ∈ (code width).visitedContexts path) :
     frame.residentSpace ≤ spaceBudget width ∧ frame.auxiliarySpace ≤ spaceBudget width := by
   apply context_spaces width frame
   change frame ∈ ([pre width, prepared width] ++
@@ -61,18 +61,18 @@ private theorem visited_spaces {width : Nat} (unitary : UnitaryOperator (Qubits 
   tauto
 
 /-- Actual resident peaks include the complete retained output. -/
-theorem code_residentSpace {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (path : (code unitary).Path) :
-    (code unitary).peakResidentSpace path ≤ spaceBudget width :=
-  Circuit.peakResidentSpace_le_of_visited (code unitary) path (spaceBudget width)
-    (fun frame present => (visited_spaces unitary path frame present).1)
+lemma code_residentSpace (width : Nat)
+    (path : (code width).Path) :
+    (code width).peakResidentSpace path ≤ spaceBudget width :=
+  Circuit.peakResidentSpace_le_of_visited (code width) path (spaceBudget width)
+    (fun frame present => (visited_spaces width path frame present).1)
 
 /-- Actual auxiliary-role peaks count the same owned words and retained result cell. -/
-theorem code_auxiliarySpace {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (path : (code unitary).Path) :
-    (code unitary).peakAuxiliarySpace path ≤ spaceBudget width :=
-  Circuit.peakAuxiliarySpace_le_of_visited (code unitary) path (spaceBudget width)
-    (fun frame present => (visited_spaces unitary path frame present).2)
+lemma code_auxiliarySpace (width : Nat)
+    (path : (code width).Path) :
+    (code width).peakAuxiliarySpace path ≤ spaceBudget width :=
+  Circuit.peakAuxiliarySpace_le_of_visited (code width) path (spaceBudget width)
+    (fun frame present => (visited_spaces width path frame present).2)
 
 end
 

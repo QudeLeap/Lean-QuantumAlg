@@ -7,6 +7,8 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Runtime.Round
+import all QuantumAlg.Primitives.ZReset.Bank.Parallel.Bounds
+import all QuantumAlg.Primitives.ZReset.Bank
 import all QuantumAlg.Primitives.ShortDLP.CompiledMAU.Circuit.Resources
 import all QuantumAlg.Core.Base.UnitaryCircuit
 
@@ -25,7 +27,7 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimeRound
 
 noncomputable section
 
-private theorem seq_pool_le {execution : ExecutionModel} {ctx : RuntimeCtx execution.kind}
+private lemma seq_pool_le {execution : ExecutionModel} {ctx : RuntimeCtx execution.kind}
     (first second : Circuit execution ctx ctx) (path : (Circuit.seq first second).Path)
     (firstBudget secondBudget : ResourcePool execution)
     (firstBound : first.resourcePool path.1 ≤ firstBudget)
@@ -51,14 +53,14 @@ variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
 
 include sameWires in
 /-- The reused physical bank has exactly the complete compiled member's system count. -/
-theorem shortDLP_runtimeRound_systemCount :
+lemma shortDLP_runtimeRound_systemCount :
     ctx.systemCount = totalQubits (registerParameters m ell width) :=
   ctx.physicalIdx_length.symm.trans
     ((congrArg List.length
       (RuntimePlacement.shortDLP_runtimePlacement_physicalIdx m ell width sameWires)).trans
       (by simp only [List.length_range]))
 
-private theorem selected_pool_le {shape : CShape} (parameter : CInputRef ctx shape)
+private lemma selected_pool_le {shape : CShape} (parameter : CInputRef ctx shape)
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (path : (selected m ell width sameWires parameter N generator target).Path) :
     (selected m ell width sameWires parameter N generator target).resourcePool path ≤
@@ -72,12 +74,14 @@ private theorem selected_pool_le {shape : CShape} (parameter : CInputRef ctx sha
   exact compiledCircuit_eventCost_le_classical_context m ell width N
     (generator value) (target value) BitWord.model .empty
 
-private theorem measured_pool
+private lemma measured_pool
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
-    (path : (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := .empty)
+    (path : (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells)).Path) :
-    (Circuit.measurementSequence (gates := AlgorithmGate.model) (oracles := .empty)
+    (Circuit.measurementSequence (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := BitWord.model) (classicalOracles := .empty)
         (readouts m ell width sameWires cells)).resourcePool path =
       resultBits m ell width • ResourcePool.singleton (model := model) (.measurement (2 : ℕ+)) :=
@@ -87,7 +91,7 @@ private theorem measured_pool
       ResourcePool.singleton (model := model) (.measurement (2 : ℕ+)))
       (shortDLP_runtimeReadouts_length m ell width sameWires cells))
 
-private theorem packing_pool
+private lemma packing_pool
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))
     (path : (BitWord.instruction (execution := model) (packing m ell width cells result)).Path) :
@@ -100,7 +104,7 @@ private theorem packing_pool
     (BitWord.bitWord_instruction_eventTrace (execution := model)
       (packing m ell width cells result) path)
 
-private theorem resetReload_pool_le (N : Nat)
+private lemma resetReload_pool_le (N : Nat)
     (path : (resetReload m ell width sameWires N).Path) :
     (resetReload m ell width sameWires N).resourcePool path ≤
       ZReset.Bank.envelope (oracles := .empty)
@@ -108,10 +112,10 @@ private theorem resetReload_pool_le (N : Nat)
         reloadXCount m ell width N •
           ResourcePool.singleton (model := model) (.gate .singleQubit) := by
   apply seq_pool_le
-    (ZReset.BankScope.code
+    (ZReset.BankParallel.code
       (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) BitWord.model)
     (.unitary (RuntimePlacement.reloadProgram m ell width sameWires N)) path
-  · exact (ZReset.BankScope.zResetBankScope_resourcePool_le
+  · exact (ZReset.BankParallel.code_eventEnvelope_le (services := .empty)
       (operations := BitWord.model)
       (RuntimePlacement.shortDLP_runtimePlacement_qubits m ell width sameWires) path.1).trans_eq
       (congrArg (fun count => ZReset.Bank.envelope (oracles := .empty) count BitWord.model)
@@ -124,7 +128,7 @@ private theorem resetReload_pool_le (N : Nat)
       shortDLP_reload_eventCost_classical_context]
 
 /-- Every actual round path satisfies the complete independent native-coordinate budget. -/
-theorem shortDLP_runtimeRound_resourcePool_le {shape : CShape} (parameter : CInputRef ctx shape)
+lemma shortDLP_runtimeRound_resourcePool_le {shape : CShape} (parameter : CInputRef ctx shape)
     (N : Nat) (generator target : shape.Value → (ZMod N)ˣ)
     (cells : Fin (resultBits m ell width) → CWriteRef ctx (.finite 2))
     (result : CWriteRef ctx (.bits (resultBits m ell width)))

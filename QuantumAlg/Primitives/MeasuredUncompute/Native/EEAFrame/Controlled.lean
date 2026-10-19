@@ -21,6 +21,8 @@ namespace QuantumAlg.MeasuredUncompute.NativeEEAFrame.Controlled
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement EncodedBit GateSpec MAU.Inversion.SharedEEA
 
 /-- Actual forward instructions with the supplied final quantum control. -/
@@ -29,7 +31,7 @@ def forwardGates (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool) :
   NativeFrameControl.gates modulus.size active (NativeEEAFrame.forwardGates modulus prime)
 
 /-- Exact all-label conditional action of the complete forward list. -/
-theorem nativeEEAControlled_forwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_forwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (state : Frame modulus.size × Bool) :
     stepList (forwardGates modulus prime active) state =
       NativeFrameControl.step modulus.size active
@@ -45,17 +47,17 @@ def forward (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
   programList layout .empty (forwardGates modulus prime active)
 
 /-- Exact phase-sensitive coherent forward semantics for all original labels. -/
-theorem nativeEEAControlled_forward_realizes (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_forward_realizes (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     UnitaryCircuit.Realizes (layout := layout) (NativeFrameControl.encoding modulus.size)
-      (forward modulus prime active layout)
+      (forward modulus prime active layout) environment
       (NativeFrameControl.step modulus.size active
         (fun state => (InPlaceForward.step modulus state.1, state.2))) :=
   realizesList_congrStep layout .empty _
-    (nativeEEAControlled_forwardGates_step modulus prime active)
+    (nativeEEAControlled_forwardGates_step modulus prime active) environment
 
 /-- The forward trace is the actual expanded sequence in execution order. -/
-theorem nativeEEAControlled_forward_trace (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_forward_trace (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (forward modulus prime active layout).eventTrace =
       (forwardGates modulus prime active).map (event .empty) :=
@@ -67,7 +69,7 @@ def backwardGates (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool) :
   NativeFrameControl.gates modulus.size active (NativeEEAFrame.backwardGates modulus prime)
 
 /-- Exact all-label conditional action of the complete backward list. -/
-theorem nativeEEAControlled_backwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_backwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (state : Frame modulus.size × Bool) :
     stepList (backwardGates modulus prime active) state =
       NativeFrameControl.step modulus.size active
@@ -83,16 +85,16 @@ def backward (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
   programList layout .empty (backwardGates modulus prime active)
 
 /-- Exact phase-sensitive coherent backward semantics for all original labels. -/
-theorem nativeEEAControlled_backward_realizes (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_backward_realizes (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     UnitaryCircuit.Realizes (layout := layout) (NativeFrameControl.encoding modulus.size)
-      (backward modulus prime active layout)
+      (backward modulus prime active layout) environment
       (NativeFrameControl.step modulus.size active (NativeEEAFrame.backwardStep modulus prime)) :=
   realizesList_congrStep layout .empty _
-    (nativeEEAControlled_backwardGates_step modulus prime active)
+    (nativeEEAControlled_backwardGates_step modulus prime active) environment
 
 /-- The backward trace is the actual expanded sequence in execution order. -/
-theorem nativeEEAControlled_backward_trace (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_backward_trace (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (backward modulus prime active layout).eventTrace =
       (backwardGates modulus prime active).map (event .empty) :=
@@ -104,7 +106,7 @@ def reusedForwardGates (modulus : Nat) (prime : Nat.Prime modulus) (active : Boo
   (backwardGates modulus prime active).reverse
 
 /-- Exact all-label conditional action of the complete reusedForward list. -/
-theorem nativeEEAControlled_reusedForwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_reusedForwardGates_step (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (state : Frame modulus.size × Bool) :
     stepList (reusedForwardGates modulus prime active) state =
       NativeFrameControl.step modulus.size active (NativeReusedEEA.step modulus) state := by
@@ -122,35 +124,35 @@ def reusedForward (modulus : Nat) (prime : Nat.Prime modulus) (active : Bool)
   programList layout .empty (reusedForwardGates modulus prime active)
 
 /-- Exact phase-sensitive coherent reusedForward semantics for all original labels. -/
-theorem nativeEEAControlled_reusedForward_realizes (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_reusedForward_realizes (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     UnitaryCircuit.Realizes (layout := layout) (NativeFrameControl.encoding modulus.size)
-      (reusedForward modulus prime active layout)
+      (reusedForward modulus prime active layout) environment
       (NativeFrameControl.step modulus.size active (NativeReusedEEA.step modulus)) :=
   realizesList_congrStep layout .empty _
-    (nativeEEAControlled_reusedForwardGates_step modulus prime active)
+    (nativeEEAControlled_reusedForwardGates_step modulus prime active) environment
 
 /-- The reusedForward trace is the actual expanded sequence in execution order. -/
-theorem nativeEEAControlled_reusedForward_trace (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_reusedForward_trace (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (reusedForward modulus prime active layout).eventTrace =
       (reusedForwardGates modulus prime active).map (event .empty) :=
   programList_eventTrace layout .empty _
 
 /-- Workspace reuse is the same FullPlacement before coherent control is expanded. -/
-theorem nativeEEAControlled_backward_placed (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_backward_placed (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) :
     backwardGates modulus prime active = NativeFrameControl.gates modulus.size active
       ((NativeEEAFrame.forwardGates modulus prime).reverse.map
         (WorkspaceReuse.placement modulus.size).placeGate) := rfl
 
 /-- Reused forward is the literal ordered reverse of the expanded backward word. -/
-theorem nativeEEAControlled_reusedForward_reversed (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_reusedForward_reversed (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) :
     reusedForwardGates modulus prime active = (backwardGates modulus prime active).reverse := rfl
 
 /-- The actual inverse trace reverses every expanded native instruction, including wrappers. -/
-theorem nativeEEAControlled_reusedForward_reverse_trace (modulus : Nat)
+lemma nativeEEAControlled_reusedForward_reverse_trace (modulus : Nat)
     (prime : Nat.Prime modulus) (active : Bool)
     (layout : QubitLayout (NativeFrameControl.encoding modulus.size).width) :
     (reusedForward modulus prime active layout).eventTrace =
@@ -159,7 +161,7 @@ theorem nativeEEAControlled_reusedForward_reverse_trace (modulus : Nat)
     reusedForwardGates, List.map_reverse]
 
 /-- Both selected and unselected sectors restore arbitrary dirty frames after inverse execution. -/
-theorem nativeEEAControlled_reusedForward_backward_restores (modulus : Nat)
+lemma nativeEEAControlled_reusedForward_backward_restores (modulus : Nat)
     (prime : Nat.Prime modulus) (active : Bool) (state : Frame modulus.size × Bool) :
     stepList (reusedForwardGates modulus prime active)
       (stepList (backwardGates modulus prime active) state) = state := by
@@ -171,7 +173,7 @@ attribute [local irreducible] NativeEEAFrame.backwardGates NativeReusedEEA.forwa
   WorkspaceReuse.placement
 
 /-- The arbitrary saved target survives the controlled placed adjoint in both sectors. -/
-theorem nativeEEAControlled_backward_saved (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_backward_saved (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (state : Frame modulus.size × Bool) :
     ((WorkspaceReuse.placement modulus.size).grouping
       (stepList (backwardGates modulus prime active) state).1).2 =
@@ -183,7 +185,7 @@ theorem nativeEEAControlled_backward_saved (modulus : Nat) (prime : Nat.Prime mo
   · rfl
 
 /-- The arbitrary saved target survives controlled reused forward in both sectors. -/
-theorem nativeEEAControlled_reusedForward_saved (modulus : Nat) (prime : Nat.Prime modulus)
+lemma nativeEEAControlled_reusedForward_saved (modulus : Nat) (prime : Nat.Prime modulus)
     (active : Bool) (state : Frame modulus.size × Bool) :
     ((WorkspaceReuse.placement modulus.size).grouping
       (stepList (reusedForwardGates modulus prime active) state).1).2 =

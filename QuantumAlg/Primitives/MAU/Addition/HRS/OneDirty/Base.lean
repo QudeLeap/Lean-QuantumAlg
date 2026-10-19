@@ -25,6 +25,8 @@ namespace QuantumAlg.MAU.Addition.HRS
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 open EncodedBit.GateSpec
 
@@ -49,13 +51,13 @@ def oneDirtyWordBit (width : Nat) (bit : Fin width) : EncodedBit (oneDirtyEncodi
 def oneDirtyBit (width : Nat) : EncodedBit (oneDirtyEncoding width) :=
   prodRightBit (finIdentity width) bool boolBit
 
-theorem hrsOneDirtyWordBit_get (width : Nat) (bit : Fin width)
+lemma hrsOneDirtyWordBit_get (width : Nat) (bit : Fin width)
     (state : OneDirtyRegisters width) :
     (oneDirtyWordBit width bit).get state = state.1.val.testBit bit.val := by
   change state.1.val.testBit (WireAddress.bitIndex (WireAddress.littleEndianWire bit)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem wordBits_disjoint (width : Nat) (a b : Fin width) (hne : a ≠ b) :
+private lemma wordBits_disjoint (width : Nat) (a b : Fin width) (hne : a ≠ b) :
     (oneDirtyWordBit width a).wire ≠ (oneDirtyWordBit width b).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -64,7 +66,7 @@ private theorem wordBits_disjoint (width : Nat) (a b : Fin width) (hne : a ≠ b
   apply Fin.ext
   omega
 
-private theorem dirty_disjoint (width : Nat) (bit : Fin width) :
+private lemma dirty_disjoint (width : Nat) (bit : Fin width) :
     (oneDirtyWordBit width bit).wire ≠ (oneDirtyBit width).wire := by
   intro h
   have hval := congrArg Fin.val h
@@ -85,7 +87,7 @@ def oneDirtyBaseProgram (width : Nat) (constant : Fin (2 ^ width)) :
   programList (QubitLayout.canonical _) .empty (oneDirtyBaseGates width constant)
 
 /-- At the two base widths, finite xor and finite addition coincide exactly. -/
-theorem hrsOneDirtyBase_step (width : Nat) (base : width ≤ 1) (constant : Fin (2 ^ width))
+lemma hrsOneDirtyBase_step (width : Nat) (base : width ≤ 1) (constant : Fin (2 ^ width))
     (state : OneDirtyRegisters width) :
     stepList (oneDirtyBaseGates width constant) state = oneDirtyOutput constant state := by
   change EncodedBit.Word.xorConstantStep (baseWord width) constant state = _
@@ -112,15 +114,16 @@ theorem hrsOneDirtyBase_step (width : Nat) (base : width ≤ 1) (constant : Fin 
       (baseWord width) constant (oneDirtyBit width) (dirty_disjoint width) state
 
 /-- The actual base circuit realizes addition with its arbitrary dirty bit restored. -/
-theorem hrsOneDirtyBase_realizes (width : Nat) (base : width ≤ 1) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirtyBase_realizes (width : Nat) (base : width ≤ 1) (constant : Fin (2 ^ width)) :
     UnitaryCircuit.Realizes (oneDirtyEncoding width) (oneDirtyBaseProgram width constant)
+      environment
       (oneDirtyOutput constant) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
     (oneDirtyBaseGates width constant)
-    (hrsOneDirtyBase_step width base constant)
+    (hrsOneDirtyBase_step width base constant) environment
 
 /-- Exact event and serial-depth counts of the selected base gates. -/
-theorem hrsOneDirtyBase_resources (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirtyBase_resources (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyBaseProgram width constant).eventCost.card =
         (EncodedBit.Word.constantOneIndices constant).length ∧
       (oneDirtyBaseProgram width constant).evaluatedEventDepth (fun _ => 1) =
@@ -133,7 +136,7 @@ theorem hrsOneDirtyBase_resources (width : Nat) (constant : Fin (2 ^ width)) :
   simp [oneDirtyBaseGates, EncodedBit.Word.xorConstantGates_length]
 
 /-- Base gates occupy at most the original input word, within the exact word/dirty carrier. -/
-theorem hrsOneDirtyBase_interface (width : Nat) :
+lemma hrsOneDirtyBase_interface (width : Nat) :
     (oneDirtyEncoding width).width = width + 1 ∧
       (QubitLayout.canonical (oneDirtyEncoding width).width).systemIdx =
         List.range (width + 1) := by

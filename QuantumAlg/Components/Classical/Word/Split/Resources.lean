@@ -26,7 +26,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width highWidth lowWidth : Nat}
 
 /-- Independent native formula for the prescribed number of one-bit shifts. -/
@@ -43,7 +43,7 @@ def splitTrace (highWidth lowWidth : Nat) : List (Resource.Event model) :=
         (.wordResize (highWidth + lowWidth) highWidth))])
 
 /-- Every actual shift path emits exactly the independent replicated native instruction. -/
-theorem shiftInto_events (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_events (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count work).Path) :
     (shiftInto (model := model) count work).eventTrace path =
       shiftTrace (model := model) width count := by
@@ -54,7 +54,7 @@ theorem shiftInto_events (count : Nat) (work : CWriteRef ctx (.unsignedWord widt
   simp [shiftTrace, shiftOp, ClassicalOp.label]
 
 /-- Every actual word-split path emits the independent complete native formula. -/
-theorem splitInto_events (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_events (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path) :
     (splitInto (model := model) refs).eventTrace path =
       splitTrace (model := model) highWidth lowWidth := by
@@ -66,21 +66,21 @@ theorem splitInto_events (refs : Refs ctx highWidth lowWidth)
   rfl
 
 /-- Actual native multiplicities equal the independent complete word-split formula. -/
-theorem splitInto_resourcePool (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_resourcePool (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path) :
     (splitInto (model := model) refs).resourcePool path =
       ResourcePool.ofList (splitTrace (model := model) highWidth lowWidth) :=
   congrArg ResourcePool.ofList (splitInto_events refs path)
 
 /-- Exactly one operation executes per requested native shift. -/
-theorem shiftInto_eventCount (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_eventCount (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count work).Path) :
     ((shiftInto (model := model) count work).eventTrace path).length = count := by
   rw [shiftInto_events]
   exact List.length_replicate
 
 /-- A complete actual split executes exactly the low width plus two native operations. -/
-theorem splitInto_eventCount (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_eventCount (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path) :
     ((splitInto (model := model) refs).eventTrace path).length = lowWidth + 2 := by
   rw [splitInto_events]
@@ -89,14 +89,14 @@ theorem splitInto_eventCount (refs : Refs ctx highWidth lowWidth)
   omega
 
 /-- The actual serial shift depth is the prescribed shift count at unit duration. -/
-theorem shiftInto_depth (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_depth (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count work).Path) :
     (shiftInto (model := model) count work).depth (fun _ => 1) path = count := by
   change 0 + (∑ _index : Fin count, 1) = count
   simp
 
 /-- Word-split dependencies have exact unit-duration depth equal to the low width plus two. -/
-theorem splitInto_depth (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_depth (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path) :
     (splitInto (model := model) refs).depth (fun _ => 1) path = lowWidth + 2 := by
   change 1 + ((shiftInto (model := model) lowWidth refs.work).depth (fun _ => 1) path.2.1 + 1) = _
@@ -104,30 +104,30 @@ theorem splitInto_depth (refs : Refs ctx highWidth lowWidth)
   omega
 
 /-- All actual native shifts restore the complete borrowed-reference joint state. -/
-theorem shiftInto_borrowedRestored (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_borrowedRestored (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (shiftInto (model := model) count work).BorrowedRestored Reference state
-      ((shiftInto (model := model) count work).execute Reference state) :=
-  Circuit.borrowedRestored_iterate
+      ((shiftInto (model := model) count work).execute environment Reference state) :=
+  Circuit.borrowedRestored_iterate environment
     (BitWord.instruction (execution := model) (shiftOp work)) Reference
-    (Circuit.borrowedRestored_classical (model := model)
+    (Circuit.borrowedRestored_classical (environment := environment) (model := model)
       (BitWord.selectedApplication (execution := model) (shiftOp work))) count state
 
 /-- The complete actual word split restores all borrowed correlations jointly with references. -/
-theorem splitInto_borrowedRestored (refs : Refs ctx highWidth lowWidth) (Reference : Register)
+lemma splitInto_borrowedRestored (refs : Refs ctx highWidth lowWidth) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (splitInto (model := model) refs).BorrowedRestored Reference state
-      ((splitInto (model := model) refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((splitInto (model := model) refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
     (BitWord.instruction (execution := model) (lowOp refs)) (tailInto (model := model) refs)
-  · exact Circuit.borrowedRestored_classical (model := model) _ state
-  · exact Circuit.borrowedRestored_seq _ _ _
+  · exact Circuit.borrowedRestored_classical (environment := environment) (model := model) _ state
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (shiftInto_borrowedRestored lowWidth refs.work Reference _)
-      (Circuit.borrowedRestored_classical (model := model) _ _)
+      (Circuit.borrowedRestored_classical (environment := environment) (model := model) _ _)
 
 /-- Every native shift and the iteration boundary use the complete supplied context. -/
-theorem shiftInto_visited (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
+lemma shiftInto_visited (count : Nat) (work : CWriteRef ctx (.unsignedWord width))
     (path : (shiftInto (model := model) count work).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (shiftInto (model := model) count work).visitedContexts path) :
     visited = ctx := by
@@ -136,7 +136,7 @@ theorem shiftInto_visited (count : Nat) (work : CWriteRef ctx (.unsignedWord wid
   exact actual.elim id And.right
 
 /-- Every actual word-split instruction uses only the complete supplied live context. -/
-theorem splitInto_visited (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_visited (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path)
     (visited : RuntimeCtx model.kind)
     (present : visited ∈ (splitInto (model := model) refs).visitedContexts path) :
@@ -149,7 +149,7 @@ theorem splitInto_visited (refs : Refs ctx highWidth lowWidth)
   · exact high
 
 /-- Every original resident resource remains counted throughout the actual split. -/
-theorem splitInto_resident_le (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_resident_le (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path) :
     (splitInto (model := model) refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -157,7 +157,7 @@ theorem splitInto_resident_le (refs : Refs ctx highWidth lowWidth)
   rw [splitInto_visited refs path visited present]
 
 /-- Every original auxiliary role remains counted throughout the actual split. -/
-theorem splitInto_auxiliary_le (refs : Refs ctx highWidth lowWidth)
+lemma splitInto_auxiliary_le (refs : Refs ctx highWidth lowWidth)
     (path : (splitInto (model := model) refs).Path) :
     (splitInto (model := model) refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

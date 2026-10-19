@@ -35,7 +35,7 @@ variable {count : Nat} {ctx : RuntimeCtx .quantum} {Reference : Register}
   {C D : Type} [Fintype C] [Fintype D]
 
 /-- Grouping actual classical blocks commutes with their fixed fresh preparation. -/
-theorem prepareContext_mapClassical
+lemma prepareContext_mapClassical
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -62,7 +62,7 @@ theorem prepareContext_mapClassical
 
 omit [Fintype D] in
 /-- Every original classical block keeps its complete borrowed-reference observation. -/
-theorem prepareContext_borrowed_block
+lemma prepareContext_borrowed_block
     (state : ExecutionState C (Register.prod ctx.register Reference))
     (key : StorageKey) (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
@@ -135,8 +135,10 @@ open Execution
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Fresh owned preparation restores every borrowed classical-quantum-reference correlation. -/
-theorem borrowedRestored_prepareZero {gates : GateModel} {oracles : OracleModel}
+lemma borrowedRestored_prepareZero {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    (environment :
+      (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
     {ctx : RuntimeCtx .quantum} {Reference : Register}
     {H : Type} [Fintype H] (state : State ctx Reference (classicalOracles.HiddenState × H))
     (key : StorageKey) {count : Nat} (layout : QuantumLayout count) (fresh : key ∉ ctx.keys)
@@ -146,7 +148,7 @@ theorem borrowedRestored_prepareZero {gates : GateModel} {oracles : OracleModel}
       ctx key layout fresh disjoint).BorrowedRestored Reference state
       ((Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
-        ctx key layout fresh disjoint).execute Reference state) := by
+        ctx key layout fresh disjoint).execute environment Reference state) := by
   change observeBorrowed Reference
     ((state.prepare key layout fresh disjoint (BasisPreparation.zero layout)).mapHistory
       (fun record => (record.1.1, (record.1.2, record.2)))) =

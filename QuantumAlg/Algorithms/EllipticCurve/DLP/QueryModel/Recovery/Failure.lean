@@ -38,21 +38,23 @@ open Execution
 open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
 
 attribute [local instance] Classical.decEq
-attribute [local irreducible] underPersistent retainPersistent
+attribute [local irreducible] sampleUnderPersistent retainPersistent
 
-private theorem initializedFailureWeight {model : ExecutionModel}
+private lemma initializedFailureWeight {model : ExecutionModel}
+    {environment : model.Environment}
     {origin ctx : RuntimeCtx model.kind} (setup : Circuit model origin ctx)
     (width scalar : Nat) {Reference : Register} {History : Type} [Fintype History]
     (initial : State origin Reference (model.HiddenState × History)) :
     persistentFailureWeight (model := model) (ctx := ctx) (width := width) (scalarWidth := scalar)
-      ((setup.seq (retainPersistent ctx width scalar)).execute Reference initial) =
+      ((setup.seq (retainPersistent ctx width scalar)).execute environment Reference initial) =
         initial.mass := by
   exact (storedWeight_seq setup (retainPersistent ctx width scalar) initial (fun store =>
     if (store.read (.storage (persistentAccepted ctx width scalar).toCStorageRef)).toBool = false
       then Effect.one ((persistentCtx ctx width scalar).register.prod Reference)
     else Effect.zero ((persistentCtx ctx width scalar).register.prod Reference))).trans
-      ((retainPersistent_failure_weight width scalar (setup.execute Reference initial)).trans
-        (setup.execute_mass Reference initial))
+      ((retainPersistent_failure_weight width scalar (setup.execute environment Reference
+        initial)).trans
+        (setup.execute_mass environment Reference initial))
 
 attribute [local instance] Classical.propDecidable
 
@@ -63,7 +65,7 @@ public def inputDomain (I : ECDLPInstance E)
     (state : ExecutionState (Store (Sampling.pre I)) (Sampling.pre I).register) : Prop :=
   ∀ store, 0 < (state.block store).mass → store = Runtime.Context.inputStore I
 
-private theorem successFloor_le_one (I : ECDLPInstance E) : Sampling.Reuse.successFloor I ≤ 1 := by
+private lemma successFloor_le_one (I : ECDLPInstance E) : Sampling.Reuse.successFloor I ≤ 1 := by
   change FiniteCyclicDLP.Canonical.attemptFloor (problem I) ≤ 1
   unfold FiniteCyclicDLP.Canonical.attemptFloor
   have positive : 0 < (FiniteCyclicDLP.Canonical.successDenominator (problem I) : ℝ) := by
@@ -72,7 +74,7 @@ private theorem successFloor_le_one (I : ECDLPInstance E) : Sampling.Reuse.succe
   apply (div_le_one positive).mpr
   exact_mod_cast (FiniteCyclicDLP.Canonical.successNumerator_lt_successDenominator (problem I)).le
 
-private theorem indicator_decision_weight {C : Type} [Fintype C] {R : Register}
+private lemma indicator_decision_weight {C : Type} [Fintype C] {R : Register}
     (state : ExecutionState C R) (condition : C → Prop)
     (first second : DecidablePred condition) :
     state.effectWeight (fun entry => @ite (Effect R) (condition entry) (first entry)
@@ -84,15 +86,16 @@ private theorem indicator_decision_weight {C : Type} [Fintype C] {R : Register}
 
 variable [Fact p.Prime]
 
-private theorem code_none_weight_le (I : ECDLPInstance E) (A : Access I)
+private lemma code_none_weight_le (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
     (secretInput : FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I))
     {Reference : Register} {History : Type} [Fintype History]
     (initial : State (Sampling.pre I) Reference
-      ((Sampling.executionModel I A).HiddenState × History))
+      ((Sampling.executionModel I).HiddenState × History))
     (admitted : ∀ entry, 0 < (initial.block entry).mass → entry.1 = Runtime.Context.inputStore I) :
-    ((code I A expansion nontrivial count).execute Reference initial).effectWeight
+    ((code I expansion nontrivial count).execute (Sampling.sourceEnvironment I A) Reference
+      initial).effectWeight
       (fun record => if record.1.read
         (batchResultRead (Sampling.Reuse.context I) (fieldWidth E) (scalarWidth I)) = .optionNone
           then
@@ -102,17 +105,19 @@ private theorem code_none_weight_le (I : ECDLPInstance E) (A : Access I)
   let ctx := Sampling.Reuse.context I
   let width := fieldWidth E
   let scalar := scalarWidth I
-  let setup := Sampling.Reuse.initialCode I A
-  let allocation : Circuit (Sampling.executionModel I A) ctx (persistentCtx ctx width scalar) :=
-    retainPersistent (model := Sampling.executionModel I A) ctx width scalar
-  let body := sampledAttempts (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+  let setup := Sampling.Reuse.initialCode I
+  let allocation : Circuit (Sampling.executionModel I) ctx (persistentCtx ctx width scalar) :=
+    retainPersistent (model := Sampling.executionModel I) ctx width scalar
+  let body := sampledAttempts (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
-  let packing : Circuit (Sampling.executionModel I A)
+  let packing : Circuit (Sampling.executionModel I)
       (persistentCtx ctx width scalar) (batchResultCtx ctx width scalar) :=
-    packBatchResult (model := Sampling.executionModel I A) ctx width scalar
-  have geometric := sampledAttempts_failure_weight_le_on_prefix (Sampling.Reuse.code I A expansion)
-    (Sampling.Reuse.ecdlpReuse_code_isLocal I A expansion) count (curve E) (modulus I nontrivial)
+    packBatchResult (model := Sampling.executionModel I) ctx width scalar
+  have geometric := sampledAttempts_failure_weight_le_on_prefix (environment :=
+    Sampling.sourceEnvironment I A)
+    (Sampling.Reuse.code (allowAllocation := false) I expansion)
+    count (curve E) (modulus I nontrivial)
     (Sampling.Reuse.sampleInput I) (baseInput I) (targetInput I)
     I.basePoint.toMathlib I.targetPoint.toMathlib initial
     (fun priorCode => ecdlpRecovery_prefix_represents I A initial admitted priorCode)
@@ -120,29 +125,33 @@ private theorem code_none_weight_le (I : ECDLPInstance E) (A : Access I)
     (fun K _ state =>
       (ecdlpRecovery_sample_weight_bound I A expansion nontrivial secretInput state).trans_eq
         (indicator_decision_weight _ _ _ _)) (setup.seq allocation)
-  have initialized : persistentFailureWeight (model := Sampling.executionModel I A)
+  have initialized : persistentFailureWeight (model := Sampling.executionModel I)
       (ctx := ctx) (width := width) (scalarWidth := scalar)
-      ((setup.seq allocation).execute Reference initial) = initial.mass := by
+      ((setup.seq allocation).execute (Sampling.sourceEnvironment I A) Reference initial) =
+        initial.mass := by
     exact initializedFailureWeight setup width scalar initial
   rw [initialized] at geometric
-  have completed := Circuit.storedWeight_four_stage setup allocation body packing initial
+  have completed := Circuit.storedWeight_four_stage setup allocation body packing
+    (Sampling.sourceEnvironment I A) initial
     (fun store => if store.read (batchResultRead ctx width scalar) = .optionNone then
       Effect.one ((batchResultCtx ctx width scalar).register.prod Reference)
     else Effect.zero ((batchResultCtx ctx width scalar).register.prod Reference))
-  have packed := packBatchResult_none_weight width scalar
-    (((setup.seq allocation).seq body).execute Reference initial)
+  have packed := packBatchResult_none_weight (environment := Sampling.sourceEnvironment I A)
+    width scalar
+    (((setup.seq allocation).seq body).execute (Sampling.sourceEnvironment I A) Reference initial)
   exact (completed.trans packed).trans_le geometric
 
 /-- The actual complete finite run's absent output obeys the original geometric failure bound. -/
-public theorem ecdlpRecovery_run_none_probability_le (I : ECDLPInstance E) (A : Access I)
+public lemma ecdlpRecovery_run_none_probability_le (I : ECDLPInstance E) (A : Access I)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) (count : Nat)
     (secretInput : FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I))
     {Reference : Register}
-    (original : OracleInput (Sampling.executionModel I A).classicalOracles
+    (original : OracleInput (Sampling.executionModel I).classicalOracles
       (Sampling.pre I) Reference)
     (valid : inputDomain I original.caller.localState) :
-    (run I A expansion nontrivial count).outputDistribution original .optionNone ≤
+    (run I expansion nontrivial count).outputDistribution (Sampling.sourceEnvironment I A)
+      original .optionNone ≤
       ENNReal.ofReal ((1 - Sampling.Reuse.successFloor I) ^ count) := by
   let initial := original.state.mapClassical (fun value => (value.1, (value.2, value.1)))
   have admitted : ∀ entry, 0 < (initial.block entry).mass →

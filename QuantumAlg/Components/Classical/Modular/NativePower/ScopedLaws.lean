@@ -30,13 +30,13 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Lifted reads name exactly their original stored keys. -/
-theorem nativePower_underMultiply_storageKeys {shape : CShape}
+lemma nativePower_underMultiply_storageKeys {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (underMultiply input width).storageKeys = input.storageKeys := by
   simp only [underMultiply, CInputRef.storageKeys_underWorkspace]
 
 /-- The product temporary is separate from every original structural read. -/
-theorem nativePower_productCell_fresh {shape : CShape}
+lemma nativePower_productCell_fresh {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (productCell ctx width).key ∉ (underMultiply input width).storageKeys := by
   rw [nativePower_underMultiply_storageKeys]
@@ -44,7 +44,7 @@ theorem nativePower_productCell_fresh {shape : CShape}
     (input.storageKeys_subset_context present)
 
 /-- The division temporary is also separate from every original structural read. -/
-theorem nativePower_divisionCell_fresh {shape : CShape}
+lemma nativePower_divisionCell_fresh {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (divisionCell ctx width).key ∉ (underMultiply input width).storageKeys := by
   rw [underMultiply, CInputRef.storageKeys_underWorkspace]
@@ -53,19 +53,19 @@ theorem nativePower_divisionCell_fresh {shape : CShape}
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
 /-- Both allocations preserve the actual value of every pre-existing structural read. -/
-theorem nativePower_enterMultiply_read {shape : CShape}
+lemma nativePower_enterMultiply_read {shape : CShape}
     (store : Store ctx) (input : CInputRef ctx shape) (width : Nat) :
     (enterMultiply store width).read (underMultiply input width) = store.read input := by
   simp only [enterMultiply, underMultiply, Store.read_pushWorkspace_underWorkspace]
 
 /-- Popping both exact scratch heads preserves the lifted outer read. -/
-theorem nativePower_leaveMultiply_read {shape : CShape}
+lemma nativePower_leaveMultiply_read {shape : CShape}
     (store : Store (divisionCtx ctx width)) (input : CInputRef ctx shape) :
     (leaveMultiply store).read input = store.read (underMultiply input width) := by
   simp only [leaveMultiply, underMultiply, Store.read_popWorkspace_underWorkspace]
 
 /-- Reading the lifted result is the structural lift of the original result read. -/
-theorem nativePower_writeUnderMultiply_read {shape : CShape}
+lemma nativePower_writeUnderMultiply_read {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     wordRead (writeUnderMultiply output width) = underMultiply (wordRead output) width := rfl
 
@@ -73,7 +73,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Only the original result cell can change after the actual temporary cells are released. -/
-theorem nativePower_scopedMultiply_read_other
+lemma nativePower_scopedMultiply_read_other
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -94,7 +94,7 @@ theorem nativePower_scopedMultiply_read_other
     exact separate
 
 /-- The actual scoped result is the finite-word product/reduction on the original stored values. -/
-theorem nativePower_scopedMultiply_result
+lemma nativePower_scopedMultiply_result
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
@@ -111,7 +111,7 @@ theorem nativePower_scopedMultiply_result
     nativePower_enterMultiply_read]
 
 /-- Fitted positive actual moduli produce the exact modular product after both releases. -/
-theorem nativePower_scopedMultiply_toNat
+lemma nativePower_scopedMultiply_toNat
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
@@ -124,13 +124,15 @@ theorem nativePower_scopedMultiply_toNat
   exact nativePower_multiplyValue_toNat _ _ _ positive fits
 
 /-- Actual lexical execution preserves the shared service through both matching releases. -/
-theorem nativePower_scopedMultiply_execute
+lemma nativePower_scopedMultiply_execute
     (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (output : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scopedMultiply (model := model) left right modulus output).execute Reference state =
+    (scopedMultiply (model := model) left right modulus output).execute
+      environment Reference state =
       state.mapClassical (fun entry =>
         let result := scopedMultiplyStep (model := model) left right modulus output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -150,10 +152,11 @@ theorem nativePower_scopedMultiply_execute
       (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh, before.2)
     ((Store.popWorkspace (productCtx ctx width).canonicalFreshKey (divisionShape width)
       (productCtx ctx width).canonicalFreshKey_fresh result.1.1, result.1.2), result.2)
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord (width + width)) ctx.canonicalFreshKey_fresh middle middleUpdate
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
-  · refine (Circuit.execute_workspace_mapClassical (productCtx ctx width).canonicalFreshKey
+  · refine (Circuit.execute_workspace_mapClassical
+      (environment := environment) (productCtx ctx width).canonicalFreshKey
       (divisionShape width) (productCtx ctx width).canonicalFreshKey_fresh inner innerUpdate
       (fun reference' {_} _ initial' => ?_) reference initial).trans ?_
     · exact (nativePowerMultiply_execute _ _ _ _ _ _ reference' initial').trans

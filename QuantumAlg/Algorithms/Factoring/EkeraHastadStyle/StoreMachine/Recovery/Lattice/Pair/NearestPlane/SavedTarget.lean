@@ -40,7 +40,8 @@ def sourceSamples (refs : Refs ctx N) (store : Store ctx) :
 
 end Pure
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {N : Nat}
 
 /-- Three actual native copies preserve the original loaded target in the original saved cells. -/
@@ -56,10 +57,10 @@ def copyStep (refs : Refs ctx N) (store : Store ctx) : Store ctx × (copyInto re
   LatticeRows.pointCopyStep refs.pairNearest.wide.target.target.point refs.savedTarget store
 
 /-- Actual three-word target copying retains every incoming state block and original history. -/
-theorem copyInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma copyInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (copyInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (copyInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := copyStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) :=
   LatticeRows.pointCopy_execute refs.pairNearest.wide.target.target.point refs.savedTarget
@@ -77,13 +78,13 @@ def copyNearestStep (refs : Refs ctx N) (store : Store ctx) :
   (nearest.1, (copied.2, nearest.2))
 
 /-- Actual target copying and nearest plane retain the complete incoming execution state. -/
-theorem copyNearestInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma copyNearestInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (copyNearestInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (copyNearestInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := copyNearestStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (copyInto refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (copyInto refs)
     (LatticeNearestPlaneThree.threeInto (nearestRefs refs))
     (fun before =>
       let actual := copyStep refs before.1
@@ -116,14 +117,14 @@ def savedTargetStep (refs : Refs ctx N) (store : Store ctx) :
   (savedTargetStore refs store, (wide.2, nearest.2))
 
 /-- The complete actual source-to-saved-target run preserves all incoming reference correlations. -/
-theorem pairToNearestPlaneSavedTargetInto_execute (refs : Refs ctx N) (Reference : Register)
+lemma pairToNearestPlaneSavedTargetInto_execute (refs : Refs ctx N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (pairToNearestPlaneSavedTargetInto refs).execute Reference state =
+    (pairToNearestPlaneSavedTargetInto refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := savedTargetStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeWideLllMachine.pairToLllInto refs.pairNearest.wide) (copyNearestInto refs)
     (fun before =>
       let actual := LatticeWideLllMachine.pairToLllStep (model := model)
@@ -140,14 +141,14 @@ theorem pairToNearestPlaneSavedTargetInto_execute (refs : Refs ctx N) (Reference
 
 omit [BitWord.Selected model] in
 /-- The actual saved-target copy preserves every read outside the three saved word identities. -/
-theorem copy_callerFrame (refs : Refs ctx N) (store : Store ctx) {shape : CShape}
+lemma copy_callerFrame (refs : Refs ctx N) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape) (separate : PointCopyFrameAvoids refs.savedTarget other) :
     (copyStore refs store).read other = store.read other :=
   LatticeRows.pointCopy_callerFrame refs.pairNearest.wide.target.target.point refs.savedTarget
     store other separate.first separate.second separate.third
 
 /-- The actual nearest-plane suffix retains every read outside its original combined write set. -/
-theorem savedTarget_suffixFrame (refs : Refs ctx N) (store : Store ctx) {shape : CShape}
+lemma savedTarget_suffixFrame (refs : Refs ctx N) (store : Store ctx) {shape : CShape}
     (other : CInputRef ctx shape)
     (separate : LatticeNearestPlaneThree.FrameAvoids (nearestRefs refs) other) :
     (savedTargetStore refs store).read other =
@@ -158,7 +159,7 @@ theorem savedTarget_suffixFrame (refs : Refs ctx N) (store : Store ctx) {shape :
     (nearestRefs refs) _ other separate
 
 /-- Every actual read outside the complete original three-stage footprint remains unchanged. -/
-theorem pairToNearestPlaneSavedTargetInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
+lemma pairToNearestPlaneSavedTargetInto_callerFrame (refs : Refs ctx N) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerFrameAvoids refs other) :
     (savedTargetStore refs store).read other = store.read other := by
   rw [savedTarget_suffixFrame refs store other separate.nearest,

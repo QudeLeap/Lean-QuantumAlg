@@ -18,7 +18,7 @@ section
 namespace QuantumAlg.QubitTwoDesign.OctNumeratorClosed
 
 /-- Multiplication by an axis-family numerator stays in the doubled numerator set. -/
-theorem axis :
+lemma axis :
     ∀ negative coordinate b, ∃ c,
       octNumerator (.axis negative coordinate) * octNumerator b =
         octNumerator c + octNumerator c := by

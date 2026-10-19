@@ -27,33 +27,36 @@ variable {m n : Nat} (U : UnitaryOperator (Qubits (m + n)))
 
 /-- One ordinary or inverse source occurrence, preserving the existing phase ancilla. -/
 def signal (inverse : Bool) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U allowControlled true false)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) allowControlled true false)
       (ProjectorPhase.layout (m + n)) :=
   UnitaryCircuit.onBinarySuffix 1
-    (UnitarySource.Binary.circuit AlgorithmGate.model U allowControlled inverse)
+    (UnitarySource.Binary.circuit AlgorithmGate.model (m + n) allowControlled inverse)
 
 /-- The query acts exactly on its original suffix. -/
-theorem signal_matrix (inverse : Bool) :
-    (signal U allowControlled inverse).binaryMatrix =
+lemma signal_matrix (inverse : Bool) :
+    ((signal (m := m) (n := n) allowControlled inverse).binaryMatrix
+      (UnitarySource.interpretation U allowControlled true false)) =
       (1 : UnitaryOperator (Qubits 1)).tensor (if inverse then U⁻¹ else U) := by
   rw [signal, UnitaryCircuit.unitaryCircuit_onBinarySuffix_binaryMatrix,
     UnitarySource.Binary.circuit_matrix]
 
 /-- The concrete source list alternates ordinary and inverse slots in source order. -/
 def circuit : List ℝ →
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model U allowControlled true false)
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model (m + n) allowControlled true false)
       (ProjectorPhase.layout (m + n))
   | [] => .identity _ _ _
   | φ :: phases =>
       ((circuit phases).seq
-        (signal U allowControlled (decide ((phases.length + 1) % 2 = 0)))).seq
-        (phase m n positive (UnitarySource.model U allowControlled true false) φ)
+        (signal (m := m) (n := n) allowControlled (decide ((phases.length + 1) % 2 = 0)))).seq
+        (phase m n positive (UnitarySource.model (m + n) allowControlled true false) φ)
 
 /-- Replacing known-projector queries by native words preserves the complete original operator. -/
-theorem circuit_matrix (phases : List ℝ) :
-    (circuit U positive allowControlled phases).binaryMatrix =
-      (Native.circuit U (OrthogonalProjector.zeroAncilla m n)
-        (OrthogonalProjector.zeroAncilla m n) allowControlled phases).binaryMatrix := by
+lemma circuit_matrix (phases : List ℝ) :
+    ((circuit (m := m) (n := n) positive allowControlled phases).binaryMatrix
+      (UnitarySource.interpretation U allowControlled true false)) =
+      ((Native.circuit (width := m + n) allowControlled phases).binaryMatrix
+        (ProjectedSignal.interpretation U (OrthogonalProjector.zeroAncilla m n)
+      (OrthogonalProjector.zeroAncilla m n) allowControlled)) := by
   induction phases with
   | nil =>
       simp only [circuit, Native.circuit,
@@ -61,12 +64,14 @@ theorem circuit_matrix (phases : List ℝ) :
   | cons φ phases ih =>
       simp only [circuit, Native.circuit, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
         ih, signal_matrix, Native.signal_matrix]
-      rw [phase_matrix m n positive (UnitarySource.model U allowControlled true false)
-        U allowControlled (decide ((phases.length + 1) % 2 = 0)) φ]
+      rw [phase_matrix m n positive (UnitarySource.model (m + n) allowControlled true false)
+        U allowControlled (decide ((phases.length + 1) % 2 = 0)) φ
+        (UnitarySource.interpretation U allowControlled true false)]
 
 /-- The actual native word realizes both original source phase products on every input. -/
-theorem circuit_source_matrix (phases : List ℝ) :
-    ((circuit U positive allowControlled phases).binaryMatrix :
+lemma circuit_source_matrix (phases : List ℝ) :
+    (((circuit (m := m) (n := n) positive allowControlled phases).binaryMatrix
+      (UnitarySource.interpretation U allowControlled true false)) :
       HilbertOperator (Qubits (1 + (m + n)))) =
       Native.branchMatrix
         (Native.sourceWord U (OrthogonalProjector.zeroAncilla m n)
@@ -77,14 +82,14 @@ theorem circuit_source_matrix (phases : List ℝ) :
   exact Native.circuit_source_matrix U _ _ allowControlled phases
 
 /-- Each source query contributes exactly one abstract dependency step. -/
-theorem signal_depth (inverse : Bool) :
-    (signal U allowControlled inverse).evaluatedEventDepth (fun _ => 1) = 1 := by
+lemma signal_depth (inverse : Bool) :
+    (signal (m := m) (n := n) allowControlled inverse).evaluatedEventDepth (fun _ => 1) = 1 := by
   rw [signal, UnitaryCircuit.unitaryCircuit_onBinarySuffix_unit_depth,
     UnitarySource.Binary.circuit_depth]
 
 /-- Exact full depth charges each source slot, both restored native flips and the rotation. -/
-theorem circuit_depth (phases : List ℝ) :
-    (circuit U positive allowControlled phases).evaluatedEventDepth (fun _ => 1) =
+lemma circuit_depth (phases : List ℝ) :
+    (circuit (m := m) (n := n) positive allowControlled phases).evaluatedEventDepth (fun _ => 1) =
       (2 * (2 * m + EncodedBit.Word.OneDirtyLayout.gateCount m) + 2) * phases.length := by
   induction phases with
   | nil => change 0 = _; simp

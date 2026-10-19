@@ -37,18 +37,19 @@ public def relabelPath {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- A concrete classical-grant selection certified on complete execution states. -/
 public structure QuantumClassicalSelection {gates : GateModel} {oracles : OracleModel}
-    (operations : ClassicalOpModel) {pre post : RuntimeCtx .quantum}
-    (source : Circuit (.quantum gates oracles) pre post) where
+    (operations : ClassicalOpModel) {allowAllocation : Bool}
+    {pre post : RuntimeCtx .quantum}
+    (source : Circuit (.quantum gates oracles) pre post allowAllocation) where
   /-- The selected code keeps the original quantum gate and oracle models. -/
-  code : Circuit (.quantum gates oracles operations) pre post
+  code : Circuit (.quantum gates oracles operations) pre post allowAllocation
   /-- Every actual source path has one selected path and conversely. -/
   paths : source.Path ≃ code.Path
   /-- The complete output state differs only by reindexing the path history. -/
-  execute : ∀ (Reference : Register) {H : Type} [Fintype H]
+  execute : ∀ (environment : oracles.Interpretation) (Reference : Register) {H : Type} [Fintype H]
     (state : Execution.State pre Reference
       ((.quantum gates oracles : ExecutionModel).HiddenState × H)),
-    code.execute Reference state =
-      relabelPath (source.execute Reference state) paths
+    code.execute ⟨environment, ()⟩ Reference state =
+      relabelPath (source.execute ⟨environment, ()⟩ Reference state) paths
 
 end
 

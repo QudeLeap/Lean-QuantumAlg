@@ -41,7 +41,7 @@ appended physical layout. -/
     (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint).symm
     (HilbertVector.prodTensor left right)
 
-@[simp] public theorem appendVector_apply
+@[simp] public lemma appendVector_apply
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities)
     (left : HilbertVector leftLayout.register)
     (right : HilbertVector rightLayout.register)
@@ -52,7 +52,7 @@ appended physical layout. -/
   rfl
 
 /-- Appending two computational-basis vectors gives their joined physical label. -/
-@[simp] public theorem appendVector_ket
+@[simp] public lemma appendVector_ket
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities)
     (left : leftLayout.Basis) (right : rightLayout.Basis) :
     appendVector disjoint
@@ -70,21 +70,24 @@ appended physical layout. -/
   rfl
 
 /-- Each actual parallel-word entry is the product of the two original subsystem entries. -/
-public theorem tensor_native_matrix_entry (left : UnitaryCircuit gates oracles leftLayout)
+public lemma tensor_native_matrix_entry (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities)
-    (row column : (QuantumLayout.append leftLayout rightLayout disjoint).Basis) :
-    (tensor left right disjoint).matrix row column =
-      left.matrix (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint row).1
+    (row column : (QuantumLayout.append leftLayout rightLayout disjoint).Basis) (environment :
+      oracles.Interpretation) :
+    ((tensor left right disjoint).matrix environment) row column =
+      (left.matrix environment) (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint
+        row).1
         (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint column).1 *
-      right.matrix (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint row).2
+      (right.matrix environment) (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint
+        row).2
         (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint column).2 := by
   rw [tensor_embedded_matrix]
   change (∑ index : (QuantumLayout.append leftLayout rightLayout disjoint).Basis,
     (QuantumLayout.appendRightEmbedding leftLayout rightLayout disjoint).liftOperator
-      right.matrix row index *
+      (right.matrix environment) row index *
     (QuantumLayout.appendLeftEmbedding leftLayout rightLayout disjoint).liftOperator
-      left.matrix index column) = _
+      (left.matrix environment) index column) = _
   rw [← Equiv.sum_comp (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint).symm]
   simp only [QuantumLayout.appendRightEmbedding_lift_entry,
     QuantumLayout.appendLeftEmbedding_lift_entry, Equiv.apply_symm_apply,
@@ -94,12 +97,13 @@ public theorem tensor_native_matrix_entry (left : UnitaryCircuit gates oracles l
   exact mul_comm _ _
 
 /-- The same actual parallel word realizes the exact tensor in the physical append basis. -/
-public theorem tensor_native_matrix (left : UnitaryCircuit gates oracles leftLayout)
+public lemma tensor_native_matrix (left : UnitaryCircuit gates oracles leftLayout)
     (right : UnitaryCircuit gates oracles rightLayout)
-    (disjoint : List.Disjoint leftLayout.identities rightLayout.identities) :
-    (tensor left right disjoint).matrix =
+    (disjoint : List.Disjoint leftLayout.identities rightLayout.identities) (environment :
+      oracles.Interpretation) :
+    ((tensor left right disjoint).matrix environment) =
       UnitaryOperator.reindex (QuantumLayout.appendBasisEquiv leftLayout rightLayout disjoint).symm
-        (UnitaryOperator.prodTensor left.matrix right.matrix) := by
+        (UnitaryOperator.prodTensor (left.matrix environment) (right.matrix environment)) := by
   apply Subtype.ext
   ext row column
   rw [tensor_native_matrix_entry]
@@ -107,16 +111,16 @@ public theorem tensor_native_matrix (left : UnitaryCircuit gates oracles leftLay
 
 /-- The actual appended parallel word acts factorwise on arbitrary raw
 subsystem vectors. -/
-public theorem tensor_native_applyVec_appendVector
+public lemma tensor_native_applyVec_appendVector
     (leftCircuit : UnitaryCircuit gates oracles leftLayout)
     (rightCircuit : UnitaryCircuit gates oracles rightLayout)
     (disjoint : List.Disjoint leftLayout.identities rightLayout.identities)
     (left : HilbertVector leftLayout.register)
-    (right : HilbertVector rightLayout.register) :
-    (tensor leftCircuit rightCircuit disjoint).matrix.applyVec
+    (right : HilbertVector rightLayout.register) (environment : oracles.Interpretation) :
+    ((tensor leftCircuit rightCircuit disjoint).matrix environment).applyVec
         (appendVector disjoint left right) =
-      appendVector disjoint (leftCircuit.matrix.applyVec left)
-        (rightCircuit.matrix.applyVec right) := by
+      appendVector disjoint ((leftCircuit.matrix environment).applyVec left)
+        ((rightCircuit.matrix environment).applyVec right) := by
   rw [tensor_native_matrix, appendVector, UnitaryOperator.reindex_applyVec,
     UnitaryOperator.prodTensor_applyVec_prodTensor]
   rfl

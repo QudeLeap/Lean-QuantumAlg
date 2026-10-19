@@ -27,7 +27,7 @@ open Execution ClassicalAlgorithms.EllipticCurve
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- The four actual stages retain the scalar, comparator and two original AND allowances. -/
@@ -64,7 +64,7 @@ def verificationScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind
   SpacePool.max (ScalarMul.Native.scalarScratchSpace kind width)
     (((PointEquality.Native.scratchShapes width).map SpacePool.ofShape).sum)
 
-private theorem verificationStage_pool_le (spec : CurveSpec width)
+private lemma verificationStage_pool_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -88,7 +88,7 @@ private theorem verificationStage_pool_le (spec : CurveSpec width)
       (BitWord.bitWord_instruction_eventTrace _ path)).le
 
 /-- Every actual verification path keeps the four original stage resource allowances. -/
-theorem verifyInto_pool_le (spec : CurveSpec width)
+lemma verifyInto_pool_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -104,7 +104,7 @@ theorem verifyInto_pool_le (spec : CurveSpec width)
     (verificationStage_pool_le spec candidate base target inverseSuccess reconstruction
       scalarResult accepted) path
 
-private theorem verificationStage_depth_le (spec : CurveSpec width)
+private lemma verificationStage_depth_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -126,7 +126,7 @@ private theorem verificationStage_depth_le (spec : CurveSpec width)
     exact (BitWord.bitWord_instruction_depth _ duration path).le
 
 /-- Every original dependency duration is retained by the actual four-stage verification. -/
-theorem verifyInto_depth_le (spec : CurveSpec width)
+lemma verifyInto_depth_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -144,7 +144,7 @@ theorem verifyInto_depth_le (spec : CurveSpec width)
     (verificationStage_depth_le spec candidate base target inverseSuccess reconstruction
       scalarResult accepted duration) path
 
-private theorem verificationStage_duration_eventTrace (spec : CurveSpec width)
+private lemma verificationStage_duration_eventTrace (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -165,7 +165,7 @@ private theorem verificationStage_duration_eventTrace (spec : CurveSpec width)
   · exact (Nat.add_zero _).symm
 
 /-- The same real path has exactly the sum of its own native event durations. -/
-theorem verifyInto_duration_eventTrace (spec : CurveSpec width)
+lemma verifyInto_duration_eventTrace (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -184,7 +184,7 @@ theorem verifyInto_duration_eventTrace (spec : CurveSpec width)
       reconstruction scalarResult accepted duration) path
 
 /-- Both actual retained allocations preserve the original native event allowance. -/
-theorem retainedCircuit_pool_le (spec : CurveSpec width)
+lemma retainedCircuit_pool_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -194,7 +194,7 @@ theorem retainedCircuit_pool_le (spec : CurveSpec width)
   verifyInto_pool_le spec _ _ _ _ _ _ _ path.2
 
 /-- Both actual retained allocations add no native dependency event. -/
-theorem retainedCircuit_depth_le (spec : CurveSpec width)
+lemma retainedCircuit_depth_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -207,7 +207,7 @@ theorem retainedCircuit_depth_le (spec : CurveSpec width)
   exact verifyInto_depth_le spec _ _ _ _ _ _ _ duration path.2
 
 /-- Retention preserves the duration identity of the actual complete verification path. -/
-theorem retainedCircuit_duration_eventTrace (spec : CurveSpec width)
+lemma retainedCircuit_duration_eventTrace (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -221,7 +221,7 @@ theorem retainedCircuit_duration_eventTrace (spec : CurveSpec width)
   exact verifyInto_duration_eventTrace spec _ _ _ _ _ _ _ duration path.2
 
 /-- Every real verification stage keeps the entire original resident context. -/
-theorem verifyInto_resident_le (spec : CurveSpec width)
+lemma verifyInto_resident_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -245,7 +245,7 @@ theorem verifyInto_resident_le (spec : CurveSpec width)
   · exact (Circuit.peakResidentSpace_classical _ selected).le.trans le_add_self
 
 omit [BitWord.Selected model] in
-private theorem retainOutputs_resident_le (ctx : RuntimeCtx model.kind) (width : Nat)
+private lemma retainOutputs_resident_le (ctx : RuntimeCtx model.kind) (width : Nat)
     (path : (retainOutputs ctx width).Path) :
     (retainOutputs ctx width).peakResidentSpace path ≤ (retainedCtx ctx width).residentSpace := by
   have first : ctx.residentSpace ≤ (acceptedCtx ctx).residentSpace := le_add_self
@@ -259,7 +259,7 @@ private theorem retainOutputs_resident_le (ctx : RuntimeCtx model.kind) (width :
     (SpacePool.max_le second (SpacePool.max_le second le_rfl))
 
 /-- Both genuine retained outputs stay charged throughout the complete resident path. -/
-theorem retainedCircuit_resident_le (spec : CurveSpec width)
+lemma retainedCircuit_resident_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -281,7 +281,7 @@ theorem retainedCircuit_resident_le (spec : CurveSpec width)
     using bounded
 
 /-- Every real verification stage keeps the entire original auxiliary context. -/
-theorem verifyInto_auxiliary_le (spec : CurveSpec width)
+lemma verifyInto_auxiliary_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -305,7 +305,7 @@ theorem verifyInto_auxiliary_le (spec : CurveSpec width)
   · exact (Circuit.peakAuxiliarySpace_classical _ selected).le.trans le_add_self
 
 omit [BitWord.Selected model] in
-private theorem retainOutputs_auxiliary_le (ctx : RuntimeCtx model.kind) (width : Nat)
+private lemma retainOutputs_auxiliary_le (ctx : RuntimeCtx model.kind) (width : Nat)
     (path : (retainOutputs ctx width).Path) :
     (retainOutputs ctx width).peakAuxiliarySpace path ≤ (retainedCtx ctx width).auxiliarySpace := by
   have first : ctx.auxiliarySpace ≤ (acceptedCtx ctx).auxiliarySpace := le_add_self
@@ -319,7 +319,7 @@ private theorem retainOutputs_auxiliary_le (ctx : RuntimeCtx model.kind) (width 
     (SpacePool.max_le second (SpacePool.max_le second le_rfl))
 
 /-- Both genuine retained outputs stay charged throughout the complete auxiliary path. -/
-theorem retainedCircuit_auxiliary_le (spec : CurveSpec width)
+lemma retainedCircuit_auxiliary_le (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)

@@ -43,14 +43,14 @@ public def refAt {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
   (cellAtOfFn shape cells index).ref
 
 /-- Every reference retrieved from an allocated layout is workspace-owned. -/
-public theorem workspaceCells_refAt_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
+public lemma workspaceCells_refAt_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {count : Nat}
     (shape : Fin count → CShape)
     (cells : Cells ctx (List.ofFn shape)) (index : Fin count) :
   (refAt shape cells index).toCStorageRef.role = .workspace :=
   (cellAtOfFn shape cells index).role
 
 /-- A retrieved cell inherits avoidance of one key from the complete list. -/
-public theorem workspaceCells_cellAt_key_ne_of_avoids {kind : ProblemKind}
+public lemma workspaceCells_cellAt_key_ne_of_avoids {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (key : StorageKey)
     (avoids : cells.AvoidsKey key) (index : Fin shapes.length) :
@@ -63,7 +63,7 @@ public theorem workspaceCells_cellAt_key_ne_of_avoids {kind : ProblemKind}
         (fun tailIndex => inductionHypothesis tailAvoids tailIndex) index
 
 /-- The key of every indexed cell occurs in the heterogeneous key list. -/
-public theorem workspaceCells_cellAt_key_mem_keys {kind : ProblemKind}
+public lemma workspaceCells_cellAt_key_mem_keys {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (index : Fin shapes.length) :
     (cellAt cells index).ref.toCStorageRef.key ∈ cells.keys := by
@@ -79,7 +79,7 @@ public theorem workspaceCells_cellAt_key_mem_keys {kind : ProblemKind}
         exact List.mem_cons_of_mem _ (inductionHypothesis tailIndex)
 
 /-- Distinct heterogeneous cells have an injective indexed key projection. -/
-public theorem workspaceCells_cellAt_key_injective {kind : ProblemKind}
+public lemma workspaceCells_cellAt_key_injective {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {shapes : List CShape}
     (cells : Cells ctx shapes) (distinct : cells.Distinct) :
     Function.Injective

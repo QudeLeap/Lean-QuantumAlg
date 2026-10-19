@@ -26,13 +26,13 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem coefficientOp_preserves_cell {input output : CShape}
+private lemma coefficientOp_preserves_cell {input output : CShape}
     (op : ClassicalOp input output ctx ctx) (other : CWriteRef ctx (.unsignedWord width))
     (different : op.outputRef.key ≠ other.key) (store : Store ctx) :
     (store.applyOp op).read (coefficientRead other) = store.read (coefficientRead other) :=
   Store.read_write_other store op.outputRef other.toCStorageRef _ different
 
-private theorem coefficientProduct_read (quotient : CInputRef ctx (.unsignedWord width))
+private lemma coefficientProduct_read (quotient : CInputRef ctx (.unsignedWord width))
     (first product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (store.applyOp (coefficientProductOp quotient first product)).read
         (coefficientRead product) =
@@ -40,7 +40,7 @@ private theorem coefficientProduct_read (quotient : CInputRef ctx (.unsignedWord
         (.product (store.read quotient) (store.read (coefficientRead first))) :=
   Store.read_applyOp_output store (coefficientProductOp quotient first product)
 
-private theorem coefficientSubtract_read
+private lemma coefficientSubtract_read
     (second product updated : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (store.applyOp (coefficientSubtractOp second product updated)).read
         (coefficientRead updated) =
@@ -48,14 +48,14 @@ private theorem coefficientSubtract_read
         (.product (store.read (coefficientRead second)) (store.read (coefficientRead product))) :=
   Store.read_applyOp_output store (coefficientSubtractOp second product updated)
 
-private theorem coefficientCopy_read (source target : CWriteRef ctx (.unsignedWord width))
+private lemma coefficientCopy_read (source target : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     (store.applyOp (coefficientCopyOp source target)).read (coefficientRead target) =
       store.read (coefficientRead source) :=
   Store.read_applyOp_output store (coefficientCopyOp source target)
 
 /-- Every structural read outside the four written cells is preserved exactly. -/
-theorem xgcdCoefficientUpdate_read_other (quotient : CInputRef ctx (.unsignedWord width))
+lemma xgcdCoefficientUpdate_read_other (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width)) {observed : CShape}
     (other : CInputRef ctx observed)
     (firstFree : first.key ∉ other.storageKeys) (secondFree : second.key ∉ other.storageKeys)
@@ -72,7 +72,7 @@ theorem xgcdCoefficientUpdate_read_other (quotient : CInputRef ctx (.unsignedWor
       (coefficientProductOp quotient first product) other productFree]
 
 /-- The two final words satisfy the exact modular coefficient recurrence and rotation. -/
-theorem xgcdCoefficientUpdate_store_values (quotient : CInputRef ctx (.unsignedWord width))
+lemma xgcdCoefficientUpdate_store_values (quotient : CInputRef ctx (.unsignedWord width))
     (first second product updated : CWriteRef ctx (.unsignedWord width))
     (firstSecond : first.key ≠ second.key)
     (productFirst : product.key ≠ first.key) (productSecond : product.key ≠ second.key)

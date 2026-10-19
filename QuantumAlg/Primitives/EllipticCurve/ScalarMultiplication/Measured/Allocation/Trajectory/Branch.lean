@@ -26,11 +26,11 @@ namespace MeasuredPlacement.Allocation
 
 noncomputable section
 
-private theorem bool_encode_finTwoEquiv (value : Bool) :
+private lemma bool_encode_finTwoEquiv (value : Bool) :
     finTwoEquiv (BinaryLabelEncoding.bool.encode value) = value := by
   cases value <;> rfl
 
-private theorem pairedBranch_bit (exponentWidth : Nat)
+private lemma pairedBranch_bit (exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth))
     (index : Fin (2 * exponentWidth)) :
     (prodEquiv branch).val.testBit index.rev.val =
@@ -63,7 +63,7 @@ def pairedExponentEquiv (modulus exponentWidth : Nat) :
         (rangeBasis modulus.size (2 * exponentWidth)).symm))
 
 /-- The established product and binary maps give precisely the original paired physical input. -/
-theorem pairedExponentEquiv_apply (modulus exponentWidth : Nat)
+lemma pairedExponentEquiv_apply (modulus exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) :
     pairedExponentEquiv modulus exponentWidth branch =
       pairedExponentInput modulus exponentWidth branch := by
@@ -82,7 +82,7 @@ theorem pairedExponentEquiv_apply (modulus exponentWidth : Nat)
   exact pairedBranch_bit exponentWidth branch index
 
 /-- Decoding the actual paired input recovers the complete original exponent pair. -/
-theorem pairedExponentEquiv_symm_input (modulus exponentWidth : Nat)
+lemma pairedExponentEquiv_symm_input (modulus exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) :
     (pairedExponentEquiv modulus exponentWidth).symm
       (pairedExponentInput modulus exponentWidth branch) = branch := by
@@ -90,14 +90,14 @@ theorem pairedExponentEquiv_symm_input (modulus exponentWidth : Nat)
   exact (pairedExponentEquiv modulus exponentWidth).symm_apply_apply branch
 
 /-- The supplied paired exponent input never identifies distinct original branches. -/
-theorem pairedExponentInput_injective (modulus exponentWidth : Nat) :
+lemma pairedExponentInput_injective (modulus exponentWidth : Nat) :
     Function.Injective (pairedExponentInput modulus exponentWidth) := by
   intro left right same
   apply (pairedExponentEquiv modulus exponentWidth).injective
   simpa only [pairedExponentEquiv_apply] using same
 
 /-- Every actual exponent basis value arises from an original pair, including width zero. -/
-theorem pairedExponentInput_surjective (modulus exponentWidth : Nat) :
+lemma pairedExponentInput_surjective (modulus exponentWidth : Nat) :
     Function.Surjective (pairedExponentInput modulus exponentWidth) := by
   intro value
   obtain ⟨branch, same⟩ := (pairedExponentEquiv modulus exponentWidth).surjective value

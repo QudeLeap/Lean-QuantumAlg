@@ -90,7 +90,7 @@ public structure RagoneSecondMoment {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (b
 /-- **Derived membership in `span{C}`** (formerly the posited `proj_mem` field). The second moment
 is a scalar multiple of the Casimir — now a *consequence* of `mem_invariant` (it
 lands in `(g⊗g)^g`) and `invariant_eq_spanC` (`(g⊗g)^g = span{C}`), no longer a free assumption. -/
-theorem RagoneSecondMoment.proj_mem {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
+lemma RagoneSecondMoment.proj_mem {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
     {b : DLAHermBasis gens} {ρ O : Matrix (Fin N) (Fin N) ℂ} (M : RagoneSecondMoment b ρ O) :
     ∃ κ : ℂ, M.secondMoment = κ • b.casimir := by
   have h := M.mem_invariant
@@ -104,7 +104,7 @@ hypotheses and Hermitian `ρ`, `O`, the loss second moment is `P_g(ρ) · P_g(O)
 With a separately proved zero-mean condition, this is the loss variance.
 Genuinely derived from the
 proved Casimir identities (Steps 9a/9b); only the `RagoneSecondMoment` data is assumed. -/
-theorem RagoneSecondMoment.variance_eq_gPurity {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
+lemma RagoneSecondMoment.variance_eq_gPurity {gens : Set (Matrix (Fin N) (Fin N) ℂ)}
     {b : DLAHermBasis gens} {ρ O : Matrix (Fin N) (Fin N) ℂ}
     (M : RagoneSecondMoment b ρ O) (hρ : ρᴴ = ρ) (hO : Oᴴ = O) (hdim : 0 < b.dim) :
     (M.variance : ℂ) = b.gPurity ρ * b.gPurity O / (b.dim : ℂ) := by
@@ -217,7 +217,7 @@ variable {ρ O : Matrix (Fin N) (Fin N) ℂ} (R : RagoneReductive ρ O)
 
 /-- **Cross-ideal Casimir orthogonality.** `⟪Cᵢ, Cⱼ⟫ = δᵢⱼ · dim gᵢ`. The `i = j` case is
 `casimir_hsInner_self`; the `i ≠ j` case follows from the cross-orthogonality of the bases. -/
-theorem casimir_cross (i j : Fin R.numComp) :
+lemma casimir_cross (i j : Fin R.numComp) :
     hsInner (R.basis i).casimir (R.basis j).casimir
       = if i = j then ((R.basis i).dim : ℂ) else 0 := by
   by_cases h : i = j
@@ -233,7 +233,7 @@ second moment lies in the per-ideal diagonal invariant space `⨆ⱼ (gⱼ⊗g�
 *consequence* of the per-ideal diagonal memberships (`diagBlock_mem_invariant`) and the named
 cross-ideal invariant-block exclusion (`cross_block_exclusion`), no longer a single fused
 assumption. -/
-theorem mem_invariant : R.secondMoment ∈ ⨆ j, gTensorGInvariant (R.basis j) := by
+lemma mem_invariant : R.secondMoment ∈ ⨆ j, gTensorGInvariant (R.basis j) := by
   rw [R.cross_block_exclusion]
   exact Submodule.sum_mem _ fun j _ => Submodule.mem_iSup_of_mem j (R.diagBlock_mem_invariant j)
 
@@ -241,7 +241,7 @@ theorem mem_invariant : R.secondMoment ∈ ⨆ j, gTensorGInvariant (R.basis j) 
 a linear combination of the per-ideal Casimirs — now a *consequence* of `mem_invariant`
 (it lands in `⨆ⱼ (gⱼ⊗gⱼ)^gⱼ`, itself derived from the split fields) and `invariant_eq_spanC`
 (each ideal's invariant space is `span{Cⱼ}`), no longer a free assumption. -/
-theorem proj_mem :
+lemma proj_mem :
     ∃ κ : Fin R.numComp → ℂ, R.secondMoment = ∑ j, κ j • (R.basis j).casimir := by
   have hle : (⨆ j, gTensorGInvariant (R.basis j))
       ≤ Submodule.span ℂ (Set.range fun j => (R.basis j).casimir) := by
@@ -288,7 +288,7 @@ end RagoneReductive
 /-! ### Generic reductive consistency witness -/
 
 /-- Cross-ideal Casimir orthogonality for a basis family with mutually orthogonal ideals. -/
-theorem casimir_cross_aux {N : ℕ} {numComp : ℕ}
+lemma casimir_cross_aux {N : ℕ} {numComp : ℕ}
     {gens : Fin numComp → Set (Matrix (Fin N) (Fin N) ℂ)}
     (basis : (j : Fin numComp) → DLAHermBasis (gens j))
     (cross_ortho : ∀ i j, i ≠ j → ∀ a b, hsInner ((basis i).B a) ((basis j).B b) = 0)
@@ -372,7 +372,7 @@ bundle; read as loss variance after a separate zero-mean first-moment result), i
 `g`-purity numerator stays bounded and the dynamical Lie algebra dimension grows
 exponentially in the qubit count, then the loss has a barren plateau. This consumes the
 *proved* second-moment formula (`variance_eq_gPurity`) rather than an assumed variance law. -/
-theorem ragone_hasBarrenPlateau {sz : ℕ → ℕ}
+lemma ragone_hasBarrenPlateau {sz : ℕ → ℕ}
     {gens : (n : ℕ) → Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)}
     {ρ O : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     {b : (n : ℕ) → DLAHermBasis (gens n)}
@@ -396,7 +396,7 @@ theorem ragone_hasBarrenPlateau {sz : ℕ → ℕ}
 `‖P_g(O)‖ ≤ 2^n`, and `dim g` grows at least like `base^n` for `base > 2`, then the
 loss second moment is exponentially concentrated with rate `base / 2`; this is loss variance
 after a separate zero-mean first-moment result. -/
-theorem ragone_hasBarrenPlateau_normObs {sz : ℕ → ℕ}
+lemma ragone_hasBarrenPlateau_normObs {sz : ℕ → ℕ}
     {gens : (n : ℕ) → Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)}
     {ρ O : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     {b : (n : ℕ) → DLAHermBasis (gens n)}
@@ -426,7 +426,7 @@ theorem ragone_hasBarrenPlateau_normObs {sz : ℕ → ℕ}
 `Tr[ρᴴρ] ≤ 1`, an observable bound `Tr[OᴴO] ≤ 2^n`, and `dim g ≥ base^n` with
 `base > 2` imply a barren plateau. The purity bounds are discharged by the
 Bessel inequality `DLAHermBasis.gPurity_le_normSq`. -/
-theorem ragone_hasBarrenPlateau_hsNorm {sz : ℕ → ℕ}
+lemma ragone_hasBarrenPlateau_hsNorm {sz : ℕ → ℕ}
     {gens : (n : ℕ) → Set (Matrix (Fin (sz n)) (Fin (sz n)) ℂ)}
     {ρ O : (n : ℕ) → Matrix (Fin (sz n)) (Fin (sz n)) ℂ}
     {b : (n : ℕ) → DLAHermBasis (gens n)}
@@ -465,7 +465,7 @@ operator space `Matrix (Fin 1 × Fin 1) (Fin 1 × Fin 1) ℂ`, the invariant sub
 `span{C}` — not as a posited hypothesis but by proof. This is the honest non-vacuity anchor: it lets
 `consistencyWitness` build a satisfiable bundle whose `invariant_eq_spanC` field is genuinely
 discharged, so the reshaped variance law is non-vacuous without re-introducing any circularity. -/
-theorem trivialDLA_invariant_eq_spanC :
+lemma trivialDLA_invariant_eq_spanC :
     gTensorGInvariant trivialDLAHermBasis
       = Submodule.span ℂ {trivialDLAHermBasis.casimir} := by
   have hC : ∀ p q : Fin 1 × Fin 1, trivialDLAHermBasis.casimir p q = 1 := by
@@ -490,7 +490,7 @@ theorem trivialDLA_invariant_eq_spanC :
 algebra with a Hermitian orthonormal basis and a satisfiable second-moment bundle —
 so the variance formula `variance_eq_gPurity` and the barren-plateau capstone are not
 vacuously true. -/
-theorem ragone_hypotheses_nonempty :
+lemma ragone_hypotheses_nonempty :
     ∃ (gens : Set (Matrix (Fin 1) (Fin 1) ℂ)) (b : DLAHermBasis gens)
       (ρ O : Matrix (Fin 1) (Fin 1) ℂ), Nonempty (RagoneSecondMoment b ρ O) :=
   ⟨_, trivialDLAHermBasis, 1, 1,
@@ -500,7 +500,7 @@ theorem ragone_hypotheses_nonempty :
 /-- **The reductive hypothesis stack is non-vacuous.** A one-ideal instance of
 `RagoneReductive` (built from the trivial DLA and its satisfiable second-moment bundle), so the
 *derived* Eq. (9) sum `RagoneReductive.totalVariance_eq` is not vacuously true. -/
-theorem ragone_reductive_nonempty :
+lemma ragone_reductive_nonempty :
     Nonempty (RagoneReductive (1 : Matrix (Fin 1) (Fin 1) ℂ) (1 : Matrix (Fin 1) (Fin 1) ℂ)) := by
   let M := RagoneSecondMoment.consistencyWitness (b := trivialDLAHermBasis)
     conjTranspose_one conjTranspose_one Nat.one_pos trivialDLA_invariant_eq_spanC

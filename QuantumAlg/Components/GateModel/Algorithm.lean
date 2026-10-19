@@ -77,11 +77,11 @@ public def model : GateModel where
   coordinate := coordinate
 
 /-- Every one-qubit parameter contributes to the same one-qubit count. -/
-@[simp] public theorem singleQubit_coordinate (op : UnitaryOperator (Qubits 1)) :
+@[simp] public lemma singleQubit_coordinate (op : UnitaryOperator (Qubits 1)) :
     model.coordinate (.singleQubit op) = Coordinate.singleQubit := rfl
 
 /-- The counted one-qubit token retains its exact operator parameter. -/
-public theorem singleQubit_operator (op : UnitaryOperator (Qubits 1)) :
+public lemma singleQubit_operator (op : UnitaryOperator (Qubits 1)) :
     model.operator (.singleQubit op) =
       UnitaryOperator.reindex (QuantumSignature.qubitsIndexEquiv 1).symm op := rfl
 

@@ -54,11 +54,11 @@ def pushStore (store : Store ctx) : Store (context ctx N) :=
     (store.pushRetained ctx.canonicalFreshKey (.bits (phaseBits N)) ctx.canonicalFreshKey_fresh)
 
 /-- The quantum bank remains exactly the same ordered list of physical wire records. -/
-theorem quantumWires : (context ctx N).quantumWires = ctx.quantumWires :=
+lemma quantumWires : (context ctx N).quantumWires = ctx.quantumWires :=
   MeasurementCells.context_quantumWires (resultContext ctx N) 2 (phaseBits N)
 
 /-- Actual allocation preserves the value of the original sampler parameter or other operand. -/
-theorem read_pushStore_liftInput {shape : CShape} (store : Store ctx)
+lemma read_pushStore_liftInput {shape : CShape} (store : Store ctx)
     (input : CInputRef ctx shape) :
     (pushStore ctx N store).read (liftInput ctx N input) = store.read input := by
   rw [pushStore, liftInput, MeasurementCells.read_pushStore_liftInput]

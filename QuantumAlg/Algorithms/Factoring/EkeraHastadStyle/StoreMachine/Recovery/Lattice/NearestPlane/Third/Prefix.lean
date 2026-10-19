@@ -62,16 +62,18 @@ def metricPrefixStep {model : ExecutionModel} [BitWord.Selected model]
   let metrics := metricTailStep refs cross.1
   (metrics.1, (cross.2, metrics.2))
 
-private theorem metricTail_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma metricTail_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (LatticeDotRefresh.refreshInto refs.target refs.cross (numeratorDotRefs refs))
-      (LatticeDotRefresh.refreshInto refs.basis.third refs.cross (denominatorDotRefs refs))).execute
+      (LatticeDotRefresh.refreshInto refs.basis.third refs.cross (denominatorDotRefs
+        refs))).execute environment
         Reference state = state.mapClassical (fun entry =>
           let actual := metricTailStep refs entry.1
           (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical _ _
+  refine (Circuit.execute_seq_mapClassical (environment := environment) _ _
     (fun before =>
       let actual := LatticeDotRefresh.refreshStep refs.target refs.cross
         (numeratorDotRefs refs) before.1
@@ -90,14 +92,16 @@ private theorem metricTail_execute {model : ExecutionModel} [BitWord.Selected mo
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The metric-prefix interpreter preserves the selected hidden state and references. -/
-theorem thirdMetricPrefixInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdMetricPrefixInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (thirdMetricPrefixInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (thirdMetricPrefixInto refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := metricPrefixStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical _ _
+  refine (Circuit.execute_seq_mapClassical (environment := environment) _ _
     (fun before =>
       let actual := LatticeCross.pointStep refs.basis.first refs.basis.second refs.cross
         refs.productLeft refs.productRight before.1
@@ -125,7 +129,7 @@ def prefixCells : List PhaseCell :=
     .dotProduct, .numerator, .denominator]
 
 /-- Every caller read outside the actual prefix footprint is unchanged. -/
-theorem thirdMetricPrefixInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma thirdMetricPrefixInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell ∈ prefixCells, phaseCellKey refs cell ∉ other.storageKeys) :
     (metricPrefixStore refs store).read other = store.read other := by
@@ -141,7 +145,7 @@ theorem thirdMetricPrefixInto_callerFrame (refs : Refs ctx width) (store : Store
   rw [key]
   exact avoids _ (by cases cell <;> simp [prefixCells])
 
-private theorem named_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
+private lemma named_avoids (refs : Refs ctx width) (separation : PhaseSeparation refs)
     {shape : CShape} (other : CWriteRef ctx shape) (source target : PhaseCell)
     (sourceKey : other.key = phaseCellKey refs source) (different : target ≠ source) :
     phaseCellKey refs target ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
@@ -149,7 +153,7 @@ private theorem named_avoids (refs : Refs ctx width) (separation : PhaseSeparati
   simpa only [List.mem_singleton, sourceKey] using
     separation.phaseCellKey_ne target source different
 
-private theorem cross_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
+private lemma cross_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape) (source : PhaseCell)
     (sourceKey : other.key = phaseCellKey refs source)
     (outside : ∀ cell, crossPhaseCell cell ≠ source) :
@@ -163,7 +167,7 @@ private theorem cross_frame (refs : Refs ctx width) (separation : PhaseSeparatio
   rw [key]
   exact named_avoids refs separation other source _ sourceKey (outside cell)
 
-private theorem point_of_frames {before after : Store ctx}
+private lemma point_of_frames {before after : Store ctx}
     (refs : LatticeState.PointRefs ctx width) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents before refs value)
     (first : after.read (writeInput refs.first) = before.read (writeInput refs.first))
@@ -176,7 +180,7 @@ private theorem point_of_frames {before after : Store ctx}
   · rw [third]; exact rep.2.2
 
 /-- Actual prefix words represent the original signed dots, retaining all four original points. -/
-theorem thirdMetricPrefixInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma thirdMetricPrefixInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (first second third target : NumberTheory.IntegerPoint3)
     (firstRep : LatticeArithmetic.PointRawRepresents store refs.basis.first first)
     (secondRep : LatticeArithmetic.PointRawRepresents store refs.basis.second second)
@@ -269,21 +273,22 @@ theorem thirdMetricPrefixInto_correct (refs : Refs ctx width) (separation : Sepa
     · exact originalFrame refs.target.third .targetThird rfl (by decide)
 
 /-- The actual prefix contains nineteen native instruction dependencies. -/
-theorem thirdMetricPrefixInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdMetricPrefixInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width)
     (path : (thirdMetricPrefixInto refs).Path) :
     (thirdMetricPrefixInto refs).depth (fun _ => 1) path = 19 := rfl
 
 /-- All actual metric-prefix instructions restore borrowed correlations jointly. -/
-theorem thirdMetricPrefixInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdMetricPrefixInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (thirdMetricPrefixInto refs).BorrowedRestored Reference state
-      ((thirdMetricPrefixInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((thirdMetricPrefixInto refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact LatticeCross.pointCrossInto_borrowedRestored _ _ _ _ _ Reference state
-  · exact Circuit.borrowedRestored_seq _ _ _
+  · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
       (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _)
       (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _)
 

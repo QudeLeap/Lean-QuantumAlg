@@ -25,19 +25,20 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 omit [BitWord.Selected model] in
-private theorem execute_code_eq (first second : Circuit model ctx ctx) (same : first = second)
+private lemma execute_code_eq (first second : Circuit model ctx ctx) (same : first = second)
     (update : Store ctx → Store ctx × second.Path)
     (actual : ∀ (Reference : Register) {History : Type} [Fintype History]
       (state : State ctx Reference (model.HiddenState × History)),
-      second.execute Reference state = state.mapClassical (fun entry =>
+      second.execute environment Reference state = state.mapClassical (fun entry =>
         ((update entry.1).1, (entry.2.1, (entry.2.2, (update entry.1).2)))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    first.execute Reference state = state.mapClassical (fun entry =>
+    first.execute environment Reference state = state.mapClassical (fun entry =>
       ((update entry.1).1, (entry.2.1, (entry.2.2, (congrArg Circuit.Path same).mpr (update
           entry.1).2)))) := by
   cases same
@@ -57,13 +58,14 @@ def step (source : Input N) (parameter : CInputRef ctx (ParameterShape (modulusB
     (selected.1, by simpa only [code, if_neg exceptional] using selected.2)
 
 /-- Both original modulus branches execute with the exact corresponding native record. -/
-theorem code_execute (source : Input N)
+lemma code_execute (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) source parameter phase cells output).execute Reference state =
+    (code (model := model) source parameter phase cells output).execute
+      environment Reference state =
       state.mapClassical (fun entry => ((step (model := model) source parameter phase cells output
           entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) source parameter phase cells output
@@ -85,7 +87,7 @@ theorem code_execute (source : Input N)
         (recovered_execute source parameter phase cells output) Reference state
 
 /-- The real exceptional branch has exactly the already derived native even-case store. -/
-theorem step_even_store (source : Input N)
+lemma step_even_store (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)
@@ -95,7 +97,7 @@ theorem step_even_store (source : Input N)
   simp only [step, dif_pos exceptional]
 
 /-- The real ordinary branch has exactly the already derived stored-input recovery store. -/
-theorem step_recovered_store (source : Input N)
+lemma step_recovered_store (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N))) (cells : Cells ctx N)
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N)))) (store : Store ctx)

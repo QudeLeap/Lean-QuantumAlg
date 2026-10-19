@@ -19,14 +19,14 @@ namespace QuantumAlg.Execution.FiniteReadout
 
 noncomputable section
 
-theorem transported_key {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
+lemma transported_key {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) :
     (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same) ref).key =
       ref.key := by
   cases same
   rfl
 
-theorem transported_read_value {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
+lemma transported_read_value {ctx : RuntimeCtx .quantum} {actual intended : ℕ+}
     (same : actual = intended) (ref : CWriteRef ctx (.finite intended)) (store : Store ctx) :
     (store.read (.storage
       (Eq.mpr (congrArg (fun dimension => CWriteRef ctx (.finite dimension)) same)

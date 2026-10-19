@@ -26,7 +26,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.NativeFactorScan
 
 noncomputable section
 
-private theorem sampledSemanticInput_eq_good {N : Nat}
+private lemma sampledSemanticInput_eq_good {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (outcome : SourceOutcome N)
     (unit : (ZMod N)ˣ)
     (parameterEq : parameterValue (Probability.Input.ofSemiprimeModel model) outcome.sample =
@@ -62,7 +62,7 @@ private theorem sampledSemanticInput_eq_good {N : Nat}
   exact sameInput _ _ baseEqual terminalEqual
 
 /-- Every present source result is a declared factor; no earlier candidate can be spurious. -/
-theorem sourceResult_declared_or_none {N : Nat}
+lemma sourceResult_declared_or_none {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (outcome : SourceOutcome N) :
     Probability.ReturnedDeclaredFactor model
         (sourceResult (Probability.Input.ofSemiprimeModel model) outcome) ∨
@@ -89,7 +89,7 @@ theorem sourceResult_declared_or_none {N : Nat}
       exact declared
 
 /-- The source-good unit and Born event refer to the same input recovered by the native tail. -/
-theorem sourceResult_good {N : Nat} (model : NumberTheory.Factoring.SemiprimeFactorModel N)
+lemma sourceResult_good {N : Nat} (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (outcome : SourceOutcome N) (good : Probability.GoodAttemptOutcome model outcome) :
     Probability.ReturnedDeclaredFactor model
       (sourceResult (Probability.Input.ofSemiprimeModel model) outcome) := by
@@ -117,7 +117,7 @@ theorem sourceResult_good {N : Nat} (model : NumberTheory.Factoring.SemiprimeFac
   rw [FactorRecovery.encodeOutput_some_payload_toNat source sound.2.2]
   exact declared
 
-private theorem firstPresent_of_declared {N : Nat}
+private lemma firstPresent_of_declared {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N)
     (first later : CShape.Value (.option (.unsignedWord (modulusBits N))))
     (declared : Probability.ReturnedDeclaredFactor model first) :
@@ -127,7 +127,7 @@ private theorem firstPresent_of_declared {N : Nat}
   | optionSome value => rfl
 
 /-- Earlier present results are valid, so the first-present fold preserves any source-good visit. -/
-theorem sourceResults_of_contains_good {N : Nat}
+lemma sourceResults_of_contains_good {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (outcomes : List (SourceOutcome N))
     (good : PMF.ContainsEvent (Probability.GoodAttemptOutcome model) outcomes) :
     Probability.ReturnedDeclaredFactor model
@@ -153,7 +153,7 @@ theorem sourceResults_of_contains_good {N : Nat}
         exact ih later
 
 /-- A positive number of actual source visits preserves the original total even-modulus route. -/
-theorem sourceResults_of_even {N : Nat}
+lemma sourceResults_of_even {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (even : Even N)
     (head : SourceOutcome N) (rest : List (SourceOutcome N)) :
     Probability.ReturnedDeclaredFactor model
@@ -172,7 +172,7 @@ theorem sourceResults_of_even {N : Nat}
   exact declared
 
 /-- The original source retry event is contained in success of the native first-present result. -/
-theorem sourceResults_successfulSamples {N : Nat}
+lemma sourceResults_successfulSamples {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (budget : FailureBudget)
     (samples : List.Vector (SourceOutcome N) (retryCount N budget))
     (successful : Probability.SuccessfulSamples model budget samples) :

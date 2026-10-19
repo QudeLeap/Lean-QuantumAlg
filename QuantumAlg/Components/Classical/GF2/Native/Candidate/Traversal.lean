@@ -29,7 +29,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {rowCount width : Nat}
 
-private theorem rows_other
+private lemma rows_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -50,7 +50,7 @@ private theorem rows_other
         (gf2CandidatePivotRow_read_other matrix rows free candidate zero (indices 0) column
           store other separate)
 
-private theorem columns_other
+private lemma columns_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -73,7 +73,7 @@ private theorem columns_other
         (rows_other matrix rows free candidate zero (indices 0) rowCount id store other separate)
 
 /-- The actual copy and both original traversals preserve all reads outside the candidate. -/
-theorem gf2BuildCandidate_read_other
+lemma gf2BuildCandidate_read_other
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
@@ -104,13 +104,13 @@ private def sources
   (store.read (.storage zero.toCStorageRef) = CShape.wordOfNat width 0)
 
 omit [BitWord.Selected model] in
-private theorem avoids {left right : CShape} (output : CWriteRef ctx left)
+private lemma avoids {left right : CShape} (output : CWriteRef ctx left)
     (other : CWriteRef ctx right) (separate : output.key ≠ other.key) :
     output.key ∉ (CInputRef.storage other.toCStorageRef).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton] using separate
 
 omit [BitWord.Selected model] in
-private theorem word_vector_ne {size count : Nat} {shape : CShape}
+private lemma word_vector_ne {size count : Nat} {shape : CShape}
     (word : CWriteRef ctx (.unsignedWord size))
     (vector : CWriteRef ctx (.fixedVector count shape)) : word.key ≠ vector.key := by
   intro same
@@ -119,7 +119,7 @@ private theorem word_vector_ne {size count : Nat} {shape : CShape}
   cases impossible
 
 omit [BitWord.Selected model] in
-private theorem sources_after
+private lemma sources_after
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -135,13 +135,13 @@ private theorem sources_after
     (same _ (avoids candidate zero zeroSeparate)).trans zeroValue⟩
 
 omit [BitWord.Selected model] in
-private theorem and_value (left right : ClassicalAlgorithms.Word width) :
+private lemma and_value (left right : ClassicalAlgorithms.Word width) :
     (CShape.wordBitAnd width (.unsignedWord left) (.unsignedWord right)).toNat =
       left.val &&& right.val :=
   Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt Nat.and_le_left left.isLt)
 
 omit [BitWord.Selected model] in
-private theorem power_bit (column target : Fin width) :
+private lemma power_bit (column target : Fin width) :
     Nat.testBit (2 ^ (Fin.rev column).val) (Fin.rev target).val = decide (target = column) := by
   rw [Nat.testBit_two_pow]
   congr 1
@@ -153,7 +153,7 @@ private theorem power_bit (column target : Fin width) :
     subst target
     rfl
 
-private theorem row_bit
+private lemma row_bit
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -196,7 +196,7 @@ private theorem row_bit
       · simp only [same, decide_false, Bool.false_eq_true, if_false,
           Bool.false_and, Bool.and_false, Bool.or_false]
 
-private theorem rows_bit
+private lemma rows_bit
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -245,7 +245,7 @@ private theorem rows_bit
             simp only [current, decide_false, Bool.false_and, Bool.and_false, Bool.or_false,
               List.mem_cons, currentRev, false_or]
 
-private theorem all_rows_bit
+private lemma all_rows_bit
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -271,7 +271,7 @@ private theorem all_rows_bit
   cases lookup : ClassicalAlgorithms.GF2.pivotForColumn? result column <;>
     simpa only [lookup, List.mem_ofFn, id_eq, exists_eq, decide_true, Bool.true_and] using actual
 
-private theorem columns_bit
+private lemma columns_bit
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -321,7 +321,7 @@ private theorem columns_bit
       · simp only [current, decide_false, Bool.false_and, Bool.or_false,
           List.mem_cons, false_or]
 
-private theorem build_value
+private lemma build_value
     (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
     (rows : CWriteRef ctx (.fixedVector width (.unsignedWord rowCount)))
     (free candidate zero : CWriteRef ctx (.unsignedWord width))
@@ -366,7 +366,7 @@ private theorem build_value
         original
 
 /-- The original seven cells realize the complete copied and accumulated back-substitution word. -/
-theorem gf2BuildCandidate_cellValue
+lemma gf2BuildCandidate_cellValue
     (cells : Cells ctx (stateShapes rowCount width)) (distinct : cells.Distinct)
     (store : Store ctx) (result : ClassicalAlgorithms.GF2.Result rowCount width)
     (selected : Fin width)

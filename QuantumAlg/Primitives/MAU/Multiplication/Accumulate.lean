@@ -67,7 +67,7 @@ instance instFintypeData (N : ℕ) [NeZero N] : Fintype (Data N) := by
 namespace Data
 
 /-- Extensionality for MAC data registers. -/
-@[ext] theorem ext {N : ℕ} {x y : Data N}
+@[ext] lemma ext {N : ℕ} {x y : Data N}
     (hmultiplicand : x.multiplicand = y.multiplicand)
     (haccumulator : x.accumulator = y.accumulator)
     (hflag : x.flag = y.flag) : x = y := by
@@ -91,37 +91,37 @@ def subScaled {N : ℕ} (a : ZMod N) (x : Data N) : Data N where
   accumulator := x.accumulator - a * x.multiplicand
   flag := x.flag
 
-@[simp] theorem addScaled_multiplicand {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma addScaled_multiplicand {N : ℕ} (a : ZMod N) (x : Data N) :
     (x.addScaled a).multiplicand = x.multiplicand :=
   rfl
 
-@[simp] theorem addScaled_accumulator {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma addScaled_accumulator {N : ℕ} (a : ZMod N) (x : Data N) :
     (x.addScaled a).accumulator = x.accumulator + a * x.multiplicand :=
   rfl
 
-@[simp] theorem addScaled_flag {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma addScaled_flag {N : ℕ} (a : ZMod N) (x : Data N) :
     (x.addScaled a).flag = x.flag :=
   rfl
 
-@[simp] theorem subScaled_multiplicand {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma subScaled_multiplicand {N : ℕ} (a : ZMod N) (x : Data N) :
     (x.subScaled a).multiplicand = x.multiplicand :=
   rfl
 
-@[simp] theorem subScaled_accumulator {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma subScaled_accumulator {N : ℕ} (a : ZMod N) (x : Data N) :
     (x.subScaled a).accumulator = x.accumulator - a * x.multiplicand :=
   rfl
 
-@[simp] theorem subScaled_flag {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma subScaled_flag {N : ℕ} (a : ZMod N) (x : Data N) :
     (x.subScaled a).flag = x.flag :=
   rfl
 
 /-- Clean flags remain clean after multiply-accumulate. -/
-private theorem addScaled_preserves_clean {N : ℕ} (a : ZMod N) (x : Data N)
+private lemma addScaled_preserves_clean {N : ℕ} (a : ZMod N) (x : Data N)
     (h : x.FlagClean) : (x.addScaled a).FlagClean :=
   h
 
 /-- Clean flags remain clean after inverse multiply-accumulate. -/
-private theorem subScaled_preserves_clean {N : ℕ} (a : ZMod N) (x : Data N)
+private lemma subScaled_preserves_clean {N : ℕ} (a : ZMod N) (x : Data N)
     (h : x.FlagClean) : (x.subScaled a).FlagClean :=
   h
 
@@ -138,7 +138,7 @@ def macEquiv {N : ℕ} (a : ZMod N) : Equiv.Perm (Data N) where
     cases x
     simp [addScaled, subScaled]
 
-@[simp] theorem macEquiv_apply {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma macEquiv_apply {N : ℕ} (a : ZMod N) (x : Data N) :
     macEquiv a x = x.addScaled a :=
   rfl
 
@@ -146,11 +146,11 @@ def macEquiv {N : ℕ} (a : ZMod N) : Equiv.Perm (Data N) where
 def controlledApply {N : ℕ} (a : ZMod N) (control : Bool) (x : Data N) : Data N :=
   if control then x.addScaled a else x
 
-@[simp] theorem controlledApply_false {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma controlledApply_false {N : ℕ} (a : ZMod N) (x : Data N) :
     controlledApply a false x = x := by
   simp [controlledApply]
 
-@[simp] theorem controlledApply_true {N : ℕ} (a : ZMod N) (x : Data N) :
+@[simp] lemma controlledApply_true {N : ℕ} (a : ZMod N) (x : Data N) :
     controlledApply a true x = x.addScaled a := by
   simp [controlledApply]
 
@@ -159,13 +159,13 @@ def withWorkEquiv {N : ℕ} (a : ZMod N) (Work : Type) :
     Equiv.Perm (Data N × Work) :=
   Equiv.prodCongr (macEquiv a) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {N : ℕ} (a : ZMod N) {Work : Type}
+@[simp] lemma withWorkEquiv_apply {N : ℕ} (a : ZMod N) {Work : Type}
     (x : Data N) (w : Work) :
     withWorkEquiv a Work (x, w) = (x.addScaled a, w) :=
   rfl
 
 /-- The MAC convention leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {N : ℕ} (a : ZMod N) {Work : Type} :
+lemma withWorkEquiv_preserves_work {N : ℕ} (a : ZMod N) {Work : Type} :
     WorkRegister.Preserves (Data := Data N) (Work := Work) (withWorkEquiv a Work) := by
   intro x
   cases x
@@ -197,7 +197,7 @@ noncomputable def macOp {N : ℕ} [NeZero N] (a : ZMod N) :
 
 /-- Clean basis action of the MAC gate:
 `|x,y,0> ↦ |x,y+a*x,0>`. -/
-theorem macOp_apply_ket {N : ℕ} [NeZero N] (a : ZMod N) (x : Data N) :
+lemma macOp_apply_ket {N : ℕ} [NeZero N] (a : ZMod N) (x : Data N) :
     (macOp a).apply (NormalizedVector.ket (R := register N) x) =
       NormalizedVector.ket (R := register N) (x.addScaled a) := by
   rw [macOp, UnitaryOperator.ofPerm_apply_ket]

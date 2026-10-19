@@ -31,7 +31,7 @@ public def context (layout : QuantumLayout width) : RuntimeCtx .quantum :=
   RuntimeCtx.empty.addOwnedLayout ⟨0⟩ layout (by decide)
     (by simp only [RuntimeCtx.runtimeCtx_empty_physicalIdx, List.disjoint_nil_right])
 
-private theorem sameWires (layout : QuantumLayout width) :
+private lemma sameWires (layout : QuantumLayout width) :
     layout.wires = (context layout).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
   change layout.wires = layout.wires ++ []
@@ -51,20 +51,18 @@ public def program {layout : QuantumLayout width}
 
 /-- **Input.** An arbitrary normalized state on the supplied owned quantum layout.
 **Output.** Every supplied system, transformed by the specified operator.
-**Resource budget.** Independent event and depth limits; exactly the supplied live layout.
+**Resource budget.** Independent event and quantum time limits; exactly the supplied live layout.
 **Success.** Exact action on the full joint state, including any external reference.
 **Source.** Complete-state unitary execution and equal-physical-wire placement. -/
-public def problem {layout : QuantumLayout width} (operator : UnitaryOperator layout.register)
+public def problem {layout : QuantumLayout width}
+    (operator : oracles.Interpretation → UnitaryOperator layout.register)
     (events : ResourcePool (.quantum gates oracles)) (limit : Nat) :
     Problem (.quantum gates oracles) (context layout) (context layout) .unit :=
-  UnitaryExecution.problem (target operator)
+  UnitaryExecution.problem (fun environment => target (operator environment))
     { events := events
       resident := SpacePool.ofQuantumLayout layout
       auxiliary := SpacePool.ofQuantumLayout layout }
-    { duration := fun _ => 1
-      limit := limit
-      classicalQuery_unit := fun _ => rfl
-      quantumQuery_unit := fun _ => rfl }
+    limit
 
 /-- Complete output of the actual placed native construction. -/
 public def algorithm {layout : QuantumLayout width} (word : UnitaryCircuit gates oracles layout) :
@@ -72,14 +70,17 @@ public def algorithm {layout : QuantumLayout width} (word : UnitaryCircuit gates
   UnitaryExecution.algorithm (program word)
 
 /-- Exact operator equality and native bounds certify the whole owned-interface execution. -/
-public theorem main {layout : QuantumLayout width} (operator : UnitaryOperator layout.register)
+public theorem main {layout : QuantumLayout width}
+    (operator : oracles.Interpretation → UnitaryOperator layout.register)
     (events : ResourcePool (.quantum gates oracles)) (limit : Nat)
-    (word : UnitaryCircuit gates oracles layout) (same : word.matrix = operator)
+    (word : UnitaryCircuit gates oracles layout)
+    (same : ∀ environment, word.matrix environment = operator environment)
     (cost : word.eventCost ≤ events)
     (depth : word.evaluatedEventDepth (fun _ => 1) ≤ limit) :
     Algorithm.Solves (algorithm word) (problem operator events limit) := by
   apply UnitaryExecution.main
-  · rw [program, Execution.unitaryOfEqualWires_matrix, same]
+  · intro environment
+    rw [program, Execution.unitaryOfEqualWires_matrix, same]
     rfl
   · rfl
   · rfl
@@ -88,7 +89,7 @@ public theorem main {layout : QuantumLayout width} (operator : UnitaryOperator l
       RuntimeCtx.residentSpace_empty, add_zero, le_refl]
   · simp only [context, RuntimeCtx.auxiliarySpace_addOwnedLayout,
       RuntimeCtx.auxiliarySpace_empty, add_zero, le_refl]
-  · exact depth
+  · exact (DepthExpr.depthEval_mono Resource.Event.quantumDuration_le_one _).trans depth
 
 end
 end QuantumAlg.UnitaryExecution.Owned

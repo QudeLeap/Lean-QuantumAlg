@@ -31,12 +31,14 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.OutputPortProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit NumberTheory.SharedEEA
 
 private def outputWord (width : Nat) : Word (encoding width) (width + 3) :=
   ⟨secondWordBit width⟩
 
-private theorem output_distinct (width : Nat) (left right : Fin (width + 3))
+private lemma output_distinct (width : Nat) (left right : Fin (width + 3))
     (different : left ≠ right) :
     ((outputWord width).bit left).wire ≠ ((outputWord width).bit right).wire := by
   intro same
@@ -52,7 +54,7 @@ private def withoutOutput {width : Nat} (state : Registers width) : Registers wi
 def orientationGates (width : Nat) : List (GateSpec (encoding width)) :=
   Word.reverseGates (outputWord width) (output_distinct width)
 
-private theorem orientation_word (width : Nat) (state : Registers width) :
+private lemma orientation_word (width : Nat) (state : Registers width) :
     (GateSpec.stepList (orientationGates width) state).secondWord = state.secondWord.reverse := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -71,13 +73,13 @@ private theorem orientation_word (width : Nat) (state : Registers width) :
   simp only [(Fin.rev (⟨index, within⟩ : Fin (width + 3))).isLt,
     decide_true, Bool.true_and, position]
 
-private theorem orientation_complement (width : Nat) (state : Registers width) :
+private lemma orientation_complement (width : Nat) (state : Registers width) :
     withoutOutput (GateSpec.stepList (orientationGates width) state) = withoutOutput state :=
   Word.reverseStep_preserves_projection (outputWord width) (output_distinct width)
     withoutOutput (fun _ _ => rfl) state
 
 /-- Exact full-frame action of the emitted output reversal, including arbitrary dirty fields. -/
-theorem orientation_step (width : Nat) (state : Registers width) :
+lemma orientation_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (orientationGates width) state =
       { state with secondWord := state.secondWord.reverse } := by
   let after := GateSpec.stepList (orientationGates width) state
@@ -95,7 +97,7 @@ def unloadGates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
   Work1Constant.gates modulus.size (constant modulus)
 
 /-- Constant unloading is an actual all-label XOR and retains all other complete fields. -/
-theorem unload_step (modulus : Nat) (state : Registers modulus.size) :
+lemma unload_step (modulus : Nat) (state : Registers modulus.size) :
     GateSpec.stepList (unloadGates modulus) state =
       { state with firstWord := state.firstWord ^^^ TerminalPadding.terminalWord modulus } :=
   Work1Constant.gates_step modulus.size (constant modulus) state
@@ -116,26 +118,26 @@ def step (modulus : Nat) (state : Registers modulus.size) : Registers modulus.si
     secondWord := state.secondWord.reverse }
 
 /-- Full actual gate-list semantics changes precisely the two explicitly stated words. -/
-theorem gates_step (modulus : Nat) (state : Registers modulus.size) :
+lemma gates_step (modulus : Nat) (state : Registers modulus.size) :
     GateSpec.stepList (gates modulus) state = step modulus state := by
   rw [gates, GateSpec.stepList_append, orientation_step, unload_step]
   rfl
 
 /-- The real native program realizes the complete action, including every retained history bit. -/
-theorem program_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) (step modulus) :=
+lemma program_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (program modulus) environment (step modulus) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty _
-    (gates_step modulus)
+    (gates_step modulus) environment
 
 /-- Literal gate count, including the real symmetric swaps and set-bit constant unload. -/
-theorem gates_length (modulus : Nat) :
+lemma gates_length (modulus : Nat) :
     (gates modulus).length = 3 * ((modulus.size + 3) / 2) +
       (Word.constantOneIndices (constant modulus)).length := by
   rw [gates, List.length_append, orientationGates, Word.reverseGates_length,
     unloadGates, Work1Constant.gates_length]
 
 /-- An input-independent bound charges every emitted gate, without a zero-payload discount. -/
-theorem program_resources (modulus : Nat) :
+lemma program_resources (modulus : Nat) :
     (program modulus).eventCost.card ≤ 3 * ((modulus.size + 3) / 2) + modulus.size + 3 ∧
       (program modulus).evaluatedEventDepth (fun _ => 1) ≤
         3 * ((modulus.size + 3) / 2) + modulus.size + 3 := by

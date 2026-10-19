@@ -26,20 +26,12 @@ namespace PublicResourceBounds
 
 noncomputable section
 
-/-- The internally selected retry count is the displayed logarithmic ceiling.
-The doubled denominator reserves half of the public failure budget for the
-one-time key-generation exceptional event. -/
-theorem retryCount_eq_closedForm (budget : FailureBudget) :
-    NativeFiniteRetry.Calibration.retryCount budget =
-      max 1 (Nat.ceil
-        (Real.log
-            (((2 * budget.failureDenominator : Nat) : Real) /
-              budget.failureNumerator) /
-          Real.log ((256 : Real) / 147))) := by
-  unfold NativeFiniteRetry.Calibration.retryCount FailureBudget.retryCountFor
-    FailureBudget.retryExponentFor NativeFiniteRetry.Calibration.retryTargetBudget
-    NativeFiniteRetry.Calibration.conditionalFailureBudget
-  norm_num
+/-- The selected count is the positive reciprocal-logarithm ceiling.
+Half of the real target is reserved for the one-time original-key exception. -/
+lemma retryCount_eq_closedForm (η : Real) :
+    NativeFiniteRetry.Calibration.retryCount η =
+      Nat.ceil (Real.log (2 / η) / Real.log ((256 : Real) / 147)) :=
+  NativeFiniteRetry.Calibration.realRetryCount_eq_inverse_log η
 
 end
 

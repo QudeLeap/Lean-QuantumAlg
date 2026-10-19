@@ -20,7 +20,8 @@ open ClassicalRoutines.Modular.NativePower
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width exponentWidth : Nat}
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -53,14 +54,15 @@ def candidateStep (spec : ModulusSpec width) (refs : Refs ctx width exponentWidt
   (compared.1, (powered.2, compared.2))
 
 /-- The full actual interpreter includes all native power branches and the final equality. -/
-theorem candidatePowerInto_execute (spec : ModulusSpec width)
+lemma candidatePowerInto_execute (spec : ModulusSpec width)
     (refs : Refs ctx width exponentWidth) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (candidatePowerInto spec refs).execute Reference state = state.mapClassical (fun entry =>
+    (candidatePowerInto spec refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := candidateStep spec refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (powerInto spec refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (powerInto spec refs)
     (BitWord.instruction (execution := model) (equalityOp refs))
     (fun before =>
       let actual := powerStep spec refs before.1
@@ -70,7 +72,8 @@ theorem candidatePowerInto_execute (spec : ModulusSpec width)
       ((actual.1, before.2), actual.2))
     (fun reference _history _ current =>
       nativePower_into_execute spec refs.generator refs.exponent refs.power reference current)
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 

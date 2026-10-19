@@ -21,9 +21,12 @@ namespace QuantumAlg.QuantumFourierTransform.Native
 noncomputable section
 
 /-- The generated inverse has the exact adjoint of the actual forward circuit's matrix. -/
-public theorem qftNative_inverseCircuit_matrix (oracles : OracleModel) (n : Nat) :
-    (inverseCircuit oracles n).matrix = star (circuit .empty n).matrix :=
+public lemma qftNative_inverseCircuit_matrix (oracles : OracleModel) (n : Nat)
+    (environment : oracles.Interpretation) :
+    ((inverseCircuit oracles n).matrix environment) = star ((circuit .empty n).matrix
+      ((AlgorithmGate.oracleFreeAdjoints oracles).interpretation environment)) :=
   UnitaryCircuit.dagger_matrix (circuit .empty n) (AlgorithmGate.oracleFreeAdjoints oracles)
+    environment
 
 end
 

@@ -37,7 +37,7 @@ def qftSwapRight (n : Nat) (index : Fin (n / 2)) : Fin n :=
     have hi := index.isLt
     omega⟩
 
-theorem qftSwapLeft_ne_right (n : Nat) (index : Fin (n / 2)) :
+lemma qftSwapLeft_ne_right (n : Nat) (index : Fin (n / 2)) :
     qftSwapLeft n index ≠ qftSwapRight n index := by
   intro h
   have hval := congrArg Fin.val h
@@ -56,7 +56,7 @@ def qftBitReverseLabelPrefix (n : Nat) :
 
 /-- After the first `count` symmetric swaps, the outer `count` wires on each
 side contain their reversed source bits and every middle wire is unchanged. -/
-theorem qftBitReverseLabelPrefix_invariant (n count : Nat)
+lemma qftBitReverseLabelPrefix_invariant (n count : Nat)
     (hcount : count ≤ n / 2) (label : Fin (2 ^ n)) :
     (∀ wire : Fin n, wire.val < count →
       (qftBitReverseLabelPrefix n count hcount label).val.testBit
@@ -170,7 +170,7 @@ theorem qftBitReverseLabelPrefix_invariant (n count : Nat)
 
 /-- The complete symmetric SWAP network realizes the canonical bit-reversal
 permutation on computational-basis labels. -/
-theorem qftBitReverseLabel_eq (n : Nat) (label : Fin (2 ^ n)) :
+lemma qftBitReverseLabel_eq (n : Nat) (label : Fin (2 ^ n)) :
     qftBitReverseLabelPrefix n (n / 2) le_rfl label =
       qftReverseBits n label := by
   apply Fin.val_injective

@@ -20,7 +20,7 @@ namespace QuantumAlg.Execution.MeasurementCells
 
 variable {kind : ProblemKind}
 
-private theorem retained_disjoint {ctx frame : RuntimeCtx kind}
+private lemma retained_disjoint {ctx frame : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (separate : RuntimeCtx.StorageDisjoint (ctx.addRetained key shape fresh) frame) :
     RuntimeCtx.StorageDisjoint ctx frame := by
@@ -33,7 +33,7 @@ private theorem retained_disjoint {ctx frame : RuntimeCtx kind}
   · exact separate.2
 
 /-- Every original prefix remains disjoint from the entire resident frame. -/
-theorem original_disjoint (ctx frame : RuntimeCtx kind) (dimension : ℕ+) :
+lemma original_disjoint (ctx frame : RuntimeCtx kind) (dimension : ℕ+) :
     (count : Nat) → RuntimeCtx.StorageDisjoint (context ctx dimension count) frame →
       RuntimeCtx.StorageDisjoint ctx frame
   | 0, separate => separate
@@ -42,7 +42,7 @@ theorem original_disjoint (ctx frame : RuntimeCtx kind) (dimension : ℕ+) :
         (retained_disjoint (context ctx dimension count).canonicalFreshKey (.finite dimension)
           (context ctx dimension count).canonicalFreshKey_fresh separate)
 
-private theorem retained_fresh_union {ctx frame : RuntimeCtx kind}
+private lemma retained_fresh_union {ctx frame : RuntimeCtx kind}
     (key : StorageKey) (shape : CShape) (fresh : key ∉ ctx.keys)
     (separate : RuntimeCtx.StorageDisjoint (ctx.addRetained key shape fresh) frame) :
     key ∉ (ctx.disjointUnion frame (retained_disjoint key shape fresh separate)).keys := by
@@ -72,7 +72,7 @@ def allocateFramed {model : ExecutionModel} (ctx frame : RuntimeCtx model.kind) 
             middle.canonicalFreshKey_fresh separate))
 
 /-- Actual retained allocations emit no native event, while their cells remain resident. -/
-theorem allocateFramed_eventTrace {model : ExecutionModel}
+lemma allocateFramed_eventTrace {model : ExecutionModel}
     (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (path : (allocateFramed (model := model) ctx frame dimension count separate).Path) :
@@ -84,7 +84,7 @@ theorem allocateFramed_eventTrace {model : ExecutionModel}
       rw [ih, List.nil_append]
 
 /-- The same literal retained prefix has zero evaluated event depth for every duration map. -/
-theorem allocateFramed_depth {model : ExecutionModel}
+lemma allocateFramed_depth {model : ExecutionModel}
     (ctx frame : RuntimeCtx model.kind) (dimension : ℕ+)
     (count : Nat) (separate : RuntimeCtx.StorageDisjoint (context ctx dimension count) frame)
     (duration : Resource.Event model → Nat)

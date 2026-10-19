@@ -32,7 +32,7 @@ def allocationBits (N : Nat) : Nat :=
   38 * LatticeWideLllMachine.Width N + 5 * modulusBits N + 4 * measurementBits N +
     2 * BatchMachine.JWidth N + 2 * BatchMachine.KWidth N + 13
 
-private theorem coreSpaceArithmetic (width modulus measured jWidth kWidth : Nat) :
+private lemma coreSpaceArithmetic (width modulus measured jWidth kWidth : Nat) :
     (([.unsignedWord width, .unsignedWord width, .canonicalResidue modulus,
       .unsignedWord (modulus + 1), .unsignedWord modulus, .unsignedWord modulus].map
         CShape.bitWidth).sum + (21 * width + modulus + 10) +
@@ -51,7 +51,7 @@ private theorem coreSpaceArithmetic (width modulus measured jWidth kWidth : Nat)
   omega
 
 /-- The exact shape sum occupies its stated classical bits and no quantum systems. -/
-theorem coreAllocationSpace_eq_bits {kind : ProblemKind} (N : Nat) :
+lemma coreAllocationSpace_eq_bits {kind : ProblemKind} (N : Nat) :
     (allocationSpace N : SpacePool kind) = SpacePool.ofShape (.bits (allocationBits N)) := by
   have shapeCount (shapes : List CShape) :
       ((shapes.map (SpacePool.ofShape (kind := kind))).sum) .classicalBits =
@@ -84,9 +84,9 @@ def allocationCells (N : Nat) : Nat :=
     (LatticePairStateWorkspaceLayout.shapes N).length
 
 /-- The three core lists allocate exactly 63 physical cells. -/
-theorem coreAllocationCells_eq (N : Nat) : allocationCells N = 63 := rfl
+lemma coreAllocationCells_eq (N : Nat) : allocationCells N = 63 := rfl
 
-private theorem threeSpace_reassociate {kind : ProblemKind}
+private lemma threeSpace_reassociate {kind : ProblemKind}
     (first second third extra base : SpacePool kind) :
     first + (second + (third + extra)) + base = first + second + third + extra + base := by
   simp only [add_assoc]
@@ -97,7 +97,7 @@ variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) (N : Nat)
     (additional : SpacePool model.kind)
 
 /-- The actual core resident peak includes all three packages and the body's extra space. -/
-theorem withWorkspaces_resident_le
+lemma withWorkspaces_resident_le
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
@@ -121,7 +121,7 @@ theorem withWorkspaces_resident_le
   · exact le_of_eq (threeSpace_reassociate _ _ _ _ _)
 
 /-- The actual core auxiliary peak includes all three packages and the body's extra space. -/
-theorem withWorkspaces_auxiliary_le
+lemma withWorkspaces_auxiliary_le
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),
@@ -145,7 +145,7 @@ theorem withWorkspaces_auxiliary_le
   · exact le_of_eq (threeSpace_reassociate _ _ _ _ _)
 
 /-- Both native space bounds hold on the same actual path through all three core packages. -/
-theorem withWorkspaces_space_le
+lemma withWorkspaces_space_le
     (bodyBound : ∀ {inner : RuntimeCtx model.kind} (cells : Cells inner N)
       (transport : Transport ctx inner) (certificates : Certificates transport cells)
       (path : (body cells transport certificates).Path),

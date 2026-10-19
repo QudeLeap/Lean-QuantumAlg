@@ -28,7 +28,7 @@ noncomputable section
 
 /-- The determinant-quotient division used by the literal third phase is the
 public third nearest-plane coefficient. -/
-theorem nearestIntegerCoefficient_third
+lemma nearestIntegerCoefficient_third
     (basis : NumberTheory.IntegerBasis3)
     (target : NumberTheory.IntegerPoint3) :
     NumberTheory.nearestIntegerCoefficient
@@ -58,7 +58,7 @@ def secondNumerator (basis : NumberTheory.IntegerBasis3)
 
 /-- Computing the second coefficient from the third-reduced target agrees
 with the public nearest-plane coefficient. -/
-theorem nearestIntegerCoefficient_secondResidual
+lemma nearestIntegerCoefficient_secondResidual
     (basis : NumberTheory.IntegerBasis3)
     (target : NumberTheory.IntegerPoint3) :
     NumberTheory.nearestIntegerCoefficient
@@ -93,7 +93,7 @@ def afterSecond (basis : NumberTheory.IntegerBasis3)
 
 /-- Computing the first coefficient from the twice-reduced target agrees
 with the public nearest-plane coefficient. -/
-theorem nearestIntegerCoefficient_firstResidual
+lemma nearestIntegerCoefficient_firstResidual
     (basis : NumberTheory.IntegerBasis3)
     (target : NumberTheory.IntegerPoint3) :
     NumberTheory.nearestIntegerCoefficient
@@ -124,7 +124,7 @@ theorem nearestIntegerCoefficient_firstResidual
 
 /-- The three sequential target reductions equal subtraction by the complete
 nearest-plane lattice point. -/
-theorem afterFirst_eq_sub_linearCombination
+lemma afterFirst_eq_sub_linearCombination
     (basis : NumberTheory.IntegerBasis3)
     (target : NumberTheory.IntegerPoint3) :
     (afterSecond basis target).sub

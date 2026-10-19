@@ -32,7 +32,7 @@ def retainedAdditionalSpace (kind : ProblemKind) (width : Nat) : SpacePool kind 
   SpacePool.ofShape (XGCDOutputShape width) + publicScratchSpace kind width
 
 /-- Retention introduces no native operations beyond the actual public body. -/
-theorem xgcdNativeRetained_pool_le
+lemma xgcdNativeRetained_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
@@ -43,7 +43,7 @@ theorem xgcdNativeRetained_pool_le
     (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh) path.2
 
 /-- Every original serial dependency retains its arbitrary native duration charge. -/
-theorem xgcdNativeRetained_depth_le
+lemma xgcdNativeRetained_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys) (duration : Resource.Event model → Nat)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
@@ -57,7 +57,7 @@ theorem xgcdNativeRetained_depth_le
     (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh) duration path.2
 
 /-- The unchanged original width-derived native instruction ceiling includes the full packing. -/
-theorem xgcdNativeRetained_unitDepth_le
+lemma xgcdNativeRetained_unitDepth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
@@ -71,7 +71,7 @@ theorem xgcdNativeRetained_unitDepth_le
     (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh) path.2
 
 /-- The resident peak includes the retained result, live scratch, and every caller entry. -/
-theorem xgcdNativeRetained_resident_le
+lemma xgcdNativeRetained_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
@@ -94,7 +94,7 @@ theorem xgcdNativeRetained_resident_le
       (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh) path.2
 
 /-- Retained output storage and all real scratch also contribute to the complete auxiliary peak. -/
-theorem xgcdNativeRetained_auxiliary_le
+lemma xgcdNativeRetained_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (key : StorageKey) (fresh : key ∉ ctx.keys)
     (path : (retainedCircuit (model := model) input key fresh).Path) :
@@ -117,7 +117,7 @@ theorem xgcdNativeRetained_auxiliary_le
       (CWriteRef.retainedHead ctx key (XGCDOutputShape width) fresh) path.2
 
 /-- The complete independent allowance preserves the full raw and public coefficient widths. -/
-theorem xgcdNativeRetainedAdditional_classicalBits (kind : ProblemKind) (width : Nat) :
+lemma xgcdNativeRetainedAdditional_classicalBits (kind : ProblemKind) (width : Nat) :
     retainedAdditionalSpace kind width .classicalBits =
       7 * width + 9 * PureXGCD.executionCoefficientWidth width +
         2 * coefficientWidth width + 1 := by

@@ -53,14 +53,14 @@ def shortLogBits (N : Nat) : Nat := factorBits N + 1
 def tradeoffBits (N : Nat) : Nat := (shortLogBits N + 1) / 2
 
 /-- An exact same-bit RSA modulus exposes twice the source prime width. -/
-theorem modulusBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
+lemma modulusBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     modulusBits pair.modulus = 2 * b := by
   exact RSA.FixedWidthSampling.modulus_clog_eq_two_mul pair hb
 
 /-- The strict arithmetic word also has twice the source prime width on the
 same-bit distribution. -/
-theorem arithmeticBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
+lemma arithmeticBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     arithmeticBits pair.modulus = 2 * b := by
   unfold arithmeticBits
@@ -73,21 +73,21 @@ theorem arithmeticBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     omega
 
 /-- The modulus-derived factor width agrees with the source prime width. -/
-theorem factorBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
+lemma factorBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     factorBits pair.modulus = b := by
   rw [factorBits, modulusBits_sameBit pair hb]
   omega
 
 /-- The executable short-log width is the source width `b + 1`. -/
-theorem shortLogBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
+lemma shortLogBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     shortLogBits pair.modulus = RSA.GeneratorOrder.m b := by
   rw [shortLogBits, factorBits_sameBit pair hb]
   rfl
 
 /-- The executable tradeoff width is the source choice `ceil((b + 1) / 2)`. -/
-theorem tradeoffBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
+lemma tradeoffBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
     (hb : 1 ≤ b) :
     tradeoffBits pair.modulus = RSA.GeneratorOrder.ell b := by
   rw [tradeoffBits, shortLogBits_sameBit pair hb]
@@ -97,34 +97,34 @@ theorem tradeoffBits_sameBit {b : Nat} (pair : RSA.RSAKeyPairBits b)
 public structure Input (N : Nat) : Prop where
   modulus_gt_one : 1 < N
 
-theorem Input.modulus_pos {N : Nat} (input : Input N) : 0 < N :=
+lemma Input.modulus_pos {N : Nat} (input : Input N) : 0 < N :=
   Nat.zero_lt_of_lt input.modulus_gt_one
 
-theorem Input.neZero {N : Nat} (input : Input N) : NeZero N :=
+lemma Input.neZero {N : Nat} (input : Input N) : NeZero N :=
   ⟨Nat.ne_of_gt input.modulus_pos⟩
 
-theorem Input.modulusBits_pos {N : Nat} (input : Input N) :
+lemma Input.modulusBits_pos {N : Nat} (input : Input N) :
     0 < modulusBits N :=
   Nat.clog_pos (by norm_num : 1 < 2) input.modulus_gt_one
 
 /-- The public modulus fits strictly inside its derived arithmetic word. -/
-theorem modulus_lt_arithmeticCapacity (N : Nat) :
+lemma modulus_lt_arithmeticCapacity (N : Nat) :
     N < 2 ^ arithmeticBits N := by
   exact lt_of_lt_of_le (Nat.lt_succ_self N)
     (Nat.le_pow_clog (by norm_num : 1 < 2) (N + 1))
 
-theorem shortLogBits_le_modulusBits_add_one (N : Nat) :
+lemma shortLogBits_le_modulusBits_add_one (N : Nat) :
     shortLogBits N ≤ modulusBits N + 1 := by
   unfold shortLogBits factorBits
   omega
 
-theorem tradeoffBits_le_modulusBits_add_one (N : Nat) :
+lemma tradeoffBits_le_modulusBits_add_one (N : Nat) :
     tradeoffBits N ≤ modulusBits N + 1 := by
   unfold tradeoffBits
   have := shortLogBits_le_modulusBits_add_one N
   omega
 
-theorem arithmeticBits_le_modulusBits_add_one (N : Nat) [NeZero N] :
+lemma arithmeticBits_le_modulusBits_add_one (N : Nat) [NeZero N] :
     arithmeticBits N ≤ modulusBits N + 1 := by
   have modulusPositive : 0 < N := Nat.pos_of_ne_zero (NeZero.ne N)
   have capacity : N ≤ 2 ^ modulusBits N :=
@@ -141,7 +141,7 @@ theorem arithmeticBits_le_modulusBits_add_one (N : Nat) [NeZero N] :
 @[implicit_reducible] def measurementBits (N : Nat) : Nat :=
   (tradeoffBits N + shortLogBits N) + tradeoffBits N
 
-theorem measurementBits_pos (N : Nat) : 0 < measurementBits N := by
+lemma measurementBits_pos (N : Nat) : 0 < measurementBits N := by
   unfold measurementBits shortLogBits
   omega
 
@@ -152,7 +152,7 @@ abbrev ParameterShape (N : Nat) : CShape :=
   ShorStyle.Canonical.ParameterShape (modulusBits N)
 
 /-- The Shor sampler assumptions induced by an Ekerå–Håstad input. -/
-theorem Input.samplerInput {N : Nat} (input : Input N) :
+lemma Input.samplerInput {N : Nat} (input : Input N) :
     ShorStyle.Canonical.Input N :=
   ⟨input.modulus_gt_one⟩
 
@@ -167,7 +167,7 @@ def preparedResidue {N : Nat} (sample : Fin (2 ^ residueSamplingBits N)) :
     RSA.PreparedResidue N :=
   RSA.prepareResidueFromBits N (modulusBits N) residueProposalCount sample
 
-@[simp] theorem parameterValue_unit_toNat {N : Nat} (input : Input N)
+@[simp] lemma parameterValue_unit_toNat {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     (parameterValue input sample).first.toNat =
       ((preparedResidue sample).unit : ZMod N).val := by
@@ -187,7 +187,7 @@ def parameterUnit {N : Nat} (parameter : CShape.Value (ParameterShape N)) :
     1
 
 /-- A sampler-produced parameter selects exactly its prepared unit. -/
-@[simp] theorem parameterUnit_parameterValue {N : Nat} (input : Input N)
+@[simp] lemma parameterUnit_parameterValue {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     parameterUnit (parameterValue input sample) =
       (preparedResidue sample).unit := by
@@ -209,7 +209,7 @@ def parameterTarget {N : Nat} (parameter : CShape.Value (ParameterShape N)) :
 
 /-- A sampler-produced parameter selects the target paired with its prepared
 unit. -/
-@[simp] theorem parameterTarget_parameterValue {N : Nat} (input : Input N)
+@[simp] lemma parameterTarget_parameterValue {N : Nat} (input : Input N)
     (sample : Fin (2 ^ residueSamplingBits N)) :
     parameterTarget (parameterValue input sample) =
       RSA.targetUnit (preparedResidue sample).unit := by

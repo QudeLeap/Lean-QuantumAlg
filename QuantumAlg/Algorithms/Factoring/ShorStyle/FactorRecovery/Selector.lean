@@ -60,7 +60,7 @@ def factorFromOrderResidueValue (modulus base order : Nat) : Option Nat :=
     none
 
 /-- Every successful pure half-order branch is a nontrivial divisor. -/
-theorem factorFromOrderValue_some_sound
+lemma factorFromOrderValue_some_sound
     {modulus base order candidate : Nat}
     (result : factorFromOrderValue modulus base order = some candidate) :
     candidate ∣ modulus ∧ 1 < candidate ∧ candidate < modulus := by
@@ -93,7 +93,7 @@ theorem factorFromOrderValue_some_sound
 not change the selected nontrivial GCD.  The zero-residue case is handled
 separately: its left raw GCD is one whereas the fixed-width representative
 has left GCD equal to the modulus, but neither value is a valid factor. -/
-theorem factorFromHalfPowerValue_mod_eq (modulus halfPower : Nat) :
+lemma factorFromHalfPowerValue_mod_eq (modulus halfPower : Nat) :
     factorFromHalfPowerValue modulus (halfPower % modulus) =
       factorFromHalfPowerValue modulus halfPower := by
   by_cases halfPowerZero : halfPower = 0
@@ -173,7 +173,7 @@ theorem factorFromHalfPowerValue_mod_eq (modulus halfPower : Nat) :
 
 /-- The canonical residue returned by fixed-width modular powering has the
 same selected GCD branch as the corresponding raw natural power. -/
-theorem factorFromHalfPowerValue_pow_mod_eq
+lemma factorFromHalfPowerValue_pow_mod_eq
     (modulus base exponent : Nat) :
     factorFromHalfPowerValue modulus (base ^ exponent % modulus) =
       factorFromHalfPowerValue modulus (base ^ exponent) :=
@@ -182,7 +182,7 @@ theorem factorFromHalfPowerValue_pow_mod_eq
 /-- The fixed-width modular-power seam stores the canonical power residue,
 which has the same factor-selection meaning as the raw natural power used by
 the pure `outputOf` boundary. -/
-theorem factorFromHalfPowerValue_modularPow_eq
+lemma factorFromHalfPowerValue_modularPow_eq
     (modulus base exponent : Nat) :
     factorFromHalfPowerValue modulus ((base % modulus) ^ exponent % modulus) =
       factorFromHalfPowerValue modulus (base ^ exponent) := by
@@ -190,7 +190,7 @@ theorem factorFromHalfPowerValue_modularPow_eq
   exact factorFromHalfPowerValue_mod_eq modulus (base ^ exponent)
 
 /-- The raw pure selector and the residue-facing selector agree exactly. -/
-theorem factorFromOrderResidueValue_eq_factorFromOrderValue
+lemma factorFromOrderResidueValue_eq_factorFromOrderValue
     (modulus base order : Nat) :
     factorFromOrderResidueValue modulus base order =
       factorFromOrderValue modulus base order := by
@@ -231,7 +231,7 @@ def outputOfResidue {N : Nat}
 
 /-- The residue-facing selector is definitionally equivalent to the public
 raw-power selector. -/
-theorem outputOfResidue_eq_outputOf {N : Nat}
+lemma outputOfResidue_eq_outputOf {N : Nat}
     (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (orderAccepted : Bool)
     (order : ClassicalAlgorithms.Word (phaseBits N + 1)) :
@@ -265,7 +265,7 @@ def outputOfRecoveredResidue {N : Nat}
 
 /-- The exact result represented by the real modular-power suffix is the
 public optional factor result. -/
-theorem outputOfRecoveredResidue_eq_outputOfRecovered {N : Nat}
+lemma outputOfRecoveredResidue_eq_outputOfRecovered {N : Nat}
     (parameter : CShape.Value (ParameterShape (modulusBits N)))
     (recovered :
       ClassicalAlgorithms.OrderRecovery.Output (modulusBits N) (phaseBits N)) :
@@ -274,14 +274,14 @@ theorem outputOfRecoveredResidue_eq_outputOfRecovered {N : Nat}
     outputOfResidue_eq_outputOf]
 
 /-- A selected pure result fits the public modulus-width word. -/
-theorem factorFromOrderValue_some_lt_capacity
+lemma factorFromOrderValue_some_lt_capacity
     {N base order candidate : Nat} (input : Input N)
     (result : factorFromOrderValue N base order = some candidate) :
     candidate < 2 ^ modulusBits N :=
   (factorFromOrderValue_some_sound result).2.2.trans_le input.register_fits
 
 /-- The payload word used by a successful encoding does not truncate. -/
-theorem encodeOutput_some_payload_toNat {N factor : Nat} (input : Input N)
+lemma encodeOutput_some_payload_toNat {N factor : Nat} (input : Input N)
     (fits : factor < N) :
     (CShape.wordOfNat (modulusBits N) factor).toNat = factor := by
   have capacity : factor < CShape.wordModulus (modulusBits N) :=

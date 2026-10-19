@@ -39,7 +39,7 @@ def window {width : Nat} (state : Registers width)
   CoefficientWindowOrientation.coefficientWindow width
     (width + 3 - state.divisorLength.toNat - state.shift.toNat) (by omega)
 
-private theorem source_subtract {width : Nat} (state : Registers width)
+private lemma source_subtract {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     ArithmeticInstruction.sourceStep .coefficientSubtract state =
@@ -53,7 +53,7 @@ private theorem source_subtract {width : Nat} (state : Registers width)
   rw [ArithmeticInstruction.sourceStep, enabled, physical]
   rfl
 
-private theorem addition_window {width : Nat} (state : Registers width)
+private lemma addition_window {width : Nat} (state : Registers width)
     (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     ArithmeticInstruction.sourceWindow .coefficientAdd (ArithmeticSign.coefficientStep
@@ -81,7 +81,7 @@ private theorem addition_window {width : Nat} (state : Registers width)
   simp only [divisor, shift, window]
 
 /-- Signed-word action is the comparison instruction on the complete physical operands. -/
-theorem source_signed_word {width : Nat} (state : Registers width)
+lemma source_signed_word {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     signedTarget (window state fits) (ArithmeticBlocks.coefficientSource state) =
@@ -105,7 +105,7 @@ theorem source_signed_word {width : Nat} (state : Registers width)
   rfl
 
 /-- The actual weak comparison xors into Sign for arbitrary original Sign and complete operands. -/
-theorem source_sign {width : Nat} (state : Registers width)
+lemma source_sign {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     (ArithmeticBlocks.coefficientSource state).flags.sign =
@@ -117,7 +117,7 @@ theorem source_sign {width : Nat} (state : Registers width)
     NumberTheory.SharedEEA.SignedComparison.instruction_sign] using signed
 
 /-- The complete actual arithmetic target word is restored, including all selected high bits. -/
-theorem source_target {width : Nat} (state : Registers width)
+lemma source_target {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     targetWord (window state fits) (ArithmeticBlocks.coefficientSource state) =
@@ -129,7 +129,7 @@ theorem source_target {width : Nat} (state : Registers width)
     NumberTheory.SharedEEA.SignedComparison.instruction_low] using signed
 
 /-- The actual source operand is unchanged through both arithmetic operations. -/
-theorem source_source {width : Nat} (state : Registers width)
+lemma source_source {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     sourceWord (window state fits) (ArithmeticBlocks.coefficientSource state) =
@@ -146,7 +146,7 @@ theorem source_source {width : Nat} (state : Registers width)
   exact step_sourceWord selected .subtractLow state
 
 /-- Every outside physical bit and every other retained field survives the real comparison. -/
-theorem source_complement {width : Nat} (state : Registers width)
+lemma source_complement {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     (CoefficientWindowOrientation.grouping (window state fits)
@@ -163,7 +163,7 @@ theorem source_complement {width : Nat} (state : Registers width)
   change (CoefficientWindowOrientation.grouping selected current).2 = _
   exact step_complement selected .subtractLow state
 
-private theorem eq_of_windows {width : Nat} (selected : Window width)
+private lemma eq_of_windows {width : Nat} (selected : Window width)
     (left right : Registers width)
     (source : sourceWord selected left = sourceWord selected right)
     (target : targetWord selected left = targetWord selected right)
@@ -181,7 +181,7 @@ private theorem eq_of_windows {width : Nat} (selected : Window width)
   · exact sign
 
 /-- The complete comparison changes only Sign and retains every original physical frame bit. -/
-theorem source_frame {width : Nat} (state : Registers width)
+lemma source_frame {width : Nat} (state : Registers width)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     ArithmeticBlocks.coefficientSource state =
@@ -195,7 +195,7 @@ theorem source_frame {width : Nat} (state : Registers width)
   · exact source_complement state first second fits
 
 /-- The same emitted native program has the complete-frame comparison and restoration action. -/
-theorem native_frame (width : Nat) (state : Registers width) (clean : state.control = false)
+lemma native_frame (width : Nat) (state : Registers width) (clean : state.control = false)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     ArithmeticBlocks.coefficientStep width state =
@@ -206,7 +206,7 @@ theorem native_frame (width : Nat) (state : Registers width) (clean : state.cont
   exact source_frame state first second fits
 
 /-- The same emitted coefficient program implements the complete-word Sign comparison. -/
-theorem native_sign (width : Nat) (state : Registers width) (clean : state.control = false)
+lemma native_sign (width : Nat) (state : Registers width) (clean : state.control = false)
     (first : state.flags.first = true) (second : state.flags.second = true)
     (fits : state.divisorLength.toNat + state.shift.toNat ≤ width + 3) :
     (ArithmeticBlocks.coefficientStep width state).flags.sign =

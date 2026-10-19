@@ -7,100 +7,122 @@ Authors: QudeLeap Team
 module
 
 public import QuantumAlg.Algorithms.EllipticCurve.Resources.Scalar.Spec
-import all QuantumAlg.Algorithms.EllipticCurve.Resources.Scalar.Round
-import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Repeated.Coordinates
-import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Attempt.Cardinality
+import all QuantumAlg.Algorithms.EllipticCurve.Resources.Scalar.Spec
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Resources.Events
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Resources.EventCoordinates
+import all QuantumAlg.Algorithms.EllipticCurve.DLP.Measured.Recovery.Resources.Time
+import all QuantumAlg.Core.Execution.Circuit.Weighted
+import all QuantumAlg.Core.Base.Depth.WeightedCost
 
-/-! # Seven-coordinate event arithmetic for the full original symbolic ECC run -/
+/-!
+# Scalar bounds of the complete actual streaming execution
+
+Quantum time sums only the actual round paths. The independent unit-duration
+allowance separately charges the full initial bank and final pack, including
+zero retries. The old 607-event initializer is never used to pay for 818 actual
+preparations. No positive retry-count premise is introduced.
+-/
 
 namespace QuantumAlg.EllipticCurve.LogicalResources
 
 noncomputable section
 
-open Execution PrimeFieldShortWeierstrass FiniteCyclicDLP
-open PrimeFieldShortWeierstrass.ECDLP.Measured ScalarMultiplication.MeasuredPlacement
-open ClassicalRoutines.EllipticCurve.CandidateCheck.Native
+open QuantumAlg QuantumAlg.Execution
+open QuantumAlg.EllipticCurve QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass
+open FiniteCyclicDLP
+open QuantumAlg.ClassicalRoutines.EllipticCurve.CandidateCheck.Native
+open scoped BigOperators
+open QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ECDLP.Measured.Recovery.ExecutionContract
+open QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.ECDLP.Measured.Recovery
 
-/-- Unit weighting counts every literal occurrence in the same independent event pool. -/
-theorem scalar_unitWeight_card {model : ExecutionModel} (pool : ResourcePool model) :
-    ResourcePool.weightedCount (fun _ => 1) pool = pool.card := by
-  simp [ResourcePool.weightedCount, Multiset.map_const']
+/-- Actual finite preparation/measurement costs are independent of an Algorithm or Path. -/
+public def Scalar.streamingWholeRunEvents
+    (physicalWidth coordinateWidth sampleWidth count : Nat) : Nat :=
+  PublicInput.Allocation.Events.bankWidth physicalWidth +
+    count * ((Events.roundBudget physicalWidth sampleWidth).card +
+      Scalar.recoveryEvents coordinateWidth sampleWidth) + 1
 
-private theorem initialization_singleQubit_scalar (modulus count : Nat) :
-    ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
-      (.gate .singleQubit)
-      (ResourcePool.ofList (Allocation.initializationTrace modulus count)) ≤
-        Scalar.loadBits modulus.size := by
-  rw [initialization_gate_count, load_pool]
-  simp only [ResourcePool.count_nsmul, ResourcePool.count_singleton_self, Nat.mul_one]
-  have bounded := EncodedBit.Word.BasisLoad.basisLoad_count_le
-    (MeasuredUncompute.InPlacePreparation.loadConstant modulus)
-  change _ ≤ MAU.Inversion.SharedEEA.InputPreparation.auxiliaryWidth modulus.size at bounded
-  exact bounded.trans (by
-    unfold MAU.Inversion.SharedEEA.InputPreparation.auxiliaryWidth
-      MAU.Inversion.SharedEEA.InputPreparation.prefixWidth
-      MAU.Inversion.SharedEEA.InputPreparation.suffixWidth Scalar.loadBits
-    omega)
+/-- Zero attempts still pay for the complete new bank and the terminal option pack. -/
+lemma streamingWholeRunEvents_width256_zero (coordinateWidth sampleWidth : Nat) :
+    Scalar.streamingWholeRunEvents 256 coordinateWidth sampleWidth 0 = 819 := by
+  simp only [Scalar.streamingWholeRunEvents, Nat.zero_mul, Nat.add_zero]
+  decide
 
-variable {p : Nat} (E : PrimeFieldShortWeierstrass p)
-  (known : KnownOrderProblem E.GroupPoint) (nontrivial : 2 ≤ known.order) (count : Nat)
+variable {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+  (fieldTail : Nat) (problem : KnownOrderProblem E.GroupPoint)
+  (points : Fin (2 * orderWidth problem) → AffinePoint E) (seed : AffinePoint E)
+  (r : Nat) (coefficient : (ZMod p)ˣ) (nontrivial : 2 ≤ problem.order) (count : Nat)
 
-/-- The full single-qubit allowance charges one actual load and every original round. -/
-theorem repeatedRun_singleQubit_scalar :
-    ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
-      (.gate .singleQubit) (repeatedRunBudget E known nontrivial count) ≤
-      Scalar.loadBits p.size + count * Scalar.roundSingle p.size (orderWidth known) := by
-  rw [repeatedRunBudget_gate_count]
-  exact Nat.add_le_add (initialization_singleQubit_scalar p _)
-    (Nat.mul_le_mul_left count (samplingRound_singleQubit_scalar E known))
+omit [Fact p.Prime] in
+private lemma roundBudget_card_le_scalar :
+    (Events.roundBudget p.size (orderWidth problem)).card ≤
+      Scalar.roundEvents p.size (orderWidth problem) := by
+  have positive : 0 < orderWidth problem := by
+    apply Nat.clog_pos (by norm_num : 1 < 2)
+    unfold oversampledOrder fourierOversamplingFactor
+    have ordered := problem.order_pos
+    omega
+  have balance := EventCoordinates.roundBudget_card_balance p.size (orderWidth problem)
+  omega
 
-/-- All full-run CNOTs belong to the original repeated quantum rounds. -/
-theorem repeatedRun_cnot_scalar :
-    ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
-      (.gate .cnot) (repeatedRunBudget E known nontrivial count) ≤
-      count * Scalar.roundCnot p.size (orderWidth known) := by
-  rw [repeatedRunBudget_gate_count, initialization_gate_count, load_pool]
-  simp only [ResourcePool.count_nsmul, ResourcePool.count_singleton,
-    Resource.Event.gate.injEq, reduceCtorEq, ↓reduceIte, Nat.mul_zero, Nat.zero_add]
-  exact Nat.mul_le_mul_left count (samplingRound_cnot_scalar E known)
-
-/-- The actual full-run Toffoli allowance is the symbolic per-round arithmetic allowance. -/
-theorem repeatedRun_toffoli_scalar :
-    ResourcePool.count (model := .quantum AlgorithmGate.model .empty BitWord.model)
-      (.gate .toffoli) (repeatedRunBudget E known nontrivial count) ≤
-      count * Scalar.roundToffoli p.size (orderWidth known) := by
-  rw [repeatedRunBudget_gate_count, initialization_gate_count, load_pool]
-  simp only [ResourcePool.count_nsmul, ResourcePool.count_singleton,
-    Resource.Event.gate.injEq, reduceCtorEq, ↓reduceIte, Nat.mul_zero, Nat.zero_add]
-  exact Nat.mul_le_mul_left count (samplingRound_toffoli_scalar E known).le
-
-/-- Every original checked classical attempt has a width-only event ceiling. -/
-theorem recoveryAttempt_events_scalar :
-    (attemptEnvelope (.quantum AlgorithmGate.model .empty BitWord.model)
-      (ECDLP.Canonical.Layout.curveSpec E) (recoveryModulusSpec known nontrivial)).card ≤
-        Scalar.recoveryEvents (ECDLP.Canonical.Layout.fieldWidth E) (orderWidth known) :=
-  attemptEnvelope_card_le _ _ _
-
-/-- Quantum work contributes zero classical weight; the actual final option pack contributes one. -/
-theorem repeatedRun_classicalOperations_scalar :
-    ResourcePool.weightedCount Resource.Event.classicalOperationWeight
-      (repeatedRunBudget E known nontrivial count) ≤
-        count * Scalar.recoveryEvents (ECDLP.Canonical.Layout.fieldWidth E)
-          (orderWidth known) + 1 := by
-  rw [repeatedRunBudget_classicalWeight]
-  exact Nat.add_le_add_right (Nat.mul_le_mul_left count
-    ((classicalWeight_le_card _).trans (recoveryAttempt_events_scalar E known nontrivial))) 1
-
-/-- The whole independent event pool reduces to parameter arithmetic at every count. -/
-theorem repeatedRun_events_scalar :
-    (repeatedRunBudget E known nontrivial count).card ≤
+/-- The whole actual quantum computation is bounded by its actual finite round pools. -/
+lemma streaming_run_quantumTime_scalar
+    (path : (run E fieldTail problem points seed r coefficient nontrivial count).code.Path) :
+    (run E fieldTail problem points seed r coefficient nontrivial count).code.quantumTime path ≤
       Scalar.wholeRunEvents p.size (ECDLP.Canonical.Layout.fieldWidth E)
-        (orderWidth known) count := by
-  rw [repeatedRunBudget_card]
-  exact Nat.add_le_add_right
-    (Nat.add_le_add (initializationTrace_length_scalar p _)
-      (Nat.mul_le_mul_left count (Nat.add_le_add (samplingRound_events_scalar E known)
-        (recoveryAttempt_events_scalar E known nontrivial)))) 1
+        (orderWidth problem) count := by
+  let sampleCode := round E fieldTail problem points seed r coefficient
+  let curve := ECDLP.Canonical.Layout.curveSpec E
+  let modulus := FiniteCyclicDLP.Canonical.resourceModulusSpec problem nontrivial
+  let sample := recoveryInput (orderWidth problem)
+    (PaidPacking.callerInput (PublicInput.AllocatedFixed.placement E (orderWidth problem)))
+  let base := PublicInput.contextBaseRef E (orderWidth problem)
+  let target := PublicInput.contextTargetRef E (orderWidth problem)
+  let attempt := sampledAttempt sampleCode curve modulus sample base target
+  let chosen : Fin count → sampleCode.Path := fun index =>
+    Time.sampledAttemptSamplePath sampleCode curve modulus sample base target
+      (Circuit.forRangeComponentPath count (fun _ => attempt) path.2.1.2 index)
+  have serial :
+      (run E fieldTail problem points seed r coefficient nontrivial count).code.quantumTime path =
+        ∑ index : Fin count, sampleCode.quantumTime (chosen index) := by
+    rw [Time.streamingRecovery_run_quantumTime]
+    apply Finset.sum_congr rfl
+    intro index _
+    exact (Time.streamingRecovery_round_quantumTime E fieldTail problem points seed r coefficient
+      (chosen index)).symm
+  have sampled :
+      (∑ index : Fin count, sampleCode.quantumTime (chosen index)) ≤
+        count * Scalar.roundEvents p.size (orderWidth problem) := by
+    refine (Finset.sum_le_sum (g := fun _ : Fin count =>
+      Scalar.roundEvents p.size (orderWidth problem)) ?_).trans_eq ?_
+    · intro index _
+      have pool := Events.round_budget E fieldTail problem points seed r coefficient (chosen index)
+      have weighted := Circuit.depth_le_weightedCount_of_pool_le sampleCode (fun _ => 1)
+        (BitWord.liftQuantumPool (Events.roundBudget p.size (orderWidth problem)))
+        (chosen index) pool
+      have card : ResourcePool.weightedCount (fun _ => 1)
+          (BitWord.liftQuantumPool (Events.roundBudget p.size (orderWidth problem))) =
+            (Events.roundBudget p.size (orderWidth problem)).card := by
+        rw [EventCoordinates.unitWeight_card, BitWord.liftQuantumPool_card]
+      exact ((Circuit.quantumTime_le_unitDepth sampleCode (chosen index)).trans
+        (weighted.trans_eq card)).trans (roundBudget_card_le_scalar E problem)
+    · simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, Nat.nsmul_eq_mul]
+  have total := (serial.trans_le sampled).trans
+    (Nat.mul_le_mul_left count (Nat.le_add_right
+      (Scalar.roundEvents p.size (orderWidth problem))
+      (Scalar.recoveryEvents (ECDLP.Canonical.Layout.fieldWidth E) (orderWidth problem))))
+  unfold Scalar.wholeRunEvents
+  omega
+
+/-- Unit-duration depth keeps actual allocation even when the attempt count is zero. -/
+lemma streaming_run_unitDepth_scalar
+    (path : (run E fieldTail problem points seed r coefficient nontrivial count).code.Path) :
+    (run E fieldTail problem points seed r coefficient nontrivial count).code.depth
+        (fun _ => 1) path ≤
+      Scalar.streamingWholeRunEvents p.size (ECDLP.Canonical.Layout.fieldWidth E)
+        (orderWidth problem) count :=
+  (EventCoordinates.run_unitDepth_le E problem fieldTail points seed r coefficient nontrivial
+    count path).trans (EventCoordinates.fullBudget_card_le E problem nontrivial count)
 
 end
 

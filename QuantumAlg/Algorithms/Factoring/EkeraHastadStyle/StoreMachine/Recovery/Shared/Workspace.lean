@@ -64,7 +64,7 @@ def refs {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
   quadratic := quadratic
 
 /-- The initializer reads the physical shared modulus cell. -/
-theorem modulusSource_eq {kind : ProblemKind}
+lemma modulusSource_eq {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (shared : Shared.Cells ctx N) (quadratic : Quadratic.Cells ctx N)
     (transport : Transport outer ctx)
@@ -76,7 +76,7 @@ theorem modulusSource_eq {kind : ProblemKind}
   rfl
 
 /-- The physical layout facts imply the complete shared-prefix separation. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (shared : Shared.Cells ctx N) (sharedDistinct : shared.Distinct)
     (quadratic : Quadratic.Cells ctx N)
@@ -162,7 +162,8 @@ def withWorkspaces {model : ExecutionModel} (ctx : RuntimeCtx model.kind) {N : N
             combinedTransport sharedAtSeparated quadraticOuterSeparated cross
               parameter)
 
-variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) {N : Nat}
+variable {model : ExecutionModel}
+  {environment : model.Environment} (ctx : RuntimeCtx model.kind) {N : Nat}
     (parameter : CInputRef ctx (ParameterShape N))
     (body : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N), shared.Distinct →
@@ -173,7 +174,7 @@ variable {model : ExecutionModel} (ctx : RuntimeCtx model.kind) {N : Nat}
         (refs shared quadratic transport parameter) → Circuit model inner inner)
 
 /-- Actual allocation preserves a uniform native bound for every physical callback scope. -/
-theorem withWorkspaces_pool_le (budget : ResourcePool model)
+lemma withWorkspaces_pool_le (budget : ResourcePool model)
     (bodyBound : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
@@ -196,7 +197,7 @@ theorem withWorkspaces_pool_le (budget : ResourcePool model)
   exact bodyBound _ _ _ _ _ _ _ _ _ chosen
 
 /-- Lexical allocation preserves the complete actual callback dependency depth. -/
-theorem withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
+lemma withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budget : Nat)
     (bodyBound : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
@@ -219,7 +220,7 @@ theorem withWorkspaces_depth_le (duration : Resource.Event model → Nat) (budge
   exact bodyBound _ _ _ _ _ _ _ _ _ chosen
 
 /-- Both actual allocation boundaries preserve full borrowed-reference restoration of the body. -/
-theorem withWorkspaces_borrowedRestored (Reference : Register)
+lemma withWorkspaces_borrowedRestored (Reference : Register)
     (bodyRestores : ∀ {inner : RuntimeCtx model.kind}
       (shared : Shared.Cells inner N) (sharedDistinct : shared.Distinct)
       (quadratic : Quadratic.Cells inner N) (quadraticDistinct : quadratic.Distinct)
@@ -233,11 +234,12 @@ theorem withWorkspaces_borrowedRestored (Reference : Register)
       (body shared sharedDistinct quadratic quadraticDistinct transport
           sharedSeparated quadraticSeparated cross initialization).BorrowedRestored Reference state
         ((body shared sharedDistinct quadratic quadraticDistinct transport
-          sharedSeparated quadraticSeparated cross initialization).execute Reference state))
+          sharedSeparated quadraticSeparated cross initialization).execute environment
+            Reference state))
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (withWorkspaces ctx parameter body).BorrowedRestored Reference state
-      ((withWorkspaces ctx parameter body).execute Reference state) := by
+      ((withWorkspaces ctx parameter body).execute environment Reference state) := by
   unfold withWorkspaces
   apply withCellsFrom_borrowedRestored
   intro sharedCtx shared sharedDistinct rootTransport sharedSeparated History _ state

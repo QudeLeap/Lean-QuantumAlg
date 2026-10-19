@@ -29,9 +29,10 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- A declared deterministic native instruction after Z writes has its exact
 store-reference fiber, including the untouched persistent service state. -/
-theorem measurementSequence_classical_reference_entry
-    {gates : GateModel} {oracles : OracleModel}
+lemma measurementSequence_classical_reference_entry
+    {allowAllocation : Bool} {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     {ctx : RuntimeCtx .quantum} (readouts : List (ZReadout ctx))
     (application : operations.Application ctx)
     (compute : (operations.inputShape application.token).Value →
@@ -45,28 +46,36 @@ theorem measurementSequence_classical_reference_entry
     (∑ basis : ctx.register.Index,
       DensityOperator.matrix
         ((ExecutionState.mapClassical
-          ((Circuit.seq (measurementSequence (gates := gates) (oracles := oracles)
-            (operations := operations) (classicalOracles := services) readouts)
-            (.classical application)).execute Reference state)
+          ((Circuit.seq (measurementSequence (allowAllocation := allowAllocation)
+            (gates := gates) (oracles := oracles) (operations := operations)
+            (classicalOracles := services) readouts)
+            (.classical (allowAllocation := allowAllocation) application)).execute environment
+              Reference state)
           (fun entry => observe entry.1)).block value) (basis, left) (basis, right)) =
       ExecutionState.referenceFiberSum state (fun original basis =>
-        if observe ((writeMeasurementPath (gates := gates) (oracles := oracles)
-          (operations := operations) (classicalOracles := services) readouts original.1
-          (measurementBasisPath (gates := gates) (oracles := oracles)
-            (operations := operations) (classicalOracles := services) readouts basis)).write
+        if observe ((writeMeasurementPath (allowAllocation := allowAllocation)
+          (gates := gates) (oracles := oracles) (operations := operations)
+          (classicalOracles := services) readouts original.1
+          (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates)
+            (oracles := oracles) (operations := operations)
+            (classicalOracles := services) readouts basis)).write
               application.output
-              (compute ((writeMeasurementPath (gates := gates) (oracles := oracles)
-                (operations := operations) (classicalOracles := services) readouts original.1
-                (measurementBasisPath (gates := gates) (oracles := oracles)
+              (compute ((writeMeasurementPath (allowAllocation := allowAllocation)
+                (gates := gates) (oracles := oracles) (operations := operations)
+                (classicalOracles := services) readouts original.1
+                (measurementBasisPath (allowAllocation := allowAllocation)
+                  (gates := gates) (oracles := oracles)
                   (operations := operations) (classicalOracles := services)
                   readouts basis)).read application.input))) = value then 1 else 0)
         left right := by
   rw [ExecutionState.mapClassical_block_referenceFiberSum, execute_seq]
   simp only [State.mapHistory, ExecutionState.referenceFiberSum_mapClassical]
-  rw [execute_classical_mapClassical
+  rw [execute_classical_mapClassical (environment := environment) (allowAllocation :=
+    allowAllocation)
     (model := .quantum gates oracles operations services) application compute declared]
   simp only [ExecutionState.referenceFiberSum_mapClassical]
-  exact measurementSequence_referenceFiberSum readouts state
+  exact measurementSequence_referenceFiberSum (environment := environment) (allowAllocation :=
+    allowAllocation) readouts state
     (fun entry _ =>
       if observe (entry.1.write application.output
         (compute (entry.1.read application.input))) = value then 1 else 0) left right

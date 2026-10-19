@@ -36,7 +36,7 @@ abbrev Input (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E) :=
   GenericPointAddition.Input E Q
 
 /-- Controlled ECADD inputs expose the same generic predicate as ECADD. -/
-theorem input_controlledDomain {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E}
+lemma input_controlledDomain {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E}
     (P : Input E Q) :
     ControlledAddDomain P.1 Q :=
   P.2
@@ -89,7 +89,7 @@ def encodedInput {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E} {n : ℕ
   GenericPointAddition.encodeInput encoding x.input
 
 /-- Controlled-register inputs decode to valid finite affine encodings. -/
-theorem encodedInput_isValid {E : PrimeFieldShortWeierstrass p}
+lemma encodedInput_isValid {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) (x : Data E Q) :
     encoding.IsValidFiniteEncoding (x.encodedInput encoding) :=
@@ -97,7 +97,7 @@ theorem encodedInput_isValid {E : PrimeFieldShortWeierstrass p}
 
 /-- Equality of encoded controlled-register inputs gives equality of the
 underlying affine coordinates at the circuit boundary. -/
-theorem encodedInput_ext {E : PrimeFieldShortWeierstrass p}
+lemma encodedInput_ext {E : PrimeFieldShortWeierstrass p}
     {Q : AffinePoint E} {n : ℕ}
     (encoding : PointEncoding E n) {x y : Data E Q}
     (h : x.encodedInput encoding = y.encodedInput encoding) :
@@ -208,7 +208,7 @@ def toData {E : PrimeFieldShortWeierstrass p} {Q : AffinePoint E}
 
 /-- The inactive controlled stage pipeline is the identity on target data and
 preserves the control bit. -/
-theorem run_false {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+lemma run_false {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E} (P : Input E Q) (targetX targetY : ZMod p) :
     run P false targetX targetY =
       { input := P
@@ -221,7 +221,7 @@ theorem run_false {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
 
 /-- The active controlled stage pipeline performs the generic affine update and
 preserves the control bit. -/
-theorem run_true {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
+lemma run_true {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     {Q : AffinePoint E} (P : Input E Q) (targetX targetY : ZMod p) :
     run P true targetX targetY =
       { input := P
@@ -234,7 +234,7 @@ theorem run_true {E : PrimeFieldShortWeierstrass p} [Fact p.Prime]
     simp [run, step, initial, inspectControl, runGenericOrSkip, cleanup]
 
 /-- The active controlled stage reuses the generic ECADD stage endpoint. -/
-theorem run_true_toData_eq_genericStage {E : PrimeFieldShortWeierstrass p}
+lemma run_true_toData_eq_genericStage {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} (P : Input E Q)
     (targetX targetY : ZMod p) :
     (run P true targetX targetY).toData =
@@ -249,7 +249,7 @@ theorem run_true_toData_eq_genericStage {E : PrimeFieldShortWeierstrass p}
       GenericPointAddition.Data.StageState.toData]
 
 /-- The controlled stage pipeline reaches the public endpoint data shape. -/
-theorem run_toData_eq_endpoint {E : PrimeFieldShortWeierstrass p}
+lemma run_toData_eq_endpoint {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (control : Bool) (targetX targetY : ZMod p) :
     (run P control targetX targetY).toData =
@@ -275,7 +275,7 @@ def addIntoTarget {E : PrimeFieldShortWeierstrass p} [Fact p.Prime] {Q : AffineP
   flag := x.flag
 
 /-- The controlled ECADD stage pipeline agrees with the endpoint data update. -/
-theorem StageState.run_toData_eq_addIntoTarget {E : PrimeFieldShortWeierstrass p}
+lemma StageState.run_toData_eq_addIntoTarget {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E}
     (P : Input E Q) (control : Bool) (targetX targetY : ZMod p) :
     (StageState.run P control targetX targetY).toData =
@@ -315,7 +315,7 @@ def controlledEquiv (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : Affin
     | mk input control targetX targetY flag =>
         cases control <;> simp [addIntoTarget, subFromTarget]
 
-@[simp] theorem controlledEquiv_apply {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma controlledEquiv_apply {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} (x : Data E Q) :
     controlledEquiv E Q x = x.addIntoTarget :=
   rfl
@@ -325,13 +325,13 @@ def withWorkEquiv (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     [Fact p.Prime] (Work : Type) : Equiv.Perm (Data E Q × Work) :=
   Equiv.prodCongr (controlledEquiv E Q) (Equiv.refl Work)
 
-@[simp] theorem withWorkEquiv_apply {E : PrimeFieldShortWeierstrass p}
+@[simp] lemma withWorkEquiv_apply {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} {Work : Type} (x : Data E Q) (w : Work) :
     withWorkEquiv E Q Work (x, w) = (x.addIntoTarget, w) :=
   rfl
 
 /-- The controlled map leaves the external work register clean. -/
-theorem withWorkEquiv_preserves_work {E : PrimeFieldShortWeierstrass p}
+lemma withWorkEquiv_preserves_work {E : PrimeFieldShortWeierstrass p}
     [Fact p.Prime] {Q : AffinePoint E} {Work : Type} :
     WorkRegister.Preserves (Data := Data E Q) (Work := Work)
       (withWorkEquiv E Q Work) := by
@@ -362,7 +362,7 @@ noncomputable def controlledOp (E : PrimeFieldShortWeierstrass p) [NeZero p]
   UnitaryOperator.ofPerm (Data.controlledEquiv E Q).symm
 
 /-- Basis action of the controlled generic point-addition operator. -/
-theorem controlledOp_apply_ket (E : PrimeFieldShortWeierstrass p) [NeZero p]
+lemma controlledOp_apply_ket (E : PrimeFieldShortWeierstrass p) [NeZero p]
     [Fact p.Prime] (Q : AffinePoint E) (x : Data E Q) :
     (controlledOp E Q).apply (NormalizedVector.ket (R := register E Q) x) =
       NormalizedVector.ket (R := register E Q) x.addIntoTarget := by

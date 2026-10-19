@@ -24,7 +24,7 @@ public def logicalFourierStageCount (width : Nat) : Nat :=
   width + width * (width - 1) / 2 + width / 2
 
 /-- Enlarging the width cannot decrease the scalar structural-stage count. -/
-public theorem logicalFourierStageCount_mono {left right : Nat} (bound : left ≤ right) :
+public lemma logicalFourierStageCount_mono {left right : Nat} (bound : left ≤ right) :
     logicalFourierStageCount left ≤ logicalFourierStageCount right := by
   unfold logicalFourierStageCount
   exact Nat.add_le_add

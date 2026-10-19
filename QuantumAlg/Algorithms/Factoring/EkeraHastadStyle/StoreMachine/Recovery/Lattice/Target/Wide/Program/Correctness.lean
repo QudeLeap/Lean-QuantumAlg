@@ -26,7 +26,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {m ell width : Nat}
 
 /-- Both actual preimages retain every read outside their two original destination cells. -/
-theorem preimages_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma preimages_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : AvoidsPreimageWrites other refs) :
     (preimagesStep refs store).1.read other = store.read other :=
@@ -34,7 +34,7 @@ theorem preimages_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     (scaleKInto_callerFrame refs.first store other avoids.1)
 
 /-- The first original preimage survives the actual second scaling call. -/
-theorem preimages_first {model : ExecutionModel} [BitWord.Selected model]
+lemma preimages_first {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (separation : Separation refs)
     (store : Store ctx) (sourceFits : ell + m + 1 ≤ width) :
     ((preimagesStep refs store).1.read refs.target.first.a).toNat =
@@ -46,7 +46,7 @@ theorem preimages_first {model : ExecutionModel} [BitWord.Selected model]
   exact scaleKInto_read refs.first store sourceFits
 
 /-- The actual second scaling call reads the original second sample component. -/
-theorem preimages_second {model : ExecutionModel} [BitWord.Selected model]
+lemma preimages_second {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (separation : Separation refs)
     (store : Store ctx) (sourceFits : ell + m + 1 ≤ width) :
     ((preimagesStep refs store).1.read refs.target.second.a).toNat =
@@ -58,7 +58,7 @@ theorem preimages_second {model : ExecutionModel} [BitWord.Selected model]
     scaleKInto_callerFrame refs.first store _ separation.secondKAvoidsFirst]
 
 /-- Every actual read outside the original two preimage and eight centering writes is preserved. -/
-theorem loadTargetInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma loadTargetInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (preimages : AvoidsPreimageWrites other refs)
@@ -69,7 +69,7 @@ theorem loadTargetInto_callerFrame {model : ExecutionModel} [BitWord.Selected mo
     (preimages_callerFrame refs store other preimages)
 
 /-- The actual supplied scaled inputs and modulus define precisely the original sample target. -/
-theorem prepared_sourcePoint {model : ExecutionModel} [BitWord.Selected model]
+lemma prepared_sourcePoint {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (separation : Separation refs)
     (store : Store ctx) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (sourceFits : ell + m + 1 ≤ width) (first : SampleKRepresents store refs.first.k samples.1)
@@ -89,7 +89,7 @@ theorem prepared_sourcePoint {model : ExecutionModel} [BitWord.Selected model]
     RSA.ShortLogTarget.centeredValue_eq_shortLogTargetCoordinate]
 
 /-- The complete actual wide-target output represents the original pure short-log target. -/
-theorem loadTargetInto_represents {model : ExecutionModel} [BitWord.Selected model]
+lemma loadTargetInto_represents {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (separation : Separation refs)
     (store : Store ctx) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (sourceFits : ell + m + 1 ≤ width) (first : SampleKRepresents store refs.first.k samples.1)
@@ -121,7 +121,7 @@ structure TargetOutcome (refs : Refs ctx m ell width)
           after.read other = before.read other
 
 /-- Actual wide-target loading meets the original sample contract with explicit scratch reset. -/
-theorem loadTargetInto_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma loadTargetInto_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx m ell width) (separation : Separation refs)
     (store : Store ctx) (samples : RSA.ShortLogSample m ell × RSA.ShortLogSample m ell)
     (sourceFits : ell + m + 1 ≤ width) (first : SampleKRepresents store refs.first.k samples.1)

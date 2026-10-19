@@ -36,7 +36,7 @@ namespace NumberTheory
 For every divisor `d` of the group cardinality, a cyclic group has exactly
 `Nat.totient d` elements of order `d`; this is at most `d`, hence at most
 `limit` in the filtered sum. -/
-theorem card_orderOf_le_le_card_divisors_mul
+lemma card_orderOf_le_le_card_divisors_mul
     {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     (limit : Nat) :
     (Finset.univ.filter fun g : G => orderOf g ≤ limit).card ≤
@@ -79,7 +79,7 @@ theorem card_orderOf_le_le_card_divisors_mul
 
 /-- Multiplying the low-order count by the index cutoff eliminates the floor
 in `card / cutoff`. -/
-theorem cutoff_mul_card_orderOf_le_card_divisors_mul_card
+lemma cutoff_mul_card_orderOf_le_card_divisors_mul_card
     {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     (cutoff : Nat) :
     cutoff *
@@ -106,7 +106,7 @@ theorem cutoff_mul_card_orderOf_le_card_divisors_mul_card
 /-- If the divisor count is below `2^divisorBits`, then choosing an index
 cutoff `2^(divisorBits + tailBits)` makes the fraction of elements below that
 order cutoff strictly less than `2^(-tailBits)`. -/
-theorem pow_tail_mul_card_lowOrder_lt_card
+lemma pow_tail_mul_card_lowOrder_lt_card
     {G : Type*} [Group G] [Fintype G] [IsCyclic G]
     {divisorBits tailBits : Nat}
     (hdivisors :

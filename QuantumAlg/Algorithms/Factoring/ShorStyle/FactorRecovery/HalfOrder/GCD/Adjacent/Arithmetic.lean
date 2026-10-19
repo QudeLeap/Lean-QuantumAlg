@@ -23,7 +23,7 @@ namespace QuantumAlg.Factoring.ShorStyle.Canonical.FactorRecovery.NativeAdjacent
 variable {width : Nat}
 
 /-- The actual widening keeps the entire original unsigned value. -/
-theorem resize_toNat (value : CShape.Word width) :
+lemma resize_toNat (value : CShape.Word width) :
     (CShape.wordResize (width + 1) value).toNat = value.toNat := by
   have bounded := value.toNat_lt
   change value.toNat % 2 ^ (width + 1) = value.toNat
@@ -33,7 +33,7 @@ theorem resize_toNat (value : CShape.Word width) :
   omega
 
 /-- The new bit makes the genuine increment exact even at the old maximal word. -/
-theorem increment_toNat (value : CShape.Word width) :
+lemma increment_toNat (value : CShape.Word width) :
     (Resource.WordUnaryOpcode.eval .increment (width + 1)
       (CShape.wordResize (width + 1) value)).toNat = value.toNat + 1 := by
   change ((CShape.wordResize (width + 1) value).toNat + 1) % 2 ^ (width + 1) = _
@@ -45,7 +45,7 @@ theorem increment_toNat (value : CShape.Word width) :
   omega
 
 /-- The real decrement wraps only the original zero into the widened all-ones word. -/
-theorem decrement_toNat (value : CShape.Word width) :
+lemma decrement_toNat (value : CShape.Word width) :
     (Resource.WordUnaryOpcode.eval .decrement (width + 1)
       (CShape.wordResize (width + 1) value)).toNat =
       if value.toNat = 0 then 2 ^ (width + 1) - 1 else value.toNat - 1 := by
@@ -65,13 +65,13 @@ theorem decrement_toNat (value : CShape.Word width) :
     exact Nat.mod_eq_of_lt (by omega)
 
 /-- A structural read of the real highest word bit has the declared numerical index. -/
-theorem highBit_toBool (value : CShape.Word (width + 1)) :
+lemma highBit_toBool (value : CShape.Word (width + 1)) :
     (value.wordBitGet 0).toBool = value.toNat.testBit width := by
   cases value
   rfl
 
 /-- The exact stored underflow bit recognizes original zero, without a comparison callback. -/
-theorem decrement_highBit (value : CShape.Word width) :
+lemma decrement_highBit (value : CShape.Word width) :
     ((Resource.WordUnaryOpcode.eval .decrement (width + 1)
       (CShape.wordResize (width + 1) value)).wordBitGet 0).toBool =
       decide (value.toNat = 0) := by
@@ -87,7 +87,7 @@ theorem decrement_highBit (value : CShape.Word width) :
     simp only [zero, decide_false]
 
 /-- Native self-XOR has exactly zero value, regardless of the actual previous word. -/
-theorem selfXor_toNat (value : CShape.Word (width + 1)) :
+lemma selfXor_toNat (value : CShape.Word (width + 1)) :
     (Resource.WordBinaryOpcode.eval .bitXor (width + 1) (.product value value)).toNat = 0 := by
   change (value.toNat ^^^ value.toNat) % 2 ^ (width + 1) = 0
   simp only [Nat.xor_self, Nat.zero_mod]

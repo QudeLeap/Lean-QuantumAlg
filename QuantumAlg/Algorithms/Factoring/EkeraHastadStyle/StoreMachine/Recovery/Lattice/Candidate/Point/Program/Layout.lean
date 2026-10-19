@@ -148,7 +148,7 @@ abbrev pointRef {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
   | .third => point.third
 
 /-- Role of each caller-owned point coordinate. -/
-theorem pointRef_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
+lemma pointRef_role {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
     (point : LatticeState.PointRefs ctx width) (coordinate : Coordinate) :
     (pointRef point coordinate).toCStorageRef.role = .workspace := by
   cases coordinate

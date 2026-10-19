@@ -22,7 +22,7 @@ namespace QuantumAlg.MAU.Multiplication.Accumulate.Gidney
 
 noncomputable section
 
-theorem gidneyPlacedStage_depth_eq_events (extra : Nat) (selected : Fin (extra + 3))
+lemma gidneyPlacedStage_depth_eq_events (extra : Nat) (selected : Fin (extra + 3))
     (modulus : Fin (2 ^ (extra + 3) + 1)) (constant : Fin (modulus.val + 1)) :
     (placedStageProgram extra selected modulus constant).evaluatedEventDepth (fun _ => 1) =
       (placedStageProgram extra selected modulus constant).eventCost.card := by
@@ -30,7 +30,7 @@ theorem gidneyPlacedStage_depth_eq_events (extra : Nat) (selected : Fin (extra +
   rw [h.1, h.2]
   exact gidneyCanonicalStage_depth_eq_events extra modulus constant
 
-theorem gidneyStage_depth_eq_events : (width : Nat) → (selected : Fin width) →
+lemma gidneyStage_depth_eq_events : (width : Nat) → (selected : Fin width) →
     (modulus : Fin (2 ^ width + 1)) → (constant : Fin (modulus.val + 1)) →
     (stageProgram width selected modulus constant).evaluatedEventDepth (fun _ => 1) =
       (stageProgram width selected modulus constant).eventCost.card
@@ -42,7 +42,7 @@ theorem gidneyStage_depth_eq_events : (width : Nat) → (selected : Fin width) �
   | extra + 3, selected, modulus, constant =>
       gidneyPlacedStage_depth_eq_events extra selected modulus constant
 
-theorem gidneyAccumulatePrefix_depth_eq_events (width : Nat)
+lemma gidneyAccumulatePrefix_depth_eq_events (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient count : Nat) (within : count ≤ width) :
     (prefixProgram width modulus coefficient count within).evaluatedEventDepth (fun _ => 1) =
       (prefixProgram width modulus coefficient count within).eventCost.card := by
@@ -60,14 +60,14 @@ theorem gidneyAccumulatePrefix_depth_eq_events (width : Nat)
         ih (by omega), gidneyStage_depth_eq_events]
 
 /-- The exact full circuit has one serial unit step per actual native event occurrence. -/
-theorem gidneyAccumulate_depth_eq_events (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_depth_eq_events (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     (program width modulus coefficient).evaluatedEventDepth (fun _ => 1) =
       (program width modulus coefficient).eventCost.card :=
   gidneyAccumulatePrefix_depth_eq_events width modulus coefficient width (Nat.le_refl width)
 
 /-- The independent event envelope also bounds the schedule of this actual implementation. -/
-theorem gidneyAccumulate_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyAccumulate_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : Nat) :
     (program width modulus coefficient).evaluatedEventDepth (fun _ => 1) ≤
       width * stageEventBound width := by
@@ -75,7 +75,7 @@ theorem gidneyAccumulate_depth_bound (width : Nat) (modulus : Fin (2 ^ width + 1
   exact gidneyAccumulate_event_count_bound width modulus coefficient
 
 /-- The actual two-word carrier agrees with its complete declared physical footprint. -/
-theorem gidneyAccumulate_qubit_count (width : Nat) :
+lemma gidneyAccumulate_qubit_count (width : Nat) :
     (encoding width).width = 2 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx.length = 2 * width := by
   constructor

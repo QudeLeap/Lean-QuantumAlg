@@ -21,7 +21,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem bitAnd_value (left right : CShape.Value .bit) :
+private lemma bitAnd_value (left right : CShape.Value .bit) :
     (Resource.BitOpcode.eval .and (.product left right)).toBool =
       (left.toBool && right.toBool) := by
   cases left
@@ -29,7 +29,7 @@ private theorem bitAnd_value (left right : CShape.Value .bit) :
   rfl
 
 /-- The original intermediate and complete candidate predicates after both actual conjunctions. -/
-theorem candidateEligibilityInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma candidateEligibilityInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     ((eligibilityStep refs store).1.read (writeInput refs.intermediate)).toBool =
         ((store.read refs.nearTarget).toBool && (store.read refs.exponentInRange).toBool) ∧
@@ -73,7 +73,7 @@ structure Outcome (refs : Refs ctx width) (before after : Store ctx) : Prop wher
   callerFrame : CallerFrame refs before after
 
 /-- Actual range, distance and modular tests retain exactly the first eligible candidate word. -/
-theorem candidateSelectorInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma candidateSelectorInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) : Outcome refs store (selectorStep refs store).1 := by
   let middle := (eligibilityStep refs store).1
   have values := candidateEligibilityInto_correct refs separation store

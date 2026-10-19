@@ -26,11 +26,11 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Seven real state allocations supply the initialized schedule and preserve all caller reads. -/
-theorem xgcdNativeWithRawState_actualRecord
+lemma xgcdNativeWithRawState_actualRecord
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (zero : CInputRef ctx (.unsignedWord width)) (outputs : RawOutputs ctx width)
     (distinct : outputs.Distinct) :
@@ -38,7 +38,7 @@ theorem xgcdNativeWithRawState_actualRecord
         (withRawState (model := model) input zero outputs).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withRawState (model := model) input zero outputs).execute Reference state =
+        (withRawState (model := model) input zero outputs).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -56,7 +56,8 @@ theorem xgcdNativeWithRawState_actualRecord
       outputs.rightCoefficient.key ∉ other.storageKeys → after.read other = before.read other) ∧
     ((before.read zero).toNat = 0 → outputs.MatchesState after
       (PureXGCD.finalState (GCD.decodeOperands (before.read input))))
-  refine withCells_actualRecord_initialized_restricted_post ctx (stateShapes width)
+  refine withCells_actualRecord_initialized_restricted_post
+    (environment := environment) ctx (stateShapes width)
     (fun cells _ transport _ => scheduledRawBody (model := model) cells
       (transport.liftInput input) (transport.liftInput zero) (outputs.transport transport)) Post ?_
   intro inner cells cellsDistinct transport separated
@@ -85,14 +86,14 @@ theorem xgcdNativeWithRawState_actualRecord
     exact result
 
 /-- The original independent zero scope closes all internal initialization conditions. -/
-theorem xgcdNativeRawEngine_actualRecord
+lemma xgcdNativeRawEngine_actualRecord
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (distinct : outputs.Distinct) :
     ∃ record : Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
         (rawEngine (model := model) input outputs).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (rawEngine (model := model) input outputs).execute Reference state =
+        (rawEngine (model := model) input outputs).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -117,7 +118,8 @@ theorem xgcdNativeRawEngine_actualRecord
       liftedInput zero liftedOutputs liftedDistinct
   refine ⟨Circuit.workspaceRecord key shape fresh body bodyRecord, ?_, ?_⟩
   · intro reference history historyFinite state
-    exact Circuit.execute_workspaceRecord key shape fresh body bodyRecord equation reference state
+    exact Circuit.execute_workspaceRecord environment key shape fresh body bodyRecord equation
+      reference state
   · intro before
     let entered := before.1.pushWorkspace key shape fresh
     let final := (bodyRecord (entered, before.2)).1.1

@@ -35,7 +35,7 @@ variable {E : PrimeFieldShortWeierstrass params.modulus.val}
   [Fact params.modulus.val.Prime]
   {Q : AffinePoint E}
 
-private theorem negate_eq_self_of_two_mul_y_eq_zero
+private lemma negate_eq_self_of_two_mul_y_eq_zero
     (R : AffinePoint E)
     (hzero : (2 : ZMod params.modulus.val) * R.y = 0) :
     AffinePoint.negate R = R := by
@@ -48,7 +48,7 @@ private theorem negate_eq_self_of_two_mul_y_eq_zero
 /-- If the forward generic result shares the fixed addend's `x` coordinate,
 the finite input cannot be the identity branch, so the result is the affine
 inverse of the addend. -/
-theorem resultPoint_eq_negate_of_x_eq
+lemma resultPoint_eq_negate_of_x_eq
     (P : GenericPointAddition.Input E Q)
     (hx : (resultPoint P).x = Q.x) :
     resultPoint P = AffinePoint.negate Q := by
@@ -75,7 +75,7 @@ theorem resultPoint_eq_negate_of_x_eq
 
 /-- The same exceptional `x`-coordinate condition forces the inverse addend
 into the nonvertical doubling domain. -/
-theorem negate_doubleDomain_of_resultPoint_x_eq
+lemma negate_doubleDomain_of_resultPoint_x_eq
     (P : GenericPointAddition.Input E Q)
     (hx : (resultPoint P).x = Q.x) :
     GenericDoubleDomain (AffinePoint.negate Q) := by
@@ -100,7 +100,7 @@ theorem negate_doubleDomain_of_resultPoint_x_eq
 
 /-- In the exceptional branch, doubling the finite inverse addend recovers
 the two affine coordinates of the original generic input. -/
-theorem doubleNegate_coordinates_eq_input_of_resultPoint_x_eq
+lemma doubleNegate_coordinates_eq_input_of_resultPoint_x_eq
     (P : GenericPointAddition.Input E Q)
     (hx : (resultPoint P).x = Q.x) :
     doubleX E (AffinePoint.negate Q) = P.1.x ∧

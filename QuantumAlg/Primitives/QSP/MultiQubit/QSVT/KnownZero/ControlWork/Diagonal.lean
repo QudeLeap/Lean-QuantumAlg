@@ -25,7 +25,7 @@ def controlLabel (k n : Nat) (basis : Fin (1 + (k + (1 + n))) → Fin 2) : Fin (
   BinaryBasis.bigEndianEquiv k
     (fun index => basis (Fin.natAdd 1 (Fin.castAdd (1 + n) index)))
 
-private theorem controlLabel_decoded (k n : Nat) (phase : Fin 2)
+private lemma controlLabel_decoded (k n : Nat) (phase : Fin 2)
     (controls : Fin (2 ^ k)) (suffix : Fin (2 ^ (1 + n))) :
     controlLabel k n ((QuantumSignature.qubitsIndexEquiv (1 + (k + (1 + n)))).symm
       (prodEquiv (phase, prodEquiv (controls, suffix)))) = controls := by
@@ -44,7 +44,7 @@ private theorem controlLabel_decoded (k n : Nat) (phase : Fin 2)
   exact (congrArg (BinaryBasis.bigEndianEquiv k) coordinates).trans
     ((BinaryBasis.bigEndianEquiv k).apply_symm_apply controls)
 
-private theorem phase_decoded (k n : Nat) (phase : Fin 2)
+private lemma phase_decoded (k n : Nat) (phase : Fin 2)
     (controls : Fin (2 ^ k)) (suffix : Fin (2 ^ (1 + n))) :
     (QuantumSignature.qubitsIndexEquiv (1 + (k + (1 + n)))).symm
       (prodEquiv (phase, prodEquiv (controls, suffix)))
@@ -63,8 +63,10 @@ def firstWeight (k n : Nat) (angle : ℝ)
     (bits k n basis 0)
 
 /-- The complete first-control operator is diagonal on the original physical coordinates. -/
-theorem controlWork_firstRotation_diagonal (k n : Nat) (oracles : OracleModel) (angle : ℝ) :
-    ((firstRotation k n oracles angle).matrix : HilbertOperator (layout k n).register) =
+lemma controlWork_firstRotation_diagonal (k n : Nat) (oracles : OracleModel) (angle : ℝ)
+    (environment : oracles.Interpretation) :
+    (((firstRotation k n oracles angle).matrix environment) : HilbertOperator (layout k
+      n).register) =
       Matrix.diagonal (firstWeight k n angle) := by
   ext row column
   obtain ⟨rowLabel, rfl⟩ :=
@@ -75,10 +77,10 @@ theorem controlWork_firstRotation_diagonal (k n : Nat) (oracles : OracleModel) (
   obtain ⟨⟨rowControls, rowSuffix⟩, rfl⟩ := prodEquiv.surjective rowRest
   obtain ⟨⟨phase, rest⟩, rfl⟩ := prodEquiv.surjective columnLabel
   obtain ⟨⟨controls, suffix⟩, rfl⟩ := prodEquiv.surjective rest
-  have entry := congrFun (congrFun (controlWork_firstRotation_matrix k n oracles angle)
+  have entry := congrFun (congrFun (controlWork_firstRotation_matrix k n oracles angle environment)
     (prodEquiv (rowPhase, prodEquiv (rowControls, rowSuffix))))
       (prodEquiv (phase, prodEquiv (controls, suffix)))
-  change (firstRotation k n oracles angle).matrix _ _ = _ at entry
+  change ((firstRotation k n oracles angle).matrix environment) _ _ = _ at entry
   rw [entry]
   change _ = @ite ℂ
     ((QuantumSignature.qubitsIndexEquiv (1 + (k + (1 + n)))).symm

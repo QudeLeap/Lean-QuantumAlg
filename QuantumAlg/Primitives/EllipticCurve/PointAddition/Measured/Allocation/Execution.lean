@@ -32,6 +32,8 @@ namespace QuantumAlg.EllipticCurve.PrimeFieldShortWeierstrass.MeasuredPointAddit
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -42,7 +44,7 @@ def valid {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
   ∀ basis, ¬inputAdmissible E Q basis → state.quantumMarginal.matrix basis basis = 0
 
 /-- Local input support allows every complete external-reference extension. -/
-theorem valid_joint_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
+lemma valid_joint_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     {Reference : Register} (input : Input (before p.size) Reference)
     (allowed : valid E Q input.localState)
     (basis : (Register.prod (before p.size).register Reference).Index)
@@ -60,16 +62,16 @@ def run {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime] (Q : AffineP
   { code := circuit E Q, output := output p.size }
 
 /-- The same actual output enumerates every still-live quantum system and classical cell. -/
-theorem run_output_listing {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma run_output_listing {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) : (run E Q).output.listing = (after p.size).keys :=
   output_listing p.size
 
 /-- The complete run state has the independent quantum-reference target on the original domain. -/
-theorem run_finalState {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma run_finalState {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register}
     (input : OracleInput ClassicalOracleModel.empty (before p.size) Reference)
     (allowed : valid E Q input.caller.localState) :
-    ((run E Q).finalState Reference input.state).quantumMarginal =
+    ((run E Q).finalState environment Reference input.state).quantumMarginal =
       resultDensity E Q Reference input.state.quantumMarginal := by
   let copied : State (before p.size) Reference
       (ClassicalOracleModel.empty.HiddenState × Store (before p.size)) :=
@@ -88,22 +90,23 @@ theorem run_finalState {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prim
         DensityOperator (Register.prod (before p.size).register Reference) =>
           density.matrix basis basis) input.oracleInput_caller_quantumMarginal).symm.trans
             (valid_joint_support E Q input.caller allowed basis outside))
-  have history : ((run E Q).finalState Reference input.state).quantumMarginal =
-      ((circuit E Q).execute Reference copied).quantumMarginal :=
+  have history : ((run E Q).finalState environment Reference input.state).quantumMarginal =
+      ((circuit E Q).execute environment Reference copied).quantumMarginal :=
     ExecutionState.mapClassical_quantumMarginal _ Prod.fst
   exact history.trans ((circuit_density E Q copied copiedSupport).trans
     (congrArg (resultDensity E Q Reference) copiedMarginal))
 
-private theorem before_noBorrowedQuantum (width : Nat) :
+private lemma before_noBorrowedQuantum (width : Nat) :
     (before width).borrowedQuantumWires = [] := rfl
 
 /-- Actual execution restores the complete borrowed-reference observation for every input. -/
-theorem run_restoresBorrowed {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma run_restoresBorrowed {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     (Q : AffinePoint E) {Reference : Register}
     (input : OracleInput ClassicalOracleModel.empty (before p.size) Reference) :
-    (run E Q).RestoresBorrowed input :=
-  AlgorithmRun.restoresBorrowed_of_circuit (run E Q)
-    (fun reference {_} _ state => Circuit.borrowedRestored_of_noBorrowedQuantum
+    (run E Q).RestoresBorrowed environment input :=
+  AlgorithmRun.restoresBorrowed_of_circuit (environment := environment) (run E Q)
+    (fun reference {_} _ state => Circuit.borrowedRestored_of_noBorrowedQuantum (environment :=
+      environment)
       (circuit E Q) (before_noBorrowedQuantum p.size) reference state) input
 
 end

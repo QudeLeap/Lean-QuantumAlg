@@ -27,10 +27,12 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.InverseAgreement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Execution InversePreparation NumberTheory.SharedEEA
 
 /-- The source-derived XOR output equals the independent canonical arithmetic permutation. -/
-theorem outputOld_eq_permutation (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma outputOld_eq_permutation (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (coprime : Nat.Coprime (inputBasisEquiv modulus.size old).1.val modulus)
     (positive : 0 < (inputBasisEquiv modulus.size old).1.val)
@@ -48,10 +50,10 @@ theorem outputOld_eq_permutation (modulus : Nat) (modulusPositive : 0 < modulus)
         coprime positive bounded)
 
 /-- Every valid prepared input ket has the complete independent mathematical output amplitude. -/
-theorem prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (allowed : InverseSpecification.admissible modulus old) :
-    (InverseRuntime.program modulus).applyNormalized
+    (InverseRuntime.program modulus).applyNormalized environment
         (NormalizedVector.ket (R := (after modulus.size).register)
           (assembly modulus.size ((InputPreparation.preparation modulus).value, old))) =
       (InverseTarget.operator modulus modulusPositive).apply
@@ -59,7 +61,8 @@ theorem prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
           (assembly modulus.size ((InputPreparation.preparation modulus).value, old))) := by
   by_cases nontrivial : 1 < modulus
   · have positive := InverseSpecification.admissible_positive modulus nontrivial old allowed
-    have actual := InverseRuntime.program_prepared_input modulus nontrivial old
+    have actual := InverseRuntime.program_prepared_input
+      (environment := environment) modulus nontrivial old
       allowed.2 positive allowed.1
     have same := outputOld_eq_permutation modulus modulusPositive old
       allowed.2 positive allowed.1
@@ -77,20 +80,20 @@ theorem prepared_ket (modulus : Nat) (modulusPositive : 0 < modulus)
     exact InverseRuntime.program_trivial_ket 1 (by omega) _
 
 /-- Actual and independent matrices agree on every valid prepared column and every output row. -/
-theorem prepared_column (modulus : Nat) (modulusPositive : 0 < modulus)
+lemma prepared_column (modulus : Nat) (modulusPositive : 0 < modulus)
     (old : (before modulus.size).register.Index)
     (allowed : InverseSpecification.admissible modulus old)
     (row : (after modulus.size).register.Index) :
-    (InverseRuntime.program modulus).matrix row
+    ((InverseRuntime.program modulus).matrix environment) row
         (assembly modulus.size ((InputPreparation.preparation modulus).value, old)) =
       (InverseTarget.operator modulus modulusPositive) row
         (assembly modulus.size ((InputPreparation.preparation modulus).value, old)) := by
   have values := congrArg (fun vector : NormalizedVector (after modulus.size).register =>
-    vector.vec row) (prepared_ket modulus modulusPositive old allowed)
+    vector.vec row) (prepared_ket (environment := environment) modulus modulusPositive old allowed)
   let basis : (after modulus.size).register.Index :=
     assembly modulus.size ((InputPreparation.preparation modulus).value, old)
   change HilbertOperator.applyVec
-      ((InverseRuntime.program modulus).matrix :
+      (((InverseRuntime.program modulus).matrix environment) :
         HilbertOperator (after modulus.size).register) (NormalizedVector.ket basis) row =
     HilbertOperator.applyVec
       ((InverseTarget.operator modulus modulusPositive) :

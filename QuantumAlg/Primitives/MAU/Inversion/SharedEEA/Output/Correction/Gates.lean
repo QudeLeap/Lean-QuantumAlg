@@ -15,6 +15,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.OutputCorrection
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit GateSpec Addition.Gidney FoldSourceProgram
 
 private def sourceGates (modulus : Nat) :
@@ -22,13 +24,13 @@ private def sourceGates (modulus : Nat) :
   [.x (flagBit (wordWidth modulus))] ++
     biFlipGates (wordWidth modulus) (reflectionPivot modulus) ++ [.x (flagBit (wordWidth modulus))]
 
-private theorem sourceGates_step (modulus : Nat)
+private lemma sourceGates_step (modulus : Nat)
     (state : Addition.Gidney.Registers (wordWidth modulus)) :
     stepList (sourceGates modulus) state = OutputCorrectionFocus.step modulus state := by
   rw [sourceGates, stepList_append, stepList_append, gidneyBiFlipGates_step]
   exact OutputCorrectionFocus.component_steps modulus state
 
-private theorem sourceGates_trace (modulus : Nat) :
+private lemma sourceGates_trace (modulus : Nat) :
     (sourceGates modulus).map (event .empty) =
       (OutputCorrectionFocus.program modulus).eventTrace := by
   simp only [sourceGates, List.map_append, OutputCorrectionFocus.program,
@@ -41,7 +43,7 @@ def gates (modulus : Nat) : List (GateSpec (encoding modulus.size)) :=
     (OutputOrientation.placement modulus.size).placeGate
 
 /-- The literal list corrects the full frame with every original dirty helper restored. -/
-theorem outputCorrection_gates_step (modulus : Nat) (state : Registers modulus.size) :
+lemma outputCorrection_gates_step (modulus : Nat) (state : Registers modulus.size) :
     stepList (gates modulus) state = step modulus state := by
   rw [gates, FullPlacement.placeGates_step]
   unfold FullPlacement.step
@@ -55,24 +57,26 @@ def nativeProgram (modulus : Nat) : UnitaryCircuit AlgorithmGate.model .empty
   programList (QubitLayout.canonical _) .empty (gates modulus)
 
 /-- Exact full-frame amplitudes include arbitrary spectator, parity and helper values. -/
-theorem outputCorrection_nativeProgram_realizes (modulus : Nat) :
-    UnitaryCircuit.Realizes (encoding modulus.size) (nativeProgram modulus) (step modulus) :=
+lemma outputCorrection_nativeProgram_realizes (modulus : Nat) :
+    UnitaryCircuit.Realizes (encoding modulus.size) (nativeProgram modulus) environment (step
+      modulus) :=
   realizesList_congrStep (QubitLayout.canonical _) .empty _ (outputCorrection_gates_step modulus)
+    environment
 
 /-- The literal oriented instructions retain every original correction event in order. -/
-theorem outputCorrection_gates_trace (modulus : Nat) :
+lemma outputCorrection_gates_trace (modulus : Nat) :
     (gates modulus).map (event .empty) = (program modulus).eventTrace := by
   simp only [gates, List.map_map, Function.comp_def, FullPlacement.placeGate_event]
   erw [FoldComparisonPlacement.foldComparison_placeGates_trace,
     sourceGates_trace, program_eventTrace]
 
 /-- The executed correction word has exactly the original ordered native trace. -/
-theorem outputCorrection_nativeProgram_trace (modulus : Nat) :
+lemma outputCorrection_nativeProgram_trace (modulus : Nat) :
     (nativeProgram modulus).eventTrace = (program modulus).eventTrace := by
   rw [nativeProgram, programList_eventTrace, outputCorrection_gates_trace]
 
 /-- Existing independent correction resource formulas apply to the same emitted native word. -/
-theorem outputCorrection_nativeProgram_eventCost (modulus : Nat) :
+lemma outputCorrection_nativeProgram_eventCost (modulus : Nat) :
     (nativeProgram modulus).eventCost = (program modulus).eventCost := by
   rw [← UnitaryCircuit.ofList_eventTrace_eq_eventCost,
     ← UnitaryCircuit.ofList_eventTrace_eq_eventCost, outputCorrection_nativeProgram_trace]

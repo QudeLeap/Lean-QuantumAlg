@@ -29,7 +29,7 @@ noncomputable section
 
 /-- The source minimal-order hypothesis is exactly the typed validation
 predicate for the reduced borrowed base. -/
-theorem semanticInput_minimalUnitOrder {N x r t m : Nat}
+lemma semanticInput_minimalUnitOrder {N x r t m : Nat}
     (hinput : OrderFinding.Input N x r) (A : ModExpOracleAccess N x t m)
     (outcome : TerminalZMeasure.Outcome t) :
     ClassicalAlgorithms.OrderRecovery.MinimalUnitOrder
@@ -51,7 +51,7 @@ theorem semanticInput_minimalUnitOrder {N x r t m : Nat}
       (hinput.minimal smaller hpositive normalized)
 
 /-- Every source-certified recoverable outcome yields the true order under pure recovery. -/
-theorem recoverUnitOrder_eq_some_of_recoverableOutcome
+lemma recoverUnitOrder_eq_some_of_recoverableOutcome
     {N x t m r : Nat} (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t m) (hfit : r < 2 ^ (t + 1))
     {outcome : TerminalZMeasure.Outcome t}
@@ -93,7 +93,7 @@ theorem recoverUnitOrder_eq_some_of_recoverableOutcome
       (semanticInput_minimalUnitOrder hinput A outcome)
 
 /-- The validity hypotheses make the true order fit the typed candidate word. -/
-theorem order_fits_candidateWord {N x r t : Nat}
+lemma order_fits_candidateWord {N x r t : Nat}
     (hinput : OrderFinding.Input N x r) (hregister : N ^ 2 ≤ 2 ^ t) :
     r < 2 ^ (t + 1) := by
   calc

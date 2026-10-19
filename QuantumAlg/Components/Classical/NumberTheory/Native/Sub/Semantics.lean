@@ -26,7 +26,7 @@ open Execution
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-private theorem decision_fresh {shape : CShape} (input : CInputRef ctx shape) :
+private lemma decision_fresh {shape : CShape} (input : CInputRef ctx shape) :
     (decision ctx).key ∉ (underRead input).storageKeys := by
   have keys := CInputRef.storageKeys_underWorkspace input ctx.canonicalFreshKey .bit
     ctx.canonicalFreshKey_fresh
@@ -36,7 +36,7 @@ private theorem decision_fresh {shape : CShape} (input : CInputRef ctx shape) :
   exact ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context original)
 
 /-- The real comparison leaves every original structural operand unchanged. -/
-theorem nativeSub_compare_read_unchanged (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_compare_read_unchanged (left right : CInputRef ctx (.unsignedWord width))
     {shape : CShape} (other : CInputRef ctx shape) (store : Store (context ctx)) :
     (store.applyOp (compareOp left right)).read (underRead other) =
       store.read (underRead other) :=
@@ -45,7 +45,7 @@ theorem nativeSub_compare_read_unchanged (left right : CInputRef ctx (.unsignedW
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem branch_store (left right : CInputRef ctx (.unsignedWord width))
+private lemma branch_store (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store (context ctx)) :
     (branchStep (model := model) left right output store).1 =
       if (store.read (.storage (decision ctx).toCStorageRef)).toBool then
@@ -56,7 +56,7 @@ private theorem branch_store (left right : CInputRef ctx (.unsignedWord width))
   | bit flag => cases flag <;> rfl
 
 /-- The actual branch implements the truncated natural difference on the pre-comparison reads. -/
-theorem nativeSub_body_read_output (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_body_read_output (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store (context ctx)) :
     ((bodyStep (model := model) left right output store).1.read
       (.storage (underWrite output).toCStorageRef)).toNat =
@@ -84,7 +84,7 @@ theorem nativeSub_body_read_output (left right : CInputRef ctx (.unsignedWord wi
         first.toNat - second.toNat) leftRead rightRead)
 
 /-- Scope exit returns the exact natural difference of the caller's original operands. -/
-theorem nativeSub_into_read_output (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_read_output (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     ((intoStep (model := model) left right output store).1.read (.storage
       output.toCStorageRef)).toNat =
@@ -103,7 +103,7 @@ theorem nativeSub_into_read_output (left right : CInputRef ctx (.unsignedWord wi
       first.toNat - second.toNat) leftRead rightRead))
 
 /-- Every original structural read outside the real destination retains its complete value. -/
-theorem nativeSub_into_read_unchanged (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_read_unchanged (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) {shape : CShape}
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) (store : Store ctx) :
     (intoStep (model := model) left right output store).1.read other = store.read other := by
@@ -135,7 +135,7 @@ theorem nativeSub_into_read_unchanged (left right : CInputRef ctx (.unsignedWord
   exact popped.trans (afterBranch.trans (afterCompare.trans pushed))
 
 /-- The complete returned word contains the natural difference without modular wraparound. -/
-theorem nativeSub_into_output_value (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_output_value (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (intoStep (model := model) left right output store).1.read (.storage output.toCStorageRef) =
       CShape.wordOfNat width ((store.read left).toNat - (store.read right).toNat) := by
@@ -152,7 +152,7 @@ theorem nativeSub_into_output_value (left right : CInputRef ctx (.unsignedWord w
       simpa only [actual, CShape.Value.toNat] using natural
 
 /-- The actual complete store differs only by the one intended destination write. -/
-theorem nativeSub_into_store (left right : CInputRef ctx (.unsignedWord width))
+lemma nativeSub_into_store (left right : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (intoStep (model := model) left right output store).1 = store.write output
       (CShape.wordOfNat width ((store.read left).toNat - (store.read right).toNat)) := by

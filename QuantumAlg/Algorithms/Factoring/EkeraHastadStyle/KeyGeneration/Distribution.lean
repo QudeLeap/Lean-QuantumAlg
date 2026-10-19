@@ -43,7 +43,7 @@ def keygenSampledBatchOutput (b : Nat)
 
 /-- Every supported successful output of the key-averaged law is one of the
 two primes generated in that same branch. -/
-theorem keygenSampledBatchOutput_some_sound (b : Nat)
+lemma keygenSampledBatchOutput_some_sound (b : Nat)
     (nonempty : Nonempty (RSA.RSAKeyPairBits b)) {p q factor : Nat}
     (member : (p, q, some factor) ∈
       (keygenSampledBatchOutput b nonempty).support) :

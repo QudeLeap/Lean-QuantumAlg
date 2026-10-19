@@ -33,12 +33,12 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind}
 
-private theorem reference_key_mem {ctx : RuntimeCtx kind} {shape : CShape}
+private lemma reference_key_mem {ctx : RuntimeCtx kind} {shape : CShape}
     (ref : CStorageRef ctx shape) : ref.key ∈ ctx.keys :=
   List.mem_map.mpr ⟨.storage ref.key ref.role shape, ref.present, rfl⟩
 
 /-- Indexed cells occupy different live storage identities. -/
-theorem reference_key_injective (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
+lemma reference_key_injective (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat) :
     Function.Injective (fun index => (reference ctx dimension count index).key) := by
   induction count with
   | zero => intro index; exact Fin.elim0 index
@@ -65,14 +65,14 @@ theorem reference_key_injective (ctx : RuntimeCtx kind) (dimension : ℕ+) (coun
           exact congrArg Fin.succ (ih same)
 
 /-- Writing the selected cell reads back its exact finite value. -/
-theorem read_write_reference_same (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
+lemma read_write_reference_same (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
     (store : Store (context ctx dimension count)) (index : Fin count) (value : Fin dimension) :
     (store.write (reference ctx dimension count index) (.finite value)).read
       (.storage (reference ctx dimension count index).toCStorageRef) = .finite value :=
   Store.read_write_same store _ _
 
 /-- Writing one measurement cell preserves every differently indexed cell. -/
-theorem read_write_reference_other (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
+lemma read_write_reference_other (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
     (store : Store (context ctx dimension count)) (written observed : Fin count)
     (different : written ≠ observed) (value : Fin dimension) :
     (store.write (reference ctx dimension count written) (.finite value)).read
@@ -88,7 +88,7 @@ public def wireEquiv (ctx : RuntimeCtx kind) (dimension : ℕ+) :
   | count + 1 => wireEquiv ctx dimension count
 
 /-- Retained-cell allocation keeps the numeric position of every quantum wire. -/
-@[simp] public theorem wireEquiv_val (ctx : RuntimeCtx kind) (dimension : ℕ+)
+@[simp] public lemma wireEquiv_val (ctx : RuntimeCtx kind) (dimension : ℕ+)
     (count : Nat) (wire : Fin ctx.systemCount) :
     (wireEquiv ctx dimension count wire).val = wire.val := by
   induction count with
@@ -96,7 +96,7 @@ public def wireEquiv (ctx : RuntimeCtx kind) (dimension : ℕ+) :
   | succ count ih => exact ih
 
 /-- Corresponding positions keep both their physical identity and their local dimension. -/
-theorem wireEquiv_preserved (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
+lemma wireEquiv_preserved (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
     (wire : Fin ctx.systemCount) :
     (context ctx dimension count).quantumLayout.wire (wireEquiv ctx dimension count wire) =
       ctx.quantumLayout.wire wire := by
@@ -111,7 +111,7 @@ public def basisEquiv (ctx : RuntimeCtx kind) (dimension : ℕ+) :
   | count + 1 => basisEquiv ctx dimension count
 
 /-- Each finite physical basis value is unchanged by the classical allocations. -/
-public theorem basisEquiv_value (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
+public lemma basisEquiv_value (ctx : RuntimeCtx kind) (dimension : ℕ+) (count : Nat)
     (basis : ctx.register.Index) (wire : Fin ctx.systemCount) :
     (basisEquiv ctx dimension count basis (wireEquiv ctx dimension count wire)).val =
       (basis wire).val := by
@@ -127,11 +127,13 @@ public theorem basisEquiv_value (ctx : RuntimeCtx kind) (dimension : ℕ+) (coun
   (basisEquiv ctx dimension count).prodCongr (Equiv.refl Reference.Index)
 
 /-- The actual interpreter retains every quantum matrix entry and reference correlation. -/
-public theorem allocate_quantumMarginal {model : ExecutionModel}
+public lemma allocate_quantumMarginal {model : ExecutionModel}
+    (environment : model.Environment)
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (model.HiddenState × H)) :
-    ((allocate (model := model) ctx dimension count).execute Reference state).quantumMarginal =
+    ((allocate (model := model) ctx dimension count).execute environment
+      Reference state).quantumMarginal =
       state.quantumMarginal.reindex
         (S := Register.prod (context ctx dimension count).register Reference)
         (jointBasisEquiv ctx dimension count Reference) := by
@@ -143,29 +145,30 @@ public theorem allocate_quantumMarginal {model : ExecutionModel}
       change ((Circuit.seq (allocate (model := model) ctx dimension count)
         (.retain (context ctx dimension count)
           (context ctx dimension count).canonicalFreshKey (.finite dimension)
-          (context ctx dimension count).canonicalFreshKey_fresh)).execute
+          (context ctx dimension count).canonicalFreshKey_fresh)).execute environment
             Reference state).quantumMarginal = _
       rw [Circuit.execute_seq, State.mapHistory_quantumMarginal]
       simp only [Circuit.execute_retain, ExecutionState.mapClassical_quantumMarginal]
       exact ih
 
 /-- Every retained-cell allocation restores the full original borrowed interface. -/
-theorem allocate_borrowedRestored {model : ExecutionModel}
+lemma allocate_borrowedRestored {model : ExecutionModel}
+    (environment : model.Environment)
     (ctx : RuntimeCtx model.kind) (dimension : ℕ+) (count : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference (model.HiddenState × H)) :
     (allocate (model := model) ctx dimension count).BorrowedRestored Reference state
-      ((allocate (model := model) ctx dimension count).execute Reference state) := by
+      ((allocate (model := model) ctx dimension count).execute environment Reference state) := by
   induction count with
   | zero =>
-      exact Circuit.borrowedRestored_id (model := model) (ctx := ctx)
+      exact Circuit.borrowedRestored_id (environment := environment) (model := model) (ctx := ctx)
         (Reference := Reference) (H := H) state
   | succ count ih =>
-      exact Circuit.borrowedRestored_seq _ _ state ih
-        (Circuit.borrowedRestored_retain (model := model)
+      exact Circuit.borrowedRestored_seq (environment := environment) _ _ state ih
+        (Circuit.borrowedRestored_retain (environment := environment) (model := model)
           (context ctx dimension count).canonicalFreshKey (.finite dimension)
           (context ctx dimension count).canonicalFreshKey_fresh
-          ((allocate (model := model) ctx dimension count).execute Reference state))
+          ((allocate (model := model) ctx dimension count).execute environment Reference state))
 
 end
 

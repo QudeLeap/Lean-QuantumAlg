@@ -27,12 +27,13 @@ noncomputable section
 variable {gates : GateModel} {oracles : OracleModel}
   {source target : RuntimeCtx .quantum} (same : source.entries.Perm target.entries)
   (program : UnitaryCircuit gates oracles source.quantumLayout)
+  (environment : oracles.Interpretation)
 
 private def placement : QuantumLayout.Embedding source.quantumLayout target.quantumLayout where
   position := (positions same).toEmbedding
   wire_eq := positions_wire same
 
-private theorem placement_basis (value : target.register.Index) :
+private lemma placement_basis (value : target.register.Index) :
     ((placement same).splitBasis value).1 = (basis same).symm value := by
   funext index
   apply Fin.ext
@@ -46,35 +47,35 @@ def unitaryProgram : UnitaryCircuit gates oracles target.quantumLayout :=
   UnitaryCircuit.embed (placement same) program
 
 /-- Every matrix entry remains the original one on the corresponding physical-wire values. -/
-theorem unitaryProgram_matrix (row column : target.register.Index) :
-    (unitaryProgram same program).matrix row column =
-      program.matrix ((basis same).symm row) ((basis same).symm column) := by
-  change (placement same).liftOperator program.matrix row column = _
+lemma unitaryProgram_matrix (row column : target.register.Index) :
+    ((unitaryProgram same program).matrix environment) row column =
+      (program.matrix environment) ((basis same).symm row) ((basis same).symm column) := by
+  change (placement same).liftOperator (program.matrix environment) row column = _
   rw [QuantumLayout.Embedding.liftOperator_entry_of_surjective
     (placement same) (positions same).surjective, placement_basis, placement_basis]
 
 /-- Every granted native and query event is retained in its complete original order. -/
-theorem unitaryProgram_trace (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+lemma unitaryProgram_trace (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (unitaryProgram same program).eventTrace operations services =
       program.eventTrace operations services := rfl
 
 /-- Every native event coordinate retains its original multiplicity. -/
-theorem unitaryProgram_cost (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
+lemma unitaryProgram_cost (operations : ClassicalOpModel) (services : ClassicalOracleModel) :
     (unitaryProgram same program).eventCost operations services =
       program.eventCost operations services := rfl
 
 /-- All native duration assignments give the original evaluated dependency depth. -/
-theorem unitaryProgram_depth (operations : ClassicalOpModel) (services : ClassicalOracleModel)
+lemma unitaryProgram_depth (operations : ClassicalOpModel) (services : ClassicalOracleModel)
     (duration : Resource.Event (.quantum gates oracles operations services) → Nat) :
     DepthExpr.depthEval duration ((unitaryProgram same program).eventDepth operations services) =
       DepthExpr.depthEval duration (program.eventDepth operations services) := rfl
 
 /-- Arbitrary external-reference coordinates retain every original joint operator entry. -/
-theorem unitaryProgram_joint_entry (Reference : Register)
+lemma unitaryProgram_joint_entry (Reference : Register)
     (row column : target.register.Index) (referenceRow referenceColumn : Reference.Index) :
-    (UnitaryOperator.prodTensor (unitaryProgram same program).matrix
+    (UnitaryOperator.prodTensor ((unitaryProgram same program).matrix environment)
       (1 : UnitaryOperator Reference)) (row, referenceRow) (column, referenceColumn) =
-        (UnitaryOperator.prodTensor program.matrix (1 : UnitaryOperator Reference))
+        (UnitaryOperator.prodTensor (program.matrix environment) (1 : UnitaryOperator Reference))
           ((basis same).symm row, referenceRow) ((basis same).symm column, referenceColumn) := by
   rw [UnitaryOperator.prodTensor_apply, UnitaryOperator.prodTensor_apply, unitaryProgram_matrix]
 

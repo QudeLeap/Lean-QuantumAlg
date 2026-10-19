@@ -37,7 +37,7 @@ variable {G : Type u} [Group G]
   FiniteCyclicDLP.orderWidth P
 
 /-- The known order fits in its reviewed exponent register. -/
-public theorem order_le_capacity (P : KnownOrderProblem G) :
+public lemma order_le_capacity (P : KnownOrderProblem G) :
     P.order ≤ 2 ^ width P := by
   calc
     P.order ≤ 12 * P.order := by omega
@@ -45,7 +45,7 @@ public theorem order_le_capacity (P : KnownOrderProblem G) :
       exact Nat.le_pow_clog (by norm_num : 1 < 2) (12 * P.order)
 
 /-- The twelvefold margin makes the order strictly smaller than the register capacity. -/
-public theorem order_lt_capacity (P : KnownOrderProblem G) :
+public lemma order_lt_capacity (P : KnownOrderProblem G) :
     P.order < 2 ^ width P := by
   calc
     P.order < 12 * P.order := by
@@ -59,7 +59,7 @@ public abbrev layout (P : KnownOrderProblem G) : QuantumLayout (width P) :=
   (QuantumSignature.qubits (width P)).canonicalPlacement.layout
 
 /-- Every exponent in a certified expansion contributes no more than the full sum. -/
-private theorem power_le_order (P : KnownOrderProblem G)
+private lemma power_le_order (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (index : Fin expansion.count) :
     2 ^ expansion.ell index ≤ P.order := by
   calc
@@ -70,7 +70,7 @@ private theorem power_le_order (P : KnownOrderProblem G)
     _ = P.order := expansion.sum_powers.symm
 
 /-- Every set-bit exponent fits strictly inside the reviewed register. -/
-public theorem ell_lt_width (P : KnownOrderProblem G)
+public lemma ell_lt_width (P : KnownOrderProblem G)
     (expansion : OrderExpansion P.order) (index : Fin expansion.count) :
     expansion.ell index < width P := by
   have powers : 2 ^ expansion.ell index < 2 ^ width P :=
@@ -96,7 +96,7 @@ public theorem ell_lt_width (P : KnownOrderProblem G)
     omega⟩
 
 /-- The right set bit is strictly above the left set bit of every gap. -/
-public theorem ell_left_lt_right {N : Nat} (expansion : OrderExpansion N)
+public lemma ell_left_lt_right {N : Nat} (expansion : OrderExpansion N)
     (gap : Fin expansion.gaps) :
     expansion.ell (leftIndex expansion gap) <
       expansion.ell (rightIndex expansion gap) := by

@@ -48,7 +48,7 @@ def scalarClassicalOperationBound (N : Nat) : Nat → Nat
           (RSA.ShortLogWidths.coordinateWidth N (shortLogBits N) (tradeoffBits N))) + 1
 
 /-- The complete existing coordinate allowance admits the closed scalar event ceiling. -/
-theorem eventCountBound_le_scalar (N totalRounds : Nat) :
+lemma eventCountBound_le_scalar (N totalRounds : Nat) :
     eventCountBound N totalRounds ≤ scalarEventCountBound N totalRounds := by
   cases totalRounds with
   | zero => exact Nat.le_refl 0
@@ -91,7 +91,7 @@ theorem eventCountBound_le_scalar (N totalRounds : Nat) :
     unfold eventCountBound scalarEventCountBound
     nlinarith
 
-private theorem sampler_classicalWeight_le (N : Nat) :
+private lemma sampler_classicalWeight_le (N : Nat) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       (ShorStyle.Canonical.Sampler.Retained.nativeEnvelope RuntimeRound.model N) ≤
       44 * modulusBits N + 163 := by
@@ -105,7 +105,7 @@ private theorem sampler_classicalWeight_le (N : Nat) :
     ShorStyle.Canonical.Sampler.Retained.samplerRetainedEnvelope_card, modulusBits] using weighted
 
 /-- Every repeated classical instruction obeys the closed scalar ceiling for every batch count. -/
-theorem classicalOperationBound_le_scalar (N totalRounds : Nat) :
+lemma classicalOperationBound_le_scalar (N totalRounds : Nat) :
     classicalOperationBound N totalRounds ≤ scalarClassicalOperationBound N totalRounds := by
   cases totalRounds with
   | zero => exact Nat.le_refl 0
@@ -131,7 +131,7 @@ theorem classicalOperationBound_le_scalar (N totalRounds : Nat) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every complete actual run path satisfies the independent width-only native event ceiling. -/
-theorem run_eventCount_le_widthBound (input : Input N) (totalRounds : Nat)
+lemma run_eventCount_le_widthBound (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     ((run base noQuantum input totalRounds).code.eventTrace path).length ≤
       scalarEventCountBound N totalRounds :=
@@ -139,7 +139,7 @@ theorem run_eventCount_le_widthBound (input : Input N) (totalRounds : Nat)
     (eventCountBound_le_scalar N totalRounds)
 
 /-- Every literal classical operation is charged on that same complete actual run path. -/
-theorem run_classicalOperation_le_widthBound (input : Input N) (totalRounds : Nat)
+lemma run_classicalOperation_le_widthBound (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     ResourcePool.weightedCount Resource.Event.classicalOperationWeight
       ((run base noQuantum input totalRounds).code.resourcePool path) ≤

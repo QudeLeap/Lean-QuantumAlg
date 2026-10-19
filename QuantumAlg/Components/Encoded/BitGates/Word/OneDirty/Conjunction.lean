@@ -32,11 +32,12 @@ noncomputable section
 variable {Data : Type} {encoding : BinaryLabelEncoding Data} {controls : Nat}
 variable (layout : OneDirtyLayout (encoding := encoding) controls)
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 private def allBits {width : Nat} (bits : Fin width → EncodedBit encoding) (state : Data) : Bool :=
   decide (∀ index, (bits index).get state = true)
 
-private theorem allBits_flip {width : Nat} (bits : Fin width → EncodedBit encoding)
+private lemma allBits_flip {width : Nat} (bits : Fin width → EncodedBit encoding)
     (target : EncodedBit encoding) (different : ∀ index, target.wire ≠ (bits index).wire)
     (state : Data) : allBits bits (target.flip state) = allBits bits state := by
   have values (index : Fin width) := get_flip_of_wire_ne target (bits index) (different index) state
@@ -61,14 +62,14 @@ def balancedGates (large : 3 ≤ controls) : List (GateSpec encoding) :=
   layout.firstGates large ++ layout.secondGates large ++
     layout.firstGates large ++ layout.secondGates large
 
-private theorem firstSubLayout_conjunction (large : 3 ≤ controls) (state : Data) :
+private lemma firstSubLayout_conjunction (large : 3 ≤ controls) (state : Data) :
     (layout.firstSubLayout large).sourceConjunction state (firstWidth controls - 2 + 2) =
       layout.firstPredicate state := by
   apply Bool.eq_iff_iff.mpr
   rw [ZeroTestLayout.sourceConjunction_eq_true_iff, firstSubLayout_source_all]
   simp only [firstPredicate, allBits, decide_eq_true_eq]
 
-private theorem secondSubLayout_conjunction (large : 3 ≤ controls) (state : Data) :
+private lemma secondSubLayout_conjunction (large : 3 ≤ controls) (state : Data) :
     (layout.secondSubLayout large).sourceConjunction state (secondWidth controls - 1 + 2) =
       (layout.secondPredicate state && layout.work.get state) := by
   apply Bool.eq_iff_iff.mpr
@@ -76,14 +77,14 @@ private theorem secondSubLayout_conjunction (large : 3 ≤ controls) (state : Da
     Bool.and_eq_true_iff]
   simp only [secondPredicate, allBits, decide_eq_true_eq]
 
-theorem firstGates_step (large : 3 ≤ controls) (state : Data) :
+lemma firstGates_step (large : 3 ≤ controls) (state : Data) :
     GateSpec.stepList (layout.firstGates large) state =
       predicateFlip layout.work layout.firstPredicate state := by
   have output : (layout.firstSubLayout large).output = layout.work := rfl
   unfold firstGates predicateFlip
   rw [ZeroTestLayout.borrowedAndGates_step, firstSubLayout_conjunction, output]
 
-theorem secondGates_step (large : 3 ≤ controls) (state : Data) :
+lemma secondGates_step (large : 3 ≤ controls) (state : Data) :
     GateSpec.stepList (layout.secondGates large) state =
       predicateFlip layout.output
         (fun value => layout.secondPredicate value && layout.work.get value) state := by
@@ -91,27 +92,27 @@ theorem secondGates_step (large : 3 ≤ controls) (state : Data) :
   unfold secondGates predicateFlip
   rw [ZeroTestLayout.borrowedAndGates_step, secondSubLayout_conjunction, output]
 
-private theorem firstPredicate_work_flip (state : Data) :
+private lemma firstPredicate_work_flip (state : Data) :
     layout.firstPredicate (layout.work.flip state) = layout.firstPredicate state :=
   allBits_flip layout.firstBit layout.work
     (fun index => (layout.source_work_ne (firstIndex index)).symm) state
 
-private theorem firstPredicate_output_flip (state : Data) :
+private lemma firstPredicate_output_flip (state : Data) :
     layout.firstPredicate (layout.output.flip state) = layout.firstPredicate state :=
   allBits_flip layout.firstBit layout.output
     (fun index => (layout.source_output_ne (firstIndex index)).symm) state
 
-private theorem secondPredicate_work_flip (state : Data) :
+private lemma secondPredicate_work_flip (state : Data) :
     layout.secondPredicate (layout.work.flip state) = layout.secondPredicate state :=
   allBits_flip layout.secondBit layout.work
     (fun index => (layout.source_work_ne (secondIndex index)).symm) state
 
-private theorem secondPredicate_output_flip (state : Data) :
+private lemma secondPredicate_output_flip (state : Data) :
     layout.secondPredicate (layout.output.flip state) = layout.secondPredicate state :=
   allBits_flip layout.secondBit layout.output
     (fun index => (layout.source_output_ne (secondIndex index)).symm) state
 
-private theorem predicates_and (state : Data) :
+private lemma predicates_and (state : Data) :
     (layout.firstPredicate state && layout.secondPredicate state) =
       decide (∀ index, (layout.source.bit index).get state = true) := by
   apply Bool.eq_iff_iff.mpr
@@ -119,7 +120,7 @@ private theorem predicates_and (state : Data) :
   exact (layout.source_all_iff state).symm
 
 /-- The full encoded state is restored except for the output xor of all original controls. -/
-theorem balancedGates_step (large : 3 ≤ controls) (state : Data) :
+lemma balancedGates_step (large : 3 ≤ controls) (state : Data) :
     GateSpec.stepList (layout.balancedGates large) state =
       if ∀ index, (layout.source.bit index).get state = true
         then layout.output.flip state else state := by
@@ -139,15 +140,15 @@ theorem balancedGates_step (large : 3 ≤ controls) (state : Data) :
       simp only [decide_eq_true_eq]
 
 /-- The literal elementary program has the complete all-input encoded conjunction action. -/
-theorem balancedGates_realizes (large : 3 ≤ controls) :
+lemma balancedGates_realizes (large : 3 ≤ controls) :
     UnitaryCircuit.Realizes encoding
-      (GateSpec.programList physical oracles (layout.balancedGates large))
+      (GateSpec.programList physical oracles (layout.balancedGates large)) environment
       (fun state => if ∀ index, (layout.source.bit index).get state = true
         then layout.output.flip state else state) :=
-  GateSpec.realizesList_congrStep physical oracles
+  GateSpec.realizesList_congrStep physical oracles (environment := environment)
     (layout.balancedGates large) (layout.balancedGates_step large)
 
-private theorem subcall_length {tail : Nat}
+private lemma subcall_length {tail : Nat}
     (sublayout : ZeroTestLayout (encoding := encoding) tail) :
     sublayout.borrowedAndGates.length = if tail = 0 then 1 else 4 * tail := by
   by_cases empty : tail = 0
@@ -156,7 +157,7 @@ private theorem subcall_length {tail : Nat}
     exact ZeroTestLayout.dirtyConjunctionGates_length _ (Nat.pos_of_ne_zero empty)
 
 /-- Exact elementary length counts both occurrences of each actual borrowed-work subcall. -/
-theorem balancedGates_length (large : 3 ≤ controls) :
+lemma balancedGates_length (large : 3 ≤ controls) :
     (layout.balancedGates large).length =
       2 * ((if firstWidth controls - 2 = 0 then 1 else 4 * (firstWidth controls - 2)) +
         (if secondWidth controls - 1 = 0 then 1 else 4 * (secondWidth controls - 1))) := by
@@ -164,7 +165,7 @@ theorem balancedGates_length (large : 3 ≤ controls) :
   omega
 
 /-- The actual elementary list has linear length using just the one external dirty bit. -/
-theorem balancedGates_length_le (large : 3 ≤ controls) :
+lemma balancedGates_length_le (large : 3 ≤ controls) :
     (layout.balancedGates large).length ≤ 8 * controls := by
   rw [balancedGates_length]
   have balanced := balanced_widths large

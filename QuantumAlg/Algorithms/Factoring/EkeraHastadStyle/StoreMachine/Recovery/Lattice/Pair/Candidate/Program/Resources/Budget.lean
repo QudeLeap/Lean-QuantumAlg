@@ -41,7 +41,7 @@ def recoveryEventEnvelope (N : Nat) : ResourcePool model :=
     (shortLogBits N) (tradeoffBits N)
 
 /-- Actual shared initialization satisfies its independent complete coordinate allowance. -/
-theorem sharedInto_pool_le (input : Input N) (refs : Refs ctx N)
+lemma sharedInto_pool_le (input : Input N) (refs : Refs ctx N)
     (path : (sharedInto input refs).Path) :
     (sharedInto input refs).resourcePool path ≤ sharedEventEnvelope N := by
   have constants := LatticeCandidateConstants.loadInto_resourcePool
@@ -54,7 +54,7 @@ theorem sharedInto_pool_le (input : Input N) (refs : Refs ctx N)
   exact add_le_add constants.le setup
 
 /-- Every actual pair prefix satisfies the independent reduction and initialization allowance. -/
-theorem pairCandidatePrefix_pool_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidatePrefix_pool_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidatePrefix input refs).Path) :
     (pairCandidatePrefix input refs).resourcePool path ≤ prefixEventEnvelope N := by
   have pair :
@@ -68,7 +68,7 @@ theorem pairCandidatePrefix_pool_le (input : Input N) (refs : Refs ctx N)
   exact add_le_add pair shared
 
 /-- Every complete actual pair-candidate path meets the independent native coordinate budget. -/
-theorem pairCandidateRecoveryInto_pool_le (input : Input N) (refs : Refs ctx N)
+lemma pairCandidateRecoveryInto_pool_le (input : Input N) (refs : Refs ctx N)
     (path : (pairCandidateRecoveryInto input refs).Path) :
     (pairCandidateRecoveryInto input refs).resourcePool path ≤ recoveryEventEnvelope N := by
   have prefixBound : (pairCandidatePrefix input refs).resourcePool path.1 ≤ prefixEventEnvelope N :=

@@ -37,7 +37,7 @@ open FiniteCyclicDLP.Canonical.Probability
   pointLabel ((problem I).generator ^ index.val)
 
 /-- Distinct original generator powers occupy distinct physical point labels. -/
-public theorem selectedPointLabel_injective (I : ECDLPInstance E) :
+public lemma selectedPointLabel_injective (I : ECDLPInstance E) :
     Function.Injective (selectedPointLabel I) := by
   intro left right same
   have powers := pointLabel_injective same
@@ -48,7 +48,7 @@ public theorem selectedPointLabel_injective (I : ECDLPInstance E) :
     Nat.mod_eq_of_lt left.isLt, Nat.mod_eq_of_lt right.isLt] at remainders
   exact remainders
 
-private theorem postQueryCoefficient_selectedPointLabel (I : ECDLPInstance E)
+private lemma postQueryCoefficient_selectedPointLabel (I : ECDLPInstance E)
     (input : SecretInput (problem I))
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I)))
     (index : Fin I.subgroupOrder) :
@@ -94,7 +94,7 @@ private theorem postQueryCoefficient_selectedPointLabel (I : ECDLPInstance E)
   · simp only [rightRange, if_false, dite_false]
 
 /-- The intrinsic source amplitude is the original hidden-line fiber sum. -/
-public theorem sourceAmplitude_selectedPointLabel_eq_sum (I : ECDLPInstance E)
+public lemma sourceAmplitude_selectedPointLabel_eq_sum (I : ECDLPInstance E)
     (input : SecretInput (problem I))
     (left right : Fin (2 ^ FiniteCyclicDLP.orderWidth (problem I)))
     (index : Fin I.subgroupOrder) :
@@ -132,7 +132,7 @@ public theorem sourceAmplitude_selectedPointLabel_eq_sum (I : ECDLPInstance E)
       (selectedFiberTerm input left right index)
 
 /-- The actual declared-query state retains the original selected amplitude floor. -/
-public theorem sourceState_selectedPointLabel_amplitude_floor (I : ECDLPInstance E)
+public lemma sourceState_selectedPointLabel_amplitude_floor (I : ECDLPInstance E)
     (A : Access I) (input : SecretInput (problem I))
     (unit : (ZMod (problem I).order)ˣ) (index : Fin I.subgroupOrder) :
     1 / (2 * (FiniteCyclicDLP.fourierModulus (problem I) : ℝ)) ≤

@@ -37,7 +37,7 @@ private def positions : Fin 2 ↪ Fin count where
     fin_cases left <;> fin_cases right <;> simp_all
 
 include leftQubit rightQubit in
-private theorem dimensions (index : Fin 2) :
+private lemma dimensions (index : Fin 2) :
     (layout.wire index).dimension =
       (ambient.wire (positions left right distinct index)).dimension := by
   fin_cases index
@@ -56,20 +56,21 @@ public def circuitAt (oracles : OracleModel) :
     (dimensions ambient left right distinct leftQubit rightQubit) (circuit oracles)
 
 /-- The physically placed implementation retains the exact SWAP on every input. -/
-public theorem swap_circuitAt_matrix (oracles : OracleModel) :
-    (circuitAt ambient left right distinct leftQubit rightQubit oracles).matrix =
+public lemma swap_circuitAt_matrix (oracles : OracleModel) (environment :
+  oracles.Interpretation) :
+    ((circuitAt ambient left right distinct leftQubit rightQubit oracles).matrix environment) =
       placedOperator ambient left right distinct leftQubit rightQubit := by
   rw [circuitAt, UnitaryCircuit.placeAt_matrix, swap_circuit_matrix]
   rfl
 
 /-- Placement retains all three actual native occurrences in their original order. -/
-public theorem swap_circuitAt_events (oracles : OracleModel) :
+public lemma swap_circuitAt_events (oracles : OracleModel) :
     (circuitAt ambient left right distinct leftQubit rightQubit oracles).eventTrace =
       [.gate .cnot, .gate .cnot, .gate .cnot] := by
   rw [circuitAt, UnitaryCircuit.placeAt_eventTrace, swap_circuit_events]
 
 /-- The same serial implementation has depth three on every dimension-correct ambient layout. -/
-public theorem swap_circuitAt_unit_depth (oracles : OracleModel) :
+public lemma swap_circuitAt_unit_depth (oracles : OracleModel) :
     UnitaryCircuit.evaluatedEventDepth (fun _ => 1)
       (circuitAt ambient left right distinct leftQubit rightQubit oracles) = 3 := by
   change DepthExpr.depthEval (fun _ => 1)

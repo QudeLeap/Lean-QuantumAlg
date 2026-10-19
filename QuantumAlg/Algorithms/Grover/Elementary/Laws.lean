@@ -26,7 +26,7 @@ noncomputable section
 
 open QuantumAlg.ZeroReflection.Workspace
 
-private theorem sourceStep_eq_diffusion {n : Nat} (marked : Fin (2 ^ n) → Bool) :
+private lemma sourceStep_eq_diffusion {n : Nat} (marked : Fin (2 ^ n) → Bool) :
     sourceStep marked = diffusionOperator n * phaseOracleOp marked := by
   have reflected :
       (WalshHadamard.hadamardLayerOperator n * ZeroReflection.zeroReflectionOperator n) *
@@ -39,8 +39,8 @@ private theorem sourceStep_eq_diffusion {n : Nat} (marked : Fin (2 ^ n) → Bool
   rw [sourceStep, reflected]
 
 /-- The actual full native matrix is the original Grover evolution and identity on work. -/
-theorem circuit_matrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (circuit marked k).binaryMatrix = (sourceOperator marked k).tensor
+lemma circuit_matrix {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ((circuit n k).binaryMatrix (interpretation marked)) = (sourceOperator marked k).tensor
       (1 : UnitaryOperator (Qubits (helperWidth n k))) := by
   rw [circuit_binaryMatrix, sourceStep_eq_diffusion]
   rfl
@@ -56,9 +56,10 @@ def evolvedVector {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
     (NormalizedVector.ket (R := Qubits (helperWidth n k)) 0)
 
 /-- Actual execution on the internally prepared vector gives the original search state and work. -/
-theorem circuit_applyNormalized_input {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
-    (circuit marked k).binaryMatrix.apply (inputVector n k) = evolvedVector marked k := by
-  change (circuit marked k).binaryMatrix.apply
+lemma circuit_applyNormalized_input {n : Nat} (marked : Fin (2 ^ n) → Bool) (k : Nat) :
+    ((circuit n k).binaryMatrix (interpretation marked)).apply
+      (inputVector n k) = evolvedVector marked k := by
+  change ((circuit n k).binaryMatrix (interpretation marked)).apply
       ((inputState n).normalized.tensor
         (NormalizedVector.ket (R := Qubits (helperWidth n k)) 0)) = _
   rw [circuit_matrix, UnitaryOperator.tensor_apply_tensor]

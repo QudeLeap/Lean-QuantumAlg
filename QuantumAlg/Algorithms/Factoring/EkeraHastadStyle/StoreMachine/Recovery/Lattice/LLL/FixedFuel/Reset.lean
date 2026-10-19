@@ -31,12 +31,12 @@ variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 def clearOp (output : CWriteRef ctx .bit) : ClassicalOp (.product .bit .bit) .bit ctx ctx :=
   .bit .xor ctx (.product (.storage output.toCStorageRef) (.storage output.toCStorageRef)) output
 
-private theorem clear_frame (output : CWriteRef ctx .bit) (store : Store ctx)
+private lemma clear_frame (output : CWriteRef ctx .bit) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (avoids : output.key ∉ other.storageKeys) :
     (store.applyOp (clearOp output)).read other = store.read other :=
   Store.read_applyOp_of_not_mem_storageKeys store (clearOp output) other avoids
 
-private theorem clear_read (output : CWriteRef ctx .bit) (store : Store ctx) :
+private lemma clear_read (output : CWriteRef ctx .bit) (store : Store ctx) :
     ((store.applyOp (clearOp output)).read (.storage output.toCStorageRef)).toBool = false := by
   simp only [Store.applyOp, clearOp, ClassicalOp.outputRef, Store.read_write_same,
     ClassicalOp.inputRef, ClassicalOp.eval]
@@ -51,7 +51,8 @@ def resetFirstStore (refs : Refs ctx width) (store : Store ctx) : Store ctx :=
 
 section SelectedReset
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Clear the original second-phase latch, then the original terminal latch. -/
@@ -69,14 +70,14 @@ def resetFirstStep (refs : Refs ctx width) (store : Store ctx) :
   (second.1, (first.2, second.2))
 
 /-- The original two actual latch writes preserve all full-state histories and correlations. -/
-theorem resetFirstInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma resetFirstInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (resetFirstInto (model := model) refs).execute Reference state =
+    (resetFirstInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := resetFirstStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (clearOp refs.machine.secondPhase))
     (BitWord.instruction (execution := model) (clearOp refs.machine.done))
     (fun before =>
@@ -87,15 +88,17 @@ theorem resetFirstInto_execute (refs : Refs ctx width) (Reference : Register)
       let actual := BitWord.instructionStep (execution := model)
         (clearOp refs.machine.done) before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 end SelectedReset
 
 /-- Every actual read outside the two original latch writes is retained exactly. -/
-theorem resetFirstInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma resetFirstInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (secondPhase : refs.machine.secondPhase.key ∉ other.storageKeys)
     (done : refs.machine.done.key ∉ other.storageKeys) :
@@ -104,7 +107,7 @@ theorem resetFirstInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
   rw [clear_frame _ _ other done, clear_frame _ _ other secondPhase]
 
 /-- Both actual latches encode the first phase after reset, regardless of their initial values. -/
-theorem resetFirstInto_phase (refs : Refs ctx width) (separation : Separation refs)
+lemma resetFirstInto_phase (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) : refs.machine.PhaseRepresents (resetFirstStore refs store) .first := by
   have different : refs.machine.done.key ≠ refs.machine.secondPhase.key := by
     intro equal
@@ -120,7 +123,7 @@ theorem resetFirstInto_phase (refs : Refs ctx width) (separation : Separation re
   · exact clear_read refs.machine.done _
 
 /-- Original machine separation retains the whole represented basis across the actual reset. -/
-theorem resetFirstInto_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma resetFirstInto_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis) :
     LatticeMetricMachine.BasisRawRepresents (resetFirstStore refs store) refs.machine.basis basis :=
@@ -128,7 +131,7 @@ theorem resetFirstInto_basis (refs : Refs ctx width) (separation : Separation re
     (phase_avoids_basis refs separation .secondFail cell)
     (phase_avoids_basis refs separation .secondPass cell)) rep
 
-private theorem latch_avoids_metric (refs : Refs ctx width) (latch : CWriteRef ctx .bit)
+private lemma latch_avoids_metric (refs : Refs ctx width) (latch : CWriteRef ctx .bit)
     (separate : ∀ cell, LatticeMetricMachine.metricCellKey refs.metric cell ∉
       (phaseInput latch).storageKeys) (cell : LatticeMetricMachine.MetricCell) :
     latch.key ∉ (.storage (LatticeMetricMachine.metricCellRef refs.metric cell).toCStorageRef :
@@ -139,7 +142,7 @@ private theorem latch_avoids_metric (refs : Refs ctx width) (latch : CWriteRef c
   simpa only [CInputRef.storageKeys, List.mem_singleton] using different.symm
 
 /-- The actual reset retains every original Gram output under the original phase frames. -/
-theorem resetFirstInto_gram (refs : Refs ctx width) (separation : Separation refs)
+lemma resetFirstInto_gram (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.GramRawRepresents store refs.metric basis) :
     LatticeMetricMachine.GramRawRepresents (resetFirstStore refs store) refs.metric basis := by
@@ -155,7 +158,8 @@ def initialState (basis : NumberTheory.IntegerBasis3) : NumberTheory.LLLState3 :
 
 section SelectedRefresh
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Original initialization order: refresh the actual Gram snapshot, then reset both latches. -/
@@ -172,14 +176,14 @@ def refreshResetStep (refs : Refs ctx width) (store : Store ctx) :
   (reset.1, (refreshed.2, reset.2))
 
 /-- Actual Gram refresh and reset compose on their chronological full execution states. -/
-theorem refreshResetInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma refreshResetInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (refreshResetInto (model := model) refs).execute Reference state =
+    (refreshResetInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := refreshResetStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeMetricMachine.refreshInto (model := model) refs.machine.basis refs.metric)
     (resetFirstInto (model := model) refs)
     (fun before =>
@@ -197,7 +201,7 @@ theorem refreshResetInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual initialization establishes the full invariant without prior Gram or bit values. -/
-theorem refreshResetInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma refreshResetInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.machine.basis basis)
     (fullRank : basis.FullRank)
@@ -212,7 +216,7 @@ theorem refreshResetInto_correct (refs : Refs ctx width) (separation : Separatio
     bounded, capacity, LatticeStepBounds.stepFits_of_boundedFrom bounded capacity⟩
 
 /-- Actual initialization retains the complete original fixed-fuel caller frame. -/
-theorem refreshResetInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
+lemma refreshResetInto_callerFrame (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) (separate : CallerSeparated refs other) :
     (refreshResetStep (model := model) refs store).1.read other = store.read other := by
   change (resetFirstStore refs

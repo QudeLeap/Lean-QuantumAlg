@@ -38,7 +38,7 @@ def gramTrace {model : ExecutionModel} [BitWord.Selected model] (width : Nat) :
       (.wordBinary .add width))]).flatten
 
 /-- Every actual Gram path has exactly the independent thirty-instruction trace. -/
-theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     (refreshInto (model := model) basis refs).eventTrace path =
@@ -48,7 +48,7 @@ theorem refreshInto_events {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- Actual native multiplicities are those of the independent Gram instruction formula. -/
-theorem refreshInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     (refreshInto (model := model) basis refs).resourcePool path =
@@ -57,7 +57,7 @@ theorem refreshInto_resourcePool {model : ExecutionModel} [BitWord.Selected mode
   rw [refreshInto_events]
 
 /-- Exactly thirty native operations execute in the complete actual Gram refresh. -/
-theorem refreshInto_eventCount {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_eventCount {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     ((refreshInto (model := model) basis refs).eventTrace path).length = 30 := by
@@ -65,39 +65,41 @@ theorem refreshInto_eventCount {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- The actual serial dependency depth is thirty at unit instruction duration. -/
-theorem refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_depth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     (refreshInto (model := model) basis refs).depth (fun _ => 1) path = 30 := rfl
 
 /-- All six actual refreshes restore borrowed correlations jointly with external references. -/
-theorem refreshInto_borrowedRestored {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_borrowedRestored {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (refreshInto (model := model) basis refs).BorrowedRestored Reference state
-      ((refreshInto (model := model) basis refs).execute Reference state) := by
-  refine Circuit.borrowedRestored_seq (entryInto basis refs .g11) _ state
+      ((refreshInto (model := model) basis refs).execute environment Reference state) := by
+  refine Circuit.borrowedRestored_seq
+    (environment := environment) (entryInto basis refs .g11) _ state
     (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _) ?_
-  refine Circuit.borrowedRestored_seq (entryInto basis refs .g21) _ _
+  refine Circuit.borrowedRestored_seq (environment := environment) (entryInto basis refs .g21) _ _
     (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _) ?_
-  refine Circuit.borrowedRestored_seq (entryInto basis refs .g31) _ _
+  refine Circuit.borrowedRestored_seq (environment := environment) (entryInto basis refs .g31) _ _
     (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _) ?_
-  refine Circuit.borrowedRestored_seq (entryInto basis refs .g22) _ _
+  refine Circuit.borrowedRestored_seq (environment := environment) (entryInto basis refs .g22) _ _
     (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _) ?_
-  refine Circuit.borrowedRestored_seq (entryInto basis refs .g32) _ _
+  refine Circuit.borrowedRestored_seq (environment := environment) (entryInto basis refs .g32) _ _
     (LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _) ?_
   exact LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference _
 
 /-- All thirty actual instructions use the original complete context. -/
-theorem refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_visited {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     (refreshInto (model := model) basis refs).visitedContexts path =
       List.replicate 30 ctx := rfl
 
 /-- Resident accounting includes the complete supplied quantum and classical storage. -/
-theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     (refreshInto (model := model) basis refs).peakResidentSpace path ≤ ctx.residentSpace := by
@@ -107,7 +109,7 @@ theorem refreshInto_resident_le {model : ExecutionModel} [BitWord.Selected model
   rw [(List.mem_replicate.mp present).2]
 
 /-- Auxiliary accounting retains all original cell roles throughout the actual computation. -/
-theorem refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
+lemma refreshInto_auxiliary_le {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (basis : LatticeState.BasisRefs ctx width)
     (refs : Refs ctx width) (path : (refreshInto (model := model) basis refs).Path) :
     (refreshInto (model := model) basis refs).peakAuxiliarySpace path ≤

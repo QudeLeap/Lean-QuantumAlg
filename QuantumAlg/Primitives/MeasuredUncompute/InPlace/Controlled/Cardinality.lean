@@ -24,22 +24,22 @@ noncomputable section
 
 open MAU.Multiplication MAU.Inversion.SharedEEA
 
-private theorem primitive_card : EncodedBit.GateSpec.primitiveAlphabet.card = 3 := rfl
+private lemma primitive_card : EncodedBit.GateSpec.primitiveAlphabet.card = 3 := rfl
 
-private theorem variable_card (width : Nat) :
+private lemma variable_card (width : Nat) :
     (VariableGidney.nativeBudget width).card = 3 * VariableGidney.eventBound width := by
   simp only [VariableGidney.nativeBudget, VariableGidney.stageBudget, Multiset.card_nsmul,
     primitive_card, VariableGidney.eventBound]
   ring
 
-private theorem controlled_card (count : Nat) :
+private lemma controlled_card (count : Nat) :
     (controlledBudget count true).card = 5 * count := by
   simp only [controlledBudget, ↓reduceIte, Multiset.card_add,
     Multiset.card_nsmul, ResourcePool.singleton, Multiset.card_replicate]
   omega
 
 /-- Both original operations have the same complete independent native-pool cardinality. -/
-theorem controlledMeasuredArithmetic_budget_card (operation : InPlaceTarget.Operation)
+lemma controlledMeasuredArithmetic_budget_card (operation : InPlaceTarget.Operation)
     (width : Nat) :
     (events operation width).card = 10 * ForwardResources.inPlaceBound width +
       11 * VariableGidney.eventBound width + 13 * width + 4 := by
@@ -50,7 +50,7 @@ theorem controlledMeasuredArithmetic_budget_card (operation : InPlaceTarget.Oper
       ResourcePool.singleton, Multiset.card_replicate] <;> ring
 
 /-- The original parallel Hadamard layer contributes one unit to the serial depth allowance. -/
-theorem controlledMeasuredArithmetic_depthBound_eq (operation : InPlaceTarget.Operation)
+lemma controlledMeasuredArithmetic_depthBound_eq (operation : InPlaceTarget.Operation)
     (width : Nat) :
     depthBound operation width = 10 * ForwardResources.inPlaceBound width +
       11 * VariableGidney.eventBound width + 12 * width + 5 := by

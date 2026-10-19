@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Both real checks and selectors implement exactly the original ordered divisor decisions. -/
-theorem nativeQuadratic_checked_pair_latches (inputs : Operands ctx width)
+lemma nativeQuadratic_checked_pair_latches (inputs : Operands ctx width)
     (operands : OperandsSeparated inputs) (separated : SelectorSeparated inputs)
     (store : Store (context ctx width))
     (oneValue : (store.read (underRead inputs.one width)).toNat = 1)

@@ -32,7 +32,7 @@ noncomputable section
 private abbrev layout (width : Nat) :=
   (QuantumSignature.qubits width).canonicalPlacement.layout
 
-private theorem first_complement (width : Nat) (operator : UnitaryOperator (Qubits 1))
+private lemma first_complement (width : Nat) (operator : UnitaryOperator (Qubits 1))
     (row column : (layout (1 + width)).Basis) :
     let application :=
       singleQubitApplication (layout (1 + width)) operator (0 : Fin (1 + width)) rfl
@@ -74,17 +74,18 @@ private theorem first_complement (width : Nat) (operator : UnitaryOperator (Qubi
     | right tail => exact congrFun same tail
 
 /-- The leading native operation has identity action on the complete original suffix. -/
-public theorem singleQubitAt_first_matrix_entry (oracles : OracleModel) (width : Nat)
+public lemma singleQubitAt_first_matrix_entry (oracles : OracleModel) (width : Nat)
     (operator : UnitaryOperator (Qubits 1))
-    (row column : (QuantumSignature.qubits (1 + width)).Basis) :
-    (singleQubitAt (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout
-      oracles operator (0 : Fin (1 + width)) rfl).matrix row column =
+    (row column : (QuantumSignature.qubits (1 + width)).Basis)
+      (environment : oracles.Interpretation) :
+    ((singleQubitAt (QuantumSignature.qubits (1 + width)).canonicalPlacement.layout
+      oracles operator (0 : Fin (1 + width)) rfl).matrix environment) row column =
       operator (row (0 : Fin (1 + width))) (column (0 : Fin (1 + width))) *
         (if (fun index : Fin width => row (Fin.natAdd 1 index)) =
           (fun index : Fin width => column (Fin.natAdd 1 index)) then 1 else 0) := by
   classical
   refine (singleQubitAt_matrix_entry (layout (1 + width)) oracles operator
-    (0 : Fin (1 + width)) rfl row column).trans ?_
+    (0 : Fin (1 + width)) rfl row column environment).trans ?_
   by_cases same : (fun index : Fin width => row (Fin.natAdd 1 index)) =
       (fun index : Fin width => column (Fin.natAdd 1 index))
   · rw [if_pos ((first_complement width operator row column).mpr same), if_pos same]

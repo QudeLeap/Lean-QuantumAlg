@@ -86,16 +86,16 @@ def metricStore (refs : Refs ctx width) (metric : Metric) (store : Store ctx) : 
   LatticeDotRefresh.refreshStore (inputPointRefs refs (metricLeft metric))
     (inputPointRefs refs (metricRight metric)) (metricRefs refs metric) store
 
-private theorem metric_output_key (refs : Refs ctx width) (metric : Metric) :
+private lemma metric_output_key (refs : Refs ctx width) (metric : Metric) :
     (metricRefs refs metric).dot.key = phaseCellKey refs (metricCell metric) := by
   cases metric <;> rfl
 
-private theorem metric_product_key (refs : Refs ctx width) (metric : Metric) :
+private lemma metric_product_key (refs : Refs ctx width) (metric : Metric) :
     (metricRefs refs metric).product.key = phaseCellKey refs .dotProduct := by
   cases metric <;> rfl
 
 /-- Any named caller cell distinct from the two actual outputs is unchanged. -/
-theorem metricInto_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma metricInto_frame (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (metric : Metric) (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape)
     (source : PhaseCell) (sourceKey : other.key = phaseCellKey refs source)
     (notMetric : metricCell metric ≠ source) (notProduct : .dotProduct ≠ source) :
@@ -110,7 +110,7 @@ theorem metricInto_frame (refs : Refs ctx width) (separation : PhaseSeparation r
       separation.phaseCellKey_ne _ _ notProduct
 
 /-- All input points survive every actual metric refresh. -/
-theorem metricInto_preserves_point (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma metricInto_preserves_point (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (metric : Metric) (store : Store ctx) (point : InputPoint)
     (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store (inputPointRefs refs point) value) :
@@ -175,7 +175,7 @@ theorem metricInto_preserves_point (refs : Refs ctx width) (separation : PhaseSe
       exact rep.2.2
 
 /-- The selected actual output is the integer dot product of its two original input points. -/
-theorem metricInto_correct (refs : Refs ctx width) (separation : Separation refs)
+lemma metricInto_correct (refs : Refs ctx width) (separation : Separation refs)
     (metric : Metric) (store : Store ctx) (values : InputPoint → NumberTheory.IntegerPoint3)
     (reps : ∀ point, LatticeArithmetic.PointRawRepresents store
       (inputPointRefs refs point) (values point)) :
@@ -195,7 +195,7 @@ theorem metricInto_correct (refs : Refs ctx width) (separation : Separation refs
     (reps (metricLeft metric)) (reps (metricRight metric))).1
 
 /-- A later different metric preserves the earlier actual accumulator. -/
-theorem metricInto_preserves_metric (refs : Refs ctx width) (separation : PhaseSeparation refs)
+lemma metricInto_preserves_metric (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (written retained : Metric) (different : written ≠ retained) (store : Store ctx) :
     (metricStore refs written store).read (writeInput (metricRefs refs retained).dot) =
       store.read (writeInput (metricRefs refs retained).dot) := by

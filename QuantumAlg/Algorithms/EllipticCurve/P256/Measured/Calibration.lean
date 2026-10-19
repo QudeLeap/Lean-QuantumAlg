@@ -33,16 +33,16 @@ private def selectedFloor : ℝ :=
 private def exceptionalError : ℝ :=
   4 * Real.sqrt ((1040 : ℝ) / ((DomainParameters.subgroupOrder - 1 : Nat) : ℝ))
 
-private theorem order_le_modulus :
+private lemma order_le_modulus :
     DomainParameters.subgroupOrder ≤ PrimeOrderTailBound.P256.fourierModulus := by
   rw [PrimeOrderTailBound.P256.fourierModulus_eq]
   norm_num [DomainParameters.subgroupOrder]
 
-private theorem selectedFloor_bounds : (1 : ℝ) / 2048 ≤ selectedFloor ∧ selectedFloor ≤ 1 := by
+private lemma selectedFloor_bounds : (1 : ℝ) / 2048 ≤ selectedFloor ∧ selectedFloor ≤ 1 := by
   rw [selectedFloor, PrimeOrderTailBound.P256.fourierModulus_eq]
   norm_num [DomainParameters.subgroupOrder]
 
-private theorem exceptionalError_le_reserve :
+private lemma exceptionalError_le_reserve :
     exceptionalError ≤ (1 : ℝ) / (200000 * 4714) := by
   have certificate : 16 * 1040 * (200000 * 4714) ^ 2 ≤
       DomainParameters.subgroupOrder - 1 := by
@@ -71,7 +71,7 @@ private theorem exceptionalError_le_reserve :
       mul_le_mul_of_nonneg_left rootBound (by norm_num)
     _ = _ := by norm_num
 
-private theorem idealFailure_eq_source :
+private lemma idealFailure_eq_source :
     1 - selectedFloor =
       (PrimeOrderTailBound.sourceFailureBudget DomainParameters.subgroupOrder
         PrimeOrderTailBound.P256.fourierModulus).value := by
@@ -87,7 +87,7 @@ private theorem idealFailure_eq_source :
     positivity
   field_simp
 
-private theorem idealFailure_power_le_analysis :
+private lemma idealFailure_power_le_analysis :
     (1 - selectedFloor) ^ 4714 ≤ (1999 : ℝ) / 200000 := by
   have calibrated := FailureBudget.retryFailurePowerForReal_le
     (PrimeOrderTailBound.sourceFailureBudget DomainParameters.subgroupOrder
@@ -105,7 +105,7 @@ private theorem idealFailure_power_le_analysis :
   rw [idealFailure_eq_source]
   exact calibrated
 
-private theorem power_perturbation {a b : ℝ} (nonnegative : 0 ≤ b)
+private lemma power_perturbation {a b : ℝ} (nonnegative : 0 ≤ b)
     (ordered : b ≤ a) (bounded : a ≤ 1) (count : Nat) :
     a ^ count ≤ b ^ count + count * (a - b) := by
   have aNonnegative := nonnegative.trans ordered
@@ -122,7 +122,7 @@ private theorem power_perturbation {a b : ℝ} (nonnegative : 0 ≤ b)
   linarith
 
 /-- The original 4714 repetitions cover the complete fixed-offset P-256 error. -/
-private theorem correctedFailurePower_le_onePercent :
+private lemma correctedFailurePower_le_onePercent :
     (1 - (selectedFloor - exceptionalError)) ^ 4714 ≤ (1 : ℝ) / 100 := by
   have errorNonnegative : 0 ≤ exceptionalError := by
     unfold exceptionalError
@@ -145,7 +145,7 @@ private theorem correctedFailurePower_le_onePercent :
     ((add_le_add idealFailure_power_le_analysis accumulated).trans_eq (by norm_num))
 
 /-- The original known-order P-256 expression has a complete one-percent failure budget. -/
-theorem originalOffsetFailurePower_le_onePercent (publicKey : DomainParameters.PublicKeyInstance) :
+lemma originalOffsetFailurePower_le_onePercent (publicKey : DomainParameters.PublicKeyInstance) :
     let problem := PrimeFieldShortWeierstrass.ECDLP.Canonical.problem
       (Cascade.ecdlpInstance publicKey)
     (1 - ((problem.order : ℝ) * Nat.totient problem.order /

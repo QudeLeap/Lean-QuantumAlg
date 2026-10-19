@@ -77,7 +77,7 @@ def popStore (width : Nat) (store : Store (context ctx width)) : Store ctx :=
   stage0
 
 /-- The structural lift retains the exact original set of read keys. -/
-theorem samplerLayout_underRead_keys {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
+lemma samplerLayout_underRead_keys {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
     (underRead input width).storageKeys = input.storageKeys := by
   let reference1 : CInputRef (modulusCtx ctx width) shape :=
     input.underWorkspace ctx.canonicalFreshKey (.unsignedWord (width + 1))
@@ -149,7 +149,7 @@ theorem samplerLayout_underRead_keys {shape : CShape} (input : CInputRef ctx sha
     h5.trans (h4.trans (h3.trans (h2.trans (h1))))))))))
 
 /-- Real lexical entry preserves the complete value of every original structural input. -/
-theorem samplerLayout_push_read {shape : CShape} (input : CInputRef ctx shape)
+lemma samplerLayout_push_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store ctx) :
     (pushStore width store).read (underRead input width) = store.read input := by
   let reference1 : CInputRef (modulusCtx ctx width) shape :=
@@ -255,7 +255,7 @@ theorem samplerLayout_push_read {shape : CShape} (input : CInputRef ctx shape)
     h5.trans (h4.trans (h3.trans (h2.trans (h1))))))))))
 
 /-- Real lexical exit exposes precisely the final value of each original structural input. -/
-theorem samplerLayout_pop_read {shape : CShape} (input : CInputRef ctx shape)
+lemma samplerLayout_pop_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store (context ctx width)) :
     (popStore width store).read input = store.read (underRead input width) := by
   let reference1 : CInputRef (modulusCtx ctx width) shape :=
@@ -365,12 +365,12 @@ theorem samplerLayout_pop_read {shape : CShape} (input : CInputRef ctx shape)
     h7.trans (h8.trans (h9.trans (h10.trans (h11))))))))))
 
 /-- The actual allocated GCD-result cell supplies the scan's zero endpoint. -/
-theorem samplerLayout_push_zero (width : Nat) (store : Store ctx) :
+lemma samplerLayout_push_zero (width : Nat) (store : Store ctx) :
     (pushStore width store).read (FirstAccepted.cellRead (gcdResultCell ctx width)) =
       CShape.wordOfNat (width + 1) 0 := rfl
 
 /-- The actual allocated acceptance latch starts empty, independently of caller storage. -/
-theorem samplerLayout_push_unaccepted (width : Nat) (store : Store ctx) :
+lemma samplerLayout_push_unaccepted (width : Nat) (store : Store ctx) :
     (pushStore width store).read (FirstAccepted.cellRead (acceptedCell ctx width)) =
       .bit false := rfl
 

@@ -54,7 +54,7 @@ def checkedInverse {width : Nat} (spec : ModulusSpec width)
 
 /-- A raw-engine coefficient satisfying XGCD's decoder contract reduces to
 the Engine's unique pure inverse coefficient. -/
-theorem reduceRawCoefficient_eq_inverseCoefficient {width : Nat}
+lemma reduceRawCoefficient_eq_inverseCoefficient {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (raw : CShape.Word (signedWidth width))
     (decoded : XGCD.decodeRawSignedWord (width := xgcdWidth width) raw =
@@ -66,7 +66,7 @@ theorem reduceRawCoefficient_eq_inverseCoefficient {width : Nat}
 
 /-- The explicit signed-reduction target agrees with the shared inverse
 coefficient whenever the reusable XGCD engine supplies its decoder contract. -/
-theorem rawCanonicalResidue_eq_inverseCoefficient {width : Nat}
+lemma rawCanonicalResidue_eq_inverseCoefficient {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (raw : CShape.Word (signedWidth width))
     (decoded : XGCD.decodeRawSignedWord (width := xgcdWidth width) raw =
@@ -77,14 +77,14 @@ theorem rawCanonicalResidue_eq_inverseCoefficient {width : Nat}
   exact reduceRawCoefficient_eq_inverseCoefficient
     spec denominator raw decoded
 
-@[simp] theorem xgcdInput_left_val {width : Nat}
+@[simp] lemma xgcdInput_left_val {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     (xgcdInput spec denominator).left.val = spec.modulus := by
   unfold xgcdInput xgcdWidth
   rw [fixedWidthWordOfNat_val, Nat.mod_eq_of_lt]
   exact modulusSpec_modulus_lt_extended spec
 
-@[simp] theorem xgcdInput_right_val {width : Nat}
+@[simp] lemma xgcdInput_right_val {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     (xgcdInput spec denominator).right.val = denominator.val := by
   unfold xgcdInput xgcdWidth
@@ -93,7 +93,7 @@ theorem rawCanonicalResidue_eq_inverseCoefficient {width : Nat}
 
 /-- Comparing widened XGCD's raw gcd with one is exactly the endpoint unit
 decision; no separate primality or ring-inverse test is involved. -/
-theorem checkedEngine_xgcdGcdOne_iff {width : Nat}
+lemma checkedEngine_xgcdGcdOne_iff {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     (XGCD.PureXGCD.eval
       (xgcdInput spec denominator)).gcd.val = 1 ↔
@@ -104,7 +104,7 @@ theorem checkedEngine_xgcdGcdOne_iff {width : Nat}
 
 /-- On a unit denominator, the shared coefficient reduction is a genuine
 canonical inverse. -/
-theorem inverseCoefficient_mul_mod {width : Nat}
+lemma inverseCoefficient_mul_mod {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (coprime : Nat.Coprime denominator.val spec.modulus) :
     denominator.val * (inverseCoefficient spec denominator).val %
@@ -172,7 +172,7 @@ theorem inverseCoefficient_mul_mod {width : Nat}
 
 /-- The shared coefficient agrees with the pure endpoint's selected canonical
 inverse whenever the denominator is a unit. -/
-theorem inverseCoefficient_eq_candidate {width : Nat}
+lemma inverseCoefficient_eq_candidate {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (coprime : Nat.Coprime denominator.val spec.modulus) :
     inverseCoefficient spec denominator =
@@ -182,13 +182,13 @@ theorem inverseCoefficient_eq_candidate {width : Nat}
     (inverseCoefficient spec denominator) coprime
     (inverseCoefficient_mul_mod spec denominator coprime)
 
-@[simp] theorem checkedEngine_unitDecision_true_iff {width : Nat}
+@[simp] lemma checkedEngine_unitDecision_true_iff {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     unitDecision spec denominator = true ↔
       Nat.Coprime denominator.val spec.modulus := by
   simp [unitDecision]
 
-@[simp] theorem checkedEngine_unitDecision_false_iff {width : Nat}
+@[simp] lemma checkedEngine_unitDecision_false_iff {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     unitDecision spec denominator = false ↔
       ¬ Nat.Coprime denominator.val spec.modulus := by
@@ -196,7 +196,7 @@ theorem inverseCoefficient_eq_candidate {width : Nat}
 
 /-- The raw gcd value supplied by `RawEngineRelation` selects the same success
 bit as the shared pure unit decision. -/
-theorem checkedEngine_rawGcdOne_iff_unitDecision {width : Nat}
+lemma checkedEngine_rawGcdOne_iff_unitDecision {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (rawGcd : CShape.Word (xgcdWidth width))
     (rawValue : rawGcd.toNat =
@@ -212,7 +212,7 @@ theorem checkedEngine_rawGcdOne_iff_unitDecision {width : Nat}
     _ ↔ unitDecision spec denominator = true :=
       (checkedEngine_unitDecision_true_iff spec denominator).symm
 
-theorem checkedEngine_checkedInverse_of_unitDecision_true {width : Nat}
+lemma checkedEngine_checkedInverse_of_unitDecision_true {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (success : unitDecision spec denominator = true) :
     checkedInverse spec denominator =
@@ -221,7 +221,7 @@ theorem checkedEngine_checkedInverse_of_unitDecision_true {width : Nat}
     (checkedEngine_unitDecision_true_iff spec denominator).1 success
   simp [checkedInverse, coprime]
 
-theorem checkedEngine_checkedInverse_of_unitDecision_false {width : Nat}
+lemma checkedEngine_checkedInverse_of_unitDecision_false {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec)
     (failure : unitDecision spec denominator = false) :
     checkedInverse spec denominator = none := by
@@ -232,7 +232,7 @@ theorem checkedEngine_checkedInverse_of_unitDecision_false {width : Nat}
 /-- The Engine-level pure result is definitionally the same checked operation
 as the public pure model, with the XGCD coefficient bridge discharging the
 successful branch. -/
-theorem checkedEngine_checkedInverse_eq_tryInvEval {width : Nat}
+lemma checkedEngine_checkedInverse_eq_tryInvEval {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     checkedInverse spec denominator =
       ClassicalAlgorithms.NumberTheory.TryInv.eval
@@ -246,7 +246,7 @@ theorem checkedEngine_checkedInverse_eq_tryInvEval {width : Nat}
 
 /-- The shared pure result satisfies the normalization-independent checked-
 inverse acceptance relation used by public endpoints. -/
-theorem checkedEngine_checkedInverse_accepts {width : Nat}
+lemma checkedEngine_checkedInverse_accepts {width : Nat}
     (spec : ModulusSpec width) (denominator : Residue spec) :
     ClassicalAlgorithms.NumberTheory.TryInv.accepts denominator
       (checkedInverse spec denominator) := by

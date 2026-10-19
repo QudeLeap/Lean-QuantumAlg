@@ -23,6 +23,8 @@ namespace MeasuredPlacement.Allocation
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute
 
 /-- A selected first step constrains supplied affine words only when its exponent is active. -/
@@ -34,7 +36,7 @@ def inputStepAdmissible {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : Affine
         x.val = P.x.val ∧ y.val = P.y.val ∧ P ≠ Q ∧ P ≠ AffinePoint.negate Q)
 
 /-- The actual prepared basis satisfies the internal domain using only the original input. -/
-theorem initializedReadyBasis_admissible {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma initializedReadyBasis_admissible {p : Nat} (E : PrimeFieldShortWeierstrass p)
     (Q : AffinePoint E) {count : Nat} (active : Fin count)
     (original : (before p.size count).register.Index)
     (allowed : inputStepAdmissible E Q active original) :
@@ -47,7 +49,7 @@ theorem initializedReadyBasis_admissible {p : Nat} (E : PrimeFieldShortWeierstra
   exact valid
 
 /-- Independent initialization puts zero mass outside every established ready-basis predicate. -/
-theorem initializedDensity_support (modulus count : Nat) (Reference : Register)
+lemma initializedDensity_support (modulus count : Nat) (Reference : Register)
     (input : DensityOperator (Register.prod (before modulus.size count).register Reference))
     (allowed : (before modulus.size count).register.Index → Prop)
     (prepared : (readyContext modulus.size count).register.Index → Prop)
@@ -80,7 +82,7 @@ theorem initializedDensity_support (modulus count : Nat) (Reference : Register)
     rw [amplitude, zero_mul, zero_mul]
 
 /-- Actual initialization establishes a selected first step's full joint support from input. -/
-theorem initialize_step_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
+lemma initialize_step_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q : AffinePoint E)
     {count : Nat} (active : Fin count) {Reference : Register} {History : Type} [Fintype History]
     (state : State (before p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × History))
@@ -89,7 +91,7 @@ theorem initialize_step_support {p : Nat} (E : PrimeFieldShortWeierstrass p) (Q 
     ∀ output : (Register.prod (after p.size count).register Reference).Index,
       ¬stepAdmissible E Q active
         ((ContextPermutation.basis (body_entries p.size count)).symm output.1) →
-          ((initializeWork p count).execute Reference state).quantumMarginal.matrix
+          ((initializeWork p count).execute environment Reference state).quantumMarginal.matrix
             output output = 0 := by
   rw [initialize_density]
   exact initializedDensity_support p count Reference state.quantumMarginal

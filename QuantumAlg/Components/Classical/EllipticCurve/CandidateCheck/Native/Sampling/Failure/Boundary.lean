@@ -25,18 +25,18 @@ open Execution
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 attribute [local irreducible] persistentCtx packBatchResultStep
 
-private theorem packOption_none_iff {shape : CShape}
+private lemma packOption_none_iff {shape : CShape}
     (tag : CShape.Value .bit) (value : CShape.Value shape) :
     CShape.packOption (.product tag value) = .optionNone ↔ tag.toBool = false := by
   cases tag with
   | bit flag => cases flag <;> simp [CShape.packOption, CShape.Value.toBool]
 
-private theorem option_none_weight {shape : CShape} {R : Register}
+private lemma option_none_weight {shape : CShape} {R : Register}
     (state : DensityOperator R) (tag : CShape.Value .bit) (value : CShape.Value shape)
     (observed : CShape.Value (.option shape))
     (same : observed = CShape.packOption (.product tag value)) :
@@ -45,10 +45,10 @@ private theorem option_none_weight {shape : CShape} {R : Register}
   simp only [same, packOption_none_iff]
 
 /-- The actual final optional output is absent exactly with the incoming failure mass. -/
-theorem packBatchResult_none_weight (width scalarWidth : Nat)
+lemma packBatchResult_none_weight (width scalarWidth : Nat)
     {Reference : Register} {H : Type} [Fintype H]
     (state : State (persistentCtx ctx width scalarWidth) Reference (model.HiddenState × H)) :
-    ((packBatchResult ctx width scalarWidth).execute Reference state).effectWeight
+    ((packBatchResult ctx width scalarWidth).execute environment Reference state).effectWeight
         (fun entry => if entry.1.read (batchResultRead ctx width scalarWidth) = .optionNone then
           Effect.one ((batchResultCtx ctx width scalarWidth).register.prod Reference)
         else Effect.zero ((batchResultCtx ctx width scalarWidth).register.prod Reference)) =

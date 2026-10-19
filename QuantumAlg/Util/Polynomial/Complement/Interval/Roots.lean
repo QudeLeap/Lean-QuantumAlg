@@ -48,20 +48,20 @@ structure SourceRootClassFacts (A : ℝ[X]) where
 
 namespace SourceRootClassFacts
 
-private theorem two_mul_half_of_even {n : ℕ} (h : Even n) : 2 * (n / 2) = n := by
+private lemma two_mul_half_of_even {n : ℕ} (h : Even n) : 2 * (n / 2) = n := by
   rcases h with ⟨m, rfl⟩
   have hdouble : m + m = 2 * m := by omega
   rw [hdouble, Nat.mul_div_right m (by norm_num : 0 < 2)]
 
 /-- Zero-root evenness transported to the complexified polynomial. -/
-theorem complex_zero_multiplicity_even {A : ℝ[X]} (facts : SourceRootClassFacts A) :
+lemma complex_zero_multiplicity_even {A : ℝ[X]} (facts : SourceRootClassFacts A) :
     Even ((realPolynomialToComplex A).rootMultiplicity (0 : ℂ)) := by
   change Even ((realPolynomialToComplex A).rootMultiplicity ((0 : ℝ) : ℂ))
   rw [facts.complex_ofReal_multiplicity 0]
   exact facts.zero_multiplicity_even
 
 /-- Interior real-root evenness transported to the complexified polynomial. -/
-theorem complex_ofReal_interior_multiplicity_even {A : ℝ[X]}
+lemma complex_ofReal_interior_multiplicity_even {A : ℝ[X]}
     (facts : SourceRootClassFacts A) {s : ℝ} (hs : s ∈ Set.Ioo (-1 : ℝ) 1) :
     Even ((realPolynomialToComplex A).rootMultiplicity (s : ℂ)) := by
   rw [facts.complex_ofReal_multiplicity s]
@@ -76,7 +76,7 @@ noncomputable def complexRealRootMultiplicity {A : ℝ[X]} (_facts : SourceRootC
 
 /-- Even-polynomial symmetry identifies the multiplicities of `s` and `-s`
 after complexification. -/
-theorem complexRealRootMultiplicity_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
+lemma complexRealRootMultiplicity_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
     (s : ℝ) :
     facts.complexRealRootMultiplicity (-s) = facts.complexRealRootMultiplicity s := by
   unfold complexRealRootMultiplicity
@@ -90,7 +90,7 @@ noncomputable def zeroRootPairCount {A : ℝ[X]} (_facts : SourceRootClassFacts 
   (realPolynomialToComplex A).rootMultiplicity (0 : ℂ) / 2
 
 /-- The paired zero-root count accounts for all zero-root multiplicity. -/
-theorem two_mul_zeroRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A) :
+lemma two_mul_zeroRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A) :
     2 * facts.zeroRootPairCount =
       (realPolynomialToComplex A).rootMultiplicity (0 : ℂ) :=
   two_mul_half_of_even facts.complex_zero_multiplicity_even
@@ -103,7 +103,7 @@ noncomputable def interiorRealRootPairCount {A : ℝ[X]} (_facts : SourceRootCla
   (realPolynomialToComplex A).rootMultiplicity (s : ℂ) / 2
 
 /-- Interior real-root pair counts are invariant under `s ↦ -s`. -/
-theorem interiorRealRootPairCount_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
+lemma interiorRealRootPairCount_neg {A : ℝ[X]} (facts : SourceRootClassFacts A)
     (s : ℝ) :
     facts.interiorRealRootPairCount (-s) = facts.interiorRealRootPairCount s := by
   unfold interiorRealRootPairCount
@@ -112,7 +112,7 @@ theorem interiorRealRootPairCount_neg {A : ℝ[X]} (facts : SourceRootClassFacts
   rw [facts.complexRealRootMultiplicity_neg s]
 
 /-- The paired interior-root count accounts for full multiplicity at `s`. -/
-theorem two_mul_interiorRealRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A)
+lemma two_mul_interiorRealRootPairCount {A : ℝ[X]} (facts : SourceRootClassFacts A)
     {s : ℝ} (hs : s ∈ Set.Ioo (-1 : ℝ) 1) :
     2 * facts.interiorRealRootPairCount s =
       (realPolynomialToComplex A).rootMultiplicity (s : ℂ) :=

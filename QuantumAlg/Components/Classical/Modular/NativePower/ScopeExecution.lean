@@ -29,12 +29,13 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width exponentWidth : Nat}
 
 /-- Native modular power has the exact entered-body-exited store update on every full block. -/
-theorem nativePower_into_execute (spec : ModulusSpec width)
+lemma nativePower_into_execute (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (output : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) spec base exponent output).execute Reference state =
+    (into (model := model) spec base exponent output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((intoStep (model := model) spec base exponent output entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -58,15 +59,17 @@ theorem nativePower_into_execute (spec : ModulusSpec width)
       (.unsignedWord width) (modulusCtx ctx width).canonicalFreshKey_fresh)
     (Store.popWorkspace (modulusCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (modulusCtx ctx width).canonicalFreshKey_fresh next.1, next.2)
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord (width + 1)) ctx.canonicalFreshKey_fresh modulusScope
     (fun entry => let next := modulusUpdate entry.1; ((next.1, entry.2), next.2))
     (fun reference {_} _ initial => ?_) Reference state).trans ?_
-  · refine (Circuit.execute_workspace_mapClassical (modulusCtx ctx width).canonicalFreshKey
+  · refine (Circuit.execute_workspace_mapClassical
+      (environment := environment) (modulusCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (modulusCtx ctx width).canonicalFreshKey_fresh baseScope
       (fun entry => let next := baseUpdate entry.1; ((next.1, entry.2), next.2))
       (fun reference' {_} _ initial' => ?_) reference initial).trans ?_
-    · refine (Circuit.execute_workspace_mapClassical (baseCtx ctx width).canonicalFreshKey
+    · refine (Circuit.execute_workspace_mapClassical
+        (environment := environment) (baseCtx ctx width).canonicalFreshKey
         (.unsignedWord width) (baseCtx ctx width).canonicalFreshKey_fresh inner
         (fun entry => let next := innerUpdate entry.1; ((next.1, entry.2), next.2))
         (fun reference'' {_} _ initial'' => nativePower_body_execute spec base exponent output

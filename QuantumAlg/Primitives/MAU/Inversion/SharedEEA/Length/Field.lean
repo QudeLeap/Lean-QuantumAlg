@@ -40,7 +40,7 @@ def xorLength {width : Nat} (field : Field) (mask : BitVec width.size)
   | .coefficient => { state with coefficientLength := state.coefficientLength ^^^ mask }
   | .divisor => { state with divisorLength := state.divisorLength ^^^ mask }
 
-private theorem target_get (width : Nat) (field : Field) (index : Fin width.size)
+private lemma target_get (width : Nat) (field : Field) (index : Fin width.size)
     (state : Registers width) :
     ((LengthWrite.target width field).bit index).get state =
       (value field state).getLsbD index.val := by
@@ -60,7 +60,7 @@ private theorem target_get (width : Nat) (field : Field) (index : Fin width.size
       simp only [BitVec.getMsbD_eq_getLsbD, index.rev.isLt, decide_true, Bool.true_and,
         reverse, value]
 
-private theorem target_distinct (width : Nat) (field : Field) (left right : Fin width.size)
+private lemma target_distinct (width : Nat) (field : Field) (left right : Fin width.size)
     (different : left ≠ right) :
     ((LengthWrite.target width field).bit left).wire ≠
       ((LengthWrite.target width field).bit right).wire := by
@@ -74,7 +74,7 @@ private theorem target_distinct (width : Nat) (field : Field) (left right : Fin 
     divisorLengthBit_wire, Fin.val_rev] at values <;> omega
 
 /-- The actual native constant write gives exact finite-word XOR in its target field. -/
-theorem constant_value (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
+lemma constant_value (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
     (state : Registers width) :
     value field (Word.xorConstantStep (LengthWrite.target width field) constant state) =
       value field state ^^^ BitVec.ofFin constant := by
@@ -91,12 +91,12 @@ private def withoutLength {width : Nat} (field : Field) (state : Registers width
   | .coefficient => { state with coefficientLength := 0#width.size }
   | .divisor => { state with divisorLength := 0#width.size }
 
-private theorem withoutLength_flip (width : Nat) (field : Field) (bit : Fin width.size)
+private lemma withoutLength_flip (width : Nat) (field : Field) (bit : Fin width.size)
     (state : Registers width) :
     withoutLength field ((outputBit width field bit).flip state) = withoutLength field state := by
   cases field <;> rfl
 
-private theorem constant_withoutLength (width : Nat) (field : Field)
+private lemma constant_withoutLength (width : Nat) (field : Field)
     (constant : Fin (2 ^ width.size)) (state : Registers width) :
     withoutLength field (Word.xorConstantStep (LengthWrite.target width field) constant state) =
       withoutLength field state := by
@@ -110,7 +110,7 @@ private theorem constant_withoutLength (width : Nat) (field : Field)
       rw [ih, withoutLength_flip]
 
 /-- The complete constant write restores every original coordinate outside its real target field. -/
-theorem constant_step_eq (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
+lemma constant_step_eq (width : Nat) (field : Field) (constant : Fin (2 ^ width.size))
     (state : Registers width) :
     Word.xorConstantStep (LengthWrite.target width field) constant state =
       xorLength field (BitVec.ofFin constant) state := by
@@ -137,14 +137,14 @@ theorem constant_step_eq (width : Nat) (field : Field) (constant : Fin (2 ^ widt
           rfl
 
 /-- Decoding the exact finite constant gives the original finite-width bit-vector constructor. -/
-theorem constant_word (width number : Nat) :
+lemma constant_word (width number : Nat) :
     BitVec.ofFin (LengthWrite.constant width number) = BitVec.ofNat width.size number := by
   apply BitVec.eq_of_toNat_eq
   rw [BitVec.toNat_ofFin]
   rfl
 
 /-- The actual retained-key native writer has precisely this complete source-register update. -/
-theorem gates_step_eq (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
+lemma gates_step_eq (width : Nat) (field : Field) (key : BitVec width.size) (firstWord : Bool)
     (state : Registers width) :
     GateSpec.stepList (LengthWrite.gates width field key firstWord) state =
       if boundaryValue field state = key
@@ -158,19 +158,19 @@ theorem gates_step_eq (width : Nat) (field : Field) (key : BitVec width.size) (f
   · simp only [if_neg matched]
 
 /-- The identical finite XOR restores every incoming target value without erasing information. -/
-theorem xorLength_involutive {width : Nat} (field : Field) (mask : BitVec width.size) :
+lemma xorLength_involutive {width : Nat} (field : Field) (mask : BitVec width.size) :
     Function.Involutive (xorLength field mask) := by
   intro state
   cases field <;> simp only [xorLength, BitVec.xor_assoc, BitVec.xor_self, BitVec.xor_zero]
 
 /-- The complete record update preserves the retained boundary used by the source length refresh. -/
-theorem boundary_xorLength {width : Nat} (field : Field) (mask : BitVec width.size)
+lemma boundary_xorLength {width : Nat} (field : Field) (mask : BitVec width.size)
     (state : Registers width) :
     boundaryValue field (xorLength field mask state) = boundaryValue field state := by
   cases field <;> rfl
 
 /-- The complete original work word is retained even when outside-window payload is nonzero. -/
-theorem sourceWord_xorLength {width : Nat} (field : Field) (mask : BitVec width.size)
+lemma sourceWord_xorLength {width : Nat} (field : Field) (mask : BitVec width.size)
     (firstWord : Bool) (state : Registers width) :
     LengthRead.sourceWord firstWord (xorLength field mask state) =
       LengthRead.sourceWord firstWord state := by

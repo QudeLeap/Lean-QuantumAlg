@@ -77,19 +77,21 @@ noncomputable section
 
 /-- Interpret the actual tree as a certified unitary. Later operations multiply on the left. -/
 @[expose]
-public def toUnitary : {count : Nat} → {layout : QuantumLayout count} →
+public def toUnitary (environment : oracles.Interpretation) :
+    {count : Nat} → {layout : QuantumLayout count} →
     UnitarySequence gates oracles layout → UnitaryOperator layout.register
   | _, _, .id _ => 1
-  | _, _, .leaf atom => atom.operator
-  | _, _, .seq left right => right.toUnitary * left.toUnitary
-  | _, _, .embed placement body => placement.liftOperator body.toUnitary
+  | _, _, .leaf atom => (atom.operator environment)
+  | _, _, .seq left right => (right.toUnitary environment) * (left.toUnitary environment)
+  | _, _, .embed placement body => placement.liftOperator (body.toUnitary environment)
   | _, _, .parallel left right leftPlacement rightPlacement _ =>
-      rightPlacement.liftOperator right.toUnitary * leftPlacement.liftOperator left.toUnitary
-  | _, _, .iterate repetitions body => body.toUnitary ^ repetitions
+      rightPlacement.liftOperator (right.toUnitary environment) *
+        leftPlacement.liftOperator (left.toUnitary environment)
+  | _, _, .iterate repetitions body => (body.toUnitary environment) ^ repetitions
   | _, _, .indexedProduct _ _ start step =>
-      (List.ofFn (fun index => (step index).toUnitary)).foldl
-        (fun accumulated next => next * accumulated) start.toUnitary
-  | _, _, .macroCall _ body => body.toUnitary
+      (List.ofFn (fun index => ((step index).toUnitary environment))).foldl
+        (fun accumulated next => next * accumulated) (start.toUnitary environment)
+  | _, _, .macroCall _ body => (body.toUnitary environment)
 
 /-- Native execution occurrences, retaining sequential order and every macro expansion. -/
 @[expose]
@@ -172,31 +174,34 @@ public def macroTrace : {count : Nat} → {layout : QuantumLayout count} →
 
 variable {count : Nat} {layout : QuantumLayout count}
 
+variable (environment : oracles.Interpretation)
+
 /-- The identity changes no state and contributes no native event. -/
-@[simp] public theorem toUnitary_id :
-    toUnitary (id (gates := gates) (oracles := oracles) layout) = 1 := rfl
+@[simp] public lemma toUnitary_id :
+    toUnitary environment (id (gates := gates) (oracles := oracles) layout) = 1 := rfl
 
 /-- Sequential order is actual execution order. -/
-@[simp] public theorem toUnitary_seq (left right : UnitarySequence gates oracles layout) :
-    toUnitary (.seq left right) = right.toUnitary * left.toUnitary := rfl
+@[simp] public lemma toUnitary_seq (left right : UnitarySequence gates oracles layout) :
+    toUnitary environment (.seq left right) =
+      right.toUnitary environment * left.toUnitary environment := rfl
 
 /-- A macro's exact operator is the operator of its actual expansion. -/
-@[simp] public theorem toUnitary_macroCall (name : String)
+@[simp] public lemma toUnitary_macroCall (name : String)
     (body : UnitarySequence gates oracles layout) :
-    toUnitary (.macroCall name body) = body.toUnitary := rfl
+    toUnitary environment (.macroCall name body) = body.toUnitary environment := rfl
 
 /-- A macro's native cost is its expansion's actual cost. -/
-@[simp] public theorem eventCost_macroCall (name : String)
+@[simp] public lemma eventCost_macroCall (name : String)
     (body : UnitarySequence gates oracles layout) :
     eventCost (.macroCall name body) = body.eventCost := rfl
 
 /-- Macro boundaries do not restart or truncate a circuit's depth. -/
-@[simp] public theorem eventDepth_macroCall (name : String)
+@[simp] public lemma eventDepth_macroCall (name : String)
     (body : UnitarySequence gates oracles layout) :
     eventDepth (.macroCall name body) = body.eventDepth := rfl
 
 /-- Cost and dependency depth are coherent interpretations of the same execution tree. -/
-public theorem resourcesFromEventDepth_eq_eventCost
+public lemma resourcesFromEventDepth_eq_eventCost
     (sequence : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :
@@ -215,7 +220,7 @@ public theorem resourcesFromEventDepth_eq_eventCost
       simp [eventDepth, eventCost, startIH, stepIH]
   | macroCall name body bodyIH => simpa [eventDepth, eventCost] using bodyIH
 
-private theorem ofList_flatten_eventTraces {model : ExecutionModel}
+private lemma ofList_flatten_eventTraces {model : ExecutionModel}
     (traces : List (List (Resource.Event model))) :
     ResourcePool.ofList traces.flatten = (traces.map ResourcePool.ofList).sum := by
   induction traces with
@@ -223,7 +228,7 @@ private theorem ofList_flatten_eventTraces {model : ExecutionModel}
   | cons trace traces ih => simp [ih]
 
 /-- Forgetting event order gives exactly the symbolic native multiplicity ledger. -/
-@[simp] public theorem ofList_eventTrace_eq_eventCost
+@[simp] public lemma ofList_eventTrace_eq_eventCost
     (sequence : UnitarySequence gates oracles layout)
     (operations : ClassicalOpModel := .empty)
     (classicalOracles : ClassicalOracleModel := .empty) :

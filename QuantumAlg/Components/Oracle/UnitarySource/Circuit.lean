@@ -18,8 +18,9 @@ import all QuantumAlg.Core.Base.Layout.Qubit
 /-!
 # Actual granted source-unitary queries
 
-A source occurrence fixes its operator and coordinate through the selected
-oracle model. Placement supplies only the actual physical wires. Inverse and
+A source occurrence fixes its query and coordinate through the selected
+oracle interface. The execution environment supplies the operator. Placement supplies only the
+  actual physical wires. Inverse and
 controlled calls consume the grant evidence required by that model.
 -/
 
@@ -27,46 +28,53 @@ namespace QuantumAlg.UnitarySource.Circuit
 
 noncomputable section
 
-variable (gates : GateModel) {width : Nat}
-  (U : UnitaryOperator (Qubits width))
+variable (gates : GateModel) (width : Nat)
   (allowControlled allowInverse allowControlledInverse : Bool)
 
 /-- Execute one available source instance at its complete dimension-correct placement. -/
 def program (query : Query allowControlled allowInverse allowControlledInverse)
     (placement :
-      ((model U allowControlled allowInverse allowControlledInverse).signature query).Placement) :
-    UnitaryCircuit gates (model U allowControlled allowInverse allowControlledInverse)
+      ((model width allowControlled allowInverse allowControlledInverse).signature
+        query).Placement) :
+    UnitaryCircuit gates (model width allowControlled allowInverse allowControlledInverse)
       placement.layout :=
   .query (OracleModel.Application.onPlacement
-    (model U allowControlled allowInverse allowControlledInverse) query placement)
+    (model width allowControlled allowInverse allowControlledInverse) query placement)
 
-/-- The complete matrix is fixed by the declared query, with exact physical coordinate transport. -/
-theorem program_matrix (query : Query allowControlled allowInverse allowControlledInverse)
+/-- The selected interpretation is transported through the fixed physical query placement. -/
+lemma program_matrix
+    (environment : (model width allowControlled allowInverse allowControlledInverse).Interpretation)
+    (query : Query allowControlled allowInverse allowControlledInverse)
     (placement :
-      ((model U allowControlled allowInverse allowControlledInverse).signature query).Placement) :
-    (program gates U allowControlled allowInverse allowControlledInverse query placement).matrix =
+      ((model width allowControlled allowInverse allowControlledInverse).signature
+        query).Placement) :
+    (program gates width allowControlled allowInverse allowControlledInverse query
+      placement).matrix environment =
       UnitaryOperator.reindex placement.indexEquiv.symm
-        ((model U allowControlled allowInverse allowControlledInverse).operator query) := by
+        (environment.operator query) := by
   rw [program, UnitaryCircuit.query_matrix,
     OracleModel.Application.queryApplication_onPlacement_operator]
   rfl
 
 /-- One actual call contributes exactly its declared coordinate to the query ledger. -/
-theorem program_eventCost (query : Query allowControlled allowInverse allowControlledInverse)
+lemma program_eventCost (query : Query allowControlled allowInverse allowControlledInverse)
     (placement :
-      ((model U allowControlled allowInverse allowControlledInverse).signature query).Placement) :
-    (program gates U allowControlled allowInverse allowControlledInverse
+      ((model width allowControlled allowInverse allowControlledInverse).signature
+        query).Placement) :
+    (program gates width allowControlled allowInverse allowControlledInverse
       query placement).eventCost =
       ResourcePool.singleton
-        (model := .quantum gates (model U allowControlled allowInverse allowControlledInverse))
+        (model := .quantum gates (model width allowControlled allowInverse allowControlledInverse))
         (.oracle
-          ((model U allowControlled allowInverse allowControlledInverse).coordinate query)) := rfl
+          ((model width allowControlled allowInverse allowControlledInverse).coordinate query))
+            := rfl
 
 /-- One granted source query occupies one abstract dependency step. -/
-theorem program_unitDepth (query : Query allowControlled allowInverse allowControlledInverse)
+lemma program_unitDepth (query : Query allowControlled allowInverse allowControlledInverse)
     (placement :
-      ((model U allowControlled allowInverse allowControlledInverse).signature query).Placement) :
-    (program gates U allowControlled allowInverse allowControlledInverse
+      ((model width allowControlled allowInverse allowControlledInverse).signature
+        query).Placement) :
+    (program gates width allowControlled allowInverse allowControlledInverse
       query placement).evaluatedEventDepth (fun _ => 1) = 1 := rfl
 
 end

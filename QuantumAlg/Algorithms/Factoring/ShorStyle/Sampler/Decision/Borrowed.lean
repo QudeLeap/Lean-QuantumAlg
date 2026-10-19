@@ -28,7 +28,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem result_borrowed (shared : Proposal.SharedRefs ctx width)
+private lemma result_borrowed (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     (resultStep (model := model) shared scratch gcdResult store).1.readBorrowedClassical =
@@ -37,7 +37,7 @@ private theorem result_borrowed (shared : Proposal.SharedRefs ctx width)
   split <;> simp only [unitStore, factorStore, Store.readBorrowedClassical_applyOp]
 
 /-- The actual resize, Euclidean scopes and stored result arm preserve every borrowed value. -/
-theorem decisionAccepted_borrowed_values (shared : Proposal.SharedRefs ctx width)
+lemma decisionAccepted_borrowed_values (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     (acceptedStep (model := model) shared scratch gcdResult store).1.readBorrowedClassical =
@@ -49,7 +49,7 @@ theorem decisionAccepted_borrowed_values (shared : Proposal.SharedRefs ctx width
     (store.applyOp (Proposal.extendOp scratch))).trans
       (Store.readBorrowedClassical_applyOp store (Proposal.extendOp scratch))
 
-private theorem acceptance_borrowed (shared : Proposal.SharedRefs ctx width)
+private lemma acceptance_borrowed (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1))) (store : Store ctx) :
     (acceptanceStep (model := model) shared scratch gcdResult store).1.readBorrowedClassical =
@@ -60,7 +60,7 @@ private theorem acceptance_borrowed (shared : Proposal.SharedRefs ctx width)
   · exact Store.readBorrowedClassical_applyOp store (clearWordOp scratch.candidate)
 
 /-- The complete actual initialization, decision and parameter write preserve borrowed values. -/
-theorem decision_borrowed_values (shared : Proposal.SharedRefs ctx width)
+lemma decision_borrowed_values (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width)) (store : Store ctx) :

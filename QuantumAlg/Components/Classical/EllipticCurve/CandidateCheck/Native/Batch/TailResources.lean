@@ -25,7 +25,7 @@ open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
 /-- The same complete tail includes every actual attempt and its final option-pack event. -/
@@ -46,7 +46,7 @@ variable (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (base target : CInputRef ctx (PointShape width))
 
 /-- Actual initial retention leaves the complete loop's native event list unchanged. -/
-theorem recoveryBatch_eventTrace
+lemma recoveryBatch_eventTrace
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).eventTrace path =
       (repeatedAttempts curve modulus samples base target).eventTrace path.2 := by
@@ -54,7 +54,7 @@ theorem recoveryBatch_eventTrace
   rw [retainPersistent_eventTrace, List.nil_append]
 
 /-- The complete allocated loop obeys the same original repeated native allowance. -/
-theorem recoveryBatch_pool_le
+lemma recoveryBatch_pool_le
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).resourcePool path ≤
       repeatedAttemptsEnvelope model curve modulus count := by
@@ -62,7 +62,7 @@ theorem recoveryBatch_pool_le
   exact repeatedAttempts_pool_le curve modulus samples base target path.2
 
 /-- Real allocation adds no native duration to the original serial attempt loop. -/
-theorem recoveryBatch_depth_le (duration : Resource.Event model → Nat)
+lemma recoveryBatch_depth_le (duration : Resource.Event model → Nat)
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).depth duration path ≤
       count * attemptDepthLimit curve modulus duration := by
@@ -71,7 +71,7 @@ theorem recoveryBatch_depth_le (duration : Resource.Event model → Nat)
   exact repeatedAttempts_depth_le curve modulus samples base target duration path.2
 
 /-- Resident allocation and all actual iterations retain one persistent context beside scratch. -/
-theorem recoveryBatch_resident_le
+lemma recoveryBatch_resident_le
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).peakResidentSpace path ≤
       attemptScratchSpace model.kind width scalarWidth +
@@ -82,7 +82,7 @@ theorem recoveryBatch_resident_le
   · exact repeatedAttempts_resident_le curve modulus samples base target path.2
 
 /-- Auxiliary allocation and all actual iterations retain the same original caller roles. -/
-theorem recoveryBatch_auxiliary_le
+lemma recoveryBatch_auxiliary_le
     (path : (recoveryBatch curve modulus samples base target).Path) :
     (recoveryBatch curve modulus samples base target).peakAuxiliarySpace path ≤
       attemptScratchSpace model.kind width scalarWidth +
@@ -93,7 +93,7 @@ theorem recoveryBatch_auxiliary_le
   · exact repeatedAttempts_auxiliary_le curve modulus samples base target path.2
 
 /-- Final packing follows the full actual loop on the same complete recorded path. -/
-theorem recoveryTail_pool_le
+lemma recoveryTail_pool_le
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).resourcePool path ≤
       recoveryTailEnvelope model curve modulus count := by
@@ -103,7 +103,7 @@ theorem recoveryTail_pool_le
     (packBatchResult_resourcePool ctx width scalarWidth path.2).le
 
 /-- The same complete tail keeps all attempt durations and the final pack dependency. -/
-theorem recoveryTail_depth_le (duration : Resource.Event model → Nat)
+lemma recoveryTail_depth_le (duration : Resource.Event model → Nat)
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).depth duration path ≤
       count * attemptDepthLimit curve modulus duration +
@@ -113,7 +113,7 @@ theorem recoveryTail_depth_le (duration : Resource.Event model → Nat)
     (packBatchResult_depth ctx width scalarWidth duration path.2).le
 
 /-- The resident bound includes all eight retained cells and every original caller entry. -/
-theorem recoveryTail_resident_le
+lemma recoveryTail_resident_le
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).peakResidentSpace path ≤
       recoveryTailScratchSpace model.kind width scalarWidth +
@@ -130,7 +130,7 @@ theorem recoveryTail_resident_le
   simpa only [persistentCtx_residentSpace, add_assoc] using bounded
 
 /-- The complete auxiliary bound preserves caller roles and charges actual retained results. -/
-theorem recoveryTail_auxiliary_le
+lemma recoveryTail_auxiliary_le
     (path : (recoveryTail curve modulus samples base target).Path) :
     (recoveryTail curve modulus samples base target).peakAuxiliarySpace path ≤
       recoveryTailScratchSpace model.kind width scalarWidth +

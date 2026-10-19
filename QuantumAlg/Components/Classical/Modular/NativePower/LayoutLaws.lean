@@ -26,12 +26,12 @@ open Execution
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- The complete scratch scope contains exactly its three heads followed by all original keys. -/
-theorem nativePower_scope_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativePower_scope_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (powerCtx ctx width).keys =
       [(accumulatorCell ctx width).key, (baseCell ctx width).key,
         (modulusCell ctx width).key] ++ ctx.keys := rfl
 
-private theorem internal_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
+private lemma internal_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
     [(accumulatorCell ctx width).key, (baseCell ctx width).key,
       (modulusCell ctx width).key].Nodup := by
   have unique := (powerCtx ctx width).keysNodup
@@ -40,7 +40,7 @@ private theorem internal_keys_nodup (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).1
 
 /-- All internally generated keys are disjoint from the entire original context. -/
-theorem nativePower_scope_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativePower_scope_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
     List.Disjoint [(accumulatorCell ctx width).key, (baseCell ctx width).key,
       (modulusCell ctx width).key] ctx.keys := by
   have unique := (powerCtx ctx width).keysNodup
@@ -51,7 +51,7 @@ theorem nativePower_scope_keys_disjoint (ctx : RuntimeCtx kind) (width : Nat) :
   exact (List.nodup_append.mp unique).2.2 key internal key external rfl
 
 /-- Scratch cells are pairwise different in the directions used by actual read/write proofs. -/
-theorem nativePower_scope_separation (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativePower_scope_separation (ctx : RuntimeCtx kind) (width : Nat) :
     (modulusCell ctx width).key ≠ (baseCell ctx width).key ∧
       (accumulatorCell ctx width).key ≠ (modulusCell ctx width).key ∧
       (accumulatorCell ctx width).key ≠ (baseCell ctx width).key := by
@@ -67,13 +67,13 @@ theorem nativePower_scope_separation (ctx : RuntimeCtx kind) (width : Nat) :
     exact accumulatorAbsent (List.mem_cons.mpr (Or.inl same))
 
 /-- Original structural read support remains unchanged through all actual scratch lifts. -/
-theorem nativePower_underPower_keys {shape : CShape}
+lemma nativePower_underPower_keys {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (underPower input width).storageKeys = input.storageKeys := by
   simp only [underPower, CInputRef.storageKeys_underWorkspace]
 
 /-- Every internal write is automatically separate from every original structural input. -/
-theorem nativePower_input_separation {shape : CShape}
+lemma nativePower_input_separation {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (modulusCell ctx width).key ∉ (underPower input width).storageKeys ∧
       (baseCell ctx width).key ∉ (underPower input width).storageKeys ∧
@@ -87,29 +87,29 @@ theorem nativePower_input_separation {shape : CShape}
   exact ⟨absent _ (by simp), absent _ (by simp), absent _ (by simp)⟩
 
 /-- Every original value is read unchanged after the three actual scratch allocations. -/
-theorem nativePower_enterPower_read {shape : CShape} (store : Store ctx)
+lemma nativePower_enterPower_read {shape : CShape} (store : Store ctx)
     (input : CInputRef ctx shape) (width : Nat) :
     (enterPower store width).read (underPower input width) = store.read input := by
   simp only [enterPower, underPower, Store.read_pushWorkspace_underWorkspace]
 
 /-- Reading the final outer store is the same read under the exact scratch heads being popped. -/
-theorem nativePower_leavePower_read {shape : CShape}
+lemma nativePower_leavePower_read {shape : CShape}
     (store : Store (powerCtx ctx width)) (input : CInputRef ctx shape) :
     (leavePower store).read input = store.read (underPower input width) := by
   simp only [leavePower, underPower, Store.read_popWorkspace_underWorkspace]
 
 /-- The allocated accumulator contains the actual canonical zero encoding. -/
-theorem nativePower_enterPower_accumulator (store : Store ctx) (width : Nat) :
+lemma nativePower_enterPower_accumulator (store : Store ctx) (width : Nat) :
     (enterPower store width).read (wordRead (accumulatorCell ctx width)) =
       CShape.wordOfNat width 0 := rfl
 
 /-- Reading the lifted destination agrees with lifting its original structural read. -/
-theorem nativePower_writeUnderPower_read {shape : CShape}
+lemma nativePower_writeUnderPower_read {shape : CShape}
     (output : CWriteRef ctx shape) (width : Nat) :
     wordRead (writeUnderPower output width) = underPower (wordRead output) width := rfl
 
 /-- The complete scope preserves all quantum physical identities and dimensions. -/
-theorem nativePower_scope_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativePower_scope_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (powerCtx ctx width).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.ClassicalRoutines.Modular.NativePower

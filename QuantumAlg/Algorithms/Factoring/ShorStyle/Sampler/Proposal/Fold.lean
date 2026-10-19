@@ -46,7 +46,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- One actual slot appends precisely the source's classified residue to the selection option. -/
-theorem proposalSlot_selection
+lemma proposalSlot_selection
     (sample : CInputRef ctx (.bits (count * width))) (proposal : Fin count)
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (separated : SlotSeparated sample shared scratch) (store : Store ctx)
@@ -92,7 +92,7 @@ theorem proposalSlot_selection
     | true => simp [CShape.Value.toNat]
 
 /-- The actual list of slots realizes the ordinary left-to-right first-success fold. -/
-theorem proposalFold_selection
+lemma proposalFold_selection
     (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (separated : ScanSeparated sample shared scratch) (proposals : List (Fin count))
@@ -127,7 +127,7 @@ theorem proposalFold_selection
         modulus sampled zero modulusValue]
 
 /-- With the actual initially empty latch, ascending slots return the source's first residue. -/
-theorem proposalScan_firstValidResidue
+lemma proposalScan_firstValidResidue
     (sample : CInputRef ctx (.bits (count * width)))
     (shared : SharedRefs ctx width) (scratch : ScratchRefs ctx width)
     (separated : ScanSeparated sample shared scratch) (store : Store ctx)

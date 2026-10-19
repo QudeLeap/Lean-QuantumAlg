@@ -29,7 +29,7 @@ private def expandedDuration (oracles : OracleModel) :
   | .gate .toffoli => 15
   | _ => 1
 
-private theorem nativeExpansion_depth (oracles : OracleModel) {count : Nat}
+private lemma nativeExpansion_depth (oracles : OracleModel) {count : Nat}
     {ambient : QuantumLayout count}
     (application : GateModel.Application AlgorithmGate.model ambient) :
     (nativeExpansion oracles application).circuit.evaluatedEventDepth (fun _ => 1) =
@@ -44,7 +44,7 @@ private theorem nativeExpansion_depth (oracles : OracleModel) {count : Nat}
   | cnot => rfl
   | singleQubit operator => rfl
 
-private theorem depthEval_constant {U : Type} (expression : DepthExpr U) (duration : Nat) :
+private lemma depthEval_constant {U : Type} (expression : DepthExpr U) (duration : Nat) :
     expression.depthEval (fun _ => duration) =
       duration * expression.depthEval (fun _ => 1) := by
   induction expression with
@@ -62,7 +62,7 @@ private theorem depthEval_constant {U : Type} (expression : DepthExpr U) (durati
       simp [startIH, stepIH, Nat.mul_add, Finset.mul_sum]
 
 /-- Expanding the actual construction multiplies its unit dependency depth by at most fifteen. -/
-theorem toffoliExpansion_depth_le {oracles : OracleModel} {count : Nat}
+lemma toffoliExpansion_depth_le {oracles : OracleModel} {count : Nat}
     {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient) :
     (expand source).evaluatedEventDepth (fun _ => 1) ≤
       15 * source.evaluatedEventDepth (fun _ => 1) := by

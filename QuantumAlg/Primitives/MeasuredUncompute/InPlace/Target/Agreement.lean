@@ -28,7 +28,7 @@ namespace QuantumAlg.MeasuredUncompute.InPlaceTargetAgreement
 noncomputable section
 
 /-- The EEA-independent residue inverse and the target's finite inverse are the same word. -/
-theorem inverse_word (modulus : Nat) (prime : Nat.Prime modulus)
+lemma inverse_word (modulus : Nat) (prime : Nat.Prime modulus)
     (value : Fin (2 ^ modulus.size)) :
     NumberTheory.SharedEEA.CanonicalInverse.word modulus prime.pos value.val =
       Nat.FixedWidth.PrimeWordProduct.inverseWord
@@ -37,7 +37,7 @@ theorem inverse_word (modulus : Nat) (prime : Nat.Prime modulus)
   rfl
 
 /-- The actual initial multiplication saves exactly the independent original-domain product. -/
-theorem multiplication_saved (modulus : Nat) (prime : Nat.Prime modulus)
+lemma multiplication_saved (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
@@ -48,7 +48,7 @@ theorem multiplication_saved (modulus : Nat) (prime : Nat.Prime modulus)
       positive bounded numeratorBound).symm)
 
 /-- The actual inverse-product accumulator saves exactly the independent quotient word. -/
-theorem division_saved (modulus : Nat) (prime : Nat.Prime modulus)
+lemma division_saved (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :

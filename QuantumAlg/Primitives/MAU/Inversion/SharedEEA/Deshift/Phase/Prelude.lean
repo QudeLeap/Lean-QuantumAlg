@@ -27,7 +27,7 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.DeshiftPhasePrelude
 noncomputable section
 
 /-- Equal actual phases make the native Sign/quotient block inactive on the complete frame. -/
-theorem quotient_inactive (width : Nat) (state : Registers width)
+lemma quotient_inactive (width : Nat) (state : Registers width)
     (clean : state.control = false) (same : state.flags.first = state.flags.second) :
     SignQuotient.step width state = state := by
   have selected : SelectionKey.phaseSelected state = false := by
@@ -50,7 +50,7 @@ theorem quotient_inactive (width : Nat) (state : Registers width)
   simp only [same, Bool.xor_self, Bool.false_eq_true, if_false]
 
 /-- Actual phase-four post-shifts compose to a full-word right rotation and finite decrement. -/
-theorem post_shift (width : Nat) (state : Registers width)
+lemma post_shift (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = true) (positive : 0 < state.shift.toNat) :
     GuardedShift.step true state =
@@ -62,7 +62,7 @@ theorem post_shift (width : Nat) (state : Registers width)
     NumberTheory.SharedEEA.WordRotation.rotateRight_rotateLeft]
 
 /-- Ordered native control retains phase four and clears its actual comparison Sign one. -/
-theorem control_clears {width : Nat} (state : Registers width)
+lemma control_clears {width : Nat} (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = true) (sign : state.flags.sign = true)
     (quotient : state.quotientLength = (0#width.size))

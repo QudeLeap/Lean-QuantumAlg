@@ -9,6 +9,10 @@ module
 import all QuantumAlg.Core.Execution.State.History
 import all QuantumAlg.Core.Execution.Classical.Iteration
 import all QuantumAlg.Core.Execution.Interpret.Laws
+import all QuantumAlg.Core.Execution.Composition.History
+import all QuantumAlg.Core.Execution.Composition.Parallel
+import all QuantumAlg.Core.Execution.Composition.Embedding
+import all QuantumAlg.Core.Execution.Interpret.Preserving
 
 /-!
 # History naturality of the single circuit interpreter
@@ -30,24 +34,26 @@ open scoped BigOperators
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem branch_history {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    {shape : CShape} (input : CInputRef pre shape) (body : shape.Value → Circuit model pre post)
-    (Reference : Register)
+private lemma branch_history {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {allowAllocation : Bool}
+    {shape : CShape} (input : CInputRef pre shape)
+    (body : shape.Value → Circuit model pre post allowAllocation)
+    (environment : model.Environment) (Reference : Register)
     (natural : ∀ value {H K : Type} [Fintype H] [Fintype K]
       (state : State pre Reference (model.HiddenState × H)) (update : H → K),
-      (body value).execute Reference
+      (body value).execute environment Reference
         (state.mapHistory (fun record => (record.1, update record.2))) =
-        ((body value).execute Reference state).mapHistory
+        ((body value).execute environment Reference state).mapHistory
           (fun record => (record.1, (update record.2.1, record.2.2))))
     {H K : Type} [Fintype H] [Fintype K]
     (state : State pre Reference (model.HiddenState × H)) (update : H → K) :
-    (Circuit.branch input body).execute Reference
+    (Circuit.branch input body).execute environment Reference
       (state.mapHistory (fun record => (record.1, update record.2))) =
-      ((Circuit.branch input body).execute Reference state).mapHistory
+      ((Circuit.branch input body).execute environment Reference state).mapHistory
         (fun record => (record.1, (update record.2.1, record.2.2))) := by
   let parts (value : shape.Value) :
       State post Reference (model.HiddenState × (H × (Circuit.branch input body).Path)) :=
-    ((body value).execute Reference
+    ((body value).execute environment Reference
       (state.selectClassical (fun record => record.1.read input) value)).mapHistory
         (fun record => (record.1, (record.2.1, ⟨value, record.2.2⟩)))
   let resultMap : model.HiddenState × (H × (Circuit.branch input body).Path) →
@@ -56,12 +62,12 @@ private theorem branch_history {model : ExecutionModel} {pre post : RuntimeCtx m
   have total : ∑ value, (parts value).mass ≤ 1 := by
     simp only [parts, State.mapHistory_mass, execute_mass, ExecutionState.sum_selectClassical_mass]
     exact state.mass_le_one
-  have original : (Circuit.branch input body).execute Reference state =
+  have original : (Circuit.branch input body).execute environment Reference state =
       ExecutionState.finiteSum parts total := by
     rfl
   have mappedTotal : ∑ value, ((parts value).mapHistory resultMap).mass ≤ 1 := by
     simpa only [State.mapHistory_mass] using total
-  have mapped : (Circuit.branch input body).execute Reference
+  have mapped : (Circuit.branch input body).execute environment Reference
         (state.mapHistory (fun record => (record.1, update record.2))) =
       ExecutionState.finiteSum (fun value => (parts value).mapHistory resultMap) mappedTotal := by
     apply ExecutionState.ext
@@ -72,7 +78,7 @@ private theorem branch_history {model : ExecutionModel} {pre post : RuntimeCtx m
     intro value _
     have actual :=
       (congrArg (fun selected : State pre Reference (model.HiddenState × K) =>
-        (body value).execute Reference selected)
+        (body value).execute environment Reference selected)
         (State.mapHistory_selectClassical state
           (fun record => (record.1, update record.2)) input value)).trans
           (natural value
@@ -103,18 +109,21 @@ private theorem branch_history {model : ExecutionModel} {pre post : RuntimeCtx m
       split_ifs <;> rfl
     _ = _ := congrArg (fun output => output.mapHistory resultMap) original.symm
 
-private theorem iterate_history {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
-    (body : Circuit model ctx ctx) (Reference : Register)
+private lemma iterate_history {model : ExecutionModel} {ctx : RuntimeCtx model.kind}
+    {allowAllocation : Bool}
+    (body : Circuit model ctx ctx allowAllocation)
+    (environment : model.Environment) (Reference : Register)
     (natural : ∀ {H K : Type} [Fintype H] [Fintype K]
       (state : State ctx Reference (model.HiddenState × H)) (update : H → K),
-      body.execute Reference (state.mapHistory (fun record => (record.1, update record.2))) =
-        (body.execute Reference state).mapHistory
+      body.execute environment Reference
+        (state.mapHistory (fun record => (record.1, update record.2))) =
+        (body.execute environment Reference state).mapHistory
           (fun record => (record.1, (update record.2.1, record.2.2))))
     (count : Nat) {H K : Type} [Fintype H] [Fintype K]
     (state : State ctx Reference (model.HiddenState × H)) (update : H → K) :
-    (Circuit.iterate count body).execute Reference
+    (Circuit.iterate count body).execute environment Reference
       (state.mapHistory (fun record => (record.1, update record.2))) =
-      ((Circuit.iterate count body).execute Reference state).mapHistory
+      ((Circuit.iterate count body).execute environment Reference state).mapHistory
         (fun record => (record.1, (update record.2.1, record.2.2))) := by
   induction count generalizing H K with
   | zero =>
@@ -122,18 +131,22 @@ private theorem iterate_history {model : ExecutionModel} {ctx : RuntimeCtx model
       simp only [State.mapHistory_comp, Function.comp_def]
   | succ count ih =>
       rw [execute_iterate_succ, natural,
-        ih (body.execute Reference state) (fun record => (update record.1, record.2)),
+        ih (body.execute environment Reference state) (fun record => (update record.1, record.2)),
         execute_iterate_succ]
       simp only [State.mapHistory_comp, Function.comp_def]
 
 /-- Existing execution commutes with any finite history map, preserving its full actual path. -/
-theorem execute_mapHistory {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
-    (code : Circuit model pre post) (Reference : Register) {H K : Type} [Fintype H] [Fintype K]
+lemma execute_mapHistory {model : ExecutionModel} {pre post : RuntimeCtx model.kind}
+    {allowAllocation : Bool}
+    (code : Circuit model pre post allowAllocation)
+    (environment : model.Environment) (Reference : Register)
+    {H K : Type} [Fintype H] [Fintype K]
     (state : State pre Reference (model.HiddenState × H)) (update : H → K) :
-    code.execute Reference (state.mapHistory (fun record => (record.1, update record.2))) =
-      (code.execute Reference state).mapHistory
+    code.execute environment Reference
+      (state.mapHistory (fun record => (record.1, update record.2))) =
+      (code.execute environment Reference state).mapHistory
         (fun record => (record.1, (update record.2.1, record.2.2))) := by
-  induction code generalizing H K with
+  induction code generalizing Reference H K with
   | id =>
       dsimp only [execute, interpret, preserveService]
       rw [State.mapHistory_skip]
@@ -145,7 +158,7 @@ theorem execute_mapHistory {model : ExecutionModel} {pre post : RuntimeCtx model
       simp only [State.mapHistory_comp, Function.comp_def]
       exact ExecutionState.executionState_mapClassical_congr _ rfl
   | classicalQuery application =>
-      exact State.mapHistory_queryStep application state update
+      exact State.mapHistory_queryStep environment.classical application state update
   | unitary program =>
       dsimp only [execute, interpret, preserveService]
       rw [State.mapHistory_unitary]
@@ -168,26 +181,54 @@ theorem execute_mapHistory {model : ExecutionModel} {pre post : RuntimeCtx model
       exact ExecutionState.executionState_mapClassical_congr _ rfl
   | seq first second firstIH secondIH =>
       rw [execute_seq, firstIH,
-        secondIH (first.execute Reference state) (fun record => (update record.1, record.2)),
+        secondIH environment Reference (first.execute environment Reference state)
+          (fun record => (update record.1, record.2)),
         execute_seq]
       simp only [State.mapHistory_comp, Function.comp_def]
   | branch input body bodyIH =>
-      exact branch_history input body Reference
-        (fun value {_ _} _ _ original update => bodyIH value original update) state update
+      exact branch_history input body environment Reference
+        (fun value {_ _} _ _ original update =>
+          bodyIH value environment Reference original update) state update
   | iterate count body bodyIH =>
-      exact iterate_history body Reference
-        (fun {_ _} _ _ original update => bodyIH original update)
+      exact iterate_history body environment Reference
+        (fun {_ _} _ _ original update => bodyIH environment Reference original update)
         count state update
   | workspace _ key shape fresh body bodyIH =>
       change State.popWorkspace key shape fresh
-          (body.execute Reference
+          (body.execute environment Reference
             ((state.mapHistory (fun record => (record.1, update record.2))).pushWorkspace
               key shape fresh)) =
         (State.popWorkspace key shape fresh
-          (body.execute Reference (state.pushWorkspace key shape fresh))).mapHistory
+          (body.execute environment Reference (state.pushWorkspace key shape fresh))).mapHistory
             (fun record => (record.1, (update record.2.1, record.2.2)))
       rw [State.mapHistory_pushWorkspace, bodyIH,
         State.mapHistory_popWorkspace]
+  | embed placement body bodyIH =>
+      exact embedPreserving_history placement Reference
+        (fun original => interpret body environment _ original)
+        (fun {_ _} _ _ original update => bodyIH environment _ original update) state update
+  | parallelClassical join separate first second firstIH secondIH =>
+      exact parallelPreserving_history join separate
+        (fun original => interpret first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original)
+        (fun original => interpret second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original)
+        (fun {_ _} _ _ original update => firstIH
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original update)
+        (fun {_ _} _ _ original update => secondIH
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original update)
+        state update
+  | parallelQuantum join separate first second firstIH secondIH =>
+      exact parallelPreserving_history join separate
+        (fun original => interpret first
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original)
+        (fun original => interpret second
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original)
+        (fun {_ _} _ _ original update => firstIH
+          ⟨environment.quantum, join.interpretationLeft environment.classical⟩ _ original update)
+        (fun {_ _} _ _ original update => secondIH
+          ⟨environment.quantum, join.interpretationRight environment.classical⟩ _ original update)
+        state update
 
 end
 

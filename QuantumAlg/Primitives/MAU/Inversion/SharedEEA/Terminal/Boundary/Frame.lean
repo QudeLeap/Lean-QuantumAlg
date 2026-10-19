@@ -33,7 +33,7 @@ noncomputable section
 open NumberTheory.SharedEEA MacroBoundary
 
 /-- The complete independent ordered body is the exact next packed macro frame. -/
-theorem sourceBody_frame (state : IterationState) (modulus : Nat)
+lemma sourceBody_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     TerminalBoundary.sourceBody (clearedFrame state modulus valid conserved active iteration) =
@@ -56,7 +56,7 @@ theorem sourceBody_frame (state : IterationState) (modulus : Nat)
   · rfl
 
 /-- An active source boundary uses low zero, regardless of both incoming high bits. -/
-theorem condition_clearedFrame (state : IterationState) (modulus : Nat)
+lemma condition_clearedFrame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     BoundaryPredicate.condition (clearedFrame state modulus valid conserved active iteration) =
@@ -74,7 +74,7 @@ theorem condition_clearedFrame (state : IterationState) (modulus : Nat)
   exact decide_eq_true ⟨rfl, rfl⟩
 
 /-- Every gcd-one macro boundary, including its terminal frame, satisfies the repaired predicate. -/
-theorem condition_frame (state : IterationState) (modulus : Nat)
+lemma condition_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1) (iteration : Bool) :
     BoundaryPredicate.condition (frame state modulus valid conserved iteration) = true := by
@@ -100,7 +100,7 @@ theorem condition_frame (state : IterationState) (modulus : Nat)
     omega
 
 /-- The actual new gate sequence reaches the next complete frame and clears its original Ctrl. -/
-theorem native_frame (state : IterationState) (modulus : Nat)
+lemma native_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (coprime : Nat.gcd state.remainder state.divisor = 1)
     (active : 0 < state.divisor) (iteration : Bool) :

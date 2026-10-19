@@ -33,7 +33,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA CoefficientPhaseFrame
 
-private theorem next_shift_fits (state : IterationState) (modulus count : Nat)
+private lemma next_shift_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (beforeEnd : count < state.quotient.size) : count + 1 < 2 ^ modulus.size.size :=
   (show count + 1 ≤ modulus.size by
@@ -53,7 +53,7 @@ def nextFrame (state : IterationState) (modulus count : Nat)
     flags := ⟨true, false, false, iteration⟩ }
 
 /-- Real signed arithmetic and the actual post-shift produce the entire next coefficient frame. -/
-theorem native_frame (state : IterationState) (modulus count : Nat)
+lemma native_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     GuardedShift.step true (ArithmeticBlocks.coefficientStep modulus.size
@@ -110,7 +110,7 @@ theorem native_frame (state : IterationState) (modulus count : Nat)
   · exact clean
 
 /-- The actual advanced shift is nonzero, including the very first coefficient microstep. -/
-theorem next_shift_nonzero (state : IterationState) (modulus count : Nat)
+lemma next_shift_nonzero (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (nextFrame state modulus count valid conserved active beforeEnd iteration).shift ≠
@@ -120,7 +120,7 @@ theorem next_shift_nonzero (state : IterationState) (modulus count : Nat)
   change count + 1 = 0 at value
   omega
 
-private theorem next_divisor_nonzero (state : IterationState) (modulus count : Nat)
+private lemma next_divisor_nonzero (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     (nextFrame state modulus count valid conserved active beforeEnd iteration).divisorLength ≠
@@ -132,7 +132,7 @@ private theorem next_divisor_nonzero (state : IterationState) (modulus count : N
   omega
 
 /-- The real ordered control suffix enters phase four exactly when the actual quotient is empty. -/
-theorem native_tail_frame (state : IterationState) (modulus count : Nat)
+lemma native_tail_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     let expected := nextFrame state modulus count valid conserved active beforeEnd iteration
@@ -150,7 +150,7 @@ theorem native_tail_frame (state : IterationState) (modulus count : Nat)
     (next_shift_nonzero state modulus count valid conserved active beforeEnd iteration)
 
 /-- One complete native microstep consumes the actual quotient bit and advances phase three. -/
-theorem microstep_frame (state : IterationState) (modulus count : Nat)
+lemma microstep_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (beforeEnd : count < state.quotient.size) (iteration : Bool) :
     let expected := nextFrame state modulus count valid conserved active beforeEnd iteration

@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Primitives.HadamardTest.Endpoint.Execution
+import all QuantumAlg.Primitives.HadamardTest.Endpoint.Execution
+
 public import QuantumAlg.Primitives.HadamardTest.Specification
 public import QuantumAlg.Core.Algorithm.Solves
 import all QuantumAlg.Primitives.HadamardTest.Specification
@@ -35,66 +38,74 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- Public input validity is exactly the original normalized source vector in its physical frame. -/
-public theorem problem_valid_iff {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (source : NormalizedVector (Qubits width))
-    (state : ExecutionState (Execution.Store (pre width)) (pre width).register) :
-    (problem unitary source).valid state ↔
-      ∀ row column, state.quantumMarginal.matrix row column =
-        source.vec (inputBasisEquiv width row) * star (source.vec (inputBasisEquiv width column)) :=
-  Iff.rfl
+/-- Native Hadamard test on the original normalized input.
 
-/-- Reading the actual result preserves the exact real-overlap formula [AJL06, qf2.tex:625-645]. -/
-public theorem algorithm_probability_zero {width : Nat}
-    (unitary : UnitaryOperator (Qubits width)) (source : NormalizedVector (Qubits width))
-    {Reference : Register} (input : Execution.OracleInput .empty (pre width) Reference)
-    (promised : (problem unitary source).valid input.caller.localState) :
-    (algorithm unitary).outputDistribution input (.finite 0) =
-      ENNReal.ofReal (probabilityZero unitary source) :=
-  outputDistribution_zero unitary source input promised
+**Input.** A supplied normalized $n$-qubit vector and controlled access to its
+source unitary. The original word is owned because the test may change it.
+Every normalized external extension of the promised local state is allowed.
+**Output.** The actual binary Z outcome in a finite classical cell, together
+with the entire original word and the internally prepared control qubit.
+**Resource budget.** One control preparation, two Hadamards, one controlled
+source query and one Z measurement; unit-event depth at most five. Resident
+and owned auxiliary capacities are $n+1$ qubits and one classical bit. Exactly
+one quantum system is newly allocated.
+**Success.** The stored zero outcome has probability
+$(1+\operatorname{Re}\langle\psi|U|\psi\rangle)/2$. All borrowed observations
+and the external reference are restored jointly; measured quantum systems
+remain live without an additional state promise.
+**Source.** The controlled-unitary construction and real-overlap outcome in
+[AJL06, qf2.tex:625-645]. The explicit native ledger follows that same circuit.
+-/
+@[expose] public def problem (width : Nat) :
+    Problem (model width) (pre width) (post width) (.finite 2) where
+  Witness := UnitaryOperator (Qubits width) × NormalizedVector (Qubits width)
+  valid := fun actual witness state =>
+    actual.quantum = UnitarySource.interpretation witness.1 true ∧
+      inputPromise witness.2 state.quantumMarginal
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _initial result => result = .finite 0
+  successLB := fun _ witness => successLB witness.1 witness.2
+  states := fun _ _ => []
+  resources :=
+    { events := eventBudget width
+      resident := spaceBudget width
+      auxiliary := spaceBudget width }
+  quantumTimeLimit := 5
 
-private theorem algorithm_solves {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (source : NormalizedVector (Qubits width)) :
-    Algorithm.Solves (algorithm unitary) (problem unitary source) := by
+/-- One complete native program solves the source problem for every admissible input. -/
+public theorem main (width : Nat) :
+    ∃ candidate : Algorithm (model width) (pre width) (post width) (.finite 2),
+      Algorithm.Solves candidate (problem width) := by
+  refine ⟨algorithm width, ?_⟩
   constructor
-  · intro Reference input promised _initialized
-    exact le_of_eq (actual_success unitary source input promised)
-  · intro _Reference _input _promised _initialized requirement present
+  · intro actual witness Reference input promised _initialized
+    have same := environment_eq_of_quantum witness.1 actual promised.1
+    subst actual
+    exact le_of_eq (actual_success witness.1 witness.2 input promised.2)
+  · intro _actual _witness _Reference _input _promised _initialized requirement present
     exact False.elim (List.not_mem_nil present)
-  · intro _Reference input _promised _initialized
-    have restored := code_borrowedRestored unitary
+  · intro actual _witness _Reference input _promised _initialized
+    have restored := code_borrowedRestored width actual
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))
     have history := Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
-    change (code unitary).BorrowedRestored _ input.state
-      ((code unitary).execute _
+    change (code width).BorrowedRestored _ input.state
+      ((code width).execute actual _
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
     unfold Circuit.BorrowedRestored at restored ⊢
     rw [restored]
     refine Eq.trans ?_ history
     apply congrArg (Execution.observeBorrowed _)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
-  · intro _Reference _input _promised _initialized path _supported
-    exact le_of_eq (code_events unitary path)
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_residentSpace unitary path
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_auxiliarySpace unitary path
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_depth unitary path
-
-/-- The same complete native algorithm solves the independent problem and attains exactly
-the original real-overlap probability on every reference extension [AJL06, qf2.tex:625-645]. -/
-public theorem main {width : Nat} (unitary : UnitaryOperator (Qubits width))
-    (source : NormalizedVector (Qubits width)) :
-    ∃ candidate : Algorithm (model unitary) (pre width) (post width) (.finite 2),
-      Algorithm.Solves candidate (problem unitary source) ∧
-        ∀ (Reference : Register) (input : Execution.OracleInput .empty (pre width) Reference),
-          (problem unitary source).valid input.caller.localState →
-            candidate.outputDistribution input (.finite 0) =
-              ENNReal.ofReal (probabilityZero unitary source) :=
-  ⟨algorithm unitary, algorithm_solves unitary source,
-    fun _Reference input promised => algorithm_probability_zero unitary source input promised⟩
+  · intro _actual _witness _Reference _input _promised _initialized path _supported
+    exact le_of_eq (code_events width path)
+  · intro _actual _witness _Reference _input _promised _initialized path _supported
+    exact code_residentSpace width path
+  · intro _actual _witness _Reference _input _promised _initialized path _supported
+    exact code_auxiliarySpace width path
+  · intro _actual _witness _Reference _input _promised _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
+    exact code_depth width path
 
 end
 

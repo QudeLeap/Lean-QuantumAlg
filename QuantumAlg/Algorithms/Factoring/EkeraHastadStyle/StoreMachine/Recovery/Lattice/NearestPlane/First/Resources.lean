@@ -27,7 +27,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native event formula for two refreshes, signed division and three reductions. -/
@@ -47,7 +48,7 @@ def phaseTrace (width : Nat) (magnitudeNegative correctionNegative restoreNegati
       (fun label => .classicalOperation (BitWord.selectedCoordinate (execution := model) label))
 
 /-- Every real path matches the independent event formula with its recorded division flags. -/
-theorem firstInto_events (refs : Refs ctx width) (path : (firstInto refs).Path) :
+lemma firstInto_events (refs : Refs ctx width) (path : (firstInto refs).Path) :
     (firstInto refs).eventTrace path =
       let divided := path.2.2.1
       phaseTrace width divided.1.1.2.1.toBool divided.2.1.2.1.1.toBool
@@ -60,7 +61,7 @@ theorem firstInto_events (refs : Refs ctx width) (path : (firstInto refs).Path) 
   rfl
 
 /-- Actual native multiplicities are the pool of that same independent instruction formula. -/
-theorem firstInto_resourcePool (refs : Refs ctx width) (path : (firstInto refs).Path) :
+lemma firstInto_resourcePool (refs : Refs ctx width) (path : (firstInto refs).Path) :
     (firstInto refs).resourcePool path =
       let divided := path.2.2.1
       ResourcePool.ofList (phaseTrace width divided.1.1.2.1.toBool
@@ -69,7 +70,7 @@ theorem firstInto_resourcePool (refs : Refs ctx width) (path : (firstInto refs).
   rw [firstInto_events]
 
 /-- Every actual first-coordinate path executes at most twenty-nine native instructions. -/
-theorem firstInto_eventCount_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
+lemma firstInto_eventCount_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
     ((firstInto refs).eventTrace path).length ≤ 29 := by
   rcases path with ⟨dotPath, normPath, divisionPath, reductionPath⟩
   have divisionBound := SignedWord.RoundedDiv.body_eventCount_le refs.division divisionPath
@@ -80,7 +81,7 @@ theorem firstInto_eventCount_le (refs : Refs ctx width) (path : (firstInto refs)
   omega
 
 /-- The actual unit-duration dependency depth includes both refreshes, division and reduction. -/
-theorem firstInto_depth_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
+lemma firstInto_depth_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
     (firstInto refs).depth (fun _ => 1) path ≤ 29 := by
   rcases path with ⟨dotPath, normPath, divisionPath, reductionPath⟩
   have divisionBound := SignedWord.RoundedDiv.body_depth_le refs.division divisionPath
@@ -97,20 +98,20 @@ theorem firstInto_depth_le (refs : Refs ctx width) (path : (firstInto refs).Path
   omega
 
 /-- Every stage preserves the complete borrowed interface on its actual incoming state. -/
-theorem firstInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma firstInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (firstInto refs).BorrowedRestored Reference state
-      ((firstInto refs).execute Reference state) := by
-  apply Circuit.borrowedRestored_seq
+      ((firstInto refs).execute environment Reference state) := by
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact LatticeDotRefresh.refreshInto_borrowedRestored _ _ _ Reference state
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
     · exact LatticeNormRefresh.refreshInto_borrowedRestored _ _ Reference _
-    · exact Circuit.borrowedRestored_seq _ _ _
+    · exact Circuit.borrowedRestored_seq (environment := environment) _ _ _
         (SignedWord.RoundedDiv.body_borrowedRestored _ Reference _)
         (LatticeArithmetic.pointReduce_borrowedRestored _ _ _ _ Reference _)
 
 /-- Every visited context of the complete first phase is the original caller context. -/
-theorem firstInto_visited (refs : Refs ctx width) (path : (firstInto refs).Path)
+lemma firstInto_visited (refs : Refs ctx width) (path : (firstInto refs).Path)
     (visited : RuntimeCtx model.kind) (present : visited ∈ (firstInto refs).visitedContexts path) :
     visited = ctx := by
   rcases path with ⟨dotPath, normPath, divisionPath, reductionPath⟩
@@ -126,14 +127,14 @@ theorem firstInto_visited (refs : Refs ctx width) (path : (firstInto refs).Path)
       or_false, or_self] using reduction
 
 /-- Resident space includes all original classical cells and every quantum dimension. -/
-theorem firstInto_resident_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
+lemma firstInto_resident_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
     (firstInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
   intro visited present
   rw [firstInto_visited refs path visited present]
 
 /-- Auxiliary roles are unchanged across the complete actual first phase. -/
-theorem firstInto_auxiliary_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
+lemma firstInto_auxiliary_le (refs : Refs ctx width) (path : (firstInto refs).Path) :
     (firstInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited
   intro visited present

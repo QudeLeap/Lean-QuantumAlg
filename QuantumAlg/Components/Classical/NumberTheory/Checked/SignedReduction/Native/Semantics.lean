@@ -30,7 +30,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual lexical entry closes every internal scratch premise for the original signed residue. -/
-theorem withSignedReduction_actualRecord {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_actualRecord {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -39,7 +40,8 @@ theorem withSignedReduction_actualRecord {model : ExecutionModel} [BitWord.Selec
       (withSignedReduction (model := model) raw modulus output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (withSignedReduction (model := model) raw modulus output).execute Reference state =
+        (withSignedReduction (model := model) raw modulus output).execute
+          environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
@@ -54,7 +56,8 @@ theorem withSignedReduction_actualRecord {model : ExecutionModel} [BitWord.Selec
       after.read other = before.read other) ∧
     ((before.read modulus).toNat = spec.modulus →
       (after.read (signedRead output)).toNat = (reduceRawCoefficient spec (before.read raw)).val)
-  refine withCells_actualRecord_initialized_restricted_post ctx (signedReductionShapes width)
+  refine withCells_actualRecord_initialized_restricted_post
+    (environment := environment) ctx (signedReductionShapes width)
     (fun cells _ transport _ => signedReductionBody (model := model) (transport.liftInput raw)
       (transport.liftInput modulus) (signedWorkCell cells) (signedNegativeCell cells)
       (signedRemainderCell cells) (transport.liftWrite output)) Post ?_

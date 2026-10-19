@@ -28,6 +28,8 @@ namespace CompactCorrection
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open MK
 open MK.Compact
 open Nat.FixedWidth
@@ -46,14 +48,14 @@ def rCoeffValueWord (n counterWidth : Nat) :
   bit := fun bit => liftCoreBit n counterWidth
     (RegisterBits.rCoeffValueBit n counterWidth bit)
 
-@[simp] theorem sCoeffValueWord_get (n counterWidth : Nat)
+@[simp] lemma sCoeffValueWord_get (n counterWidth : Nat)
     (bit : Fin (n + 1)) (x : MK.Compact.Registers n counterWidth) :
     ((sCoeffValueWord n counterWidth).bit bit).get x =
       x.core.sCoeff.val.testBit bit.val := by
   change (RegisterBits.sCoeffValueBit n counterWidth bit).get x.core = _
   exact RegisterBits.sCoeffValueBit_get n counterWidth bit x.core
 
-@[simp] theorem rCoeffValueWord_get (n counterWidth : Nat)
+@[simp] lemma rCoeffValueWord_get (n counterWidth : Nat)
     (bit : Fin (n + 1)) (x : MK.Compact.Registers n counterWidth) :
     ((rCoeffValueWord n counterWidth).bit bit).get x =
       x.core.rCoeff.val.testBit bit.val := by
@@ -91,30 +93,30 @@ def parkedModulusWord (fieldTail counterWidth : Nat) :
   bit := fun bit =>
     (sCoeffValueWord fieldTail.succ counterWidth).bit (Fin.castSucc bit)
 
-@[simp] theorem activeSourceWord_bit_last (fieldTail counterWidth : Nat) :
+@[simp] lemma activeSourceWord_bit_last (fieldTail counterWidth : Nat) :
     (activeSourceWord fieldTail counterWidth).bit (Fin.last fieldTail.succ) =
       activeBit fieldTail.succ counterWidth := by
   simp [activeSourceWord]
 
-@[simp] theorem activeSourceWord_bit_castSucc
+@[simp] lemma activeSourceWord_bit_castSucc
     (fieldTail counterWidth : Nat) (bit : Fin fieldTail.succ) :
     (activeSourceWord fieldTail counterWidth).bit (Fin.castSucc bit) =
       (vValueWord fieldTail.succ counterWidth).bit bit := by
   simp [activeSourceWord]
 
-@[simp] theorem arithmeticTargetWord_bit_last
+@[simp] lemma arithmeticTargetWord_bit_last
     (fieldTail counterWidth : Nat) :
     (arithmeticTargetWord fieldTail counterWidth).bit
         (Fin.last fieldTail.succ) = compareBit fieldTail.succ counterWidth := by
   simp [arithmeticTargetWord]
 
-@[simp] theorem arithmeticTargetWord_bit_castSucc
+@[simp] lemma arithmeticTargetWord_bit_castSucc
     (fieldTail counterWidth : Nat) (bit : Fin fieldTail.succ) :
     (arithmeticTargetWord fieldTail counterWidth).bit (Fin.castSucc bit) =
       (uValueWord fieldTail.succ counterWidth).bit bit := by
   simp [arithmeticTargetWord]
 
-private theorem activeSourceWord_pairwise_ne
+private lemma activeSourceWord_pairwise_ne
     (fieldTail counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((activeSourceWord fieldTail counterWidth).bit left).wire ≠
@@ -155,7 +157,7 @@ private theorem activeSourceWord_pairwise_ne
             (WireAddress.littleEndianWire other)
             (littleEndianWire_ne hlow))
 
-private theorem arithmeticTargetWord_pairwise_ne
+private lemma arithmeticTargetWord_pairwise_ne
     (fieldTail counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((arithmeticTargetWord fieldTail counterWidth).bit left).wire ≠
@@ -196,7 +198,7 @@ private theorem arithmeticTargetWord_pairwise_ne
             (WireAddress.littleEndianWire other)
             (littleEndianWire_ne hlow))
 
-private theorem activeSource_target_ne (fieldTail counterWidth : Nat) :
+private lemma activeSource_target_ne (fieldTail counterWidth : Nat) :
     forall source target,
       ((activeSourceWord fieldTail counterWidth).bit source).wire ≠
         ((arithmeticTargetWord fieldTail counterWidth).bit target).wire := by
@@ -229,7 +231,7 @@ private theorem activeSource_target_ne (fieldTail counterWidth : Nat) :
             (WireAddress.littleEndianWire target)
             (WireAddress.littleEndianWire source)))
 
-private theorem activeSource_carry_ne (fieldTail counterWidth : Nat) :
+private lemma activeSource_carry_ne (fieldTail counterWidth : Nat) :
     forall bit,
       ((activeSourceWord fieldTail counterWidth).bit bit).wire ≠
         (coefficientCarryInBit fieldTail.succ counterWidth).wire := by
@@ -243,7 +245,7 @@ private theorem activeSource_carry_ne (fieldTail counterWidth : Nat) :
       liftCoreBit_coefficientCarryInBit_wire_ne fieldTail.succ counterWidth
         (RegisterBits.vValueBit fieldTail.succ counterWidth low)
 
-private theorem target_carry_ne (fieldTail counterWidth : Nat) :
+private lemma target_carry_ne (fieldTail counterWidth : Nat) :
     forall bit,
       ((arithmeticTargetWord fieldTail counterWidth).bit bit).wire ≠
         (coefficientCarryInBit fieldTail.succ counterWidth).wire := by
@@ -257,7 +259,7 @@ private theorem target_carry_ne (fieldTail counterWidth : Nat) :
       liftCoreBit_coefficientCarryInBit_wire_ne fieldTail.succ counterWidth
         (RegisterBits.uValueBit fieldTail.succ counterWidth low)
 
-private theorem activeSource_work_ne (fieldTail counterWidth : Nat) :
+private lemma activeSource_work_ne (fieldTail counterWidth : Nat) :
     forall source work,
       ((activeSourceWord fieldTail counterWidth).bit source).wire ≠
         ((coefficientCarryWorkWord fieldTail.succ counterWidth).bit work).wire := by
@@ -271,7 +273,7 @@ private theorem activeSource_work_ne (fieldTail counterWidth : Nat) :
       liftCoreBit_coefficientCarryWorkBit_wire_ne fieldTail.succ counterWidth
         (RegisterBits.vValueBit fieldTail.succ counterWidth low) work
 
-private theorem target_work_ne (fieldTail counterWidth : Nat) :
+private lemma target_work_ne (fieldTail counterWidth : Nat) :
     forall target work,
       ((arithmeticTargetWord fieldTail counterWidth).bit target).wire ≠
         ((coefficientCarryWorkWord fieldTail.succ counterWidth).bit work).wire := by
@@ -308,7 +310,7 @@ def arithmeticLayout (fieldTail counterWidth : Nat) :
     simpa [coefficientCarryWorkWord] using
       coefficientCarryWorkBit_wire_ne fieldTail.succ counterWidth hne
 
-private theorem carryWorkLayout_get_workCarry_natAddCarry
+private lemma carryWorkLayout_get_workCarry_natAddCarry
     {Carrier : Type} {encoding : BinaryLabelEncoding Carrier} {width : Nat}
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding) width)
@@ -375,7 +377,7 @@ private theorem carryWorkLayout_get_workCarry_natAddCarry
             Nat.BinaryArithmetic.natAddCarry]
   exact hmain j.val j rfl
 
-private theorem carryWorkLayout_get_carryBeforeSum_natAddCarry
+private lemma carryWorkLayout_get_carryBeforeSum_natAddCarry
     {Carrier : Type} {encoding : BinaryLabelEncoding Carrier} {width : Nat}
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding) width)
@@ -409,7 +411,7 @@ private theorem carryWorkLayout_get_carryBeforeSum_natAddCarry
       omega
     simpa only [j, hjSucc] using hj
 
-private theorem cleanCarrySumStep_get_right_add_of_clean
+private lemma cleanCarrySumStep_get_right_add_of_clean
     {Carrier : Type} {encoding : BinaryLabelEncoding Carrier} {width : Nat}
     (layout : PlainAdder.Schedule.CarryWorkLayout
       (encoding := encoding) width)
@@ -448,11 +450,11 @@ def widenFixedWord (n : Nat) (word : Word n) : Word (n + 1) :=
     rw [pow_succ]
     omega⟩
 
-@[simp] theorem widenFixedWord_val (n : Nat) (word : Word n) :
+@[simp] lemma widenFixedWord_val (n : Nat) (word : Word n) :
     (widenFixedWord n word).val = word.val :=
   rfl
 
-theorem widenFixedWord_zero (n : Nat) :
+lemma widenFixedWord_zero (n : Nat) :
     widenFixedWord n (0 : Word n) = (0 : Word (n + 1)) := by
   apply Fin.ext
   rfl
@@ -461,12 +463,12 @@ theorem widenFixedWord_zero (n : Nat) :
 def truncateFixedWord (n : Nat) (word : Word (n + 1)) : Word n :=
   ⟨word.val % 2 ^ n, Nat.mod_lt _ (Nat.two_pow_pos n)⟩
 
-@[simp] theorem truncateFixedWord_val (n : Nat)
+@[simp] lemma truncateFixedWord_val (n : Nat)
     (word : Word (n + 1)) :
     (truncateFixedWord n word).val = word.val % 2 ^ n :=
   rfl
 
-@[simp] theorem truncateFixedWord_widenFixedWord (n : Nat)
+@[simp] lemma truncateFixedWord_widenFixedWord (n : Nat)
     (word : Word n) :
     truncateFixedWord n (widenFixedWord n word) = word := by
   apply Fin.ext
@@ -474,7 +476,7 @@ def truncateFixedWord (n : Nat) (word : Word (n + 1)) : Word n :=
 
 /-- Truncation followed by widening is exact when the widened word already
 fits in the low `n` bits. -/
-theorem widenFixedWord_truncateFixedWord_of_lt (n : Nat)
+lemma widenFixedWord_truncateFixedWord_of_lt (n : Nat)
     (word : Word (n + 1)) (hword : word.val < 2 ^ n) :
     widenFixedWord n (truncateFixedWord n word) = word := by
   apply Fin.ext
@@ -500,7 +502,7 @@ def arithmeticState (fieldTail counterWidth : Nat)
       coefficientAdder := cleanCoeffAdderWork fieldTail.succ }
   target := base.target
 
-@[simp] private theorem arithmeticState_activeSource_get
+@[simp] private lemma arithmeticState_activeSource_get
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -517,7 +519,7 @@ def arithmeticState (fieldTail counterWidth : Nat)
     rw [Nat.testBit_mod_two_pow]
     simp [low.isLt]
 
-@[simp] private theorem arithmeticState_target_get
+@[simp] private lemma arithmeticState_target_get
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -534,7 +536,7 @@ def arithmeticState (fieldTail counterWidth : Nat)
     rw [Nat.testBit_mod_two_pow]
     simp [low.isLt]
 
-@[simp] private theorem arithmeticState_parked_get
+@[simp] private lemma arithmeticState_parked_get
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -545,7 +547,7 @@ def arithmeticState (fieldTail counterWidth : Nat)
       parked.val.testBit bit.val := by
   simp [parkedModulusWord, arithmeticState]
 
-private theorem arithmeticState_carryIn_get
+private lemma arithmeticState_carryIn_get
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -555,7 +557,7 @@ private theorem arithmeticState_carryIn_get
       false := by
   simp [arithmeticState, cleanCoeffAdderWork]
 
-private theorem arithmeticState_workCarry_get
+private lemma arithmeticState_workCarry_get
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -569,7 +571,7 @@ private theorem arithmeticState_workCarry_get
 
 /-! ## Literal VBE reduction ledger -/
 
-private theorem activeSourceLow_parked_ne
+private lemma activeSourceLow_parked_ne
     (fieldTail counterWidth : Nat) (source target : Fin fieldTail.succ) :
     ((activeSourceLowWord fieldTail counterWidth).bit source).wire ≠
       ((parkedModulusWord fieldTail counterWidth).bit target).wire := by
@@ -580,7 +582,7 @@ private theorem activeSourceLow_parked_ne
         (WireAddress.littleEndianWire source)
         (WireAddress.littleEndianWire (Fin.castSucc target)))
 
-private theorem activeSourceLowWord_pairwise_ne
+private lemma activeSourceLowWord_pairwise_ne
     (fieldTail counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((activeSourceLowWord fieldTail counterWidth).bit left).wire ≠
@@ -593,7 +595,7 @@ private theorem activeSourceLowWord_pairwise_ne
         (WireAddress.littleEndianWire right)
         (littleEndianWire_ne hne))
 
-private theorem parkedModulusWord_pairwise_ne
+private lemma parkedModulusWord_pairwise_ne
     (fieldTail counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((parkedModulusWord fieldTail counterWidth).bit left).wire ≠
@@ -607,7 +609,7 @@ private theorem parkedModulusWord_pairwise_ne
         (WireAddress.littleEndianWire (Fin.castSucc right))
         (littleEndianWire_ne (fun h => hne (Fin.castSucc_injective _ h))))
 
-private theorem activeSourceLow_sCoeffHigh_ne
+private lemma activeSourceLow_sCoeffHigh_ne
     (fieldTail counterWidth : Nat) :
     forall bit,
       ((activeSourceLowWord fieldTail counterWidth).bit bit).wire ≠
@@ -621,7 +623,7 @@ private theorem activeSourceLow_sCoeffHigh_ne
         (WireAddress.littleEndianWire bit)
         (WireAddress.littleEndianWire (Fin.last fieldTail.succ)))
 
-private theorem parkedModulus_sCoeffHigh_ne
+private lemma parkedModulus_sCoeffHigh_ne
     (fieldTail counterWidth : Nat) :
     forall bit,
       ((parkedModulusWord fieldTail counterWidth).bit bit).wire ≠
@@ -649,14 +651,14 @@ def sourceSwapGates (fieldTail counterWidth : Nat) :
 def modulusWordLabel (fieldTail p : Nat) : Fin (2 ^ (fieldTail.succ + 1)) :=
   MAU.Addition.VBECircuit.modulusWordLabel fieldTail.succ p
 
-private theorem modulusWordLabel_val (fieldTail p : Nat)
+private lemma modulusWordLabel_val (fieldTail p : Nat)
     (hp : p < 2 ^ fieldTail.succ) :
     (modulusWordLabel fieldTail p).val = p := by
   simp [modulusWordLabel, MAU.Addition.VBECircuit.modulusWordLabel,
     PlainAdder.Schedule.PowerOfTwo.wordLabelEquiv,
     MAU.Addition.VBECircuit.widenWord_val, ZMod.val_natCast_of_lt hp]
 
-private theorem fin_sub_val_eq_zmod_sub_val {modulus : Nat} [NeZero modulus]
+private lemma fin_sub_val_eq_zmod_sub_val {modulus : Nat} [NeZero modulus]
     (left right : Fin modulus) :
     (left - right).val =
       (((left.val : ZMod modulus) - (right.val : ZMod modulus)).val) := by
@@ -682,14 +684,14 @@ def reducedWord (fieldTail p : Nat) (hpPos : 0 < p)
       Nat.pow_lt_pow_right (by decide) fieldTail.succ.lt_succ_self
     exact hltP.trans (hp.trans hpow)⟩
 
-@[simp] theorem reducedWord_val (fieldTail p : Nat)
+@[simp] lemma reducedWord_val (fieldTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (raw : Word (fieldTail.succ + 1)) (hraw : raw.val < 2 * p) :
     (reducedWord fieldTail p hpPos hp raw hraw).val =
       MAU.Addition.VBEArithmetic.reduceOnce p raw.val :=
   rfl
 
-theorem reducedWord_val_eq_mod (fieldTail p : Nat)
+lemma reducedWord_val_eq_mod (fieldTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (raw : Word (fieldTail.succ + 1)) (hraw : raw.val < 2 * p) :
     (reducedWord fieldTail p hpPos hp raw hraw).val = raw.val % p := by
@@ -706,14 +708,14 @@ def canonicalResidueWord (fieldTail p : Nat) (hpPos : 0 < p)
       Nat.pow_lt_pow_right (by decide) fieldTail.succ.lt_succ_self
     exact hmod.trans (hp.trans hpow)⟩
 
-@[simp] theorem canonicalResidueWord_val (fieldTail p : Nat)
+@[simp] lemma canonicalResidueWord_val (fieldTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (raw : Word (fieldTail.succ + 1)) :
     (canonicalResidueWord fieldTail p hpPos hp raw).val = raw.val % p :=
   rfl
 
 /-- Reducing a widened coefficient does not change its residue class. -/
-theorem canonicalResidueWord_cast (fieldTail p : Nat)
+lemma canonicalResidueWord_cast (fieldTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (raw : Word (fieldTail.succ + 1)) :
     ((canonicalResidueWord fieldTail p hpPos hp raw).val : ZMod p) =
@@ -722,7 +724,7 @@ theorem canonicalResidueWord_cast (fieldTail p : Nat)
 
 /-- The one-subtraction circuit representative is the canonical residue;
 the bound proof used to justify the subtraction does not affect the word. -/
-theorem reducedWord_eq_canonicalResidueWord (fieldTail p : Nat)
+lemma reducedWord_eq_canonicalResidueWord (fieldTail p : Nat)
     (hpPos : 0 < p) (hp : p < 2 ^ fieldTail.succ)
     (raw : Word (fieldTail.succ + 1)) (hraw : raw.val < 2 * p) :
     reducedWord fieldTail p hpPos hp raw hraw =
@@ -730,7 +732,7 @@ theorem reducedWord_eq_canonicalResidueWord (fieldTail p : Nat)
   apply Fin.ext
   exact reducedWord_val_eq_mod fieldTail p hpPos hp raw hraw
 
-private theorem reductionFlag_activeSource_ne
+private lemma reductionFlag_activeSource_ne
     (fieldTail counterWidth : Nat) :
     forall bit,
       (scratchABit fieldTail.succ counterWidth).wire ≠
@@ -819,7 +821,7 @@ def arithmeticAdderReverseStep (fieldTail counterWidth : Nat) :
   EncodedBit.GateSpec.stepList
     (arithmeticAdderGates fieldTail counterWidth).reverse
 
-private theorem arithmeticAdderStep_get_observed
+private lemma arithmeticAdderStep_get_observed
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -841,7 +843,7 @@ private theorem arithmeticAdderStep_get_observed
         simpa [arithmeticLayout, coefficientCarryWorkWord] using hwork bit)
       x
 
-private theorem arithmeticTargetWord_liftCoreBit_ne
+private lemma arithmeticTargetWord_liftCoreBit_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (registerEncoding fieldTail.succ counterWidth))
@@ -862,7 +864,7 @@ private theorem arithmeticTargetWord_liftCoreBit_ne
     simpa [arithmeticTargetWord, uValueWord] using
       liftCoreBit_wire_ne fieldTail.succ counterWidth (hlow low)
 
-private theorem arithmeticAdderStep_get_coreBit
+private lemma arithmeticAdderStep_get_coreBit
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (registerEncoding fieldTail.succ counterWidth))
@@ -885,7 +887,7 @@ private theorem arithmeticAdderStep_get_coreBit
         observed bit))
     x
 
-private theorem arithmeticAdderStep_activeSource_get
+private lemma arithmeticAdderStep_activeSource_get
     (fieldTail counterWidth : Nat)
     (bit : Fin (fieldTail.succ + 1))
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
@@ -896,7 +898,7 @@ private theorem arithmeticAdderStep_activeSource_get
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_get_left
       (arithmeticLayout fieldTail counterWidth) bit x
 
-private theorem arithmeticAdderStep_target_get_add
+private lemma arithmeticAdderStep_target_get_add
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -925,7 +927,7 @@ private theorem arithmeticAdderStep_target_get_add
           arithmeticState_workCarry_get fieldTail counterWidth base active
             target parked flag work)
 
-private theorem arithmeticAdderStep_carryIn_get
+private lemma arithmeticAdderStep_carryIn_get
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (coefficientCarryInBit fieldTail.succ counterWidth).get
@@ -935,7 +937,7 @@ private theorem arithmeticAdderStep_carryIn_get
     PlainAdder.Schedule.CarryWorkLayout.cleanCarrySumGates_get_dataCarry
       (arithmeticLayout fieldTail counterWidth) x
 
-private theorem arithmeticAdderStep_workCarry_clean
+private lemma arithmeticAdderStep_workCarry_clean
     (fieldTail counterWidth : Nat) (bit : Fin fieldTail.succ)
     (x : MK.Compact.Registers fieldTail.succ counterWidth)
     (hclean : forall workBit,
@@ -951,7 +953,7 @@ private theorem arithmeticAdderStep_workCarry_clean
         intro work
         simpa [arithmeticLayout, coefficientCarryWorkWord] using hclean work)
 
-private theorem arithmeticAdderStep_sCoeff
+private lemma arithmeticAdderStep_sCoeff
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).core.sCoeff =
@@ -973,7 +975,7 @@ private theorem arithmeticAdderStep_sCoeff
           (WireAddress.littleEndianWire bit))
     x
 
-private theorem arithmeticAdderStep_rCoeff
+private lemma arithmeticAdderStep_rCoeff
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).core.rCoeff =
@@ -995,7 +997,7 @@ private theorem arithmeticAdderStep_rCoeff
           (WireAddress.littleEndianWire bit))
     x
 
-private theorem arithmeticAdderStep_scratchA
+private lemma arithmeticAdderStep_scratchA
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).core.scratchA =
@@ -1011,7 +1013,7 @@ private theorem arithmeticAdderStep_scratchA
     (RegisterBits.compare_scratchA_wire_ne fieldTail.succ counterWidth)
     x
 
-private theorem arithmeticAdderStep_scratchB
+private lemma arithmeticAdderStep_scratchB
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).core.scratchB =
@@ -1027,7 +1029,7 @@ private theorem arithmeticAdderStep_scratchB
     (RegisterBits.compare_scratchB_wire_ne fieldTail.succ counterWidth)
     x
 
-private theorem arithmeticAdderStep_history
+private lemma arithmeticAdderStep_history
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).core.history =
@@ -1054,7 +1056,7 @@ private theorem arithmeticAdderStep_history
   simpa only [RegisterBits.historyBit_get,
     WireAddress.bitIndex_littleEndianWire] using hread
 
-private theorem arithmeticAdderStep_counter
+private lemma arithmeticAdderStep_counter
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).core.counter =
@@ -1081,7 +1083,7 @@ private theorem arithmeticAdderStep_counter
   simpa only [RegisterBits.counterBit_get,
     WireAddress.bitIndex_littleEndianWire] using hread
 
-private theorem arithmeticTargetWord_liftSharedBit_ne
+private lemma arithmeticTargetWord_liftSharedBit_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (sharedWorkEncoding fieldTail.succ counterWidth)) :
@@ -1098,7 +1100,7 @@ private theorem arithmeticTargetWord_liftSharedBit_ne
       liftCoreBit_liftSharedBit_wire_ne fieldTail.succ counterWidth
         (RegisterBits.uValueBit fieldTail.succ counterWidth low) observed
 
-private theorem arithmeticTargetWord_targetBit_ne
+private lemma arithmeticTargetWord_targetBit_ne
     (fieldTail counterWidth : Nat) (observed : Fin fieldTail.succ) :
     forall bit,
       ((arithmeticTargetWord fieldTail counterWidth).bit bit).wire ≠
@@ -1113,7 +1115,7 @@ private theorem arithmeticTargetWord_targetBit_ne
       liftCoreBit_targetBit_wire_ne fieldTail.succ counterWidth
         (RegisterBits.uValueBit fieldTail.succ counterWidth low) observed
 
-private theorem arithmeticAdderStep_correctionCounter
+private lemma arithmeticAdderStep_correctionCounter
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).shared.correctionCounter =
@@ -1135,7 +1137,7 @@ private theorem arithmeticAdderStep_correctionCounter
           fieldTail.succ counterWidth (WireAddress.littleEndianWire bit) work))
     x
 
-private theorem arithmeticAdderStep_path
+private lemma arithmeticAdderStep_path
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).shared.path =
@@ -1152,7 +1154,7 @@ private theorem arithmeticAdderStep_path
       (pathBit_coefficientCarryWorkBit_wire_ne fieldTail.succ counterWidth work))
     x
 
-private theorem arithmeticAdderStep_control
+private lemma arithmeticAdderStep_control
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).shared.control =
@@ -1170,7 +1172,7 @@ private theorem arithmeticAdderStep_control
         work))
     x
 
-private theorem arithmeticAdderStep_publicTarget
+private lemma arithmeticAdderStep_publicTarget
     (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (arithmeticAdderStep fieldTail counterWidth x).target = x.target := by
@@ -1193,7 +1195,7 @@ private theorem arithmeticAdderStep_publicTarget
 
 /-- One forward use of the shared VBE bank adds the active widened source into
 the borrowed target and restores the bank to its canonical clean value. -/
-theorem arithmeticAdderStep_state
+lemma arithmeticAdderStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -1320,7 +1322,7 @@ theorem arithmeticAdderStep_state
 
 /-- Reversing the shared VBE bank subtracts the unchanged active source from
 the borrowed target and again leaves its carry workspace clean. -/
-theorem arithmeticAdderReverseStep_state
+lemma arithmeticAdderReverseStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -1349,7 +1351,7 @@ def sourceSwapStep (fieldTail counterWidth : Nat) :
 
 /-- The compact source swap exchanges the zero-extended active low word and
 the parked modulus while preserving the complete surrounding carrier. -/
-theorem sourceSwapStep_state
+lemma sourceSwapStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active parked : Word fieldTail.succ)
@@ -1497,7 +1499,7 @@ def copyReductionFlagStep (fieldTail counterWidth : Nat) :
   EncodedBit.GateSpec.stepList
     (copyReductionFlagGates fieldTail counterWidth)
 
-@[simp] private theorem scratchABit_flip (fieldTail counterWidth : Nat)
+@[simp] private lemma scratchABit_flip (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (scratchABit fieldTail.succ counterWidth).flip x =
       { x with core := { x.core with scratchA := !x.core.scratchA } } := by
@@ -1505,7 +1507,7 @@ def copyReductionFlagStep (fieldTail counterWidth : Nat) :
     history, active, counter⟩, shared, target⟩
   rfl
 
-@[simp] private theorem scratchBBit_flip (fieldTail counterWidth : Nat)
+@[simp] private lemma scratchBBit_flip (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (scratchBBit fieldTail.succ counterWidth).flip x =
       { x with core := { x.core with scratchB := !x.core.scratchB } } := by
@@ -1514,7 +1516,7 @@ def copyReductionFlagStep (fieldTail counterWidth : Nat) :
   rfl
 
 /-- Exact record action of the compact X/CNOT reduction-predicate copy. -/
-theorem copyReductionFlagStep_eq (fieldTail counterWidth : Nat)
+lemma copyReductionFlagStep_eq (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     copyReductionFlagStep fieldTail counterWidth x =
       { x with core :=
@@ -1528,7 +1530,7 @@ theorem copyReductionFlagStep_eq (fieldTail counterWidth : Nat)
 
 /-- On an arithmetic-state view, the copy stage changes only the retained
 reduction flag. -/
-theorem copyReductionFlagStep_state
+lemma copyReductionFlagStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -1576,7 +1578,7 @@ private def nonActiveFrame (n counterWidth : Nat)
 
 /-- The conditional constant xor clears the active modulus exactly on the
 retained reduction branch and preserves all borrowed surrounding fields. -/
-theorem clearActiveModulusStep_state
+lemma clearActiveModulusStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (target : Word (fieldTail.succ + 1))
@@ -1703,7 +1705,7 @@ def restoreActiveModulusStep (fieldTail counterWidth p : Nat) :
 
 /-- The reverse constant-xor stage restores the active modulus after the
 matching clear stage on either reduction branch. -/
-theorem restoreActiveModulusStep_state
+lemma restoreActiveModulusStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (target : Word (fieldTail.succ + 1))
@@ -1738,7 +1740,7 @@ def cleanupReductionFlagStep (fieldTail counterWidth : Nat) :
     (cleanupReductionFlagGates fieldTail counterWidth)
 
 /-- Exact record action of the final CNOT reduction-flag cleanup. -/
-theorem cleanupReductionFlagStep_eq (fieldTail counterWidth : Nat)
+lemma cleanupReductionFlagStep_eq (fieldTail counterWidth : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     cleanupReductionFlagStep fieldTail counterWidth x =
       { x with core :=
@@ -1752,7 +1754,7 @@ theorem cleanupReductionFlagStep_eq (fieldTail counterWidth : Nat)
 
 /-- On an arithmetic-state view, cleanup xors the subtraction high bit back
 out of the retained flag. -/
-theorem cleanupReductionFlagStep_state
+lemma cleanupReductionFlagStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (active target : Word (fieldTail.succ + 1))
@@ -1773,7 +1775,7 @@ def modularReduceStep (fieldTail counterWidth p : Nat) :
 
 /-- The flattened reduction ledger executes the eleven named compact stages
 in source order. -/
-theorem modularReduceStep_eq_stages (fieldTail counterWidth p : Nat)
+lemma modularReduceStep_eq_stages (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     modularReduceStep fieldTail counterWidth p x =
       arithmeticAdderStep fieldTail counterWidth
@@ -1796,7 +1798,7 @@ theorem modularReduceStep_eq_stages (fieldTail counterWidth p : Nat)
 
 /-- The eleven-stage compact ledger performs one conditional subtraction on
 the two-modulus input range and retains the public reduction predicate. -/
-theorem modularReduceStep_state
+lemma modularReduceStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (raw : Word (fieldTail.succ + 1))
@@ -1962,7 +1964,7 @@ def modularSumWord (fieldTail p : Nat) (hpPos : 0 < p)
       Nat.pow_lt_pow_right (by decide) fieldTail.succ.lt_succ_self
     exact hmod.trans (hp.trans hpow)⟩
 
-@[simp] theorem modularSumWord_val (fieldTail p : Nat) (hpPos : 0 < p)
+@[simp] lemma modularSumWord_val (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (a b : Word fieldTail.succ) :
     (modularSumWord fieldTail p hpPos hp a b).val =
       (a.val + b.val) % p :=
@@ -1975,7 +1977,7 @@ def modularSumFixedWord (fieldTail p : Nat) (hpPos : 0 < p)
     Word fieldTail.succ :=
   ⟨(a.val + b.val) % p, (Nat.mod_lt _ hpPos).trans hp⟩
 
-@[simp] theorem modularSumFixedWord_val
+@[simp] lemma modularSumFixedWord_val
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (a b : Word fieldTail.succ) :
     (modularSumFixedWord fieldTail p hpPos hp a b).val =
@@ -1989,7 +1991,7 @@ def modularDifferenceWord (fieldTail p : Nat) (hpPos : 0 < p)
   ⟨(target.val + p - source.val) % p,
     (Nat.mod_lt _ hpPos).trans hp⟩
 
-@[simp] theorem modularDifferenceWord_val
+@[simp] lemma modularDifferenceWord_val
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (target source : Word fieldTail.succ) :
@@ -1998,7 +2000,7 @@ def modularDifferenceWord (fieldTail p : Nat) (hpPos : 0 < p)
   rfl
 
 /-- The fixed-width target update is subtraction in the residue field. -/
-theorem modularDifferenceWord_cast
+lemma modularDifferenceWord_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (target source : Word fieldTail.succ) (hsource : source.val < p) :
@@ -2011,7 +2013,7 @@ theorem modularDifferenceWord_cast
 
 /-- Subtracting the source from its canonical modular sum with a target
 recovers that target. -/
-theorem modularDifferenceWord_sum
+lemma modularDifferenceWord_sum
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (target source : Word fieldTail.succ)
@@ -2043,7 +2045,7 @@ theorem modularDifferenceWord_sum
 /-- Adding a source to the canonical modular difference recovers the target.
 This is the arithmetic bridge used to run the exact modular-add ledger in
 reverse on an arbitrary canonical target. -/
-theorem modularSumWord_difference
+lemma modularSumWord_difference
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (source target : Word fieldTail.succ)
@@ -2081,7 +2083,7 @@ the active source and borrowed target start as canonical residues.  In
 particular, the parked modulus and every borrowed comparison/carry bit are
 restored, so reversing this exact ledger gives modular subtraction without a
 second arithmetic workspace. -/
-theorem modularReduceStep_add_state
+lemma modularReduceStep_add_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (a b : Word fieldTail.succ)
@@ -2307,17 +2309,17 @@ def modularSubtractStep (fieldTail counterWidth p : Nat) :
     (modularSubtractGates fieldTail counterWidth p)
 
 /-- The reverse modular-add circuit realizes its literal gate-list action. -/
-theorem modularSubtract_realizes (fieldTail counterWidth p : Nat) :
+lemma modularSubtract_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
-      (modularSubtractProgram fieldTail counterWidth p)
+      (modularSubtractProgram fieldTail counterWidth p) environment
       (modularSubtractStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (modularSubtractGates fieldTail counterWidth p)
 
 /-- Reversing the general clean modular-add endpoint subtracts the preserved
 active residue while restoring the parked modulus and every borrowed work bit.
 This image-form theorem avoids introducing any extra subtraction flag. -/
-theorem modularSubtractStep_add_state
+lemma modularSubtractStep_add_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (a b : Word fieldTail.succ)
@@ -2344,7 +2346,7 @@ theorem modularSubtractStep_add_state
 
 /-- On arbitrary canonical inputs, the inverse ledger subtracts the active
 source modulo `p` and returns the complete compact arithmetic view clean. -/
-theorem modularSubtractStep_state
+lemma modularSubtractStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (source target : Word fieldTail.succ)
@@ -2386,7 +2388,7 @@ def targetUpdateState (fieldTail counterWidth : Nat)
       target := publicTarget }
     active borrowedTarget parked flag
 
-private theorem publicTarget_arithmeticTargetLow_ne
+private lemma publicTarget_arithmeticTargetLow_ne
     (n counterWidth : Nat) (publicBit targetBit : Fin n) :
     ((targetValueWord n counterWidth).bit publicBit).wire ≠
       ((uValueWord n counterWidth).bit targetBit).wire := by
@@ -2396,7 +2398,7 @@ private theorem publicTarget_arithmeticTargetLow_ne
       (RegisterBits.uValueBit n counterWidth targetBit)
       (WireAddress.littleEndianWire publicBit))
 
-private theorem arithmeticTargetLow_pairwise_ne
+private lemma arithmeticTargetLow_pairwise_ne
     (n counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((uValueWord n counterWidth).bit left).wire ≠
@@ -2409,7 +2411,7 @@ private theorem arithmeticTargetLow_pairwise_ne
         (WireAddress.littleEndianWire right)
         (littleEndianWire_ne hne))
 
-private theorem publicTarget_pairwise_ne
+private lemma publicTarget_pairwise_ne
     (n counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((targetValueWord n counterWidth).bit left).wire ≠
@@ -2440,7 +2442,7 @@ def targetSwapStep (n counterWidth : Nat) :
 
 /-- The target exchange swaps exactly the two low words and preserves the
 complete surrounding compact carrier. -/
-theorem targetSwapStep_state
+lemma targetSwapStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient active : Word (fieldTail.succ + 1))
@@ -2581,7 +2583,7 @@ def correctedValueWord (n counterWidth : Nat) :
     EncodedBit.Word (MK.Compact.encoding n counterWidth) n where
   bit := fun bit => (rCoeffValueWord n counterWidth).bit (Fin.castSucc bit)
 
-private theorem correctedValue_activeSourceLow_ne
+private lemma correctedValue_activeSourceLow_ne
     (n counterWidth : Nat) (source target : Fin n) :
     ((correctedValueWord n counterWidth).bit source).wire ≠
       ((vValueWord n counterWidth).bit target).wire := by
@@ -2592,7 +2594,7 @@ private theorem correctedValue_activeSourceLow_ne
         (WireAddress.littleEndianWire target)
         (WireAddress.littleEndianWire (Fin.castSucc source))))
 
-private theorem activeSourceLow_pairwise_ne (n counterWidth : Nat) :
+private lemma activeSourceLow_pairwise_ne (n counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((vValueWord n counterWidth).bit left).wire ≠
         ((vValueWord n counterWidth).bit right).wire := by
@@ -2622,7 +2624,7 @@ def coefficientLoadStep (n counterWidth : Nat) :
 /-- Loading a canonical corrected coefficient into clean borrowed `v` creates
 the widened active source without changing the retained coefficient or any
 other compact-carrier field. -/
-theorem coefficientLoadStep_state
+lemma coefficientLoadStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (source : Word fieldTail.succ)
@@ -2794,7 +2796,7 @@ def targetUpdateReverseStep (fieldTail counterWidth p : Nat) :
 
 /-- The flattened target-update ledger executes its five named stages in
 physical order. -/
-theorem targetUpdateStep_eq_stages (fieldTail counterWidth p : Nat)
+lemma targetUpdateStep_eq_stages (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     targetUpdateStep fieldTail counterWidth p x =
       targetSwapReverseStep fieldTail.succ counterWidth
@@ -2807,18 +2809,18 @@ theorem targetUpdateStep_eq_stages (fieldTail counterWidth p : Nat)
     targetSwapReverseStep, EncodedBit.GateSpec.stepList_append]
 
 /-- The native target-update circuit realizes its literal gate-list action. -/
-theorem targetUpdate_realizes (fieldTail counterWidth p : Nat) :
+lemma targetUpdate_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
-      (targetUpdateProgram fieldTail counterWidth p)
+      (targetUpdateProgram fieldTail counterWidth p) environment
       (targetUpdateStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (targetUpdateGates fieldTail counterWidth p)
 
 /-- Target update subtracts the retained corrected residue modulo `p`, which
 is exactly addition of the source-required signed correction.  The retained
 coefficient, parked modulus, public/core carrier, and sole VBE bank all return
 to their clean boundary values. -/
-theorem targetUpdateStep_state
+lemma targetUpdateStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (source target : Word fieldTail.succ)
@@ -2911,7 +2913,7 @@ theorem targetUpdateStep_state
 /-- Reversing target update adds the retained correction residue modulo `p`.
 The complete compact arithmetic state, including its borrowed VBE bank, is
 restored around the updated public target. -/
-theorem targetUpdateReverseStep_state
+lemma targetUpdateReverseStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (source target : Word fieldTail.succ)
@@ -2952,7 +2954,7 @@ theorem targetUpdateReverseStep_state
   rw [hforward] at hinverse
   simpa only [input, output, sum] using hinverse
 
-private theorem rCoeffValueWord_pairwise_ne_for_doubling
+private lemma rCoeffValueWord_pairwise_ne_for_doubling
     (n counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((rCoeffValueWord n counterWidth).bit left).wire ≠
@@ -2965,7 +2967,7 @@ private theorem rCoeffValueWord_pairwise_ne_for_doubling
         (WireAddress.littleEndianWire right)
         (littleEndianWire_ne hne))
 
-private theorem rCoeff_target_ne
+private lemma rCoeff_target_ne
     (fieldTail counterWidth : Nat)
     (source target : Fin (fieldTail.succ + 1)) :
     ((rCoeffValueWord fieldTail.succ counterWidth).bit source).wire ≠
@@ -3005,7 +3007,7 @@ def doublingShiftGates (fieldTail counterWidth : Nat) :
 def coefficientLowBit (fieldTail : Nat) : Fin fieldTail.succ :=
   (0 : Fin fieldTail.succ)
 
-private theorem rCoeffLow_reductionFlag_ne
+private lemma rCoeffLow_reductionFlag_ne
     (fieldTail counterWidth : Nat) :
     ((rCoeffValueWord fieldTail.succ counterWidth).bit
         (Fin.castSucc (coefficientLowBit fieldTail))).wire ≠
@@ -3077,7 +3079,7 @@ def doublingStep (fieldTail counterWidth p : Nat) :
 
 /-- The flattened in-place doubling ledger executes swap, shift, reduction,
 swap, and parity cleanup in source order. -/
-theorem doublingStep_eq_stages (fieldTail counterWidth p : Nat)
+lemma doublingStep_eq_stages (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     doublingStep fieldTail counterWidth p x =
       doublingCleanupStep fieldTail counterWidth
@@ -3111,7 +3113,7 @@ def doublingResidueWord (fieldTail p : Nat) (hpPos : 0 < p)
       Nat.pow_lt_pow_right (by decide) fieldTail.succ.lt_succ_self
     exact hmod.trans (hp.trans hpow)⟩
 
-@[simp] theorem doublingResidueWord_val (fieldTail p : Nat) (hpPos : 0 < p)
+@[simp] lemma doublingResidueWord_val (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ)
     (coefficient : Word (fieldTail.succ + 1)) :
     (doublingResidueWord fieldTail p hpPos hp coefficient).val =
@@ -3120,7 +3122,7 @@ def doublingResidueWord (fieldTail p : Nat) (hpPos : 0 < p)
 
 /-- The doubling exchange swaps the complete coefficient and borrowed target
 words while preserving every other compact-carrier field. -/
-theorem doublingSwapStep_state
+lemma doublingSwapStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient active target : Word (fieldTail.succ + 1))
@@ -3273,7 +3275,7 @@ theorem doublingSwapStep_state
 
 /-- When the widened target's top bit is zero, the adjacent cyclic sweep is
 exactly a zero-filled fixed-width doubling and preserves the carrier frame. -/
-theorem doublingShiftStep_state
+lemma doublingShiftStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient active target : Word (fieldTail.succ + 1))
@@ -3443,7 +3445,7 @@ theorem doublingShiftStep_state
 
 /-- For an odd modulus and a reduced input coefficient, the low bit of the
 reduced double records exactly whether the conditional subtraction fired. -/
-private theorem doublingResidueWord_lowBit
+private lemma doublingResidueWord_lowBit
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (hpOdd : Odd p)
     (coefficient : Word (fieldTail.succ + 1))
@@ -3467,7 +3469,7 @@ private theorem doublingResidueWord_lowBit
 
 /-- The final coefficient-parity CNOT erases the retained reduction flag and
 preserves the complete compact carrier. -/
-theorem doublingCleanupStep_state
+lemma doublingCleanupStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient active target : Word (fieldTail.succ + 1))
@@ -3496,7 +3498,7 @@ theorem doublingCleanupStep_state
 /-- The literal compact gate ledger performs in-place modular doubling on a
 reduced coefficient, restores the borrowed target and VBE bank to zero, and
 cleans the retained reduction flag. -/
-theorem doublingStep_state
+lemma doublingStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))
@@ -3578,11 +3580,11 @@ theorem doublingStep_state
 
 /-- The concrete compact modular-doubling circuit realizes its gate-list
 action. -/
-theorem doubling_realizes (fieldTail counterWidth p : Nat) :
+lemma doubling_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
-      (doublingProgram fieldTail counterWidth p)
+      (doublingProgram fieldTail counterWidth p) environment
       (doublingStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (doublingGates fieldTail counterWidth p)
 
 /-! ## Reversible initial coefficient reduction -/
@@ -3603,7 +3605,7 @@ def reductionFlagParkStep (n counterWidth : Nat) :
 
 /-- On a clean `scratchB`, parking moves the reduction predicate out of the
 VBE reduction flag and leaves all surrounding fields unchanged. -/
-theorem reductionFlagParkStep_state
+lemma reductionFlagParkStep_state
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient active target : Word (fieldTail.succ + 1))
@@ -3655,7 +3657,7 @@ def coefficientReduceStep (fieldTail counterWidth p : Nat) :
 
 /-- The flattened coefficient reduction executes swap, reduction, swap, and
 flag parking in source order. -/
-theorem coefficientReduceStep_eq_stages (fieldTail counterWidth p : Nat)
+lemma coefficientReduceStep_eq_stages (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     coefficientReduceStep fieldTail counterWidth p x =
       reductionFlagParkStep fieldTail.succ counterWidth
@@ -3669,7 +3671,7 @@ theorem coefficientReduceStep_eq_stages (fieldTail counterWidth p : Nat)
 /-- One exact coefficient reduction produces a canonical residue, leaves the
 borrowed arithmetic words clean, and retains only the reversible one-bit
 predicate in existing `scratchB`. -/
-theorem coefficientReduceStep_state
+lemma coefficientReduceStep_state
     (fieldTail counterWidth p : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (raw : Word (fieldTail.succ + 1))
@@ -3722,16 +3724,16 @@ theorem coefficientReduceStep_state
 
 /-- The native reversible coefficient reducer realizes its literal gate-list
 action. -/
-theorem coefficientReduce_realizes (fieldTail counterWidth p : Nat) :
+lemma coefficientReduce_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
-      (coefficientReduceProgram fieldTail counterWidth p)
+      (coefficientReduceProgram fieldTail counterWidth p) environment
       (coefficientReduceStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (coefficientReduceGates fieldTail counterWidth p)
 
 /-! ## Clean-work control of modular doubling -/
 
-private theorem bitSwapGates_bitDisjoint_observed
+private lemma bitSwapGates_bitDisjoint_observed
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (left right observed : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire)
@@ -3747,7 +3749,7 @@ private theorem bitSwapGates_bitDisjoint_observed
   · exact ⟨hrightObserved, hleftObserved⟩
   · exact ⟨hleftObserved, hrightObserved⟩
 
-private theorem wordSwapGates_bitDisjoint_observed
+private lemma wordSwapGates_bitDisjoint_observed
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (left right : EncodedBit.Word encoding width)
     (hleftRight : forall bit,
@@ -3767,7 +3769,7 @@ private theorem wordSwapGates_bitDisjoint_observed
     (left.bit bit) (right.bit bit) observed (hleftRight bit)
     (hleftObserved bit) (hrightObserved bit) gate hgate
 
-private theorem xorIntoGates_bitDisjoint_observed
+private lemma xorIntoGates_bitDisjoint_observed
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (source target : EncodedBit.Word encoding width)
     (hsourceTarget : forall bit,
@@ -3785,7 +3787,7 @@ private theorem xorIntoGates_bitDisjoint_observed
   rcases List.mem_ofFn.mp hgate with ⟨bit, rfl⟩
   exact ⟨hsourceObserved bit, htargetObserved bit⟩
 
-private theorem adjacentShiftRightGates_bitDisjoint_observed
+private lemma adjacentShiftRightGates_bitDisjoint_observed
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (word : EncodedBit.Word encoding width)
     (hword : forall left right, left ≠ right ->
@@ -3812,7 +3814,7 @@ private theorem adjacentShiftRightGates_bitDisjoint_observed
     (hwordObserved _) (hwordObserved _) gate
     (by simpa [EncodedBit.Word.adjacentSwapGates] using hgate)
 
-private theorem controlledXorConstantGates_bitDisjoint_observed
+private lemma controlledXorConstantGates_bitDisjoint_observed
     {Data : Type} {encoding : BinaryLabelEncoding Data} {width : Nat}
     (control : EncodedBit encoding)
     (target : EncodedBit.Word encoding width)
@@ -3832,7 +3834,7 @@ private theorem controlledXorConstantGates_bitDisjoint_observed
   rcases List.mem_map.mp hgate with ⟨bit, _hbit, rfl⟩
   exact ⟨hcontrolObserved, htargetObserved bit⟩
 
-private theorem activeSourceWord_observed_ne
+private lemma activeSourceWord_observed_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -3850,7 +3852,7 @@ private theorem activeSourceWord_observed_ne
     simpa [activeSourceWord, vValueWord] using
       hcore (RegisterBits.vValueBit fieldTail.succ counterWidth low)
 
-private theorem activeSourceLowWord_observed_ne
+private lemma activeSourceLowWord_observed_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -3864,7 +3866,7 @@ private theorem activeSourceLowWord_observed_ne
   simpa [activeSourceLowWord, vValueWord] using
     hcore (RegisterBits.vValueBit fieldTail.succ counterWidth bit)
 
-private theorem arithmeticTargetWord_observed_ne
+private lemma arithmeticTargetWord_observed_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -3882,7 +3884,7 @@ private theorem arithmeticTargetWord_observed_ne
     simpa [arithmeticTargetWord, uValueWord] using
       hcore (RegisterBits.uValueBit fieldTail.succ counterWidth low)
 
-private theorem parkedModulusWord_observed_ne
+private lemma parkedModulusWord_observed_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -3897,7 +3899,7 @@ private theorem parkedModulusWord_observed_ne
     hcore (RegisterBits.sCoeffValueBit fieldTail.succ counterWidth
       (Fin.castSucc bit))
 
-private theorem rCoeffValueWord_observed_ne
+private lemma rCoeffValueWord_observed_ne
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -3911,7 +3913,7 @@ private theorem rCoeffValueWord_observed_ne
   simpa [rCoeffValueWord] using
     hcore (RegisterBits.rCoeffValueBit fieldTail.succ counterWidth bit)
 
-private theorem liftCoreBit_targetUpdatePath_wire_ne
+private lemma liftCoreBit_targetUpdatePath_wire_ne
     (fieldTail counterWidth : Nat)
     (coreBit : EncodedBit
       (registerEncoding fieldTail.succ counterWidth)) :
@@ -3921,7 +3923,7 @@ private theorem liftCoreBit_targetUpdatePath_wire_ne
     liftCoreBit_liftSharedBit_wire_ne fieldTail.succ counterWidth coreBit
       (sharedPathBit fieldTail.succ counterWidth)
 
-private theorem targetValueWord_path_ne
+private lemma targetValueWord_path_ne
     (fieldTail counterWidth : Nat) :
     forall bit,
       ((targetValueWord fieldTail.succ counterWidth).bit bit).wire ≠
@@ -3932,7 +3934,7 @@ private theorem targetValueWord_path_ne
       liftSharedBit_targetValueBit_wire_ne fieldTail.succ counterWidth
         (sharedPathBit fieldTail.succ counterWidth) bit)
 
-private theorem targetSwapGates_bitDisjoint_path
+private lemma targetSwapGates_bitDisjoint_path
     (fieldTail counterWidth : Nat) :
     forall gate, gate ∈ targetSwapGates fieldTail.succ counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -3949,7 +3951,7 @@ private theorem targetSwapGates_bitDisjoint_path
         liftCoreBit_targetUpdatePath_wire_ne fieldTail counterWidth
           (RegisterBits.uValueBit fieldTail.succ counterWidth bit))
 
-private theorem coefficientLoadGates_bitDisjoint_path
+private lemma coefficientLoadGates_bitDisjoint_path
     (fieldTail counterWidth : Nat) :
     forall gate, gate ∈ coefficientLoadGates fieldTail.succ counterWidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -3970,7 +3972,7 @@ private theorem coefficientLoadGates_bitDisjoint_path
         liftCoreBit_targetUpdatePath_wire_ne fieldTail counterWidth
           (RegisterBits.vValueBit fieldTail.succ counterWidth bit))
 
-private theorem sourceSwapGates_bitDisjoint_observed
+private lemma sourceSwapGates_bitDisjoint_observed
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -3987,7 +3989,7 @@ private theorem sourceSwapGates_bitDisjoint_observed
     (activeSourceLowWord_observed_ne fieldTail counterWidth observed hcore)
     (parkedModulusWord_observed_ne fieldTail counterWidth observed hcore)
 
-private theorem arithmeticAdderGates_bitDisjoint_observed
+private lemma arithmeticAdderGates_bitDisjoint_observed
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -4014,7 +4016,7 @@ private theorem arithmeticAdderGates_bitDisjoint_observed
       gate
       (by simpa [arithmeticAdderGates] using hgate)
 
-private theorem copyReductionFlagGates_bitDisjoint_observed
+private lemma copyReductionFlagGates_bitDisjoint_observed
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -4042,7 +4044,7 @@ private theorem copyReductionFlagGates_bitDisjoint_observed
       by simpa [scratchABit] using
         hcore (RegisterBits.scratchABit fieldTail.succ counterWidth)⟩
 
-private theorem cleanupReductionFlagGates_bitDisjoint_observed
+private lemma cleanupReductionFlagGates_bitDisjoint_observed
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -4065,7 +4067,7 @@ private theorem cleanupReductionFlagGates_bitDisjoint_observed
     by simpa [scratchABit] using
       hcore (RegisterBits.scratchABit fieldTail.succ counterWidth)⟩
 
-private theorem modularReduceGates_bitDisjoint_observed
+private lemma modularReduceGates_bitDisjoint_observed
     (fieldTail counterWidth p : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -4127,7 +4129,7 @@ private theorem modularReduceGates_bitDisjoint_observed
         fieldTail counterWidth observed hcore gate h10
   · exact hadder gate h11
 
-private theorem modularSubtractGates_bitDisjoint_path
+private lemma modularSubtractGates_bitDisjoint_path
     (fieldTail counterWidth p : Nat) :
     forall gate, gate ∈ modularSubtractGates fieldTail counterWidth p ->
       EncodedBit.GateSpec.bitDisjoint
@@ -4147,7 +4149,7 @@ private theorem modularSubtractGates_bitDisjoint_path
 /-- The raw public-target subtraction ledger never reads or writes the compact
 path bit, so that bit remains available for an external clean-work control
 lift. -/
-theorem targetUpdateGates_bitDisjoint_path
+lemma targetUpdateGates_bitDisjoint_path
     (fieldTail counterWidth p : Nat) :
     forall gate, gate ∈ targetUpdateGates fieldTail counterWidth p ->
       EncodedBit.GateSpec.bitDisjoint
@@ -4171,7 +4173,7 @@ theorem targetUpdateGates_bitDisjoint_path
 
 /-- Reversing the public-target ledger preserves the same physical
 disjointness from the compact path bit. -/
-theorem targetUpdateReverseGates_bitDisjoint_path
+lemma targetUpdateReverseGates_bitDisjoint_path
     (fieldTail counterWidth p : Nat) :
     forall gate,
       gate ∈ (targetUpdateGates fieldTail counterWidth p).reverse ->
@@ -4181,7 +4183,7 @@ theorem targetUpdateReverseGates_bitDisjoint_path
   exact targetUpdateGates_bitDisjoint_path fieldTail counterWidth p gate
     (List.mem_reverse.mp hgate)
 
-private theorem doublingCleanupGates_bitDisjoint_observed
+private lemma doublingCleanupGates_bitDisjoint_observed
     (fieldTail counterWidth : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -4204,7 +4206,7 @@ private theorem doublingCleanupGates_bitDisjoint_observed
     by simpa [scratchABit] using
       hcore (RegisterBits.scratchABit fieldTail.succ counterWidth)⟩
 
-private theorem doublingGates_bitDisjoint_observed
+private lemma doublingGates_bitDisjoint_observed
     (fieldTail counterWidth p : Nat)
     (observed : EncodedBit
       (MK.Compact.encoding fieldTail.succ counterWidth))
@@ -4252,7 +4254,7 @@ private theorem doublingGates_bitDisjoint_observed
   · exact doublingCleanupGates_bitDisjoint_observed
       fieldTail counterWidth observed hcore gate h5
 
-private theorem liftCoreBit_path_wire_ne
+private lemma liftCoreBit_path_wire_ne
     (fieldTail counterWidth : Nat)
     (coreBit : EncodedBit
       (registerEncoding fieldTail.succ counterWidth)) :
@@ -4262,7 +4264,7 @@ private theorem liftCoreBit_path_wire_ne
     liftCoreBit_liftSharedBit_wire_ne fieldTail.succ counterWidth coreBit
       (sharedPathBit fieldTail.succ counterWidth)
 
-private theorem liftCoreBit_control_wire_ne
+private lemma liftCoreBit_control_wire_ne
     (fieldTail counterWidth : Nat)
     (coreBit : EncodedBit
       (registerEncoding fieldTail.succ counterWidth)) :
@@ -4274,7 +4276,7 @@ private theorem liftCoreBit_control_wire_ne
 
 /-- The raw modular-doubling ledger never reads or writes the correction
 selector path bit. -/
-theorem doublingGates_bitDisjoint_path
+lemma doublingGates_bitDisjoint_path
     (fieldTail counterWidth p : Nat) :
     forall gate, gate ∈ doublingGates fieldTail counterWidth p ->
       EncodedBit.GateSpec.bitDisjoint
@@ -4289,7 +4291,7 @@ theorem doublingGates_bitDisjoint_path
 
 /-- The raw modular-doubling ledger never reads or writes the clean control
 work bit used by its outer control lift. -/
-theorem doublingGates_bitDisjoint_control
+lemma doublingGates_bitDisjoint_control
     (fieldTail counterWidth p : Nat) :
     forall gate, gate ∈ doublingGates fieldTail counterWidth p ->
       EncodedBit.GateSpec.bitDisjoint
@@ -4330,11 +4332,11 @@ def controlledDoublingStep (fieldTail counterWidth p : Nat) :
     (controlledDoublingGates fieldTail counterWidth p)
 
 /-- The controlled doubling circuit realizes its literal native gate ledger. -/
-theorem controlledDoubling_realizes (fieldTail counterWidth p : Nat) :
+lemma controlledDoubling_realizes (fieldTail counterWidth p : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding fieldTail.succ counterWidth)
-      (controlledDoublingProgram fieldTail counterWidth p)
+      (controlledDoublingProgram fieldTail counterWidth p) environment
       (controlledDoublingStep fieldTail counterWidth p) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (controlledDoublingGates fieldTail counterWidth p)
 
 /-- Structured clean-work action of path-controlled modular doubling. -/
@@ -4348,7 +4350,7 @@ def controlledDoublingStructuredStep (fieldTail counterWidth p : Nat) :
 
 /-- With clean control work, the exact controlled ledger is one raw modular
 doubling on a true path and identity on a false path. -/
-theorem controlledDoublingStep_eq_structured_of_clean
+lemma controlledDoublingStep_eq_structured_of_clean
     (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth)
     (hwork : (controlBit fieldTail.succ counterWidth).get x = false) :
@@ -4388,7 +4390,7 @@ theorem controlledDoublingStep_eq_structured_of_clean
         EncodedBit.GateSpec.controlledListWithWorkStep,
         doublingStep] using hcontrolled
 
-private theorem gateSpecStepList_get_of_bitDisjoint
+private lemma gateSpecStepList_get_of_bitDisjoint
     {Data : Type} {encoding : BinaryLabelEncoding Data}
     (gates : List (EncodedBit.GateSpec encoding))
     (observed : EncodedBit encoding)
@@ -4407,7 +4409,7 @@ private theorem gateSpecStepList_get_of_bitDisjoint
         (h gate (by simp)) x
 
 /-- Raw modular doubling preserves the external selector path. -/
-theorem doublingStep_get_path (fieldTail counterWidth p : Nat)
+lemma doublingStep_get_path (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (pathBit fieldTail.succ counterWidth).get
         (doublingStep fieldTail counterWidth p x) =
@@ -4418,7 +4420,7 @@ theorem doublingStep_get_path (fieldTail counterWidth p : Nat)
     (doublingGates_bitDisjoint_path fieldTail counterWidth p) x
 
 /-- Raw modular doubling preserves the external clean control-work bit. -/
-theorem doublingStep_get_control (fieldTail counterWidth p : Nat)
+lemma doublingStep_get_control (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth) :
     (controlBit fieldTail.succ counterWidth).get
         (doublingStep fieldTail counterWidth p x) =
@@ -4429,7 +4431,7 @@ theorem doublingStep_get_control (fieldTail counterWidth p : Nat)
     (doublingGates_bitDisjoint_control fieldTail counterWidth p) x
 
 /-- A clean controlled doubling returns its per-gate control work clean. -/
-theorem controlledDoublingStep_get_control_of_clean
+lemma controlledDoublingStep_get_control_of_clean
     (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth)
     (hwork : (controlBit fieldTail.succ counterWidth).get x = false) :
@@ -4443,7 +4445,7 @@ theorem controlledDoublingStep_get_control_of_clean
   · rw [if_neg hpath, hwork]
 
 /-- A clean controlled doubling preserves its selector path. -/
-theorem controlledDoublingStep_get_path_of_clean
+lemma controlledDoublingStep_get_path_of_clean
     (fieldTail counterWidth p : Nat)
     (x : MK.Compact.Registers fieldTail.succ counterWidth)
     (hwork : (controlBit fieldTail.succ counterWidth).get x = false) :
@@ -4482,18 +4484,18 @@ def correctionIndexWord (n counterTail : Nat) :
     Fin.lastCases (controlBit n (counterTail + 1))
       (correctionIndexLowBit n counterTail) bit
 
-@[simp] theorem correctionIndexWord_bit_last (n counterTail : Nat) :
+@[simp] lemma correctionIndexWord_bit_last (n counterTail : Nat) :
     (correctionIndexWord n counterTail).bit (Fin.last counterTail) =
       controlBit n (counterTail + 1) := by
   simp [correctionIndexWord]
 
-@[simp] theorem correctionIndexWord_bit_castSucc
+@[simp] lemma correctionIndexWord_bit_castSucc
     (n counterTail : Nat) (bit : Fin counterTail) :
     (correctionIndexWord n counterTail).bit (Fin.castSucc bit) =
       correctionIndexLowBit n counterTail bit := by
   simp [correctionIndexWord]
 
-@[simp] theorem correctionIndexLowBit_get
+@[simp] lemma correctionIndexLowBit_get
     (n counterTail : Nat) (bit : Fin counterTail)
     (x : MK.Compact.Registers n (counterTail + 1)) :
     (correctionIndexLowBit n counterTail bit).get x =
@@ -4506,7 +4508,7 @@ def correctionBorrowWorkIndex (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) (bit : Fin (counterTail + 1)) : Fin n :=
   ⟨bit.val, lt_of_lt_of_le bit.isLt hwidth⟩
 
-@[simp] theorem correctionBorrowWorkIndex_val
+@[simp] lemma correctionBorrowWorkIndex_val
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (bit : Fin (counterTail + 1)) :
     (correctionBorrowWorkIndex n counterTail hwidth bit).val = bit.val :=
@@ -4526,7 +4528,7 @@ def correctionBorrowWorkWord (n counterTail : Nat)
       (counterTail + 1) where
   bit := correctionBorrowWorkBit n counterTail hwidth
 
-private theorem correctionIndexWord_pairwise_ne
+private lemma correctionIndexWord_pairwise_ne
     (n counterTail : Nat) :
     forall left right, left ≠ right ->
       ((correctionIndexWord n counterTail).bit left).wire ≠
@@ -4568,7 +4570,7 @@ private theorem correctionIndexWord_pairwise_ne
             apply Fin.ext
             exact congrArg Fin.val heq))
 
-private theorem correctionCountWord_pairwise_ne
+private lemma correctionCountWord_pairwise_ne
     (n counterTail : Nat) :
     forall left right, left ≠ right ->
       ((correctionCountWord n counterTail).bit left).wire ≠
@@ -4577,7 +4579,7 @@ private theorem correctionCountWord_pairwise_ne
   simpa [correctionCountWord, paddingCounterValueWord] using
     paddingCounterValueBit_wire_ne n counterTail hne
 
-private theorem correctionIndex_count_ne (n counterTail : Nat) :
+private lemma correctionIndex_count_ne (n counterTail : Nat) :
     forall indexBit countBit,
       ((correctionIndexWord n counterTail).bit indexBit).wire ≠
         ((correctionCountWord n counterTail).bit countBit).wire := by
@@ -4600,7 +4602,7 @@ private theorem correctionIndex_count_ne (n counterTail : Nat) :
         (sharedCorrectionCounterBit n (counterTail + 1)
           (WireAddress.littleEndianWire ⟨low.val, by omega⟩)))
 
-private theorem correctionIndex_scratchA_ne (n counterTail : Nat) :
+private lemma correctionIndex_scratchA_ne (n counterTail : Nat) :
     forall bit,
       ((correctionIndexWord n counterTail).bit bit).wire ≠
         (scratchABit n (counterTail + 1)).wire := by
@@ -4618,7 +4620,7 @@ private theorem correctionIndex_scratchA_ne (n counterTail : Nat) :
         (sharedCorrectionCounterBit n (counterTail + 1)
           (WireAddress.littleEndianWire ⟨low.val, by omega⟩)))
 
-private theorem correctionCount_scratchA_ne (n counterTail : Nat) :
+private lemma correctionCount_scratchA_ne (n counterTail : Nat) :
     forall bit,
       ((correctionCountWord n counterTail).bit bit).wire ≠
         (scratchABit n (counterTail + 1)).wire := by
@@ -4629,7 +4631,7 @@ private theorem correctionCount_scratchA_ne (n counterTail : Nat) :
       (Ne.symm (RegisterBits.scratchA_counter_wire_ne n (counterTail + 1)
         (WireAddress.littleEndianWire bit)))
 
-private theorem correctionIndex_work_ne (n counterTail : Nat)
+private lemma correctionIndex_work_ne (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
     forall indexBit workBit,
       ((correctionIndexWord n counterTail).bit indexBit).wire ≠
@@ -4649,7 +4651,7 @@ private theorem correctionIndex_work_ne (n counterTail : Nat)
         (WireAddress.littleEndianWire ⟨low.val, by omega⟩)
         (correctionBorrowWorkIndex n counterTail hwidth workBit)
 
-private theorem correctionCount_work_ne (n counterTail : Nat)
+private lemma correctionCount_work_ne (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
     forall countBit workBit,
       ((correctionCountWord n counterTail).bit countBit).wire ≠
@@ -4663,7 +4665,7 @@ private theorem correctionCount_work_ne (n counterTail : Nat)
         (WireAddress.littleEndianWire countBit))
       (correctionBorrowWorkIndex n counterTail hwidth workBit)
 
-private theorem correctionScratchA_work_ne (n counterTail : Nat)
+private lemma correctionScratchA_work_ne (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
     forall workBit,
       (scratchABit n (counterTail + 1)).wire ≠
@@ -4675,7 +4677,7 @@ private theorem correctionScratchA_work_ne (n counterTail : Nat)
       (RegisterBits.scratchABit n (counterTail + 1))
       (correctionBorrowWorkIndex n counterTail hwidth workBit)
 
-private theorem correctionBorrowWorkWord_pairwise_ne
+private lemma correctionBorrowWorkWord_pairwise_ne
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n) :
     forall left right, left ≠ right ->
       ((correctionBorrowWorkWord n counterTail hwidth).bit left).wire ≠
@@ -4725,13 +4727,13 @@ def correctionLtBorrowStep (n counterTail : Nat)
     (correctionLtBorrowGates n counterTail hwidth)
 
 /-- The forward comparison ledger is realized by its literal base gates. -/
-theorem correctionLtBorrow_realizes (n counterTail : Nat)
+lemma correctionLtBorrow_realizes (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n (counterTail + 1))
       (EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
-        (correctionLtBorrowGates n counterTail hwidth))
+        (correctionLtBorrowGates n counterTail hwidth)) environment
       (correctionLtBorrowStep n counterTail hwidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (correctionLtBorrowGates n counterTail hwidth)
 
 /-- The highest logarithmic borrow bit carries the full-word comparison. -/
@@ -4740,7 +4742,7 @@ def correctionLtFinalBorrowIndex (counterTail : Nat) :
   Fin.last counterTail
 
 /-- The literal gate fold agrees with the generic ordered borrow recurrence. -/
-theorem correctionLtBorrowStep_eq_indexStep (n counterTail : Nat)
+lemma correctionLtBorrowStep_eq_indexStep (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1)) :
     correctionLtBorrowStep n counterTail hwidth x =
@@ -4752,7 +4754,7 @@ theorem correctionLtBorrowStep_eq_indexStep (n counterTail : Nat)
 
 /-- On a clean borrowed bank, the last borrow bit decides whether the
 temporary fixed-loop index is smaller than the full-width correction count. -/
-theorem correctionLtBorrowStep_get_final_work_of_clean
+lemma correctionLtBorrowStep_get_final_work_of_clean
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1))
     (hcontrol : (controlBit n (counterTail + 1)).get x = false)
@@ -4820,7 +4822,7 @@ theorem correctionLtBorrowStep_get_final_work_of_clean
       (n := (correctionLtFinalBorrowIndex counterTail).val + 1)
       hindex hcount
 
-private theorem correctionIndex_path_ne (n counterTail : Nat) :
+private lemma correctionIndex_path_ne (n counterTail : Nat) :
     forall bit,
       ((correctionIndexWord n counterTail).bit bit).wire ≠
         (pathBit n (counterTail + 1)).wire := by
@@ -4834,7 +4836,7 @@ private theorem correctionIndex_path_ne (n counterTail : Nat) :
       Ne.symm (pathBit_correctionCounterBit_wire_ne n (counterTail + 1)
         (WireAddress.littleEndianWire ⟨low.val, by omega⟩))
 
-private theorem correctionCount_path_ne (n counterTail : Nat) :
+private lemma correctionCount_path_ne (n counterTail : Nat) :
     forall bit,
       ((correctionCountWord n counterTail).bit bit).wire ≠
         (pathBit n (counterTail + 1)).wire := by
@@ -4846,7 +4848,7 @@ private theorem correctionCount_path_ne (n counterTail : Nat) :
         (WireAddress.littleEndianWire bit))
       (sharedPathBit n (counterTail + 1))
 
-private theorem correctionScratchA_path_ne (n counterTail : Nat) :
+private lemma correctionScratchA_path_ne (n counterTail : Nat) :
     (scratchABit n (counterTail + 1)).wire ≠
       (pathBit n (counterTail + 1)).wire := by
   simpa [scratchABit, pathBit] using
@@ -4855,7 +4857,7 @@ private theorem correctionScratchA_path_ne (n counterTail : Nat) :
       (sharedPathBit n (counterTail + 1))
 
 /-- The native borrow pass never touches its external comparison-output bit. -/
-theorem correctionLtBorrowGates_bitDisjoint_path
+lemma correctionLtBorrowGates_bitDisjoint_path
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n) :
     forall gate, gate ∈ correctionLtBorrowGates n counterTail hwidth ->
       EncodedBit.GateSpec.bitDisjoint
@@ -4915,12 +4917,12 @@ def correctionLtSelectorStep (n counterTail : Nat)
 
 /-- The correction selector realizes its literal compute-copy-uncompute
 ledger. -/
-theorem correctionLtSelector_realizes (n counterTail : Nat)
+lemma correctionLtSelector_realizes (n counterTail : Nat)
     (hwidth : counterTail + 1 <= n) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n (counterTail + 1))
-      (correctionLtSelectorProgram n counterTail hwidth)
+      (correctionLtSelectorProgram n counterTail hwidth) environment
       (correctionLtSelectorStep n counterTail hwidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (correctionLtSelectorGates n counterTail hwidth)
 
 /-- Reverse action of the logarithmic borrow ledger. -/
@@ -4932,7 +4934,7 @@ def correctionLtBorrowReverseStep (n counterTail : Nat)
     (correctionLtBorrowGates n counterTail hwidth).reverse
 
 /-- Forward then reverse borrow execution restores the whole carrier. -/
-theorem correctionLtBorrowReverseStep_after_forward
+lemma correctionLtBorrowReverseStep_after_forward
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1)) :
     correctionLtBorrowReverseStep n counterTail hwidth
@@ -4941,7 +4943,7 @@ theorem correctionLtBorrowReverseStep_after_forward
     (correctionLtBorrowGates n counterTail hwidth) x
 
 /-- Reverse borrow cleanup commutes with flipping the untouched path bit. -/
-theorem correctionLtBorrowReverseStep_flip_path_comm
+lemma correctionLtBorrowReverseStep_flip_path_comm
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1)) :
     correctionLtBorrowReverseStep n counterTail hwidth
@@ -4956,7 +4958,7 @@ theorem correctionLtBorrowReverseStep_flip_path_comm
 /-- On a clean comparator boundary, the complete selector only conditionally
 flips `path`; the real counter, temporary index, and the entire coefficient
 adder bank are otherwise unchanged. -/
-theorem correctionLtSelectorStep_eq_conditional_path_flip_of_clean
+lemma correctionLtSelectorStep_eq_conditional_path_flip_of_clean
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1))
     (hcontrol : (controlBit n (counterTail + 1)).get x = false)
@@ -4999,7 +5001,7 @@ theorem correctionLtSelectorStep_eq_conditional_path_flip_of_clean
   · simp [hlt, hrestore]
 
 /-- The selector xors the mathematical comparison into `path`. -/
-theorem correctionLtSelectorStep_get_path_of_clean
+lemma correctionLtSelectorStep_get_path_of_clean
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1))
     (hcontrol : (controlBit n (counterTail + 1)).get x = false)
@@ -5019,7 +5021,7 @@ theorem correctionLtSelectorStep_get_path_of_clean
     simp [hlt]
 
 /-- Every coefficient carry-work bit is restored by the clean selector. -/
-theorem correctionLtSelectorStep_get_workCarry_of_clean
+lemma correctionLtSelectorStep_get_workCarry_of_clean
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (bit : Fin n) (x : MK.Compact.Registers n (counterTail + 1))
     (hcontrol : (controlBit n (counterTail + 1)).get x = false)
@@ -5039,7 +5041,7 @@ theorem correctionLtSelectorStep_get_workCarry_of_clean
     exact hwork bit
 
 /-- The clean selector preserves the VBE carry-in bit. -/
-theorem correctionLtSelectorStep_get_carryIn_of_clean
+lemma correctionLtSelectorStep_get_carryIn_of_clean
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n)
     (x : MK.Compact.Registers n (counterTail + 1))
     (hcontrol : (controlBit n (counterTail + 1)).get x = false)
@@ -5102,7 +5104,7 @@ def correctionSlotUnloadStep (n counterTail : Nat)
 
 /-- Loading and then unloading a static correction-slot index restores the
 entire compact carrier. -/
-theorem correctionSlotUnloadStep_after_load
+lemma correctionSlotUnloadStep_after_load
     (n counterTail : Nat) (hcapacity : n <= 2 ^ counterTail)
     (slot : Fin n) (x : MK.Compact.Registers n (counterTail + 1)) :
     correctionSlotUnloadStep n counterTail hcapacity slot
@@ -5128,7 +5130,7 @@ def correctionSlotState (fieldTail counterTail : Nat)
           path := path } }
     coefficient (widenFixedWord fieldTail.succ 0) 0 modulus false
 
-@[simp] private theorem pathBit_flip_state
+@[simp] private lemma pathBit_flip_state
     (n counterWidth : Nat) (x : MK.Compact.Registers n counterWidth) :
     (pathBit n counterWidth).flip x =
       { x with shared := { x.shared with path := !x.shared.path } } := by
@@ -5145,7 +5147,7 @@ private def clearCorrectionIndex (n counterTail : Nat)
 
 /-- Loading a slot constant changes only the clean temporary correction
 index. -/
-private theorem correctionSlotLoadStep_state
+private lemma correctionSlotLoadStep_state
     (fieldTail counterTail : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (slot : Fin fieldTail.succ)
@@ -5286,7 +5288,7 @@ def correctionSlotStep (fieldTail counterTail p : Nat)
 
 /-- The flattened correction slot executes load, select, controlled double,
 unselect, and unload in source order. -/
-theorem correctionSlotStep_eq_stages
+lemma correctionSlotStep_eq_stages
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -5307,7 +5309,7 @@ theorem correctionSlotStep_eq_stages
 /-- One static slot doubles the reduced coefficient exactly when its public
 index is below the runtime correction count.  Both selector invocations and
 the constant unload restore the complete shared workspace. -/
-theorem correctionSlotStep_state
+lemma correctionSlotStep_state
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -5457,16 +5459,16 @@ theorem correctionSlotStep_state
 
 /-- Every correction slot is realized directly by its flattened native gate
 ledger. -/
-theorem correctionSlot_realizes
+lemma correctionSlot_realizes
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
     (slot : Fin fieldTail.succ) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 1))
-      (correctionSlotProgram fieldTail counterTail p hcapacity hwidth slot)
+      (correctionSlotProgram fieldTail counterTail p hcapacity hwidth slot) environment
       (correctionSlotStep fieldTail counterTail p hcapacity hwidth slot) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (correctionSlotGates fieldTail counterTail p hcapacity hwidth slot)
 
 /-! ## Complete fixed correction loop -/
@@ -5509,7 +5511,7 @@ def correctionLoopStep (fieldTail counterTail p : Nat)
   EncodedBit.GateSpec.stepList
     (correctionLoopGates fieldTail counterTail p hcapacity hwidth)
 
-private theorem stepList_flatMap_correctionSlotGates
+private lemma stepList_flatMap_correctionSlotGates
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
@@ -5542,7 +5544,7 @@ private theorem stepList_flatMap_correctionSlotGates
 
 /-- The flattened correction ledger and its named slot schedule have the same
 state action. -/
-theorem correctionLoopStep_eq_stepSchedule
+lemma correctionLoopStep_eq_stepSchedule
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -5555,15 +5557,15 @@ theorem correctionLoopStep_eq_stepSchedule
 
 /-- The complete correction loop is realized directly by its flattened
 native gate ledger. -/
-theorem correctionLoop_realizes
+lemma correctionLoop_realizes
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 1))
-      (correctionLoopProgram fieldTail counterTail p hcapacity hwidth)
+      (correctionLoopProgram fieldTail counterTail p hcapacity hwidth) environment
       (correctionLoopStep fieldTail counterTail p hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (correctionLoopGates fieldTail counterTail p hcapacity hwidth)
 
 /-- Mathematical reduced coefficient after the first `rounds` static slots.
@@ -5581,7 +5583,7 @@ def correctionResiduePrefix (fieldTail p : Nat)
       else prior
 
 /-- Every nonempty correction prefix remains reduced. -/
-theorem correctionResiduePrefix_lt
+lemma correctionResiduePrefix_lt
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (count rounds : Nat)
     (coefficient : Word (fieldTail.succ + 1))
@@ -5601,7 +5603,7 @@ theorem correctionResiduePrefix_lt
 /-- The static prefix applies exactly the selected number of modular
 doublings.  The `min` records that a public prefix shorter than the runtime
 count can only execute the slots that physically exist. -/
-theorem correctionResiduePrefix_cast
+lemma correctionResiduePrefix_cast
     (fieldTail p : Nat) (hpPos : 0 < p)
     (hp : p < 2 ^ fieldTail.succ) (count rounds : Nat)
     (coefficient : Word (fieldTail.succ + 1)) :
@@ -5637,7 +5639,7 @@ def correctionLoopPrefix (fieldTail counterTail p : Nat)
   UnitaryCircuit.Realizes.stepList
     ((correctionLoopSteps fieldTail counterTail p hcapacity hwidth).take rounds)
 
-private theorem correctionFinRange_take_succ
+private lemma correctionFinRange_take_succ
     {count : Nat} (slot : Fin count) :
     (List.finRange count).take (slot.val + 1) =
       (List.finRange count).take slot.val ++ [slot] := by
@@ -5650,7 +5652,7 @@ private theorem correctionFinRange_take_succ
 
 /-- Extending a correction prefix executes exactly the slot whose public
 index is the old prefix length. -/
-theorem correctionLoopPrefix_succ
+lemma correctionLoopPrefix_succ
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -5670,7 +5672,7 @@ theorem correctionLoopPrefix_succ
 
 /-- Every bounded physical prefix implements the corresponding runtime-count
 controlled modular-doubling recurrence and restores all borrowed wires. -/
-theorem correctionLoopPrefix_state
+lemma correctionLoopPrefix_state
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -5704,7 +5706,7 @@ theorem correctionLoopPrefix_state
 
 /-- Full-loop endpoint: the runtime correction count controls exactly the
 public `n`-slot reduced-doubling recurrence, with the shared carrier clean. -/
-theorem correctionLoopStep_state
+lemma correctionLoopStep_state
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -5750,7 +5752,7 @@ def correctionBoundaryState (fieldTail counterWidth : Nat)
       target := target }
     coefficient (widenFixedWord fieldTail.succ 0) 0 modulus false
 
-@[simp] theorem correctionBoundaryState_update_base_target
+@[simp] lemma correctionBoundaryState_update_base_target
     (fieldTail counterWidth : Nat)
     (base : MK.Compact.Registers fieldTail.succ counterWidth)
     (coefficient : Word (fieldTail.succ + 1))
@@ -5814,7 +5816,7 @@ def correctionSlotOneCountSum
   ((List.finRange n).map fun slot =>
     correctionSlotOneCount n counterTail hcapacity slot).sum
 
-private theorem arithmeticAdderGates_resource
+private lemma arithmeticAdderGates_resource
     (fieldTail counterWidth : Nat) :
     ((arithmeticAdderGates fieldTail counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 ∧
@@ -5842,7 +5844,7 @@ private theorem arithmeticAdderGates_resource
     change (arithmeticAdderGates fieldTail counterWidth).length = _ at h
     omega
 
-private theorem sourceSwapGates_resource
+private lemma sourceSwapGates_resource
     (fieldTail counterWidth : Nat) :
     ((sourceSwapGates fieldTail counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 ∧
@@ -5872,7 +5874,7 @@ private theorem sourceSwapGates_resource
     (sourceSwapGates fieldTail counterWidth)
   omega
 
-private theorem targetSwapGates_resource (n counterWidth : Nat) :
+private lemma targetSwapGates_resource (n counterWidth : Nat) :
     ((targetSwapGates n counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 ∧
       ((targetSwapGates n counterWidth).map
@@ -5898,7 +5900,7 @@ private theorem targetSwapGates_resource (n counterWidth : Nat) :
     (targetSwapGates n counterWidth)
   omega
 
-private theorem coefficientLoadGates_resource (n counterWidth : Nat) :
+private lemma coefficientLoadGates_resource (n counterWidth : Nat) :
     ((coefficientLoadGates n counterWidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 ∧
       ((coefficientLoadGates n counterWidth).map
@@ -5924,7 +5926,7 @@ private theorem coefficientLoadGates_resource (n counterWidth : Nat) :
     (coefficientLoadGates n counterWidth)
   omega
 
-private theorem modularReduceGates_resource
+private lemma modularReduceGates_resource
     (fieldTail counterWidth p : Nat) :
     ((modularReduceGates fieldTail counterWidth p).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 ∧
@@ -5987,7 +5989,7 @@ private theorem modularReduceGates_resource
   · omega
   constructor <;> omega
 
-private theorem modularSubtractGates_resource
+private lemma modularSubtractGates_resource
     (fieldTail counterWidth p : Nat) :
     ((modularSubtractGates fieldTail counterWidth p).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 ∧
@@ -6003,7 +6005,7 @@ private theorem modularSubtractGates_resource
     List.length_reverse] using
     modularReduceGates_resource fieldTail counterWidth p
 
-private theorem doublingGates_resource
+private lemma doublingGates_resource
     (fieldTail counterWidth p : Nat) :
     ((doublingGates fieldTail counterWidth p).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 ∧
@@ -6072,14 +6074,14 @@ private theorem doublingGates_resource
   constructor <;> omega
 
 /-- Exact primitive length of one reusable modular-doubling ledger. -/
-theorem doublingGates_length
+lemma doublingGates_length
     (fieldTail counterWidth p : Nat) :
     (doublingGates fieldTail counterWidth p).length =
       55 * fieldTail.succ + 20 + 2 * modulusOneCount fieldTail p :=
   (doublingGates_resource fieldTail counterWidth p).2.2.2
 
 /-- Public-constant-independent length bound for one modular doubling. -/
-theorem doublingGates_length_le
+lemma doublingGates_length_le
     (fieldTail counterWidth p : Nat) :
     (doublingGates fieldTail counterWidth p).length ≤
       57 * fieldTail.succ + 22 := by
@@ -6090,7 +6092,7 @@ theorem doublingGates_length_le
         (modulusWordLabel fieldTail p)
   omega
 
-private theorem controlledDoublingGates_resource
+private lemma controlledDoublingGates_resource
     (fieldTail counterWidth p : Nat) :
     ((controlledDoublingGates fieldTail counterWidth p).map
         EncodedBit.GateSpec.xMultiplicity).sum = 0 ∧
@@ -6144,7 +6146,7 @@ private theorem controlledDoublingGates_resource
   · omega
   constructor <;> omega
 
-private theorem coefficientReduceGates_resource
+private lemma coefficientReduceGates_resource
     (fieldTail counterWidth p : Nat) :
     ((coefficientReduceGates fieldTail counterWidth p).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 ∧
@@ -6199,7 +6201,7 @@ private theorem coefficientReduceGates_resource
   · omega
   constructor <;> omega
 
-private theorem targetUpdateGates_resource
+private lemma targetUpdateGates_resource
     (fieldTail counterWidth p : Nat) :
     ((targetUpdateGates fieldTail counterWidth p).map
         EncodedBit.GateSpec.xMultiplicity).sum = 1 ∧
@@ -6228,14 +6230,14 @@ private theorem targetUpdateGates_resource
   constructor <;> omega
 
 /-- Exact primitive length of the reusable public-target update ledger. -/
-theorem targetUpdateGates_length
+lemma targetUpdateGates_length
     (fieldTail counterWidth p : Nat) :
     (targetUpdateGates fieldTail counterWidth p).length =
       54 * fieldTail.succ + 13 + 2 * modulusOneCount fieldTail p :=
   (targetUpdateGates_resource fieldTail counterWidth p).2.2.2
 
 /-- Public-constant-independent length bound for one target update. -/
-theorem targetUpdateGates_length_le
+lemma targetUpdateGates_length_le
     (fieldTail counterWidth p : Nat) :
     (targetUpdateGates fieldTail counterWidth p).length ≤
       56 * fieldTail.succ + 15 := by
@@ -6246,7 +6248,7 @@ theorem targetUpdateGates_length_le
         (modulusWordLabel fieldTail p)
   omega
 
-private theorem correctionLtSelectorGates_resource
+private lemma correctionLtSelectorGates_resource
     (n counterTail : Nat) (hwidth : counterTail + 1 <= n) :
     ((correctionLtSelectorGates n counterTail hwidth).map
         EncodedBit.GateSpec.xMultiplicity).sum = 4 * (counterTail + 1) ∧
@@ -6291,7 +6293,7 @@ private theorem correctionLtSelectorGates_resource
   · omega
   constructor <;> omega
 
-private theorem correctionSlotLoadGates_resource
+private lemma correctionSlotLoadGates_resource
     (n counterTail : Nat) (hcapacity : n <= 2 ^ counterTail)
     (slot : Fin n) :
     ((correctionSlotLoadGates n counterTail hcapacity slot).map
@@ -6323,7 +6325,7 @@ private theorem correctionSlotLoadGates_resource
         (correctionCounterValueWord n (counterTail + 1))
         (correctionSlotLabel n counterTail hcapacity slot)
 
-private theorem correctionSlotGates_resource
+private lemma correctionSlotGates_resource
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -6359,7 +6361,7 @@ private theorem correctionSlotGates_resource
   · simp
   constructor <;> ring
 
-private theorem flatMap_correctionSlotGates_resource
+private lemma flatMap_correctionSlotGates_resource
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
@@ -6400,7 +6402,7 @@ private theorem flatMap_correctionSlotGates_resource
       · omega
       constructor <;> ring
 
-private theorem correctionLoopGates_resource
+private lemma correctionLoopGates_resource
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
@@ -6426,7 +6428,7 @@ private theorem correctionLoopGates_resource
 /-- Exact native-gate ledger for the complete reversible correction.  The
 two Hamming-weight terms retain the real public constants rather than hiding
 them behind unconnected resource metadata. -/
-theorem compactCorrectionGates_resource
+lemma compactCorrectionGates_resource
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
@@ -6467,7 +6469,7 @@ theorem compactCorrectionGates_resource
 
 /-- The widened modulus label has at most one selected position per physical
 bit. -/
-theorem modulusOneCount_le (fieldTail p : Nat) :
+lemma modulusOneCount_le (fieldTail p : Nat) :
     modulusOneCount fieldTail p <= fieldTail.succ + 1 := by
   simpa [modulusOneCount] using
     EncodedBit.Word.constantOneIndices_length_le
@@ -6475,7 +6477,7 @@ theorem modulusOneCount_le (fieldTail p : Nat) :
 
 /-- One static correction-slot label has at most `counterTail` selected
 positions. -/
-theorem correctionSlotOneCount_le
+lemma correctionSlotOneCount_le
     (n counterTail : Nat) (hcapacity : n <= 2 ^ counterTail)
     (slot : Fin n) :
     correctionSlotOneCount n counterTail hcapacity slot <= counterTail := by
@@ -6483,7 +6485,7 @@ theorem correctionSlotOneCount_le
     EncodedBit.Word.constantOneIndices_length_le
       (correctionSlotLabel n counterTail hcapacity slot)
 
-private theorem correctionSlotOneCount_sum_le_aux
+private lemma correctionSlotOneCount_sum_le_aux
     (n counterTail : Nat) (hcapacity : n <= 2 ^ counterTail) :
     forall slots : List (Fin n),
       (slots.map fun slot =>
@@ -6500,7 +6502,7 @@ private theorem correctionSlotOneCount_sum_le_aux
 
 /-- Across all `n` public correction slots, the total loaded Hamming weight is
 bounded by `n * counterTail`. -/
-theorem correctionSlotOneCountSum_le
+lemma correctionSlotOneCountSum_le
     (n counterTail : Nat) (hcapacity : n <= 2 ^ counterTail) :
     correctionSlotOneCountSum n counterTail hcapacity <= n * counterTail := by
   simpa [correctionSlotOneCountSum] using
@@ -6509,7 +6511,7 @@ theorem correctionSlotOneCountSum_le
 
 /-- Public-constant-independent Toffoli bound derived from the exact native
 correction ledger. -/
-theorem compactCorrectionGates_toffoliMultiplicity_sum_le
+lemma compactCorrectionGates_toffoliMultiplicity_sum_le
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
@@ -6531,7 +6533,7 @@ theorem compactCorrectionGates_toffoliMultiplicity_sum_le
 
 /-- Public-constant-independent primitive length bound for the reversible
 correction ledger. -/
-theorem compactCorrectionGates_length_le
+lemma compactCorrectionGates_length_le
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
@@ -6571,7 +6573,7 @@ def compactCorrectionStep
     (compactCorrectionGates fieldTail counterTail p hcapacity hwidth)
 
 /-- The compact correction ledger executes its five named stages in order. -/
-theorem compactCorrectionStep_eq_stages
+lemma compactCorrectionStep_eq_stages
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -6588,15 +6590,15 @@ theorem compactCorrectionStep_eq_stages
     EncodedBit.GateSpec.stepList_append]
 
 /-- The compact correction circuit realizes its literal gate-list action. -/
-theorem compactCorrection_realizes
+lemma compactCorrection_realizes
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ) :
     UnitaryCircuit.Realizes
       (MK.Compact.encoding fieldTail.succ (counterTail + 1))
-      (compactCorrectionProgram fieldTail counterTail p hcapacity hwidth)
+      (compactCorrectionProgram fieldTail counterTail p hcapacity hwidth) environment
       (compactCorrectionStep fieldTail counterTail p hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (compactCorrectionGates fieldTail counterTail p hcapacity hwidth)
 
 set_option maxHeartbeats 1200000 in
@@ -6606,7 +6608,7 @@ set_option maxHeartbeats 1200000 in
 the reduced Kaliski coefficient, subtracts that residue from the public
 target, and exactly restores the raw coefficient, fold history, counter, and
 all borrowed work. -/
-theorem compactCorrectionStep_state
+lemma compactCorrectionStep_state
     (fieldTail counterTail p : Nat)
     (hcapacity : fieldTail.succ <= 2 ^ counterTail)
     (hwidth : counterTail + 1 <= fieldTail.succ)
@@ -6732,7 +6734,7 @@ theorem compactCorrectionStep_state
 
 /-! ## Width-neutral sign correction and public copy -/
 
-private theorem sCoeffValueWord_pairwise_ne (n counterWidth : Nat) :
+private lemma sCoeffValueWord_pairwise_ne (n counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((sCoeffValueWord n counterWidth).bit left).wire ≠
         ((sCoeffValueWord n counterWidth).bit right).wire := by
@@ -6744,7 +6746,7 @@ private theorem sCoeffValueWord_pairwise_ne (n counterWidth : Nat) :
         (WireAddress.littleEndianWire right)
         (littleEndianWire_ne hne))
 
-private theorem rCoeffValueWord_pairwise_ne (n counterWidth : Nat) :
+private lemma rCoeffValueWord_pairwise_ne (n counterWidth : Nat) :
     forall left right, left ≠ right ->
       ((rCoeffValueWord n counterWidth).bit left).wire ≠
         ((rCoeffValueWord n counterWidth).bit right).wire := by
@@ -6756,7 +6758,7 @@ private theorem rCoeffValueWord_pairwise_ne (n counterWidth : Nat) :
         (WireAddress.littleEndianWire right)
         (littleEndianWire_ne hne))
 
-private theorem sCoeff_rCoeff_ne (n counterWidth : Nat) :
+private lemma sCoeff_rCoeff_ne (n counterWidth : Nat) :
     forall source target,
       ((sCoeffValueWord n counterWidth).bit source).wire ≠
         ((rCoeffValueWord n counterWidth).bit target).wire := by
@@ -6768,7 +6770,7 @@ private theorem sCoeff_rCoeff_ne (n counterWidth : Nat) :
         (WireAddress.littleEndianWire source)
         (WireAddress.littleEndianWire target))
 
-private theorem sCoeff_carry_ne (n counterWidth : Nat) :
+private lemma sCoeff_carry_ne (n counterWidth : Nat) :
     forall bit,
       ((sCoeffValueWord n counterWidth).bit bit).wire ≠
         (coefficientCarryInBit n counterWidth).wire := by
@@ -6776,7 +6778,7 @@ private theorem sCoeff_carry_ne (n counterWidth : Nat) :
   exact liftCoreBit_coefficientCarryInBit_wire_ne n counterWidth
     (RegisterBits.sCoeffValueBit n counterWidth bit)
 
-private theorem rCoeff_carry_ne (n counterWidth : Nat) :
+private lemma rCoeff_carry_ne (n counterWidth : Nat) :
     forall bit,
       ((rCoeffValueWord n counterWidth).bit bit).wire ≠
         (coefficientCarryInBit n counterWidth).wire := by
@@ -6784,7 +6786,7 @@ private theorem rCoeff_carry_ne (n counterWidth : Nat) :
   exact liftCoreBit_coefficientCarryInBit_wire_ne n counterWidth
     (RegisterBits.rCoeffValueBit n counterWidth bit)
 
-private theorem sCoeff_work_ne (n counterWidth : Nat) :
+private lemma sCoeff_work_ne (n counterWidth : Nat) :
     forall source work,
       ((sCoeffValueWord n counterWidth).bit source).wire ≠
         ((coefficientCarryWorkWord n counterWidth).bit work).wire := by
@@ -6792,7 +6794,7 @@ private theorem sCoeff_work_ne (n counterWidth : Nat) :
   exact liftCoreBit_coefficientCarryWorkBit_wire_ne n counterWidth
     (RegisterBits.sCoeffValueBit n counterWidth source) work
 
-private theorem rCoeff_work_ne (n counterWidth : Nat) :
+private lemma rCoeff_work_ne (n counterWidth : Nat) :
     forall target work,
       ((rCoeffValueWord n counterWidth).bit target).wire ≠
         ((coefficientCarryWorkWord n counterWidth).bit work).wire := by
@@ -6827,7 +6829,7 @@ def signAdderLayout (n counterWidth : Nat) :
 /-- On clean VBE work, the forward sign-layout adder adds `s` into `r` and
 restores the sole carry bank.  This word endpoint is later inverted to obtain
 `p-r`. -/
-theorem signAdderForward_rCoeff
+lemma signAdderForward_rCoeff
     (n counterWidth : Nat) (x : MK.Compact.Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : forall k,
@@ -6872,7 +6874,7 @@ def signSwapStep (n counterWidth : Nat) :
     (fun bit => sCoeff_rCoeff_ne n counterWidth bit bit)
 
 /-- The sign swap moves the old residue into the left coefficient word. -/
-theorem signSwapStep_sCoeff (n counterWidth : Nat)
+lemma signSwapStep_sCoeff (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth) :
     (signSwapStep n counterWidth x).core.sCoeff = x.core.rCoeff := by
   apply word_eq_of_testBit_eq
@@ -6888,7 +6890,7 @@ theorem signSwapStep_sCoeff (n counterWidth : Nat)
   simpa [signSwapStep] using h
 
 /-- The sign swap moves the old modulus into the right coefficient word. -/
-theorem signSwapStep_rCoeff (n counterWidth : Nat)
+lemma signSwapStep_rCoeff (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth) :
     (signSwapStep n counterWidth x).core.rCoeff = x.core.sCoeff := by
   apply word_eq_of_testBit_eq
@@ -6904,7 +6906,7 @@ theorem signSwapStep_rCoeff (n counterWidth : Nat)
   simpa [signSwapStep] using h
 
 /-- The coefficient-word exchange preserves the VBE carry-in. -/
-theorem signSwapStep_carryIn (n counterWidth : Nat)
+lemma signSwapStep_carryIn (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth) :
     (coefficientCarryInBit n counterWidth).get
         (signSwapStep n counterWidth x) =
@@ -6919,7 +6921,7 @@ theorem signSwapStep_carryIn (n counterWidth : Nat)
       (rCoeff_carry_ne n counterWidth) x)
 
 /-- The coefficient-word exchange preserves every VBE work carry. -/
-theorem signSwapStep_workCarry (n counterWidth : Nat) (bit : Fin n)
+lemma signSwapStep_workCarry (n counterWidth : Nat) (bit : Fin n)
     (x : MK.Compact.Registers n counterWidth) :
     (coefficientCarryWorkBit n counterWidth bit).get
         (signSwapStep n counterWidth x) =
@@ -6966,7 +6968,7 @@ def signCorrectionStep (n counterWidth : Nat) :
 
 /-- The sign ledger is exactly the coefficient exchange followed by one
 reverse use of the shared VBE adder. -/
-theorem signCorrectionStep_eq (n counterWidth : Nat)
+lemma signCorrectionStep_eq (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth) :
     signCorrectionStep n counterWidth x =
       signSubStep n counterWidth (signSwapStep n counterWidth x) := by
@@ -6974,7 +6976,7 @@ theorem signCorrectionStep_eq (n counterWidth : Nat)
     signSwapStep, signSubStep, EncodedBit.Word.swapStep,
     EncodedBit.GateSpec.stepList_append]
 
-private theorem signSubStep_sCoeff (n counterWidth : Nat)
+private lemma signSubStep_sCoeff (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth) :
     (signSubStep n counterWidth x).core.sCoeff = x.core.sCoeff := by
   apply word_eq_of_testBit_eq
@@ -7003,7 +7005,7 @@ private theorem signSubStep_sCoeff (n counterWidth : Nat)
       rw [hz]
       simp [layout, signAdderLayout]
 
-private theorem signSubStep_carryIn (n counterWidth : Nat)
+private lemma signSubStep_carryIn (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth) :
     (coefficientCarryInBit n counterWidth).get
         (signSubStep n counterWidth x) =
@@ -7031,7 +7033,7 @@ private theorem signSubStep_carryIn (n counterWidth : Nat)
       rw [hz]
       rfl
 
-private theorem signSubStep_workCarry_clean (n counterWidth : Nat)
+private lemma signSubStep_workCarry_clean (n counterWidth : Nat)
     (bit : Fin n) (x : MK.Compact.Registers n counterWidth)
     (hclean : forall workBit,
       (coefficientCarryWorkBit n counterWidth workBit).get x = false) :
@@ -7046,7 +7048,7 @@ private theorem signSubStep_workCarry_clean (n counterWidth : Nat)
 
 /-- A clean reverse use of the sign adder subtracts its preserved left word
 from its right word. -/
-theorem signSubStep_rCoeff_sub (n counterWidth : Nat)
+lemma signSubStep_rCoeff_sub (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : forall bit,
@@ -7082,7 +7084,7 @@ theorem signSubStep_rCoeff_sub (n counterWidth : Nat)
 
 /-- The native sign-correction ledger computes width-preserving `s-r` while
 returning the sole VBE carry bank clean. -/
-theorem signCorrectionStep_rCoeff_sub (n counterWidth : Nat)
+lemma signCorrectionStep_rCoeff_sub (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : forall bit,
@@ -7100,7 +7102,7 @@ theorem signCorrectionStep_rCoeff_sub (n counterWidth : Nat)
 
 /-- Under the fixed-round endpoint ordering, sign correction is the ordinary
 natural-number difference rather than a wrapped word subtraction. -/
-theorem signCorrectionStep_rCoeff_val (n counterWidth : Nat)
+lemma signCorrectionStep_rCoeff_val (n counterWidth : Nat)
     (x : MK.Compact.Registers n counterWidth)
     (hcarry : (coefficientCarryInBit n counterWidth).get x = false)
     (hwork : forall bit,
@@ -7113,14 +7115,14 @@ theorem signCorrectionStep_rCoeff_val (n counterWidth : Nat)
 
 /-- The physical sign-correction circuit realizes its literal gate-list
 action. -/
-theorem signCorrection_realizes (n counterWidth : Nat) :
+lemma signCorrection_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n counterWidth)
-      (signCorrectionProgram n counterWidth)
+      (signCorrectionProgram n counterWidth) environment
       (signCorrectionStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (signCorrectionGates n counterWidth)
 
-private theorem correctedValue_target_ne (n counterWidth : Nat) :
+private lemma correctedValue_target_ne (n counterWidth : Nat) :
     forall source target,
       ((correctedValueWord n counterWidth).bit source).wire ≠
         ((targetValueWord n counterWidth).bit target).wire := by
@@ -7152,11 +7154,11 @@ def outputCopyStep (n counterWidth : Nat) :
   EncodedBit.GateSpec.stepList (outputCopyGates n counterWidth)
 
 /-- The physical output-copy circuit realizes its literal gate-list action. -/
-theorem outputCopy_realizes (n counterWidth : Nat) :
+lemma outputCopy_realizes (n counterWidth : Nat) :
     UnitaryCircuit.Realizes (MK.Compact.encoding n counterWidth)
-      (outputCopyProgram n counterWidth)
+      (outputCopyProgram n counterWidth) environment
       (outputCopyStep n counterWidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (outputCopyGates n counterWidth)
 
 end

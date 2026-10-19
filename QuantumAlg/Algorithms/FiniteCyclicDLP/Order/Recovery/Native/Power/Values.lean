@@ -30,7 +30,7 @@ universe u
 variable {G : Type u} [Group G]
 
 /-- One square-and-multiply digit advances the accumulated exponent. -/
-public theorem square_multiply_pow (generator : G) (exponent : Nat) (bit : Bool) :
+public lemma square_multiply_pow (generator : G) (exponent : Nat) (bit : Bool) :
     (generator ^ exponent) ^ 2 *
         (if bit then generator else 1) =
       generator ^ (2 * exponent + bit.toNat) := by
@@ -50,7 +50,7 @@ public theorem square_multiply_pow (generator : G) (exponent : Nat) (bit : Bool)
 
 /-- The complete Core word accessor reconstructs the stored unsigned value
 under the accumulator recurrence used by the actual scan. -/
-public theorem word_accumulatorFold_eq_toNat {width : Nat}
+public lemma word_accumulatorFold_eq_toNat {width : Nat}
     (word : CShape.Value (.unsignedWord width)) :
     ClassicalAlgorithms.TerminalDecode.accumulatorFold width 0
         (fun index => (word.wordBitGet index).toBool) = word.toNat := by

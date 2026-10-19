@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Components.Oracle.AmplitudeAmplification.Circuit
 import all QuantumAlg.Components.Oracle.AmplitudeAmplification.Circuit
 import all QuantumAlg.Components.Oracle.ZeroReflection.Workspace
 import all QuantumAlg.Core.Base.UnitaryCircuit.Binary.Prefix
@@ -29,50 +30,52 @@ noncomputable section
 open QuantumAlg.ZeroReflection.Workspace
 
 /-- This source route explicitly grants inverse preparation and only ordinary good reflection. -/
-abbrev oracles {n : Nat} (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n)) :
-    OracleModel := AmplitudeAmplificationSource.model U good true false
+public abbrev oracles (n : Nat) :
+    OracleModel := AmplitudeAmplificationSource.model n true false
+
+/-- Source operators interpret the fixed public query signature. -/
+@[expose] public def interpretation {n : Nat} (U : UnitaryOperator (Qubits n))
+    (good : NormalizedVector (Qubits n)) : (oracles n).Interpretation :=
+  AmplitudeAmplificationSource.interpretation U good true false
 
 /-- Ordinary preparation acts on the source while preserving the actual work suffix. -/
-def preparation {n : Nat} (U : UnitaryOperator (Qubits n))
-    (good : NormalizedVector (Qubits n)) (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+def preparation (n : Nat) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  (AmplitudeAmplificationSource.Circuit.program AlgorithmGate.model U good true false
+  (AmplitudeAmplificationSource.Circuit.program AlgorithmGate.model n true false
     .preparation (QuantumSignature.qubits n).canonicalPlacement).onBinaryPrefix (helperWidth n k)
 
 /-- The inverse call is an instance of the route's explicitly granted inverse access. -/
-def inversePreparation {n : Nat} (U : UnitaryOperator (Qubits n))
-    (good : NormalizedVector (Qubits n)) (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+def inversePreparation (n : Nat) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  (AmplitudeAmplificationSource.Circuit.program AlgorithmGate.model U good true false
+  (AmplitudeAmplificationSource.Circuit.program AlgorithmGate.model n true false
     (.inversePreparation rfl) (QuantumSignature.qubits n).canonicalPlacement).onBinaryPrefix
       (helperWidth n k)
 
 /-- The supplied good-state phase reflection is called without coherent control. -/
-def goodReflection {n : Nat} (U : UnitaryOperator (Qubits n))
-    (good : NormalizedVector (Qubits n)) (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+def goodReflection (n : Nat) (k : Nat) :
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  (AmplitudeAmplificationSource.Circuit.program AlgorithmGate.model U good true false
+  (AmplitudeAmplificationSource.Circuit.program AlgorithmGate.model n true false
     .goodReflection (QuantumSignature.qubits n).canonicalPlacement).onBinaryPrefix (helperWidth n k)
 
 /-- Literal iteration includes the native positive zero reflection and its exact sign. -/
-def step {n : Nat} (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n))
+def step (n : Nat)
     (k : Nat) (nonzero : k ≠ 0) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  (((goodReflection U good k).seq (inversePreparation U good k)).seq
-    (ZeroReflection.Workspace.reflection (oracles U good) n k nonzero)).seq
-      (preparation U good k)
+  (((goodReflection n k).seq (inversePreparation n k)).seq
+    (ZeroReflection.Workspace.reflection (oracles n) n k nonzero)).seq
+      (preparation n k)
 
 /-- Initial preparation followed by exactly the requested number of actual source iterations. -/
-def program {n : Nat} (U : UnitaryOperator (Qubits n)) (good : NormalizedVector (Qubits n))
+def program (n : Nat)
     (k : Nat) :
-    UnitaryCircuit AlgorithmGate.model (oracles U good)
+    UnitaryCircuit AlgorithmGate.model (oracles n)
       (QuantumSignature.qubits (totalQubits n k)).canonicalPlacement.layout :=
-  if zero : k = 0 then preparation U good k
-  else (preparation U good k).seq (UnitaryCircuit.iterate k (step U good k zero))
+  if zero : k = 0 then preparation n k
+  else (preparation n k).seq (UnitaryCircuit.iterate k (step n k zero))
 
 end
 

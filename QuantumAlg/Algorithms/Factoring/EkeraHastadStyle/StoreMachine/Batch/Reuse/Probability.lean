@@ -26,6 +26,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatchReuseRecove
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open Execution ShortDLP.CompiledMAU
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
@@ -33,7 +36,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 attribute [local irreducible] NativeBatchReuse.context NativeBatchReuse.code body tail step
   RuntimeResults.liftInput RuntimeResults.input
 
-private theorem read_mem_support_of_reference
+private lemma read_mem_support_of_reference
     {C D Outcome : Type} [Fintype C] [Fintype D] [Finite Outcome]
     {R S Reference : Register}
     (initial : ExecutionState C (R.prod Reference))
@@ -73,7 +76,7 @@ private theorem read_mem_support_of_reference
       using massEquation.trans (congrArg Complex.re summed)
   exact (ne_of_gt positiveRead) zeroMass
 
-private theorem reference_eq_on_support
+private lemma reference_eq_on_support
     {C : Type} [Fintype C] {R Reference : Register}
     (state : ExecutionState C (R.prod Reference)) (first second : C → R.Index → ℂ)
     (agree : ∀ entry, 0 < (state.block entry).mass → ∀ basis,
@@ -96,7 +99,7 @@ variable (base : RuntimeCtx .quantum) {N : Nat}
     (runtimeLayout (shortLogBits N) (tradeoffBits N) (arithmeticBits N)).wires)
   (originalCells : Fin (measurementBits N) → CWriteRef base (.finite 2))
 
-private theorem source_output_mem_support (input : Input N)
+private lemma source_output_mem_support (input : Input N)
     {previousShape : CShape} (previous : CInputRef base previousShape)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
@@ -107,16 +110,17 @@ private theorem source_output_mem_support (input : Input N)
     (entry : Store (NativeBatchReuse.context base N) ×
       (RuntimeRound.model.HiddenState ×
         (History × (NativeBatchReuse.code base N sameWires originalCells).Path)))
-    (positive : 0 < (((NativeBatchReuse.code base N sameWires originalCells).execute
+    (positive : 0 < (((NativeBatchReuse.code base N sameWires originalCells).execute environment
       Reference state).block entry).mass) :
     (NativeBatchReuse.run base N sameWires originalCells).output.eval entry.1 ∈
       (NativeBatch.sourceDistribution input).support := by
   apply read_mem_support_of_reference state
-    ((NativeBatchReuse.code base N sameWires originalCells).execute Reference state)
+    ((NativeBatchReuse.code base N sameWires originalCells).execute environment Reference state)
     (fun record => (NativeBatchReuse.run base N sameWires originalCells).output.eval record.1)
     (NativeBatch.sourceDistribution input) ?_ entry positive
   intro selected leftRef rightRef
   have observed := NativeBatchReuse.nativeBatchReuse_output_weighted_reference
+    (environment := environment)
     base N sameWires originalCells input previous distinct separate state seeded
     (fun _ output => if output = selected then 1 else 0) leftRef rightRef
   refine observed.trans ?_
@@ -126,7 +130,7 @@ private theorem source_output_mem_support (input : Input N)
     (PMF.sum_toReal_indicator (NativeBatch.sourceDistribution input) selected)
 
 /-- The actual next factor has the original kernel jointly with a protected earlier operand. -/
-theorem nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
+lemma nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
     {previousShape : CShape} (previous : CInputRef base previousShape)
     (distinct : Function.Injective (fun index => (originalCells index).key))
     (separate : ∀ index, (originalCells index).key ∉ previous.storageKeys)
@@ -137,15 +141,16 @@ theorem nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
     (weight : previousShape.Value → (LatticeBatchRecoveryOutput.OutputShape N).Value → ℂ)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-        ((code base sameWires originalCells input).execute Reference state)
+        ((code base sameWires originalCells input).execute environment Reference state)
         (fun entry _ => weight (entry.1.read (callerInput base N previous))
           ((run base sameWires originalCells input).output.eval entry.1)) leftRef rightRef =
       ExecutionState.referenceFiberSum state
         (fun entry _ => ∑ factor : (LatticeBatchRecoveryOutput.OutputShape N).Value,
           ((((sampledBatchOutputPMF input).map LatticeBatchRecoveryOutput.outputValue)
             factor).toReal : ℂ) * weight (entry.1.read previous) factor) leftRef rightRef := by
-  let sourceState := (NativeBatchReuse.code base N sameWires originalCells).execute Reference state
-  have tailLaw := tail_weighted_reference base input
+  let sourceState := (NativeBatchReuse.code base N sameWires originalCells).execute
+    environment Reference state
+  have tailLaw := tail_weighted_reference (environment := environment) base input
     (NativeBatchReuse.callerInput base N previous) sourceState weight leftRef rightRef
   have recovered := reference_eq_on_support sourceState
     (fun entry _ => weight (entry.1.read (NativeBatchReuse.callerInput base N previous))
@@ -160,6 +165,7 @@ theorem nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
         (source_output_mem_support base sameWires originalCells input previous distinct
           separate state seeded entry positive))) leftRef rightRef
   have sourceLaw := NativeBatchReuse.nativeBatchReuse_output_weighted_reference
+    (environment := environment)
     base N sameWires originalCells input previous distinct separate state seeded
     (fun old output => weight old (NativeBatchRecovery.packedValue output)) leftRef rightRef
   have kernel (store : Store base) :
@@ -176,7 +182,7 @@ theorem nativeBatchReuseRecovery_output_weighted_reference (input : Input N)
   have mappedLaw := congrArg
     (fun observe : Store base → ℂ => ExecutionState.referenceFiberSum state
       (fun entry _ => observe entry.1) leftRef rightRef) (funext kernel)
-  exact (Circuit.referenceFiberSum_execute_seq
+  exact (Circuit.referenceFiberSum_execute_seq (environment := environment)
     (NativeBatchReuse.code base N sameWires originalCells) (tail base input) state
     (fun store => weight (store.read (callerInput base N previous))
       (store.read (.storage (resultRef base N).toCStorageRef))) leftRef rightRef).trans

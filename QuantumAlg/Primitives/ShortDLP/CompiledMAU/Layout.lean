@@ -43,7 +43,7 @@ def cleanLabel (m ell width N : Nat)
     Fin (2 ^ totalQubits (registerParameters m ell width)) :=
   (groupEncoding m ell width).encode ((a, b), cleanWorkspace width N value)
 
-@[simp] theorem cleanLabel_eq_tripleIndex (m ell width N : Nat)
+@[simp] lemma cleanLabel_eq_tripleIndex (m ell width N : Nat)
     (a : Fin (2 ^ firstBits (registerParameters m ell width)))
     (b : Fin (2 ^ ell)) (value : (ZMod N)ˣ) :
     cleanLabel m ell width N a b value =

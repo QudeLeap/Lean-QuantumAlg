@@ -67,14 +67,14 @@ def sourceEncoding (width : Nat) :=
   BinaryLabelEncoding.prod (MAU.Multiplication.Accumulate.Gidney.encoding width)
     (BinaryLabelEncoding.finIdentity (retainedWidth width))
 
-private theorem encoding_width (width : Nat) :
+private lemma encoding_width (width : Nat) :
     (sourceEncoding width).width = (ProductPlacement.frameEncoding width).width := by
   rw [ProductPlacement.frame_width]
   change (width + width) + retainedWidth width = _
   unfold retainedWidth ProductPlacement.historyWidth ProductWires.width
   omega
 
-private theorem source_total (width : Nat) :
+private lemma source_total (width : Nat) :
     Function.Surjective (sourceEncoding width).encode := by
   intro label
   obtain ⟨⟨pair, rest⟩, rfl⟩ :=
@@ -98,7 +98,7 @@ def placement (width : Nat) (coordinate : MeasuredPointAddition.Coordinate) :
     (wires width coordinate)
 
 /-- Every native input-word bit addresses its original coordinate bit. -/
-theorem wires_coordinate (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+lemma wires_coordinate (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (index : Fin width) :
     (wires width coordinate ⟨index.val, by
       change index.val < (width + width) + retainedWidth width
@@ -109,7 +109,7 @@ theorem wires_coordinate (width : Nat) (coordinate : MeasuredPointAddition.Coord
 
 /-- Every native auxiliary-word bit addresses the already resident A word at
 physical offset zero. -/
-theorem wires_auxiliary (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+lemma wires_auxiliary (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (index : Fin width) :
     (wires width coordinate ⟨width + index.val, by
       change width + index.val < (width + width) + retainedWidth width
@@ -123,7 +123,7 @@ theorem wires_auxiliary (width : Nat) (coordinate : MeasuredPointAddition.Coordi
   omega
 
 /-- Grouping reads exactly the corresponding real physical bit for every complete input. -/
-theorem grouping_bit (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
+lemma grouping_bit (width : Nat) (coordinate : MeasuredPointAddition.Coordinate)
     (state : ProductPlacement.Frame width) (index : Fin (sourceEncoding width).width) :
     ((sourceEncoding width).encode ((placement width coordinate).grouping state)).val.testBit
         index.rev.val =

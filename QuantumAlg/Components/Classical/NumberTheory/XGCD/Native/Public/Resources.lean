@@ -43,7 +43,7 @@ def publicPhaseSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
 def publicScratchSpace (kind : ProblemKind) (width : Nat) : SpacePool kind :=
   ((publicRawShapes width).map SpacePool.ofShape).sum + publicPhaseSpace kind width
 
-private theorem publicBody_pool_le
+private lemma publicBody_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicBody (model := model) input outputs result).Path) :
@@ -55,7 +55,7 @@ private theorem publicBody_pool_le
   exact add_le_add (xgcdNativeRawEngine_pool_le input outputs path.1) le_rfl
 
 /-- Every actual public path obeys the original raw and nominal-packing native allowance. -/
-theorem xgcdNativePublicIntoResult_pool_le
+lemma xgcdNativePublicIntoResult_pool_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicIntoResult (model := model) input result).Path) :
@@ -66,7 +66,7 @@ theorem xgcdNativePublicIntoResult_pool_le
       (publicRawOutputs cells) (transport.liftWrite result)) (publicEnvelope model width)
     (fun cells _ transport _ selected => publicBody_pool_le _ _ _ selected) path
 
-private theorem publicBody_depth_le
+private lemma publicBody_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
     (duration : Resource.Event model → Nat) (path : (publicBody (model := model) input outputs
@@ -79,7 +79,7 @@ private theorem publicBody_depth_le
   exact Nat.add_le_add_right (xgcdNativeRawEngine_depth_le input outputs duration path.1) _
 
 /-- All original serial dependencies remain charged for arbitrary native durations. -/
-theorem xgcdNativePublicIntoResult_depth_le
+lemma xgcdNativePublicIntoResult_depth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width)) (duration : Resource.Event model → Nat)
     (path : (publicIntoResult (model := model) input result).Path) :
@@ -91,7 +91,7 @@ theorem xgcdNativePublicIntoResult_depth_le
     (fun cells _ transport _ selected => publicBody_depth_le _ _ _ duration selected) path
 
 /-- The actual public path uses at most the original raw bound plus five packing instructions. -/
-theorem xgcdNativePublicIntoResult_unitDepth_le
+lemma xgcdNativePublicIntoResult_unitDepth_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicIntoResult (model := model) input result).Path) :
@@ -101,7 +101,7 @@ theorem xgcdNativePublicIntoResult_unitDepth_le
   change _ ≤ 28 * width + 23 + 5 at bound
   omega
 
-private theorem publicBody_resident_le
+private lemma publicBody_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicBody (model := model) input outputs result).Path) :
@@ -116,7 +116,7 @@ private theorem publicBody_resident_le
       (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- The real raw-result allocation retains every caller cell through both execution phases. -/
-theorem xgcdNativePublicIntoResult_resident_le
+lemma xgcdNativePublicIntoResult_resident_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicIntoResult (model := model) input result).Path) :
@@ -127,7 +127,7 @@ theorem xgcdNativePublicIntoResult_resident_le
       (publicRawOutputs cells) (transport.liftWrite result)) (publicPhaseSpace model.kind width)
     (fun cells _ transport _ selected => publicBody_resident_le _ _ _ selected) path
 
-private theorem publicBody_auxiliary_le
+private lemma publicBody_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (outputs : RawOutputs ctx width) (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicBody (model := model) input outputs result).Path) :
@@ -142,7 +142,7 @@ private theorem publicBody_auxiliary_le
       (add_le_add (SpacePool.le_max_right _ _) le_rfl)
 
 /-- Every temporary raw-result, arithmetic and packing cell contributes to the auxiliary peak. -/
-theorem xgcdNativePublicIntoResult_auxiliary_le
+lemma xgcdNativePublicIntoResult_auxiliary_le
     (input : CInputRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
     (result : CWriteRef ctx (XGCDOutputShape width))
     (path : (publicIntoResult (model := model) input result).Path) :
@@ -154,7 +154,7 @@ theorem xgcdNativePublicIntoResult_auxiliary_le
     (fun cells _ transport _ selected => publicBody_auxiliary_le _ _ _ selected) path
 
 /-- The independent scratch formula counts the original widths and the actual lifetime maximum. -/
-theorem xgcdNativePublicScratch_classicalBits (kind : ProblemKind) (width : Nat) :
+lemma xgcdNativePublicScratch_classicalBits (kind : ProblemKind) (width : Nat) :
     publicScratchSpace kind width .classicalBits =
       width + 2 * PureXGCD.executionCoefficientWidth width +
         max (5 * width + 7 * PureXGCD.executionCoefficientWidth width + 1)

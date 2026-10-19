@@ -29,7 +29,7 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Different fixed sample indices designate different actually retained cells. -/
-theorem nativeSimon_slot_keys (base : RuntimeCtx .quantum) (n count : Nat) :
+lemma nativeSimon_slot_keys (base : RuntimeCtx .quantum) (n count : Nat) :
     Function.Injective (fun index => (slotRef base n count index).key) := by
   induction count with
   | zero => intro index; exact Fin.elim0 index
@@ -54,14 +54,15 @@ theorem nativeSimon_slot_keys (base : RuntimeCtx .quantum) (n count : Nat) :
           exact congrArg Fin.succ (ih same)
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (n total : Nat)
+  {environment : (executionModel n).Environment}
 
 /-- The quantum preparation changes no retained sample identity. -/
-theorem nativeSimon_bankSlot_keys :
+lemma nativeSimon_bankSlot_keys :
     Function.Injective (fun index => (bankSlot base noQuantum n total index).key) :=
   nativeSimon_slot_keys base n total
 
 /-- The result-cell allocation also keeps those same distinct sample identities. -/
-theorem nativeSimon_sampleRef_keys :
+lemma nativeSimon_sampleRef_keys :
     Function.Injective (fun index => (sampleRef base noQuantum n total index).key) := by
   intro left right same
   have keys := (MeasurementCells.liftWrite_key 2
@@ -77,7 +78,7 @@ def sampleIndicator (count : Nat) (indices : Fin count → Fin total)
     if store.read (.storage (sampleRef base noQuantum n total (indices index)).toCStorageRef) =
       CShape.Value.bits (outcomes index) then 1 else 0
 
-private theorem reference_congr {Reference : Register} {History : Type} [Fintype History]
+private lemma reference_congr {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum n total) Reference (Unit × History))
     (first second : Store (context base noQuantum n total) → ℂ)
     (equal : ∀ store, first store = second store) (leftRef rightRef : Reference.Index) :
@@ -88,7 +89,7 @@ private theorem reference_congr {Reference : Register} {History : Type} [Fintype
       (funext equal)
 
 /-- The actual reset-sample loop has its product law jointly with old structural inputs and Ref. -/
-theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
+lemma nativeSimon_range_reference (sampling : SamplingCircuit n) :
     ∀ (count : Nat) (indices : Fin count → Fin total) (_distinct : Function.Injective indices)
       {shape : CShape} (other : CInputRef (bankContext base noQuantum n total) shape)
       (_separate : ∀ index, (bankSlot base noQuantum n total (indices index)).key ∉
@@ -99,10 +100,12 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
       (leftRef rightRef : Reference.Index),
       ExecutionState.referenceFiberSum
         ((Circuit.forRange count (fun index =>
-          reusedSample base noQuantum n total sampling (indices index))).execute Reference state)
+          reusedSample base noQuantum n total sampling (indices index))).execute environment
+            Reference state)
         (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)) *
           sampleIndicator base noQuantum n total count indices outcomes entry.1) leftRef rightRef =
-      (∏ index : Fin count, ((sampling.outcomePMF (outcomes index)).toReal : ℂ)) *
+      (∏ index : Fin count, (((sampling.outcomePMF environment.quantum) (outcomes index)).toReal :
+        ℂ)) *
         ExecutionState.referenceFiberSum state
           (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)))
           leftRef rightRef := by
@@ -116,7 +119,8 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
           ExecutionState.referenceFiberSum output
             (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)))
             leftRef rightRef) (Circuit.execute_id_mapClassical
-          (model := executionModel sampling.oracle) Reference state)
+              (environment := environment) (allowAllocation := true)
+          (model := executionModel n) Reference state)
       have completed := executed.trans (ExecutionState.referenceFiberSum_mapClassical state
         (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
         (fun entry _ => weight (entry.1.read (MeasurementCells.liftInput 2 other n)))
@@ -133,7 +137,7 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
       let first := reusedSample base noQuantum n total sampling (indices 0)
       let rest := Circuit.forRange count fun index =>
         reusedSample base noQuantum n total sampling (indices index.succ)
-      let advanced := first.execute Reference state
+      let advanced := first.execute environment Reference state
       let headIndicator := fun value : (CShape.bits n).Value =>
         if value = CShape.Value.bits (outcomes 0) then (1 : ℂ) else 0
       let tailWeight := fun value : (CShape.product shape (.bits n)).Value =>
@@ -155,7 +159,8 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
       let finalWeight := fun store : Store (context base noQuantum n total) =>
         weight (store.read (MeasurementCells.liftInput 2 other n)) *
           sampleIndicator base noQuantum n total (count + 1) indices outcomes store
-      have aligned := reference_congr base noQuantum n total (rest.execute Reference advanced)
+      have aligned := reference_congr base noQuantum n total (rest.execute environment Reference
+        advanced)
         finalWeight (fun store => tailWeight (store.read (MeasurementCells.liftInput 2 joint n)) *
           sampleIndicator base noQuantum n total count (fun index => indices index.succ)
             (fun index => outcomes index.succ) store) (fun store => by
@@ -179,12 +184,15 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
           dsimp only [tailWeight, joint, headIndicator, head]
           rw [MeasurementCells.liftInput_product, MeasurementCells.liftInput_storage]
           rfl) leftRef rightRef
-      have headLaw := nativeSimon_reusedSample_outcome_reference base noQuantum n total sampling
+      have headLaw := nativeSimon_reusedSample_outcome_reference
+        (environment := environment) base noQuantum n total sampling
         (indices 0) other (separate 0) state weight (outcomes 0) leftRef rightRef
-      have composed := (Circuit.referenceFiberSum_execute_seq first rest state finalWeight
+      have composed := (Circuit.referenceFiberSum_execute_seq
+        (environment := environment) first rest state finalWeight
         leftRef rightRef).trans (aligned.trans (tailLaw.trans
           (congrArg (fun coefficient : ℂ =>
-            (∏ index : Fin count, ((sampling.outcomePMF (outcomes index.succ)).toReal : ℂ)) *
+            (∏ index : Fin count, (((sampling.outcomePMF environment.quantum) (outcomes
+              index.succ)).toReal : ℂ)) *
               coefficient) (headAligned.trans headLaw))))
       refine composed.trans ?_
       rw [Fin.prod_univ_succ]
@@ -193,28 +201,29 @@ theorem nativeSimon_range_reference (sampling : SamplingCircuit n) :
 private def emptyRead (ctx : RuntimeCtx .quantum) : CInputRef ctx (.fixedVector 0 .unit) :=
   .fixedVector fun index => Fin.elim0 index
 
-private theorem emptyRead_keys (ctx : RuntimeCtx .quantum) : (emptyRead ctx).storageKeys = [] := by
+private lemma emptyRead_keys (ctx : RuntimeCtx .quantum) : (emptyRead ctx).storageKeys = [] := by
   simp only [emptyRead, CInputRef.storageKeys, List.ofFn_zero, List.flatten_nil]
 
 /-- The real first sample and all paid successors have the original joint Born law. -/
-theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
+lemma nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State (context base noQuantum n total) Reference (Unit × History))
     (seeded : BasisSeeded.Holds (context base noQuantum n total).quantumLayout.zeroLabel state)
     (outcomes : Fin total → Outcome n) (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((sampleBatch base noQuantum n sampling total).execute Reference state)
+      ((sampleBatch base noQuantum n sampling total).execute environment Reference state)
       (fun entry _ => sampleIndicator base noQuantum n total total id outcomes entry.1)
         leftRef rightRef =
-      (∏ index : Fin total, ((sampling.outcomePMF (outcomes index)).toReal : ℂ)) *
+      (∏ index : Fin total, (((sampling.outcomePMF environment.quantum) (outcomes index)).toReal :
+        ℂ)) *
         ExecutionState.referenceFiberSum state (fun _ _ => 1) leftRef rightRef := by
   cases total with
   | zero =>
       have executed := congrArg
         (fun output : State (context base noQuantum n 0) Reference (Unit × (History × Unit)) =>
           ExecutionState.referenceFiberSum output (fun _ _ => 1) leftRef rightRef)
-        (Circuit.execute_id_mapClassical
-          (model := executionModel sampling.oracle) Reference state)
+        (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
+          (model := executionModel n) Reference state)
       have completed := executed.trans (ExecutionState.referenceFiberSum_mapClassical state
         (fun entry => (entry.1, (entry.2.1, (entry.2.2, ())))) (fun _ _ => 1) leftRef rightRef)
       simp only [sampleBatch, sampleIndicator, Fin.prod_univ_zero, one_mul]
@@ -225,7 +234,7 @@ theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
       let first := sample base noQuantum n (count + 1) sampling 0
       let rest := Circuit.forRange count fun index =>
         reusedSample base noQuantum n (count + 1) sampling index.succ
-      let advanced := first.execute Reference state
+      let advanced := first.execute environment Reference state
       let headIndicator := fun value : (CShape.bits n).Value =>
         if value = CShape.Value.bits (outcomes 0) then (1 : ℂ) else 0
       have separate : ∀ index : Fin count,
@@ -235,11 +244,12 @@ theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
         have same := nativeSimon_bankSlot_keys base noQuantum n (count + 1)
           (List.mem_singleton.mp present)
         exact Fin.succ_ne_zero index same
-      have tailLaw := nativeSimon_range_reference base noQuantum n (count + 1) sampling count
+      have tailLaw := nativeSimon_range_reference
+        (environment := environment) base noQuantum n (count + 1) sampling count
         Fin.succ (Fin.succ_injective _) (.storage head.toCStorageRef) separate advanced
         headIndicator (fun index => outcomes index.succ) leftRef rightRef
       have aligned := reference_congr base noQuantum n (count + 1)
-        (rest.execute Reference advanced)
+        (rest.execute environment Reference advanced)
         (sampleIndicator base noQuantum n (count + 1) (count + 1) id outcomes)
         (fun store => headIndicator (store.read
           (MeasurementCells.liftInput 2 (.storage head.toCStorageRef) n)) *
@@ -253,56 +263,63 @@ theorem nativeSimon_sampleBatch_reference (sampling : SamplingCircuit n)
           (emptyRead (bankContext base noQuantum n (count + 1))).storageKeys := by
         rw [emptyRead_keys]
         exact List.not_mem_nil
-      have firstLaw := nativeSimon_sample_outcome_reference base noQuantum n (count + 1)
+      have firstLaw := nativeSimon_sample_outcome_reference
+        (environment := environment) base noQuantum n (count + 1)
         sampling 0 (emptyRead (bankContext base noQuantum n (count + 1))) emptySeparate
         state seeded (fun _ => 1) (outcomes 0) leftRef rightRef
       have headLaw : ExecutionState.referenceFiberSum advanced
           (fun entry _ => headIndicator (entry.1.read
             (MeasurementCells.liftInput 2 (.storage head.toCStorageRef) n)))
             leftRef rightRef =
-          ((sampling.outcomePMF (outcomes 0)).toReal : ℂ) *
+          (((sampling.outcomePMF environment.quantum) (outcomes 0)).toReal : ℂ) *
             ExecutionState.referenceFiberSum state (fun _ _ => 1) leftRef rightRef := by
         simp only [MeasurementCells.liftInput_storage]
         dsimp only [advanced, first, headIndicator, head]
         simp only [one_mul] at firstLaw
         convert firstLaw using 1
         congr 1
-      have combined := (Circuit.referenceFiberSum_execute_seq first rest state
+      have combined := (Circuit.referenceFiberSum_execute_seq
+        (environment := environment) first rest state
         (sampleIndicator base noQuantum n (count + 1) (count + 1) id outcomes)
         leftRef rightRef).trans (aligned.trans (tailLaw.trans
           (congrArg (fun coefficient : ℂ =>
-            (∏ index : Fin count, ((sampling.outcomePMF (outcomes index.succ)).toReal : ℂ)) *
+            (∏ index : Fin count, (((sampling.outcomePMF environment.quantum) (outcomes
+              index.succ)).toReal : ℂ)) *
               coefficient) headLaw)))
       refine combined.trans ?_
       rw [Fin.prod_univ_succ]
       ring
 
 /-- The actual allocator and loop establish the joint law from every original complete state. -/
-theorem nativeSimon_code_reference (sampling : SamplingCircuit n)
+lemma nativeSimon_code_reference (sampling : SamplingCircuit n)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (Unit × History)) (outcomes : Fin total → Outcome n)
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
-      ((code base noQuantum n total sampling).execute Reference state)
+      ((code base noQuantum n total sampling).execute environment Reference state)
       (fun entry _ => sampleIndicator base noQuantum n total total id outcomes entry.1)
         leftRef rightRef =
-      (∏ index : Fin total, ((sampling.outcomePMF (outcomes index)).toReal : ℂ)) *
+      (∏ index : Fin total, (((sampling.outcomePMF environment.quantum) (outcomes index)).toReal :
+        ℂ)) *
         ExecutionState.referenceFiberSum state (fun _ _ => 1) leftRef rightRef := by
-  have first := Circuit.referenceFiberSum_execute_seq
-    (allocate (oracles := sourceModel sampling.oracle) base noQuantum n total)
+  have first := Circuit.referenceFiberSum_execute_seq (environment := environment)
+    (allocate (oracles := sourceModel n) base noQuantum n total)
     (sampleBatch base noQuantum n sampling total) state
     (sampleIndicator base noQuantum n total total id outcomes) leftRef rightRef
-  have sampled := nativeSimon_sampleBatch_reference base noQuantum n total sampling
-    ((allocate (oracles := sourceModel sampling.oracle)
-      base noQuantum n total).execute Reference state)
-    (nativeSimon_allocate_seeded (oracles := sourceModel sampling.oracle)
+  have sampled := nativeSimon_sampleBatch_reference
+    (environment := environment) base noQuantum n total sampling
+    ((allocate (oracles := sourceModel n)
+      base noQuantum n total).execute environment Reference state)
+    (nativeSimon_allocate_seeded (oracles := sourceModel n)
       base noQuantum n total state) outcomes leftRef rightRef
-  have allocated := nativeSimon_allocate_reference (oracles := sourceModel sampling.oracle)
+  have allocated := nativeSimon_allocate_reference
+    (environment := environment) (oracles := sourceModel n)
     base noQuantum n total (emptyRead base)
     state (fun _ => 1) leftRef rightRef
   exact first.trans (sampled.trans (congrArg
     (fun coefficient : ℂ =>
-      (∏ index : Fin total, ((sampling.outcomePMF (outcomes index)).toReal : ℂ)) * coefficient)
+      (∏ index : Fin total, (((sampling.outcomePMF environment.quantum) (outcomes index)).toReal :
+        ℂ)) * coefficient)
     allocated))
 
 /-- Read the same stored bit vectors as a mathematical vector of original measurement outcomes. -/
@@ -310,7 +327,7 @@ def sampleOutcomes (value : (CShape.fixedVector total (.bits n)).Value) :
     List.Vector (Outcome n) total :=
   List.Vector.ofFn fun index position => ((value.get index).bitGet position).toBool
 
-private theorem sampleOutcomes_eq_iff (value : (CShape.fixedVector total (.bits n)).Value)
+private lemma sampleOutcomes_eq_iff (value : (CShape.fixedVector total (.bits n)).Value)
     (outcomes : List.Vector (Outcome n) total) :
     sampleOutcomes n total value = outcomes ↔
       ∀ index, value.get index = CShape.Value.bits (outcomes.get index) := by
@@ -330,7 +347,7 @@ private theorem sampleOutcomes_eq_iff (value : (CShape.fixedVector total (.bits 
     rw [same index]
     rfl
 
-private theorem sampleIndicator_observed (store : Store (context base noQuantum n total))
+private lemma sampleIndicator_observed (store : Store (context base noQuantum n total))
     (outcomes : List.Vector (Outcome n) total) :
     sampleIndicator base noQuantum n total total id outcomes.get store =
       if sampleOutcomes n total (store.read (samplesInput base noQuantum n total)) = outcomes
@@ -347,32 +364,38 @@ private theorem sampleIndicator_observed (store : Store (context base noQuantum 
   · rfl
 
 /-- The decoded actual output PMF is the original finite independent vector law. -/
-theorem nativeSimon_run_outputDistribution (sampling : SamplingCircuit n)
+lemma nativeSimon_run_outputDistribution (sampling : SamplingCircuit n)
     {Reference : Register} (input : Execution.OracleInput .empty base Reference) :
-    ((run base noQuantum n total sampling).outputDistribution input).map (sampleOutcomes n total) =
-      PMF.independentReplicateVector sampling.outcomePMF total := by
+    ((run base noQuantum n total sampling).outputDistribution environment input).map
+      (sampleOutcomes n total) =
+      PMF.independentReplicateVector (sampling.outcomePMF environment.quantum) total := by
   let actual := run base noQuantum n total sampling
-  let distribution := PMF.independentReplicateVector sampling.outcomePMF total
-  change (((actual.execute Reference input.state).toPMF (actual.execute_normalized input)).map
+  let distribution := PMF.independentReplicateVector (sampling.outcomePMF environment.quantum) total
+  change (((actual.execute environment Reference input.state).toPMF (actual.execute_normalized
+    environment input)).map
     actual.result).map (sampleOutcomes n total) = distribution
   rw [PMF.map_comp]
   apply ExecutionState.toPMF_map_eq_of_referenceFiberSum input.state
-    (actual.execute Reference input.state) input.normalized (actual.execute_normalized input)
+    (actual.execute environment Reference input.state) input.normalized (actual.execute_normalized
+      environment input)
   intro outcomes leftRef rightRef
   let initial := input.state.mapClassical (fun entry => (entry.1, (entry.2, entry.1)))
-  have read := reference_congr base noQuantum n total (actual.execute Reference input.state)
+  have read := reference_congr base noQuantum n total (actual.execute environment Reference
+    input.state)
     (fun store => if sampleOutcomes n total (store.read (samplesInput base noQuantum n total)) =
       outcomes then (1 : ℂ) else 0)
     (sampleIndicator base noQuantum n total total id outcomes.get)
     (fun store => (sampleIndicator_observed base noQuantum n total store outcomes).symm)
     leftRef rightRef
-  have joint := nativeSimon_code_reference base noQuantum n total sampling initial outcomes.get
+  have joint := nativeSimon_code_reference
+    (environment := environment) base noQuantum n total sampling initial outcomes.get
     leftRef rightRef
   refine read.trans (joint.trans ?_)
   dsimp only [initial]
   rw [ExecutionState.referenceFiberSum_mapClassical]
   have probability :
-      (∏ index : Fin total, ((sampling.outcomePMF (outcomes.get index)).toReal : ℂ)) =
+      (∏ index : Fin total, (((sampling.outcomePMF environment.quantum) (outcomes.get
+        index)).toReal : ℂ)) =
       ((distribution outcomes).toReal : ℂ) := by
     rw [PMF.independentReplicateVector_toReal_prod, Complex.ofReal_prod]
   rw [probability]

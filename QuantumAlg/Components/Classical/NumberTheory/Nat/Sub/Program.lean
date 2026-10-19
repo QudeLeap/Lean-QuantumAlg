@@ -45,7 +45,8 @@ def subtractOp (refs : Refs ctx width) :
       (.unsignedWord width) ctx ctx :=
   .wordBinary .sub width ctx (.product refs.left refs.right) refs.output
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Actual selected one-instruction body. -/
 def arm (refs : Refs ctx width) : CShape.Value .bit → Circuit model ctx ctx
@@ -83,12 +84,12 @@ def step (refs : Refs ctx width) (store : Store ctx) : Store ctx × (into (model
   (selected.1, (compared.2, selected.2))
 
 /-- The selected instruction runs on the real store produced by comparison. -/
-theorem step_store (refs : Refs ctx width) (store : Store ctx) :
+lemma step_store (refs : Refs ctx width) (store : Store ctx) :
     (step (model := model) refs store).1 = (selectedStep (model := model) refs (store.applyOp
       (compareOp refs))).1 := rfl
 
 /-- The selected store is the actual charged clear or subtraction update. -/
-theorem selectedStep_store (refs : Refs ctx width) (store : Store ctx) :
+lemma selectedStep_store (refs : Refs ctx width) (store : Store ctx) :
     (selectedStep (model := model) refs store).1 =
       if (store.read (writeInput refs.lessThan)).toBool then store.applyOp (clearOp refs)
       else store.applyOp (subtractOp refs) := by
@@ -96,24 +97,27 @@ theorem selectedStep_store (refs : Refs ctx width) (store : Store ctx) :
   cases stored : store.read (writeInput refs.lessThan) with
   | bit flag => cases flag <;> rfl
 
-private theorem arm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
+private lemma arm_execute (refs : Refs ctx width) (flag : CShape.Value .bit)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (arm (model := model) refs flag).execute Reference state = state.mapClassical (fun entry =>
+    (arm (model := model) refs flag).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := armStep (model := model) refs flag entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   cases flag with
   | bit flag =>
     cases flag
-    all_goals exact BitWord.bitWord_instruction_execute _ state
+    all_goals exact BitWord.bitWord_instruction_execute (environment := environment) _ state
 
 /-- Actual flag selection preserves every incoming history and quantum-reference block. -/
-theorem selectedInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma selectedInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (selectedInto (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (selectedInto (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := selectedStep (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_branch_mapClassical (writeInput refs.lessThan) (arm (model := model) refs)
+  refine (Circuit.execute_branch_mapClassical
+    (environment := environment) (writeInput refs.lessThan) (arm (model := model) refs)
     (fun flag before =>
       let actual := armStep (model := model) refs flag before.1
       ((actual.1, before.2), actual.2))
@@ -122,9 +126,10 @@ theorem selectedInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual circuit executes its exact record on the full incoming classical-quantum state. -/
-theorem into_execute (refs : Refs ctx width) (Reference : Register)
+lemma into_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (into (model := model) refs).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := step (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [into, step, Circuit.execute_seq, BitWord.bitWord_instruction_execute,

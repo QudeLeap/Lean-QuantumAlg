@@ -21,7 +21,7 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 noncomputable section
 
 /-- Every selected native gate coordinate obeys its own independent coordinate budget. -/
-theorem compiledCircuit_eventGateCount_le_envelope (m ell width N : Nat)
+lemma compiledCircuit_eventGateCount_le_envelope (m ell width N : Nat)
     (g x : (ZMod N)ˣ) (label : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
       (compiledCircuit m ell width N g x).eventCost ≤
@@ -36,7 +36,7 @@ theorem compiledCircuit_eventGateCount_le_envelope (m ell width N : Nat)
     (compiledCircuit_eventCost_le m ell width N g x)
 
 /-- Every coordinate cap is bounded by the independent full pool's closed cardinality. -/
-theorem compiledCircuitEventEnvelope_gateCount_le_polynomial (m ell width N : Nat)
+lemma compiledCircuitEventEnvelope_gateCount_le_polynomial (m ell width N : Nat)
     (label : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
       (compiledCircuitEventEnvelope m ell width N) ≤
@@ -44,7 +44,7 @@ theorem compiledCircuitEventEnvelope_gateCount_le_polynomial (m ell width N : Na
   (Multiset.count_le_card _ _).trans_eq (compiledCircuitEventEnvelope_card m ell width N)
 
 /-- The actual occurrence count of any native label satisfies the full pool's closed bound. -/
-theorem compiledCircuit_eventGateCount_le_polynomial (m ell width N : Nat)
+lemma compiledCircuit_eventGateCount_le_polynomial (m ell width N : Nat)
     (g x : (ZMod N)ˣ) (label : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
       (compiledCircuit m ell width N g x).eventCost ≤
@@ -53,7 +53,7 @@ theorem compiledCircuit_eventGateCount_le_polynomial (m ell width N : Nat)
     (compiledCircuitEventEnvelope_gateCount_le_polynomial m ell width N label)
 
 /-- Actual coordinate occurrences also satisfy the tighter total-occurrence bound. -/
-theorem compiledCircuit_eventGateCount_le_actual_bound (m ell width N : Nat)
+lemma compiledCircuit_eventGateCount_le_actual_bound (m ell width N : Nat)
     (g x : (ZMod N)ˣ) (label : AlgorithmGate.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate label)
       (compiledCircuit m ell width N g x).eventCost ≤

@@ -68,7 +68,7 @@ def popStore (width : Nat) (store : Store (context ctx width)) : Store ctx :=
     ctx.canonicalFreshKey_fresh store1
 
 /-- Every lifted structural reference traverses precisely its original stored keys. -/
-theorem nativeSqrt_underRead_keys {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeSqrt_underRead_keys {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) : (underRead input width).storageKeys = input.storageKeys := by
   let ref1 : CInputRef (wideContext ctx width) shape :=
     input.underWorkspace ctx.canonicalFreshKey (.unsignedWord (width + width))
@@ -107,7 +107,7 @@ theorem nativeSqrt_underRead_keys {shape : CShape} (input : CInputRef ctx shape)
     ctx.canonicalFreshKey_fresh))))))
 
 /-- Entering all actual scopes preserves every original structured input exactly. -/
-theorem nativeSqrt_push_read {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeSqrt_push_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store ctx) :
     (pushStore width store).read (underRead input width) = store.read input := by
   let ref1 : CInputRef (wideContext ctx width) shape :=
@@ -163,7 +163,7 @@ theorem nativeSqrt_push_read {shape : CShape} (input : CInputRef ctx shape)
     ctx.canonicalFreshKey_fresh input))))))
 
 /-- Leaving all actual scopes exposes the final original-cell value without changing it. -/
-theorem nativeSqrt_pop_read {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeSqrt_pop_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store (context ctx width)) :
     (popStore width store).read input = store.read (underRead input width) := by
   let ref1 : CInputRef (wideContext ctx width) shape :=
@@ -219,22 +219,22 @@ theorem nativeSqrt_pop_read {shape : CShape} (input : CInputRef ctx shape)
     (squareContext ctx width).canonicalFreshKey_fresh store ref5))))))
 
 /-- The root's initial zero comes from its actual fresh lexical allocation. -/
-theorem nativeSqrt_push_root_zero (width : Nat) (store : Store ctx) :
+lemma nativeSqrt_push_root_zero (width : Nat) (store : Store ctx) :
     ((pushStore width store).read (.storage (rootCell ctx width).toCStorageRef)).toNat = 0 :=
   rfl
 
 /-- Lifting a writable output preserves its actual stored identity. -/
-theorem nativeSqrt_underWrite_key {shape : CShape} (output : CWriteRef ctx shape)
+lemma nativeSqrt_underWrite_key {shape : CShape} (output : CWriteRef ctx shape)
     (width : Nat) : (underWrite output width).key = output.key := rfl
 
 /-- Reading a lifted writable output is the same structural lift as any other original input. -/
-theorem nativeSqrt_underWrite_read {shape : CShape} (output : CWriteRef ctx shape)
+lemma nativeSqrt_underWrite_read {shape : CShape} (output : CWriteRef ctx shape)
     (width : Nat) :
     (.storage (underWrite output width).toCStorageRef : CInputRef (context ctx width) shape) =
       underRead (.storage output.toCStorageRef) width := rfl
 
 /-- Every new scratch key is disjoint from every actual original structured input. -/
-theorem nativeSqrt_underRead_free {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeSqrt_underRead_free {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (key : StorageKey) (internal : key ∈ internalKeys ctx width) :
     key ∉ (underRead input width).storageKeys := by
   rw [nativeSqrt_underRead_keys]

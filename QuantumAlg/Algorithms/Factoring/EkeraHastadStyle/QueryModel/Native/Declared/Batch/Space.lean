@@ -7,7 +7,8 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Batch.Program
-import all QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Reuse.Resources
+import all
+QuantumAlg.Algorithms.Factoring.EkeraHastadStyle.QueryModel.Native.Declared.Reuse.Resources
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Sampler.Retained.Space
 import all QuantumAlg.Core.Execution.Classical.Composition.Range
 
@@ -17,7 +18,7 @@ import all QuantumAlg.Core.Execution.Classical.Composition.Range
 The actual source cells, sixteen sample slots, factor result, measurement
 cells and working packed result remain in one context with the original bank.
 Redraw uses the original classical sampler scratch; a quantum reset uses
-one finite classical scratch cell. These scopes run sequentially, so their
+one finite classical scratch cell per bank wire. These scopes run sequentially, so their
 uniform allowance is a maximum. Neither scratch nor the fixed slots are
 multiplied by the number of samples or later batches.
 -/
@@ -40,12 +41,12 @@ def retainedSpace (N : Nat) : SpacePool .quantum :=
 /-- Sequential source computation and reset share the maximum of their actual scratch budgets. -/
 def scratchSpace (N : Nat) : SpacePool .quantum :=
   SpacePool.max (ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N))
-    (SpacePool.ofShape (.finite 2))
+    (resetSpace N)
 
 /-- A uniform first/later-batch allowance includes the fixed storage and live scratch maximum. -/
 def additionalSpace (N : Nat) : SpacePool .quantum := retainedSpace N + scratchSpace N
 
-private theorem samples_resident (ctx : RuntimeCtx .quantum) (width count : Nat) :
+private lemma samples_resident (ctx : RuntimeCtx .quantum) (width count : Nat) :
     (Native.Batch.Slots.samples ctx width count).residentSpace =
       count • SpacePool.ofShape (.bits width) + ctx.residentSpace := by
   induction count with
@@ -54,13 +55,13 @@ private theorem samples_resident (ctx : RuntimeCtx .quantum) (width count : Nat)
       rw [Native.Batch.Slots.samples, RuntimeCtx.residentSpace_addRetained, ih, succ_nsmul]
       ac_rfl
 
-private theorem slots_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
+private lemma slots_resident (ctx : RuntimeCtx .quantum) (N : Nat) :
     (Native.Batch.Slots.context ctx N).residentSpace =
       SpacePool.ofShape (.option (.unsignedWord (modulusBits N))) +
         16 • SpacePool.ofShape (.bits (measurementBits N)) + ctx.residentSpace := by
   rw [Native.Batch.Slots.context, RuntimeCtx.residentSpace_addRetained, samples_resident, add_assoc]
 
-private theorem samples_peak_resident {execution : ExecutionModel}
+private lemma samples_peak_resident {execution : ExecutionModel}
     (ctx : RuntimeCtx execution.kind) (width count : Nat)
     (path : (Native.Batch.Slots.allocateSamples (model := execution) ctx width count).Path) :
     (Native.Batch.Slots.allocateSamples (model := execution) ctx width count).peakResidentSpace
@@ -87,7 +88,7 @@ private theorem samples_peak_resident {execution : ExecutionModel}
           Nat.le_add_left _ _
         omega
 
-private theorem slots_peak_resident {execution : ExecutionModel}
+private lemma slots_peak_resident {execution : ExecutionModel}
     (ctx : RuntimeCtx execution.kind) (N : Nat)
     (path : (Native.Batch.Slots.allocate (model := execution) ctx N).Path) :
     (Native.Batch.Slots.allocate (model := execution) ctx N).peakResidentSpace path ≤
@@ -104,7 +105,7 @@ private theorem slots_peak_resident {execution : ExecutionModel}
         (Native.Batch.Slots.context ctx N).residentSpace axis := Nat.le_add_left _ _
     omega
 
-private theorem samples_auxiliary (ctx : RuntimeCtx .quantum) (width count : Nat) :
+private lemma samples_auxiliary (ctx : RuntimeCtx .quantum) (width count : Nat) :
     (Native.Batch.Slots.samples ctx width count).auxiliarySpace =
       count • SpacePool.ofShape (.bits width) + ctx.auxiliarySpace := by
   induction count with
@@ -113,14 +114,14 @@ private theorem samples_auxiliary (ctx : RuntimeCtx .quantum) (width count : Nat
       rw [Native.Batch.Slots.samples, RuntimeCtx.auxiliarySpace_addRetained, ih, succ_nsmul]
       ac_rfl
 
-private theorem slots_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
+private lemma slots_auxiliary (ctx : RuntimeCtx .quantum) (N : Nat) :
     (Native.Batch.Slots.context ctx N).auxiliarySpace =
       SpacePool.ofShape (.option (.unsignedWord (modulusBits N))) +
         16 • SpacePool.ofShape (.bits (measurementBits N)) + ctx.auxiliarySpace := by
   rw [Native.Batch.Slots.context, RuntimeCtx.auxiliarySpace_addRetained,
     samples_auxiliary, add_assoc]
 
-private theorem samples_peak_auxiliary {execution : ExecutionModel}
+private lemma samples_peak_auxiliary {execution : ExecutionModel}
     (ctx : RuntimeCtx execution.kind) (width count : Nat)
     (path : (Native.Batch.Slots.allocateSamples (model := execution) ctx width count).Path) :
     (Native.Batch.Slots.allocateSamples (model := execution) ctx width count).peakAuxiliarySpace
@@ -147,7 +148,7 @@ private theorem samples_peak_auxiliary {execution : ExecutionModel}
           Nat.le_add_left _ _
         omega
 
-private theorem slots_peak_auxiliary {execution : ExecutionModel}
+private lemma slots_peak_auxiliary {execution : ExecutionModel}
     (ctx : RuntimeCtx execution.kind) (N : Nat)
     (path : (Native.Batch.Slots.allocate (model := execution) ctx N).Path) :
     (Native.Batch.Slots.allocate (model := execution) ctx N).peakAuxiliarySpace path ≤
@@ -167,7 +168,7 @@ private theorem slots_peak_auxiliary {execution : ExecutionModel}
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
 /-- The fixed batch context counts its exact resident capacity beside the original caller. -/
-theorem declaredBatch_context_residentSpace :
+lemma declaredBatch_context_residentSpace :
     (context base noQuantum N).residentSpace = retainedSpace N + base.residentSpace := by
   change (Native.context (storageContext base N)
     (storage_empty base noQuantum N) N).residentSpace = _
@@ -176,14 +177,14 @@ theorem declaredBatch_context_residentSpace :
   unfold retainedSpace
   ac_rfl
 
-private theorem storage_resident_le :
+private lemma storage_resident_le :
     (storageContext base N).residentSpace ≤ (context base noQuantum N).residentSpace := by
   change (storageContext base N).residentSpace ≤
     (Native.context (storageContext base N) (storage_empty base noQuantum N) N).residentSpace
   rw [declaredSample_context_residentSpace]
   exact fun axis => Nat.le_add_left _ _
 
-private theorem source_resident_le :
+private lemma source_resident_le :
     (sourceContext base N).residentSpace ≤ (context base noQuantum N).residentSpace := by
   refine (show (sourceContext base N).residentSpace ≤
     (storageContext base N).residentSpace from ?_).trans
@@ -191,87 +192,87 @@ private theorem source_resident_le :
   rw [storageContext, slots_resident]
   exact fun axis => Nat.le_add_left _ _
 
-private theorem copy_resident (input : Input N) (index : Fin 16)
-    (path : (copy base noQuantum N input index).Path) :
-    (copy base noQuantum N input index).peakResidentSpace path =
+private lemma copy_resident (index : Fin 16)
+    (path : (copy base noQuantum N index).Path) :
+    (copy base noQuantum N index).peakResidentSpace path =
       (context base noQuantum N).residentSpace := by
   funext axis
   exact Nat.max_zero _
 
-/-- A reused sample has exactly one live reset bit beyond the complete fixed batch context. -/
-theorem declaredBatch_reusedSample_peakResidentSpace (input : Input N) (index : Fin 16)
-    (path : (reusedSample base noQuantum N input index).Path) :
-    (reusedSample base noQuantum N input index).peakResidentSpace path =
-      SpacePool.ofShape (.finite 2) + (context base noQuantum N).residentSpace := by
+/-- A reused sample has one live reset bit per wire beyond the complete fixed batch context. -/
+lemma declaredBatch_reusedSample_peakResidentSpace (index : Fin 16)
+    (path : (reusedSample base noQuantum N index).Path) :
+    (reusedSample base noQuantum N index).peakResidentSpace path =
+      resetSpace N + (context base noQuantum N).residentSpace := by
   refine (Circuit.peakResidentSpace_seq _ _ path).trans ?_
   refine (congrArg₂ SpacePool.max
     (declaredReuse_peakResidentSpace (storageContext base N)
-      (storage_empty base noQuantum N) N input (parameter base N) path.1)
-    (copy_resident base noQuantum N input index path.2)).trans ?_
+      (storage_empty base noQuantum N) N (parameter base N) path.1)
+    (copy_resident base noQuantum N index path.2)).trans ?_
   exact SpacePool.max_eq_left (fun axis => Nat.le_add_left _ _)
 
-private theorem reused_resident (input : Input N) (index : Fin 16)
-    (path : (reusedSample base noQuantum N input index).Path) :
-    (reusedSample base noQuantum N input index).peakResidentSpace path ≤
+private lemma reused_resident (index : Fin 16)
+    (path : (reusedSample base noQuantum N index).Path) :
+    (reusedSample base noQuantum N index).peakResidentSpace path ≤
       (context base noQuantum N).residentSpace + scratchSpace N := by
   refine (declaredBatch_reusedSample_peakResidentSpace
-    base noQuantum N input index path).le.trans ?_
+    base noQuantum N index path).le.trans ?_
   intro axis
   have scratch := SpacePool.le_max_right
     (ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N))
-    (SpacePool.ofShape (.finite 2)) axis
-  change SpacePool.ofShape (kind := .quantum) (.finite 2) axis +
+    (resetSpace N) axis
+  change resetSpace N axis +
     (context base noQuantum N).residentSpace axis ≤
       (context base noQuantum N).residentSpace axis + scratchSpace N axis
   change _ ≤ scratchSpace N axis at scratch
   omega
 
-private theorem first_resident (input : Input N)
-    (path : (firstBatch base noQuantum N input).Path) :
-    (firstBatch base noQuantum N input).peakResidentSpace path ≤
+private lemma first_resident
+    (path : (firstBatch base noQuantum N).Path) :
+    (firstBatch base noQuantum N).peakResidentSpace path ≤
       (context base noQuantum N).residentSpace + scratchSpace N := by
   have tail := Circuit.forRange_resident_le 15
-    (fun index => reusedSample base noQuantum N input index.succ)
+    (fun index => reusedSample base noQuantum N index.succ)
     ((context base noQuantum N).residentSpace + scratchSpace N)
     (fun axis => Nat.le_add_right _ _)
-    (fun index => reused_resident base noQuantum N input index.succ) path.2
+    (fun index => reused_resident base noQuantum N index.succ) path.2
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ tail)
   refine (Circuit.peakResidentSpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
   · exact (declaredSample_body_peakResidentSpace (storageContext base N)
-      (storage_empty base noQuantum N) N input (parameter base N) path.1.1).le.trans
+      (storage_empty base noQuantum N) N (parameter base N) path.1.1).le.trans
         (fun axis => Nat.le_add_right _ _)
-  · exact (copy_resident base noQuantum N input 0 path.1.2).le.trans
+  · exact (copy_resident base noQuantum N 0 path.1.2).le.trans
       (fun axis => Nat.le_add_right _ _)
 
-private theorem setup_resident (input : Input N)
-    (path : (setup base noQuantum N input).Path)
-    (bodyPath : (body (storageContext base N) (storage_empty base noQuantum N) N input
+private lemma setup_resident
+    (path : (setup base noQuantum N).Path)
+    (bodyPath : (body (storageContext base N) (storage_empty base noQuantum N) N
       (parameter base N)).Path) :
-    (setup base noQuantum N input).peakResidentSpace path ≤
+    (setup base noQuantum N).peakResidentSpace path ≤
       (context base noQuantum N).residentSpace + scratchSpace N := by
   have source := ShorStyle.Canonical.Sampler.Retained.samplerRetained_resident_le
-    (model := model input) base N path.1
+    (model := model N) base N path.1
   have sourceBudget := ShorStyle.Canonical.Sampler.Retained.resident_budget base N
   have sourceLimit :
-      (ShorStyle.Canonical.Sampler.Retained.circuit (model := model input)
+      (ShorStyle.Canonical.Sampler.Retained.circuit (model := model N)
         base N).peakResidentSpace path.1 ≤
           (context base noQuantum N).residentSpace + scratchSpace N :=
     source.trans (sourceBudget.symm.trans_le
       (add_le_add (source_resident_le base noQuantum N) (SpacePool.le_max_left _ _)))
-  have storage := (slots_peak_resident (execution := model input)
+  have storage := (slots_peak_resident (execution := model N)
     (sourceContext base N) N path.2.1).trans (storage_resident_le base noQuantum N)
   have core := declaredSample_peakResidentSpace (storageContext base N)
-    (storage_empty base noQuantum N) N input (parameter base N)
+    (storage_empty base noQuantum N) N (parameter base N)
     (path.2.2.1, (path.2.2.2, bodyPath))
   simp only [Declared.code, Circuit.peakResidentSpace_seq] at core
   have prepared :
       (Declared.prepare (storageContext base N)
-        (storage_empty base noQuantum N) N input).peakResidentSpace path.2.2.1 ≤
+        (storage_empty base noQuantum N) N).peakResidentSpace path.2.2.1 ≤
           (context base noQuantum N).residentSpace :=
     (SpacePool.le_max_left _ _).trans_eq core
   have allocated :
       (Declared.allocate (storageContext base N)
-        (storage_empty base noQuantum N) N input).peakResidentSpace path.2.2.2 ≤
+        (storage_empty base noQuantum N) N).peakResidentSpace path.2.2.2 ≤
           (context base noQuantum N).residentSpace :=
     ((SpacePool.le_max_left _ _).trans (SpacePool.le_max_right _ _)).trans_eq core
   have reserve : (context base noQuantum N).residentSpace ≤
@@ -283,46 +284,46 @@ private theorem setup_resident (input : Input N)
   exact (Circuit.peakResidentSpace_seq _ _ path.2.2).le.trans
     (SpacePool.max_le (prepared.trans reserve) (allocated.trans reserve))
 
-private theorem redraw_resident (input : Input N)
-    (path : (redraw base noQuantum N input).Path) :
-    (redraw base noQuantum N input).peakResidentSpace path ≤
+private lemma redraw_resident
+    (path : (redraw base noQuantum N).Path) :
+    (redraw base noQuantum N).peakResidentSpace path ≤
       (context base noQuantum N).residentSpace + scratchSpace N := by
   refine (Circuit.peakResidentSpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · exact (BitWord.Random.randomCode_peakResidentSpace (execution := model input)
+  · exact (BitWord.Random.randomCode_peakResidentSpace (execution := model N)
       (sourceRef base noQuantum N) path.1).le.trans (fun axis => Nat.le_add_right _ _)
   · refine (ShorStyle.Canonical.Sampler.Program.samplerProgram_resident_le
-      (model := model input) N (.storage (sourceRef base noQuantum N).toCStorageRef)
+      (model := model N) N (.storage (sourceRef base noQuantum N).toCStorageRef)
       (parameterRef base noQuantum N) path.2).trans ?_
     exact add_le_add (le_refl _) (SpacePool.le_max_left _ _)
 
 /-- The first batch includes every actual resident slot and the sequential scratch maximum. -/
-theorem declaredBatch_peakResidentSpace_le (input : Input N)
-    (path : (code base noQuantum N input).Path) :
-    (code base noQuantum N input).peakResidentSpace path ≤
+lemma declaredBatch_peakResidentSpace_le
+    (path : (code base noQuantum N).Path) :
+    (code base noQuantum N).peakResidentSpace path ≤
       additionalSpace N + base.residentSpace := by
   have bounded := (Circuit.peakResidentSpace_seq _ _ path).le.trans
-    (SpacePool.max_le (setup_resident base noQuantum N input path.1 path.2.1.1)
-      (first_resident base noQuantum N input path.2))
-  change (code base noQuantum N input).peakResidentSpace path ≤ _ at bounded
+    (SpacePool.max_le (setup_resident base noQuantum N path.1 path.2.1.1)
+      (first_resident base noQuantum N path.2))
+  change (code base noQuantum N).peakResidentSpace path ≤ _ at bounded
   rw [declaredBatch_context_residentSpace] at bounded
   simpa only [additionalSpace, add_assoc, add_comm, add_left_comm] using bounded
 
 /-- A later batch reuses the fixed resident context and the same temporary-space allowance. -/
-theorem declaredBatch_next_peakResidentSpace_le (input : Input N)
-    (path : (nextBatch base noQuantum N input).Path) :
-    (nextBatch base noQuantum N input).peakResidentSpace path ≤
+lemma declaredBatch_next_peakResidentSpace_le
+    (path : (nextBatch base noQuantum N).Path) :
+    (nextBatch base noQuantum N).peakResidentSpace path ≤
       additionalSpace N + base.residentSpace := by
-  have tail := Circuit.forRange_resident_le 16 (reusedSample base noQuantum N input)
+  have tail := Circuit.forRange_resident_le 16 (reusedSample base noQuantum N)
     ((context base noQuantum N).residentSpace + scratchSpace N)
-    (fun axis => Nat.le_add_right _ _) (reused_resident base noQuantum N input) path.2
+    (fun axis => Nat.le_add_right _ _) (reused_resident base noQuantum N) path.2
   have bounded := (Circuit.peakResidentSpace_seq _ _ path).le.trans
-    (SpacePool.max_le (redraw_resident base noQuantum N input path.1) tail)
-  change (nextBatch base noQuantum N input).peakResidentSpace path ≤ _ at bounded
+    (SpacePool.max_le (redraw_resident base noQuantum N path.1) tail)
+  change (nextBatch base noQuantum N).peakResidentSpace path ≤ _ at bounded
   rw [declaredBatch_context_residentSpace] at bounded
   simpa only [additionalSpace, add_assoc, add_comm, add_left_comm] using bounded
 
 /-- The fixed batch context counts its exact auxiliary capacity beside the original caller. -/
-theorem declaredBatch_context_auxiliarySpace :
+lemma declaredBatch_context_auxiliarySpace :
     (context base noQuantum N).auxiliarySpace = retainedSpace N + base.auxiliarySpace := by
   change (Native.context (storageContext base N)
     (storage_empty base noQuantum N) N).auxiliarySpace = _
@@ -331,14 +332,14 @@ theorem declaredBatch_context_auxiliarySpace :
   unfold retainedSpace
   ac_rfl
 
-private theorem storage_auxiliary_le :
+private lemma storage_auxiliary_le :
     (storageContext base N).auxiliarySpace ≤ (context base noQuantum N).auxiliarySpace := by
   change (storageContext base N).auxiliarySpace ≤
     (Native.context (storageContext base N) (storage_empty base noQuantum N) N).auxiliarySpace
   rw [declaredSample_context_auxiliarySpace]
   exact fun axis => Nat.le_add_left _ _
 
-private theorem source_auxiliary_le :
+private lemma source_auxiliary_le :
     (sourceContext base N).auxiliarySpace ≤ (context base noQuantum N).auxiliarySpace := by
   refine (show (sourceContext base N).auxiliarySpace ≤
     (storageContext base N).auxiliarySpace from ?_).trans
@@ -346,87 +347,87 @@ private theorem source_auxiliary_le :
   rw [storageContext, slots_auxiliary]
   exact fun axis => Nat.le_add_left _ _
 
-private theorem copy_auxiliary (input : Input N) (index : Fin 16)
-    (path : (copy base noQuantum N input index).Path) :
-    (copy base noQuantum N input index).peakAuxiliarySpace path =
+private lemma copy_auxiliary (index : Fin 16)
+    (path : (copy base noQuantum N index).Path) :
+    (copy base noQuantum N index).peakAuxiliarySpace path =
       (context base noQuantum N).auxiliarySpace := by
   funext axis
   exact Nat.max_zero _
 
-/-- A reused sample has exactly one live reset bit beyond the complete fixed batch context. -/
-theorem declaredBatch_reusedSample_peakAuxiliarySpace (input : Input N) (index : Fin 16)
-    (path : (reusedSample base noQuantum N input index).Path) :
-    (reusedSample base noQuantum N input index).peakAuxiliarySpace path =
-      SpacePool.ofShape (.finite 2) + (context base noQuantum N).auxiliarySpace := by
+/-- A reused sample has one live reset bit per wire beyond the complete fixed batch context. -/
+lemma declaredBatch_reusedSample_peakAuxiliarySpace (index : Fin 16)
+    (path : (reusedSample base noQuantum N index).Path) :
+    (reusedSample base noQuantum N index).peakAuxiliarySpace path =
+      resetSpace N + (context base noQuantum N).auxiliarySpace := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).trans ?_
   refine (congrArg₂ SpacePool.max
     (declaredReuse_peakAuxiliarySpace (storageContext base N)
-      (storage_empty base noQuantum N) N input (parameter base N) path.1)
-    (copy_auxiliary base noQuantum N input index path.2)).trans ?_
+      (storage_empty base noQuantum N) N (parameter base N) path.1)
+    (copy_auxiliary base noQuantum N index path.2)).trans ?_
   exact SpacePool.max_eq_left (fun axis => Nat.le_add_left _ _)
 
-private theorem reused_auxiliary (input : Input N) (index : Fin 16)
-    (path : (reusedSample base noQuantum N input index).Path) :
-    (reusedSample base noQuantum N input index).peakAuxiliarySpace path ≤
+private lemma reused_auxiliary (index : Fin 16)
+    (path : (reusedSample base noQuantum N index).Path) :
+    (reusedSample base noQuantum N index).peakAuxiliarySpace path ≤
       (context base noQuantum N).auxiliarySpace + scratchSpace N := by
   refine (declaredBatch_reusedSample_peakAuxiliarySpace
-    base noQuantum N input index path).le.trans ?_
+    base noQuantum N index path).le.trans ?_
   intro axis
   have scratch := SpacePool.le_max_right
     (ShorStyle.Canonical.Sampler.Program.additionalSpace .quantum (modulusBits N))
-    (SpacePool.ofShape (.finite 2)) axis
-  change SpacePool.ofShape (kind := .quantum) (.finite 2) axis +
+    (resetSpace N) axis
+  change resetSpace N axis +
     (context base noQuantum N).auxiliarySpace axis ≤
       (context base noQuantum N).auxiliarySpace axis + scratchSpace N axis
   change _ ≤ scratchSpace N axis at scratch
   omega
 
-private theorem first_auxiliary (input : Input N)
-    (path : (firstBatch base noQuantum N input).Path) :
-    (firstBatch base noQuantum N input).peakAuxiliarySpace path ≤
+private lemma first_auxiliary
+    (path : (firstBatch base noQuantum N).Path) :
+    (firstBatch base noQuantum N).peakAuxiliarySpace path ≤
       (context base noQuantum N).auxiliarySpace + scratchSpace N := by
   have tail := Circuit.forRange_auxiliary_le 15
-    (fun index => reusedSample base noQuantum N input index.succ)
+    (fun index => reusedSample base noQuantum N index.succ)
     ((context base noQuantum N).auxiliarySpace + scratchSpace N)
     (fun axis => Nat.le_add_right _ _)
-    (fun index => reused_auxiliary base noQuantum N input index.succ) path.2
+    (fun index => reused_auxiliary base noQuantum N index.succ) path.2
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ tail)
   refine (Circuit.peakAuxiliarySpace_seq _ _ path.1).le.trans (SpacePool.max_le ?_ ?_)
   · exact (declaredSample_body_peakAuxiliarySpace (storageContext base N)
-      (storage_empty base noQuantum N) N input (parameter base N) path.1.1).le.trans
+      (storage_empty base noQuantum N) N (parameter base N) path.1.1).le.trans
         (fun axis => Nat.le_add_right _ _)
-  · exact (copy_auxiliary base noQuantum N input 0 path.1.2).le.trans
+  · exact (copy_auxiliary base noQuantum N 0 path.1.2).le.trans
       (fun axis => Nat.le_add_right _ _)
 
-private theorem setup_auxiliary (input : Input N)
-    (path : (setup base noQuantum N input).Path)
-    (bodyPath : (body (storageContext base N) (storage_empty base noQuantum N) N input
+private lemma setup_auxiliary
+    (path : (setup base noQuantum N).Path)
+    (bodyPath : (body (storageContext base N) (storage_empty base noQuantum N) N
       (parameter base N)).Path) :
-    (setup base noQuantum N input).peakAuxiliarySpace path ≤
+    (setup base noQuantum N).peakAuxiliarySpace path ≤
       (context base noQuantum N).auxiliarySpace + scratchSpace N := by
   have source := ShorStyle.Canonical.Sampler.Retained.samplerRetained_auxiliary_le
-    (model := model input) base N path.1
+    (model := model N) base N path.1
   have sourceBudget := ShorStyle.Canonical.Sampler.Retained.auxiliary_budget base N
   have sourceLimit :
-      (ShorStyle.Canonical.Sampler.Retained.circuit (model := model input)
+      (ShorStyle.Canonical.Sampler.Retained.circuit (model := model N)
         base N).peakAuxiliarySpace path.1 ≤
           (context base noQuantum N).auxiliarySpace + scratchSpace N :=
     source.trans (sourceBudget.symm.trans_le
       (add_le_add (source_auxiliary_le base noQuantum N) (SpacePool.le_max_left _ _)))
-  have storage := (slots_peak_auxiliary (execution := model input)
+  have storage := (slots_peak_auxiliary (execution := model N)
     (sourceContext base N) N path.2.1).trans (storage_auxiliary_le base noQuantum N)
   have core := declaredSample_peakAuxiliarySpace (storageContext base N)
-    (storage_empty base noQuantum N) N input (parameter base N)
+    (storage_empty base noQuantum N) N (parameter base N)
     (path.2.2.1, (path.2.2.2, bodyPath))
   simp only [Declared.code, Circuit.peakAuxiliarySpace_seq] at core
   have prepared :
       (Declared.prepare (storageContext base N)
-        (storage_empty base noQuantum N) N input).peakAuxiliarySpace path.2.2.1 ≤
+        (storage_empty base noQuantum N) N).peakAuxiliarySpace path.2.2.1 ≤
           (context base noQuantum N).auxiliarySpace :=
     (SpacePool.le_max_left _ _).trans_eq core
   have allocated :
       (Declared.allocate (storageContext base N)
-        (storage_empty base noQuantum N) N input).peakAuxiliarySpace path.2.2.2 ≤
+        (storage_empty base noQuantum N) N).peakAuxiliarySpace path.2.2.2 ≤
           (context base noQuantum N).auxiliarySpace :=
     ((SpacePool.le_max_left _ _).trans (SpacePool.le_max_right _ _)).trans_eq core
   have reserve : (context base noQuantum N).auxiliarySpace ≤
@@ -438,41 +439,41 @@ private theorem setup_auxiliary (input : Input N)
   exact (Circuit.peakAuxiliarySpace_seq _ _ path.2.2).le.trans
     (SpacePool.max_le (prepared.trans reserve) (allocated.trans reserve))
 
-private theorem redraw_auxiliary (input : Input N)
-    (path : (redraw base noQuantum N input).Path) :
-    (redraw base noQuantum N input).peakAuxiliarySpace path ≤
+private lemma redraw_auxiliary
+    (path : (redraw base noQuantum N).Path) :
+    (redraw base noQuantum N).peakAuxiliarySpace path ≤
       (context base noQuantum N).auxiliarySpace + scratchSpace N := by
   refine (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans (SpacePool.max_le ?_ ?_)
-  · exact (BitWord.Random.randomCode_peakAuxiliarySpace (execution := model input)
+  · exact (BitWord.Random.randomCode_peakAuxiliarySpace (execution := model N)
       (sourceRef base noQuantum N) path.1).le.trans (fun axis => Nat.le_add_right _ _)
   · refine (ShorStyle.Canonical.Sampler.Program.samplerProgram_auxiliary_le
-      (model := model input) N (.storage (sourceRef base noQuantum N).toCStorageRef)
+      (model := model N) N (.storage (sourceRef base noQuantum N).toCStorageRef)
       (parameterRef base noQuantum N) path.2).trans ?_
     exact add_le_add (le_refl _) (SpacePool.le_max_left _ _)
 
 /-- The first batch includes every actual auxiliary slot and the sequential scratch maximum. -/
-theorem declaredBatch_peakAuxiliarySpace_le (input : Input N)
-    (path : (code base noQuantum N input).Path) :
-    (code base noQuantum N input).peakAuxiliarySpace path ≤
+lemma declaredBatch_peakAuxiliarySpace_le
+    (path : (code base noQuantum N).Path) :
+    (code base noQuantum N).peakAuxiliarySpace path ≤
       additionalSpace N + base.auxiliarySpace := by
   have bounded := (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans
-    (SpacePool.max_le (setup_auxiliary base noQuantum N input path.1 path.2.1.1)
-      (first_auxiliary base noQuantum N input path.2))
-  change (code base noQuantum N input).peakAuxiliarySpace path ≤ _ at bounded
+    (SpacePool.max_le (setup_auxiliary base noQuantum N path.1 path.2.1.1)
+      (first_auxiliary base noQuantum N path.2))
+  change (code base noQuantum N).peakAuxiliarySpace path ≤ _ at bounded
   rw [declaredBatch_context_auxiliarySpace] at bounded
   simpa only [additionalSpace, add_assoc, add_comm, add_left_comm] using bounded
 
 /-- A later batch reuses the fixed auxiliary context and the same temporary-space allowance. -/
-theorem declaredBatch_next_peakAuxiliarySpace_le (input : Input N)
-    (path : (nextBatch base noQuantum N input).Path) :
-    (nextBatch base noQuantum N input).peakAuxiliarySpace path ≤
+lemma declaredBatch_next_peakAuxiliarySpace_le
+    (path : (nextBatch base noQuantum N).Path) :
+    (nextBatch base noQuantum N).peakAuxiliarySpace path ≤
       additionalSpace N + base.auxiliarySpace := by
-  have tail := Circuit.forRange_auxiliary_le 16 (reusedSample base noQuantum N input)
+  have tail := Circuit.forRange_auxiliary_le 16 (reusedSample base noQuantum N)
     ((context base noQuantum N).auxiliarySpace + scratchSpace N)
-    (fun axis => Nat.le_add_right _ _) (reused_auxiliary base noQuantum N input) path.2
+    (fun axis => Nat.le_add_right _ _) (reused_auxiliary base noQuantum N) path.2
   have bounded := (Circuit.peakAuxiliarySpace_seq _ _ path).le.trans
-    (SpacePool.max_le (redraw_auxiliary base noQuantum N input path.1) tail)
-  change (nextBatch base noQuantum N input).peakAuxiliarySpace path ≤ _ at bounded
+    (SpacePool.max_le (redraw_auxiliary base noQuantum N path.1) tail)
+  change (nextBatch base noQuantum N).peakAuxiliarySpace path ≤ _ at bounded
   rw [declaredBatch_context_auxiliarySpace] at bounded
   simpa only [additionalSpace, add_assoc, add_comm, add_left_comm] using bounded
 

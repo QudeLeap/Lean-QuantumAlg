@@ -38,20 +38,20 @@ public def auxiliaryQubitCount (fieldWidth : Nat) : Nat :=
   35 * fieldWidth + 26 + 3 * Nat.clog 2 (2 * fieldWidth)
 
 /-- The public logical carrier equals its explicit scalar formula. -/
-public theorem logicalQubitCount_eq_closed (fieldWidth : Nat) :
+public lemma logicalQubitCount_eq_closed (fieldWidth : Nat) :
     logicalQubitCount fieldWidth =
       37 * fieldWidth + 27 + 3 * Nat.clog 2 (2 * fieldWidth) := by
   rfl
 
 /-- The public auxiliary carrier equals its explicit scalar formula. -/
-public theorem auxiliaryQubitCount_eq_closed (fieldWidth : Nat) :
+public lemma auxiliaryQubitCount_eq_closed (fieldWidth : Nat) :
     auxiliaryQubitCount fieldWidth =
       35 * fieldWidth + 26 + 3 * Nat.clog 2 (2 * fieldWidth) := by
   rfl
 
 /-- The complete carrier splits into the public control and affine point plus
 the stated auxiliary carrier. -/
-theorem logicalQubitCount_eq_public_add_auxiliary (fieldWidth : Nat) :
+lemma logicalQubitCount_eq_public_add_auxiliary (fieldWidth : Nat) :
     logicalQubitCount fieldWidth =
       (1 + 2 * fieldWidth) + auxiliaryQubitCount fieldWidth := by
   unfold logicalQubitCount auxiliaryQubitCount
@@ -207,7 +207,7 @@ public def publishedToffoliCountBound (fieldWidth : Nat) : Nat :=
     (23120 * height - 41836) * fieldWidth + 3550
 
 /-- The published Toffoli ceiling equals its explicit scalar polynomial. -/
-public theorem publishedToffoliCountBound_eq_closed (fieldWidth : Nat) :
+public lemma publishedToffoliCountBound_eq_closed (fieldWidth : Nat) :
     publishedToffoliCountBound fieldWidth =
         (22656 * Nat.clog 2 (2 * fieldWidth) + 247488) * fieldWidth ^ 2 +
           (23120 * Nat.clog 2 (2 * fieldWidth) - 41836) * fieldWidth + 3550 := by
@@ -215,7 +215,7 @@ public theorem publishedToffoliCountBound_eq_closed (fieldWidth : Nat) :
 
 /-- The actual arithmetic-ledger bound normalizes to the published polynomial.
 The lower bounds make every predecessor and coefficient subtraction exact. -/
-theorem toffoliCountBound_eq_published (fieldWidth : Nat)
+lemma toffoliCountBound_eq_published (fieldWidth : Nat)
     (fieldWidthPositive : 0 < fieldWidth)
     (heightAtLeastTwo : 2 ≤ Nat.clog 2 (2 * fieldWidth)) :
     toffoliCountBound fieldWidth = publishedToffoliCountBound fieldWidth := by

@@ -40,7 +40,7 @@ public def wordUnitMultiplicationOperator (width : Nat) (modulus : Fin (2 ^ widt
     (coefficient : (ZMod modulus.val)ˣ) : UnitaryOperator (Qubits (width + width)) :=
   UnitaryOperator.ofPerm (multiplicationLabelEquiv width modulus coefficient).symm
 
-theorem wordUnitMultiplicationOperator_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma wordUnitMultiplicationOperator_ket (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) (state : Fin (2 ^ width) × Fin (2 ^ width)) :
     (wordUnitMultiplicationOperator width modulus coefficient).apply
         (NormalizedVector.ket (prodEquiv (m := width) (n := width) state)) =
@@ -52,7 +52,7 @@ theorem wordUnitMultiplicationOperator_ket (width : Nat) (modulus : Fin (2 ^ wid
   simp only [Equiv.Perm.inv_def, Equiv.symm_symm, multiplicationLabelEquiv,
     Equiv.trans_apply, Equiv.symm_apply_apply]
 
-theorem wordUnitMultiplicationOperator_clean (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma wordUnitMultiplicationOperator_clean (width : Nat) (modulus : Fin (2 ^ width + 1))
     (positive : 0 < modulus.val) (coefficient : (ZMod modulus.val)ˣ)
     (input : Fin (2 ^ width)) (valid : input.val < modulus.val) :
     (wordUnitMultiplicationOperator width modulus coefficient).apply

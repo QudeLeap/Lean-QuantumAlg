@@ -23,7 +23,7 @@ namespace QuantumAlg.QuantumWalk
 
 noncomputable section
 
-private theorem unitaryIterates_distance_le {R : Register}
+private lemma unitaryIterates_distance_le {R : Register}
     (A B : UnitaryOperator R) (ψ : NormalizedVector R) (η : ℝ)
     (hstep : ∀ φ : HilbertVector R, ‖φ‖ = 1 → ‖A.applyVec φ - B.applyVec φ‖ ≤ η)
     (k : ℕ) :
@@ -48,7 +48,7 @@ private theorem unitaryIterates_distance_le {R : Register}
 variable {n : ℕ}
 
 /-- State distance grows by at most `η` per reflection pair. -/
-public theorem state_distance_induction
+public lemma state_distance_induction
     (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^ n)))
     (approximation : UnitaryOperator (Qubits (n + n))) (η : ℝ)
     (happroximation : ∀ ψ : HilbertVector (Qubits (n + n)), ‖ψ‖ = 1 →
@@ -64,7 +64,7 @@ public theorem state_distance_induction
   rw [UnitaryOperator.norm_applyVec, hψ]
 
 /-- Pointwise reflection error reduces the marked squared amplitude by at most `2kη`. -/
-public theorem quantum_walk_search_success_with_perturbation
+public lemma quantum_walk_search_success_with_perturbation
     (P : Matrix.SymmetricStochastic (Fin (2 ^ n))) (M : Finset (Fin (2 ^ n)))
     (hM : M.Nonempty) (approximation : UnitaryOperator (Qubits (n + n))) (η : ℝ)
     (happroximation : ∀ ψ : HilbertVector (Qubits (n + n)), ‖ψ‖ = 1 →

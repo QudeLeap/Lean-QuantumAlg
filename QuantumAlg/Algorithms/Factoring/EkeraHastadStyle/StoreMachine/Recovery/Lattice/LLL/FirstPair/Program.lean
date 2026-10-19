@@ -73,15 +73,16 @@ def firstPairStep {model : ExecutionModel} [BitWord.Selected model]
   (selected.1, (reduced.2, selected.2))
 
 /-- The reduced row feeds the norm computation while histories and blocks survive. -/
-theorem reduceRefreshInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma reduceRefreshInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (reduceRefreshInto (model := model) refs).execute Reference state =
+    (reduceRefreshInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := reduceRefreshStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeArithmetic.pointReduce (model := model) (writeInput refs.division.output)
       refs.basis.first refs.basis.second refs.reduceProduct)
     (LatticeNormRefresh.refreshInto (model := model) refs.basis.second refs.refresh)
@@ -103,15 +104,16 @@ theorem reduceRefreshInto_execute {model : ExecutionModel} [BitWord.Selected mod
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual prefix execution preserves history and quantum-reference correlations. -/
-theorem reductionPrefixInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma reductionPrefixInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (reductionPrefixInto (model := model) refs).execute Reference state =
+    (reductionPrefixInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := reductionPrefixStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (RoundedDiv.body (model := model) refs.division)
     (reduceRefreshInto (model := model) refs)
     (fun before =>
@@ -126,15 +128,16 @@ theorem reductionPrefixInto_execute {model : ExecutionModel} [BitWord.Selected m
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Full actual first-pair execution uses the real division and comparison outcomes. -/
-theorem firstPairInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma firstPairInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (firstPairInto (model := model) refs).execute Reference state =
+    (firstPairInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := firstPairStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (reductionPrefixInto (model := model) refs) (lovaszBranchInto (model := model) refs)
     (fun before =>
       let actual := reductionPrefixStep (model := model) refs before.1

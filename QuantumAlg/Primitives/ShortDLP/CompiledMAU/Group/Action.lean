@@ -24,6 +24,8 @@ namespace QuantumAlg.ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Lift the first modular exponentiation across the untouched second exponent
 register. -/
 def firstExponentiationProgram (m ell width N : Nat)
@@ -74,10 +76,10 @@ def firstExponentiationStep (m ell width N : Nat) (g : (ZMod N)ˣ)
   ((updated.1, input.1.2), updated.2)
 
 /-- The first lifted actual circuit realizes its full-register semantic step. -/
-theorem firstExponentiationProgram_realizes
+lemma firstExponentiationProgram_realizes
     (m ell width N : Nat) (g : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (groupEncoding m ell width)
-      (firstExponentiationProgram m ell width N g)
+      (firstExponentiationProgram m ell width N g) environment
       (firstExponentiationStep m ell width N g) := by
   exact UnitaryCircuit.Realizes.onBinaryMiddle
     (left := BinaryLabelEncoding.finIdentity (ell + m))
@@ -94,10 +96,10 @@ def secondExponentiationStep (m ell width N : Nat) (x : (ZMod N)ˣ)
   ((input.1.1, updated.1), updated.2)
 
 /-- The reassociated second actual circuit realizes its full-register step. -/
-theorem secondExponentiationProgram_realizes
+lemma secondExponentiationProgram_realizes
     (m ell width N : Nat) (x : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (groupEncoding m ell width)
-      (secondExponentiationProgram m ell width N x)
+      (secondExponentiationProgram m ell width N x) environment
       (secondExponentiationStep m ell width N x) := by
   constructor
   intro input
@@ -123,9 +125,9 @@ theorem secondExponentiationProgram_realizes
     (UnitaryCircuit.Realizes.onBinarySuffix
       (left := BinaryLabelEncoding.finIdentity
         (firstBits (registerParameters m ell width)))
-      (exponentiationRaw_realizes ell width N x⁻¹)).apply_encoded_ket
+      (exponentiationRaw_realizes (environment := environment) ell width N x⁻¹)).apply_encoded_ket
         rawInput
-  have hcast := applyNormalized_castProgram hwidth rawProgram
+  have hcast := applyNormalized_castProgram (environment := environment) hwidth rawProgram
     ((BinaryLabelEncoding.prod
       (BinaryLabelEncoding.finIdentity
         (firstBits (registerParameters m ell width)))
@@ -154,7 +156,7 @@ theorem secondExponentiationProgram_realizes
     castLabel_prodEquiv hwidth a updated.1
       ((workspaceEncoding width).encode updated.2)
   change
-    (castProgram hwidth rawProgram).applyNormalized
+    (castProgram hwidth rawProgram).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
             ((groupEncoding m ell width).encode ((a, b), workspace)))) =
@@ -164,7 +166,7 @@ theorem secondExponentiationProgram_realizes
             ((a, updated.1), updated.2)))
   rw [← hinput, ← houtput]
   change
-    (castProgram hwidth rawProgram).applyNormalized
+    (castProgram hwidth rawProgram).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
             (castLabel hwidth
@@ -188,10 +190,10 @@ def compiledGroupActionStep (m ell width N : Nat)
     (firstExponentiationStep m ell width N g input)
 
 /-- The exact composed circuit realizes its full-register semantic action. -/
-theorem compiledGroupActionProgram_realizes
+lemma compiledGroupActionProgram_realizes
     (m ell width N : Nat) (g x : (ZMod N)ˣ) :
     UnitaryCircuit.Realizes (groupEncoding m ell width)
-      (compiledGroupActionProgram m ell width N g x)
+      (compiledGroupActionProgram m ell width N g x) environment
       (compiledGroupActionStep m ell width N g x) := by
   apply UnitaryCircuit.Realizes.congrStep
     (UnitaryCircuit.Realizes.seq
@@ -201,12 +203,12 @@ theorem compiledGroupActionProgram_realizes
   rfl
 
 /-- The complete two-program circuit has the required clean basis action. -/
-theorem compiledGroupActionProgram_applyLabel_clean
+lemma compiledGroupActionProgram_applyLabel_clean
     (m ell width N : Nat) (g x : (ZMod N)ˣ)
     (a : Fin (2 ^ firstBits (registerParameters m ell width)))
     (b : Fin (2 ^ ell)) (value : (ZMod N)ˣ)
     (hNgtOne : 1 < N) (hN : N < 2 ^ width) :
-    (compiledGroupActionProgram m ell width N g x).applyNormalized
+    (compiledGroupActionProgram m ell width N g x).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv.symm
             (cleanLabel m ell width N a b value))) =
@@ -217,7 +219,7 @@ theorem compiledGroupActionProgram_applyLabel_clean
   let input : GroupRegisters m ell width :=
     ((a, b), cleanWorkspace width N value)
   have haction :=
-    (compiledGroupActionProgram_realizes
+    (compiledGroupActionProgram_realizes (environment := environment)
       m ell width N g x).apply_encoded_ket input
   have hstep :
       compiledGroupActionStep m ell width N g x input =

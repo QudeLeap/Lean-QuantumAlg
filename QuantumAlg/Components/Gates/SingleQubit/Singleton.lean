@@ -22,13 +22,14 @@ namespace QuantumAlg.Gate
 noncomputable section
 
 /-- On a single physical qubit, the native binary matrix is the supplied operator. -/
-public theorem singleQubitAt_singleton_binaryMatrix (oracles : OracleModel)
+public lemma singleQubitAt_singleton_binaryMatrix (oracles : OracleModel)
+    {environment : oracles.Interpretation}
     (operator : UnitaryOperator (Qubits 1)) :
-    (singleQubitAt (QuantumSignature.qubits 1).canonicalPlacement.layout
-      oracles operator (0 : Fin 1) rfl).binaryMatrix = operator := by
-  have actual := singleQubitAt_first_binaryMatrix oracles 0 operator
-  change (singleQubitAt (QuantumSignature.qubits 1).canonicalPlacement.layout
-    oracles operator (0 : Fin 1) rfl).binaryMatrix =
+    ((singleQubitAt (QuantumSignature.qubits 1).canonicalPlacement.layout
+      oracles operator (0 : Fin 1) rfl).binaryMatrix environment) = operator := by
+  have actual := singleQubitAt_first_binaryMatrix oracles 0 operator environment
+  change ((singleQubitAt (QuantumSignature.qubits 1).canonicalPlacement.layout
+    oracles operator (0 : Fin 1) rfl).binaryMatrix environment) =
       operator.tensor (1 : UnitaryOperator (Qubits 0))
     at actual
   rw [actual]

@@ -33,10 +33,10 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 attribute [local implicit_reducible] problem
 
 /-- Every native sampling-word coordinate is independent of any fixed register expansion. -/
-public theorem circuit_classical_context_event_count (I : ECDLPInstance E) (A : Access I)
+public lemma circuit_classical_context_event_count (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (event : Resource.Event (Sampling.executionModel I A)) :
-    ResourcePool.count event ((circuit I A expansion).eventCost BitWord.model .empty) =
+    (event : Resource.Event (Sampling.executionModel I)) :
+    ResourcePool.count event ((circuit I expansion).eventCost BitWord.model .empty) =
       match event with
       | .gate .singleQubit =>
           2 * FiniteCyclicDLP.OrderPreparation.singleQubitCount expansion +
@@ -57,7 +57,7 @@ public theorem circuit_classical_context_event_count (I : ECDLPInstance E) (A : 
           rw [circuit_eventCost]
           simp only [ResourcePool.count_add]
           simp only [FiniteCyclicDLP.OrderPreparation.Native.circuit_toffoli_count
-            (model I A) (problem I) expansion]
+            (model I) (problem I) expansion]
           simp only [QuantumFourierTransform.Native.qftNative_inverseCircuit_event_count,
             ResourcePool.count_singleton]
           simp
@@ -65,7 +65,7 @@ public theorem circuit_classical_context_event_count (I : ECDLPInstance E) (A : 
           rw [circuit_eventCost]
           simp only [ResourcePool.count_add]
           simp only [FiniteCyclicDLP.OrderPreparation.Native.circuit_cnot_count
-            (model I A) (problem I) expansion]
+            (model I) (problem I) expansion]
           simp only [QuantumFourierTransform.Native.qftNative_inverseCircuit_event_count,
             ResourcePool.count_singleton]
           simp
@@ -74,21 +74,21 @@ public theorem circuit_classical_context_event_count (I : ECDLPInstance E) (A : 
           rw [circuit_eventCost]
           simp only [ResourcePool.count_add]
           simp only [FiniteCyclicDLP.OrderPreparation.Native.circuit_singleQubit_count
-            (model I A) (problem I) expansion]
+            (model I) (problem I) expansion]
           simp only [QuantumFourierTransform.Native.qftNative_inverseCircuit_event_count,
             ResourcePool.count_singleton]
           simp
           omega
   | oracle coordinate =>
       cases coordinate
-      exact circuit_query_count I A expansion
+      exact circuit_query_count I expansion
   | classicalOperation _ => rfl
   | classicalQuery impossible => cases impossible
   | preparation _ => rfl
   | measurement _ => rfl
 
 /-- Generic widths bound both actual known-order peripherals before any instance is fixed. -/
-public theorem circuit_preparation_width_bounds (I : ECDLPInstance E)
+public lemma circuit_preparation_width_bounds (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
     FiniteCyclicDLP.OrderPreparation.singleQubitCount expansion ≤
         11 * FiniteCyclicDLP.orderWidth (problem I) ∧

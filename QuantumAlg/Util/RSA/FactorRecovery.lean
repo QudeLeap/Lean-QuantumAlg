@@ -55,7 +55,7 @@ def factorFromOrderResidueValue (modulus base order : Nat) : Option Nat :=
     none
 
 /-- Every successful pure half-order branch is a nontrivial divisor. -/
-theorem factorFromOrderValue_some_sound
+lemma factorFromOrderValue_some_sound
     {modulus base order candidate : Nat}
     (result : factorFromOrderValue modulus base order = some candidate) :
     candidate ∣ modulus ∧ 1 < candidate ∧ candidate < modulus := by
@@ -88,7 +88,7 @@ theorem factorFromOrderValue_some_sound
 not change the selected nontrivial GCD.  The zero-residue case is handled
 separately: its left raw GCD is one whereas the fixed-width representative
 has left GCD equal to the modulus, but neither value is a valid factor. -/
-theorem factorFromHalfPowerValue_mod_eq (modulus halfPower : Nat) :
+lemma factorFromHalfPowerValue_mod_eq (modulus halfPower : Nat) :
     factorFromHalfPowerValue modulus (halfPower % modulus) =
       factorFromHalfPowerValue modulus halfPower := by
   by_cases halfPowerZero : halfPower = 0
@@ -168,7 +168,7 @@ theorem factorFromHalfPowerValue_mod_eq (modulus halfPower : Nat) :
 
 /-- The canonical residue returned by fixed-width modular powering has the
 same selected GCD branch as the corresponding raw natural power. -/
-theorem factorFromHalfPowerValue_pow_mod_eq
+lemma factorFromHalfPowerValue_pow_mod_eq
     (modulus base exponent : Nat) :
     factorFromHalfPowerValue modulus (base ^ exponent % modulus) =
       factorFromHalfPowerValue modulus (base ^ exponent) :=
@@ -176,7 +176,7 @@ theorem factorFromHalfPowerValue_pow_mod_eq
 
 /-- The fixed-width modular-power seam stores the canonical power residue,
 which has the same factor-selection meaning as the raw natural power. -/
-theorem factorFromHalfPowerValue_modularPow_eq
+lemma factorFromHalfPowerValue_modularPow_eq
     (modulus base exponent : Nat) :
     factorFromHalfPowerValue modulus ((base % modulus) ^ exponent % modulus) =
       factorFromHalfPowerValue modulus (base ^ exponent) := by
@@ -184,7 +184,7 @@ theorem factorFromHalfPowerValue_modularPow_eq
   exact factorFromHalfPowerValue_mod_eq modulus (base ^ exponent)
 
 /-- The raw pure selector and the residue-facing selector agree exactly. -/
-theorem factorFromOrderResidueValue_eq_factorFromOrderValue
+lemma factorFromOrderResidueValue_eq_factorFromOrderValue
     (modulus base order : Nat) :
     factorFromOrderResidueValue modulus base order =
       factorFromOrderValue modulus base order := by

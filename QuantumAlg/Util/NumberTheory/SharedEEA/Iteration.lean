@@ -86,11 +86,11 @@ structure Admissible (state : IterationState) : Prop where
   initial_separation : state.previousCoefficient = 0 → 2 * state.divisor ≤ state.remainder
 
 /-- The initial cross-sum equals the modulus for every input. -/
-theorem initial_balance (modulus input : Nat) : (initial modulus input).balance = modulus := by
+lemma initial_balance (modulus input : Nat) : (initial modulus input).balance = modulus := by
   simp [initial, balance]
 
 /-- A positive input at most half the modulus gives the required initial ordering. -/
-theorem initial_admissible (modulus input : Nat)
+lemma initial_admissible (modulus input : Nat)
     (positive : 0 < input) (halfBound : 2 * input ≤ modulus) :
     (initial modulus input).Admissible := by
   constructor
@@ -104,7 +104,7 @@ theorem initial_admissible (modulus input : Nat)
     exact halfBound
 
 /-- The complete iteration preserves the exact cross-sum, including zero remainders. -/
-theorem step_balance (state : IterationState) : (step state).balance = state.balance := by
+lemma step_balance (state : IterationState) : (step state).balance = state.balance := by
   change state.divisor *
       (state.previousCoefficient + state.coefficient * (state.remainder / state.divisor)) +
       state.remainder % state.divisor * state.coefficient =
@@ -116,24 +116,24 @@ theorem step_balance (state : IterationState) : (step state).balance = state.bal
     _ = _ := by rw [Nat.mod_add_div]
 
 /-- The complete iteration has the same remainder GCD as its input. -/
-theorem step_gcd (state : IterationState) :
+lemma step_gcd (state : IterationState) :
     Nat.gcd (step state).remainder (step state).divisor =
       Nat.gcd state.remainder state.divisor := by
   change Nat.gcd state.divisor (state.remainder % state.divisor) = _
   rw [Nat.gcd_comm state.divisor, ← Nat.gcd_rec, Nat.gcd_comm]
 
 /-- An active iteration strictly decreases the current divisor. -/
-theorem step_divisor_lt (state : IterationState) (active : 0 < state.divisor) :
+lemma step_divisor_lt (state : IterationState) (active : 0 < state.divisor) :
     (step state).divisor < state.divisor :=
   Nat.mod_lt state.remainder active
 
 /-- A proper active remainder pair has a positive Euclidean quotient. -/
-theorem quotient_pos (state : IterationState) (ordered : state.divisor < state.remainder)
+lemma quotient_pos (state : IterationState) (ordered : state.divisor < state.remainder)
     (active : 0 < state.divisor) : 0 < state.quotient :=
   Nat.div_pos (Nat.le_of_lt ordered) active
 
 /-- The updated coefficient pair recovers the quotient exactly. -/
-theorem recoveredQuotient_step (state : IterationState)
+lemma recoveredQuotient_step (state : IterationState)
     (positive : 0 < state.coefficient)
     (previousBound : state.previousCoefficient < state.coefficient) :
     (step state).recoveredQuotient = state.quotient := by
@@ -142,7 +142,7 @@ theorem recoveredQuotient_step (state : IterationState)
   rw [Nat.add_mul_div_left _ _ positive, Nat.div_eq_of_lt previousBound, Nat.zero_add]
 
 /-- The updated coefficient pair also recovers the previous coefficient exactly. -/
-theorem previousCoefficient_step_recovered (state : IterationState)
+lemma previousCoefficient_step_recovered (state : IterationState)
     (previousBound : state.previousCoefficient < state.coefficient) :
     (step state).coefficient % (step state).previousCoefficient =
       state.previousCoefficient := by
@@ -152,7 +152,7 @@ theorem previousCoefficient_step_recovered (state : IterationState)
 
 /-- The complete iteration has a real left inverse on its reachable coefficient range.
 The updated remainder and coefficient data themselves reconstruct the old data. -/
-theorem rewind_step (state : IterationState)
+lemma rewind_step (state : IterationState)
     (positive : 0 < state.coefficient)
     (previousBound : state.previousCoefficient < state.coefficient) :
     rewind (step state) = state := by
@@ -168,7 +168,7 @@ theorem rewind_step (state : IterationState)
   rw [Nat.mod_add_div]
 
 /-- Equality of complete outputs implies equality of admissible iteration inputs. -/
-theorem step_injective_on_admissible {left right : IterationState}
+lemma step_injective_on_admissible {left right : IterationState}
     (leftValid : left.Admissible) (rightValid : right.Admissible)
     (same : step left = step right) : left = right := by
   calc
@@ -179,7 +179,7 @@ theorem step_injective_on_admissible {left right : IterationState}
 
 /-- Active admissible iterations strictly increase the current coefficient.
 The zero previous coefficient is handled by the actual quotient-two boundary. -/
-theorem coefficient_lt_step (state : IterationState) (valid : state.Admissible)
+lemma coefficient_lt_step (state : IterationState) (valid : state.Admissible)
     (active : 0 < state.divisor) : state.coefficient < (step state).coefficient := by
   change state.coefficient < state.previousCoefficient + state.coefficient * state.quotient
   by_cases previousZero : state.previousCoefficient = 0
@@ -193,7 +193,7 @@ theorem coefficient_lt_step (state : IterationState) (valid : state.Admissible)
     omega
 
 /-- Every active complete iteration preserves the reachable ordering conditions. -/
-theorem step_admissible (state : IterationState) (valid : state.Admissible)
+lemma step_admissible (state : IterationState) (valid : state.Admissible)
     (active : 0 < state.divisor) : (step state).Admissible := by
   have increasing := coefficient_lt_step state valid active
   constructor
@@ -205,13 +205,13 @@ theorem step_admissible (state : IterationState) (valid : state.Admissible)
     exact False.elim (Nat.ne_of_gt valid.coefficient_pos zeroPrevious)
 
 /-- Each shared remainder/coefficient product is bounded by the conserved cross-sum. -/
-theorem products_le_balance (state : IterationState) :
+lemma products_le_balance (state : IterationState) :
     state.remainder * state.coefficient ≤ state.balance ∧
       state.divisor * state.previousCoefficient ≤ state.balance :=
   ⟨Nat.le_add_right _ _, Nat.le_add_left _ _⟩
 
 /-- The smallest prime input reaches its genuine zero-divisor terminal boundary. -/
-theorem step_initial_two_one : step (initial 2 1) = ⟨1, 0, 2, 1⟩ := by decide
+lemma step_initial_two_one : step (initial 2 1) = ⟨1, 0, 2, 1⟩ := by decide
 
 end IterationState
 
@@ -224,7 +224,7 @@ def unfoldInput (modulus : Nat) (record : Bool × Nat) : Nat :=
   if record.1 then modulus - record.2 else record.2
 
 /-- The input fold is reversible when its source complement bit is retained. -/
-theorem unfoldInput_foldInput (modulus input : Nat) (bounded : input ≤ modulus) :
+lemma unfoldInput_foldInput (modulus input : Nat) (bounded : input ≤ modulus) :
     unfoldInput modulus (foldInput modulus input) = input := by
   by_cases complemented : modulus / 2 < input
   · simp only [foldInput, if_pos complemented]
@@ -233,7 +233,7 @@ theorem unfoldInput_foldInput (modulus input : Nat) (bounded : input ≤ modulus
   · simp [foldInput, unfoldInput, complemented]
 
 /-- Every original positive residue produces a positive folded residue at most half the modulus. -/
-theorem foldInput_positive_half (modulus input : Nat)
+lemma foldInput_positive_half (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     0 < (foldInput modulus input).2 ∧ 2 * (foldInput modulus input).2 ≤ modulus := by
   by_cases complemented : modulus / 2 < input
@@ -243,14 +243,14 @@ theorem foldInput_positive_half (modulus input : Nat)
     omega
 
 /-- Source preprocessing establishes admissibility on the original positive-residue domain. -/
-theorem folded_initial_admissible (modulus input : Nat)
+lemma folded_initial_admissible (modulus input : Nat)
     (positive : 0 < input) (bounded : input < modulus) :
     (IterationState.initial modulus (foldInput modulus input).2).Admissible := by
   obtain ⟨foldedPositive, foldedHalf⟩ := foldInput_positive_half modulus input positive bounded
   exact IterationState.initial_admissible modulus _ foldedPositive foldedHalf
 
 /-- Folding preserves the GCD of the modulus and input. -/
-theorem foldInput_gcd (modulus input : Nat) (bounded : input ≤ modulus) :
+lemma foldInput_gcd (modulus input : Nat) (bounded : input ≤ modulus) :
     Nat.gcd modulus (foldInput modulus input).2 = Nat.gcd modulus input := by
   by_cases complemented : modulus / 2 < input
   · simp only [foldInput, complemented, if_true]
@@ -258,9 +258,9 @@ theorem foldInput_gcd (modulus input : Nat) (bounded : input ≤ modulus) :
   · simp only [foldInput, complemented, if_false]
 
 /-- The smallest prime does not require an input complement. -/
-theorem foldInput_two_one : foldInput 2 1 = (false, 1) := by decide
+lemma foldInput_two_one : foldInput 2 1 = (false, 1) := by decide
 
 /-- A residue above half the next prime retains the complemented branch explicitly. -/
-theorem foldInput_three_two : foldInput 3 2 = (true, 1) := by decide
+lemma foldInput_three_two : foldInput 3 2 = (true, 1) := by decide
 
 end QuantumAlg.NumberTheory.SharedEEA

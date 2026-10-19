@@ -94,20 +94,22 @@ def coordinateStep {model : ExecutionModel} [BitWord.Selected model]
     (coordinateSubtractOp target product) multiplied.1
   (subtracted.1, (multiplied.2, subtracted.2))
 
-theorem coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (coordinateStep (model := model) coefficient source target product store).1 =
       coordinateStore coefficient source target product store := rfl
 
-theorem coordinateReduce_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateReduce_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : Execution.State ctx Reference (model.HiddenState × History)) :
-    (coordinateReduce (model := model) coefficient source target product).execute Reference state =
+    (coordinateReduce (model := model) coefficient source target product).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         let actual := coordinateStep (model := model) coefficient source target product entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -117,7 +119,7 @@ theorem coordinateReduce_execute {model : ExecutionModel} [BitWord.Selected mode
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Every actual coordinate path contains exactly the native multiply and subtraction. -/
-theorem coordinateReduce_events {model : ExecutionModel} [BitWord.Selected model]
+lemma coordinateReduce_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width))
@@ -135,7 +137,7 @@ theorem coordinateReduce_events {model : ExecutionModel} [BitWord.Selected model
   rfl
 
 /-- Reads outside the two actual writes are preserved, with no operand-separation premise. -/
-theorem coordinateReduce_callerFrame
+lemma coordinateReduce_callerFrame
     (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -161,7 +163,7 @@ def CoordinateReduceRelation (coefficient source : CInputRef ctx (.unsignedWord 
         after.read other = before.read other)
 
 /-- The two real updates implement signed subtraction of the product modulo the word width. -/
-theorem coordinateReduce_correct (coefficient source : CInputRef ctx (.unsignedWord width))
+lemma coordinateReduce_correct (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width))
     (separation : CoordinateReduceSeparation coefficient source target product)
     (store : Store ctx) :
@@ -269,7 +271,7 @@ def pointStep {model : ExecutionModel} [BitWord.Selected model]
     (writeInput source.third) target.third product second.1
   (third.1, (first.2, (second.2, third.2)))
 
-theorem pointStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma pointStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
@@ -278,14 +280,16 @@ theorem pointStep_store {model : ExecutionModel} [BitWord.Selected model]
       pointStore coefficient source target product store := rfl
 
 /-- The complete point execution retains every incoming quantum-reference block and history. -/
-theorem pointReduce_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma pointReduce_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : Execution.State ctx Reference (model.HiddenState × History)) :
-    (pointReduce (model := model) coefficient source target product).execute Reference state =
+    (pointReduce (model := model) coefficient source target product).execute environment
+      Reference state =
       state.mapClassical (fun entry =>
         let actual := pointStep (model := model) coefficient source target product entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
@@ -295,7 +299,7 @@ theorem pointReduce_execute {model : ExecutionModel} [BitWord.Selected model]
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The point path contains the same two actual word instructions for each of three coordinates. -/
-theorem pointReduce_events {model : ExecutionModel} [BitWord.Selected model]
+lemma pointReduce_events {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
@@ -333,7 +337,7 @@ def PointReduceRelation (coefficient : CInputRef ctx (.unsignedWord width))
           after.read other = before.read other)
 
 /-- All three represented integer coordinates undergo the same source row subtraction. -/
-theorem pointReduce_correct (coefficient : CInputRef ctx (.unsignedWord width))
+lemma pointReduce_correct (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width))
     (separation : PointReduceSeparation coefficient source target product) (store : Store ctx) :
@@ -480,7 +484,7 @@ theorem pointReduce_correct (coefficient : CInputRef ctx (.unsignedWord width))
         (firstHolds.2 other avoidsProduct avoidsFirst))
 
 /-- Every caller read outside the four actual writes survives the complete point circuit. -/
-theorem pointReduce_callerFrame (coefficient : CInputRef ctx (.unsignedWord width))
+lemma pointReduce_callerFrame (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -495,25 +499,27 @@ theorem pointReduce_callerFrame (coefficient : CInputRef ctx (.unsignedWord widt
     coordinateReduce_callerFrame _ _ _ _ _ other avoidsProduct avoidsFirst]
 
 /-- The coordinate circuit restores the complete borrowed interface, including correlations. -/
-theorem coordinateReduce_borrowedRestored
-    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+lemma coordinateReduce_borrowedRestored
+    {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (coefficient source : CInputRef ctx (.unsignedWord width))
     (target product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : Execution.State ctx Reference (model.HiddenState × History)) :
     (coordinateReduce (model := model) coefficient source target product).BorrowedRestored
       Reference state
-      ((coordinateReduce (model := model) coefficient source target product).execute
+      ((coordinateReduce (model := model) coefficient source target product).execute environment
         Reference state) :=
-  Circuit.borrowedRestored_seq
+  Circuit.borrowedRestored_seq (environment := environment)
     (BitWord.instruction (execution := model) (coordinateProductOp coefficient source product))
     (BitWord.instruction (execution := model) (coordinateSubtractOp target product)) state
-    (Circuit.borrowedRestored_classical _ state)
-    (Circuit.borrowedRestored_classical _ _)
+    (Circuit.borrowedRestored_classical (environment := environment) _ state)
+    (Circuit.borrowedRestored_classical (environment := environment) _ _)
 
 /-- Reusing the product word preserves the entire borrowed interface after all three updates. -/
-theorem pointReduce_borrowedRestored
-    {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+lemma pointReduce_borrowedRestored
+    {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
     (product : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
@@ -521,19 +527,19 @@ theorem pointReduce_borrowedRestored
     (state : Execution.State ctx Reference (model.HiddenState × History)) :
     (pointReduce (model := model) coefficient source target product).BorrowedRestored
       Reference state
-      ((pointReduce (model := model) coefficient source target product).execute
+      ((pointReduce (model := model) coefficient source target product).execute environment
         Reference state) := by
-  apply Circuit.borrowedRestored_seq
+  apply Circuit.borrowedRestored_seq (environment := environment)
   · exact coordinateReduce_borrowedRestored coefficient (writeInput source.first)
       target.first product Reference state
-  · apply Circuit.borrowedRestored_seq
+  · apply Circuit.borrowedRestored_seq (environment := environment)
     · exact coordinateReduce_borrowedRestored coefficient (writeInput source.second)
         target.second product Reference _
     · exact coordinateReduce_borrowedRestored coefficient (writeInput source.third)
         target.third product Reference _
 
 /-- All six actual instructions visit the same existing context. -/
-theorem pointReduce_visited
+lemma pointReduce_visited
     {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
@@ -543,7 +549,7 @@ theorem pointReduce_visited
       [ctx, ctx, ctx, ctx, ctx, ctx] := rfl
 
 /-- The resident bound counts the entire caller context, including the shared product word. -/
-theorem pointReduce_resident_le
+lemma pointReduce_resident_le
     {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)
@@ -560,7 +566,7 @@ theorem pointReduce_resident_le
   exact le_rfl
 
 /-- The same original auxiliary cells suffice for every actual instruction. -/
-theorem pointReduce_auxiliary_le
+lemma pointReduce_auxiliary_le
     {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
     (coefficient : CInputRef ctx (.unsignedWord width))
     (source target : LatticeState.PointRefs ctx width)

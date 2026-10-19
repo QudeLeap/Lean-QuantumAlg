@@ -37,7 +37,7 @@ abbrev KWidth (N : Nat) : Nat :=
   tradeoffBits N
 
 /-- The compiled terminal layout is exactly the concatenation of `j` and `k`. -/
-@[simp] theorem measurementBits_eq_jkWidth (N : Nat) :
+@[simp] lemma measurementBits_eq_jkWidth (N : Nat) :
     measurementBits N = JWidth N + KWidth N :=
   rfl
 
@@ -95,7 +95,7 @@ def sourceSample {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
     (sourceBits N before input)
 
 /-- The first source component is the high quotient of the full terminal index. -/
-theorem sourceSample_fst_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
+lemma sourceSample_fst_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
     (before : Store ctx)
     (input : CInputRef ctx (.bits (measurementBits N))) :
     (sourceSample N before input).1.val =
@@ -106,7 +106,7 @@ theorem sourceSample_fst_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : N
       (sourceBits N before input))
 
 /-- The second source component is the low remainder of the full terminal index. -/
-theorem sourceSample_snd_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
+lemma sourceSample_snd_val {kind : ProblemKind} {ctx : RuntimeCtx kind} (N : Nat)
     (before : Store ctx)
     (input : CInputRef ctx (.bits (measurementBits N))) :
     (sourceSample N before input).2.val =

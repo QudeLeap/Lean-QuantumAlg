@@ -26,7 +26,7 @@ open Matrix
 open scoped ComplexOrder Kronecker Quaternion QuadraticAlgebra
 
 /-- The strict single-qubit Clifford lift normalizes the signed raw Pauli axes. -/
-theorem qubitClifford_conj_pauli_mem (g : BinaryOctahedral)
+lemma qubitClifford_conj_pauli_mem (g : BinaryOctahedral)
     {P : Matrix (Fin 2) (Fin 2) ℂ} (hP : P ∈ signedRawPauliSet) :
     qubitClifford g * P * (qubitClifford g)ᴴ ∈ signedRawPauliSet := by
   change P = pauliX ∨ P = -pauliX ∨ P = pauliY ∨ P = -pauliY ∨

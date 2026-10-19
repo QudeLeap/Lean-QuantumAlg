@@ -26,6 +26,8 @@ namespace QuantumAlg.Execution.ContextUnion
 
 noncomputable section
 
+variable {allowAllocation : Bool}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (left right : RuntimeCtx .quantum)
@@ -33,7 +35,7 @@ variable (left right : RuntimeCtx .quantum)
   {Reference : Register} {History : Type} [Fintype History]
 
 /-- Actual framed Z execution and local execution agree on the complete state. -/
-theorem contextUnion_splitState_measureZ
+lemma contextUnion_splitState_measureZ
     (state : State (left.disjointUnion right separate) Reference History)
     (wire : Fin left.systemCount)
     (output : CWriteRef left (.finite (left.quantumLayout.wire wire).dimension)) :
@@ -108,19 +110,24 @@ theorem contextUnion_splitState_measureZ
     congr! 2
 
 /-- Actual Z execution preserves the service and every complete resident-frame block. -/
-theorem contextUnion_splitServiceState_measureZ
+lemma contextUnion_splitServiceState_measureZ
     {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {services : ClassicalOracleModel}
+    (environment : (ExecutionModel.quantum gates oracles operations services).Environment)
     (state : State (left.disjointUnion right separate) Reference (services.HiddenState × History))
     (wire : Fin left.systemCount)
     (output : CWriteRef left (.finite (left.quantumLayout.wire wire).dimension)) :
     splitServiceState left right separate
-        ((Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+        ((Circuit.measureZ
+            (allowAllocation := allowAllocation)
+            (gates := gates) (oracles := oracles) (operations := operations)
           (classicalOracles := services) (leftPosition left right separate wire)
-          (measurementLeft separate wire output)).execute Reference state) =
-      ((Circuit.measureZ (gates := gates) (oracles := oracles) (operations := operations)
+          (measurementLeft separate wire output)).execute environment Reference state) =
+      ((Circuit.measureZ
+          (allowAllocation := allowAllocation)
+          (gates := gates) (oracles := oracles) (operations := operations)
         (classicalOracles := services) wire output).execute
-          (Register.prod right.register Reference)
+          environment (Register.prod right.register Reference)
           (splitServiceState left right separate state)).mapHistory
         (fun value => (value.1, (value.2.1.1, (value.2.1.2,
           Fin.cast (congrArg (fun dimension : ℕ+ => (dimension : Nat))

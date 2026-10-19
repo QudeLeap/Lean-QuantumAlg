@@ -34,7 +34,7 @@ def bitValue (base : CShape.Word width) (modulus : CShape.Word (width + 1))
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
-private theorem bitStep_store (base : CInputRef ctx (.unsignedWord width))
+private lemma bitStep_store (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     (store : Store ctx) :
@@ -57,7 +57,7 @@ private theorem bitStep_store (base : CInputRef ctx (.unsignedWord width))
       cases value <;> rfl
 
 /-- Every non-accumulator structural read is unchanged by either actual selected path. -/
-theorem nativePower_bit_read_other (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_bit_read_other (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     {shape : CShape} (other : CInputRef ctx shape)
@@ -73,7 +73,7 @@ theorem nativePower_bit_read_other (base : CInputRef ctx (.unsignedWord width))
   · exact squared
 
 /-- The actual branch computes the recurrence on the original base, modulus and bit reads. -/
-theorem nativePower_bit_read_output (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_bit_read_output (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     (baseFree : output.key ∉ base.storageKeys)
@@ -109,7 +109,7 @@ theorem nativePower_bit_read_output (base : CInputRef ctx (.unsignedWord width))
         rw [nativePower_scopedMultiply_result, squaredResult, baseSame, modulusSame]
 
 /-- The complete finite fold preserves every structural read outside its accumulator. -/
-theorem nativePower_fold_read_other (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_read_other (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
     {shape : CShape} (other : CInputRef ctx shape)
@@ -126,7 +126,7 @@ theorem nativePower_fold_read_other (base : CInputRef ctx (.unsignedWord width))
       exact nativePower_bit_read_other (model := model) base modulus output bit other separate store
 
 /-- Same-store finite composition yields exactly the mathematical recurrence of its actual bits. -/
-theorem nativePower_fold_read_output (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_read_output (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
     (baseFree : output.key ∉ base.storageKeys)

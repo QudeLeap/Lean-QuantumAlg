@@ -67,7 +67,7 @@ def Cells.ofNested {kind : ProblemKind} {middle inner : RuntimeCtx kind} {N : Na
   quadratic := quadratic
 
 /-- Every original pair certificate survives a later structural workspace allocation. -/
-private theorem pairCertificates_transport {kind : ProblemKind}
+private lemma pairCertificates_transport {kind : ProblemKind}
     {outer middle inner : RuntimeCtx kind} {N : Nat}
     (rootTransport : Transport outer middle) (transport : Transport middle inner)
     (cells : LatticePairRecoveryWorkspace.Cells middle N)
@@ -95,7 +95,7 @@ private theorem pairCertificates_transport {kind : ProblemKind}
   lllNearest := certificates.lllNearest.transport transport
 
 /-- Fresh actual allocation derives all quadratic-to-pair and original-caller exclusions. -/
-theorem Certificates.ofNested {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
+lemma Certificates.ofNested {kind : ProblemKind} {outer middle inner : RuntimeCtx kind}
     {N : Nat} (rootTransport : Transport outer middle) (transport : Transport middle inner)
     (pair : LatticePairRecoveryWorkspace.Cells middle N)
     (pairCertificates : LatticePairRecoveryWorkspace.Certificates rootTransport pair)
@@ -112,7 +112,7 @@ theorem Certificates.ofNested {kind : ProblemKind} {outer middle inner : Runtime
   lllQuadratic := crossSeparated_of_nested transport pair.lll quadratic separated
   nearestQuadratic := crossSeparated_of_nested transport pair.nearest quadratic separated
 
-private theorem storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma storageRead_not_mem {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} {source : CStorageRef ctx shape} {key : StorageKey}
     (different : source.key ≠ key) : key ∉ (CInputRef.storage source).storageKeys := by
   simpa only [CInputRef.storageKeys, List.mem_singleton, ne_comm] using different
@@ -128,7 +128,7 @@ def liftSelection {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
   take := transport.liftWrite selection.take
 
 /-- Reading one transported selector cell commutes with structural transport. -/
-theorem factorInput_liftSelection {kind : ProblemKind}
+lemma factorInput_liftSelection {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {width : Nat}
     (transport : Transport outer ctx)
     (selection : FirstAccepted.Refs outer width)
@@ -178,14 +178,14 @@ def refs {kind : ProblemKind} {outer ctx : RuntimeCtx kind} {N : Nat}
         (transport.liftInput secondTerminal) setup factorSelection
 
 /-- Structural transport preserves the keys of the four selector references. -/
-theorem factorKey_liftSelection {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
+lemma factorKey_liftSelection {kind : ProblemKind} {outer ctx : RuntimeCtx kind}
     {width : Nat} (transport : Transport outer ctx) (selection : FirstAccepted.Refs outer width)
     (cell : QuadraticCheckSeparation.FactorCell) :
     QuadraticCheckSeparation.factorKey (liftSelection transport selection) cell =
       QuadraticCheckSeparation.factorKey selection cell := by
   cases cell <;> exact transport.liftWrite_key _
 
-private theorem factorSeparation {kind : ProblemKind}
+private lemma factorSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} (transport : Transport outer ctx)
     (cells : Cells ctx N) (certificates : Certificates transport cells)
     (selection : FirstAccepted.Refs outer (QuadraticScratchLayout.CandidateWidth N))
@@ -205,7 +205,7 @@ private theorem factorSeparation {kind : ProblemKind}
         (QuadraticCheckSeparation.factorInput selection factor)
         (QuadraticScratchLayout.cellIndex N cell)
 
-private theorem shortSelectionSeparation {kind : ProblemKind}
+private lemma shortSelectionSeparation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : Cells ctx N}
@@ -235,7 +235,7 @@ private theorem shortSelectionSeparation {kind : ProblemKind}
       (LatticeCandidateSlotWorkspaceLayout.cellIndex N .shortSelected)
       (QuadraticScratchLayout.cellIndex N cell)
 
-private theorem candidateFrame_quadraticCell {kind : ProblemKind}
+private lemma candidateFrame_quadraticCell {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : Cells ctx N)
@@ -282,7 +282,7 @@ private theorem candidateFrame_quadraticCell {kind : ProblemKind}
       (LatticeNearestPlaneScratchWorkspaceLayout.cellIndex N cell)
       (QuadraticScratchLayout.cellIndex N source)).symm
 
-private theorem candidateFrame_factorCell {kind : ProblemKind}
+private lemma candidateFrame_factorCell {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     (transport : Transport outer ctx)
     (cells : Cells ctx N)
@@ -338,7 +338,7 @@ def IsQuadraticMutable : QuadraticScratchLayout.Cell → Prop
   | .modulus | .one | .zero => False
   | _ => True
 
-private theorem quadraticCandidatesFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma quadraticCandidatesFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} {shape : CShape} (cells : QuadraticScratchLayout.Cells ctx N)
     (shortLog : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.ShortWidth N)))
     (other : CInputRef ctx shape)
@@ -357,7 +357,7 @@ private theorem quadraticCandidatesFrame {kind : ProblemKind} {ctx : RuntimeCtx 
     avoids .firstLessThan (by trivial), avoids .firstOutput (by trivial),
     avoids .secondCandidate (by trivial)⟩
 
-private theorem quadraticSelectFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma quadraticSelectFrame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {N : Nat} {shape : CShape} (cells : QuadraticScratchLayout.Cells ctx N)
     (candidate : CInputRef ctx (.unsignedWord (QuadraticScratchLayout.CandidateWidth N)))
     (selection : FirstAccepted.Refs ctx (QuadraticScratchLayout.CandidateWidth N))
@@ -374,7 +374,7 @@ private theorem quadraticSelectFrame {kind : ProblemKind} {ctx : RuntimeCtx kind
         avoids .eligible (by trivial)⟩⟩,
     avoidsFactor .accepted, avoidsFactor .selected, avoidsFactor .available, avoidsFactor .take⟩
 
-private theorem quadraticCallerFrame_of_physical {kind : ProblemKind}
+private lemma quadraticCallerFrame_of_physical {kind : ProblemKind}
     {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (cells : QuadraticScratchLayout.Cells ctx N)
     (shortSelection : FirstAccepted.Direct.Refs ctx (QuadraticScratchLayout.ShortWidth N))
@@ -397,7 +397,7 @@ private theorem quadraticCallerFrame_of_physical {kind : ProblemKind}
           selection other avoids avoidsFactor⟩⟩ }
 
 /-- Physical avoidance supplies the complete pair-factor caller frame. -/
-theorem callerFrame_of_physical {kind : ProblemKind}
+lemma callerFrame_of_physical {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
     (transport : Transport outer ctx)
     (cells : Cells ctx N)
@@ -437,7 +437,7 @@ theorem callerFrame_of_physical {kind : ProblemKind}
       (liftSelection transport selection) other avoidsQuadratic avoidsFactor
 
 /-- Physical workspace and persistent-selector facts supply pair-factor separation. -/
-theorem separation {kind : ProblemKind}
+lemma separation {kind : ProblemKind}
     {outer ctx : RuntimeCtx kind} {N : Nat}
     {transport : Transport outer ctx}
     {cells : Cells ctx N}

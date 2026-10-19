@@ -232,7 +232,7 @@ lemma quraFinalAngle_sub (hd : 1 ≤ d) (m : ℕ) :
 
 /-- For `m ≥ 1`, the target-dependent matrix product maps
 `|0⟩⊗Λ₀` to `|0⟩⊗Ψ₀ = |0⟩⊗|00⟩⊗U†`. -/
-theorem targetRotation_rounds_eq_adjointBlock (d : ℕ) [NeZero d] (hd : 2 ≤ d)
+lemma targetRotation_rounds_eq_adjointBlock (d : ℕ) [NeZero d] (hd : 2 ≤ d)
     (U : Matrix (Fin d) (Fin d) ℂ) (hU : U ∈ Matrix.unitaryGroup (Fin d) ℂ)
     (m : ℕ) (hm : 1 ≤ m) :
     targetDependentRotation d U (quraFinalAngle (by omega : 1 ≤ d) m) *
@@ -303,7 +303,7 @@ lemma quraRounds_pos (hd : 2 ≤ d) : 1 ≤ quraRounds (by omega : 1 ≤ d) := b
 
 /-- Exact matrix identity after the selected rounds and a target-dependent rotation.
 The determinant-one assumption is unnecessary for this mathematical statement. -/
-theorem targetRotation_eq_adjointBlock [NeZero d] (hd : 2 ≤ d) (U : Matrix (Fin d) (Fin d) ℂ)
+lemma targetRotation_eq_adjointBlock [NeZero d] (hd : 2 ≤ d) (U : Matrix (Fin d) (Fin d) ℂ)
     (hU : U ∈ Matrix.unitaryGroup (Fin d) ℂ) :
     targetDependentRotation d U
         (quraFinalAngle (by omega : 1 ≤ d) (quraRounds (by omega : 1 ≤ d))) *

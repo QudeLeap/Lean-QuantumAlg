@@ -10,6 +10,7 @@ import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Enc
 import all
   QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Encoding.Cascade.Correctness
 import all QuantumAlg.Primitives.EllipticCurve.ScalarMultiplication.Measured.Allocation.Correctness
+import all QuantumAlg.Core.Execution.Context.Embedding.Permutation
 
 /-!
 # Full-density correctness of the actual initialized converted cascade
@@ -30,32 +31,35 @@ namespace MeasuredPlacement.Encoding
 
 noncomputable section
 
+variable {environment : (ExecutionModel.quantum AlgorithmGate.model .empty).Environment}
+
 open Execution MeasuredUncompute
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem placedConvertedCascade_marginal {p : Nat} (E : PrimeFieldShortWeierstrass p)
+private lemma placedConvertedCascade_marginal {allowAllocation : Bool} {p : Nat}
+    (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
     {Reference : Register} {H : Type} [Fintype H]
     (original : State (readyContext p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × H)) :
-    ((placedConvertedCascade E points order coefficient).execute Reference
+    ((placedConvertedCascade E points order coefficient allowAllocation).execute environment
+      Reference
       (ContextPermutation.state (Allocation.body_entries p.size count) original)).quantumMarginal =
-      ((convertedCascade E points order coefficient).execute Reference
+      ((convertedCascade E points order coefficient false).execute environment Reference
         original).quantumMarginal.reindex
           (ContextPermutation.referenceBasis (Allocation.body_entries p.size count) Reference) := by
-  have actual := ContextPermutation.localCircuit_execute
-    (convertedCascade E points order coefficient)
-    (convertedCascade_isLocal E points order coefficient)
-    (Allocation.after p.size count) (Allocation.body_entries p.size count) Reference original
+  have actual := Circuit.permutation_embed_execute
+    (environment := environment) (allowAllocation := allowAllocation)
+    (Allocation.body_entries p.size count) (convertedCascade E points order coefficient false)
+    Reference original
   have marginal := congrArg
     (fun result : State (Allocation.after p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState ×
-        (H × (placedConvertedCascade E points order coefficient).Path)) =>
+        (H × (placedConvertedCascade E points order coefficient allowAllocation).Path)) =>
         result.quantumMarginal) actual
-  exact marginal.trans ((State.mapHistory_quantumMarginal _ _).trans
-    (Allocation.permuted_marginal _ _))
+  exact marginal.trans (Allocation.permuted_marginal _ _)
 
 /-- The complete converted target uses the same entries produced by actual initialization. -/
 def placedConvertedTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
@@ -64,10 +68,10 @@ def placedConvertedTarget {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.P
     UnitaryOperator (Register.prod (Allocation.after p.size count).register Reference) :=
   UnitaryOperator.reindex
     (ContextPermutation.referenceBasis (Allocation.body_entries p.size count) Reference)
-    (convertedCascadeTarget E points order coefficient Reference)
+    (convertedCascadeTarget (environment := environment) E points order coefficient Reference)
 
 /-- Actual converted execution has the full joint target on the converted mathematical domain. -/
-theorem placedConvertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma placedConvertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (order : List (Fin count)) (coefficient : (ZMod p)ˣ)
     {Reference : Register} {H : Type} [Fintype H]
@@ -75,13 +79,16 @@ theorem placedConvertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass
       (ClassicalOracleModel.empty.HiddenState × H))
     (support : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
-        (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
+        (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+          coefficient⁻¹ Reference)
         (original.quantumMarginal.reindex
           (ContextPermutation.referenceBasis (Allocation.body_entries p.size count)
-            Reference).symm))) :
-    ((placedConvertedCascade E points order coefficient).execute Reference
+            Reference).symm))) (allowAllocation : Bool := true) :
+    ((placedConvertedCascade E points order coefficient allowAllocation).execute environment
+      Reference
       original).quantumMarginal =
-      DensityOperator.applyUnitary (placedConvertedTarget E points order coefficient Reference)
+      DensityOperator.applyUnitary (placedConvertedTarget (environment := environment) E points
+        order coefficient Reference)
         original.quantumMarginal := by
   let coordinates := ContextPermutation.referenceBasis (Allocation.body_entries p.size count)
     Reference
@@ -97,12 +104,15 @@ theorem placedConvertedCascade_density {p : Nat} (E : PrimeFieldShortWeierstrass
     exact back
   have originalSupport : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
-        (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
+        (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+          coefficient⁻¹ Reference)
         reversed.quantumMarginal) := by
     rw [reversedMarginal]
     exact support
-  have actual := placedConvertedCascade_marginal E points order coefficient reversed
-  rw [roundtrip, convertedCascade_density E points order coefficient reversed originalSupport,
+  have actual := placedConvertedCascade_marginal (environment := environment)
+    (allowAllocation := allowAllocation)
+    E points order coefficient reversed
+  rw [roundtrip, convertedCascade_density E points order coefficient reversed originalSupport false,
     reversedMarginal, DensityOperator.applyUnitary_reindex, DensityOperator.reindex_trans] at actual
   have inverse : coordinates.symm.trans coordinates = Equiv.refl _ :=
     Equiv.symm_trans_self coordinates
@@ -115,7 +125,8 @@ def convertedResultDensity {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.
     (coefficient : (ZMod p)ˣ) (Reference : Register)
     (input : DensityOperator (Register.prod (Allocation.before p.size count).register Reference)) :
     DensityOperator (Register.prod (Allocation.after p.size count).register Reference) :=
-  DensityOperator.applyUnitary (placedConvertedTarget E points order coefficient Reference)
+  DensityOperator.applyUnitary (placedConvertedTarget (environment := environment) E points order
+    coefficient Reference)
     (Allocation.initializedDensity p count Reference input)
 
 /-- The cascade domain is checked on independently initialized and inverse-converted density. -/
@@ -126,24 +137,30 @@ def convertedInitializedSupport {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fa
     Prop :=
   cascadeSupport E points Reference order
     (DensityOperator.applyUnitary
-      (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
+      (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+        coefficient⁻¹ Reference)
       ((Allocation.initializedDensity p count Reference input).reindex
         (ContextPermutation.referenceBasis (Allocation.body_entries p.size count) Reference).symm))
 
 /-- The actual allocating converted circuit realizes its full-reference prescribed density. -/
-theorem convertedCircuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
+lemma convertedCircuit_density {p : Nat} (E : PrimeFieldShortWeierstrass p) [Fact p.Prime]
     {count : Nat} (points : Fin count → AffinePoint E) (order : List (Fin count))
     (coefficient : (ZMod p)ˣ) {Reference : Register} {H : Type} [Fintype H]
     (original : State (Allocation.before p.size count) Reference
       (ClassicalOracleModel.empty.HiddenState × H))
-    (support : convertedInitializedSupport E points order coefficient Reference
+    (support : convertedInitializedSupport (environment := environment) E points order coefficient
+      Reference
       original.quantumMarginal) :
-    ((convertedCircuit E points order coefficient).execute Reference original).quantumMarginal =
-      convertedResultDensity E points order coefficient Reference original.quantumMarginal := by
+    ((convertedCircuit E points order coefficient).execute environment
+      Reference original).quantumMarginal =
+      convertedResultDensity (environment := environment) E points order coefficient Reference
+        original.quantumMarginal := by
   have initializedSupport : cascadeSupport E points Reference order
       (DensityOperator.applyUnitary
-        (pairOperator p.size count (InPlaceTarget.modulusWord p) coefficient⁻¹ Reference)
-        (((Allocation.initializeWork p count).execute Reference original).quantumMarginal.reindex
+        (pairOperator (environment := environment) p.size count (InPlaceTarget.modulusWord p)
+          coefficient⁻¹ Reference)
+        (((Allocation.initializeWork p count).execute environment
+          Reference original).quantumMarginal.reindex
           (ContextPermutation.referenceBasis (Allocation.body_entries p.size count)
             Reference).symm)) := by
     rw [Allocation.initialize_density]

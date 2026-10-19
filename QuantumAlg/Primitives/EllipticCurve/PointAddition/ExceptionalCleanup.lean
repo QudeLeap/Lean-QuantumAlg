@@ -29,6 +29,8 @@ namespace ExceptionalCleanup
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable [params : Arithmetic.VariableModularMul.Parameters]
 
 variable {E : PrimeFieldShortWeierstrass params.modulus.val}
@@ -63,7 +65,7 @@ def baseStep : Layout.RawRegisters → Layout.RawRegisters :=
   EncodedBit.GateSpec.stepList (baseGates (E := E) (Q := Q))
 
 omit [Fact params.modulus.val.Prime] in
-private theorem prefixGates_bitDisjoint_controlBit :
+private lemma prefixGates_bitDisjoint_controlBit :
     ∀ gate, gate ∈ prefixGates (E := E) (Q := Q) →
       EncodedBit.GateSpec.bitDisjoint Layout.controlBit gate := by
   simpa only [prefixGates, Layout.controlBit] using
@@ -85,7 +87,7 @@ private theorem prefixGates_bitDisjoint_controlBit :
               (Pipeline.pointWords (AffinePoint.negate Q)) gate hreplace)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem prefixGates_bitDisjoint_controlWorkBit :
+private lemma prefixGates_bitDisjoint_controlWorkBit :
     ∀ gate, gate ∈ prefixGates (E := E) (Q := Q) →
       EncodedBit.GateSpec.bitDisjoint Layout.controlWorkBit gate := by
   simpa only [prefixGates, Layout.controlWorkBit] using
@@ -111,7 +113,7 @@ private theorem prefixGates_bitDisjoint_controlWorkBit :
               (Pipeline.pointWords (AffinePoint.negate Q)) gate hreplace)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem unloadGates_bitDisjoint_controlBit :
+private lemma unloadGates_bitDisjoint_controlBit :
     ∀ gate, gate ∈ unloadGates (E := E) (Q := Q) →
       EncodedBit.GateSpec.bitDisjoint Layout.controlBit gate := by
   simpa only [unloadGates, Layout.controlBit] using
@@ -124,7 +126,7 @@ private theorem unloadGates_bitDisjoint_controlBit :
           (Pipeline.pointWords (AffinePoint.negate Q)) gate hgate)
 
 omit [Fact params.modulus.val.Prime] in
-private theorem unloadGates_bitDisjoint_controlWorkBit :
+private lemma unloadGates_bitDisjoint_controlWorkBit :
     ∀ gate, gate ∈ unloadGates (E := E) (Q := Q) →
       EncodedBit.GateSpec.bitDisjoint Layout.controlWorkBit gate := by
   simpa only [unloadGates, Layout.controlWorkBit] using
@@ -139,7 +141,7 @@ private theorem unloadGates_bitDisjoint_controlWorkBit :
 
 /-- The public control is physically disjoint from every uncontrolled cleanup
 gate. -/
-theorem baseGates_bitDisjoint_controlBit :
+lemma baseGates_bitDisjoint_controlBit :
     ∀ gate, gate ∈ baseGates (E := E) (Q := Q) →
       EncodedBit.GateSpec.bitDisjoint Layout.controlBit gate := by
   intro gate hgate
@@ -156,7 +158,7 @@ theorem baseGates_bitDisjoint_controlBit :
 
 /-- The clean outer-control work bit is physically disjoint from every
 uncontrolled cleanup gate. -/
-theorem baseGates_bitDisjoint_controlWorkBit :
+lemma baseGates_bitDisjoint_controlWorkBit :
     ∀ gate, gate ∈ baseGates (E := E) (Q := Q) →
       EncodedBit.GateSpec.bitDisjoint Layout.controlWorkBit gate := by
   intro gate hgate
@@ -201,7 +203,7 @@ def encodedKet (state : Layout.RawRegisters) :
       (Layout.rawEncoding.encode state))
 
 /-- A false public control makes the complete translation a no-op. -/
-theorem translationStep_eq_self_of_control_false
+lemma translationStep_eq_self_of_control_false
     (state : Layout.RawRegisters)
     (hcontrol : Layout.controlBit.get state = false) :
     translationStep (E := E) (Q := Q) state = state := by
@@ -213,7 +215,7 @@ theorem translationStep_eq_self_of_control_false
 
 /-- A true public control and clean decomposition work bit execute the total
 uncontrolled cleanup schedule exactly. -/
-theorem translationStep_eq_base_of_control_true
+lemma translationStep_eq_base_of_control_true
     (state : Layout.RawRegisters)
     (hcontrol : Layout.controlBit.get state = true)
     (hwork : Layout.controlWorkBit.get state = false) :
@@ -226,17 +228,17 @@ theorem translationStep_eq_base_of_control_true
       Layout.controlBit_wire_ne_controlWorkBit state hcontrol hwork
 
 /-- The production circuit realizes the literal controlled translation step. -/
-theorem translationProgram_realizes :
-    UnitaryCircuit.Realizes Layout.rawEncoding (translationProgram (E := E) (Q := Q))
+lemma translationProgram_realizes :
+    UnitaryCircuit.Realizes Layout.rawEncoding (translationProgram (E := E) (Q := Q)) environment
       (translationStep (E := E) (Q := Q)) := by
   simpa only [translationProgram, translationGates, translationStep] using
-    EncodedBit.GateSpec.controlledListWithWorkWitness
+    EncodedBit.GateSpec.controlledListWithWorkWitness (environment := environment)
       (QubitLayout.canonical _) .empty Layout.controlBit Layout.controlWorkBit
       (baseGates (E := E) (Q := Q))
       baseGates_bitDisjoint_controlBit baseGates_bitDisjoint_controlWorkBit
       Layout.controlBit_wire_ne_controlWorkBit
 
-private theorem prefixStep_clean
+private lemma prefixStep_clean
     (control : Bool) (P : GenericPointAddition.Input E Q) :
     EncodedBit.GateSpec.stepList (prefixGates (E := E) (Q := Q))
         (Layout.translationBoundaryRegisters control (Pipeline.pointWords P.1)
@@ -252,7 +254,7 @@ private theorem prefixStep_clean
   · rfl
 
 omit [Fact params.modulus.val.Prime] in
-private theorem compareStep_selectedBoundary_of_eq
+private lemma compareStep_selectedBoundary_of_eq
     (constant : Fin (2 ^ params.width)) (control : Bool)
     (mutable loaded output : PointAddition.PortFrame.PointWords params.width)
     (selector : Bool) (hmatch : mutable.1 = constant) :
@@ -276,7 +278,7 @@ private theorem compareStep_selectedBoundary_of_eq
   simp [hmatch]
 
 omit [Fact params.modulus.val.Prime] in
-private theorem compareStep_selectedBoundary_of_ne
+private lemma compareStep_selectedBoundary_of_ne
     (constant : Fin (2 ^ params.width)) (control : Bool)
     (mutable loaded output : PointAddition.PortFrame.PointWords params.width)
     (selector : Bool) (hmatch : mutable.1 ≠ constant) :
@@ -298,7 +300,7 @@ private theorem compareStep_selectedBoundary_of_ne
   simp [hmatch]
 
 omit [Fact params.modulus.val.Prime] in
-private theorem unloadStep_clean
+private lemma unloadStep_clean
     (control : Bool)
     (mutable : PointAddition.PortFrame.PointWords params.width) :
     EncodedBit.GateSpec.stepList (unloadGates (E := E) (Q := Q))
@@ -333,7 +335,7 @@ private theorem unloadStep_clean
 every input in the locked generic forward domain.  No reverse-domain premise
 is required: the selector routes its unique finite exceptional case through
 the fixed-coordinate cleanup. -/
-theorem baseStep_clean (control : Bool)
+lemma baseStep_clean (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     baseStep (E := E) (Q := Q)
         (Layout.translationBoundaryRegisters control (Pipeline.pointWords P.1)
@@ -367,7 +369,7 @@ theorem baseStep_clean (control : Bool)
 /-- The complete literal translation is the identity for a false public
 control and a clean in-place group shift for a true public control, with no
 additional reverse-domain assumption. -/
-theorem translationStep_clean (control : Bool)
+lemma translationStep_clean (control : Bool)
     (P : GenericPointAddition.Input E Q) :
     translationStep (E := E) (Q := Q)
         (Layout.translationBoundaryRegisters control (Pipeline.pointWords P.1)
@@ -394,9 +396,9 @@ theorem translationStep_clean (control : Bool)
         baseStep_clean true P
 
 /-- Basis-state endpoint for the production total translation circuit. -/
-theorem translationProgram_clean_ket (control : Bool)
+lemma translationProgram_clean_ket (control : Bool)
     (P : GenericPointAddition.Input E Q) :
-    (translationProgram (E := E) (Q := Q)).applyNormalized
+    (translationProgram (E := E) (Q := Q)).applyNormalized environment
         (encodedKet (Layout.translationBoundaryRegisters control
           (Pipeline.pointWords P.1)
           (PointAddition.PortFrame.zeroPoint params.width)
@@ -405,7 +407,8 @@ theorem translationProgram_clean_ket (control : Bool)
         (if control then Pipeline.resultWords P else Pipeline.pointWords P.1)
         (PointAddition.PortFrame.zeroPoint params.width)
         (PointAddition.PortFrame.zeroPoint params.width)) := by
-  have h := (translationProgram_realizes (E := E) (Q := Q)).apply_encoded_ket
+  have h := (translationProgram_realizes (environment := environment)
+    (E := E) (Q := Q)).apply_encoded_ket
     (Layout.translationBoundaryRegisters control (Pipeline.pointWords P.1)
       (PointAddition.PortFrame.zeroPoint params.width)
       (PointAddition.PortFrame.zeroPoint params.width))
@@ -416,7 +419,7 @@ theorem translationProgram_clean_ket (control : Bool)
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact leaf count of the common translation prefix. -/
-theorem prefixGates_length :
+lemma prefixGates_length :
     (prefixGates (E := E) (Q := Q)).length =
       (PointAddition.PortFrame.loadConstantGates Pipeline.auxEncoding
         params.width (Pipeline.pointWords Q)).length +
@@ -448,7 +451,7 @@ theorem prefixGates_length :
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact X coordinate of the common translation prefix. -/
-theorem prefixGates_xMultiplicity_sum :
+lemma prefixGates_xMultiplicity_sum :
     ((prefixGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.xMultiplicity).sum =
       (PointAddition.PortFrame.loadConstantGates Pipeline.auxEncoding
@@ -523,7 +526,7 @@ theorem prefixGates_xMultiplicity_sum :
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact CNOT coordinate of the common translation prefix. -/
-theorem prefixGates_cnotMultiplicity_sum :
+lemma prefixGates_cnotMultiplicity_sum :
     ((prefixGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
       6 * params.width +
@@ -567,7 +570,7 @@ theorem prefixGates_cnotMultiplicity_sum :
 
 omit [Fact params.modulus.val.Prime] in
 /-- Exact Toffoli coordinate of the common translation prefix. -/
-theorem prefixGates_toffoliMultiplicity_sum :
+lemma prefixGates_toffoliMultiplicity_sum :
     ((prefixGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
       (Pipeline.additionGates.map
@@ -609,7 +612,7 @@ theorem prefixGates_toffoliMultiplicity_sum :
 
 omit [Fact params.modulus.val.Prime] in
 /-- Lifting the final unload preserves its exact leaf count. -/
-theorem unloadGates_length :
+lemma unloadGates_length :
     (unloadGates (E := E) (Q := Q)).length =
       (PointAddition.PortFrame.unloadConstantGates Pipeline.auxEncoding
         params.width (Pipeline.pointWords (AffinePoint.negate Q))).length := by
@@ -621,7 +624,7 @@ theorem unloadGates_length :
 
 omit [Fact params.modulus.val.Prime] in
 /-- The final unload consists entirely of X leaves. -/
-theorem unloadGates_xMultiplicity_sum :
+lemma unloadGates_xMultiplicity_sum :
     ((unloadGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.xMultiplicity).sum =
       (PointAddition.PortFrame.unloadConstantGates Pipeline.auxEncoding
@@ -650,7 +653,7 @@ theorem unloadGates_xMultiplicity_sum :
 
 omit [Fact params.modulus.val.Prime] in
 /-- The final unload contains no CNOT leaves. -/
-theorem unloadGates_cnotMultiplicity_sum :
+lemma unloadGates_cnotMultiplicity_sum :
     ((unloadGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum = 0 := by
   let sourceGates : List (EncodedBit.GateSpec Pipeline.rawEncoding) :=
@@ -666,7 +669,7 @@ theorem unloadGates_cnotMultiplicity_sum :
 
 omit [Fact params.modulus.val.Prime] in
 /-- The final unload contains no Toffoli leaves. -/
-theorem unloadGates_toffoliMultiplicity_sum :
+lemma unloadGates_toffoliMultiplicity_sum :
     ((unloadGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum = 0 := by
   let sourceGates : List (EncodedBit.GateSpec Pipeline.rawEncoding) :=
@@ -681,7 +684,7 @@ theorem unloadGates_toffoliMultiplicity_sum :
         (Pipeline.pointWords (AffinePoint.negate Q))
 
 /-- Exact leaf ledger of the uncontrolled total cleanup schedule. -/
-theorem baseGates_length :
+lemma baseGates_length :
     (baseGates (E := E) (Q := Q)).length =
       (PointAddition.PortFrame.loadConstantGates Pipeline.auxEncoding
         params.width (Pipeline.pointWords Q)).length +
@@ -704,7 +707,7 @@ theorem baseGates_length :
   omega
 
 /-- Width-closed leaf bound of the uncontrolled total cleanup schedule. -/
-theorem baseGates_length_le :
+lemma baseGates_length_le :
     (baseGates (E := E) (Q := Q)).length ≤
       26 * params.width + 12 + 2 * Pipeline.additionGates.length +
         2 * (Pipeline.additionGates.map
@@ -724,7 +727,7 @@ theorem baseGates_length_le :
   omega
 
 /-- Exact X coordinate of the uncontrolled total cleanup schedule. -/
-theorem baseGates_xMultiplicity_sum :
+lemma baseGates_xMultiplicity_sum :
     ((baseGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.xMultiplicity).sum =
       (PointAddition.PortFrame.loadConstantGates Pipeline.auxEncoding
@@ -746,7 +749,7 @@ theorem baseGates_xMultiplicity_sum :
   omega
 
 /-- Width/addition-list bound for the uncontrolled X coordinate. -/
-theorem baseGates_xMultiplicity_sum_le :
+lemma baseGates_xMultiplicity_sum_le :
     ((baseGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.xMultiplicity).sum ≤
       Pipeline.additionGates.length + 14 * params.width + 10 := by
@@ -766,7 +769,7 @@ theorem baseGates_xMultiplicity_sum_le :
   omega
 
 /-- Exact CNOT coordinate of the uncontrolled total cleanup schedule. -/
-theorem baseGates_cnotMultiplicity_sum :
+lemma baseGates_cnotMultiplicity_sum :
     ((baseGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
       6 * params.width +
@@ -784,7 +787,7 @@ theorem baseGates_cnotMultiplicity_sum :
   omega
 
 /-- Width/addition-list bound for the uncontrolled CNOT coordinate. -/
-theorem baseGates_cnotMultiplicity_sum_le :
+lemma baseGates_cnotMultiplicity_sum_le :
     ((baseGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       Pipeline.additionGates.length + 8 * params.width := by
@@ -795,7 +798,7 @@ theorem baseGates_cnotMultiplicity_sum_le :
   omega
 
 /-- Exact Toffoli coordinate of the uncontrolled total cleanup schedule. -/
-theorem baseGates_toffoliMultiplicity_sum :
+lemma baseGates_toffoliMultiplicity_sum :
     ((baseGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
       4 * params.width + 2 +
@@ -812,7 +815,7 @@ theorem baseGates_toffoliMultiplicity_sum :
   omega
 
 /-- Exact physical leaf count after the public clean-work control lift. -/
-theorem translationGates_length :
+lemma translationGates_length :
     (translationGates (E := E) (Q := Q)).length =
       (baseGates (E := E) (Q := Q)).length +
         2 * ((baseGates (E := E) (Q := Q)).map
@@ -824,7 +827,7 @@ theorem translationGates_length :
     Layout.controlBit_wire_ne_controlWorkBit
 
 /-- The public clean-work control lift contains no physical X leaves. -/
-theorem translationGates_xMultiplicity_sum :
+lemma translationGates_xMultiplicity_sum :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.xMultiplicity).sum = 0 := by
   unfold translationGates
@@ -834,7 +837,7 @@ theorem translationGates_xMultiplicity_sum :
     Layout.controlBit_wire_ne_controlWorkBit
 
 /-- Exact CNOT coordinate after the public clean-work control lift. -/
-theorem translationGates_cnotMultiplicity_sum :
+lemma translationGates_cnotMultiplicity_sum :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
       ((baseGates (E := E) (Q := Q)).map
@@ -846,7 +849,7 @@ theorem translationGates_cnotMultiplicity_sum :
     Layout.controlBit_wire_ne_controlWorkBit
 
 /-- Exact Toffoli coordinate after the public clean-work control lift. -/
-theorem translationGates_toffoliMultiplicity_sum :
+lemma translationGates_toffoliMultiplicity_sum :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
       ((baseGates (E := E) (Q := Q)).map
@@ -860,7 +863,7 @@ theorem translationGates_toffoliMultiplicity_sum :
     Layout.controlBit_wire_ne_controlWorkBit
 
 /-- Coordinate-specific leaf bound for the complete controlled translation. -/
-theorem translationGates_length_le_additionCoordinates :
+lemma translationGates_length_le_additionCoordinates :
     (translationGates (E := E) (Q := Q)).length ≤
       34 * params.width + 16 + 2 * Pipeline.additionGates.length +
       2 * (Pipeline.additionGates.map
@@ -872,7 +875,7 @@ theorem translationGates_length_le_additionCoordinates :
   omega
 
 /-- Coordinate-specific CNOT bound for the complete controlled translation. -/
-theorem translationGates_cnotMultiplicity_sum_le_additionCoordinates :
+lemma translationGates_cnotMultiplicity_sum_le_additionCoordinates :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum ≤
       Pipeline.additionGates.length + 14 * params.width + 10 := by
@@ -882,7 +885,7 @@ theorem translationGates_cnotMultiplicity_sum_le_additionCoordinates :
 /-- Coordinate-specific Toffoli bound for the complete controlled
 translation.  The generic-addition length is used exactly once to account for
 its X coordinate; it is not reclassified wholesale as Toffoli work. -/
-theorem translationGates_toffoliMultiplicity_sum_le_additionCoordinates :
+lemma translationGates_toffoliMultiplicity_sum_le_additionCoordinates :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       20 * params.width + 6 + Pipeline.additionGates.length +
@@ -930,7 +933,7 @@ def translationToffoliBound : Nat :=
   translationToffoliBoundFor params.width
 
 /-- The complete literal gate list obeys its closed leaf bound. -/
-theorem translationGates_length_le :
+lemma translationGates_length_le :
     (translationGates (E := E) (Q := Q)).length ≤
       translationGateLengthBound := by
   have htranslation :=
@@ -945,7 +948,7 @@ theorem translationGates_length_le :
   omega
 
 /-- The complete literal gate list obeys its closed CNOT bound. -/
-theorem translationGates_cnotMultiplicity_sum_le :
+lemma translationGates_cnotMultiplicity_sum_le :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.cnotMultiplicity).sum ≤ translationCnotBound := by
   have htranslation :=
@@ -957,7 +960,7 @@ theorem translationGates_cnotMultiplicity_sum_le :
   omega
 
 /-- The complete literal gate list obeys its closed Toffoli bound. -/
-theorem translationGates_toffoliMultiplicity_sum_le :
+lemma translationGates_toffoliMultiplicity_sum_le :
     ((translationGates (E := E) (Q := Q)).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum ≤
       translationToffoliBound := by
@@ -974,7 +977,7 @@ theorem translationGates_toffoliMultiplicity_sum_le :
   omega
 
 /-- Program X count projected from the actual literal gate list. -/
-theorem translationProgram_x_count_eq :
+lemma translationProgram_x_count_eq :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
       (translationProgram (E := E) (Q := Q)).eventCost =
       ((translationGates (E := E) (Q := Q)).map
@@ -984,7 +987,7 @@ theorem translationProgram_x_count_eq :
       (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- Program CNOT count projected from the actual literal gate list. -/
-theorem translationProgram_cnot_count_eq :
+lemma translationProgram_cnot_count_eq :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (translationProgram (E := E) (Q := Q)).eventCost =
       ((translationGates (E := E) (Q := Q)).map
@@ -994,7 +997,7 @@ theorem translationProgram_cnot_count_eq :
       (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- Program Toffoli count projected from the actual literal gate list. -/
-theorem translationProgram_toffoli_count_eq :
+lemma translationProgram_toffoli_count_eq :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (translationProgram (E := E) (Q := Q)).eventCost =
       ((translationGates (E := E) (Q := Q)).map
@@ -1004,13 +1007,13 @@ theorem translationProgram_toffoli_count_eq :
       (QubitLayout.canonical _) .empty (translationGates (E := E) (Q := Q)))
 
 /-- The complete program contains no physical X event. -/
-theorem translationProgram_x_count_zero :
+lemma translationProgram_x_count_zero :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .singleQubit)
       (translationProgram (E := E) (Q := Q)).eventCost = 0 := by
   rw [translationProgram_x_count_eq, translationGates_xMultiplicity_sum]
 
 /-- The complete program obeys its closed CNOT bound. -/
-theorem translationProgram_cnot_count_le :
+lemma translationProgram_cnot_count_le :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (translationProgram (E := E) (Q := Q)).eventCost ≤
       translationCnotBound := by
@@ -1018,7 +1021,7 @@ theorem translationProgram_cnot_count_le :
   exact translationGates_cnotMultiplicity_sum_le (E := E) (Q := Q)
 
 /-- The complete program obeys its closed Toffoli bound. -/
-theorem translationProgram_toffoli_count_le :
+lemma translationProgram_toffoli_count_le :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (translationProgram (E := E) (Q := Q)).eventCost ≤
       translationToffoliBound := by
@@ -1027,7 +1030,7 @@ theorem translationProgram_toffoli_count_le :
 
 /-- The program event-depth expression is the ordered literal primitive-event
 schedule. -/
-theorem translationProgram_eventDepth :
+lemma translationProgram_eventDepth :
     (translationProgram (E := E) (Q := Q)).eventDepth =
       EncodedBit.GateSpec.depthOfEvents
         ((translationGates (E := E) (Q := Q)).map
@@ -1038,7 +1041,7 @@ theorem translationProgram_eventDepth :
 
 /-- Under unit primitive durations, sequential event depth is the actual
 literal gate-list length. -/
-theorem translationProgram_unitDepth_eq :
+lemma translationProgram_unitDepth_eq :
     (translationProgram (E := E) (Q := Q)).evaluatedEventDepth
       (fun _ => 1) = (translationGates (E := E) (Q := Q)).length := by
   simpa only [translationProgram] using
@@ -1047,7 +1050,7 @@ theorem translationProgram_unitDepth_eq :
 
 /-- Under unit primitive durations, the program obeys the closed leaf/depth
 bound. -/
-theorem translationProgram_unitDepth_le :
+lemma translationProgram_unitDepth_le :
     (translationProgram (E := E) (Q := Q)).evaluatedEventDepth
       (fun _ => 1) ≤ translationGateLengthBound := by
   rw [translationProgram_unitDepth_eq]

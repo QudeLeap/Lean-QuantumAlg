@@ -31,6 +31,8 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.ArithmeticWindowProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit ArithmeticWindowRegisters ArithmeticWindowEncoding
 
 /-- The four actual source arithmetic instructions, with or without updating Sign. -/
@@ -60,7 +62,7 @@ def focusStep {length : Nat} (operation : Operation)
   | .subtractSigned => Addition.TTK.overflowSubtractionOutput state
 
 /-- Every actual focused gate list implements the existing exact arithmetic specification. -/
-theorem focusGates_step (length : Nat) (operation : Operation)
+lemma focusGates_step (length : Nat) (operation : Operation)
     (state : Addition.TTK.OverflowRegisters length) :
     GateSpec.stepList (focusGates length operation) state = focusStep operation state := by
   cases operation with
@@ -74,7 +76,7 @@ theorem focusGates_step (length : Nat) (operation : Operation)
   | subtractSigned => exact Addition.TTK.ttkOverflowSubtraction_step length state
 
 /-- All four operations retain the complete arbitrary source operand. -/
-theorem focusStep_source {length : Nat} (operation : Operation)
+lemma focusStep_source {length : Nat} (operation : Operation)
     (state : Addition.TTK.OverflowRegisters length) :
     (focusStep operation state).1.1 = state.1.1 := by
   cases operation <;> rfl
@@ -85,7 +87,7 @@ def liftBit {width : Nat} (window : Window width)
     EncodedBit (groupedEncoding window) :=
   BinaryLabelEncoding.prodLeftBit _ _ bit
 
-private theorem liftBit_ne {width : Nat} (window : Window width)
+private lemma liftBit_ne {width : Nat} (window : Window width)
     (left right : EncodedBit (Addition.TTK.overflowEncoding window.length))
     (different : left.wire ≠ right.wire) :
     (liftBit window left).wire ≠ (liftBit window right).wire := by
@@ -105,7 +107,7 @@ def liftGate {width : Nat} (window : Window width) :
         (liftBit_ne window _ _ controls) (liftBit_ne window _ _ left) (liftBit_ne window _ _ right)
 
 /-- One lifted actual primitive performs its original action and retains every complementary bit. -/
-theorem liftGate_step {width : Nat} (window : Window width)
+lemma liftGate_step {width : Nat} (window : Window width)
     (gate : GateSpec (Addition.TTK.overflowEncoding window.length))
     (state : Addition.TTK.OverflowRegisters window.length × Complement window) :
     (liftGate window gate).step state = (gate.step state.1, state.2) := by
@@ -121,7 +123,7 @@ theorem liftGate_step {width : Nat} (window : Window width)
       cases selected : first.get state.1 && second.get state.1 <;>
         simp [GateSpec.step, EncodedBit.toffoliStep, selected]
 
-private theorem liftList_step {width : Nat} (window : Window width)
+private lemma liftList_step {width : Nat} (window : Window width)
     (indices : List (GateSpec (Addition.TTK.overflowEncoding window.length)))
     (state : Addition.TTK.OverflowRegisters window.length × Complement window) :
     GateSpec.stepList (indices.map (liftGate window)) state =
@@ -138,7 +140,7 @@ def gates {width : Nat} (window : Window width) (operation : Operation) :
   (focusGates window.length operation).map (liftGate window)
 
 /-- The exact whole-group result keeps every complementary field, without a clean-input premise. -/
-theorem gates_step {width : Nat} (window : Window width) (operation : Operation)
+lemma gates_step {width : Nat} (window : Window width) (operation : Operation)
     (state : Addition.TTK.OverflowRegisters window.length × Complement window) :
     GateSpec.stepList (gates window operation) state = (focusStep operation state.1, state.2) := by
   rw [gates, liftList_step, focusGates_step]
@@ -157,39 +159,39 @@ def step {width : Nat} (window : Window width) (operation : Operation)
     (fun pair => (focusStep operation pair.1, pair.2)) state
 
 /-- Actual elementary execution realizes the exact whole-frame arithmetic on every input label. -/
-theorem program_realizes {width : Nat} (window : Window width) (operation : Operation) :
-    UnitaryCircuit.Realizes (encoding width) (program window operation)
+lemma program_realizes {width : Nat} (window : Window width) (operation : Operation) :
+    UnitaryCircuit.Realizes (encoding width) (program window operation) environment
       (step window operation) := by
   have body : UnitaryCircuit.Realizes (groupedEncoding window)
-      (GateSpec.programList (QubitLayout.canonical _) .empty (gates window operation))
+      (GateSpec.programList (QubitLayout.canonical _) .empty (gates window operation)) environment
       (fun pair : Addition.TTK.OverflowRegisters window.length × Complement window =>
         (focusStep operation pair.1, pair.2)) :=
     GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-      (gates window operation) (gates_step window operation)
+      (gates window operation) (gates_step window operation) environment
   exact ArithmeticWindowPlacement.place_realizes window body
 
 /-- Exact output grouping exhibits the arithmetic result and all retained fields. -/
-theorem step_grouping {width : Nat} (window : Window width) (operation : Operation)
+lemma step_grouping {width : Nat} (window : Window width) (operation : Operation)
     (state : Registers width) :
     grouping window (step window operation state) =
       (focusStep operation (grouping window state).1, (grouping window state).2) := by
   rw [step, ArithmeticWindowPlacement.placedStep_eq]
   exact (grouping window).apply_symm_apply _
 
-private theorem liftGate_event {width : Nat} (window : Window width)
+private lemma liftGate_event {width : Nat} (window : Window width)
     (gate : GateSpec (Addition.TTK.overflowEncoding window.length)) :
     GateSpec.event .empty (liftGate window gate) = GateSpec.event .empty gate := by
   cases gate <;> rfl
 
 /-- The actual native trace is precisely the chosen existing TTK primitive list. -/
-theorem program_eventTrace {width : Nat} (window : Window width) (operation : Operation) :
+lemma program_eventTrace {width : Nat} (window : Window width) (operation : Operation) :
     (program window operation).eventTrace =
       (focusGates window.length operation).map (GateSpec.event .empty) := by
   rw [program, ArithmeticWindowPlacement.place_eventTrace, GateSpec.programList_eventTrace]
   simp only [gates, List.map_map, Function.comp_def, liftGate_event]
 
 /-- Unit depth counts the same real primitive list with its actual execution order. -/
-theorem program_unitDepth {width : Nat} (window : Window width) (operation : Operation) :
+lemma program_unitDepth {width : Nat} (window : Window width) (operation : Operation) :
     (program window operation).evaluatedEventDepth (fun _ => 1) =
       (focusGates window.length operation).length := by
   rw [program, ArithmeticWindowPlacement.place_evaluatedEventDepth,

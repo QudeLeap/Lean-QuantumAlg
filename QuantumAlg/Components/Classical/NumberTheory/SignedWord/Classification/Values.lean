@@ -31,7 +31,7 @@ def rawMagnitude {width : Nat} (raw : CShape.Word width) : Nat :=
 
 /-- Fixed-width complement followed by increment realizes unsigned
 two's-complement magnitude for every nonzero input. -/
-theorem complementIncrement_toNat {width : Nat} (input : CShape.Word width)
+lemma complementIncrement_toNat {width : Nat} (input : CShape.Word width)
     (inputPositive : 0 < input.toNat) :
     (Resource.WordUnaryOpcode.eval .increment width
       (Resource.WordUnaryOpcode.eval .complement width input)).toNat =
@@ -56,7 +56,7 @@ theorem complementIncrement_toNat {width : Nat} (input : CShape.Word width)
   rw [numeratorEq, Nat.mod_eq_of_lt resultRange]
 
 /-- A raw word classified as negative is necessarily nonzero. -/
-theorem rawIsNegative_true_toNat_pos {width : Nat}
+lemma rawIsNegative_true_toNat_pos {width : Nat}
     (raw : CShape.Word width) (negative : rawIsNegative raw = true) :
     0 < raw.toNat := by
   have thresholdPositive : 0 < 2 ^ (width - 1) := Nat.two_pow_pos _
@@ -66,7 +66,7 @@ theorem rawIsNegative_true_toNat_pos {width : Nat}
   omega
 
 /-- The statically addressed most-significant bit is exactly the signed threshold predicate. -/
-theorem rawIsNegative_eq_signBit {width : Nat} (raw : CShape.Word (width + 1)) :
+lemma rawIsNegative_eq_signBit {width : Nat} (raw : CShape.Word (width + 1)) :
     (raw.wordBitGet ⟨0, Nat.succ_pos width⟩).toBool = rawIsNegative raw := by
   cases raw with
   | unsignedWord value =>
@@ -86,7 +86,7 @@ theorem rawIsNegative_eq_signBit {width : Nat} (raw : CShape.Word (width + 1)) :
         simp [quotient, high]
 
 /-- The unique zero-width word has no sign bit and is nonnegative. -/
-theorem rawIsNegative_zero (raw : CShape.Word 0) : rawIsNegative raw = false := by
+lemma rawIsNegative_zero (raw : CShape.Word 0) : rawIsNegative raw = false := by
   have zero : raw.toNat = 0 := Nat.eq_zero_of_le_zero (Nat.le_of_lt_succ raw.toNat_lt)
   simp [rawIsNegative, zero]
 

@@ -25,7 +25,7 @@ namespace QuantumAlg.Gate
 
 noncomputable section
 
-private theorem prefixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
+private lemma prefixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
     (fun index : Fin width =>
       (QuantumSignature.qubitsIndexEquiv (width + 1)).symm
         (prodEquiv (left, right)) index.castSucc) =
@@ -34,7 +34,7 @@ private theorem prefixDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fi
   exact BinaryBasis.bigEndianEquiv_prod_left
     (leftWidth := width) (rightWidth := 1) left right index
 
-private theorem lastDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
+private lemma lastDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 2) :
     (QuantumSignature.qubitsIndexEquiv (width + 1)).symm
       (prodEquiv (left, right)) (Fin.last width) = right := by
   have original := BinaryBasis.bigEndianEquiv_prod_right
@@ -44,18 +44,18 @@ private theorem lastDecoded (width : Nat) (left : Fin (2 ^ width)) (right : Fin 
   exact original.trans last
 
 /-- The actual final-wire operation has exactly the full identity-tensor-operator matrix. -/
-public theorem singleQubitAt_last_binaryMatrix (oracles : OracleModel) (width : Nat)
-    (operator : UnitaryOperator (Qubits 1)) :
-    (singleQubitAt (QuantumSignature.qubits (width + 1)).canonicalPlacement.layout
-      oracles operator (Fin.last width) rfl).binaryMatrix =
+public lemma singleQubitAt_last_binaryMatrix (oracles : OracleModel) (width : Nat)
+    (operator : UnitaryOperator (Qubits 1)) (environment : oracles.Interpretation) :
+    ((singleQubitAt (QuantumSignature.qubits (width + 1)).canonicalPlacement.layout
+      oracles operator (Fin.last width) rfl).binaryMatrix environment) =
         (1 : UnitaryOperator (Qubits width)).tensor operator := by
   ext row column
   rcases (prodEquiv (m := width) (n := 1)).surjective row with ⟨⟨rowLeft, rowRight⟩, rfl⟩
   rcases (prodEquiv (m := width) (n := 1)).surjective column with
     ⟨⟨columnLeft, columnRight⟩, rfl⟩
   rw [UnitaryOperator.tensor_apply, Equiv.symm_apply_apply, Equiv.symm_apply_apply]
-  change (singleQubitAt (QuantumSignature.qubits (width + 1)).canonicalPlacement.layout
-    oracles operator (Fin.last width) rfl).matrix
+  change ((singleQubitAt (QuantumSignature.qubits (width + 1)).canonicalPlacement.layout
+    oracles operator (Fin.last width) rfl).matrix environment)
     ((QuantumSignature.qubitsIndexEquiv (width + 1)).symm (prodEquiv (rowLeft, rowRight)))
     ((QuantumSignature.qubitsIndexEquiv (width + 1)).symm
       (prodEquiv (columnLeft, columnRight))) = _

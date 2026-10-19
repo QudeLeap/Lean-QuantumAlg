@@ -31,6 +31,8 @@ namespace MontgomeryInversion
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 open MAU.Inversion
 open MAU.Inversion.MK
@@ -84,19 +86,19 @@ def step
     (gates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- The lifted circuit realizes its exact ordered gate-list action. -/
-theorem realizes
+lemma realizes
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
     (hwidth : counterTail + 2 <= fieldTail.succ) :
     UnitaryCircuit.Realizes (Layout.encoding fieldTail.succ (counterTail + 2))
-      (program fieldTail counterTail p hfit hcapacity hwidth)
+      (program fieldTail counterTail p hfit hcapacity hwidth) environment
       (step fieldTail counterTail p hfit hcapacity hwidth) :=
-  EncodedBit.GateSpec.realizesList (QubitLayout.canonical _) .empty
+  EncodedBit.GateSpec.realizesList (environment := environment) (QubitLayout.canonical _) .empty
     (gates fieldTail counterTail p hfit hcapacity hwidth)
 
 /-- Lifting preserves the literal number of primitive gates. -/
-@[simp] theorem gates_length
+@[simp] lemma gates_length
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -107,7 +109,7 @@ theorem realizes
   simp [gates]
 
 /-- Lifting preserves the complete strict primitive event trace. -/
-theorem gates_map_event
+lemma gates_map_event
     (fieldTail counterTail p : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))
@@ -125,7 +127,7 @@ set_option maxHeartbeats 1200000 in
 /-- A clean coprime inversion call changes only `t0`.  The returned word is
 the exact runtime-count-corrected Montgomery--Kaliski residue from the compact
 physical ledger. -/
-theorem step_cleanEndpoint
+lemma step_cleanEndpoint
     (fieldTail counterTail : Nat)
     (hfit : counterTail.succ <= fieldTail.succ)
     (hcapacity : fieldTail.succ <= 2 ^ (counterTail + 1))

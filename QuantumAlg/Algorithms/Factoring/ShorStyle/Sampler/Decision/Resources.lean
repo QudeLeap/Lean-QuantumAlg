@@ -82,7 +82,7 @@ def nativeEnvelope (model : ExecutionModel) [BitWord.Selected model] (width : Na
         (BitWord.selectedCoordinate (execution := model)
           (.nominalEncoding (.packProduct width (1 + width))))))
 
-private theorem unit_trace (shared : Proposal.SharedRefs ctx width)
+private lemma unit_trace (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (path : (unitBody (model := model) shared scratch).Path) :
     (unitBody (model := model) shared scratch).eventTrace path = unitEvents model width := by
@@ -92,7 +92,7 @@ private theorem unit_trace (shared : Proposal.SharedRefs ctx width)
   simp only [BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem factor_trace (scratch : Proposal.ScratchRefs ctx width)
+private lemma factor_trace (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (factorBody (model := model) scratch gcdResult).Path) :
     (factorBody (model := model) scratch gcdResult).eventTrace path = factorEvents model width := by
@@ -104,7 +104,7 @@ private theorem factor_trace (scratch : Proposal.ScratchRefs ctx width)
   simp only [BitWord.bitWord_instruction_eventTrace]
   rfl
 
-private theorem initialization_trace (shared : Proposal.SharedRefs ctx width)
+private lemma initialization_trace (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (path : (initializeBody (model := model) shared scratch).Path) :
     (initializeBody (model := model) shared scratch).eventTrace path =
@@ -122,7 +122,7 @@ private theorem initialization_trace (shared : Proposal.SharedRefs ctx width)
   rfl
 
 /-- The actual stored branch charges precisely one of the two literal result traces. -/
-theorem decisionResult_pool_le (shared : Proposal.SharedRefs ctx width)
+lemma decisionResult_pool_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (chooseResult (model := model) shared scratch gcdResult).Path) :
@@ -146,7 +146,7 @@ theorem decisionResult_pool_le (shared : Proposal.SharedRefs ctx width)
           (zero_le : (0 : ResourcePool model) ≤ ResourcePool.ofList (factorEvents model width))
 
 /-- The accepted trace contains its actual GCD path and selected result path. -/
-theorem decisionAccepted_eventTrace (shared : Proposal.SharedRefs ctx width)
+lemma decisionAccepted_eventTrace (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (acceptedBody (model := model) shared scratch gcdResult).Path) :
@@ -174,7 +174,7 @@ theorem decisionAccepted_eventTrace (shared : Proposal.SharedRefs ctx width)
   rfl
 
 /-- Every actual accepted-arm event is bounded at its exact native coordinate. -/
-theorem decisionAccepted_pool_le (shared : Proposal.SharedRefs ctx width)
+lemma decisionAccepted_pool_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (acceptedBody (model := model) shared scratch gcdResult).Path) :
@@ -187,7 +187,7 @@ theorem decisionAccepted_pool_le (shared : Proposal.SharedRefs ctx width)
       (.product (FirstAccepted.cellRead scratch.extended) shared.modulus) gcdResult path.2.1)
     (add_le_add le_rfl (decisionResult_pool_le shared scratch gcdResult path.2.2.2.2)))
 
-private theorem rejected_pool_le (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
+private lemma rejected_pool_le (model : ExecutionModel) [BitWord.Selected model] (width : Nat) :
     ResourcePool.singleton (.classicalOperation (BitWord.selectedCoordinate (execution := model)
       (.wordBinary .bitXor width))) ≤
       acceptedEnvelope model width := by
@@ -216,7 +216,7 @@ private theorem rejected_pool_le (model : ExecutionModel) [BitWord.Selected mode
     (gcdBound.trans (le_add_of_nonneg_left zero_le))))
 
 /-- Actual acceptance selection fits the same envelope, including its rejected payload clear. -/
-theorem decisionAcceptance_pool_le (shared : Proposal.SharedRefs ctx width)
+lemma decisionAcceptance_pool_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (path : (chooseAccepted (model := model) shared scratch gcdResult).Path) :
@@ -236,7 +236,7 @@ theorem decisionAcceptance_pool_le (shared : Proposal.SharedRefs ctx width)
       · exact decisionAccepted_pool_le shared scratch gcdResult selected
 
 /-- Every path of the full native decision satisfies its independently stated resource pool. -/
-theorem decision_pool_le (shared : Proposal.SharedRefs ctx width)
+lemma decision_pool_le (shared : Proposal.SharedRefs ctx width)
     (scratch : Proposal.ScratchRefs ctx width)
     (gcdResult : CWriteRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (ParameterShape width))
@@ -254,7 +254,7 @@ theorem decision_pool_le (shared : Proposal.SharedRefs ctx width)
     (decisionAcceptance_pool_le shared scratch gcdResult path.2.1) le_rfl)
 
 /-- Independent coordinate capacity is linear, including width zero. -/
-theorem decisionNativeEnvelope_card (model : ExecutionModel) [BitWord.Selected model]
+lemma decisionNativeEnvelope_card (model : ExecutionModel) [BitWord.Selected model]
     (width : Nat) :
     (nativeEnvelope model width).card = 10 * width + 32 := by
   simp only [nativeEnvelope, acceptedEnvelope, resultEnvelope, Multiset.card_add,

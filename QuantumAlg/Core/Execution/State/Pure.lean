@@ -30,7 +30,7 @@ open scoped ComplexOrder
 attribute [local instance] Classical.decEq Classical.propDecidable
 
 /-- A fixed pure local marginal holds separately on every complete classical block. -/
-public theorem block_pureKet_of_localMarginal {C : Type} [Fintype C]
+public lemma block_pureKet_of_localMarginal {C : Type} [Fintype C]
     {R Reference : Register} (state : ExecutionState C (R.prod Reference)) (seed : R.Index)
     (promised : (StatePromise.pure (NormalizedVector.ket seed)).Holds
       state.quantumMarginal.marginalLeft) (entry : C) :

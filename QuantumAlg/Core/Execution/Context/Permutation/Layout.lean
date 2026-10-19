@@ -28,11 +28,11 @@ variable {kind : ProblemKind} {source target : RuntimeCtx kind}
 
 include same in
 /-- Every complete wire record survives, with only its list position changed. -/
-theorem quantumWires_perm : source.quantumWires.Perm target.quantumWires :=
+lemma quantumWires_perm : source.quantumWires.Perm target.quantumWires :=
   List.Perm.flatMap_right RuntimeEntry.quantumWires same
 
 include same in
-private theorem position_exists (index : Fin source.systemCount) :
+private lemma position_exists (index : Fin source.systemCount) :
     ∃ moved : Fin target.systemCount,
       target.quantumLayout.wire moved = source.quantumLayout.wire index := by
   have present : source.quantumLayout.wire index ∈ source.quantumWires := by
@@ -45,7 +45,7 @@ private theorem position_exists (index : Fin source.systemCount) :
 private def position (index : Fin source.systemCount) : Fin target.systemCount :=
   (position_exists same index).choose
 
-private theorem position_wire (index : Fin source.systemCount) :
+private lemma position_wire (index : Fin source.systemCount) :
     target.quantumLayout.wire (position same index) = source.quantumLayout.wire index :=
   (position_exists same index).choose_spec
 
@@ -61,7 +61,7 @@ def positions : Fin source.systemCount ≃ Fin target.systemCount where
       ((position_wire same (position same.symm index)).trans (position_wire same.symm index)))
 
 /-- The correspondence preserves physical identity and dimension together. -/
-theorem positions_wire (index : Fin source.systemCount) :
+lemma positions_wire (index : Fin source.systemCount) :
     target.quantumLayout.wire (positions same index) = source.quantumLayout.wire index :=
   position_wire same index
 
@@ -72,7 +72,7 @@ def basis : source.register.Index ≃ target.register.Index :=
       (positions_wire same index).symm)
 
 /-- Each basis value remains numerically unchanged on the identical physical system. -/
-theorem basis_value (value : source.register.Index) (index : Fin source.systemCount) :
+lemma basis_value (value : source.register.Index) (index : Fin source.systemCount) :
     (basis same value (positions same index)).val = (value index).val := by
   exact congrArg
     (fun result : Fin (target.quantumLayout.wire (positions same index)).dimension => result.val)
@@ -86,7 +86,7 @@ theorem basis_value (value : source.register.Index) (index : Fin source.systemCo
         finCongr (congrArg (fun wire : QuantumWire => (wire.dimension : Nat))
           (positions_wire same position).symm)) value index)
 
-private theorem fold_space_perm {entries reordered : List (RuntimeEntry kind)}
+private lemma fold_space_perm {entries reordered : List (RuntimeEntry kind)}
     (permuted : entries.Perm reordered) (project : RuntimeEntry kind → SpacePool kind) :
     entries.foldr (fun entry total => project entry + total) 0 =
       reordered.foldr (fun entry total => project entry + total) 0 := by
@@ -101,12 +101,12 @@ private theorem fold_space_perm {entries reordered : List (RuntimeEntry kind)}
 
 include same in
 /-- Every original resident classical bit and dimension-indexed quantum system stays counted. -/
-theorem resident_space : source.residentSpace = target.residentSpace :=
+lemma resident_space : source.residentSpace = target.residentSpace :=
   fold_space_perm same RuntimeEntry.residentSpace
 
 include same in
 /-- The identical original storage roles give the identical auxiliary-space coordinates. -/
-theorem auxiliary_space : source.auxiliarySpace = target.auxiliarySpace :=
+lemma auxiliary_space : source.auxiliarySpace = target.auxiliarySpace :=
   fold_space_perm same RuntimeEntry.auxiliarySpace
 
 end

@@ -27,18 +27,21 @@ namespace QuantumAlg.MeasuredUncompute.MultiplicationBranch
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open ProductPlacement MAU.Inversion.SharedEEA
 open InPlaceArithmetic MultiplicationArithmetic
 
 /-- The exact post-reset native gate sequence cancels the old Y phase and outputs X*Y. -/
-theorem after_reset (modulus : Nat) (prime : Nat.Prime modulus)
+lemma after_reset (modulus : Nat) (prime : Nat.Prime modulus)
     (value numerator outcome : Fin (2 ^ modulus.size))
     (positive : 0 < value.val) (bounded : value.val < modulus)
     (numeratorBound : numerator.val < modulus) :
-    ((NativeReusedEEA.forward modulus prime).seq
+    (((NativeReusedEEA.forward modulus prime).seq
       ((ReusedProduct.correction modulus.size (modulusWord modulus)
         (fun index => outcome.val.testBit index.val)).seq
           ((NativeEEAFrame.backward modulus prime).seq (FrameSwap.program modulus.size)))).applyVec
+            environment)
         (WalshHadamard.walshSign outcome numerator •
           (NormalizedVector.ket
             ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
@@ -52,8 +55,8 @@ theorem after_reset (modulus : Nat) (prime : Nat.Prime modulus)
     (fun state :
       NormalizedVector (QubitLayout.canonical (frameEncoding modulus.size).width).toQuantum.register
       => state.vec)
-    (forward_ket modulus prime value numerator positive bounded)
-  change (NativeReusedEEA.forward modulus prime).applyVec
+    (forward_ket (environment := environment) modulus prime value numerator positive bounded)
+  change ((NativeReusedEEA.forward modulus prime).applyVec environment)
     (NormalizedVector.ket
       ((QubitLayout.canonical (frameEncoding modulus.size).width).basisEquiv.symm
             ((frameEncoding modulus.size).encode

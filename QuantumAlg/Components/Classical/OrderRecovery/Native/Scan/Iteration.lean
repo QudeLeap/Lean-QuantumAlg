@@ -47,12 +47,13 @@ def activityChoiceStep (spec : ModulusSpec modulusWidth)
   | .bit false => (store, ())
   | .bit true => activeVisitStep (model := model) spec base cells store
 
-private theorem activityChoice_execute (spec : ModulusSpec modulusWidth)
+private lemma activityChoice_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth)
-    (value : CShape.Value .bit) (Reference : Register)
+    (value : CShape.Value .bit) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (activityChoice (model := model) spec base cells value).execute Reference state =
+    (activityChoice (model := model) spec base cells value).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((activityChoiceStep (model := model) spec base cells value entry.1).1,
           (entry.2.1, (entry.2.2,
@@ -60,7 +61,8 @@ private theorem activityChoice_execute (spec : ModulusSpec modulusWidth)
   cases value with
   | bit value =>
       cases value
-      · refine (Circuit.execute_id_mapClassical Reference state).trans ?_
+      · refine (Circuit.execute_id_mapClassical
+          (environment := environment) Reference state).trans ?_
         congr 1
         exact Subsingleton.elim _ _
       · exact nativeScan_activeVisit_execute spec base cells Reference state
@@ -81,20 +83,22 @@ def scanSlotStep (spec : ModulusSpec modulusWidth)
   (selected.1, ⟨value, selected.2⟩)
 
 /-- The actual slot executes precisely the branch selected by its real activity read. -/
-theorem nativeScan_slot_execute (spec : ModulusSpec modulusWidth)
+lemma nativeScan_slot_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth candidateWidth) (Reference : Register)
+    (cells : ScanCells ctx modulusWidth candidateWidth) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (scanSlot (model := model) spec base cells).execute Reference state =
+    (scanSlot (model := model) spec base cells).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((scanSlotStep (model := model) spec base cells entry.1).1,
           (entry.2.1, (entry.2.2, (scanSlotStep (model := model) spec base cells entry.1).2)))) :=
-  Circuit.execute_branch_mapClassical (cellRead cells.cursor.active)
+  Circuit.execute_branch_mapClassical (environment := environment) (cellRead cells.cursor.active)
     (activityChoice (model := model) spec base cells)
     (fun value entry =>
       let next := activityChoiceStep (model := model) spec base cells value entry.1
       ((next.1, entry.2), next.2))
-    (activityChoice_execute spec base cells) Reference state
+    (fun value => activityChoice_execute spec base cells value
+      (environment := environment)) Reference state
 
 /-- The complete finite scan uses the existing circuit iteration constructor. -/
 def scan (spec : ModulusSpec modulusWidth)
@@ -103,11 +107,13 @@ def scan (spec : ModulusSpec modulusWidth)
   .iterate fuel (scanSlot (model := model) spec base cells)
 
 /-- The only interpreter's final store and every actual finite slot path are correlated. -/
-theorem nativeScan_execute (spec : ModulusSpec modulusWidth)
+lemma nativeScan_execute (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
-    (cells : ScanCells ctx modulusWidth candidateWidth) (fuel : Nat) (Reference : Register)
+    (cells : ScanCells ctx modulusWidth candidateWidth) (fuel : Nat)
+    {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (scan (model := model) spec base cells fuel).execute Reference state =
+    (scan (model := model) spec base cells fuel).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((fun store => (scanSlotStep (model := model) spec base cells store).1)^[fuel] entry.1,
           (entry.2.1, (entry.2.2, fun index : Fin fuel =>
@@ -125,7 +131,8 @@ theorem nativeScan_execute (spec : ModulusSpec modulusWidth)
     | zero => rfl
     | succ steps ih =>
         rw [Function.iterate_succ_apply', Function.iterate_succ_apply', ih]
-  refine (Circuit.execute_iterate_mapClassical (scanSlot (model := model) spec base cells)
+  refine (Circuit.execute_iterate_mapClassical
+    (environment := environment) (scanSlot (model := model) spec base cells)
     jointStep (fun reference _history _ current => nativeScan_slot_execute spec base cells
       reference current) fuel Reference state).trans ?_
   apply ExecutionState.executionState_mapClassical_congr
@@ -133,7 +140,7 @@ theorem nativeScan_execute (spec : ModulusSpec modulusWidth)
   simp only [iterateJoint, jointStep]
 
 /-- An actual inactive slot leaves the entire real store unchanged. -/
-theorem nativeScan_slot_inactive (spec : ModulusSpec modulusWidth)
+lemma nativeScan_slot_inactive (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth) (store : Store ctx)
     (inactive : store.read (cellRead cells.cursor.active) = .bit false) :
@@ -144,7 +151,7 @@ theorem nativeScan_slot_inactive (spec : ModulusSpec modulusWidth)
     (fun value => (activityChoiceStep (model := model) spec base cells value store).1) inactive
 
 /-- The selected inactive branch contributes no synthetic arithmetic or padded event. -/
-theorem nativeScan_inactive_eventTrace (spec : ModulusSpec modulusWidth)
+lemma nativeScan_inactive_eventTrace (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth candidateWidth)
     (path : (activityChoice (model := model) spec base cells (.bit false)).Path) :

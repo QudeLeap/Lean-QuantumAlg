@@ -36,7 +36,7 @@ def retainedSpace (N : Nat) : SpacePool .quantum :=
 def retainedBits (N : Nat) : Nat := 19 * modulusBits N + 16 * measurementBits N + 2
 
 /-- The permanent allowance is exactly the displayed classical-bit formula. -/
-theorem retainedSpace_bits (N : Nat) :
+lemma retainedSpace_bits (N : Nat) :
     retainedSpace N = SpacePool.ofShape (.bits (retainedBits N)) := by
   apply SpacePool.ext
   intro axis
@@ -46,13 +46,13 @@ theorem retainedSpace_bits (N : Nat) :
   omega
 
 /-- No retained batch result allocates any quantum system of any dimension. -/
-theorem retainedSpace_quantum (N : Nat) (dimension : ℕ+) :
+lemma retainedSpace_quantum (N : Nat) (dimension : ℕ+) :
     retainedSpace N (.quantumSystems dimension) = 0 := by
   rw [retainedSpace_bits]
   rfl
 
 /-- The exact complete output resident capacity contains only the actual retained additions. -/
-theorem reuseRecovery_context_resident (base : RuntimeCtx .quantum) (N : Nat) :
+lemma reuseRecovery_context_resident (base : RuntimeCtx .quantum) (N : Nat) :
     (context base N).residentSpace = base.residentSpace + retainedSpace N := by
   have results := RuntimeResults.shortDLP_runtimeResults_resident
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -74,7 +74,7 @@ theorem reuseRecovery_context_resident (base : RuntimeCtx .quantum) (N : Nat) :
   ac_rfl
 
 /-- Retained cells remain owned auxiliaries with exactly the same classical capacity. -/
-theorem reuseRecovery_context_auxiliary (base : RuntimeCtx .quantum) (N : Nat) :
+lemma reuseRecovery_context_auxiliary (base : RuntimeCtx .quantum) (N : Nat) :
     (context base N).auxiliarySpace = base.auxiliarySpace + retainedSpace N := by
   have results := RuntimeResults.shortDLP_runtimeResults_auxiliary
     (shortLogBits N) (tradeoffBits N) (arithmeticBits N)
@@ -96,7 +96,7 @@ theorem reuseRecovery_context_auxiliary (base : RuntimeCtx .quantum) (N : Nat) :
   ac_rfl
 
 /-- Repeated execution retains classical capacity without increasing its quantum bank. -/
-theorem reuseRecovery_context_quantum (base : RuntimeCtx .quantum) (N : Nat) (dimension : ℕ+) :
+lemma reuseRecovery_context_quantum (base : RuntimeCtx .quantum) (N : Nat) (dimension : ℕ+) :
     (context base N).residentSpace (.quantumSystems dimension) =
       base.residentSpace (.quantumSystems dimension) := by
   rw [reuseRecovery_context_resident]

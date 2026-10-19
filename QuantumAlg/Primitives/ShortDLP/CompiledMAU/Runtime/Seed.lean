@@ -25,11 +25,13 @@ namespace QuantumAlg.ShortDLP.CompiledMAU.RuntimePlacement
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 variable {ctx : RuntimeCtx .quantum} (m ell width : Nat)
   (sameWires : ctx.quantumWires = (runtimeLayout m ell width).wires)
 
 /-- The source's binary zero and the actual reset's wirewise zero are the same basis label. -/
-theorem shortDLP_runtimeBasis_zero :
+lemma shortDLP_runtimeBasis_zero :
     (basisEquiv m ell width sameWires).symm 0 = ctx.quantumLayout.zeroLabel := by
   funext target
   obtain ⟨source, rfl⟩ := (wireEquiv m ell width sameWires).surjective target
@@ -45,8 +47,8 @@ theorem shortDLP_runtimeBasis_zero :
   rfl
 
 /-- The existing X program maps the internally established reset state to the original seed. -/
-theorem shortDLP_runtimeReload_apply_zero (N : Nat) :
-    (reloadProgram m ell width sameWires N).applyNormalized
+lemma shortDLP_runtimeReload_apply_zero (N : Nat) :
+    (reloadProgram m ell width sameWires N).applyNormalized environment
       (NormalizedVector.ket (R := ctx.register) ctx.quantumLayout.zeroLabel) =
       NormalizedVector.ket (R := ctx.register)
         ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N)) := by
@@ -57,7 +59,7 @@ theorem shortDLP_runtimeReload_apply_zero (N : Nat) :
       (Qubits (totalQubits (registerParameters m ell width))).Index :=
     (QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv
   have action :
-      (reloadProgram m ell width sameWires N).applyVec
+      (reloadProgram m ell width sameWires N).applyVec environment
           (HilbertVector.reindex (R := (runtimeLayout m ell width).register)
             (S := ctx.register) corresponding
             (NormalizedVector.ket (R := (runtimeLayout m ell width).register)
@@ -66,15 +68,15 @@ theorem shortDLP_runtimeReload_apply_zero (N : Nat) :
           (S := ctx.register) corresponding
           (NormalizedVector.ket (R := (runtimeLayout m ell width).register)
             (sourceBasis.symm (CompiledMAU.reloadLabel m ell width N))).vec := by
-    change (reloadProgram m ell width sameWires N).matrix.applyVec _ = _
+    change ((reloadProgram m ell width sameWires N).matrix environment).applyVec _ = _
     rw [reloadProgram, Execution.unitaryOfEqualWires_matrix,
       UnitaryOperator.reindex_applyVec]
     exact congrArg (HilbertVector.reindex (R := (runtimeLayout m ell width).register)
       (S := ctx.register) corresponding)
       (congrArg (NormalizedVector.vec (R := (runtimeLayout m ell width).register))
-        (CompiledMAU.shortDLP_reload_apply_zero m ell width N))
+        (CompiledMAU.shortDLP_reload_apply_zero (environment := environment) m ell width N))
   rw [HilbertVector.reindex_ket, HilbertVector.reindex_ket] at action
-  change (reloadProgram m ell width sameWires N).applyVec
+  change (reloadProgram m ell width sameWires N).applyVec environment
       (NormalizedVector.ket (R := ctx.register) ((basisEquiv m ell width sameWires).symm 0)).vec =
     (NormalizedVector.ket (R := ctx.register)
       ((basisEquiv m ell width sameWires).symm (CompiledMAU.reloadLabel m ell width N))).vec
@@ -85,10 +87,10 @@ theorem shortDLP_runtimeReload_apply_zero (N : Nat) :
   exact congrArg (fun vector : HilbertVector ctx.register => vector row) action
 
 /-- A placed member's exact matrix uses the same source input and output labels. -/
-theorem shortDLP_runtimeMember_matrix_entry (N : Nat) (generator target : (ZMod N)ˣ)
+lemma shortDLP_runtimeMember_matrix_entry (N : Nat) (generator target : (ZMod N)ˣ)
     (row column : ctx.register.Index) :
-    (memberProgram m ell width sameWires N generator target).matrix row column =
-      (compiledCircuit m ell width N generator target).binaryMatrix
+    (memberProgram m ell width sameWires N generator target).matrix environment row column =
+      (compiledCircuit m ell width N generator target).binaryMatrix environment
         (basisEquiv m ell width sameWires row) (basisEquiv m ell width sameWires column) := by
   rw [memberProgram, Execution.unitaryOfEqualWires_matrix]
   let corresponding : (runtimeLayout m ell width).register.Index ≃ ctx.register.Index :=
@@ -97,13 +99,13 @@ theorem shortDLP_runtimeMember_matrix_entry (N : Nat) (generator target : (ZMod 
   let sourceBasis : (runtimeLayout m ell width).register.Index ≃
       (Qubits (totalQubits (registerParameters m ell width))).Index :=
     (QubitLayout.canonical (totalQubits (registerParameters m ell width))).basisEquiv
-  change (compiledCircuit m ell width N generator target).matrix
+  change (compiledCircuit m ell width N generator target).matrix environment
       (corresponding.symm row) (corresponding.symm column) =
-    (compiledCircuit m ell width N generator target).matrix
+    (compiledCircuit m ell width N generator target).matrix environment
       (sourceBasis.symm (sourceBasis (corresponding.symm row)))
       (sourceBasis.symm (sourceBasis (corresponding.symm column)))
   exact congrArg₂ (fun first second : (runtimeLayout m ell width).register.Index =>
-    (compiledCircuit m ell width N generator target).matrix first second)
+    (compiledCircuit m ell width N generator target).matrix environment first second)
     (sourceBasis.symm_apply_apply (corresponding.symm row)).symm
     (sourceBasis.symm_apply_apply (corresponding.symm column)).symm
 

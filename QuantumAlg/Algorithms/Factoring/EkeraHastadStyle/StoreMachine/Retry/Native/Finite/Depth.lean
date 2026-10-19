@@ -48,7 +48,7 @@ def scalarDepthBound (N : Nat) : Nat → Nat
           (RSA.ShortLogWidths.coordinateWidth N (shortLogBits N) (tradeoffBits N))) + 2
 
 /-- The existing full-round envelope is bounded without inspecting any compiled member. -/
-theorem round_unitDepthBound_le_widthBound (m ell width N : Nat) :
+lemma round_unitDepthBound_le_widthBound (m ell width N : Nat) :
     RuntimeRound.unitDepthBound m ell width N ≤ roundDepthWidthBound m ell width := by
   have member := compiledCircuitEventUnitDepth_le_widthBound m ell width N
   have reload := shortDLP_reload_count_le m ell width N
@@ -58,7 +58,7 @@ theorem round_unitDepthBound_le_widthBound (m ell width N : Nat) :
   change _ + ((ell + m + ell) + (1 + (2 * (m + 2 * ell + 2 * width) + _))) ≤ _
   omega
 
-private theorem offset_magnitude_le (offset : NumberTheory.IntegerPoint3)
+private lemma offset_magnitude_le (offset : NumberTheory.IntegerPoint3)
     (member : offset ∈ LatticeCandidateScan.offsets.toList) :
     offset.1.natAbs + offset.2.1.natAbs + offset.2.2.natAbs ≤ 110 := by
   rw [LatticeCandidateScan.offsets, NumberTheory.toList_coefficientOffsetVector3,
@@ -75,7 +75,7 @@ private theorem offset_magnitude_le (offset : NumberTheory.IntegerPoint3)
   have third := abs_le offset.2.2 34 member.2.2.2.2.1 member.2.2.2.2.2
   omega
 
-private theorem offsets_depth_le (coordinateWidth modulusWidth : Nat)
+private lemma offsets_depth_le (coordinateWidth modulusWidth : Nat)
     (items : List NumberTheory.IntegerPoint3)
     (bounded : ∀ offset ∈ items,
       offset.1.natAbs + offset.2.1.natAbs + offset.2.2.natAbs ≤ 110) :
@@ -97,7 +97,7 @@ private theorem offsets_depth_le (coordinateWidth modulusWidth : Nat)
     simpa only [LatticeCandidateScan.offsetsDepthBound, List.length_cons,
       Nat.succ_mul, Nat.add_comm] using combined
 
-private theorem scan_depth_le (coordinateWidth modulusWidth : Nat) :
+private lemma scan_depth_le (coordinateWidth modulusWidth : Nat) :
     LatticeCandidateScan.scanDepthBound coordinateWidth modulusWidth ≤
       (85 * 69 ^ 2) * (170 + 2 * modulusWidth + 6 * coordinateWidth) := by
   have bounded := offsets_depth_le coordinateWidth modulusWidth
@@ -107,7 +107,7 @@ private theorem scan_depth_le (coordinateWidth modulusWidth : Nat) :
     exact NumberTheory.nearestPlaneCoefficientBounds3_work
   simpa only [LatticeCandidateScan.scanDepthBound, count] using bounded
 
-private theorem nearest_depth_le (N : Nat) :
+private lemma nearest_depth_le (N : Nat) :
     LatticePairNearestPlaneSavedTarget.operationBound N ≤
       8 * shortLogBits N + 12 * tradeoffBits N + 258 +
         264 * (12 * (tradeoffBits N + shortLogBits N) + 10) := by
@@ -123,7 +123,7 @@ private theorem nearest_depth_le (N : Nat) :
   omega
 
 /-- The original classical dependency allowance obeys the closed formula over scalar widths. -/
-theorem recovery_depthBound_le_widthBound (N : Nat) :
+lemma recovery_depthBound_le_widthBound (N : Nat) :
     LatticeFixedBatchRecoveryMachine.depthBound N ≤
       recoveryDepthWidthBound (modulusBits N) (shortLogBits N) (tradeoffBits N)
         (RSA.ShortLogWidths.coordinateWidth N (shortLogBits N) (tradeoffBits N)) := by
@@ -149,7 +149,7 @@ theorem recovery_depthBound_le_widthBound (N : Nat) :
   omega
 
 /-- Every requested count's original allowance is bounded by the independent scalar formula. -/
-theorem depthBound_le_scalarDepthBound (N totalRounds : Nat) :
+lemma depthBound_le_scalarDepthBound (N totalRounds : Nat) :
     depthBound N totalRounds ≤ scalarDepthBound N totalRounds := by
   cases totalRounds with
   | zero => exact Nat.le_refl 0
@@ -185,7 +185,7 @@ theorem depthBound_le_scalarDepthBound (N totalRounds : Nat) :
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- The complete actual code path satisfies the same closed scalar serial ceiling. -/
-theorem code_depth_le_scalar (input : Input N) (totalRounds : Nat)
+lemma code_depth_le_scalar (input : Input N) (totalRounds : Nat)
     (path : (code base noQuantum input totalRounds).Path) :
     (code base noQuantum input totalRounds).depth (fun _ => 1) path ≤
       scalarDepthBound N totalRounds :=
@@ -193,7 +193,7 @@ theorem code_depth_le_scalar (input : Input N) (totalRounds : Nat)
     (depthBound_le_scalarDepthBound N totalRounds)
 
 /-- The complete actual run path, including all classical work, satisfies the scalar ceiling. -/
-theorem run_depth_le_scalar (input : Input N) (totalRounds : Nat)
+lemma run_depth_le_scalar (input : Input N) (totalRounds : Nat)
     (path : (run base noQuantum input totalRounds).code.Path) :
     (run base noQuantum input totalRounds).code.depth (fun _ => 1) path ≤
       scalarDepthBound N totalRounds :=

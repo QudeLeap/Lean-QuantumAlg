@@ -65,7 +65,7 @@ end CInputRef
 namespace Execution.Store
 
 /-- Quantum preparation preserves every previously readable classical value. -/
-public theorem read_pushOwnedLayout_underOwnedLayout {ctx : RuntimeCtx .quantum}
+public lemma read_pushOwnedLayout_underOwnedLayout {ctx : RuntimeCtx .quantum}
     (store : Store ctx) (key : StorageKey) {systemCount : Nat}
     (layout : QuantumLayout systemCount) (fresh : key ∉ ctx.keys)
     (disjoint : List.Disjoint layout.identities ctx.physicalIdx)

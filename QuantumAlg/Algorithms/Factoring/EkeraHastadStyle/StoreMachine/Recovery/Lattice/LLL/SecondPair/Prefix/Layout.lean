@@ -160,7 +160,7 @@ structure PhaseSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : 
   keyInjective : Function.Injective (cellKey refs)
 
 /-- Different named transition cells have different concrete storage keys. -/
-theorem PhaseSeparation.cellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma PhaseSeparation.cellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {refs : Refs ctx width} (separation : PhaseSeparation refs)
     (left right : TransitionCell) (different : left ≠ right) :
     cellKey refs left ≠ cellKey refs right := by

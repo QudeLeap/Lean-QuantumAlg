@@ -39,14 +39,14 @@ public def finalLayer (oracles : OracleModel) (width : Nat) :
     (hadamardLayer_layout_disjoint width)).castLayout (hadamardLayer_layout_append width)
 
 /-- The complete actual three-stage native circuit, with exactly the declared XOR access. -/
-public def queryPipeline {width : Nat} (function : Fin (2 ^ width) → Bool) :
-    UnitaryCircuit AlgorithmGate.model (XorOracle.model function) (layout (width + 1)) :=
-  ((Gate.HadamardLayer.circuit (XorOracle.model function) (width + 1)).seq
-    (XorOracle.circuit AlgorithmGate.model function)).seq
-      (finalLayer (XorOracle.model function) width)
+public def queryPipeline (width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (XorOracle.model width) (layout (width + 1)) :=
+  ((Gate.HadamardLayer.circuit (XorOracle.model width) (width + 1)).seq
+    (XorOracle.circuit AlgorithmGate.model width)).seq
+      (finalLayer (XorOracle.model width) width)
 
 /-- Leaving the final target untouched adds no native instruction. -/
-public theorem walshNative_finalLayer_eventCost (oracles : OracleModel) (width : Nat) :
+public lemma walshNative_finalLayer_eventCost (oracles : OracleModel) (width : Nat) :
     (finalLayer oracles width).eventCost = width •
       ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
@@ -55,7 +55,7 @@ public theorem walshNative_finalLayer_eventCost (oracles : OracleModel) (width :
     hadamardLayer_circuit_eventCost]
 
 /-- The final layer retains the input's parallel depth, including the empty input. -/
-public theorem walshNative_finalLayer_unit_depth (oracles : OracleModel) (width : Nat) :
+public lemma walshNative_finalLayer_unit_depth (oracles : OracleModel) (width : Nat) :
     (finalLayer oracles width).evaluatedEventDepth (fun _ => 1) =
       if width = 0 then 0 else 1 := by
   rw [finalLayer, UnitaryCircuit.castLayout_evaluatedEventDepth,
@@ -64,29 +64,27 @@ public theorem walshNative_finalLayer_unit_depth (oracles : OracleModel) (width 
   rw [max_eq_left (Nat.zero_le _), hadamardLayer_circuit_unit_depth]
 
 /-- The full pipeline records the actual two Hadamard layers and its one XOR query. -/
-public theorem walshNative_queryPipeline_eventCost {width : Nat}
-    (function : Fin (2 ^ width) → Bool) :
-    (queryPipeline function).eventCost =
+public lemma walshNative_queryPipeline_eventCost (width : Nat) :
+    (queryPipeline width).eventCost =
       ((width + 1) • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (XorOracle.model function)) (.gate .singleQubit) +
+        (model := .quantum AlgorithmGate.model (XorOracle.model width)) (.gate .singleQubit) +
         ResourcePool.singleton
-          (model := .quantum AlgorithmGate.model (XorOracle.model function)) (.oracle .xor)) +
+          (model := .quantum AlgorithmGate.model (XorOracle.model width)) (.oracle .xor)) +
       width • ResourcePool.singleton
-        (model := .quantum AlgorithmGate.model (XorOracle.model function))
+        (model := .quantum AlgorithmGate.model (XorOracle.model width))
           (.gate .singleQubit) := by
   rw [queryPipeline, UnitaryCircuit.seq_eventCost, UnitaryCircuit.seq_eventCost,
     hadamardLayer_circuit_eventCost, XorOracle.xorOracle_native_eventCost,
     walshNative_finalLayer_eventCost]
 
 /-- Unit query duration gives two layers on an empty input and three otherwise. -/
-public theorem walshNative_queryPipeline_unit_depth {width : Nat}
-    (function : Fin (2 ^ width) → Bool) :
-    (queryPipeline function).evaluatedEventDepth (fun _ => 1) =
+public lemma walshNative_queryPipeline_unit_depth (width : Nat) :
+    (queryPipeline width).evaluatedEventDepth (fun _ => 1) =
       if width = 0 then 2 else 3 := by
   change (UnitaryCircuit.evaluatedEventDepth (fun _ => 1)
-    (Gate.HadamardLayer.circuit (XorOracle.model function) (width + 1)) +
-    (XorOracle.circuit AlgorithmGate.model function).evaluatedEventDepth (fun _ => 1)) +
-    (finalLayer (XorOracle.model function) width).evaluatedEventDepth (fun _ => 1) = _
+    (Gate.HadamardLayer.circuit (XorOracle.model width) (width + 1)) +
+    (XorOracle.circuit AlgorithmGate.model width).evaluatedEventDepth (fun _ => 1)) +
+    (finalLayer (XorOracle.model width) width).evaluatedEventDepth (fun _ => 1) = _
   rw [hadamardLayer_circuit_unit_depth,
     XorOracle.xorOracle_native_unit_depth, walshNative_finalLayer_unit_depth]
   simp only [Nat.add_eq_zero_iff, Nat.one_ne_zero, and_false, ↓reduceIte]

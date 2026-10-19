@@ -26,15 +26,15 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Every actual output block preserves the full original reference with the zero owned bank. -/
-theorem code_output_entry (base : RuntimeCtx .quantum)
+lemma code_output_entry (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register} {History : Type} [Fintype History]
-    (state : State base Reference ((executionModel input).HiddenState × History))
+    (state : State base Reference ((executionModel N).HiddenState × History))
     (normalized : state.IsNormalized)
     (value : CShape.Value (.option (.unsignedWord (modulusBits N))))
     (left right : (context base noQuantum N count).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((code base noQuantum N input count).execute Reference state).mapClassical
+    ((((code base noQuantum N input count).execute (environment input) Reference state).mapClassical
       (fun entry => (run base noQuantum N input count).output.eval entry.1)).block value).matrix
         (left, leftRef) (right, rightRef) =
       if left = (context base noQuantum N count).quantumLayout.zeroLabel ∧
@@ -44,8 +44,8 @@ theorem code_output_entry (base : RuntimeCtx .quantum)
       else 0 := by
   have observed := BasisSeeded.readout_entry
     (context base noQuantum N count).quantumLayout.zeroLabel
-    ((code base noQuantum N input count).execute Reference state)
-    (code_seeded base noQuantum N input count state)
+    ((code base noQuantum N input count).execute (environment input) Reference state)
+    (code_seeded (environment := environment input) base noQuantum N input count state)
     (fun store => store.read (.storage (result base noQuantum N count).toCStorageRef))
     value left right leftRef rightRef
   have actual := code_output_point_reference base noQuantum N input count state normalized
@@ -58,10 +58,10 @@ theorem code_output_entry (base : RuntimeCtx .quantum)
     else 0) scalar)
 
 /-- The actual complete run promises the zero owned bank on every original-reference result. -/
-theorem output_state (base : RuntimeCtx .quantum)
+lemma output_state (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N) (count : Nat)
     {Reference : Register}
-    (original : OracleInput (executionModel input).classicalOracles base Reference)
+    (original : OracleInput (executionModel N).classicalOracles base Reference)
     (value : CShape.Value (.option (.unsignedWord (modulusBits N)))) :
     (StatePromise.mixed
       (BasisReference.target (R := (context base noQuantum N count).register)
@@ -72,9 +72,11 @@ theorem output_state (base : RuntimeCtx .quantum)
         original.caller.state.referenceMarginal
         ((ExecutionState.referenceMarginal_mass original.caller.state).trans
           original.caller.normalized))).Holds
-      ((((run base noQuantum N input count).finalState Reference original.state).mapClassical
+      ((((run base noQuantum N input count).finalState (environment input) Reference
+        original.state).mapClassical
         (run base noQuantum N input count).output.eval).block value) :=
-  AlgorithmRun.basisReference_readout_of_executionEntries (run base noQuantum N input count)
+  AlgorithmRun.basisReference_readout_of_executionEntries (environment := environment input)
+    (run base noQuantum N input count)
     (context base noQuantum N count).quantumLayout.zeroLabel (sourceDistribution input count)
     (code_output_entry base noQuantum N input count) original value
 

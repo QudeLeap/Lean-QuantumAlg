@@ -34,7 +34,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {width exponentWidth : Nat}
 
-private theorem scoped_borrowed (left right : CInputRef ctx (.unsignedWord width))
+private lemma scoped_borrowed (left right : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
     (scopedMultiplyStep (model := model) left right modulus output store).1.readBorrowedClassical =
@@ -44,7 +44,7 @@ private theorem scoped_borrowed (left right : CInputRef ctx (.unsignedWord width
     Store.readBorrowedClassical_popWorkspace, Store.readBorrowedClassical_applyOp,
     Store.readBorrowedClassical_pushWorkspace]
 
-private theorem choice_borrowed (base : CInputRef ctx (.unsignedWord width))
+private lemma choice_borrowed (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (value : CShape.Value .bit)
     (store : Store ctx) :
@@ -53,7 +53,7 @@ private theorem choice_borrowed (base : CInputRef ctx (.unsignedWord width))
   cases value with
   | bit bit => cases bit <;> simp only [multiplyChoiceStep, scoped_borrowed]
 
-private theorem bit_borrowed (base : CInputRef ctx (.unsignedWord width))
+private lemma bit_borrowed (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bit : CInputRef ctx .bit)
     (store : Store ctx) :
@@ -62,7 +62,7 @@ private theorem bit_borrowed (base : CInputRef ctx (.unsignedWord width))
   simp only [bitStep, choice_borrowed, scoped_borrowed]
 
 /-- The entire actual exponent fold preserves every borrowed classical value. -/
-theorem nativePower_fold_borrowed_values (base : CInputRef ctx (.unsignedWord width))
+lemma nativePower_fold_borrowed_values (base : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width)) (bits : List (CInputRef ctx .bit))
     (store : Store ctx) :
@@ -75,7 +75,7 @@ theorem nativePower_fold_borrowed_values (base : CInputRef ctx (.unsignedWord wi
         (bitStep (model := model) base modulus output bit store).1).1).readBorrowedClassical = _
       rw [ih, bit_borrowed]
 
-private theorem body_borrowed (spec : ModulusSpec width)
+private lemma body_borrowed (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store (powerCtx ctx width)) :
@@ -86,7 +86,7 @@ private theorem body_borrowed (spec : ModulusSpec width)
     ConstantWord.constantWord_foldStep_borrowed_values]
 
 /-- Actual allocation and release preserve the complete outer borrowed classical value. -/
-theorem nativePower_into_borrowed_values (spec : ModulusSpec width)
+lemma nativePower_into_borrowed_values (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx) :
@@ -96,7 +96,7 @@ theorem nativePower_into_borrowed_values (spec : ModulusSpec width)
     enterPower, Store.readBorrowedClassical_pushWorkspace]
 
 /-- Only the declared outer destination can change among the original structural reads. -/
-theorem nativePower_into_read_other (spec : ModulusSpec width)
+lemma nativePower_into_read_other (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
     (output : CWriteRef ctx (.unsignedWord width)) (store : Store ctx)
@@ -118,13 +118,14 @@ theorem nativePower_into_read_other (spec : ModulusSpec width)
   exact nativePower_initialized_read_original (model := model) spec base store other
 
 /-- The same actual execution jointly restores all borrowed storage and every external reference. -/
-theorem nativePower_into_borrowedRestored (spec : ModulusSpec width)
+lemma nativePower_into_borrowedRestored (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (output : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
     (into (model := model) spec base exponent output).BorrowedRestored Reference state
-      ((into (model := model) spec base exponent output).execute Reference state) := by
+      ((into (model := model) spec base exponent output).execute environment Reference state) := by
   rw [Circuit.BorrowedRestored, observeBorrowedAfter_sameContext, nativePower_into_execute]
   refine Eq.trans ?_ (observeBorrowed_mapClassical (ctx := ctx) (Reference := Reference)
     (H := model.HiddenState × History)

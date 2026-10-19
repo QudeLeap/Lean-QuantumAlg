@@ -31,21 +31,24 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.NativeActiveProgram
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA
 
 /-- The actual symbolic repetition realizes the same complete native frame iteration. -/
-theorem iterate_realizes (width count : Nat) (enough : 2 ≤ width.size) :
+lemma iterate_realizes (width count : Nat) (enough : 2 ≤ width.size) :
     UnitaryCircuit.Realizes (encoding width)
-      (UnitaryCircuit.iterate count (NativeMicrostep.program width enough))
+      (UnitaryCircuit.iterate count (NativeMicrostep.program width enough)) environment
       ((NativeMicrostep.step width)^[count]) :=
   (NativeMicrostep.program_realizes width enough).iterate count
 
 /-- Every coprime positive residue reaches the full terminal frame with exact ket amplitude. -/
-theorem folded_apply (modulus input : Nat) (nontrivial : 1 < modulus)
+lemma folded_apply (modulus input : Nat) (nontrivial : 1 < modulus)
     (coprime : Nat.Coprime input modulus) (positive : 0 < input) (bounded : input < modulus) :
     (UnitaryCircuit.iterate (QuotientSchedule.phaseWeight modulus input)
       (NativeMicrostep.program modulus.size
         (PredicateLayout.modulus_length_width modulus nontrivial))).applyNormalized
+          environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode
@@ -57,7 +60,8 @@ theorem folded_apply (modulus input : Nat) (nontrivial : 1 < modulus)
       NormalizedVector.ket
         ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
           ((encoding modulus.size).encode
-            (MacroBoundary.frame (TerminalPadding.finalState modulus input) modulus
+            (MacroBoundary.frame (TerminalPadding.finalState modulus input)
+              modulus
               (TerminalPadding.final_admissible modulus input positive bounded)
               (TerminalPadding.final_balance modulus input)
               (SignedTrajectory.finalIteration modulus input)))) := by
@@ -66,20 +70,22 @@ theorem folded_apply (modulus input : Nat) (nontrivial : 1 < modulus)
     NativeTrajectory.folded_frame modulus input coprime positive bounded]
 
 /-- Actual folding, length computation, and active repetition compose without a supplied state. -/
-theorem preprocessed_apply (modulus : Nat) (nontrivial : 1 < modulus)
+lemma preprocessed_apply (modulus : Nat) (nontrivial : 1 < modulus)
     (input : Fin (2 ^ modulus.size)) (coprime : Nat.Coprime input.val modulus)
     (positive : 0 < input.val) (bounded : input.val < modulus) :
     ((InitialFrame.program modulus).seq
       (UnitaryCircuit.iterate (QuotientSchedule.phaseWeight modulus input.val)
         (NativeMicrostep.program modulus.size
           (PredicateLayout.modulus_length_width modulus nontrivial)))).applyNormalized
+            environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
             ((encoding modulus.size).encode (InitialFrame.initial modulus input)))) =
       NormalizedVector.ket
         ((QubitLayout.canonical (encoding modulus.size).width).basisEquiv.symm
           ((encoding modulus.size).encode
-            (MacroBoundary.frame (TerminalPadding.finalState modulus input.val) modulus
+            (MacroBoundary.frame (TerminalPadding.finalState modulus input.val)
+              modulus
               (TerminalPadding.final_admissible modulus input.val positive bounded)
               (TerminalPadding.final_balance modulus input.val)
               (SignedTrajectory.finalIteration modulus input.val)))) := by

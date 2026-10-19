@@ -24,7 +24,7 @@ variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Multiplicative powers of the transported ECDLP group are the ordinary
 natural scalar action on the underlying Mathlib point. -/
-theorem groupPoint_pow_toMathlib (E : PrimeFieldShortWeierstrass p)
+lemma groupPoint_pow_toMathlib (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] (point : GroupPoint E) (exponent : Nat) :
     (point ^ exponent).toMathlib = exponent • point.toMathlib := by
   induction exponent with

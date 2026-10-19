@@ -57,7 +57,7 @@ def additionalSpace (N count : Nat) : SpacePool .quantum :=
     (NativeRetryChain.retainedSpace N count + tailAdditionalSpace N)
 
 /-- The selected output adds precisely one presence bit and one modulus-width word. -/
-theorem outputSpace_bits (N : Nat) :
+lemma outputSpace_bits (N : Nat) :
     outputSpace N = SpacePool.ofShape (.bits (modulusBits N + 1)) := by
   apply SpacePool.ext
   intro axis
@@ -65,31 +65,31 @@ theorem outputSpace_bits (N : Nat) :
   omega
 
 /-- Neither the retained output nor the three lexical cells introduces a quantum system. -/
-theorem tailAdditionalSpace_quantum (N : Nat) (dimension : ℕ+) :
+lemma tailAdditionalSpace_quantum (N : Nat) (dimension : ℕ+) :
     tailAdditionalSpace N (.quantumSystems dimension) = 0 := by
   rw [tailAdditionalSpace, outputSpace_bits]
   rfl
 
 /-- The complete quantum peak allowance is independent of the number of later batches. -/
-theorem additionalSpace_quantum (N count : Nat) (dimension : ℕ+) :
+lemma additionalSpace_quantum (N count : Nat) (dimension : ℕ+) :
     additionalSpace N count (.quantumSystems dimension) =
       additionalSpace N 0 (.quantumSystems dimension) := by
   simp only [additionalSpace, SpacePool.max, Pi.add_apply,
     NativeRetryChain.additionalSpace_quantum, NativeRetryChain.retainedSpace_quantum]
 
 /-- The real selected-output allocation has exactly the declared resident capacity. -/
-theorem context_resident (source : RuntimeCtx .quantum) (N : Nat) :
+lemma context_resident (source : RuntimeCtx .quantum) (N : Nat) :
     (context source N).residentSpace = outputSpace N + source.residentSpace :=
   RuntimeCtx.residentSpace_addRetained source (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
 
 /-- The real retained result has the same precise owned auxiliary capacity. -/
-theorem context_auxiliary (source : RuntimeCtx .quantum) (N : Nat) :
+lemma context_auxiliary (source : RuntimeCtx .quantum) (N : Nat) :
     (context source N).auxiliarySpace = outputSpace N + source.auxiliarySpace :=
   RuntimeCtx.auxiliarySpace_addRetained source (resultKey source)
     (LatticeBatchRecoveryOutput.OutputShape N) source.canonicalFreshKey_fresh
 
-private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
+private lemma sequence_pool {pre middle post : RuntimeCtx .quantum}
     (first : Circuit RuntimeRound.model pre middle)
     (second : Circuit RuntimeRound.model middle post)
     (path : (Circuit.seq first second).Path) :
@@ -100,14 +100,14 @@ private theorem sequence_pool {pre middle post : RuntimeCtx .quantum}
 variable {source : RuntimeCtx .quantum} {N length : Nat}
 
 /-- Actual retained allocation and optional selection obey the independent native ledger. -/
-theorem tail_pool_le
+lemma tail_pool_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     (tail inputs).resourcePool path ≤ selectionEnvelope N length :=
   Optional.Allocation.into_pool_le (model := RuntimeRound.model) _ _ path.2
 
 /-- Every actual tail path contains at most three events per source and one final pack. -/
-theorem tail_eventCount_le
+lemma tail_eventCount_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     ((tail inputs).eventTrace path).length ≤ 3 * length + 1 := by
@@ -116,7 +116,7 @@ theorem tail_eventCount_le
     (Optional.Allocation.eventEnvelope_card RuntimeRound.model (modulusBits N) length)
 
 /-- The actual serial tail obeys the same unpack/copy/pack duration formula. -/
-theorem tail_depth_le
+lemma tail_depth_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     (tail inputs).depth (fun _ => 1) path ≤ 3 * length + 1 :=
@@ -124,7 +124,7 @@ theorem tail_depth_le
     (Optional.Allocation.into_depth_le (model := RuntimeRound.model) _ _ path.2)
 
 /-- Every tail resident peak includes the original source, selected output and lexical scratch. -/
-theorem tail_resident_le
+lemma tail_resident_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     (tail inputs).peakResidentSpace path ≤ source.residentSpace + tailAdditionalSpace N := by
@@ -144,7 +144,7 @@ theorem tail_resident_le
     exact bounded.trans_eq (by unfold tailAdditionalSpace; ac_rfl)
 
 /-- The same actual tail charges retained ownership and lexical auxiliary capacity once. -/
-theorem tail_auxiliary_le
+lemma tail_auxiliary_le
     (inputs : Fin length → CInputRef source (LatticeBatchRecoveryOutput.OutputShape N))
     (path : (tail inputs).Path) :
     (tail inputs).peakAuxiliarySpace path ≤ source.auxiliarySpace + tailAdditionalSpace N := by
@@ -166,7 +166,7 @@ theorem tail_auxiliary_le
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
 
 /-- Every actual full path pays for the same chain and every final selection instruction. -/
-theorem code_pool_le (input : Input N) (count : Nat)
+lemma code_pool_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).resourcePool path ≤ eventEnvelope N count :=
   (sequence_pool (NativeRetryChain.code base noQuantum input count)
@@ -175,20 +175,20 @@ theorem code_pool_le (input : Input N) (count : Nat)
         (tail_pool_le _ path.2))
 
 /-- The independent combined ledger bounds the event count of that same complete path. -/
-theorem code_eventCount_le (input : Input N) (count : Nat)
+lemma code_eventCount_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     ((code base noQuantum input count).eventTrace path).length ≤ (eventEnvelope N count).card :=
   Multiset.card_le_card (code_pool_le base noQuantum input count path)
 
 /-- The full actual dependency chain includes selection after every requested batch. -/
-theorem code_depth_le (input : Input N) (count : Nat)
+lemma code_depth_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).depth (fun _ => 1) path ≤ depthBound N count :=
   Nat.add_le_add (NativeRetryChain.code_depth_le base noQuantum input count path.1)
     (tail_depth_le _ path.2)
 
 /-- The final complete context contains exactly all chain cells and the retained selected word. -/
-theorem code_context_resident (N count : Nat) :
+lemma code_context_resident (N count : Nat) :
     (context (NativeRetryChain.context base noQuantum N count) N).residentSpace =
       base.residentSpace + retainedSpace N count := by
   rw [context_resident, NativeRetryChain.context_resident]
@@ -196,7 +196,7 @@ theorem code_context_resident (N count : Nat) :
   ac_rfl
 
 /-- The complete final auxiliary capacity has exactly the same retained additions. -/
-theorem code_context_auxiliary (N count : Nat) :
+lemma code_context_auxiliary (N count : Nat) :
     (context (NativeRetryChain.context base noQuantum N count) N).auxiliarySpace =
       base.auxiliarySpace + retainedSpace N count := by
   rw [context_auxiliary, NativeRetryChain.context_auxiliary]
@@ -204,7 +204,7 @@ theorem code_context_auxiliary (N count : Nat) :
   ac_rfl
 
 /-- The peak combines the actual chain peak and one final selection peak by a maximum. -/
-theorem code_resident_le (input : Input N) (count : Nat)
+lemma code_resident_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).peakResidentSpace path ≤
       base.residentSpace + additionalSpace N count := by
@@ -218,7 +218,7 @@ theorem code_resident_le (input : Input N) (count : Nat)
     exact bounded.trans (add_le_add (le_refl _) (SpacePool.le_max_right _ _))
 
 /-- Retained cells accumulate, while quantum and classical temporary capacity are peak bounds. -/
-theorem code_auxiliary_le (input : Input N) (count : Nat)
+lemma code_auxiliary_le (input : Input N) (count : Nat)
     (path : (code base noQuantum input count).Path) :
     (code base noQuantum input count).peakAuxiliarySpace path ≤
       base.auxiliarySpace + additionalSpace N count := by

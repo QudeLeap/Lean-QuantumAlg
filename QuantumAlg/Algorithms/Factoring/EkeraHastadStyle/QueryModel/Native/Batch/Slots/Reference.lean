@@ -34,7 +34,7 @@ def slotsInput {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
       (samples ctx width count).canonicalFreshKey (.bits width)
       (samples ctx width count).canonicalFreshKey_fresh
 
-theorem slotsInput_storage {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+lemma slotsInput_storage {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     (width : Nat) (ref : CWriteRef ctx shape) (count : Nat) :
     slotsInput width (.storage ref.toCStorageRef) count =
       .storage (liftSamples width ref count).toCStorageRef := by
@@ -46,7 +46,7 @@ theorem slotsInput_storage {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape :
           (samples ctx width count).canonicalFreshKey (.bits width)
           (samples ctx width count).canonicalFreshKey_fresh) ih
 
-theorem slotsInput_product {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma slotsInput_product {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {left right : CShape} (width : Nat) (first : CInputRef ctx left)
     (second : CInputRef ctx right) (count : Nat) :
     slotsInput width (.product first second) count =
@@ -61,8 +61,9 @@ theorem slotsInput_product {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The finite sequence of actual retention instructions preserves weighted
 reference-fiber observations of every pre-existing structural read. -/
-theorem allocateSamples_reference {gates : GateModel} {oracles : OracleModel}
+lemma allocateSamples_reference {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment}
     (ctx : RuntimeCtx .quantum) (width : Nat) {shape : CShape}
     (input : CInputRef ctx shape)
     (count : Nat) {Reference : Register} {History : Type} [Fintype History]
@@ -71,7 +72,7 @@ theorem allocateSamples_reference {gates : GateModel} {oracles : OracleModel}
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
       ((allocateSamples (model := .quantum gates oracles operations classicalOracles)
-        ctx width count).execute Reference state)
+        ctx width count).execute environment Reference state)
       (fun entry _ => weight (entry.1.read (slotsInput width input count))) leftRef rightRef =
     ExecutionState.referenceFiberSum state (fun entry _ => weight (entry.1.read input))
       leftRef rightRef := by
@@ -82,7 +83,7 @@ theorem allocateSamples_reference {gates : GateModel} {oracles : OracleModel}
           (classicalOracles.HiddenState × (History × Unit)) =>
           ExecutionState.referenceFiberSum output
             (fun entry _ => weight (entry.1.read input)) leftRef rightRef)
-        (Circuit.execute_id_mapClassical
+        (Circuit.execute_id_mapClassical (environment := environment) (allowAllocation := true)
           (model := .quantum gates oracles operations classicalOracles) Reference state)
       exact executed.trans (ExecutionState.referenceFiberSum_mapClassical state
         (fun entry => (entry.1, (entry.2.1, (entry.2.2, ()))))
@@ -94,20 +95,23 @@ theorem allocateSamples_reference {gates : GateModel} {oracles : OracleModel}
         (model := .quantum gates oracles operations classicalOracles) (samples ctx width count)
         (samples ctx width count).canonicalFreshKey (.bits width)
         (samples ctx width count).canonicalFreshKey_fresh
-      exact (Circuit.referenceFiberSum_execute_seq previous retained state
+      exact (Circuit.referenceFiberSum_execute_seq (environment := environment) previous
+        retained state
         (fun store => weight (store.read (slotsInput width input (count + 1))))
         leftRef rightRef).trans
-        ((Circuit.referenceFiberSum_execute_retain_input (slotsInput width input count)
+        ((Circuit.referenceFiberSum_execute_retain_input (environment := environment)
+          (slotsInput width input count)
           (samples ctx width count).canonicalFreshKey (.bits width)
           (samples ctx width count).canonicalFreshKey_fresh
-          (previous.execute Reference state) weight leftRef rightRef).trans ih)
+          (previous.execute environment Reference state) weight leftRef rightRef).trans ih)
 
 attribute [local irreducible] samples allocateSamples liftSamples
 
 /-- Retaining all sixteen samples and the factor cell leaves the joint value
 of any two previously existing cells unchanged in every reference block. -/
-theorem allocate_pair_reference {gates : GateModel} {oracles : OracleModel}
+lemma allocate_pair_reference {gates : GateModel} {oracles : OracleModel}
     {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
+    {environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment}
     (ctx : RuntimeCtx .quantum) (N : Nat)
     {firstShape secondShape : CShape}
     (first : CWriteRef ctx firstShape) (second : CWriteRef ctx secondShape)
@@ -117,7 +121,7 @@ theorem allocate_pair_reference {gates : GateModel} {oracles : OracleModel}
     (leftRef rightRef : Reference.Index) :
     ExecutionState.referenceFiberSum
       ((allocate (model := .quantum gates oracles operations classicalOracles)
-        ctx N).execute Reference state)
+        ctx N).execute environment Reference state)
       (fun entry _ => weight
         (entry.1.read (.storage (liftWrite N first).toCStorageRef))
         (entry.1.read (.storage (liftWrite N second).toCStorageRef))) leftRef rightRef =
@@ -141,22 +145,23 @@ theorem allocate_pair_reference {gates : GateModel} {oracles : OracleModel}
     (slotsInput_product (measurementBits N) _ _ 16).trans
       (congrArg₂ CInputRef.product (slotsInput_storage _ first 16)
         (slotsInput_storage _ second 16))
-  have kept := Circuit.referenceFiberSum_execute_retain_input
+  have kept := Circuit.referenceFiberSum_execute_retain_input (environment := environment)
     (gates := gates) (oracles := oracles)
     (operations := operations) (classicalOracles := classicalOracles)
     (.product (.storage (liftSamples (measurementBits N) first 16).toCStorageRef)
       (.storage (liftSamples (measurementBits N) second 16).toCStorageRef))
     middle.canonicalFreshKey (.option (.unsignedWord (modulusBits N)))
-    middle.canonicalFreshKey_fresh (previous.execute Reference state) oldWeight leftRef rightRef
-  have oldSlots := allocateSamples_reference
+    middle.canonicalFreshKey_fresh (previous.execute environment Reference state) oldWeight
+      leftRef rightRef
+  have oldSlots := allocateSamples_reference (environment := environment)
     (gates := gates) (oracles := oracles)
     (operations := operations) (classicalOracles := classicalOracles)
     ctx (measurementBits N) oldRead 16 state oldWeight leftRef rightRef
   have observed := congrArg
     (fun read : CInputRef middle (.product firstShape secondShape) =>
-      ExecutionState.referenceFiberSum (previous.execute Reference state)
+      ExecutionState.referenceFiberSum (previous.execute environment Reference state)
         (fun entry _ => oldWeight (entry.1.read read)) leftRef rightRef) lifted
-  exact (Circuit.referenceFiberSum_execute_seq previous factor state
+  exact (Circuit.referenceFiberSum_execute_seq (environment := environment) previous factor state
     (fun store => weight (store.read (.storage (liftWrite N first).toCStorageRef))
       (store.read (.storage (liftWrite N second).toCStorageRef))) leftRef rightRef).trans
         (kept.trans (observed.symm.trans oldSlots))

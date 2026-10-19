@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Addition.TTK
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit.GateSpec
 
 /-- Preserve both input words and xor `right < left` into the explicit output. -/
@@ -40,7 +42,7 @@ def comparisonProgram (n : Nat) :
   programList (QubitLayout.canonical _) .empty (comparisonGates n)
 
 /-- The literal gate list preserves both inputs and computes xor-output comparison. -/
-theorem ttkComparison_step (n : Nat) (s : OverflowRegisters n) :
+lemma ttkComparison_step (n : Nat) (s : OverflowRegisters n) :
     stepList (comparisonGates n) s = comparisonOutput s := by
   have hrestore := stepList_reverse_stepList (subtractionGates n) s.1
   rw [ttkSubtraction_step n s.1] at hrestore
@@ -53,12 +55,13 @@ theorem ttkComparison_step (n : Nat) (s : OverflowRegisters n) :
   rw [hrestore]
 
 /-- Exact comparison for all widths and arbitrary initial output bits. -/
-theorem ttkComparison_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (overflowEncoding n) (comparisonProgram n) comparisonOutput :=
+lemma ttkComparison_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (overflowEncoding n) (comparisonProgram n) environment
+      comparisonOutput :=
   realizesList_congrStep (QubitLayout.canonical _) .empty
-    (comparisonGates n) (ttkComparison_step n)
+    (comparisonGates n) (ttkComparison_step n) environment
 
-private theorem lifted_events {n : Nat}
+private lemma lifted_events {n : Nat}
     (gates : List (EncodedBit.GateSpec (encoding n))) :
     (gates.map withOverflowGate).map (event .empty) = gates.map (event .empty) := by
   simp only [List.map_map, Function.comp_def]
@@ -67,7 +70,7 @@ private theorem lifted_events {n : Nat}
   cases gate <;> rfl
 
 /-- Native coordinates come from one inverse overflow and one forward low-word list. -/
-theorem ttkComparison_native_count (n : Nat)
+lemma ttkComparison_native_count (n : Nat)
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (comparisonProgram n).eventCost =
       ResourcePool.count focus (overflowProgram n).eventCost +
@@ -87,7 +90,7 @@ theorem ttkComparison_native_count (n : Nat)
   rw [ttkOverflowSubtraction_native_count]
 
 /-- Exact CNOT count, including the empty and one-bit comparisons. -/
-theorem ttkComparison_cnot_count (n : Nat) :
+lemma ttkComparison_cnot_count (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (comparisonProgram n).eventCost =
       2 * (n + 2 * (n - 1) + 2 * (n - 2)) + (if 2 ≤ n then 1 else 0) := by
@@ -95,7 +98,7 @@ theorem ttkComparison_cnot_count (n : Nat) :
   omega
 
 /-- Exact Toffoli count for the actual comparison program. -/
-theorem ttkComparison_toffoli_count (n : Nat) :
+lemma ttkComparison_toffoli_count (n : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .toffoli)
       (comparisonProgram n).eventCost =
       4 * (n - 1) + (if n = 0 then 0 else 1) := by
@@ -103,7 +106,7 @@ theorem ttkComparison_toffoli_count (n : Nat) :
   omega
 
 /-- The actual event ledger has one occurrence for every gate in both lists. -/
-theorem ttkComparison_event_count (n : Nat) :
+lemma ttkComparison_event_count (n : Nat) :
     (comparisonProgram n).eventCost.card =
       2 * n + 8 * (n - 1) + 4 * (n - 2) +
         (if 2 ≤ n then 1 else 0) + (if n = 0 then 0 else 1) := by
@@ -116,7 +119,7 @@ theorem ttkComparison_event_count (n : Nat) :
   omega
 
 /-- Unit-duration serial depth of the literal comparison program. -/
-theorem ttkComparison_serial_depth (n : Nat) :
+lemma ttkComparison_serial_depth (n : Nat) :
     (comparisonProgram n).evaluatedEventDepth (fun _ => 1) =
       2 * n + 8 * (n - 1) + 4 * (n - 2) +
         (if 2 ≤ n then 1 else 0) + (if n = 0 then 0 else 1) := by
@@ -128,7 +131,7 @@ theorem ttkComparison_serial_depth (n : Nat) :
     _ = _ := ttkComparison_event_count n
 
 /-- Closed resource formulas for the actual serial composition above width one. -/
-theorem ttkComparison_resources_of_two_le (n : Nat) (hn : 2 ≤ n) :
+lemma ttkComparison_resources_of_two_le (n : Nat) (hn : 2 ≤ n) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty) (.gate .cnot)
       (comparisonProgram n).eventCost =
         10 * n - 11 ∧
@@ -144,7 +147,7 @@ theorem ttkComparison_resources_of_two_le (n : Nat) (hn : 2 ≤ n) :
   omega
 
 /-- The real interface has two words and its output bit, with no carry workspace. -/
-theorem ttkComparison_interface (n : Nat) :
+lemma ttkComparison_interface (n : Nat) :
     (overflowEncoding n).width = 2 * n + 1 ∧
       (QubitLayout.canonical (overflowEncoding n).width).systemIdx =
         List.range (2 * n + 1) :=

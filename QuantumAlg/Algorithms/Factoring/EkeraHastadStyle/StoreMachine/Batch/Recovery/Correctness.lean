@@ -24,6 +24,9 @@ open Execution ShortDLP.CompiledMAU
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 -- Retained allocation changes no register; the original bank need not be unfolded here.
@@ -32,7 +35,7 @@ attribute [local irreducible] NativeBatch.context
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
 /-- Every original structural read survives both real allocation and complete recovery. -/
-theorem tail_callerFrame (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
+lemma tail_callerFrame (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState)
     {shape : CShape} (other : CInputRef (NativeBatch.context base noQuantum N) shape) :
     (step base noQuantum input (before, hidden)).1.1.read (liftInput base noQuantum N other) =
@@ -43,7 +46,7 @@ theorem tail_callerFrame (input : Input N) (before : Store (NativeBatch.context 
     (liftInput base noQuantum N other) (result_avoids_input base noQuantum N other)).trans
       (Store.read_pushRetained_underRetained before _ _ _ other)
 
-private theorem batchValue_allocated (sample : Fin (2 ^ residueSamplingBits N))
+private lemma batchValue_allocated (sample : Fin (2 ^ residueSamplingBits N))
     (before : Store (NativeBatch.context base noQuantum N)) :
     LatticeFixedBatchRecoveryMachine.batchValue sample (terminals base noQuantum N)
       (before.pushRetained (resultKey base noQuantum N) (LatticeBatchRecoveryOutput.OutputShape N)
@@ -64,7 +67,7 @@ private theorem batchValue_allocated (sample : Fin (2 ^ residueSamplingBits N))
       (.bitsGet (sourceTerminals base noQuantum N index) bit))
 
 /-- The retained output is the exact original batch value of the actual sixteen source results. -/
-theorem tail_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma tail_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState)
     (parameterStored : before.read (NativeBatch.finalParameter base noQuantum N) =
@@ -84,7 +87,7 @@ theorem tail_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     _ initialized).output.trans (batchValue_allocated base noQuantum sample before)
 
 /-- The complete output observes that same actual retained factor. -/
-theorem run_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
+lemma run_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
     (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState)
     (parameterStored : before.read (NativeBatch.finalParameter base noQuantum N) =
@@ -95,28 +98,28 @@ theorem run_output (input : Input N) (sample : Fin (2 ^ residueSamplingBits N))
   tail_output base noQuantum input sample before hidden parameterStored
 
 /-- Recovery preserves the sampled residue in its original cell. -/
-theorem tail_sample (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
+lemma tail_sample (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState) :
     (step base noQuantum input (before, hidden)).1.1.read (sourceSample base noQuantum N) =
       before.read (NativeBatch.finalSample base noQuantum N) :=
   tail_callerFrame base noQuantum input before hidden _
 
 /-- Recovery preserves the complete shared parameter in its original cell. -/
-theorem tail_parameter (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
+lemma tail_parameter (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState) :
     (step base noQuantum input (before, hidden)).1.1.read (sourceParameter base noQuantum N) =
       before.read (NativeBatch.finalParameter base noQuantum N) :=
   tail_callerFrame base noQuantum input before hidden _
 
 /-- Recovery preserves all sixteen actual source outcome cells together. -/
-theorem tail_results (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
+lemma tail_results (input : Input N) (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState) :
     (step base noQuantum input (before, hidden)).1.1.read (sourceResults base noQuantum N) =
       before.read (NativeBatch.finalResults base noQuantum N) :=
   tail_callerFrame base noQuantum input before hidden _
 
 /-- The original complete classical source result survives as one joint structured value. -/
-theorem tail_sourceOutput (input : Input N)
+lemma tail_sourceOutput (input : Input N)
     (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState) :
     (step base noQuantum input (before, hidden)).1.1.read
@@ -129,33 +132,35 @@ theorem tail_sourceOutput (input : Input N)
         (NativeBatch.finalResults base noQuantum N)))
 
 /-- The actual retained recovery record preserves the incoming service state exactly. -/
-theorem tail_hiddenState (input : Input N)
+lemma tail_hiddenState (input : Input N)
     (before : Store (NativeBatch.context base noQuantum N))
     (hidden : RuntimeRound.model.HiddenState) :
     (step base noQuantum input (before, hidden)).1.2 = hidden := rfl
 
 /-- The tail leaves the entire actual bank jointly with an arbitrary reference unchanged. -/
-theorem tail_quantumMarginal (input : Input N) :
-    Circuit.RetainedQuantumPreserved (tail base noQuantum input) :=
-  Circuit.RetainedRecord.quantumPreserved (tail base noQuantum input)
+lemma tail_quantumMarginal (input : Input N) :
+    Circuit.RetainedQuantumPreserved (environment := environment) (tail base noQuantum input) :=
+  Circuit.RetainedRecord.quantumPreserved (environment := environment) (tail base noQuantum input)
     (step base noQuantum input) (tail_execute base noQuantum input)
 
 /-- Complete recovery preserves exactly the native source's outgoing quantum-reference state. -/
-theorem code_quantumMarginal (input : Input N) :
-    Circuit.RetainedTailQuantumPreserved (NativeBatch.code base noQuantum N)
+lemma code_quantumMarginal (input : Input N) :
+    Circuit.RetainedTailQuantumPreserved (environment := environment)
+      (NativeBatch.code base noQuantum N)
       (tail base noQuantum input) :=
-  Circuit.RetainedTailRecord.quantumPreserved (NativeBatch.code base noQuantum N)
+  Circuit.RetainedTailRecord.quantumPreserved (environment := environment)
+    (NativeBatch.code base noQuantum N)
     (tail base noQuantum input) (step base noQuantum input) (code_execute base noQuantum input)
 
 -- Use the proved complete recovery contract without reducing its finite execution tree.
 attribute [local irreducible] LatticeFixedBatchRecoveryMachine.into
 
-private theorem body_borrowedRestored (input : Input N) (Reference : Register)
+private lemma body_borrowedRestored (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (context base noQuantum N) Reference
       (RuntimeRound.model.HiddenState × History)) :
     (body base noQuantum input).BorrowedRestored Reference state
-      ((body base noQuantum input).execute Reference state) :=
+      ((body base noQuantum input).execute environment Reference state) :=
   LatticeFixedBatchRecoveryMachine.into_borrowedRestored
     (model := RuntimeRound.model) (ctx := context base noQuantum N) (History := History)
     input (sourceParameter base noQuantum N) (terminals base noQuantum N)
@@ -164,36 +169,37 @@ private theorem body_borrowedRestored (input : Input N) (Reference : Register)
 attribute [local irreducible] body
 
 /-- The allocated tail restores all borrowed classical, quantum and reference correlations. -/
-theorem tail_borrowedRestored (input : Input N) (Reference : Register)
+lemma tail_borrowedRestored (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (NativeBatch.context base noQuantum N) Reference
       (RuntimeRound.model.HiddenState × History)) :
     (tail base noQuantum input).BorrowedRestored Reference state
-      ((tail base noQuantum input).execute Reference state) := by
+      ((tail base noQuantum input).execute environment Reference state) := by
   let allocation : Circuit RuntimeRound.model (NativeBatch.context base noQuantum N)
       (context base noQuantum N) :=
     .retain (model := RuntimeRound.model) (NativeBatch.context base noQuantum N)
       (resultKey base noQuantum N) (LatticeBatchRecoveryOutput.OutputShape N)
       (NativeBatch.context base noQuantum N).canonicalFreshKey_fresh
-  have firstRestores := Circuit.borrowedRestored_retain
+  have firstRestores := Circuit.borrowedRestored_retain (environment := environment)
     (model := RuntimeRound.model) (ctx := NativeBatch.context base noQuantum N)
     (Reference := Reference) (H := History)
     (resultKey base noQuantum N) (LatticeBatchRecoveryOutput.OutputShape N)
     (NativeBatch.context base noQuantum N).canonicalFreshKey_fresh state
-  have secondRestores := body_borrowedRestored base noQuantum input Reference
-    (History := History × Unit) (allocation.execute Reference state)
-  exact Circuit.borrowedRestored_seq (model := RuntimeRound.model)
+  have secondRestores := body_borrowedRestored (environment := environment)
+    base noQuantum input Reference
+    (History := History × Unit) (allocation.execute environment Reference state)
+  exact Circuit.borrowedRestored_seq (environment := environment) (model := RuntimeRound.model)
     (ctx := NativeBatch.context base noQuantum N)
     (middle := context base noQuantum N) (post := context base noQuantum N)
     (Reference := Reference) (H := History) allocation (body base noQuantum input)
     state firstRestores secondRestores
 
 /-- The original first batch and complete recovery restore the same borrowed interface jointly. -/
-theorem code_borrowedRestored (input : Input N) (Reference : Register)
+lemma code_borrowedRestored (input : Input N) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History)) :
     (code base noQuantum input).BorrowedRestored Reference state
-      ((code base noQuantum input).execute Reference state) := by
+      ((code base noQuantum input).execute environment Reference state) := by
   unfold code
   apply Circuit.borrowedRestored_seq
   · exact NativeBatch.nativeBatch_borrowedRestored base noQuantum N Reference state

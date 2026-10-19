@@ -49,18 +49,18 @@ public def circuit (oracles : OracleModel) (angle : Real) :
   .macroCall "controlled-phase" ((((first.seq second).seq controlled).seq middle).seq controlled)
 
 /-- The macro records the five actual native occurrences in their execution order. -/
-public theorem controlledPhase_circuit_events (oracles : OracleModel) (angle : Real) :
+public lemma controlledPhase_circuit_events (oracles : OracleModel) (angle : Real) :
     (circuit oracles angle).eventTrace =
       [.gate .singleQubit, .gate .singleQubit, .gate .cnot, .gate .singleQubit, .gate .cnot] := by
   rfl
 
 /-- The chosen serial word has all five native dependencies in the same circuit period. -/
-public theorem controlledPhase_circuit_unit_depth (oracles : OracleModel) (angle : Real) :
+public lemma controlledPhase_circuit_unit_depth (oracles : OracleModel) (angle : Real) :
     (circuit oracles angle).evaluatedEventDepth (fun _ => 1) = 5 := by
   rfl
 
 /-- One descriptive annotation accompanies the complete retained native expansion. -/
-public theorem controlledPhase_circuit_macro_count (oracles : OracleModel) (angle : Real) :
+public lemma controlledPhase_circuit_macro_count (oracles : OracleModel) (angle : Real) :
     (circuit oracles angle).macroCount "controlled-phase" = 1 := by
   rfl
 

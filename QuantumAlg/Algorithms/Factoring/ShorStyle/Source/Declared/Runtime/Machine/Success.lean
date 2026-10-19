@@ -26,15 +26,16 @@ open Execution
 noncomputable section
 
 /-- Actual chronological completed retries attain the original factoring success threshold. -/
-theorem output_success_probability_ge (base : RuntimeCtx .quantum)
+lemma output_success_probability_ge (base : RuntimeCtx .quantum)
     (noQuantum : base.quantumWires = []) {N : Nat}
     (model : NumberTheory.Factoring.SemiprimeFactorModel N) (budget : FailureBudget)
     (wellFormed : budget.WellFormed) {Reference : Register}
     (original : OracleInput
-      (executionModel (Probability.Input.ofSemiprimeModel model)).classicalOracles base Reference) :
+      (executionModel N).classicalOracles base Reference) :
     FailureBudget.successThreshold budget ≤
       ((run base noQuantum N (Probability.Input.ofSemiprimeModel model)
-        (retryCount N budget)).outputDistribution original).toOuterMeasure
+        (retryCount N budget)).outputDistribution
+          (environment (Probability.Input.ofSemiprimeModel model)) original).toOuterMeasure
           {value | Probability.ReturnedDeclaredFactor model value} := by
   let source := Probability.Input.ofSemiprimeModel model
   let sampling := PMF.independentReplicateVector (sourceOutcomePMF source) (retryCount N budget)
@@ -43,7 +44,8 @@ theorem output_success_probability_ge (base : RuntimeCtx .quantum)
   let accepted : Set (CShape.Value (.option (.unsignedWord (modulusBits N)))) :=
     {value | Probability.ReturnedDeclaredFactor model value}
   have actual : ((run base noQuantum N source (retryCount N budget)).outputDistribution
-      original).toOuterMeasure accepted = sampling.toOuterMeasure (result ⁻¹' accepted) :=
+      (environment source) original).toOuterMeasure accepted = sampling.toOuterMeasure (result
+        ⁻¹' accepted) :=
     (congrArg (fun distribution : PMF (CShape.Value (.option (.unsignedWord (modulusBits N)))) =>
       distribution.toOuterMeasure accepted)
       (outputDistribution_eq base noQuantum N source (retryCount N budget) original)).trans

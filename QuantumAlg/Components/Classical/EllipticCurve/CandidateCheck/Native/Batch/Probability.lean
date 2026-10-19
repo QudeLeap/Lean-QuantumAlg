@@ -27,10 +27,10 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth count : Nat}
 
-private theorem eventWeight_of_mapped_eq {A B C : Type} [Fintype A] [Fintype B] [Fintype C]
+private lemma eventWeight_of_mapped_eq {A B C : Type} [Fintype A] [Fintype B] [Fintype C]
     {R : Register} (left : ExecutionState A R) (right : ExecutionState B R)
     (readLeft : A → C) (readRight : B → C)
     (leftDecision rightDecision : DecidableEq C)
@@ -45,71 +45,73 @@ private theorem eventWeight_of_mapped_eq {A B C : Type} [Fintype A] [Fintype B] 
   simpa only [ExecutionState.effectWeight_mapClassical_decision] using weighted
 
 /-- Every Boolean event has the same weight in the actual output and original complete blocks. -/
-theorem recoveryTail_eventWeight (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
+lemma recoveryTail_eventWeight (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History))
     (event : CShape.Value (.option (.unsignedWord scalarWidth)) → Bool) :
-    ((recoveryTail curve modulus samples base target).execute Reference state).effectWeight
+    ((recoveryTail curve modulus samples base target).execute environment Reference
+      state).effectWeight
         (fun entry => if event (entry.1.read (batchResultRead ctx width scalarWidth)) = true then
           Effect.one (Register.prod (batchResultCtx ctx width scalarWidth).register Reference)
         else Effect.zero
           (Register.prod (batchResultCtx ctx width scalarWidth).register Reference)) =
       state.effectWeight (fun entry =>
-        if event (recoveryTailOutput curve modulus samples base target
+        if event (recoveryTailOutput (environment := environment) curve modulus samples base target
           (entry.1, entry.2.1)) = true then
           Effect.one (Register.prod ctx.register Reference)
         else Effect.zero (Register.prod ctx.register Reference)) := by
   exact eventWeight_of_mapped_eq
     (C := CShape.Value (.option (.unsignedWord scalarWidth)) × History)
-    ((recoveryTail curve modulus samples base target).execute Reference state)
+    ((recoveryTail curve modulus samples base target).execute environment Reference state)
     state
     (fun entry => (entry.1.read (batchResultRead ctx width scalarWidth), entry.2.2.1))
-    (fun entry => (recoveryTailOutput curve modulus samples base target
+    (fun entry => (recoveryTailOutput (environment := environment) curve modulus samples base target
       (entry.1, entry.2.1), entry.2.2))
     _ _
     (recoveryTail_outputState curve modulus samples base target Reference state)
     (fun entry => event entry.1)
 
 /-- The actual output PMF uses the same incoming state and actual returned-store read. -/
-theorem recoveryTailRun_outputDistribution (curve : CurveSpec width)
+lemma recoveryTailRun_outputDistribution (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
     (initial : OracleInput model.classicalOracles ctx Reference) :
-    (recoveryTailRun curve modulus samples base target).outputDistribution initial =
+    (recoveryTailRun curve modulus samples base target).outputDistribution environment initial =
       (initial.state.toPMF initial.normalized).map
-        (recoveryTailOutput curve modulus samples base target) := by
+        (recoveryTailOutput (environment := environment) curve modulus samples base target) := by
   let run := recoveryTailRun curve modulus samples base target
-  have readout := AlgorithmRun.finalState_readout run Reference initial.state
-  have observed := recoveryTailRun_outputState curve modulus samples base target
-    Reference initial.state
+  have readout := AlgorithmRun.finalState_readout run environment Reference initial.state
+  have observed := recoveryTailRun_outputState (environment := environment) curve modulus
+    samples base target Reference initial.state
   have complete := readout.symm.trans observed
   apply PMF.ext
   intro value
   have actualProbability := congrArg (fun distribution => distribution value)
-    (ExecutionState.toPMF_mapClassical (run.execute Reference initial.state)
-      (run.execute_normalized initial) run.result)
+    (ExecutionState.toPMF_mapClassical (run.execute environment Reference initial.state)
+      (run.execute_normalized environment initial) run.result)
   have inputProbability := congrArg (fun distribution => distribution value)
     (ExecutionState.toPMF_mapClassical initial.state initial.normalized
-      (recoveryTailOutput curve modulus samples base target))
+      (recoveryTailOutput (environment := environment) curve modulus samples base target))
   have masses := congrArg (fun output :
       ExecutionState (CShape.Value (.option (.unsignedWord scalarWidth)))
         (Register.prod ctx.register Reference) => ENNReal.ofReal (output.block value).mass) complete
   exact actualProbability.symm.trans (masses.trans inputProbability)
 
 /-- Every actual Boolean output event is the same event on the original input blocks. -/
-theorem recoveryTailRun_eventProbability (curve : CurveSpec width)
+lemma recoveryTailRun_eventProbability (curve : CurveSpec width)
     (modulus : ModulusSpec scalarWidth)
     (samples : Fin count → CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
     (base target : CInputRef ctx (PointShape width)) {Reference : Register}
     (initial : OracleInput model.classicalOracles ctx Reference)
     (event : CShape.Value (.option (.unsignedWord scalarWidth)) → Bool) :
-    ((recoveryTailRun curve modulus samples base target).outputDistribution initial).map
+    ((recoveryTailRun curve modulus samples base target).outputDistribution environment initial).map
         event true =
       (initial.state.toPMF initial.normalized).map
-        (event ∘ recoveryTailOutput curve modulus samples base target) true := by
+        (event ∘ recoveryTailOutput (environment := environment) curve modulus samples base
+          target) true := by
   rw [recoveryTailRun_outputDistribution, PMF.map_comp]
 
 end

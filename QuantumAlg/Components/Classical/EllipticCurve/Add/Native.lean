@@ -85,7 +85,7 @@ def classifierZeroY (classifier : Classifier ctx width) :
     (.product (.second (.second (classifierRead classifier.leftRaw)))
       (classifierRead classifier.zero)) classifier.yZero
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- The original five operations occur before any branch is selected. -/

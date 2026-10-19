@@ -8,3 +8,5 @@ module
 
 public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Basic
 public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Endpoint
+public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Execution
+public import QuantumAlg.Primitives.QSP.SingleQubit.Chebyshev.Execution.Results

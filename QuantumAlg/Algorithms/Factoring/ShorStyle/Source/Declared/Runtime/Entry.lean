@@ -7,7 +7,11 @@ Authors: QudeLeap Team
 module
 
 import all QuantumAlg.Core.Execution.Basis.Seeded.Admission
-import all QuantumAlg.Core.Execution.CycleSchedule
+import all QuantumAlg.Core.Execution.Classical.Predicate
+import all QuantumAlg.Core.Execution.Restart
+import all QuantumAlg.Core.Execution.Input.Successor
+import all QuantumAlg.Core.Algorithm.Solves
+import all QuantumAlg.Core.Execution.Circuit.Reassociation
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Source.Declared.Runtime.Initialized
 import all QuantumAlg.Algorithms.Factoring.ShorStyle.Source.Declared.Runtime.Completion
 
@@ -29,48 +33,52 @@ noncomputable section
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 /-- Actual initialization supplies the local fixed-zero domain in its genuine next input. -/
-theorem Initialized.nextInput_local_support (base : RuntimeCtx .quantum)
-    (noQuantum : base.quantumWires = []) (N : Nat) (input : Input N)
+lemma Initialized.nextInput_local_support (base : RuntimeCtx .quantum)
+    (noQuantum : base.quantumWires = []) (N : Nat) {environment : (executionModel N).Environment}
     {Reference : Register}
-    (original : OracleInput (executionModel input).classicalOracles base Reference)
-    (entry : Store (Initialized.bank base noQuantum N) × (executionModel input).HiddenState)
+    (original : OracleInput (executionModel N).classicalOracles base Reference)
+    (entry : Store (Initialized.bank base noQuantum N) × (executionModel N).HiddenState)
     (basis : (Initialized.bank base noQuantum N).register.Index)
     (outside : basis ≠ (Initialized.bank base noQuantum N).quantumLayout.zeroLabel) :
-    (((Initialized.ready base noQuantum N input).nextInput original).localState.block entry).matrix
+    (((Initialized.ready base noQuantum N).nextInput
+      environment original).localState.block entry).matrix
       basis basis = 0 := by
-  let actual := Initialized.ready base noQuantum N input
+  let actual := Initialized.ready base noQuantum N
   let entered := original.state.mapClassical (fun entry => (entry.1, (entry.2, ())))
   have grouped : BasisSeeded.Holds (Initialized.bank base noQuantum N).quantumLayout.zeroLabel
-      (actual.nextInput original).state :=
+      (actual.nextInput environment original).state :=
     BasisSeeded.mapStore (Initialized.bank base noQuantum N).quantumLayout.zeroLabel
-      (actual.execute Reference entered) (Initialized.ready_seeded base noQuantum N input entered)
+      (actual.execute environment Reference entered) (Initialized.ready_seeded
+        (environment := environment) base noQuantum N entered)
       id (fun record => record.2.1)
   exact BasisSeeded.block_marginal_support
     (Initialized.bank base noQuantum N).quantumLayout.zeroLabel
-    (actual.nextInput original).state grouped entry basis outside
+    (actual.nextInput environment original).state grouped entry basis outside
 
 /-- Complete real recovery and reset supply that same local domain for the next actual round. -/
-theorem Completion.nextInput_local_support (ctx : RuntimeCtx .quantum) (N : Nat)
-    (input : Input N) (sameWires : ctx.quantumWires = (layout N).wires)
+lemma Completion.nextInput_local_support (ctx : RuntimeCtx .quantum) (N : Nat)
+    (input : Input N) {environment : (executionModel N).Environment}
+    (sameWires : ctx.quantumWires = (layout N).wires)
     (cells : NativeFactorScan.Cells ctx N)
     (result : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     {Reference : Register}
-    (original : OracleInput (executionModel input).classicalOracles ctx Reference)
-    (entry : Store (Iteration.context ctx N) × (executionModel input).HiddenState)
+    (original : OracleInput (executionModel N).classicalOracles ctx Reference)
+    (entry : Store (Iteration.context ctx N) × (executionModel N).HiddenState)
     (basis : (Iteration.context ctx N).register.Index)
     (outside : basis ≠ (Iteration.context ctx N).quantumLayout.zeroLabel) :
     (((Completion.code ctx N input sameWires cells result).nextInput
-      original).localState.block entry).matrix basis basis = 0 := by
+      environment original).localState.block entry).matrix basis basis = 0 := by
   let actual := Completion.code ctx N input sameWires cells result
   let entered := original.state.mapClassical (fun entry => (entry.1, (entry.2, ())))
   have grouped : BasisSeeded.Holds (Iteration.context ctx N).quantumLayout.zeroLabel
-      (actual.nextInput original).state :=
+      (actual.nextInput environment original).state :=
     BasisSeeded.mapStore (Iteration.context ctx N).quantumLayout.zeroLabel
-      (actual.execute Reference entered)
-      (Completion.code_seeded ctx N input sameWires cells result entered)
+      (actual.execute environment Reference entered)
+      (Completion.code_seeded
+        (environment := environment) ctx N input sameWires cells result entered)
       id (fun record => record.2.1)
   exact BasisSeeded.block_marginal_support (Iteration.context ctx N).quantumLayout.zeroLabel
-    (actual.nextInput original).state grouped entry basis outside
+    (actual.nextInput environment original).state grouped entry basis outside
 
 end
 

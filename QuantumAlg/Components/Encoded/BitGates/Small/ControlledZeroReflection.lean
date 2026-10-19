@@ -29,11 +29,12 @@ noncomputable section
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- The existing three-gate controlled Z controls the one-wire positive zero reflection. -/
-theorem controlledZ_reflects_zero (control target : EncodedBit encoding)
+lemma controlledZ_reflects_zero (control target : EncodedBit encoding)
     (different : control.wire ≠ target.wire) (state : Data) :
-    (control.controlledZ physical oracles target different).applyVec
+    (control.controlledZ physical oracles target different).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       if control.get state then
@@ -59,13 +60,13 @@ def controlledTwoWireZeroReflection (control first second : EncodedBit encoding)
       (control.pauliZ physical oracles)
 
 /-- The two-source controlled reflection has the exact phase on both control branches. -/
-theorem controlledTwoWireZeroReflection_applyVec_encoded_ket
+lemma controlledTwoWireZeroReflection_applyVec_encoded_ket
     (control first second : EncodedBit encoding)
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)
     (firstSecond : first.wire ≠ second.wire) (state : Data) :
     (control.controlledTwoWireZeroReflection physical oracles first second controlFirst
-      controlSecond firstSecond).applyVec
+      controlSecond firstSecond).applyVec environment
         (NormalizedVector.ket (R := physical.toQuantum.register)
           (physical.basisEquiv.symm (encoding.encode state))).vec =
       if control.get state then
@@ -89,13 +90,15 @@ theorem controlledTwoWireZeroReflection_applyVec_encoded_ket
       second.get (GateSpec.stepList [.x first, .x second] state) = Bool.not (second.get state) := by
     change second.get (second.flip (first.flip state)) = _
     rw [get_flip_self, get_flip_of_wire_ne first second firstSecond]
-  have middle := GateSpec.conjugateProgram_applyVec_encoded_ket physical oracles
+  have middle := GateSpec.conjugateProgram_applyVec_encoded_ket physical oracles (environment :=
+    environment)
     [.x first, .x second]
     (control.doubleControlledZ physical oracles first second
       controlFirst controlSecond firstSecond)
     (fun state => if (control.get state = true ∧ first.get state = true) ∧ second.get state = true
       then (-1 : ℂ) else 1)
-    (control.doubleControlledZ_applyVec_encoded_ket physical oracles first second
+    (control.doubleControlledZ_applyVec_encoded_ket physical oracles (environment := environment)
+      first second
       controlFirst controlSecond firstSecond) state
   rw [controlledTwoWireZeroReflection, UnitaryCircuit.applyVec_seq, middle,
     UnitaryCircuit.applyVec_smul, pauliZ_applyVec_encoded_ket]
@@ -103,7 +106,7 @@ theorem controlledTwoWireZeroReflection_applyVec_encoded_ket
   cases control.get state <;> cases first.get state <;> cases second.get state <;> simp
 
 /-- The actual ledger includes four complements, three phase gates and the final control Z. -/
-theorem controlledTwoWireZeroReflection_eventTrace_length
+lemma controlledTwoWireZeroReflection_eventTrace_length
     (control first second : EncodedBit encoding)
     (controlFirst : control.wire ≠ first.wire)
     (controlSecond : control.wire ≠ second.wire)

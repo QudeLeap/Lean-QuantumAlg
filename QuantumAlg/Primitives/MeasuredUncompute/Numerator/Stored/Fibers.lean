@@ -35,7 +35,7 @@ private instance initial_store_unique (width : Nat) :
     apply congrArg Store.mk
     exact Subsingleton.elim (α := Unit × (Unit × Unit)) first.cells second.cells⟩
 
-private theorem finite_value_eq (first second : CShape.Value (.finite 2))
+private lemma finite_value_eq (first second : CShape.Value (.finite 2))
     (same : decide (first.toFin.val = 1) = decide (second.toFin.val = 1)) : first = second := by
   cases first with
   | finite first =>
@@ -45,7 +45,7 @@ private theorem finite_value_eq (first second : CShape.Value (.finite 2))
           fin_cases first <;> fin_cases second <;> simp_all
 
 /-- The actual finite outcomes determine the whole store, including width zero. -/
-theorem outcome_injective (width : Nat) :
+lemma outcome_injective (width : Nat) :
     Function.Injective (fun store : Store (context width) =>
       NumeratorReset.outcome (store.read (input width))) := by
   intro first second same
@@ -57,10 +57,12 @@ theorem outcome_injective (width : Nat) :
     (bits.trans (NumeratorReset.outcome_bit (second.read (input width)) index))
 
 /-- The actual measurement writes every classical cell to the specified real final store. -/
-theorem write_representative (width : Nat) (original stored : Store (context width)) :
-    Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+lemma write_representative (width : Nat) (original stored : Store (context width)) :
+    Circuit.writeMeasurementPath (allowAllocation := true)
+      (gates := AlgorithmGate.model) (oracles := .empty)
       (operations := .empty) (classicalOracles := .empty) (readouts width) original
-      (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+      (Circuit.measurementBasisPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
         (operations := .empty) (classicalOracles := .empty) (readouts width)
         (NumeratorStoredProjection.representative width
           (NumeratorReset.outcome (stored.read (input width))))) = stored := by
@@ -69,15 +71,17 @@ theorem write_representative (width : Nat) (original stored : Store (context wid
     (NumeratorStoredProjection.representative_word width _)
 
 /-- Every final stored outcome has exactly the original full quantum-reference source density. -/
-theorem source_eq_marginal (width : Nat) {Reference : Register} {History : Type} [Fintype History]
+lemma source_eq_marginal (width : Nat) {Reference : Register} {History : Type} [Fintype History]
     (state : State (context width) Reference
       (ClassicalOracleModel.empty.HiddenState × History)) (stored : Store (context width)) :
     NumeratorStoredProjection.source width state stored = state.quantumMarginal := by
   unfold NumeratorStoredProjection.source
   have selected : state.filterClassical (fun entry =>
-      Circuit.writeMeasurementPath (gates := AlgorithmGate.model) (oracles := .empty)
+      Circuit.writeMeasurementPath (allowAllocation := true)
+        (gates := AlgorithmGate.model) (oracles := .empty)
         (operations := .empty) (classicalOracles := .empty) (readouts width) entry.1
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (Circuit.measurementBasisPath (allowAllocation := true)
+          (gates := AlgorithmGate.model) (oracles := .empty)
           (operations := .empty) (classicalOracles := .empty) (readouts width)
           (NumeratorStoredProjection.representative width
             (NumeratorReset.outcome (stored.read (input width))))) = stored) = state := by
@@ -91,17 +95,18 @@ def outcomeEquiv (width : Nat) : Store (context width) ≃ Fin (2 ^ width) :=
   Equiv.ofBijective (fun store => NumeratorReset.outcome (store.read (input width)))
     ⟨outcome_injective width, fun value => by
       let original := Store.ofValues (context width) (fun _ _ shape _ => CShape.initialValue shape)
-      refine ⟨Circuit.writeMeasurementPath (gates := AlgorithmGate.model)
+      refine ⟨Circuit.writeMeasurementPath (allowAllocation := true) (gates := AlgorithmGate.model)
         (oracles := .empty) (operations := .empty) (classicalOracles := .empty)
         (readouts width) original
-        (Circuit.measurementBasisPath (gates := AlgorithmGate.model) (oracles := .empty)
+        (Circuit.measurementBasisPath (allowAllocation := true)
+          (gates := AlgorithmGate.model) (oracles := .empty)
           (operations := .empty) (classicalOracles := .empty) (readouts width)
           (NumeratorStoredProjection.representative width value)), ?_⟩
       exact (stored_outcome width original _).trans
         (NumeratorStoredProjection.representative_word width value)⟩
 
 /-- There are exactly as many actual final stores as n-bit outcomes, including the empty vector. -/
-theorem store_card (width : Nat) : Fintype.card (Store (context width)) = 2 ^ width :=
+lemma store_card (width : Nat) : Fintype.card (Store (context width)) = 2 ^ width :=
   (Fintype.card_congr (outcomeEquiv width)).trans (Fintype.card_fin _)
 
 end

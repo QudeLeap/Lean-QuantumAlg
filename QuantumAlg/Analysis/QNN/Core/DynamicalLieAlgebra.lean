@@ -70,14 +70,14 @@ public def dynamicalLieAlgebra (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
   LieSubalgebra.lieSpan ℂ (Matrix (Fin N) (Fin N) ℂ) gens
 
 /-- The generators belong to their dynamical Lie algebra. -/
-theorem generators_subset_dynamicalLieAlgebra
+lemma generators_subset_dynamicalLieAlgebra
     (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
     gens ⊆ (dynamicalLieAlgebra gens : Set (Matrix (Fin N) (Fin N) ℂ)) :=
   LieSubalgebra.subset_lieSpan
 
 /-- **Universal property.** The dynamical Lie algebra is contained in a Lie
 subalgebra `K` exactly when all generators are. -/
-theorem dynamicalLieAlgebra_le_iff (gens : Set (Matrix (Fin N) (Fin N) ℂ))
+lemma dynamicalLieAlgebra_le_iff (gens : Set (Matrix (Fin N) (Fin N) ℂ))
     (K : LieSubalgebra ℂ (Matrix (Fin N) (Fin N) ℂ)) :
     dynamicalLieAlgebra gens ≤ K
       ↔ gens ⊆ (K : Set (Matrix (Fin N) (Fin N) ℂ)) :=
@@ -85,7 +85,7 @@ theorem dynamicalLieAlgebra_le_iff (gens : Set (Matrix (Fin N) (Fin N) ℂ))
 
 /-- **Minimality.** The dynamical Lie algebra is the smallest Lie subalgebra
 containing the generators. -/
-theorem dynamicalLieAlgebra_minimal (gens : Set (Matrix (Fin N) (Fin N) ℂ))
+lemma dynamicalLieAlgebra_minimal (gens : Set (Matrix (Fin N) (Fin N) ℂ))
     {K : LieSubalgebra ℂ (Matrix (Fin N) (Fin N) ℂ)}
     (h : gens ⊆ (K : Set (Matrix (Fin N) (Fin N) ℂ))) :
     dynamicalLieAlgebra gens ≤ K :=
@@ -98,7 +98,7 @@ generator `A` is skew-Hermitian (`star A = -A`, the physical case `A = i H` with
 Hermitian), then the adjoint `star x = xᴴ` of any element of the dynamical Lie algebra
 is again in it. Hence the DLA is the complexification of a real Lie algebra inside
 `u(N)`, and admits a Hilbert–Schmidt orthonormal basis of Hermitian matrices. -/
-theorem dynamicalLieAlgebra_star_mem
+lemma dynamicalLieAlgebra_star_mem
     {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (hskew : ∀ A ∈ gens, star A = -A)
     {x : Matrix (Fin N) (Fin N) ℂ} (hx : x ∈ dynamicalLieAlgebra gens) :
     star x ∈ dynamicalLieAlgebra gens := by
@@ -126,7 +126,7 @@ theorem dynamicalLieAlgebra_star_mem
 open Matrix in
 /-- Restated with the conjugate-transpose notation: the DLA of skew-Hermitian
 generators is closed under `(·)ᴴ`. -/
-theorem dynamicalLieAlgebra_conjTranspose_mem
+lemma dynamicalLieAlgebra_conjTranspose_mem
     {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (hskew : ∀ A ∈ gens, Aᴴ = -A)
     {x : Matrix (Fin N) (Fin N) ℂ} (hx : x ∈ dynamicalLieAlgebra gens) :
     xᴴ ∈ dynamicalLieAlgebra gens := by
@@ -141,7 +141,7 @@ complex `*`-module `M`) that is closed under `star` decomposes real-linearly as
 dimension of `V_h` equals the complex dimension of `W`. Concretely `x ↦ (ℜ x, ℑ x)` is an
 `ℝ`-linear isomorphism `W ≃ V_h × V_h`, so `dim_ℝ W = 2 · dim_ℝ V_h`, while
 `dim_ℝ W = 2 · dim_ℂ W` (`finrank_real_of_complex`). -/
-theorem finrank_selfAdjoint_inf_restrictScalars_eq
+lemma finrank_selfAdjoint_inf_restrictScalars_eq
     {M : Type*} [AddCommGroup M] [Module ℂ M] [StarAddMonoid M] [StarModule ℂ M]
     [FiniteDimensional ℂ M] (W : Submodule ℂ M) (hW : ∀ x ∈ W, star x ∈ W) :
     Module.finrank ℝ ↥(selfAdjoint.submodule ℝ M ⊓ W.restrictScalars ℝ)
@@ -221,7 +221,7 @@ def dlaRealForm (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
 Hermitian real form `dlaRealForm gens` satisfies `dim_ℝ (dlaRealForm gens) = dim_ℂ g_ℂ`.
 This is the identity `dim_ℝ g = dim_ℂ g_ℂ` that makes `dlaDim` (the `ℂ`-finrank of the DLA)
 equal the literature real dimension. -/
-theorem finrank_real_realForm_eq_finrank_complex_dla
+lemma finrank_real_realForm_eq_finrank_complex_dla
     {gens : Set (Matrix (Fin N) (Fin N) ℂ)} (hskew : ∀ A ∈ gens, star A = -A) :
     Module.finrank ℝ (dlaRealForm gens)
       = Module.finrank ℂ (dynamicalLieAlgebra gens).toSubmodule :=
@@ -238,12 +238,12 @@ public theorem main (gens : Set (Matrix (Fin N) (Fin N) ℂ))
   dynamicalLieAlgebra_minimal gens h
 
 /-- Public supporting theorem: generators belong to their DLA. -/
-theorem main_generators_subset (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
+lemma main_generators_subset (gens : Set (Matrix (Fin N) (Fin N) ℂ)) :
     gens ⊆ (dynamicalLieAlgebra gens : Set (Matrix (Fin N) (Fin N) ℂ)) :=
   generators_subset_dynamicalLieAlgebra gens
 
 /-- Public supporting theorem: the universal property of the DLA. -/
-theorem main_le_iff (gens : Set (Matrix (Fin N) (Fin N) ℂ))
+lemma main_le_iff (gens : Set (Matrix (Fin N) (Fin N) ℂ))
     (K : LieSubalgebra ℂ (Matrix (Fin N) (Fin N) ℂ)) :
     dynamicalLieAlgebra gens ≤ K
       ↔ gens ⊆ (K : Set (Matrix (Fin N) (Fin N) ℂ)) :=

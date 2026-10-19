@@ -47,7 +47,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
 /-- Both complete checks run before any first-factor latch is conditionally updated. -/
 def code (refs : Refs ctx width) : Circuit model ctx ctx :=
@@ -66,10 +67,11 @@ def step (refs : Refs ctx width) (store : Store ctx) :
   (selected.1, (first.2, (second.2, selected.2)))
 
 /-- Complete actual pair execution preserves every incoming quantum-reference block. -/
-theorem nativeQuadratic_pair_execute (refs : Refs ctx width) (Reference : Register)
+lemma nativeQuadratic_pair_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) refs).execute Reference state = state.mapClassical (fun entry =>
+    (code (model := model) refs).execute environment
+      Reference state = state.mapClassical (fun entry =>
       let actual := step (model := model) refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
   simp only [code, Circuit.execute_seq, Check.nativeQuadratic_check_execute,

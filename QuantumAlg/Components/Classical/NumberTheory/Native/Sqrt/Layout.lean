@@ -190,14 +190,14 @@ def roundRefs (ctx : RuntimeCtx kind) (width : Nat) : RoundRefs (context ctx wid
   tooLarge := tooLargeCell ctx width
 
 /-- The scratch layout adds exactly its six real keys, preserving the original context tail. -/
-theorem nativeSqrt_context_keys (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeSqrt_context_keys (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).keys =
       [(tooLargeCell ctx width).key, (squareCell ctx width).key, (candidateCell ctx width).key,
         (halfCell ctx width).key, (rootCell ctx width).key, (wideCell ctx width).key] ++ ctx.keys :=
   rfl
 
 /-- The exact original quantum-wire list is unchanged by every real scratch allocation. -/
-theorem nativeSqrt_context_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
+lemma nativeSqrt_context_quantumWires (ctx : RuntimeCtx kind) (width : Nat) :
     (context ctx width).quantumWires = ctx.quantumWires := rfl
 
 end QuantumAlg.ClassicalRoutines.NumberTheory.NativeSqrt

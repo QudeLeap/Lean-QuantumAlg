@@ -24,7 +24,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-private theorem sampleRef_ne_liftSamples {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma sampleRef_ne_liftSamples {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (width : Nat) (ref : CWriteRef ctx shape) (count : Nat)
     (index : Fin count) :
     (Native.Batch.Slots.sampleRef ctx width count index).key ≠
@@ -47,7 +47,7 @@ variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
   (N : Nat) (input : Input N)
 
 /-- No terminal slot shares the complete parameter's retained key. -/
-theorem terminal_parameter_ne (index : Fin 16) :
+lemma terminal_parameter_ne (index : Fin 16) :
     (terminalRef base noQuantum N index).key ≠
       (parameterRef base noQuantum N).key := by
   intro same
@@ -61,7 +61,7 @@ theorem terminal_parameter_ne (index : Fin 16) :
     ((leftKey.symm.trans same).trans rightKey)
 
 /-- No terminal slot shares the random residue source's retained key. -/
-theorem terminal_source_ne (index : Fin 16) :
+lemma terminal_source_ne (index : Fin 16) :
     (terminalRef base noQuantum N index).key ≠
       (sourceRef base noQuantum N).key := by
   intro same
@@ -81,7 +81,7 @@ structure RedrawSeparated {shape : CShape}
   parameter : (parameterRef base noQuantum N).key ∉ observed.storageKeys
 
 /-- Every terminal slot is separated from both actual redraw writes. -/
-theorem terminal_redraw_separated (index : Fin 16) :
+lemma terminal_redraw_separated (index : Fin 16) :
     RedrawSeparated base noQuantum N
       (.storage (terminalRef base noQuantum N index).toCStorageRef) := by
   constructor
@@ -92,13 +92,14 @@ theorem terminal_redraw_separated (index : Fin 16) :
     exact (terminal_parameter_ne base noQuantum N index).symm
       (List.mem_singleton.mp member)
 
+include input in
 /-- A real random redraw leaves any separated old structural value intact. -/
-theorem redraw_frame_read {shape : CShape}
+lemma redraw_frame_read {shape : CShape}
     (observed : CInputRef (context base noQuantum N) shape)
     (separated : RedrawSeparated base noQuantum N observed)
     (store : Store (context base noQuantum N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (redrawStep base noQuantum N input store value).1.read observed =
+    (redrawStep base noQuantum N store value).1.read observed =
       store.read observed := by
   have actual := congrArg (fun next : Store (context base noQuantum N) =>
     next.read observed) (redraw_store base noQuantum N input store value)
@@ -106,11 +107,12 @@ theorem redraw_frame_read {shape : CShape}
     separated.parameter).trans
       (Store.read_write_of_not_mem_storageKeys _ _ _ observed separated.source))
 
+include input in
 /-- Every earlier sample survives the actual next-batch redraw. -/
-theorem redraw_terminal (index : Fin 16)
+lemma redraw_terminal (index : Fin 16)
     (store : Store (context base noQuantum N))
     (value : Fin (2 ^ residueSamplingBits N)) :
-    (redrawStep base noQuantum N input store value).1.read
+    (redrawStep base noQuantum N store value).1.read
       (.storage (terminalRef base noQuantum N index).toCStorageRef) =
     store.read (.storage (terminalRef base noQuantum N index).toCStorageRef) :=
   redraw_frame_read base noQuantum N input _

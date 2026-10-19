@@ -36,17 +36,17 @@ namespace ZeroTestLayout
 
 variable {tail : Nat} (layout : ZeroTestLayout (encoding := encoding) tail)
 
-private theorem finalGate_event :
+private lemma finalGate_event :
     (layout.finalGate).event oracles = .gate .toffoli := by
   unfold finalGate
   split <;> rfl
 
-private theorem andGates_event (gate : GateSpec encoding) (present : gate ∈ layout.andGates) :
+private lemma andGates_event (gate : GateSpec encoding) (present : gate ∈ layout.andGates) :
     gate.event oracles = .gate .toffoli := by
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present
   rfl
 
-private theorem sandwich_event (compute : List (GateSpec encoding))
+private lemma sandwich_event (compute : List (GateSpec encoding))
     (allToffoli : ∀ gate ∈ compute, gate.event oracles = .gate .toffoli)
     (gate : GateSpec encoding) (present : gate ∈ layout.conjunctionSandwich compute) :
     gate.event oracles = .gate .toffoli := by
@@ -59,7 +59,7 @@ private theorem sandwich_event (compute : List (GateSpec encoding))
   · exact allToffoli gate present
 
 /-- A borrowed conjunction contains only the source's literal Toffoli leaves. -/
-theorem borrowedAndGates_event (gate : GateSpec encoding)
+lemma borrowedAndGates_event (gate : GateSpec encoding)
     (present : gate ∈ layout.borrowedAndGates) :
     gate.event oracles = .gate .toffoli := by
   by_cases empty : tail = 0
@@ -87,13 +87,13 @@ public def gateCount (controls : Nat) : Nat :=
 variable {controls : Nat} (layout : OneDirtyLayout (encoding := encoding) controls)
 
 /-- The independent formula counts the actual elementary schedule. -/
-theorem gates_length : layout.gates.length = gateCount controls := by
+lemma gates_length : layout.gates.length = gateCount controls := by
   by_cases small : controls < 3
   · rw [layout.gates_length_of_small small, gateCount, if_pos small]
   · rw [layout.gates_length_of_large (Nat.le_of_not_gt small), gateCount, if_neg small]
     rfl
 
-private theorem balancedGates_event (large : 3 ≤ controls) (gate : GateSpec encoding)
+private lemma balancedGates_event (large : 3 ≤ controls) (gate : GateSpec encoding)
     (present : gate ∈ layout.balancedGates large) :
     gate.event oracles = .gate .toffoli := by
   simp only [balancedGates, List.mem_append] at present
@@ -103,7 +103,7 @@ private theorem balancedGates_event (large : 3 ≤ controls) (gate : GateSpec en
   · exact (layout.firstSubLayout large).borrowedAndGates_event oracles gate first
   · exact (layout.secondSubLayout large).borrowedAndGates_event oracles gate second
 
-private theorem gates_event_of_two_le (large : 2 ≤ controls) (gate : GateSpec encoding)
+private lemma gates_event_of_two_le (large : 2 ≤ controls) (gate : GateSpec encoding)
     (present : gate ∈ layout.gates) :
     gate.event oracles = .gate .toffoli := by
   cases controls with
@@ -119,7 +119,7 @@ private theorem gates_event_of_two_le (large : 2 ≤ controls) (gate : GateSpec 
       | succ controls => exact layout.balancedGates_event oracles (by omega) gate present
 
 /-- The actual schedule consists of exactly the independently counted Toffoli events. -/
-theorem gates_events_of_two_le (large : 2 ≤ controls) :
+lemma gates_events_of_two_le (large : 2 ≤ controls) :
     layout.gates.map (GateSpec.event oracles) =
       List.replicate (gateCount controls) (.gate .toffoli) := by
   apply List.eq_replicate_iff.mpr
@@ -130,7 +130,7 @@ theorem gates_events_of_two_le (large : 2 ≤ controls) :
     exact layout.gates_event_of_two_le oracles large gate member
 
 /-- Every width retains its actual elementary gate family. -/
-theorem gates_events : layout.gates.map (GateSpec.event oracles) =
+lemma gates_events : layout.gates.map (GateSpec.event oracles) =
     if controls = 0 then [.gate .singleQubit]
     else if controls = 1 then [.gate .cnot]
     else List.replicate (gateCount controls) (.gate .toffoli) := by
@@ -144,18 +144,18 @@ theorem gates_events : layout.gates.map (GateSpec.event oracles) =
       exact layout.gates_events_of_two_le oracles (by omega)
 
 /-- The sequential elementary program has exactly the same independent unit-event depth. -/
-theorem gates_program_depth (physical : QubitLayout encoding.width) :
+lemma gates_program_depth (physical : QubitLayout encoding.width) :
     (GateSpec.programList physical oracles layout.gates).evaluatedEventDepth (fun _ => 1) =
       gateCount controls := by
   rw [GateSpec.programList_evaluatedEventDepth_unit, gates_length]
 
 /-- The small nontrivial balanced schedules have four and ten actual Toffoli gates. -/
-theorem gateCount_three : gateCount 3 = 4 := rfl
+lemma gateCount_three : gateCount 3 = 4 := rfl
 
-theorem gateCount_four : gateCount 4 = 10 := rfl
+lemma gateCount_four : gateCount 4 = 10 := rfl
 
 /-- From five controls onward the arithmetic formula is exactly linear. -/
-theorem gateCount_of_five_le (large : 5 ≤ controls) :
+lemma gateCount_of_five_le (large : 5 ≤ controls) :
     gateCount controls = 8 * (controls - 3) := by
   have partition := width_partition controls
   change firstWidth controls + secondWidth controls = controls at partition

@@ -38,7 +38,7 @@ def readKey (width : Nat) (includeSign : Bool) (state : Registers width) : Key w
   fun index => (sourceBit width includeSign index).get state
 
 /-- The real pattern gate condition is precisely equality with the full actual readout key. -/
-theorem matches_key_iff (width : Nat) (includeSign : Bool) (selected : Key width includeSign)
+lemma matches_key_iff (width : Nat) (includeSign : Bool) (selected : Key width includeSign)
     (state : Registers width) :
     Matches selected state ↔ readKey width includeSign state = selected := by
   constructor
@@ -49,19 +49,19 @@ theorem matches_key_iff (width : Nat) (includeSign : Bool) (selected : Key width
     exact congrFun same index
 
 /-- No complete input can match two different fixed selector patterns. -/
-theorem matches_unique (width : Nat) (includeSign : Bool) (left right : Key width includeSign)
+lemma matches_unique (width : Nat) (includeSign : Bool) (left right : Key width includeSign)
     (state : Registers width) (first : Matches left state) (second : Matches right state) :
     left = right :=
   ((matches_key_iff width includeSign left state).mp first).symm.trans
     ((matches_key_iff width includeSign right state).mp second)
 
 /-- The key actually read from a frame always matches its own actual source bits. -/
-theorem condition_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma condition_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     condition (readKey width includeSign state) state = true :=
   decide_eq_true (fun _ => rfl)
 
 /-- Every distinct fixed key produces an inactive actual predicate on this frame. -/
-theorem condition_false_of_ne (width : Nat) (includeSign : Bool)
+lemma condition_false_of_ne (width : Nat) (includeSign : Bool)
     (selected : Key width includeSign) (state : Registers width)
     (different : selected ≠ readKey width includeSign state) :
     condition selected state = false :=
@@ -69,7 +69,7 @@ theorem condition_false_of_ne (width : Nat) (includeSign : Bool)
     ((matches_key_iff width includeSign selected state).mp matched).symm)
 
 /-- Changing only the predicate output cannot alter the actual source readout. -/
-theorem readKey_xorControl (width : Nat) (includeSign : Bool) (value : Bool)
+lemma readKey_xorControl (width : Nat) (includeSign : Bool) (value : Bool)
     (state : Registers width) :
     readKey width includeSign (NativePredicate.xorControl value state) =
       readKey width includeSign state := by
@@ -82,7 +82,7 @@ theorem readKey_xorControl (width : Nat) (includeSign : Bool) (value : Bool)
 private def decodeWord {length : Nat} (bits : Fin length → Bool) : BitVec length :=
   (BitVec.ofBoolListBE (List.ofFn bits)).cast List.length_ofFn
 
-private theorem decodeWord_get {length : Nat} (bits : Fin length → Bool) (index : Fin length) :
+private lemma decodeWord_get {length : Nat} (bits : Fin length → Bool) (index : Fin length) :
     (decodeWord bits).getMsbD index.val = bits index := by
   rw [decodeWord, BitVec.getMsbD_cast, BitVec.getMsbD_ofBoolListBE,
     List.getD_eq_getElem?_getD, List.getElem?_ofFn, dif_pos index.isLt]
@@ -141,7 +141,7 @@ def second {width : Nat} {includeSign : Bool} (selected : Key width includeSign)
 def sign {width : Nat} (selected : Key width true) : Bool := selected (signIndex width)
 
 /-- Decoding the real coefficient-length bits recovers the original complete finite word. -/
-theorem coefficient_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma coefficient_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     coefficient (readKey width includeSign state) = state.coefficientLength := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -156,7 +156,7 @@ theorem coefficient_readKey (width : Nat) (includeSign : Bool) (state : Register
     (show (coefficientIndex width includeSign ⟨index, within⟩).val = index from rfl)
 
 /-- Decoding the real quotient-length bits retains every bit of its original finite word. -/
-theorem quotient_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma quotient_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     quotient (readKey width includeSign state) = state.quotientLength := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -175,7 +175,7 @@ theorem quotient_readKey (width : Nat) (includeSign : Bool) (state : Registers w
   rw [Nat.add_sub_cancel_left]
 
 /-- Decoding the divisor boundary recovers its actual complete finite field. -/
-theorem divisor_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma divisor_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     divisor (readKey width includeSign state) = state.divisorLength := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -197,7 +197,7 @@ theorem divisor_readKey (width : Nat) (includeSign : Bool) (state : Registers wi
   rw [Nat.add_sub_cancel_left]
 
 /-- Decoding the real shift bits recovers its original finite word, including width zero. -/
-theorem shift_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma shift_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     shift (readKey width includeSign state) = state.shift := by
   apply BitVec.eq_of_getMsbD_eq
   intro index within
@@ -220,7 +220,7 @@ theorem shift_readKey (width : Nat) (includeSign : Bool) (state : Registers widt
   change state.shift.getMsbD (3 * width.size + index - 3 * width.size) = _
   rw [Nat.add_sub_cancel_left]
 
-private theorem source_after_lengths (width : Nat) (includeSign : Bool)
+private lemma source_after_lengths (width : Nat) (includeSign : Bool)
     (index : Fin (sourceCount width includeSign)) (later : 4 * width.size ≤ index.val)
     (state : Registers width) :
     (sourceBit width includeSign index).get state =
@@ -231,7 +231,7 @@ private theorem source_after_lengths (width : Nat) (includeSign : Bool)
     if_neg (by omega : ¬index.val < 3 * width.size), if_neg (Nat.not_lt.mpr later)]
 
 /-- The first phase read from the actual key is precisely the original phase field. -/
-theorem first_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma first_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     first (readKey width includeSign state) = state.flags.first := by
   change (sourceBit width includeSign (firstIndex width includeSign)).get state = _
   rw [source_after_lengths width includeSign _ (Nat.le_refl _) state]
@@ -239,7 +239,7 @@ theorem first_readKey (width : Nat) (includeSign : Bool) (state : Registers widt
   rw [if_pos selected]
 
 /-- The second phase read from the actual key is precisely the original phase field. -/
-theorem second_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
+lemma second_readKey (width : Nat) (includeSign : Bool) (state : Registers width) :
     second (readKey width includeSign state) = state.flags.second := by
   change (sourceBit width includeSign (secondIndex width includeSign)).get state = _
   have later : 4 * width.size ≤ (secondIndex width includeSign).val := by
@@ -253,7 +253,7 @@ theorem second_readKey (width : Nat) (includeSign : Bool) (state : Registers wid
   rw [if_neg notFirst, if_pos selected]
 
 /-- Sign is recovered exactly when it is an actual source coordinate of the selector. -/
-theorem sign_readKey (width : Nat) (state : Registers width) :
+lemma sign_readKey (width : Nat) (state : Registers width) :
     sign (readKey width true state) = state.flags.sign := by
   change (sourceBit width true (signIndex width)).get state = _
   have later : 4 * width.size ≤ (signIndex width).val := by
@@ -272,16 +272,16 @@ theorem sign_readKey (width : Nat) (state : Registers width) :
 def keys (width : Nat) (includeSign : Bool) : List (Key width includeSign) := Finset.univ.toList
 
 /-- The compile-time key schedule has no repetitions. -/
-theorem keys_nodup (width : Nat) (includeSign : Bool) : (keys width includeSign).Nodup :=
+lemma keys_nodup (width : Nat) (includeSign : Bool) : (keys width includeSign).Nodup :=
   Finset.nodup_toList _
 
 /-- Every actual source bit pattern is present in the fixed key enumeration. -/
-theorem key_mem (width : Nat) (includeSign : Bool) (selected : Key width includeSign) :
+lemma key_mem (width : Nat) (includeSign : Bool) (selected : Key width includeSign) :
     selected ∈ keys width includeSign :=
   Finset.mem_toList.mpr (Finset.mem_univ selected)
 
 /-- The exact schedule size is the cardinality of the actual finite source readout. -/
-theorem keys_length (width : Nat) (includeSign : Bool) :
+lemma keys_length (width : Nat) (includeSign : Bool) :
     (keys width includeSign).length = 2 ^ sourceCount width includeSign := by
   simp [keys, Key, Pattern]
 

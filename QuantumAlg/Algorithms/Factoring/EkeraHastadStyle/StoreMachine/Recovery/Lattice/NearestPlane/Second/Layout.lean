@@ -166,7 +166,7 @@ structure PhaseSeparation {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : 
   keyInjective : Function.Injective (phaseCellKey refs)
 
 /-- Different named second-phase cells resolve to different storage keys. -/
-theorem PhaseSeparation.phaseCellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma PhaseSeparation.phaseCellKey_ne {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {width : Nat} {refs : Refs ctx width} (separation : PhaseSeparation refs)
     (left right : PhaseCell) (different : left ≠ right) :
     phaseCellKey refs left ≠ phaseCellKey refs right := by

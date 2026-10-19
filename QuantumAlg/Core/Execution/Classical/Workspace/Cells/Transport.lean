@@ -31,7 +31,7 @@ public def transportCells {kind : ProblemKind} {outer inner : RuntimeCtx kind}
         (transportCells transport tail)
 
 /-- Transporting cells preserves their physical-key list. -/
-public theorem workspaceCells_transportCells_keys {kind : ProblemKind}
+public lemma workspaceCells_transportCells_keys {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes) :
     (transportCells transport cells).keys = cells.keys := by
@@ -42,7 +42,7 @@ public theorem workspaceCells_transportCells_keys {kind : ProblemKind}
       rw [transport.liftWrite_key head.ref, inductionHypothesis]
 
 /-- Transporting cells preserves avoidance of every physical key. -/
-public theorem workspaceCells_transportCells_avoidsKey {kind : ProblemKind}
+public lemma workspaceCells_transportCells_avoidsKey {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes)
     (key : StorageKey) :
@@ -54,7 +54,7 @@ public theorem workspaceCells_transportCells_avoidsKey {kind : ProblemKind}
       rw [transport.liftWrite_key head.ref, inductionHypothesis]
 
 /-- Transporting a heterogeneous workspace preserves pairwise distinctness. -/
-public theorem workspaceCells_transportCells_distinct {kind : ProblemKind}
+public lemma workspaceCells_transportCells_distinct {kind : ProblemKind}
     {outer inner : RuntimeCtx kind} {shapes : List CShape}
     (transport : Transport outer inner) (cells : Cells outer shapes)
     (distinct : cells.Distinct) :

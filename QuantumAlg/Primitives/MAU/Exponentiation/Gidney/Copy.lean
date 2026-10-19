@@ -23,6 +23,8 @@ namespace QuantumAlg.MAU.Exponentiation.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding Nat.FixedWidth
 
 /-- The exponentiation carrier and a separate arbitrary XOR target word. -/
@@ -51,7 +53,7 @@ private def targetWord (exponentWidth width : Nat) :
   bit index := prodRightBit (encoding exponentWidth width) (finIdentity width)
     (finIdentityBit width (WireAddress.littleEndianWire index))
 
-private theorem source_get (exponentWidth width : Nat) (index : Fin width)
+private lemma source_get (exponentWidth width : Nat) (index : Fin width)
     (state : OracleRegisters exponentWidth width) :
     ((sourceWord exponentWidth width).bit index).get state =
       state.1.2.1.val.testBit index.val := by
@@ -59,14 +61,14 @@ private theorem source_get (exponentWidth width : Nat) (index : Fin width)
     (WireAddress.bitIndex (WireAddress.littleEndianWire index)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem target_get (exponentWidth width : Nat) (index : Fin width)
+private lemma target_get (exponentWidth width : Nat) (index : Fin width)
     (state : OracleRegisters exponentWidth width) :
     ((targetWord exponentWidth width).bit index).get state = state.2.val.testBit index.val := by
   change state.2.val.testBit
     (WireAddress.bitIndex (WireAddress.littleEndianWire index)).val = _
   rw [WireAddress.bitIndex_littleEndianWire]
 
-private theorem source_target_disjoint (exponentWidth width : Nat)
+private lemma source_target_disjoint (exponentWidth width : Nat)
     (source target : Fin width) :
     ((sourceWord exponentWidth width).bit source).wire ≠
       ((targetWord exponentWidth width).bit target).wire :=
@@ -75,7 +77,7 @@ private theorem source_target_disjoint (exponentWidth width : Nat)
     (finIdentityBit width (WireAddress.littleEndianWire target))
     ((powerWord exponentWidth width).bit source)).symm
 
-private theorem target_disjoint (exponentWidth width : Nat)
+private lemma target_disjoint (exponentWidth width : Nat)
     (left right : Fin width) (distinct : left ≠ right) :
     ((targetWord exponentWidth width).bit left).wire ≠
       ((targetWord exponentWidth width).bit right).wire := by
@@ -99,7 +101,7 @@ def copyProgram (exponentWidth width : Nat) :
   EncodedBit.GateSpec.programList (QubitLayout.canonical _) .empty
     (copyGates exponentWidth width)
 
-private theorem copy_step (exponentWidth width : Nat)
+private lemma copy_step (exponentWidth width : Nat)
     (state : OracleRegisters exponentWidth width) :
     EncodedBit.Word.xorIntoStep (sourceWord exponentWidth width) (targetWord exponentWidth width)
       (fun index => source_target_disjoint exponentWidth width index index) state =
@@ -121,23 +123,23 @@ private theorem copy_step (exponentWidth width : Nat)
     exact actual.trans bits.symm
 
 /-- Exact copy action holds for every initial target value and every compute-register label. -/
-theorem gidneyExponentCopy_realizes (exponentWidth width : Nat) :
+lemma gidneyExponentCopy_realizes (exponentWidth width : Nat) :
     UnitaryCircuit.Realizes (oracleEncoding exponentWidth width)
-      (copyProgram exponentWidth width) unitPowerCopyOutput :=
+      (copyProgram exponentWidth width) environment unitPowerCopyOutput :=
   (EncodedBit.Word.xorInto_realizes
     (QubitLayout.canonical _) .empty
     (sourceWord exponentWidth width) (targetWord exponentWidth width)
-    (fun index => source_target_disjoint exponentWidth width index index)).congrStep
+    (fun index => source_target_disjoint exponentWidth width index index) environment).congrStep
       (copy_step exponentWidth width)
 
-theorem gidneyExponentCopy_gate_count (exponentWidth width : Nat) :
+lemma gidneyExponentCopy_gate_count (exponentWidth width : Nat) :
     (copyGates exponentWidth width).length = width :=
   EncodedBit.Word.xorIntoGates_length
     (sourceWord exponentWidth width) (targetWord exponentWidth width)
     (fun index => source_target_disjoint exponentWidth width index index)
 
 /-- The native ledger consists of precisely width uncontrolled CNOT occurrences. -/
-theorem gidneyExponentCopy_eventCost (exponentWidth width : Nat) :
+lemma gidneyExponentCopy_eventCost (exponentWidth width : Nat) :
     (copyProgram exponentWidth width).eventCost =
       ResourcePool.ofList (List.replicate width
         (.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) := by
@@ -149,7 +151,7 @@ theorem gidneyExponentCopy_eventCost (exponentWidth width : Nat) :
       (Resource.Event.gate .cnot : Resource.Event (.quantum AlgorithmGate.model .empty))) = _
   rw [List.ofFn_const]
 
-theorem gidneyExponentCopy_serial_resources (exponentWidth width : Nat) :
+lemma gidneyExponentCopy_serial_resources (exponentWidth width : Nat) :
     (copyProgram exponentWidth width).eventCost.card = width ∧
       (copyProgram exponentWidth width).evaluatedEventDepth (fun _ => 1) = width := by
   constructor
@@ -161,7 +163,7 @@ theorem gidneyExponentCopy_serial_resources (exponentWidth width : Nat) :
         (gidneyExponentCopy_gate_count exponentWidth width)
 
 /-- The copy occupies the exponent, two multiplication words and XOR target. -/
-theorem gidneyExponentCopy_interface (exponentWidth width : Nat) :
+lemma gidneyExponentCopy_interface (exponentWidth width : Nat) :
     (oracleEncoding exponentWidth width).width = exponentWidth + 3 * width ∧
       (QubitLayout.canonical (oracleEncoding exponentWidth width).width).systemIdx =
         List.range (exponentWidth + 3 * width) := by

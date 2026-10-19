@@ -24,18 +24,21 @@ namespace QuantumAlg.MAU.Multiplication.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open Nat.FixedWidth
 
-theorem gidneyUnitMultiplication_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyUnitMultiplication_matrix (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     UnitaryCircuit.binaryMatrix (width := (Accumulate.Gidney.encoding width).width)
-      (program width modulus coefficient) =
+      (program width modulus coefficient) environment =
       wordUnitMultiplicationOperator width modulus coefficient := by
   apply Subtype.ext
   ext output input
   obtain ⟨state, rfl⟩ := (prodEquiv (m := width) (n := width)).surjective input
   have circuitAction :=
     UnitaryCircuit.Realizes.binaryMatrix_apply_ket_eq_of_applyNormalized_encoded_ket
+      (environment := environment)
       (program width modulus coefficient) ((Accumulate.Gidney.encoding width).encode state)
         ((Accumulate.Gidney.encoding width).encode
           (unitMultiplicationPairEquiv modulus coefficient state))
@@ -47,7 +50,7 @@ theorem gidneyUnitMultiplication_matrix (width : Nat) (modulus : Fin (2 ^ width 
     (wordUnitMultiplicationOperator_ket width modulus coefficient state)
   have actualColumn :=
     (HilbertOperator.applyVec_ket
-      ((program width modulus coefficient).binaryMatrix :
+      ((program width modulus coefficient).binaryMatrix environment :
         HilbertOperator (Qubits (Accumulate.Gidney.encoding width).width))
       ((Accumulate.Gidney.encoding width).encode state) output).symm.trans circuit
   have semanticColumn :=

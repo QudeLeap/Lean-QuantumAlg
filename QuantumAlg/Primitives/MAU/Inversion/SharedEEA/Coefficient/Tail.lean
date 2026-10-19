@@ -29,14 +29,14 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.CoefficientTail
 
 noncomputable section
 
-private theorem subtract_inactive {width : Nat} (state : Registers width)
+private lemma subtract_inactive {width : Nat} (state : Registers width)
     (first : state.flags.first = true) :
     ArithmeticInstruction.sourceStep .remainderSubtract state = state := by
   simp only [ArithmeticInstruction.sourceStep, ArithmeticInstruction.sourceEnabled,
     ArithmeticInstruction.sourcePhaseEnabled,
     first, Bool.not_true, Bool.false_and, Bool.false_eq_true, if_false]
 
-private theorem addback_inactive {width : Nat} (state : Registers width)
+private lemma addback_inactive {width : Nat} (state : Registers width)
     (first : state.flags.first = true) :
     ArithmeticInstruction.sourceStep .remainderAddback state = state := by
   simp only [ArithmeticInstruction.sourceStep, ArithmeticInstruction.sourceEnabled,
@@ -44,7 +44,7 @@ private theorem addback_inactive {width : Nat} (state : Registers width)
     first, Bool.not_true, Bool.false_and, Bool.false_eq_true, if_false]
 
 /-- The actual remainder arithmetic is inactive in coefficient phase and retains the whole state. -/
-theorem remainder_inactive (width : Nat) (state : Registers width)
+lemma remainder_inactive (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true) :
     ArithmeticBlocks.remainderStep width state = state := by
   have sign : ArithmeticSign.remainderStep state = state := by
@@ -58,14 +58,14 @@ theorem remainder_inactive (width : Nat) (state : Registers width)
     sign, addback_inactive state first]
 
 /-- The actual pre-shift is inactive in coefficient phase, before the real quotient exchange. -/
-theorem pre_shift_inactive (width : Nat) (state : Registers width)
+lemma pre_shift_inactive (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true) :
     GuardedShift.step false state = state := by
   rw [GuardedShift.step_eq_source width false state clean, GuardedShift.sourceStep]
   exact if_neg (by rw [first]; decide)
 
 /-- Positive actual shift disables the real zero-shift phase complements. -/
-theorem zero_shift_inactive {width : Nat} (state : Registers width)
+lemma zero_shift_inactive {width : Nat} (state : Registers width)
     (clean : state.control = false) (shift : state.shift ≠ (0#width.size)) :
     ZeroShiftControl.step state = state := by
   rw [ZeroShiftControl.step_eq_sourceStep state clean]
@@ -74,14 +74,14 @@ theorem zero_shift_inactive {width : Nat} (state : Registers width)
   simp only [ZeroShiftControl.sourceStep, unselected, Bool.false_eq_true, if_false]
 
 /-- The real boundary exchange cannot occur while the actual shift field is nonzero. -/
-theorem boundary_inactive {width : Nat} (state : Registers width)
+lemma boundary_inactive {width : Nat} (state : Registers width)
     (clean : state.control = false) (shift : state.shift ≠ (0#width.size)) :
     TerminalBoundary.step state = state := by
   apply TerminalBoundary.step_unselected state clean
   exact decide_eq_false (fun selected => shift selected.2.1)
 
 /-- The actual ordered update sets both Phase2 and Sign to the actual quotient-empty predicate. -/
-theorem control_frame {width : Nat} (state : Registers width)
+lemma control_frame {width : Nat} (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false) (sign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ (0#width.size)) :
@@ -102,7 +102,7 @@ theorem control_frame {width : Nat} (state : Registers width)
   rw [decide_eq_true divisor, flags]
 
 /-- The actual complete control suffix preserves every other field and reaches the source phases. -/
-theorem tail_frame {width : Nat} (state : Registers width)
+lemma tail_frame {width : Nat} (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = true)
     (second : state.flags.second = false) (sign : state.flags.sign = false)
     (divisor : state.divisorLength ≠ (0#width.size)) (shift : state.shift ≠ (0#width.size)) :

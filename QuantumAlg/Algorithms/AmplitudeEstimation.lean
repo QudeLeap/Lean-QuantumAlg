@@ -8,6 +8,7 @@ module
 
 public import QuantumAlg.Algorithms.AmplitudeEstimation.Basic
 public import QuantumAlg.Algorithms.AmplitudeEstimation.Endpoint
+public import QuantumAlg.Algorithms.AmplitudeEstimation.Endpoint.Results
 
 /-!
 # Amplitude estimation

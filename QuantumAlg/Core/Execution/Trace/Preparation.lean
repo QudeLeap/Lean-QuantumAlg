@@ -30,7 +30,7 @@ variable {gates : GateModel} {oracles : OracleModel}
   (disjoint : List.Disjoint layout.identities ctx.physicalIdx)
 
 /-- Every newly prepared system and every old entry contribute to the actual resident peak. -/
-theorem prepare_peakResidentSpace
+lemma prepare_peakResidentSpace
     (path : (Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       ctx key layout fresh disjoint).Path) :
@@ -46,7 +46,7 @@ theorem prepare_peakResidentSpace
   exact fun axis => Nat.le_add_left (ctx.residentSpace axis) (SpacePool.ofQuantumLayout layout axis)
 
 /-- The actual auxiliary peak retains all original roles and the new owned preparation bank. -/
-theorem prepare_peakAuxiliarySpace
+lemma prepare_peakAuxiliarySpace
     (path : (Circuit.prepareZero (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       ctx key layout fresh disjoint).Path) :

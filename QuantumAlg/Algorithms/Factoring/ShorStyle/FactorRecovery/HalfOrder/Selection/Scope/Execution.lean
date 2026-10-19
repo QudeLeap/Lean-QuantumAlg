@@ -26,7 +26,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
   {N : Nat}
 
 -- Bound only elaboration of these concrete nested path dictionaries, not execution resources.
@@ -50,15 +51,17 @@ private def update5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
-private theorem equation5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma equation5 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
     (initial : State (upperContext ctx N) reference (model.HiddenState × history)) :
-    (part5 (model := model) halfPower output).execute reference initial = initial.mapClassical
+    (part5 (model := model) halfPower output).execute
+      environment reference initial = initial.mapClassical
         (fun entry =>
       ((update5 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update5
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (upperContext ctx N).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (upperContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N)) (upperContext ctx N).canonicalFreshKey_fresh
     (body (model := model) halfPower output)
     (fun entry =>
@@ -85,15 +88,17 @@ private def update4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
-private theorem equation4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma equation4 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
     (initial : State (lowerContext ctx N) reference (model.HiddenState × history)) :
-    (part4 (model := model) halfPower output).execute reference initial = initial.mapClassical
+    (part4 (model := model) halfPower output).execute
+      environment reference initial = initial.mapClassical
         (fun entry =>
       ((update4 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update4
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (lowerContext ctx N).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (lowerContext ctx N).canonicalFreshKey
     .bit (lowerContext ctx N).canonicalFreshKey_fresh
     (part5 (model := model) halfPower output)
     (fun entry =>
@@ -120,15 +125,17 @@ private def update3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
-private theorem equation3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma equation3 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
     (initial : State (modulusContext ctx N) reference (model.HiddenState × history)) :
-    (part3 (model := model) halfPower output).execute reference initial = initial.mapClassical
+    (part3 (model := model) halfPower output).execute
+      environment reference initial = initial.mapClassical
         (fun entry =>
       ((update3 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update3
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (modulusContext ctx N).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (modulusContext ctx N).canonicalFreshKey
     .bit (modulusContext ctx N).canonicalFreshKey_fresh
     (part4 (model := model) halfPower output)
     (fun entry =>
@@ -157,15 +164,17 @@ private def update2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
-private theorem equation2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma equation2 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
     (initial : State (oneContext ctx N) reference (model.HiddenState × history)) :
-    (part2 (model := model) halfPower output).execute reference initial = initial.mapClassical
+    (part2 (model := model) halfPower output).execute
+      environment reference initial = initial.mapClassical
         (fun entry =>
       ((update2 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update2
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (oneContext ctx N).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (oneContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (oneContext ctx N).canonicalFreshKey_fresh
     (part3 (model := model) halfPower output)
     (fun entry =>
@@ -194,15 +203,17 @@ private def update1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
-private theorem equation1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma equation1 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
     (initial : State (candidateContext ctx N) reference (model.HiddenState × history)) :
-    (part1 (model := model) halfPower output).execute reference initial = initial.mapClassical
+    (part1 (model := model) halfPower output).execute
+      environment reference initial = initial.mapClassical
         (fun entry =>
       ((update1 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update1
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical (candidateContext ctx N).canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (candidateContext ctx N).canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) (candidateContext ctx N).canonicalFreshKey_fresh
     (part2 (model := model) halfPower output)
     (fun entry =>
@@ -230,15 +241,16 @@ private def update0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
 
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
-private theorem equation0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+private lemma equation0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (reference : Register) {history : Type} [Fintype history]
     (initial : State ctx reference (model.HiddenState × history)) :
-    (part0 (model := model) halfPower output).execute reference initial = initial.mapClassical
+    (part0 (model := model) halfPower output).execute
+      environment reference initial = initial.mapClassical
         (fun entry =>
       ((update0 (model := model) halfPower output entry.1).1, (entry.2.1, (entry.2.2, (update0
           (model := model) halfPower output entry.1).2)))) := by
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey
+  refine (Circuit.execute_workspace_mapClassical (environment := environment) ctx.canonicalFreshKey
     (.unsignedWord (modulusBits N + 1)) ctx.canonicalFreshKey_fresh
     (part1 (model := model) halfPower output)
     (fun entry =>
@@ -250,11 +262,11 @@ private theorem equation0 (halfPower : CInputRef ctx (.unsignedWord (modulusBits
 set_option maxHeartbeats 1000000 in
 -- Normalizing the actual nested workspace path dictionaries exceeds the default elaboration limit.
 /-- The actual complete lexical factor program executes its real store and physical path. -/
-theorem code_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
+lemma code_execute (halfPower : CInputRef ctx (.unsignedWord (modulusBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (code (model := model) halfPower output).execute Reference state =
+    (code (model := model) halfPower output).execute environment Reference state =
       state.mapClassical (fun entry => ((step (model := model) halfPower output entry.1).1,
         (entry.2.1, (entry.2.2, (step (model := model) halfPower output entry.1).2)))) := by
   refine (equation0 (model := model) halfPower output Reference state).trans ?_

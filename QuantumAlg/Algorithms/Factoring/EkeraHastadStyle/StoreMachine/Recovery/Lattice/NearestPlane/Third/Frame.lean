@@ -42,7 +42,7 @@ def suffixCells : List PhaseCell :=
 def mutableCells : List PhaseCell := prefixCells ++ suffixCells
 
 /-- The selected suffix returns the same chronological store used by its raw proofs. -/
-theorem thirdNormalizeStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdNormalizeStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     (thirdNormalizeStep refs store).1 =
       LatticeArithmetic.pointStore (writeInput refs.division.output)
@@ -50,17 +50,17 @@ theorem thirdNormalizeStep_store {model : ExecutionModel} [BitWord.Selected mode
         (RoundedDiv.bodyStep refs.division (signedInputsStore refs store)).1 := rfl
 
 /-- The complete third phase feeds the actual prefix store into its suffix. -/
-theorem thirdStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     (thirdStep refs store).1 =
       (thirdNormalizeStep refs (metricPrefixStore refs store)).1 := rfl
 
 /-- Named division cells match the actual stored output keys. -/
-theorem division_mutableKeys (refs : Refs ctx width) :
+lemma division_mutableKeys (refs : Refs ctx width) :
     RoundedDiv.mutableKeys refs.division = divisionCells.map (phaseCellKey refs) := rfl
 
 /-- Reads outside normalization and division writes survive to the actual reduction input. -/
-theorem beforeReduction_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma beforeReduction_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell ∈ beforeReductionCells, phaseCellKey refs cell ∉ other.storageKeys) :
@@ -78,7 +78,7 @@ theorem beforeReduction_callerFrame {model : ExecutionModel} [BitWord.Selected m
     (avoids .numerator (by simp [beforeReductionCells]))
 
 /-- The complete actual normalization suffix frames every read outside all its writes. -/
-theorem thirdNormalizeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdNormalizeInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell ∈ suffixCells, phaseCellKey refs cell ∉ other.storageKeys) :
@@ -93,7 +93,7 @@ theorem thirdNormalizeInto_callerFrame {model : ExecutionModel} [BitWord.Selecte
     (fun cell present => avoids cell (by simp [suffixCells, present]))
 
 /-- Every caller read outside the full actual third-phase footprint is unchanged. -/
-theorem thirdInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma thirdInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape)
     (avoids : ∀ cell ∈ mutableCells, phaseCellKey refs cell ∉ other.storageKeys) :
@@ -105,7 +105,7 @@ theorem thirdInto_callerFrame {model : ExecutionModel} [BitWord.Selected model]
     (fun cell present => avoids cell (by simp [mutableCells, present]))
 
 /-- Any named cell outside the actual pre-reduction footprint retains its original stored value. -/
-theorem beforeReduction_namedFrame {model : ExecutionModel} [BitWord.Selected model]
+lemma beforeReduction_namedFrame {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (refs : Refs ctx width) (separation : PhaseSeparation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape) (source : PhaseCell)

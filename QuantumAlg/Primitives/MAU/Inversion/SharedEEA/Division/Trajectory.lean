@@ -33,7 +33,7 @@ noncomputable section
 
 open NumberTheory.SharedEEA
 
-private theorem count_fits (state : IterationState) (modulus count : Nat)
+private lemma count_fits (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places) :
     count < 2 ^ modulus.size.size :=
@@ -66,7 +66,7 @@ def phaseFrame (state : IterationState) (modulus count : Nat)
     !decide (count = (Alignment.align state.remainder state.divisor).places), false, iteration⟩
   control := false
 
-private theorem frame_eq_entry (state : IterationState) (modulus count : Nat)
+private lemma frame_eq_entry (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -77,7 +77,7 @@ private theorem frame_eq_entry (state : IterationState) (modulus count : Nat)
   rw [decide_eq_false (Nat.ne_of_lt beforeEnd)]
   rfl
 
-private theorem next_eq_frame (state : IterationState) (modulus count : Nat)
+private lemma next_eq_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -113,7 +113,7 @@ private theorem next_eq_frame (state : IterationState) (modulus count : Nat)
   rfl
 
 /-- The same actual complete microstep advances the phase frame at every reachable position. -/
-theorem microstep_frame (state : IterationState) (modulus count : Nat)
+lemma microstep_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (beforeEnd : count < (Alignment.align state.remainder state.divisor).places)
@@ -126,7 +126,7 @@ theorem microstep_frame (state : IterationState) (modulus count : Nat)
   exact next_eq_frame state modulus count valid conserved active beforeEnd iteration
 
 /-- Every bounded iteration of the actual native microstep has the stated complete packed frame. -/
-theorem iterate_frame (state : IterationState) (modulus count : Nat)
+lemma iterate_frame (state : IterationState) (modulus count : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor)
     (within : count ≤ (Alignment.align state.remainder state.divisor).places)
@@ -146,7 +146,7 @@ theorem iterate_frame (state : IterationState) (modulus count : Nat)
       exact microstep_frame state modulus count valid conserved active (by omega) iteration
 
 /-- The real alignment count reaches the complete coefficient-phase entry. -/
-theorem finish_frame (state : IterationState) (modulus : Nat)
+lemma finish_frame (state : IterationState) (modulus : Nat)
     (valid : state.Admissible) (conserved : state.balance = modulus)
     (active : 0 < state.divisor) (iteration : Bool) :
     (NativeMicrostep.step modulus.size)^[

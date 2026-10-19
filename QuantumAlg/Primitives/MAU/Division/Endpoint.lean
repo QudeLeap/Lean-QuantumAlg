@@ -98,20 +98,17 @@ Mixed density and local-unitary interpretation use [dW19, qcnotes.tex:5381,5394,
 public def problem (modulus : Nat) (modulusPositive : 0 < modulus) :
     Problem (.quantum AlgorithmGate.model .empty)
       (inputContext modulus.size) (outputContext modulus.size) .unit where
-  valid := ExecutionLayout.valid modulus
-  initialization := fun _ => True
-  accepts := fun _ _ => True
-  successLB := ⟨1, le_rfl⟩
-  states := [ExecutionTarget.requirement modulus modulusPositive]
+  Witness := Unit
+  valid := fun _ _ => ExecutionLayout.valid modulus
+  initialization := fun _ _ _ => True
+  accepts := fun _ _ _ _ => True
+  successLB := fun _ _ => ⟨1, le_rfl⟩
+  states := fun _ _ => [ExecutionTarget.requirement modulus modulusPositive]
   resources :=
     { events := ExecutionResources.events modulus
       resident := ExecutionResources.space modulus.size
       auxiliary := ExecutionResources.space modulus.size }
-  depth :=
-    { duration := fun _ => 1
-      limit := ExecutionResources.depthBound modulus.size
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := fun coordinate => nomatch coordinate }
+  quantumTimeLimit := ExecutionResources.depthBound modulus.size
 
 /-- Execute one fixed preparation and the complete modulus-selected native body, retaining all
   keys. -/
@@ -125,40 +122,44 @@ public def algorithm (modulus : Nat) :
 /-- This same actual run meets the independent original-data action and complete resource
   contract. -/
 public theorem main (modulus : Nat) (modulusPositive : 0 < modulus) :
-    ∃ candidate, Algorithm.Solves candidate (problem modulus modulusPositive) := by
+    ∃ candidate, Algorithm.Solves (allowAllocation := true) candidate
+      (problem modulus modulusPositive) := by
   refine ⟨algorithm modulus, ?_⟩
   constructor
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     apply le_of_eq
     symm
     apply (PMF.toOuterMeasure_apply_eq_one_iff _ _).mpr
     intro _pair _supported
     trivial
-  · intro Reference input valid _initial requirement present
+  · intro environment _witness Reference input valid _initial requirement present
     have same : requirement = ExecutionTarget.requirement modulus modulusPositive :=
       List.mem_singleton.mp present
     subst requirement
-    exact ExecutionStateProof.divisionState_requirement_holds modulus modulusPositive
+    exact ExecutionStateProof.divisionState_requirement_holds
+      (runtimeEnvironment := environment) modulus modulusPositive
       (Output.all (outputContext modulus.size) .unit) input valid
-  · intro Reference input _valid _initial
+  · intro environment _witness Reference input _valid _initial
     change Execution.observeBorrowedAfter (ExecutionRuntime.code modulus) Reference
-      ((ExecutionRuntime.code modulus).execute Reference
+      ((ExecutionRuntime.code modulus).execute environment Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))) =
       Execution.observeBorrowed Reference input.state
-    refine (ExecutionStateProof.divisionState_borrowedRestored modulus
+    refine (ExecutionStateProof.divisionState_borrowedRestored
+      (runtimeEnvironment := environment) modulus
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1))))).trans ?_
     refine Eq.trans ?_ (Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl))
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _
       (fun _ => rfl) _ _
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact ExecutionResources.divisionResources_events modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact ExecutionResources.divisionResources_resident modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
     exact ExecutionResources.divisionResources_auxiliary modulus path
-  · intro _Reference _input _valid _initial path _supported
+  · intro _environment _witness _Reference _input _valid _initial path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
     exact ExecutionResources.divisionResources_depth modulus path
 
 end

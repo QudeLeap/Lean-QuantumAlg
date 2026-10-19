@@ -44,7 +44,7 @@ def workQubitLayout (exponentWidth width : Nat) : QubitLayout (width + width) wh
 def workLayout (exponentWidth width : Nat) : QuantumLayout (width + width) :=
   (workQubitLayout exponentWidth width).toQuantumLayout
 
-theorem gidneyExponentWork_identities (exponentWidth width : Nat) :
+lemma gidneyExponentWork_identities (exponentWidth width : Nat) :
     (workLayout exponentWidth width).identities =
       List.range' (exponentWidth + width) (width + width) := by
   change List.ofFn (fun wire : Fin (width + width) => exponentWidth + width + wire.val) = _
@@ -53,12 +53,12 @@ theorem gidneyExponentWork_identities (exponentWidth width : Nat) :
   · intro index _left _right
     simp
 
-theorem gidneyExponentWork_fresh (exponentWidth width : Nat) :
+lemma gidneyExponentWork_fresh (exponentWidth width : Nat) :
     workKey ∉ (context (exponentWidth + width)).keys := by
   change (⟨1⟩ : StorageKey) ∉ [⟨0⟩]
   decide
 
-theorem gidneyExponentWork_disjoint (exponentWidth width : Nat) :
+lemma gidneyExponentWork_disjoint (exponentWidth width : Nat) :
     List.Disjoint (workLayout exponentWidth width).identities
       (context (exponentWidth + width)).physicalIdx := by
   rw [gidneyExponentWork_identities, suppliedQubits_physicalIdx]
@@ -79,7 +79,7 @@ def workPreparation (exponentWidth width : Nat) :
   ⟨(workLayout exponentWidth width).zeroLabel⟩
 
 /-- The actual prepared basis contains two zero words. -/
-theorem gidneyExponentWork_prepared_words (exponentWidth width : Nat)
+lemma gidneyExponentWork_prepared_words (exponentWidth width : Nat)
     :
     (prodEquiv (m := width) (n := width)).symm
       ((workQubitLayout exponentWidth width).binaryIndexEquiv
@@ -98,7 +98,7 @@ theorem gidneyExponentWork_prepared_words (exponentWidth width : Nat)
         (0 : Fin (2 ^ (width + width))))
 
 /-- Context order places the freshly prepared work before the unchanged supplied input. -/
-public theorem gidneyExponentPreparedContext_physical (exponentWidth width : Nat) :
+public lemma gidneyExponentPreparedContext_physical (exponentWidth width : Nat) :
     (preparedContext exponentWidth width).physicalIdx =
       List.range' (exponentWidth + width) (width + width) ++
         List.range (exponentWidth + width) := by
@@ -109,7 +109,7 @@ public theorem gidneyExponentPreparedContext_physical (exponentWidth width : Nat
     (context (exponentWidth + width)).physicalIdx = _
   rw [gidneyExponentWork_identities, suppliedQubits_physicalIdx]
 
-theorem gidneyExponentPreparedContext_contains (exponentWidth width : Nat) :
+lemma gidneyExponentPreparedContext_contains (exponentWidth width : Nat) :
     List.range (exponentWidth + 3 * width) ⊆
       (preparedContext exponentWidth width).physicalIdx := by
   intro wire present

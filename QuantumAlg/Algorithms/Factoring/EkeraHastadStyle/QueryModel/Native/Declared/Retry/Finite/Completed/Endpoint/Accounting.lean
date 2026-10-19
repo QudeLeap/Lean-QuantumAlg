@@ -24,19 +24,19 @@ noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) {N : Nat}
 
-private abbrev groupQuery (input : Input N) : Resource.Event (model input) :=
+private abbrev groupQuery (N : Nat) : Resource.Event (model N) :=
   .oracle .groupOperation
 
 /-- Zero and positive completed runs pay exactly the original granted query
 formula on every path, with no exceptional-input restriction. -/
-theorem completedAlgorithm_query_count (input : Input N) (count : Nat)
+lemma completedAlgorithm_query_count (input : Input N) (count : Nat)
     (path : (completedAlgorithm base noQuantum input count).run.code.Path) :
-    ResourcePool.count (groupQuery input)
+    ResourcePool.count (groupQuery N)
       ((completedAlgorithm base noQuantum input count).run.code.resourcePool path) =
         16 * count := by
   cases count with
   | zero =>
-      change ResourcePool.count (groupQuery input) (0 : ResourcePool (model input)) = 0
+      change ResourcePool.count (groupQuery N) (0 : ResourcePool (model N)) = 0
       exact ResourcePool.count_zero _
   | succ laterCount =>
       exact Cleanup.completed_query_count base noQuantum N input laterCount path

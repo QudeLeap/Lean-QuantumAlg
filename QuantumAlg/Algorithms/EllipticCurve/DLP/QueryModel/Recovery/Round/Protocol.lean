@@ -6,6 +6,8 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.Specification
+
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Round.Admission
 public import QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Sampling.Reuse.SuccessFloor
 public import QuantumAlg.Core.Algorithm.Solves
@@ -14,7 +16,7 @@ import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Round
 import all QuantumAlg.Algorithms.EllipticCurve.DLP.QueryModel.Recovery.Failure
 import all QuantumAlg.Components.Classical.EllipticCurve.CandidateCheck.Native.Sampling.Resources
 import all QuantumAlg.Core.Execution.Circuit.Weighted
-import all QuantumAlg.Core.Execution.CycleSchedule.Cleanup.Admission
+import all QuantumAlg.Core.Execution.Restart.Admission
 import all QuantumAlg.Core.Algorithm.Problem
 import all QuantumAlg.Core.Execution.State.Requirement
 
@@ -60,10 +62,10 @@ public def roundStateRequirement (I : ECDLPInstance E) :
     (fun _ _ => .pure (NormalizedVector.ket (roundZeroSeed I)))
 
 /-- Local joint seed property retaining arbitrary reference extensions and all record masses. -/
-public def roundSeededDomain (I : ECDLPInstance E) (A : Access I)
-    (state : ExecutionState (Store (context I) × (Sampling.executionModel I A).HiddenState)
+public def roundSeededDomain (I : ECDLPInstance E)
+    (state : ExecutionState (Store (context I) × (Sampling.executionModel I).HiddenState)
       (context I).register) : Prop :=
-  Circuit.JointSeededInitialization (model := Sampling.executionModel I A)
+  Circuit.JointSeededInitialization (model := Sampling.executionModel I)
     (context I) (roundZeroSeed I) state
 
 /-- The complete checking scratch and all seven retained cells coexist with the original bank. -/
@@ -95,36 +97,32 @@ public def roundAuxiliaryBudget (I : ECDLPInstance E) : SpacePool .quantum :=
 - [SV24, Uniform.tex:622-664,775-805,996-1024] for known-order preparation.
 - [RNSL17, ECDLP.tex:483-510,649-709] for native checked curve arithmetic.
 -/
-public def roundProblem (I : ECDLPInstance E) (A : Access I)
-    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
-    (nontrivial : 2 ≤ (problem I).order)
-    (duration : Resource.Event (Sampling.executionModel I A) → Nat)
-    (unitQueries : ∀ coordinate, duration (.oracle coordinate) = 1) :
-    Problem (Sampling.executionModel I A) (context I) (context I)
-      (.product .bit (.unsignedWord (scalarWidth I))) where
-  valid := fun _ => True
-  initialization := roundInputDomain I A
-  accepts := fun _ result => roundAccepts I result
-  successLB := ⟨ENNReal.ofReal (Sampling.Reuse.successFloor I),
-    ENNReal.ofReal_le_one.mpr (successFloor_le_one I)⟩
-  states := [roundStateRequirement I]
-  resources :=
-    { events := roundEventBudget I A expansion nontrivial
-      resident := roundResidentBudget I
-      auxiliary := roundAuxiliaryBudget I }
-  depth :=
-    { duration := duration
-      limit := ResourcePool.weightedCount duration (roundEventBudget I A expansion nontrivial)
-      classicalQuery_unit := fun coordinate => nomatch coordinate
-      quantumQuery_unit := unitQueries }
-
-/-- The sole actual complete round exposes all live entries with its two existing result cells. -/
-public def roundAlgorithm (I : ECDLPInstance E) (A : Access I)
+public def roundProblem (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
     (nontrivial : 2 ≤ (problem I).order) :
-    Algorithm (Sampling.executionModel I A) (context I) (context I)
+    Problem (Sampling.executionModel I) (context I) (context I)
       (.product .bit (.unsignedWord (scalarWidth I))) where
-  run := ⟨round I A expansion nontrivial, Output.all (context I) (roundResultRead I)⟩
+  Witness := FiniteCyclicDLP.Canonical.Probability.SecretInput (problem I)
+  valid := fun environment _ _ => Sampling.Admissible I environment
+  initialization := fun _ _ => roundInputDomain I
+  accepts := fun _ _ _ result => roundAccepts I result
+  successLB := fun _ _ => ⟨ENNReal.ofReal (Sampling.Reuse.successFloor I),
+    ENNReal.ofReal_le_one.mpr (successFloor_le_one I)⟩
+  states := fun _ _ => [roundStateRequirement I]
+  resources :=
+    { events := roundEventBudget I expansion nontrivial
+      resident := roundResidentBudget I
+      auxiliary := roundAuxiliaryBudget I }
+  quantumTimeLimit := ResourcePool.weightedCount Resource.Event.quantumDuration
+    (roundEventBudget I expansion nontrivial)
+
+/-- The sole actual complete round exposes all live entries with its two existing result cells. -/
+public def roundAlgorithm (I : ECDLPInstance E)
+    (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder)
+    (nontrivial : 2 ≤ (problem I).order) :
+    Algorithm (Sampling.executionModel I) (context I) (context I)
+      (.product .bit (.unsignedWord (scalarWidth I))) where
+  run := ⟨round I expansion nontrivial, Output.all (context I) (roundResultRead I)⟩
 
 end
 

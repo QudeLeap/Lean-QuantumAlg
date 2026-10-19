@@ -36,8 +36,25 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- Default native gates, granted controlled source queries, and finite bit/word operations. -/
-public abbrev model {n : Nat} (P : QPEEigenstateInput n) : ExecutionModel :=
-  .quantum AlgorithmGate.model (UnitarySource.model P.unitary true) BitWord.model .empty
+public abbrev model (n : Nat) : ExecutionModel :=
+  .quantum AlgorithmGate.model (UnitarySource.model n true) BitWord.model .empty
+
+/-- Source semantics used only to interpret the fixed-width execution in correctness proofs. -/
+@[expose] public def sourceEnvironment {n : Nat} (U : UnitaryOperator (Qubits n)) :
+    (model n).Environment where
+  quantum := UnitarySource.interpretation U true
+  classical := ()
+
+/-- With no classical service, the admitted quantum interpretation determines the environment. -/
+public lemma sourceEnvironment_eq {n : Nat} (U : UnitaryOperator (Qubits n))
+    (environment : (model n).Environment)
+    (same : environment.quantum = UnitarySource.interpretation U true) :
+    environment = sourceEnvironment U := by
+  cases environment with
+  | mk quantum classical =>
+      cases classical
+      cases same
+      rfl
 
 /-- The original source eigenstate is supplied in the borrowed physical suffix. -/
 @[reducible] public def pre (t n : Nat) : RuntimeCtx .quantum :=
@@ -48,11 +65,11 @@ public abbrev model {n : Nat} (P : QPEEigenstateInput n) : ExecutionModel :=
 def phaseRuntimeLayout (t : Nat) : QuantumLayout t :=
   (OwnedBorrowedQubits.wordLayout t).toQuantumLayout
 
-theorem preparationFresh (t n : Nat) : (⟨0⟩ : StorageKey) ∉ (pre t n).keys := by
+lemma preparationFresh (t n : Nat) : (⟨0⟩ : StorageKey) ∉ (pre t n).keys := by
   change (⟨0⟩ : StorageKey) ∉ [⟨1⟩]
   decide
 
-theorem preparationDisjoint (t n : Nat) :
+lemma preparationDisjoint (t n : Nat) :
     List.Disjoint (phaseRuntimeLayout t).identities (pre t n).physicalIdx :=
   OwnedBorrowedQubits.disjointWords t n
 
@@ -60,11 +77,11 @@ theorem preparationDisjoint (t n : Nat) :
 @[implicit_reducible]
 def preparedContext (t n : Nat) : RuntimeCtx .quantum := OwnedBorrowedQubits.context t n
 
-theorem pre_systemCount (t n : Nat) : (pre t n).systemCount = n := by
+lemma pre_systemCount (t n : Nat) : (pre t n).systemCount = n := by
   change (List.ofFn (OwnedBorrowedQubits.borrowedLayout t n).toQuantumLayout.wire ++ []).length = n
   simp only [List.length_append, List.length_ofFn, List.length_nil, Nat.add_zero]
 
-private theorem input_wires (t n : Nat) :
+private lemma input_wires (t n : Nat) :
     (OwnedBorrowedQubits.borrowedLayout t n).toQuantumLayout.wires =
       (pre t n).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires]
@@ -81,7 +98,7 @@ public def inputBasisEquiv (t n : Nat) : (pre t n).register.Index ≃ (Qubits n)
 @[implicit_reducible]
 def runtimeLayout (t n : Nat) : QuantumLayout (t + n) := (qpeLayout t n).toQuantumLayout
 
-theorem runtime_wires (t n : Nat) :
+lemma runtime_wires (t n : Nat) :
     (runtimeLayout t n).wires = (preparedContext t n).quantumLayout.wires :=
   OwnedBorrowedQubits.context_wires t n
 
@@ -94,7 +111,7 @@ def preparedBasisEquiv (t n : Nat) :
     (preparedContext t n).register.Index ≃ (Qubits (t + n)).Index :=
   (preparedLayoutEquiv t n).symm.trans (qpeLayout t n).binaryIndexEquiv
 
-theorem preparedContext_physicalIdx (t n : Nat) :
+lemma preparedContext_physicalIdx (t n : Nat) :
     (preparedContext t n).physicalIdx = List.range (t + n) :=
   OwnedBorrowedQubits.context_physicalIdx t n
 
@@ -103,11 +120,11 @@ def inputPreparation (t : Nat) : BasisPreparation (phaseRuntimeLayout t) :=
   BasisPreparation.zero (phaseRuntimeLayout t)
 
 /-- The actual native QPE word on the complete prepared physical register. -/
-def nativeProgram {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    UnitaryCircuit AlgorithmGate.model (UnitarySource.model P.unitary true)
+def nativeProgram (n : Nat) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (UnitarySource.model n true)
       (preparedContext t n).quantumLayout :=
   Execution.unitaryOfEqualWires (runtimeLayout t n) (preparedContext t n).quantumLayout
-    (runtime_wires t n) (Native.circuit t P.unitary)
+    (runtime_wires t n) (Native.circuit t n)
 
 end
 

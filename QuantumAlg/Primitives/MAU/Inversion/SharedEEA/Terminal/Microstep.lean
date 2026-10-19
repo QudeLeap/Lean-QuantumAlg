@@ -33,9 +33,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.TerminalMicrostep
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open NumberTheory.SharedEEA TerminalPosition
 
-private theorem pre_shift {width : Nat} (initial : Registers width) (count : Nat)
+private lemma pre_shift {width : Nat} (initial : Registers width) (count : Nat)
     (clean : initial.control = false) (first : initial.flags.first = false)
     (second : initial.flags.second = false) :
     GuardedShift.step false (frame initial count) = frame initial (count + 1) := by
@@ -53,7 +55,7 @@ private theorem pre_shift {width : Nat} (initial : Registers width) (count : Nat
   rw [pair_increment, WordRotation.rotateLeft_comp]
   rfl
 
-private theorem remainder_inactive {width : Nat} (state : Registers width)
+private lemma remainder_inactive {width : Nat} (state : Registers width)
     (clean : state.control = false) (second : state.flags.second = false)
     (finished : state.divisorLength = 0) :
     ArithmeticBlocks.remainderStep width state = state := by
@@ -62,7 +64,7 @@ private theorem remainder_inactive {width : Nat} (state : Registers width)
   simp only [ArithmeticSign.remainderStep, second, Bool.and_false, Bool.xor_false]
   rw [← second]
 
-private theorem control_inactive {width : Nat} (state : Registers width)
+private lemma control_inactive {width : Nat} (state : Registers width)
     (clean : state.control = false) (finished : state.divisorLength = 0) :
     NativeControl.step state = state := by
   have inactive : decide (state.divisorLength ≠ 0) = false :=
@@ -70,7 +72,7 @@ private theorem control_inactive {width : Nat} (state : Registers width)
   rw [NativeControl.step_eq_sourceStep state clean, NativeControl.sourceStep, inactive]
   simp only [PhaseControl.update, Bool.and_false, Bool.false_eq_true, if_false]
 
-private theorem zero_shift_inactive {width : Nat} (initial : Registers width) (count : Nat)
+private lemma zero_shift_inactive {width : Nat} (initial : Registers width) (count : Nat)
     (clean : initial.control = false) (finished : initial.divisorLength = 0)
     (positive : 0 < count) (within : count < 2 ^ (2 + width.size)) :
     ZeroShiftControl.step (frame initial count) = frame initial count := by
@@ -79,7 +81,7 @@ private theorem zero_shift_inactive {width : Nat} (initial : Registers width) (c
   rfl
 
 /-- Every actual terminal microstep advances the full physical clock and rotates the entire word. -/
-theorem step_frame {width : Nat} (initial : Registers width) (count : Nat)
+lemma step_frame {width : Nat} (initial : Registers width) (count : Nat)
     (clean : initial.control = false) (first : initial.flags.first = false)
     (second : initial.flags.second = false) (finished : initial.divisorLength = 0)
     (within : count + 1 < 2 ^ (2 + width.size)) :
@@ -96,7 +98,7 @@ theorem step_frame {width : Nat} (initial : Registers width) (count : Nat)
     (boundary_condition_false initial (count + 1) finished (by omega) within)
 
 /-- Ordinary iteration of the same actual action gives every full terminal position. -/
-theorem iterate_frame {width : Nat} (initial : Registers width) (count : Nat)
+lemma iterate_frame {width : Nat} (initial : Registers width) (count : Nat)
     (clean : initial.control = false) (first : initial.flags.first = false)
     (second : initial.flags.second = false) (finished : initial.divisorLength = 0)
     (zero : ExtendedClockRegisters.clock initial = 0)
@@ -109,12 +111,12 @@ theorem iterate_frame {width : Nat} (initial : Registers width) (count : Nat)
       exact step_frame initial count clean first second finished within
 
 /-- The emitted microstep has the exact normalized basis amplitude at each terminal position. -/
-theorem program_apply_frame (width : Nat) (enough : 2 ≤ width.size)
+lemma program_apply_frame (width : Nat) (enough : 2 ≤ width.size)
     (initial : Registers width) (count : Nat)
     (clean : initial.control = false) (first : initial.flags.first = false)
     (second : initial.flags.second = false) (finished : initial.divisorLength = 0)
     (within : count + 1 < 2 ^ (2 + width.size)) :
-    (NativeMicrostep.program width enough).applyNormalized
+    (NativeMicrostep.program width enough).applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical (encoding width).width).basisEquiv.symm
             ((encoding width).encode (frame initial count)))) =

@@ -34,14 +34,16 @@ namespace MAU.Inversion
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 /-- Raw-vector companion of a normalized actual-circuit realization.  Kept
 private so the public witness surface remains normalization-preserving. -/
-private theorem applyVec_encoded_ket_of_realizes {Data : Type}
+private lemma applyVec_encoded_ket_of_realizes {Data : Type}
     {encoding : BinaryLabelEncoding Data}
     {program : UnitaryCircuit AlgorithmGate.model .empty
       (QubitLayout.canonical encoding.width).toQuantum} {step : Data -> Data}
-    (h : UnitaryCircuit.Realizes encoding program step) (x : Data) :
-    UnitaryCircuit.applyVec program
+    (h : UnitaryCircuit.Realizes encoding program environment step) (x : Data) :
+    UnitaryCircuit.applyVec program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical encoding.width).basisEquiv.symm
             (encoding.encode x)) : HilbertVector
@@ -51,7 +53,7 @@ private theorem applyVec_encoded_ket_of_realizes {Data : Type}
           (encoding.encode (step x))) : HilbertVector
             (QubitLayout.canonical encoding.width).toQuantum.register) := by
   change
-    (program.applyNormalized
+    (program.applyNormalized environment
       (NormalizedVector.ket
         ((QubitLayout.canonical encoding.width).basisEquiv.symm
           (encoding.encode x)))).vec =
@@ -77,13 +79,13 @@ def subInverseFromScratch {N : Nat} (s : StageState N) : StageState N where
   inverseScratch := s.inverseScratch - inverseResidue s.input
   flag := s.flag
 
-@[simp] theorem addInverseToScratch_subInverseFromScratch {N : Nat}
+@[simp] lemma addInverseToScratch_subInverseFromScratch {N : Nat}
     (s : StageState N) :
     addInverseToScratch (subInverseFromScratch s) = s := by
   cases s
   simp [addInverseToScratch, subInverseFromScratch, sub_eq_add_neg, add_assoc]
 
-@[simp] theorem subInverseFromScratch_addInverseToScratch {N : Nat}
+@[simp] lemma subInverseFromScratch_addInverseToScratch {N : Nat}
     (s : StageState N) :
     subInverseFromScratch (addInverseToScratch s) = s := by
   cases s
@@ -97,7 +99,7 @@ def reversibleScheduleStep {N : Nat} (s : StageState N) : StageState N :=
 
 /-- The reversible staged update agrees with the public clean inversion action
 on clean scratch input. -/
-theorem reversibleScheduleStep_initial {N : Nat}
+lemma reversibleScheduleStep_initial {N : Nat}
     (u : (ZMod N)ˣ) (z : ZMod N) :
     reversibleScheduleStep (initial u z) =
       { input := u
@@ -116,7 +118,7 @@ abbrev FieldTuple (N : Nat) :=
 def tupleAddScratchToTarget {N : Nat} : FieldTuple N -> FieldTuple N
   | (input, fields) => (input, MAU.Addition.TargetAdd.step fields)
 
-@[simp] theorem tupleAddScratchToTarget_toStage {N : Nat}
+@[simp] lemma tupleAddScratchToTarget_toStage {N : Nat}
     (s : StageState N) :
     (tupleEquiv N).symm (tupleAddScratchToTarget (tupleEquiv N s)) =
       addScratchToTarget s := by
@@ -131,7 +133,8 @@ structure TupleTargetAddWitness {N n : Nat}
     E).width)).toQuantum
   /-- Correctness of the target-add program on tuple labels. -/
   realizes :
-    UnitaryCircuit.Realizes (fieldTupleEncoding E) program
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes (fieldTupleEncoding E) program environment
       tupleAddScratchToTarget
 
 namespace TupleTargetAddWitness
@@ -140,9 +143,9 @@ variable {N n : Nat} {E : BinaryResidueEncoding N n}
 
 /-- The relabeled target-add program realizes `StageState.addScratchToTarget`
 on the staged-state field encoding. -/
-theorem stage_realizes (w : TupleTargetAddWitness E) :
-    UnitaryCircuit.Realizes (fieldEncoding E) w.program addScratchToTarget :=
-  (w.realizes.relabel (tupleEquiv N)).congrStep
+lemma stage_realizes (w : TupleTargetAddWitness E) :
+    UnitaryCircuit.Realizes (fieldEncoding E) w.program environment addScratchToTarget :=
+  ((w.realizes (environment := environment)).relabel (tupleEquiv N)).congrStep
     tupleAddScratchToTarget_toStage
 
 /-- Embed a modular-add target-update witness into the inversion field-tuple
@@ -151,8 +154,8 @@ def ofModularAddition (w : MAU.Addition.TargetAdd.Witness E) :
     TupleTargetAddWitness E where
   program := UnitaryCircuit.onBinarySuffix
     (BinaryLabelEncoding.ofUnitResidueEncoding E).width w.program
-  realizes := UnitaryCircuit.Realizes.onBinarySuffix
-    (left := BinaryLabelEncoding.ofUnitResidueEncoding E) w.realizes
+  realizes := fun environment => UnitaryCircuit.Realizes.onBinarySuffix
+    (left := BinaryLabelEncoding.ofUnitResidueEncoding E) (w.realizes (environment := environment))
 
 end TupleTargetAddWitness
 
@@ -198,7 +201,7 @@ def inverseScratchValueBit (n : Nat) (bit : Fin n) :
         (MAU.Addition.TargetAdd.PowerOfTwo.residueEncoding n)) :=
   inverseScratchBit n bit
 
-@[simp] theorem inverseScratchValueBit_get
+@[simp] lemma inverseScratchValueBit_get
     (n : Nat) (bit : Fin n) (s : StageState (2 ^ n)) :
     (inverseScratchValueBit n bit).get s =
       s.inverseScratch.val.testBit bit.val := by
@@ -262,13 +265,13 @@ def tupleWithWorkProgram (n : Nat) :
     (MAU.Addition.TargetAdd.PowerOfTwo.cleanWorkWitness n).program
 
 /-- The lifted actual circuit realizes tuple-level target-add with work. -/
-theorem tupleWithWork_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (tupleWithWorkEncoding n) (tupleWithWorkProgram n)
+lemma tupleWithWork_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (tupleWithWorkEncoding n) (tupleWithWorkProgram n) environment
       (tupleAddScratchToTargetWithWork n) := by
   have h := UnitaryCircuit.Realizes.onBinarySuffix
     (left := BinaryLabelEncoding.ofUnitResidueEncoding
       (MAU.Addition.TargetAdd.PowerOfTwo.residueEncoding n))
-    (MAU.Addition.TargetAdd.PowerOfTwo.cleanWorkWitness n).realizes
+    ((MAU.Addition.TargetAdd.PowerOfTwo.cleanWorkWitness n).realizes (environment := environment))
   exact (h.relabel (fieldTupleWithWorkEquiv n)).congrStep (by
     intro x
     rcases x with ⟨⟨input, fields⟩, work⟩
@@ -276,7 +279,7 @@ theorem tupleWithWork_realizes (n : Nat) :
 
 /-- Clean tuple endpoint: on a clean flag and clean carry work, the work-aware
 bridge agrees with the old tuple target-add action and restores work. -/
-theorem tupleAddScratchToTargetWithWork_cleanEndpoint
+lemma tupleAddScratchToTargetWithWork_cleanEndpoint
     (n : Nat) (x : FieldTuple (2 ^ n)) (hflag : x.2.2.2 = false) :
     tupleAddScratchToTargetWithWork n (x, cleanWork n) =
       (tupleAddScratchToTarget x, cleanWork n) := by
@@ -328,8 +331,8 @@ def stageWithWorkProgram (n : Nat) :
   tupleWithWorkProgram n
 
 /-- The actual staged circuit realizes the work-aware target-add step. -/
-theorem stageWithWork_realizes (n : Nat) :
-    UnitaryCircuit.Realizes (stageWithWorkEncoding n) (stageWithWorkProgram n)
+lemma stageWithWork_realizes (n : Nat) :
+    UnitaryCircuit.Realizes (stageWithWorkEncoding n) (stageWithWorkProgram n) environment
       (addScratchToTargetWithWork n) :=
   ((tupleWithWork_realizes n).relabel (stageWithWorkEquiv n)).congrStep (by
     intro x
@@ -358,7 +361,7 @@ def stageWithWorkTargetValueBit (n : Nat) (bit : Fin n) :
     ).relabel (fieldTupleWithWorkEquiv n)).relabel
       (stageWithWorkEquiv n)
 
-@[simp] theorem stageWithWorkInverseScratchValueBit_wire_val
+@[simp] lemma stageWithWorkInverseScratchValueBit_wire_val
     (n : Nat) (bit : Fin n) :
     (stageWithWorkInverseScratchValueBit n bit).wire.val =
       n + (n + (n - 1 - bit.val)) := by
@@ -372,7 +375,7 @@ def stageWithWorkTargetValueBit (n : Nat) (bit : Fin n) :
     BinaryLabelEncoding.prodLeftBit, BinaryLabelEncoding.prodRightBit,
     BinaryLabelEncoding.prodLeftWire, BinaryLabelEncoding.prodRightWire]
 
-@[simp] theorem stageWithWorkTargetValueBit_wire_val
+@[simp] lemma stageWithWorkTargetValueBit_wire_val
     (n : Nat) (bit : Fin n) :
     (stageWithWorkTargetValueBit n bit).wire.val =
       n + (n - 1 - bit.val) := by
@@ -387,7 +390,7 @@ def stageWithWorkTargetValueBit (n : Nat) (bit : Fin n) :
     BinaryLabelEncoding.prodLeftWire, BinaryLabelEncoding.prodRightWire]
 
 /-- Clean staged endpoint for the work-aware target-add leg. -/
-theorem addScratchToTargetWithWork_cleanEndpoint
+lemma addScratchToTargetWithWork_cleanEndpoint
     (n : Nat) (s : StageState (2 ^ n)) (hflag : s.flag = false) :
     addScratchToTargetWithWork n (s, cleanWork n) =
       (addScratchToTarget s, cleanWork n) := by
@@ -417,7 +420,7 @@ def subInverseFromScratchWithWork (n : Nat) :
     StageWithWork n -> StageWithWork n
   | (s, work) => (subInverseFromScratch s, work)
 
-@[simp] theorem addInverseToScratchWithWork_subInverseFromScratchWithWork
+@[simp] lemma addInverseToScratchWithWork_subInverseFromScratchWithWork
     (n : Nat) (x : StageWithWork n) :
     addInverseToScratchWithWork n (subInverseFromScratchWithWork n x) = x := by
   rcases x with ⟨s, work⟩
@@ -436,7 +439,7 @@ def reversibleScheduleStepWithWork (n : Nat) :
 
 /-- The work-aware decomposed schedule agrees with the clean public inversion
 action when scratch, flag, and carry work start clean. -/
-theorem reversibleScheduleStepWithWork_initial
+lemma reversibleScheduleStepWithWork_initial
     (n : Nat) (u : (ZMod (2 ^ n))ˣ) (z : ZMod (2 ^ n)) :
     reversibleScheduleStepWithWork n (initial u z, cleanWork n) =
       (({ input := u
@@ -467,8 +470,9 @@ structure DecomposedStageWithTargetAddWitness (n : Nat) where
       n).width)).toQuantum
   /-- Correctness of the compute program on stage/work labels. -/
   computeRealizes :
+    ∀ (environment : OracleModel.empty.Interpretation),
     UnitaryCircuit.Realizes (stageWithWorkEncoding n)
-      computeProgram (addInverseToScratchWithWork n)
+      computeProgram environment (addInverseToScratchWithWork n)
 
 namespace DecomposedStageWithTargetAddWitness
 
@@ -483,22 +487,24 @@ def program {n : Nat} (w : DecomposedStageWithTargetAddWitness n) :
 
 /-- The decomposed work-aware program realizes the reversible inversion
 schedule with explicit carry work. -/
-theorem realizes {n : Nat} (w : DecomposedStageWithTargetAddWitness n) :
-    UnitaryCircuit.Realizes (stageWithWorkEncoding n) w.program
+lemma realizes {n : Nat} (w : DecomposedStageWithTargetAddWitness n) :
+    UnitaryCircuit.Realizes (stageWithWorkEncoding n) w.program environment
       (reversibleScheduleStepWithWork n) := by
   have huncompute :
       UnitaryCircuit.Realizes (stageWithWorkEncoding n)
-        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
         (subInverseFromScratchWithWork n) :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.computeRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       (addInverseToScratchWithWork_subInverseFromScratchWithWork n)
   have htail :
       UnitaryCircuit.Realizes (stageWithWorkEncoding n)
         (UnitaryCircuit.seq (stageWithWorkProgram n)
-          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : StageWithWork n =>
           subInverseFromScratchWithWork n
             (addScratchToTargetWithWork n x)) :=
@@ -507,20 +513,20 @@ theorem realizes {n : Nat} (w : DecomposedStageWithTargetAddWitness n) :
       (secondStep := subInverseFromScratchWithWork n)
       (stageWithWork_realizes n) huncompute
   have hfull :
-      UnitaryCircuit.Realizes (stageWithWorkEncoding n) w.program
+      UnitaryCircuit.Realizes (stageWithWorkEncoding n) w.program environment
         (reversibleScheduleStepWithWork n) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := addInverseToScratchWithWork n)
       (secondStep := fun x : StageWithWork n =>
         subInverseFromScratchWithWork n
           (addScratchToTargetWithWork n x))
-      w.computeRealizes htail
+      (w.computeRealizes (environment := environment)) htail
   simpa [program, reversibleScheduleStepWithWork] using hfull
 
 /-- Encoded-basis correctness for all work-aware staged inversion labels. -/
-theorem apply_ket {n : Nat}
+lemma apply_ket {n : Nat}
     (w : DecomposedStageWithTargetAddWitness n) (x : StageWithWork n) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (stageWithWorkEncoding n).width).basisEquiv.symm
@@ -534,14 +540,14 @@ theorem apply_ket {n : Nat}
             (reversibleScheduleStepWithWork n x))) :
         HilbertVector (QubitLayout.canonical
           (stageWithWorkEncoding n).width).toQuantum.register) := by
-  exact applyVec_encoded_ket_of_realizes w.realizes x
+  exact applyVec_encoded_ket_of_realizes (w.realizes (environment := environment)) x
 
 /-- Clean encoded-basis action for the work-aware decomposed staged inversion
 wrapper. -/
-theorem apply_clean_ket {n : Nat}
+lemma apply_clean_ket {n : Nat}
     (w : DecomposedStageWithTargetAddWitness n)
     (u : (ZMod (2 ^ n))ˣ) (z : ZMod (2 ^ n)) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical
               (stageWithWorkEncoding n).width).basisEquiv.symm
@@ -561,14 +567,14 @@ theorem apply_clean_ket {n : Nat}
         HilbertVector (QubitLayout.canonical
           (stageWithWorkEncoding n).width).toQuantum.register) := by
   simpa [reversibleScheduleStepWithWork_initial] using
-    applyVec_encoded_ket_of_realizes w.realizes
+    applyVec_encoded_ket_of_realizes (w.realizes (environment := environment))
       (initial u z, cleanWork n)
 
 
 
 /-- Linearizing this exact work-aware circuit's strict event depth recovers
 its event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost {n : Nat}
+lemma resourcesFromEventDepth_eq_eventCost {n : Nat}
     (w : DecomposedStageWithTargetAddWitness n) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
@@ -592,10 +598,10 @@ def tupleWitness :
 
 /-- The concrete `ZMod 4` target-add program realizes the staged target update
 after relabeling through the inversion field tuple. -/
-theorem realizes :
+lemma realizes :
     UnitaryCircuit.Realizes
       (fieldEncoding MAU.Addition.TargetAdd.Mod4.residueEncoding)
-      tupleWitness.program addScratchToTarget :=
+      tupleWitness.program environment addScratchToTarget :=
   tupleWitness.stage_realizes
 
 end Mod4TargetAdd
@@ -622,10 +628,12 @@ structure DecomposedStageWitness (N : Nat) where
     (encoding.width)).toQuantum
   /-- Correctness of the compute program on encoded stage labels. -/
   computeRealizes :
-    UnitaryCircuit.Realizes encoding computeProgram StageState.addInverseToScratch
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding computeProgram environment StageState.addInverseToScratch
   /-- Correctness of the target-add program on encoded stage labels. -/
   targetAddRealizes :
-    UnitaryCircuit.Realizes encoding targetAddProgram StageState.addScratchToTarget
+    ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding targetAddProgram environment StageState.addScratchToTarget
 
 namespace DecomposedStageWitness
 
@@ -638,10 +646,12 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
       UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((StageState.fieldEncoding
         E).width)).toQuantum)
     (computeRealizes :
-      UnitaryCircuit.Realizes (StageState.fieldEncoding E) computeProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (StageState.fieldEncoding E) computeProgram environment
         StageState.addInverseToScratch)
     (targetAddRealizes :
-      UnitaryCircuit.Realizes (StageState.fieldEncoding E) targetAddProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (StageState.fieldEncoding E) targetAddProgram environment
         StageState.addScratchToTarget) :
     DecomposedStageWitness N where
   encoding := StageState.fieldEncoding E
@@ -650,16 +660,18 @@ def ofFieldEncoding {N n : Nat} (E : BinaryResidueEncoding N n)
   computeRealizes := computeRealizes
   targetAddRealizes := targetAddRealizes
 
-@[simp] theorem ofFieldEncoding_encoding {N n : Nat}
+@[simp] lemma ofFieldEncoding_encoding {N n : Nat}
     (E : BinaryResidueEncoding N n)
     (computeProgram targetAddProgram :
       UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical ((StageState.fieldEncoding
         E).width)).toQuantum)
     (computeRealizes :
-      UnitaryCircuit.Realizes (StageState.fieldEncoding E) computeProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (StageState.fieldEncoding E) computeProgram environment
         StageState.addInverseToScratch)
     (targetAddRealizes :
-      UnitaryCircuit.Realizes (StageState.fieldEncoding E) targetAddProgram
+      ∀ (environment : OracleModel.empty.Interpretation),
+      UnitaryCircuit.Realizes (StageState.fieldEncoding E) targetAddProgram environment
         StageState.addScratchToTarget) :
     (ofFieldEncoding E computeProgram targetAddProgram computeRealizes
       targetAddRealizes).encoding = StageState.fieldEncoding E :=
@@ -674,41 +686,43 @@ def program (w : DecomposedStageWitness N) :
       (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
 
 /-- The decomposed program realizes the reversible inversion schedule. -/
-theorem realizes (w : DecomposedStageWitness N) :
-    UnitaryCircuit.Realizes w.encoding w.program
+lemma realizes (w : DecomposedStageWitness N) :
+    UnitaryCircuit.Realizes w.encoding w.program environment
       (decomposedStageStep (N := N)) := by
   have huncompute :
       UnitaryCircuit.Realizes w.encoding
-        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))
+        (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)) environment
         StageState.subInverseFromScratch :=
-    UnitaryCircuit.Realizes.dagger_of_rightInverse w.computeRealizes
+    UnitaryCircuit.Realizes.dagger_of_rightInverse (w.computeRealizes (environment := environment))
       (by
         rw [UnitaryCircuit.dagger_matrix]
+        rw [Subsingleton.elim
+          ((AlgorithmGate.oracleFreeAdjoints .empty).interpretation environment) environment]
         exact Unitary.star_eq_inv _)
       StageState.addInverseToScratch_subInverseFromScratch
   have htail :
       UnitaryCircuit.Realizes w.encoding
         (UnitaryCircuit.seq w.targetAddProgram
-          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty)))
+          (w.computeProgram.dagger (AlgorithmGate.oracleFreeAdjoints .empty))) environment
         (fun x : StageState N =>
           StageState.subInverseFromScratch (StageState.addScratchToTarget x)) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := StageState.addScratchToTarget)
       (secondStep := StageState.subInverseFromScratch)
-      w.targetAddRealizes huncompute
+      (w.targetAddRealizes (environment := environment)) huncompute
   have hfull :
-      UnitaryCircuit.Realizes w.encoding w.program
+      UnitaryCircuit.Realizes w.encoding w.program environment
         (decomposedStageStep (N := N)) :=
     UnitaryCircuit.Realizes.seq
       (firstStep := StageState.addInverseToScratch)
       (secondStep := fun x : StageState N =>
         StageState.subInverseFromScratch (StageState.addScratchToTarget x))
-      w.computeRealizes htail
+      (w.computeRealizes (environment := environment)) htail
   simpa [program, decomposedStageStep, StageState.reversibleScheduleStep] using hfull
 
 /-- Encoded-basis correctness for all staged modular-inversion labels. -/
-theorem apply_ket (w : DecomposedStageWitness N) (x : StageState N) :
-    UnitaryCircuit.applyVec w.program
+lemma apply_ket (w : DecomposedStageWitness N) (x : StageState N) :
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x)) : HilbertVector
@@ -718,13 +732,13 @@ theorem apply_ket (w : DecomposedStageWitness N) (x : StageState N) :
           (w.encoding.encode (StageState.reversibleScheduleStep x))) :
         HilbertVector
           (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
-  applyVec_encoded_ket_of_realizes w.realizes x
+  applyVec_encoded_ket_of_realizes (w.realizes (environment := environment)) x
 
 /-- Clean staged action:
 `|enc(u,z,0,0)> -> |enc(u,z+u^{-1},0,0)>`. -/
-theorem apply_clean_ket (w : DecomposedStageWitness N)
+lemma apply_clean_ket (w : DecomposedStageWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
-    UnitaryCircuit.applyVec w.program
+    UnitaryCircuit.applyVec w.program environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode (StageState.initial u z))) :
@@ -744,20 +758,20 @@ theorem apply_clean_ket (w : DecomposedStageWitness N)
 
 /-- Intrinsically normalized correctness for every staged label of the exact
 compute / target-add / inverse-compute circuit. -/
-theorem applyNormalized_ket (w : DecomposedStageWitness N) (x : StageState N) :
-    w.program.applyNormalized
+lemma applyNormalized_ket (w : DecomposedStageWitness N) (x : StageState N) :
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x))) =
       NormalizedVector.ket
         ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode (StageState.reversibleScheduleStep x))) :=
-  w.realizes.apply_encoded_ket x
+  (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Normalized clean staged action of the exact decomposed inversion circuit. -/
-theorem applyNormalized_clean_ket (w : DecomposedStageWitness N)
+lemma applyNormalized_clean_ket (w : DecomposedStageWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
-    w.program.applyNormalized
+    w.program.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode (StageState.initial u z)))) =
@@ -816,7 +830,7 @@ def eventGateCount (w : DecomposedStageWitness N)
 
 
 /-- Linearizing decomposed event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost (w : DecomposedStageWitness N) :
+lemma resourcesFromEventDepth_eq_eventCost (w : DecomposedStageWitness N) :
     w.program.resourcesFromEventDepth = w.program.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.program
 
@@ -835,15 +849,16 @@ structure StructuredCircuitWitness (N : Nat) where
   circuit : UnitaryCircuit AlgorithmGate.model .empty (QubitLayout.canonical
     (encoding.width)).toQuantum
   /-- Direct encoded-basis realization of the public inversion update. -/
-  realizes : UnitaryCircuit.Realizes encoding circuit (encodedStep (N := N))
+  realizes : ∀ (environment : OracleModel.empty.Interpretation),
+    UnitaryCircuit.Realizes encoding circuit environment (encodedStep (N := N))
 
 namespace StructuredCircuitWitness
 
 variable {N : Nat}
 
 /-- Encoded-basis correctness for all modular-inversion data labels. -/
-theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
-    UnitaryCircuit.applyVec w.circuit
+lemma apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
+    UnitaryCircuit.applyVec w.circuit environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x)) : HilbertVector
@@ -853,13 +868,14 @@ theorem apply_ket (w : StructuredCircuitWitness N) (x : Data N) :
           (w.encoding.encode x.addInverseIntoTarget)) : HilbertVector
             (QubitLayout.canonical w.encoding.width).toQuantum.register) :=
   by
-    simpa [encodedStep] using applyVec_encoded_ket_of_realizes w.realizes x
+    simpa [encodedStep] using applyVec_encoded_ket_of_realizes (w.realizes (environment :=
+      environment)) x
 
 /-- Clean public-form encoded-basis action:
 `|enc(u,z,0)> -> |enc(u,z+u^{-1},0)>`. -/
-theorem apply_clean_ket (w : StructuredCircuitWitness N)
+lemma apply_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
-    UnitaryCircuit.applyVec w.circuit
+    UnitaryCircuit.applyVec w.circuit environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
@@ -877,8 +893,8 @@ theorem apply_clean_ket (w : StructuredCircuitWitness N)
       ({ input := u, target := z, flag := false } : Data N)
 
 /-- Intrinsically normalized encoded-basis correctness. -/
-theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
-    w.circuit.applyNormalized
+lemma applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode x))) =
@@ -886,12 +902,12 @@ theorem applyNormalized_ket (w : StructuredCircuitWitness N) (x : Data N) :
         ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
           (w.encoding.encode x.addInverseIntoTarget)) := by
   simpa [encodedStep] using
-    w.realizes.apply_encoded_ket x
+    (w.realizes (environment := environment)).apply_encoded_ket x
 
 /-- Normalized clean public-form action of the exact accounted circuit. -/
-theorem applyNormalized_clean_ket (w : StructuredCircuitWitness N)
+lemma applyNormalized_clean_ket (w : StructuredCircuitWitness N)
     (u : (ZMod N)ˣ) (z : ZMod N) :
-    w.circuit.applyNormalized
+    w.circuit.applyNormalized environment
         (NormalizedVector.ket
           ((QubitLayout.canonical w.encoding.width).basisEquiv.symm
             (w.encoding.encode
@@ -950,7 +966,7 @@ def eventGateCount (w : StructuredCircuitWitness N)
 
 
 /-- Linearizing structured event depth recovers its exact strict event pool. -/
-theorem resourcesFromEventDepth_eq_eventCost (w : StructuredCircuitWitness N) :
+lemma resourcesFromEventDepth_eq_eventCost (w : StructuredCircuitWitness N) :
     w.circuit.resourcesFromEventDepth = w.circuit.eventCost :=
   UnitaryCircuit.resourcesFromEventDepth_eq_eventCost w.circuit
 

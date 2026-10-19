@@ -69,7 +69,7 @@ def secondStep {model : ExecutionModel} [BitWord.Selected model]
   (reduced.1, (loaded.2, reduced.2))
 
 /-- The selected path has the same chronological store as the pure second-phase calculation. -/
-theorem secondStep_store {model : ExecutionModel} [BitWord.Selected model]
+lemma secondStep_store {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (store : Store ctx) :
     (secondStep refs store).1 =
       LatticeArithmetic.pointStore (writeInput refs.division.output)
@@ -77,17 +77,19 @@ theorem secondStep_store {model : ExecutionModel} [BitWord.Selected model]
         (RoundedDiv.bodyStep refs.division
           (numeratorStore refs (secondPrefixStore refs store))).1 := rfl
 
-private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma divisionReduction_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (writeInput refs.division.output)
-        refs.basis.second refs.target refs.reduceProduct)).execute Reference state =
+        refs.basis.second refs.target refs.reduceProduct)).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := divisionReductionStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (RoundedDiv.body refs.division)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (RoundedDiv.body refs.division)
     (LatticeArithmetic.pointReduce (writeInput refs.division.output)
       refs.basis.second refs.target refs.reduceProduct)
     (fun before =>
@@ -104,18 +106,19 @@ private theorem divisionReduction_execute {model : ExecutionModel} [BitWord.Sele
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
-private theorem numeratorReduction_execute {model : ExecutionModel} [BitWord.Selected model]
+private lemma numeratorReduction_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (Circuit.seq (numeratorInto refs)
       (Circuit.seq (RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (writeInput refs.division.output)
-          refs.basis.second refs.target refs.reduceProduct))).execute Reference state =
+          refs.basis.second refs.target refs.reduceProduct))).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := numeratorReductionStep refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (numeratorInto refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (numeratorInto refs)
     (.seq (RoundedDiv.body refs.division)
       (LatticeArithmetic.pointReduce (writeInput refs.division.output)
         refs.basis.second refs.target refs.reduceProduct))
@@ -131,14 +134,15 @@ private theorem numeratorReduction_execute {model : ExecutionModel} [BitWord.Sel
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual execution preserves the selected hidden state and reference correlations. -/
-theorem secondInto_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma secondInto_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (secondInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := secondStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (secondPrefixInto refs)
+  refine (Circuit.execute_seq_mapClassical (environment := environment) (secondPrefixInto refs)
     (.seq (numeratorInto refs)
       (.seq (RoundedDiv.body refs.division)
         (LatticeArithmetic.pointReduce (writeInput refs.division.output)

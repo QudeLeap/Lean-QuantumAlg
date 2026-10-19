@@ -23,7 +23,7 @@ namespace QuantumAlg.Execution
 noncomputable section
 
 /-- Independent finite sampling commutes with a deterministic map of the prior classical index. -/
-theorem uniformChoice_mapClassical {C D : Type} [Fintype C] [Fintype D]
+lemma uniformChoice_mapClassical {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register} (state : ExecutionState C R) (count : ℕ+)
     [DecidableEq (D × Fin count)] (update : C → D) :
     uniformChoice (state.mapClassical update) count =

@@ -32,7 +32,7 @@ private def splitCells {kind : ProblemKind} :
       let rest := splitCells tail right cells.2
       ((cells.1, rest.1), rest.2)
 
-private theorem split_join {kind : ProblemKind} (left right : List (RuntimeEntry kind))
+private lemma split_join {kind : ProblemKind} (left right : List (RuntimeEntry kind))
     (first : Cells left) (second : Cells right) :
     splitCells left right (joinCells left right first second) = (first, second) := by
   induction left with
@@ -41,7 +41,7 @@ private theorem split_join {kind : ProblemKind} (left right : List (RuntimeEntry
       obtain ⟨value, first⟩ := first
       simp only [joinCells, splitCells, ih]
 
-private theorem join_split {kind : ProblemKind} (left right : List (RuntimeEntry kind))
+private lemma join_split {kind : ProblemKind} (left right : List (RuntimeEntry kind))
     (cells : Cells (left ++ right)) :
     joinCells left right (splitCells left right cells).1 (splitCells left right cells).2 =
       cells := by
@@ -65,7 +65,7 @@ def split (store : Store (left.disjointUnion right separate)) : Store left × St
   (⟨cells.1⟩, ⟨cells.2⟩)
 
 /-- Joining stores preserves both complete original cell vectors. -/
-theorem split_join_store (first : Store left) (second : Store right) :
+lemma split_join_store (first : Store left) (second : Store right) :
     split separate (join separate first second) = (first, second) := by
   obtain ⟨first⟩ := first
   obtain ⟨second⟩ := second
@@ -74,7 +74,7 @@ theorem split_join_store (first : Store left) (second : Store right) :
     ((⟨values.1⟩ : Store left), (⟨values.2⟩ : Store right))) actual
 
 /-- Splitting loses no classical value or quantum presence marker. -/
-theorem join_split_store (store : Store (left.disjointUnion right separate)) :
+lemma join_split_store (store : Store (left.disjointUnion right separate)) :
     join separate (split separate store).1 (split separate store).2 = store := by
   obtain ⟨cells⟩ := store
   exact congrArg Store.mk (join_split left.entries right.entries cells)

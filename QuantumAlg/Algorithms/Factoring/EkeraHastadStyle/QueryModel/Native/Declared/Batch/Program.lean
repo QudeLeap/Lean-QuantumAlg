@@ -27,7 +27,7 @@ open Execution
 noncomputable section
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = [])
-  (N : Nat) (input : Input N)
+  (N : Nat)
 
 /-- The second actual pack of measured exponent cells into one sample slot. -/
 def copyOp (index : Fin 16) :
@@ -43,65 +43,65 @@ def copyOp (index : Fin 16) :
 
 /-- Pay for that pack in the declared classical operation model. -/
 def copy (index : Fin 16) :
-    Circuit (model input) (context base noQuantum N) (context base noQuantum N) :=
-  BitWord.instruction (execution := model input) (copyOp base noQuantum N index)
+    Circuit (model N) (context base noQuantum N) (context base noQuantum N) :=
+  BitWord.instruction (execution := model N) (copyOp base noQuantum N index)
 
 /-- A later observation resets, queries, measures, packs and saves one sample. -/
 def reusedSample (index : Fin 16) :
-    Circuit (model input) (context base noQuantum N) (context base noQuantum N) :=
+    Circuit (model N) (context base noQuantum N) (context base noQuantum N) :=
   .seq (reuse (storageContext base N) (storage_empty base noQuantum N)
-    N input (parameter base N))
-    (copy base noQuantum N input index)
+    N (parameter base N))
+    (copy base noQuantum N index)
 
 /-- The prepared first observation is followed by fifteen paid resets. -/
 def firstBatch :
-    Circuit (model input) (context base noQuantum N) (context base noQuantum N) :=
+    Circuit (model N) (context base noQuantum N) (context base noQuantum N) :=
   .seq
     (.seq (body (storageContext base N) (storage_empty base noQuantum N)
-      N input (parameter base N)) (copy base noQuantum N input 0))
+      N (parameter base N)) (copy base noQuantum N 0))
     (Circuit.forRange 15 fun index =>
-      reusedSample base noQuantum N input index.succ)
+      reusedSample base noQuantum N index.succ)
 
 /-- Redraw the actual source and recompute the retained complete parameter. -/
 def redraw :
-    Circuit (model input) (context base noQuantum N) (context base noQuantum N) :=
+    Circuit (model N) (context base noQuantum N) (context base noQuantum N) :=
   .seq (ShorStyle.Canonical.Sampler.PackedSample.draw
-    (model := model input) N (sourceRef base noQuantum N))
+    (model := model N) N (sourceRef base noQuantum N))
     (ShorStyle.Canonical.Sampler.Program.circuit
-      (model := model input) N
+      (model := model N) N
       (.storage (sourceRef base noQuantum N).toCStorageRef)
       (parameterRef base noQuantum N))
 
 /-- A further batch pays for all sixteen resets in the same live context. -/
 def nextBatch :
-    Circuit (model input) (context base noQuantum N) (context base noQuantum N) :=
-  .seq (redraw base noQuantum N input)
-    (Circuit.forRange 16 (reusedSample base noQuantum N input))
+    Circuit (model N) (context base noQuantum N) (context base noQuantum N) :=
+  .seq (redraw base noQuantum N)
+    (Circuit.forRange 16 (reusedSample base noQuantum N))
 
 /-- Retain the source, parameter and results before preparing the only bank. -/
-def setup : Circuit (model input) base (context base noQuantum N) :=
-  .seq (ShorStyle.Canonical.Sampler.Retained.circuit (model := model input) base N)
-    (.seq (Native.Batch.Slots.allocate (model := model input) (sourceContext base N) N)
+def setup : Circuit (model N) base (context base noQuantum N) :=
+  .seq (ShorStyle.Canonical.Sampler.Retained.circuit (model := model N) base N)
+    (.seq (Native.Batch.Slots.allocate (model := model N) (sourceContext base N) N)
       (.seq (Declared.prepare (storageContext base N)
-          (storage_empty base noQuantum N) N input)
+          (storage_empty base noQuantum N) N)
         (Declared.allocate (storageContext base N)
-          (storage_empty base noQuantum N) N input)))
+          (storage_empty base noQuantum N) N)))
 
 /-- Execute the complete first sixteen observations on the actual live bank. -/
-def code : Circuit (model input) base (context base noQuantum N) :=
-  .seq (setup base noQuantum N input) (firstBatch base noQuantum N input)
+def code : Circuit (model N) base (context base noQuantum N) :=
+  .seq (setup base noQuantum N) (firstBatch base noQuantum N)
 
 /-- Return all actual sample cells while retaining every live context entry. -/
-def run : AlgorithmRun (model input) base (context base noQuantum N)
+def run : AlgorithmRun (model N) base (context base noQuantum N)
     (.fixedVector 16 (.bits (measurementBits N))) where
-  code := code base noQuantum N input
+  code := code base noQuantum N
   output := Output.all (context base noQuantum N)
     (.read (.fixedVector fun index =>
       .storage (terminalRef base noQuantum N index).toCStorageRef))
 
 /-- The batch output lists every actual source, parameter, result and bank key. -/
-theorem output_listing :
-    (run base noQuantum N input).output.listing =
+lemma output_listing :
+    (run base noQuantum N).output.listing =
       (context base noQuantum N).keys := rfl
 
 end

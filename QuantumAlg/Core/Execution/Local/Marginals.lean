@@ -29,7 +29,7 @@ noncomputable section
 
 namespace DensityOperator
 
-theorem localUnitary_marginalLeft {R Reference : Register}
+lemma localUnitary_marginalLeft {R Reference : Register}
     (operator : UnitaryOperator R) (state : DensityOperator (Register.prod R Reference)) :
     (applyUnitary (UnitaryOperator.prodTensor operator (1 : UnitaryOperator Reference))
       state).marginalLeft = applyUnitary operator state.marginalLeft := by
@@ -55,7 +55,7 @@ theorem localUnitary_marginalLeft {R Reference : Register}
       rw [marginalMatrix, Matrix.mul_sum, Matrix.sum_mul]
     _ = _ := (applyUnitary_matrix operator state.marginalLeft).symm
 
-public theorem applyUnitary_reindex {R S : Register} (operator : UnitaryOperator R)
+public lemma applyUnitary_reindex {R S : Register} (operator : UnitaryOperator R)
     (state : DensityOperator R) (basisEquiv : R.Index ≃ S.Index) :
     (applyUnitary operator state).reindex basisEquiv =
       applyUnitary (UnitaryOperator.reindex basisEquiv operator) (state.reindex basisEquiv) := by
@@ -71,7 +71,7 @@ end DensityOperator
 
 namespace Execution.Input
 
-theorem localState_quantumMarginal {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma localState_quantumMarginal {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} (input : Input ctx Reference) :
     input.localState.quantumMarginal = input.state.quantumMarginal.marginalLeft := by
   apply DensityOperator.ext

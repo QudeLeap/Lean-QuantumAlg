@@ -44,17 +44,18 @@ structure GenericSeparation
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Both actual prefix results and the total affine result appear in the complete returned Store. -/
-theorem genericBodyStep_store (spec : ModulusSpec width)
+lemma genericBodyStep_store (spec : ModulusSpec width)
     (leftX leftY rightX rightY : CInputRef ctx (.unsignedWord width))
     (numerator denominator : CWriteRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (PointShape width))
     (separate : GenericSeparation leftX leftY rightX rightY numerator denominator)
     (store : Store ctx) (hidden : model.HiddenState) :
-    (genericBodyStep spec leftX leftY rightX rightY numerator denominator output
+    (genericBodyStep (environment := environment) spec leftX leftY rightX rightY numerator
+      denominator output
       (store, hidden)).1.1 =
       ((store.write numerator (Field.Native.subtractionWord spec
         (store.read rightY) (store.read leftY))).write denominator
@@ -83,7 +84,7 @@ theorem genericBodyStep_store (spec : ModulusSpec width)
 
 end
 
-private theorem genericCells_distinct (cells : Cells ctx (genericShapes width))
+private lemma genericCells_distinct (cells : Cells ctx (genericShapes width))
     (distinct : cells.Distinct) : cells.tail.head.ref.key ≠ cells.head.ref.key := by
   cases cells with
   | cons denominator rest =>
@@ -92,7 +93,7 @@ private theorem genericCells_distinct (cells : Cells ctx (genericShapes width))
       cases rest
       exact distinct.1.1
 
-private theorem genericCells_numerator_avoids {outer : RuntimeCtx kind}
+private lemma genericCells_numerator_avoids {outer : RuntimeCtx kind}
     (cells : Cells ctx (genericShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {shape : CShape}
     (input : CInputRef outer shape) :
@@ -105,7 +106,7 @@ private theorem genericCells_numerator_avoids {outer : RuntimeCtx kind}
       cases rest
       simp [Cells.keys, Cells.tail, Cells.head]
 
-private theorem genericCells_denominator_avoids {outer : RuntimeCtx kind}
+private lemma genericCells_denominator_avoids {outer : RuntimeCtx kind}
     (cells : Cells ctx (genericShapes width)) (transport : Transport outer ctx)
     (separated : cells.TransportSeparated transport) {shape : CShape}
     (input : CInputRef outer shape) :
@@ -114,7 +115,7 @@ private theorem genericCells_denominator_avoids {outer : RuntimeCtx kind}
   cases cells with
   | cons denominator rest => simp [Cells.keys, Cells.head]
 
-private theorem genericCells_separation {outer : RuntimeCtx kind}
+private lemma genericCells_separation {outer : RuntimeCtx kind}
     (leftX leftY rightX rightY : CInputRef outer (.unsignedWord width))
     (cells : Cells ctx (genericShapes width)) (distinct : cells.Distinct)
     (transport : Transport outer ctx) (separated : cells.TransportSeparated transport) :
@@ -145,11 +146,11 @@ private theorem genericCells_separation {outer : RuntimeCtx kind}
 
 section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual allocation supplies all prefix conditions and returns the sole original caller write. -/
-theorem genericInto_completeRecord (spec : ModulusSpec width)
+lemma genericInto_completeRecord (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) :
     ∃ record : Store ctx × model.HiddenState →
@@ -157,14 +158,15 @@ theorem genericInto_completeRecord (spec : ModulusSpec width)
           (genericInto (model := model) spec left right output).Path,
       (∀ (Reference : Register) {History : Type} [Fintype History]
         (state : State ctx Reference (model.HiddenState × History)),
-        (genericInto (model := model) spec left right output).execute Reference state =
+        (genericInto (model := model) spec left right output).execute environment Reference state =
           state.mapClassical (fun entry =>
             let result := record (entry.1, entry.2.1)
             (result.1.1, (result.1.2, (entry.2.2, result.2))))) ∧
       ∀ before : Store ctx × model.HiddenState,
         (record before).1.1 = before.1.write output
           (genericOutputValue spec (before.1.read left) (before.1.read right)) := by
-  apply withCells_actualRecord_initialized_post ctx (genericShapes width)
+  apply withCells_actualRecord_initialized_post (environment := environment) ctx (genericShapes
+    width)
     (fun cells _ transport _ => genericBody (model := model) spec
       (transport.liftInput (.first (.second left)))
       (transport.liftInput (.second (.second left)))
@@ -174,7 +176,8 @@ theorem genericInto_completeRecord (spec : ModulusSpec width)
     (fun source target => target = source.write output
       (genericOutputValue spec (source.read left) (source.read right)))
   intro inner cells distinct transport separated
-  refine ⟨genericBodyStep _ _ _ _ _ _ _ _, genericBody_execute _ _ _ _ _ _ _ _, ?_⟩
+  refine ⟨genericBodyStep (environment := environment) _ _ _ _ _ _ _ _, genericBody_execute _ _
+    _ _ _ _ _ _, ?_⟩
   intro source before reads _initialized
   let numerator := Field.Native.subtractionWord spec (source.read right).second.second
     (source.read left).second.second
@@ -205,28 +208,31 @@ def genericIntoStep (spec : ModulusSpec width)
     (output : CWriteRef ctx (PointShape width)) :
     Store ctx × model.HiddenState → (Store ctx × model.HiddenState) ×
       (genericInto (model := model) spec left right output).Path :=
-  Classical.choose (genericInto_completeRecord spec left right output)
+  Classical.choose (genericInto_completeRecord (environment := environment) spec left right output)
 
 /-- Actual reference-preserving generic execution follows that same complete native record. -/
-theorem genericInto_execute (spec : ModulusSpec width)
+lemma genericInto_execute (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (genericInto (model := model) spec left right output).execute Reference state =
+    (genericInto (model := model) spec left right output).execute environment Reference state =
       state.mapClassical (fun entry =>
-        let result := genericIntoStep spec left right output (entry.1, entry.2.1)
+        let result := genericIntoStep (environment := environment) spec left right output
+          (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  (Classical.choose_spec (genericInto_completeRecord spec left right output)).1 Reference state
+  (Classical.choose_spec (genericInto_completeRecord (environment := environment) spec left
+    right output)).1 Reference state
 
 /-- The actual generic return changes precisely the chosen nominal result cell. -/
-theorem genericIntoStep_store (spec : ModulusSpec width)
+lemma genericIntoStep_store (spec : ModulusSpec width)
     (left right : CInputRef ctx (PointEquality.RawPointShape width))
     (output : CWriteRef ctx (PointShape width)) (store : Store ctx)
     (hidden : model.HiddenState) :
-    (genericIntoStep spec left right output (store, hidden)).1.1 =
+    (genericIntoStep (environment := environment) spec left right output (store, hidden)).1.1 =
       store.write output (genericOutputValue spec (store.read left) (store.read right)) :=
-  (Classical.choose_spec (genericInto_completeRecord spec left right output)).2 (store, hidden)
+  (Classical.choose_spec (genericInto_completeRecord (environment := environment) spec left
+    right output)).2 (store, hidden)
 
 end
 

@@ -24,7 +24,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth width phaseBits : Nat}
 
 /-- Whichever actual selection arm is taken has at most five dependent instructions. -/
-theorem nativeRecovery_selection_unitDepth_le (cells : ScanCells ctx modulusWidth width)
+lemma nativeRecovery_selection_unitDepth_le (cells : ScanCells ctx modulusWidth width)
     (remainder : CInputRef ctx (.unsignedWord width))
     (path : (selectCandidate (model := model) cells remainder).Path) :
     (selectCandidate (model := model) cells remainder).depth (fun _ => 1) path ≤ 5 := by
@@ -45,7 +45,7 @@ theorem nativeRecovery_selection_unitDepth_le (cells : ScanCells ctx modulusWidt
         decide
 
 /-- Candidate materialization, modular validation and selection all contribute to visit depth. -/
-theorem nativeRecovery_visit_unitDepth_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_visit_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (division : CWriteRef ctx (.product (.unsignedWord width) (.unsignedWord width)))
@@ -71,7 +71,7 @@ theorem nativeRecovery_visit_unitDepth_le (spec : ModulusSpec modulusWidth)
   omega
 
 /-- Lexical allocation adds no depth to the actual active visit. -/
-theorem nativeRecovery_activeVisit_unitDepth_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_activeVisit_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (path : (activeVisit (model := model) spec base cells).Path) :
@@ -84,7 +84,7 @@ theorem nativeRecovery_activeVisit_unitDepth_le (spec : ModulusSpec modulusWidth
       ctx.canonicalFreshKey_fresh) (scanDivisionCell ctx width) path
 
 /-- Only the actual active branch contributes visit depth. -/
-theorem nativeRecovery_slot_unitDepth_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_slot_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width)
     (path : (scanSlot (model := model) spec base cells).Path) :
@@ -98,7 +98,7 @@ theorem nativeRecovery_slot_unitDepth_le (spec : ModulusSpec modulusWidth)
       · exact nativeRecovery_activeVisit_unitDepth_le spec base cells path
 
 /-- The actual finite path vector has the sum of its slot dependency depths. -/
-theorem nativeRecovery_scan_unitDepth_le (spec : ModulusSpec modulusWidth)
+lemma nativeRecovery_scan_unitDepth_le (spec : ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (count : Nat)
     (path : (scan (model := model) spec base cells count).Path) :
@@ -113,7 +113,7 @@ theorem nativeRecovery_scan_unitDepth_le (spec : ModulusSpec modulusWidth)
     _ = _ := by simp
 
 /-- Actual padded decoding, dyadic loading and three initialization writes are all charged. -/
-theorem nativeRecovery_initialization_unitDepth_le (sample : CInputRef ctx (.bits phaseBits))
+lemma nativeRecovery_initialization_unitDepth_le (sample : CInputRef ctx (.bits phaseBits))
     (path : (initializeScan (model := model) ctx modulusWidth phaseBits sample).Path) :
     (initializeScan (model := model) ctx modulusWidth phaseBits sample).depth (fun _ => 1) path ≤
       4 * (phaseBits + 1) + 3 := by
@@ -135,7 +135,7 @@ theorem nativeRecovery_initialization_unitDepth_le (sample : CInputRef ctx (.bit
   omega
 
 /-- Complete actual recovery obeys its independent setup, scan and packing duration bound. -/
-theorem nativeRecovery_into_unitDepth_le
+lemma nativeRecovery_into_unitDepth_le
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (sample : CInputRef ctx (.bits phaseBits)) (output : CWriteRef ctx (outputShape phaseBits))

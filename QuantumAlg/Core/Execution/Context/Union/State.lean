@@ -80,14 +80,14 @@ def joinState
     (referenceBasis left right separate Reference).symm
 
 /-- Splitting and reconstructing preserves the complete actual classical-quantum state. -/
-theorem contextUnion_join_split_state
+lemma contextUnion_join_split_state
     (state : State (left.disjointUnion right separate) Reference History) :
     joinState left right separate (splitState left right separate state) = state :=
   ExecutionState.coordinate_transport_inverse state (recordEquiv left right separate History)
     (referenceBasis left right separate Reference)
 
 /-- Reconstruction and splitting are inverse on arbitrary correlated frame states too. -/
-theorem contextUnion_split_join_state
+lemma contextUnion_split_join_state
     (state : State left (Register.prod right.register Reference) (Store right × History)) :
     splitState left right separate (joinState left right separate state) = state :=
   ExecutionState.coordinate_transport_inverse state
@@ -95,7 +95,7 @@ theorem contextUnion_split_join_state
     (referenceBasis left right separate Reference).symm
 
 /-- A split coordinate block is exactly the original full density block, entry for entry. -/
-theorem contextUnion_splitState_entry
+lemma contextUnion_splitState_entry
     (state : State (left.disjointUnion right separate) Reference History)
     (label : Store left × (Store right × History))
     (row column : (Register.prod left.register (Register.prod right.register Reference)).Index) :

@@ -34,7 +34,7 @@ open QuantumAlg.Execution
 @[expose] public def baseKey : StorageKey := ⟨0⟩
 
 /-- The original borrowed input key is fresh in the empty source context. -/
-public theorem baseFresh :
+public lemma baseFresh :
     baseKey ∉ (RuntimeCtx.empty : RuntimeCtx .quantum).keys := by decide
 
 /-- The original caller-owned canonical-residue cell remains in the runtime input. -/
@@ -47,13 +47,13 @@ public def baseSourceRef (width : Nat) : CInputRef (pre width) (.canonicalResidu
     (.canonicalResidue width) baseFresh)
 
 /-- The sole initial entry has the source's original borrowed storage role and width. -/
-theorem pre_entries (width : Nat) :
+lemma pre_entries (width : Nat) :
     (pre width).entries = [.storage baseKey .borrowedInput (.canonicalResidue width)] := rfl
 
-private theorem pre_quantumWires_eq (width : Nat) : (pre width).quantumWires = [] := rfl
+private lemma pre_quantumWires_eq (width : Nat) : (pre width).quantumWires = [] := rfl
 
 /-- The caller supplies a classical residue and no pre-existing quantum wires. -/
-public theorem pre_quantumWires (width : Nat) : (pre width).quantumWires = [] :=
+public lemma pre_quantumWires (width : Nat) : (pre width).quantumWires = [] :=
   pre_quantumWires_eq width
 
 private def borrowedValues (width : Nat) (value : CShape.Value (.canonicalResidue width)) :
@@ -71,7 +71,7 @@ def storeOfBase (width : Nat) (value : CShape.Value (.canonicalResidue width)) :
   Store.ofValues (pre width) (borrowedValues width value)
 
 /-- Reading the initialized borrowed cell returns the actual supplied value. -/
-theorem storeOfBase_read (width : Nat) (value : CShape.Value (.canonicalResidue width)) :
+lemma storeOfBase_read (width : Nat) (value : CShape.Value (.canonicalResidue width)) :
     (storeOfBase width value).read (baseSourceRef width) = value := by
   rw [storeOfBase, baseSourceRef, Store.read_ofValues]
   rfl
@@ -87,20 +87,20 @@ def inputStore {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t width) : Store (pre width) :=
   storeOfBase width (encodedBase hinput A)
 
-theorem inputStore_read_base {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
+lemma inputStore_read_base {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t width) :
     (inputStore hinput A).read (baseSourceRef width) = encodedBase hinput A :=
   storeOfBase_read width (encodedBase hinput A)
 
 /-- The original canonical-base restriction, applied to actual local classical block support. -/
-def HasCanonicalBase {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
+public def HasCanonicalBase {N x r t width : Nat} (hinput : OrderFinding.Input N x r)
     (A : ModExpOracleAccess N x t width)
     (state : ExecutionState (Store (pre width)) (pre width).register) : Prop :=
   ∀ store, 0 < (state.block store).mass →
     store.read (baseSourceRef width) = encodedBase hinput A
 
 /-- Local validity constrains the same supported store in every external-reference extension. -/
-theorem canonicalBase_read_of_supported {N x r t width : Nat}
+lemma canonicalBase_read_of_supported {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r) (A : ModExpOracleAccess N x t width)
     {Reference : Register} (input : Execution.Input (pre width) Reference)
     (valid : HasCanonicalBase hinput A input.localState)

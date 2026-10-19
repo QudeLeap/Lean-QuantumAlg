@@ -27,7 +27,7 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
 
 /-- Every original actual stage returns its complete Store and native execution path. -/
@@ -40,9 +40,11 @@ def verificationStageRecord (spec : CurveSpec width)
       (Store ctx × model.HiddenState) ×
         (verificationStage spec candidate base target inverseSuccess reconstruction
           scalarResult accepted index).Path := by
-  refine Fin.cases (ScalarMul.Native.scalarStep spec (candidateBits candidate) base scalarResult)
+  refine Fin.cases (ScalarMul.Native.scalarStep (environment := environment) spec (candidateBits
+    candidate) base scalarResult)
     (fun index => ?_) index
   refine Fin.cases (Circuit.preserveHiddenRecord (PointEquality.Native.compareStep
+    (environment := environment)
     (.storage scalarResult.toCStorageRef) target accepted)) (fun index => ?_) index
   refine Fin.cases (Circuit.preserveHiddenRecord (BitWord.instructionStep
     (execution := model) (conjunctionOp inverseSuccess accepted))) (fun index => ?_) index
@@ -51,7 +53,7 @@ def verificationStageRecord (spec : CurveSpec width)
   exact Fin.elim0 index
 
 /-- The four original stages preserve every complete quantum-reference block. -/
-theorem verificationStage_execute (spec : CurveSpec width)
+lemma verificationStage_execute (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -59,8 +61,9 @@ theorem verificationStage_execute (spec : CurveSpec width)
     (index : Fin 4) (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (verificationStage spec candidate base target inverseSuccess reconstruction scalarResult
-      accepted index).execute Reference state = state.mapClassical (fun entry =>
-        let result := verificationStageRecord spec candidate base target inverseSuccess
+      accepted index).execute environment Reference state = state.mapClassical (fun entry =>
+        let result := verificationStageRecord (environment := environment) spec candidate base
+          target inverseSuccess
           reconstruction scalarResult accepted index (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) := by
   refine Fin.cases ?_ (fun index => ?_) index
@@ -69,11 +72,11 @@ theorem verificationStage_execute (spec : CurveSpec width)
   · refine (PointEquality.Native.compareInto_execute _ _ _ Reference state).trans ?_
     exact ExecutionState.executionState_mapClassical_congr _ rfl
   refine Fin.cases ?_ (fun index => ?_) index
-  · refine (BitWord.bitWord_instruction_execute (execution := model)
+  · refine (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
       (conjunctionOp inverseSuccess accepted) state).trans ?_
     exact ExecutionState.executionState_mapClassical_congr _ rfl
   refine Fin.cases ?_ (fun index => ?_) index
-  · refine (BitWord.bitWord_instruction_execute (execution := model)
+  · refine (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
       (conjunctionOp reconstruction accepted) state).trans ?_
     exact ExecutionState.executionState_mapClassical_congr _ rfl
   exact Fin.elim0 index
@@ -91,11 +94,12 @@ def verifyStep (spec : CurveSpec width)
   Circuit.forRangeRecord 4
     (verificationStage spec candidate base target inverseSuccess reconstruction
       scalarResult accepted)
-    (verificationStageRecord spec candidate base target inverseSuccess reconstruction
+    (verificationStageRecord (environment := environment) spec candidate base target
+      inverseSuccess reconstruction
       scalarResult accepted)
 
 /-- The same original circuit and actual record retain all reference correlations and history. -/
-theorem verifyInto_execute (spec : CurveSpec width)
+lemma verifyInto_execute (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
@@ -103,26 +107,29 @@ theorem verifyInto_execute (spec : CurveSpec width)
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (verifyInto spec candidate base target inverseSuccess reconstruction scalarResult
-      accepted).execute Reference state = state.mapClassical (fun entry =>
-        let result := verifyStep spec candidate base target inverseSuccess reconstruction
+      accepted).execute environment Reference state = state.mapClassical (fun entry =>
+        let result := verifyStep (environment := environment) spec candidate base target
+          inverseSuccess reconstruction
           scalarResult accepted (entry.1, entry.2.1)
         (result.1.1, (result.1.2, (entry.2.2, result.2)))) :=
-  Circuit.execute_forRangeRecord 4 _ _
+  Circuit.execute_forRangeRecord (environment := environment) 4 _ _
     (verificationStage_execute spec candidate base target inverseSuccess reconstruction
       scalarResult accepted) Reference state
 
 /-- The complete actual caller Store is exactly the original four chronological updates. -/
-theorem verifyStep_store (spec : CurveSpec width)
+lemma verifyStep_store (spec : CurveSpec width)
     (candidate : CInputRef ctx (.unsignedWord scalarWidth))
     (base target : CInputRef ctx (PointShape width))
     (inverseSuccess reconstruction : CInputRef ctx .bit)
     (scalarResult : CWriteRef ctx (PointShape width)) (accepted : CWriteRef ctx .bit)
     (entry : Store ctx × model.HiddenState) :
-    (verifyStep spec candidate base target inverseSuccess reconstruction
+    (verifyStep (environment := environment) spec candidate base target inverseSuccess
+      reconstruction
       scalarResult accepted entry).1.1 =
-      let scalar := (ScalarMul.Native.scalarStep spec (candidateBits candidate)
+      let scalar := (ScalarMul.Native.scalarStep (environment := environment) spec
+        (candidateBits candidate)
         base scalarResult entry).1
-      let compared := (PointEquality.Native.compareStep
+      let compared := (PointEquality.Native.compareStep (environment := environment)
         (.storage scalarResult.toCStorageRef) target accepted scalar.1).1
       (compared.applyOp (conjunctionOp inverseSuccess accepted)).applyOp
         (conjunctionOp reconstruction accepted) := rfl

@@ -34,7 +34,7 @@ def projector (readout : R.Index → Outcome) (outcome : Outcome) : HilbertOpera
   Matrix.diagonal (fun i => if readout i = outcome then 1 else 0)
 
 /-- The projector's left and right actions retain precisely one readout fiber. -/
-theorem projector_sandwich_entry (readout : R.Index → Outcome) (outcome : Outcome)
+lemma projector_sandwich_entry (readout : R.Index → Outcome) (outcome : Outcome)
     (A : HilbertOperator R) (i j : R.Index) :
     (projector readout outcome * A * (projector readout outcome).conjTranspose) i j =
       if readout i = outcome ∧ readout j = outcome then A i j else 0 := by
@@ -60,7 +60,7 @@ def branch (readout : R.Index → Outcome) (outcome : Outcome)
       exact (Complex.nonneg_iff.mp ρ.positive.diag_nonneg).1
 
 /-- Entrywise branch semantics, retaining coherence within the selected fiber. -/
-@[simp] theorem branch_matrix (readout : R.Index → Outcome) (outcome : Outcome)
+@[simp] lemma branch_matrix (readout : R.Index → Outcome) (outcome : Outcome)
     (ρ : DensityOperator R) (i j : R.Index) :
     (branch readout outcome ρ).matrix i j =
       if readout i = outcome ∧ readout j = outcome then ρ.matrix i j else 0 :=
@@ -68,7 +68,7 @@ def branch (readout : R.Index → Outcome) (outcome : Outcome)
 
 /-- A branch's mass is the sum of its selected diagonal entries, including
 all unmeasured subsystem indices. -/
-theorem branch_mass (readout : R.Index → Outcome) (outcome : Outcome)
+lemma branch_mass (readout : R.Index → Outcome) (outcome : Outcome)
     (ρ : DensityOperator R) :
     (branch readout outcome ρ).mass =
       ∑ i, if readout i = outcome then (ρ.matrix i i).re else 0 := by
@@ -77,7 +77,7 @@ theorem branch_mass (readout : R.Index → Outcome) (outcome : Outcome)
 
 /-- The complete measurement preserves total probability
 [dW19, qcnotes.tex:5409]. -/
-theorem sum_branch_mass [Fintype Outcome] (readout : R.Index → Outcome)
+lemma sum_branch_mass [Fintype Outcome] (readout : R.Index → Outcome)
     (ρ : DensityOperator R) :
     ∑ outcome, (branch readout outcome ρ).mass = ρ.mass := by
   simp only [branch_mass]
@@ -85,7 +85,7 @@ theorem sum_branch_mass [Fintype Outcome] (readout : R.Index → Outcome)
   simp [DensityOperator.mass, Matrix.trace]
 
 /-- Repeating Z measurement cannot change the supported outcome. -/
-theorem repeat_branch (readout : R.Index → Outcome) (first second : Outcome)
+lemma repeat_branch (readout : R.Index → Outcome) (first second : Outcome)
     (ρ : DensityOperator R) :
     branch readout second (branch readout first ρ) =
       if second = first then branch readout first ρ else DensityOperator.zero R := by
@@ -102,7 +102,7 @@ theorem repeat_branch (readout : R.Index → Outcome) (first second : Outcome)
     · simp [hi]
 
 /-- An impossible input branch stays impossible. -/
-@[simp] theorem branch_zero (readout : R.Index → Outcome) (outcome : Outcome) :
+@[simp] lemma branch_zero (readout : R.Index → Outcome) (outcome : Outcome) :
     branch readout outcome (DensityOperator.zero R) = DensityOperator.zero R := by
   apply DensityOperator.ext
   ext i j

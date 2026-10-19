@@ -68,7 +68,7 @@ def recoveryBatch {model : ExecutionModel} [BitWord.Selected model]
     (persistentCtx ctx width scalarWidth).canonicalFreshKey_fresh
 
 /-- The final classical result leaves the complete quantum carrier unchanged. -/
-theorem batchResultCtx_register (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
+lemma batchResultCtx_register (ctx : RuntimeCtx kind) (width scalarWidth : Nat) :
     (batchResultCtx ctx width scalarWidth).register = ctx.register := by
   rfl
 

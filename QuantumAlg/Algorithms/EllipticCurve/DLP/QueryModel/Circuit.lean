@@ -26,35 +26,35 @@ noncomputable section
 variable {p : Nat} {E : PrimeFieldShortWeierstrass p}
 
 /-- Prepare both exponent registers and leave the entire point register untouched. -/
-public def preparations (I : ECDLPInstance E) (A : Access I)
+public def preparations (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    UnitaryCircuit AlgorithmGate.model (model I A) (layout I) :=
+    UnitaryCircuit AlgorithmGate.model (model I) (layout I) :=
   UnitaryCircuit.onBinaryPrefix (Layout.pointWidth E)
     (UnitaryCircuit.parallelBinary
-      (FiniteCyclicDLP.OrderPreparation.Native.circuit (model I A) (problem I) expansion)
-      (FiniteCyclicDLP.OrderPreparation.Native.circuit (model I A) (problem I) expansion))
+      (FiniteCyclicDLP.OrderPreparation.Native.circuit (model I) (problem I) expansion)
+      (FiniteCyclicDLP.OrderPreparation.Native.circuit (model I) (problem I) expansion))
 
 /-- Invoke the original model-owned group action once at the actual placement. -/
-public def oracleLayer (I : ECDLPInstance E) (A : Access I) :
-    UnitaryCircuit AlgorithmGate.model (model I A) (layout I) :=
-  .query (OracleModel.Application.onPlacement (model I A) ()
+public def oracleLayer (I : ECDLPInstance E) :
+    UnitaryCircuit AlgorithmGate.model (model I) (layout I) :=
+  .query (OracleModel.Application.onPlacement (model I) ()
     (QuantumSignature.qubits (Layout.totalQubits I)).canonicalPlacement)
 
 /-- Transform both exponent registers in parallel while preserving the point bank. -/
-public def inverseQFTs (I : ECDLPInstance E) (A : Access I) :
-    UnitaryCircuit AlgorithmGate.model (model I A) (layout I) :=
+public def inverseQFTs (I : ECDLPInstance E) :
+    UnitaryCircuit AlgorithmGate.model (model I) (layout I) :=
   UnitaryCircuit.onBinaryPrefix (Layout.pointWidth E)
     (UnitaryCircuit.parallelBinary
-      (QuantumFourierTransform.Native.inverseCircuit (model I A)
+      (QuantumFourierTransform.Native.inverseCircuit (model I)
         (FiniteCyclicDLP.orderWidth (problem I)))
-      (QuantumFourierTransform.Native.inverseCircuit (model I A)
+      (QuantumFourierTransform.Native.inverseCircuit (model I)
         (FiniteCyclicDLP.orderWidth (problem I))))
 
 /-- Execute the complete preparation-query-readout unitary word. -/
-public def circuit (I : ECDLPInstance E) (A : Access I)
+public def circuit (I : ECDLPInstance E)
     (expansion : FiniteCyclicDLP.OrderExpansion I.subgroupOrder) :
-    UnitaryCircuit AlgorithmGate.model (model I A) (layout I) :=
-  ((preparations I A expansion).seq (oracleLayer I A)).seq (inverseQFTs I A)
+    UnitaryCircuit AlgorithmGate.model (model I) (layout I) :=
+  ((preparations I expansion).seq (oracleLayer I)).seq (inverseQFTs I)
 
 end
 

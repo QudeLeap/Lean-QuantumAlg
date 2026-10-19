@@ -70,23 +70,23 @@ structure CanonicalEncoding {width : Nat} (spec : ModulusSpec width) where
   /-- The semantic range proof absent from the nominal Core representation. -/
   canonical : IsCanonical spec value
 
-@[simp] theorem modularEncode_residueEncoding {width : Nat}
+@[simp] lemma modularEncode_residueEncoding {width : Nat}
     {spec : ModulusSpec width} (value : Residue spec) :
     (encodeResidue value).residueEncoding.val = value.val :=
   rfl
 
-theorem modularEncode_isCanonical {width : Nat}
+lemma modularEncode_isCanonical {width : Nat}
     {spec : ModulusSpec width} (value : Residue spec) :
     IsCanonical spec (encodeResidue value) := by
   change value.val < spec.modulus
   exact value.isLt
 
-theorem modularEncode_represents {width : Nat}
+lemma modularEncode_represents {width : Nat}
     {spec : ModulusSpec width} (value : Residue spec) :
     Represents (encodeResidue value) value :=
   rfl
 
-theorem modularRepresents_isCanonical {width : Nat}
+lemma modularRepresents_isCanonical {width : Nat}
     {spec : ModulusSpec width}
     {encoded : CShape.Value (ResidueShape width)} {value : Residue spec}
     (represents : Represents encoded value) :
@@ -95,14 +95,14 @@ theorem modularRepresents_isCanonical {width : Nat}
   rw [represents]
   exact value.isLt
 
-@[simp] theorem modularDecode_residueEncoding {width : Nat}
+@[simp] lemma modularDecode_residueEncoding {width : Nat}
     (spec : ModulusSpec width)
     (value : CShape.Value (ResidueShape width))
     (canonical : IsCanonical spec value) :
     (decodeResidue spec value canonical).val = value.residueEncoding.val :=
   rfl
 
-@[simp] theorem modularDecode_encode {width : Nat}
+@[simp] lemma modularDecode_encode {width : Nat}
     {spec : ModulusSpec width} (value : Residue spec) :
     decodeResidue spec (encodeResidue value)
         (modularEncode_isCanonical value) = value := by
@@ -120,12 +120,12 @@ def CanonicalEncoding.toResidue {width : Nat} {spec : ModulusSpec width}
     (encoding : CanonicalEncoding spec) : Residue spec :=
   decodeResidue spec encoding.value encoding.canonical
 
-@[simp] theorem modularCanonicalEncoding_toResidue_ofResidue
+@[simp] lemma modularCanonicalEncoding_toResidue_ofResidue
     {width : Nat} {spec : ModulusSpec width} (value : Residue spec) :
     (CanonicalEncoding.ofResidue value).toResidue = value :=
   modularDecode_encode value
 
-theorem modularCanonicalEncoding_represents {width : Nat}
+lemma modularCanonicalEncoding_represents {width : Nat}
     {spec : ModulusSpec width} (encoding : CanonicalEncoding spec) :
     Represents encoding.value encoding.toResidue :=
   rfl

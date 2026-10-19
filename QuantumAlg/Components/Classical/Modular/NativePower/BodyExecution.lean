@@ -47,13 +47,14 @@ def powerBodyStep (spec : ModulusSpec width) (base : CInputRef ctx (.canonicalRe
   (copied.1, (unpacked.2, (loaded.2, (initialized.2, (powered.2, copied.2)))))
 
 /-- The one actual interpreter executes precisely the body record on each full reference block. -/
-theorem nativePower_body_execute (spec : ModulusSpec width)
+lemma nativePower_body_execute (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width))
     (exponent : CInputRef ctx (.unsignedWord exponentWidth))
-    (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
+    (output : CWriteRef ctx (.unsignedWord width)) {environment : model.Environment}
+    (Reference : Register)
     {History : Type} [Fintype History]
     (state : State (powerCtx ctx width) Reference (model.HiddenState × History)) :
-    (powerBody (model := model) spec base exponent output).execute Reference state =
+    (powerBody (model := model) spec base exponent output).execute environment Reference state =
       state.mapClassical (fun entry =>
         ((powerBodyStep (model := model) spec base exponent output entry.1).1,
           (entry.2.1,

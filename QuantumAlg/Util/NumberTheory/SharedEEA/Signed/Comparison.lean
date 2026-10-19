@@ -30,7 +30,7 @@ def instruction {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
   BitVec.cons (!sign) (value - coefficient) + coefficient.setWidth (width + 1)
 
 /-- The actual instructions retain the complete low word and xor the weak comparison into Sign. -/
-theorem instruction_eq {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
+lemma instruction_eq {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
     instruction value coefficient sign =
       BitVec.cons (sign ^^ decide (coefficient.toNat ≤ value.toNat)) value := by
   have coefficientNat : (coefficient.setWidth (width + 1)).toNat = coefficient.toNat :=
@@ -80,18 +80,18 @@ theorem instruction_eq {width : Nat} (value coefficient : BitVec width) (sign : 
         rw [assembled, Nat.mod_eq_of_lt signedBound]
 
 /-- No original target bit is changed by the complete comparison instruction. -/
-theorem instruction_low {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
+lemma instruction_low {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
     (instruction value coefficient sign).setWidth width = value := by
   rw [instruction_eq, BitVec.setWidth_cons]
 
 /-- The output Sign is the exact weak unsigned comparison xor, including equality. -/
-theorem instruction_sign {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
+lemma instruction_sign {width : Nat} (value coefficient : BitVec width) (sign : Bool) :
     (instruction value coefficient sign).msb =
       (sign ^^ decide (coefficient.toNat ≤ value.toNat)) := by
   rw [instruction_eq, BitVec.msb_cons]
 
 /-- A zero-width comparison still correctly complements Sign because both words equal zero. -/
-theorem empty_instruction (sign : Bool) :
+lemma empty_instruction (sign : Bool) :
     instruction (0#0) (0#0) sign = BitVec.cons (!sign) (0#0) := by
   rw [instruction_eq]
   cases sign <;> rfl

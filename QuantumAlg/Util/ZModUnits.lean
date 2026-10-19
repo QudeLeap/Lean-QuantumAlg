@@ -38,7 +38,7 @@ def multiplyByUnitEquiv {N : ℕ} (u : (ZMod N)ˣ) : Equiv.Perm (ZMod N) where
     intro x
     simp [multiplyByUnit]
 
-@[simp] theorem multiplyByUnitEquiv_apply {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
+@[simp] lemma multiplyByUnitEquiv_apply {N : ℕ} (u : (ZMod N)ˣ) (x : ZMod N) :
     multiplyByUnitEquiv u x = (u : ZMod N) * x :=
   rfl
 
@@ -46,7 +46,7 @@ def multiplyByUnitEquiv {N : ℕ} (u : (ZMod N)ˣ) : Equiv.Perm (ZMod N) where
 def unitOfCoprime {N a : ℕ} (h : Nat.Coprime a N) : (ZMod N)ˣ :=
   ZMod.unitOfCoprime a h
 
-@[simp] theorem unitOfCoprime_coe {N a : ℕ} (h : Nat.Coprime a N) :
+@[simp] lemma unitOfCoprime_coe {N a : ℕ} (h : Nat.Coprime a N) :
     (unitOfCoprime (N := N) (a := a) h : ZMod N) = a :=
   ZMod.coe_unitOfCoprime a h
 
@@ -54,7 +54,7 @@ def unitOfCoprime {N a : ℕ} (h : Nat.Coprime a N) : (ZMod N)ˣ :=
 def multiplyByCoprimeEquiv {N a : ℕ} (h : Nat.Coprime a N) : Equiv.Perm (ZMod N) :=
   multiplyByUnitEquiv (unitOfCoprime (N := N) (a := a) h)
 
-@[simp] theorem multiplyByCoprimeEquiv_apply {N a : ℕ} (h : Nat.Coprime a N)
+@[simp] lemma multiplyByCoprimeEquiv_apply {N a : ℕ} (h : Nat.Coprime a N)
     (x : ZMod N) :
     multiplyByCoprimeEquiv h x = (a : ZMod N) * x := by
   simp [multiplyByCoprimeEquiv]
@@ -70,12 +70,12 @@ def validAction {N n : ℕ} (E : BinaryResidueEncoding N n) (u : (ZMod N)ˣ)
     (x : Fin (2 ^ n)) : Fin (2 ^ n) :=
   E.encode (multiplyByUnit u (E.decode x))
 
-private theorem validAction_isValid {N n : ℕ} (E : BinaryResidueEncoding N n)
+private lemma validAction_isValid {N n : ℕ} (E : BinaryResidueEncoding N n)
     (u : (ZMod N)ˣ) (x : Fin (2 ^ n)) :
     E.IsValid (validAction E u x) :=
   E.encode_isValid _
 
-private theorem decode_validAction {N n : ℕ} (E : BinaryResidueEncoding N n)
+private lemma decode_validAction {N n : ℕ} (E : BinaryResidueEncoding N n)
     (u : (ZMod N)ˣ) (x : Fin (2 ^ n)) :
     E.decode (validAction E u x) = multiplyByUnit u (E.decode x) :=
   E.decode_encode _

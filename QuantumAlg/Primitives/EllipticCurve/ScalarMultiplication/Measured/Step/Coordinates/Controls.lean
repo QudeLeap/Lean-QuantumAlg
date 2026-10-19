@@ -24,7 +24,7 @@ noncomputable section
 
 open Execution MeasuredUncompute
 
-private theorem oneBit_value (layout : QubitLayout 1)
+private lemma oneBit_value (layout : QubitLayout 1)
     (value : layout.toQuantumLayout.register.Index) : layout.binaryIndexEquiv value = value 0 := by
   apply finTwoEquiv.injective
   have actual := layout.binaryIndexEquiv_bit value (0 : Fin 1)
@@ -34,7 +34,7 @@ private theorem oneBit_value (layout : QubitLayout 1)
   rw [bit] at actual
   exact actual
 
-private theorem oneContext_value (layout : QubitLayout 1) (ctx : RuntimeCtx .quantum)
+private lemma oneContext_value (layout : QubitLayout 1) (ctx : RuntimeCtx .quantum)
     (same : layout.toQuantumLayout.wires = ctx.quantumLayout.wires)
     (value : ctx.register.Index) :
     (layout.binaryIndexEquiv ((basisOfEqualWires _ _ same).symm value)).val =
@@ -80,7 +80,7 @@ private def indexedPosition (width count : Nat) (index : Fin (count + 1)) :
     (indexedContext_disjoint width (List.range (count + 1)) List.nodup_range)
     (rangePosition width (count + 1) index)
 
-private theorem indexedValue_value (width count : Nat)
+private lemma indexedValue_value (width count : Nat)
     (value : (readyContext width count).register.Index) (index : Fin (count + 1)) :
     (indexedValue width count value index).val = (value (indexedPosition width count index)).val :=
   (rangeBasis_value width (count + 1) _ index).trans
@@ -108,7 +108,7 @@ def pointSelector (width : Nat) (value : (MeasuredPointAddition.context width).r
       (MeasuredPointAddition.selectorContext width) (MeasuredPointAddition.selector_disjoint width)
       value).2
 
-private theorem pointControl_value (width : Nat)
+private lemma pointControl_value (width : Nat)
     (value : (MeasuredPointAddition.context width).register.Index) :
     (pointControl width value).val = (value (controlPosition width)).val := by
   let outer := ContextUnion.unionBasisEquiv (InPlaceControlled.context width)
@@ -130,7 +130,7 @@ private theorem pointControl_value (width : Nat)
       (InPlaceControlled.controlContext width) (InPlaceControlled.control_disjoint width) position)
   exact first.trans (second.symm.trans third.symm)
 
-private theorem pointSelector_value (width : Nat)
+private lemma pointSelector_value (width : Nat)
     (value : (MeasuredPointAddition.context width).register.Index) :
     (pointSelector width value).val = (value (selectorPosition width)).val := by
   let outer := ContextUnion.unionBasisEquiv (InPlaceControlled.context width)
@@ -146,7 +146,7 @@ private theorem pointSelector_value (width : Nat)
       (MeasuredPointAddition.selector_wires width) 0)
   exact first.trans second.symm
 
-private theorem control_position (width : Nat) {count : Nat} (active : Fin count) :
+private lemma control_position (width : Nat) {count : Nat} (active : Fin count) :
     pointPosition width active (controlPosition width) =
       indexedPosition width count active.castSucc := by
   apply (readyContext width count).quantumLayout.position_eq_of_identity_eq
@@ -158,7 +158,7 @@ private theorem control_position (width : Nat) {count : Nat} (active : Fin count
     QuantumWire.mk (InPlaceControlled.frameWidth width + active.val) 2
   exact congrArg (fun identity => QuantumWire.mk identity 2) (physicalMap_control width active)
 
-private theorem selector_position (width : Nat) {count : Nat} (active : Fin count) :
+private lemma selector_position (width : Nat) {count : Nat} (active : Fin count) :
     pointPosition width active (selectorPosition width) =
       indexedPosition width count (Fin.last count) := by
   apply (readyContext width count).quantumLayout.position_eq_of_identity_eq
@@ -171,7 +171,7 @@ private theorem selector_position (width : Nat) {count : Nat} (active : Fin coun
   exact congrArg (fun identity => QuantumWire.mk identity 2) (physicalMap_selector width active)
 
 /-- The actual point control reads exactly the selected original exponent value. -/
-theorem pointBasis_control (width : Nat) {count : Nat} (active : Fin count)
+lemma pointBasis_control (width : Nat) {count : Nat} (active : Fin count)
     (value : (readyContext width count).register.Index) :
     pointControl width (pointBasis width active value).1 =
       indexedValue width count value active.castSucc := by
@@ -182,7 +182,7 @@ theorem pointBasis_control (width : Nat) {count : Nat} (active : Fin count)
     (selected.trans (indexedValue_value width count value active.castSucc).symm)
 
 /-- Every actual point step reads the same single final selector value. -/
-theorem pointBasis_selector (width : Nat) {count : Nat} (active : Fin count)
+lemma pointBasis_selector (width : Nat) {count : Nat} (active : Fin count)
     (value : (readyContext width count).register.Index) :
     pointSelector width (pointBasis width active value).1 =
       indexedValue width count value (Fin.last count) := by

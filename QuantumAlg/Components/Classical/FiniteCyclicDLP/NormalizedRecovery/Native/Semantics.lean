@@ -29,7 +29,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Actual native composition preserves shared state and every quantum-reference block. -/
-theorem recoveryBody_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma recoveryBody_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
@@ -37,7 +38,7 @@ theorem recoveryBody_execute {model : ExecutionModel} [BitWord.Selected model]
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (recoveryBody (model := model) left right inverse modulus candidate reconstruction
-      verified output).execute Reference state =
+      verified output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := recoveryBodyStep (model := model) left right inverse modulus candidate
           reconstruction verified output entry.1
@@ -55,7 +56,7 @@ def recoveryValue (left right inverse : CShape.Word width)
     (.bit (decide ((multiplyValue candidate left modulus).toNat = right.toNat)))
 
 /-- Only scratch writes preceding a later read require separation in the unplaced body. -/
-theorem recoveryBody_result {model : ExecutionModel} [BitWord.Selected model]
+lemma recoveryBody_result {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
@@ -111,7 +112,7 @@ theorem recoveryBody_result {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- The unplaced body preserves every structural read outside its four real output keys. -/
-theorem recoveryBody_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma recoveryBody_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (left right inverse : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (candidate reconstruction : CWriteRef ctx (.unsignedWord width))
@@ -134,23 +135,23 @@ theorem recoveryBody_read_other {model : ExecutionModel} [BitWord.Selected model
     nativePower_scopedMultiply_read_other (model := model) _ _ _ _ other candidateFree]
 
 /-- All original reads are preserved on the three actual lexical entries. -/
-theorem enterRecovery_read (store : Store ctx) {shape : CShape}
+lemma enterRecovery_read (store : Store ctx) {shape : CShape}
     (input : CInputRef ctx shape) (width : Nat) :
     (enterRecovery store width).read (underRecovery input width) = store.read input := by
   simp only [enterRecovery, underRecovery, Store.read_pushWorkspace_underWorkspace]
 
 /-- All three matching releases expose exactly the original caller read. -/
-theorem leaveRecovery_read (store : Store (recoveryCtx ctx width)) {shape : CShape}
+lemma leaveRecovery_read (store : Store (recoveryCtx ctx width)) {shape : CShape}
     (input : CInputRef ctx shape) :
     (leaveRecovery store).read input = store.read (underRecovery input width) := by
   simp only [leaveRecovery, underRecovery, Store.read_popWorkspace_underWorkspace]
 
-private theorem candidate_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma candidate_free {shape : CShape} (input : CInputRef ctx shape) :
     (candidateCell ctx width).key ∉ (underRecovery input width).storageKeys := by
   simp only [underRecovery, CInputRef.storageKeys_underWorkspace]
   exact fun present => ctx.canonicalFreshKey_fresh (input.storageKeys_subset_context present)
 
-private theorem reconstruction_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma reconstruction_free {shape : CShape} (input : CInputRef ctx shape) :
     (reconstructionCell ctx width).key ∉ (underRecovery input width).storageKeys := by
   unfold underRecovery
   rw [CInputRef.storageKeys_underWorkspace, CInputRef.storageKeys_underWorkspace]
@@ -158,7 +159,7 @@ private theorem reconstruction_free {shape : CShape} (input : CInputRef ctx shap
     ((input.underWorkspace ctx.canonicalFreshKey (.unsignedWord width)
       ctx.canonicalFreshKey_fresh).storageKeys_subset_context present)
 
-private theorem verified_free {shape : CShape} (input : CInputRef ctx shape) :
+private lemma verified_free {shape : CShape} (input : CInputRef ctx shape) :
     (verifiedCell ctx width).key ∉ (underRecovery input width).storageKeys := by
   unfold underRecovery
   rw [CInputRef.storageKeys_underWorkspace]
@@ -168,7 +169,7 @@ private theorem verified_free {shape : CShape} (input : CInputRef ctx shape) :
   exact fun present => (reconstructionCtx ctx width).canonicalFreshKey_fresh
     (lifted.storageKeys_subset_context present)
 
-private theorem reconstruction_candidate_separate :
+private lemma reconstruction_candidate_separate :
     (reconstructionCell ctx width).key ∉ (wordRead (candidateCell ctx width)).storageKeys := by
   change (candidateCtx ctx width).canonicalFreshKey ∉ [ctx.canonicalFreshKey]
   intro present
@@ -176,7 +177,7 @@ private theorem reconstruction_candidate_separate :
   rw [List.mem_singleton.mp present]
   exact List.mem_cons_self
 
-private theorem verified_candidate_separate :
+private lemma verified_candidate_separate :
     (verifiedCell ctx width).key ∉ (wordRead (candidateCell ctx width)).storageKeys := by
   change (reconstructionCtx ctx width).canonicalFreshKey ∉ [ctx.canonicalFreshKey]
   intro present
@@ -185,7 +186,7 @@ private theorem verified_candidate_separate :
   exact List.mem_cons_of_mem _ List.mem_cons_self
 
 /-- The complete lexical component depends only on the original four actual input reads. -/
-theorem withRecovery_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withRecovery_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (store : Store ctx) :
@@ -202,7 +203,7 @@ theorem withRecovery_value {model : ExecutionModel} [BitWord.Selected model]
   simp only [enterRecovery_read]
 
 /-- Only the original output cell changes after all real scratch entries are released. -/
-theorem withRecovery_read_other {model : ExecutionModel} [BitWord.Selected model]
+lemma withRecovery_read_other {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) {shape : CShape} (other : CInputRef ctx shape)
@@ -217,7 +218,7 @@ theorem withRecovery_read_other {model : ExecutionModel} [BitWord.Selected model
     simpa only [underRecovery, CInputRef.storageKeys_underWorkspace] using separate
 
 /-- The retained pair is the original pure model for any canonical supplied inverse word. -/
-theorem withRecovery_original_value {model : ExecutionModel} [BitWord.Selected model]
+lemma withRecovery_original_value {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (spec : ModulusSpec width)
@@ -247,12 +248,13 @@ theorem withRecovery_original_value {model : ExecutionModel} [BitWord.Selected m
   constructor <;> rfl
 
 /-- Actual allocation, arithmetic and release compose on every full quantum-reference block. -/
-theorem withRecovery_execute {model : ExecutionModel} [BitWord.Selected model]
+lemma withRecovery_execute {model : ExecutionModel}
+    {environment : model.Environment} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (input : CInputRef ctx (InputShape width))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (OutputShape width)) (Reference : Register)
     {History : Type} [Fintype History] (state : State ctx Reference (model.HiddenState × History)) :
-    (withRecovery (model := model) input modulus output).execute Reference state =
+    (withRecovery (model := model) input modulus output).execute environment Reference state =
       state.mapClassical (fun entry =>
       let result := withRecoveryStep (model := model) input modulus output entry.1
       (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
@@ -283,13 +285,16 @@ theorem withRecovery_execute {model : ExecutionModel} [BitWord.Selected model]
       (.unsignedWord width) (candidateCtx ctx width).canonicalFreshKey_fresh, before.2)
     ((Store.popWorkspace (candidateCtx ctx width).canonicalFreshKey (.unsignedWord width)
       (candidateCtx ctx width).canonicalFreshKey_fresh result.1.1, result.1.2), result.2)
-  refine (Circuit.execute_workspace_mapClassical ctx.canonicalFreshKey (.unsignedWord width)
+  refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) ctx.canonicalFreshKey (.unsignedWord width)
     ctx.canonicalFreshKey_fresh middle middleStep (fun reference {_} _ initial => ?_)
     Reference state).trans ?_
-  · refine (Circuit.execute_workspace_mapClassical (candidateCtx ctx width).canonicalFreshKey
+  · refine (Circuit.execute_workspace_mapClassical
+    (environment := environment) (candidateCtx ctx width).canonicalFreshKey
       (.unsignedWord width) (candidateCtx ctx width).canonicalFreshKey_fresh flag flagStep
       (fun reference' {_} _ initial' => ?_) reference initial).trans ?_
-    · refine (Circuit.execute_workspace_mapClassical (reconstructionCtx ctx width).canonicalFreshKey
+    · refine (Circuit.execute_workspace_mapClassical
+      (environment := environment) (reconstructionCtx ctx width).canonicalFreshKey
         .bit (reconstructionCtx ctx width).canonicalFreshKey_fresh inner innerStep
         (fun reference'' {_} _ initial'' => ?_) reference' initial').trans ?_
       · exact (recoveryBody_execute _ _ _ _ _ _ _ _ reference'' initial'').trans

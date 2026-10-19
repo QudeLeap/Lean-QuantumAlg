@@ -27,7 +27,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} {modulusWidth phaseBits : Nat}
 
 /-- A true actual activity read selects exactly the existing active-visit record. -/
-theorem nativeScan_slot_active {width : Nat}
+lemma nativeScan_slot_active {width : Nat}
     (spec : ClassicalAlgorithms.Modular.ModulusSpec modulusWidth)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
     (cells : ScanCells ctx modulusWidth width) (store : Store ctx)
@@ -40,7 +40,7 @@ theorem nativeScan_slot_active {width : Nat}
     (fun value => (activityChoiceStep (model := model) spec base cells value store).1) active
 
 /-- Each actual slot keeps the original represented base and the real comparison constants. -/
-theorem nativeScan_slot_source_reads
+lemma nativeScan_slot_source_reads
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))
@@ -52,7 +52,7 @@ theorem nativeScan_slot_source_reads
   nativeScan_iterate_source_reads spec input base cells separated baseFree store source 1
 
 /-- An active source cursor takes the exact source decision through the actual activity slot. -/
-theorem nativeScan_slot_source_decision
+lemma nativeScan_slot_source_decision
     (spec : ClassicalAlgorithms.OrderRecovery.Spec modulusWidth phaseBits)
     (input : ClassicalAlgorithms.OrderRecovery.Input spec)
     (base : CInputRef ctx (.canonicalResidue modulusWidth))

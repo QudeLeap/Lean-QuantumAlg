@@ -67,7 +67,7 @@ def selectorEncoding : BinaryLabelEncoding SelectorRegisters :=
 
 /-- The selector suffix has one zero-test work wire per field bit and four
 additional Boolean wires. -/
-theorem selectorEncoding_width_exact :
+lemma selectorEncoding_width_exact :
     selectorEncoding.width = params.width + 4 := by
   simp [selectorEncoding, zeroWorkEncoding, selectorTailEncoding,
     branchTailEncoding, paddingEncoding]
@@ -77,7 +77,7 @@ def rawEncoding : BinaryLabelEncoding RawRegisters :=
   BinaryLabelEncoding.prod Pipeline.rawEncoding selectorEncoding
 
 /-- Exact width of the direct generic pipeline and selector suffix. -/
-theorem rawEncoding_width_exact :
+lemma rawEncoding_width_exact :
     rawEncoding.width =
       Arithmetic.ModularInversion.physicalWidthFor params.width +
         20 * params.width + 13 := by
@@ -127,7 +127,7 @@ def controlBit : EncodedBit rawEncoding :=
 def controlWorkBit : EncodedBit rawEncoding :=
   liftPipelineBit Pipeline.controlWorkBit
 
-@[simp] theorem controlBit_get_selectedBoundary
+@[simp] lemma controlBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -137,7 +137,7 @@ def controlWorkBit : EncodedBit rawEncoding :=
       control :=
   rfl
 
-@[simp] theorem controlWorkBit_get_selectedBoundary
+@[simp] lemma controlWorkBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -149,7 +149,7 @@ def controlWorkBit : EncodedBit rawEncoding :=
 
 /-- The public control and its decomposition work bit remain distinct after
 lifting into the exceptional-cleanup carrier. -/
-theorem controlBit_wire_ne_controlWorkBit :
+lemma controlBit_wire_ne_controlWorkBit :
     controlBit.wire ≠ controlWorkBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   exact Pipeline.controlBit_wire_ne_controlWorkBit
@@ -162,7 +162,7 @@ def liftPipelineGates
 
 /-- Extending the carrier changes only wire addresses, not the ordered
 primitive-event trace. -/
-theorem liftPipelineGates_map_event
+lemma liftPipelineGates_map_event
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     (liftPipelineGates gates).map (EncodedBit.GateSpec.event .empty) =
       gates.map (EncodedBit.GateSpec.event .empty) := by
@@ -170,14 +170,14 @@ theorem liftPipelineGates_map_event
   exact EncodedBit.GateSpec.map_event_prodLeft selectorEncoding gates
 
 /-- Extending the carrier preserves the literal primitive-leaf count. -/
-theorem liftPipelineGates_length
+lemma liftPipelineGates_length
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     (liftPipelineGates gates).length = gates.length := by
   unfold liftPipelineGates
   exact EncodedBit.GateSpec.length_prodLeft selectorEncoding gates
 
 /-- Extending the carrier preserves the exact X coordinate. -/
-theorem liftPipelineGates_xMultiplicity_sum
+lemma liftPipelineGates_xMultiplicity_sum
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     ((liftPipelineGates gates).map
       EncodedBit.GateSpec.xMultiplicity).sum =
@@ -186,7 +186,7 @@ theorem liftPipelineGates_xMultiplicity_sum
     (liftPipelineGates_map_event gates)
 
 /-- Extending the carrier preserves the exact CNOT coordinate. -/
-theorem liftPipelineGates_cnotMultiplicity_sum
+lemma liftPipelineGates_cnotMultiplicity_sum
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     ((liftPipelineGates gates).map
       EncodedBit.GateSpec.cnotMultiplicity).sum =
@@ -195,7 +195,7 @@ theorem liftPipelineGates_cnotMultiplicity_sum
     (liftPipelineGates_map_event gates)
 
 /-- Extending the carrier preserves the exact Toffoli coordinate. -/
-theorem liftPipelineGates_toffoliMultiplicity_sum
+lemma liftPipelineGates_toffoliMultiplicity_sum
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     ((liftPipelineGates gates).map
       EncodedBit.GateSpec.toffoliMultiplicity).sum =
@@ -205,7 +205,7 @@ theorem liftPipelineGates_toffoliMultiplicity_sum
 
 /-- A lifted pipeline list acts only on the pipeline component and preserves
 the exceptional-cleanup suffix verbatim. -/
-theorem stepList_liftPipelineGates
+lemma stepList_liftPipelineGates
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding))
     (state : RawRegisters) :
     EncodedBit.GateSpec.stepList (liftPipelineGates gates) state =
@@ -215,7 +215,7 @@ theorem stepList_liftPipelineGates
 
 /-- Lifting a pipeline bit and a pipeline gate list preserves any
 bit-disjointness proof from the pipeline carrier. -/
-theorem liftPipelineGates_bitDisjoint_liftPipelineBit
+lemma liftPipelineGates_bitDisjoint_liftPipelineBit
     (observed : EncodedBit Pipeline.rawEncoding)
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding))
     (hdisjoint : ∀ gate, gate ∈ gates →
@@ -289,7 +289,7 @@ def outputXWord : EncodedBit.Word rawEncoding params.width :=
 def outputYWord : EncodedBit.Word rawEncoding params.width :=
   (outputYPort (params := params)).word
 
-@[simp] theorem mutableXPort_read_selectedBoundary
+@[simp] lemma mutableXPort_read_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -299,7 +299,7 @@ def outputYWord : EncodedBit.Word rawEncoding params.width :=
       mutable.1 :=
   rfl
 
-@[simp] theorem outputXPort_read_selectedBoundary
+@[simp] lemma outputXPort_read_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -309,7 +309,7 @@ def outputYWord : EncodedBit.Word rawEncoding params.width :=
       output.1 :=
   rfl
 
-@[simp] theorem outputYPort_read_selectedBoundary
+@[simp] lemma outputYPort_read_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -319,7 +319,7 @@ def outputYWord : EncodedBit.Word rawEncoding params.width :=
       output.2 :=
   rfl
 
-@[simp] theorem outputXPort_set_selectedBoundary
+@[simp] lemma outputXPort_set_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -331,7 +331,7 @@ def outputYWord : EncodedBit.Word rawEncoding params.width :=
         selector :=
   rfl
 
-@[simp] theorem outputYPort_set_selectedBoundary
+@[simp] lemma outputYPort_set_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -415,7 +415,7 @@ def paddingLeftBit : EncodedBit rawEncoding :=
 def paddingRightBit : EncodedBit rawEncoding :=
   liftTailBit paddingRightTailBit
 
-@[simp] theorem selectorBit_get_selectedBoundary
+@[simp] lemma selectorBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -425,7 +425,7 @@ def paddingRightBit : EncodedBit rawEncoding :=
       selector :=
   rfl
 
-@[simp] theorem zeroWorkBit_get_selectedBoundary
+@[simp] lemma zeroWorkBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -439,7 +439,7 @@ def paddingRightBit : EncodedBit rawEncoding :=
   exact PlainAdder.Schedule.PowerOfTwo.finIdentityBit_get_zero params.width
     (WireAddress.littleEndianWire work)
 
-@[simp] theorem selectorBit_flip_selectedBoundary
+@[simp] lemma selectorBit_flip_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -449,7 +449,7 @@ def paddingRightBit : EncodedBit rawEncoding :=
       selectedBoundaryRegisters control mutable constant output (!selector) :=
   rfl
 
-@[simp] theorem branchControlWorkBit_get_selectedBoundary
+@[simp] lemma branchControlWorkBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -459,7 +459,7 @@ def paddingRightBit : EncodedBit rawEncoding :=
       false :=
   rfl
 
-@[simp] theorem paddingLeftBit_get_selectedBoundary
+@[simp] lemma paddingLeftBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -469,7 +469,7 @@ def paddingRightBit : EncodedBit rawEncoding :=
       false :=
   rfl
 
-@[simp] theorem paddingRightBit_get_selectedBoundary
+@[simp] lemma paddingRightBit_get_selectedBoundary
     (control : Bool)
     (mutable constant output :
       PointAddition.PortFrame.PointWords params.width)
@@ -479,7 +479,7 @@ def paddingRightBit : EncodedBit rawEncoding :=
       false :=
   rfl
 
-private theorem liftPipelineBit_wire_ne_liftSelectorBit
+private lemma liftPipelineBit_wire_ne_liftSelectorBit
     (left : EncodedBit Pipeline.rawEncoding)
     (right : EncodedBit selectorEncoding) :
     (liftPipelineBit left).wire ≠ (liftSelectorBit right).wire := by
@@ -488,20 +488,20 @@ private theorem liftPipelineBit_wire_ne_liftSelectorBit
       Pipeline.rawEncoding selectorEncoding right left).symm
 
 /-- Every selector-suffix bit is disjoint from the lifted public control. -/
-theorem liftSelectorBit_wire_ne_controlBit
+lemma liftSelectorBit_wire_ne_controlBit
     (bit : EncodedBit selectorEncoding) :
     (liftSelectorBit bit).wire ≠ controlBit.wire :=
   (liftPipelineBit_wire_ne_liftSelectorBit Pipeline.controlBit bit).symm
 
 /-- Every selector-suffix bit is disjoint from the lifted outer-control work
 bit. -/
-theorem liftSelectorBit_wire_ne_controlWorkBit
+lemma liftSelectorBit_wire_ne_controlWorkBit
     (bit : EncodedBit selectorEncoding) :
     (liftSelectorBit bit).wire ≠ controlWorkBit.wire :=
   (liftPipelineBit_wire_ne_liftSelectorBit Pipeline.controlWorkBit bit).symm
 
 /-- Every mutable-X wire is disjoint from the lifted public control. -/
-theorem mutableXWord_wire_ne_controlBit (bit : Fin params.width) :
+lemma mutableXWord_wire_ne_controlBit (bit : Fin params.width) :
     (mutableXWord.bit bit).wire ≠ controlBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   simpa only [pipelineMutableXPort,
@@ -512,7 +512,7 @@ theorem mutableXWord_wire_ne_controlBit (bit : Fin params.width) :
       ((PointAddition.PortFrame.mutableXPublicPort params.width).word.bit bit)
 
 /-- Every mutable-X wire is disjoint from the lifted outer-control work bit. -/
-theorem mutableXWord_wire_ne_controlWorkBit (bit : Fin params.width) :
+lemma mutableXWord_wire_ne_controlWorkBit (bit : Fin params.width) :
     (mutableXWord.bit bit).wire ≠ controlWorkBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   simpa only [pipelineMutableXPort,
@@ -523,7 +523,7 @@ theorem mutableXWord_wire_ne_controlWorkBit (bit : Fin params.width) :
       ((PointAddition.PortFrame.mutableXPublicPort params.width).word.bit bit)
 
 /-- Every output-X wire is disjoint from the lifted public control. -/
-theorem outputXWord_wire_ne_controlBit (bit : Fin params.width) :
+lemma outputXWord_wire_ne_controlBit (bit : Fin params.width) :
     (outputXWord.bit bit).wire ≠ controlBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   simpa only [pipelineOutputXPort,
@@ -534,7 +534,7 @@ theorem outputXWord_wire_ne_controlBit (bit : Fin params.width) :
       ((PointAddition.PortFrame.outputXPublicPort params.width).word.bit bit)
 
 /-- Every output-X wire is disjoint from the lifted outer-control work bit. -/
-theorem outputXWord_wire_ne_controlWorkBit (bit : Fin params.width) :
+lemma outputXWord_wire_ne_controlWorkBit (bit : Fin params.width) :
     (outputXWord.bit bit).wire ≠ controlWorkBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   simpa only [pipelineOutputXPort,
@@ -545,7 +545,7 @@ theorem outputXWord_wire_ne_controlWorkBit (bit : Fin params.width) :
       ((PointAddition.PortFrame.outputXPublicPort params.width).word.bit bit)
 
 /-- Every output-Y wire is disjoint from the lifted public control. -/
-theorem outputYWord_wire_ne_controlBit (bit : Fin params.width) :
+lemma outputYWord_wire_ne_controlBit (bit : Fin params.width) :
     (outputYWord.bit bit).wire ≠ controlBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   simpa only [pipelineOutputYPort,
@@ -556,7 +556,7 @@ theorem outputYWord_wire_ne_controlBit (bit : Fin params.width) :
       ((PointAddition.PortFrame.outputYPublicPort params.width).word.bit bit)
 
 /-- Every output-Y wire is disjoint from the lifted outer-control work bit. -/
-theorem outputYWord_wire_ne_controlWorkBit (bit : Fin params.width) :
+lemma outputYWord_wire_ne_controlWorkBit (bit : Fin params.width) :
     (outputYWord.bit bit).wire ≠ controlWorkBit.wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   simpa only [pipelineOutputYPort,
@@ -566,85 +566,85 @@ theorem outputYWord_wire_ne_controlWorkBit (bit : Fin params.width) :
       Pipeline.auxEncoding params.width
       ((PointAddition.PortFrame.outputYPublicPort params.width).word.bit bit)
 
-theorem zeroWorkBit_wire_ne_controlBit (work : Fin params.width) :
+lemma zeroWorkBit_wire_ne_controlBit (work : Fin params.width) :
     (zeroWorkBit work).wire ≠ controlBit.wire := by
   exact liftSelectorBit_wire_ne_controlBit
     (liftZeroWorkLocal (zeroWorkRawBit work))
 
-theorem zeroWorkBit_wire_ne_controlWorkBit (work : Fin params.width) :
+lemma zeroWorkBit_wire_ne_controlWorkBit (work : Fin params.width) :
     (zeroWorkBit work).wire ≠ controlWorkBit.wire := by
   exact liftSelectorBit_wire_ne_controlWorkBit
     (liftZeroWorkLocal (zeroWorkRawBit work))
 
-theorem selectorBit_wire_ne_controlBit :
+lemma selectorBit_wire_ne_controlBit :
     selectorBit.wire ≠ controlBit.wire := by
   exact liftSelectorBit_wire_ne_controlBit
     (liftSelectorTailLocal selectorTailBit)
 
-theorem selectorBit_wire_ne_controlWorkBit :
+lemma selectorBit_wire_ne_controlWorkBit :
     selectorBit.wire ≠ controlWorkBit.wire := by
   exact liftSelectorBit_wire_ne_controlWorkBit
     (liftSelectorTailLocal selectorTailBit)
 
-theorem branchControlWorkBit_wire_ne_controlBit :
+lemma branchControlWorkBit_wire_ne_controlBit :
     branchControlWorkBit.wire ≠ controlBit.wire := by
   exact liftSelectorBit_wire_ne_controlBit
     (liftSelectorTailLocal branchControlTailBit)
 
-theorem branchControlWorkBit_wire_ne_controlWorkBit :
+lemma branchControlWorkBit_wire_ne_controlWorkBit :
     branchControlWorkBit.wire ≠ controlWorkBit.wire := by
   exact liftSelectorBit_wire_ne_controlWorkBit
     (liftSelectorTailLocal branchControlTailBit)
 
-theorem paddingLeftBit_wire_ne_controlBit :
+lemma paddingLeftBit_wire_ne_controlBit :
     paddingLeftBit.wire ≠ controlBit.wire := by
   exact liftSelectorBit_wire_ne_controlBit
     (liftSelectorTailLocal paddingLeftTailBit)
 
-theorem paddingLeftBit_wire_ne_controlWorkBit :
+lemma paddingLeftBit_wire_ne_controlWorkBit :
     paddingLeftBit.wire ≠ controlWorkBit.wire := by
   exact liftSelectorBit_wire_ne_controlWorkBit
     (liftSelectorTailLocal paddingLeftTailBit)
 
-theorem paddingRightBit_wire_ne_controlBit :
+lemma paddingRightBit_wire_ne_controlBit :
     paddingRightBit.wire ≠ controlBit.wire := by
   exact liftSelectorBit_wire_ne_controlBit
     (liftSelectorTailLocal paddingRightTailBit)
 
-theorem paddingRightBit_wire_ne_controlWorkBit :
+lemma paddingRightBit_wire_ne_controlWorkBit :
     paddingRightBit.wire ≠ controlWorkBit.wire := by
   exact liftSelectorBit_wire_ne_controlWorkBit
     (liftSelectorTailLocal paddingRightTailBit)
 
 /-- Every lifted pipeline wire is disjoint from the selector predicate. -/
-theorem liftPipelineBit_wire_ne_selectorBit
+lemma liftPipelineBit_wire_ne_selectorBit
     (bit : EncodedBit Pipeline.rawEncoding) :
     (liftPipelineBit bit).wire ≠ selectorBit.wire := by
   exact liftPipelineBit_wire_ne_liftSelectorBit bit
     (liftSelectorTailLocal selectorTailBit)
 
 /-- Every lifted pipeline wire is disjoint from the branch-control work bit. -/
-theorem liftPipelineBit_wire_ne_branchControlWorkBit
+lemma liftPipelineBit_wire_ne_branchControlWorkBit
     (bit : EncodedBit Pipeline.rawEncoding) :
     (liftPipelineBit bit).wire ≠ branchControlWorkBit.wire := by
   exact liftPipelineBit_wire_ne_liftSelectorBit bit
     (liftSelectorTailLocal branchControlTailBit)
 
 /-- The selector predicate is disjoint from each lifted output-X wire. -/
-theorem selectorBit_wire_ne_outputXWord (bit : Fin params.width) :
+lemma selectorBit_wire_ne_outputXWord (bit : Fin params.width) :
     selectorBit.wire ≠ (outputXWord.bit bit).wire := by
   exact (liftPipelineBit_wire_ne_selectorBit
     ((pipelineOutputXPort (params := params)).word.bit bit)).symm
 
 /-- The selector predicate is disjoint from each lifted output-Y wire. -/
-theorem selectorBit_wire_ne_outputYWord (bit : Fin params.width) :
+lemma selectorBit_wire_ne_outputYWord (bit : Fin params.width) :
     selectorBit.wire ≠ (outputYWord.bit bit).wire := by
   exact (liftPipelineBit_wire_ne_selectorBit
     ((pipelineOutputYPort (params := params)).word.bit bit)).symm
 
 /-- The selector predicate is disjoint from every gate lifted from the generic
 pipeline. -/
-theorem liftPipelineGates_bitDisjoint_selectorBit
+lemma liftPipelineGates_bitDisjoint_selectorBit
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     ∀ gate, gate ∈ liftPipelineGates gates →
       EncodedBit.GateSpec.bitDisjoint selectorBit gate := by
@@ -656,7 +656,7 @@ theorem liftPipelineGates_bitDisjoint_selectorBit
 
 /-- The branch-control work bit is disjoint from every gate lifted from the
 generic pipeline. -/
-theorem liftPipelineGates_bitDisjoint_branchControlWorkBit
+lemma liftPipelineGates_bitDisjoint_branchControlWorkBit
     (gates : List (EncodedBit.GateSpec Pipeline.rawEncoding)) :
     ∀ gate, gate ∈ liftPipelineGates gates →
       EncodedBit.GateSpec.bitDisjoint branchControlWorkBit gate := by
@@ -666,13 +666,13 @@ theorem liftPipelineGates_bitDisjoint_branchControlWorkBit
     Pipeline.rawEncoding selectorEncoding
     (liftSelectorTailLocal branchControlTailBit) source
 
-private theorem liftSelectorBit_wire_ne {left right : EncodedBit selectorEncoding}
+private lemma liftSelectorBit_wire_ne {left right : EncodedBit selectorEncoding}
     (hwire : left.wire ≠ right.wire) :
     (liftSelectorBit left).wire ≠ (liftSelectorBit right).wire := by
   simpa only [liftSelectorBit, rawEncoding] using
     EncodedBit.GateSpec.prodRightWire_ne Pipeline.rawEncoding hwire
 
-private theorem liftZeroWorkLocal_wire_ne_liftSelectorTailLocal
+private lemma liftZeroWorkLocal_wire_ne_liftSelectorTailLocal
     (work : EncodedBit zeroWorkEncoding)
     (tail : EncodedBit selectorTailEncoding) :
     (liftZeroWorkLocal work).wire ≠ (liftSelectorTailLocal tail).wire := by
@@ -680,14 +680,14 @@ private theorem liftZeroWorkLocal_wire_ne_liftSelectorTailLocal
     (EncodedBit.GateSpec.prodRightBit_wire_ne_prodLeftBit_wire
       zeroWorkEncoding selectorTailEncoding tail work).symm
 
-private theorem liftTailBit_wire_ne
+private lemma liftTailBit_wire_ne
     {left right : EncodedBit selectorTailEncoding}
     (hwire : left.wire ≠ right.wire) :
     (liftTailBit left).wire ≠ (liftTailBit right).wire := by
   apply liftSelectorBit_wire_ne
   exact EncodedBit.GateSpec.prodRightWire_ne zeroWorkEncoding hwire
 
-private theorem zeroWorkRawBit_pairwise_ne (left right : Fin params.width)
+private lemma zeroWorkRawBit_pairwise_ne (left right : Fin params.width)
     (hne : left ≠ right) :
     (zeroWorkRawBit left).wire ≠ (zeroWorkRawBit right).wire := by
   simpa [zeroWorkRawBit, zeroWorkEncoding, PointAddition.PortFrame.fixedWord,
@@ -695,7 +695,7 @@ private theorem zeroWorkRawBit_pairwise_ne (left right : Fin params.width)
     PointAddition.PortFrame.fixedWord_pairwise_ne params.width left right hne
 
 /-- The clean zero-test work word uses distinct physical wires. -/
-theorem zeroWorkWord_pairwise_ne (left right : Fin params.width)
+lemma zeroWorkWord_pairwise_ne (left right : Fin params.width)
     (hne : left ≠ right) :
     (zeroWorkWord.bit left).wire ≠ (zeroWorkWord.bit right).wire := by
   apply liftSelectorBit_wire_ne
@@ -704,52 +704,52 @@ theorem zeroWorkWord_pairwise_ne (left right : Fin params.width)
 
 /-- The lifted mutable X-coordinate retains the port's pairwise wire
 separation. -/
-theorem mutableXWord_pairwise_ne (left right : Fin params.width)
+lemma mutableXWord_pairwise_ne (left right : Fin params.width)
     (hne : left ≠ right) :
     (mutableXWord.bit left).wire ≠ (mutableXWord.bit right).wire := by
   apply EncodedBit.GateSpec.prodLeftWire_ne selectorEncoding
   exact (PointAddition.PortFrame.mutableXPort
     Pipeline.auxEncoding params.width).pairwise_ne left right hne
 
-private theorem mutableXWord_wire_ne_liftSelectorBit (bit : Fin params.width)
+private lemma mutableXWord_wire_ne_liftSelectorBit (bit : Fin params.width)
     (selector : EncodedBit selectorEncoding) :
     (mutableXWord.bit bit).wire ≠ (liftSelectorBit selector).wire := by
   exact liftPipelineBit_wire_ne_liftSelectorBit
     ((PointAddition.PortFrame.mutableXPort
       Pipeline.auxEncoding params.width).word.bit bit) selector
 
-private theorem zeroWorkBit_wire_ne_liftTailBit (work : Fin params.width)
+private lemma zeroWorkBit_wire_ne_liftTailBit (work : Fin params.width)
     (tail : EncodedBit selectorTailEncoding) :
     (zeroWorkBit work).wire ≠ (liftTailBit tail).wire := by
   apply liftSelectorBit_wire_ne
   exact liftZeroWorkLocal_wire_ne_liftSelectorTailLocal
     (zeroWorkRawBit work) tail
 
-private theorem mutableXWord_wire_ne_zeroWorkBit
+private lemma mutableXWord_wire_ne_zeroWorkBit
     (source work : Fin params.width) :
     (mutableXWord.bit source).wire ≠ (zeroWorkBit work).wire := by
   exact mutableXWord_wire_ne_liftSelectorBit source
     (liftZeroWorkLocal (zeroWorkRawBit work))
 
-private theorem mutableXWord_wire_ne_selectorBit (source : Fin params.width) :
+private lemma mutableXWord_wire_ne_selectorBit (source : Fin params.width) :
     (mutableXWord.bit source).wire ≠ selectorBit.wire := by
   exact mutableXWord_wire_ne_liftSelectorBit source
     (liftSelectorTailLocal selectorTailBit)
 
-private theorem mutableXWord_wire_ne_paddingLeftBit
+private lemma mutableXWord_wire_ne_paddingLeftBit
     (source : Fin params.width) :
     (mutableXWord.bit source).wire ≠ paddingLeftBit.wire := by
   exact mutableXWord_wire_ne_liftSelectorBit source
     (liftSelectorTailLocal paddingLeftTailBit)
 
-private theorem mutableXWord_wire_ne_paddingRightBit
+private lemma mutableXWord_wire_ne_paddingRightBit
     (source : Fin params.width) :
     (mutableXWord.bit source).wire ≠ paddingRightBit.wire := by
   exact mutableXWord_wire_ne_liftSelectorBit source
     (liftSelectorTailLocal paddingRightTailBit)
 
 omit params in
-private theorem selectorTailBit_wire_ne_branchTailBit
+private lemma selectorTailBit_wire_ne_branchTailBit
     (branch : EncodedBit branchTailEncoding) :
     selectorTailBit.wire ≠
       (BinaryLabelEncoding.prodRightBit BinaryLabelEncoding.bool
@@ -760,7 +760,7 @@ private theorem selectorTailBit_wire_ne_branchTailBit
       BinaryLabelEncoding.boolBit).symm
 
 omit params in
-private theorem branchControlTailBit_wire_ne_paddingBit
+private lemma branchControlTailBit_wire_ne_paddingBit
     (padding : EncodedBit paddingEncoding) :
     branchControlTailBit.wire ≠
       (BinaryLabelEncoding.prodRightBit BinaryLabelEncoding.bool
@@ -774,7 +774,7 @@ private theorem branchControlTailBit_wire_ne_paddingBit
       BinaryLabelEncoding.boolBit).symm
 
 omit params in
-private theorem paddingLeftTailBit_wire_ne_paddingRightTailBit :
+private lemma paddingLeftTailBit_wire_ne_paddingRightTailBit :
     paddingLeftTailBit.wire ≠ paddingRightTailBit.wire := by
   apply EncodedBit.GateSpec.prodRightWire_ne BinaryLabelEncoding.bool
   apply EncodedBit.GateSpec.prodRightWire_ne BinaryLabelEncoding.bool
@@ -783,7 +783,7 @@ private theorem paddingLeftTailBit_wire_ne_paddingRightTailBit :
     BinaryLabelEncoding.boolBit BinaryLabelEncoding.boolBit).symm
 
 /-- The selector predicate and branch-control work bit are distinct. -/
-theorem selectorBit_wire_ne_branchControlWorkBit :
+lemma selectorBit_wire_ne_branchControlWorkBit :
     selectorBit.wire ≠ branchControlWorkBit.wire := by
   apply liftTailBit_wire_ne
   simpa only [branchControlTailBit] using
@@ -792,7 +792,7 @@ theorem selectorBit_wire_ne_branchControlWorkBit :
         BinaryLabelEncoding.boolBit)
 
 /-- The selector predicate is disjoint from the first clean padding bit. -/
-theorem selectorBit_wire_ne_paddingLeftBit :
+lemma selectorBit_wire_ne_paddingLeftBit :
     selectorBit.wire ≠ paddingLeftBit.wire := by
   apply liftTailBit_wire_ne
   simpa only [paddingLeftTailBit] using
@@ -802,7 +802,7 @@ theorem selectorBit_wire_ne_paddingLeftBit :
           BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit))
 
 /-- The selector predicate is disjoint from the second clean padding bit. -/
-theorem selectorBit_wire_ne_paddingRightBit :
+lemma selectorBit_wire_ne_paddingRightBit :
     selectorBit.wire ≠ paddingRightBit.wire := by
   apply liftTailBit_wire_ne
   simpa only [paddingRightTailBit] using
@@ -812,7 +812,7 @@ theorem selectorBit_wire_ne_paddingRightBit :
           BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit))
 
 /-- The branch-control work bit is disjoint from the first clean padding bit. -/
-theorem branchControlWorkBit_wire_ne_paddingLeftBit :
+lemma branchControlWorkBit_wire_ne_paddingLeftBit :
     branchControlWorkBit.wire ≠ paddingLeftBit.wire := by
   apply liftTailBit_wire_ne
   simpa only [paddingLeftTailBit] using
@@ -821,7 +821,7 @@ theorem branchControlWorkBit_wire_ne_paddingLeftBit :
         BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit)
 
 /-- The branch-control work bit is disjoint from the second clean padding bit. -/
-theorem branchControlWorkBit_wire_ne_paddingRightBit :
+lemma branchControlWorkBit_wire_ne_paddingRightBit :
     branchControlWorkBit.wire ≠ paddingRightBit.wire := by
   apply liftTailBit_wire_ne
   simpa only [paddingRightTailBit] using
@@ -830,15 +830,15 @@ theorem branchControlWorkBit_wire_ne_paddingRightBit :
         BinaryLabelEncoding.bool BinaryLabelEncoding.boolBit)
 
 /-- The two clean source padding bits use distinct wires. -/
-theorem paddingLeftBit_wire_ne_paddingRightBit :
+lemma paddingLeftBit_wire_ne_paddingRightBit :
     paddingLeftBit.wire ≠ paddingRightBit.wire := by
   exact liftTailBit_wire_ne paddingLeftTailBit_wire_ne_paddingRightTailBit
 
-private theorem paddingLeftBit_wire_ne_zeroWorkBit (work : Fin params.width) :
+private lemma paddingLeftBit_wire_ne_zeroWorkBit (work : Fin params.width) :
     paddingLeftBit.wire ≠ (zeroWorkBit work).wire := by
   exact (zeroWorkBit_wire_ne_liftTailBit work paddingLeftTailBit).symm
 
-private theorem paddingRightBit_wire_ne_zeroWorkBit (work : Fin params.width) :
+private lemma paddingRightBit_wire_ne_zeroWorkBit (work : Fin params.width) :
     paddingRightBit.wire ≠ (zeroWorkBit work).wire := by
   exact (zeroWorkBit_wire_ne_liftTailBit work paddingRightTailBit).symm
 
@@ -853,7 +853,7 @@ def sourceWord : EncodedBit.Word rawEncoding (params.width + 2) where
 
 /-- Every widened comparison-source wire is disjoint from the public
 translation control. -/
-theorem sourceWord_wire_ne_controlBit
+lemma sourceWord_wire_ne_controlBit
     (source : Fin (params.width + 2)) :
     (sourceWord.bit source).wire ≠ controlBit.wire := by
   revert source
@@ -867,7 +867,7 @@ theorem sourceWord_wire_ne_controlBit
 
 /-- Every widened comparison-source wire is disjoint from the outer-control
 work bit. -/
-theorem sourceWord_wire_ne_controlWorkBit
+lemma sourceWord_wire_ne_controlWorkBit
     (source : Fin (params.width + 2)) :
     (sourceWord.bit source).wire ≠ controlWorkBit.wire := by
   revert source
@@ -880,7 +880,7 @@ theorem sourceWord_wire_ne_controlWorkBit
       simpa [sourceWord] using mutableXWord_wire_ne_controlWorkBit mutable
 
 /-- Distinct source indices select distinct physical wires. -/
-theorem sourceWord_pairwise_ne (left right : Fin (params.width + 2))
+lemma sourceWord_pairwise_ne (left right : Fin (params.width + 2))
     (hne : left ≠ right) :
     (sourceWord.bit left).wire ≠ (sourceWord.bit right).wire := by
   revert hne
@@ -936,7 +936,7 @@ theorem sourceWord_pairwise_ne (left right : Fin (params.width + 2))
             mutableXWord_pairwise_ne mutable other hmutable
 
 /-- Every source wire is disjoint from the selector predicate output. -/
-theorem sourceWord_wire_ne_selectorBit (bit : Fin (params.width + 2)) :
+lemma sourceWord_wire_ne_selectorBit (bit : Fin (params.width + 2)) :
     (sourceWord.bit bit).wire ≠ selectorBit.wire := by
   refine Fin.lastCases ?_ ?_ bit
   · simpa [sourceWord] using selectorBit_wire_ne_paddingRightBit.symm
@@ -947,7 +947,7 @@ theorem sourceWord_wire_ne_selectorBit (bit : Fin (params.width + 2)) :
       simpa [sourceWord] using mutableXWord_wire_ne_selectorBit mutable
 
 /-- Every source wire is disjoint from every clean zero-test work wire. -/
-theorem sourceWord_wire_ne_zeroWorkWord
+lemma sourceWord_wire_ne_zeroWorkWord
     (source : Fin (params.width + 2)) (work : Fin params.width) :
     (sourceWord.bit source).wire ≠ (zeroWorkWord.bit work).wire := by
   refine Fin.lastCases ?_ ?_ source
@@ -962,7 +962,7 @@ theorem sourceWord_wire_ne_zeroWorkWord
         mutableXWord_wire_ne_zeroWorkBit mutable work
 
 /-- Every zero-test work wire is disjoint from the selector predicate output. -/
-theorem zeroWorkWord_wire_ne_selectorBit (work : Fin params.width) :
+lemma zeroWorkWord_wire_ne_selectorBit (work : Fin params.width) :
     (zeroWorkWord.bit work).wire ≠ selectorBit.wire := by
   exact zeroWorkBit_wire_ne_liftTailBit work selectorTailBit
 

@@ -26,9 +26,9 @@ noncomputable section
 
 open Execution ClassicalAlgorithms.EllipticCurve ClassicalAlgorithms.Modular
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width scalarWidth : Nat}
-  (sampleCode : Circuit model ctx ctx) (supported : sampleCode.IsLocal)
+  (sampleCode : Circuit model ctx ctx false)
   (curve : CurveSpec width) (modulus : ModulusSpec scalarWidth)
   (sample : CInputRef ctx (.fixedVector (scalarWidth + scalarWidth) (.finite 2)))
   (base target : CInputRef ctx (PointShape width))
@@ -37,9 +37,9 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 include sampleBound
 
 /-- Every sample is followed by the original complete numerical classical-attempt ceiling. -/
-theorem sampledAttempt_eventCount_original_le
-    (path : (sampledAttempt sampleCode supported curve modulus sample base target).Path) :
-    ((sampledAttempt sampleCode supported curve modulus sample base target).eventTrace
+lemma sampledAttempt_eventCount_original_le
+    (path : (sampledAttempt sampleCode curve modulus sample base target).Path) :
+    ((sampledAttempt sampleCode curve modulus sample base target).eventTrace
       path).length ≤
       sampleCount + (42 * scalarWidth + scalarWidth * (248 * width + 644) + 119) := by
   rw [sampledAttempt_eventTrace, List.length_append]
@@ -47,27 +47,27 @@ theorem sampledAttempt_eventCount_original_le
     (attemptInto_eventCount_le curve modulus _ _ _ _ _ _ _ _ _ _ path.2)
 
 /-- Every declared round runs both its actual sampler and original complete checking. -/
-theorem sampledAttempts_eventCount_original_le (count : Nat)
-    (path : (sampledAttempts sampleCode supported count curve modulus sample base target).Path) :
-    ((sampledAttempts sampleCode supported count curve modulus sample base target).eventTrace
+lemma sampledAttempts_eventCount_original_le (count : Nat)
+    (path : (sampledAttempts sampleCode count curve modulus sample base target).Path) :
+    ((sampledAttempts sampleCode count curve modulus sample base target).eventTrace
       path).length ≤
         count * (sampleCount + (42 * scalarWidth + scalarWidth * (248 * width + 644) + 119)) :=
   Circuit.forRange_eventCount_le count
-    (fun _ => sampledAttempt sampleCode supported curve modulus sample base target) _
-    (fun _ iteration => sampledAttempt_eventCount_original_le sampleCode supported curve modulus
+    (fun _ => sampledAttempt sampleCode curve modulus sample base target) _
+    (fun _ iteration => sampledAttempt_eventCount_original_le sampleCode curve modulus
       sample base target sampleCount sampleBound iteration) path
 
 /-- Seven initial retains add no event; all rounds and the final pack retain their actual charge. -/
-theorem sampledRecoveryTail_eventCount_original_le (count : Nat)
+lemma sampledRecoveryTail_eventCount_original_le (count : Nat)
     (path :
-      (sampledRecoveryTail sampleCode supported count curve modulus sample base target).Path) :
-    ((sampledRecoveryTail sampleCode supported count curve modulus sample base target).eventTrace
+      (sampledRecoveryTail sampleCode count curve modulus sample base target).Path) :
+    ((sampledRecoveryTail sampleCode count curve modulus sample base target).eventTrace
       path).length ≤
         count * (sampleCount +
           (42 * scalarWidth + scalarWidth * (248 * width + 644) + 119)) + 1 := by
   rw [sampledRecoveryTail_eventTrace, List.length_append, List.length_singleton]
   exact Nat.add_le_add_right
-    (sampledAttempts_eventCount_original_le sampleCode supported curve modulus sample base target
+    (sampledAttempts_eventCount_original_le sampleCode curve modulus sample base target
       sampleCount sampleBound count path.1.2) 1
 
 end

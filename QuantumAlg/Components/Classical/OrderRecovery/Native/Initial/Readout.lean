@@ -28,7 +28,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind}
 
 /-- The actual numerator destination is separate from every actual input bit. -/
-theorem nativeRecovery_initialBit_separate (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialBit_separate (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (index : Fin (phaseBits + 1)) :
     (recoveryCells ctx modulusWidth (phaseBits + 1)).cursor.numerator.key ∉
       (initialPhaseBitRefs ctx modulusWidth phaseBits sample index).storageKeys := by
@@ -42,7 +42,7 @@ theorem nativeRecovery_initialBit_separate (modulusWidth phaseBits : Nat)
   · exact nativeRecovery_field_input_separate modulusWidth (phaseBits + 1) recoveryFields 2 sample
 
 /-- The actual fresh prefix bit and original sampled bits are read with their exact values. -/
-theorem nativeRecovery_initialBit_read (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialBit_read (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx)
     (index : Fin (phaseBits + 1)) :
     ((enterRecoveryFields modulusWidth (phaseBits + 1) recoveryFields store).read
@@ -60,7 +60,7 @@ theorem nativeRecovery_initialBit_read (modulusWidth phaseBits : Nat)
     rfl
 
 /-- The existing actual decoder writes exactly the original full-register sampled index. -/
-theorem nativeRecovery_decoded_numerator {model : ExecutionModel} [BitWord.Selected model]
+lemma nativeRecovery_decoded_numerator {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx) :
     ((TerminalDecode.foldStep (model := model)

@@ -22,7 +22,8 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Original native copy into a supplied scaling destination. -/
@@ -46,14 +47,15 @@ def copyScaleStep (input : CInputRef ctx (.unsignedWord width))
   (shifted.1, (copied.2, shifted.2))
 
 /-- The actual copy-and-shift interpreter preserves all incoming state blocks. -/
-theorem copyScaleInto_execute (input : CInputRef ctx (.unsignedWord width))
+lemma copyScaleInto_execute (input : CInputRef ctx (.unsignedWord width))
     (output : CWriteRef ctx (.unsignedWord width)) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (copyScaleInto input output).execute Reference state = state.mapClassical (fun entry =>
+    (copyScaleInto input output).execute environment Reference state
+      = state.mapClassical (fun entry =>
       let actual := copyScaleStep input output entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (copyOp input output))
     (ClassicalRoutines.Word.PowerOfTwo.shiftInto 3 output)
     (fun before =>
@@ -62,7 +64,8 @@ theorem copyScaleInto_execute (input : CInputRef ctx (.unsignedWord width))
     (fun before =>
       let actual := ClassicalRoutines.Word.PowerOfTwo.shiftStep 3 output before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (fun reference _history _ current =>
       ClassicalRoutines.Word.PowerOfTwo.shiftInto_execute 3 output reference current)
     Reference state).trans ?_
@@ -133,13 +136,13 @@ def scaleStep (refs : Refs ctx width) (store : Store ctx) :
   (ranged.1, (distance.2, ranged.2))
 
 /-- Final addition and actual comparison preserve the full incoming execution state. -/
-theorem finishInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma finishInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (finishInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (finishInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := finishStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (addRangeOp refs))
     (BitWord.instruction (execution := model) (compareOp refs))
     (fun before =>
@@ -148,19 +151,21 @@ theorem finishInto_execute (refs : Refs ctx width) (Reference : Register)
     (fun before =>
       let actual := BitWord.instructionStep (execution := model) (compareOp refs) before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual range composition retains each incoming history and reference block. -/
-theorem rangeInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma rangeInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (rangeInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (rangeInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := rangeStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (copyScaleInto (writeInput refs.rangeSquare) refs.scaledRange)
     (finishInto refs)
     (fun before =>
@@ -176,13 +181,13 @@ theorem rangeInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual squareRange composition retains each incoming history and reference block. -/
-theorem squareRangeInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma squareRangeInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (squareRangeInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (squareRangeInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := squareRangeStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (squareOp refs))
     (rangeInto refs)
     (fun before =>
@@ -191,19 +196,21 @@ theorem squareRangeInto_execute (refs : Refs ctx width) (Reference : Register)
     (fun before =>
       let actual := rangeStep refs before.1
       ((actual.1, before.2), actual.2))
-    (fun reference _history _ current => BitWord.bitWord_instruction_execute _ current)
+    (fun reference _history _ current => BitWord.bitWord_instruction_execute
+      (environment := environment) _ current)
     (fun reference _history _ current => rangeInto_execute refs reference current)
     Reference state).trans ?_
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual scale composition retains each incoming history and reference block. -/
-theorem scaleInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma scaleInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (scaleInto refs).execute Reference state = state.mapClassical (fun entry =>
+    (scaleInto refs).execute environment Reference state = state.mapClassical (fun entry =>
       let actual := scaleStep refs entry.1
       (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical (copyScaleInto refs.distance refs.scaledDistance)
+  refine (Circuit.execute_seq_mapClassical
+    (environment := environment) (copyScaleInto refs.distance refs.scaledDistance)
     (squareRangeInto refs)
     (fun before =>
       let actual := copyScaleStep refs.distance refs.scaledDistance before.1

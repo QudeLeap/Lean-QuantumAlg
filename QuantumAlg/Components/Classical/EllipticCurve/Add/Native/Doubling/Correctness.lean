@@ -29,7 +29,7 @@ noncomputable section
 variable {width : Nat}
 
 /-- The six actual prefix values give the original canonical tangent numerator and denominator. -/
-theorem doublingValues_slope_operands (spec : CurveSpec width)
+lemma doublingValues_slope_operands (spec : CurveSpec width)
     (rawX rawY : CShape.Word width) (x y : ZMod spec.field.modulus)
     (xValue : rawX.toNat = x.val) (yValue : rawY.toNat = y.val) :
     (doublingValues spec rawX rawY).numerator.toNat = (doubleNumerator spec x).val ∧
@@ -83,7 +83,7 @@ theorem doublingValues_slope_operands (spec : CurveSpec width)
     simpa only [ZMod.val_natCast, Nat.mod_eq_of_lt denominatorCanonical] using value
 
 /-- The selected tangent branch's actual finite output represents the original point sum. -/
-theorem doublingOutputValue_represents_add_of_selected (spec : CurveSpec width)
+lemma doublingOutputValue_represents_add_of_selected (spec : CurveSpec width)
     (point : CShape.Value (PointEquality.RawPointShape width))
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y)

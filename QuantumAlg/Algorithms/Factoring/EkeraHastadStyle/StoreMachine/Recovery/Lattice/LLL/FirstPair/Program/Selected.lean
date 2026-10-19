@@ -25,7 +25,7 @@ noncomputable section
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
 /-- Comparison preserves all actual basis coordinates outside its two writes. -/
-theorem comparison_basis (refs : Refs ctx width) (separation : Separation refs)
+lemma comparison_basis (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
     LatticeMetricMachine.BasisRawRepresents
@@ -36,7 +36,7 @@ theorem comparison_basis (refs : Refs ctx width) (separation : Separation refs)
   intro cell member
   cases cell <;> decide
 
-private theorem selectArm_basis {model : ExecutionModel} [BitWord.Selected model]
+private lemma selectArm_basis {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (flag : CShape.Value .bit) (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis) :
@@ -60,7 +60,7 @@ private theorem selectArm_basis {model : ExecutionModel} [BitWord.Selected model
     · exact rep
 
 /-- The actual stored decision selects exactly the original pure Lovasz basis result. -/
-theorem select_basis {model : ExecutionModel} [BitWord.Selected model]
+lemma select_basis {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)
@@ -75,7 +75,7 @@ theorem select_basis {model : ExecutionModel} [BitWord.Selected model]
   simpa only [decision, lovaszBranchResult] using result
 
 /-- Both actual selected arms preserve the comparison result bit exactly. -/
-theorem select_passes {model : ExecutionModel} [BitWord.Selected model]
+lemma select_passes {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (selectStep (model := model) refs store).1.read (writeInput refs.lovasz.passes) =
@@ -90,7 +90,7 @@ theorem select_passes {model : ExecutionModel} [BitWord.Selected model]
   simpa only [writeInput, CInputRef.storageKeys, List.mem_singleton, cellKey] using keyNe
 
 /-- The actual comparison and selected exchange retain the refreshed second norm word. -/
-theorem lovaszBranch_g22 {model : ExecutionModel} [BitWord.Selected model]
+lemma lovaszBranch_g22 {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) :
     (lovaszBranchStep (model := model) refs store).1.read (writeInput refs.metric.g22) =
@@ -103,7 +103,7 @@ theorem lovaszBranch_g22 {model : ExecutionModel} [BitWord.Selected model]
   rfl
 
 /-- Actual bounded norm comparison followed by its actual selected row exchange is correct. -/
-theorem lovaszBranch_correct {model : ExecutionModel} [BitWord.Selected model]
+lemma lovaszBranch_correct {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (basis : NumberTheory.IntegerBasis3)
     (rep : LatticeMetricMachine.BasisRawRepresents store refs.basis basis)

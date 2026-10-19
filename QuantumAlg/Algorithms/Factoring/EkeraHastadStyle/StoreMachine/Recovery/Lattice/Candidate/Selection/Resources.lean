@@ -18,7 +18,8 @@ open Execution
 
 noncomputable section
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Independent native trace of the original two eligibility conjunctions. -/
@@ -32,7 +33,7 @@ def candidateSelectorEventEnvelope (model : ExecutionModel) [BitWord.Selected mo
   ResourcePool.ofList (eligibilityTrace (model := model)) +
     ResourcePool.ofList (ClassicalRoutines.FirstAccepted.Direct.copyTrace (model := model) width)
 
-private theorem candidateEligibilityInto_events (refs : Refs ctx width)
+private lemma candidateEligibilityInto_events (refs : Refs ctx width)
     (path : (candidateEligibilityInto refs).Path) :
     (candidateEligibilityInto refs).eventTrace path = eligibilityTrace (model := model) := by
   change (BitWord.instruction (execution := model) (intermediateOp refs)).eventTrace path.1 ++
@@ -41,7 +42,7 @@ private theorem candidateEligibilityInto_events (refs : Refs ctx width)
   rfl
 
 /-- Both original actual eligibility instructions precede precisely the selected native copy arm. -/
-theorem candidateSelectorInto_events (refs : Refs ctx width)
+lemma candidateSelectorInto_events (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
     (candidateSelectorInto refs).eventTrace path =
       eligibilityTrace (model := model) ++ (selectionInto refs).eventTrace path.2 := by
@@ -49,7 +50,7 @@ theorem candidateSelectorInto_events (refs : Refs ctx width)
   rw [candidateEligibilityInto_events]
 
 /-- The actual closing suffix fits the independent native allowance for its four possible writes. -/
-theorem candidateSelectorInto_pool_le (refs : Refs ctx width)
+lemma candidateSelectorInto_pool_le (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
     (candidateSelectorInto refs).resourcePool path ≤
       candidateSelectorEventEnvelope model width := by
@@ -61,7 +62,7 @@ theorem candidateSelectorInto_pool_le (refs : Refs ctx width)
     (writeInput refs.eligible) refs.candidate refs.selection path.2)
 
 /-- The original two actual eligibility operations have exactly two unit durations. -/
-theorem candidateEligibilityInto_depth (refs : Refs ctx width)
+lemma candidateEligibilityInto_depth (refs : Refs ctx width)
     (path : (candidateEligibilityInto refs).Path) :
     (candidateEligibilityInto refs).depth (fun _ => 1) path = 2 := by
   change (BitWord.instruction (execution := model) (intermediateOp refs)).depth
@@ -71,7 +72,7 @@ theorem candidateEligibilityInto_depth (refs : Refs ctx width)
   rw [BitWord.bitWord_instruction_depth, BitWord.bitWord_instruction_depth]
 
 /-- Actual depth includes eligibility-to-selection dependencies and at most four native writes. -/
-theorem candidateSelectorInto_depth_le (refs : Refs ctx width)
+lemma candidateSelectorInto_depth_le (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
     (candidateSelectorInto refs).depth (fun _ => 1) path ≤ 4 := by
   have selected := ClassicalRoutines.FirstAccepted.Direct.into_depth_le
@@ -81,27 +82,29 @@ theorem candidateSelectorInto_depth_le (refs : Refs ctx width)
   omega
 
 /-- The actual original conjunctions restore the complete borrowed-reference joint state. -/
-theorem candidateEligibilityInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma candidateEligibilityInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidateEligibilityInto refs).BorrowedRestored Reference state
-      ((candidateEligibilityInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state (Circuit.borrowedRestored_classical _ state)
-    (Circuit.borrowedRestored_classical _ _)
+      ((candidateEligibilityInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq
+    (environment := environment) _ _ state (Circuit.borrowedRestored_classical (environment :=
+    environment) _ state)
+    (Circuit.borrowedRestored_classical (environment := environment) _ _)
 
 /-- Actual candidate selection preserves every borrowed system and external reference jointly. -/
-theorem candidateSelectorInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
+lemma candidateSelectorInto_borrowedRestored (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
     (candidateSelectorInto refs).BorrowedRestored Reference state
-      ((candidateSelectorInto refs).execute Reference state) :=
-  Circuit.borrowedRestored_seq _ _ state
+      ((candidateSelectorInto refs).execute environment Reference state) :=
+  Circuit.borrowedRestored_seq (environment := environment) _ _ state
     (candidateEligibilityInto_borrowedRestored refs Reference state)
     (ClassicalRoutines.FirstAccepted.Direct.into_borrowedRestored
       (writeInput refs.eligible) refs.candidate refs.selection Reference _)
 
 /-- All original eligibility and direct-selection instructions visit only the supplied context. -/
-theorem candidateSelectorInto_visited (refs : Refs ctx width)
+lemma candidateSelectorInto_visited (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) (visited : RuntimeCtx model.kind)
     (present : visited ∈ (candidateSelectorInto refs).visitedContexts path) : visited = ctx := by
   change visited ∈ [ctx, ctx] ++ (selectionInto refs).visitedContexts path.2 at present
@@ -111,7 +114,7 @@ theorem candidateSelectorInto_visited (refs : Refs ctx width)
       (writeInput refs.eligible) refs.candidate refs.selection path.2 visited selected
 
 /-- Actual selection keeps every caller resource counted without allocating selector work bits. -/
-theorem candidateSelectorInto_resident_le (refs : Refs ctx width)
+lemma candidateSelectorInto_resident_le (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
     (candidateSelectorInto refs).peakResidentSpace path ≤ ctx.residentSpace := by
   apply Circuit.peakResidentSpace_le_of_visited
@@ -119,7 +122,7 @@ theorem candidateSelectorInto_resident_le (refs : Refs ctx width)
   rw [candidateSelectorInto_visited refs path visited present]
 
 /-- All original auxiliary roles remain charged throughout the complete actual suffix. -/
-theorem candidateSelectorInto_auxiliary_le (refs : Refs ctx width)
+lemma candidateSelectorInto_auxiliary_le (refs : Refs ctx width)
     (path : (candidateSelectorInto refs).Path) :
     (candidateSelectorInto refs).peakAuxiliarySpace path ≤ ctx.auxiliarySpace := by
   apply Circuit.peakAuxiliarySpace_le_of_visited

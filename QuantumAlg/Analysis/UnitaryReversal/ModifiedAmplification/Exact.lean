@@ -33,7 +33,7 @@ variable {d : ℕ}
 `m = ⌊π/(2Δ_d)⌋`, `α = cos Δ_d / sin(m·Δ_d)` and `θ = m·Δ_d`, the modified
 amplifier `A_α,θ(U)` completes `m−1` base amplifier rounds, so
 `A_α,θ(U)·A(U)^(m−1)·(1₂⊗E(U))·(|0⟩⊗Λ₀) = |0⟩⊗Ψ₀ = |0⟩⊗|00⟩⊗U†`. -/
-theorem modifiedAmplification_eq_adjointBlock (d : ℕ) [NeZero d] (hd : 2 ≤ d)
+lemma modifiedAmplification_eq_adjointBlock (d : ℕ) [NeZero d] (hd : 2 ≤ d)
     (U : Matrix.unitaryGroup (Fin d) ℂ) :
     let m := quraFloorRounds (by omega : 1 ≤ d)
     let α : ℝ := Real.cos (quraAngle (by omega : 1 ≤ d)) /

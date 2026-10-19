@@ -37,7 +37,7 @@ public def ω (n : ℕ) : ℂ :=
 -- [dW19, qcnotes.tex:1690]: ω_N = e^{2πi/N}
 
 /-- `ω_n ^ (2^n) = 1`: the root has exact period `2^n`. -/
-theorem omega_pow_eq_one (n : ℕ) : ω n ^ (2 ^ n) = 1 := by
+lemma omega_pow_eq_one (n : ℕ) : ω n ^ (2 ^ n) = 1 := by
   rw [ω, ← Complex.exp_nat_mul, Complex.exp_eq_one_iff]
   refine ⟨1, ?_⟩
   push_cast
@@ -46,17 +46,17 @@ theorem omega_pow_eq_one (n : ℕ) : ω n ^ (2 ^ n) = 1 := by
 
 /-- `‖ω_n‖ = 1`: roots of unity lie on the unit circle. -/
 @[simp]
-theorem norm_omega (n : ℕ) : ‖ω n‖ = 1 := by
+lemma norm_omega (n : ℕ) : ‖ω n‖ = 1 := by
   rw [ω]
   exact Complex.norm_exp_ofReal_mul_I _
 
 /-- `omega n` equals the form used by Mathlib's `isPrimitiveRoot_exp`. -/
-private theorem omega_eq_exp_div (n : ℕ) :
+private lemma omega_eq_exp_div (n : ℕ) :
     ω n = Complex.exp (2 * ↑Real.pi * Complex.I / ↑(2 ^ n : ℕ)) := by
   simp only [ω]; congr 1; push_cast; ring
 
 /-- `omega n` is a primitive `2^n`-th root of unity. -/
-theorem omega_isPrimitiveRoot (n : ℕ) : IsPrimitiveRoot (ω n) (2 ^ n) := by
+lemma omega_isPrimitiveRoot (n : ℕ) : IsPrimitiveRoot (ω n) (2 ^ n) := by
   rw [omega_eq_exp_div]
   exact Complex.isPrimitiveRoot_exp (2 ^ n) (by positivity)
 
@@ -66,32 +66,32 @@ theorem omega_isPrimitiveRoot (n : ℕ) : IsPrimitiveRoot (ω n) (2 ^ n) := by
 public def invSqrtN (n : ℕ) : ℂ := (↑(Real.sqrt ((2 : ℝ) ^ n)))⁻¹
 
 @[simp]
-theorem star_invSqrtN (n : ℕ) : star (invSqrtN n) = invSqrtN n := by
+lemma star_invSqrtN (n : ℕ) : star (invSqrtN n) = invSqrtN n := by
   rw [invSqrtN, star_inv₀, Complex.star_def, Complex.conj_ofReal]
 
-private theorem invSqrtN_ne_zero (n : ℕ) : invSqrtN n ≠ 0 :=
+private lemma invSqrtN_ne_zero (n : ℕ) : invSqrtN n ≠ 0 :=
   inv_ne_zero <| Complex.ofReal_ne_zero.mpr <|
     Real.sqrt_ne_zero'.mpr (pow_pos two_pos n)
 
-theorem norm_invSqrtN (n : ℕ) :
+lemma norm_invSqrtN (n : ℕ) :
     ‖invSqrtN n‖ = (Real.sqrt ((2 : ℝ) ^ n))⁻¹ := by
   rw [invSqrtN, norm_inv, Complex.norm_real,
     Real.norm_of_nonneg (Real.sqrt_nonneg _)]
 
 /-- Squared QFT normalization is the reciprocal basis cardinality. -/
-theorem norm_sq_invSqrtN (n : ℕ) :
+lemma norm_sq_invSqrtN (n : ℕ) :
     ‖invSqrtN n‖ ^ 2 = (((2 : ℝ) ^ n))⁻¹ := by
   rw [norm_invSqrtN, inv_pow,
     Real.sq_sqrt (by positivity : (0 : ℝ) ≤ (2 : ℝ) ^ n)]
 
 @[simp]
-theorem invSqrtN_mul_self (n : ℕ) :
+lemma invSqrtN_mul_self (n : ℕ) :
     invSqrtN n * invSqrtN n = (↑((2 : ℝ) ^ n))⁻¹ := by
   rw [invSqrtN, ← mul_inv, ← Complex.ofReal_mul,
     Real.mul_self_sqrt (le_of_lt (pow_pos two_pos n))]
 
 /-- Recursive normalization of the Fourier transform. -/
-theorem invSqrtN_succ (n : Nat) :
+lemma invSqrtN_succ (n : Nat) :
     invSqrtN (n + 1) = invSqrt2 * invSqrtN n := by
   rw [invSqrtN, invSqrtN, invSqrt2, pow_succ,
     Real.sqrt_mul (by positivity : 0 ≤ (2 : Real) ^ n)]
@@ -100,7 +100,7 @@ theorem invSqrtN_succ (n : Nat) :
 
 /-- The root for an `n`-qubit transform is the square of the root for the
 next larger transform. -/
-theorem omega_succ_sq (n : Nat) : ω (n + 1) ^ 2 = ω n := by
+lemma omega_succ_sq (n : Nat) : ω (n + 1) ^ 2 = ω n := by
   rw [ω, ω, ← Complex.exp_nat_mul]
   congr 1
   push_cast
@@ -109,7 +109,7 @@ theorem omega_succ_sq (n : Nat) : ω (n + 1) ^ 2 = ω n := by
 
 /-- Raising the primitive `2^(low+extra)`-th root by `2^extra` yields the
 primitive `2^low`-th root, uniformly for every natural exponent. -/
-theorem omega_add_pow_two_pow_mul (low extra exponent : Nat) :
+lemma omega_add_pow_two_pow_mul (low extra exponent : Nat) :
     ω (low + extra) ^ (2 ^ extra * exponent) =
       ω low ^ exponent := by
   rw [ω, ω, ← Complex.exp_nat_mul, ← Complex.exp_nat_mul]
@@ -119,7 +119,7 @@ theorem omega_add_pow_two_pow_mul (low extra exponent : Nat) :
   field_simp
 
 /-- The halfway power of the `(n+1)`-qubit Fourier root is minus one. -/
-theorem omega_succ_pow_half (n : Nat) :
+lemma omega_succ_pow_half (n : Nat) :
     ω (n + 1) ^ (2 ^ n) = -1 := by
   rw [ω, ← Complex.exp_nat_mul]
   convert Complex.exp_pi_mul_I using 1
@@ -128,13 +128,13 @@ theorem omega_succ_pow_half (n : Nat) :
   field_simp
 
 @[simp]
-theorem omega_succ_pow_period_mul (n multiplier : Nat) :
+lemma omega_succ_pow_period_mul (n multiplier : Nat) :
     ω (n + 1) ^ (2 ^ (n + 1) * multiplier) = 1 := by
   rw [pow_mul, omega_pow_eq_one, one_pow]
 
 /-- Algebraic recurrence of the Fourier phase under the leading-bit/tail
 split. -/
-theorem qftOmega_pair_recurrence (n reversedTail inputTail : Nat)
+lemma qftOmega_pair_recurrence (n reversedTail inputTail : Nat)
     (outputHead inputHead : Fin 2) :
     ω n ^ (reversedTail * inputTail) *
         (if outputHead = 1 then ω (n + 1) ^ inputTail else 1) *
@@ -188,21 +188,21 @@ theorem qftOmega_pair_recurrence (n reversedTail inputTail : Nat)
 
 /-! ### QFT operator -/
 
-theorem omega_ne_zero (n : ℕ) : ω n ≠ 0 :=
+lemma omega_ne_zero (n : ℕ) : ω n ≠ 0 :=
   Complex.exp_ne_zero _
 
 /-- `star ω_n = ω_n⁻¹`: conjugation inverts a point on the unit circle. -/
 @[simp]
-theorem star_omega (n : ℕ) : star (ω n) = (ω n)⁻¹ := by
+lemma star_omega (n : ℕ) : star (ω n) = (ω n)⁻¹ := by
   rw [Complex.star_def, ← RCLike.inv_eq_conj (norm_omega n)]
 
 /-- Conjugating a natural power of a Fourier root negates its exponent. -/
-theorem star_omega_pow (n exponent : ℕ) :
+lemma star_omega_pow (n exponent : ℕ) :
     star (ω n ^ exponent) = ω n ^ (-(exponent : ℤ)) := by
   rw [star_pow, star_omega, ← zpow_natCast, inv_zpow']
 
 /-- Integer-exponent form of root scaling across additional qubits. -/
-theorem omega_add_pow_two_zpow_mul (low extra : Nat) (exponent : Int) :
+lemma omega_add_pow_two_zpow_mul (low extra : Nat) (exponent : Int) :
     ω (low + extra) ^ (((2 ^ extra : Nat) : Int) * exponent) =
       ω low ^ exponent := by
   have hroot : ω (low + extra) ^ (2 ^ extra) = ω low := by
@@ -210,7 +210,7 @@ theorem omega_add_pow_two_zpow_mul (low extra : Nat) (exponent : Int) :
   rw [zpow_mul, zpow_natCast, hroot]
 
 /-- Integer powers of the Fourier root as an explicit real phase ratio. -/
-theorem omega_zpow_eq_exp_ratio (n : Nat) (exponent : Int) :
+lemma omega_zpow_eq_exp_ratio (n : Nat) (exponent : Int) :
     ω n ^ exponent =
       Complex.exp (2 * Real.pi *
         (((exponent : Real) / (2 : Real) ^ n : Real) : Complex) * Complex.I) := by
@@ -221,7 +221,7 @@ theorem omega_zpow_eq_exp_ratio (n : Nat) (exponent : Int) :
 
 /-- A closed interval of powers of a Fourier root is a global starting phase
 times a geometric progression indexed from zero. -/
-theorem sum_Icc_omega_zpow_eq_shifted_range {n width : Nat}
+lemma sum_Icc_omega_zpow_eq_shifted_range {n width : Nat}
     (frequency : Int) (lower upper : Fin width) (hlower : lower ≤ upper) :
     ∑ index ∈ Finset.Icc lower upper,
         ω n ^ ((index.val : Int) * frequency) =
@@ -277,7 +277,7 @@ theorem sum_Icc_omega_zpow_eq_shifted_range {n width : Nat}
 /-- Principal-frequency upper bound for a finite Fourier-root progression.
 The estimate is independent of the progression length and is the discrete
 form of the unit-circle chord bound. -/
-theorem norm_sum_range_omega_zpow_mul_le (n m : Nat) (frequency : Int)
+lemma norm_sum_range_omega_zpow_mul_le (n m : Nat) (frequency : Int)
     (hprincipal : 2 * frequency.natAbs ≤ 2 ^ n)
     (hfrequency : frequency ≠ 0) :
     ‖∑ offset ∈ Finset.range m,
@@ -336,7 +336,7 @@ theorem norm_sum_range_omega_zpow_mul_le (n m : Nat) (frequency : Int)
 /-- A finite Fourier-root progression whose complete real phase span is at
 most `π/4` has norm at least its length times the corresponding secant slope.
 The statement also covers the degenerate root-one progression. -/
-theorem norm_sum_range_omega_zpow_mul_ge_of_angle_le
+lemma norm_sum_range_omega_zpow_mul_ge_of_angle_le
     (n m : Nat) (frequency : Int)
     (hangle : Real.pi *
       ((m : Real) * (|(frequency : Real)| / (2 : Real) ^ n)) ≤
@@ -389,13 +389,13 @@ theorem norm_sum_range_omega_zpow_mul_ge_of_angle_le
       (div_pos Real.pi_pos (by norm_num)) hquarterLe hthetaAngle hbase
 
 /-- Integer-power version of periodicity: `ω_n ^ d = 1` iff `2^n ∣ d`. -/
-theorem omega_zpow_eq_one_iff (n : ℕ) (d : ℤ) :
+lemma omega_zpow_eq_one_iff (n : ℕ) (d : ℤ) :
     ω n ^ d = 1 ↔ ((2 ^ n : ℕ) : ℤ) ∣ d :=
   (omega_isPrimitiveRoot n).zpow_eq_one_iff_dvd d
 
 /-- Column orthogonality [dW19, qcnotes.tex:1698]: the full-period geometric
 sum `∑_{l<2^n} ω^{l·d}` vanishes when `2^n ∤ d`. -/
-theorem sum_omega_zpow_eq_zero (n : ℕ) {d : ℤ}
+lemma sum_omega_zpow_eq_zero (n : ℕ) {d : ℤ}
     (hd : ¬ ((2 ^ n : ℕ) : ℤ) ∣ d) :
     ∑ l : Fin (2 ^ n), ω n ^ ((l.val : ℤ) * d) = 0 := by
   have hsum : ∀ l : Fin (2 ^ n),
@@ -459,12 +459,12 @@ theorem sum_omega_zpow_eq_zero (n : ℕ) {d : ℤ}
 
 /-- Matrix-entry formula exposed through the certified QFT carrier. -/
 @[simp]
-public theorem QFTOperator_entry (n : ℕ) (j k : Fin (2 ^ n)) :
+public lemma QFTOperator_entry (n : ℕ) (j k : Fin (2 ^ n)) :
     QFTOperator n j k = invSqrtN n * ω n ^ (j.val * k.val) := rfl
 
 /-- Matrix-entry formula for the inverse certified QFT.  The inverse changes
 the Fourier phase sign while preserving the same normalization. -/
-theorem invQFTOperator_entry (n : Nat) (j k : Fin (2 ^ n)) :
+lemma invQFTOperator_entry (n : Nat) (j k : Fin (2 ^ n)) :
     ((QFTOperator n)⁻¹ : UnitaryOperator (Qubits n)) j k =
       invSqrtN n * ω n ^ (-((k.val : Int) * (j.val : Int))) := by
   change star (QFTOperator n k j) = _

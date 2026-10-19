@@ -45,7 +45,7 @@ def rewind : Nat → TerminalTail.Frame wordWidth clockWidth →
   | count + 1, state => rewind count (TerminalTail.rewindPrefix state)
 
 /-- Literal reverse execution restores all tracked data for any finite prefix. -/
-theorem rewind_repeatPrefix (count : Nat) (state : TerminalTail.Frame wordWidth clockWidth) :
+lemma rewind_repeatPrefix (count : Nat) (state : TerminalTail.Frame wordWidth clockWidth) :
     rewind count (TerminalTail.repeatPrefix count state) = state := by
   induction count generalizing state with
   | zero => rfl
@@ -56,7 +56,7 @@ theorem rewind_repeatPrefix (count : Nat) (state : TerminalTail.Frame wordWidth 
     exact inductionHypothesis state
 
 /-- Every scheduled prefix has its complete rotating state, with no finite-counter wrap. -/
-theorem prefix_position (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma prefix_position (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) (count : Nat)
     (within : count ≤ QuotientSchedule.padding modulus input)
     (first second : BitVec wordWidth) (iteration : Bool) :
@@ -68,7 +68,7 @@ theorem prefix_position (modulus input : Nat) (coprime : Nat.Coprime input modul
       (QuotientSchedule.padding_fits_extended_clock modulus input coprime positive bounded))
 
 /-- Each scheduled next increment is actually nonzero, so it cannot select exchange or refresh. -/
-theorem next_shift_nonzero (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma next_shift_nonzero (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) (count : Nat)
     (within : count < QuotientSchedule.padding modulus input)
     (first second : BitVec wordWidth) (iteration : Bool) :
@@ -87,7 +87,7 @@ theorem next_shift_nonzero (modulus input : Nat) (coprime : Nat.Coprime input mo
   omega
 
 /-- The end of the independent schedule retains the exact words, shift, phase, sign, and parity. -/
-theorem scheduled_position (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma scheduled_position (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus)
     (first second : BitVec wordWidth) (iteration : Bool) :
     TerminalTail.repeatPrefix (QuotientSchedule.padding modulus input)
@@ -98,7 +98,7 @@ theorem scheduled_position (modulus input : Nat) (coprime : Nat.Coprime input mo
   prefix_position modulus input coprime positive bounded _ (Nat.le_refl _) first second iteration
 
 /-- The retained finite register contains the complete padding count, rather than its residue. -/
-theorem scheduled_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma scheduled_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus)
     (first second : BitVec wordWidth) (iteration : Bool) :
     (TerminalTail.repeatPrefix (QuotientSchedule.padding modulus input)
@@ -108,7 +108,7 @@ theorem scheduled_clock (modulus input : Nat) (coprime : Nat.Coprime input modul
     (QuotientSchedule.padding_fits_extended_clock modulus input coprime positive bounded)
 
 /-- Actual right rotation controlled by the retained count recovers every bit of the second word. -/
-theorem scheduled_decode (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma scheduled_decode (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus)
     (first second : BitVec wordWidth) (iteration : Bool) :
     let final := TerminalTail.repeatPrefix (QuotientSchedule.padding modulus input)
@@ -118,7 +118,7 @@ theorem scheduled_decode (modulus input : Nat) (coprime : Nat.Coprime input modu
     (QuotientSchedule.padding_fits_extended_clock modulus input coprime positive bounded)
 
 /-- The recorded count also determines the exact inverse prefix restoring every tracked register. -/
-theorem rewind_scheduled (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma rewind_scheduled (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus)
     (first second : BitVec wordWidth) (iteration : Bool) :
     let final := TerminalTail.repeatPrefix (QuotientSchedule.padding modulus input)
@@ -130,7 +130,7 @@ theorem rewind_scheduled (modulus input : Nat) (coprime : Nat.Coprime input modu
   exact rewind_repeatPrefix _ _
 
 /-- The smallest terminal word still rotates; its widened counter prevents the former swap. -/
-theorem smallest_extended_four_steps :
+lemma smallest_extended_four_steps :
     let terminal := TerminalTail.start (clockWidth := 4) (9 : BitVec 5) (16 : BitVec 5) true
     let final := TerminalTail.repeatPrefix 4 terminal
     final.firstWord.toNat = 9 ∧ final.secondWord.toNat = 8 ∧ final.shift.toNat = 4 ∧

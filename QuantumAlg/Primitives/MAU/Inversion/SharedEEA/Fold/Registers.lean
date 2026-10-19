@@ -61,21 +61,21 @@ def grouping (width : Nat) :
     rfl
 
 /-- The focused arithmetic word is exactly the full Work2 value, including its actual padding. -/
-theorem grouping_word (width : Nat) (state : Registers width) :
+lemma grouping_word (width : Nat) (state : Registers width) :
     ((grouping width state).1.2.1).val = state.secondWord.toNat := rfl
 
 /-- The actual comparison flag is Iter, which retains the source complement history. -/
-theorem grouping_flag (width : Nat) (state : Registers width) :
+lemma grouping_flag (width : Nat) (state : Registers width) :
     (Addition.Gidney.flagBit (width + 3)).get (grouping width state).1 =
       (iterationBit width).get state := rfl
 
 /-- The arithmetic helper is the already present Ctrl bit, with no cleanliness condition. -/
-theorem grouping_helper (width : Nat) (state : Registers width) :
+lemma grouping_helper (width : Nat) (state : Registers width) :
     (Addition.Gidney.helperBit (width + 3)).get (grouping width state).1 =
       (controlBit width).get state := rfl
 
 /-- Every focused little-endian word bit agrees with the same actual Work2 physical bit. -/
-theorem grouping_word_bit (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
+lemma grouping_word_bit (width : Nat) (index : Fin (width + 3)) (state : Registers width) :
     (Addition.Gidney.wordBit (width + 3) index).get (grouping width state).1 =
       (secondWordBit width index.rev).get state := by
   rw [Addition.Gidney.gidneyWordBit_get, secondWordBit_get, grouping_word]
@@ -92,12 +92,12 @@ def physicalIndex (width index : Nat) : Nat :=
   else if index < width + 4 then width + 3 + (index - 1)
   else 2 * (width + 3) + 4 * width.size + 4
 
-theorem physicalIndex_flag (width : Nat) :
+lemma physicalIndex_flag (width : Nat) :
     physicalIndex width 0 = (iterationBit width).wire.val := by
   rw [iterationBit_wire]
   simp [physicalIndex]
 
-theorem physicalIndex_word (width : Nat) (index : Fin (width + 3)) :
+lemma physicalIndex_word (width : Nat) (index : Fin (width + 3)) :
     physicalIndex width (1 + index.val) = (secondWordBit width index).wire.val := by
   rw [secondWordBit_wire]
   have bound := index.isLt
@@ -105,13 +105,13 @@ theorem physicalIndex_word (width : Nat) (index : Fin (width + 3)) :
   have inside : 1 + index.val < width + 4 := by omega
   simp only [physicalIndex, if_neg nonzero, if_pos inside, Nat.add_sub_cancel_left]
 
-theorem physicalIndex_helper (width : Nat) :
+lemma physicalIndex_helper (width : Nat) :
     physicalIndex width (width + 4) = (controlBit width).wire.val := by
   rw [controlBit_wire]
   simp [physicalIndex]
 
 /-- Every physical comparison address lies in the existing full source frame. -/
-theorem physicalIndex_within (width : Nat) (index : Fin (width + 5)) :
+lemma physicalIndex_within (width : Nat) (index : Fin (width + 5)) :
     physicalIndex width index.val < (encoding width).width := by
   rw [encoding_width]
   unfold physicalIndex
@@ -123,7 +123,7 @@ theorem physicalIndex_within (width : Nat) (index : Fin (width + 5)) :
     · omega
 
 /-- The focused native program never aliases its flag, helper, or any word bit. -/
-theorem physicalIndex_injective (width : Nat) :
+lemma physicalIndex_injective (width : Nat) :
     Function.Injective (fun index : Fin (width + 5) => physicalIndex width index.val) := by
   intro left right same
   apply Fin.ext
@@ -142,7 +142,7 @@ def comparisonStep (width pivot : Nat) (state : Registers width) : Registers wid
     (Addition.Gidney.comparisonOutput pivot (grouping width state).1, (grouping width state).2)
 
 /-- The transported comparison changes only Iter by the actual full-word inequality. -/
-theorem comparisonStep_eq (width pivot : Nat) (state : Registers width) :
+lemma comparisonStep_eq (width pivot : Nat) (state : Registers width) :
     comparisonStep width pivot state =
       { state with flags := { state.flags with
           iteration := state.flags.iteration ^^ decide (state.secondWord.toNat < pivot) } } := by

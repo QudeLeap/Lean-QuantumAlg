@@ -36,7 +36,7 @@ def negY {width : Nat} (spec : CurveSpec width)
 
 /-- Mathlib's affine negation coordinate specializes to `-y` on the stored
 short-Weierstrass curve. -/
-theorem mathlib_negY_eq_negY {width : Nat} (spec : CurveSpec width)
+lemma mathlib_negY_eq_negY {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) :
     spec.curve.toWeierstrassCurve.toAffine.negY x y = negY spec y := by
   simp [negY,
@@ -45,7 +45,7 @@ theorem mathlib_negY_eq_negY {width : Nat} (spec : CurveSpec width)
 
 /-- Nonsingularity of a finite point is preserved by the short-form coordinate
 negation. -/
-theorem neg_nonsingular {width : Nat} (spec : CurveSpec width)
+lemma neg_nonsingular {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y) :
     spec.curve.toWeierstrassCurve.toAffine.Nonsingular x (negY spec y) := by
@@ -55,7 +55,7 @@ theorem neg_nonsingular {width : Nat} (spec : CurveSpec width)
 
 /-- Finite negation has unchanged `x` coordinate and `-y` as its `y`
 coordinate. -/
-theorem neg_eval_some {width : Nat} (spec : CurveSpec width)
+lemma neg_eval_some {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y) :
     Neg.eval spec (.some x y h : Point spec) =
@@ -76,13 +76,13 @@ def genericAddDenominator {width : Nat} (spec : CurveSpec width)
 
 /-- Distinct `x` coordinates make the conventional secant denominator
 nonzero. -/
-theorem genericAddDenominator_ne_zero {width : Nat} (spec : CurveSpec width)
+lemma genericAddDenominator_ne_zero {width : Nat} (spec : CurveSpec width)
     {x₁ x₂ : ZMod spec.field.modulus} (distinct : x₁ ≠ x₂) :
     genericAddDenominator spec x₁ x₂ ≠ 0 := by
   simpa [genericAddDenominator] using sub_ne_zero.mpr distinct.symm
 
 /-- In the prime field, the generic-addition denominator is a unit. -/
-theorem genericAddDenominator_isUnit {width : Nat} (spec : CurveSpec width)
+lemma genericAddDenominator_isUnit {width : Nat} (spec : CurveSpec width)
     {x₁ x₂ : ZMod spec.field.modulus} (distinct : x₁ ≠ x₂) :
     IsUnit (genericAddDenominator spec x₁ x₂) :=
   isUnit_iff_ne_zero.mpr (genericAddDenominator_ne_zero spec distinct)
@@ -90,7 +90,7 @@ theorem genericAddDenominator_isUnit {width : Nat} (spec : CurveSpec width)
 /-- Two finite points selected by the generic branch have distinct affine
 `x` coordinates.  Equality of the coordinates would make the points equal or
 negatives of one another, exactly the two branches already excluded. -/
-theorem genericFinite_x_ne {width : Nat} (spec : CurveSpec width)
+lemma genericFinite_x_ne {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus)
     (h₁ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₁ y₁)
     (h₂ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₂ y₂)
@@ -114,7 +114,7 @@ def genericAddDenominatorUnit {width : Nat} (spec : CurveSpec width)
     (genericAddDenominator_ne_zero spec distinct)
 
 @[simp]
-theorem genericAddDenominatorUnit_val {width : Nat} (spec : CurveSpec width)
+lemma genericAddDenominatorUnit_val {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ : ZMod spec.field.modulus) (distinct : x₁ ≠ x₂) :
     ((genericAddDenominatorUnit spec x₁ x₂ distinct :
       (ZMod spec.field.modulus)ˣ) : ZMod spec.field.modulus) =
@@ -128,7 +128,7 @@ def genericAddSlope {width : Nat} (spec : CurveSpec width)
 
 /-- The Mathlib secant slope is the conventional quotient
 `(y₂ - y₁) / (x₂ - x₁)` as well. -/
-theorem genericAddSlope_eq_formula {width : Nat} (spec : CurveSpec width)
+lemma genericAddSlope_eq_formula {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus) (distinct : x₁ ≠ x₂) :
     genericAddSlope spec x₁ x₂ y₁ y₂ =
       genericAddNumerator spec y₁ y₂ / genericAddDenominator spec x₁ x₂ := by
@@ -151,7 +151,7 @@ def genericAddY {width : Nat} (spec : CurveSpec width)
 
 /-- The local generic `x₃` formula is Mathlib's affine `addX` formula for a
 short-Weierstrass curve. -/
-theorem genericAddX_eq_mathlib {width : Nat} (spec : CurveSpec width)
+lemma genericAddX_eq_mathlib {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus) :
     genericAddX spec x₁ x₂ y₁ y₂ =
       spec.curve.toWeierstrassCurve.toAffine.addX x₁ x₂
@@ -162,7 +162,7 @@ theorem genericAddX_eq_mathlib {width : Nat} (spec : CurveSpec width)
 
 /-- The local generic `y₃` formula is Mathlib's affine `addY` formula for a
 short-Weierstrass curve. -/
-theorem genericAddY_eq_mathlib {width : Nat} (spec : CurveSpec width)
+lemma genericAddY_eq_mathlib {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus) :
     genericAddY spec x₁ x₂ y₁ y₂ =
       spec.curve.toWeierstrassCurve.toAffine.addY x₁ x₂ y₁
@@ -175,7 +175,7 @@ theorem genericAddY_eq_mathlib {width : Nat} (spec : CurveSpec width)
 
 /-- The generic short-form coordinate pair is nonsingular whenever the two
 input finite points have distinct `x` coordinates. -/
-theorem genericAdd_nonsingular {width : Nat} (spec : CurveSpec width)
+lemma genericAdd_nonsingular {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus)
     (h₁ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₁ y₁)
     (h₂ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₂ y₂)
@@ -200,7 +200,7 @@ def genericAddPoint {width : Nat} (spec : CurveSpec width)
 
 /-- Generic short-form coordinates compute the same point as Mathlib affine
 addition. -/
-theorem genericAddPoint_eq_mathlib_add {width : Nat} (spec : CurveSpec width)
+lemma genericAddPoint_eq_mathlib_add {width : Nat} (spec : CurveSpec width)
     (x₁ x₂ y₁ y₂ : ZMod spec.field.modulus)
     (h₁ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₁ y₁)
     (h₂ : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x₂ y₂)
@@ -225,7 +225,7 @@ def doubleDenominator {width : Nat} (spec : CurveSpec width)
   (2 : ZMod spec.field.modulus) * y
 
 /-- Characteristic two is excluded by the curve specification. -/
-theorem two_ne_zero {width : Nat} (spec : CurveSpec width) :
+lemma two_ne_zero {width : Nat} (spec : CurveSpec width) :
     (2 : ZMod spec.field.modulus) ≠ 0 := by
   intro twoZero
   have divides : spec.field.modulus ∣ 2 :=
@@ -236,20 +236,20 @@ theorem two_ne_zero {width : Nat} (spec : CurveSpec width) :
   omega
 
 /-- A nonzero finite `y` coordinate makes the tangent denominator nonzero. -/
-theorem doubleDenominator_ne_zero {width : Nat} (spec : CurveSpec width)
+lemma doubleDenominator_ne_zero {width : Nat} (spec : CurveSpec width)
     (y : ZMod spec.field.modulus) (nonzero : y ≠ 0) :
     doubleDenominator spec y ≠ 0 := by
   exact mul_ne_zero (two_ne_zero spec) nonzero
 
 /-- In the prime field, the nonvertical tangent denominator is a unit. -/
-theorem doubleDenominator_isUnit {width : Nat} (spec : CurveSpec width)
+lemma doubleDenominator_isUnit {width : Nat} (spec : CurveSpec width)
     (y : ZMod spec.field.modulus) (nonzero : y ≠ 0) :
     IsUnit (doubleDenominator spec y) :=
   isUnit_iff_ne_zero.mpr (doubleDenominator_ne_zero spec y nonzero)
 
 /-- A finite point selected by the nonvertical doubling branch has nonzero
 `y`: when `y = 0`, short-Weierstrass negation fixes the point. -/
-theorem doubleFinite_y_ne_zero {width : Nat} (spec : CurveSpec width)
+lemma doubleFinite_y_ne_zero {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y)
     (notInverse :
@@ -271,7 +271,7 @@ def doubleDenominatorUnit {width : Nat} (spec : CurveSpec width)
     (doubleDenominator_ne_zero spec y nonzero)
 
 @[simp]
-theorem doubleDenominatorUnit_val {width : Nat} (spec : CurveSpec width)
+lemma doubleDenominatorUnit_val {width : Nat} (spec : CurveSpec width)
     (y : ZMod spec.field.modulus) (nonzero : y ≠ 0) :
     ((doubleDenominatorUnit spec y nonzero :
       (ZMod spec.field.modulus)ˣ) : ZMod spec.field.modulus) =
@@ -280,7 +280,7 @@ theorem doubleDenominatorUnit_val {width : Nat} (spec : CurveSpec width)
 
 /-- A nonzero short-form `y` coordinate is not Mathlib's negated `y`
 coordinate, so the tangent is not vertical. -/
-theorem y_ne_mathlib_negY_of_ne_zero {width : Nat} (spec : CurveSpec width)
+lemma y_ne_mathlib_negY_of_ne_zero {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) (nonzero : y ≠ 0) :
     y ≠ spec.curve.toWeierstrassCurve.toAffine.negY x y := by
   intro equalsNegY
@@ -302,7 +302,7 @@ def doubleSlope {width : Nat} (spec : CurveSpec width)
   spec.curve.toWeierstrassCurve.toAffine.slope x x y y
 
 /-- The Mathlib tangent slope is `(3x² + a) / (2y)` in short form. -/
-theorem doubleSlope_eq_formula {width : Nat} (spec : CurveSpec width)
+lemma doubleSlope_eq_formula {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) (nonzero : y ≠ 0) :
     doubleSlope spec x y =
       doubleNumerator spec x / doubleDenominator spec y := by
@@ -327,7 +327,7 @@ def doubleY {width : Nat} (spec : CurveSpec width)
   doubleSlope spec x y * (x - doubleX spec x y) - y
 
 /-- The local doubling `x₃` formula is Mathlib's affine `addX` formula. -/
-theorem doubleX_eq_mathlib {width : Nat} (spec : CurveSpec width)
+lemma doubleX_eq_mathlib {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) :
     doubleX spec x y =
       spec.curve.toWeierstrassCurve.toAffine.addX x x (doubleSlope spec x y) := by
@@ -336,7 +336,7 @@ theorem doubleX_eq_mathlib {width : Nat} (spec : CurveSpec width)
     WeierstrassCurve.Affine.addX]
 
 /-- The local doubling `y₃` formula is Mathlib's affine `addY` formula. -/
-theorem doubleY_eq_mathlib {width : Nat} (spec : CurveSpec width)
+lemma doubleY_eq_mathlib {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus) :
     doubleY spec x y =
       spec.curve.toWeierstrassCurve.toAffine.addY x x y (doubleSlope spec x y) := by
@@ -347,7 +347,7 @@ theorem doubleY_eq_mathlib {width : Nat} (spec : CurveSpec width)
   ring
 
 /-- The nonvertical short-form tangent coordinates are nonsingular. -/
-theorem double_nonsingular {width : Nat} (spec : CurveSpec width)
+lemma double_nonsingular {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y)
     (nonzero : y ≠ 0) :
@@ -370,7 +370,7 @@ def doublePoint {width : Nat} (spec : CurveSpec width)
 
 /-- Nonvertical short-form doubling computes the same point as Mathlib's
 affine group law. -/
-theorem doublePoint_eq_mathlib_double {width : Nat} (spec : CurveSpec width)
+lemma doublePoint_eq_mathlib_double {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y)
     (nonzero : y ≠ 0) :
@@ -385,7 +385,7 @@ theorem doublePoint_eq_mathlib_double {width : Nat} (spec : CurveSpec width)
 
 /-- A finite point with `y = 0` has a vertical tangent and doubles to the
 unique point at infinity. -/
-theorem double_eval_eq_infinity_of_y_eq_zero {width : Nat}
+lemma double_eval_eq_infinity_of_y_eq_zero {width : Nat}
     (spec : CurveSpec width) (x : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x 0) :
     Double.eval spec (.some x 0 h : Point spec) = Point.infinity spec := by

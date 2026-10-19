@@ -22,7 +22,7 @@ namespace QuantumAlg
 namespace QuantumLayout
 
 /-- Fixing every actual physical identity preserves the complete layout descriptor. -/
-theorem relabel_eq_self {count : Nat} (layout : QuantumLayout count) (physical : Nat ↪ Nat)
+lemma relabel_eq_self {count : Nat} (layout : QuantumLayout count) (physical : Nat ↪ Nat)
     (fixed : ∀ identity ∈ layout.identities, physical identity = identity) :
     layout.relabel physical = layout := by
   have wires : (layout.relabel physical).wire = layout.wire := by
@@ -40,7 +40,7 @@ end QuantumLayout
 namespace OwnedCopyBank
 
 /-- Fixing the complete bank's physical identities preserves every original member layout. -/
-theorem relabel_eq_self {copies systems : Nat} (bank : OwnedCopyBank copies systems)
+lemma relabel_eq_self {copies systems : Nat} (bank : OwnedCopyBank copies systems)
     (physical : Nat ↪ Nat)
     (fixed : ∀ identity ∈ bank.identities, physical identity = identity) :
     bank.relabel physical = bank := by
@@ -63,7 +63,7 @@ end OwnedCopyBank
 namespace RuntimeEntry
 
 /-- Fixed keys and physical identities preserve the complete entry, including its ownership role. -/
-theorem relabel_eq_self {kind : ProblemKind} (entry : RuntimeEntry kind)
+lemma relabel_eq_self {kind : ProblemKind} (entry : RuntimeEntry kind)
     (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat) (fixedKey : keys entry.key = entry.key)
     (fixedWires : ∀ identity ∈ entry.physicalIdx, physical identity = identity) :
     entry.relabel keys physical = entry := by
@@ -91,7 +91,7 @@ end RuntimeEntry
 namespace RuntimeCtx
 
 /-- Fixing all actually present keys and physical identities preserves the entire sealed context. -/
-theorem relabel_eq_self {kind : ProblemKind} (ctx : RuntimeCtx kind)
+lemma relabel_eq_self {kind : ProblemKind} (ctx : RuntimeCtx kind)
     (keys : StorageKey ↪ StorageKey) (physical : Nat ↪ Nat)
     (fixedKeys : ∀ key ∈ ctx.keys, keys key = key)
     (fixedWires : ∀ identity ∈ ctx.physicalIdx, physical identity = identity) :
@@ -107,8 +107,13 @@ theorem relabel_eq_self {kind : ProblemKind} (ctx : RuntimeCtx kind)
       apply fixedWires identity
       rw [physicalIdx_eq_flatMap]
       exact List.mem_flatMap.mpr ⟨entry, present, member⟩
-  cases ctx
-  simpa only [relabel, RuntimeCtx.mk.injEq] using entries
+  suffices injective : Function.Injective (RuntimeCtx.entries (kind := kind)) from
+    injective entries
+  intro left right same
+  cases left
+  cases right
+  cases same
+  rfl
 
 end RuntimeCtx
 

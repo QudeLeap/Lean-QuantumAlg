@@ -23,6 +23,9 @@ namespace QuantumAlg.Factoring.EkeraHastadStyle.Canonical.NativeBatch
 
 noncomputable section
 
+variable {environment :
+  (ExecutionModel.quantum AlgorithmGate.model .empty BitWord.model).Environment}
+
 open ShortDLP.CompiledMAU
 open Execution
 
@@ -38,13 +41,13 @@ def restoredSeed : (context base noQuantum N).register.Index :=
       (ShortDLP.CompiledMAU.reloadLabel (shortLogBits N) (tradeoffBits N) (arithmeticBits N) N)
 
 /-- Every complete output-reference matrix block has the actual bank seed and source probability. -/
-theorem nativeBatch_output_joint_entry (input : Input N)
+lemma nativeBatch_output_joint_entry (input : Input N)
     {Reference : Register} {History : Type} [Fintype History]
     (state : State base Reference (RuntimeRound.model.HiddenState × History))
     (selected : (resultShape N).Value)
     (left right : (context base noQuantum N).register.Index)
     (leftRef rightRef : Reference.Index) :
-    ((((code base noQuantum N).execute Reference state).mapClassical
+    ((((code base noQuantum N).execute environment Reference state).mapClassical
         (fun entry => (run base noQuantum N).output.eval entry.1)).block selected).matrix
           (left, leftRef) (right, rightRef) =
       if left = restoredSeed base noQuantum N ∧ right = restoredSeed base noQuantum N then
@@ -52,10 +55,10 @@ theorem nativeBatch_output_joint_entry (input : Input N)
           (fun _ _ => ((sourceDistribution input selected).toReal : ℂ)) leftRef rightRef
       else 0 := by
   have seeded : BasisSeeded.Holds (restoredSeed base noQuantum N)
-      ((code base noQuantum N).execute Reference state) :=
+      ((code base noQuantum N).execute environment Reference state) :=
     nativeBatch_complete_seedBlocks base noQuantum N state
   have observed := BasisSeeded.readout_entry (restoredSeed base noQuantum N)
-    ((code base noQuantum N).execute Reference state) seeded
+    ((code base noQuantum N).execute environment Reference state) seeded
     (fun store => (run base noQuantum N).output.eval store) selected left right leftRef rightRef
   exact observed.trans
     (congrArg (fun coefficient : ℂ =>

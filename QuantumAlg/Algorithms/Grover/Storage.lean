@@ -43,7 +43,7 @@ def preparedWire (n : Nat) (index : Fin n) : Fin (preparedContext n).systemCount
   pre.addOwnedLayoutPositionEquiv ⟨1⟩ (runtimeLayout n)
     preparationFresh (preparationDisjoint n) (Fin.castAdd pre.systemCount index)
 
-theorem preparedWire_preserved (n : Nat) (index : Fin n) :
+lemma preparedWire_preserved (n : Nat) (index : Fin n) :
     (preparedContext n).quantumLayout.wire (preparedWire n index) =
       (runtimeLayout n).wire index := by
   exact (pre.addOwnedLayout_wire_preserved ⟨1⟩ (runtimeLayout n)
@@ -51,7 +51,7 @@ theorem preparedWire_preserved (n : Nat) (index : Fin n) :
       (Fin.append_left _ _ index)
 
 /-- The preparation assembly retains the value of every corresponding physical wire. -/
-theorem preparedLayoutEquiv_value (n : Nat) (basis : (runtimeLayout n).register.Index)
+lemma preparedLayoutEquiv_value (n : Nat) (basis : (runtimeLayout n).register.Index)
     (index : Fin n) :
     (preparedLayoutEquiv n basis (preparedWire n index)).val = (basis index).val := by
   change (pre.addOwnedLayoutBasisEquiv ⟨1⟩ (runtimeLayout n)
@@ -64,7 +64,7 @@ theorem preparedLayoutEquiv_value (n : Nat) (basis : (runtimeLayout n).register.
     preparationFresh (preparationDisjoint n) _ (Fin.castAdd pre.systemCount index)).trans
       (QuantumLayout.appendJoinBasis_left_value _ _ _ basis _ index)
 
-theorem resultFresh (n k : Nat) :
+lemma resultFresh (n k : Nat) :
     (⟨2⟩ : StorageKey) ∉ (preparedContext (totalQubits n k)).keys := by
   change (⟨2⟩ : StorageKey) ∉ [⟨1⟩, ⟨0⟩]
   decide
@@ -89,7 +89,7 @@ def queryWire (n k : Nat) (index : Fin n) : Fin (post n k).systemCount :=
   MeasurementCells.wireEquiv (resultContext n k) 2 n (preparedWire (totalQubits n k)
     (Fin.castAdd (helperWidth n k) index))
 
-theorem queryWire_dimension (n k : Nat) (index : Fin n) :
+lemma queryWire_dimension (n k : Nat) (index : Fin n) :
     ((post n k).quantumLayout.wire (queryWire n k index)).dimension = 2 := by
   rw [queryWire, MeasurementCells.wireEquiv_preserved]
   change ((preparedContext (totalQubits n k)).quantumLayout.wire
@@ -124,10 +124,10 @@ def outputSource (n k : Nat) (basis : (post n k).register.Index) : Fin (2 ^ n) :
   ((prodEquiv (m := n) (n := helperWidth n k)).symm
     (outputBasisEquiv n k basis)).1
 
-theorem readouts_length (n k : Nat) : (readouts n k).length = n := by
+lemma readouts_length (n k : Nat) : (readouts n k).length = n := by
   exact List.length_ofFn
 
-theorem readouts_qubits (n k : Nat) :
+lemma readouts_qubits (n k : Nat) :
     ∀ item ∈ readouts n k, ((post n k).quantumLayout.wire item.wire).dimension = 2 := by
   intro item present
   obtain ⟨index, rfl⟩ := List.mem_ofFn.mp present

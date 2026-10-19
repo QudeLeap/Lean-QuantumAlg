@@ -47,7 +47,7 @@ def initializationFinishStore {kind : ProblemKind} {ctx : RuntimeCtx kind}
       (initializeActiveOp ctx modulusWidth phaseBits)
 
 /-- These named intermediate stores are exactly the existing initialization record. -/
-theorem nativeRecovery_initialize_store (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialize_store (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1))) :
     (initializeScanStep (model := model) ctx modulusWidth phaseBits sample store).1 =
@@ -56,7 +56,7 @@ theorem nativeRecovery_initialize_store (modulusWidth phaseBits : Nat)
   rfl
 
 /-- Different real field positions are separate actual reads and writes. -/
-theorem nativeRecovery_field_read_separate {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeRecovery_field_read_separate {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (modulusWidth candidateWidth : Nat)
     (written observed : Fin recoveryFields.length) (different : written ≠ observed) :
     (recoveryFieldCell ctx modulusWidth candidateWidth recoveryFields written).key ∉
@@ -68,7 +68,7 @@ theorem nativeRecovery_field_read_separate {kind : ProblemKind} {ctx : RuntimeCt
     (List.mem_singleton.mp present))
 
 /-- The actual decoder and loader preserve reads outside their two destinations. -/
-theorem nativeRecovery_initialLoaded_read_other (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialLoaded_read_other (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits))
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1)))
     {shape : CShape} (other : CInputRef (recoveryContext ctx modulusWidth (phaseBits + 1)) shape)
@@ -83,7 +83,7 @@ theorem nativeRecovery_initialLoaded_read_other (modulusWidth phaseBits : Nat)
     (TerminalDecode.terminalDecode_fold_read_other _ _ store other numeratorFree)
 
 /-- The final three actual instructions preserve all other structural reads. -/
-theorem nativeRecovery_initialFinish_read_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma nativeRecovery_initialFinish_read_other {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (modulusWidth phaseBits : Nat)
     (store : Store (recoveryContext ctx modulusWidth (phaseBits + 1)))
     {shape : CShape} (other : CInputRef (recoveryContext ctx modulusWidth (phaseBits + 1)) shape)
@@ -103,7 +103,7 @@ theorem nativeRecovery_initialFinish_read_other {kind : ProblemKind} {ctx : Runt
             (initializeOlderOp ctx modulusWidth phaseBits) other olderFree))
 
 /-- Initialization preserves every original stored input, including the actual modular base. -/
-theorem nativeRecovery_initialize_read_original (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialize_read_original (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) :
     (initializeScanStep (model := model) ctx modulusWidth phaseBits sample
@@ -121,7 +121,7 @@ theorem nativeRecovery_initialize_read_original (modulusWidth phaseBits : Nat)
   exact nativeRecovery_enter_read modulusWidth (phaseBits + 1) recoveryFields store other
 
 /-- Every unwritten field still reads the canonical value of its genuine workspace head. -/
-theorem nativeRecovery_initialize_unwritten_field (modulusWidth phaseBits : Nat)
+lemma nativeRecovery_initialize_unwritten_field (modulusWidth phaseBits : Nat)
     (sample : CInputRef ctx (.bits phaseBits)) (store : Store ctx)
     (index : Fin recoveryFields.length)
     (untouched : index ∉ ([2, 3, 4, 1, 8] : List (Fin recoveryFields.length))) :

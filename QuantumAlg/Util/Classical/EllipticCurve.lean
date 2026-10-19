@@ -53,7 +53,7 @@ def toMathlib {width : Nat} {spec : CurveSpec width} (point : Point spec) :
   point
 
 @[simp]
-theorem toMathlib_apply {width : Nat} {spec : CurveSpec width}
+lemma toMathlib_apply {width : Nat} {spec : CurveSpec width}
     (point : Point spec) :
     point.toMathlib = point :=
   rfl
@@ -62,7 +62,7 @@ theorem toMathlib_apply {width : Nat} {spec : CurveSpec width}
 def infinity {width : Nat} (spec : CurveSpec width) : Point spec :=
   0
 
-theorem infinity_toMathlib {width : Nat} (spec : CurveSpec width) :
+lemma infinity_toMathlib {width : Nat} (spec : CurveSpec width) :
     (infinity spec).toMathlib = 0 :=
   rfl
 
@@ -96,7 +96,7 @@ def IsInfinity {width : Nat} (code : Code width) : Prop :=
   code.tag = true ∧ code.x.val = 0 ∧ code.y.val = 0
 
 @[simp]
-theorem infinity_isInfinity (width : Nat) :
+lemma infinity_isInfinity (width : Nat) :
     IsInfinity (infinity width) := by
   constructor
   · rfl
@@ -127,7 +127,7 @@ def IsValid {width : Nat} (spec : CurveSpec width) (code : Code width) : Prop :=
   code.IsInfinity ∨ code.IsFinite spec
 
 @[simp]
-theorem infinity_isValid {width : Nat} (spec : CurveSpec width) :
+lemma infinity_isValid {width : Nat} (spec : CurveSpec width) :
     IsValid spec (infinity width) :=
   Or.inl (infinity_isInfinity width)
 
@@ -140,7 +140,7 @@ def coordinateWord {width : Nat} (spec : CurveSpec width)
   ⟨coordinate.val, (ZMod.val_lt coordinate).trans_le spec.field.le_capacity⟩
 
 @[simp]
-theorem coordinateWord_val {width : Nat} (spec : CurveSpec width)
+lemma coordinateWord_val {width : Nat} (spec : CurveSpec width)
     (coordinate : ZMod spec.field.modulus) :
     (coordinateWord spec coordinate).val = coordinate.val :=
   rfl
@@ -168,17 +168,17 @@ def decode {width : Nat} (spec : CurveSpec width) (code : Code width) :
       none
 
 @[simp]
-theorem encode_infinity {width : Nat} (spec : CurveSpec width) :
+lemma encode_infinity {width : Nat} (spec : CurveSpec width) :
     encode spec (0 : Point spec) = Code.infinity width :=
   rfl
 
 @[simp]
-theorem decode_infinity {width : Nat} (spec : CurveSpec width) :
+lemma decode_infinity {width : Nat} (spec : CurveSpec width) :
     decode spec (Code.infinity width) = some (0 : Point spec) := by
   simp [decode, Code.infinity_isInfinity]
 
 /-- A finite Mathlib point encodes to an accepted finite code. -/
-theorem encode_some_isFinite {width : Nat} (spec : CurveSpec width)
+lemma encode_some_isFinite {width : Nat} (spec : CurveSpec width)
     (x y : ZMod spec.field.modulus)
     (h : spec.curve.toWeierstrassCurve.toAffine.Nonsingular x y) :
     Code.IsFinite spec (encode spec (.some x y h : Point spec)) := by
@@ -190,7 +190,7 @@ theorem encode_some_isFinite {width : Nat} (spec : CurveSpec width)
       (spec.affineEquation_iff_nonsingular x y).mpr h
 
 /-- Every encoded point is accepted by the external fixed-width code grammar. -/
-theorem encode_isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma encode_isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     Code.IsValid spec (encode spec point) := by
   cases point with
   | zero =>
@@ -200,7 +200,7 @@ theorem encode_isValid {width : Nat} (spec : CurveSpec width) (point : Point spe
 
 /-- Decoding a canonical encoding returns the original Mathlib point. -/
 @[simp]
-theorem decode_encode {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma decode_encode {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     decode spec (encode spec point) = some point := by
   cases point with
   | zero =>
@@ -215,7 +215,7 @@ theorem decode_encode {width : Nat} (spec : CurveSpec width) (point : Point spec
         ZMod.natCast_zmod_val]
 
 /-- A successful decode certifies that the original external code was valid. -/
-theorem decode_sound {width : Nat} (spec : CurveSpec width) (code : Code width)
+lemma decode_sound {width : Nat} (spec : CurveSpec width) (code : Code width)
     (point : Point spec) :
     decode spec code = some point → Code.IsValid spec code := by
   intro decoded
@@ -226,7 +226,7 @@ theorem decode_sound {width : Nat} (spec : CurveSpec width) (code : Code width)
   simp [decode, hInfinity, hFinite] at decoded
 
 /-- Every valid external code decodes to a Mathlib affine point. -/
-theorem decode_complete {width : Nat} (spec : CurveSpec width) (code : Code width)
+lemma decode_complete {width : Nat} (spec : CurveSpec width) (code : Code width)
     (valid : Code.IsValid spec code) :
     ∃ point : Point spec, decode spec code = some point := by
   rcases valid with hInfinity | hFinite
@@ -241,7 +241,7 @@ theorem decode_complete {width : Nat} (spec : CurveSpec width) (code : Code widt
 
 /-- Invalid codes are rejected rather than being silently reduced modulo the
 field modulus. -/
-theorem decode_eq_none_of_not_isValid {width : Nat} (spec : CurveSpec width)
+lemma decode_eq_none_of_not_isValid {width : Nat} (spec : CurveSpec width)
     (code : Code width) (invalid : ¬ Code.IsValid spec code) :
     decode spec code = none := by
   by_cases hInfinity : code.IsInfinity
@@ -252,7 +252,7 @@ theorem decode_eq_none_of_not_isValid {width : Nat} (spec : CurveSpec width)
 
 /-- In particular, an untagged code with an out-of-range coordinate is
 rejected; `decode` never treats a noncanonical word as its reduced residue. -/
-theorem decode_rejects_noncanonical_finite {width : Nat} (spec : CurveSpec width)
+lemma decode_rejects_noncanonical_finite {width : Nat} (spec : CurveSpec width)
     (code : Code width) (tag : code.tag = false)
     (outOfRange : ¬ code.x.val < spec.field.modulus ∨
       ¬ code.y.val < spec.field.modulus) :
@@ -267,7 +267,7 @@ theorem decode_rejects_noncanonical_finite {width : Nat} (spec : CurveSpec width
 
 /-- An untagged code outside the selected affine equation is rejected even
 when its two words happen to be canonical field representatives. -/
-theorem decode_rejects_offCurve {width : Nat} (spec : CurveSpec width)
+lemma decode_rejects_offCurve {width : Nat} (spec : CurveSpec width)
     (code : Code width) (tag : code.tag = false)
     (offCurve : ¬ spec.curve.AffineEquation
       (Code.xField spec code) (Code.yField spec code)) :
@@ -280,7 +280,7 @@ theorem decode_rejects_offCurve {width : Nat} (spec : CurveSpec width)
 
 /-- A tagged infinity code with a nonzero coordinate has no finite alias and
 is rejected. -/
-theorem decode_rejects_malformed_infinity {width : Nat} (spec : CurveSpec width)
+lemma decode_rejects_malformed_infinity {width : Nat} (spec : CurveSpec width)
     (code : Code width) (tag : code.tag = true)
     (malformed : code.x.val ≠ 0 ∨ code.y.val ≠ 0) :
     decode spec code = none := by
@@ -293,7 +293,7 @@ theorem decode_rejects_malformed_infinity {width : Nat} (spec : CurveSpec width)
   · simpa [tag] using hFinite.1
 
 /-- The syntactic infinity form has no alternative code. -/
-theorem code_eq_infinity_of_isInfinity {width : Nat} {code : Code width}
+lemma code_eq_infinity_of_isInfinity {width : Nat} {code : Code width}
     (hInfinity : code.IsInfinity) :
     code = Code.infinity width := by
   cases code with
@@ -306,7 +306,7 @@ theorem code_eq_infinity_of_isInfinity {width : Nat} {code : Code width}
       · exact Fin.ext yZero
 
 /-- No finite code can alias the unique point at infinity after decoding. -/
-theorem decode_eq_some_infinity_iff {width : Nat} (spec : CurveSpec width)
+lemma decode_eq_some_infinity_iff {width : Nat} (spec : CurveSpec width)
     (code : Code width) :
     decode spec code = some (0 : Point spec) ↔ code = Code.infinity width := by
   constructor
@@ -322,7 +322,7 @@ theorem decode_eq_some_infinity_iff {width : Nat} (spec : CurveSpec width)
 
 /-- Every successful decode came from the unique canonical encoding of the
 decoded point.  In particular, valid finite points have no noncanonical alias. -/
-theorem encode_eq_of_decode_eq_some {width : Nat} (spec : CurveSpec width)
+lemma encode_eq_of_decode_eq_some {width : Nat} (spec : CurveSpec width)
     (code : Code width) (point : Point spec)
     (decoded : decode spec code = some point) :
     encode spec point = code := by
@@ -353,14 +353,14 @@ theorem encode_eq_of_decode_eq_some {width : Nat} (spec : CurveSpec width)
   · simp [decode, hInfinity, hFinite] at decoded
 
 /-- Encoding is injective because `decode` is its left inverse. -/
-theorem encode_injective {width : Nat} (spec : CurveSpec width) :
+lemma encode_injective {width : Nat} (spec : CurveSpec width) :
     Function.Injective (encode spec) := by
   intro left right encoded
   have decoded := congrArg (decode spec) encoded
   simpa using decoded
 
 /-- The code emitted for infinity is unique among all point encodings. -/
-theorem encode_eq_infinity_iff {width : Nat} (spec : CurveSpec width)
+lemma encode_eq_infinity_iff {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     encode spec point = Code.infinity width ↔ point = 0 := by
   constructor
@@ -380,7 +380,7 @@ def IsValid {width : Nat} (spec : CurveSpec width) (point : Point spec) : Prop :
 
 /-- Every point in the intrinsic Mathlib carrier has a canonical fixed-width
 encoding. -/
-theorem isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     Point.IsValid spec point :=
   ⟨encode spec point, decode_encode spec point⟩
 
@@ -393,23 +393,23 @@ def eval {width : Nat} (spec : CurveSpec width) (point : Point spec) : Point spe
   -point
 
 /-- `Neg.eval` is definitionally the Mathlib affine-point negation. -/
-theorem eval_toMathlib {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma eval_toMathlib {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     (eval spec point).toMathlib = -point.toMathlib :=
   rfl
 
 @[simp]
-theorem eval_infinity {width : Nat} (spec : CurveSpec width) :
+lemma eval_infinity {width : Nat} (spec : CurveSpec width) :
     eval spec 0 = 0 :=
   neg_zero
 
 @[simp]
-theorem eval_involutive {width : Nat} (spec : CurveSpec width)
+lemma eval_involutive {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec (eval spec point) = point :=
   neg_neg point
 
 /-- Negation returns a point with a canonical fixed-width encoding. -/
-theorem eval_isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma eval_isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     Point.IsValid spec (eval spec point) :=
   Point.isValid spec _
 
@@ -444,60 +444,60 @@ def eval {width : Nat} (spec : CurveSpec width)
   left + right
 
 /-- `Add.eval` agrees definitionally with Mathlib's affine-point group law. -/
-theorem eval_toMathlib {width : Nat} (spec : CurveSpec width)
+lemma eval_toMathlib {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) :
     (eval spec left right).toMathlib = left.toMathlib + right.toMathlib :=
   rfl
 
 @[simp]
-theorem branch_leftInfinity {width : Nat} (spec : CurveSpec width)
+lemma branch_leftInfinity {width : Nat} (spec : CurveSpec width)
     (right : Point spec) :
     branch spec 0 right = .leftInfinity := by
   simp [branch]
 
-theorem branch_rightInfinity {width : Nat} (spec : CurveSpec width)
+lemma branch_rightInfinity {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) (leftNonzero : left ≠ 0) (rightZero : right = 0) :
     branch spec left right = .rightInfinity := by
   simp [branch, leftNonzero, rightZero]
 
-theorem branch_inverseOrVertical {width : Nat} (spec : CurveSpec width)
+lemma branch_inverseOrVertical {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) (_leftNonzero : left ≠ 0) (rightNonzero : right ≠ 0)
     (inverse : left = -right) :
     branch spec left right = .inverseOrVertical := by
   simp [branch, rightNonzero, inverse]
 
-theorem branch_doubling {width : Nat} (spec : CurveSpec width)
+lemma branch_doubling {width : Nat} (spec : CurveSpec width)
     (point : Point spec) (nonzero : point ≠ 0) (notInverse : point ≠ -point) :
     branch spec point point = .doubling := by
   simp [branch, nonzero, notInverse]
 
-theorem branch_generic {width : Nat} (spec : CurveSpec width)
+lemma branch_generic {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) (leftNonzero : left ≠ 0) (rightNonzero : right ≠ 0)
     (notInverse : left ≠ -right) (distinct : left ≠ right) :
     branch spec left right = .generic := by
   simp [branch, leftNonzero, rightNonzero, notInverse, distinct]
 
 @[simp]
-theorem eval_left_infinity {width : Nat} (spec : CurveSpec width)
+lemma eval_left_infinity {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec 0 point = point :=
   zero_add point
 
 @[simp]
-theorem eval_right_infinity {width : Nat} (spec : CurveSpec width)
+lemma eval_right_infinity {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec point 0 = point :=
   add_zero point
 
 @[simp]
-theorem eval_inverse {width : Nat} (spec : CurveSpec width)
+lemma eval_inverse {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec point (-point) = 0 :=
   add_neg_cancel point
 
 /-- Addition always returns an intrinsically valid Mathlib point, hence a
 point with a canonical fixed-width encoding. -/
-theorem eval_isValid {width : Nat} (spec : CurveSpec width)
+lemma eval_isValid {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) :
     Point.IsValid spec (eval spec left right) :=
   Point.isValid spec _
@@ -511,21 +511,21 @@ def eval {width : Nat} (spec : CurveSpec width) (point : Point spec) : Point spe
   Add.eval spec point point
 
 /-- Doubling agrees definitionally with adding the Mathlib point to itself. -/
-theorem eval_toMathlib {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma eval_toMathlib {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     (eval spec point).toMathlib = point.toMathlib + point.toMathlib :=
   rfl
 
-theorem eval_infinity {width : Nat} (spec : CurveSpec width) :
+lemma eval_infinity {width : Nat} (spec : CurveSpec width) :
     eval spec 0 = 0 :=
   Add.eval_left_infinity spec 0
 
 @[simp]
-theorem eval_eq_add_self {width : Nat} (spec : CurveSpec width)
+lemma eval_eq_add_self {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec point = Add.eval spec point point :=
   rfl
 
-theorem eval_isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
+lemma eval_isValid {width : Nat} (spec : CurveSpec width) (point : Point spec) :
     Point.IsValid spec (eval spec point) :=
   Point.isValid spec _
 
@@ -539,24 +539,24 @@ def eval {width : Nat} (spec : CurveSpec width)
   left - right
 
 /-- `Sub.eval` agrees definitionally with Mathlib's affine-point subtraction. -/
-theorem eval_toMathlib {width : Nat} (spec : CurveSpec width)
+lemma eval_toMathlib {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) :
     (eval spec left right).toMathlib = left.toMathlib - right.toMathlib :=
   rfl
 
 @[simp]
-theorem eval_right_infinity {width : Nat} (spec : CurveSpec width)
+lemma eval_right_infinity {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec point 0 = point :=
   sub_zero point
 
 @[simp]
-theorem eval_self {width : Nat} (spec : CurveSpec width)
+lemma eval_self {width : Nat} (spec : CurveSpec width)
     (point : Point spec) :
     eval spec point point = 0 :=
   sub_self point
 
-theorem eval_isValid {width : Nat} (spec : CurveSpec width)
+lemma eval_isValid {width : Nat} (spec : CurveSpec width)
     (left right : Point spec) :
     Point.IsValid spec (eval spec left right) :=
   Point.isValid spec _

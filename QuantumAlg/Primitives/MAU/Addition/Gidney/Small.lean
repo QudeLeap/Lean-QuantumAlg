@@ -26,6 +26,8 @@ namespace QuantumAlg.MAU.Addition.Gidney
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open BinaryLabelEncoding
 open EncodedBit.GateSpec
 open Nat.FixedWidth
@@ -38,20 +40,21 @@ private def declaredProgram {width : Nat}
       (QubitLayout.canonical width).toQuantum :=
   programList (QubitLayout.canonical width) .empty gates
 
-private theorem declaredProgram_realizes {width : Nat}
+private lemma declaredProgram_realizes {width : Nat}
     (gates : List (EncodedBit.GateSpec (finIdentity width))) :
-    UnitaryCircuit.Realizes (finIdentity width) (declaredProgram gates) (stepList gates) :=
+    UnitaryCircuit.Realizes (finIdentity width) (declaredProgram gates)
+      environment (stepList gates) :=
   by
     unfold declaredProgram
-    exact realizesList (QubitLayout.canonical width) .empty gates
+    exact realizesList (QubitLayout.canonical width) .empty gates environment
 
-private theorem declaredProgram_eventCost {width : Nat}
+private lemma declaredProgram_eventCost {width : Nat}
     (gates : List (EncodedBit.GateSpec (finIdentity width))) :
     (declaredProgram gates).eventCost =
       ResourcePool.ofList (gates.map (event .empty)) := by
   exact programList_eventCost (QubitLayout.canonical width) .empty gates
 
-private theorem declaredProgram_depth {width : Nat}
+private lemma declaredProgram_depth {width : Nat}
     (gates : List (EncodedBit.GateSpec (finIdentity width))) :
     (declaredProgram gates).evaluatedEventDepth (fun _ => 1) = gates.length := by
   exact programList_evaluatedEventDepth_unit
@@ -67,15 +70,15 @@ def circuit (pivot : Fin (2 ^ 0 + 1)) :
       (QubitLayout.canonical 0).toQuantum :=
   declaredProgram (gates pivot)
 
-theorem gidneySmallZero_step (pivot : Fin (2 ^ 0 + 1)) (input : Fin (2 ^ 0)) :
+lemma gidneySmallZero_step (pivot : Fin (2 ^ 0 + 1)) (input : Fin (2 ^ 0)) :
     stepList (gates pivot) input = pivotWordOutput pivot input := by
   fin_cases pivot <;> fin_cases input <;> rfl
 
-theorem gidneySmallZero_realizes (pivot : Fin (2 ^ 0 + 1)) :
-    UnitaryCircuit.Realizes (finIdentity 0) (circuit pivot) (pivotWordOutput pivot) :=
+lemma gidneySmallZero_realizes (pivot : Fin (2 ^ 0 + 1)) :
+    UnitaryCircuit.Realizes (finIdentity 0) (circuit pivot) environment (pivotWordOutput pivot) :=
   (declaredProgram_realizes (gates pivot)).congrStep (gidneySmallZero_step pivot)
 
-theorem gidneySmallZero_interface (pivot : Fin (2 ^ 0 + 1)) :
+lemma gidneySmallZero_interface (pivot : Fin (2 ^ 0 + 1)) :
     (circuit pivot).eventCost = 0 ∧
       (circuit pivot).evaluatedEventDepth (fun _ => 1) = 0 := by
   exact ⟨declaredProgram_eventCost (gates pivot),
@@ -96,16 +99,16 @@ def circuit (pivot : Fin (2 ^ 1 + 1)) :
       (QubitLayout.canonical 1).toQuantum :=
   declaredProgram (gates pivot)
 
-theorem gidneySmallOne_step (pivot : Fin (2 ^ 1 + 1)) (input : Fin (2 ^ 1)) :
+lemma gidneySmallOne_step (pivot : Fin (2 ^ 1 + 1)) (input : Fin (2 ^ 1)) :
     stepList (gates pivot) input = pivotWordOutput pivot input := by
   fin_cases pivot <;> fin_cases input <;> rfl
 
-theorem gidneySmallOne_realizes (pivot : Fin (2 ^ 1 + 1)) :
-    UnitaryCircuit.Realizes (finIdentity 1) (circuit pivot) (pivotWordOutput pivot) :=
+lemma gidneySmallOne_realizes (pivot : Fin (2 ^ 1 + 1)) :
+    UnitaryCircuit.Realizes (finIdentity 1) (circuit pivot) environment (pivotWordOutput pivot) :=
   (declaredProgram_realizes (gates pivot)).congrStep (gidneySmallOne_step pivot)
 
 /-- The exact native ledger has one X precisely at pivot two. -/
-theorem gidneySmallOne_eventCost (pivot : Fin (2 ^ 1 + 1)) :
+lemma gidneySmallOne_eventCost (pivot : Fin (2 ^ 1 + 1)) :
     (circuit pivot).eventCost = ResourcePool.ofList
       (if pivot.val = 2 then
         [Resource.Event.gate (model := .quantum AlgorithmGate.model .empty)
@@ -114,7 +117,7 @@ theorem gidneySmallOne_eventCost (pivot : Fin (2 ^ 1 + 1)) :
   rw [circuit, declaredProgram_eventCost]
   fin_cases pivot <;> rfl
 
-theorem gidneySmallOne_depth (pivot : Fin (2 ^ 1 + 1)) :
+lemma gidneySmallOne_depth (pivot : Fin (2 ^ 1 + 1)) :
     (circuit pivot).evaluatedEventDepth (fun _ => 1) =
       if pivot.val = 2 then 1 else 0 := by
   rw [circuit, declaredProgram_depth]
@@ -140,16 +143,16 @@ def circuit (pivot : Fin (2 ^ 2 + 1)) :
       (QubitLayout.canonical 2).toQuantum :=
   declaredProgram (gates pivot)
 
-theorem gidneySmallTwo_step (pivot : Fin (2 ^ 2 + 1)) (input : Fin (2 ^ 2)) :
+lemma gidneySmallTwo_step (pivot : Fin (2 ^ 2 + 1)) (input : Fin (2 ^ 2)) :
     stepList (gates pivot) input = pivotWordOutput pivot input := by
   fin_cases pivot <;> fin_cases input <;> rfl
 
-theorem gidneySmallTwo_realizes (pivot : Fin (2 ^ 2 + 1)) :
-    UnitaryCircuit.Realizes (finIdentity 2) (circuit pivot) (pivotWordOutput pivot) :=
+lemma gidneySmallTwo_realizes (pivot : Fin (2 ^ 2 + 1)) :
+    UnitaryCircuit.Realizes (finIdentity 2) (circuit pivot) environment (pivotWordOutput pivot) :=
   (declaredProgram_realizes (gates pivot)).congrStep (gidneySmallTwo_step pivot)
 
 /-- Pivots two and three use X/CNOT/X; pivot four uses two X gates. -/
-theorem gidneySmallTwo_eventCost (pivot : Fin (2 ^ 2 + 1)) :
+lemma gidneySmallTwo_eventCost (pivot : Fin (2 ^ 2 + 1)) :
     (circuit pivot).eventCost = ResourcePool.ofList
       (if pivot.val = 2 ∨ pivot.val = 3 then
         [Resource.Event.gate (model := .quantum AlgorithmGate.model .empty) .singleQubit,
@@ -162,7 +165,7 @@ theorem gidneySmallTwo_eventCost (pivot : Fin (2 ^ 2 + 1)) :
   rw [circuit, declaredProgram_eventCost]
   fin_cases pivot <;> rfl
 
-theorem gidneySmallTwo_depth (pivot : Fin (2 ^ 2 + 1)) :
+lemma gidneySmallTwo_depth (pivot : Fin (2 ^ 2 + 1)) :
     (circuit pivot).evaluatedEventDepth (fun _ => 1) =
       if pivot.val = 2 ∨ pivot.val = 3 then 3 else if pivot.val = 4 then 2 else 0 := by
   rw [circuit, declaredProgram_depth]

@@ -46,7 +46,7 @@ def outputOriginalBasisEquiv (t n : Nat) (empty : Elementary.helperWidth t n = 0
   (MeasurementCells.basisEquiv (resultContext t n) 2 t).symm.trans
     (preparedOriginalBasisEquiv t n empty)
 
-private theorem allZeroInput_eq_ket {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+private lemma allZeroInput_eq_ket {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) :
     allZeroInput E t = NormalizedVector.ket (R := Qubits (t + n)) 0 := by
   rw [allZeroInput, IntrinsicAmplitudeAmplificationModel.zeroKet,
@@ -54,7 +54,7 @@ private theorem allZeroInput_eq_ket {n : Nat} (E : GeneralAmplitudeEstimationInp
   rfl
 
 /-- The actual full zero preparation agrees with the source input in these exact coordinates. -/
-theorem inputPreparation_density_original {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+lemma inputPreparation_density_original {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) (empty : Elementary.helperWidth t n = 0) :
     (DensityOperator.ofPure (inputPreparation t n).normalized).reindex
       (S := (preparedContext t n).register) (preparedLayoutEquiv t n) =
@@ -76,7 +76,7 @@ theorem inputPreparation_density_original {n : Nat} (E : GeneralAmplitudeEstimat
     DensityOperator.ofPure_matrix, DensityOperator.ofPure_matrix]
   simp only [Equiv.symm_symm, value]
 
-private theorem preparedLayoutEquiv_eq_wireBasis (t n : Nat) :
+private lemma preparedLayoutEquiv_eq_wireBasis (t n : Nat) :
     preparedLayoutEquiv t n =
       basisOfEqualWires
         (runtimeLayout t n)
@@ -111,15 +111,19 @@ private theorem preparedLayoutEquiv_eq_wireBasis (t n : Nat) :
     (basisOfEqualWires_value layout (preparedContext t n).quantumLayout
       (prepared_canonical_wires t n) basis index).symm
 
-private theorem nativeProgram_matrix {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+private lemma nativeProgram_matrix {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) :
-    (nativeProgram E t).matrix =
-      UnitaryOperator.reindex (preparedBasisEquiv t n).symm (runtimeProgram E t).binaryMatrix := by
+    ((nativeProgram n t).matrix (AmplitudeAmplificationSource.interpretation E.source.preparation
+      E.source.good true true)) =
+      UnitaryOperator.reindex (preparedBasisEquiv t n).symm ((runtimeProgram n t).binaryMatrix
+        (AmplitudeAmplificationSource.interpretation E.source.preparation E.source.good true true))
+        := by
   rw [nativeProgram, unitaryOfEqualWires_matrix, UnitaryCircuit.binaryMatrix,
     UnitaryOperator.unitaryOperator_reindex_trans]
   rw [preparedBasisEquiv, preparedLayoutEquiv_eq_wireBasis]
   exact congrArg (fun equivalence => UnitaryOperator.reindex equivalence
-    (runtimeProgram E t).matrix) (by
+    ((runtimeProgram n t).matrix (AmplitudeAmplificationSource.interpretation E.source.preparation
+      E.source.good true true))) (by
       apply Equiv.ext
       intro basis
       simp only [Equiv.symm_trans_apply, Equiv.trans_apply]
@@ -129,14 +133,16 @@ private theorem nativeProgram_matrix {n : Nat} (E : GeneralAmplitudeEstimationIn
         (t + (Elementary.helperWidth t n + n))).symm_apply_apply basis).symm)
 
 /-- The actual elementary circuit has the independent source operator on every basis value. -/
-theorem nativeProgram_matrix_original {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+lemma nativeProgram_matrix_original {n : Nat} (E : GeneralAmplitudeEstimationInput n)
     (t : Nat) (empty : Elementary.helperWidth t n = 0) :
-    (nativeProgram E t).matrix = UnitaryOperator.reindex
+    ((nativeProgram n t).matrix (AmplitudeAmplificationSource.interpretation E.source.preparation
+      E.source.good true true)) = UnitaryOperator.reindex
       (preparedOriginalBasisEquiv t n empty).symm (sourceOperator E t) := by
   calc
     _ = UnitaryOperator.reindex (preparedOriginalBasisEquiv t n empty).symm
         (UnitaryOperator.reindex (Elementary.unextendedBasisEquiv t n empty)
-          (Elementary.program t E.source.preparation E.source.good).binaryMatrix) := by
+          ((Elementary.program n t).binaryMatrix (AmplitudeAmplificationSource.interpretation
+            E.source.preparation E.source.good true true))) := by
       apply Subtype.ext
       ext row column
       rw [nativeProgram_matrix, runtimeProgram, Elementary.castCircuit_matrix]
@@ -149,7 +155,7 @@ theorem nativeProgram_matrix_original {n : Nat} (E : GeneralAmplitudeEstimationI
       rfl
 
 /-- The actual phase readout is the original readout, with each phase bit preserved. -/
-theorem phaseReadout_original (t n : Nat) (empty : Elementary.helperWidth t n = 0)
+lemma phaseReadout_original (t n : Nat) (empty : Elementary.helperWidth t n = 0)
     (basis : (post t n).register.Index) :
     (qpeMeasurement t (Elementary.helperWidth t n + n)).readout (outputBasisEquiv t n basis) =
       (qpeMeasurement t n).readout (outputOriginalBasisEquiv t n empty basis) := by

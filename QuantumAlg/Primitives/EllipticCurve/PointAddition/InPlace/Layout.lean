@@ -110,7 +110,7 @@ def encoding (fieldWidth counterWidth : Nat) :
 
 /-- Encoding a named carrier is symbolically the leading control label
 followed by the encoded tail. -/
-theorem encoding_encode_control_tail (fieldWidth counterWidth : Nat)
+lemma encoding_encode_control_tail (fieldWidth counterWidth : Nat)
     (registers : Registers fieldWidth counterWidth) :
     (encoding fieldWidth counterWidth).encode registers =
       prodEquiv
@@ -228,12 +228,12 @@ def t0Word (fieldWidth counterWidth : Nat) :
   liftArithmeticWord fieldWidth counterWidth fieldWidth
     (MK.Compact.targetValueWord fieldWidth counterWidth)
 
-@[simp] theorem controlBit_get (fieldWidth counterWidth : Nat)
+@[simp] lemma controlBit_get (fieldWidth counterWidth : Nat)
     (registers : Registers fieldWidth counterWidth) :
     (controlBit fieldWidth counterWidth).get registers = registers.control := by
   rfl
 
-@[simp] theorem mutableYBit_get (fieldWidth counterWidth : Nat)
+@[simp] lemma mutableYBit_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Registers fieldWidth counterWidth) :
     (mutableYBit fieldWidth counterWidth bit).get registers =
       registers.mutableY.val.testBit bit.val := by
@@ -243,7 +243,7 @@ def t0Word (fieldWidth counterWidth : Nat) :
   simp [BinaryLabelEncoding.finIdentityBit,
     BinaryLabelEncoding.ofEquivBit]
 
-@[simp] theorem lambdaBit_get (fieldWidth counterWidth : Nat)
+@[simp] lemma lambdaBit_get (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) (registers : Registers fieldWidth counterWidth) :
     (lambdaBit fieldWidth counterWidth bit).get registers =
       registers.«λ».val.testBit bit.val := by
@@ -253,7 +253,7 @@ def t0Word (fieldWidth counterWidth : Nat) :
   simp [BinaryLabelEncoding.finIdentityBit,
     BinaryLabelEncoding.ofEquivBit]
 
-@[simp] theorem liftArithmeticBit_get (fieldWidth counterWidth : Nat)
+@[simp] lemma liftArithmeticBit_get (fieldWidth counterWidth : Nat)
     (bit : EncodedBit (MK.Compact.encoding fieldWidth counterWidth))
     (registers : Registers fieldWidth counterWidth) :
     (liftArithmeticBit fieldWidth counterWidth bit).get registers =
@@ -263,7 +263,7 @@ def t0Word (fieldWidth counterWidth : Nat) :
 /-! ## Physical separation -/
 
 /-- Every mutable-y bit is separated from the outer control. -/
-theorem mutableYBit_wire_ne_controlBit (fieldWidth counterWidth : Nat)
+lemma mutableYBit_wire_ne_controlBit (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) :
     (mutableYBit fieldWidth counterWidth bit).wire ≠
       (controlBit fieldWidth counterWidth).wire := by
@@ -286,7 +286,7 @@ theorem mutableYBit_wire_ne_controlBit (fieldWidth counterWidth : Nat)
     EncodedBit.relabel] using congrArg Fin.val hwire
 
 /-- Every persistent-slope bit is separated from the outer control. -/
-theorem lambdaBit_wire_ne_controlBit (fieldWidth counterWidth : Nat)
+lemma lambdaBit_wire_ne_controlBit (fieldWidth counterWidth : Nat)
     (bit : Fin fieldWidth) :
     (lambdaBit fieldWidth counterWidth bit).wire ≠
       (controlBit fieldWidth counterWidth).wire := by
@@ -311,7 +311,7 @@ theorem lambdaBit_wire_ne_controlBit (fieldWidth counterWidth : Nat)
     EncodedBit.relabel] using congrArg Fin.val hwire
 
 /-- Every compact-arithmetic bit is separated from the outer control. -/
-theorem liftArithmeticBit_wire_ne_controlBit
+lemma liftArithmeticBit_wire_ne_controlBit
     (fieldWidth counterWidth : Nat)
     (bit : EncodedBit (MK.Compact.encoding fieldWidth counterWidth)) :
     (liftArithmeticBit fieldWidth counterWidth bit).wire ≠
@@ -335,7 +335,7 @@ theorem liftArithmeticBit_wire_ne_controlBit
     EncodedBit.relabel] using congrArg Fin.val hwire
 
 /-- Mutable y and the persistent slope occupy different product branches. -/
-theorem mutableYBit_wire_ne_lambdaBit
+lemma mutableYBit_wire_ne_lambdaBit
     (fieldWidth counterWidth : Nat) (yBit lambdaIndex : Fin fieldWidth) :
     (mutableYBit fieldWidth counterWidth yBit).wire ≠
       (lambdaBit fieldWidth counterWidth lambdaIndex).wire := by
@@ -352,7 +352,7 @@ theorem mutableYBit_wire_ne_lambdaBit
       (WireAddress.littleEndianWire yBit))).symm
 
 /-- Mutable y and every compact-arithmetic bit occupy different product branches. -/
-theorem mutableYBit_wire_ne_liftArithmeticBit
+lemma mutableYBit_wire_ne_liftArithmeticBit
     (fieldWidth counterWidth : Nat) (yBit : Fin fieldWidth)
     (arithmeticBit : EncodedBit
       (MK.Compact.encoding fieldWidth counterWidth)) :
@@ -370,7 +370,7 @@ theorem mutableYBit_wire_ne_liftArithmeticBit
 
 /-- The persistent slope and every compact-arithmetic bit occupy different
 product branches. -/
-theorem lambdaBit_wire_ne_liftArithmeticBit
+lemma lambdaBit_wire_ne_liftArithmeticBit
     (fieldWidth counterWidth : Nat) (lambdaIndex : Fin fieldWidth)
     (arithmeticBit : EncodedBit
       (MK.Compact.encoding fieldWidth counterWidth)) :
@@ -385,7 +385,7 @@ theorem lambdaBit_wire_ne_liftArithmeticBit
       (WireAddress.littleEndianWire lambdaIndex))).symm
 
 /-- Distinct mutable-y positions occupy distinct wires. -/
-theorem mutableYBit_wire_ne (fieldWidth counterWidth : Nat)
+lemma mutableYBit_wire_ne (fieldWidth counterWidth : Nat)
     (left right : Fin fieldWidth) (hne : left ≠ right) :
     (mutableYBit fieldWidth counterWidth left).wire ≠
       (mutableYBit fieldWidth counterWidth right).wire := by
@@ -399,7 +399,7 @@ theorem mutableYBit_wire_ne (fieldWidth counterWidth : Nat)
   exact WireAddress.bitIndex_injective hwire
 
 /-- Distinct persistent-slope positions occupy distinct wires. -/
-theorem lambdaBit_wire_ne (fieldWidth counterWidth : Nat)
+lemma lambdaBit_wire_ne (fieldWidth counterWidth : Nat)
     (left right : Fin fieldWidth) (hne : left ≠ right) :
     (lambdaBit fieldWidth counterWidth left).wire ≠
       (lambdaBit fieldWidth counterWidth right).wire := by
@@ -414,7 +414,7 @@ theorem lambdaBit_wire_ne (fieldWidth counterWidth : Nat)
 
 /-- Lifting compact bits into the point-addition carrier preserves physical
 separation. -/
-theorem liftArithmeticBit_wire_ne (fieldWidth counterWidth : Nat)
+lemma liftArithmeticBit_wire_ne (fieldWidth counterWidth : Nat)
     (left right : EncodedBit (MK.Compact.encoding fieldWidth counterWidth))
     (hne : left.wire ≠ right.wire) :
     (liftArithmeticBit fieldWidth counterWidth left).wire ≠
@@ -431,7 +431,7 @@ theorem liftArithmeticBit_wire_ne (fieldWidth counterWidth : Nat)
 
 /-- The mutable-x input and `t0` output are distinct words inside the compact
 carrier; neither is an appended point-addition register. -/
-theorem mutableXWord_wire_ne_t0Word
+lemma mutableXWord_wire_ne_t0Word
     (fieldWidth counterWidth : Nat) (xBit t0Bit : Fin fieldWidth) :
     ((mutableXWord fieldWidth counterWidth).bit xBit).wire ≠
       ((t0Word fieldWidth counterWidth).bit t0Bit).wire := by
@@ -444,7 +444,7 @@ theorem mutableXWord_wire_ne_t0Word
 
 /-- The in-place carrier adds exactly two field words and one control bit to
 the compact inversion carrier. -/
-theorem encoding_width_exact (fieldWidth counterWidth : Nat)
+lemma encoding_width_exact (fieldWidth counterWidth : Nat)
     (hcounter : 0 < counterWidth) :
     (encoding fieldWidth counterWidth).width =
       10 * fieldWidth + 2 * counterWidth + 9 := by
@@ -463,7 +463,7 @@ def encodingFor (fieldWidth : Nat) :
 
 /-- Exact VBE-retaining point-addition width.  No constant or output point is
 present in this formula. -/
-theorem encodingFor_width_exact (fieldWidth : Nat) (hfield : 0 < fieldWidth) :
+lemma encodingFor_width_exact (fieldWidth : Nat) (hfield : 0 < fieldWidth) :
     (encodingFor fieldWidth).width =
       10 * fieldWidth + 2 * Nat.clog 2 fieldWidth + 11 := by
   change (encoding fieldWidth
@@ -479,7 +479,7 @@ theorem encodingFor_width_exact (fieldWidth : Nat) (hfield : 0 < fieldWidth) :
 
 /-- The P-256 in-place controlled point-addition carrier has exactly 2587
 logical qubits. -/
-theorem encodingFor_256_width : (encodingFor 256).width = 2587 := by
+lemma encodingFor_256_width : (encodingFor 256).width = 2587 := by
   rw [encodingFor_width_exact 256 (by omega)]
   norm_num
 

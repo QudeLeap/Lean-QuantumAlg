@@ -39,7 +39,7 @@ open Matrix
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   localState
 
-private theorem jwEdgeAmplitude_same_site {n : ℕ} (p q : Fin n × Fin 2)
+private lemma jwEdgeAmplitude_same_site {n : ℕ} (p q : Fin n × Fin 2)
     (hsite : p.1 = q.1) (hpq : p ≠ q) :
     (∏ k, pauli1 (pauliXor (TFIM.jwLabel p) (TFIM.jwLabel q) k) 0 0) = 1 := by
   have hpar : p.2 ≠ q.2 := by
@@ -65,7 +65,7 @@ private theorem jwEdgeAmplitude_same_site {n : ℕ} (p q : Fin n × Fin 2)
       rw [TFIM.jwLabel_of_gt p hgt, TFIM.jwLabel_of_gt q (hsite ▸ hgt)]
       rfl
 
-private theorem jwEdgeAmplitude_of_site_lt {n : ℕ} (p q : Fin n × Fin 2)
+private lemma jwEdgeAmplitude_of_site_lt {n : ℕ} (p q : Fin n × Fin 2)
     (hsite : p.1 < q.1) :
     (∏ k, pauli1 (pauliXor (TFIM.jwLabel p) (TFIM.jwLabel q) k) 0 0) = 0 := by
   rw [Finset.prod_eq_zero (Finset.mem_univ p.1)]
@@ -74,7 +74,7 @@ private theorem jwEdgeAmplitude_of_site_lt {n : ℕ} (p q : Fin n × Fin 2)
   generalize hp2 : p.2 = r
   fin_cases r <;> simp [xor4, pauli1, pauliX, pauliY]
 
-private theorem jwEdgeAmplitude {n : ℕ} (p q : Fin n × Fin 2) (hpq : p ≠ q) :
+private lemma jwEdgeAmplitude {n : ℕ} (p q : Fin n × Fin 2) (hpq : p ≠ q) :
     (∏ k, pauli1 (pauliXor (TFIM.jwLabel p) (TFIM.jwLabel q) k) 0 0) =
       if p.1 = q.1 then 1 else 0 := by
   by_cases hsite : p.1 = q.1
@@ -90,7 +90,7 @@ private theorem jwEdgeAmplitude {n : ℕ} (p q : Fin n × Fin 2) (hpq : p ≠ q)
 def majoranaSite {n : ℕ} (a : Fin (2 * n)) : Fin n :=
   ((TFIM.majoranaIndexEquiv n).symm a).1
 
-private theorem edgeAmplitude {n : ℕ} (a b : Fin (2 * n)) (hab : a ≠ b) :
+private lemma edgeAmplitude {n : ℕ} (a b : Fin (2 * n)) (hab : a ≠ b) :
     (∏ k, pauli1 ((TFIM.frame n).edgeLabel s(a, b) k) 0 0) =
       if majoranaSite a = majoranaSite b then 1 else 0 := by
   let p := (TFIM.majoranaIndexEquiv n).symm a
@@ -120,23 +120,23 @@ def fieldEdge {n : ℕ} (j : Fin n) : MatchgateSOEdge n :=
       have hv := congrArg Fin.val h
       simp at hv)
 
-@[simp] theorem sameSiteEdge_fieldEdge {n : ℕ} (j : Fin n) :
+@[simp] lemma sameSiteEdge_fieldEdge {n : ℕ} (j : Fin n) :
     sameSiteEdge (fieldEdge j) := by
   simp [sameSiteEdge, fieldEdge, majoranaSite]
 
-theorem zLabel_injective {n : ℕ} : Function.Injective (@TFIM.zLabel n) := by
+lemma zLabel_injective {n : ℕ} : Function.Injective (@TFIM.zLabel n) := by
   intro j k h
   by_contra hjk
   have hv := congrFun h j
   simp [TFIM.zLabel, hjk] at hv
 
-theorem fieldEdge_injective {n : ℕ} : Function.Injective (@fieldEdge n) := by
+lemma fieldEdge_injective {n : ℕ} : Function.Injective (@fieldEdge n) := by
   intro j k h
   apply zLabel_injective
   rw [← TFIM.edgeLabel_field j, ← TFIM.edgeLabel_field k]
   exact congrArg (TFIM.frame n).edgeLabel (Subtype.ext_iff.mp h)
 
-theorem fieldEdge_surjective {n : ℕ} :
+lemma fieldEdge_surjective {n : ℕ} :
     Function.Surjective (fun j : Fin n =>
       (⟨fieldEdge j, sameSiteEdge_fieldEdge j⟩ : {e : MatchgateSOEdge n // sameSiteEdge e})) := by
   rintro ⟨⟨z, hz⟩, hsite⟩
@@ -209,15 +209,15 @@ noncomputable def sameSiteEdgeEquiv {n : ℕ} :
     (fun j => ⟨fieldEdge j, sameSiteEdge_fieldEdge j⟩)
     ⟨fun _ _ h => fieldEdge_injective (Subtype.ext_iff.mp h), fieldEdge_surjective⟩
 
-@[simp] theorem sameSiteEdgeEquiv_apply {n : ℕ} (j : Fin n) :
+@[simp] lemma sameSiteEdgeEquiv_apply {n : ℕ} (j : Fin n) :
     (sameSiteEdgeEquiv j).1 = fieldEdge j := rfl
 
-theorem sameSiteEdge_card (n : ℕ) :
+lemma sameSiteEdge_card (n : ℕ) :
     Fintype.card {e : MatchgateSOEdge n // sameSiteEdge e} = n := by
   classical
   rw [Fintype.card_congr (sameSiteEdgeEquiv (n := n)).symm, Fintype.card_fin]
 
-private theorem sum_sameSiteEdge_indicator (n : ℕ) (c : ℂ) :
+private lemma sum_sameSiteEdge_indicator (n : ℕ) (c : ℂ) :
     (∑ e : MatchgateSOEdge n, if sameSiteEdge e then c else 0) = (n : ℂ) * c := by
   classical
   rw [← Finset.sum_filter]
@@ -227,7 +227,7 @@ private theorem sum_sameSiteEdge_indicator (n : ℕ) (c : ℂ) :
     exact sameSiteEdge_card n
   rw [hcard]
 
-private theorem hsInner_basis_state (n : ℕ) (hn : 1 ≤ n)
+private lemma hsInner_basis_state (n : ℕ) (hn : 1 ≤ n)
     (i : Fin (Fintype.card (MatchgateSOEdge n))) :
     hsInner ((TFIM.hermBasis n hn).B i) (state n) =
       rtNinv n * (if sameSiteEdge
@@ -256,7 +256,7 @@ private theorem hsInner_basis_state (n : ℕ) (hn : 1 ≤ n)
             simp [hsite, sameSiteEdge]
 
 /-- Exact highest-weight-state purity `P_g(ρ)=n/2^n`. -/
-theorem state_gPurity (n : ℕ) (hn : 1 ≤ n) :
+lemma state_gPurity (n : ℕ) (hn : 1 ≤ n) :
     (TFIM.hermBasis n hn).gPurity (state n) = (n : ℂ) / (2 ^ n : ℂ) := by
   classical
   change (∑ i : Fin (Fintype.card (MatchgateSOEdge n)),
@@ -285,12 +285,12 @@ noncomputable def cartanB (n : ℕ) (hn : 1 ≤ n) (j : Fin n) :
     Matrix (Fin (2 ^ n)) (Fin (2 ^ n)) ℂ :=
   (TFIM.hermBasis n hn).B (cartanIndex j)
 
-private theorem cartanIndex_injective {n : ℕ} : Function.Injective (@cartanIndex n) := by
+private lemma cartanIndex_injective {n : ℕ} : Function.Injective (@cartanIndex n) := by
   intro j k h
   apply fieldEdge_injective
   exact PauliMajoranaFrame.matchgateSOEdgeEquiv.symm.injective h
 
-private theorem gProj_state_eq (n : ℕ) (hn : 1 ≤ n) :
+private lemma gProj_state_eq (n : ℕ) (hn : 1 ≤ n) :
     (TFIM.hermBasis n hn).gProj (state n) =
       ∑ j : Fin n, rtNinv n • cartanB n hn j := by
   classical
@@ -369,7 +369,7 @@ def setup1Label (n : ℕ) (hn : 2 ≤ n) (k : Fin n) : Fin 4 :=
   if k = ⟨0, by omega⟩ then 1 else if k = ⟨n - 1, by omega⟩ then 2 else 3
 
 /-- The endpoint Majorana edge is exactly the Setup-1 label `X₁ Z₂ ⋯ Zₙ₋₁ Yₙ`. -/
-theorem observableEdge_label (n : ℕ) (hn : 2 ≤ n) :
+lemma observableEdge_label (n : ℕ) (hn : 2 ≤ n) :
     (TFIM.frame n).edgeLabel (observableEdge n hn).1 = setup1Label n hn := by
   simp only [observableEdge, matchgateSOEdgeOfNe_val,
     PauliMajoranaFrame.edgeLabel_mk, TFIM.frame_v_index]
@@ -416,11 +416,11 @@ public noncomputable def observable (n : ℕ) (hn : 2 ≤ n) :
   pauliMat ((TFIM.frame n).edgeLabel (observableEdge n hn).1)
 
 /-- The observable matrix is exactly the Pauli string `X₁ Z₂ ⋯ Zₙ₋₁ Yₙ`. -/
-theorem observable_eq_setup1Label (n : ℕ) (hn : 2 ≤ n) :
+lemma observable_eq_setup1Label (n : ℕ) (hn : 2 ≤ n) :
     observable n hn = pauliMat (setup1Label n hn) := by
   rw [observable, observableEdge_label]
 
-theorem observable_herm (n : ℕ) (hn : 2 ≤ n) :
+lemma observable_herm (n : ℕ) (hn : 2 ≤ n) :
     (observable n hn)ᴴ = observable n hn := pauliMat_isHermitian _
 
 /-- Basis index of the Setup-1 endpoint quadratic. -/
@@ -428,7 +428,7 @@ noncomputable def observableIndex (n : ℕ) (hn : 2 ≤ n) :
     Fin (Fintype.card (MatchgateSOEdge n)) :=
   PauliMajoranaFrame.matchgateSOEdgeEquiv.symm (observableEdge n hn)
 
-theorem observable_eq_smul_basis (n : ℕ) (hn : 2 ≤ n) :
+lemma observable_eq_smul_basis (n : ℕ) (hn : 2 ≤ n) :
     observable n hn = (rtNinv n)⁻¹ • (TFIM.hermBasis n (by omega)).B
       (observableIndex n hn) := by
   rw [TFIM.hermBasis_B]
@@ -441,14 +441,14 @@ theorem observable_eq_smul_basis (n : ℕ) (hn : 2 ≤ n) :
   rw [hidx, smul_smul, inv_mul_cancel₀ (rtNinv_ne_zero n), one_smul]
 
 /-- The unnormalized Setup-1 observable has exact purity `P_g(O)=2^n`. -/
-theorem observable_gPurity (n : ℕ) (hn : 2 ≤ n) :
+lemma observable_gPurity (n : ℕ) (hn : 2 ≤ n) :
     (TFIM.hermBasis n (by omega)).gPurity (observable n hn) = (2 ^ n : ℂ) := by
   rw [observable_eq_smul_basis, gPurity_smul]
   have hb := (TFIM.hermBasis n (by omega)).gPurity_basis_elem (observableIndex n hn)
   rw [hb, mul_one, hrtNormSqInv]
 
 /-- For any supplied Ragone second moment, the exact value is `1/(2n-1)`. -/
-theorem secondMoment_eq {n : ℕ} (hn : 3 ≤ n)
+lemma secondMoment_eq {n : ℕ} (hn : 3 ≤ n)
     (M : RagoneSecondMoment (TFIM.hermBasis n (by omega)) (state n)
       (observable n (by omega))) :
     M.variance = 1 / (2 * n - 1 : ℝ) := by

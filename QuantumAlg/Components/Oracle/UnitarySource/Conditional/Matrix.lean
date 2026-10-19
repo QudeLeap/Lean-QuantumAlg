@@ -20,7 +20,7 @@ source state. It does not add a controlled-inverse query to the access model.
 namespace QuantumAlg.UnitarySource.Conditional
 noncomputable section
 
-private theorem x_proj_zero :
+private lemma x_proj_zero :
     (Gate.XOp : HilbertOperator (Qubits 1)) * HilbertOperator.proj0 *
       (Gate.XOp : HilbertOperator (Qubits 1)) = HilbertOperator.proj1 := by
   ext row column
@@ -28,7 +28,7 @@ private theorem x_proj_zero :
     simp [Gate.XOp, UnitaryOperator.ofPerm, HilbertOperator.proj0, HilbertOperator.proj1,
       Matrix.mul_apply]
 
-private theorem x_proj_one :
+private lemma x_proj_one :
     (Gate.XOp : HilbertOperator (Qubits 1)) * HilbertOperator.proj1 *
       (Gate.XOp : HilbertOperator (Qubits 1)) = HilbertOperator.proj0 := by
   ext row column
@@ -36,7 +36,7 @@ private theorem x_proj_one :
     simp [Gate.XOp, UnitaryOperator.ofPerm, HilbertOperator.proj0, HilbertOperator.proj1,
       Matrix.mul_apply]
 
-private theorem swap_control {width : Nat} (A B : HilbertOperator (Qubits width)) :
+private lemma swap_control {width : Nat} (A B : HilbertOperator (Qubits width)) :
     HilbertOperator.tensor (Gate.XOp : HilbertOperator (Qubits 1))
         (1 : HilbertOperator (Qubits width)) *
       (HilbertOperator.tensor HilbertOperator.proj0 A +
@@ -52,8 +52,9 @@ private theorem swap_control {width : Nat} (A B : HilbertOperator (Qubits width)
   exact add_comm _ _
 
 /-- The actual expanded word is precisely conditional inverse access on the whole source. -/
-theorem inverse_matrix {width : Nat} (U : UnitaryOperator (Qubits width)) :
-    (inverse U).binaryMatrix = UnitaryOperator.controlledQubits U⁻¹ := by
+lemma inverse_matrix {width : Nat} (U : UnitaryOperator (Qubits width)) :
+    ((inverse width).binaryMatrix
+      (interpretation U true true false)) = UnitaryOperator.controlledQubits U⁻¹ := by
   rw [inverse, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
     UnitaryCircuit.unitaryCircuit_binaryMatrix_seq, sourceInverse,

@@ -27,7 +27,8 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {width : Nat}
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel}
+  {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind}
 
 /-- Actual second-direction quotient followed by the third-row reduction. -/
@@ -85,14 +86,14 @@ def secondPairPrefixStep (refs : Refs ctx width) (store : Store ctx) :
   (reduced.1, (inputs.2, reduced.2))
 
 /-- Full actual division and row reduction preserve histories and quantum-reference blocks. -/
-theorem divisionReductionInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma divisionReductionInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (divisionReductionInto (model := model) refs).execute Reference state =
+    (divisionReductionInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := divisionReductionStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (RoundedDiv.body (model := model) refs.division32)
     (LatticeArithmetic.pointReduce (model := model) (writeInput refs.division32.output)
       refs.basis.second refs.basis.third refs.reduceProduct)
@@ -111,14 +112,14 @@ theorem divisionReductionInto_execute (refs : Refs ctx width) (Reference : Regis
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Full actual refreshed `g32` and arithmetic execution compose without a parallel store model. -/
-theorem refresh32InputsInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma refresh32InputsInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (refresh32InputsInto (model := model) refs).execute Reference state =
+    (refresh32InputsInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := refresh32InputsStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeDotRefresh.refreshInto (model := model)
       refs.basis.third refs.basis.second (refreshG32Refs refs))
     (LatticeSecondReductionInputs.secondReductionInputsInto (model := model)
@@ -139,14 +140,14 @@ theorem refresh32InputsInto_execute (refs : Refs ctx width) (Reference : Registe
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Complete actual preparation of the original numerator and denominator retains full state. -/
-theorem refreshInputsInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma refreshInputsInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (refreshInputsInto (model := model) refs).execute Reference state =
+    (refreshInputsInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := refreshInputsStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (LatticeDotRefresh.refreshInto (model := model)
       refs.basis.second refs.basis.first (refreshG21Refs refs))
     (refresh32InputsInto (model := model) refs)
@@ -164,14 +165,14 @@ theorem refreshInputsInto_execute (refs : Refs ctx width) (Reference : Register)
   exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- The actual quotient and row updates consume the actual refreshed Gram-derived inputs. -/
-theorem secondPairPrefixInto_execute (refs : Refs ctx width) (Reference : Register)
+lemma secondPairPrefixInto_execute (refs : Refs ctx width) (Reference : Register)
     {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (secondPairPrefixInto (model := model) refs).execute Reference state =
+    (secondPairPrefixInto (model := model) refs).execute environment Reference state =
       state.mapClassical (fun entry =>
         let actual := secondPairPrefixStep (model := model) refs entry.1
         (actual.1, (entry.2.1, (entry.2.2, actual.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (refreshInputsInto (model := model) refs)
     (divisionReductionInto (model := model) refs)
     (fun before =>

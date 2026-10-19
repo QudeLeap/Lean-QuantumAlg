@@ -28,11 +28,11 @@ noncomputable section
 
 open AmplitudeAmplificationSource
 
-private theorem reflection_oracleCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
+private lemma reflection_oracleCount (n : Nat)
     (coordinate : Coordinate) :
-    ResourcePool.count (model := model M)
+    ResourcePool.count (model := model n)
       (.oracle coordinate)
-      (ZeroReflection.elementaryEventPool (Native.oracles M.preparation M.good) n) = 0 := by
+      (ZeroReflection.elementaryEventPool (Native.oracles n) n) = 0 := by
   match n with
   | 0 => rfl
   | 1 => rfl
@@ -44,10 +44,10 @@ private theorem reflection_oracleCount {n : Nat} (M : IntrinsicAmplitudeAmplific
       cases coordinate <;> simp
 
 /-- The complete actual circuit contains precisely the three ordinary source query families. -/
-theorem code_oracleCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) (path : (code M k).Path) (coordinate : Coordinate) :
-    ResourcePool.count (model := model M)
-      (.oracle coordinate) ((code M k).resourcePool path) =
+lemma code_oracleCount (n : Nat)
+    (k : Nat) (path : (code n k).Path) (coordinate : Coordinate) :
+    ResourcePool.count (model := model n)
+      (.oracle coordinate) ((code n k).resourcePool path) =
       (if Coordinate.preparation = coordinate then 1 else 0) +
         k * ((if Coordinate.goodReflection = coordinate then 1 else 0) +
           (if Coordinate.inversePreparation = coordinate then 1 else 0) +
@@ -59,33 +59,32 @@ theorem code_oracleCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
   cases coordinate <;> simp
 
 /-- One initial source call precedes the one call in each actual iterate. -/
-theorem code_preparationCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) (path : (code M k).Path) :
-    ResourcePool.count (model := model M)
-      (.oracle .preparation) ((code M k).resourcePool path) = k + 1 := by
-  simpa [Nat.add_comm] using code_oracleCount M k path .preparation
+lemma code_preparationCount (n : Nat)
+    (k : Nat) (path : (code n k).Path) :
+    ResourcePool.count (model := model n)
+      (.oracle .preparation) ((code n k).resourcePool path) = k + 1 := by
+  simpa [Nat.add_comm] using code_oracleCount n k path .preparation
 
 /-- Each actual iterate contains precisely one inverse query. -/
-theorem code_inversePreparationCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) (path : (code M k).Path) :
-    ResourcePool.count (model := model M)
-      (.oracle .inversePreparation) ((code M k).resourcePool path) = k := by
-  simpa using code_oracleCount M k path .inversePreparation
+lemma code_inversePreparationCount (n : Nat)
+    (k : Nat) (path : (code n k).Path) :
+    ResourcePool.count (model := model n)
+      (.oracle .inversePreparation) ((code n k).resourcePool path) = k := by
+  simpa using code_oracleCount n k path .inversePreparation
 
 /-- Each actual iterate contains precisely one source distinguishing reflection. -/
-theorem code_goodReflectionCount {n : Nat} (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) (path : (code M k).Path) :
-    ResourcePool.count (model := model M)
-      (.oracle .goodReflection) ((code M k).resourcePool path) = k := by
-  simpa using code_oracleCount M k path .goodReflection
+lemma code_goodReflectionCount (n : Nat)
+    (k : Nat) (path : (code n k).Path) :
+    ResourcePool.count (model := model n)
+      (.oracle .goodReflection) ((code n k).resourcePool path) = k := by
+  simpa using code_oracleCount n k path .goodReflection
 
 /-- No coherent controlled query is requested by this source route. -/
-theorem code_controlledGoodReflectionCount {n : Nat}
-    (M : IntrinsicAmplitudeAmplificationModel n)
-    (k : Nat) (path : (code M k).Path) :
-    ResourcePool.count (model := model M)
-      (.oracle .controlledGoodReflection) ((code M k).resourcePool path) = 0 := by
-  simpa using code_oracleCount M k path .controlledGoodReflection
+lemma code_controlledGoodReflectionCount (n : Nat)
+    (k : Nat) (path : (code n k).Path) :
+    ResourcePool.count (model := model n)
+      (.oracle .controlledGoodReflection) ((code n k).resourcePool path) = 0 := by
+  simpa using code_oracleCount n k path .controlledGoodReflection
 
 end
 

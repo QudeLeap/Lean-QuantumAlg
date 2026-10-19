@@ -27,13 +27,13 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 
 variable (base : RuntimeCtx .quantum) (noQuantum : base.quantumWires = []) (N : Nat)
 
-private theorem readout_key (index : Fin (measurementBits N)) :
+private lemma readout_key (index : Fin (measurementBits N)) :
     (readout base noQuantum N index).output.key = (Native.cells base noQuantum N index).key :=
   FiniteReadout.transported_key
     (Native.nativeOracle_context_qubits N (Native.nativeOracle_context_wires base noQuantum N) _)
     (Native.cells base noQuantum N index)
 
-private theorem readout_value (index : Fin (measurementBits N))
+private lemma readout_value (index : Fin (measurementBits N))
     (store : Store (Native.context base noQuantum N)) :
     (store.read (.storage (readout base noQuantum N index).output.toCStorageRef)).toFin.val =
       (store.read (.storage (Native.cells base noQuantum N index).toCStorageRef)).toFin.val :=
@@ -41,7 +41,7 @@ private theorem readout_value (index : Fin (measurementBits N))
     (Native.nativeOracle_context_qubits N (Native.nativeOracle_context_wires base noQuantum N) _)
     (Native.cells base noQuantum N index) store
 
-private theorem readouts_nodup :
+private lemma readouts_nodup :
     ((readouts base noQuantum N).map fun item => item.output.key).Nodup := by
   rw [readouts, List.map_ofFn]
   apply List.nodup_ofFn.mpr
@@ -50,15 +50,15 @@ private theorem readouts_nodup :
     (same.trans (readout_key base noQuantum N right))
   exact MeasurementCells.reference_key_injective _ _ _ keys
 
-private theorem measured_cell (input : Input N) (store : Store (Native.context base noQuantum N))
+private lemma measured_cell (store : Store (Native.context base noQuantum N))
     (basis : (Native.context base noQuantum N).register.Index)
     (index : Fin (measurementBits N)) :
-    ((measuredStore base noQuantum N input store basis).read
+    ((measuredStore base noQuantum N store basis).read
         (.storage (Native.cells base noQuantum N index).toCStorageRef)).toFin.val =
       (basis (readout base noQuantum N index).wire).val := by
-  have actual := Circuit.writeMeasurementBasis_read
+  have actual := Circuit.writeMeasurementBasis_read (allowAllocation := true)
     (gates := AlgorithmGate.model)
-    (oracles := ShortDLP.declaredModel (Native.encoding input))
+    (oracles := ShortDLP.declaredModel N (Native.parameters N))
     (operations := BitWord.model)
     (services := ClassicalOracleModel.empty)
     (readouts base noQuantum N)
@@ -68,7 +68,7 @@ private theorem measured_cell (input : Input N) (store : Store (Native.context b
   rw [readout_value] at numeric
   exact numeric
 
-private theorem wire_value (basis : (Native.context base noQuantum N).register.Index)
+private lemma wire_value (basis : (Native.context base noQuantum N).register.Index)
     (index : Fin (ShortDLP.totalQubits (Native.parameters N))) :
     (basis (Native.wireEquiv N (Native.nativeOracle_context_wires base noQuantum N) index)).val =
       ((ShortDLP.layout (Native.parameters N)).binaryIndexEquiv.symm
@@ -92,7 +92,7 @@ private theorem wire_value (basis : (Native.context base noQuantum N).register.I
       (source index).val)
     inverse).symm
 
-private theorem measured_bit (basis : (Native.context base noQuantum N).register.Index)
+private lemma measured_bit (basis : (Native.context base noQuantum N).register.Index)
     (index : Fin (measurementBits N)) :
     decide ((basis (readout base noQuantum N index).wire).val = 1) =
       (ShortDLP.measurement (Native.parameters N)).readout
@@ -117,20 +117,20 @@ private theorem measured_bit (basis : (Native.context base noQuantum N).register
       omega
 
 /-- The same actual writes and final packing compute precisely the original exponent outcome. -/
-theorem packed_output (input : Input N) (store : Store (Native.context base noQuantum N))
+lemma packed_output (store : Store (Native.context base noQuantum N))
     (basis : (Native.context base noQuantum N).register.Index) :
-    ((measuredStore base noQuantum N input store basis).applyOp
+    ((measuredStore base noQuantum N store basis).applyOp
         (packing base noQuantum N)).read
           (.storage (Native.resultRef base noQuantum N).toCStorageRef) =
       CShape.Value.bits ((ShortDLP.measurement (Native.parameters N)).readout
         (Native.basisEquiv N (Native.nativeOracle_context_wires base noQuantum N) basis)) := by
   refine (Store.read_applyOp_output _ (packing base noQuantum N)).trans ?_
   change CShape.Value.bits (fun index => decide
-    (((measuredStore base noQuantum N input store basis).read
+    (((measuredStore base noQuantum N store basis).read
         (.storage (Native.cells base noQuantum N index).toCStorageRef)).toFin.val = 1)) = _
   apply congrArg CShape.Value.bits
   funext index
-  rw [measured_cell base noQuantum N input]
+  rw [measured_cell base noQuantum N]
   exact measured_bit base noQuantum N basis index
 
 

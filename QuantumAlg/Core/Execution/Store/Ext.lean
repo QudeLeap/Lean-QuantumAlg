@@ -21,7 +21,7 @@ exact result of one mathematical write, independently of its computation.
 
 namespace QuantumAlg
 
-private theorem entrySlot_unique {kind : ProblemKind} {entry : RuntimeEntry kind}
+private lemma entrySlot_unique {kind : ProblemKind} {entry : RuntimeEntry kind}
     {entries : List (RuntimeEntry kind)} (first second : RuntimeEntrySlot entry entries)
     (unique : entries.Nodup) : first = second := by
   induction first with
@@ -38,7 +38,7 @@ private theorem entrySlot_unique {kind : ProblemKind} {entry : RuntimeEntry kind
 namespace CStorageRef
 
 /-- A unique live key carries exactly one stored shape, even across differently typed references. -/
-theorem storageRef_shape_eq_of_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma storageRef_shape_eq_of_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {firstShape secondShape : CShape} (first : CStorageRef ctx firstShape)
     (second : CStorageRef ctx secondShape) (same : first.key = second.key) :
     firstShape = secondShape := by
@@ -46,7 +46,7 @@ theorem storageRef_shape_eq_of_key {kind : ProblemKind} {ctx : RuntimeCtx kind}
   exact (RuntimeEntry.storage.inj entries).2.2
 
 /-- Same-shaped references with the same live key denote the identical computational slot. -/
-theorem storageRef_eq_of_key {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
+lemma storageRef_eq_of_key {kind : ProblemKind} {ctx : RuntimeCtx kind} {shape : CShape}
     (first second : CStorageRef ctx shape) (same : first.key = second.key) : first = second := by
   obtain ⟨firstKey, firstRole, firstSlot⟩ := first
   obtain ⟨secondKey, secondRole, secondSlot⟩ := second
@@ -63,7 +63,7 @@ end CStorageRef
 
 namespace Execution
 
-private theorem cells_eq_of_storage_reads {kind : ProblemKind}
+private lemma cells_eq_of_storage_reads {kind : ProblemKind}
     {entries : List (RuntimeEntry kind)} (first second : Cells entries)
     (equal : ∀ key role shape (slot : RuntimeEntrySlot (.storage key role shape) entries),
       Cells.read first slot = Cells.read second slot) : first = second := by
@@ -82,7 +82,7 @@ private theorem cells_eq_of_storage_reads {kind : ProblemKind}
 namespace Store
 
 /-- All actual storage reads determine the complete finite store. -/
-theorem store_eq_of_storage_reads {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma store_eq_of_storage_reads {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (first second : Store ctx)
     (equal : ∀ {shape : CShape} (input : CStorageRef ctx shape),
       first.read (.storage input) = second.read (.storage input)) : first = second := by
@@ -92,7 +92,7 @@ theorem store_eq_of_storage_reads {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (fun key role shape slot => equal ⟨key, role, slot⟩))
 
 /-- A computed output and the exact frame of every other cell determine one complete write. -/
-theorem store_eq_write_of_read_frame {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma store_eq_write_of_read_frame {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {shape : CShape} (before after : Store ctx) (output : CWriteRef ctx shape)
     (value : shape.Value) (written : after.read (.storage output.toCStorageRef) = value)
     (unchanged : ∀ {otherShape : CShape} (other : CStorageRef ctx otherShape),

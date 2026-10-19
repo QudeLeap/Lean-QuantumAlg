@@ -29,9 +29,11 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.Work2PhaseRotation
 
 noncomputable section
 
+variable {environment : OracleModel.empty.Interpretation}
+
 open EncodedBit
 
-private theorem separate (width : Nat) (index : Fin (width + 3)) :
+private lemma separate (width : Nat) (index : Fin (width + 3)) :
     (phase2Bit width).wire ≠ ((Work2Rotation.word width).bit index).wire := by
   intro same
   have values := congrArg Fin.val same
@@ -49,7 +51,7 @@ def leftGates (width : Nat) : List (GateSpec (encoding width)) :=
 def rightGates (width : Nat) : List (GateSpec (encoding width)) :=
   (leftGates width).reverse
 
-private theorem swap_control (width : Nat) (index : Fin (width + 3 - 1))
+private lemma swap_control (width : Nat) (index : Fin (width + 3 - 1))
     (state : Registers width) :
     (phase2Bit width).get (GateSpec.stepList
       (Word.adjacentSwapGates (Work2Rotation.word width)
@@ -57,7 +59,7 @@ private theorem swap_control (width : Nat) (index : Fin (width + 3 - 1))
   swapStep_get_observed_of_swap_ne _ _ _ _
     (separate width _).symm (separate width _).symm state
 
-private theorem indices_step (width : Nat) (indices : List (Fin (width + 3 - 1)))
+private lemma indices_step (width : Nat) (indices : List (Fin (width + 3 - 1)))
     (state : Registers width) :
     GateSpec.stepList (indices.flatMap
       (Word.controlledAdjacentSwapGates (phase2Bit width) (Work2Rotation.word width)
@@ -86,21 +88,21 @@ private theorem indices_step (width : Nat) (indices : List (Fin (width + 3 - 1))
           List.flatMap_cons, GateSpec.stepList_append]
       · rw [if_neg chosen, ih, if_neg chosen, if_neg chosen]
 
-private theorem left_conditional (width : Nat) (state : Registers width) :
+private lemma left_conditional (width : Nat) (state : Registers width) :
     GateSpec.stepList (leftGates width) state =
       if state.flags.second then GateSpec.stepList (Work2Rotation.leftGates width) state
       else state :=
   indices_step width _ state
 
 /-- The controlled native left sweep has the complete conditional frame update. -/
-theorem left_step (width : Nat) (state : Registers width) :
+lemma left_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (leftGates width) state =
       if state.flags.second then { state with secondWord := state.secondWord.rotateLeft 1 }
       else state := by
   rw [left_conditional, Work2Rotation.left_step]
 
 /-- The inverse native list conditionally rotates right and restores every other field. -/
-theorem right_step (width : Nat) (state : Registers width) :
+lemma right_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (rightGates width) state =
       if state.flags.second then { state with secondWord := state.secondWord.rotateRight 1 }
       else state := by
@@ -130,7 +132,7 @@ def gates (width : Nat) : List (GateSpec (encoding width)) :=
   Work2Rotation.leftGates width ++ rightGates width ++ rightGates width
 
 /-- Complete action of the actual ordered word operations, before adding the counter operations. -/
-theorem gates_step (width : Nat) (state : Registers width) :
+lemma gates_step (width : Nat) (state : Registers width) :
     GateSpec.stepList (gates width) state =
       { state with secondWord :=
         if state.flags.second then
@@ -148,17 +150,17 @@ def program (width : Nat) :
   GateSpec.programList (QubitLayout.canonical _) .empty (gates width)
 
 /-- The actual program has the full conditional frame action with exact amplitudes. -/
-theorem program_realizes (width : Nat) :
-    UnitaryCircuit.Realizes (encoding width) (program width)
+lemma program_realizes (width : Nat) :
+    UnitaryCircuit.Realizes (encoding width) (program width) environment
       (fun state => { state with secondWord :=
         if state.flags.second then
           ((state.secondWord.rotateLeft 1).rotateRight 1).rotateRight 1
         else state.secondWord.rotateLeft 1 }) :=
   GateSpec.realizesList_congrStep (QubitLayout.canonical _) .empty
-    (gates width) (gates_step width)
+    (gates width) (gates_step width) environment
 
 /-- All three sweeps remain in the actual trace, including on the unselected basis subspace. -/
-theorem program_eventTrace_length (width : Nat) :
+lemma program_eventTrace_length (width : Nat) :
     (program width).eventTrace.length = 9 * (width + 2) := by
   have left := Word.adjacentShiftLeftGates_length
     (Work2Rotation.word width) (Work2Rotation.word_distinct width)

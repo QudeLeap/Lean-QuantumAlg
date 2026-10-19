@@ -24,7 +24,7 @@ noncomputable section
 
 variable {R : Register} {Index : Type} [Fintype Index]
 
-private theorem sum_positive (effects : Index → Effect R) :
+private lemma sum_positive (effects : Index → Effect R) :
     (∑ index, (effects index).matrix).PosSemidef := by
   classical
   refine Finset.induction_on (Finset.univ : Finset Index) ?_ ?_
@@ -33,7 +33,7 @@ private theorem sum_positive (effects : Index → Effect R) :
     rw [Finset.sum_insert absent]
     exact (effects index).positive.add induction
 
-private theorem real_smul_applyVec (scalar : ℝ) (matrix : HilbertOperator R)
+private lemma real_smul_applyVec (scalar : ℝ) (matrix : HilbertOperator R)
     (vector : HilbertVector R) :
     (scalar • matrix).applyVec vector = scalar • matrix.applyVec vector := by
   unfold HilbertOperator.applyVec
@@ -42,7 +42,7 @@ private theorem real_smul_applyVec (scalar : ℝ) (matrix : HilbertOperator R)
 
 variable [Nonempty Index]
 
-private theorem average_contractive (effects : Index → Effect R) (vector : HilbertVector R) :
+private lemma average_contractive (effects : Index → Effect R) (vector : HilbertVector R) :
     ‖((Fintype.card Index : ℝ)⁻¹ • ∑ index, (effects index).matrix).applyVec vector‖ ≤
       ‖vector‖ := by
   classical
@@ -69,12 +69,12 @@ def uniformAverage (effects : Index → Effect R) : Effect R where
   contractive := average_contractive effects
 
 /-- The average effect uses exactly the original matrices and real uniform sampling weight. -/
-theorem uniformAverage_matrix (effects : Index → Effect R) :
+lemma uniformAverage_matrix (effects : Index → Effect R) :
     (uniformAverage effects).matrix =
       (Fintype.card Index : ℝ)⁻¹ • ∑ index, (effects index).matrix := rfl
 
 /-- Trace weight commutes with the exact finite uniform average for every input density. -/
-theorem uniformAverage_weight (effects : Index → Effect R) (state : DensityOperator R) :
+lemma uniformAverage_weight (effects : Index → Effect R) (state : DensityOperator R) :
     (uniformAverage effects).weight state =
       (Fintype.card Index : ℝ)⁻¹ * ∑ index, (effects index).weight state := by
   classical

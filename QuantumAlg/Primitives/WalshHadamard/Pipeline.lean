@@ -42,7 +42,7 @@ abbrev oracleOperator (function : Oracle n) : UnitaryOperator (Qubits (n + 1)) :
 /-- The metadata-free Hadamard operator sends `|0^n⟩` to the uniform
 superposition. -/
 @[simp]
-public theorem hadamardLayerOperator_apply_zero :
+public lemma hadamardLayerOperator_apply_zero :
     (hadamardLayerOperator n).apply
         (NormalizedVector.ket (R := Qubits n) (0 : Fin (2 ^ n))) =
       uniformState n := by
@@ -77,7 +77,7 @@ def initialState (n : ℕ) : NormalizedVector (Qubits (n + 1)) :=
   (initialHadamardOperator n).apply (input n)
 
 /-- The queried state is the uniform input register tensored with `|−⟩`. -/
-theorem initialState_eq_uniform_tensor :
+lemma initialState_eq_uniform_tensor :
     initialState n = (uniformState n).tensor ketMinus := by
   have hH : HOp.apply ket1 = ketMinus := by
     apply NormalizedVector.ext
@@ -114,12 +114,12 @@ def afterPhaseQuery (f : Oracle n) : NormalizedVector (Qubits n) :=
       rw [hsum, Real.sqrt_one])
 
 @[simp]
-theorem afterPhaseQuery_apply (f : Oracle n) (x : Fin (2 ^ n)) :
+lemma afterPhaseQuery_apply (f : Oracle n) (x : Fin (2 ^ n)) :
     afterPhaseQuery f x = invSqrtCard n * phaseSign f x := rfl
 
 /-- The actual XOR-oracle query on the uniform input register and `|−⟩`
 target is exactly the phase-query state tensored with the unchanged target. -/
-theorem postOracleState_eq_afterPhaseQuery_tensor (f : Oracle n) :
+lemma postOracleState_eq_afterPhaseQuery_tensor (f : Oracle n) :
     postOracleState f = (afterPhaseQuery f).tensor ketMinus := by
   apply NormalizedVector.ext
   intro i
@@ -146,7 +146,7 @@ def finalJointState (f : Oracle n) : NormalizedVector (Qubits (n + 1)) :=
 
 /-- The actual final joint state factors as the final input-register state
 and the unchanged `|−⟩` target. -/
-theorem finalJointState_eq_finalState_tensor (f : Oracle n) :
+lemma finalJointState_eq_finalState_tensor (f : Oracle n) :
     finalJointState f = (finalState f).tensor ketMinus := by
   have hOne : (1 : UnitaryOperator (Qubits 1)).apply ketMinus = ketMinus := by
     apply NormalizedVector.ext

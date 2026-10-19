@@ -24,6 +24,6 @@ namespace QuantumAlg.QuditShift
 public def Realizations (gates : GateModel) (oracles : OracleModel) {count : Nat}
     (layout : QuantumLayout count) (wire : Fin count) :=
   (amount : Fin (layout.wire wire).dimension) →
-    UnitaryCircuit.ExactRealization gates oracles layout (operator layout wire amount)
+    UnitaryCircuit.ExactRealization gates oracles layout (fun _ => operator layout wire amount)
 
 end QuantumAlg.QuditShift

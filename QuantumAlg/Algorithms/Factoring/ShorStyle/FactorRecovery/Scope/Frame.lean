@@ -27,7 +27,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {ctx : RuntimeCtx kind} {N : Nat} {shape : CShape}
 
-private theorem frame_free (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
+private lemma frame_free (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
     (other : CInputRef ctx shape) (separate : output.key ∉ other.storageKeys) :
     NativeFactorTail.FrameFree (cells ctx N) (liftWrite output) (liftInput other) := by
   constructor
@@ -50,7 +50,7 @@ private theorem frame_free (output : CWriteRef ctx (.option (.unsignedWord (modu
 
 variable {model : ExecutionModel} [BitWord.Selected model] {ctx : RuntimeCtx model.kind}
 
-private theorem body_read_other (source : Input N)
+private lemma body_read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))
@@ -62,7 +62,7 @@ private theorem body_read_other (source : Input N)
     (cells ctx N) (liftWrite output) (liftInput other) (frame_free output other separate) store
 
 /-- The actual released factor scope changes no original operand outside its result cell. -/
-theorem read_other (source : Input N)
+lemma read_other (source : Input N)
     (parameter : CInputRef ctx (ParameterShape (modulusBits N)))
     (phase : CInputRef ctx (.bits (phaseBits N)))
     (output : CWriteRef ctx (.option (.unsignedWord (modulusBits N))))

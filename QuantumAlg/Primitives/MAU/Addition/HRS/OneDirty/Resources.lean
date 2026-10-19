@@ -30,7 +30,7 @@ noncomputable section
 
 open EncodedBit.GateSpec
 
-private theorem base_native_count (width : Nat) (constant : Fin (2 ^ width))
+private lemma base_native_count (width : Nat) (constant : Fin (2 ^ width))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (oneDirtyBaseProgram width constant).eventCost =
       (EncodedBit.Word.constantOneIndices constant).length *
@@ -46,7 +46,7 @@ private theorem base_native_count (width : Nat) (constant : Fin (2 ^ width))
       QubitPrimitive.event, QubitPrimitive.nativeToken, h]
 
 /-- Exact native-event ledger recurrence of the executed recursive program. -/
-theorem hrsOneDirty_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyProgram width constant).eventCost =
       if width ≤ 1 then (oneDirtyBaseProgram width constant).eventCost
       else (recursiveBridgeProgram width ((splitWord width) constant).1).eventCost +
@@ -60,7 +60,7 @@ theorem hrsOneDirty_eventCost (width : Nat) (constant : Fin (2 ^ width)) :
     exact hrsRecursiveStep_eventCost width constant _ _
 
 /-- Every native gate coordinate follows the same actual-program recurrence. -/
-theorem hrsOneDirty_native_count (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsOneDirty_native_count (width : Nat) (constant : Fin (2 ^ width))
     (focus : Resource.Event (.quantum AlgorithmGate.model .empty)) :
     ResourcePool.count focus (oneDirtyProgram width constant).eventCost =
       if width ≤ 1 then (EncodedBit.Word.constantOneIndices constant).length *
@@ -80,7 +80,7 @@ theorem hrsOneDirty_native_count (width : Nat) (constant : Fin (2 ^ width))
     rw [ResourcePool.count_add, ResourcePool.count_add]
 
 /-- Exact event count, retaining dependence on every compile-time constant half. -/
-theorem hrsOneDirty_event_count (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_event_count (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyProgram width constant).eventCost.card =
       if width ≤ 1 then (EncodedBit.Word.constantOneIndices constant).length
       else (recursiveBridgeProgram width ((splitWord width) constant).1).eventCost.card +
@@ -92,7 +92,7 @@ theorem hrsOneDirty_event_count (width : Nat) (constant : Fin (2 ^ width)) :
   · simp only [Multiset.card_add]
 
 /-- Evaluated event depth of the same executed three-stage recursion. -/
-theorem hrsOneDirty_depth (width : Nat) (constant : Fin (2 ^ width))
+lemma hrsOneDirty_depth (width : Nat) (constant : Fin (2 ^ width))
     (assign : Resource.Event (.quantum AlgorithmGate.model .empty) → Nat) :
     (oneDirtyProgram width constant).evaluatedEventDepth assign =
       if width ≤ 1 then (oneDirtyBaseProgram width constant).evaluatedEventDepth assign
@@ -110,7 +110,7 @@ theorem hrsOneDirty_depth (width : Nat) (constant : Fin (2 ^ width))
     exact hrsRecursiveStep_depth width constant _ _ assign
 
 /-- Every nontrivial tensor factor is sequential here, so unit depth equals actual events. -/
-theorem hrsOneDirty_depth_eq_events (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_depth_eq_events (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyProgram width constant).evaluatedEventDepth (fun _ => 1) =
       (oneDirtyProgram width constant).eventCost.card := by
   induction width using Nat.strong_induction_on with
@@ -124,7 +124,7 @@ theorem hrsOneDirty_depth_eq_events (width : Nat) (constant : Fin (2 ^ width)) :
           ih (highWidth width) hdecrease.2 ((splitWord width) constant).2]
 
 /-- The numerical recurrence bound is instantiated with this actual circuit's event count. -/
-theorem hrsOneDirty_event_count_bound (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_event_count_bound (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyProgram width constant).eventCost.card ≤ width * (39 * Nat.clog 2 width + 1) := by
   apply hrsBalancedRecurrence_bound
     (fun width constant => (oneDirtyProgram width constant).eventCost.card)
@@ -138,7 +138,7 @@ theorem hrsOneDirty_event_count_bound (width : Nat) (constant : Fin (2 ^ width))
     omega
 
 /-- The same explicit logarithmic bound applies to the actual serial unit depth. -/
-theorem hrsOneDirty_depth_bound (width : Nat) (constant : Fin (2 ^ width)) :
+lemma hrsOneDirty_depth_bound (width : Nat) (constant : Fin (2 ^ width)) :
     (oneDirtyProgram width constant).evaluatedEventDepth (fun _ => 1) ≤
       width * (39 * Nat.clog 2 width + 1) := by
   rw [hrsOneDirty_depth_eq_events]

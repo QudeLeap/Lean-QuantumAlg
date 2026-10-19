@@ -11,6 +11,8 @@ public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.Projecti
 public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.ClassicalCounts
 public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.Counts
 public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.GateCounts
+public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.Canonical
+public import QuantumAlg.Algorithms.OrderFinding.General.NativeEndpoint.Results
 
 public import QuantumAlg.Algorithms.OrderFinding.Native.Macros
 public import QuantumAlg.Util.Order.Finding.Signed

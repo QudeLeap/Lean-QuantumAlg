@@ -28,7 +28,7 @@ noncomputable section
 
 variable {kind : ProblemKind} {root topCtx inner : RuntimeCtx kind} {N : Nat}
 
-private theorem topCell_avoids_rootInput (refs : Refs root topCtx inner N)
+private lemma topCell_avoids_rootInput (refs : Refs root topCtx inner N)
     (separation : Separation refs) {shape : CShape} (other : CInputRef root shape)
     (index : Fin (LatticeBatchRecoveryWorkspaceLayout.topShapes N).length) :
     (cellAt (LatticeBatchRecoveryWorkspaceViews.topAt refs.pairTransport refs.top) index).ref.key ∉
@@ -39,7 +39,7 @@ private theorem topCell_avoids_rootInput (refs : Refs root topCtx inner N)
     (LatticeBatchRecoveryWorkspaceViews.topAt_separated refs.topTransport refs.pairTransport
       refs.top separation.topSeparated) other index
 
-private theorem factorCell_avoids_rootInput (refs : Refs root topCtx inner N)
+private lemma factorCell_avoids_rootInput (refs : Refs root topCtx inner N)
     (separation : Separation refs) {shape : CShape} (other : CInputRef root shape)
     (cell : QuadraticCheckSeparation.FactorCell) :
     QuadraticCheckSeparation.factorKey
@@ -61,7 +61,7 @@ private theorem factorCell_avoids_rootInput (refs : Refs root topCtx inner N)
       exact topCell_avoids_rootInput refs separation other
         (LatticeBatchRecoveryWorkspaceLayout.takeIndex N)
 
-private theorem seedCallerFrame (refs : Refs root topCtx inner N)
+private lemma seedCallerFrame (refs : Refs root topCtx inner N)
     (separation : Separation refs) {shape : CShape} (other : CInputRef root shape) :
     LatticeEarlyFactorSeed.CallerFrameAvoids (endpointRefs refs).tail.seed
       ((refs.topTransport.compose refs.pairTransport).liftInput other) where
@@ -76,7 +76,7 @@ private theorem seedCallerFrame (refs : Refs root topCtx inner N)
   take := topCell_avoids_rootInput refs separation other
     (LatticeBatchRecoveryWorkspaceLayout.takeIndex N)
 
-private theorem pairCallerFrame (refs : Refs root topCtx inner N)
+private lemma pairCallerFrame (refs : Refs root topCtx inner N)
     (separation : Separation refs) {shape : CShape} (other : CInputRef root shape)
     (firstTerminal secondTerminal : CInputRef topCtx (.bits (measurementBits N))) :
     LatticePairReusableRecovery.CallerFrameAvoids
@@ -123,7 +123,7 @@ private theorem pairCallerFrame (refs : Refs root topCtx inner N)
   · exact factorCell_avoids_rootInput refs separation other
 
 /-- Fresh allocation frames every caller input avoiding the single caller-visible result write. -/
-theorem callerFrame_of_rootInput (refs : Refs root topCtx inner N)
+lemma callerFrame_of_rootInput (refs : Refs root topCtx inner N)
     (separation : Separation refs) {shape : CShape} (other : CInputRef root shape)
     (resultAvoids : refs.result.key ∉
       ((refs.topTransport.compose refs.pairTransport).liftInput other).storageKeys) :

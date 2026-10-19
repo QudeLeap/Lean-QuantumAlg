@@ -54,7 +54,7 @@ def complementBasisEquiv :
       (complementValueEquiv ctx key layout fresh disjoint))
 
 /-- Complement assembly preserves the fresh values at their actual physical positions. -/
-theorem complementBasisEquiv_new_value (newBasis : layout.Basis)
+lemma complementBasisEquiv_new_value (newBasis : layout.Basis)
     (oldBasis : ctx.quantumLayout.ComplementBasis ctx.borrowedSelection) (index : Fin count) :
     (complementBasisEquiv ctx key layout fresh disjoint (newBasis, oldBasis)
       (complementPositionEquiv ctx key layout fresh disjoint (.inl index))).val =
@@ -63,7 +63,7 @@ theorem complementBasisEquiv_new_value (newBasis : layout.Basis)
   rfl
 
 /-- Complement assembly preserves all original complementary values. -/
-theorem complementBasisEquiv_old_value (newBasis : layout.Basis)
+lemma complementBasisEquiv_old_value (newBasis : layout.Basis)
     (oldBasis : ctx.quantumLayout.ComplementBasis ctx.borrowedSelection)
     (index : QuantumLayout.SelectedPosition ctx.borrowedSelectionᶜ) :
     (complementBasisEquiv ctx key layout fresh disjoint (newBasis, oldBasis)
@@ -80,7 +80,7 @@ def borrowedPosition (index : QuantumLayout.SelectedPosition ctx.borrowedSelecti
     (fullPositionEquiv_old_borrowed ctx key layout fresh disjoint index.val).mpr index.property⟩
 
 /-- The common ordered borrowed frame assigns the same position before and after preparation. -/
-theorem borrowedPosition_order (index : QuantumLayout.SelectedPosition ctx.borrowedSelection) :
+lemma borrowedPosition_order (index : QuantumLayout.SelectedPosition ctx.borrowedSelection) :
     (ctx.addOwnedLayout key layout fresh disjoint).borrowedPositionEquiv
       (borrowedPosition ctx key layout fresh disjoint index) = ctx.borrowedPositionEquiv index := by
   apply ctx.borrowedQuantumLayout.identityInjective
@@ -95,7 +95,7 @@ theorem borrowedPosition_order (index : QuantumLayout.SelectedPosition ctx.borro
         (ctx.borrowedPositionEquiv_wire index).symm))
 
 /-- A fixed common borrowed label gives the same finite value at each old borrowed wire. -/
-theorem borrowedBasis_value (basis : ctx.borrowedQuantumLayout.Basis)
+lemma borrowedBasis_value (basis : ctx.borrowedQuantumLayout.Basis)
     (index : QuantumLayout.SelectedPosition ctx.borrowedSelection) :
     ((ctx.addOwnedLayout key layout fresh disjoint).borrowedBasisEquiv.symm basis
       (borrowedPosition ctx key layout fresh disjoint index)).val =
@@ -108,7 +108,7 @@ theorem borrowedBasis_value (basis : ctx.borrowedQuantumLayout.Basis)
   rw [Equiv.apply_symm_apply] at beforeValue
   exact afterValue.symm.trans beforeValue
 
-private theorem prepared_new_value (newBasis : layout.Basis) (oldBasis : ctx.quantumLayout.Basis)
+private lemma prepared_new_value (newBasis : layout.Basis) (oldBasis : ctx.quantumLayout.Basis)
     (index : Fin count) :
     (preparedLocalBasisEquiv ctx key layout fresh disjoint (newBasis, oldBasis)
       (fullPositionEquiv ctx key layout fresh disjoint (.inl index))).val =
@@ -117,7 +117,7 @@ private theorem prepared_new_value (newBasis : layout.Basis) (oldBasis : ctx.qua
     (Fin.castAdd ctx.systemCount index)).trans
       (QuantumLayout.appendJoinBasis_left_value _ _ _ newBasis oldBasis index)
 
-private theorem prepared_old_value (newBasis : layout.Basis) (oldBasis : ctx.quantumLayout.Basis)
+private lemma prepared_old_value (newBasis : layout.Basis) (oldBasis : ctx.quantumLayout.Basis)
     (index : Fin ctx.systemCount) :
     (preparedLocalBasisEquiv ctx key layout fresh disjoint (newBasis, oldBasis)
       (fullPositionEquiv ctx key layout fresh disjoint (.inr index))).val =
@@ -127,7 +127,7 @@ private theorem prepared_old_value (newBasis : layout.Basis) (oldBasis : ctx.qua
       (QuantumLayout.appendJoinBasis_right_value _ _ _ newBasis oldBasis index)
 
 /-- Selection reassembly and preparation use precisely the same complete physical basis. -/
-theorem join_prepared (borrowed : ctx.borrowedQuantumLayout.Basis)
+lemma join_prepared (borrowed : ctx.borrowedQuantumLayout.Basis)
     (newBasis : layout.Basis)
     (oldComplement : ctx.quantumLayout.ComplementBasis ctx.borrowedSelection) :
     (ctx.addOwnedLayout key layout fresh disjoint).quantumLayout.joinSelectedBasis

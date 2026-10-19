@@ -21,7 +21,7 @@ original oracle model, and every coordinate keeps its exact multiplicity.
 namespace QuantumAlg.Gate.Toffoli
 noncomputable section
 
-private theorem expanded_query_count (oracles : OracleModel)
+private lemma expanded_query_count (oracles : OracleModel)
     (pool : ResourcePool (.quantum AlgorithmGate.model oracles))
     (coordinate : oracles.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)
@@ -49,7 +49,7 @@ private theorem expanded_query_count (oracles : OracleModel)
             ResourcePool.singleton]
 
 /-- The actual expanded circuit retains exactly every original query coordinate count. -/
-theorem toffoliExpansion_preserves_query_count {oracles : OracleModel} {count : Nat}
+lemma toffoliExpansion_preserves_query_count {oracles : OracleModel} {count : Nat}
     {ambient : QuantumLayout count} (source : UnitaryCircuit AlgorithmGate.model oracles ambient)
     (coordinate : oracles.Coordinate) :
     ResourcePool.count (model := .quantum AlgorithmGate.model oracles)

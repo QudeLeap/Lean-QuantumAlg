@@ -28,11 +28,12 @@ def wrap (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n)) :
   ((Gate.Hadamard.three oracles (m + n)).seq body).seq (Gate.Hadamard.three oracles (m + n))
 
 /-- Full matrix equality for native boundaries, preserving every relative phase. -/
-theorem fourWrapper_matrix (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n)) :
-    (wrap body).binaryMatrix =
+lemma fourWrapper_matrix (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n))
+    (environment : oracles.Interpretation) :
+    ((wrap body).binaryMatrix environment) =
       (Gate.HOp.tensor (Gate.HOp.tensor
         (Gate.HOp.tensor (1 : UnitaryOperator (Qubits (m + n)))))) *
-      body.binaryMatrix *
+      (body.binaryMatrix environment) *
       (Gate.HOp.tensor (Gate.HOp.tensor
         (Gate.HOp.tensor (1 : UnitaryOperator (Qubits (m + n)))))) := by
   rw [wrap, UnitaryCircuit.unitaryCircuit_binaryMatrix_seq,
@@ -40,7 +41,7 @@ theorem fourWrapper_matrix (body : UnitaryCircuit AlgorithmGate.model oracles (l
   exact (mul_assoc _ _ _).symm
 
 /-- Both native boundaries are charged in the same resource pool as the executed body. -/
-theorem fourWrapper_events (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n)) :
+lemma fourWrapper_events (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n)) :
     (wrap body).eventCost = body.eventCost +
       6 • ResourcePool.singleton (model := .quantum AlgorithmGate.model oracles)
         (.gate .singleQubit) := by
@@ -49,7 +50,7 @@ theorem fourWrapper_events (body : UnitaryCircuit AlgorithmGate.model oracles (l
   ac_rfl
 
 /-- Boundary preparation and unpreparation add six actual dependency steps. -/
-theorem fourWrapper_depth (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n)) :
+lemma fourWrapper_depth (body : UnitaryCircuit AlgorithmGate.model oracles (layout m n)) :
     (wrap body).evaluatedEventDepth (fun _ => 1) =
       body.evaluatedEventDepth (fun _ => 1) + 6 := by
   rw [wrap, UnitaryCircuit.evaluatedEventDepth_seq, UnitaryCircuit.evaluatedEventDepth_seq,

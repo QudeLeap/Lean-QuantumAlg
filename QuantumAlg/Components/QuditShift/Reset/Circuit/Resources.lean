@@ -22,6 +22,8 @@ namespace QuantumAlg.QuditShift
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 variable {gates : GateModel} {oracles : OracleModel} {operations : ClassicalOpModel}
 variable {ctx : RuntimeCtx .quantum} (wire : Fin ctx.systemCount)
   (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
@@ -31,51 +33,80 @@ private instance resourceDimensionNeZero (dimension : ℕ+) : NeZero (dimension 
   ⟨Nat.ne_of_gt dimension.property⟩
 
 /-- The actual selected path contains the measurement followed by its read-back gate. -/
-theorem resetCircuit_eventTrace (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).eventTrace path =
-      Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations ::
-        (realizations (-path.2.1.toFin)).circuit.eventTrace operations := rfl
+lemma resetCircuit_eventTrace {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).eventTrace path =
+      Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations services ::
+        (realizations (-path.2.1.toFin)).circuit.eventTrace operations services := rfl
 
 /-- The resource pool counts the actual correction without declaring a native shift. -/
-theorem resetCircuit_pool (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).resourcePool path =
-      ResourcePool.ofList (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations ::
-        (realizations (-path.2.1.toFin)).circuit.eventTrace operations) := rfl
+lemma resetCircuit_pool {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).resourcePool path =
+      ResourcePool.ofList (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations
+        services ::
+        (realizations (-path.2.1.toFin)).circuit.eventTrace operations services) := rfl
 
 /-- The dependency expression retains the selected correction's complete internal tree. -/
-theorem resetCircuit_eventDepth (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).eventDepth path =
-      .seq (.atom (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations))
-        ((realizations (-path.2.1.toFin)).circuit.eventDepth operations) := rfl
+lemma resetCircuit_eventDepth {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).eventDepth path =
+      .seq (.atom (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations services))
+        ((realizations (-path.2.1.toFin)).circuit.eventDepth operations services) := rfl
 
 /-- The gate depends on the preceding measurement under any native event duration. -/
-theorem resetCircuit_depth (duration : Resource.Event (.quantum gates oracles operations) → Nat)
-    (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).depth duration path =
-      duration (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations) +
+lemma resetCircuit_depth {allowAllocation : Bool}
+    (duration : Resource.Event (.quantum gates oracles operations services) → Nat)
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).depth duration path =
+      duration (Circuit.zEvent (ctx.quantumLayout.wire wire).dimension operations services) +
         DepthExpr.depthEval duration
-          ((realizations (-path.2.1.toFin)).circuit.eventDepth operations) := rfl
+          ((realizations (-path.2.1.toFin)).circuit.eventDepth operations services) := rfl
 
 /-- Unit depth includes the complete selected implementation after its measurement. -/
-theorem resetCircuit_unitDepth (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).depth (fun _ => 1) path =
+lemma resetCircuit_unitDepth {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).depth (fun _ => 1)
+      path =
       1 + DepthExpr.depthEval (fun _ => 1)
-        ((realizations (-path.2.1.toFin)).circuit.eventDepth operations) := rfl
+        ((realizations (-path.2.1.toFin)).circuit.eventDepth operations services) := rfl
 
 /-- Measurement and correction retain the same actual context. -/
-theorem resetCircuit_visited (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).visitedContexts path = [ctx, ctx] := rfl
+lemma resetCircuit_visited {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).visitedContexts path
+      = [ctx, ctx] := rfl
 
 /-- The resident peak is precisely the complete existing context. -/
-theorem resetCircuit_resident (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).peakResidentSpace path =
+lemma resetCircuit_resident {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).peakResidentSpace
+      path =
       ctx.residentSpace := by
   change SpacePool.max ctx.residentSpace (SpacePool.max ctx.residentSpace 0) = _
   rw [SpacePool.max_zero, SpacePool.max_self]
 
 /-- The auxiliary peak is precisely the existing roles of the same live cells. -/
-theorem resetCircuit_auxiliary (path : (resetCircuit wire output realizations operations).Path) :
-    (resetCircuit wire output realizations operations).peakAuxiliarySpace path =
+lemma resetCircuit_auxiliary {allowAllocation : Bool}
+    (path : (resetCircuit (allowAllocation := allowAllocation) (services := services)
+      wire output realizations operations).Path) :
+    (resetCircuit (allowAllocation := allowAllocation) (services := services) wire output
+        realizations operations).peakAuxiliarySpace
+      path =
       ctx.auxiliarySpace := by
   change SpacePool.max ctx.auxiliarySpace (SpacePool.max ctx.auxiliarySpace 0) = _
   rw [SpacePool.max_zero, SpacePool.max_self]

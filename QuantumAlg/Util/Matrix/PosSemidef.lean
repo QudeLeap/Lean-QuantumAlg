@@ -24,7 +24,7 @@ namespace Matrix.PosSemidef
 noncomputable section
 
 /-- Vanishing quadratic mass forces the complete matrix-vector product to vanish. -/
-theorem mulVec_eq_zero_of_quadratic_eq_zero {ι : Type*} [Fintype ι]
+lemma mulVec_eq_zero_of_quadratic_eq_zero {ι : Type*} [Fintype ι]
     {matrix : Matrix ι ι ℂ} (positive : matrix.PosSemidef) (vector : ι → ℂ)
     (quadratic : star vector ⬝ᵥ (matrix *ᵥ vector) = 0) : matrix *ᵥ vector = 0 := by
   classical
@@ -52,7 +52,7 @@ theorem mulVec_eq_zero_of_quadratic_eq_zero {ι : Type*} [Fintype ι]
   simpa only [Pi.star_single, star_one, dotProduct_single_one] using coordinate
 
 /-- A zero positive compression annihilates every column of the compressing matrix. -/
-theorem mul_eq_zero_of_compression_eq_zero {ι κ : Type*} [Fintype ι]
+lemma mul_eq_zero_of_compression_eq_zero {ι κ : Type*} [Fintype ι]
     {matrix : Matrix ι ι ℂ} (positive : matrix.PosSemidef) (columns : Matrix ι κ ℂ)
     (compression : columns.conjTranspose * matrix * columns = 0) : matrix * columns = 0 := by
   rw [Matrix.mul_assoc] at compression

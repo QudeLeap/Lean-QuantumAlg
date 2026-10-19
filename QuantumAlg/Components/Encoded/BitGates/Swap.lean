@@ -30,6 +30,7 @@ namespace EncodedBit
 
 variable {Data : Type} {encoding : BinaryLabelEncoding Data}
 variable (physical : QubitLayout encoding.width) (oracles : OracleModel)
+variable {environment : oracles.Interpretation}
 
 /-- Three-CNOT swap of two encoded bits. -/
 def swapGates
@@ -55,24 +56,26 @@ def swapStep
   GateSpec.stepList (swapGates left right hleftRight)
 
 /-- The bit-swap base-gate program realizes its folded semantics. -/
-theorem swap_realizes
+lemma swap_realizes
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding
-      (swapProgram physical oracles left right hleftRight)
+      (swapProgram physical oracles left right hleftRight) environment
       (swapStep left right hleftRight) :=
-  GateSpec.realizesList physical oracles (swapGates left right hleftRight)
+  GateSpec.realizesList physical oracles (environment := environment) (swapGates left right
+    hleftRight)
 
 /-- Direct realization proof for swapping two encoded bits. -/
-theorem swapWitness
+lemma swapWitness
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding (swapProgram physical oracles left right hleftRight)
+      environment
       (swapStep left right hleftRight) :=
   swap_realizes physical oracles left right hleftRight
 
 /-- A three-CNOT bit swap returns the original right readout on the left. -/
-theorem swapStep_get_left
+lemma swapStep_get_left
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) (x : Data) :
     left.get (swapStep left right hleftRight x) = right.get x := by
@@ -84,7 +87,7 @@ theorem swapStep_get_left
   cases left.get x <;> cases right.get x <;> simp
 
 /-- A three-CNOT bit swap returns the original left readout on the right. -/
-theorem swapStep_get_right
+lemma swapStep_get_right
     (left right : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire) (x : Data) :
     right.get (swapStep left right hleftRight x) = left.get x := by
@@ -105,7 +108,7 @@ theorem swapStep_get_right
   cases left.get x <;> cases right.get x <;> simp
 
 /-- A three-CNOT bit swap preserves readouts away from its two targets. -/
-theorem swapStep_get_observed_of_swap_ne
+lemma swapStep_get_observed_of_swap_ne
     (left right observed : EncodedBit encoding)
     (hleftRight : left.wire ≠ right.wire)
     (hleftObserved : left.wire ≠ observed.wire)
@@ -132,7 +135,7 @@ def controlledSwapGates
 
 /-- A controlled swap is disjoint from an observed bit when its control and
 both swapped bits are disjoint from that observation. -/
-theorem controlledSwapGates_bitDisjoint
+lemma controlledSwapGates_bitDisjoint
     (control left right observed : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -153,7 +156,7 @@ theorem controlledSwapGates_bitDisjoint
   · exact ⟨hcontrolObserved, hleftObserved, hrightObserved⟩
 
 /-- A controlled bit swap contains three physical leaves. -/
-@[simp] theorem controlledSwapGates_length
+@[simp] lemma controlledSwapGates_length
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -163,7 +166,7 @@ theorem controlledSwapGates_bitDisjoint
   simp [controlledSwapGates]
 
 /-- A controlled bit swap contains no X gate. -/
-@[simp] theorem controlledSwapGates_xMultiplicity_sum
+@[simp] lemma controlledSwapGates_xMultiplicity_sum
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -173,7 +176,7 @@ theorem controlledSwapGates_bitDisjoint
   simp [controlledSwapGates]
 
 /-- A controlled bit swap contains no CNOT gate. -/
-@[simp] theorem controlledSwapGates_cnotMultiplicity_sum
+@[simp] lemma controlledSwapGates_cnotMultiplicity_sum
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -183,7 +186,7 @@ theorem controlledSwapGates_bitDisjoint
   simp [controlledSwapGates]
 
 /-- A controlled bit swap contains exactly three Toffoli gates. -/
-@[simp] theorem controlledSwapGates_toffoliMultiplicity_sum
+@[simp] lemma controlledSwapGates_toffoliMultiplicity_sum
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -215,36 +218,36 @@ def controlledSwapStep
       hcontrolLeft hcontrolRight hleftRight)
 
 /-- The controlled-swap base-gate program realizes its folded bit semantics. -/
-theorem controlledSwap_realizes
+lemma controlledSwap_realizes
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding
       (controlledSwapProgram physical oracles control left right
-        hcontrolLeft hcontrolRight hleftRight)
+        hcontrolLeft hcontrolRight hleftRight) environment
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
-  GateSpec.realizesList physical oracles
+  GateSpec.realizesList physical oracles (environment := environment)
     (controlledSwapGates control left right
       hcontrolLeft hcontrolRight hleftRight)
 
 /-- Direct realization proof for a controlled swap of two encoded bits. -/
-theorem controlledSwapWitness
+lemma controlledSwapWitness
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
     (hleftRight : left.wire ≠ right.wire) :
     UnitaryCircuit.Realizes encoding
       (controlledSwapProgram physical oracles control left right
-        hcontrolLeft hcontrolRight hleftRight)
+        hcontrolLeft hcontrolRight hleftRight) environment
       (controlledSwapStep control left right
         hcontrolLeft hcontrolRight hleftRight) :=
   controlledSwap_realizes physical oracles control left right
     hcontrolLeft hcontrolRight hleftRight
 
 /-- A controlled bit swap preserves the control readout. -/
-theorem controlledSwapStep_get_control
+lemma controlledSwapStep_get_control
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -259,7 +262,7 @@ theorem controlledSwapStep_get_control
 
 /-- A controlled bit swap returns the original right readout on the left when
 the control is set, and otherwise preserves the left readout. -/
-theorem controlledSwapStep_get_left
+lemma controlledSwapStep_get_left
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -285,7 +288,7 @@ theorem controlledSwapStep_get_left
 
 /-- A controlled bit swap returns the original left readout on the right when
 the control is set, and otherwise preserves the right readout. -/
-theorem controlledSwapStep_get_right
+lemma controlledSwapStep_get_right
     (control left right : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)
@@ -315,7 +318,7 @@ theorem controlledSwapStep_get_right
 
 /-- A controlled bit swap preserves any readout whose wire is distinct from
 both swapped wires. -/
-theorem controlledSwapStep_get_observed_of_swap_ne
+lemma controlledSwapStep_get_observed_of_swap_ne
     (control left right observed : EncodedBit encoding)
     (hcontrolLeft : control.wire ≠ left.wire)
     (hcontrolRight : control.wire ≠ right.wire)

@@ -32,7 +32,7 @@ variable {C D : Type} [Fintype C] [Fintype D] {R : Register}
 
 /-- Applying the same unitary to every classical block commutes with the finite
 sum that defines the full quantum marginal. -/
-public theorem executionState_sum_unitaryBlocks (state : ExecutionState C R)
+public lemma executionState_sum_unitaryBlocks (state : ExecutionState C R)
     (operator : UnitaryOperator R) :
     (∑ value : C, (DensityOperator.applyUnitary operator (state.block value)).matrix) =
       (DensityOperator.applyUnitary operator state.quantumMarginal).matrix := by
@@ -45,7 +45,7 @@ public theorem executionState_sum_unitaryBlocks (state : ExecutionState C R)
 
 /-- The existing state update with one fixed unitary preserves the same exact
 conjugation law after forgetting the classical label. -/
-theorem fixedUnitary_quantumMarginal (state : ExecutionState C R)
+lemma fixedUnitary_quantumMarginal (state : ExecutionState C R)
     (operator : UnitaryOperator R) :
     (state.applyUnitary (fun _ => operator)).quantumMarginal =
       DensityOperator.applyUnitary operator state.quantumMarginal := by
@@ -54,7 +54,7 @@ theorem fixedUnitary_quantumMarginal (state : ExecutionState C R)
 
 /-- Observing one constant classical value sums all source blocks exactly once,
 without dividing by a probability or discarding any quantum coherence. -/
-public theorem executionState_mapClassical_const_block [DecidableEq D]
+public lemma executionState_mapClassical_const_block [DecidableEq D]
     (state : ExecutionState C R) (value : D) :
     (state.mapClassical (fun _ => value)).block value = state.quantumMarginal := by
   apply DensityOperator.ext

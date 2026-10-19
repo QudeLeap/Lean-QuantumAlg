@@ -38,17 +38,17 @@ variable {n : Type*} [Fintype n] {M : ℕ}
 `expval`. -/
 def stateOverlap (ψ φ : n → ℂ) : ℂ := star ψ ⬝ᵥ φ
 
-theorem stateOverlap_def (ψ φ : n → ℂ) : stateOverlap ψ φ = star ψ ⬝ᵥ φ := rfl
+lemma stateOverlap_def (ψ φ : n → ℂ) : stateOverlap ψ φ = star ψ ⬝ᵥ φ := rfl
 
 /-- Squared pure-state fidelity, at the raw-vector level. -/
 def pureFidelitySq (ψ φ : n → ℂ) : ℝ := Complex.normSq (stateOverlap ψ φ)
 
-theorem pureFidelitySq_self_of_unit {ψ : n → ℂ} (hψ : stateOverlap ψ ψ = 1) :
+lemma pureFidelitySq_self_of_unit {ψ : n → ℂ} (hψ : stateOverlap ψ ψ = 1) :
     pureFidelitySq ψ ψ = 1 := by
   simp [pureFidelitySq, hψ]
 
 /-- Overlap is affine in the second argument. -/
-theorem stateOverlap_add_smul (ψ φ v : n → ℂ) (c : ℂ) :
+lemma stateOverlap_add_smul (ψ φ v : n → ℂ) (c : ℂ) :
     stateOverlap ψ (φ + c • v) = stateOverlap ψ φ + c * stateOverlap ψ v := by
   simp [stateOverlap, dotProduct_add, dotProduct_smul, smul_eq_mul]
 
@@ -64,13 +64,13 @@ def projectiveTangent (ψ v : n → ℂ) : n → ℂ :=
   v - stateOverlap ψ v • ψ
 
 /-- The generator tangent has overlap `-i⟨A⟩` with the state. -/
-theorem stateOverlap_generatorTangent (ψ : n → ℂ) (A : Matrix n n ℂ) :
+lemma stateOverlap_generatorTangent (ψ : n → ℂ) (A : Matrix n n ℂ) :
     stateOverlap ψ (generatorTangent ψ A) = (-Complex.I) * expval ψ A := by
   simp [stateOverlap, generatorTangent, expval_def, dotProduct_smul, smul_eq_mul]
 
 /-- Projecting out the parallel component of the generator tangent is exactly
 `-i` times the centered generator action. -/
-theorem generatorTangent_projected_eq (ψ : n → ℂ) (A : Matrix n n ℂ) :
+lemma generatorTangent_projected_eq (ψ : n → ℂ) (A : Matrix n n ℂ) :
     projectiveTangent ψ (generatorTangent ψ A) = (-Complex.I) • centered ψ A := by
   rw [projectiveTangent, stateOverlap_generatorTangent, generatorTangent, centered]
   ext i
@@ -98,14 +98,14 @@ attribute [-simp] QFIMFubiniStudyBridge.mk.injEq
 -- simpNF exception declaration-scoped, as for other proof-carrying structures.
 attribute [nolint simpNF] QFIMFubiniStudyBridge.mk.injEq
 
-theorem QFIMFubiniStudyBridge.metric_eq_qfim {ψ : n → ℂ}
+lemma QFIMFubiniStudyBridge.metric_eq_qfim {ψ : n → ℂ}
     {h : Fin M → Matrix n n ℂ} (bridge : QFIMFubiniStudyBridge ψ h) :
     bridge.fsMetric = qfim ψ h :=
   bridge.fsMetric_eq_qfim
 
 /-- Symmetry transfers from the covariance-form QFIM to a supplied analytic
 Fubini--Study metric bridge. -/
-theorem QFIMFubiniStudyBridge.fsMetric_isSymm {ψ : n → ℂ}
+lemma QFIMFubiniStudyBridge.fsMetric_isSymm {ψ : n → ℂ}
     {h : Fin M → Matrix n n ℂ} (bridge : QFIMFubiniStudyBridge ψ h)
     (hh : ∀ a, (h a)ᴴ = h a) :
     bridge.fsMetric.IsSymm := by
@@ -114,7 +114,7 @@ theorem QFIMFubiniStudyBridge.fsMetric_isSymm {ψ : n → ℂ}
 
 /-- Positive semidefiniteness transfers from the covariance-form QFIM to a
 supplied analytic Fubini--Study metric bridge. -/
-theorem QFIMFubiniStudyBridge.fsMetric_posSemidef {ψ : n → ℂ}
+lemma QFIMFubiniStudyBridge.fsMetric_posSemidef {ψ : n → ℂ}
     {h : Fin M → Matrix n n ℂ} (bridge : QFIMFubiniStudyBridge ψ h)
     (hψ : stateOverlap ψ ψ = 1) (hh : ∀ a, (h a)ᴴ = h a) :
     bridge.fsMetric.PosSemidef := by

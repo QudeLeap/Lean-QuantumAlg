@@ -6,6 +6,9 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Algorithms.QPE.Endpoint.Execution
+import all QuantumAlg.Algorithms.QPE.Endpoint.Execution
+
 public import QuantumAlg.Algorithms.QPE.Specification
 public import QuantumAlg.Algorithms.QPE.Construction
 public import QuantumAlg.Core.Algorithm.Solves
@@ -45,83 +48,71 @@ noncomputable section
 
 local instance {α : Type} : DecidableEq α := Classical.decEq α
 
-/-- Public validity is exactly positive precision and the original local eigenstate matrix. -/
-public theorem problem_valid_iff {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (state : ExecutionState (Execution.Store (pre t n)) (pre t n).register) :
-    (problem P t).valid state ↔ 0 < t ∧
-      ∀ row column, state.quantumMarginal.matrix row column =
-        P.eigenstate (inputBasisEquiv t n row) *
-          star (P.eigenstate (inputBasisEquiv t n column)) := Iff.rfl
+/-- Quantum phase estimation on the supplied borrowed eigenstate.
 
-/-- The actual stored bits are accepted precisely at the original circular phase precision. -/
-public theorem problem_accepts_bits_iff {n : Nat} (P : QPEEigenstateInput n) (t : Nat)
-    (initial : Execution.Store (pre t n)) (outcome : Fin t → Bool) :
-    (problem P t).accepts initial (.bits outcome) ↔
-      ‖((P.phase - (TerminalZMeasure.fullRegisterIndex outcome).val / (2 : Real) ^ t : Real) :
-        UnitAddCircle)‖ ≤ 1 / (2 : Real) ^ t := by
-  change SuccessfulOutcome P t outcome ↔ _
-  obtain ⟨index, rfl⟩ := (qpeOutcome_bijective t).surjective outcome
-  rw [qpeOutcome_fullRegisterIndex]
-  constructor
-  · rintro ⟨other, same, close⟩
-    have indices := qpeOutcome_injective t same
-    subst other
-    exact close
-  · intro close
-    exact ⟨index, rfl, close⟩
-
-/-- The complete public execution prepares, measures and returns its actual retained phase bits. -/
-public def algorithm {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Algorithm (model P) (pre t n) (post t n) (.bits t) where
-  run := run P t
-
-/-- Every actual path contains exactly the controlled source calls of the power ladder. -/
-public theorem algorithm_controlledUnitaryCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (algorithm P t).run.code.Path) :
-    ResourcePool.count (model := model P) (.oracle UnitarySource.Coordinate.controlled)
-      ((algorithm P t).run.code.resourcePool path) = 2 ^ t - 1 :=
-  code_controlledUnitaryCount P t path
-
-/-- Every actual QPE path has the inverse-Fourier expansion's exact native one-qubit count. -/
-public theorem qpeAlgorithm_singleQubitCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (algorithm P t).run.code.Path) :
-    ResourcePool.count (model := model P) (.gate .singleQubit)
-      ((algorithm P t).run.code.resourcePool path) = 2 * t + 3 * t.choose 2 :=
-  qpeCode_singleQubitCount P t path
-
-/-- Every actual QPE path has the inverse-Fourier expansion's exact native CNOT count. -/
-public theorem qpeAlgorithm_cnotCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (algorithm P t).run.code.Path) :
-    ResourcePool.count (model := model P) (.gate .cnot)
-      ((algorithm P t).run.code.resourcePool path) = 2 * t.choose 2 + 3 * (t / 2) :=
-  qpeCode_cnotCount P t path
-
-/-- The actual phase-estimation circuit uses no native Toffoli gate. -/
-public theorem qpeAlgorithm_toffoliCount {n : Nat} (P : QPEEigenstateInput n)
-    (t : Nat) (path : (algorithm P t).run.code.Path) :
-    ResourcePool.count (model := model P) (.gate .toffoli)
-      ((algorithm P t).run.code.resourcePool path) = 0 :=
-  qpeCode_toffoliCount P t path
-
-/-- Complete Output lists every actual live entry, including the borrowed source and phase word. -/
-public theorem algorithm_output_listing {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    (algorithm P t).run.output.listing = (post t n).keys :=
-  run_output_listing P t
+**Input.**
+- An $n$-qubit unitary $U$, its borrowed normalized eigenstate $\ket{\psi}$
+  satisfying $U\ket{\psi}=e^{2\pi i\theta}\ket{\psi}$, and controlled-$U$ access.
+- A positive precision width $t$ and every normalized extension of the
+  promised local pure input by an external reference.
+- The phase prefix is prepared internally in $\ket{0^t}$.
+**Output.**
+- Actual stored $t$-bit phase data with circular precision $2^{-t}$.
+- Complete Output retaining the $n$ borrowed source systems, $t$ owned phase
+  systems, $t$ binary measurement cells, and the packed $t$-bit result.
+**Resource budget.**
+- Exactly $2^t-1$ controlled-$U$ queries, $2t+3\binom{t}{2}$ native
+  single-qubit gates, and $2\binom{t}{2}+3\lfloor t/2\rfloor$ CNOT gates.
+- The inverse Fourier readout includes every native controlled-phase and SWAP expansion.
+- Exactly $t$ zero preparations, $t$ individual Z measurements, and one bit-packing operation.
+- Resident capacity is $t+n$ dimension-two systems and $2t$ classical bits;
+  auxiliary capacity is $t$ dimension-two systems and $2t$ classical bits.
+- At positive width, unit-event depth is bounded by
+  $2^t+2+2t+5\binom{t}{2}+3\lfloor t/2\rfloor$.
+**Success.**
+- The original circular phase-window event has probability at least $4/\pi^2$.
+- The complete borrowed eigenstate and external reference are restored jointly,
+  independently of the success event; the owned phase systems remain live.
+**Source.**
+- QPE, the controlled-power ladder, and its success analysis in
+  [Lin22, phaseestimation.tex:510-521,647-715].
+- Exact preparation and inverse-QFT native gate counts come from the same
+  structural source circuit; execution records its actual Z writes and packing.
+-/
+@[expose] public def problem (n t : Nat) :
+    Problem (model n) (pre t n) (post t n) (.bits t) where
+  Witness := QPEEigenstateInput n
+  valid := fun environment P state =>
+    environment.quantum = UnitarySource.interpretation P.unitary true ∧
+      0 < t ∧ inputPromise P t state.quantumMarginal
+  initialization := fun _ _ _ => True
+  accepts := fun _ P => accepts P t
+  successLB := fun _ _ => successLB
+  states := fun _ _ => []
+  resources :=
+    { events := eventBudget n t
+      resident := residentBudget t n
+      auxiliary := auxiliaryBudget t }
+  quantumTimeLimit := depthBudget t
 
 /-- The named public execution satisfies its full independent input,
 state and resource contract. -/
-public theorem algorithm_solves {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    Algorithm.Solves (algorithm P t) (problem P t) := by
+private lemma complete_correct (n t : Nat) :
+    Algorithm.Solves (algorithm n t) (problem n t) := by
   constructor
-  · intro Reference input promised _initialized
-    exact actual_success P t input promised.2
-  · intro _Reference _input _promised _initialized requirement present
+  · intro environment P Reference input promised _initialized
+    have same := sourceEnvironment_eq P.unitary environment promised.1
+    subst environment
+    exact actual_success P t input promised.2.2
+  · intro _environment _P _Reference _input _promised _initialized requirement present
     exact False.elim (List.not_mem_nil present)
-  · intro Reference input promised _initialized
+  · intro environment P Reference input promised _initialized
+    have same := sourceEnvironment_eq P.unitary environment promised.1
+    subst environment
     have promisedState : inputPromise P t
         (input.state.mapClassical
           (fun value => (value.1, (value.2, value.1)))).quantumMarginal.marginalLeft := by
-      have localPromise := promised.2
+      have localPromise := promised.2.2
       rw [Execution.Input.localState_quantumMarginal,
         Execution.OracleInput.oracleInput_caller_quantumMarginal] at localPromise
       simpa only [ExecutionState.mapClassical_quantumMarginal] using localPromise
@@ -129,30 +120,30 @@ public theorem algorithm_solves {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
       (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))) promisedState
     have history := Execution.observeBorrowed_mapClassical input.state
       (fun value => (value.1, (value.2, value.1))) (fun _ => rfl)
-    change (code P t).BorrowedRestored Reference input.state
-      ((code P t).execute Reference
+    change (code n t).BorrowedRestored Reference input.state
+      ((code n t).execute (sourceEnvironment P.unitary) Reference
         (input.state.mapClassical (fun value => (value.1, (value.2, value.1)))))
     unfold Circuit.BorrowedRestored at restored ⊢
     rw [restored]
     refine Eq.trans ?_ history
     apply congrArg (Execution.observeBorrowed Reference)
     exact ExecutionState.executionState_mapClassical_congr_decision _ _ _ (fun _ => rfl) _ _
-  · intro _Reference _input _promised _initialized path _supported
-    exact le_of_eq (code_events P t path)
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_residentSpace P t path
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_auxiliarySpace P t path
-  · intro _Reference _input _promised _initialized path _supported
-    exact code_depth P t path
-
+  · intro _environment _P _Reference _input _promised _initialized path _supported
+    exact le_of_eq (code_events n t path)
+  · intro _environment _P _Reference _input _promised _initialized path _supported
+    exact code_residentSpace n t path
+  · intro _environment _P _Reference _input _promised _initialized path _supported
+    exact code_auxiliarySpace n t path
+  · intro _environment _P _Reference _input _promised _initialized path _supported
+    apply (Circuit.quantumTime_le_unitDepth _ _).trans
+    exact code_depth n t path
 
 /-- The original borrowed-eigenstate phase-estimation problem is solved by the same actual
 execution with complete output, joint borrowed restoration and independent native budgets. -/
-public theorem main {n : Nat} (P : QPEEigenstateInput n) (t : Nat) :
-    ∃ candidate : Algorithm (model P) (pre t n) (post t n) (.bits t),
-      Algorithm.Solves candidate (problem P t) :=
-  ⟨algorithm P t, algorithm_solves P t⟩
+public theorem main (n t : Nat) :
+    ∃ candidate : Algorithm (model n) (pre t n) (post t n) (.bits t),
+      Algorithm.Solves candidate (problem n t) :=
+  ⟨algorithm n t, complete_correct n t⟩
 
 end
 

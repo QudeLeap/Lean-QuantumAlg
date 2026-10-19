@@ -32,7 +32,7 @@ local instance {α : Type} : DecidableEq α := Classical.decEq α
 namespace ExecutionState
 
 /-- A mapped block is positive exactly when one of its actual input blocks is positive. -/
-theorem mapClassical_block_mass_pos_iff {C D : Type} [Fintype C] [Fintype D]
+lemma mapClassical_block_mass_pos_iff {C D : Type} [Fintype C] [Fintype D]
     [DecidableEq D] {R : Register}
     (state : ExecutionState C R) (update : C → D) (value : D) :
     0 < ((state.mapClassical update).block value).mass ↔
@@ -59,7 +59,7 @@ namespace Execution
 
 /-- Recording a deterministic unit path keeps the exact positive classical
 block; no enumeration of a concrete runtime store is needed by callers. -/
-theorem State.skip_block_mass_pos_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma State.skip_block_mass_pos_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {Reference : Register} {H : Type} [Fintype H]
     (state : State ctx Reference H) (store : Store ctx) (history : H) :
     0 < ((State.skip state).block (store, (history, ()))).mass ↔
@@ -87,7 +87,7 @@ theorem State.skip_block_mass_pos_iff {kind : ProblemKind} {ctx : RuntimeCtx kin
 
 /-- The unit history used by a fresh circuit execution is the same state as
 `State.skip`, independently of the equality decision used by the caller. -/
-theorem OracleInput.enteredState_eq_skip {oracles : ClassicalOracleModel}
+lemma OracleInput.enteredState_eq_skip {oracles : ClassicalOracleModel}
     {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
     (input : OracleInput oracles ctx Reference) :
     input.state.mapClassical (fun entry => (entry.1, (entry.2, ()))) =
@@ -100,7 +100,7 @@ theorem OracleInput.enteredState_eq_skip {oracles : ClassicalOracleModel}
 
 /-- A positive joint caller/service block gives a positive local caller block
 at the very same live store, for any reference extension. -/
-theorem OracleInput.caller_local_mass_pos_of_joint {oracles : ClassicalOracleModel}
+lemma OracleInput.caller_local_mass_pos_of_joint {oracles : ClassicalOracleModel}
     {kind : ProblemKind} {ctx : RuntimeCtx kind} {Reference : Register}
     (input : OracleInput oracles ctx Reference)
     (record : Store ctx × oracles.HiddenState)
@@ -112,7 +112,7 @@ theorem OracleInput.caller_local_mass_pos_of_joint {oracles : ClassicalOracleMod
     ⟨record, rfl, positive⟩
 
 /-- An observed borrowed value is supported precisely by positive actual store-history blocks. -/
-theorem observeBorrowed_block_mass_pos_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
+lemma observeBorrowed_block_mass_pos_iff {kind : ProblemKind} {ctx : RuntimeCtx kind}
     (Reference : Register) {History : Type} [Fintype History]
     (state : ExecutionState (Store ctx × History) (Register.prod ctx.register Reference))
     (value : ctx.borrowedClassicalShape.Value) :
@@ -123,7 +123,7 @@ theorem observeBorrowed_block_mass_pos_iff {kind : ProblemKind} {ctx : RuntimeCt
   exact ExecutionState.mapClassical_block_mass_pos_iff state _ value
 
 /-- Exact shape and register transport preserves the mass at the corresponding borrowed value. -/
-theorem transportBorrowed_block_mass {sourceShape targetShape : CShape}
+lemma transportBorrowed_block_mass {sourceShape targetShape : CShape}
     {sourceRegister targetRegister : Register} (Reference : Register)
     (sameShape : sourceShape = targetShape) (sameRegister : sourceRegister = targetRegister)
     (state : ExecutionState sourceShape.Value (Register.prod sourceRegister Reference))
@@ -139,7 +139,7 @@ end Execution
 namespace Circuit
 
 /-- Each supported final record has a supported initial record with the same full borrowed value. -/
-theorem borrowedRestored_supported_initial {model : ExecutionModel}
+lemma borrowedRestored_supported_initial {model : ExecutionModel}
     {pre post : RuntimeCtx model.kind}
     (code : Circuit model pre post) (Reference : Register)
     {H K : Type} [Fintype H] [Fintype K]

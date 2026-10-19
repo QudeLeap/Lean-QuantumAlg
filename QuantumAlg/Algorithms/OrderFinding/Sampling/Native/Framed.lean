@@ -35,11 +35,11 @@ open QuantumAlg.Execution
 variable (ctx : RuntimeCtx .quantum) (noQuantum : ctx.quantumWires = [])
 
 /-- The original source circuit uses no extra native or classical grants. -/
-public abbrev model {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    ExecutionModel := Sampling.Native.model access
+public abbrev model (t width : Nat) :
+    ExecutionModel := Sampling.Native.model t width
 
 include noQuantum in
-private theorem preparationDisjoint (t width : Nat) :
+private lemma preparationDisjoint (t width : Nat) :
     List.Disjoint (Sampling.Native.runtimeLayout t width).identities ctx.physicalIdx := by
   simp only [RuntimeCtx.physicalIdx, noQuantum]
   exact List.disjoint_nil_right _
@@ -50,31 +50,29 @@ public def preparedContext (t width : Nat) : RuntimeCtx .quantum :=
   ctx.addOwnedLayout ctx.canonicalFreshKey (Sampling.Native.runtimeLayout t width)
     ctx.canonicalFreshKey_fresh (preparationDisjoint ctx noQuantum t width)
 
-private theorem preparedContext_quantumWires (t width : Nat) :
+private lemma preparedContext_quantumWires (t width : Nat) :
     (preparedContext ctx noQuantum t width).quantumWires =
       (Sampling.Native.runtimeLayout t width).wires := by
   change (Sampling.Native.runtimeLayout t width).wires ++ ctx.quantumWires = _
   rw [noQuantum, List.append_nil]
 
 /-- The native word and prepared runtime have exactly the same physical wires. -/
-public theorem prepared_wires (t width : Nat) :
+public lemma prepared_wires (t width : Nat) :
     (Sampling.Native.runtimeLayout t width).wires =
       (preparedContext ctx noQuantum t width).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
 
 /-- Run the same source word while retaining the input's classical cells. -/
-public def nativeProgram {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    UnitaryCircuit AlgorithmGate.model (OrderFinding.Native.sourceModel access)
+public def nativeProgram (t width : Nat) :
+    UnitaryCircuit AlgorithmGate.model (OrderFinding.Native.sourceModel t width)
       (preparedContext ctx noQuantum t width).quantumLayout :=
   Execution.unitaryOfEqualWires (Sampling.Native.runtimeLayout t width)
     (preparedContext ctx noQuantum t width).quantumLayout
-    (prepared_wires ctx noQuantum t width) (OrderFinding.Native.circuit access)
+    (prepared_wires ctx noQuantum t width) (OrderFinding.Native.circuit t width)
 
 /-- One actual zero preparation allocates the phase and target block. -/
-public def preparationCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) ctx (preparedContext ctx noQuantum t width) :=
+public def preparationCode (t width : Nat) :
+    Circuit (model t width) ctx (preparedContext ctx noQuantum t width) :=
   .prepareZero ctx ctx.canonicalFreshKey (Sampling.Native.runtimeLayout t width)
     ctx.canonicalFreshKey_fresh (preparationDisjoint ctx noQuantum t width)
 
@@ -103,7 +101,7 @@ public def preparedWire (t width : Nat) (index : Fin (t + width)) :
     (Sampling.Native.runtimeLayout t width) ctx.canonicalFreshKey_fresh
     (preparationDisjoint ctx noQuantum t width) (Fin.castAdd ctx.systemCount index)
 
-private theorem preparedWire_preserved (t width : Nat) (index : Fin (t + width)) :
+private lemma preparedWire_preserved (t width : Nat) (index : Fin (t + width)) :
     (preparedContext ctx noQuantum t width).quantumLayout.wire
       (preparedWire ctx noQuantum t width index) =
         (Sampling.Native.runtimeLayout t width).wire index :=
@@ -119,7 +117,7 @@ public def phaseWire (t width : Nat) (index : Fin t) :
     (preparedWire ctx noQuantum t width (Fin.castAdd width index))
 
 /-- Every selected phase position is still a dimension-two wire. -/
-public theorem phaseWire_dimension (t width : Nat) (index : Fin t) :
+public lemma phaseWire_dimension (t width : Nat) (index : Fin t) :
     ((post ctx noQuantum t width).quantumLayout.wire
       (phaseWire ctx noQuantum t width index)).dimension = 2 := by
   rw [phaseWire, MeasurementCells.wireEquiv_preserved]
@@ -149,50 +147,45 @@ public def packing (t width : Nat) :
     (resultRef ctx noQuantum t width)
 
 /-- Allocate the packed output and each binary measurement cell. -/
-public def allocationCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) (preparedContext ctx noQuantum t width)
+public def allocationCode (t width : Nat) :
+    Circuit (model t width) (preparedContext ctx noQuantum t width)
       (post ctx noQuantum t width) :=
-  .seq (.retain (model := model access) (preparedContext ctx noQuantum t width)
+  .seq (.retain (model := model t width) (preparedContext ctx noQuantum t width)
     (preparedContext ctx noQuantum t width).canonicalFreshKey (.bits t)
     (preparedContext ctx noQuantum t width).canonicalFreshKey_fresh)
-    (MeasurementCells.allocate (model := model access)
+    (MeasurementCells.allocate (model := model t width)
       (resultContext ctx noQuantum t width) 2 t)
 
 /-- Prepare, execute the source query word, then allocate retained outputs. -/
-public def beforeMeasurement {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) ctx (post ctx noQuantum t width) :=
-  .seq (preparationCode ctx noQuantum access)
-    (.seq (.unitary (nativeProgram ctx noQuantum access))
-      (allocationCode ctx noQuantum access))
+public def beforeMeasurement (t width : Nat) :
+    Circuit (model t width) ctx (post ctx noQuantum t width) :=
+  .seq (preparationCode ctx noQuantum t width)
+    (.seq (.unitary (nativeProgram ctx noQuantum t width))
+      (allocationCode ctx noQuantum t width))
 
 /-- Actual Z writes and finite-word packing finish the sample. -/
-public def readoutCode {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) (post ctx noQuantum t width)
+public def readoutCode (t width : Nat) :
+    Circuit (model t width) (post ctx noQuantum t width)
       (post ctx noQuantum t width) :=
   .seq (Circuit.measurementSequence (readouts ctx noQuantum t width))
     (.classical (BitWord.application (packing ctx noQuantum t width)))
 
 /-- One complete sample preserves the caller's original classical frame. -/
-public def code {N x t width : Nat} (access : ModExpOracleAccess N x t width) :
-    Circuit (model access) ctx (post ctx noQuantum t width) :=
-  .seq (beforeMeasurement ctx noQuantum access)
-    (readoutCode ctx noQuantum access)
+public def code (t width : Nat) :
+    Circuit (model t width) ctx (post ctx noQuantum t width) :=
+  .seq (beforeMeasurement ctx noQuantum t width)
+    (readoutCode ctx noQuantum t width)
 
 /-- The returned word is the actual packed phase result from the same code. -/
-@[expose] public def run {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) :
-    AlgorithmRun (model access) ctx (post ctx noQuantum t width) (.bits t) where
-  code := code ctx noQuantum access
+@[expose] public def run (t width : Nat) :
+    AlgorithmRun (model t width) ctx (post ctx noQuantum t width) (.bits t) where
+  code := code ctx noQuantum t width
   output := Output.all (post ctx noQuantum t width)
     (.read (.storage (resultRef ctx noQuantum t width).toCStorageRef))
 
 /-- The complete manifest reads the retained word after real measurement. -/
-public theorem run_result {N x t width : Nat}
-    (access : ModExpOracleAccess N x t width) (record : (run ctx noQuantum access).Record) :
-    (run ctx noQuantum access).result record =
+public lemma run_result (t width : Nat) (record : (run ctx noQuantum t width).Record) :
+    (run ctx noQuantum t width).result record =
       record.1.read (.storage (resultRef ctx noQuantum t width).toCStorageRef) := rfl
 
 end

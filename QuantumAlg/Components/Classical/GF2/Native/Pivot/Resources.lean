@@ -33,7 +33,7 @@ variable {model : ExecutionModel} [BitWord.Selected model]
 def pivotOperationEvent (label : Resource.ClassicalOpLabel) : Resource.Event model :=
   .classicalOperation (BitWord.selectedCoordinate (execution := model) label)
 
-private theorem pivotInstruction_duration_eventTrace {input output : CShape}
+private lemma pivotInstruction_duration_eventTrace {input output : CShape}
     (op : ClassicalOp input output ctx ctx) (duration : Resource.Event model → Nat)
     (path : (BitWord.instruction (execution := model) op).Path) :
     (BitWord.instruction (execution := model) op).depth duration path =
@@ -97,7 +97,7 @@ variable (matrix : CWriteRef ctx (.fixedVector rowCount (.unsignedWord width)))
   (columns : CWriteRef ctx (.unsignedWord width)) (found sink : CWriteRef ctx .bit)
 
 /-- Every actually emitted selected-pivot event retains its native coordinate. -/
-theorem gf2SelectPivot_pool_le (row : Fin rowCount) (column : Fin width)
+lemma gf2SelectPivot_pool_le (row : Fin rowCount) (column : Fin width)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).resourcePool path ≤
       selectedPivotEnvelope (model := model) rowCount width row column := by
@@ -125,7 +125,7 @@ theorem gf2SelectPivot_pool_le (row : Fin rowCount) (column : Fin width)
     (gf2EliminateWithPivot_pool_le matrix row column path.2.2.2.2))))
 
 /-- Arbitrary selected-pivot durations add the same five actual stages. -/
-theorem gf2SelectPivot_depth_le (row : Fin rowCount) (column : Fin width)
+lemma gf2SelectPivot_depth_le (row : Fin rowCount) (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).depth duration path ≤
@@ -153,7 +153,7 @@ theorem gf2SelectPivot_depth_le (row : Fin rowCount) (column : Fin width)
       path.2.2.2.2) _) _) _) _
 
 /-- Selected-pivot depth is exactly the sum of the durations of its actual emitted events. -/
-theorem gf2SelectPivot_duration_eventTrace (row : Fin rowCount) (column : Fin width)
+lemma gf2SelectPivot_duration_eventTrace (row : Fin rowCount) (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (selectPivot matrix used rows columns found sink row column).Path) :
     (selectPivot matrix used rows columns found sink row column).depth duration path =
@@ -194,7 +194,7 @@ theorem gf2SelectPivot_duration_eventTrace (row : Fin rowCount) (column : Fin wi
     List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- All original branch choices respect the per-row native allowance. -/
-theorem gf2PivotProbeRow_pool_le (row : Fin rowCount) (column : Fin width)
+lemma gf2PivotProbeRow_pool_le (row : Fin rowCount) (column : Fin width)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).resourcePool path ≤
       pivotProbeEnvelope (model := model) rowCount width row column := by
@@ -226,7 +226,7 @@ theorem gf2PivotProbeRow_pool_le (row : Fin rowCount) (column : Fin width)
     exact zero_le
 
 /-- The actual three branch choices respect each row's duration allowance. -/
-theorem gf2PivotProbeRow_depth_le (row : Fin rowCount) (column : Fin width)
+lemma gf2PivotProbeRow_depth_le (row : Fin rowCount) (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).depth duration path ≤
@@ -258,7 +258,7 @@ theorem gf2PivotProbeRow_depth_le (row : Fin rowCount) (column : Fin width)
   · exact Nat.zero_le _
 
 /-- Each row path retains exact serial event-duration accounting. -/
-theorem gf2PivotProbeRow_duration_eventTrace (row : Fin rowCount) (column : Fin width)
+lemma gf2PivotProbeRow_duration_eventTrace (row : Fin rowCount) (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (pivotProbeRow matrix used rows columns found sink row column).Path) :
     (pivotProbeRow matrix used rows columns found sink row column).depth duration path =
@@ -293,7 +293,7 @@ theorem gf2PivotProbeRow_duration_eventTrace (row : Fin rowCount) (column : Fin 
   · rfl
 
 /-- The all-path native column allowance includes every real marker and every row arm. -/
-theorem gf2ReduceColumnBody_pool_le (column : Fin width)
+lemma gf2ReduceColumnBody_pool_le (column : Fin width)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).resourcePool path ≤
       pivotColumnEnvelope (model := model) rowCount width column := by
@@ -334,7 +334,7 @@ theorem gf2ReduceColumnBody_pool_le (column : Fin width)
     exact zero_le
 
 /-- Each row retains its own original duration allowance in the increasing sequence. -/
-theorem gf2ReduceColumnBody_depth_le (column : Fin width) (duration : Resource.Event model → Nat)
+lemma gf2ReduceColumnBody_depth_le (column : Fin width) (duration : Resource.Event model → Nat)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).depth duration path ≤
       pivotColumnDepthLimit rowCount width column duration := by
@@ -371,7 +371,7 @@ theorem gf2ReduceColumnBody_depth_le (column : Fin width) (duration : Resource.E
   · exact Nat.zero_le _
 
 /-- The complete actual column path has serial depth equal to its native duration sum. -/
-theorem gf2ReduceColumnBody_duration_eventTrace (column : Fin width)
+lemma gf2ReduceColumnBody_duration_eventTrace (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (reduceColumnBody matrix used rows columns found sink column).Path) :
     (reduceColumnBody matrix used rows columns found sink column).depth duration path =
@@ -421,14 +421,14 @@ theorem gf2ReduceColumnBody_duration_eventTrace (column : Fin width)
   · rfl
 
 /-- Both real bit scopes retain the original column's native allowance. -/
-theorem gf2ReduceColumn_pool_le (column : Fin width)
+lemma gf2ReduceColumn_pool_le (column : Fin width)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).resourcePool path ≤
       pivotColumnEnvelope (model := model) rowCount width column :=
   gf2ReduceColumnBody_pool_le _ _ _ _ _ _ column path
 
 /-- Both real bit scopes retain the original column's arbitrary-duration allowance. -/
-theorem gf2ReduceColumn_depth_le (column : Fin width)
+lemma gf2ReduceColumn_depth_le (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).depth duration path ≤
@@ -436,7 +436,7 @@ theorem gf2ReduceColumn_depth_le (column : Fin width)
   gf2ReduceColumnBody_depth_le _ _ _ _ _ _ column duration path
 
 /-- Both real bit scopes preserve the exact actual serial-duration equation. -/
-theorem gf2ReduceColumn_duration_eventTrace (column : Fin width)
+lemma gf2ReduceColumn_duration_eventTrace (column : Fin width)
     (duration : Resource.Event model → Nat)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).depth duration path =
@@ -444,7 +444,7 @@ theorem gf2ReduceColumn_duration_eventTrace (column : Fin width)
   gf2ReduceColumnBody_duration_eventTrace _ _ _ _ _ _ column duration path
 
 /-- A unit-duration allowance for all paths, with no reachability or zero-state promise. -/
-theorem gf2ReduceColumn_unit_depth_le (column : Fin width)
+lemma gf2ReduceColumn_unit_depth_le (column : Fin width)
     (path : (reduceColumn matrix used rows columns column).Path) :
     (reduceColumn matrix used rows columns column).depth (fun _ => 1) path ≤
       rowCount * (2 * rowCount + width + 9) + 2 := by

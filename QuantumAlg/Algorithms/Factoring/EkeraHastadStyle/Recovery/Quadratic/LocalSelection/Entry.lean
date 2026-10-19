@@ -32,7 +32,7 @@ def entryStore (width : Nat) (store : Store ctx) : Store (candidateContext ctx w
   Layout.pushStore width (SelectionLayout.pushStore (RSA.quadraticWordWidth width) store)
 
 /-- Actual entry preserves every complete original structural source value. -/
-theorem nativeQuadratic_local_entry_read {shape : CShape} (input : CInputRef ctx shape)
+lemma nativeQuadratic_local_entry_read {shape : CShape} (input : CInputRef ctx shape)
     (width : Nat) (store : Store ctx) :
     (entryStore width store).read (arithmeticRead input width) = store.read input :=
   (Layout.nativeQuadratic_layout_push_read
@@ -40,7 +40,7 @@ theorem nativeQuadratic_local_entry_read {shape : CShape} (input : CInputRef ctx
     (SelectionLayout.pushStore (RSA.quadraticWordWidth width) store)).trans
     (SelectionLayout.nativeRecovery_selection_push_read input (RSA.quadraticWordWidth width) store)
 
-private theorem writes_free {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
+private lemma writes_free {shape : CShape} (input : CInputRef ctx shape) (width : Nat) :
     ∀ key ∈ writeKeys (Layout.refs ctx width),
       key ∉ (Layout.underRead input width).storageKeys := by
   intro key present
@@ -62,7 +62,7 @@ noncomputable def initializedStore (input : CInputRef ctx (.unsignedWord width))
 
 /-- The real initialized candidates equal the original source pair, and the real constant is one.
 -/
-theorem nativeQuadratic_local_initialized_values (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_local_initialized_values (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
     let final := initializedStore (model := model) input modulus store
     ((final.read (.storage (arithmeticRefs ctx width).first.toCStorageRef)).toNat,
@@ -79,7 +79,7 @@ theorem nativeQuadratic_local_initialized_values (input : CInputRef ctx (.unsign
     (congrArg CShape.Value.toNat (nativeQuadratic_local_entry_read input width store))), actual.2⟩
 
 /-- Actual arithmetic leaves the freshly allocated local acceptance flag false. -/
-theorem nativeQuadratic_local_initialized_accepted (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_local_initialized_accepted (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
     (initializedStore (model := model) input modulus store).read
         (FirstAccepted.cellRead (localRefs ctx width).accepted) = CShape.Value.bit false := by
@@ -95,7 +95,7 @@ theorem nativeQuadratic_local_initialized_accepted (input : CInputRef ctx (.unsi
 
 /-- The real local selected word remains its allocated zero until the actual pair selectors run.
 -/
-theorem nativeQuadratic_local_initialized_selected (input : CInputRef ctx (.unsignedWord width))
+lemma nativeQuadratic_local_initialized_selected (input : CInputRef ctx (.unsignedWord width))
     (modulus : CInputRef ctx (.unsignedWord (RSA.quadraticWordWidth width))) (store : Store ctx) :
     (initializedStore (model := model) input modulus store).read
         (FirstAccepted.cellRead (localRefs ctx width).selected) =

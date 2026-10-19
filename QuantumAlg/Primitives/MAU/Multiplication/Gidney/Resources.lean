@@ -35,7 +35,7 @@ public def nativeBudget (width : Nat) : ResourcePool (.quantum AlgorithmGate.mod
   Accumulate.Gidney.nativeBudget width + wordSwapBudget width +
     Accumulate.Gidney.nativeBudget width
 
-theorem nativeBudget_singleQubit_count_symbolic (width : Nat) :
+lemma nativeBudget_singleQubit_count_symbolic (width : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .singleQubit) (nativeBudget width) =
       2 * (width * Accumulate.Gidney.stageEventBound width) := by
@@ -43,7 +43,7 @@ theorem nativeBudget_singleQubit_count_symbolic (width : Nat) :
     Accumulate.Gidney.nativeAlphabet, primitiveAlphabet, List.count_replicate]
   omega
 
-theorem nativeBudget_cnot_count_symbolic (width : Nat) :
+lemma nativeBudget_cnot_count_symbolic (width : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .cnot) (nativeBudget width) =
       2 * (width * Accumulate.Gidney.stageEventBound width) + 3 * width := by
@@ -51,7 +51,7 @@ theorem nativeBudget_cnot_count_symbolic (width : Nat) :
     Accumulate.Gidney.nativeAlphabet, primitiveAlphabet]
   omega
 
-theorem nativeBudget_toffoli_count_symbolic (width : Nat) :
+lemma nativeBudget_toffoli_count_symbolic (width : Nat) :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .toffoli) (nativeBudget width) =
       2 * (width * Accumulate.Gidney.stageEventBound width) := by
@@ -60,21 +60,21 @@ theorem nativeBudget_toffoli_count_symbolic (width : Nat) :
   omega
 
 /-- The independent 256-bit two-word multiplier budget reserves this many one-qubit gates. -/
-public theorem nativeBudget_singleQubit_count_256 :
+public lemma nativeBudget_singleQubit_count_256 :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .singleQubit) (nativeBudget 256) = 6047305728 := by
   rw [nativeBudget_singleQubit_count_symbolic]
   decide
 
 /-- The same budget includes 768 literal CNOTs for the 256-bit word exchange. -/
-public theorem nativeBudget_cnot_count_256 :
+public lemma nativeBudget_cnot_count_256 :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .cnot) (nativeBudget 256) = 6047306496 := by
   rw [nativeBudget_cnot_count_symbolic]
   decide
 
 /-- The independent 256-bit multiplier's Toffoli allowance comes from both accumulations. -/
-public theorem nativeBudget_toffoli_count_256 :
+public lemma nativeBudget_toffoli_count_256 :
     ResourcePool.count (model := .quantum AlgorithmGate.model .empty)
       (.gate .toffoli) (nativeBudget 256) = 6047305728 := by
   rw [nativeBudget_toffoli_count_symbolic]
@@ -85,7 +85,7 @@ def eventBound (width : Nat) : Nat :=
   2 * (width * stageEventBound width) + 3 * width
 
 /-- The actual program retains both MAC ledgers and the precise native CNOT swap coordinates. -/
-theorem gidneyUnitMultiplication_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyUnitMultiplication_eventCost (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     (program width modulus coefficient).eventCost =
       (Accumulate.Gidney.program width modulus (coefficient : ZMod modulus.val).val).eventCost +
@@ -105,7 +105,7 @@ theorem gidneyUnitMultiplication_eventCost (width : Nat) (modulus : Fin (2 ^ wid
     gidneyAccumulateGates_eventCost, swapEvents]
 
 /-- Every actual event coordinate is bounded by the independent finite native pool. -/
-theorem gidneyUnitMultiplication_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
+lemma gidneyUnitMultiplication_native_bound (width : Nat) (modulus : Fin (2 ^ width + 1))
     (coefficient : (ZMod modulus.val)ˣ) :
     (program width modulus coefficient).eventCost ≤ nativeBudget width := by
   rw [gidneyUnitMultiplication_eventCost]
@@ -115,7 +115,7 @@ theorem gidneyUnitMultiplication_native_bound (width : Nat) (modulus : Fin (2 ^ 
     (gidneyAccumulate_native_bound width modulus
       ((coefficient⁻¹ : (ZMod modulus.val)ˣ) : ZMod modulus.val).val)
 
-theorem gidneyUnitMultiplication_event_count_bound (width : Nat)
+lemma gidneyUnitMultiplication_event_count_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     (program width modulus coefficient).eventCost.card ≤ eventBound width := by
   rw [gidneyUnitMultiplication_eventCost, Multiset.card_add, Multiset.card_add]
@@ -130,20 +130,20 @@ theorem gidneyUnitMultiplication_event_count_bound (width : Nat)
   omega
 
 /-- The actual serial schedule has one unit-duration step for each native event occurrence. -/
-theorem gidneyUnitMultiplication_depth_eq_events (width : Nat)
+lemma gidneyUnitMultiplication_depth_eq_events (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     (program width modulus coefficient).evaluatedEventDepth (fun _ => 1) =
       (program width modulus coefficient).eventCost.card := by
   rw [program, programList_evaluatedEventDepth_unit, programList_eventCost_card]
 
-theorem gidneyUnitMultiplication_depth_bound (width : Nat)
+lemma gidneyUnitMultiplication_depth_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     (program width modulus coefficient).evaluatedEventDepth (fun _ => 1) ≤ eventBound width := by
   rw [gidneyUnitMultiplication_depth_eq_events]
   exact gidneyUnitMultiplication_event_count_bound width modulus coefficient
 
 /-- The literal multiplication list satisfies the independent arithmetic event envelope. -/
-theorem gidneyUnitMultiplicationGates_length_bound (width : Nat)
+lemma gidneyUnitMultiplicationGates_length_bound (width : Nat)
     (modulus : Fin (2 ^ width + 1)) (coefficient : (ZMod modulus.val)ˣ) :
     (gates width modulus coefficient).length ≤ eventBound width := by
   have actual := gidneyUnitMultiplication_event_count_bound width modulus coefficient
@@ -151,7 +151,7 @@ theorem gidneyUnitMultiplicationGates_length_bound (width : Nat)
   exact actual
 
 /-- The full existing two-word carrier supplies every physical system used by the multiplier. -/
-theorem gidneyUnitMultiplication_qubit_count (width : Nat) :
+lemma gidneyUnitMultiplication_qubit_count (width : Nat) :
     (encoding width).width = 2 * width ∧
       (QubitLayout.canonical (encoding width).width).systemIdx.length = 2 * width := by
   constructor

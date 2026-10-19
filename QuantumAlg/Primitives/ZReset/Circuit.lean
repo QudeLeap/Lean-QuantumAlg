@@ -28,15 +28,20 @@ namespace QuantumAlg.ZReset
 
 noncomputable section
 
+variable {services : ClassicalOracleModel}
+
 /-- Measure and read the stored result, then execute its supplied exact correction. -/
 @[expose, implicit_reducible]
 public def circuit {gates : GateModel} {oracles : OracleModel} {ctx : RuntimeCtx .quantum}
     (wire : Fin ctx.systemCount)
     (output : CWriteRef ctx (.finite (ctx.quantumLayout.wire wire).dimension))
     (realizations : QuditShift.Realizations gates oracles ctx.quantumLayout wire)
-    (operations : ClassicalOpModel := .empty) :
-    Circuit (.quantum gates oracles operations) ctx ctx :=
-  QuditShift.resetCircuit wire output realizations operations
+    (operations : ClassicalOpModel := .empty)
+    (services : ClassicalOracleModel := .empty)
+    (allowAllocation : Bool := true) :
+    Circuit (.quantum gates oracles operations services) ctx ctx allowAllocation :=
+  QuditShift.resetCircuit (allowAllocation := allowAllocation) (services := services)
+    wire output realizations operations
 
 end
 

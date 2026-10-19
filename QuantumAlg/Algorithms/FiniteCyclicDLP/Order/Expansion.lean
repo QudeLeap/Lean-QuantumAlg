@@ -100,7 +100,7 @@ public def depthBound {N : Nat} (expansion : OrderExpansion N) : Nat :=
   5 * (expansion.last - expansion.first) + 5 * expansion.gaps + 1
 
 /-- A one-bit expansion represents exactly its sole power of two. -/
-public theorem eq_pow_first_of_count_eq_one {N : Nat} (expansion : OrderExpansion N)
+public lemma eq_pow_first_of_count_eq_one {N : Nat} (expansion : OrderExpansion N)
     (single : expansion.count = 1) :
     N = 2 ^ expansion.first := by
   cases expansion with
@@ -110,10 +110,10 @@ public theorem eq_pow_first_of_count_eq_one {N : Nat} (expansion : OrderExpansio
       simpa [OrderExpansion.first] using sum_powers
 
 /-- `N = 1` is represented by the single exponent zero. -/
-@[simp] public theorem canonical_one_count : (canonical 1 (by decide)).count = 1 := by
+@[simp] public lemma canonical_one_count : (canonical 1 (by decide)).count = 1 := by
   rfl
 
-@[simp] public theorem canonical_one_first : (canonical 1 (by decide)).first = 0 := by
+@[simp] public lemma canonical_one_first : (canonical 1 (by decide)).first = 0 := by
   rfl
 
 /-- A canonical order expansion viewed as a nontrivial sequence of binary
@@ -134,7 +134,7 @@ public structure PositiveGapExpansion (N : Nat) where
   positive : 0 < N
 
 /-- A nontrivial expansion has exactly one more set bit than gaps. -/
-public theorem gaps_add_one_eq_count {N : Nat} (expansion : OrderExpansion N)
+public lemma gaps_add_one_eq_count {N : Nat} (expansion : OrderExpansion N)
     (multiple : 2 ≤ expansion.count) :
     expansion.gaps + 1 = expansion.count := by
   unfold gaps
@@ -184,15 +184,15 @@ public def asOrderExpansion (expansion : PositiveGapExpansion N) : OrderExpansio
   ell_strict := expansion.ell_strict
   sum_powers := expansion.sum_powers
 
-@[simp] public theorem asOrderExpansion_count (expansion : PositiveGapExpansion N) :
+@[simp] public lemma asOrderExpansion_count (expansion : PositiveGapExpansion N) :
     expansion.asOrderExpansion.count = expansion.gaps + 1 := rfl
 
-@[simp] public theorem asOrderExpansion_gaps (expansion : PositiveGapExpansion N) :
+@[simp] public lemma asOrderExpansion_gaps (expansion : PositiveGapExpansion N) :
     expansion.asOrderExpansion.gaps = expansion.gaps := by
   change (expansion.gaps + 1) - 1 = expansion.gaps
   omega
 
-@[simp] public theorem asOrderExpansion_ell (expansion : PositiveGapExpansion N)
+@[simp] public lemma asOrderExpansion_ell (expansion : PositiveGapExpansion N)
     (index : Fin (expansion.gaps + 1)) :
     expansion.asOrderExpansion.ell index = expansion.ell index := rfl
 
@@ -200,21 +200,21 @@ public def asOrderExpansion (expansion : PositiveGapExpansion N) : OrderExpansio
 @[expose, implicit_reducible] public def first (expansion : PositiveGapExpansion N) : Nat :=
   expansion.ell 0
 
-@[simp] public theorem asOrderExpansion_first (expansion : PositiveGapExpansion N) :
+@[simp] public lemma asOrderExpansion_first (expansion : PositiveGapExpansion N) :
     expansion.asOrderExpansion.first = expansion.first := rfl
 
 /-- Highest set-bit exponent in the nontrivial expansion. -/
 @[expose, implicit_reducible] public def last (expansion : PositiveGapExpansion N) : Nat :=
   expansion.ell (Fin.last expansion.gaps)
 
-@[simp] public theorem asOrderExpansion_last (expansion : PositiveGapExpansion N) :
+@[simp] public lemma asOrderExpansion_last (expansion : PositiveGapExpansion N) :
     expansion.asOrderExpansion.last = expansion.last := by
   unfold OrderExpansion.last asOrderExpansion last
   congr 1
 
 /-- Converting a nontrivial ordinary expansion to the gap view and back
 recovers the original expansion, including its executable exponent map. -/
-public theorem asOrderExpansion_toPositiveGapExpansion
+public lemma asOrderExpansion_toPositiveGapExpansion
     (expansion : OrderExpansion N) (multiple : 2 ≤ expansion.count)
     (positive : 0 < N) :
     (expansion.toPositiveGapExpansion multiple positive).asOrderExpansion =
@@ -239,7 +239,7 @@ public theorem asOrderExpansion_toPositiveGapExpansion
   N ≤ 2 ^ expansion.width
 
 /-- Strictly increasing set-bit positions prove the intrinsic-width bound. -/
-public theorem fits_proof (expansion : PositiveGapExpansion N) :
+public lemma fits_proof (expansion : PositiveGapExpansion N) :
     expansion.fits := by
   classical
   unfold fits

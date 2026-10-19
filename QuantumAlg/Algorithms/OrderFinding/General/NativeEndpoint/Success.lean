@@ -27,12 +27,12 @@ noncomputable section
 open QuantumAlg.Execution
 
 /-- The actual result inherits any proven bound on recoverable native Born outcomes. -/
-theorem output_successProbability_ge_of_source {N x r t width : Nat}
+lemma output_successProbability_ge_of_source {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r)
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference)
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference)
     (valid : HasCanonicalBase hinput access input.caller.localState)
     (hregister : N ^ 2 ≤ 2 ^ t)
     {lower : ENNReal}
@@ -40,7 +40,8 @@ theorem output_successProbability_ge_of_source {N x r t width : Nat}
       (OrderFinding.Native.sourceOutcomePMF access).toOuterMeasure
         {outcome | NativeRecoverableOutcome
           (ZMod.unitOfCoprime x hinput.coprime) r outcome}) :
-    lower ≤ ((run hinput access).outputDistribution input).toOuterMeasure
+    lower ≤ ((run (modulusSpec hinput access) t).outputDistribution (Sampling.Native.environment
+      access) input).toOuterMeasure
       {output | output = .optionSome (.unsignedWord
         (ClassicalAlgorithms.OrderRecovery.candidateWord t r))} := by
   let source := OrderFinding.Native.sourceOutcomePMF access
@@ -49,7 +50,8 @@ theorem output_successProbability_ge_of_source {N x r t width : Nat}
   let accepted : Set (CShape.Value (outputShape t)) :=
     {output | output = .optionSome (.unsignedWord
       (ClassicalAlgorithms.OrderRecovery.candidateWord t r))}
-  have actual : (run hinput access).outputDistribution input =
+  have actual : (run (modulusSpec hinput access) t).outputDistribution
+    (Sampling.Native.environment access) input =
       source.map recovered := outputDistribution_eq hinput access input valid
   refine sourceBound.trans ?_
   calc
@@ -69,23 +71,25 @@ theorem output_successProbability_ge_of_source {N x r t width : Nat}
       rfl
     _ = (source.map recovered).toOuterMeasure accepted :=
       (PMF.toOuterMeasure_map_apply recovered source accepted).symm
-    _ = ((run hinput access).outputDistribution input).toOuterMeasure accepted :=
+    _ = ((run (modulusSpec hinput access) t).outputDistribution (Sampling.Native.environment
+      access) input).toOuterMeasure accepted :=
       (congrArg (fun distribution : PMF (CShape.Value (outputShape t)) =>
         distribution.toOuterMeasure accepted) actual).symm
 
 /-- The complete native order-finding result has the original public-window
 success lower bound, including the finite small-modulus cases. -/
-theorem output_successProbability_ge {N x r t width : Nat}
+lemma output_successProbability_ge {N x r t width : Nat}
     (hinput : OrderFinding.Input N x r)
     (access : ModExpOracleAccess N x t width)
     {Reference : Register}
     (input : Execution.OracleInput
-      (Sampling.Native.Framed.model access).classicalOracles (pre width) Reference)
+      (Sampling.Native.Framed.model t width).classicalOracles (pre width) Reference)
     (valid : HasCanonicalBase hinput access input.caller.localState)
     (hregister : N ^ 2 ≤ 2 ^ t)
     (hupper : 2 ^ t < 2 * N ^ 2) :
     ENNReal.ofReal (orderFindingOutputSuccessLowerBound r) ≤
-      ((run hinput access).outputDistribution input).toOuterMeasure
+      ((run (modulusSpec hinput access) t).outputDistribution (Sampling.Native.environment access)
+        input).toOuterMeasure
         {output | output = .optionSome (.unsignedWord
           (ClassicalAlgorithms.OrderRecovery.candidateWord t r))} := by
   apply output_successProbability_ge_of_source hinput access input valid hregister

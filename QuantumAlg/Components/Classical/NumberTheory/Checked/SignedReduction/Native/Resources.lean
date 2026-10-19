@@ -33,7 +33,7 @@ def signedReductionEvents (model : ExecutionModel) [BitWord.Selected model] (wid
         finalCorrectionEvents model width correctionNegative))
 
 /-- The actual body retains all four original phase traces. -/
-theorem signedReductionBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -55,7 +55,7 @@ theorem signedReductionBody_eventTrace {model : ExecutionModel} [BitWord.Selecte
   rfl
 
 /-- Real lexical allocation and release add no events to the original signed-reduction trace. -/
-theorem withSignedReduction_eventTrace {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_eventTrace {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -65,7 +65,7 @@ theorem withSignedReduction_eventTrace {model : ExecutionModel} [BitWord.Selecte
   signedReductionBody_eventTrace _ _ _ _ _ _ path
 
 /-- Complete native event multiplicities are derived from that same actual path. -/
-theorem withSignedReduction_resourcePool {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_resourcePool {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -76,7 +76,7 @@ theorem withSignedReduction_resourcePool {model : ExecutionModel} [BitWord.Selec
   congrArg ResourcePool.ofList (withSignedReduction_eventTrace raw modulus output path)
 
 /-- All selected operations retain their original sequential duration dependencies. -/
-theorem signedReductionBody_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -101,7 +101,7 @@ theorem signedReductionBody_durationDepth {model : ExecutionModel} [BitWord.Sele
     List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
 
 /-- The actual three persistent scopes preserve the body's exact duration equation. -/
-theorem withSignedReduction_durationDepth {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_durationDepth {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -125,7 +125,7 @@ def signedReductionScratchSpace {kind : ProblemKind} (width : Nat)
     SpacePool.ofShape (.unsignedWord width) + SpacePool.ofShape .bit +
       SpacePool.ofShape (.unsignedWord (signedWidth width))
 
-private theorem signedBody_peak_max {kind : ProblemKind}
+private lemma signedBody_peak_max {kind : ProblemKind}
     (context division correction : SpacePool kind) :
     SpacePool.max context (SpacePool.max context
       (SpacePool.max (division + context) (correction + context))) =
@@ -136,14 +136,14 @@ private theorem signedBody_peak_max {kind : ProblemKind}
       max (division axis) (correction axis) + context axis
   omega
 
-private theorem signedScope_peak_max (a b c d e : Nat) :
+private lemma signedScope_peak_max (a b c d e : Nat) :
     Nat.max e (Nat.max (d + e) (Nat.max (c + (d + e)) (a + (b + (c + (d + e)))))) =
       a + b + c + d + e := by
   change max e (max (d + e) (max (c + (d + e)) (a + (b + (c + (d + e)))))) = _
   omega
 
 /-- The exact body resident peak is the larger actual arithmetic scope plus its entire context. -/
-theorem signedReductionBody_resident {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -175,7 +175,7 @@ theorem signedReductionBody_resident {model : ExecutionModel} [BitWord.Selected 
         (finalCorrection_resident _ _ _ _ _)))))).trans (signedBody_peak_max _ _ _))
 
 /-- The same actual contexts give the exact auxiliary peak. -/
-theorem signedReductionBody_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+lemma signedReductionBody_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind}
     (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
@@ -207,7 +207,7 @@ theorem signedReductionBody_auxiliary {model : ExecutionModel} [BitWord.Selected
         (finalCorrection_auxiliary _ _ _ _ _)))))).trans (signedBody_peak_max _ _ _))
 
 /-- Actual resident peak includes every persistent cell and the selected active arithmetic scope. -/
-theorem withSignedReduction_resident {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_resident {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))
@@ -223,7 +223,7 @@ theorem withSignedReduction_resident {model : ExecutionModel} [BitWord.Selected 
   exact signedScope_peak_max _ _ _ _ _
 
 /-- Actual auxiliary peak follows the same three genuine allocation and release scopes. -/
-theorem withSignedReduction_auxiliary {model : ExecutionModel} [BitWord.Selected model]
+lemma withSignedReduction_auxiliary {model : ExecutionModel} [BitWord.Selected model]
     {ctx : RuntimeCtx model.kind} (raw : CInputRef ctx (.unsignedWord (signedWidth width)))
     (modulus : CInputRef ctx (.unsignedWord (width + 1)))
     (output : CWriteRef ctx (.unsignedWord width))

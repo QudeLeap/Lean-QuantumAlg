@@ -6,6 +6,7 @@ Authors: QudeLeap Team
 
 module
 
+public import QuantumAlg.Core.Algorithm.ExecutionState
 import all QuantumAlg.Core.Execution.Measurement.Sequence
 import all QuantumAlg.Core.Execution.Interpret.Laws
 import all QuantumAlg.Core.Execution.State
@@ -39,13 +40,13 @@ namespace ExecutionState
 variable {C : Type} [Fintype C] {R Reference : Register}
 
 /-- A finite local-system diagonal sum retaining one complete reference matrix entry. -/
-def referenceFiberSum (state : ExecutionState C (Register.prod R Reference))
+public def referenceFiberSum (state : ExecutionState C (Register.prod R Reference))
     (weight : C → R.Index → ℂ) (left right : Reference.Index) : ℂ :=
   ∑ basis : R.Index, ∑ value : C,
     weight value basis * (state.block value).matrix (basis, left) (basis, right)
 
 /-- A real classical pushforward transports the weight and keeps both reference coordinates. -/
-theorem referenceFiberSum_mapClassical {D : Type} [Fintype D] {decision : DecidableEq D}
+lemma referenceFiberSum_mapClassical {D : Type} [Fintype D] {decision : DecidableEq D}
     (state : ExecutionState C (Register.prod R Reference)) (update : C → D)
     (weight : D → R.Index → ℂ) (left right : Reference.Index) :
     referenceFiberSum
@@ -64,7 +65,7 @@ theorem referenceFiberSum_mapClassical {D : Type} [Fintype D] {decision : Decida
   simp only [mul_ite, mul_zero, Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- A local Z read supplies its actual value on both local diagonal coordinates. -/
-theorem referenceFiberSum_measureZ {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
+lemma referenceFiberSum_measureZ {Outcome : Type} [Fintype Outcome] [DecidableEq Outcome]
     (state : ExecutionState C (Register.prod R Reference)) (readout : R.Index → Outcome)
     (weight : (C × Outcome) → R.Index → ℂ) (left right : Reference.Index) :
     referenceFiberSum (state.measureZ (fun basis => readout basis.1)) weight left right =
@@ -77,7 +78,7 @@ theorem referenceFiberSum_measureZ {Outcome : Type} [Fintype Outcome] [Decidable
     mul_ite, mul_zero, Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
 /-- The full reference entry of an observed classical block is its exact local fiber. -/
-theorem mapClassical_block_referenceFiberSum {D : Type} [Fintype D] [DecidableEq D]
+lemma mapClassical_block_referenceFiberSum {D : Type} [Fintype D] [DecidableEq D]
     (state : ExecutionState C (Register.prod R Reference)) (read : C → D) (value : D)
     (left right : Reference.Index) :
     (∑ basis : R.Index,
@@ -94,30 +95,39 @@ end ExecutionState
 
 namespace Circuit
 
+variable {allowAllocation : Bool}
+
 variable {gates : GateModel} {oracles : OracleModel}
   {operations : ClassicalOpModel} {classicalOracles : ClassicalOracleModel}
 
 open Execution
 
 /-- Actual ordered writes and path values determine each complete reference observation. -/
-theorem measurementSequence_referenceFiberSum {ctx : RuntimeCtx .quantum}
-    (readouts : List (ZReadout ctx)) {Reference : Register} {History : Type} [Fintype History]
+lemma measurementSequence_referenceFiberSum {ctx : RuntimeCtx .quantum}
+    (readouts : List (ZReadout ctx))
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+    {Reference : Register} {History : Type} [Fintype History]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
     (weight : (Store ctx × (classicalOracles.HiddenState × (History ×
-      (measurementSequence (gates := gates) (oracles := oracles)
+      (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       readouts).Path))) →
       ctx.register.Index → ℂ) (left right : Reference.Index) :
-    ExecutionState.referenceFiberSum ((measurementSequence (gates := gates) (oracles := oracles)
+    ExecutionState.referenceFiberSum ((measurementSequence (allowAllocation := allowAllocation)
+      (gates := gates) (oracles := oracles)
       (operations := operations) (classicalOracles := classicalOracles)
-      readouts).execute Reference state)
+      readouts).execute environment Reference state)
       weight left right =
       ExecutionState.referenceFiberSum state (fun value basis =>
-        weight (writeMeasurementPath (gates := gates) (oracles := oracles)
+        weight (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+          := oracles)
           (operations := operations) (classicalOracles := classicalOracles) readouts value.1
-          (measurementBasisPath (gates := gates) (oracles := oracles)
+          (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
             (operations := operations) (classicalOracles := classicalOracles) readouts basis),
-          (value.2.1, (value.2.2, measurementBasisPath (gates := gates) (oracles := oracles)
+          (value.2.1, (value.2.2, measurementBasisPath (allowAllocation := allowAllocation) (gates
+            := gates) (oracles := oracles)
             (operations := operations) (classicalOracles := classicalOracles) readouts basis)))
             basis) left right := by
   induction readouts generalizing History with
@@ -128,9 +138,10 @@ theorem measurementSequence_referenceFiberSum {ctx : RuntimeCtx .quantum}
   | cons head tail induction =>
       change ExecutionState.referenceFiberSum
         ((Circuit.seq (.measureZ head.wire head.output)
-          (measurementSequence (gates := gates) (oracles := oracles)
+          (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
             (operations := operations)
-            (classicalOracles := classicalOracles) tail)).execute Reference
+            (classicalOracles := classicalOracles) tail)).execute environment Reference
             state) weight left right = _
       rw [execute_seq]
       simp only [State.mapHistory, ExecutionState.referenceFiberSum_mapClassical]
@@ -140,40 +151,50 @@ theorem measurementSequence_referenceFiberSum {ctx : RuntimeCtx .quantum}
         (R := ctx.register) (Reference := Reference) state
         (fun basis : ctx.register.Index => basis head.wire)
         (fun value basis => weight
-          (writeMeasurementPath (gates := gates) (oracles := oracles)
+          (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
             (operations := operations) (classicalOracles := classicalOracles) tail (value.1.1.write
             head.output (.finite value.2))
-            (measurementBasisPath (gates := gates) (oracles := oracles)
+            (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+              oracles)
               (operations := operations) (classicalOracles := classicalOracles) tail basis),
             (value.1.2.1, (value.1.2.2, (value.2,
-              measurementBasisPath (gates := gates) (oracles := oracles)
+              measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+                oracles)
               (operations := operations) (classicalOracles := classicalOracles) tail
               basis)))) basis)
         left right
 
 /-- The actual observed result retains exactly its original complete reference fiber. -/
-theorem measurementSequence_observed_reference_entry {ctx : RuntimeCtx .quantum}
-    (readouts : List (ZReadout ctx)) {Reference : Register} {History D : Type}
+lemma measurementSequence_observed_reference_entry {ctx : RuntimeCtx .quantum}
+    (readouts : List (ZReadout ctx))
+    (environment : (ExecutionModel.quantum gates oracles operations classicalOracles).Environment)
+    {Reference : Register} {History D : Type}
     [Fintype History] [Fintype D]
     (state : State ctx Reference (classicalOracles.HiddenState × History))
     (read : Store ctx × (classicalOracles.HiddenState × (History ×
-      (measurementSequence (gates := gates) (oracles := oracles)
+      (measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+        oracles)
       (operations := operations) (classicalOracles := classicalOracles)
       readouts).Path)) → D) (value : D)
     (left right : Reference.Index) :
     (∑ basis : ctx.register.Index,
       DensityOperator.matrix
-        ((((measurementSequence (gates := gates) (oracles := oracles)
+        ((((measurementSequence (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+          oracles)
           (operations := operations)
-          (classicalOracles := classicalOracles) readouts).execute Reference
+          (classicalOracles := classicalOracles) readouts).execute environment Reference
           state).mapClassical read).block value)
         (basis, left) (basis, right)) =
       ExecutionState.referenceFiberSum state (fun original basis =>
-        if read (writeMeasurementPath (gates := gates) (oracles := oracles)
+        if read (writeMeasurementPath (allowAllocation := allowAllocation) (gates := gates) (oracles
+          := oracles)
           (operations := operations) (classicalOracles := classicalOracles) readouts original.1
-          (measurementBasisPath (gates := gates) (oracles := oracles)
+          (measurementBasisPath (allowAllocation := allowAllocation) (gates := gates) (oracles :=
+            oracles)
             (operations := operations) (classicalOracles := classicalOracles) readouts basis),
-          (original.2.1, (original.2.2, measurementBasisPath (gates := gates) (oracles := oracles)
+          (original.2.1, (original.2.2, measurementBasisPath (allowAllocation := allowAllocation)
+            (gates := gates) (oracles := oracles)
             (operations := operations) (classicalOracles := classicalOracles) readouts basis)))
             = value then 1 else 0) left right := by
   rw [ExecutionState.mapClassical_block_referenceFiberSum, measurementSequence_referenceFiberSum]

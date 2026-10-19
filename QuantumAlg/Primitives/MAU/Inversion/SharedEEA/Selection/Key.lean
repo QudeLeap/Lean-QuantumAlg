@@ -63,7 +63,7 @@ private def firstIndex (width : Nat) : Fin (2 * width.size + 2) := ⟨2 * width.
 
 private def secondIndex (width : Nat) : Fin (2 * width.size + 2) := ⟨2 * width.size + 1, by omega⟩
 
-private theorem source_coefficient (width : Nat) (state : Registers width)
+private lemma source_coefficient (width : Nat) (state : Registers width)
     (index : Fin width.size) :
     ((layout width).source.bit (coefficientIndex width index)).get state =
       state.coefficientLength.getMsbD index.val := by
@@ -71,13 +71,13 @@ private theorem source_coefficient (width : Nat) (state : Registers width)
   rw [layout_source_get, sourceBit_get, if_pos initial]
   rfl
 
-private theorem pattern_coefficient (width : Nat) (selected : Key width) (index : Fin width.size) :
+private lemma pattern_coefficient (width : Nat) (selected : Key width) (index : Fin width.size) :
     pattern selected (coefficientIndex width index) = selected.1.getMsbD index.val := by
   have initial : (coefficientIndex width index).val < width.size := index.isLt
   rw [pattern, if_pos initial]
   rfl
 
-private theorem source_quotient (width : Nat) (state : Registers width) (index : Fin width.size) :
+private lemma source_quotient (width : Nat) (state : Registers width) (index : Fin width.size) :
     ((layout width).source.bit (quotientIndex width index)).get state =
       state.quotientLength.getMsbD index.val := by
   have notInitial : ¬(quotientIndex width index).val < width.size := by
@@ -91,7 +91,7 @@ private theorem source_quotient (width : Nat) (state : Registers width) (index :
   change state.quotientLength.getMsbD (width.size + index.val - width.size) = _
   rw [Nat.add_sub_cancel_left]
 
-private theorem pattern_quotient (width : Nat) (selected : Key width) (index : Fin width.size) :
+private lemma pattern_quotient (width : Nat) (selected : Key width) (index : Fin width.size) :
     pattern selected (quotientIndex width index) = selected.2.1.getMsbD index.val := by
   have notInitial : ¬(quotientIndex width index).val < width.size := by
     change ¬width.size + index.val < width.size
@@ -104,7 +104,7 @@ private theorem pattern_quotient (width : Nat) (selected : Key width) (index : F
   change selected.2.1.getMsbD (width.size + index.val - width.size) = _
   rw [Nat.add_sub_cancel_left]
 
-private theorem source_first (width : Nat) (state : Registers width) :
+private lemma source_first (width : Nat) (state : Registers width) :
     ((layout width).source.bit (firstIndex width)).get state = state.flags.first := by
   rw [layout_source_get, sourceBit_get]
   have notInitial : ¬(firstIndex width).val < width.size := by
@@ -114,7 +114,7 @@ private theorem source_first (width : Nat) (state : Registers width) :
   have first : (firstIndex width).val = 2 * width.size := rfl
   rw [if_neg notInitial, if_neg notSecond, if_pos first]
 
-private theorem pattern_first (width : Nat) (selected : Key width) :
+private lemma pattern_first (width : Nat) (selected : Key width) :
     pattern selected (firstIndex width) = selected.2.2 := by
   have notInitial : ¬(firstIndex width).val < width.size := by
     change ¬2 * width.size < width.size
@@ -123,7 +123,7 @@ private theorem pattern_first (width : Nat) (selected : Key width) :
   have first : (firstIndex width).val = 2 * width.size := rfl
   rw [pattern, if_neg notInitial, if_neg notSecond, if_pos first]
 
-private theorem source_second (width : Nat) (state : Registers width) :
+private lemma source_second (width : Nat) (state : Registers width) :
     ((layout width).source.bit (secondIndex width)).get state = state.flags.second := by
   rw [layout_source_get, sourceBit_get]
   have notInitial : ¬(secondIndex width).val < width.size := by
@@ -137,7 +137,7 @@ private theorem source_second (width : Nat) (state : Registers width) :
     omega
   rw [if_neg notInitial, if_neg notSecond, if_neg notFirst]
 
-private theorem pattern_second (width : Nat) (selected : Key width) :
+private lemma pattern_second (width : Nat) (selected : Key width) :
     pattern selected (secondIndex width) = !selected.2.2 := by
   have notInitial : ¬(secondIndex width).val < width.size := by
     change ¬2 * width.size + 1 < width.size
@@ -151,7 +151,7 @@ private theorem pattern_second (width : Nat) (selected : Key width) :
   rw [pattern, if_neg notInitial, if_neg notSecond, if_neg notFirst]
 
 /-- The native bit-equality predicate is exactly equality of both complete lengths and phases. -/
-theorem matches_fields_iff (width : Nat) (selected : Key width) (state : Registers width) :
+lemma matches_fields_iff (width : Nat) (selected : Key width) (state : Registers width) :
     Matches (pattern selected) state ↔
       state.coefficientLength = selected.1 ∧ state.quotientLength = selected.2.1 ∧
         state.flags.first = selected.2.2 ∧ state.flags.second = !selected.2.2 := by
@@ -175,12 +175,12 @@ theorem matches_fields_iff (width : Nat) (selected : Key width) (state : Registe
   · rintro ⟨coefficient, quotient, first, second⟩ index
     rw [layout_source_get, sourceBit_get, pattern, coefficient, quotient, first, second]
 
-private theorem xor_true_iff (first second : Bool) :
+private lemma xor_true_iff (first second : Bool) :
     (first ^^ second) = true ↔ second = !first := by
   cases first <;> cases second <;> decide
 
 /-- Exactly one full key can match, and only on the source's actual two-phase condition. -/
-theorem matches_key_iff (width : Nat) (selected : Key width) (state : Registers width) :
+lemma matches_key_iff (width : Nat) (selected : Key width) (state : Registers width) :
     Matches (pattern selected) state ↔ readKey state = selected ∧ phaseSelected state = true := by
   rw [matches_fields_iff]
   constructor
@@ -201,17 +201,17 @@ def position {width : Nat} (selected : Key width) : Nat :=
   selected.1.toNat + selected.2.1.toNat + (if selected.2.2 then 0 else 1)
 
 /-- The native phase-2 key targets exactly the baseline's next quotient-bit boundary. -/
-theorem position_phase2 (width : Nat) (coefficient quotient : BitVec width.size) :
+lemma position_phase2 (width : Nat) (coefficient quotient : BitVec width.size) :
     position (coefficient, (quotient, false)) =
       NumberTheory.SharedEEA.SwapBoundary.phase2Position coefficient.toNat quotient.toNat := rfl
 
 /-- The native phase-3 key retains the baseline's final existing quotient-bit boundary. -/
-theorem position_phase3 (width : Nat) (coefficient quotient : BitVec width.size) :
+lemma position_phase3 (width : Nat) (coefficient quotient : BitVec width.size) :
     position (coefficient, (quotient, true)) =
       NumberTheory.SharedEEA.SwapBoundary.phase3Position coefficient.toNat quotient.toNat := rfl
 
 /-- A matching key therefore selects the source's exact untruncated zero-based position. -/
-theorem position_of_matches (width : Nat) (selected : Key width) (state : Registers width)
+lemma position_of_matches (width : Nat) (selected : Key width) (state : Registers width)
     (matched : Matches (pattern selected) state) :
     position selected = state.coefficientLength.toNat + state.quotientLength.toNat +
       (if state.flags.first then 0 else 1) := by
@@ -221,7 +221,7 @@ theorem position_of_matches (width : Nat) (selected : Key width) (state : Regist
   rw [← coefficient, ← quotient, ← first]
 
 /-- No frame can satisfy two different selector keys. -/
-theorem matches_unique (width : Nat) (left right : Key width) (state : Registers width)
+lemma matches_unique (width : Nat) (left right : Key width) (state : Registers width)
     (first : Matches (pattern left) state) (second : Matches (pattern right) state) :
     left = right :=
   ((matches_key_iff width left state).mp first).1.symm.trans

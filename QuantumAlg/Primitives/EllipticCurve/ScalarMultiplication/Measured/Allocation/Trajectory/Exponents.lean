@@ -31,13 +31,13 @@ def exponentInput (modulus count : Nat) (controls : Fin count → Bool) :
   (rangeBasis modulus.size count).symm (BinaryLabelEncoding.bool.encode ∘ controls)
 
 /-- Reading all actual exponent systems recovers exactly the supplied Boolean encoding. -/
-theorem exponentInput_rangeBasis (modulus count : Nat) (controls : Fin count → Bool) :
+lemma exponentInput_rangeBasis (modulus count : Nat) (controls : Fin count → Bool) :
     rangeBasis modulus.size count (exponentInput modulus count controls) =
       BinaryLabelEncoding.bool.encode ∘ controls :=
   (rangeBasis modulus.size count).apply_symm_apply _
 
 /-- The original physical system at each range position carries its supplied Boolean value. -/
-theorem exponentInput_physical_value (modulus count : Nat) (controls : Fin count → Bool)
+lemma exponentInput_physical_value (modulus count : Nat) (controls : Fin count → Bool)
     (index : Fin count) :
     (exponentInput modulus count controls (rangePosition modulus.size count index)).val =
       (BinaryLabelEncoding.bool.encode (controls index)).val := by
@@ -45,7 +45,7 @@ theorem exponentInput_physical_value (modulus count : Nat) (controls : Fin count
   rfl
 
 /-- An original indexed selection is active exactly when its supplied Boolean is true. -/
-theorem exponentInput_selected_iff (modulus count : Nat) (controls : Fin count → Bool)
+lemma exponentInput_selected_iff (modulus count : Nat) (controls : Fin count → Bool)
     (index : Fin count) :
     rangeBasis modulus.size count (exponentInput modulus count controls) index = 1 ↔
       controls index = true := by
@@ -54,7 +54,7 @@ theorem exponentInput_selected_iff (modulus count : Nat) (controls : Fin count �
   cases controls index <;> decide
 
 /-- Both actual preparations and every finite-cell retain preserve each supplied selection. -/
-theorem initializedReadyBasis_exponentInput (modulus count : Nat)
+lemma initializedReadyBasis_exponentInput (modulus count : Nat)
     (controls : Fin count → Bool) (x y : Fin (2 ^ modulus.size)) (index : Fin count) :
     indexedValue modulus.size count
       (initializedReadyBasis modulus count
@@ -64,7 +64,7 @@ theorem initializedReadyBasis_exponentInput (modulus count : Nat)
   rfl
 
 /-- The original trajectory predicate reads exactly the supplied Boolean exponent selections. -/
-theorem inputTrajectory_exponentInput_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
+lemma inputTrajectory_exponentInput_iff {p : Nat} (E : PrimeFieldShortWeierstrass p)
     [Fact p.Prime] {count : Nat} (points : Fin count → AffinePoint E)
     (controls : Fin count → Bool) (order : List (Fin count)) (x y : Fin (2 ^ p.size)) :
     inputTrajectory E points order
@@ -81,7 +81,7 @@ def pairedExponentInput (modulus exponentWidth : Nat)
     (ExceptionalOffsetAveraging.pairedBigEndianSelected exponentWidth branch)
 
 /-- The paired exponent basis uses exactly the original two-register selection function. -/
-theorem pairedExponentInput_rangeBasis (modulus exponentWidth : Nat)
+lemma pairedExponentInput_rangeBasis (modulus exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) :
     rangeBasis modulus.size (2 * exponentWidth)
         (pairedExponentInput modulus exponentWidth branch) =
@@ -90,7 +90,7 @@ theorem pairedExponentInput_rangeBasis (modulus exponentWidth : Nat)
   exponentInput_rangeBasis modulus (2 * exponentWidth) _
 
 /-- Position i of the first original word reads its bit exponentWidth - 1 - i. -/
-theorem pairedExponentInput_left (modulus exponentWidth : Nat)
+lemma pairedExponentInput_left (modulus exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) (index : Fin exponentWidth) :
     rangeBasis modulus.size (2 * exponentWidth)
         (pairedExponentInput modulus exponentWidth branch)
@@ -103,7 +103,7 @@ theorem pairedExponentInput_left (modulus exponentWidth : Nat)
   rfl
 
 /-- Position exponentWidth + i reads the same big-endian bit of the second original word. -/
-theorem pairedExponentInput_right (modulus exponentWidth : Nat)
+lemma pairedExponentInput_right (modulus exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth)) (index : Fin exponentWidth) :
     rangeBasis modulus.size (2 * exponentWidth)
         (pairedExponentInput modulus exponentWidth branch)
@@ -117,7 +117,7 @@ theorem pairedExponentInput_right (modulus exponentWidth : Nat)
   rfl
 
 /-- The initialized workspace preserves exactly the original paired physical selection function. -/
-theorem initializedReadyBasis_pairedExponentInput (modulus exponentWidth : Nat)
+lemma initializedReadyBasis_pairedExponentInput (modulus exponentWidth : Nat)
     (branch : Fin (2 ^ exponentWidth) × Fin (2 ^ exponentWidth))
     (x y : Fin (2 ^ modulus.size)) (index : Fin (2 * exponentWidth)) :
     indexedValue modulus.size (2 * exponentWidth)

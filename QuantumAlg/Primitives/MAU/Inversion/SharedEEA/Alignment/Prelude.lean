@@ -30,7 +30,7 @@ namespace QuantumAlg.MAU.Inversion.SharedEEA.AlignmentPrelude
 noncomputable section
 
 /-- The real first-phase pre-shift rotates the whole word once and increments its finite counter. -/
-theorem pre_shift (width : Nat) (state : Registers width)
+lemma pre_shift (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = false)
     (within : state.shift.toNat + 1 < 2 ^ width.size) :
@@ -41,7 +41,7 @@ theorem pre_shift (width : Nat) (state : Registers width)
   exact GuardedShift.ascending_eq_low state within
 
 /-- Ordered actual control moves the computed comparison to Phase2 and clears its original Sign. -/
-theorem control_frame {width : Nat} (state : Registers width)
+lemma control_frame {width : Nat} (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = false) (quotient : state.quotientLength = (0#width.size))
     (divisor : state.divisorLength ≠ (0#width.size)) :
@@ -57,7 +57,7 @@ theorem control_frame {width : Nat} (state : Registers width)
   cases state.flags.sign <;> rfl
 
 /-- Every actual block after alignment arithmetic leaves only the computed phase transition. -/
-theorem tail_frame (width : Nat) (state : Registers width)
+lemma tail_frame (width : Nat) (state : Registers width)
     (clean : state.control = false) (first : state.flags.first = false)
     (second : state.flags.second = false) (quotient : state.quotientLength = (0#width.size))
     (divisor : state.divisorLength ≠ (0#width.size)) (shift : state.shift ≠ (0#width.size)) :

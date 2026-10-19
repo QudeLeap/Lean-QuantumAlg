@@ -40,14 +40,14 @@ def initializedStore (spec : ModulusSpec width) (base : CInputRef ctx (.canonica
     (store : Store (powerCtx ctx width)) : Store (powerCtx ctx width) :=
   (loadedStore (model := model) spec base store).applyOp (initializeOp ctx width)
 
-private theorem keyFree {kind : ProblemKind} {ctx : RuntimeCtx kind}
+private lemma keyFree {kind : ProblemKind} {ctx : RuntimeCtx kind}
     {written observed : CShape} (write : CWriteRef ctx written)
     (read : CWriteRef ctx observed) (different : write.key ≠ read.key) :
     write.key ∉ (wordRead read).storageKeys :=
   fun present => different (List.mem_singleton.mp present)
 
 /-- Every original input is still the same structural value when the power loop begins. -/
-theorem nativePower_initialized_read_original (spec : ModulusSpec width)
+lemma nativePower_initialized_read_original (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width)) (store : Store ctx)
     {shape : CShape} (other : CInputRef ctx shape) :
     (initializedStore (model := model)
@@ -64,7 +64,7 @@ theorem nativePower_initialized_read_original (spec : ModulusSpec width)
   exact nativePower_enterPower_read store other width
 
 /-- The actual raw base word is exactly the unpacking of the original nominal base read. -/
-theorem nativePower_initialized_base (spec : ModulusSpec width)
+lemma nativePower_initialized_base (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width)) (store : Store ctx) :
     (initializedStore (model := model)
         spec base (enterPower store width)).read (wordRead (baseCell ctx width)) =
@@ -85,7 +85,7 @@ theorem nativePower_initialized_base (spec : ModulusSpec width)
   rw [nativePower_enterPower_read]
 
 /-- The actual modulus word contains the complete source modulus, including at capacity. -/
-theorem nativePower_initialized_modulus_toNat (spec : ModulusSpec width)
+lemma nativePower_initialized_modulus_toNat (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width)) (store : Store ctx) :
     ((initializedStore (model := model) spec base (enterPower store width)).read
       (wordRead (modulusCell ctx width))).toNat = spec.modulus := by
@@ -99,7 +99,7 @@ theorem nativePower_initialized_modulus_toNat (spec : ModulusSpec width)
     (Nat.mod_eq_of_lt (modulusSpec_modulus_lt_extended spec))
 
 /-- The finite modulus encoding is precisely the intrinsic specification's extended word. -/
-theorem nativePower_initialized_modulus (spec : ModulusSpec width)
+lemma nativePower_initialized_modulus (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width)) (store : Store ctx) :
     (initializedStore (model := model)
         spec base (enterPower store width)).read (wordRead (modulusCell ctx width)) =
@@ -112,7 +112,7 @@ theorem nativePower_initialized_modulus (spec : ModulusSpec width)
       exact congrArg CShape.Value.unsignedWord (Fin.ext actual)
 
 /-- Earlier base and modulus writes preserve the actual fresh-zero accumulator. -/
-theorem nativePower_loaded_accumulator (spec : ModulusSpec width)
+lemma nativePower_loaded_accumulator (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width)) (store : Store ctx) :
     (loadedStore (model := model)
         spec base (enterPower store width)).read (wordRead (accumulatorCell ctx width)) =
@@ -128,7 +128,7 @@ theorem nativePower_loaded_accumulator (spec : ModulusSpec width)
   exact nativePower_enterPower_accumulator store width
 
 /-- The initialization increment therefore writes one modulo the actual accumulator capacity. -/
-theorem nativePower_initialized_accumulator (spec : ModulusSpec width)
+lemma nativePower_initialized_accumulator (spec : ModulusSpec width)
     (base : CInputRef ctx (.canonicalResidue width)) (store : Store ctx) :
     (initializedStore (model := model) spec base (enterPower store width)).read
       (wordRead (accumulatorCell ctx width)) = CShape.wordOfNat width 1 := by

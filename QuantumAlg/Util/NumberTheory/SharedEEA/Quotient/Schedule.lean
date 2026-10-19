@@ -42,11 +42,11 @@ def divisorView (state : IterationState) : Euclid.State :=
   ⟨state.divisor, state.remainder⟩
 
 /-- The shared macro update is exactly the existing remainder update on its actual coordinates. -/
-theorem divisorView_step (state : IterationState) :
+lemma divisorView_step (state : IterationState) :
     divisorView (IterationState.step state) = Euclid.step (divisorView state) := rfl
 
 /-- The complete active shared macro trajectory has exactly the same Euclidean remainder run. -/
-theorem divisorView_activeRun (fuel : Nat) (state : IterationState) :
+lemma divisorView_activeRun (fuel : Nat) (state : IterationState) :
     divisorView (QuotientTrajectory.activeRun fuel state) =
       Euclid.run fuel (divisorView state) := by
   induction fuel generalizing state with
@@ -62,7 +62,7 @@ theorem divisorView_activeRun (fuel : Nat) (state : IterationState) :
       exact inductionHypothesis (IterationState.step state)
 
 /-- Existing Euclidean fuel terminates the shared macro recurrence after the exact projection. -/
-theorem activeRun_finishes (width : Nat) (state : IterationState)
+lemma activeRun_finishes (width : Nat) (state : IterationState)
     (bounded : state.divisor < 2 ^ width) :
     (QuotientTrajectory.activeRun (Euclid.gcdFuel width) state).divisor = 0 := by
   have finished := Euclid.euclidRun_first_eq_zero_of_first_lt_pow width (divisorView state) bounded
@@ -78,7 +78,7 @@ def foldedWeight (modulus input : Nat) : Nat :=
     (IterationState.initial modulus (foldInput modulus input).2)
 
 /-- Every original positive residue terminates within the reused fuel after exact projection. -/
-theorem folded_finishes (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
+lemma folded_finishes (modulus input : Nat) (positive : 0 < input) (bounded : input < modulus) :
     (QuotientTrajectory.activeRun (Euclid.gcdFuel modulus.size)
       (IterationState.initial modulus (foldInput modulus input).2)).divisor = 0 := by
   apply activeRun_finishes
@@ -87,7 +87,7 @@ theorem folded_finishes (modulus input : Nat) (positive : 0 < input) (bounded : 
   exact below.trans_lt (Nat.lt_size_self modulus)
 
 /-- The coprime-input domain supplies both complete quotient-weight bounds internally. -/
-theorem folded_weight_bounds (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma folded_weight_bounds (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     modulus.size ≤ foldedWeight modulus input ∧ foldedWeight modulus input < 2 * modulus.size := by
   let state := IterationState.initial modulus (foldInput modulus input).2
@@ -111,7 +111,7 @@ def phaseWeight (modulus input : Nat) : Nat := 4 * foldedWeight modulus input
 def schedule (width : Nat) : Nat := 4 * (2 * width - 1)
 
 /-- The source's four-phase quotient weight lies within the independent deterministic schedule. -/
-theorem phase_weight_bounds (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma phase_weight_bounds (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     4 * modulus.size ≤ phaseWeight modulus input ∧
       phaseWeight modulus input ≤ schedule modulus.size := by
@@ -120,7 +120,7 @@ theorem phase_weight_bounds (modulus input : Nat) (coprime : Nat.Coprime input m
   omega
 
 /-- The independent schedule is linear in the original encoded input width. -/
-theorem schedule_linear (width : Nat) : schedule width ≤ 8 * width := by
+lemma schedule_linear (width : Nat) : schedule width ≤ 8 * width := by
   unfold schedule
   omega
 
@@ -128,7 +128,7 @@ theorem schedule_linear (width : Nat) : schedule width ≤ 8 * width := by
 def padding (modulus input : Nat) : Nat := schedule modulus.size - phaseWeight modulus input
 
 /-- All coprime positive inputs leave at most the stated deterministic terminal padding length. -/
-theorem padding_bound (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma padding_bound (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     padding modulus input ≤ 4 * modulus.size - 4 := by
   have sizeTwo : 2 ≤ modulus.size := by
@@ -139,7 +139,7 @@ theorem padding_bound (modulus input : Nat) (coprime : Nat.Coprime input modulus
   omega
 
 /-- Two high counter bits suffice for all proved terminal padding lengths, without wrap. -/
-theorem padding_fits_extended_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
+lemma padding_fits_extended_clock (modulus input : Nat) (coprime : Nat.Coprime input modulus)
     (positive : 0 < input) (bounded : input < modulus) :
     padding modulus input < 2 ^ (modulus.size.size + 2) := by
   have paddingBound := padding_bound modulus input coprime positive bounded
@@ -149,7 +149,7 @@ theorem padding_fits_extended_clock (modulus input : Nat) (coprime : Nat.Coprime
   omega
 
 /-- The original active alignment-length upper bound also fits that same extended register. -/
-theorem width_fits_extended_clock (width : Nat) : width < 2 ^ (width.size + 2) :=
+lemma width_fits_extended_clock (width : Nat) : width < 2 ^ (width.size + 2) :=
   (Nat.lt_size_self width).trans_le
     (Nat.pow_le_pow_right Nat.zero_lt_two (by omega))
 

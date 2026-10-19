@@ -25,7 +25,7 @@ noncomputable section
 variable {model : ExecutionModel} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
-private theorem third_namedFrame (refs : Refs ctx width) (separation : Separation refs)
+private lemma third_namedFrame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape)
     (source : LatticeNearestPlaneThird.PhaseCell)
     (sourceKey : other.key = LatticeNearestPlaneThird.phaseCellKey (thirdRefs refs) source)
@@ -46,7 +46,7 @@ private def secondMutableCells : List LatticeNearestPlaneSecond.PhaseCell :=
     .divisionWideNumerator, .divisionWideDenominator, .divisionQuotientRemainder,
     .divisionOutput, .reduceProduct, .targetFirst, .targetSecond, .targetThird]
 
-private theorem second_namedFrame (refs : Refs ctx width) (separation : Separation refs)
+private lemma second_namedFrame (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) {shape : CShape} (other : CWriteRef ctx shape)
     (source : LatticeNearestPlaneSecond.PhaseCell)
     (sourceKey : other.key = LatticeNearestPlaneSecond.phaseCellKey (secondRefs refs) source)
@@ -66,7 +66,7 @@ private theorem second_namedFrame (refs : Refs ctx width) (separation : Separati
       (fun equal => outside (equal ▸ cellMember))
 
 omit [BitWord.Selected model] in
-private theorem point_of_frames {before after : Store ctx}
+private lemma point_of_frames {before after : Store ctx}
     (refs : LatticeState.PointRefs ctx width) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents before refs value)
     (first : after.read (writeInput refs.first) = before.read (writeInput refs.first))
@@ -79,7 +79,7 @@ private theorem point_of_frames {before after : Store ctx}
   · rw [third]; exact rep.2.2
 
 /-- The actual third phase retains the original first basis row by local separation. -/
-theorem thirdInto_preserves_basis_first (refs : Refs ctx width) (separation : Separation refs)
+lemma thirdInto_preserves_basis_first (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store refs.basis.first value) :
     LatticeArithmetic.PointRawRepresents
@@ -93,7 +93,7 @@ theorem thirdInto_preserves_basis_first (refs : Refs ctx width) (separation : Se
       .basisFirstThird rfl (by decide)
 
 /-- The actual third phase retains the original second basis row by local separation. -/
-theorem thirdInto_preserves_basis_second (refs : Refs ctx width) (separation : Separation refs)
+lemma thirdInto_preserves_basis_second (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store refs.basis.second value) :
     LatticeArithmetic.PointRawRepresents
@@ -107,7 +107,7 @@ theorem thirdInto_preserves_basis_second (refs : Refs ctx width) (separation : S
       .basisSecondThird rfl (by decide)
 
 /-- The actual second phase retains the original first basis row by local separation. -/
-theorem secondInto_preserves_basis_first (refs : Refs ctx width) (separation : Separation refs)
+lemma secondInto_preserves_basis_first (refs : Refs ctx width) (separation : Separation refs)
     (store : Store ctx) (value : NumberTheory.IntegerPoint3)
     (rep : LatticeArithmetic.PointRawRepresents store refs.basis.first value) :
     LatticeArithmetic.PointRawRepresents

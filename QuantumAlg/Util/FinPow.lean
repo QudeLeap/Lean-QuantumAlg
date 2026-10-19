@@ -41,13 +41,13 @@ first (lower-qubit-index) factor carries the most significant bits. -/
 
 /-- The high component recovered by the big-endian product equivalence is the
 quotient by the low-register cardinality. -/
-theorem prodEquiv_symm_fst_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
+lemma prodEquiv_symm_fst_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
     ((prodEquiv (m := m) (n := n)).symm raw).1.val = raw.val / 2 ^ n := by
   rfl
 
 /-- The low component recovered by the big-endian product equivalence is the
 remainder modulo the low-register cardinality. -/
-theorem prodEquiv_symm_snd_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
+lemma prodEquiv_symm_snd_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
     ((prodEquiv (m := m) (n := n)).symm raw).2.val = raw.val % 2 ^ n := by
   rfl
 
@@ -55,7 +55,7 @@ theorem prodEquiv_symm_snd_val {m n : ℕ} (raw : Fin (2 ^ (m + n))) :
 
 /-- Reconstructing a natural number from `n + 1` little-endian bits can be
 split into the lower `n` bits plus the final most-significant bit. -/
-theorem nat_ofBits_succ_last {n : ℕ} (f : Fin (n + 1) → Bool) :
+lemma nat_ofBits_succ_last {n : ℕ} (f : Fin (n + 1) → Bool) :
     Nat.ofBits f =
       Nat.ofBits (f ∘ Fin.castSucc) +
         2 ^ n * (f (Fin.last n)).toNat := by
@@ -78,7 +78,7 @@ theorem nat_ofBits_succ_last {n : ℕ} (f : Fin (n + 1) → Bool) :
 
 /-- Reconstructing bits after appending a high slice equals the low-slice value
 plus the high-slice value shifted by the low-slice width. -/
-theorem nat_ofBits_append {m n : ℕ} (lo : Fin m → Bool) (hi : Fin n → Bool) :
+lemma nat_ofBits_append {m n : ℕ} (lo : Fin m → Bool) (hi : Fin n → Bool) :
     Nat.ofBits (Fin.append lo hi) =
       Nat.ofBits lo + 2 ^ m * Nat.ofBits hi := by
   induction n with
@@ -148,7 +148,7 @@ theorem nat_ofBits_append {m n : ℕ} (lo : Fin m → Bool) (hi : Fin n → Bool
 
 /-- The big-endian product equivalence is the little-endian bit append of the
 right/low slice followed by the left/high slice. -/
-theorem prodEquiv_val_eq_ofBits_append {m n : ℕ}
+lemma prodEquiv_val_eq_ofBits_append {m n : ℕ}
     (left : Fin (2 ^ m)) (right : Fin (2 ^ n)) :
     (prodEquiv (m := m) (n := n) (left, right)).val =
       Nat.ofBits
@@ -162,7 +162,7 @@ theorem prodEquiv_val_eq_ofBits_append {m n : ℕ}
 
 /-- The low little-endian bits of `prodEquiv (left, right)` come from the
 right product component. -/
-theorem prodEquiv_testBit_right {m n : ℕ}
+lemma prodEquiv_testBit_right {m n : ℕ}
     (left : Fin (2 ^ m)) (right : Fin (2 ^ n)) (bit : Fin n) :
     (prodEquiv (m := m) (n := n) (left, right)).val.testBit bit.val =
       right.val.testBit bit.val := by
@@ -176,7 +176,7 @@ theorem prodEquiv_testBit_right {m n : ℕ}
 
 /-- The high little-endian bits of `prodEquiv (left, right)` come from the
 left product component. -/
-theorem prodEquiv_testBit_left {m n : ℕ}
+lemma prodEquiv_testBit_left {m n : ℕ}
     (left : Fin (2 ^ m)) (right : Fin (2 ^ n)) (bit : Fin m) :
     (prodEquiv (m := m) (n := n) (left, right)).val.testBit (n + bit.val) =
       left.val.testBit bit.val := by

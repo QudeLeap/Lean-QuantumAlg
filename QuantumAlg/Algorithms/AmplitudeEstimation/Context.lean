@@ -40,23 +40,42 @@ namespace QuantumAlg.AmplitudeEstimation
 noncomputable section
 
 /-- The explicit source grants and width-indexed native classical operations. -/
-public abbrev model {n : Nat} (E : GeneralAmplitudeEstimationInput n) : ExecutionModel :=
+public abbrev model (n : Nat) : ExecutionModel :=
   .quantum AlgorithmGate.model
-    (AmplitudeAmplificationSource.model E.source.preparation E.source.good true true)
+    (AmplitudeAmplificationSource.model n true true)
     BitWord.model .empty
+
+/-- A source witness supplies the independently interpreted preparation and recognizer. -/
+@[expose] public def sourceEnvironment {n : Nat} (E : GeneralAmplitudeEstimationInput n) :
+    (model n).Environment where
+  quantum := AmplitudeAmplificationSource.interpretation
+    E.source.preparation E.source.good true true
+  classical := ()
+
+/-- With no classical service, agreeing on the quantum source determines the environment. -/
+public lemma sourceEnvironment_eq {n : Nat} (E : GeneralAmplitudeEstimationInput n)
+    (environment : (model n).Environment)
+    (same : environment.quantum = AmplitudeAmplificationSource.interpretation
+      E.source.preparation E.source.good true true) :
+    environment = sourceEnvironment E := by
+  rcases environment with ⟨quantum, classical⟩
+  change quantum = _ at same
+  subst quantum
+  cases classical
+  rfl
 
 /-- The original empty runtime input context. -/
 @[reducible] public def pre : RuntimeCtx .quantum := RuntimeCtx.empty
 
-theorem pre_systemCount : pre.systemCount = 0 := rfl
+lemma pre_systemCount : pre.systemCount = 0 := rfl
 
 /-- Original phase wires, any actual work position, and source wires, all dimension two. -/
 abbrev runtimeLayout (t n : Nat) : QuantumLayout (t + (Elementary.helperWidth t n + n)) :=
   (QuantumSignature.qubits (t + (Elementary.helperWidth t n + n))).canonicalPlacement.layout
 
-theorem preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
+lemma preparationFresh : (⟨0⟩ : StorageKey) ∉ pre.keys := by decide
 
-theorem preparationDisjoint (t n : Nat) :
+lemma preparationDisjoint (t n : Nat) :
     List.Disjoint (runtimeLayout t n).identities pre.physicalIdx :=
   List.disjoint_nil_right _
 
@@ -65,12 +84,12 @@ theorem preparationDisjoint (t n : Nat) :
 def preparedContext (t n : Nat) : RuntimeCtx .quantum :=
   pre.addOwnedLayout ⟨0⟩ (runtimeLayout t n) preparationFresh (preparationDisjoint t n)
 
-theorem preparedContext_quantumWires (t n : Nat) :
+lemma preparedContext_quantumWires (t n : Nat) :
     (preparedContext t n).quantumWires = (runtimeLayout t n).wires := by
   change (runtimeLayout t n).wires ++ [] = _
   exact List.append_nil _
 
-theorem preparedContext_physicalIdx (t n : Nat) :
+lemma preparedContext_physicalIdx (t n : Nat) :
     (preparedContext t n).physicalIdx = List.range (t + (Elementary.helperWidth t n + n)) := by
   rw [RuntimeCtx.physicalIdx, preparedContext_quantumWires]
   change (List.ofFn fun index : Fin (t + (Elementary.helperWidth t n + n)) =>
@@ -101,7 +120,7 @@ def preparedInput (t n : Nat) :
   NormalizedVector.ket (R := Qubits (t + (Elementary.helperWidth t n + n))) 0
 
 /-- The actual preparation is exactly the source's all-zero input in its physical coordinates. -/
-theorem inputPreparation_density (t n : Nat) :
+lemma inputPreparation_density (t n : Nat) :
     (DensityOperator.ofPure (inputPreparation t n).normalized).reindex
       (S := (preparedContext t n).register) (preparedLayoutEquiv t n) =
         (DensityOperator.ofPure (preparedInput t n)).reindex
@@ -125,24 +144,24 @@ theorem inputPreparation_density (t n : Nat) :
   rfl
 
 /-- The original width reassociation preserves the complete actual native word. -/
-def runtimeProgram {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    UnitaryCircuit AlgorithmGate.model (Elementary.oracles E.source.preparation E.source.good)
+def runtimeProgram (n : Nat) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (Elementary.oracles n)
       (runtimeLayout t n) :=
-  Elementary.castCircuit (Elementary.oracles E.source.preparation E.source.good)
+  Elementary.castCircuit (Elementary.oracles n)
     (Nat.add_assoc t (Elementary.helperWidth t n) n)
-    (Elementary.program t E.source.preparation E.source.good)
+    (Elementary.program n t)
 
 /-- The source word and the prepared runtime enumerate exactly the same physical wires. -/
-theorem prepared_canonical_wires (t n : Nat) :
+lemma prepared_canonical_wires (t n : Nat) :
     (runtimeLayout t n).wires = (preparedContext t n).quantumLayout.wires := by
   rw [RuntimeCtx.quantumLayout_wires, preparedContext_quantumWires]
 
 /-- The actual source word in the prepared runtime, retaining every wire identity and value. -/
-def nativeProgram {n : Nat} (E : GeneralAmplitudeEstimationInput n) (t : Nat) :
-    UnitaryCircuit AlgorithmGate.model (Elementary.oracles E.source.preparation E.source.good)
+def nativeProgram (n : Nat) (t : Nat) :
+    UnitaryCircuit AlgorithmGate.model (Elementary.oracles n)
       (preparedContext t n).quantumLayout :=
   Execution.unitaryOfEqualWires (runtimeLayout t n)
-    (preparedContext t n).quantumLayout (prepared_canonical_wires t n) (runtimeProgram E t)
+    (preparedContext t n).quantumLayout (prepared_canonical_wires t n) (runtimeProgram n t)
 
 end
 

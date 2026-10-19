@@ -59,16 +59,16 @@ last-recursive fold so routine proofs do not need a trace replay. -/
       accumulatorFold width (appendBit accumulator (bits 0))
         (bits ∘ Fin.succ)
 
-@[simp] public theorem accumulatorFold_zero (accumulator : Nat)
+@[simp] public lemma accumulatorFold_zero (accumulator : Nat)
     (bits : Fin 0 → Bool) : accumulatorFold 0 accumulator bits = accumulator := rfl
 
-@[simp] public theorem accumulatorFold_succ (width accumulator : Nat)
+@[simp] public lemma accumulatorFold_succ (width accumulator : Nat)
     (bits : Fin (width + 1) → Bool) :
     accumulatorFold (width + 1) accumulator bits =
       accumulatorFold width (2 * accumulator + (bits 0).toNat)
         (bits ∘ Fin.succ) := rfl
 
-private theorem accumulatorFold_eq_ofBits {width : Nat}
+private lemma accumulatorFold_eq_ofBits {width : Nat}
     (accumulator : Nat) (bits : Fin width → Bool) :
     accumulatorFold width accumulator bits =
       accumulator * 2 ^ width + Nat.ofBits (bits ∘ Fin.rev) := by
@@ -102,7 +102,7 @@ def bigEndianFoldFrom : (width : Nat) → Nat → (Fin width → Bool) → Nat
 def bigEndianFold {width : Nat} (bits : Fin width → Bool) : Nat :=
   bigEndianFoldFrom width 0 bits
 
-private theorem bigEndianFoldFrom_eq_ofBits {width : Nat}
+private lemma bigEndianFoldFrom_eq_ofBits {width : Nat}
     (accumulator : Nat) (bits : Fin width → Bool) :
     bigEndianFoldFrom width accumulator bits =
       accumulator * 2 ^ width + Nat.ofBits (bits ∘ Fin.rev) := by
@@ -131,21 +131,21 @@ private theorem bigEndianFoldFrom_eq_ofBits {width : Nat}
 
 /-- The accumulator fold agrees with the canonical little-endian `Nat.ofBits`
 view after reversing a declared big-endian input. -/
-theorem bigEndianFold_eq_ofBits {width : Nat} (bits : Fin width → Bool) :
+lemma bigEndianFold_eq_ofBits {width : Nat} (bits : Fin width → Bool) :
     bigEndianFold bits = Nat.ofBits (bits ∘ Fin.rev) := by
   unfold bigEndianFold
   simpa using bigEndianFoldFrom_eq_ofBits 0 bits
 
 /-- The head-recursive machine-order fold agrees with the canonical
 big-endian mathematical fold. -/
-theorem accumulatorFold_zero_eq_bigEndianFold {width : Nat}
+lemma accumulatorFold_zero_eq_bigEndianFold {width : Nat}
     (bits : Fin width → Bool) :
     accumulatorFold width 0 bits = bigEndianFold bits := by
   rw [accumulatorFold_eq_ofBits, bigEndianFold_eq_ofBits]
   simp
 
 /-- A big-endian fold of exactly `width` bits is intrinsically canonical. -/
-theorem bigEndianFold_lt {width : Nat} (bits : Fin width → Bool) :
+lemma bigEndianFold_lt {width : Nat} (bits : Fin width → Bool) :
     bigEndianFold bits < modulus width := by
   rw [bigEndianFold_eq_ofBits]
   simpa [modulus] using Nat.ofBits_lt_two_pow (bits ∘ Fin.rev)
@@ -165,7 +165,7 @@ def accumulatorBits {width : Nat} (order : BitOrder) (bits : Fin width → Bool)
   | .littleEndian => bits ∘ Fin.rev
 
 /-- Both declared orders reduce to one explicit accumulator fold. -/
-theorem decodeNat_eq_bigEndianFold_accumulatorBits {width : Nat}
+lemma decodeNat_eq_bigEndianFold_accumulatorBits {width : Nat}
     (input : Input width) :
     decodeNat input = bigEndianFold (accumulatorBits input.order input.bits) := by
   cases input with
@@ -182,20 +182,20 @@ theorem decodeNat_eq_bigEndianFold_accumulatorBits {width : Nat}
           rw [hrev]
 
 /-- Big-endian decoding is exactly the Core full-register convention. -/
-@[simp] theorem decodeNat_bigEndian {width : Nat} (bits : Fin width → Bool) :
+@[simp] lemma decodeNat_bigEndian {width : Nat} (bits : Fin width → Bool) :
     decodeNat ({ order := .bigEndian, bits := bits } : Input width) =
       Nat.ofBits (bits ∘ Fin.rev) := by
   simpa [decodeNat] using bigEndianFold_eq_ofBits bits
 
 /-- Little-endian decoding preserves the canonical order expected by
 `Nat.ofBits`. -/
-@[simp] theorem decodeNat_littleEndian {width : Nat} (bits : Fin width → Bool) :
+@[simp] lemma decodeNat_littleEndian {width : Nat} (bits : Fin width → Bool) :
     decodeNat ({ order := .littleEndian, bits := bits } : Input width) =
       Nat.ofBits bits :=
   rfl
 
 /-- Every declared fixed-width decode is in the exact output range. -/
-theorem decodeNat_lt {width : Nat} (input : Input width) :
+lemma decodeNat_lt {width : Nat} (input : Input width) :
     decodeNat input < modulus width := by
   cases input with
   | mk order bits =>
@@ -215,12 +215,12 @@ def accepts {width : Nat} (input : Input width) (output : Output width) : Prop :
   output.val = decodeNat input
 
 /-- The executable decoder satisfies its exact natural-value contract. -/
-theorem eval_accepts {width : Nat} (input : Input width) :
+lemma eval_accepts {width : Nat} (input : Input width) :
     accepts input (eval input) :=
   rfl
 
 /-- The big-endian result is the full-register `Nat.ofBits` value. -/
-@[simp] theorem eval_bigEndian_val {width : Nat} (bits : Fin width → Bool) :
+@[simp] lemma eval_bigEndian_val {width : Nat} (bits : Fin width → Bool) :
     (eval ({ order := .bigEndian, bits := bits } : Input width)).val =
       Nat.ofBits (bits ∘ Fin.rev) := by
   exact decodeNat_bigEndian bits
@@ -232,18 +232,18 @@ def fullRegisterIndex {width : Nat} (bits : Fin width → Bool) : Output width :
   eval ({ order := .bigEndian, bits := bits } : Input width)
 
 /-- The typed full-register index has the Core terminal-measurement value. -/
-@[simp] theorem fullRegisterIndex_val {width : Nat} (bits : Fin width → Bool) :
+@[simp] lemma fullRegisterIndex_val {width : Nat} (bits : Fin width → Bool) :
     (fullRegisterIndex bits).val = Nat.ofBits (bits ∘ Fin.rev) :=
   eval_bigEndian_val bits
 
 /-- The little-endian result is the direct `Nat.ofBits` value. -/
-@[simp] theorem eval_littleEndian_val {width : Nat} (bits : Fin width → Bool) :
+@[simp] lemma eval_littleEndian_val {width : Nat} (bits : Fin width → Bool) :
     (eval ({ order := .littleEndian, bits := bits } : Input width)).val =
       Nat.ofBits bits := by
   exact decodeNat_littleEndian bits
 
 /-- Width-zero decoding has the unique zero result for either declared order. -/
-@[simp] theorem decodeNat_zero (order : BitOrder) (bits : Fin 0 → Bool) :
+@[simp] lemma decodeNat_zero (order : BitOrder) (bits : Fin 0 → Bool) :
     decodeNat ({ order := order, bits := bits } : Input 0) = 0 := by
   cases order <;> simp [decodeNat, bigEndianFold, bigEndianFoldFrom]
 
@@ -255,7 +255,7 @@ def encodeBits {width : Nat} (order : BitOrder) (word : Output width) :
   | .littleEndian => fun index => word.val.testBit index.val
 
 /-- Decoding the fixed-width encoding of a word recovers that word exactly. -/
-theorem eval_encodeBits {width : Nat} (order : BitOrder) (word : Output width) :
+lemma eval_encodeBits {width : Nat} (order : BitOrder) (word : Output width) :
     eval ({ order := order, bits := encodeBits order word } : Input width) = word := by
   apply Fin.val_injective
   cases order with
@@ -285,7 +285,7 @@ def canonicalWord? (width value : Nat) : Option (Output width) :=
   else none
 
 /-- A noncanonical natural number is rejected rather than truncated. -/
-theorem canonicalWord?_rejects {width value : Nat}
+lemma canonicalWord?_rejects {width value : Nat}
     (notCanonical : ¬ CanonicalNat width value) :
     canonicalWord? width value = none := by
   have outOfRange : ¬ value < modulus width := by
@@ -293,7 +293,7 @@ theorem canonicalWord?_rejects {width value : Nat}
   simp [canonicalWord?, outOfRange]
 
 /-- A canonical natural number is preserved exactly by the checked constructor. -/
-theorem canonicalWord?_accepts {width value : Nat}
+lemma canonicalWord?_accepts {width value : Nat}
     (canonical : CanonicalNat width value) :
     ∃ output : Output width,
       canonicalWord? width value = some output ∧ output.val = value := by
@@ -303,7 +303,7 @@ theorem canonicalWord?_accepts {width value : Nat}
   simp [canonicalWord?, inRange]
 
 /-- Every fixed-input decoder result is canonical for its declared width. -/
-theorem eval_canonical {width : Nat} (input : Input width) :
+lemma eval_canonical {width : Nat} (input : Input width) :
     CanonicalNat width (eval input).val := by
   simpa [CanonicalNat, eval] using decodeNat_lt input
 
@@ -317,7 +317,7 @@ def fixedBits? (width : Nat) (raw : List Bool) : Option (Fin width → Bool) :=
   else none
 
 /-- Lists of the wrong width cannot be interpreted as fixed terminal bits. -/
-theorem fixedBits?_rejects_wrong_length {width : Nat} {raw : List Bool}
+lemma fixedBits?_rejects_wrong_length {width : Nat} {raw : List Bool}
     (wrongLength : raw.length ≠ width) :
     fixedBits? width raw = none := by
   simp [fixedBits?, wrongLength]
@@ -332,7 +332,7 @@ def decode? (width : Nat) (order : BitOrder) (raw : List Bool) :
       (decodeNat ({ order := order, bits := bits } : Input width))
 
 /-- The public list decoder rejects every malformed-width encoding. -/
-theorem decode?_rejects_wrong_length {width : Nat} (order : BitOrder)
+lemma decode?_rejects_wrong_length {width : Nat} (order : BitOrder)
     {raw : List Bool} (wrongLength : raw.length ≠ width) :
     decode? width order raw = none := by
   simp [decode?, fixedBits?, wrongLength]

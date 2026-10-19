@@ -48,7 +48,7 @@ def loopStore (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord
   (fun current => current.applyOp (stepOp value output))^[count] store
 
 /-- Each actual increment or decrement has the exact original modular signed effect. -/
-theorem stepOp_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
+lemma stepOp_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) (current : Int)
     (rep : RawSignedRepresents (store.read (.storage output.toCStorageRef)) current) :
     RawSignedRepresents ((store.applyOp (stepOp value output)).read
@@ -65,7 +65,7 @@ theorem stepOp_correct (value : Int) (output : CWriteRef ctx (.unsignedWord widt
       rawSignedWordRepresents_decrement _ current rep
 
 /-- The actual signed loop preserves the original exact modular affine invariant. -/
-theorem loopInto_correct (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma loopInto_correct (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) (current : Int)
     (rep : RawSignedRepresents (store.read (.storage output.toCStorageRef)) current) :
     RawSignedRepresents ((loopStore value count output store).read
@@ -88,14 +88,14 @@ theorem loopInto_correct (value : Int) (count : Nat) (output : CWriteRef ctx (.u
     exact next
 
 /-- The original absolute-value loop with the selected sign reconstructs its integer parameter. -/
-theorem signed_count (value : Int) : (value.natAbs : Int) * unitChange value = value := by
+lemma signed_count (value : Int) : (value.natAbs : Int) * unitChange value = value := by
   rw [Int.natCast_natAbs]
   by_cases nonnegative : 0 ≤ value
   · simp [unitChange, nonnegative, abs_of_nonneg nonnegative]
   · simp [unitChange, nonnegative, abs_of_neg (lt_of_not_ge nonnegative)]
 
 /-- Every actual loop iteration preserves all structural reads outside its destination. -/
-theorem loopInto_callerFrame (value : Int) (count : Nat)
+lemma loopInto_callerFrame (value : Int) (count : Nat)
     (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : output.key ∉ other.storageKeys) :
@@ -110,7 +110,7 @@ theorem loopInto_callerFrame (value : Int) (count : Nat)
 
 end Descriptor
 
-variable {model : ExecutionModel} [BitWord.Selected model]
+variable {model : ExecutionModel} {environment : model.Environment} [BitWord.Selected model]
   {ctx : RuntimeCtx model.kind} {width : Nat}
 
 /-- Execute the prescribed native instructions with the compilation-time sign. -/
@@ -136,24 +136,25 @@ def step (value : Int) (output : CWriteRef ctx (.unsignedWord width)) (store : S
   (loop.1, (first.2, loop.2))
 
 /-- The actual signed loop retains the shared service and all original reference correlations. -/
-theorem loopInto_execute (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
+lemma loopInto_execute (value : Int) (count : Nat) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (loopInto (model := model) value count output).execute Reference state =
+    (loopInto (model := model) value count output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := loopStep (model := model) value count output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) :=
-  BitWord.bitWord_repeatInstruction_execute (execution := model) (stepOp value output) count state
+  BitWord.bitWord_repeatInstruction_execute
+    (environment := environment) (execution := model) (stepOp value output) count state
 
 /-- Complete actual signed loading preserves every original service and quantum-reference block. -/
-theorem into_execute (value : Int) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_execute (value : Int) (output : CWriteRef ctx (.unsignedWord width))
     (Reference : Register) {History : Type} [Fintype History]
     (state : State ctx Reference (model.HiddenState × History)) :
-    (into (model := model) value output).execute Reference state =
+    (into (model := model) value output).execute environment Reference state =
       state.mapClassical (fun entry =>
         let result := step (model := model) value output entry.1
         (result.1, (entry.2.1, (entry.2.2, result.2)))) := by
-  refine (Circuit.execute_seq_mapClassical
+  refine (Circuit.execute_seq_mapClassical (environment := environment)
     (BitWord.instruction (execution := model) (Word.PowerOfTwo.clearOp output))
     (loopInto (model := model) value value.natAbs output)
     (fun before =>
@@ -164,7 +165,7 @@ theorem into_execute (value : Int) (output : CWriteRef ctx (.unsignedWord width)
       let result := loopStep (model := model) value value.natAbs output before.1
       ((result.1, before.2), result.2)) ?_ ?_ Reference state).trans ?_
   · intro reference history _ input
-    exact (BitWord.bitWord_instruction_execute (execution := model)
+    exact (BitWord.bitWord_instruction_execute (environment := environment) (execution := model)
       (Word.PowerOfTwo.clearOp output) input).trans
         (ExecutionState.executionState_mapClassical_congr _ rfl)
   · intro reference history _ input
@@ -173,7 +174,7 @@ theorem into_execute (value : Int) (output : CWriteRef ctx (.unsignedWord width)
   · exact ExecutionState.executionState_mapClassical_congr _ rfl
 
 /-- Actual self-initialization and the original signed loop load the requested raw integer. -/
-theorem into_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) :
     RawSignedRepresents
       ((step (model := model) value output store).1.read
@@ -191,7 +192,7 @@ theorem into_correct (value : Int) (output : CWriteRef ctx (.unsignedWord width)
     (store.applyOp (Word.PowerOfTwo.clearOp output)) 0 zero
 
 /-- The actual initialized loader changes only its original supplied destination. -/
-theorem into_callerFrame (value : Int) (output : CWriteRef ctx (.unsignedWord width))
+lemma into_callerFrame (value : Int) (output : CWriteRef ctx (.unsignedWord width))
     (store : Store ctx) {shape : CShape} (other : CInputRef ctx shape)
     (avoids : output.key ∉ other.storageKeys) :
     (step (model := model) value output store).1.read other = store.read other := by

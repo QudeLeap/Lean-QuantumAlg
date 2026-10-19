@@ -394,7 +394,7 @@ def encoderOperator (U : Matrix.unitaryGroup (Fin d) ℂ) :
       (U : Matrix (Fin d) (Fin d) ℂ) U.property⟩
 
 /-- The certified encoder has exactly the declared conjugate-input formula. -/
-@[simp] theorem encoderOperator_coe (U : Matrix.unitaryGroup (Fin d) ℂ) :
+@[simp] lemma encoderOperator_coe (U : Matrix.unitaryGroup (Fin d) ℂ) :
     (encoderOperator U : Matrix (Fin d × (Fin d × Fin d)) (Fin d × (Fin d × Fin d)) ℂ) =
       quraEncoder U := rfl
 
